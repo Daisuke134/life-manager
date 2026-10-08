@@ -4318,6 +4318,33 @@ L9-11 Self-BuildはこのGig laneの全項目完了後、既存の全社順序�
 
 **Daisの作業:** いま必要な再接続・再認証・手動設定はない。実装とowner環境修正はLife Manager側で行う。
 
+### eBook Monk post-merge / host-capacity cursor — 2026-10-08 08:42 JST
+
+この節がeBookの最新cursorで、08:23 JSTのTODO順と容量評価を置き換える。GitHub/mainのsource fixはmergedだが、production release/applyはまだ行っていない。
+
+**TODO順変更:** 旧順=`English CLI修正をmainへmerge→release/apply→08:00 EN回収→残りslot`。新順=`cleanup ownerのfresh floor-met receiptと同時刻dfを確認→active release-reconcilerの終端とhost apply lock解放を確認→main由来immutable release→ebook-en owner限定apply→同じ08:00 slotをowner経由で再開・公式readback→12:30以降のslot→Checkout/PDF→Letter/Tegami cohort→Capafy Instagram`。理由: source修正はmainに入ったが、08:41 JSTのEnglish owner wakeは`disk_headroom_low`でeffect前に延期された。cleanup ownerは08:42 JSTにnatural passで2 GiB床を回復した一方、release-reconcilerは現在loaded-runningのためapplyを重ねない。`marketingVideoDueSlot()`は08:00–14:00に同じ08:00 due slotを返す。現在cursor=`08:42 JST、source fix merged、capacity receipt met、release-reconciler running、EN 08:00未投稿`。
+
+**main / loaded release:** PR #6990は全required CI PASSとfresh reviewのCritical/Importantなしを確認後、merge commit `f5395fd88d033fa94ae8366470d46d0b635e57d7`でmainへ統合済み。sourceはEnglish ownerにだけ`LIFE_MANAGER_HEYGEN=<home>/.local/bin/heygen`を明示し、一般PATHを拡張しない。productionでloadedなのはまだrelease `076c5be87c7ba76da6e6ba7d1a4b508e7d492ddd`なので、修正は未配備・未実行。
+
+**最新English occurrence:** `ebook-en-tiktok-daily:18dc63c84ddcd570-96779`は08:41:03 JSTに`exit=75 / host_admission_deferred:disk_headroom_low / effect_status=not_applicable`。`admission_effect_unknown=false`、Postiz/HeyGen dispatchなし。08:00 slotは未投稿のままで、同じowner slotを再開できる時間帯だが、production release/applyとrunは容量gate後に行う。
+
+**capacity evidence:** 08:41 JSTのcleanup owner natural run `life-manager-disk-cleanup:18dc63c7ca4c0078-95164`は08:42:14 JSTに`exit=0`。fresh receipt `observed_at=2026-10-07T23:41:52Z`は`free_after=2,342,494,208` bytes、2 GiB floor=`met`、`errors=0`、`protected_deletions=0`、`inventory_gaps=23`、`reclaimed=2,320,641,192` bytes、`disk_writers_stop=absent`。08:42:38 JSTの`df -Pk /` Availableは`2,282,876 KiB`（約2.18 GiB）でfloor以上。cleanup ownerはloaded-idle / `next_action=none`。floorは回復したがmarginは約185 MiBで、先行して起きた1.3 GB級の急落writerは未特定なので次のcleanup receiptも監視する。
+
+**release/apply競合:** `life-manager-release-reconciler`は08:42 JSTにloaded-running PID `58399`、直近terminal record `entrypoint_exit_143` / `reconcile_owner`。別release/applyを始めない。自然終端後にexact owner状態とhost-wide apply lockをreadbackし、lockがfreeの場合だけtarget owner applyへ進む。停止・再起動はしない。
+
+**Postiz official GET（08:41 JST）:** English TikTok `Monk Anicca / @monk_anicca` (`cmo5rwq2p00twn10yrsdglng3`)、JA TikTok `@obou_anicca` (`cmo5s4edx00vgn10ygnu34a0n`)、JA Instagram `@obou.anicca` (`cmooplxmu04tpmd0y4h3cpk33`) はすべて`disabled=false`。10/8 JST 00:00–08:41の投稿一覧は5行、eBookのPUBLISHEDはJA TikTok `cmuynjaq808iblc0yd2396uhg`とJA Instagram `cmuynjkih08ihlc0y38o87z0n`のみ。English Monkは0件。現状2/9（各JA account 1/3、EN 0/3）。Postiz再接続・再認証は不要。
+
+**残りAtomic TODO（eBook順序）:**
+
+1. `life-manager-release-reconciler`のnatural terminalとhost-wide apply lock解放を確認する。現在loaded-runningなので停止・並行applyはしない。
+2. lockがfreeなら`origin/main=f5395fd8`から完全immutable releaseを切り、`ebook-en-tiktok-daily`だけをapplyする。installed SHA/argv/statusをreadbackしてから登録ownerを一度実行し、08:00 EN slotを再開する。Postizへの直接投稿はしない。
+3. 同一occurrenceでPostiz `PUBLISHED`/public URL、HeyGen video SHA、wallet before/after costを照合する。現在の投稿数は2/9。続けてJA TikTok/Instagram各12:30・20:00、EN TikTok 14:00・21:00を確認し、9 unique posts/dayを目指す。effect不明は公式readback前に再送しない。
+4. 2 GiB floor met/errors 0/protected deletions 0のfresh cleanup receiptを維持し、inventory gaps 23と容量急落writerを追う。unknown/open/protected dataの削除やfloor overrideはしない。
+5. anicca-products PR #420のproduction Supabase readback/DDLとnatural paid Checkout→Stripe receipt→locale PDF→refund/fees/settlement/replay-zeroを完了する。one-time `$10.99` / `¥1,580`はMRRに含めない。
+6. Letter/Tegami recurring CTAの14日cohortとsettled net MRRを検証し、その後Capafy Instagram laneへ進む。USD 10,000 verified net MRRは未達目標。
+
+**Daisの作業:** 既存3 Postiz integrationもHeyGen認証も接続済み。再接続・再認証・手動設定は不要。Life Manager側でrelease-reconcilerの自然終端とhost apply lock解放を確認し、target ownerのrelease/applyへ進む。
+
 ### 2026-10-08 07:43 JST — Gig live-acceptance cursor correction
 
 **現在のGig cursor: 1（L9-07 Coconala Storefront parser修正）。** 全社lane/platform順序は変更しない。PR #6985は`1c0c9120`でmainへ統合済みだが、公式live inventoryで`public_text`空・contract 0/20となったためlive acceptanceは未達。原因は`#serviceContentsSummary`がナビ見出しで、本文はuniqueな`.c-serviceContentsSummary` wrapperにあること。これを正しいselectorとしてRED/GREEN testで修正する。
@@ -4327,6 +4354,60 @@ L9-11 Self-BuildはこのGig laneの全項目完了後、既存の全社順序�
 3. `hf-gig-storefront-direct:18d8d288748508e8-23902`は同一occurrenceの公式receiptかaccepted pre-effect terminalが無い限り保持する。current ownerはdisk admissionでdeferされ、effectは発生せずreceiptもない。Capacity/doctor blockerを別ownerのgateなしに迂回しない。
 4. Coconala既存Paid obligationはrevision中・formal delivery未確認で、最新buyer follow-upが未回答。TikTok Business Suiteの本文は読み取れたが、campaign-wide inbox reply countはSheet行へ完全joinできていない。未送信の旧answer draftは「返信0件」と断定するため再利用しない。正確なrecipient/Sheet reconciliation後にpaid owner経由で一度だけ回答し、revision→formal delivery→buyer acceptance→payout→replay-zeroを閉じる。
 5. 続いてCoconala Apply/Negotiate/Paid → Lancers → CrowdWorks → Job Hunter/Mercor → Upwork → Freelancerを実行する。Lancers rows 25–27は`waiting_external`のままauth/solver/proposal/retryを行わない。enabled ownersの24/7自然receiptとsettlement/fee/costが揃うまでGig完了としない。L9-11 Self-Buildは全Gig完了後。
+
+### 2026-10-08 07:54 JST — Gig cursor after parser merge
+
+**現在のGig cursor: 2（Coconala 20件live inventory acceptance）。** Source fix PR #6989は`076c5be8`でmainへ統合済み、focused suite 58/58 PASS・独立review PASS。しかしimmutable currentは`1c0c9120`のままで、Coconala ownerの最新wakeは`disk_headroom_low`。host freeは245,284 KiBでbrowser floor未達、registered Coconala browserもunreachable。disk-cleanup ownerは`entrypoint_exit_1`/`reconcile_owner`、doctor gateは別ownerのretired labelでfalse。容量・doctor/effect gateを迂回しない。
+
+1. Host floor/browserが回復した後、main由来corrected collectorで公式20 servicesを一度取得し、本文非空・service contract 20/20 PASSを確認する。
+2. Old Storefront `effect_unknown` occurrenceはsame-occurrence official receipt/pre-effect proofがなければheldのままにし、parser fixのみでreleaseしない。
+3. Live acceptance後にtargeted immutable release/owner convergenceが許される状態か確認し、natural Storefront outcomeとprovider listing readbackを結ぶ。
+4. Coconala Paidは現行revisionが未納品。Business Suite inbox textはreadableだが、exact campaign-wide reply countとSheet rowのjoinが残る。未送信の「zero replies」draftは使わず、正確なinbox/Sheet readback後にpaid ownerから一度だけ回答し、revision→formal delivery→acceptance→payout→replay-zeroを閉じる。
+5. 続いてCoconala Apply/Negotiate/Paid → Lancers → CrowdWorks → Job Hunter/Mercor → Upwork → Freelancer。Lancers rows 25–27は`waiting_external`のまま再認証・solver・応募をしない。全Gig ownerの24/7自然receiptとsettled fee/costが揃ってからL9-11 Self-Buildへ進む。
+
+**L9-08並行read-only baseline (2026-10-08 07:56 JST, cursor unchanged):** Lancers Application/Negotiate/Paid/Work-sync/Telegram Report are deferred by `disk_headroom_low`; Storefront remains `resource_effect_unknown`; selected owners have no provider receipts/readbacks. Browser `loaded-running` does not prove an application, contract, or earnings. Keep rows 25–27 `waiting_external` and do not retry auth/solver/proposals.
+
+### 2026-10-08 08:08 JST — Gig cursor after host capacity recovery
+
+このreadbackは07:54 JSTの容量不足記録を更新する。Gig/全社TODO順は変更しない。Coconala body selector修正はPR #6989でmain（`076c5be8`）へ統合済みで、source実装は完了している。
+
+- `/`の空き容量は約2.61 GiBで2 GiB床を超え、`coconala:kosuke`はHTTP 200で到達可能。ただし自然実行中の`hf-gig-paid-direct`が同一profile leaseを保持している。23:05Zのowner readbackはcapacity admission defer・`effect=not_applicable`・receiptなしで、processはその後も実行中。二つ目のbrowser作業を重ねず、stop/kill/restartもしない。
+- `current` symlinkはmain由来release`076c5be8`を指すが、`hf-gig-storefront-direct`のinstalled SHAは引き続き`1c0c9120`。したがってsource fixはreleaseに含まれる一方、Storefront ownerのlive acceptanceは未完了。歴史的なStorefront `effect_unknown` occurrenceも`no_pre_effect_terminal`のまま保持する。
+- Storefrontの最新wake `hf-gig-storefront-direct:18dc61ece6507358-81255`は`host_admission_deferred:resource_effect_unknown`でprovider call前に止まり、receipt/readbackなし。これは旧fenceを守る停止であり、再試行可能扱いで解除しない。`pre-effect-reconcile --dry-run`でも旧occurrence `18d8d288748508e8-23902`は`no_pre_effect_terminal`として`resolved=[]`。
+- `lm-loop doctor --json`は187 registry entries、missing entrypoint 0、unmanaged labels 0だが、Gig外ownerのretired labelが残るため`ok=false`。このlabelをGig担当で変更せず、registry gateが解消するまでrelease applyをしない。
+
+**現在のGig cursor: L9-07 Coconala Storefront / atom 2.1（公式live inventory acceptance）。**
+
+1. 現在のPaid ownerが自然terminalに達して共有browser leaseを解放するのを待つ。ownerやbrowserを停止・再起動しない。
+2. lease解放後、main由来の修正済みcollectorで公式20サービスを一度だけreadし、本文非空・service contract 20/20を確認する。listingは変更しない。
+3. 旧Storefront effect fenceは同一occurrenceの公式receiptまたは受理可能なpre-effect terminalが得られた時だけreconcileする。証拠が無ければheldのままにする。
+4. 全registry doctorとeffect gateが許す状態になってから、currentにあるmain由来`076c5be8` releaseを対象ownerへ反映し、loaded SHA・自然Storefront結果・公式listing readbackを結ぶ。
+5. Coconalaの既存Paid obligationは契約単位で完了し、Coconala Apply→Negotiate/Reply→Paidをofficial receiptとreplay-zeroまで進める。買い手へのeffectはexact inbox/ledger確認後に一度だけ行う。
+6. 次にLancers（rows 25–27は`waiting_external`のまま。再認証・solver・proposal・retryをせず、これらを後続platformの停止条件にしない）→ CrowdWorks → Job Hunter/Mercor → Upwork → Freelancer。各platformは公式Storefront/readinessを先に確認し、その後eligible Apply→Negotiate→Paidをつなぐ。
+7. 有効ownerごとに24/7自然occurrence、公式receipt、settlement/fee/cost、replay-zeroを確認する。全Gig laneが閉じた後にのみL9-11 Self-Buildへ進む。
+
+### 2026-10-08 08:12 JST — Coconala live acceptance and Paid cursor
+
+このreadbackは08:08 JSTのGig cursorを更新する。全社lane順序は変えない。
+
+- 修正済みmain sourceでの公式seller inventoryは20件取得、全20件`公開中`、本文空欄0、`_service_contract` 20/20 PASS。表示salesは20件すべて0で、新規購入・settlementの証拠ではない。
+- inventoryとpublication ledgerの照合はlive 20件に対し`shuppin_published`記録10件、liveだが記録のないlisting 12件、ledger-only 2件。欠落イベントを推定補完しない。
+- `current` symlinkは`076c5be8`を指すが、Storefront ownerはまだ`1c0c9120`。latest Storefront wake `18dc61ece6507358-81255`は`host_admission_deferred:resource_effect_unknown`でprovider call前に停止、receipt/readbackなし。旧occurrence `18d8d288748508e8-23902`のdry-runは`resolved=[]` / `no_pre_effect_terminal`、専用checkerは`HELD` / `stdout_runtime_binding_invalid`。effect fenceを保持する。
+- `lm-loop doctor --json`はmissing entrypoint 0・unmanaged label 0だが、Gig外retired labelにより`ok=false`。別ownerのlabelを変更せず、これをrelease applyの外部gateとして残す。
+- 23:11ZのCoconala selected-talkroom official readbackはHTTP 200・coverage complete。既存案件は`取引中`/`進行中`、feedback stage `revision`、買い手feedbackへのseller回答なし、`formal_delivery_confirmed=false`。このturnでは返信・納品を送っていない。
+- CrowdWorksのapplication-proof修正は別worktreeのactive leaseで進行中。owner作業を重ねず、そのmerge/runtime状態はL9-09開始時に再readする。
+
+**TODO順変更:** 旧順=`Coconala inventory PASS → old Storefront fence → Storefront owner apply/natural run → 既存Coconala Paid obligation`。新順=`Coconala inventory PASS → old fenceはHELDのまま保持 → 既存Coconala Paidの証拠joinとrevision/final delivery → Storefront owner gateが解消したらapply/natural run → Coconala Apply/Negotiate`。理由: 現在の20 listingは公開済みだが新しいStorefront effectはfencedで、global doctorもGig外要因でfalse。一方、既存Paid案件は公式にrevision中・未納品と確認でき、正確な返信証拠を揃えれば決済まで進められる独立収益作業である。これに続くplatform順序は維持する。
+
+**現在のGig cursor: L9-07 Coconala existing Paid / exact reply-evidence join。**
+
+1. 対象campaignのTikTok Business Suite inboxと送信Sheetの公式行をrecipient単位でjoinし、送信数・返信数を確定する。古い「返信0件」draftは使わず、join完了まで買い手へ返答しない。
+2. join済み事実だけでPaid owner経由の返信を一度行い、provider receiptとthread readbackを保存する。
+3. 契約revisionを完了し、formal delivery receipt→buyer acceptance→Coconala settlement/payout→replay-zeroを同一契約/occurrenceで確認する。
+4. Storefront fenceはexact receiptまたは受理可能なpre-effect proofが見つからない限りheld。publication ledgerのlive 20 / recorded 10 / missing 12 / ledger-only 2も厳密な証拠で照合し、推測補完しない。global doctorがPASSした後、currentの`076c5be8`を対象ownerへ反映し、自然Storefront結果・購入・settlementを別々にreadbackする。
+5. Coconalaのfresh eligible案件でApply→Negotiate/Reply→Paidをreceiptとreplay-zeroまでつなぐ。
+6. 次にLancers（rows 25–27は`waiting_external`。再認証・solver・proposal・retryを行わず、後続platformを止めない）→ CrowdWorks（別ownerのproof修正を再利用）→ Job Hunter/Mercor → Upwork → Freelancer。各platformはsupported Storefront/auth状態を先に確認し、その後eligible Apply→Negotiate→Paidを行う。
+7. 各enabled ownerの自然24/7 occurrence、公式receipt、settlement/fee/cost、replay-zeroを確認する。全Gig lane完了後にのみL9-11 Self-Buildへ進む。
 
 ### 2026-10-08 08:23 JST — Mobile distribution and notification cursor
 
@@ -4355,3 +4436,120 @@ L9-11 Self-BuildはこのGig laneの全項目完了後、既存の全社順序�
 6. AniccaをASC first-time downloads 100件/dayのtrailing 7-day averageへ先に伸ばし、その後に残りpublic appsへ展開する。ユーザー提供の10/7週次レポート値（Anicca MRR USD 20.34、28日売上 USD 32.56、28日DL 37 / Honne MRR USD 0、28日DL 8）はreport snapshotとして保持し、settled net revenueの証明とは分ける。
 7. ANICCAのTestFlight run #804のsourceCommit解決を待つ。failならrun/action/log readbackでGitHub source grantを診断してから1回ずつ修復・再実行する。build 391がASCに現れVALID processingとbeta groupを確認後、同buildをdeviceへinstallし、実APNs通知のbody/quoteId/localeでcold-startとbackgroundをMaestro録画する。正しい同一quoteが表示された後にのみlink/videoを成功証拠にする。
 8. Aniccaの100 first-time downloads/day gateの後にMixpanel/PostHog cohortを見てonboarding/paywallを一仮説ずつ改善する。提供画面の「プラン読み込み失敗」は未解決の購入信頼性incidentとして追跡し、ASOはASCがstore-page conversion bottleneckを示した時だけ行う。USD 10,000のverified net MRRはsettled receipts/refunds/fees/actual costsの同期間照合前は未達の事業目標。
+
+### 2026-10-08 08:48 JST — Gig owners, TikTok readback, and remaining platform gates
+
+この節は08:12 JSTのGig cursorを更新する。全社順序とSelfBuildの後置は維持する。
+
+- **Coconala Paid owner:** 23:41Z時点の`hf-gig-paid-direct`は`disk_headroom_low` / `effect=not_applicable` / receiptなしで、project lockを保持している。直前のremote owner結果も`required_effect_satisfied=false`・`required_output_satisfied=false`で、TikTok inbox本文を取得できず未完了。lockが解放されるまでproject、Sheet、inboxを読み書きせず、同じcampaignを二重に実行しない。
+- **Inbox reader:** 現行readback helperの固定8秒待ちはiframe shellのみを取得し、`conversation_contents_readable=false`になる。guard付きの後続read-only観測では同一origin frameが遅れてhydrateしconversation listを表示したが、画面全体のcoverage・会話ごとの送受信方向・Sheet recipientとの全件joinは未証明。Google Sheets公式readbackの日付欄は送信receiptではない。replies 0/正確な返信数を推定しない。
+- **CrowdWorks:** Application/negotiation source reconciliationは別worktreeのactive leaseで進行中。最新Application/Paid runtimeは`entrypoint_exit_75` / `effect=unknown` / receiptなしで、Replyもverified receiptなし。owner sourceを編集せず、merge後に各ownerのofficial readbackを再確認する。
+- **Mercor:** Application/Paid/Replyに`resource_effect_unknown` fencesが残る。Mercorの公式home/apps画面の読み取りだけでは旧occurrenceへのbindingはできず、pre-effect dry-runもresolve 0。応募・返信を再試行せず、exact official receiptが取れるまで保持する。
+- **Upwork:** 公式Project List readbackは`Drafts 0`・`Under Review 0`を示し、active catalog listingは観測されなかった。公式[automation policy](https://support.upwork.com/hc/en-us/articles/43342677368467-Use-bots-and-other-automation-properly)は未承認のscriptによるdata collection/actionをbotとして扱い、制限や停止の可能性を示す。公式[API key requirements](https://support.upwork.com/hc/en-us/articles/115015857647-Request-an-API-key-from-Upwork)はAPIをpersonal/internal useに限定しcommercial useを非対応とする。従ってこのcommercial Gig laneではbrowser automation・scraping・automated proposalを停止し、Upworkを24/7 automated earning loopとして数えない。API keyは未確認。
+- **Freelancer:** 公式[Services FAQ](https://www.freelancer.com/faq/topic.php?id=52)はpredefined service storefrontの存在を確認する。一方、ローカルには過去のpublish stateが`publish_uncertain`/`provider_rate_limited`として残るだけで、現在のofficial listing receipt・account-bound authenticationは未確認。`freelancer-actions.public.json`のaction statusも`unknown`、automatic biddingはprovider approvalなしでは不可。古いpublishを再送せず、account-bound official Services inventoryが得られるまでpublic service状態をunknownのままにする。
+
+**TODO順/cursor:** Coconala paid contractは別ownerが動作中のため、旧cursor=`こちらでTikTok/Sheet reply joinを実行`から新cursor=`active ownerがnatural terminalに達してlockを解放→同一occurrenceの公式readbackを確認→読取helperのhydration待ちを修正してexact reply join`へ移す。理由はproject lockと最新disk admission deferが継続しており、同時編集・二重sendを避けるため。current cursor=`L9-07 Coconala Paid owner terminal/readback`。
+
+### Gig laneの残りatomic TODO
+
+1. Coconala Paid ownerの自然terminalとproject lock解放を待ち、同一occurrenceのsend/result/official receiptを確認する。`pass`単体・ローカルeffect ledger・Sheet日付は送信receiptとして数えない。
+2. lock解放後、8秒固定readerをconversation-list ready＋安定状態までbounded pollする実装に直し、公式inbox readbackを再取得する。Sheet recipientと送信receipt・inbound replyをexact joinし、joinが完全でなければ買い手へ数を断定しない。
+3. exact join後にだけPaid ownerから一度返信し、contract revision→formal delivery receipt→buyer acceptance→settlement/payout→replay-zeroを同一contract/occurrenceへ結ぶ。
+4. Coconala Storefrontは20件公開・contract 20/20確認済み。残るのはold effect fence (`stdout_runtime_binding_invalid`)、publication ledger mismatch、Storefront ownerのold installed SHA、global doctorの外部label gate。証拠で閉じるまでlisting mutation/applyをしない。
+5. Coconala fresh eligible work→Apply→Negotiate/Reply→Paidを進める。Lancers rows 25–27は`waiting_external`のまま飛ばし、認証・solver・proposal・retryをしない。
+6. CrowdWorksは別ownerのactive source repairを再利用し、merge後にApplication/Paid/Replyのunknown occurrencesをofficial readbackで個別reconcileする。Mercorのeffect-unknown fencesも同様に保持し、official receipt前に再応募しない。
+7. Upworkのautomated storefront/applyは公式policy上このcommercial laneでは実行しない。Freelancerは既存uncertain publishのexact official stateを取得し、account-bound authとprovider-approved automation scopeが証明されるまでpublish/bidを再試行しない。
+8. 許可されたplatformだけでmain-derived ownerの自然24/7 occurrence、provider receipt、settlement/fee/cost、replay-zeroを確認する。全Gig lane完了後にのみL9-11 SelfBuildへ進む。
+
+### 2026-10-08 08:48 JST — Gig owner locks and shared capacity cursor
+
+このreadbackは08:48 JST時点のowner/runtime状態を記録する。Gigの次cursorとSelfBuildの後置は維持する。
+
+- `/`のfree spaceは`2,067,940 KiB`で2 GiB floorを下回る。Registered cleanup ownerは`entrypoint_exit_1` / `reconcile_owner`、Cleanup source worktreeにはactive leaseがある。別ownerのworktreeやcleanup stateを変更しない。
+- `hf-gig-paid-direct`はproject lockを保持したまま`disk_headroom_low`でdeferされ、最新readbackは`effect=not_applicable`・provider receiptなし。直前remote outcomeもrequired effect/output未達で、現行Coconala Paid契約の返信・納品・購入者受入は確認できない。owner終了とlock解放前に同じproject/Sheet/inboxへ触れない。
+- TikTok inbox readerの固定8秒取得は空のframe snapshotを返す。guard付きのread-only probeではより長い待機後にconversation listがhydrateしたが、current viewのlistはcampaign全体のcoverage証拠ではない。Google Sheetのrecipient/date列もprovider message receiptではないため、inbound reply countを推定しない。Inbox本文・handle・個別recipientはprivate evidenceに留める。
+- CrowdWorksのApplication proof修正は別ownerのactive lease。最新Application/Paidは`entrypoint_exit_75` / `effect=unknown` / receiptなし、Replyもofficial receiptなし。変更を重ねず、owner merge後にreadbackする。
+- Mercor Application/Paid/Replyのhistorical effect fencesは継続し、fresh account page readbackだけではexact old occurrenceに結べない。新しいapplication/replyは送らない。
+- Upwork公式[bot policy](https://support.upwork.com/hc/en-us/articles/43342677368467-Use-bots-and-other-automation-properly)は未承認automationでのrequest/data collectionを制限対象とする。公式[API request requirements](https://support.upwork.com/hc/en-us/articles/115015857647-Request-an-API-key-from-Upwork)はAPIのcommercial useをサポートしないと明記する。Project ListはDrafts 0 / Under Review 0を表示し、active catalog itemは観測されない。追加browser automation、scraping、automated proposalは行わない。
+- Freelancer公式[Services FAQ](https://www.freelancer.com/faq/topic.php?id=52)はpredefined-service storefrontを提供する。ローカルに過去のuncertain/rate-limited publish状態はあるがcurrent provider receiptはない。既存profile/local traceはaccount-bound authenticationや現在のservice公開を証明しない。全actionはunknown、automatic biddingは[provider integration approval](https://developers.freelancer.com/docs/api-overview/types-of-integrations)なしに有効化しない。
+
+**現在cursor:** L9-07 Coconala Paid ownerの自然terminal / lock release / exact readback。以後のplatform実行は、上記の別owner leaseとprovider authorizationに従う。
+
+### Remaining atomic Gig TODO
+
+1. Coconala Paid ownerとshared disk cleanup ownerの自然終端を待つ。lock解放後に同一Coconala occurrenceの結果とofficial receiptを読む。process pass、local `sent` ledger、Sheet dateは単独では送信証明にしない。
+2. Coconala Inbox helperの固定待機を、conversation-list-readyかつ連続して安定した場合だけreadback成功とするbounded waitへ直し、公式inboxとfull Sheet rangeを再取得する。Exact recipient→official send receipt→inbound reply join後にのみ返信数を回答し、一度だけPaid owner経由で返す。
+3. Existing Coconala contract revision→formal delivery receipt→buyer acceptance→settlement/payout→replay-zeroを同一contract/occurrenceで閉じる。
+4. Coconala Storefront 20/20 live inventoryはPASS済み。旧effect fence、publication ledger差、Storefront owner SHA、global doctor gateをexact evidenceで閉じた後だけ`076c5be8`をtarget ownerに反映し、natural Storefront outcome/purchase/settlementを分けてreadする。
+5. Coconala fresh eligible workのApply→Negotiate/Reply→Paidを進める。Lancers rows25–27は`waiting_external`のままskipし、auth/solver/proposal/retryを行わず後続platformを止めない。
+6. CrowdWorksは別owner source repairを再利用し、merge/release後にApplication/Paid/Replyの各unknown occurrenceをofficial receiptで個別reconcileする。Mercorのold effect fencesもexact receipt/pre-effect proofなしで再応募しない。
+7. Upworkのcommercial automated laneは現行公式policyの下では動かさない。Freelancerはaccount-bound authentication、live Services inventory、provider-approved action scopeを確認し、uncertain publish/bidを再試行しない。
+8. 実行可能なplatform ownerごとに自然24/7 occurrence、公式receipt、settlement/fee/cost、replay-zeroを検証する。Gig lane全完了後にのみL9-11 SelfBuildへ進む。
+### 2026-10-08 08:35 JST — Mobile post-merge runtime cursor
+
+この追記は上記08:23のPR #6993/owner/capacity/TestFlight状態をmerge後readbackで置き換える。全社§84-Aの順序は変更しない。
+
+**TODO順変更:** 旧順=`PR #6993 acceptance/merge → production reconciler terminal → owner readback → exact effect resolve`。新順=`稼働中release reconcilerの自然終端 → exact loaded SHA/capacity/owner readback → native photo receiptを1 occurrenceだけresolveしreplay-zero → 16 enabled TikTok accountsを3 PUBLISHED/day → post metrics/ASC/RevenueCat/Mixpanel join → Anicca acquisition → onboarding/paywall/ASO → $10k verified net MRR`。理由: PR #6993はmainへmerge済みだが、現在のloaded ownerはmerge前releaseで、release reconcilerがすでに稼働している。並列applyや手動投稿で自然実行と競合させない。現在cursor=`existing life-manager-release-reconciler run 18dc6189d27e6b68-81235 / PID 87706 のterminal readback`。
+
+**Source merge:** PR #6993 merge commitは`e5e2fb7f59f2f9833fef2810d5b0cf99a4401f87`。required Security Scan jobs（Loop control, OSS boundary, Python/unittest, PII, secrets, instruction, startup drift, shell）すべてPASS。fresh read-only review Approved。これはmain source acceptanceであり、immutable release・owner apply・provider receiptの証拠ではない。
+
+**Natural owner/capacity readback:** `life-manager-release-reconciler`は08:34 JST時点loaded-running PID `87706`、installed SHA `076c5be8`、`next_action=reconcile_owner`。main merge SHA `e5e2fb7f`はまだowner-loaded sourceとして確認されていない。Anicca JP1 ownerはloaded-idle / SHA `076c5be8`、active effect_unknown `3,500`、last admission blocker `host_admission_deferred:disk_headroom_low`。TikTok metrics ownerはSHA `076c5be8`、blocker `host_admission_deferred:resource_effect_unknown`、effect_unknown 1。08:30:41 JST cleanup receiptは2 GiB recovery floor=`met`, free_after `2,561,708,032` bytes, errors 0, protected_deletions 0, inventory_gaps 23。08:34 `df -Pk /` Available `2,415,672 KiB`。今のheadroomはfloor以上だが、自然owner statusが古いdisk deferralを示すため、registered wakeとterminal readbackを待つ。release reconcilerを並列起動/停止しない。
+
+**Distribution/TestFlight current evidence:** Postiz official GET at 08:34:37 JST remains 10/7 `21/48` and 10/8-to-time `1/48` (`@obou_anicca` 1のみ)。他accountの過剰分で帳尻を合わせない。ASC Xcode Cloud run #804 is still PENDING with empty `sourceCommit`; build 391 is absent, last VALID build 365 is expired. App source fix is merged but TestFlightには未検証。
+
+**Remaining atomic TODO:**
+
+1. `life-manager-release-reconciler`のrun `18dc6189d27e6b68-81235`を同一PID/occurrenceでterminalまでreadbackする。別apply/restartはしない。
+2. 終端後にfresh capacity receipt（free >=2 GiB, errors=0, protected_deletions=0）と全対象ownerのloaded SHA/argv/admissionを確認し、merge SHA `e5e2fb7f`をimmutable release/ownerへ反映する既存reconcilerの自然完了を確認する。
+3. 実identity directoryを使う新reconcilerで、候補共有が無いexact JP1 photo postだけを1件resolveする。provider PUBLISHED/account/integration/caption/title/media-order/time evidence、nested ledger receipt、same-event replay-zeroを確認する。残りのeffect_unknownはowner/occurrenceごとに同様に処理し、bulk clearしない。
+4. 12 source routesをowner-loaded SHAの後に自然運転し、4 enabled hold accountsを既存template/mediaで個別に有効化する。16 enabled accountsそれぞれ3 PUBLISHED/dayと3 copy variants/dayを実測し、TikTok 48/dayを確認する。disabled `@anicca.jp8`は有効化readbackまで対象外、未接続profileは接続状態が変わるまで未対象として表示する。
+5. TikTok metrics ownerのunknown/freshnessを回復し、Postiz/providerから取れるper-post views/engagementを固定時点で取得してcreative text/account/tracking linkに結ぶ。ASC first-time downloads/product-page metrics、RevenueCat subscription/refund/MRR、Mixpanel/PostHog onboarding funnelを同じcampaign/cohortに結ぶ。未提供指標を0扱いしない。
+6. 08:22時点のXcode Cloud #804はPENDINGでsource SHAなし。run/action readbackでsource checkout progressを監視し、失敗時はworkflow/repository permissionの正確な診断を先に行う。二重buildを作らない。VALID build 391と実APNs notification tapのMaestro recordingを確認後のみ同quote表示をfixed扱いしTestFlight linkを共有する。
+7. distributionを優先してAnicca ASC first-time downloads 100/day (trailing 7-day average)へ伸ばし、続いて他public appsを1つずつ行う。その後だけMixpanel/PostHog cohortでonboarding/paywallを一仮説ずつ改善し、ASOはASC evidenceがstore-page bottleneckを示す場合だけ実施する。$10,000 same-period verified net MRRはsettled receipt/refund/fee/actual-cost join後にのみ達成扱いする。
+
+### 2026-10-08 08:43 JST — Mobile owner convergence follow-up
+
+この節は08:35のpost-merge mobile runtime cursorを置き換える。全社§84-Aの順序は変更しない。
+
+**TODO順変更:** 旧順=`PR #6993 merge → release reconciler terminal → owner readback → exact receipt resolve`。新順=`current release reconciler/PID 58399 terminal → all mobile owners loaded SHA + current capacity/admission readback → exact per-occurrence reconcile → owner-by-owner 3/day → metric/attribution joins → acquisition → onboarding/paywall`。理由: source mergeは完了したが、mobile ownersはまだ旧SHAで、release reconcilerが再びrunningになった。現在cursor=`run 18dc...-38644 の自然terminalとowner convergence readback`。別apply/kickstartを重ねない。
+
+**main/runtime差分:** PR #6993は`e5e2fb7f59f2f9833fef2810d5b0cf99a4401f87`でmainへmerge済み。08:43 JSTの`lm-loop status`ではrelease reconcilerはloaded-running PID `58399` / installed SHA `e5e2fb7f` / `next_action=reconcile_owner`。TikTok ownersはmain以前のSHAに分かれ、Anicca EN/EN2/slideshow/Buddha/JP1/JP4/Honne EN/eBook EN/eBook JA/metricsは`076c5be8`、Anicca main/HE/Honne JAは`1c0c9120`。Anicca main ownerはloaded-running PID `82243`。effect_unknown refsはAnicca EN 4,268、EN2 0、slideshow 4,123、Buddha 3,993、JP1 3,500、main 4,207、HE 408、JP4 149、Honne EN 896、Honne JA 224、eBook EN 0、eBook JA 1、TikTok metrics 1。publish/eBook refs合計21,769とmetrics 1はoccurrence履歴でありPUBLISHED投稿数ではない。ownerを手動stop/restart/applyしない。
+
+**Capacity/投稿:** 08:30:41 JSTのcleanup receiptは2 GiB floor met、`free_after=2,561,708,032` bytes、errors 0、protected_deletions 0、inventory_gaps 23。08:43 `df -Pk /` Availableは`2,288,704 KiB`。JP1のlast owner blockerは`host_admission_deferred:disk_headroom_low`だが、cleanup receipt後の自然retry/readbackはまだない。TikTok公式Postiz GETは08:34:37 JST時点で10/7 `21/48`、10/8 partial `1/48`（`@obou_anicca`のみ）。
+
+**通知/ASC lane:** 08:34 JSTのASC readbackでXcode Cloud #804はPENDING、sourceCommit空、build 391なし。`asc xcode-cloud doctor --wait --skip-logs --timeout 60s`もPENDING timeoutで、action/log/artifactは0。#804を再送しない。実APNs payloadと利用者buildのMaestro証拠が揃うまで通知quote fixをTestFlight live successと扱わない。
+
+### 2026-10-08 08:58 JST — Mobile all-account delivery and quote-tap cursor
+
+この節はmobileの08:43 readbackとTODO順を置き換える。全社§84-A順序は変更しない。
+
+**TODO順変更:** 旧順=`16 enabled TikTok integrations × 3/day (48/day) → post metrics → acquisition → onboarding`。新順=`既存release reconcilerのnatural terminal/owner readback → unknown publishをexact occurrence単位でreconcile → Postiz接続済みTikTok全17 profileを3 PUBLISHED/dayへ（51/day、現在16 enabled・1 disabled）→ Postiz view/engagementとASC/RevenueCat/Mixpanelの計測join → Anicca 100 first-time downloads/day → onboarding/paywall → verified net $10k MRR`。理由: DaisはPostiz接続済みの全accountへ3回ずつ投稿するよう指示しており、今回の公式readbackではTikTok integration 17件中1件がdisabledだった。従来の48/day目標はこの接続済みaccountを除外していた。現在cursor=`life-manager-release-reconciler PID 18805の自然終端と各owner readback`。TestFlight通知laneはこれと独立して既存run #804を追跡する。
+
+**Postiz official GET（2026-10-08 08:54:32 JST、外部mutation 0）:** integrations 31、TikTok 17、TikTok enabled 16 / disabled 1。10/7 JSTは21 PUBLISHED（現行16 enabled accountの目標48に未達）。投稿accountは`@aniccaaffirmation` 1、`@anicca.jp4` 2、`@obou_anicca` 2、`@anicca_slideshow` 3、`@anicca.he` 2、`@anicca_buddha` 8、`@honnevideo` 3。残る9 enabled accountは0。`@anicca_buddha`の8件は他accountの不足を埋めない。10/8は08:54時点で`@obou_anicca` 1件のみ、他の15 enabled accountは0（当日途中のため確定日次結果ではない）。これはPUBLISHED数であり、views/engagementの値ではない。
+
+**全接続accountの対象範囲:** current source `config/marketing-destinations.json`はTikTok target 12件とhold 7件を持つ。holdにはenabledの`@anicca.comedy`、`@anicca.daily`、`@aniccajp`、`@aniccajp2`、disabledの`@anicca.jp8`、Postiz integrationが無い`@anicca.videojp`と`@anicca_girl`が含まれる。従って、既存Postiz接続済み全17件の3/day成功条件は、4 enabled holdを既存owner/templateへ追加し、`@anicca.jp8`のdisabled状態をowner経由で解消してrouteを用意した後の51 unique PUBLISHED/day。integrationのない2 profileはPostiz接続前に投稿済みとして数えない。assetを新規制作することを条件にせず、既存approved mediaに異なるcaption/hookを組み合わせる。
+
+**Owner / capacity readback（2026-10-08 08:55 JST）:** `origin/main=d03e5be37a8977d67d3ab75ac09322f00ded9be6`。release reconcilerはloaded-running PID `18805`、installed SHA `3f1bd81a77b9001284678888b641aaedb1e3e497`、`next_action=reconcile_owner`、直近 occurrence `18dc640b6c4029e8-84965` は`entrypoint_exit_75`。並列apply/restartは行わない。JP1はloaded-idle / SHA `076c5be8` / `unknown_occurrences=3500` / `retry_after_eligibility`、main TikTokはloaded-idle / SHA `1c0c9120` / `unknown_occurrences=4207` / `official_readback_required`、TikTok metrics ownerはloaded-idle / SHA `076c5be8` / `unknown_occurrences=1` / `resource_effect_unknown`。occurrence refsは未解決投稿数・PUBLISHED数そのものではない。08:53 `df -Pk /`は`2,203,492 KiB` free（2 GiB床より約104 MiB上）。これはcapacity snapshotで、08:30のcleanup receipt後の新receiptや各ownerのadmission/retryを証明しない。
+
+**ANICCA notification quote tap:** app PR #423は`anicca-products/main`へmerge済み（merge commit `46c87630b03330e171ddcfd9033f5e40744fbbb0`）。sourceはAPNs表示bodyとquoteIdを保持し、Feed準備後にrouteを解決して不一致時に通知bodyを表示する。ASC Xcode Cloud run #804は08:53時点でも`PENDING`、sourceCommitなし、actions 0。GitHub provider、`anicca-products` SCM repository、`main` git reference、`Default` workflow（enabled/main）はASCから見えるため、missing repository grantとは断定できない。ASC build 391は`no build found`。修正版を含むinstalled TestFlight build、実APNs cold-start/background tapで同一quoteが表示される証拠、配布link/videoはいずれも未取得。通知tap不具合はsource上の修正候補がmainにあるが、利用者へ配布済み・解消済みとは未確認。
+
+**Remaining atomic TODO:**
+
+1. `life-manager-release-reconciler` PID `18805`の自然terminalを待ち、各mobile ownerのinstalled SHA/argv/admission/capacityを個別readbackする。unknown publish fenceがある間に新しい投稿を手動再送しない。
+2. merged PR #6993のexact native Postiz reconciliationを使い、provider account/integration/caption/title/media order/time receiptに一意に結ぶoccurrenceだけを1件ずつ処理する。nested ledger receipt、official PUBLISHED readback、same-event replay-zeroを確認し、no-match/ambiguityはholdにする。
+3. 現行Postiz接続済み17 TikTok profileを全対象としてownersへ配線する。4 enabled held profileを既存media/templateで追加し、disabled `@anicca.jp8`を安全な既存owner経由で復旧する。2 integration-absent profileは接続確認まで対象外と明示する。各profileで異なるcaption/hookを3回、unique PUBLISHED receipt 3件/account/day（合計51/day）で確認し、account間のover-postで補填しない。
+4. TikTok metrics ownerのunknownを解決し、Postiz/native APIが返すper-post views/engagementを6/24/72/168hなど固定時点で収集できるか実測する。取れない指標はunsupported/unknownのまま保持し、creative text/account/campaign linkへ結ぶ。
+5. App Store Connectのimpressions/product-page views/first-time downloads、RevenueCatのpaid/trial/renewal/refund/MRR、Mixpanel/PostHog onboarding cohortsを同一campaign/cohortへjoinする。AniccaをASC first-time downloads 100/dayのtrailing 7-day平均へ伸ばしてから、他public appsへ展開する。
+6. notification laneは既存#804のstatus/actions/sourceCommitを監視し、terminalまたは診断可能な状態になった時にexact run/repository/source原因を特定する。repositoryとmain refは存在し、source grant不足は未確定。pending runを重複起動しない。build 391がASCへ現れVALID/processableとなった後に同buildをinstallし、実APNs body/quoteId/localeのcold-start/background Maestroで表示quote一致を検証・録画する。成功後のみTestFlight link/videoを渡す。
+7. 100 first-time downloads/day gateの後にonboarding/paywallを一仮説ずつ改善し、ASCでstore-page conversion bottleneckを確認した場合だけASOを試す。USD 10,000 verified net MRRは同期間のsettled receipt/refund/fee/actual costを照合するまで未達目標として扱う。
+
+
+### 2026-10-08 08:58 JST — capacity recovered; Paid owner still holds project lock
+
+このreadbackは08:48 JSTのcapacity状態を更新する。platform順序とL9-07 cursorは変更しない。
+
+- Disk cleanup ownerは23:57Zに`pass`、free spaceは`2,166,552 KiB`で2 GiB floorを上回る。ただしcleanup source worktreeは別ownerのactive lease中なので変更しない。
+- `hf-gig-paid-direct`は23:58Z時点で`loaded-running`・project lock保持中。latest terminalは23:41Zの`disk_headroom_low` / `effect=not_applicable` / provider receiptなしで、capacity回復後のnew terminalはまだない。自然終端とlock解放を待ち、同じbuyer project/Sheet/inboxを重ねて触らない。
+- CrowdWorks Applicationはowner runが`effect=unknown`・provider receiptなし。CrowdWorks source修正worktreeもactive lease中。Mercor Applicationも`resource_effect_unknown`・receiptなし。双方とも新たな応募・返信を再試行しない。
+
+**現在cursor:** L9-07 Coconala Paid owner natural terminal / project lock release / exact official readback。floor回復だけではPaid結果やinbox receiptの成功を意味しない。
