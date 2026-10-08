@@ -121,6 +121,19 @@ class SourceCaptureTest(unittest.TestCase):
             self.assertEqual(
                 plan["opportunity_decision"]["decision_id"], "decision-1",
             )
+            sources = {row["id"]: row for row in plan["sources"]}
+            for case_id, url in (
+                (
+                    "elevenlabs-alec",
+                    "https://elevenlabs.io/blog/alec-wilcock-on-becoming-a-top-affiliate-for-elevenlabs",
+                ),
+                (
+                    "elevenlabs-greg",
+                    "https://elevenlabs.io/blog/greg-preece-on-youtube-monetisation-with-the-elevenlabs-affiliate-program",
+                ),
+            ):
+                self.assertEqual(sources[case_id]["url"], url)
+                self.assertEqual(sources[case_id]["evidence_class"], "first_person_case")
             receipts = [{
                 "source_id": "official-speech-to-text",
                 "locator": "https://elevenlabs.io/speech-to-text",
