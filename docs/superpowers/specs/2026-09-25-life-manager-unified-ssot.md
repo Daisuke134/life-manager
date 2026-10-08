@@ -7461,3 +7461,42 @@ This entry supersedes the prior local-review cursor. The business CFO order rema
 5. A5 production migration/RPC/permissions/panel readback → A6 invoice/cash/operation attribution → A8 18-loop revenue/cost + 187-job classification → A9 source-period daily/MTD/trailing/MRR → A10 7日連続natural reports/full coverage/replay-zero。
 
 **現在cursor:** `commit/push this SSOT status delta → new-head CI + fresh review (CFO source unchanged from 98d59061) → structured cleanup receipt/admission → local full runtime at recovered headroom → merge/promotion → natural CFO receipt/replay-zero → A5 → A6 → A8 → A9 → A10`。
+
+### CFO producer sent-state invariant — current
+
+このcurrent sectionが前項のsource cursorを更新する。事業CFOの順序はA5 → A6 → A8 → A9 → A10のまま。
+
+- Fresh review of source head `98d5906133dd8524b5ead8a6f51b420f168f2644` is NO-SHIP / fix-first. `cfo-result-local.js` maps invalid counters to `null`, accepts those values in B7 v4, and persists `sent` before runtime-hint validation. Thus receipt-bearing bad counters can leave a false sent record; same-occurrence replay can then rewrite it as zero-counter duplicate. B7 v3 recovery can also return sent without counter proof.
+- The latest `origin/main=97efe82e40b28911c98af1165281fcdafff3fbc2` is merged locally at HEAD `43af59b7b41466a80d0e76d355aebb0809e2558a`; it includes main PR #7155 line-sticker work, which remains upstream-owned and outside the CFO diff. The unified SSOT update is committed before this producer fix.
+- RED evidence is present in `cfo-hourly-local.test.js` and `cfo-result-local.test.js`: invalid delivery counters must leave B7/report pending; null B7 v4 counters and same-occurrence v3 sent recovery must reject; same-occurrence invalid sent state, cross-occurrence recovery, and duplicate receipt must not quietly claim the wrong effect. The existing source fails these assertions as expected.
+
+**TODO (current order):**
+
+1. [x] Merge latest main `97efe82e` while preserving the unified SSOT; no line-sticker source is edited in the CFO lane.
+2. Make producer counters strict before any B7/report `sent` write: only sent `1/1/0/0` or duplicate `0/0/0/0`; invalid response keeps pending state and throws while the shared outbox prevents resend.
+3. Make B7 v4 reader require the same semantic tuple; v3 remains idempotency-only and cannot recover the same effectful occurrence as sent. Prevent same-occurrence sent/duplicate replay from returning quiet without verified occurrence evidence; when a prior B7 delivery belongs to another occurrence, record only a zero-counter duplicate for the current no-effect run.
+4. Run the focused CFO Node tests, `python3 -m pytest -q skills/cfo`, result-reconciler tests, and runtime fence focus. Run full runtime suite only after host headroom recovers.
+5. Commit/push source and SSOT; pass exact-head CI and fresh read-only review, then merge.
+6. Obtain owner cleanup receipt/admission pass, promote via main-derived immutable release, and verify the next natural CFO report's runtime/provider receipt, B7 tuple, admission, and replay-zero.
+7. Continue A5 → A6 → A8 → A9 → A10.
+
+**Current cursor:** `strict producer validation + B7 v4 reader + same-occurrence replay guard → focused RED/GREEN → push/review/CI → merge/promotion/readback → A5 → A6 → A8 → A9 → A10`.
+
+### CFO sent-state correction — implementation current
+
+This current entry supersedes the prior “source fails these assertions” text. CFO priority stays A5 → A6 → A8 → A9 → A10.
+
+- The source change now validates the provider receipt ID and exact sender counters before writing B7/report `sent`. Only sent `(1,1,0,0)` and duplicate `(0,0,0,0)` persist; invalid/missing counters leave both artifacts pending and throw. B7 v4 rejects null or semantically inconsistent tuples; v3 is not promoted to same-occurrence `sent`. Same-occurrence replay/duplicate stays nonzero for reconciliation; a prior delivery from another occurrence is represented as zero-counter duplicate for the current no-effect run.
+- TDD is GREEN: CFO result Node 29/29, hourly Node 26/26, `python3 -m pytest -q skills/cfo` 354 tests + 318 subtests, runtime fence focus 2/2, and `git diff --check` PASS. The new cases were RED before the producer/reader fix.
+- Latest `origin/main=ac963290ce9a13ab2da5f188c23d584b0910c58d`; it is one marketing/SSOT commit beyond local merge HEAD `43af59b7`. The source diff remains local and remote PR #7106 still points to `7131b650`; no source commit or fresh review exists for this fix yet.
+- Full runtime suite remains deferred because current free disk is below the 2 GiB operating gate; the last local run had a bytecode-build `ENOSPC`. The disk-cleanup owner still exits `entrypoint_exit_1`, while the CFO's last natural report defers before sending at `disk_headroom_low`.
+
+**Remaining TODO (current order):**
+
+1. Merge latest `origin/main=ac963290` and preserve the SSOT update.
+2. Commit/push this strict producer/B7 fix and tests; get new-head required CI plus fresh same-SHA read-only review.
+3. Restore host headroom through the existing cleanup owner receipt (`free_after >= 2 GiB`, errors 0, protected deletions 0) and admission pass; rerun full runtime suite without deleting user data manually.
+4. Merge only when CI/review pass, then promote via main-derived immutable release and verify a natural CFO report/readback/replay-zero.
+5. Continue A5 → A6 → A8 → A9 → A10.
+
+**Current cursor:** `merge latest main → commit/push source + SSOT → exact-head CI/review → structured capacity receipt/admission → full runtime suite → merge/promotion/natural readback → A5 → A6 → A8 → A9 → A10`.

@@ -13,19 +13,14 @@ const TELEGRAM_MESSAGE_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const EFFECT_RESULT_HINT_FILENAME = "entrypoint-result.json";
 const DELIVERY_COUNTER_FIELDS = ["attempted", "delivered", "delivery_uncertain", "pre_send_failed"];
 
-function persistedDeliveryCounters(delivery) {
-  return Object.fromEntries(DELIVERY_COUNTER_FIELDS.map(field => {
-    const value = delivery?.[field];
-    return [field, Number.isSafeInteger(value) && value >= 0 ? value : null];
-  }));
-}
-
-function validPersistedDeliveryCounters(value) {
+function validPersistedDeliveryCounters(value, resolutionKind) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const keys = Object.keys(value);
-  return keys.length === DELIVERY_COUNTER_FIELDS.length
-    && DELIVERY_COUNTER_FIELDS.every(field => Object.prototype.hasOwnProperty.call(value, field)
-      && (value[field] === null || (Number.isSafeInteger(value[field]) && value[field] >= 0)));
+  const expected = resolutionKind === "duplicate" ? [0, 0, 0, 0]
+    : resolutionKind === "sent" ? [1, 1, 0, 0] : null;
+  return expected !== null && keys.length === DELIVERY_COUNTER_FIELDS.length
+    && DELIVERY_COUNTER_FIELDS.every((field, index) => Object.prototype.hasOwnProperty.call(value, field)
+      && Number.isSafeInteger(value[field]) && value[field] === expected[index]);
 }
 
 function occurrenceId(value) {
@@ -528,7 +523,7 @@ function readB7SnapshotFile(stateDir, sourceOccurrenceId, allowMissing) {
     || snapshot.eventKey !== resultEventKey(snapshot.subjectId, snapshot.channel, snapshot.reportingPeriod.key)
     || !Number.isFinite(Date.parse(snapshot.createdAt))) throw new Error("cfo_b7_snapshot_invalid");
   if (snapshot.schemaVersion === 4 && ((snapshot.status === "sent"
-    && !validPersistedDeliveryCounters(snapshot.deliveryCounters))
+    && !validPersistedDeliveryCounters(snapshot.deliveryCounters, snapshot.resolutionKind))
     || (snapshot.status === "pending" && snapshot.deliveryCounters !== undefined))) {
     throw new Error("cfo_b7_snapshot_invalid");
   }
@@ -616,6 +611,12 @@ async function runResultCfo(options) {
   };
   if (previous?.status === "sent" && previous.periodKey === periodKey) {
     if (!previous.providerMessageId) throw new Error("cfo_sent_provider_receipt_missing");
+    if (previous.occurrenceId === currentOccurrenceId) {
+      if (!validPersistedDeliveryCounters(previous.deliveryCounters, previous.resolutionKind)) {
+        throw new Error("cfo_result_delivery_counters_unverified");
+      }
+      throw new Error("cfo_same_occurrence_replay_requires_reconcile");
+    }
     persist({ ...previous, occurrenceId: currentOccurrenceId, resolutionKind: "duplicate",
       deliveryCounters: { attempted: 0, delivered: 0, delivery_uncertain: 0, pre_send_failed: 0 } });
     return {
@@ -663,14 +664,34 @@ async function runResultCfo(options) {
     }
   }
   if (sourceSnapshot?.status === "sent") {
+    if (sourceSnapshot.deliveryOccurrenceId !== currentOccurrenceId) {
+      const deliveryCounters = { attempted: 0, delivered: 0, delivery_uncertain: 0, pre_send_failed: 0 };
+      persist({ ...pending, status: "sent", occurrenceId: currentOccurrenceId,
+        resolutionKind: "duplicate", providerMessageId: sourceSnapshot.providerMessageId,
+        sentAt: sourceSnapshot.sentAt, deliveryCounters });
+      return { status: "quiet", reason: "unchanged", reportingDate: pending.reportingDate,
+        delivered: false, providerMessageId: sourceSnapshot.providerMessageId, resolutionKind: "duplicate" };
+    }
+    if (sourceSnapshot.schemaVersion !== 4
+      || !validPersistedDeliveryCounters(sourceSnapshot.deliveryCounters, sourceSnapshot.resolutionKind)) {
+      throw new Error("cfo_b7_delivery_counters_unverified");
+    }
     const recovered = { ...pending, status: "sent", occurrenceId: currentOccurrenceId,
       resolutionKind: sourceSnapshot.resolutionKind, providerMessageId: sourceSnapshot.providerMessageId,
       sentAt: sourceSnapshot.sentAt, deliveryCounters: sourceSnapshot.deliveryCounters };
     persist(recovered);
     const duplicate = sourceSnapshot.resolutionKind === "duplicate";
-    return { status: duplicate ? "quiet" : "sent", reason: duplicate ? "unchanged" : null,
-      reportingDate: pending.reportingDate, delivered: !duplicate,
-      providerMessageId: sourceSnapshot.providerMessageId, resolutionKind: sourceSnapshot.resolutionKind };
+    if (duplicate) throw new Error("cfo_same_occurrence_duplicate_requires_reconcile");
+    const runtimeHintWritten = writeRuntimeTelegramEffectHint(sourceEnv, currentOccurrenceId, destination, {
+      delivery: "delivered",
+      provider_message_id: String(sourceSnapshot.providerMessageId),
+      ...sourceSnapshot.deliveryCounters,
+    }, false);
+    if (runtimeHintWritten === false) {
+      throw new Error("cfo_runtime_telegram_receipt_hint_missing");
+    }
+    return { status: "sent", reason: null, reportingDate: pending.reportingDate, delivered: true,
+      providerMessageId: sourceSnapshot.providerMessageId, resolutionKind: "sent" };
   }
   if (pending && now.getTime() - Date.parse(pending.createdAt) >= 23 * 60 * 60 * 1000) {
     throw new Error("cfo_pending_receipt_requires_reconcile");
@@ -729,15 +750,19 @@ async function runResultCfo(options) {
     eventKey: pending.eventKey, observedAt: now.toISOString(), message: pending.message,
     occurrenceId: currentOccurrenceId,
   });
-  if (delivery?.delivery !== "delivered" || !delivery.provider_message_id) {
+  if (delivery?.delivery !== "delivered" || typeof delivery.provider_message_id !== "string"
+    || !TELEGRAM_MESSAGE_ID.test(delivery.provider_message_id)) {
     throw new Error("cfo_provider_receipt_missing");
   }
-  const duplicate = delivery.attempted === 0 && delivery.delivered === 0
-    && delivery.delivery_uncertain === 0 && delivery.pre_send_failed === 0;
+  const deliveryCounters = Object.fromEntries(DELIVERY_COUNTER_FIELDS.map(field => [field, delivery[field]]));
+  const duplicate = deliveryCounters.attempted === 0 && deliveryCounters.delivered === 0
+    && deliveryCounters.delivery_uncertain === 0 && deliveryCounters.pre_send_failed === 0;
   const resolutionKind = duplicate ? "duplicate" : "sent";
-  const deliveryCounters = persistedDeliveryCounters(delivery);
+  if (!validPersistedDeliveryCounters(deliveryCounters, resolutionKind)) {
+    throw new Error("cfo_delivery_counters_invalid");
+  }
   const sentAt = new Date().toISOString();
-  if (sourceSnapshot) {
+  if (sourceSnapshot && !duplicate) {
     const sourceOccurrenceId = sourceSnapshot.occurrenceId;
     sourceSnapshot = { ...sourceSnapshot, schemaVersion: 4, status: "sent", resolutionKind,
       deliveryCounters,
@@ -750,6 +775,9 @@ async function runResultCfo(options) {
     messageSha256: pending.messageSha256 || messageSha256(pending.message),
     resolutionKind, deliveryCounters,
     providerMessageId: String(delivery.provider_message_id), sentAt });
+  if (duplicate && pending.occurrenceId === currentOccurrenceId) {
+    throw new Error("cfo_same_occurrence_duplicate_requires_reconcile");
+  }
   const runtimeHintWritten = writeRuntimeTelegramEffectHint(
     sourceEnv, currentOccurrenceId, destination, delivery, duplicate);
   if (runtimeHintWritten === false) {
