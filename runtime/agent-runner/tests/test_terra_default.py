@@ -102,8 +102,15 @@ class TerraDefaultTest(unittest.TestCase):
                         "profile_alias": "acct1", "fail_fast_provider_lease": True,
                     }]
                 # 2026-10-08: short loop calls must not queue behind a long acct1 run.
-                if name in {"composition-agent", "marketing-agent", "browser-lane-agent"}:
-                    expected = [dict(expected[0], fail_fast_provider_lease=True)]
+                # 2026-10-09: the same holds for every class with a claude-direct fallback behind
+                # its codex candidate; waiting silently on a busy acct1 lock killed Capafy CP1.
+                if name in {"composition-agent", "marketing-agent", "browser-lane-agent",
+                            "reply-semantic-agent", "storefront-proposal-agent", "repeatable-agent",
+                            "tool-agent", "application-lane-agent", "application-intent-planner",
+                            "diagnostic-agent", "high-value-agent", "writer-sol-audit",
+                            "writer-repair-agent"}:
+                    expected = [dict(e, fail_fast_provider_lease=True) if e["provider"] == "codex" else e
+                                for e in expected]
                 # Paid and explicit escalation stay Codex-only. Other executable
                 # classes retain their existing cross-provider fallback contract.
                 fallback = {"provider": "claude-direct", "model": "claude-sonnet-5"}
