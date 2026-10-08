@@ -5296,41 +5296,43 @@ PR #7030の全required checksはhead `99648f4f` / base `a7899e37`でPASSした�
 
 この節が先行するCFO状態メモを更新する。実行順は **A5 → A6 → A8 → A9 → A10** のまま。A7の個人MoneytreeとA3/A4のCloud・geocoding費用削減はDaisの指示で後順位とし、このCFO業務のblockerにしない。CFO設計詳細は `docs/superpowers/specs/2026-10-02-life-manager-cfo-cost-observability-design.md` を参照し、TODO/順序/状態の正本は本SSOTだけに置く。
 
-**確認済み状態（2026-10-08 14:46 JST readback）:**
+**確認済み状態（2026-10-08 14:52 JST readback）:**
 
-- `/Users/anicca/loops/current`はrelease `20261008T144359-8bf65f15`（main SHA `8bf65f15d014f914d96a6abce56ada18b7c45efb`）を指す。run `18dc77ae4d5b2eb8-85413`は14:45:42 JST開始し、14:46 JST時点で稼働中50秒。current-SHA owner rowはまだなく、`fleet-apply-state.json`は旧`8f342d8d`（13:44:07 JST、6 changed / 177 skipped / 4 errors）のまま。
-- 直近の`9efbb3fd` run `18dc77916da3d700-9684`は14:44:40 JSTに`entrypoint_exit_75`で終了し、self-handoff receiptは`8bf65f15`をloaded SHAとしてverified。さらに前の`ac0a94ed` run `18dc777537eed220-30655`は14:41:40 JSTに`entrypoint_exit_1`で終了したが、event/recovery rowに原因文字列がなく、occurrence summaryもcurrent loop-tmpに見つからない。直接原因は未確定で、release handoffとの時刻相関だけで原因を断定しない。
-- CFO ownerの最新natural occurrence `18dc749912b492a8-99059`は13:49:26 JST、当時のrelease `8f342d8d`でexit 0 / report `pass`。runtime eventは`effect_status=unknown`、`provider_receipt_id`と`official_readback_ref`はnull。一方、occurrence-bound `last-result-report`とB7 sidecarは同一occurrence/runを`status=sent`、Telegram `providerMessageId=105233`、message hash一致として記録する。immutable releaseの`effect_reconcile.py` dry-runは`occurrence_not_effect_unknown`で拒否し、`--resolve`は実行していない。再送せずreceipt/runtime event joinを直す。hourly cadenceから次回は約14:49 JSTという推定で、実行証拠ではない。
-- B7 snapshot `2026-10-08T04:49:18.487007Z`ではhistorical revenue/net unknown（18 loops、173 gaps）、trailing revenue/cost/net unknown（18 loops、168 gaps）、company MRR unknown（26 gaps）。`mobile-apps` MRR USD 20.34のみloop-level verified。Google Cloud 2026-09 bill JPY 27,889 / 41 SKU rowsはverified、cash-paid unknown、loop allocation unattributed。Moneytree構造化balanceはnull、freshness unknown。
-- Task 5はreview済み。Task 6 commit `7e7bc7491c`はpriority=`revenue`、`borrow`/`deterministic`維持。SQL zero-estimate status修正とUI distinct trace countsはPR #6827に含まれる。f2 reviewはCritical/Importantなし、f2のrequired CIとruntime 790/790はPASS。PRはdraftのまま。
-- A5 branch localにはlatest main `8bf65f15`までmerge済み。14:46 JST時点のPR #6827 remote headは`99814e52f3`、baseは`8bf65f15`、draft。新headのCIが実行中で、fresh reviewerはこのheadをまだ判定していない。
+- latest `origin/main`は`8ddccaff9a862b7f25d8d5eea44e0de6cc162e5e`。`/Users/anicca/loops/current`はrelease SHA `f3e492619f37bdc235fe3b628ccf73d9bb69b371`を指すが、release reconcilerは旧release `37d1f248`から14:49:54 JSTに始まったrun `18dc77e8f6c0bc18-24151`でloaded-running。14:52 JST時点でSHA `f3e4926` owner rowは0、terminal stateなし。fleet-apply-stateは旧`8f342d8d`（13:44:07 JST、6 changed / 177 skipped / 4 errors）のまま。
+- 直前の`8bf65f15` runは14:48:51 JSTに`entrypoint_exit_143`で終了し、現行`f3e4926`へ切替わった。さらに前の`9efbb3fd`はexit75。ac0a runのexit1はsummary artifactが現行loop-tmpに見つからず、event/recovery recordに原因文字列がない。連続するhandoffと終了時刻の相関はあるが、直接原因は未確定。停止/restartせず次のnatural terminalとdurable evidenceを読む。
+- CFO owner status（`lm-loop status life-manager-cfo-hourly --json`）はinstalled SHA `8f342d8d`、`loaded-idle`。直近成功は13:49:26 JST、次の14:57 JST頃の試行は13:57 JSTに`host_admission_deferred:resource_capacity_busy` / exit75。receipt/readbackなしで、現在SHAへ適用済みとも言えない。
+- CFO reportの最新natural occurrence `18dc749912b492a8-99059`は13:49:26 JST、当時`8f342d8d`でreport `pass`。runtime eventは`effect_status=unknown`、receipt/ref null。一方、occurrence-bound report sidecarは`status=sent`、Telegram `providerMessageId=105233`、hash一致。`effect_reconcile` dry-runは`occurrence_not_effect_unknown`で拒否、`--resolve`/再送なし。これはreceipt/event join gapである。次回hourly時刻は約14:49という推定に過ぎず、実行証拠はない。
+- B7 snapshot `2026-10-08T04:49:18.487007Z`: company historical revenue/net unknown（18 loops、173 gaps）、trailing revenue/cost/net unknown（18 loops、168 gaps）、company MRR unknown（26 gaps）。`mobile-apps` MRR USD 20.34のみverified。Google Cloud 2026-09 bill JPY 27,889（41 SKU rows）はverified、cash-paid unknown、loop allocation unattributed。Moneytree structured balance null/freshness unknown。
+- A5 source correctionsはPR #6827 remote head `99814e52f3` / base `8bf65f15`にまだ含まれない。head998のrequired checksではOSS self-contained boundaryが`manifest_inventory_mismatch`でfail、他の主要checksはpass/pending。原因はmain追加後も`skills/capafy-autopublish`の吸収inventoryがfiles=243/hash=`caef751a…`の旧値だったこと。最新rootは245 files/hash=`88f3665a…`でmanifestをローカル修正し、`node scripts/verify-oss-self-contained.mjs`と`node --test test/oss-self-contained.test.mjs`（12/12）をPASSした。この修正は未commit・未push。
 - CFO receipt専用branch `fix/cfo-telegram-runtime-receipt-20261007`（commit `b63e42f27f`）はopen PRなし。lease/ownerをreadbackせずそのworktreeを編集しない。
 - `loop_pnl.py --date`はreporting dateだけを変え、B7 windowは現在時刻を使う。全sourceのAsia/Tokyo期間filterは未受入。
-- docs PR #7027はmerge commit `4dad886c`でmainへ統合済み。14:46 JSTのlatest mainは`8bf65f15`。
+- docs PR #7027はmerge commit `4dad886c`でmainへ統合済み。14:52 JSTのlatest mainは`8ddccaff`。
 
-**完了（pushed source SHA `f2ea57e828`）:** SQL zero-estimate regression testとUI distinct trace count assertionsはRED→GREEN。A5 SQL/API/UI `112/112`、privacy `api=177/browser=63/recipes=19/channels=9`、registry `136/136`、`lm-loop-contract` PASS、Node adapter `15/15`、full runtime suite `790/790` PASS。新head `99814e52f3`にはlatest-main mergeとstatus docsが加わり、required CIの再実行中。
+**完了（pushed source SHA `f2ea57e828`）:** SQL zero-estimate regression test/UI distinct trace counts RED→GREEN。A5 SQL/API/UI `112/112`、privacy `api=177/browser=63/recipes=19/channels=9`、registry `136/136`、loop contract PASS、Node adapter `15/15`、full runtime suite `790/790` PASS。GitHub f2 required CI PASS。OSS manifest fix is newer local integration work and needs a new PR head/CI.
 
 **残りatomic TODO（この順）:**
 
-1. **新head CI/review:** `99814e52f3`のrequired checksとfresh read-only reviewをPASSさせる。PASS後にPRをreadyにしてmergeする。
-2. **Production reconciler readback:** current `8bf65f15` runのnatural terminal/fleet state/CFO owner loaded SHAを公式stateから確認する。14:46時点はrun active・owner rowなし。停止/restart/applyしない。
-3. **CFO message receipt trace:** receipt専用branchのowner/leaseを確認し、`providerMessageId`とofficial receipt referenceを同一runtime occurrenceに結ぶ。13:49 reportは再送しない。
-4. **A5 production migration:** merge後にadditive SQL migrationを対象Supabase projectへ適用し、migration history、RPC存在、grantをreadbackする。
-5. **A5 production release:** main由来immutable releaseでCFO ownerへ安全にapplyし、loaded SHAと`priority=revenue`を確認する。
-6. **A5 natural acceptance:** natural cost-panel readbackとoccurrence-bound delivery receiptを確認する。local `status=sent`だけでruntime `effect_status=verified`としない。
-7. **A6 Google cost照合:** billed/usage/credits/tax/roundingをsettlementまでつなぎ、根拠のないloop帰属はunattributedに残す。
-8. **A8会社coverage:** 18 product loops / 186 jobsのsettlement、refund、fees、provider/API/cloud/subscription actual costをreceipt単位で結ぶ。unknownをzeroにしない。
-9. **A9日次CFO report:** Tokyo daily/MTD/trailingをsource期間に揃え、agent/loop/platform別と全社のrevenue・expense・net・MRR・freshness・coverageを表示する。
-10. **A10 natural acceptance:** 7日連続のnatural report receipt、official readback、全loop coverage、period一致、duplicate/replay zeroを確認する。それまでは全社CFO完了やverified $10k MRRを主張しない。
+1. **CI boundary correction:** latest-main Capafy inventory files/hash update is in working tree and local verifier/12 tests pass. Commit it with the updated plan/spec after merging latest main.
+2. **Push latest-main branch:** local branch includes main `8ddccaff`; remote PR head is `99814e52f3` / base `8bf65f15`. Push new head without force; keep draft pending new-head CI/review.
+3. **New-head acceptance:** require OSS boundary PASS plus all required CI; run the same-head checks and obtain fresh read-only whole-branch review; only then ready/merge PR #6827.
+4. **Production release readback:** wait for current `f3e4926` reconciler run to reach terminal, then read fleet state and CFO owner's loaded SHA/row. No owner row/terminal exists at 14:52; do not restart/apply manually.
+5. **CFO message receipt trace:** owner/lease-check the existing receipt branch and join `providerMessageId` plus official receipt reference to the same occurrence. Do not resend the 13:49 report.
+6. **A5 production migration:** after merge, apply the additive SQL migration to the target Supabase project and read back migration history, RPC, and grant.
+7. **A5 production release:** cut from pushed main, safely apply CFO owner, verify loaded SHA and `priority=revenue`.
+8. **A5 natural acceptance:** read back natural cost panel and occurrence-bound delivery receipt; local `status=sent` alone is not runtime verification.
+9. **A6 Google cost reconciliation:** join billed usage, invoice, tax, credits, rounding, settlement, and supported loop allocations.
+10. **A8 full company coverage:** reconcile settlement, refunds, fees, and actual provider/API/cloud/subscription costs for 18 product loops and 186 jobs; never turn unknown into zero.
+11. **A9 daily CFO report:** align Tokyo daily/MTD/trailing windows and show revenue, expenses, net, MRR, freshness, coverage by agent/loop/platform and company.
+12. **A10 natural acceptance:** verify seven consecutive reports, official readbacks, full loop coverage, period consistency, duplicate/replay zero; do not claim $10k MRR before evidence.
 
-**現在cursor:** A5 Task 7 newest-head CI/review/merge。local/remote branch `feat/cfo-a5-cost-visibility-20261007`は`99814e52f3`、latest main/baseは`8bf65f15`。PR #6827はdraft、CI/review更新待ち。A5 sourceはまだmainに統合・productionへ適用されていない。
+**現在cursor:** A5 Task 7 OSS-boundary correction and latest-head CI/review. Local branch `feat/cfo-a5-cost-visibility-20261007` includes main `8ddccaff`; PR #6827 remains draft at head `99814e52f3` / base `8bf65f15`. Manifest correction, latest spec, and plan update are local, uncommitted.
 
 **Blockerと解消方法:**
 
-- **A5 PR #6827:** f2 source checks/reviewはPASSだが、最新main/status更新後のhead `99814e52f3`のCI/reviewは実行中。新headの結果を読み、PASS後にready/mergeする。ユーザー入力は不要。
-- **Production reconciler:** current `8bf65f15` runは14:45:42 JST開始、14:46時点でactive、current owner rowなし。直近9ef runはexit75、ac0a runはexit1で原因がeventに残らない。fleet stateは旧`8f342d8d`。次のnatural runのdurable summary/host admission/owner log/handoff receiptを確認し、原因を推測で置換しない。restart/applyはしない。これはproduction acceptance未完でsource PRを止めない。
-- **CFO message trace:** `status=sent`のoccurrence-bound receiptとprovider message IDに対しshared runtime eventは`effect_status=unknown`でreceipt/refがnull。`effect_reconcile` dry-runはadmissionに`effect_unknown` markerがないため拒否。`--resolve`や再送はせず、専用owner branchでjoinを直す。
-- **CFO economics:** company revenue、cost-complete net、MRRはunknown。verified `mobile-apps` MRR USD 20.34のみ。Google bill JPY 27,889はbilledだが支払/loop配賦unknown。A6/A8/A9でcoverageを埋める。Moneytreeは今回の優先順から外しblockerにしない。
+- **OSS boundary on PR #6827:** current remote head fails only `manifest_inventory_mismatch` for `skills/capafy-autopublish`. The corrected 245-file hash is in the manifest locally; verifier and 12 contract tests pass. Push that exact fix and require the new-head OSS job to pass.
+- **Production reconciliation:** current symlink is `f3e4926`, but the reconciler process is still running from `37d1f248`; no owner row for current SHA, CFO remains installed on `8f342d8d`, and fleet state is stale. Recent releases produced exit143/75/1, with ac0a exit1 cause unpersisted. Do not restart or replay; wait for a natural terminal and read the exact durable evidence. This blocks production acceptance, not source work.
+- **CFO message trace:** provider sidecar has sent/message-ID evidence while the runtime event remains unknown with null receipt fields. Dry-run reconciliation lacks the `effect_unknown` admission marker. Fix the receipt join on its dedicated owner branch; do not `--resolve` or resend.
+- **CFO economics:** whole-company revenue/net/MRR remain unknown; only mobile-apps MRR USD 20.34 is verified. Google bill JPY 27,889 is billed but cash-paid and loop allocation are unknown. A6/A8/A9 own the remaining evidence; Moneytree remains deferred.
 ### 2026-10-08 12:19 JST — eBook source merge readback and production cursor
 
 PR #7030はrequired CI全件PASS後、merge commit `c5d3f20a1b59048c8709574e11e8cb777c3b972e`でmainへ統合済み。PRで追加したHeyGen ID/status保持、exit-4 stdout回収、sanitized failure propagation、正本spec/plan、Capafy inventory digestがmainにある。
