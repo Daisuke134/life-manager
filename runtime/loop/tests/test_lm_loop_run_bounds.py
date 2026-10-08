@@ -1,5 +1,6 @@
 import json
 import hashlib
+import errno
 import os
 import shutil
 import signal
@@ -2264,6 +2265,112 @@ def test_main_records_apply_lock_busy_before_dispatch(tmp_path):
     run_admitted.assert_not_called()
     acquire_resource.assert_not_called()
     enqueue_resource.assert_not_called()
+
+
+def test_main_records_scratch_enospc_and_allows_next_wake(tmp_path):
+    release = _write_prestart_lock_release(tmp_path)
+    registry_path = release / "config/loop-registry.json"
+    registry = json.loads(registry_path.read_text(encoding="utf-8"))
+    registry["loops"]["example-publisher"]["effect_class"] = "none"
+    registry_path.write_text(json.dumps(registry), encoding="utf-8")
+    state_root = tmp_path / "state"
+    events = []
+
+    with (patch.dict(os.environ, {
+              "LIFE_MANAGER_STATE_ROOT": str(state_root),
+              "LIFE_MANAGER_RUN_ID": "run-1",
+              "WAKE_ID": "wake-1",
+          }, clear=False),
+          patch("runtime.loop.lm_loop_run._apply_lock", return_value=nullcontext()),
+          patch("runtime.loop.lm_loop_run.build_loop_command", return_value=["/bin/true"]),
+          patch("runtime.loop.lm_loop_run.reset_loop_scratch",
+                side_effect=OSError(errno.ENOSPC, "No space left on device")),
+          patch("runtime.loop.lm_loop_run.append_runtime_event",
+                side_effect=lambda _path, event: events.append(event)),
+          patch("runtime.loop.lm_loop_run._run_admitted") as run_admitted):
+        assert lm_loop_run_main(["example-publisher", str(release)]) == 78
+
+    assert len(events) == 1
+    failed = events[0]
+    assert failed["phase"] == "report"
+    assert failed["status"] == "fail"
+    assert failed["loop_id"] == failed["job_id"] == failed["owner_id"] == "example-publisher"
+    assert failed["run_id"] == "run-1"
+    assert failed["occurrence_id"] == "example-publisher:run-1"
+    assert failed["effect_status"] == "not_applicable"
+    assert failed["blocker"] == "scratch_enospc"
+    assert failed["error_class"] == "enospc"
+    assert failed["exit_code"] == 78
+    assert failed["retryable"] is True
+    assert failed["next_action"] == "retry_after_eligibility"
+    assert failed["error_detail"] == "scratch allocation failed; errno=28"
+    assert failed["evidence_refs"] == []
+    assert failed["provider_receipt_id"] is None
+    assert failed["official_readback_ref"] is None
+    assert not (state_root / "loop-tmp/example-publisher/run-1").exists()
+    run_admitted.assert_not_called()
+
+    def run_next_wake(_command, _entry, _loop_id, _env, receipt, **_kwargs):
+        receipt.write_text('{"status":"pass","effect":0}\n', encoding="utf-8")
+        receipt.chmod(0o600)
+        return 0
+
+    with (patch.dict(os.environ, {
+              "LIFE_MANAGER_STATE_ROOT": str(state_root),
+              "LIFE_MANAGER_RUN_ID": "run-2",
+              "WAKE_ID": "wake-2",
+          }, clear=False),
+          patch("runtime.loop.lm_loop_run._apply_lock", return_value=nullcontext()),
+          patch("runtime.loop.lm_loop_run.build_loop_command", return_value=["/bin/true"]),
+          patch("runtime.loop.lm_loop_run.append_runtime_event",
+                side_effect=lambda _path, event: events.append(event)),
+          patch("runtime.loop.lm_loop_run._run_admitted", side_effect=run_next_wake)):
+        assert lm_loop_run_main(["example-publisher", str(release)]) == 0
+
+    assert events[-1]["status"] == "pass"
+    assert events[-1]["effect_status"] == "not_applicable"
+    assert events[-1]["run_id"] == "run-2"
+
+
+def test_main_emits_structured_scratch_enospc_if_terminal_event_cannot_be_written(
+        tmp_path, capsys):
+    release = _write_prestart_lock_release(tmp_path)
+    registry_path = release / "config/loop-registry.json"
+    registry = json.loads(registry_path.read_text(encoding="utf-8"))
+    registry["loops"]["example-publisher"]["effect_class"] = "none"
+    registry_path.write_text(json.dumps(registry), encoding="utf-8")
+    state_root = tmp_path / "state"
+
+    with (patch.dict(os.environ, {
+              "LIFE_MANAGER_STATE_ROOT": str(state_root),
+              "LIFE_MANAGER_RUN_ID": "run-1",
+              "WAKE_ID": "wake-1",
+          }, clear=False),
+          patch("runtime.loop.lm_loop_run._apply_lock", return_value=nullcontext()),
+          patch("runtime.loop.lm_loop_run.build_loop_command", return_value=["/bin/true"]),
+          patch("runtime.loop.lm_loop_run.reset_loop_scratch",
+                side_effect=OSError(errno.ENOSPC, "No space left on device")),
+          patch("runtime.loop.lm_loop_run.append_runtime_event",
+                side_effect=OSError(errno.ENOSPC, "No space left on device")),
+          patch("runtime.loop.lm_loop_run._run_admitted") as run_admitted):
+        assert lm_loop_run_main(["example-publisher", str(release)]) == 78
+
+    diagnostic = json.loads(capsys.readouterr().err)
+    assert diagnostic["event"] == "runtime_event_write_failed"
+    assert diagnostic["loop_id"] == diagnostic["job_id"] == diagnostic["owner_id"] == "example-publisher"
+    assert diagnostic["run_id"] == "run-1"
+    assert diagnostic["occurrence_id"] == "example-publisher:run-1"
+    assert diagnostic["phase"] == "report"
+    assert diagnostic["command"] == "bin/example-publisher"
+    assert diagnostic["blocker"] == "scratch_enospc"
+    assert diagnostic["effect_status"] == "not_applicable"
+    assert diagnostic["effect"] == 0
+    assert diagnostic["readback"] == 0
+    assert diagnostic["operation_errno"] == errno.ENOSPC
+    assert diagnostic["writer_errno"] == errno.ENOSPC
+    assert diagnostic["retryable"] is True
+    assert diagnostic["next_action"] == "retry_after_eligibility"
+    run_admitted.assert_not_called()
 
 
 def test_main_reports_sanitized_prestart_event_write_failure(tmp_path, capsys):

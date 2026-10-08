@@ -7199,7 +7199,7 @@ This contract supersedes every earlier or later historical cursor and TODO step 
 **残TODO（完了まで・この順）:**
 
 1. [x] shared runner、host/Gig guard、Affiliate source/composition/local owner、SelfFixからfree-space計測不能によるadmission/blockerを除去する。unsafe/unreadable control state、明示`disk-writers.stop`、memory/resource limits、effect fencesは維持する。cleanupの2 GiB指標はpass/failと分離したままにする。
-2. [x] focused acceptanceで0-byteと計測不能の両方がdispatcherを止めないこと、explicit stop・unsafe control path・effect-unknownが保持されることを確認した。別のdisk cleanup実装は変更していない。
+2. [x] focused acceptanceで0-byteと計測不能の両方がdispatcherを止めないこと、explicit stop・unsafe control path・effect-unknownが保持されることを確認した。scratch作成時の実`ENOSPC`も`effect_status=not_applicable`のretryable terminalとして記録し、次回wakeが進むことを確認した。別のdisk cleanup実装は変更していない。
 3. [ ] latest-main専用PRをmergeし、main由来immutable releaseとreconcilerのnatural runでAffiliate `source-refresh` / `composition`のloaded SHAを読み戻す。過去の`disk_headroom_low`履歴を新規失敗と混同しない。
 4. [ ] Xの`effect_unknown` occurrenceを公式timeline/readbackで照合し、解決根拠なしに再送しない。自然なAffiliate compositionでEnglish-first + Japanese summaryと成功事例由来のtutorial/CTA形式を読み戻す。
 5. [ ] fresh PartnerStack clicks/signups/commission/payoutと実費を照合し、承認済み報酬・settlementが確認できるまで収益を主張しない。現在の既知公式値は0 commission / $0 revenue、payout設定は未完了。

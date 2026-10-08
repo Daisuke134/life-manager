@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import hashlib
+import errno
 import fcntl
 import os
 import plistlib
@@ -1557,6 +1558,7 @@ def main(argv: list[str] | None = None) -> int:
                     next_action="retry_after_eligibility",
                 )
                 event["effect_status"] = "not_applicable"
+                event["evidence_refs"] = []
                 validate_runtime_event(event)
                 try:
                     append_runtime_event(event_path, event)
@@ -1593,8 +1595,45 @@ def main(argv: list[str] | None = None) -> int:
                 return 78
             command = build_loop_command(registry, loop_id, release_root)
             loaded_argv_sha256 = _identity_sha256(command)
-            scratch, scratch_parent_fd, scratch_fd = reset_loop_scratch(
-                loop_state_root, loop_id, run_id, effect_class=entry["effect_class"])
+            try:
+                scratch, scratch_parent_fd, scratch_fd = reset_loop_scratch(
+                    loop_state_root, loop_id, run_id, effect_class=entry["effect_class"])
+            except OSError as error:
+                no_space = error.errno == errno.ENOSPC
+                blocker = "scratch_enospc" if no_space else "scratch_allocation_failed"
+                error_class = "enospc" if no_space else type(error).__name__.lower()
+                event = build_runtime_event(
+                    loop_id=loop_id, domain=entry["domain"], run_id=run_id,
+                    release_sha=manifest["sha"], provider=entry["provider_route"],
+                    profile_alias=None, effect_class=entry["effect_class"],
+                    succeeded=False, deferred=False, blocker=blocker,
+                    evidence_scheme="lm-loop", product_loop_id=product_loop_id,
+                    job_id=loop_id, owner_id=loop_id, wake_id=wake_id,
+                    loaded_argv_sha256=loaded_argv_sha256,
+                    loaded_env_sha256=start_env_sha256,
+                    exit_code=78, failure_layer="runtime", error_class=error_class,
+                    retryable=True, next_action="retry_after_eligibility",
+                    error_detail=f"scratch allocation failed; errno={error.errno}",
+                )
+                event["effect_status"] = "not_applicable"
+                event["evidence_refs"] = []
+                validate_runtime_event(event)
+                try:
+                    append_runtime_event(event_path, event)
+                except (OSError, ValueError) as write_error:
+                    diagnostic = {
+                        **event,
+                        "event": "runtime_event_write_failed",
+                        "command": entry["entrypoint"],
+                        "effect": 0,
+                        "readback": 0,
+                        "operation_errno": error.errno,
+                        "writer_error_type": type(write_error).__name__,
+                        "writer_errno": getattr(write_error, "errno", None),
+                    }
+                    print(json.dumps(diagnostic, sort_keys=True, separators=(",", ":")),
+                          file=sys.stderr)
+                return 78
             try:
                 append_runtime_event(event_path, build_runtime_start_event(
                     loop_id=loop_id, domain=entry["domain"], run_id=run_id,
