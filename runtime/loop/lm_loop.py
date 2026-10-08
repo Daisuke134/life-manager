@@ -830,12 +830,33 @@ def _pending_admission_owners() -> set[str]:
     rows = _read_admission_rows(
         database,
         """SELECT owner_id FROM occurrences WHERE state='claimed'
-           UNION
+           UNION ALL
            SELECT o.owner_id FROM occurrences o
              JOIN queue q ON q.owner_id=o.owner_id
            WHERE o.state='queued' AND o.effect_unknown=0""",
     )
     return {owner_id for (owner_id,) in rows}
+
+
+def _owner_has_pending_admission(owner_id: str) -> bool:
+    database = admission_root() / "admission-v2.sqlite3"
+    try:
+        database.stat()
+    except FileNotFoundError:
+        return False
+    rows = _read_admission_rows(
+        database,
+        """SELECT EXISTS(
+                 SELECT 1 FROM occurrences
+                 WHERE owner_id=? AND state='claimed'
+             ) OR EXISTS(
+                 SELECT 1 FROM occurrences o
+                 JOIN queue q ON q.owner_id=o.owner_id
+                 WHERE o.owner_id=? AND o.state='queued' AND o.effect_unknown=0
+             )""",
+        (owner_id, owner_id),
+    )
+    return bool(rows and rows[0][0])
 
 
 def _entry_effect_scope(entry: dict) -> str:
@@ -1118,7 +1139,7 @@ def _admission_rebind_guard(
     with owner_deploy_lock(loop_id) as acquired:
         if not acquired:
             raise RuntimeError("owner deploy busy")
-        pending = loop_id in _pending_admission_owners()
+        pending = _owner_has_pending_admission(loop_id)
         if not pending:
             yield None
             return

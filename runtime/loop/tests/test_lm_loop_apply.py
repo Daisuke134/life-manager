@@ -982,7 +982,7 @@ class LmLoopApplyTest(unittest.TestCase):
             "priority": "revenue",
         }
         with (
-            patch.object(lm_loop, "_pending_admission_owners", return_value={"example"}),
+            patch.object(lm_loop, "_owner_has_pending_admission", return_value=True),
             patch.object(lm_loop, "rebind_queued_owner", return_value="reserved") as rebind,
             lm_loop._admission_rebind_guard("example", True, entry=entry) as decision,
         ):
@@ -1000,7 +1000,7 @@ class LmLoopApplyTest(unittest.TestCase):
         }
         item = {"label": "ai.anicca.example"}
         with (
-            patch.object(lm_loop, "_pending_admission_owners", return_value={"example"}),
+            patch.object(lm_loop, "_owner_has_pending_admission", return_value=True),
             patch.object(lm_loop, "_skip_if_not_loaded_idle", return_value=None),
             patch.object(
                 lm_loop, "rebind_queued_owner",
@@ -1025,7 +1025,7 @@ class LmLoopApplyTest(unittest.TestCase):
         }
         item = {"label": "ai.anicca.example"}
         with (
-            patch.object(lm_loop, "_pending_admission_owners", return_value={"example"}),
+            patch.object(lm_loop, "_owner_has_pending_admission", return_value=True),
             patch.object(lm_loop, "_skip_if_not_loaded_idle", return_value=None),
             patch.object(lm_loop, "rebind_queued_owner", return_value="not_queued") as rebind,
             patch.object(lm_loop, "clear_no_effect_unknown", return_value=1) as clear,
@@ -1045,8 +1045,7 @@ class LmLoopApplyTest(unittest.TestCase):
         entry = {"effect_class": "none"}
         with (
             patch.object(
-                lm_loop, "_pending_admission_owners",
-                return_value={"life-manager-recovery-supervisor"},
+                lm_loop, "_owner_has_pending_admission", return_value=True,
             ),
             patch.object(
                 lm_loop, "cancel_effect_free_queued_owner", return_value="cancelled",
@@ -1066,7 +1065,7 @@ class LmLoopApplyTest(unittest.TestCase):
         }
         item = {"label": "ai.anicca.example"}
         with (
-            patch.object(lm_loop, "_pending_admission_owners", return_value={"example"}),
+            patch.object(lm_loop, "_owner_has_pending_admission", return_value=True),
             patch.object(lm_loop, "_skip_if_not_loaded_idle", return_value=None),
             patch.object(lm_loop, "rebind_queued_owner", return_value="reserved") as rebind,
             lm_loop._admission_rebind_guard(
@@ -1088,7 +1087,7 @@ class LmLoopApplyTest(unittest.TestCase):
         }
         item = {"label": "ai.anicca.example"}
         with (
-            patch.object(lm_loop, "_pending_admission_owners", return_value={"example"}),
+            patch.object(lm_loop, "_owner_has_pending_admission", return_value=True),
             patch.object(lm_loop, "_skip_if_not_loaded_idle", return_value=None),
             patch.object(
                 lm_loop, "rebind_queued_owner", return_value="resource_class_reserved",
@@ -1112,7 +1111,7 @@ class LmLoopApplyTest(unittest.TestCase):
         }
         item = {"label": "ai.anicca.example"}
         with (
-            patch.object(lm_loop, "_pending_admission_owners", return_value={"example"}),
+            patch.object(lm_loop, "_owner_has_pending_admission", return_value=True),
             patch.object(lm_loop, "_skip_if_not_loaded_idle", return_value=None),
             patch.object(lm_loop, "rebind_queued_owner", return_value="rebound") as rebind,
             lm_loop._admission_rebind_guard(
@@ -1136,7 +1135,7 @@ class LmLoopApplyTest(unittest.TestCase):
         item = {"label": "ai.anicca.example"}
         running = {"ok": True, "skipped": "loaded-running"}
         with (
-            patch.object(lm_loop, "_pending_admission_owners", return_value={"example"}),
+            patch.object(lm_loop, "_owner_has_pending_admission", return_value=True),
             patch.object(lm_loop, "_skip_if_not_loaded_idle", return_value=running),
             patch.object(lm_loop, "rebind_queued_owner") as rebind,
             lm_loop._admission_rebind_guard(
@@ -1157,7 +1156,7 @@ class LmLoopApplyTest(unittest.TestCase):
         }
         item = {"label": "ai.anicca.example"}
         with (
-            patch.object(lm_loop, "_pending_admission_owners", return_value={"example"}),
+            patch.object(lm_loop, "_owner_has_pending_admission", return_value=True),
             patch.object(
                 lm_loop, "_skip_if_not_loaded_idle", return_value={"skipped": "unloaded"},
             ),
@@ -1177,7 +1176,7 @@ class LmLoopApplyTest(unittest.TestCase):
             "priority": "revenue",
         }
         with (
-            patch.object(lm_loop, "_pending_admission_owners", return_value={"example"}),
+            patch.object(lm_loop, "_owner_has_pending_admission", return_value=True),
             patch.object(lm_loop, "rebind_queued_owner", return_value="not_queued") as rebind,
             lm_loop._admission_rebind_guard("example", True, entry=entry) as decision,
         ):
@@ -1195,7 +1194,7 @@ class LmLoopApplyTest(unittest.TestCase):
         }
         item = {"label": "ai.anicca.example"}
         with (
-            patch.object(lm_loop, "_pending_admission_owners", return_value={"example"}),
+            patch.object(lm_loop, "_owner_has_pending_admission", return_value=True),
             patch.object(lm_loop, "_skip_if_not_loaded_idle", return_value=None),
             patch.object(lm_loop, "rebind_queued_owner", return_value="not_queued"),
             patch.object(
@@ -1223,7 +1222,7 @@ class LmLoopApplyTest(unittest.TestCase):
         }
         item = {"label": "ai.anicca.example"}
         with (
-            patch.object(lm_loop, "_pending_admission_owners", return_value={"example"}),
+            patch.object(lm_loop, "_owner_has_pending_admission", return_value=True),
             patch.object(lm_loop, "_skip_if_not_loaded_idle", return_value={"skipped": "unloaded"}),
             patch.object(lm_loop, "rebind_queued_owner", return_value="not_queued"),
             lm_loop._admission_rebind_guard(
@@ -1242,7 +1241,7 @@ class LmLoopApplyTest(unittest.TestCase):
             "entrypoint": "apps/life-manager/scripts/mobile-app",
         }
         with (
-            patch.object(lm_loop, "_pending_admission_owners", return_value={"mobile"}),
+            patch.object(lm_loop, "_owner_has_pending_admission", return_value=True),
             patch.object(lm_loop, "rebind_queued_owner", return_value="rebound") as rebind,
             lm_loop._admission_rebind_guard("mobile", True, entry=entry) as decision,
         ):
@@ -1262,7 +1261,7 @@ class LmLoopApplyTest(unittest.TestCase):
             "admission_effect_scope": "occurrence",
         }
         with (
-            patch.object(lm_loop, "_pending_admission_owners", return_value={"paid"}),
+            patch.object(lm_loop, "_owner_has_pending_admission", return_value=True),
             patch.object(lm_loop, "rebind_queued_owner", return_value="rebound") as rebind,
             lm_loop._admission_rebind_guard("paid", True, entry=entry) as decision,
         ):
