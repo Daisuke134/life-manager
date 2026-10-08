@@ -17,7 +17,7 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
-from typing import Any
+from typing import Any, Callable
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -1051,6 +1051,107 @@ def _persist_recovered_distribution_row(identity: dict[str, Any], proof: dict[st
         raise ValueError("recovered Postiz receipt was not durable in the distribution ledger")
 
 
+_INTEGRATION_REF = re.compile(r"^integration://postiz/[a-z0-9_-]+/([A-Za-z0-9][A-Za-z0-9._:-]{0,127})$")
+_POSTS_LIMIT = 100
+HISTORICAL_SWEEP_PER_CALL = 25
+
+
+def _owner_integration_id(owner_id: str, identity_dir: Path) -> str | None:
+    """The one Postiz integration this owner has ever published through, else None."""
+    found: set[str] = set()
+    try:
+        sidecars = sorted(Path(identity_dir).expanduser().iterdir(), key=lambda item: item.name)
+    except OSError:
+        return None
+    for sidecar in sidecars:
+        for row in _safe_jsonl(sidecar) or []:
+            if row.get("loop_id") != owner_id:
+                continue
+            match = _INTEGRATION_REF.fullmatch(str(row.get("integration_ref", "")))
+            if match:
+                found.add(match.group(1))
+    return next(iter(found)) if len(found) == 1 else None
+
+
+def _postiz_posts_between(integration_id: str, start: str, end: str, api_key: str) -> list[dict[str, Any]]:
+    query = urllib.parse.urlencode({"startDate": start, "endDate": end, "limit": str(_POSTS_LIMIT)})
+    rows = _rows(_request_json(f"{POSTIZ_V1}/posts?{query}", api_key))
+    if len(rows) >= _POSTS_LIMIT:
+        raise ValueError("Postiz readback hit the page limit; the window is not fully read")
+    return [row for row in rows
+            if str((row.get("integration") or {}).get("id", "")) == integration_id]
+
+
+def build_historical_no_dispatch_proof(
+    owner_id: str, occurrence_id: str, *, queued_at: float, identity_dir: Path, api_key: str,
+    list_posts: Callable[[str, str, str, str], list[dict[str, Any]]] = _postiz_posts_between,
+    window_seconds: int = 1800,
+) -> dict[str, Any] | None:
+    """Prove a fenced occurrence never posted: its one integration has zero posts around it.
+
+    Returns None (keep the fence) when the integration is not unique, the readback fails or is
+    truncated, or any post exists in the window.  Never contacts Postiz for a write.
+    """
+    if not ID.fullmatch(owner_id) or not occurrence_id.startswith(f"{owner_id}:"):
+        return None
+    integration_id = _owner_integration_id(owner_id, identity_dir)
+    if integration_id is None:
+        return None
+    fmt = "%Y-%m-%dT%H:%M:%SZ"
+    start = datetime.fromtimestamp(queued_at - window_seconds, timezone.utc).strftime(fmt)
+    end = datetime.fromtimestamp(queued_at + window_seconds, timezone.utc).strftime(fmt)
+    try:
+        posts = list_posts(integration_id, start, end, api_key)
+    except (OSError, ValueError):
+        return None
+    if posts:
+        return None
+    return {
+        "owner_id": owner_id, "occurrence_id": occurrence_id, "verified": True,
+        "proof_type": "historical_integration_bound_no_dispatch", "provider": "postiz",
+        "historical_integration_id": integration_id,
+        "evidence_ref": f"postiz://posts?window={start}..{end}&integration={integration_id}&count=0",
+    }
+
+
+def sweep_historical_no_dispatch(
+    owner_id: str, *, identity_dir: Path, admission_db: Path, api_key: str, apply: bool,
+    list_posts: Callable[..., list[dict[str, Any]]] = _postiz_posts_between,
+    resolver: Callable[..., bool] | None = None, max_items: int = 50,
+) -> dict[str, Any]:
+    """Close old fenced occurrences of one owner that provably never posted.
+
+    Oldest first, at most ``max_items`` per call.  An occurrence closes only with a fresh
+    ``historical_integration_bound_no_dispatch`` proof; without ``apply`` nothing is written.
+    """
+    if resolver is None:
+        from runtime.host import resource_admission
+        resolver = resource_admission.resolve_historical_no_dispatch_occurrence
+    try:
+        with sqlite3.connect(f"file:{admission_db}?mode=ro", uri=True, timeout=10) as connection:
+            fenced = connection.execute(
+                "SELECT occurrence_id, queued_at FROM occurrences WHERE owner_id=? "
+                "AND state='claimed' AND effect_unknown=1 ORDER BY queued_at LIMIT ?",
+                (owner_id, int(max_items)),
+            ).fetchall()
+    except sqlite3.Error:
+        return _inconclusive(owner_id, "", "admission_pending_read_failed")
+    provable = kept = resolved = 0
+    for occurrence_id, queued_at in fenced:
+        proof = build_historical_no_dispatch_proof(
+            owner_id, str(occurrence_id), queued_at=float(queued_at),
+            identity_dir=identity_dir, api_key=api_key, list_posts=list_posts)
+        if proof is None:
+            kept += 1
+            continue
+        provable += 1
+        if apply and resolver(owner_id, str(occurrence_id), no_dispatch_proof=lambda proof=proof: proof):
+            resolved += 1
+    return {"status": "resolved" if resolved else "clean" if not fenced else "swept",
+            "owner_id": owner_id, "inspected": len(fenced), "provable": provable,
+            "kept": kept, "resolved": resolved, "applied": bool(apply)}
+
+
 def reconcile_pending_owner(
     *, owner_id: str, identity_dir: Path, data_dir: Path, tenant_id: str,
     admission_db: Path, api_key: str, apply: bool,
@@ -1245,6 +1346,11 @@ def main(argv: list[str] | None = None) -> int:
         "--admission-db", type=Path,
         default=Path.home() / ".local/state/life-manager/host-admission/resources/admission-v2.sqlite3",
     )
+    parser.add_argument(
+        "--historical-no-dispatch", action="store_true",
+        help="with --auto-owner: close old identity-less fences only when Postiz shows no post in the window",
+    )
+    parser.add_argument("--historical-max-items", type=int, default=50)
     parser.add_argument("--resolve", action="store_true", help="clear only after the fresh official proof")
     parser.add_argument(
         "--verify-only", action="store_true",
@@ -1270,6 +1376,13 @@ def main(argv: list[str] | None = None) -> int:
     if args.auto_owner:
         if any((args.identity, args.ledger, args.owner_id)):
             parser.error("--auto-owner cannot be combined with --identity, --ledger, or --owner-id")
+        if args.historical_no_dispatch:
+            result = sweep_historical_no_dispatch(
+                args.auto_owner, identity_dir=args.identity_dir, admission_db=args.admission_db,
+                api_key=os.environ.get("POSTIZ_API_KEY") or os.environ.get("LM_POSTIZ_API_KEY", ""),
+                apply=args.resolve, max_items=max(1, args.historical_max_items))
+            print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+            return 0 if result.get("status") in {"clean", "resolved", "swept"} else 1
         api_key = os.environ.get("POSTIZ_API_KEY") or os.environ.get("LM_POSTIZ_API_KEY", "")
         runtime_scope = _runtime_occurrence_scope(args.auto_owner, args.occurrence_id)
         if runtime_scope is None:
@@ -1295,6 +1408,15 @@ def main(argv: list[str] | None = None) -> int:
                 api_key=api_key,
                 apply=args.resolve,
             )
+            if (args.resolve and result.get("status") == "inconclusive"
+                    and result.get("reason") == "identity_missing_or_invalid"):
+                # An identity-less fence is a historical leftover: drain the owner's oldest
+                # provably never-posted ones, a few per call, so the backlog shrinks every wake.
+                sweep = sweep_historical_no_dispatch(
+                    args.auto_owner, identity_dir=args.identity_dir,
+                    admission_db=args.admission_db, api_key=api_key, apply=True,
+                    max_items=HISTORICAL_SWEEP_PER_CALL)
+                result = {**result, "historical_sweep": sweep}
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
         if result.get("status") in {"clean", "resolved"}:
             return 0
