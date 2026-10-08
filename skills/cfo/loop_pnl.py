@@ -440,14 +440,21 @@ def collect_b7_records(*, snapshot_at: str, trailing_start: str,
         ]
 
     actual_cost_path = env.get("LM_CFO_ACTUAL_COST_READBACK") or env.get("LM_CFO_ACTUAL_COST")
-    sources["b6-actual-cost"] = _safe_b7_adapter(
-        lambda: actual_cost.adapt(
-            _read_b7_payload(actual_cost_path), snapshot_at=snapshot_at,
+    if actual_cost_path:
+        sources["b6-actual-cost"] = _safe_b7_adapter(
+            lambda: actual_cost.adapt(
+                _read_b7_payload(actual_cost_path), snapshot_at=snapshot_at,
+                trailing_start=trailing_start,
+            ),
+            source_id="actual-cost-readback", loop_ids=("cfo",),
+            snapshot_at=snapshot_at, trailing_start=trailing_start,
+        )
+    else:
+        sources["b6-actual-cost"] = _b7_gap_records(
+            source_id="actual-cost-readback", loop_ids=("cfo",),
+            reason="source_unconnected", snapshot_at=snapshot_at,
             trailing_start=trailing_start,
-        ) if actual_cost_path else [],
-        source_id="actual-cost-readback", loop_ids=("cfo",),
-        snapshot_at=snapshot_at, trailing_start=trailing_start,
-    )
+        )
     writer_path = env.get("LM_CFO_WRITER_MONEY") or str(STATE / "writer" / "money.sqlite3")
     sources["b7-writer"] = _safe_b7_adapter(
         lambda: writer.adapt_path(
@@ -1320,12 +1327,19 @@ def _b7_window(day: date, snapshot_at: str | None, trailing_start: str | None,
 
 
 def _b7_table(day: date, projection: dict, *, snapshot_at: str, trailing_start: str) -> dict:
+    from skills.cfo.adapters import google_cost_table
+
+    billing_directory_value = os.environ.get("LM_CFO_GOOGLE_BILLING_DIR")
+    billing_directory = Path(billing_directory_value) if billing_directory_value else (
+        STATE / "life-manager-cfo-hourly" / "evidence" / "google-cloud-billing"
+    )
     return {
         "reporting_date": day.isoformat(),
         "timezone": "Asia/Tokyo",
         "snapshot_at": projection["snapshot_at"],
         "trailing_start": projection["trailing_start"],
         "economic_attribution": projection,
+        "google_billed_expenses": google_cost_table.load_directory(billing_directory),
     }
 
 
