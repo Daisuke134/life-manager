@@ -3205,7 +3205,7 @@ Capafy＋PromptBase＋自社 checkout をまとめた $10k MRR の全体計画�
 | # | 症状 | 根本原因（証拠） | 対策 | 状態 |
 |---|---|---|---|---|
 | R1 | Capafy は 165 時間、新規出品 0、Writer は 219 時間、記事 0。誰も気づかない | 見張り（life-manager-health-observer）は結果をファイル（alerts.jsonl 56MB）に書くだけで人に届かず、確認も「プロセス成否」で成果物を見ていなかった | `runtime/loop/money_liveness.py` と `config/money-liveness.json`: 成果物が古いレーンを Telegram に 12 時間に 1 回通知、回復も 1 回通知、送信失敗は次回再送。実データで capafy-ship 165h・writer-articles 219h を検出 | ✅ 本番 release 620d941e、自然実行 15:08 で送信確認 |
-| R2 | 見張りの集計が 187 本すべて telegram_gap（正常 0） | 状態取得（`lm-loop health --json`）の制限が 40 秒。空いているときは 9 秒だが、負荷平均 17 の本番では毎回時間切れ | 制限 180 秒（環境変数で変更可）。直後に 正常 33・失敗 43・不明 5 に | ✅ |
+| R2 | 見張りの集計が 187 本すべて telemetry_gap（正常 0） | 状態取得（`lm-loop health --json`）の制限が 40 秒。空いているときは 9 秒だが、負荷平均 17 の本番では毎回時間切れ | 制限 180 秒（環境変数で変更可）。直後に 正常 33・失敗 43・不明 5 に | ✅ |
 | R3 | 工場（capafy-loop-daily）が失敗で終わるたびに約 1 時間止まる（10/08 11:50 と 14:31 の 2 回） | 失敗した回が effect_unknown の印を残し、解除条件が「経過 3720 秒」（最長実行時間＋予備）。実行が終わっていても 1 時間待つ | `capafy_factory_fence_reconcile.run_finished()`: 受付番号の末尾の pid が消えている（または別プロセスに再利用）なら 60 秒で解除。判定不能は従来どおり待つ。公開一覧の差分による「効果なし」証明は据え置き | ✅ 本番 release 68b03657。自然解除の確認待ち（次の起動 15:29 頃） |
 | R4 | Writer が 9/29 から止まっている | リリース（読み取り専用）の中へ state を書こうとして PermissionError（zenn-deferred-worker・self_improve_control） | 書き込み先を WRITER_STATE_DIR へ（2 か所）。他にも `skill_dir/"state"` を直書きするスクリプトが残る | 一部 ✅。残りは下の TODO |
 | R5 | 実行枠が満杯で 33 本が見送り（`resource_capacity_busy`）、22 本が `resource_effect_unknown`。負荷平均 17 | 187 本が少ない枠（agent 1・browser 1・deterministic 2〜3）を取り合う。内訳は未特定 | 未着手（下の TODO） | 🔶 |
