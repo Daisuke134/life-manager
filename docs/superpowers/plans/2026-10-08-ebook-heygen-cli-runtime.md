@@ -2,13 +2,13 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Let only the English eBook owner resolve the installed HeyGen CLI and keep the CLI's anonymous telemetry from blocking its renderer.
+**Goal:** Let only the English eBook owner resolve the installed HeyGen CLI and keep the CLI's anonymous telemetry from blocking its renderer, across the actual JavaScript-to-Python subprocess boundary.
 
-**Architecture:** `runtime/loop/lm_loop_run.py::_child_environment_for_owner()` builds the child environment for eBook owners. The English owner gets `LIFE_MANAGER_HEYGEN=<home>/.local/bin/heygen` when it has no nonempty override, plus `HEYGEN_NO_ANALYTICS=1`. The HeyGen CLI documents that variable as its telemetry opt-out; it prevents an unrelated PostHog DNS error from failing CLI calls. Keep `.local/bin` out of the general `PATH` and leave Japanese and unrelated owners unchanged.
+**Architecture:** `runtime/loop/lm_loop_run.py::_child_environment_for_owner()` builds the English owner's environment with `LIFE_MANAGER_HEYGEN=<home>/.local/bin/heygen` when it has no nonempty override and `HEYGEN_NO_ANALYTICS=1`. `ebook-distribute-daily.js::renderInput()` then creates a minimal Python environment; it must explicitly forward those two values only for `ebook-en`. The HeyGen CLI documents the telemetry variable as its opt-out. Keep `.local/bin` out of shared `PATH` and leave Japanese/unrelated renderer environments unchanged.
 
-**Tech Stack:** Python 3, pytest, Life Manager immutable releases.
+**Tech Stack:** Node.js, Python 3, node:test, pytest, Life Manager immutable releases.
 
-**Spec:** `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md` — “eBook Monk current blocker cursor — 2026-10-08 09:05 JST”.
+**Spec:** `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md` — “eBook Monk current blocker cursor — 2026-10-08 09:16 JST”.
 
 ## Global Constraints
 
@@ -23,7 +23,9 @@
 - An explicit `LIFE_MANAGER_HEYGEN` value keeps precedence.
 - The English fix does not add `~/.local/bin` to shared `PATH`.
 - HeyGen telemetry opt-out is present for the English owner only.
+- The English JavaScript wrapper forwards both HeyGen values to the real Python renderer subprocess.
 - Japanese eBook owners do not receive the English renderer path.
+- Japanese renderer subprocesses do not receive the HeyGen values, even if present in their input environment.
 - Unrelated owners retain their original environment.
 
 ### Task 1: Scope HeyGen CLI resolution to the English owner
@@ -94,4 +96,37 @@ Expected: PASS.
 
 - [x] **Step 5: Commit the source and regression test**
 
-Push this main-derived branch and open a PR. The canonical spec owns promotion order and production readback.
+Push this main-derived branch and open PR #6999. The canonical spec owns promotion order and production readback.
+
+### Task 3: Preserve the scoped HeyGen environment through the renderer boundary
+
+**Files:**
+- Modify: `apps/life-manager/scripts/ebook-distribute-daily.js::renderInput`
+- Test: `apps/life-manager/scripts/ebook-distribute-daily.test.js`
+
+**Interfaces:**
+- Consumes: the owner environment passed to `run()`.
+- Produces: `LIFE_MANAGER_HEYGEN` and `HEYGEN_NO_ANALYTICS` in the English Python renderer subprocess only.
+- Pre-flight: no shared interfaces; the test uses an isolated fake renderer process and never calls Postiz or HeyGen.
+
+- [x] **Step 1: Add a failing subprocess-boundary regression test**
+
+Run `run()` with the active English registry fixture and a fake Python executable that records its inherited environment. Assert that the English child receives both HeyGen values, while a Japanese child receives neither and unrelated secrets are not forwarded. Update the stale English route assertions to match the approved-active registry.
+
+- [x] **Step 2: Verify RED**
+
+Run: `node --test --test-name-pattern='renderer receives scoped HeyGen environment' apps/life-manager/scripts/ebook-distribute-daily.test.js`
+
+Observed: FAIL because the renderer child received `null` for `LIFE_MANAGER_HEYGEN`, as expected from the current allowlist.
+
+- [x] **Step 3: Forward only the two English values**
+
+Pass `run()`'s environment into `renderInput()`. Add the two keys to its subprocess allowlist only when `product === "ebook-en"`; do not pass the rest of the owner environment.
+
+- [x] **Step 4: Verify GREEN and related behavior**
+
+Observed: focused Node selection 3/3 PASS; complete `ebook-distribute-daily.test.js` 11/11 PASS; `python3 -m pytest runtime/loop/tests/test_lm_loop_run_bounds.py -q` 133 passed; `bash scripts/verify-source-boundary.sh` and `git diff --check` PASS.
+
+- [ ] **Step 5: Update PR #6999, review, and merge**
+
+Push the amended branch, resolve the fresh Important review finding, wait for required CI, then merge and follow the canonical owner-release path in the spec.
