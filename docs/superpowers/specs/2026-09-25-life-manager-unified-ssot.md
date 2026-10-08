@@ -7840,6 +7840,31 @@ This entry supersedes the prior producer-review cursor. CFO priority remains A5 
 12. [ ] Complete A10 with seven consecutive natural reports, complete coverage, accurate totals, and replay-zero.
 
 **Current cursor:** `push f603ad06-synced CFO branch/spec → exact-head CI + fresh review → merge CFO source PR → restore numeric disk guard with owner → cleanup/reconciler recovery → guarded release/apply → natural CFO readback/replay-zero → A5 → A6 → A8 → A9 → A10`.
+
+### 2026-10-09 02:43 JST — CFO post-#7198 sync and natural-run status
+
+この追記は02:33 JSTのCFO cursorを更新する。目標・事業順 **A5 → A6 → A8 → A9 → A10** は維持する。
+
+- **Latest source/PR:** `origin/main=da4e7edc` (#7198) is merged locally into the CFO branch at `dbf8b29e`. PR #7106 still remotely points to `9d74f457` / base `f603ad06`; the branch/spec containing the #7198 sync is not pushed. On the prior `f603ad06`-based head, required CI passed 10/10 and fresh source review was SHIP/no findings. Local focused acceptance after the new sync passes CFO Node 59/59, runtime bounds 138/138, host disk/resource 153/153, registry 137 tests + 197 subtests, Gig disk guard 31/31, loop contract 18/188/113, source-boundary and diff check. Exact-head checks/review must run again after pushing `da4e7edc`.
+- **Release vs loaded owner:** `~/loops/current` is still `20261009T022138-4346b61c`, the no-floor release pointer. The CFO label remains loaded-idle on guarded SHA `aba80c9971c563b54810f3f037f72c4de8578d00`; it has not adopted that pointer. The latest CFO attempt is still `18dc9cd088e7f7a8-87897` at `2026-10-08T17:08:13Z`, exit 75 / `disk_headroom_low`, effect `not_applicable`, no provider receipt/ref; last success is `18dc9a8f896a8c88-73023` at 16:25Z with runtime receipt refs absent. Current free disk is 1,289,500 KiB (about 1.26 GiB): above the old 512 MiB revenue floor but below the 2 GiB recovery target. No fresh CFO report or current company total is established.
+- **Owner state:** cleanup is loaded-running with latest terminal `18dc9e8e7dbb0158-50211`, exit 1 / `entrypoint_exit_1`; release reconciler remains loaded-running on `e1b061f1` with the last successful terminal `18dc9e7d9ce4aab8-19662`, but doctor still reports unmanaged self-handoff. The no-floor source remains in main/current pointer, while the CFO label is still guarded. The host-policy lease remains active; do not apply the no-floor pointer or modify its owner's worktree.
+
+**Remaining TODO (atomic, current order):**
+
+1. [x] Fix and test email counters and strict CFO runtime receipt handling.
+2. [x] Merge latest main `da4e7edc` locally and pass the focused synced-tree tests above.
+3. [ ] Push the latest-main-synced branch and SSOT to PR #7106, then pass exact-head required CI and fresh review and merge the CFO source change.
+4. [ ] Keep the no-floor pointer away from the CFO label. After the host-policy lease is released, restore positive numeric floors with bounded upward overrides and fail-closed malformed values.
+5. [ ] Repair cleanup and release-reconciler through their owners; obtain structured capacity evidence of at least 2 GiB free, zero errors, and zero protected deletions.
+6. [ ] Only after a guarded source release exists, apply it to CFO while loaded-idle and verify exact loaded SHA.
+7. [ ] Verify the next natural CFO report's provider/runtime receipt, B7 counter/hash, admission state, and replay-zero. Do not replay historical unknown occurrences.
+8. [ ] Complete A5 production migration/RPC permissions and panel readback; source is merged in PR #6827.
+9. [ ] Complete A6 billed Google expense vs cash paid and occurrence-backed provider/operation attribution.
+10. [ ] Complete A8 settled revenue/refunds/fees/measured costs for all 18 loops and classify all 188 registry jobs.
+11. [ ] Complete A9 source-backed daily, MTD, trailing-period, and MRR with currency/freshness/coverage.
+12. [ ] Complete A10 with seven consecutive natural reports, full coverage, accurate totals, and replay-zero.
+
+**Current cursor:** `push da4e7edc-synced branch/spec → exact-head CI + fresh review → merge CFO source PR → host owner restores numeric guard → cleanup/reconciler recovery → guarded release/apply/readback → natural CFO report/replay-zero → A5 → A6 → A8 → A9 → A10`.
 ### Marketing IntelからWriterへの記事候補連携（並列作業）
 
 **目的:** `marketing-weekly-review`がTelegramへ報告する未検証の`CONTENT`戦術を、既存Writerの`article-daily`トピックキューへ候補として渡す。AffiliateやX repostには配線しない。
