@@ -455,6 +455,7 @@ Capafy の TODO（この順）: C1 ✅ 失敗の自動立て直し / C2 ✅ Hook
 モバイルアプリの TODO（Capafyの後。この順。2026-10-07更新）: 旧順序はA1重複投稿ガード→A2 distribution→A3 ASO→A4 onboarding→A5 app/factory。新順序はA1自然投稿の重複ゼロ確認→A2 tracked distribution・100 first-time downloads/day/app→A2 app/ASC/RevenueCat metrics coverage→6公開appすべて達成後にA4 in-app cohort/onboarding（Anicca first）→A3 ASOはstore-page bottleneckをASCが示した場合のみ→A5 positive unit economics/app factory。順序変更理由はDaisが現時点でdistributionと計測に集中し、ASOを同時に実験しないよう指定したこと、および約97.9kのAnicca social account-viewsに対しASCの最新値が3 downloads/2日で、post→install attributionが欠けること。計測baselineは配信と並行し、creative/ASO/onboarding experimentsは同時に走らせない。Aniccaを先に100/dayのtrailing 7-day averageへ到達させ、その後残る5公開appへ適用し、6件すべての目標は600/dayとする。オンボーディング検証は6件すべてのdistribution target達成後。Anicca 1.9.5の再提出はしない。
 - A1 🔧 同じ文面の繰り返し投稿を止める（2026-09-29 着手・#6127 merge・release 11056150 を 6 lane に反映）。原因: apps/life-manager/lib/marketing-native-carousel-publication-adapter.js の各 lane（EN affirmation IG/TikTok・EN slideshow・JA main・JA buddha・jp1）が 1 組の packRef/captionRef に固定され selectMarketingNativeCarouselLane() がそれ以外を拒否していた。修正: Larry JA の生成パイプラインを lane 引数化して 5 lane に適用、7 日内の caption/スライド文字 hash 重複を投稿前に止める共通 guard。費用は背景使い回し・文字のみ生成で 1 組ほぼ $0（上限 $0.30）。完了の証拠: 次の投稿（Affirmation Girl 14:15 JST 以降）が Postiz で過去と違う文面であること。YouTube Daily Affirmation App は別パイプライン（honne-ja-cycle の selectHook）で未対応。元の記録:実測（Postiz 公式 API、2026-09-25〜28 の 146 投稿）: TikTok Affirmation Girl 9 投稿で文面 2 種、TikTok anicca 7→2、TikTok アニッチャ iOS 9→2、TikTok アニッチャ お笑い 7→2、Instagram anicca 7→2、YouTube Daily Affirmation App 9→2（本音翻訳は 9→9 で毎回違う）。原因: 毎回新しい文字を作る仕組み（#6049〜#6058）は Larry JA の 1 lane にだけ入り、他の lane は少数の固定の文面・スライドを使い回している（スライド画像内の文字の重複は直す時に lane ごとに確定する）。直し方: Larry JA と同じ「背景は使い回し・文字は毎回生成・7 日内の再利用禁止・自動 gate・指標で型を選ぶ」を全 lane に広げ、Postiz の投稿本文とスライドの hash で同一アカウント内の重複を投稿前に止める。
 - A2 投稿 → App Store の流れを測る（アカウント・投稿ごとの再生 → プロフィール → ストア → install）。今は SNS 経由の install がほぼ 0。
+- A2 Telegram checkpoint reports: show the public post URL from the exact matching publication identity for every product/platform; if no verified URL exists, state that it could not be retrieved.
 - A3 ASO（App Store の検索で見つかる言葉・スクリーンショット・説明文）。
 - A4 オンボーディング → 課金の指標（場所ごと）。
 - A5 アプリの中身の改善・工場の未公開 4 本は、集客が回ってから。
@@ -713,6 +714,20 @@ TODO（何を・どう直すか）
 | L24 | 続編のキャラ名をシリーズで固定する | 2026-10-08: カワウソ vol.2〜7 は同じ絵（set-003 再利用）なのにタイトルの名前が ぽか太/もふたん/オッティ/もふお/おたーくん とバラバラ。planner/selector のプロンプトに「最も古いセットの名前を使い続ける」を追加（本 PR）。既出 7 セットの名前は審査中のため変更しない |
 | L25 | host ディスクの空きを 11GiB 以上に戻す（全 loop の再開条件） | **blocker（host 全体）**。Data 228Gi 中 198〜200Gi 使用、空き 3〜6Gi。測定済み ~65G（.local 15G、gig 8.7G=進行中の受託案件、.cloak 10G、Projects 11G、loops 8.3G=全 release/bundle が稼働プロセスか保護リストで参照中、anicca-project 4.9G、.openclaw 4.8G）、残り ~130G は所在調査中（read-only エージェント）。LINE 側は申請済みセットの不要中間ファイルを自動削除済み（#6924） |
 | L27 | 上位セラーを継続的に写す（新規 `market.py`。10 セット申請・4 販売中・売上¥0 のまま、planner が market 調査を一度も見ていなかった） | DONE: `skills/earn/line-sticker/market.py` が LINE STORE `top_creators`（全件+動く系 `category=2000`）・`new_creators` を login 不要の HTTP GET で毎日読み（`market.json` の `observed_at` で自己ゲート、`line-sticker-readback.sh` から `sales_readback.py` の直後に1行追加で呼ぶ）、上位 40 件を product_id 順に dedup して各商品ページの schema.org JSON-LD（title/description/price/author）とスタンプ一覧の `data-preview` type（static/animated/popup・枚数）を抽出、著者ページで著者のシリーズ本数（`author_sets`）も記録。上位 15 件だけ `agent_runner.py` にサムネイルを渡し文字有無・テーマ・画風・フレーズを分類。`line_sticker_planner._build_plan_prompt` は market 上位 15 件を見せ、`copy_target`（商品URL・テーマ・フレーズ・表現スタイル・文字有無・タイトルの型）を plan.schema.json の必須フィールドに追加（他者のキャラ・絵・文字の複製は禁止、企画パターンだけ写す）。市場が静止/文字入り中心なら `format_gap` に記録（別 TODO、今回は着手しない）。2026-10-08 実測スイープ（40件、分類なしの dry-run）: フォーマット static 24 / animated 15 / popup 1、価格帯 ¥190（静止の大半）〜¥250（動く系の大半）、上位は例外なく既存キャラの多セット展開（例: ナガノ34セット、動画工房36セット）。テスト: `tests/test_market.py`（新規、HTML fixture ベース・ネットワーク無し）+ `tests/test_line_sticker_planner.py`/`tests/test_factory.py` 追加分、全 green。`./bin/lm-loop-contract` PASS |
+
+#### 5.L 実行順（2026-10-08 Dais「1 つずつ最後まで」。この表が LINE スタンプの cursor の正本）
+
+成功者の稼ぎ方（一次・準一次ソース）: LINE 公式 10 周年 累計 1,000 億円・上位 10 名平均 13.52 億円（9 割は月数百円）; ゲスくま（ITmedia 2015-12-28）「ランキング上位で一番使いやすいものに合わせて作る」「1 位を 10 週で月 100 万円」; urajo（本人 note）10 年量産＋シリーズ化で 2023-02 売上 37 万円・分配 22 万円、累計 1,000 万円超; ユニコブログ 猫×毎日使える言葉で初日 2.7 万円。共通点 = ①ランキングの型を写す ②1 キャラ量産・シリーズ ③絵より送りやすい言葉 ④発売直後に SNS で人を集める。静止の最低価格は 2026-07-01 から ¥190。
+
+| 順 | ID | 1 つの作業 | 完了条件 | 状態 |
+|---|---|---|---|---|
+| 1 | L19 | 静止スタンプ（¥190）ラインを本番で 1 セット申請 | Creators Market で審査待ちを readback | 進行中（#7039 merge 済み） |
+| 2 | L28 | 画像生成を ChatGPT サブスク（`~/.agents/skills/chatgpt-imagegen`）に統一し原価 0 | 静止・キャラ画像が chatgpt-imagegen で生成され cost_usd 0 を記録 | 進行中 |
+| 3 | L26 | 特集（例 835 冬を感じるスタンプ）に条件が合えば自動参加 | #7034 merge・release・次の申請で参加を readback | CI 待ち。手動で 48137583 を 835 に参加済み |
+| 4 | L29 | 動くスタンプを fal ではなく ChatGPT のコマ画像→APNG で作る（fal 残高 −$10.95 で停止中） | 1 セットを無課金で生成し申請 | 未 |
+| 5 | L20 | 文字入り版（「了解」「ありがとう」等）を別 SKU で出す | 1 セット申請 | 未 |
+| 6 | L17 | IG の日常投稿・交流を回す（10/10 から engagement と bio リンク） | 自然 slot の新規 reel と ledger、10/10 以降の engagement 記録 | 仕組み本番済み、ホスト停止中は保留 |
+| 7 | L21 | 1 キャラのシリーズ本数を増やす（売上が出た型を優先） | sales.json に売上が出たキャラの続編が出る | 自動（L18/L27 配線済み） |
 
 ### 5.1 自己修復・自己改善の定義（T5 / T12 の正本）
 
@@ -4999,6 +5014,10 @@ Production / capacity readback (2026-10-08 12:32 JST): `origin/main=6639a538`、
 5. **A10受入:** main由来immutable releaseで7日連続の自然runを読み、18/18 loops・186/186 jobs、official readback、delivery receipt、unknown owner/action、期間一致、重複/再送ゼロを確認する。これ以前は全社CFO完了や$10k verified MRRを主張しない。
 
 **現在cursor:** A5。A5 worktree leaseとproduction reconcilerは別の所有境界として維持する。reconciler/CFO ownerの自然runを重ねて起動せず、A5 lease解放後にA5へ戻る。A7 MoneytreeとA4/A3 Cloud savingsは引き続き対象外・後順位。
+
+## 現行容量基盤を先行する
+
+Daisが現行基盤を先に実装し、安定後にOpenClawへ進む順を指定。旧順序=OC-001以降、新順序=FD-01 bounded stderr replay→FD-02 disk producer budget/retention→FD-03 phase slot→FD-04 readback容量→FD-05自然成果→FD-06 OpenClaw移行。現在cursor=FD-01、source実装着手。根拠はlarge child stderrの全量read/replayとwhole job slot占有。既存workflow/account/claim/scheduleを同時変更しない。[scope](2026-10-08-local-foundation-first.md)。
 
 ### 2026-10-08 11:36 JST — eBook Monk latest cursor and atomic path
 
