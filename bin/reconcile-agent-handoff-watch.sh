@@ -13,7 +13,7 @@ helper_detail=""
 helper_rc=0
 helper_detail="$("$launchctl_safe" print "$domain/$helper_label" 2>&1)" || helper_rc=$?
 if [ "$helper_rc" -eq 0 ]; then
-  helper_state="$(printf '%s\n' "$helper_detail" | sed -nE 's/^[[:space:]]*state = ([[:alnum:]_-]+)[[:space:]]*$/\1/p' | head -n 1)"
+  helper_state="$(printf '%s\n' "$helper_detail" | sed -nE 's/^[[:space:]]*state = (.*)$/\1/p' | head -n 1)"
   helper_pid="$(printf '%s\n' "$helper_detail" | sed -nE 's/^[[:space:]]*pid = ([0-9]+)[[:space:]]*$/\1/p' | head -n 1)"
   case "$helper_state" in
     running)
@@ -21,7 +21,7 @@ if [ "$helper_rc" -eq 0 ]; then
       kill -0 "$helper_pid" 2>/dev/null || exit 69
       exit 0
       ;;
-    waiting|idle)
+    waiting|idle|"not running")
       if [ -n "$helper_pid" ]; then
         case "$helper_pid" in ''|0|1|*[!0-9]*) exit 69 ;; esac
         kill -0 "$helper_pid" 2>/dev/null && exit 0
