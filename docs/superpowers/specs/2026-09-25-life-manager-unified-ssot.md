@@ -4882,3 +4882,30 @@ Host / CI follow-up (2026-10-08 10:41 JST): `df -Pk /`は4,095,476 KiB freeで�
 - Coconalaの最後のofficial order/talkroom snapshotは10/7でstale。fresh provider readbackがない限りbuyer待ち、納品、受入、settlementを現在状態として断定しない。
 
 **現在cursor:** 並列gate 1Aのsender P1修正・test/review/CIと、1Bのcleanup summary readback・安定capacity/target lock auditを完了する。その後にCoconala Paid/order/inboxをfresh readbackする。
+
+### 2026-10-08 11:03 JST — TikTok slideshow P0 and occurrence-scoped resume
+
+この更新でmobile laneの最優先をTikTok slideshow配信へ戻す。前段でCFO/capacity診断に時間を使い、明示されたTikTok最優先を先頭に維持できていなかった。添付プロフィール画像は過去投稿があることを示すが、投稿日や現在の投稿頻度は証明しない。
+
+**最新readback（2026-10-08 10:52–10:57 JST）:**
+
+- Postiz公式GET（10:57 JST、対象窓は10/08 00:00–10:57 JST）でTikTok integrationは17（enabled 16 / disabled 1）。posts endpointの6件中TikTok `PUBLISHED`は`@obou_anicca`のeBook投稿1件のみ。Anicca iOSのTikTok投稿は0件。Postiz list responseにはcarousel mediaが返らないため、この1件や他のlist rowをslideshowとして数えない。
+- `life-manager-anicca-main-tiktok`はloaded `8d396690`、直近terminal `entrypoint_exit_75 / official_readback_required`。JP1とEN affirmationの直近予定slotはdisk floor未達でdefer。EN slideshowとBuddhaも`official_readback_required`。現在の`df -Pk /`は約3.97 GiB freeで2 GiB floorを超えるが、以前のscheduled attemptが成功した証拠ではない。
+- Main ownerのadmission DBには`effect_unknown=1`のoccurrenceが4,207件ある。identity sidecarに一致するのは1件、残り4,206件はidentityなし。これは投稿件数ではなく、各occurrenceのeffectが未解決な参照数である。過去分は一括clearしない。
+- 一致した唯一のmain identityは`life-manager-anicca-main-tiktok:18d864fa9d9c6858-71847`、slot `2026-09-25T07:00:00Z`、account `@anicca.jp`。Postiz detail GETはpost `cmugm48yy00grmr0yyjjqun3p`を`PUBLISHED / DIRECT_POST`、slot 1分後として返し、6枚の画像を列挙する。全6件の`uploads.postiz.com` GETはAuthorizationの有無にかかわらずHTTP 403。画像bytes/orderを確かめられないため、この古いoccurrenceのeffect fenceは保持する。
+- 停止の直接原因は、`apps/life-manager/scripts/mobile-app`が各起動時に`mobile-postiz-provider-reconcile.py --auto-owner <owner> --resolve`を呼び、reconcilerがowner全体の古いunknownを検索し、exact proofがないと`exit 75`でrunner起動前に終了すること。従って9/25の曖昧な投稿1件が、別slotの新規投稿まで止めている。production runnerは各schedule slotで`slotScopedEffect: true`を使う。
+
+**順序変更:** 旧順はrelease/capacityの収束→owner全体のhistorical fence解消→TikTok投稿再開だった。新順は (1) current `LIFE_MANAGER_OCCURRENCE_ID`だけをreconcileするsource fix、(2)同一occurrenceのunknownは従来どおりexact proofまで停止したまま、別slotの新規投稿を再開、(3)main-derived release/apply後のnatural TikTok receipt確認、(4)historical unknownの個別reconcile、(5)全接続profileの3/day、(6)metrics→100 first-time downloads/day→onboarding→$10,000 verified net MRR。理由: owner全体の過去fenceを解くまで将来slotを止める現行gateがdistribution outageの直接原因であり、production slotには既存のslot-scoped effect keyがある。未解決occurrenceのfenceや同一eventのreplay制御は変更しない。これは旧CFO/capacity先行cursorをTikTok先行へ置き換える。
+
+**残りatomic TODO:**
+
+1. `mobile-postiz-provider-reconcile.py`の`--auto-owner`をruntimeの`LIFE_MANAGER_OCCURRENCE_ID`に限定する。current occurrenceにunknownがあれば公式receiptで照合し、exact proofなしなら既存どおりblockする。別occurrenceのhistorical unknownをclearもreplayもしない。runtime occurrence ID欠落時はfail closedにする。RED→GREENで「過去unknownは残るが現在のclean occurrenceはrunnerへ進む」「現在occurrence自体がunknownならrunnerを起動しない」を検証する。
+2. source acceptance・CI後にmainへmergeし、main-derived immutable releaseをcutする。TikTok ownerは一件ずつtarget-applyし、loaded SHA/argvとadmissionを確認する。release reconcilerやactive ownerをstop/restart/並列applyしない。
+3. 次の自然slotでまずAnicca iOS native-carousel ownerから1 account / 1 slotを確認する。Postiz `PUBLISHED` receipt、account/integration、caption/CTA、slot、6枚順序のlocal artifact identityを突合し、同じoccurrence replay-zeroを確認する。その後同じJST日の残りの正規slotを実行する。missed slotを一度にbackfillしない。
+4. Historical TikTok fencesをownerごと・occurrenceごとにofficial Postiz/TikTok evidenceまたはexact pre-effect proofへ結ぶ。今回403だった`@anicca.jp`の旧occurrenceは証拠が回復するまでholdし、数を投稿数やpre-effect件数に読み替えない。
+5. 17接続済みprofileのrouteを完成する。4 enabled holds、disabled `@anicca.jp8`、Postiz integration未接続の`@anicca.videojp` / `@anicca_girl`を個別に確認する。既存approved slideshow/mediaを再利用し、variationはcaption/hookを変える。
+6. enabled accountごとに3つのunique native slideshow `PUBLISHED` receipt/JST日を確認する。現在の16 enabled profileなら48/day、`@anicca.jp8`を復旧して17 enabledになれば51/day。account間の過剰投稿で不足を埋めない。video/Reel receiptをslideshowとして数えない。
+7. post-level views/likes/comments/shares/savesなど、APIが返す値をpost/account/creative/campaignに結んでcheckpoint保存する。未対応値はunknownのままにする。次にASC impressions/product-page views/first-time downloads、RevenueCatのtrial/paid/refund/MRR、Mixpanel/PostHog onboarding funnelを同じcampaign/cohortへ接続する。
+8. 実測baseline後、まずdistribution/contentのhook/captionを一変数ずつ改善する。Anicca iOSのASC first-time downloadsをtrailing 7-day averageで100/dayへ伸ばし、その後にonboarding/paywallをcohortごとに改善する。$10,000 verified net MRRはsettled revenue/refund/fee/actual costの期間一致証拠が揃うまで未達。
+
+**現在cursor:** item 1、current-occurrence scoped preflightとその回帰テスト。今日10:57 JSTまでAnicca iOS TikTok receiptは0件。historical fenceは保持し、新しい自然slotを再開できるsource/release/readbackを先に進める。
