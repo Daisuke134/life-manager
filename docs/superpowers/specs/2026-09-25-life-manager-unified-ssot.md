@@ -8932,6 +8932,58 @@ This entry supersedes the prior producer-review cursor. CFO priority remains A5 
 
 **Current cursor:** diff check → push local CFO fix + latest main/spec → exact-head CI/review/merge → safe storage recovery → active reconciler natural terminal and release readback → CFO queue rebind → natural receipt-backed report → A5 → A6 → A8 → A9 → A10.
 
+### 2026-10-09 06:35 JST — CFO source merged; production is still on the old release
+
+このsnapshotはPR #7106のmerge後の境界を更新する。source修正はmainにあるが、CFOの実績値もproduction adoptionもまだ確認できていない。
+
+- **Source integration:** PR #7106 (`063a1790`)はmain commit `a23db6fb`としてmerge済み（base `397e2df2`）。exact-head required CIは全PASS、fresh read-only reviewはSHIP（Critical/Important/Minor 0）。CFOのborrow→revenue entitlement修正、回帰test、Telegram rejection receipt fixesをmainが保持する。
+- **Production CFO:** current pointerは`20261009T060521-3b543ffa`、CFO installed SHAも`3b543ffa`のまま。latest terminal `18dcaa87c4549458-50307`（21:17:37Z）は`exit 75 / resource_capacity_busy`、provider receiptなし。source変更はまだloadedでない。settled revenue/expense/netはunknown。
+- **Release reconciler:** managed owner PID `81892`はrelease `e1b061f1`からloaded-runningで、childは`lm-loop apply`をcurrent release `3b543ffa`へ実行中。最後のrecorded terminal `18dca9db9418a998-6397`は21:20:02Z exit 1。以前のstderrは`cut-loop-release` exportで`ENOSPC`を記録。停止/重複applyはしない。次のreadbackでcurrent SHAが`a23db6fb`由来releaseへ進んだか確認する。
+- **Host storage:** managed disk-cleanupのterminal `18dcab63cdc3c4f0-26384`は21:33:43Z `entrypoint_exit_1`。別のfresh host-state receipt（21:34:44Z）は`ok=true`, `free_before=543,428,608`, `free_after=540,286,976`, `reclaimed=6,405`, `errors=0`, `protected_deletions=0`, `inventory_gaps=23`, capacity recovery=`unmet` (2 GiB diagnostic), operator stop absent。並行する`df`は`521,396 KiB` free。低容量は継続し、少量回収を十分なrecoveryとは扱わない。Browser/identity ownerは止めない。
+- **Test boundary:** local exact runtime suiteは`820 tests / 4 failures / 362 errors`で未達。主な出力はENOSPC/temp writesと未push local release-cut checks。CIのexact merged headは全required checks PASSなので、local resource failureは別記録として保持し、成功実績の根拠にCI以上を足さない。
+
+**Remaining atomic TODO (この順):**
+
+1. [x] CFO registryのborrow starvationをregression testで再現し、CFOだけ既存revenue admission classへ変更。global capは変更なし。
+2. [x] PR #7106をlatest-main headでrequired CI/fresh review後にmerge。
+3. [ ] PID `81892`の同一reconciler ownerを自然terminalまで観測し、`current` pointer / CFO loaded SHA / `doctor`が`a23db6fb`由来releaseへ進んだかreadbackする。
+4. [ ] ENOSPC writerを既存host-disk ownerのinventory/receiptで特定し、安全なallow-listed回復を続ける。active browserをkillせず、unknown/open/protected pathは保持する。
+5. [ ] accepted releaseがCFO ownerをloaded-idleで処理するとき、既存`_admission_rebind_guard`のowner deploy/apply/admission locks経由でCFO queue rowをrevenue classへrebindする。sequence/reservations/effect_unknownは手動変更しない。
+6. [ ] 次のnatural CFO wakeのterminal/provider/runtime/B7 receipt、settled source coverage、period/currency、replay-zeroをreadbackする。これが揃うまでactual totalsはunknown。
+7. [ ] A5 production migration/RPC/permissions/panel readback。
+8. [ ] A6 Google billed-vs-cash照合とoperation/loop cost attribution。
+9. [ ] A8の18 loops / 188 jobs（113 mapped）のsettled revenue/refund/fee/costとshared overhead coverage。
+10. [ ] A9 JST日次/MTD/trailing/MRR reconcile。
+11. [ ] A10 valid natural CFO reportを7日連続readback。
+
+**Current cursor:** PID81892 natural terminal → current/release/CFO loaded-SHA readback → disk owner error + safe storage recovery → built-in admission rebind under owner locks → next natural CFO receipt/report → A5 → A6 → A8 → A9 → A10.
+
+### 2026-10-09 06:38 JST — post-merge runtime and disk receipt refreshed
+
+このsnapshotは06:35のpost-merge状態を更新する。PR #7106のsource統合は完了したが、CFOのproduction adoptionとactual financial reportは未完。
+
+- **Main/source:** latest main `131ef4cd`までlocal branchに同期済み。PR #7106 (`063a1790`)はmerge commit `a23db6fb`でmainへ統合。exact-head required CI全PASS、fresh review SHIP。CFO rowの`admission_class=revenue`とqueue capacity regressionはmain sourceにある。これはloaded release/queue migrationの証明ではない。
+- **CFO production:** current pointerとloaded CFO SHAは`3b543ffa`。最新natural occurrence `18dcaa87c4549458-50307`（21:17:37Z）は`resource_capacity_busy` / exit75、provider receiptなし。last successは16:25Z、last receiptなし。今後の売上・費用実額はunknown。
+- **Release reconciler:** 直近terminal `18dcaab8e14a0df0-81892`（21:37Z）は`entrypoint_exit_1`; `cut-loop-release`の前回直接エラーは`OSError 28 / No space left on device`。21:38Z readbackでは同じreconciler ownerがPID `65831`でloaded-running。current pointerはまだ`3b543ffa`。止めずに同一ownerの自然terminalと次のloaded-SHA readbackを待つ。
+- **Storage receipt:** host state `last-receipt.json`（21:37:38Z）は`ok=true`, `free_before=145,637,376`, `free_after=1,078,239,232`, `reclaimed=108,083,990`, `errors=0`, `protected_deletions=0`, `inventory_gaps=23`, `capacity_recovery=unmet`（2 GiB diagnostic）, `disk-writers.stop=absent`。paired `df`は約1.0 GiB available。`lsof +L1`でもChromium/rendererがdeleted-open handlesを保持しており、browser/identity ownerはkillしない。
+- **Test record:** exact merged headのGitHub required checks全PASS（Loop control 8分、Python、securityを含む）。Local full runtime suiteは以前820 tests / 4 failures / 362 errorsで、ENOSPCと未push HEAD依存のfailureを含む。CIのfull loop-control gateはPASSしており、local runはenvironment failureとして記録しsource acceptanceを反証しない。
+
+**Remaining atomic TODO (この順):**
+
+1. [x] CFO entitlement regressionをRED→GREENで作成し、CFOだけ既存revenue classへ変更。全体capは不変。
+2. [x] PR #7106をfresh review/required CI後にmainへmerge。
+3. [ ] reconciler PID `65831`の自然terminalとfresh event/summaryをreadbackする。`current` pointer、CFO loaded SHA、`doctor`をaccepted mainに照合し、失敗時はexact owner evidenceから直す。stop/restart/手動applyしない。
+4. [ ] host-disk ownerのreceiptとopen/unknown候補を追う。最新receiptは約1.0 GiBだが回復診断値は未達、inventory gaps 23。open Chromium/rendererは保持し、allow-list外削除をしない。
+5. [ ] 正規`lm-loop apply`のowner-deploy/apply/admission guardがCFO queued rowをrevenue policyへrebindしたことをsequence/reservation/effect-fence保持で確認する。manual DB writeなし。
+6. [ ] accepted SHAの次のnatural CFO occurrenceでprovider/runtime/B7 receipts、settled source coverage、period/currency、replay-zeroを確認する。receiptが揃うまで実額はunknown。
+7. [ ] A5 production migration/RPC/permissions/panel readback。
+8. [ ] A6 Google billed-vs-cash照合とoperation/loop別cost attribution。
+9. [ ] A8の18 loops / 188 jobs（113 mapped）のsettled revenue/refund/fee/costとshared overhead coverage。
+10. [ ] A9 JST日次/MTD/trailing/MRRを実日付filterでreconcile。
+11. [ ] A10 coverage/freshness/receipt条件を満たすnatural CFO reportを7日連続readback。
+
+**Current cursor:** observe PID65831 to natural terminal → latest immutable pointer/owner SHA/doctor → storage owner fresh readback → built-in CFO queue rebind → natural receipt-backed report → A5 → A6 → A8 → A9 → A10.
+
 ### Marketing IntelからWriterへの記事候補連携（並列作業）
 
 **目的:** `marketing-weekly-review`がTelegramへ報告する未検証の`CONTENT`戦術を、既存Writerの`article-daily`トピックキューへ候補として渡す。AffiliateやX repostには配線しない。
