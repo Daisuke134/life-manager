@@ -210,10 +210,26 @@ def _draw_text(canvas, text: str) -> None:
               stroke_fill=(255, 255, 255, 255))
 
 
+def _key_background(rgb):
+    """Key the green screen; when the model ignored the request and drew on black (set-014,
+    2026-10-08: 4 of 16 stickers), key the border-connected black instead of shipping a black box."""
+    import numpy as np
+    from scipy import ndimage
+    corners = np.array([rgb[2, 2], rgb[2, -3], rgb[-3, 2], rgb[-3, -3]]).astype(int)
+    if (corners.max(axis=1) < 24).sum() < 3:  # not a black frame: the green-screen path as before
+        return seedance_set._key(rgb)
+    near_black = rgb.astype(int).max(axis=2) < 40
+    labels, _ = ndimage.label(near_black)
+    border = np.unique(np.concatenate([labels[0], labels[-1], labels[:, 0], labels[:, -1]]))
+    background = np.isin(labels, border[border > 0])  # black inside the art (eyes, outlines) stays
+    out = np.dstack([rgb, np.where(background, 0, 255).astype(np.uint8)])
+    return out
+
+
 def _fit_sticker(rgb_image, text: str | None = None) -> "object":
     import numpy as np
     from PIL import Image
-    keyed = seedance_set._key(np.array(rgb_image))
+    keyed = _key_background(np.array(rgb_image))
     ys, xs = np.nonzero(keyed[..., 3] > 16)
     if ys.size == 0:
         top, bottom, left, right = 0, keyed.shape[0], 0, keyed.shape[1]
@@ -256,6 +272,19 @@ def _generate_sticker_image(ref_path: Path, character_prompt: str, sticker_promp
         return image, "gemini_fallback", STATIC_IMAGE_COST_USD
 
 
+def _has_black_box(png_path: Path) -> bool:
+    """A candidate keyed before the black-frame fix (or by a model drawing on black) carries an opaque
+    black box; regenerate it rather than ship it."""
+    import numpy as np
+    from PIL import Image
+    rgba = np.array(Image.open(png_path).convert("RGBA"))
+    ys, xs = np.nonzero(rgba[..., 3] > 16)
+    if ys.size == 0:
+        return True
+    art = rgba[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
+    return float(((art[..., :3].max(axis=2) < 12) & (art[..., 3] > 200)).mean()) > 0.08
+
+
 def static_images(set_dir: Path, plan: dict) -> None:
     """Generate every sticker in plan['stickers'] that is not already on disk (idempotent/resumable:
     a crash mid-set redoes only the missing ones, like seedance_set.clips())."""
@@ -266,7 +295,7 @@ def static_images(set_dir: Path, plan: dict) -> None:
     with_text = plan.get("text_mode") == "with_text"
     for sticker in plan["stickers"]:
         png_path = out / f"{sticker['id']}.png"
-        if png_path.exists():
+        if png_path.exists() and not _has_black_box(png_path):
             continue
         image, backend, cost = _generate_sticker_image(
             ref, character_prompt, sticker["prompt"], f"line-sticker-static-image-{set_dir.name}-{sticker['id']}")
