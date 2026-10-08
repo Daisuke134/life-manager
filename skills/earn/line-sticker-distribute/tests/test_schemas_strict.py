@@ -1,10 +1,11 @@
 """Codex/OpenAI structured output rejects a schema whose `required` omits any property
-(live 2026-10-08: 400 invalid_json_schema "Missing 'beat_texts'" made every caption fail)."""
+(live 2026-10-08: 400 invalid_json_schema "Missing 'beat_texts'" made every caption fail, and
+"Missing 'format_gap'" stopped the factory's static planner). Covers the build and sell loops."""
 import json
 import unittest
 from pathlib import Path
 
-SCHEMAS = Path(__file__).resolve().parents[1] / "schemas"
+EARN = Path(__file__).resolve().parents[2]
 
 
 def _objects(node):
@@ -20,7 +21,7 @@ def _objects(node):
 
 class StrictSchemas(unittest.TestCase):
     def test_every_property_is_required(self) -> None:
-        for path in sorted(SCHEMAS.glob("*.json")):
+        for path in sorted(EARN.glob("line-sticker*/schemas/*.json")):
             for obj in _objects(json.loads(path.read_text())):
                 self.assertEqual(set(obj.get("required", [])), set(obj["properties"]), path.name)
 
