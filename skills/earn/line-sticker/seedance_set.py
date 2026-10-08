@@ -155,6 +155,12 @@ def _hole_seeds(path: Path) -> list[dict[str, int]]:
     return seeds
 
 
+def loop_seconds(frame_count: int) -> int:
+    """Creators Market rejected 6-frame 0.6s loops (live 2026-10-08) while 20-frame 2.0s loops pass:
+    one loop must last whole seconds. Keep ~100ms/frame and round the loop up to a whole second."""
+    return max(1, -(-frame_count // FPS))
+
+
 def _write_apng(images: list[Image.Image], path: Path, plays: int) -> None:
     # LINE requires every frame at full canvas size; PIL and ffmpeg both crop frames to the changed
     # region, so assemble full-size frames directly from each frame's own PNG encoding.
@@ -173,7 +179,8 @@ def _write_apng(images: list[Image.Image], path: Path, plays: int) -> None:
             out.append(_chunk(b"IHDR", dict(chunks)[b"IHDR"]))
             out.append(_chunk(b"acTL", struct.pack(">II", len(images), plays)))
         width, height = image.size
-        out.append(_chunk(b"fcTL", struct.pack(">IIIIIHHBB", sequence, width, height, 0, 0, 1, FPS, 0, 0)))
+        out.append(_chunk(b"fcTL", struct.pack(">IIIIIHHBB", sequence, width, height, 0, 0,
+                                                   loop_seconds(len(images)), len(images), 0, 0)))
         sequence += 1
         for kind, data in chunks:
             if kind != b"IDAT":
