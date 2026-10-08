@@ -733,7 +733,7 @@ TODO（何を・どう直すか）
 | 7 | L21 | 1 キャラのシリーズ本数を増やす（売上が出た型を優先） | sales.json に売上が出たキャラの続編が出る | 自動（L18/L27 配線済み） |
 | 8 | HOST | Historical incident: installed line-sticker loops waited below the then-configured 11 GiB floor (2026-10-08; observed free space 1.0–2.5 GiB) | At the time, the old source resumed after ≥11 GiB; this numeric producer wait is superseded by PR #7179 | Historical owner was codex-money-printer. The recorded cleanup/protected-path findings remain evidence; they do not define a current admission rule. |
 | 9 | L19 | set-014（48161243、¥190 静止・文字入り 16 個）の黒い箱 4 枚（hmm / panic / cheer / morning）を作り直して申請 | Creators Market で審査待ちを readback | **DONE**（2026-10-08 15:19Z）。原因 = 画像モデルが緑でなく黒背景で返し緑抜きで消えなかった（箱 30〜44%）。#7155 で黒背景も抜き箱付き候補は再生成。本番 release `97efe82e` で候補を再生成（箱 4→0）、stage を `package` に戻して工場が包み直し・差し替え・再申請、公式画面で「審査待ち」を readback、申請パッケージ 16 枚に箱 0。途中の起動は post_claim の `disk_headroom_low`（空き 2 GiB 未満）で 1 回止まり、空きが 3.5 GiB に戻った後の再起動で通過 |
-| 10 | HOST | Restore a positive numeric free-space admission guard after PR #7179 removed thresholds from main | Preserve minimums of 256 MiB for `critical_paid`, 512 MiB for `revenue`, and 2 GiB for other work; overrides may raise but never lower those floors, stay at or below 2 GiB, and malformed values fail closed | PR #7179 is merged as `4346b61c`; `~/loops/current` points to no-floor release `20261009T022138-4346b61c`, but the CFO label remains on guarded SHA `aba80c99`. Its last run deferred at 17:08Z when disk was below 512 MiB; the latest 2026-10-09 02:43 JST `df` is 1,289,500 KiB (about 1.26 GiB), above that old revenue floor but below the 2 GiB recovery target, and no later CFO run has occurred. Do not target-apply the no-floor release. Host-policy owner `lm-affiliate-fix-1008` holds the active lease; add boundary tests for zero, negative, tiny, malformed, and over-maximum overrides before any new release. | ⚠ |
+| 10 | HOST | Restore a positive numeric free-space admission guard after PR #7179 removed thresholds from main | Preserve minimums of 256 MiB for `critical_paid`, 512 MiB for `revenue`, and 2 GiB for other work; overrides may raise but never lower those floors, stay at or below 2 GiB, and malformed values fail closed | PR #7179 is merged as `4346b61c`; `~/loops/current` points to no-floor release `20261009T022138-4346b61c`. The CFO label is now also loaded-idle on `4346b61c` (readback 2026-10-09 02:56 JST), so the no-floor runtime is active for CFO. Latest attempt `18dc9f1a8bd5d6a0-27249` at 17:57Z is pre-effect `resource_capacity_busy` with no provider receipt; disk was 1,118,084 KiB (about 1.09 GiB), below the 2 GiB recovery target. Host-policy owner `lm-affiliate-fix-1008` holds the active lease; restore guard and test zero, negative, tiny, malformed, and over-maximum overrides before any further rollout. | ⚠ |
 
 ### 5.1 自己修復・自己改善の定義（T5 / T12 の正本）
 
@@ -7866,6 +7866,31 @@ This entry supersedes the prior producer-review cursor. CFO priority remains A5 
 12. [ ] Complete A10 with seven consecutive natural reports, full coverage, accurate totals, and replay-zero.
 
 **Current cursor:** `push da4e7edc-synced branch/spec → exact-head CI + fresh review → merge CFO source PR → host owner restores numeric guard → cleanup/reconciler recovery → guarded release/apply/readback → natural CFO report/replay-zero → A5 → A6 → A8 → A9 → A10`.
+### 2026-10-09 02:56 JST — CFO no-floor owner was applied; pre-effect hold
+
+この追記は02:43 JSTのproduction statusを更新する。CFO labelへno-floor sourceが入っているため、numeric guardの復旧を先行させる。
+
+- **Production:** `~/loops/current` remains `20261009T022138-4346b61c`; CFO is loaded-idle on that same no-floor SHA `4346b61c`. Latest natural occurrence `18dc9f1a8bd5d6a0-27249` at `2026-10-08T17:57:06Z` exited 75 with `resource_capacity_busy`, `effect_status=not_applicable`, and no provider receipt/readback. Last successful report remains `18dc9a8f896a8c88-73023` at 16:25Z with runtime receipt refs absent. At 02:56 JST, free disk is 1,118,084 KiB (about 1.09 GiB), below the 2 GiB recovery target. This session did not restart, resend, or invoke a provider effect.
+- **Other owners:** disk cleanup is loaded-running on `4346b61c` with latest terminal `18dc9e8e7dbb0158-50211`, exit 1 / `entrypoint_exit_1`. Release reconciler is loaded-running on `e1b061f1`; latest `18dc9f2e8ad98918-71931` passed, but `lm-loop doctor` remains `ok=false` with unmanaged self-handoff. The host-policy owner lease (`lm-affiliate-fix-1008`) remains active. Do not edit that worktree or issue a competing apply/restart.
+
+**TODO順序変更:** 旧cursor=`push CFO source → CI → source merge → host guard before deployment`。新cursor=`main already loaded no-floor on CFO → restore positive numeric guard through active host-policy owner before next CFO effect → push latest-main/fixture/spec branch → exact-head CI/review → merge CFO source → cleanup/reconciler recovery → guarded release/apply/readback → natural CFO receipt/replay-zero → A5 → A6 → A8 → A9 → A10`。理由: the latest CFO occurrence is still fenced before any provider effect, but the owner itself now runs the no-floor source. Do not report a new financial total or allow an unguarded report send as complete.
+
+**Remaining TODO (atomic, current order):**
+
+1. [x] Fix and test default-email counters and strict CFO Telegram receipt/replay behavior.
+2. [x] Merge latest main `ee25a794` locally and regenerate the byte-stable registry fixture for #7201; synced-tree focused tests pass.
+3. [ ] After the active host-policy lease is released, restore the positive disk guard in main (256 MiB critical-paid / 512 MiB revenue / 2 GiB other, bounded upward override, malformed input fail closed) before the next CFO effect. The old release's threshold is not active on the current CFO label.
+4. [ ] Push the latest-main-synced CFO branch, fixture, and SSOT to PR #7106; pass exact-head required CI and fresh review, then merge the source PR.
+5. [ ] Repair cleanup and release-reconciler through their owners; obtain structured capacity evidence of at least 2 GiB free, zero errors, and zero protected deletions.
+6. [ ] Apply only a guarded main-derived immutable release to CFO when loaded-idle and verify the exact loaded SHA.
+7. [ ] Verify the next natural CFO report's runtime/provider receipt, B7 counter/hash, admission state, and replay-zero. Never replay the historical unknown occurrence.
+8. [ ] Complete A5 production migration/RPC permissions and panel readback; source is merged in PR #6827.
+9. [ ] Complete A6 billed Google expense vs cash paid and occurrence-backed provider/operation attribution.
+10. [ ] Complete A8 settled revenue/refunds/fees/measured cost for 18 business loops and classify all 188 registry jobs.
+11. [ ] Complete A9 source-backed daily, MTD, trailing-period, and MRR with currency/freshness/coverage.
+12. [ ] Complete A10 with seven consecutive natural reports, complete coverage, accurate totals, and replay-zero.
+
+**Current cursor:** `host-policy owner restores positive guard before next CFO effect → push ee25a794-synced CFO branch/fixture/SSOT → exact-head CI + fresh review → merge source PR → cleanup/reconciler recovery → guarded release/apply/readback → natural CFO receipt/replay-zero → A5 → A6 → A8 → A9 → A10`.
 ### Marketing IntelからWriterへの記事候補連携（並列作業）
 
 **目的:** `marketing-weekly-review`がTelegramへ報告する未検証の`CONTENT`戦術を、既存Writerの`article-daily`トピックキューへ候補として渡す。AffiliateやX repostには配線しない。
