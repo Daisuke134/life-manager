@@ -8,7 +8,7 @@
 
 **Tech Stack:** Node.js, Python 3, node:test, pytest, Life Manager immutable releases.
 
-**Spec:** `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md` — “eBook Monk current blocker cursor — 2026-10-08 09:37 JST”.
+**Spec:** `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md` — “eBook Monk current blocker cursor — 2026-10-08 09:41 JST”.
 
 ## Global Constraints
 
@@ -146,9 +146,9 @@ PR #6999 merged as `46ec94bdea884fd7afa61e603a79fdd1b3048ef7` after a fresh inde
 
 Use the disk-cleanup owner and its allow-listed inventory. Keep leased/unknown/open paths protected. The configured off-volume quarantine `/Volumes/AniccaQuarantine` is currently absent. Do not enable the disabled disk sentinel/guard without the owner action because they send Telegram alerts and apply writer backpressure. Require fresh cleanup `free_after >= 2,147,483,648` bytes and same-time `df -Pk /` above 2 GiB.
 
-- [ ] **Step 2: Build/apply the main-derived release**
+- [ ] **Step 2: Verify/apply the main-derived release**
 
-After release reconciler terminal and apply-lock readback, build the immutable release from current main and apply only `ebook-en-tiktok-daily` through the safe control path. Read back loaded SHA/argv and the English-only child environment.
+The current symlink already points to immutable main-derived release `20261008T093101-46ec94bd`. After release reconciler terminal and apply-lock readback, verify the owner's loaded SHA/argv. If it is behind, apply only `ebook-en-tiktok-daily` through the safe control path. Read back its English-only child environment.
 
 - [ ] **Step 3: Start one due owner occurrence and read back provider receipts**
 
