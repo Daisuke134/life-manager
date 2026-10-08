@@ -1127,7 +1127,19 @@ def _raw_fill_workspace_conversation_fields(page, listing_path):
         print(f"workspace conversation fields: LISTING unreadable/unparsable ({listing_path})")
         return False
 
-    tab = page.evaluate(_WORKSPACE_TAB_EXPRESSION)
+    # CP3 reloads the final review page and calls this at once, so the tab bar itself may not be
+    # rendered yet (2026-10-08 20:08, draft 3257394572): no click, every field "absent", and a false
+    # "already filled". Wait for the tab, click it, then wait for its fields.
+    tab = None
+    tab_waited = 0.0
+    while tab_waited < 10.0:
+        tab = page.evaluate(_WORKSPACE_TAB_EXPRESSION)
+        if isinstance(tab, dict) and tab.get("ok"):
+            break
+        time.sleep(0.5)
+        tab_waited += 0.5
+    else:
+        print("workspace tab: not rendered within 10s; continuing with what is present")
     if isinstance(tab, dict) and tab.get("ok"):
         for kind in ("mousePressed", "mouseReleased"):
             page.call("Input.dispatchMouseEvent", {"type": kind, "x": float(tab["x"]), "y": float(tab["y"]), "button": "left", "clickCount": 1})
