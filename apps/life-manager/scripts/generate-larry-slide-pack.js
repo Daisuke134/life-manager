@@ -71,12 +71,30 @@ function readPostedHistory(file) {
         : null;
       return {
         packRef: `object://sha256/${row.receipt.pack_sha256}`,
+        ...(row.receipt.caption_sha256 ? { captionHash: row.receipt.caption_sha256 } : {}),
+        ...(row.receipt.text_sha256 ? { textHash: row.receipt.text_sha256 } : {}),
         postedAt: row.receipt.published_at,
         integrationRef: row.receipt.integration_ref || null,
         slotHash,
         providerPostId: row.receipt.provider_post_id || null,
       };
     });
+}
+
+function addCandidateCopyHashes(candidates, objectStore) {
+  return candidates.map((candidate) => {
+    if (!candidate || typeof candidate.captionRef !== "string") return candidate;
+    const caption = fs.readFileSync(objectStore.resolve(candidate.captionRef));
+    const pack = JSON.parse(fs.readFileSync(objectStore.resolve(candidate.packRef), "utf8"));
+    if (!Array.isArray(pack.slides)) throw new Error("slide pack rotation candidate is invalid");
+    return {
+      ...candidate,
+      captionHash: crypto.createHash("sha256").update(caption).digest("hex"),
+      textHash: crypto.createHash("sha256")
+        .update(JSON.stringify(pack.slides.map((slide) => slide.text)))
+        .digest("hex"),
+    };
+  });
 }
 
 function readCreativeMetricsForFamilies(dataDir, candidates) {
@@ -116,7 +134,13 @@ async function resolveLarryJaSlot({ env = process.env, now = () => new Date().to
   const pool = poolPath(dataDir, tenantId, lane.productId, lane.lane);
   let candidates = readPool(pool);
 
-  const available = selectSlidePack({ candidates, postedHistory: initialPostedHistory, minDaysBetweenRepeat: MIN_DAYS_BETWEEN_REPEAT, now: nowIso });
+  const available = selectSlidePack({
+    candidates: addCandidateCopyHashes(candidates, objectStore),
+    postedHistory: initialPostedHistory,
+    integrationRef: lane.integrationRef,
+    minDaysBetweenRepeat: MIN_DAYS_BETWEEN_REPEAT,
+    now: nowIso,
+  });
   // Total inventory can exceed the warm-up floor while every pack is still
   // inside the no-repeat window. Refill once through the same gated factory.
   if (candidates.length < MIN_POOL_SIZE || !available) {
@@ -158,7 +182,14 @@ async function resolveLarryJaSlot({ env = process.env, now = () => new Date().to
     return { slot: dueSlot, selected: null, alreadyPublished: true, providerPostId: slotReceipt.providerPostId };
   }
   const metrics = readCreativeMetricsForFamilies(dataDir, candidates);
-  const selected = selectSlidePack({ candidates, postedHistory, metrics, minDaysBetweenRepeat: MIN_DAYS_BETWEEN_REPEAT, now: nowIso });
+  const selected = selectSlidePack({
+    candidates: addCandidateCopyHashes(candidates, objectStore),
+    postedHistory,
+    integrationRef: lane.integrationRef,
+    metrics,
+    minDaysBetweenRepeat: MIN_DAYS_BETWEEN_REPEAT,
+    now: nowIso,
+  });
   if (!selected) {
     throw new Error(`${lane.name} slide pack rotation has no unposted candidate available for this slot`);
   }
