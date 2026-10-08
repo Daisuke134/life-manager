@@ -8722,6 +8722,33 @@ This entry supersedes the prior producer-review cursor. CFO priority remains A5 
 
 **Current cursor:** commit/push latest adapter fixes + status → exact-head CI/fresh review → merge #7106 → production CFO owner/queue/receipt readback → A5 → A6 → A8 → A9 → A10.
 
+### 2026-10-09 05:38 JST — latest spec main merged after CrowdWorks fix
+
+このsnapshotは05:37のCFO status/TODOを置き換える。CFO順序`A5 → A6 → A8 → A9 → A10`を維持し、A7/Money TreeとCloud cost workは対象外。
+
+- **Main/source:** `origin/main=6cc7facb6f6057880c73515d95c37fe8afea6c2f` (#7230) is merged locally at `82ae8b38469c3bcf4033a51ea0a0cc9554f17ef7`. The main delta is a 14-line Gig status SSOT edit; no source-code overlap.
+- **Adapter fixes:** Lancers and CrowdWorks both preserve `provider_rejected` as attempted-after-POST, expose the separate counter, set result `ok=false`, and use the shared no-same-drain-retry path. Local RED→GREEN tests cover both.
+- **Tests:** shared/Lancers/CrowdWorks Telegram Python 58/58; Lancers package tests 89/89; CFO Node 61/61; investment artifact parity 2/2; cross-venue Python 26/26; loop/host 61/61; mobile canary 20/20; OSS verifier, loop contract 18/188/113, and diff check PASS. Full investment-core discovery has one unchanged main cadence expectation failure (132 run / 1 failure).
+- **Remote PR:** #7106 is still head `5ae69e25` / base `724e18f0`. CrowdWorks fix and latest SSOT/main merge are not pushed. Review on 5ae found one Important; new exact-head review is pending after publication.
+- **Production CFO:** latest run remains `18dca6235b756448-13826` at 19:57:03Z, exit 75 `resource_capacity_busy`, provider receipt absent, old loaded SHA `8d986ff4...`; doctor reports unmanaged release-reconciler self-handoff. Verified finance totals remain unknown.
+
+**順序変更:** 旧cursor=`push 724e18f0 branch → CI/review`。新cursor=`(1) 完了: Lancers + CrowdWorks provider rejection status and `ok=false` → (2) 完了: focused shared/CFO/marketplace/loop/mobile suites and OSS/contract → (3) 完了: latest main 6cc7facb merged → (4) final status commit/push → (5) exact-head CI + fresh review → (6) merge → production CFO readbacks`。理由は、Gig status updateを含む最新SSOTを保ち、両custom marketplace adaptersのrejection counterを同一PR headで受け入れるため。
+
+**Remaining atomic TODO (この順):**
+
+1. [x] Lancers/CrowdWorks adapter rejection test-first fixes and independent counters; `ok=false` on confirmed rejection.
+2. [x] Latest main `6cc7facb` merged; all focused suites pass except the unrelated unchanged 1/132 investment cadence test.
+3. [ ] Commit/push current main-synced source + final status; read back remote PR head/base.
+4. [ ] Required CI passes on resulting exact head; fresh review reports Critical/Important 0.
+5. [ ] Merge PR #7106.
+6. [ ] Normal owner/reconciler: clear self-handoff, verify CFO loaded SHA/doctor and queue claims reach natural terminal without stop/restart/cap increase.
+7. [ ] Receipt-backed natural CFO report with complete source/period/currency coverage, per-loop settlement/cost and replay-zero. Do not infer totals before evidence.
+8. [ ] A5 production migration/RPC/permissions/panel; A6 billed-vs-cash/attribution; A8 loop/job economics coverage; A9 period/MRR; A10 seven consecutive natural reports.
+
+**Blockerと解消方法:** source and latest-main merges are complete locally; remote #7106 is stale and lacks both custom adapter fixes. Commit/push this final head and accept only its exact CI plus fresh review. Production remains blocked separately by `resource_capacity_busy`, release-reconciler self-handoff and stale queue state; use normal owner/reconciler readbacks. Current verified revenue/expense totals do not exist.
+
+**Current cursor:** commit current status → push latest-main branch → exact-head CI/fresh review → merge #7106 → production CFO self-handoff/queue/receipt → A5 → A6 → A8 → A9 → A10.
+
 ### Marketing IntelからWriterへの記事候補連携（並列作業）
 
 **目的:** `marketing-weekly-review`がTelegramへ報告する未検証の`CONTENT`戦術を、既存Writerの`article-daily`トピックキューへ候補として渡す。AffiliateやX repostには配線しない。
