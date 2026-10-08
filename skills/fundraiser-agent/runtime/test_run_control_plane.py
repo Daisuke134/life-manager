@@ -111,7 +111,7 @@ def test_browser_profile_busy_uses_registered_identity_and_isolated_context(tmp_
     ]
     assert lease_calls[0]["owner"] == "ai.anicca.fundraiser"
     prompt = (ROOT / "skills/fundraiser-agent/prompts/daily.md").read_text(encoding="utf-8")
-    assert "--owner ai.anicca.fundraiser" in prompt
+    assert prompt.count('--owner "$CLOAK_BROWSER_OWNER"') == 3
     assert lease_calls[0]["endpoint"] == "http://[::1]:9333"
     assert lease_calls[0]["domains"] == "x.com,twitter.com"
     assert lease_calls[0]["holder"]

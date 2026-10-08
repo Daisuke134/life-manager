@@ -36,18 +36,17 @@ Connector、Job Hunter、Fundraiserの既存loopを、現行`lm-loop`上で安�
 - `control.lock`、`synchronous=FULL`、current DELETE journal contract、migration rollback、effect-unknown rowsを保持する。
 - RED/GREEN: 実writer lock下で旧`BEGIN IMMEDIATE`が失敗し、修正後にpass。全`runtime/host/tests/test_resource_admission.py`は137/137 pass。main/release/productionへの反映は未完。
 
-### 3. [source実装済み・review修正待ち] 既存Codex profile orderでprofile busyをfail-fast
+### 3. [source修正済み・focused acceptance PASS] 既存Codex profile orderでprofile busyをfail-fast
 
 - `runtime/agent-runner/config.json`は`account_profile_order=[acct1,acct2]`で既に候補展開する。3専用task classだけに`fail_fast_provider_lease=true`を追加し、同じ`gpt-6-luna/max/fast`を維持する。
-- 現行実装はinvocationごとに異なる`CODEX_HOME`へlockを置くため、同じacctを使う別runのbusyを検出できない。修正ではaccount profileごとの共有leaseを追加し、invocation-home lockも残す。対象taskのprofile-level busyだけ起動前にtypedで返し、既存failoverで次profileへ進める。全profile busyはretryable exit 75、provider起動後のtimeout/errorではfailoverしない。
-- `LIFE_MANAGER_CODEX_HOME_BUSY_POLICY`は親環境から常に除去し、対象taskの候補だけrunner内部で有効化する。環境変数の継承で対象外taskへfail-fastを漏らさない。
-- `runtime/agent-runner/tests/test_provider_lease.py`と`runtime/agent-runner/tests/test_codex_account_failover.py`は42 passed / 24 subtests passed。
-- 同一profileへの異なるinvocation IDは相互排他され、異なるprofileは並行でき、対象外taskは従来どおり待つことをfocused testで確認する。認証値は出力しない。
+- Codexの全候補を`automation_home`配下のaccount-profile leaseで直列化し、invocation-home lockも維持する。同一acctの別invocationは同じprofile lockを共有し、別acctは並行できる。`fail_fast_provider_lease=true`の3 loopだけbusyで即時に次acctへ進み、他taskはrun deadlineまで待つ。
+- fail-fastは候補configからboolで渡し、親環境の`LIFE_MANAGER_CODEX_HOME_BUSY_POLICY`は判定に使わず子provider envから除去する。unmarked taskのbusyはaccount fallbackを起こさない。profile lease FDはprovider子processへ渡し、runner終了後もprovider終了まで保持する。
+- `runtime/agent-runner/tests`は95 passed / 129 subtests passed。profile排他・別acct並行・unmarked wait・runner kill後のlease保持を含む。
 
 ### 4. Connector/Fundraiser browserをtask-owned contextへ移す; capacity probeはsource branchで完了
 
-- Review correction: Fundraiser wrapperの既定owner `fundraiser` とprompt内helperのowner `ai.anicca.fundraiser` を、registryが選ぶ同一owner keyへ揃える。`cdp_default_tab.py`とcontext leaseでowner・context取得方式を一致させる。
-- Connectorはcontext lease取得後にowner単位の`cdp_tab_gc.py`を呼ぶ。このGCはowner ledgerで対象を絞るがcontext IDでは絞らないため、leased context内のreapへ置換するか、この呼出しを除去する。
+- Fundraiser wrapperのownerはloop label `ai.anicca.fundraiser`を既定とし、promptは同じ環境値`CLOAK_BROWSER_OWNER`を全helperへ渡す。preflightは`context-only` leaseをseedし、`cdp_default_tab.py`の`create_target=False`と同じcontext取得モードを再利用する。`AI_BROWSER_HOLDER_PID`を後続helperへexportして同ownerのlease holderを保つ。
+- Connectorのcontext lease後に行っていたowner-wide `cdp_tab_gc.py`呼出しを除去する。Connector controllerのleased-context reaperとcontext releaseを使い、GCが別context targetを閉じないようにする。
 
 - `skills/connector/discover.js`、`apps/life-manager/lib/connector-browser-target-controller.js`、`apps/life-manager/lib/connector-browser-target-controller.test.js`、`skills/connector/test/discover.test.js`を確認・更新する。Connector controllerはdefault contextを仮定せず、leaseのcontext IDに属するtargetだけを作成/検出/終了する。
 - `skills/browser/browser-context-lease.sh`はregistered endpoint、owner、domain cookie allowlist、seeded context ID/target IDを一元化する。`skills/connector/run.sh`と`skills/fundraiser-agent/runtime/run.sh`はprofile busyならresolverでread-only endpointを取り、task contextをseedする。profile guardはcontext準備中だけ保持し、その後解放する。
@@ -55,6 +54,7 @@ Connector、Job Hunter、Fundraiserの既存loopを、現行`lm-loop`上で安�
 - Vault内に`luma.com`および`x.com`/`twitter.com` domain cookiesがあることを確認した。cookie値は読まず、lease helperはseed count=0を拒否する。
 - `runtime/browser/capacity_probe.py`と`runtime/browser/tests/test_capacity_probe.py`はsource branchで完了。登録identity resolver経由でdaily-driverの`/json/version`と`cdp_context_lease.py audit`のcontext countをread-onlyで観測する。Chromium processを起動・終了しない。focused testは3/3 pass。
 - durable admission ownerの`resource_class`は変更しない。
+- `skills/browser/scripts/test_browser_context_handoff.py`、Fundraiser runtime control-plane tests、Connector context-wrapper tests、CDP target ownership tests、`test_cdp_context_lease_acquire_lock.py`は41 passed。
 
 ### 5. Source acceptance
 
@@ -62,8 +62,9 @@ Connector、Job Hunter、Fundraiserの既存loopを、現行`lm-loop`上で安�
 - `bash scripts/verify-source-boundary.sh`、`./bin/lm-loop-contract`、`git diff --check`をpassさせる。
 - 対象source acceptance、fresh read-only review、required CIをpassしてPRをmainへ統合する。
 - 既存source snapshot: context/CDP 21 tests、Connector wrapper 2、Fundraiser wrapper 7、Connector controller+contract 10 tests pass。`./bin/lm-loop-contract`、source-boundary、shell syntax、diff checkもpass。
-- PR #7072 (`fix/local-revenue-capacity-concurrency-20261008`) は最新main `1872befb`へrebaseし、head `fa60666e`でOPEN。read-only reviewはCriticalなし、Important 2件（Fundraiser owner/context不一致、profile-level provider lease不足）、Minor 1件（継承envで対象外taskにもfail-fastが漏れる）を報告。Connector GCのcontext scopeもsource上で未解決。
-- rebase前のheadでは`test_terra_default.py`の3 task-class期待値不一致とOSS manifest不一致でCIがFAIL。manifest更新後のローカルverifierは`ok=true`。現headではCodeRabbitとOSS boundaryはPASS、Loop control・Python syntax/unittest・secret scansは実行中。
+- Additional acceptance: `runtime/host/tests/test_resource_admission.py` 137 passed; `runtime/browser/tests/test_capacity_probe.py` 3 passed; Connector production contract 1 passed. `./bin/lm-loop-contract` reports catalog 18 / registry 187 / errors 0. Source boundary, shell syntax, Python compile, diff check and OSS self-contained verifier pass.
+- The current local candidate implements the RED findings and passes the focused suites above. Those source edits and the updated manifest are not yet on the remote PR branch.
+- **現在cursor — sourceをpushしてfresh review/CI:** ローカルcandidateはfocused acceptance済み。commit/push後にfresh read-only reviewとPR required CIをPASSさせてmainへ統合する。旧headでのPython/OSS失敗はfixture/manifest修正後の結果と混同しない。
 - TDD RED on source head `7201c8d4`: focused regressions reported 8 failures, 1 pass, and 23 passing subtests. The failures reproduce missing profile-level lock API, inherited fail-fast policy affecting unrelated tasks, Fundraiser owner/context-mode mismatch, and Connector's owner-wide tab GC call. `test_terra_default.py` now passes. No production owner or provider was changed by these fixture tests.
 - Additional runner-call-site RED on head `5f015b68`: the two profile-policy subtests fail because `run()` passes neither the stable account lock path nor an explicit task-scoped fail-fast boolean to `run_provider_process`.
 - The unmarked-task wait and provider-retained-lease-on-runner-kill regressions also fail before implementation, confirming that the shared profile lease must cover all Codex candidates and its file descriptor must survive the runner process.
@@ -92,11 +93,9 @@ Connector、Job Hunter、Fundraiserの既存loopを、現行`lm-loop`上で安�
 
 ## 現在cursorと残TODO（完了までの順序）
 
-1. **現在cursor — source修正:** profile-level provider leaseとfail-fast envの漏れを修正し、Fundraiserのowner/contextをregistry keyへ統一する。Connector tab GCをleased context内に限定するか除去する。`test_terra_default.py`の3 task-class fixtureも新設定に合わせる。
-2. 既存effect fenceのread-only照合をsource修正と並行する。LAUNCH occurrence `fundraiser:18dc7222f6b5ec78-20440`の同一target official status/application ID付きreceipt、Danaher `R1316263`、DeepScale.Venturesを確認する。証拠不足のtargetはfencedのまま保ち、再送しない。
-3. 修正箇所のfocused testsを追加・実行し、関連suite、`./bin/lm-loop-contract`、source-boundary、shell syntax、manifest verifier、`git diff --check`をpassさせる。providerの同一profile排他・別profile並行・対象外taskのwait、browser owner一致・context境界を確認する。
-4. 修正とmanifest更新を専用branchへcommit/pushする。fresh read-only reviewでCritical/Important findingを閉じ、PR #7072の全required CIをPASSさせてmainへ統合する。
-5. release reconcilerのnatural terminal、shared apply lock、disk/headroom、target admission、unknown fenceをfresh readbackする。latest-main由来immutable releaseを作り、Connector `life-manager-connector-native`、Job Hunter daily/health/inbox、Fundraiserだけをowner単位でapplyし、loaded SHA/argv/envを確認する。active ownerを止めず、applyを重ねない。
-6. 3 loopのnatural occurrenceを確認する。ConnectorはLuma registration + Google Calendar + Telegram receipt、Job Hunterは新規適格Workday jobのofficial state/receipt + Telegram、Fundraiserは新規VCとAI/AGI founderへのGmail provider message ID + exact Sent + Telegram receiptを同一occurrenceへ結ぶ。human-required gateを迂回しない。
-7. 各occurrenceのreplay-zeroを確認し、過去unknownは同一targetのofficial statusまたはstrict verified-pre-effect proofがある場合だけcloseする。証拠が取れないものはfencedのまま記録し、新規targetの処理とは分ける。
-8. 3 loopのproduction readbackとreplay-zeroが揃ったらこのlaneを完了し、統合SSOTの次cursor `MX-01`へ戻る。
+1. **現在cursor — source review/CI:** local code + manifest + focused acceptanceを専用branchへcommit/pushし、fresh read-only reviewとPR #7072の全required CIをPASSさせてmainへ統合する。
+2. LAUNCH occurrence `fundraiser:18dc7222f6b5ec78-20440`、Danaher `R1316263`、DeepScale.Venturesの既存effectをread-onlyで照合する。これはreview/CIと並行し、同一targetのofficial statusまたはstrict verified-pre-effect proofがないものはfencedのまま保ち、再送しない。
+3. release reconcilerのnatural terminal、shared apply lock、disk/headroom、target admission、unknown fenceをfresh readbackする。latest-main由来immutable releaseを作り、Connector `life-manager-connector-native`、Job Hunter daily/health/inbox、Fundraiserだけをowner単位でapplyし、loaded SHA/argv/envを確認する。active ownerを止めず、applyを重ねない。
+4. 3 loopのnatural occurrenceを確認する。ConnectorはLuma registration + Google Calendar + Telegram receipt、Job Hunterは新規適格Workday jobのofficial state/receipt + Telegram、Fundraiserは新規VCとAI/AGI founderへのGmail provider message ID + exact Sent + Telegram receiptを同一occurrenceへ結ぶ。human-required gateを迂回しない。
+5. 各occurrenceのreplay-zeroを確認し、過去unknownは同一targetのofficial statusまたはstrict verified-pre-effect proofがある場合だけcloseする。証拠が取れないものはfencedのまま記録し、新規targetの処理とは分ける。
+6. 3 loopのproduction readbackとreplay-zeroが揃ったらこのlaneを完了し、統合SSOTの次cursor `MX-01`へ戻る。

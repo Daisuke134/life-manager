@@ -26,13 +26,19 @@ except (ValueError, TypeError, json.JSONDecodeError):
 }
 
 browser_context_lease_acquire() {
-  local endpoint="$1" owner="$2" cookie_domains="$3" lease_script="$4" lease_json
+  local endpoint="$1" owner="$2" cookie_domains="$3" lease_script="$4"
+  local mode="${5:-target}" lease_json
+  local -a lease_args
   case "$endpoint" in
     http://127.0.0.1:*|http://localhost:*|http://\[::1\]:*) ;;
     *) return 75 ;;
   esac
   [[ "$owner" =~ ^[A-Za-z0-9._:-]{1,128}$ ]] || return 2
   [ -f "$lease_script" ] || return 2
+  case "$mode" in
+    target|context-only) ;;
+    *) return 2 ;;
+  esac
 
   BROWSER_CONTEXT_ENDPOINT="$endpoint"
   BROWSER_CONTEXT_OWNER="$owner"
@@ -40,23 +46,32 @@ browser_context_lease_acquire() {
   BROWSER_CONTEXT_LEASED=0
   CLOAK_BROWSER_OWNER="$owner"
   CLOAK_CONTEXT_COOKIE_DOMAINS="$cookie_domains"
-  export CLOAK_BROWSER_OWNER CLOAK_CONTEXT_COOKIE_DOMAINS
+  AI_BROWSER_HOLDER_PID="$$"
+  export CLOAK_BROWSER_OWNER CLOAK_CONTEXT_COOKIE_DOMAINS AI_BROWSER_HOLDER_PID
 
-  if ! lease_json="$(AI_BROWSER_HOLDER_PID=$$ CLOAK_CDP_BASE_URL="$endpoint" \
+  lease_args=(acquire "$owner" about:blank)
+  if [ "$mode" = "context-only" ]; then
+    lease_args+=(--context-only)
+  fi
+
+  if ! lease_json="$(CLOAK_CDP_BASE_URL="$endpoint" \
       CLOAK_CONTEXT_COOKIE_DOMAINS="$cookie_domains" \
-      python3 "$lease_script" acquire "$owner" about:blank 2>/dev/null)"; then
+      python3 "$lease_script" "${lease_args[@]}" 2>/dev/null)"; then
     return 75
   fi
   BROWSER_CONTEXT_LEASED=1
   if ! BROWSER_CONTEXT_FIELDS="$(printf '%s\n' "$lease_json" | python3 -c '
 import json,re,sys
 try:
+    mode=sys.argv[1]
     row=json.load(sys.stdin)
     context_id=str(row.get("context_id") or "")
-    target_id=str(row.get("target_id") or "")
+    target_value=row.get("target_id")
+    target_id=str(target_value) if target_value is not None else ""
     cookies_seeded=row.get("cookies_seeded")
     if (row.get("ok") is not True or not re.fullmatch(r"[A-Za-z0-9._-]{1,128}",context_id)
-        or not re.fullmatch(r"[A-Za-z0-9._-]{1,128}",target_id)
+        or (mode == "target" and not re.fullmatch(r"[A-Za-z0-9._-]{1,128}",target_id))
+        or (mode == "context-only" and target_id)
         or isinstance(cookies_seeded,bool) or not isinstance(cookies_seeded,int)
         or cookies_seeded < 1):
         raise ValueError()
@@ -65,7 +80,7 @@ try:
     print(cookies_seeded)
 except (ValueError,TypeError,json.JSONDecodeError):
     raise SystemExit(1)
-' 2>/dev/null)"; then
+' "$mode" 2>/dev/null)"; then
     browser_context_lease_release >/dev/null 2>&1 || true
     return 75
   fi

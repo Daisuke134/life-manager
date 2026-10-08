@@ -41,7 +41,6 @@ release_lock() {
 
 BROWSER_GUARD="${LIFE_MANAGER_BROWSER_GUARD:-$REPO_ROOT/skills/browser/browser-guard.sh}"
 BROWSER_FOUNDATION="${LIFE_MANAGER_BROWSER_FOUNDATION:-$REPO_ROOT/skills/browser/ensure_browser.sh}"
-BROWSER_TAB_GC="${LIFE_MANAGER_BROWSER_TAB_GC:-$REPO_ROOT/skills/browser/scripts/cdp_tab_gc.py}"
 BROWSER_RESOLVER="${LIFE_MANAGER_BROWSER_RESOLVER:-$REPO_ROOT/skills/browser/resolve_cdp_endpoint.py}"
 BROWSER_CONTEXT_LEASE="${LIFE_MANAGER_BROWSER_CONTEXT_LEASE:-$REPO_ROOT/skills/browser/scripts/cdp_context_lease.py}"
 BROWSER_CONTEXT_HELPER="${LIFE_MANAGER_BROWSER_CONTEXT_HELPER:-$REPO_ROOT/skills/browser/browser-context-lease.sh}"
@@ -178,10 +177,6 @@ if [ "$BROWSER_LEASED" -eq 1 ]; then
   "$BROWSER_GUARD" release "$BROWSER_IDENTITY" >/dev/null 2>&1 || true
   BROWSER_LEASED=0
 fi
-if ! python3 "$BROWSER_TAB_GC" --owner "$CLOAK_BROWSER_OWNER" >/dev/null 2>&1; then
-  printf 'Connector browser tab GC failed; continuing with provider readback fence\n' >&2
-fi
-
 if "$NODE_BIN" "$HERE/native-pass.js" \
   --repo-root "$REPO_ROOT" \
   --state-dir "$STATE_DIR" \

@@ -38,7 +38,7 @@ BROWSER_CONTEXT_LEASE="${LIFE_MANAGER_BROWSER_CONTEXT_LEASE:-$REPO_ROOT/skills/b
 BROWSER_CONTEXT_HELPER="${LIFE_MANAGER_BROWSER_CONTEXT_HELPER:-$REPO_ROOT/skills/browser/browser-context-lease.sh}"
 BROWSER_RESOLVER="${LIFE_MANAGER_BROWSER_RESOLVER:-$REPO_ROOT/skills/browser/resolve_cdp_endpoint.py}"
 BROWSER_REGISTRY="${AI_BROWSER_REGISTRY:-$HOME/.config/ai/registry/browsers.toml}"
-export CLOAK_BROWSER_OWNER="${LIFE_MANAGER_BROWSER_TARGET_OWNER:-fundraiser}"
+export CLOAK_BROWSER_OWNER="${LIFE_MANAGER_BROWSER_TARGET_OWNER:-ai.anicca.fundraiser}"
 export CLOAK_CONTEXT_COOKIE_DOMAINS="${FUNDRAISER_CONTEXT_COOKIE_DOMAINS:-x.com,twitter.com}"
 source "$BROWSER_CONTEXT_HELPER"
 
@@ -154,7 +154,7 @@ case "$BROWSER_ENDPOINT" in
 esac
 
 if ! browser_context_lease_acquire \
-    "$BROWSER_ENDPOINT" "$CLOAK_BROWSER_OWNER" "$CLOAK_CONTEXT_COOKIE_DOMAINS" "$BROWSER_CONTEXT_LEASE"; then
+    "$BROWSER_ENDPOINT" "$CLOAK_BROWSER_OWNER" "$CLOAK_CONTEXT_COOKIE_DOMAINS" "$BROWSER_CONTEXT_LEASE" context-only; then
   echo "fundraiser: deferred task browser context unavailable" >>"$LOG"
   release_browser
   exit 75
