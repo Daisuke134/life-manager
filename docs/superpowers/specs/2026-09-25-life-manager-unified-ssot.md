@@ -3211,12 +3211,20 @@ Capafy＋PromptBase＋自社 checkout をまとめた $10k MRR の全体計画�
 | R5 | 実行枠が満杯で 33 本が見送り（`resource_capacity_busy`）、22 本が `resource_effect_unknown`。負荷平均 17 | 187 本が少ない枠（agent 1・browser 1・deterministic 2〜3）を取り合う。内訳は未特定 | 未着手（下の TODO） | 🔶 |
 | R6 | 売れている agent を工場が触った | 凍結が UPDATE.json の絞り込み 1 経路にしかなく、例外メモと下書き再開が素通り | 関所 `frozen_guard.sh`（prepare/finish）＋凍結 id を引退扱い＋工場は新規のみ | ✅ |
 
+| R7 | 工場の 15 分タイマーが 1 時間以上戻り続ける（10/08 14:35〜16:38 に起動 0 回） | `release-reconciler` の「30 分はまとめる」制限が `last_status = ok` のときだけ効いた。毎回 2〜4 本のジョブが失敗して status=error・last_ok_epoch=0 のままなので一度も効かず、リリースを切るたびに約 60〜84 本を作り直し（記録 636 回）、全ジョブの StartInterval が最初に戻った | 前回の「試行」時刻でも制限（`last_attempt_epoch`）。同じ sha の失敗後の再試行は従来の backoff。テスト 29 件（新規 2、時刻のずらし方も更新）。release c61f2c89 で本番、16:22 の反映が 16:52 まで正しくまとめられたのを確認 | ✅ |
+| R8 | 新規 agent が CP2 で毎回止まる。失敗のたびに新しい下書きが増える | CP2 が workspace 項目を先に埋めて保存 → tab が有効になり 下書きを保存 が 審査に提出 に変わる → その後のモデル選択は保存されず official model=None → CP3 の関所が正しく拒否 | モデル選択を workspace 項目より先に（tab が無効な間に 下書きを保存 で永続）。順序テスト（修正を外すと失敗）。16:38 の回で official model verified True・CP1_MODEL=VERIFIED・出荷（4933688052）。初の新規出荷（7 日ぶり） | ✅ |
+| R9 | 毎日 1 回きりのループ（article-daily 06:00）が、自分のラベルの反映と重なると 78 で捨てられる | per-label の反映ロックが LOCK_NB で即 RuntimeError → exit 78 | 最大 150 秒（環境変数で変更可）5 秒間隔で待ち、それでもだめなら従来の記録。テスト 134 件（新規は修正を外すと失敗） | ✅ マージ済み（次のリリースで本番） |
+
 ### 残り（この順）
 1. R3 の自然解除を確認（15:29 の起動で effect_unknown が 0 になること）。同じ型（失敗で fence を残す）の他ループ 22 本のうち、お金に関わるものを同様に直す。
 2. R5: 負荷の内訳を測る（1 時間あたりの起動回数×所要）→ 5 分ごとの healthcheck 15 本と health 取得 9 秒の見直しから。枠の上限を上げる前に、不要な起動を減らす。
 3. R4 の残り: `skill_dir/"state"` を直書きするスクリプトを WRITER_STATE_DIR 経由へ（goodhart・rule_blame・beat_rate・claim_loop ほか）。リリース内への書き込みを検出するテストを 1 本足す。
 4. `money-liveness.json` に Mobile のレーン（honne/anicca 投稿の最新公開時刻）と Capafy の IG 投稿を足す。
 5. Writer の自然実行（10/09 06:00）で記事が出て Telegram にリンクが届くことを確認。
+6. 反映の運用: リリースは 30 分以上あけ、まとめて 1 回。工場だけ急ぐときは対象ラベルだけ `LIFE_MANAGER_APPLY_TARGET` で反映して 1 回起動。起動 0 回の時間が 30 分を超えたら見張りが検知する（money-liveness の capafy-ship 24h は粗い。工場の `daily_loop.log` 最終 done の鮮度レーンを足す）。
+7. Capafy の CLI 化の方針: 管理画面は `api.capafy.ai/app/...` の REST で動いている（カード取得 GET `/app/agents/{id}/versions/{vid}/card`、モデル一覧 GET `/app/config/llm/models/by-runtime`）。認証は画面のメモリ上の Authorization ヘッダーで、cookie だけでは 401。読み取りは 10/08 に実測で成功。書き込み（カード保存・価格・モデル・下書き削除）の REST 動詞は未確認。確認は使い捨ての下書き（工場が作るもの）で行い、売れている 4 本には使わない。判断（何を出すか・警告にどう対応するか）はエージェント、手順（保存して読み戻して確認）は CLI の動詞、に分ける。
+8. 下書き削除（サポート手順: カードの左上のバージョン番号にホバー→ゴミ箱→確認）: 10/08 に 5 件実施。3 件はエージェントごと削除、2 件（9466718786・7599205243）は未提出の v1.0.1 だけが消え、以前の公開版（status 4）が残った。作業担当が確認ダイアログを読む前に押す作りだった。以後の削除は、ダイアログ本文が「エージェント」か「バージョン」かを読んでから押す。
+9. サポートの 10/08 回答: Hook Lab・Portfolio Tracker・Performance Review Writer は手動で Benign に変更済み（出し直し不要）。要修正は Talent Review Deck Writer・Academic Humanizer（YAML 先頭の形式）と Anicca Life Manager（カードに Telegram・Gmail の設定を追記、OwnTracks を削除）。ReelFarm は Dais が解約済みと判断。枠の上限増・お試し停止は製品チームへ転送のみで時期未定。
 
 ## Dais指定のeBook → Capafy Instagram実行順
 
