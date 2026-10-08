@@ -1191,8 +1191,17 @@ def reconcile_current_occurrence(
     )
 
 
-def _runtime_occurrence_scope(owner_id: str) -> tuple[str, str | None] | None:
-    """Return the current occurrence, an error reason, or None for manual CLI use."""
+def _runtime_occurrence_scope(
+    owner_id: str, explicit_occurrence_id: str | None = None,
+) -> tuple[str, str | None] | None:
+    """Return one exact target, an error reason, or None for manual CLI use."""
+    if explicit_occurrence_id is not None:
+        if (not ID.fullmatch(owner_id)
+                or not _READ_ONLY.OCCURRENCE.fullmatch(explicit_occurrence_id)
+                or not explicit_occurrence_id.startswith(f"{owner_id}:")):
+            return explicit_occurrence_id, "runtime_occurrence_missing_or_invalid"
+        return explicit_occurrence_id, None
+
     occurrence_key = "LIFE_MANAGER_OCCURRENCE_ID"
     runtime_keys = (
         "LIFE_MANAGER_RUN_ID", "LIFE_MANAGER_LOOP_ID", "LIFE_MANAGER_OWNER_ID",
@@ -1259,10 +1268,10 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
         return 0 if result["status"] == "ready" else 1
     if args.auto_owner:
-        if any((args.identity, args.ledger, args.owner_id, args.occurrence_id)):
-            parser.error("--auto-owner cannot be combined with exact reconciliation arguments")
+        if any((args.identity, args.ledger, args.owner_id)):
+            parser.error("--auto-owner cannot be combined with --identity, --ledger, or --owner-id")
         api_key = os.environ.get("POSTIZ_API_KEY") or os.environ.get("LM_POSTIZ_API_KEY", "")
-        runtime_scope = _runtime_occurrence_scope(args.auto_owner)
+        runtime_scope = _runtime_occurrence_scope(args.auto_owner, args.occurrence_id)
         if runtime_scope is None:
             result = reconcile_pending_owner(
                 owner_id=args.auto_owner,

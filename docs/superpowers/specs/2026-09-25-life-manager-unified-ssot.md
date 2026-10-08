@@ -5654,6 +5654,56 @@ PR #7050はmainへmerge済み（merge commit `dcf04b2dbf401bbd07e78e9c9efd204f0e
 
 **この質問に対するlive回答:** global hard capは8。04:53:08Zの最新完全snapshotは7 live＋1 reservationで8/8、直前04:47:06Zは7/8、04:49:52Zも8/8だった。5は全体上限ではなくborrow枠の理論値で、class capにより通常のborrow同時実行は最大4。loop外の独立testはLM admissionを使わないが、Mac負荷と共有provider/browser状態の制約は受ける。適切な固定同時テスト数はまだ測定されていない。
 
+### 2026-10-08 13:59 JST — backoff fix loaded; eBook fence lacks target occurrence
+
+PR #7055はmainへmerge済み（`8486f4e854a0e630542aba34d31405b082cd2e45`）。current symlinkは新release `20261008T135350-8486f4e8`で、そこにpartial-backoff修正がある。promotion/readbackはまだ進行中。
+
+**13:54–13:59 JST readback:**
+
+- release reconciler PID 1229 / run `18dc751507efc988-1229`はSHA `8486f4e8`から実行中。eBook 3 ownersと`lm-fence-reconciler`はまだ旧SHA `8f342d8d`で`loaded-idle`。旧fleet stateはSHA `8f342d8d`, `status=error`, `next_retry=14:06:05 JST`。新SHAのapplyは別の初回promotionとして必要であり、旧stateのsame-SHA backoffとは混ぜない。
+- Exact call results for the three held ebook claims are now `inconclusive / runtime_occurrence_missing_or_invalid / closed=false`.
+- Root cause is identified in the owner call path: the three ebook registry `effect_reconcile` rows invoke `mobile-postiz-provider-reconcile.py --auto-owner ...` with `occurrence_flag=null`. `lm-fence-reconciler` calls that child while its own runtime environment contains the fence reconciler's owner identity; because no ebook target occurrence is passed, `_runtime_occurrence_scope()` refuses the child call as missing or mismatched. The adapter's current CLI also rejects combining `--auto-owner` with `--occurrence-id`.
+- A safe fix is to pass each target as `--occurrence-id` for the three ebook adapters and allow that exact occurrence to scope `--auto-owner`. `reconcile_current_occurrence()` still validates owner prefix, exact admission row, unique local identity, and fresh official Postiz readback before any resolution. This fixes target routing only; the three old identity sidecars are still absent and their claims remain fenced until the exact local receipt join succeeds.
+- Postiz official GET at 13:54:40 confirms eBook 2/9 (EN TikTok 0, JA TikTok 1, JA Instagram 1) and separate Capafy IG 2 `PUBLISHED` posts. HeyGen title `Anicca` list is 0. Capafy's two automation owners remain disabled after `Bootstrap failed: 5`; Postiz integration is enabled.
+
+**TODO順変更:** 旧順=`partial-backoff fix → target apply fence reconciler → identity recovery → catch-up`。新順=`new 8486f4e8 natural release apply/readback → exact occurrence handoff fix/test for 3 ebook adapters → natural fence run and confirm the failure advances to identity-missing rather than runtime-scope-missing → owner-path recovery of unique old identities → JP catch-up → English old effect/account gate → 9/day → paid order/PDF/recurring MRR → Capafy owner bootstrap repair/canary`。理由: backoff code is now in current symlink, but owner plists remain old; the latest fence calls fail before identity or provider lookup because the target occurrence is not passed. Current cursor=`release reconciler run 18dc751507efc988-1229 natural terminal and SHA readback`.
+
+**Remaining atomic TODO:**
+
+1. Let run `18dc751507efc988-1229` terminal naturally. Read current release, owner SHAs, fleet summary, and apply-lock state; do not overlap the active reconciler.
+2. In a latest-main branch, set `occurrence_flag="--occurrence-id"` on the EN/JA TikTok and JA Instagram ebook `effect_reconcile` entries. Update `mobile-postiz-provider-reconcile.py` so `--auto-owner OWNER --occurrence-id OWNER:claim` selects only that explicit occurrence, validates its owner prefix, and ignores the parent's `lm-fence-reconciler` runtime identity. Keep `--auto-owner` without an explicit target fail-closed whenever runtime context exists.
+3. Add a failing-then-passing test that invokes the explicit target while the inherited environment names `lm-fence-reconciler`, and a registry/build_argv test proving each ebook fence call includes the exact occurrence.
+4. Merge/release the adapter fix and use the next natural `lm-fence-reconciler` wake. Confirm it no longer returns `runtime_occurrence_missing_or_invalid`; if it returns `identity_missing_or_invalid`, keep the claim fenced and continue exact identity reconstruction.
+5. Recover the two JP PUBLISHED identities from a unique join of runtime claim, marketing job/effect key, distribution receipt, Postiz ID/account/integration/slot/hashes, and fresh provider readback. Never write an identity by hand.
+6. Resolve JP claims only through the owner adapter. If 12:30 is still due afterward, catch it up through the natural owner wake and confirm new TikTok/Instagram PUBLISHED receipts.
+7. Resolve English `effect_unknown` from HeyGen video ID or itemized billing evidence, and independently establish an `approved_active` English destination before a distinct-slot canary.
+8. Verify 3 unique PUBLISHED receipts per eBook account/day (9 total) with replay-zero; then join post→UTM click→settled checkout→matching PDF→settled monthly subscription to compute net MRR. Do not count one-time eBook sales as MRR.
+9. After the eBook paid-order/PDF gate, diagnose the two disabled Capafy IG owners' Bootstrap 5 apply failure using the owner path, restore one canary/24h, and verify the owner-linked PUBLISHED receipt. Do not treat the existing two Capafy posts as cadence proof or reconnect/CAPTCHA work.
+
+### 2026-10-08 14:04 JST — exact target handoff is green in source branch; production still held
+
+この節は13:59 entryのsource/owner stateを更新する。PR #7055はmain `8486f4e8`へmerge済み、current symlinkも`20261008T135350-8486f4e8`。この新しいadapter修正はbranch `fix/ebook-fence-target-occurrence-20261008`で作業中。
+
+**14:04 JST readback and source status:**
+
+- Postiz direct GETはeBook 2/9（EN TikTok 0、JA TikTok 1、JA Instagram 1）、Capafy `capafy.hooklab` 2 `PUBLISHED`。HeyGen title `Anicca` listは0件。eBook旧effect claimsは未解決。
+- release reconciler PID 1229 / run `18dc751507efc988-1229`はSHA `8486f4e8`で実行中。eBook ownersと`lm-fence-reconciler`はなお`8f342d8d`。fleet summaryは旧SHA error/backoff `next_retry=14:06:05 JST`。新adapter patchはまだmain/releaseに入らず、owner applyも起きていない。
+- fence call ledgerでは3つのold claimが引き続き`inconclusive / runtime_occurrence_missing_or_invalid / closed=false`。
+- Source root fix is confirmed: all three ebook registry rows set `effect_reconcile.occurrence_flag=null`, so `fence_reconcile.build_argv` invokes the child `--auto-owner` without the target occurrence. The child inherits `lm-fence-reconciler` runtime identity and rejects it as the wrong owner/context.
+- Working branch sets the three eBook flags to `--occurrence-id` and lets `mobile-postiz-provider-reconcile.py --auto-owner OWNER --occurrence-id OWNER:claim` select that explicit, owner-prefix-validated occurrence. The existing local identity and official provider-readback checks remain mandatory; this change routes the exact target but does not synthesize the missing sidecar.
+- TDD evidence: the two CLI route tests and the registry/build_argv test were red before the implementation; afterward the full `test_mobile_postiz_provider_reconcile.py` passed 24/24, `runtime.loop.tests.test_fence_reconcile` passed 21/21, and `bin/lm-loop-contract` passed with 187 registry jobs / errors 0. These are source-branch results, not production evidence.
+
+**Remaining atomic TODO, in order:**
+
+1. Commit/push the exact-target adapter fix and tests to PR #7057; pass fresh CI/review and merge.
+2. Let the current release reconciler run finish naturally. Confirm current main-derived release and target/global apply-lock readback; do not stop/restart the process or overlap its fleet apply.
+3. After the new release loads, verify the three eBook owners and `lm-fence-reconciler` loaded SHA. Let a natural fence wake call each old claim with its own exact `--occurrence-id` and confirm the failure advances past `runtime_occurrence_missing_or_invalid`.
+4. If the next exact result is `identity_missing_or_invalid`, rebuild the identity only through owner-path recovery from runtime claim, local job/effect key, distribution receipt, hashes, account/integration/slot, and fresh official Postiz GET. Keep every ambiguous claim fenced; never write DB/sidecar by hand.
+5. Resolve the two JP claims, then determine whether the missed 12:30 slot is still due and catch it up via owner natural wake if eligible. Confirm new `PUBLISHED` IDs/URLs.
+6. Resolve the English 08:00 HeyGen effect from its exact video ID or itemized billing evidence; separately establish `tiktok.monk_anicca` or another verified owned English destination as `approved_active` before a new English slot.
+7. Verify 3 unique PUBLISHED receipts per eBook account/day (9 total), replay-zero, then click→locale checkout→settled order→same-order PDF→settled monthly subscription net MRR. Keep one-time eBook revenue outside MRR.
+8. After the eBook paid-order/PDF gate, fix Capafy's two disabled IG owners' `Bootstrap failed: 5` through the owner-safe apply path, then verify one canary/24h and its receipt. The Postiz integration itself is already enabled; do not reconnect/CAPTCHA without a new provider challenge.
+
 ### 2026-10-08 14:11 JST — latest admission and Coconala Paid cursor
 
 この追記はGigのlive statusだけを更新する。platform TODO順と別ownerのworktreeは変更しない。
@@ -5667,6 +5717,27 @@ PR #7050はmainへmerge済み（merge commit `dcf04b2dbf401bbd07e78e9c9efd204f0e
 
 **Current cursor:** PR #7042の同期後CI statusを完了し、Paid current claimがnatural terminalになるのを監視する。profileが空いていてもPaid processがrunningならInbox collectorは起動しない。
 
+### 2026-10-08 14:17 JST — source backoff release loaded; fence target fix remains in PR
+
+This snapshot supersedes the 13:59–14:04 source/release status. PR #7055 backoff fix is in main. Latest main release/current symlink is `20261008T140847-fd0681c1`, SHA `fd0681c1619a19bcd5cd6c7dadd89187a58b8c4c`; its release script contains the `error|partial` backoff guard. Exact-target adapter fix is PR #7057 head `b96aae4f`, CI still running.
+
+**14:17 JST readback:**
+
+- Postiz official GET: eBook 2/9 (EN TikTok 0, JA TikTok 1, JA Instagram 1); Capafy `capafy.hooklab` 2 PUBLISHED. HeyGen title `Anicca` list remains 0 from the latest query.
+- Release reconciler PID 40071 is running on installed release `d28ed3f9`; its current run began before PR #7057 merged. eBook owners and `lm-fence-reconciler` still load `8f342d8d`. Fleet state remains `error` for the older `8f342d8d` apply, with `next_retry=14:06:05`; this does not prove the new `fd0681c1` owners applied.
+- The three old fence calls still return `runtime_occurrence_missing_or_invalid / closed=false`; PR #7057 is needed before owner-side identity lookup can reach those exact targets.
+- Capafy Postiz integration is enabled and has 2 official posts today, while both Capafy Instagram owner jobs remain disabled after the earlier Bootstrap 5 apply error. No new cadence proof is available.
+
+**Remaining atomic TODO:**
+
+1. Pass PR #7057's fresh CI/review and merge; do not treat the provider claims as cleared by the code change.
+2. Let PID 40071 terminate naturally, then let the reconciler fetch latest main, cut/load its immutable release, and complete its target apply. Read back current symlink, loaded SHA/argv for the eBook owners and `lm-fence-reconciler`, fleet state, and lock before any target-specific apply.
+3. After `--occurrence-id` reaches the owner adapter, confirm the old calls advance beyond `runtime_occurrence_missing_or_invalid`. If they become `identity_missing_or_invalid`, keep fences and reconstruct only through a unique local-receipt/official-Postiz join.
+4. Close JP claims only with exact official receipts, then catch up 12:30 through a natural owner wake if the slot is still due. Confirm new Post IDs/URLs.
+5. Resolve EN old HeyGen effect and the `disabled_verified` account gate separately; then test one distinct English slot.
+6. Verify 3 unique PUBLISHED posts/account/day (9 total) and replay-zero; join to settled checkout, matching PDF, monthly subscription, and net MRR.
+7. After the eBook paid-order/PDF gate, repair Capafy IG owner's Bootstrap 5 apply failure and verify one canary/24h; don't infer continuous posting from today's two receipts.
+
 ### 2026-10-08 14:19 JST — post-sync admission and current owner readback
 
 この追記はlatest main sync、capacity、Coconala Paid owner状態を更新する。別worktree・browser・providerは変更していない。
@@ -5679,6 +5750,21 @@ PR #7050はmainへmerge済み（merge commit `dcf04b2dbf401bbd07e78e9c9efd204f0e
 
 **Current cursor:** push latest main `d28ed3f9` sync/spec, complete fresh PR checks, then wait for Paid claim natural terminal before the read-only Coconala Inbox collector.
 
+### 2026-10-08 14:31 JST — eBook fence patch synced; live evidence refreshed
+
+この追記は14:17のeBook cursorを更新する。理想architectureは維持し、現行productionの確認済み事実と未解決条件を分ける。
+
+**確認済み:**
+
+- PR #7057 `fix/ebook-fence-target-occurrence-20261008` は最新main同期merge commit `7245e160a5ae26d2a44656697d0a30e348b401c4`までpush済み。GitHubのこのheadは`CLEAN`、required CI 9/9 success。spec更新後は新headでCIを取り直す。
+- PRのsource修正は3つのeBook `effect_reconcile` rowsへ`--occurrence-id`を渡し、child adapterがowner-prefixを検証して対象occurrenceを受け取る。ownerのidentity検証・公式Postiz readbackは残る。これはtarget routing修正であり、production適用や古いeffect claimの解決ではない。
+- 14:31 JSTに既存HeyGen CLIのread-only `video list --title Anicca --limit 100`を全2ページ照会し0件。English occurrence `ebook-en-tiktok-daily:18dc6de8dcf3a0e8-75262`のlocal eventは`entrypoint_exit_1`、`provider_receipt_id=null`、`next_action=official_readback_required`。動画一覧0件だけでは、provider effectなしとは証明できないため旧occurrenceを再送しない。
+- 14:24:50 JSTのPostiz公式GETではeBook 2/9（EN TikTok 0、JA TikTok 1、JA Instagram 1）、Capafy `capafy.hooklab`は2件`PUBLISHED`。このreadback時点でCapafyの2 automation ownersはdisabled / `Bootstrap failed: 5`。投稿2件は継続cadenceの証拠ではない。
+- 月額Letter/Tegamiのprice、settled subscription、net MRRは未確認。one-time eBook priceをMRRに算入しない。
+
+**TODO順:** 旧順=`PR source fix → natural release apply → exact occurrence route → unique identity recovery → JP catch-up → EN resolution → daily cadence → checkout/MRR → Capafy`。新順=`このspec追記をpushし新headのrequired CI/reviewを確認 → PR #7057をmerge → release reconcilerの自然terminalとmain由来release/lockをreadback → 3 eBook ownersとfence reconcilerのloaded SHA/argvを確認 → natural fence runが各ownerのexact occurrenceを渡すことをreadback → resultがidentity missingならlocal claim/job/distribution receipt/account/integration/slot/hashと公式Postiz receiptを一意joinしowner pathでだけ回復 → JP claimsを閉じ、due-slot functionがまだeligibleと返す場合だけowner natural wakeでcatch-up → English旧effectをvideo IDまたは同一createに紐づくitemized billingでresolveし、destination eligibilityを別確認 → 次のdistinct English slotをowner経由で1回 → 3 accounts×3 unique PUBLISHED/dayとreplay-zero → post/click/locale checkout/settled order/matching PDF/monthly subscriptionからnet MRR → eBook paid order + matching PDF後にCapafy Bootstrap 5をowner-safe apply経路で修正し、1 canary/24h receiptを確認`。理由: source root causeは実装済みだが未merge/未production反映で、owner identityと旧effectのreceiptも未解決。現在cursor=`spec更新のpush後に新PR headのCI/reviewを確認`。
+
+**Daisの作業:** いま手動投稿・Postiz再接続・CAPTCHAは不要。providerが明示的に本人確認を要求した場合のみ、その本人手続きが外部前提になる。
 ### 2026-10-08 14:32 JST — sender source merged; owner promotion still pending
 
 この追記は14:19のGitHub/production cursorを更新し、TODO順は上記`Remaining atomic Gig TODO`に一本化する。
@@ -5690,3 +5776,29 @@ PR #7050はmainへmerge済み（merge commit `dcf04b2dbf401bbd07e78e9c9efd204f0e
 - このassistantはstatus/lease/official code readbackのみ行い、Inbox collector、browser attach、provider action、release applyはまだ実行していない。
 
 **Current cursor:** Paid runとrelease reconcilerの自然terminalをreadbackし、lockがfreeになってからPaid ownerのloaded SHAを`bd3ef825`へ収束させる。次にInboxを一度だけ公式readbackし、outbox/Sheetへjoinする。
+
+
+### 2026-10-08 14:47 JST — latest-main inventory mismatch blocks the new PR head
+
+この追記はa0c63f62のCI結果でTODO順を更新する。
+
+- PR #7057のhead `a0c63f62`に対するrun `37733748154`で`OSS self-contained boundary`が失敗し、同じrunで8 checks pass、Loop contract / secret scansは当時進行中。ローカルの同一CI commandも`manifest_inventory_mismatch`、path `skills/capafy-autopublish`を再現した。
+- PR #7066のmain-merged head `b344cf9283dc2164964f7a18856f14d2bbce5808`でも同じOSS checkがfailure。直前main変更がCapafy autopublish treeへ新規tracked filesを加え、`docs/manifests/oss-merge-1-sources.json`の分類inventoryを更新していない。これはeBook source diffではなく、latest mainに入ったmanifest drift。
+- 追跡対象treeは245 files。canonical verifierと同じ計算法で `inventory_sha256=6e1403db49c27287e8b8ff3175d243141c761d97d979f5f25bf76ac2d9599d84` を計算した。
+- 最新mainの#7067は同じtree内のtracked filesを更新し、#7069はtree外の2つのUPDATE.jsonを削除した。latest mainをmerge後にinventoryを再計算し、245 files /上記SHAを正本へ反映した。
+
+**TODO順:** 旧順=`最新main同期 → fresh CI → merge`。新順=`specに失敗境界を記録 → manifestのCapafy autopublish inventory count/hashだけ更新 → exact OSS verifierを再実行 → fresh CI全required checks → latest main再fetch/sync → PR #7057 merge → natural release/owner readback → identity recovery → posting/checkout/revenue gates → Capafy canary`。理由: same failure was present on the already-merged upstream PR and reproducible locally; correcting the exact classified inventory is required for this branch's source acceptance. 最新mainの#7067/#7069を含めmanifest hash再計算済み。現在cursor=`exact OSS verifier再実行とfresh CI`。
+
+
+### 2026-10-08 14:54 JST — main #7070 sync and production owner readback
+
+このsnapshotはmain advancementと最新`lm-loop status`を反映し、14:47のinventory failure記録を更新する。
+
+- `origin/main=8ddccaff9a862b7f25d8f5eea44e0de6cc162e5e`。#7070は`skills/capafy-autopublish`の2 tracked filesを更新し、#7068は別のLINE sticker treeを追加した。最新mainをbranchへmerge後、Capafy autopublish inventoryは245 files、canonical verifier同一方式の`inventory_sha256=88f3665ab3c9d574f18c60a92dddab7f1416b7631850d4ce11f6326c56da3e59`に再計算した。manifestへ反映後にverifierとfresh CIを再実行する。
+- `~/loops/current`はrelease `20261008T145220-8ddccaff`。release reconcilerはinstalled SHA `8ddccaff` / `loaded-idle` / PIDなし。直近eventは前release SHA `f3e49261`で`exit75 / reconcile_owner`、effect `not_applicable`。これは最新owner convergenceの完了ではない。
+- eBook EN/JA TikTok/JA Instagramと`lm-fence-reconciler`はSHA `8f342d8d`で`loaded-idle`。ENとJP occurrenceは`host_admission_deferred:resource_effect_unknown`、provider receiptなし。Capafyの2 automation ownersはdisabledで旧SHA `2e87d30d`。現在のreadbackでloop再起動・owner applyは行っていない。
+- 14:24:50 JSTの最後のPostiz公式GETはeBook 2/9（EN 0、JA TikTok 1、JA Instagram 1）、Capafy 2 PUBLISHED。14:31 JSTのHeyGen CLI title query `Anicca`は全2ページ0件。08:00 EN occurrenceは`official_readback_required`のままなので再送しない。
+- PR #7057 remote head `594eaf47`のCIはOSS boundary PASS、Loop contract pending、残りはPASS。local branchはmain #7070まで同期したため、push後は新headの全CIを対象にする。
+- 14:55 JSTのmain #7071はCapafy計画書のみを更新し、最新head `d3b0d9926961883a5b65f376ce1d25c04a788403`としてclean merge済み。`skills/capafy-autopublish` treeは変わらず、245-file inventory hashは維持。
+
+**TODO順:** current cursor=`245-file latest-main inventory hashを正本へ反映 → exact OSS verifier PASS → 最新main再fetch → spec/manifest commit+push → new-head CI全required PASS → PR #7057 merge → release reconciler natural convergence → eBook ownersとfence reconcilerのloaded SHA/argv readback → exact occurrence route → unique identity recovery → JP catch-up if due → EN old-effect/account gate → 9 unique PUBLISHED/day → paid order/PDF/subscription net MRR → Capafy automation repair/canary`。投稿数と収益の未確認を完了扱いしない。Daisの手動作業は現時点で不要。
