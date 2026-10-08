@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail closed before a Life Manager producer allocates disk-backed work."""
+"""Check producer state and explicit stops without a free-space admission floor."""
 
 from __future__ import annotations
 
@@ -13,27 +13,11 @@ from pathlib import Path
 from typing import Sequence
 
 
-DEFAULT_REQUIRED_KIB = 524288
-# Dais 2026-10-07: an 11 GiB floor kept every producer stopped at 5-12 GiB free
-# (promotion and sales loops idle for hours). 2 GiB still leaves room for a
-# release cut (~300 MB) and browser runs while stopping well before a full disk.
-RECOVERY_FLOOR_BYTES = 2 * 1024**3
-try:
-    REQUIRED_KIB = int(
-        os.environ.get("LIFE_MANAGER_DISK_HEADROOM_KIB", str(DEFAULT_REQUIRED_KIB))
-    )
-except (TypeError, ValueError):
-    REQUIRED_KIB = DEFAULT_REQUIRED_KIB
-    _REQUIRED_KIB_VALID = False
-else:
-    _REQUIRED_KIB_VALID = True
-REQUIRED_BYTES = REQUIRED_KIB * 1024
 RECEIPT_PATH = Path("state") / "disk-headroom.json"
 
 _PRODUCER_GATE = "life-manager-producer-preflight"
 _POLICY_FLAGS = (
     ("disk-writers.stop", "disk_writers_stop"),
-    ("disk-pressure.block", "disk_pressure_block"),
 )
 
 
@@ -147,7 +131,7 @@ def _failure(
         "effect": 0,
         "readback": 0,
         "reason": reason,
-        "required_bytes": REQUIRED_BYTES,
+        "required_bytes": 0,
     }
     if available_bytes is not None:
         receipt["available_bytes"] = available_bytes
@@ -166,17 +150,7 @@ def _producer_gate() -> tuple[str, Path] | None:
         next(iter(host_state.iterdir()), None)
     except OSError:
         return "disk_policy_unavailable", host_state
-    ignored = {
-        "disk-writers.stop": os.environ.get(
-            "LIFE_MANAGER_IGNORE_DISK_WRITERS_STOP", ""
-        ).strip().lower() in {"1", "true", "yes"},
-        "disk-pressure.block": os.environ.get(
-            "LIFE_MANAGER_IGNORE_DISK_PRESSURE_BLOCK", ""
-        ).strip().lower() in {"1", "true", "yes"},
-    }
     for filename, reason in _POLICY_FLAGS:
-        if ignored[filename]:
-            continue
         flag = host_state / filename
         try:
             entry = flag.lstat()
@@ -195,11 +169,8 @@ def disk_headroom_ok() -> bool:
     if not _ensure_producer_state_dir(state_dir):
         print(json.dumps({
             "status": "failed", "failed": 1, "effect": 0, "readback": 0,
-            "reason": "disk_state_unsafe", "required_bytes": REQUIRED_BYTES,
+            "reason": "disk_state_unsafe", "required_bytes": 0,
         }, sort_keys=True, separators=(",", ":")))
-        return False
-    if not _REQUIRED_KIB_VALID:
-        _failure("disk_headroom_policy_invalid", None)
         return False
     gate = _producer_gate()
     if gate is not None:
@@ -214,9 +185,6 @@ def disk_headroom_ok() -> bool:
     available_bytes = disk_free_bytes(state_dir)
     if available_bytes is None:
         _failure("disk_headroom_unavailable", None)
-        return False
-    if REQUIRED_BYTES and available_bytes < REQUIRED_BYTES:
-        _failure("disk_headroom_low", available_bytes)
         return False
     return True
 

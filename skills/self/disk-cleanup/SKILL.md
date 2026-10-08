@@ -43,8 +43,9 @@ allow-listed regenerable artifact after an open-path probe confirms
 - Homebrew, pip, and uv package download caches are regenerable candidates and
   are reclaimed only after the same confirmed-closed check.
 - The 5-minute pass has one atomic lock and no LLM deletion authority.
-- Pressure is asserted below 2 GiB and is not cleared until the recovery floor
-  is reached; the 20 GiB threshold starts preventive containment.
+- The 2 GiB recovery value describes cleanup success only; it does not pause
+  producer or release loops. `disk-pressure.block` is advisory. The explicit
+  `disk-writers.stop` file remains a separate hard operator control.
 - The central cleanup terminal reports capacity recovery separately from
   deletion outcomes: integer `free_after` must meet the existing 2 GiB floor;
   a shortfall is `unmet`, and missing or invalid capacity is `unknown`. These
@@ -59,13 +60,10 @@ allow-listed regenerable artifact after an open-path probe confirms
   the cursor once only after the sweep's fresh free-space reading meets 2 GiB.
   Cursor writes do not consume the terminal receipt reserve, and the receipt
   records cursor-write failures separately from deletion errors.
-- The shared runner defers new finite data-plane wakes below 2 GiB, measuring
-  the volume that contains the host-admission receipt before queueing and again
-  after claim before child dispatch. Control-plane safety loops and continuous
-  owners bypass this gate. It releases any prior reservation through the
-  existing defer path and never stops a running owner. Its fixed 2 GiB floor
-  is independent of the individual-wrapper `LIFE_MANAGER_DISK_HEADROOM_KIB`
-  setting.
+- The shared runner does not defer a wake because free bytes are below a floor.
+  It still defers if filesystem measurement is unavailable and preserves the
+  explicit `disk-writers.stop` control. A real write failure is recorded at the
+  failing operation; it is not converted into a headroom admission result.
 - After the final post-inventory capacity readback reaches 2 GiB, the governor
   removes `disk-writers.stop` only when its same-UID 0600 regular file still has
   the exact `host-disk-recovery` owner, `disk_headroom_low` reason, required

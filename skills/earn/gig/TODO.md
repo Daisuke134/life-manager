@@ -2,6 +2,8 @@
 
 > **参照用（2026-09-29 Dais 指示）。正本はこの文書ではなく `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md` の 1 本だけ。TODO・順序・状態はそちらだけを更新する。**
 
+> **Disk admission:** see the canonical SSOT section “remove numeric disk-headroom stops”; historical floor observations below no longer define a producer admission gate.
+
 
 ## Current cursor — 2026-09-25 11:33 JST (Ryu final comprehensive send completed)
 

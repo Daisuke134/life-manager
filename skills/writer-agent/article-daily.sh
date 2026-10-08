@@ -60,39 +60,9 @@ export TELEGRAM_ALERT_CHAT_ID="$TELEGRAM_TARGET_ID"
 . "$LIFE_MANAGER_REPO/skills/_shared/scripts/telegram-notify.sh" 2>/dev/null || true
 echo "=== article-daily run $(date '+%F %T %Z') ===" >>"$LOG"
 
-# DISK PREFLIGHT (spec writer-loop-spec.md #13.1 item 5 / #13.5): runs at wrapper start, before
-# the exclusive lock, before RUN_DIR, before any model invocation below -- a pass that can run
-# for hours writes this LOG, a whole state/runs/<ts>/ record tree, gate JSONs and Chromium
-# screenshots, on top of elsewhere-managed .backups tarballs and cloned repos on the same volume;
-# with no floor check, / filling mid-pass means every one of those writes silently truncates
-# instead of failing loud. This is a plain host disk check the wrapper makes on its own -- never
-# something the LLM inside the pass decides or can skip.
-# Life Manager's shared disk admission defaults to 524288 KiB. Keep the
-# in-process check identical so direct owner wakes and supervised lanes agree.
-CANONICAL_DISK_HEADROOM_KIB=524288
-GIG_DISK_HEADROOM_KIB="${GIG_DISK_HEADROOM_KIB:-$CANONICAL_DISK_HEADROOM_KIB}"
-export GIG_DISK_HEADROOM_KIB
-case "$GIG_DISK_HEADROOM_KIB" in
-  ''|*[!0-9]*|0)
-    echo "=== article-daily disk floor configuration invalid ===" >>"$LOG"
-    exit 1
-    ;;
-esac
-DISK_LOW_THRESHOLD_BYTES="$(python3 "$ARTICLE_ROOT/scripts/writer_capacity_floor.py" --state-dir "$STATE_DIR")" || {
-  echo "=== article-daily capacity receipt invalid ===" >>"$LOG"
-  exit 1
-}
-case "$DISK_LOW_THRESHOLD_BYTES" in
-  ''|*[!0-9]*|0)
-    echo "=== article-daily disk floor configuration invalid ===" >>"$LOG"
-    exit 1
-    ;;
-esac
-if [ "$GIG_DISK_HEADROOM_KIB" -lt "$CANONICAL_DISK_HEADROOM_KIB" ] \
-  || [ "$DISK_LOW_THRESHOLD_BYTES" -lt "$((CANONICAL_DISK_HEADROOM_KIB * 1024))" ]; then
-  echo "=== article-daily disk floor configuration below canonical minimum ===" >>"$LOG"
-  exit 1
-fi
+# Use a low-space observation only to trigger bounded cleanup of regenerable research clones.
+# It never blocks a run or provider work; actual write errors are reported by the operation.
+DISK_CLEANUP_TRIGGER_BYTES=536870912
 
 disk_free_bytes() {
   # macOS/APFS: -P forces single-line POSIX output regardless of filesystem-name length; -k
@@ -106,8 +76,8 @@ disk_free_bytes() {
 disk_preflight() {
   local before_bytes after_bytes freed_bytes actions
   before_bytes="$(disk_free_bytes)"
-  if [ "${before_bytes:-0}" -ge "$DISK_LOW_THRESHOLD_BYTES" ]; then
-    echo "=== article-daily disk-preflight: free=${before_bytes}bytes (>= ${DISK_LOW_THRESHOLD_BYTES}bytes threshold), no cleanup needed $(date '+%F %T %Z') ===" >>"$LOG"
+  if [ "${before_bytes:-0}" -ge "$DISK_CLEANUP_TRIGGER_BYTES" ]; then
+    echo "=== article-daily disk observation: free=${before_bytes}bytes, no clone cleanup needed $(date '+%F %T %Z') ===" >>"$LOG"
     return 0
   fi
 
@@ -132,16 +102,6 @@ disk_preflight() {
 }
 
 disk_preflight
-
-# Cleanup is best-effort and can free less than the writer needs. Re-measure
-# before creating a run or invoking a model; the creator must share the same
-# fail-closed boundary as article-resume-pending.sh and disk_admission.py.
-POST_PREFLIGHT_FREE_BYTES="$(disk_free_bytes)"
-if [ "${POST_PREFLIGHT_FREE_BYTES:-0}" -lt "$DISK_LOW_THRESHOLD_BYTES" ]; then
-  echo "=== article-daily disk floor blocked after preflight free=${POST_PREFLIGHT_FREE_BYTES}bytes required=${DISK_LOW_THRESHOLD_BYTES}bytes $(date '+%F %T %Z') ===" >>"$LOG"
-  telegram_notify "Writer blocked: disk floor remains below ${DISK_LOW_THRESHOLD_BYTES} bytes (${POST_PREFLIGHT_FREE_BYTES} bytes free)" || true
-  exit 1
-fi
 
 # EXCLUSIVE LOCK (copied from capafy-autopublish/scripts/daily_loop.sh, 2026-07-12): every loop
 # that drives the shared daily-driver browser (CDP :9222) must hold one — capafy ran without a
@@ -1135,49 +1095,16 @@ GENERATION_ARGS=(--run-dir "$RUN_DIR" --run-id "$RUN_TS" --prompt-file "$PROMPT_
 # agent cannot accidentally bypass the per-run attempt controller by delaying STEP 4.9.
 export ARTICLE_RUN_DIR="$RUN_DIR"
 
+WRITER_CANONICAL_HOME="$(/usr/bin/python3 -c 'import os, pwd; print(pwd.getpwuid(os.getuid()).pw_dir)')" || exit 78
+[ -n "$WRITER_CANONICAL_HOME" ] || exit 78
+WRITER_DISK_CONTROL_DIR="$WRITER_CANONICAL_HOME/.local/state/life-manager/state"
+LIFE_MANAGER_HOST_STATE_DIR="$WRITER_DISK_CONTROL_DIR"
+LIFE_MANAGER_PRODUCER_STATE_DIR="$STATE_DIR"
+export LIFE_MANAGER_HOST_STATE_DIR LIFE_MANAGER_PRODUCER_STATE_DIR
+
 writer_capacity_preflight() {
-  local free_kib flag control_dir="${LIFE_MANAGER_HOST_STATE_DIR:-$HOME/.local/state/life-manager/state}"
-  local required_kib="$(( (DISK_LOW_THRESHOLD_BYTES + 1023) / 1024 ))"
-  free_kib="$(df -Pk / 2>/dev/null | awk 'NR==2{print $4}')"
-  case "$free_kib" in
-    ''|*[!0-9]*)
-      echo "=== article-daily provider gate BLOCK: disk capacity unavailable ===" >>"$LOG"
-      return 78
-      ;;
-  esac
-  case "$required_kib" in
-    ''|*[!0-9]*|0)
-      echo "=== article-daily provider gate BLOCK: disk floor configuration invalid ===" >>"$LOG"
-      return 78
-      ;;
-  esac
-  if [ "$free_kib" -lt "$required_kib" ]; then
-    echo "=== article-daily provider gate BLOCK: free=${free_kib}KiB below Life Manager ${required_kib}KiB floor ===" >>"$LOG"
-    return 78
-  fi
-  if [ ! -d "$control_dir" ] || [ ! -r "$control_dir" ] || [ ! -x "$control_dir" ]; then
-    echo "=== article-daily provider gate BLOCK: control directory unavailable=$control_dir ===" >>"$LOG"
-    return 78
-  fi
-  for flag in "$control_dir/disk-writers.stop" "$control_dir/disk-pressure.block"; do
-    if [ -L "$flag" ] || { [ -e "$flag" ] && [ ! -f "$flag" ]; }; then
-      echo "=== article-daily provider gate BLOCK: non-regular control flag=$flag ===" >>"$LOG"
-      return 78
-    fi
-    if [ -f "$flag" ] && {
-      { [ "$flag" = "$control_dir/disk-pressure.block" ] \
-        && [ "${GIG_IGNORE_DISK_PRESSURE_BLOCK:-}" = "1" ]; } \
-      || { [ "$flag" = "$control_dir/disk-writers.stop" ] \
-        && [ "${GIG_IGNORE_DISK_WRITERS_STOP:-}" = "1" ]; };
-    }; then
-      continue
-    fi
-    if [ -f "$flag" ]; then
-      echo "=== article-daily provider gate BLOCK: control flag=$flag ===" >>"$LOG"
-      return 78
-    fi
-  done
-  return 0
+  # The shared guard validates the fixed control root and cannot be redirected by launchd env.
+  python3 "$LIFE_MANAGER_REPO/runtime/host/disk_admission.py" /usr/bin/true >>"$LOG" 2>&1
 }
 if ! writer_capacity_preflight; then
   exit 78
@@ -1239,7 +1166,7 @@ drain_generation_workers() {
 }
 run_model_pass() {
   local active_prompt_file="${1:-$PROMPT_FILE}" rc
-  BOUNDED_EXEC_STOP_PATHS="${LIFE_MANAGER_HOST_STATE_DIR:-$HOME/.local/state/life-manager/state}/disk-writers.stop" \
+  BOUNDED_EXEC_STOP_PATHS="$WRITER_DISK_CONTROL_DIR/disk-writers.stop" \
   ARTICLE_RUN_ID="$RUN_TS" ARTICLE_MODEL_LOG="$LOG" \
     python3 "$ARTICLE_ROOT/../../runtime/loop/bounded-exec.py" \
       "$ARTICLE_MODEL_AGENT_TIMEOUT_SECONDS" \

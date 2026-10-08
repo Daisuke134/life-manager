@@ -7093,6 +7093,26 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 **現在cursor:** guard PR exact-head CI/fresh review → merge → immutable release/natural handoff → fixed-release cleanup receipt/admission → guarded Capafy retirement/doctor → target effects → owner natural outcomes → same-window capacity/economics。
 
 
+### 2026-10-08 — remove numeric disk-headroom stops from all loops
+
+- The global loop runner previously deferred ordinary jobs below 2 GiB and selected paid jobs below 1 GiB; main later lowered `critical_paid` to 256 MiB and `revenue` to 512 MiB. Producer, Gig, and Writer wrappers add 512 MiB or measured Writer-capacity floors. Writer publication and release creation have separate numeric disk checks. These checks repeatedly defer revenue and other scheduled work.
+- **Contract:** no loop, producer wrapper, Writer publication path, or release builder rejects work solely because measured free bytes are below a configured floor. Keep actual filesystem errors, unavailable/unsafe state, durable-effect fences, and the explicit hard `disk-writers.stop` operator control; launchd environment variables cannot bypass that stop file. Do not treat a cleanup recovery metric as a producer admission rule: cleanup may continue to report whether it restored 2 GiB, while other loops keep making progress.
+- **Limit:** this removes preventive headroom stops; it cannot prevent a real write from failing with `ENOSPC`. Record that as the actual failed operation and continue the next scheduled occurrence. Never replay an external effect whose outcome is unknown.
+
+**順序更新:** 旧順序=`cleanupがfree_after >= 2 GiBへ戻すまで全loopをadmission待機 → release反映 → natural run`。新順序=`numeric headroom checksを全producer/release経路から除去 → focused acceptanceとfresh review → mainへ統合 → immutable releaseを通常経路で反映 → natural occurrencesを確認し、実際のENOSPCはwrite failureとして記録 → cleanupは回復指標を継続`。理由は、固定空き容量だけによる全loop停止をユーザーが明示的に廃止したため。既に実行中のownerや外部effectは中断・再送しない。
+
+**残TODO（完了まで・この順）:**
+
+1. [x] Global runner、common/Gig/Writer/SelfFix/browser/release-builder/agent-runnerからnumeric free-space admission checksとobsolete floor environmentを除去する。explicit `disk-writers.stop`はenvironment overrideでも回避不可とし、measurement/state integrity、effect fencesを維持する。cleanup recovery metricは変更しない。
+2. [x] Regression testsを変更し、`0` bytesのvalid measurementでadmission・Writer publication・agent-runner retentionが進み、unavailable measurement・unsafe control path・explicit hard stopは引き続き拒否されることを確認する。
+3. [x] Loop contract、host/Gig/Browser/Writer/SelfFix/agent-runner focused tests、shell contracts、JSON/shell syntax、`git diff --check`を確認する。static source scanでfree-space比較によるactive admission stopはなく、historical event decoding、cleanup recovery metric、Writerのclone-cleanup triggerは別用途のまま残る。Fresh reviewのP1 finding（hard-stop bypass via launchd env）を修正し、Writerはpwd ownerのcanonical host stop pathを使い、launchd overrideをpublication前にも無視する。Gig control rootのsymlink/owner/mode validationも追加する。
+4. latest-main専用PRでexact-head CIとfresh read-only reviewを通しmergeする。main由来immutable releaseを自然経路で反映し、loaded SHA/argvと新規natural occurrenceのadmission resultを読む。disk cleanupは別ownerの稼働を妨げず、recovery receiptを報告指標として継続する。
+
+**完了条件:** 実行可能なloopのpreflightがfree-space数値だけを理由にdefer/exitしない。実ENOSPC、測定不能、明示stop、effect-unknownは正確な理由で区別される。main由来releaseの適用とnatural readbackを確認するまではsource修正の範囲で報告し、収益はproviderの公式settlement/readbackなしに主張しない。
+
+**現在cursor:** rebase onto latest main `1fe7db3b` → exact-head fresh SHIP review and source acceptance → push/PR/required CI → merge → immutable release/natural readback → sales/settlement receipt。
+
+
 ### Marketing IntelからWriterへの記事候補連携（並列作業）
 
 **目的:** `marketing-weekly-review`がTelegramへ報告する未検証の`CONTENT`戦術を、既存Writerの`article-daily`トピックキューへ候補として渡す。AffiliateやX repostには配線しない。

@@ -19,7 +19,7 @@ if str(ROOT) not in sys.path:
 from runtime.loop.loop_cleanup import gc_releases, remove_owned_tree
 from runtime.host.resource_admission import process_starts
 
-HOST_CLEANUP_RECOVERY_FLOOR_BYTES = 2 * 1024**3  # Dais 2026-10-07; matches disk_admission
+HOST_CLEANUP_RECOVERY_FLOOR_BYTES = 2 * 1024**3  # cleanup receipt target; not producer admission
 
 
 def installed_state_roots(agents_dir: Path) -> set[Path]:
