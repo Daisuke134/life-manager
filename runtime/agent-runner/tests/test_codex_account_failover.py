@@ -247,6 +247,21 @@ class CodexProfileBoundaryTest(unittest.TestCase):
                     ["acct1", "acct2"],
                 )
 
+    def test_short_loop_tasks_fail_over_when_acct1_is_held_by_a_long_run(self):
+        # 2026-10-08: a 20-min gpt-6-luna run held acct1, so every 90 s sticker caption and the
+        # factory planner waited on the profile lease until timeout while acct2 sat idle.
+        config = json.loads((ROOT / "config.json").read_text(encoding="utf-8"))
+        for name in ("composition-agent", "marketing-agent", "browser-lane-agent"):
+            with self.subTest(task_class=name):
+                candidates = config["task_classes"][name]["candidates"]
+                codex = [c for c in candidates if c["provider"] == "codex"]
+                self.assertTrue(all(c.get("fail_fast_provider_lease") for c in codex))
+                resolved = resolve_provider_profiles(candidates, config["providers"])
+                self.assertEqual(
+                    [row.get("profile_alias") for row in resolved if row["provider"] == "codex"],
+                    ["acct1", "acct2"],
+                )
+
     def test_runner_uses_stable_profile_lock_and_only_configured_tasks_fail_fast(self):
         for fail_fast in (True, False):
             with self.subTest(fail_fast=fail_fast):
