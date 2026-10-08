@@ -21,4 +21,7 @@ done
 # Once per day (self-gated on sales.json's observed_at): per-product sales + 分配 distribution
 # numbers from the official 売上・統計情報 / 送金申請 pages, for the factory planner.
 "$PY" "$LIFE_MANAGER_REPO/skills/earn/line-sticker/sales_readback.py" || status=1
+# Once per day (self-gated on market.json's observed_at, no login): top-seller sweep of LINE
+# STORE's public rankings so the factory planner copies what is actually selling today.
+"$PY" "$LIFE_MANAGER_REPO/skills/earn/line-sticker/market.py" || status=1
 exit "$status"
