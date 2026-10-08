@@ -4,10 +4,10 @@
 //   RESOLVE  : for each event missing a location, Gemini decides the real place + address (grounded
 //              on a Google Places search so it can't hallucinate a street number), or says "ask".
 //   ASK      : only when Gemini can't determine it (e.g. "Coffee with Mai" — a person, no venue) do we
-//              ask — via Telegram if linked, else an email from OUR domain (Resend, From hello@aniccaai.com,
-//              Reply-To reply+<token>@reply.aniccaai.com). We NEVER read or send from the user's Gmail.
-//   READ     : replies arrive on webhooks (Telegram → /telegram, email → /inbound-email). Gemini reads the
-//              reply text + the pending event and returns {eventId, location} — no inbox polling, no regex.
+//              ask — through a linked Telegram/iMessage channel, or for legacy users an email from OUR
+//              domain (Resend, Reply-To reply+<token>@reply.aniccaai.com). We NEVER read user Gmail.
+//   READ     : replies arrive on the linked message channel or our inbound email route. Gemini reads the
+//              reply text + pending event and returns {eventId, location} — no inbox polling.
 //
 // Dedup is the one deterministic part (a Supabase lm_ask_log row per asked event) — that's bookkeeping,
 // not judgment.
@@ -372,18 +372,27 @@ function needsLocation(ev) {
 
 async function askedSet(uid, supaUrl, supaKey) {
   const r = await fetch(`${supaUrl}/rest/v1/lm_ask_log?uid=eq.${encodeURIComponent(uid)}` +
-    `&select=event_id,semantic_key,question_type,question_context,answer_value`,
+    `&select=event_id,semantic_key,question_type,question_context,answer_value,answered_at`,
     { headers: { apikey: supaKey, Authorization: `Bearer ${supaKey}` } });
-  const d = await r.json().catch(() => []);
-  const rows = Array.isArray(d) ? d : [];
+  if (!r || r.ok !== true) {
+    const status = Number(r && r.status);
+    throw new Error(`lm_ask_log_read_failed${Number.isFinite(status) ? ` status=${status}` : ""}`);
+  }
+  let rows;
+  try { rows = await r.json(); } catch { throw new Error("lm_ask_log_invalid_response"); }
+  if (!Array.isArray(rows)) throw new Error("lm_ask_log_invalid_response");
   const result = new Set();
   result.seriesAnswers = {};
+  result.pendingIMessage = false;
   for (const row of rows) {
     if (row.event_id) result.add(row.event_id);
     if (row.semantic_key) result.add(row.semantic_key);
     const seriesId = row.question_context && row.question_context.seriesId;
     if (seriesId && row.question_type === "calendar_online" && ["online", "offline"].includes(row.answer_value)) {
       result.seriesAnswers[seriesId] = { decision: row.answer_value };
+    }
+    if (row.answered_at == null && row.question_context && row.question_context.replyChannel === "imessage") {
+      result.pendingIMessage = true;
     }
   }
   return result;
@@ -500,37 +509,63 @@ async function askTick(uid, opts) {
       autofilled++;
       continue;
     }
-    // ASK: prefer Telegram when the user linked it (replies come back via the /telegram webhook); otherwise
-    // email from OUR domain via Resend, with a short opaque token in the Reply-To (reply+<token>@reply.
-    // aniccaai.com). The reply lands on /inbound-email, which looks the token up in lm_ask_log and patches
-    // this event. We NEVER read the user's Gmail. CLAIM (with the token) before sending so two ticks can't
-    // double-ask; release the claim if the send fails so a later tick retries.
+    // Keep one unanswered iMessage question per tenant. The linked DM has no separate Web thread,
+    // and the next event ask waits until this sender resolves the current one.
+    if (opts.imessageSenderId && already.pendingIMessage) continue;
+    // ASK: prefer Telegram when linked, then an explicitly linked iMessage stream, then legacy email from
+    // OUR domain via Resend with a short opaque Reply-To token. CLAIM before sending to prevent duplicate
+    // asks; only a confirmed pre-effect failure releases the claim. An ambiguous iMessage send stays fenced.
     const replyToken = newReplyToken();
     const questionContext = {
       ...(event.recurringEventId ? { seriesId: String(event.recurringEventId) } : {}),
       summary: String(event.summary || "").slice(0, 200),
       start: String((event.start || {}).dateTime || "").slice(0, 80),
+      replyChannel: opts.telegramChatId ? "telegram" : opts.imessageSenderId ? "imessage" : "email",
     };
     if (!(await claimAsk(uid, event.id, supaUrl, supaKey, replyToken, {
       semanticKey, questionType, questionContext, telegramChatId: opts.telegramChatId,
     }))) continue;
     let sent = false;
+    let sendOutcomeUnknown = false;
     if (opts.telegramChatId && opts.telegramToken) {
       const message = questionType === "calendar_online"
         ? closedOnlineAskMessage(event, interpretation, replyToken)
         : { text: `場所はどこですか？住所か、お店・会社の名前を送ってください。`, extra: undefined };
       const r = await tgSend(opts.telegramToken, opts.telegramChatId, message.text, message.extra);
       sent = !!(r && r.ok);
+    } else if (opts.imessageSenderId) {
+      if (typeof opts.imessageSend === "function") {
+        const text = questionType === "calendar_online"
+          ? `${interpretation.question && interpretation.question.text || "この予定はオンラインですか？対面ですか？"} 「オンライン」か「対面」と返信してください。対面なら場所も教えてください。`
+          : "場所はどこですか？住所か、お店・会社の名前を送ってください。";
+        try {
+          const result = await opts.imessageSend(opts.imessageSenderId, text, {
+            uid, eventId: event.id, questionType,
+          });
+          const receiptId = String(result && result.receiptId || "").trim();
+          sent = Boolean(result && result.ok === true && receiptId);
+          sendOutcomeUnknown = Boolean(result && result.effectUnknown === true)
+            || Boolean(result && result.ok === true && !receiptId);
+        } catch {
+          sendOutcomeUnknown = true;
+        }
+      }
     } else if (questionType !== "calendar_online" && userEmail && resendKey) {
       const r = await sendAsk({ to: userEmail, replyToken, event, resendKey });
       sent = !!(r && r.sent);
     }
-    if (sent) asked++;
+    if (sent) {
+      asked++;
+      if (opts.imessageSenderId) break;
+    }
+    else if (sendOutcomeUnknown) {
+      console.error(`[ask] iMessage send outcome unknown; claim retained uid=${String(uid).slice(0, 12)} event=${String(event.id || "").slice(0, 100)}`);
+      break;
+    }
     else await unclaimAsk(uid, event.id, supaUrl, supaKey); // send failed → release so next tick retries
   }
 
-  // Replies (email + Telegram) both arrive via webhooks now — Telegram → /telegram, email → /inbound-email.
-  // Neither polls an inbox, so there is no read step here.
+  // Replies arrive through Telegram's webhook, the linked Spectrum stream, or our inbound-email route.
   return { autofilled, asked, resolved };
 }
 

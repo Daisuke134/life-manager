@@ -103,7 +103,7 @@ test("Connector judgment rejects fallback models and unverified profiles", async
   }), /Connector Luna judgment unavailable/);
 });
 
-test("local runner pins Codex Terra and enforces timeout cancellation and token bounds", async () => {
+test("local runner pins Codex Luna and enforces timeout cancellation and token bounds", async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "connector-luna-runner-"));
   const evidenceDir = path.join(root, "evidence");
   const controller = new AbortController();
@@ -143,7 +143,10 @@ test("local runner pins Codex Terra and enforces timeout cancellation and token 
   assert.equal(invocation.options.env.ANICCA_PASS_TOKEN_BUDGET, "4096");
   assert.equal(invocation.options.signal, controller.signal);
   assert.equal(invocation.options.timeout, 125_000);
-  assert.deepEqual(invocation.args.slice(-3), ["--timeout-seconds", "120", "--read-only"]);
+  const timeoutIndex = invocation.args.indexOf("--timeout-seconds");
+  assert.notEqual(timeoutIndex, -1);
+  assert.equal(invocation.args[timeoutIndex + 1], "120");
+  assert.equal(invocation.args.at(-1), "--read-only");
   assert.equal(invocation.options.input, "x".repeat(200));
 
   await assert.doesNotReject(() => runLocalAgentRunner({
@@ -166,7 +169,7 @@ test("local runner pins Codex Terra and enforces timeout cancellation and token 
   }));
 });
 
-test("local browser runner supplies the required explicit escalation reason", async () => {
+test("local runner supplies its explicit Connector escalation reason", async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "connector-browser-runner-"));
   const evidenceDir = path.join(root, "evidence");
   let args;
@@ -186,7 +189,7 @@ test("local browser runner supplies the required explicit escalation reason", as
   });
   const index = args.indexOf("--escalation-reason");
   assert.notEqual(index, -1);
-  assert.equal(args[index + 1], "unknown event registration UI requires bounded visual judgment");
+  assert.equal(args[index + 1], "Connector Luma judgment and registration work with existing event and receipt fences");
 });
 
 test("local runner aborts its real child process instead of orphaning it", async () => {
