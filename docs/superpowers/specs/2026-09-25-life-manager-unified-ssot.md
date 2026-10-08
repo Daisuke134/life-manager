@@ -5013,6 +5013,15 @@ Source / production follow-up (2026-10-08 11:01 JST): PR #7012は`b692e70a`と�
 
 **現在cursor:** A5。A6 sourceはロード済みだが、A5 attribution、CFO natural report、A6 settlement/reconciliation、A8–A10 acceptanceは未完了。
 
+### 2026-10-08 12:08 JST — A5 CFO FIFO priority diagnosis
+
+- Main `94372580`のCFO registry rowは`resource_class=deterministic` / `admission_class=borrow` / `priority=support`。03:05Z read-only snapshot of the real `resource_admission._durable_queue_rows` had 28 eligible deterministic queue rows and CFO at zero-based index 26 (27th of 28), behind one revenue owner and a support backlog. Earlier CFO wakes show both `resource_fifo_wait` and `resource_capacity_busy`; each was `effect_status=not_applicable` with no report receipt.
+- Runtime `_queue_order` ranks the priority before admission class; `enqueue_durable` promotes an existing queued priority without changing its queue age. Therefore a registry-only priority promotion can reduce FIFO starvation without changing capacity classification or taking a revenue-reserved slot.
+- **Ruling:** after owner lease `codex-cfo-a5` is released, change only `life-manager-cfo-hourly.priority` from `support` to `revenue`; retain `admission_class=borrow` and `resource_class=deterministic`. This puts CFO ahead of support backlog but still after true revenue-class work. Cost if wrong: one short CFO report may delay a support task by one slot; no revenue slot is reserved or core provider feature stopped.
+- Acceptance: first make the existing CFO registry test expect `priority=revenue` while keeping `admission_class=borrow` (observe RED), then change the registry row (GREEN); run the focused loop-registry test and `./bin/lm-loop-contract`. After merge/release, verify a natural CFO occurrence reaches report phase; a separate `resource_capacity_busy` must remain accurately reported if the host is actually full.
+
+**現在cursor:** A5. Lease `codex-cfo-a5` remains active until `2026-10-08T03:18:04Z`; implement this one-field change only after fresh lease readback and acquisition of the existing A5 worktree.
+
 ### 2026-10-08 11:47 JST — A6 historical Monitoring comparison boundary
 
 - 既存のread-only Monitoring `serviceruntime.googleapis.com/api/request_count` query（UTC 2026-09-01–2026-10-01）はGeocoding 20,258、Directions 14,230、Places Text Search 5,800、Places Details 72 requestsを返した。invoice-month CSV quantitiesはそれぞれ19,403 / 14,105 / 5,672 / 75で、差は+855 / +125 / +128 / -3。
