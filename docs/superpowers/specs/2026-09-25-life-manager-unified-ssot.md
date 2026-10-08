@@ -7524,3 +7524,11 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 - The old head's CI is not acceptance evidence for this manifest correction. All required checks must run on the next pushed PR #7185 head.
 
 **現在cursor:** exact-head required CI and fresh read-only review on the current pushed PR #7185 head → merge #7185 → natural main release/readback → disk/effect recovery → stable same-window capacity decision. Keep host cap 8 bounded; the Capafy service limit is separate.
+
+
+### 2026-10-09 00:50 JST — #7184 sync and manifest-check recovery
+
+- Main advanced from `7eda2619` to `0b9d0f10` via #7184 (authentication readback docs) while PR #7185 CI ran. Merged that main update locally as `54a61254`; no source conflict. The OSS manifest correction from the #7183 inventory change passes `node scripts/verify-oss-self-contained.mjs` locally.
+- The prior CI failure `manifest_inventory_mismatch skills/capafy-autopublish` is corrected in the local PR diff; run `37803106325` is from the earlier head and does not validate this correction. The remote PR head remains `b69a6679` until this latest-main merge and note are pushed.
+
+**現在cursor:** run exact-head required CI and a fresh read-only review on the current pushed PR #7185 head → merge #7185 → natural main release/readback → disk/effect recovery → stable same-window capacity decision. Keep Life Manager host cap 8 bounded; Capafy service cap 5 is separate.
