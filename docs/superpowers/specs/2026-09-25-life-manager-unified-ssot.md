@@ -4528,8 +4528,8 @@ L9-11 Self-BuildはこのGig laneの全項目完了後、既存の全社順序�
 
 旧順序=`Coconala Paid owner/cleanup terminal → inbox join → existing contract → Storefront → Apply/Negotiation → other platforms → economics → SelfBuild`。新順序は最初の2 gateを並列にし、その後のplatform順序は維持する。理由: senderのfresh adversarial reviewでfalse-sent/誤recipient送信につながるP1が再現し、同時に空き容量とdisk-cleanup ownerが未解決。古いpartial sourceを使わず、shared capacityを迂回せず、既存契約義務からStorefrontへ進む。現在cursorは1A/1B。
 
-1. **並列1A — sender source安全修正:** branch `fix/tiktok-message-hydration-20261008`のremote commit `10ba32a170`では、Node fixtureが「failed messageでもsent」「別recipient/非公式frameの同文をsent」「PRE_ENTER後のrecipient変更でEnter=1」のP1を再現した。latest `origin/main=b418c917b1`に対しbranchは17 commits behind（11 commits unique）で、local worktreeには未検証・未pushの2-file変更が残る。次はlocal diffを監査し、最新main由来の専用source branchに必要最小修正だけ載せる。message status/recipient/frame検査を`sent` ledger記録より先に行い、Enter keydown時にも同じdocument内のone-shot guardを設ける。Node fixture・focused tests・fresh adversarial review・PR required CIがPASSするまでmerge/releaseしない。
-2. **並列1B — shared capacity:** disk-cleanup ownerが自分のactive lease内で`entrypoint_exit_1 / reconcile_owner`を診断・修復するのを待ち、安全なcleanup receiptと2 GiB以上の安定したfree spaceをreadbackする。手動削除・unlock・restart・floor迂回はしない。
+1. **並列1A — sender source安全修正:** branch `fix/tiktok-message-hydration-20261008`のremote commit `10ba32a170`では、Node fixtureが「failed messageでもsent」「別recipient/非公式frameの同文をsent」「PRE_ENTER後のrecipient変更でEnter=1」のP1を再現した。latest `origin/main=44488d9d7c`に対しbranchは17 commits behind（11 commits unique）で、local worktreeには未検証・未pushの2-file変更が残る。次はlocal diffを監査し、最新main由来の専用source branchに必要最小修正だけ載せる。message status/recipient/frame検査を`sent` ledger記録より先に行い、Enter keydown時にも同じdocument内のone-shot guardを設ける。Node fixture・focused tests・fresh adversarial review・PR required CIがPASSするまでmerge/releaseしない。
+2. **並列1B — shared capacity:** latest `df -k /`は4,846,408 KiB free。`life-manager-disk-cleanup:18dc68a09694ff90-14630`は01:10:52Zに`pass`だが、installed releaseは`c65449ef`で`provider_receipt_id/readback`はnull。次は同一occurrenceのsummaryで`errors=0 / protected_deletions=0`を確認し、2 GiB以上の2回目の安定した空きreadbackと対象Gig owner lock/admissionを取得する。main `44488d9d7c`由来cleanup sourceのtarget-loaded readbackとは分ける。disk-cleanup ownerのleaseを尊重し、手動削除・unlock・restart・floor迂回はしない。
 3. **両gate後 — Coconala Paid owner:** natural terminalとproject lock解放を確認し、同一occurrenceのofficial result/provider receiptを読む。`pass`、local ledger、Google Sheetの日付は単独で送信証明にしない。
 4. **Coconala inbox join:** 固定待機のlocal readerをconversation-list-ready＋複数回安定までbounded pollingへ直し、公式inboxとfull Sheet rangeをreadbackする。recipient→exact official send receipt→inbound replyを結ぶ。joinが完全でない間、送信数/返信数を断定・再送しない。
 5. **既存Coconala有償契約:** 最後に公式readbackした`取引中/進行中` talkroomを最新threadで再確認する。buyer revision要求がまだ未完なら、要求されたdeliverableを完成して正式納品receiptを一度だけ取得し、buyer acceptance→fee→settlement/payout→replay-zeroを同一契約/occurrenceで閉じる。すでに正式納品済みならそのreceiptの検収・精算だけを読む。顧客ID/本文はprivate evidenceに置く。
@@ -4687,3 +4687,14 @@ PR gate update (2026-10-08): latest rebase CI passes Loop control, Python, OSS b
 - Coconala order/threadの最後のofficial readbackは10/7 snapshotで鮮度切れ。fresh official order/inbox確認なしにbuyer待ち・納品済み・収益済みを主張しない。
 
 **現在cursor:** parallel gate 1A（sender安全修正）と1B（cleanup safe receipt＋安定2 GiB超）を完了する。両gate後にCoconala Paid owner/threadと既存契約を確認し、その後Storefront→Coconala Apply/Negotiation→CrowdWorks→Mercor/Freelancer/Upwork/Job Hunter→契約別収益確認→SelfBuild最後の順で進む。Lancers rows25–27はskip、Answersは対象外。
+
+### 2026-10-08 10:15 JST — Gig run status after capacity recovery
+
+このsnapshotは10:08 JSTのruntime/capacity状態を更新し、Gig TODO順を変更しない。
+
+- latest `origin/main`=`44488d9d7c`。`lm-loop status all`（01:15Z）は22 Gig jobs（Coconala 7/Lancers 7/CrowdWorks 5/Mercor 3）、`loaded-idle=17 / loaded-running=5`、provider receipts 0。latest error classesは`resource_effect_unknown=7`、`resource_capacity_busy=5`、`disk_headroom_low=3`、`entrypoint_exit_75=1`、`entrypoint_exit_1=2`。22はmanaged job countであり14–16のagent人数でも、活動・売上証拠でもない。
+- 空き容量は`4,846,408 KiB`で2 GiB floorを超えた。cleanup ownerのlatest natural occurrence `life-manager-disk-cleanup:18dc68a09694ff90-14630`は`pass / exit=0`だが、release `c65449ef`、provider receipt/readback null。summaryのerrors/protected-deletionsと2回目の安定capacity readbackが未取得なので、capacity gateは「headroom recovered / receipt audit pending」とする。PR #7003 cleanup sourceのowner-loaded SHAも未確認。
+- sender source branchはremote `10ba32a170`のままで、latest main `44488d9d7c`から17 commits behind。worktreeにはtransport/testのuncommitted変更2 fileが残り、fresh reviewで再現したP1は未解決・未検証・未merge。現行runtimeへ反映していない。
+- Coconalaの最後のofficial order/talkroom snapshotは10/7でstale。fresh provider readbackがない限りbuyer待ち、納品、受入、settlementを現在状態として断定しない。
+
+**現在cursor:** 並列gate 1Aのsender P1修正・test/review/CIと、1Bのcleanup summary readback・安定capacity/target lock auditを完了する。その後にCoconala Paid/order/inboxをfresh readbackする。
