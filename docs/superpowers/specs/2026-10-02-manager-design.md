@@ -1,5 +1,7 @@
 # Manager — One entity, blessing for all
 
+> 2026-10-08更新: 最新方針は [独立設計](2026-10-08-manager-greenfield-design.md) と [最新サイト原稿](2026-10-08-manager-website-copy.md)。Life Manager runtimeを必須とする前提は撤回。旧設計の記録として保持する。
+
 2026-10-02 UTC 改訂。状態: 設計・移行計画。製品実装、benchmark実行、実環境介入、サイト公開は未実施。
 
 ユーザーの修正を反映: 建物の省エネを最初の製品・成功指標とした旧案は撤回。Managerの中心は、生活を決める経済・社会・物理環境の構造を変え、多くの人と生命の暮らしを改善すること。初期の実環境は未確定。

@@ -1,5 +1,7 @@
 # Life Manager 統合SSOT — As-Is / To-Be / TODO
 
+> **最新Manager方針 2026-10-08:** 収益agentの延長を前提にせず、先行研究から独立coreを設計する。[最新調査・実装計画](#manager-20261008) を参照。
+
 > **2026-10-02の新規方針:** Daisは、個人用Life Managerから、受益者にアプリ・アカウント・個人認証を要求せず環境を改善する **Manager** への構想変更、一次資料調査、仕様とgame plan、Aniccaai.comの全面更新を依頼した。新規作業の順序・状態はこの文書末尾の [Manager更新](#manager-20261002) に置く。旧loopのruntime履歴・運用境界は削除しない。新構想の実証や本番サイト更新は未完了。
 
 > **正本はこの文書 1 本だけ（Dais 2026-09-29）。** 以前の `2026-09-15-life-manager-agent-architecture-refinement.md`（全体設計・meta loop #10）、`2026-09-22-paid-fulfillment-all-platforms-design.md`（Paid）、`skills/earn/gig/TODO.md`（gig TODO）と、`docs/superpowers/specs/` のほかの spec はすべて参照用。TODO・順序・状態はここだけを更新し、他のファイルに新しい TODO を書かない。
@@ -2747,7 +2749,9 @@ AGMSGのread-only監査で、fleet applyの3 error ownerを再診断した。解
 
 
 <a id="manager-20261002"></a>
-## Manager — 2026-10-02 改訂仕様と詳細実装game plan（順序・進捗の正本）
+## Manager — 2026-10-02 改訂仕様と詳細実装game plan（旧計画）
+
+> 2026-10-08: この節のruntime必須継承と実装順は [最新greenfield計画](#manager-20261008) に置き換えた。過去の調査記録として保持し、この旧task列を実行しない。
 
 ### Goal / architecture / tech stack / review focus
 
@@ -2873,3 +2877,113 @@ schema v2でTelegram必須・exactly three organs・個人管理の固定文を�
 最初の1–3作業日はidentity/site sourceとcontract、次の1–2週はfinite cycle/reference/scorecardを目安とする。外部依存の実測で更新。liveの日付は領域と協力環境が確定するまで約束しない。
 
 調査base `2f6012ecee2707c2249631e5ac6e3f1be972e97c`、worktree `.worktrees/manager-pivot-20261002`、branch `docs/manager-pivot-20261002`。source-boundaryをPASS。Superpowers using-superpowers / brainstorming / dispatching-parallel-agents / using-git-worktrees / writing-plans / verification-before-completionを使用。今回の変更はdocsのみ。製品tests、model API、メール、Netlify、Mac runtimeは実行・変更していない。
+
+
+<a id="manager-20261008"></a>
+## Manager greenfield — 2026-10-08 research / build / application plan
+
+### Goal・architecture・constraints・review focus
+
+Goal: 既存収益agentとは独立したManager coreが共有環境の構造を変更し、反応と集団成果を比較・学習する。受益者のsignup/login/氏名/個人credentialsを必要としない。
+
+Spec: [独立architecture](2026-10-08-manager-greenfield-design.md)、[英日website原稿](2026-10-08-manager-website-copy.md)。調査: [landscape/jobs](../../research/manager/2026-10-08-landscape-jobs.md)、[people/outreach](../../research/manager/2026-10-08-people-outreach.md)、[OSS/source](../../research/manager/2026-10-08-greenfield-architecture.md)。
+
+Architecture: `apps/manager/` independent Python3.12 package。旧registry/runtimeを必須にしない。数値環境とresponse modelを分離し、policy探索→実行→readback→outcomeを結ぶ。旧Life Managerは別の運用・資金系統。
+
+Constraints: 最初のcoreはstdlibでoffline実行。秘密・個人state・paid model API・Zepを必須にしない。sourceはcanonical repo専用worktree。TODOは本節のみ。新live作用は権限・readback・比較計画が揃ってから。simulationの成果を人々の富・健康へ言い換えない。
+
+Review focus: ①simulation/live混同(D0/D5)、②LLMが資源を生成(D1)、③情報漏洩・不公平なbaseline(D3)、④unknownから再送(D4)、⑤平均改善で集団悪化を隠す(D3/D5)。各taskは該当negative testsを含む。
+
+実装時はSuperpowers executing-plans又はsubagent-driven-developmentを使用。各checkboxはtest→red確認→最小実装→green確認→commitの順で進む。ここは新設計に基づく実装提案で、コードtaskは未着手。
+
+### D0 — Typed recordとpackage境界
+
+Create: `apps/manager/pyproject.toml`, `src/manager/__init__.py`, `contracts.py`, `tests/test_contracts.py`。予定型はObservation、Cohort、Demand、RulePatch、WorldState、Intervention、Projection、EffectReceipt、OutcomeEvidence、EpisodeManifest、Objective、Budget、Constraints、Selection、TransitionResult、OutcomePlan、ModelVersion。
+
+- [ ] fixtureから読み込む `validate_record(kind: str, payload: dict) -> dict` のテストを先に追加。unknown field、invalid unit、beneficiary credentials、simulated outcomeをfieldにするrecordはValueError。正しいrecordはcanonical JSONへroundtrip。
+- [ ] `cd apps/manager && PYTHONPATH=src python -m unittest discover -s tests -p test_contracts.py` で未実装の失敗を確認。
+- [ ] 上記型とmode、schema版、数値units、scope/source/time、record validationを実装。同commandでPASSを確認してcommit。
+
+### D1 — 数値worldと最初のscenario
+
+Create: `world.py`, `transitions.py`, `responses.py`, `scenarios/service-access.json`, `tests/test_world.py`。Consumes D0型。Produces `Environment.step(state,demands,patch,rng) -> TransitionResult`、`ResponseModel.act(state,cohort,rng) -> Demand`。
+
+- [ ] 容量100、要求合計150のfixtureで実配分合計≤100、未充足50、資金保存、許されないrule patch拒否、同seed同結果をassert。
+- [ ] `PYTHONPATH=src python -m unittest discover -s tests -p test_world.py` のred→implementation→green。
+- [ ] service networkの配置・容量・時間・移動接続をtyped patchで変更。responseは固定referenceと確率的referenceから開始。LLM追加はこの資源台帳を変更できない。commit。
+
+### D2 — 同じinterfaceで別構造のscenario
+
+Create: `scenarios/commons.json`, `tests/test_commons.py`、必要なscenario-specific transition。Consumes D1 Environment。AgentSocietyの要求→一括配分、AI Economistの制度/agent分離を参照。
+
+- [ ] 同じ予算のallocation rules、再生速度、過剰需要で資源量≥0、回復上限、集団別結果、no-change比較を固定。
+- [ ] `PYTHONPATH=src python -m unittest discover -s tests -p test_commons.py` のred→green。異なる環境でもmanifest/Projectionを共有することを確認してcommit。
+
+### D3 — Policy候補と比較・holdout
+
+Create: `candidates.py`, `search.py`, `tests/test_search.py`, `scenarios/evaluation-split.json`。Produces `propose(state,objective,budget) -> list[Intervention]`, `simulate(initial,intervention,manifest) -> Projection`, `rank(projections,constraints) -> Selection`。
+
+- [ ] no-changeを候補に含む、同seed同shockで比較、held-outをtuningへ流さない、予算超過reject、平均改善でもworst-group constraint違反候補を選ばないケースを追加。
+- [ ] `PYTHONPATH=src python -m unittest discover -s tests -p test_search.py` のred→green。initial候補は明示的有限集合。外部モデルproposalは後の差し替え口。
+- [ ] model/scenario/policy/seed/costをmanifestへ固定し、全候補とnegative結果を保存してcommit。
+
+### D4 — State store・executor・有限episode
+
+Create: `store.py`, `executor.py`, `runner.py`, `tests/test_executor.py`, `tests/test_store.py`。Produces `apply(intervention) -> EffectReceipt`, `readback(receipt) -> EffectReceipt`, `run_episode(manifest) -> EpisodeResult`。EpisodeResultはmanifest_ref、trace_ref、projections、selection、receipts、outcomesを持つ。
+
+- [ ] SQLite transactionでstate revisionとidempotency keyを一体更新。外部作用のexactly-onceをDBだけで保証したと主張しない。dispatch timeout→unknownを記録しreadbackまで再送しない。
+- [ ] crash/restart、revision mismatch、duplicate key、unknown receipt、sim modeからlive dispatcherへの到達拒否をテスト。
+- [ ] `PYTHONPATH=src python -m unittest discover -s tests -p test_executor.py` と `test_store.py` をred→green。prototypeはsimulation executorのみで完結しcommit。
+
+### D5 — Outcome・model update・benchmark CLI
+
+Create: `evaluation.py`, `learning.py`, `cli.py`, `tests/test_evaluation.py`, `tests/test_learning.py`。Produces `evaluate(evidence,plan) -> OutcomeEvidence`, `update(model,evidence) -> ModelVersion`。内部CLIは `python -m manager.cli benchmark --manifest <path> --output <dir>`。
+
+- [ ] applied receiptだけで生活改善にしない、アクセスproxyをhealthにしない、missing baselineをunknown、duplicate outcomeを二重計上しない、分布とcost欠損を報告するテスト。
+- [ ] held-outが悪化したmodelをpromotionしない。予測/実測誤差とversion historyを保存。
+- [ ] `PYTHONPATH=src python -m unittest discover -s tests` をPASS後、manifest付き2scenario baseline comparison、raw trace、scorecardを生成。初回はsim-only。未実行の改善率を事前に決めない。commit。
+
+### D6 — Website explanation / evidence
+
+Create/modify canonical `apps/landing/app/en/page.tsx`, `app/ja/page.tsx`, root/en/ja metadata、`components/manager/`、manager demo/research/benchmark routes。本体の完成を待たず、最新missionとnot_run状態を掲載可能。
+
+- [ ] Netlify official site/domain/build公開元SHAをread-only確認。現cloudにmanagement接続なし。GitHubの旧site baseline SHAだけを公開SHAと扱わない。
+- [ ] 固定read-only baseline＋canonical overlay allowlist又は完全正本移行を確定。他product/paid callback/termsを保存。
+- [ ] 最新英日原稿を適用し、no consumer signup/login、metadata一致、not_run/missing/failed/simulation/fieldを検証。
+- [ ] 固定site環境で `npm run build` とfocused typecheck/route/legacy smoke、mobile/desktop QA。Netlifyは既存経路で公開し6主要routes＋新demoをreadback。別domain previewは本番更新ではない。
+
+### D7 — 現実に接地する検証
+
+- [ ] 公開/利用許諾の実データのsource/license/範囲を選び、合成結果の精度を測る。人口分布・需要/移動・outcomeに適したデータか確認する。未検証のcalibrationを名乗らない。
+- [ ] 環境を変えられるoperator候補へ、供給/アクセス/共有サービスの構造変更と測定の具体案を提示。未確認partnerを掲載しない。
+- [ ] passive→shadow→comparison preregistration→authorized live作用。操作receipt、観測window、spillover、集団別影響、全費用を記録。health/incomeの実証はそのoutcomeを直接測った範囲のみ。
+
+### N — Outreach / hiring / public research
+
+- [x] スクリーンショットの5社を特定・一次資料調査。Teneraは403で機構未検証と明記。Aaru/Wovenと具体的求人を追加。
+- [x] 8名の研究接点・公式contact・個別質問、英語原稿6通を作成。
+- [x] Levin/Bernstein/Krakauer/LeiboのGmail未送信draftを作成し、一覧で宛先・件名・DRAFTラベルをreadback。送信は未実施。Park/Aaruは直接メールを推測しない。
+- [ ] 公開する1ページarchitectureと、結果があれば再現リンクを添え、feedback/研究対話の目的で個別outreach。録音は本人同意後。返答・面談は実receiptで記録。
+- [ ] Simile Evaluations、Primitive Intern等を自分の実経歴と照合し、応募材料を個別化。Woven/Aaru senior経験条件を小型demoで満たしたと書かない。
+- [ ] 就労地域・就労資格・副業/IP条件を各roleで確認。応募フォーム提出は現経歴とrole-specific回答が揃ってから。今回応募は未提出。
+- [ ] 最初の公開記事はsynthetic behaviorとreal predictionの違い、次は構造変更のtyped state、次はbenchmark failure分析。Podcastは研究質問とartifactを中心にし、先にcofounderを求めない。
+
+### A — YC W27 / Speedrun SR008と25日間の目安
+
+公式確認日2026-10-08。YC [apply](https://www.ycombinator.com/apply) はW27、2027年1–3月San Francisco、通常締切 **2026-11-02 20:00 PT = 11-03 04:00 UTC = 11-03 13:00 JST**。on-time decisionは12/11。公式FAQはSF in-personを要求し、紹介が必要とはしていない。
+
+Speedrun [apply](https://speedrun.a16z.com/apply) はSR008 early2027、優先期間 **10/12–11/1**、year-round応募。期間終了の時刻・timezoneは取得本文では不明。内部目標は両者とも10/31までの提出準備。
+
+- **10/8–10/11:** greenfield meaning/context、D0/D1、website source境界。今回は調査・設計まで。実装開始日から工数を再評価。
+- **10/12–10/18:** D2–D4、2scenario同interface、失敗境界、再現manifest。研究者feedbackとoperator探索は並行。
+- **10/19–10/25:** D5 held-out scorecard、可能なら実データ較正/authorized shadow。生活改善を実証できなければ、そのstatusと次の検証を示す。
+- **10/26–10/30:** 90秒程度の技術demo、founder videoはYCの公式形式を別確認、申請原稿、企業identity/ownership/売上のscope確認。website evidenceと応募内容を一致させる。
+- **10/31:** 両応募の内部目標。未解決箇所を隠さず、提出後の結果を更新する。期限前に完成する約束ではない。
+
+- [ ] Managerの一文、独立したproblem/approach、demo、差別化仮説、実際のstage、payer仮説を申請draftにする。
+- [ ] 旧Life Manager収益を記載する場合は主体/期間/verified額を明記し、新Manager tractionへ転用しない。
+- [ ] 応募画面の最新質問/terms/動画形式を取得して原稿を当てはめ、公式submission readbackを保存。今回はYC/Speedrun未提出。
+
+### 今回の証拠・handoff
+
+Documentsのみをcanonical専用worktreeへ変更。外部6repoの固定版コードと企業/求人/paperを読んだ。依存install、paid API、外部repo tests、Manager実装、live環境介入、Netlify公開、Mac runtime操作は未実施。Gmailは4未送信draftのみ作成し、送信していない。応募していない。Astra Advisorは現harnessに無く、Superpowersによる調査・設計を使用。

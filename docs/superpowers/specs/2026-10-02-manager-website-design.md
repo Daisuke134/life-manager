@@ -1,5 +1,7 @@
 # Aniccaai.com — Managerへの全面更新仕様
 
+> 2026-10-08更新: 最新方針は [独立設計](2026-10-08-manager-greenfield-design.md) と [最新サイト原稿](2026-10-08-manager-website-copy.md)。Life Manager runtimeを必須とする前提は撤回。旧設計の記録として保持する。
+
 2026-10-02 UTC。状態: **レビュー用。公開サイトはまだ更新していない。**
 
 本体の [Manager設計](2026-10-02-manager-design.md) と合わせて読む。作業順・状態は [統合SSOT](2026-09-25-life-manager-unified-ssot.md#manager-20261002) だけで管理する。
