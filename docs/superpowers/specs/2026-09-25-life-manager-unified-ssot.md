@@ -8900,6 +8900,38 @@ This entry supersedes the prior producer-review cursor. CFO priority remains A5 
 
 **Current cursor:** diff check → push CFO admission fix + spec → exact-head CI/review/merge → disk owner fresh recovery evidence → full suite → normal release-reconciler cut/load → safe CFO queue rebind → natural CFO receipt/report → A5 → A6 → A8 → A9 → A10.
 
+### 2026-10-09 06:24 JST — CFO admission fix and latest-main sync committed locally
+
+このsnapshotは06:20の作業状態を更新する。CFOのborrow starvation修正はsource/testでcommit済みだが、未push・未merge・未deploy。
+
+- **Branch/main:** latest GitHub main `397e2df2`をmerge commit `85ad7369`で取り込み、conflictなし。CFO変更はcommit `864697f6`（CFO rowだけ`admission_class=revenue`）。remote feature branchはまだ`03f2f948`、PR #7106のbaseは`6cc7facb`で、現在のlocal commitsは未push。
+- **Source acceptance:** 修正前のCFO registry→durable admission regressionはborrow slots満杯で`capacity_busy`を返すREDを確認。registry変更後はrevenue reserved slotをclaimし、通常borrowerは引き続き拒否されるGREEN。host admission 146/146、registry 137/137、loop contract PASS（18/188/113/0）、loop-adapter Node 15/15、`git diff --check` PASS。
+- **Full local runtime suite:** 820 testsで4 failures / 362 errors。大量の一時書込・npm extractionで`ENOSPC`が出ており、3つのrelease-cut checksはlocal-only HEAD `4ef6df29`をpush前として拒否。残りの全error原因は未分類のため、full suiteは未達成。pushと容量回復後に再実行する。
+- **Production CFO:** 最新natural terminal `18dcaa87c4549458-50307`（21:17:37Z）はrelease `3b543ffa`から`exit 75 / resource_capacity_busy`、provider receiptなし。local admission fixはまだloadedでなく、actual revenue/expense totalsはunknown。
+- **Release reconciler:** terminal `18dca9db9418a998-6397`は21:20:02Zにexit 1。log evidenceは`cut-loop-release: export of df2f5bca failed`と`OSError 28 / No space left on device`。21:23Zのreadbackでは同じmanaged labelがrelease `e1b061f1`からPID `81892`でloaded-running。重複apply/停止しない。
+- **Host space:** disk-cleanup occurrence `18dcaa91d8ab7570-77280`は21:18Z PASS/effect 0だがfresh recovery receiptなし。21:23Zの`df -k /`は`292,468 KiB` free。`lsof +L1`はChromium/rendererが削除済みinodeを保持していることを示す（processごとのsizeは重複し得るため単純加算しない）。Browser/identity ownerはkillしない。
+- **PR status:** remote head `03f2f948`のrequired checksはPASSだが、local commit `864697f6`とmain merge `85ad7369`は未検査。old-head review alone is insufficient for the new diff.
+
+**Remaining atomic TODO (この順):**
+
+1. [x] TDDでCFO borrower-capacity mismatchを再現し、CFOのみexisting revenue classへ変更。global capsは変更なし。
+2. [x] Focused host/registry tests、loop contract、loop-adapter Node、差分checkをPASS。
+3. [x] GitHub main `397e2df2`をlocal branchへmergeし、spec/statusをcommit。
+4. [ ] `git diff --check`を再確認し、commit `864697f6`と最新spec/main mergeをpushする。remote head/baseをreadback。
+5. [ ] 新exact headのrequired CI/fresh reviewをPASSさせPR #7106をmerge。
+6. [ ] existing host-disk ownerと自然なChromium file-handle closureからsafe capacity recoveryを得る。manual deletion、browser kill、identity変更はしない。
+7. [ ] local full runtime suiteのENOSPC errorsを容量回復後に再実行し、残りの4 failure/362 errorを分類する。
+8. [ ] release-reconciler PID81892の同一owner terminal/receiptを待ち、ENOSPC後にnormal reconcileでaccepted main releaseをcut/loadし、doctor/loaded SHAを確認する。
+9. [ ] CFO owner idle・claimed/effect_unknownなしを確認し、deploy/admission locks下でCFO queued metadataだけrevenueへrebindする。sequence/reservationsを維持。
+10. [ ] 次のnatural CFO reportからprovider/runtime/B7 receipt、settlement、coverage、replay-zeroをreadbackし、loop別/全社actual totalsを初めて確定。
+11. [ ] A5 production migration/RPC/permissions/panel。
+12. [ ] A6 Google billed-vs-cashとreceipt-backed operation/loop attribution。
+13. [ ] A8全18 loops/188 jobs（113 mapped）の収益・費用coverage。
+14. [ ] A9 JST日次/MTD/trailing/MRR reconcile。
+15. [ ] A10 valid natural CFO reportを7日連続readback。
+
+**Current cursor:** diff check → push local CFO fix + latest main/spec → exact-head CI/review/merge → safe storage recovery → active reconciler natural terminal and release readback → CFO queue rebind → natural receipt-backed report → A5 → A6 → A8 → A9 → A10.
+
 ### Marketing IntelからWriterへの記事候補連携（並列作業）
 
 **目的:** `marketing-weekly-review`がTelegramへ報告する未検証の`CONTENT`戦術を、既存Writerの`article-daily`トピックキューへ候補として渡す。AffiliateやX repostには配線しない。
