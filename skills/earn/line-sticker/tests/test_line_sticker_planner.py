@@ -111,9 +111,20 @@ class PlanPrompt(unittest.TestCase):
 
 
 class GuardCampaignValue(unittest.TestCase):
-    def test_a_value_present_in_open_features_passes_through(self) -> None:
-        open_features = [{"value": "835", "title": "冬を感じるスタンプ", "deadline": "2026-12-04"}]
-        self.assertEqual(MODULE._guard_campaign_value("835", open_features), "835")
+    WINTER = [{"value": "835", "title": "冬を感じるスタンプ", "deadline": "2026-12-04",
+               "conditions": "個数：8-40個\nパッケージの8個以上が「冬」に関連したクリエイティブであること"}]
+    ORDER = [f"m{i}" for i in range(24)]
+
+    def test_a_value_with_enough_on_theme_stickers_passes_through(self) -> None:
+        # 8 required + 4 margin: LINE judges "on theme" subjectively and rejects the whole set otherwise.
+        self.assertEqual(MODULE._guard_campaign_value("835", self.WINTER, self.ORDER[:12], self.ORDER), "835")
+
+    def test_too_few_on_theme_stickers_drops_the_feature(self) -> None:
+        # 48137583 (New Year set) was rejected 2026-10-08: fewer than 8 images read as winter.
+        self.assertIsNone(MODULE._guard_campaign_value("835", self.WINTER, self.ORDER[:11], self.ORDER))
+
+    def test_theme_ids_outside_the_selected_order_do_not_count(self) -> None:
+        self.assertIsNone(MODULE._guard_campaign_value("835", self.WINTER, ["x"] * 20, self.ORDER))
 
     def test_null_stays_null(self) -> None:
         self.assertIsNone(MODULE._guard_campaign_value(None, []))
@@ -184,7 +195,7 @@ class SelectorPromptIncludesOpenFeatures(unittest.TestCase):
                     "order": [f"m{i}" for i in range(24)], "main": "m0", "tab": "m1",
                     "rejected": [], "listing": {"title": {"ja": "た", "en": "t"}, "description": {"ja": "d", "en": "d"}},
                     "tags": [], "taste_id": "1", "character_category_id": "10",
-                    "campaign_value": "835",
+                    "campaign_value": "835", "campaign_theme_ids": [f"m{i}" for i in range(12)],
                 }
 
             MODULE._run_agent = fake_run_agent

@@ -2210,6 +2210,7 @@ def test_main_records_apply_lock_busy_before_dispatch(tmp_path):
               "LIFE_MANAGER_STATE_ROOT": str(state_root),
               "LIFE_MANAGER_RUN_ID": "run-1",
               "WAKE_ID": "wake-1",
+              "LIFE_MANAGER_APPLY_LOCK_WAIT_SECONDS": "0",
           }, clear=False),
           patch("runtime.loop.lm_loop_run._apply_lock",
                 side_effect=RuntimeError("production apply is already owned")),
@@ -2257,6 +2258,7 @@ def test_main_reports_sanitized_prestart_event_write_failure(tmp_path, capsys):
               "LIFE_MANAGER_STATE_ROOT": str(tmp_path / "state"),
               "LIFE_MANAGER_RUN_ID": "run-1",
               "WAKE_ID": "wake-1",
+              "LIFE_MANAGER_APPLY_LOCK_WAIT_SECONDS": "0",
           }, clear=False),
           patch("runtime.loop.lm_loop_run._apply_lock",
                 side_effect=RuntimeError("production apply is already owned")),
@@ -3632,3 +3634,40 @@ def test_heartbeat_loop_fails_immediately_when_ownership_is_lost(tmp_path, monke
     with patch("runtime.loop.lm_loop_run.heartbeat_durable_resource", return_value=False) as beat:
         _heartbeat_loop(tmp_path / "claim", stopped, failed)
     assert failed.is_set() and beat.call_count == 1
+
+
+def test_main_waits_for_a_label_apply_lock_that_frees_up(tmp_path):
+    """2026-10-08: a wake that lands while its label is being applied used to exit 78 at once and
+    the daily one-shot (article-daily 06:00) was lost for the day. It now waits for the short
+    per-label apply to finish."""
+    release = _write_prestart_lock_release(tmp_path)
+    state_root = tmp_path / "state"
+    attempts = []
+
+    class _Free:
+        def __enter__(self):
+            return None
+
+        def __exit__(self, *_):
+            return False
+
+    def lock(*_a, **_k):
+        attempts.append(1)
+        if len(attempts) < 3:
+            raise RuntimeError("production apply is already owned")
+        return _Free()
+
+    with (patch.dict(os.environ, {"LIFE_MANAGER_STATE_ROOT": str(state_root),
+                                  "LIFE_MANAGER_RUN_ID": "run-w", "WAKE_ID": "wake-w"}, clear=False),
+          patch("runtime.loop.lm_loop_run._apply_lock", side_effect=lock),
+          patch("runtime.loop.lm_loop_run.time.sleep") as sleep,
+          patch("runtime.loop.lm_loop_run.build_loop_command", side_effect=RuntimeError("past-the-lock")),
+          patch("runtime.loop.lm_loop_run.try_acquire_resource"),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource")):
+        lm_loop_run_main(["example-publisher", str(release)])
+
+    assert len(attempts) == 3, "it must keep trying until the lock frees"
+    assert sleep.call_count == 2
+    events_file = state_root / "events.jsonl"
+    blockers = [json.loads(l).get("blocker") for l in events_file.read_text().splitlines()] if events_file.exists() else []
+    assert "apply_lock_busy" not in blockers, "a lock that freed up must not be recorded as busy"
