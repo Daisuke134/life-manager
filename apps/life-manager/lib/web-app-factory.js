@@ -151,6 +151,7 @@ function evaluateWebAppFactory(input, { now } = {}) {
     if (row.permission !== "granted") reasons.push("permission_unconfirmed");
     if (row.owner !== owner || !resources.includes(row.resource_id)) reasons.push("resource_unowned");
     if (ownership.state !== "verified") reasons.push("ownership_blocked");
+    if (!demandReady) reasons.push("demand_unverified");
     if (!marketingReady) reasons.push("marketing_unverified");
     if (!unitEconomicsReady) reasons.push("unit_economics_unverified");
     return { channel: typeof row.channel === "string" && ID.test(row.channel) ? row.channel : "unknown",
@@ -191,6 +192,7 @@ function evaluateWebAppFactory(input, { now } = {}) {
   else nextTask = "prepare_distribution";
   return {
     schema_version: "web.app.factory.plan.v1", observed_at: new Date(nowMs).toISOString(),
+    evidence_trust: "operator_attested", receipts_authenticated: false,
     product: { product_id: product.product_id, display_name: product.display_name, url: productUrl, source },
     ownership, demand_verified: demandReady, qa: { checks: qa, offline_verified: offlineVerified },
     production_verified: productionVerified, claims: assessedClaims, marketing_ready: marketingReady,

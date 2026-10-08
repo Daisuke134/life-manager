@@ -127,10 +127,31 @@ test("known QA failure routes to product repair before marketing", () => {
   assert.equal(run(value).next_task, "repair_product");
   assert.equal(run(value).marketing_ready, false);
 });
+test("missing or non-independent demand blocks distribution even when other gates pass", () => {
+  for (const change of [
+    value => { value.demand = []; },
+    value => { value.demand.pop(); },
+    value => { value.demand[1].evidence = structuredClone(value.demand[0].evidence); },
+  ]) {
+    const value = input(); value.qa.forEach(row => { row.evidence.scope = "provider_readback"; });
+    change(value);
+    const result = run(value);
+    assert.equal(result.demand_verified, false);
+    assert.equal(result.next_task, "validate_demand");
+    assert.equal(result.distribution[0].state, "blocked");
+    assert.ok(result.distribution[0].reasons.includes("demand_unverified"));
+    assert.equal(result.distribution[0].execute, false);
+  }
+});
 test("all passing readbacks still emit only a self-build planning handoff", () => {
   const value = input(); value.qa.forEach(x => { x.evidence.scope = "provider_readback"; });
   const result = run(value);
   assert.equal(result.production_verified, true);
+  assert.equal(result.evidence_trust, "operator_attested");
+  assert.equal(result.receipts_authenticated, false);
+  assert.equal(result.distribution[0].state, "draft_ready");
+  assert.equal(result.distribution[0].execute, false);
+  assert.equal(result.ownership.execution_authority, false);
   assert.equal(result.next_task, "prepare_distribution");
   assert.equal(result.lifecycle.loop_id, "self-build");
   assert.equal(result.lifecycle.state, "setup_required");

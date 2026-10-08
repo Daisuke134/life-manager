@@ -1,12 +1,12 @@
 # Web App Factory: offline product lifecycle
 
-Approved scope: a local, zero-additional-spend first increment for an existing web product, PDF Insight. This is a design record, not a second task/state SSOT. The unified SSOT remains authoritative. No deployment, scheduler, account registration, marketing submission, payment or inference call is part of this increment.
+Approved scope: a local, zero-additional-spend first increment for existing web products. This is a design record, not a second task/state SSOT. The unified SSOT remains authoritative. No deployment, scheduler, account registration, marketing submission, payment or inference call is part of this increment.
 
 ## Architecture and precedents
 
 A pure CommonJS evaluator and a JSON-stdin CLI produce a bounded task handoff. Reuse `mobile-product-registry.normalizeProduct` to validate pinned imported source and `financial-record-contract.projectFinancialRecord` to consume established CFO records. No new dependency, state store, browser owner, accounting ledger, or independent loop implementation. The existing self-build owner may consume the handoff later; runtime admission and effect leases remain mandatory there.
 
-The report separates source existence, offline QA, production readback, marketing readiness, and economic evidence. A successful test never means a working deployment or revenue. QA must match product and pinned revision. Demand needs a competitor example and an independent problem/demand signal. Marketing claims must have evidence for this revision, and no unresolved QA failures. Zero-cost distribution is a draft plan restricted to explicitly permitted, individually owned channels; no executable command is emitted.
+The report separates source existence, offline QA, production readback, marketing readiness, and economic evidence. A successful test never means a working deployment or revenue. QA must match product and pinned revision. Demand needs a competitor example and an independent problem/demand signal; missing coverage blocks every distribution draft with demand_unverified. Marketing claims must have evidence for this revision, and no unresolved QA failures. Zero-cost distribution is a draft plan restricted to explicitly permitted, individually owned channels; no executable command is emitted.
 
 ## Ownership and effects
 
@@ -16,12 +16,12 @@ Every report permanently states `external_effects: false` and `additional_spend_
 
 ## Evidence and economics
 
-Metric snapshots cover visits, successful uses, paid invoices, revenue, refunds, and costs for one explicitly supplied period/product/currency. Only a complete, live, provider-readback snapshot with a receipt, timestamp and nonnegative safe integer is counted. Missing/stale/test/partial evidence remains `unknown` with null value. Zero is verified only by a complete zero-valued snapshot. Net contribution = revenue minus refunds minus costs only when all three share period and currency; losses stay negative. It is not MRR, profit after taxes, or bank cash. FinancialRecords are separately validated using the shared contract; no write or new refund classification is invented.
+Metric snapshots cover visits, successful uses, paid invoices, revenue, refunds, and costs for one explicitly supplied period/product/currency. Only a supplied snapshot declaring complete live provider readback, with a receipt reference, timestamp and nonnegative safe integer, passes the input contract. Reports explicitly label evidence operator_attested and receipts_authenticated false: this offline evaluator does not authenticate receipts or verify channel cost/permission. Even draft_ready is conditional planning coverage, never execution permission. Missing/stale/test/partial evidence remains `unknown` with null value. Zero is verified only by a complete zero-valued snapshot. Net contribution = revenue minus refunds minus costs only when all three share period and currency; losses stay negative. It is not MRR, profit after taxes, or bank cash. FinancialRecords are separately validated using the shared contract; no write or new refund classification is invented.
 
-## PDF Insight and public boundary
+## Product evidence and public boundary
 
-First target: PDF Insight, public URL https://clear-pdf-converter.com. Its application source is private and has no verified redistribution license. Do not copy application files, repository history, customer data, logs, credentials or private evidence into this MIT Life Manager module. Public examples use fictional products and opaque synthetic receipts. Operator-only target input stays outside Git.
+Application-specific source, audit findings, ownership records and real operator input belong in the product owner's private handoff. Do not copy application files, repository history, customer data, logs, credentials or private evidence into this MIT Life Manager module. Public examples use fictional products and opaque synthetic receipts.
 
-Known source-audit concerns for a later isolated private patch: free lifetime quota versus server monthly counting; ambiguous monthly boundary; environment-aware entitlement; repeated parse charging; mutable client subscription policies; clearer summary/parse quota copy. These are source findings, not proof of production exploit or spend. No safe exclusive owner of that separate private source has been established. This increment records QA as unknown/failing and fences distribution; it does not claim those app defects fixed. Security migrations must be reviewed in that private owner lane and must not be applied here.
+The generic QA categories are core flow, quota, entitlement, copy and privacy. Each category requires revision-matched evidence; missing or failing evidence blocks distribution preparation. Product-specific investigation and remediation belong to the authorized product owner. The evaluator neither diagnoses a deployed application nor applies changes to it.
 
-Publishable boundary is only the new evaluator, CLI, tests, synthetic example and documentation plus existing MIT dependencies. No visibility change is requested or performed. Any later PR must be draft and integration belongs to the existing orchestrator.
+Publishable scope is only the evaluator, CLI, tests, synthetic example and generic documentation plus existing MIT dependencies. Any source visibility change is a separate authorized operation. The PR remains draft and integration belongs to the existing orchestrator.
