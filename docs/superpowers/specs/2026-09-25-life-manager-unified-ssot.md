@@ -4856,6 +4856,23 @@ Source / cursor follow-up (2026-10-08 12:52 JST): docs PR #7048はmerge commit `
 
 残TODO（順序）: 1) PR #7022のsource gateは完了。次cursorはLR-08容量設計のレビュー。設計対象は3 revenue loopと共有capacity owner、laneはbrowser/Mac・Luna agent・deterministic、占有・予約・queue齢・拒否quotaを可視化し、測定に基づくrevenue最低枠とfair queueを定義する。Hatchetは限定pilot候補、Temporalは比較対象。global capを測定なしに上げず、effect ledger/fenceを維持する。2) LR-08設計と並行し、Danaher Workday / DeepScale.Venturesのread-only official statusを照合する。verifiedまたは証明済みpre-effectとしてowner ledgerをreconcileし、未確定ならfence維持・同target再送禁止。3) 設計のレビュー後、承認された容量変更を専用branchで実装・CI・review・mergeする。all revenue source rowsのresource/admission/priority分類を明示し、reserved capacityとlane fairnessを反映する。4) owner-safe lifecycleでretired labelを解消し`lm-loop doctor`をPASS、fresh cleanup receiptでhost floor / guard inventoryを確認し、current reconcilerを自然終端まで待つ。5) release-cut時点のlatest main由来immutable releaseを作成し、shared lockがfreeでtarget fenceが読めた後にConnector / Job Hunter daily-health-inbox / Fundraiserをowner単位で適用する。loaded argv/SHAとadmission rowをreadbackし、Fundraiser active run中はapplyしない。6) 各loopを自然実行し、ConnectorはLuma + Calendar + Telegram receipt、Job HunterはWorkday official application state、FundraiserはGmail Sent/provider message ID + Telegram receiptを確認する。Danaher / DeepScale unknown fenceを保ち、各occurrenceのreplay-zeroを検証する。7) 3 loopのnatural/readback gateが全て閉じてから本laneを完了し、既存全社TODOのMX-01へ戻る。
 
+### 2026-10-08 13:24 JST — Danaher / DeepScale official readback update
+
+このread-only照合は12:48 production snapshotのcapacity/load値を更新しない。WorkdayとFundraiserの過去・現在の証拠を対象occurrenceへ結合できず、両target fenceはunknownのまま維持する。再送、state変更、fence解除、再認証は行っていない。
+
+- **Danaher / Genedata Business Account Manager:** 既存Gmailの公式「Application Status Update」は2026-09-08 16:14、message ID `1a07fde1ae4019c7`、thread `FMfcgzQhWLQBlZPDSRsXGttmwsjvlgzk`で不採用を示す。9月の応募受理メールも検索結果にある。不採用メールではrequisition IDを確認できず、応募受理メール本文のID有無は未確認。対象Workday occurrenceのlocal application IDは`b7c310a7b634528895b307a0995aee61da36ccfd2480df8b98844abfa7b8e1cb`、requisitionは`R1316263`。10月7日の`daily-20261007-234208`は`transport_failed`で、`Business Account Manager after:2026/10/06`のGmail検索は0件。Workday userHomeは`/login`へredirectし、個別のcandidate historyを読めなかった。従って過去の不採用は確認できても、R1316263または10月7日のeffectと結合できず、targetはunknownのまま。
+- **DeepScale.Ventures / Seed Lead:** 公式応募フォームはHTTP 200で一般公開入力画面を返すが、個別statusやreceiptは表示しない。既存Gmailの`deepscale`検索と`in:sent (deepscale OR "DeepScale.Ventures")`はいずれも0件。private `application-receipts.jsonl`のrun `20260929T043704Z-87970`には初期navigation HTTP 403・submitなしの記録がある一方、対応する`events.jsonl` occurrence `fundraiser:18d9b0b6311a2018-87933`はreceipt/readback nullの`effect_unknown`。これらのlocal記録と今回の公開フォーム/Gmail readbackだけでは、strict `verified_pre_effect`条件を満たさず、target fenceを解除しない。
+
+**更新後の残TODO（この順）:**
+
+1. **現在cursor — LR-08容量設計レビュー:** 8/8占有は03:47Z snapshotのみで、03:48Z以後の最新値はSQLite lockで未取得。これを「現在値」と扱わず、実行前にfresh admission/queue-age/resource snapshotを取る。Browser/Mac、Luna agent、deterministicごとの上限・revenue予約枠・fair queue・拒否理由counterを設計し、Hatchet pilotとTemporal案を比較してレビューを完了する。測定なしにglobal capを上げない。
+2. **並行するowner read-only reconcile:** DanaherはWorkdayの既存candidate historyをrequisition `R1316263`へ照合し、取得不能なら不足するprovider recordを記録してfenceを維持する。DeepScaleは上記run/occurrenceのreceiptとstrict pre-effect proofを既存ownerの条件で再評価し、証明できなければfenceを維持する。どちらも同targetを再送しない。
+3. LR-08設計のレビュー後、承認した最小容量変更だけを専用branchで実装し、focused acceptance・独立review・required CI後にmainへ統合する。全revenue owner/shared capacity ownerのresource/admission/priorityを明示し、effect fence・receipt・immutable releaseを保つ。
+4. owner-safe pathでretired installed labelを解消し`lm-loop doctor`をPASSさせる。fresh cleanup receiptとdisk readbackでhost floor / guard inventoryを確認し、release reconcilerの自然terminal、shared apply lock、対象ownerのtarget fenceをreadbackする。
+5. release-cut時点のlatest mainからimmutable releaseを作り、Connector、Job Hunter daily/health/inbox、Fundraiserを既存owner単位でapplyする。各ownerのloaded argv/SHA・admission rowを確認し、active runやunknown targetを横切らない。
+6. 各ownerを自然実行し、ConnectorはLuma registration + Google Calendar + Telegram receipt、Job HunterはWorkday official application state、Fundraiserは新規適格VC/AI founderへのGmail provider message ID + exact Sent + Telegram receiptを同一occurrenceで確認する。Job Hunter/Fundraiserはfenced targetを候補から除外し、unknown targetへ再送しない。
+7. 各occurrenceの公式結果とreplay-zeroを確認する。old Danaher/DeepScale targetは公式statusで閉じるかstrict verified-pre-effect proofが成立した場合だけ解決し、それ以外はfencedのまま未解決として明示する。3 loopの自然実行・公式readback・replay-zero gateが閉じたらこのlaneを完了し、統合SSOTの次cursor MX-01へ戻る。
+
 ### 2026-10-08 09:53 JST — Gig-only status refresh and current cursor
 
 このreadbackはGig laneの状態だけを更新し、全社§84-Aや他laneの順序を変えない。
@@ -5509,3 +5526,34 @@ flowchart LR
 10. 初回paid eBook orderと対応PDF receiptが確認できた後にだけCapafy Instagram D5を1 canary/24hで始める。Capafyの商品開発・アカウント作成はこのeBook laneに含めない。
 
 **Daisの作業:** 現時点でPostiz再接続、CAPTCHA、手動投稿は不要。TikTokがアカウント本人確認を要求する場合だけその本人操作が外部前提になる。最初に進める実作業はrunning reconcilerの自然terminal readbackであり、20:00までの単純な待機ではない。
+
+### 2026-10-08 13:25 JST — mobile acquisition-first status and end-to-end TODO
+
+この節はmobile cross-appの12:40 JST以前の状況とTODO順を更新する。eBook固有の13:13 entryはそのlaneの記録として保持し、全社§84-Aの順序は変更しない。Dais指定の優先順はdistribution → marketing/app metrics → in-app funnel → onboarding/paywall → verified net MRR。
+
+**Fresh readback:**
+
+- `origin/main`=`dcf04b2dbf401bbd07e78e9c9efd204f0e4cc5b9`。`~/loops/current`はmain由来release `8f342d8d71396bc7e9f542ae09af9b46781ff410`。`life-manager-release-reconciler`はloaded-running / exit 1 / `reconcile_owner`のままで、全ownerがlatest main SHAに揃っていない。
+- Postiz official GET（13:25 JST, GET integrations + posts, external mutations 0）は31 integrations、TikTok 17、enabled 16、disabled 1（profile `@anicca.jp8`）。今日のJST 00:00–13:25は5件のTikTok `PUBLISHED`。profile別では`@obou_anicca`、`@anicca.jp`、`@anicca_slideshow`、`@anicca.jpx`、`@honne_reveal`が各1件、残る11 enabled profileは0件、disabled profileも0件。目標は接続済み17 profile全てなら51件/日、16 enabledだけでも48件/日であり、今日の5件は未達。
+- TikTok natural receipts: `@anicca.jp` / `cmuyz2obs0e4ikz0ybi6efs5c`、`@anicca.jp1` / `cmuyz2oe60e0jlc0y7nz9uvuo`、`@anicca_slideshow` / `cmuz11eea0f3kkz0ygwt43zls`を確認。各1件のPUBLISHED proofであり、3 posts/profile/dayの達成証明ではない。Buddhaは`entrypoint_exit_1` / effect unknown、EN/EN2 affirmationの直近terminalはdisk-headroom defer、eBook ENはeffect unknown、eBook JAは`resource_effect_unknown`、TikTok metrics ownerも`resource_effect_unknown`。曖昧なeffect fenceは解放・再送しない。
+- Post-metrics JSONLには10/8にTikTok checkpointが8行あり、5 measured・3 unavailable。今回の8行は`account_id`と`impressions`がnullで、全profileのmeasurement coverageではない。unsupported/missingは0と扱わない。
+- Telegram checkpoint link fix PR #7043とoccurrence-scoped TikTok reconciliation PR #7024はmainに統合済み。`marketing-owner-events`はPR #7043を含むreleaseをloadし、checkpointにはmetric row URLまたは一意に一致するpublication identity URLを表示し、どちらも無い時は`投稿リンク: 取得できませんでした`を出す。report suite 86/86とPR CIはPASS。まだ新形式の自然Telegram checkpoint delivery receiptは確認していないため、次回の実reportを読む。既に送信済みのreportは書き換えない。
+- ASC CLIのapp rosterは13:20 JSTに24 recordsを返した（test/draft artifactsを含む）。保存済みapp acquisition snapshotの最新は10/03で、Aniccaはその期間first-time downloads 0、impressions 16 / unique 11、product-page views 0。実際に公開中の6 app IDとテスト記録の対応は再照合が必要。
+- 10/07に受け取った週次メールの最後のreported snapshotはAnicca MRR USD 20.34、paid 5、trials 0、28日売上USD 32.56、7日DL 8、28日DL 37。HonneはMRR USD 0、7日DL 6、28日DL 8。これはユーザー提供のsnapshotで、今回のlive RevenueCat readbackやsettled net revenueではない。ローカルRevenueCat attribution JSONの最新は09/26でsource unavailable。10,000 USD net MRRは未達・未立証。
+- Anicca iOSにはMixpanel/PostHog SDKと`paywall_viewed`/`paywall_purchased`等のsource hooksがある。SDK/package存在は実event receiptやcomplete onboarding cohortの証明ではなく、現在のinstall→steps→paywall→trial/purchase funnelは未確認。
+
+**Remaining atomic TODO, in order:**
+
+1. Distributionをaccount別に復旧する。最新main由来releaseへownerをそろえ、effect unknownはPostiz exact identity/readbackでoccurrenceごとに閉じ、曖昧なものを保持する。@anicca.jp8を含む17 profileのenable/routeを公式状態で確定し、各profileに3 unique `PUBLISHED` receipts/JST日（17件なら51件、16 enabledのままなら48件）を確認する。他accountの過剰投稿で不足を埋めない。
+2. 今日の自然slotからaccount別receiptを更新する。現時点の5件を日次完了と扱わず、失敗・deferはowner/occurrence別に原因と次の安全なretryを記録する。投稿内容は既存承認済み素材を使い、背景や動画の新作を前提にせずcaption/hook/CTAの違いを管理する。
+3. Social metricsをすべての投稿に結ぶ。Postiz/native APIのviews、impressions、likes、comments、shares、savesを固定checkpoint（6/24/72/168h）で取得し、`account_id`、`product_id`、native post URL、copy variant、CTA/tracking linkへ結ぶ。現在blockedの`life-manager-tiktok-metrics`をexact owner readbackで復旧し、取れないfieldsは`unavailable/unknown`で残す。次の自然Telegram reportで投稿リンクが実際に届くことも確認する。
+4. ASC/RevenueCatのapp別baselineをfreshにする。24件のASC recordから実公開中の6 app IDを確定し、ASC first-time downloads、impressions、product-page viewsを日次で取り、RevenueCatのactive paid/trial/renewal/cancellation/refund/MRRをapp別に揃える。RevenueCat MRRとsettled Apple proceeds/refunds/feesを混ぜない。保存済みASC snapshot（10/03）とRevenueCat snapshot（09/26）はcurrentとして使わない。
+5. Marketing attributionを閉じる。投稿ごとにaccount、hook/copy、format、CTA/UTM、store destinationを記録し、Postiz views/clicks → ASC product page/installまでcampaign単位で結ぶ。attributionのないviewや時刻近接からconversion率を推測しない。新しいX/SEO/記事channelは既存TikTok cadenceと測定が安定してから一つずつ試す。
+6. Anicca iOSをASC first-time downloads 100件/日のtrailing 7-day平均へ伸ばす。最後のユーザー提供値は8件/週（約1.14件/日）なので約87.5倍の到達差があるが、これはforecastではない。7日平均を満たした後、残る実公開中5 appへ同じ計測付きdistribution playbookを順に展開し、per-app targetは各100件/日とする。
+7. In-app analyticsを実測する。Mixpanel/PostHogの実project/event exportでdistinct usersとinstall→onboarding step→paywall view→plan load success/failure→trial→purchase/restoreを検証し、ASC/RevenueCatの同一campaign/cohortへjoinする。SDK配置だけで完了にしない。
+8. Traffic/cohort baseline後にpaywall/onboardingを一仮説ずつ改善する。画面のプラン読み込み失敗を購入信頼性incidentとして解消し、hard/soft paywall、価格、trialの変更は一度に一つだけ測る。通知tapの同一quote問題は別のrelease gateとして扱い、#804のXcode Cloud readbackではrun PENDING/sourceCommitなし、ASC build 391は未検出なので、実buildのquoteId/body/locale検証が済むまで修正済みとしない。
+9. ASCがstore-page conversion bottleneckを示した場合だけASO/screenshot実験を行う。distribution、ASO、onboardingを同時に変えない。
+10. 10,000 USDのverified net MRRを、同期間のsettled recurring receipts − refunds − platform fees − actual provider/cloud costsで証明する。必要なactive subscribersとconversionは現行価格/retentionの実測後に算出し、gross RevenueCat MRRをnet達成値としない。
+11. Anicca iOSで10,000 USD verified net MRRと再現可能なper-app unit economicsを確認した後、同playbookを既存appへ1つずつ広げる。100,000 USD / 10,000,000 USDとmobile app factoryは長期目標であり、再現性が証明されるまで達成扱いしない。
+
+**Current cursor:** item 1 (TikTok distribution). Telegram link formatter is merged and loaded; fresh proof for a newly generated Telegram report is pending. At 13:25 JST, Postiz is 5/51 and the five delivered profiles each have one post.
