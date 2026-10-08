@@ -131,6 +131,12 @@ def _fixture(
             "resolutionKind": resolution_kind,
             "providerMessageId": "94946",
             "sentAt": "2026-09-26T12:27:00Z",
+            "deliveryCounters": {
+                "attempted": 0 if resolution_kind == "duplicate" else 1,
+                "delivered": 0 if resolution_kind == "duplicate" else 1,
+                "delivery_uncertain": 0,
+                "pre_send_failed": 0,
+            },
         })
     (state_dir / "last-result-report.json").write_text(
         json.dumps(report),
@@ -160,6 +166,54 @@ def _fixture(
     )
     (state_dir / "events.jsonl").chmod(0o600)
     return state_dir, admission_db, OCCURRENCE
+
+
+def _write_b7_snapshot(
+    state_dir: Path,
+    occurrence: str,
+    *,
+    resolution_kind="sent",
+    schema_version=4,
+    include_counters=True,
+):
+    run_id = occurrence.split(":", 1)[1]
+    snapshot = {
+        "schemaVersion": schema_version,
+        "status": "sent",
+        "resolutionKind": resolution_kind,
+        "ownerId": OWNER,
+        "runId": run_id,
+        "releaseSha": RELEASE_SHA,
+        "occurrenceId": occurrence,
+        "channel": "telegram",
+        "eventKey": EVENT_KEY,
+        "messageSha256": MESSAGE_SHA256,
+        "providerMessageId": "94946",
+        "sentAt": "2026-09-26T12:27:20Z",
+        "deliveryOccurrenceId": occurrence,
+        "deliveryRunId": run_id,
+        "reportingPeriod": {
+            "key": f"{DATE}:12",
+            "reportingDate": DATE,
+            "timezone": "Asia/Tokyo",
+            "snapshotAt": "2026-09-26T12:28:00Z",
+            "trailingStart": "2026-08-27T12:28:00Z",
+        },
+    }
+    if include_counters:
+        duplicate = resolution_kind == "duplicate"
+        snapshot["deliveryCounters"] = {
+            "attempted": 0 if duplicate else 1,
+            "delivered": 0 if duplicate else 1,
+            "delivery_uncertain": 0,
+            "pre_send_failed": 0,
+        }
+    directory = state_dir / "b7-readbacks"
+    directory.mkdir(mode=0o700, exist_ok=True)
+    path = directory / f"{occurrence}.json"
+    path.write_text(json.dumps(snapshot), encoding="utf-8")
+    path.chmod(0o600)
+    return path
 
 
 def test_exact_receipt_proves_already_released_occurrence_without_fence(tmp_path, monkeypatch):
@@ -210,29 +264,8 @@ def test_historical_sent_result_uses_exact_per_occurrence_b7_snapshot(
         snapshots.symlink_to(archive_directory, target_is_directory=True)
     else:
         snapshots.mkdir(mode=0o700)
-    snapshot = {
-        "schemaVersion": 3,
-        "status": "sent",
-        "resolutionKind": "sent",
-        "ownerId": OWNER,
-        "runId": RUN_ID,
-        "releaseSha": RELEASE_SHA,
-        "occurrenceId": occurrence,
-        "subjectId": "subject",
-        "channel": "telegram",
-        "recipientHash": "c" * 64,
-        "eventKey": EVENT_KEY,
-        "messageSha256": MESSAGE_SHA256,
-        "providerMessageId": "94946",
-        "sentAt": "2026-09-26T12:27:20Z",
-        "reportingPeriod": {
-            "key": f"{DATE}:12",
-            "reportingDate": DATE,
-            "timezone": "Asia/Tokyo",
-            "snapshotAt": "2026-09-26T12:28:00Z",
-            "trailingStart": "2026-08-27T12:28:00Z",
-        },
-    }
+    snapshot = json.loads(_write_b7_snapshot(state_dir, occurrence).read_text())
+    snapshot.update({"subjectId": "subject", "recipientHash": "c" * 64})
     archive = archive_directory / f"{occurrence}.json"
     archive.write_text(json.dumps(snapshot), encoding="utf-8")
     archive.chmod(0o600)
@@ -247,6 +280,39 @@ def test_historical_sent_result_uses_exact_per_occurrence_b7_snapshot(
     assert proof["verified"] is True
     assert proof["provider_receipt_id"] == "telegram:94946"
     assert proof["report_source"] == "b7_occurrence_snapshot"
+
+
+def test_legacy_b7_without_counter_contract_cannot_prove_delivery(tmp_path):
+    state_dir, admission_db, occurrence = _fixture(tmp_path)
+    current_report = state_dir / "last-result-report.json"
+    report = json.loads(current_report.read_text())
+    report["occurrenceId"] = f"{OWNER}:later-run"
+    current_report.write_text(json.dumps(report), encoding="utf-8")
+    current_report.chmod(0o600)
+    _write_b7_snapshot(
+        state_dir, occurrence, schema_version=3, include_counters=False,
+    )
+
+    with pytest.raises(ValueError, match="delivery_counters_unverified"):
+        build_proof(state_dir=state_dir, admission_db=admission_db, occurrence_id=occurrence)
+
+
+def test_b7_receipt_for_another_delivery_occurrence_cannot_prove_current_effect(tmp_path):
+    state_dir, admission_db, occurrence = _fixture(tmp_path)
+    current_report = state_dir / "last-result-report.json"
+    report = json.loads(current_report.read_text())
+    report["occurrenceId"] = f"{OWNER}:later-run"
+    current_report.write_text(json.dumps(report), encoding="utf-8")
+    current_report.chmod(0o600)
+    archive = _write_b7_snapshot(state_dir, occurrence)
+    snapshot = json.loads(archive.read_text())
+    snapshot["deliveryOccurrenceId"] = f"{OWNER}:later-run"
+    snapshot["deliveryRunId"] = "later-run"
+    archive.write_text(json.dumps(snapshot), encoding="utf-8")
+    archive.chmod(0o600)
+
+    with pytest.raises(ValueError, match="b7_delivery_occurrence_mismatch"):
+        build_proof(state_dir=state_dir, admission_db=admission_db, occurrence_id=occurrence)
 
 
 def test_released_occurrence_without_provider_receipt_stays_rejected(tmp_path):
@@ -270,8 +336,60 @@ def test_sent_current_result_proves_exact_receipt_without_subject_or_body(tmp_pa
     assert proof["resolution_kind"] == "sent"
     assert proof["provider_receipt_id"] == "telegram:94946"
     assert proof["message_sha256"] == MESSAGE_SHA256
+    assert proof["delivery_counters"] == {
+        "attempted": 1, "delivered": 1, "delivery_uncertain": 0, "pre_send_failed": 0,
+    }
     assert "subject" not in json.dumps(proof)
     assert "CFO current result fixture" not in json.dumps(proof)
+
+
+@pytest.mark.parametrize("counters", [
+    {"attempted": 2, "delivered": 1, "delivery_uncertain": 0, "pre_send_failed": 1},
+    {"attempted": 1, "delivered": 1, "delivery_uncertain": 0},
+    {"attempted": 1, "delivered": 1, "delivery_uncertain": 0, "pre_send_failed": 1},
+])
+def test_sent_report_with_invalid_counters_cannot_prove_or_resolve(tmp_path, monkeypatch, counters):
+    state_dir, admission_db, occurrence = _fixture(tmp_path)
+    report_path = state_dir / "last-result-report.json"
+    report = json.loads(report_path.read_text())
+    report["deliveryCounters"] = counters
+    report_path.write_text(json.dumps(report), encoding="utf-8")
+    report_path.chmod(0o600)
+    monkeypatch.setattr(
+        effect_reconcile_module,
+        "resolve_unknown_occurrence",
+        lambda *args, **kwargs: pytest.fail("invalid delivery counters must not release the fence"),
+    )
+
+    with pytest.raises(ValueError, match="delivery_counters_invalid"):
+        reconcile(
+            state_dir=state_dir,
+            admission_db=admission_db,
+            occurrence_id=occurrence,
+            resolve=True,
+        )
+
+
+def test_pending_report_cannot_recover_from_outbox_without_b7_counter_evidence(tmp_path, monkeypatch):
+    state_dir, admission_db, occurrence = _fixture(
+        tmp_path,
+        report_status="pending",
+        terminal_status="fail",
+        terminal_exit_code=1,
+    )
+    monkeypatch.setattr(
+        effect_reconcile_module,
+        "resolve_unknown_occurrence",
+        lambda *args, **kwargs: pytest.fail("outbox receipt alone must not release the fence"),
+    )
+
+    with pytest.raises(ValueError, match="b7_snapshot_missing"):
+        reconcile(
+            state_dir=state_dir,
+            admission_db=admission_db,
+            occurrence_id=occurrence,
+            resolve=True,
+        )
 
 
 def test_pending_current_result_recovers_provider_receipt_after_crash(tmp_path, monkeypatch):
@@ -282,6 +400,7 @@ def test_pending_current_result_recovers_provider_receipt_after_crash(tmp_path, 
         terminal_exit_code=1,
         delivered_at="2026-09-26T12:27:20Z",
     )
+    _write_b7_snapshot(state_dir, occurrence)
     calls = []
 
     def resolver(owner_id, occurrence_id, **kwargs):
@@ -299,6 +418,7 @@ def test_pending_current_result_recovers_provider_receipt_after_crash(tmp_path, 
     assert proof["verified"] is True
     assert proof["resolution_kind"] == "receipt_recovered"
     assert proof["provider_receipt_id"] == "telegram:94946"
+    assert proof["report_source"] == "b7_occurrence_snapshot"
 
     result = reconcile(
         state_dir=state_dir,
@@ -330,6 +450,7 @@ def test_pending_current_result_with_uncertain_outbox_stays_fenced(tmp_path):
         terminal_exit_code=1,
         outbox_status="delivery_uncertain",
     )
+    _write_b7_snapshot(state_dir, occurrence)
 
     with pytest.raises(ValueError, match="provider_receipt_not_delivered"):
         build_proof(state_dir=state_dir, admission_db=admission_db, occurrence_id=occurrence)
@@ -517,7 +638,7 @@ runResultCfo({
   reportCadence: "hourly",
   now: "2026-09-26T03:00:00Z",
   collect: async date => ({ reporting_date: date, rows: [{ loop_id: "capafy", revenue: { status: "verified", amounts: { USD: "1" }, receipts: ["receipt:1"] } }] }),
-  notify: async () => ({ delivery: "delivered", provider_message_id: "94946" }),
+  notify: async () => ({ delivery: "delivered", provider_message_id: "94946", attempted: 1, delivered: 1, delivery_uncertain: 0, pre_send_failed: 0 }),
 }).then(result => process.stdout.write(JSON.stringify(result))).catch(error => { console.error(error); process.exit(1); });
 """
     result = subprocess.run(
@@ -532,7 +653,13 @@ runResultCfo({
     assert report["occurrenceId"] == OCCURRENCE
     assert report["channel"] == "telegram"
     assert report["resolutionKind"] == "sent"
+    assert report["deliveryCounters"] == {
+        "attempted": 1, "delivered": 1, "delivery_uncertain": 0, "pre_send_failed": 0,
+    }
     assert report["messageSha256"] == hashlib.sha256(report["message"].encode()).hexdigest()
+    b7 = json.loads((state_dir / "b7-readbacks" / f"{OCCURRENCE}.json").read_text())
+    assert b7["schemaVersion"] == 4
+    assert b7["deliveryCounters"] == report["deliveryCounters"]
 
     enqueue(
         database=state_dir / "telegram-outbox.sqlite3",

@@ -613,6 +613,31 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             state = self._state(root)
             self.assertEqual(state["sha"], sha1, "state must still reflect the last applied sha")
 
+    def _stub_cutter(self, release_dir, marker):
+        cutter = release_dir / "bin" / "cut-loop-release.sh"
+        cutter.write_text(f"#!/bin/sh\necho cut >> {marker}\nexit 0\n")
+        cutter.chmod(cutter.stat().st_mode | stat.S_IEXEC)
+
+    def test_main_advance_within_cut_min_interval_does_not_cut_a_new_release(self):
+        # Every release the labels pin costs ~100 MB and GC protects all of them; cutting on each
+        # 60 s tick for each merge kept 24 generations loaded and the disk under its floor.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha1 = self._make_repo(root)
+            release1 = self._make_release(root, sha1)
+            self._activate(root, release1)
+            marker = root / "cut.marker"
+            self._stub_cutter(release1, marker)
+            self._advance_repo(repo)
+            env = self._base_env(root, repo, calls_log=root / "calls.log")
+            env["LIFE_MANAGER_RELEASE_CUT_MIN_INTERVAL_SECONDS"] = "1800"
+            self._run(env)
+            self.assertFalse(marker.exists(), "a fresh complete release must not be re-cut yet")
+
+            env["LIFE_MANAGER_RELEASE_CUT_MIN_INTERVAL_SECONDS"] = "0"
+            self._run(env)
+            self.assertTrue(marker.exists(), "after the interval a newer main must be cut")
+
     def test_new_release_after_a_failed_apply_is_coalesced_within_min_interval(self):
         # 2026-10-08: two to four owners always failed, so every attempt was status=error with
         # last_ok_epoch=0. The min-interval guard only counted successes, so it never fired and
@@ -911,6 +936,33 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             state = self._state(root)
             self.assertEqual(state["status"], "partial")
             self.assertIn("budget exceeded", state["message"])
+
+    def test_budget_exceeded_with_progress_retries_soon_not_after_the_full_backoff(self):
+        # Each pass ran out of budget after 60-86 owners and then waited 30 minutes; a newer sha
+        # arrived first, so the fleet never converged and GC could free no generation.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha = self._make_repo(root)
+            release_dir = self._make_release(
+                root,
+                sha,
+                loop_ids=("first-earn", "second-earn"),
+                entry_overrides={
+                    "first-earn": {"domain": "earn", "priority": "revenue"},
+                    "second-earn": {"domain": "earn", "priority": "revenue"},
+                },
+            )
+            self._activate(root, release_dir)
+            env = self._base_env(root, repo, calls_log=root / "calls.log", apply_mode="slow_first")
+            env["FAKE_SLOW_LOOP_ID"] = "first-earn"
+            env["LIFE_MANAGER_FLEET_APPLY_TIMEOUT_SECONDS"] = "4"
+            env["LIFE_MANAGER_FLEET_APPLY_PER_OWNER_TIMEOUT_SECONDS"] = "3"
+            env["LIFE_MANAGER_FLEET_APPLY_CONTINUE_SECONDS"] = "30"
+
+            self._run(env)
+            state = self._state(root)
+            self.assertEqual(state["status"], "partial")
+            self.assertLess(state["next_retry_epoch"], time.time() + 60)
 
     def test_partial_apply_honors_backoff_before_same_release_retry(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -11,6 +11,22 @@ const SHA256 = /^[a-f0-9]{64}$/;
 const RELEASE_SHA = /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/;
 const TELEGRAM_MESSAGE_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const EFFECT_RESULT_HINT_FILENAME = "entrypoint-result.json";
+const DELIVERY_COUNTER_FIELDS = ["attempted", "delivered", "delivery_uncertain", "pre_send_failed"];
+
+function persistedDeliveryCounters(delivery) {
+  return Object.fromEntries(DELIVERY_COUNTER_FIELDS.map(field => {
+    const value = delivery?.[field];
+    return [field, Number.isSafeInteger(value) && value >= 0 ? value : null];
+  }));
+}
+
+function validPersistedDeliveryCounters(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const keys = Object.keys(value);
+  return keys.length === DELIVERY_COUNTER_FIELDS.length
+    && DELIVERY_COUNTER_FIELDS.every(field => Object.prototype.hasOwnProperty.call(value, field)
+      && (value[field] === null || (Number.isSafeInteger(value[field]) && value[field] >= 0)));
+}
 
 function occurrenceId(value) {
   const text = String(value || "").trim();
@@ -480,7 +496,7 @@ function readB7SnapshotFile(stateDir, sourceOccurrenceId, allowMissing) {
     sourceProvenanceSha = crypto.createHash("sha256").update(canonicalJson(snapshot.sourceProvenance), "utf8").digest("hex");
     renderedMessage = renderResultSummary(snapshot.projection);
   } catch { throw new Error("cfo_b7_snapshot_invalid"); }
-  if (snapshot.schemaVersion !== 3 || !["pending", "sent"].includes(snapshot.status)
+  if (![3, 4].includes(snapshot.schemaVersion) || !["pending", "sent"].includes(snapshot.status)
     || snapshot.ownerId !== sourceOccurrenceId.slice(0, separator)
     || snapshot.runId !== sourceOccurrenceId.slice(separator + 1)
     || snapshot.occurrenceId !== sourceOccurrenceId || !RELEASE_SHA.test(String(snapshot.releaseSha || ""))
@@ -511,6 +527,11 @@ function readB7SnapshotFile(stateDir, sourceOccurrenceId, allowMissing) {
     || !SHA256.test(String(snapshot.recipientHash || ""))
     || snapshot.eventKey !== resultEventKey(snapshot.subjectId, snapshot.channel, snapshot.reportingPeriod.key)
     || !Number.isFinite(Date.parse(snapshot.createdAt))) throw new Error("cfo_b7_snapshot_invalid");
+  if (snapshot.schemaVersion === 4 && ((snapshot.status === "sent"
+    && !validPersistedDeliveryCounters(snapshot.deliveryCounters))
+    || (snapshot.status === "pending" && snapshot.deliveryCounters !== undefined))) {
+    throw new Error("cfo_b7_snapshot_invalid");
+  }
   if (snapshot.status === "sent") {
     let deliveryOccurrence;
     try { deliveryOccurrence = occurrenceId(snapshot.deliveryOccurrenceId); }
@@ -595,7 +616,8 @@ async function runResultCfo(options) {
   };
   if (previous?.status === "sent" && previous.periodKey === periodKey) {
     if (!previous.providerMessageId) throw new Error("cfo_sent_provider_receipt_missing");
-    persist({ ...previous, occurrenceId: currentOccurrenceId, resolutionKind: "duplicate" });
+    persist({ ...previous, occurrenceId: currentOccurrenceId, resolutionKind: "duplicate",
+      deliveryCounters: { attempted: 0, delivered: 0, delivery_uncertain: 0, pre_send_failed: 0 } });
     return {
       status: "quiet", reason: "unchanged", reportingDate: date, delivered: false,
       providerMessageId: String(previous.providerMessageId), resolutionKind: "duplicate",
@@ -643,7 +665,7 @@ async function runResultCfo(options) {
   if (sourceSnapshot?.status === "sent") {
     const recovered = { ...pending, status: "sent", occurrenceId: currentOccurrenceId,
       resolutionKind: sourceSnapshot.resolutionKind, providerMessageId: sourceSnapshot.providerMessageId,
-      sentAt: sourceSnapshot.sentAt };
+      sentAt: sourceSnapshot.sentAt, deliveryCounters: sourceSnapshot.deliveryCounters };
     persist(recovered);
     const duplicate = sourceSnapshot.resolutionKind === "duplicate";
     return { status: duplicate ? "quiet" : "sent", reason: duplicate ? "unchanged" : null,
@@ -691,7 +713,7 @@ async function runResultCfo(options) {
     let sourceProvenanceSha256;
     try { sourceProvenanceSha256 = crypto.createHash("sha256").update(canonicalJson(sourceProvenance), "utf8").digest("hex"); }
     catch { throw new Error("cfo_b7_source_provenance_invalid"); }
-    sourceSnapshot = { schemaVersion: 3, ...newSourceIdentity, occurrenceId: currentOccurrenceId,
+    sourceSnapshot = { schemaVersion: 4, ...newSourceIdentity, occurrenceId: currentOccurrenceId,
       subjectId, channel: destination.channel, recipientHash, eventKey,
       reportingPeriod, projection, projectionSha256, sourceProvenance, sourceProvenanceSha256,
       messageSha256: messageSha256Value,
@@ -710,12 +732,15 @@ async function runResultCfo(options) {
   if (delivery?.delivery !== "delivered" || !delivery.provider_message_id) {
     throw new Error("cfo_provider_receipt_missing");
   }
-  const duplicate = delivery.attempted === 0;
+  const duplicate = delivery.attempted === 0 && delivery.delivered === 0
+    && delivery.delivery_uncertain === 0 && delivery.pre_send_failed === 0;
   const resolutionKind = duplicate ? "duplicate" : "sent";
+  const deliveryCounters = persistedDeliveryCounters(delivery);
   const sentAt = new Date().toISOString();
   if (sourceSnapshot) {
     const sourceOccurrenceId = sourceSnapshot.occurrenceId;
-    sourceSnapshot = { ...sourceSnapshot, status: "sent", resolutionKind,
+    sourceSnapshot = { ...sourceSnapshot, schemaVersion: 4, status: "sent", resolutionKind,
+      deliveryCounters,
       providerMessageId: String(delivery.provider_message_id), sentAt,
       deliveryOccurrenceId: currentOccurrenceId,
       deliveryRunId: currentOccurrenceId.slice(currentOccurrenceId.indexOf(":") + 1) };
@@ -723,7 +748,8 @@ async function runResultCfo(options) {
   }
   persist({ ...pending, status: "sent", occurrenceId: currentOccurrenceId,
     messageSha256: pending.messageSha256 || messageSha256(pending.message),
-    resolutionKind, providerMessageId: String(delivery.provider_message_id), sentAt });
+    resolutionKind, deliveryCounters,
+    providerMessageId: String(delivery.provider_message_id), sentAt });
   const runtimeHintWritten = writeRuntimeTelegramEffectHint(
     sourceEnv, currentOccurrenceId, destination, delivery, duplicate);
   if (runtimeHintWritten === false) {

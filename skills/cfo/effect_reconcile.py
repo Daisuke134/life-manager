@@ -28,6 +28,7 @@ DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 EVENT_KEY = re.compile(r"^cfo-result:[A-Za-z0-9][A-Za-z0-9._:-]{0,1023}$")
 PROVIDER_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$")
+DELIVERY_COUNTER_FIELDS = ("attempted", "delivered", "delivery_uncertain", "pre_send_failed")
 MAX_EVENT_BYTES = 16 * 1024 * 1024
 MAX_REPORT_BYTES = 4 * 1024 * 1024
 ROOT = Path(__file__).resolve().parents[2]
@@ -133,6 +134,17 @@ def _reporting_date(value: object) -> str:
     except ValueError as error:
         raise _fail("reporting_date_invalid") from error
     return value
+
+
+def _delivery_counters(value: object, resolution_kind: str) -> dict[str, int]:
+    if not isinstance(value, dict) or set(value) != set(DELIVERY_COUNTER_FIELDS):
+        raise _fail("delivery_counters_invalid")
+    if any(type(value[field]) is not int or value[field] < 0 for field in DELIVERY_COUNTER_FIELDS):
+        raise _fail("delivery_counters_invalid")
+    expected = (0, 0, 0, 0) if resolution_kind == "duplicate" else (1, 1, 0, 0)
+    if tuple(value[field] for field in DELIVERY_COUNTER_FIELDS) != expected:
+        raise _fail("delivery_counters_invalid")
+    return {field: value[field] for field in DELIVERY_COUNTER_FIELDS}
 
 
 def _event_date(value: object) -> str:
@@ -243,7 +255,7 @@ def _historical_b7_report(
     )
     run_id = occurrence_id[len(OWNER_ID) + 1 :]
     period = snapshot.get("reportingPeriod")
-    if (snapshot.get("schemaVersion") != 3 or snapshot.get("status") != "sent"
+    if (snapshot.get("schemaVersion") not in {3, 4} or snapshot.get("status") != "sent"
             or snapshot.get("ownerId") != OWNER_ID
             or snapshot.get("runId") != run_id
             or snapshot.get("occurrenceId") != occurrence_id
@@ -259,6 +271,14 @@ def _historical_b7_report(
     resolution_kind = snapshot.get("resolutionKind")
     if resolution_kind not in {"sent", "duplicate"}:
         raise _fail("resolution_kind_invalid")
+    delivery_occurrence_id = snapshot.get("deliveryOccurrenceId")
+    if (not isinstance(delivery_occurrence_id, str)
+            or delivery_occurrence_id != occurrence_id
+            or snapshot.get("deliveryRunId") != run_id):
+        raise _fail("b7_delivery_occurrence_mismatch")
+    if snapshot.get("schemaVersion") != 4:
+        raise _fail("delivery_counters_unverified")
+    delivery_counters = _delivery_counters(snapshot.get("deliveryCounters"), resolution_kind)
     message_sha256 = snapshot.get("messageSha256")
     if not isinstance(message_sha256, str) or not SHA256.fullmatch(message_sha256):
         raise _fail("message_sha256_invalid")
@@ -277,6 +297,7 @@ def _historical_b7_report(
         "message_sha256": message_sha256,
         "provider_message_id": provider_message_id,
         "release_sha": release_sha,
+        "delivery_counters": delivery_counters,
         "report_source": "b7_occurrence_snapshot",
     }
 
@@ -317,6 +338,10 @@ def _current_report(state_dir: Path, occurrence_id: str) -> dict[str, Any]:
         not isinstance(provider_message_id, str) or not PROVIDER_ID.fullmatch(provider_message_id)
     ):
         raise _fail("provider_message_id_invalid")
+    delivery_counters = (
+        _delivery_counters(report.get("deliveryCounters"), resolution_kind)
+        if report.get("status") == "sent" else None
+    )
     return {
         "resolution_kind": resolution_kind,
         "status": report["status"],
@@ -324,6 +349,7 @@ def _current_report(state_dir: Path, occurrence_id: str) -> dict[str, Any]:
         "event_key": event_key,
         "message_sha256": message_sha256,
         "provider_message_id": provider_message_id,
+        "delivery_counters": delivery_counters,
         "report_source": "last_result_report",
     }
 
@@ -372,6 +398,7 @@ def _base_proof(report: dict[str, Any], runtime: dict[str, Any], outbox: dict[st
     evidence_digest = hashlib.sha256(json.dumps({
         "event_key_sha256": event_key_digest,
         "reporting_date": report["reporting_date"],
+        "delivery_counters": report["delivery_counters"],
         "message_sha256": outbox["message_sha256"],
         "provider_message_id": outbox["provider_message_id"],
         "delivered_at": outbox["delivered_at"],
@@ -383,6 +410,7 @@ def _base_proof(report: dict[str, Any], runtime: dict[str, Any], outbox: dict[st
         "reporting_date": report["reporting_date"],
         "resolution_kind": report["resolution_kind"],
         "report_source": report.get("report_source"),
+        "delivery_counters": report["delivery_counters"],
         "admission_state": report.get("admission_state"),
         "admission_effect_unknown": report.get("admission_effect_unknown"),
         "event_key_sha256": event_key_digest,
@@ -402,17 +430,33 @@ def build_proof(*, state_dir: Path, admission_db: Path, occurrence_id: str) -> d
     report["admission_state"] = occurrence["state"]
     report["admission_effect_unknown"] = bool(occurrence["effect_unknown"])
     runtime = _read_runtime_pair(state_dir, occurrence_id, report["reporting_date"])
+    if report["status"] == "pending" and not (
+        runtime["terminal_status"] == "fail"
+        and runtime["terminal_exit_code"] != 0
+        and runtime["terminal_effect_status"] == "unknown"
+    ):
+        raise _fail("pending_runtime_terminal_invalid")
+    if report["status"] == "pending":
+        archived = _historical_b7_report(
+            state_dir, occurrence_id, missing_report_reason="b7_snapshot_missing"
+        )
+        if (archived["reporting_date"] != report["reporting_date"]
+                or archived["event_key"] != report["event_key"]
+                or archived["message_sha256"] != report["message_sha256"]):
+            raise _fail("b7_snapshot_report_mismatch")
+        report.update({
+            "resolution_kind": "duplicate" if archived["resolution_kind"] == "duplicate" else "receipt_recovered",
+            "provider_message_id": archived["provider_message_id"],
+            "release_sha": archived["release_sha"],
+            "delivery_counters": archived["delivery_counters"],
+            "report_source": archived["report_source"],
+        })
     if report.get("release_sha") not in {None, runtime["release_sha"]}:
         raise _fail("runtime_event_release_mismatch")
     outbox = _outbox_proof(state_dir, report)
     if report["status"] == "pending":
-        if not (
-            runtime["terminal_status"] == "fail"
-            and runtime["terminal_exit_code"] != 0
-            and runtime["terminal_effect_status"] == "unknown"
-        ):
-            raise _fail("pending_runtime_terminal_invalid")
-        report["resolution_kind"] = "receipt_recovered"
+        if report["resolution_kind"] is None:
+            report["resolution_kind"] = "receipt_recovered"
     elif not (
         (runtime["terminal_status"] == "pass" and runtime["terminal_exit_code"] == 0)
         or (

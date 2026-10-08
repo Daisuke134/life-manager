@@ -598,6 +598,10 @@ test("CFO keeps runtime receipt incomplete for multiple or incomplete delivery c
       delivery: "delivered", provider_message_id: "9147", attempted: 1,
       delivered: 1, delivery_uncertain: 1, pre_send_failed: 0,
     }],
+    ["zero-attempt-contradictory-delivery", {
+      delivery: "delivered", provider_message_id: "9148", attempted: 0,
+      delivered: 1, delivery_uncertain: 0, pre_send_failed: 0,
+    }],
   ];
 
   for (const [name, delivery] of cases) {

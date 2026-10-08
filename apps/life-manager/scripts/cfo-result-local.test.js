@@ -17,7 +17,8 @@ function setup(t) {
       Authorization: "Bearer fixture-secret" },
     collect: async date => ({ reporting_date: date, rows: [{ loop_id: "capafy",
       revenue: { status: "verified", amounts: { USD: value }, receipts: ["receipt:1"] } }] }),
-    notify: async input => { messages.push(input); return { delivery: "delivered", provider_message_id: "id" }; } };
+    notify: async input => { messages.push(input); return { delivery: "delivered", provider_message_id: "id",
+      attempted: 1, delivered: 1, delivery_uncertain: 0, pre_send_failed: 0 }; } };
   return { options, messages, change: v => { value = v; } };
 }
 
@@ -76,13 +77,19 @@ test("new occurrence persists the normalized B7 source bound to its delivered re
   options.collect = async () => table;
   options.notify = async input => {
     messages.push(input);
-    return { delivery: "delivered", provider_message_id: "provider-message-1", raw: { Authorization: "do-not-save" } };
+    return { delivery: "delivered", provider_message_id: "provider-message-1",
+      attempted: 1, delivered: 1, delivery_uncertain: 0, pre_send_failed: 0,
+      raw: { Authorization: "do-not-save" } };
   };
 
   await runResultCfo({ ...options, now: "2026-09-30T12:00:00Z" });
 
   const file = readbackFile(options.stateDir, options.occurrenceId);
   const snapshot = JSON.parse(fs.readFileSync(file, "utf8"));
+  assert.equal(snapshot.schemaVersion, 4);
+  assert.deepEqual(snapshot.deliveryCounters, {
+    attempted: 1, delivered: 1, delivery_uncertain: 0, pre_send_failed: 0,
+  });
   assert.deepEqual(snapshot.projection, table);
   assert.equal(snapshot.ownerId, "life-manager-cfo-hourly");
   assert.equal(snapshot.runId, "run-1");
@@ -329,7 +336,8 @@ test("orphan B7 snapshot recovers after pending state rename failure without rec
   options.notify = async input => {
     messages.push(input);
     successfulNotifies += 1;
-    return { delivery: "delivered", provider_message_id: "recovered-after-crash" };
+    return { delivery: "delivered", provider_message_id: "recovered-after-crash",
+      attempted: 1, delivered: 1, delivery_uncertain: 0, pre_send_failed: 0 };
   };
 
   const reportFile = path.join(options.stateDir, "last-result-report.json");
@@ -358,6 +366,9 @@ test("orphan B7 snapshot recovers after pending state rename failure without rec
   assert.equal(collects, 1);
   assert.equal(successfulNotifies, 1);
   assert.equal(messages.length, 1);
+  assert.deepEqual(JSON.parse(fs.readFileSync(reportFile, "utf8")).deliveryCounters, {
+    attempted: 1, delivered: 1, delivery_uncertain: 0, pre_send_failed: 0,
+  });
   assert.deepEqual(JSON.parse(fs.readFileSync(reportFile, "utf8")).b7ReadbackRef, {
     path: `b7-readbacks/${options.occurrenceId}.json`,
     projectionSha256: crypto.createHash("sha256").update(canonicalJson(table)).digest("hex"),
@@ -374,7 +385,8 @@ test("late pending retry restores a sent sidecar receipt after sent-state rename
   options.notify = async input => {
     messages.push(input);
     notifyCalls += 1;
-    return { delivery: "delivered", provider_message_id: "sent-before-state-crash" };
+    return { delivery: "delivered", provider_message_id: "sent-before-state-crash",
+      attempted: 1, delivered: 1, delivery_uncertain: 0, pre_send_failed: 0 };
   };
 
   const reportFile = path.join(options.stateDir, "last-result-report.json");
@@ -467,7 +479,8 @@ test("pending notification keeps its B7 source pending and retry reuses it witho
     beforeNotify.push({ status: snapshot.status, messageSha256: snapshot.messageSha256 });
     return ++attempts === 1
       ? { delivery: "pending", provider_message_id: null }
-      : { delivery: "delivered", provider_message_id: "provider-message-2", attempted: 0 };
+      : { delivery: "delivered", provider_message_id: "provider-message-2", attempted: 0,
+        delivered: 0, delivery_uncertain: 0, pre_send_failed: 0 };
   };
 
   await assert.rejects(runResultCfo({ ...options, now: "2026-09-30T12:00:00Z" }), /receipt_missing/);
@@ -616,6 +629,9 @@ test("same-period replay is quiet, keeps provider receipt, and rebinds current o
   assert.equal(state.occurrenceId, "life-manager-cfo-hourly:run-2");
   assert.equal(state.providerMessageId, "id");
   assert.equal(state.resolutionKind, "duplicate");
+  assert.deepEqual(state.deliveryCounters, {
+    attempted: 0, delivered: 0, delivery_uncertain: 0, pre_send_failed: 0,
+  });
   assert.match(state.messageSha256, /^[a-f0-9]{64}$/);
   await assert.rejects(
     runResultCfo({ ...options, subjectId: "other-owner", now: "2026-09-30T12:00:00Z" }),
@@ -632,7 +648,8 @@ test("pending retry with an already-delivered outbox receipt is duplicate, not s
     attempt += 1;
     return attempt === 1
       ? { delivery: "pending", provider_message_id: null }
-      : { delivery: "delivered", provider_message_id: "id", attempted: 0 };
+      : { delivery: "delivered", provider_message_id: "id", attempted: 0,
+        delivered: 0, delivery_uncertain: 0, pre_send_failed: 0 };
   };
   await assert.rejects(
     runResultCfo({ ...options, notify, reportCadence: "daily", now: "2026-09-30T12:00:00Z" }),

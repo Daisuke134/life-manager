@@ -5446,6 +5446,20 @@ class PreEffectForeignClaimTests(unittest.TestCase):
         self.assertFalse(lm_loop.AUTO_PRE_EFFECT_RECONCILE_ENABLED)
 
 class GuardedOrphanRetirementTests(unittest.TestCase):
+    def test_capafy_retired_label_guard_matches_observed_stale_registration(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        guard = registry["guarded_retired_labels"][
+            "ai.anicca.provision-browser.capafy.kosuke"
+        ]
+        self.assertEqual(
+            guard["expected_arguments_sha256"],
+            "dee012ab592d0d8b1ea8cfb014ba3e4692924355b8fa24184319f10b630438ca",
+        )
+        self.assertEqual(
+            guard["missing_entrypoint"],
+            "~/loops/releases/20261007T090901-3aaabcca/skills/browser/cdp_persistent_context.py",
+        )
+
     def test_guard_rejects_reused_running_or_executable_registration(self):
         for case in ('argv_changed', 'pid_present', 'program_changed', 'state_missing', 'script_exists', 'absent_reused_plist', 'absent_program_changed', 'loaded_reused_plist'):
             with self.subTest(case=case), tempfile.TemporaryDirectory() as directory:

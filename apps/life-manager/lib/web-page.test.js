@@ -36,6 +36,11 @@ function mountClient(html, responses = {}, href = "https://life.example/lm") {
   const redirects = [];
   const replacements = [];
   const feedback = { textContent: "" };
+  const imessagePairing = { hidden: true };
+  const imessageCode = { textContent: "" };
+  const imessageLink = { href: "", hidden: true };
+  const imessageCopyButton = { hidden: true, disabled: false, dataset: { action: "copy-imessage-code" } };
+  const clipboardWrites = [];
   const signIn = {
     href: "/auth/google",
     getAttribute(name) { return name === "href" ? this.href : null; },
@@ -78,11 +83,16 @@ function mountClient(html, responses = {}, href = "https://life.example/lm") {
         if (id === "lm-sign-in") return signIn;
         if (id === "lm-flow") return root;
         if (id === "lm-feedback") return feedback;
+        if (id === "lm-imessage-pairing") return imessagePairing;
+        if (id === "lm-imessage-code") return imessageCode;
+        if (id === "lm-imessage-open") return imessageLink;
+        if (id === "lm-imessage-copy") return imessageCopyButton;
         return null;
       },
       querySelector() { return { content: user.csrf }; },
       querySelectorAll() { return []; },
     },
+    navigator: { clipboard: { async writeText(value) { clipboardWrites.push(String(value)); } } },
     URL,
     Intl,
     Date,
@@ -96,7 +106,7 @@ function mountClient(html, responses = {}, href = "https://life.example/lm") {
     },
     window,
   });
-  return { handlers, requests, redirects, replacements, feedback, root, signIn, window, execution };
+  return { handlers, requests, redirects, replacements, feedback, root, signIn, window, imessagePairing, imessageCode, imessageLink, imessageCopyButton, clipboardWrites, execution };
 }
 
 test("signed-out page starts with one Google Calendar connection CTA instead of a Life Manager login", () => {
@@ -136,6 +146,82 @@ test("connected state and seven-day trial offer share one screen with exact $29 
   assert.match(visible, /7日間の無料トライアルを始める/);
   assert.doesNotMatch(visible, /lm-dashboard|今日の予定|次の出発|homeAddress|chat thread/i);
   assert.doesNotMatch(visible, /Messages|sms:/i);
+});
+
+test("connected Web screen shows only the optional Telegram link when the channel is ready", () => {
+  const withTelegram = visibleHtml(renderWebPage({
+    user,
+    snapshot: snapshot({ setupState: "trial_offer" }),
+    trialOffer: { firstChargeAt: "2030-01-08T00:00:00.000Z", timezone: "Asia/Tokyo" },
+    telegramLinkAvailable: true,
+  }));
+  assert.match(withTelegram, /data-action="link-telegram"/);
+  assert.match(withTelegram, /Telegramで質問に答える/);
+  assert.doesNotMatch(withTelegram, /phone-number|電話番号|type="tel"|chat thread|message thread/i);
+
+  const withoutTelegram = visibleHtml(renderWebPage({
+    user,
+    snapshot: snapshot({ setupState: "trial_offer" }),
+    trialOffer: { firstChargeAt: "2030-01-08T00:00:00.000Z", timezone: "Asia/Tokyo" },
+  }));
+  assert.doesNotMatch(withoutTelegram, /data-action="link-telegram"/);
+});
+
+test("Telegram link action requests a CSRF-protected one-use URL and opens only t.me", async () => {
+  const link = `https://t.me/LifeManagerBot?start=lmw_${"A".repeat(32)}`;
+  const page = renderWebPage({
+    user,
+    snapshot: snapshot({ setupState: "trial_offer" }),
+    trialOffer: { firstChargeAt: "2030-01-08T00:00:00.000Z", timezone: "Asia/Tokyo" },
+    telegramLinkAvailable: true,
+  });
+  const client = mountClient(page, { "/api/lm-web/message-link": { url: link } });
+  const button = { dataset: { action: "link-telegram" }, disabled: false };
+  await client.handlers.click({ target: { closest: () => button } });
+  assert.equal(client.requests.length, 1);
+  assert.equal(client.requests[0].path, "/api/lm-web/message-link");
+  assert.equal(client.requests[0].init.method, "POST");
+  assert.equal(client.requests[0].init.headers["x-lm-web-csrf"], "csrf-token");
+  assert.deepEqual(JSON.parse(client.requests[0].init.body), { channel: "telegram" });
+  assert.deepEqual(client.redirects, [link]);
+});
+
+test("iMessage link shows a one-time code and opens only the configured Messages recipient", async () => {
+  const code = `LMI_${"B".repeat(32)}`;
+  const smsUrl = "sms:+15551234567";
+  const page = renderWebPage({
+    user,
+    snapshot: snapshot({ setupState: "trial_offer" }),
+    trialOffer: { firstChargeAt: "2030-01-08T00:00:00.000Z", timezone: "Asia/Tokyo" },
+    imessageLinkAvailable: true,
+  });
+  const visible = visibleHtml(page);
+  assert.match(visible, /data-action="link-imessage"/);
+  assert.match(visible, /data-action="copy-imessage-code"/);
+  assert.doesNotMatch(visible, /type="tel"|電話番号を入力/);
+
+  const client = mountClient(page, { "/api/lm-web/message-link": { url: smsUrl, code } });
+  const linkButton = { dataset: { action: "link-imessage" }, disabled: false };
+  await client.handlers.click({ target: { closest: () => linkButton } });
+  assert.equal(client.requests.length, 1);
+  assert.deepEqual(JSON.parse(client.requests[0].init.body), { channel: "imessage" });
+  assert.equal(client.imessageCode.textContent, code);
+  assert.equal(client.imessagePairing.hidden, false);
+  assert.equal(client.imessageLink.href, smsUrl);
+  assert.equal(client.imessageLink.hidden, false);
+  assert.deepEqual(client.redirects, []);
+
+  await client.handlers.click({ target: { closest: () => client.imessageCopyButton } });
+  assert.deepEqual(client.clipboardWrites, [code]);
+});
+
+test("iMessage link control stays hidden until the channel is ready", () => {
+  const page = visibleHtml(renderWebPage({
+    user,
+    snapshot: snapshot({ setupState: "trial_offer" }),
+    trialOffer: { firstChargeAt: "2030-01-08T00:00:00.000Z", timezone: "Asia/Tokyo" },
+  }));
+  assert.doesNotMatch(page, /data-action="link-imessage"|data-action="copy-imessage-code"|sms:/i);
 });
 
 test("returning from Stripe shows a pending state without a second checkout button", () => {
