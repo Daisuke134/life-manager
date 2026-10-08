@@ -4884,3 +4884,28 @@ Host / CI follow-up (2026-10-08 10:41 JST): `df -Pk /`は4,095,476 KiB freeで�
 - Coconalaの最後のofficial order/talkroom snapshotは10/7でstale。fresh provider readbackがない限りbuyer待ち、納品、受入、settlementを現在状態として断定しない。
 
 **現在cursor:** 並列gate 1Aのsender P1修正・test/review/CIと、1Bのcleanup summary readback・安定capacity/target lock auditを完了する。その後にCoconala Paid/order/inboxをfresh readbackする。
+
+### 2026-10-08 11:08 JST — Business CFO status refresh and remaining cursor
+
+この追記はCFO専用TODOの現状を更新する。全社・loop/agent別の実収益、実費、純貢献を把握する既存目的は変えず、CFO順序も`A5→A6→A8→A9→A10`のままとする。A6の独立source branchを進めても、正本cursorをA5から移した扱いにはしない。
+
+**最新readback（2026-10-08 02:08 UTC時点）:**
+
+- 保存済みB7 projectionは`reporting_date=2026-10-08`、`snapshot_at=2026-10-08T01:58:13Z`。historical/trailingとも全社JPY settled revenue・cost・netはunknown/null、18/18 loops unknown、coverage gapsは173/168。MRRは全社unknown、26 gaps、17/18 loops unknown。唯一verifiedのmobile-apps USD 20.34 MRRはMRR値であり、settled revenue・利益・全社MRRの証拠ではない。duplicate receipts=0。
+- CFO production loopはloaded-idle、最後のterminalは`2026-10-08T01:58:19Z`のexit 0だが、`effect_status=unknown`、provider receipt・official readbackなし。loaded releaseは`8d396690`のままで、未merge sourceの反映・自然report成功とは扱わない。
+- Google CloudのCost Tableで確認した金額は**2026-09請求額¥27,889（税込）**のみ。billed expenseでありcash-paidは未確認、loop配賦は未帰属。2026-10の請求額や同期間usage estimateはこの請求書からは分からず、¥27,889を今月費用として外挿しない。
+- A5 PR #6827はopen/draft、head `980fe867`・base `034d46e8`で、最新main `5ce85b5`より古い。PR migrationはprovider/SKU/operation/unit単位で集計するが、`meta.runtime_trace.loop_id`と`owner_id`を保持しないため、agent/loop別帰属の受入条件を満たさない。A5 worktree leaseはowner `codex-cfo-a5`で`2026-10-08T03:18:04Z`まで有効。lease readback/解放前にそのworktreeを変更しない。
+- A6 PR #7011はopen・non-draft、head `0c1f2a8`・base `5ce85b5`。fresh local reviewはCritical 0 / Important 0 / Minor 1でsourceをmerge可能と判定した。MinorはDecimal precision 64を超える非現実的な入力で差額を丸め得る点で、reviewerはmerge blockerではないと判定。2026-10-08 02:08 UTCのGitHub checksはLoop control contractsのみpending、他の必須checkはpass。source reviewとCI passは本番CFOの完了を意味しない。
+
+**残りTODO（この順、atomic）:**
+
+1. **A5を完了:** 03:18:04Zより前にleaseが解放された場合はowner/leaseをreadbackし、解放後に最新mainを取り込む。SQL/API/panelが`loop_id`・`owner_id`をprovider/SKU/operation/unit別に返し、`run_id`・`occurrence_id`・`release_sha`までtraceできる回帰testを通す。欠損はunknown/unattributed。required checks/review後にmergeする。global hard capや無言の停止は追加しない。
+2. **A6 sourceをmainへ統合:** PR #7011のpending Loop control checkを再読し、pass後にPRをmergeする。Minor precision findingは必要なら境界拒否testで閉じるが、現在のreview判定では統合blockerではない。
+3. **A6請求照合を閉じる:** 2026-09 invoice ¥27,889と同一期間・project・SKU・serviceのGoogle Monitoring/usage estimateを照合し、tax/credit/roundingを一致させる。cash-paidはbank/card/provider settlement receiptがある場合のみ記録し、A5 occurrence traceで裏付けられる費用だけloop/agentへ配賦する。
+4. **A8全社coverageを閉じる:** 18 product loopsと186 runtime jobsを対象に、settled revenue/refund/feeとprovider/API/cloud/subscription costのofficial source、期間、通貨、owner、receiptを埋める。現projectionの`cfo.actual-cost-readback=read_failed`はsource unconnected/read failureの診断に過ぎず、費用0を意味しない。根拠不足はunknown/unattributedのままにする。
+5. **A9実日次CFO report:** 既存CLI/panelにloop/agent/platform別と全社合計のrevenue・refund/fee・billed/cash-paid expense・net・MRRを表示する。Asia/Tokyoの日次/MTD/trailing期間でreceiptを実際にfilterし、source freshness・coverage・unknown・currencyを表示する。`loop_pnl.py --date`は現状reporting-date labelだけなので、実日次集計へ直してから日次実績と呼ぶ。
+6. **A10自然run受入:** main由来immutable releaseから7日連続で自然CFO reportを観測し、18/18 loops・186/186 jobsの分類、公式source/readback、delivery receipt、期間一致、unknown owner/action、重複/再送ゼロを照合する。このgateの前にCFO完了・全社利益・$10k verified MRRを主張しない。
+
+**今回はblockerではない項目:** A7 Personal Moneytreeはユーザー指示どおり対象外。A4.1–A4.3のfree geocoding/Cloud savingsとA3.4もCFO完了後へ延期し、現在のCFO cursorを止める理由にしない。A5 owner leaseとPR #7011のpending checkはそれぞれ所有者境界・CI上の実blockerであり、lease解放後のA5再開とpending checkの完了で解消する。
+
+**現在cursor:** A5。A5 leaseが有効な間は当該worktreeを編集せず、既に開いている独立A6 PRのcheck/請求照合準備を続ける。lease解放readback後にA5を先頭で再開する。
