@@ -6477,6 +6477,25 @@ The next cursor is item 1 commit/push. No Dais manual action is currently requir
 
 **現在cursor:** `push latest-main sync plus current SSOT update to PR #7115 → required CI on the new head → merge --admin first → verify natural handoff receipt and loaded SHA/argv → reconcile the exact English video and its prior-post status → connect the correct English Monk Instagram account → publish once and verify official receipt → restore 3/day cadence → verify paid order+PDF and active paid Letter MRR`. No Capafy action, manual replay, stop, or restart.
 
+### 2026-10-08 19:32 JST — source merged; live handoff still owns the production cursor
+
+- PR #7115 merged at 19:27 JST as `f6ddc8c4bafa359ad795111579ef62b058628fea`. Required CI run `37762960693` passed; the separate fresh source reviewer approved the counter correction. `origin/main` is now `f6ddc8c4`.
+- Fresh safe readback at 19:32 JST: `~/loops/current` still points to `20261008T185307-88dfdaf4`; production `life-manager-release-reconciler` runs the old SHA `3c87f64f` as PID `7017`, occurrence `18dc8612b9964870-7017` since 19:09 JST. Its child is the old release's `reconcile-agent-runner-release.sh`, currently invoking `lm-loop apply`. A self-handoff helper from old release `88dfdaf4` is also loaded (PID `65669`); receipt remains `old_service_active_timeout`, state `running`, PID `7017`, target `88dfdaf4`, run lock acquired. No stop/restart/apply was issued.
+- **Inference:** after the active fleet apply reaches terminal, the old helper may fail closed if it sees `not running`; the next natural release-reconciler wake should use merged main `f6ddc8c4` and the corrected helper. Verify this through the next receipt and loaded SHA/argv; do not force it.
+- The English eBook publish fence remains active on `18dc6de8dcf3a0e8-75262`, with no provider receipt. Postiz still has no English Monk Instagram integration. The exact active IG handle question is pending; no post or HeyGen plan purchase has occurred.
+- Stripe read-only GET at 19:37 JST confirms `The Anicca Reset` is a `$10.99 USD` one-time price and `Daily Anicca Letter` is `$9.99 USD/month`; active subscriptions for these products are `0`, so verified current Letter MRR is `$0`. The marketing-engine product registry contains the one-time eBook but no Letter product entry. At `$9.99/month`, `1,002` active subscribers are needed for at least `$10,000` gross MRR before fees/refunds; `910` one-time eBook orders produce about `$10,000` gross monthly sales but are not MRR.
+
+**Atomic TODO (eBook only):**
+
+1. Let occurrence `18dc8612b9964870-7017` finish naturally; then verify a successful handoff receipt and loaded release SHA/argv. Keep the service and helper untouched while running.
+2. Reconcile the Oct 8 HeyGen effect and select a unique, unpublished English Monk MP4. A12/A13/A14 remain local candidates; their HeyGen IDs return no provider record.
+3. Confirm/connect the exact English Monk Instagram account. Postiz has no matching integration and public `@monk_anicca` is unavailable; do not substitute the iOS `@anicca.en` or TikTok.
+4. Publish the selected video once and confirm official `PUBLISHED` receipt and URL.
+5. Restore three daily English Monk Instagram slots through the canonical owner; verify each natural post.
+6. Add the existing Stripe Letter price to the product/attribution registry and connect the eBook audience to its recurring offer; verify paid Stripe orders ↔ delivered PDFs separately from active Letter subscriptions. `$10K MRR` remains a target, not a verified result.
+
+**現在cursor:** `natural terminal of 18dc8612b9964870-7017 → exact successful handoff receipt + loaded SHA/argv → reconcile the English video and unknown effect → bind the exact Instagram account → publish once/read back → restore 3/day → map the existing $9.99 Letter subscription into the marketing funnel → verify paid order+PDF and active subscription MRR`. No Capafy action, forced restart, or replay.
+
 ### 2026-10-08 19:16 JST — local revenue loops: current state and completion order
 
 この節は18:12 JSTのlocal-revenue cursorを、最新main・本番owner readback・PR状態で更新する。TODO / 順序 / 状態の正本はこのSSOTだけ。
@@ -6566,3 +6585,24 @@ The next cursor is item 1 commit/push. No Dais manual action is currently requir
 - Production has not changed from the 19:31 readback: release `88dfdaf4`, old reconciler PID `7017`, doctor false, FoundersEdge and Workday Learning fences remain. Do not treat source review or PR CI as provider or production evidence.
 
 **現在cursor:** commit/push this SSOT status → wait for PR #7121 required checks on the new head → merge after independent review/CI → obtain FoundersEdge provider ID/status or keep its fence → cut one main-derived immutable release → natural handoff/doctor → exact fence reconciliation → owner apply and 3 natural business receipts → same-window capacity/economic readback.
+
+### 2026-10-08 19:45 JST — main advanced to 91c0; live handoff/capacity still open
+
+- Latest `origin/main=91c0e48b75` includes PR #7125, which waits up to 120 seconds for disk headroom before deferring a wake. Current `/Users/anicca/loops/current` release is `20261008T193926-d35aa4bc`, so #7125 is not live yet. The working branch is merging this latest main while preserving the local revenue entries and main's eBook updates.
+- PR #7121 checks passed on old head `304631fa79`, but its base is still `f6ddc8c4` and GitHub reports `DIRTY/CONFLICTING` after main advanced. The local branch merge to `91c0e48b75` must be pushed; CI/review must pass on the resulting head before merge. The separate fresh source review on the safe fail-closed diff is SHIP.
+- 19:44 JST readback: release reconciler remains loaded-running on old SHA `3c87f64f`, PID `1882`, latest occurrence `18dc87839c009078-15096` / pass; `lm-loop doctor` still fails for retired Capafy and unmanaged self-handoff labels. Job Hunter daily and inbox report `disk_headroom_low`; health reports `resource_capacity_busy`. Connector/Fundraiser/Learning status calls did not return within the 10-second probe window and yielded no captured row. Current release model config does set Connector, Job Hunter, and Fundraiser task classes to `gpt-6-luna/max/fast`, but natural-run `selected_model` evidence is still absent.
+- A read-only admission snapshot remains unavailable: SQLite returned `database is locked`, and `lm-loop status all --explain --json` remained blocked over 50 seconds before only that diagnostic command was terminated. Four Python processes had the database open; only PID `7017` mapped to the release reconciler. The sample did not establish active claims, reservations, queue eligibility, or current available slots. `/` had 2,406,020 KiB free and host load was `6.51/13.08/15.69` on 10 CPUs at the earlier 19:31 sample.
+
+**順序更新:** PR #7115 and #7125 are now source-merged, but production has not loaded them; PR #7121 is the remaining safe Fundraiser/source-status PR and is behind latest main. New order=`finish/push latest-main sync → rerun PR #7121 review/CI → merge → build one immutable release with #7115/#7125/#7121 → natural reconciler handoff and doctor-owner cleanup → exact effect readbacks → owner-specific apply → natural business receipts → measure capacity and revenue in one window`. Keep the FoundersEdge effect fence while its provider-owned ID/status is absent.
+
+**残TODO（この順）:**
+
+1. Complete the current merge to `91c0e48b75`; preserve main's eBook/#7125 changes and the local revenue sections; commit/push and verify clean branch state.
+2. Refresh PR #7121 to that head, pass same-head required CI and independent review, then merge. The source delta is fail-closed; it does not close post-effect occurrences from local files.
+3. Check FoundersEdge through its current official `/apply/` route or an existing provider response/status path. The old receipt URL `apply.foundersedge.com/pitch` is 404, Gmail searches found no confirmation, and no provider ID is recorded. Do not resubmit; if no official ID/status exists, keep `18dc7f3bc472c260-76084` fenced.
+4. Cut an immutable release from merged main. Let the current reconciler reach natural terminal; verify target SHA/state/PID/argv receipt. Have Capafy and handoff owners clear their labels; wait for `lm-loop doctor` PASS.
+5. Reconcile DeepScale, LAUNCH, Workday Learning, and Danaher by exact official status or strict pre-effect proof; require replay-zero. Never replay an unknown target.
+6. Apply eligible idle owners one at a time; confirm Luma Compass registration, Workday application, and new VC/AI-founder outreach using exact provider receipts, Telegram outcomes, and natural-run `gpt-6-luna/max/fast` selection.
+7. After all three owners run naturally on the new release, capture claims/reservations/queue age/admission reasons/CPU/RAM/disk in one interval. If SQLite remains locked, trace the exact writer using `runtime/host/resource_admission.py::_database` and callers before changing caps. Current total available concurrency is unmeasured; OpenClaw's 8-per-session and 5-active-child limits do not answer it. Keep OpenClaw and Life Manager admission authority; only revisit architecture if this measured bottleneck remains after #7125 and owner repair.
+
+**現在cursor:** finish/push merge to main `91c0e48b75` → PR #7121 same-head CI/review/merge → immutable release/handoff/doctor → exact provider fences → owner apply/natural receipts → same-window capacity/economics.
