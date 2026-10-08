@@ -4373,31 +4373,54 @@ L9-11 Self-BuildはこのGig laneの全項目完了後、既存の全社順序�
 
 **Daisの作業:** 既存Postiz integrationとHeyGen認証の再接続・再認証は不要。手動設定も不要。投稿を止めているのは未loaded main release、release/apply lock、容量receiptの揺れ、English CLI telemetryです。Life Manager側で順に解消する。
 
-### eBook Monk current blocker cursor — 2026-10-08 09:41 JST
+### eBook Monk current blocker cursor — 2026-10-08 10:05 JST
 
-この節がeBookの最新cursorで、09:32 JSTの記録を更新する。対象は英語TikTokのMonk Anicca（`@monk_anicca`）。Postiz接続は有効で、次の停止点はproduction releaseとhost capacity。
+この節がeBookの最新cursorで、09:41 JSTの記録を更新する。対象は英語TikTokのMonk Anicca（`@monk_anicca`）。Postiz接続は有効。code修正とcapacity cleanup修正はmainにあるが、current releaseとdaily delivery readbackが遅れている。
 
-**source / review / release:** PR #6999は全Security Scan checks PASS、fresh read-only reviewもfindingなしでmerge済み。`origin/main=46ec94bdea884fd7afa61e603a79fdd1b3048ef7`。英語ownerの`LIFE_MANAGER_HEYGEN`と`HEYGEN_NO_ANALYTICS`はJavaScript wrapperからPython renderer subprocessへ英語商品だけ渡る。実subprocess RED/GREEN test、Node 11/11、Python runtime bounds 133 passed、source boundary PASS。current immutable symlinkは`/Users/anicca/loops/releases/20261008T093101-46ec94bd`（main SHA `46ec94bdea884fd7afa61e603a79fdd1b3048ef7`）へ更新済み。release reconciler PID `14127`は09:41時点で稼働中のため、eBook ownerのloaded SHA/argvはterminal後に確認する。
+**理想の配信architecture:**
+
+```mermaid
+flowchart LR
+  EN["英語script"] --> HG["HeyGen Avatar IV"]
+  JA["日本語script"] --> WMF["Watercolor Mark Factory"]
+  HG --> VIDEO["承認済みvideo + caption + tracking token"]
+  WMF --> VIDEO
+  VIDEO --> PZ["Postiz queue / slot idempotency"]
+  PZ --> ENT["Monk Anicca TikTok / 3回/日"]
+  PZ --> JAT["Obou Anicca TikTok / 3回/日"]
+  PZ --> JAI["Obou Anicca Instagram / 3回/日"]
+  ENT --> READ["official PUBLISHED + public URL"]
+  JAT --> READ
+  JAI --> READ
+  READ --> CLICK["click attribution"]
+  CLICK --> CHECKOUT["owned checkout / Stripe receipt"]
+  CHECKOUT --> NET["fees - refunds - actual cost = net revenue"]
+```
+
+投稿数はviewや売上ではない。one-time eBook purchaseもMRRではない。MRRはrecurring offerのsettled receipt/refund/fee/costを別に照合する。
+
+**source / review / release:** PR #6999は全Security Scan checks PASS、fresh read-only reviewもfindingなしでmerge済み。英語ownerの`LIFE_MANAGER_HEYGEN`と`HEYGEN_NO_ANALYTICS`はJavaScript wrapperからPython renderer subprocessへ英語商品だけ渡る。cleanup PR #7003もmerge済み（`4056d35903dc1ace75b97ae8f816b75473cb6f47`）で、閉じている場合だけXcode `DerivedData`をcleanup候補にする。実subprocess RED/GREEN test、Node 11/11、Python runtime bounds 133 passed、source boundary PASS。現行`origin/main=4056d35903dc1ace75b97ae8f816b75473cb6f47`。current immutable symlinkはまだ`/Users/anicca/loops/releases/20261008T094938-c65449ef`で、PR #7003 sourceより1 commit前。
 
 **Monk / official provider readback（09:30 JST）:** Postiz integrations GETはTikTok `monk_anicca` / ID `cmo5rwq2p00twn10yrsdglng3`を`disabled=false`で返した。英語Monkは今日0件。日本語TikTok `cmuynjaq808iblc0yd2396uhg`とInstagram `cmuynjkih08ihlc0y38o87z0n`は各1件`PUBLISHED`。再接続・再認証は不要。
 
 **HeyGen official readback（09:14 JST）:** CLI video listを全2ページ確認しtitle `Anicca`は0件、walletはUSD 12.30（auto-reload threshold USD 5）。source merge後もproductionに未反映のため英語動画は未生成。
 
-**capacity / release reconcile（09:41 JST）:** 09:31:34 JSTのbounded full passは`free_after=1,287,729,152` bytes、floor `2,147,483,648`未達、`errors=0`, `protected_deletions=0`, `inventory_gaps=16`, logical `reclaimed=13,886,595,091` bytes、terminal `ok=false`。09:40 fast cleanup receiptは`free_after=1,647,067,136` bytes、errors 0、protected deletions 0、inventory gaps 23、reclaimed 38,883 bytes。09:41 `df -Pk /` Availableは`1,539,416 KiB`（約1.47 GiB）で引き続き床未達。`diskutil apfs list`はcontainer free `1,083,478,016` bytes、root volumeにsealed `com.apple.os.update-*` snapshotを1つ表示し、Data volume snapshotはなし。`lsof +L1`に50 MB以上のopen-deleted fileなし。full inventoryはHomebrew 14.16 GB、Gig 9.35 GB、`anicca-project` 4.47 GB、`.openclaw` 4.45 GB、`anicca` 3.49 GB、`/private/var/folders` 0.86 GB、`/private/tmp` 0.32 GBと計測する一方、16のchild-limit/permission/timeout gapsが残る。logical reclaimedとAPFS/`df` freeの差の原因は未確定。未ロック・origin/mainより211 commit遅れ・ahead 0のCapafy worktreeは除去済み。別Capafy worktreeにはmanaged leaseがあるため保持する。PII scan一時コピーは実行process/open fdなしだが、自動reviewが直接削除を拒否し、`/Volumes/AniccaQuarantine`も未mountのため迂回していない。
+**capacity / release reconcile（10:04 JST）:** 10:00 fast cleanup receiptは`free_after=1,886,650,368` bytes、errors 0、protected deletions 0、inventory gaps 23、reclaimed 8,080 bytes。10:04 `df -Pk /` Availableは`1,664,288 KiB`（約1.59 GiB）で2 GiB floor未達。PR #7003は`DerivedData`を既存のopen-file guardつきcleanup allowlistへ追加しmainにmerge済み。live `DerivedData`は3,703,084 KiB、Xcode build process/open fdなし。current release `20261008T094938-c65449ef`には未反映で、reconciler PID `55054`が同release上で稼働中。reconciler terminal後、PR #7003入りreleaseからcleanup ownerを一度走らせ、fresh receiptと`df`で床回復を判定する。
 
-最新persisted fleet state（09:18:50 JST）はSHA `3f1bd81a77b9001284678888b641aaedb1e3e497`、`status=error`, errors 4。last outputには`admission rebind refused: effect_unknown`と、`ai.anicca.alpaca-investment-live`および`ai.anicca.capafy-ig-marketing-daily`のBootstrap I/O errorがある。新しいmain-derived releaseを現在reconcilerが適用中で、target applyは重ねない。docs-only PR #7002はspec/planをpush済み。先行CI runは`Startup context drift`がlive `aniccaai.com/lm`のcontext digest不一致で失敗し、最新commitのrunはpending。変更差分はspec/planのみで、公開pageはこの作業の対象外。
+PR #7002の旧head `d05bc616`は`Startup context drift`がlive `aniccaai.com/lm` digest不一致で失敗。PR #7003の最新main checkではStartup context PASS。spec branchをmain `4056d35903`へrebaseし、latest CIを通してspecを統合する。
 
 `launchctl-safe preflight`はPASS（UID/Directory Services 501、Aqua、manager UID 501/PID 1）。`launchctl-safe list`では`ai.anicca.life-manager-disk-cleanup`とrelease reconciler handoffが見えるが、`com.anicca.disk-sentinel`、`com.anicca.emergency-disk-guard`、legacy disk-cleanerはdisabled。`disk-pressure.block`と`disk-writers.stop`は不在。sentinel/guardはTelegram alertとwriter backpressureを伴うため、こちらでは有効化していない。
 
 **残りAtomic TODO（eBook順序）:**
 
-1. 容量のlogical reclaimed / APFS/`df`差を解明する。inventory gaps 16のうち`/private/tmp`, `/private/var/folders`, Library, Projectsのsize/permission/timeout境界を狭め、書き込み元と安全なallow-listed回収対象を特定する。off-volume cleanupが必要な対象は指定quarantine volumeのmount状態を確認する。leased Capafy worktree、未知パス、open file、sealed OS update snapshotは保持する。
-2. `free_after >= 2,147,483,648` bytesのfresh cleanup receiptと同時刻`df`を得て、errors 0 / protected deletions 0を確認する。次のapply中はrelease reconcilerとhost apply lockがterminal/open-freeであることをreadbackする。
-3. current symlinkはすでにmain merge SHA `46ec94b`を含むimmutable release。reconciler terminal後に`ebook-en-tiktok-daily`のloaded SHA/argvをreadbackし、欠ける場合だけlaunchctl-safe preflight後にそのownerをtarget applyする。旧occurrenceのeffect fenceはexact owner/provider readbackで解決する。stateを手で編集しない。
-4. 次のdue slotでEnglish ownerを一度起動し、HeyGen video ID/SHAとwallet差分、Postiz `PUBLISHED`/public URLを同一effectへ結ぶ。今日の日本語2 accountとEnglish Monkの各登録slotをofficial readbackで確認し、各account 3件/day・合計9件/dayへ到達させる。
-5. anicca-products PR #420のproduction Supabase readback/DDLとnatural paid Checkout→Stripe receipt→locale PDF→fees/refunds/settlement/replay-zero、Letter/Tegami 14日cohortを順に閉じる。one-time `$10.99` / `¥1,580`はMRRではなく、USD 10,000 verified net MRRは未達目標。
+1. PR #7002のspec/planをmain `4056d35903`へrebase/pushし、fresh required CIをPASSしてmainへmergeする。
+2. release reconciler PID `55054`の自然terminal後、current symlinkをmain `4056d35903`由来にし、cleanup ownerのloaded SHA/argvをreadbackする。
+3. PR #7003入りcleanup ownerでXcode `DerivedData`をopen-file guard付きで回収し、fresh receipt `free_after >= 2,147,483,648` bytes、errors 0、protected deletions 0と同時刻`df -Pk /`を確認する。
+4. host apply lock解放後、`ebook-en-tiktok-daily`のloaded SHA/argvとchild environmentを確認する。遅れている場合だけlaunchctl-safe preflight後にこのownerだけtarget applyする。
+5. 旧occurrenceのeffect fenceをexact owner/provider readbackで解決してからEnglish ownerを次のdue slotで1回起動する。HeyGen video ID/SHAとwallet差分、Postiz unique `PUBLISHED`/public URLを同一effectへ結ぶ。
+6. 各3 account/dayのunique provider receiptsとreplay-zeroを自然slotで確認し、その後にcheckout→Stripe settlement/refund/fee/costをattributionへjoinする。one-time ebook salesはMRRに含めず、USD 10,000 verified net MRRは未達目標。
 
-**Daisの作業:** Monk Aniccaの再接続・再認証は不要。安全なoff-volume quarantineを使うには指定mount point `/Volumes/AniccaQuarantine` のmountが必要。sentinel/guardを再有効化する場合は、Telegram alertとwriter backpressureが発生する。
+**Daisの作業:** Monk Aniccaの再接続・再認証は不要。PR #7003のsafe `DerivedData` cleanupが次のcapacity回収経路なので、quarantine mountやsentinel再有効化は現時点で依頼しない。disabled sentinel/guardはTelegram alertとwriter backpressureを伴う。
 
 ### 2026-10-08 07:43 JST — Gig live-acceptance cursor correction
 
