@@ -8274,3 +8274,11 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 - Official Postiz API sample still shows 8 target posts during 00:05–00:48 JST, all on the one Anicca Instagram profile, and zero target TikTok posts. Those Instagram posts currently read as all-zero engagement with `impressions` missing; the TikTok sample contains views, so the API path can return metrics. The metrics loops remain `resource_effect_unknown` or disk-blocked, and portfolio-wide checkpoints are not persisted.
 
 **現在mobile cursor:** commit/push `fix/mobile-production-slot-guard-20261009` → exact-head CI and merge → update current/reconciler/18 owner SHAs from immutable main → resolve admission/entrypoint blockers and R26 fences without replay → verify slot-bound `3/day` Postiz receipts + Telegram URLs → repair/persist post metrics → ASC/RevenueCat/in-app joins. No posting or revenue completion is claimed until official readback.
+
+### 2026-10-09 05:19 JST — persisted metrics coverage gap
+
+- `~/.local/state/life-manager/state/post-metrics.jsonl` contains 170 rows, last `observed_at=2026-09-27T04:00:29Z`: Instagram 124, YouTube 46, TikTok 0; checkpoint ages are 6h 79, 24h 65, 72h 26, and no 168h rows. Portfolio-wide native metrics are therefore stale by almost 12 days.
+- Fresh `lm-loop status all`: `life-manager-instagram-metrics` and `life-manager-tiktok-metrics` both end `75` with `host_admission_deferred:resource_effect_unknown`; `marketing-metrics` last exits 0, while `marketing-metrics-daily` ends `75` on `disk_headroom_low`. Keep the two unknown effects fenced; do not replay their Telegram/reporting actions.
+- PR #7235 (`fix/mobile-production-slot-guard-20261009`, head `69f5258d`, base `d0d30b90`) contains the source guard, isolated regression test, and current SSOT. Required CI is still pending. Local focused carousel/rotating/slide-pack suite passed 44/44; source is not merged or deployed.
+
+**現在mobile cursor:** finish PR #7235 exact-head CI/merge → immutable latest-main release and reconciler/owner readback → repair 11 disk, 1 resource-control, 2 entrypoint blockers → resolve 316 R26 releases without replay → prove per-target 3/day receipts and Telegram URLs → recover native metrics collection/checkpoints safely → ASC/RevenueCat/in-app joins and verified net-MRR iteration.
