@@ -4741,21 +4741,47 @@ flowchart LR
 
 ### Remaining atomic Gig TODO
 
-PR #7042 sender-safety source fixはmerge済み（main commit `bd3ef82567e7906052d3d731cda6feca616cf4ee`）で、cleanup/capacity readbackも完了している。未完了順は`Paid/release-reconciler natural terminal → complete official Inbox readback/fence join → existing contract → Storefront → Apply/Negotiation → other platforms → economics → SelfBuild last`。理由: sender fixを含むreleaseはあり、Paid ownerもそれをload済みだが、同じCoconala browser profileをPaid runnerが長時間保持し、Inbox observerのfull scanが300秒でtimeoutした。global capを上げたり同profileへ並列attachしたりしない。PR #6814が所有するcapacity architectureは別laneで進み、このGig todoを複製しない。
+PR #7042 sender-safety source fixはmerge済み（main commit `bd3ef82567e7906052d3d731cda6feca616cf4ee`）。未完了順は`current Paid/release-reconciler natural terminal → disk recovery owner diagnosis/floor restore → full official Inbox readback and exact fence join → existing contract → Storefront → Apply/Negotiation → other platforms → economics → SelfBuild last`。古い一時的な8/8 readbackだけを根拠にcapを上げない。後の実測では枠が3/8まで空いても、ディスク床不足とCoconalaのprofile leaseがGigを止めていた。
 
-1. **Coconala Paid / release reconcilerのnatural terminal:** Paid controller PID `63220` / browser wrapper PID `63550`はoccurrence `hf-gig-paid-direct:18dc77a46efe01a8-63220`で5分以上 profile leaseを保持し、direct-inbox collectorをbusyにした。別terminal subrun `cf05419531ad24abc27d9bca`は05:51:44Zに`pass/effect=not_applicable`・receiptなしだが、owner processはその後もloaded-runningだった。最新readbackを取り、processと`coconala:kosuke` leaseの両方が終わるまでInbox collectorを起動しない。release reconciler `life-manager-release-reconciler`もPID `15799` / run `18dc782272230a58-80307`で`entrypoint_exit_75 / reconcile_owner`のまま稼働中。stop/restart/replayしない。
-2. **Coconala Inbox full official readback:** immutable production collectorの`direct-inbox-only`、`--hidden-no-screenshot`、semantic effects offで全paginationを読む。先行するhead-only readbackは30 inquiry / 0 `reply_required`だったが、pagination page 1 of 5 / `coverage_complete=false`なので全体のゼロ証明ではない。full readback attempt `direct-inbox-full-20261008T054618Z`は`with-browser: coconala:kosuke busy for 300s`で終了し、snapshotを取得していない。Paid profile leaseがfreeになってからcollectorを一度実行し、sender/thread IDsとpage coverageを確定する。
-3. **Coconala Reply effect fence:** `hf-gig-reply-detector`のold occurrence `18dbf6546032eca0-25901`は`no_readback_adapter`でfenced。最新statusはold SHA `cecffc9b`、`disk_headroom_low`、receiptなし。full Inbox/outbox/official send receiptを同じmessage identityへ一意joinし、owner adapterでそのexact occurrenceだけをresolveする。DBを直接編集せず、ambiguousなものをcloseしない。
-4. **既存Coconala有償契約 `18180857`:** last official readback `2026-10-07T22:19:49Z`では`取引中/進行中`でrevisionと正式納品は未確認。fresh talkroom threadを読み、buyer revisionが未完なら要求deliverableを完成して正式納品receiptを一度だけ取得し、buyer acceptance→fee→settlement/payout→replay-zeroを同じcontract/occurrenceに結ぶ。正式納品済みならreceipt・検収・精算だけ確認する。`18211957`は取引完了の前回readbackがあり、新証拠なしにactionしない。顧客ID/本文はprivate evidenceに置く。
-5. **Coconala Storefront:** latest occurrence `hf-gig-storefront-direct:18dc755e9a829ae8-91215`はexit75 / `host_admission_deferred:resource_effect_unknown`。fence `18d8d288748508e8-23902`は`stdout_runtime_binding_invalid / closed=false`で残る。owner-specific exact readback/adapter fix後に20 listings・sales・fee・settlementを確認し、重複掲載しない。
-6. **Coconala Apply/Negotiation:** fresh eligible workだけを公式sourceで確認し、existing effect fence→proposal receipt→buyer reply→合意条件をoccurrenceごとに結ぶ。Lancers rows25–27は`waiting_external`のままskipし、auth/solver/proposal/retryをせず後続platformを止めない。Answersは対象外。
-7. **CrowdWorks:** `lm-gig-contract-owner-1007`のApplication-receipt/source worktree leaseを尊重し、重複編集しない。owner commit/PR/CI/release後にApplication/Paid/Replyのnatural occurrencesとprovider receiptsを個別確認し、納品→検収→fee/payoutを閉じる。
-8. **Mercor:** Application/Paid/Replyの`effect_unknown`をexact official receiptか同一occurrenceのno-effect証拠で解決する。old effect fenceが残る間は再応募・再送しない。
-9. **Freelancer:** account-bound authenticationとofficial Services inventoryで現行listingを読む。`publish_uncertain`等はprovider receiptではないため再publishしない。auto-bidはprovider-approved scopeが証明されるまでhold。
-10. **Upwork:** official policyに適合するautomated routeとaccount eligibilityが確認できない限り、自動browser/scraping/proposalは実行しない。
-11. **Job Hunter:** eligible候補のあるnatural runだけを読み、provider proposal receiptをjob/occurrence単位で確認する。候補0は成功扱いしない。
-12. **Gig economics / 24-7 acceptance:** 許可platformごとにnatural wake/terminal、buyer-visible official receipt、settlement、fee、actual expense、replay-zeroを同一契約に結ぶ。listing・process・応募・gross・未決済額は収益完了ではない。$10K MRRは未達の目標。
-13. **最後 — SelfBuild:** ほかのGig収益loopが閉じてからL9-11 SelfBuildを修復・検証する。これより前に開始しない。
+1. **Coconala Paid / release reconcilerのnatural terminal:** 15:29 JST readbackでPaid owner PID `7527` / release SHA `68b03657`はloaded-running、browser wrapper PID `8015`が`coconala:kosuke` leaseを保持。内側のCodex subrun `cf05419531ad24abc27d9bca`は06:25:46Zに`pass/effect=not_applicable`・receiptなしだが、owner processはその後も稼働中。release reconciler PID `84853` / SHA `71a5f878`もrunning。両者をstop/restart/applyせず自然terminalとloaded SHAをreadbackする。
+2. **Disk recovery owner:** cleanupの最初の06:24:28Z `entrypoint_exit_1`後、最新occurrence `18dc7a01bd72ad20-56027`は06:28:19Zに`apply_lock_busy` / exit78でdefer。release reconcilerがapply lockを使っていた時刻と重なる。15:29 JST `df /` availableは`1,816,516 KiB`で2 GiB floorより280,636 KiB少ない。reconciler lock解放後に既存cleanup ownerのnatural retryを待ち、receiptでfloor回復を確認する。任意削除や別owner state変更、floor未達時の重いlocal testをしない。
+3. **Coconala Inbox full official readback:** 最後の`direct-inbox-head-only` readback（06:15:38Z）は30 inquiry・page 1/5・`coverage_complete=false`。カードにsender sideがなく、`reply_required=0`を全体のゼロ証明に使えない。以前のfull scanはsemantic summary 19件で止まり、terminal snapshotなし。disk floor回復とPaid browser lease解放後に、immutable `direct-inbox-only` / hidden / semantic effects offを一度実行し、全pagination coverageを確認する。Coconala outboxの226 `pending` / 25 `blocked` / 2 `reconcile_pending` / 364 `replied`は全期間のlocal row数であり、現在のbuyer待ち件数として報告しない。直近48時間のaction更新は0件。
+4. **Coconala Reply effect fence:** `hf-gig-reply-detector`はold SHA `cecffc9b`のまま、06:24:31Zに`disk_headroom_low`でdeferされprovider receiptなし。Inbox全体またはexact thread readback、outbox intent、公式送信receiptを同一message identityへ一意joinし、owner adapterからそのoccurrenceだけをresolveする。DBを直接編集せず、曖昧なfenceをcloseしない。
+5. **既存Coconala有償契約 `18180857`:** last official readback `2026-10-07T22:19:49Z`では`取引中/進行中`でrevisionと正式納品は未確認。fresh talkroom threadを読み、buyer revisionが未完なら要求deliverableを完成して正式納品receiptを一度だけ取得し、buyer acceptance→fee→settlement/payout→replay-zeroを同じcontract/occurrenceに結ぶ。正式納品済みならreceipt・検収・精算だけ確認する。`18211957`は取引完了の前回readbackがあり、新証拠なしにactionしない。顧客ID/本文はprivate evidenceに置く。
+6. **Coconala Storefront:** latest occurrence `hf-gig-storefront-direct:18dc755e9a829ae8-91215`はexit75 / `host_admission_deferred:resource_effect_unknown`。fence `18d8d288748508e8-23902`は`stdout_runtime_binding_invalid / closed=false`で残る。owner-specific exact readback/adapter fix後に20 listings・sales・fee・settlementを確認し、重複掲載しない。
+7. **Coconala Apply/Negotiation:** fresh eligible workだけを公式sourceで確認し、existing effect fence→proposal receipt→buyer reply→合意条件をoccurrenceごとに結ぶ。Lancers rows25–27は`waiting_external`のままskipし、auth/solver/proposal/retryをせず後続platformを止めない。Answersは対象外。
+8. **CrowdWorks:** `lm-gig-contract-owner-1007`のApplication-receipt/source worktree leaseを尊重し、重複編集しない。owner commit/PR/CI/release後にApplication/Paid/Replyのnatural occurrencesとprovider receiptsを個別確認し、納品→検収→fee/payoutを閉じる。
+9. **Mercor:** Application/Paid/Replyの`effect_unknown`をexact official receiptか同一occurrenceのno-effect証拠で解決する。old effect fenceが残る間は再応募・再送しない。
+10. **Freelancer:** account-bound authenticationとofficial Services inventoryで現行listingを読む。`publish_uncertain`等はprovider receiptではないため再publishしない。auto-bidはprovider-approved scopeが証明されるまでhold。
+11. **Upwork:** official policyに適合するautomated routeとaccount eligibilityが確認できない限り、自動browser/scraping/proposalは実行しない。
+12. **Job Hunter:** eligible候補のあるnatural runだけを読み、provider proposal receiptをjob/occurrence単位で確認する。候補0は成功扱いしない。
+13. **Gig economics / 24-7 acceptance:** 許可platformごとにnatural wake/terminal、buyer-visible official receipt、settlement、fee、actual expense、replay-zeroを同一契約に結ぶ。listing・process・応募・gross・未決済額は収益完了ではない。$10K MRRは未達の目標。
+14. **最後 — SelfBuild:** ほかのGig収益loopが閉じてからL9-11 SelfBuildを修復・検証する。これより前に開始しない。
+
+**現在cursor:** item 1のPaid PID `7527`とrelease reconciler PID `84853`の自然terminal。item 2のcleanup owner PID `50217`はretry中なので、重複起動せず2 GiB floor回復receiptを待ってからInboxへ進む。
+
+### 2026-10-08 15:30 JST — capacity and lock diagnosis refreshed
+
+この追記は15:26の判断を06:30Z時点のhost/owner readbackで更新する。
+
+- Admission snapshot `2026-10-08T06:30:00Z`: hard cap 8、1 live claim、0 reservations = 1/8 occupied、queue81 / eligibility-ready59。直近は06:21:48Zに8/8、06:25:29Zに3/8だった。今は8枠が詰まり原因ではない。
+- `/` available `1,816,516 KiB`、2 GiB floor未達。load averageは15:29 JSTで7.28 / 10.15 / 13.67（10 CPU）。負荷の原因帰属・安全なlocal test並列数は未計測。
+- `life-manager-disk-cleanup` latest `apply_lock_busy` / exit78 / occurrence `18dc7a01bd72ad20-56027` at06:28:19Z。次のcursorはcleanup sourceを変更することではなく、release reconcilerの既存global apply lockが自然に空いた後、同じcleanup ownerのbounded retryと2 GiB floor receiptを確認すること。
+- Paid PID `7527`は06:30Zにもloaded-runningで、browser wrapper PID `8015`がCoconala profileを7分超保持。inner subrunはpass/no-effect/no receiptだが、これはPaid owner terminalでもbuyer-visible完了でもない。Reply detectorはold SHA `cecffc9b`で06:29:31Zにdisk-defer、receiptなし。Inbox collectorをattachしない。
+- release reconcilerのPID `37835` runは06:25:33Zに`entrypoint_exit_143`で終端し、直後に新run PID `84853` / SHA `71a5f878`がloaded-running。これがapply lockを保持しているため、cleanup runが`apply_lock_busy`でdeferした。新runのnatural terminalを待ち、二重applyしない。
+- PR #7072は06:32:50Zにhead `91555137`へ更新。Python+unittestはPASS、Loop control / gitleaks / TruffleHogはpending、他のrequired checkはPASS。前head `7201c8d4`への独立reviewではHIGH 1 + MEDIUM 2が出て、その証拠を06:26ZにAGMSG `codex-money-printer`へ送った。reviewerへ最新headだけ再確認するよう伝達済み。PR所有worktreeを編集しない。
+
+**現在cursor:** item 1のPaid PID `7527`とrelease reconciler PID `84853`を自然terminal/readbackする。item 2はreconcilerのapply lockが空いた後のcleanup retryへ進む。枠数を増やさず、Coconala browserへ並列attachしない。
+
+### 2026-10-08 15:34 JST — Paid/cleanup natural retry status
+
+- 06:33Z readbackではPaid owner PID `7527`・browser wrapper PID `8015`・child PID `10524`がloaded-runningのまま。`browser-guard`では一時的にholderが空だったが、owner processは終了していないのでInboxを開始しない。
+- `/Users/anicca/gig/evidence/paid-direct-live/latest.json`の非PII summaryは`status=completed`, observed3, actionable1, readback3, failed0, pending0, duplicate_dropped0。これはlocal collector summaryであり、provider receipt、buyer delivery、payoutの証拠ではない。
+- Cleanup owner PID `50217`はrelease `71a5f878`でloaded-running。直近の終端eventは06:28:19Z `apply_lock_busy`のままで、新しいcleanup receiptと2 GiB floor回復は未確認。release reconciler PID `84853`もloaded-running。
+- Disk availableは06:33Zに`1,697,728 KiB`。Admissionの最新snapshotは06:30Zで1/8 occupied、81 queued / 59 eligible。古い8/8値でいまのblockを説明しない。
+- PR #7072 head `30696dbb`のrequired CIは06:32Zに全PASS。previous-head review findingsはlatest headで未確認で、fresh read-only reviewerは継続中。CI PASS単独をmerge/production completionとしない。
+
+**現在cursor:** Paid PID `7527`とrelease reconciler PID `84853`のnatural terminal、cleanup PID `50217`のnatural terminal + cleanup receipt。三つのstateを既存ownerのrunから読み直し、止めずに進む。
 
 ### 2026-10-08 08:35 JST — Mobile post-merge runtime cursor
 
@@ -5824,3 +5850,18 @@ This snapshot supersedes the 13:59–14:04 source/release status. PR #7055 backo
 - 14:55 JSTのmain #7071はCapafy計画書のみを更新し、最新head `d3b0d9926961883a5b65f376ce1d25c04a788403`としてclean merge済み。`skills/capafy-autopublish` treeは変わらず、245-file inventory hashは維持。
 
 **TODO順:** current cursor=`245-file latest-main inventory hashを正本へ反映 → exact OSS verifier PASS → 最新main再fetch → spec/manifest commit+push → new-head CI全required PASS → PR #7057 merge → release reconciler natural convergence → eBook ownersとfence reconcilerのloaded SHA/argv readback → exact occurrence route → unique identity recovery → JP catch-up if due → EN old-effect/account gate → 9 unique PUBLISHED/day → paid order/PDF/subscription net MRR → Capafy automation repair/canary`。投稿数と収益の未確認を完了扱いしない。Daisの手動作業は現時点で不要。
+
+### 2026-10-08 15:26 JST — live admission, disk, Paid lease, and concurrency PR
+
+このsnapshotはGig cursorと同時実行の質問を2026-10-08 06:25–06:26 UTCのreadbackで更新する。PR #7072のsourceは別ownerのactive worktreeのため編集しない。
+
+- **同時実行数:** runtime global hard capは8。06:21:48Zは6 live claims＋2 reservationsで8/8、queue77 / eligible76。06:25:29Zは2 live claims＋1 reservationで3/8、queue81 / eligible62。枠は数分単位で変わる。5は全体上限ではなく、revenue floor 3を引いた理論上のborrow予算。Codex agent/worktree数とLM finite-run claims数は別の上限。
+- **Mac:** 10 CPU / 16 GiB RAM。15:24 JST `uptime` load averageは13.88 / 16.44 / 16.76。`df /` availableは1,993,548 KiBで2 GiB floorより103,604 KiB少ない。10 CPUでloadがCPU数を超え、headroomもfloor未達なので安全な重いlocal test並列数は未計測。今の負荷でcapを上げない。
+- **Gig owner状態:** `~/loops/current`は`20261008T152038-55546755`。Paid ownerはrelease `68b03657`のPID7527でloaded-running、browser wrapper PID8015が`coconala:kosuke`を保持。release reconcilerもPID37835でrunning。Reply detectorは旧SHA `cecffc9b`で06:24:31Zに`disk_headroom_low` / receiptなし。StorefrontとApplyも06:23–06:24Zにdisk defer。cleanup owner occurrence `18dc79bde0e5a8f0-38658`は06:24:28Zに`entrypoint_exit_1 / reconcile_owner`で終端し、正確な例外原因は未取得。
+- **Inbox / outbox:** 06:15:38Zのofficial head-only readは30件だけでpage 1/5、coverage incomplete、sender sideなし。full scanの過去試行はsemantic summary 19件で止まりfinal snapshotなし。従って現時点で「返信待ちゼロ」とは判定しない。Coconala outboxは226 pending / 25 blocked / 2 reconcile_pending / 364 repliedだが、これらは全期間のlocal action rowsであり現在のbuyer waiting数ではない。直近48時間のaction更新は0件。
+- **別ownerの同時実行修正:** PR [#7072](https://github.com/Daisuke134/life-manager/pull/7072)はglobal cap 8を維持し、3 local revenue loopのprofile/context占有を減らす実装を担当中。headは06:26:12Z時点で`30696dbb`、CIはLoop control / Python tests / secret scansがpending。read-only reviewerが前のhead `7201c8d4`でHIGH 1件（Codex lockがinvocation home単位でaccount共有lockにならない）、MEDIUM 2件（fail-fast env漏れ、context不一致時のforeign target cleanup）を確認した。PRはその後head更新済みのため、修正確認・fresh review・required CI完了まではmerge/容量修正完了扱いしない。このGig laneで同じコードを実装しない。
+- **判断:** これは単純FIFOだけの問題ではない。global occupancyは8/8から3/8へ変動し、現在のGig blockはdisk floorと`coconala:kosuke` leaseにも現れている。OpenClawへの移行やcap増加だけではLM admission、disk admission、同一Coconala accountのexclusive browser leaseは消えない。既存PR #7072の結果を再利用する。
+
+**TODO順変更:** 旧順=`Paid/release-reconciler natural terminal → Inbox full readback → Reply effect fence → contract`。新順=`current Paid/reconciler natural terminal → disk-cleanup ownerのentrypoint_exit_1を診断し2 GiB floorをreceiptで回復 → Paid browser lease解放後に全Inbox paginationをread-onlyで取得 → exact Reply effect fence join → contract 18180857 → Storefront → Apply/Negotiation → CrowdWorks → Mercor → Freelancer → Upwork policy hold → Job Hunter → economics/replay-zero → SelfBuild last`。理由: `df /`が床を割りcleanup ownerも失敗し、Paid runnerがInboxと同一のCoconala browserを保持している。受信箱を重ねてもcoverageは得られず、共有lockを競合させる。Capacity PR #7072は別ownerの同時作業として追跡し、このTODOにsource作業を重複追加しない。
+
+**現在cursor:** item 1 `hf-gig-paid-direct` PID7527とrelease reconciler PID37835の自然terminal / loaded SHA readback。その後item 2のcleanup occurrence `18dc79bde0e5a8f0-38658`のexact failure診断・owner復旧receiptを確認する。どちらも停止/restart/手動applyしない。
