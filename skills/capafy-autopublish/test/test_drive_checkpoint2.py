@@ -4,6 +4,7 @@ import importlib.util
 import builtins
 import json
 import sys
+import time
 import types
 from pathlib import Path
 
@@ -18,6 +19,9 @@ def load_module():
     module = importlib.util.module_from_spec(spec)
     assert spec.loader is not None
     spec.loader.exec_module(module)
+    # The tab/field render waits poll in real time (up to 10s each); tests drive fake pages, so never
+    # sleep for real. Tests that model elapsed time replace time.sleep with their own clock.
+    module.time = types.SimpleNamespace(**{**vars(time), "sleep": lambda *_a, **_k: None})
     return module
 
 
@@ -1255,31 +1259,35 @@ def test_raw_cp2_picks_the_display_model_before_filling_workspace_fields(monkeyp
 
 
 def test_raw_fill_workspace_conversation_fields_waits_for_the_tab_to_render(tmp_path, monkeypatch) -> None:
-    """2026-10-08 (drafts 8580209829 and 3257394572): CP3 clicked the Agent ワークスペース tab, slept
-    one second, found no fields yet, skipped every role as "absent on this layout" and printed
-    "already filled" while the required provider field and the DPA checkbox were still empty. The
-    submit button then never appeared. Fields are absent until some real time has passed after the
-    tab click; the fix must wait for them."""
+    """2026-10-08 (drafts 8580209829, 3257394572 and again 20:08): CP3 reloads the final review page
+    and calls this immediately. The Agent ワークスペース tab itself is not rendered yet, so nothing is
+    clicked, every role is skipped as "absent on this layout", and the function prints "already
+    filled" while the required provider field and the DPA checkbox are empty; the submit button never
+    appears. Both the tab and its fields are late: wait for the tab, click it, then wait for the fields."""
     module = load_module()
-    clock = {"slept": 0}
+    clock = {"slept": 0.0}
     monkeypatch.setattr(module.time, "sleep", lambda s=0, *_a: clock.__setitem__("slept", clock["slept"] + (s or 0)))
     listing = tmp_path / "LISTING.md"
     listing.write_text(_LISTING_MD, encoding="utf-8")
     calls = []
-
-    def rendered():
-        return clock["slept"] >= 3.0  # the tab content appears 3 seconds after the click
+    state = {"clicked_at": None}
 
     class _Page:
         def evaluate(self, expression):
             if "role=tab" in expression or "Agent Workspace" in expression:
-                return {"ok": True, "x": 1, "y": 2}  # the tab click itself works; only its content is late
+                if clock["slept"] >= 2.0:  # the tab bar appears 2s after load
+                    return {"ok": True, "x": 1, "y": 2}
+                return {"ok": False}
             if "workspace-field-count" in expression:
-                return {"ok": True, "value": ""} if rendered() else {"ok": False}
+                clicked = state["clicked_at"]
+                return {"ok": True, "value": ""} if clicked is not None and clock["slept"] >= clicked + 3.0 else {"ok": False}
             if "workspace-focus-count" in expression:
                 return {"ok": True}
             if "dpa-checkbox-count" in expression:
-                return {"ok": True, "checked": False, "x": 5, "y": 6} if rendered() else {"ok": False}
+                clicked = state["clicked_at"]
+                if clicked is not None and clock["slept"] >= clicked + 3.0:
+                    return {"ok": True, "checked": False, "x": 5, "y": 6}
+                return {"ok": False}
             if "submit-button-count" in expression:
                 return {"ok": True, "label": "draft", "text": "下書きを保存"}
             if "draft-save-count" in expression:
@@ -1287,6 +1295,8 @@ def test_raw_fill_workspace_conversation_fields_waits_for_the_tab_to_render(tmp_
             pytest.fail(f"unexpected evaluate: {expression}")
 
         def call(self, method, params=None):
+            if method == "Input.dispatchMouseEvent" and params.get("x") == 1.0 and state["clicked_at"] is None:
+                state["clicked_at"] = clock["slept"]
             calls.append((method, params))
 
         def press_enter(self):
