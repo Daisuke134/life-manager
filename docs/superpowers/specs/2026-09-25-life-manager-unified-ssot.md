@@ -5970,3 +5970,12 @@ This snapshot supersedes the 13:59–14:04 source/release status. PR #7055 backo
 - **Git境界:** このreadback時点のA5 branch/PR headは`16af3053`で、上記manifest修正はlocal only。`origin/main`=`85f17537`はc61以降のdocs-only commitで、A5 branchには未統合。PR #6827の`16af3053` head checksではmanifest修正前のOSS checkがFAILし、他のcheckはPASS。新しいheadでのCI証拠はまだない。
 
 **現在cursor:** manifestのlocal再現・修正・focused verifierは完了。次は最新main `85f17537`をmergeし、A5 focused/privacy/registry/loop-contract/runtimeを再検証してからpushする。その後のsame-head CI/fresh review/mergeが完了するまでPR #6827はdraftのまま。A5 production migration/release/readbackとA6→A8→A9→A10は続く。
+
+### 2026-10-08 16:33 JST — latest-main A5 local acceptance
+
+この更新は16:31節のmerge/test cursorを置き換える。productionに対するmigration/apply/runはしていない。
+
+- A5 branch `feat/cfo-a5-cost-visibility-20261007` HEAD `e9fab969085d06e641ba596d3e6166037bdd0c53` は`origin/main=85f175379e4de97143a82f62afd389acb8133f1a`を含み、working tree clean。現在のPR #6827 remote headは`16af3053`、baseRefOidは`c61f2c89`、OPEN/DRAFTであり、この同期headは未push。PRの既存OSS FAILはmanifest修正前のheadに対する結果で、新headにはまだCIがない。
+- 同期後ローカルacceptance: A5 SQL/API/UI `112/112`; panel privacy `api=177/browser=63/recipes=19/channels=9`; focused registry `136 passed / 197 subtests`; admission `137 passed`; Node registry adapter `15/15`; `./bin/lm-loop-contract` `ok=true`（18 catalog loops / 187 registry jobs / 112 mapped）; OSS verifier `ok=true`、self-contained test `12/12`、`git diff --check` PASS。
+
+**現在cursor:** source/ローカルacceptanceは最新main `85f17537`まで完了。次にこのbranchをpushし、pushed SHA上でfull runtime suite（release-cut pressure tests含む）、required CI、fresh read-only whole-branch reviewを確認する。これらが同一headで通るまではPRをdraftのままにする。その後にmain merge、production natural reconcile/owner readback、A5 migration/report、A6→A8→A9→A10を順に進める。
