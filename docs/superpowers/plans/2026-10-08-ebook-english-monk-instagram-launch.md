@@ -4,9 +4,9 @@
 
 **Scope:** English eBook distribution only. Capafy remains with its separate owner. Keep English TikTok and Japanese eBook owners separate. Do not publish a different clip as the Hadrian video. Do not buy a HeyGen plan unless a later production-cost check shows it is needed.
 
-**Current evidence (rechecked 2026-10-09 00:57 JST):**
+**Current evidence (rechecked 2026-10-09 01:26 JST):**
 
-- HeyGen title searches for `Hadrian` and `Adrian` return no matches. Monk Factory contains two completed HeyGen IDs (`f4ce3e44217e4844b988e501414cf199` and `2f6c427ce4bc460eb07d17bd7da67d2f`), but each title is its UUID and neither has a script/run mapping. The nearby `en-02` script is about a 90-second emotion wave, not Hadrian. Neither is safe to label as the requested video.
+- HeyGen title searches for `Hadrian` and `Adrian` return no matches. Monk Factory contains two completed HeyGen IDs (`f4ce3e44217e4844b988e501414cf199` and `2f6c427ce4bc460eb07d17bd7da67d2f`). I downloaded and transcribed both locally; both contain the same 90-second emotion script, not Hadrian. Neither is safe to label as the requested video.
 - The known Life Manager MP4 `ebook-run.571924dc4e4867349fc6fd13.mp4` is also different: its script-ledger hook is “When a mistake follows you.” Do not substitute either video.
 - Monk Factory's old morning log reports a Postiz post to integration `cmo5rwq2p00twn10yrsdglng3`. The current product/account registry maps that ID to English TikTok, not Instagram. Its old Instagram ID is historical and is not the current `instagram.monk_anicca` profile. The last official Postiz GET (00:37 JST) returned 31 integrations / 9 Instagram integrations and no English Monk match; the current account registry has `publisher_integration_id=null` and `status=setup_required`.
 - The credential SSOT entry for `instagram-english-monk` remains `phone_verification_pending`. Instagram's signup page showed its normal phone prompt and no CAPTCHA. Reading the SMS through `~/Library/Messages/chat.db` is blocked by macOS privacy access; iPhone Mirroring requested reconnecting the selected device. Do not change privacy settings or bypass verification.
