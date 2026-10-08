@@ -8258,15 +8258,16 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 
 **残TODO（完了まで・この順）:**
 
-1. **現在cursor—このspec差分をcommit/pushする。** 最新main `d785c5391a` と、稼働中release reconciler PID `29922` を保つ。
-2. `runtime/host/resource_admission.py::_limits` のglobal defaultを12、deterministic revenue defaultを5に変更する。browser default 1と明示env overrideは維持する。`runtime/host/tests/test_resource_admission.py` にdefault値と明示overrideの最小回帰を追加し、`./bin/lm-loop-contract` と該当するfocused acceptanceを通す。
-3. source/spec/testをcommit/pushし、exact-head required CIとfresh read-only `ship` reviewをPASSしてmainへ統合する。
-4. active release reconcilerを止めず、main由来immutable releaseへの自然handoffとowner SHA/argvをreadbackする。処理中のConnector/Job Hunter/Fundraiser occurrenceを中断・重複させない。
-5. Job Hunterの`18dca65c685dab50-2410`について、`attempt`・terminal failure・stderr evidenceから`entrypoint_exit_2`の正確な原因を確定して修正し、次のeligible natural Workday runでofficial application receiptを確認する。local failureの再送や申請成功扱いはしない。
-6. Connector `18dca669f80542b0-35406`がLuma登録を行わなかった境界をentrypoint/evidenceから確認し、次のnatural occurrenceでLumaのofficial registration receiptを確認する。
-7. Fundraiserの6 unknown occurrenceをexact targetごとにofficial provider/mailbox readbackまたは厳密なpre-effect proofで照合し、解決できないものはfencedのまま保持する。解決後の新規targetは重複を防ぎ、AI/AGI founderとVCへの結果を公式sent receiptへ結ぶ。
-8. disk cleanupのfresh receipt、同一時刻の`df`とwriter evidenceを継続取得する。512 MiB未満ではrevenue dispatchを許さず、2 GiB cleanup目標をrevenue producer gateへ転用しない。protected pathやactive worktreeは削除しない。
-9. global default 12適用後、queue owner数と最古eligible age、live claims/reservations/class contention、実 finite-run数、CPU/RAM/swap/diskを同一窓で採る。eligible backlogが残り、headroomも安全なら次のbounded increaseまたは共有queue/fence stateを使うhorizontal workerを実装し、queueをdrainする。
-10. 3 target loopの同一occurrenceへ自然terminal、Luma/Workday/VC-mail official receipt、`gpt-6-luna/max/fast`、既存Telegram reportを結び、unknown fence/replay-zeroとcapacity/queue readbackを完了条件として確認する。
+1. **完了:** このlive readback specはcommit `1359fcaab5` としてpush済みであり、remote branch SHAを照合した。
+2. **完了（local source acceptance）:** `runtime/host/resource_admission.py::_limits` のglobal defaultを12、deterministic revenue defaultを5に変更した。既存のdefault-8契約を12へ更新し、deterministic revenueの5枠契約を追加した。`python3 -m pytest -q runtime/host/tests/test_resource_admission.py` は142 passed、`./bin/lm-loop-contract` は`ok=true`、`git diff --check`もPASS。これはsource worktreeの証拠であり、まだmain/releaseへの統合を意味しない。
+3. **現在cursor—source/test/spec progressとlatest-main syncをpushしてPRを作成する。** mainは`d0d30b906c68f31f14394ddcf393d7e47a42212a`へ進み、merge commit `a87481d27a2341d2b10e4851882e143b41728c79`で取り込み済み。exact-head CIとfresh read-only reviewを取得する。
+4. PRをmainへ統合する。
+5. active release reconcilerを止めず、main由来immutable releaseへの自然handoffとowner SHA/argvをreadbackする。処理中のConnector/Job Hunter/Fundraiser occurrenceを中断・重複させない。
+6. Job Hunterの`18dca65c685dab50-2410`について、`attempt`・terminal failure・stderr evidenceから`entrypoint_exit_2`の正確な原因を確定して修正し、次のeligible natural Workday runでofficial application receiptを確認する。local failureの再送や申請成功扱いはしない。
+7. Connector `18dca669f80542b0-35406`がLuma登録を行わなかった境界をentrypoint/evidenceから確認し、次のnatural occurrenceでLumaのofficial registration receiptを確認する。
+8. Fundraiserの6 unknown occurrenceをexact targetごとにofficial provider/mailbox readbackまたは厳密なpre-effect proofで照合し、解決できないものはfencedのまま保持する。解決後の新規targetは重複を防ぎ、AI/AGI founderとVCへの結果を公式sent receiptへ結ぶ。
+9. disk cleanupのfresh receipt、同一時刻の`df`とwriter evidenceを継続取得する。512 MiB未満ではrevenue dispatchを許さず、2 GiB cleanup目標をrevenue producer gateへ転用しない。protected pathやactive worktreeは削除しない。
+10. global default 12適用後、queue owner数と最古eligible age、live claims/reservations/class contention、実 finite-run数、CPU/RAM/swap/diskを同一窓で採る。eligible backlogが残り、headroomも安全なら次のbounded increaseまたは共有queue/fence stateを使うhorizontal workerを実装し、queueをdrainする。
+11. 3 target loopの同一occurrenceへ自然terminal、Luma/Workday/VC-mail official receipt、`gpt-6-luna/max/fast`、既存Telegram reportを結び、unknown fence/replay-zeroとcapacity/queue readbackを完了条件として確認する。
 
-**現在cursor:** commit/push this spec readback → implement 12/5 bounded capacity defaults and focused regression → exact-head acceptance/review/merge → natural release/fleet adoption → Job Hunter terminal repair → Connector Luma and Fundraiser official readbacks → fresh disk/writer evidence → same-window backlog/resource measurement and further bounded scale until no eligible work remains queued.
+**現在cursor:** push merge commit `a87481d27a` plus source/test/spec progress and create the PR → exact-head CI/review/merge → natural release/fleet adoption → Job Hunter terminal repair → Connector Luma and Fundraiser official readbacks → fresh disk/writer evidence → same-window backlog/resource measurement and further bounded scale until no eligible work remains queued.

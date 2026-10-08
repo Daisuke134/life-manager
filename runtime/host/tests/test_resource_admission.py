@@ -27,6 +27,45 @@ def durable_rows(root, table):
         return [dict(zip(columns, row)) for row in connection.execute(f"SELECT * FROM {table}")]
 
 
+def test_unconfigured_deterministic_revenue_capacity_admits_five_workers(
+        tmp_path, monkeypatch):
+    capacity_env = (
+        "LIFE_MANAGER_HOST_MAX_FINITE_RUNS",
+        "LIFE_MANAGER_HOST_MAX_REVENUE_RUNS",
+        "LIFE_MANAGER_HOST_MAX_AGENT_RUNS",
+        "LIFE_MANAGER_HOST_MAX_DETERMINISTIC_RUNS",
+        "LIFE_MANAGER_HOST_MAX_BROWSER_RUNS",
+        "LIFE_MANAGER_HOST_MIN_REVENUE_RUNS",
+    )
+    for name in capacity_env:
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("LIFE_MANAGER_RESOURCE_ADMISSION_ROOT", str(tmp_path))
+    admission.activate_durable_v2()
+
+    claims = []
+    for index in range(5):
+        owner = f"deterministic-revenue-worker-{index}"
+        ticket, _ = admission.enqueue_durable(
+            "deterministic", owner, admission_class="revenue", now=100 + index)
+        assert ticket is not None
+        claim, reason = admission.claim_durable(
+            "deterministic", owner, admission_class="revenue", now=100 + index)
+        assert claim is not None and reason == "acquired", f"index={index}, reason={reason}"
+        claims.append(claim)
+
+    ticket, _ = admission.enqueue_durable(
+        "deterministic", "deterministic-revenue-overflow",
+        admission_class="revenue", now=200)
+    assert ticket is not None
+    overflow, reason = admission.claim_durable(
+        "deterministic", "deterministic-revenue-overflow",
+        admission_class="revenue", now=200)
+    assert overflow is None and reason == "capacity_busy"
+
+    for claim in claims:
+        admission.release_and_reserve(claim, reserve=False, now=201)
+
+
 def enqueue_after_barrier(root, index, barrier, results):
     os.environ["LIFE_MANAGER_RESOURCE_ADMISSION_ROOT"] = str(root)
     os.environ["LIFE_MANAGER_HOST_MAX_FINITE_RUNS"] = "3"
@@ -2487,14 +2526,14 @@ def test_revenue_workers_share_host_capacity_beyond_borrow_agent_limit(
         admission.release_and_reserve(claim, reserve=False)
 
 
-def test_default_host_capacity_allows_eight_revenue_workers(tmp_path, monkeypatch):
+def test_default_host_capacity_allows_twelve_revenue_workers(tmp_path, monkeypatch):
     monkeypatch.setenv("LIFE_MANAGER_RESOURCE_ADMISSION_ROOT", str(tmp_path))
     monkeypatch.delenv("LIFE_MANAGER_HOST_MAX_FINITE_RUNS", raising=False)
     monkeypatch.delenv("LIFE_MANAGER_HOST_MAX_REVENUE_RUNS", raising=False)
     monkeypatch.delenv("LIFE_MANAGER_HOST_MIN_REVENUE_RUNS", raising=False)
     claims = []
 
-    for index in range(8):
+    for index in range(12):
         claim, reason = admission.try_acquire(
             "agent", f"revenue-{index}", retain_ticket=False,
             admission_class="revenue",
@@ -2503,7 +2542,7 @@ def test_default_host_capacity_allows_eight_revenue_workers(tmp_path, monkeypatc
         claims.append(claim)
 
     blocked, reason = admission.try_acquire(
-        "agent", "revenue-nine", retain_ticket=False,
+        "agent", "revenue-thirteen", retain_ticket=False,
         admission_class="revenue",
     )
     assert blocked is None and reason == "capacity_busy"

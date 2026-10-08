@@ -604,16 +604,15 @@ def _database(path: Path) -> sqlite3.Connection:
 
 
 def _limits(resource_class: str, admission_class: str = "borrow") -> tuple[int, int]:
-    total = _capacity("LIFE_MANAGER_HOST_MAX_FINITE_RUNS", 8)
+    total = _capacity("LIFE_MANAGER_HOST_MAX_FINITE_RUNS", 12)
     if admission_class == "revenue":
         if resource_class == "agent":
             return total, _capacity("LIFE_MANAGER_HOST_MAX_REVENUE_RUNS", total)
         if resource_class == "browser":
             return total, _capacity("LIFE_MANAGER_HOST_MAX_BROWSER_RUNS", 1)
-        # Keep one deterministic revenue slot available when two support
-        # deterministic owners are active. The total finite-run cap still
-        # controls the host-wide bound.
-        return total, _capacity("LIFE_MANAGER_HOST_MAX_DETERMINISTIC_RUNS", 3)
+        # Keep five deterministic revenue slots available; the total finite-run
+        # cap still controls the host-wide bound.
+        return total, _capacity("LIFE_MANAGER_HOST_MAX_DETERMINISTIC_RUNS", 5)
     per_class = _capacity(
         "LIFE_MANAGER_HOST_MAX_AGENT_RUNS" if resource_class == "agent"
         else "LIFE_MANAGER_HOST_MAX_BROWSER_RUNS" if resource_class == "browser"
