@@ -7381,3 +7381,11 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 **順序更新:** 旧順序は「PR #7156 merge → revenue-floor follow-up PR → disk/admission recovery」。新順序は「(1) #7177 floor + #7156 retry fixを含むbranchを最新main上でexact-head CI/review → (2) #7156 merge → (3) immutable release/natural admission readback → (4) cleanup receipt/free-spaceを見て三loopのeligible状態を確認 → (5) Fundraiserのunresolved effectをofficial readbackで解決、replay-zero → (6) Connector/Job Hunter/Fundraiserのnatural provider結果をoccurrence別に確認 → (7) 同一windowでqueue age、claims、reservations、実同時実行数、CPU/RAM/diskを測り、cap 8が実際の制約か判定」。理由は#7177がsource merge済みで、二重にfloor実装する必要がなく、natural release/readbackが未実施だから。
 
 **現在cursor:** commit/push latest-main merge `e530f1988e`, closed-out floor plan, and this order update → exact-head PR #7156 required CI/fresh read-only review → merge #7156 → immutable release/natural admission readback → disk/target receipts → unresolved effect reconciliation → natural outcomes → post-recovery capacity measurement.
+
+
+### 2026-10-09 00:06 JST — review found and corrected stale cursor
+
+- Fresh review of PR #7156 head `306c419530425e1ba425ef3dfe7ead1f583a7d03` returned `fix-first` only because the prior cursor still asked to commit/push the merge and floor-plan update, already completed at that head. The source fix, regression test, main ancestry, and plan status were otherwise accepted. This entry supersedes that cursor.
+- At 00:06 JST, PR #7156 remote head is `306c4195...`, base is `1fe7db3b...`; exact-head CI run `37797802933` has passed Shell syntax, Agent instruction, OSS boundary, PII, and Startup context, while Loop control contracts, Python, TruffleHog, and gitleaks remain pending.
+
+**現在cursor:** run exact-head required CI and fresh read-only review on the current pushed PR #7156 head → merge #7156 → immutable release and natural admission readback → disk/target receipts → unresolved-effect reconciliation → natural outcomes → post-recovery capacity measurement.
