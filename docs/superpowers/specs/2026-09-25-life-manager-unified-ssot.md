@@ -5644,6 +5644,27 @@ PR #7055はmainへmerge済み（`8486f4e854a0e630542aba34d31405b082cd2e45`）。
 8. Verify 3 unique PUBLISHED receipts per eBook account/day (9 total) with replay-zero; then join post→UTM click→settled checkout→matching PDF→settled monthly subscription to compute net MRR. Do not count one-time eBook sales as MRR.
 9. After the eBook paid-order/PDF gate, diagnose the two disabled Capafy IG owners' Bootstrap 5 apply failure using the owner path, restore one canary/24h, and verify the owner-linked PUBLISHED receipt. Do not treat the existing two Capafy posts as cadence proof or reconnect/CAPTCHA work.
 
+### 2026-10-08 14:17 JST — source backoff release loaded; fence target fix remains in PR
+
+This snapshot supersedes the 13:59–14:04 source/release status. PR #7055 backoff fix is in main. Latest main release/current symlink is `20261008T140847-fd0681c1`, SHA `fd0681c1619a19bcd5cd6c7dadd89187a58b8c4c`; its release script contains the `error|partial` backoff guard. Exact-target adapter fix is PR #7057 head `b96aae4f`, CI still running.
+
+**14:17 JST readback:**
+
+- Postiz official GET: eBook 2/9 (EN TikTok 0, JA TikTok 1, JA Instagram 1); Capafy `capafy.hooklab` 2 PUBLISHED. HeyGen title `Anicca` list remains 0 from the latest query.
+- Release reconciler PID 40071 is running on installed release `d28ed3f9`; its current run began before PR #7057 merged. eBook owners and `lm-fence-reconciler` still load `8f342d8d`. Fleet state remains `error` for the older `8f342d8d` apply, with `next_retry=14:06:05`; this does not prove the new `fd0681c1` owners applied.
+- The three old fence calls still return `runtime_occurrence_missing_or_invalid / closed=false`; PR #7057 is needed before owner-side identity lookup can reach those exact targets.
+- Capafy Postiz integration is enabled and has 2 official posts today, while both Capafy Instagram owner jobs remain disabled after the earlier Bootstrap 5 apply error. No new cadence proof is available.
+
+**Remaining atomic TODO:**
+
+1. Pass PR #7057's fresh CI/review and merge; do not treat the provider claims as cleared by the code change.
+2. Let PID 40071 terminate naturally, then let the reconciler fetch latest main, cut/load its immutable release, and complete its target apply. Read back current symlink, loaded SHA/argv for the eBook owners and `lm-fence-reconciler`, fleet state, and lock before any target-specific apply.
+3. After `--occurrence-id` reaches the owner adapter, confirm the old calls advance beyond `runtime_occurrence_missing_or_invalid`. If they become `identity_missing_or_invalid`, keep fences and reconstruct only through a unique local-receipt/official-Postiz join.
+4. Close JP claims only with exact official receipts, then catch up 12:30 through a natural owner wake if the slot is still due. Confirm new Post IDs/URLs.
+5. Resolve EN old HeyGen effect and the `disabled_verified` account gate separately; then test one distinct English slot.
+6. Verify 3 unique PUBLISHED posts/account/day (9 total) and replay-zero; join to settled checkout, matching PDF, monthly subscription, and net MRR.
+7. After the eBook paid-order/PDF gate, repair Capafy IG owner's Bootstrap 5 apply failure and verify one canary/24h; don't infer continuous posting from today's two receipts.
+
 ### 2026-10-08 14:04 JST — exact target handoff is green in source branch; production still held
 
 この節は13:59 entryのsource/owner stateを更新する。PR #7055はmain `8486f4e8`へmerge済み、current symlinkも`20261008T135350-8486f4e8`。この新しいadapter修正はbranch `fix/ebook-fence-target-occurrence-20261008`で作業中。
