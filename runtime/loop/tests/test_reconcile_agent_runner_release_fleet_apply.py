@@ -94,6 +94,14 @@ if [ "$1" = "apply" ]; then
       echo "[{\\"ok\\":true,\\"label\\":\\"$target\\",\\"release_sha\\":\\"x\\",\\"changed\\":true}]"
       exit 0
       ;;
+    supersede_after_first)
+      if [ "$target" = "${FAKE_SUPERSEDE_LOOP_ID:-}" ]; then
+        rm -f "$FAKE_CURRENT_LINK"
+        ln -s "$FAKE_NEXT_RELEASE_ROOT" "$FAKE_CURRENT_LINK"
+      fi
+      echo "[{\\"ok\\":true,\\"label\\":\\"$target\\",\\"release_sha\\":\\"x\\",\\"changed\\":true}]"
+      exit 0
+      ;;
     fail_then_budget)
       if [ "$target" = "${FAKE_FAIL_LOOP_ID:-}" ]; then
         echo '{"ok": false, "error": "boom"}'
@@ -755,6 +763,51 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             state = self._state(root)
             self.assertEqual(state["sha"], sha3,
                              "must apply only the current release, never the coalesced sha2")
+
+    def test_new_current_release_stops_stale_sha_fleet_apply_and_retries_latest(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha1 = self._make_repo(root)
+            loop_ids = ("first-earn", "second-earn")
+            overrides = {
+                loop_id: {"domain": "earn", "priority": "revenue"}
+                for loop_id in loop_ids
+            }
+            release1 = self._make_release(
+                root, sha1, loop_ids=loop_ids, entry_overrides=overrides,
+            )
+            self._activate(root, release1)
+            sha2 = self._advance_repo(repo)
+            release2 = self._make_release(
+                root, sha2, loop_ids=loop_ids, entry_overrides=overrides,
+            )
+            current_link = root / "loops" / "current"
+            calls_log = root / "calls.log"
+            env = self._base_env(
+                root, repo, calls_log=calls_log, apply_mode="supersede_after_first",
+            )
+            env["FAKE_SUPERSEDE_LOOP_ID"] = "first-earn"
+            env["FAKE_CURRENT_LINK"] = str(current_link)
+            env["FAKE_NEXT_RELEASE_ROOT"] = str(release2)
+            env["LIFE_MANAGER_FLEET_APPLY_CONTINUE_SECONDS"] = "0"
+
+            stale = self._run(env)
+            self.assertNotEqual(stale.returncode, 0)
+            stale_state = self._state(root)
+            self.assertEqual(stale_state["sha"], sha1)
+            self.assertEqual(stale_state["status"], "partial")
+            self.assertIn("superseded", stale_state["message"])
+            self.assertIs(stale_state["release_superseded"], True)
+            calls = calls_log.read_text()
+            self.assertIn("target=first-earn", calls)
+            self.assertNotIn("target=second-earn", calls)
+
+            latest = self._run(env)
+            self.assertEqual(latest.returncode, 0, latest.stderr)
+            latest_state = self._state(root)
+            self.assertEqual(latest_state["sha"], sha2)
+            self.assertEqual(latest_state["status"], "ok")
+            self.assertEqual(self._apply_call_count(calls_log), 3)
 
     def _owners_log(self, root):
         path = root / "reconciler-state" / "fleet-apply-owners.jsonl"

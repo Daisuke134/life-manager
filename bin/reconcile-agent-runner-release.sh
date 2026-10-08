@@ -201,8 +201,10 @@ run_fleet_apply() {
   local log_path="$state_dir/fleet-apply.jsonl"
   mkdir -p "$state_dir"
 
-  local last_sha last_status last_next_retry last_ok_epoch last_attempt_epoch last_budget_progress_continue
-  IFS=$'\t' read -r last_sha last_status last_next_retry last_ok_epoch last_attempt_epoch last_budget_progress_continue < <(
+  local last_sha last_status last_next_retry last_ok_epoch last_attempt_epoch
+  local last_budget_progress_continue last_release_superseded
+  IFS=$'\t' read -r last_sha last_status last_next_retry last_ok_epoch last_attempt_epoch \
+    last_budget_progress_continue last_release_superseded < <(
     FLEET_APPLY_STATE_PATH="$state_path" "$runtime_python" - <<'PY'
 import json, os
 path = os.environ["FLEET_APPLY_STATE_PATH"]
@@ -248,7 +250,8 @@ else:
         and errors == 0
         and next_retry > 0
     )
-print(f"{sha}\t{status}\t{next_retry}\t{last_ok_epoch}\t{last_attempt_epoch}\t{int(budget_progress_continue)}")
+release_superseded = data.get("release_superseded") is True
+print(f"{sha}\t{status}\t{next_retry}\t{last_ok_epoch}\t{last_attempt_epoch}\t{int(budget_progress_continue)}\t{int(release_superseded)}")
 PY
   )
 
@@ -267,9 +270,10 @@ PY
     local last_try_epoch="${last_ok_epoch:-0}"
     [ "${last_attempt_epoch:-0}" -gt "$last_try_epoch" ] && last_try_epoch="$last_attempt_epoch"
     local coalesce_until_epoch="$((last_try_epoch + min_interval_seconds))"
-    # A budget-progress partial may record a shorter retry window than the ordinary SHA
-    # coalescing interval; honor that same deadline when the activated SHA changes.
-    if [ "${last_budget_progress_continue:-0}" = "1" ] \
+    # Budget progress or a superseded release may record a shorter retry window than the
+    # ordinary SHA coalescing interval; honor that deadline when the activated SHA changes.
+    if { [ "${last_budget_progress_continue:-0}" = "1" ] \
+      || [ "${last_release_superseded:-0}" = "1" ]; } \
       && [ "${last_next_retry:-0}" -gt 0 ] \
       && [ "${last_next_retry:-0}" -lt "$coalesce_until_epoch" ]; then
       coalesce_until_epoch="$last_next_retry"
@@ -319,7 +323,8 @@ PY
   local budget_deadline_epoch=$((now_epoch + apply_timeout_seconds))
 
   local changed=0 skipped=0 errors=0
-  local already_owned=0 budget_exceeded=0
+  local already_owned=0 budget_exceeded=0 release_superseded=0
+  local superseding_sha="" observed_release_sha=""
   local timed_out_owners="" apply_message=""
 
   # Cheap pre-check before spawning `lm-loop apply`: an owner whose loaded plist already carries
@@ -428,6 +433,12 @@ PY
   local plan_action loop_id
   while IFS=$'\t' read -r plan_action loop_id; do
     [ -z "$loop_id" ] && continue
+    observed_release_sha="$(jq -r '.sha // ""' "$CURRENT/RELEASE.json" 2>/dev/null || true)"
+    if [ "$observed_release_sha" != "$release_sha" ]; then
+      release_superseded=1
+      superseding_sha="$observed_release_sha"
+      break
+    fi
     if [ "$plan_action" = "current" ]; then
       skipped=$((skipped + 1))
       FLEET_APPLY_OWNERS_LOG_PATH="$owners_log_path" FLEET_APPLY_SHA="$release_sha" \
@@ -574,8 +585,20 @@ PY
   done <"$plan_path"
   rm -f "$plan_path"
 
+  # A pointer change after the last planned owner still needs a short retry for the newer sha.
+  if [ "$release_superseded" -eq 0 ]; then
+    observed_release_sha="$(jq -r '.sha // ""' "$CURRENT/RELEASE.json" 2>/dev/null || true)"
+    if [ "$observed_release_sha" != "$release_sha" ]; then
+      release_superseded=1
+      superseding_sha="$observed_release_sha"
+    fi
+  fi
+
   local status message
-  if [ "$already_owned" -eq 1 ]; then
+  if [ "$release_superseded" -eq 1 ]; then
+    status="partial"
+    message="release superseded by current sha ${superseding_sha:-unavailable}"
+  elif [ "$already_owned" -eq 1 ]; then
     status="skip"
     message="$apply_message"
   elif [ -n "$timed_out_owners" ] || [ "$budget_exceeded" -eq 1 ]; then
@@ -593,10 +616,16 @@ PY
 
   local next_retry_epoch=0
   { [ "$status" = "error" ] || [ "$status" = "partial" ]; } && next_retry_epoch=$((now_epoch + backoff_seconds))
+  local release_superseded_continue=0
+  if [ "$release_superseded" -eq 1 ]; then
+    release_superseded_continue=1
+    next_retry_epoch="$(date -u +%s)"
+  fi
   # A pass that only ran out of budget (no hung owner) after applying owners is progress, not a
   # failure: continue on the same sha soon so the fleet converges before the next release.
   local budget_progress_continue=0
-  if [ "$status" = "partial" ] && [ "$budget_exceeded" -eq 1 ] && [ -z "$timed_out_owners" ] \
+  if [ "$status" = "partial" ] && [ "$release_superseded" -eq 0 ] \
+    && [ "$budget_exceeded" -eq 1 ] && [ -z "$timed_out_owners" ] \
     && [ "$changed" -gt 0 ] && [ "$errors" -eq 0 ]; then
     budget_progress_continue=1
     next_retry_epoch=$((now_epoch + ${LIFE_MANAGER_FLEET_APPLY_CONTINUE_SECONDS:-300}))
@@ -609,6 +638,7 @@ PY
     FLEET_APPLY_CHANGED="$changed" FLEET_APPLY_SKIPPED="$skipped" FLEET_APPLY_ERRORS="$errors" \
     FLEET_APPLY_MESSAGE="$message" FLEET_APPLY_NEXT_RETRY="$next_retry_epoch" \
     FLEET_APPLY_BUDGET_PROGRESS_CONTINUE="$budget_progress_continue" \
+    FLEET_APPLY_RELEASE_SUPERSEDED="$release_superseded_continue" \
     FLEET_APPLY_LAST_OK_EPOCH="$new_last_ok_epoch" \
     "$runtime_python" - <<'PY'
 import json, os, time
@@ -622,6 +652,7 @@ record = {
     "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     "next_retry_epoch": int(os.environ["FLEET_APPLY_NEXT_RETRY"]),
     "budget_progress_continue": os.environ["FLEET_APPLY_BUDGET_PROGRESS_CONTINUE"] == "1",
+    "release_superseded": os.environ["FLEET_APPLY_RELEASE_SUPERSEDED"] == "1",
     "last_ok_epoch": int(os.environ["FLEET_APPLY_LAST_OK_EPOCH"]),
 }
 state_path = os.environ["FLEET_APPLY_STATE_PATH"]
