@@ -54,6 +54,18 @@ case "${1:-}" in
         printf 'state = not running\n'
         exit 0
         ;;
+      gui/*/ai.anicca.life-manager-release-reconciler:waiting_then_not_running)
+        reads_file="${state_file}.reads"
+        reads="$(cat "$reads_file" 2>/dev/null || printf '0')"
+        reads=$((reads + 1))
+        printf '%s' "$reads" > "$reads_file"
+        if [ "$reads" -eq 1 ]; then
+          printf 'state = waiting\n'
+        else
+          printf 'state = not running\n'
+        fi
+        exit 0
+        ;;
       gui/*/ai.anicca.life-manager-release-reconciler:not_running_pid)
         printf 'state = not running\n'
         printf 'pid = 42\n'
@@ -205,6 +217,24 @@ exit 64
             self.assertNotIn(
                 f"bootout {domain}/ai.anicca.life-manager-release-reconciler",
                 commands,
+            )
+
+    def test_handoff_requires_two_consecutive_not_running_observations_after_waiting(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            result, evidence, commands, _, _ = self._run_handoff_fixture(
+                root, "waiting_then_not_running",
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(evidence["status"], "ok")
+            self.assertEqual(evidence["old_service_state"], "not running")
+            domain = f"gui/{os.getuid()}"
+            old_service = f"{domain}/ai.anicca.life-manager-release-reconciler"
+            bootout_index = commands.index(f"bootout {old_service}")
+            self.assertGreaterEqual(
+                sum(command == f"print {old_service}" for command in commands[:bootout_index]),
+                3,
             )
 
     def test_handoff_waits_for_parent_then_bootstraps_target_and_records_readback(self):

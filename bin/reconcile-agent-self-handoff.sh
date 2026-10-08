@@ -167,6 +167,7 @@ done
 # process. Read the actual service state while holding the same per-label lock.
 deadline=$(( $(date -u +%s) + wait_seconds ))
 idle_observations=0
+not_running_observations=0
 old_service_was_absent=0
 while :; do
   old_detail=""
@@ -185,6 +186,7 @@ while :; do
   old_pid="$(printf '%s\n' "$old_detail" | sed -nE 's/^[[:space:]]*pid = ([0-9]+)[[:space:]]*$/\1/p' | head -n 1)"
   case "$old_state" in
     waiting|idle)
+      not_running_observations=0
       if [ -n "$old_pid" ]; then
         case "$old_pid" in
           0|1|*[!0-9]*)
@@ -200,9 +202,10 @@ while :; do
       fi
       ;;
     "not running")
+      idle_observations=0
       [ -z "$old_pid" ] || fail_handoff "old_service_not_running_pid_present" 69
-      idle_observations=$((idle_observations + 1))
-      [ "$idle_observations" -ge 2 ] && break
+      not_running_observations=$((not_running_observations + 1))
+      [ "$not_running_observations" -ge 2 ] && break
       ;;
     running)
       case "$old_pid" in
@@ -211,6 +214,7 @@ while :; do
           ;;
       esac
       idle_observations=0
+      not_running_observations=0
       ;;
     *)
       fail_handoff "old_service_state_unknown" 69
