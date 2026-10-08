@@ -260,14 +260,14 @@ continue immediately to the next candidate and live discovery.
    submit, and completion readback for that candidate has finished.
    Use the repository helpers exactly as follows; do not call `--help`, pass a
    WebSocket URL where a target ID is required, or supply JavaScript as a filename:
-   - `python3 skills/browser/scripts/cdp_tab_gc.py --owner ai.anicca.fundraiser`
-   - `TARGET_ID="$(python3 skills/browser/scripts/cdp_default_tab.py open about:blank --owner ai.anicca.fundraiser | jq -r '.target_id')"`
+   - `python3 skills/browser/scripts/cdp_tab_gc.py --owner "$CLOAK_BROWSER_OWNER"`
+   - `TARGET_ID="$(python3 skills/browser/scripts/cdp_default_tab.py open about:blank --owner "$CLOAK_BROWSER_OWNER" | jq -r '.target_id')"`
    - Require a non-empty `TARGET_ID`; use it for every CDP command. Never print or
      persist the full helper JSON or WebSocket URL.
    - Immediately persist only the non-secret ID with `printf '%s' "$TARGET_ID" > "$FUNDRAISER_EVIDENCE_DIR/target-id"`; in every later shell command restore it with `TARGET_ID="$(cat "$FUNDRAISER_EVIDENCE_DIR/target-id")"`. The helper has no `list` command.
    - `python3 skills/browser/scripts/cdp.py nav "$TARGET_ID" "$URL"`
    - `printf '%s\n' "$JS" | python3 skills/browser/scripts/cdp.py eval "$TARGET_ID" -`
-   - `python3 skills/browser/scripts/cdp_default_tab.py close "$TARGET_ID" --owner ai.anicca.fundraiser`
+   - `python3 skills/browser/scripts/cdp_default_tab.py close "$TARGET_ID" --owner "$CLOAK_BROWSER_OWNER"`
 3. Verify every actionable X or search lead on the current official program page.
 4. Queue every currently open, reasonably eligible public application route.
    Prefer in-person Tokyo and United States cohorts, with San Francisco Bay Area

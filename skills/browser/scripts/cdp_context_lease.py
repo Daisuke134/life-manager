@@ -95,6 +95,14 @@ def _acquire_url(argv):
     return "about:blank"
 
 
+def _acquire_options(argv):
+    return {
+        "url": _acquire_url(argv),
+        "no_seed": "--no-seed" in argv,
+        "create_target": "--context-only" not in argv,
+    }
+
+
 def _operation_lock_path(target_id):
     leases_dir = os.path.dirname(_leases_path())
     return os.path.join(leases_dir, "operations", f"{target_id}.lock")
@@ -1490,11 +1498,7 @@ if __name__ == "__main__":
         token = sys.argv[sys.argv.index("--token") + 1] if "--token" in sys.argv else None
         generation = int(sys.argv[sys.argv.index("--generation") + 1]) if "--generation" in sys.argv else None
         if cmd == "acquire":
-            out = acquire(
-                arg or "unnamed",
-                url=_acquire_url(sys.argv),
-                no_seed="--no-seed" in sys.argv,
-            )
+            out = acquire(arg or "unnamed", **_acquire_options(sys.argv))
         elif cmd == "heartbeat":
             out = heartbeat(arg or "unnamed", token=token, generation=generation)
         elif cmd == "release":

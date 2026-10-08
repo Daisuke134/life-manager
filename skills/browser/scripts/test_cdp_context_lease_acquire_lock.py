@@ -90,6 +90,21 @@ def test_context_only_acquire_does_not_create_a_seed_target(monkeypatch, tmp_pat
     assert calls == ["Target.createBrowserContext"]
 
 
+def test_acquire_cli_context_only_flag_selects_context_only_mode():
+    module = load_module()
+    assert module._acquire_options([
+        "cdp_context_lease.py", "acquire", "ai.anicca.fundraiser", "about:blank",
+        "--context-only",
+    ]) == {
+        "url": "about:blank", "no_seed": False, "create_target": False,
+    }
+    assert module._acquire_options([
+        "cdp_context_lease.py", "acquire", "connector", "about:blank",
+    ]) == {
+        "url": "about:blank", "no_seed": False, "create_target": True,
+    }
+
+
 def test_seed_and_dispose_failure_keeps_cleanup_tombstone(monkeypatch, tmp_path):
     module = load_module()
     leases_file = tmp_path / "leases.json"
