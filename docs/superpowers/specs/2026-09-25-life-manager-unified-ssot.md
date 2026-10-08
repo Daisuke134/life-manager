@@ -10018,17 +10018,6 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 
 **現在cursor:** A6 invoice/usage/cash/trace reconciliation → A8 full loop/job coverage → A9 source-period CFO report → A10 seven-day natural acceptance. A5 panel auth remains separately deferred; Money Tree/A7 and Cloud cost optimization remain outside this lane.
 
-### 2026-10-09 08:06 JST — A8 per-loop coverage census confirms company P&L is unknown
-
-The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-33192`) confirms the breadth of the A8 gap; it does not add new settled revenue or costs.
-
-- Historical company projection is `unknown` with 173 coverage gaps across 18/18 loops. Reasons: `missing_category` 162, `stale_readback` 5, `unverified_receipt` 3, `source_unconnected` 2, `missing_coverage` 1.
-- Trailing company projection is `unknown` with 168 gaps across 18/18 loops. MRR projection is `unknown` with 26 gaps across 17 loops; only `mobile-apps` MRR is verified at USD `20.34`.
-- Historical gap counts by loop: affiliate 10; agent-economy 9; capafy 10; cfo 10; connector 9; ebook 9; fundraiser 9; gig-coconala 10; gig-crowdworks 10; gig-lancers 10; gig-mercor 9; investment 11; job-hunter 9; line-sticker 9; mobile-apps 10; promptbase 9; self-build 10; writer 10. Every loop has nine missing categories; additional loop-specific source/readback gaps account for the remainder.
-- Do not convert any gap to zero. Close each source with an official settlement/expense receipt or a source-backed verified-zero window; keep bank/card/provider charges and shared overhead represented in company totals.
-
-**TODO順序と現在cursor:** 旧cursor=`A6 invoice/usage/cash/trace → A8 source coverage → A9 → A10`。新cursor=`(1) 現在: A6 billed invoiceと同期間usage/cash/loop traceを照合 → (2) A8の18 loop/188 job/113 mapped coverage gapsをsource ownerごと閉じる → (3) A9 daily/MTD/trailing/MRRを正しい期間で表示 → (4) A10 7日連続natural acceptance`。A5 panel authはTelegram-onlyのため別途deferred、A7/Money TreeとCloud savingsは対象外。
-
 ### 2026-10-09 07:48 JST — R27 priority decision and mobile funnel readback
 
 この記録はR27とmobile funnelの現状を更新する。priority source changeと3/day達成はまだ未完了。
@@ -10058,3 +10047,14 @@ R27 source change is implemented in the leased main-derived worktree. This is so
 **残りTODO順:** (1) complete full loop test discovery and final diff check → (2) commit/push this branch, pass exact-head CI, and merge → (3) let the active release reconciler reach its natural terminal state; then read back the main-derived immutable release and all 18 owner SHAs/queue bindings → (4) prove 3 distinct scheduled Postiz `PUBLISHED` receipts per account/day, including direct links and Telegram report links → (5) reconcile the two metrics owners' unknown effects before persisting post views/engagement → (6) join campaign, ASC acquisition, RevenueCat subscription/settlement, and in-app onboarding/purchase evidence → (7) iterate distribution first, then listing and onboarding against verified net MRR. No 3/day or $10K MRR result is claimed.
 
 **現在mobile cursor:** source tests PASS → fetch/rebase latest main if it advanced → commit/push + CI/merge → natural release/18-owner readback → 3/day receipts and links → durable post metrics → funnel evidence → verified $10K net MRR. No image generation is part of the per-post path; use the shared persistent assets.
+
+### 2026-10-09 08:06 JST — A8 per-loop coverage census confirms company P&L is unknown
+
+The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-33192`) confirms the breadth of the A8 gap; it does not add new settled revenue or costs.
+
+- Historical company projection is `unknown` with 173 coverage gaps across 18/18 loops. Reasons: `missing_category` 162, `stale_readback` 5, `unverified_receipt` 3, `source_unconnected` 2, `missing_coverage` 1.
+- Trailing company projection is `unknown` with 168 gaps across 18/18 loops. MRR projection is `unknown` with 26 gaps across 17 loops; only `mobile-apps` MRR is verified at USD `20.34`.
+- Historical gap counts by loop: affiliate 10; agent-economy 9; capafy 10; cfo 10; connector 9; ebook 9; fundraiser 9; gig-coconala 10; gig-crowdworks 10; gig-lancers 10; gig-mercor 9; investment 11; job-hunter 9; line-sticker 9; mobile-apps 10; promptbase 9; self-build 10; writer 10. Every loop has nine missing categories; additional loop-specific source/readback gaps account for the remainder.
+- Do not convert any gap to zero. Close each source with an official settlement/expense receipt or a source-backed verified-zero window; keep bank/card/provider charges and shared overhead represented in company totals.
+
+**TODO順序と現在cursor:** 旧cursor=`A6 invoice/usage/cash/trace → A8 source coverage → A9 → A10`。新cursor=`(1) 現在: A6 billed invoiceと同期間usage/cash/loop traceを照合 → (2) A8の18 loop/188 job/113 mapped coverage gapsをsource ownerごと閉じる → (3) A9 daily/MTD/trailing/MRRを正しい期間で表示 → (4) A10 7日連続natural acceptance`。A5 panel authはTelegram-onlyのため別途deferred、A7/Money TreeとCloud savingsは対象外。
