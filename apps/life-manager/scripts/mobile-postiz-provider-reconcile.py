@@ -12,6 +12,7 @@ import os
 from pathlib import Path
 import re
 import sqlite3
+import time
 import stat
 import sys
 import urllib.error
@@ -1054,6 +1055,7 @@ def _persist_recovered_distribution_row(identity: dict[str, Any], proof: dict[st
 _INTEGRATION_REF = re.compile(r"^integration://postiz/[a-z0-9_-]+/([A-Za-z0-9][A-Za-z0-9._:-]{0,127})$")
 _POSTS_LIMIT = 100
 HISTORICAL_SWEEP_PER_CALL = 25
+HISTORICAL_MIN_AGE_SECONDS = 6 * 3600
 
 
 def _owner_integration_id(owner_id: str, identity_dir: Path) -> str | None:
@@ -1129,10 +1131,13 @@ def sweep_historical_no_dispatch(
         resolver = resource_admission.resolve_historical_no_dispatch_occurrence
     try:
         with sqlite3.connect(f"file:{admission_db}?mode=ro", uri=True, timeout=10) as connection:
+            # Newest first, but never a fence younger than the margin: its run may still be
+            # going.  Oldest-first stalled because the oldest windows really contain posts.
             fenced = connection.execute(
                 "SELECT occurrence_id, queued_at FROM occurrences WHERE owner_id=? "
-                "AND state='claimed' AND effect_unknown=1 ORDER BY queued_at LIMIT ?",
-                (owner_id, int(max_items)),
+                "AND state='claimed' AND effect_unknown=1 AND queued_at<=? "
+                "ORDER BY queued_at DESC LIMIT ?",
+                (owner_id, time.time() - HISTORICAL_MIN_AGE_SECONDS, int(max_items)),
             ).fetchall()
     except sqlite3.Error:
         return _inconclusive(owner_id, "", "admission_pending_read_failed")
