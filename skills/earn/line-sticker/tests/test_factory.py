@@ -15,7 +15,7 @@ sys.path.insert(0, str(MODULE_ROOT))
 import factory as MODULE  # noqa: E402
 
 
-def _plan(set_dir, prior):
+def _plan(set_dir, prior, market_items=None):
     return {
         "theme": "test", "series_of": None, "character_id": "char-test-001", "character_prompt": "a test mascot",
         "motions": [{"id": f"m{i}", "prompt": f"motion {i}"} for i in range(30)],
@@ -295,9 +295,9 @@ class SeriesSequel(unittest.TestCase):
 
             seen = {}
 
-            def capturing_planner(set_dir, prior_facts):
+            def capturing_planner(set_dir, prior_facts, market_items=None):
                 seen["facts"] = prior_facts
-                return _plan(set_dir, prior_facts)
+                return _plan(set_dir, prior_facts, market_items)
 
             deps = _fake_deps(planner=capturing_planner)
             MODULE.wake(state_root, deps)  # starts set-002, runs plan stage
@@ -307,6 +307,39 @@ class SeriesSequel(unittest.TestCase):
                 "title": {"ja": "毎日使えるカワウソ", "en": "Otter"}, "state_observed": "販売中",
                 "sales_jpy": None,
             }])
+
+    def test_market_items_feed_the_planner(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_root = Path(tmp)
+            state_root.mkdir(exist_ok=True)
+            MODULE._atomic_write_json(state_root / "market.json", {
+                "observed_at": MODULE.now_utc().isoformat(),
+                "items": [{"product_id": str(n), "title": f"item-{n}"} for n in range(20)],
+            })
+
+            seen = {}
+
+            def capturing_planner(set_dir, prior_facts, market_items=None):
+                seen["market_items"] = market_items
+                return _plan(set_dir, prior_facts, market_items)
+
+            deps = _fake_deps(planner=capturing_planner)
+            MODULE.wake(state_root, deps)  # starts set-001, runs plan stage
+            self.assertEqual(len(seen["market_items"]), 15)
+            self.assertEqual(seen["market_items"][0]["product_id"], "0")
+
+    def test_missing_market_json_feeds_the_planner_an_empty_list(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_root = Path(tmp)
+            seen = {}
+
+            def capturing_planner(set_dir, prior_facts, market_items=None):
+                seen["market_items"] = market_items
+                return _plan(set_dir, prior_facts, market_items)
+
+            deps = _fake_deps(planner=capturing_planner)
+            MODULE.wake(state_root, deps)
+            self.assertEqual(seen["market_items"], [])
 
     def test_prior_set_facts_include_known_sales_and_leave_unknown_unset(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
