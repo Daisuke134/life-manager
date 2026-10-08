@@ -13,7 +13,7 @@
 
 - eBook checkout/webhook/PDF fulfillmentは anicca-products の既存Stripe・Netlify・Supabase・Resend経路を使う。
 - eBookとCapafyのcreative・投稿ownerはLife Managerの既存Marketing Engine、account registry、publication adapterへ接続する。旧OpenClaw schedulerは再有効化しない。
-- eBook marketingは既存の本人所有Instagram/TikTok accountだけを使う。registryとprovider readbackでidentity・good-standingを確認できないaccountは使わず、代替accountも作らない。
+- eBook marketingは本人所有と公式statusを確認したInstagram/TikTok accountに配信する。DaisがEnglish Monk Instagramを明示指定したため、専用accountの作成とPostiz接続を許可する。他productのaccountは流用しない。registryとprovider readbackでidentity・good-standing・enabled integrationを確認できないrouteではeffectを起こさない。
 - Capafyは既存の life-manager-capafy-ig Postiz laneを唯一のpublish ownerにする。Capafy product code・価格・listing・account lifecycleは変更しない。
 - eBook向けsystem-generated baseline creativeは、ユーザーが委任したeBook marketingのstanding policy内で配信する。対象product、locale、既存account、approved claims、CTA/token、renderer、media formatを決定的に検査し、Daisが直接編集したcopyは明示確認なしに変更・公開しない。
 
@@ -22,7 +22,7 @@
 - English `ebook-en-anicca-monk`は既存のHeyGen CLIを使い、Marketing Engineのapproved baseline scriptをAvatar IVで映像化する。HeyGenのfreeform script writerに商品claimを作らせない。avatar/voice IDは既存のAnicca monk素材を使い、API render receiptと費用readbackを保存する。
 - Japanese `ebook-ja-watercolor`はWatercolor Monk Factoryの既存Kling scene 02–10/12/13を使い、Life Manager所有のversioned asset rootへ一度コピーしてSHA-256で検証する。distribution実行時に旧factory checkoutやOpenClaw sourceへアクセスしない。コピーした映像へMarketing Engineの日本語baseline scriptを既存のローカル音声・caption rendererで合わせる。FFmpegにlibass subtitles filterがないhostでは、Pillowで日本語caption overlayを作り、FFmpegの`overlay` filterで焼き付ける。両rendererは同じMarketing Engineのscript・product/slot receipt・campaign token契約を使う。
 - 各localeはpackのAsia/Tokyo slotsで毎日3本を生成する。1 product/slotにつきrenderは1回とし、同じ動画をそのslotに属する全active Postiz targetへ配る。owner occurrenceごとの投稿effectは最大1件。
-- Japanese Instagram/TikTokはactive targetとして登録済み。English packは既存TikTok integrationを参照するが、現在は`provider_disabled` hold中でactive targetではない。English Instagramはdedicated account未登録のため追加・流用しない。投稿前にPostiz integrationのidentity/enabled readbackを行い、disabledまたは不一致ならeffectを発生させない。
+- Japanese Instagram/TikTokはactive targetとして登録済み。English Monk Instagramが指定先であり、既存のEnglish TikTok routeとは別ownerとして扱う。専用Instagram accountとenabled Postiz integrationの公式readbackがそろうまでは`setup_required`でfail-closedにする。`@anicca.en`やTikTokへはfallbackしない。投稿前にPostiz integrationのidentity/enabled readbackを行い、disabledまたは不一致ならeffectを発生させない。
 - HeyGenはrender前後のwallet readbackを各render receiptへ記録する。walletを読めないrunはcreate前に止める。create後にcost/deltaが確定できないrunはreceiptをreconciliation holdに置き、次のrenderを始めない。既存のHeyGen auto-reload設定を変更しない。
 
 ## 現状（2026-10-06 14:05 JST refresh）
@@ -230,3 +230,12 @@ sequenceDiagram
 - eBook implementation tasks: docs/superpowers/plans/2026-10-05-ebook-revenue-loop.md
 - Capafy Instagram D5 marketing tasks: docs/superpowers/plans/2026-10-04-capafy-10k-mrr-recipe.md
 - Capafy product development cursor: the separate owner's canonical project plan
+
+## 2026-10-08 English Monk Instagram の現状
+
+- 対象は英語eBookだけ。Capafyは別ownerの範囲。
+- HeyGen公式 `video get` は `db2dab0924e19b88c14e03a6a7849069` を `completed` と返す。対応するrun receiptとMP4のSHA-256は `132d9b326059f9b74d6020e4bca50f0a77d2f2f5ca0595d2f2feb56449c12183` で一致し、MP4はH.264、1080×1920、13.44秒。再生成やHeyGen月額契約は不要。
+- Postiz公式GETは31 integrations（Instagram 9）。English MonkのInstagram integrationは0件。既存 `monk_anicca` TikTok integrationはenabledだが、指定されたInstagram先の代わりには使わない。直近24時間の同TikTok integrationの投稿は0件。
+- Instagram専用accountは認証待ちで、Postiz未接続。現画面は電話SMSコード待ち。MessagesデータベースはmacOSのPrivacy制限でshellから開けず、iPhoneミラーリングは新しいiPhone接続を求める。既存Gmailは別Instagram accountで使用中と登録画面が拒否した。CAPTCHAは表示されていない。
+- `ebook-en-tiktok-daily` はmain SHA `e1b061f1` でloaded-idle、直近admissionは `host_admission_deferred:disk_headroom_low`。22:57 JSTの `df` は空き `224,212 KiB`。canonical cleanup passは空き149,340,160 bytesで、6,411 bytes回収、open候補3件・protected descendant 9件を保持、errors=0/protected_deletions=0。旧occurrence `18dc6de8dcf3a0e8-75262` はLoop上でclaim済みのeffect-unknownとして残る一方、HeyGen sidecarにはcompleted video receiptがある。release reconcilerはPID `79677` でloaded-running。stop/restartしない。
+- 現在の実行順とcursor → `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md`。English Monk Instagramのatomic plan → `docs/superpowers/plans/2026-10-08-ebook-english-monk-instagram-launch.md`。
