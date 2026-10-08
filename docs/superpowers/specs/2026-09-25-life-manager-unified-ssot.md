@@ -5989,6 +5989,15 @@ This snapshot supersedes the 13:59–14:04 source/release status. PR #7055 backo
 - **Branch state:** latest main is now `3c87f64f` (#7090); this A5 branch includes main through `963b047c` only. PR #6827 is still open/draft at head `5e676794` / base `85f17537`; code fix and regression are local and need main sync, push, and same-head CI.
 
 **現在cursor:** integrate latest main `3c87f64f`, rerun A5 focused/privacy checks, push the one-line projection fix and regression test, then verify same-head CI before marking PR ready/merge. The review finding is resolved by the test; avoid a duplicate review pass. After source merge, continue natural production reconciliation, occurrence receipt join, A5 migration/panel readback, then A6→A8→A9→A10.
+
+### 2026-10-08 16:52 JST — latest A5 source and production cursors
+
+この更新は16:47のA5 cursorを置き換える。CFOとrelease reconcilerはread-onlyで確認し、停止・再起動・apply・migrationはしていない。
+
+- **Source:** local A5 branch HEAD `44eb14fc4217ff499081049940fc1e48d7fd7d25` includes latest `origin/main=07aa3fb3` (including PR #7091 reconciler self-handoff change). The panel zero-estimate fix is commit `e73fcb97`; A5 suite is 113/113, panel privacy `api=177/browser=63/recipes=19/channels=9`, OSS verifier/12 tests PASS, registry 136/197 subtests, Node adapter 15/15, loop contract `ok=true`. PR #6827 remains OPEN/DRAFT at remote head `5e676794` / base `85f17537`; current source head is unpushed and has no same-head CI. The previous Python runtime suite was 793/793 on `5e676794`, before the #7091 merge.
+- **Production:** `/Users/anicca/loops/current` is still release `20261008T164623-3c87f64f`; latest main `07aa3fb3` is not installed. The reconciler remains loaded-running PID `35373` on `3c87f64f`; last reported terminal occurrence `18dc7e43b76b4158-26121` is `entrypoint_exit_143`, effect `not_applicable`, no receipt/readback; last success is 07:26:12Z. Status still shows a loaded-running PID, so do not stop/restart it. CFO owner is loaded-idle on `c61f2c89`; latest occurrence `18dc7dd434648360-50277` at 07:38:22Z is `apply_lock_busy` / exit78, effect `not_applicable`, no receipt/readback; last successful report is 06:00:53Z. Disk readback is 5.2 GiB free / 98% used.
+
+**現在cursor:** push current branch, run the full Python runtime suite on the pushed SHA and same-head required CI, then mark PR #6827 ready/merge. After source merge, let the self-handoff reconciler converge naturally to a main-derived release; then verify CFO owner load, admission/lock, occurrence receipt, A5 migration/RPC/panel, and continue A6→A8→A9→A10. A7 Moneytree and A3/A4 cost savings remain deferred.
 ### 2026-10-08 16:19 JST — Local revenue loop post-merge production cursor
 
 この追記は14:09 JSTの旧TODOと15:52 JSTのowner snapshotを更新する。source修正はmain統合済みだが、production完了とは分けて記録する。
