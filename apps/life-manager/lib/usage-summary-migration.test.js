@@ -53,9 +53,9 @@ test("COST-02 groups provider, SKU, operation, and unit with event, request, and
   assert.match(sql, /meta\s*->>\s*'provider'/i);
   assert.match(sql, /meta\s*->>\s*'sku'/i);
   assert.match(sql, /meta\s*->>\s*'operation'/i);
-  assert.match(sql, /SELECT\s+provider,\s*sku,\s*operation,\s*unit,\s*count\(\*\)::bigint\s+AS event_count/i);
-  assert.match(sql, /GROUP BY\s+provider,\s*sku,\s*operation,\s*unit\b/i);
-  assert.match(sql, /ORDER BY\s+provider,\s*sku,\s*operation,\s*unit\b/i);
+  assert.match(sql, /SELECT\s+provider,\s*sku,\s*operation,\s*unit,\s*loop_id,\s*owner_id,\s*CASE[\s\S]*?count\(\*\)::bigint\s+AS event_count/i);
+  assert.match(sql, /GROUP BY\s+provider,\s*sku,\s*operation,\s*unit,\s*loop_id,\s*owner_id\b/i);
+  assert.match(sql, /ORDER BY\s+provider,\s*sku,\s*operation,\s*unit,\s*loop_id,\s*owner_id\b/i);
   assert.match(sql, /sum\(quantity\)/i);
   assert.match(sql, /cache_hit/i);
 });
@@ -85,4 +85,29 @@ test("COST-02 RPC is executable only by service_role and leaves COST-01 intact",
   assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.lm_usage_cost_period_summary\(timestamptz, timestamptz, text\)\s+TO service_role/i);
   assert.doesNotMatch(sql, /GRANT EXECUTE[\s\S]*(anon|authenticated)/i);
   assert.doesNotMatch(sql, /DROP FUNCTION[^;]*lm_usage_cost_summary/i);
+});
+
+test("COST-03 period summary separates costs by runtime loop and trace", () => {
+  const sql = periodSummarySql();
+  const columns = periodSummaryColumns(sql);
+  for (const field of ["loop_id", "owner_id", "trace_status", "linked_trace_event_count",
+    "partial_trace_event_count", "unlinked_trace_event_count", "distinct_run_count",
+    "distinct_occurrence_count", "distinct_release_count", "latest_trace"]) {
+    assert.match(columns, new RegExp(`\\b${field}\\b`, "i"));
+  }
+  assert.match(sql, /uid\s*=\s*p_tenant_id/i);
+  assert.match(sql, /ts\s*>=\s*p_period_start/i);
+  assert.match(sql, /ts\s*<\s*p_period_end/i);
+  assert.match(sql, /runtime_trace/i);
+  assert.match(sql, /'unattributed'/i);
+  assert.match(sql, /GROUP BY\s+provider,\s*sku,\s*operation,\s*unit,\s*loop_id,\s*owner_id\b/i);
+  assert.match(sql, /ORDER BY\s+provider,\s*sku,\s*operation,\s*unit,\s*loop_id,\s*owner_id\b/i);
+  assert.match(sql, /count\(DISTINCT\s+run_id\)/i);
+  assert.match(sql, /count\(DISTINCT\s+occurrence_id\)/i);
+  assert.match(sql, /count\(DISTINCT\s+release_sha\)/i);
+  assert.match(sql, /jsonb_agg\(jsonb_build_object\([\s\S]*?'run_id'[\s\S]*?'occurrence_id'[\s\S]*?'release_sha'[\s\S]*?\)\s+ORDER BY\s+ts\s+DESC\)/i);
+  assert.match(sql, /linked_trace_event_count[\s\S]*trace_status\s*=\s*'linked'/i);
+  assert.match(sql, /partial_trace_event_count[\s\S]*trace_status\s*=\s*'partial'/i);
+  assert.match(sql, /unlinked_trace_event_count[\s\S]*trace_status\s*=\s*'unlinked'/i);
+  assert.doesNotMatch(sql, /GROUP BY\s+[^;]*run_id/i);
 });

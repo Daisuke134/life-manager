@@ -419,9 +419,22 @@ function makeFixture() {
         return jsonResponse({ error: "summary unavailable" }, fixture.summaryRpcStatus);
       }
       const request = JSON.parse(init.body);
-      return jsonResponse(typeof fixture.summaryRowsForPeriod === "function"
+      const rows = typeof fixture.summaryRowsForPeriod === "function"
         ? fixture.summaryRowsForPeriod(request)
-        : []);
+        : [];
+      return jsonResponse(rows.map((row) => row.trace_status ? row : ({
+        ...row,
+        loop_id: "unattributed",
+        owner_id: "unattributed",
+        trace_status: "unlinked",
+        linked_trace_event_count: 0,
+        partial_trace_event_count: 0,
+        unlinked_trace_event_count: row.event_count,
+        distinct_run_count: 0,
+        distinct_occurrence_count: 0,
+        distinct_release_count: 0,
+        latest_trace: null,
+      })));
     }
     const uid = String(url.searchParams.get("uid") || "").replace(/^eq\./, "");
     const userFixture = byUid[uid];
@@ -1192,11 +1205,16 @@ test("authenticated ledger requests Tokyo daily/month-to-date summaries without 
       unit: daily.groups[0].unit,
     }, { provider: "openai", sku: "gpt-5-mini", operation: "responses", unit: "tokens" });
     assert.deepEqual(Object.keys(daily.groups[0]).sort(), [
-      "actual_status", "cache_hit_count", "cache_miss_count", "estimate_status",
+      "actual_status", "cache_hit_count", "cache_miss_count", "distinct_occurrence_count",
+      "distinct_release_count", "distinct_run_count", "estimate_status",
       "estimated_cost_usd", "event_count", "not_applicable_count", "operation",
-      "provider", "provider_units", "request_count", "settled_cost_usd", "sku", "unit",
-      "unknown_actual_event_count", "unknown_estimate_event_count",
+      "latest_trace", "linked_trace_event_count", "loop_id", "owner_id", "partial_trace_event_count",
+      "provider", "provider_units", "request_count", "settled_cost_usd", "sku", "trace_status", "unit",
+      "unknown_actual_event_count", "unknown_estimate_event_count", "unlinked_trace_event_count",
     ].sort());
+    assert.equal(daily.groups[0].loop_id, "unattributed");
+    assert.equal(daily.groups[0].owner_id, "unattributed");
+    assert.equal(daily.groups[0].trace_status, "unlinked");
     assert.deepEqual(daily.groups.map(({ unit }) => unit), ["tokens", "request"]);
     assert.deepEqual(daily.groups.map(({ provider_units }) => provider_units), ["120", "1"]);
     assert.equal(daily.groups[0].estimated_cost_usd, "0.00000042");
@@ -1313,6 +1331,75 @@ test("ledger period projection keeps estimates, settled actuals, and partial unk
   });
 });
 
+test("ledger period projection attributes cost groups and exposes only safe latest trace", async () => {
+  const fixture = makeFixture();
+  fixture.summaryRowsForPeriod = () => [
+    {
+      provider: "openai", sku: "gpt-5-mini", operation: "responses", unit: "tokens",
+      event_count: 4, request_count: 0, cache_hit_count: 0, cache_miss_count: 4,
+      provider_units: "160", estimated_cost_usd: "0.000004", settled_cost_usd: "0.000002",
+      unknown_estimate_event_count: 1, unknown_actual_event_count: 1, not_applicable_count: 0,
+      loop_id: "loop.alpha", owner_id: "owner.alpha", trace_status: "partial",
+      linked_trace_event_count: 2, partial_trace_event_count: 1, unlinked_trace_event_count: 1,
+      distinct_run_count: 2, distinct_occurrence_count: 2, distinct_release_count: 1,
+      latest_trace: {
+        run_id: "run-new", occurrence_id: "loop.alpha:occ-3", release_sha: "a".repeat(40),
+      },
+      meta: { runtime_trace: { run_id: "private-run" }, prompt: "private event text" },
+    },
+    {
+      provider: "openai", sku: "gpt-5-mini", operation: "responses", unit: "request",
+      event_count: 2, request_count: 2, cache_hit_count: 0, cache_miss_count: 2,
+      provider_units: "2", estimated_cost_usd: null, settled_cost_usd: null,
+      unknown_estimate_event_count: 2, unknown_actual_event_count: 2, not_applicable_count: 0,
+      loop_id: "unattributed", owner_id: "unattributed", trace_status: "unlinked",
+      linked_trace_event_count: 0, partial_trace_event_count: 0, unlinked_trace_event_count: 2,
+      distinct_run_count: 0, distinct_occurrence_count: 0, distinct_release_count: 0,
+      latest_trace: null,
+    },
+  ];
+
+  await withApiServer(fixture, async (base) => {
+    const { response, body } = await getJson(base, "ledger");
+    assert.equal(response.status, 200);
+    const daily = body.api_cost.periods.daily;
+    assert.equal(daily.status, "available");
+    assert.deepEqual(daily.groups.map((group) => ({
+      loop_id: group.loop_id,
+      owner_id: group.owner_id,
+      trace_status: group.trace_status,
+      linked_trace_event_count: group.linked_trace_event_count,
+      partial_trace_event_count: group.partial_trace_event_count,
+      unlinked_trace_event_count: group.unlinked_trace_event_count,
+      distinct_run_count: group.distinct_run_count,
+      distinct_occurrence_count: group.distinct_occurrence_count,
+      distinct_release_count: group.distinct_release_count,
+      latest_trace: group.latest_trace,
+    })), [
+      {
+        loop_id: "loop.alpha", owner_id: "owner.alpha", trace_status: "partial",
+        linked_trace_event_count: 2, partial_trace_event_count: 1, unlinked_trace_event_count: 1,
+        distinct_run_count: 2, distinct_occurrence_count: 2, distinct_release_count: 1,
+        latest_trace: {
+          run_id: "run-new", occurrence_id: "loop.alpha:occ-3", release_sha: "a".repeat(40),
+        },
+      },
+      {
+        loop_id: "unattributed", owner_id: "unattributed", trace_status: "unlinked",
+        linked_trace_event_count: 0, partial_trace_event_count: 0, unlinked_trace_event_count: 2,
+        distinct_run_count: 0, distinct_occurrence_count: 0, distinct_release_count: 0,
+        latest_trace: null,
+      },
+    ]);
+    assert.equal(daily.groups[1].estimated_cost_usd, null);
+    assert.equal(daily.groups[1].settled_cost_usd, null);
+    assert.deepEqual(fixture.calls
+      .filter((call) => call.url.pathname.endsWith("/rpc/lm_usage_cost_period_summary"))
+      .map((call) => JSON.parse(call.init.body).p_tenant_id), ["u1", "u1"]);
+    assert.doesNotMatch(JSON.stringify(body), /private event text|private-run|"meta"|runtime_trace/);
+  });
+});
+
 test("ledger period projection keeps null-SKU costs available as unknown", async () => {
   const fixture = makeFixture();
   fixture.summaryRowsForPeriod = ({ p_period_start }) => p_period_start === "2026-07-20T15:00:00.000Z"
@@ -1340,6 +1427,10 @@ test("ledger period projection keeps null-SKU costs available as unknown", async
     assert.equal(daily.counts.event_count, 2);
     assert.equal(daily.groups.length, 2);
     assert.deepEqual(daily.groups[0], {
+      loop_id: "unattributed", owner_id: "unattributed", trace_status: "unlinked",
+      linked_trace_event_count: 0, partial_trace_event_count: 0, unlinked_trace_event_count: 1,
+      distinct_run_count: 0, distinct_occurrence_count: 0, distinct_release_count: 0,
+      latest_trace: null,
       provider: "google", sku: "unknown", operation: "generateContent", unit: "tokens",
       event_count: 1, request_count: 0, cache_hit_count: 0, cache_miss_count: 1,
       provider_units: "50", estimated_cost_usd: "0.00000012", settled_cost_usd: null,

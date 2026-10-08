@@ -730,6 +730,10 @@ function task2LedgerDto() {
           },
           groups: [
             {
+              loop_id: "test.loop", owner_id: "test-owner", trace_status: "linked",
+              linked_trace_event_count: 2, partial_trace_event_count: 0, unlinked_trace_event_count: 0,
+              distinct_run_count: 1, distinct_occurrence_count: 1, distinct_release_count: 1,
+              latest_trace: { run_id: "run-test", occurrence_id: "test.loop:occ-1", release_sha: "a".repeat(40) },
               provider: "OpenAI", sku: "gpt-test", operation: "responses", unit: "request",
               event_count: 2, request_count: 2, cache_hit_count: 0, cache_miss_count: 2,
               provider_units: "2", estimated_cost_usd: "0.00000001", settled_cost_usd: "0.000000005",
@@ -737,6 +741,10 @@ function task2LedgerDto() {
               unknown_estimate_event_count: 0, unknown_actual_event_count: 0, not_applicable_count: 0,
             },
             {
+              loop_id: "test.loop", owner_id: "test-owner", trace_status: "partial",
+              linked_trace_event_count: 0, partial_trace_event_count: 2, unlinked_trace_event_count: 0,
+              distinct_run_count: 2, distinct_occurrence_count: 2, distinct_release_count: 0,
+              latest_trace: { run_id: "run-partial", occurrence_id: "test.loop:occ-2", release_sha: null },
               provider: "DeepSeek", sku: "flash-test", operation: "completion", unit: "tokens",
               event_count: 2, request_count: 0, cache_hit_count: 0, cache_miss_count: 2,
               provider_units: "256", estimated_cost_usd: null, settled_cost_usd: "0.0000005",
@@ -744,6 +752,10 @@ function task2LedgerDto() {
               unknown_estimate_event_count: 2, unknown_actual_event_count: 0, not_applicable_count: 0,
             },
             {
+              loop_id: "test.loop", owner_id: "test-owner", trace_status: "partial",
+              linked_trace_event_count: 1, partial_trace_event_count: 1, unlinked_trace_event_count: 2,
+              distinct_run_count: 1, distinct_occurrence_count: 1, distinct_release_count: 1,
+              latest_trace: { run_id: "run-mixed", occurrence_id: "test.loop:occ-3", release_sha: "b".repeat(40) },
               provider: "Google", sku: "grounded-test", operation: "ground", unit: "grounded_prompt",
               event_count: 4, request_count: 0, cache_hit_count: 1, cache_miss_count: 3,
               provider_units: "10.5", estimated_cost_usd: "0.0000000123", settled_cost_usd: "0.00000009",
@@ -751,6 +763,10 @@ function task2LedgerDto() {
               unknown_estimate_event_count: 1, unknown_actual_event_count: 2, not_applicable_count: 0,
             },
             {
+              loop_id: "unattributed", owner_id: "unattributed", trace_status: "unlinked",
+              linked_trace_event_count: 0, partial_trace_event_count: 0, unlinked_trace_event_count: 1,
+              distinct_run_count: 0, distinct_occurrence_count: 0, distinct_release_count: 0,
+              latest_trace: null,
               provider: "Anthropic", sku: "unknown-test", operation: "completion", unit: "seconds_proxy",
               event_count: 1, request_count: 0, cache_hit_count: 0, cache_miss_count: 1,
               provider_units: "5.2", estimated_cost_usd: null, settled_cost_usd: null,
@@ -827,6 +843,53 @@ test("PANEL-A5: browser renders normalized unknown SKU as 未確認", async () =
 
   assert.match(result.body, /<td>Anthropic<\/td><td>未確認<\/td><td>completion<\/td>/);
   assert.doesNotMatch(result.body, /<td>Anthropic<\/td><td>unknown<\/td>/);
+});
+
+test("PANEL-A5: browser renders loop/owner grouping and newest trace", async () => {
+  const browser = emittedLedgerBrowser();
+  const dto = task2LedgerDto();
+  const groups = dto.api_cost.periods.daily.groups;
+  groups[0] = {
+    ...groups[0], loop_id: "managed.loop", owner_id: "owner-alpha", trace_status: "linked",
+    linked_trace_event_count: 2, partial_trace_event_count: 0, unlinked_trace_event_count: 0,
+    distinct_run_count: 1, distinct_occurrence_count: 1, distinct_release_count: 1,
+    latest_trace: { run_id: "run-current", occurrence_id: "managed.loop:occ-1", release_sha: "a".repeat(40) },
+  };
+  groups[1] = {
+    ...groups[1], loop_id: "managed.loop", owner_id: "owner-partial", trace_status: "partial",
+    linked_trace_event_count: 0, partial_trace_event_count: 2, unlinked_trace_event_count: 0,
+    distinct_run_count: 2, distinct_occurrence_count: 2, distinct_release_count: 0,
+    latest_trace: { run_id: "run-partial", occurrence_id: "managed.loop:occ-2", release_sha: null },
+  };
+  groups[2] = {
+    ...groups[2], loop_id: "managed.loop", owner_id: "owner-mixed", trace_status: "partial",
+    linked_trace_event_count: 1, partial_trace_event_count: 1, unlinked_trace_event_count: 2,
+    distinct_run_count: 1, distinct_occurrence_count: 1, distinct_release_count: 1,
+    latest_trace: { run_id: "run-mixed", occurrence_id: "managed.loop:occ-3", release_sha: "b".repeat(40) },
+  };
+  groups[3] = {
+    ...groups[3], loop_id: "unattributed", owner_id: "unattributed", trace_status: "unlinked",
+    linked_trace_event_count: 0, partial_trace_event_count: 0, unlinked_trace_event_count: 1,
+    distinct_run_count: 0, distinct_occurrence_count: 0, distinct_release_count: 0,
+    latest_trace: null,
+  };
+
+  const result = await browser.load(dto);
+
+  assert.match(result.body, /<th>Loop<\/th><th>Owner<\/th>/);
+  assert.match(result.body, /managed\.loop/);
+  assert.match(result.body, /owner-alpha/);
+  assert.match(result.body, /run-current/);
+  assert.match(result.body, /managed\.loop:occ-1/);
+  assert.match(result.body, /a{40}/);
+  assert.match(result.body, /一部未確認/);
+  assert.match(result.body, /未紐付け/);
+  assert.match(result.body, /unattributed/);
+  assert.match(result.body, /トレース未確認/);
+
+  const unsafe = structuredClone(dto);
+  unsafe.api_cost.periods.daily.groups[0].latest_trace.run_id = "<img src=x onerror=alert(1)>";
+  assert.throws(() => browser.validate(unsafe), /invalid ledger payload/);
 });
 
 test("PANEL-A5: unavailable summaries stay unknown and the unset warning threshold leaves travel/Calendar actions available", async () => {

@@ -17,6 +17,9 @@ const CONNECTION_STATES = new Set(["connected", "action_required", "error", "una
 const CONTROL_NAMES = Object.freeze(["delegation", "physical_automation", "mental_automation", "financial_automation"]);
 const API_COST_UNITS = new Set(["request", "tokens", "grounded_prompt", "seconds_proxy"]);
 const SAFE_API_COST_LABEL = /^[A-Za-z0-9][A-Za-z0-9 .:_/-]{0,127}$/;
+const SAFE_RUNTIME_TRACE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
+const SECRET_RUNTIME_TRACE_ID = /(?:(?:token|secret|password|credential|api.?key)\s*[=:]|auth\.json|sk-[A-Za-z0-9_-]{16,})/i;
+const SAFE_RUNTIME_RELEASE_SHA = /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/;
 
 class PanelSectionUnavailableError extends Error {
   constructor(section) {
@@ -201,6 +204,30 @@ function safeApiCostLabel(value) {
     && !containsSensitiveDisplayValue(value);
 }
 
+function safeRuntimeTraceId(value) {
+  return typeof value === "string"
+    && value !== "unknown"
+    && SAFE_RUNTIME_TRACE_ID.test(value)
+    && !SECRET_RUNTIME_TRACE_ID.test(value)
+    && !containsSensitiveDisplayValue(value);
+}
+
+function projectApiCostTrace(value) {
+  const fields = ["run_id", "occurrence_id", "release_sha"];
+  if (value === null) return null;
+  if (!exactKeys(value, fields)) return undefined;
+  if (value.run_id !== null && !safeRuntimeTraceId(value.run_id)) return undefined;
+  if (value.occurrence_id !== null && !safeRuntimeTraceId(value.occurrence_id)) return undefined;
+  if (value.release_sha !== null && (typeof value.release_sha !== "string"
+    || !SAFE_RUNTIME_RELEASE_SHA.test(value.release_sha))) return undefined;
+  if (fields.every((field) => value[field] === null)) return undefined;
+  return {
+    run_id: value.run_id,
+    occurrence_id: value.occurrence_id,
+    release_sha: value.release_sha,
+  };
+}
+
 function apiCostCount(value) {
   if (typeof value === "string" && !/^\d+$/.test(value)) return null;
   if (typeof value !== "number" && typeof value !== "string") return null;
@@ -246,6 +273,8 @@ function projectApiCostGroup(row) {
   if (!safeApiCostLabel(row.provider)
     || !safeApiCostLabel(sku)
     || !safeApiCostLabel(row.operation)
+    || !safeRuntimeTraceId(row.loop_id)
+    || !safeRuntimeTraceId(row.owner_id)
     || !API_COST_UNITS.has(row.unit)) return null;
   const eventCount = apiCostCount(row.event_count);
   const requestCount = apiCostCount(row.request_count);
@@ -254,18 +283,44 @@ function projectApiCostGroup(row) {
   const unknownEstimateCount = apiCostCount(row.unknown_estimate_event_count);
   const unknownActualCount = apiCostCount(row.unknown_actual_event_count);
   const notApplicableCount = apiCostCount(row.not_applicable_count);
+  const linkedTraceCount = apiCostCount(row.linked_trace_event_count);
+  const partialTraceCount = apiCostCount(row.partial_trace_event_count);
+  const unlinkedTraceCount = apiCostCount(row.unlinked_trace_event_count);
+  const distinctRunCount = apiCostCount(row.distinct_run_count);
+  const distinctOccurrenceCount = apiCostCount(row.distinct_occurrence_count);
+  const distinctReleaseCount = apiCostCount(row.distinct_release_count);
   const providerUnits = apiCostDecimal(row.provider_units);
   const estimatedCost = apiCostDecimal(row.estimated_cost_usd);
   const settledCost = apiCostDecimal(row.settled_cost_usd);
+  const latestTrace = projectApiCostTrace(row.latest_trace);
   if ([eventCount, requestCount, cacheHitCount, cacheMissCount, unknownEstimateCount,
-    unknownActualCount, notApplicableCount].some((value) => value == null)
+    unknownActualCount, notApplicableCount, linkedTraceCount, partialTraceCount,
+    unlinkedTraceCount, distinctRunCount, distinctOccurrenceCount, distinctReleaseCount]
+    .some((value) => value == null)
     || providerUnits === undefined || estimatedCost === undefined || settledCost === undefined
+    || latestTrace === undefined
     || eventCount === 0
     || requestCount > eventCount
     || (row.unit !== "request" && requestCount !== 0)
     || cacheHitCount + cacheMissCount !== eventCount
     || unknownEstimateCount > eventCount
-    || unknownActualCount + notApplicableCount > eventCount) return null;
+    || unknownActualCount + notApplicableCount > eventCount
+    || linkedTraceCount + partialTraceCount + unlinkedTraceCount !== eventCount
+    || distinctRunCount > linkedTraceCount + partialTraceCount
+    || distinctOccurrenceCount > linkedTraceCount + partialTraceCount
+    || distinctReleaseCount > linkedTraceCount + partialTraceCount) return null;
+
+  const traceStatus = linkedTraceCount === eventCount ? "linked"
+    : unlinkedTraceCount === eventCount ? "unlinked" : "partial";
+  if (row.trace_status !== traceStatus
+    || (latestTrace && ((latestTrace.run_id !== null && distinctRunCount === 0)
+      || (latestTrace.occurrence_id !== null && distinctOccurrenceCount === 0)
+      || (latestTrace.release_sha !== null && distinctReleaseCount === 0)))
+    || (traceStatus === "linked" && (!latestTrace || !latestTrace.run_id
+      || !latestTrace.occurrence_id || !latestTrace.release_sha
+      || distinctRunCount === 0 || distinctOccurrenceCount === 0 || distinctReleaseCount === 0))
+    || (traceStatus === "unlinked" && (latestTrace !== null || distinctRunCount !== 0
+      || distinctOccurrenceCount !== 0 || distinctReleaseCount !== 0))) return null;
 
   const estimatedEventCount = eventCount - unknownEstimateCount;
   const settledEventCount = eventCount - unknownActualCount - notApplicableCount;
@@ -277,6 +332,16 @@ function projectApiCostGroup(row) {
     ? (unknownActualCount > 0 ? "partial" : "settled")
     : unknownActualCount > 0 ? "unknown" : "not_applicable";
   return {
+    loop_id: row.loop_id,
+    owner_id: row.owner_id,
+    trace_status: traceStatus,
+    linked_trace_event_count: linkedTraceCount,
+    partial_trace_event_count: partialTraceCount,
+    unlinked_trace_event_count: unlinkedTraceCount,
+    distinct_run_count: distinctRunCount,
+    distinct_occurrence_count: distinctOccurrenceCount,
+    distinct_release_count: distinctReleaseCount,
+    latest_trace: latestTrace,
     provider: row.provider,
     sku,
     operation: row.operation,

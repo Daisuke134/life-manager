@@ -892,8 +892,29 @@ function renderPanelPage(options = {}) {
         && counts.settled_event_count + counts.unknown_actual_event_count + counts.not_applicable_count === counts.event_count;
     }
 
+    function validRuntimeTraceId(value) {
+      return typeof value === "string"
+        && value !== "unknown"
+        && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(value)
+        && !/(?:(?:token|secret|password|credential|api.?key)\s*[=:]|auth\.json|sk-[A-Za-z0-9_-]{16,})/i.test(value)
+        && displaySafeText(value, false);
+    }
+
+    function validLatestTrace(trace) {
+      if (trace === null) return true;
+      return displayExactKeys(trace, ["run_id", "occurrence_id", "release_sha"])
+        && (trace.run_id === null || validRuntimeTraceId(trace.run_id))
+        && (trace.occurrence_id === null || validRuntimeTraceId(trace.occurrence_id))
+        && (trace.release_sha === null || (typeof trace.release_sha === "string"
+          && /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(trace.release_sha)))
+        && (trace.run_id !== null || trace.occurrence_id !== null || trace.release_sha !== null);
+    }
+
     function validApiCostGroup(group) {
       const keys = [
+        "loop_id", "owner_id", "trace_status", "linked_trace_event_count",
+        "partial_trace_event_count", "unlinked_trace_event_count", "distinct_run_count",
+        "distinct_occurrence_count", "distinct_release_count", "latest_trace",
         "provider", "sku", "operation", "unit", "event_count", "request_count",
         "cache_hit_count", "cache_miss_count", "provider_units", "estimated_cost_usd",
         "settled_cost_usd", "estimate_status", "actual_status", "unknown_estimate_event_count",
@@ -901,13 +922,22 @@ function renderPanelPage(options = {}) {
       ];
       const label = /^[A-Za-z0-9][A-Za-z0-9 .:_/-]{0,127}$/;
       if (!displayExactKeys(group, keys)
+        || ![group.loop_id, group.owner_id].every(function (value) {
+          return value === "unattributed" || validRuntimeTraceId(value);
+        })
         || ![group.provider, group.sku, group.operation].every(function (value) {
           return displaySafeText(value, false) && label.test(value);
         })
         || !["request", "tokens", "grounded_prompt", "seconds_proxy"].includes(group.unit)
-        || !["event_count", "request_count", "cache_hit_count", "cache_miss_count", "unknown_estimate_event_count", "unknown_actual_event_count", "not_applicable_count"].every(function (field) {
+        || !["event_count", "request_count", "cache_hit_count", "cache_miss_count", "unknown_estimate_event_count", "unknown_actual_event_count", "not_applicable_count", "linked_trace_event_count", "partial_trace_event_count", "unlinked_trace_event_count", "distinct_run_count", "distinct_occurrence_count", "distinct_release_count"].every(function (field) {
           return Number.isSafeInteger(group[field]) && group[field] >= 0;
         })
+        || !["linked", "partial", "unlinked"].includes(group.trace_status)
+        || group.linked_trace_event_count + group.partial_trace_event_count + group.unlinked_trace_event_count !== group.event_count
+        || group.distinct_run_count > group.linked_trace_event_count + group.partial_trace_event_count
+        || group.distinct_occurrence_count > group.linked_trace_event_count + group.partial_trace_event_count
+        || group.distinct_release_count > group.linked_trace_event_count + group.partial_trace_event_count
+        || !validLatestTrace(group.latest_trace)
         || group.event_count === 0
         || group.request_count > group.event_count
         || (group.unit !== "request" && group.request_count !== 0)
@@ -925,8 +955,21 @@ function renderPanelPage(options = {}) {
       const actualStatus = settledEvents > 0
         ? (group.unknown_actual_event_count > 0 ? "partial" : "settled")
         : group.unknown_actual_event_count > 0 ? "unknown" : "not_applicable";
+      const traceStatus = group.linked_trace_event_count === group.event_count ? "linked"
+        : group.unlinked_trace_event_count === group.event_count ? "unlinked" : "partial";
+      const latest = group.latest_trace;
       return group.estimate_status === estimateStatus
         && group.actual_status === actualStatus
+        && group.trace_status === traceStatus
+        && (!latest || ((latest.run_id === null || group.distinct_run_count > 0)
+          && (latest.occurrence_id === null || group.distinct_occurrence_count > 0)
+          && (latest.release_sha === null || group.distinct_release_count > 0)))
+        && (traceStatus !== "linked" || (latest !== null && latest.run_id !== null
+          && latest.occurrence_id !== null && latest.release_sha !== null
+          && group.distinct_run_count > 0 && group.distinct_occurrence_count > 0
+          && group.distinct_release_count > 0))
+        && (traceStatus !== "unlinked" || (latest === null && group.distinct_run_count === 0
+          && group.distinct_occurrence_count === 0 && group.distinct_release_count === 0))
         && ((estimatedEvents === 0) === (group.estimated_cost_usd === null))
         && ((settledEvents === 0) === (group.settled_cost_usd === null));
     }
@@ -1158,6 +1201,7 @@ function renderPanelPage(options = {}) {
       }
       const estimateLabels = { estimated: "推定済み", partial: "一部未確認", unknown: "未確認" };
       const actualLabels = { settled: "確定済み", complete: "確定済み", partial: "一部未確認", unknown: "未確認", not_applicable: "対象外" };
+      const traceStatusLabels = { linked: "紐付け済み", partial: "一部未確認", unlinked: "未紐付け" };
       function renderApiCostPeriod(key, label, period) {
         const summary = period.status === "available"
           ? "利用記録 " + period.counts.event_count + "件・推定カバー " + period.counts.estimated_event_count + "/" + period.counts.event_count
@@ -1174,21 +1218,31 @@ function renderPanelPage(options = {}) {
             if (group.unknown_actual_event_count > 0) gaps.push("確定未確認 " + group.unknown_actual_event_count + "件");
             if (group.not_applicable_count > 0) gaps.push("確定対象外 " + group.not_applicable_count + "件");
             const sku = group.sku === "unknown" ? "未確認" : group.sku;
-            return '<tr><td>' + escapeHtml(group.provider) + '</td><td>' + escapeHtml(sku)
+            const trace = group.latest_trace
+              ? "run " + (group.latest_trace.run_id || "未確認") + "・occurrence "
+                + (group.latest_trace.occurrence_id || "未確認") + "・release "
+                + (group.latest_trace.release_sha || "未確認")
+              : "トレース未確認";
+            const traceCoverage = "linked " + group.linked_trace_event_count + "・partial "
+              + group.partial_trace_event_count + "・unlinked " + group.unlinked_trace_event_count;
+            return '<tr><td>' + escapeHtml(group.loop_id) + '</td><td>' + escapeHtml(group.owner_id)
+              + '</td><td>' + escapeHtml(group.provider) + '</td><td>' + escapeHtml(sku)
               + '</td><td>' + escapeHtml(group.operation) + '</td><td>' + escapeHtml(group.unit)
               + '</td><td>' + group.event_count + '</td><td>' + group.request_count + '</td><td>'
               + escapeHtml(group.provider_units === null ? "未確認" : group.provider_units) + '</td><td class="api-cost-amount">'
               + escapeHtml(apiCostUsd(group.estimated_cost_usd)) + '</td><td class="api-cost-amount">'
               + escapeHtml(apiCostUsd(group.settled_cost_usd)) + '</td><td>推定 ' + estimateLabels[group.estimate_status]
-              + '・確定 ' + actualLabels[group.actual_status] + '<br>' + escapeHtml(gaps.length ? gaps.join("・") : "未確認なし") + '</td></tr>';
+              + '・確定 ' + actualLabels[group.actual_status] + '<br>' + escapeHtml(gaps.length ? gaps.join("・") : "未確認なし")
+              + '</td><td>' + traceStatusLabels[group.trace_status] + '<br>' + escapeHtml(traceCoverage)
+              + '<br>' + escapeHtml(trace) + '</td></tr>';
           }).join("")
-          : '<tr><td colspan="10">' + (period.status === "verified_empty"
+          : '<tr><td colspan="13">' + (period.status === "verified_empty"
             ? "記録なし（照会済み）"
             : "集計を取得できません。金額と利用量は未確認です。") + '</td></tr>';
         return '<section class="api-cost-period" data-api-cost-period="' + key + '"><h3>' + label
           + '</h3><p class="api-cost-period-summary">' + escapeHtml(summary) + '</p><div class="api-cost-table-wrap"><table class="api-cost-table"><thead><tr>'
-          + '<th>Provider</th><th>SKU</th><th>Operation</th><th>Unit</th><th>イベント数</th><th>リクエスト数</th><th>単位数</th>'
-          + '<th>推定 USD</th><th>確定 USD</th><th>カバー状況</th></tr></thead><tbody>' + rows + '</tbody></table></div></section>';
+          + '<th>Loop</th><th>Owner</th><th>Provider</th><th>SKU</th><th>Operation</th><th>Unit</th><th>イベント数</th><th>リクエスト数</th><th>単位数</th>'
+          + '<th>推定 USD</th><th>確定 USD</th><th>カバー状況</th><th>Runtime trace</th></tr></thead><tbody>' + rows + '</tbody></table></div></section>';
       }
       const stopLabels = { running: "稼働中", negative_net: "赤字", no_external_income: "外部収入なし", reserve_floor: "reserve floor" };
       const reportCards = ["daily", "weekly"].map(function (kind) {
