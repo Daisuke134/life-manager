@@ -53,12 +53,28 @@ const installTreeQueries = node => {
       ...descendants(node).flatMap(child => child.statuses || [])].filter(statusMatches);
   };
 };
-const addRow = (bubble, attrs = {}, siblingAttrs = []) => {
+const makeTree = spec => {
+  const node = el(spec.text || "", spec.attrs || {});
+  node.statuses = (spec.statuses || []).map(s => el(s.text || "", s.attrs || {}));
+  node.children = (spec.children || []).map(makeTree);
+  for (const child of node.children) child.parentElement = node;
+  installTreeQueries(node);
+  return node;
+};
+const wrapChildren = (children, attrs = {}, siblingAttrs = [], siblingTrees = []) => {
   const parent = el("", attrs);
-  parent.children = [bubble, ...siblingAttrs.map(sibling => el("", sibling))];
+  parent.children = [...children, ...siblingAttrs.map(sibling => el("", sibling)),
+    ...siblingTrees.map(makeTree)];
   for (const child of parent.children) child.parentElement = parent;
   installTreeQueries(parent);
-  rowContainers.push(parent);
+  return parent;
+};
+const addRow = (bubble, attrs = {}, siblingAttrs = [], wrapperLevels = []) => {
+  let root = wrapChildren([bubble], attrs, siblingAttrs);
+  for (const level of wrapperLevels) {
+    root = wrapChildren([root], level.attrs || {}, level.siblingAttrs || [], level.siblingTrees || []);
+  }
+  rowContainers.push(root);
   return bubble;
 };
 const editor = el(fixture.editorText ?? "本文");
@@ -67,14 +83,17 @@ const bubbles = (fixture.bubbles || []).map(b => {
   n.statuses = (b.statuses || []).map(s => el(s.text || "", s.attrs || {}));
   n.children = (b.childrenAttrs || []).map(attrs => el("", attrs));
   installTreeQueries(n);
-  return fixture.noRowBoundary && !b.parentAttrs && !b.rowSiblingAttrs
-    ? n : addRow(n, b.parentAttrs || {}, b.rowSiblingAttrs || []);
+  return fixture.noRowBoundary && !b.parentAttrs && !b.rowSiblingAttrs && !b.wrapperLevels
+    ? n : addRow(n, b.parentAttrs || {}, b.rowSiblingAttrs || [], b.wrapperLevels || []);
 });
 if (fixture.messageBubbles) bubbles.push(...fixture.messageBubbles.map(text =>
   addRow(el(text, {"data-e2e": "dm-message"}))));
 if (fixture.otherRows) bubbles.push(...fixture.otherRows.map(row =>
   addRow(el(row.text || "", {"data-e2e": "dm-message", ...(row.attrs || {})}),
-    row.parentAttrs || {}, row.siblingAttrs || [])));
+    row.parentAttrs || {}, row.siblingAttrs || [], row.wrapperLevels || [])));
+if (fixture.sharedAncestorAttrs) {
+  rowContainers.push(wrapChildren(rowContainers.splice(0), fixture.sharedAncestorAttrs));
+}
 const unresolved = fixture.unresolvedMessage ? [el("", {"data-e2e": "dm-message-row"})] : [];
 const list = el(fixture.listText || "", {
   "aria-busy": fixture.listBusy ?? "false",
@@ -1072,6 +1091,104 @@ class TikTokMessageTransportTest(unittest.TestCase):
                 rows = [json.loads(line) for line in
                         (project_root / "delivery/tiktok-message-effects.jsonl").read_text().splitlines()]
                 self.assertEqual([row["state"] for row in rows], ["attempting", "unknown"])
+
+    def test_outer_bounded_row_detects_deep_sender_conflict_before_and_after_send(self):
+        payload = self.payload()
+        fixture = {
+            "topUrl": "https://www.tiktok.com/business-suite/messages?u=candidate",
+            "documentUrl": "https://www.tiktok.com/messages?u=candidate",
+            "headerText": "@candidate", "editorText": "", "listText": "本文",
+            "bubbles": [{"text": "本文", "attrs": {
+                "data-direction": "outgoing", "data-sender-handle": "@anicca.jp",
+            }, "parentAttrs": {"class": "message-row-inner"}, "wrapperLevels": [
+                {"attrs": {"data-direction": "outgoing"}},
+                {"attrs": {"class": "message-row-outer"}, "siblingTrees": [{
+                    "attrs": {"class": "incoming", "data-sender-handle": "@candidate",
+                              "data-is-own": "false"},
+                }]},
+            ]}],
+        }
+        expression = transport._readback_expression("@candidate", "本文", "TIKTOK_TEST", "@anicca.jp")
+        readback = evaluate_js_expression(expression, fixture)
+        self.assertFalse(readback["message_sender_proven"])
+        self.assertFalse(readback["exact_message"])
+
+        for send, readback_arg, expected_states in (
+            (False, "before_readback_fixture", ["unknown"]),
+            (True, "after_readback_fixture", ["attempting", "unknown"]),
+        ):
+            with self.subTest(send=send), tempfile.TemporaryDirectory() as tmp:
+                project_root = pathlib.Path(tmp)
+                (project_root / "delivery").mkdir()
+                fake = FakeCDP(**{readback_arg: fixture})
+                result = self.send(payload, fake, send=send, project_root=project_root)
+                self.assertNotEqual(result["status"], "deduplicated_exact_official_readback")
+                self.assertFalse(result["retry_safe"])
+                if send:
+                    self.assertEqual(result["status"], "send_unknown_reconcile_required")
+                    self.assertFalse(result["exact_readback"])
+                rows = [json.loads(line) for line in
+                        (project_root / "delivery/tiktok-message-effects.jsonl").read_text().splitlines()]
+                self.assertEqual([row["state"] for row in rows], expected_states)
+                self.assertNotIn("sent", [row["state"] for row in rows])
+
+    def test_status_in_adjacent_row_does_not_contaminate_exact_target_row(self):
+        payload = self.payload()
+        fixture = {
+            "topUrl": "https://www.tiktok.com/business-suite/messages?u=candidate",
+            "documentUrl": "https://www.tiktok.com/messages?u=candidate",
+            "headerText": "@candidate", "editorText": "", "listText": "本文\n別の本文",
+            "bubbles": [{"text": "本文", "attrs": {
+                "data-direction": "outgoing", "data-sender-handle": "@anicca.jp",
+            }, "parentAttrs": {"data-direction": "outgoing"}}],
+            "otherRows": [{"text": "別の本文", "attrs": {"data-direction": "incoming"},
+                           "parentAttrs": {"data-status": "failed"}}],
+            "sharedAncestorAttrs": {"class": "conversation-message-group"},
+        }
+        expression = transport._readback_expression("@candidate", "本文", "TIKTOK_TEST", "@anicca.jp")
+        readback = evaluate_js_expression(expression, fixture)
+        self.assertTrue(readback["message_sender_proven"])
+        self.assertTrue(readback["message_status_safe"])
+        self.assertTrue(readback["exact_message"])
+
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp)
+            (project_root / "delivery").mkdir()
+            result = self.send(payload, FakeCDP(before_readback_fixture=fixture), send=False,
+                               project_root=project_root)
+            self.assertEqual(result["status"], "deduplicated_exact_official_readback")
+            self.assertTrue(result["retry_safe"])
+            rows = [json.loads(line) for line in
+                    (project_root / "delivery/tiktok-message-effects.jsonl").read_text().splitlines()]
+            self.assertEqual([row["state"] for row in rows], ["sent"])
+
+    def test_failed_status_in_same_row_is_rejected(self):
+        payload = self.payload()
+        fixture = {
+            "topUrl": "https://www.tiktok.com/business-suite/messages?u=candidate",
+            "documentUrl": "https://www.tiktok.com/messages?u=candidate",
+            "headerText": "@candidate", "editorText": "", "listText": "本文",
+            "bubbles": [{"text": "本文", "attrs": {
+                "data-direction": "outgoing", "data-sender-handle": "@anicca.jp",
+            }, "parentAttrs": {"data-direction": "outgoing"},
+                "rowSiblingAttrs": [{"data-status": "failed"}]}],
+        }
+        expression = transport._readback_expression("@candidate", "本文", "TIKTOK_TEST", "@anicca.jp")
+        readback = evaluate_js_expression(expression, fixture)
+        self.assertFalse(readback["message_status_safe"])
+        self.assertFalse(readback["exact_message"])
+        self.assertIn("failed", readback["message_status"])
+
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp)
+            (project_root / "delivery").mkdir()
+            result = self.send(payload, FakeCDP(before_readback_fixture=fixture), send=False,
+                               project_root=project_root)
+            self.assertEqual(result["status"], "message_delivery_unconfirmed")
+            self.assertFalse(result["retry_safe"])
+            rows = [json.loads(line) for line in
+                    (project_root / "delivery/tiktok-message-effects.jsonl").read_text().splitlines()]
+            self.assertEqual([row["state"] for row in rows], ["unknown"])
 
     def test_outgoing_row_proof_ignores_a_different_conversation_row(self):
         payload = self.payload()

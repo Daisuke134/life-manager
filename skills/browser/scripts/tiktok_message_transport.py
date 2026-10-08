@@ -242,17 +242,21 @@ def _readback_expression(candidate: str, message: str, marker: str, sender: str 
         /failed|error|pending|sending|queued|cancel(?:led|ed)|undelivered|not[ -]?sent/i
       )?.[0] || '';
       const statusFor = node => {
+        const row = boundedMessageRowFor(node);
+        if (!row) return {value: '', owned: false};
         const values = [];
         for (let current = node; current && current !== messageList; current = current.parentElement) {
           values.push(current.getAttribute?.('data-status'), current.getAttribute?.('data-message-status'),
             statusClass(current.className));
-          for (const item of current.querySelectorAll?.(statusSelector) || []) {
-            values.push(item.getAttribute?.('data-status'), item.getAttribute?.('data-message-status'),
-              item.getAttribute?.('aria-label'), item.getAttribute?.('title'),
-              statusClass(item.className), item.innerText);
-          }
+          if (current === row) break;
         }
-        return values.filter(Boolean).join(' ');
+        // Status siblings belong to this message only when the bounded row has one canonical root.
+        for (const item of row.querySelectorAll?.(statusSelector) || []) {
+          values.push(item.getAttribute?.('data-status'), item.getAttribute?.('data-message-status'),
+            item.getAttribute?.('aria-label'), item.getAttribute?.('title'),
+            statusClass(item.className), item.innerText);
+        }
+        return {value: values.filter(Boolean).join(' '), owned: true};
       };
       const senderMarkerEvidence = current => {
         let positive = false;
@@ -291,14 +295,16 @@ def _readback_expression(candidate: str, message: str, marker: str, sender: str 
         return {positive, contradiction};
       };
       const boundedMessageRowFor = node => {
+        let bounded = null;
         for (let scope = node.parentElement; scope && scope !== messageList; scope = scope.parentElement) {
           const messages = [...(scope.querySelectorAll?.(rowBubbleSelector) || [])]
             .filter(item => item && item.isConnected !== false);
           const roots = messages.filter(item =>
             !messages.some(other => other !== item && other.contains?.(item)));
-          if (roots.length === 1 && (roots[0] === node || roots[0].contains?.(node))) return scope;
+          if (roots.length > 1) break;
+          if (roots.length === 1 && (roots[0] === node || roots[0].contains?.(node))) bounded = scope;
         }
-        return null;
+        return bounded;
       };
       const isOutgoing = node => {
         const path = [];
@@ -327,11 +333,15 @@ def _readback_expression(candidate: str, message: str, marker: str, sender: str 
       const possibleBubbleMatch = bubbles.some(node => normalize(node.innerText).includes(expectedText));
       const exactStatuses = exactBubbles.map(statusFor);
       const messageSenderProven = exactBubbles.length > 0 && exactBubbles.every(isOutgoing);
-      const messageStatusSafe = messageSenderProven && !exactStatuses.some(value => statusPattern.test(value));
+      const messageStatusSafe = messageSenderProven && exactStatuses.every(status => status.owned)
+        && !exactStatuses.some(status => statusPattern.test(status.value));
       const exactMessage = contextReady && messageSenderProven && messageStatusSafe;
       const snapshotKey = JSON.stringify({
         documentUrl, topUrl, recipientBound, editorText, messageListText, busy,
-        bubbles: bubbles.map(node => [normalize(node.innerText), statusFor(node)]),
+        bubbles: bubbles.map(node => {
+          const status = statusFor(node);
+          return [normalize(node.innerText), status.owned, status.value];
+        }),
       });
       return {
         url: topUrl, document_url: documentUrl, official_document: officialDocument,
@@ -342,7 +352,8 @@ def _readback_expression(candidate: str, message: str, marker: str, sender: str 
         matching_bubble: exactBubbles.length > 0 || possibleBubbleMatch,
         exact_message: exactMessage,
         message_sender_proven: messageSenderProven, message_status_safe: messageStatusSafe,
-        message_status: exactStatuses.join(' '), conversation_loaded: messageListHydrated,
+        message_status: exactStatuses.map(status => status.value).join(' '),
+        conversation_loaded: messageListHydrated,
         message_count: bubbles.length, snapshot_key: snapshotKey,
       };
     })()'''.replace("__MARKER__", marker).replace(
