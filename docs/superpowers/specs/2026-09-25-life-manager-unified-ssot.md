@@ -6495,3 +6495,20 @@ The next cursor is item 1 commit/push. No Dais manual action is currently requir
 6. Add the existing Stripe Letter price to the product/attribution registry and connect the eBook audience to its recurring offer; verify paid Stripe orders ↔ delivered PDFs separately from active Letter subscriptions. `$10K MRR` remains a target, not a verified result.
 
 **現在cursor:** `natural terminal of 18dc8612b9964870-7017 → exact successful handoff receipt + loaded SHA/argv → reconcile the English video and unknown effect → bind the exact Instagram account → publish once/read back → restore 3/day → map the existing $9.99 Letter subscription into the marketing funnel → verify paid order+PDF and active subscription MRR`. No Capafy action, forced restart, or replay.
+
+### 2026-10-08 19:42 JST — replace stale-helper wait with loaded-idle-only apply
+
+- The old helper from release `88dfdaf4` has now failed on the exact case fixed in main: `state=not running`, PID absent, receipt `old_service_state_unknown`, target `88dfdaf4`. `~/loops/current` now points to immutable release `20261008T193926-d35aa4bc`, whose `reconcile-agent-self-handoff.sh` contains the two-consecutive-`not running` counter. The release reconciler is loaded on old SHA `3c87f64f` but currently `not running` with no PID. Read-only `launchctl-safe preflight` passed (`mutation_allowed=true`, UID/Directory Services/Aqua/GUI readback all matched).
+- **Order change:** previous order was to wait for another natural old-helper attempt. New order is a single-owner `LIFE_MANAGER_APPLY_TARGET=life-manager-release-reconciler lm-loop apply --loaded-idle-only` against the current immutable release, after a fresh `launchctl-safe preflight` and fresh no-PID state read. Reason: the old helper from `88dfdaf4` demonstrably cannot process `not running`; current main now has the fix, and the target owner is idle. `--loaded-idle-only` skips if it becomes running before apply. Do not use raw `launchctl`, stop, or restart.
+- PR #7115 is merged to main. The source fix passed 12/12 focused tests, all required CI, and fresh review. This apply is its remaining runtime promotion step.
+
+**Atomic TODO (eBook only):**
+
+1. Re-read target state and run `launchctl-safe preflight`; if the reconciler has no PID and all checks pass, apply only `life-manager-release-reconciler` from immutable release `d35aa4bc` with `--loaded-idle-only`. If it reports `loaded-running`/skip, do not retry with a broader command.
+2. Confirm Launchd loaded SHA and argv equal the current immutable release; then read the new handoff receipt and next natural terminal event. Do not stop/restart.
+3. Reconcile the Oct 8 HeyGen effect; identify whether A12/A13/A14 or another exact MP4 is intended; confirm it was not previously posted.
+4. Connect the exact English Monk Instagram account. Current Postiz has no matching integration and public `@monk_anicca` is unavailable; do not substitute the iOS `@anicca.en` or TikTok.
+5. Publish one verified MP4 and confirm official `PUBLISHED` receipt/URL; then restore three daily slots.
+6. Map the existing `$9.99/month` Daily Anicca Letter Stripe price into the product/attribution registry. Current active subscriptions are `0`; 1,002 subscribers are needed for `$10K` gross MRR before fees. The `$10.99` eBook checkout is a one-time sale.
+
+**現在cursor:** `fresh no-PID owner readback + preflight → one-target loaded-idle-only apply to d35aa4bc → loaded SHA/argv and receipt readback → reconcile video and unknown effect → bind the exact Instagram account → publish/read back → restore 3/day → register and measure the $9.99 Letter MRR funnel`. No Capafy action, raw launchctl, forced restart, or effect replay.
