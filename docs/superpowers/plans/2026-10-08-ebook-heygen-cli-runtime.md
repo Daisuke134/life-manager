@@ -8,7 +8,7 @@
 
 **Tech Stack:** Node.js, Python 3, node:test, pytest, Life Manager immutable releases.
 
-**Spec:** `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md` — “eBook Monk current blocker cursor — 2026-10-08 09:16 JST”.
+**Spec:** `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md` — “eBook Monk current blocker cursor — 2026-10-08 09:19 JST”.
 
 ## Global Constraints
 
@@ -129,4 +129,4 @@ Observed: focused Node selection 3/3 PASS; complete `ebook-distribute-daily.test
 
 - [ ] **Step 5: Update PR #6999, review, and merge**
 
-Push the amended branch, resolve the fresh Important review finding, wait for required CI, then merge and follow the canonical owner-release path in the spec.
+Commit `3df0114191` is pushed to PR #6999. Obtain a fresh independent review, confirm required CI, then merge and follow the canonical owner-release path in the spec.

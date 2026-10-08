@@ -4369,11 +4369,11 @@ L9-11 Self-BuildはこのGig laneの全項目完了後、既存の全社順序�
 
 **Daisの作業:** 既存Postiz integrationとHeyGen認証の再接続・再認証は不要。手動設定も不要。投稿を止めているのは未loaded main release、release/apply lock、容量receiptの揺れ、English CLI telemetryです。Life Manager側で順に解消する。
 
-### eBook Monk current blocker cursor — 2026-10-08 09:16 JST
+### eBook Monk current blocker cursor — 2026-10-08 09:19 JST
 
 この節がeBookの最新cursorで、09:05 JSTの古いcursorを更新する。対象は英語TikTokのMonk Anicca（`@monk_anicca`）。Postiz接続は生きているが、英語rendererへの環境変数受け渡しとproduction release/capacityが未完了。
 
-**source / review / release:** `origin/main=487795f47d410c1d060f8181a3300354642eca4d`（PR #6997）。PR #6999はHeyGen telemetry opt-outを加えたsource/testとしてopenだが、独立reviewでImportantを検出した。`runtime/loop/lm_loop_run.py`がEnglish ownerへ設定する`LIFE_MANAGER_HEYGEN`と`HEYGEN_NO_ANALYTICS`は、`apps/life-manager/scripts/ebook-distribute-daily.js::renderInput()`がPython renderer用のallowlist環境を作り直す時に落ちる。今回、owner envから英語商品のrenderer subprocessだけへ2値を渡す修正と、実subprocessを捕捉するRED/GREEN testをworktreeに実装・検証済み。PR #6999へのpush/review/mergeは未完了。current immutable symlinkは`/Users/anicca/loops/releases/20261008T084554-3f1bd81a`（SHA `3f1bd81a77b9001284678888b641aaedb1e3e497`）で、PR #6999の変更はproductionに未配備。
+**source / review / release:** `origin/main=487795f47d410c1d060f8181a3300354642eca4d`（PR #6997）。PR #6999はopenで、environment allowlistの断線修正とsubprocess RED/GREEN regressionをcommit `3df0114191`としてpush済み。前回Important findingはsource上修正済みで、fresh review/CI/mergeが残る。current immutable symlinkは`/Users/anicca/loops/releases/20261008T084554-3f1bd81a`（SHA `3f1bd81a77b9001284678888b641aaedb1e3e497`）で、PR #6999の変更はproductionに未配備。
 
 **Monk / official provider readback（09:14 JST）:** Postiz `GET /public/v1/integrations`は`cmo5rwq2p00twn10yrsdglng3`（TikTok `monk_anicca`）を`disabled=false`として返した。ローカルaccount registryも`approved_active`。今日のPostiz official posts GETでは日本語TikTok `cmuynjaq808iblc0yd2396uhg`と日本語Instagram `cmuynjkih08ihlc0y38o87z0n`が各1件`PUBLISHED`、英語Monkは0件。再接続やDaisの操作は不要。
 
@@ -4383,8 +4383,8 @@ L9-11 Self-BuildはこのGig laneの全項目完了後、既存の全社順序�
 
 **残りAtomic TODO（eBook順序）:**
 
-1. 完了（worktree）: `ebook-distribute-daily.js::renderInput()`は`LIFE_MANAGER_HEYGEN`と`HEYGEN_NO_ANALYTICS`を英語renderer subprocessだけへ渡す。実subprocess regressionは変更前RED、変更後GREEN。eBook Node tests 11/11、Python runtime bounds 133 passed、source boundary PASS。英語routeのstale disabled assertionsも現行registryに揃えた。次はこの差分をPR #6999へpushしfresh review/CIを通す。
-2. focused JS/Python testsとsource boundaryを通し、PR #6999を最新mainへ更新、fresh review/CI後にmainへ統合する。
+1. 完了（commit `3df0114191`、PR #6999へpush済み）: `ebook-distribute-daily.js::renderInput()`は`LIFE_MANAGER_HEYGEN`と`HEYGEN_NO_ANALYTICS`を英語renderer subprocessだけへ渡す。実subprocess regressionは変更前RED、変更後GREEN。eBook Node tests 11/11、Python runtime bounds 133 passed、source boundary PASS。英語routeのstale disabled assertionsも現行registryに揃えた。
+2. fresh reviewとPR #6999 required CIをPASSさせ、最新mainへ統合する。
 3. release reconcilerの自然terminalとhost apply lock解放を確認する。cleanup ownerの新しいreceiptで`free_after >= 2,147,483,648` bytes、errors 0、protected deletions 0を読み、同時刻の`df`も2 GiB以上にする。capacityが再低下する原因とcleanup inventory gapsを特定する。
 4. main由来immutable releaseを準備し、`ebook-en-tiktok-daily`だけをtarget applyしてloaded SHA/argvとowner環境を確認する。古いoccurrenceのeffect fenceはexact owner/provider readbackで解決し、stateを直接編集しない。
 5. 次のdue slotでownerを一度起動し、HeyGen video ID/SHAとwallet差分、Postiz `PUBLISHED`/public URLを同じeffectへ結ぶ。今日の日本語2 accountと英語Monkを各3 slots/dayの登録cadenceで読み、各account 3件・合計9件をofficial readbackで確認する。直接postはしない。
