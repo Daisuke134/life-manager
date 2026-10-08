@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Transcript Key Points icon">
+  <rect width="512" height="512" rx="96" fill="#102a43"/>
+  <path d="M96 150h320M96 214h320M96 278h200" stroke="#829ab1" stroke-width="16" stroke-linecap="round"/>
+  <path d="M96 342h150" stroke="#f0b429" stroke-width="22" stroke-linecap="round"/>
+  <circle cx="356" cy="364" r="52" fill="#f0b429"/>
+  <path d="M332 364l18 18 34-38" fill="none" stroke="#102a43" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
