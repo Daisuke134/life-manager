@@ -4651,3 +4651,14 @@ fresh read-only reviewerは`181d1fe578`で3つの誤判定をfixture再現した
 - 00:39Zのfresh runtime readback: Gig 22 jobs（Coconala 7/Lancers 7/CrowdWorks 5/Mercor 3）、`loaded-idle=19 / loaded-running=3`、Gig provider receipt 0。idle側は`disk_headroom_low=17`、`resource_capacity_busy=1`、`apply_lock_busy=1`。空き容量は`1,605,628 KiB`で共有2 GiB floor未満。disk-cleanup ownerのlatestは`apply_lock_busy`のため自分のlease内の完了を待つ。
 
 **現在cursor:** commit `e3c6daafaa`のfresh adversarial reviewで前回3反証を再現不能と確認 → PR/new-head CI → main統合。並列してdisk-cleanup owner safe receiptと安定2 GiB超のreadbackを待つ。両gate後にCoconala Paid project lock/inboxを読み、既存有償talkroomのrevision要求→正式納品→検収・精算、次にStorefront effect fence/inventory/sales/settlementへ進む。
+
+### 2026-10-08 09:40 JST — 送信直前context再検証の欠落
+
+二回目のfresh adversarial reviewは前回の3反証を再現しなかったが、次を新たに再現した。sourceはまだmerge不可。
+
+- **P1:** preflight後にframeが`/not-messages`・headerが別recipientへ変わっても、`FOCUS`/`FILLED`は再確認せず`Enter=1`まで進めた。provider発生率は未観測だが誤recipient送信が可能な実装境界。
+- **P2:** exact visible message nodeに明示`data-status=failed`を付けたfixtureでも`exact_message=true`となった。TikTok実DOM上でこのstatusが使われるかは未確認。明示failed/pending/sendingは成功receiptとして数えない。
+
+**修正条件:** focus直前とEnter直前に実document URL・recipient header・loaded transcript・composer内容を再検証する。contextが変わったらEnterしない。exact bubbleのstatusが明示failed/pending/sendingなら送信済み扱いにせずfenceを維持する。実生成JSのDOM fixture、26件以上のfocused suite、fresh adversarial re-reviewがPASSするまでmerge/releaseをしない。
+
+**現在cursor:** 上記P1/P2のregression再現→最小guard修正→sourceテスト→fresh re-review。host空きは`1,605,628 KiB`、2 GiB floor未満。disk-cleanup latest `apply_lock_busy`なのでprovider/browser実行はまだ保留。
