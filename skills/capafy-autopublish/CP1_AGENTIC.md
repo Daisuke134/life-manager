@@ -88,6 +88,14 @@ showed).
 | Agent ワークスペース (Skill) | red after a model switch, else auto-confirmed ✓ | click the pending skill card once (see above) |
 | 価格設定 | often **red ✗** — the real work | **always open it, even when green**, and set every plan card to the TARGET values (fix until GREEN) |
 
+**An incomplete 基本情報 is work to do, never a reason to stop.** A resumed draft
+(`resume_draft`, an orphan stub) usually opens with 基本情報 red and 提出を確認
+disabled. Open 基本情報, fill every empty or red field from `<CONFIG_PATH>`, save the
+draft, and continue with the remaining tabs. Stopping there leaves the draft holding
+a review slot forever (2026-10-08: draft 9531771963 stopped twice on "基本情報 is
+incomplete" while every new Agent waited for that slot). The only exception is the
+price-only update recipe below, which leaves 基本情報 as-is.
+
 **A green 価格設定 tab is not proof of the right price.** On 2026-09-29 the Hook Lab
 reprice (agent 8123079349, v1.0.4) was saved with a green tab still holding the OLD
 prices (day $1.99/week $4.99/month $9.99, no year row) and was approved that way; the
