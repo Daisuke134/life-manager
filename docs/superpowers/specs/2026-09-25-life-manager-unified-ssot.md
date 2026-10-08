@@ -7319,3 +7319,12 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 - Latest main is `bd5ff9441f` (#7171), including #7169's assignment of `priority=critical_paid` to the paid Coconala storefront. This confirms that `critical_paid` is reserved for paid customer work; Connector, Job Hunter, and Fundraiser remain `priority=revenue` and should not be reclassified to get the lower floor.
 
 **現在cursor:** finish merge with latest main `bd5ff9441f` and current test/spec fixes → push → new-head CI/fresh `ship` review → merge #7156 → revenue-floor follow-up PR → immutable release/watchdog and target readbacks.
+
+
+### 2026-10-08 23:45 JST — main #7172 sync and cursor correction
+
+- Main advanced from `bd5ff9441f` to `e9fa073d83` (#7172, Postiz readback; includes #7170 watchdog readback). The branch has a clean merge commit `afb3182295` containing this latest main; the canonical SSOT preserves the Postiz/disk updates and loop-capacity thread.
+- PR #7156 remote head is still `bd5208d8fe`. Its check run `37794590717` has seven passes and two pending (`Loop control contracts`, `TruffleHog`); these checks do not validate the current local merge head. The fresh review on `bd5208` found only a stale “merge/push pending” cursor; this entry replaces it. The marker-present/legacy tests and timestamp corrections are already in the branch.
+- The executable follow-up plan is committed in `docs/superpowers/plans/2026-10-08-revenue-admission-floor.md`. The low-disk watchdog is stable and running but latest receipt is still below 2 GiB; target owners remain on the older installed release and no provider result is claimed.
+
+**現在cursor:** commit/push latest-main merge and this cursor → exact-head PR #7156 CI/fresh `ship` review → merge → revenue-floor follow-up branch and tests → immutable release/watchdog receipt → disk/admission recovery → effect readbacks and target natural outcomes → post-recovery capacity measurement.
