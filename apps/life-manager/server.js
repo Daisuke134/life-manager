@@ -73,6 +73,13 @@ const { createInvestmentStateStore } = require("./lib/investment-state-store.js"
 const { handleFeedbackMessage, createPostgresFeedbackStore } = require("./lib/feedback-intake.js");
 const { handleMentalCorrectionMessage } = require("./lib/mental-correction.js");
 const { resolveTelegramReply } = require("./lib/telegram-reply.js");
+const {
+  WEB_MESSAGE_LINK_PATH,
+  consumeWebMessageLink,
+  handleWebMessageLinkRequest,
+  parseWebTelegramStart,
+  webTelegramUserBySender,
+} = require("./lib/message-links.js");
 const { handleInboundReply, handleAskCallback, parseInboundRecipient } = require("./lib/ask.js");
 const { isReplyToken } = require("./lib/reply-token.js");
 const {
@@ -552,6 +559,8 @@ const server = http.createServer(async (req, res) => {
       snapshot,
       trialOffer: trialEnd ? { firstChargeAt: new Date(trialEnd * 1000).toISOString(), timezone: "Asia/Tokyo" } : null,
       customerPortalAvailable: Boolean(snapshot && snapshot.stripeCustomerId),
+      telegramLinkAvailable: process.env.LM_TELEGRAM_WEB_LINKS_ENABLED === "1"
+        && Boolean(LM_TG_TOKEN && /^[A-Za-z][A-Za-z0-9_]{4,31}$/.test(String(process.env.LM_TELEGRAM_BOT_USERNAME || "").replace(/^@/, ""))),
       checkoutPending,
     });
     res.writeHead(200, {
@@ -570,6 +579,23 @@ const server = http.createServer(async (req, res) => {
       if (res.headersSent) { res.end(); return; }
       res.writeHead(302, { location: "/lm?auth_error=connection", "cache-control": "no-store", "content-length": "0" });
       res.end();
+    });
+    return;
+  }
+  if (path === WEB_MESSAGE_LINK_PATH) {
+    if (process.env.LM_TELEGRAM_WEB_LINKS_ENABLED !== "1" || !LM_TG_TOKEN) {
+      res.writeHead(503, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
+      res.end(JSON.stringify({ error: "message_link_unavailable" }));
+      return;
+    }
+    handleWebMessageLinkRequest(req, res, {
+      supaUrl: SUPA_URL,
+      supaKey: SUPA_KEY,
+      publicOrigin: LM_PANEL_BASE,
+      botUsername: process.env.LM_TELEGRAM_BOT_USERNAME,
+    }).catch(() => {
+      if (!res.headersSent) res.writeHead(503, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
+      res.end(JSON.stringify({ error: "message_link_unavailable" }));
     });
     return;
   }
@@ -1324,7 +1350,50 @@ const server = http.createServer(async (req, res) => {
             res.writeHead(200); res.end("ok");
             return;
           }
+          if (u.kind === "message" && u.isStart) {
+            const webStart = parseWebTelegramStart(u.text);
+            if (webStart.matched) {
+              let binding = null;
+              if (process.env.LM_TELEGRAM_WEB_LINKS_ENABLED === "1"
+                && webStart.token && u.chatId === u.userId) {
+                try {
+                  binding = await consumeWebMessageLink(webStart.token, "telegram", u.userId, {
+                    supaUrl: SUPA_URL,
+                    supaKey: SUPA_KEY,
+                  });
+                } catch { /* invalid/expired link and unavailable store share one fail-closed reply */ }
+                if (!binding && u.userId) {
+                  try {
+                    const existing = await webTelegramUserBySender(u.userId, { supaUrl: SUPA_URL, supaKey: SUPA_KEY });
+                    if (existing) binding = { uid: existing.uid, replayed: true };
+                  } catch { /* retry by creating a fresh link in the Web app */ }
+                }
+              }
+              await sendMessage(LM_TG_TOKEN, u.chatId, binding
+                ? binding.replayed
+                  ? "このTelegramはLife Managerに接続済みです。確認が必要な予定に返信できます。"
+                  : "TelegramをLife Managerに接続しました。確認が必要な予定があるときだけ、ここで質問します。"
+                : "このリンクは無効か期限切れです。Life ManagerのWeb画面から新しいリンクを作成してください。");
+              res.writeHead(200); res.end("ok");
+              return;
+            }
+          }
           let row = await rowByChatId(u.chatId, SUPA_URL, SUPA_KEY);
+          if (!row && u.kind === "message" && u.chatId === u.userId) {
+            const webUser = await webTelegramUserBySender(u.userId, { supaUrl: SUPA_URL, supaKey: SUPA_KEY }).catch(() => null);
+            if (webUser) {
+              if (u.isStart) {
+                await sendMessage(LM_TG_TOKEN, u.chatId, "このTelegramはLife Manager Webに接続済みです。確認が必要な予定に返信できます。");
+              } else if (u.text) {
+                const reply = await resolveTelegramReply(u.chatId, u.text);
+                await sendMessage(LM_TG_TOKEN, u.chatId, reply.filled
+                  ? `✅ ${reply.event}の場所を${reply.location}に更新しました。`
+                  : "確認が必要な予定への返信として一致しませんでした。Life Managerからの質問に返信してください。");
+              }
+              res.writeHead(200); res.end("ok");
+              return;
+            }
+          }
           if (u.kind === "message" && u.isStart && !isPanelDeepLink(u.text)) {
             const claim = await claimTelegramWebhookActor({
               actorId: u.userId,

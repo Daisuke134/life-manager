@@ -54,6 +54,134 @@ test("Web-only location questions have no email fallback", () => {
   assert.equal(questionChannelForUser({ uid: "legacy-user", telegram_chat_id: null, email: "user@example.test" }), "email");
 });
 
+test("a Web-only tenant with an explicitly linked Telegram sender uses Telegram instead of email", () => {
+  const { questionChannelForUser } = require("../scheduler.js");
+  assert.equal(questionChannelForUser({
+    uid: "lm_11111111-1111-4111-8111-111111111111",
+    telegram_chat_id: null,
+    web_message_telegram_chat_id: "123456789",
+    email: "calendar-owner@example.test",
+  }), "telegram");
+});
+
+test("Web linked Telegram ask uses the bound chat and never substitutes Google email for Gmail access", async () => {
+  const { askUserOnce } = require("../scheduler.js");
+  const calls = [];
+  await askUserOnce({
+    uid: "lm_11111111-1111-4111-8111-111111111111",
+    telegram_chat_id: null,
+    web_message_telegram_chat_id: "123456789",
+    email: "calendar-owner@example.test",
+    gmail_account_id: null,
+  }, {
+    askTickImpl: async (uid, options) => { calls.push({ uid, options }); return { asked: 1 }; },
+    composioKey: "fixture-composio",
+    resendKey: "fixture-resend",
+    mapsKey: "fixture-maps",
+    geminiKey: "fixture-gemini",
+    supaUrl: "https://fixture.supabase.co",
+    supaKey: "fixture-service-role",
+    telegramToken: "fixture-telegram-token",
+  });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].uid, "lm_11111111-1111-4111-8111-111111111111");
+  assert.equal(calls[0].options.telegramChatId, "123456789");
+  assert.equal(calls[0].options.userEmail, null);
+  assert.equal(calls[0].options.gmailAccountId, null);
+});
+
+test("scheduler projects the Web Telegram sender from the separate identity registry", async () => {
+  const { supaUsers } = require("../scheduler.js");
+  assert.equal(typeof supaUsers, "function", "the scheduler user projection must be testable");
+  const before = { url: process.env.SUPABASE_URL, key: process.env.SUPABASE_SERVICE_ROLE_KEY };
+  const originalFetch = global.fetch;
+  const uid = "lm_11111111-1111-4111-8111-111111111111";
+  const calls = [];
+  process.env.SUPABASE_URL = "https://fixture.supabase.co";
+  process.env.SUPABASE_SERVICE_ROLE_KEY = "fixture-service-role";
+  global.fetch = async (input) => {
+    const url = new URL(String(input));
+    calls.push(url);
+    if (url.pathname === "/rest/v1/lm_users") {
+      return { ok: true, async json() { return [{ uid, telegram_chat_id: null, email: "calendar-owner@example.test", gmail_account_id: null }]; } };
+    }
+    if (url.pathname === "/rest/v1/lm_panel_preferences") {
+      return { ok: true, async json() { return [{ uid, notifications_enabled: true, daily_automation_enabled: true }]; } };
+    }
+    if (url.pathname === "/rest/v1/lm_message_channels") {
+      return { ok: true, async json() { return [
+        { uid, sender_id: "123456789", owner_kind: "web_link" },
+        { uid: "legacy-user", sender_id: "987654321", owner_kind: "legacy" },
+      ]; } };
+    }
+    throw new Error(`unexpected scheduler query ${url.pathname}`);
+  };
+  try {
+    const users = await supaUsers();
+    assert.equal(users.length, 1);
+    assert.equal(users[0].uid, uid);
+    assert.equal(users[0].telegram_chat_id, null);
+    assert.equal(users[0].web_message_telegram_chat_id, "123456789");
+    assert.equal(users[0].gmail_account_id, null);
+    assert.equal(calls.length, 3);
+  } finally {
+    global.fetch = originalFetch;
+    if (before.url === undefined) delete process.env.SUPABASE_URL; else process.env.SUPABASE_URL = before.url;
+    if (before.key === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY; else process.env.SUPABASE_SERVICE_ROLE_KEY = before.key;
+  }
+});
+
+test("Inngest user reload includes the linked Web Telegram route", async () => {
+  const { getUserByUid } = require("../scheduler.js");
+  const before = { url: process.env.SUPABASE_URL, key: process.env.SUPABASE_SERVICE_ROLE_KEY };
+  const originalFetch = global.fetch;
+  const uid = "lm_22222222-2222-4222-8222-222222222222";
+  process.env.SUPABASE_URL = "https://fixture.supabase.co";
+  process.env.SUPABASE_SERVICE_ROLE_KEY = "fixture-service-role";
+  global.fetch = async (input) => {
+    const url = new URL(String(input));
+    if (url.pathname === "/rest/v1/lm_users") {
+      if (url.searchParams.get("select")?.includes("calendar_enable_pending")) {
+        return { ok: true, async json() { return [{
+          uid, telegram_chat_id: null, calendar_provider: "composio_gcal",
+          calendar_connected_account_id: "cal_abc123", calendar_enable_pending: false,
+          calendar_enable_claim_id: null, calendar_enable_claimed_at: null,
+          web_initial_scan_completed_at: "2030-01-01T00:00:00Z", web_first_travel_at: "2030-01-01T00:00:00Z",
+          stripe_subscription_id: "sub_test", trial_expires_at: "2030-01-08T00:00:00Z",
+          plan_status: "trialing", paid: false, web_trial_payment_method_present: true,
+          web_billing_cancel_at_period_end: false,
+        }]; } };
+      }
+      return { ok: true, async json() { return [{
+        uid, name: "Web user", phone: null, paid: false, plan_status: "trialing",
+        trial_expires_at: "2030-01-08T00:00:00Z", web_trial_payment_method_present: true,
+        web_first_travel_at: "2030-01-01T00:00:00Z", calendar_provider: "composio_gcal",
+        home_address: null, gmail_account_id: null, email: "calendar-owner@example.test",
+        telegram_chat_id: null, call_language: "ja", wake_policy: null,
+      }]; } };
+    }
+    if (url.pathname === "/rest/v1/lm_panel_preferences") {
+      return { ok: true, async json() { return [{ daily_automation_enabled: true, calendar_disconnect_pending: false }]; } };
+    }
+    if (url.pathname === "/rest/v1/lm_message_channels") {
+      return { ok: true, async json() { return [{ uid, sender_id: "123456789", owner_kind: "web_link" }]; } };
+    }
+    throw new Error(`unexpected Inngest user reload ${url.pathname}`);
+  };
+  try {
+    const user = await getUserByUid(uid);
+    assert.equal(user.uid, uid);
+    assert.equal(user.telegram_chat_id, null);
+    assert.equal(user.web_message_telegram_chat_id, "123456789");
+    assert.equal(user.gmail_account_id, null);
+    assert.equal(user.email, "calendar-owner@example.test");
+  } finally {
+    global.fetch = originalFetch;
+    if (before.url === undefined) delete process.env.SUPABASE_URL; else process.env.SUPABASE_URL = before.url;
+    if (before.key === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY; else process.env.SUPABASE_SERVICE_ROLE_KEY = before.key;
+  }
+});
+
 test("Web-only ask loop performs no Calendar or email request without a linked message channel", async () => {
   const { askUserOnce } = require("../scheduler.js");
   const before = Object.fromEntries([

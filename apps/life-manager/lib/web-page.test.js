@@ -138,6 +138,44 @@ test("connected state and seven-day trial offer share one screen with exact $29 
   assert.doesNotMatch(visible, /Messages|sms:/i);
 });
 
+test("connected Web screen shows only the optional Telegram link when the channel is ready", () => {
+  const withTelegram = visibleHtml(renderWebPage({
+    user,
+    snapshot: snapshot({ setupState: "trial_offer" }),
+    trialOffer: { firstChargeAt: "2030-01-08T00:00:00.000Z", timezone: "Asia/Tokyo" },
+    telegramLinkAvailable: true,
+  }));
+  assert.match(withTelegram, /data-action="link-telegram"/);
+  assert.match(withTelegram, /Telegramで質問に答える/);
+  assert.doesNotMatch(withTelegram, /phone-number|電話番号|type="tel"|chat thread|message thread/i);
+
+  const withoutTelegram = visibleHtml(renderWebPage({
+    user,
+    snapshot: snapshot({ setupState: "trial_offer" }),
+    trialOffer: { firstChargeAt: "2030-01-08T00:00:00.000Z", timezone: "Asia/Tokyo" },
+  }));
+  assert.doesNotMatch(withoutTelegram, /data-action="link-telegram"/);
+});
+
+test("Telegram link action requests a CSRF-protected one-use URL and opens only t.me", async () => {
+  const link = `https://t.me/LifeManagerBot?start=lmw_${"A".repeat(32)}`;
+  const page = renderWebPage({
+    user,
+    snapshot: snapshot({ setupState: "trial_offer" }),
+    trialOffer: { firstChargeAt: "2030-01-08T00:00:00.000Z", timezone: "Asia/Tokyo" },
+    telegramLinkAvailable: true,
+  });
+  const client = mountClient(page, { "/api/lm-web/message-link": { url: link } });
+  const button = { dataset: { action: "link-telegram" }, disabled: false };
+  await client.handlers.click({ target: { closest: () => button } });
+  assert.equal(client.requests.length, 1);
+  assert.equal(client.requests[0].path, "/api/lm-web/message-link");
+  assert.equal(client.requests[0].init.method, "POST");
+  assert.equal(client.requests[0].init.headers["x-lm-web-csrf"], "csrf-token");
+  assert.deepEqual(JSON.parse(client.requests[0].init.body), { channel: "telegram" });
+  assert.deepEqual(client.redirects, [link]);
+});
+
 test("returning from Stripe shows a pending state without a second checkout button", () => {
   const html = visibleHtml(renderWebPage({
     user,

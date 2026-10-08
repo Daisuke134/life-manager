@@ -8,15 +8,19 @@
 const { agentMatchReply } = require("./ask.js");
 const { getCalendar } = require("./transport/index.js");
 const { placeKey, rememberPlace } = require("./places-memory.js");
+const { webTelegramUserBySender } = require("./message-links.js");
 
-async function userByChatId(chatId) {
-  const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+async function userByChatId(chatId, deps = {}) {
+  const url = deps.supaUrl || process.env.SUPABASE_URL;
+  const key = deps.supaKey || process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return null;
-  const r = await fetch(
+  const fetchImpl = deps.fetchImpl || fetch;
+  const r = await fetchImpl(
     `${url}/rest/v1/lm_users?telegram_chat_id=eq.${encodeURIComponent(chatId)}&select=uid,calendar_provider,paid&limit=1`,
     { headers: { apikey: key, Authorization: `Bearer ${key}` } });
   const d = await r.json().catch(() => []);
-  return Array.isArray(d) && d[0] ? d[0] : null;
+  if (Array.isArray(d) && d[0]) return d[0];
+  return webTelegramUserBySender(chatId, { ...deps, supaUrl: url, supaKey: key });
 }
 
 function needsLocation(e) {

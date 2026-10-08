@@ -44,6 +44,8 @@ test("Web webhook claim/read/resume failures remain retryable through duplicate 
     web_invoice_amount_paid: null,
   };
   const eventIds = new Set();
+  const funnelEventIds = new Set();
+  const funnelEvents = [];
   let claimFailures = 1;
   let readFailures = 1;
   let unclaimFailures = 1;
@@ -79,6 +81,13 @@ test("Web webhook claim/read/resume failures remain retryable through duplicate 
       if (expected !== row.web_billing_revision) return json(200, []);
       Object.assign(row, body);
       return json(200, [{ uid: row.uid }]);
+    }
+    if (url.pathname === "/rest/v1/lm_web_funnel_events" && req.method === "POST") {
+      const sourceEventId = String(body.source_event_id || "");
+      if (sourceEventId && funnelEventIds.has(sourceEventId)) return json(409, { message: "duplicate" });
+      if (sourceEventId) funnelEventIds.add(sourceEventId);
+      funnelEvents.push(body);
+      return json(201, {});
     }
     if (url.pathname === "/rest/v1/rpc/resume_lm_web_billing_automation" && req.method === "POST") {
       resumeCalls++;
@@ -147,6 +156,8 @@ test("Web webhook claim/read/resume failures remain retryable through duplicate 
     assert.equal(row.web_automation_resume_pending, false);
     assert.equal(row.daily_automation_enabled, true);
     assert.equal(eventIds.has(event.id), true);
+    assert.equal(funnelEvents.length, 1);
+    assert.equal(funnelEvents[0].source_event_id, event.id);
     assert.equal(resumeCalls, 2);
 
     // The user-facing pause RPC clears the activation intent while holding the lm_users row lock.

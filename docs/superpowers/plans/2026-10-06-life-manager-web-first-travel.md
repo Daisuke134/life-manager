@@ -23,6 +23,14 @@
 - Demos and published content use synthetic Calendar data. Never expose private event titles, addresses, or voice recordings.
 - Do not change the public /lm landing or activate marketing publication from this branch; those remain later SSOT items after the app path and billing are verified.
 
+### Execution order update — 2026-10-08
+
+Old order: WB-15d.1c staging schema and test identity → WB-15d.2–3 real OAuth/Calendar E2E → WB-15d.3b message linking and replies.
+
+New order: finish the safe read-only WB-15d.1c snapshot → implement and verify WB-15d.3b source behavior with synthetic tenants/messages → return to WB-15d.1c for the authorized migration credential and non-personal Google test identity → real OAuth/Calendar E2E → Stripe lifecycle and production readback.
+
+Reason: staging currently has Google OAuth disabled, zero Auth users, a missing Calendar binding column, no labeled test identity, and no central migration-write token. Message-link source changes and synthetic tests do not depend on those external resources, so this work can proceed while the staging gate stays open. Current cursor: Task 8 source acceptance passes; complete its read-only review and commit/push before returning to the still-open WB-15d.1c staging E2E gate.
+
 ## Review Focus
 
 - Expired, missing, or replayed OAuth state never creates a tenant session.
@@ -163,6 +171,98 @@
 - [x] Step 3: Focused billing, Web Checkout, Calendar snapshot, Web page, and attribution suites pass 157/157. Scheduler suite passes 20/20. Syntax and `git diff --check` pass.
 - [x] Step 4: Synthetic onboarding browser E2E passes at 390x844 and 1440x900. It delays the background zero-block setup response while confirming the connected paywall and Stripe CTA are already visible; no spinner, results screen, or rescan action appears. The run uses mocked Google and Stripe providers and causes no real login or payment.
 
+### Task 6: Isolated staging schema and identity readiness (WB-15d.1c)
+
+**Files:**
+- Read: `apps/life-manager/migrations/2026-09-11-lm-calendar-account-binding.sql`
+- Read: `apps/life-manager/migrations/2026-10-06-lm-web-calendar-oauth.sql`, `2026-10-06-lm-web-travel-setup.sql`, `2026-10-06-z-lm-web-travel-controls.sql`, and all `2026-10-08-lm-web-*.sql`
+- External target: Anicca Railway `life-call-staging` and the Supabase project named by its `SUPABASE_URL`; never production `life-call`
+
+**Interfaces:**
+- Use only existing staging variables from Railway at runtime; never print values. Read/modify schema only through Supabase's official migration endpoint using an existing centrally stored token with `database_migrations_write`. Do not run DDL through service-role PostgREST or experimental `/database/query`.
+- A successful fixture has the main-derived schema, Google provider enabled with a verified callback URI, and one dedicated non-personal Google test identity/Calendar. A client ID or OAuth service config is not a user identity.
+
+- [x] Step 1: Read back the exact Railway project/service/environment, staging Supabase host, auth provider flag, first Auth-user presence, and `lm_users.calendar_connected_account_id` column status. Expected: the readback is explicitly tagged staging and no personal event data is returned. Evidence: Anicca project `f9c524cb-ba4a-43bb-9639-ff736afd9ec1`, staging environment `0437b714-7f05-44d7-9c46-9409a6e3a99c`, service `life-call-staging` `9679f364-9e16-446d-a561-9ecbc3246e76`, Supabase host `ulhsqqkyejzvqgoyjwte.supabase.co`, Google provider `false`, Auth users `0`, column probe `400/42703`.
+- [~] Step 2: Compare Supabase's applied migration history with the Web migrations above. Expected: an exact ordered list of missing versions; do not assume that applying the latest migration alone covers earlier prerequisites. The read-only PostgREST query with `Accept-Profile: supabase_migrations` returned 406 because that schema is not exposed; exact migration versions remain unread.
+- [ ] Step 3: Apply only the missing main-derived migrations to the isolated staging project through the official Management API migration endpoint. Expected: each migration returns success and appears in migration history. If the existing SSOT token lacks migration permission, keep staging unchanged and record the exact 401/403; do not use the CLI's hidden OS credential store or production key as a workaround.
+- [ ] Step 4: Read back the required columns, RPCs, RLS/ACL and Auth Google-provider status. Expected: `lm_users.calendar_connected_account_id` selects successfully, the required Web RPCs exist, browser roles cannot use service-only functions, and the Google provider is enabled only with an authorized client/callback.
+- [~] Step 5: Find a test-labeled, non-personal Google identity in the central credential SSOT or related Railway/local project. Expected: the exact staging Auth subject and isolated Calendar are bound to that identity. Do not sign in again, use an unlabeled Gmail identity, or read Dais's Calendar. Current local SSOT metadata shows two Google records, neither labeled test/sandbox/E2E; staging Auth still has zero users.
+
+### Task 7: Real OAuth, Calendar write, and existing Telegram readback (WB-15d.2–3)
+
+**Files:**
+- Read: `apps/life-manager/lib/web-auth.js`, `web-calendar.js`, `web-travel.js`, `scheduler.js`, and `lib/transport/calendar-composio.js`
+- Read-only external target: the isolated test identity and Calendar from Task 6
+
+**Interfaces:**
+- The first CTA begins Google identity confirmation and the separate Calendar consent; no Life Manager password is introduced.
+- Use the exact ACTIVE account ID read back by the Web tenant. Automatic initial processing starts on Calendar ACTIVE; the page does not wait for it. Recurring processing remains gated on Stripe trial/paid entitlement.
+
+- [ ] Step 1: From a mobile Safari-compatible browser session already authenticated as the dedicated test identity, open `/lm`, start the OAuth chain, grant only Calendar permission, and read back the same tenant through callback and later session resolution. Expected: no Gmail scope, no production identity, no cross-tenant binding.
+- [ ] Step 2: Use the isolated Calendar to test a resolvable in-person event, an online event, and a missing/ambiguous location. Expected: one accurate Travel block with the event reminder, no block for online/unknown events, and replay-zero.
+- [ ] Step 3: Trigger the existing ask loop for an already-linked Telegram test tenant. Expected: one question in the existing Telegram chat, no email fallback for Web-only tenants, and no duplicate send.
+
+### Task 8: Tenant-safe message linking and Telegram reply path (WB-15d.3b)
+
+**Files:**
+- Create: `apps/life-manager/lib/message-links.js` and `message-links.test.js`
+- Create: `apps/life-manager/migrations/2026-10-08-zzz-lm-message-channels.sql`
+- Modify/Test: `apps/life-manager/server.js`, `apps/life-manager/lib/web-page.js`, `apps/life-manager/lib/scheduler.js`, `apps/life-manager/lib/telegram-reply.js`
+- Test: existing Telegram HTTP and scheduler contracts plus new message-link/PostgREST integration coverage
+
+**Interfaces:**
+- `createWebMessageLink(uid, channel, opts)` returns a channel URL plus expiry only for an authenticated Web tenant and CSRF-valid request.
+- `consumeWebMessageLink(token, channel, senderId, opts)` atomically binds one verified sender to one tenant and returns `{ uid, channel }`; tokens are one-use, expire, and are stored only as hashes. `lm_message_channels` is the global owner registry; it preserves all existing Telegram owners and rejects a sender already owned by another tenant.
+- Existing Telegram `/start` remains the bot entry. A valid signed deep-link payload binds the existing Web tenant and skips Telegram-specific name/home/phone/call onboarding; email matching is forbidden.
+
+- [x] Step 1: Add failing tests for issued token expiry/replay, cross-tenant binding denial, one-sender/one-tenant uniqueness, no phone form, and hidden/visible message controls. RED observed for parser, token issue, CSRF/API, canonical sender mapping, Scheduler/Inngest routing, and the mounted Telegram flow.
+- [x] Step 2: Run the new tests and confirm they fail on the missing link store/route. Each first failure named the missing behavior; the migration integration initially failed because the message-channel migration did not exist.
+- [x] Step 3: Add `2026-10-08-zzz-lm-message-channels.sql`: hashed short-lived tokens, global owner-unique channel registry, legacy Telegram backfill/trigger, per-sender transaction lock, append-only guards, RLS and service-role ACL. Add the authenticated Web link endpoint and atomic create/consume RPCs.
+- [x] Step 4: Add the optional Web link button behind `LM_TELEGRAM_WEB_LINKS_ENABLED`. A valid private Telegram deep link is handled before legacy onboarding; the Web UID and `lm_users.telegram_chat_id` remain separate. Linked replies use the existing ask/Calendar flow with no phone form or Gmail fallback.
+- [x] Step 5: `npm run test:web-first-travel` passes 224/224 tests plus `test:lm-message-channels:postgres`; Scheduler, Inngest, legacy Telegram, Web-page, auth, webhook and retry contracts are included. Source boundary, `lm-loop-contract`, and `git diff --check` pass.
+
+### Task 9: Inbound-first managed iMessage transport and reply handling (WB-15d.3b)
+
+**Files:**
+- Create: `apps/life-manager/lib/imessage-cloud.js` and `imessage-cloud.test.js`
+- Modify: `apps/life-manager/server.js`, `scheduler.js`, `lib/ask.js`, and Task 8's message-link schema/API as required
+- Test: Web-only ask routing, signed provider webhook, inbound pairing, sender-to-tenant binding, message dedup, reply resolution, provider delivery receipt
+
+**Interfaces:**
+- Use an inbound-first provider so the Web customer never has to type a phone number. The current pilot candidate is Sendblue AI Agent: its published plan includes a dedicated line, inbound-first messages, webhooks, up to 1,000 inbound contacts/day, and no per-message fee at $100/month. Verify Japan delivery and the exact first-contact path in one controlled test before exposing the link. The free sandbox has no webhooks/callbacks, so it cannot prove the production flow.
+- The `sms:` pairing link opens Messages with a short-lived one-time token prefilled; the user must tap Send. The inbound webhook supplies the sender address. Validate and bind it to the exact Web tenant before sending questions. No passive GPS, phone-number form, email matching, or unregistered sender inference.
+- Do not adopt `@emotion-machine/claw-messenger` for this flow: its official docs say unregistered numbers are ignored and self-serve plans cap registered contacts, which conflicts with the no-phone-field pairing. Its OpenClaw channel package is `UNLICENSED`; the MIT Vercel Chat SDK is a separate cross-channel framework, not a provider credential or a drop-in replacement for this CommonJS service.
+- Route existing `ask.js` clarification decisions through exactly one linked channel. The model resolves free-text replies; code performs sender/tenant checks, pending-ask matching, atomic consumption and dedup. No Web email fallback, passive GPS, duplicate question, or phone-number form.
+
+- [ ] Step 1: Add failing unit tests for missing credentials, unsupported payload, malformed sender, invalid/expired/replayed pairing token, foreign tenant, duplicate provider event, and a Web ask sent only to the linked channel.
+- [ ] Step 2: Run the tests and confirm they fail on the absent provider/tenant adapter.
+- [ ] Step 3: Add the minimal Sendblue webhook/send adapter to the existing Node server; keep the provider secret server-side and verify inbound webhook signatures.
+- [ ] Step 4: Implement inbound-first pairing and outbound replies through the provider's current line model. Do not bind a sender until the one-time token is validated. Keep the Telegram implementation intact.
+- [ ] Step 5: Run the focused Web/ask/Telegram/provider tests and PostgreSQL uniqueness/ACL checks. Then verify one controlled inbound iMessage pairing/reply with an official provider receipt before enabling the Web button or purchasing a production line.
+
+### Task 10: Stripe trial lifecycle and funnel readback (WB-15d.5–6)
+
+**Files:**
+- Read/Modify only if a focused failure requires: `apps/life-manager/lib/web-billing.js`, `lib/billing.js`, `lib/web-funnel-events.js`, `lib/web-funnel-report.js`, `server.js`, and their existing tests
+- External target: staging Stripe TEST endpoint and the isolated staging user; no live charge
+
+**Interfaces:**
+- Existing price is USD $29/month. First eligible user gets one seven-day card-required trial; Stripe webhook is the only paid/trial entitlement writer.
+- The funnel must join landing/UTM, Calendar ACTIVE, first Travel block, Checkout, card-backed trial, paid invoice, renewal, cancellation, refund, cost and D7/D30 retention without counting internal E2E as customers.
+
+- [ ] Step 1: Verify existing test price/webhook and the staging identity. Expected: test mode only, seven-day trial and payment-method collection, with no live Stripe resource mutation.
+- [ ] Step 2: Complete one staging Checkout and verify the trial webhook, first invoice, portal, cancellation, expiry and payment-failure pause. Expected: recurring Travel stays off until verified trial/paid state and stops on cancel/failure.
+- [ ] Step 3: Read back the Web funnel report and source attribution. Expected: synthetic/test activity is labeled and excluded from customer MRR/CAC.
+
+### Task 11: Production signed-out readback and task close (WB-15d.7)
+
+**Files:**
+- Read-only: public `aniccaai.com/lm`, Railway `life-call /lm`, production `/health`, latest immutable deployment SHA, and the canonical Web funnel report
+
+- [ ] Step 1: Verify desktop/mobile signed-out entry, Google Calendar CTA, $29/seven-day offer copy, and same-tab handoff. Expected: the live route matches the accepted copy and remains Web-first.
+- [ ] Step 2: Verify the deployed SHA and report authenticated OAuth, Calendar write, Stripe test/live evidence, provider cost, subscription count and MRR separately. Expected: no claim of authenticated production E2E from signed-out reads or synthetic tests.
+- [ ] Step 3: Update the canonical SSOT cursor and plan evidence; leave `WB-16` active until Stripe-verified $10K MRR is actually reached.
+
 ### After this source plan
 
 The public `/lm` page and production retry path are live. PR #6995 deployed the OAuth tenant-isolation fix and Safari callback-download fix. The no-code callback readback proves failure recovery only; a successful Google callback and Calendar consent through a dedicated test identity are still unverified.
@@ -179,7 +279,7 @@ The public `/lm` page and production retry path are live. PR #6995 deployed the 
 - [ ] **WB-15d.1c — Make isolated Google/Calendar E2E ready.** Staging Supabase Google provider is disabled and its Auth user list is empty. The Web `lm_users` probe returns HTTP 400 / `42703` because `calendar_connected_account_id` is absent from the staging schema. No dedicated Google test identity is present in central SSOT, staging Auth, or targeted local/GitHub search; existing Google credentials are not test-labeled. Apply the main-derived Web schema and configure staging Google OAuth for a dedicated test identity before real OAuth/Calendar E2E. Do not use Dais's personal Google account or Calendar.
 - [ ] **WB-15d.2 — Complete real OAuth on mobile Safari.** From aniccaai.com/lm, press Google Calendarに接続; verify Google identity callback, Calendar consent, stable Web-only tenant binding, and return to the connected/paywall screen. The first automatic pass must not be a user action.
 - [ ] **WB-15d.3 — Verify automatic Calendar value and existing Telegram ask behavior.** Use an isolated calendar with an eligible in-person event, an online event, and a missing/ambiguous location. Confirm the backend adds one correct Travel block/reminder when possible, does not guess, handles online/offline/location questions for existing Telegram-linked users through ask.js, and creates no duplicates on replay. Zero blocks do not hide the paywall or display a scan result.
-- [ ] **WB-15d.3b — Implement the already-selected Telegram and iMessage reply channels for Web-only users.** The channel decision is fixed; no web chat and neither app is required for Calendar automation. Reuse the existing Telegram ask/onboarding flow with tenant-safe Web linking. Pilot Photon Spectrum's managed `@spectrum-ts/imessage` provider while keeping the existing Telegram transport unchanged; its MIT SDK supports iMessage cloud and Telegram in one TypeScript message stream, but the app has no Life Manager adapter yet. Public pricing lists shared Free (10 users), Pro ($25/month, 100 users), and Business ($250 per dedicated line/month; unlimited users require Auto Scale), all vendor claims requiring live quote/limit verification; provider docs list 5,000 messages/server/day and 50 new conversations/line/day, so verify inbound-first pairing against the live contract. If all 345 $29 customers need iMessage, the published Pro cap is too low; select the tier from measured iMessage attach rate and confirmed line model. Add a one-time verified tenant-binding path, authenticated inbound provider stream or verified webhook, idempotent message/reply receipts, explicit opt-in, bounded reconnect, and cost/receipt accounting. The inbound iMessage link opens Messages with a one-time token; the user must send it to bind the sender to the Web tenant. Test one controlled thread before activation. If no route is linked, unresolved events remain unchanged. Do not email questions, match by unverified email, expose the owner's Messages account, or send duplicate questions. Keep `tiny-agent-company/imessage-agent-template` as a code example only; OpenClaw's iMessage route requires a signed-in Messages Mac and is not this cloud adapter.
+- [ ] **WB-15d.3b — Add tenant-safe Telegram and iMessage replies for Web-only users.** Keep Web/Calendar automation independent from both apps and preserve legacy Telegram behavior. Task 8 adds one-use Telegram pairing in `lm_message_channels` while leaving the Web UID and `lm_users.telegram_chat_id` separate. Current iMessage pilot candidate is Sendblue AI Agent because it advertises inbound-first webhooks without a phone form; its production line is $100/month, while the free sandbox has no webhooks. Verify Japanese delivery, pairing, tenant isolation, and an official reply receipt before enabling the button or buying a line. Reject Claw Messenger for this flow: it ignores unregistered senders and its OpenClaw plugin is UNLICENSED. If no route is linked, unresolved events stay unchanged; no email fallback or passive GPS.
 - [x] **WB-15d.4 — Verify the immediate connected/paywall UI in source E2E.** At mocked Calendar ACTIVE, the same screen appears before scan results, including while a zero-block response is delayed. It says the manager will add eligible travel time automatically and does not claim a block already exists. No separate value screen, dashboard, chat, home-address question, scan UI, or rescan action. The live provider path remains WB-15d.1c–WB-15d.3.
 - [ ] **WB-15d.5 — Finish Checkout through an isolated Stripe test route.** Verify the existing $29/month price, required payment method, seven-day trial, webhook-confirmed entitlement, customer portal, cancellation, expiry, and payment-failure pause. Keep test/live Stripe credentials separate; make no live charge; clean up test subscriptions.
 - [ ] **WB-15d.6 — Verify automatic lifecycle and metrics.** The initial Travel pass starts after Calendar ACTIVE; recurring Travel ticks start only after Stripe confirms trial/paid entitlement, stop after cancellation/failure, and preserve existing blocks. Read back auth, Calendar, first Travel block (if eligible), Checkout, trial, invoice, cancellation, and refund without counting internal E2E as customers.
@@ -203,4 +303,4 @@ The review reopened Task 3 because prior tests did not exercise the real initial
 - [~] Focused onboarding/billing/scheduler and webhook HTTP integration suites pass (181 tests). Synthetic browser E2E passes at 390x844/1440x900 through zero-block → explicit rescan → Travel offer → Checkout. Stripe TEST API readback now confirms the existing $29/month price, a saved-card seven-day `trialing` subscription, a paid $0 trial invoice, portal-session creation, scheduled cancellation, and final cancellation cleanup. The hosted Checkout page displays the 7-day/$29 terms but headless and direct-CDP submit attempts remain in Stripe's CAPTCHA/Processing state; all test sessions/subscriptions were expired or canceled. No live charge occurred.
 - [x] Obtain a fresh read-only review and CI before reopening WB-12. PR #6981 merged as `9fb58c74`; source review and required contract check passed.
 
-Current cursor: WB-15d.1c — prepare staging Supabase Auth/schema for an isolated Google test identity. The provider is currently disabled, auth user count is zero, and `calendar_connected_account_id` is missing. Do not use Dais's personal Google account or Calendar. After that, complete real OAuth/Calendar and staging Stripe lifecycle readbacks; synthetic browser acceptance is not live provider proof.
+Current cursor: Task 8 source acceptance passes; complete review and commit/push. Then return to WB-15d.1c — staging schema/Auth and a dedicated non-personal Google test identity remain open. Read-only state: Google provider disabled, Auth users zero, `calendar_connected_account_id` missing, and migration-history REST probe returns 406 because the migrations schema is not exposed. No real OAuth, Calendar, iMessage or Stripe provider proof is inferred from synthetic tests. Do not use Dais's personal Google account or Calendar.

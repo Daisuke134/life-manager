@@ -41,6 +41,7 @@ const { formatTravelAutofillMessage } = require("./lib/i18n.js");
 const { askTick } = require("./lib/ask.js");
 const { onboardNudgeAll } = require("./lib/telegram-onboard.js");
 const { sendMessage } = require("./lib/telegram.js");
+const { webTelegramChannelsForUids } = require("./lib/message-links.js");
 const { langForPhone } = require("./lib/call-language.js");
 const { recordDailyComposioPoll } = require("./lib/ledger.js");
 const { schedulerPollInterval } = require("./lib/composio-budget.js");
@@ -124,7 +125,13 @@ async function supaUsers() {
   const preferenceRows = await prefsResponse.json().catch(() => null);
   if (!Array.isArray(preferenceRows)) return users.map(u => ({ ...u, call_enabled: false, notifications_enabled: false, daily_automation_enabled: false }));
   const byUid = new Map(preferenceRows.map(row => [row.uid, row]));
-  return users.map(u => ({ ...RUNTIME_DEFAULTS, ...u, ...(byUid.get(u.uid) || {}) }));
+  const channels = await webTelegramChannelsForUids(users.map((u) => u.uid), { supaUrl: url, supaKey: key });
+  return users.map(u => ({
+    ...RUNTIME_DEFAULTS,
+    ...u,
+    ...(byUid.get(u.uid) || {}),
+    ...(channels.has(u.uid) ? { web_message_telegram_chat_id: channels.get(u.uid) } : {}),
+  }));
 }
 
 // Claims this (uid,event_key) atomically and returns the CLAIM TOKEN identifying it — a truthy
@@ -1311,29 +1318,33 @@ const ASK_TICK_MS = 20 * 60 * 1000;
 // clarification is needed; a Web-only tenant has no email fallback until a message channel exists.
 function questionChannelForUser(u) {
   if (!u) return null;
-  if (u.telegram_chat_id) return "telegram";
+  if (u.telegram_chat_id || u.web_message_telegram_chat_id) return "telegram";
   if (WEB_TRAVEL_UID_RE.test(String(u.uid || ""))) return null;
   return u.email ? "email" : null;
 }
 
-async function askUserOnce(u) {
+async function askUserOnce(u, deps = {}) {
   if (u && (u.daily_automation_enabled === false || u.notifications_enabled === false)) return;
   const channel = questionChannelForUser(u);
   if (!channel) return;
-  const composioKey = process.env.COMPOSIO_API_KEY;
-  const resendKey = process.env.RESEND_API_KEY;                            // our-domain email send
-  const mapsKey = process.env.LIFE_MAPS_KEY || process.env.GOOGLE_API_KEY; // Places grounding
-  const geminiKey = process.env.GEMINI_API_KEY;                            // agentic resolve/read
-  const telegramToken = process.env.LM_TELEGRAM_BOT_TOKEN;                 // Telegram ask channel
-  const { url: supaUrl, key: supaKey } = SUPA();
+  const composioKey = deps.composioKey || process.env.COMPOSIO_API_KEY;
+  const resendKey = deps.resendKey || process.env.RESEND_API_KEY;            // our-domain email send
+  const mapsKey = deps.mapsKey || process.env.LIFE_MAPS_KEY || process.env.GOOGLE_API_KEY; // Places grounding
+  const geminiKey = deps.geminiKey || process.env.GEMINI_API_KEY;            // agentic resolve/read
+  const telegramToken = deps.telegramToken || process.env.LM_TELEGRAM_BOT_TOKEN; // Telegram ask channel
+  const { url: defaultSupaUrl, key: defaultSupaKey } = SUPA();
+  const supaUrl = deps.supaUrl || defaultSupaUrl;
+  const supaKey = deps.supaKey || defaultSupaKey;
+  const telegramChatId = u.telegram_chat_id || u.web_message_telegram_chat_id || null;
   if (!composioKey || !supaUrl || !geminiKey) return;
   // A user is reachable for asks via Telegram OR their email (captured at sign-in) — need at least one.
-  if (!u.telegram_chat_id && !u.email) return;
+  if (!telegramChatId && !u.email) return;
   try {
-    const r = await askTick(u.uid, {
+    const ask = deps.askTickImpl || askTick;
+    const r = await ask(u.uid, {
       composioKey, userEmail: channel === "email" ? u.email : null, resendKey,
       supaUrl, supaKey, mapsKey, geminiKey, home: u.home_address,
-      telegramChatId: channel === "telegram" ? u.telegram_chat_id : null,
+      telegramChatId: channel === "telegram" ? telegramChatId : null,
       telegramToken: channel === "telegram" ? telegramToken : null,
       gmailAccountId: u.gmail_account_id,
       unipileToken: process.env.UNIPILE_TOKEN,
@@ -1431,7 +1442,9 @@ async function getUserByUid(uid) {
   const user = Array.isArray(rows) && rows[0] ? rows[0] : null;
   if (!user) return null;
   const prefs = await readRuntimePreferences(uid, { supaUrl: url, supaKey: key, fetchImpl: fetch });
-  return prefs ? { ...user, ...prefs } : { ...user, call_enabled: false, notifications_enabled: false, daily_automation_enabled: false };
+  const linked = await webTelegramChannelsForUids([uid], { supaUrl: url, supaKey: key });
+  const result = prefs ? { ...user, ...prefs } : { ...user, call_enabled: false, notifications_enabled: false, daily_automation_enabled: false };
+  return linked.has(uid) ? { ...result, web_message_telegram_chat_id: linked.get(uid) } : result;
 }
 
 module.exports = {
@@ -1453,6 +1466,8 @@ module.exports = {
   LATE_CUTOFF_MIN,
   // paid-user listing (for Inngest sweep fan-out)
   listPaidUsers,
+  // the scheduler's service-role projection, including optional Web message routes
+  supaUsers,
   // per-uid re-fetch for Inngest per-user functions (PII: sweepers send only uid)
   getUserByUid,
   // utilities used by server.js and tests
