@@ -4979,6 +4979,15 @@ Source / production follow-up (2026-10-08 11:01 JST): PR #7012は`b692e70a`と�
 
 **現在cursor:** A5。A6はinvoice detailを把握済みだが、Monitoring estimate照合・owner attribution・cash settlement・本番report readbackは未完了。
 
+### 2026-10-08 11:52 JST — A6 source loaded, natural report still pending
+
+- 02:48:17Zのrelease reconciler owner logで`life-manager-cfo-hourly`をrelease `94372580faf432189742de38cd474bfa0db6c4f0`へ`rc=0, changed=1`でapplyした。`lm-loop status`もCFO owner loaded SHA `94372580`を返す。これはsource deployment readbackであり、CFO report receiptやfinancial readbackではない。
+- 新release下の自然occurrence `18dc6dffb7e33a68-24438`（02:48:16Z）は`host_admission_deferred:resource_fifo_wait`、exit 75、`effect_status=not_applicable`、retryable、provider receipt/readbackなし。CFO report本体はこのwakeでは実行されていない。`next_eligible_run=interval:3600s`。次のnatural eligible wakeを待ち、手動start/retryを重ねない。
+- 02:52Zのreadbackではrelease reconcilerもまだ`loaded-running`。CFO ownerの個別SHA反映とfleet全体のreconcile完了は別に扱う。A5 leaseは引き続き`codex-cfo-a5`所有で`03:18:04Z`までactive。
+- A6 Cost Tableのservice detailは上記11:46節に記録済み。cash settlement、同期間Monitoring dollar estimate、SKU→provider operation→agent/loop joinは未確認のまま。
+
+**現在cursor:** A5。A6 sourceはロード済みだが、A5 attribution、CFO natural report、A6 settlement/reconciliation、A8–A10 acceptanceは未完了。
+
 ### 2026-10-08 11:47 JST — A6 historical Monitoring comparison boundary
 
 - 既存のread-only Monitoring `serviceruntime.googleapis.com/api/request_count` query（UTC 2026-09-01–2026-10-01）はGeocoding 20,258、Directions 14,230、Places Text Search 5,800、Places Details 72 requestsを返した。invoice-month CSV quantitiesはそれぞれ19,403 / 14,105 / 5,672 / 75で、差は+855 / +125 / +128 / -3。
