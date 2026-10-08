@@ -4978,3 +4978,8 @@ Source / production follow-up (2026-10-08 11:01 JST): PR #7012は`b692e70a`と�
 - このCost Tableはbilled amountの根拠だが、各SKUのAPI request count・agent/loop owner・cash settlementは示さない。対象local evidence inventoryから同期間Google Monitoring estimateはまだ確認できていない。請求額をOctober spendへ外挿せず、Google API replacementやbudget cutoffもこのatomでは行わない。
 
 **現在cursor:** A5。A6はinvoice detailを把握済みだが、Monitoring estimate照合・owner attribution・cash settlement・本番report readbackは未完了。
+
+### 2026-10-08 11:47 JST — A6 historical Monitoring comparison boundary
+
+- 既存のread-only Monitoring `serviceruntime.googleapis.com/api/request_count` query（UTC 2026-09-01–2026-10-01）はGeocoding 20,258、Directions 14,230、Places Text Search 5,800、Places Details 72 requestsを返した。invoice-month CSV quantitiesはそれぞれ19,403 / 14,105 / 5,672 / 75で、差は+855 / +125 / +128 / -3。
+- これは過去のusage-count診断で、同期間のdollar estimateとbilled amountのreconciliationではない。Google invoice-month usageはlate-reported costの移動があり、CSV usage datesはday-level精度。request countはbillable unitsでもloop帰属でもなく、404をcost zeroとみなさない。A6 acceptanceは未完了のまま。
