@@ -5418,21 +5418,25 @@ def test_manual_ryu_room_does_not_stall_other_paid_room(tmp_path):
     assert paid._admitted_paid_projects(args, [other]) == [other]
 
 
-def test_paid_runner_contract_matches_runtime_terra_route():
+def test_paid_runner_contract_matches_runtime_fast_fail_review_route():
     paid = load("paid_direct")
     runtime_config = json.loads(
         (SCRIPTS.parents[3] / "runtime" / "agent-runner" / "config.json").read_text()
     )
-    escalation_route = runtime_config["task_classes"]["escalation-agent"]["candidates"]
+    route = runtime_config["task_classes"][paid.PAID_REVIEW_TASK_CLASS]
+    candidates = route["candidates"]
 
     assert paid.PAID_DECISION_MODEL == "gpt-5.6-terra"
     assert paid.PAID_FILE_MODEL == "gpt-5.6-terra"
+    assert paid.PAID_REVIEW_TASK_CLASS == "paid-review-agent"
+    assert route["requires_explicit_escalation"] is True
+    assert all(candidate.get("fail_fast_provider_lease") is True for candidate in candidates)
     assert ("codex", "gpt-5.6-terra") in paid.PAID_RUNNER_CANDIDATES
     assert {
         (candidate["provider"], candidate["model"])
-        for candidate in escalation_route
+        for candidate in candidates
     } <= paid.PAID_RUNNER_CANDIDATES
-    assert all(candidate["provider"] == "codex" for candidate in escalation_route)
+    assert all(candidate["provider"] == "codex" for candidate in candidates)
 
 
 def test_paid_owners_have_a_long_running_route():
