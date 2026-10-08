@@ -8802,6 +8802,39 @@ This entry supersedes the prior producer-review cursor. CFO priority remains A5 
 
 **Current cursor:** required CI green on 78bd → merge PR → production CFO owner/queue/receipt readbacks → A5 → A6 → A8 → A9 → A10.
 
+### 2026-10-09 06:10 JST — latest main synced; CFO capacity and runtime blockers separated
+
+このsnapshotは05:45のCFO状態を更新する。CFOの目的と後続順`A5 → A6 → A8 → A9 → A10`は維持する。Money Tree/A7とCloud費用削減はこのlaneの対象外。
+
+- **Latest main / branch:** GitHub `main=62ac1887`をこのworktreeへmerge済み（local merge `0e27a255`、conflictなし）。remote feature branchは`03f2f948`のまま、local branchは23 commits ahead。GitHub mainはremote PR #7106のbase `6cc7facb`より先行している。
+- **PR #7106:** OPEN、remote head `03f2f948`。そのheadのrequired checksは全PASS。source reviewはコードhead `78bd5779`でSHIP（Critical 0 / Important 0）、`78bd`→`03f2`はspec statusのみ。新しいmain同期・このstatus更新をpushしたheadはまだCI/review対象ではなく、PR mergeabilityも現在UNKNOWN。CodeRabbitはmanual review skip。
+- **Capacity source:** latest mainはhost finite-run defaultを8→10、deterministic revenue slotsを3→5へ変更し、Job Hunterの2 entryをagent classへ移した。一方、CFO registryは`resource_class=deterministic`, `admission_class=borrow`, `priority=revenue`。priority名だけではreserved revenue capacityの利用証明にならないため、これを容量解消済みとは扱わない。CFOのlive queue/claim占有readbackが必要。
+- **Production CFO (last terminal 2026-10-08T20:39:29Z):** occurrence `18dca87301f003b8-67406`は`exit 75 / host_admission_deferred:resource_capacity_busy`、provider receiptなし。installed release `d0d30b90`、`loaded-idle`、last success `16:25:13Z`、last receiptなし。現在のmain `62ac1887`はこのownerにまだloadedでない。doctorは`ok=false`、unmanaged label `ai.anicca.life-manager-release-reconciler-self-handoff`。
+- **Active reconciler:** managed `life-manager-release-reconciler`はrelease `e1b061f1`のPID `6397`でloaded-running。最後に記録済みterminal `18dca94039f7fba8-83389`はexit 1 / `entrypoint_exit_1` / next action `reconcile_owner`（21:05Zのreadback時点）。PIDが生きている間は同じownerを停止・重複applyせず、terminalと正確なstderr/receiptをreadbackする。
+- **Disk state:** disk-cleanup occurrence `18dcaa05ff6d89f0-21017`は21:09ZにPASS、effectなし、receiptなし。`df -k /`は空き`253,100 KiB`。保存済み`last-receipt.json`は10/1の値で古い。現mainのcleanup skillでは2 GiBは診断目標でありPASS条件やCFO admission gateではない。今回のfetch/merge/spec更新は実行できたので、disk容量は現時点のGit書き込みblockerではない。
+- **Financial truth:** 新しいnatural CFO report/provider receiptはなく、loop別・全社のsettled revenue/expense/netは引き続きunknown。ゼロや見積額へ置き換えない。
+
+**順序変更:** 旧cursor=`head 78bd required CI → merge #7106 → production readbacks`。新cursor=`(1) 完了: current main 62ac1887をbranchへmerge → (2) 完了: CFO capacity/live-state snapshotをcanonical SSOTへ記録 → (3) この更新をpushし、新exact-head CI/fresh review → (4) #7106 merge → (5) active reconciler PID6397のterminalと失敗境界をreadbackし、normal owner routeでdoctor/loaded SHAを回復 → (6) read-only admission queue/claimでCFO borrower capacityの実占有を確認。必要ならglobal capを上げずCFO entitlementだけ最小修正しfocused test → (7) accepted main releaseとscheduled CFO retryからreceipt-backed natural report/replay-zero → (8) A5 → A6 → A8 → A9 → A10`。理由は、最新mainの容量設定がproduction未反映で、CFOはborrow classのまま実際にcapacity deferしているため。`priority=revenue`だけでは原因も解決も証明しない。
+
+**Remaining atomic TODO (この順):**
+
+1. [x] Latest GitHub main `62ac1887`をCFO専用branchへ通常mergeし、conflictなしを確認。
+2. [x] CFO実行・capacity policy・disk ownerのfresh readbackを整理し、このcursorへ記録。
+3. [ ] canonical spec updateをcommit/pushし、remote head/baseを再読する。
+4. [ ] 新exact headのrequired CIとfresh read-only reviewをPASSさせ、PR #7106をmerge。
+5. [ ] PID `6397`のrelease-reconcilerを同一ownerのままterminalまで観測し、`entrypoint_exit_1`の正確な原因をsummary/stderrで特定する。原因に対応するnormal reconcileを完了し、doctorのunmanaged label解消とaccepted loaded SHAを確認する。
+6. [ ] read-only admission DB/claim snapshotでdeterministic borrow枠のoccupied owner数・queue positionを確認する。容量が原因なら、finite global capを増やさずCFOの既存設計上のentitlementを最小修正し、回帰testを通す。実際の占有を読む前にclassを変更しない。
+7. [ ] merged main由来releaseと自然scheduled CFO retryを確認し、same occurrenceのruntime/provider/B7 receipt、period/currency/source coverage、replay-zeroを照合する。actual totalsはその証拠までunknown。
+8. [ ] A5 production migration/RPC/permissions/panel readback。
+9. [ ] A6 Google billed-vs-cash照合とofficial receiptによるoperation/loop別費用帰属。
+10. [ ] A8の18 business loops / 188 runtime jobs（113 mapped）についてsettled revenue/refund/fee/measured costとshared/control/platform overheadのcoverageを閉じる。
+11. [ ] A9で実日付filterのJST日次/MTD/trailing/MRRをloop別・全社で照合する。
+12. [ ] A10でcoverage/freshness/receipts/period/currency/replay-zeroを満たすnatural reportを7日連続でreadbackする。
+
+**Blockerと解消方法:** local spec編集とlatest-main syncは容量回復後に完了し、今はGit write可能。PRは旧headでCI PASSだがlatest-main同期を含む新headの受け入れが未実施。productionではCFOの`resource_capacity_busy`、active release-reconciler、unmanaged self-handoffが残る。PID6397を停止せずterminalまで追い、exact reconcile failureをreadbackしてowner経路で直す。次にadmission DBからborrow枠の実occupied ownersを特定し、必要な場合だけCFOの有限entitlementを修正する。新しいnatural provider receiptがないためCFOの実売上/費用は未確定。
+
+**Current cursor:** commit/push this SSOT + latest-main merge → exact-head CI/fresh review → merge #7106 → PID6397 terminal/error boundary → normal reconciler/doctor/loaded SHA → admission queue/claim diagnosis → natural CFO receipt/report → A5 → A6 → A8 → A9 → A10.
+
 ### Marketing IntelからWriterへの記事候補連携（並列作業）
 
 **目的:** `marketing-weekly-review`がTelegramへ報告する未検証の`CONTENT`戦術を、既存Writerの`article-daily`トピックキューへ候補として渡す。AffiliateやX repostには配線しない。
