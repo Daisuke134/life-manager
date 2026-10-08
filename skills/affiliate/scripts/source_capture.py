@@ -17,7 +17,7 @@ from pathlib import Path
 from provider_cli import atomic_write
 from acquisition_decision import VARIABLES, experiment_plan_id, experiment_plan_matches
 import agent_runner
-from runtime_guard import RUNTIME_DISK_FLOOR_BYTES, runtime_guard
+from runtime_guard import runtime_guard
 
 
 class CaptureError(Exception):
@@ -584,23 +584,10 @@ def write_composition_bundle(state_root, plan, receipts):
 
 def refresh_all(
     root, state_root, now=None, cooldown_seconds=86400,
-    disk_floor_bytes=RUNTIME_DISK_FLOOR_BYTES,
 ):
     state_root.mkdir(mode=0o700, parents=True, exist_ok=True)
     now = int(datetime.now(timezone.utc).timestamp()) if now is None else int(now)
-    guard = runtime_guard(state_root, disk_floor_bytes)
-    if guard["state"] != "CLEAR":
-        receipt = {
-            "schema_version": 1,
-            "receipt_type": "SOURCE_REFRESH",
-            "state": guard["state"],
-            "completed_at": now,
-            "failure_type": "RUNTIME_DISK_GUARD",
-            "guard": guard,
-            "plans": [],
-        }
-        atomic_write(state_root / "source-refresh-guard.json", receipt)
-        return receipt
+    runtime_guard(state_root)
     receipt_path = state_root / "source-refresh.json"
     with (state_root / ".source-refresh.lock").open("a+") as lock:
         try:

@@ -198,9 +198,14 @@ eq "low headroom runs the agent" "$([ -f "$LOW_HOME/observed-runtime.env" ] && e
 
 UNKNOWN_HOME="$D_RUNTIME/unknown-home"; prepare_self_fix_home "$UNKNOWN_HOME" unknown
 UNKNOWN_OUT="$(run_fake_self_fix "$UNKNOWN_HOME" gate-unknown 2>&1)"; UNKNOWN_RC=$?
-a "unknown capacity fails closed" "$UNKNOWN_OUT" 'disk_headroom_unavailable'
-eq "unknown capacity exits deferred" "$UNKNOWN_RC" '75'
-assert_no_self_fix_attempt "$UNKNOWN_HOME" gate-unknown
+ne "unknown capacity does not create a disk blocker" "$UNKNOWN_OUT" 'disk_headroom_unavailable'
+eq "unknown capacity still runs SelfFix" "$UNKNOWN_RC" '0'
+UNKNOWN_WAIT=0
+while [ "$UNKNOWN_WAIT" -lt 100 ] && [ ! -f "$UNKNOWN_HOME/observed-runtime.env" ]; do
+  sleep 0.05
+  UNKNOWN_WAIT=$((UNKNOWN_WAIT+1))
+done
+eq "unknown capacity runs the agent" "$([ -f "$UNKNOWN_HOME/observed-runtime.env" ] && echo present || echo absent)" present
 
 for flag in disk-writers.stop; do
   FLAG_HOME="$D_RUNTIME/flag-${flag##*.}-$flag"; prepare_self_fix_home "$FLAG_HOME" "$((16*1024*1024*1024))"

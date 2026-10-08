@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import shutil
 import subprocess
 import sys
 import textwrap
@@ -67,7 +68,7 @@ def test_legacy_headroom_setting_is_ignored_at_zero_free_bytes(monkeypatch, lega
     monkeypatch.setenv("GIG_DISK_HEADROOM_KIB", legacy_floor)
     guard = _load_guard()
     monkeypatch.setattr(
-        guard.shutil, "disk_usage", lambda _path: guard.shutil._ntuple_diskusage(1, 1, 0),
+        shutil, "disk_usage", lambda _path: shutil._ntuple_diskusage(1, 1, 0),
     )
     assert guard.disk_headroom_ok() is True
 
@@ -76,9 +77,9 @@ def test_zero_free_bytes_still_execs_child(tmp_path, monkeypatch):
     guard = _load_guard()
     monkeypatch.setenv("GIG_STATE_DIR", str(tmp_path))
     monkeypatch.setattr(
-        guard.shutil,
+        shutil,
         "disk_usage",
-        lambda _path: guard.shutil._ntuple_diskusage(1, 1, 0),
+        lambda _path: shutil._ntuple_diskusage(1, 1, 0),
     )
     calls = []
     monkeypatch.setattr(guard.os, "execvpe", lambda *args: calls.append(args))
@@ -92,9 +93,9 @@ def test_exact_threshold_execs_remaining_argv_and_environment_exactly(tmp_path, 
     monkeypatch.setenv("GIG_STATE_DIR", str(tmp_path))
     monkeypatch.setenv("GIG_DISK_GUARD_SENTINEL", "kept")
     monkeypatch.setattr(
-        guard.shutil,
+        shutil,
         "disk_usage",
-        lambda _path: guard.shutil._ntuple_diskusage(1, 1, 1),
+        lambda _path: shutil._ntuple_diskusage(1, 1, 1),
     )
     calls = []
     monkeypatch.setattr(guard.os, "execvpe", lambda *args: calls.append(args))
@@ -105,25 +106,17 @@ def test_exact_threshold_execs_remaining_argv_and_environment_exactly(tmp_path, 
     assert calls == [(child_argv[0], child_argv, os.environ)]
 
 
-def test_disk_measurement_exception_fails_closed_without_exec(tmp_path, monkeypatch, capsys):
+def test_disk_measurement_exception_does_not_block_exec(tmp_path, monkeypatch, capsys):
     guard = _load_guard()
     monkeypatch.setenv("GIG_STATE_DIR", str(tmp_path))
-    monkeypatch.setattr(guard.shutil, "disk_usage", lambda _path: (_ for _ in ()).throw(OSError("no stat")))
-    monkeypatch.setattr(guard.os, "execvpe", lambda *_args: (_ for _ in ()).throw(
-        AssertionError("child must not execute when disk headroom is unknown")
-    ))
+    monkeypatch.setattr(shutil, "disk_usage", lambda _path: (_ for _ in ()).throw(OSError("no stat")))
+    calls = []
+    monkeypatch.setattr(guard.os, "execvpe", lambda *args: calls.append(args))
 
-    assert guard.main(["/bin/echo", "child-sentinel"]) == 1
+    assert guard.main(["/bin/echo", "child-sentinel"]) == 0
 
-    receipt = json.loads(capsys.readouterr().out)
-    assert receipt == {
-        "effect": 0,
-        "failed": 1,
-        "readback": 0,
-        "reason": "disk_headroom_unavailable",
-        "required_bytes": 0,
-        "status": "failed",
-    }
+    capsys.readouterr()
+    assert calls == [("/bin/echo", ["/bin/echo", "child-sentinel"], os.environ)]
 
 
 @pytest.mark.parametrize(
@@ -138,9 +131,9 @@ def test_life_manager_producer_flags_block_child_before_exec(
     host_state = Path.home() / ".openclaw" / "state"
     (host_state / flag_name).write_text(payload, encoding="utf-8")
     monkeypatch.setattr(
-        guard.shutil,
+        shutil,
         "disk_usage",
-        lambda _path: guard.shutil._ntuple_diskusage(1, 1, 1024**4),
+        lambda _path: shutil._ntuple_diskusage(1, 1, 1024**4),
     )
     monkeypatch.setattr(guard.os, "execvpe", lambda *_args: (_ for _ in ()).throw(
         AssertionError("stop flag must block the producer before exec")
@@ -164,9 +157,9 @@ def test_pressure_marker_is_advisory_even_with_zero_free_bytes(
     host_state = Path.home() / ".openclaw" / "state"
     (host_state / "disk-pressure.block").write_text("free=9GiB\n", encoding="utf-8")
     monkeypatch.setattr(
-        guard.shutil,
+        shutil,
         "disk_usage",
-        lambda _path: guard.shutil._ntuple_diskusage(1, 1, 0),
+        lambda _path: shutil._ntuple_diskusage(1, 1, 0),
     )
     calls = []
     monkeypatch.setattr(guard.os, "execvpe", lambda *args: calls.append(args))
@@ -184,9 +177,9 @@ def test_legacy_ignore_env_cannot_bypass_explicit_shared_stop(
     host_state = Path.home() / ".openclaw" / "state"
     (host_state / "disk-writers.stop").write_text("tier=4\n", encoding="utf-8")
     monkeypatch.setattr(
-        guard.shutil,
+        shutil,
         "disk_usage",
-        lambda _path: guard.shutil._ntuple_diskusage(1, 1, 1024**4),
+        lambda _path: shutil._ntuple_diskusage(1, 1, 1024**4),
     )
     monkeypatch.setattr(guard.os, "execvpe", lambda *_args: (_ for _ in ()).throw(
         AssertionError("legacy ignore env must not bypass the hard stop")
@@ -203,9 +196,9 @@ def test_zero_free_bytes_does_not_block_writer_override(tmp_path, monkeypatch):
     host_state.mkdir(parents=True, exist_ok=True)
     (host_state / "disk-pressure.block").write_text("free=9GiB\n", encoding="utf-8")
     monkeypatch.setattr(
-        guard.shutil,
+        shutil,
         "disk_usage",
-        lambda _path: guard.shutil._ntuple_diskusage(1, 1, 0),
+        lambda _path: shutil._ntuple_diskusage(1, 1, 0),
     )
     calls = []
     monkeypatch.setattr(guard.os, "execvpe", lambda *args: calls.append(args))
@@ -220,9 +213,9 @@ def test_missing_host_control_state_fails_closed_before_exec(tmp_path, monkeypat
     host_state = tmp_path / "missing-control-state"
     monkeypatch.setenv("OPENCLAW_STATE_DIR", str(host_state))
     monkeypatch.setattr(
-        guard.shutil,
+        shutil,
         "disk_usage",
-        lambda _path: guard.shutil._ntuple_diskusage(1, 1, 1024**4),
+        lambda _path: shutil._ntuple_diskusage(1, 1, 1024**4),
     )
     monkeypatch.setattr(guard.os, "execvpe", lambda *_args: (_ for _ in ()).throw(
         AssertionError("missing control state must fail closed")
@@ -245,9 +238,9 @@ def test_symlink_host_control_state_fails_closed_before_exec(tmp_path, monkeypat
     monkeypatch.setenv("OPENCLAW_STATE_DIR", str(alias))
     monkeypatch.setenv("GIG_STATE_DIR", str(tmp_path / "gig"))
     monkeypatch.setattr(
-        guard.shutil,
+        shutil,
         "disk_usage",
-        lambda _path: guard.shutil._ntuple_diskusage(1, 1, 1024**4),
+        lambda _path: shutil._ntuple_diskusage(1, 1, 1024**4),
     )
     monkeypatch.setattr(guard.os, "execvpe", lambda *_args: (_ for _ in ()).throw(
         AssertionError("unsafe control directory must fail closed")
@@ -265,9 +258,9 @@ def test_dangling_policy_flag_fails_closed_before_exec(tmp_path, monkeypatch, ca
     (host_state / "disk-writers.stop").symlink_to(host_state / "gone")
     monkeypatch.setenv("GIG_STATE_DIR", str(tmp_path / "gig"))
     monkeypatch.setattr(
-        guard.shutil,
+        shutil,
         "disk_usage",
-        lambda _path: guard.shutil._ntuple_diskusage(1, 1, 1024**4),
+        lambda _path: shutil._ntuple_diskusage(1, 1, 1024**4),
     )
     monkeypatch.setattr(guard.os, "execvpe", lambda *_args: (_ for _ in ()).throw(
         AssertionError("dangling policy flag must fail closed")

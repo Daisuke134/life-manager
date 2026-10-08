@@ -308,9 +308,14 @@ class MachineCapabilityInventoryTests(unittest.TestCase):
             executable = root / "release" / "codex"
             executable.parent.mkdir(parents=True)
             executable.write_bytes(b"codex")
+            runtime_node = root / "runtime" / "node"
+            runtime_node.parent.mkdir(parents=True)
+            runtime_node.write_bytes(b"node")
+            runtime_node.chmod(0o755)
             source = {
                 "HOME": str(owner_home),
                 "PATH": "/untrusted/bin:/usr/bin",
+                "LIFE_MANAGER_RUNTIME_NODE": str(runtime_node),
                 "LIFE_MANAGER_STATE_HOME": str(root / "state"),
                 "AGENT_RUNNER_CONFIG": str(root / "runner.json"),
                 "AFFILIATE_CODEX_CAPABILITY_RECEIPT": str(root / "pin.json"),
@@ -328,7 +333,12 @@ class MachineCapabilityInventoryTests(unittest.TestCase):
             self.assertNotIn("CODEX_HOME", child)
             self.assertNotIn("AFFILIATE_CODEX_AUTH_FILE", child)
             self.assertEqual(child["ANICCA_BUDGET_SCOPE_ID"], "affiliate-campaign")
-            self.assertEqual(child["PATH"], f"{executable.parent}:/usr/bin:/bin:/usr/sbin:/sbin")
+            self.assertEqual(
+                child["PATH"],
+                f"{runtime_node.resolve().parent}:{executable.parent}:/usr/bin:/bin:/usr/sbin:/sbin",
+            )
+            self.assertNotIn("/untrusted/bin", child["PATH"])
+            self.assertNotIn("LIFE_MANAGER_RUNTIME_NODE", child)
             self.assertEqual(
                 child["AGENT_RUNNER_CONFIG"],
                 str(REPO_ROOT / "runtime" / "agent-runner" / "config.json"),

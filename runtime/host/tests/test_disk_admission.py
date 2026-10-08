@@ -72,11 +72,12 @@ def test_disk_free_bytes_measures_the_requested_receipt_volume(
     assert calls == [path]
 
 
-def test_zero_free_bytes_does_not_block_child(tmp_path, monkeypatch):
+@pytest.mark.parametrize("free_bytes", (0, None))
+def test_low_or_unavailable_disk_measurement_does_not_block_child(
+    tmp_path, monkeypatch, free_bytes,
+):
     guard = load_guard()
-    monkeypatch.setattr(
-        shutil, "disk_usage", lambda _path: SimpleNamespace(total=1, used=1, free=0),
-    )
+    monkeypatch.setattr(guard, "disk_free_bytes", lambda _path: free_bytes)
     calls = []
     monkeypatch.setattr(guard.os, "execvpe", lambda *args: calls.append(args))
 

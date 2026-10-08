@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
-"""Check Gig writer controls and disk measurement without a free-space floor."""
+"""Check the explicit Gig writer stop control without a free-space admission gate."""
 
 from __future__ import annotations
 
 import json
 import os
 import pwd
-import shutil
 import stat
 import sys
 import tempfile
@@ -165,27 +164,18 @@ def _producer_gate() -> tuple[str, Path] | None:
 
 
 def disk_headroom_ok() -> bool:
-    """Return whether this producer may allocate new work on the host."""
+    """Return whether the explicit producer stop policy permits work."""
     gate = _producer_gate()
     if gate is not None:
         reason, flag = gate
-        try:
-            available_bytes = int(shutil.disk_usage(_state_dir()).free)
-        except Exception:
-            available_bytes = None
         _failure(
             reason,
-            available_bytes,
+            None,
             metadata={
                 "gate": _PRODUCER_GATE,
                 "flag_path": str(flag),
             },
         )
-        return False
-    try:
-        available_bytes = int(shutil.disk_usage(_state_dir()).free)
-    except Exception:
-        _failure("disk_headroom_unavailable", None)
         return False
     return True
 

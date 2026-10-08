@@ -34,7 +34,6 @@ from runtime.loop.runtime_event import (
     build_runtime_start_event,
     validate_runtime_event,
 )
-from runtime.host.disk_admission import disk_free_bytes
 from runtime.host.memory_admission import memory_free_percent
 from runtime.host.resource_admission import (
     OCCURRENCE_ID_PATTERN,
@@ -717,27 +716,6 @@ def _queue_priority(entry: dict) -> str | None:
     return value if isinstance(value, str) and value else None
 
 
-def _disk_headroom_deferred(receipt_parent: Path, *, phase: str) -> dict | None:
-    """Defer only when filesystem capacity cannot be measured."""
-    try:
-        available = disk_free_bytes(receipt_parent)
-    except Exception:
-        available = None
-    if isinstance(available, bool) or not isinstance(available, int) or available < 0:
-        reason = "disk_headroom_unavailable"
-        available_bytes = None
-    else:
-        return None
-    return {
-        "status": "deferred",
-        "effect": 0,
-        "reason": reason,
-        "phase": phase,
-        "available_bytes": available_bytes,
-        "required_bytes": 0,
-    }
-
-
 def _sqlite_database_busy(error: sqlite3.OperationalError) -> bool:
     code = getattr(error, "sqlite_errorcode", None)
     if isinstance(code, int):
@@ -1314,7 +1292,6 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
                                   "reason": "resource_admission_unavailable"})
             return 75
-        disk_deferred = _disk_headroom_deferred(receipt.parent, phase="pre_enqueue")
         if interrupted:
             if durable:
                 try:
@@ -1323,14 +1300,6 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                     pass
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
                                   "reason": "resource_admission_interrupted"})
-            return 75
-        if disk_deferred is not None:
-            if durable:
-                try:
-                    defer_durable_resource(loop_id, cooldown_seconds=60)
-                except (OSError, RuntimeError, sqlite3.Error):
-                    pass
-            _atomic_json(receipt, disk_deferred)
             return 75
         resource_class = _resource_class(entry)
         admission_class = _admission_class(entry)
@@ -1423,13 +1392,9 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                                       "reason": "resource_claim_identity_invalid"})
                 return 75
             on_claimed(claimed_occurrence_id)
-        disk_deferred = _disk_headroom_deferred(receipt.parent, phase="post_claim")
         if interrupted:
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
                                   "reason": "resource_admission_interrupted"})
-            return 75
-        if disk_deferred is not None:
-            _atomic_json(receipt, disk_deferred)
             return 75
         available = memory_free_percent()
         if interrupted:

@@ -198,6 +198,7 @@ def _producer_gate() -> tuple[str, Path] | None:
 
 
 def disk_headroom_ok() -> bool:
+    """Honor explicit producer controls; free-space measurement is not admission."""
     state_dir = _state_dir()
     if not _ensure_producer_state_dir(state_dir):
         print(json.dumps({
@@ -214,10 +215,6 @@ def disk_headroom_ok() -> bool:
             available_bytes,
             metadata={"gate": _PRODUCER_GATE, "flag_path": str(flag)},
         )
-        return False
-    available_bytes = disk_free_bytes(state_dir)
-    if available_bytes is None:
-        _failure("disk_headroom_unavailable", None)
         return False
     return True
 

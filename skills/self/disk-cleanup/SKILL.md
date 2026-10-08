@@ -64,10 +64,10 @@ allow-listed regenerable artifact after an open-path probe confirms
   the cursor once only after the sweep's fresh free-space reading meets 2 GiB.
   Cursor writes do not consume the terminal receipt reserve, and the receipt
   records cursor-write failures separately from deletion errors.
-- The shared runner does not defer a wake because free bytes are below a floor.
-  It still defers if filesystem measurement is unavailable and preserves the
-  explicit `disk-writers.stop` control. A real write failure is recorded at the
-  failing operation; it is not converted into a headroom admission result.
+- The shared runner and producer wrappers do not defer a wake because free
+  bytes are low or cannot be measured. They preserve the explicit
+  `disk-writers.stop` control. A real write failure is recorded at the failing
+  operation; it is not converted into a headroom admission result.
 - After the final post-inventory capacity readback reaches 2 GiB, the governor
   removes `disk-writers.stop` only when its same-UID 0600 regular file still has
   the exact `host-disk-recovery` owner, `disk_headroom_low` reason, required
