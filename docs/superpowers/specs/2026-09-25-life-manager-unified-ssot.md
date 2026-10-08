@@ -7940,3 +7940,39 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 **Mobile lane order update:** old cursor=`trust coalesced fleet success or missing loop receipt as posting truth`. New order=`(1) merge this latest-main SSOT update after exact-head CI; (2) read RRC's next natural attempt and identify why the latest-main release/dependency bundle cannot apply, then recover only allow-listed capacity without touching protected data; (3) target the reconciler with the current-SHA guard once safe, verify its loaded SHA, and read all 18 owner SHAs; (4) resolve the 316 released occurrences with occurrence-bound official Postiz receipts and keep uncertain outcomes fenced; (5) verify three distinct `PUBLISHED` posts, URLs, and no duplicates per account/day; (6) persist per-post views/likes/comments/shares and iterate distribution content; (7) join ASC acquisition, RevenueCat subscription/settlement, and in-app onboarding/paywall/purchase analytics; (8) optimize distribution first, then ASO and onboarding/UX in one experiment at a time toward verified $10K net MRR. `$10K MRR` remains a target.`
 
 **現在mobile cursor:** latest-main SSOT exact-head CI/push/merge → diagnose real ENOSPC and recover allow-listed capacity → guarded latest-main release/reconciler and 18-owner SHA readback → occurrence-bound reconciliation of the 316 released fences → official Postiz 3/day receipts/URLs → post-level marketing metrics → ASC/RevenueCat/in-app joins. The 3/day cadence, current revenue, and $10K MRR are not verified.
+
+### 2026-10-09 04:36 JST — official Postiz cadence and target-account readback
+
+- Read-only Postiz API read at 2026-10-09 04:32:50 JST covered 21 `marketing-destinations.json` targets across 31 integrations. Seven JST-day windows (Oct 3–Oct 9, with Oct 9 partial) each returned fewer than 100 rows, so all windows were complete. All 21 targets published 164 posts against the 441-post goal (3/day × 21 × 7); the 18 Anicca/Honne mobile targets published 159/378 (42%). No target reached 21 posts in the window; the maximum was 16.
+
+| Product | Manifest target | Live Postiz profile | Published / 7 JST days | Published Oct 9 so far |
+|---|---|---|---:|---:|
+| Anicca | TikTok `@aniccaaffirmation` | `@aniccaaffirmation` | 1 | 0 |
+| Anicca | TikTok `@aniccaen2` | `@aniccaen2` | 0 | 0 |
+| Anicca | Instagram `@anicca.ios` | `@anicca.affirmation` | 14 | 8 |
+| Anicca | Instagram `@anicca.encards` | `@anicca.encards` | 7 | 0 |
+| Anicca | TikTok `@anicca_slideshow` | `@anicca_slideshow` | 5 | 0 |
+| Anicca | Instagram `@anicca.en` | `@anicca.en` | 12 | 0 |
+| Anicca | YouTube `@anicca-ai` | `@anicca-ai` | 16 | 0 |
+| Anicca | YouTube `@life-manager-m4p` | `@anicca-affirmation-video` | 13 | 0 |
+| Anicca | TikTok `@anicca.he` | `@anicca.he` | 12 | 0 |
+| Anicca | Instagram `@anicca.ios.jp` | `@anicca.jp1` | 13 | 0 |
+| Anicca | TikTok `@anicca.jp4` | `@anicca.jp4` | 10 | 0 |
+| Anicca | Instagram `@ani.cca1234` | `@ani.cca1234` | 8 | 0 |
+| Anicca | TikTok `@anicca.jp` | `@anicca.jp` | 2 | 0 |
+| Anicca | TikTok `@anicca.jp1` | `@anicca.jpx` | 2 | 0 |
+| Anicca | TikTok `@anicca_buddha` | `@anicca_buddha` | 9 | 0 |
+| Anicca | Instagram `@anicca.jp.videos` | `@anicca.jp.videos` | 14 | 0 |
+| Honne | TikTok `@honne_reveal` | `@honne_reveal` | 7 | 0 |
+| Honne | TikTok `@honnevideo` | `@honnevideo` | 14 | 0 |
+| eBook EN | TikTok `@monk_anicca` | `@monk_anicca` | 0 | 0 |
+| eBook JA | Instagram `@obou.anicca` | `@obou.anicca` | 2 | 0 |
+| eBook JA | TikTok `@obou_anicca` | `@obou_anicca` | 3 | 0 |
+
+- Oct 9 partial has 8 target posts, all on the Anicca Instagram connection whose live Postiz profile is `@anicca.affirmation`; the other 20 target profiles have 0. The 2 remaining posts today are on X `@selawmqt`, which is explicitly held as `out_of_scope_platform` with `target_daily_limit=0`, and is excluded from mobile targets. The 8 Anicca Instagram posts have 8 unique content hashes. No per-post views/likes/comments/shares were fetched yet.
+- Four manifest `native_handle` values differ from the connected profile, but their separate `postiz_profile` values match the official integrations API. These are intentional mappings, not a configuration defect; do not rewrite them. The weekly helper's full-range request hits Postiz's 100-row cap; daily windows were used to obtain complete readback.
+- As of 04:36 JST, all 18 mobile owners are loaded on `8d986ff4`, but production `current` is still behind latest GitHub `main=f95409ba`. Blockers remain 11 `disk_headroom_low`, 1 `resource_control_busy`, and 2 `entrypoint_exit_1`; the release reconciler is still loaded on `e1b061f1`. Available disk is 321,608 KiB. TikTok has 0 published target posts today.
+
+**Mobile lane order update:** old cursor=`prove cadence from runner status only`. New order=`(1) finish latest-main SSOT PR CI/merge; (2) bring immutable current and release reconciler to latest main, then close the 11 disk, 1 resource-control, and 2 entrypoint blockers without replaying unknown effects; (3) reconcile the 316 R26 released occurrences with occurrence-bound Postiz evidence; (4) restore three distinct `PUBLISHED` posts/day for each target and include direct URLs in the Telegram report; (5) persist per-post views/likes/comments/shares and review account-level hook/content results; (6) join ASC acquisition, RevenueCat subscriptions/settlements, and in-app onboarding/paywall/purchase events; (7) iterate distribution first, then ASO and onboarding/UX one experiment at a time toward verified $10K net MRR.`
+
+**現在mobile cursor:** complete latest-main SSOT CI/merge → current-main release/reconciler and owner-blocker readback → occurrence-bound R26 reconciliation → per-target Postiz 3/day receipts + Telegram URLs → per-post metrics → ASC/RevenueCat/in-app joins. Current output proves 8/63 target posts for the partial day and 164/441 for seven JST days; it does not prove three/day, views/engagement coverage, current MRR, or $10K MRR.
