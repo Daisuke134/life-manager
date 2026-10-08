@@ -163,10 +163,10 @@ def validate_pass_result(evidence_dir: Path) -> str | None:
                 real_nonzero_runtime_completion = True
                 continue
             return None
-    if real_nonzero_runtime_completion:
-        return None
     if result.get("submitted") or result.get("submit_unknown"):
         return None
+    if real_nonzero_runtime_completion:
+        return "runtime_command_nonzero_completion"
     if (
         status != "transport_failed"
         and not retry_in_progress
