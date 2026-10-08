@@ -100,6 +100,75 @@ function economicLoops(projection, window) {
   return projection?.[window]?.loops && typeof projection[window].loops === "object"
     ? projection[window].loops : {};
 }
+function googleBilledExpenseLines(value) {
+  if (!value || typeof value !== "object") return [];
+  if (value.status === "unavailable" || !Array.isArray(value.invoices) || !value.invoices.length) {
+    return ["Google Cloud 請求済み費用: 未確認"];
+  }
+  const lines = [];
+  for (const invoice of value.invoices) {
+    const period = typeof invoice?.invoice_period === "string"
+      && /^\d{4}-\d{2}$/.test(invoice.invoice_period) ? invoice.invoice_period : null;
+    if (invoice?.status !== "verified" || !period || invoice.currency !== "JPY"
+      || typeof invoice.billed_total_jpy !== "string") {
+      lines.push(`Google Cloud 請求済み費用${period ? ` (${period})` : ""}: 未確認`);
+      continue;
+    }
+    const totals = new Map();
+    let detailValid = Array.isArray(invoice.service_sku);
+    for (const item of invoice.service_sku || []) {
+      if (!item || typeof item.service !== "string" || !item.service.trim()
+        || /[\r\n]/.test(item.service) || item.service.length > 160
+        || typeof item.net_billed_jpy !== "string") {
+        detailValid = false;
+        break;
+      }
+      try {
+        const amount = decimalUnits(item.net_billed_jpy);
+        totals.set(item.service, (totals.get(item.service) || 0n) + amount);
+      } catch {
+        detailValid = false;
+        break;
+      }
+    }
+    let billedTotal;
+    try { billedTotal = decimalText(decimalUnits(invoice.billed_total_jpy)); }
+    catch { billedTotal = null; }
+    if (billedTotal === null) {
+      lines.push(`Google Cloud 請求済み費用 (${period}): 未確認`);
+      continue;
+    }
+    lines.push(`Google Cloud 請求済み費用 (${period}): JPY ${billedTotal}`);
+    const serviceTotals = [...totals].sort(([a], [b]) => a.localeCompare(b))
+      .map(([service, amount]) => `${service} JPY ${decimalText(amount)}`);
+    lines.push(`  サービス内訳: ${detailValid && serviceTotals.length ? serviceTotals.join(" / ") : "未確認"}`);
+    const adjustmentFields = [
+      ["使用量", "usage_gross_jpy"], ["クレジット", "credits_jpy"],
+      ["税", "tax_jpy"], ["丸め", "rounding_jpy"],
+    ];
+    let adjustmentText = "未確認";
+    try {
+      adjustmentText = adjustmentFields.map(([label, field]) => {
+        const value = invoice.adjustments?.[field];
+        if (typeof value !== "string") throw new Error("invoice_adjustment_invalid");
+        return `${label} ${decimalText(decimalUnits(value))}`;
+      }).join(" / ");
+    } catch { adjustmentText = "未確認"; }
+    lines.push(`  請求内訳: ${adjustmentText}`);
+    let paid = "未確認";
+    if (invoice.cash_paid_status === "confirmed" && typeof invoice.cash_paid_jpy === "string") {
+      try { paid = `JPY ${decimalText(decimalUnits(invoice.cash_paid_jpy))}`; }
+      catch { paid = "未確認"; }
+    }
+    lines.push(`  支払状況: ${paid} | loop帰属: 未帰属 | B0確定済み純損益には未加算`);
+    if (typeof invoice.source_ref === "string"
+      && /^google-cloud-cost-table:\/\/sha256\/[a-f0-9]{64}$/.test(invoice.source_ref)) {
+      lines.push(`  出典: ${invoice.source_ref}`);
+    }
+  }
+  if (value.status !== "verified") lines.push("Google Cloud 請求書照合: 一部未確認");
+  return lines;
+}
 function renderEconomicSummary(table, projection) {
   if (!projection || !projection.historical || !projection.trailing || !projection.mrr || !projection.runway) {
     throw new Error("cfo_result_table_invalid");
@@ -142,6 +211,9 @@ function renderEconomicSummary(table, projection) {
     `runway: ${runway.join(" / ") || "未確認"}`,
     "銀行への入金: 未確認",
   ];
+  if (Object.hasOwn(table, "google_billed_expenses")) {
+    lines.push(...googleBilledExpenseLines(table.google_billed_expenses));
+  }
   for (const window of ["historical", "trailing"]) {
     for (const [loopId, scope] of Object.entries(economicLoops(projection, window))) {
       if (scope?.status === "unknown" && Array.isArray(scope.coverage_gaps)) {
