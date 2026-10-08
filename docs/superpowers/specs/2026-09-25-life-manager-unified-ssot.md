@@ -702,7 +702,7 @@ TODO（何を・どう直すか）
 | L13 | リジェクトを読んで直し、再申請する | DONE (branch `fix/line-sticker-reject-fix-20261007`): `creators_readback.py` がリジェクト時にメッセージセンター（`/message/` → `/message/detail/<id>`）から実際の却下理由を読み `rejection_message`/`rejected_at` を保存。新規 `line_sticker_resubmit.py` が却下理由を model（`agent_runner.py`、`marketing-agent`）に渡し、閉じたアクション集合 `leave_features`/`retitle`/`retag`/`cannot_fix` から1つを選ばせ、そのアクションだけをコードが実行（特集を「参加しない」に変更/タイトルにキャラ名付記/タグ再選定）してから `同意します`→OK で再リクエスト。プロダクトごと自動再リクエスト上限2回、再リクエスト後に公式ページが「審査待ち/審査中」を読み返すまで成功と記録しない（effect fence）。LINE側の日次リクエスト上限（モーダルの `N/30` 表記）を検知したら送信前に停止。`cannot_fix` は理由を記録して `line_sticker_notify.notify` で `factory-events.jsonl` に通知。テスト `tests/test_line_sticker_resubmit.py`（9件、アクション分岐・上限2回・readback必須をカバー）。既存 113件 + 新規9件 = 122件 all green（`~/.local/share/life-manager/venv/bin/python -m unittest discover -s skills/earn/line-sticker/tests`）、`./bin/lm-loop-contract` PASS（`line-sticker-readback-hourly` の `effect_class` を `none`→`publish`、`resource_class` を `deterministic`→`browser` に修正、同ジョブはカタログ未マッピングのため recovery_classes 整合は対象外）。48067450 の実例（2026-10-06 14:21 特集枚数不足）は本人が手動で直した後の状態のため、この変更のライブ再現検証は未実施（次にリジェクトが発生した際の自然 wake で readback 経由の実地確認が残課題）。 |
 | L14 | 1 回の起動で 1 セットを申請まで（Dais 2026-10-07「1 段ずつではなく出荷まで」） | DONE: #6835 起動 15 分ごと、#6837 `factory.run()` が submitted まで進め続ける（submit の sub-state も進捗がある限り継続）、日次上限 24、runtime 5400s。release `e757f0f4` に apply。天井は Creators Market の審査リクエスト 30 回/日 |
 | L15 | README のエージェント一覧に登録 | DONE: #6840 `product-loop-catalog` に `line-sticker`、README/README.ja を「16 main agents」に（#15 LINE Sticker）。誰の端末でも動く guided installer は未 |
-| L16 | 成功者との差分を埋める（2026-10-07 時点の比較。根拠: LINE STORE top_creators 上位 35 件・20 作者の調査） | 下の L17〜L22 が残り。工場（作る→申請）は自動で回る: 2026-10-07 だけで 7 セット申請、シリーズ化・タイトルの型・文字/長さ制約・リジェクト自動修正まで本番稼働 |
+| L16 | 成功者との差分を埋める（根拠: LINE STORE top_creators 上位 35 件・20 作者） | 2026-10-08 10:30 JST 時点: 申請 10 セット（set-002〜011）、**販売中 3**（もちハム 48067450・カワウソ 48077815・リス 48085257）、審査待ち 7（ペンギン、カワウソ vol.2〜7）。工場は 2026-10-07 の 1 日で 9 セット無人申請。支出 $17.61（動画）、売上 ¥0（`sales.json` 2026-10-07 17:21Z: 分配 ¥0、カワウソ ¥0）。**2026-10-08 00:25 JST 以降は host のディスク空き < 11GiB（`lm_loop_run.RECOVERY_FLOOR_BYTES`）で全 loop が defer、set-012 は clips で停止** → L25 |
 | L17 | 集客をキャラの日常投稿として毎日続け、フォロワーを増やす（上位作者はほぼ全員 SNS でキャラの日常を投稿し、そのフォロワーが買う） | **cursor**。現状 IG `@stardust_doubutsu` 1 アカウント、リール 3 本、フォロワー 0、1 日 6 枠。足りないもの: ①投稿内容が「スタンプの見本」だけで、キャラの日常・季節ネタ・漫画など上位作者の型になっていない ②フォロー/いいね等の交流（warmer の day3+ engagement）が未稼働 ③TikTok / X のキャラ専用アカウントが無い ④bio にストア URL（新規アカウントのため数日後に追加）|
 | L18 | 売上・分配額を毎日読んで、売れたキャラ・テーマの続編を優先する（上位作者は反応のあった系統を伸ばす） | DONE: 新規 `sales_readback.py` が `line-creators:dais` で公式「売上・統計情報：アイテム」（`/stats/sticker`、商品別累計売上）と「送金申請」（`/payment_request/`、送金可能額・対象期間の分配額/源泉所得税）を読み、`~/.local/state/life-manager/line-sticker/sales.json` に observed_at・source_urls・product_id 別 sales_jpy・distribution を書く。既存の毎時 `line-sticker-readback-hourly`（`line-sticker-readback.sh`）が1行追加で毎回呼ぶが、`sales.json` の observed_at の日付（JST）で自己ゲートし実質1日1回だけ実行。`factory._prior_set_facts` が product_id で突き合わせて各セットに `sales_jpy` を追加（未確認は null、0円は実測の0として区別）、planner プロンプトに「sales_jpy が既知なら売上最大のキャラの続編を最優先」という判断基準を追加。2026-10-07 実測: 追跡中の全セットは `null`（未読）または set-003（カワウソ、販売中）が ¥0（販売開始 2026/10/6 で実売未反映）。アカウント上の無関係な旧アイテム「いりや」は¥189（参考、トラッキング対象外）。送金可能額は¥0、対象期間 2025.12.01-2025.12.31 の分配額¥0。テスト `tests/test_sales_readback.py`（実ページの inner_text を個人名除去して保存した fixture から parse）＋`tests/test_factory.py`/`tests/test_line_sticker_planner.py` 追加分、既存含め全 green |
 | L19 | 静止スタンプ（¥120/¥190）の量産ラインを足す（上位 35 件の 60% は静止、価格帯も静止が中心） | 未。今は動くスタンプ（¥250）だけ。静止は動画生成が不要なので 1 セットの原価がほぼ画像代だけ |
@@ -710,6 +710,8 @@ TODO（何を・どう直すか）
 | L21 | 1 キャラのシリーズ本数を上位作者並みに増やす（5〜36 セット/作者） | 進行中: planner が `series_of` で続編を選ぶ（カワウソ vol.2・vol.3 済み）。売上データ（L18）が入るまでは販売中キャラ優先 |
 | L22 | fleet apply が使用中の常駐ブラウザを再起動しない | 未（共有の仕組み）。2026-10-07 10:00Z にタグ付け中のブラウザが再起動された。工場側は画像/タグの再試行で吸収済み、根本はオーケストレーターに agmsg で依頼済み |
 | L23 | 売上 > 支出（Dais 2026-10-07 goal）を工場で守る | DONE: `factory.unrecovered_spend_usd` = 全セットの `cost_usd` − `sales.json` の売上/150。$40（`LINE_STICKER_MAX_UNRECOVERED_USD`）を超えたら新規セットを開始しない（集客・審査・再申請は継続、売上が入れば自動で再開）。2026-10-07 時点: 支出 $11.69（6 セット、+ set-002 手動分とモデル呼び出しは未計上）、売上 ¥0。1 セット原価 ≈ ¥300、1 個 ≈ ¥87 なので 1 セット 4 個で回収 |
+| L24 | 続編のキャラ名をシリーズで固定する | 2026-10-08: カワウソ vol.2〜7 は同じ絵（set-003 再利用）なのにタイトルの名前が ぽか太/もふたん/オッティ/もふお/おたーくん とバラバラ。planner/selector のプロンプトに「最も古いセットの名前を使い続ける」を追加（本 PR）。既出 7 セットの名前は審査中のため変更しない |
+| L25 | host ディスクの空きを 11GiB 以上に戻す（全 loop の再開条件） | **blocker（host 全体）**。Data 228Gi 中 198〜200Gi 使用、空き 3〜6Gi。測定済み ~65G（.local 15G、gig 8.7G=進行中の受託案件、.cloak 10G、Projects 11G、loops 8.3G=全 release/bundle が稼働プロセスか保護リストで参照中、anicca-project 4.9G、.openclaw 4.8G）、残り ~130G は所在調査中（read-only エージェント）。LINE 側は申請済みセットの不要中間ファイルを自動削除済み（#6924） |
 
 ### 5.1 自己修復・自己改善の定義（T5 / T12 の正本）
 
@@ -4526,14 +4528,22 @@ L9-11 Self-BuildはこのGig laneの全項目完了後、既存の全社順序�
 
 ### Remaining atomic Gig TODO
 
-1. Coconala Paid ownerとshared disk cleanup ownerの自然終端を待つ。lock解放後に同一Coconala occurrenceの結果とofficial receiptを読む。process pass、local `sent` ledger、Sheet dateは単独では送信証明にしない。
-2. Coconala Inbox helperの固定待機を、conversation-list-readyかつ連続して安定した場合だけreadback成功とするbounded waitへ直し、公式inboxとfull Sheet rangeを再取得する。Exact recipient→official send receipt→inbound reply join後にのみ返信数を回答し、一度だけPaid owner経由で返す。
-3. Existing Coconala contract revision→formal delivery receipt→buyer acceptance→settlement/payout→replay-zeroを同一contract/occurrenceで閉じる。
-4. Coconala Storefront 20/20 live inventoryはPASS済み。旧effect fence、publication ledger差、Storefront owner SHA、global doctor gateをexact evidenceで閉じた後だけ`076c5be8`をtarget ownerに反映し、natural Storefront outcome/purchase/settlementを分けてreadする。
-5. Coconala fresh eligible workのApply→Negotiate/Reply→Paidを進める。Lancers rows25–27は`waiting_external`のままskipし、auth/solver/proposal/retryを行わず後続platformを止めない。
-6. CrowdWorksは別owner source repairを再利用し、merge/release後にApplication/Paid/Replyの各unknown occurrenceをofficial receiptで個別reconcileする。Mercorのold effect fencesもexact receipt/pre-effect proofなしで再応募しない。
-7. Upworkのcommercial automated laneは現行公式policyの下では動かさない。Freelancerはaccount-bound authentication、live Services inventory、provider-approved action scopeを確認し、uncertain publish/bidを再試行しない。
-8. 実行可能なplatform ownerごとに自然24/7 occurrence、公式receipt、settlement/fee/cost、replay-zeroを検証する。Gig lane全完了後にのみL9-11 SelfBuildへ進む。
+旧順序=`Coconala Paid owner/cleanup terminal → inbox join → existing contract → Storefront → Apply/Negotiation → other platforms → economics → SelfBuild`。新順序は最初の2 gateを並列にし、その後のplatform順序は維持する。理由: senderのfresh adversarial reviewでfalse-sent/誤recipient送信につながるP1が再現し、同時に空き容量とdisk-cleanup ownerが未解決。古いpartial sourceを使わず、shared capacityを迂回せず、既存契約義務からStorefrontへ進む。現在cursorは1A/1B。
+
+1. **並列1A — sender source安全修正:** branch `fix/tiktok-message-hydration-20261008`のremote commit `10ba32a170`では、Node fixtureが「failed messageでもsent」「別recipient/非公式frameの同文をsent」「PRE_ENTER後のrecipient変更でEnter=1」のP1を再現した。latest `origin/main=b418c917b1`に対しbranchは17 commits behind（11 commits unique）で、local worktreeには未検証・未pushの2-file変更が残る。次はlocal diffを監査し、最新main由来の専用source branchに必要最小修正だけ載せる。message status/recipient/frame検査を`sent` ledger記録より先に行い、Enter keydown時にも同じdocument内のone-shot guardを設ける。Node fixture・focused tests・fresh adversarial review・PR required CIがPASSするまでmerge/releaseしない。
+2. **並列1B — shared capacity:** disk-cleanup ownerが自分のactive lease内で`entrypoint_exit_1 / reconcile_owner`を診断・修復するのを待ち、安全なcleanup receiptと2 GiB以上の安定したfree spaceをreadbackする。手動削除・unlock・restart・floor迂回はしない。
+3. **両gate後 — Coconala Paid owner:** natural terminalとproject lock解放を確認し、同一occurrenceのofficial result/provider receiptを読む。`pass`、local ledger、Google Sheetの日付は単独で送信証明にしない。
+4. **Coconala inbox join:** 固定待機のlocal readerをconversation-list-ready＋複数回安定までbounded pollingへ直し、公式inboxとfull Sheet rangeをreadbackする。recipient→exact official send receipt→inbound replyを結ぶ。joinが完全でない間、送信数/返信数を断定・再送しない。
+5. **既存Coconala有償契約:** 最後に公式readbackした`取引中/進行中` talkroomを最新threadで再確認する。buyer revision要求がまだ未完なら、要求されたdeliverableを完成して正式納品receiptを一度だけ取得し、buyer acceptance→fee→settlement/payout→replay-zeroを同一契約/occurrenceで閉じる。すでに正式納品済みならそのreceiptの検収・精算だけを読む。顧客ID/本文はprivate evidenceに置く。
+6. **Coconala Storefront:** 旧occurrence fenceをowner-specific official/pre-effect evidenceで解決する。20件の公開表示・service contractは過去readbackで確認済みだが、seller sales表示は0・publication ledgerは不一致、settlementは未確認。installed SHA/argv、doctor/admission gate、official inventory/sales/fee/settlementを個別に読む。20件を重複掲載しない。
+7. **Coconala Apply/Negotiation:** fresh eligible workだけを公式sourceで確認し、existing effect fence→proposal receipt→buyer reply→合意条件をoccurrenceごとに結ぶ。Lancers rows25–27は`waiting_external`のままskipし、auth/solver/proposal/retryをせず後続platformを止めない。Answersは対象外。
+8. **CrowdWorks:** `lm-gig-contract-owner-1007`にApplication-receipt/sourceのactive worktree leasesがある。lease/registrationはactive workの証明ではないが、担当範囲を重複編集しない。owner commit/PR/CI/release後にApplication/Paid/Replyのnatural occurrencesとprovider receiptsを個別確認し、納品→検収→fee/payoutを閉じる。
+9. **Mercor:** Application/Paid/Replyの`effect_unknown`をexact official receiptか同一occurrenceのno-effect証拠で解決する。old effect fenceが残る間は再応募・再送しない。
+10. **Freelancer:** account-bound authenticationとofficial Services inventoryで現行listingを読む。`publish_uncertain`等の古いlocal stateはprovider receiptではないため再publishしない。auto-bidはprovider-approved scopeが証明されるまでhold。
+11. **Upwork:** 既存のcommercial automated laneは公式policyに適合する実行経路が無いため、自動browser/scraping/proposalはしない。officially supported routeとaccount eligibilityが確認できない限りautomated earning loopに数えない。
+12. **Job Hunter:** eligible候補のある自然runだけを読み、provider proposal receiptをjob/occurrence単位で確認する。候補0は成功扱いしない。
+13. **Gig economics / 24-7 acceptance:** 許可されたplatformごとに自然wake/terminal、official buyer-visible receipt、settlement、fee、実費、replay-zeroを同一契約に結ぶ。listing・process・応募・gross・未決済額を収益完了に数えない。$10K MRRは未達の目標。
+14. **最後:** 上記Gig収益loopが閉じてからL9-11 SelfBuildを修復・検証する。これより前にSelfBuildを開始しない。
 ### 2026-10-08 08:35 JST — Mobile post-merge runtime cursor
 
 この追記は上記08:23のPR #6993/owner/capacity/TestFlight状態をmerge後readbackで置き換える。全社§84-Aの順序は変更しない。
@@ -4630,6 +4640,18 @@ Source実装状態（2026-10-08）: 3 loop専用runner classは既存Codex acct1
 
 PR gate update (2026-10-08): latest rebase CI passes Loop control, Python, OSS boundary, PII, shell, instruction, travel, TruffleHog, and gitleaks. `Startup context drift` fails because the canonical `https://aniccaai.com/lm` response lacks context digest `113ddbade3174274888d408be0874286dd6c4d9fa`; fresh crawl shows the Calendar travel product page rather than the general Life Manager context. This public-product context mismatch predates this local-loop diff. Do not change external marketing copy or weaken the context gate within this PR. PR #6939 remains open; main merge and production apply have not occurred.
 
+### 2026-10-08 09:53 JST — Gig-only status refresh and current cursor
+
+このreadbackはGig laneの状態だけを更新し、全社§84-Aや他laneの順序を変えない。
+
+- `origin/main`は`c65449ef8c`。`lm-loop status all`のGig catalogは22 job（Coconala 7/Lancers 7/CrowdWorks 5/Mercor 3）、`loaded-idle=19 / loaded-running=3`、current occurrence provider receipt 0。idle側は`disk_headroom_low=17 / resource_capacity_busy=1 / apply_lock_busy=1`。22 jobはagent人数ではなく、`loaded-running`もprovider work/収益を意味しない。従って14–16 agent sessionが全員稼働し収益を出しているとは確認できない。
+- `df -k /`は00:53Zに`1,963,792 KiB` freeで、2 GiB floor `2,097,152 KiB`まで133,360 KiB不足。`life-manager-disk-cleanup`の00:51Z terminalは`entrypoint_exit_1 / reconcile_owner`。cleanupは別active lease ownerなので手動削除・unlock・restart・gate迂回をしない。
+- sender branch `fix/tiktok-message-hydration-20261008`のremote headは`10ba32a170`、latest mainより13 commits behind。fresh adversarial reviewはfailed/pendingのfalse-sent、wrong-contextのfalse-sent、PRE_ENTER/Enter間の誤宛先送信をNode fixtureで再現した。source worktreeにはその後の未commit変更2 file（transportとtest）があるが、最新main同期・focused test・reviewが未完了。これらをrelease/productionに使わない。
+- CrowdWorks Application/Storefrontの別owner leaseは存在する。lease/rosterは実作業の証拠ではないため、既存担当範囲を重複編集せず、owner成果とprovider receiptをreadbackする。
+- 既知のCoconala order/talkroom readbackは10/7時点のsnapshotでfreshness切れ。最新provider確認はまだ無いので、現在もbuyer reply/delivery待ちとは断定しない。対象の直近local evidenceは`formal_delivery_confirmed=false`だが、再開時に必ずofficial threadをfresh readbackする。顧客ID・本文はprivate evidenceにだけ保持する。
+
+**現在cursor:** Remaining atomic Gig TODOの並列gate 1A（sender P1修正→test/re-review/CI）と1B（cleanup owner safe receipt＋安定2 GiB超readback）。その後だけCoconala Paid owner/inbox/order、existing contract delivery、Storefront、次platformの順に進む。Lancers rows25–27は`waiting_external`でskip、Answersは対象外、SelfBuildは最後。
+
 ### 2026-10-08 09:54 JST — TikTok distribution outage takes mobile cursor
 
 このmobile-lane更新は08:58のTikTok配信snapshotとTODO順を置き換える。TikTok配信をmobileの最優先にする。私はcapacityを作業目的のように扱いすぎた。capacityは投稿を再開するための直近gateであり、成果そのものではない。
@@ -4710,3 +4732,13 @@ PR gate update (2026-10-08): latest rebase CI passes Loop control, Python, OSS b
 8. Anicca iOSを100 first-time downloads/dayのtrailing 7-day平均へ伸ばし、distribution/content variantのbaselineができてからonboarding/paywallを一仮説ずつ改善する。$10k verified net MRRはsettled revenue/refund/fee/actual-costの期間一致証拠が揃うまで未達。
 
 **現在cursor:** item 1、release reconciler natural terminal。source fixはmainにあるが、現行TikTok投稿と容量回復は未確認で、配信復旧完了とは報告しない。
+
+### 2026-10-08 10:08 JST — Gig status refresh after PR #7004
+
+- PR #7004のGig TODO/spec更新はmainへmerge済み（merge commit `b418c917b17de171431655f58cb0b4f6be8d69a4`）。最新版のatomic TODOは上記`Remaining atomic Gig TODO`。
+- 01:08Zのfresh Gig runtimeは22 job（Coconala 7/Lancers 7/CrowdWorks 5/Mercor 3）、`loaded-idle=19 / loaded-running=3`、receipt 0。idle errorは`disk_headroom_low=18 / resource_capacity_busy=1`。22件はloop job数でagent人数ではなく、process stateはprovider work・売上の証拠ではない。
+- 01:08Zの`df -k /`は`1,688,688 KiB` free、2 GiB floorより408,464 KiB不足。cleanup ownerのlatest occurrence `life-manager-disk-cleanup:18dc685241d68e90-80610`は`entrypoint_exit_1 / reconcile_owner`。別ownerのactive leaseを尊重し、cleanup stateやsourceを変更しない。
+- Sender source branch remote head `10ba32a170`はmain `b418c917b1`より17 commits behind。local source worktreeのtransport/testに未commit変更があり、fresh reviewのP1 findingsは未解消・未再検証・未merge。実装対象は上記item 1A。
+- Coconala order/threadの最後のofficial readbackは10/7 snapshotで鮮度切れ。fresh official order/inbox確認なしにbuyer待ち・納品済み・収益済みを主張しない。
+
+**現在cursor:** parallel gate 1A（sender安全修正）と1B（cleanup safe receipt＋安定2 GiB超）を完了する。両gate後にCoconala Paid owner/threadと既存契約を確認し、その後Storefront→Coconala Apply/Negotiation→CrowdWorks→Mercor/Freelancer/Upwork/Job Hunter→契約別収益確認→SelfBuild最後の順で進む。Lancers rows25–27はskip、Answersは対象外。
