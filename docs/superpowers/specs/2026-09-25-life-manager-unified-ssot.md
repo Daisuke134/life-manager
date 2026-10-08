@@ -6214,3 +6214,26 @@ Fresh read-only review rejected the idle-readback-only patch: a new StartInterva
 - **Production (17:10 JST readback):** current release is `20261008T170048-864513c9`. `life-manager-release-reconciler` remains loaded-running PID `58583` on `3c87f64f`; last report `18dc7e6b8cbaf958-35373` passed at 07:52:05Z but has no provider receipt and has not loaded current SHA. CFO owner is loaded-idle on `07aa3fb3`; latest occurrence `18dc7f9265f7e380-83653` at 08:10:19Z is `host_admission_deferred:resource_capacity_busy` / exit75, effect `not_applicable`, no receipt/readback. `last_effect` at 08:10:18Z is not an official delivery receipt. The earlier FIFO wait is no longer the latest failure class; actual capacity remains unavailable. Disk free is 3.7 GiB, volume 99% used, host load 23.18/18.57/15.38 on 10 CPUs.
 
 **現在cursor:** push local head `01a10fa` and this status update, then require same-head full Python runtime suite and CI before marking PR #6827 ready/merge. Production continues separately: preserve PID `58583`, wait for the reconciler's natural handoff to current main `dc907164`, then verify CFO loaded SHA and a naturally eligible capacity slot. Do not restart, replay, or increase caps. After source merge, verify CFO receipt, apply A5 migration/RPC/panel through the canonical production route, then continue A6→A8→A9→A10.
+
+### 2026-10-08 17:21 JST — A5 same-head CI passed; production handoff remains incomplete
+
+この追記は17:11節の古いpush/CIとproduction snapshotを更新する。A5の設計順はA5→A6→A8→A9→A10のまま。Moneytree A7とCloud/geocoding A3/A4は後順位で、本laneの前提にしない。
+
+- **Source/PR:** branch `feat/cfo-a5-cost-visibility-20261007` / HEAD `adec01dd1cf89a797d6374d9d9da5d6c2aa811e8` は`origin/main=dc90716408f8d86c37fec363bdeb92bc3eed9e09`を含み、remote branchと一致。PR #6827はOPEN/DRAFT、base `dc907164`、merge state CLEAN。GitHub run `37748467531`は同じHEADで完了成功し、`Loop control contracts`は801 tests / 145.567s PASS。CI上のCodeRabbitはdraftのためreviewをskip。A5の既存fresh reviewで見つかったImportantは明示estimate-statusのRED→GREEN regressionで修正済み。PRはまだmainへmergeされていない。
+- **Release/owner:** `/Users/anicca/loops/current`はimmutable release `20261008T171655-dc907164`、`RELEASE.json.sha=dc90716408f8d86c37fec363bdeb92bc3eed9e09`。これは最新main releaseの存在だけを示し、A5 branchやCFO ownerの反映ではない。`life-manager-cfo-hourly`はloaded-idleのままinstalled SHA `07aa3fb3`。最新occurrence `18dc7f9265f7e380-83653`（17:10:19 JST）は`resource_capacity_busy` / exit75、`provider_receipt_id`/`official_readback_ref`なし、last successful reportは15:00:53 JST。次のeligible intervalは1hで、次回attempt自体もcapacity次第。
+- **Reconciler:** `life-manager-release-reconciler`はPID `6794` / SHA `3c87f64f`でloaded-running。17:15:50 JSTのoccurrence `18dc7ea23147ab48-58583`は`entrypoint_exit_1`。fleet applyはtarget `07aa3fb3`に対し74 changed / 24 skipped / 3 errors / budget exceeded。直近outputにはretired-label `retirement identity guard failed`、`hf-gig-reply-detector`の`effect_unknown` rebind拒否、`alpaca-investment-live`と`capafy-ig-marketing-daily`のBootstrap `Input/output error`（previous job restored）がある。これらはA5所有外のowner状態なので、effect fenceを解除したり一括apply/再起動したりしない。
+- **Handoff:** `self-handoff/receipt.json`はtarget `864513c9`に対し`status=failed`, `error=old_service_active_timeout`, old service PID `6794` runningを記録。これは現在の`dc907164` release向けhandoff receiptではない。新current releaseとCFO loaded SHAの不一致は依然残る。
+- **Host snapshot:** 17:18 JSTにroot available `3,890,260 KiB`、load average `15.16/14.51/14.38`。17:10のCFO admission deferの時点原因をこの後のsnapshotだけで再現したとは扱わない。
+
+**更新後の残TODO:**
+
+1. このstatus更新をcommit/pushし、更新後headのCIを同一SHAで通す。通過後、PR #6827をreadyにしてadmin-first mergeを実行する。現時点のCI greenをこの新headの結果として流用しない。
+2. active PID `6794`には触れず、reconcilerのnatural terminal/handoff receiptを待ち、target `dc907164`とloaded release SHAをreadbackする。owner applyのpartial/failed行はowner単位で原因を閉じ、`effect_unknown`のreceipt/pre-effect証拠なし解除、global cap増加、重複applyはしない。CFO ownerがmain-derived SHAに載り、admission再試行が自然にeligibleになることを確認する。
+3. 15:00:53 JSTのCFO report sidecar（既知provider message ID `105259`）と同一occurrence runtime event/official receiptを結ぶ。照合前に再送しない。
+4. PR merge後、canonical production routeでA5 additive migration/RPC/権限を適用し、tenant/period bounds、provider/SKU/operation/unit、loop/owner/trace、daily/MTD panel、unknown-vs-zeroとsettled-vs-estimateをreadbackする。同じ自然occurrenceのdelivery receiptも確認する。
+5. A6: 2026-09 Google billed usage・credits・tax・roundingを同期間Monitoring estimateと照合し、現金決済は公式receipt時だけ計上。A5 traceのないSKUはunattributedのまま。
+6. A8: 18 product loops / 186 runtime jobsのsettled revenue/refund/feesとprovider/API/cloud/subscription actual costsを、source/期間/currency/owner/official receipt単位で結合し、欠損はunknownにする。
+7. A9: Asia/Tokyo daily/MTD/trailingの実source期間をfilterし、agent/loop/platform別・全社 revenue/expense/net/MRR/freshness/coverageを既存CLI/reportへ表示し、`loop_pnl.py --date`を修正する。
+8. A10: main-derived immutable releaseで7日連続のnatural report、18/18 loops・186/186 jobs coverage、official receipt/readback、期間一致、重複/replay zeroを受け入れる。それまでは全社CFO完了・verified $10k MRRを主張しない。
+
+**現在cursor:** spec/planのstatus commit → updated-head CI → PR #6827 ready/merge。production側は並行してactive reconcilerを保持し、natural handoff・CFO SHA/admission・receiptをreadbackする。再起動やcap引上げは解決策にしない。
