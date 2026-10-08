@@ -725,6 +725,10 @@ def validate_package(root: Path, policy_path: Path, ffmpeg: str = "ffmpeg") -> d
                 errors.add(f"play_count_invalid:{name}")
             if float(parsed["duration_ms"]) <= 0 or float(parsed["duration_ms"]) > float(apng_policy["max_duration_ms"]):
                 errors.add(f"duration_invalid:{name}")
+            elif float(parsed["duration_ms"]) % 1000 and not any(
+                    error.endswith(f":{name}") for error in errors):
+                # Creators Market rejects loops that are not whole seconds (live 2026-10-08).
+                errors.add(f"duration_not_whole_seconds:{name}")
 
     zip_payloads: dict[str, bytes] = {}
     zip_path = root / "submission.zip"
