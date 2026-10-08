@@ -1511,7 +1511,7 @@
       "command": ["ebook-en-tiktok-daily"],
       "effect_reconcile": {
         "argv": ["apps/life-manager/scripts/mobile-postiz-provider-reconcile.py", "--auto-owner", "ebook-en-tiktok-daily", "--identity-dir", "~/.local/state/life-manager/ebook/effect-identities"],
-        "occurrence_flag": null,
+        "occurrence_flag": "--occurrence-id",
         "resolve_flag": "--resolve",
         "timeout_seconds": 120
       },
@@ -1533,7 +1533,7 @@
       "command": ["ebook-ja-instagram-daily"],
       "effect_reconcile": {
         "argv": ["apps/life-manager/scripts/mobile-postiz-provider-reconcile.py", "--auto-owner", "ebook-ja-instagram-daily", "--identity-dir", "~/.local/state/life-manager/ebook/effect-identities"],
-        "occurrence_flag": null,
+        "occurrence_flag": "--occurrence-id",
         "resolve_flag": "--resolve",
         "timeout_seconds": 120
       },
@@ -1555,7 +1555,7 @@
       "command": ["ebook-ja-tiktok-daily"],
       "effect_reconcile": {
         "argv": ["apps/life-manager/scripts/mobile-postiz-provider-reconcile.py", "--auto-owner", "ebook-ja-tiktok-daily", "--identity-dir", "~/.local/state/life-manager/ebook/effect-identities"],
-        "occurrence_flag": null,
+        "occurrence_flag": "--occurrence-id",
         "resolve_flag": "--resolve",
         "timeout_seconds": 120
       },
