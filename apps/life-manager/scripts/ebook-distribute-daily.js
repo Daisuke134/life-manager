@@ -230,18 +230,25 @@ function approvedBaselineScript(script, pack) {
     && JSON.stringify(pack.allowed_claims) === JSON.stringify(APPROVED_CLAIMS_BY_PRODUCT[pack.product_id]));
 }
 
-function renderInput({ python, root, stateRoot, slotAt, product }) {
+function renderInput({ python, root, stateRoot, slotAt, product, ownerEnv = process.env }) {
   const renderer = path.join(root, "skills/earn/marketing-engine/ebook_distribute_daily.py");
+  const rendererEnv = {
+    HOME: ownerEnv.HOME || "",
+    PATH: ownerEnv.PATH || "",
+    LANG: ownerEnv.LANG || "C.UTF-8",
+    LC_ALL: ownerEnv.LC_ALL || "",
+    TMPDIR: ownerEnv.TMPDIR || "/tmp",
+  };
+  if (product === "ebook-en") {
+    for (const key of ["LIFE_MANAGER_HEYGEN", "HEYGEN_NO_ANALYTICS"]) {
+      const value = ownerEnv[key];
+      if (typeof value === "string" && value.trim()) rendererEnv[key] = value;
+    }
+  }
   const result = spawnSync(python, [renderer, "--product", product, "--slot-at", slotAt,
     "--state-root", stateRoot], {
     cwd: root,
-    env: {
-      HOME: process.env.HOME || "",
-      PATH: process.env.PATH || "",
-      LANG: process.env.LANG || "C.UTF-8",
-      LC_ALL: process.env.LC_ALL || "",
-      TMPDIR: process.env.TMPDIR || "/tmp",
-    },
+    env: rendererEnv,
     encoding: "utf8",
     timeout: 20 * 60 * 1000,
     maxBuffer: 2 * 1024 * 1024,
@@ -433,6 +440,7 @@ async function run(argv = process.argv.slice(2), deps = {}) {
     stateRoot,
     slotAt,
     product: lane.productId,
+    ownerEnv: env,
   });
   const { receipt, script, publication_id: publicationId, attribution_token: token } = input;
   if (!approvedBaselineScript(script, pack)

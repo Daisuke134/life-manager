@@ -40,7 +40,7 @@ test("each Japanese eBook publisher owner resolves one matching account and loca
   );
 });
 
-test("English HeyGen owner is scoped to the existing TikTok account and reports disabled setup", () => {
+test("English HeyGen owner resolves the approved active Monk TikTok route", () => {
   const lane = JOBS["ebook-en-tiktok-daily"];
   assert.deepEqual(lane, {
     productId: "ebook-en",
@@ -58,10 +58,9 @@ test("English HeyGen owner is scoped to the existing TikTok account and reports 
     platform: lane.platform,
     accountId: lane.accountId,
   });
-  assert.equal(selected.account.status, "disabled_verified");
-  assert.equal(selected.setup_required, true);
-  assert.equal(selected.setup_reason, "provider_disabled");
-  assert.equal(selected.target, null);
+  assert.equal(selected.account.status, "approved_active");
+  assert.equal(selected.setup_required, false);
+  assert.equal(selected.target.integration_id, "cmo5rwq2p00twn10yrsdglng3");
   assert.equal(selected.integrationId, "cmo5rwq2p00twn10yrsdglng3");
 });
 
@@ -81,7 +80,7 @@ test("English baseline policy accepts only the owned HeyGen script and claims", 
   }), false);
 });
 
-test("English owner returns a typed no-effect hold while Postiz keeps its integration disabled", async () => {
+test("English owner writes a typed no-effect hint before its first scheduled slot", async () => {
   const dataDir = path.join(os.tmpdir(), `ebook-en-disabled-${process.pid}-${Date.now()}`);
   const env = {
     LIFE_MANAGER_LOOP_ID: "ebook-en-tiktok-daily",
@@ -95,11 +94,10 @@ test("English owner returns a typed no-effect hold while Postiz keeps its integr
 
   const result = await run(["ebook-en-tiktok-daily"], {
     env,
-    nowMs: Date.parse("2026-10-06T08:00:00+09:00"),
+    nowMs: Date.parse("2026-10-06T07:30:00+09:00"),
   });
 
-  assert.equal(result.state, "setup_required");
-  assert.equal(result.reason, "provider_disabled");
+  assert.equal(result.state, "no_due_slot");
   assert.equal(result.effect, 0);
   const hintPath = env.LIFE_MANAGER_RESULT_HINT_PATH;
   assert.equal(fs.existsSync(hintPath), true);
@@ -111,8 +109,70 @@ test("English owner returns a typed no-effect hold while Postiz keeps its integr
       effect: 0,
       owner_id: "ebook-en-tiktok-daily",
       occurrence_id: "ebook-en-tiktok-daily:run-1",
-      reason: "setup_required",
+      reason: "no_due_slot",
     });
+  }
+});
+
+test("renderer receives scoped HeyGen environment only for the English eBook", async () => {
+  const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ebook-renderer-env-"));
+  const fakePython = path.join(temporaryRoot, "fake-python");
+  const capturedKeys = [
+    "LIFE_MANAGER_HEYGEN",
+    "HEYGEN_NO_ANALYTICS",
+    "LM_POSTIZ_API_KEY",
+    "PRIVATE_UNRELATED_SECRET",
+  ];
+  fs.writeFileSync(fakePython, `#!${process.execPath}\nconst fs = require("node:fs");\nconst path = require("node:path");\nconst stateIndex = process.argv.indexOf("--state-root");\nconst stateRoot = process.argv[stateIndex + 1];\nfs.mkdirSync(stateRoot, { recursive: true });\nconst received = Object.fromEntries(${JSON.stringify(capturedKeys)}.map((key) => [key, process.env[key] ?? null]));\nfs.writeFileSync(path.join(stateRoot, "renderer-env.json"), JSON.stringify(received));\nprocess.stdout.write(JSON.stringify({ schema_version: "marketing.ebook-owner-input.v1", receipt: { state: "rendered" } }) + "\\n");\n`);
+  fs.chmodSync(fakePython, 0o700);
+
+  async function captureRendererEnvironment(ownerId, now, overrides = {}) {
+    const stateDir = path.join(temporaryRoot, ownerId);
+    const env = {
+      HOME: process.env.HOME || "",
+      PATH: process.env.PATH || "",
+      LIFE_MANAGER_LOOP_ID: ownerId,
+      LIFE_MANAGER_OCCURRENCE_ID: `${ownerId}:renderer-env-test`,
+      LIFE_MANAGER_RELEASE_ROOT: ROOT,
+      LIFE_MANAGER_RESULT_HINT_PATH: path.join(stateDir, "entrypoint-result.json"),
+      LIFE_MANAGER_HEYGEN: path.join(temporaryRoot, "bin/heygen"),
+      HEYGEN_NO_ANALYTICS: "1",
+      LM_DATA_DIR: path.join(stateDir, "data"),
+      LM_EBOOK_PUBLISHING_ENABLED: "true",
+      LM_POSTIZ_API_KEY: "test-only-not-a-real-key",
+      LM_PYTHON: fakePython,
+      LM_RUNTIME_TENANT_ID: "dais-local",
+      PRIVATE_UNRELATED_SECRET: "must-not-reach-renderer",
+      ...overrides,
+    };
+
+    await assert.rejects(
+      run([ownerId], { env, nowMs: Date.parse(now) }),
+      /eBook render receipt and baseline script do not match/,
+    );
+    return JSON.parse(fs.readFileSync(
+      path.join(stateDir, "data/marketing/ebook/renderer-env.json"), "utf8",
+    ));
+  }
+
+  try {
+    const english = await captureRendererEnvironment(
+      "ebook-en-tiktok-daily", "2026-10-08T08:00:00+09:00",
+    );
+    assert.equal(english.LIFE_MANAGER_HEYGEN, path.join(temporaryRoot, "bin/heygen"));
+    assert.equal(english.HEYGEN_NO_ANALYTICS, "1");
+    assert.equal(english.LM_POSTIZ_API_KEY, null);
+    assert.equal(english.PRIVATE_UNRELATED_SECRET, null);
+
+    const japanese = await captureRendererEnvironment(
+      "ebook-ja-tiktok-daily", "2026-10-08T12:30:00+09:00",
+    );
+    assert.equal(japanese.LIFE_MANAGER_HEYGEN, null);
+    assert.equal(japanese.HEYGEN_NO_ANALYTICS, null);
+    assert.equal(japanese.LM_POSTIZ_API_KEY, null);
+    assert.equal(japanese.PRIVATE_UNRELATED_SECRET, null);
+  } finally {
+    fs.rmSync(temporaryRoot, { recursive: true, force: true });
   }
 });
 
