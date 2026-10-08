@@ -17,6 +17,7 @@ import asyncio
 import datetime
 import json
 import re
+from urllib.parse import urljoin
 import subprocess
 import sys
 from pathlib import Path
@@ -34,26 +35,31 @@ GUARD = REPO / "skills" / "browser" / "browser-guard.sh"
 IDENTITY = "line-creators:dais"
 LEDGER = Path.home() / ".local" / "state" / "life-manager" / "line-sticker" / "readback.jsonl"
 STATUSES = ("編集中", "審査待ち", "審査中", "審査処理中", "承認", "リジェクト", "販売中", "販売停止", "販売開始待ち")
-MESSAGE_FOOTER = "このメッセージに返信することはできません。"
+# The detail page ends with a no-reply notice or, since 2026-10, a reply form.
+MESSAGE_FOOTERS = ("このメッセージに返信することはできません。", "以下のフォームからメッセージを送信することができます。")
 
 
 async def _fetch_rejection_message(page: Page, item: dict) -> str | None:
     creator_base = item["url"].split("/sticker/")[0]
     await page.goto(f"{creator_base}/message/", wait_until="domcontentloaded", timeout=60000)
     await page.wait_for_timeout(2000)
-    title_ja = item.get("title_ja") or ""
-    rows = await page.evaluate(
-        """(title) => [...document.querySelectorAll('a[href*="/message/detail/"]')]
-            .filter(a => !title || a.innerText.includes(title))
-            .map(a => a.getAttribute('href'))""",
-        title_ja,
-    )
-    if not rows:
-        return None
-    await page.goto(f"{creator_base}{rows[0]}", wait_until="domcontentloaded", timeout=60000)
-    await page.wait_for_timeout(1500)
-    body = await page.inner_text("body")
-    match = re.search(r"\d{4}\.\d{2}\.\d{2} \d{2}:\d{2}:\d{2}\n(.*?)" + re.escape(MESSAGE_FOOTER), body, re.S)
+    # The list row carries neither the product id nor, on English-first items, the Japanese title
+    # (48137583, 2026-10-08); the detail page does carry the product id, so open the newest few.
+    hrefs = await page.evaluate(
+        """() => [...new Set([...document.querySelectorAll('a[href*="/message/detail/"]')]
+            .map(a => a.getAttribute('href')))]""")
+    for href in hrefs[:10]:
+        await page.goto(urljoin(page.url, href), wait_until="domcontentloaded", timeout=60000)
+        await page.wait_for_timeout(1500)
+        body = await page.inner_text("body")
+        if str(item["product_id"]) in body:
+            return extract_message(body)
+    return None
+
+
+def extract_message(body: str) -> str | None:
+    footers = "|".join(re.escape(f) for f in MESSAGE_FOOTERS)
+    match = re.search(r"\d{4}\.\d{2}\.\d{2} \d{2}:\d{2}:\d{2}\n(.*?)(?:" + footers + ")", body, re.S)
     return match.group(1).strip() if match else None
 
 
