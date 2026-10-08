@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="MLB Series Preview Brief icon">
+  <rect width="512" height="512" rx="96" fill="#14213d"/>
+  <path d="M256 96L416 256 256 416 96 256z" fill="none" stroke="#e8e1d0" stroke-width="16" stroke-linejoin="round"/>
+  <circle cx="256" cy="256" r="26" fill="#e8e1d0"/>
+  <circle cx="256" cy="96" r="18" fill="#fca311"/><circle cx="416" cy="256" r="18" fill="#fca311"/><circle cx="96" cy="256" r="18" fill="#fca311"/><circle cx="256" cy="416" r="18" fill="#fca311"/>
+</svg>
