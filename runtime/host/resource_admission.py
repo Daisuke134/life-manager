@@ -450,9 +450,10 @@ def _database_schema_is_current(connection: sqlite3.Connection, version: int) ->
 
 
 def _database(path: Path) -> sqlite3.Connection:
-    connection = sqlite3.connect(path, timeout=5.0)
+    connection = sqlite3.connect(path, timeout=30.0)
     os.chmod(path, 0o600)
-    connection.execute("PRAGMA journal_mode=DELETE")
+    # Do not force DELETE while old and new release processes share this database.
+    # A later release can enable WAL after every legacy consumer has drained.
     connection.execute("PRAGMA synchronous=FULL")
     version = connection.execute("PRAGMA user_version").fetchone()[0]
     if version not in {0, 2}:
