@@ -5750,3 +5750,19 @@ This snapshot supersedes the 13:59–14:04 source/release status. PR #7055 backo
 - PR #7042 latest completed run `37731381698` is green at head `5f226522b6`; this local merge/spec update changes the branch head, so CI runs again after push. same-file sender branch remains untouched and its owner has not answered.
 
 **Current cursor:** push latest main `d28ed3f9` sync/spec, complete fresh PR checks, then wait for Paid claim natural terminal before the read-only Coconala Inbox collector.
+
+### 2026-10-08 14:31 JST — eBook fence patch synced; live evidence refreshed
+
+この追記は14:17のeBook cursorを更新する。理想architectureは維持し、現行productionの確認済み事実と未解決条件を分ける。
+
+**確認済み:**
+
+- PR #7057 `fix/ebook-fence-target-occurrence-20261008` は最新main同期merge commit `7245e160a5ae26d2a44656697d0a30e348b401c4`までpush済み。GitHubのこのheadは`CLEAN`、required CI 9/9 success。spec更新後は新headでCIを取り直す。
+- PRのsource修正は3つのeBook `effect_reconcile` rowsへ`--occurrence-id`を渡し、child adapterがowner-prefixを検証して対象occurrenceを受け取る。ownerのidentity検証・公式Postiz readbackは残る。これはtarget routing修正であり、production適用や古いeffect claimの解決ではない。
+- 14:31 JSTに既存HeyGen CLIのread-only `video list --title Anicca --limit 100`を全2ページ照会し0件。English occurrence `ebook-en-tiktok-daily:18dc6de8dcf3a0e8-75262`のlocal eventは`entrypoint_exit_1`、`provider_receipt_id=null`、`next_action=official_readback_required`。動画一覧0件だけでは、provider effectなしとは証明できないため旧occurrenceを再送しない。
+- 14:24:50 JSTのPostiz公式GETではeBook 2/9（EN TikTok 0、JA TikTok 1、JA Instagram 1）、Capafy `capafy.hooklab`は2件`PUBLISHED`。このreadback時点でCapafyの2 automation ownersはdisabled / `Bootstrap failed: 5`。投稿2件は継続cadenceの証拠ではない。
+- 月額Letter/Tegamiのprice、settled subscription、net MRRは未確認。one-time eBook priceをMRRに算入しない。
+
+**TODO順:** 旧順=`PR source fix → natural release apply → exact occurrence route → unique identity recovery → JP catch-up → EN resolution → daily cadence → checkout/MRR → Capafy`。新順=`このspec追記をpushし新headのrequired CI/reviewを確認 → PR #7057をmerge → release reconcilerの自然terminalとmain由来release/lockをreadback → 3 eBook ownersとfence reconcilerのloaded SHA/argvを確認 → natural fence runが各ownerのexact occurrenceを渡すことをreadback → resultがidentity missingならlocal claim/job/distribution receipt/account/integration/slot/hashと公式Postiz receiptを一意joinしowner pathでだけ回復 → JP claimsを閉じ、due-slot functionがまだeligibleと返す場合だけowner natural wakeでcatch-up → English旧effectをvideo IDまたは同一createに紐づくitemized billingでresolveし、destination eligibilityを別確認 → 次のdistinct English slotをowner経由で1回 → 3 accounts×3 unique PUBLISHED/dayとreplay-zero → post/click/locale checkout/settled order/matching PDF/monthly subscriptionからnet MRR → eBook paid order + matching PDF後にCapafy Bootstrap 5をowner-safe apply経路で修正し、1 canary/24h receiptを確認`。理由: source root causeは実装済みだが未merge/未production反映で、owner identityと旧effectのreceiptも未解決。現在cursor=`spec更新のpush後に新PR headのCI/reviewを確認`。
+
+**Daisの作業:** いま手動投稿・Postiz再接続・CAPTCHAは不要。providerが明示的に本人確認を要求した場合のみ、その本人手続きが外部前提になる。
