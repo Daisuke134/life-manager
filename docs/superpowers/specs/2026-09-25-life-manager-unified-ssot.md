@@ -5046,3 +5046,26 @@ Source / production follow-up (2026-10-08 11:01 JST): PR #7012は`b692e70a`と�
 PR #7030の初回CIで`OSS self-contained boundary`だけがfailした。原因はbase main PR #7028が`skills/capafy-autopublish/CP1_AGENTIC.md`を更新し、`docs/manifests/oss-merge-1-sources.json`のderived inventory digestが古いままになっていたこと。eBook diffはCapafy sourceに触れていない。manifestのCapafy rootは243 filesのまま、verifierと同じGit index/path sortでdigestだけ`2b9e744435d78e144fa0f7bad5c20a57f3117858284dfbdf560ccde3f042140b`へ更新し、ローカルの`node scripts/verify-oss-self-contained.mjs --json`は`ok=true, violations=[]`。
 
 **現在cursor:** このbaseline更新をPR #7030へpushし、required CI全件を再実行する。source修正、provider fence、production容量/label gateの状態は変わらない。
+
+### 2026-10-08 11:53 JST — eBook readback after latest English occurrence
+
+この節は11:49のCI cursorと11:43のproduction cursorを更新する。PR branchはlatest main `c78c4e841e348f69aadbd3026bb3595484377111`をmerge commit経由で取り込んだ。main側の差分にeBook source変更はなく、更新はCapafy/Life Manager文書で、OSS inventory verifierは引き続きPASS。PR #7030の旧head CIは新headのCIに置き換わる。
+
+**最新readback（11:52 JST）:**
+
+- English ownerの最新occurrence `18dc6de8dcf3a0e8-75262`は11:50 JSTにexit 1 / `effect_status=unknown` / provider receiptなし / `official_readback_required`。その後のHeyGen title `Anicca` listは0件、walletはUSD 11.78のまま。Postiz direct GET（11:52:35 JST）でもEnglish 0件、日本語TikTok 1、日本語Instagram 1（合計2/9）、3 integrationすべてenabled。英語effectは未解決なので同intentを再送しない。
+- capacity recoveryは戻った。cleanup ownerの11:46:25 JST occurrence `18dc6dc27a256d78-72072`はexit 0 / pass。11:45:39 JSTのreceiptは`free_after=2,375,139,328` bytes、errors 0、protected deletions 0。11:52 `df -Pk /`は7,571,448 KiB available。これは現在のcapacity readbackであり、永続安定の証明ではない。
+- release reconciler PID 80014とcleanup owner PID 15358は11:52時点でloaded-running。重複kickstart/applyせず、それぞれの自然terminalとapply-lock解放を確認する。`lm-loop doctor`は引き続きretired guarded label `ai.anicca.provision-browser.capafy.kosuke`だけで`ok=false`。preflightはPASS済み。
+- PR #7030の新headではOSS boundary/Python/shell/Startup/PII/agent-instruction checksがPASS、Loop control contracts・TruffleHog・gitleaksは実行中。
+
+**現在cursorと残りatomic TODO:**
+
+1. PR #7030のlatest-main merge commitをpushし、required CIを全部PASSさせてmergeする。
+2. active reconciler/cleanup ownerを停止せず、自然terminal・apply-lock解放をreadbackする。
+3. 次の日本語12:30 slotで、既存日本語ownersが各1回自然実行し、Postiz `PUBLISHED` receipt/post ID/public URLが付くかを確認する。capacityは現在floorを超えている。英語unknown fenceは別ownerのまま保持する。
+4. 英語の旧effectについてvideo IDか同createに紐づくbilling evidenceを探す。現在のtitle/wallet/Postiz読み取りは未解決を示す。安全なdisposition前に08:00 intentを再送しない。
+5. guarded retired labelをownerの安全経路で解消して`lm-loop doctor`をPASSさせ、main-derived source releaseの適用gateを閉じる。natural Japanese postingの必要条件とrelease applyのgateを混同しない。
+6. 英語effectを安全に閉じた後、次の別slotだけをowner経由で実行し、HeyGen ID/status/output SHA/costとPostiz receiptをoccurrenceへ結ぶ。3 account×3件/日（9 receipts）とreplay-zeroを自然実測する。
+7. click attribution→locale Checkout→settled Stripe→matching PDF→Letter/Tegami settled recurring net MRRを照合する。first paid orderとmatching PDF後にのみCapafy Instagram D5（1 canary/24h）へ進む。USD 10,000 net MRRは証拠が揃うまで目標のまま。
+
+**Daisの作業:** 再接続・手動投稿は不要。次の明確な配信点は12:30 JSTの日本語2 owner。英語はeffect照合後の別slotへ進む。
