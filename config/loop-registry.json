@@ -893,7 +893,7 @@
       },
       "domain": "earn",
       "effect_class": "publish",
-      "entrypoint": "skills/earn/line-sticker-distribute/line-sticker-distribute.sh",
+      "effect_reconcile": {"argv": ["skills/earn/line-sticker-distribute/scripts/distribute_fence_reconcile.py"], "occurrence_flag": "--occurrence", "resolve_flag": "--resolve", "timeout_seconds": 180}, "entrypoint": "skills/earn/line-sticker-distribute/line-sticker-distribute.sh",
       "label": "ai.anicca.line-sticker-distribute",
       "log_root": "~/.local/state/life-manager/line-sticker-distribute/logs",
       "provider_route": "deterministic",
