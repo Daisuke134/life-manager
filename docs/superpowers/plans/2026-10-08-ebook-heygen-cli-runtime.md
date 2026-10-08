@@ -8,7 +8,7 @@
 
 **Tech Stack:** Node.js, Python 3, node:test, pytest, Life Manager immutable releases.
 
-**Spec:** `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md` — “eBook Monk current blocker cursor — 2026-10-08 10:53 JST”.
+**Spec:** `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md` — “eBook Monk renderer recovery cursor — 2026-10-08 11:29 JST”.
 
 ## Global Constraints
 
@@ -155,9 +155,9 @@ Observed 10:52 JST: the full two-page title `Anicca` search returns zero videos.
 
 The sidecar remains `delivery_uncertain` without `video_id` or `provider_status`; `lm-loop status` remains `effect_status=unknown` and `next_action=official_readback_required`. Do not replay the same occurrence or clear the sidecar.
 
-- [ ] **Step 4: Obtain exact provider-side create or billing evidence**
+- [x] **Step 4: Complete available official provider readback; retain the exact missing artifact**
 
-Use HeyGen's official video/billing readback to match a video ID or prove the wallet change is unrelated. If those records cannot identify the create, keep the effect fenced and record the exact missing provider artifact; a zero-result title search alone does not explain the wallet delta.
+Observed 10:52 JST: the full two-page `Anicca` video search returns zero matches, and HeyGen CLI help exposes `video list`/`video get` plus `user me get`, but no wallet transaction-history command. The wallet is USD 11.78 versus the sidecar's USD 12.30 before-create balance. Exact missing provider evidence is the create/video ID or an itemized billing record tied to that request. Keep `delivery_uncertain`; this is a completed safe disposition, not proof that the provider effect did not occur.
 
 ### Task 5: Preserve HeyGen provider IDs and safe renderer diagnostics
 
@@ -172,27 +172,27 @@ Use HeyGen's official video/billing readback to match a video ID or prove the wa
 - Produces: a durable video ID/status before completion checks, and a sanitized parent error class/exit result.
 - Boundary: a valid provider ID is recovered with `heygen video get <video-id>`; no retry path may issue a second `video create` for that request hash.
 
-- [ ] **Step 1: Add a failing non-completed-create regression test**
+- [x] **Step 1: Add a failing non-completed-create regression test**
 
-Add `test_noncompleted_create_persists_video_id_and_replay_never_creates_again`. Mock `video create` returning a valid `video_id` with status `processing`; assert the intent stores both fields before returning reconciliation-required, and a second run uses `video get <video-id>` with exactly one total create call.
+Add `test_noncompleted_create_persists_video_id_and_replay_never_creates_again` for a valid `video_id` with status `processing`, plus `test_create_timeout_with_video_id_is_reconciled_without_second_create` for exit code 4 with parseable `video_id`/status in stdout. Assert each intent stores the ID/status and a replay uses `video get <video-id>` with exactly one total create call.
 
-- [ ] **Step 2: Run the regression to verify RED**
+- [x] **Step 2: Run the regression to verify RED**
 
-Run: `python3 -m pytest skills/earn/marketing-engine/render_eval/test_heygen_candidate.py::test_noncompleted_create_persists_video_id_and_replay_never_creates_again -q`
+Run: `python3 -m pytest skills/earn/marketing-engine/render_eval/test_heygen_candidate.py::test_noncompleted_create_persists_video_id_and_replay_never_creates_again skills/earn/marketing-engine/render_eval/test_heygen_candidate.py::test_create_timeout_with_video_id_is_reconciled_without_second_create -q`
 
-Expected: FAIL because the current exception handler writes `delivery_uncertain` without the parsed video ID or status.
+Expected: both FAIL because the current status check raises `ValueError`, and the exit-4 handler writes `delivery_uncertain` without the parsed video ID or status.
 
-- [ ] **Step 3: Persist the provider ID/status before validating completion**
+- [x] **Step 3: Persist the provider ID/status before validating completion**
 
-After parsing a valid ID, durably write `state=provider_created`, `video_id`, `provider_status`, and wallet-before data. For a non-completed status, return reconciliation-required and query that same ID on the next run; never call create again. Keep `delivery_uncertain` only when the provider ID itself cannot be proved.
+After parsing a valid ID from either a successful or exit-4 `video create` response, durably write `state=provider_created`, `video_id`, `provider_status`, wallet-before data, and safe nonzero exit metadata when present. For a non-completed status or timeout, return reconciliation-required and query that same ID on the next run; never call create again. Keep `delivery_uncertain` only when the provider ID itself cannot be proved.
 
-- [ ] **Step 4: Add a sanitized subprocess failure regression**
+- [x] **Step 4: Add a sanitized subprocess failure regression**
 
 Use the existing fake-renderer test to assert a nonzero result retains safe `error_class`/exit metadata while omitting arbitrary stderr text, credential-shaped strings, and request bodies.
 
-- [ ] **Step 5: Implement minimal error propagation and run focused checks**
+- [x] **Step 5: Implement minimal error propagation and run focused checks**
 
-Make the Python renderer emit a stable failure class and let `renderInput()` propagate only that class and exit metadata. Run the two focused test files plus `git diff --check`.
+Make the Python renderer emit a stable failure class and let `renderInput()` propagate only that class and exit metadata. Verified: HeyGen renderer 12/12, eBook distribution Node tests 13/13, loop-contract 18 loops / 187 jobs, source-boundary PASS, runtime loop suite 789/789, and `git diff --check` PASS. `lm-loop doctor` still reports the unrelated retired label `ai.anicca.provision-browser.capafy.kosuke`; record it as the production promotion limitation, not an eBook code regression.
 
 - [ ] **Step 6: Commit and integrate the source repair**
 

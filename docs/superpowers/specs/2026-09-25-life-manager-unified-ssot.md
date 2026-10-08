@@ -4481,7 +4481,7 @@ flowchart LR
 - cleanupの前回manual wake `18dc6a35e334ebd0-55563`は10:39:39 JSTにexit 1 / `entrypoint_exit_1` / `retryable=true`で終わり、receiptを更新しなかった。近接stderrには別run ID `18dc66d6150b66b0-87105`の`Errno 28: No space left on device`があるが、そのerrorとcleanup occurrenceの対応は未証明。10:41の`launchctl-safe kickstart`は30秒でtimeoutした。続く10:44のnatural owner passは成功し、capacity receiptを更新した。cleanup owner失敗の詳細は診断cursorに残すが、現在のeBook gateではない。
 - `ebook-en-tiktok-daily`の10:52:51 JST latest run `18dc6af76e72b3a0-84894` / occurrence `ebook-en-tiktok-daily:18dc6a80d5810f50-74876`はexit 1、`effect_status=unknown`、`provider_receipt_id=null`、`next_action=official_readback_required`。08:00 sidecarは`delivery_uncertain`のままで、成功receiptはない。sourceではcreate responseからIDをparseした後、`status == completed`を要求し、例外時にID/statusなしのsidecarを書き直す。この欠落はsource上の回復性不具合だが、今回のprovider結果を起こした原因とは未確定。JS wrapperも非zero終了時にstderr/stdoutを捨て、`eBook renderer failed with exit 1`だけ返す。
 - Postiz公式GET（10:52 JST）でEnglish Monk TikTok `cmo5rwq2p00twn10yrsdglng3`、JA TikTok `cmo5s4edx00vgn10ygnu34a0n`、JA Instagram `cmooplxmu04tpmd0y4h3cpk33`はいずれも`disabled=false`。本日`PUBLISHED`はJA TikTok `cmuynjaq808iblc0yd2396uhg`とJA Instagram `cmuynjkih08ihlc0y38o87z0n`の各1件、English Monk 0件。合計2/9。Postiz再接続は不要。
-- HeyGen CLIのtitle `Anicca`検索（10:52 JST）は2ページを最後まで読み、0件。公式walletはUSD 11.78、sidecar記録のcreate前残高はUSD 12.30。差額USD 0.52が当該createに起因するかは証明されておらず、動画作成成功とも失敗とも扱わない。
+- HeyGen CLIのtitle `Anicca`検索（10:52 JST）は2ページを最後まで読み、0件。CLI helpには`video list`/`video get`と`user me get`があるがwallet取引履歴コマンドはない。公式walletはUSD 11.78、sidecar記録のcreate前残高はUSD 12.30。差額USD 0.52が当該createに起因するかは証明されておらず、動画作成成功とも失敗とも扱わない。fence解決に足りない外部証拠は当該createのvideo IDまたは請求明細。
 - Capafyは後段のまま。両publisher owner (`capafy-ig-marketing-daily`, `life-manager-capafy-ig`)はdisabled。旧direct ownerはeffect fence `18db7caff1178a88-68028`を`active_ig_handle_unresolvable`で保持し、新Postiz ownerは`LM_CAPAFY_IG_PACK_REF`未設定の診断履歴があり、plistにもpack refと`CAPAFY_IG_POSTIZ_INTEGRATION_ID`がない。Postiz公式integration `Hook Lab by Anicca` (`cmuuycr5402uzqw0yhanqggo9`)は`disabled=false`だが、今日の投稿は0件でnative username/good-standingは未確認。初回paid eBook + matching PDF receiptも未確認なのでD5を開始しない。D5詳細 → `docs/superpowers/plans/2026-10-04-capafy-10k-mrr-recipe.md`。
 
 **残りAtomic TODO（eBook→Capafy順）:**
@@ -4497,6 +4497,31 @@ flowchart LR
 9. 初回paid eBookとmatching PDFが揃ったら、Capafy Instagram D5だけを再開する。正しいInstagram identity / good-standing、Postiz integration ID、pack ref、single publisher ownerを確認し、1 canary/24hと14日readbackを行う。Capafy product/listing/account-lifecycle開発には触れない。
 
 **Daisの作業:** 現時点でPostiz再接続・再認証や手動設定は不要。残りはHeyGenの曖昧なeffectを公式証跡で確定できるかと、自所有rendererのreceipt/診断修正である。
+
+### eBook Monk renderer recovery cursor — 2026-10-08 11:29 JST
+
+この追記が10:53 cursor以降の最新状態とsource修正を記録する。投稿対象・理想architecture・Capafy開始gateは上のcursorに従う。
+
+**原因と境界:** HeyGen CLI schemaはcreate結果に`data.video_id`と`status`を必須とする。`heygen --help`の終了コード4は「resource created but operation not yet complete」を意味する。現sourceは`subprocess.run(check=True)`の`CalledProcessError.stdout`を読まず、またstatusが`completed`以外ならvideo IDをsidecar保存する前に例外を起こし、例外handlerが`delivery_uncertain`だけを書いてID/statusを落としていた。これはlive unknownと整合するsource defectだが、実際の08:00 CLI終了コードはログに残らず、この実行の直接原因とは未確定。
+
+**source repair (branch `fix/ebook-heygen-receipt-recovery-20261008`, main統合前):** RED/GREEN testを2つ追加した。create応答`status=processing`のID保持と、exit code 4でもstdoutにIDがある場合のID/status/exit metadata保持を確認し、次runが同じIDへ`video get`を使い、create回数を1回に保つ。rendererは安全な`error_class`だけのfailure envelopeを出し、JS parentはclass/exit codeのみを伝播してstderrとcredentialを隠す。focused testsはHeyGen 12/12、eBook Node 13/13、runtime loop suite 789/789、loop-contract 18 loops / 187 jobs、source-boundary PASS、`git diff --check` PASS。`lm-loop doctor`はeBook外のretired label `ai.anicca.provision-browser.capafy.kosuke`だけで`ok=false`。
+
+**現在のproduction readback（11:29 JST）:** Postizは既存3 integrationがenabled、今日は日本語TikTok/Instagram各1件`PUBLISHED`、English 0件（2/9）。HeyGen video listは全2ページで0件、wallet USD 11.78。08:00 sidecarは`delivery_uncertain`、ID/statusなしで保持される。`ebook-en-tiktok-daily`の11:29:17 JST occurrence `18dc6cf6724ee330-76845`は`host_admission_deferred:disk_headroom_low`、`effect_status=not_applicable`、provider receiptなしで終わり、このwakeではprovider callを発生させていない。これは旧sidecarのunknownとは別。
+
+- `/Users/anicca/loops/current`はrelease `20261008T112353-dbf93c31`、English ownerはSHA `3d88f9eb5d00d1ed3651b9ab3f5dd822df0b0bdf`。release reconciler PID `19278`はrunning / `next_action=reconcile_owner` / 直近exit 75。owner全体や兄弟loopのapply/restartをしない。
+- 11:27:02 JST cleanup receiptは`free_after=3,243,356,160` bytes、errors 0、protected deletions 0。11:29 `df -Pk /`は`2,027,784 KiB`（約1.93 GiB）で2 GiB floorを下回る。次のrelease/owner操作はfresh floor-met receiptとreconciler terminal後に行う。
+
+**残りAtomic TODO（eBook→Capafy順）:**
+
+1. 08:00 HeyGen sidecarをfenceしたままにする。CLIにはwallet transaction historyがなく、full video listも0件。解決に必要な外部証拠は当該createのvideo IDまたはUSD 0.52変化を帰属できるbilling record。成功/失敗へ丸めず、同slotを再実行しない。
+2. mainの最新SHA `a582ea2a1fd2d4bef52ae41beab91b227b9758a2`へsource branchをrebaseし、focused review/CI付きのPRをmergeする。production releaseにはまだ入っていない。
+3. release reconcilerを自然終端まで監視し、cleanup ownerのfresh receiptで`free_after >= 2,147,483,648` bytes、errors 0、protected deletions 0をreadbackする。disk floor未達またはcontrol owner running中は投稿ownerを起動しない。`lm-loop doctor`のretired Capafy provision-browser labelは別ownerの修正gateとして明記し、こちらで変更しない。
+4. source merge後、current main-derived releaseとEnglish owner loaded SHA/argv/env hashをreadbackし、旧SHAの場合だけsafe preflight後にEnglish ownerのみtarget applyする。今回のrenderer fixがloadされても旧sidecarは自動解決しない。
+5. 08:00 effectが公式証拠で安全に閉じた後、次の別slotをowner経由で1回実行し、HeyGen video ID/status/output SHA/wallet costとPostiz `PUBLISHED`/post ID/public URLを同一occurrenceへ結ぶ。
+6. natural scheduleで3 accountそれぞれ3件/日、合計9 unique receipts/dayとreplay-zeroを確認する。checkout→paid Stripe receipt→matching locale PDF→refund/fee/direct costを結び、Letter/Tegami settled subscriptionsの14日cohortでnet MRRを測る。one-time eBook売上はMRRでない。
+7. 初回paid eBookとmatching PDF後にCapafy Instagram D5へ進む。正しいidentity, Postiz integration ID, pack ref, single ownerを読み、既存計画どおり1 canary/24hと14日readbackを行う。
+
+**Daisの作業:** 再接続や手動投稿は不要。残りはsource PR、release/capacity recovery、HeyGenの旧effect証跡、通常slotのreadbackである。
 
 ### 2026-10-08 07:43 JST — Gig live-acceptance cursor correction
 
