@@ -7018,3 +7018,16 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 **完了条件:** disk修正とguarded retirementを含むimmutable releaseでcleanup receipt/admission回復とdoctor全gateを確認する。三loopが同releaseから自然terminalし、Luma registration、Workday application、VC/AI-founder outreachのofficial result、各runの`gpt-6-luna/max/fast`、Telegram reportを同一occurrenceへ照合する。unknownはtarget別fence/replay-zero、capacityは同一窓実測、収益はofficial settlement/costで確認する。
 
 **現在cursor:** guard PR exact-head CI/fresh review → merge → immutable release/natural handoff → fixed-release cleanup receipt/admission → guarded Capafy retirement/doctor → target effects → owner natural outcomes → same-window capacity/economics。
+
+
+### Marketing IntelからWriterへの記事候補連携（並列作業）
+
+**目的:** `marketing-weekly-review`がTelegramへ報告する未検証の`CONTENT`戦術を、既存Writerの`article-daily`トピックキューへ候補として渡す。AffiliateやX repostには配線しない。
+
+**契約:** `playbook.jsonl`から`testable=true`、statusが`new`または`queued`、`applies_to`に`content`を含み、`evidence_url`・`source_url`・`source-enrichments.jsonl`のいずれかで正確な出典URLを持つ戦術だけを取り込む。未処理戦術を出典付きの一枚のWriter topic cardにまとめ、`queue`・`in-progress`・`done`を通じて重複させない。記事カードは一人の読者、持ち帰る結果、支払う理由、検証計画を含み、戦術は実証済み効果ではなく検証仮説として扱う。`SOURCE FAILURES`は記事ネタに混ぜない。候補の作成は公開ではなく、Writer既存の需要・出典・品質ゲートとnote/SNS配信を維持する。
+
+**受入:** 最小fixtureで対象フィルタ、出典URL復元、未処理IDのみの取り込み、再実行と処理済みstageでの重複ゼロを確認する。`article-daily`が通常のtopic-state初期化後にこの取込を呼び、既存キューの選択順を保持する。source統合後、disk admissionが回復してから自然occurrenceでWriterの既存公開経路を通し、公開URLと公式売上readbackを確認するまで収益を主張しない。
+
+**順序:** source/test変更は現在のguard PR・disk cleanupの主cursorと独立して進め、外部effectやowner stateを触らない。主cursorの順序は変更しない。production反映と自然実行はdisk cleanup receipt `free_after >= 2 GiB`・`errors=0`・`protected_deletions=0`およびadmission passの後に行う。
+
+**現在cursor:** fixture RED → 最小importerとarticle-daily接続 → focused acceptance → commit/push・PR/merge → immutable release → disk/admission回復後の自然Writer occurrence → 公開URL・公式売上readback。
