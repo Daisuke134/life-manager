@@ -41,6 +41,18 @@ function checkoutPendingMarkup() {
   return `<section class="card" aria-live="polite"><h1>お申し込みを確認しています</h1><p>Stripeでのカード登録を確認しています。反映後にもう一度このページを開くと状態を表示します。</p><a class="text-link" href="/lm">状態を再確認</a></section>`;
 }
 
+function telegramLinkButton(enabled) {
+  return enabled === true
+    ? `<button class="text-link" type="button" data-action="link-telegram">Telegramで質問に答える（任意）</button>`
+    : "";
+}
+
+function imessageLinkButton(enabled) {
+  return enabled === true
+    ? `<button class="text-link" type="button" data-action="link-imessage">iMessageで質問に答える（任意）</button><section id="lm-imessage-pairing" hidden><p class="muted">コードをコピーしてMessagesで送信してください。</p><code id="lm-imessage-code"></code><button class="text-link" type="button" data-action="copy-imessage-code" id="lm-imessage-copy" hidden>コードをコピー</button><a class="text-link" id="lm-imessage-open" href="#" rel="nofollow" hidden>Messagesを開く</a></section>`
+    : "";
+}
+
 function pageState(snapshot, model = {}) {
   if (!snapshot || snapshot.setupState === "sync_pending" && snapshot.calendarState === "unavailable") {
     return `<section class="card"><h1>Calendarの接続を確認しています</h1><p>接続状態を読み込めません。しばらくしてからページを再読み込みしてください。</p></section>`;
@@ -70,11 +82,11 @@ function pageState(snapshot, model = {}) {
     const checkoutButton = snapshot.checkoutAvailable && chargeDate
       ? `<button class="button" type="button" data-action="checkout">7日間の無料トライアルを始める</button>`
       : "";
-    return `<section class="card offer-card"><p class="eyebrow">Google Calendarに接続しました</p><h1>対象の予定に移動時間を自動で追加します</h1><p class="muted">Calendarを開くと、予定と出発時刻を確認できます。</p><h2>7日間無料で試す</h2><p class="terms">${chargeCopy}</p><p class="muted">開始にはカード登録が必要です。トライアル終了前のメール通知は送りません。</p>${checkoutButton}${messageLink}</section>`;
+    return `<section class="card offer-card"><p class="eyebrow">Google Calendarに接続しました</p><h1>対象の予定に移動時間を自動で追加します</h1><p class="muted">Calendarを開くと、予定と出発時刻を確認できます。</p><h2>7日間無料で試す</h2><p class="terms">${chargeCopy}</p><p class="muted">開始にはカード登録が必要です。トライアル終了前のメール通知は送りません。</p>${checkoutButton}${messageLink}${telegramLinkButton(model.telegramLinkAvailable)}${imessageLinkButton(model.imessageLinkAvailable)}</section>`;
   }
 
   if (snapshot.setupState === "trial_active" || snapshot.setupState === "subscribed") {
-    return `<section class="card"><p class="eyebrow">Google Calendarに接続しました</p><h1>移動時間はCalendarに自動登録されます</h1><p>出発時刻の確認はCalendarの通知で受け取れます。このページは閉じても大丈夫です。</p>${portalMarkup(model.customerPortalAvailable === true)}</section>`;
+    return `<section class="card"><p class="eyebrow">Google Calendarに接続しました</p><h1>移動時間はCalendarに自動登録されます</h1><p>出発時刻の確認はCalendarの通知で受け取れます。このページは閉じても大丈夫です。</p>${portalMarkup(model.customerPortalAvailable === true)}${telegramLinkButton(model.telegramLinkAvailable)}${imessageLinkButton(model.imessageLinkAvailable)}</section>`;
   }
 
   if (snapshot.setupState === "billing_inactive") {
@@ -169,6 +181,45 @@ const CLIENT_SCRIPT = String.raw`(async () => {
     window.location.assign(target.toString());
   }
 
+  async function linkTelegram() {
+    say("Telegramを開いています…");
+    const result = await api("/api/lm-web/message-link", "POST", { channel: "telegram" });
+    const target = new URL(String(result.url || ""));
+    if (target.protocol !== "https:" || target.hostname !== "t.me") {
+      throw new Error("telegram_link_invalid");
+    }
+    window.location.assign(target.toString());
+  }
+
+  async function linkIMessage() {
+    say("iMessageの接続コードを作成しています…");
+    const result = await api("/api/lm-web/message-link", "POST", { channel: "imessage" });
+    const smsUrl = String(result.url || "");
+    const code = String(result.code || "");
+    if (!/^sms:\+[1-9][0-9]{7,14}$/.test(smsUrl) || !/^LMI_[A-Za-z0-9_-]{32}$/.test(code)) {
+      throw new Error("imessage_link_invalid");
+    }
+    const section = document.getElementById("lm-imessage-pairing");
+    const codeNode = document.getElementById("lm-imessage-code");
+    const copyButton = document.getElementById("lm-imessage-copy");
+    const openLink = document.getElementById("lm-imessage-open");
+    if (!section || !codeNode || !copyButton || !openLink) throw new Error("imessage_link_ui_unavailable");
+    codeNode.textContent = code;
+    copyButton.hidden = false;
+    openLink.href = smsUrl;
+    openLink.hidden = false;
+    section.hidden = false;
+    say("コードをMessagesで送信するとiMessageが接続されます。");
+  }
+
+  async function copyIMessageCode() {
+    const code = document.getElementById("lm-imessage-code")?.textContent || "";
+    if (!/^LMI_[A-Za-z0-9_-]{32}$/.test(code)) throw new Error("imessage_code_unavailable");
+    if (!navigator.clipboard?.writeText) throw new Error("clipboard_unavailable");
+    await navigator.clipboard.writeText(code);
+    say("コードをコピーしました。Messagesに貼り付けて送信してください。");
+  }
+
   root.addEventListener("click", async (event) => {
     const button = event.target.closest("button[data-action]");
     if (!button) return;
@@ -177,6 +228,9 @@ const CLIENT_SCRIPT = String.raw`(async () => {
       if (button.dataset.action === "calendar-start") await startCalendar();
       else if (button.dataset.action === "checkout") await beginCheckout();
       else if (button.dataset.action === "billing-portal") await openBillingPortal();
+      else if (button.dataset.action === "link-telegram") await linkTelegram();
+      else if (button.dataset.action === "link-imessage") await linkIMessage();
+      else if (button.dataset.action === "copy-imessage-code") await copyIMessageCode();
       else button.disabled = false;
     } catch {
       say("操作を完了できませんでした。接続状態を確認してから再度お試しください。");
@@ -203,7 +257,7 @@ function renderWebPage(model = {}) {
   const user = model.user && WEB_UID_RE.test(String(model.user.uid || "")) ? model.user : null;
   const head = `<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Life Manager</title><style>
     :root{color-scheme:light;--ink:#17231e;--muted:#65736b;--line:#dce5df;--paper:#f4f7f4;--card:#fff;--accent:#19654b}
-    *{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font-family:system-ui,-apple-system,"Hiragino Sans","Yu Gothic",sans-serif;line-height:1.55}.shell{width:min(100% - 28px,620px);margin:0 auto;padding:28px 0 44px}.brand{font-weight:700;margin:0 0 20px}.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:24px;box-shadow:0 5px 22px #153e2410}h1,h2,p{margin-top:0}h1{font-size:clamp(1.45rem,6vw,2rem);line-height:1.2;margin-bottom:12px}h2{font-size:1.1rem;margin:22px 0 8px}.lead,.muted,.feedback{color:var(--muted)}.eyebrow{font-size:.84rem;font-weight:700;letter-spacing:.06em;color:var(--accent);margin-bottom:8px}.button{appearance:none;border:0;border-radius:12px;background:var(--accent);color:#fff;cursor:pointer;display:inline-flex;justify-content:center;align-items:center;width:100%;min-height:50px;padding:12px 18px;text-decoration:none;font:inherit;font-weight:700;margin:12px 0 4px}.button.secondary{background:#e8efea;color:var(--ink)}.button:disabled{opacity:.6;cursor:wait}.terms{font-size:.97rem}.text-link{display:block;margin-top:12px;color:var(--accent);text-align:center}.feedback{min-height:1.4em;margin:0 2px 12px}@media(min-width:600px){.shell{padding-top:44px}.card{padding:32px}}
+    *{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font-family:system-ui,-apple-system,"Hiragino Sans","Yu Gothic",sans-serif;line-height:1.55}.shell{width:min(100% - 28px,620px);margin:0 auto;padding:28px 0 44px}.brand{font-weight:700;margin:0 0 20px}.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:24px;box-shadow:0 5px 22px #153e2410}h1,h2,p{margin-top:0}h1{font-size:clamp(1.45rem,6vw,2rem);line-height:1.2;margin-bottom:12px}h2{font-size:1.1rem;margin:22px 0 8px}.lead,.muted,.feedback{color:var(--muted)}.eyebrow{font-size:.84rem;font-weight:700;letter-spacing:.06em;color:var(--accent);margin-bottom:8px}.button{appearance:none;border:0;border-radius:12px;background:var(--accent);color:#fff;cursor:pointer;display:inline-flex;justify-content:center;align-items:center;width:100%;min-height:50px;padding:12px 18px;text-decoration:none;font:inherit;font-weight:700;margin:12px 0 4px}.button.secondary{background:#e8efea;color:var(--ink)}.button:disabled{opacity:.6;cursor:wait}.terms{font-size:.97rem}.text-link{display:block;margin-top:12px;color:var(--accent);text-align:center}.text-link[type="button"]{appearance:none;border:0;background:transparent;padding:0;width:100%;font:inherit;text-decoration:underline;cursor:pointer}.feedback{min-height:1.4em;margin:0 2px 12px}@media(min-width:600px){.shell{padding-top:44px}.card{padding:32px}}
   </style>`;
 
   if (!user) {

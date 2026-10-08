@@ -567,6 +567,12 @@ PY
 
   local next_retry_epoch=0
   { [ "$status" = "error" ] || [ "$status" = "partial" ]; } && next_retry_epoch=$((now_epoch + backoff_seconds))
+  # A pass that only ran out of budget (no hung owner) after applying owners is progress, not a
+  # failure: continue on the same sha soon so the fleet converges before the next release.
+  if [ "$status" = "partial" ] && [ "$budget_exceeded" -eq 1 ] && [ -z "$timed_out_owners" ] \
+    && [ "$changed" -gt 0 ]; then
+    next_retry_epoch=$((now_epoch + ${LIFE_MANAGER_FLEET_APPLY_CONTINUE_SECONDS:-300}))
+  fi
   local new_last_ok_epoch="${last_ok_epoch:-0}"
   [ "$status" = "ok" ] && new_last_ok_epoch="$now_epoch"
 
@@ -783,6 +789,18 @@ if [ "$current_complete" -eq 1 ] && [ -n "$current_sha" ] \
   && git -C "$SOURCE_REPO" diff --quiet "$current_sha" "$main_sha" -- . \
     ':(exclude)docs/**' ':(exclude)skills/earn/gig/TODO.md'; then
   release_sha_target="$current_sha"
+fi
+
+# Every release a label pins is kept by GC (~100 MB each); cutting one per merge per tick left the
+# fleet on 24 generations and the disk under its floor. A complete current release younger than
+# the minimum interval keeps serving; the newer main is cut once the interval has elapsed.
+cut_min_interval="${LIFE_MANAGER_RELEASE_CUT_MIN_INTERVAL_SECONDS:-1800}"
+if [ "$current_complete" -eq 1 ] && [ "$release_sha_target" != "$current_sha" ]; then
+  release_mtime="$(stat -f %m "$initial_release_root/RELEASE.json" 2>/dev/null \
+    || stat -c %Y "$initial_release_root/RELEASE.json" 2>/dev/null || echo 0)"
+  if [ "$(( $(date -u +%s) - release_mtime ))" -lt "$cut_min_interval" ]; then
+    release_sha_target="$current_sha"
+  fi
 fi
 
 if [ "$release_sha_target" != "$current_sha" ] || [ "$current_complete" -ne 1 ]; then

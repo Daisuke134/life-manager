@@ -73,6 +73,14 @@ const { createInvestmentStateStore } = require("./lib/investment-state-store.js"
 const { handleFeedbackMessage, createPostgresFeedbackStore } = require("./lib/feedback-intake.js");
 const { handleMentalCorrectionMessage } = require("./lib/mental-correction.js");
 const { resolveTelegramReply } = require("./lib/telegram-reply.js");
+const { handleIMessageStreamMessage, isIMessageLinkReady, startIMessageCloud } = require("./lib/imessage-cloud.js");
+const {
+  WEB_MESSAGE_LINK_PATH,
+  consumeWebMessageLink,
+  handleWebMessageLinkRequest,
+  parseWebTelegramStart,
+  webTelegramUserBySender,
+} = require("./lib/message-links.js");
 const { handleInboundReply, handleAskCallback, parseInboundRecipient } = require("./lib/ask.js");
 const { isReplyToken } = require("./lib/reply-token.js");
 const {
@@ -110,7 +118,43 @@ const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY || "sk_test_place
 const SUPA_URL = process.env.SUPABASE_URL, SUPA_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const COMPOSIO_KEY = process.env.COMPOSIO_API_KEY;
 let moneyPrinterSource, moneyPrinterRuntimePool, moneyPrinterRuntimeStore, investmentStateStore, cloudCitizenStore, agentEconomyControlStore;
+let imessageCloudClient = null;
+let imessageCloudStartup = null;
 
+function ensureIMessageCloud() {
+  if (!imessageCloudStartup) {
+    imessageCloudStartup = startIMessageCloud({
+      env: process.env,
+      supaUrl: SUPA_URL,
+      supaKey: SUPA_KEY,
+      handleMessageImpl: (space, message) => handleIMessageStreamMessage(space, message, {
+        supaUrl: SUPA_URL,
+        supaKey: SUPA_KEY,
+      }),
+    }).then((client) => {
+      imessageCloudClient = client;
+      return client;
+    }).catch((error) => {
+      imessageCloudClient = { enabled: false };
+      imessageCloudStartup = null;
+      console.error(`[imessage] cloud start failed class=${error && error.name || "unknown"}`);
+      return imessageCloudClient;
+    });
+  }
+  return imessageCloudStartup;
+}
+
+async function sendIMessageToSender(senderId, text) {
+  const client = imessageCloudClient || await ensureIMessageCloud();
+  if (!client || client.enabled !== true || typeof client.sendToSender !== "function") {
+    return { ok: false, reason: "not_ready" };
+  }
+  return client.sendToSender(senderId, text);
+}
+
+function imessageLinkAvailable() {
+  return isIMessageLinkReady(process.env, imessageCloudClient);
+}
 async function readWakeCallFacts(wake) {
   if (!SUPA_URL || !SUPA_KEY || !wake || !wake.wakeUid || !wake.wakeEventKey) return null;
   const base = String(SUPA_URL).replace(/\/$/, "");
@@ -552,6 +596,9 @@ const server = http.createServer(async (req, res) => {
       snapshot,
       trialOffer: trialEnd ? { firstChargeAt: new Date(trialEnd * 1000).toISOString(), timezone: "Asia/Tokyo" } : null,
       customerPortalAvailable: Boolean(snapshot && snapshot.stripeCustomerId),
+      telegramLinkAvailable: process.env.LM_TELEGRAM_WEB_LINKS_ENABLED === "1"
+        && Boolean(LM_TG_TOKEN && /^[A-Za-z][A-Za-z0-9_]{4,31}$/.test(String(process.env.LM_TELEGRAM_BOT_USERNAME || "").replace(/^@/, ""))),
+      imessageLinkAvailable: imessageLinkAvailable(),
       checkoutPending,
     });
     res.writeHead(200, {
@@ -570,6 +617,27 @@ const server = http.createServer(async (req, res) => {
       if (res.headersSent) { res.end(); return; }
       res.writeHead(302, { location: "/lm?auth_error=connection", "cache-control": "no-store", "content-length": "0" });
       res.end();
+    });
+    return;
+  }
+  if (path === WEB_MESSAGE_LINK_PATH) {
+    const telegramReady = process.env.LM_TELEGRAM_WEB_LINKS_ENABLED === "1" && Boolean(LM_TG_TOKEN);
+    const imessageReady = imessageLinkAvailable();
+    if (!telegramReady && !imessageReady) {
+      res.writeHead(503, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
+      res.end(JSON.stringify({ error: "message_link_unavailable" }));
+      return;
+    }
+    handleWebMessageLinkRequest(req, res, {
+      supaUrl: SUPA_URL,
+      supaKey: SUPA_KEY,
+      publicOrigin: LM_PANEL_BASE,
+      botUsername: process.env.LM_TELEGRAM_BOT_USERNAME,
+      telegramReady,
+      imessageReady,
+    }).catch(() => {
+      if (!res.headersSent) res.writeHead(503, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
+      res.end(JSON.stringify({ error: "message_link_unavailable" }));
     });
     return;
   }
@@ -1324,7 +1392,50 @@ const server = http.createServer(async (req, res) => {
             res.writeHead(200); res.end("ok");
             return;
           }
+          if (u.kind === "message" && u.isStart) {
+            const webStart = parseWebTelegramStart(u.text);
+            if (webStart.matched) {
+              let binding = null;
+              if (process.env.LM_TELEGRAM_WEB_LINKS_ENABLED === "1"
+                && webStart.token && u.chatId === u.userId) {
+                try {
+                  binding = await consumeWebMessageLink(webStart.token, "telegram", u.userId, {
+                    supaUrl: SUPA_URL,
+                    supaKey: SUPA_KEY,
+                  });
+                } catch { /* invalid/expired link and unavailable store share one fail-closed reply */ }
+                if (!binding && u.userId) {
+                  try {
+                    const existing = await webTelegramUserBySender(u.userId, { supaUrl: SUPA_URL, supaKey: SUPA_KEY });
+                    if (existing) binding = { uid: existing.uid, replayed: true };
+                  } catch { /* retry by creating a fresh link in the Web app */ }
+                }
+              }
+              await sendMessage(LM_TG_TOKEN, u.chatId, binding
+                ? binding.replayed
+                  ? "このTelegramはLife Managerに接続済みです。確認が必要な予定に返信できます。"
+                  : "TelegramをLife Managerに接続しました。確認が必要な予定があるときだけ、ここで質問します。"
+                : "このリンクは無効か期限切れです。Life ManagerのWeb画面から新しいリンクを作成してください。");
+              res.writeHead(200); res.end("ok");
+              return;
+            }
+          }
           let row = await rowByChatId(u.chatId, SUPA_URL, SUPA_KEY);
+          if (!row && u.kind === "message" && u.chatId === u.userId) {
+            const webUser = await webTelegramUserBySender(u.userId, { supaUrl: SUPA_URL, supaKey: SUPA_KEY }).catch(() => null);
+            if (webUser) {
+              if (u.isStart) {
+                await sendMessage(LM_TG_TOKEN, u.chatId, "このTelegramはLife Manager Webに接続済みです。確認が必要な予定に返信できます。");
+              } else if (u.text) {
+                const reply = await resolveTelegramReply(u.chatId, u.text);
+                await sendMessage(LM_TG_TOKEN, u.chatId, reply.filled
+                  ? `✅ ${reply.event}の場所を${reply.location}に更新しました。`
+                  : "確認が必要な予定への返信として一致しませんでした。Life Managerからの質問に返信してください。");
+              }
+              res.writeHead(200); res.end("ok");
+              return;
+            }
+          }
           if (u.kind === "message" && u.isStart && !isPanelDeepLink(u.text)) {
             const claim = await claimTelegramWebhookActor({
               actorId: u.userId,
@@ -1920,6 +2031,9 @@ wss.on("connection", (carrierWs, req) => {
 if (require.main === module) {
   server.listen(PORT, () => {
     console.log(`[life-call] listening ${PORT} ws=/ws build=${BUILD_TAG}`);
+    void ensureIMessageCloud().then((client) => {
+      console.log(`[life-call] iMessage Cloud stream ${client && client.enabled ? "ready" : "disabled"}`);
+    });
     // A comp window silently changes who gets past the paywall and who the scheduler picks up, so it
     // announces itself once at boot — an operator must never have to guess whether it is on.
     const compBanner = compBootLog(process.env);
@@ -1928,7 +2042,9 @@ if (require.main === module) {
     // The /ws Telnyx⇄Gemini-Live voice bridge + /test-call + /telegram endpoints are ALWAYS on regardless.
     // As an OpenClaw voice daemon, set LIFE_RUN_LOOPS=false so the cron-COMMAND jobs (B2) own the loops.
     const loops = maybeStartLoops(process.env, {
-      startScheduler, startWakeLoop, startReminderLoop, startTravelLoop, startAskLoop, startOnboardLoop, startDiscoveryLoop,
+      startScheduler, startWakeLoop, startReminderLoop, startTravelLoop,
+      startAskLoop: () => startAskLoop({ imessageSend: sendIMessageToSender }),
+      startOnboardLoop, startDiscoveryLoop,
       startInvestmentDryRunLoop,
     });
     console.log(`[life-call] ${loops.started ? "loops ON (standalone)" : "VOICE DAEMON (loops OFF)"} — ${loops.reason}`);
