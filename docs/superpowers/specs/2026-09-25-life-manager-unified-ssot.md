@@ -6556,3 +6556,22 @@ The next cursor is item 1 commit/push. No Dais manual action is currently requir
 5. Continue the eBook video, exact English Monk Instagram binding, one-post/readback, 3/day cadence, and $9.99 Letter MRR funnel tasks recorded above.
 
 **現在cursor:** `natural terminal of d35aa PID34577 → fresh preflight/no-PID proof → safe unload of stale 88df helper under the existing lock → next natural wake uses current b2bc helper → successful receipt and loaded SHA/argv → resolve English video + IG handle → publish once/read back → restore 3/day → grow Letter subscriptions toward 1,002 paid active subscribers`. No Capafy action, raw `launchctl`, forced restart, or effect replay.
+
+### 2026-10-08 20:08 JST — source handoff is live; eBook publish remains fenced
+
+- Fresh post-apply readback at 20:06 JST: current immutable release is `20261008T200340-8b75fa53`; Launchd loads `life-manager-release-reconciler` with exact SHA/argv for that release, and its new `self-handoff` helper is absent. The handoff receipt is `status=ok`, old state `not running`, PID null, target SHA `8b75fa53a282324da54a09fb07a97cee12e1ea2e`, and exact loaded argv matches. The stale 88df helper was unloaded through `launchctl-safe` under the owner apply lock; receipt `helper-cleanup-f5a68a1c-b9c2-4e62-a97b-f1672ed628aa.json` records the action and absent readback. No active service was stopped.
++- The English eBook owner remains loaded on SHA `88dfdaf4` with `resource_effect_unknown` occurrence `18dc6de8dcf3a0e8-75262`, `render_reconciliation_required`, `provider_receipt_id=null`, and `official_readback_ref=null`. The Oct 8 HeyGen sidecar still has no video ID/output. Do not retry it.
++- Stripe read-only readback remains: `Daily Anicca Letter` is `$9.99/month`, with `0` active subscriptions; `The Anicca Reset` is `$10.99` one-time. Verified Letter MRR is `$0`. The one-time ebook cannot count as MRR; 1,002 active $9.99 subscribers yield `$10,009.98` gross MRR before fees/refunds.
++- Postiz still returns no English Monk Instagram integration, `@monk_anicca` remains unavailable publicly, and the current handle question is pending. No post or plan purchase has occurred.
++- Docs PR #7124 contains this post-merge cursor but remains unmerged because the OSS boundary reports `manifest_inventory_mismatch skills/capafy-autopublish` on latest main. The docs diff contains only this eBook spec; Capafy is owned elsewhere and unchanged here.
++
++**Atomic TODO (eBook only):**
++
++1. Resolve the exact English video and `render_reconciliation_required` effect through HeyGen provider readback or authoritative no-effect; do not repost the May 6 title or assume A12/A13/A14 has no prior post.
++2. Bind the exact English Monk Instagram handle to an active owned integration; do not substitute the iOS handle or TikTok.
++3. Publish the verified MP4 once and confirm official `PUBLISHED` receipt and URL.
++4. Restore three daily English Monk Instagram slots and verify natural posts.
++5. Add the existing Stripe Letter price to the marketing registry/funnel; verify paid orders against PDF delivery and count active subscriptions toward MRR.
++6. Merge docs PR #7124 only when its inherited OSS inventory check passes; no Capafy edits in this workstream.
++
++**現在cursor:** `resolve the exact English render/effect → bind the confirmed English Monk IG account → publish once/read back → restore 3/day → map and measure Letter subscriptions and PDF-linked eBook sales`. Source handoff is loaded on main-derived production release `8b75fa53`. No Capafy action, effect replay, or forced restart.
