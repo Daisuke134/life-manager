@@ -19,12 +19,15 @@
 - Reuse the existing panel and append-only ledger; do not add a new CLI, scheduler, loop, or state store.
 - Use Asia/Tokyo day and month-to-date boundaries; state explicitly when a summary source is unavailable.
 - Preserve small USD values to at least 8 fractional digits so positive API-price estimates are never rendered as `$0.00`.
+- Keep per-event `runtime_trace` fields from the existing `lm_api_cost.meta` rows available for loop/owner attribution; missing trace stays unknown/unattributed.
+- Group by loop/owner and preserve trace coverage counts; the latest trace is only an anchor and never represents every event in a mixed-release group.
+- Never add a global hard cap, automatic spend cutoff, or silent feature stop.
 
 ## Working Order and Ownership
 
-- The canonical SSOT cursor remains `A4.1`; its edit lease belongs to a separate worktree and is not changed by this plan.
-- A4.2 source/tests are complete but its PR is held by unrelated repository-wide checks. Following the user's instruction to continue past blocked items, A5 source work proceeds independently; this does not claim A4.3 production acceptance or change the canonical cursor/order.
-- Keep A4.2 branch/worktree and the CFO SSOT owner's staged changes untouched. This plan owns branch `feat/cfo-a5-cost-visibility-20261007` and its dedicated worktree only.
+- The canonical CFO cursor is A5; its current global order is A5 → A6 → A8 → A9 → A10. A7 Moneytree and A3/A4 Cloud/geocoding savings are deferred by Dais and are not prerequisites for this work.
+- This plan owns branch `feat/cfo-a5-cost-visibility-20261007` and its existing dedicated worktree only. Source work does not apply production migrations or release branches directly.
+- Tasks 1–4 deliver the initial cost summary. Tasks 5–7 add loop attribution, reduce CFO FIFO wait, then update and validate the existing PR; none changes the wider SSOT order or adds a spend cap.
 
 ## Review Focus
 
@@ -35,6 +38,8 @@
 - Quantities with different units (`request`, `tokens`, `grounded_prompt`, `seconds_proxy`) are never summed into one displayed total.
 - Tenant and period filters apply inside SQL, not only in UI projection.
 - Provider/SKU/operation labels are bounded and safe; no raw event metadata reaches the browser.
+- Partial/unlinked runtime traces remain explicitly partial/unlinked and appear in an unattributed group, never as a verified zero-cost loop.
+- A `latest_trace` anchor is not proof that every event in its group ran under that release; report distinct release/run/occurrence counts separately.
 
 ---
 
@@ -49,10 +54,10 @@
 - Returns provider/SKU/operation/unit groups, event/request and cache counts, provider units, nullable estimated and settled USD totals, unknown-estimate and unknown-actual event counts, and not-applicable count.
 - `sum(est_usd)` remains NULL when no event has a known estimate; actual is summed only for valid settled rows.
 
-- [ ] Write migration-contract tests for tenant/period predicates, provider/SKU/operation/unit dimensions, estimate/actual/unknown fields, and service-role-only grants.
-- [ ] Run the migration tests and confirm they fail on the missing period-summary RPC.
-- [ ] Add the additive RPC without changing or dropping the existing `lm_usage_cost_summary` function.
-- [ ] Run migration-contract tests and verify the new SQL remains tenant/period bounded, unit-separated, and unknown-safe.
+  - [x] Write migration-contract tests for tenant/period predicates, provider/SKU/operation/unit dimensions, estimate/actual/unknown fields, and service-role-only grants.
+  - [x] Run the migration tests and confirm they fail on the missing period-summary RPC.
+  - [x] Add the additive RPC without changing or dropping the existing `lm_usage_cost_summary` function.
+  - [x] Run migration-contract tests and verify the new SQL remains tenant/period bounded, unit-separated, and unknown-safe.
 
 ### Task 2: Read and project daily/month-to-date summaries
 
@@ -66,11 +71,11 @@
 - The panel DTO has separate `daily` and `monthly` period records, each with status, exact period bounds, sanitized provider/SKU/operation/unit groups, and explicit estimate/actual/unknown counts.
 - RPC failure returns an unavailable summary state while preserving the existing ledger; it never fabricates zero rows or a zero cost.
 
-- [ ] Write API tests for tenant scoping, day/month boundaries, one summarized group, unavailable RPC, and actual-versus-estimate separation.
-- [ ] Run the API test and confirm it fails because the ledger does not call the period-summary RPC.
-- [ ] Implement the bounded calls and project only the allowlisted summary fields.
-- [ ] In the same panel API contract test, verify presentation for unavailable, verified-empty, estimated, settled, and partial-unknown periods.
-- [ ] Run the API contract tests; verify no raw event metadata is returned.
+  - [x] Write API tests for tenant scoping, day/month boundaries, one summarized group, unavailable RPC, and actual-versus-estimate separation.
+  - [x] Run the API test and confirm it fails because the ledger does not call the period-summary RPC.
+  - [x] Implement the bounded calls and project only the allowlisted summary fields.
+  - [x] In the same panel API contract test, verify presentation for unavailable, verified-empty, estimated, settled, and partial-unknown periods.
+  - [x] Run the API contract tests; verify no raw event metadata is returned.
 
 ### Task 3: Render the existing Ledger summary
 
@@ -83,13 +88,64 @@
 - Render separate `今日` and `今月` tables with provider/SKU/operation/unit, request/unit counts, at-least-8-decimal estimated and settled USD cost, `未確認` values, and coverage gaps.
 - Show that the warning threshold is not configured pending A6; no threshold state stops travel or Calendar behavior.
 
-- [ ] Add panel contract tests that projected fields pass validation, summaries appear in rendered output, and a positive sub-cent estimate stays visibly nonzero.
-- [ ] Run the UI tests and confirm the old validator rejects status/summary fields.
-- [ ] Update the exact-key validator and render both periods with unknown values visibly distinct from zero.
-- [ ] Run UI tests and the relevant panel privacy harness.
+  - [x] Add panel contract tests that projected fields pass validation, summaries appear in rendered output, and a positive sub-cent estimate stays visibly nonzero.
+  - [x] Run the UI tests and confirm the old validator rejects status/summary fields.
+  - [x] Update the exact-key validator and render both periods with unknown values visibly distinct from zero.
+  - [x] Run UI tests and the relevant panel privacy harness.
 
 ### Task 4: Acceptance and handoff
 
-- [ ] Run `node --test apps/life-manager/lib/usage-summary-migration.test.js apps/life-manager/lib/panel-api.test.js apps/life-manager/lib/panel-ui.test.js`.
-- [ ] Run `git diff --check` and inspect the complete diff for tenant isolation, raw data, hard caps, and incorrect zero/settlement claims.
-- [ ] Commit and push this worktree's branch. Keep the PR draft until canonical cursor/order and A4.2/A4.3 promotion dependencies are resolved.
+  - [x] Run `node --test apps/life-manager/lib/usage-summary-migration.test.js apps/life-manager/lib/panel-api.test.js apps/life-manager/lib/panel-ui.test.js`.
+  - [x] Run `git diff --check` and inspect the complete diff for tenant isolation, raw data, hard caps, and incorrect zero/settlement claims.
+  - [x] Commit and push the initial cost-visibility source on the existing draft PR #6827; latest-main synchronization and additional trace/priority tasks remain in Tasks 5–7.
+
+### Task 5: Attribute provider-cost groups and expose trace anchors
+
+**Files:**
+- Modify: `apps/life-manager/migrations/2026-10-07-lm-usage-cost-period-summary.sql`
+- Modify: `apps/life-manager/lib/usage-summary-migration.test.js`
+- Test: `apps/life-manager/lib/panel-api.test.js`
+- Modify: `apps/life-manager/lib/panel-presentation.js`
+- Modify: `apps/life-manager/lib/panel-ui.js`
+- Test: `apps/life-manager/lib/panel-ui.test.js`
+
+**Interfaces:**
+- Extend each SQL group with `loop_id` and `owner_id` alongside the existing provider/SKU/operation/unit dimensions. Missing identity projects as `unattributed`.
+- Preserve each row's existing `meta.runtime_trace` identity. The grouped DTO returns `trace_status` (`linked`, `partial`, `unlinked`), linked/partial/unlinked event counts, distinct run/occurrence/release counts, and a nullable `latest_trace` object with `run_id`, `occurrence_id`, and `release_sha`. Grouping remains by loop/owner, not by each run, so totals stay usable.
+- `panel-api.js` already passes tenant-scoped RPC rows into the existing server projection; keep that pass-through unchanged and assert its tenant/period request arguments in tests.
+- The panel renders loop/owner and the latest trace anchor without returning raw `meta` or provider payload. Estimate, settled actual, and unknown semantics remain unchanged.
+
+- [x] Add `COST-03 period summary separates costs by runtime loop and trace` to the migration-contract tests; assert tenant/period filtering, unit separation, attribution groups, trace counts/latest anchor, and the explicit unattributed bucket.
+- [x] Run the focused migration/API tests and confirm they fail because the RPC/DTO omits runtime attribution.
+- [x] Extend the SQL RPC, API projection, and allowlisted panel DTO to project the trace fields above; reuse the existing usage-event producer, which already writes `runtime_trace`.
+- [x] Add `ledger period projection attributes cost groups and exposes only safe latest trace` and `PANEL-A5: browser renders loop/owner grouping and newest trace`; prove partial/unlinked rows stay visibly unknown/unattributed and IDs are escaped/allowlisted.
+- [x] Run migration/API/UI tests and the panel privacy evaluator; verify raw `meta` never reaches the browser.
+
+### Task 6: Raise CFO's scheduling priority without reserving capacity
+
+**Files:**
+- Modify: `config/loop-registry.json`
+- Test: `runtime/loop/tests/test_macos_loop_registry.py`
+- Modify: `runtime/loop/tests/fixtures/macos-loop-jobs.json`
+
+**Interfaces:**
+- For `life-manager-cfo-hourly`, set `priority` to `revenue` while retaining `admission_class=borrow` and `resource_class=deterministic`.
+- The change only moves CFO ahead of support-priority queue backlog; it does not reserve a revenue slot and does not fix a genuinely full `resource_capacity_busy` host.
+- The existing byte-stable production render fixture must reflect this one intentional CFO priority change; no other rendered registry row changes.
+
+- [x] Change `test_life_manager_cfo_hourly_declares_effect_rebind_contract` to expect revenue priority while retaining borrow/deterministic; run it and observe RED.
+- [x] Change only the CFO registry priority, then update only its expected priority in the byte-stable rendered-job fixture; verify both the targeted contract and render-fixture tests pass.
+- [x] Run the focused registry test and `./bin/lm-loop-contract`; do not add a hard cap or stop any provider feature.
+
+### Task 7: Sync, review, and update the existing A5 PR
+
+**Files:**
+- Modify: `docs/superpowers/plans/2026-10-07-cfo-a5-cost-visibility.md`
+- Modify: `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md`
+
+- [ ] Run the complete A5 focused tests plus `npm run eval:panel-privacy`, the focused registry test, and `./bin/lm-loop-contract`.
+- [ ] Run `git diff --check`, review the full branch diff for tenant isolation, privacy, trace accuracy, unit separation, and unknown-versus-zero behavior.
+- [ ] Update the canonical SSOT's A5 cursor and production evidence from fresh readbacks; distinguish the older-release ENOSPC messages from the current-release partial apply and keep unrelated owner failures outside A5 scope.
+- [ ] Merge latest `origin/main`, push the existing `feat/cfo-a5-cost-visibility-20261007` branch, and update PR #6827; keep it draft until all required checks pass and the source review approves.
+- [ ] On the pushed, main-synced branch, rerun `python3 -m unittest discover -s runtime/loop/tests -p 'test_*.py'` and `node --test apps/life-manager/lib/loop-adapter-registry.test.js`; specifically confirm the two `cut-loop-release` pressure tests no longer fail because the tested HEAD is only local.
+- [ ] Do not apply the database migration or manually run/restart the production CFO owner from this worktree; production migration/release/natural-report readback follows the canonical SSOT cursor.
