@@ -4847,7 +4847,7 @@ flowchart LR
 
 **残TODO（完了まで、この順）:**
 
-1. **現在cursor — source commit/push:** 初回`_prepare_next_hypothesis`にもcurrent snapshotsを渡した。三選定call-siteのAST regressionは修正前RED→修正後PASS。focused Storefront suite 103/103、loop contract/source-boundary/compile/diff PASS。未commit source/test差分をSSOTと同じbranchへpushし、新headでfresh reviewとrequired CIをPASSさせてmergeする。別ownerのcapacity/doctor recoveryは独立laneで進められるが、ここから他ownerのworktree/stateを編集しない。
+1. **現在cursor — PR #7182 exact-head acceptance:** primary selector call-site fix commit `b2b1502f3b`、PR head=`b2b1502f3be293b6a1ee0abee38f5f42c5cb607b`、base=`9abbdb9d1cfacd2797b5b02cae5095923be40826`。fresh read-only review is running. Security Scan run `37803437757` is pending for this exact head. Get fresh review and all required CI PASS, then merge. 別ownerのcapacity/doctor recoveryは独立laneで進められるが、ここから他ownerのworktree/stateを編集しない。
 2. **main由来release:** current main `9abbdb9d1cfacd2797b5b02cae5095923be40826`を含むmerged fixのimmutable releaseを既存natural reconcilerに渡し、`RELEASE.json`・Storefront/Paidのloaded SHA/argv/admissionを確認する。production source完了はloaded SHAにpriority/floor/exposure fixが含まれてから。
 3. **Coconala Paid obligation:** order `18180857`のfresh official order/talkroom readbackをownerが実行する。今も未完了の場合だけ必要なrevision/formal deliveryを一度行い、buyer acceptance・settlement/payout・replay-zeroを結ぶ。古いsnapshotから現在の待ち状態を推測しない。
 4. **旧Storefront fence:** `18d8d288748508e8-23902`を、同一effectの公式listing/order履歴または受理可能なoccurrence-bound pre-effect receiptで照合する。現在はdry-runがbinding不足で保留。証拠が取れなければfenceを保持し、再公開しない。
@@ -4858,7 +4858,7 @@ flowchart LR
 9. **Storefront economics:** listingごとのunique paid order・repeat・refund・platform fee・payout・実作業時間/実費を同一期間で結び、settled net contributionが正で再現したか報告する。掲載・seller累計・grossを利益/MRRにしない。
 10. **最後 — SelfBuild:** 収益loopとproduct storefrontの上記done条件を閉じた後だけ、self-build/self-healingを再開する。
 
-**現在cursor:** 1 — call-site fix local green → source/test/SSOT commit・push → exact-head fresh review/required CI。production Storefrontは旧effect fence・古いinstalled SHA・未照合販売状態を保持。
+**現在cursor:** 1 — PR #7182 exact-head fresh review/required CI → PASS後にmerge。production Storefrontは旧effect fence・古いinstalled SHA・未照合販売状態を保持。
 
 ### 2026-10-09 00:28 JST — Storefront収益cursorとexposure review修正
 
@@ -4890,6 +4890,13 @@ flowchart LR
 - focused Storefront suite 103/103 PASS。`lm-loop-contract`（18 loops / 187 jobs / 0 errors）、source-boundary、`py_compile`、`git diff --check`もPASS。修正はまだ未commit/未push。
 
 **現在cursor:** source/testと本SSOTをcommit/push → exact-head fresh review/required CI → PR #7182 merge → immutable release/natural readback。
+
+### 2026-10-09 00:46 JST — selector fix pushed for final acceptance
+
+- Primary `run_once` selection now passes `_fresh_snapshots`; the AST regression failed before and passed after the one-argument fix. The focused suite is 103/103 PASS; loop contract, source boundary, Python compile, and diff check are also PASS.
+- Commit `b2b1502f3be293b6a1ee0abee38f5f42c5cb607b` is verified on the remote branch and PR #7182. Base remains `9abbdb9d1cfacd2797b5b02cae5095923be40826`. Exact-head Security Scan run `37803437757` is pending, and a fresh read-only reviewer is checking the final head. No merge or production/provider mutation has occurred.
+
+**現在cursor:** wait for exact-head review/required CI → merge #7182 only after PASS → immutable release and natural storefront readback.
 
 ### 2026-10-08 08:35 JST — Mobile post-merge runtime cursor
 
