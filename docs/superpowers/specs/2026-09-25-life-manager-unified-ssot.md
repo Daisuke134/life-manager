@@ -5776,3 +5776,15 @@ This snapshot supersedes the 13:59–14:04 source/release status. PR #7055 backo
 - このassistantはstatus/lease/official code readbackのみ行い、Inbox collector、browser attach、provider action、release applyはまだ実行していない。
 
 **Current cursor:** Paid runとrelease reconcilerの自然terminalをreadbackし、lockがfreeになってからPaid ownerのloaded SHAを`bd3ef825`へ収束させる。次にInboxを一度だけ公式readbackし、outbox/Sheetへjoinする。
+
+
+### 2026-10-08 14:47 JST — latest-main inventory mismatch blocks the new PR head
+
+この追記はa0c63f62のCI結果でTODO順を更新する。
+
+- PR #7057のhead `a0c63f62`に対するrun `37733748154`で`OSS self-contained boundary`が失敗し、同じrunで8 checks pass、Loop contract / secret scansは当時進行中。ローカルの同一CI commandも`manifest_inventory_mismatch`、path `skills/capafy-autopublish`を再現した。
+- PR #7066のmain-merged head `b344cf9283dc2164964f7a18856f14d2bbce5808`でも同じOSS checkがfailure。直前main変更がCapafy autopublish treeへ新規tracked filesを加え、`docs/manifests/oss-merge-1-sources.json`の分類inventoryを更新していない。これはeBook source diffではなく、latest mainに入ったmanifest drift。
+- 追跡対象treeは245 files。canonical verifierと同じ計算法で `inventory_sha256=6e1403db49c27287e8b8ff3175d243141c761d97d979f5f25bf76ac2d9599d84` を計算した。
+- 最新mainの#7067は同じtree内のtracked filesを更新し、#7069はtree外の2つのUPDATE.jsonを削除した。latest mainをmerge後にinventoryを再計算し、245 files /上記SHAを正本へ反映した。
+
+**TODO順:** 旧順=`最新main同期 → fresh CI → merge`。新順=`specに失敗境界を記録 → manifestのCapafy autopublish inventory count/hashだけ更新 → exact OSS verifierを再実行 → fresh CI全required checks → latest main再fetch/sync → PR #7057 merge → natural release/owner readback → identity recovery → posting/checkout/revenue gates → Capafy canary`。理由: same failure was present on the already-merged upstream PR and reproducible locally; correcting the exact classified inventory is required for this branch's source acceptance. 最新mainの#7067/#7069を含めmanifest hash再計算済み。現在cursor=`exact OSS verifier再実行とfresh CI`。
