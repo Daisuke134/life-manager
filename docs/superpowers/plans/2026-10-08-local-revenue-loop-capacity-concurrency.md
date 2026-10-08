@@ -66,6 +66,7 @@ Connector、Job Hunter、Fundraiserの既存loopを、現行`lm-loop`上で安�
 - rebase前のheadでは`test_terra_default.py`の3 task-class期待値不一致とOSS manifest不一致でCIがFAIL。manifest更新後のローカルverifierは`ok=true`。現headではCodeRabbitとOSS boundaryはPASS、Loop control・Python syntax/unittest・secret scansは実行中。
 - TDD RED on source head `7201c8d4`: focused regressions reported 8 failures, 1 pass, and 23 passing subtests. The failures reproduce missing profile-level lock API, inherited fail-fast policy affecting unrelated tasks, Fundraiser owner/context-mode mismatch, and Connector's owner-wide tab GC call. `test_terra_default.py` now passes. No production owner or provider was changed by these fixture tests.
 - Additional runner-call-site RED on head `5f015b68`: the two profile-policy subtests fail because `run()` passes neither the stable account lock path nor an explicit task-scoped fail-fast boolean to `run_provider_process`.
+- The unmarked-task wait and provider-retained-lease-on-runner-kill regressions also fail before implementation, confirming that the shared profile lease must cover all Codex candidates and its file descriptor must survive the runner process.
 
 ### 6. Immutable releaseとtarget owner apply
 
