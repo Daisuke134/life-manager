@@ -6865,3 +6865,27 @@ The next cursor is item 1 commit/push. No Dais manual action is currently requir
 **完了条件:** 修正を含むmain由来immutable releaseからcleanupがfloor・error・protected-deletion条件を満たし、その後のadmission passを確認する。三loopは同releaseから自然terminalし、Luma registration、Workday application、VC/AI-founder outreach、各runの`gpt-6-luna/max/fast`、Telegram報告を同一occurrenceで照合する。unknownはtarget別fence/replay-zero、capacityは同一時間窓の実測、収益は公式settlementと費用で確認する。
 
 **現在cursor:** disk source/spec commit-push → exact-head CI/fresh review → disk PR merge → new immutable release/natural reconciler → fixed-release cleanup receipt/admission → retired-label doctor/fence readback → owner natural outcomes → same-window capacity/economics。
+
+
+### 2026-10-08 21:16 JST — disk sweep allowlist boundary corrected
+
+- Fresh read-only review of PR #7139 head `607db1f161fd8c87605e85996924500f82708634` returned NO-SHIP. It found that discovery added the Darwin user-temp root but `_allowlisted_candidate` still accepted only the `/tmp`-derived `/X`; `sweep()` therefore preserved the discovered clone as `unknown_artifact`. The first regression checked discovery only and did not exercise sweep.
+- The source patch now shares cached `_browser_clone_roots(temporary)` between `HostDiskGovernor.discover_candidates` and `_allowlisted_candidate`. The regression reaches `sweep()`: a closed clone under the Darwin root is reclaimed, an open clone in the same root is preserved, reclaimed bytes are exact, and `errors=0`/`protected_deletions=0`. It also verifies the bounded `getconf` call is reused rather than repeated during per-candidate proof.
+- Latest local acceptance after this correction: `python3 -m pytest -q skills/self/disk-cleanup/tests/test_disk_cleanup.py` passed 110/110; `./bin/lm-loop-contract` passed with 18 catalog loops, 187 registry jobs, 0 errors; Node adapter tests passed 15/15; source-boundary, OSS self-contained verifier, and `git diff --check` passed. This modifies the PR #7139 source head again, so these local results do not replace required CI and a fresh same-head SHIP review.
+- No production cleanup code has been released from PR #7139. The production snapshot in the preceding section remains on `804effc5`; the old-release cleanup pass is not proof of this fix. Do not apply or claim fixed-release recovery before the new source merges and a natural cleanup occurrence returns the structured recovery fields.
+
+**順序更新:** 旧順序=`PR #7139 discovery source → CI/review → merge → release → cleanup receipt`。fresh review demonstrated a second owner boundary: discovery succeeded but destructive-sweep allowlist rejected the candidate. 新順序=`shared root helper + sweep-level regression → focused owner suite → commit/push updated source/spec → exact-head CI + fresh SHIP review → merge → immutable release/natural handoff → cleanup receipt/admission → doctor/effect fences → loop outcomes → capacity/economics`。理由は、削除候補の発見だけではrecoveryにならず、実削除の直前に同じroot validationが通る必要があるため。
+
+**残TODO（完了まで・この順）:**
+
+1. [x] PR #7121 merge。merged head `7ee3a4aa`、CI run `37773857691` success、fresh review SHIP、merge commit `da98a7729e`。
+2. PR #7139のshared `_browser_clone_roots` helper、sweep-level regression、このSSOT/plan cursorをcommit/pushしてremote SHAを照合する。更新後のPR headで必須CIを全PASSにし、fresh read-only reviewが同じSHAをSHIPと判定した後にmergeする。旧head `607db1f1`はreview NO-SHIPであり、そのCI/review結果は次headへ引き継がない。
+3. merged mainのimmutable releaseと自然release-reconciler terminalを確認し、`~/loops/current`、`RELEASE.json`、loaded argv/SHAが新mainを指すことをreadbackする。active reconcilerをstop/restartしない。旧SHAのpass/dfのみを固定sourceの証拠としない。
+4. 固定sourceの`life-manager-disk-cleanup`自然occurrenceから`/Users/anicca/.local/state/life-manager/life-manager-disk-cleanup/logs/launchd.out.log`のrun対応`host_cleanup`を読み、`free_after >= 2 GiB`、`errors=0`、`protected_deletions=0`を確認する。その後のadmission passも確認する。未達なら同ownerのstructured出力からcandidate_count/reclaimed/preserved_reasons/cursor/`lsof`/leaseを診断し、候補を直接削除せず原因を修正する。
+5. retired Capafy labelをowner経由で解消し、doctorで`unmanaged=0`、`missing=0`、`installed-retired=0`を確認する。既存unknown occurrence（Fundraiser `18dc890e2982e370-31599`、FoundersEdge `18dc7f3bc472c260-76084`、DeepScale `18d9b0b6311a2018-87933`、LAUNCH `18dc7222f6b5ec78-20440`、Workday Learning、Danaher `R1316263`）はtarget別official status/receiptかstrict pre-effect proofで照合し、証拠のないものはfencedのまま再送しない。
+6. disk/admission eligible、loaded-idle、lock-free時だけConnector、Job Hunter owners、Fundraiserを一ownerずつ適用する。自然occurrenceごとにrelease SHA/argv/envと`gpt-6-luna/max/fast`を確認し、Luma registration、Workday application、新VC/AI/AGI founder outreachのofficial provider/Gmail Sent receiptとTelegram reportを同じoccurrenceへ結び、replay-zeroを確認する。
+7. positive Fundraiser replyからpodcast/Zoomを合意し、招待・日時確定後の対面訪問は実費と結果を記録する。自然runと同じ窓でclaims/reservations/eligible queue/admission reasons/class contention/CPU/RAM/diskを測り、実同時稼働数を報告する。configured finite-run cap 8は設定値とし、実測capacityと分ける。applications/replies/meetings/funding/settled cash/costsを別々に集計する。
+
+**完了条件:** 新main由来immutable releaseで固定sourceのcleanup自然occurrenceがrecovery floor・errors・protected deletion条件を満たし、その後のadmission passを確認する。三loopが同releaseから自然terminalし、Luma registration、Workday application、VC/AI-founder outreachのofficial result、各runの`gpt-6-luna/max/fast`、Telegram reportが同一occurrenceへ結び付く。unknownはtarget別fence/replay-zero、容量は同一窓の実測、収益はofficial settlementと費用で確認する。
+
+**現在cursor:** updated disk PR commit/push → new-head CI/fresh review → PR #7139 merge → immutable release/natural handoff → fixed-source cleanup receipt/admission → retired-label doctor/effect fences → owner natural outcomes → same-window capacity/economics。

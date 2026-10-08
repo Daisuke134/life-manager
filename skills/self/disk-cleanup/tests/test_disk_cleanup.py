@@ -1500,20 +1500,29 @@ def test_closed_browser_clone_with_source_named_dependency_is_reclaimed(
 
 
 def test_discover_candidates_uses_darwin_user_temp_when_tmpdir_unset(
-    tmp_path: Path, monkeypatch
+    tmp_path: Path, monkeypatch, request
 ) -> None:
     darwin_temp = tmp_path / "darwin-user" / "T"
     clone = (
         darwin_temp.parent
         / "X/com.google.Chrome.code_sign_clone/code_sign_clone.launchd"
     )
+    open_clone = (
+        darwin_temp.parent
+        / "X/org.chromium.Chromium.code_sign_clone/code_sign_clone.open"
+    )
     darwin_temp.mkdir(parents=True)
     clone.mkdir(parents=True)
+    (clone / "runtime.js").write_bytes(b"x" * 32)
+    open_clone.mkdir(parents=True)
+    (open_clone / "runtime.js").write_bytes(b"y" * 16)
     monkeypatch.delenv("TMPDIR", raising=False)
     monkeypatch.delenv("TMP", raising=False)
     monkeypatch.delenv("TEMP", raising=False)
     monkeypatch.setattr(disk_cleanup.sys, "platform", "darwin")
     monkeypatch.setattr(disk_cleanup.tempfile, "gettempdir", lambda: "/tmp")
+    disk_cleanup._browser_clone_roots.cache_clear()
+    request.addfinalizer(disk_cleanup._browser_clone_roots.cache_clear)
     getconf_calls: list[list[str]] = []
 
     def fake_getconf(argv, **kwargs):
@@ -1527,16 +1536,24 @@ def test_discover_candidates_uses_darwin_user_temp_when_tmpdir_unset(
     governor = HostDiskGovernor(
         home=tmp_path,
         state_dir=tmp_path / "state",
-        lsof=lambda _path: "confirmed-closed",
+        lsof=lambda path: "open" if path == open_clone else "confirmed-closed",
         usage=lambda: (0, 1),
     )
 
     candidates = [
         item for item in governor.discover_candidates() if item["owner"] == "browser"
     ]
+    result = governor.sweep(candidates)
 
     candidate_paths = [Path(item["path"]) for item in candidates]
     assert candidate_paths.count(clone) == 1
+    assert candidate_paths.count(open_clone) == 1
+    assert not clone.exists()
+    assert open_clone.exists()
+    assert result["reclaimed"] == 32
+    assert result["preserved_reasons"] == {"open": 1}
+    assert result["errors"] == 0
+    assert result["protected_deletions"] == 0
     assert getconf_calls == [["/usr/bin/getconf", "DARWIN_USER_TEMP_DIR"]]
 
 
