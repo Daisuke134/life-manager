@@ -1,41 +1,51 @@
-# eBook Monk marketing unblock plan
+# eBook Monk marketing architecture
 
-> Execution order and live cursor remain in the canonical SSOT: `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md`.
+> Live state and the sole execution order: `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md`. This document records the target design; the renderer recovery implementation plan is `docs/superpowers/plans/2026-10-08-ebook-heygen-cli-runtime.md`.
 
 ## Goal
 
-Restore the three already-mapped eBook publishing routes, verify real Postiz receipts, then close owned checkout/PDF and recurring-revenue evidence before starting Capafy Instagram.
+Run the existing eBook marketing owners on a recurring daily schedule, prove every post and sale with provider receipts, then start only the Instagram marketing part of Capafy after the eBook purchase and PDF delivery path is verified.
 
-## Current architecture
+## Target architecture
 
 ```mermaid
 flowchart LR
-  EN[English approved pack / HeyGen Avatar IV] --> E[English TikTok owner]
-  JA[Japanese approved pack / Watercolor Mark Factory] --> JT[Japanese TikTok owner]
-  JA --> JI[Japanese Instagram owner]
-  E --> G[Destination + slot + idempotency gates]
-  JT --> G
-  JI --> G
-  G --> P[Postiz]
-  P --> R[Official receipt + public URL]
-  R --> C[Owned attributed checkout]
-  C --> S[Stripe + locale PDF fulfillment]
-  S --> L[Optional Letter/Tegami subscription]
-  L --> M[Settled MRR + cost + 14-day cohort]
+  ENS["English scripts × 3/day"] --> HG["HeyGen Avatar IV"]
+  JAS["Japanese scripts × 3/day"] --> WMF["Watercolor Mark Factory"]
+  HG --> EV["English video + caption + tracking token"]
+  WMF --> JV["Japanese video + caption + tracking token"]
+  EV --> PZ["Postiz slot queue + idempotency"]
+  JV --> PZ
+  PZ --> ENT["Monk Anicca TikTok × 3/day"]
+  PZ --> JAT["Obou TikTok × 3/day"]
+  PZ --> JAI["Obou Instagram × 3/day"]
+  ENT --> PUB["PUBLISHED receipt + public URL"]
+  JAT --> PUB
+  JAI --> PUB
+  PUB --> CLICK["attributed click"]
+  CLICK --> CO["locale checkout + Stripe paid receipt"]
+  CO --> PDF["matching English or Japanese PDF"]
+  PDF --> SUB["optional Letter / Tegami subscription"]
+  SUB --> MRR["settled net MRR after refunds, fees, and direct costs"]
+  PDF --> FIRST["first paid order + PDF delivery"]
+  FIRST --> CAP["Capafy Instagram: one Postiz canary per 24h"]
 ```
 
-## Execution method
+## Delivery contract
 
-1. Keep exact-occurrence provider verification read-only until a receipt or proven pre-effect result is matched. Never replay an ambiguous publication.
-2. Add failing contract assertions for English `@monk_anicca` and the three eBook destinations.
-3. Remove only the stale English `provider_disabled` hold, set the account registry to `approved_active`, and update the eBook owner/setup documentation. Preserve both Japanese routes and all unrelated holds.
-4. Run focused tests and source checks; push a dedicated branch and merge through the Life Manager PR path.
-5. Build a main-derived immutable release and apply only `ebook-en-tiktok-daily` after idle, host-lock, and admission checks.
-6. Verify naturally executed slot posts by exact Postiz `PUBLISHED` receipt, direct public URL, render-cost delta, and replay-zero. Reconcile each Japanese owner independently.
-7. In Product PR #420, fix the reviewed stale Stripe inventory race and sanitize manual Netlify workflow errors; read back the exact production Supabase project ref and aggregate paid/no-pointer counts before any DDL.
-8. Verify one paid Checkout and its matching locale PDF. Treat book purchases as one-time revenue; evaluate $10k MRR through settled Letter/Tegami subscription receipts and a 14-day cohort.
-9. Start Capafy Instagram only after the eBook paid fulfillment path is proven.
+- English uses the existing HeyGen Avatar IV pack and the existing Monk Anicca TikTok destination. Japanese uses Watercolor Mark Factory, then shares each locale render across the existing Obou TikTok and Instagram destinations.
+- Each of the three accounts targets three unique `PUBLISHED` posts per JST day: six renders and nine platform posts total. A single successful API call proves only that occurrence, not that the recurring schedule will keep succeeding.
+- Postiz `PUBLISHED` state, post ID, account integration, public URL, and exact slot must reconcile before counting a post. Unknown effects remain fenced; do not replay them.
+- Posts and views do not prove revenue. Track click attribution through owned locale Checkout, paid Stripe receipt, and the matching locale PDF delivery.
+- A one-time eBook order is not MRR. Count the Letter/Tegami subscription only from settled recurring receipts after refunds, fees, and direct costs; measure a 14-day cohort toward the USD 10,000 net MRR goal.
+- Capafy is a later, separate marketing lane. Start only after the first paid eBook order and matching PDF receipt; follow its existing Instagram recipe of one canary per 24 hours. Capafy product, listing, pricing, and account-lifecycle development are outside this marketing scope.
+
+## Related plans
+
+- English HeyGen runtime and current effect recovery: `docs/superpowers/plans/2026-10-08-ebook-heygen-cli-runtime.md`.
+- Checkout, webhook, PDF, and eBook revenue measurement: `docs/superpowers/plans/2026-10-05-ebook-revenue-loop.md` and the anicca-products owner plan.
+- Capafy Instagram D5: `docs/superpowers/plans/2026-10-04-capafy-10k-mrr-recipe.md`.
 
 ## User action boundary
 
-No Postiz reconnect is needed for the current English TikTok or Japanese destinations. A dedicated English Instagram account must be connected by Dais only if that additional route is requested. Production schema changes wait for exact target confirmation and read-only review.
+The current English TikTok and Japanese Postiz integrations are enabled; do not ask Dais to reconnect them. Do not create a new English Instagram account. If a genuine provider-authentication challenge appears later, report the exact account and screen state; runtime errors alone are not evidence of a CAPTCHA.

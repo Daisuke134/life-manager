@@ -8,7 +8,7 @@
 
 **Tech Stack:** Node.js, Python 3, node:test, pytest, Life Manager immutable releases.
 
-**Spec:** `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md` — “eBook Monk current blocker cursor — 2026-10-08 10:05 JST”.
+**Spec:** `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md` — “eBook Monk current blocker cursor — 2026-10-08 10:22 JST”.
 
 ## Global Constraints
 
@@ -131,29 +131,96 @@ Observed: focused Node selection 3/3 PASS; complete `ebook-distribute-daily.test
 
 PR #6999 merged as `46ec94bdea884fd7afa61e603a79fdd1b3048ef7` after a fresh independent review with no findings and all required Security Scan checks passing. Production release and owner readback remain in the canonical spec.
 
-### Task 4: Promote the merged renderer fix and verify English Monk delivery
+### Task 4: Reconcile the 08:00 English render without replay
+
+**Files:**
+- Read: `/Users/anicca/.local/state/life-manager/marketing/ebook/runs/ebook-run.571924dc4e4867349fc6fd13.heygen-effect.json`
+- Production owner: `ebook-en-tiktok-daily`
+- Evidence: canonical eBook cursor in `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md`
+
+**Interfaces:**
+- Consumes: the exact 08:00 occurrence, official HeyGen video/wallet reads, and official Postiz post list.
+- Produces: a matched provider receipt or a retained unresolved fence with its exact missing evidence.
+- Boundary: never calls `video create`, Postiz publish, or manually edits the sidecar.
+
+- [x] **Step 1: Read the exact Postiz targets and today's posts**
+
+Observed 10:22 JST: the English Monk, Japanese TikTok, and Japanese Instagram integrations all return `disabled=false`. Today's Postiz list has two eBook `PUBLISHED` posts (one per Japanese target) and zero English Monk posts.
+
+- [x] **Step 2: Read HeyGen video pages and wallet**
+
+Observed 10:22 JST: the full two-page title `Anicca` search returns zero videos. Wallet is USD 11.78; the sidecar recorded USD 12.30 before create. The USD 0.52 movement is not attributable to this create from the available evidence.
+
+- [x] **Step 3: Preserve the old effect fence**
+
+The sidecar remains `delivery_uncertain` without `video_id` or `provider_status`; `lm-loop status` remains `effect_status=unknown` and `next_action=official_readback_required`. Do not replay the same occurrence or clear the sidecar.
+
+- [ ] **Step 4: Obtain exact provider-side create or billing evidence**
+
+Use HeyGen's official video/billing readback to match a video ID or prove the wallet change is unrelated. If those records cannot identify the create, keep the effect fenced and record the exact missing provider artifact; a zero-result title search alone does not explain the wallet delta.
+
+### Task 5: Preserve HeyGen provider IDs and safe renderer diagnostics
+
+**Files:**
+- Modify: `skills/earn/marketing-engine/render_eval/heygen_candidate.py`
+- Test: `skills/earn/marketing-engine/render_eval/test_heygen_candidate.py`
+- Modify: `apps/life-manager/scripts/ebook-distribute-daily.js::renderInput`
+- Test: `apps/life-manager/scripts/ebook-distribute-daily.test.js`
+
+**Interfaces:**
+- Consumes: HeyGen `video create` result and renderer child-process result.
+- Produces: a durable video ID/status before completion checks, and a sanitized parent error class/exit result.
+- Boundary: a valid provider ID is recovered with `heygen video get <video-id>`; no retry path may issue a second `video create` for that request hash.
+
+- [ ] **Step 1: Add a failing non-completed-create regression test**
+
+Add `test_noncompleted_create_persists_video_id_and_replay_never_creates_again`. Mock `video create` returning a valid `video_id` with status `processing`; assert the intent stores both fields before returning reconciliation-required, and a second run uses `video get <video-id>` with exactly one total create call.
+
+- [ ] **Step 2: Run the regression to verify RED**
+
+Run: `python3 -m pytest skills/earn/marketing-engine/render_eval/test_heygen_candidate.py::test_noncompleted_create_persists_video_id_and_replay_never_creates_again -q`
+
+Expected: FAIL because the current exception handler writes `delivery_uncertain` without the parsed video ID or status.
+
+- [ ] **Step 3: Persist the provider ID/status before validating completion**
+
+After parsing a valid ID, durably write `state=provider_created`, `video_id`, `provider_status`, and wallet-before data. For a non-completed status, return reconciliation-required and query that same ID on the next run; never call create again. Keep `delivery_uncertain` only when the provider ID itself cannot be proved.
+
+- [ ] **Step 4: Add a sanitized subprocess failure regression**
+
+Use the existing fake-renderer test to assert a nonzero result retains safe `error_class`/exit metadata while omitting arbitrary stderr text, credential-shaped strings, and request bodies.
+
+- [ ] **Step 5: Implement minimal error propagation and run focused checks**
+
+Make the Python renderer emit a stable failure class and let `renderInput()` propagate only that class and exit metadata. Run the two focused test files plus `git diff --check`.
+
+- [ ] **Step 6: Commit and integrate the source repair**
+
+Use a latest-main-derived owner branch, fresh read-only review, required CI, and the main merge path. Production release/apply stays in Task 6.
+
+### Task 6: Promote the repair and verify one new English slot
 
 **Files:**
 - Production owner: `ebook-en-tiktok-daily`
 - Evidence: canonical eBook cursor in `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md`
 
 **Interfaces:**
-- Consumes: the immutable release built from main commit `46ec94b` and current owner effect fence.
-- Produces: one verified English HeyGen video and one Postiz `PUBLISHED` receipt per due slot.
-- Pre-flight: same-time host free space at or above 2 GiB, cleanup receipt with zero errors/protected deletions, reconciler terminal, and safe launchd preflight.
+- Consumes: merged main source, exact prior-effect disposition, and release-reconciler terminal state.
+- Produces: one HeyGen render receipt and one exact Postiz `PUBLISHED` receipt for a distinct due slot.
+- Pre-flight: free space remains above 2 GiB; current release and apply lock are read back; target owner is confirmed idle.
 
-- [ ] **Step 1: Recover and verify host capacity**
+- [ ] **Step 1: Wait for the running release reconciler and read back terminal state**
 
-Use the disk-cleanup owner and its allow-listed inventory. PR #7003 adds Xcode DerivedData as a candidate; keep the existing open-file guard. Keep leased/unknown/open paths protected. Do not enable the disabled disk sentinel/guard because they send Telegram alerts and apply writer backpressure. Require fresh cleanup `free_after >= 2,147,483,648` bytes and same-time `df -Pk /` above 2 GiB.
+Do not overlap its apply lock. Confirm the resulting immutable release SHA and current symlink.
 
-- [ ] **Step 2: Verify/apply the main-derived release**
+- [ ] **Step 2: Verify the English owner's loaded SHA, argv, and scoped renderer environment**
 
-The current symlink points to `20261008T094938-c65449ef`; latest main is `4056d35903` from PR #7003. After release reconciler terminal and apply-lock readback, verify the owner's loaded SHA/argv. If it is behind, apply only `ebook-en-tiktok-daily` through the safe control path. Read back its English-only child environment.
+If the owner is behind, run `launchctl-safe preflight` and apply only `ebook-en-tiktok-daily`. Confirm `LIFE_MANAGER_HEYGEN` and `HEYGEN_NO_ANALYTICS=1` are scoped to the English child; do not expose credential values in logs.
 
-- [ ] **Step 3: Start one due owner occurrence and read back provider receipts**
+- [ ] **Step 3: Run one distinct natural slot after the 08:00 effect is safely resolved**
 
-Only after the exact old effect fence is reconciled, start the registered owner once. Join HeyGen video ID/SHA, wallet delta, Postiz integration/post ID, `PUBLISHED` state, public URL, and the exact occurrence.
+Use the registered owner once for the next distinct slot. Do not retry the old 08:00 occurrence. Join exact occurrence, HeyGen video ID/output SHA/wallet cost, Postiz post ID/state/public URL, and provider integration.
 
-- [ ] **Step 4: Verify recurring daily cadence**
+- [ ] **Step 4: Continue the daily receipt check from the canonical SSOT**
 
-Use official Postiz reads to confirm each of the three eBook accounts reaches its configured three slots/day without cross-account compensation or duplicate effects.
+The target is three unique published posts per account/day (nine total), with one Japanese render shared across Japanese TikTok and Instagram. A single successful slot is not proof of recurring cadence.
