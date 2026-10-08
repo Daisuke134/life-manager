@@ -5643,3 +5643,27 @@ PR #7055はmainへmerge済み（`8486f4e854a0e630542aba34d31405b082cd2e45`）。
 7. Resolve English `effect_unknown` from HeyGen video ID or itemized billing evidence, and independently establish an `approved_active` English destination before a distinct-slot canary.
 8. Verify 3 unique PUBLISHED receipts per eBook account/day (9 total) with replay-zero; then join post→UTM click→settled checkout→matching PDF→settled monthly subscription to compute net MRR. Do not count one-time eBook sales as MRR.
 9. After the eBook paid-order/PDF gate, diagnose the two disabled Capafy IG owners' Bootstrap 5 apply failure using the owner path, restore one canary/24h, and verify the owner-linked PUBLISHED receipt. Do not treat the existing two Capafy posts as cadence proof or reconnect/CAPTCHA work.
+
+### 2026-10-08 14:04 JST — exact target handoff is green in source branch; production still held
+
+この節は13:59 entryのsource/owner stateを更新する。PR #7055はmain `8486f4e8`へmerge済み、current symlinkも`20261008T135350-8486f4e8`。この新しいadapter修正はbranch `fix/ebook-fence-target-occurrence-20261008`で作業中。
+
+**14:04 JST readback and source status:**
+
+- Postiz direct GETはeBook 2/9（EN TikTok 0、JA TikTok 1、JA Instagram 1）、Capafy `capafy.hooklab` 2 `PUBLISHED`。HeyGen title `Anicca` listは0件。eBook旧effect claimsは未解決。
+- release reconciler PID 1229 / run `18dc751507efc988-1229`はSHA `8486f4e8`で実行中。eBook ownersと`lm-fence-reconciler`はなお`8f342d8d`。fleet summaryは旧SHA error/backoff `next_retry=14:06:05 JST`。新adapter patchはまだmain/releaseに入らず、owner applyも起きていない。
+- fence call ledgerでは3つのold claimが引き続き`inconclusive / runtime_occurrence_missing_or_invalid / closed=false`。
+- Source root fix is confirmed: all three ebook registry rows set `effect_reconcile.occurrence_flag=null`, so `fence_reconcile.build_argv` invokes the child `--auto-owner` without the target occurrence. The child inherits `lm-fence-reconciler` runtime identity and rejects it as the wrong owner/context.
+- Working branch sets the three eBook flags to `--occurrence-id` and lets `mobile-postiz-provider-reconcile.py --auto-owner OWNER --occurrence-id OWNER:claim` select that explicit, owner-prefix-validated occurrence. The existing local identity and official provider-readback checks remain mandatory; this change routes the exact target but does not synthesize the missing sidecar.
+- TDD evidence: the two CLI route tests and the registry/build_argv test were red before the implementation; afterward the full `test_mobile_postiz_provider_reconcile.py` passed 24/24, `runtime.loop.tests.test_fence_reconcile` passed 21/21, and `bin/lm-loop-contract` passed with 187 registry jobs / errors 0. These are source-branch results, not production evidence.
+
+**Remaining atomic TODO, in order:**
+
+1. Commit/push the exact-target adapter fix and tests to PR #7057; pass fresh CI/review and merge.
+2. Let the current release reconciler run finish naturally. Confirm current main-derived release and target/global apply-lock readback; do not stop/restart the process or overlap its fleet apply.
+3. After the new release loads, verify the three eBook owners and `lm-fence-reconciler` loaded SHA. Let a natural fence wake call each old claim with its own exact `--occurrence-id` and confirm the failure advances past `runtime_occurrence_missing_or_invalid`.
+4. If the next exact result is `identity_missing_or_invalid`, rebuild the identity only through owner-path recovery from runtime claim, local job/effect key, distribution receipt, hashes, account/integration/slot, and fresh official Postiz GET. Keep every ambiguous claim fenced; never write DB/sidecar by hand.
+5. Resolve the two JP claims, then determine whether the missed 12:30 slot is still due and catch it up via owner natural wake if eligible. Confirm new `PUBLISHED` IDs/URLs.
+6. Resolve the English 08:00 HeyGen effect from its exact video ID or itemized billing evidence; separately establish `tiktok.monk_anicca` or another verified owned English destination as `approved_active` before a new English slot.
+7. Verify 3 unique PUBLISHED receipts per eBook account/day (9 total), replay-zero, then click→locale checkout→settled order→same-order PDF→settled monthly subscription net MRR. Keep one-time eBook revenue outside MRR.
+8. After the eBook paid-order/PDF gate, fix Capafy's two disabled IG owners' `Bootstrap failed: 5` through the owner-safe apply path, then verify one canary/24h and its receipt. The Postiz integration itself is already enabled; do not reconnect/CAPTCHA without a new provider challenge.
