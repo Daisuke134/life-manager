@@ -4643,3 +4643,11 @@ fresh read-only reviewerは`181d1fe578`で3つの誤判定をfixture再現した
 **修正条件:** exact-messageはcomposerを除いたmessage-list内の1個のmessage bubbleとの完全一致に限定する。実document URL origin/pathを検証する。空listだけで`unknown` fenceを解放しない。focused regressionsで誤ったdedupe・誤ったnot-sent・誤ったframe受理を全て再現不能にしてから再レビューし、new-head CIを通す。
 
 **現在cursor:** 上記3件のRED test追加→最小source修正→focused suite→fresh adversarial re-review。host空きは1,080,932 KiBで2 GiB floor未満のままなので、provider操作・target applyは引き続き保留。
+
+### 2026-10-08 09:39 JST — 反証修正commitと最新runtime gate
+
+- commit `e3c6daafaa`で、送信済み照合をmessage-list内のexact textに限定しcomposer draft/部分一致を除外、frameの実`document.location`を検証、空/unhydrated historyから`unknown` fenceを解放する分岐を削除した。ambiguous prior stateでは早期returnも`retry_safe=false`を維持する。
+- focused testは26/26 PASS、`py_compile`と`git diff --check`もPASS。二人目のfresh adversarial reviewは実生成JSのfixture再実行中であり、修正済みとはまだ確定しない。provider送信/browser操作は0件、PR/CI/main mergeも未実施。
+- 00:39Zのfresh runtime readback: Gig 22 jobs（Coconala 7/Lancers 7/CrowdWorks 5/Mercor 3）、`loaded-idle=19 / loaded-running=3`、Gig provider receipt 0。idle側は`disk_headroom_low=17`、`resource_capacity_busy=1`、`apply_lock_busy=1`。空き容量は`1,605,628 KiB`で共有2 GiB floor未満。disk-cleanup ownerのlatestは`apply_lock_busy`のため自分のlease内の完了を待つ。
+
+**現在cursor:** commit `e3c6daafaa`のfresh adversarial reviewで前回3反証を再現不能と確認 → PR/new-head CI → main統合。並列してdisk-cleanup owner safe receiptと安定2 GiB超のreadbackを待つ。両gate後にCoconala Paid project lock/inboxを読み、既存有償talkroomのrevision要求→正式納品→検収・精算、次にStorefront effect fence/inventory/sales/settlementへ進む。
