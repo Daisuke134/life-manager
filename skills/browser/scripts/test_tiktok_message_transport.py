@@ -36,8 +36,12 @@ const bubbles = (fixture.bubbles || []).map(b => {
   if (b.parentAttrs) n.parentElement = el("", b.parentAttrs);
   n.statuses = (b.statuses || []).map(s => el(s.text || "", s.attrs || {}));
   n.children = (b.childrenAttrs || []).map(attrs => el("", attrs));
-  n.querySelectorAll = selector => selector.toLowerCase().includes("status") ? n.statuses
-    : selector === "*" ? n.children : [];
+  n.querySelectorAll = selector => selector === "*" ? n.children : n.statuses.filter(item =>
+    (selector.includes('[data-status]') && item.getAttribute("data-status") !== null)
+    || (selector.includes('[data-message-status]') && item.getAttribute("data-message-status") !== null)
+    || (selector.includes('[data-e2e*="status"]') && (item.getAttribute("data-e2e") || "").toLowerCase().includes("status"))
+    || (selector.includes('[class*="Status"]') && item.className.includes("Status"))
+    || (selector.includes('[aria-live]') && item.getAttribute("aria-live") !== null));
   return n;
 });
 if (fixture.messageBubbles) bubbles.push(...fixture.messageBubbles.map(text => el(text)));
@@ -561,7 +565,7 @@ class TikTokMessageTransportTest(unittest.TestCase):
                 result = evaluate_js_expression(expression, {
                     "bodyText": "本文", "listText": "本文",
                     "bubbles": [{"text": "本文", "attrs": {"data-direction": "outgoing"},
-                                 "statuses": [{"text": status}]}],
+                                 "statuses": [{"text": status, "attrs": {"data-status": status}}]}],
                 })
                 self.assertFalse(result["exact_message"])
 
@@ -773,6 +777,26 @@ class TikTokMessageTransportTest(unittest.TestCase):
         readback = evaluate_js_expression(expression, fixture)
         self.assertFalse(readback["exact_message"])
         self.assertTrue(readback["matching_bubble"])
+
+        result = self.send(self.payload(), FakeCDP(after_readback_fixture=fixture))
+        self.assertEqual(result["status"], "send_unknown_reconcile_required")
+        self.assertFalse(result["retry_safe"])
+        rows = [json.loads(line) for line in
+                (self.project_root / "delivery/tiktok-message-effects.jsonl").read_text().splitlines()]
+        self.assertEqual([row["state"] for row in rows], ["attempting", "unknown"])
+
+    def test_child_data_message_status_failure_blocks_exact_and_keeps_send_fence(self):
+        fixture = {
+            "topUrl": "https://www.tiktok.com/business-suite/messages?u=candidate",
+            "documentUrl": "https://www.tiktok.com/messages?u=candidate",
+            "headerText": "@candidate", "editorText": "", "listText": "本文",
+            "bubbles": [{"text": "本文", "attrs": {"data-direction": "outgoing"},
+                         "statuses": [{"text": "送信失敗", "attrs": {"data-message-status": "failed"}}]}],
+        }
+        expression = transport._readback_expression("@candidate", "本文", "TIKTOK_TEST", "@anicca.jp")
+        readback = evaluate_js_expression(expression, fixture)
+        self.assertFalse(readback["exact_message"])
+        self.assertIn("failed", readback["message_status"])
 
         result = self.send(self.payload(), FakeCDP(after_readback_fixture=fixture))
         self.assertEqual(result["status"], "send_unknown_reconcile_required")

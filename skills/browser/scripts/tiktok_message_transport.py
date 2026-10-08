@@ -224,7 +224,7 @@ def _readback_expression(candidate: str, message: str, marker: str, sender: str 
       const editorEmpty = !!editor && !editorText;
       const bubbleSelector = '[data-e2e="dm-message"],[data-e2e="dm-message-text"],[data-e2e*="message-bubble"],[data-e2e*="message-content"],[class*="DivChatMessage"],[class*="DivMessageBubble"]';
       const messageLikeSelector = '[data-e2e*="message"],[class*="Message"]';
-      const statusSelector = '[data-e2e*="status"],[class*="Status"],[aria-live],[data-status]';
+      const statusSelector = '[data-e2e*="status"],[class*="Status"],[aria-live],[data-status],[data-message-status]';
       const bubbles = [...(messageList?.querySelectorAll(bubbleSelector) || [])]
         .filter(node => node && node.isConnected !== false);
       const knownBubbles = new Set(bubbles);
