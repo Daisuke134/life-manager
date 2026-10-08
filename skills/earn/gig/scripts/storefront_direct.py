@@ -7104,6 +7104,7 @@ def run_once(args: argparse.Namespace) -> tuple[int, dict]:
                 args.state_dir / "effects.jsonl", args.state_dir / "outcomes.jsonl",
                 validated_contracts, int(time.time()), mutation_contracts,
                 compliance_violations, offer_refresh, unread_traffic,
+                analytics.get("_fresh_snapshots"),
             )
             pending_effect = None
             proposal_agent = None

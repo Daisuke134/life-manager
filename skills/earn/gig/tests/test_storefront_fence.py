@@ -2,6 +2,7 @@
 
 Run: python3 -m pytest skills/earn/gig/tests/test_storefront_fence.py
 """
+import ast
 import json
 import hashlib
 import sys
@@ -172,6 +173,35 @@ def test_preflight_does_not_fallback_to_persisted_data_without_this_runs_readbac
 
     assert result["executable"] is False
     assert result["guard_reason"] == "measurement_exposure_unknown"
+
+
+def test_every_run_once_hypothesis_selection_receives_current_snapshots():
+    tree = ast.parse(Path(sd.__file__).read_text(encoding="utf-8"))
+    run_once = next(node for node in tree.body
+                    if isinstance(node, ast.FunctionDef) and node.name == "run_once")
+    calls = [node for node in ast.walk(run_once)
+             if isinstance(node, ast.Call)
+             and isinstance(node.func, ast.Name)
+             and node.func.id == "_prepare_next_hypothesis"]
+
+    def is_current_snapshots(value):
+        return (
+            isinstance(value, ast.Call)
+            and isinstance(value.func, ast.Attribute)
+            and isinstance(value.func.value, ast.Name)
+            and value.func.value.id == "analytics"
+            and value.func.attr == "get"
+            and len(value.args) == 1
+            and isinstance(value.args[0], ast.Constant)
+            and value.args[0].value == "_fresh_snapshots"
+        )
+
+    assert len(calls) == 3
+    assert all(is_current_snapshots(
+        call.args[9] if len(call.args) > 9 else next(
+            (keyword.value for keyword in call.keywords if keyword.arg == "fresh_snapshots"), None,
+        )
+    ) for call in calls)
 
 
 def test_stale_offer_correction_is_not_an_exposure_gated_experiment(tmp_path):
