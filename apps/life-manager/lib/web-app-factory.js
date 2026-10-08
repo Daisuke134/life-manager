@@ -28,6 +28,17 @@ function url(value) {
     && !parsed.search && !parsed.hash && !/[\\\s]/.test(value), "URL");
   return parsed.href;
 }
+function repositoryIdentity(value) {
+  const parsed = new URL(url(value));
+  // GitHub owner/repository names are case insensitive; .git and a trailing
+  // slash do not create a different repository. Other hosts retain exact paths.
+  if (parsed.hostname === "github.com") {
+    const pathname = parsed.pathname.replace(/\/+$/, "").replace(/\.git$/i, "");
+    requireValue(/^\/[^/]+\/[^/]+$/.test(pathname) && !pathname.includes("%"), "repository URL");
+    return `https://github.com${pathname.toLowerCase()}`;
+  }
+  return parsed.href;
+}
 function path(value) {
   requireValue(typeof value === "string" && /^[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)*$/.test(value)
     && !value.split("/").some(part => [".", ".."].includes(part)), "owned path");
@@ -52,6 +63,7 @@ function evaluateWebAppFactory(input, { now } = {}) {
   const source = normalizeProduct({ product_id: product.product_id, origin: "imported",
     source: { ...product.source, git_remote: url(product.source.git_remote) } }).source;
   const productUrl = url(product.url);
+  const repositoryId = repositoryIdentity(source.git_remote);
 
   function proof(evidence, { production = true, revision = false } = {}) {
     if (evidence == null) return false;
@@ -85,11 +97,11 @@ function evaluateWebAppFactory(input, { now } = {}) {
   for (const claim of rows(assignment.claims, "claims")) {
     fields(claim, ["owner", "repository", "paths", "resource_ids"], "claim");
     id(claim.owner, "claim owner");
-    const repository = url(claim.repository);
+    const repository = repositoryIdentity(claim.repository);
     const claimedPaths = rows(claim.paths, "claim paths").map(path);
     const claimedResources = rows(claim.resource_ids, "claim resources").map(value => id(value, "claim resource"));
     if (claim.owner === owner) continue;
-    if ((repository === source.git_remote && paths.some(a => claimedPaths.some(b => overlaps(a, b))))
+    if ((repository === repositoryId && paths.some(a => claimedPaths.some(b => overlaps(a, b))))
       || resources.some(resource => claimedResources.includes(resource))) blockers.push("foreign_owner_conflict");
   }
   const ownership = { state: blockers.length ? "blocked" : "verified", owner, blockers: [...new Set(blockers)],
@@ -100,7 +112,10 @@ function evaluateWebAppFactory(input, { now } = {}) {
     fields(row, ["kind", "evidence"], "demand");
     requireValue(["competitor", "problem_signal"].includes(row.kind), "demand kind");
   }
-  const demandReady = ["competitor", "problem_signal"].every(kind => demand.some(row => row.kind === kind && proof(row.evidence)));
+  const supportedDemand = demand.filter(row => proof(row.evidence));
+  const demandReady = supportedDemand.some(competitor => competitor.kind === "competitor"
+    && supportedDemand.some(signal => signal.kind === "problem_signal"
+      && signal.evidence.ref !== competitor.evidence.ref));
   const qaRows = rows(input.qa || [], "qa");
   unique(qaRows.map(row => row.check), "QA");
   for (const row of qaRows) {
@@ -123,8 +138,10 @@ function evaluateWebAppFactory(input, { now } = {}) {
   });
   const marketingReady = productionVerified && assessedClaims.length > 0 && assessedClaims.every(row => row.state === "verified");
   const economics = input.unit_economics;
-  if (economics != null) fields(economics, ["price_minor", "max_variable_cost_minor", "evidence"], "unit economics");
+  if (economics != null) fields(economics, ["price_minor", "price_currency", "max_variable_cost_minor", "cost_currency", "evidence"], "unit economics");
   const unitEconomicsReady = Boolean(economics && whole(economics.price_minor) && whole(economics.max_variable_cost_minor)
+    && typeof economics.price_currency === "string" && /^[A-Z]{3}$/.test(economics.price_currency)
+    && economics.price_currency === economics.cost_currency && economics.price_currency === input.period?.currency
     && economics.price_minor >= economics.max_variable_cost_minor && proof(economics.evidence, { revision: true }));
   const distribution = rows(input.distribution || [], "distribution").map(row => {
     fields(row, ["channel", "resource_id", "owner", "permission", "cost_minor"], "distribution");

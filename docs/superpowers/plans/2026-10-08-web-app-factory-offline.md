@@ -42,3 +42,23 @@ Interfaces: reads only bounded JSON stdin and optional `--now ISO`; invokes Task
 2. Address Important/Critical findings with RED→GREEN regression evidence, one pass.
 3. Run focused suite, source boundary, `git diff --check` and CLI synthetic sample. Expected: all PASS; production/readback/revenue unknown.
 4. Commit final evidence and preserve worktree for review. No publication or remote write required for this local phase. Report exact commit, base, ownership, checks and unresolved private source ownership.
+
+## Local verification record — 2026-10-08
+
+- Fork point: `origin/main` at `f9d94048ba0522bad881de2a1266f92011610dec`; canonical origin `https://github.com/Daisuke134/life-manager.git`.
+- Exclusive development worktree/lease owner: `codex-web-factory-offline-1008`; own only the new files in this plan. This does not claim ownership of the separate PDF application.
+- Skills read: installed Superpowers using-superpowers, brainstorming, writing-plans, using-git-worktrees, test-driven-development plus writing-good-tests reference, executing-plans, verification-before-completion, requesting-code-review and finishing-a-development-branch; Astra orchestration and repository loop-development. User authorized inline implementation without another routine approval. No model-based implementation worker was started.
+- RED: missing evaluator and CLI failed first. GREEN: evaluator 26 tests, complete focused suite 34 tests. Independent read-only review found three Important issues: GitHub repository aliases, currency-less unit economics and duplicate demand receipts. New regression tests reproduced all three incorrect readiness results (26 pass/3 fail); fixes produced **37 pass/0 fail** across evaluator, CLI, existing imported-product registry and FinancialRecord contract.
+- Independent reviewer dispatch selection: `gpt-6.1-sol/high`; this is dispatch metadata, not an actual runtime model readback. Executor runtime model/reasoning not exposed by the checked environment. No claim of Astra runtime routing or cost receipt.
+- `git diff --check` and `scripts/verify-source-boundary.sh` passed. The synthetic CLI input emits `resolve_ownership`, `external_effects: false`, unknown metrics and no runtime registration.
+- No private source/history, real provider data, secrets, customer data, runtime state or app credentials are in this branch. PDF-specific operator input/report live outside Git. No dependency installed; no paid/provider API invoked by implementation/tests.
+- No private PDF patch/security migration applied or claimed. No scheduler, marketing submission, deployment, publication, remote push, PR or merge. Worktree is retained for integration owner review.
+
+### Decisions and limits
+
+1. Private PDF fixes stay in a private owner lane until exclusive source ownership and licensing are established. Cost: those product fixes are still pending.
+2. Verification covers the complete new module suite and both directly reused contracts; the service's provider-dependent whole-repository suite was not run. Cost: unrelated integration failures remain unobserved.
+3. Actual receipt authenticity, active-session/lease observation, private source rights, production QA/revenue and release effects are outside this offline evaluator. Cost: a caller supplying fabricated evidence could mislabel readiness; the report therefore grants no execution authority and requires atomic owner/admission checks before any later execution.
+4. Preserve the local branch and worktree without publication/integration during this expressly offline phase. Cost: production integration waits for the orchestrator.
+
+No deferred Minor review findings. The module is an offline factory slice, not proof of a functioning autonomous revenue loop.

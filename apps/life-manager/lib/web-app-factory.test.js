@@ -17,12 +17,12 @@ function input() {
       lease: { owner: "factory-test", worktree: "/isolated/factory", expires_at: "2026-10-09T09:00:00Z" },
       inventory_complete: true, claims: [] },
     period: { start: "2026-10-01T00:00:00Z", end: "2026-10-08T00:00:00Z", currency: "USD" },
-    demand: ["competitor", "problem_signal"].map(kind => ({ kind, evidence: evidence() })),
+    demand: ["competitor", "problem_signal"].map(kind => ({ kind, evidence: { ...evidence(), ref: `receipt://synthetic/${kind}` } })),
     qa: ["core_flow", "quota", "entitlement", "copy", "privacy"].map(check => ({ check, status: "pass", evidence: evidence("offline") })),
     marketing_claims: [{ id: "parse-pdf", evidence: evidence() }],
     distribution: [{ channel: "owned_site", resource_id: "sample-site", owner: "factory-test", permission: "granted", cost_minor: 0 }],
     metrics: {}, financial_records: [], additional_spend_minor: 0,
-    unit_economics: { price_minor: 1900, max_variable_cost_minor: 100, evidence: evidence() },
+    unit_economics: { price_minor: 1900, price_currency: "USD", max_variable_cost_minor: 100, cost_currency: "USD", evidence: evidence() },
   };
 }
 function run(value = input()) { return evaluateWebAppFactory(value, { now: NOW }); }
@@ -89,12 +89,26 @@ test("shared resource blocks even across repositories; disjoint source paths do 
   value.assignment.claims[0].resource_ids.push("sample-site");
   assert.equal(run(value).ownership.state, "blocked");
 });
+test("GitHub URL aliases cannot bypass foreign file ownership", () => {
+  for (const repository of ["https://github.com/Example/Sample", "https://github.com/example/sample/", "https://github.com/EXAMPLE/SAMPLE.git/"]) {
+    const value = input(); value.product.source.git_remote = "https://github.com/example/sample.git";
+    value.assignment.claims.push({ owner: "other", repository, paths: ["SRC"], resource_ids: [] });
+    assert.equal(run(value).ownership.state, "blocked");
+    value.assignment.claims[0].repository = "https://github.com/example/sample-other.git";
+    assert.equal(run(value).ownership.state, "verified");
+  }
+});
 test("unsafe path traversal is rejected before a handoff exists", () => {
   const value = input(); value.assignment.paths = ["src/../shared"];
   assert.throws(() => run(value), /path/);
 });
 test("competitor evidence alone does not prove demand", () => {
   const value = input(); value.demand.pop();
+  assert.equal(run(value).next_task, "validate_demand");
+});
+test("one receipt cannot count as independent competitor and demand evidence", () => {
+  const value = input(); value.demand[1].evidence = structuredClone(value.demand[0].evidence);
+  assert.equal(run(value).demand_verified, false);
   assert.equal(run(value).next_task, "validate_demand");
 });
 test("offline QA cannot authorize marketing or imply production passed", () => {
@@ -142,6 +156,14 @@ test("unknown or loss-making per-order economics fence distribution", () => {
     value.qa.forEach(x => { x.evidence.scope = "provider_readback"; });
     assert.equal(run(value).distribution[0].state, "blocked");
     assert.equal(run(value).next_task, "verify_unit_economics");
+  }
+});
+test("unit economics require explicit matching price and cost currencies", () => {
+  for (const change of [x => { delete x.price_currency; }, x => { delete x.cost_currency; },
+    x => { x.cost_currency = "JPY"; }, x => { x.price_currency = "JPY"; x.cost_currency = "JPY"; }]) {
+    const value = input(); change(value.unit_economics);
+    assert.equal(run(value).unit_economics_verified, false);
+    assert.equal(run(value).distribution[0].state, "blocked");
   }
 });
 test("a budget cannot enable spending and unknown fields cannot carry secret data", () => {
