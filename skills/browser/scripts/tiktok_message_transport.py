@@ -256,8 +256,13 @@ def _readback_expression(candidate: str, message: str, marker: str, sender: str 
       const isOutgoing = node => {
         let positive = false;
         let contradiction = false;
+        const inspected = new Set();
         let current = node;
         for (; current && current !== messageList; current = current.parentElement) {
+          inspected.add(current);
+        }
+        for (const descendant of node.querySelectorAll?.('*') || []) inspected.add(descendant);
+        for (const current of inspected) {
           for (const raw of [current.getAttribute?.('data-direction'),
             current.getAttribute?.('data-message-direction')]) {
             if (raw == null || !String(raw).trim()) continue;

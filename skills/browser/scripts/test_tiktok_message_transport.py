@@ -35,7 +35,9 @@ const bubbles = (fixture.bubbles || []).map(b => {
   const n = el(b.text || "", b.attrs || {});
   if (b.parentAttrs) n.parentElement = el("", b.parentAttrs);
   n.statuses = (b.statuses || []).map(s => el(s.text || "", s.attrs || {}));
-  n.querySelectorAll = selector => selector.toLowerCase().includes("status") ? n.statuses : [];
+  n.children = (b.childrenAttrs || []).map(attrs => el("", attrs));
+  n.querySelectorAll = selector => selector.toLowerCase().includes("status") ? n.statuses
+    : selector === "*" ? n.children : [];
   return n;
 });
 if (fixture.messageBubbles) bubbles.push(...fixture.messageBubbles.map(text => el(text)));
@@ -917,6 +919,36 @@ class TikTokMessageTransportTest(unittest.TestCase):
         rows = [json.loads(line) for line in
                 (self.project_root / "delivery/tiktok-message-effects.jsonl").read_text().splitlines()]
         self.assertEqual([row["state"] for row in rows], ["unknown", "sent"])
+
+    def test_descendant_direction_and_ownership_conflicts_invalidate_outgoing_ancestor(self):
+        payload = self.payload()
+        expression = transport._readback_expression("@candidate", "本文", "TIKTOK_TEST", "@anicca.jp")
+        base = {
+            "topUrl": "https://www.tiktok.com/business-suite/messages?u=candidate",
+            "documentUrl": "https://www.tiktok.com/messages?u=candidate",
+            "headerText": "@candidate", "editorText": "", "listText": "本文",
+            "bubbles": [{"text": "本文", "parentAttrs": {
+                "data-direction": "outgoing", "data-sender-handle": "@anicca.jp",
+            }}],
+        }
+        conflicts = (
+            {"data-direction": "incoming"},
+            {"data-is-own": "false"},
+            {"data-sender-handle": "@candidate"},
+            {"class": "incoming"},
+        )
+        for marker in conflicts:
+            with self.subTest(marker=marker):
+                fixture = {
+                    **base,
+                    "bubbles": [{**base["bubbles"][0], "childrenAttrs": [marker]}],
+                }
+                readback = evaluate_js_expression(expression, fixture)
+                self.assertFalse(readback["message_sender_proven"])
+                self.assertFalse(readback["exact_message"])
+                result = self.send(payload, FakeCDP(before_readback_fixture=fixture), send=False)
+                self.assertNotEqual(result["status"], "deduplicated_exact_official_readback")
+                self.assertFalse(result["retry_safe"])
 
 
 if __name__ == "__main__":
