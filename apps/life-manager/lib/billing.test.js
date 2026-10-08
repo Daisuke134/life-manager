@@ -5,7 +5,7 @@ const { test } = require("node:test");
 const assert = require("node:assert");
 const {
   entitlementFor, parseStripeEvent, isStale, toEpoch,
-  claimEvent, unclaimEvent, applyBilling, webPaidCheckoutEligible, webTravelEntitled,
+  claimEvent, unclaimEvent, applyBilling, webTrialEligible, webPaidCheckoutEligible, webTravelEntitled,
 } = require("./billing.js");
 
 // ── entitlementFor: the fixed Stripe status → entitlement table (REQ-38) ──────
@@ -206,7 +206,9 @@ const webSubscriptionEvent = (id, created, object) => ({
 const webInvoiceEvent = (id, type, created, object = {}) => ({
   id, type, created,
   data: { object: { id: `in_${id}`, customer: "cus_web", subscription: "sub_web", status: "paid",
-    amount_paid: 2900, amount_due: 2900, billing_reason: "subscription_cycle", ...object } },
+    amount_paid: 2900, amount_due: 2900, billing_reason: "subscription_cycle",
+    parent: { subscription_details: { subscription: "sub_web",
+      metadata: { lm_uid: WEB_UID, lm_product: "life_manager_web_travel" } } }, ...object } },
 });
 
 test("applyBilling checkout PAID → provision (paid=true, plan=active, linked)", async () => {
@@ -256,22 +258,41 @@ test("Web tenant checkout cannot fall through to legacy billing when product met
     assert.equal(s.patches.length, 0);
   }
 });
-test("pre-Travel Web tenants cannot be activated by metadata-free subscription or invoice events", async () => {
+test("Web tenant trial eligibility and verified subscription do not require a first Travel block", async () => {
+  const row = webBillingRow({ web_first_travel_at: null, stripe_subscription_id: null,
+    stripe_event_at: null, paid: false, plan_status: null, trial_expires_at: null });
+  assert.equal(webTrialEligible(row), true);
+  assert.equal(webPaidCheckoutEligible(row), true);
+
+  const s = fakeSupa(row);
+  const result = await applyBilling(webSubscriptionEvent("evt_early_trial", 100, {
+    status: "trialing", trial_end: Math.floor(Date.now() / 1000) + 7 * 86400,
+    default_payment_method: "pm_saved",
+  }), deps(s));
+
+  assert.equal(result.action, "provision");
+  assert.equal(s.row().plan_status, "trialing");
+  assert.equal(s.row().web_trial_payment_method_present, true);
+  assert.equal(s.row().paid, false);
+  assert.equal(webTravelEntitled(s.row()), true);
+});
+
+test("Web-only tenant rejects Stripe events that do not identify the Web product", async () => {
   const s = fakeSupa(webBillingRow({ web_first_travel_at: null, stripe_subscription_id: null,
     paid: false, plan_status: null }));
   const subscription = { id: "evt_early_subscription", type: "customer.subscription.created", created: 100,
     data: { object: { id: "sub_early", customer: "cus_web", status: "active",
       metadata: { lm_uid: WEB_UID } } } };
-  const invoice = webInvoiceEvent("evt_early_invoice", "invoice.paid", 101, {
-    id: "in_early", subscription: "sub_early",
-    parent: { subscription_details: { subscription: "sub_early", metadata: { lm_uid: WEB_UID } } },
-  });
+  const invoice = { id: "evt_early_invoice", type: "invoice.paid", created: 101,
+    data: { object: { id: "in_early", customer: "cus_web", subscription: "sub_early",
+      status: "paid", amount_paid: 2900, amount_due: 2900,
+      parent: { subscription_details: { subscription: "sub_early", metadata: { lm_uid: WEB_UID } } } } } };
 
   const subscriptionResult = await applyBilling(subscription, deps(s));
   const invoiceResult = await applyBilling(invoice, deps(s));
 
-  assert.equal(subscriptionResult.action, "web-first-travel-required");
-  assert.equal(invoiceResult.action, "web-first-travel-required");
+  assert.equal(subscriptionResult.action, "web-product-mismatch");
+  assert.equal(invoiceResult.action, "web-product-mismatch");
   assert.equal(s.patches.length, 0);
   assert.equal(s.row().stripe_subscription_id, null);
   assert.equal(s.row().plan_status, null);
@@ -1136,13 +1157,15 @@ test("Web invoice payment evidence pauses or resumes without rewriting Stripe su
   const paidStore = fakeSupa(row);
   const paid = await applyBilling({ id: "paid", type: "invoice.paid", created: 100,
     data: { object: { id: "in_paid", customer: "cus_web", subscription: "sub_web", status: "paid",
-      amount_paid: 2900, amount_due: 2900, billing_reason: "subscription_cycle" } } }, deps(paidStore));
+      amount_paid: 2900, amount_due: 2900, billing_reason: "subscription_cycle",
+      metadata: { lm_uid: row.uid, lm_product: "life_manager_web_travel" } } } }, deps(paidStore));
   assert.equal(paid.paid, true);
   assert.equal(paidStore.patches[0].body.plan_status, undefined);
 
   const failedStore = fakeSupa(row);
   const failed = await applyBilling({ id: "failed", type: "invoice.payment_failed", created: 100,
-    data: { object: { customer: "cus_web", parent: { subscription_details: { subscription: "sub_web" } } } } }, deps(failedStore));
+    data: { object: { customer: "cus_web", parent: { subscription_details: { subscription: "sub_web",
+      metadata: { lm_uid: row.uid, lm_product: "life_manager_web_travel" } } } } } }, deps(failedStore));
   assert.equal(failed.paid, false);
   assert.equal(failedStore.patches[0].body.paid, false);
   assert.equal(failedStore.patches[0].body.plan_status, undefined);

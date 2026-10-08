@@ -11,7 +11,7 @@ const PORTAL_PATH = "/api/lm-web/billing/portal";
 const TRIAL_SECONDS = 7 * 24 * 60 * 60;
 const BILLING_FIELDS = [
   "uid", "telegram_chat_id", "calendar_provider", "calendar_connected_account_id",
-  "calendar_enable_pending", "web_initial_scan_completed_at", "web_first_travel_at",
+  "calendar_enable_pending",
   "stripe_customer_id", "stripe_subscription_id", "trial_expires_at", "plan_status", "paid",
 ].join(",");
 
@@ -119,8 +119,7 @@ async function createWebCheckoutSession(uid, user, opts = {}) {
   if (!WEB_UID_RE.test(String(uid || "")) || !user || user.uid !== uid) throw webError(401, "unauthorized");
   const row = await readWebBillingUser(uid, opts);
   const trialEligible = webTrialEligible(row);
-  if (!row.web_initial_scan_completed_at || !row.web_first_travel_at
-    || !trialEligible && !webPaidCheckoutEligible(row)) {
+  if (!trialEligible && !webPaidCheckoutEligible(row)) {
     throw webError(409, "trial_unavailable");
   }
   await requireActiveCalendar(uid, row, opts);
@@ -144,7 +143,7 @@ async function createWebCheckoutSession(uid, user, opts = {}) {
     cancel_url: `${origin}/lm?checkout=cancelled`,
   };
   if (row.stripe_customer_id) params.customer = row.stripe_customer_id;
-  const digest = crypto.createHash("sha256").update(`${uid}:${row.web_first_travel_at}:${priceId}:${trialEligible ? "trial" : "paid"}:${row.stripe_subscription_id || ""}`).digest("hex").slice(0, 40);
+  const digest = crypto.createHash("sha256").update(`${uid}:${row.calendar_connected_account_id}:${priceId}:${trialEligible ? "trial" : "paid"}:${row.stripe_subscription_id || ""}`).digest("hex").slice(0, 40);
   let session;
   try { session = await stripe.checkout.sessions.create(params, { idempotencyKey: `lm-web-trial-${digest}` }); }
   catch { throw webError(502, "checkout_unavailable"); }

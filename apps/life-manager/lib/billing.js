@@ -191,7 +191,7 @@ async function unclaimEvent(eventId, supaUrl, supaKey, fetchImpl) {
 async function userByCustomer(customerId, supaUrl, supaKey, fetchImpl) {
   const f = fetchImpl || fetch;
   if (!supaUrl || !supaKey || !customerId) return null;
-  const cols = "uid,telegram_chat_id,web_first_travel_at,calendar_provider,calendar_connected_account_id,stripe_customer_id,stripe_subscription_id,current_period_end,stripe_event_at,plan_status,paid,trial_expires_at,web_billing_revision,web_billing_cancel_at_period_end,web_automation_resume_pending,web_automation_user_paused,web_trial_payment_method_present,web_subscription_created_at,web_subscription_event_at,web_subscription_event_priority,web_subscription_event_id,web_subscription_latest_invoice_id,web_invoice_event_at,web_invoice_event_priority,web_invoice_event_id,web_invoice_id,web_invoice_subscription_id,web_invoice_paid,web_invoice_amount_paid";
+  const cols = "uid,telegram_chat_id,calendar_provider,calendar_connected_account_id,stripe_customer_id,stripe_subscription_id,current_period_end,stripe_event_at,plan_status,paid,trial_expires_at,web_billing_revision,web_billing_cancel_at_period_end,web_automation_resume_pending,web_automation_user_paused,web_trial_payment_method_present,web_subscription_created_at,web_subscription_event_at,web_subscription_event_priority,web_subscription_event_id,web_subscription_latest_invoice_id,web_invoice_event_at,web_invoice_event_priority,web_invoice_event_id,web_invoice_id,web_invoice_subscription_id,web_invoice_paid,web_invoice_amount_paid";
   const r = await f(
     `${supaUrl}/rest/v1/lm_users?stripe_customer_id=eq.${encodeURIComponent(customerId)}&select=${cols}`,
     { headers: hdr(supaKey) },
@@ -208,7 +208,7 @@ async function userByCustomer(customerId, supaUrl, supaKey, fetchImpl) {
 async function userByUid(uid, supaUrl, supaKey, fetchImpl) {
   const f = fetchImpl || fetch;
   if (!supaUrl || !supaKey || !uid) return null;
-  const cols = "uid,telegram_chat_id,web_first_travel_at,calendar_provider,calendar_connected_account_id,stripe_customer_id,stripe_subscription_id,current_period_end,stripe_event_at,plan_status,paid,trial_expires_at,web_billing_revision,web_billing_cancel_at_period_end,web_automation_resume_pending,web_automation_user_paused,web_trial_payment_method_present,web_subscription_created_at,web_subscription_event_at,web_subscription_event_priority,web_subscription_event_id,web_subscription_latest_invoice_id,web_invoice_event_at,web_invoice_event_priority,web_invoice_event_id,web_invoice_id,web_invoice_subscription_id,web_invoice_paid,web_invoice_amount_paid";
+  const cols = "uid,telegram_chat_id,calendar_provider,calendar_connected_account_id,stripe_customer_id,stripe_subscription_id,current_period_end,stripe_event_at,plan_status,paid,trial_expires_at,web_billing_revision,web_billing_cancel_at_period_end,web_automation_resume_pending,web_automation_user_paused,web_trial_payment_method_present,web_subscription_created_at,web_subscription_event_at,web_subscription_event_priority,web_subscription_event_id,web_subscription_latest_invoice_id,web_invoice_event_at,web_invoice_event_priority,web_invoice_event_id,web_invoice_id,web_invoice_subscription_id,web_invoice_paid,web_invoice_amount_paid";
   const r = await f(
     `${supaUrl}/rest/v1/lm_users?uid=eq.${encodeURIComponent(uid)}&select=${cols}`,
     { headers: hdr(supaKey) },
@@ -266,7 +266,6 @@ async function patchWebBillingOrRetry(event, row, patch, deps) {
   const current = await userByUid(row.uid, supaUrl, supaKey, fetchImpl);
   if (!current) return { action: "orphan-web-billing", uid: row.uid };
   if (current.telegram_chat_id !== null) return { action: "web-tenant-mismatch", uid: row.uid };
-  if (!current.web_first_travel_at) return { action: "web-first-travel-required", uid: row.uid };
   const identityChanged = ["web_billing_revision", "calendar_provider", "calendar_connected_account_id",
     "stripe_customer_id", "stripe_subscription_id"].some((field) => current[field] !== row[field]);
   if (!identityChanged) throw new Error("Web billing atomic patch conflicted without an observed row change");
@@ -280,7 +279,7 @@ function isWebOnlyUser(row) {
 }
 
 function isWebTravelUser(row) {
-  return isWebOnlyUser(row) && Boolean(row.web_first_travel_at);
+  return isWebOnlyUser(row);
 }
 
 function webTrialEligible(row) {
@@ -387,9 +386,6 @@ async function applyBilling(event, deps) {
     // checkout must NOT clobber a fresher applied state (downgrade an active payer, or regress stripe_event_at).
     const row = await userByUid(p.uid, supaUrl, supaKey, fetchImpl);
     const webOnlyUser = Boolean(row && row.telegram_chat_id === null);
-    if (webOnlyUser && !row.web_first_travel_at) {
-      return { action: "web-first-travel-required", uid: p.uid };
-    }
     if (webOnlyUser && !p.isWebTravel) {
       return { action: "web-checkout-product-mismatch", uid: p.uid };
     }
@@ -467,9 +463,9 @@ async function applyBilling(event, deps) {
   const row = await rowForEvent(p, supaUrl, supaKey, fetchImpl);
   if (!row || !row.uid) return { action: `orphan-${p.kind}`, customerId: p.customerId };
   const webOnlyUser = isWebOnlyUser(row);
-  if (webOnlyUser && !row.web_first_travel_at) return { action: "web-first-travel-required", uid: row.uid };
+  if (webOnlyUser && !p.isWebTravel) return { action: "web-product-mismatch", uid: row.uid };
   if (p.isWebTravel && !webOnlyUser) return { action: "web-tenant-mismatch", uid: p.uid || null };
-  const web = webOnlyUser && Boolean(row.web_first_travel_at);
+  const web = webOnlyUser;
   if (row.stripe_customer_id && p.customerId && row.stripe_customer_id !== p.customerId) {
     return { action: "customer-mismatch", uid: row.uid };
   }
@@ -610,7 +606,6 @@ async function applyBilling(event, deps) {
   }
 
   if (!web && p.isWebTravel) return { action: "web-tenant-mismatch", uid: row.uid };
-  if (web && !row.web_first_travel_at) return { action: "web-first-travel-required", uid: row.uid };
   if (web && !p.subscriptionId) return { action: "missing-web-subscription-id", uid: row.uid };
   if (web && row.stripe_subscription_id && p.subscriptionId !== row.stripe_subscription_id) {
     const priorStatus = String(row.plan_status || "").toLowerCase();

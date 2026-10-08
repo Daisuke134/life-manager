@@ -106,10 +106,19 @@ test("Web Checkout uses the existing $29 monthly price and never resumes automat
   }]);
 });
 
-test("Web Checkout rejects zero-block, active, and past-due users before Stripe", async () => {
+test("Web Checkout offers the seven-day card trial before the first scan or Travel block", async () => {
+  assert.ok(webBilling, "web-billing behavior must be implemented");
+  const f = fixture({ web_initial_scan_completed_at: null, web_first_travel_at: null });
+  const result = await createCheckout(UID, { uid: UID }, f.opts);
+  assert.equal(result.trialEligible, true);
+  assert.equal(f.calls.checkouts.length, 1);
+  assert.equal(f.calls.checkouts[0].params.subscription_data.trial_period_days, 7);
+  assert.equal(f.calls.checkouts[0].params.payment_method_collection, "always");
+});
+
+test("Web Checkout rejects active and past-due users before Stripe", async () => {
   assert.ok(webBilling, "web-billing behavior must be implemented");
   for (const overrides of [
-    { web_first_travel_at: null },
     { stripe_subscription_id: "sub_active", plan_status: "active", paid: true },
     { stripe_subscription_id: "sub_trial", plan_status: "trialing", paid: false,
       web_trial_payment_method_present: true, trial_expires_at: "2030-01-08T00:00:00.000Z" },
