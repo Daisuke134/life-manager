@@ -1053,6 +1053,7 @@ def _persist_recovered_distribution_row(identity: dict[str, Any], proof: dict[st
 
 _INTEGRATION_REF = re.compile(r"^integration://postiz/[a-z0-9_-]+/([A-Za-z0-9][A-Za-z0-9._:-]{0,127})$")
 _POSTS_LIMIT = 100
+HISTORICAL_SWEEP_PER_CALL = 25
 
 
 def _owner_integration_id(owner_id: str, identity_dir: Path) -> str | None:
@@ -1407,6 +1408,15 @@ def main(argv: list[str] | None = None) -> int:
                 api_key=api_key,
                 apply=args.resolve,
             )
+            if (args.resolve and result.get("status") == "inconclusive"
+                    and result.get("reason") == "identity_missing_or_invalid"):
+                # An identity-less fence is a historical leftover: drain the owner's oldest
+                # provably never-posted ones, a few per call, so the backlog shrinks every wake.
+                sweep = sweep_historical_no_dispatch(
+                    args.auto_owner, identity_dir=args.identity_dir,
+                    admission_db=args.admission_db, api_key=api_key, apply=True,
+                    max_items=HISTORICAL_SWEEP_PER_CALL)
+                result = {**result, "historical_sweep": sweep}
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
         if result.get("status") in {"clean", "resolved"}:
             return 0

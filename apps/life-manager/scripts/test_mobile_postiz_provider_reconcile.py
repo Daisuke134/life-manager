@@ -1338,3 +1338,41 @@ def test_historical_flag_runs_the_sweep_and_prints_a_summary(tmp_path, monkeypat
                            "--identity-dir", str(idir), "--admission-db", str(db)])
     out = json.loads(capsys.readouterr().out)
     assert code == 0 and out["applied"] is False and out["owner_id"] == owner
+
+
+def test_per_occurrence_call_without_identity_runs_a_capped_historical_sweep_when_resolving(
+        tmp_path, monkeypatch, capsys):
+    """The fence reconciler calls us once per fenced occurrence; an identity-less one used to end
+    in identity_missing_or_invalid forever. With --resolve it now also sweeps the owner's oldest
+    provable fences, capped, so 3e4 historical fences drain over wakes."""
+    owner = "life-manager-anicca-main-tiktok"
+    db = _hist_db(tmp_path, owner, [(f"{owner}:a", 1_790_000_000.0)])
+    idir = _hist_identity_dir(tmp_path, owner, ["integration://postiz/tiktok/cmx1"])
+    calls = {}
+
+    def fake_sweep(owner_id, **kw):
+        calls["kw"] = kw
+        return {"status": "resolved", "owner_id": owner_id, "inspected": 3, "provable": 3,
+                "kept": 0, "resolved": 3, "applied": kw["apply"]}
+
+    monkeypatch.setattr(reconcile, "sweep_historical_no_dispatch", fake_sweep)
+    monkeypatch.delenv("LIFE_MANAGER_OCCURRENCE_ID", raising=False)
+    code = reconcile.main(["--auto-owner", owner, "--occurrence-id", f"{owner}:a", "--resolve",
+                           "--identity-dir", str(idir), "--admission-db", str(db)])
+    out = json.loads(capsys.readouterr().out)
+    assert calls["kw"]["apply"] is True and calls["kw"]["max_items"] == reconcile.HISTORICAL_SWEEP_PER_CALL
+    # the called fence itself stays inconclusive (exit 1); the sweep drained others and the
+    # reconciler re-checks it on its next wake
+    assert out["historical_sweep"]["resolved"] == 3 and out["status"] == "inconclusive" and code == 1
+
+
+def test_per_occurrence_call_without_resolve_never_sweeps(tmp_path, monkeypatch, capsys):
+    owner = "life-manager-anicca-main-tiktok"
+    db = _hist_db(tmp_path, owner, [(f"{owner}:a", 1_790_000_000.0)])
+    idir = _hist_identity_dir(tmp_path, owner, ["integration://postiz/tiktok/cmx1"])
+    monkeypatch.setattr(reconcile, "sweep_historical_no_dispatch",
+                        lambda *a, **k: (_ for _ in ()).throw(AssertionError("must not sweep")))
+    monkeypatch.delenv("LIFE_MANAGER_OCCURRENCE_ID", raising=False)
+    reconcile.main(["--auto-owner", owner, "--occurrence-id", f"{owner}:a",
+                    "--identity-dir", str(idir), "--admission-db", str(db)])
+    assert json.loads(capsys.readouterr().out)["status"] == "inconclusive"
