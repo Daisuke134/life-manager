@@ -3770,6 +3770,7 @@ English owner `ebook-en-tiktok-daily`は`launchd_state=disabled`で、plistは�
 - A4のfree laneもCFO完了後へ送る。A3.4はA6で確認済みのsettled costまたはprocess再起動後の重複callから費用対効果が確認できた場合だけ再開する。
 - **coverage baseline:** product-loop catalogと最新B7 projectionのloop IDは18/18で一致する。runtime registryは186 jobsで、111 jobsはcatalogに一意に紐づき、残る75 jobsはcontrol/platform/shared（35/14/26）。sharedにはrevenue/growth jobsも含むため、costを捨てず、loop帰属または会社overheadとして証拠付きで出す。
 - **最新のread-only business projection:** 保存済みB7 readbackの`reporting_date=2026-10-08`、`snapshot_at=2026-10-07T16:23:28Z`、`trailing_start=2026-09-07T16:23:28Z`、duplicate receipts=0。historicalは18/18 loop unknown・company JPY revenue/cost/net null・173 gaps、trailingは18/18 unknown・JPY totals null・168 gaps、MRRはcompany unknown・26 gaps・17/18 loop unknown。`mobile-apps`だけUSD 20.34 MRR verified（settled revenueやprofitではない）。これは保存snapshotで、当日P&Lの証明ではない。`loop_pnl.py --date`は日次receiptをfilterせずreporting-date labelだけを変える。
+- **A8 source-specific gap baseline（同じsaved snapshot）:** historical/trailingの非category gapは`gig-coconala` source unconnected、`capafy` missing coverage、`cfo` actual-cost-readback read failed、Affiliate/CrowdWorks/Lancers/Mobile Apps/Writer stale、Investment account/ordersとSelf-Build Stripe receipt unverified。historicalでは9つの必須収益・費用categoryすべてが18/18 loopでmissing。これらは証拠探索の出発点であり、現在のprovider状態のreadbackではない。
 - **A5 spend policy:** spend/usage/unknownの可視化と事前warningのみを行う。
 - 機能を無言で止めるglobal hard cap、推測金額による自動cutoff、未知費用を0にする処理は作らない。
 - 将来、非必須callを抑止する場合も、理由・対象・fallback・再開条件を同じrun reportに出す。
