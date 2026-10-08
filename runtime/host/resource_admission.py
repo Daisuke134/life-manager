@@ -1783,6 +1783,12 @@ def resolve_pre_effect_occurrence(owner_id: str, occurrence_id: str, *,
                                      proof_check=proof_check)
 
 
+_HISTORICAL_NO_DISPATCH_PROOFS = {
+    ("historical_account_bound_no_dispatch", "coconala"): "historical_account_id",
+    ("historical_integration_bound_no_dispatch", "postiz"): "historical_integration_id",
+}
+
+
 def resolve_historical_no_dispatch_occurrence(
         owner_id: str, occurrence_id: str, *,
         no_dispatch_proof: Callable[[], Mapping[str, object]],
@@ -1804,16 +1810,20 @@ def resolve_historical_no_dispatch_occurrence(
 
     def proof_check() -> bool:
         proof = no_dispatch_proof()
-        return (isinstance(proof, Mapping)
+        if not (isinstance(proof, Mapping)
                 and proof.get("owner_id") == owner_id
                 and proof.get("occurrence_id") == occurrence_id
                 and proof.get("verified") is True
-                and proof.get("proof_type") == "historical_account_bound_no_dispatch"
-                and proof.get("provider") == "coconala"
-                and isinstance(proof.get("historical_account_id"), str)
-                and bool(proof["historical_account_id"].strip())
                 and isinstance(proof.get("evidence_ref"), str)
-                and bool(proof["evidence_ref"].strip()))
+                and bool(proof["evidence_ref"].strip())):
+            return False
+        # One (proof_type, provider, bound-key) triple per provider; the key names the
+        # exact account/integration whose full roster was read back and found empty.
+        bound_key = _HISTORICAL_NO_DISPATCH_PROOFS.get(
+            (proof.get("proof_type"), proof.get("provider")))
+        return (bound_key is not None
+                and isinstance(proof.get(bound_key), str)
+                and bool(proof[bound_key].strip()))
 
     return _close_unknown_occurrence(
         owner_id, occurrence_id, expected_state, proof_check=proof_check
