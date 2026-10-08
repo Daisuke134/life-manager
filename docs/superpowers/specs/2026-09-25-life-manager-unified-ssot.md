@@ -7560,3 +7560,16 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 - Before main moved, PR #7185 head `47ba3513` had all required checks PASS and a fresh source review of ship. Main then advanced from `0b9d0f10` to `d7d3cbae` through #7176 (Mobile distribution/off-slot readback docs only); merged locally as `69f17a3a`, with no source conflict. Prior-head CI/review do not cover this merged base.
 
 **現在cursor:** exact-head required CI and fresh read-only review on the current pushed PR #7185 head → merge #7185 → natural main release/readback → disk/effect recovery → stable capacity decision. Host cap remains bounded at 8; Capafy’s service cap 5 is separate.
+
+
+### 2026-10-09 01:08 JST — PR #7185 merged; production remains behind main
+
+- PR #7185 merged at 16:06:58 UTC as main commit `1136b703c45fec29f8535170f72d13e28c168321`. Its code classifies only the exact `effect_unknown` rebind refusal as a fenced skip; the external fence remains intact.
+- At 16:08:34 UTC, `~/loops/current` is still release `d7d3cbaeaf989b1678efc0e572a7c3b9aece6d76`, cut at 15:59:08 UTC, before the merge. The reconciler is installed from `e1b061f1` and last readback is `entrypoint_exit_1`. The configured minimum release-cut interval is 1,800 seconds, so the earliest expected next cut is 16:29:08 UTC if the default remains in effect. Production is not yet verified on the merged SHA.
+- Same-window host evidence at 16:08:34 UTC: available disk `640,008 KiB` (~0.61 GiB); 16 GiB RAM, swap used `8,355 MiB`, system-wide memory free 45%. Admission has 4 live claims + 4 active reservations = 8/8 occupied and 74 queued owner rows (36 agent, 1 browser, 37 deterministic). This is a real cap saturation sample under unstable disk/swap; it does not justify unbounded or immediate global concurrency growth.
+- Target readback at this sample: Connector is on `1fe7db3b` with a pass; Job Hunter is on `1fe7db3b` and waits on `resource_fifo_wait`; Fundraiser is on `25bee172`, capacity-blocked, with four unresolved effect fences. Disk cleanup on `d7d3cbae` has exit 1. No target provider result or revenue is verified.
+- Host cap 8 and Capafy unlisted-Agent server cap 5 are different limits: #7183 changes the Capafy service limit only; it does not change Life Manager's global finite-run cap.
+
+**順序更新:** 旧cursorは「merge #7185 → natural release → capacity decision」。新順序は「(1) current release reconcilerの自然terminalを待ち、最短cut時刻後にcurrent SHAを確認 → (2) merged main `1136b703` がimmutable releaseに載り、reconciler/target ownersのloaded SHAとfenced skipsをreadback → (3) disk cleanup/ENOSPC rootをowner receiptで直し、512 MiB revenue floorを安定させる → (4) Fundraiserの4 unresolved occurrenceをofficial provider readbackで個別解決し、replay-zero → (5) Connector/Job Hunter/Fundraiserのnatural provider outcomesとTelegram receiptsを同一occurrenceへ照合 → (6) disk/swap安定後の同一windowでclaims/reservations/queue age/class limits/RAMを測り、必要な最小cap変更を行う」。理由はmain統合済みでもcurrent releaseが一世代遅れ、現時点ではdisk/swapと8枠occupancyの両方が変動しているため。
+
+**現在cursor:** at or after 16:29:08 UTC, read the natural release pointer and reconciler receipt for main `1136b703`; then follow the ordered production and capacity evidence above. Do not manually cut/restart an active reconciler, replay unresolved Fundraiser effects, or remove the finite-run bound.
