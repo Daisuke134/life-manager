@@ -162,6 +162,36 @@ class NativeMetricCheckpointTest(unittest.TestCase):
         self.assertEqual(six_hour["views"], 0)
         self.assertIsNone(six_hour["error"])
 
+    def test_tiktok_checkpoint_uses_postiz_per_post_api(self):
+        calls = []
+
+        def fetch(postiz_id: str) -> list[dict]:
+            calls.append(postiz_id)
+            return [
+                {"label": "Views", "data": [{"total": 71}]},
+                {"label": "Likes", "data": [{"total": 1}]},
+                {"label": "Comments", "data": [{"total": 0}]},
+                {"label": "Shares", "data": [{"total": 0}]},
+            ]
+
+        new_rows, _raw, _report = metrics.collect_metrics(
+            [publication()],
+            [],
+            observed_at="2026-08-01T07:00:00Z",
+            fetch_analytics=fetch,
+        )
+
+        self.assertEqual(calls, ["post-1"])
+        row = new_rows[0]
+        self.assertEqual(row["source"], "postiz_tiktok_per_post_api")
+        self.assertEqual(row["collector_version"], "native-metrics-v2")
+        self.assertEqual(row["views"], 71)
+        self.assertEqual(row["likes"], 1)
+        self.assertEqual(row["comments"], 0)
+        self.assertEqual(row["shares"], 0)
+        self.assertIsNone(row["reach"])
+        self.assertEqual(row["metric_null_reasons"]["reach"], "provider_field_missing")
+
     def test_product_binding_fields_propagate_to_due_and_missed_rows(self):
         plans = metrics.plan_checkpoints(
             publication(), [], "2026-08-02T01:00:00Z"
@@ -175,7 +205,7 @@ class NativeMetricCheckpointTest(unittest.TestCase):
             {field: 0 for field in metrics.METRIC_FIELDS},
             {field: None for field in metrics.METRIC_FIELDS},
             observed_at="2026-08-02T01:00:00Z",
-            source="tiktok_public_native_api",
+            source="postiz_tiktok_per_post_api",
             raw_response={"native_post_id": "native-1"},
         )
         for row in (missed, due):

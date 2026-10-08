@@ -25,7 +25,7 @@ from typing import Any, Callable, Iterable
 
 
 POSTIZ = "https://api.postiz.com/public/v1"
-COLLECTOR_VERSION = "native-metrics-v1"
+COLLECTOR_VERSION = "native-metrics-v2"
 CHECKPOINTS = (
     {"target_age_hours": 6, "max_lateness_hours": 3},
     {"target_age_hours": 24, "max_lateness_hours": 3},
@@ -565,7 +565,7 @@ class PostizClient:
 def source_for(platform: str) -> str:
     return {
         "instagram": "postiz_instagram_graph_api",
-        "tiktok": "cloakbrowser_tiktok_native_public_api",
+        "tiktok": "postiz_tiktok_per_post_api",
         "youtube": "postiz_youtube_data_api",
     }.get(platform, "postiz_provider_analytics")
 
@@ -576,8 +576,6 @@ def collect_metrics(
     *,
     observed_at: str,
     fetch_analytics: Callable[[str], list[dict[str, Any]]],
-    tiktok_public: dict[str, dict[str, Any]] | None = None,
-    tiktok_public_error: str | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, Any]]:
     eligible, counts = eligible_publications(ledger_rows)
     new_rows: list[dict[str, Any]] = []
@@ -587,22 +585,8 @@ def collect_metrics(
             platform = metric_platform(publication_row["platform"])
             source = source_for(platform)
             try:
-                if platform == "tiktok":
-                    if tiktok_public_error:
-                        raise RuntimeError(tiktok_public_error)
-                    item = (tiktok_public or {}).get(
-                        str(publication_row["native_post_id"])
-                    )
-                    payload = item or {
-                        "native_post_id": publication_row["native_post_id"],
-                        "error": "native_item_not_visible",
-                    }
-                    values, reasons = normalize_public_tiktok(
-                        item.get("stats") if item else None
-                    )
-                else:
-                    payload = fetch_analytics(publication_row["postiz_post_id"])
-                    values, reasons = normalize_postiz_analytics(platform, payload)
+                payload = fetch_analytics(publication_row["postiz_post_id"])
+                values, reasons = normalize_postiz_analytics(platform, payload)
                 row = make_metric_row(
                     publication_row,
                     plan,
@@ -694,34 +678,11 @@ def command_collect(args: argparse.Namespace) -> int:
     ledger_rows = read_jsonl(args.ledger)
     existing_rows = read_jsonl(args.state)
     observed_at = args.now or utc_text(dt.datetime.now(dt.timezone.utc))
-    eligible, _ = eligible_publications(ledger_rows)
-    due_tiktok = [
-        row
-        for row in eligible
-        if row.get("platform") == "tiktok"
-        and any(
-            plan["checkpoint_status"] == "due"
-            for plan in plan_checkpoints(row, existing_rows, observed_at)
-        )
-    ]
-    tiktok_public: dict[str, dict[str, Any]] = {}
-    tiktok_public_error = None
-    if due_tiktok:
-        try:
-            from tiktok_public_metrics import collect_tiktok_public_metrics
-
-            tiktok_public = collect_tiktok_public_metrics(
-                due_tiktok, cdp_url=args.cdp_url
-            )
-        except Exception as exc:
-            tiktok_public_error = f"{type(exc).__name__}: {exc}"
     new_rows, raw_rows, report = collect_metrics(
         ledger_rows,
         existing_rows,
         observed_at=observed_at,
         fetch_analytics=client.analytics,
-        tiktok_public=tiktok_public,
-        tiktok_public_error=tiktok_public_error,
     )
     append_jsonl(args.raw_evidence, raw_rows)
     append_jsonl(args.state, new_rows)
@@ -744,10 +705,6 @@ def parser() -> argparse.ArgumentParser:
 
     collect = sub.add_parser("collect")
     collect.add_argument("--now")
-    collect.add_argument(
-        "--cdp-url",
-        default=os.environ.get("CLOAK_CDP_BASE_URL", "http://localhost:9222"),
-    )
     collect.add_argument("--raw-evidence", type=Path, default=DEFAULT_RAW_EVIDENCE)
     collect.add_argument("--report", type=Path)
     collect.set_defaults(function=command_collect)
