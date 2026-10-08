@@ -785,6 +785,18 @@ if [ "$current_complete" -eq 1 ] && [ -n "$current_sha" ] \
   release_sha_target="$current_sha"
 fi
 
+# Every release a label pins is kept by GC (~100 MB each); cutting one per merge per tick left the
+# fleet on 24 generations and the disk under its floor. A complete current release younger than
+# the minimum interval keeps serving; the newer main is cut once the interval has elapsed.
+cut_min_interval="${LIFE_MANAGER_RELEASE_CUT_MIN_INTERVAL_SECONDS:-1800}"
+if [ "$current_complete" -eq 1 ] && [ "$release_sha_target" != "$current_sha" ]; then
+  release_mtime="$(stat -f %m "$initial_release_root/RELEASE.json" 2>/dev/null \
+    || stat -c %Y "$initial_release_root/RELEASE.json" 2>/dev/null || echo 0)"
+  if [ "$(( $(date -u +%s) - release_mtime ))" -lt "$cut_min_interval" ]; then
+    release_sha_target="$current_sha"
+  fi
+fi
+
 if [ "$release_sha_target" != "$current_sha" ] || [ "$current_complete" -ne 1 ]; then
   cutter="$CURRENT/bin/cut-loop-release.sh"
   [ -x "$cutter" ] || cutter="$SOURCE_REPO/bin/cut-loop-release.sh"

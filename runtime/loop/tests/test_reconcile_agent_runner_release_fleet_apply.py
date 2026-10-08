@@ -613,6 +613,31 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             state = self._state(root)
             self.assertEqual(state["sha"], sha1, "state must still reflect the last applied sha")
 
+    def _stub_cutter(self, release_dir, marker):
+        cutter = release_dir / "bin" / "cut-loop-release.sh"
+        cutter.write_text(f"#!/bin/sh\necho cut >> {marker}\nexit 0\n")
+        cutter.chmod(cutter.stat().st_mode | stat.S_IEXEC)
+
+    def test_main_advance_within_cut_min_interval_does_not_cut_a_new_release(self):
+        # Every release the labels pin costs ~100 MB and GC protects all of them; cutting on each
+        # 60 s tick for each merge kept 24 generations loaded and the disk under its floor.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha1 = self._make_repo(root)
+            release1 = self._make_release(root, sha1)
+            self._activate(root, release1)
+            marker = root / "cut.marker"
+            self._stub_cutter(release1, marker)
+            self._advance_repo(repo)
+            env = self._base_env(root, repo, calls_log=root / "calls.log")
+            env["LIFE_MANAGER_RELEASE_CUT_MIN_INTERVAL_SECONDS"] = "1800"
+            self._run(env)
+            self.assertFalse(marker.exists(), "a fresh complete release must not be re-cut yet")
+
+            env["LIFE_MANAGER_RELEASE_CUT_MIN_INTERVAL_SECONDS"] = "0"
+            self._run(env)
+            self.assertTrue(marker.exists(), "after the interval a newer main must be cut")
+
     def test_new_release_after_a_failed_apply_is_coalesced_within_min_interval(self):
         # 2026-10-08: two to four owners always failed, so every attempt was status=error with
         # last_ok_epoch=0. The min-interval guard only counted successes, so it never fired and
