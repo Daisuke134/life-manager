@@ -6090,3 +6090,33 @@ Fresh read-only review rejected the idle-readback-only patch: a new StartInterva
 - Latest Postiz GET remains the 16:21 JST snapshot: eBook 2/9 (EN 0, JP TikTok 1, JP Instagram 1), Capafy 2 `PUBLISHED`; no later scheduled post slot has elapsed. HeyGen readback at 16:29 JST shows 0 `Anicca` videos across two pages and wallet USD 11.78; this does not resolve the older render fence. Product PR #420 is still `OPEN`.
 
 **現在cursor:** `PID 35373 natural terminal → verify new-main immutable release and self-handoff receipt → exact eBook occurrence reconciliation and target-owner SHA convergence → safe next eBook post slot → paid Checkout+matching PDF (PR #420 durable receipt gate) → paid active subscription MRR → gated Capafy canary/order readback`。Daisの手作業は現在不要。
+
+### 2026-10-08 17:24 JST — production state readback gap isolated
+
+- PR #7091 source and PR #7093 cursor docs are merged. Latest `origin/main=dc90716408`; the handoff receipt-diagnostic follow-up is a separate uncommitted branch based on this SHA.
+- `~/loops/current` is release `20261008T171655-dc907164`. The installed release reconciler remains old SHA `3c87f64f`, PID `94732`, loaded-running. Previous occurrence `18dc7fedf810fb70-6794` passed at 17:22 JST; the process started for a later run remains active.
+- A self-handoff helper from release `dc907164` is loaded/running PID `4595`. Its latest receipt reports `old_service_state_unknown`, `old_service_state=null`, `run_lock.status=acquired`, target SHA `dc907164`, and no old-service bootout. The old service remains running; this is fail-closed behavior.
+- Source tracing found the receipt parser accepts only one-token state values. A fake `launchctl-safe print` response `state = not running` reproduces the missing receipt state (`null`); production's exact state string is still unobserved. The follow-up test changes the observation boundary only and keeps unknown states fail-closed.
+
+**現在cursor:** `run the new state-text receipt test RED → parse and record the full state line → focused acceptance + fresh review → PR source/CI/main merge → allow PID 94732 to terminate naturally → confirm receipt with exact state and new release SHA/argv → eBook owner/occurrence reconciliation → 9 unique PUBLISHED/day → paid order+PDF → paid subscription MRR → gated Capafy canary`. Do not manually restart or replay provider effects.
+
+### 2026-10-08 17:28 JST — state-text receipt fix reviewed; runtime remains old
+
+- Source correction is one parser change: preserve the complete `state = ...` line. Unknown values still fail closed and do not bootout the old service. Focused `runtime.loop.tests.test_reconcile_agent_self_handoff` passed 9/9; fresh read-only review passed; `origin/main=dc90716408` is the branch base. Source and this cursor update are not yet committed or merged.
+- `~/loops/current` points to immutable release `20261008T171655-dc907164`. Fresh `lm-loop status life-manager-release-reconciler --explain --json` at 17:27 JST shows loaded-running PID `22671`, still executing old release SHA `3c87f64f`; latest terminal event is occurrence `18dc804af4ade8a0-94732`, `entrypoint_exit_1`, at 17:25:59 JST. Do not stop/restart it; let its owner path reach a natural terminal.
+- Latest handoff receipt remains `failed / old_service_state_unknown`, `old_service_state=null`, run-lock `acquired`, target SHA `dc90716408`. The parser fix is intended to preserve the exact state text on the next helper occurrence; it does not change the fail-closed decision.
+- Fresh Capafy status still shows `capafy-ig-marketing-daily` disabled on SHA `2e87d30d`, with effect-unknown occurrence `18db7caff1178a88-68028` and next action `official_readback_required`. Do not replay it. The previous Postiz GET at 16:21 JST showed eBook 2/9 and Capafy 2 `PUBLISHED`; no later API readback is claimed here. The next scheduled eBook slots are still ahead at 20:00/21:00 JST.
+- The previously used strings `ebook-en-tiktok-daily`, `ebook-ja-tiktok-daily`, and `ebook-ja-instagram-daily` are not recognized as `lm-loop` IDs in the current registry. The older 16:28 owner snapshot remains historical evidence; map each publishing lane to its canonical owner/label and loaded argv before treating it as current convergence.
+
+**Atomic TODO / current cursor:**
+
+1. Local source acceptance is complete: focused unittest 9/9, edited entrypoint `bash -n`, fresh review, and `git diff --check` all pass. Commit and push the parser fix plus this SSOT update on `fix/reconciler-handoff-state-readback-20261008`.
+2. Open the source PR; wait for required CI and independent review to pass; merge to main.
+3. Let PID `22671` reach natural terminal. Read the next handoff receipt and confirm the exact old Launchd state text, target immutable release SHA, and loaded argv. If it remains unknown, follow the captured state/next action; do not force an apply or restart.
+4. Resolve the canonical owner IDs/labels and live loaded SHA/argv for the three eBook lanes. For each exact fenced occurrence, obtain Postiz/HeyGen official receipt or authoritative no-effect evidence before releasing the fence; never replay an unknown publish.
+5. Promote each eBook publisher only through its owner path, then confirm the next natural slots produce 3 unique `PUBLISHED` posts/day per account: EN TikTok, JA TikTok, JA Instagram (9/day total).
+6. Close the paid eBook gate with a Stripe order receipt matched to the delivered PDF; Product PR #420 remains the durable receipt change to verify before claiming order-to-file completion.
+7. Track the optional paid Letter/Tegami subscription separately from one-time ebook sales. Count only active paid subscribers as MRR; verify receipts, refunds, fees, and net before reporting a revenue result.
+8. After the paid eBook+PDF gate, repair Capafy’s owner/profile and Postiz pack reference; publish at most one canary per 24 hours, then verify official order and banked net before increasing cadence.
+
+The next cursor is item 1 commit/push. No Dais manual action is currently required; the blockers are source promotion, safe natural handoff, exact effect/owner readbacks, and paid-result evidence.
