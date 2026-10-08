@@ -5978,6 +5978,17 @@ This snapshot supersedes the 13:59–14:04 source/release status. PR #7055 backo
 - 同期後ローカルacceptance: A5 SQL/API/UI `112/112`; panel privacy `api=177/browser=63/recipes=19/channels=9`; focused registry `136 passed / 197 subtests`; admission `137 passed`; Node registry adapter `15/15`; `./bin/lm-loop-contract` `ok=true`（18 catalog loops / 187 registry jobs / 112 mapped）; OSS verifier `ok=true`、self-contained test `12/12`、`git diff --check` PASS。
 
 **現在cursor:** source/ローカルacceptanceは最新main `85f17537`まで完了。次にこのbranchをpushし、pushed SHA上でfull runtime suite（release-cut pressure tests含む）、required CI、fresh read-only whole-branch reviewを確認する。これらが同一headで通るまではPRをdraftのままにする。その後にmain merge、production natural reconcile/owner readback、A5 migration/report、A6→A8→A9→A10を順に進める。
+
+### 2026-10-08 16:47 JST — A5 review finding fixed; production remains separate
+
+この更新はA5 source/CI cursorを進める。CFO production stateとlocal revenue別laneはこの節で変更しない。
+
+- **Review:** fresh read-only review of PR head `5e676794` found one Important at `apps/life-manager/lib/panel-presentation.js`: individual ledger items accepted a zero estimate from `cache_hit=true` without requiring `estimate_status`, while period totals require explicit `estimated` or `not_applicable`.
+- **RED→GREEN:** new API regression used a legacy cache-hit row with `est_usd=0` and missing `estimate_status`, plus a valid explicit `not_applicable` zero. Before the code change, the first rendered as `USD 0.00` instead of `金額不明`; after removing `cache_hit` as a zero-known fallback, the regression passes and explicit `not_applicable` still renders zero.
+- **Acceptance after fix:** A5 SQL/API/UI tests `113/113`; panel privacy `api=177/browser=63/recipes=19/channels=9` PASS. Full Python runtime suite previously passed `793/793` on pushed head `5e676794`; it does not cover this JS projection change.
+- **Branch state:** latest main is now `3c87f64f` (#7090); this A5 branch includes main through `963b047c` only. PR #6827 is still open/draft at head `5e676794` / base `85f17537`; code fix and regression are local and need main sync, push, and same-head CI.
+
+**現在cursor:** integrate latest main `3c87f64f`, rerun A5 focused/privacy checks, push the one-line projection fix and regression test, then verify same-head CI before marking PR ready/merge. The review finding is resolved by the test; avoid a duplicate review pass. After source merge, continue natural production reconciliation, occurrence receipt join, A5 migration/panel readback, then A6→A8→A9→A10.
 ### 2026-10-08 16:19 JST — Local revenue loop post-merge production cursor
 
 この追記は14:09 JSTの旧TODOと15:52 JSTのowner snapshotを更新する。source修正はmain統合済みだが、production完了とは分けて記録する。

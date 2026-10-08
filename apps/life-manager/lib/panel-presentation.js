@@ -174,7 +174,7 @@ function financialAmount(row) {
   if (row.est_usd != null) {
     const meta = record(row.meta) ? row.meta : {};
     const estimate = Number(row.est_usd);
-    const zeroKnown = meta.cache_hit === true || meta.estimate_status === "estimated"
+    const zeroKnown = meta.estimate_status === "estimated"
       || meta.estimate_status === "not_applicable";
     if (meta.estimate_status !== "unavailable" && Number.isFinite(estimate)
       && (estimate !== 0 || zeroKnown)) return formatCurrencyAmount(estimate, "USD");

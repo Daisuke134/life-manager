@@ -1068,6 +1068,31 @@ test("PANEL-8g scores use source outcomes and expose all four closed organs", as
   });
 });
 
+test("ledger treats zero cache-hit estimates as unknown unless estimate status is explicit", async () => {
+  const fixture = makeFixture();
+  fixture.byUid.u1.costs = [
+    {
+      uid: "u1", ts: "2026-07-21T09:30:00.000Z", kind: "composio_call",
+      quantity: 0, unit: "request", est_usd: 0,
+      meta: { provider: "composio", cache_hit: true, billing_status: "not_applicable" },
+    },
+    {
+      uid: "u1", ts: "2026-07-21T09:45:00.000Z", kind: "composio_call",
+      quantity: 0, unit: "request", est_usd: 0,
+      meta: {
+        provider: "composio", cache_hit: true, billing_status: "not_applicable",
+        estimate_status: "not_applicable", actual_usd: 0,
+      },
+    },
+  ];
+  await withApiServer(fixture, async (base) => {
+    const { response, body } = await getJson(base, "ledger");
+    assert.equal(response.status, 200);
+    assert.deepEqual(body.api_cost.items.map((item) => item.amount), ["金額不明", "USD 0.00"]);
+    assert.equal(body.api_cost.unknown_estimate_entries, 1);
+  });
+});
+
 test("REPORT-1 panel reads the real earnings table and the exact Telegram snapshots", async () => {
   const fixture = makeFixture();
   fixture.byUid.u1.costs.push({ uid: "u1", ts: "2026-07-21T09:30:00.000Z",

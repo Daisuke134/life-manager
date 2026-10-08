@@ -144,6 +144,8 @@
 - Modify: `apps/life-manager/lib/usage-summary-migration.test.js`
 - Modify: `apps/life-manager/lib/panel-ui.js`
 - Modify: `apps/life-manager/lib/panel-ui.test.js`
+- Modify: `apps/life-manager/lib/panel-presentation.js`
+- Modify: `apps/life-manager/lib/panel-api.test.js`
 - Modify: `docs/manifests/oss-merge-1-sources.json`
 - Modify: `docs/superpowers/plans/2026-10-07-cfo-a5-cost-visibility.md`
 - Modify: `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md`
@@ -167,5 +169,6 @@
 - [x] Push status updates; current PR head `79091677` has required CI passing, while CodeRabbit review is skipped on the draft.
 - [x] After main #7084 changed `skills/capafy-autopublish/scripts/drive_checkpoint2.py` and its test, recompute its tracked 245-file inventory as `7d59dbe788a1edb593d16240413cdb6573e0b49b8297b63d4da539179eb61fa6`; `node scripts/verify-oss-self-contained.mjs --json` is PASS and `node --test test/oss-self-contained.test.mjs` is 12/12 PASS.
 - [x] Merge latest main `85f17537` into the A5 branch. On the synchronized tree, A5 focused tests pass 112/112, panel privacy passes (`api=177`, `browser=63`, `recipes=19`, `channels=9`), registry passes 136 tests/197 subtests, admission passes 137, Node adapter passes 15, loop contract is `ok=true`, OSS verifier passes, self-contained tests pass 12/12, and `git diff --check` passes.
-- [ ] Push the latest main-synced branch; rerun the full runtime suite on the pushed SHA (including release-cut pressure tests), obtain same-head required CI and fresh read-only whole-branch review, then mark PR #6827 ready and merge.
+- [x] Fresh whole-branch review on pushed head `5e676794` found one Important inconsistency: individual cache-hit zero estimates could bypass the explicit estimate-status rule. Add a regression test (RED on the old projection, GREEN after the minimal fix); no second review is required for this one-pass fix.
+- [ ] Merge latest main `3c87f64f`, push the review fix, rerun same-head A5 tests/privacy/runtime suite and required CI, then mark PR #6827 ready and merge. Review range already covered the A5 implementation; merged-main changes are outside that range and are accepted through their own main checks.
 - [ ] Do not apply the database migration or manually run/restart the production CFO owner from this worktree; production migration/release/natural-report readback follows the canonical SSOT cursor.
