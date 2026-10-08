@@ -4670,3 +4670,15 @@ fresh read-only reviewerは`181d1fe578`で3つの誤判定をfixture再現した
 - 00:44Z runtime readbackは22 Gig jobs（Coconala 7/Lancers 7/CrowdWorks 5/Mercor 3）、`loaded-idle=19 / loaded-running=3`、receipt 0。idle側`disk_headroom_low=18 / resource_capacity_busy=1`。空き`1,528,460 KiB`は2 GiB floor未満。disk-cleanup ownerのlatest occurrenceは`entrypoint_exit_1 / reconcile_owner`で、lease内のdiagnosis/recoveryを待つ。
 
 **現在cursor:** `2742517472`の生成JavaScriptを含むfresh adversarial re-review → PR/new-head CI → main統合。並列でdisk-cleanup ownerの再readbackとsafe recoveryを待つ。両gate後にCoconala Paid project lock/inbox、既存talkroomのrevision要求→正式納品→検収・精算、次にStorefront fence/inventory/sales/settlementへ進む。
+
+### 2026-10-08 09:49 JST — adversarial reviewでsent判定と入力間raceを再反証
+
+fresh reviewerは`2742517472`で次のP1をfixture再現した。先行source修正・29/29 PASSだけではmerge不可。
+
+- message-list本体が本文と完全一致すると、bubble子要素の`data-status`を読まず、failed/pendingでも`sent`扱いになる。
+- `FILLED`/`PRE_ENTER`のexact-message分岐がframe/recipient context検証より先にあり、別宛先・非公式frameで同文を`sent`記録できる。
+- context readbackと別CDP callのEnterの間にrecipientが変わると、別宛先へEnterを送れる。後のunknown fenceだけでは外部送信を防げない。
+
+**修正条件:** list container自体をbubble判定から外し、exact nodeとその祖先の明示delivery statusを全て読む。exact/delivery判定より先に同一official frame・recipient・composerを確認する。Enterのkeydown時にも同じDOM内で一回限りのcontext guardを実行し、invalidなら`preventDefault/stopImmediatePropagation`でEnterを配送しない。guard不明/失敗はsuccessや再送許可にしない。新しいNode DOM fixtureとfocused testsで前記3件を再現不能にしてからfresh reviewする。
+
+**現在cursor:** 上記3件の回帰fixture→最小修正→focused test→fresh adversarial re-review。PR/new-head CI/main mergeは未着手。最後のhost readback（00:44Z）は1,528,460 KiB free、2 GiB未満。disk-cleanup latest `entrypoint_exit_1 / reconcile_owner`。
