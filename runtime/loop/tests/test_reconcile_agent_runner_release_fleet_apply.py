@@ -990,7 +990,7 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             self.assertEqual(state["status"], "partial")
             self.assertLess(state["next_retry_epoch"], time.time() + 60)
 
-    def test_budget_partial_short_retry_allows_new_sha_before_min_interval(self):
+    def _run_budget_partial_short_retry_new_sha_case(self, *, legacy_state):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             repo, sha1 = self._make_repo(root)
@@ -1019,9 +1019,12 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             self.assertLessEqual(first_state["next_retry_epoch"], int(time.time()))
             self.assertEqual(first_state["message"], "timed out owners: none; budget exceeded")
             state_path = root / "reconciler-state" / "fleet-apply-state.json"
-            legacy_state = json.loads(state_path.read_text())
-            legacy_state.pop("budget_progress_continue", None)
-            state_path.write_text(json.dumps(legacy_state))
+            if legacy_state:
+                state = json.loads(state_path.read_text())
+                state.pop("budget_progress_continue", None)
+                state_path.write_text(json.dumps(state))
+            else:
+                self.assertIs(first_state["budget_progress_continue"], True)
 
             sha2 = self._advance_repo(repo)
             release2 = self._make_release(
@@ -1043,9 +1046,14 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             self.assertEqual(
                 self._apply_call_count(calls_log),
                 3,
-                "a budget-progress retry deadline must override the old SHA's min interval",
+                "an expired budget-progress deadline must allow the latest SHA before min interval",
             )
             self.assertEqual(self._state(root)["sha"], sha2)
+
+    def test_budget_partial_short_retry_allows_new_sha_before_min_interval(self):
+        for legacy_state in (False, True):
+            with self.subTest(legacy_state=legacy_state):
+                self._run_budget_partial_short_retry_new_sha_case(legacy_state=legacy_state)
 
     def test_partial_apply_honors_backoff_before_same_release_retry(self):
         with tempfile.TemporaryDirectory() as directory:

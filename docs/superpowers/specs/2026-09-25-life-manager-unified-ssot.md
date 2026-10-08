@@ -7239,7 +7239,7 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 
 - Latest main `066400de03` includes #7165's stable watchdog installer and #7166's `_disk_floor` change: only `priority=critical_paid` receives 1 GiB; other priorities stay at 2 GiB. Target registry entries remain `priority=revenue` / `admission_class=revenue`, so Connector, Job Hunter daily, and Fundraiser still use 2 GiB. `resource_admission` already has revenue priority/reserve, but `lm_loop_run.py` checks the disk floor before queue enqueue; those priorities never help below 2 GiB.
 - The stale watchdog root cause is fixed in production through the main-derived current release at the time (`25bee172fa532b848b106c317766b36e1ddd1ddb`). `launchctl-safe preflight` passed; `skills/self/disk-cleanup/install-launchd.sh` exited 0; safe readback shows the loaded program is `/Users/anicca/.local/bin/disk-watchdog.sh`, state=`running`, runs=1. The stable wrapper follows `~/loops/current`, avoiding a pinned-release path.
-- The first post-install cleanup receipt at `2026-10-08T14:20:46Z` was `free_before=672,919,552`, `free_after=655,257,600`, `reclaimed=6,411`, `errors=0`, `protected_deletions=0`, recovery=`unmet`, preserved open=3/protected_descendant=10. `df -k /` at 23:22 JST was `753,124 KiB`; the watchdog runs, but the disk floor is not recovered and the exact remaining writer is unknown.
+- The first post-install cleanup receipt at `2026-10-08T14:20:46Z` was `free_before=672,919,552`, `free_after=655,257,600`, `reclaimed=6,411`, `errors=0`, `protected_deletions=0`, recovery=`unmet`, preserved open=3/protected_descendant=10. `df -k /` at `23:22:53 JST` was `753,124 KiB`; the watchdog runs, but the disk floor is not recovered and the exact remaining writer is unknown.
 
 **設計決定:** do not raise global finite-run cap 8 or label the three prospecting owners `critical_paid`. Keep borrow/support at 2 GiB, extend the existing 1 GiB floor to revenue-priority owners, and retain their inner producer guards. Use the already-installed stable disk watchdog as the low-disk recovery lane. Add swap telemetry to admission receipts before choosing any swap threshold; current measurements show high swap but not a sole cause. OpenClaw remains the selected harness; it does not own Life Manager's host admission policy.
 
@@ -7256,16 +7256,6 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 7. disk回復後に同一windowのactive claim/reservation、eligible queue age、class contention、CPU/RAM/disk/swap、有限job数を測り、global cap 8は実測飽和が確認できた場合だけ変更する。heavy factoryのcloud移設はlocal capacity measurement後にcost/benefitが成立する場合だけ扱う。
 
 **現在cursor:** finish latest-main merge resolution → push → exact-head PR #7156 CI/review/merge → natural release and watchdog receipt → 2 GiB recovery → revenue-floor follow-up PR → Fundraiser readback → target natural outcomes → same-window capacity and swap measurement.
-
-
-### 2026-10-08 23:29 JST — watchdog natural run and follow-up plan
-
-- `com.anicca.disk-watchdog` safe readback after the stable-wrapper install shows `state=running`, `program=/Users/anicca/.local/bin/disk-watchdog.sh`, `runs=6`. Its next natural receipt at `2026-10-08T14:29:22Z` has `errors=0`, `protected_deletions=0`, `reclaimed=6,405`, `free_after=852,484,096`, recovery=`unmet`; `df` at 23:22 was `773,540 KiB`. The stale-release error log has not changed since 23:22; the remaining lines are historical `can't open file` entries from before the stable install.
-- The stable watchdog is a recovery lane outside finite `lm_loop_run` admission. It runs the current immutable cleanup governor, but it has reclaimed only about 6 KiB per pass so far; the exact reason free space stays under 1 GiB is unresolved.
-- A follow-up executable plan is recorded at `docs/superpowers/plans/2026-10-08-revenue-admission-floor.md`. It changes only `_disk_floor` and its tests: `revenue` owners use the 1 GiB floor from #7166, borrow/support stay at 2 GiB, and the global finite-run cap remains 8. The remote PR head is still `e4b64e45bf`; this merge/plan update is not pushed yet, so old CI is not current evidence.
-
-**現在cursor:** commit latest-main merge resolution + revenue-floor plan → push branch → exact-head PR #7156 CI/fresh review/merge → natural release/readback → watchdog recovery/2 GiB admission → revenue-floor follow-up PR → Fundraiser fence readback → target natural outcomes → same-window capacity.
-
 
 ### 2026-10-08 23:25 JST — latest-main sync and implementation plan
 
@@ -7284,3 +7274,22 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 7. Measure claims/reservations/queue age/class contention/CPU/RAM/disk/swap and actual finite-job parallelism in one window after recovery. Change the cap only if observed saturation proves it is the remaining limit.
 
 **現在cursor:** commit latest-main merge → commit SSOT and revenue-floor plan → push → exact-head PR #7156 CI/review/merge → follow-up revenue-floor PR → immutable release/watchdog recovery → target readbacks and natural outcomes → same-window capacity measurement.
+
+### 2026-10-08 23:29 JST — watchdog natural run and follow-up plan
+
+- `com.anicca.disk-watchdog` safe readback after the stable-wrapper install shows `state=running`, `program=/Users/anicca/.local/bin/disk-watchdog.sh`, `runs=6`. Its next natural receipt at `2026-10-08T14:29:22Z` (`23:29:22 JST`) has `errors=0`, `protected_deletions=0`, `reclaimed=6,405`, `free_after=852,484,096`, recovery=`unmet`; paired `df -k /` was `816,616 KiB`. The stale-release error log has not changed since 23:22:18; the remaining lines are historical `can't open file` entries from before the stable install.
+- The stable watchdog is a recovery lane outside finite `lm_loop_run` admission. It runs the current immutable cleanup governor, but it has reclaimed only about 6 KiB per pass so far; the exact reason free space stays under 1 GiB is unresolved.
+- A follow-up executable plan is recorded at `docs/superpowers/plans/2026-10-08-revenue-admission-floor.md`. It changes only `_disk_floor` and its tests: `revenue` owners use the 1 GiB floor from #7166, borrow/support stay at 2 GiB, and the global finite-run cap remains 8. The remote PR head is still `e4b64e45bf`; this merge/plan update is not pushed yet, so old CI is not current evidence.
+
+**現在cursor:** commit latest-main merge resolution + revenue-floor plan → push branch → exact-head PR #7156 CI/fresh review/merge → natural release/readback → watchdog recovery/2 GiB admission → revenue-floor follow-up PR → Fundraiser fence readback → target natural outcomes → same-window capacity.
+
+
+### 2026-10-08 23:37 JST — review findings corrected on the current PR cursor
+
+- Fresh review of PR #7156 head `dce7259964983a1ed6148c03cf2e7895571fa4e2` returned `fix-first`: the latest cursor lagged the pushed head, two `df` samples shared the same label despite different values, and the budget-progress marker's new-state path was not tested.
+- The SSOT now orders the 23:25 and 23:29 notes chronologically and distinguishes `df -k /` at `23:22:53 JST` (`753,124 KiB`) from the paired sample at `23:29:22 JST` (`816,616 KiB`). The 23:25 cursor is historical; this entry supersedes it.
+- `test_budget_partial_short_retry_allows_new_sha_before_min_interval` exercises both `budget_progress_continue=true` and a field-absent legacy state. Each path uses the same partial-budget fixture and verifies the expired short deadline allows the new SHA before the 1,800-second coalesce interval.
+- Local verification passed: fleet-apply tests 33/33, `bash -n bin/reconcile-agent-runner-release.sh`, `bash scripts/verify-source-boundary.sh`, and `git diff --check`.
+- PR #7156 head `dce72599` has CI run `37793247368`; those results do not cover this test/SSOT update and are not a gate for the next head.
+
+**現在cursor:** commit/push this test and SSOT correction → exact-head CI/fresh read-only `ship` review → merge #7156 → main-derived release/watchdog readback → revenue-floor follow-up PR → target outcomes and post-recovery capacity.
