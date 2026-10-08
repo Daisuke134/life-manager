@@ -2,24 +2,85 @@
 
 Run: python3 -m pytest skills/earn/gig/tests/test_storefront_fence.py
 """
+import ast
 import json
+import hashlib
 import sys
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 import storefront_direct as sd  # noqa: E402
 
 SERVICE_ID = "90000005"
+NOW = int(datetime.now(timezone.utc).timestamp())
 
 
-def analytics(tmp_path, views, status="known"):
+def analytics(tmp_path, views, status="known", *, service_id=SERVICE_ID, observed_at=None,
+              official=True, complete=True, source_url=None, window_override=None, tamper_key=False):
+    observed_at = NOW if observed_at is None else observed_at
+    observed_date = datetime.fromtimestamp(observed_at, timezone.utc).date()
+    start = (observed_date - timedelta(days=29)).strftime("%Y/%m/%d") if complete else None
+    end = observed_date.strftime("%Y/%m/%d") if complete else None
+    window = window_override or {"start": start, "end": end, "complete": complete}
+    metrics = {
+        "impressions": {"status": "unavailable", "value": None,
+                        "reason": "seller_success_subscription_required"},
+        "views": {"status": status, "value": views if status == "known" else None},
+        "purchases": {"status": "known", "value": 0},
+        "gross_jpy": {"status": "unavailable", "value": None,
+                      "reason": "service_analytics_does_not_expose_sales_amount"},
+        "favorites": {"status": "known", "value": 0},
+    }
+    content_sha256 = hashlib.sha256(b"official synthetic analytics report").hexdigest()
+    identity = {
+        "service_id": str(service_id), "window_start": window.get("start"),
+        "window_end": window.get("end"), "metrics": metrics,
+        "content_sha256": content_sha256,
+    }
+    snapshot_key = "storefront:analytics:v1:" + hashlib.sha256(json.dumps(
+        identity, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    ).encode()).hexdigest()
+    if tamper_key:
+        snapshot_key += "-mismatch"
     path = tmp_path / "analytics.jsonl"
     path.write_text(json.dumps({
-        "service_id": SERVICE_ID, "observed_at_epoch": 1_786_000_000,
-        "metrics": {"views": {"status": status, "value": views}},
+        "version": 1, "snapshot_key": snapshot_key,
+        "service_id": str(service_id), "observed_at_epoch": observed_at,
+        "official": official,
+        "source_url": source_url or f"https://coconala.com/mypage/analytics/{service_id}",
+        "window": window, "metrics": metrics, "content_sha256": content_sha256,
     }) + "\n", encoding="utf-8")
     return path
+
+
+def snapshot(path):
+    return json.loads(path.read_text(encoding="utf-8").splitlines()[-1])
+
+
+def _prepare_candidate(root, fresh_snapshots):
+    policy = root / "scorecard.json"
+    policy.write_text(json.dumps({
+        "portfolio_policy": {"version": 1, "minimum_views_for_measurement": 100},
+        "priority_backlog": [{
+            "priority": 1, "service_id": SERVICE_ID, "field": "body", "before": 1,
+            "success_metric": "inquiries", "reason": "bounded service outcome test",
+        }],
+    }), encoding="utf-8")
+    contracts = [{"service_id": SERVICE_ID, "service_version_sha256": "a" * 64}]
+    mutation = [{
+        "service_id": SERVICE_ID, "changed_field": "body",
+        "precondition_listing_version_sha256": "a" * 64,
+        "contract_sha256": "b" * 64, "observation_window_days": 14,
+        "proposed_value": "fixed scoped result",
+    }]
+    return sd._prepare_next_hypothesis(
+        policy, root / "effects.jsonl", root / "outcomes.jsonl", contracts, NOW,
+        mutation_contracts=mutation, fresh_snapshots=fresh_snapshots,
+    )
 
 
 def families_fixture(tmp_path, service_id=SERVICE_ID):
@@ -43,22 +104,219 @@ def families_fixture(tmp_path, service_id=SERVICE_ID):
 
 def test_a_window_that_cannot_reach_the_minimum_is_not_worth_waiting_for(tmp_path):
     # 93 views per 30 days projects to 43 in a 14-day window: far under the 100 minimum.
-    result = sd._measurement_feasible(analytics(tmp_path, 93), SERVICE_ID, 14, 100)
+    result = sd._measurement_feasible([snapshot(analytics(tmp_path, 93))], SERVICE_ID, 14, 100, NOW)
     assert result["status"] == "known"
     assert result["projected_window_views"] == 43
     assert result["feasible"] is False
     assert result["basis"] == "rolling_30d_view_rate_projected_onto_window"
 
 
+def test_discretionary_mutations_wait_until_their_experiment_has_enough_exposure(tmp_path):
+    def prepare(root, views, status="known", **snapshot):
+        root.mkdir()
+        path = analytics(root, views, status, **snapshot)
+        current = json.loads(path.read_text(encoding="utf-8").splitlines()[-1])
+        return _prepare_candidate(root, [current])
+
+    low = prepare(tmp_path / "low", 50)
+    assert low["executable"] is False
+    assert low["guard_reason"] == "metric_unmeasurable_insufficient_exposure"
+    assert low["measurement_feasibility"]["projected_window_views"] == 23
+
+    sufficient = prepare(tmp_path / "sufficient", 300)
+    assert sufficient["executable"] is True
+    assert sufficient["measurement_feasibility"]["projected_window_views"] == 140
+
+    unknown = prepare(tmp_path / "unknown", 0, status="unavailable")
+    assert unknown["executable"] is False
+    assert unknown["guard_reason"] == "measurement_exposure_unknown"
+
+
+@pytest.mark.parametrize("snapshot", [
+    {"official": False},
+    {"complete": False},
+    {"window_override": {"start": "not-a-date", "end": "2026/99/99", "complete": True}},
+    {"source_url": "https://coconala.com/mypage/analytics/90000006"},
+    {"observed_at": NOW - 3601},
+    {"observed_at": NOW + 1},
+    {"tamper_key": True},
+])
+def test_discretionary_preflight_rejects_untrusted_or_stale_analytics(tmp_path, snapshot):
+    result = _prepare_with_snapshot(tmp_path / "case", 300, snapshot)
+    assert result["executable"] is False
+    assert result["guard_reason"] == "measurement_exposure_unknown"
+    assert result["measurement_feasibility"]["status"] == "unknown"
+
+
+def _prepare_with_snapshot(root, views, snapshot):
+    root.mkdir()
+    path = analytics(root, views, **snapshot)
+    current = json.loads(path.read_text(encoding="utf-8").splitlines()[-1])
+    return _prepare_candidate(root, [current])
+
+
+def test_current_readback_keeps_unchanged_deduped_history_fresh(tmp_path):
+    path = analytics(tmp_path, 300, observed_at=NOW - 3601)
+    history = json.loads(path.read_text(encoding="utf-8").splitlines()[-1])
+    current_readback = {**history, "observed_at_epoch": NOW}
+
+    result = _prepare_candidate(tmp_path, [current_readback])
+
+    assert result["executable"] is True
+    assert result["measurement_feasibility"]["status"] == "known"
+
+
+def test_preflight_does_not_fallback_to_persisted_data_without_this_runs_readback(tmp_path):
+    analytics(tmp_path, 300, observed_at=NOW)
+
+    result = _prepare_candidate(tmp_path, [])
+
+    assert result["executable"] is False
+    assert result["guard_reason"] == "measurement_exposure_unknown"
+
+
+def test_every_run_once_hypothesis_selection_receives_current_snapshots():
+    tree = ast.parse(Path(sd.__file__).read_text(encoding="utf-8"))
+    run_once = next(node for node in tree.body
+                    if isinstance(node, ast.FunctionDef) and node.name == "run_once")
+    calls = [node for node in ast.walk(run_once)
+             if isinstance(node, ast.Call)
+             and isinstance(node.func, ast.Name)
+             and node.func.id == "_prepare_next_hypothesis"]
+
+    def is_current_snapshots(value):
+        return (
+            isinstance(value, ast.Call)
+            and isinstance(value.func, ast.Attribute)
+            and isinstance(value.func.value, ast.Name)
+            and value.func.value.id == "analytics"
+            and value.func.attr == "get"
+            and len(value.args) == 1
+            and isinstance(value.args[0], ast.Constant)
+            and value.args[0].value == "_fresh_snapshots"
+        )
+
+    assert len(calls) == 3
+    assert all(is_current_snapshots(
+        call.args[9] if len(call.args) > 9 else next(
+            (keyword.value for keyword in call.keywords if keyword.arg == "fresh_snapshots"), None,
+        )
+    ) for call in calls)
+
+
+def test_stale_offer_correction_is_not_an_exposure_gated_experiment(tmp_path):
+    analytics(tmp_path, 15)
+    policy = tmp_path / "scorecard.json"
+    policy.write_text(json.dumps({"priority_backlog": []}), encoding="utf-8")
+    contracts = [{"service_id": SERVICE_ID, "service_version_sha256": "a" * 64}]
+
+    refresh = sd._prepare_next_hypothesis(
+        policy, tmp_path / "effects.jsonl", tmp_path / "outcomes.jsonl", contracts,
+        1_800_000_000,
+        offer_refresh=[{
+            "service_id": SERVICE_ID, "family": "sns_operations",
+            "offer_field": "body", "offer_digest": "stale-offer",
+        }],
+    )
+
+    assert refresh["offer_digest"] == "stale-offer"
+    assert refresh["guard_reason"] == "proposal_contract_required"
+    assert "measurement_feasibility" not in refresh
+
+
 def test_a_listing_with_real_traffic_keeps_its_window(tmp_path):
-    result = sd._measurement_feasible(analytics(tmp_path, 900), SERVICE_ID, 14, 100)
+    result = sd._measurement_feasible([snapshot(analytics(tmp_path, 900))], SERVICE_ID, 14, 100, NOW)
     assert result["projected_window_views"] == 420 and result["feasible"] is True
 
 
 def test_missing_or_unknown_official_views_stay_unknown(tmp_path):
-    assert sd._measurement_feasible(tmp_path / "absent.jsonl", SERVICE_ID, 14, 100)["status"] == "unknown"
-    unknown = sd._measurement_feasible(analytics(tmp_path, 0, status="unavailable"), SERVICE_ID, 14, 100)
+    assert sd._measurement_feasible(None, SERVICE_ID, 14, 100, NOW)["status"] == "unknown"
+    unknown = sd._measurement_feasible(
+        [snapshot(analytics(tmp_path, 0, status="unavailable"))], SERVICE_ID, 14, 100, NOW,
+    )
     assert unknown["status"] == "unknown" and unknown["reason"] == "no_official_views_for_service"
+
+
+@pytest.mark.parametrize("priority_backlog", [
+    [],
+    [{"service_id": SERVICE_ID, "field": "body", "success_metric": "inquiries"}],
+])
+def test_scorecard_gap_fallback_measures_the_selected_service(tmp_path, priority_backlog):
+    selected_id = "90000006"
+    scorecard = tmp_path / "scorecard.json"
+    scorecard.write_text(json.dumps({
+        "portfolio_policy": {"version": 1, "minimum_views_for_measurement": 100},
+        "priority_backlog": priority_backlog,
+        "services": [
+            {"service_id": SERVICE_ID, "scores": {"body": 1}},
+            {"service_id": selected_id, "scores": {"body": 1}},
+        ],
+    }), encoding="utf-8")
+    effects = tmp_path / "effects.jsonl"
+    effects.write_text(json.dumps({
+        "status": "accepted", "effect": 1, "service_id": SERVICE_ID,
+        "changed_field": "body", "accepted_at_epoch": NOW,
+        "experiment_key": "previous-body-test",
+    }) + "\n", encoding="utf-8")
+    versions = [
+        {"service_id": SERVICE_ID, "service_version_sha256": "a" * 64},
+        {"service_id": selected_id, "service_version_sha256": "c" * 64},
+    ]
+    mutation = [{
+        "service_id": selected_id, "changed_field": "body",
+        "precondition_listing_version_sha256": "c" * 64,
+        "contract_sha256": "d" * 64, "observation_window_days": 14,
+        "proposed_value": "fixed scope for selected service",
+    }]
+    stale_report_dir, selected_report_dir = tmp_path / "stale", tmp_path / "selected"
+    stale_report_dir.mkdir()
+    selected_report_dir.mkdir()
+    fresh_snapshots = [
+        snapshot(analytics(stale_report_dir, 50, service_id=SERVICE_ID)),
+        snapshot(analytics(selected_report_dir, 300, service_id=selected_id)),
+    ]
+
+    result = sd._prepare_next_hypothesis(
+        scorecard, effects, tmp_path / "outcomes.jsonl", versions, NOW,
+        mutation_contracts=mutation, fresh_snapshots=fresh_snapshots,
+    )
+
+    assert result["service_id"] == selected_id
+    assert result["measurement_feasibility"]["official_30d_views"] == 300
+    assert result["measurement_feasibility"]["projected_window_views"] == 140
+    assert result["executable"] is True
+
+
+def test_old_complete_30_day_window_is_not_current_analytics(tmp_path):
+    report_dir = tmp_path / "old-window"
+    report_dir.mkdir()
+    old = snapshot(analytics(
+        report_dir, 300,
+        window_override={"start": "2020/01/01", "end": "2020/01/30", "complete": True},
+    ))
+
+    result = sd._measurement_feasible([old], SERVICE_ID, 14, 100, NOW)
+
+    assert result["status"] == "unknown"
+    assert result["reason"] == "official_analytics_window_stale"
+
+
+def test_complete_window_must_cover_exactly_30_calendar_days(tmp_path):
+    report_dir = tmp_path / "long-window"
+    report_dir.mkdir()
+    observed = datetime.fromtimestamp(NOW, timezone.utc).date()
+    snapshot_row = snapshot(analytics(
+        report_dir, 300,
+        window_override={
+            "start": (observed - timedelta(days=30)).strftime("%Y/%m/%d"),
+            "end": observed.strftime("%Y/%m/%d"), "complete": True,
+        },
+    ))
+
+    result = sd._measurement_feasible([snapshot_row], SERVICE_ID, 14, 100, NOW)
+
+    assert result["status"] == "unknown"
+    assert result["reason"] == "official_analytics_window_length_invalid"
 
 
 def test_the_policy_states_the_threshold_it_enforces(tmp_path):
