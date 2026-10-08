@@ -214,6 +214,105 @@ test("the mobile result helper accepts exact reconciled receipt shapes only", (t
   assert.equal(fs.existsSync(ambiguous.output), false);
 });
 
+test("the mobile result helper records an off-slot no_due_slot result as exact no-effect proof", (t) => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "lm-mobile-no-due-result-"));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const helper = path.join(root, "apps/life-manager/scripts/mobile-effect-result.js");
+  const input = path.join(directory, "no-due.stdout");
+  const output = path.join(directory, "no-due.json");
+  fs.writeFileSync(input, `${JSON.stringify({ status: "no_due_slot", reason: "no_due_slot" })}\n`);
+  const result = spawnSync(process.execPath, [helper, input], {
+    cwd: root,
+    env: {
+      ...process.env,
+      LIFE_MANAGER_LOOP_ID: "life-manager-anicca-en-affirmation-instagram",
+      LIFE_MANAGER_OCCURRENCE_ID: "life-manager-anicca-en-affirmation-instagram:off-slot-1",
+      LIFE_MANAGER_RESULT_HINT_PATH: output,
+    },
+    encoding: "utf8",
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(JSON.parse(fs.readFileSync(output, "utf8")), {
+    schema_version: 1,
+    kind: "life_manager_no_effect_result",
+    status: "verified_no_effect",
+    effect: 0,
+    owner_id: "life-manager-anicca-en-affirmation-instagram",
+    occurrence_id: "life-manager-anicca-en-affirmation-instagram:off-slot-1",
+    reason: "no_due_slot",
+  });
+});
+
+test("the mobile result helper records a daily-limit result as exact no-effect proof", (t) => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "lm-mobile-daily-limit-result-"));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const helper = path.join(root, "apps/life-manager/scripts/mobile-effect-result.js");
+  const input = path.join(directory, "daily-limit.stdout");
+  const output = path.join(directory, "daily-limit.json");
+  fs.writeFileSync(input, `${JSON.stringify({ status: "daily_limit_reached", reason: "daily_limit_reached" })}\n`);
+  const result = spawnSync(process.execPath, [helper, input], {
+    cwd: root,
+    env: {
+      ...process.env,
+      LIFE_MANAGER_LOOP_ID: "life-manager-anicca-en-affirmation-instagram",
+      LIFE_MANAGER_OCCURRENCE_ID: "life-manager-anicca-en-affirmation-instagram:daily-limit-1",
+      LIFE_MANAGER_RESULT_HINT_PATH: output,
+    },
+    encoding: "utf8",
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(JSON.parse(fs.readFileSync(output, "utf8")), {
+    schema_version: 1,
+    kind: "life_manager_no_effect_result",
+    status: "verified_no_effect",
+    effect: 0,
+    owner_id: "life-manager-anicca-en-affirmation-instagram",
+    occurrence_id: "life-manager-anicca-en-affirmation-instagram:daily-limit-1",
+    reason: "daily_limit_reached",
+  });
+});
+
+test("the shared mobile wrapper persists exact no-effect proof for a no_due_slot result", (t) => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "lm-mobile-no-due-wrapper-"));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const calls = path.join(directory, "python-calls.txt");
+  const python = path.join(directory, "python");
+  const envFile = path.join(directory, "marketing.env");
+  const resultHint = path.join(directory, "effect-result.json");
+  fs.writeFileSync(
+    python,
+    `#!/bin/sh\nprintf '%s\\n' "$*" >> "${calls}"\ncase "$1" in\n  *mobile-postiz-provider-reconcile.py) printf '%s\\n' '{"status":"no_match","inspected":0}'; exit 0 ;;\n  *run-with-timeout.py) printf '%s\\n' '{"status":"no_due_slot","reason":"no_due_slot"}'; exit 0 ;;\n  *) exit 0 ;;\nesac\n`,
+    { mode: 0o700 },
+  );
+  fs.writeFileSync(envFile, `LM_POSTIZ_API_KEY=test-token\nLM_DATA_DIR=${directory}/data\nLM_RUNTIME_TENANT_ID=dais-local\n`, { mode: 0o600 });
+  const owner = "life-manager-anicca-en-affirmation-instagram";
+  const occurrence = `${owner}:off-slot-2`;
+  const result = spawnSync(path.join(root, "apps/life-manager/scripts/mobile-app"), [owner], {
+    cwd: root,
+    env: {
+      ...Object.fromEntries(Object.entries(process.env).filter(([key]) => key !== "LIFE_MANAGER_RELEASE_SHA")),
+      LIFE_MANAGER_MARKETING_ENV_FILE: envFile,
+      LIFE_MANAGER_NODE: process.execPath,
+      LIFE_MANAGER_PYTHON: python,
+      LIFE_MANAGER_LOOP_ID: owner,
+      LIFE_MANAGER_OCCURRENCE_ID: occurrence,
+      LIFE_MANAGER_RESULT_HINT_PATH: resultHint,
+    },
+    encoding: "utf8",
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(JSON.parse(fs.readFileSync(resultHint, "utf8")), {
+    schema_version: 1,
+    kind: "life_manager_no_effect_result",
+    status: "verified_no_effect",
+    effect: 0,
+    owner_id: owner,
+    occurrence_id: occurrence,
+    reason: "no_due_slot",
+  });
+});
+
 test("unknown loop ids fail closed", () => {
   assert.throws(() => resolveMobileAppLoop("unknown-mobile-loop"), /manifest entry invalid/);
   assert.throws(() => resolveMobileAppLoop("../escape"), /loop id invalid/);
