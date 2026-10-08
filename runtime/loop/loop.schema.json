@@ -250,6 +250,7 @@
     "priority": {
       "enum": [
         "critical_paid",
+        "distribution",
         "revenue",
         "support"
       ],

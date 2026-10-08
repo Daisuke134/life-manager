@@ -667,11 +667,19 @@ class MacosLoopRegistryTest(unittest.TestCase):
                 row = registry["loops"][loop_id]
                 self.assertEqual(row.get("resource_class"), "agent")
                 self.assertEqual(row.get("admission_class"), "revenue")
-                self.assertEqual(row.get("priority"), "revenue")
+                self.assertEqual(row.get("priority"), "distribution")
         connector = registry["loops"]["life-manager-connector-native"]
         self.assertEqual(connector.get("resource_class"), "browser")
         self.assertEqual(connector.get("admission_class"), "revenue")
         self.assertEqual(connector.get("priority"), "revenue")
+        for loop_id in (
+            "lancers-revenue-application",
+            "crowdworks-revenue-application",
+            "crowdworks-revenue-reply",
+            "lancers-revenue-negotiate",
+        ):
+            with self.subTest(loop_id=loop_id):
+                self.assertEqual(registry["loops"][loop_id].get("priority"), "revenue")
         # Revenue readers run on revenue capacity: as borrow owners they never got a
         # slot once revenue owners filled the host (2026-09-27, SSOT P-5).
         for loop_id in ("life-manager-instagram-metrics", "life-manager-tiktok-metrics",
