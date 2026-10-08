@@ -4484,3 +4484,13 @@ L9-11 Self-BuildはこのGig laneの全項目完了後、既存の全社順序�
 6. CrowdWorksは別owner source repairを再利用し、merge/release後にApplication/Paid/Replyの各unknown occurrenceをofficial receiptで個別reconcileする。Mercorのold effect fencesもexact receipt/pre-effect proofなしで再応募しない。
 7. Upworkのcommercial automated laneは現行公式policyの下では動かさない。Freelancerはaccount-bound authentication、live Services inventory、provider-approved action scopeを確認し、uncertain publish/bidを再試行しない。
 8. 実行可能なplatform ownerごとに自然24/7 occurrence、公式receipt、settlement/fee/cost、replay-zeroを検証する。Gig lane全完了後にのみL9-11 SelfBuildへ進む。
+
+### 2026-10-08 08:58 JST — capacity recovered; Paid owner still holds project lock
+
+このreadbackは08:48 JSTのcapacity状態を更新する。platform順序とL9-07 cursorは変更しない。
+
+- Disk cleanup ownerは23:57Zに`pass`、free spaceは`2,166,552 KiB`で2 GiB floorを上回る。ただしcleanup source worktreeは別ownerのactive lease中なので変更しない。
+- `hf-gig-paid-direct`は23:58Z時点で`loaded-running`・project lock保持中。latest terminalは23:41Zの`disk_headroom_low` / `effect=not_applicable` / provider receiptなしで、capacity回復後のnew terminalはまだない。自然終端とlock解放を待ち、同じbuyer project/Sheet/inboxを重ねて触らない。
+- CrowdWorks Applicationはowner runが`effect=unknown`・provider receiptなし。CrowdWorks source修正worktreeもactive lease中。Mercor Applicationも`resource_effect_unknown`・receiptなし。双方とも新たな応募・返信を再試行しない。
+
+**現在cursor:** L9-07 Coconala Paid owner natural terminal / project lock release / exact official readback。floor回復だけではPaid結果やinbox receiptの成功を意味しない。
