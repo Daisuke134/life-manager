@@ -8609,6 +8609,36 @@ This entry supersedes the prior producer-review cursor. CFO priority remains A5 
 
 **Current cursor:** commit current status → push branch → exact-head CI/fresh review → merge #7106 → production self-handoff/queue/CFO receipt readback → A5 → A6 → A8 → A9 → A10.
 
+### 2026-10-09 05:30 JST — newest main and all affected merges verified
+
+このsnapshotは05:28のCFO status/TODOを置き換える。CFO順序`A5 → A6 → A8 → A9 → A10`を維持する。A7/Money TreeとCloud cost workは対象外。
+
+- **Main merge:** latest main `724e18f01713681b8dde0e9af985c0da9e7bf593` (#7235) is merged locally at HEAD `ba0583bfa0edec1757c0049db1b47cca67eac425`. It adds the mobile canary slot guard and associated SSOT record; no CFO/shared Telegram paths conflict.
+- **Post-merge tests:** mobile canary tests 20/20; shared Telegram/outbox Python 53/53; CFO Node 61/61; artifact parity 2/2; cross-venue Python 26/26; loop/host 61/61; OSS verifier, loop contract (18/188/113, zero errors), and diff check pass. Full investment-core discovery previously ran 132 tests with one unchanged base failure in the weekly cadence expectation (`start_interval_seconds=604800` versus unchanged registry `calendar_interval`); its test/config match main and are not edited here.
+- **PR/review:** remote #7106 is still head `4e3f89de` / base `d0d30b90`; its required CI is green, but the exact-head review found Important 3. All three findings are locally fixed and tested; this source + latest-main state remains unpushed. Obtain new exact-head CI and fresh review after push.
+- **Production CFO:** latest terminal remains `18dca6235b756448-13826` at 19:57:03Z, exit 75 `resource_capacity_busy`, no provider receipt/readback. Loaded SHA `8d986ff4...`; doctor only reports unmanaged release-reconciler self-handoff. Monthly/per-loop revenue and expense remain unknown; queue state after its DB lock has no fresh readback.
+
+**順序変更:** 旧cursor=`merge 663eca5a → focused tests → push`。新cursor=`(1) 完了: latest main 724e18f0をmerge → (2) 完了: mobile 20/20 + CFO/shared 53/61/2/26/61 + loop/host 61/61 + OSS/contract PASS → (3) current status/spec commit and push → (4) exact-head CI + fresh review → (5) merge PR → (6) production CFO natural readbacks`。理由は、mainがcheckout後に更新されたmobile slot guardも保持し、すべての後続acceptanceを同一baseから行うため。
+
+**Remaining atomic TODO (この順):**
+
+1. [x] Three Important transport findings: explicit provider-rejection accounting, all-send-method ambiguity fences, and byte-identical packaged fallback.
+2. [x] Merge latest main `724e18f0`; mobile/loop/host focused suites and CFO/shared/artifact suites pass.
+3. [ ] Refresh this final CFO status on the merged branch, commit and push; read back exact PR head/base.
+4. [ ] All required CI on the resulting exact head pass; fresh full-diff review reports Critical/Important 0.
+5. [ ] Merge PR #7106.
+6. [ ] Normal owner/reconciler path: self-handoff, CFO loaded SHA, doctor, fresh queue/claim and natural terminal; no stop/restart or cap increase.
+7. [ ] CFO receipt-backed natural report, per-loop settlement/cost, period/currency/source coverage and replay-zero; totals stay unknown until proved.
+8. [ ] A5 production migration/RPC/permissions/panel readback.
+9. [ ] A6 Google billed-vs-cash and receipt-backed operation/loop attribution.
+10. [ ] A8 18-loop/188-job settled revenue/refund/fee/measured cost and shared/control/platform overhead coverage.
+11. [ ] A9 daily/MTD/trailing/MRR reconciliation.
+12. [ ] A10 seven consecutive natural reports with complete coverage/freshness/receipts/replay-zero.
+
+**Blockerと解消方法:** local source fixes and latest main are ready, but remote PR is stale at `4e3f89de` and its Important 3 review predates these fixes. Push the final merged/status head, then accept only exact-head CI and fresh review. Production still lacks a natural CFO receipt because of `resource_capacity_busy`, unmanaged release-reconciler self-handoff and stale/locked queue state; solve through normal owner/reconciler readback and natural drain. Actual revenue/expense totals remain unverified.
+
+**Current cursor:** commit current status → push latest-main branch → exact-head CI/fresh review → merge #7106 → production self-handoff/queue/CFO receipts → A5 → A6 → A8 → A9 → A10.
+
 ### Marketing IntelからWriterへの記事候補連携（並列作業）
 
 **目的:** `marketing-weekly-review`がTelegramへ報告する未検証の`CONTENT`戦術を、既存Writerの`article-daily`トピックキューへ候補として渡す。AffiliateやX repostには配線しない。
