@@ -64,6 +64,23 @@ test("a Web-only tenant with an explicitly linked Telegram sender uses Telegram 
   }), "telegram");
 });
 
+test("a Web-only tenant with an explicitly linked iMessage sender uses iMessage instead of email", () => {
+  const { questionChannelForUser } = require("../scheduler.js");
+  assert.equal(questionChannelForUser({
+    uid: "lm_11111111-1111-4111-8111-111111111111",
+    telegram_chat_id: null,
+    web_message_imessage_sender_id: "+819012345678",
+    email: "calendar-owner@example.test",
+  }), "imessage");
+  assert.equal(questionChannelForUser({
+    uid: "lm_11111111-1111-4111-8111-111111111111",
+    telegram_chat_id: null,
+    web_message_telegram_chat_id: "123456789",
+    web_message_imessage_sender_id: "+819012345678",
+    email: "calendar-owner@example.test",
+  }), "telegram");
+});
+
 test("Web linked Telegram ask uses the bound chat and never substitutes Google email for Gmail access", async () => {
   const { askUserOnce } = require("../scheduler.js");
   const calls = [];
@@ -71,6 +88,8 @@ test("Web linked Telegram ask uses the bound chat and never substitutes Google e
     uid: "lm_11111111-1111-4111-8111-111111111111",
     telegram_chat_id: null,
     web_message_telegram_chat_id: "123456789",
+    paid: true,
+    plan_status: "active",
     email: "calendar-owner@example.test",
     gmail_account_id: null,
   }, {
@@ -88,6 +107,55 @@ test("Web linked Telegram ask uses the bound chat and never substitutes Google e
   assert.equal(calls[0].options.telegramChatId, "123456789");
   assert.equal(calls[0].options.userEmail, null);
   assert.equal(calls[0].options.gmailAccountId, null);
+});
+
+test("Web linked iMessage ask uses only the bound sender and never falls back to email", async () => {
+  const { askUserOnce } = require("../scheduler.js");
+  const calls = [];
+  const sendIMessage = async (sender, text) => ({ ok: Boolean(sender && text) });
+  await askUserOnce({
+    uid: "lm_11111111-1111-4111-8111-111111111111",
+    telegram_chat_id: null,
+    web_message_imessage_sender_id: "+819012345678",
+    paid: true,
+    plan_status: "active",
+    email: "calendar-owner@example.test",
+    gmail_account_id: null,
+  }, {
+    askTickImpl: async (uid, options) => { calls.push({ uid, options }); return { asked: 1 }; },
+    composioKey: "fixture-composio",
+    resendKey: "fixture-resend",
+    mapsKey: "fixture-maps",
+    geminiKey: "fixture-gemini",
+    supaUrl: "https://fixture.supabase.co",
+    supaKey: "fixture-service-role",
+    imessageSend: sendIMessage,
+  });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].options.imessageSenderId, "+819012345678");
+  assert.equal(calls[0].options.imessageSend, sendIMessage);
+  assert.equal(calls[0].options.telegramChatId, null);
+  assert.equal(calls[0].options.userEmail, null);
+  assert.equal(calls[0].options.gmailAccountId, null);
+});
+
+test("Web iMessage ask loop does not ask when the card-backed trial is not active", async () => {
+  const { askUserOnce } = require("../scheduler.js");
+  const calls = [];
+  await askUserOnce({
+    uid: "lm_11111111-1111-4111-8111-111111111111",
+    telegram_chat_id: null,
+    web_message_imessage_sender_id: "+819012345678",
+    paid: false,
+    plan_status: "incomplete",
+    email: "calendar-owner@example.test",
+  }, {
+    askTickImpl: async () => { calls.push("ask"); return { asked: 1 }; },
+    composioKey: "fixture-composio", mapsKey: "fixture-maps", geminiKey: "fixture-gemini",
+    supaUrl: "https://fixture.supabase.co", supaKey: "fixture-service-role",
+    imessageSend: async () => ({ ok: true, receiptId: "fixture-send" }),
+  });
+  assert.deepEqual(calls, []);
 });
 
 test("scheduler projects the Web Telegram sender from the separate identity registry", async () => {
@@ -123,7 +191,41 @@ test("scheduler projects the Web Telegram sender from the separate identity regi
     assert.equal(users[0].telegram_chat_id, null);
     assert.equal(users[0].web_message_telegram_chat_id, "123456789");
     assert.equal(users[0].gmail_account_id, null);
-    assert.equal(calls.length, 3);
+    assert.equal(calls.length, 4);
+    const channelQueries = calls.filter((url) => url.pathname === "/rest/v1/lm_message_channels");
+    assert.deepEqual(channelQueries.map((url) => url.searchParams.get("channel")).sort(), ["eq.imessage", "eq.telegram"]);
+  } finally {
+    global.fetch = originalFetch;
+    if (before.url === undefined) delete process.env.SUPABASE_URL; else process.env.SUPABASE_URL = before.url;
+    if (before.key === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY; else process.env.SUPABASE_SERVICE_ROLE_KEY = before.key;
+  }
+});
+
+test("scheduler projects an iMessage sender from the separate identity registry", async () => {
+  const { supaUsers } = require("../scheduler.js");
+  const before = { url: process.env.SUPABASE_URL, key: process.env.SUPABASE_SERVICE_ROLE_KEY };
+  const originalFetch = global.fetch;
+  const uid = "lm_11111111-1111-4111-8111-111111111111";
+  process.env.SUPABASE_URL = "https://fixture.supabase.co";
+  process.env.SUPABASE_SERVICE_ROLE_KEY = "fixture-service-role";
+  global.fetch = async (input) => {
+    const url = new URL(String(input));
+    if (url.pathname === "/rest/v1/lm_users") return { ok: true, async json() { return [{ uid, telegram_chat_id: null, email: "calendar-owner@example.test", gmail_account_id: null }]; } };
+    if (url.pathname === "/rest/v1/lm_panel_preferences") return { ok: true, async json() { return [{ uid, notifications_enabled: true, daily_automation_enabled: true }]; } };
+    if (url.pathname === "/rest/v1/lm_message_channels") {
+      return { ok: true, async json() { return [
+        { uid, channel: "imessage", sender_id: "+819012345678", owner_kind: "web_link" },
+        { uid: "lm_foreign", channel: "imessage", sender_id: "+819099999999", owner_kind: "web_link" },
+      ]; } };
+    }
+    throw new Error(`unexpected scheduler query ${url.pathname}`);
+  };
+  try {
+    const users = await supaUsers();
+    assert.equal(users.length, 1);
+    assert.equal(users[0].uid, uid);
+    assert.equal(users[0].telegram_chat_id, null);
+    assert.equal(users[0].web_message_imessage_sender_id, "+819012345678");
   } finally {
     global.fetch = originalFetch;
     if (before.url === undefined) delete process.env.SUPABASE_URL; else process.env.SUPABASE_URL = before.url;

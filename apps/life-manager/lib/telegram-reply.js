@@ -8,7 +8,8 @@
 const { agentMatchReply } = require("./ask.js");
 const { getCalendar } = require("./transport/index.js");
 const { placeKey, rememberPlace } = require("./places-memory.js");
-const { webTelegramUserBySender } = require("./message-links.js");
+const { webMessageUserBySender, webTelegramUserBySender } = require("./message-links.js");
+const { webTravelEntitled } = require("./billing.js");
 
 async function userByChatId(chatId, deps = {}) {
   const url = deps.supaUrl || process.env.SUPABASE_URL;
@@ -75,4 +76,118 @@ async function resolveTelegramReply(chatId, text, deps = {}) {
   return { filled: true, event: ev.summary || "your event", location: match.location };
 }
 
-module.exports = { resolveTelegramReply, userByChatId, markUserAnswer };
+function imessageOnlineAnswer(text) {
+  const value = String(text || "").trim().toLowerCase();
+  if (["オンライン", "online", "remote"].includes(value)) return "online";
+  if (["対面", "offline", "in person"].includes(value)) return "offline";
+  return null;
+}
+
+async function pendingIMessageAsks(uid, deps = {}) {
+  const supaUrl = deps.supaUrl || process.env.SUPABASE_URL;
+  const supaKey = deps.supaKey || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!uid || !supaUrl || !supaKey) return [];
+  const fetchImpl = deps.fetchImpl || fetch;
+  const url = new URL(`${supaUrl.replace(/\/$/, "")}/rest/v1/lm_ask_log`);
+  url.searchParams.set("uid", `eq.${uid}`);
+  url.searchParams.set("answered_at", "is.null");
+  url.searchParams.set("question_context->>replyChannel", "eq.imessage");
+  url.searchParams.set("select", "event_id,reply_token,question_type,question_context,answer_value,answered_at");
+  url.searchParams.set("limit", "20");
+  const response = await fetchImpl(url.toString(), { headers: { apikey: supaKey, Authorization: `Bearer ${supaKey}` } });
+  if (!response || !response.ok) return [];
+  const rows = await response.json().catch(() => null);
+  return Array.isArray(rows) ? rows.filter((row) => row && row.question_context && row.question_context.replyChannel === "imessage") : [];
+}
+
+async function updateIMessageAsk(uid, row, update, deps = {}) {
+  const supaUrl = deps.supaUrl || process.env.SUPABASE_URL;
+  const supaKey = deps.supaKey || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!uid || !row || !row.event_id || !row.reply_token || !supaUrl || !supaKey) return null;
+  const fetchImpl = deps.fetchImpl || fetch;
+  const url = new URL(`${supaUrl.replace(/\/$/, "")}/rest/v1/lm_ask_log`);
+  url.searchParams.set("uid", `eq.${uid}`);
+  url.searchParams.set("event_id", `eq.${row.event_id}`);
+  url.searchParams.set("reply_token", `eq.${row.reply_token}`);
+  url.searchParams.set("answered_at", "is.null");
+  url.searchParams.set("question_context->>replyChannel", "eq.imessage");
+  url.searchParams.set("select", "uid,event_id,question_type,question_context,answer_value,answered_at");
+  const response = await fetchImpl(url.toString(), {
+    method: "PATCH",
+    headers: { apikey: supaKey, Authorization: `Bearer ${supaKey}`, "Content-Type": "application/json", Prefer: "return=representation" },
+    body: JSON.stringify(update),
+  }).catch(() => null);
+  const rows = response && response.ok ? await response.json().catch(() => []) : [];
+  return Array.isArray(rows) && rows[0] ? rows[0] : null;
+}
+
+async function resolveIMessageReply(uid, senderId, replyText, deps = {}) {
+  if (!uid || !senderId) return { filled: false, reason: "missing_identity" };
+  const linkedUser = deps.linkedUser || await (deps.lookupUserImpl || webMessageUserBySender)("imessage", senderId, deps);
+  if (!linkedUser || linkedUser.uid !== uid || linkedUser.web_message_imessage_sender_id !== senderId
+    || linkedUser.calendar_provider !== "composio_gcal" || !linkedUser.calendar_connected_account_id) {
+    return { filled: false, reason: "sender_tenant_mismatch" };
+  }
+  const nowMs = deps.nowMs === undefined ? Date.now() : Number(deps.nowMs);
+  if (!webTravelEntitled(linkedUser, nowMs)) return { filled: false, reason: "billing_inactive" };
+  const pending = await (deps.pendingAsksImpl || pendingIMessageAsks)(uid, deps);
+  if (!Array.isArray(pending) || pending.length === 0) return { filled: false, reason: "no_pending_ask" };
+  const rows = pending.filter((row) => row && row.question_context && row.question_context.replyChannel === "imessage");
+  if (rows.length !== 1) return { filled: false, reason: "ambiguous_pending_ask" };
+  const row = rows[0];
+  const context = row.question_context;
+
+  if (row.question_type === "calendar_online" && !context.awaitingLocation) {
+    const answer = imessageOnlineAnswer(replyText);
+    if (answer === "online") {
+      const updated = await (deps.markOnlineAnswerImpl || updateIMessageAsk)(uid, row, {
+      answered_at: new Date(nowMs).toISOString(),
+        answer_value: "online", answer_source: "imessage",
+        answer_provenance: { kind: "imessage_stream" }, resolved_from: "user_answer",
+      }, deps);
+      return updated ? { filled: false, online: true, event: context.summary || "" } : { filled: false, reason: "ask_already_answered" };
+    }
+    if (answer === "offline") {
+      const updated = await (deps.markOfflineFollowupImpl || updateIMessageAsk)(uid, row, {
+        answer_value: "offline", answer_source: "imessage",
+        answer_provenance: { kind: "imessage_stream" }, resolved_from: "user_answer",
+        question_context: { ...context, awaitingLocation: true },
+      }, deps);
+      return updated ? { filled: false, needsLocation: true, event: context.summary || "" } : { filled: false, reason: "ask_already_answered" };
+    }
+  }
+
+  if (!process.env.GEMINI_API_KEY && !deps.geminiKey && !deps.match) return { filled: false, reason: "gemini_unavailable" };
+  const composioKey = deps.composioKey || process.env.COMPOSIO_API_KEY;
+  if (!deps.calendar && !composioKey) return { filled: false, reason: "calendar_unavailable" };
+  const calendar = deps.calendar || getCalendar({ apiKey: composioKey, gmailAccountId: linkedUser.gmail_account_id });
+  const now = nowMs;
+  const items = await calendar.listEventsRaw(uid, {
+    timeMin: new Date(now).toISOString().replace(/\.\d{3}Z$/, "Z"),
+    timeMax: new Date(now + 7 * 86400 * 1000).toISOString().replace(/\.\d{3}Z$/, "Z"),
+    maxResults: 50,
+  });
+  const ev = (items || []).find((item) => item && item.id === row.event_id);
+  if (!ev) return { filled: false, reason: "pending_event_missing" };
+  if (!needsLocation(ev)) {
+    const updated = await (deps.markLocationAnsweredImpl || updateIMessageAsk)(uid, row, {
+      answered_at: new Date(now).toISOString(), answer_source: "imessage",
+      answer_provenance: { kind: "imessage_stream" }, resolved_from: "provider_readback",
+    }, deps);
+    return updated ? { filled: false, alreadySet: true, event: ev.summary || "" } : { filled: false, reason: "ask_already_answered" };
+  }
+  const match = await (deps.match || ((text, candidates) => agentMatchReply(text, candidates, deps.geminiKey || process.env.GEMINI_API_KEY)))(
+    replyText, [{ id: ev.id, summary: ev.summary }],
+  );
+  if (!match || match.eventId !== ev.id || !match.location) return { filled: false, reason: "reply_not_a_location" };
+  await calendar.patchEvent(uid, { calendar_id: "primary", event_id: ev.id, location: match.location });
+  await (deps.remember || rememberPlace)(uid, placeKey(ev.summary, ev.recurringEventId), match.location, deps.supaUrl || process.env.SUPABASE_URL, deps.supaKey || process.env.SUPABASE_SERVICE_ROLE_KEY);
+  const updated = await (deps.markLocationAnsweredImpl || updateIMessageAsk)(uid, row, {
+    answered_at: new Date(now).toISOString(), answer_source: "imessage", candidate_location: match.location,
+    answer_provenance: { kind: "imessage_stream" }, resolved_from: "user_answer",
+    question_context: { ...context, awaitingLocation: false },
+  }, deps);
+  return updated ? { filled: true, event: ev.summary || "your event", location: match.location } : { filled: false, reason: "ask_already_answered" };
+}
+
+module.exports = { resolveIMessageReply, resolveTelegramReply, userByChatId, markUserAnswer };

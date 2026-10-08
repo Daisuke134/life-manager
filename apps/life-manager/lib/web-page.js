@@ -47,6 +47,12 @@ function telegramLinkButton(enabled) {
     : "";
 }
 
+function imessageLinkButton(enabled) {
+  return enabled === true
+    ? `<button class="text-link" type="button" data-action="link-imessage">iMessageで質問に答える（任意）</button><section id="lm-imessage-pairing" hidden><p class="muted">コードをコピーしてMessagesで送信してください。</p><code id="lm-imessage-code"></code><button class="text-link" type="button" data-action="copy-imessage-code" id="lm-imessage-copy" hidden>コードをコピー</button><a class="text-link" id="lm-imessage-open" href="#" rel="nofollow" hidden>Messagesを開く</a></section>`
+    : "";
+}
+
 function pageState(snapshot, model = {}) {
   if (!snapshot || snapshot.setupState === "sync_pending" && snapshot.calendarState === "unavailable") {
     return `<section class="card"><h1>Calendarの接続を確認しています</h1><p>接続状態を読み込めません。しばらくしてからページを再読み込みしてください。</p></section>`;
@@ -76,11 +82,11 @@ function pageState(snapshot, model = {}) {
     const checkoutButton = snapshot.checkoutAvailable && chargeDate
       ? `<button class="button" type="button" data-action="checkout">7日間の無料トライアルを始める</button>`
       : "";
-    return `<section class="card offer-card"><p class="eyebrow">Google Calendarに接続しました</p><h1>対象の予定に移動時間を自動で追加します</h1><p class="muted">Calendarを開くと、予定と出発時刻を確認できます。</p><h2>7日間無料で試す</h2><p class="terms">${chargeCopy}</p><p class="muted">開始にはカード登録が必要です。トライアル終了前のメール通知は送りません。</p>${checkoutButton}${messageLink}${telegramLinkButton(model.telegramLinkAvailable)}</section>`;
+    return `<section class="card offer-card"><p class="eyebrow">Google Calendarに接続しました</p><h1>対象の予定に移動時間を自動で追加します</h1><p class="muted">Calendarを開くと、予定と出発時刻を確認できます。</p><h2>7日間無料で試す</h2><p class="terms">${chargeCopy}</p><p class="muted">開始にはカード登録が必要です。トライアル終了前のメール通知は送りません。</p>${checkoutButton}${messageLink}${telegramLinkButton(model.telegramLinkAvailable)}${imessageLinkButton(model.imessageLinkAvailable)}</section>`;
   }
 
   if (snapshot.setupState === "trial_active" || snapshot.setupState === "subscribed") {
-    return `<section class="card"><p class="eyebrow">Google Calendarに接続しました</p><h1>移動時間はCalendarに自動登録されます</h1><p>出発時刻の確認はCalendarの通知で受け取れます。このページは閉じても大丈夫です。</p>${portalMarkup(model.customerPortalAvailable === true)}${telegramLinkButton(model.telegramLinkAvailable)}</section>`;
+    return `<section class="card"><p class="eyebrow">Google Calendarに接続しました</p><h1>移動時間はCalendarに自動登録されます</h1><p>出発時刻の確認はCalendarの通知で受け取れます。このページは閉じても大丈夫です。</p>${portalMarkup(model.customerPortalAvailable === true)}${telegramLinkButton(model.telegramLinkAvailable)}${imessageLinkButton(model.imessageLinkAvailable)}</section>`;
   }
 
   if (snapshot.setupState === "billing_inactive") {
@@ -185,6 +191,35 @@ const CLIENT_SCRIPT = String.raw`(async () => {
     window.location.assign(target.toString());
   }
 
+  async function linkIMessage() {
+    say("iMessageの接続コードを作成しています…");
+    const result = await api("/api/lm-web/message-link", "POST", { channel: "imessage" });
+    const smsUrl = String(result.url || "");
+    const code = String(result.code || "");
+    if (!/^sms:\+[1-9][0-9]{7,14}$/.test(smsUrl) || !/^LMI_[A-Za-z0-9_-]{32}$/.test(code)) {
+      throw new Error("imessage_link_invalid");
+    }
+    const section = document.getElementById("lm-imessage-pairing");
+    const codeNode = document.getElementById("lm-imessage-code");
+    const copyButton = document.getElementById("lm-imessage-copy");
+    const openLink = document.getElementById("lm-imessage-open");
+    if (!section || !codeNode || !copyButton || !openLink) throw new Error("imessage_link_ui_unavailable");
+    codeNode.textContent = code;
+    copyButton.hidden = false;
+    openLink.href = smsUrl;
+    openLink.hidden = false;
+    section.hidden = false;
+    say("コードをMessagesで送信するとiMessageが接続されます。");
+  }
+
+  async function copyIMessageCode() {
+    const code = document.getElementById("lm-imessage-code")?.textContent || "";
+    if (!/^LMI_[A-Za-z0-9_-]{32}$/.test(code)) throw new Error("imessage_code_unavailable");
+    if (!navigator.clipboard?.writeText) throw new Error("clipboard_unavailable");
+    await navigator.clipboard.writeText(code);
+    say("コードをコピーしました。Messagesに貼り付けて送信してください。");
+  }
+
   root.addEventListener("click", async (event) => {
     const button = event.target.closest("button[data-action]");
     if (!button) return;
@@ -194,6 +229,8 @@ const CLIENT_SCRIPT = String.raw`(async () => {
       else if (button.dataset.action === "checkout") await beginCheckout();
       else if (button.dataset.action === "billing-portal") await openBillingPortal();
       else if (button.dataset.action === "link-telegram") await linkTelegram();
+      else if (button.dataset.action === "link-imessage") await linkIMessage();
+      else if (button.dataset.action === "copy-imessage-code") await copyIMessageCode();
       else button.disabled = false;
     } catch {
       say("操作を完了できませんでした。接続状態を確認してから再度お試しください。");

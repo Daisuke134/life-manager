@@ -41,7 +41,7 @@ const { formatTravelAutofillMessage } = require("./lib/i18n.js");
 const { askTick } = require("./lib/ask.js");
 const { onboardNudgeAll } = require("./lib/telegram-onboard.js");
 const { sendMessage } = require("./lib/telegram.js");
-const { webTelegramChannelsForUids } = require("./lib/message-links.js");
+const { webMessageChannelsForUids, webTelegramChannelsForUids } = require("./lib/message-links.js");
 const { langForPhone } = require("./lib/call-language.js");
 const { recordDailyComposioPoll } = require("./lib/ledger.js");
 const { schedulerPollInterval } = require("./lib/composio-budget.js");
@@ -107,7 +107,7 @@ async function supaUsers() {
   const { url, key } = SUPA();
   if (!url || !key) return [];
   const base = `${url}/rest/v1/lm_users?${schedulerCohortFilter()}`;
-  const cols = "uid,name,phone,paid,plan_status,trial_expires_at,web_trial_payment_method_present,web_first_travel_at,calendar_provider,home_address,gmail_account_id,email,telegram_chat_id,call_language";
+  const cols = "uid,name,phone,paid,plan_status,trial_expires_at,web_trial_payment_method_present,web_billing_cancel_at_period_end,web_first_travel_at,calendar_provider,home_address,gmail_account_id,email,telegram_chat_id,call_language";
   const hdr = { apikey: key, Authorization: `Bearer ${key}` };
   // FAIL-SAFE: try WITH wake_policy; if the column is missing (PostgREST 400) fall back to the base
   // columns rather than returning [] — a missing column must NOT silently disable wakes fleet-wide.
@@ -125,12 +125,16 @@ async function supaUsers() {
   const preferenceRows = await prefsResponse.json().catch(() => null);
   if (!Array.isArray(preferenceRows)) return users.map(u => ({ ...u, call_enabled: false, notifications_enabled: false, daily_automation_enabled: false }));
   const byUid = new Map(preferenceRows.map(row => [row.uid, row]));
-  const channels = await webTelegramChannelsForUids(users.map((u) => u.uid), { supaUrl: url, supaKey: key });
+  const [channels, imessageChannels] = await Promise.all([
+    webTelegramChannelsForUids(users.map((u) => u.uid), { supaUrl: url, supaKey: key }),
+    webMessageChannelsForUids(users.map((u) => u.uid), "imessage", { supaUrl: url, supaKey: key }),
+  ]);
   return users.map(u => ({
     ...RUNTIME_DEFAULTS,
     ...u,
     ...(byUid.get(u.uid) || {}),
     ...(channels.has(u.uid) ? { web_message_telegram_chat_id: channels.get(u.uid) } : {}),
+    ...(imessageChannels.has(u.uid) ? { web_message_imessage_sender_id: imessageChannels.get(u.uid) } : {}),
   }));
 }
 
@@ -1319,12 +1323,15 @@ const ASK_TICK_MS = 20 * 60 * 1000;
 function questionChannelForUser(u) {
   if (!u) return null;
   if (u.telegram_chat_id || u.web_message_telegram_chat_id) return "telegram";
+  if (u.web_message_imessage_sender_id) return "imessage";
   if (WEB_TRAVEL_UID_RE.test(String(u.uid || ""))) return null;
   return u.email ? "email" : null;
 }
 
 async function askUserOnce(u, deps = {}) {
   if (u && (u.daily_automation_enabled === false || u.notifications_enabled === false)) return;
+  if (WEB_TRAVEL_UID_RE.test(String(u && u.uid || ""))
+    && !webTravelEntitled(u, deps.nowMs === undefined ? Date.now() : Number(deps.nowMs))) return;
   const channel = questionChannelForUser(u);
   if (!channel) return;
   const composioKey = deps.composioKey || process.env.COMPOSIO_API_KEY;
@@ -1336,9 +1343,11 @@ async function askUserOnce(u, deps = {}) {
   const supaUrl = deps.supaUrl || defaultSupaUrl;
   const supaKey = deps.supaKey || defaultSupaKey;
   const telegramChatId = u.telegram_chat_id || u.web_message_telegram_chat_id || null;
+  const imessageSenderId = u.web_message_imessage_sender_id || null;
   if (!composioKey || !supaUrl || !geminiKey) return;
-  // A user is reachable for asks via Telegram OR their email (captured at sign-in) — need at least one.
-  if (!telegramChatId && !u.email) return;
+  if (channel === "telegram" && !telegramChatId) return;
+  if (channel === "imessage" && (!imessageSenderId || typeof deps.imessageSend !== "function")) return;
+  if (channel === "email" && !u.email) return;
   try {
     const ask = deps.askTickImpl || askTick;
     const r = await ask(u.uid, {
@@ -1346,6 +1355,8 @@ async function askUserOnce(u, deps = {}) {
       supaUrl, supaKey, mapsKey, geminiKey, home: u.home_address,
       telegramChatId: channel === "telegram" ? telegramChatId : null,
       telegramToken: channel === "telegram" ? telegramToken : null,
+      imessageSenderId: channel === "imessage" ? imessageSenderId : null,
+      imessageSend: channel === "imessage" ? deps.imessageSend : null,
       gmailAccountId: u.gmail_account_id,
       unipileToken: process.env.UNIPILE_TOKEN,
       unipileDsn: process.env.UNIPILE_DSN,
@@ -1361,13 +1372,13 @@ async function askTickAll(deps = {}) {
   const geminiKey = process.env.GEMINI_API_KEY;
   if (!composioKey || !supaUrl || !geminiKey) return;
   const listUsers = deps.listUsers || supaUsers;
-  const ask = deps.ask || askUserOnce;
+  const ask = deps.ask || ((user) => askUserOnce(user, deps));
   const users = await listUsers();
   await forEachUserSafe(users.filter(u => u.daily_automation_enabled !== false && u.notifications_enabled !== false), "ask", ask);
 }
-function startAskLoop() {
+function startAskLoop(deps = {}) {
   console.log(`[ask] started — every ${ASK_TICK_MS / 60000}min`);
-  const run = () => askTickAll().catch((e) => console.error("[ask] tick err", e.message));
+  const run = () => askTickAll(deps).catch((e) => console.error("[ask] tick err", e.message));
   run();
   return setInterval(run, ASK_TICK_MS);
 }
@@ -1442,9 +1453,16 @@ async function getUserByUid(uid) {
   const user = Array.isArray(rows) && rows[0] ? rows[0] : null;
   if (!user) return null;
   const prefs = await readRuntimePreferences(uid, { supaUrl: url, supaKey: key, fetchImpl: fetch });
-  const linked = await webTelegramChannelsForUids([uid], { supaUrl: url, supaKey: key });
+  const [linked, imessageLinked] = await Promise.all([
+    webTelegramChannelsForUids([uid], { supaUrl: url, supaKey: key }),
+    webMessageChannelsForUids([uid], "imessage", { supaUrl: url, supaKey: key }),
+  ]);
   const result = prefs ? { ...user, ...prefs } : { ...user, call_enabled: false, notifications_enabled: false, daily_automation_enabled: false };
-  return linked.has(uid) ? { ...result, web_message_telegram_chat_id: linked.get(uid) } : result;
+  return {
+    ...result,
+    ...(linked.has(uid) ? { web_message_telegram_chat_id: linked.get(uid) } : {}),
+    ...(imessageLinked.has(uid) ? { web_message_imessage_sender_id: imessageLinked.get(uid) } : {}),
+  };
 }
 
 module.exports = {
