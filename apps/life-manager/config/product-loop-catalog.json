@@ -194,7 +194,7 @@
     },
     {
       "id": "ebook",
-      "job_ids": ["ebook-en-tiktok-daily", "ebook-ja-instagram-daily", "ebook-ja-tiktok-daily"],
+      "job_ids": ["ebook-en-instagram-daily", "ebook-en-tiktok-daily", "ebook-ja-instagram-daily", "ebook-ja-tiktok-daily"],
       "name": "eBook",
       "description": "Publish attributed English and Japanese eBook campaigns through existing owned social accounts and reconcile checkout and delivery receipts.",
       "recovery_classes": ["external_effect_owner"],
