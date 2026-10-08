@@ -1,4 +1,5 @@
 category: マーケティング · tags: hook, tiktok, reels, youtube-shorts, free
+Demand rank: 1
 
 G1 (Capafy 10k MRR recipe, 2026-10-04): a free download-mode agent that funnels into
 paid Hook Lab (live agent 8123079349, category マーケティング). Market evidence for
