@@ -49,7 +49,7 @@ The sections below define completion evidence for the English Monk Instagram wor
 
 - PR #7173 is merged to `main` as `0f7cfb616dcb585a42868f2a5092c8cd9951675e`. Owner code, fail-closed `setup_required` behavior, exact-render slot reuse, three daily slots, and owner-scoped publication identity are in main.
 - Focused acceptance before merge: Node 20/20; Python distribution owner 4/4; runtime loop bounds 138/138; targeted apply contract 2/2; fleet retry contract 34/34; loop contract 18 loops/188 jobs; `git diff --check`. Fresh read-only source review found no merge blocker.
-- **Completion evidence:** source is in main. The owner is currently loaded-idle on `aba80c99`, but the current pointer/latest main has advanced beyond that installed SHA. The exact Instagram integration remains a separate eligibility gate before publishing.
+- **Completion evidence:** source is in main. The owner is currently loaded-idle on installed SHA `ee25a794751917116f6558e2cde798dcd5c5b5a2`, behind current pointer `20261009T034745-e75c7f7a`. The exact Instagram integration remains a separate eligibility gate before publishing.
 
 ### Requested Hadrian asset
 
