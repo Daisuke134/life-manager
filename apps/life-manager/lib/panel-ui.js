@@ -538,6 +538,17 @@ function renderPanelPage(options = {}) {
     .ledger-item-meta { color: var(--ink-soft); font-size: 0.72rem; margin-top: 4px !important; }
     .ledger-amount { font-family: "Iowan Old Style", serif; font-size: 1.15rem; }
     .ledger-link { color: var(--accent); font-size: 0.72rem; font-weight: 700; }
+    .api-cost-periods { display: grid; gap: 16px; margin: 0 0 20px; }
+    .api-cost-period h3 { margin: 0 0 6px; font-size: 1rem; }
+    .api-cost-period-summary { margin: 0 0 10px; color: var(--ink-soft); font-size: 0.74rem; line-height: 1.6; }
+    .api-cost-threshold { margin: 0 0 10px; color: var(--ink-soft); font-size: 0.74rem; }
+    .api-cost-table-wrap { max-width: 100%; overflow-x: auto; border: 1px solid var(--line); }
+    .api-cost-table { width: 100%; min-width: 68rem; border-collapse: collapse; font-size: 0.72rem; text-align: left; }
+    .api-cost-table th, .api-cost-table td { padding: 8px 9px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    .api-cost-table th { color: var(--ink-soft); font-weight: 700; white-space: nowrap; }
+    .api-cost-table td { font-variant-numeric: tabular-nums; }
+    .api-cost-table tbody tr:last-child td { border-bottom: 0; }
+    .api-cost-amount { white-space: nowrap; }
 
     .gate-item {
       padding: 17px 0;
@@ -859,18 +870,181 @@ function renderPanelPage(options = {}) {
         });
     }
 
+    const apiCostPeriodCountFields = Object.freeze([
+      "event_count", "request_count", "cache_hit_count", "cache_miss_count",
+      "estimated_event_count", "settled_event_count", "unknown_estimate_event_count",
+      "unknown_actual_event_count", "not_applicable_count"
+    ]);
+
+    function validApiCostDecimal(value) {
+      return value === null
+        || (typeof value === "string" && value.length <= 100 && /^[0-9]+(?:\\.[0-9]+)?$/.test(value));
+    }
+
+    function validApiCostCounts(counts) {
+      return displayExactKeys(counts, apiCostPeriodCountFields)
+        && apiCostPeriodCountFields.every(function (field) {
+          return Number.isSafeInteger(counts[field]) && counts[field] >= 0;
+        })
+        && counts.request_count <= counts.event_count
+        && counts.cache_hit_count + counts.cache_miss_count === counts.event_count
+        && counts.estimated_event_count + counts.unknown_estimate_event_count === counts.event_count
+        && counts.settled_event_count + counts.unknown_actual_event_count + counts.not_applicable_count === counts.event_count;
+    }
+
+    function validRuntimeTraceId(value) {
+      return typeof value === "string"
+        && value !== "unknown"
+        && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(value)
+        && !/(?:(?:token|secret|password|credential|api.?key)\\s*[=:]|auth\\.json|sk-[A-Za-z0-9_-]{16,})/i.test(value)
+        && displaySafeText(value, false);
+    }
+
+    function validLatestTrace(trace) {
+      if (trace === null) return true;
+      return displayExactKeys(trace, ["run_id", "occurrence_id", "release_sha"])
+        && (trace.run_id === null || validRuntimeTraceId(trace.run_id))
+        && (trace.occurrence_id === null || validRuntimeTraceId(trace.occurrence_id))
+        && (trace.release_sha === null || (typeof trace.release_sha === "string"
+          && /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(trace.release_sha)))
+        && (trace.run_id !== null || trace.occurrence_id !== null || trace.release_sha !== null);
+    }
+
+    function validApiCostGroup(group) {
+      const keys = [
+        "loop_id", "owner_id", "trace_status", "linked_trace_event_count",
+        "partial_trace_event_count", "unlinked_trace_event_count", "distinct_run_count",
+        "distinct_occurrence_count", "distinct_release_count", "latest_trace",
+        "provider", "sku", "operation", "unit", "event_count", "request_count",
+        "cache_hit_count", "cache_miss_count", "provider_units", "estimated_cost_usd",
+        "settled_cost_usd", "estimate_status", "actual_status", "unknown_estimate_event_count",
+        "unknown_actual_event_count", "not_applicable_count"
+      ];
+      const label = /^[A-Za-z0-9][A-Za-z0-9 .:_/-]{0,127}$/;
+      if (!displayExactKeys(group, keys)
+        || ![group.loop_id, group.owner_id].every(function (value) {
+          return value === "unattributed" || validRuntimeTraceId(value);
+        })
+        || ![group.provider, group.sku, group.operation].every(function (value) {
+          return displaySafeText(value, false) && label.test(value);
+        })
+        || !["request", "tokens", "grounded_prompt", "seconds_proxy"].includes(group.unit)
+        || !["event_count", "request_count", "cache_hit_count", "cache_miss_count", "unknown_estimate_event_count", "unknown_actual_event_count", "not_applicable_count", "linked_trace_event_count", "partial_trace_event_count", "unlinked_trace_event_count", "distinct_run_count", "distinct_occurrence_count", "distinct_release_count"].every(function (field) {
+          return Number.isSafeInteger(group[field]) && group[field] >= 0;
+        })
+        || !["linked", "partial", "unlinked"].includes(group.trace_status)
+        || group.linked_trace_event_count + group.partial_trace_event_count + group.unlinked_trace_event_count !== group.event_count
+        || group.distinct_run_count > group.linked_trace_event_count + group.partial_trace_event_count
+        || group.distinct_occurrence_count > group.linked_trace_event_count + group.partial_trace_event_count
+        || group.distinct_release_count > group.linked_trace_event_count + group.partial_trace_event_count
+        || !validLatestTrace(group.latest_trace)
+        || group.event_count === 0
+        || group.request_count > group.event_count
+        || (group.unit !== "request" && group.request_count !== 0)
+        || group.cache_hit_count + group.cache_miss_count !== group.event_count
+        || group.unknown_estimate_event_count > group.event_count
+        || group.unknown_actual_event_count + group.not_applicable_count > group.event_count
+        || !(group.provider_units === null || validApiCostDecimal(group.provider_units))
+        || !validApiCostDecimal(group.estimated_cost_usd)
+        || !validApiCostDecimal(group.settled_cost_usd)) return false;
+
+      const estimatedEvents = group.event_count - group.unknown_estimate_event_count;
+      const settledEvents = group.event_count - group.unknown_actual_event_count - group.not_applicable_count;
+      const estimateStatus = group.unknown_estimate_event_count === 0 ? "estimated"
+        : estimatedEvents === 0 ? "unknown" : "partial";
+      const actualStatus = settledEvents > 0
+        ? (group.unknown_actual_event_count > 0 ? "partial" : "settled")
+        : group.unknown_actual_event_count > 0 ? "unknown" : "not_applicable";
+      const traceStatus = group.linked_trace_event_count === group.event_count ? "linked"
+        : group.unlinked_trace_event_count === group.event_count ? "unlinked" : "partial";
+      const latest = group.latest_trace;
+      return group.estimate_status === estimateStatus
+        && group.actual_status === actualStatus
+        && group.trace_status === traceStatus
+        && (!latest || ((latest.run_id === null || group.distinct_run_count > 0)
+          && (latest.occurrence_id === null || group.distinct_occurrence_count > 0)
+          && (latest.release_sha === null || group.distinct_release_count > 0)))
+        && (traceStatus !== "linked" || (latest !== null && latest.run_id !== null
+          && latest.occurrence_id !== null && latest.release_sha !== null
+          && group.distinct_run_count > 0 && group.distinct_occurrence_count > 0
+          && group.distinct_release_count > 0))
+        && (traceStatus !== "unlinked" || (latest === null && group.distinct_run_count === 0
+          && group.distinct_occurrence_count === 0 && group.distinct_release_count === 0))
+        && ((estimatedEvents === 0) === (group.estimated_cost_usd === null))
+        && ((settledEvents === 0) === (group.settled_cost_usd === null));
+    }
+
+    function validApiCostPeriod(period) {
+      if (!displayExactKeys(period, ["status", "period_start", "period_end", "counts", "groups"])
+        || !displaySafeText(period.period_start, false)
+        || !displaySafeText(period.period_end, false)
+        || !Number.isFinite(Date.parse(period.period_start))
+        || !Number.isFinite(Date.parse(period.period_end))) return false;
+      if (period.status === "unavailable") return period.counts === null && period.groups === null;
+      if (!validApiCostCounts(period.counts) || !Array.isArray(period.groups)) return false;
+      if (period.status === "verified_empty") {
+        return period.groups.length === 0 && apiCostPeriodCountFields.every(function (field) {
+          return period.counts[field] === 0;
+        });
+      }
+      if (period.status !== "available" || period.groups.length === 0
+        || period.groups.some(function (group) { return !validApiCostGroup(group); })) return false;
+
+      const totals = Object.fromEntries(apiCostPeriodCountFields.map(function (field) { return [field, 0]; }));
+      for (const group of period.groups) {
+        totals.event_count += group.event_count;
+        totals.request_count += group.request_count;
+        totals.cache_hit_count += group.cache_hit_count;
+        totals.cache_miss_count += group.cache_miss_count;
+        totals.estimated_event_count += group.event_count - group.unknown_estimate_event_count;
+        totals.settled_event_count += group.event_count - group.unknown_actual_event_count - group.not_applicable_count;
+        totals.unknown_estimate_event_count += group.unknown_estimate_event_count;
+        totals.unknown_actual_event_count += group.unknown_actual_event_count;
+        totals.not_applicable_count += group.not_applicable_count;
+      }
+      return apiCostPeriodCountFields.every(function (field) {
+        return Number.isSafeInteger(totals[field]) && totals[field] === period.counts[field];
+      });
+    }
+
+    function validApiCostSummary(apiCost) {
+      const keys = [
+        "no_data", "total", "estimate_status", "unknown_estimate_entries",
+        "actual_status", "unknown_actual_entries", "items", "periods"
+      ];
+      if (!displayExactKeys(apiCost, keys)
+        || typeof apiCost.no_data !== "boolean"
+        || !displaySafeText(apiCost.total, false)
+        || !Array.isArray(apiCost.items)
+        || apiCost.items.some(function (item) { return !validLedgerItem(item); })
+        || apiCost.no_data !== (apiCost.items.length === 0)
+        || !Number.isSafeInteger(apiCost.unknown_estimate_entries)
+        || apiCost.unknown_estimate_entries < 0
+        || apiCost.unknown_estimate_entries > apiCost.items.length
+        || !Number.isSafeInteger(apiCost.unknown_actual_entries)
+        || apiCost.unknown_actual_entries < 0
+        || apiCost.unknown_actual_entries > apiCost.items.length
+        || !displayExactKeys(apiCost.periods, ["daily", "monthly"])
+        || !validApiCostPeriod(apiCost.periods.daily)
+        || !validApiCostPeriod(apiCost.periods.monthly)) return false;
+      const expectedEstimateStatus = apiCost.items.length === 0 ? "unknown"
+        : apiCost.unknown_estimate_entries > 0 ? "partial" : "estimated";
+      const expectedActualStatus = apiCost.items.length === 0
+        || apiCost.unknown_actual_entries === apiCost.items.length ? "unknown"
+        : apiCost.unknown_actual_entries > 0 ? "partial" : "complete";
+      return apiCost.estimate_status === expectedEstimateStatus
+        && apiCost.actual_status === expectedActualStatus;
+    }
+
     function validateLedgerData(data) {
       if (
         !displayExactKeys(data, ["api_cost", "financial", "reports"])
-        || !displayExactKeys(data.api_cost, ["no_data", "total", "items"])
-        || typeof data.api_cost.no_data !== "boolean"
-        || !displaySafeText(data.api_cost.total, false)
-        || !Array.isArray(data.api_cost.items)
-        || data.api_cost.items.some(function (item) { return !validLedgerItem(item); })
+        || !validApiCostSummary(data.api_cost)
         || !displayExactKeys(data.financial, ["no_data", "items"])
         || typeof data.financial.no_data !== "boolean"
         || !Array.isArray(data.financial.items)
         || data.financial.items.some(function (item) { return !validLedgerItem(item); })
+        || data.financial.no_data !== (data.financial.items.length === 0)
         || !displayExactKeys(data.reports, ["daily", "weekly"])
         || !validFinancialReport(data.reports.daily, "daily")
         || !validFinancialReport(data.reports.weekly, "weekly")
@@ -1020,6 +1194,58 @@ function renderPanelPage(options = {}) {
         const body = "$" + whole + "." + decimals;
         return negative ? "-" + body : (signed ? "+" + body : body);
       }
+      function apiCostUsd(value) {
+        if (value === null) return "未確認";
+        const parts = value.split(".");
+        return "USD " + parts[0] + "." + (parts[1] || "").padEnd(8, "0");
+      }
+      const estimateLabels = { estimated: "推定済み", partial: "一部未確認", unknown: "未確認" };
+      const actualLabels = { settled: "確定済み", complete: "確定済み", partial: "一部未確認", unknown: "未確認", not_applicable: "対象外" };
+      const traceStatusLabels = { linked: "紐付け済み", partial: "一部未確認", unlinked: "未紐付け" };
+      function renderApiCostPeriod(key, label, period) {
+        const summary = period.status === "available"
+          ? "利用記録 " + period.counts.event_count + "件・推定カバー " + period.counts.estimated_event_count + "/" + period.counts.event_count
+            + "件・確定カバー " + period.counts.settled_event_count + "/" + period.counts.event_count
+            + "件・推定未確認 " + period.counts.unknown_estimate_event_count + "件・確定未確認 " + period.counts.unknown_actual_event_count
+            + "件・対象外 " + period.counts.not_applicable_count + "件"
+          : period.status === "verified_empty"
+            ? "記録なし（照会済み）"
+            : "集計を取得できません。金額と利用量は未確認です。";
+        const rows = period.status === "available"
+          ? period.groups.map(function (group) {
+            const gaps = [];
+            if (group.unknown_estimate_event_count > 0) gaps.push("推定未確認 " + group.unknown_estimate_event_count + "件");
+            if (group.unknown_actual_event_count > 0) gaps.push("確定未確認 " + group.unknown_actual_event_count + "件");
+            if (group.not_applicable_count > 0) gaps.push("確定対象外 " + group.not_applicable_count + "件");
+            const sku = group.sku === "unknown" ? "未確認" : group.sku;
+            const trace = group.latest_trace
+              ? "run " + (group.latest_trace.run_id || "未確認") + "・occurrence "
+                + (group.latest_trace.occurrence_id || "未確認") + "・release "
+                + (group.latest_trace.release_sha || "未確認")
+              : "トレース未確認";
+            const traceCoverage = "linked " + group.linked_trace_event_count + "・partial "
+              + group.partial_trace_event_count + "・unlinked " + group.unlinked_trace_event_count;
+            const traceCardinality = "run ID " + group.distinct_run_count + "件・occurrence ID "
+              + group.distinct_occurrence_count + "件・release SHA " + group.distinct_release_count + "件";
+            return '<tr><td>' + escapeHtml(group.loop_id) + '</td><td>' + escapeHtml(group.owner_id)
+              + '</td><td>' + escapeHtml(group.provider) + '</td><td>' + escapeHtml(sku)
+              + '</td><td>' + escapeHtml(group.operation) + '</td><td>' + escapeHtml(group.unit)
+              + '</td><td>' + group.event_count + '</td><td>' + group.request_count + '</td><td>'
+              + escapeHtml(group.provider_units === null ? "未確認" : group.provider_units) + '</td><td class="api-cost-amount">'
+              + escapeHtml(apiCostUsd(group.estimated_cost_usd)) + '</td><td class="api-cost-amount">'
+              + escapeHtml(apiCostUsd(group.settled_cost_usd)) + '</td><td>推定 ' + estimateLabels[group.estimate_status]
+              + '・確定 ' + actualLabels[group.actual_status] + '<br>' + escapeHtml(gaps.length ? gaps.join("・") : "未確認なし")
+              + '</td><td>' + traceStatusLabels[group.trace_status] + '<br>' + escapeHtml(traceCoverage)
+              + '<br>' + escapeHtml(traceCardinality) + '<br>' + escapeHtml(trace) + '</td></tr>';
+          }).join("")
+          : '<tr><td colspan="13">' + (period.status === "verified_empty"
+            ? "記録なし（照会済み）"
+            : "集計を取得できません。金額と利用量は未確認です。") + '</td></tr>';
+        return '<section class="api-cost-period" data-api-cost-period="' + key + '"><h3>' + label
+          + '</h3><p class="api-cost-period-summary">' + escapeHtml(summary) + '</p><div class="api-cost-table-wrap"><table class="api-cost-table"><thead><tr>'
+          + '<th>Loop</th><th>Owner</th><th>Provider</th><th>SKU</th><th>Operation</th><th>Unit</th><th>イベント数</th><th>リクエスト数</th><th>単位数</th>'
+          + '<th>推定 USD</th><th>確定 USD</th><th>カバー状況</th><th>Runtime trace</th></tr></thead><tbody>' + rows + '</tbody></table></div></section>';
+      }
       const stopLabels = { running: "稼働中", negative_net: "赤字", no_external_income: "外部収入なし", reserve_floor: "reserve floor" };
       const reportCards = ["daily", "weekly"].map(function (kind) {
         const report = data.reports[kind];
@@ -1032,16 +1258,32 @@ function renderPanelPage(options = {}) {
         const ratio = report.self_funded_bps === null ? "未計測" : (report.self_funded_bps / 100).toFixed(2) + "%";
         return '<article class="ledger-item"><div><p>WEEKLY ' + escapeHtml(report.period_key) + '</p><p class="ledger-item-meta">' + escapeHtml(rails || "rail収支なし") + ' · Self-funded ' + escapeHtml(ratio) + '</p></div><p class="ledger-amount">分配可能 ' + escapeHtml(money(report.distributable_usdc_atomic, false)) + '</p></article>';
       }).join("");
+      const periodSummary = '<p class="api-cost-threshold">警告閾値: 未設定（A6で設定予定）</p><div class="api-cost-periods">'
+        + renderApiCostPeriod("daily", "今日", data.api_cost.periods.daily)
+        + renderApiCostPeriod("monthly", "今月", data.api_cost.periods.monthly) + '</div>';
+      const costMeta = '<p class="ledger-cost">運用実費（累計） ' + escapeHtml(data.api_cost.total)
+        + '・推定 ' + estimateLabels[data.api_cost.estimate_status] + '（未確認 ' + data.api_cost.unknown_estimate_entries
+        + '件）・確定 ' + actualLabels[data.api_cost.actual_status] + '（未確認 ' + data.api_cost.unknown_actual_entries + '件）</p>';
       const entries = data.financial.items.concat(data.api_cost.items);
+      const hasKnownSummaryEvents = [data.api_cost.periods.daily, data.api_cost.periods.monthly].some(function (period) {
+        return period.status === "available" && period.counts.event_count > 0;
+      });
+      const hasUnavailablePeriod = [data.api_cost.periods.daily, data.api_cost.periods.monthly].some(function (period) {
+        return period.status === "unavailable";
+      });
       if (!entries.length) {
-        const cost = data.api_cost.no_data ? "運用実費の記録もまだありません" : "運用実費（累計） " + data.api_cost.total;
-        return reportCards + '<div class="ledger-empty"><h3>まだ収支の記録はありません</h3><p class="ledger-cost">' + escapeHtml(cost) + '</p></div>';
+        const empty = hasKnownSummaryEvents
+          ? '<p class="empty">個別の台帳明細はありません。期間集計を表示しています。</p>'
+          : hasUnavailablePeriod
+            ? '<p class="empty">個別の台帳明細はありません。期間集計は取得できず、記録なしとは確認できていません。</p>'
+            : '<div class="ledger-empty"><h3>まだ収支の記録はありません</h3><p class="ledger-cost">' + escapeHtml(data.api_cost.no_data ? "運用実費の記録もまだありません" : data.api_cost.total) + '</p></div>';
+        return reportCards + periodSummary + costMeta + empty;
       }
       const rows = entries.map(function (entry) {
         const link = displaySafeLink(entry.link);
         return '<li class="ledger-item"><div><p>' + escapeHtml(entry.label) + '</p><p class="ledger-item-meta">' + escapeHtml(entry.date) + (link ? ' · <a class="ledger-link" href="' + escapeHtml(link) + '" target="_blank" rel="noopener noreferrer">外部記録で確認</a>' : "") + '</p></div><p class="ledger-amount">' + escapeHtml(entry.amount) + '</p></li>';
       }).join("");
-      return reportCards + '<p class="ledger-cost">運用実費（累計） ' + escapeHtml(data.api_cost.total) + '</p><ul class="ledger-list">' + rows + '</ul>';
+      return reportCards + periodSummary + costMeta + '<ul class="ledger-list">' + rows + '</ul>';
     }
 
     const gateLabels = Object.freeze({ location: "位置情報", payout: "送金先" });
