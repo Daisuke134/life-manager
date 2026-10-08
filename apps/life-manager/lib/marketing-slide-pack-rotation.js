@@ -36,10 +36,10 @@ function familyScores(metrics) {
   return avg;
 }
 
-// candidates: [{ packRef, mediaRefs, captionRef, approvalRef, familyId, createdAt }]
-// postedHistory: [{ packRef, postedAt }] (derive from the lane's publication distribution.jsonl)
+// candidates: [{ packRef, captionRef, captionHash, textHash, familyId, createdAt }]
+// postedHistory: [{ packRef, captionHash, textHash, integrationRef, postedAt }]
 // metrics: [{ familyId, score }] (derive from marketing-creative-metrics.js rows joined to a pack's familyId)
-function selectSlidePack({ candidates, postedHistory = [], metrics = [], minDaysBetweenRepeat = 7, now }) {
+function selectSlidePack({ candidates, postedHistory = [], metrics = [], minDaysBetweenRepeat = 7, now, integrationRef }) {
   if (!Array.isArray(candidates)) throw new Error("slide pack candidates are invalid");
   if (!Array.isArray(postedHistory)) throw new Error("slide pack posted history is invalid");
   if (!Array.isArray(metrics)) throw new Error("slide pack metrics are invalid");
@@ -48,10 +48,18 @@ function selectSlidePack({ candidates, postedHistory = [], metrics = [], minDays
   if (!Number.isFinite(Date.parse(nowIso))) throw new Error("slide pack rotation clock is invalid");
 
   const lastPostedByPack = new Map();
+  const lastPostedByCaption = new Map();
+  const lastPostedByText = new Map();
   for (const row of postedHistory) {
     if (!row || typeof row.packRef !== "string" || !row.postedAt) continue;
     const current = lastPostedByPack.get(row.packRef);
     if (!current || current < row.postedAt) lastPostedByPack.set(row.packRef, row.postedAt);
+    if (!integrationRef || row.integrationRef !== integrationRef) continue;
+    for (const [hash, field] of [[row.captionHash, lastPostedByCaption], [row.textHash, lastPostedByText]]) {
+      if (typeof hash !== "string" || !hash) continue;
+      const contentCurrent = field.get(hash);
+      if (!contentCurrent || contentCurrent < row.postedAt) field.set(hash, row.postedAt);
+    }
   }
 
   const scoreByFamily = familyScores(metrics);
@@ -61,7 +69,11 @@ function selectSlidePack({ candidates, postedHistory = [], metrics = [], minDays
     .filter((candidate) => candidate && typeof candidate.packRef === "string" && candidate.packRef)
     .filter((candidate) => {
       const lastPosted = lastPostedByPack.get(candidate.packRef);
-      return !lastPosted || daysBetween(lastPosted, nowIso) >= Number(minDaysBetweenRepeat);
+      if (lastPosted && daysBetween(lastPosted, nowIso) < Number(minDaysBetweenRepeat)) return false;
+      const captionPosted = candidate.captionHash && lastPostedByCaption.get(candidate.captionHash);
+      if (captionPosted && daysBetween(captionPosted, nowIso) < Number(minDaysBetweenRepeat)) return false;
+      const textPosted = candidate.textHash && lastPostedByText.get(candidate.textHash);
+      return !textPosted || daysBetween(textPosted, nowIso) >= Number(minDaysBetweenRepeat);
     })
     .map((candidate) => {
       const score = scoreByFamily.has(candidate.familyId) ? scoreByFamily.get(candidate.familyId) : null;
