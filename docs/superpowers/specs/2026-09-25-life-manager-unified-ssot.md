@@ -8835,6 +8835,71 @@ This entry supersedes the prior producer-review cursor. CFO priority remains A5 
 
 **Current cursor:** commit/push this SSOT + latest-main merge → exact-head CI/fresh review → merge #7106 → PID6397 terminal/error boundary → normal reconciler/doctor/loaded SHA → admission queue/claim diagnosis → natural CFO receipt/report → A5 → A6 → A8 → A9 → A10.
 
+### 2026-10-09 06:14 JST — admission census confirms the CFO borrower-capacity mismatch
+
+この追記は06:10の容量仮説をread-only DB evidenceで更新する。全体capは増やさず、CFOの既存finite revenue entitlementを使う方向で進める。
+
+- **Source/config:** current main `08429e49`までlocal branchへmerge済み。CFO registry rowは`deterministic / admission_class=borrow / priority=revenue`。current mainのdeterministic revenue poolは5枠、borrower defaultは2枠。CFOのplistには`LIFE_MANAGER_HOST_MAX_DETERMINISTIC_RUNS`個別overrideなし。`priority=revenue`はborrower entitlementを変更しない。
+- **Read-only admission snapshot (2026-10-08T21:12:27Z):** CFO queue rowはsequence `578998`、`deterministic/borrow`, base priority `revenue`、reservationなし。queue aggregateはagent borrow/revenue `30/8`、deterministic borrow/revenue `38/3`。active reservationsはagent 5 / deterministic 1、active owner filesはagent revenue 2 / deterministic revenue 1。唯一のdeterministic reservationは`lancers-revenue-work-sync`で、read時点のlease remainingは約1秒。CFO LaunchAgent plistにper-owner `LIFE_MANAGER_HOST_MAX_DETERMINISTIC_RUNS` overrideはない。main sourceのborrow default=2とdeterministic occupancy 2が一致し、CFO queueがborrow entitlementでclaimできない現行状態を強く支持する。
+- **Causality limit:** `resource_capacity_busy`のCFO terminalは20:39:29Zで、このDB snapshotは21:12Z。historical occurrenceと同時点のcapacity receiptではないため、20:39の原因を遡及的に確定したとは扱わない。current CFO queueでのborrow-class starvationは直接観測済み。
+- **Active process boundary:** release-reconciler PID `6397`はrelease `e1b061f1`からloaded-running。前回terminal `18dca94039f7fba8-83389`はexit 1 / `reconcile_owner`; active ownerを停止/重複applyしない。Disk-cleanupは`18dcaa05ff6d89f0-21017`で21:09Z PASS/effect 0だがfresh cleanup receiptなし。空き`240,116 KiB`で書き込みは可能、十分なrecoveryを意味しない。
+- **Ruling:** CFOは財務報告のcritical control ownerであり、既存のdeterministic revenue poolを使うべき。CFOだけを`admission_class=revenue`へ分類し、global/per-class capsは増やさない。回帰testで「borrower slotsが埋まってもCFOは既存revenue slotをclaimできる」「通常borrowerはその状況で待つ」を確認する。queue sequence/reservation/effect_unknownは保持する。
+
+**順序変更:** 旧cursor=`capacity claimsをさらに観測 → 必要ならCFO entitlement修正`。新cursor=`(1) 完了: read-only censusでCFOがborrow queue・reservationなし、2 deterministic slots occupiedを確認 → (2) registry consumerのRED regressionでCFO revenue eligibilityと通常borrower waitを確認 → (3) CFO rowだけborrow→revenue、global caps不変 → (4) focused tests/loop contract → (5) status + configをpush、exact-head CI/review → (6) #7106 merge → (7) owner idle/claim/effect_unknown条件をreadback後、official queue lock + CFO owner deploy lock下でsequence/reservationsを保ってCFO queue rowだけをrebind → (8) main release/applyをnormal ownerへ委譲し、CFO next natural occurrence/receipt → A5 → A6 → A8 → A9 → A10`。理由はCFO queue rowと実occupied capacityが見え、既存revenue slotがあるためglobal cap増加なしの個別entitlementが最小の修正だから。
+
+**Remaining atomic TODO:**
+
+1. [x] Read-only admission censusでCFOのborrow class、priority、reservationなし、deterministic occupancy 2を確認。
+2. [ ] 失敗するconsumer regressionを先に追加: CFO registry entryをadmission controllerへ渡すとrevenue slotをclaimでき、通常borrowerは2 borrowed deterministic occupants下でclaim拒否となる。
+3. [ ] CFO registry rowのみ`admission_class=revenue`へ変更し、global `LIFE_MANAGER_HOST_MAX_*`は変更しない。
+4. [ ] RED→GREEN focused tests、`./bin/lm-loop-contract`、`git diff --check`を通す。
+5. [ ] latest main `08429e49`上でcommit/pushし、新headのrequired CI/fresh review後にPR #7106をmerge。
+6. [ ] release-reconciler PID6397の同一owner terminal/error readbackと正常なreconcileを待つ。CFO/queue ownerを停止しない。
+7. [ ] CFO ownerがloaded-idle、claimed/effect_unknownなしを確認し、既存owner/admission lockを使う正規migrationでCFO queue/priority metadataだけをrebindする。sequence/reservationsは保存し、manual DB writeはしない。
+8. [ ] accepted immutable main releaseをnormal reconciler routeで適用し、CFO loaded SHA/doctorを確認する。
+9. [ ] 次のnatural CFO reportでdelivery/runtime/provider/B7 receipt、coverage、settlement、replay-zeroを確認し、初めてloop別/全社実額を報告する。
+10. [ ] A5 production migration/RPC/permissions/panel readback。
+11. [ ] A6 Google billed-vs-cash + receipt-backed operation/loop allocation。
+12. [ ] A8 18 loops/188 jobs（113 mapped）のsettled revenue/refund/fee/costとshared overhead coverage。
+13. [ ] A9 JST日次/MTD/trailing/MRRを実日付filterでreconcile。
+14. [ ] A10 coverage等の条件を満たすnatural CFO reportsを7日連続readback。
+
+**Blockerと解消方法:** CFOの現在queueはborrower classで2 deterministic slotsが占有され、reservationなし。minimal source fixはCFOだけを既存revenue admission poolへ移すこと。production queue metadataはrelease後にowner idle・effect fence・deploy/admission lockを確認してから正規migrationで更新する。active release-reconcilerはPID6397のterminalまで観測し、同一owner routeで`reconcile_owner`を完了する。receipt-backed CFO実額は未取得。
+
+**Current cursor:** TDD regression → CFO-only revenue admission config → focused acceptance → latest-main push/CI/review/merge → PID6397 normal reconciliation → safe CFO queue identity rebind → immutable release/loaded SHA → natural CFO receipt/report → A5 → A6 → A8 → A9 → A10.
+
+### 2026-10-09 06:20 JST — CFO admission fix is locally green; release promotion fails on ENOSPC
+
+このsnapshotは06:14の仮説をimplementation/readback結果で更新する。全社capを変えずCFOだけを既存revenue capacityへ移した。
+
+- **Source change:** `life-manager-cfo-hourly`の`admission_class`を`borrow`から`revenue`へ変更。resource class、priority、finite capacity valuesは変更なし。CFO registryを実admission DBで通す回帰testは修正前に`capacity_busy`でRED、変更後にCFOがrevenue slotをclaimし、同じ2 borrow slots下では通常borrowerが引き続きblockedとなるGREENを確認。
+- **Focused acceptance:** host resource-admission 146/146、loop-registry 137/137、`./bin/lm-loop-contract` PASS（18 loops / 188 jobs / 113 mapped / 0 errors）。RED→GREEN regression 1/1 PASS。
+- **Broad local suite:** `python3 -m unittest discover -s runtime/loop/tests -p 'test_*.py'`は820 testsを実行し、4 failures / 362 errors。出力には多数の`ENOSPC`/temp write errorsがあり、3件のrelease-cut testはlocal-only HEAD `4ef6df29`を未pushとして拒否。全remaining failures/errorsは未分類のため、このsuiteをPASSと主張しない。容量復旧とpush後に再実行する。
+- **Production CFO:** latest natural occurrence `18dcaa87c4549458-50307`（21:17:37Z）はinstalled SHA `3b543ffa`から`exit 75 / resource_capacity_busy`、receiptなし。source configはまだproductionへ反映されていない。
+- **Release blocker root cause:** release-reconciler occurrence `18dca9db9418a998-6397`は21:20:02Zにexit 1。`launchd.err.log`は`cut-loop-release: export of df2f5bca failed`と`OSError 28 / No space left on device`を示す。ここがimmutable releaseを作れない直接原因。source/entrypoint設定不良とは別。
+- **Disk owner:** `life-manager-disk-cleanup` occurrence `18dcaa91d8ab7570-77280`は21:18Z PASS/effect 0だがfree spaceは`142,644 KiB`、fresh cleanup receiptなし。古いreceiptは10/1付。2 GiBは現行skill上の診断値で、cleanup pass/fail gateではない。手動削除はしない。
+- **Financial truth:** accepted loaded releaseからのnatural CFO provider receiptなし。各loop/全社のsettled revenue/expense/netはunknown。
+
+**Remaining atomic TODO (この順):**
+
+1. [x] CFO admission mismatchをread-only DBで特定し、borrow capを再現するTDD regressionをRED→GREEN。
+2. [x] CFOだけ`admission_class=revenue`へ変更。Global/per-class capacity capは増やしていない。
+3. [x] Focused host/registry testsとloop contractをPASS。
+4. [ ] `git diff --check`を再確認し、registry/test/fixture/specをcommit/pushする。push後にexact head/baseをreadback。
+5. [ ] Exact-head required CIとfresh reviewをPASSさせPR #7106をmergeする。
+6. [ ] 既存disk-cleanup ownerから実測付きcapacity recoveryを取得する。現ownerのPASS/effect 0はrecovery receiptではない。protected deletionなし。
+7. [ ] Full runtime suiteを再実行し、820-test runのENOSPC/local-only failuresを解消・分類する。
+8. [ ] Release-reconcilerのnormal owner pathでmain由来immutable releaseをcutし、CFO configをload。ownerを手動停止/restartしない。
+9. [ ] CFO owner idle、claimed/effect_unknownなし、deploy/admission lock取得を確認し、CFO queue/priority metadataだけを既存APIでrebind。sequence/reservationsを保持し、manual DB writeをしない。
+10. [ ] 新SHAのnatural scheduled CFO reportからprovider/runtime/B7 receipts、settlement、coverage、replay-zeroをreadbackする。ここで初めてactual totalsを確定する。
+11. [ ] A5 production migration/RPC/permissions/panel readback。
+12. [ ] A6 Google billed-vs-cash + operation/loop cost attribution。
+13. [ ] A8 18 loops/188 jobs（113 mapped）全coverage。
+14. [ ] A9 JST日次/MTD/trailing/MRR reconcile。
+15. [ ] A10 条件を満たすnatural CFO reportsを7日連続readback。
+
+**Current cursor:** diff check → push CFO admission fix + spec → exact-head CI/review/merge → disk owner fresh recovery evidence → full suite → normal release-reconciler cut/load → safe CFO queue rebind → natural CFO receipt/report → A5 → A6 → A8 → A9 → A10.
+
 ### Marketing IntelからWriterへの記事候補連携（並列作業）
 
 **目的:** `marketing-weekly-review`がTelegramへ報告する未検証の`CONTENT`戦術を、既存Writerの`article-daily`トピックキューへ候補として渡す。AffiliateやX repostには配線しない。
