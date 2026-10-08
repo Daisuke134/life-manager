@@ -116,6 +116,23 @@ class SubmittedCleanup(unittest.TestCase):
             self.assertTrue((set_dir / "clips").exists())  # distribute renders from selected clips
 
 
+class SubmitNotifyTitle(unittest.TestCase):
+    def test_notify_reports_the_title_actually_filed_after_a_retitle(self) -> None:
+        # set-012 (2026-10-08) was filed as ポンタ after a duplicate-title retitle; the event said こむぎ.
+        payloads = []
+        with tempfile.TemporaryDirectory() as tmp:
+            deps = _fake_deps(
+                max_sets_per_day=5,
+                submit=lambda set_dir, item, listing, tags: {
+                    "product_id": "123", "url": "https://example.test/sticker/123",
+                    "state": "review_requested", "title_ja": "ポンタのテスト",
+                },
+                notify=lambda set_dir, payload: payloads.append(payload),
+            )
+            MODULE.run(Path(tmp), deps)
+        self.assertEqual([p.get("title_ja") for p in payloads if "product_id" in p], ["ポンタのテスト"])
+
+
 class FullRunSubmit(unittest.TestCase):
     def test_run_keeps_going_through_submit_sub_states(self) -> None:
         states = iter(["metadata_saved", "images_uploaded", "tagged", "review_requested"])
