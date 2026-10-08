@@ -1219,3 +1219,122 @@ def test_nested_distribution_receipt_cannot_reuse_provider_post_id(tmp_path):
         reconcile.append_distribution_row(ledger, second)
     rows = reconcile._safe_jsonl(ledger)
     assert rows is not None and rows == [first]
+
+
+# ---- historical no-dispatch (identity-less fences) -------------------------------------------
+
+def _hist_db(tmp_path, owner, rows):
+    db = tmp_path / "admission.sqlite3"
+    with sqlite3.connect(db) as c:
+        c.execute("CREATE TABLE occurrences (owner_id TEXT, occurrence_id TEXT, state TEXT, "
+                  "effect_unknown INTEGER, queued_at REAL)")
+        c.executemany("INSERT INTO occurrences VALUES (?,?,?,?,?)",
+                      [(owner, oid, "claimed", 1, ts) for oid, ts in rows])
+    return db
+
+
+def _hist_identity_dir(tmp_path, owner, refs):
+    d = tmp_path / "effect-identities"
+    d.mkdir()
+    for n, ref in enumerate(refs):
+        f = d / f"run-{n}.jsonl"
+        f.write_text(json.dumps({"kind": "life_manager_effect_identity", "loop_id": owner,
+                                 "occurrence_id": f"{owner}:old-{n}", "integration_ref": ref}) + "\n")
+        f.chmod(0o600)
+    return d
+
+
+def test_historical_no_dispatch_proof_requires_zero_posts_in_the_window_for_the_one_integration(tmp_path):
+    owner = "life-manager-anicca-main-tiktok"
+    ts = 1_790_000_000.0
+    db = _hist_db(tmp_path, owner, [(f"{owner}:gone", ts)])
+    idir = _hist_identity_dir(tmp_path, owner, ["integration://postiz/tiktok/cmx1"] * 2)
+    seen = {}
+
+    def posts(integration_id, start, end, api_key):
+        seen["call"] = (integration_id, start, end)
+        return []
+
+    proofs = reconcile.build_historical_no_dispatch_proof(
+        owner, f"{owner}:gone", queued_at=ts, identity_dir=idir, api_key="k",
+        list_posts=posts, window_seconds=1800)
+    assert proofs["verified"] is True
+    assert proofs["proof_type"] == "historical_integration_bound_no_dispatch"
+    assert proofs["provider"] == "postiz" and proofs["historical_integration_id"] == "cmx1"
+    assert "count=0" in proofs["evidence_ref"]
+    from datetime import datetime
+    parse = lambda v: datetime.strptime(v, "%Y-%m-%dT%H:%M:%SZ")
+    assert seen["call"][0] == "cmx1"
+    assert (parse(seen["call"][2]) - parse(seen["call"][1])).total_seconds() == 3600
+
+
+def test_historical_no_dispatch_never_closes_when_a_post_exists_or_the_integration_is_ambiguous(tmp_path):
+    owner = "life-manager-anicca-main-tiktok"
+    ts = 1_790_000_000.0
+    one = _hist_identity_dir(tmp_path / "a", owner, ["integration://postiz/tiktok/cmx1"]) \
+        if (tmp_path / "a").mkdir() is None else None
+    two = _hist_identity_dir(tmp_path / "b", owner, ["integration://postiz/tiktok/cmx1",
+                                                     "integration://postiz/tiktok/cmx2"]) \
+        if (tmp_path / "b").mkdir() is None else None
+    kw = dict(queued_at=ts, api_key="k", window_seconds=1800)
+    assert reconcile.build_historical_no_dispatch_proof(
+        owner, f"{owner}:x", identity_dir=one, list_posts=lambda *a: [{"id": "p1"}], **kw) is None
+    assert reconcile.build_historical_no_dispatch_proof(
+        owner, f"{owner}:x", identity_dir=two, list_posts=lambda *a: [], **kw) is None
+
+    def boom(*a):
+        raise OSError("postiz down")
+    assert reconcile.build_historical_no_dispatch_proof(
+        owner, f"{owner}:x", identity_dir=one, list_posts=boom, **kw) is None
+
+
+def test_historical_sweep_closes_only_proven_occurrences_and_only_when_asked_to_resolve(tmp_path):
+    owner = "life-manager-anicca-main-tiktok"
+    t0 = 1_790_000_000.0
+    rows = [(f"{owner}:a", t0), (f"{owner}:b", t0 + 7200), (f"{owner}:c", t0 + 14400)]
+    db = _hist_db(tmp_path, owner, rows)
+    idir = _hist_identity_dir(tmp_path, owner, ["integration://postiz/tiktok/cmx1"])
+    closed = []
+
+    def posts(integration_id, start, end, api_key):
+        return [{"id": "p"}] if "T" in start and start.startswith(
+            reconcile.datetime.fromtimestamp(t0 + 7200 - 1800, reconcile.timezone.utc).strftime("%Y-%m-%dT%H")) else []
+
+    def resolver(owner_id, occurrence_id, *, no_dispatch_proof, expected_state="claimed"):
+        assert no_dispatch_proof()["verified"] is True
+        closed.append(occurrence_id)
+        return True
+
+    dry = reconcile.sweep_historical_no_dispatch(
+        owner, identity_dir=idir, admission_db=db, api_key="k", apply=False,
+        list_posts=posts, resolver=resolver, max_items=10)
+    assert closed == [] and dry["provable"] == 2 and dry["kept"] == 1 and dry["resolved"] == 0
+
+    done = reconcile.sweep_historical_no_dispatch(
+        owner, identity_dir=idir, admission_db=db, api_key="k", apply=True,
+        list_posts=posts, resolver=resolver, max_items=10)
+    assert sorted(closed) == [f"{owner}:a", f"{owner}:c"] and done["resolved"] == 2 and done["kept"] == 1
+
+
+def test_historical_sweep_respects_the_item_cap(tmp_path):
+    owner = "life-manager-anicca-main-tiktok"
+    t0 = 1_790_000_000.0
+    db = _hist_db(tmp_path, owner, [(f"{owner}:{n}", t0 + n * 7200) for n in range(6)])
+    idir = _hist_identity_dir(tmp_path, owner, ["integration://postiz/tiktok/cmx1"])
+    out = reconcile.sweep_historical_no_dispatch(
+        owner, identity_dir=idir, admission_db=db, api_key="k", apply=False,
+        list_posts=lambda *a: [], resolver=lambda *a, **k: True, max_items=4)
+    assert out["inspected"] == 4
+
+
+def test_historical_flag_runs_the_sweep_and_prints_a_summary(tmp_path, monkeypatch, capsys):
+    owner = "life-manager-anicca-main-tiktok"
+    db = _hist_db(tmp_path, owner, [(f"{owner}:a", 1_790_000_000.0)])
+    idir = _hist_identity_dir(tmp_path, owner, ["integration://postiz/tiktok/cmx1"])
+    monkeypatch.setattr(reconcile, "_postiz_posts_between", lambda *a: [])
+    monkeypatch.setattr(reconcile, "sweep_historical_no_dispatch", lambda owner_id, **kw: {
+        "status": "swept", "owner_id": owner_id, "applied": kw["apply"], "inspected": 1})
+    code = reconcile.main(["--auto-owner", owner, "--historical-no-dispatch",
+                           "--identity-dir", str(idir), "--admission-db", str(db)])
+    out = json.loads(capsys.readouterr().out)
+    assert code == 0 and out["applied"] is False and out["owner_id"] == owner
