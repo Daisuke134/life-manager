@@ -10,10 +10,12 @@ import sys
 import tempfile
 import unittest
 from datetime import date
+from decimal import Decimal
 from pathlib import Path
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).parent))
+from adapters import google_cost_table as google_adapter  # noqa: E402
 import loop_pnl as m  # noqa: E402
 
 
@@ -27,7 +29,11 @@ HEADERS = (
 )
 
 
-def google_cost_table_csv(*, metadata_total="110", summary_total="110", malformed_header=False):
+def google_cost_table_csv(
+    *, metadata_total="110", summary_total="110", malformed_header=False,
+    usage_amount="100.123456", credit_amount="-0.003456", tax_amount="11",
+    tax_adjustment_amount="-1", rounding_amount="-0.12",
+):
     headers = list(HEADERS)
     if malformed_header:
         headers[5] = "unexpected-service-column"
@@ -49,11 +55,11 @@ def google_cost_table_csv(*, metadata_total="110", summary_total="110", malforme
         ["為替レート", "1", ""],
         ["合計お支払い額", metadata_total, ""],
         headers,
-        line("Places API", "Places Text Search", "", "使用量", "100.123456", "100"),
-        line("Places API", "Places Text Search", "SPENDING_BASED_DISCOUNT", "使用量", "-0.003456", "0"),
-        line("Google Cloud", "Tax", "", "税金", "11", "11"),
-        line("Google Cloud", "Tax adjustment", "", "税金", "-1", "-1"),
-        line("", "", "", "丸めエラー", "-0.12", "0"),
+        line("Places API", "Places Text Search", "", "使用量", usage_amount, "100"),
+        line("Places API", "Places Text Search", "SPENDING_BASED_DISCOUNT", "使用量", credit_amount, "0"),
+        line("Google Cloud", "Tax", "", "税金", tax_amount, tax_amount),
+        line("Google Cloud", "Tax adjustment", "", "税金", tax_adjustment_amount, tax_adjustment_amount),
+        line("", "", "", "丸めエラー", rounding_amount, "0"),
         line("Google Cloud", "Invoice total", "", "合計", summary_total, summary_total),
     ]
     output = io.StringIO(newline="")
@@ -134,6 +140,68 @@ class GoogleBilledExpenseTest(unittest.TestCase):
         self.assertEqual(missing, {"status": "unavailable", "reason": "source_missing", "invoices": []})
         self.assertEqual(malformed["status"], "unverified")
         self.assertIsNone(malformed["invoices"][0]["billed_total_jpy"])
+
+    def test_google_invoice_unreadable_directory_is_unknown_not_exception(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            with mock.patch.object(google_adapter.Path, "iterdir", side_effect=PermissionError("denied")):
+                billing = self._table(directory).get("google_billed_expenses")
+
+        self.assertEqual(billing, {
+            "status": "unverified", "reason": "source_list_failed", "invoices": [],
+        })
+
+    def test_google_invoice_rejects_malformed_thousands_separator(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            (directory / "2026-09-cost-table.csv").write_text(
+                google_cost_table_csv(metadata_total="1,10", summary_total="1,10"),
+                encoding="utf-8-sig",
+            )
+            billing = self._table(directory).get("google_billed_expenses")
+
+        self.assertEqual(billing["status"], "unverified")
+        self.assertIsNone(billing["invoices"][0]["billed_total_jpy"])
+        self.assertEqual(billing["invoices"][0]["reason"], "invoice_total_missing")
+
+    def test_google_invoice_does_not_round_high_precision_mismatch_to_verified(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            (directory / "2026-09-cost-table.csv").write_text(
+                google_cost_table_csv(
+                    metadata_total="10000000010", summary_total="10000000010",
+                    usage_amount="10000000000.123456789012345678",
+                    credit_amount="-0.003456789012345677",
+                    rounding_amount="-0.12",
+                ),
+                encoding="utf-8-sig",
+            )
+            billing = self._table(directory).get("google_billed_expenses")
+
+        self.assertEqual(billing["status"], "unverified")
+        self.assertIsNone(billing["invoices"][0]["billed_total_jpy"])
+        self.assertEqual(billing["invoices"][0]["reason"], "invoice_total_mismatch")
+
+    def test_google_invoice_preserves_high_precision_service_net(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            (directory / "2026-09-cost-table.csv").write_text(
+                google_cost_table_csv(
+                    metadata_total="10000000010", summary_total="10000000010",
+                    usage_amount="10000000000.123456789012345678",
+                    credit_amount="-0.003456789012345677",
+                    rounding_amount="-0.120000000000000001",
+                ),
+                encoding="utf-8-sig",
+            )
+            billing = self._table(directory).get("google_billed_expenses")
+
+        self.assertEqual(billing["status"], "verified")
+        self.assertEqual(billing["invoices"][0]["service_sku"][0]["net_billed_jpy"],
+                         "10000000000.120000000000000001")
+
+    def test_google_cost_amount_accepts_valid_grouped_yen_value(self):
+        self.assertEqual(google_adapter._amount("￥1,000.123456"), Decimal("1000.123456"))
 
     def test_google_invoice_projection_hides_account_project_and_invoice_ids(self):
         with tempfile.TemporaryDirectory() as tmp:

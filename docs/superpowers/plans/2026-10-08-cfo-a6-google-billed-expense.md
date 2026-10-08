@@ -26,7 +26,8 @@
 - Wrong amount column: the unrounded JPY column must drive arithmetic; the rounded display column is not authoritative. Test the exact expected invoice reconciliation.
 - Summary duplication: the table's `合計` row must be validated but not added to detail sums. Test one invoice whose detail arithmetic equals the metadata total.
 - Adjustment signs: discount, tax-adjustment, and rounding rows may be negative; test each signed amount independently.
-- Missing or malformed source: test that no file and invalid/mismatched CSV return unavailable/unverified with no zero amount.
+- Missing, unreadable, or malformed source: test that no file returns unavailable and unreadable/malformed/mismatched CSV data returns unverified with no zero amount.
+- Numeric integrity: reject malformed thousands grouping and keep exact Decimal precision for invoice reconciliation and service/SKU net.
 - Privacy and attribution: test that account/project identifiers are absent from output and that payment/loop attribution remain unknown/unattributed.
 
 ---
@@ -44,10 +45,10 @@
 - The canonical B0 projection calculation and receipt schema remain unchanged. `_b7_table` exposes the separate result as top-level `google_billed_expenses`; billed invoices are not turned into B0 settled receipts or added to B0 net.
 - Reads only CSV files named `YYYY-MM-cost-table.csv`; the parser ignores account and project columns in output.
 
-- [x] **Step 1: Write RED integration tests** in `skills/cfo/test_google_billed_expense.py` named `test_google_invoice_uses_unrounded_cost_and_reconciles_adjustments`, `test_google_invoice_excludes_summary_row_from_detail_sum`, `test_google_invoice_mismatch_is_unverified_not_zero`, `test_google_invoice_missing_or_malformed_source_is_unknown`, and `test_google_invoice_projection_hides_account_project_and_invoice_ids`. Use synthetic 18-column CSV rows, patch `LM_CFO_GOOGLE_BILLING_DIR`, call `_b7_table`, and assert the public B7 table output. For the valid fixture, assert usage gross `100.123456`, credits `-0.003456`, tax `10`, rounding `-0.12`, invoice billed total `110`, and a service/SKU net of `100.12`.
-- [x] **Step 2: Run RED** with `python3 -m unittest skills.cfo.test_google_billed_expense`; each new case failed by assertion because the `google_billed_expenses` table field was absent, not by import or syntax error.
-- [x] **Step 3: Implement** `skills/cfo/adapters/google_cost_table.py::load_directory(directory: Path) -> BillingProjection` and add its result at the existing `_b7_table` boundary. Read `LM_CFO_GOOGLE_BILLING_DIR` or the existing default state directory; import the helper locally inside `_b7_table` to avoid the separate RevenueCat edit hunk. Detect the header by required column names, parse `Decimal` from `四捨五入前の費用（¥）`, group gross usage and only explicitly service/SKU-matched credits, keep tax/rounding separate, exclude the `合計` row from detail sums, and expose an invoice total only after exact reconciliation.
-- [x] **Step 4: Run GREEN** with `python3 -m unittest skills.cfo.test_google_billed_expense`; 5/5 cases passed. The combined Google-cost and existing B7 test run passed 49/49, and the captured official CSV produced verified invoice total ¥27,889, cash-paid unknown, and unattributed loop scope.
+- [x] **Step 1: Write RED integration tests** in `skills/cfo/test_google_billed_expense.py` for unrounded cost/reconciliation, summary-row exclusion, mismatches, missing/malformed source, privacy, unreadable-directory handling, malformed thousands grouping, high-precision mismatch rejection, exact service/SKU net precision, and valid grouped-yen parsing. Use synthetic 18-column CSV rows, patch `LM_CFO_GOOGLE_BILLING_DIR`, call `_b7_table`, and assert public B7 output. The standard valid fixture asserts usage gross `100.123456`, credits `-0.003456`, tax `10`, rounding `-0.12`, invoice total `110`, and service/SKU net `100.12`.
+- [x] **Step 2: Run RED**. Initial tests failed because the public B7 field was absent. The independent review regressions later reproduced one uncaught `PermissionError` plus incorrect acceptance of malformed grouping and rounded high-precision totals/service net.
+- [x] **Step 3: Implement** `skills/cfo/adapters/google_cost_table.py::load_directory(directory: Path) -> BillingProjection` and add its result at the existing `_b7_table` boundary. Read `LM_CFO_GOOGLE_BILLING_DIR` or the existing default state directory; import the helper locally inside `_b7_table` to avoid the separate RevenueCat edit hunk. Detect the header by required column names, validate optional yen prefix and correctly grouped thousands before Decimal parsing, calculate invoice and service/SKU totals within the 64-digit context, reject unreadable directory listings as unverified, exclude the `合計` row from detail sums, and expose an invoice total only after exact reconciliation.
+- [x] **Step 4: Run GREEN** with `python3 -m unittest skills.cfo.test_google_billed_expense`; all 10 cases passed after the review fixes. The combined Google-cost and existing B7 test run passed 54/54, and the captured official CSV produced verified invoice total ¥27,889, cash-paid unknown, and unattributed loop scope.
 - [x] **Step 5: Commit** the parser, B7 integration, tests, and this plan.
 
 ### Task 2: Attach billed expenses to the existing CFO report
@@ -65,9 +66,11 @@
 - [x] **Step 2: Run RED** with `node --test apps/life-manager/lib/cfo-result-summary.test.js`; the two new tests failed because invoice data was omitted from the message.
 - [x] **Step 3: Implement** a compact Japanese summary with service totals and usage/credit/tax/rounding reconciliation; the JSON projection retains all service/SKU rows, while the message labels invoice month, billed total, `支払状況: 未確認`, and `loop配賦: 未帰属`.
 - [x] **Step 4: Run GREEN** with `node --test apps/life-manager/lib/cfo-result-summary.test.js`; all 15 tests passed, including the legacy text check.
-- [x] **Step 5: Run affected verification**: `python3 -m unittest skills.cfo.test_google_billed_expense skills.cfo.test_loop_pnl` (49 passed); `node --test apps/life-manager/lib/cfo-result-summary.test.js` (15 passed); `git diff --check`.
+- [x] **Step 5: Run affected verification**: `python3 -m unittest skills.cfo.test_google_billed_expense skills.cfo.test_loop_pnl` (54 passed); `node --test apps/life-manager/lib/cfo-result-summary.test.js` (15 passed); `git diff --check`.
 - [x] **Step 6: Commit** the renderer and tests.
 
 ## Scope Boundary
 
 This completes only the invoice-billed fact ingestion/display portion of A6. A6 remains open until the monitoring-estimate comparison uses a matching period and the bill's tax/credit/rounding details reconcile. Loop attribution stays unattributed unless A5/runtime evidence proves it; A8 owns the final loop-versus-company-overhead join. Do not claim cash paid or a complete company P&L from this subtask.
+
+Independent review found and the fix pass closed three important parser issues: directory-list permission errors now return `unverified`; malformed thousands grouping is rejected; invoice reconciliation and service/SKU net retain exact Decimal precision. Regression tests for each finding now pass.

@@ -13,7 +13,11 @@ from typing import Any
 
 
 MONTH_FILE = re.compile(r"^(20\d{2}-(?:0[1-9]|1[0-2]))-cost-table\.csv$")
-AMOUNT = re.compile(r"^-?(?:0|[1-9]\d*)(?:\.\d{1,18})?$")
+AMOUNT = re.compile(
+    r"^(?P<sign>-?)(?:[¥￥])?"
+    r"(?P<whole>(?:0|[1-9][0-9]*|[1-9][0-9]{0,2}(?:,[0-9]{3})+))"
+    r"(?P<fraction>\.[0-9]{1,18})?$"
+)
 REQUIRED_HEADERS = (
     "サービスの説明", "SKU の説明", "クレジットの種類", "費用のタイプ",
     "四捨五入前の費用（¥）", "費用（¥）",
@@ -37,9 +41,10 @@ def _text(value: Any) -> str | None:
 def _amount(value: Any) -> Decimal | None:
     if not isinstance(value, str):
         return None
-    text = value.strip().replace(",", "").replace("¥", "").replace("￥", "")
-    if not AMOUNT.fullmatch(text):
+    match = AMOUNT.fullmatch(value.strip())
+    if match is None:
         return None
+    text = match.group("sign") + match.group("whole").replace(",", "") + (match.group("fraction") or "")
     try:
         number = Decimal(text)
     except InvalidOperation:
@@ -109,13 +114,13 @@ def parse_cost_table_csv(data: bytes, *, invoice_period: str) -> dict:
     if billed_total is None:
         return _invoice_result(period=invoice_period, source_ref=source_ref, reason="invoice_total_missing")
 
-    service_rows: dict[tuple[str, str], list[Decimal]] = defaultdict(lambda: [Decimal(0), Decimal(0)])
-    usage_gross = credits = tax = rounding = Decimal(0)
-    summary_total = None
-    summary_count = 0
     try:
         with localcontext() as context:
             context.prec = 64
+            service_rows: dict[tuple[str, str], list[Decimal]] = defaultdict(lambda: [Decimal(0), Decimal(0)])
+            usage_gross = credits = tax = rounding = Decimal(0)
+            summary_total = None
+            summary_count = 0
             for row in rows[header_index + 1:]:
                 if not row or all(not cell.strip() for cell in row):
                     continue
@@ -155,48 +160,52 @@ def parse_cost_table_csv(data: bytes, *, invoice_period: str) -> dict:
                     rounding += exact_amount
                 else:
                     return _invoice_result(period=invoice_period, source_ref=source_ref, reason="invoice_cost_type_unknown")
+
+            if summary_count != 1 or summary_total != billed_total:
+                return _invoice_result(period=invoice_period, source_ref=source_ref, reason="invoice_summary_mismatch")
+            if usage_gross + credits + tax + rounding != billed_total:
+                return _invoice_result(period=invoice_period, source_ref=source_ref, reason="invoice_total_mismatch")
+
+            detail = []
+            for (service, sku), (gross, credit) in sorted(service_rows.items()):
+                detail.append({
+                    "service": service,
+                    "sku": sku,
+                    "usage_gross_jpy": _decimal_text(gross),
+                    "credits_jpy": _decimal_text(credit),
+                    "net_billed_jpy": _decimal_text(gross + credit),
+                })
+            return {
+                "status": "verified",
+                "invoice_period": invoice_period,
+                "currency": "JPY",
+                "billed_total_jpy": _decimal_text(billed_total),
+                "service_sku": detail,
+                "adjustments": {
+                    "usage_gross_jpy": _decimal_text(usage_gross),
+                    "credits_jpy": _decimal_text(credits),
+                    "tax_jpy": _decimal_text(tax),
+                    "rounding_jpy": _decimal_text(rounding),
+                },
+                "cash_paid_status": "unknown",
+                "allocation_status": "unattributed",
+                "source_ref": source_ref,
+                "reason": None,
+            }
     except (ArithmeticError, InvalidOperation):
         return _invoice_result(period=invoice_period, source_ref=source_ref, reason="invoice_arithmetic_invalid")
-
-    if summary_count != 1 or summary_total != billed_total:
-        return _invoice_result(period=invoice_period, source_ref=source_ref, reason="invoice_summary_mismatch")
-    if usage_gross + credits + tax + rounding != billed_total:
-        return _invoice_result(period=invoice_period, source_ref=source_ref, reason="invoice_total_mismatch")
-
-    detail = []
-    for (service, sku), (gross, credit) in sorted(service_rows.items()):
-        detail.append({
-            "service": service,
-            "sku": sku,
-            "usage_gross_jpy": _decimal_text(gross),
-            "credits_jpy": _decimal_text(credit),
-            "net_billed_jpy": _decimal_text(gross + credit),
-        })
-    return {
-        "status": "verified",
-        "invoice_period": invoice_period,
-        "currency": "JPY",
-        "billed_total_jpy": _decimal_text(billed_total),
-        "service_sku": detail,
-        "adjustments": {
-            "usage_gross_jpy": _decimal_text(usage_gross),
-            "credits_jpy": _decimal_text(credits),
-            "tax_jpy": _decimal_text(tax),
-            "rounding_jpy": _decimal_text(rounding),
-        },
-        "cash_paid_status": "unknown",
-        "allocation_status": "unattributed",
-        "source_ref": source_ref,
-        "reason": None,
-    }
 
 
 def load_directory(directory: Path) -> dict:
     """Read exact month-named CSVs from a private evidence directory without network I/O."""
     if directory.is_symlink() or not directory.is_dir():
         return {"status": "unavailable", "reason": "source_missing", "invoices": []}
+    try:
+        entries = sorted(directory.iterdir(), key=lambda item: item.name)
+    except OSError:
+        return {"status": "unverified", "reason": "source_list_failed", "invoices": []}
     candidates = []
-    for path in sorted(directory.iterdir(), key=lambda item: item.name):
+    for path in entries:
         match = MONTH_FILE.fullmatch(path.name)
         if match:
             candidates.append((path, match.group(1)))
