@@ -717,12 +717,16 @@ def _queue_priority(entry: dict) -> str | None:
     return value if isinstance(value, str) and value else None
 
 
+_DISK_FLOOR_BY_PRIORITY_MIB = {"critical_paid": 256, "revenue": 512}
+
+
 def _disk_floor(entry: dict) -> int:
-    """Paid-order producers keep a lower floor than the 2 GiB shared one (still 3x a release cut)."""
-    if entry.get("priority") != "critical_paid":
+    """Revenue producers keep shipping on a low floor; a cleanup agent owns space. Others keep 2 GiB."""
+    mib = _DISK_FLOOR_BY_PRIORITY_MIB.get(entry.get("priority"))
+    if mib is None:
         return RECOVERY_FLOOR_BYTES
-    return min(RECOVERY_FLOOR_BYTES, int(os.environ.get(
-        "LIFE_MANAGER_DISK_FLOOR_CRITICAL_PAID_BYTES", str(1024**3))))
+    override = os.environ.get(f"LIFE_MANAGER_DISK_FLOOR_{entry['priority'].upper()}_BYTES")
+    return min(RECOVERY_FLOOR_BYTES, int(override) if override else mib * 1024**2)
 
 
 def _disk_headroom_deferred(receipt_parent: Path, *, phase: str,
