@@ -43,6 +43,16 @@ IMAGE_MODEL = "gemini-3.1-flash-image"
 STATIC_IMAGE_COST_USD = Decimal("0.02")
 CANVAS = (320, 280)  # inside the 370x320 max, even dimensions, ~10px margin applied below
 MARGIN_PX = 10
+# 文字入り variant (SSOT 5.L row 5): lettering rendered deterministically with a macOS-bundled
+# Japanese font referenced by path (never copied into git), so every sticker's text is legible and
+# identical in style - image models garble Japanese glyphs.
+FONT_CANDIDATES = (
+    "/System/Library/Fonts/ヒラギノ丸ゴ ProN W4.ttc",
+    "/System/Library/Fonts/ヒラギノ角ゴシック W6.ttc",
+)
+TEXT_BAND_PX = 72  # bottom band reserved for the phrase; art shrinks into the rest
+TEXT_STROKE_PX = 6
+TEXT_MARK = {"ja": "【文字入り】", "en": " (with text)"}
 
 
 def _policy() -> dict:
@@ -88,16 +98,24 @@ format_gap に一言で記録する（無ければ null）。
 - character_id / character_prompt: 選んだキャラクターのものをそのまま引き継ぐ（画像は再利用、
   character_promptは記録用）。
 - theme: 今回の静止画セットのテーマ（そのキャラクターの過去セットと重複しない）。
+- text_mode: "no_text"（文字なし、既定）か "with_text"（文字入り）。上位作者は同じキャラで文字なし版と
+  文字入り版（「了解」「ありがとう」「おつかれさま」等の短い文字で、場面に合うスタンプを選びやすい）の
+  両方を売る。選んだキャラクターに文字なしセットが既にあり、copy_target が text_or_no_text="text" の
+  売れ筋なら "with_text" を選ぶ（市場データの文字入り売れ筋を優先して copy_target にする）。
 - stickers: ちょうど16個（LINEの静止画は8/16/24/32/40のいずれか、上位作者に多い16を使う）。毎日の
   チャットで使う意図（ありがとう・OK・ごめん・おやすみ・笑う・泣く・怒る・眠い・驚く・大好き・
   がんばる・はい・了解・お疲れ様・おはよう・こんにちは 等、上位作者の網羅パターンを参考に）を幅広く
   カバーし、各要素は id（短い英数字スラッグ、重複不可）、prompt（画像生成モデル向けの英語指示。
   キャラクターがそのポーズ・表情を1枚の静止画ではっきり表す。背景は完全な単色クロマグリーン
   #00FF00で画面全体を埋める、文字・ロゴ・透かしなし、という条件を明記する）、tags（LINEの有効タグ
-  一覧から2〜4個、下の一覧だけから選ぶ）を持つ。文字を入れない（text-freeで誰にでも送れる）。
+  一覧から2〜4個、下の一覧だけから選ぶ）、text を持つ。画像そのものには文字を描かせない（prompt に
+  文字を書かない）。text_mode が "with_text" なら text に上位作者の網羅パターンから写した短い日本語
+  フレーズ（目安8文字以内、例: 了解・ありがとう・おつかれさま）を入れる（文字は後から決まった書体で
+  描き込む）。"no_text" なら text は null。
 - main_id / tab_id: stickersの中からメインアイコン・タブアイコンにふさわしいidを選ぶ。
 - listing: title/descriptionを日本語・英語の両方で。キャラ名と「スタンプ」を含め、動く系と
-  重複しないタイトルにする（既存タイトルと重複すると申請できない）。
+  重複しないタイトルにする（既存タイトルと重複すると申請できない）。with_text なら
+  「<キャラ名>の毎日返事」のような売れ筋の付け方にする（【文字入り】の表記は自動で付く）。
 
 有効タグ一覧: {json.dumps(json.loads(TAGS_FILE.read_text()) if TAGS_FILE.exists() else [], ensure_ascii=False)}
 
@@ -107,8 +125,26 @@ JSON Schemaに厳密に従ったJSONだけを返す。stickersはちょうど16�
 def static_planner(set_dir: Path, prior_facts: list[dict], market_items: list[dict] | None = None) -> dict:
     prompt = _build_static_plan_prompt(prior_facts, market_items)
     with tempfile.TemporaryDirectory(prefix=".static-plan-", dir=set_dir) as tmp:
-        return _run_agent(prompt=prompt, schema=HERE / "schemas/static-plan.schema.json",
-                           evidence_dir=Path(tmp) / "evidence", task_label=f"line-sticker-static-plan-{set_dir.name}")
+        plan = _run_agent(prompt=prompt, schema=HERE / "schemas/static-plan.schema.json",
+                          evidence_dir=Path(tmp) / "evidence", task_label=f"line-sticker-static-plan-{set_dir.name}")
+    if plan.get("text_mode") == "with_text":
+        plan["listing"] = mark_text_listing(plan["listing"])
+    return plan
+
+
+def mark_text_listing(listing: dict) -> dict:
+    """Title says it is the 文字入り version (market pattern), clamped so the mark survives
+    line_sticker_submit._fit_listing's width-counted limit. Idempotent."""
+    from line_sticker_submit import TITLE_MAX, _clean, _fit, _title_units  # lazy: submit imports playwright
+    titles = {}
+    for lang, title in listing["title"].items():
+        mark = TEXT_MARK.get(lang, TEXT_MARK["en"])
+        base = _clean(title)
+        if base.endswith(mark.strip()):
+            titles[lang] = title
+            continue
+        titles[lang] = _fit(base, TITLE_MAX - _title_units(mark)) + mark
+    return dict(listing, title=titles)
 
 
 # --------------------------------------------------------------------------------------
@@ -140,7 +176,34 @@ def _gemini_sticker_image(ref_path: Path, prompt: str):
     return image, result.get("usageMetadata", {})
 
 
-def _fit_sticker(rgb_image) -> "object":
+def _font(size: int):
+    from PIL import ImageFont
+    for path in FONT_CANDIDATES:
+        if Path(path).is_file():
+            return ImageFont.truetype(path, size)
+    raise FileNotFoundError("no bundled Japanese font in " + ", ".join(FONT_CANDIDATES))
+
+
+def _draw_text(canvas, text: str) -> None:
+    """Dark rounded-gothic lettering with a thick white outline, centred in the bottom band."""
+    from PIL import ImageDraw
+    draw = ImageDraw.Draw(canvas)
+    max_width = CANVAS[0] - 2 * MARGIN_PX
+    size = TEXT_BAND_PX - 2 * TEXT_STROKE_PX
+    while True:
+        font = _font(size)
+        left, top, right, bottom = draw.textbbox((0, 0), text, font=font, stroke_width=TEXT_STROKE_PX)
+        if right - left <= max_width or size <= 12:
+            break
+        size -= 2
+    band_top = CANVAS[1] - MARGIN_PX - TEXT_BAND_PX
+    x = (CANVAS[0] - (right - left)) // 2 - left
+    y = band_top + (TEXT_BAND_PX - (bottom - top)) // 2 - top
+    draw.text((x, y), text, font=font, fill=(60, 40, 40, 255), stroke_width=TEXT_STROKE_PX,
+              stroke_fill=(255, 255, 255, 255))
+
+
+def _fit_sticker(rgb_image, text: str | None = None) -> "object":
     import numpy as np
     from PIL import Image
     keyed = seedance_set._key(np.array(rgb_image))
@@ -149,12 +212,16 @@ def _fit_sticker(rgb_image) -> "object":
         top, bottom, left, right = 0, keyed.shape[0], 0, keyed.shape[1]
     else:
         top, bottom, left, right = int(ys.min()), int(ys.max()) + 1, int(xs.min()), int(xs.max()) + 1
-    scale = min((CANVAS[0] - 2 * MARGIN_PX) / (right - left), (CANVAS[1] - 2 * MARGIN_PX) / (bottom - top))
+    art_height = CANVAS[1] - (TEXT_BAND_PX if text else 0)
+    scale = min((CANVAS[0] - 2 * MARGIN_PX) / (right - left), (art_height - 2 * MARGIN_PX) / (bottom - top))
     size = (max(1, round((right - left) * scale)), max(1, round((bottom - top) * scale)))
-    offset = ((CANVAS[0] - size[0]) // 2, (CANVAS[1] - size[1]) // 2)
+    offset = ((CANVAS[0] - size[0]) // 2, (art_height - size[1]) // 2)
     canvas = Image.new("RGBA", CANVAS, (0, 0, 0, 0))
     canvas.paste(Image.fromarray(keyed[top:bottom, left:right], "RGBA").resize(size, Image.LANCZOS), offset)
-    return seedance_set._fill_pinholes(canvas)
+    canvas = seedance_set._fill_pinholes(canvas)
+    if text:
+        _draw_text(canvas, text)
+    return canvas
 
 
 def _generate_sticker_image(ref_path: Path, character_prompt: str, sticker_prompt: str, task_label: str):
@@ -189,13 +256,14 @@ def static_images(set_dir: Path, plan: dict) -> None:
     out.mkdir(exist_ok=True)
     ref = set_dir / plan.get("reference", "ref-padded.png")
     character_prompt = plan.get("character_prompt", "")
+    with_text = plan.get("text_mode") == "with_text"
     for sticker in plan["stickers"]:
         png_path = out / f"{sticker['id']}.png"
         if png_path.exists():
             continue
         image, backend, cost = _generate_sticker_image(
             ref, character_prompt, sticker["prompt"], f"line-sticker-static-image-{set_dir.name}-{sticker['id']}")
-        _fit_sticker(image).save(png_path)
+        _fit_sticker(image, sticker.get("text") if with_text else None).save(png_path)
         (out / f"{sticker['id']}.cost.json").write_text(json.dumps(
             {"backend": backend, "estimated_usd": str(cost)}))
 
