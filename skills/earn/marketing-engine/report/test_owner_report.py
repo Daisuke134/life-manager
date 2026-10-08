@@ -488,6 +488,9 @@ class OwnerReportRendererTest(unittest.TestCase):
         measured_text = owner_report.render_japanese(measured)
         self.assertIn("42", measured_text)
         self.assertIn("50", measured_text)
+        self.assertIn(f"投稿リンク: {NATIVE_URL}", measured_text)
+        measured["facts"]["native_url"] = "unavailable"
+        self.assertIn("投稿リンク: 取得できませんでした", owner_report.render_japanese(measured))
 
         self.assertEqual(
             owner_report.build_events(
@@ -520,7 +523,6 @@ class OwnerReportRendererTest(unittest.TestCase):
             "product_id_null_reason": None,
             "publication_id": "postiz:post-1",
             "postiz_id": "post-1",
-            "native_url": native_url,
             "native_post_id": "native-1",
             "platform": "tiktok",
             "checkpoint_status": "measured",
@@ -553,6 +555,7 @@ class OwnerReportRendererTest(unittest.TestCase):
             event["message_key"], "checkpoint:ebook-ja:postiz:post-1:24"
         )
         self.assertEqual(event["facts"]["native_url"], native_url)
+        self.assertIn(f"投稿リンク: {native_url}", owner_report.render_japanese(event))
         self.assertEqual(event["facts"]["views"], 42)
         self.assertEqual(event["facts"]["impressions"], 50)
         self.assertIsNone(event["facts"]["reason"])
