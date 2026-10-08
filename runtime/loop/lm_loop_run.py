@@ -1557,7 +1557,21 @@ def main(argv: list[str] | None = None) -> int:
         item_lock = _label_apply_lock_path(current, entry["label"])
         with ExitStack() as apply_lock_stack:
             try:
-                apply_lock_stack.enter_context(_apply_lock(current, item_lock))
+                # The per-label apply lock is held only while that one label is being
+                # re-bootstrapped (seconds, up to ~2 minutes). A wake that lands in that window used
+                # to exit 78 at once, which loses a daily one-shot for the whole day
+                # (article-daily 06:00). Wait for it, then fall back to the recorded deferral.
+                lock_wait_deadline = time.monotonic() + float(
+                    os.environ.get("LIFE_MANAGER_APPLY_LOCK_WAIT_SECONDS", "150"))
+                while True:
+                    try:
+                        apply_lock_stack.enter_context(_apply_lock(current, item_lock))
+                        break
+                    except RuntimeError as busy:
+                        if str(busy) != "production apply is already owned" \
+                                or time.monotonic() >= lock_wait_deadline:
+                            raise
+                        time.sleep(5)
             except RuntimeError as error:
                 if str(error) != "production apply is already owned":
                     raise
