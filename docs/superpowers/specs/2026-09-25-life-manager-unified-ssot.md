@@ -4084,6 +4084,31 @@ private配布物probe: baseline9cases＋retry0 override2cases。defaultdisconnec
 retry0 privateglobalinstance + projectSettingsPolicy=ignoreの追加fake2casesもPASS（disconnect1request/0retry/8.839秒、次invoke成功、survivor0）。fakeruntime合計13cases。MX-04bの配置は実測済み、native/backend/account/economicsは別unmeasured。
 
 
+## OpenClaw source実装カーソル（本番非変更）
+
+目的: 既存agentを止めず、専用worktreeで移行接続を実装する。完了条件: 関連テスト、read-only review、commit/push、PRのsource証拠。自然仕事・公式receiptを確認するまで本番移行完了としない。
+範囲: `runtime/openclaw/` のportable paths、closed request、stable identity、排他的dispatch保存、private Gateway境界。既存runner/registry/auth/launchd/注文stateへ未接続。
+設計参照: docs/main-agents-readiness branchの `2026-10-07-main-agents-readiness.md` OC/NC/MI atoms。
+順序変更: 旧=OC001/014/NC02→Gateway。新=OC001–006→OC007–013→profile/native fence→domain/admission接続→owner移行。理由: profileを本番検証する前に、再送防止とsecret境界をsourceで成立させる。現在cursor=OC012（pinned runtime conformance未完）。
+- [x] OC001 lock: `runtime/openclaw/package.json`/lockに公開5package exact version/integrity。既存probe lock再利用、package-lock-only/ignore-scripts完了。公開runtime conformanceはOC012へ未完として分離。
+- [x] OC002: `paths.mjs::resolveHarnessPaths` 既存data root再利用。
+- [x] OC003/004: `protocol.mjs::validateRunRequest/buildRunIdentity` closed v2、同task stable key、fresh task session。
+- [x] OC005/006: `dispatch_store.py::load_dispatch/save_dispatch` 排他lock、0600、fsync、tuple/digest照合、unknown再送禁止。
+- [x] OC007–010 source boundary: `gateway-client.mjs` 公式SDKだけでhello/submit/wait/abort/exact session照合。
+- [ ] OC012: pinned SDK/runtimeの隔離contract検証（fake model、外部効果0）。
+- [x] OC013: `environment.mjs::buildGatewayEnv` private rootとallowlist、ambient secrets非継承。
+未完のprofile/claim/tool broker/caller/商品binding/cutover/退役は元設計のまま。すべてsource PASSまで公開route有効化0。Temporal追加なし、native ChatGPT Codex以外の推論fallbackなし。
+
+Source evidence: Node 14tests/Python 6tests PASS、RPC境界はinjected test clientで確認（real Gateway/native Codexは未確認）。正式protocol依存は `@openclaw/gateway-protocol`（旧名称404を修正）。lock生成時ENOSPCの固有npm tmpのみ撤去、既存lock再利用で生成成功。host Node25.6.1はpin/runtime engine不適合、Node24.16.0 bundle復元が必要。
+- [ ] OC011: `gateway-client.mjs::readSession` のexact scoped row readは実装済み。公開pinned rowにactiveRunIdsがないためliveness unknown保持。`OC020` に使うsupported lifecycle proofを実装し、それまでclaim解放/route有効化0。
+- [ ] OC012: package-lockからisolated bundleを作り、Node24.16.0 + SDK2026.8.1 + runtime2026.9.8でhello/agent.wait/abortをprivate fixture検証。各runのreceipt/liveness fieldは固定版sourceに照合してconsumerを修正。
+- [ ] OC014/NC02/NC04: `profile.mjs` + native endpoint account readback + restricted tool policy。個人Codex login/logout/restart/import0、既存endpointへattach。
+- [ ] OC017–028: `admission.py`/`tool_broker.py`/pluginと `lm_loop_run.py` のclaim lifetime接続。未確認effectを再送せず既存domain guardを通す。
+- [ ] OC029–035/MI01–02: full caller artifact/schema/usage/画像/owned thread fork、既存 `agent_runner.py` へdisabled route接続。
+公開sourceを追加しただけではdurability/同時稼働/revenue改善は未証明。本番gateway/scheduler/agent/source routes変更0。
+
+Independent review: 3件の実不具合（再接続readiness、digest型coercion、read不能なoversized receipt保存）を各RED→GREENで修正。sourceテスト20 PASS。PR #7280 https://github.com/Daisuke134/life-manager/pull/7280 。本番移行は未完。
+
 ## Host disk recovery incident
 
 目的: Macの容量逼迫を安全回収し、既存cleanupの稼働と管理下の有限ジョブの容量ガードを修復する。
@@ -8990,23 +9015,9 @@ This entry supersedes the prior producer-review cursor. CFO priority remains A5 
 
 **Current cursor:** observe PID65831 to natural terminal → latest immutable pointer/owner SHA/doctor → storage owner fresh readback → built-in CFO queue rebind → natural receipt-backed report → A5 → A6 → A8 → A9 → A10.
 
-### Marketing IntelからWriterへの記事候補連携（並列作業）
+### Marketing Intel→Writer連携の旧スナップショット
 
-**目的:** `marketing-weekly-review`がTelegramへ報告する未検証の`CONTENT`戦術を、既存Writerの`article-daily`トピックキューへ候補として渡す。AffiliateやX repostには配線しない。
-
-**契約:** `playbook.jsonl`から`testable=true`、statusが`new`または`queued`、`applies_to`に`content`を含み、`evidence_url`・`source_url`・`source-enrichments.jsonl`のいずれかで正確な出典URLを持つ戦術だけを取り込む。未処理戦術を出典付きの一枚のWriter topic cardにまとめ、`queue`・`in-progress`・`done`を通じて重複させない。記事カードは一人の読者、持ち帰る結果、支払う理由、検証計画を含み、戦術は実証済み効果ではなく検証仮説として扱う。`SOURCE FAILURES`は記事ネタに混ぜない。候補の作成は公開ではなく、Writer既存の需要・出典・品質ゲートとnote/SNS配信を維持する。
-
-**受入:** 最小fixtureで対象フィルタ、出典URL復元、未処理IDのみの取り込み、再実行と処理済みstageでの重複ゼロを確認する。`article-daily`が通常のtopic-state初期化後にこの取込を呼び、既存キューの選択順を保持する。source統合後はnumeric free-space admissionを待たず自然occurrenceでWriterの既存公開経路を通し、公開URLと公式売上readbackを確認するまで収益を主張しない。
-
-**順序:** source/test変更は現在のguard PR・disk cleanupの主cursorと独立して進め、主cursorの順序は変更しない。Writer runtimeへはowner idleとtopic-state lock freeを確認して候補カード1枚だけを追加した。これは公開ではない。production反映と自然実行はowner idle・lock free・effect fence解消後に行う。cleanup receiptの`free_after`・`errors`・`protected_deletions`は回復診断値であり、2 GiB到達をWriterのadmission条件にしない。
-
-**進捗:** PR #7158は全required CIとfresh read-only SHIP review後、main commit `be130839878c2e46bc677ee225fa19ae48785288`としてmerge済み。importerのfixtureはRED→GREENで、CONTENT対象・URL復元・queue/in-progress/doneの重複ゼロ・既存queue順維持を確認した。実データのdry-runは8戦術を1カードにまとめた。Writer runtime queueにも`marketing-intel-content-tactics-20261008.md`を登録し、同じ8 IDsと出典URLをreadbackした。既存の`paid-demand-*`カードが先に選ばれる順序を維持している。
-
-**production blocker (2026-10-09 readback):** `article-daily` is still installed on SHA `25bee172fa532b848b106c317766b36e1ddd1ddb`; its last terminal (`18dc93d7507dfae0-6815`, Oct 8 14:23 UTC) is `host_admission_deferred:disk_headroom_low`, exit 75, with no provider receipt/readback. The cleanup owner is on SHA `1fe7db3b634bb910187b846c7246aa7fe0dcba82` and its latest status is `loaded-idle / pass / exit 0` (Oct 8 15:17 UTC). The cleanup recovery metric remains 2 GiB; a previous receipt reported `free_after=882302976` bytes, which is not a producer admission rule. Current read-only `df` reports about 2.47 GiB free. PR #7179 removes numeric producer floors but is not yet in production. Affiliate is independently fenced by publish `resource_effect_unknown`; Capafy is independently fenced by publish `effect_unknown`. Both still require exact official readback before replay.
-
-**現在cursor:** PR #7179をmerge・releaseし、Writerをnumeric capacity gateなしで自然実行させる（owner lock・effect fenceを維持し、既存の先行カードを保つ）→ Affiliate/Capafyの各unknown publishをofficial readbackで照合し、証拠のないものは再送しない → 公開URL・note paywall状態・PartnerStack/公式売上readbackと実費を同じcampaignへ結ぶ。
-
-**履歴の扱い:** 以下の2026-10-08 capacity記録は当時の観測として保持する。そこにある「2 GiBまで待つ」producer admission手順は、この文書上の2026-10-09 numeric-gate removal方針で置き換え済み。2 GiBはcleanup回復receiptの指標だけに使う。
+→ 判断・契約・受入条件・現在cursorは本SSOTの「Marketing Intel→Writer: 需要検証済み記事への補助コンテキスト」を参照。以前のtopic queue import案は、Writerのpaid-demand専用契約に反するため廃止。
 
 ### 2026-10-08 22:02 JST — capacity cursor refreshed from live disk/admission evidence
 
@@ -9114,17 +9125,34 @@ This entry supersedes the prior producer-review cursor. CFO priority remains A5 
 5. target別effect fenceをofficial provider readbackで解決してからConnector/Luma、Job Hunter/Workday、Fundraiser/VC・AI founderの各loopを自然実行し、receipt、`gpt-6-luna/max/fast`、Telegram reportをoccurrenceへ結び付ける。`effect_unknown`は再送せず、numeric free-spaceは実行条件にしない。
 6. 三loopと同じ時間窓のclaims/reservations/eligible queue age/admission reason/class contention/CPU/RAM/diskと実同時稼働数を測定する。global cap 8は設定値と実測capacityを分け、disk/owner修正後もcap飽和でrevenue ownerが待つと証明された場合だけ最小のclass/global変更を行う。応募、返信、面談、funding、settled cash、costsを別々に記録する。
 
-### Marketing IntelからWriterへの記事候補連携（並列作業）
+### Marketing Intel→Writer: 需要検証済み記事への補助コンテキスト
 
-**目的:** `marketing-weekly-review`がTelegramへ報告する未検証の`CONTENT`戦術を、既存Writerの`article-daily`トピックキューへ候補として渡す。AffiliateやX repostには配線しない。
+目的: marketing-weekly-reviewがTelegramへ送るCONTENT戦術を報告だけで終わらせず、既存Writerが需要検証済みトピックの記事を作る時の補助材料として使う。今回のメッセージ自体はMarketing Engineの仮説レポートであり、AffiliateやX repostの実行・成果・売上を示さない。直接その二つへ配線しない。
 
-**契約:** `playbook.jsonl`から`testable=true`、statusが`new`または`queued`、`applies_to`に`content`を含み、`evidence_url`・`source_url`・`source-enrichments.jsonl`のいずれかで正確な出典URLを持つ戦術だけを取り込む。未処理戦術を出典付きの一枚のWriter topic cardにまとめ、`queue`・`in-progress`・`done`を通じて重複させない。記事カードは一人の読者、持ち帰る結果、支払う理由、検証計画を含み、戦術は実証済み効果ではなく検証仮説として扱う。`SOURCE FAILURES`は記事ネタに混ぜない。候補の作成は公開ではなく、Writer既存の需要・出典・品質ゲートとnote/SNS配信を維持する。
+確認済みの不整合: PR #7158のimporterは汎用marketing-intelカードをtopics/queueへ書く。一方、Writerのclaim_supplyはtopic_source: paid-demandと有効なdemand_cardがないカードを隔離し、demand_authority --demand-mode requiredはそのキューだけを唯一の話題権威として検査する。article-dailyがclaim後に同じ未検証カードを再投入するため、需要カードにならず、排除と再投入を繰り返す。PR #7274は既定でimporterを止めてキュー汚染を避けたが、同時にMarketing IntelをWriterから切り離した。どちらも記事制作・収益への連携ではない。
 
-**受入:** 最小fixtureで対象filter、出典URL復元、未処理IDのみの取り込み、再実行と処理済みstageでの重複ゼロを確認する。`article-daily`が通常のtopic-state初期化後にこの取込を呼び、既存キューの選択順を保持する。source統合後はnumeric free-space admissionを待たず自然occurrenceでWriterの既存公開経路を通し、公開URLと公式売上readbackを確認するまで収益を主張しない。
+現行runtime evidence: article-daily occurrence article-daily:18dcb160db0ac660-67443はexit 75、effect unknown、receipt/readbackなし。run logはmarketing-intel-48c88abc36f3.mdの再投入後に「demand topic queue contains non-paid-demand cards」と「demand authority blocked generation」を記録し、runにはpublication artifactもarticles.jsonl rowもない。lm-loop pre-effect-reconcile --dry-runはno_pre_effect_terminalでunprovableを返すため、公式readbackまではfenceを維持し再送しない。Affiliate occurrence affiliate-loop:18dcb253cf3b9cf8-41565とX repost occurrence x-repost:18dcb1c3aeb99600-88116もeffect unknown/receiptなし。writer-sales-measureの最新ledger rowはunknownで公式readbackなし。Telegramに貼られたレポートは情報受領を示すだけで、記事公開・Affiliate/X投稿・売上を示さない。
 
-**順序:** source/test変更は現在のguard PR・disk cleanupの主cursorと独立して進め、外部effectやowner stateを触らない。主cursorの順序は変更しない。production反映と自然実行はowner idle、topic-state lock-free、effect fence解消後に行う。cleanup receiptの`free_after`は診断値であり、2 GiB到達をadmission条件にしない。
+契約: Marketing Engineのplaybook.jsonlから、出典URL付き・testable=true・statusがnewまたはqueued・applies_toにcontentを含む戦術だけを抽出する。Writer runtimeのstrategy-context/marketing-intel.mdへ仮説として保存し、当該article-daily実行でrefreshが成功した時だけprompt末尾へ付加する。Writerは先に既存のpaid-demand topicを選択・束縛し、その記事に関係する場合だけ補助コンテキストとして使う。refresh欠落・失敗時は以前のcontextを使わず、既存Writerフローを続ける。contextは未信頼の出典データとして扱い、指示として実行しない。読者、課題、需要根拠、題材、価格、公開可否は検証済みpaid-demand cardと既存ゲートが所有する。関係しない戦術は無視し、SOURCE FAILURESは記事材料にしない。主張は出典に帰属し、実証済み効果や収益として書かない。
 
-**現在cursor:** fixture RED → 最小importerとarticle-daily接続 → focused acceptance → commit/push・PR/merge → immutable release → Writer natural occurrence without numeric capacity wait → 公開URL・公式売上readback。
+順序変更: 旧順序は「CONTENT戦術を新しいWriter topic cardにして必須キューへ投入する」だった。PR #7274のopt-inだけでは使われない状態が続く。新順序は「Marketing Intelを別の戦略コンテキストに保存し、当該実行のrefresh成功後に、Writerがpaid-demand cardを確定した記事へだけ適用する」。理由は、旧経路がWriterの需要契約に反し、claim loopで隔離されて記事にも収益にもならないと実運用で確認したため。AffiliateとX repostの動作をこの記事連携の根拠にはしない。
+
+受入条件: focused fixtureで対象フィルタ・出典URLの復元・戦術IDの一意性を確認し、importer実行前後でtopics/queueが一切変わらないことを確認する。成功refresh後のpromptだけがcontextを含み、欠落・破損したplaybookのrefresh失敗後は古いcontextを含まない。paid-demand cardが唯一のtopic authorityとして維持される。source変更後は同じ既存公開経路の自然実行で実際の記事URLと公開状態を取得し、公式売上readback・実費・replay-zeroまで確認する。既存effect_unknownは公式readbackを得るまで再送しない。
+
+現在cursorと残TODO:
+
+1. [x] 誤ったtopic queue経路と#7274 opt-inの限界を記録し、旧動作でqueue不変のregression testがREDになることを確認する。
+2. [x] Importerを別のstrategy-contextへ決定的に出力し、現在実行のrefresh成功時だけWriter prompt末尾へ渡す。claim_supplyとdemand_authorityは変更しない。
+3. [x] production importer/prompt shell blockをfixture上で実行するfocused regression、missing/malformed refresh、bash -n、diff checkを通す。敵対的reviewで見つかったstale-context経路、行継続、旧opt-in test残留を修正し、直接実行とunittest discoverの双方で1/1 PASS。
+4. [x] ./bin/lm-loop-contractはok=true、18 catalog loops、188 registry jobs、errors 0。
+5. [x] fresh adversarial reviewはSHIP、critical/high/medium/low指摘なし。c701846へrebase後もdirect/discover regression、bash -n、diff check、loop contractがPASS。
+6. [x] 専用branchをcommit/pushし、PR #7283を作成。mainがc701846へ進んだため最新headへrebaseし、focused testとloop contractを再確認した。
+7. [x] PR #7283はmergeable/CLEAN。GitHub check_runsは0件、branch protectionはrequired approvals 0・required checksなし。Local acceptanceとfresh adversarial reviewはPASS/SHIP。
+8. **現在cursor:** PR #7283を--adminで先にmergeし、origin/mainとmerge SHAをreadbackする。
+9. main由来immutable releaseを適用し、effect_unknownを先に公式readbackで解決してからWriterの自然occurrenceを確認する。未解決fenceがある間はpublishを再試行しない。
+10. 記事の公式URL・paywall/公開状態・売上・実費を同じ記事/occurrenceに結び付け、重複公開ゼロを確認する。
+
+現在cursor: step 8 — PR #7283 mergeとmain readback。
 
 ### 2026-10-08 23:00 JST — PR review/CIとlive capacityの初回readback
 
@@ -9802,6 +9830,8 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 
 **順序更新:** 旧順序=`class-rebind helper修正 → focused acceptance → PR merge → next natural release adoption`。新順序=`(1) 稼働中旧-release reconcileは停止せずread-only観測 → (2) `job-search-inbox`へ明示 `reconcile_queued_release=true` を付け、class-only driftがnatural reconciler候補になるRED testを作る → (3) class drift + live reservationを別statusで返し、`_admission_rebind_guard`がrelease installをpendingにするRED testを作る → (4) 2経路を最小実装し、helperとcallerのfocused acceptanceを通す → (5) fresh review、同一head CI、main統合 → (6) active old-release runのterminal後、次のnatural applyで新SHA/argvとqueue class=`agent`を確認 → (7) 既存agent claims/reservationsをowner terminalで自然に解放し、effect-unknownは公式readbackまでfencedのまま保持 → (8) Job Hunter marker/Workday receipt → (9) Connector/Luma receiptとFundraiser 6 unknownの公式readback → (10) ENOSPC writer帰属・再発防止 → (11) queue/provider/host headroomを同一窓で測り、eligible backlogが安全headroomを超える時だけbounded scale/horizontal workerを進める`。理由はfresh adversarial reviewが、helperの成功だけではnatural reconcilerが候補化しないことと、reserved判定後にclass不一致のrelease installが通ることを実コードで確認したため。稼働中のreconcileと共有stateはsource作業から分離し、止めない。701 MiBやcleanupの2 GiB recovery metricはproducer admission gateではない。
 
+**順序再更新:** 旧cursor=`16. natural applyでadmission queue/capacityを読む → ... → 20. ENOSPC writerを帰属して再発防止`。新cursor=`16. 確認済みAdmission SQLite一時B-tree経路をテスト先行で除去 → 17. natural applyでadmission queue/capacityを読む → ... → 21. 残るENOSPC writerを別途帰属`。最新main `ccfb0bca45ebf9bac29ab65d0903b12ecdc0ca1b`で`_pending_admission_owners()`の実SQLを読み、実DB（150,876,160 bytes、読み取り専用）を`EXPLAIN QUERY PLAN`した。現行`UNION`は2つの`USE TEMP B-TREE FOR ORDER BY`を作る。`UNION ALL`はtemp B-treeを作らず、owner指定の`EXISTS`は`idx_occurrences_owner_state_effect`とqueueのunique indexを使う。直近のENOSPCは同じreaderでSQLite `database or disk is full`として記録されており、capacity applyの次cursorがこの一時領域に依存するため先に閉じる。これはAdmission reader経路の再発防止であり、ホスト全体の空き容量を保証するものではない。numeric disk thresholdは追加せず、その他のwriter attributionは残TODOに維持する。
+
 **残TODO（完了まで・この順）:**
 
 1. **完了:** 12/5案の誤りを直し、latest-main base `724e18f01713681b8dde0e9af985c0da9e7bf593`をmerge commit `09214f24335ecacd907a6d1ce3cc27dc5ecadcb7`で取り込んだ。
@@ -9819,15 +9849,16 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 13. **完了—GREEN:** `job-search-inbox` declares `reconcile_queued_release=true`; class change with a live reservation returns `resource_class_reserved`; `_admission_rebind_guard` maps that status to pending even when `allow_reserved_release_rebind=true`. Policy-only reservation rebind behavior remains unchanged. The generated registry fixture includes the opt-in.
 14. **完了—source integration:** PR #7249 exact head `f70dc238e745c4def7cc5c42b9c50f63841f294f` passed fresh adversarial review and all GitHub checks, then merged as `4c5f1e60d3e5007897b57a30f186e80e1215585d`.
 15. **完了—inbox queue migration:** main-derived release `4dfb3c98` installed; queue sequence `579183` migrated to `agent` without changing occurrence identity/fence; natural inbox occurrence `18dcaef910e4da10-6579` passed. The inbox produced no Workday/provider receipt because it is an effect-free observer.
-16. **現在cursor—natural applyと容量台帳照合:** release `20261009T080847-25e89f07`を対象loopへ自然適用し、`~/loops/current/bin/lm-loop status all`で4 ownerのloaded SHA/argv・terminalを読む。read-only admission DBのqueue 51 agent / 39 deterministicと、runtimeのlive claims/reservationsを別々に照合し、36,391件のagent `effect_unknown` ledgerをprocess数と誤認せず、公式readbackまで変更・解放しない。
-17. Job Hunter dailyはSHA `6708b97f`で、最新 occurrence `18dcb0048c1d48f0-6197`がexit 75 / `resource_capacity_busy`、Workday receiptなし。過去の`entrypoint_exit_2`を作った`terminal-failure.json`の最初のwriterを追跡し、markerを消さずretry境界を修復する。自然run後にWorkday application receiptを確認する。
-18. Connector (`life-manager-connector-native`) はSHA `6708b97f`、occurrence `18dcb03b9d9599e8-53078`が`entrypoint_exit_1`、Luma receiptなし。`skills/connector/run.sh`とbrowser identity registryを追い、`interactive:dais`を使わないConnector所有identity/attach経路を解決してから自然runし、公式registration receiptを確認する。
-19. FundraiserはSHA `6708b97f`、latest occurrence `18dcb04a89e5efd8-88656`がexit 75 / `resource_capacity_busy`、mail receiptなし、過去の6 unknown occurrenceが未解決。provider/mailboxの公式readbackで効果有無を確定し、unknown対象はfence維持。VC/AI-founderの新規候補を重複排除し、各送信をreceiptへ結ぶ。
-20. recurring ENOSPC writerをownerまで帰属し、disk cleanup receipt、同一時刻`df`、closed/open status、recurrenceを記録する。operator stopは現receiptでabsent。VCSdd feature pathはログに出るが、writer ownerの帰属は未完了。protected path、release、worktree、browser identityは削除・停止しない。
-21. production capacity adoption後、queue owner数と最古eligible age、live claims/reservations/profile/class contention、実finite-run数、CPU/RAM/swap/diskを同一窓で測る。headroomがありeligible backlogが残る場合だけbounded scale/horizontal workerを進める。
-22. 3 target loopの自然terminal、Luma/Workday/VC-mail official receipt、`gpt-6-luna/max/fast`、existing Telegram reportを同じoccurrenceに結び、unknown fence/replay-zeroとqueue/capacity readbackを完了条件にする。
+16. **部分完了—Admission SQLiteのtemp spillを除去:** 修正前REDでglobal `UNION` queryの実fixture planに`USE TEMP B-TREE FOR ORDER BY`が2個現れ、owner単位predicateが未実装であることを確認。`_pending_admission_owners()`は`UNION ALL` + Python set dedupeに変更し、`_admission_rebind_guard`はowner複合index/queue unique indexを使う`EXISTS` predicateへ変更した。claimed（effect_unknown問わず）/queued（queue rowあり、effect_unknown=0のみ）の意味を実schema fixtureで固定。latest main `e0c7fd0e`のmerge後、read-only/apply/host-admission/registry suiteは**520 passed / 243 subtests passed**。さらにmain `f7db4f57`まで同期後、read-only/apply suiteは**231 passed / 42 subtests passed**、`./bin/lm-loop-contract`は18 loops / 188 jobs / 113 mapped / errors 0でPASS。後続main差分はdocs/Writer loopのみ。両production queryのplanにtemp B-treeがないことも回帰testで確認した。最初の共通pytest tmp root runはsetup時のdirectory creation errorsを出したが、同時点の`df`は2.2 GB available、run固有`--basetemp`で再実行すると全件PASSした。並行suiteではrun固有`--basetemp`を使う。残り: final-head review/CI、main merge、自然release適用後の同じreader ENOSPC不在readback。
+17. **次—natural applyと容量台帳照合:** 上記のsource fixがmain-derived releaseへ自然適用された後、`~/loops/current/bin/lm-loop status all`で4 ownerのloaded SHA/argv・terminalを読む。read-only admission DBのqueue 51 agent / 39 deterministicとruntimeのlive claims/reservationsを別々に照合し、36,391件のagent `effect_unknown` ledgerをprocess数と誤認せず、公式readbackまで変更・解放しない。
+18. Job Hunter dailyはSHA `6708b97f`で、最新 occurrence `18dcb0048c1d48f0-6197`がexit 75 / `resource_capacity_busy`、Workday receiptなし。過去の`entrypoint_exit_2`を作った`terminal-failure.json`の最初のwriterを追跡し、markerを消さずretry境界を修復する。自然run後にWorkday application receiptを確認する。
+19. Connector (`life-manager-connector-native`) はSHA `6708b97f`、occurrence `18dcb03b9d9599e8-53078`が`entrypoint_exit_1`、Luma receiptなし。`skills/connector/run.sh`とbrowser identity registryを追い、`interactive:dais`を使わないConnector所有identity/attach経路を解決してから自然runし、公式registration receiptを確認する。
+20. FundraiserはSHA `6708b97f`、latest occurrence `18dcb04a89e5efd8-88656`がexit 75 / `resource_capacity_busy`、mail receiptなし、過去の6 unknown occurrenceが未解決。provider/mailboxの公式readbackで効果有無を確定し、unknown対象はfence維持。VC/AI-founderの新規候補を重複排除し、各送信をreceiptへ結ぶ。
+21. 残るrecurring ENOSPC writerをownerまで帰属し、disk cleanup receipt、同一時刻`df`、closed/open status、recurrenceを記録する。operator stopは現receiptでabsent。VCSdd feature pathはログに出るが、writer ownerの帰属は未完了。Admission reader以外のwriterは独立して調査し、protected path、release、worktree、browser identityは削除・停止しない。
+22. production capacity adoption後、queue owner数と最古eligible age、live claims/reservations/profile/class contention、実finite-run数、CPU/RAM/swap/diskを同一窓で測る。headroomがありeligible backlogが残る場合だけbounded scale/horizontal workerを進める。
+23. 3 target loopの自然terminal、Luma/Workday/VC-mail official receipt、`gpt-6-luna/max/fast`、existing Telegram reportを同じoccurrenceに結び、unknown fence/replay-zeroとqueue/capacity readbackを完了条件にする。
 
-**現在cursor:** `25e89f07`の次の自然fleet/owner applyと4 ownerのloaded SHA/argvを確認 → live claims/reservationsとqueue/effect-unknown ledgerを分離して照合 → Job Hunter markerを保持した修復後にWorkday receipt → Connector専用identity解決後にLuma receipt → Fundraiser 6 unknownの公式readbackと新規候補の重複排除 → recurring ENOSPC writerをownerまで帰属・再発防止 → queue age/provider lease/CPU/RAM/swap/diskを同じ時間窓で測り、headroomがある場合だけbounded scale → 3 laneのnatural terminal・公式receipt・指定model/Telegram report・unknown fence/replay-zeroをoccurrence単位で確認。
+**現在cursor:** final-head review/CIとAdmission reader fixのmain integration → 自然releaseでsource SHA採用と同じread queryのENOSPC不在を確認 → 4 owner natural applyとqueue/claims/reservationsを分離照合 → Job Hunter marker保持修復とWorkday receipt → Connector専用identityとLuma receipt → Fundraiser 6 unknownを公式readback → Admission reader以外のENOSPC writer attribution → 同一窓のcapacity測定と必要なbounded scale → 3 lane natural terminal・official receipt・指定model/Telegram report・unknown fence/replay-zero。
 
 ### 2026-10-09 05:08 JST — slot-guard implementation and measured metrics health
 
@@ -10109,27 +10140,24 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **現在cursor:** A6 Google cash readback → A6 usage trace → A8 all-loop/job actual coverage → A9 source-period reporting → A10 seven-day natural acceptance。Money Tree/personal cashとCloud API置換・削減は対象外。
 
-## OpenClaw source実装カーソル（本番非変更）
+### 2026-10-09 08:44 JST — Google cash route verified; park payment readback and advance to usage trace
 
-目的: 既存agentを止めず、専用worktreeで移行接続を実装する。完了条件: 関連テスト、read-only review、commit/push、PRのsource証拠。自然仕事・公式receiptを確認するまで本番移行完了としない。
-範囲: `runtime/openclaw/` のportable paths、closed request、stable identity、排他的dispatch保存、private Gateway境界。既存runner/registry/auth/launchd/注文stateへ未接続。
-設計参照: docs/main-agents-readiness branchの `2026-10-07-main-agents-readiness.md` OC/NC/MI atoms。
-順序変更: 旧=OC001/014/NC02→Gateway。新=OC001–006→OC007–013→profile/native fence→domain/admission接続→owner移行。理由: profileを本番検証する前に、再送防止とsecret境界をsourceで成立させる。現在cursor=OC012（pinned runtime conformance未完）。
-- [x] OC001 lock: `runtime/openclaw/package.json`/lockに公開5package exact version/integrity。既存probe lock再利用、package-lock-only/ignore-scripts完了。公開runtime conformanceはOC012へ未完として分離。
-- [x] OC002: `paths.mjs::resolveHarnessPaths` 既存data root再利用。
-- [x] OC003/004: `protocol.mjs::validateRunRequest/buildRunIdentity` closed v2、同task stable key、fresh task session。
-- [x] OC005/006: `dispatch_store.py::load_dispatch/save_dispatch` 排他lock、0600、fsync、tuple/digest照合、unknown再送禁止。
-- [x] OC007–010 source boundary: `gateway-client.mjs` 公式SDKだけでhello/submit/wait/abort/exact session照合。
-- [ ] OC012: pinned SDK/runtimeの隔離contract検証（fake model、外部効果0）。
-- [x] OC013: `environment.mjs::buildGatewayEnv` private rootとallowlist、ambient secrets非継承。
-未完のprofile/claim/tool broker/caller/商品binding/cutover/退役は元設計のまま。すべてsource PASSまで公開route有効化0。Temporal追加なし、native ChatGPT Codex以外の推論fallbackなし。
+このsnapshotは、gcloud/Gmail identityとIAM、Googleの公式Billing docs、登録済みbrowser identityをread-onlyで再確認した結果を反映する。Google September cash-paid statusは依然unknownであり、不払いとは断定しない。
 
-Source evidence: Node 14tests/Python 6tests PASS、RPC境界はinjected test clientで確認（real Gateway/native Codexは未確認）。正式protocol依存は `@openclaw/gateway-protocol`（旧名称404を修正）。lock生成時ENOSPCの固有npm tmpのみ撤去、既存lock再利用で生成成功。host Node25.6.1はpin/runtime engine不適合、Node24.16.0 bundle復元が必要。
-- [ ] OC011: `gateway-client.mjs::readSession` のexact scoped row readは実装済み。公開pinned rowにactiveRunIdsがないためliveness unknown保持。`OC020` に使うsupported lifecycle proofを実装し、それまでclaim解放/route有効化0。
-- [ ] OC012: package-lockからisolated bundleを作り、Node24.16.0 + SDK2026.8.1 + runtime2026.9.8でhello/agent.wait/abortをprivate fixture検証。各runのreceipt/liveness fieldは固定版sourceに照合してconsumerを修正。
-- [ ] OC014/NC02/NC04: `profile.mjs` + native endpoint account readback + restricted tool policy。個人Codex login/logout/restart/import0、既存endpointへattach。
-- [ ] OC017–028: `admission.py`/`tool_broker.py`/pluginと `lm_loop_run.py` のclaim lifetime接続。未確認effectを再送せず既存domain guardを通す。
-- [ ] OC029–035/MI01–02: full caller artifact/schema/usage/画像/owned thread fork、既存 `agent_runner.py` へdisabled route接続。
-公開sourceを追加しただけではdurability/同時稼働/revenue改善は未証明。本番gateway/scheduler/agent/source routes変更0。
+- gcloud active identityはcredential SSOTのGoogle accountと一致し、Cloud Billing accountは1件open、active principalは`roles/billing.admin`。そのため確認済み阻害点はgcloud IAM不足ではない。
+- 同じactive identityに結び付くGmail profileで2026-09請求のpayment/receiptを期間限定検索したが0件だった。メール不在は決済不在の証拠ではない。
+- [Google公式のpayment history手順](https://docs.cloud.google.com/billing/docs/how-to/view-history)はTransactions pageを正規のcost/payment historyとし、必要permissionを`billing.accounts.getPaymentInfo`と記載する。active accountにはBilling Admin roleがある。[公式receipt手順](https://docs.cloud.google.com/billing/docs/how-to/get-invoice)もreceiptをTransactions pageから取得すると説明する。BillingAccount REST resourceにはaccount metadata/IAM等のmethodがあるが、transaction history methodは掲載されていない。
+- `coconala:kosuke`のregistered browser contextは正しい`gig-daily-driver` vaultを指定してもactive gcloud identityを表示せず、`www.google.com`へ到達。context/browser leaseは正常release済み。Cloud Billing pageは開かず、再ログイン・recovery・`interactive:dais`利用・Money Tree・銀行画面・決済変更は行っていない。よって残るA6 cash阻害点は、same-account authenticated Cloud Billing browser sessionが現在の登録identityからreadbackできないこと。
+- PR #6847はOPEN/DRAFTの候補実装だがproduction evidenceではない。次のA6 usage作業では既存branchを変更せず、current mainのproducer/call-site/runtime trace経路を調べてから重複しない所有範囲を決める。
 
-Independent review: 3件の実不具合（再接続readiness、digest型coercion、read不能なoversized receipt保存）を各RED→GREENで修正。sourceテスト20 PASS。PR #7280 https://github.com/Daisuke134/life-manager/pull/7280 。本番移行は未完。
+**順序更新と理由:** 旧cursor=`A6 Google cash receipt → A6 usage trace → A8 → A9 → A10`。新cursor=`(1) A6 Google usage trace（現在、コードとtestで進められる） → (2) A8 all-loop/job actual coverage → (3) A9 source-period report → (4) A6 Google cash receipt（same-account Transactions sessionが利用可能になったら再開。A10より前に閉じる） → (5) A10 seven-day natural acceptance`。公式payment receiptへ至る登録browser pathが確認できなかったため、cash statusをunknownのまま保持して独立して進められるtrace/coverage/report作業へ進む。settled/cash totalsやA10完了条件からcash確認を削除しない。
+
+**Remaining atomic TODO（この順）:**
+
+1. [ ] **A6 usage trace（現在）:** `apps/life-manager/lib/usage-event.js`の`runtimeTrace`/`usageRuntimeEnv`とcurrent `apps/life-manager/lib/ask.js`、`apps/life-manager/lib/gemini-usage.js`、`apps/life-manager/server.js`の実呼び出し経路を追い、Google Maps/Places・Gemini/grounding producerごとに正しい`loop_id`、`owner_id`、run/occurrence、release SHAを渡す最小修正を決める。loopを証明できないshared service costはshared overheadのままにする。回帰は`apps/life-manager/lib/usage-event.test.js`、`apps/life-manager/lib/ask-usage.test.js`、`apps/life-manager/lib/gemini-usage.test.js`で追加/実行し、将来runのruntime/B7 readbackでtraceを確認する。過去9,042行は別の既存run/receiptで確定できない限り`unattributed`に残す。
+2. [ ] **A8 complete coverage:** 最新registry/catalogから全loop/job inventoryを再取得し、各business loopのsettled revenue、refund、platform fee、API/model/tool/infra billed costをofficial receiptまたはsource-backed verified-zeroへ結ぶ。未帰属jobsはloopまたはshared/control/platform overheadへ根拠付き分類する。coverage gapを0扱いしない。
+3. [ ] **A9 truthful source-period report:** `skills/cfo/loop_pnl.py::main`の`--date`をJST `[00:00, next day 00:00)`の日別集計に接続し、`skills/cfo/test_loop_pnl.py`で23:59含む/翌日00:00除外とCLI結果を回帰確認する。daily/MTD/trailing/MRR、loop別/全社のsettled revenue/refund/fee/billed expense/cash/net、currency、freshness、coverage、unknownを分ける。
+4. [ ] **A6 Google cash readback:** active gcloud accountに対応するregistered Cloud Billing browser sessionで`https://console.cloud.google.com/billing/history`を開き、Transactionsの2026-09 invoice/payment行とPayment receiptをreadbackしてJPY `27,889`のcash-paid status/date/receipt IDを記録する。現状はsession identityが未確認のため保留。証拠が得られなければcashは`unknown`のままにし、login/recoveryや別account browserへの迂回はしない。
+5. [ ] **A10 seven-day acceptance:** usage trace、coverage、source-period report、Google cash statusを含むCFO reportを7日連続の自然occurrenceで検証する。同一occurrence B7/runtime/provider receipt、period/currency、coverage/freshness、duplicate proof、replay-zeroを確認し、gapが1日でもあれば原因を記録して連続countを再開する。
+
+**現在cursor:** A6 Google usage trace → A8 all-loop/job coverage → A9 source-period report → A6 Google cash readback → A10 seven-day natural acceptance。Money Tree/personal cashとCloud API置換・削減は対象外。
