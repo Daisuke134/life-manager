@@ -8,7 +8,7 @@
 
 **Tech Stack:** Node.js, Python 3, node:test, pytest, Life Manager immutable releases.
 
-**Spec:** `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md` — “eBook Monk current blocker cursor — 2026-10-08 10:34 JST”.
+**Spec:** `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md` — “eBook Monk current blocker cursor — 2026-10-08 10:36 JST”.
 
 ## Global Constraints
 
