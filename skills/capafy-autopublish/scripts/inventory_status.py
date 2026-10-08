@@ -813,7 +813,9 @@ def main():
         normalized, [], fresh_items, resumable_drafts, [], ready_publish_items,
         updates=[], stub_retries=stub_retry_items, revenue_by_agent=load_revenue_by_agent(),
     )
-    if v.get("action") in ("resume_draft", "retry_existing"):
+    # A pass calls this script three times (pre-check, decision, post-verdict); only the deciding
+    # call in daily_loop.sh sets CAPAFY_COUNT_DRAFT_ATTEMPT, so one pass is one attempt.
+    if v.get("action") in ("resume_draft", "retry_existing") and os.environ.get("CAPAFY_COUNT_DRAFT_ATTEMPT") == "1":
         record_draft_attempt(str((v.get("item") or {}).get("agent_id") or ""), attempts)
 
     v.update({
