@@ -5788,3 +5788,17 @@ This snapshot supersedes the 13:59–14:04 source/release status. PR #7055 backo
 - 最新mainの#7067は同じtree内のtracked filesを更新し、#7069はtree外の2つのUPDATE.jsonを削除した。latest mainをmerge後にinventoryを再計算し、245 files /上記SHAを正本へ反映した。
 
 **TODO順:** 旧順=`最新main同期 → fresh CI → merge`。新順=`specに失敗境界を記録 → manifestのCapafy autopublish inventory count/hashだけ更新 → exact OSS verifierを再実行 → fresh CI全required checks → latest main再fetch/sync → PR #7057 merge → natural release/owner readback → identity recovery → posting/checkout/revenue gates → Capafy canary`。理由: same failure was present on the already-merged upstream PR and reproducible locally; correcting the exact classified inventory is required for this branch's source acceptance. 最新mainの#7067/#7069を含めmanifest hash再計算済み。現在cursor=`exact OSS verifier再実行とfresh CI`。
+
+
+### 2026-10-08 14:54 JST — main #7070 sync and production owner readback
+
+このsnapshotはmain advancementと最新`lm-loop status`を反映し、14:47のinventory failure記録を更新する。
+
+- `origin/main=8ddccaff9a862b7f25d8f5eea44e0de6cc162e5e`。#7070は`skills/capafy-autopublish`の2 tracked filesを更新し、#7068は別のLINE sticker treeを追加した。最新mainをbranchへmerge後、Capafy autopublish inventoryは245 files、canonical verifier同一方式の`inventory_sha256=88f3665ab3c9d574f18c60a92dddab7f1416b7631850d4ce11f6326c56da3e59`に再計算した。manifestへ反映後にverifierとfresh CIを再実行する。
+- `~/loops/current`はrelease `20261008T145220-8ddccaff`。release reconcilerはinstalled SHA `8ddccaff` / `loaded-idle` / PIDなし。直近eventは前release SHA `f3e49261`で`exit75 / reconcile_owner`、effect `not_applicable`。これは最新owner convergenceの完了ではない。
+- eBook EN/JA TikTok/JA Instagramと`lm-fence-reconciler`はSHA `8f342d8d`で`loaded-idle`。ENとJP occurrenceは`host_admission_deferred:resource_effect_unknown`、provider receiptなし。Capafyの2 automation ownersはdisabledで旧SHA `2e87d30d`。現在のreadbackでloop再起動・owner applyは行っていない。
+- 14:24:50 JSTの最後のPostiz公式GETはeBook 2/9（EN 0、JA TikTok 1、JA Instagram 1）、Capafy 2 PUBLISHED。14:31 JSTのHeyGen CLI title query `Anicca`は全2ページ0件。08:00 EN occurrenceは`official_readback_required`のままなので再送しない。
+- PR #7057 remote head `594eaf47`のCIはOSS boundary PASS、Loop contract pending、残りはPASS。local branchはmain #7070まで同期したため、push後は新headの全CIを対象にする。
+- 14:55 JSTのmain #7071はCapafy計画書のみを更新し、最新head `d3b0d9926961883a5b65f376ce1d25c04a788403`としてclean merge済み。`skills/capafy-autopublish` treeは変わらず、245-file inventory hashは維持。
+
+**TODO順:** current cursor=`245-file latest-main inventory hashを正本へ反映 → exact OSS verifier PASS → 最新main再fetch → spec/manifest commit+push → new-head CI全required PASS → PR #7057 merge → release reconciler natural convergence → eBook ownersとfence reconcilerのloaded SHA/argv readback → exact occurrence route → unique identity recovery → JP catch-up if due → EN old-effect/account gate → 9 unique PUBLISHED/day → paid order/PDF/subscription net MRR → Capafy automation repair/canary`。投稿数と収益の未確認を完了扱いしない。Daisの手動作業は現時点で不要。
