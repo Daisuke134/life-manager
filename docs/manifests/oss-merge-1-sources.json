@@ -92,9 +92,12 @@
         "Developer-local candidate workspace",
         "Tests coupled to the source repository's legacy directory layout"
       ],
+      "upstream_sha256": {
+        "skills/agent-runner/agent_runner.py": "ea32d3446d0efb9eccb3046e87cf9e99c7190edcf0b659e270a37aae689824ae"
+      },
       "absorbed_files": [
         {
-          "source": "runtime/agent-runner/agent_runner.py",
+          "source": "skills/agent-runner/agent_runner.py",
           "target": "runtime/agent-runner/agent_runner.py",
           "sha256": "0cc597a399f95d0ff58a20fb5b26ad64d93be65c96c068fc2cb8d6b7a4713bc8"
         },
