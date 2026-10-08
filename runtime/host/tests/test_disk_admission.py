@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import pwd
 import shutil
 from types import SimpleNamespace
 from pathlib import Path
@@ -44,13 +45,16 @@ def isolated_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
         monkeypatch.delenv(key, raising=False)
 
 
-def test_defaults_are_life_manager_owned(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+def test_host_state_uses_os_owner_home_not_environment_home(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+):
     home = tmp_path / "fresh-home"
     monkeypatch.setenv("HOME", str(home))
     monkeypatch.delenv("LIFE_MANAGER_HOST_STATE_DIR")
     monkeypatch.delenv("LIFE_MANAGER_PRODUCER_STATE_DIR")
     guard = load_guard()
-    assert guard._host_state_dir() == home / ".local/state/life-manager/state"
+    owner_home = Path(pwd.getpwuid(os.getuid()).pw_dir)
+    assert guard._host_state_dir() == owner_home / ".local/state/life-manager/state"
     assert guard._state_dir() == home / ".local/state/life-manager"
 
 
