@@ -4961,3 +4961,11 @@ Source / production follow-up (2026-10-08 11:01 JST): PR #7012は`b692e70a`と�
 5. **A10:** main由来releaseで7日連続の自然run、全18 loops/186 jobs、official readback、delivery receipt、unknown owner/action、重複ゼロを確認する。完了前にCFO completeや$10k verified MRRを主張しない。
 
 **現在cursor:** A5。A6のコードはmain由来releaseまで到達したが、CFO owner/readbackと全社financial coverageは未完了。A5 lease、fleet retry、CFO hourly wakeは個別ownerの自然境界で進め、手動restart/apply/retryを重ねない。
+
+### 2026-10-08 11:35 JST — CFO reconciler remains active after retry epoch
+
+- 02:35:24Zのreadbackでrelease reconcilerはrelease `dbf93c31`上のPID `19278`で`loaded-running`、run `18dc6caa09f1ea40-74246`。最新terminal diagnosticは`entrypoint_exit_75 / reconcile_owner`で、processはまだactive。02:34:23Zのfleet retry epochを過ぎたが、fleet stateは02:22:48Zのpartial snapshot（84 changed / 4 errors / 22 skipped）のまま更新されていない。これはまだ新しいterminal/readbackがないことを示す。
+- CFO ownerは引き続きrelease `3d88f9eb`、last occurrence `18dc6c21758dc280-19514`の`apply_lock_busy`のまま。provider receipt、official readback、自然report成功は未確認。
+- 現在の安全な次手は、active release reconcilerの自然terminalを待ち、fleet owner rows・`current` SHA・CFO loaded SHA/statusを再readbackすること。PIDを止めたり、新しいapply/retryを重ねない。
+
+**現在cursor:** A5。A5 lease期限`2026-10-08T03:18:04Z`まで所有境界を維持しつつ、reconciler自然終端を待つ。両者を同じblocker扱いせず、独立のowner/actionとして進める。
