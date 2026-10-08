@@ -232,6 +232,7 @@ class ReconcileTest(unittest.TestCase):
         summary = reconcile(
             registry=_registry(loops), root=Path("/release"), cap=3,
             run_call=run_call, read_fenced=read_fenced, log_path=None,
+            wake_epoch=0,
         )
         self.assertEqual(summary["checked"], 6)
         self.assertEqual(len(calls), 3)
