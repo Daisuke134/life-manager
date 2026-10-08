@@ -966,9 +966,9 @@ def test_launchagent_is_immutable_dedicated_and_storefront_braked(monkeypatch):
                     f"{release}/skills/earn/gig/scripts/storefront_direct.py",
                     "--effect", "--auto-cadence", "--full-interval-seconds", "60"]
     assert env["GIG_OPERATOR_BRAKE_FILE"].endswith("/storefront.operator.brake")
-    assert env["GIG_IGNORE_DISK_PRESSURE_BLOCK"] == "1"
-    assert env["GIG_IGNORE_DISK_WRITERS_STOP"] == "1"
-    assert env["GIG_DISK_HEADROOM_KIB"] == "524288"
+    assert "GIG_IGNORE_DISK_WRITERS_STOP" not in env
+    assert "GIG_IGNORE_DISK_PRESSURE_BLOCK" not in env
+    assert "GIG_DISK_HEADROOM_KIB" not in env
     assert job["env"]["GIG_STOREFRONT_CAPABILITY_EVIDENCE"] == (
         "{{GIG_STOREFRONT_CAPABILITY_EVIDENCE}}"
     )

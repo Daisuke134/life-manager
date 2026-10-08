@@ -4,11 +4,13 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from agent_runner import reclaim_completed_evidence
+from agent_runner import ensure_evidence_capacity, reclaim_completed_evidence
 
 
 class EvidenceRetentionTest(unittest.TestCase):
@@ -30,7 +32,7 @@ class EvidenceRetentionTest(unittest.TestCase):
             (active / "runner.stdout.log").write_bytes(b"c" * 64)
 
             result = reclaim_completed_evidence(
-                current, min_free_bytes=0, max_evidence_bytes=150,
+                current, max_evidence_bytes=150,
             )
 
             self.assertEqual(result["reclaimed_runs"], 1)
@@ -42,7 +44,17 @@ class EvidenceRetentionTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary) / "arbitrary" / "run"
             path.mkdir(parents=True)
-            result = reclaim_completed_evidence(path, min_free_bytes=0, max_evidence_bytes=0)
+            result = reclaim_completed_evidence(path, max_evidence_bytes=0)
+            self.assertEqual(result, {"reclaimed_bytes": 0, "reclaimed_runs": 0})
+
+    def test_zero_free_bytes_does_not_block_managed_agent_start(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            evidence = Path(temporary) / "agent-runner-evidence" / "self-fix" / "current"
+            evidence.mkdir(parents=True)
+            with patch.dict(os.environ, {"AGENT_RUNNER_EVIDENCE_MIN_FREE_BYTES": "999999999999"}), \
+                    patch("agent_runner.shutil.disk_usage",
+                          return_value=SimpleNamespace(free=0)):
+                result = ensure_evidence_capacity(evidence)
             self.assertEqual(result, {"reclaimed_bytes": 0, "reclaimed_runs": 0})
 
 

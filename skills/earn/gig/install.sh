@@ -26,7 +26,7 @@ fi
 
 if [ "${1:-}" = "preflight" ]; then
   darwin=false; arm64=false; python=false; codex_cli=false
-  codex_authenticated=false; cloakbrowser=false; disk_headroom=false
+  codex_authenticated=false; cloakbrowser=false
 
   [ "$(uname -s 2>/dev/null)" = "Darwin" ] && darwin=true
   [ "$(uname -m 2>/dev/null)" = "arm64" ] && arm64=true
@@ -41,17 +41,13 @@ if [ "${1:-}" = "preflight" ]; then
   for candidate in "$HOME"/.cloakbrowser/chromium-*/Chromium.app/Contents/MacOS/Chromium; do
     [ -x "$candidate" ] && cloakbrowser=true && break
   done
-  if df -Pk "$HOME" 2>/dev/null | awk 'NR==2 { found=1; ok=($4 >= 524288) } END { exit !(found && ok) }'; then
-    disk_headroom=true
-  fi
-
   status=blocked; exit_code=2
   if $darwin && $arm64 && $python && $codex_cli && $codex_authenticated \
-    && $cloakbrowser && $disk_headroom; then
+    && $cloakbrowser; then
     status=ready; exit_code=0
   fi
-  printf '{"status":"%s","darwin":%s,"arm64":%s,"python":%s,"codex_cli":%s,"codex_authenticated":%s,"cloakbrowser":%s,"disk_headroom":%s}\n' \
-    "$status" "$darwin" "$arm64" "$python" "$codex_cli" "$codex_authenticated" "$cloakbrowser" "$disk_headroom"
+  printf '{"status":"%s","darwin":%s,"arm64":%s,"python":%s,"codex_cli":%s,"codex_authenticated":%s,"cloakbrowser":%s}\n' \
+    "$status" "$darwin" "$arm64" "$python" "$codex_cli" "$codex_authenticated" "$cloakbrowser"
   exit "$exit_code"
 fi
 

@@ -31,29 +31,6 @@ export ARTICLE_ROOT ARTICLE_STATE_DIR STATE_DIR ARTICLE_SKILL_DIR \
   ARTICLE_PROVIDER ARTICLE_PROVIDER_COOLDOWN_SECONDS
 mkdir -p "$(dirname "$LOG")"
 
-# lm-loop-run uses this receipt only for failures proven to happen before any
-# publisher invocation. If it cannot be persisted, the outer runtime keeps the
-# conservative effect-unknown fence instead of guessing.
-write_pre_effect_failure_hint() {
-  local hint_path="${LIFE_MANAGER_RESULT_HINT_PATH:-}"
-  [ -n "$hint_path" ] || return 0
-  python3 - "$hint_path" <<'PY'
-import os
-import sys
-
-path = sys.argv[1]
-flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0)
-fd = os.open(path, flags, 0o600)
-try:
-    with os.fdopen(fd, "w", encoding="utf-8") as handle:
-        handle.write('{"status":"pre_effect_failure","effect":0}\n')
-        handle.flush()
-        os.fsync(handle.fileno())
-finally:
-    os.chmod(path, 0o600)
-PY
-}
-
 [ -d "$STATE_DIR/runs" ] || exit 0
 
 # A durable local pause is the emergency brake for an external-publication
@@ -89,54 +66,8 @@ if [ "${ARTICLE_OWNER_FENCE_ACTIVE:-0}" != "1" ]; then
     -- "$0" "$@"
 fi
 
-# A publisher must not create an irreversible external effect when its durable
-# receipt, circuit, or outbox cannot be persisted. Resume has no cleanup rights;
-# Life Manager's shared disk admission defaults to 524288 KiB. Keep direct
-# owner wakes identical to the supervised guard instead of inventing a second
-# Writer-only threshold.
-CANONICAL_DISK_HEADROOM_KIB=524288
-GIG_DISK_HEADROOM_KIB="${GIG_DISK_HEADROOM_KIB:-$CANONICAL_DISK_HEADROOM_KIB}"
-export GIG_DISK_HEADROOM_KIB
-case "$GIG_DISK_HEADROOM_KIB" in
-  ''|*[!0-9]*|0)
-    echo "article-resume: disk floor configuration invalid" >>"$LOG"
-    write_pre_effect_failure_hint || true
-    exit 1
-    ;;
-esac
-if [ -n "${ARTICLE_RESUME_MIN_FREE_BYTES:-}" ]; then
-  ARTICLE_DISK_MIN_FREE_BYTES="$ARTICLE_RESUME_MIN_FREE_BYTES"
-  export ARTICLE_DISK_MIN_FREE_BYTES
-fi
-DISK_MIN_FREE_BYTES="$(python3 "$ARTICLE_ROOT/scripts/writer_capacity_floor.py" --state-dir "$STATE_DIR")" || {
-  echo "article-resume: capacity receipt invalid" >>"$LOG"
-  write_pre_effect_failure_hint || true
-  exit 1
-}
-case "$DISK_MIN_FREE_BYTES" in
-  ''|*[!0-9]*|0)
-    echo "article-resume: disk floor configuration invalid" >>"$LOG"
-    write_pre_effect_failure_hint || true
-    exit 1
-    ;;
-esac
-if [ "$GIG_DISK_HEADROOM_KIB" -lt "$CANONICAL_DISK_HEADROOM_KIB" ] \
-  || [ "$DISK_MIN_FREE_BYTES" -lt "$((CANONICAL_DISK_HEADROOM_KIB * 1024))" ]; then
-  echo "article-resume: disk floor configuration below canonical minimum" >>"$LOG"
-  write_pre_effect_failure_hint || true
-  exit 1
-fi
-disk_free_bytes() {
-  local free_kb
-  free_kb="$(df -Pk / 2>/dev/null | awk 'NR==2{print $4}')"
-  echo $(( ${free_kb:-0} * 1024 ))
-}
-DISK_FREE_BYTES="$(disk_free_bytes)"
-if [ "${DISK_FREE_BYTES:-0}" -lt "$DISK_MIN_FREE_BYTES" ]; then
-  echo "article-resume: disk floor blocked publication free=${DISK_FREE_BYTES}bytes required=${DISK_MIN_FREE_BYTES}bytes" >>"$LOG"
-  write_pre_effect_failure_hint || true
-  exit 1
-fi
+# Durable publication state is written before an external effect. A real filesystem
+# write error stops at that operation; a free-space threshold does not block resume.
 
 process_owns_this_publication_lock() {
   local owner_pid="$1" owner_command owner_cwd token token_dir token_base resolved

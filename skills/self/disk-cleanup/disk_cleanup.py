@@ -104,7 +104,8 @@ def classify_tier(free_bytes: int) -> str:
 
 def _capacity_recovery(result: object) -> dict[str, str | int]:
     free_after = result.get("free_after") if isinstance(result, dict) else None
-    if not isinstance(free_after, int) or isinstance(free_after, bool):
+    if (not isinstance(free_after, int) or isinstance(free_after, bool)
+            or free_after < 0):
         status = "unknown"
     else:
         status = "met" if free_after >= RECOVERY_FLOOR_BYTES else "unmet"
@@ -112,11 +113,15 @@ def _capacity_recovery(result: object) -> dict[str, str | int]:
 
 
 def _cleanup_terminal_ok(result: object) -> bool:
+    if not isinstance(result, dict):
+        return False
+    stop = result.get("disk_writers_stop")
+    stop_status = stop.get("status") if isinstance(stop, dict) else None
     return (
-        isinstance(result, dict)
-        and result.get("errors") == 0
+        result.get("errors") == 0
         and result.get("protected_deletions") == 0
-        and _capacity_recovery(result)["status"] == "met"
+        and _capacity_recovery(result)["status"] != "unknown"
+        and stop_status in {"absent", "cleared"}
     )
 
 

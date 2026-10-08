@@ -27,9 +27,6 @@ LIFE_MANAGER_PYTHON="$WRITER_BROWSER_PYTHON"
 export ARTICLE_ROOT ARTICLE_SKILL_DIR STATE_DIR WRITER_STATE_DIR WRITER_LOG_DIR
 export WRITER_BROWSER_PYTHON WRITER_CLOAK_PYTHON LIFE_MANAGER_PYTHON
 SH
-cat >"$FAKE_ROOT/scripts/writer_capacity_floor.py" <<'PY'
-print(1155780608)
-PY
 cat >"$FAKE_ROOT/scripts/writer_unavailable_incident_bridge.py" <<'PY'
 raise SystemExit(0)
 PY

@@ -125,7 +125,6 @@ def test_note_resume_prioritizes_publication_and_uses_failure_circuit(
     shutil.copy(ROOT / "scripts" / "publication_resume.py", scripts)
     shutil.copy(ROOT / "scripts" / "article_adoption_selection.py", scripts)
     shutil.copy(ROOT / "scripts" / "resume_failure_circuit.py", scripts)
-    shutil.copy(ROOT / "scripts" / "writer_capacity_floor.py", scripts)
     shutil.copy(ROOT / "scripts" / "_shared" / "notifier.sh", scripts / "_shared")
     (scripts / "writer-runtime-env.sh").write_text(
         "WRITER_LOG_DIR=\"$ARTICLE_STATE_DIR/logs\"\n"

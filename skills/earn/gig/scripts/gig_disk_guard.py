@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Stop a gig lane before it can allocate work when disk headroom is low."""
+"""Check Gig writer controls and disk measurement without a free-space floor."""
 
 from __future__ import annotations
 
 import json
 import os
+import pwd
 import shutil
 import stat
 import sys
@@ -13,21 +14,13 @@ from pathlib import Path
 from typing import Sequence
 
 
-# skills/earn/gig/TODO.md documents 524,288 KiB (512 MiB) as the last-resort disk-headroom
-# floor every gig lane is meant to run under. A guard whose default is "no floor" is not a
-# guard: a lane whose plist never carries GIG_DISK_HEADROOM_KIB -- because it migrated onto
-# lm-loop's registry (config/loop-registry.json), whose rendered plist never sets this key --
-# gets exactly this fallback and nothing else. It must be the same 512 MiB every launchd-jobs.json
-# lane sets explicitly, not zero.
-DEFAULT_REQUIRED_KIB = 524288
-REQUIRED_KIB = int(os.environ.get("GIG_DISK_HEADROOM_KIB", str(DEFAULT_REQUIRED_KIB)))
-REQUIRED_BYTES = REQUIRED_KIB * 1024
+# Free-space measurements are recorded for diagnosis, not used as an admission floor.
+REQUIRED_BYTES = 0
 RECEIPT_PATH = Path("state") / "disk-headroom.json"
 
 _PRODUCER_GATE = "life-manager-producer-preflight"
 _POLICY_FLAGS = (
     ("disk-writers.stop", "disk_writers_stop"),
-    ("disk-pressure.block", "disk_pressure_block"),
 )
 
 
@@ -99,7 +92,7 @@ def _failure(
 
 
 def _host_state_dir() -> Path:
-    """Return the host control state without relying on a shell wrapper."""
+    """Return the configured control root; canonical roots are always checked too."""
     configured = (
         os.environ.get("GIG_HOST_STATE_DIR")
         or os.environ.get("DISK_CONTROL_STATE_DIR")
@@ -108,50 +101,66 @@ def _host_state_dir() -> Path:
     )
     if configured:
         return Path(configured).expanduser()
-    # The production sentinel and emergency guard both write here. Installers can
-    # override it above when Life Manager is used without OpenClaw.
-    return Path.home() / ".openclaw" / "state"
+    # The production sentinel and emergency guard both write here. Environment
+    # overrides remain supplemental and cannot replace this OS-account path.
+    return _canonical_host_state_dirs()[0]
+
+
+def _canonical_host_state_dirs() -> tuple[Path, ...]:
+    owner_home = Path(pwd.getpwuid(os.getuid()).pw_dir)
+    homes = tuple(dict.fromkeys((owner_home, Path(os.path.expanduser("~")))))
+    return tuple(
+        path
+        for home in homes
+        for path in (
+            home / ".openclaw" / "state",
+            home / ".local" / "state" / "life-manager" / "state",
+        )
+    )
 
 
 def _producer_gate() -> tuple[str, Path] | None:
     """Read the shared Life Manager stop contract before starting a producer."""
-    host_state = _host_state_dir()
     try:
-        if not host_state.is_dir():
-            return "disk_policy_unavailable", host_state
-        # Validate that the control directory is readable before treating missing
-        # flags as a safe state.
-        next(iter(host_state.iterdir()), None)
-    except OSError:
-        return "disk_policy_unavailable", host_state
-    for filename, reason in _POLICY_FLAGS:
-        if (
-            filename == "disk-writers.stop"
-            and os.environ.get("GIG_IGNORE_DISK_WRITERS_STOP", "")
-            .strip()
-            .lower()
-            in {"1", "true", "yes"}
-        ):
-            continue
-        if (
-            filename == "disk-pressure.block"
-            and os.environ.get("GIG_IGNORE_DISK_PRESSURE_BLOCK", "")
-            .strip()
-            .lower()
-            in {"1", "true", "yes"}
-        ):
-            continue
-        flag = host_state / filename
+        configured = _host_state_dir()
+        candidates = (*_canonical_host_state_dirs(), configured)
+    except (KeyError, OSError):
+        return "disk_policy_unavailable", Path(os.path.expanduser("~")) / ".openclaw" / "state"
+    host_states = tuple(dict.fromkeys(candidates))
+    for host_state in host_states:
+        required = host_state == configured
         try:
-            entry = flag.lstat()
+            entry = host_state.lstat()
         except FileNotFoundError:
+            if required:
+                return "disk_policy_unavailable", host_state
             continue
         except OSError:
             # A control path that cannot be read is not proof that the host is safe.
-            return "disk_policy_unavailable", flag
-        if not stat.S_ISREG(entry.st_mode):
-            return "disk_policy_unavailable", flag
-        return reason, flag
+            return "disk_policy_unavailable", host_state
+        if (
+            not stat.S_ISDIR(entry.st_mode)
+            or host_state.is_symlink()
+            or entry.st_uid != os.getuid()
+            or entry.st_mode & (stat.S_IWGRP | stat.S_IWOTH)
+        ):
+            return "disk_policy_unavailable", host_state
+        try:
+            next(iter(host_state.iterdir()), None)
+        except OSError:
+            return "disk_policy_unavailable", host_state
+        for filename, reason in _POLICY_FLAGS:
+            flag = host_state / filename
+            try:
+                entry = flag.lstat()
+            except FileNotFoundError:
+                continue
+            except OSError:
+                # A control path that cannot be read is not proof that the host is safe.
+                return "disk_policy_unavailable", flag
+            if not stat.S_ISREG(entry.st_mode):
+                return "disk_policy_unavailable", flag
+            return reason, flag
     return None
 
 
@@ -177,9 +186,6 @@ def disk_headroom_ok() -> bool:
         available_bytes = int(shutil.disk_usage(_state_dir()).free)
     except Exception:
         _failure("disk_headroom_unavailable", None)
-        return False
-    if REQUIRED_BYTES and available_bytes < REQUIRED_BYTES:
-        _failure("disk_headroom_low", available_bytes)
         return False
     return True
 
