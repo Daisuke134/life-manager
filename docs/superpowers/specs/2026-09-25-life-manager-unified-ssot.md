@@ -4848,8 +4848,8 @@ flowchart LR
 
 **残TODO（完了まで、この順）:**
 
-1. **現在cursor — CIのmain-side OSS boundary blocker:** PR #7182 code head `b2b1502f3b`はfresh read-only review SHIP。latest doc-only head=`ca2c8ae3c14a39b7247c8fe75bba7cdae1d3d8b0`。Security Scan run `37803526342`では8/9 gate PASS、`OSS self-contained boundary`だけが`manifest_inventory_mismatch skills/capafy-autopublish`でFAIL。現main `0b9d0f10`はCapafy PR #7183 commit `7eda261900`のsource変更を含む一方、OSS manifestは245-file inventoryを旧digest `d211d4e2…`のまま保持し、main上の実測digestは`6622435b…`。PR branch単独では同じOSS checkがPASS。Gig laneからCapafy source/manifestを編集せず、owner側の正本修正がmainへ入った後に最新mainを同期し、exact-head CIを再実行してPASS後mergeする。
-2. **main由来release:** 最新mainのOSS manifest修正とGig preflight fixを含むimmutable releaseを既存natural reconcilerに渡し、`RELEASE.json`・Storefront/Paidのloaded SHA/argv/admissionを確認する。production source完了はloaded SHAにpriority/floor/exposure fixが含まれてから。
+1. **現在cursor — CIのmain-side OSS boundary blocker:** PR #7182 code head `b2b1502f3b`はfresh read-only review SHIP。latest pushed head=`ca2c8ae3c14a39b7247c8fe75bba7cdae1d3d8b0`（SSOT更新のみ）。Security Scan run `37803526342`では8/9 gate PASS、`OSS self-contained boundary`だけが`manifest_inventory_mismatch skills/capafy-autopublish`でFAIL。GitHub merge-refはmain `0b9d0f10`を含み、PR APIのbaseは古い`9abbdb9d`を報告する。現mainのCapafy PR #7183 commit `7eda261900`変更に対し、245-file OSS inventoryは旧digest `d211d4e2…`のままで、main上の実測digestは`6622435b…`。Gig laneからCapafy source/manifestを編集せず、main-side owner修正がmergeされた後に同期・再検証し、exact-head CI PASS後にmergeする。
+2. **main由来release:** latest main `d7d3cbaeaf989b1678efc0e572a7c3b9aece6d76`とGig preflight fixを含むimmutable releaseを、OSS manifest gate解消後に既存natural reconcilerへ渡し、`RELEASE.json`・Storefront/Paidのloaded SHA/argv/admissionを確認する。production source完了はloaded SHAにpriority/floor/exposure fixが含まれてから。
 3. **Coconala Paid obligation:** order `18180857`のfresh official order/talkroom readbackをownerが実行する。今も未完了の場合だけ必要なrevision/formal deliveryを一度行い、buyer acceptance・settlement/payout・replay-zeroを結ぶ。古いsnapshotから現在の待ち状態を推測しない。
 4. **旧Storefront fence:** `18d8d288748508e8-23902`を、同一effectの公式listing/order履歴または受理可能なoccurrence-bound pre-effect receiptで照合する。現在はdry-runがbinding不足で保留。証拠が取れなければfenceを保持し、再公開しない。
 5. **Coconala商品を売れる型へ改善:** seller-sideでSKU 4244556のfresh views・inquiries・unique paid orders・renewals/refunds・platform fee・payoutを同一期間で取得する。過去5変更は全て`NO_OP / metric_unmeasurable_insufficient_exposure`でliftなし、保存済み15 views / 0 purchaseは古い窓。固定scope・完成成果物・選択式optionの自社商品構造を維持し、exposure gateと旧effect fenceが両方解決してから一度に一変数だけ変更する。exposure不足時はlistingを変えず、公式analyticsの自然readbackと許可済みdistributionでqualified trafficを増やす。近似SKUを重複出品しない。月次optionは実renewalと毎月の納品内容が確認できるまでMRRに数えない。
@@ -4859,7 +4859,7 @@ flowchart LR
 9. **Storefront economics:** listingごとのunique paid order・repeat・refund・platform fee・payout・実作業時間/実費を同一期間で結び、settled net contributionが正で再現したか報告する。掲載・seller累計・grossを利益/MRRにしない。
 10. **最後 — SelfBuild:** 収益loopとproduct storefrontの上記done条件を閉じた後だけ、self-build/self-healingを再開する。
 
-**現在cursor:** 1 — Capafy ownerによるmain-side OSS manifest修正を待ち、最新mainを同期 → fresh exact-head CI全PASS → PR #7182 merge。production Storefrontは旧effect fence・古いinstalled SHA・settled sales未確認を保持。
+**現在cursor:** 1 — latest-main merge `5bdcdf0c`をpush → Capafy ownerのmain-side OSS manifest修正を待ち、修正済みmainと同期 → fresh exact-head CI全PASS → PR #7182 merge。production Storefrontは旧effect fence・古いinstalled SHA・settled sales未確認を保持。
 
 ### 2026-10-09 00:28 JST — Storefront収益cursorとexposure review修正
 
@@ -4906,6 +4906,14 @@ flowchart LR
 - Production remains outside the source lane: disk available 1,379,456 KiB; Storefront installed `3981bca3`, occurrence `18dc98c45455a248-93881` deferred for `disk_headroom_low`, receipt absent; current old fence `18d8d288748508e8-23902` is `effect_unknown`. Release reconciler SHA `e1b061f1` / PID `33109` has `entrypoint_exit_1`; doctor is not ok due the unmanaged label.
 
 **現在cursor:** resolve the main-side OSS manifest mismatch with its owner → sync latest main → rerun required checks on the final PR head → merge #7182 only on PASS.
+
+### 2026-10-09 00:58 JST — latest main synchronized; external CI gate remains
+
+- `origin/main` advanced to `d7d3cbaeaf989b1678efc0e572a7c3b9aece6d76` via #7176. The new changes are outside Gig source; this worktree merged main normally as local merge `5bdcdf0cb339e21676506c225921d72dd6de29c0`, preserving every incoming file. Merge is not yet pushed.
+- On the merged tree, focused Storefront tests are 103/103 PASS; `lm-loop-contract` is 18 catalog loops / 188 registry jobs / 0 errors; `verify-source-boundary.sh` and Python compile PASS. The full OSS checker reproduces only `manifest_inventory_mismatch skills/capafy-autopublish`. This matches GitHub Security Scan #37803526342: 8/9 jobs PASS, with OSS boundary as the only failure.
+- `origin/main` keeps Capafy PR #7183 commit `7eda261900` but its manifest root digest is stale (`d211d4e2…` declared; `6622435b…` measured over 245 files). No Capafy source or manifest file is modified by Gig work.
+
+**現在cursor:** push the latest-main sync and this T7 status → wait for the Capafy manifest owner to land the correction → sync corrected main → exact-head CI and review → merge #7182 only after PASS.
 
 ### 2026-10-08 08:35 JST — Mobile post-merge runtime cursor
 
