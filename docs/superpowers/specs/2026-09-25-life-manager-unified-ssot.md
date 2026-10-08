@@ -7197,18 +7197,18 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 - mainのR17はswap pressureをdisk変動の原因と記録した。fresh readbackでは16 GiB RAM、swap used `8,738.94 MiB`、`memory_pressure` free=40%、`corespotlightd` RSS=`16,720 KiB`。60秒のpaired sampleはswap `8,762.62→8,690.62 MiB`、disk free `459,730,944→469,835,776` bytesで方向は整合するが、単独で1.27 GBの変動を説明しない。現在の`corespotlightd`を再起動せず、owner/source attributionは継続する。
 - regression testは修正前にRED（apply call count `1`、期待`3`）を確認し、修正後にGREEN。fleet-apply test fileは32/32、`bash -n bin/reconcile-agent-runner-release.sh`、`git diff --check origin/main...HEAD`、`bash scripts/verify-source-boundary.sh`もpass。検証済みSHAはrebase後のHEAD。
 
-**順序更新:** 旧順=`disk writer recovery → #7149 release/doctor → target outcomes`。新順=`(1) 観測した新SHA retry deadlineの失敗test → (2) 同一SHA backoffと通常1800秒coalesceを維持しつつ、budget進捗partialの記録済み`next_retry_epoch`をSHA変更時にも適用 → (3) push/merge/releaseし、自然reconcilerがfix SHAを継続applyすることを確認 → (4) disk writerを独立して特定し、既存2 GiB契約へ安全に回復 → (5) target別fence/receiptとowner natural run → (6) 同一窓のcapacity測定`。理由は、#7149とdoctorは本番に反映済みだが、短縮retryを読む判定漏れが次のfleet applyを止めているためである。disk pressureは独立したblockerとして残る。
+**順序更新:** 旧cursor=`disk writer recovery → #7149 release/doctor → target outcomes`。新cursor=`(1) observed retry-deadline regression → (2) keep same-SHA backoff and ordinary coalescing while resuming budget partials → (3) merge/release and natural reconciler readback → (4) record cleanup receipt as diagnostic without a 2 GiB producer wait → (5) target-specific fence/readback → (6) owner-idle natural runs → (7) same-window capacity measurement`。
 
 **残TODO（完了まで・この順）:**
 
 1. [x] `runtime/loop/tests/test_reconcile_agent_runner_release_fleet_apply.py::test_budget_partial_short_retry_allows_new_sha_before_min_interval`を先に追加し、修正前RED（1回apply、期待3回）を確認する。
 2. [x] `bin/reconcile-agent-runner-release.sh::run_fleet_apply`で、短い`next_retry_epoch`を新SHAのcoalesce期限に適用する。修正後の回帰testとfleet-apply test file 32/32、`bash -n`、diff check、source-boundaryがpass。
 3. **現在cursor:** latest `origin/main`をmerge済みのtask branchをcommit/pushし、fresh PR、同一headのrequired CI/reviewを通してmergeする。active reconcilerをstop/restartせず、fix SHAのimmutable releaseと自然継続applyを確認する。
-4. host-scoped inventory/owner traceからdisk writerを特定し、ownerが所有する安全な手順で回復する。cleanup receipt `free_after >= 2 GiB`、`errors=0`、`protected_deletions=0`と後続admission passを確認する。CodexBar updaterはdisk-cleanup skillの24時間超・exact identity条件を満たすまで操作しない。
+4. host-scoped inventory/owner traceからdisk writerを特定し、ownerが所有する安全なcleanup手順で回復する。cleanup receiptの`free_after`・`errors`・`protected_deletions`は診断値として記録し、2 GiB未達でもproducerを待機させない。CodexBar updaterはdisk-cleanup skillの24時間超・exact identity条件を満たすまで操作しない。
 5. loaded-idle、lock-free、effect fence解消後にtarget別effectをreplayせず照合し、各自然occurrenceのLuma/Workday/VC mail receipt、model、Telegram reportを結び付ける。free-spaceの数値はadmission条件にしない。
 6. 同時間窓のlive claims/reservations/queue/class contention/CPU/RAM/diskを測る。実測でdiskや外部writerではなくglobal/per-class capの飽和が証明された場合だけcapを変更する。
 
-**現在cursor:** commit/push latest-main branch → exact-head PR CI/review/merge → fix SHAのimmutable release/natural fleet continuation → disk owner特定/安全回復 → target receipt/natural run → same-window capacity/economics。
+**現在cursor:** commit/push latest-main branch → exact-head PR CI/review/merge → immutable release/natural fleet continuation → cleanup receipt diagnostic → target effect readback → owner-idle natural outcomes → same-window capacity/economics。
 
 
 ### 2026-10-08 22:31 JST — reviewで通常errorの再試行間隔短縮を検出
@@ -7245,11 +7245,11 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 2. `git fetch origin`後の`origin/main`をbranchへ通常mergeし、最新mainとsource/test/SSOT変更を保持する。新HEADをpushし、branchが最新mainを含むことを確認する。
 3. PRを作成し、正確なHEAD SHAに対するrequired CIとfresh read-only reviewerの`ship`を取得する。指摘があれば修正・pushし、headが変わったCI/reviewは取り直す。PRをmergeする。
 4. merge SHAからimmutable releaseを自然生成させる。active reconcilerをstop/restartせず、loaded release SHAと自然fleet-apply stateがbudget partialを継続し、通常errorは1800秒coalesceすることをreadbackする。
-5. `host-inventory`と次回full inventory、cleanup receipts、`df`/APFS、owner/process I/Oを同時刻で突合し、空き減少の具体的なwriterまたは安全なowner専有回収対象を特定する。保護領域を触らず、cleanup receiptで`free_after >= 2 GiB`、`errors=0`、`protected_deletions=0`と後続admission passを確認する。
-6. disk/admissionが回復したら各対象のeffect fenceをofficial provider readbackで解決する。`effect_unknown`は再送せず、loaded-idle ownerだけを通常手順で適用し、Connector/Luma registration、Job Hunter/Workday submission、Fundraiser/VC・AI founder outreachの各natural occurrence、receipt、`gpt-6-luna/max/fast`、Telegram報告を照合する。
+5. `host-inventory`と次回full inventory、cleanup receipts、`df`/APFS、owner/process I/Oを同時刻で突合し、実際のwriterまたは安全なowner専有回収対象を特定する。cleanup receiptの値と後続admission結果は観測するが、2 GiB floorをproducerの実行条件にしない。
+6. target別effect fenceをofficial provider readbackで解決する。`effect_unknown`は再送しない。loaded-idle、lock-freeでeffect fenceの条件を満たすownerを通常手順で実行し、Luma/Workday/VC・AI founderのresult、receipt、model、Telegram reportを同一occurrenceへ結ぶ。Numeric free-spaceはadmission条件にしない。
 7. 三loopの自然runと同一時間窓でclaims、reservations、eligible queue age、admission reason、class contention、CPU/RAM/disk、実同時稼働loop数を測定する。configured global cap 8と実測容量を区別し、disk/owner repair後もcap saturationでrevenue ownerが待つ証拠がある場合だけ、最小のclass/global変更を判断する。応募、返信、面談、funding、settled cash、costsを別々に記録する。
 
-**現在cursor:** commit/push 3 files → merge latest origin/main (2 commits ahead) → exact-head PR CI/fresh ship review/merge → natural immutable release/readback → disk writer attribution and >=2 GiB cleanup/admission → target effects and natural outcomes → same-window capacity/economics.
+**現在cursor:** commit/push latest-main branch → exact-head PR CI/fresh ship review/merge → natural immutable release/readback → cleanup receipt diagnostic and actual writer attribution → target effect readbacks → owner natural outcomes without numeric capacity wait → same-window capacity/economics。
 
 
 ### 2026-10-08 22:47 JST — latest main merge後の確認
@@ -7341,15 +7341,15 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 
 **残TODO（完了まで・この順）:**
 
-1. **現在cursor—latest-main merge resolutionをcommit/pushする。** Preserve #7165 stable watchdog, #7166 critical-paid floor, #7162 Writer update, and this loop-capacity history.
+1. **現在cursor—latest-main merge resolutionをcommit/pushする。** Preserve the stable watchdog and Writer fixes. The earlier #7166 numeric-floor policy is superseded by PR #7179 and is not retained as an admission contract.
 2. PR #7156 exact pushed headでrequired CI全passとfresh read-only `ship` reviewを取得し、mergeする。
-3. main由来immutable releaseを自然handoffし、loaded SHAをreadbackする。`com.anicca.disk-watchdog`のstable plist/argv維持と次のnatural runのreceiptを確認する。`free_after >= 2 GiB`、`errors=0`、`protected_deletions=0`、admission passまでwriter/path attributionを続ける。
-4. Dedicated architecture PRで`runtime/loop/lm_loop_run.py::_disk_floor`を`admission_class=revenue`かつ`priority=revenue`にも1 GiBとする。Borrow/supportは2 GiBを維持。Testsは`runtime/loop/tests/test_lm_loop_run_bounds.py`でrevenue at 1–2 GiBの間にqueue/dispatchできる、borrowはdeferする、revenueが1 GiB未満でdeferする、の3ケースを回帰テストする。
-5. Browser/Job Hunterの512 MiB producer guardを維持し、Fundraiserは外側1 GiB floorを通らない限りagent/browser workを開始しない。`effect_unknown` 4件はofficial readbackで解決するまで再送しない。
+3. main由来immutable releaseを自然handoffし、loaded SHAをreadbackする。`com.anicca.disk-watchdog`のstable plist/argv維持と次のnatural runのreceiptを確認する。cleanupの`free_after`・`errors`・`protected_deletions`を記録するが、2 GiB到達を待機条件にしない。
+4. [superseded by PR #7179] revenue/critical_paid向け1 GiB floor、borrow/support向け2 GiB floorを追加するarchitecture変更は実施しない。Numeric free-space admission floorsを全producer/release pathから除去する。
+5. [superseded by PR #7179] Browser/Job Hunterの512 MiB producer guardとFundraiserの1 GiB outer floorは維持しない。actual write failures、explicit stop、owner locks、effect-unknown fencesは別条件として維持する。
 6. loaded-idle、lock-free、fence解消後のConnector/Luma、Job Hunter/Workday、Fundraiser/VC・AI-founder natural runでofficial result、`gpt-6-luna/max/fast`、Telegram reportを同一occurrenceに結ぶ。free-spaceの数値はadmission条件にしない。
-7. disk回復後に同一windowのactive claim/reservation、eligible queue age、class contention、CPU/RAM/disk/swap、有限job数を測り、global cap 8は実測飽和が確認できた場合だけ変更する。heavy factoryのcloud移設はlocal capacity measurement後にcost/benefitが成立する場合だけ扱う。
+7. immutable releaseとowner natural outcomesの後に同一windowのactive claim/reservation、eligible queue age、class contention、CPU/RAM/disk/swap、有限job数を測る。global cap 8は実測飽和が確認できた場合だけ変更する。heavy factory移設はlocal capacity measurement後にcost/benefitが成立する場合だけ扱う。
 
-**現在cursor:** finish latest-main merge resolution → push → exact-head PR #7156 CI/review/merge → natural release and watchdog receipt → 2 GiB recovery → revenue-floor follow-up PR → Fundraiser readback → target natural outcomes → same-window capacity and swap measurement.
+**現在cursor:** merge/release PR #7179 → natural owner runs without numeric free-space floor → exact effect readback/fence reconciliation → same-window capacity and swap measurement → revenue/economics.
 
 ### 2026-10-08 23:25 JST — latest-main sync and implementation plan
 
