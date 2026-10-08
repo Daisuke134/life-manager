@@ -718,6 +718,24 @@ def _queue_priority(entry: dict) -> str | None:
 
 
 def _disk_headroom_deferred(receipt_parent: Path, *, phase: str) -> dict | None:
+    """Defer only if free space stays below the floor for the whole wait window.
+
+    Free space swung between 1.2 and 2.9 GiB within minutes on 2026-10-08 (other sessions' temp
+    files, release builds), so one instantaneous reading below the floor used to skip the entire
+    15-minute slot. A dip that recovers is waited out; a persistent shortage still defers.
+    """
+    # Only wait before a slot is claimed; after the claim (post_claim) a wait would hold the slot.
+    wait = float(os.environ.get("LIFE_MANAGER_DISK_HEADROOM_WAIT_SECONDS", "120")) \
+        if phase == "pre_enqueue" else 0.0
+    deadline = time.monotonic() + wait
+    while True:
+        result = _disk_headroom_once(receipt_parent, phase=phase)
+        if result is None or result["reason"] != "disk_headroom_low" or time.monotonic() >= deadline:
+            return result
+        time.sleep(10)
+
+
+def _disk_headroom_once(receipt_parent: Path, *, phase: str) -> dict | None:
     try:
         available = disk_free_bytes(receipt_parent)
     except Exception:

@@ -3011,7 +3011,7 @@ def test_disk_headroom_low_defers_before_queue_or_provider_child(tmp_path):
     entry = {"cadence": {"start_interval_seconds": 60},
              "provider_route": "shared-agent-runner", "effect_class": "application"}
     receipt = tmp_path / "host-admission.json"
-    with (patch.dict(os.environ, {"LIFE_MANAGER_DISK_HEADROOM_KIB": "0"}),
+    with (patch.dict(os.environ, {"LIFE_MANAGER_DISK_HEADROOM_KIB": "0", "LIFE_MANAGER_DISK_HEADROOM_WAIT_SECONDS": "0"}),
           patch("runtime.loop.lm_loop_run.disk_free_bytes", return_value=floor - 1) as disk,
           patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
           patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
@@ -3754,3 +3754,29 @@ def test_main_waits_for_a_label_apply_lock_that_frees_up(tmp_path):
     events_file = state_root / "events.jsonl"
     blockers = [json.loads(l).get("blocker") for l in events_file.read_text().splitlines()] if events_file.exists() else []
     assert "apply_lock_busy" not in blockers, "a lock that freed up must not be recorded as busy"
+
+
+def test_disk_headroom_that_recovers_within_the_wait_does_not_defer(tmp_path):
+    """2026-10-08: free space swung between 1.2 and 2.9 GiB within minutes (other sessions' temp
+    files, release builds), so a single instantaneous reading below the 2 GiB floor skipped the
+    whole 15-minute slot. A dip that recovers within the wait must not defer the run."""
+    from runtime.loop.lm_loop_run import _disk_headroom_deferred
+    floor = 2 * 1024**3
+    readings = [floor - 1, floor - 1, floor + 1]
+    with (patch.dict(os.environ, {"LIFE_MANAGER_DISK_HEADROOM_WAIT_SECONDS": "120"}),
+          patch("runtime.loop.lm_loop_run.disk_free_bytes", side_effect=readings) as disk,
+          patch("runtime.loop.lm_loop_run.time.sleep") as sleep):
+        assert _disk_headroom_deferred(tmp_path, phase="pre_enqueue") is None
+    assert disk.call_count == 3 and sleep.call_count == 2
+
+
+def test_disk_headroom_that_stays_low_still_defers_after_the_wait(tmp_path):
+    from runtime.loop.lm_loop_run import _disk_headroom_deferred
+    floor = 2 * 1024**3
+    clock = iter([0.0, 5.0, 50.0, 130.0, 131.0])
+    with (patch.dict(os.environ, {"LIFE_MANAGER_DISK_HEADROOM_WAIT_SECONDS": "120"}),
+          patch("runtime.loop.lm_loop_run.disk_free_bytes", return_value=floor - 1),
+          patch("runtime.loop.lm_loop_run.time.monotonic", side_effect=lambda: next(clock)),
+          patch("runtime.loop.lm_loop_run.time.sleep")):
+        deferred = _disk_headroom_deferred(tmp_path, phase="pre_enqueue")
+    assert deferred["reason"] == "disk_headroom_low" and deferred["available_bytes"] == floor - 1
