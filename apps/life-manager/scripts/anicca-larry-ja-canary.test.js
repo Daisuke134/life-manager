@@ -12,6 +12,7 @@ const { createMarketingLaneManifest, writeMarketingLaneManifest } = require("../
 const {
   ACCOUNT_ID,
   EN_AFFIRMATION_LANE,
+  EN_AFFIRMATION_TIKTOK_LANE,
   EN_SLIDESHOW_TIKTOK_LANE,
   JA_JP1_TIKTOK_LANE,
   JA_MAIN_TIKTOK_LANE,
@@ -19,10 +20,13 @@ const {
 } = require("../lib/marketing-native-carousel-publication-adapter.js");
 const {
   EN_AFFIRMATION_LANE: EN_RUNNER_LANE,
+  EN_AFFIRMATION_TIKTOK_LANE: EN_TIKTOK_RUNNER_LANE,
   EN_SLIDESHOW_TIKTOK_LANE: TIKTOK_SLIDESHOW_RUNNER_LANE,
   JA_MAIN_TIKTOK_LANE: JA_MAIN_TIKTOK_RUNNER_LANE,
   assertProductionControls,
+  isVerifiedPostizPhotoPublication,
   parseArgs,
+  runAniccaCarouselCanary,
   runAniccaEnAffirmationInstagramCanary,
   runAniccaEnSlideshowTikTokCanary,
   runAniccaLarryJaCanary,
@@ -155,6 +159,86 @@ function enFixture() {
       [EN_RUNNER_LANE.mediaEnv]: EN_MEDIA_REFS.join(","),
       [EN_RUNNER_LANE.captionEnv]: EN_CAPTION_REF,
       [EN_RUNNER_LANE.approvalEnv]: EN_APPROVAL_REF,
+      LM_POSTIZ_API_KEY: "postiz-secret-fixture",
+      LM_TELEGRAM_BOT_TOKEN: "telegram-secret-fixture",
+      LM_TELEGRAM_ALERT_CHAT_ID: "123456789",
+    },
+  };
+}
+
+function enTikTokFixture() {
+  const lane = EN_TIKTOK_RUNNER_LANE;
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-anicca-en-tiktok-canary-"));
+  const objectDir = path.join(dataDir, "objects");
+  const objectStore = createContentObjectStore({ objectDir });
+  const importBytes = (name, bytes) => {
+    const source = path.join(dataDir, name);
+    fs.writeFileSync(source, bytes);
+    return importContentObject(source, { objectDir }).ref;
+  };
+  const mediaRefs = [...lane.mediaRefs];
+  for (const ref of mediaRefs) {
+    const source = path.join(EN_OBJECT_SOURCE, ref.slice(-64));
+    assert.equal(fs.statSync(source, { throwIfNoEntry: false })?.isFile(), true, `missing TikTok media ${ref}`);
+    const destination = path.join(objectDir, "sha256", ref.slice(-64));
+    fs.mkdirSync(path.dirname(destination), { recursive: true, mode: 0o700 });
+    fs.copyFileSync(source, destination);
+  }
+  const caption = "A kinder thought for the next hard moment.\n\n#affirmations #Anicca";
+  const captionRef = importBytes("caption.txt", Buffer.from(caption));
+  const pack = {
+    schema_version: 1,
+    kind: "marketing_native_carousel_pack",
+    product_id: lane.productId,
+    locale: lane.locale,
+    platform: lane.platform,
+    account_id: lane.accountId,
+    renderer_id: lane.renderer,
+    format_id: lane.packFormat,
+    form: lane.form,
+    media_type: "image/jpeg",
+    slide_count: 6,
+    caption,
+    slides: mediaRefs.map((media_ref, index) => ({
+      position: index + 1,
+      role: index === 0 ? "hook" : index === 5 ? "cta" : "body",
+      text: `fresh-test-slide-${index + 1}`,
+      media_ref,
+    })),
+  };
+  const packRef = importBytes("pack.json", Buffer.from(JSON.stringify(pack)));
+  const approval = {
+    schema_version: 1,
+    kind: "marketing_native_carousel_publication_approval",
+    status: "approved",
+    tenant_id: "dais-local",
+    product_id: lane.productId,
+    locale: lane.locale,
+    platform: lane.platform,
+    account_id: lane.accountId,
+    integration_ref: lane.integrationRef,
+    pack_ref: packRef,
+    media_refs: mediaRefs,
+    caption_sha256: captionRef.slice(-64),
+  };
+  const approvalRef = importBytes("approval.json", Buffer.from(JSON.stringify(approval)));
+  const liveMarketingDir = path.join(os.homedir(), ".local", "state", "life-manager", "marketing");
+  const testMarketingDir = path.join(dataDir, "marketing");
+  fs.mkdirSync(testMarketingDir, { recursive: true, mode: 0o700 });
+  for (const name of ["lane-manifest.json", "publication-effect-fence.json"]) {
+    fs.copyFileSync(path.join(liveMarketingDir, name), path.join(testMarketingDir, name));
+    fs.chmodSync(path.join(testMarketingDir, name), 0o600);
+  }
+  return {
+    dataDir,
+    objectStore,
+    env: {
+      LM_DATA_DIR: dataDir,
+      LM_RUNTIME_TENANT_ID: "dais-local",
+      [lane.packEnv]: packRef,
+      [lane.mediaEnv]: mediaRefs.join(","),
+      [lane.captionEnv]: captionRef,
+      [lane.approvalEnv]: approvalRef,
       LM_POSTIZ_API_KEY: "postiz-secret-fixture",
       LM_TELEGRAM_BOT_TOKEN: "telegram-secret-fixture",
       LM_TELEGRAM_ALERT_CHAT_ID: "123456789",
@@ -355,6 +439,87 @@ test("EN slideshow TikTok command selects only its immutable lane", () => {
   assert.throws(() => runAniccaEnSlideshowTikTokCanary(["run-en-affirmation", "--slot", SLOT], {}), /accepts only/i);
 });
 
+test("EN2 TikTok production command accepts only its exact due slot shape", () => {
+  const command = "run-en2-affirmation-tiktok-production";
+  assert.deepEqual(parseArgs([command]), { command, slot: null });
+  assert.deepEqual(parseArgs([command, "--slot", SLOT]), { command, slot: SLOT });
+});
+
+test("TikTok Postiz liveness accepts the exact CTA-adjusted caption hash", () => {
+  const lane = { platform: "tiktok" };
+  const baseCaptionSha = "a".repeat(64);
+  const finalCaptionSha = "b".repeat(64);
+  const receipt = {
+    public_url: null,
+    provider_state: "PUBLISHED",
+    provider_posting_method: "DIRECT_POST",
+    provider_content_sha256: finalCaptionSha,
+    caption_sha256: baseCaptionSha,
+    caption_with_cta_sha256: finalCaptionSha,
+  };
+
+  assert.equal(isVerifiedPostizPhotoPublication(lane, receipt), true);
+  assert.equal(isVerifiedPostizPhotoPublication(lane, {
+    ...receipt,
+    provider_content_sha256: baseCaptionSha,
+  }), false);
+  assert.equal(isVerifiedPostizPhotoPublication(lane, {
+    ...receipt,
+    caption_with_cta_sha256: undefined,
+    provider_content_sha256: baseCaptionSha,
+  }), false);
+});
+
+test("production TikTok runner records Postiz-only evidence and does not resend publication or liveness", async () => {
+  const value = enTikTokFixture();
+  const providerCallsMade = [];
+  const telegramCalls = [];
+  const now = () => "2026-10-07T11:16:00.000Z";
+  const options = {
+    env: value.env,
+    objectStore: value.objectStore,
+    now,
+    runDistribution: async (input) => {
+      providerCallsMade.push(input);
+      return {
+        state: "PUBLISHED",
+        reconciled: true,
+        post_id: "postiz-tiktok-photo-fixture",
+        post_url: null,
+        integration_id: EN_AFFIRMATION_TIKTOK_LANE.integrationId,
+        content_sha256: sha256(fs.readFileSync(input.captionPath)),
+        title: input.title,
+        posting_method: "DIRECT_POST",
+        release_id: "p_pub_url~v2.123",
+      };
+    },
+    sendTelegram: async (...args) => {
+      telegramCalls.push(args);
+      return { ok: true, result: { message_id: 77 } };
+    },
+  };
+
+  const first = await runAniccaCarouselCanary([
+    "run-en-affirmation-tiktok-production",
+    "--slot",
+    "2026-10-07T11:15:00.000Z",
+  ], options);
+  const replay = await runAniccaCarouselCanary([
+    "run-en-affirmation-tiktok-production",
+    "--slot",
+    "2026-10-07T11:15:00.000Z",
+  ], options);
+
+  assert.deepEqual(first.telegram, { created: true, held: false, message_id: 77 });
+  assert.equal(first.publication.public_url, null);
+  assert.match(telegramCalls[0][2], /Postiz API status: PUBLISHED/);
+  assert.match(telegramCalls[0][2], /exact locally stored approved assets and caption matched/);
+  assert.equal(replay.publication.created, false);
+  assert.deepEqual(replay.telegram, { created: false, held: false, message_id: 77 });
+  assert.equal(providerCallsMade.length, 1);
+  assert.equal(telegramCalls.length, 1);
+});
+
 test("JA main TikTok production command selects the recovered Larry sunset lane", () => {
   assert.deepEqual(parseArgs(["run-ja-main-tiktok", "--slot", SLOT]), { command: "run-ja-main-tiktok", slot: SLOT });
   assert.deepEqual(parseArgs(["run-ja-main-tiktok-production"]), { command: "run-ja-main-tiktok-production", slot: null });
@@ -411,7 +576,7 @@ test("JA jp1 production controls keep the Postiz alias separate from its native 
   assert.doesNotThrow(() => assertProductionControls({ dataDir }, JA_JP1_TIKTOK_LANE));
 });
 
-test("EN affirmation alternate self-consistent pack and approval stop before secret/provider", async () => {
+test("EN affirmation accepts an alternate gate-approved pack when its per-job approval matches", async () => {
   const value = enFixture();
   const sourceDir = path.join(os.homedir(), ".local", "state", "life-manager", "objects", "sha256");
   const alternatePack = JSON.parse(fs.readFileSync(path.join(sourceDir, EN_PACK_REF.slice(-64)), "utf8"));
@@ -427,15 +592,17 @@ test("EN affirmation alternate self-consistent pack and approval stop before sec
   value.env[EN_RUNNER_LANE.packEnv] = alternatePackRef;
   value.env[EN_RUNNER_LANE.approvalEnv] = alternateApprovalRef;
   let secrets = 0;
-  let providers = 0;
-  await assert.rejects(runAniccaEnAffirmationInstagramCanary(["run-en-affirmation", "--slot", SLOT], {
+  const publicationCalls = [];
+  const result = await runAniccaEnAffirmationInstagramCanary(["run-en-affirmation", "--slot", SLOT], {
     env: value.env,
     objectStore: value.objectStore,
     secretProvider: { get: async () => { secrets += 1; return "secret"; } },
-    runDistribution: async () => { providers += 1; return {}; },
-  }), /reference|lane|pinned|approved/i);
-  assert.equal(secrets, 0);
-  assert.equal(providers, 0);
+    runDistribution: providerCalls(publicationCalls, { post_url: "https://www.instagram.com/p/AlternateCanary/" }),
+  });
+  assert.equal(secrets, 1);
+  assert.equal(publicationCalls.length, 1);
+  assert.equal(result.publication.created, true);
+  assert.deepEqual(result.telegram, { created: false, held: true, message_id: null });
 });
 
 test("EN affirmation publishes a direct /p/ once, holds then releases native-owner Telegram, and replays zero", async () => {

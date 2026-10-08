@@ -57,7 +57,7 @@ test("ingestion projects real provider receipts and appends through the common s
       capafy: "not_configured", mobileApps: "not_configured",
     },
   });
-  assert.equal(result.economicSourceCoverage.loops.length, 15);
+  assert.equal(result.economicSourceCoverage.loops.length, 18);
   assert.equal(result.economicSourceCoverage.subject_id, "tenant-1");
   assert.equal(result.economicSourceCoverage.complete, false);
   const agentEconomy = result.economicSourceCoverage.loops.find(
@@ -197,11 +197,15 @@ test("authenticated Moneytree reads are verified only after immutable evidence i
       name: "Moneytree account", kind: "bank", balance_jpy: 5000,
       observed_at: observedAt,
     }], { ...provenance("moneytree.show-accounts", "a"), retrieved_at: observedAt });
-  const readTransactions = async () => observed([{
+  const readTransactions = async ({ startDate, endDate, limit }) => observed([{
     id: "moneytree:t1", source_ref: `moneytree:${"b".repeat(64)}`,
     account_id: "moneytree:a1", amount_jpy: -100, occurred_at: "2026-09-06T00:00:00.000Z",
     merchant: "Shop", category: "Food",
-  }], { ...provenance("moneytree.show-transactions", "b"), retrieved_at: observedAt });
+  }], {
+    ...provenance("moneytree.show-transactions", "b"), retrieved_at: observedAt,
+    query_start_date: startDate, query_end_date: endDate,
+    provider_total_count: 1, returned_count: 1, limit,
+  });
   const result = await ingestFinancialRecords({
     store, subjectId: "tenant-1", now: new Date(observedAt),
     moneytreeEvidenceStore: evidenceStore,

@@ -1,5 +1,8 @@
 # Capafy BEST PRACTICES — the "brain" (proven across 13 live listings, 2026-06-25→27)
 
+> **Dais 2026-10-07 (overrides every rule below):** never change an already-published Agent — no reprice, no model switch, no card/description/package update, whether it sells or not. Put the effort into shipping NEW Agents built on the winners' pattern (correct files, no security-scan warning, successful-seller pricing). Only an UPDATE.json carrying `dais_approved_exception` may ship; `inventory_status.py` enforces this.
+
+
 This is the knowledge that makes a listing **profitable AND rejection-proof**. Every rule here is
 backed by real winner data (read via `vendor/capafy-user`) or a real publish/rejection we lived through.
 `lint_listing.py` enforces the hard ones deterministically.
@@ -77,7 +80,7 @@ Honest reframes that PASS: "from your input + model knowledge", "outputs self-co
 
 ## 8. LISTING FILE SHAPE (so build_config.py can parse it)
 `$LIFE_MANAGER_STATE_HOME/features/capafy-<name>/LISTING.md`:
-- header line: `Primary Model: DeepSeek V4.1 Flash · category: <JP> ... tags: a, b, c` (new skills default to DeepSeek V4.1 Flash — cheaper hosted model, see `build_config.py MODEL_IDS`; already-published Sonnet skills are not migrated)
+- header line: `Primary Model: Claude Sonnet 5.5 · category: <JP> ... tags: a, b, c` (new skills default to Claude Sonnet 5.5 since 2026-10-08 — runs on OpenRouter `anthropic/claude-sonnet-5.5`, same $2/$10 per M price as 5; Capafy's "LLM モデル" combobox has no 5.5 preset, so build_config.py maps the display field to the "Claude Sonnet 5" preset while the hosted model_id stays 5.5; keep caps low: week <= 25, month <= 40, year <= 480)
 - a pricing table: `| cycle | price | cap | trial |` rows (trial = `No Free Trial` or
   `Free Trial <hours>h / <N> requests`; see §3 for the new-skill default)
 - `## Title` / `## shortDescription` / `## welcomeMessage` / `## detailedDescription`
@@ -159,7 +162,7 @@ categories:**
 2. Finance summaries (earnings/market recap style, not stock-tracking — that's Portfolio Tracker).
 3. Sports analysis beyond football fixtures (a different league/sport with the same weekly-fixture
    recurring-input shape as `football-match-analyst`).
-Use **DeepSeek V4.1 Flash** as Primary Model (§5's cheaper default) and No Free Trial on every plan per §3.
+Use **Claude Sonnet 5.5** as Primary Model (Dais 2026-10-07: our four sellers stopped the day after a Sonnet -> DeepSeek switch; most top sellers run Sonnet; 5.5 runs at the same OpenRouter price as 5 and shows as the "Claude Sonnet 5" display preset per §8) with low request caps and No Free Trial on every plan per §3.
 
 ### Description template (derived from Hook Lab's live listing style)
 Use this shape for every new listing in this family — outcome headline, buyer identity, 3 concrete

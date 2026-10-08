@@ -2,36 +2,69 @@
 
 Status: current design reference; implementation state, cursor, and ordered TODOs are maintained only in [the unified SSOT](2026-09-25-life-manager-unified-ssot.md)
 Owner: `lm-cfo-observability-1002`
-Scope: Dais personal CFO, Life Manager business CFO, provider cost control, and daily source-backed reporting
+Scope: Life Manager business CFO, provider cost control, and daily source-backed reporting. Personal accounts and Moneytree are outside this completion lane; do not read them as part of business-CFO work.
 
 ## 1. Outcome
 
-Life Manager gives Dais one daily CFO report containing:
+Life Manager gives Dais a daily business-CFO report containing:
 
-1. personal cash and asset balances, including MUFG;
-2. settled revenue from every connected revenue rail;
-3. settled expenses from every connected bank/card/subscription rail;
-4. Life Manager's own provider and cloud cost by tenant, loop, task, and provider;
-5. actual, estimate, stale, and unknown states kept separate;
-6. a source receipt for every displayed number.
+1. gross and settled revenue, refunds, and fees for every canonical business agent/product loop;
+2. actual provider/API/infrastructure expense by agent, loop, and traceable runtime occurrence;
+3. costs for all runtime jobs, with evidence-backed loop attribution where available and explicit shared/control/platform overhead otherwise;
+4. billed expense, cash paid, estimates, stale data, and unknown attribution kept separate;
+5. net contribution by loop and company totals by matching period and currency;
+6. an Asia/Tokyo daily period, month-to-date, trailing period, and MRR shown as distinct measures;
+7. a durable source receipt and freshness/coverage state for every displayed number.
 
 The report is not complete when a local calculation succeeds. It is complete only after the source provider was read and the resulting receipt is durable.
 
-## 2. Current evidence and gaps
+## 2. Dated evidence and gaps
+
+The observations in this section retain their recorded timestamps; they are not live balances or current-month totals. The unified SSOT owns the current cursor, and a fresh source receipt is required before presenting a number as current.
 
 ### Evidence
 
-- The September 2026 Google Cloud invoice was ¥27,889 including tax (¥25,354 before tax).
-- Read-only Cloud Monitoring counts for the linked projects were 25,526 Geocoding calls, 15,092 Directions calls, 6,510 Places Text Search calls, and 21,796 Gemini GenerateContent calls.
-- Token and current public pricing produced a pre-tax estimate close to ¥25,354. This is a diagnostic estimate, not the settled SKU receipt; the Google Cloud Cost table CSV remains the settlement authority.
-- Moneytree Web readback showed one MUFG ordinary JPY account with last-known balance ¥504,302. Its last successful aggregation was 2026-08-26 and its connection state is `auth.creds.invalid` since 2026-08-28. The balance is stale and must not be reported as today's fresh balance.
+- The official 2026-09 Cost Table CSV is now present at private path `/Users/anicca/.local/state/life-manager/life-manager-cfo-hourly/evidence/google-cloud-billing/2026-09-cost-table.csv` (mode `0600`, SHA-256 `c5157075fe3e8331fa2a72d3b33fc98bbacb8b84a0ee2cfc945051ee87f66c64`). It has 43 usage rows, four tax rows, one rounding-adjustment row, and one invoice-total summary row. The exact reconciliation is ¥25,354.504771 gross usage − ¥0.053520 credits + ¥2,535.000000 tax − ¥0.451251 rounding adjustment = ¥27,889.000000 billed total. Do not add the summary row to its detail rows. A separate mode-`0600` join artifact `google-cloud-invoice-identity-payment-join-2026-10-07T053405Z.json` (SHA-256 `a7fe9c8bf5e3d7d78caee6462006f29eded889fb8207dbe263a50ba5c5b98196`) confirms invoice number, invoice ID, billing account, currency, and total match the original PDF and current open billing account. This proves invoice identity and billed amount, not posted payment or settled company expense.
+- Service totals in the same CSV match the live table: Places API ¥9,419.856821, Geocoding API ¥7,493.014626, Directions API ¥3,271.171127, Gemini API ¥5,160.873099, Cloud KMS ¥9.530434, Cloud Storage ¥0.005144, and Cloud Run ¥0. The old stored Gemini row ¥5,159 is superseded by this exact CSV value. The CSV’s explicit credit and rounding rows explain why rounded leaf-row sums do not equal the final invoice total.
+- A read-only `serviceruntime.googleapis.com/api/request_count` query for `2026-09-01T00:00:00Z`–`2026-10-01T00:00:00Z` returned Geocoding 20,258 (13,298 response 200; 6,960 response 404), Directions 14,230 (all response 404), Places Text Search 5,800 (4,308 response 200; 1,491 response 404; 1 response 500), and Places Details 72 (response 200). The query paged through 23 pages and 19,722 points; normalized series/interval deduplication found no duplicates.
+- Compared with the invoice-month CSV quantities, these counts differ by +855 Geocoding (CSV 19,403), +125 Directions (CSV 14,105), +128 Places Text Search (CSV 5,672), and -3 Places Details (CSV 75). This remains a diagnostic comparison, not a same-period billing reconciliation: Google documents that invoice-month usage can differ from calendar-month usage because late-reported costs can move between invoices, and the CSV's usage dates have day-level rather than timestamp precision. Request counts also do not prove billable units or loop attribution; a `404` response is not treated as proof of zero charge. Sources: [Cloud Monitoring time-series API](https://cloud.google.com/monitoring/api/ref_v3/rest/v3/projects.timeSeries/list), [Google Cloud invoice-month cost details](https://docs.cloud.google.com/billing/docs/how-to/cost-table#invoice-month).
+- A fresh read-only check on 2026-10-07T13:11Z listed six projects visible to the current Google Cloud CLI identity. `bq ls --all --format=json <project>:` returned no datasets visible to that identity in four projects; the other two reported that BigQuery is not enabled. Google documents that `datasets.list` results are filtered to datasets for which the caller has `bigquery.datasets.get`; `--all` includes hidden datasets but does not bypass that permission. Therefore this probe does not prove those four projects contain no dataset, only that this identity could list none, and the two disabled projects remain unqueried. No API was enabled and no export or dataset was created. The later-discovered private CSV artifact above was outside the earlier `docs/evidence` and Downloads search scope. No BigQuery export, dataset, or API enablement was created. Source: [BigQuery datasets.list](https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/list).
+- The Billing Console displayed an action-required warning that at least one project using `generativelanguage.googleapis.com` has unrestricted API keys. Read-only API Keys metadata across the six visible projects found 24 keys: 20 list Gemini as an allowed API, 23 have API restrictions, one has none, and all 24 have no application restriction. The fully unrestricted key is named `API キー 2` in the project displayed as `ANICCA`. No key string was requested or changed. This warning is not evidence of abuse, and the key-to-production-caller mapping remains unknown. Google recommends both API and application restrictions; keys without API restrictions can call any API that accepts keys, and keys without application restrictions can be used from anywhere. Source: [Google API key restrictions](https://cloud.google.com/docs/authentication/api-keys).
+- Historical personal-CFO observations only (not refreshed and excluded from this goal): prior Moneytree reads showed one MUFG account with unknown freshness and incomplete transaction coverage. Do not use those figures as current or as company revenue/expense, and do not call the Moneytree plugin for this task.
+- The last captured CFO report in this evidence set was `sent` for period `2026-10-07:11` at `2026-10-07T11:58:31Z`. Its report pointers match the referenced B7 snapshot hashes; the snapshot reports zero duplicate receipts. `sourceProvenance.status=verified` verifies provenance, not complete company financial coverage.
+- Historical personal-CFO evidence in the saved `2026-10-07:11` snapshot labels Moneytree `partial`, with unknown freshness and incomplete transaction coverage. It is retained only as historical context, not as current personal or business totals; Moneytree is excluded from the active goal.
+- Historical Moneytree implementation evidence: PR #6910 merged as `d950731b` to preserve the provider's Japan calendar date and invalidate the old UTC-shifted projection cache. The saved 2026-10-07 readback did not verify a post-release natural report, so the Moneytree result remains unverified; it is outside this business-CFO task and must not be refreshed here.
+- In that report, company historical/trailing/MRR status is `unknown`, with 173/168/26 coverage gaps across 18 loops. Historical and trailing company revenue, cost, and net are null; company MRR currencies are empty. The only verified per-loop MRR is `mobile-apps` at USD 20.34; this is subscription MRR, not settled revenue or profit. The historical window has no start date, so this snapshot does not establish last-month company revenue.
+- An independent read-only reaggregation confirms the 173/168/26 gap counts from all 18 per-loop rows and matches the company-level aggregates. Historical gaps: 162 `missing_category` (all 9 required counted categories across 18 loops), 5 stale readbacks, 3 unverified receipts, and one each for unconnected source, missing coverage, and read failure. Trailing gaps: 158 `missing_category` (four categories have 17 loop gaps each; the other five have 18), 5 stale readbacks, 2 unverified receipts, and one each for unconnected source, missing coverage, and read failure. MRR gaps: 19 `missing_category` (17 explicitly identify category `mrr`; 2 omit the category field), 2 stale readbacks, 2 unverified receipts, and one each for unconnected source, missing coverage, and read failure. These are missing or unverified coverage, not zero revenue or zero cost.
+- Current product-loop catalog contains 18 unique business loop IDs, and the latest B7 `historical`, `trailing`, and `mrr` loop-key sets each match that catalog exactly. The SSOT's older 14-loop count is stale; this is not a B7-versus-catalog row mismatch. The runtime registry contains 186 job IDs: 111 are uniquely referenced by product-loop `job_ids`, and 75 are not product-loop jobs but are role-classified as `control` (35), `platform` (14), or `shared` (26). Some `shared` jobs produce revenue or growth activity, so their costs must remain in company expense rather than being omitted. A8 must update the stale SSOT count after its lease is released, preserve the 18 business P&Ls, and account for all 186 runtime jobs either through a receipt-backed product-loop join or an explicit shared/control/platform cost bucket; do not create 186 revenue owners.
+- Catalog-declared source wiring across those 18 loops is financial-revenue `implemented` 4 / `partial` 4 / `missing` 8 / `not_applicable` 2, and cost `implemented` 4 / `partial` 5 / `missing` 7 / `not_applicable` 2. These catalog labels do not prove current receipts or actual production coverage; B7 coverage gaps remain the acceptance evidence.
 
 ### Code gaps
 
-- The current financial report reads `lm_users.agent_wallet_address`, the agent earnings ledger, and `lm_api_cost.est_usd`; it does not read Dais's bank or card accounts.
-- The current report treats provider cost rows as estimated API costs; it does not join a settled Google invoice or a Moneytree transaction source.
-- The existing geocode memo is checked but successful results are not persisted, allowing repeated paid requests.
-- The existing provider-cost-guard plan defines persistent caches, cost events, budgets, and a seven-day observation gate, but its implementation tasks are not complete on `main`.
+- A local CFO report store now contains a `status=sent` snapshot for period `2026-10-07:11`, after earlier wakes at `11:12Z` and `11:31Z` were deferred before provider work (`resource_capacity_busy`, then `disk_headroom_low`; both exit 75). The B7 snapshot hash pointers match and duplicate receipts are 0, but the corresponding loop event has `provider_receipt_id=null` and `official_readback_ref=null`; external delivery is not independently confirmed. The embedded MUFG balance is not accepted as fresh because its upstream sync time is absent; personal transaction coverage is partial, and all company-level revenue/cost/net totals remain unknown. The earlier host disk guard observation is historical, not evidence of the current host state.
+- Focused local fixture suites for `cfo-hourly-local`, `cfo-result-local`, and `cfo-result-summary` pass 69/69 after the Moneytree calendar-date and cache-v3 regressions were added. They cover 12-month request windows, deduplication, unknown freshness, transfer separation, recurring-charge candidates, suppression of stale/unverified reports, local-date preservation, and old-cache invalidation. This source/fixture proof is not production readback.
+- The report still lacks a verified join from the official Google invoice's project/SKU/service rows to the specific provider operations, Life Manager loops, and report receipt. Monitoring counts alone cannot fill that join.
+- A persistent geocode cache is wired into the production source, but the post-restart natural route/cache-hit/replay-zero acceptance is unverified. Free-provider fallback is a separate route optimization; it does not prove end-to-end cost reduction until its code is integrated and its natural UX/readback is observed.
+- Cost visibility and spend policy must keep actual invoice charges, estimates, and unknown attribution separate. A Google invoice total is not yet a measured per-loop cost or a daily CFO report receipt.
+
+### Business CFO progress refresh — 2026-10-07 23:25 JST
+
+- At the 2026-10-07 23:25 JST refresh, the canonical unified SSOT still showed cursor `A4.1` under another owner’s lease. That historical cursor was superseded when PR #6915 merged; current main records cursor `A5` and order `A5 → A6 → A8 → A9 → A10`. Moneytree is excluded, and Cloud route/geocoding work is outside this CFO completion lane.
+- A5 is owned in `/Users/anicca/Projects/life-manager-main/.worktrees/cfo-a5-cost-visibility-20261007`, branch `feat/cfo-a5-cost-visibility-20261007`, HEAD `980fe86791247fac29b614a0d5da0957e901e087`, active lease owner `codex-cfo-a5`. PR #6827 remains draft. Its period-summary SQL groups provider/SKU/operation/unit and does not select or group `agent_id`, `loop_id`, or `job_id`; the panel therefore cannot yet show per-agent/per-loop spend. The task-1 SQL contract report is 5/5 PASS and no production migration/deploy has occurred. Latest CI has two repository-wide failures: `manifest_inventory_mismatch skills/capafy-autopublish` and a Gitleaks `generic-api-key` pattern at `docs/evidence/main-agents/health.json:7757`; the A5 worktree is untouched.
+- A6's CSV capture and invoice identity/amount join are confirmed from the private artifacts above. An independent read-only reviewer recomputed the row math and period split. For trailing window `2026-09-07`–`2026-10-07`, the invoice CSV has 7 fully in-window usage rows totaling ¥176.231293, 23 rows crossing the start boundary totaling ¥25,161.479233, 13 pre-window rows totaling ¥16.740725, and zero October rows. These partitions reconcile to the invoice-month usage total; the full trailing-30-day amount is not proven because cross-boundary rows cannot be apportioned. PDF/CSV/current billing-account identity matches and billed total is ¥27,889; posted payment and payer settlement remain unknown. The current `skills/cfo/adapters/actual_cost.py` only emits invoice receipts when status is paid/settled and `paid_at` is present, so this bill is not in B7 settled cost. `project_loop_mapping_proven=false`, so service/project invoice charges are not yet per-agent costs. A billed invoice is an expense fact; posted cash payment is a separate fact. Do not divide boundary rows or claim the invoice was paid.
+- The latest B7 report remains for period `2026-10-07:11`; its local snapshot is `sent`, but the matching runtime event has no provider receipt or official readback. The latest recorded `lm-loop status` at 14:09:58Z is run `18dc449e696e1f68-12572`, installed release `2d3b4260`, `apply_lock_busy`/exit 78/effect `not_applicable`; last successful report event is 11:59:28Z. Company revenue/cost/net remain null; B7 has 18 loop rows whose IDs exactly match the 18 product-loop catalog entries, 173 historical and 168 trailing coverage gaps, and only `mobile-apps` MRR USD 20.34 verified. The SSOT's 14-loop count is stale. This is subscription MRR, not settled company revenue or profit.
+- Runtime ownership crosswalk is exact for 111 catalog-listed job IDs, with no duplicates or missing registry IDs. The other 75 of 186 jobs have system roles control/platform/shared (35/14/26); the `shared` group includes revenue/growth jobs, so their costs cannot be dropped. Direct per-job cost and explicit company overhead are still not shown together in the CFO report.
+- A10 natural report acceptance is still open. Branch `fix/cfo-telegram-runtime-receipt-20261007` has a pushed source change (`b63e42f27f4bacfbe4f194b1e1cb66c5639c559c`) for occurrence-bound Telegram receipt hints, but no PR, review, main merge, or production load has been verified. A future seven-day natural run must reconcile the full report hash, provider message receipt, and runtime event before the report is called delivered.
+- A read-only search of Gmail at 14:21Z for Google payment-received/success/confirmation terms returned 0 messages in that bounded query. The invoice PDF does not say paid; the matching bank card notice lacks posted/settled wording and invoice/account binding. Treat payment settlement as unknown, not unpaid or zero.
+
+- The latest direct read-only `loop_pnl.py --date 2026-10-08 --json` projection completed at `2026-10-07T15:30:17Z` with exit 0 and no stderr. `reporting_date` is October 8 JST, but `snapshot_at` is `2026-10-07T15:30:17Z` and `trailing_start` is `2026-09-07T15:30:17Z`. Historical, trailing, and MRR company status are all `unknown`; currency totals are `{}`; all 18/18 loops are unknown; gaps are 173/173/29. This snapshot is not a scheduled/natural CFO report receipt and does not establish October 8 one-day P&L or zero revenue/cost.
+- PR #6915 merged as `9bfd654a16a15ff994bef2932c768c092342481d` on 2026-10-07T15:59:58Z. The PII findings from its earlier pre-merge run were on an old main base and were resolved by main PR #6937; the merged PR's final required checks passed. This is historical integration evidence, not proof that the CFO implementation is complete.
+
+- A5 read-only root-cause check: `apps/life-manager/lib/usage-event.js` already writes `meta.runtime_trace.loop_id`, `owner_id`, `run_id`, `occurrence_id`, and `release_sha` when the trusted runtime environment supplies them; the A5 summary SQL groups only provider/SKU/operation/unit and ignores that nested trace. The current usage-event contract has no `job_id`. Fix the projection/grouping to use the existing loop/owner trace and keep absent identity unknown; job attribution requires a separate receipt.
+
+- A9 read-only contract check: `skills/cfo/loop_pnl.py` accepts `--date` as an Asia/Tokyo reporting label, but `_b7_window` anchors projections to `snapshot_at` and `trailing_start`; the date does not filter receipts into a daily bucket. The current output therefore does not prove daily revenue/cost for the displayed date. A9 must add a day-bounded source projection or the report must not be presented as daily P&L.
+
+- Invocation side-effect check: the live RevenueCat flag and managed runtime identity variables were unset in the execution context; the newest `mobile-readbacks` file remained at `2026-10-07T14:49:07Z`, before the projection snapshot. The optional RevenueCat read/persist branch was not activated for this invocation.
 
 ## 3. Accounting ownership
 
@@ -44,9 +77,13 @@ Every financial row has exactly one `owner`:
 | `transfer` | Movement between owned accounts | MUFG → card payment, wallet → bank |
 | `unknown` | Source or classification is unavailable | stale account, failed provider read, unmatched charge |
 
+The `dais_personal` and personal-transfer examples preserve the wider accounting model; personal accounts are not part of the current business-CFO acceptance and are not read in this task.
+
 Internal transfers, owner deposits, fundraising, and unrealized gains are never revenue. Unknown is never zero.
 
 ## 4. System architecture
+
+The diagram retains a future personal-finance lane for context. Only the Life Manager business-CFO path is active in this completion scope; no Moneytree read is required.
 
 ```mermaid
 flowchart TD
@@ -167,16 +204,31 @@ Telephony, paid model calls, and user-requested external actions remain separate
 5. Evaluate OSRM/Valhalla self-hosting for driving routes and OpenTripPlanner self-hosting for scheduled transit only after the current route cache and budget gates are measured.
 6. Keep Google as an explicit, budget-authorized fallback rather than the scheduler default.
 
+**A4.2 scope and user experience:** this is a behind-the-scenes geocoding fallback for eligible Japanese address/facility lookups, not a new CFO screen, user setting, or replacement for every Google API. The person keeps using the existing route flow: enter a destination, then see the same route result. For a Japanese address, the free Japan address geocoder is tried; for a named facility, OpenPOI is tried. A result is used only when it is uniquely matched, valid at the required precision, and attributable. If it is ambiguous, invalid, or unavailable, the existing flow makes one Google Geocoding fallback request; providers are not raced in parallel. The operation records which provider/result was used, why fallback occurred, and its cost attribution. A valid free result can avoid a Google Geocoding request, but A4.2 does not replace Google Places, Directions/Routes, or Gemini. The current September table shows Geocoding at ¥7,493.014626 and Places at ¥9,419.856821; A4.2 can reduce only the eligible Geocoding portion, not the full Google bill. Actual savings remain unmeasured.
+
 ## 9. Delivery scope by design phase
 
 This section defines phase scope and acceptance intent, not the live TODO order or completion status. The unified SSOT is the sole source for the active cursor and remaining work.
 
-### A0 — Spec and ownership
+### CFO-first execution priority
 
-- approve this design;
-- review existing Cost Guard and Finance specs for overlap;
-- write the implementation plan only after this spec is accepted;
-- record file ownership and excluded files in the plan.
+This active goal is the **business CFO**: actual revenue and actual costs for every canonical business agent/loop, followed by a reliable report. It is not the personal Moneytree rail or the Life Manager Cloud cost-reduction project. Active completion order is **A5 → A6 → A8 → A9 → A10**:
+
+1. **A5 — per-agent/loop cost visibility:** expose usage, estimate, billed actual, and unknown by provider/SKU/operation using existing `meta.runtime_trace.loop_id` and `owner_id`; retain `run_id`, `occurrence_id`, and `release_sha` for traceability. The current usage-event contract has no `job_id`, so show job attribution only when a separate receipt supplies it; otherwise keep it unknown/unattributed. Shared/control/platform costs remain visible as overhead. Warnings remain warning-only; do not add a global hard cap or silently stop work.
+2. **A6 — Google billed actuals:** the official Cost Table CSV and invoice identity are captured. Reconcile invoice period, project, service, SKU, tax, credits, and currency against Monitoring estimates. Attribute invoice costs to a runtime job/agent or product loop only when provider/occurrence evidence supports it; otherwise show the amount in an explicit shared/unattributed bucket. Keep invoice-billed expense separate from posted/paid cash settlement.
+3. **A8 — full business coverage:** use the 18 product-loop IDs recorded in the canonical unified SSOT on main. Join each business loop's gross/settled revenue, refunds, fees, billed provider/API costs, subscriptions, and infrastructure costs by period/currency and official receipt. Account for all 186 runtime jobs: map the 111 catalog-owned jobs to product loops where receipt-backed, and show the remaining 75 control/platform/shared jobs as evidence-backed loop attribution or explicit company overhead. Preserve direct versus shared cost; do not convert estimates or missing values to actual/zero, and do not invent 186 separate revenue owners.
+4. **A9 — usable CFO report:** show each product loop's gross revenue, refund/fees, settled revenue, billed expense, posted cash paid when proven, net contribution, and MRR separately; show cost-bearing runtime jobs under their mapped loop or shared/control/platform owner. Provide an actual Asia/Tokyo daily receipt window, month-to-date, trailing, and MRR as distinct periods with currency, source receipt, freshness, and coverage; company totals must reconcile to source rows. The current `loop_pnl.py --date` only sets `reporting_date` while B7 windows come from `snapshot_at`/`trailing_start`, so it is not a one-day P&L until the selected day actually filters receipts. Align its operator skill after that behavior is implemented.
+5. **A10 — natural acceptance:** observe seven consecutive days and read back every canonical product-loop row plus the disposition of every runtime job's cost. Company totals must include business-loop expense and control/platform/shared overhead. Missing categories remain explicitly unknown with an owner/next action; do not claim a complete CFO or $10k MRR from partial coverage.
+
+**Deferred, after the business CFO block:** A4.1→A4.2→A4.3 (free-geocoding optimization); A3.4 remains conditional on A6 evidence of material settled Geocoding cost or duplicate calls after process restart. This matches the measured September bill, where Places cost more than Geocoding. Do not start or prioritize these Cloud savings tasks before A10.
+
+**Moneytree is excluded from this business-CFO goal. Do not call its plugin, attempt login/reconnect, or spend time on personal-bank data. Any existing Moneytree values in this document are historical observations only; they are not refreshed or presented as current.
+
+The canonical unified SSOT on main already records cursor `A5` and the active order `A5 → A6 → A8 → A9 → A10`. This document is the CFO design reference; it does not claim that the CFO implementation is complete or that production behavior changed. Moneytree is excluded, not a post-CFO task. Cloud/geocoding savings remain after the business-CFO acceptance gate.
+
+### A0 — Design baseline
+
+The business-CFO scope and active order are recorded in this reference and the canonical unified SSOT. A0 is not an approval gate or a reason to pause implementation; no new design or plan artifact is required before continuing at cursor A5.
 
 ### A1 — Observation envelope (operational; hardening remains)
 
@@ -218,48 +270,52 @@ Implementation boundary for A3:
 
 ### A5 — Budget governor
 
-- implement pure daily/monthly budget states;
-- gate nonessential provider work;
+- expose daily/monthly usage, estimate, billed/actual, and unknown states by provider and runtime job/agent plus product loop with warnings only;
+- do not add a global hard cap or silently stop core provider work when a threshold is reached;
 - preserve essential cached reads;
-- emit budget transition observations and Telegram warnings.
+- emit budget transition observations and Life Manager-owned warnings.
 
 ### A6 — Official Google billing reconciliation
 
 - collect intramonth Monitoring usage estimates;
-- import Cost table CSV settlement rows;
+- import official Cost Table CSV billed-usage rows, credits, tax, and rounding adjustments;
 - join SKU/project/service rows to provider cost events;
-- show estimate-versus-settled variance.
+- attribute to an agent/loop only with receipt-backed evidence; keep unsupported shared cost visible as shared/unattributed;
+- show estimate-versus-billed variance;
+- keep invoice-billed expense separate from posted/paid cash settlement; a missing payment receipt does not erase billed expense or prove it was paid.
 
-### A7 — Personal CFO rail
+### A7 — Personal CFO rail (deferred by user; out of current acceptance)
 
-- restore Moneytree MUFG authorization;
-- read accounts, transactions, and refresh timestamps read-only;
-- normalize JPY/original currency/FX provenance;
-- reject stale balances as current;
-- read back the same balance and transaction cursor independently.
+- do not perform Moneytree reads, authorization, reconnect, or recovery in the current business-CFO work;
+- retain historical Moneytree observations as stale; do not use them as a current balance or business revenue/expense input;
+- resume this personal-finance rail only as a separate future task.
 
 ### A8 — Revenue and expense coverage
 
-- connect every settled revenue rail;
-- connect every personal bank/card rail;
+- preserve the verified exact 18 product-loop/B7 ID set, then update the stale SSOT 14-loop count after lease release;
+- connect every settled business revenue rail and every billed/paid business expense source for each canonical agent/loop;
+- join actual receipts by period/currency/owner; show missing `agent_id`/`loop_id`, unsupported allocation, or unavailable source explicitly as a coverage gap;
+- map all 186 runtime jobs to one of the 18 product loops or explicit control/platform/shared company overhead, preserving source receipts and avoiding duplicate allocations;
 - detect subscriptions and merchant categories;
 - reconcile internal transfers;
-- compute 1/3/12-month totals.
+- compute per-agent/loop and company 1/3/12-month totals without double-counting transfers or settlements.
 
 ### A9 — Report surfaces
 
 - build the deterministic daily/weekly snapshot;
-- send Telegram report with freshness and receipts;
-- render the same snapshot in the panel;
-- test that Telegram and panel totals are identical.
+- render per-product-loop and company revenue/cost/net/MRR in the existing CLI/report surface, with cost-bearing runtime-job attribution available under each loop or shared/control/platform bucket;
+- show direct cost separately from shared/unattributed cost, and settled values separately from estimates;
+- include period, currency, receipt reference, freshness, and coverage/unknown state for every row;
+- verify displayed totals reconcile to the underlying source-backed rows.
 
 ### A10 — Natural-run acceptance
 
 - run one local daily close;
 - run one cloud canary;
 - observe seven consecutive days;
-- verify official Moneytree, Google billing, revenue, and expense readbacks;
-- close only when all required numbers are either fresh and sourced or explicitly partial with an owner-visible blocker.
+- verify available official Google billing, revenue, and expense readbacks;
+- verify all 18 canonical business agent/loop rows and all runtime-job costs are represented by receipt-backed loop allocation or explicit shared/control/platform overhead; source totals reconcile;
+- close only when every missing source/attribution is explicit and no partial value is represented as zero or as a complete CFO result.
 
 ## 10. Status ownership
 

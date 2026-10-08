@@ -35,6 +35,7 @@ if ! POSTIZ_API_KEY="$LM_POSTIZ_API_KEY" "$PYTHON_BIN" \
   --auto-owner "$LOOP_ID" --resolve >&2
 then
   printf 'mobile app prior-effect reconciliation deferred: %s\n' "$LOOP_ID" >&2
+  exit 75
 fi
 
 IFS=$'\t' read -r RUNNER ACTION PRODUCT_ID PRODUCT_ORIGIN PRODUCT_WORKSPACE_REL < <("$NODE_BIN" "$SCRIPT_DIR/mobile-app-command.js" "$LOOP_ID")
@@ -48,6 +49,11 @@ export LIFE_MANAGER_MOBILE_PRODUCT_WORKSPACE_REL="$PRODUCT_WORKSPACE_REL"
 
 RESULT_CAPTURE="$(mktemp "${TMPDIR:-/tmp}/lm-mobile-result.XXXXXX")"
 trap 'rm -f -- "$RESULT_CAPTURE"' EXIT
+# Clear the no-publish proof only after reconciliation and local setup pass,
+# immediately before the publisher starts; later failures remain effect-unknown.
+if [ -n "${LIFE_MANAGER_RESULT_HINT_PATH:-}" ]; then
+  rm -f -- "$LIFE_MANAGER_RESULT_HINT_PATH"
+fi
 set +e
 "$PYTHON_BIN" "$REPO_ROOT/runtime/run-with-timeout.py" --grace-seconds 10 1200 \
   "$NODE_BIN" "$RUNNER" "$ACTION" | tee "$RESULT_CAPTURE"

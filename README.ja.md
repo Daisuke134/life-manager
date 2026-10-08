@@ -1,5 +1,5 @@
-<!-- startup-context-version: 2026-10-02.1 -->
-<!-- startup-context-digest: 113ddbade3174274888d408be0874286dd6c4d9fa8cff41d447bca744e74ceed -->
+<!-- startup-context-version: 2026-10-08.1 -->
+<!-- startup-context-digest: 5b8e34cf01a7cf7589fc6049c080b3eb8458ec28b98103abc2ade395e8d0f90c -->
 # Life Manager
 
 **Life Managerは、あなたの身体・心・お金を管理するproactive general agentです。** 目標を提案で終わらせず、
@@ -18,38 +18,43 @@ repositoryはopen sourceで、dataをowner端末に置くportable self-host版�
 phoneだけで常時稼働させたい時はpaid monthly cloudを使います。どちらもこのrepositoryの同じcoreから作り、同じstate・証拠・人間向け報告contractへ収束させます。資産増加や投資収益を保証せず、
 receiptのない試行を「完了」と報告しません。
 
-## 15本の主要product loop
+## 18の主要agent
 
-15本はuser-facingな製品能力の数です。process数ではありません。registryには、各product loopを実装する
+18はuser-facingな製品能力（agent）の数です。process数ではありません。registryには、各agentを実装する
 応募・browser owner・報告・照合・healthcheckなどの小さいjobが多数あります。
 
-1〜3は**Human Gig Work** familyです。案件発見、選別、応募、交渉、納品支援、照合、報告をLife Managerが自動化し、platformが本人確認、面談、承認、最終納品を要求する箇所だけ人が参加します。
+1〜4は**Human Gig Work** familyです。案件発見、選別、応募、交渉、納品支援、照合、報告をLife Managerが自動化し、platformが本人確認、面談、承認、最終納品を要求する箇所だけ人が参加します。
 
-| # | Product loop | 現在の代表owner | 役割 |
+| # | Agent | 現在の代表owner | 役割 |
 |---:|---|---|---|
 | 1 | Gig — Coconala | `hf-gig-apply-direct`, `hf-gig-reply-detector`, `hf-gig-storefront-direct`, `hf-gig-paid-direct` | 案件発見、応募、交渉、納品、provider結果確認 |
 | 2 | Gig — Lancers | `lancers-revenue-application`, `lancers-revenue-negotiate`, `lancers-revenue-storefront`, `lancers-revenue-paid`, `lancers-revenue-work-sync`, `lancers-revenue-telegram-report` | Lancersの応募からpaid work・納品・報告までを同期 |
 | 3 | Gig — CrowdWorks | `crowdworks-revenue-application`, `crowdworks-revenue-report` | 適合案件へ応募し、証拠つき結果を報告 |
-| 4 | Writer | `writer-opportunity-discovery`, `writer-opportunity-response`, `writer-money-sync`, `writer-report` | 有償執筆案件を探し、応答し、publisher・支払receiptを記録 |
-| 5 | Affiliate | `affiliate-loop`, `affiliate-source-refresh`, `affiliate-browser` | attribution可能なaffiliate機会を発見・公開 |
-| 6 | Investment | `alpaca-investment` | risk gate付きAlpaca paper trading、注文照合、各passの報告 |
-| 7 | Agent Economy | `agent-economy-loop`とx402 helper | agent revenue、compute費用、owner資金と分離した自己資金化を追跡 |
-| 8 | Job Hunter | `job-search-daily`, `job-search-browser`, `job-search-inbox` | 適合求人の発見・応募と確認・返信mailの照合 |
-| 9 | Fundraiser | `fundraiser` | accelerator、fellowship、grant、投資家受付を発見し条件を満たせば応募 |
-| 10 | Connector | `life-manager-connector-native` | event発見・応募・登録確認・Calendar/Telegram receipt報告 |
-| 11 | Self-Build / Product Improvement | `life-manager-selfbuild`、`life-manager-dev` | 検証済みのuser feedbackとproduct evidenceから、review済みのLife Manager改善を作る。Cloudは別loopではなくloopを動かすhost。 |
-| 12 | Mobile App Loops | Anicca iOS、Honne、その他の`life-manager-anicca-*` / `life-manager-honne-*` product job | product accountとappの作成、build・署名・公開、継続改善、Postizまたはnative provider adapterによるmarketing配信、成果計測、検証済み収益のCFO連携までを一つのmobile-app lifecycleとして運用する。現時点では共通のmarketing・配信・計測・receipt経路をrepo内で所有し、app作成・署名・release・iterationは同じE2E loopへ統合中。 |
-| 13 | eBook | `ebook-ja-tiktok-daily`, `ebook-ja-instagram-daily` | 既存accountから日本語eBookのcampaignを配信し、投稿・checkout・PDF納品のreceiptを分けて記録 |
-| 14 | Capafy | `capafy-loop-daily`, `capafy-outcome-monitor`, `capafy-ig-account-manager`, `capafy-ig-marketing-daily` | Capafyという別productの販売・outcome・audience-growth workflowを運用 |
-| 15 | CFO | `life-manager-cfo-hourly` | 全earning loopのverified revenue、cash flow、残高、payout、財務報告を照合 |
+| 4 | Gig — Mercor | `mercor-revenue-application`, `mercor-revenue-reply`, `mercor-revenue-paid` | Mercorの案件に応募し、返信対応と支払い結果を記録 |
+| 5 | PromptBase | `promptbase-loop-daily` | 実例付きのプロンプト商品をPromptBaseに出品し、売上を読み戻す |
+| 6 | Writer | `writer-opportunity-discovery`, `writer-opportunity-response`, `writer-money-sync`, `writer-report` | 有償執筆案件を探し、応答し、publisher・支払receiptを記録 |
+| 7 | Affiliate | `affiliate-loop`, `affiliate-source-refresh`, `affiliate-browser` | attribution可能なaffiliate機会を発見・公開 |
+| 8 | Investment | `alpaca-investment` | risk gate付きAlpaca paper trading、注文照合、各passの報告 |
+| 9 | Agent Economy | `agent-economy-loop`とx402 helper | agent revenue、compute費用、owner資金と分離した自己資金化を追跡 |
+| 10 | Job Hunter | `job-search-daily`, `job-search-browser`, `job-search-inbox` | 適合求人の発見・応募と確認・返信mailの照合 |
+| 11 | Fundraiser | `fundraiser` | accelerator、fellowship、grant、投資家受付を発見し条件を満たせば応募 |
+| 12 | Connector | `life-manager-connector-native` | event発見・応募・登録確認・Calendar/Telegram receipt報告 |
+| 13 | Self-Build / Product Improvement | `life-manager-selfbuild`、`life-manager-dev` | 検証済みのuser feedbackとproduct evidenceから、review済みのLife Manager改善を作る。Cloudは別loopではなくloopを動かすhost。 |
+| 14 | Mobile App Loops | Anicca iOS、Honne、その他の`life-manager-anicca-*` / `life-manager-honne-*` product job | product accountとappの作成、build・署名・公開、継続改善、Postizまたはnative provider adapterによるmarketing配信、成果計測、検証済み収益のCFO連携までを一つのmobile-app lifecycleとして運用する。現時点では共通のmarketing・配信・計測・receipt経路をrepo内で所有し、app作成・署名・release・iterationは同じE2E loopへ統合中。 |
+| 15 | eBook | `ebook-ja-tiktok-daily`, `ebook-ja-instagram-daily` | 既存accountから日本語eBookのcampaignを配信し、投稿・checkout・PDF納品のreceiptを分けて記録 |
+| 16 | Capafy | `capafy-loop-daily`, `capafy-outcome-monitor`, `capafy-ig-account-manager`, `capafy-ig-marketing-daily` | Capafyという別productの販売・outcome・audience-growth workflowを運用 |
+| 17 | LINE Sticker | `line-sticker-factory-hourly`, `line-sticker-readback-hourly`, `line-creators-browser` | オリジナルの動くLINEスタンプを企画から一貫して作り（キャラ・動き・動画・APNG・24選定・タグ）、約1時間ごとに完成セットをLINE Creators Marketへ申請し、審査と売上を読み戻す |
+| 18 | CFO | `life-manager-cfo-hourly` | 全earning loopのverified revenue、cash flow、残高、payout、財務報告を照合 |
 
 ### setupと開始方法の現在地
 
-| Product loop | ユーザーが設定するもの | 現在の開始入口 |
+| Agent | ユーザーが設定するもの | 現在の開始入口 |
 |---|---|---|
 | Coconala Gig | Coconala login、work profile、Telegram | `./install.sh coconala` |
 | Lancers Gig | Lancers login、work profile | production ownerは存在、public guided installerは未完成 |
 | CrowdWorks Gig | CrowdWorks login、work profile | production ownerは存在、public guided installerは未完成 |
+| Mercor Gig | Mercor login、work profile | Managed production owner。public guided installerは準備中 |
+| PromptBase | PromptBase seller account、browser session | Registry job。public guided installerは準備中 |
 | Writer | publisher accountとbrowser/API credential | registry jobは存在、public guided installerは未完成 |
 | Affiliate | affiliate provider accountとbrowser/API credential | registry jobは存在、public guided installerは未完成 |
 | Investment / Alpaca | Alpaca API credentialと`paper`・`shadow`・`live`の明示mode | `LIFE_MANAGER_INVESTMENT_MODE=paper python3 skills/alpaca-investment/run.py` |
@@ -61,6 +66,7 @@ receiptのない試行を「完了」と報告しません。
 | Mobile App Loops | 既存appは不要。生成したproductが各stageへ到達した時だけApple/Postiz/RevenueCatを接続 | 共通marketing jobは存在、zero-to-App-Store app-factory installerは未完成 |
 | eBook | 既存checkout/PDF納品経路。公開前に既存の日本語Postiz accountを確認 | account単位のregistry owner。公式accountとproduction checkoutのreadbackまで公開停止 |
 | Capafy | Capafy account/API credentialとpublication profile | registry jobは存在、public guided installerは未完成 |
+| LINE Sticker | 振込口座を登録したLINE Creators Market login、fal・Gemini API key、Telegram | Registry jobs。public guided installerは準備中 |
 | CFO | ユーザーが接続するfinancial sourceだけのcredential | 1回の有限passは`bash skills/cfo/run.sh` |
 
 英語・日本語のeBook productは、repo所有のscript ledger、Postiz publication
@@ -105,7 +111,7 @@ XcodeGen、Xcode、Apple team、App Store Connect capabilityが不足する場�
 `setup_required`になります。揃っている場合はportableなbuild/test commandを持つ`ready_to_build`になります。
 このbootstrapはApp Store提出、Postiz投稿、収益eventを実行済みとは主張せず、実送信もしません。
 
-Local/self-hostedとCloud/hostedは同じ15 Product Loopsを動かす二つの方法であり、別のProduct Loopではありません。Localは選択したloopをuserのdeviceで動かし、private stateもそこで保持します。CloudはLife Managerのhosted infrastructure上でtenantごとに動かします。両方が同じloop実装、provider adapter、receipt、CFO event、Telegram体験を使い、異なるのはscheduler、secret保存、durable state、browser transportだけです。
+Local/self-hostedとCloud/hostedは同じ18 agentsを動かす二つの方法であり、別のProduct Loopではありません。Localは選択したloopをuserのdeviceで動かし、private stateもそこで保持します。CloudはLife Managerのhosted infrastructure上でtenantごとに動かします。両方が同じloop実装、provider adapter、receipt、CFO event、Telegram体験を使い、異なるのはscheduler、secret保存、durable state、browser transportだけです。
 
 ```mermaid
 flowchart LR
@@ -121,7 +127,7 @@ flowchart LR
 近道として使わず、provider setupとeffect authorityが完了したloopだけをinstall/startします。
 
 **Money Printerは追加loopではありません。** すべての収益loopを束ねるumbrellaです。
-`/money-printer`は共通のopportunity-to-receipt systemを表示するcontrol roomであり、15本目のloopではありません。実行IDの正本は
+`/money-printer`は共通のopportunity-to-receipt systemを表示するcontrol roomであり、19番目のagentではありません。実行IDの正本は
 [`config/loop-registry.json`](config/loop-registry.json)です。
 
 任意のThe402 providerはLocal/Cloudで同じ設定contractを使います。privateなLife Manager envへ
@@ -175,10 +181,10 @@ LIFE_MANAGER_INSTALL_DAEMON=0 ./install.sh
 ./bin/lm-loop doctor
 ```
 
-default installerが15本すべてを黙って開始することはありません。provider account、credential、KYC、
+default installerが18すべてを黙って開始することはありません。provider account、credential、KYC、
 browser loginが未設定のloopは`setup_required`のままです。guided installerが現在あるのは
 `./install.sh coconala`、`connector`、`fundraiser`、`job-hunter`で、その他のloopの現在の境界は上の
-15-loop catalogに記載します。
+18-agent catalogに記載します。
 
 選んだloopだけの副作用ゼロplanを先に確認できます。このplanはCloud `/start`も読む
 [`apps/life-manager/config/product-loop-catalog.json`](apps/life-manager/config/product-loop-catalog.json)を使い、

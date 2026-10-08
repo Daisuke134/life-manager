@@ -1978,7 +1978,7 @@ function createBoundedPrivateFactSelector(options = {}) {
         ].join("\n"),
         schema: { type: "object", additionalProperties: false, required: ["source_key"],
           properties: { source_key: { type: "string", enum: choices } } },
-        taskClass: "repeatable-agent", timeoutMs: 30_000, readOnly: true,
+        taskClass: "connector-agent", taskLabel: "connector-event-judgment", timeoutMs: 30_000, readOnly: true,
         tokenBudget: 24_576, budgetScopeId: `connector-fact-${sessionId}-${++sequence}`,
         evidenceDir: path.join(evidenceDir, String(sequence)), repoRoot,
       });
@@ -2033,12 +2033,12 @@ function createBoundedConnpassQuestionAnswerer(options = {}) {
           `Options: ${JSON.stringify(optionsForPrompt)}`,
         ].join("\n"),
         schema: { type: "object", additionalProperties: false, required: ["answer"], properties: { answer: schemaProperty } },
-        taskClass: "browser-lane-agent", timeoutMs: 30_000, readOnly: true,
+        taskClass: "connector-agent", taskLabel: "connector-event-application", timeoutMs: 30_000, readOnly: true,
         tokenBudget: 24_576, budgetScopeId: `connector-answer-${sessionId}-${sequenceId}`,
         evidenceDir: path.join(evidenceDir, String(sequenceId)), repoRoot,
       });
       if (!result || !result.summary || result.summary.status !== "success"
-        || result.summary.selected_provider !== "codex" || result.summary.selected_model !== "gpt-5.6-terra") return null;
+        || result.summary.selected_provider !== "codex" || result.summary.selected_model !== "gpt-6-luna") return null;
       const answer = result?.value?.answer;
       return typeof answer === "string" && answer.trim() && answer.length <= 2_000 ? answer : null;
     } catch { return null; }
@@ -2097,7 +2097,8 @@ function createBoundedActionProposer(options = {}) {
           control: { type: "string", enum: actionableControls.map((control) => control.control) },
         },
       },
-      taskClass: "browser-lane-agent",
+      taskClass: "connector-agent",
+      taskLabel: "connector-event-application",
       timeoutMs: 60_000,
       signal: input.signal,
       readOnly: true,
@@ -2108,7 +2109,7 @@ function createBoundedActionProposer(options = {}) {
     });
     if (
       !result || !result.summary || result.summary.status !== "success"
-      || result.summary.selected_provider !== "codex" || result.summary.selected_model !== "gpt-5.6-terra"
+      || result.summary.selected_provider !== "codex" || result.summary.selected_model !== "gpt-6-luna"
       || !result.value || typeof result.value !== "object" || Array.isArray(result.value)
     ) invalid();
     const control = String(result.value.control || "");

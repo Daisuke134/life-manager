@@ -8,6 +8,7 @@ const { spawnSync } = require("node:child_process");
 
 const { createContentObjectStore } = require("../lib/content-object-store.js");
 const { createMarketingLocalLedger } = require("../lib/marketing-local-ledger.js");
+const { writeMarketingEffectIdentity } = require("../lib/marketing-effect-identity.js");
 const {
   findMarketingDestinationTarget,
   loadMarketingDestinationContract,
@@ -120,6 +121,25 @@ function writeEffectResult(publication) {
   });
 }
 
+function writeNoEffectResult(env, ownerId, reason) {
+  const file = required(env.LIFE_MANAGER_RESULT_HINT_PATH, "Life Manager result hint path");
+  const configuredOwner = required(env.LIFE_MANAGER_LOOP_ID, "Life Manager loop ID");
+  const occurrenceId = required(env.LIFE_MANAGER_OCCURRENCE_ID, "Life Manager occurrence ID");
+  if (configuredOwner !== ownerId || !occurrenceId.startsWith(`${ownerId}:`)
+      || !["setup_required", "no_due_slot"].includes(reason)) {
+    throw new Error("eBook no-effect result identity is invalid");
+  }
+  atomicJson(file, {
+    schema_version: 1,
+    kind: "life_manager_no_effect_result",
+    status: "verified_no_effect",
+    effect: 0,
+    owner_id: ownerId,
+    occurrence_id: occurrenceId,
+    reason,
+  });
+}
+
 function selectTarget({ root, pack, ownerId, platform, accountId }) {
   const lane = JOBS[ownerId];
   if (!lane || lane.productId !== pack?.product_id || lane.platform !== platform
@@ -210,24 +230,44 @@ function approvedBaselineScript(script, pack) {
     && JSON.stringify(pack.allowed_claims) === JSON.stringify(APPROVED_CLAIMS_BY_PRODUCT[pack.product_id]));
 }
 
-function renderInput({ python, root, stateRoot, slotAt, product }) {
+function renderInput({ python, root, stateRoot, slotAt, product, ownerEnv = process.env }) {
   const renderer = path.join(root, "skills/earn/marketing-engine/ebook_distribute_daily.py");
+  const rendererEnv = {
+    HOME: ownerEnv.HOME || "",
+    PATH: ownerEnv.PATH || "",
+    LANG: ownerEnv.LANG || "C.UTF-8",
+    LC_ALL: ownerEnv.LC_ALL || "",
+    TMPDIR: ownerEnv.TMPDIR || "/tmp",
+  };
+  if (product === "ebook-en") {
+    for (const key of ["LIFE_MANAGER_HEYGEN", "HEYGEN_NO_ANALYTICS"]) {
+      const value = ownerEnv[key];
+      if (typeof value === "string" && value.trim()) rendererEnv[key] = value;
+    }
+  }
   const result = spawnSync(python, [renderer, "--product", product, "--slot-at", slotAt,
     "--state-root", stateRoot], {
     cwd: root,
-    env: {
-      HOME: process.env.HOME || "",
-      PATH: process.env.PATH || "",
-      LANG: process.env.LANG || "C.UTF-8",
-      LC_ALL: process.env.LC_ALL || "",
-      TMPDIR: process.env.TMPDIR || "/tmp",
-    },
+    env: rendererEnv,
     encoding: "utf8",
     timeout: 20 * 60 * 1000,
     maxBuffer: 2 * 1024 * 1024,
   });
   if (result.status !== 0) {
-    throw new Error(`eBook renderer failed with exit ${result.status}`);
+    let errorClass = "unknown";
+    const lines = String(result.stdout || "").split(/\r?\n/).filter(Boolean);
+    if (lines.length === 1) {
+      try {
+        const failure = JSON.parse(lines[0]);
+        if (failure.schema_version === "marketing.ebook-render-failure.v1"
+            && typeof failure.error_class === "string"
+            && /^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(failure.error_class)) {
+          errorClass = failure.error_class;
+        }
+      } catch {}
+    }
+    const exitCode = Number.isInteger(result.status) ? result.status : "unknown";
+    throw new Error(`eBook renderer failed: ${errorClass} (exit ${exitCode})`);
   }
   const lines = String(result.stdout || "").split(/\r?\n/).filter(Boolean);
   if (lines.length !== 1) throw new Error("eBook renderer returned invalid JSON");
@@ -276,6 +316,100 @@ async function executeJob(store, job, workerId, handler) {
   return { ...receipt, created: queued.created };
 }
 
+function normalizePostizInstagramReceiptRoute(receipt, context, proof) {
+  const identity = proof?.identity;
+  const readback = proof?.provider_readback;
+  const localContent = readback?.local_content;
+  const integrationRef = context?.platform === "instagram" && context.integrationId
+    ? `integration://postiz/instagram/${context.integrationId}`
+    : "";
+  const exactProof = Boolean(
+    receipt
+    && context?.platform === "instagram"
+    && receipt.platform === "instagram"
+    && receipt.provider_route === "instagram_file_script"
+    && integrationRef
+    && proof?.status === "ready"
+    && proof.verified === true
+    && proof.proof_kind === "postiz_official_readback"
+    && proof.owner_id === context.ownerId
+    && proof.occurrence_id === context.occurrenceId
+    && proof.provider_receipt_id === receipt.provider_post_id
+    && identity?.loop_id === context.ownerId
+    && identity.occurrence_id === context.occurrenceId
+    && identity.job_id === context.jobId
+    && identity.effect_key === context.effectKey
+    && identity.product_id === receipt.product_id
+    && identity.format_id === receipt.format_id
+    && identity.form === receipt.form
+    && identity.locale === receipt.locale
+    && identity.platform === receipt.platform
+    && identity.creative_id === receipt.creative_id
+    && identity.slot === receipt.slot
+    && identity.integration_ref === integrationRef
+    && identity.account_id === context.accountId
+    && identity.video_sha256 === receipt.video_sha256
+    && identity.caption_sha256 === receipt.caption_sha256
+    && readback?.provider === "postiz"
+    && readback.state === "PUBLISHED"
+    && readback.post_id === receipt.provider_post_id
+    && readback.public_url === receipt.public_url
+    && readback.account_id === context.accountId
+    && readback.integration_ref === integrationRef
+    && localContent?.video_sha256 === receipt.video_sha256
+    && localContent.caption_sha256 === receipt.caption_sha256
+  );
+  return exactProof
+    ? { ...receipt, provider_route: "postiz", provider_reconciled: true }
+    : receipt;
+}
+
+function verifyLegacyPostizReceipt({
+  root,
+  python,
+  apiKey,
+  dataDir,
+  tenantId,
+  ownerId,
+  occurrenceId,
+  identityPath,
+  ledgerPath,
+  env = process.env,
+  runner = spawnSync,
+}) {
+  if (!path.isAbsolute(String(identityPath || ""))) return null;
+  const script = path.join(root, "apps/life-manager/scripts/mobile-postiz-provider-reconcile.py");
+  const result = runner(python, [
+    script,
+    "--verify-only",
+    "--identity", identityPath,
+    "--ledger", ledgerPath,
+    "--owner-id", ownerId,
+    "--occurrence-id", occurrenceId,
+  ], {
+    cwd: root,
+    env: {
+      HOME: env.HOME || "",
+      PATH: env.PATH || "",
+      LANG: env.LANG || "C.UTF-8",
+      LC_ALL: env.LC_ALL || "",
+      TMPDIR: env.TMPDIR || "/tmp",
+      POSTIZ_API_KEY: apiKey,
+      LM_RUNTIME_TENANT_ID: tenantId,
+      LM_DATA_DIR: dataDir,
+    },
+    encoding: "utf8",
+    timeout: 240 * 1000,
+    maxBuffer: 4 * 1024 * 1024,
+  });
+  if (result.error || result.status !== 0) return null;
+  try {
+    return JSON.parse(String(result.stdout || "").trim());
+  } catch {
+    return null;
+  }
+}
+
 async function run(argv = process.argv.slice(2), deps = {}) {
   const env = deps.env || process.env;
   const ownerId = required(env.LIFE_MANAGER_LOOP_ID || argv[0], "eBook owner ID");
@@ -298,11 +432,15 @@ async function run(argv = process.argv.slice(2), deps = {}) {
     root, pack, ownerId, platform: lane.platform, accountId: lane.accountId,
   });
   if (setup_required) {
+    writeNoEffectResult(env, ownerId, "setup_required");
     return { state: "setup_required", reason: setup_reason, owner_id: ownerId, effect: 0 };
   }
   const slotAt = marketingVideoDueSlot(deps.nowMs == null ? Date.now() : deps.nowMs,
     "Asia/Tokyo", pack.slots_jst);
-  if (!slotAt) return { state: "no_due_slot", owner_id: ownerId, effect: 0 };
+  if (!slotAt) {
+    writeNoEffectResult(env, ownerId, "no_due_slot");
+    return { state: "no_due_slot", owner_id: ownerId, effect: 0 };
+  }
 
   if (env.LM_EBOOK_PUBLISHING_ENABLED !== "true") {
     throw new Error("eBook publication readiness gate is closed");
@@ -315,6 +453,7 @@ async function run(argv = process.argv.slice(2), deps = {}) {
     stateRoot,
     slotAt,
     product: lane.productId,
+    ownerEnv: env,
   });
   const { receipt, script, publication_id: publicationId, attribution_token: token } = input;
   if (!approvedBaselineScript(script, pack)
@@ -417,8 +556,51 @@ async function run(argv = process.argv.slice(2), deps = {}) {
     accountResolver: () => target.postiz_profile,
     ledgerPath: () => ledgerPath,
   });
-  const publication = await executeJob(store, job, ownerId,
-    (claimed) => publicationAdapter.execute(claimed));
+  let publication = await store.readReceipt({ tenantId: job.tenant_id, jobId: job.job_id });
+  if (!publication) {
+    publication = await executeJob(store, job, ownerId,
+      (claimed) => publicationAdapter.execute(claimed));
+  } else if (lane.platform === "instagram"
+      && publication.provider_route === "instagram_file_script") {
+    const identityPath = String(env.LIFE_MANAGER_EFFECT_IDENTITY_PATH || "").trim();
+    const identityWritten = identityPath && writeMarketingEffectIdentity({
+      jobId: job.job_id,
+      effectKey: job.effect_key,
+      productId: lane.productId,
+      formatId: lane.formatId,
+      form: lane.form,
+      locale: lane.locale,
+      platform: lane.platform,
+      creativeId: publicationId,
+      slot: slotAt,
+      integrationRef,
+      accountId: target.postiz_profile,
+      videoSha256: video.sha256,
+      captionSha256: captionObject.sha256,
+    });
+    const proof = identityWritten ? verifyLegacyPostizReceipt({
+      root,
+      python: env.LM_PYTHON,
+      apiKey,
+      dataDir,
+      tenantId,
+      ownerId,
+      occurrenceId: env.LIFE_MANAGER_OCCURRENCE_ID,
+      identityPath,
+      ledgerPath,
+      env,
+    }) : null;
+    publication = normalizePostizInstagramReceiptRoute(publication, {
+      ownerId,
+      occurrenceId: env.LIFE_MANAGER_OCCURRENCE_ID,
+      jobId: job.job_id,
+      effectKey: job.effect_key,
+      productId: lane.productId,
+      platform: lane.platform,
+      integrationId,
+      accountId: target.postiz_profile,
+    }, proof);
+  }
   const publicUrl = String(publication?.public_url || "");
   const tiktokPrefix = `https://www.tiktok.com/@${account.native_handle}/video/`;
   const directAccountUrl = lane.platform === "tiktok"
@@ -456,4 +638,12 @@ if (require.main === module) {
     });
 }
 
-module.exports = { APPROVED_CLAIMS, JOBS, approvedBaselineScript, run, selectTarget };
+module.exports = {
+  APPROVED_CLAIMS,
+  JOBS,
+  approvedBaselineScript,
+  normalizePostizInstagramReceiptRoute,
+  verifyLegacyPostizReceipt,
+  run,
+  selectTarget,
+};

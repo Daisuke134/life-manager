@@ -2002,6 +2002,10 @@ def _context_input_snapshot(root: Path, context: Path) -> dict[str, tuple[int, s
             raise ValueError("invalid compiled read path")
         candidate = Path(raw)
         path = (root / candidate if not candidate.is_absolute() else candidate).resolve()
+        try:
+            path.relative_to(root)
+        except ValueError as error:
+            raise ValueError("compiled read path escapes project") from error
         snapshots[str(path)] = _file_snapshot(path)
     return snapshots
 

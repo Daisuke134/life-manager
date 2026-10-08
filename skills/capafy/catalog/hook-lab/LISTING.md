@@ -1,10 +1,10 @@
-# Capafy Listing — Hook Lab (live Agent 8123079349; same-Agent model update to DeepSeek)
+# Capafy Listing — Hook Lab (live Agent 8123079349; 2026-10-07 Claude Sonnet 5 (Capafy has no Sonnet 5.5 display option on 2026-10-07; same $2/$10 per M price, used by HookAce), profitable prices, no test/)
 
-agentType: run_online · Primary Model: DeepSeek V4.1 Flash · category: マーケティング · tags: video,hook,tiktok,reels,youtube-shorts
-LLM Config (CP2): OpenRouter, deepseek/deepseek-v4.1-flash, openai-responses, CAPAFY_HOST_OPENROUTER_KEY
+agentType: run_online · Primary Model: Claude Sonnet 5 · category: マーケティング · tags: video,hook,tiktok,reels,youtube-shorts
+LLM Config (CP2): OpenRouter, anthropic/claude-sonnet-5, openai-responses, CAPAFY_HOST_OPENROUTER_KEY
 WHY: 2026-09-28 OpenRouter activity (management key, 28d): claude-sonnet-4.6 $42.87 of $43.6 total; Hook Lab 30d est. cost $20.31 vs net $19.91. v1.0.3 (DeepSeek) approved 2026-09-29. 2026-09-29 reprice: copy HookAce (868 sold, week $9.99 / month $19.99) per the Capafy market sweep; day $3.99 matches TikTok Scripts / SEO Content Writer day band. 2026-09-29: added a required yearly plan (policy: always a year row, no free trial) at $99.99, matching "SEO Audit Pro" (agent `7414412165`, category 7, 9 sales) — this UPDATE is still in draft (status=0, not yet submitted), so the pricing table is safe to extend.
 
-## 2026-10-07: plans frozen at the live billing (day/week/month) — Dais 2026-10-06: do not reprice a selling Agent. Only change in this update: test/ no longer packaged (security scan 注意).
+## 2026-10-08: welcome message completed and FAQ matched to the day/week/month plans. Frozen in skills/capafy/FROZEN.json; do not reprice.
 
 ## Pricing
 | cycle | price | cap | trial |
@@ -26,7 +26,7 @@ Try:
 🎬 "Hooks for a TikTok about why cold showers are worth it — 30s, energetic"
 🛒 "I sell a reusable coffee cup — hooks to stop people using paper cups"
 📈 "Give me 5 hook variations to A/B for this topic: [paste]"
-Fastest start: paste your topic and the platform (TikTok / Reels
+Fastest start: paste your topic and the platform (TikTok / Reels / Shorts).
 
 ## detailedDescription
 # AI Video Hook Optimizer
@@ -86,4 +86,4 @@ Short-form creators, founders, marketers, and social teams on TikTok, Reels, and
 
 **Can I ask for changes?** Yes — reply in the same chat (e.g. "make #2 funnier", "shorter script") and it revises.
 
-**Which plan should I pick?** Day for a one-off batch, week for a filming sprint, month or year if you post every week.
+**Which plan should I pick?** Day for a one-off batch, week for a filming sprint, month if you post every week.

@@ -8,6 +8,7 @@ const {
   ensureWebUser,
   handleWebAuthRequest,
   resolveWebUser,
+  separateWebUidForSubject,
 } = require("./web-auth.js");
 
 const SUPABASE_URL = "https://travel-test.supabase.co";
@@ -189,7 +190,8 @@ test("exchange requires PKCE verifier and verified Supabase subject", async () =
   const missingRes = makeResponse();
   const missingOpts = authOptions(missingClient, { fetch: missingFetch.fetch });
   await handleWebAuthRequest(callbackRequest({ cookie: "other=value" }), missingRes, missingOpts.options);
-  assert.equal(missingRes.statusCode, 400);
+  assert.equal(missingRes.statusCode, 302);
+  assert.equal(missingRes.getHeader("location"), "/lm?auth_error=connection");
   assert.deepEqual(missingFetch.calls, []);
   assert.deepEqual(missingClient.auth.client.supabaseOptions, null);
   assert.doesNotMatch(setCookieHeaders(missingRes).join("\n"), /lm-web-auth(?:=|-code-verifier=)[^;\n]+/);
@@ -207,7 +209,8 @@ test("exchange requires PKCE verifier and verified Supabase subject", async () =
     const res = makeResponse();
     const fixture = authOptions(client, { fetch: db.fetch });
     await handleWebAuthRequest(callbackRequest({ code }), res, fixture.options);
-    assert.equal(res.statusCode, 401);
+    assert.equal(res.statusCode, 302);
+    assert.equal(res.getHeader("location"), "/lm?auth_error=connection");
     assert.deepEqual(events.map(([name]) => name), ["exchangeCodeForSession"]);
     assert.deepEqual(db.calls, []);
     assert.doesNotMatch(setCookieHeaders(res).join("\n"), /lm-web-auth=[^;\n]+/);
@@ -231,7 +234,8 @@ test("exchange requires PKCE verifier and verified Supabase subject", async () =
   const unverifiedRes = makeResponse();
   const unverifiedFixture = authOptions(unverifiedClient, { fetch: unverifiedDb.fetch });
   await handleWebAuthRequest(callbackRequest({ cookie: "lm-web-auth.4=stale-session-4; lm-web-auth-code-verifier=pkce-verifier" }), unverifiedRes, unverifiedFixture.options);
-  assert.equal(unverifiedRes.statusCode, 401);
+  assert.equal(unverifiedRes.statusCode, 302);
+  assert.equal(unverifiedRes.getHeader("location"), "/lm?auth_error=connection");
   assert.deepEqual(unverifiedEvents.map(([name]) => name), ["exchangeCodeForSession", "getUser", "signOut"]);
   assert.deepEqual(unverifiedDb.calls, []);
   assertAuthCookiesCleared(unverifiedRes, ["lm-web-auth.0", "lm-web-auth.1", "lm-web-auth.4"]);
@@ -271,6 +275,7 @@ test("OAuth start keeps the PKCE verifier cookie separate from the authenticated
 
 test("ignores client tenant fields and derives lm uid from subject", async () => {
   const events = [];
+  const funnelEvents = [];
   const client = authClient({
     events,
     exchange: async (_code, cookies) => {
@@ -284,7 +289,10 @@ test("ignores client tenant fields and derives lm uid from subject", async () =>
   });
   const db = makeRestFetch();
   const res = makeResponse();
-  const fixture = authOptions(client, { fetch: db.fetch });
+  const fixture = authOptions(client, {
+    fetch: db.fetch,
+    recordWebFunnelEventImpl: async (event) => { funnelEvents.push(event); return true; },
+  });
   const req = callbackRequest({
     query: "&uid=lm_attacker&email=attacker%40example.test&chat_id=999&paid=true",
     body: { uid: "lm_body_attacker", chat_id: "998", paid: true },
@@ -292,7 +300,7 @@ test("ignores client tenant fields and derives lm uid from subject", async () =>
   await handleWebAuthRequest(req, res, fixture.options);
 
   assert.equal(res.statusCode, 302);
-  assert.equal(res.getHeader("location"), "/lm");
+  assert.equal(res.getHeader("location"), "/lm?start_calendar=1");
   assert.equal(finalCookieValue(res, "lm-web-auth"), "verified-session");
   assert.equal(finalCookieValue(res, "lm-web-auth-code-verifier"), "");
   assert.equal(finalCookieValue(res, "unrelated-cookie"), "preserve");
@@ -305,10 +313,13 @@ test("ignores client tenant fields and derives lm uid from subject", async () =>
   assert.notEqual(fixture.calls[0].key, SERVICE_KEY);
   assert.equal(db.rows.length, 1);
   assert.deepEqual(db.rows[0], { uid: WEB_UID, telegram_chat_id: null });
+  assert.deepEqual(funnelEvents, [{
+    eventName: "google_authenticated", uid: WEB_UID, sourceObjectId: WEB_UID, attribution: {},
+  }]);
 
   const resolveEvents = [];
   const resolveClient = authClient({ events: resolveEvents });
-  const resolveFixture = authOptions(resolveClient);
+  const resolveFixture = authOptions(resolveClient, { fetch: db.fetch });
   const resolved = await resolveWebUser({
     method: "GET",
     url: "/api/lm/travel?uid=lm_attacker",
@@ -325,7 +336,7 @@ test("ignores client tenant fields and derives lm uid from subject", async () =>
   assert.deepEqual(resolveEvents.map(([name]) => name), ["getUser"]);
 });
 
-test("refuses Web session for Telegram-bound uid without changing row", async () => {
+test("keeps Telegram-bound row separate and starts Web in its own stable tenant", async () => {
   const existing = {
     uid: WEB_UID,
     telegram_chat_id: "telegram-chat-77",
@@ -354,22 +365,93 @@ test("refuses Web session for Telegram-bound uid without changing row", async ()
   const fixture = authOptions(client, { fetch: db.fetch });
   await handleWebAuthRequest(callbackRequest({ cookie: "lm-web-auth.3=old-session-3; lm-web-auth-code-verifier=pkce-verifier; unrelated-cookie=request-value" }), res, fixture.options);
 
-  assert.equal(res.statusCode, 403);
-  assert.notEqual(res.getHeader("location"), "/lm");
-  assert.deepEqual(events.map(([name]) => name), ["exchangeCodeForSession", "getUser", "signOut"]);
+  assert.equal(res.statusCode, 302);
+  assert.equal(res.getHeader("location"), "/lm?start_calendar=1");
+  assert.deepEqual(events.map(([name]) => name), ["exchangeCodeForSession", "getUser"]);
   assert.deepEqual(db.rows[0], before);
-  assert.equal(db.calls.filter((call) => call.method === "POST").length, 0);
-  assertAuthCookiesCleared(res, ["lm-web-auth.0", "lm-web-auth.1", "lm-web-auth.3"]);
+  assert.equal(db.rows.length, 2);
+  const webRow = db.rows.find((row) => row.uid !== WEB_UID);
+  assert.ok(webRow);
+  assert.match(webRow.uid, /^lm_[0-9a-f-]{36}$/i);
+  assert.equal(webRow.telegram_chat_id, null);
+  assert.equal(finalCookieValue(res, "lm-web-auth.0"), "temporary-session-0");
   assert.equal(finalCookieValue(res, "unrelated-cookie"), "preserve-after-rejection");
 
   const directDb = makeRestFetch([existing]);
-  await assert.rejects(ensureWebUser(WEB_UID, {
+  const resolvedUid = await ensureWebUser(WEB_UID, {
     supabaseUrl: SUPABASE_URL,
     serviceRoleKey: SERVICE_KEY,
     fetch: directDb.fetch,
-  }), /telegram-bound/i);
+  });
+  assert.equal(resolvedUid, webRow.uid);
+  assert.equal(directDb.rows.length, 2);
   assert.deepEqual(directDb.rows[0], before);
-  assert.equal(directDb.calls.filter((call) => call.method === "POST").length, 0);
+
+  const resolveClient = authClient();
+  const resolveFixture = authOptions(resolveClient, { fetch: db.fetch });
+  const resolved = await resolveWebUser({
+    method: "GET",
+    url: "/api/lm-web/calendar/status",
+    headers: { cookie: "lm-web-auth=existing-session" },
+  }, makeResponse(), { ...resolveFixture.options, csrfSecret: "csrf-secret" });
+  assert.equal(resolved.uid, webRow.uid);
+  assert.equal(resolved.subject, SUBJECT);
+});
+
+test("resolves a canonical row with an empty Telegram marker through the same Web tenant", async () => {
+  const legacy = { uid: WEB_UID, telegram_chat_id: "", paid: true, stripe_customer_id: "cus_legacy" };
+  const db = makeRestFetch([legacy]);
+  const separateUid = await ensureWebUser(WEB_UID, {
+    supabaseUrl: SUPABASE_URL,
+    serviceRoleKey: SERVICE_KEY,
+    fetch: db.fetch,
+  });
+  assert.equal(separateUid, separateWebUidForSubject(SUBJECT));
+  assert.deepEqual(db.rows[0], legacy);
+
+  const client = authClient();
+  const fixture = authOptions(client, { fetch: db.fetch });
+  const resolved = await resolveWebUser({
+    method: "GET",
+    url: "/api/lm-web/calendar/status",
+    headers: { cookie: "lm-web-auth=existing-session" },
+  }, makeResponse(), { ...fixture.options, csrfSecret: "csrf-secret" });
+  assert.equal(resolved.uid, separateUid);
+});
+
+test("refuses a Telegram-bound fallback row without mutating either tenant", async () => {
+  const canonical = { uid: WEB_UID, telegram_chat_id: "telegram-chat-77", paid: true };
+  const separateUid = separateWebUidForSubject(SUBJECT);
+  const fallback = { uid: separateUid, telegram_chat_id: "telegram-chat-88", paid: true };
+  const before = [structuredClone(canonical), structuredClone(fallback)];
+  const db = makeRestFetch(before);
+
+  await assert.rejects(ensureWebUser(WEB_UID, {
+    supabaseUrl: SUPABASE_URL,
+    serviceRoleKey: SERVICE_KEY,
+    fetch: db.fetch,
+  }), /unbound tenant/i);
+  assert.deepEqual(db.rows, before);
+  assert.equal(db.calls.filter((call) => call.method === "POST").length, 0);
+
+  const client = authClient();
+  const fixture = authOptions(client, { fetch: db.fetch });
+  const resolved = await resolveWebUser({
+    method: "GET",
+    url: "/api/lm-web/calendar/status",
+    headers: { cookie: "lm-web-auth=existing-session" },
+  }, makeResponse(), { ...fixture.options, csrfSecret: "csrf-secret" });
+  assert.equal(resolved, null);
+});
+
+test("OAuth failures return to the Web page instead of a downloadable text response", async () => {
+  const client = authClient();
+  const res = makeResponse();
+  await handleWebAuthRequest({ method: "GET", url: "/auth/google/callback", headers: { host: "life-manager.example.test" } }, res, authOptions(client).options);
+  assert.equal(res.statusCode, 302);
+  assert.equal(res.getHeader("location"), "/lm?auth_error=connection");
+  assert.equal(res.getHeader("content-type"), undefined);
+  assert.equal(res.body, "");
 });
 
 test("existing unbound rows are kept as-is and new rows use insert-only conflict-ignore", async () => {
@@ -414,7 +496,8 @@ test("missing public Supabase anon key fails closed without using the service ke
     env: { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY: SERVICE_KEY },
     ssr,
   });
-  assert.equal(res.statusCode, 503);
+  assert.equal(res.statusCode, 302);
+  assert.equal(res.getHeader("location"), "/lm?auth_error=connection");
   assert.equal(created, false);
 
   const callbackClient = authClient();
@@ -423,7 +506,8 @@ test("missing public Supabase anon key fails closed without using the service ke
   const callbackFixture = authOptions(callbackClient, { fetch: callbackDb.fetch });
   callbackFixture.options.env = { SUPABASE_URL, SUPABASE_ANON_KEY: ANON_KEY, LM_UID_SECRET: "csrf-secret" };
   await handleWebAuthRequest(callbackRequest(), callbackRes, callbackFixture.options);
-  assert.equal(callbackRes.statusCode, 503);
+  assert.equal(callbackRes.statusCode, 302);
+  assert.equal(callbackRes.getHeader("location"), "/lm?auth_error=connection");
   assert.equal(callbackFixture.calls.length, 0);
   assert.deepEqual(callbackDb.calls, []);
   assert.equal(finalCookieValue(callbackRes, "lm-web-auth"), null);

@@ -23,6 +23,7 @@ from __future__ import annotations
 import datetime
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -40,8 +41,12 @@ import seedance_set  # noqa: E402
 
 STAGES = ("plan", "character", "clips", "apng", "select", "package", "submit", "submitted")
 DEFAULT_STATE_ROOT = Path(os.environ.get("LIFE_MANAGER_STATE_HOME", str(Path.home() / ".local/state/life-manager"))) / "line-sticker"
-DEFAULT_MAX_SETS_PER_DAY = int(os.environ.get("LINE_STICKER_MAX_SETS_PER_DAY", "2"))
+DEFAULT_MAX_SETS_PER_DAY = int(os.environ.get("LINE_STICKER_MAX_SETS_PER_DAY", "24"))
 DEFAULT_MAX_USD_PER_SET = Decimal(os.environ.get("LINE_STICKER_MAX_USD_PER_SET", "4"))
+# Stop starting new sets while spend not yet recovered by sales exceeds this (revenue must beat
+# spend; production reopens automatically as sales.json shows revenue).
+DEFAULT_MAX_UNRECOVERED_USD = Decimal(os.environ.get("LINE_STICKER_MAX_UNRECOVERED_USD", "40"))
+JPY_PER_USD = Decimal("150")
 JST = datetime.timezone(datetime.timedelta(hours=9))
 EVENTS_LOG_NAME = "factory-events.jsonl"
 
@@ -156,7 +161,7 @@ def sets_started_today(state_root: Path, *, today: datetime.date | None = None) 
 
 @dataclass
 class Deps:
-    planner: Callable[[Path, list[dict]], dict]
+    planner: Callable[[Path, list[dict], list[dict]], dict]
     character_image: Callable[[Path, dict], None]
     clips_runner: Callable[[Path, dict], None]
     apng_runner: Callable[[Path, dict], None]
@@ -167,12 +172,17 @@ class Deps:
     notify: Callable[[Path, dict], None] = field(default=lambda set_dir, payload: None)
     max_usd_per_set: Decimal = DEFAULT_MAX_USD_PER_SET
     max_sets_per_day: int = DEFAULT_MAX_SETS_PER_DAY
+    max_unrecovered_usd: Decimal = DEFAULT_MAX_UNRECOVERED_USD
 
 
 def _prior_set_facts(state_root: Path) -> list[dict]:
     """Series-planning context for the planner: one row per prior set, naming its character,
     theme and latest official LINE Creators Market status so the model can judge a sequel vs a
     new flagship (judgment stays in the prompt, not here)."""
+    sales_by_product_id = {
+        row["product_id"]: row["sales_jpy"]
+        for row in (_read_json(state_root / "sales.json") or {}).get("products", [])
+    }
     facts = []
     for set_dir in list_set_dirs(state_root):
         draft = _read_json(set_dir / "plan-draft.json")
@@ -180,6 +190,7 @@ def _prior_set_facts(state_root: Path) -> list[dict]:
         item = _read_json(set_dir / "creators-item.json")
         if draft is None and listing is None:
             continue
+        product_id = (item or {}).get("product_id")
         facts.append({
             "set": set_dir.name,
             "character_id": (draft or {}).get("character_id"),
@@ -187,6 +198,9 @@ def _prior_set_facts(state_root: Path) -> list[dict]:
             "theme": (draft or {}).get("theme"),
             "title": (listing or {}).get("title"),
             "state_observed": (item or {}).get("state_observed"),
+            # Official cumulative sales (JPY) from sales_readback.py's daily readback, keyed by
+            # product_id. None means unknown (not yet observed), never a silent 0.
+            "sales_jpy": sales_by_product_id.get(product_id) if product_id else None,
         })
     return facts
 
@@ -195,8 +209,20 @@ def _prior_set_facts(state_root: Path) -> list[dict]:
 # Stage runners (pure state transitions; each returns the next stage or raises)
 # --------------------------------------------------------------------------------------
 
+def _market_items(state_root: Path) -> list[dict]:
+    """Today's top-seller sweep (market.py), trimmed to what the planner needs to pick a
+    copy_target. Missing market.json (first wake, before the daily sweep has ever run) is an
+    empty list; the plan schema still requires copy_target, so the very first plan before any
+    sweep has run will fail validation and retry next wake once market.json exists.
+    # ponytail: no bootstrap ordering guarantee between the hourly factory and the daily
+    # market sweep; acceptable because this only affects the very first set, add an explicit
+    # readiness check if that becomes a recurring stall."""
+    market = _read_json(state_root / "market.json")
+    return (market or {}).get("items", [])[:15]
+
+
 def run_plan(set_dir: Path, state_root: Path, deps: Deps) -> str:
-    plan = deps.planner(set_dir, _prior_set_facts(state_root))
+    plan = deps.planner(set_dir, _prior_set_facts(state_root), _market_items(state_root))
     _atomic_write_json(set_dir / "plan-draft.json", plan)
     _atomic_write_json(set_dir / "listing.json", plan["listing"])
     return "character"
@@ -207,9 +233,10 @@ def run_character(set_dir: Path, state_root: Path, deps: Deps) -> str:
     if plan_draft is None:
         raise RuntimeError("missing plan-draft.json for character stage")
     series_of = plan_draft.get("series_of")
-    if series_of:
+    source_dir = state_root / series_of if isinstance(series_of, str) and re.fullmatch(r"set-\d{3}", series_of) else None
+    # A missing/unsafe/incomplete sequel source falls back to a fresh character instead of wedging this stage.
+    if source_dir and (source_dir / "char-ref.png").is_file() and (source_dir / "ref-padded.png").is_file():
         # Sequel of an existing character: reuse its reference art, zero image cost.
-        source_dir = state_root / series_of
         shutil.copy2(source_dir / "char-ref.png", set_dir / "char-ref.png")
         shutil.copy2(source_dir / "ref-padded.png", set_dir / "ref-padded.png")
         _atomic_write_json(set_dir / "char-ref.receipt.json", {"reused": True, "source_set": series_of})
@@ -290,6 +317,15 @@ def run_submit(set_dir: Path, deps: Deps) -> str:
     item = deps.submit(set_dir, item, listing, tags)
     _atomic_write_json(set_dir / "creators-item.json", item)
     if item.get("state") == "review_requested":
+        # Submitted: drop intermediates that nothing reads again so sets do not fill the host disk.
+        # Keep package/, the character art (sequels reuse it), candidates-sheet.png (retag) and the
+        # 24 selected clips/*.mp4 (line-sticker-distribute renders posts from them).
+        shutil.rmtree(set_dir / "candidates", ignore_errors=True)
+        chosen = set((_read_json(set_dir / "select.json") or {}).get("order", []))
+        if chosen:
+            for clip in (set_dir / "clips").glob("*.mp4"):
+                if clip.stem not in chosen:
+                    clip.unlink(missing_ok=True)
         deps.notify(set_dir, {"product_id": item.get("product_id"), "title_ja": listing.get("title", {}).get("ja"),
                                "cost_usd": (_read_json(set_dir / "stage.json") or {}).get("cost_usd")})
         return "submitted"
@@ -311,6 +347,16 @@ STAGE_RUNNERS = {
 # Wake entry point
 # --------------------------------------------------------------------------------------
 
+def unrecovered_spend_usd(state_root: Path) -> Decimal:
+    """All set spend minus known LINE sales (sales.json); unknown sales count as nothing."""
+    spend = sum((Decimal(str((_read_json(p) or {}).get("cost_usd") or "0"))
+                 for p in state_root.glob("set-*/stage.json")), Decimal("0"))
+    revenue_jpy = sum((Decimal(str(row["sales_jpy"]))
+                       for row in (_read_json(state_root / "sales.json") or {}).get("products", [])
+                       if isinstance(row.get("sales_jpy"), (int, float))), Decimal("0"))
+    return spend - revenue_jpy / JPY_PER_USD
+
+
 def wake(state_root: Path, deps: Deps) -> dict:
     """Advance exactly one stage of exactly one set. Returns a small report dict."""
     set_dir = newest_open_set(state_root)
@@ -318,6 +364,10 @@ def wake(state_root: Path, deps: Deps) -> dict:
         started = sets_started_today(state_root)
         if started >= deps.max_sets_per_day:
             return {"action": "skip", "reason": "daily_cap_reached", "started_today": started}
+        unrecovered = unrecovered_spend_usd(state_root)
+        if unrecovered > deps.max_unrecovered_usd:
+            append_event(state_root, {"status": "unrecovered_spend_cap", "unrecovered_usd": str(unrecovered)})
+            return {"action": "skip", "reason": "unrecovered_spend_cap", "unrecovered_usd": str(unrecovered)}
         number = next_set_number(state_root)
         set_dir = state_root / f"set-{number:03d}"
         set_dir.mkdir(parents=True, exist_ok=True)
@@ -379,10 +429,27 @@ def production_deps() -> Deps:
     )
 
 
+def run(state_root: Path, deps: Deps) -> dict:
+    """Drive one set from wherever it is all the way to submitted in a single launch.
+
+    Stops on submitted, on skip/noop/halt, or on a retry (an external wait such as missing clips
+    or a failed package) so a stuck stage never spins.
+    """
+    while True:
+        item_path = (newest_open_set(state_root) or state_root) / "creators-item.json"
+        before = (_read_json(item_path) or {}).get("state")
+        report = wake(state_root, deps)
+        # The submit stage moves through several browser sub-states (metadata -> images -> tags ->
+        # review request); keep going while each call makes progress.
+        progressed = report.get("stage") == "submit" and (_read_json(item_path) or {}).get("state") != before
+        if report.get("next_stage") == "submitted" or (report.get("action") != "advanced" and not progressed):
+            return report
+
+
 def main() -> int:
     state_root = DEFAULT_STATE_ROOT
     deps = production_deps()
-    report = wake(state_root, deps)
+    report = run(state_root, deps)
     print(json.dumps(report, ensure_ascii=False))
     return 0
 

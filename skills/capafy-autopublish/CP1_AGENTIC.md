@@ -88,6 +88,14 @@ showed).
 | Agent ワークスペース (Skill) | red after a model switch, else auto-confirmed ✓ | click the pending skill card once (see above) |
 | 価格設定 | often **red ✗** — the real work | **always open it, even when green**, and set every plan card to the TARGET values (fix until GREEN) |
 
+**An incomplete 基本情報 is work to do, never a reason to stop.** A resumed draft
+(`resume_draft`, an orphan stub) usually opens with 基本情報 red and 提出を確認
+disabled. Open 基本情報, fill every empty or red field from `<CONFIG_PATH>`, save the
+draft, and continue with the remaining tabs. Stopping there leaves the draft holding
+a review slot forever (2026-10-08: draft 9531771963 stopped twice on "基本情報 is
+incomplete" while every new Agent waited for that slot). The only exception is the
+price-only update recipe below, which leaves 基本情報 as-is.
+
 **A green 価格設定 tab is not proof of the right price.** On 2026-09-29 the Hook Lab
 reprice (agent 8123079349, v1.0.4) was saved with a green tab still holding the OLD
 prices (day $1.99/week $4.99/month $9.99, no year row) and was approved that way; the
@@ -166,6 +174,13 @@ needed first) and can still be fixed because the card is still editable.
    - `typeinto` the correct value into that card's price/Request-Limit input (never
      `fill` — see the measured React-state gotcha above).
    - Re-run `prices` and repeat until it prints `PRICES_MATCH`. Only then proceed.
+   - `<cycle>: missing` means that plan card has not been entered on this new
+     version yet (a same-Agent update draft starts with no saved billing). It is
+     the normal starting state, not a reason to stop: open 価格設定, add / switch a
+     card to that Period, `typeinto` its price and Request Limit from TARGET
+     PRICING, then re-run `prices`. Stopping on a mismatch leaves the draft
+     occupying a review slot and the update never ships (2026-10-07: TikTok
+     Script Pro update stopped on `day: missing; week: missing; month: missing`).
 9. Click **下書きを保存** (save draft) → then **提出を確認** (confirm). Read the shot:
    you want the 「カードを保存しました」 card-done page.
 10. Verify server-side: `packager.py publish-remote-status --agent-id <ID>` →

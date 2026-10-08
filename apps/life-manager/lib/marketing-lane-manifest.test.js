@@ -428,6 +428,23 @@ test("disabled, default-off, and shadow routes never become production-armed", (
   );
 });
 
+test("recognizes the disabled English eBook route without arming it", () => {
+  const manifest = createManifest([row({
+    id: "ebook-en-provider-disabled",
+    product_id: "ebook-en",
+    locale: "en",
+    platform: "tiktok",
+    profile: "@monk_anicca",
+    account: "ebook-en-tiktok",
+    disabled: true,
+    lane_state: "disabled",
+  })]);
+
+  assert.equal(manifest.lanes[0].product_id, "ebook-en");
+  assert.equal(manifest.lanes[0].disabled, true);
+  assert.equal(manifest.lanes[0].production_armed, false);
+});
+
 test("a verified portfolio target can become production-armed at its declared limit", () => {
   const target = row({
     disposition: "target",

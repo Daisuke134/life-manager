@@ -50,9 +50,45 @@ class LoopCleanupTest(unittest.TestCase):
         self.assertEqual(command[-1], '/state/life-manager')
 
     def test_host_cleanup_error_cannot_be_reported_as_success(self):
-        self.assertFalse(host_cleanup_ok(0, {"errors": 1, "protected_deletions": 0}))
-        self.assertFalse(host_cleanup_ok(0, {"errors": 0, "protected_deletions": 1}))
-        self.assertTrue(host_cleanup_ok(0, {"errors": 0, "protected_deletions": 0}))
+        recovery_floor = 2 * 1024**3
+        self.assertFalse(host_cleanup_ok(0, {
+            "errors": 1, "protected_deletions": 0, "free_after": recovery_floor,
+        }))
+        self.assertFalse(host_cleanup_ok(0, {
+            "errors": 0, "protected_deletions": 1, "free_after": recovery_floor,
+        }))
+        self.assertTrue(host_cleanup_ok(0, {
+            "errors": 0, "protected_deletions": 0, "free_after": recovery_floor,
+        }))
+
+    def test_host_cleanup_requires_capacity_recovery_floor(self):
+        incident_receipt = {
+            "tier": "ULTRA",
+            "free_after": 626_888_704,
+            "reclaimed": 8_071,
+            "errors": 0,
+            "protected_deletions": 0,
+        }
+        self.assertFalse(host_cleanup_ok(0, incident_receipt))
+        self.assertTrue(host_cleanup_ok(0, {
+            "errors": 0, "protected_deletions": 0, "free_after": 2 * 1024**3,
+        }))
+
+    def test_host_cleanup_missing_or_invalid_capacity_readback_fails_closed(self):
+        receipts = (
+            {"errors": 0, "protected_deletions": 0},
+            {"errors": 0, "protected_deletions": 0, "free_after": None},
+            {"errors": 0, "protected_deletions": 0, "free_after": True},
+            {"errors": 0, "protected_deletions": 0, "free_after": "2147483648"},
+            {
+                "errors": 0,
+                "protected_deletions": 0,
+                "free_after": 2 * 1024**3 - 1,
+            },
+        )
+        for receipt in receipts:
+            with self.subTest(receipt=receipt):
+                self.assertFalse(host_cleanup_ok(0, receipt))
 
     def test_host_cleanup_missing_readback_preserves_typed_failure(self):
         ok, result = host_cleanup_readback(1, "")
@@ -62,12 +98,54 @@ class LoopCleanupTest(unittest.TestCase):
             "returncode": 1,
         })
 
-    def test_host_cleanup_valid_readback_keeps_existing_result(self):
+    def test_host_cleanup_valid_readback_keeps_receipt_and_reports_recovery(self):
+        recovery_floor = 2 * 1024**3
+        receipt = {
+            "errors": 0,
+            "protected_deletions": 0,
+            "free_after": recovery_floor,
+        }
         ok, result = host_cleanup_readback(
-            0, '{"errors":0,"protected_deletions":0}\n'
+            0, json.dumps(receipt) + "\n"
         )
         self.assertTrue(ok)
-        self.assertEqual(result, {"errors": 0, "protected_deletions": 0})
+        self.assertEqual(result, {
+            **receipt,
+            "capacity_recovery": {
+                "status": "met",
+                "recovery_floor_bytes": recovery_floor,
+            },
+        })
+
+    def test_host_cleanup_missing_capacity_readback_is_reported_as_unknown(self):
+        receipt = {"errors": 0, "protected_deletions": 0}
+        ok, result = host_cleanup_readback(0, json.dumps(receipt) + "\n")
+        self.assertFalse(ok)
+        self.assertEqual(result["capacity_recovery"], {
+            "status": "unknown",
+            "recovery_floor_bytes": 2 * 1024**3,
+        })
+        self.assertEqual(result["errors"], 0)
+        self.assertEqual(result["protected_deletions"], 0)
+
+    def test_host_cleanup_capacity_failure_preserves_delete_errors_and_receipt(self):
+        receipt = {
+            "tier": "ULTRA",
+            "free_after": 626_888_704,
+            "reclaimed": 8_071,
+            "errors": 1,
+            "protected_deletions": 0,
+        }
+        ok, result = host_cleanup_readback(0, json.dumps(receipt) + "\n")
+        self.assertFalse(ok)
+        self.assertEqual(result, {
+            **receipt,
+            "capacity_recovery": {
+                "status": "unmet",
+                "recovery_floor_bytes": 2 * 1024**3,
+            },
+        })
+
     def test_loop_cleanup_preserves_active_unmarked_and_receipts(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory); old = completed(root, "old"); active = completed(root, "active")
@@ -120,6 +198,71 @@ class LoopCleanupTest(unittest.TestCase):
             self.assertFalse(stale.exists())
             self.assertEqual(result["errors"], 0)
 
+    def test_release_gc_preserves_memory_and_state_jsonl_but_removes_plain_release(self):
+        with tempfile.TemporaryDirectory() as directory:
+            releases = Path(directory) / "releases"
+            releases.mkdir()
+            memory_release = releases / "20260101T000000-aaaaaaaa"
+            state_release = releases / "20260102T000000-bbbbbbbb"
+            dangling_memory_release = releases / "20260103T000000-cccccccc"
+            dangling_state_release = releases / "20260104T000000-dddddddd"
+            dependency_release = releases / "20260105T000000-eeeeeeee"
+            plain_release = releases / "20260106T000000-ffffffff"
+            for index, path in enumerate((
+                memory_release, state_release, dangling_memory_release,
+                dangling_state_release, dependency_release, plain_release,
+            )):
+                path.mkdir()
+                (path / "RELEASE.json").write_text(json.dumps({"sha": f"{index:040x}"}))
+            (memory_release / "memory").mkdir()
+            (memory_release / "memory" / "owner.md").write_text("private memory")
+            state = state_release / "nested" / "state"
+            state.mkdir(parents=True)
+            (state / "events.jsonl").write_text("{}\n")
+            (dangling_memory_release / "memory").symlink_to(
+                Path(directory) / "missing-memory", target_is_directory=True
+            )
+            dangling_state = dangling_state_release / "nested"
+            dangling_state.mkdir()
+            (dangling_state / "state").symlink_to(
+                Path(directory) / "missing-state", target_is_directory=True
+            )
+            outside = Path(directory) / "outside"
+            outside.mkdir()
+            (outside / "owner.md").write_text("keep target")
+            (dependency_release / "node_modules").symlink_to(outside)
+            (plain_release / "bin").mkdir()
+            (plain_release / "bin" / "loop.sh").write_text("#!/bin/sh\n")
+            (plain_release / "memory").write_text("ordinary file")
+
+            agents = Path(directory) / "agents"
+            agents.mkdir()
+            protected_file = Path(directory) / "protected-releases.json"
+            protected_file.write_text("[]")
+            with (
+                mock.patch.dict(os.environ, {
+                    "LIFE_MANAGER_PROTECTED_RELEASES": str(protected_file),
+                }),
+                mock.patch(
+                    "runtime.loop.central_cleanup.open_release_roots", return_value=set()
+                ),
+            ):
+                result = release_gc(
+                    releases, Path(directory) / "current", agents, keep=0
+                )
+
+            self.assertTrue(memory_release.exists())
+            self.assertTrue(state_release.exists())
+            self.assertTrue(dangling_memory_release.exists())
+            self.assertTrue(dangling_state_release.exists())
+            self.assertFalse(dependency_release.exists())
+            self.assertFalse(plain_release.exists())
+            self.assertTrue((outside / "owner.md").exists())
+            self.assertEqual(result["removed_releases"], 2)
+            self.assertEqual(result["preserved_releases"], 4)
+            self.assertEqual(result["errors"], 0)
+            self.assertEqual(result["protected_release_count"], 0)
+
     def test_business_wake_builds_command_without_scanning_run_tree(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -162,6 +305,7 @@ class LoopCleanupTest(unittest.TestCase):
                 mock.patch("runtime.loop.loop_cleanup.cleanup_run_root",
                            side_effect=AssertionError("wake-path cleanup")),
                 mock.patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=100),
+                mock.patch("runtime.loop.lm_loop_run.disk_free_bytes", return_value=16 * 1024**3),
                 mock.patch("runtime.loop.lm_loop_run.durable_protocol_version", return_value=2),
                 mock.patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
                            return_value=(root / "ticket", "ready")),
@@ -268,6 +412,7 @@ class LoopCleanupTest(unittest.TestCase):
                 mock.patch.dict(os.environ, {"HOME": str(home)}),
                 mock.patch("runtime.loop.lm_loop_run.process_start", return_value="start"),
                 mock.patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=100),
+                mock.patch("runtime.loop.lm_loop_run.disk_free_bytes", return_value=16 * 1024**3),
                 mock.patch("runtime.loop.lm_loop_run.durable_protocol_version", return_value=2),
                 mock.patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
                            return_value=(root / "ticket", "ready")),
@@ -771,6 +916,25 @@ class LoopCleanupTest(unittest.TestCase):
                 'Label':'ai.anicca.job','ProgramArguments':[str(entry)]}))
             self.assertEqual(loaded_release_roots(agents,releases),{release.resolve()})
 
+    def test_com_disk_watchdog_release_is_discovered_as_protected(self):
+        import plistlib
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            releases = root / "releases"
+            release = releases / ("20260101T000000-" + "b" * 8)
+            entry = release / "skills/self/disk-cleanup/disk_cleanup.py"
+            entry.parent.mkdir(parents=True)
+            entry.write_text("x")
+            agents = root / "agents"
+            agents.mkdir()
+            (agents / "unrelated.plist").write_bytes(plistlib.dumps([]))
+            (agents / "com.anicca.disk-watchdog.plist").write_bytes(plistlib.dumps({
+                "Label": "com.anicca.disk-watchdog",
+                "ProgramArguments": ["/usr/bin/python3", str(entry), "--home", str(root / "home")],
+            }))
+
+            self.assertEqual(loaded_release_roots(agents, releases), {release.resolve()})
+
     def test_open_process_release_is_discovered_as_protected(self):
         with tempfile.TemporaryDirectory() as directory:
             releases = Path(directory) / "releases"
@@ -797,8 +961,13 @@ class LoopCleanupTest(unittest.TestCase):
                 "provider_route": "deterministic"}}}
             (root / "config").mkdir(); (root / "config/loop-registry.json").write_text(json.dumps(registry))
             (root / "RELEASE.json").write_text(json.dumps({"sha": "a" * 40}))
+            command = (
+                "from runtime.loop import lm_loop_run; "
+                "lm_loop_run.disk_free_bytes = lambda _path: 16 * 1024**3; "
+                f"raise SystemExit(lm_loop_run.main(['job', {str(root)!r}]))"
+            )
             result = subprocess.run(
-                [sys.executable, "-m", "runtime.loop.lm_loop_run", "job", str(root)],
+                [sys.executable, "-c", command],
                 cwd=Path(__file__).parents[3], env={**os.environ, "HOME": str(home),
                     "LIFE_MANAGER_MAX_LOAD_PER_CPU": "100000",
                     "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(root / "admission")},
@@ -840,8 +1009,13 @@ class LoopCleanupTest(unittest.TestCase):
                 "LIFE_MANAGER_REPO": "source-sentinel",
                 "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(root / "admission"),
             }
+            command = (
+                "from runtime.loop import lm_loop_run; "
+                "lm_loop_run.disk_free_bytes = lambda _path: 16 * 1024**3; "
+                f"raise SystemExit(lm_loop_run.main(['job', {str(root)!r}]))"
+            )
             result = subprocess.run(
-                [sys.executable, "-m", "runtime.loop.lm_loop_run", "job", str(root)],
+                [sys.executable, "-c", command],
                 cwd=Path(__file__).parents[3], env=environment, check=False)
 
             self.assertEqual(result.returncode, 0)
@@ -929,7 +1103,12 @@ class LoopCleanupTest(unittest.TestCase):
                 'Label':'ai.anicca.job',
                 'ProgramArguments':[str(paths[0]/'bin/lm-loop-run')],
             }))
-            result=release_gc(releases,current,agents,keep=1)
+            protected_file = root / "protected-releases.json"
+            protected_file.write_text("[]")
+            with mock.patch.dict(os.environ, {
+                "LIFE_MANAGER_PROTECTED_RELEASES": str(protected_file),
+            }):
+                result=release_gc(releases,current,agents,keep=1)
             self.assertTrue(paths[0].exists())
             self.assertFalse(paths[1].exists())
             self.assertTrue(paths[3].exists())
@@ -945,9 +1124,16 @@ class LoopCleanupTest(unittest.TestCase):
                 os.utime(path, (index, index)); paths.append(path)
             current = root / "current"; current.symlink_to(paths[3])
             agents = root / "agents"; agents.mkdir()
-            with mock.patch(
-                "runtime.loop.central_cleanup.open_release_roots",
-                return_value={paths[0].resolve()},
+            protected_file = root / "protected-releases.json"
+            protected_file.write_text("[]")
+            with (
+                mock.patch.dict(os.environ, {
+                    "LIFE_MANAGER_PROTECTED_RELEASES": str(protected_file),
+                }),
+                mock.patch(
+                    "runtime.loop.central_cleanup.open_release_roots",
+                    return_value={paths[0].resolve()},
+                ),
             ):
                 result = release_gc(releases, current, agents, keep=1)
             self.assertTrue(paths[0].exists())

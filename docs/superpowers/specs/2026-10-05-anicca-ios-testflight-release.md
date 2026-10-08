@@ -44,6 +44,8 @@ A GitHub code search by the six published bundle identifiers found source projec
 
 The organic publishing system is active, but social views are not yet joined to installs. Postiz reports 31 connected integrations overall (9 Instagram, 17 TikTok, 2 X, 3 YouTube). The current product registry has 15 Anicca and 2 Honne posting lanes across Instagram, TikTok, and YouTube. A read-only Postiz post-list readback for approximately 2026-09-07–2026-10-07 found 605 Anicca and 80 Honne posts in `PUBLISHED` state, each with a release ID and public URL. It also found 21 Anicca `ERROR` posts: 19 on one Instagram cards lane, one on another Instagram lane, and one on TikTok. Their provider error details have not yet been classified; do not blindly replay them.
 
+The 2026-10-07 22:58 JST Postiz day readback
+
 The registry schedules three daily slots for each lane (configured capacity: 45 Anicca and 6 Honne slots/day). These are configured Postiz profile labels, not a verified public-profile readback: Anicca Instagram has `@anicca.affirmation`, `@anicca.encards`, `@anicca.en`, `@anicca.jp1`, `@ani.cca1234`, `@anicca.jp.videos`; TikTok has `@aniccaaffirmation`, `@anicca_slideshow`, `@anicca.he`, `@anicca.jp4`, `@anicca.jp`, `@anicca.jpx`, `@anicca_buddha`; YouTube has `@anicca-ai` and `@anicca-affirmation-video`. Honne has TikTok lanes `@honne_reveal` and `@honnevideo`. The configured formats are affirmation carousels, mental-health carousels, Nudge cards, lock-screen widgets, and Honne relationship-confession videos.
 
 | Product / channel | Published posts in the readback window | Latest Postiz account-level metrics, rolling 30 days | Store-link evidence in post text |
@@ -149,7 +151,7 @@ Use the paid subscription and actual settlement/cost readbacks to track refunds,
 
 Apple references: [Product Page Optimization](https://developer.apple.com/app-store/product-page-optimization/), [Custom Product Pages and their acquisition reporting](https://developer.apple.com/app-store/custom-product-pages/), [Xcode Cloud with GitHub](https://developer.apple.com/documentation/xcode/connecting-xcode-cloud-to-github), [RevenueCat API v2](https://www.revenuecat.com/docs/api-v2), [Mixpanel iOS SDK](https://docs.mixpanel.com/docs/tracking-methods/sdks/swift), [Mixpanel Raw Event Export](https://developer.mixpanel.com/reference/raw-event-export), [YouTube Reach reports](https://support.google.com/youtube/answer/9314355), [PostHog iOS SDK](https://posthog.com/docs/libraries/ios).
 
-## TestFlight release cursor — current readback
+## TestFlight release cursor — 2026-10-07 baseline, superseded by the fresh readback below
 
 The 2026-10-07 ASC readback shows App Store 1.9.4 is the current public version, 1.9.5 is `REJECTED`, the latest visible build is 1.9.5/build 365 and expired, and 1.9.6/build 391 has no ASC build record. `asc status` is red with unresolved review issues; `asc review doctor` reports four blocking findings and names the age-rating declaration as the next action. The latest TestFlight build is expired; the old public join URL `https://testflight.apple.com/join/5j9nuumu` is not verified against a current build.
 
@@ -159,7 +161,43 @@ ASC currently lists GitHub Cloud and repository `Daisuke134/anicca-products`; re
 
 ## Remaining atomic TODOs
 
-Growth measurement and distribution are independent of the Xcode Cloud recovery, so these two lanes can progress in parallel. Distribution remains the first revenue-growth lever; the TestFlight lane remains the release cursor.
+Growth measurement and distribution are independent of the Xcode Cloud recovery, so these lanes can progress in parallel. Distribution remains the first revenue-growth lever; the TestFlight lane remains the release cursor. Native notification quote continuity is an additional independent app-correctness lane and must not wait on Postiz owner state to begin source repair.
+
+### P0 — restore the configured publication path safely
+
+1. **Finish the current owner run:** the latest 2026-10-08 02:12 JST readback has current release `20261008T015349-c5c4d791`, with `life-manager-release-reconciler` loaded-running (`reconcile_owner`). Disk-cleanup is loaded-idle/exit 1. The 02:09 receipt reports free-after 1,204,994,048 bytes against a direct-governor 11,811,160,064-byte floor, errors 0, protected deletions 0, 23 inventory gaps, and preserved open/protected descendants. Direct `df` at 02:12 reports 1,172,236 KiB free. Keep the existing owner as the only cleanup/reconcile path; do not manually start another apply.
+2. **Align the disk-gate source contract:** candidate branch `fix/disk-cleanup-floor-align-20261008` / commit `62010352` changes direct disk-cleanup recovery/guard-clear floor from 11 GiB to the existing 2 GiB admission and central-cleanup policy, without changing its 20/11/6/3 GiB tiers or deletion protections. Focused and full disk-cleanup tests pass, as do runtime cleanup/host-admission tests and a fresh read-only review. This is source-only until CI, merge, main-derived release, and natural receipt.
+3. **Verify capacity fit before a new immutable release cut:** current and previous sealed releases are 108,128 KiB and 107,644 KiB. The existing apply path completed 108 owner changes below 2 GiB free without disk ENOSPC, but the peak staging/runtime storage of a new release cut is not yet measured. Require headroom that keeps at least 2 GiB free after the measured cut; do not infer the peak from the sealed directory size alone.
+4. **Refresh and close TikTok publication effects:** the latest complete 10-owner sample before the current `c5c4d791` reconcile totaled 21,769 `effect_unknown` occurrences. Re-count after the current run, then reconcile each only from an exact provider receipt matching account, integration, slot, caption, and media identity. Keep no-match/inconclusive occurrences fenced.
+5. **Apply the merged repair safely:** after the disk owner is clear and exact effects are reconciled, cut a main-derived immutable release only after measuring peak staging capacity. Target-apply owners through the existing reconciler; require loaded SHA, official `PUBLISHED` receipt, durable local receipt, and replay-zero before continuing.
+6. **Restore the daily distribution target:** reach three `PUBLISHED` receipts per Asia/Tokyo day on each of the 10 configured TikTok targets, then classify the six additional enabled profiles and finalize the all-account denominator. The current known 19-target baseline is 42/57 (TikTok 21/30, Instagram 15/21, YouTube 6/6); extra profiles may increase that denominator.
+
+### Current publication baseline — 2026-10-07 23:46 JST
+
+The fresh official Postiz readback at 23:46 JST returned 46 posts for the day. Exact joins from the 19 configured target `integration_id`s show 42/57 `PUBLISHED`: Instagram 15/21, TikTok 21/30, and YouTube 6/6. Account-specific deficit is 22 slots across Instagram and TikTok. TikTok is not healthy: 7 of 10 targets are below three posts, 3 are at zero, and 14 account-specific slots are missing. `@anicca_buddha` has 8 posts from one 20:00 slot, so its five over-quota posts do not offset other accounts' deficits.
+
+| TikTok target | Published today | Target | Status |
+|---|---:|---:|---|
+| `@aniccaaffirmation` | 1 | 3 | short 2 |
+| `@anicca_slideshow` | 3 | 3 | met |
+| `@anicca.he` | 2 | 3 | short 1 |
+| `@anicca.jp4` | 2 | 3 | short 1 |
+| `@anicca.jp` | 0 | 3 | zero |
+| `@anicca.jpx` | 0 | 3 | zero |
+| `@anicca_buddha` | 8 | 3 | 5 over; do not count against other accounts |
+| `@honne_reveal` | 0 | 3 | zero |
+| `@honnevideo` | 3 | 3 | met |
+| `@obou_anicca` | 2 | 3 | short 1 |
+
+Postiz reports 17 connected TikTok integrations (16 enabled, 1 disabled), while the canonical target registry has 10 TikTok targets and 13 held integrations across platforms. Use the target registry, not the raw integration count, as the posting denominator.
+
+Production has not loaded the merged PR #6917 source fix. At 23:46 JST the five native-carousel TikTok owners are unloaded with `admission_effect_unknown=true`; HE, JP4, Honne EN, and Honne JA remain idle with the same unresolved effect fence. The eBook JA TikTok owner is loaded-idle with no unknown effect, but is 2/3 for today. The TikTok metrics owner remains deferred on disk admission. Do not manually post or retry these slots until the exact owner/provider receipt says no duplicate effect can occur.
+
+The current disk receipt reports the 11,811,160,064-byte recovery floor as unmet (free-after 6,370,832,384 bytes, 23 inventory gaps), even though `disk-writers.stop` is absent. The release reconciler is still running, so absence of the flag is not accepted as an owner clear or permission to start another apply.
+
+### Day rollover — 2026-10-08 00:00 JST
+
+Official Postiz readback at 00:00:37 JST has 0/30 TikTok `PUBLISHED` in the new JST day. The earliest configured TikTok slot is 06:30 JST (`@anicca.jpx`), so no target slot is due yet. Keep yesterday's 21/30 result and 14 account-specific shortfall in its 2026-10-07 window; do not carry it into October 8.
 
 ### Growth lane — distribution first, measurements in the same flow
 
@@ -177,6 +215,13 @@ Growth measurement and distribution are independent of the Xcode Cloud recovery,
 10. **Keep ASO deferred unless data points there:** do not run keyword changes or screenshot treatments now. After all six published apps reach the distribution gate, if aligned ASC data shows the App Store product page is the bottleneck, run one screenshot hypothesis and wait for Apple's experiment result/confidence readback.
 11. **Prove $10,000 net MRR and factory readiness:** join same-period Apple proceeds/refunds/fees/bank settlement and actual app/provider/acquisition costs with RevenueCat subscriptions and measured churn. Done only when Anicca's net contribution is positive and USD 10,000 net MRR is source-backed. Then repeat the recipe across the other five published apps before expanding the factory target to USD 100,000 and USD 10,000,000/month.
 
+### App correctness lane — notification quote continuity (parallel source cursor)
+
+- [x] **Merge the pending-route source fix:** PR #6931 merged to main `6ce816a9d152a40aeaf8c89eae68fb5f60d6b5cd`. `AppDelegate` now persists the tapped `quoteId` and visible alert body; Feed resolves after quote data is ready, prefers a unique local body match, and falls back to stable ID for locale/version differences. The Xcode test source is registered in the manual `aniccaiosTests` PBX group/build phase.
+- [x] **Merge the notification-body mismatch fix:** source-level RED reproduced that an APNs body absent from the local catalog could fall back to a different known `quoteId`. PR #6947 merged to main as `19f9c5bd3d9304d005868f769fa04069c3bc5567` after required CI passed. The coordinator prefers a unique local body match and otherwise displays the exact alert body as a transient quote; ID-only deep links remain unchanged. The focused macOS Swift Testing harness passed 3/3. This fixes the reproduced source path but does not confirm the specific production payload or installed build.
+- [ ] **Run iOS build/tests and verify the installed binary:** the macOS Swift Testing harness compiles the production coordinator/model and registered quote-navigation tests. The iOS `xcodebuild build-for-testing` cannot reach Swift compilation because Xcode 26.6 Simulator SDK build `23F81a` does not match installed iOS 26.5 runtime build `23F73`; `showdestinations` exposes only generic placeholders. Do not download a multi-GiB runtime while host disk is below its recovery floor. Mirror main commit `19f9c5bd` to the Xcode Cloud release repository, verify its official source grant, build and process the next valid TestFlight version, then test cold-start and background taps using a captured APNs body/`quoteId`/locale and the exact installed build. Existing `NotificationHotfixTests` cover cadence; Maestro `06-apns-problem-nudge-card.yaml` is a different nudge flow.
+- [ ] **Verify the production notification on TestFlight:** mirror/route the merged source to the release repository used by Xcode Cloud, resolve the current source-grant/build gate, capture one actual APNs alert body, `quoteId`, locale, and installed version, then tap from cold-start and background states. The actual APNs payload and installed public binary have not been read back; the current App Store version remains the old 1.9.4 line in the latest saved ASC snapshot. If the sender's body/ID pair is wrong, repair the sender. Mark the issue live only after the exact TestFlight build opens the same quote.
+
 ### TestFlight lane — current release blocker
 
 1. **Diagnose the failed source fetch:** read back the enabled workflow's repository relationship, `main` reference, run #803 available issues/actions/artifacts, and GitHub Cloud grant state. Done when the exact missing permission, source mapping, or provider failure boundary is recorded; current ASC report itself has no diagnostic log.
@@ -189,3 +234,14 @@ Growth measurement and distribution are independent of the Xcode Cloud recovery,
 ## Completion boundary
 
 The TestFlight lane is not complete until a valid build containing the intended source is approved and installable from the verified link, Maestro evidence covers that exact binary, and link/evidence delivery is read back. The growth lane's acquisition milestone is reached only at 100 ASC first-time downloads/day/app on a seven-day average with channel-level click/install attribution. The business target remains separate: Anicca is complete only at USD 10,000 verified net MRR with same-period settled revenue and actual cost evidence. RevenueCat MRR or Mixpanel event counts alone cannot satisfy it.
+
+### Fresh source and build readback — 2026-10-08 02:39 JST
+
+This live readback supersedes the earlier TestFlight cursor above.
+
+- **App Store Connect:** app `ai.anicca.app.ios` has a latest build record of 1.9.5 (build 365), processing `VALID` but expired on 2026-10-02. The latest App Store version record is 1.9.5 / `REJECTED`; the overall `asc status` is red with unresolved review issues. The latest beta-review approval is for a different old build train (1.6.3/build 1), and its internal build state is expired. A direct query for build 391 returns zero records. The public join URL is not verified against a current installable build.
+- **Xcode Cloud:** the enabled `Default` workflow watches `main`, requires `Archive - iOS`, is locked for editing, and points at `aniccaios/aniccaios.xcodeproj`. Its official repository relationship resolves to `Daisuke134/anicca-products` (ASC repo ID `19112078-cfea-44ca-a2fa-b6d3c0c1d1eb`). Latest runs #803 and #802 are `ERRORED`, both without a source SHA; no active run or resulting build is present. The repository record and GitHub visibility do not prove a working Xcode Cloud grant.
+- **Source mismatch:** Life Manager `origin/main` contains the completed notification fix in PR #6947 / merge `19f9c5bd3d9304d005868f769fa04069c3bc5567`, on the current main line `6c9a34c1636890fe3feb10230946c6f249ae7e42`. The linked `anicca-products/main` is still at `7c3e6d1b2dd849cfd37035e7ee8d78060aea254a`, committed before #6947 merged. Its `AppDelegate` forwards only `quoteId`; `QuoteNavigationCoordinator.swift` is absent there. Therefore the merged fix is not in the current Xcode Cloud input and no TestFlight build can yet prove it.
+- **Fix status:** source #6931 persists the tapped route through cold start; #6947 prioritizes the visible APNs body and opens that exact text as a transient quote when the installed catalog does not contain it. Focused macOS Swift Testing passed 3/3. This repairs the source path, but the actual APNs body/`quoteId`/locale and installed binary have not been read back, so the user-visible production issue is not yet verified fixed.
+
+**Remaining release order:** first route Xcode Cloud to the canonical Life Manager main source and matching project path, with an official working source grant; then verify no active run and reserve an unused build number (391 is currently absent), run one archive and read back the exact source SHA plus `VALID` processing/encryption; attach that build to the beta group and verify its join URL; finally install that exact build and prove the same quote opens after a cold-start and background notification tap. Do not send the old public URL as a verified link.

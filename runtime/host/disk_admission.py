@@ -14,9 +14,19 @@ from typing import Sequence
 
 
 DEFAULT_REQUIRED_KIB = 524288
-REQUIRED_KIB = int(
-    os.environ.get("LIFE_MANAGER_DISK_HEADROOM_KIB", str(DEFAULT_REQUIRED_KIB))
-)
+# Dais 2026-10-07: an 11 GiB floor kept every producer stopped at 5-12 GiB free
+# (promotion and sales loops idle for hours). 2 GiB still leaves room for a
+# release cut (~300 MB) and browser runs while stopping well before a full disk.
+RECOVERY_FLOOR_BYTES = 2 * 1024**3
+try:
+    REQUIRED_KIB = int(
+        os.environ.get("LIFE_MANAGER_DISK_HEADROOM_KIB", str(DEFAULT_REQUIRED_KIB))
+    )
+except (TypeError, ValueError):
+    REQUIRED_KIB = DEFAULT_REQUIRED_KIB
+    _REQUIRED_KIB_VALID = False
+else:
+    _REQUIRED_KIB_VALID = True
 REQUIRED_BYTES = REQUIRED_KIB * 1024
 RECEIPT_PATH = Path("state") / "disk-headroom.json"
 
@@ -25,6 +35,18 @@ _POLICY_FLAGS = (
     ("disk-writers.stop", "disk_writers_stop"),
     ("disk-pressure.block", "disk_pressure_block"),
 )
+
+
+def disk_free_bytes(path: Path | str) -> int | None:
+    """Return validated free bytes for the filesystem containing ``path``."""
+    try:
+        usage = shutil.disk_usage(path)
+    except (OSError, TypeError, ValueError):
+        return None
+    available = getattr(usage, "free", None)
+    if isinstance(available, bool) or not isinstance(available, int) or available < 0:
+        return None
+    return available
 
 
 def _state_dir() -> Path:
@@ -176,22 +198,21 @@ def disk_headroom_ok() -> bool:
             "reason": "disk_state_unsafe", "required_bytes": REQUIRED_BYTES,
         }, sort_keys=True, separators=(",", ":")))
         return False
+    if not _REQUIRED_KIB_VALID:
+        _failure("disk_headroom_policy_invalid", None)
+        return False
     gate = _producer_gate()
     if gate is not None:
         reason, flag = gate
-        try:
-            available_bytes = int(shutil.disk_usage(state_dir).free)
-        except Exception:
-            available_bytes = None
+        available_bytes = disk_free_bytes(state_dir)
         _failure(
             reason,
             available_bytes,
             metadata={"gate": _PRODUCER_GATE, "flag_path": str(flag)},
         )
         return False
-    try:
-        available_bytes = int(shutil.disk_usage(state_dir).free)
-    except Exception:
+    available_bytes = disk_free_bytes(state_dir)
+    if available_bytes is None:
         _failure("disk_headroom_unavailable", None)
         return False
     if REQUIRED_BYTES and available_bytes < REQUIRED_BYTES:

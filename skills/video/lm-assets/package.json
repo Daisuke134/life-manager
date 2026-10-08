@@ -4,17 +4,17 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "render": "remotion render src/index.ts LifeManagerCall"
+    "render": "mkdir -p renders && remotion render src/index.ts LifeManagerCalendar renders/life-manager-calendar-connect-v1.mp4"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "@remotion/cli": "^4.0.499",
-    "@remotion/renderer": "^4.0.499",
+    "@remotion/cli": "^4.0.533",
+    "@remotion/renderer": "^4.0.533",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "remotion": "^4.0.499"
+    "remotion": "^4.0.533"
   }
 }

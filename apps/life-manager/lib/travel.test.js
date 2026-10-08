@@ -42,10 +42,10 @@ test("home → real venue → INSERT, origin=home", () => {
   assert.equal(d.origin, HOME);
 });
 
-test("back-to-back: prev ends ≤90min before, different place → origin=prev (office→home travel)", () => {
+test("back-to-back: prev ends ≤90min before, different place → origin=prev with no saved home", () => {
   const prev = { location: "MUIT 生駒", endMs: ms(17) };
   const ev = { summary: "😴 Sleep", location: HOME, startMs: ms(18) }; // 60min after prev
-  const d = travelDecision(ev, prev, HOME);
+  const d = travelDecision(ev, prev, "");
   assert.equal(d.insert, true);          // genuine travel home from the office
   assert.equal(d.origin, "MUIT 生駒");
 });
@@ -103,6 +103,7 @@ test("shared event reader exposes the existing normalized seven-day calendar que
         id: "event-1", summary: "Meeting", location: "Shibuya",
         start: { dateTime: "2030-01-01T10:00:00+09:00", timeZone: "Asia/Tokyo" },
         end: { dateTime: "2030-01-01T11:00:00+09:00", timeZone: "Asia/Tokyo" },
+        reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 0 }] },
       }];
     },
   });
@@ -114,6 +115,7 @@ test("shared event reader exposes the existing normalized seven-day calendar que
   assert.equal(events[0].location, "Shibuya");
   assert.equal(events[0].startMs, Date.parse("2030-01-01T10:00:00+09:00"));
   assert.equal(events[0].endMs, Date.parse("2030-01-01T11:00:00+09:00"));
+  assert.deepEqual(events[0].reminders, { useDefault: false, overrides: [{ method: "popup", minutes: 0 }] });
 });
 
 test("shared event reader carries the expected account into its Calendar operation", async () => {
@@ -142,17 +144,39 @@ test("Travel event uses one five-minute buffer and safe attendee/meeting default
   };
   await fillTravel("uid-1", {
     mapsKey: "fixture-map-key", home: "Home", nowMs, calendar, expectedCalendarAccountId: "ca-expected",
+    allowWebInitialScan: true,
     _directionsMinutes: async (_from, _to, _key, _anchor, _now, isReturn) => isReturn ? null : 20,
   });
   assert.equal(created.length, 1);
   assert.equal(eventReadOptions.expectedCalendarAccountId, "ca-expected");
   assert.equal(created[0].options.expectedCalendarAccountId, "ca-expected");
+  assert.equal(created[0].options.allowWebInitialScan, true);
   assert.equal(Date.parse(`${created[0].args.start_datetime}Z`), startsAt - 25 * 60_000);
   assert.equal(created[0].args.event_duration_hour, 0);
   assert.equal(created[0].args.event_duration_minutes, 25);
   assert.equal(created[0].args.send_updates, "none");
+  assert.deepEqual(created[0].args.reminders, { useDefault: false, overrides: [{ method: "popup", minutes: 0 }] });
   assert.equal(created[0].args.exclude_organizer, true);
   assert.equal(created[0].args.create_meeting_room, false);
+});
+
+test("legacy Calendar travel writes do not gain a Web-only popup reminder", async () => {
+  const startsAt = Date.parse("2030-01-01T10:00:00+09:00");
+  const created = [];
+  const calendar = {
+    async listEventsRaw() { return [{
+      id: "event-telegram", summary: "Meeting", location: "Shibuya",
+      start: { dateTime: new Date(startsAt).toISOString() },
+      end: { dateTime: new Date(startsAt + 60 * 60_000).toISOString() },
+    }]; },
+    async createEvent(_uid, args) { created.push(args); return { successful: true }; },
+  };
+  await fillTravel("telegram-user", {
+    mapsKey: "fixture-map-key", home: "Home", nowMs: Date.parse("2030-01-01T08:00:00+09:00"), calendar,
+    _directionsMinutes: async (_from, _to, _key, _anchor, _now, isReturn) => isReturn ? null : 20,
+  });
+  assert.equal(created.length, 1);
+  assert.equal(Object.hasOwn(created[0], "reminders"), false);
 });
 
 async function withTravelClaimStore(run) {
@@ -212,6 +236,7 @@ function createdTravelRow(args) {
     id: "travel-readback", summary: args.summary, location: args.location,
     start: { dateTime: new Date(startMs).toISOString() },
     end: { dateTime: new Date(startMs + durationMs).toISOString() },
+    reminders: args.reminders,
   };
 }
 
@@ -220,6 +245,26 @@ const GO_TRAVEL_OPTIONS = {
   expectedCalendarAccountId: "ca-expected", supaUrl: "https://db.example", supaKey: "fixture",
   _directionsMinutes: async (_from, _to, _key, _anchor, _now, isReturn) => isReturn ? null : 20,
 };
+
+test("unroutable venue fallback passes the exact tenant and usage writer to the location agent", async () => {
+  await withTravelClaimStore(async () => {
+    let resolveOptions = null;
+    const usageWriter = async () => true;
+    await fillTravel("tenant-web-route-fallback", {
+      ...GO_TRAVEL_OPTIONS,
+      calendar: makeUnknownGoCalendar(),
+      geminiKey: "fixture-gemini-key",
+      _directionsMinutes: async () => null,
+      _agentResolveLocation: async (_event, options) => {
+        resolveOptions = options;
+        return { kind: "ask" };
+      },
+      _recordUsageEvent: usageWriter,
+    });
+    assert.equal(resolveOptions.uid, "tenant-web-route-fallback");
+    assert.equal(resolveOptions.recordUsageEvent, usageWriter);
+  });
+});
 
 test("keeps GO claim after an unknown create result and does not replay the Calendar write", async () => {
   await withTravelClaimStore(async ({ claims, deletes }) => {
@@ -340,15 +385,16 @@ test("strict readback after an unknown Composio create does not reuse cached pre
           listCalls++;
           const items = [original];
           if (listCalls > 1 && createArgs) {
-            const startMs = Date.parse(`${createArgs.start_datetime}Z`);
-            const durationMs = (createArgs.event_duration_hour * 60 + createArgs.event_duration_minutes) * 60000;
+            const startMs = Date.parse(createArgs.start.dateTime);
+            const endMs = Date.parse(createArgs.end.dateTime);
             items.push({ id: "created-after-write", summary: createArgs.summary, location: createArgs.location,
               start: { dateTime: new Date(startMs).toISOString() },
-              end: { dateTime: new Date(startMs + durationMs).toISOString() } });
+              end: { dateTime: new Date(endMs).toISOString() },
+              reminders: createArgs.reminders });
           }
           return { ok: true, status: 200, json: async () => ({ successful: true, data: { items } }) };
         }
-        createArgs = body.arguments;
+        createArgs = body.body;
         return { ok: true, status: 200, json: async () => ({ successful: false, error: "unconfirmed create" }) };
       },
     });

@@ -1,11 +1,11 @@
 import { Composition } from "remotion";
-import { LifeManagerCall } from "./LifeManagerCall";
+import { LifeManagerCalendar } from "./LifeManagerCalendar";
 
-// One 9:16 motion piece per script beat. Duration is passed in so it can be matched to the narration.
+// Silent-first 9:16 product demo: one Calendar connection, then an automatic Travel block.
 export const RemotionRoot: React.FC = () => (
   <Composition
-    id="LifeManagerCall"
-    component={LifeManagerCall}
+    id="LifeManagerCalendar"
+    component={LifeManagerCalendar}
     durationInFrames={30 * 15}
     fps={30}
     width={1080}

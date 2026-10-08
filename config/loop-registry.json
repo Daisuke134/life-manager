@@ -840,29 +840,28 @@
         "max_runs": 100
       },
       "domain": "earn",
-      "effect_class": "none",
+      "effect_class": "publish",
       "entrypoint": "skills/earn/line-sticker/line-sticker-readback.sh",
+      "browser_identity": "line-creators:dais",
+      "browser_target_owner": "line-creators-browser",
       "label": "ai.anicca.line-sticker-readback-hourly",
       "log_root": "~/.local/state/life-manager/line-sticker/logs",
-      "resource_class": "deterministic",
+      "resource_class": "browser",
       "admission_class": "borrow",
       "priority": "support",
       "coalesce_queued_wakes": true,
       "coalesce_reserved_wakes": true,
       "provider_route": "deterministic",
-      "state_root": "~/.local/state/life-manager/line-sticker",
-      "system_role": "shared"
+      "state_root": "~/.local/state/life-manager/line-sticker"
     },
     "line-sticker-factory-hourly": {
       "priority": "revenue",
-      "resource_class": "browser",
+      "resource_class": "agent",
       "admission_class": "revenue",
       "coalesce_reserved_wakes": true,
       "coalesce_queued_wakes": true,
       "cadence": {
-        "calendar_interval": {
-          "Minute": 41
-        }
+        "start_interval_seconds": 900
       },
       "cleanup": {
         "max_age_days": 14,
@@ -874,11 +873,32 @@
       "browser_identity": "line-creators:dais",
       "browser_target_owner": "line-creators-browser",
       "label": "ai.anicca.line-sticker-factory-hourly",
-      "system_role": "shared",
       "log_root": "~/.local/state/life-manager/line-sticker/logs",
       "provider_route": "deterministic",
-      "runtime_timeout_seconds": 1800,
+      "runtime_timeout_seconds": 5400,
       "state_root": "~/.local/state/life-manager/line-sticker"
+    },
+    "line-sticker-distribute": {
+      "priority": "revenue",
+      "resource_class": "agent",
+      "admission_class": "revenue",
+      "coalesce_reserved_wakes": true,
+      "coalesce_queued_wakes": true,
+      "cadence": {
+        "start_interval_seconds": 900
+      },
+      "cleanup": {
+        "max_age_days": 14,
+        "max_runs": 100
+      },
+      "domain": "earn",
+      "effect_class": "publish",
+      "entrypoint": "skills/earn/line-sticker-distribute/line-sticker-distribute.sh",
+      "label": "ai.anicca.line-sticker-distribute",
+      "log_root": "~/.local/state/life-manager/line-sticker-distribute/logs",
+      "provider_route": "deterministic",
+      "state_root": "~/.local/state/life-manager/line-sticker-distribute",
+      "system_role": "shared"
     },
     "line-creators-browser": {
       "adapter": "exec",
@@ -901,8 +921,7 @@
       "log_root": "~/.local/state/life-manager/line-creators-browser/logs",
       "provider_route": "deterministic",
       "resource_class": "browser",
-      "state_root": "~/.local/state/life-manager/line-creators-browser",
-      "system_role": "shared"
+      "state_root": "~/.local/state/life-manager/line-creators-browser"
     },
     "capafy-goal-monitor-hourly": {
       "cadence": {
@@ -920,8 +939,8 @@
       "label": "ai.anicca.capafy-goal-monitor-hourly",
       "log_root": "~/.local/state/life-manager/logs",
       "resource_class": "deterministic",
-      "admission_class": "borrow",
-      "priority": "support",
+      "admission_class": "revenue",
+      "priority": "revenue",
       "coalesce_queued_wakes": true,
       "coalesce_reserved_wakes": true,
       "provider_route": "deterministic",
@@ -1379,7 +1398,8 @@
       "state_root": "~/.local/state/life-manager/fuel-watch"
     },
     "fundraiser": {
-      "admission_class": "borrow",
+      "admission_class": "revenue",
+      "admission_effect_scope": "occurrence",
       "cadence": {
         "start_interval_seconds": 3600
       },
@@ -1394,7 +1414,7 @@
       "entrypoint": "skills/fundraiser-agent/runtime/run.sh",
       "label": "ai.anicca.fundraiser",
       "log_root": "~/.local/state/life-manager/fundraiser/logs",
-      "priority": "support",
+      "priority": "revenue",
       "provider_route": "shared-agent-runner",
       "resource_class": "agent",
       "state_root": "~/.local/state/life-manager/fundraiser",
@@ -1490,7 +1510,7 @@
       "adapter": "exec",
       "command": ["ebook-en-tiktok-daily"],
       "effect_reconcile": {
-        "argv": ["apps/life-manager/scripts/mobile-postiz-provider-reconcile.py", "--auto-owner", "ebook-en-tiktok-daily"],
+        "argv": ["apps/life-manager/scripts/mobile-postiz-provider-reconcile.py", "--auto-owner", "ebook-en-tiktok-daily", "--identity-dir", "~/.local/state/life-manager/ebook/effect-identities"],
         "occurrence_flag": null,
         "resolve_flag": "--resolve",
         "timeout_seconds": 120
@@ -1512,7 +1532,7 @@
       "adapter": "exec",
       "command": ["ebook-ja-instagram-daily"],
       "effect_reconcile": {
-        "argv": ["apps/life-manager/scripts/mobile-postiz-provider-reconcile.py", "--auto-owner", "ebook-ja-instagram-daily"],
+        "argv": ["apps/life-manager/scripts/mobile-postiz-provider-reconcile.py", "--auto-owner", "ebook-ja-instagram-daily", "--identity-dir", "~/.local/state/life-manager/ebook/effect-identities"],
         "occurrence_flag": null,
         "resolve_flag": "--resolve",
         "timeout_seconds": 120
@@ -1534,7 +1554,7 @@
       "adapter": "exec",
       "command": ["ebook-ja-tiktok-daily"],
       "effect_reconcile": {
-        "argv": ["apps/life-manager/scripts/mobile-postiz-provider-reconcile.py", "--auto-owner", "ebook-ja-tiktok-daily"],
+        "argv": ["apps/life-manager/scripts/mobile-postiz-provider-reconcile.py", "--auto-owner", "ebook-ja-tiktok-daily", "--identity-dir", "~/.local/state/life-manager/ebook/effect-identities"],
         "occurrence_flag": null,
         "resolve_flag": "--resolve",
         "timeout_seconds": 120
@@ -1707,7 +1727,7 @@
         "max_runs": 100
       },
       "domain": "earn",
-      "effect_class": "none",
+      "effect_class": "message",
       "reconcile_queued_release": true,
       "command": [],
       "entrypoint": "skills/earn/gig/scripts/coconala-reply-owner",
@@ -1842,7 +1862,7 @@
       "state_root": "~/.local/state/life-manager/x402-sell"
     },
     "job-search-daily": {
-      "admission_class": "borrow",
+      "admission_class": "revenue",
       "cadence": {
         "start_interval_seconds": 1800
       },
@@ -1857,9 +1877,9 @@
       "entrypoint": "apps/job-search-loop/scripts/run-daily.sh",
       "label": "ai.anicca.job-search-daily",
       "log_root": "~/.local/state/anicca/job-search/logs",
-      "priority": "support",
+      "priority": "revenue",
       "provider_route": "deterministic",
-      "resource_class": "deterministic",
+      "resource_class": "agent",
       "state_root": "~/.local/state/anicca/job-search"
     },
     "job-search-health": {
@@ -1871,7 +1891,7 @@
         "max_runs": 100
       },
       "domain": "earn",
-      "effect_class": "application",
+      "effect_class": "none",
       "entrypoint": "apps/job-search-loop/scripts/run-health.sh",
       "label": "ai.anicca.job-search-health",
       "log_root": "~/.local/state/anicca/job-search/logs",
@@ -2438,6 +2458,28 @@
       "command": ["life-manager-anicca-en-affirmation-tiktok"],
       "entrypoint": "apps/life-manager/scripts/mobile-app",
       "label": "ai.anicca.life-manager-anicca-en-affirmation-tiktok",
+      "log_root": "~/.local/state/life-manager/logs",
+      "provider_route": "deterministic",
+      "state_root": "~/.local/state/life-manager"
+    },
+    "life-manager-anicca-en2-affirmation-tiktok": {
+      "priority": "revenue",
+      "resource_class": "agent",
+      "admission_class": "revenue",
+      "cadence": {
+        "calendar_interval": [
+          { "Hour": 9, "Minute": 30 },
+          { "Hour": 14, "Minute": 30 },
+          { "Hour": 20, "Minute": 30 }
+        ]
+      },
+      "cleanup": { "max_age_days": 14, "max_runs": 100 },
+      "domain": "growth",
+      "effect_class": "publish",
+      "adapter": "exec",
+      "command": ["life-manager-anicca-en2-affirmation-tiktok"],
+      "entrypoint": "apps/life-manager/scripts/mobile-app",
+      "label": "ai.anicca.life-manager-anicca-en2-affirmation-tiktok",
       "log_root": "~/.local/state/life-manager/logs",
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager"
@@ -3290,7 +3332,10 @@
       "label": "ai.anicca.marketing-weekly-review",
       "system_role": "shared",
       "log_root": "~/.local/state/life-manager/marketing-weekly-review/logs",
+      "admission_class": "borrow",
+      "priority": "support",
       "provider_route": "shared-agent-runner",
+      "resource_class": "agent",
       "state_root": "~/.local/state/life-manager/marketing-weekly-review"
     },
     "mercor-revenue-application": {
@@ -3500,7 +3545,6 @@
       "browser_identity": "interactive:dais",
       "browser_target_owner": "promptbase-loop-daily",
       "label": "ai.anicca.promptbase-loop-daily",
-      "system_role": "shared",
       "log_root": "~/.local/state/life-manager/logs",
       "provider_route": "deterministic",
       "runtime_timeout_seconds": 900,

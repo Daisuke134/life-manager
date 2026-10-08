@@ -264,9 +264,27 @@ def append_distribution_row(path: Path, row: dict) -> dict:
             if size and os.pread(descriptor, 1, size - 1) != b"\n":
                 raise DistributionError("distribution ledger has an incomplete final row")
             rows = _read_ledger(path)
-            keys = ("platform", "creative_id", "video_sha256", "caption_sha256", "slot")
-            matches = [existing for existing in rows
-                       if all(existing.get(key) == row.get(key) for key in keys)]
+            if isinstance(row.get("receipt"), dict):
+                effect_key, job_id = row.get("effect_key"), row.get("job_id")
+                if not isinstance(effect_key, str) or not effect_key or not isinstance(job_id, str) or not job_id:
+                    raise DistributionError("nested distribution receipt identity is invalid")
+                provider_id = row["receipt"].get("provider_post_id") or row["receipt"].get("provider_id")
+                if not isinstance(provider_id, str) or not provider_id:
+                    raise DistributionError("nested distribution receipt provider post ID is invalid")
+                matches = [existing for existing in rows if existing.get("effect_key") == effect_key]
+                if matches:
+                    if len(matches) == 1 and matches[0] == row:
+                        return matches[0]
+                    raise DistributionError("distribution receipt conflicts with an existing effect key")
+                for existing in rows:
+                    receipt = existing.get("receipt") if isinstance(existing.get("receipt"), dict) else existing
+                    existing_provider_id = receipt.get("provider_post_id") or receipt.get("provider_id")
+                    if existing_provider_id == provider_id:
+                        raise DistributionError("distribution receipt provider post ID is already bound to another effect")
+            else:
+                keys = ("platform", "creative_id", "video_sha256", "caption_sha256", "slot")
+                matches = [existing for existing in rows
+                           if all(existing.get(key) == row.get(key) for key in keys)]
             if matches:
                 if (len(matches) == 1
                         and matches[0].get("provider_id") == row.get("provider_id")
@@ -345,6 +363,11 @@ def _append_success(
     logged_out = adapter_result.get("logged_out_readback")
     migration_date = adapter_result.get("migration_date")
     provider_reconciled = adapter_result.get("reconciled") is True
+    default_route = (
+        "postiz" if platform == "instagram" and config.instagram_integration.strip()
+        else "instagram_file_script" if platform == "instagram"
+        else "postiz"
+    )
     if route == "direct_browser" and not (
         provider_cost == 0
         and logged_out is True
@@ -363,7 +386,7 @@ def _append_success(
         "caption_sha256": caption_hash,
         "public_url": public_url,
         "provider_id": provider_id,
-        "route": route or ("instagram_file_script" if platform == "instagram" else "postiz"),
+        "route": route or default_route,
         "provider_cost_usd": provider_cost,
         "logged_out_readback": logged_out,
         "migration_date": migration_date,

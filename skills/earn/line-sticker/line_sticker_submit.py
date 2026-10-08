@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import datetime
 import re
+import unicodedata
 import json
 import subprocess
 import sys
@@ -52,11 +53,83 @@ async def _goto(page: Page, url: str) -> None:
     await _close_modals(page)
 
 
+def _is_title_taken(errors: list[str]) -> bool:
+    return any("既に存在するタイトル" in e or "title already exists" in e.lower() for e in errors)
+
+
+# Creators Market allows 40 units and counts a full-width character as 2 (measured live 2026-10-07:
+# a 35-character title with 16 full-width characters was rejected as over 40).
+TITLE_MAX = 38
+
+
+def _title_units(text: str) -> int:
+    return sum(2 if unicodedata.east_asian_width(ch) in ("F", "W", "A") else 1 for ch in text)
+
+
+# Description limit, same width counting (160 units; measured live 2026-10-07 set-007).
+DESC_MAX = 158
+LIMIT_TITLE = 40
+
+
+def _fit(text: str, limit: int) -> str:
+    if _title_units(text) <= limit:
+        return text
+    cut = ""
+    for ch in text:
+        if _title_units(cut + ch) > limit:
+            break
+        cut += ch
+    # Prefer ending on a sentence, else a word boundary.
+    for marks in ("。.!！?？", " 、,"):
+        idx = max(cut.rfind(m) for m in marks)
+        if idx >= len(cut) // 2:
+            return cut[: idx + 1].rstrip(" 、,&-:;・")
+    return cut.rstrip(" 、,&-:;・")
+
+
+_ASCII_PUNCT = str.maketrans({"\u2018": "'", "\u2019": "'", "\u201c": '"', "\u201d": '"',
+                               "\u2013": "-", "\u2014": "-", "\u2026": "..."})
+
+
+def _clean(text: str) -> str:
+    """Creators Market rejects some characters (利用できない文字; live 2026-10-07 set-008 had '’').
+    Use ASCII punctuation and drop emoji/pictographs the form refuses."""
+    text = text.translate(_ASCII_PUNCT)
+    return "".join(ch for ch in text if not (unicodedata.category(ch) == "So" or ord(ch) >= 0x1F000)).strip()
+
+
+def _fit_listing(listing: dict) -> dict:
+    """Clamp model-written copy to Creators Market's character set and width-counted limits."""
+    titles = {k: _fit(_clean(v), LIMIT_TITLE) for k, v in listing["title"].items()}
+    descs = {k: _fit(_clean(v), DESC_MAX) for k, v in listing.get("description", {}).items()}
+    if titles == listing["title"] and descs == listing.get("description", {}):
+        return listing
+    return dict(listing, title=titles, description=descs)
+
+
+def _retitle(listing: dict) -> dict | None:
+    name = listing.get("character_name") or ""
+    if not name:
+        return None
+    fallback = {"en": f"{name} Stickers", "ja": f"{name}のスタンプ"}
+    titles = {}
+    for lang, title in listing["title"].items():
+        candidate = f"{title} ({name})"
+        titles[lang] = candidate if _title_units(candidate) <= TITLE_MAX else fallback.get(lang, name)
+    return dict(listing, title=titles)
+
+
+async def _visible_errors(page) -> list[str]:
+    return await page.evaluate("""() => [...document.querySelectorAll("[class*=rror], .mdTxtError")]
+        .filter(e => e.offsetParent && e.innerText.trim()).map(e => e.innerText.trim().slice(0, 120))""")
+
+
 class TitleTaken(RuntimeError):
     """Creators Market titles are unique per language across all creators."""
 
 
 async def _create_item(page: Page, listing: dict, selection: dict) -> dict:
+    listing = _fit_listing(listing)
     saves: list = []
     page.on("response", lambda r: saves.append(r) if r.request.method == "POST" and r.url.endswith("/api/v2/sticker") else None)
     await _goto(page, f"{BASE}/sticker/create")
@@ -80,7 +153,16 @@ async def _create_item(page: Page, listing: dict, selection: dict) -> dict:
     await _select_taste_character_campaign(page, selection)
     await page.evaluate("document.querySelector('input[type=submit].mdBtn').click()")
     # The page keeps several hidden confirm dialogs; only the visible "OK" belongs to this save.
-    await page.locator("button:visible", has_text="OK").last.click(timeout=15000)
+    ok_button = page.locator("button:visible", has_text="OK").last
+    try:
+        await ok_button.wait_for(timeout=15000)
+    except Exception as exc:
+        # No confirm dialog means client-side validation stopped the save; nothing was sent.
+        errors = await _visible_errors(page)
+        if _is_title_taken(errors):
+            raise TitleTaken("; ".join(errors)) from exc
+        raise RuntimeError(f"save_dialog_missing errors={errors[:5]}") from exc
+    await ok_button.click()
     # "/sticker/*" also matches the create page itself; only a numeric item id proves the save.
     try:
         await page.wait_for_url(re.compile(re.escape(BASE) + r"/sticker/\d+/?$"), timeout=30000)
@@ -90,8 +172,7 @@ async def _create_item(page: Page, listing: dict, selection: dict) -> dict:
             if "title already exists" in detail:
                 raise TitleTaken(detail) from exc
             raise RuntimeError(f"create_rejected status={saves[-1].status} detail={detail}") from exc
-        errors = await page.evaluate("""() => [...document.querySelectorAll("[class*=rror], .mdTxtError")]
-            .filter(e => e.offsetParent && e.innerText.trim()).map(e => e.innerText.trim().slice(0, 120))""")
+        errors = await _visible_errors(page)
         raise RuntimeError(f"create_not_saved url={page.url} errors={errors[:5]}") from exc
     product_id = page.url.rstrip("/").rsplit("/", 1)[-1]
     return {
@@ -122,7 +203,16 @@ async def _select_taste_character_campaign(page: Page, selection: dict) -> None:
 async def _upload_images(page: Page, item: dict, package_dir: Path) -> None:
     await _goto(page, f"{BASE}/sticker/{item['product_id']}/image")
     await page.select_option("#number_of_images", "24")
-    await page.locator("button:visible", has_text="OK").last.click(timeout=15000)
+    ok_button = page.locator("button:visible", has_text="OK").last
+    try:
+        await ok_button.wait_for(timeout=15000)
+    except Exception as exc:
+        # No confirm dialog means client-side validation stopped the save; nothing was sent.
+        errors = await _visible_errors(page)
+        if _is_title_taken(errors):
+            raise TitleTaken("; ".join(errors)) from exc
+        raise RuntimeError(f"save_dialog_missing errors={errors[:5]}") from exc
+    await ok_button.click()
     await page.wait_for_timeout(500)
     await page.locator("input[type=file]").first.set_input_files(str(package_dir / "submission.zip"))
     await page.wait_for_timeout(20000)
@@ -148,8 +238,26 @@ async def _tag_all(page: Page, item: dict, tags: dict) -> None:
         await page.wait_for_timeout(1500)
 
 
+IN_REVIEW = ("審査待ち", "審査中", "審査処理中")
+
+
+def _mark_requested(item: dict, observed: str) -> dict:
+    return dict(item, state="review_requested", state_observed=observed,
+                review_requested_at=datetime.datetime.now(datetime.timezone.utc).isoformat())
+
+
+async def _review_status(page: Page) -> str | None:
+    body = await page.inner_text("body")
+    status = body[body.find("ステータス"):][:40]
+    return next((s for s in IN_REVIEW if s in status), None)
+
+
 async def _request_review(page: Page, item: dict) -> dict:
     await _goto(page, f"{BASE}/sticker/{item['product_id']}")
+    # Idempotent: a request that already went through (e.g. readback missed it last wake) is done.
+    already = await _review_status(page)
+    if already:
+        return _mark_requested(item, already)
     await page.locator("a:visible", has_text="リクエスト").first.click(timeout=15000)  # <a> without href has no link role
     await page.wait_for_timeout(500)
     agree = page.get_by_text("同意します", exact=True)
@@ -158,14 +266,27 @@ async def _request_review(page: Page, item: dict) -> dict:
     ok_buttons = page.get_by_role("button", name="OK", exact=True)
     visible = [button for button in await ok_buttons.all() if await button.is_visible() and await button.is_enabled()]
     await visible[-1].click()
-    await page.wait_for_timeout(2000)
-    body = await page.inner_text("body")
-    item = dict(item)
-    if "審査待ち" in body:
-        item["state"] = "review_requested"
-        item["review_requested_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
-        item["state_observed"] = "審査待ち"
-    return item
+    # The status flips a few seconds after OK (2s missed it live 2026-10-07); reload and poll.
+    for _ in range(10):
+        await page.wait_for_timeout(2000)
+        await _goto(page, f"{BASE}/sticker/{item['product_id']}")
+        observed = await _review_status(page)
+        if observed:
+            return _mark_requested(item, observed)
+    return dict(item)
+
+
+async def _idempotent_step(step, item: dict, next_state: str) -> dict:
+    """Run an overwrite-only step (image upload, tagging). A failure here cannot leave a partial
+    external effect worth fencing, so keep the state and let the next launch redo it instead of
+    crashing into an unknown-effect fence (a fleet apply restarted the browser mid-tagging live
+    2026-10-07 10:00Z)."""
+    try:
+        await step()
+    except Exception as exc:  # noqa: BLE001 - any browser failure means "redo next launch"
+        print(json.dumps({"retry_step": next_state, "error": str(exc)[:300]}, ensure_ascii=False), file=sys.stderr)
+        return dict(item)
+    return dict(item, state=next_state)
 
 
 async def _drive(cdp: str, item: dict, listing: dict, tags: dict, package_dir: Path, selection: dict) -> dict:
@@ -177,28 +298,24 @@ async def _drive(cdp: str, item: dict, listing: dict, tags: dict, package_dir: P
             if not item:
                 try:
                     return await _create_item(page, listing, selection)
-                except TitleTaken as taken:
-                    # Retry once with the character's own name so the title is distinctive.
-                    language = "en" if "English" in str(taken) else "ja"
-                    name = listing.get("character_name") or ""
-                    if not name:
+                except TitleTaken:
+                    # Retry once with the character's own name so both titles are distinctive.
+                    retitled = _retitle(listing)
+                    if retitled is None:
                         raise
-                    listing = dict(listing, title=dict(listing["title"]))
-                    listing["title"][language] = f"{listing['title'][language]} ({name})"[:40]
-                    return await _create_item(page, listing, selection)
+                    return await _create_item(page, retitled, selection)
             if item.get("state") == "metadata_saved":
-                await _upload_images(page, item, package_dir)
-                item = dict(item, state="images_uploaded")
-                return item
+                return await _idempotent_step(lambda: _upload_images(page, item, package_dir), item, "images_uploaded")
             if item.get("state") == "images_uploaded":
-                await _tag_all(page, item, tags)
-                item = dict(item, state="tagged")
-                return item
+                return await _idempotent_step(lambda: _tag_all(page, item, tags), item, "tagged")
             if item.get("state") == "tagged":
                 return await _request_review(page, item)
             return item
         finally:
-            await page.close()
+            try:
+                await page.close()
+            except Exception:  # noqa: BLE001 - the browser may already be gone
+                pass
 
 
 def submit(set_dir: Path, item: dict, listing: dict, tags: dict) -> dict:

@@ -28,18 +28,39 @@ function exactInstant(value, label) {
   return new Date(value).toISOString();
 }
 
+function exactDate(value, label) {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)
+    || new Date(`${value}T00:00:00.000Z`).toISOString().slice(0, 10) !== value) {
+    throw new Error(`${label} invalid`);
+  }
+  return value;
+}
+
 function projectRead(value, expectedTool) {
   if (!value || value.provider !== "moneytree" || value.mcp_server !== "codex_apps"
     || value.tool !== expectedTool || !TOOLS.has(value.tool) || !SHA256.test(value.payload_sha256)) {
     throw new Error("Moneytree observation provenance invalid");
   }
-  return {
+  const projected = {
     provider: "moneytree",
     mcp_server: "codex_apps",
     tool: value.tool,
     retrieved_at: exactInstant(value.retrieved_at, "Moneytree retrieval time"),
     payload_sha256: value.payload_sha256,
   };
+  if (expectedTool === "moneytree.show-transactions") {
+    const count = value.provider_total_count;
+    if (!Number.isSafeInteger(value.returned_count) || value.returned_count < 0
+      || !Number.isSafeInteger(value.limit) || value.limit < 1) {
+      throw new Error("Moneytree transaction coverage provenance invalid");
+    }
+    projected.query_start_date = exactDate(value.query_start_date, "Moneytree query start");
+    projected.query_end_date = exactDate(value.query_end_date, "Moneytree query end");
+    projected.provider_total_count = Number.isSafeInteger(count) && count >= 0 ? count : null;
+    projected.returned_count = value.returned_count;
+    projected.limit = value.limit;
+  }
+  return projected;
 }
 
 function buildMoneytreeObservation({ accounts, transactions, accountRead, transactionRead, observedAt }) {

@@ -1,0 +1,31 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "line-sticker-distribute caption hook + content rotation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["hook", "content_type"],
+  "properties": {
+    "hook": {
+      "type": "string",
+      "minLength": 4,
+      "maxLength": 120,
+      "description": "Short Japanese hook line for the short-video caption. No URL, no hashtag -- those are added deterministically by code."
+    },
+    "content_type": {
+      "type": "string",
+      "enum": ["daily_life", "seasonal_hook", "reaction_pick", "showcase"],
+      "description": "Which post format this slot uses, copied from top LINE creators' social formats (docs/superpowers/specs/2026-08-28-line-sticker-loop-design.md, 'Social formats copied from top creators'): daily_life = a relatable everyday moment for the character; seasonal_hook = a moment tied to the current season/event; reaction_pick = a 'which one do you send?' style pick between a couple of the clips; showcase = the existing sticker-sample format. Rotate so the same account does not show the same type on consecutive slots."
+    },
+    "beat_texts": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 4,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 18
+      },
+      "description": "Only for content_type daily_life/seasonal_hook/reaction_pick: one short Japanese text overlay per clip, in clip order, telling a 2-4 beat mini-story/reaction using the clips already chosen for this slot. Omit (or leave empty) for content_type showcase, which keeps the existing single-title overlay."
+    }
+  }
+}

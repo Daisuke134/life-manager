@@ -40,11 +40,28 @@ class ProductRegistryTest(unittest.TestCase):
 
     def test_four_products_and_locked_accounts_validate(self):
         registry = load_registry(ENGINE)
-        self.assertEqual(set(registry.products), {"anicca-ios", "honne-ai", "ebook-ja", "ebook-en"})
+        self.assertEqual(set(registry.products), {
+            "anicca-ios", "honne-ai", "ebook-ja", "ebook-en", "life-manager-cloud",
+        })
         self.assertGreaterEqual(len(registry.accounts), 9)
         for account in registry.accounts.values():
             self.assertIn(account["product_id"], registry.products)
             self.assertEqual(len(account["product_ids"]), 1)
+
+    def test_life_manager_cloud_pack_uses_web_funnel_and_exact_trial_price(self):
+        registry = load_registry(ENGINE)
+        product = registry.products["life-manager-cloud"]
+        self.assertEqual(product["type"], "web_app")
+        self.assertEqual(product["destination_url"], "https://aniccaai.com/lm")
+        self.assertEqual(product["price"], {
+            "amount": 29, "currency": "USD", "basis": "monthly_after_7_day_card_required_trial",
+        })
+        self.assertIn("life-manager-web-funnel-report", product["metric_adapters"])
+        self.assertIn("stripe", product["metric_adapters"])
+        self.assertIn("google_connect_start", product["conversion_events"])
+        self.assertIn("first_travel_block", product["conversion_events"])
+        self.assertIn("paid_invoice", product["revenue_events"])
+        self.assertTrue(any("does not read Gmail" in claim for claim in product["approved_claims"]))
 
     def test_mobile_jobs_and_marketing_registry_share_product_ids(self):
         registry = load_registry(ENGINE)

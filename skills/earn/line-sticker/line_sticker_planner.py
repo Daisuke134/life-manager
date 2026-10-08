@@ -48,26 +48,48 @@ def _run_agent(*, prompt: str, schema: Path, evidence_dir: Path, task_label: str
     return json.loads(result_path.read_text(encoding="utf-8"))
 
 
-def _build_plan_prompt(prior_facts: list[dict]) -> str:
+def _build_plan_prompt(prior_facts: list[dict], market_items: list[dict] | None = None) -> str:
+    market_items = market_items or []
     return f"""あなたはLINE Creators Marketで売れている「動くスタンプ」の企画者。
 
-市場調査（2026-10-06, LINE STORE top_creators上位35件、動く系含む）: 上位の作者は例外なく既存
-キャラクターのシリーズ（1キャラにつき5〜36セット）を売っている。単発の新キャラクターは上位35件に
-一つも無い。タイトルは「動く！」/「うごく」を先頭に付け「<キャラ名>の<シーン>」の形、続編には
-vol./数字を付ける。テーマは頻度順に 汎用日常返事 → 敬語・仕事 → 季節イベント（年末年始など） →
-家族・推し活 を優先する。
+今日のLINE STORE上位（top_creators/new_creators、継続的に再取得される市場データ。古い場合は
+null）。各項目は product_id/title/author/price_jpy/format/sticker_count/description/
+text_or_no_text/theme/art_style/phrases/author_sets:
+{json.dumps(market_items, ensure_ascii=False, indent=1)}
+
+まず copy_target を1つ選ぶ: 上の市場データの中で、このキャラクターに当てはめて最も真似しやすい
+勝ちパターンを1件選び、product_url・theme・phrases（真似する意図/フレーズ一覧）・
+expression_style（表現スタイル）・text_or_no_text・title_pattern（タイトルの付け方）を記録する。
+真似するのは「売れ筋の企画パターン」（テーマ・文字有無・タイトルの付け方・表現の意図）であり、
+他者のキャラクター・絵・文字そのものを複製してはならない（LINEのAI/知的財産ガイドラインを守り、
+キャラクターと絵はオリジナルにする）。
+市場データが大半 static または文字入りの場合、このセットは動く・文字なしで作る（既存方針）ことを
+踏まえ、format_gap に一言でそのギャップを記録する（例: "上位は静止画・文字入りが多いが今回は
+動く・文字なしで作る"）。ギャップが無ければ null にする。
+
+既存セットの傾向（上位作者は例外なく既存キャラクターのシリーズ（1キャラにつき5〜36セット）を
+売っている。単発の新キャラクターは上位に一つも無い）: タイトルは「動く！」/「うごく」を先頭に付け
+「<キャラ名>の<シーン>」の形、続編には vol./数字を付ける。テーマは頻度順に 汎用日常返事 → 敬語・
+仕事 → 季節イベント（年末年始など） → 家族・推し活 を優先する。
 
 既存セットの事実（新しいセットを計画する前に必ず読む。set=ディレクトリ名、
-state_observed=LINE Creators Marketで最後に確認した公式状態、例: 販売中/審査待ち/リジェクト）:
+state_observed=LINE Creators Marketで最後に確認した公式状態、例: 販売中/審査待ち/リジェクト、
+sales_jpy=LINE Creators Marketの公式売上・統計情報/送金申請ページで確認した累計売上（分配額の
+速報値、円）。null は「まだ確認できていない」という意味で0円ではない）:
 {json.dumps(prior_facts, ensure_ascii=False, indent=1)}
 
 まず series_of を決める:
-- 既存キャラクター（できれば state_observed が「販売中」のもの）の続編を強く優先する。
+- sales_jpy が数値（nullでない）のセットが1つでもあれば、その中で売上が最も大きいキャラクターの
+  続編を最優先する。実際に売れている実績は、state_observedだけの判断より優先する。
+- sales_jpy がまだどのセットもnullの場合（売上データがまだ無い）は、既存キャラクター（できれば
+  state_observed が「販売中」のもの）の続編を強く優先する。
 - 続編にする場合: series_of にそのセットのset名（例: "set-003"）を入れ、character_id と
   character_prompt はそのキャラクターの説明（character_description）を引き継ぐ。続編では画像を
   再利用するため character_prompt は画像生成に使われないが、記録としてそのキャラクターの見た目を
   書く。motions とテーマはそのキャラクターの過去セット（theme/motions）と重複しない新しいシーンに
-  する。
+  する。キャラの日本語の名前はシリーズで1つに固定する: 同じキャラ（同じ series_of 元）の過去セットの
+  タイトルに出てくる日本語の名前のうち最も古いセットのものをそのまま使い、新しい名前を作らない
+  （上位作者は1キャラ1名で何十セットも出す。名前が毎回違うと同じシリーズに見えない）。
 - 新キャラクターを立てる方が明らかに良い場合（例: 既存キャラクターが一つも販売中でない、過去の
   テーマを使い切った）だけ series_of を null にし、新しい character_id / character_prompt を
   企画する。
@@ -92,8 +114,8 @@ state_observed=LINE Creators Marketで最後に確認した公式状態、例: �
 JSON Schemaに厳密に従ったJSONだけを返す。"""
 
 
-def planner(set_dir: Path, prior_facts: list[dict]) -> dict:
-    prompt = _build_plan_prompt(prior_facts)
+def planner(set_dir: Path, prior_facts: list[dict], market_items: list[dict] | None = None) -> dict:
+    prompt = _build_plan_prompt(prior_facts, market_items)
     with tempfile.TemporaryDirectory(prefix=".plan-", dir=set_dir) as tmp:
         return _run_agent(prompt=prompt, schema=HERE / "schemas/plan.schema.json",
                            evidence_dir=Path(tmp) / "evidence", task_label=f"line-sticker-plan-{set_dir.name}")
@@ -151,6 +173,9 @@ def selector(set_dir: Path, plan: dict) -> dict:
 2. 残りから24個を選び order に入れる（見た目のバリエーションと使いやすさを優先、文字なし）。
 3. 24個のうち、メインアイコンにふさわしい1つを main、タブアイコンにふさわしい1つを tab として選ぶ。
 4. listing.title / listing.description を日本語・英語で確定する（既存の下書き: {json.dumps(plan.get('listing', {}), ensure_ascii=False)}）。
+   タイトルは下書きの「動く！<キャラ名>の<シーン>」形を崩さない。<キャラ名>は下書きのものを変えない（シリーズで固定）。キャラ固有の名前とこのセットのテーマ（例: 敬語、仕事、季節）を必ず入れ、
+   「かわいい〇〇の毎日スタンプ」のような誰とでも重なる汎用タイトルにしない（既存タイトルと重複すると申請できない）。
+   長さは全角を2・半角を1と数えて38以内（日本語なら全角19文字程度まで）。続編は vol.2 などを付ける。
 5. tags: orderの1番目を"01"、2番目を"02"、...24番目を"24"として、各sticker_numberごとに日本語タグを
    以下の有効リストだけから4〜6個（最大9個）選ぶ。リストにない語は使わない。
    有効タグ一覧: {json.dumps(tags, ensure_ascii=False)}

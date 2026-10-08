@@ -1,5 +1,5 @@
-<!-- startup-context-version: 2026-10-02.1 -->
-<!-- startup-context-digest: 113ddbade3174274888d408be0874286dd6c4d9fa8cff41d447bca744e74ceed -->
+<!-- startup-context-version: 2026-10-08.1 -->
+<!-- startup-context-digest: 5b8e34cf01a7cf7589fc6049c080b3eb8458ec28b98103abc2ade395e8d0f90c -->
 # Life Manager
 
 **Life Manager is an AI that manages your life better than you ever can.** It is a proactive general agent that
@@ -23,43 +23,48 @@ and converge on the same state, evidence, and human-readable reporting contracts
 Manager never guarantees wealth or investment returns, and it never reports an attempted action as completed
 without a receipt.
 
-## The 15 main product loops
+## The 18 main agents
 
-Life Manager has fifteen user-facing product loops. A product loop is a capability,
-not necessarily one process: the lifecycle registry contains the smaller
-application, browser-owner, reporting, healthcheck, and reconciliation jobs that
-implement and support these 15 loops.
+Life Manager has eighteen user-facing agents. An agent is a capability, not
+necessarily one process: the lifecycle registry contains the smaller application,
+browser-owner, reporting, healthcheck, and reconciliation jobs (loops) that
+implement and support these 18 agents.
 
-Loops 1–3 form the **Human Gig Work** family. Life Manager automates discovery,
+Agents 1–4 form the **Human Gig Work** family. Life Manager automates discovery,
 screening, application, negotiation, delivery support, reconciliation, and
 reporting; a person participates only where the marketplace requires identity,
 an interview, approval, or final delivery.
 
-| # | Product loop | Representative current owners | What it does |
+| # | Agent | Representative current owners | What it does |
 |---:|---|---|---|
 | 1 | Gig — Coconala | `hf-gig-apply-direct`, `hf-gig-reply-detector`, `hf-gig-storefront-direct`, `hf-gig-paid-direct` | Finds suitable work, applies, negotiates, delivers, and verifies provider outcomes |
 | 2 | Gig — Lancers | `lancers-revenue-application`, `lancers-revenue-negotiate`, `lancers-revenue-storefront`, `lancers-revenue-paid`, `lancers-revenue-work-sync`, `lancers-revenue-telegram-report` | Runs the same earning lifecycle for Lancers and keeps applications, paid work, delivery, and reporting state consistent |
 | 3 | Gig — CrowdWorks | `crowdworks-revenue-application`, `crowdworks-revenue-report` | Applies to suitable CrowdWorks projects and reports evidence-backed outcomes |
-| 4 | Writer | `writer-opportunity-discovery`, `writer-opportunity-response`, `writer-money-sync`, `writer-report` | Finds paid writing work, responds, and records publisher and payment receipts |
-| 5 | Affiliate | `affiliate-loop`, `affiliate-source-refresh`, `affiliate-browser` | Finds and publishes attributable affiliate opportunities through an owned browser path |
-| 6 | Investment | `alpaca-investment` | Runs the risk-gated Alpaca shadow/live loop, reconciles orders, and reports every five-minute pass |
-| 7 | Agent Economy | `agent-economy-loop` plus x402 helpers | Tracks agent revenue, compute cost, and self-funding without mixing owner funds |
-| 8 | Job Hunter | `job-search-daily`, `job-search-browser`, `job-search-inbox` | Discovers and submits qualified applications, then reconciles confirmations and replies |
-| 9 | Fundraiser | `fundraiser` | Discovers accelerators, fellowships, grants, and public investor intakes and applies when eligible |
-| 10 | Connector | `life-manager-connector-native` | Finds eligible events, applies, verifies registration, and reports Calendar and Telegram receipts |
-| 11 | Self-Build / Product Improvement | `life-manager-selfbuild`, `life-manager-dev` | Turns verified user feedback and product evidence into reviewed Life Manager improvements; Cloud is a host for loops, not a separate Product Loop |
-| 12 | Mobile App Loops | Anicca iOS, Honne, and the other `life-manager-anicca-*` / `life-manager-honne-*` product jobs | Runs the owned mobile-app lifecycle: create the product account and app, build and sign releases, publish them, continuously improve the apps, distribute marketing content through Postiz or a native provider adapter, measure outcomes, and feed verified revenue back into CFO. Today the repository owns the shared product-aware marketing, distribution, measurement, and receipt path; app creation, signing, release, and iteration are still being unified into the same end-to-end loop. |
-| 13 | eBook | `ebook-ja-tiktok-daily`, `ebook-ja-instagram-daily` | Publishes attributed Japanese eBook campaigns through existing accounts; checkout and delivery remain distinct receipts |
-| 14 | Capafy | `capafy-loop-daily`, `capafy-outcome-monitor`, `capafy-ig-account-manager`, `capafy-ig-marketing-daily` | Operates Capafy's separate product, sales, outcome, and audience-growth workflows |
-| 15 | CFO | `life-manager-cfo-hourly` | Reconciles verified revenue, cash flow, balances, payouts, and financial reports across the earning loops |
+| 4 | Gig — Mercor | `mercor-revenue-application`, `mercor-revenue-reply`, `mercor-revenue-paid` | Applies to suitable Mercor contract work, answers replies, and records paid outcomes |
+| 5 | PromptBase | `promptbase-loop-daily` | Builds and publishes prompt listings on PromptBase with real examples and reads sales back |
+| 6 | Writer | `writer-opportunity-discovery`, `writer-opportunity-response`, `writer-money-sync`, `writer-report` | Finds paid writing work, responds, and records publisher and payment receipts |
+| 7 | Affiliate | `affiliate-loop`, `affiliate-source-refresh`, `affiliate-browser` | Finds and publishes attributable affiliate opportunities through an owned browser path |
+| 8 | Investment | `alpaca-investment` | Runs the risk-gated Alpaca shadow/live loop, reconciles orders, and reports every five-minute pass |
+| 9 | Agent Economy | `agent-economy-loop` plus x402 helpers | Tracks agent revenue, compute cost, and self-funding without mixing owner funds |
+| 10 | Job Hunter | `job-search-daily`, `job-search-browser`, `job-search-inbox` | Discovers and submits qualified applications, then reconciles confirmations and replies |
+| 11 | Fundraiser | `fundraiser` | Discovers accelerators, fellowships, grants, and public investor intakes and applies when eligible |
+| 12 | Connector | `life-manager-connector-native` | Finds eligible events, applies, verifies registration, and reports Calendar and Telegram receipts |
+| 13 | Self-Build / Product Improvement | `life-manager-selfbuild`, `life-manager-dev` | Turns verified user feedback and product evidence into reviewed Life Manager improvements; Cloud is a host for loops, not a separate Product Loop |
+| 14 | Mobile App Loops | Anicca iOS, Honne, and the other `life-manager-anicca-*` / `life-manager-honne-*` product jobs | Runs the owned mobile-app lifecycle: create the product account and app, build and sign releases, publish them, continuously improve the apps, distribute marketing content through Postiz or a native provider adapter, measure outcomes, and feed verified revenue back into CFO. Today the repository owns the shared product-aware marketing, distribution, measurement, and receipt path; app creation, signing, release, and iteration are still being unified into the same end-to-end loop. |
+| 15 | eBook | `ebook-en-tiktok-daily`, `ebook-ja-tiktok-daily`, `ebook-ja-instagram-daily` | Publishes attributed English and Japanese eBook campaigns through the existing Monk TikTok and Japanese accounts; checkout and delivery remain distinct receipts |
+| 16 | Capafy | `capafy-loop-daily`, `capafy-outcome-monitor`, `capafy-ig-account-manager`, `capafy-ig-marketing-daily` | Operates Capafy's separate product, sales, outcome, and audience-growth workflows |
+| 17 | LINE Sticker | `line-sticker-factory-hourly`, `line-sticker-readback-hourly`, `line-creators-browser` | Designs original animated LINE sticker sets end to end (character, motions, video, APNG, selection, tags), submits a finished set to LINE Creators Market about every hour, and reads review and sales status back |
+| 18 | CFO | `life-manager-cfo-hourly` | Reconciles verified revenue, cash flow, balances, payouts, and financial reports across the earning loops |
 
 ### Setup and start truth
 
-| Product loop | User setup | Current start path |
+| Agent | User setup | Current start path |
 |---|---|---|
 | Coconala Gig | Coconala login, work profile, Telegram | `./install.sh coconala` |
 | Lancers Gig | Lancers login and work profile | Managed production owner; public guided installer pending |
 | CrowdWorks Gig | CrowdWorks login and work profile | Managed production owner; public guided installer pending |
+| Mercor Gig | Mercor login and work profile | Managed production owners; public guided installer pending |
+| PromptBase | PromptBase seller account and browser session | Registry job; public guided installer pending |
 | Writer | Publisher accounts and browser/API credentials | Registry jobs; public guided installer pending |
 | Affiliate | Affiliate-provider account and browser/API credentials | Registry jobs; public guided installer pending |
 | Investment / Alpaca | Alpaca API credentials and explicit `paper`, `shadow`, or `live` mode | `LIFE_MANAGER_INVESTMENT_MODE=paper python3 skills/alpaca-investment/run.py` |
@@ -69,16 +74,18 @@ an interview, approval, or final delivery.
 | Connector | Calendar/Telegram and event-provider login when required | `./install.sh connector` |
 | Self-Build / Product Improvement | Repository access plus the configured development agent and review credentials | Managed registry jobs; public guided installer pending |
 | Mobile App Loops | No existing app required; connect Apple/Postiz/RevenueCat only when the generated product reaches those stages | Shared marketing jobs exist; zero-to-App-Store app-factory installer pending |
-| eBook | Existing checkout and PDF-delivery route; verify the existing Japanese Postiz account before publishing | Japanese account-scoped registry owners; publication remains gated on official account and production checkout readback |
+| eBook | Existing checkout and PDF-delivery route; no Postiz reconnect is needed for Monk English TikTok or the Japanese TikTok/Instagram accounts. Connect a dedicated English Instagram account only if adding that route. | Three account-scoped registry owners; publication receipts and checkout/PDF receipts remain separate |
 | Capafy | Capafy account/API credential and publication profile | Registry jobs; public guided installer pending |
+| LINE Sticker | LINE Creators Market login with payout account, fal and Gemini API keys, Telegram | Registry jobs; public guided installer pending |
 | CFO | Credentials for only the financial sources the user connects | `bash skills/cfo/run.sh` for one finite pass |
 
 The eBook products share the repository-owned script ledger, Postiz publication
 adapter, provider receipt, and campaign attribution path. Japanese creative uses
 the local `watercolor-monk` renderer. English Anicca Monk creative uses the
-official HeyGen CLI through the checked-in `heygen-avatar-iv` adapter, but its
-publishing route remains setup-required until an existing owned account and cost
-cap are verified. It never calls OmniAvatar or source code under an external checkout. A clean host
+official HeyGen CLI through the checked-in `heygen-avatar-iv` adapter and its
+existing Postiz TikTok integration. Route readiness requires the exact account,
+integration, and live enabled status to agree; record the first render's wallet
+delta before treating its per-video cost as established. It never calls OmniAvatar or source code under an external checkout. A clean host
 that has not configured the private HeyGen avatar ID, voice ID, and CLI login gets
 an explicit `setup_required` receipt with no provider effect. Those values and the
 HeyGen session remain private host or tenant state and are never committed.
@@ -154,7 +161,7 @@ onboarding shortcut: install and start only the loops whose provider setup and e
 
 **Money Printer is not another loop.** It is the umbrella for all revenue-producing
 loops. The `/money-printer` control room shows their shared opportunity-to-receipt
-system; it does not compete with them as a fifteenth loop.
+system; it does not compete with them as a nineteenth agent.
 
 The complete lifecycle registry is [`config/loop-registry.json`](config/loop-registry.json).
 List every loop and inspect its live state through the canonical interfaces:
@@ -305,7 +312,7 @@ LIFE_MANAGER_INSTALL_DAEMON=0 ./install.sh
 ./bin/lm-loop doctor
 ```
 
-The default installer does not silently start all 15 product loops. Each provider-backed loop remains
+The default installer does not silently start all 18 agents. Each provider-backed loop remains
 `setup_required` until its account, credentials, KYC or browser login is configured. Guided installers currently
 exist for `./install.sh coconala`, `connector`, `fundraiser`, and `job-hunter`; the README catalog states the current
 boundary for the other product loops.

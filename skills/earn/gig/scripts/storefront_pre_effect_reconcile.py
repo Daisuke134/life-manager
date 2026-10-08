@@ -39,12 +39,13 @@ OWNER_ID = "hf-gig-storefront-direct"
 OCCURRENCE_PREFIX = f"{OWNER_ID}:"
 RUN_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
 
-# ``official_service_contract_invalid`` is set at storefront_direct.py:6316 and
-# raised at :6319, both inside ``_read_official_catalog`` (called at :6321).
-# ``mutation_attempted`` is not set True anywhere before that call; its first
-# assignment in ``run_once`` is at :6503. ``_storefront_failure_disposition``
-# (:817-823) maps this reason to status "failed" (it is not in the pending set).
-ALLOWED_REASONS = frozenset({"official_service_contract_invalid"})
+# Catalog-read failures occur before the first provider listing mutation at
+# `storefront_direct.py:6503`. Accept only these exact business/runtime pairs,
+# with zero effect, actionable work, and readback.
+PRE_EFFECT_OUTCOMES = {
+    "official_inventory_empty_or_invalid": ("pending", "pass"),
+    "official_service_contract_invalid": ("failed", "fail"),
+}
 
 
 class EvidenceError(RuntimeError):
@@ -107,28 +108,53 @@ def _epoch(value: object) -> float:
     raise EvidenceError("timestamp_invalid")
 
 
-def _find_window(rows: list[dict], run_id: str) -> tuple[dict, dict]:
+def _find_window(rows: list[dict], occurrence_id: str) -> tuple[dict, dict, str]:
+    suffix = occurrence_id.removeprefix(OCCURRENCE_PREFIX)
+    claim_ref = f"lm-occurrence://{OWNER_ID}/{suffix}/claim"
+    occurrence_reports = [
+        row for row in rows
+        if row.get("loop_id") == OWNER_ID and row.get("owner_id") == OWNER_ID
+        and row.get("phase") == "report" and row.get("occurrence_id") == occurrence_id
+    ]
+    if len(occurrence_reports) != 1:
+        raise EvidenceError("runtime_occurrence_event_invalid")
+    terminal = occurrence_reports[0]
+    if claim_ref not in (terminal.get("evidence_refs") or []):
+        raise EvidenceError("runtime_occurrence_claim_ref_missing")
+    run_id = terminal.get("run_id")
+    if not isinstance(run_id, str) or not RUN_ID.fullmatch(run_id):
+        raise EvidenceError("runtime_run_id_invalid")
     matches = [row for row in rows if row.get("run_id") == run_id]
     if len(matches) != 2:
         raise EvidenceError("runtime_event_count_invalid")
     start = next((row for row in matches if row.get("phase") == "execute"), None)
-    terminal = next((row for row in matches if row.get("phase") == "report"), None)
-    if start is None or terminal is None or start is terminal:
+    if start is None or start is terminal:
         raise EvidenceError("runtime_event_phase_invalid")
     expected_ref = f"lm-loop://{OWNER_ID}/{run_id}/summary.json"
     for event, expected_status, expected_effect_status in (
-        (start, "running", "started"), (terminal, "fail", "unknown"),
+        (start, "running", "started"), (terminal, None, "unknown"),
     ):
         refs = event.get("evidence_refs") or []
-        if (event.get("status") != expected_status
+        status_valid = (
+            event.get("status") == expected_status
+            if expected_status is not None
+            else event.get("status") in {"fail", "pass"}
+        )
+        if (event.get("loop_id") != OWNER_ID or event.get("owner_id") != OWNER_ID
+                or not status_valid
                 or event.get("effect_status") != expected_effect_status
                 or expected_ref not in refs
                 or any(str(ref).startswith("lm-effect://") for ref in refs)):
             raise EvidenceError("runtime_event_shape_invalid")
-    return start, terminal
+    if start.get("occurrence_id") != f"{OWNER_ID}:{run_id}":
+        raise EvidenceError("runtime_start_occurrence_invalid")
+    return start, terminal, run_id
 
 
-def _stdout_pass_line(path: Path, started: float, stopped: float) -> dict:
+def _stdout_pass_line(
+    path: Path, started: float, stopped: float, *,
+    run_id: str, occurrence_id: str,
+) -> dict:
     try:
         text = path.read_text(encoding="utf-8")
     except OSError as error:
@@ -153,13 +179,19 @@ def _stdout_pass_line(path: Path, started: float, stopped: float) -> dict:
             matches.append(value)
     if len(matches) != 1:
         raise EvidenceError("stdout_pass_count_invalid")
-    return matches[0]
+    row = matches[0]
+    if (row.get("runtime_run_id") != run_id
+            or row.get("runtime_occurrence_id") != occurrence_id):
+        raise EvidenceError("stdout_runtime_binding_invalid")
+    return row
 
 
-def _validate_pass_line(row: dict) -> None:
-    if (row.get("status") != "failed" or row.get("effect") != 0
-            or row.get("actionable") != 0 or row.get("readback") != 0
-            or row.get("reason") not in ALLOWED_REASONS):
+def _validate_pass_line(row: dict, terminal: dict) -> None:
+    expected = PRE_EFFECT_OUTCOMES.get(row.get("reason"))
+    if (expected is None or row.get("status") != expected[0]
+            or terminal.get("status") != expected[1]
+            or row.get("effect") != 0 or row.get("actionable") != 0
+            or row.get("readback") != 0):
         raise EvidenceError("pass_line_not_pre_effect_proof")
 
 
@@ -195,28 +227,33 @@ def _atomic_json(path: Path, value: Mapping[str, object]) -> None:
         Path(temporary).unlink(missing_ok=True)
 
 
-def _run_id_from_occurrence(occurrence: str) -> str:
+def _validate_occurrence_id(occurrence: str) -> str:
     if not occurrence.startswith(OCCURRENCE_PREFIX):
         raise EvidenceError("occurrence_owner_mismatch")
-    run_id = occurrence[len(OCCURRENCE_PREFIX):]
-    if not RUN_ID.fullmatch(run_id):
-        raise EvidenceError("occurrence_run_id_invalid")
-    return run_id
+    suffix = occurrence[len(OCCURRENCE_PREFIX):]
+    if not RUN_ID.fullmatch(suffix):
+        raise EvidenceError("occurrence_id_invalid")
+    return occurrence
 
 
 def _build_evidence(state_root: Path, stdout_log: Path, database: Path,
-                    run_id: str) -> tuple[str, str, dict]:
-    occurrence_id = f"{OWNER_ID}:{run_id}"
-    start, terminal = _find_window(_read_runtime_events(state_root), run_id)
+                    occurrence_id: str) -> tuple[str, str, dict]:
+    start, terminal, run_id = _find_window(
+        _read_runtime_events(state_root), occurrence_id,
+    )
     started = _epoch(start["timestamp"])
     stopped = _epoch(terminal["timestamp"])
     if not started <= stopped:
         raise EvidenceError("runtime_event_time_invalid")
-    pass_line = _stdout_pass_line(stdout_log, started, stopped + 5)
-    _validate_pass_line(pass_line)
+    pass_line = _stdout_pass_line(
+        stdout_log, started, stopped + 5,
+        run_id=run_id, occurrence_id=occurrence_id,
+    )
+    _validate_pass_line(pass_line, terminal)
     admission_state = _admission_state(database, occurrence_id)
     evidence = {
         "run_id": run_id,
+        "occurrence_id": occurrence_id,
         "start_event_id": start["event_id"],
         "terminal_event_id": terminal["event_id"],
         "pass_id": pass_line["pass_id"],
@@ -231,7 +268,7 @@ def reconcile(
     *,
     state_root: Path,
     stdout_log: Path,
-    run_id: str,
+    occurrence_id: str,
     resolve: bool,
     database: Path | None = None,
     resolver: Callable[..., bool] = resolve_pre_effect_occurrence,
@@ -240,7 +277,7 @@ def reconcile(
     db = database if database is not None else admission_root() / "admission-v2.sqlite3"
     try:
         occurrence_id, admission_state, evidence = _build_evidence(
-            state_root, stdout_log, db, run_id,
+            state_root, stdout_log, db, occurrence_id,
         )
     except (EvidenceError, OSError, sqlite3.Error) as error:
         return {"state": "HELD", "reason": str(error)}
@@ -269,7 +306,7 @@ def reconcile(
         "observed_at": datetime.now(timezone.utc).isoformat(),
         "resolution_state": "PROOF_READY",
     }
-    receipt_path = state_root / "reconciliation" / f"pre-effect-{run_id}.json"
+    receipt_path = state_root / "reconciliation" / f"pre-effect-{evidence['run_id']}.json"
     _atomic_json(receipt_path, receipt)
     proof = {
         "owner_id": OWNER_ID,
@@ -308,12 +345,12 @@ def main(argv: list[str] | None = None) -> int:
     state_root = args.state_root.expanduser().resolve()
     stdout_log = (args.stdout_log or (state_root / "logs" / "launchd.out.log")).expanduser().resolve()
     try:
-        run_id = _run_id_from_occurrence(args.occurrence)
+        occurrence_id = _validate_occurrence_id(args.occurrence)
     except EvidenceError as error:
         result = {"state": "HELD", "reason": str(error)}
     else:
         result = reconcile(
-            state_root=state_root, stdout_log=stdout_log, run_id=run_id,
+            state_root=state_root, stdout_log=stdout_log, occurrence_id=occurrence_id,
             resolve=not args.dry_run,
         )
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))

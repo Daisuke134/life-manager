@@ -1,0 +1,9 @@
+{
+  "why": "Dais 2026-10-07: never change an Agent that sells. These Agents get no automated version, price, model, card or package change. Only an UPDATE.json carrying dais_approved_exception may ship.",
+  "agent_ids": [
+    "2844813315",
+    "7686597754",
+    "8123079349",
+    "8828622062"
+  ]
+}

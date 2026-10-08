@@ -186,7 +186,7 @@ def _mounts(
         df_result = None
     else:
         try:
-            df_result = run(["/bin/df", "-P"], timeout=df_timeout)
+            df_result = run(["/bin/df", "-kP"], timeout=df_timeout)
         except (OSError, subprocess.TimeoutExpired) as exc:
             gaps.append(f"mount-census:{type(exc).__name__}")
             df_result = None

@@ -19,6 +19,8 @@ if str(ROOT) not in sys.path:
 from runtime.loop.loop_cleanup import gc_releases, remove_owned_tree
 from runtime.host.resource_admission import process_starts
 
+HOST_CLEANUP_RECOVERY_FLOOR_BYTES = 2 * 1024**3  # Dais 2026-10-07; matches disk_admission
+
 
 def installed_state_roots(agents_dir: Path) -> set[Path]:
     roots = set()
@@ -217,9 +219,17 @@ def host_cleanup_command(root: Path, home: Path, state_dir=None) -> list[str]:
             str(state_dir)]
 
 
+def _host_cleanup_capacity_status(result: object) -> str:
+    free_after = result.get("free_after") if isinstance(result, dict) else None
+    if not isinstance(free_after, int) or isinstance(free_after, bool):
+        return "unknown"
+    return "met" if free_after >= HOST_CLEANUP_RECOVERY_FLOOR_BYTES else "unmet"
+
+
 def host_cleanup_ok(returncode: int, result: object) -> bool:
     return (returncode == 0 and isinstance(result, dict)
-            and result.get("errors") == 0 and result.get("protected_deletions") == 0)
+            and result.get("errors") == 0 and result.get("protected_deletions") == 0
+            and _host_cleanup_capacity_status(result) == "met")
 
 
 def host_cleanup_readback(returncode: int, stdout: str) -> tuple[bool, dict]:
@@ -241,19 +251,28 @@ def host_cleanup_readback(returncode: int, stdout: str) -> tuple[bool, dict]:
             "error": "host_cleanup_result_invalid",
             "returncode": returncode,
         }
+    result["capacity_recovery"] = {
+        "status": _host_cleanup_capacity_status(result),
+        "recovery_floor_bytes": HOST_CLEANUP_RECOVERY_FLOOR_BYTES,
+    }
     return host_cleanup_ok(returncode, result), result
 
 
 def loaded_release_roots(agents_dir: Path, releases_root: Path) -> set[Path]:
     protected = set()
     base = releases_root.resolve()
-    for plist_path in agents_dir.glob("ai.anicca.*.plist"):
+    for plist_path in agents_dir.glob("*.plist"):
         try:
             with plist_path.open("rb") as handle:
                 plist = plistlib.load(handle)
         except Exception:
             continue
-        for value in map(str, plist.get("ProgramArguments") or []):
+        if not isinstance(plist, dict):
+            continue
+        program_arguments = plist.get("ProgramArguments")
+        if not isinstance(program_arguments, list):
+            continue
+        for value in map(str, program_arguments):
             candidate = Path(os.path.expanduser(value))
             try:
                 resolved = candidate.resolve(strict=True)

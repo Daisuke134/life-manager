@@ -21,6 +21,19 @@ function instant(value, label) {
   return parsed.toISOString();
 }
 
+function transactionCalendarDate(value) {
+  const text = String(value || "");
+  const date = text.slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(Date.parse(text))) {
+    throw new Error("Moneytree transaction date is invalid");
+  }
+  const calendarDay = new Date(`${date}T00:00:00.000Z`);
+  if (!Number.isFinite(calendarDay.getTime()) || calendarDay.toISOString().slice(0, 10) !== date) {
+    throw new Error("Moneytree transaction date is invalid");
+  }
+  return date;
+}
+
 function hash(value) {
   return createHash("sha256").update(value).digest("hex");
 }
@@ -102,14 +115,24 @@ function normalizeAccounts(toolResult, observedAt) {
   if (!data || data.baseCurrency !== "JPY") throw new Error("Moneytree JPY account data is unavailable");
   observedAt = instant(observedAt, "Moneytree account observation");
   const groups = [...(data.accountGroups?.banks || []), ...(data.accountGroups?.investments || [])];
+  const safeLabelPart = (value) => {
+    if (typeof value !== "string") return "";
+    const normalized = value.normalize("NFKC");
+    if (normalized.includes("@")) return "";
+    return normalized.replace(/(?:\d[\d\s-]*\d|\d)/g, " ")
+      .replace(/[\s._:-]+$/g, "").replace(/\s+/g, " ").trim().slice(0, 80);
+  };
   return groups.flatMap((group) => (group.accounts || []).map((account) => {
     const balance = account.current_balance_in_base ?? account.current_balance;
     const key = `${group.institutionKey}:${account.id}`;
+    const name = [safeLabelPart(group.institutionName),
+      safeLabelPart(account.nickname || account.institution_account_name)]
+      .filter(Boolean).join(" ");
     return validateFinancialRecord("account", {
       id: `moneytree:${createHash("sha256").update(key).digest("hex").slice(0, 24)}`,
       source: "moneytree",
       source_ref: `moneytree:${createHash("sha256").update(`source:${key}`).digest("hex")}`,
-      name: "Moneytree account",
+      name: name || "Moneytree account",
       kind: account.account_subtype || "account",
       balance_jpy: balance,
       observed_at: observedAt,
@@ -127,11 +150,13 @@ function normalizeTransactions(toolResult) {
       source_ref: `moneytree:${createHash("sha256").update(`source:${key}`).digest("hex")}`,
       account_id: `moneytree:${createHash("sha256").update(String(row.account_id)).digest("hex").slice(0, 24)}`,
       amount_jpy: row.amount_in_base ?? row.amount,
-      occurred_at: row.date,
+      occurred_at: transactionCalendarDate(row.date),
       merchant: row.description,
       category: row.category_name || "未分類",
     };
-    if (row.category_name === "振替") transaction.transfer_id = `moneytree:${row.id}`;
+    if (["振替", "カード返済", "ATM引き出し", "ATM入金"].includes(row.category_name)) {
+      transaction.transfer_id = `moneytree:${row.id}`;
+    }
     return validateFinancialRecord("transaction", transaction);
   });
 }
@@ -230,6 +255,11 @@ function readTransactions({ startDate, endDate, limit = 1000, ...options }) {
         provider: "moneytree", mcp_server: "codex_apps", tool: "moneytree.show-transactions",
         retrieved_at: new Date().toISOString(),
         payload_sha256: sha256(canonicalJson(result.structuredContent?.data)),
+        query_start_date: startDate,
+        query_end_date: endDate,
+        provider_total_count: result.structuredContent?.data?.totalCount,
+        returned_count: records.length,
+        limit,
       }),
     });
     return records;

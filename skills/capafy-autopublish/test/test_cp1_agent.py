@@ -229,3 +229,17 @@ def test_state_dump_and_toast_redact_short_link_path(capsys):
     output = capsys.readouterr().out
     assert short_url not in output
     assert "api.capafy.ai/<redacted-short-link>" in output
+
+
+def test_price_gate_reads_japanese_period_labels():
+    # 2026-10-07: the Capafy console rendered 週次/月次 after a Japanese-locale
+    # login and the gate reported every plan as missing.
+    import importlib.util, pathlib
+    spec = importlib.util.spec_from_file_location(
+        "cp1_agent_ja", pathlib.Path(__file__).parents[1] / "scripts" / "cp1_agent.py")
+    m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+    plans = [{"cycle": "week", "price": "9.99", "cap": 15, "trial": None},
+             {"cycle": "month", "price": "24.99", "cap": 35, "trial": None}]
+    cards = [{"period": "週次", "price": "9.99", "cap": "15", "trial": None},
+             {"period": "月次", "price": "24.99", "cap": "35", "trial": None}]
+    assert m.compare_price_cards(plans, cards) == []

@@ -12,20 +12,38 @@ const {
   loadMarketingDestinationContract,
   validateMarketingDestinationContract,
 } = require("./marketing-destination-contract.js");
+const {
+  EN_AFFIRMATION_LANE,
+  EN_AFFIRMATION_TIKTOK_LANE,
+  EN2_AFFIRMATION_TIKTOK_LANE,
+  EN_SLIDESHOW_TIKTOK_LANE,
+  JA_MAIN_TIKTOK_LANE,
+  JA_JP1_TIKTOK_LANE,
+  JA_BUDDHA_TIKTOK_LANE,
+  selectMarketingNativeCarouselLane,
+} = require("./marketing-native-carousel-publication-adapter.js");
 
 const CONTRACT = path.resolve(__dirname, "../../../config/marketing-destinations.json");
 
 test("the marketing destination SSOT fixes every retained route and every non-target connection", () => {
   const value = loadMarketingDestinationContract(CONTRACT);
-  assert.equal(value.targets.length, 17);
-  assert.equal(value.holds.filter((row) => row.integration_id).length, 13);
+  assert.equal(value.targets.length, 21);
+  assert.equal(value.targets.filter((row) => ["anicca", "honne-ai"].includes(row.product_id)).length, 18);
+  assert.equal(value.targets.filter((row) => row.product_id.startsWith("ebook-")).length, 3);
+  assert.equal(value.targets.filter((row) => row.product_id === "ebook-ja").length, 2);
+  assert.equal(value.holds.length, 11);
+  assert.equal(value.holds.filter((row) => row.integration_id).length, 9);
   assert.equal(value.holds.filter((row) => row.integration_id === null).length, 2);
   assert.ok(value.targets.every((row) => row.cadence_jst.length === 3));
-  assert.equal(value.targets.some((row) => row.native_handle === "@obou.anicca"), false);
-  assert.equal(
-    value.holds.some((row) => row.postiz_profile === "@obou.anicca" && row.reason === "ebook_account_out_of_mobile_scope"),
-    true,
+  const englishMonk = value.targets.find((row) => row.lane_id === "ebook-en-tiktok");
+  assert.deepEqual(
+    [englishMonk.native_handle, englishMonk.integration_id, englishMonk.renderer_id,
+      englishMonk.cadence_jst],
+    ["@monk_anicca", "cmo5rwq2p00twn10yrsdglng3", "heygen-avatar-iv", ["08:00", "14:00", "21:00"]],
   );
+  assert.equal(value.holds.some((row) => row.integration_id === "cmo5rwq2p00twn10yrsdglng3"), false);
+  assert.equal(value.targets.some((row) => row.native_handle === "@obou.anicca" && row.product_id !== "ebook-ja"), false);
+  assert.equal(value.targets.some((row) => row.native_handle === "@obou.anicca" && row.product_id === "ebook-ja"), true);
   assert.deepEqual(
     value.targets
       .filter((row) => ["cmp9pedr700ttqh0yj8o57fog", "cmn8ycvtn02djqx0ytuisn9mw"].includes(row.integration_id))
@@ -36,6 +54,54 @@ test("the marketing destination SSOT fixes every retained route and every non-ta
     value.holds.filter((row) => row.integration_id === null).map((row) => `${row.platform}:${row.postiz_profile}`).sort(),
     ["tiktok:@anicca.videojp", "tiktok:@anicca_girl"],
   );
+});
+
+test("enabled @aniccaen2 resolves to one Anicca iOS English affirmation route with three slots", () => {
+  const contract = loadMarketingDestinationContract(CONTRACT);
+  const integrationId = "cmlt171eq04d9r00yzzceb6bw";
+  const target = contract.targets.find((row) => row.integration_id === integrationId);
+  assert.ok(target, "enabled Postiz integration @aniccaen2 must not remain a zero-slot hold");
+
+  assert.deepEqual({
+    productId: target.job_product_id,
+    profile: target.postiz_profile,
+    account: target.native_handle,
+    format: target.job_format_id,
+    mediaForm: target.media_form,
+    approvedPack: target.approved_pack,
+    approvedPackRef: target.approved_pack_ref,
+    loop: target.loop_name,
+    cadence: target.cadence_jst,
+  }, {
+    productId: "anicca-ios",
+    profile: "@aniccaen2",
+    account: "@aniccaen2",
+    format: "larry",
+    mediaForm: "affirmation-carousel",
+    approvedPack: "anicca-ios-larry-affirmation-en-tiktok.pack.json",
+    approvedPackRef: "gate-approved",
+    loop: "life-manager-anicca-en2-affirmation-tiktok",
+    cadence: ["09:30", "14:30", "20:30"],
+  });
+
+  const registry = JSON.parse(fs.readFileSync(path.resolve(__dirname, "../../../config/loop-registry.json"), "utf8"));
+  assert.equal(auditMarketingDestinationRegistry(contract, registry).targets, 21);
+});
+
+test("the carousel publisher selects @aniccaen2 by its exact Postiz integration", () => {
+  const lane = selectMarketingNativeCarouselLane({
+    productId: "anicca-ios",
+    formatId: "larry",
+    form: "affirmation-carousel",
+    locale: "en",
+    accountId: "@aniccaen2",
+    integrationRef: "integration://postiz/tiktok/cmlt171eq04d9r00yzzceb6bw",
+  });
+  assert.deepEqual({ accountId: lane.accountId, integrationId: lane.integrationId, lane: lane.lane }, {
+    accountId: "@aniccaen2",
+    integrationId: "cmlt171eq04d9r00yzzceb6bw",
+    lane: "anicca-en2-affirmation-tiktok",
+  });
 });
 
 test("duplicate retained handles across platforms fail closed", () => {
@@ -56,7 +122,7 @@ test("a target without an exact pack, form, cadence, label, or entrypoint fails 
 test("the loop registry exactly matches the destination SSOT labels, entrypoints, and cadences", () => {
   const contract = loadMarketingDestinationContract(CONTRACT);
   const registry = JSON.parse(fs.readFileSync(path.resolve(__dirname, "../../../config/loop-registry.json"), "utf8"));
-  assert.equal(auditMarketingDestinationRegistry(contract, registry).targets, 17);
+  assert.equal(auditMarketingDestinationRegistry(contract, registry).targets, 21);
   const candidate = structuredClone(registry);
   candidate.loops[contract.targets[0].loop_name].cadence.calendar_interval[0].Minute = 1;
   assert.throws(() => auditMarketingDestinationRegistry(contract, candidate), /cadence/i);
@@ -90,4 +156,34 @@ test("the JA Larry lane is the gate-approved lane (rotation, not a single pinned
   const contract = loadMarketingDestinationContract(CONTRACT);
   const lane = contract.targets.find((row) => row.lane_id === "anicca-ios-ja-larry-instagram");
   assert.equal(lane.approved_pack_ref, GATE_APPROVED);
+});
+
+test("every rotating Anicca carousel lane delegates fresh-pack approval to the per-job gate", () => {
+  const contract = loadMarketingDestinationContract(CONTRACT);
+  const rotating = [
+    EN_AFFIRMATION_LANE,
+    EN_AFFIRMATION_TIKTOK_LANE,
+    EN2_AFFIRMATION_TIKTOK_LANE,
+    EN_SLIDESHOW_TIKTOK_LANE,
+    JA_MAIN_TIKTOK_LANE,
+    JA_JP1_TIKTOK_LANE,
+    JA_BUDDHA_TIKTOK_LANE,
+  ].filter((lane) => lane.rotationEnabled === true);
+
+  assert.equal(rotating.length, 7);
+  for (const lane of rotating) {
+    const target = findMarketingDestinationTarget(contract, {
+      jobProductId: lane.productId,
+      locale: lane.locale,
+      platform: lane.platform,
+      integrationId: lane.integrationId,
+      jobFormatId: lane.formatId,
+      mediaForm: lane.form,
+    });
+    assert.ok(target, `${lane.name} has an exact destination`);
+    assert.equal(target.approved_pack_ref, GATE_APPROVED, `${lane.name} accepts only gate-approved rotated packs`);
+  }
+  const staticTarget = contract.targets.find((row) => row.lane_id === "anicca-ios-en-card-instagram");
+  assert.ok(staticTarget);
+  assert.match(staticTarget.approved_pack_ref, /^object:\/\/sha256\//);
 });

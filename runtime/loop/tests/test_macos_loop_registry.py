@@ -113,10 +113,25 @@ class MacosLoopRegistryTest(unittest.TestCase):
         ]
         self.assertEqual(row["cadence"], {"start_interval_seconds": 3600})
         self.assertEqual(row["resource_class"], "agent")
-        self.assertEqual(row["admission_class"], "borrow")
-        self.assertEqual(row["priority"], "support")
+        self.assertEqual(row["admission_class"], "revenue")
+        self.assertEqual(row["priority"], "revenue")
+        self.assertEqual(row["admission_effect_scope"], "occurrence")
         self.assertTrue(row["coalesce_reserved_wakes"])
         self.assertTrue(row["coalesce_queued_wakes"])
+
+    def test_ebook_postiz_reconcilers_use_owner_identity_dir(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        identity_dir = "~/.local/state/life-manager/ebook/effect-identities"
+        for loop_id in (
+            "ebook-en-tiktok-daily",
+            "ebook-ja-instagram-daily",
+            "ebook-ja-tiktok-daily",
+        ):
+            with self.subTest(loop_id=loop_id):
+                argv = registry["loops"][loop_id]["effect_reconcile"]["argv"]
+                self.assertIn("--identity-dir", argv)
+                index = argv.index("--identity-dir")
+                self.assertEqual(argv[index + 1], identity_dir)
 
     def test_writer_jobs_declare_existing_admission_and_coalescing_contract(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
@@ -137,14 +152,19 @@ class MacosLoopRegistryTest(unittest.TestCase):
                 self.assertTrue(row.get("coalesce_reserved_wakes"))
                 self.assertTrue(row.get("coalesce_queued_wakes"))
 
-    def test_job_search_effect_free_jobs_declare_rebind_contract(self):
+    def test_job_search_daily_and_inbox_declare_admission_contract(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         for loop_id in ("job-search-daily", "job-search-inbox"):
             with self.subTest(loop_id=loop_id):
                 row = registry["loops"][loop_id]
-                self.assertEqual(row.get("resource_class"), "deterministic")
-                self.assertEqual(row.get("admission_class"), "borrow")
-                self.assertEqual(row.get("priority"), "support")
+                if loop_id == "job-search-daily":
+                    self.assertEqual(row.get("resource_class"), "agent")
+                    self.assertEqual(row.get("admission_class"), "revenue")
+                    self.assertEqual(row.get("priority"), "revenue")
+                else:
+                    self.assertEqual(row.get("resource_class"), "deterministic")
+                    self.assertEqual(row.get("admission_class"), "borrow")
+                    self.assertEqual(row.get("priority"), "support")
                 self.assertTrue(row.get("coalesce_reserved_wakes"))
                 self.assertTrue(row.get("coalesce_queued_wakes"))
 
@@ -639,7 +659,7 @@ class MacosLoopRegistryTest(unittest.TestCase):
             loop_id for loop_id, row in registry["loops"].items()
             if row["entrypoint"] == "apps/life-manager/scripts/mobile-app"
         ]
-        assert len(mobile_ids) == 17  # obou-instagram retired: ebook account, out of mobile scope
+        assert len(mobile_ids) == 18  # 17 existing mobile owners plus the EN2 TikTok owner
         for loop_id in mobile_ids:
             with self.subTest(loop_id=loop_id):
                 row = registry["loops"][loop_id]
@@ -1056,6 +1076,10 @@ class MacosLoopRegistryTest(unittest.TestCase):
             row["entrypoint"],
             "skills/earn/marketing-engine/intel/weekly-review-owner",
         )
+        self.assertEqual(row["effect_class"], "message")
+        self.assertEqual(row["resource_class"], "agent")
+        self.assertEqual(row["admission_class"], "borrow")
+        self.assertEqual(row["priority"], "support")
 
     def test_hf_gig_paid_direct_uses_repo_owned_exec_adapter(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
@@ -1441,6 +1465,7 @@ class MacosLoopRegistryTest(unittest.TestCase):
                 row = registry["loops"][loop_id]
                 self.assertEqual(row["browser_identity"], "coconala:kosuke")
                 self.assertEqual(row["browser_target_owner"], "hf-gig-browser")
+        self.assertEqual(registry["loops"]["hf-gig-reply-detector"]["effect_class"], "message")
 
     def test_lancers_and_crowdworks_browser_action_lanes_declare_provider_identity_join(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())

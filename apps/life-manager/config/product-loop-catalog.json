@@ -15,7 +15,7 @@
       "job_ids": ["hf-gig-apply-direct", "hf-gig-apply-evidence-gc", "hf-gig-browser", "hf-gig-daily-report", "hf-gig-paid-direct", "hf-gig-reply-detector", "hf-gig-storefront-direct"],
       "name": "Gig — Coconala",
       "description": "Find, apply, negotiate, deliver, reconcile, and report Coconala work.",
-      "recovery_classes": ["continuous_service", "deterministic", "external_effect_owner", "model", "read_only_external_owner"],
+      "recovery_classes": ["continuous_service", "deterministic", "external_effect_owner", "read_only_external_owner"],
       "economic": {"role":"customer_revenue","revenue_classes":["one_time","retainer"],"sources":{"funnel":{"adapter":"coconala-funnel-receipt","implementation":"implemented"},"financial":{"adapter":"marketplace-financial-record","implementation":"implemented"},"cost":{"adapter":"marketplace-financial-record","implementation":"implemented"}}},
       "requirements": ["coconala_account", "work_profile", "telegram"],
       "hosts": {
@@ -44,6 +44,32 @@
       "recovery_classes": ["continuous_service", "external_effect_owner", "read_only_external_owner"],
       "economic": {"role":"customer_revenue","revenue_classes":["one_time","retainer"],"sources":{"funnel":{"adapter":"crowdworks-funnel-receipt","implementation":"implemented"},"financial":{"adapter":"marketplace-financial-record","implementation":"implemented"},"cost":{"adapter":"marketplace-financial-record","implementation":"implemented"}}},
       "requirements": ["crowdworks_account", "work_profile", "public_guided_installer"],
+      "hosts": {
+        "local": {"availability": "setup_required", "command": null},
+        "cloud": {"availability": "setup_required", "command": null}
+      }
+    },
+    {
+      "id": "gig-mercor",
+      "job_ids": ["mercor-revenue-application", "mercor-revenue-paid", "mercor-revenue-reply"],
+      "name": "Gig — Mercor",
+      "description": "Apply to suitable Mercor contract work, answer replies, and record paid outcomes.",
+      "recovery_classes": ["external_effect_owner", "read_only_external_owner"],
+      "economic": {"role":"customer_revenue","revenue_classes":["one_time","retainer"],"sources":{"funnel":{"adapter":"mercor-funnel-receipt","implementation":"partial"},"financial":{"adapter":"marketplace-financial-record","implementation":"partial"},"cost":{"adapter":"marketplace-financial-record","implementation":"partial"}}},
+      "requirements": ["mercor_account", "work_profile", "public_guided_installer"],
+      "hosts": {
+        "local": {"availability": "setup_required", "command": null},
+        "cloud": {"availability": "setup_required", "command": null}
+      }
+    },
+    {
+      "id": "promptbase",
+      "job_ids": ["promptbase-loop-daily"],
+      "name": "PromptBase",
+      "description": "Build and publish prompt listings on PromptBase with real examples, and read sales back.",
+      "recovery_classes": ["external_effect_owner"],
+      "economic": {"role":"customer_revenue","revenue_classes":["one_time"],"sources":{"funnel":{"adapter":"promptbase-sales-readback","implementation":"partial"},"financial":{"adapter":"promptbase-sales-readback","implementation":"missing"},"cost":{"adapter":"promptbase-sales-readback","implementation":"missing"}}},
+      "requirements": ["promptbase_account", "publication_profile", "public_guided_installer"],
       "hosts": {
         "local": {"availability": "setup_required", "command": null},
         "cloud": {"availability": "setup_required", "command": null}
@@ -103,10 +129,10 @@
     },
     {
       "id": "job-hunter",
-      "job_ids": ["job-search-daily", "job-search-health", "job-search-inbox", "job-search-learning", "mercor-revenue-application", "mercor-revenue-paid", "mercor-revenue-reply"],
+      "job_ids": ["job-search-daily", "job-search-health", "job-search-inbox", "job-search-learning"],
       "name": "Job Hunter",
       "description": "Discover and submit qualified job applications, then reconcile confirmations and replies.",
-      "recovery_classes": ["deterministic", "external_effect_owner", "read_only_external_owner"],
+      "recovery_classes": ["deterministic", "external_effect_owner"],
       "economic": {"role":"customer_revenue","revenue_classes":["one_time","retainer"],"sources":{"funnel":{"adapter":"job-hunter-funnel-receipt","implementation":"partial"},"financial":{"adapter":"marketplace-financial-record","implementation":"partial"},"cost":{"adapter":"marketplace-financial-record","implementation":"partial"}}},
       "requirements": ["resume", "job_preferences", "gmail", "telegram", "provider_logins"],
       "hosts": {
@@ -155,7 +181,7 @@
     },
     {
       "id": "mobile-apps",
-      "job_ids": ["life-manager-anicca-affirmation-youtube", "life-manager-anicca-ai-youtube", "life-manager-anicca-buddha-tiktok", "life-manager-anicca-en-affirmation-instagram", "life-manager-anicca-en-affirmation-tiktok", "life-manager-anicca-en-card-instagram", "life-manager-anicca-en-slideshow-tiktok", "life-manager-anicca-en-widget-instagram", "life-manager-anicca-he", "life-manager-anicca-ja-widget-instagram", "life-manager-anicca-jp1-tiktok", "life-manager-anicca-jp4", "life-manager-anicca-larry-ja-instagram", "life-manager-anicca-main-instagram", "life-manager-anicca-main-tiktok", "life-manager-daily", "life-manager-daily-driver", "life-manager-honne-en", "life-manager-honne-ja", "life-manager-instagram-metrics", "life-manager-tiktok-metrics", "tiktok-browser"],
+      "job_ids": ["life-manager-anicca-affirmation-youtube", "life-manager-anicca-ai-youtube", "life-manager-anicca-buddha-tiktok", "life-manager-anicca-en-affirmation-instagram", "life-manager-anicca-en-affirmation-tiktok", "life-manager-anicca-en-card-instagram", "life-manager-anicca-en-slideshow-tiktok", "life-manager-anicca-en-widget-instagram", "life-manager-anicca-en2-affirmation-tiktok", "life-manager-anicca-he", "life-manager-anicca-ja-widget-instagram", "life-manager-anicca-jp1-tiktok", "life-manager-anicca-jp4", "life-manager-anicca-larry-ja-instagram", "life-manager-anicca-main-instagram", "life-manager-anicca-main-tiktok", "life-manager-daily", "life-manager-daily-driver", "life-manager-honne-en", "life-manager-honne-ja", "life-manager-instagram-metrics", "life-manager-tiktok-metrics", "tiktok-browser"],
       "name": "Mobile App Loops",
       "description": "Create, build, release, improve, market, measure, and reconcile mobile app products through one shared lifecycle.",
       "recovery_classes": ["continuous_service", "external_effect_owner"],
@@ -187,6 +213,19 @@
       "recovery_classes": ["continuous_service", "deterministic", "external_effect_owner", "read_only_external_owner"],
       "economic": {"role":"customer_revenue","revenue_classes":["subscription","one_time","recurring_usage"],"sources":{"funnel":{"adapter":"capafy-company-receipt","implementation":"implemented"},"financial":{"adapter":"capafy-financial-record","implementation":"missing"},"cost":{"adapter":"capafy-financial-record","implementation":"missing"}}},
       "requirements": ["capafy_account", "publication_profile", "public_guided_installer"],
+      "hosts": {
+        "local": {"availability": "setup_required", "command": null},
+        "cloud": {"availability": "setup_required", "command": null}
+      }
+    },
+    {
+      "id": "line-sticker",
+      "job_ids": ["line-creators-browser", "line-sticker-factory-hourly", "line-sticker-readback-hourly"],
+      "name": "LINE Sticker",
+      "description": "Design original animated LINE stickers end to end, submit a finished set to LINE Creators Market about every hour, and read review and sales status back.",
+      "recovery_classes": ["continuous_service", "external_effect_owner"],
+      "economic": {"role":"customer_revenue","revenue_classes":["one_time"],"sources":{"funnel":{"adapter":"line-creators-market-readback","implementation":"implemented"},"financial":{"adapter":"line-creators-market-payout","implementation":"missing"},"cost":{"adapter":"line-sticker-factory-cost","implementation":"missing"}}},
+      "requirements": ["line_creators_account", "publication_profile", "public_guided_installer"],
       "hosts": {
         "local": {"availability": "setup_required", "command": null},
         "cloud": {"availability": "setup_required", "command": null}

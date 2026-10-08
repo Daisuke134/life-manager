@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		09624508B5E4DDDA28A62154 /* DayCyclingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5539993CAC07B523C82A078D /* DayCyclingTests.swift */; };
+		A3A3C3D8F19A4F2DA12F1202 /* QuoteNavigationCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3A3C3D8F19A4F2DA12F1201 /* QuoteNavigationCoordinatorTests.swift */; };
 		2FE5F42A07D6CA9CCE447F06 /* NudgeStatsManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88497BECBC635C3BB2A4F5F9 /* NudgeStatsManagerTests.swift */; };
 		3762F96744B5E043FA73E510 /* NudgeLocalizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E074536A7E39DB9F93036849 /* NudgeLocalizationTests.swift */; };
 		4F1218EA511B25B8CF4F5D23 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E1FFFD13F67306F87B5AA845 /* Foundation.framework */; };
@@ -90,6 +91,7 @@
 		84A5279B2EEDDA2F008CAEA1 /* AniccaWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AniccaWidgetExtension.entitlements; sourceTree = "<group>"; };
 		84CC79132EFAA90F005078AE /* AniccaNotificationService.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = AniccaNotificationService.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		88497BECBC635C3BB2A4F5F9 /* NudgeStatsManagerTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NudgeStatsManagerTests.swift; sourceTree = "<group>"; };
+		A3A3C3D8F19A4F2DA12F1201 /* QuoteNavigationCoordinatorTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = QuoteNavigationCoordinatorTests.swift; sourceTree = "<group>"; };
 		8EB5063EEB22012F0836EE85 /* aniccaiosTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = aniccaiosTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		AE2E7C57C0FFEE0000000001 /* PaywallE2ETests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PaywallE2ETests.swift; sourceTree = "<group>"; };
 		D65F6D43EDB935AF0AB2C0DD /* BetaDistributionTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BetaDistributionTests.swift; sourceTree = "<group>"; };
@@ -276,6 +278,7 @@
 				76CE63902F0DC6A555FFB103 /* NotificationHotfixTests.swift */,
 				E074536A7E39DB9F93036849 /* NudgeLocalizationTests.swift */,
 				5539993CAC07B523C82A078D /* DayCyclingTests.swift */,
+				A3A3C3D8F19A4F2DA12F1201 /* QuoteNavigationCoordinatorTests.swift */,
 			);
 			path = aniccaiosTests;
 			sourceTree = "<group>";
@@ -551,6 +554,7 @@
 				F29A0962172B02EC2AF48600 /* NotificationHotfixTests.swift in Sources */,
 				3762F96744B5E043FA73E510 /* NudgeLocalizationTests.swift in Sources */,
 				09624508B5E4DDDA28A62154 /* DayCyclingTests.swift in Sources */,
+				A3A3C3D8F19A4F2DA12F1202 /* QuoteNavigationCoordinatorTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

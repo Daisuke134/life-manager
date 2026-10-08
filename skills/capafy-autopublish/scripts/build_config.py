@@ -24,15 +24,21 @@ NO_FREE_TRIAL = re.compile(r"no[\s_-]+free[\s_-]+trial", re.I)
 FREE_TRIAL = re.compile(r"free[\s_-]+trial\s+(\d+)\s*h\s*/\s*(\d+)\s*requests?", re.I)
 MODEL_IDS = {
     "Claude Sonnet 4.6": "anthropic/claude-sonnet-4.6",
+    "Claude Sonnet 5.5": "anthropic/claude-sonnet-5.5",
+    "Claude Sonnet 5": "anthropic/claude-sonnet-5",
     "DeepSeek V4.1 Flash": "deepseek/deepseek-v4.1-flash",
 }
+# Capafy's "LLM モデル" display combobox has no "Claude Sonnet 5.5" preset
+# (verified 2026-10-08), so a listing that runs on 5.5 must still show the
+# "Claude Sonnet 5" preset -- the hosted model_id stays the real 5.5 id.
+DISPLAY_PRESET = {"Claude Sonnet 5.5": "Claude Sonnet 5"}
 # E (2026-09-28): Hook Lab (agent 8123079349, Sonnet-hosted) measured ~45k input
 # tokens/request. This repo has no visibility into Capafy's server-side system
 # prompt/history assembly, but a 128000 max_tokens ceiling lets one completion grow
 # huge and then gets echoed back into the next turn's history on a multi-turn card,
 # compounding input size run over run. Existing online agents (Hook Lab included)
 # keep their already-published CP2 config; only NEW skills get the lower ceiling.
-HOSTED_MAX_TOKENS = {"Claude Sonnet 4.6": 8192, "DeepSeek V4.1 Flash": 8192}
+HOSTED_MAX_TOKENS = {"Claude Sonnet 4.6": 8192, "Claude Sonnet 5.5": 8192, "Claude Sonnet 5": 8192, "DeepSeek V4.1 Flash": 8192}
 
 
 def main():
@@ -106,7 +112,7 @@ def main():
         "title": title, "short": short, "welcome": welcome,
         "detailed": detailed, "privacy_url": "https://aniccaai.com/privacy",
         "support_email": "contact@aniccaai.com", "tags": tags, "category": category,
-        "icon": icon, "model": model, "model_id": model_id,
+        "icon": icon, "model": DISPLAY_PRESET.get(model, model), "model_id": model_id,
         "max_tokens": HOSTED_MAX_TOKENS[model] if model else None,
         "provider": "openrouter.ai" if model else None,
         "test_input": test_input, "plans": plans,

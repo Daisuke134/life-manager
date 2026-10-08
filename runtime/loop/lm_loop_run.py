@@ -34,6 +34,7 @@ from runtime.loop.runtime_event import (
     build_runtime_start_event,
     validate_runtime_event,
 )
+from runtime.host.disk_admission import RECOVERY_FLOOR_BYTES, disk_free_bytes
 from runtime.host.memory_admission import memory_free_percent
 from runtime.host.resource_admission import (
     OCCURRENCE_ID_PATTERN,
@@ -64,6 +65,7 @@ HEARTBEAT_INTERVAL_SECONDS = 30.0
 HEARTBEAT_BUSY_TOLERANCE_SECONDS = 240.0
 PRE_EFFECT_HINT_ENTRYPOINTS = frozenset({
     "apps/life-manager/scripts/ebook-distribute-daily.sh",
+    "apps/life-manager/scripts/mobile-app",
     "skills/affiliate/affiliate",
     "skills/earn/crowdworks/scripts/application-owner",
     "skills/earn/crowdworks/scripts/paid-owner",
@@ -81,6 +83,7 @@ EFFECT_RESULT_HINT_ENTRYPOINTS = frozenset({
     "apps/life-manager/scripts/ebook-distribute-daily.sh",
     "apps/life-manager/scripts/mobile-app",
 })
+NO_EFFECT_RESULT_HINT_ENTRYPOINT = "apps/life-manager/scripts/ebook-distribute-daily.sh"
 # Loop IDs allowed to use the pre-effect hint when their registry entrypoint is
 # shared (e.g. runtime/loop/entry_dispatch.py dispatches several owners from one
 # entrypoint string). Entrypoint membership above is not enough to scope trust
@@ -149,13 +152,23 @@ def _child_environment_for_owner(
     )
     environment["LM_RUNTIME_TENANT_ID"] = EBOOK_RUNTIME_TENANT_ID
 
-    # eBook renderers discover ffmpeg, ffprobe, heygen, and fontconfig through
-    # PATH. launchd's default PATH omits Homebrew binaries.
+    # eBook renderers discover ffmpeg, ffprobe, and fontconfig through PATH.
+    # launchd's default PATH omits Homebrew binaries.
     if loop_id in EBOOK_POSTIZ_LOOP_IDS:
         inherited_path = environment.get("PATH") or os.defpath
         path_entries = inherited_path.split(os.pathsep)
         if "/opt/homebrew/bin" not in path_entries:
             environment["PATH"] = os.pathsep.join(("/opt/homebrew/bin", inherited_path))
+
+    if loop_id == "ebook-en-tiktok-daily":
+        # HeyGen's CLI telemetry must not gate the provider command on PostHog DNS.
+        environment["HEYGEN_NO_ANALYTICS"] = "1"
+        # The CLI lives under the user's local bin, which is intentionally not
+        # added to every eBook owner's PATH.
+        if not str(environment.get("LIFE_MANAGER_HEYGEN", "")).strip():
+            environment["LIFE_MANAGER_HEYGEN"] = str(
+                (home or Path.home()).expanduser() / ".local/bin/heygen"
+            )
 
     # Ignore any inherited alias. The credential SSOT is the only source for eBook
     # publisher authentication. Do not even pass it to the child while publishing
@@ -701,6 +714,29 @@ def _queue_priority(entry: dict) -> str | None:
     return value if isinstance(value, str) and value else None
 
 
+def _disk_headroom_deferred(receipt_parent: Path, *, phase: str) -> dict | None:
+    try:
+        available = disk_free_bytes(receipt_parent)
+    except Exception:
+        available = None
+    if isinstance(available, bool) or not isinstance(available, int) or available < 0:
+        reason = "disk_headroom_unavailable"
+        available_bytes = None
+    elif available < RECOVERY_FLOOR_BYTES:
+        reason = "disk_headroom_low"
+        available_bytes = available
+    else:
+        return None
+    return {
+        "status": "deferred",
+        "effect": 0,
+        "reason": reason,
+        "phase": phase,
+        "available_bytes": available_bytes,
+        "required_bytes": RECOVERY_FLOOR_BYTES,
+    }
+
+
 def _sqlite_database_busy(error: sqlite3.OperationalError) -> bool:
     code = getattr(error, "sqlite_errorcode", None)
     if isinstance(code, int):
@@ -803,8 +839,7 @@ def _proven_pre_effect_failure(path: Path) -> bool:
         return False
 
 
-def _verified_effect_result(path: Path, loop_id: str,
-                            occurrence_id: str) -> tuple[str, str] | None:
+def _read_private_result_hint(path: Path) -> dict | None:
     descriptor = -1
     try:
         descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
@@ -825,14 +860,22 @@ def _verified_effect_result(path: Path, loop_id: str,
         value = json.loads(data)
     except (UnicodeDecodeError, json.JSONDecodeError):
         return None
+    return value if isinstance(value, dict) else None
+
+
+def _verified_effect_result(path: Path, loop_id: str,
+                            occurrence_id: str) -> tuple[str, str] | None:
+    value = _read_private_result_hint(path)
     expected_fields = {
         "schema_version", "kind", "status", "effect", "owner_id",
         "occurrence_id", "provider", "provider_receipt_id", "effect_status",
     }
     if (not isinstance(value, dict) or set(value) != expected_fields
+            or type(value.get("schema_version")) is not int
             or value.get("schema_version") != 1
             or value.get("kind") != "life_manager_effect_result"
             or value.get("status") != "verified_effect"
+            or type(value.get("effect")) is not int
             or value.get("effect") != 1
             or value.get("owner_id") != loop_id
             or value.get("occurrence_id") != occurrence_id
@@ -845,16 +888,44 @@ def _verified_effect_result(path: Path, loop_id: str,
     return value["effect_status"], f"postiz://posts/{receipt_id}"
 
 
+def _verified_no_effect_result(path: Path, loop_id: str, occurrence_id: str,
+                               entrypoint: str) -> tuple[str, str] | None:
+    if entrypoint != NO_EFFECT_RESULT_HINT_ENTRYPOINT:
+        return None
+    value = _read_private_result_hint(path)
+    expected_fields = {
+        "schema_version", "kind", "status", "effect", "owner_id",
+        "occurrence_id", "reason",
+    }
+    if (not isinstance(value, dict) or set(value) != expected_fields
+            or type(value.get("schema_version")) is not int
+            or value.get("schema_version") != 1
+            or value.get("kind") != "life_manager_no_effect_result"
+            or value.get("status") != "verified_no_effect"
+            or type(value.get("effect")) is not int
+            or value.get("effect") != 0
+            or value.get("owner_id") != loop_id
+            or value.get("occurrence_id") != occurrence_id
+            or not isinstance(value.get("reason"), str)
+            or value.get("reason") not in {"setup_required", "no_due_slot"}):
+        return None
+    return "not_applicable", f"lm-no-effect://{loop_id}/{occurrence_id}/{value['reason']}"
+
+
 def _apply_verified_effect_result(
         event: dict, result: tuple[str, str] | None) -> dict:
     updated = dict(event)
     updated["evidence_refs"] = list(event.get("evidence_refs", []))
     if result is not None and updated.get("status") == "pass":
-        updated["effect_status"] = result[0]
-        receipt_id = result[1].rsplit("/", 1)[-1]
-        if "provider_receipt_id" in updated:
-            updated["provider_receipt_id"] = receipt_id
-            updated["official_readback_ref"] = result[1]
+        if result[0] == "not_applicable":
+            updated["effect_class"] = "none"
+            updated["effect_status"] = "not_applicable"
+        else:
+            updated["effect_status"] = result[0]
+            receipt_id = result[1].rsplit("/", 1)[-1]
+            if "provider_receipt_id" in updated:
+                updated["provider_receipt_id"] = receipt_id
+                updated["official_readback_ref"] = result[1]
         if result[1] not in updated["evidence_refs"]:
             updated["evidence_refs"].append(result[1])
     return validate_runtime_event(updated)
@@ -1216,11 +1287,34 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
     try:
         for signum in (signal.SIGTERM, signal.SIGINT):
             previous[signum] = signal.signal(signum, interrupt_wait)
+        try:
+            durable = durable_protocol_version() == 2
+        except (OSError, RuntimeError, sqlite3.Error):
+            _atomic_json(receipt, {"status": "deferred", "effect": 0,
+                                  "reason": "resource_admission_unavailable"})
+            return 75
+        disk_deferred = _disk_headroom_deferred(receipt.parent, phase="pre_enqueue")
+        if interrupted:
+            if durable:
+                try:
+                    defer_durable_resource(loop_id)
+                except (OSError, RuntimeError, sqlite3.Error):
+                    pass
+            _atomic_json(receipt, {"status": "deferred", "effect": 0,
+                                  "reason": "resource_admission_interrupted"})
+            return 75
+        if disk_deferred is not None:
+            if durable:
+                try:
+                    defer_durable_resource(loop_id, cooldown_seconds=60)
+                except (OSError, RuntimeError, sqlite3.Error):
+                    pass
+            _atomic_json(receipt, disk_deferred)
+            return 75
         resource_class = _resource_class(entry)
         admission_class = _admission_class(entry)
         queue_priority = _queue_priority(entry)
         try:
-            durable = durable_protocol_version() == 2
             enqueue_kwargs = {"admission_class": admission_class}
             if queue_priority is not None:
                 enqueue_kwargs["priority"] = queue_priority
@@ -1232,11 +1326,9 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                 enqueue_kwargs["allow_no_effect_recovery"] = True
             if admission_effect_scope(entry) == "occurrence":
                 enqueue_kwargs["effect_scope"] = "occurrence"
-            ticket, admission_reason = (
-                _admission_with_retry(lambda: enqueue_durable_resource(
-                        resource_class, loop_id, **enqueue_kwargs)
-                ) if durable else (None, "legacy")
-            )
+            ticket, admission_reason = _admission_with_retry(
+                lambda: enqueue_durable_resource(resource_class, loop_id, **enqueue_kwargs)
+            ) if durable else (None, "legacy")
         except (OSError, RuntimeError, sqlite3.Error):
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
                                   "reason": "resource_admission_unavailable"})
@@ -1310,6 +1402,14 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                                       "reason": "resource_claim_identity_invalid"})
                 return 75
             on_claimed(claimed_occurrence_id)
+        disk_deferred = _disk_headroom_deferred(receipt.parent, phase="post_claim")
+        if interrupted:
+            _atomic_json(receipt, {"status": "deferred", "effect": 0,
+                                  "reason": "resource_admission_interrupted"})
+            return 75
+        if disk_deferred is not None:
+            _atomic_json(receipt, disk_deferred)
+            return 75
         available = memory_free_percent()
         if interrupted:
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
@@ -1530,8 +1630,13 @@ def main(argv: list[str] | None = None) -> int:
         if (return_code == 0
                 and entry.get("entrypoint") in EFFECT_RESULT_HINT_ENTRYPOINTS
                 and claimed_occurrence_id is not None):
-            effect_result = _verified_effect_result(
-                scratch / "entrypoint-result.json", loop_id, claimed_occurrence_id)
+            hint_path = scratch / "entrypoint-result.json"
+            if entry.get("entrypoint") == NO_EFFECT_RESULT_HINT_ENTRYPOINT:
+                effect_result = _verified_no_effect_result(
+                    hint_path, loop_id, claimed_occurrence_id, entry["entrypoint"])
+            if effect_result is None:
+                effect_result = _verified_effect_result(
+                    hint_path, loop_id, claimed_occurrence_id)
         effect_identity_ref = None
         effect_identity_status = None
         if entry.get("effect_class") != "none" and return_code != 0:

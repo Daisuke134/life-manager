@@ -1131,7 +1131,8 @@ def _allocate_actual_cost_by_agent(usage_agents: list[dict], openrouter_actual: 
 
 
 def _live_payloads(repo_root: Path, observed: dt.datetime,
-                   *, seller_start_date: dt.date | None = None) -> dict[str, dict]:
+                   *, seller_start_date: dt.date | None = None,
+                   persist_served_models: bool = True) -> dict[str, dict]:
     token = _token(repo_root)
     web_token = _web_token()
     if not token:
@@ -1213,10 +1214,11 @@ def _live_payloads(repo_root: Path, observed: dt.datetime,
             served[aid] = model
         elif served.get(aid):
             agent_models[aid] = served[aid]
-    try:
-        _atomic_write(served_path, served)
-    except OSError:
-        pass
+    if persist_served_models:
+        try:
+            _atomic_write(served_path, served)
+        except OSError:
+            pass
     payloads["agent_models"] = agent_models
     catalog = _openrouter_data("/models")
     model_rows = catalog.get("data") if isinstance(catalog, dict) else None
@@ -1310,8 +1312,11 @@ def main(argv: list[str] | None = None) -> int:
             if path.exists():
                 payloads[name] = json.loads(path.read_text())
     else:
-        payloads = _live_payloads(repo_root, observed,
-                                  seller_start_date=observed.date().replace(day=1) if args.money else None)
+        payloads = _live_payloads(
+            repo_root, observed,
+            seller_start_date=observed.date().replace(day=1) if args.money else None,
+            persist_served_models=not args.money,
+        )
     receipt = build_receipt(payloads, observed_at)
     if args.money:
         snapshot = _money_snapshot(receipt, observed)

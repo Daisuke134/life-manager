@@ -37,6 +37,7 @@ CONTROL_PLANE_SAFETY_LOOPS = frozenset({
 })
 OCCURRENCE_SCOPED_ENTRYPOINTS = {
     "apps/life-manager/scripts/mobile-app",
+    "skills/fundraiser-agent/runtime/run.sh",
     "skills/earn/crowdworks/scripts/application-owner",
     "skills/earn/crowdworks/scripts/paid-owner",
     "skills/earn/crowdworks/scripts/reply-owner",

@@ -1,10 +1,15 @@
 "use strict";
 
 function stripeWebhookSecrets(env = {}) {
-  return [...new Set([
-    env.STRIPE_WEBHOOK_SECRET,
-    env.STRIPE_TEST_WEBHOOK_SECRET,
-  ].map((value) => String(value || "").trim()).filter(Boolean))];
+  const key = String(env.STRIPE_SECRET_KEY || "").trim();
+  const live = key.startsWith("sk_live_") || key.startsWith("rk_live_");
+  const test = key.startsWith("sk_test_") || key.startsWith("rk_test_");
+  const candidate = live
+    ? env.STRIPE_WEBHOOK_SECRET
+    : test
+      ? env.STRIPE_TEST_WEBHOOK_SECRET
+      : env.STRIPE_WEBHOOK_SECRET;
+  return [...new Set([String(candidate || "").trim()].filter(Boolean))];
 }
 
 function stripeWebhookAllowed(env = {}) {

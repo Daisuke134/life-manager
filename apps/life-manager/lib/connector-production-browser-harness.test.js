@@ -40,13 +40,13 @@ test("bounded Connpass answerer returns an exact model-selected option", async (
     repoRoot: "/private/repo", evidenceDir: "/private/evidence",
     async runAgentRunner(input) {
       request = input;
-      return { summary: { status: "success", selected_provider: "codex", selected_model: "gpt-5.6-terra" }, value: { answer: "学生" } };
+      return { summary: { status: "success", selected_provider: "codex", selected_model: "gpt-6-luna" }, value: { answer: "学生" } };
     },
   });
   assert.equal(await answer({
     question: "現在の区分を選んでください", control: { kind: "radio" }, options: ["社会人", "学生"],
   }), "学生");
-  assert.equal(request.taskClass, "browser-lane-agent");
+  assert.equal(request.taskClass, "connector-agent");
   assert.equal(request.readOnly, true);
   assert.deepEqual(request.schema.properties.answer.enum, ["社会人", "学生"]);
   assert.match(request.prompt, /mandatory question/i);
@@ -61,7 +61,7 @@ test("bounded proposer requests one structured action from Terra with sanitized 
     async runAgentRunner(input) {
       request = input;
       return {
-        summary: { status: "success", selected_provider: "codex", selected_model: "gpt-5.6-terra" },
+        summary: { status: "success", selected_provider: "codex", selected_model: "gpt-6-luna" },
         value: { control: "register_button" },
       };
     },
@@ -79,7 +79,7 @@ test("bounded proposer requests one structured action from Terra with sanitized 
     },
   });
   assert.deepEqual(action, { control: "register_button" });
-  assert.equal(request.taskClass, "browser-lane-agent");
+  assert.equal(request.taskClass, "connector-agent");
   assert.equal(request.timeoutMs, 60_000);
   assert.equal(request.signal, controller.signal);
   assert.equal(request.readOnly, true);
@@ -110,7 +110,7 @@ test("bounded proposer admits only one exact configured extension token", async 
     async runAgentRunner(input) {
       request = input;
       return {
-        summary: { status: "success", selected_provider: "codex", selected_model: "gpt-5.6-terra" },
+        summary: { status: "success", selected_provider: "codex", selected_model: "gpt-6-luna" },
         value: { control: "register_button" },
       };
     },
@@ -137,7 +137,7 @@ test("bounded proposer admits only one exact configured extension token", async 
   let missingProviderCalls = 0;
   const missingProvider = createBoundedActionProposer({ repoRoot: "/private/repo", evidenceDir: "/private/evidence", async runAgentRunner() {
     missingProviderCalls += 1;
-    return { summary: { status: "success", selected_provider: "codex", selected_model: "gpt-5.6-terra" }, value: { control: "register_button" } };
+    return { summary: { status: "success", selected_provider: "codex", selected_model: "gpt-6-luna" }, value: { control: "register_button" } };
   } });
   await assert.rejects(() => missingProvider({ ...baseInput }), /Connector production Browser Harness invalid/);
   assert.equal(missingProviderCalls, 0);
@@ -292,7 +292,7 @@ test("Connpass native rejects an unqualified online label", async () => {
   const control = { control: "online_unqualified", kind: "radio", label: "オンライン参加", question: "参加方法", required: true };
   const proposer = createBoundedActionProposer({ repoRoot: "/private/repo", evidenceDir: "/private/evidence", async runAgentRunner(input) {
     agentCalls += 1;
-    return { summary: { status: "success", selected_provider: "codex", selected_model: "gpt-5.6-terra" }, value: { control: input.schema.properties.control.enum[0] } };
+    return { summary: { status: "success", selected_provider: "codex", selected_model: "gpt-6-luna" }, value: { control: input.schema.properties.control.enum[0] } };
   } });
   assert.deepEqual(await proposer({ provider: "connpass", target_id: "TARGET1", expected_state: "registered_or_pending", step: 1, observation: { controls: [control] } }), { control: control.control });
   assert.equal(agentCalls, 1);
@@ -303,7 +303,7 @@ test("Connpass native ignores safe-looking controls outside the exact join page"
   const control = { control: "online_nonjoin", kind: "radio", label: "オンライン視聴枠（YouTube） 無料 参加者数 30人", question: "参加枠", required: true };
   const proposer = createBoundedActionProposer({ repoRoot: "/private/repo", evidenceDir: "/private/evidence", async runAgentRunner(input) {
     agentCalls += 1;
-    return { summary: { status: "success", selected_provider: "codex", selected_model: "gpt-5.6-terra" }, value: { control: input.schema.properties.control.enum[0] } };
+    return { summary: { status: "success", selected_provider: "codex", selected_model: "gpt-6-luna" }, value: { control: input.schema.properties.control.enum[0] } };
   } });
   assert.deepEqual(await proposer({ provider: "connpass", target_id: "TARGET1", expected_state: "registered_or_pending", step: 1, observation: { state: "registration_page", controls: [control] } }), { control: control.control });
   assert.equal(agentCalls, 1);
@@ -319,7 +319,7 @@ test("Connpass native fails closed for duplicate safe viewing options", async ()
   ];
   const proposer = createBoundedActionProposer({ repoRoot: "/private/repo", evidenceDir: "/private/evidence", async runAgentRunner(input) {
     agentCalls += 1;
-    return { summary: { status: "success", selected_provider: "codex", selected_model: "gpt-5.6-terra" }, value: { control: input.schema.properties.control.enum[0] } };
+    return { summary: { status: "success", selected_provider: "codex", selected_model: "gpt-6-luna" }, value: { control: input.schema.properties.control.enum[0] } };
   } });
   assert.deepEqual(await proposer({ provider: "connpass", target_id: "TARGET1", expected_state: "registered_or_pending", step: 1, observation: { controls } }), { control: "online_one" });
   assert.equal(agentCalls, 1);
@@ -335,7 +335,7 @@ test("Connpass native requires known question context", async () => {
     let agentCalls = 0;
     const proposer = createBoundedActionProposer({ repoRoot: "/private/repo", evidenceDir: "/private/evidence", async runAgentRunner(input) {
       agentCalls += 1;
-      return { summary: { status: "success", selected_provider: "codex", selected_model: "gpt-5.6-terra" }, value: { control: input.schema.properties.control.enum[0] } };
+      return { summary: { status: "success", selected_provider: "codex", selected_model: "gpt-6-luna" }, value: { control: input.schema.properties.control.enum[0] } };
     } });
     assert.deepEqual(await proposer({ provider: "connpass", target_id: "TARGET1", expected_state: "registered_or_pending", step: 1, observation: { controls: [control] } }), { control: control.control });
     assert.equal(agentCalls, 1, control.control);
@@ -369,7 +369,7 @@ test("bounded proposer accepts Peatix while sending only provider and sanitized 
     repoRoot: "/private/repo", evidenceDir: "/private/evidence",
     async runAgentRunner(input) {
       request = input;
-      return { summary: { status: "success", selected_provider: "codex", selected_model: "gpt-5.6-terra" }, value: { control: "name_field" } };
+      return { summary: { status: "success", selected_provider: "codex", selected_model: "gpt-6-luna" }, value: { control: "name_field" } };
     },
   });
   const action = await proposer({ provider: "peatix", target_id: "OWNEDTARGET1", expected_state: "registered_or_pending", step: 1, observation: {
@@ -720,7 +720,7 @@ test("page observation exposes boolean completion without values", async () => {
 });
 
 test("bounded proposer excludes completed and optional answer controls from the structured enum", async () => {
-  let request; const proposer = createBoundedActionProposer({ repoRoot: "/private/repo", evidenceDir: "/private/evidence", async runAgentRunner(input) { request = input; return { summary: { status: "success", selected_provider: "codex", selected_model: "gpt-5.6-terra" }, value: { control: "submit_button" } }; } });
+  let request; const proposer = createBoundedActionProposer({ repoRoot: "/private/repo", evidenceDir: "/private/evidence", async runAgentRunner(input) { request = input; return { summary: { status: "success", selected_provider: "codex", selected_model: "gpt-6-luna" }, value: { control: "submit_button" } }; } });
   const action = await proposer({ provider: "peatix", target_id: "TARGET1", expected_state: "registered_or_pending", step: 1, observation: { controls: [{ control: "name_field", kind: "input", label: "Name", required: true, completed: true }, { control: "optional_notes", kind: "input", label: "Optional notes", required: false, completed: false }, { control: "submit_button", kind: "button", label: "Submit", required: false, completed: false, submittable: true }] } });
   assert.deepEqual(action, { control: "submit_button" }); assert.deepEqual(request.schema.properties.control.enum, ["submit_button"]); assert.match(request.prompt, /incomplete|completed/i); assert.doesNotMatch(JSON.stringify(request), /secret-value/);
 });
@@ -732,7 +732,7 @@ test("bounded proposer fails closed before the agent when no actionable control 
 });
 
 test("bounded proposer fails closed for a missing or unknown returned control", async () => {
-  const proposer = createBoundedActionProposer({ repoRoot: "/private/repo", evidenceDir: "/private/evidence", async runAgentRunner() { return { summary: { status: "success", selected_provider: "codex", selected_model: "gpt-5.6-terra" }, value: { method: "ax_check", control: "invented_control" } }; } });
+  const proposer = createBoundedActionProposer({ repoRoot: "/private/repo", evidenceDir: "/private/evidence", async runAgentRunner() { return { summary: { status: "success", selected_provider: "codex", selected_model: "gpt-6-luna" }, value: { method: "ax_check", control: "invented_control" } }; } });
   const result = await proposer({ provider: "peatix", target_id: "TARGET1", expected_state: "registered_or_pending", step: 1, observation: { controls: [{ control: "required_field", kind: "input", label: "Required", required: true, completed: false }] } });
   assert.equal(result, null);
 });
@@ -744,7 +744,7 @@ test("production harness rejects a completed fill before resolving or operating 
 });
 
 test("bounded proposer separates fallback evidence sequences on one target", async () => {
-  const evidence = []; const proposer = createBoundedActionProposer({ repoRoot: "/private/repo", evidenceDir: "/private/evidence", async runAgentRunner(input) { evidence.push(input.evidenceDir); return { summary: { status: "success", selected_provider: "codex", selected_model: "gpt-5.6-terra" }, value: { control: "submit_button" } }; } });
+  const evidence = []; const proposer = createBoundedActionProposer({ repoRoot: "/private/repo", evidenceDir: "/private/evidence", async runAgentRunner(input) { evidence.push(input.evidenceDir); return { summary: { status: "success", selected_provider: "codex", selected_model: "gpt-6-luna" }, value: { control: "submit_button" } }; } });
   const base = { provider: "peatix", target_id: "TARGET1", expected_state: "registered_or_pending", observation: { controls: [{ control: "submit_button", kind: "button", label: "Submit", required: false, submittable: true }] } };
   await proposer({ ...base, step: 1 }); await proposer({ ...base, step: 2 }); await proposer({ ...base, step: 1 });
   assert.deepEqual(evidence, ["/private/evidence/target-TARGET1/fallback-1/step-1", "/private/evidence/target-TARGET1/fallback-1/step-2", "/private/evidence/target-TARGET1/fallback-2/step-1"]); assert.equal(evidence.some((value) => /candidate/i.test(value)), false);
@@ -1180,7 +1180,7 @@ test("Connpass exact join does not adopt a generic question outside .question_li
   let agentCalls = 0;
   const proposer = createBoundedActionProposer({ repoRoot: "/private/repo", evidenceDir: "/private/evidence", async runAgentRunner(input) {
     agentCalls += 1;
-    return { summary: { status: "success", selected_provider: "codex", selected_model: "gpt-5.6-terra" }, value: { control: input.schema.properties.control.enum[0] } };
+    return { summary: { status: "success", selected_provider: "codex", selected_model: "gpt-6-luna" }, value: { control: input.schema.properties.control.enum[0] } };
   } });
   assert.deepEqual(await proposer({ provider: "connpass", target_id: "TARGET1", expected_state: "registered_or_pending", step: 1, observation: { state: "connpass_join", controls } }), { control: controls[0].control });
   assert.equal(agentCalls, 1);
@@ -1192,7 +1192,7 @@ test("bounded proposer exposes pending answers first and only submittable button
     repoRoot: "/private/repo", evidenceDir: "/private/evidence",
     async runAgentRunner(input) {
       enums.push(input.schema.properties.control.enum);
-      return { summary: { status: "success", selected_provider: "codex", selected_model: "gpt-5.6-terra" }, value: { control: input.schema.properties.control.enum[0] } };
+      return { summary: { status: "success", selected_provider: "codex", selected_model: "gpt-6-luna" }, value: { control: input.schema.properties.control.enum[0] } };
     },
   });
   const controls = [
@@ -1233,7 +1233,7 @@ test("known Peatix input button is suppressed while required answers remain and 
   const elements = [required, known, make({ tagName: "BUTTON", type: "button", innerText: "Accept all cookies" }), make({ tagName: "BUTTON", type: "button", innerText: "Filter" })];
   const page = { url() { return "https://peatix.com/sales/event/5075819/form"; }, locator() { return { async evaluateAll(callback, context) { return callback(elements, context); } }; } };
   let request;
-  const proposer = createBoundedActionProposer({ repoRoot: "/private/repo", evidenceDir: "/private/evidence", async runAgentRunner(input) { request = input; return { summary: { status: "success", selected_provider: "codex", selected_model: "gpt-5.6-terra" }, value: { control: input.schema.properties.control.enum[0] } }; } });
+  const proposer = createBoundedActionProposer({ repoRoot: "/private/repo", evidenceDir: "/private/evidence", async runAgentRunner(input) { request = input; return { summary: { status: "success", selected_provider: "codex", selected_model: "gpt-6-luna" }, value: { control: input.schema.properties.control.enum[0] } }; } });
   const pending = await inspectPageControls({ page, provider: "peatix" });
   assert.deepEqual(await proposer({ provider: "peatix", target_id: "TARGET1", expected_state: "registered_or_pending", step: 1, observation: { controls: pending } }), { control: pending[0].control });
   required.value = "filled";
@@ -2027,7 +2027,7 @@ test("Doorkeeper default proposer chooses exact trigger, Email, and final submit
   let agentCalls = 0;
   const proposer = createBoundedActionProposer({ repoRoot: "/private/repo", evidenceDir: "/private/evidence", async runAgentRunner(input) {
     agentCalls += 1;
-    return { summary: { status: "success", selected_provider: "codex", selected_model: "gpt-5.6-terra" }, value: { control: input.schema.properties.control.enum[0] } };
+    return { summary: { status: "success", selected_provider: "codex", selected_model: "gpt-6-luna" }, value: { control: input.schema.properties.control.enum[0] } };
   } });
   const base = { provider: "doorkeeper", target_id: "DOORKEEPERDEFAULT1", expected_state: "registered_or_pending" };
   assert.deepEqual(await proposer({ ...base, step: 1, observation: { state: "registration_page", controls: [trigger] } }), { control: "doorkeeper_trigger" });
@@ -2044,7 +2044,7 @@ test("Doorkeeper semantic trigger duplicates fail closed even when the duplicate
   let agentCalls = 0;
   const proposer = createBoundedActionProposer({ repoRoot: "/private/repo", evidenceDir: "/private/evidence", async runAgentRunner() {
     agentCalls += 1;
-    return { summary: { status: "success", selected_provider: "codex", selected_model: "gpt-5.6-terra" }, value: { control: trigger.control } };
+    return { summary: { status: "success", selected_provider: "codex", selected_model: "gpt-6-luna" }, value: { control: trigger.control } };
   } });
   const observation = { state: "registration_page", controls: [trigger, duplicate] };
   assert.equal(await proposer({ provider: "doorkeeper", target_id: "DOORKEEPERDUPLICATE1", expected_state: "registered_or_pending", step: 1, observation }), null);
@@ -3543,7 +3543,7 @@ test("TECH PLAY private resolver enforces exact DOBs, Tokyo age boundaries, and 
 test("TECH PLAY private values stay out of the bounded runner prompt", async () => {
   let request;
   const proposer = createBoundedActionProposer({ repoRoot: "/private/repo", evidenceDir: "/private/evidence", async runAgentRunner(input) {
-    request = input; return { summary: { status: "success", selected_provider: "codex", selected_model: "gpt-5.6-terra" }, value: { control: "techplay_answer_1" } };
+    request = input; return { summary: { status: "success", selected_provider: "codex", selected_model: "gpt-6-luna" }, value: { control: "techplay_answer_1" } };
   } });
   await proposer({ provider: "luma", target_id: "TECHPLAY1", expected_state: "registered_or_pending", step: 1, observation: {
     state: "registration_page", controls: [{ ...techPlayAnswerControl(), value: "NameFixture", currentValue: "email.fixture@example.test" }],

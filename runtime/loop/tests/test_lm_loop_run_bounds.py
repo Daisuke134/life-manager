@@ -27,7 +27,7 @@ from runtime.loop.lm_loop_run import (
     _enqueue_recovery_intent, _persist_effect_identity, _resource_class,
     _heartbeat_loop, _run_admitted, _run_entrypoint,
     _run_entrypoint_with_stderr_capture, _runtime_limit,
-    _sqlite_database_busy,
+    _proven_pre_effect_failure, _sqlite_database_busy,
     _should_enqueue_recovery_intent, _terminal_outcome, _verified_effect_result,
     build_loop_command,
     main as lm_loop_run_main,
@@ -36,17 +36,23 @@ from runtime.loop.runtime_event import build_runtime_event
 
 
 _PROTOCOL_PATCHER = None
+_DISK_PATCHER = None
 
 
 def setup_module():
-    global _PROTOCOL_PATCHER
+    global _PROTOCOL_PATCHER, _DISK_PATCHER
     _PROTOCOL_PATCHER = patch(
         "runtime.loop.lm_loop_run.durable_protocol_version", return_value=2,
     )
     _PROTOCOL_PATCHER.start()
+    _DISK_PATCHER = patch(
+        "runtime.loop.lm_loop_run.disk_free_bytes", return_value=16 * 1024**3,
+    )
+    _DISK_PATCHER.start()
 
 
 def teardown_module():
+    _DISK_PATCHER.stop()
     _PROTOCOL_PATCHER.stop()
 
 
@@ -210,6 +216,51 @@ def test_ebook_child_environment_exposes_renderers_only_to_ebook_lanes():
     sibling = loop_runner._child_environment_for_owner("article-daily", base)
     assert sibling["PATH"] == inherited_path
     assert base["PATH"] == inherited_path
+
+
+def test_english_ebook_child_environment_sets_scoped_heygen_cli_path(tmp_path):
+    inherited_path = os.pathsep.join(("/usr/bin", "/bin", "/usr/sbin", "/sbin"))
+    base = {"PATH": inherited_path, "LM_EBOOK_PUBLISHING_ENABLED": "false"}
+
+    english = loop_runner._child_environment_for_owner(
+        "ebook-en-tiktok-daily", base, home=tmp_path,
+    )
+
+    assert english["LIFE_MANAGER_HEYGEN"] == str(tmp_path / ".local/bin/heygen")
+    assert english["PATH"] == f"/opt/homebrew/bin{os.pathsep}{inherited_path}"
+
+    english_override = loop_runner._child_environment_for_owner(
+        "ebook-en-tiktok-daily",
+        {**base, "LIFE_MANAGER_HEYGEN": "/opt/custom/heygen"},
+        home=tmp_path,
+    )
+    assert english_override["LIFE_MANAGER_HEYGEN"] == "/opt/custom/heygen"
+
+    japanese = loop_runner._child_environment_for_owner(
+        "ebook-ja-tiktok-daily", base, home=tmp_path,
+    )
+    assert "LIFE_MANAGER_HEYGEN" not in japanese
+    assert japanese["PATH"] == f"/opt/homebrew/bin{os.pathsep}{inherited_path}"
+    assert loop_runner._child_environment_for_owner(
+        "article-daily", base, home=tmp_path,
+    ) == base
+
+
+def test_english_ebook_child_environment_disables_heygen_telemetry_only_for_english_owner(tmp_path):
+    base = {"PATH": "/usr/bin:/bin", "LM_EBOOK_PUBLISHING_ENABLED": "false"}
+
+    english = loop_runner._child_environment_for_owner(
+        "ebook-en-tiktok-daily", base, home=tmp_path,
+    )
+    assert english["HEYGEN_NO_ANALYTICS"] == "1"
+
+    japanese = loop_runner._child_environment_for_owner(
+        "ebook-ja-tiktok-daily", base, home=tmp_path,
+    )
+    assert "HEYGEN_NO_ANALYTICS" not in japanese
+    assert loop_runner._child_environment_for_owner(
+        "article-daily", base, home=tmp_path,
+    ) == base
 
 
 def test_ebook_owner_passes_ssot_postiz_key_to_child_entrypoint(tmp_path):
@@ -941,6 +992,10 @@ def test_memory_admission_exit_is_deferred_not_failed():
         False, True, "host_admission_deferred:resource_capacity_busy")
     assert _terminal_outcome(124, host_deferred="memory_headroom_low") == (
         False, True, "host_admission_deferred:memory_headroom_low")
+    assert _terminal_outcome(75, host_deferred="disk_headroom_low") == (
+        False, True, "host_admission_deferred:disk_headroom_low")
+    assert _terminal_outcome(75, host_deferred="disk_headroom_unavailable") == (
+        False, True, "host_admission_deferred:disk_headroom_unavailable")
     assert _terminal_outcome(75) == (False, False, "entrypoint_exit_75")
     assert _terminal_outcome(1) == (False, False, "entrypoint_exit_1")
 
@@ -1627,9 +1682,58 @@ def test_mobile_child_receives_effect_result_hint_path(tmp_path):
         "apps/life-manager/scripts/mobile-app",
     })
     assert "apps/life-manager/scripts/ebook-distribute-daily.sh" in PRE_EFFECT_HINT_ENTRYPOINTS
+    assert "apps/life-manager/scripts/mobile-app" in PRE_EFFECT_HINT_ENTRYPOINTS
     assert {"ebook-en-tiktok-daily", "ebook-ja-instagram-daily", "ebook-ja-tiktok-daily"} <= PRE_EFFECT_HINT_LOOP_IDS
     assert observed["LIFE_MANAGER_RESULT_HINT_PATH"] == str(
         tmp_path / "entrypoint-result.json")
+
+
+def test_mobile_publish_failure_after_hint_clear_keeps_unknown_effect_fence(tmp_path):
+    claim = tmp_path / "claim-mobile"
+    claim.write_text(json.dumps({
+        "occurrence_id": "life-manager-honne-ja:run-1",
+    }))
+
+    def run_child(*_args, **kwargs):
+        kwargs["on_started"](4242)
+        hint = Path(kwargs["env"]["LIFE_MANAGER_RESULT_HINT_PATH"])
+        assert hint.is_file(), "mobile publisher must begin with a fail-closed no-effect marker"
+        assert json.loads(hint.read_text(encoding="utf-8")) == {
+            "status": "pre_effect_failure", "effect": 0,
+        }
+        hint.unlink()
+        return 1
+
+    with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "ready")),
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                return_value=(claim, "acquired")),
+          patch("runtime.loop.lm_loop_run.transfer_durable_resource"),
+          patch("runtime.loop.lm_loop_run.release_and_reserve_resource",
+                return_value=[]) as release,
+          patch("runtime.loop.lm_loop_run._dispatch_reserved"),
+          patch("runtime.loop.lm_loop_run._run_entrypoint", side_effect=run_child)):
+        assert _run_admitted(["/bin/true"], {
+            "cadence": {"start_interval_seconds": 60},
+            "provider_route": "postiz", "resource_class": "agent",
+            "admission_class": "revenue", "effect_class": "publish",
+            "entrypoint": "apps/life-manager/scripts/mobile-app",
+        }, "life-manager-honne-ja", {}, tmp_path / "mobile-receipt",
+            occurrence_id="life-manager-honne-ja:run-1") == 1
+
+    release.assert_called_once_with(
+        claim, requeue=False, reserve=True, effect_unknown=True)
+
+
+def test_pre_effect_hint_fails_closed_when_absent_or_malformed(tmp_path):
+    absent = tmp_path / "absent.json"
+    malformed = tmp_path / "malformed.json"
+    malformed.write_text("not-json\n", encoding="utf-8")
+    malformed.chmod(0o600)
+
+    assert _proven_pre_effect_failure(absent) is False
+    assert _proven_pre_effect_failure(malformed) is False
 
 
 def _write_effect_result(path, **overrides):
@@ -1655,8 +1759,16 @@ def test_verified_mobile_effect_result_requires_exact_private_identity(tmp_path)
     _write_effect_result(hint)
 
     assert _verified_effect_result(
-        hint, "life-manager-honne-ja", "life-manager-honne-ja:run-1",
+       hint, "life-manager-honne-ja", "life-manager-honne-ja:run-1",
     ) == ("reconciled", "postiz://posts/postiz-post-1")
+    _write_effect_result(hint, schema_version=True)
+    assert _verified_effect_result(
+        hint, "life-manager-honne-ja", "life-manager-honne-ja:run-1",
+    ) is None
+    _write_effect_result(hint, effect=True)
+    assert _verified_effect_result(
+        hint, "life-manager-honne-ja", "life-manager-honne-ja:run-1",
+    ) is None
 
     _write_effect_result(hint, occurrence_id="life-manager-honne-ja:other")
     assert _verified_effect_result(
@@ -1683,6 +1795,84 @@ def test_verified_mobile_effect_result_rejects_symlink_and_unknown_fields(tmp_pa
     assert _verified_effect_result(
         malformed, "life-manager-honne-ja", "life-manager-honne-ja:run-1",
     ) is None
+
+
+def _write_no_effect_result(path, **overrides):
+    value = {
+        'schema_version': 1,
+        'kind': 'life_manager_no_effect_result',
+        'status': 'verified_no_effect',
+        'effect': 0,
+        'owner_id': 'ebook-ja-tiktok-daily',
+        'occurrence_id': 'ebook-ja-tiktok-daily:run-off-slot',
+        'reason': 'no_due_slot',
+    }
+    value.update(overrides)
+    path.write_text(json.dumps(value) + '\n', encoding='utf-8')
+    path.chmod(0o600)
+    return value
+
+
+def test_verified_no_effect_result_requires_exact_identity_and_eBook_entrypoint(tmp_path):
+    hint = tmp_path / 'entrypoint-result.json'
+    _write_no_effect_result(hint)
+    reader = getattr(loop_runner, '_verified_no_effect_result', None)
+    assert callable(reader)
+    if not callable(reader):
+        return
+
+    entrypoint = 'apps/life-manager/scripts/ebook-distribute-daily.sh'
+    expected = (
+        'not_applicable',
+        'lm-no-effect://ebook-ja-tiktok-daily/ebook-ja-tiktok-daily:run-off-slot/no_due_slot',
+    )
+    assert reader(hint, 'ebook-ja-tiktok-daily',
+                 'ebook-ja-tiktok-daily:run-off-slot', entrypoint) == expected
+    _write_no_effect_result(hint, schema_version=True)
+    assert reader(hint, 'ebook-ja-tiktok-daily',
+                  'ebook-ja-tiktok-daily:run-off-slot', entrypoint) is None
+    _write_no_effect_result(hint, effect=False)
+    assert reader(hint, 'ebook-ja-tiktok-daily',
+                  'ebook-ja-tiktok-daily:run-off-slot', entrypoint) is None
+    _write_no_effect_result(hint, reason=[])
+    try:
+        invalid_reason = reader(hint, 'ebook-ja-tiktok-daily',
+                                'ebook-ja-tiktok-daily:run-off-slot', entrypoint)
+    except TypeError as error:
+        assert False, f'array reason must fail closed without raising: {error}'
+    assert invalid_reason is None
+
+    _write_no_effect_result(hint, occurrence_id='ebook-ja-tiktok-daily:other')
+    assert reader(hint, 'ebook-ja-tiktok-daily',
+                  'ebook-ja-tiktok-daily:run-off-slot', entrypoint) is None
+    _write_no_effect_result(hint, reason='arbitrary')
+    assert reader(hint, 'ebook-ja-tiktok-daily',
+                  'ebook-ja-tiktok-daily:run-off-slot', entrypoint) is None
+    _write_no_effect_result(hint)
+    assert reader(hint, 'ebook-ja-tiktok-daily',
+                  'ebook-ja-tiktok-daily:run-off-slot', 'apps/life-manager/scripts/mobile-app') is None
+    hint.write_text('{"status":"pre_effect_failure","effect":0}\n', encoding='utf-8')
+    hint.chmod(0o600)
+    assert reader(hint, 'ebook-ja-tiktok-daily',
+                  'ebook-ja-tiktok-daily:run-off-slot', entrypoint) is None
+
+
+def test_verified_no_effect_result_marks_the_terminal_as_no_effect():
+    owner = 'ebook-ja-tiktok-daily'
+    occurrence = f'{owner}:run-off-slot'
+    ref = f'lm-no-effect://{owner}/{occurrence}/no_due_slot'
+    event = build_runtime_event(
+        loop_id=owner, domain='growth', run_id='run-off-slot',
+        release_sha='a' * 40, provider='postiz', profile_alias=None,
+        effect_class='publish', succeeded=True, blocker=None,
+        claimed_occurrence_id=occurrence,
+    )
+
+    updated = _apply_verified_effect_result(event, ('not_applicable', ref))
+
+    assert updated['effect_class'] == 'none'
+    assert updated['effect_status'] == 'not_applicable'
+    assert updated['evidence_refs'][-1] == ref
 
 
 def test_verified_mobile_effect_result_upgrades_only_success_event(tmp_path):
@@ -2674,6 +2864,128 @@ def test_memory_deferral_preserves_queue_and_releases_reservation(tmp_path):
     assert json.loads(receipt.read_text())["reason"] == "memory_headroom_unavailable"
 
 
+def test_disk_headroom_low_defers_before_queue_or_provider_child(tmp_path):
+    floor = 2 * 1024**3
+    entry = {"cadence": {"start_interval_seconds": 60},
+             "provider_route": "shared-agent-runner", "effect_class": "application"}
+    receipt = tmp_path / "host-admission.json"
+    with (patch.dict(os.environ, {"LIFE_MANAGER_DISK_HEADROOM_KIB": "0"}),
+          patch("runtime.loop.lm_loop_run.disk_free_bytes", return_value=floor - 1) as disk,
+          patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "ready")) as enqueue,
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                return_value=(tmp_path / "claim", "acquired")) as claim,
+          patch("runtime.loop.lm_loop_run.defer_durable_resource") as defer,
+          patch("runtime.loop.lm_loop_run.release_and_reserve_resource", return_value=[]),
+          patch("runtime.loop.lm_loop_run._run_entrypoint_with_stderr_capture",
+                return_value=(0, b"")) as run_child):
+        assert _run_admitted(["/bin/true"], entry, "example", {}, receipt) == 75
+
+    disk.assert_called_once_with(receipt.parent)
+    enqueue.assert_not_called(); claim.assert_not_called(); run_child.assert_not_called()
+    defer.assert_called_once_with("example", cooldown_seconds=60)
+    deferred = json.loads(receipt.read_text())
+    assert deferred["status"] == "deferred"
+    assert deferred["effect"] == 0
+    assert deferred["reason"] == "disk_headroom_low"
+    assert deferred["available_bytes"] == floor - 1
+    assert deferred["required_bytes"] == floor
+
+
+def test_unavailable_disk_measurement_defers_before_queue(tmp_path):
+    entry = {"cadence": {"start_interval_seconds": 60},
+             "provider_route": "shared-agent-runner", "effect_class": "application"}
+    receipt = tmp_path / "host-admission.json"
+    with (patch("runtime.loop.lm_loop_run.disk_free_bytes", return_value=None) as disk,
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "ready")) as enqueue,
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                return_value=(tmp_path / "claim", "acquired")) as claim,
+          patch("runtime.loop.lm_loop_run.defer_durable_resource") as defer,
+          patch("runtime.loop.lm_loop_run.release_and_reserve_resource", return_value=[]),
+          patch("runtime.loop.lm_loop_run._run_entrypoint_with_stderr_capture",
+                return_value=(0, b"")) as run_child):
+        assert _run_admitted(["/bin/true"], entry, "example", {}, receipt) == 75
+
+    disk.assert_called_once_with(receipt.parent)
+    enqueue.assert_not_called(); claim.assert_not_called(); run_child.assert_not_called()
+    defer.assert_called_once_with("example", cooldown_seconds=60)
+    deferred = json.loads(receipt.read_text())
+    assert deferred["reason"] == "disk_headroom_unavailable"
+    assert deferred["effect"] == 0
+    assert deferred["required_bytes"] == 2 * 1024**3
+
+
+def test_normal_disk_headroom_keeps_finite_provider_dispatch(tmp_path):
+    floor = 2 * 1024**3
+    entry = {"cadence": {"start_interval_seconds": 60},
+             "provider_route": "shared-agent-runner", "effect_class": "application"}
+    receipt = tmp_path / "host-admission.json"
+    claim = tmp_path / "claim"
+    with (patch("runtime.loop.lm_loop_run.disk_free_bytes", return_value=floor) as disk,
+          patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "ready")) as enqueue,
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                return_value=(claim, "acquired")) as acquire,
+          patch("runtime.loop.lm_loop_run.release_and_reserve_resource", return_value=[]),
+          patch("runtime.loop.lm_loop_run._run_entrypoint_with_stderr_capture",
+                return_value=(0, b"")) as run_child):
+        assert _run_admitted(["/bin/true"], entry, "example", {}, receipt) == 0
+
+    assert disk.call_args_list == [call(receipt.parent), call(receipt.parent)]
+    enqueue.assert_called_once(); acquire.assert_called_once(); run_child.assert_called_once()
+
+
+def test_disk_drop_after_claim_requeues_without_provider_dispatch(tmp_path):
+    floor = 2 * 1024**3
+    entry = {"cadence": {"start_interval_seconds": 60},
+             "provider_route": "shared-agent-runner", "effect_class": "application"}
+    receipt = tmp_path / "host-admission.json"
+    claim = tmp_path / "claim"
+    with (patch("runtime.loop.lm_loop_run.disk_free_bytes",
+                side_effect=[floor, floor - 1]) as disk,
+          patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "ready")),
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                return_value=(claim, "acquired")),
+          patch("runtime.loop.lm_loop_run.release_and_reserve_resource",
+                return_value=[]) as release,
+          patch("runtime.loop.lm_loop_run._dispatch_reserved") as dispatch,
+          patch("runtime.loop.lm_loop_run._run_entrypoint_with_stderr_capture",
+                return_value=(0, b"")) as run_child):
+        assert _run_admitted(["/bin/true"], entry, "example", {}, receipt) == 75
+
+    assert disk.call_args_list == [call(receipt.parent), call(receipt.parent)]
+    release.assert_called_once_with(claim, requeue=True, reserve=False)
+    dispatch.assert_not_called(); run_child.assert_not_called()
+    deferred = json.loads(receipt.read_text())
+    assert deferred["reason"] == "disk_headroom_low"
+    assert deferred["available_bytes"] == floor - 1
+    assert deferred["required_bytes"] == floor
+
+
+def test_control_and_continuous_owner_bypass_disk_preflight(tmp_path):
+    control_entry = {"cadence": {"start_interval_seconds": 60},
+                     "provider_route": "deterministic", "effect_class": "none"}
+    continuous_entry = {"cadence": {"keep_alive": True},
+                        "provider_route": "shared-agent-runner", "effect_class": "application"}
+    with (patch("runtime.loop.lm_loop_run.disk_free_bytes",
+                side_effect=AssertionError("exempt owner must bypass disk preflight")) as disk,
+          patch("runtime.loop.lm_loop_run.clear_no_effect_unknown_resource"),
+          patch("runtime.loop.lm_loop_run.reserve_available_resource", return_value=[]),
+          patch("runtime.loop.lm_loop_run._run_entrypoint", return_value=0) as run_child):
+        assert _run_admitted(["/bin/true"], control_entry, "life-manager-disk-cleanup",
+                             {}, tmp_path / "control.json") == 0
+        assert _run_admitted(["/bin/true"], continuous_entry, "continuous-owner",
+                             {}, tmp_path / "continuous.json") == 0
+
+    disk.assert_not_called()
+    assert run_child.call_count == 2
+
+
 def test_post_claim_memory_deferral_requeues_without_dispatch(tmp_path):
     entry = {"cadence": {"start_interval_seconds": 60},
              "provider_route": "shared-agent-runner"}
@@ -3171,6 +3483,8 @@ def test_wrapper_sigkill_keeps_effect_child_claim_live(tmp_path, monkeypatch):
     }
     runner = (
         "import os,pathlib,sys; "
+        "from runtime.loop import lm_loop_run; "
+        "lm_loop_run.disk_free_bytes=lambda _path:16*1024**3; "
         "from runtime.loop.lm_loop_run import _run_admitted; "
         f"entry={entry!r}; command=[sys.executable,'-c',{child!r}]; "
         f"sys.exit(_run_admitted(command,entry,'example',os.environ.copy(),"
