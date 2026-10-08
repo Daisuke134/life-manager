@@ -1,7 +1,7 @@
 {
   "type": "object",
   "additionalProperties": false,
-  "required": ["series_of", "character_id", "character_prompt", "theme", "text_mode", "copy_target", "stickers", "main_id", "tab_id", "listing"],
+  "required": ["series_of", "character_id", "character_prompt", "theme", "text_mode", "copy_target", "stickers", "main_id", "tab_id", "listing", "format_gap"],
   "properties": {
     "series_of": {"type": "string"},
     "copy_target": {
