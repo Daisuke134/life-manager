@@ -1424,15 +1424,21 @@ def _raw_cp2(cp2, key, cdp_base):
         # invalid and 審査に提出 never appears (2026-09-28, 6273179459 /
         # 9466718786). Runs whenever a LISTING.md is known for this agent.
         listing_path = os.environ.get("CAPAFY_LISTING_PATH", "").strip()
+        display_model = os.environ.get("CAPAFY_DISPLAY_MODEL", "").strip()
+
+        # Pick the display model BEFORE filling the workspace fields. While those fields are
+        # empty the tab is invalid and the page still shows 下書きを保存, so the pick is
+        # persisted by a draft-save. Filling them first (2026-10-08, new agent 6569536614) made
+        # the tab valid, the button turned into 審査に提出, the pick was never saved, the
+        # official model read None and CP3 correctly refused to submit.
+        display_verified = True
+        if display_model:
+            display_verified = _raw_fix_display_model(page, display_model)
+
         workspace_fields_ok = True
         if listing_path:
             workspace_fields_ok = _raw_fill_workspace_conversation_fields(page, listing_path)
 
-        display_model = os.environ.get("CAPAFY_DISPLAY_MODEL", "").strip()
-        if not display_model:
-            return key_host_verified and workspace_fields_ok
-
-        display_verified = _raw_fix_display_model(page, display_model)
         return key_host_verified and workspace_fields_ok and display_verified
     finally:
         page.close()
