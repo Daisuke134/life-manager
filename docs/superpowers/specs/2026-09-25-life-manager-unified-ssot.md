@@ -7168,11 +7168,11 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 **残TODO（完了まで・この順）:**
 
 1. [x] latest main `be130839...`を通常mergeし、SSOTの双方の追記を保って`06ad4cd9`へpush。PR #7156は`CLEAN`。
-2. **現在cursor—PR #7156のhead `06ad4cd938bcf3aff3add8c22d2568c76e80263b`でrequired CIを全passさせ、fresh read-only reviewerから`ship`を得る。** CI/reviewまたはPR headが変わったら新headで取り直す。
+2. **現在cursor—PR #7156の現在push済みheadでrequired CIを全passさせ、fresh read-only reviewerから`ship`を得る。** SHAは作業前のGitHub readbackで固定し、CI/reviewまたはPR headが変わったら取り直す。
 3. `gh pr merge 7156 --admin`を先に試し、拒否されたらexact blockerを記録して通常手順を続ける。merge後はmain SHA由来immutable releaseを自然handoffさせ、reconcilerを停止せずfleet retry stateとtarget ownerのloaded SHA/admissionをreadbackする。
 4. cleanup receipt、fast/full inventory、`df`/APFS、owner/process physical I/Oを同じ時間窓で採取し、free変動の正確なwriterまたはsafe owner-owned cleanupを特定する。`free_after >= 2 GiB`、`errors=0`、`protected_deletions=0`と後続admission passを確認する。
 5. Fundraiserの4 unknown occurrenceを個別provider official readbackで照合する。receiptがないeffectは再送せずfenceを維持する。
 6. disk/admission回復とeffect fence解決後にConnector/Luma、Job Hunter/Workday、Fundraiser/VC・AI founderの自然occurrenceを確認し、official result、`gpt-6-luna/max/fast`、Telegram reportを同一occurrenceに結び付ける。
 7. disk回復後の同一windowでactive claims/reservations/eligible queue age/class contention/CPU/RAM/diskと有限jobの実並列数を測る。configured cap 8を実測と区別し、cap saturationが実証された時だけ最小変更を行う。
 
-**現在cursor:** exact-head PR #7156 CI/fresh ship review on `06ad4cd9` → PR merge → immutable release/natural readback → disk writer recovery/admission → Fundraiser official reconciliation → target natural outcomes → post-recovery capacity/economics.
+**現在cursor:** exact-head PR #7156 CI/fresh ship review on the current pushed head → PR merge → immutable release/natural readback → disk writer recovery/admission → Fundraiser official reconciliation → target natural outcomes → post-recovery capacity/economics.
