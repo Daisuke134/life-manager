@@ -17,9 +17,48 @@ from typing import Sequence
 RECEIPT_PATH = Path("state") / "disk-headroom.json"
 
 _PRODUCER_GATE = "life-manager-producer-preflight"
-_POLICY_FLAGS = (
-    ("disk-writers.stop", "disk_writers_stop"),
-)
+_DISK_STOP_FLAGS = (("disk-writers.stop", "disk_writers_stop"),)
+_DISK_RECOVERY_OWNER = "host-disk-recovery"
+_DISK_RECOVERY_REASON = "disk_headroom_low"
+_DISK_RECOVERY_BYTES = 2 * 1024**3
+_DISK_RECOVERY_ACTION = "restore_capacity_and_install_shared_disk_gate"
+
+
+def is_cleanup_disk_recovery_signal(path: Path | str) -> bool:
+    """Identify only the cleanup-owned low-space record, not operator stops."""
+    descriptor = -1
+    try:
+        descriptor = os.open(str(path), os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        info = os.fstat(descriptor)
+        if (
+            not stat.S_ISREG(info.st_mode)
+            or info.st_uid != os.getuid()
+            or stat.S_IMODE(info.st_mode) != 0o600
+            or info.st_nlink != 1
+            or info.st_size > 4096
+        ):
+            return False
+        with os.fdopen(descriptor, "r", encoding="utf-8") as handle:
+            descriptor = -1
+            raw = handle.read(4097)
+    except (OSError, UnicodeError, ValueError):
+        return False
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+    if len(raw) > 4096:
+        return False
+    try:
+        value = json.loads(raw)
+    except (TypeError, ValueError):
+        return False
+    return (
+        isinstance(value, dict)
+        and value.get("owner_id") == _DISK_RECOVERY_OWNER
+        and value.get("reason") == _DISK_RECOVERY_REASON
+        and value.get("required_bytes") == _DISK_RECOVERY_BYTES
+        and value.get("next_action") == _DISK_RECOVERY_ACTION
+    )
 
 
 def disk_free_bytes(path: Path | str) -> int | None:
@@ -183,7 +222,7 @@ def _producer_gate() -> tuple[str, Path] | None:
                 next(iter(host_state.iterdir()), None)
             except OSError:
                 return "disk_policy_unavailable", host_state
-        for filename, reason in _POLICY_FLAGS:
+        for filename, reason in _DISK_STOP_FLAGS:
             flag = host_state / filename
             try:
                 entry = flag.lstat()
@@ -193,11 +232,14 @@ def _producer_gate() -> tuple[str, Path] | None:
                 return "disk_policy_unavailable", flag
             if not stat.S_ISREG(entry.st_mode):
                 return "disk_policy_unavailable", flag
+            if is_cleanup_disk_recovery_signal(flag):
+                continue
             return reason, flag
     return None
 
 
 def disk_headroom_ok() -> bool:
+    """Validate state; ignore cleanup low-space signals but honor operator stops."""
     state_dir = _state_dir()
     if not _ensure_producer_state_dir(state_dir):
         print(json.dumps({
@@ -214,10 +256,6 @@ def disk_headroom_ok() -> bool:
             available_bytes,
             metadata={"gate": _PRODUCER_GATE, "flag_path": str(flag)},
         )
-        return False
-    available_bytes = disk_free_bytes(state_dir)
-    if available_bytes is None:
-        _failure("disk_headroom_unavailable", None)
         return False
     return True
 

@@ -6987,15 +6987,15 @@ def _paid_active_items(args, items: list[dict[str, Any]]) -> list[dict[str, Any]
 
 
 def _disk_gate_reason() -> str | None:
-    """Return a durable reason when pressure forbids starting another paid item."""
+    """Return a durable reason when shared producer control state is unavailable."""
     try:
-        return None if disk_headroom_ok() else "disk_pressure"
+        return None if disk_headroom_ok() else "disk_control_unavailable"
     except Exception as error:  # fail closed when the host policy cannot be read
         return f"disk_preflight_error:{type(error).__name__}"
 
 
 def _effect_gate_reason(args) -> str | None:
-    """Check host pressure and the operator brake at the irreversible-effect boundary."""
+    """Check shared control state and the operator brake at the effect boundary."""
     reason = _disk_gate_reason()
     if reason is not None:
         return reason

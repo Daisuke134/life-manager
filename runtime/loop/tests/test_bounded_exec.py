@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -19,6 +20,24 @@ SPEC.loader.exec_module(bounded_exec)
 
 
 class BoundedExecDescendantTests(TestCase):
+    def test_cleanup_recovery_signal_is_ignored_but_operator_stop_is_honored(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            stop_file = Path(directory) / "disk-writers.stop"
+            stop_file.write_text(json.dumps({
+                "owner_id": "host-disk-recovery",
+                "reason": "disk_headroom_low",
+                "required_bytes": 2 * 1024**3,
+                "next_action": "restore_capacity_and_install_shared_disk_gate",
+            }) + "\n", encoding="utf-8")
+            stop_file.chmod(0o600)
+            with mock.patch.dict(os.environ, {
+                bounded_exec.STOP_PATHS_ENV: str(stop_file),
+            }, clear=False):
+                self.assertFalse(bounded_exec._stop_requested())
+
+                stop_file.write_text("owner=operator\n", encoding="utf-8")
+                self.assertTrue(bounded_exec._stop_requested())
+
     def test_descendant_snapshot_walks_recursive_children(self) -> None:
         ps = """\
   101     1 Mon Sep 19 12:00:00 2026 /bin/runner

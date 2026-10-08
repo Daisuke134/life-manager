@@ -17,6 +17,16 @@ assert SPEC.loader is not None
 SPEC.loader.exec_module(GUARD)
 
 
+def _write_cleanup_recovery_signal(path: Path) -> None:
+    path.write_text(json.dumps({
+        "owner_id": "host-disk-recovery",
+        "reason": "disk_headroom_low",
+        "required_bytes": 2 * 1024**3,
+        "next_action": "restore_capacity_and_install_shared_disk_gate",
+    }) + "\n", encoding="utf-8")
+    path.chmod(0o600)
+
+
 def test_preflight_does_not_block_on_low_disk_or_legacy_floor_settings(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
 ) -> None:
@@ -47,7 +57,37 @@ def test_managed_publication_still_requires_durable_state_paths(
         GUARD.store_from_env()
 
 
-def test_launchd_state_override_cannot_bypass_canonical_writer_stop(
+def test_cleanup_stop_signal_does_not_block_managed_publication(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    home = tmp_path / "home"
+    control_dir = home / ".local/state/life-manager/state"
+    control_dir.mkdir(parents=True, exist_ok=True)
+    _write_cleanup_recovery_signal(control_dir / "disk-writers.stop")
+    monkeypatch.setattr(GUARD.pwd, "getpwuid", lambda _uid: SimpleNamespace(pw_dir=str(home)))
+    monkeypatch.setenv("ARTICLE_AUTOPUBLISH", "1")
+    monkeypatch.setenv("LIFE_MANAGER_HOST_STATE_DIR", "/tmp/empty-redirected-state")
+    monkeypatch.setattr(
+        GUARD,
+        "manual_or_store",
+        lambda: None,
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            str(SCRIPT), "preflight", "--pair", "note/ja",
+            "--target-kind", "note-key", "--target", "example",
+        ],
+    )
+
+    assert GUARD.main() == 0
+    assert json.loads(capsys.readouterr().out) == {"action": "manual-unmanaged"}
+
+
+def test_operator_stop_still_blocks_managed_publication(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -57,19 +97,14 @@ def test_launchd_state_override_cannot_bypass_canonical_writer_stop(
     (control_dir / "disk-writers.stop").write_text("owner=operator\n", encoding="utf-8")
     monkeypatch.setattr(GUARD.pwd, "getpwuid", lambda _uid: SimpleNamespace(pw_dir=str(home)))
     monkeypatch.setenv("ARTICLE_AUTOPUBLISH", "1")
-    monkeypatch.setenv("LIFE_MANAGER_HOST_STATE_DIR", "/tmp/empty-redirected-state")
+    monkeypatch.setattr(sys, "argv", [
+        str(SCRIPT), "preflight", "--pair", "note/ja",
+        "--target-kind", "note-key", "--target", "example",
+    ])
     monkeypatch.setattr(
         GUARD,
         "manual_or_store",
-        lambda: pytest.fail("a stop file must block before publication store access"),
-    )
-    monkeypatch.setattr(
-        sys,
-        "argv",
-        [
-            str(SCRIPT), "preflight", "--pair", "note/ja",
-            "--target-kind", "note-key", "--target", "example",
-        ],
+        lambda: pytest.fail("operator stop must block before publication store access"),
     )
 
     with pytest.raises(GUARD.InvariantError, match="disk_writers_stop"):

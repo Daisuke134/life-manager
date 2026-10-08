@@ -29,10 +29,10 @@ license, and `SHA256SUMS` are authoritative; an installed Gig release is evidenc
 not source. The runner is not admitted into `loop wake` until the Affiliate
 routing, privacy, schema, and budget gates in the SSOT are closed.
 
-`config/agent-runner.json` exposes only two model routes: explicit Terra-high
-strategy and a fallback-free, one-use Sol-high repair escalation. Both routes
-are live-proven read-only, but remain disconnected from `loop wake` until the
-remaining binary, privacy, schema, context, and budget gates close.
+`config/agent-runner.json` exposes two single-candidate Affiliate routes through
+the native Codex account: GPT-6.1-Sol medium for marketing and an explicit,
+one-use GPT-6.1-Sol high repair escalation. Publication remains separately gated
+by source/policy receipts and the existing effect-reconciliation contract.
 
 Production callers use `scripts/agent_runner.py`, never the vendored runner
 directly. The gate requires `AFFILIATE_CODEX_CAPABILITY_RECEIPT`, rechecks the
@@ -41,11 +41,12 @@ the model-call receipts, and refuses to start a provider after any mismatch.
 `machine_capability_inventory.py` creates the private receipt from an explicitly
 requested `codex_cli`; it does not admit arbitrary executables or commands.
 Before importing the vendored runner, the gate replaces the parent environment
-with an explicit allowlist. Codex receives a fixed system `PATH`, an Affiliate-
-owned `HOME` and `CODEX_HOME`, the configured auth-file path, locale/timezone,
-and only the named budget variables. Parent API keys, database URLs, browser
-routes, and every other ambient variable are absent. Never add a wildcard or
-copy `os.environ` into this boundary.
+with an explicit allowlist. Codex receives its executable directory, the parent
+directory of launchd's pinned `LIFE_MANAGER_RUNTIME_NODE`, system directories,
+an Affiliate-owned `HOME` and `CODEX_HOME`, the configured auth-file path,
+locale/timezone, and only named budget variables. Parent API keys, database URLs,
+browser routes, and every other ambient variable are absent. Never add a wildcard
+or copy `os.environ` into this boundary.
 
 The same wrapper owns model evidence. It applies `0700` to directories and
 `0600` to files, rejects symlinks, and removes a stale seal before each run.
@@ -264,10 +265,12 @@ missing control evidence fails closed before any public effect.
 Each newly discovered English campaign captures the official Alec Wilcock and
 Greg Preece affiliate case studies alongside product and pricing sources. The
 composer uses their documented tutorial and audience-fit methods as strategy
-evidence, writes original English-first copy, adds a concise Japanese secondary
-subtitle/summary, and keeps one clearly visible disclosed CTA. Reported creator
-earnings remain attributed to those case studies and are never presented as
-Anicca's results or as guaranteed outcomes.
+evidence, writes a substantive original English-first tutorial (target
+800–1,200 words when the sources support it), adds a concise Japanese secondary
+summary, and keeps one clearly visible disclosed CTA. It never pads or invents
+facts to reach a length target. Reported creator earnings remain attributed to
+those case studies and are never presented as Anicca's results or as guaranteed
+outcomes.
 
 Every future generic campaign acquires its own PartnerStack custom link before
 publication by reusing the verified ElevenLabs link adapter. The raw URL stays in

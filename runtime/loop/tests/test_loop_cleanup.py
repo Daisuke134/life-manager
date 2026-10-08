@@ -312,7 +312,6 @@ class LoopCleanupTest(unittest.TestCase):
                 mock.patch("runtime.loop.loop_cleanup.cleanup_run_root",
                            side_effect=AssertionError("wake-path cleanup")),
                 mock.patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=100),
-                mock.patch("runtime.loop.lm_loop_run.disk_free_bytes", return_value=16 * 1024**3),
                 mock.patch("runtime.loop.lm_loop_run.durable_protocol_version", return_value=2),
                 mock.patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
                            return_value=(root / "ticket", "ready")),
@@ -419,7 +418,6 @@ class LoopCleanupTest(unittest.TestCase):
                 mock.patch.dict(os.environ, {"HOME": str(home)}),
                 mock.patch("runtime.loop.lm_loop_run.process_start", return_value="start"),
                 mock.patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=100),
-                mock.patch("runtime.loop.lm_loop_run.disk_free_bytes", return_value=16 * 1024**3),
                 mock.patch("runtime.loop.lm_loop_run.durable_protocol_version", return_value=2),
                 mock.patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
                            return_value=(root / "ticket", "ready")),
@@ -970,7 +968,6 @@ class LoopCleanupTest(unittest.TestCase):
             (root / "RELEASE.json").write_text(json.dumps({"sha": "a" * 40}))
             command = (
                 "from runtime.loop import lm_loop_run; "
-                "lm_loop_run.disk_free_bytes = lambda _path: 16 * 1024**3; "
                 f"raise SystemExit(lm_loop_run.main(['job', {str(root)!r}]))"
             )
             result = subprocess.run(
@@ -1018,7 +1015,6 @@ class LoopCleanupTest(unittest.TestCase):
             }
             command = (
                 "from runtime.loop import lm_loop_run; "
-                "lm_loop_run.disk_free_bytes = lambda _path: 16 * 1024**3; "
                 f"raise SystemExit(lm_loop_run.main(['job', {str(root)!r}]))"
             )
             result = subprocess.run(
