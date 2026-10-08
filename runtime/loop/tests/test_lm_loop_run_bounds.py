@@ -2943,13 +2943,11 @@ def test_memory_deferral_preserves_queue_and_releases_reservation(tmp_path):
     assert json.loads(receipt.read_text())["reason"] == "memory_headroom_unavailable"
 
 
-def test_disk_headroom_low_defers_before_queue_or_provider_child(tmp_path):
-    floor = 2 * 1024**3
+def test_low_disk_headroom_does_not_defer_before_queue_or_provider_child(tmp_path):
     entry = {"cadence": {"start_interval_seconds": 60},
              "provider_route": "shared-agent-runner", "effect_class": "application"}
     receipt = tmp_path / "host-admission.json"
-    with (patch.dict(os.environ, {"LIFE_MANAGER_DISK_HEADROOM_KIB": "0", "LIFE_MANAGER_DISK_HEADROOM_WAIT_SECONDS": "0"}),
-          patch("runtime.loop.lm_loop_run.disk_free_bytes", return_value=floor - 1) as disk,
+    with (patch("runtime.loop.lm_loop_run.disk_free_bytes", return_value=0) as disk,
           patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
           patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
                 return_value=(tmp_path / "ticket", "ready")) as enqueue,
@@ -2959,17 +2957,12 @@ def test_disk_headroom_low_defers_before_queue_or_provider_child(tmp_path):
           patch("runtime.loop.lm_loop_run.release_and_reserve_resource", return_value=[]),
           patch("runtime.loop.lm_loop_run._run_entrypoint_with_stderr_capture",
                 return_value=(0, b"")) as run_child):
-        assert _run_admitted(["/bin/true"], entry, "example", {}, receipt) == 75
+        assert _run_admitted(["/bin/true"], entry, "example", {}, receipt) == 0
 
-    disk.assert_called_once_with(receipt.parent)
-    enqueue.assert_not_called(); claim.assert_not_called(); run_child.assert_not_called()
-    defer.assert_called_once_with("example", cooldown_seconds=60)
-    deferred = json.loads(receipt.read_text())
-    assert deferred["status"] == "deferred"
-    assert deferred["effect"] == 0
-    assert deferred["reason"] == "disk_headroom_low"
-    assert deferred["available_bytes"] == floor - 1
-    assert deferred["required_bytes"] == floor
+    assert disk.call_count == 2
+    enqueue.assert_called_once(); claim.assert_called_once(); run_child.assert_called_once()
+    defer.assert_not_called()
+    assert json.loads(receipt.read_text())["status"] == "pass"
 
 
 def test_unavailable_disk_measurement_defers_before_queue(tmp_path):
@@ -2993,16 +2986,15 @@ def test_unavailable_disk_measurement_defers_before_queue(tmp_path):
     deferred = json.loads(receipt.read_text())
     assert deferred["reason"] == "disk_headroom_unavailable"
     assert deferred["effect"] == 0
-    assert deferred["required_bytes"] == 2 * 1024**3
+    assert deferred["required_bytes"] == 0
 
 
-def test_normal_disk_headroom_keeps_finite_provider_dispatch(tmp_path):
-    floor = 2 * 1024**3
+def test_low_disk_headroom_keeps_finite_provider_dispatch(tmp_path):
     entry = {"cadence": {"start_interval_seconds": 60},
              "provider_route": "shared-agent-runner", "effect_class": "application"}
     receipt = tmp_path / "host-admission.json"
     claim = tmp_path / "claim"
-    with (patch("runtime.loop.lm_loop_run.disk_free_bytes", return_value=floor) as disk,
+    with (patch("runtime.loop.lm_loop_run.disk_free_bytes", return_value=0) as disk,
           patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
           patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
                 return_value=(tmp_path / "ticket", "ready")) as enqueue,
@@ -3017,33 +3009,33 @@ def test_normal_disk_headroom_keeps_finite_provider_dispatch(tmp_path):
     enqueue.assert_called_once(); acquire.assert_called_once(); run_child.assert_called_once()
 
 
-def test_disk_drop_after_claim_requeues_without_provider_dispatch(tmp_path):
-    floor = 2 * 1024**3
+def test_disk_drop_after_claim_does_not_requeue_or_block_provider_dispatch(tmp_path):
     entry = {"cadence": {"start_interval_seconds": 60},
              "provider_route": "shared-agent-runner", "effect_class": "application"}
     receipt = tmp_path / "host-admission.json"
     claim = tmp_path / "claim"
-    with (patch("runtime.loop.lm_loop_run.disk_free_bytes",
-                side_effect=[floor, floor - 1]) as disk,
+    def start_child(*_args, **kwargs):
+        kwargs["on_started"](1234)
+        return 0, b""
+
+    with (patch("runtime.loop.lm_loop_run.disk_free_bytes", side_effect=[1, 0]) as disk,
           patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
           patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
                 return_value=(tmp_path / "ticket", "ready")),
           patch("runtime.loop.lm_loop_run.claim_durable_resource",
                 return_value=(claim, "acquired")),
+          patch("runtime.loop.lm_loop_run.transfer_durable_resource"),
           patch("runtime.loop.lm_loop_run.release_and_reserve_resource",
                 return_value=[]) as release,
           patch("runtime.loop.lm_loop_run._dispatch_reserved") as dispatch,
           patch("runtime.loop.lm_loop_run._run_entrypoint_with_stderr_capture",
-                return_value=(0, b"")) as run_child):
-        assert _run_admitted(["/bin/true"], entry, "example", {}, receipt) == 75
+                side_effect=start_child) as run_child):
+        assert _run_admitted(["/bin/true"], entry, "example", {}, receipt) == 0
 
     assert disk.call_args_list == [call(receipt.parent), call(receipt.parent)]
-    release.assert_called_once_with(claim, requeue=True, reserve=False)
-    dispatch.assert_not_called(); run_child.assert_not_called()
-    deferred = json.loads(receipt.read_text())
-    assert deferred["reason"] == "disk_headroom_low"
-    assert deferred["available_bytes"] == floor - 1
-    assert deferred["required_bytes"] == floor
+    release.assert_called_once_with(claim, requeue=False, reserve=True)
+    dispatch.assert_not_called(); run_child.assert_called_once()
+    assert json.loads(receipt.read_text())["status"] == "pass"
 
 
 def test_control_and_continuous_owner_bypass_disk_preflight(tmp_path):
@@ -3693,53 +3685,10 @@ def test_main_waits_for_a_label_apply_lock_that_frees_up(tmp_path):
     assert "apply_lock_busy" not in blockers, "a lock that freed up must not be recorded as busy"
 
 
-def test_disk_headroom_that_recovers_within_the_wait_does_not_defer(tmp_path):
-    """2026-10-08: free space swung between 1.2 and 2.9 GiB within minutes (other sessions' temp
-    files, release builds), so a single instantaneous reading below the 2 GiB floor skipped the
-    whole 15-minute slot. A dip that recovers within the wait must not defer the run."""
+def test_numeric_disk_floor_is_not_checked_or_waited_on(tmp_path):
     from runtime.loop.lm_loop_run import _disk_headroom_deferred
-    floor = 2 * 1024**3
-    readings = [floor - 1, floor - 1, floor + 1]
-    with (patch.dict(os.environ, {"LIFE_MANAGER_DISK_HEADROOM_WAIT_SECONDS": "120"}),
-          patch("runtime.loop.lm_loop_run.disk_free_bytes", side_effect=readings) as disk,
+    readings = [0]
+    with (patch("runtime.loop.lm_loop_run.disk_free_bytes", side_effect=readings) as disk,
           patch("runtime.loop.lm_loop_run.time.sleep") as sleep):
         assert _disk_headroom_deferred(tmp_path, phase="pre_enqueue") is None
-    assert disk.call_count == 3 and sleep.call_count == 2
-
-
-def test_disk_headroom_that_stays_low_still_defers_after_the_wait(tmp_path):
-    from runtime.loop.lm_loop_run import _disk_headroom_deferred
-    floor = 2 * 1024**3
-    clock = iter([0.0, 5.0, 50.0, 130.0, 131.0])
-    with (patch.dict(os.environ, {"LIFE_MANAGER_DISK_HEADROOM_WAIT_SECONDS": "120"}),
-          patch("runtime.loop.lm_loop_run.disk_free_bytes", return_value=floor - 1),
-          patch("runtime.loop.lm_loop_run.time.monotonic", side_effect=lambda: next(clock)),
-          patch("runtime.loop.lm_loop_run.time.sleep")):
-        deferred = _disk_headroom_deferred(tmp_path, phase="pre_enqueue")
-    assert deferred["reason"] == "disk_headroom_low" and deferred["available_bytes"] == floor - 1
-
-
-def test_revenue_loops_keep_shipping_on_a_low_floor_and_the_rest_keep_two_gib(tmp_path):
-    """2026-10-09 Dais: shipping and marketing must not stop on a 2 GiB gate; a cleanup agent owns
-    space. critical_paid 256 MiB, revenue 512 MiB, everything else the shared 2 GiB."""
-    from runtime.loop.lm_loop_run import _disk_floor, _disk_headroom_deferred
-    mib, gib = 1024**2, 1024**3
-    paid, rev, other = {"priority": "critical_paid"}, {"priority": "revenue"}, {"priority": "support"}
-    assert _disk_floor(paid) == 256 * mib and _disk_floor(rev) == 512 * mib
-    assert _disk_floor(other) == 2 * gib and _disk_floor({}) == 2 * gib
-    with (patch.dict(os.environ, {"LIFE_MANAGER_DISK_HEADROOM_WAIT_SECONDS": "0"}),
-          patch("runtime.loop.lm_loop_run.disk_free_bytes", return_value=600 * mib)):
-        assert _disk_headroom_deferred(tmp_path, phase="pre_enqueue", floor=_disk_floor(paid)) is None
-        assert _disk_headroom_deferred(tmp_path, phase="pre_enqueue", floor=_disk_floor(rev)) is None
-        deferred = _disk_headroom_deferred(tmp_path, phase="pre_enqueue", floor=_disk_floor(other))
-    assert deferred["reason"] == "disk_headroom_low" and deferred["required_bytes"] == 2 * gib
-
-
-def test_revenue_loops_still_defer_below_their_own_floor(tmp_path):
-    from runtime.loop.lm_loop_run import _disk_floor, _disk_headroom_deferred
-    mib = 1024**2
-    with (patch.dict(os.environ, {"LIFE_MANAGER_DISK_HEADROOM_WAIT_SECONDS": "0"}),
-          patch("runtime.loop.lm_loop_run.disk_free_bytes", return_value=200 * mib)):
-        paid = _disk_headroom_deferred(tmp_path, phase="pre_enqueue", floor=_disk_floor({"priority": "critical_paid"}))
-        rev = _disk_headroom_deferred(tmp_path, phase="pre_enqueue", floor=_disk_floor({"priority": "revenue"}))
-    assert paid["required_bytes"] == 256 * mib and rev["required_bytes"] == 512 * mib
+    assert disk.call_count == 1 and sleep.call_count == 0

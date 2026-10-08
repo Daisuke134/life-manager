@@ -51,11 +51,8 @@ CODEX_UNSUPPORTED_SCHEMA_KEYWORDS = frozenset(("uniqueItems", "allOf", "if", "th
 # AGENT_RUNNER_MIN_PROMPT_CHARS (run_agent.sh does, for loop prompts).
 MIN_PROMPT_CHARS = 16
 DEFAULT_HISTORY_GENERATIONS = 3
-# Evidence is useful only while it is recent and inspectable.  Letting each
-# provider stream indefinitely into a permanent per-run directory eventually
-# turns a recoverable disk-pressure incident into a failed paid invocation.
-# Keep a bounded history, and preferentially evict only completed runs.
-DEFAULT_EVIDENCE_MIN_FREE_BYTES = 512 * 1024 * 1024
+# Keep completed agent evidence within a bounded history; this is not a host
+# free-space admission check.
 DEFAULT_EVIDENCE_MAX_BYTES = 256 * 1024 * 1024
 PROVIDER_LEASE_BUSY = 75
 PROVIDER_LEASE_BUSY_LINE = "LIFE_MANAGER_PROVIDER_LEASE_BUSY"
@@ -238,7 +235,6 @@ def prune_history_generations(history: Path, *, keep: int = DEFAULT_HISTORY_GENE
 def reclaim_completed_evidence(
     evidence_dir: Path,
     *,
-    min_free_bytes: int = DEFAULT_EVIDENCE_MIN_FREE_BYTES,
     max_evidence_bytes: int = DEFAULT_EVIDENCE_MAX_BYTES,
 ) -> dict[str, int]:
     """Reclaim oldest completed managed evidence before starting a provider.
@@ -270,9 +266,8 @@ def reclaim_completed_evidence(
                 continue
     reclaimed_bytes = 0
     reclaimed_runs = 0
-    free = shutil.disk_usage(root).free
     for _, run_dir, size in sorted(candidates, key=lambda item: item[0]):
-        if total <= max_evidence_bytes and free >= min_free_bytes:
+        if total <= max_evidence_bytes:
             break
         try:
             shutil.rmtree(run_dir)
@@ -281,27 +276,15 @@ def reclaim_completed_evidence(
         total -= size
         reclaimed_bytes += size
         reclaimed_runs += 1
-        free = shutil.disk_usage(root).free
     return {"reclaimed_bytes": reclaimed_bytes, "reclaimed_runs": reclaimed_runs}
 
 
 def ensure_evidence_capacity(evidence_dir: Path) -> dict[str, int]:
-    """Apply managed evidence retention and fail before a paid provider on ENOSPC."""
-    min_free = int(os.environ.get("AGENT_RUNNER_EVIDENCE_MIN_FREE_BYTES", DEFAULT_EVIDENCE_MIN_FREE_BYTES))
+    """Prune completed history by its size cap without blocking on free bytes."""
     max_bytes = int(os.environ.get("AGENT_RUNNER_EVIDENCE_MAX_BYTES", DEFAULT_EVIDENCE_MAX_BYTES))
-    if min_free < 0 or max_bytes < 0:
-        raise ValueError("agent-runner evidence thresholds must be non-negative")
-    result = reclaim_completed_evidence(
-        evidence_dir, min_free_bytes=min_free, max_evidence_bytes=max_bytes,
-    )
-    root = evidence_root_for(evidence_dir)
-    if root is not None and root.exists() and shutil.disk_usage(root).free < min_free:
-        raise OSError(
-            errno.ENOSPC,
-            "insufficient free space after completed agent evidence reclamation",
-            str(root),
-        )
-    return result
+    if max_bytes < 0:
+        raise ValueError("agent-runner evidence size cap must be non-negative")
+    return reclaim_completed_evidence(evidence_dir, max_evidence_bytes=max_bytes)
 
 
 def sha256_file(path: Path) -> str:

@@ -25,7 +25,7 @@ DISK_CLEANUP_PATH = GIG_ROOT.parents[2] / "skills" / "self" / "disk-cleanup" / "
 @pytest.fixture(autouse=True)
 def _isolated_host_control_state(tmp_path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path))
-    monkeypatch.setenv("GIG_DISK_HEADROOM_KIB", "524288")
+    monkeypatch.delenv("GIG_DISK_HEADROOM_KIB", raising=False)
     monkeypatch.delenv("GIG_HOST_STATE_DIR", raising=False)
     monkeypatch.delenv("DISK_CONTROL_STATE_DIR", raising=False)
     monkeypatch.delenv("OPENCLAW_STATE_DIR", raising=False)
@@ -62,62 +62,29 @@ def _load_disk_cleanup():
     return module
 
 
-def test_default_headroom_kib_is_524288_when_env_absent(monkeypatch):
-    # skills/earn/gig/TODO.md documents 524,288 KiB (512 MiB) as the house floor. A lane whose
-    # plist never carries GIG_DISK_HEADROOM_KIB -- e.g. one migrated onto lm-loop's registry,
-    # whose rendered plist never sets this key -- must fall back to this default, not to zero.
-    monkeypatch.delenv("GIG_DISK_HEADROOM_KIB", raising=False)
+@pytest.mark.parametrize("legacy_floor", ["524288", "1048576", "0", "not-a-number"])
+def test_legacy_headroom_setting_is_ignored_at_zero_free_bytes(monkeypatch, legacy_floor):
+    monkeypatch.setenv("GIG_DISK_HEADROOM_KIB", legacy_floor)
     guard = _load_guard()
-    assert guard.REQUIRED_KIB == 524288
-    assert guard.REQUIRED_BYTES == 524288 * 1024
+    monkeypatch.setattr(
+        guard.shutil, "disk_usage", lambda _path: guard.shutil._ntuple_diskusage(1, 1, 0),
+    )
+    assert guard.disk_headroom_ok() is True
 
 
-def test_explicit_headroom_kib_still_overrides_the_default(monkeypatch):
-    monkeypatch.setenv("GIG_DISK_HEADROOM_KIB", "1048576")
-    guard = _load_guard()
-    assert guard.REQUIRED_KIB == 1048576
-    assert guard.REQUIRED_BYTES == 1048576 * 1024
-
-
-def test_explicit_zero_headroom_kib_still_disables_the_byte_floor(monkeypatch):
-    # A caller that genuinely wants no fixed-byte floor (relying only on the stop/pressure
-    # flags) sets GIG_DISK_HEADROOM_KIB=0 deliberately. The default above must not become
-    # unoverridable.
-    monkeypatch.setenv("GIG_DISK_HEADROOM_KIB", "0")
-    guard = _load_guard()
-    assert guard.REQUIRED_KIB == 0
-    assert guard.REQUIRED_BYTES == 0
-
-
-def test_one_byte_under_threshold_writes_receipt_and_never_execs(tmp_path, monkeypatch, capsys):
+def test_zero_free_bytes_still_execs_child(tmp_path, monkeypatch):
     guard = _load_guard()
     monkeypatch.setenv("GIG_STATE_DIR", str(tmp_path))
     monkeypatch.setattr(
         guard.shutil,
         "disk_usage",
-        lambda _path: guard.shutil._ntuple_diskusage(1, 1, guard.REQUIRED_BYTES - 1),
+        lambda _path: guard.shutil._ntuple_diskusage(1, 1, 0),
     )
+    calls = []
+    monkeypatch.setattr(guard.os, "execvpe", lambda *args: calls.append(args))
 
-    def unexpected_exec(*_args, **_kwargs):
-        raise AssertionError("child must not execute with low disk headroom")
-
-    monkeypatch.setattr(guard.os, "execvpe", unexpected_exec)
-
-    assert guard.main(["/bin/echo", "child-sentinel"]) == 1
-
-    output = json.loads(capsys.readouterr().out)
-    receipt_path = tmp_path / "state" / "disk-headroom.json"
-    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
-    assert output == receipt
-    assert receipt == {
-        "available_bytes": guard.REQUIRED_BYTES - 1,
-        "effect": 0,
-        "failed": 1,
-        "readback": 0,
-        "reason": "disk_headroom_low",
-        "required_bytes": guard.REQUIRED_BYTES,
-        "status": "failed",
-    }
+    assert guard.main(["/bin/echo", "child-sentinel"]) == 0
+    assert calls and calls[0][1] == ["/bin/echo", "child-sentinel"]
 
 
 def test_exact_threshold_execs_remaining_argv_and_environment_exactly(tmp_path, monkeypatch):
@@ -127,7 +94,7 @@ def test_exact_threshold_execs_remaining_argv_and_environment_exactly(tmp_path, 
     monkeypatch.setattr(
         guard.shutil,
         "disk_usage",
-        lambda _path: guard.shutil._ntuple_diskusage(1, 1, guard.REQUIRED_BYTES),
+        lambda _path: guard.shutil._ntuple_diskusage(1, 1, 1),
     )
     calls = []
     monkeypatch.setattr(guard.os, "execvpe", lambda *args: calls.append(args))
@@ -154,17 +121,14 @@ def test_disk_measurement_exception_fails_closed_without_exec(tmp_path, monkeypa
         "failed": 1,
         "readback": 0,
         "reason": "disk_headroom_unavailable",
-        "required_bytes": guard.REQUIRED_BYTES,
+        "required_bytes": 0,
         "status": "failed",
     }
 
 
 @pytest.mark.parametrize(
     ("flag_name", "reason", "payload"),
-    (
-        ("disk-writers.stop", "disk_writers_stop", "tier=4\n"),
-        ("disk-pressure.block", "disk_pressure_block", "free=7.5GiB\n"),
-    ),
+    (("disk-writers.stop", "disk_writers_stop", "tier=4\n"),),
 )
 def test_life_manager_producer_flags_block_child_before_exec(
     tmp_path, monkeypatch, capsys, flag_name, reason, payload,
@@ -176,7 +140,7 @@ def test_life_manager_producer_flags_block_child_before_exec(
     monkeypatch.setattr(
         guard.shutil,
         "disk_usage",
-        lambda _path: guard.shutil._ntuple_diskusage(1, 1, guard.REQUIRED_BYTES * 8),
+        lambda _path: guard.shutil._ntuple_diskusage(1, 1, 1024**4),
     )
     monkeypatch.setattr(guard.os, "execvpe", lambda *_args: (_ for _ in ()).throw(
         AssertionError("stop flag must block the producer before exec")
@@ -192,18 +156,17 @@ def test_life_manager_producer_flags_block_child_before_exec(
     assert receipt["readback"] == 0
 
 
-def test_writer_override_ignores_pressure_block_but_keeps_real_floor(
+def test_pressure_marker_is_advisory_even_with_zero_free_bytes(
     tmp_path, monkeypatch
 ):
     guard = _load_guard()
     monkeypatch.setenv("GIG_STATE_DIR", str(tmp_path / "gig"))
-    monkeypatch.setenv("GIG_IGNORE_DISK_PRESSURE_BLOCK", "1")
     host_state = Path.home() / ".openclaw" / "state"
     (host_state / "disk-pressure.block").write_text("free=9GiB\n", encoding="utf-8")
     monkeypatch.setattr(
         guard.shutil,
         "disk_usage",
-        lambda _path: guard.shutil._ntuple_diskusage(1, 1, guard.REQUIRED_BYTES * 8),
+        lambda _path: guard.shutil._ntuple_diskusage(1, 1, 0),
     )
     calls = []
     monkeypatch.setattr(guard.os, "execvpe", lambda *args: calls.append(args))
@@ -212,47 +175,43 @@ def test_writer_override_ignores_pressure_block_but_keeps_real_floor(
     assert calls and calls[0][1] == ["/bin/echo", "writer-sentinel"]
 
 
-def test_writer_override_ignores_shared_stop_but_keeps_real_floor(
-    tmp_path, monkeypatch
+def test_legacy_ignore_env_cannot_bypass_explicit_shared_stop(
+    tmp_path, monkeypatch, capsys,
 ):
     guard = _load_guard()
     monkeypatch.setenv("GIG_STATE_DIR", str(tmp_path / "gig"))
-    monkeypatch.setenv("GIG_IGNORE_DISK_PRESSURE_BLOCK", "1")
     monkeypatch.setenv("GIG_IGNORE_DISK_WRITERS_STOP", "1")
     host_state = Path.home() / ".openclaw" / "state"
     (host_state / "disk-writers.stop").write_text("tier=4\n", encoding="utf-8")
     monkeypatch.setattr(
         guard.shutil,
         "disk_usage",
-        lambda _path: guard.shutil._ntuple_diskusage(1, 1, guard.REQUIRED_BYTES * 8),
+        lambda _path: guard.shutil._ntuple_diskusage(1, 1, 1024**4),
     )
-    calls = []
-    monkeypatch.setattr(guard.os, "execvpe", lambda *args: calls.append(args))
+    monkeypatch.setattr(guard.os, "execvpe", lambda *_args: (_ for _ in ()).throw(
+        AssertionError("legacy ignore env must not bypass the hard stop")
+    ))
 
-    assert guard.main(["/bin/echo", "writer-sentinel"]) == 0
-    assert calls and calls[0][1] == ["/bin/echo", "writer-sentinel"]
+    assert guard.main(["/bin/echo", "writer-sentinel"]) == 1
+    assert json.loads(capsys.readouterr().out)["reason"] == "disk_writers_stop"
 
 
-def test_writer_override_does_not_bypass_real_disk_floor(
-    tmp_path, monkeypatch, capsys
-):
+def test_zero_free_bytes_does_not_block_writer_override(tmp_path, monkeypatch):
     guard = _load_guard()
     monkeypatch.setenv("GIG_STATE_DIR", str(tmp_path / "gig"))
-    monkeypatch.setenv("GIG_IGNORE_DISK_PRESSURE_BLOCK", "1")
     host_state = Path.home() / ".openclaw" / "state"
     host_state.mkdir(parents=True, exist_ok=True)
     (host_state / "disk-pressure.block").write_text("free=9GiB\n", encoding="utf-8")
     monkeypatch.setattr(
         guard.shutil,
         "disk_usage",
-        lambda _path: guard.shutil._ntuple_diskusage(1, 1, guard.REQUIRED_BYTES - 1),
+        lambda _path: guard.shutil._ntuple_diskusage(1, 1, 0),
     )
-    monkeypatch.setattr(guard.os, "execvpe", lambda *_args: (_ for _ in ()).throw(
-        AssertionError("real low disk must still block Writer")
-    ))
+    calls = []
+    monkeypatch.setattr(guard.os, "execvpe", lambda *args: calls.append(args))
 
-    assert guard.main(["/bin/echo", "writer-sentinel"]) == 1
-    assert json.loads(capsys.readouterr().out)["reason"] == "disk_headroom_low"
+    assert guard.main(["/bin/echo", "writer-sentinel"]) == 0
+    assert calls and calls[0][1] == ["/bin/echo", "writer-sentinel"]
 
 
 def test_missing_host_control_state_fails_closed_before_exec(tmp_path, monkeypatch, capsys):
@@ -263,7 +222,7 @@ def test_missing_host_control_state_fails_closed_before_exec(tmp_path, monkeypat
     monkeypatch.setattr(
         guard.shutil,
         "disk_usage",
-        lambda _path: guard.shutil._ntuple_diskusage(1, 1, guard.REQUIRED_BYTES * 8),
+        lambda _path: guard.shutil._ntuple_diskusage(1, 1, 1024**4),
     )
     monkeypatch.setattr(guard.os, "execvpe", lambda *_args: (_ for _ in ()).throw(
         AssertionError("missing control state must fail closed")
@@ -277,6 +236,29 @@ def test_missing_host_control_state_fails_closed_before_exec(tmp_path, monkeypat
     assert receipt["flag_path"] == str(host_state)
 
 
+def test_symlink_host_control_state_fails_closed_before_exec(tmp_path, monkeypatch, capsys):
+    guard = _load_guard()
+    target = tmp_path / "actual-control-state"
+    target.mkdir()
+    alias = tmp_path / "control-state-alias"
+    alias.symlink_to(target, target_is_directory=True)
+    monkeypatch.setenv("OPENCLAW_STATE_DIR", str(alias))
+    monkeypatch.setenv("GIG_STATE_DIR", str(tmp_path / "gig"))
+    monkeypatch.setattr(
+        guard.shutil,
+        "disk_usage",
+        lambda _path: guard.shutil._ntuple_diskusage(1, 1, 1024**4),
+    )
+    monkeypatch.setattr(guard.os, "execvpe", lambda *_args: (_ for _ in ()).throw(
+        AssertionError("unsafe control directory must fail closed")
+    ))
+
+    assert guard.main(["/bin/echo", "child-sentinel"]) == 1
+    receipt = json.loads(capsys.readouterr().out)
+    assert receipt["reason"] == "disk_policy_unavailable"
+    assert receipt["flag_path"] == str(alias)
+
+
 def test_dangling_policy_flag_fails_closed_before_exec(tmp_path, monkeypatch, capsys):
     guard = _load_guard()
     host_state = Path.home() / ".openclaw" / "state"
@@ -285,7 +267,7 @@ def test_dangling_policy_flag_fails_closed_before_exec(tmp_path, monkeypatch, ca
     monkeypatch.setattr(
         guard.shutil,
         "disk_usage",
-        lambda _path: guard.shutil._ntuple_diskusage(1, 1, guard.REQUIRED_BYTES * 8),
+        lambda _path: guard.shutil._ntuple_diskusage(1, 1, 1024**4),
     )
     monkeypatch.setattr(guard.os, "execvpe", lambda *_args: (_ for _ in ()).throw(
         AssertionError("dangling policy flag must fail closed")
@@ -316,7 +298,7 @@ def test_receipt_fsyncs_parent_directory_after_atomic_replace(tmp_path, monkeypa
     assert len(closed) == 1
 
 
-def test_low_headroom_skips_probe_worker_reconcile_and_sqlite(tmp_path, monkeypatch):
+def test_explicit_stop_skips_probe_worker_reconcile_and_sqlite(tmp_path, monkeypatch):
     detector = _load_reply_detector()
     args = SimpleNamespace(
         database=tmp_path / "supervisor.sqlite3",
@@ -332,7 +314,7 @@ def test_low_headroom_skips_probe_worker_reconcile_and_sqlite(tmp_path, monkeypa
 
     class UnexpectedSQLite:
         def __init__(self, *_args, **_kwargs):
-            raise AssertionError("low headroom must not initialize SQLite")
+            raise AssertionError("explicit stop must not initialize SQLite")
 
     monkeypatch.setattr(detector, "ConnectorOutbox", UnexpectedSQLite)
 
@@ -401,7 +383,7 @@ def test_manifest_wraps_only_four_business_lanes():
     assert owner_script.index("gig_disk_guard.py") < owner_script.index("paid_direct.py")
 
 
-def test_manifest_keeps_browser_start_direct_and_pins_real_floor():
+def test_manifest_keeps_browser_start_direct_without_numeric_floor():
     manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
     browser = next(job for job in manifest["jobs"] if job["lane"] == "browser")
 
@@ -409,12 +391,19 @@ def test_manifest_keeps_browser_start_direct_and_pins_real_floor():
         "/bin/bash",
         "{{RELEASE}}/skills/earn/gig/scripts/launch_gig_browser.sh",
     ]
-    assert browser["env"]["GIG_DISK_HEADROOM_KIB"] == "524288"
+    assert "GIG_DISK_HEADROOM_KIB" not in browser["env"]
     assert "GIG_IGNORE_DISK_PRESSURE_BLOCK" not in browser["env"]
     assert "GIG_IGNORE_DISK_WRITERS_STOP" not in browser["env"]
     # KeepAlive retry behavior remains A-22 scope; this slice only fences starts.
     assert browser["KeepAlive"] is True
     assert browser["ThrottleInterval"] == 30
+
+
+def test_install_preflight_has_no_numeric_disk_requirement():
+    installer = (GIG_ROOT / "install.sh").read_text(encoding="utf-8")
+    assert "disk_headroom" not in installer
+    assert "524288" not in installer
+    assert "df -Pk" not in installer
 
 
 def test_browser_script_preflights_before_profile_and_chromium_with_fixed_policy():
@@ -424,29 +413,31 @@ def test_browser_script_preflights_before_profile_and_chromium_with_fixed_policy
     profile = script.index('mkdir -p "$GIG_BROWSER_PROFILE"')
     chromium = script.index("chromium_bin=")
     assert guard < profile < chromium
-    assert "GIG_DISK_HEADROOM_KIB=524288" in script
+    assert "GIG_DISK_HEADROOM_KIB" not in script
     assert 'GIG_HOST_STATE_DIR="$HOME/.local/state/life-manager/state"' in script
     assert 'GIG_STATE_DIR="$HOME/gig"' in script
     assert 'runtime/host/browser_port_owner.py' in script
     assert 'GIG_BROWSER_OWNER="${GIG_BROWSER_OWNER:-hf-gig-browser}"' in script
     assert '--owner "$GIG_BROWSER_OWNER"' in script
     assert 'GIG_BROWSER_PORT_OWNED=1' in script
-    assert "unset GIG_IGNORE_DISK_PRESSURE_BLOCK GIG_IGNORE_DISK_WRITERS_STOP" in script
+    assert "unset GIG_IGNORE_DISK_WRITERS_STOP" in script
+    assert "GIG_IGNORE_DISK_PRESSURE_BLOCK" not in script
     assert "unset DISK_CONTROL_STATE_DIR OPENCLAW_STATE_DIR LIFE_MANAGER_HOST_STATE_DIR" in script
-    assert "export GIG_DISK_HEADROOM_KIB GIG_HOST_STATE_DIR GIG_STATE_DIR" in script
+    assert "export GIG_HOST_STATE_DIR GIG_STATE_DIR" in script
     assert '"$DISK_GUARD" /usr/bin/true' in script
 
 
 def test_self_build_uses_shared_guard_before_dependency_and_node_effects():
     script = SELF_BUILD_PATH.read_text(encoding="utf-8")
 
-    assert "LIFE_MANAGER_DISK_HEADROOM_KIB=524288" in script
+    assert "LIFE_MANAGER_DISK_HEADROOM_KIB=524288" not in script
     assert "LIFE_MANAGER_HOST_STATE_DIR=" in script
     assert 'readonly LM_SELFBUILD_CANONICAL_HOST_STATE="$LIFE_MANAGER_STATE_HOME/state"' in script
     assert "LIFE_MANAGER_PRODUCER_STATE_DIR=" in script
     assert 'DISK_GUARD="$REPO_ROOT/runtime/host/disk_admission.py"' in script
     assert script.count('/usr/bin/python3 "$DISK_GUARD" /usr/bin/true') == 2
-    assert "unset LIFE_MANAGER_IGNORE_DISK_PRESSURE_BLOCK LIFE_MANAGER_IGNORE_DISK_WRITERS_STOP" in script
+    assert "unset LIFE_MANAGER_IGNORE_DISK_WRITERS_STOP" in script
+    assert "LIFE_MANAGER_IGNORE_DISK_PRESSURE_BLOCK" not in script
     assert "unset DISK_CONTROL_STATE_DIR OPENCLAW_STATE_DIR" in script
     assert script.count("/usr/bin/true") == 2
     first_guard = script.index("/usr/bin/true")
@@ -461,38 +452,28 @@ def test_writer_article_daily_already_has_media_preflight_and_bounded_stop_paths
 
     assert "media_create_once.py" in script
     assert "arm --run-dir \"$RUN_DIR\"" in script
-    # writer_capacity_preflight() (2026-08-21 a73ee4c04) gates BOTH the 11GiB floor and both
-    # control flags -- disk-writers.stop and disk-pressure.block -- before a model pass is ever
-    # started.
+    # The numeric floor and soft pressure marker no longer gate Writer. The explicit hard stop
+    # still applies before a model pass and while the bounded pass is running.
     assert "writer_capacity_preflight" in script
     preflight = script[script.index("writer_capacity_preflight() {"):script.index(
         "if ! writer_capacity_preflight"
     )]
-    assert '"$control_dir/disk-writers.stop" "$control_dir/disk-pressure.block"' in preflight
-    # 2026-08-28 f6e700c9a "fix(writer): ignore preventive disk marker" narrowed the *in-flight*
-    # bounded-exec watchdog to disk-writers.stop only: disk-pressure.block is a preventive/soft
-    # signal the preflight above already resolves (and GIG_IGNORE_DISK_PRESSURE_BLOCK can waive)
-    # before any provider starts, so it must not abort an already-running, expensive model pass
-    # mid-flight. disk-writers.stop is the harder stop and still interrupts a running pass.
+    assert 'python3 "$LIFE_MANAGER_REPO/runtime/host/disk_admission.py" /usr/bin/true' in preflight
+    assert "disk-pressure.block" not in script
+    assert "GIG_IGNORE_DISK_WRITERS_STOP" not in preflight
+    assert "WRITER_CANONICAL_HOME=\"$(/usr/bin/python3 -c 'import os, pwd; print(pwd.getpwuid(os.getuid()).pw_dir)')\"" in script
+    assert 'WRITER_DISK_CONTROL_DIR="$WRITER_CANONICAL_HOME/.local/state/life-manager/state"' in script
+    assert 'LIFE_MANAGER_HOST_STATE_DIR="$WRITER_DISK_CONTROL_DIR"' in script
     assert (
-        'BOUNDED_EXEC_STOP_PATHS="${LIFE_MANAGER_HOST_STATE_DIR:-'
-        '$HOME/.local/state/life-manager/state}/disk-writers.stop"'
+        'BOUNDED_EXEC_STOP_PATHS="$WRITER_DISK_CONTROL_DIR/disk-writers.stop"'
     ) in script
-    assert (
-        'BOUNDED_EXEC_STOP_PATHS="${LIFE_MANAGER_HOST_STATE_DIR:-'
-        '$HOME/.local/state/life-manager/state}/disk-writers.stop:'
-        '${LIFE_MANAGER_HOST_STATE_DIR:-$HOME/.local/state/life-manager/state}/disk-pressure.block"'
-    ) not in script
 
 
 @pytest.mark.parametrize(
     ("flag_name", "reason"),
-    (
-        ("disk-writers.stop", "disk_writers_stop"),
-        ("disk-pressure.block", "disk_pressure_block"),
-    ),
+    (("disk-writers.stop", "disk_writers_stop"),),
 )
-def test_self_build_stop_flag_blocks_npm_and_node_effects(tmp_path, flag_name, reason):
+def test_self_build_stop_flag_blocks_dependency_and_cli_effects(tmp_path, flag_name, reason):
     home = tmp_path / "home"
     repo = tmp_path / "repo"
     bin_dir = tmp_path / "bin"
@@ -557,6 +538,7 @@ def test_self_build_stop_flag_blocks_npm_and_node_effects(tmp_path, flag_name, r
         "HOME": str(home),
         "PATH": f"{bin_dir}:/usr/bin:/bin",
         "LM_SELFBUILD_REPO": str(repo),
+        "LM_SELFBUILD_LEDGER": str(tmp_path / "self-build-ledger.jsonl"),
         "LM_SELFBUILD_TELEGRAM_TARGET": "test-target",
         "NODE_BIN": str(node),
         "GIG_DISK_HEADROOM_KIB": "0",
@@ -579,15 +561,15 @@ def test_self_build_stop_flag_blocks_npm_and_node_effects(tmp_path, flag_name, r
         check=False,
     )
 
-    assert result.returncode != 0
-    assert not marker.exists()
+    assert result.returncode != 0, result.stderr
+    assert not marker.exists(), explicit_log.read_text(encoding="utf-8")
     assert explicit_log.is_file()
     assert (tmp_path / "guard-calls").read_text(encoding="utf-8") == "1"
     receipt = json.loads(
         (home / ".local" / "state" / "life-manager" / "state" / "disk-headroom.json")
         .read_text(encoding="utf-8")
     )
-    assert receipt["required_bytes"] == 536870912
+    assert receipt["required_bytes"] == 0
     assert receipt["effect"] == 0
     assert receipt["reason"] == reason
     assert not (hostile_state / "state" / "disk-headroom.json").exists()
@@ -595,10 +577,7 @@ def test_self_build_stop_flag_blocks_npm_and_node_effects(tmp_path, flag_name, r
 
 @pytest.mark.parametrize(
     ("flag_name", "reason"),
-    (
-        ("disk-writers.stop", "disk_writers_stop"),
-        ("disk-pressure.block", "disk_pressure_block"),
-    ),
+    (("disk-writers.stop", "disk_writers_stop"),),
 )
 def test_browser_stop_flag_blocks_before_profile_or_chromium(tmp_path, flag_name, reason):
     home = tmp_path / "home"
@@ -647,12 +626,12 @@ def test_browser_stop_flag_blocks_before_profile_or_chromium(tmp_path, flag_name
     receipt = json.loads(
         (home / "gig" / "state" / "disk-headroom.json").read_text(encoding="utf-8")
     )
-    assert receipt["required_bytes"] == 536870912
+    assert receipt["required_bytes"] == 0
     assert receipt["effect"] == 0
     assert receipt["reason"] == reason
 
 
-def test_apply_ignores_preventive_flags_but_keeps_a_real_disk_floor():
+def test_apply_has_no_numeric_disk_floor():
     release_path = Path("/release")
     release_script = GIG_ROOT / "scripts" / "gig_release.py"
     spec = importlib.util.spec_from_file_location("gig_release_apply_guard_test", release_script)
@@ -663,12 +642,11 @@ def test_apply_ignores_preventive_flags_but_keeps_a_real_disk_floor():
     apply = next(job for job in manifest["jobs"] if job["lane"] == "apply")
 
     environment = release.plist_for(apply, table)["EnvironmentVariables"]
-    assert environment["GIG_IGNORE_DISK_PRESSURE_BLOCK"] == "1"
-    assert environment["GIG_IGNORE_DISK_WRITERS_STOP"] == "1"
-    assert environment["GIG_DISK_HEADROOM_KIB"] == "524288"
+    assert "GIG_IGNORE_DISK_WRITERS_STOP" not in environment
+    assert "GIG_DISK_HEADROOM_KIB" not in environment
 
 
-def test_negotiate_ignores_preventive_flags_but_keeps_a_real_disk_floor():
+def test_negotiate_has_no_numeric_disk_floor():
     release_path = Path("/release")
     release_script = GIG_ROOT / "scripts" / "gig_release.py"
     spec = importlib.util.spec_from_file_location("gig_release_negotiate_guard_test", release_script)
@@ -679,9 +657,8 @@ def test_negotiate_ignores_preventive_flags_but_keeps_a_real_disk_floor():
     negotiate = next(job for job in manifest["jobs"] if job["lane"] == "negotiate")
 
     environment = release.plist_for(negotiate, table)["EnvironmentVariables"]
-    assert environment["GIG_IGNORE_DISK_PRESSURE_BLOCK"] == "1"
-    assert environment["GIG_IGNORE_DISK_WRITERS_STOP"] == "1"
-    assert environment["GIG_DISK_HEADROOM_KIB"] == "524288"
+    assert "GIG_IGNORE_DISK_WRITERS_STOP" not in environment
+    assert "GIG_DISK_HEADROOM_KIB" not in environment
 
 
 def test_legacy_gig_manifest_does_not_own_writer_lanes():
@@ -780,7 +757,7 @@ def test_browser_launcher_restores_vault_after_cdp_is_ready(tmp_path):
     assert marker.read_text(encoding="utf-8") == f"restored:{port}"
 
 
-def test_browser_ignores_legacy_pressure_marker_and_obeys_canonical_cleanup(
+def test_browser_ignores_pressure_marker_and_cleanup_removes_stale_file(
     tmp_path, monkeypatch,
 ):
     canonical = tmp_path / ".local/state/life-manager/state"
@@ -823,8 +800,8 @@ def test_browser_ignores_legacy_pressure_marker_and_obeys_canonical_cleanup(
         ["/bin/bash", str(GIG_BROWSER_PATH)], env=env,
         text=True, capture_output=True, timeout=10,
     )
-    assert blocked.returncode == 1
-    assert starts.read_text(encoding="utf-8").count("started") == 1
+    assert blocked.returncode == 7
+    assert starts.read_text(encoding="utf-8").count("started") == 2
 
     cleanup = _load_disk_cleanup()
     monkeypatch.setattr(
@@ -844,5 +821,5 @@ def test_browser_ignores_legacy_pressure_marker_and_obeys_canonical_cleanup(
         text=True, capture_output=True, timeout=10,
     )
     assert resumed.returncode == 7
-    assert starts.read_text(encoding="utf-8").count("started") == 2
+    assert starts.read_text(encoding="utf-8").count("started") == 3
     assert (legacy / "disk-pressure.block").exists()

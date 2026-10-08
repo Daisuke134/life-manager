@@ -22,7 +22,6 @@ def _load(name: str, path: Path):
     return module
 
 
-capacity = _load("writer_capacity_floor_w2", SCRIPTS / "writer_capacity_floor.py")
 demand = _load("demand_card_w2", SCRIPTS / "demand_card.py")
 image = _load("gpt_image_headline_w2", SCRIPTS / "gpt_image_headline.py")
 
@@ -64,48 +63,9 @@ def _bindings() -> dict[str, object]:
     }
 
 
-def test_w2_boundaries_fail_closed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    capacity_receipt = tmp_path / "capacity" / "article-run-floor.json"
-    capacity_receipt.parent.mkdir()
-    capacity_receipt.write_text(
-        json.dumps(
-            {
-                "schema": "writer.capacity-receipt",
-                "version": 1,
-                # JSON booleans are not measured integer counters.
-                "observed_consumption_kib": True,
-                "atomic_reserve_kib": 524_288,
-                "required_free_kib": 524_289,
-            }
-        ),
-        encoding="utf-8",
-    )
-    monkeypatch.delenv("ARTICLE_CAPACITY_RECEIPT", raising=False)
-    monkeypatch.delenv("ARTICLE_DISK_MIN_FREE_BYTES", raising=False)
-    with pytest.raises(capacity.CapacityFloorError, match="capacity_receipt_invalid"):
-        capacity.resolve_disk_floor_bytes(tmp_path)
-
-    monkeypatch.setenv("ARTICLE_DISK_MIN_FREE_BYTES", "1")
-    capacity_receipt.unlink()
-    with pytest.raises(
-        capacity.CapacityFloorError, match="disk_headroom_configuration_invalid"
-    ):
-        capacity.resolve_disk_floor_bytes(tmp_path)
-
-    monkeypatch.setenv(
-        "GIG_DISK_HEADROOM_KIB", str(capacity.CANONICAL_DISK_HEADROOM_KIB * 2)
-    )
-    monkeypatch.setenv(
-        "ARTICLE_DISK_MIN_FREE_BYTES", str(capacity.CANONICAL_DISK_HEADROOM_BYTES)
-    )
-    with pytest.raises(
-        capacity.CapacityFloorError, match="disk_headroom_configuration_invalid"
-    ):
-        capacity.resolve_disk_floor_bytes(tmp_path)
-    monkeypatch.setenv(
-        "GIG_DISK_HEADROOM_KIB", str(capacity.CANONICAL_DISK_HEADROOM_KIB)
-    )
-
+def test_w2_demand_and_image_boundaries_fail_closed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
     observations = [
         _observation("duplicate-id", "https://paid.example/offer", "paid_market"),
         _observation("duplicate-id", "https://demand.example/job", "reader_demand"),

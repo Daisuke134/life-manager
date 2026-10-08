@@ -3812,14 +3812,14 @@ def commit_decisions(
                     phase = "click_confirm"
                     effects.click_confirm(request_id)
                     effects.crash_if_requested("after_confirm_click")
-                    phase = "pre_submit_headroom"
+                    phase = "pre_submit_disk_policy"
                     if not gig_disk_guard.disk_headroom_ok():
                         results.append(_pre_submit_abort_result(
                             store,
                             request_id,
                             intent,
                             phase=phase,
-                            error=ParentContractError("disk_headroom_low"),
+                            error=ParentContractError("disk_policy_stop_or_unavailable"),
                         ))
                         continue
                     if attempt_budget_path is None and submit_attempts >= cap:
