@@ -45,7 +45,7 @@ Order update: old order=`verify Instagram → connect Postiz → add owner → r
 
 - PR #7173 is merged to `main` as `0f7cfb616dcb585a42868f2a5092c8cd9951675e`. Owner code, fail-closed `setup_required` behavior, exact-render slot reuse, three daily slots, and owner-scoped publication identity are in main.
 - Focused acceptance before merge: Node 20/20; Python distribution owner 4/4; runtime loop bounds 138/138; targeted apply contract 2/2; fleet retry contract 34/34; loop contract 18 loops/188 jobs; `git diff --check`. Fresh read-only source review found no merge blocker.
-- **Completion evidence:** source is in main. Production remains uninstalled until the exact Instagram integration is live.
+- **Completion evidence:** source is in main. Production has not adopted the merged owner yet; the exact Instagram integration is a separate eligibility gate before publishing.
 
 ### 2. Identify the exact Hadrian video and prove it is unpublished
 
