@@ -720,7 +720,9 @@ except (OSError, ValueError, plistlib.InvalidFileException):
     print("")
 PY
   )"
-  if [ -n "$handoff_release_sha" ] && [ "$installed_reconciler_sha" != "$handoff_release_sha" ]; then
+  if [ -n "$handoff_release_sha" ] \
+    && { [ "${LIFE_MANAGER_RECONCILER_FORCE_HANDOFF:-0}" = "1" ] \
+      || [ "$installed_reconciler_sha" != "$handoff_release_sha" ]; }; then
     schedule_self_handoff "$handoff_release_root" "$handoff_release_sha"
   fi
   exit 0
