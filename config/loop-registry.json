@@ -1398,7 +1398,7 @@
       "state_root": "~/.local/state/life-manager/fuel-watch"
     },
     "fundraiser": {
-      "admission_class": "borrow",
+      "admission_class": "revenue",
       "admission_effect_scope": "occurrence",
       "cadence": {
         "start_interval_seconds": 3600
@@ -1414,7 +1414,7 @@
       "entrypoint": "skills/fundraiser-agent/runtime/run.sh",
       "label": "ai.anicca.fundraiser",
       "log_root": "~/.local/state/life-manager/fundraiser/logs",
-      "priority": "support",
+      "priority": "revenue",
       "provider_route": "shared-agent-runner",
       "resource_class": "agent",
       "state_root": "~/.local/state/life-manager/fundraiser",
@@ -1862,7 +1862,7 @@
       "state_root": "~/.local/state/life-manager/x402-sell"
     },
     "job-search-daily": {
-      "admission_class": "borrow",
+      "admission_class": "revenue",
       "cadence": {
         "start_interval_seconds": 1800
       },
@@ -1877,9 +1877,9 @@
       "entrypoint": "apps/job-search-loop/scripts/run-daily.sh",
       "label": "ai.anicca.job-search-daily",
       "log_root": "~/.local/state/anicca/job-search/logs",
-      "priority": "support",
+      "priority": "revenue",
       "provider_route": "deterministic",
-      "resource_class": "deterministic",
+      "resource_class": "agent",
       "state_root": "~/.local/state/anicca/job-search"
     },
     "job-search-health": {
