@@ -61,18 +61,21 @@ class LoopCleanupTest(unittest.TestCase):
             "errors": 0, "protected_deletions": 0, "free_after": recovery_floor,
         }))
 
-    def test_host_cleanup_requires_capacity_recovery_floor(self):
-        incident_receipt = {
+    def test_host_cleanup_accepts_clean_unmet_recovery_metric(self):
+        receipt = {
             "tier": "ULTRA",
             "free_after": 626_888_704,
             "reclaimed": 8_071,
             "errors": 0,
             "protected_deletions": 0,
         }
-        self.assertFalse(host_cleanup_ok(0, incident_receipt))
-        self.assertTrue(host_cleanup_ok(0, {
-            "errors": 0, "protected_deletions": 0, "free_after": 2 * 1024**3,
-        }))
+        self.assertTrue(host_cleanup_ok(0, receipt))
+        ok, result = host_cleanup_readback(0, json.dumps(receipt) + "\n")
+        self.assertTrue(ok)
+        self.assertEqual(result["capacity_recovery"], {
+            "status": "unmet",
+            "recovery_floor_bytes": 2 * 1024**3,
+        })
 
     def test_host_cleanup_missing_or_invalid_capacity_readback_fails_closed(self):
         receipts = (
@@ -80,11 +83,6 @@ class LoopCleanupTest(unittest.TestCase):
             {"errors": 0, "protected_deletions": 0, "free_after": None},
             {"errors": 0, "protected_deletions": 0, "free_after": True},
             {"errors": 0, "protected_deletions": 0, "free_after": "2147483648"},
-            {
-                "errors": 0,
-                "protected_deletions": 0,
-                "free_after": 2 * 1024**3 - 1,
-            },
         )
         for receipt in receipts:
             with self.subTest(receipt=receipt):

@@ -7168,10 +7168,10 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 
 ### 2026-10-08 — remove numeric disk-headroom stops from all loops
 
-This contract supersedes every earlier or later historical cursor in this SSOT that makes producer work wait for a numeric free-space value, including the capacity snapshots below. Those snapshots remain evidence of past state, not active execution gates.
+This contract supersedes every earlier or later historical cursor and TODO step in this SSOT that makes producer work wait for a numeric free-space value, including the capacity snapshots below. Those snapshots remain evidence of past state, not active execution gates.
 
 - The global loop runner previously deferred ordinary jobs below 2 GiB and selected paid jobs below 1 GiB; main later lowered `critical_paid` to 256 MiB and `revenue` to 512 MiB. Producer, Gig, and Writer wrappers add 512 MiB or measured Writer-capacity floors. Writer publication and release creation have separate numeric disk checks. These checks repeatedly defer revenue and other scheduled work.
-- **Contract:** no loop, producer wrapper, Writer publication path, or release builder rejects work solely because measured free bytes are below a configured floor. Keep actual filesystem errors, unavailable/unsafe state, durable-effect fences, and the explicit hard `disk-writers.stop` operator control; launchd environment variables cannot bypass that stop file. Do not treat a cleanup recovery metric as a producer admission rule: cleanup may continue to report whether it restored 2 GiB, while other loops keep making progress.
+- **Contract:** no loop, producer wrapper, Writer publication path, or release builder rejects work solely because measured free bytes are below a configured floor. Keep actual filesystem errors, unavailable/unsafe state, durable-effect fences, and the explicit hard `disk-writers.stop` operator control; launchd environment variables cannot bypass that stop file. Cleanup reports the 2 GiB recovery metric separately from pass/fail: a measured shortfall alone does not make the cleanup occurrence fail, while unknown measurement, cleanup errors, protected deletions, and an unresolved explicit stop remain visible.
 - **Limit:** this removes preventive headroom stops; it cannot prevent a real write from failing with `ENOSPC`. Record that as the actual failed operation and continue the next scheduled occurrence. Never replay an external effect whose outcome is unknown.
 
 **順序更新:** 旧順序=`cleanupがfree_after >= 2 GiBへ戻すまで全loopをadmission待機 → release反映 → natural run`。新順序=`numeric headroom checksを全producer/release経路から除去 → focused acceptanceとfresh review → mainへ統合 → immutable releaseを通常経路で反映 → natural occurrencesを確認し、実際のENOSPCはwrite failureとして記録 → cleanupは回復指標を継続`。理由は、固定空き容量だけによる全loop停止をユーザーが明示的に廃止したため。既に実行中のownerや外部effectは中断・再送しない。
@@ -7182,12 +7182,13 @@ This contract supersedes every earlier or later historical cursor in this SSOT t
 2. [x] Regression testsを変更し、`0` bytesのvalid measurementでadmission・Writer publication・agent-runner retentionが進み、unavailable measurement・unsafe control path・explicit hard stopは引き続き拒否されることを確認する。
 3. [x] Loop contract、host/Gig/Browser/Writer/SelfFix/agent-runner focused tests、shell contracts、JSON/shell syntax、`git diff --check`を既存headで確認する。static source scanでfree-space比較によるactive admission stopはなく、historical event decoding、cleanup recovery metric、Writerのclone-cleanup triggerは別用途のまま残る。Writerはpwd ownerのcanonical host stop pathを使い、Gig control rootのsymlink/owner/mode validationを行う。
 4. [x] Fresh reviewのstop-path迂回を修正する。共通host guardとGig guardはOS userのcanonical `.local/.../state`・`.openclaw/state`を常に確認する。Gig TODOの512 MiB待機を撤回し、runner manifest hashとbaseline例外を同期する。
-5. [ ] PR #7179 current headの必須CIとfresh read-only reviewをpassさせ、同じheadをSHIPで確認する。
-6. [ ] latest-main専用PRをmergeする。main由来immutable releaseを自然経路で反映し、loaded SHA/argvと新規natural occurrenceのadmission resultを読む。cleanup receiptは診断値として継続する。
+5. [x] Cleanup CLIと`runtime/loop/central_cleanup.py` wrapperの`ok`/exit statusを`capacity_recovery.status`と分離する。recovery=`unmet`だけなら、測定成功・errors=0・protected_deletions=0の場合にnonzero終了しない。unknown measurement・実cleanup error・explicit stopは引き続きfailureとして記録する。既存のcontract expectationsを更新する。
+6. [ ] PR #7179 current headの必須CIとfresh read-only reviewをpassさせ、同じheadをSHIPで確認する。
+7. [ ] latest-main専用PRをmergeする。main由来immutable releaseを自然経路で反映し、loaded SHA/argvと新規natural occurrenceのadmission resultを読む。cleanup receiptは診断値として継続する。
 
 **完了条件:** 実行可能なloopのpreflightがfree-space数値だけを理由にdefer/exitしない。実ENOSPC、測定不能、明示stop、effect-unknownは正確な理由で区別される。main由来releaseの適用とnatural readbackを確認するまではsource修正の範囲で報告し、収益はproviderの公式settlement/readbackなしに主張しない。
 
-**現在cursor:** PR #7179 current headの必須CI + fresh SHIP review → merge → immutable release/natural readback → Affiliateの既存publish fenceをofficial readbackで照合 → sales/settlement receipt。
+**現在cursor:** cleanup terminalの数値floor判定を`ok`/exit statusから切り離す → PR #7179 current headをcommit/push → exact-head CI + fresh SHIP review → merge → immutable release/natural readback → Affiliateの既存publish fenceをofficial readbackで照合 → sales/settlement receipt。
 
 
 ### Marketing IntelからWriterへの記事候補連携（並列作業）
@@ -7305,13 +7306,13 @@ This contract supersedes every earlier or later historical cursor in this SSOT t
 
 **当時のcursor:** merge HEAD/spec updateをpush → PRを作成しexact-head CIとfresh read-only `ship` review → merge → immutable release/natural fleet readback → disk writer attributionとcleanup診断（2 GiB admission gateなし）→ target effect readbackと各loop natural run → same-window capacity/economics。
 
-**残TODO（完了まで・この順）:**
+**当時の残TODO（2026-10-08 snapshot; numeric disk gates superseded by this contract）:**
 
 1. **現在cursor—最新main merge commitとこのSSOT cursorをpushする。** task branchだけを更新し、`origin/main`への直接pushはしない。
 2. task branchからPRを作り、正確なHEAD SHAでrequired CIとfresh read-only reviewを取得する。reviewが`ship`でなければ指摘を修正し、更新後HEADでCI/reviewを取り直す。条件が揃ったらPRをmergeする。
 3. merge SHA由来のimmutable releaseを自然handoffさせ、reconcilerを止めずloaded SHAとfleet stateをreadbackする。budget-progress partialは短い期限で次のSHAへ継続し、通常errorは1800秒のcoalesceを維持することを確認する。
-4. `host-inventory`、次回dueのfull inventory、cleanup receipts、`df`/APFS、owner/process I/Oを同時刻で突合し、writerまたは安全なowner専有回収対象を特定する。protected pathを変更せず、cleanup receiptで`free_after >= 2 GiB`、`errors=0`、`protected_deletions=0`と後続admission passを確認する。
-5. disk/admission回復後、target別effect fenceをofficial provider readbackで解決してからConnector/Luma、Job Hunter/Workday、Fundraiser/VC・AI founderの各loopを自然実行し、receipt、`gpt-6-luna/max/fast`、Telegram reportをoccurrenceへ結び付ける。`effect_unknown`は再送しない。
+4. `host-inventory`、次回dueのfull inventory、cleanup receipts、`df`/APFS、owner/process I/Oを同時刻で突合し、writerまたは安全なowner専有回収対象を特定する。protected pathを変更せず、`free_after`・`errors`・`protected_deletions`は診断値として記録する。2 GiB到達や後続admission passをproducer実行条件にしない。
+5. target別effect fenceをofficial provider readbackで解決してからConnector/Luma、Job Hunter/Workday、Fundraiser/VC・AI founderの各loopを自然実行し、receipt、`gpt-6-luna/max/fast`、Telegram reportをoccurrenceへ結び付ける。`effect_unknown`は再送せず、numeric free-spaceは実行条件にしない。
 6. 三loopと同じ時間窓のclaims/reservations/eligible queue age/admission reason/class contention/CPU/RAM/diskと実同時稼働数を測定する。global cap 8は設定値と実測capacityを分け、disk/owner修正後もcap飽和でrevenue ownerが待つと証明された場合だけ最小のclass/global変更を行う。応募、返信、面談、funding、settled cash、costsを別々に記録する。
 
 ### Marketing IntelからWriterへの記事候補連携（並列作業）
@@ -7340,7 +7341,7 @@ This contract supersedes every earlier or later historical cursor in this SSOT t
 
 **順序更新:** 旧cursor=`PR #7156 checks/review pass → merge`。新順=`(1) このlive readbackを含むSSOTをcommit-pushし、新PR headを固定 → (2) exact-head CI/fresh reviewを再取得しmerge → (3) immutable release/natural fleet readback → (4) disk writer/容量変動を特定してcleanup receiptを診断 → (5) Fundraiserの4 unknown occurrenceをofficial readbackでfence解消 → (6) owner-idle/lock-freeの三loop natural provider outcomes without numeric free-space gate → (7) 同一windowで実際の有限job並列数とclass capを計測`。理由は、producerの数値floorで実行を待たせないためである。
 
-**残TODO（完了まで・この順）:**
+**当時の残TODO（historical plan; numeric producer floors superseded by PR #7179）:**
 
 1. **現在cursor—このSSOT更新をcommit/pushしてPR #7156のheadを更新する。** code/testは変えていないが、更新後headでcheck/reviewを取り直す。
 2. 更新後のPR headでrequired CIとfresh read-only reviewerの`ship`を得てPRをmergeする。headが変われば再取得する。
@@ -7408,19 +7409,19 @@ This contract supersedes every earlier or later historical cursor in this SSOT t
 2. Commit the revenue-admission plan with this SSOT update; push the task branch and verify the PR diff still contains only this task's source/test/spec/plan files beyond latest main.
 3. PR #7156's new head must pass exact-head CI and fresh read-only `ship` review before merge.
 4. After #7156 merge, create the follow-up architecture branch from latest main and execute the revenue-floor plan with its focused regression tests and fresh review.
-5. Apply the main-derived immutable release through the natural owner path; verify stable watchdog run/receipt, target owner admission, and 2 GiB recovery/admission.
+5. Apply the main-derived immutable release through the natural owner path; verify stable watchdog run/receipt and target owner admission without a numeric free-space prerequisite. Record the cleanup recovery metric as a diagnostic only.
 6. Resolve Fundraiser's four `effect_unknown` occurrences through official provider readback without replay, then observe Connector/Luma, Job Hunter/Workday, and Fundraiser/VC-AI-founder natural outcomes.
 7. Measure claims/reservations/queue age/class contention/CPU/RAM/disk/swap and actual finite-job parallelism in one window after recovery. Change the cap only if observed saturation proves it is the remaining limit.
 
 **現在cursor:** commit latest-main merge → commit SSOT and revenue-floor plan → push → exact-head PR #7156 CI/review/merge → follow-up revenue-floor PR → immutable release/watchdog recovery → target readbacks and natural outcomes → same-window capacity measurement.
 
-### 2026-10-08 23:29 JST — watchdog natural run and follow-up plan
+### 2026-10-08 23:29 JST — watchdog natural run and follow-up plan (historical; floor proposal superseded by PR #7179)
 
 - `com.anicca.disk-watchdog` safe readback after the stable-wrapper install shows `state=running`, `program=/Users/anicca/.local/bin/disk-watchdog.sh`, `runs=6`. Its next natural receipt at `2026-10-08T14:29:22Z` (`23:29:22 JST`) has `errors=0`, `protected_deletions=0`, `reclaimed=6,405`, `free_after=852,484,096`, recovery=`unmet`; paired `df -k /` was `816,616 KiB`. The stale-release error log has not changed since 23:22:18; the remaining lines are historical `can't open file` entries from before the stable install.
 - The stable watchdog is a recovery lane outside finite `lm_loop_run` admission. It runs the current immutable cleanup governor, but it has reclaimed only about 6 KiB per pass so far; the exact reason free space stays under 1 GiB is unresolved.
-- A follow-up executable plan is recorded at `docs/superpowers/plans/2026-10-08-revenue-admission-floor.md`. It changes only `_disk_floor` and its tests: `revenue` owners use the 1 GiB floor from #7166, borrow/support stay at 2 GiB, and the global finite-run cap remains 8. The remote PR head is still `e4b64e45bf`; this merge/plan update is not pushed yet, so old CI is not current evidence.
+- The historical follow-up plan `docs/superpowers/plans/2026-10-08-revenue-admission-floor.md` proposed a 1 GiB `revenue` floor and 2 GiB borrow/support floor. PR #7179 supersedes that floor proposal; the plan and old PR head `e4b64e45bf` are not active admission policy.
 
-**当時のcursor:** commit latest-main merge resolution + revenue-floor plan → push branch → exact-head PR #7156 CI/fresh review/merge → natural release/readback → watchdog receipt diagnostics (no numeric producer admission) → revenue-floor follow-up PR → Fundraiser fence readback → target natural outcomes → same-window capacity.
+**当時のcursor:** commit latest-main merge resolution → push branch → exact-head PR #7156 CI/fresh review/merge → natural release/readback → watchdog receipt diagnostics (no numeric producer admission) → Fundraiser fence readback → target natural outcomes → same-window capacity.
 
 
 ### 2026-10-08 23:37 JST — review findings corrected on the current PR cursor

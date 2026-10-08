@@ -112,11 +112,15 @@ def _capacity_recovery(result: object) -> dict[str, str | int]:
 
 
 def _cleanup_terminal_ok(result: object) -> bool:
+    if not isinstance(result, dict):
+        return False
+    stop = result.get("disk_writers_stop", {"status": "absent"})
+    stop_status = stop.get("status") if isinstance(stop, dict) else None
     return (
-        isinstance(result, dict)
-        and result.get("errors") == 0
+        result.get("errors") == 0
         and result.get("protected_deletions") == 0
-        and _capacity_recovery(result)["status"] == "met"
+        and _capacity_recovery(result)["status"] != "unknown"
+        and stop_status in {"absent", "cleared"}
     )
 
 

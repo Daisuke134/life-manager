@@ -43,17 +43,20 @@ allow-listed regenerable artifact after an open-path probe confirms
 - Homebrew, pip, and uv package download caches are regenerable candidates and
   are reclaimed only after the same confirmed-closed check.
 - The 5-minute pass has one atomic lock and no LLM deletion authority.
-- The 2 GiB recovery value describes cleanup success only; it does not pause
-  producer or release loops. `disk-pressure.block` is advisory. The explicit
-  `disk-writers.stop` file remains a separate hard operator control.
+- The 2 GiB recovery value is a cleanup diagnostic only; it does not determine
+  cleanup pass/fail and does not pause producer or release loops.
+  `disk-pressure.block` is advisory. The explicit `disk-writers.stop` file
+  remains a separate hard operator control.
 - The central cleanup terminal reports capacity recovery separately from
-  deletion outcomes: integer `free_after` must meet the existing 2 GiB floor;
-  a shortfall is `unmet`, and missing or invalid capacity is `unknown`. These
+  cleanup success: integer `free_after` is compared with the 2 GiB diagnostic
+  target; a shortfall is `unmet`, and missing or invalid capacity is `unknown`.
+  A measured `unmet` status alone does not fail the cleanup occurrence. These
   statuses do not replace `errors` or `protected_deletions`.
-- The direct governor CLI stores the same capacity status and `ok` in its pass
-  receipt and exits nonzero for unmet or unknown capacity, deletion errors, or
-  protected deletions. A busy singleton lock reports `cleanup_lock_busy` with
-  unknown capacity and exits 75 without running cleanup.
+- The direct governor CLI stores capacity status separately from `ok`. It exits
+  nonzero for unknown capacity, deletion errors, protected deletions, or a
+  preserved explicit `disk-writers.stop`; it exits zero for a clean pass whose
+  measured recovery is `unmet`. A busy singleton lock reports
+  `cleanup_lock_busy` with unknown capacity and exits 75 without running cleanup.
 - Candidate order rotates through `state_dir/candidate-cursor.json`. The cursor
   advances atomically under the governor's singleton lock; if disk exhaustion
   prevents that metadata write, the in-memory rotation still sweeps and retries

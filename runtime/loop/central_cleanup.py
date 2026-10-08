@@ -227,9 +227,17 @@ def _host_cleanup_capacity_status(result: object) -> str:
 
 
 def host_cleanup_ok(returncode: int, result: object) -> bool:
-    return (returncode == 0 and isinstance(result, dict)
-            and result.get("errors") == 0 and result.get("protected_deletions") == 0
-            and _host_cleanup_capacity_status(result) == "met")
+    if not isinstance(result, dict):
+        return False
+    stop = result.get("disk_writers_stop", {"status": "absent"})
+    stop_status = stop.get("status") if isinstance(stop, dict) else None
+    return (
+        returncode == 0
+        and result.get("errors") == 0
+        and result.get("protected_deletions") == 0
+        and _host_cleanup_capacity_status(result) != "unknown"
+        and stop_status in {"absent", "cleared"}
+    )
 
 
 def host_cleanup_readback(returncode: int, stdout: str) -> tuple[bool, dict]:
