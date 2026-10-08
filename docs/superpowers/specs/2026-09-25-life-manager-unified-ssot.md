@@ -8990,23 +8990,9 @@ This entry supersedes the prior producer-review cursor. CFO priority remains A5 
 
 **Current cursor:** observe PID65831 to natural terminal → latest immutable pointer/owner SHA/doctor → storage owner fresh readback → built-in CFO queue rebind → natural receipt-backed report → A5 → A6 → A8 → A9 → A10.
 
-### Marketing IntelからWriterへの記事候補連携（並列作業）
+### Marketing Intel→Writer連携の旧スナップショット
 
-**目的:** `marketing-weekly-review`がTelegramへ報告する未検証の`CONTENT`戦術を、既存Writerの`article-daily`トピックキューへ候補として渡す。AffiliateやX repostには配線しない。
-
-**契約:** `playbook.jsonl`から`testable=true`、statusが`new`または`queued`、`applies_to`に`content`を含み、`evidence_url`・`source_url`・`source-enrichments.jsonl`のいずれかで正確な出典URLを持つ戦術だけを取り込む。未処理戦術を出典付きの一枚のWriter topic cardにまとめ、`queue`・`in-progress`・`done`を通じて重複させない。記事カードは一人の読者、持ち帰る結果、支払う理由、検証計画を含み、戦術は実証済み効果ではなく検証仮説として扱う。`SOURCE FAILURES`は記事ネタに混ぜない。候補の作成は公開ではなく、Writer既存の需要・出典・品質ゲートとnote/SNS配信を維持する。
-
-**受入:** 最小fixtureで対象フィルタ、出典URL復元、未処理IDのみの取り込み、再実行と処理済みstageでの重複ゼロを確認する。`article-daily`が通常のtopic-state初期化後にこの取込を呼び、既存キューの選択順を保持する。source統合後はnumeric free-space admissionを待たず自然occurrenceでWriterの既存公開経路を通し、公開URLと公式売上readbackを確認するまで収益を主張しない。
-
-**順序:** source/test変更は現在のguard PR・disk cleanupの主cursorと独立して進め、主cursorの順序は変更しない。Writer runtimeへはowner idleとtopic-state lock freeを確認して候補カード1枚だけを追加した。これは公開ではない。production反映と自然実行はowner idle・lock free・effect fence解消後に行う。cleanup receiptの`free_after`・`errors`・`protected_deletions`は回復診断値であり、2 GiB到達をWriterのadmission条件にしない。
-
-**進捗:** PR #7158は全required CIとfresh read-only SHIP review後、main commit `be130839878c2e46bc677ee225fa19ae48785288`としてmerge済み。importerのfixtureはRED→GREENで、CONTENT対象・URL復元・queue/in-progress/doneの重複ゼロ・既存queue順維持を確認した。実データのdry-runは8戦術を1カードにまとめた。Writer runtime queueにも`marketing-intel-content-tactics-20261008.md`を登録し、同じ8 IDsと出典URLをreadbackした。既存の`paid-demand-*`カードが先に選ばれる順序を維持している。
-
-**production blocker (2026-10-09 readback):** `article-daily` is still installed on SHA `25bee172fa532b848b106c317766b36e1ddd1ddb`; its last terminal (`18dc93d7507dfae0-6815`, Oct 8 14:23 UTC) is `host_admission_deferred:disk_headroom_low`, exit 75, with no provider receipt/readback. The cleanup owner is on SHA `1fe7db3b634bb910187b846c7246aa7fe0dcba82` and its latest status is `loaded-idle / pass / exit 0` (Oct 8 15:17 UTC). The cleanup recovery metric remains 2 GiB; a previous receipt reported `free_after=882302976` bytes, which is not a producer admission rule. Current read-only `df` reports about 2.47 GiB free. PR #7179 removes numeric producer floors but is not yet in production. Affiliate is independently fenced by publish `resource_effect_unknown`; Capafy is independently fenced by publish `effect_unknown`. Both still require exact official readback before replay.
-
-**現在cursor:** PR #7179をmerge・releaseし、Writerをnumeric capacity gateなしで自然実行させる（owner lock・effect fenceを維持し、既存の先行カードを保つ）→ Affiliate/Capafyの各unknown publishをofficial readbackで照合し、証拠のないものは再送しない → 公開URL・note paywall状態・PartnerStack/公式売上readbackと実費を同じcampaignへ結ぶ。
-
-**履歴の扱い:** 以下の2026-10-08 capacity記録は当時の観測として保持する。そこにある「2 GiBまで待つ」producer admission手順は、この文書上の2026-10-09 numeric-gate removal方針で置き換え済み。2 GiBはcleanup回復receiptの指標だけに使う。
+→ 判断・契約・受入条件・現在cursorは本SSOTの「Marketing Intel→Writer: 需要検証済み記事への補助コンテキスト」を参照。以前のtopic queue import案は、Writerのpaid-demand専用契約に反するため廃止。
 
 ### 2026-10-08 22:02 JST — capacity cursor refreshed from live disk/admission evidence
 
@@ -9114,17 +9100,34 @@ This entry supersedes the prior producer-review cursor. CFO priority remains A5 
 5. target別effect fenceをofficial provider readbackで解決してからConnector/Luma、Job Hunter/Workday、Fundraiser/VC・AI founderの各loopを自然実行し、receipt、`gpt-6-luna/max/fast`、Telegram reportをoccurrenceへ結び付ける。`effect_unknown`は再送せず、numeric free-spaceは実行条件にしない。
 6. 三loopと同じ時間窓のclaims/reservations/eligible queue age/admission reason/class contention/CPU/RAM/diskと実同時稼働数を測定する。global cap 8は設定値と実測capacityを分け、disk/owner修正後もcap飽和でrevenue ownerが待つと証明された場合だけ最小のclass/global変更を行う。応募、返信、面談、funding、settled cash、costsを別々に記録する。
 
-### Marketing IntelからWriterへの記事候補連携（並列作業）
+### Marketing Intel→Writer: 需要検証済み記事への補助コンテキスト
 
-**目的:** `marketing-weekly-review`がTelegramへ報告する未検証の`CONTENT`戦術を、既存Writerの`article-daily`トピックキューへ候補として渡す。AffiliateやX repostには配線しない。
+目的: marketing-weekly-reviewがTelegramへ送るCONTENT戦術を報告だけで終わらせず、既存Writerが需要検証済みトピックの記事を作る時の補助材料として使う。今回のメッセージ自体はMarketing Engineの仮説レポートであり、AffiliateやX repostの実行・成果・売上を示さない。直接その二つへ配線しない。
 
-**契約:** `playbook.jsonl`から`testable=true`、statusが`new`または`queued`、`applies_to`に`content`を含み、`evidence_url`・`source_url`・`source-enrichments.jsonl`のいずれかで正確な出典URLを持つ戦術だけを取り込む。未処理戦術を出典付きの一枚のWriter topic cardにまとめ、`queue`・`in-progress`・`done`を通じて重複させない。記事カードは一人の読者、持ち帰る結果、支払う理由、検証計画を含み、戦術は実証済み効果ではなく検証仮説として扱う。`SOURCE FAILURES`は記事ネタに混ぜない。候補の作成は公開ではなく、Writer既存の需要・出典・品質ゲートとnote/SNS配信を維持する。
+確認済みの不整合: PR #7158のimporterは汎用marketing-intelカードをtopics/queueへ書く。一方、Writerのclaim_supplyはtopic_source: paid-demandと有効なdemand_cardがないカードを隔離し、demand_authority --demand-mode requiredはそのキューだけを唯一の話題権威として検査する。article-dailyがclaim後に同じ未検証カードを再投入するため、需要カードにならず、排除と再投入を繰り返す。PR #7274は既定でimporterを止めてキュー汚染を避けたが、同時にMarketing IntelをWriterから切り離した。どちらも記事制作・収益への連携ではない。
 
-**受入:** 最小fixtureで対象filter、出典URL復元、未処理IDのみの取り込み、再実行と処理済みstageでの重複ゼロを確認する。`article-daily`が通常のtopic-state初期化後にこの取込を呼び、既存キューの選択順を保持する。source統合後はnumeric free-space admissionを待たず自然occurrenceでWriterの既存公開経路を通し、公開URLと公式売上readbackを確認するまで収益を主張しない。
+現行runtime evidence: article-daily occurrence article-daily:18dcb160db0ac660-67443はexit 75、effect unknown、receipt/readbackなし。run logはmarketing-intel-48c88abc36f3.mdの再投入後に「demand topic queue contains non-paid-demand cards」と「demand authority blocked generation」を記録し、runにはpublication artifactもarticles.jsonl rowもない。lm-loop pre-effect-reconcile --dry-runはno_pre_effect_terminalでunprovableを返すため、公式readbackまではfenceを維持し再送しない。Affiliate occurrence affiliate-loop:18dcb253cf3b9cf8-41565とX repost occurrence x-repost:18dcb1c3aeb99600-88116もeffect unknown/receiptなし。writer-sales-measureの最新ledger rowはunknownで公式readbackなし。Telegramに貼られたレポートは情報受領を示すだけで、記事公開・Affiliate/X投稿・売上を示さない。
 
-**順序:** source/test変更は現在のguard PR・disk cleanupの主cursorと独立して進め、外部effectやowner stateを触らない。主cursorの順序は変更しない。production反映と自然実行はowner idle、topic-state lock-free、effect fence解消後に行う。cleanup receiptの`free_after`は診断値であり、2 GiB到達をadmission条件にしない。
+契約: Marketing Engineのplaybook.jsonlから、出典URL付き・testable=true・statusがnewまたはqueued・applies_toにcontentを含む戦術だけを抽出する。Writer runtimeのstrategy-context/marketing-intel.mdへ仮説として保存し、当該article-daily実行でrefreshが成功した時だけprompt末尾へ付加する。Writerは先に既存のpaid-demand topicを選択・束縛し、その記事に関係する場合だけ補助コンテキストとして使う。refresh欠落・失敗時は以前のcontextを使わず、既存Writerフローを続ける。contextは未信頼の出典データとして扱い、指示として実行しない。読者、課題、需要根拠、題材、価格、公開可否は検証済みpaid-demand cardと既存ゲートが所有する。関係しない戦術は無視し、SOURCE FAILURESは記事材料にしない。主張は出典に帰属し、実証済み効果や収益として書かない。
 
-**現在cursor:** fixture RED → 最小importerとarticle-daily接続 → focused acceptance → commit/push・PR/merge → immutable release → Writer natural occurrence without numeric capacity wait → 公開URL・公式売上readback。
+順序変更: 旧順序は「CONTENT戦術を新しいWriter topic cardにして必須キューへ投入する」だった。PR #7274のopt-inだけでは使われない状態が続く。新順序は「Marketing Intelを別の戦略コンテキストに保存し、当該実行のrefresh成功後に、Writerがpaid-demand cardを確定した記事へだけ適用する」。理由は、旧経路がWriterの需要契約に反し、claim loopで隔離されて記事にも収益にもならないと実運用で確認したため。AffiliateとX repostの動作をこの記事連携の根拠にはしない。
+
+受入条件: focused fixtureで対象フィルタ・出典URLの復元・戦術IDの一意性を確認し、importer実行前後でtopics/queueが一切変わらないことを確認する。成功refresh後のpromptだけがcontextを含み、欠落・破損したplaybookのrefresh失敗後は古いcontextを含まない。paid-demand cardが唯一のtopic authorityとして維持される。source変更後は同じ既存公開経路の自然実行で実際の記事URLと公開状態を取得し、公式売上readback・実費・replay-zeroまで確認する。既存effect_unknownは公式readbackを得るまで再送しない。
+
+現在cursorと残TODO:
+
+1. [x] 誤ったtopic queue経路と#7274 opt-inの限界を記録し、旧動作でqueue不変のregression testがREDになることを確認する。
+2. [x] Importerを別のstrategy-contextへ決定的に出力し、現在実行のrefresh成功時だけWriter prompt末尾へ渡す。claim_supplyとdemand_authorityは変更しない。
+3. [x] production importer/prompt shell blockをfixture上で実行するfocused regression、missing/malformed refresh、bash -n、diff checkを通す。敵対的reviewで見つかったstale-context経路、行継続、旧opt-in test残留を修正し、直接実行とunittest discoverの双方で1/1 PASS。
+4. [x] ./bin/lm-loop-contractはok=true、18 catalog loops、188 registry jobs、errors 0。
+5. [x] fresh adversarial reviewはSHIP、critical/high/medium/low指摘なし。c701846へrebase後もdirect/discover regression、bash -n、diff check、loop contractがPASS。
+6. [x] 専用branchをcommit/pushし、PR #7283を作成。mainがc701846へ進んだため最新headへrebaseし、focused testとloop contractを再確認した。
+7. [x] PR #7283はmergeable/CLEAN。GitHub check_runsは0件、branch protectionはrequired approvals 0・required checksなし。Local acceptanceとfresh adversarial reviewはPASS/SHIP。
+8. **現在cursor:** PR #7283を--adminで先にmergeし、origin/mainとmerge SHAをreadbackする。
+9. main由来immutable releaseを適用し、effect_unknownを先に公式readbackで解決してからWriterの自然occurrenceを確認する。未解決fenceがある間はpublishを再試行しない。
+10. 記事の公式URL・paywall/公開状態・売上・実費を同じ記事/occurrenceに結び付け、重複公開ゼロを確認する。
+
+現在cursor: step 8 — PR #7283 mergeとmain readback。
 
 ### 2026-10-08 23:00 JST — PR review/CIとlive capacityの初回readback
 
