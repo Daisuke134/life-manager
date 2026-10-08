@@ -8,7 +8,7 @@
 
 **Tech Stack:** Node.js, Python 3, node:test, pytest, Life Manager immutable releases.
 
-**Spec:** `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md` — “eBook Monk current blocker cursor — 2026-10-08 10:44 JST”.
+**Spec:** `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md` — “eBook Monk current blocker cursor — 2026-10-08 10:53 JST”.
 
 ## Global Constraints
 
@@ -145,11 +145,11 @@ PR #6999 merged as `46ec94bdea884fd7afa61e603a79fdd1b3048ef7` after a fresh inde
 
 - [x] **Step 1: Read the exact Postiz targets and today's posts**
 
-Observed 10:22 JST: the English Monk, Japanese TikTok, and Japanese Instagram integrations all return `disabled=false`. Today's Postiz list has two eBook `PUBLISHED` posts (one per Japanese target) and zero English Monk posts.
+Observed 10:52 JST: the English Monk, Japanese TikTok, and Japanese Instagram integrations all return `disabled=false`. Today's Postiz list has two eBook `PUBLISHED` posts (one per Japanese target) and zero English Monk posts.
 
 - [x] **Step 2: Read HeyGen video pages and wallet**
 
-Observed 10:22 JST: the full two-page title `Anicca` search returns zero videos. Wallet is USD 11.78; the sidecar recorded USD 12.30 before create. The USD 0.52 movement is not attributable to this create from the available evidence.
+Observed 10:52 JST: the full two-page title `Anicca` search returns zero videos. Wallet is USD 11.78; the sidecar recorded USD 12.30 before create. The USD 0.52 movement is not attributable to this create from the available evidence.
 
 - [x] **Step 3: Preserve the old effect fence**
 
