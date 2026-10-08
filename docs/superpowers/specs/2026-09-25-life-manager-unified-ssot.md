@@ -5260,6 +5260,30 @@ mainはPR #7039/#7040/#7044を含む`53d49879d79e5095f7cd4767cdedb95444ad1138`�
 
 **現在cursor:** item 1（PR #7041 latest-main CI）。production投稿を手動送信しない。
 
+### 2026-10-08 12:55 JST — post-merge source/spec; production identity recovery remains
+
+PR #7030（HeyGen ID/status recovery）とPR #7041（post-merge cursor）はmainへmerge済み。latest mainは`cea5024c627339c4dc61addf59154e1c808d5426`。この節のatomic TODOはsource/spec統合後のproduction cursorである。
+
+**12:55 JST readback:**
+
+- Postiz direct GETは3 integrationすべてenabled、今日2/9（英語0、日本語TikTok1、日本語Instagram1）。12:30 slotの両日本語ownerは`host_admission_deferred:resource_effect_unknown` / exit75でprovider call前に終了し、新規postなし。
+- `/Users/anicca/loops/current`は`20261008T124623-8f342d8d`。空き容量は4,702,468 KiB（2 GiB floor超）。release reconciler PID63286はloaded-running、cleanup occurrenceは`apply_lock_busy`。`lm-loop doctor`はretired Capafy browser labelだけでfalse。
+- English `18dc6de8dcf3a0e8-75262`はeffect unknown / receiptなし / identity `not_written`。HeyGen Anicca video listは0、wallet USD 11.78。再送しない。
+- 既存JP provider receiptsはPostiz `PUBLISHED`。しかし両occurrenceに一致するeffect-identity sidecarはなく、fence-reconcilerのcallは`no_match / exact_pending_receipt_unavailable / inspected=0`。local distribution receipt、marketing job receipt、publication-identity recordには同じPostiz ID/account/integration/slot/hashがあり、exact joinの候補だが、identity metadataが検証できるまでclaimは閉じない。
+- current eBook ownersはEnglish/JP TikTok SHA `fd3f5e49`、JP Instagram `94372580`。`lm-fence-reconciler`は`46ec94bd`で古い。mainに入った#7024のoccurrence-scope sourceも、そのownerへまだ適用されていない。
+
+**remaining atomic TODO:**
+
+1. release reconciler PID63286のnatural terminalとtarget/global apply-lock解放を確認する。停止・重複applyをしない。
+2. latest main由来releaseをreadbackし、`lm-fence-reconciler`と各eBook ownerをtargeted applyで揃える。unrelated Capafy retired labelによるglobal doctor warningをeBook target applyの条件にしない。
+3. JP旧claimについて、runtime occurrence、marketing job/effect key、distribution receiptのcaption/video hashes、account/integration、publish slot、Postiz official readbackを一意にjoinする。exact identityを既存owner adapterで復元できた場合だけ、同一occurrenceを`--auto-owner --resolve`で解放し、official readbackを再確認する。単独receiptや近接slotからsidecarを推定しない。足りないfieldは明示してfenceを保持する。
+4. 12:30 missed slotは既存due-slot関数上、次の20:00 slotまでcurrent dueとなる。identity claimが安全に解放されたら、次のnatural owner wakeで12:30 slotをcatch-upし、2 accountそれぞれの`PUBLISHED` receipt/post ID/public URLを確認する。再送・手動publishはしない。
+5. English old effectはHeyGen video IDまたは同create itemized billing recordが揃うまでunknownのまま。旧08:00を再送せず、安全にdispositionした後の別slotでfuture-preserving rendererからreceiptを取得する。
+6. all ownersの自然slotで各3 unique posts/day、9 receipts/dayとreplay-zeroを確認し、click attribution→locale Checkout→settled Stripe→matching PDF→Letter/Tegami net recurring MRRへ繋ぐ。one-time eBook saleをMRRに含めない。
+7. first paid eBook orderとmatching PDF receipt後にだけCapafy Instagram D5を開始し、1 canary/24hとする。$10,000 net MRRはsettled recurring evidenceの目標。
+
+**Daisの作業:** Postiz再接続、CAPTCHA、手動postは不要。source/spec PRはmainにある。今の実ブロッカーはold effect identitiesの欠損とowner admission claimsである。
+
 ### 2026-10-08 12:40 JST — 12:30 slots deferred by missing exact identities
 
 PR #7030はmainにmerge済み、main #7024のexact-occurrence provider reconcilerもcurrent symlink `20261008T123759-d1d58506`に含まれる。ただし`lm-fence-reconciler`はSHA `46ec94bd`、English/JP TikTok ownersは`fd3f5e49`、JP Instagram ownerは`94372580`のままで、最新releaseへ全ownerが揃っていない。mainはdocs PR #7045を含む`893a929f`まで進んでいる。
