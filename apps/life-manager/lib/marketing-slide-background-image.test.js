@@ -6,56 +6,49 @@ const os = require("node:os");
 const path = require("node:path");
 const test = require("node:test");
 
-const { GEMINI_IMAGE_COST_USD, promptCacheKey, resolveSlideBackground } = require("./marketing-slide-background-image.js");
+const { getCachedBackground, promptCacheKey, resolveSlideBackground } = require("./marketing-slide-background-image.js");
 
 function tempDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), "slide-bg-cache-"));
 }
 
-test("resolveSlideBackground calls fetchImage and writes the cache file on a cold cache", async () => {
+test("background resolver reuses an approved cached image without calling a provider", async () => {
   const cacheDir = tempDir();
-  let calls = 0;
+  const prompt = "a fixed approved background";
+  const file = path.join(cacheDir, `${promptCacheKey(prompt)}.png`);
+  fs.writeFileSync(file, Buffer.from("cached-image"));
+  let providerCalls = 0;
+
   const result = await resolveSlideBackground({
-    prompt: "a cozy lifestyle photo",
+    prompt,
     cacheDir,
-    apiKey: "test-key",
-    fetchImage: async (prompt, { apiKey }) => {
-      calls += 1;
-      assert.equal(prompt, "a cozy lifestyle photo");
-      assert.equal(apiKey, "test-key");
-      return { buffer: Buffer.from("fake-png-bytes"), extension: "png" };
-    },
+    apiKey: "fixture-key-that-must-not-be-used",
+    fetchImage: async () => { providerCalls += 1; throw new Error("paid image provider called"); },
   });
-  assert.equal(calls, 1);
-  assert.equal(result.cached, false);
-  assert.equal(result.costUsd, GEMINI_IMAGE_COST_USD);
-  assert.ok(fs.existsSync(result.file));
-  assert.equal(fs.readFileSync(result.file, "utf8"), "fake-png-bytes");
+
+  assert.equal(result.file, file);
+  assert.equal(result.costUsd, 0);
+  assert.equal(result.cached, true);
+  assert.equal(providerCalls, 0);
 });
 
-test("resolveSlideBackground is free and network-free on a warm cache (same prompt)", async () => {
+test("background resolver fails closed on a cache miss instead of generating a paid image", async () => {
   const cacheDir = tempDir();
-  let calls = 0;
-  const fetchImage = async () => { calls += 1; return { buffer: Buffer.from("x"), extension: "png" }; };
-  const first = await resolveSlideBackground({ prompt: "same prompt", cacheDir, apiKey: "k", fetchImage });
-  const second = await resolveSlideBackground({ prompt: "same prompt", cacheDir, apiKey: "k", fetchImage });
-  assert.equal(calls, 1);
-  assert.equal(second.cached, true);
-  assert.equal(second.costUsd, 0);
-  assert.equal(second.file, first.file);
+  let providerCalls = 0;
+
+  await assert.rejects(resolveSlideBackground({
+    prompt: "not in approved cache",
+    cacheDir,
+    apiKey: "fixture-key-that-must-not-be-used",
+    fetchImage: async () => { providerCalls += 1; throw new Error("paid image provider called"); },
+  }), /not in the approved cache/);
+
+  assert.equal(providerCalls, 0);
 });
 
-test("resolveSlideBackground uses a different cache entry per distinct prompt", async () => {
+test("getCachedBackground requires an existing approved asset", () => {
   const cacheDir = tempDir();
-  const fetchImage = async () => ({ buffer: Buffer.from("x"), extension: "png" });
-  const a = await resolveSlideBackground({ prompt: "prompt A", cacheDir, apiKey: "k", fetchImage });
-  const b = await resolveSlideBackground({ prompt: "prompt B", cacheDir, apiKey: "k", fetchImage });
-  assert.notEqual(a.file, b.file);
-});
-
-test("resolveSlideBackground rejects a missing prompt or cache dir", async () => {
-  await assert.rejects(resolveSlideBackground({ prompt: "", cacheDir: "/tmp/x" }), /prompt/);
-  await assert.rejects(resolveSlideBackground({ prompt: "p", cacheDir: "" }), /cache dir/);
+  assert.throws(() => getCachedBackground({ prompt: "missing", cacheDir }), /not in the approved cache/);
 });
 
 test("promptCacheKey is a stable sha256 hex digest", () => {
@@ -63,25 +56,4 @@ test("promptCacheKey is a stable sha256 hex digest", () => {
   assert.match(key, /^[0-9a-f]{64}$/);
   assert.equal(key, promptCacheKey("hello"));
   assert.notEqual(key, promptCacheKey("hello2"));
-});
-
-const { getCachedBackground } = require("./marketing-slide-background-image.js");
-
-test("getCachedBackground returns the cached file at $0 cost and never calls the network", async () => {
-  const cacheDir = tempDir();
-  const cached = await resolveSlideBackground({
-    prompt: "a fixed approved background",
-    cacheDir,
-    apiKey: "k",
-    fetchImage: async () => ({ buffer: Buffer.from("x"), extension: "png" }),
-  });
-  const result = getCachedBackground({ prompt: "a fixed approved background", cacheDir });
-  assert.equal(result.file, cached.file);
-  assert.equal(result.costUsd, 0);
-  assert.equal(result.cached, true);
-});
-
-test("getCachedBackground throws (never fetches) when the prompt was never cached", () => {
-  const cacheDir = tempDir();
-  assert.throws(() => getCachedBackground({ prompt: "never generated", cacheDir }), /not in the approved cache/);
 });

@@ -2,123 +2,185 @@
 
 const crypto = require("node:crypto");
 
-// Generates fresh Larry slide-pack TEXT (hook + 4 body lines) for one pack.
-// Dais direction (2026-09-28): the approved background images are good and
-// must be REUSED every pack (see getCachedBackground() in
-// marketing-slide-background-image.js); only the text should be new each
-// post, driven by the family's explore/exploit performance. This keeps the
-// per-pack cost near-zero (a few hundred text tokens) instead of the
-// previous per-pack image-generation cost.
-
-const GEMINI_TEXT_MODEL = "gemini-2.5-flash";
-const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_TEXT_MODEL}:generateContent`;
-// Published per-token pricing for gemini-2.5-flash (input/output), used only
-// to record an audit-friendly cost estimate on the approval object -- not
-// billed from here. thinkingConfig.thinkingBudget: 0 (below) keeps actual
-// usage near the low end of this (~100-200 tokens/call, well under $0.001).
-const INPUT_COST_PER_TOKEN = 0.30 / 1_000_000;
-const OUTPUT_COST_PER_TOKEN = 2.50 / 1_000_000;
-
-// One brief per hook/format family per locale -- the explore/exploit unit
-// rotation.js already scores. Add a family here + to
-// marketing-slide-pack-factory.js's FAMILIES background sets to grow
-// variety; add a locale here to extend fresh-text generation to a new
-// language lane (parameterized, not forked -- every lane calls this same
-// module through generateSlidePackCandidates).
-const FAMILY_BRIEFS_JA = Object.freeze({
-  "question-hook": "a question-hook style: slide 1 is a short, pointed rhetorical question that makes the reader feel seen; the next 4 slides give short, concrete, gentle reframes or small actions, one per slide.",
-  listicle: "a numbered listicle style: slide 1 is a short, curiosity-driving list title (e.g. \"...習慣５選\"); the next 4 slides are short numbered items (ひとつめ/ふたつめ/みっつめ/よっつめ), one short concrete habit or tip per slide.",
-  "myth-vs-fact": "a myth-vs-fact style: slide 1 states a common but flawed belief people hold about mental wellbeing; the next 4 slides gently contrast it with a healthier reframe, one short idea per slide.",
+// Copy stays local and deterministic. Background and text generation must not
+// call a paid model; vary a seed per scheduled slot and render with Pillow.
+const FAMILY_BRIEFS_BY_LOCALE = Object.freeze({
+  ja: Object.freeze({
+    "question-hook": "short question followed by a gentle reframe",
+    listicle: "four numbered small habits",
+    "myth-vs-fact": "a common belief followed by a gentle alternative",
+  }),
+  en: Object.freeze({
+    "question-hook": "short question followed by a gentle reframe",
+    listicle: "four numbered small habits",
+    "myth-vs-fact": "a common belief followed by a gentle alternative",
+  }),
 });
-const FAMILY_BRIEFS_EN = Object.freeze({
-  "question-hook": "a question-hook style: slide 1 is a short, pointed rhetorical question that makes the reader feel seen; the next 4 slides give short, concrete, gentle reframes or small actions, one per slide.",
-  listicle: "a numbered listicle style: slide 1 is a short, curiosity-driving list title (e.g. \"5 habits that quietly fix your mood\"); the next 4 slides are short numbered items (1/2/3/4), one short concrete habit or tip per slide.",
-  "myth-vs-fact": "a myth-vs-fact style: slide 1 states a common but flawed belief people hold about mental wellbeing; the next 4 slides gently contrast it with a healthier reframe, one short idea per slide.",
+const FAMILY_BRIEFS = FAMILY_BRIEFS_BY_LOCALE.ja;
+
+const BANKS = Object.freeze({
+  ja: Object.freeze({
+    "question-hook": Object.freeze([
+      "今日の自分に、\n厳しすぎない？",
+      "「まだ足りない」が\n口癖になってない？",
+      "疲れた自分に、\n何と声をかける？",
+      "小さくできたこと、\n見落としてない？",
+      "うまくいかない日も、\n自分を責めてない？",
+      "予定の前に、\n気分を確かめてる？",
+      "休むことまで、\n後回しにしてない？",
+      "不安な夜、\nひとりで抱えてない？",
+    ]),
+    listicle: Object.freeze([
+      "気持ちを整える\n小さな習慣４選",
+      "朝の自分を助ける\nやさしい習慣４つ",
+      "心に余白をつくる\n小さなヒント４選",
+      "疲れた日に試す\n自分への声かけ４選",
+      "今日からできる\n気分の切り替え４選",
+      "自分を責めないための\n小さな工夫４選",
+      "忙しい朝にできる\n心の整え方４つ",
+      "落ち着きたい時の\n小さな合図４選",
+    ]),
+    "myth-vs-fact": Object.freeze([
+      "「気合いで直す」は\n本当に近道？",
+      "いつも前向きで\nいなきゃダメ？",
+      "休むのは遅れ？\n整える時間？",
+      "完璧にできないと\n意味がない？",
+      "「まだ足りない」は\n本当のこと？",
+      "比べ続ければ\n前に進める？",
+      "自分を責めるほど\n早く変われる？",
+      "強くなるとは\n無理を続けること？",
+    ]),
+  }),
+  en: Object.freeze({
+    "question-hook": Object.freeze([
+      "Are you asking too much of yourself?",
+      "What would a kinder inner voice say?",
+      "Are you leaving room to rest today?",
+      "Do you notice what went well?",
+      "Are you carrying this alone?",
+      "What is one small step for today?",
+      "Can you pause before judging yourself?",
+      "What would make this morning gentler?",
+    ]),
+    listicle: Object.freeze([
+      "4 small habits for a calmer day",
+      "4 kinder ways to start your morning",
+      "4 small steps to make room to breathe",
+      "4 reminders for a difficult day",
+      "4 ways to be less hard on yourself",
+      "4 gentle habits you can try today",
+      "4 ways to reset your attention",
+      "4 calm starts for a busy morning",
+    ]),
+    "myth-vs-fact": Object.freeze([
+      "Does willpower fix every hard day?",
+      "Do you have to stay positive all the time?",
+      "Is rest really falling behind?",
+      "Does perfect mean worthwhile?",
+      "Is not enough always a fact?",
+      "Does comparing help you move forward?",
+      "Does self-criticism create change?",
+      "Does being strong mean never pausing?",
+    ]),
+  }),
 });
-const FAMILY_BRIEFS_BY_LOCALE = Object.freeze({ ja: FAMILY_BRIEFS_JA, en: FAMILY_BRIEFS_EN });
-// Back-compat default export: existing JA-only callers keep working unchanged.
-const FAMILY_BRIEFS = FAMILY_BRIEFS_JA;
 
-function buildPrompt(familyId, avoidTexts, locale = "ja") {
-  const briefs = FAMILY_BRIEFS_BY_LOCALE[locale] || FAMILY_BRIEFS_BY_LOCALE.ja;
-  const brief = briefs[familyId];
-  if (!brief) throw new Error(`slide text family ${familyId} is not configured for locale ${locale}`);
-  const avoid = avoidTexts.length
-    ? `Avoid repeating or closely paraphrasing any of these already-used lines:\n${avoidTexts.map((line) => `- ${String(line).replace(/\n/g, " / ")}`).join("\n")}\n`
-    : "";
-  const languageLine = locale === "en"
-    ? "You are writing English carousel slide copy for a mental-wellness affirmation app."
-    : "You are writing Japanese carousel slide copy for a mental-wellness affirmation app.";
-  const lengthLine = locale === "en"
-    ? "Each line must be short enough to read at a glance (aim for under 8 words per line)."
-    : "Each line must be short enough to read at a glance (aim for under 20 Japanese characters per line; you may use a single \"\\n\" inside a line to break it into two short lines for a slide).";
-  return `${languageLine} Never make medical claims, diagnoses, or guarantees.
-Write ${brief}
-${lengthLine}
-${avoid}Return ONLY compact JSON, no markdown fencing, in exactly this shape: {"hook": "...", "body": ["...", "...", "...", "..."]} (the hook string plus exactly 4 body strings).`;
+const BODY_BANKS = Object.freeze({
+  ja: Object.freeze([
+    "できたことをひとつ数える",
+    "比べる時間を少しだけ減らす",
+    "疲れた日は基準を下げていい",
+    "深呼吸して肩の力を抜く",
+    "予定の前に気分を確かめる",
+    "完璧より続けやすさを選ぶ",
+    "休む時間を先に決めておく",
+    "今できる一歩を小さく選ぶ",
+    "気持ちを短くノートに書く",
+    "迷ったらひとつだけ進める",
+    "朝はやさしい一言から始める",
+    "夜はできたことを振り返る",
+    "心配ごとを紙に書き分ける",
+    "できない日も予定の一部にする",
+    "自分のペースを先に決めておく",
+    "必要なら信頼できる人に話す",
+  ]),
+  en: Object.freeze([
+    "Count one thing you finished today.",
+    "Take a slow breath and lower your shoulders.",
+    "Make one next step small enough to start.",
+    "Choose a pace you can keep.",
+    "Write the worry down and sort it later.",
+    "Leave a little time to rest.",
+    "Notice what went well before moving on.",
+    "Ask someone you trust for support.",
+    "Pause before comparing your day to theirs.",
+    "Let a difficult day be one part of your week.",
+    "Check how you feel before checking the schedule.",
+    "Use one gentle reminder to begin the morning.",
+    "Pick one task instead of chasing every task.",
+    "Give yourself permission to do a smaller version.",
+    "Close the day by naming one good moment.",
+    "Keep the next step simple and clear.",
+  ]),
+});
+
+function seedNumber(seed, label) {
+  return crypto.createHash("sha256").update(`${seed}\u0000${label}`).digest().readUInt32BE(0);
 }
 
-// Real network call, kept tiny and injectable (`fetchImpl`) so callers never
-// have to hit the network (or spend money) in tests.
-async function fetchGeminiText(prompt, { apiKey, fetchImpl = fetch } = {}) {
-  if (!apiKey) throw new Error("GEMINI_API_KEY is required for slide text generation");
-  const response = await fetchImpl(`${ENDPOINT}?key=${encodeURIComponent(apiKey)}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { responseMimeType: "application/json", thinkingConfig: { thinkingBudget: 0 } },
-    }),
-  });
-  if (!response.ok) throw new Error(`Gemini text generation HTTP ${response.status}`);
-  const body = await response.json();
-  const text = body?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) throw new Error("Gemini text generation returned no text");
-  const usage = body.usageMetadata || {};
-  const costUsd = (Number(usage.promptTokenCount || 0) * INPUT_COST_PER_TOKEN)
-    + (Number(usage.candidatesTokenCount || 0) * OUTPUT_COST_PER_TOKEN);
-  return { text, costUsd };
-}
-
-// Returns { hook, body: [4 strings], costUsd }.
-async function generateSlideCopy({ familyId, apiKey, avoidTexts = [], locale = "ja", generateText = fetchGeminiText }) {
-  const prompt = buildPrompt(familyId, avoidTexts, locale);
-  const { text, costUsd } = await generateText(prompt, { apiKey });
-  let parsed;
-  try {
-    parsed = JSON.parse(String(text).trim().replace(/^```(?:json)?\s*|\s*```$/g, ""));
-  } catch {
-    throw new Error("slide text generation returned invalid JSON");
+function pickHook(hooks, seed, avoidTexts) {
+  const used = new Set(avoidTexts.map((text) => String(text).trim().toLocaleLowerCase()));
+  const start = seedNumber(seed, "hook") % hooks.length;
+  for (let offset = 0; offset < hooks.length; offset += 1) {
+    const candidate = hooks[(start + offset) % hooks.length];
+    if (!used.has(candidate.trim().toLocaleLowerCase())) return candidate;
   }
-  if (
-    !parsed || typeof parsed.hook !== "string" || !parsed.hook.trim()
-    || !Array.isArray(parsed.body) || parsed.body.length !== 4
-    || parsed.body.some((line) => typeof line !== "string" || !line.trim())
-  ) {
-    throw new Error("slide text generation returned an invalid shape");
-  }
-  return { hook: parsed.hook.trim(), body: parsed.body.map((line) => line.trim()), costUsd };
+  return hooks[start];
 }
 
-// Video hook/title/description text (honne-ja-cycle.js / marketing-video-generation-
-// adapter.js's selectHook()) has no per-post generation step at all -- it just reuses a
-// hook.text from a static pack forever (see the YouTube "Daily Affirmation App" repeat
-// measured 2026-09-25..28). Rather than forking a second Gemini call path for video,
-// this reuses generateSlideCopy() unchanged and only takes its `hook` line: any style
-// hint (the winning hook's own static text, i.e. the "type" #6047's metrics already
-// picked) is hashed to one of the family briefs above deterministically, so the same
-// winning type always asks for the same style of fresh line while the words are new
-// every call.
+function pickBodyLines(lines, seed, familyId, locale) {
+  const order = lines.map((_, index) => index);
+  let state = seedNumber(seed, `${familyId}:${locale}:body`);
+  for (let index = order.length - 1; index > 0; index -= 1) {
+    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+    const swap = state % (index + 1);
+    [order[index], order[swap]] = [order[swap], order[index]];
+  }
+  const labels = locale === "ja"
+    ? ["ひとつめ", "ふたつめ", "みっつめ", "よっつめ"]
+    : ["1", "2", "3", "4"];
+  return order.slice(0, 4).map((lineIndex, index) => (
+    familyId === "listicle" ? `${labels[index]}: ${lines[lineIndex]}` : lines[lineIndex]
+  ));
+}
+
+async function generateSlideCopy({ familyId, locale = "ja", variantSeed = "default", avoidTexts = [] } = {}) {
+  const normalizedLocale = BANKS[locale] ? locale : "ja";
+  const hooks = BANKS[normalizedLocale][familyId];
+  if (!hooks) throw new Error(`family ${familyId} is not configured for locale ${normalizedLocale}`);
+  const seed = `${normalizedLocale}:${familyId}:${String(variantSeed)}`;
+  return {
+    hook: pickHook(hooks, seed, avoidTexts),
+    body: pickBodyLines(BODY_BANKS[normalizedLocale], seed, familyId, normalizedLocale),
+    costUsd: 0,
+  };
+}
+
 function familyForStyleHint(styleHint, locale = "ja") {
-  const families = Object.keys(FAMILY_BRIEFS_BY_LOCALE[locale] || FAMILY_BRIEFS_BY_LOCALE.ja);
+  const families = Object.keys(BANKS[locale] || BANKS.ja);
   const index = crypto.createHash("sha256").update(String(styleHint || "")).digest()[0] % families.length;
   return families[index];
 }
 
-async function generateVideoHookText({ styleHint, apiKey, avoidTexts = [], locale = "en", generateText = fetchGeminiText }) {
+async function generateVideoHookText({ styleHint, avoidTexts = [], locale = "en", variantSeed } = {}) {
   const familyId = familyForStyleHint(styleHint, locale);
-  const copy = await generateSlideCopy({ familyId, apiKey, avoidTexts, locale, generateText });
-  return { hook: copy.hook, costUsd: copy.costUsd };
+  const copy = await generateSlideCopy({
+    familyId,
+    avoidTexts,
+    locale,
+    variantSeed: variantSeed || `${styleHint || ""}:${avoidTexts.join("|")}`,
+  });
+  return { hook: copy.hook, costUsd: 0 };
 }
 
-module.exports = { FAMILY_BRIEFS, FAMILY_BRIEFS_BY_LOCALE, buildPrompt, familyForStyleHint, fetchGeminiText, generateSlideCopy, generateVideoHookText };
+module.exports = { FAMILY_BRIEFS, FAMILY_BRIEFS_BY_LOCALE, familyForStyleHint, generateSlideCopy, generateVideoHookText };
