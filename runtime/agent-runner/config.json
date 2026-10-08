@@ -240,7 +240,8 @@
           "model": "gpt-6-luna",
           "effort": "max",
           "service_tier": "fast",
-          "profile_alias": "acct1"
+          "profile_alias": "acct1",
+          "fail_fast_provider_lease": true
         }
       ]
     },
@@ -255,7 +256,8 @@
           "model": "gpt-6-luna",
           "effort": "max",
           "service_tier": "fast",
-          "profile_alias": "acct1"
+          "profile_alias": "acct1",
+          "fail_fast_provider_lease": true
         }
       ]
     },
@@ -270,7 +272,8 @@
           "model": "gpt-6-luna",
           "effort": "max",
           "service_tier": "fast",
-          "profile_alias": "acct1"
+          "profile_alias": "acct1",
+          "fail_fast_provider_lease": true
         }
       ]
     },

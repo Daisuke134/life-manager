@@ -1,100 +1,111 @@
 #!/usr/bin/env python3
-"""Check an isolated local browser transport through its own CDP endpoint."""
+"""Read-only health and context-count probe for the registered daily-driver."""
 
 from __future__ import annotations
 
 import json
 import os
-import signal
 import subprocess
-import tempfile
-import time
-import urllib.request
+import sys
+import urllib.parse
 from pathlib import Path
+from typing import Any
 
 
-def _stop_owned_group(process: subprocess.Popen) -> None:
+IDENTITY = "interactive:dais"
+
+
+def run_probe(endpoint: str, inventory: dict[str, Any]) -> dict[str, Any]:
+    parsed = urllib.parse.urlsplit(str(endpoint))
+    if (
+        parsed.scheme != "http"
+        or parsed.hostname not in {"127.0.0.1", "localhost", "::1"}
+        or not parsed.port
+        or parsed.username
+        or parsed.password
+        or parsed.path not in {"", "/"}
+        or parsed.query
+        or parsed.fragment
+    ):
+        return {"ok": False, "reason": "browser_endpoint_invalid", "effect": 0}
+
+    context_count = inventory.get("context_count")
+    leased = inventory.get("leased_context_ids")
+    unknown = inventory.get("unknown_owner_contexts")
+    if (
+        inventory.get("ok") is not True
+        or isinstance(context_count, bool)
+        or not isinstance(context_count, int)
+        or context_count < 0
+        or not isinstance(leased, list)
+        or not isinstance(unknown, list)
+    ):
+        return {"ok": False, "reason": "context_inventory_unavailable", "effect": 0}
+
+    return {
+        "ok": True,
+        "reason": "cdp_ready",
+        "effect": 0,
+        "context_count": context_count,
+        "leased_context_count": len(leased),
+        "unknown_owner_context_count": len(unknown),
+    }
+
+
+def _run_json(command: list[str], *, env: dict[str, str] | None = None) -> tuple[int, dict[str, Any] | None]:
     try:
-        os.killpg(process.pid, signal.SIGTERM)
-    except ProcessLookupError:
-        pass
-    time.sleep(0.5)
-    # Keep the parent unreaped so its process-group ID cannot be reused here.
-    try:
-        os.killpg(process.pid, signal.SIGKILL)
-    except (ProcessLookupError, PermissionError):
-        # macOS may report EPERM for a group with only its unreaped leader.
-        pass
-    process.wait(timeout=2)
-
-
-def run_probe(binary: Path, state_root: Path, *, timeout_seconds: float = 20) -> dict:
-    if not binary.is_file() or not os.access(binary, os.X_OK):
-        return {"ok": False, "reason": "browser_unavailable"}
-    state_root.mkdir(parents=True, exist_ok=True, mode=0o700)
-    watched = (signal.SIGTERM, signal.SIGINT)
-    previous = {signum: signal.getsignal(signum) for signum in watched}
-    cancelled = False
-
-    def cancel(_signum, _frame):
-        nonlocal cancelled
-        cancelled = True
-
-    for signum in watched:
-        signal.signal(signum, cancel)
-    try:
-        with tempfile.TemporaryDirectory(prefix="browser-probe-", dir=state_root) as profile:
-            command = [
-                str(binary), "--no-sandbox", "--no-first-run", "--no-default-browser-check",
-                "--disable-sync", "--disable-extensions",
-                "--disable-features=MacAppCodeSignClone",
-                "--remote-debugging-address=127.0.0.1", "--remote-debugging-port=0",
-                "--no-startup-window", f"--user-data-dir={profile}",
-            ]
-            process = None
-            if cancelled:
-                return {"ok": False, "reason": "cancelled"}
-            try:
-                process = subprocess.Popen(
-                    command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                    start_new_session=True,
-                )
-                port_file = Path(profile) / "DevToolsActivePort"
-                deadline = time.monotonic() + timeout_seconds
-                while time.monotonic() < deadline:
-                    if cancelled:
-                        return {"ok": False, "reason": "cancelled"}
-                    if port_file.is_file():
-                        try:
-                            port = int(port_file.read_text().splitlines()[0])
-                            if not 1 <= port <= 65535:
-                                raise ValueError("invalid CDP port")
-                            with urllib.request.urlopen(
-                                f"http://127.0.0.1:{port}/json/version", timeout=2,
-                            ) as response:
-                                details = json.load(response)
-                            if isinstance(details.get("Browser"), str) and details["Browser"]:
-                                return {"ok": True, "reason": "cdp_ready"}
-                        except (OSError, ValueError, IndexError, json.JSONDecodeError):
-                            pass
-                    time.sleep(0.1)
-                return {"ok": False, "reason": "cdp_unavailable"}
-            finally:
-                if process is not None:
-                    _stop_owned_group(process)
-    finally:
-        for signum, handler in previous.items():
-            signal.signal(signum, handler)
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=8,
+            env=env,
+        )
+        payload = json.loads(result.stdout)
+    except (OSError, subprocess.SubprocessError, json.JSONDecodeError):
+        return 1, None
+    return result.returncode, payload if isinstance(payload, dict) else None
 
 
 def main() -> int:
-    state_root = os.environ.get("LIFE_MANAGER_STATE_ROOT")
-    binaries = sorted(Path.home().glob(
-        ".cloakbrowser/chromium-*/Chromium.app/Contents/MacOS/Chromium"))
-    result = (run_probe(binaries[-1], Path(state_root)) if state_root and binaries
-              else {"ok": False, "reason": "browser_unavailable"})
-    print(json.dumps({"status": "ok" if result["ok"] else "failed",
-                      "reason": result["reason"], "effect": 0}, sort_keys=True))
+    root = Path(__file__).resolve().parents[2]
+    resolver = root / "skills/browser/resolve_cdp_endpoint.py"
+    context_lease = root / "skills/browser/scripts/cdp_context_lease.py"
+    registry = Path(os.environ.get(
+        "AI_BROWSER_REGISTRY",
+        "~/.config/ai/registry/browsers.toml",
+    )).expanduser()
+
+    resolver_rc, resolved = _run_json([
+        sys.executable, str(resolver), "--registry", str(registry), "--identity", IDENTITY,
+    ])
+    endpoint = resolved.get("endpoint") if resolved else None
+    if resolver_rc != 0 or resolved is None or resolved.get("identity") != IDENTITY or not endpoint:
+        result = {"ok": False, "reason": "registered_browser_unavailable", "effect": 0}
+    else:
+        lease_env = dict(os.environ)
+        lease_env["CLOAK_CDP_BASE_URL"] = str(endpoint)
+        lease_rc, inventory = _run_json(
+            [sys.executable, str(context_lease), "audit"],
+            env=lease_env,
+        )
+        result = (
+            run_probe(str(endpoint), inventory)
+            if lease_rc == 0 and inventory is not None
+            else {"ok": False, "reason": "context_inventory_unavailable", "effect": 0}
+        )
+
+    print(json.dumps({
+        "status": "ok" if result["ok"] else "failed",
+        "reason": result["reason"],
+        "effect": 0,
+        **{
+            key: result[key]
+            for key in ("context_count", "leased_context_count", "unknown_owner_context_count")
+            if key in result
+        },
+    }, sort_keys=True))
     return 0 if result["ok"] else 1
 
 
