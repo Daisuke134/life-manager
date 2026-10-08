@@ -1403,23 +1403,43 @@ class HostDiskGovernor:
                         )
         temporary = Path(tempfile.gettempdir())
         temp_parent = temporary.parent
-        clone_root = temp_parent / "X"
+        clone_roots = {temp_parent / "X"}
+        if sys.platform == "darwin" and temporary == Path("/tmp"):
+            try:
+                result = subprocess.run(
+                    ["/usr/bin/getconf", "DARWIN_USER_TEMP_DIR"],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                    timeout=2,
+                )
+            except (OSError, subprocess.SubprocessError):
+                result = None
+            if result is not None and result.returncode == 0:
+                darwin_temp = Path(result.stdout.strip())
+                if (
+                    darwin_temp.is_absolute()
+                    and darwin_temp.is_dir()
+                    and not darwin_temp.is_symlink()
+                ):
+                    clone_roots.add(darwin_temp.parent / "X")
         for collection_name in (
             "com.google.Chrome.code_sign_clone",
             "org.chromium.Chromium.code_sign_clone",
         ):
-            collection = clone_root / collection_name
-            if collection.is_dir() and not collection.is_symlink():
-                for child in sorted(collection.glob("code_sign_clone.*")):
-                    if child.is_dir() and not child.is_symlink():
-                        candidates.append(
-                            {
-                                "path": child,
-                                "class": "regenerable_output",
-                                "owner": "browser",
-                                "discovery": "allowlisted",
-                            }
-                        )
+            for clone_root in sorted(clone_roots, key=str):
+                collection = clone_root / collection_name
+                if collection.is_dir() and not collection.is_symlink():
+                    for child in sorted(collection.glob("code_sign_clone.*")):
+                        if child.is_dir() and not child.is_symlink():
+                            candidates.append(
+                                {
+                                    "path": child,
+                                    "class": "regenerable_output",
+                                    "owner": "browser",
+                                    "discovery": "allowlisted",
+                                }
+                            )
         # These are owned one-shot test/build homes. The prefix is the proof;
         # arbitrary /private/tmp directories remain unknown and are preserved.
         if temporary.is_dir():

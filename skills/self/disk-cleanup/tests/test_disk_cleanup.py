@@ -1499,6 +1499,47 @@ def test_closed_browser_clone_with_source_named_dependency_is_reclaimed(
     assert result["reclaimed"] == 32
 
 
+def test_discover_candidates_uses_darwin_user_temp_when_tmpdir_unset(
+    tmp_path: Path, monkeypatch
+) -> None:
+    darwin_temp = tmp_path / "darwin-user" / "T"
+    clone = (
+        darwin_temp.parent
+        / "X/com.google.Chrome.code_sign_clone/code_sign_clone.launchd"
+    )
+    darwin_temp.mkdir(parents=True)
+    clone.mkdir(parents=True)
+    monkeypatch.delenv("TMPDIR", raising=False)
+    monkeypatch.delenv("TMP", raising=False)
+    monkeypatch.delenv("TEMP", raising=False)
+    monkeypatch.setattr(disk_cleanup.sys, "platform", "darwin")
+    monkeypatch.setattr(disk_cleanup.tempfile, "gettempdir", lambda: "/tmp")
+    getconf_calls: list[list[str]] = []
+
+    def fake_getconf(argv, **kwargs):
+        getconf_calls.append(argv)
+        assert kwargs.get("timeout")
+        return subprocess.CompletedProcess(
+            argv, 0, stdout=f"{darwin_temp}/\n", stderr=""
+        )
+
+    monkeypatch.setattr(disk_cleanup.subprocess, "run", fake_getconf)
+    governor = HostDiskGovernor(
+        home=tmp_path,
+        state_dir=tmp_path / "state",
+        lsof=lambda _path: "confirmed-closed",
+        usage=lambda: (0, 1),
+    )
+
+    candidates = [
+        item for item in governor.discover_candidates() if item["owner"] == "browser"
+    ]
+
+    candidate_paths = [Path(item["path"]) for item in candidates]
+    assert candidate_paths.count(clone) == 1
+    assert getconf_calls == [["/usr/bin/getconf", "DARWIN_USER_TEMP_DIR"]]
+
+
 def test_browser_clone_probe_distinguishes_open_apfs_clone_from_closed_clone(
     tmp_path: Path, monkeypatch
 ) -> None:
