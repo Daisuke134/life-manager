@@ -270,7 +270,10 @@ def run_character(set_dir: Path, state_root: Path, deps: Deps) -> str:
     else:
         deps.character_image(set_dir, plan_draft)
     if plan_draft.get("type") == "static":
-        _atomic_write_json(set_dir / "plan.json", {"reference": "ref-padded.png", "stickers": plan_draft["stickers"]})
+        _atomic_write_json(set_dir / "plan.json", {
+            "reference": "ref-padded.png", "stickers": plan_draft["stickers"],
+            "character_prompt": plan_draft.get("character_prompt", ""),
+        })
         return "images"
     seedance_plan = {
         "reference": "ref-padded.png",
