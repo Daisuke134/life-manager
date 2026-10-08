@@ -4526,14 +4526,22 @@ L9-11 Self-BuildはこのGig laneの全項目完了後、既存の全社順序�
 
 ### Remaining atomic Gig TODO
 
-1. Coconala Paid ownerとshared disk cleanup ownerの自然終端を待つ。lock解放後に同一Coconala occurrenceの結果とofficial receiptを読む。process pass、local `sent` ledger、Sheet dateは単独では送信証明にしない。
-2. Coconala Inbox helperの固定待機を、conversation-list-readyかつ連続して安定した場合だけreadback成功とするbounded waitへ直し、公式inboxとfull Sheet rangeを再取得する。Exact recipient→official send receipt→inbound reply join後にのみ返信数を回答し、一度だけPaid owner経由で返す。
-3. Existing Coconala contract revision→formal delivery receipt→buyer acceptance→settlement/payout→replay-zeroを同一contract/occurrenceで閉じる。
-4. Coconala Storefront 20/20 live inventoryはPASS済み。旧effect fence、publication ledger差、Storefront owner SHA、global doctor gateをexact evidenceで閉じた後だけ`076c5be8`をtarget ownerに反映し、natural Storefront outcome/purchase/settlementを分けてreadする。
-5. Coconala fresh eligible workのApply→Negotiate/Reply→Paidを進める。Lancers rows25–27は`waiting_external`のままskipし、auth/solver/proposal/retryを行わず後続platformを止めない。
-6. CrowdWorksは別owner source repairを再利用し、merge/release後にApplication/Paid/Replyの各unknown occurrenceをofficial receiptで個別reconcileする。Mercorのold effect fencesもexact receipt/pre-effect proofなしで再応募しない。
-7. Upworkのcommercial automated laneは現行公式policyの下では動かさない。Freelancerはaccount-bound authentication、live Services inventory、provider-approved action scopeを確認し、uncertain publish/bidを再試行しない。
-8. 実行可能なplatform ownerごとに自然24/7 occurrence、公式receipt、settlement/fee/cost、replay-zeroを検証する。Gig lane全完了後にのみL9-11 SelfBuildへ進む。
+旧順序=`Coconala Paid owner/cleanup terminal → inbox join → existing contract → Storefront → Apply/Negotiation → other platforms → economics → SelfBuild`。新順序は最初の2 gateを並列にし、その後のplatform順序は維持する。理由: senderのfresh adversarial reviewでfalse-sent/誤recipient送信につながるP1が再現し、同時に空き容量とdisk-cleanup ownerが未解決。古いpartial sourceを使わず、shared capacityを迂回せず、既存契約義務からStorefrontへ進む。現在cursorは1A/1B。
+
+1. **並列1A — sender source安全修正:** branch `fix/tiktok-message-hydration-20261008`の最後のremote commit `10ba32a170`では、Node fixtureが「failed messageでもsent」「別recipient/非公式frameの同文をsent」「PRE_ENTER後のrecipient変更でEnter=1」のP1を再現した。source branchはlatest main `c65449ef8c`より13 commit遅れ、local worktreeには未検証・未pushの2-file変更が残る。次はそのlocal diffを監査し、最新main由来の専用source branchに必要最小修正だけ載せる。message status/recipient/frame検査を`sent` ledger記録より先に行い、Enter keydown時にも同じdocument内のone-shot guardを設ける。Node fixture・focused tests・fresh adversarial review・PR required CIがPASSするまでmerge/releaseしない。
+2. **並列1B — shared capacity:** disk-cleanup ownerが自分のactive lease内で`entrypoint_exit_1 / reconcile_owner`を診断・修復するのを待ち、安全なcleanup receiptと2 GiB以上の安定したfree spaceをreadbackする。手動削除・unlock・restart・floor迂回はしない。
+3. **両gate後 — Coconala Paid owner:** natural terminalとproject lock解放を確認し、同一occurrenceのofficial result/provider receiptを読む。`pass`、local ledger、Google Sheetの日付は単独で送信証明にしない。
+4. **Coconala inbox join:** 固定待機のlocal readerをconversation-list-ready＋複数回安定までbounded pollingへ直し、公式inboxとfull Sheet rangeをreadbackする。recipient→exact official send receipt→inbound replyを結ぶ。joinが完全でない間、送信数/返信数を断定・再送しない。
+5. **既存Coconala有償契約:** 最後に公式readbackした`取引中/進行中` talkroomを最新threadで再確認する。buyer revision要求がまだ未完なら、要求されたdeliverableを完成して正式納品receiptを一度だけ取得し、buyer acceptance→fee→settlement/payout→replay-zeroを同一契約/occurrenceで閉じる。すでに正式納品済みならそのreceiptの検収・精算だけを読む。顧客ID/本文はprivate evidenceに置く。
+6. **Coconala Storefront:** 旧occurrence fenceをowner-specific official/pre-effect evidenceで解決する。20件の公開表示・service contractは過去readbackで確認済みだが、seller sales表示は0・publication ledgerは不一致、settlementは未確認。installed SHA/argv、doctor/admission gate、official inventory/sales/fee/settlementを個別に読む。20件を重複掲載しない。
+7. **Coconala Apply/Negotiation:** fresh eligible workだけを公式sourceで確認し、existing effect fence→proposal receipt→buyer reply→合意条件をoccurrenceごとに結ぶ。Lancers rows25–27は`waiting_external`のままskipし、auth/solver/proposal/retryをせず後続platformを止めない。Answersは対象外。
+8. **CrowdWorks:** `lm-gig-contract-owner-1007`にApplication-receipt/sourceのactive worktree leasesがある。lease/registrationはactive workの証明ではないが、担当範囲を重複編集しない。owner commit/PR/CI/release後にApplication/Paid/Replyのnatural occurrencesとprovider receiptsを個別確認し、納品→検収→fee/payoutを閉じる。
+9. **Mercor:** Application/Paid/Replyの`effect_unknown`をexact official receiptか同一occurrenceのno-effect証拠で解決する。old effect fenceが残る間は再応募・再送しない。
+10. **Freelancer:** account-bound authenticationとofficial Services inventoryで現行listingを読む。`publish_uncertain`等の古いlocal stateはprovider receiptではないため再publishしない。auto-bidはprovider-approved scopeが証明されるまでhold。
+11. **Upwork:** 既存のcommercial automated laneは公式policyに適合する実行経路が無いため、自動browser/scraping/proposalはしない。officially supported routeとaccount eligibilityが確認できない限りautomated earning loopに数えない。
+12. **Job Hunter:** eligible候補のある自然runだけを読み、provider proposal receiptをjob/occurrence単位で確認する。候補0は成功扱いしない。
+13. **Gig economics / 24-7 acceptance:** 許可されたplatformごとに自然wake/terminal、official buyer-visible receipt、settlement、fee、実費、replay-zeroを同一契約に結ぶ。listing・process・応募・gross・未決済額を収益完了に数えない。$10K MRRは未達の目標。
+14. **最後:** 上記Gig収益loopが閉じてからL9-11 SelfBuildを修復・検証する。これより前にSelfBuildを開始しない。
 ### 2026-10-08 08:35 JST — Mobile post-merge runtime cursor
 
 この追記は上記08:23のPR #6993/owner/capacity/TestFlight状態をmerge後readbackで置き換える。全社§84-Aの順序は変更しない。
@@ -4629,3 +4637,15 @@ Source実装状態（2026-10-08）: 3 loop専用runner classは既存Codex acct1
 最新source/production cursor（2026-10-08 09:33 JST）: branch fix/local-revenue-loops-20261008 をlatest origin/main 46ec94bdea884fd7afa61e603a79fdd1b3048ef7へrebaseし、同mainのmobile owner追加・最新SSOT・registry内容を保持。rebase後のmacos-loop-jobs fixtureはmerged registryから再生成し、Fundraiser occurrence scope assertionを既存contractへ追加。post-rebase CIはpush後に再実行する。live `df -Pk /` は1,080,708 KiB free（約1.03 GiB）でshared 2 GiB floorを下回る。`lm-loop status`は`life-manager-disk-cleanup:18dc6684cf28e9c0-72793`を`entrypoint_exit_1` / `reconcile_owner`、`life-manager-release-reconciler:18dc6680b7418410-60823`を`entrypoint_exit_143` blocker / `reconcile_owner`と報告。Connector、Fundraiser、Job Hunterは旧installed SHA 3f1bd81a77b9001284678888b641aaedb1e3e497で、対象のloaded-new-route readbackなし。Fundraiser DeepScale unknownとJob Hunter health unknownを保持。host admission gate未達のため、merge後もtargeted applyは保留し、自然occurrence/provider actionは起動しない。
 
 PR gate update (2026-10-08): latest rebase CI passes Loop control, Python, OSS boundary, PII, shell, instruction, travel, TruffleHog, and gitleaks. `Startup context drift` fails because the canonical `https://aniccaai.com/lm` response lacks context digest `113ddbade3174274888d408be0874286dd6c4d9fa`; fresh crawl shows the Calendar travel product page rather than the general Life Manager context. This public-product context mismatch predates this local-loop diff. Do not change external marketing copy or weaken the context gate within this PR. PR #6939 remains open; main merge and production apply have not occurred.
+
+### 2026-10-08 09:53 JST — Gig-only status refresh and current cursor
+
+このreadbackはGig laneの状態だけを更新し、全社§84-Aや他laneの順序を変えない。
+
+- `origin/main`は`c65449ef8c`。`lm-loop status all`のGig catalogは22 job（Coconala 7/Lancers 7/CrowdWorks 5/Mercor 3）、`loaded-idle=19 / loaded-running=3`、current occurrence provider receipt 0。idle側は`disk_headroom_low=17 / resource_capacity_busy=1 / apply_lock_busy=1`。22 jobはagent人数ではなく、`loaded-running`もprovider work/収益を意味しない。従って14–16 agent sessionが全員稼働し収益を出しているとは確認できない。
+- `df -k /`は00:53Zに`1,963,792 KiB` freeで、2 GiB floor `2,097,152 KiB`まで133,360 KiB不足。`life-manager-disk-cleanup`の00:51Z terminalは`entrypoint_exit_1 / reconcile_owner`。cleanupは別active lease ownerなので手動削除・unlock・restart・gate迂回をしない。
+- sender branch `fix/tiktok-message-hydration-20261008`のremote headは`10ba32a170`、latest mainより13 commits behind。fresh adversarial reviewはfailed/pendingのfalse-sent、wrong-contextのfalse-sent、PRE_ENTER/Enter間の誤宛先送信をNode fixtureで再現した。source worktreeにはその後の未commit変更2 file（transportとtest）があるが、最新main同期・focused test・reviewが未完了。これらをrelease/productionに使わない。
+- CrowdWorks Application/Storefrontの別owner leaseは存在する。lease/rosterは実作業の証拠ではないため、既存担当範囲を重複編集せず、owner成果とprovider receiptをreadbackする。
+- 既知のCoconala order/talkroom readbackは10/7時点のsnapshotでfreshness切れ。最新provider確認はまだ無いので、現在もbuyer reply/delivery待ちとは断定しない。対象の直近local evidenceは`formal_delivery_confirmed=false`だが、再開時に必ずofficial threadをfresh readbackする。顧客ID・本文はprivate evidenceにだけ保持する。
+
+**現在cursor:** Remaining atomic Gig TODOの並列gate 1A（sender P1修正→test/re-review/CI）と1B（cleanup owner safe receipt＋安定2 GiB超readback）。その後だけCoconala Paid owner/inbox/order、existing contract delivery、Storefront、次platformの順に進む。Lancers rows25–27は`waiting_external`でskip、Answersは対象外、SelfBuildは最後。
