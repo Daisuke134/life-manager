@@ -7362,3 +7362,11 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 - At 23:54 JST, PR #7156 still points to 73332795...; run 37795141108 has all reported checks PASS except Loop control contracts, which is still pending. Those checks do not cover the local source/test change.
 
 **現在cursor:** commit/push the mixed-error guard, regression, and this corrected cursor → fresh exact-head CI and read-only review → merge #7156 → main-derived release/watchdog readback → revenue-floor follow-up PR → disk/admission recovery → official effect readbacks and target natural outcomes → post-recovery capacity measurement.
+
+
+### 2026-10-08 23:55 JST — latest-main sync for PR #7156
+
+- `origin/main` advanced from `e9fa073d83` to `5ef786aa8a` through doc-only PRs #7174 and #7175 while the mixed-error guard was being pushed. The source fix commit `ce83c92734` is on the PR branch; latest main is merged locally as `b374df90cf`, with no source conflict. The new main entries remain preserved in this SSOT.
+- At this snapshot the PR remote head is `ce83c92734`; the `b374df90cf` latest-main merge is local and needs pushing. Checks from the previous head do not cover the merge head.
+
+**現在cursor:** confirm the remote PR head contains latest main `5ef786aa8a` and source fix `ce83c92734` → exact-head required CI and fresh read-only review → merge #7156 → main-derived immutable release and natural readback → revenue-floor follow-up → disk/admission recovery → Fundraiser official effect readbacks → target natural outcomes and post-recovery capacity measurement.
