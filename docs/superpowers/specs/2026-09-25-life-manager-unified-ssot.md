@@ -7370,3 +7370,14 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 - At this snapshot the PR remote head is `ce83c92734`; the `b374df90cf` latest-main merge is local and needs pushing. Checks from the previous head do not cover the merge head.
 
 **現在cursor:** confirm the remote PR head contains latest main `5ef786aa8a` and source fix `ce83c92734` → exact-head required CI and fresh read-only review → merge #7156 → main-derived immutable release and natural readback → revenue-floor follow-up → disk/admission recovery → Fundraiser official effect readbacks → target natural outcomes and post-recovery capacity measurement.
+
+
+### 2026-10-09 00:04 JST — revenue floor merged; capacity cursor reordered
+
+- Main advanced from `5ef786aa8a` to `1fe7db3b63` via #7177 while PR #7156 CI was finishing. #7177 implements the updated 2026-10-09 direction: `critical_paid=256 MiB`, `revenue=512 MiB`, other priorities `2 GiB`; `_disk_floor` remains priority-based. This replaces the earlier follow-up plan's 1 GiB revenue-floor proposal. The plan file now records #7177 as implemented and points remaining work to this SSOT.
+- Merged latest main into the loop-capacity branch as local merge `e530f1988e`; it carries #7177 source and tests without source conflict. PR #7156 still needs the mixed-owner-error retry fix on top. #7177's PR checks showed the source tests and security checks passing; Loop control contracts was still pending at the last readback, so no full-CI claim is made for #7177 here.
+- This is a source-level improvement only. The previous natural disk receipt was below 512 MiB, so the floor change alone does not prove the three target loops can currently run. No provider result or revenue is claimed.
+
+**順序更新:** 旧順序は「PR #7156 merge → revenue-floor follow-up PR → disk/admission recovery」。新順序は「(1) #7177 floor + #7156 retry fixを含むbranchを最新main上でexact-head CI/review → (2) #7156 merge → (3) immutable release/natural admission readback → (4) cleanup receipt/free-spaceを見て三loopのeligible状態を確認 → (5) Fundraiserのunresolved effectをofficial readbackで解決、replay-zero → (6) Connector/Job Hunter/Fundraiserのnatural provider結果をoccurrence別に確認 → (7) 同一windowでqueue age、claims、reservations、実同時実行数、CPU/RAM/diskを測り、cap 8が実際の制約か判定」。理由は#7177がsource merge済みで、二重にfloor実装する必要がなく、natural release/readbackが未実施だから。
+
+**現在cursor:** commit/push latest-main merge `e530f1988e`, closed-out floor plan, and this order update → exact-head PR #7156 required CI/fresh read-only review → merge #7156 → immutable release/natural admission readback → disk/target receipts → unresolved effect reconciliation → natural outcomes → post-recovery capacity measurement.
