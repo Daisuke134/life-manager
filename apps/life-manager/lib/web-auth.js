@@ -206,6 +206,15 @@ function isUnboundWebRow(row, uid) {
     && row.telegram_chat_id === null);
 }
 
+function hasVerifiedGoogleIdentity(user) {
+  if (!user || typeof user !== "object") return false;
+  const appMetadata = user.app_metadata && typeof user.app_metadata === "object" ? user.app_metadata : {};
+  const providers = [appMetadata.provider, ...(Array.isArray(appMetadata.providers) ? appMetadata.providers : [])];
+  const identities = Array.isArray(user.identities) ? user.identities : [];
+  return [...providers, ...identities.map((identity) => identity && identity.provider)]
+    .some((provider) => String(provider || "").trim().toLowerCase() === "google");
+}
+
 async function readWebFirstTouch(uid, fetchImpl, root, key) {
   const response = await fetchImpl(
     `${root}/rest/v1/lm_users?uid=eq.${encodeURIComponent(uid)}&select=uid,telegram_chat_id,web_first_touch&limit=2`,
@@ -250,7 +259,7 @@ async function resolveWebUser(req, res, opts = {}) {
     const client = createWebAuthClient(req, res, opts);
     const result = await client.auth.getUser();
     const user = result && result.data && result.data.user;
-    if (!user || result.error) return null;
+    if (!user || result.error || !hasVerifiedGoogleIdentity(user)) return null;
     const subject = String(user.id || "");
     const uid = await resolveWebTenantUid(subject, opts);
     if (!uid) return null;
@@ -524,7 +533,7 @@ async function handleWebAuthRequest(req, res, opts = {}) {
 
     const verified = await client.auth.getUser();
     const user = verified && verified.data && verified.data.user;
-    if (!verified || verified.error || !user) {
+    if (!verified || verified.error || !user || !hasVerifiedGoogleIdentity(user)) {
       await clearWebSession(client, req, res, opts);
       redirectToConnectionError(res);
       return;
