@@ -228,7 +228,14 @@ class TelegramClient:
         )
         try:
             with self.opener(request, timeout=self.timeout) as response:
-                payload = self._decode_response(response.read())
+                try:
+                    payload = self._decode_response(response.read())
+                except TelegramError:
+                    if method == "sendMessage":
+                        raise TelegramDeliveryUnknown(
+                            "Telegram send response is invalid; delivery unknown"
+                        ) from None
+                    raise
         except urllib.error.HTTPError as exc:
             try:
                 raw_error = exc.read()
@@ -274,12 +281,17 @@ class TelegramClient:
 
     @staticmethod
     def _receipt(method: str, result: Mapping[str, Any]) -> dict[str, Any]:
+        message_id = result.get("message_id")
+        if isinstance(message_id, bool) or not isinstance(message_id, int) or message_id <= 0:
+            raise TelegramDeliveryUnknown(
+                "Telegram send response has no valid message_id; delivery unknown"
+            )
         chat = result.get("chat") or {}
         return {
             "status": "delivered",
             "method": method,
             "chat_id": chat.get("id"),
-            "message_ids": [result.get("message_id")],
+            "message_ids": [message_id],
             "date": result.get("date"),
         }
 

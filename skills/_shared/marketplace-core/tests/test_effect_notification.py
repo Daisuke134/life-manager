@@ -1,5 +1,6 @@
 import importlib.util
 import sys
+import urllib.request
 from datetime import datetime
 from pathlib import Path
 
@@ -13,6 +14,46 @@ def load(name, filename):
     sys.modules[name] = module
     spec.loader.exec_module(module)
     return module
+
+
+def _notify_with_response(tmp_path, monkeypatch, case, body):
+    notification = load(f"test_effect_notification_{case}", "effect_notification.py")
+    delivery = load(f"test_effect_delivery_{case}", "telegram_delivery.py")
+    env_file = tmp_path / "telegram.env"
+    env_file.write_text("TELEGRAM_BOT_TOKEN=test-token\n", encoding="utf-8")
+    calls = []
+
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self):
+            return body
+
+    def opener(request, timeout):
+        calls.append((request, timeout))
+        return Response()
+
+    monkeypatch.setattr(urllib.request, "urlopen", opener)
+    arguments = dict(
+        database=tmp_path / "outbox.sqlite3",
+        event_key=f"cfo:subject:{case}",
+        message="CFO report",
+        observed_at="2026-10-09T04:00:00Z",
+        chat_id="123",
+        env_file=env_file,
+        sender=lambda message: delivery.send_via_shared_client(
+            message, chat_id="123", env_file=env_file
+        ),
+    )
+    return (
+        notification.notify_effect(**arguments),
+        notification.notify_effect(**arguments),
+        calls,
+    )
 
 
 def test_shared_effect_notification_delivers_once_and_replays_zero(tmp_path):
@@ -129,3 +170,60 @@ def test_pre_send_failure_releases_the_same_sqlite_event_for_replay(tmp_path):
     assert replay["delivery"] == "delivered"
     assert replay["provider_message_id"] == "provider-2"
     assert calls == [arguments["message"], arguments["message"]]
+
+
+def test_non_json_first_chunk_response_is_fenced_not_replayed(tmp_path, monkeypatch):
+    first, replay, calls = _notify_with_response(
+        tmp_path, monkeypatch, "non_json_first_chunk", b"not-json"
+    )
+
+    assert first["delivery"] == "delivery_uncertain"
+    assert first["attempted"] == 1
+    assert first["delivery_uncertain"] == 1
+    assert replay["attempted"] == 0
+    assert len(calls) == 1
+
+
+def test_missing_message_id_is_uncertain_not_a_provider_receipt(tmp_path, monkeypatch):
+    first, replay, calls = _notify_with_response(
+        tmp_path,
+        monkeypatch,
+        "missing_message_id",
+        b'{"ok":true,"result":{"chat":{"id":123}}}',
+    )
+
+    assert first["delivery"] == "delivery_uncertain"
+    assert first["provider_message_id"] is None
+    assert first["delivery_uncertain"] == 1
+    assert replay["attempted"] == 0
+    assert len(calls) == 1
+
+
+def test_shared_sender_never_stringifies_invalid_message_ids(monkeypatch):
+    delivery = load("test_effect_delivery_invalid_message_id", "telegram_delivery.py")
+
+    class FakeClient:
+        message_id = None
+
+        @classmethod
+        def from_env(cls, **_kwargs):
+            return cls()
+
+        def send_text(self, _message):
+            return {"status": "delivered", "message_ids": [self.message_id]}
+
+    telegram = type("Telegram", (), {"TelegramClient": FakeClient})
+    monkeypatch.setattr(delivery, "_load", lambda *_args: telegram)
+
+    FakeClient.message_id = 123
+    valid = delivery.send_via_shared_client("report", chat_id="123")
+    assert valid.provider_id == "123"
+    assert valid.error is None
+
+    for message_id in (None, "None", "", True, 0, -1):
+        FakeClient.message_id = message_id
+        result = delivery.send_via_shared_client("report", chat_id="123")
+
+        assert result.started is True
+        assert result.provider_id is None
+        assert result.error == "receipt_missing"

@@ -50,7 +50,14 @@ def send_via_shared_client(message: str, *, chat_id: str, env_file: Optional[Pat
         )
         receipt = client.send_text(message)
         ids = receipt.get("message_ids") if isinstance(receipt, Mapping) else None
-        provider_id = str(ids[-1]) if isinstance(ids, list) and ids else None
+        raw_provider_id = ids[-1] if isinstance(ids, list) and ids else None
+        provider_id = (
+            str(raw_provider_id)
+            if isinstance(raw_provider_id, int)
+            and not isinstance(raw_provider_id, bool)
+            and raw_provider_id > 0
+            else None
+        )
         return SendResult(True, provider_id, "receipt_missing" if provider_id is None else None)
     except Exception as error:
         attempted = type(error).__name__ == "TelegramDeliveryUnknown"
