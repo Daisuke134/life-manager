@@ -4861,7 +4861,7 @@ flowchart LR
 
 **残TODO（完了まで、この順）:**
 
-1. **現在cursor — PR #7182 exact-head acceptance:** latest `origin/main=e75c7f7a4af84b4386ccc5b40dc14837f5986ced`（PR #7217 R25 Postiz credential fallbackを含む）をlocal merge HEAD `aee126b5af39b97d57e2ecca5a700f7d6b9eefa8`まで同期済み。R25はGig filesに触れず、統合treeでGig suite `85 passed`・R23/R24 + Line Sticker `49 passed / 3 subtests`・loop contract `18/188/113/0`・source boundary/compile/diff-check PASS。Gig source diffはfresh review `SHIP`以降変わらない。最新main+current-state SSOTをcommit/pushし、新head required CIをPASSさせて#7182をmergeする。fresh reviewは同一Gig diffの直近SHIPを保持する。
+1. **現在cursor — PR #7182 exact-head acceptance:** latest `origin/main=1512b16759474aa2f094585d946845182e7aac75`（#7218 Line Sticker readback adapterと#7194 eBook docsを含む）をlocal merge HEAD `4208f1aa004c7b85a8d52931682aea31a7d40e14`まで同期済み。#7218 registry updateのstale byte-stable fixtureをcanonical rendererで再生成し、fixture `1 passed`, Line Sticker/R23/R24 `53 passed / 3 subtests`, loop contract `18/188/113/0`, source-boundary/compile/diff-check PASS。Gig source diffは前回SHIP review以降不変。latest-main merge+fixture+current SSOTをcommit/pushし、新head required CIをPASSさせて#7182をmergeする。fresh source review on same Gig diff remains SHIP.
 2. **main-derived release/owner readback:** #7182 merge後、#7179 numeric-floor removalを含むimmutable main releaseを確認する。target owner-idle・apply lock free・effect-fence条件を満たすときだけreconciler/owner経路で反映し、loaded SHA/argv/state/admissionとnatural terminalを確認。数値free-space floorは復活させない。実ENOSPCやunsafe pathは個別原因として直す。
 3. **Coconala Paid obligation:** order 18180857のfresh official order/talkroom readbackをownerのterminal・project lock解放後に取得し、現時点で必要な作業を確定する。未完了scopeがある場合だけ必要なrevision/formal deliveryを一度行い、buyer acceptance・settlement/payout・replay-zeroを結ぶ。stale snapshotでbuyer状態を推測しない。
 4. **旧Storefront effect fence:** occurrence 18d8d288748508e8-23902を同一effectのofficial listing/order historyまたはaccepted occurrence-bound pre-effect proofで照合する。現CLI dry-runはresolved=[] / no_pre_effect_terminal。証拠が揃うまで保持し、再publish/replayしない。
@@ -4872,7 +4872,7 @@ flowchart LR
 9. **Storefront portfolio economics:** listingごとのunique paid order/repeat/refund/platform fee/payout/actual fulfillment cost/time/netを同一期間で結び、settled net contributionが正で反復できたか判定する。seller totals/reviews/grossは会社売上・利益・MRRにしない。
 10. **最後 — SelfBuild:** 全収益loopとproduct storefrontの上記条件を閉じた後だけself-build/self-healingを再開する。
 
-**現在cursor:** item 1 — latest main `e75c7f7a4a`同期後のfocused verificationはpass。fresh owner/effect statusをSSOTへ記録済み。current spec commit/push後のrequired CIを通す。Storefront/Paid ownersはcurrent pointerより古いSHAで、Storefront effect fence/admission blockerが残るため、自然terminal・owner-idle・lock-free・exact effect proofまでapply/掲載変更しない。
+**現在cursor:** item 1 — latest main `1512b16759`をlocal merge済み、fixtureとfocused testsはgreen。latest-main merge/fixture/SSOTをcommit/pushし、新headのrequired CIを通す。production Storefront/Paid ownersはcurrent pointerと別SHA、Storefront effect fenceもheldなので、自然terminal・owner-idle・lock-free・exact proofまでapply/掲載変更しない。
 
 ### 2026-10-09 00:28 JST — Storefront収益cursorとexposure review修正
 
@@ -5091,6 +5091,14 @@ flowchart LR
 - After merge of `origin/main=e75c7f7a4af84b4386ccc5b40dc14837f5986ced` (#7217 Postiz-only), local focused acceptance is `85` Gig tests passed, `49` R23/R24 + Line Sticker tests passed with `3` subtests, `lm-loop-contract=18/188/113/0`, source-boundary/compile/diff-check PASS. The current Gig source diff is unchanged from the fresh `SHIP` review on c017; R25 affects only Postiz.
 - Remote PR #7182 is still `d27b8d4d7c6b0181a95ce94c23b6bca8917a44c7` based on `1f5f016526...`; the e75 sync plus current-state SSOT are local and will create the next PR head. Do not reuse d27 checks as the e75-head gate.
 - **Next:** commit/push the e75 merge + SSOT update → pass exact-head CI → merge #7182 → follow existing owner/effect fence order. The 18:53Z runtime readback in the preceding note remains the current verified provider/owner evidence.
+
+### 2026-10-09 04:04 JST — latest-main fixture repair and current Gig owner state
+
+- `origin/main=1512b16759474aa2f094585d946845182e7aac75` (R25 + #7218 + #7194 docs) is merged locally at HEAD `4208f1aa004c7b85a8d52931682aea31a7d40e14`. #7218 added a readback reconciler registry row without refreshing the byte-stable launchd fixture; the mismatch reproduced, then the canonical `render_job_models` output was written. Fixture test passes `1/1`; Line Sticker + R23/R24 tests pass `53/53 + 3 subtests`; loop contract `18/188/113/0`, compile, source-boundary, diff-check PASS. Gig source/test files have not changed since the last `85 passed` Storefront suite on e75-equivalent code.
+- Remote PR #7182 is still head `b6a8d35adac61be8996d785e1912636bd49e3178` on base e75; this main+fixture+SSOT tree is not pushed. Reuse the fresh `SHIP` review because the Gig source diff is unchanged; exact-head CI still must pass.
+- **Production readback (19:03:59Z):** current release pointer `20261009T034745-e75c7f7a`, SHA `e75c7f7a4af84b4386ccc5b40dc14837f5986ced`, cut `18:48:14Z`. Storefront is loaded-running on older SHA `6c7b83ee`; occurrence `18dca32f3e6848f8-36477` ends `effect=unknown` / `resource_effect_unknown`, provider receipt absent. Old fence `18d8d288748508e8-23902` remains held; dry-run says `resolved=[] / no_pre_effect_terminal`. Paid is loaded-running on old SHA `25bee172`; occurrence `18dca1aaeae7a280-93817` is `resource_fifo_wait` with no provider receipt. Release reconciler remains old SHA `e1b061f1`, loaded-running, last terminal pass. `df` available=`278592 KiB`.
+- The refreshed public Coconala page shows SKU 4244556 is buyable, but has no SKU sale/settlement/payout evidence. Do not edit or republish it; visible purchase button does not resolve its old effect fence. No order, payout, or positive net contribution is verified.
+- **Current cursor:** commit/push main+fixture+SSOT → new-head CI pass → merge #7182 → let release/owners progress naturally → re-read Paid obligation → resolve Storefront's exact fence by official evidence → build and validate one fixed-scope Coconala offer → Freelancer/Upwork → portfolio settlement economics → SelfBuild last.
 
 ### 2026-10-08 08:35 JST — Mobile post-merge runtime cursor
 
