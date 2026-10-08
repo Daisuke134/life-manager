@@ -68,6 +68,10 @@ def validate_pass_result(evidence_dir: Path) -> str | None:
     except (OSError, json.JSONDecodeError):
         return None
     status = result.get("status")
+    if result.get("submit_unknown"):
+        return "submission_outcome_unknown"
+    if result.get("submitted"):
+        return None
     retry_in_progress = (
         status == "in_progress"
         and result.get("submitted") == []
@@ -164,9 +168,7 @@ def validate_pass_result(evidence_dir: Path) -> str | None:
                 continue
             return None
     if real_nonzero_runtime_completion:
-        return None
-    if result.get("submitted") or result.get("submit_unknown"):
-        return None
+        return "runtime_command_nonzero_completion"
     if (
         status != "transport_failed"
         and not retry_in_progress
@@ -229,6 +231,8 @@ def invoke_runner(
         reason = validate_pass_result(evidence_dir)
         if reason is None:
             return 0
+        if reason == "submission_outcome_unknown":
+            break
         if semantic_attempt == 0:
             continue
     receipt = evidence_dir / "semantic-validation.json"
