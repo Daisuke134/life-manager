@@ -23,18 +23,19 @@ import agent_runner  # noqa: E402
 
 
 class CodexProfileBoundaryTest(unittest.TestCase):
-    def _run_candidate_fixture(self, plan, include_claude, *, return_records=False):
+    def _run_candidate_fixture(self, plan, include_claude, *, return_records=False,
+                               return_provider_options=False, fail_fast_provider_lease=True):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             candidates = [
                 {"provider": "codex", "model": "fixture-model", "effort": "medium",
                  "profile_alias": "acct1", "automation_home": "/fixture/acct1",
                  "auth_file": "/fixture/acct1-auth", "account_fallback_next": True,
-                 "fail_fast_provider_lease": True},
+                 "fail_fast_provider_lease": fail_fast_provider_lease},
                 {"provider": "codex", "model": "fixture-model", "effort": "medium",
                  "profile_alias": "acct2", "automation_home": "/fixture/acct2",
                  "auth_file": "/fixture/acct2-auth", "account_fallback_next": False,
-                 "fail_fast_provider_lease": True},
+                 "fail_fast_provider_lease": fail_fast_provider_lease},
             ]
             if include_claude:
                 candidates.append({"provider": "claude", "model": "fixture-claude"})
@@ -49,12 +50,18 @@ class CodexProfileBoundaryTest(unittest.TestCase):
             evidence_dir = root / "evidence"
             usage_ledger = root / "usage.jsonl"
             calls = []
+            provider_options = []
 
-            def fake_provider_process(command, *, stdout, stderr, env, completion_path, **_kwargs):
+            def fake_provider_process(command, *, stdout, stderr, env, completion_path, **kwargs):
                 provider, _, profile = env["FIXTURE_PROVIDER"].partition(":")
                 profile = profile or None
                 behavior = plan.get((provider, profile), "failure")
                 calls.append((provider, profile, behavior))
+                provider_options.append({
+                    "profile": profile,
+                    "profile_lease_path": kwargs.get("profile_lease_path"),
+                    "fail_fast_home_busy": kwargs.get("fail_fast_home_busy"),
+                })
                 if behavior == "quota":
                     stdout.write(json.dumps({
                         "type": "turn.failed",
@@ -172,6 +179,8 @@ class CodexProfileBoundaryTest(unittest.TestCase):
                     mock.patch.object(sys, "argv", argv), \
                     redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
                 status = agent_runner.run()
+            if return_provider_options:
+                return status, calls, provider_options
             if return_records:
                 attempts = [
                     json.loads(line) for line in (evidence_dir / "attempts.jsonl").read_text().splitlines()
@@ -228,6 +237,23 @@ class CodexProfileBoundaryTest(unittest.TestCase):
                     [row["profile_alias"] for row in resolved],
                     ["acct1", "acct2"],
                 )
+
+    def test_runner_uses_stable_profile_lock_and_only_configured_tasks_fail_fast(self):
+        for fail_fast in (True, False):
+            with self.subTest(fail_fast=fail_fast):
+                status, calls, options = self._run_candidate_fixture(
+                    {("codex", "acct1"): "success"},
+                    include_claude=False,
+                    return_provider_options=True,
+                    fail_fast_provider_lease=fail_fast,
+                )
+                self.assertEqual(status, 0)
+                self.assertEqual(calls, [("codex", "acct1", "success")])
+                self.assertEqual(options, [{
+                    "profile": "acct1",
+                    "profile_lease_path": "/fixture/acct1/.agent-runner-profile-provider.lock",
+                    "fail_fast_home_busy": fail_fast,
+                }])
 
     def test_codex_candidate_without_profile_alias_fails_closed(self):
         with self.assertRaisesRegex(ValueError, "profile_alias"):
