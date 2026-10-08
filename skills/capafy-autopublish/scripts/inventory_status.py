@@ -745,9 +745,12 @@ def main():
         {"agent_id": str(agent.get("agentId")), "title": (agent.get("name") or "").strip()}
         for agent in ready_to_publish
     ]
+    # Dais 2026-10-08: the factory ships NEW Agents only. Agents already submitted --
+    # selling or not, rejected or delisted -- are never updated, retried or recovered.
+    # Kept: fresh creates, never-submitted drafts, and approved-but-not-yet-online publishes.
     v = allocate_action(
-        normalized, retry_items, fresh_items, resumable_drafts, recovery_items, ready_publish_items,
-        updates=drop_profitable_updates(update_items), stub_retries=stub_retry_items, revenue_by_agent=load_revenue_by_agent(),
+        normalized, [], fresh_items, resumable_drafts, [], ready_publish_items,
+        updates=[], stub_retries=stub_retry_items, revenue_by_agent=load_revenue_by_agent(),
     )
 
     v.update({
