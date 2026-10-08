@@ -5983,3 +5983,29 @@ This snapshot supersedes the 13:59–14:04 source/release status. PR #7055 backo
 5. 各loopのnatural occurrenceでConnectorのLuma registration/Calendar/Telegram、Job Hunterの新規適格Workday official application state/Telegram、Fundraiserの新規VC/AI-AGI founder向けGmail message ID/exact Sent/Telegramを照合する。Danaher `R1316263`、DeepScale、LAUNCHは公式statusまたはstrict verified-pre-effectが得られるまでfencedにし、同targetを再送しない。manager構想とpodcast/Zoom/対面提案を保ち、human-required gateを迂回しない。
 6. receipt/readbackを同一occurrenceへ結び、重複なし・replay-zeroを確認する。Fundraise収入はsettlement確認後だけ実績へ数える。
 7. 3 loopがnaturalに稼働した後、same-window claim/queue age/wait/CPU/RAM/diskを測り、安定した余力が証明された場合だけcap/laneを変更する。8/8の古いsnapshotやOS load aloneでは増枠しない。全production gateを閉じたらこのlaneを完了し、MX-01へ戻る。
+
+### 2026-10-08 16:48 JST — context follow-up merged; target owners still old
+
+この追記は16:41 snapshotのsource/production状態を更新する。
+
+**Source result:** PR #7090 `fix(fundraiser): park context between tabs` は2026-10-08 07:45:16Zにmerge、main commit `3c87f64fad`。`skills/fundraiser-agent/runtime/run.sh`が`CLOAK_CONTEXT_PARK_ON_IDLE=1`をexportし、`test_run_control_plane.py`でrunner/helper境界への伝播を確認する。required CI 9/9とCodex reviewはPASS（CodeRabbitはOSS repository設定によりskip）。merge後のfocused checksも3/3 PASS: Fundraiser wrapper env propagation、last-owned-tab park、parked context next-acquire。
+
+**最新read-only production状態（16:48 JST）:**
+
+- `~/loops/current`は`20261008T164623-3c87f64f`。release sourceにはFundraiser context fixが入った。
+- `life-manager-release-reconciler`はSHA `3c87f64f` / loaded-running PID `35373`。直近event `18dc7e43b76b4158-26121`は07:48:11Zに旧SHA `c61f2c89`から`entrypoint_exit_143`。現在のprocessには触れず、natural terminal後に新release側eventを再読込する。
+- target ownersはまだcurrent releaseへ全収束していない: Connector / Job Hunter daily / healthは`c61f2c89`でloaded-idle、Job Hunter inboxは`6cc0c56b`、Fundraiserは`71a5f878`、Paidは`6cc0c56b`でloaded-idle。Job Hunterはdaily `apply_lock_busy`、inbox/health `resource_capacity_busy`。ConnectorのpassにLuma/provider証拠なし。
+- `lm-loop doctor`は依然`ok=false`、retired Capafy installed label `ai.anicca.provision-browser.capafy.kosuke`が唯一のreported issue。別owner stateのため触らない。Fundraiserの新event `18dc7bf593b9ebb0-79351`はstrict pre-effect proof済み、DeepScale/LAUNCH旧2 fencesとDanaher `R1316263`は未解決。
+- durable capacity occupancyの最後の直接snapshotは16:11 JSTの8/8・free slot 0。16:48のhealth summaryはclaim数を示さないため、現在の占有へ置き換えない。
+- merged source branchのworktreeは`lm-cfo-observability-1002`がactive leaseで保持。ownerからclean/readbackとlifecycle retirementを受け取るまで再利用/削除しない。
+
+**順序更新:** 旧順=`source context fix → retired label/doctor → release/apply → natural run/readback → capacity`。source fixはPR #7090でmainへ入った。新順=`active reconcilerのnatural terminalとcurrent 3c87 event readback → Capafy owner-safe retired-label解決/doctor PASS → shared lock・target admissionがfree/eligibleになった後にowner別release apply/readback → 3 loop natural effect/official receipt/Telegram → exact old-fence resolution/replay-zero → stable capacity comparisonと測定に基づく調整 → MX-01`。理由はbrowser context source gateが閉じた一方、reconciler processがactiveでtarget ownersがc61/6cc/71aへ分散し、doctor gateとJob Hunter admission blockersが残るため。現在cursor=`PID 35373のnatural terminalと新release eventのreadback`。
+
+**残TODO（完了まで）:**
+
+1. **現在cursor:** release reconciler PID `35373`をnatural terminalまでread-onlyで監視し、`entrypoint_exit_143`の後にSHA `3c87f64f`で記録される次eventとshared apply lockを確認する。stop/restart/wakeや重複applyをしない。source ownerにはmerged worktreeのclean/lifecycle retirementを依頼済み。
+2. Capafy ownerがretired installed labelをowner-safeに解消し、`lm-loop doctor` PASSをreadbackする。別ownerのstateを触らない。
+3. doctor/lock/admissionがPASSし全5対象ownerがloaded-idle/eligibleになった時だけ、`3c87f64f`以降のmain-derived immutable releaseをConnector、Job Hunter daily/inbox/health、Fundraiserへ一つずつapplyする。各loaded SHA・argv/env・`gpt-6-luna/max/fast`を確認する。
+4. natural occurrenceでConnectorのLuma/Calendar/Telegram、Job Hunterの新規適格Workday application official status/Telegram、Fundraiserの新規VC/AI-AGI founder向けGmail provider ID/exact Sent/Telegramを確認する。manager構想とpodcast/Zoom/対面提案を維持し、human-required gateを迂回しない。
+5. Danaher `R1316263`、DeepScale、LAUNCHを同一targetのofficial statusまたはstrict verified-pre-effectで解決する。未解決targetは再送しない。全receiptをoccurrenceへ結びreplay-zeroを確認し、settlement前のFundraiseを収益計上しない。
+6. natural run後にsame-window claim/queue age/wait/CPU/RAM/diskを測る。安定した余力が実証された場合だけcap/lane数を調整し、3 loopのproduction proofが閉じた後にこのlaneを完了してMX-01へ戻る。
