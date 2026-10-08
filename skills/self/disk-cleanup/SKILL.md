@@ -16,6 +16,13 @@ allow-listed regenerable artifact after an open-path probe confirms
   databases, credentials, cookies, source, and `state/*.jsonl` are preserved.
 - Unknown paths, active leases, symlinks, open paths, and probe errors are
   preserved and recorded.
+- Worktrees and their registrations are never automatic cleanup candidates.
+  Cleanup never runs `git worktree unlock`, `remove`, or `prune`; retirement
+  remains an owner operation under `../../../docs/runbooks/worktree-lifecycle.md`.
+- iOS Simulator runtimes, images, device data, and dyld caches remain outside
+  the cleanup allow-list, including when no device is booted.
+- Generic `/private/tmp` directories, including `cfo-*`, are never candidates;
+  only exact old Capafy npm cache names are eligible there.
 - A stale Sparkle staging blocker has one narrow recovery action: send one
   `SIGTERM` only to the same-UID updater whose executable is under an exact
   allow-listed Codex/CodexBar Sparkle `Launcher`, whose PPID is 1, whose elapsed
@@ -33,6 +40,8 @@ allow-listed regenerable artifact after an open-path probe confirms
 - The exact `~/Library/Developer/Xcode/DerivedData` tree is a regenerable build
   cache candidate. It is reclaimed only after the path is confirmed closed;
   Xcode Archives and project source remain outside this allow-list.
+- Homebrew, pip, and uv package download caches are regenerable candidates and
+  are reclaimed only after the same confirmed-closed check.
 - The 5-minute pass has one atomic lock and no LLM deletion authority.
 - Pressure is asserted below 2 GiB and is not cleared until the recovery floor
   is reached; the 20 GiB threshold starts preventive containment.
@@ -81,23 +90,21 @@ allow-listed regenerable artifact after an open-path probe confirms
 skills/self/disk-cleanup/install-launchd.sh
 ```
 
-The installer renders the user-specific plist, validates it with `plutil`, and
-registers `ai.anicca.life-manager-disk-cleanup` at a 300-second interval. If
-the macOS launchd user domain is temporarily unavailable, the existing
-emergency guard invokes `disk_cleanup.py` as its single fallback owner. The
-legacy hourly label is only a compatibility trigger: the guard's
-`cleanup-full-pass.at` marker (or explicit `EMERGENCY_GUARD_FULL_PASS=1`) opts
-into the bounded full pass so deferred worktree inspection is not permanently
-skipped.
+The 5-minute `ai.anicca.life-manager-disk-cleanup` owner remains managed by the
+Life Manager runner. This installer only manages the 60-second
+`com.anicca.disk-watchdog` recovery label so it cannot replace the 5-minute
+owner. It installs `bin/disk-watchdog.sh` at `~/.local/bin/disk-watchdog.sh`;
+the wrapper resolves `~/loops/current` and dispatches to that immutable
+release's governor, so later release retirement cannot leave the watchdog
+pointing at a deleted release. Both owners use the governor's singleton lock
+and shared host `state_dir`.
 
-The `com.anicca.disk-watchdog` template is a 60-second recovery label that calls
-the same released `disk_cleanup.py` directly with the shared host `state_dir`.
-Both labels use the governor's single lock and 1 MiB receipt reserve; the
-watchdog adds no second deletion implementation. Its output goes to
+The watchdog adds no second deletion implementation. Its output goes to
 `life-manager-disk-cleanup/logs/watchdog.{out,err}.log` under the host state.
 
 Run the tests with:
 
 ```sh
-python3 -m pytest -q skills/self/disk-cleanup/tests/test_disk_cleanup.py
+python3 -m pytest -q skills/self/disk-cleanup/tests/test_disk_cleanup.py \
+  skills/self/disk-cleanup/tests/test_disk_watchdog_dispatcher.py
 ```

@@ -714,7 +714,16 @@ def _queue_priority(entry: dict) -> str | None:
     return value if isinstance(value, str) and value else None
 
 
-def _disk_headroom_deferred(receipt_parent: Path, *, phase: str) -> dict | None:
+def _disk_floor(entry: dict) -> int:
+    """Paid-order producers keep a lower floor than the 2 GiB shared one (still 3x a release cut)."""
+    if entry.get("priority") != "critical_paid":
+        return RECOVERY_FLOOR_BYTES
+    return min(RECOVERY_FLOOR_BYTES, int(os.environ.get(
+        "LIFE_MANAGER_DISK_FLOOR_CRITICAL_PAID_BYTES", str(1024**3))))
+
+
+def _disk_headroom_deferred(receipt_parent: Path, *, phase: str,
+                            floor: int = RECOVERY_FLOOR_BYTES) -> dict | None:
     """Defer only if free space stays below the floor for the whole wait window.
 
     Free space swung between 1.2 and 2.9 GiB within minutes on 2026-10-08 (other sessions' temp
@@ -726,13 +735,14 @@ def _disk_headroom_deferred(receipt_parent: Path, *, phase: str) -> dict | None:
         if phase == "pre_enqueue" else 0.0
     deadline = time.monotonic() + wait
     while True:
-        result = _disk_headroom_once(receipt_parent, phase=phase)
+        result = _disk_headroom_once(receipt_parent, phase=phase, floor=floor)
         if result is None or result["reason"] != "disk_headroom_low" or time.monotonic() >= deadline:
             return result
         time.sleep(10)
 
 
-def _disk_headroom_once(receipt_parent: Path, *, phase: str) -> dict | None:
+def _disk_headroom_once(receipt_parent: Path, *, phase: str,
+                        floor: int = RECOVERY_FLOOR_BYTES) -> dict | None:
     try:
         available = disk_free_bytes(receipt_parent)
     except Exception:
@@ -740,7 +750,7 @@ def _disk_headroom_once(receipt_parent: Path, *, phase: str) -> dict | None:
     if isinstance(available, bool) or not isinstance(available, int) or available < 0:
         reason = "disk_headroom_unavailable"
         available_bytes = None
-    elif available < RECOVERY_FLOOR_BYTES:
+    elif available < floor:
         reason = "disk_headroom_low"
         available_bytes = available
     else:
@@ -751,7 +761,7 @@ def _disk_headroom_once(receipt_parent: Path, *, phase: str) -> dict | None:
         "reason": reason,
         "phase": phase,
         "available_bytes": available_bytes,
-        "required_bytes": RECOVERY_FLOOR_BYTES,
+        "required_bytes": floor,
     }
 
 
@@ -1328,7 +1338,7 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
                                   "reason": "resource_admission_unavailable"})
             return 75
-        disk_deferred = _disk_headroom_deferred(receipt.parent, phase="pre_enqueue")
+        disk_deferred = _disk_headroom_deferred(receipt.parent, phase="pre_enqueue", floor=_disk_floor(entry))
         if interrupted:
             if durable:
                 try:
@@ -1437,7 +1447,7 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                                       "reason": "resource_claim_identity_invalid"})
                 return 75
             on_claimed(claimed_occurrence_id)
-        disk_deferred = _disk_headroom_deferred(receipt.parent, phase="post_claim")
+        disk_deferred = _disk_headroom_deferred(receipt.parent, phase="post_claim", floor=_disk_floor(entry))
         if interrupted:
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
                                   "reason": "resource_admission_interrupted"})
