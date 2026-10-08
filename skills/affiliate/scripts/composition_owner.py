@@ -18,7 +18,7 @@ sys.path.insert(0, str(HERE))
 import agent_runner
 import machine_capability_inventory as inventory
 from acquisition_decision import experiment_plan_matches
-from runtime_guard import RUNTIME_DISK_FLOOR_BYTES, runtime_guard
+from runtime_guard import runtime_guard
 
 
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
@@ -183,22 +183,41 @@ def source_text(state_root: Path, bundle: dict) -> str:
 def prompt_for(state_root: Path, bundle: dict) -> str:
     experiment = bundle.get("experiment")
     language_prompt = ""
-    if bundle["locale"] == "en" and experiment is None:
+    if bundle["locale"] == "en":
         language_prompt = """
 Write in English as the primary language, then add a concise Japanese subtitle/summary
-as the final section. Translate only supported points; add no new factual claims.
+as the final section for every English campaign, including experiment variants. Treat
+this as a fixed locale requirement, not an experiment variable. Translate only supported
+points; add no new factual claims.
+"""
+    strategy_prompt = ""
+    if bundle["locale"] == "en":
+        strategy_prompt = """
+Use a proven affiliate editorial pattern: show one specific workflow tutorial for a
+buyer audience, with useful, repeatable steps and honest fit/limitations; avoid a
+generic feature list.
+Choose one decision-stage search query for that audience and keep the guide useful
+over time.
+Write the main article in English first, aiming for 800–1,200 English words when
+source evidence supports that depth. Never pad or invent to hit a length target;
+include the steps, trade-offs, and fit information a buyer needs to use the workflow.
+For a baseline, put one clear, disclosed, benefit-led CTA above the fold after a
+short intro and before extended details. For an experiment, preserve the control
+and apply this pattern only within the selected variable.
 """
     case_study_prompt = ""
-    if experiment is None and any(
+    if any(
         isinstance(source, dict) and source.get("evidence_class") == "first_person_case"
         for source in bundle.get("sources", [])
     ):
         case_study_prompt = """
-Use the included official affiliate case studies as strategy evidence: show a specific
-workflow tutorial for a relevant audience, keep it useful over time, and place the
-single CTA above the fold. Create original wording; do not copy the cases
-or present their reported earnings as Anicca's results. Attribute any case-study
-figures to the source as reported results, not guarantees.
+Use the included official affiliate case studies as strategy evidence. For a baseline,
+show a specific workflow tutorial for a relevant audience, keep it useful over time,
+and place the single disclosed CTA above the fold after a short intro. For an
+experiment, apply case-study methods only within the selected variable and preserve
+the control's other content choices. Create original wording; do not copy the cases
+or present their reported earnings as Anicca's results; attribute them as reported,
+not guarantees.
 """
     opportunity = bundle.get("opportunity_decision")
     opportunity_prompt = ""
@@ -251,10 +270,11 @@ Do not invent experience, income, performance, price, approval, urgency, or guar
 Include `Disclosure: This article contains an affiliate link.` before the CTA.
 Use the literal placeholder {{{{AFFILIATE_LINK}}}} exactly once; no real tracking URL is available.
 Return JSON with exactly `title` and `markdown`. The markdown must be at least 800 characters.
-{language_prompt}
+{strategy_prompt}
 {case_study_prompt}
 {experiment_prompt}
 {opportunity_prompt}
+{language_prompt}
 
 {source_text(state_root, bundle)}
 """
@@ -718,22 +738,9 @@ def inbox_priority(path: Path, state_root: Path) -> tuple[int, str]:
 def wake(
     skill_root: Path, state_root: Path, run_model=run_model,
     handoff_builder=build_handoff, policy_builder=build_policy,
-    disk_floor_bytes=RUNTIME_DISK_FLOOR_BYTES,
 ) -> dict:
     state_root.mkdir(parents=True, exist_ok=True, mode=0o700)
-    guard = runtime_guard(state_root, disk_floor_bytes)
-    if guard["state"] != "CLEAR":
-        receipt = {
-            "schema_version": 1,
-            "receipt_type": "COMPOSITION_RESULT",
-            "state": guard["state"],
-            "failure_class": "RUNTIME_DISK_GUARD",
-            "guard": guard,
-        }
-        atomic_write(
-            state_root / "composition-receipts" / "runtime-guard.json", receipt,
-        )
-        return receipt
+    runtime_guard(state_root)
     with (state_root / ".composition.lock").open("a+") as lock:
         try:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)

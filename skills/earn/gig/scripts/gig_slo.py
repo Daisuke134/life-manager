@@ -14,10 +14,16 @@ import json
 import os
 import shutil
 import sqlite3
+import sys
 import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+REPO_ROOT = Path(__file__).resolve().parents[4]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+from runtime.host.disk_admission import is_cleanup_disk_recovery_signal  # noqa: E402
 
 
 PASS_SILENCE_SECONDS = 2 * 60 * 60
@@ -669,6 +675,8 @@ def collect_snapshot(
         )
     except OSError:
         disk_free_gb = None
+    stop_path = host_state / "disk-writers.stop"
+    cleanup_recovery_pending = is_cleanup_disk_recovery_signal(stop_path)
     legacy_lanes = {
             lane: _read_json(root / "state" / "lanes" / f"{lane}.json")
             for lane in REVENUE_LANES
@@ -695,7 +703,8 @@ def collect_snapshot(
             ledger_path=root / "applied.jsonl",
         ),
         "disk": {
-            "hard_stop": (host_state / "disk-writers.stop").is_file(),
+            "hard_stop": stop_path.is_file() and not cleanup_recovery_pending,
+            "cleanup_recovery_pending": cleanup_recovery_pending,
             "pressure_advisory": (host_state / "disk-pressure.block").is_file(),
             "free_gb": disk_free_gb,
             "minimum_free_gb": minimum_free_gb,

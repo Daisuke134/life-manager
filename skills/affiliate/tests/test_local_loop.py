@@ -1197,22 +1197,20 @@ class LocalLoopTest(unittest.TestCase):
             stored = json.loads((Path(root) / "owner-health.json").read_text())
             self.assertEqual(stored["receipt_type"], "AFFILIATE_OWNER_HEALTH")
 
-    def test_runtime_disk_guard_is_truthful_and_fail_closed(self):
+    def test_runtime_disk_guard_records_unavailable_capacity_without_floor(self):
         with tempfile.TemporaryDirectory() as root:
             state = Path(root)
-            self.assertIsNone(sys.modules["runtime_guard"].RUNTIME_DISK_FLOOR_BYTES)
-            disabled = MODULE.runtime_guard(state)
-            clear = MODULE.runtime_guard(state, floor_bytes=1)
-            blocked = MODULE.runtime_guard(state, floor_bytes=10 ** 30)
-            self.assertEqual(disabled["state"], "CLEAR")
-            self.assertIsNone(disabled["floor_bytes"])
-            self.assertEqual(clear["state"], "CLEAR")
-            self.assertEqual(blocked["state"], "DISK_GUARD_BLOCKED")
-            self.assertEqual(blocked["guard"], "disk")
-            self.assertEqual(blocked["floor_bytes"], 10 ** 30)
-            self.assertEqual(blocked["receipt_persist_state"], "PERSISTED")
+            with patch.object(
+                sys.modules["runtime_guard"].shutil, "disk_usage",
+                side_effect=OSError("measurement unavailable"),
+            ):
+                observed = MODULE.runtime_guard(state)
+            self.assertEqual(observed["state"], "DISK_GUARD_UNKNOWN")
+            self.assertEqual(observed["failure_type"], "DISK_USAGE_UNAVAILABLE")
+            self.assertIsNone(observed["floor_bytes"])
+            self.assertEqual(observed["receipt_persist_state"], "PERSISTED")
             stored = json.loads((state / "runtime-guard.json").read_text())
-            self.assertEqual(stored["state"], "DISK_GUARD_BLOCKED")
+            self.assertEqual(stored["state"], "DISK_GUARD_UNKNOWN")
             self.assertEqual(stored["receipt_persist_state"], "PERSISTED")
 
     def test_disk_guard_outcome_is_no_effect(self):
@@ -1532,7 +1530,7 @@ class LocalLoopTest(unittest.TestCase):
             self.assertEqual(second["kind"], "REVENUE_CYCLE_FAILED")
             self.assertNotEqual(first["event_uuid"], second["event_uuid"])
 
-    def test_blocked_report_preserves_action_cap_disk_guard_and_money_state(self):
+    def test_blocked_report_keeps_action_cap_and_ignores_disk_guard(self):
         with tempfile.TemporaryDirectory() as root:
             state = Path(root)
             MODULE.atomic_json(state / "rolling-net.json", {
@@ -1559,9 +1557,9 @@ class LocalLoopTest(unittest.TestCase):
 
             self.assertEqual(blocked["kind"], "BLOCKED")
             self.assertIn("判断: external_action_cap=34/10", blocked["body"])
-            self.assertIn("runtime_disk=DISK_GUARD_BLOCKED", blocked["body"])
+            self.assertNotIn("runtime_disk=", blocked["body"])
             self.assertIn("NO_TRANSACTIONS / approved_or_paid_net=USD 0.00 / cost=UNKNOWN", blocked["body"])
-            self.assertIn("ディスク空きが10GiB以上かつJST日次capがCLEAR", blocked["body"])
+            self.assertNotIn("ディスク空きが", blocked["body"])
             self.assertNotIn("buyer-intentを収集", blocked["body"])
 
     def test_blocked_report_identity_ignores_drifting_measurements(self):
@@ -1585,7 +1583,7 @@ class LocalLoopTest(unittest.TestCase):
             )
             self.assertEqual(first["kind"], "BLOCKED")
             self.assertEqual(first["event_uuid"], second["event_uuid"])
-            self.assertNotEqual(first["body"], second["body"])
+            self.assertEqual(first["body"], second["body"])
 
     def test_completed_generic_campaign_advances_to_tts_campaign(self):
         with tempfile.TemporaryDirectory() as root:

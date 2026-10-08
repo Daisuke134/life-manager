@@ -60,9 +60,9 @@ if [ -f "$RESULT" ] && grep -q '^HELD_EFFECT_UNKNOWN' "$RESULT" 2>/dev/null; the
   exit 75
 fi
 
-# Keep this pure: use the shared stop policy and measurement without invoking disk_headroom_ok(), which
-# writes producer receipts. Verify the configured host state root exists first so the shared probe will not
-# bootstrap a missing directory around an unavailable gate.
+# Keep this pure: validate the shared control-state root without invoking disk_headroom_ok(), which
+# writes producer receipts. Verify the configured root exists first so the probe will not bootstrap
+# a missing control directory. Cleanup recovery signals do not defer the fixer.
 sf_disk_admission_probe() {
   PYTHONDONTWRITEBYTECODE=1 python3 - "$SELF_FIX_RELEASE_ROOT" <<'PY'
 import json
@@ -93,8 +93,6 @@ else:
         available = available_bytes
     if policy_gate is not None:
         reason = policy_gate[0]
-    elif available is None:
-        reason = "disk_headroom_unavailable"
 result = {"status": "deferred" if reason else "admitted", "available_bytes": available,
           "required_bytes": required, "reason": reason, "host_state_dir": host_state_dir}
 print(json.dumps(result, sort_keys=True, separators=(",", ":")))
