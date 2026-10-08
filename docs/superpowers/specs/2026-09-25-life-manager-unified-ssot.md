@@ -6823,3 +6823,26 @@ The next cursor is item 1 commit/push. No Dais manual action is currently requir
 - **Source ownership:** future exact Telegram receipt hint writer is in the CFO PR branch, not the currently loaded main release. It requires the PR's merge/release, then a natural eligible send to prove runtime linkage.
 
 **現在cursor:** `push generated registry fixture + latest-main sync → current-head Loop control CI + fresh review; resolve Capafy manifest mismatch through its active owner → merge PR #7106 → immutable CFO release / loaded-idle apply → eligible natural report with runtime receipt/ref and replay-zero → A5 → A6 → A8 → A9 → A10`. Disk recovery remains the separate host-disk owner lane; do not broaden cleanup or kill writers.
+
+### 2026-10-08 20:58 JST — CFO PR manifest and production blocker refreshed
+
+この追記が20:51 JSTのCFO cursorを更新する。CFO順序 **A5 → A6 → A8 → A9 → A10** は維持し、Moneytree A7とCloud費用削減A3/A4はこのlaneへ含めない。
+
+- **Source/PR:** worktree `/Users/anicca/Projects/life-manager-main/.worktrees/cfo-telegram-runtime-receipt-20261007`、branch `fix/cfo-telegram-runtime-receipt-20261007`、この更新前のsource HEAD `1ff4dd79e082c2f4de8496bf7e624e77e71962fb`、`origin/main=804effc5d7c4a1e0702df3f42a425fb273a97022`。PR #7106はopen/draft/mergeable。本revisionで`skills/capafy-autopublish`のtracked 245 filesのmanifest inventoryを`d211d4e2671a532f3a8209ebabc5a1817fcbba7a10e727d22e88417a4451993f`へ同期する。active Capafy worktreeの差分は`daily_loop.sh`とそのtestのみでmanifestを変更しておらず、CFO worktreeからCapafy sourceは編集していない。
+- **CI gate:** remote run `37772999793` は更新前head `1ff4dd79`を検査し、OSS boundaryがmanifest mismatchでFAIL、Loop controlはread時点で実行中。他の報告済みchecksはPASS。CodeRabbitはdraftのため独立review未実施。このrunは本revisionのmanifest修正を検証していない。local `node scripts/verify-oss-self-contained.mjs --json`は`ok=true`、`node --test test/oss-self-contained.test.mjs`は12/12 PASS。本revisionをpushした新headのOSS/Loop control/required checksとfresh reviewを取得する。
+- **Production CFO:** read-only `lm-loop status life-manager-cfo-hourly`ではinstalled release `804effc5d7c4a1e0702df3f42a425fb273a97022`、last terminal occurrence `18dc8b67cad08f88-85711`（11:49:16Z）、exit 75 / `host_admission_deferred:disk_headroom_low`。read時のowner stateは`loaded-running`で、次のapply/release操作は重ねない。最後に確認済みの成功reportは`18dc890cf6d3b810-28491`（11:04:33Z）、Telegram provider ID `105378`、別read-only proofはverifiedだが、元runtime terminalのreceipt/refはnull。再送・resolve・DB writeは未実施。
+- **Capacity blocker:** fresh `df -k /`はavailable `1,690,840 KiB`（約1.61 GiB）で2 GiB admission floor未満。disk-cleanup statusは最新occurrence `18dc8be8cda71318-19705`が11:57:19Zにexit 1。従ってCFOの次の自然reportは容量条件を通るまでeligibleでない。2 GiBは次runのadmission条件、約11 GiBは別途のhost recovery targetであり混同しない。さらに`com.anicca.disk-watchdog.plist`が欠落release `/Users/anicca/loops/releases/20261007T190835-8eb1585e/skills/self/disk-cleanup/disk_cleanup.py`を指し、対象fileは存在しない。host-disk ownerはallow-listed regenerable artifactの所有者・closed状態を特定して2 GiB超まで回復し、watchdog参照をcanonical lifecycleから現行immutable releaseへ更新してreadbackする。protected/open path削除、広範囲cleanup、writer停止、別worktree/plist直接編集はしない。
+- **Business state:** A5 sourceはmerge済みだがproduction migration/RPC/panel readbackは未完。A6で確認できた2026-09 Google invoiceは¥27,889（Cost Table billed total）；cash settlementはunknown、provider operation/loop attributionはunattributed。A8のcoverageは18 loops / 187 jobs / 112 mapped / 75 unmapped。全loop settled revenue・refund・fees・actual cost、A9 source-periodレポート、A10 7日連続natural reportは未完。現時点で全社settled net/MRRを確定値として報告しない。
+
+**残TODO（atomic・現在順）:**
+
+1. PR #7106の更新後headでOSS boundary、Loop control、全required CIがPASSすることを確認する。PRをdraftのままにせずfresh reviewを取得し、PASS後にmainへ統合する。
+2. release reconcilerとCFO ownerがidleになるまで待ち、main由来immutable releaseのloaded SHAをreadbackする。実行中ownerへapply/stop/restartを重ねない。
+3. 2 GiB admission floorを満たした次のnatural CFO reportで、同一occurrenceのruntime terminal receipt/ref、B7/outbox/provider ID/hash、admission released、replay-zeroを照合する。過去reportは再送しない。
+4. A5 migration/RPC/permissionをcanonical production routeで適用し、tenant/period境界とdaily/MTD cost summaryのpanel readbackを行う。
+5. A6でGoogleのbilled Cost Table、credits/tax/rounding、Monitoring estimate、cash settlement、SKU→operation→loop attributionを照合し、billed/cash-paid/attributed/unattributedを分ける。
+6. A8で18 business loopsのsettled revenue/refund/fees/actual costsと187 jobsを全件照合し、loopまたはshared/control/platform overheadへ重複なく分類する。unknownをzeroにしない。
+7. A9で既存`loop_pnl.py --date`のsource-row期間filterを実装・検証し、daily/MTD/trailing/MRRにcurrency・freshness・coverage・receiptを表示する。
+8. A10で7日連続natural reportの全source coverage、settlement/cost join、runtime/provider receipt、期間一致、replay-zeroを確認する。
+
+**現在cursor:** `PR #7106 updated-head CI/review/merge → capacity >=2 GiB and owner loaded-idle → immutable CFO release/readback → next natural receipt/runtime-link/replay-zero → A5 → A6 → A8 → A9 → A10`。host recovery/watchdogはexisting host-disk ownerの並行作業で、CFO branchから触らない。
