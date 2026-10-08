@@ -5938,3 +5938,25 @@ This snapshot supersedes the 13:59–14:04 source/release status. PR #7055 backo
 9. A10でmain由来immutable releaseによる7日連続natural report、18/18 loops・186/186 jobs coverage、official readback、receipt、期間一致、重複/replay zeroを受け入れる。それまでは全社CFO完了やverified $10k MRRを主張しない。
 
 **現在cursor:** item 1 — local branchは最新main `c61f2c89`を含むが、PR remote head `79091677`は未更新。**実blocker:** production CFOの直近runはcapacityでdeferされ、last recorded admission snapshotは満杯、reconcilerは`entrypoint_exit_75`後も稼働中で新main releaseへの反映がない。解消は最新headのPR/CIを閉じた後、既存reconcilerが自然に終端・再収束し、容量とdisk/lockが空いたowner slotでCFOを載せること。現時点でDaisの手動作業は不要。CFO設計順はA5→A6→A8→A9→A10のまま。
+
+### 2026-10-08 16:23 JST — CFO PR CI blocker and revised cursor
+
+この追記は16:17節のGit/PR状況と先頭TODOだけを置き換える。productionと財務値は同節の時刻付きsnapshotのまま。
+
+- **push/readback:** spec更新commit `073726366f589d16403d60299a6a580a9e56928b`は`origin/feat/cfo-a5-cost-visibility-20261007`へfast-forward push済み。PR #6827はOPEN/DRAFT、head `07372636`。fetched `origin/main`は`85f175379e4de97143a82f62afd389acb8133f1a`へ進んだ一方、PR metadataのbaseRefOidは`c61f2c89`、A5 branchには`85f17537`が未統合。
+- **same-head CI:** run `37742717537` / head `07372636`は完了。Loop control、Python syntax/unittest、gitleaks、TruffleHog、PII、shell syntax、agent instruction、startup context、travel/notification checksはSUCCESS。唯一`OSS self-contained boundary`がFAILURE。これらはhead `07372636`上の結果。
+- **再現/根因:** local `node scripts/verify-oss-self-contained.mjs --json`も`manifest_inventory_mismatch` / `skills/capafy-autopublish`を再現。manifest `docs/manifests/oss-merge-1-sources.json`は同rootを245 files / inventory hash `88f3665a…`と記録する。main commit #7084 (`84e2d8d4`)が同root内の`drive_checkpoint2.py`とそのtestを変更したが、manifestは更新されていない。A5 PR差分にはこのrootもmanifestも含まれないため、これはCFO変更由来ではなく、latest-mainのsource inventory gate不整合。
+
+**更新後のremaining atomic TODO:**
+
+1. latest tracked `skills/capafy-autopublish` inventoryに一致するmanifest files/hashをowner-safeに更新し、`node scripts/verify-oss-self-contained.mjs --json`をPASSさせる。A5 laneではこのrootを編集しない。修正の取り込み元・ownerを確認し、既存のmanifest更新と競合させない。
+2. fetchしたlatest main（現在`85f17537`）とmanifest修正をA5 branchへ統合し、PR #6827のhead/baseを一致させる。同一headでrequired CIを再実行し、fresh whole-branch reviewを通してからready/mergeする。現runのgreen checksを次headの証明に流用しない。
+3. merge後、release reconcilerのnatural terminal・disk/lock・admission readbackを確認し、main-derived immutable releaseへ自然収束させる。CFO ownerのloaded SHA/argvとregistry priorityをowner単位で確認する。manual restart、重複apply、cap増加で`resource_capacity_busy`を隠さない。
+4. 15:00 JST CFO reportのdelivery sidecarと同一occurrence runtime eventを結ぶ。sidecar `sent` / provider message ID `105259`だけでeffectを確定せず、receipt/readbackを回復するまで再送しない。receipt-owner/leaseのreadback前に別worktreeを編集しない。
+5. A5 production cost visibilityを閉じる: additive migration/RPC/権限、provider/SKU/operation/unit trace attribution、daily/MTD panel、occurrence receiptを確認する。
+6. A6 Google 2026-09 billed usage・credits・tax・roundingを同期間Monitoring estimateと照合。cash settlementは公式receipt時のみ、根拠のないSKU loop配賦はunattributed。
+7. A8で18 product loops / 186 runtime jobsのsettled revenue/refund/feeとprovider/API/cloud/subscription actual costを、source・period・currency・owner・receipt単位で結ぶ。unknownをzeroにしない。
+8. A9でAsia/Tokyo daily/MTD/trailingをreceiptの実期間で集計し、agent/loop/platform別・全社revenue/expense/net/MRR/freshness/coverageを既存CLI/reportへ表示する。`loop_pnl.py --date`のlabel-only挙動を直す。
+9. A10でmain-derived immutable releaseの7日連続natural report、18/18 loops・186/186 jobs coverage、official readback、期間一致、duplicate/replay zeroを受け入れる。それまでは全社CFO完了やverified $10k MRRを主張しない。
+
+**現在cursor:** item 1 — latest-mainの`skills/capafy-autopublish` inventory mismatchがPR CI blocker。解消方法は変更済みrootのcanonical inventory hashをmanifestへ反映して正確なverifierを通すこと。並行してproduction側では、CFO capacity deferと未収束reconcilerが残っている（直近status snapshotは16:17節参照）。A7 MoneytreeとA3/A4は引き続き後順位。
