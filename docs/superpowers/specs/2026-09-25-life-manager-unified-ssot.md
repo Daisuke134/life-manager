@@ -733,7 +733,7 @@ TODO（何を・どう直すか）
 | 7 | L21 | 1 キャラのシリーズ本数を増やす（売上が出た型を優先） | sales.json に売上が出たキャラの続編が出る | 自動（L18/L27 配線済み） |
 | 8 | HOST | Historical incident: installed line-sticker loops waited below the then-configured 11 GiB floor (2026-10-08; observed free space 1.0–2.5 GiB) | At the time, the old source resumed after ≥11 GiB; this numeric producer wait is superseded by PR #7179 | Historical owner was codex-money-printer. The recorded cleanup/protected-path findings remain evidence; they do not define a current admission rule. |
 | 9 | L19 | set-014（48161243、¥190 静止・文字入り 16 個）の黒い箱 4 枚（hmm / panic / cheer / morning）を作り直して申請 | Creators Market で審査待ちを readback | **DONE**（2026-10-08 15:19Z）。原因 = 画像モデルが緑でなく黒背景で返し緑抜きで消えなかった（箱 30〜44%）。#7155 で黒背景も抜き箱付き候補は再生成。本番 release `97efe82e` で候補を再生成（箱 4→0）、stage を `package` に戻して工場が包み直し・差し替え・再申請、公式画面で「審査待ち」を readback、申請パッケージ 16 枚に箱 0。途中の起動は post_claim の `disk_headroom_low`（空き 2 GiB 未満）で 1 回止まり、空きが 3.5 GiB に戻った後の再起動で通過 |
-| 10 | HOST | Remove numeric free-space admission floors from all producer and release paths (PR #7179) | Source contract: valid low/0-byte readings do not reject work solely by free-space value; production natural readback remains pending | PR #7179 removes the 2 GiB/1 GiB/512 MiB thresholds. The cleanup 2 GiB value remains a recovery receipt metric only. Actual `ENOSPC`, unavailable/unsafe state, explicit stop, owner locks, and effect fences remain separate outcomes; do not wait for a free-space target to run a producer. |
+| 10 | HOST | Restore a positive numeric free-space admission guard after PR #7179 removed thresholds from main | Preserve minimums of 256 MiB for `critical_paid`, 512 MiB for `revenue`, and 2 GiB for other work; overrides may raise but never lower those floors, stay at or below 2 GiB, and malformed values fail closed | PR #7179 is merged as `4346b61c` and removes numeric checks from current main. It is not in production: `~/loops/current` remains `20261009T014034-aba80c99`, which still has the older floor. Host-policy owner `lm-affiliate-fix-1008` holds the active lease; do not deploy a no-floor release or edit that owner's worktree. Add boundary tests for zero, negative, tiny, malformed, and over-maximum overrides before release. | ⚠ |
 
 ### 5.1 自己修復・自己改善の定義（T5 / T12 の正本）
 
@@ -7785,11 +7785,11 @@ This entry supersedes the prior producer-review cursor. CFO priority remains A5 
 
 **Current cursor:** `sync branch to main 4346b61c → exact-head tests/CI/review → merge CFO source PR → keep production on guarded release until host floor is restored → capacity/reconciler owner recovery → guarded release/apply/readback → natural CFO receipt/replay-zero → A5 → A6 → A8 → A9 → A10`.
 
-### 2026-10-09 02:18 JST — CFO latest-main sync and host-test mismatch
+### 2026-10-09 02:22 JST — CFO latest-main sync and host-test mismatch
 
 この追記は02:16 JSTのcursorを更新する。CFOの事業順序は **A5 → A6 → A8 → A9 → A10** のまま。
 
-- **Latest-main sync:** `origin/main=4346b61c` (PR #7179 merge) is now merged locally into the CFO branch at `aa65e4ea`. PR #7106's remote head is still `cd9eaec2` with base `9449e1c7`; its prior CI and fresh SHIP review do not cover this main sync. A read-only merge-tree probe found no conflict. The synced branch contains main's no-floor behavior; it has not been pushed or applied to production.
+- **Latest-main sync:** `origin/main=4346b61c` (PR #7179 merge) is merged locally into the CFO branch at `aa65e4ea`, conflict-free. PR #7106's remote head is still `cd9eaec2` with base `9449e1c7`; its prior CI and fresh SHIP review do not cover this sync. The local branch contains main's no-floor behavior but has not been pushed or applied to production.
 - **Focused acceptance on the synced tree:** CFO Node 59/59; runtime bounds 138/138; registry 137 tests + 197 subtests; Gig disk guard 31/31; `lm-loop-contract` 18 loops / 188 jobs / 113 mapped / 0 errors; source-boundary and diff check pass. `runtime/host/tests/test_disk_admission.py` has one inherited failure: `test_defaults_are_life_manager_owned` expects `$HOME` to determine `_host_state_dir()`, while current main derives the canonical home from `pwd.getpwuid(os.getuid()).pw_dir`. This is a test/contract mismatch, not a CFO email failure; no host-policy code or test was edited because the host-policy owner lease is active. The owner should align the test with the canonical-home contract (or explicitly revise the contract) and rerun the focused host suite.
 - **Current main vs production:** main has removed numeric free-space admission: `lm_loop_run.py::_disk_headroom_deferred()` accepts any measurable free-byte value, and `disk_admission.py::disk_headroom_ok()` no longer compares it with `REQUIRED_BYTES`. Production is not on that source: `~/loops/current` remains `20261009T014034-aba80c99`; CFO is loaded-idle at `aba80c9971c563b54810f3f037f72c4de8578d00`. The 17:08:13Z occurrence `18dc9cd088e7f7a8-87897` is exit 75 / `disk_headroom_low`, effect `not_applicable`, with no provider receipt. Disk is 442,484 KiB (about 432 MiB), below the production release's 512 MiB revenue floor. Disk cleanup is running but its latest terminal is `entrypoint_exit_1`; release reconciler remains on `e1b061f1` and doctor reports unmanaged self-handoff. No production state changed.
 - **Ownership:** `lm-affiliate-fix-1008` still holds the active `remove-numeric-disk-headroom-gates-all-loops` lease through `2026-10-08T23:28:29Z`; this session does not edit that worktree. Dais's no-unbounded-admission requirement means the newly merged no-floor source must not be promoted until the host-policy owner restores a positive guard and tests it. This safety repair blocks production rollout, not the CFO receipt source work.
@@ -7799,20 +7799,19 @@ This entry supersedes the prior producer-review cursor. CFO priority remains A5 
 **Remaining TODO (atomic, current order):**
 
 1. [x] Implement and push the default-email counter fix/test and the CFO receipt source update.
-2. [x] Merge `origin/main=4346b61c` into the CFO worktree; no conflict. Keep the no-floor change out of production.
-3. [ ] Correct the inherited host test contract through its active owner lease; do not edit the owner's worktree.
-4. [ ] Push the synced CFO branch/spec, then pass exact-head CFO/runtime tests, required CI, and fresh read-only review; merge PR #7106 after acceptance.
-5. [ ] After the host-policy owner releases its lease, restore a positive disk minimum (retain critical-paid/revenue/other defaults, allow only bounded upward overrides, fail malformed overrides closed) and add boundary tests before creating/applying a release.
-6. [ ] Repair cleanup and release-reconciler state through their owners; obtain structured capacity evidence of at least 2 GiB free, zero errors, and zero protected deletions.
-7. [ ] Create a guarded main-derived immutable release, apply only the CFO owner while loaded-idle, and verify the loaded SHA.
-8. [ ] Verify the next natural CFO report's runtime/provider receipt, B7 counter/hash, admission state, and replay-zero. Never replay the historical unknown occurrence.
-9. [ ] Complete A5 production migration/RPC permissions and panel readback; A5 source is merged in PR #6827.
-10. [ ] Complete A6 billed Google expense vs cash paid and occurrence-backed provider/operation attribution.
-11. [ ] Complete A8 settled revenue/refunds/fees/measured costs for all 18 loops and explicit cost classification for 188 registry jobs.
-12. [ ] Complete A9 source-backed daily, MTD, trailing-period, and MRR reports with currency/freshness/coverage.
-13. [ ] Complete A10 with seven consecutive natural reports, complete coverage, accurate totals, and replay-zero.
+2. [x] Merge `origin/main=4346b61c` into the CFO worktree; no conflict. Keep the no-floor source out of production.
+3. [ ] Push the synced CFO branch/spec, then pass exact-head CFO/runtime tests, required CI, and fresh read-only review; merge PR #7106 after acceptance.
+4. [ ] After the host-policy owner releases its lease, align the inherited host test with the canonical `pwd` home contract and restore a positive disk minimum (retain critical-paid/revenue/other defaults, allow only bounded upward overrides, fail malformed overrides closed). Add boundary tests before creating/applying a release.
+5. [ ] Repair cleanup and release-reconciler state through their owners; obtain structured capacity evidence of at least 2 GiB free, zero errors, and zero protected deletions.
+6. [ ] Create a guarded main-derived immutable release, apply only the CFO owner while loaded-idle, and verify the loaded SHA.
+7. [ ] Verify the next natural CFO report's runtime/provider receipt, B7 counter/hash, admission state, and replay-zero. Never replay the historical unknown occurrence.
+8. [ ] Complete A5 production migration/RPC permissions and panel readback; A5 source is merged in PR #6827.
+9. [ ] Complete A6 billed Google expense vs cash paid and occurrence-backed provider/operation attribution.
+10. [ ] Complete A8 settled revenue/refunds/fees/measured costs for all 18 loops and explicit cost classification for 188 registry jobs.
+11. [ ] Complete A9 source-backed daily, MTD, trailing-period, and MRR reports with currency/freshness/coverage.
+12. [ ] Complete A10 with seven consecutive natural reports, complete coverage, accurate totals, and replay-zero.
 
-**Current cursor:** `push synced branch/spec → exact-head acceptance + fresh review → merge CFO source PR → restore guarded disk policy with its owner → cleanup/reconciler recovery → guarded release/apply → natural CFO readback/replay-zero → A5 → A6 → A8 → A9 → A10`.
+**Current cursor:** `push synced branch/spec → exact-head acceptance + fresh review → merge CFO source PR → restore guarded disk policy and align its test through the active owner → cleanup/reconciler recovery → guarded release/apply → natural CFO readback/replay-zero → A5 → A6 → A8 → A9 → A10`.
 ### Marketing IntelからWriterへの記事候補連携（並列作業）
 
 **目的:** `marketing-weekly-review`がTelegramへ報告する未検証の`CONTENT`戦術を、既存Writerの`article-daily`トピックキューへ候補として渡す。AffiliateやX repostには配線しない。
