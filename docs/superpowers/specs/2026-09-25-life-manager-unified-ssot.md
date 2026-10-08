@@ -5904,3 +5904,15 @@ This snapshot supersedes the 13:59–14:04 source/release status. PR #7055 backo
 - **shared gate:** `lm-loop doctor`はretired installed label `ai.anicca.provision-browser.capafy.kosuke`により`ok=false`。別owner stateを変更しない。PR #7072のFundraiser MEDIUM review findingは`codex-money-printer`へ送信済みで、follow-up修正がまだ入っていないためFundraiserへのapplyを保留する。
 
 **現在cursor:** 1) release reconciler/Paid/Fundraiserをnatural terminalとloaded-stateまでreadbackし、stop/restart/重複applyしない。2) PR #7072 follow-upでFundraiser close-last-tab→new-context regressionと最小修正をownerが閉じる。3) retired label owner-safe解決後`lm-loop doctor`をpassさせる。4) follow-upを含むmain-derived releaseをowner単位で載せ、official readback/replay-zeroを確認する。5) その後だけ同window capacity/load測定に沿って並列数を調整する。
+
+### Mobile distribution cursor
+
+このreadbackでmobile acquisition TODOの順序は変えず、item 1の現在証拠とcursorを更新する。
+
+- Postiz公式GETは16:21 JST時点で31 integrations、TikTok 17 profiles、enabled 16 / disabled 1（`@anicca.jp8`）。10/8 JSTのunique `PUBLISHED`は9件。`@anicca.jp`と`@anicca_slideshow`が各2件、`@anicca.he`、`@anicca.jp4`、`@anicca.jpx`、`@honne_reveal`、`@obou_anicca`が各1件。`@anicca.comedy`、`@anicca.daily`、`@anicca_buddha`、`@aniccaaffirmation`、`@aniccaen2`、`@aniccajp`、`@aniccajp2`、`@honnevideo`、`@monk_anicca`は0件。enabled 16 profilesの3/day targetは48件、現時点の不足は39件。disabled profileはenable/route確認まで目標達成へ算入しない。
+- `/Users/anicca/loops/current`はimmutable release `20261008T155630-6cc0c56b`。release reconcilerはloaded-runningで、直近occurrence `18dc7b67a05f8020-39546`は`entrypoint_exit_75` / `reconcile_owner`。mobile posting ownersは`8f342d8d`または`71a5f878`をloadedし、latest main `c61f2c89`へ未収束。
+- EN2の直近terminalは`life-manager-anicca-en2-affirmation-tiktok` / run `18dc78532d578968-91053` / `entrypoint_exit_1`で、stderrは`mobile app loop requires node`。`runtime/loop/lm_loop_apply.py`はmanaged runtimeを`LIFE_MANAGER_RUNTIME_NODE`としてplistへ設定する一方、`apps/life-manager/scripts/mobile-app`は`LIFE_MANAGER_NODE`とPATHしか読まない。launchd PATHにNodeがないため、wrapperは投稿runnerより前に終了する。cursorはこのfallbackの回帰testとsource修正。
+- Buddha ownerの直近failureは`Larry JA marketing.video.publish job is not claimable`。jobのclaimable stateとowner mappingは未解決。既存effect-unknown fenceは公式な同一投稿ID/receiptで特定できるまで保持し、再送しない。
+- `life-manager-tiktok-metrics`はoccurrence `18d9f8ffb829e890-94915`を`history_incomplete` / `no_readback_adapter`で保持する。これは後続のsocial-metrics TODOで解決し、distribution投稿と混同しない。
+
+**現在cursor:** shared mobile wrapperのNode fallbackをRED→GREENで修正し、最新mainへmergeする。その後main由来immutable releaseで対象ownerのnatural runとPostiz receiptを確認する。残るowner/job/profileの問題を一つずつ閉じ、全enabled profileがJST日3件のunique `PUBLISHED`に達するまでitem 1を完了扱いしない。
