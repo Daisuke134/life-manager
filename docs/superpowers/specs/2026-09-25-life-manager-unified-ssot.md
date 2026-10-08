@@ -4990,6 +4990,10 @@ Source / production follow-up (2026-10-08 11:01 JST): PR #7012は`b692e70a`と�
 
 **現在cursor:** A5。A5 worktree leaseとproduction reconcilerは別の所有境界として維持する。reconciler/CFO ownerの自然runを重ねて起動せず、A5 lease解放後にA5へ戻る。A7 MoneytreeとA4/A3 Cloud savingsは引き続き対象外・後順位。
 
+## 現行容量基盤を先行する
+
+Daisが現行基盤を先に実装し、安定後にOpenClawへ進む順を指定。旧順序=OC-001以降、新順序=FD-01 bounded stderr replay→FD-02 disk producer budget/retention→FD-03 phase slot→FD-04 readback容量→FD-05自然成果→FD-06 OpenClaw移行。現在cursor=FD-01、source実装着手。根拠はlarge child stderrの全量read/replayとwhole job slot占有。既存workflow/account/claim/scheduleを同時変更しない。[scope](2026-10-08-local-foundation-first.md)。
+
 ### 2026-10-08 11:36 JST — eBook Monk latest cursor and atomic path
 
 この追記は11:29 JSTのeBook renderer recovery cursorを更新する。目標と理想architectureは前節のまま（英語HeyGen 3本/日、日本語Watercolor 3本/日、日本語動画を2 accountで共有し、3 account合計9件/日のPostiz `PUBLISHED` receiptを取る）。
