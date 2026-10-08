@@ -154,14 +154,14 @@
 - [x] Merge latest main through `64db1c2e` (including `71a5f878`, `55546755`, `68b03657`, and `b634a187`); rerun OSS verifier/self-contained tests after the code-bearing main sync (12/12 PASS). `64db1c2e` adds docs only.
 - [x] Run the complete A5 focused tests plus `npm run eval:panel-privacy`, the focused registry test, and `./bin/lm-loop-contract`.
 - [x] Rerun the A5 focused tests (127/127), privacy evaluator, registry/loop contract, and the first full runtime suite against the merged head. The suite reached 791 tests; only the two `cut-loop-release` pressure tests failed because current commit `3f25077e` exists only locally.
-- [ ] After pushing the branch, rerun the two release-pressure tests to satisfy their remote-SHA guard, then require the complete runtime suite to pass.
+- [x] After push, rerun the remote-SHA pressure tests; full runtime suite passes 791/791 on pushed head `4145c84311`.
 - [x] After merging latest code-bearing main `71a5f878`, rerun A5 focused tests (127/127), privacy evaluator, registry fixture/loop contract, OSS verifier/tests, and `git diff --check`.
-- [ ] After pushing the `64db1c2e`-synced head, rerun the complete runtime suite and require all 791 tests to pass.
+- [x] After pushing the `64db1c2e`-synced head, rerun the complete runtime suite; all 791 tests pass on head `4145c84311`.
 - [x] Run `git diff --check` against the merged branch; full branch review still requires a fresh read-only review on the pushed head.
 - [x] Update the canonical SSOT's A5 cursor and production evidence from fresh readbacks; distinguish the older-release ENOSPC messages from the current release's in-progress apply and keep unrelated owner failures outside A5 scope.
 - [x] Fetch/merge latest `origin/main` (`1872befb`); resolve the registry fixture from merged `config/loop-registry.json`, retaining CFO `priority=revenue` and main's eBook occurrence flag.
-- [ ] Fetch/merge latest main `64db1c2e` (and any newer tip) before pushing the existing `feat/cfo-a5-cost-visibility-20261007` branch and updating PR #6827; keep it draft until required checks and fresh source review pass.
-- [x] On pushed head `be3e03a8b5`, rerun `python3 -m unittest discover -s runtime/loop/tests -p 'test_*.py'` and the loop-adapter registry test; all 791 tests pass after satisfying the remote-SHA guard.
-- [ ] After pushing the `64db1c2e`-synced branch, rerun the complete 791-test runtime suite; require all 791 to pass on the new remote head.
-- [ ] After new-head required CI passes, obtain a fresh read-only whole-branch review, then mark PR #6827 ready and merge.
+- [x] Fetch/merge latest main `64db1c2e` and push the existing `feat/cfo-a5-cost-visibility-20261007` branch as head `4145c84311`.
+- [x] On pushed head `4145c84311`, rerun the complete runtime suite; all 791 tests pass.
+- [x] Required checks on head `4145c84311` pass; CodeRabbit skipped review because the PR is draft.
+- [ ] Push this status-only spec/plan update, confirm required checks on its new head, obtain a fresh read-only whole-branch review, then mark PR #6827 ready and merge.
 - [ ] Do not apply the database migration or manually run/restart the production CFO owner from this worktree; production migration/release/natural-report readback follows the canonical SSOT cursor.
