@@ -229,6 +229,51 @@
         }
       ]
     },
+    "connector-agent": {
+      "route": "luna-max-connector",
+      "requires_explicit_escalation": true,
+      "token_reservation": 32768,
+      "timeout_seconds": 90,
+      "candidates": [
+        {
+          "provider": "codex",
+          "model": "gpt-6-luna",
+          "effort": "max",
+          "service_tier": "fast",
+          "profile_alias": "acct1"
+        }
+      ]
+    },
+    "job-hunter-agent": {
+      "route": "luna-max-job-hunter",
+      "requires_explicit_escalation": true,
+      "token_reservation": 65536,
+      "timeout_seconds": 1800,
+      "candidates": [
+        {
+          "provider": "codex",
+          "model": "gpt-6-luna",
+          "effort": "max",
+          "service_tier": "fast",
+          "profile_alias": "acct1"
+        }
+      ]
+    },
+    "fundraiser-agent": {
+      "route": "luna-max-fundraiser",
+      "requires_explicit_escalation": true,
+      "token_reservation": 24576,
+      "timeout_seconds": 3600,
+      "candidates": [
+        {
+          "provider": "codex",
+          "model": "gpt-6-luna",
+          "effort": "max",
+          "service_tier": "fast",
+          "profile_alias": "acct1"
+        }
+      ]
+    },
     "application-intent-planner": {
       "route": "luna-high-isolated-application-intent",
       "requires_explicit_escalation": true,

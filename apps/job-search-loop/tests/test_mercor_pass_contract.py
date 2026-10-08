@@ -518,7 +518,7 @@ class MercorPassContractTests(unittest.TestCase):
         return result, reporting_call
 
     def test_task_class_is_modelled_browser_lane(self):
-        self.assertEqual(TASK_CLASSES["mercor_pass"], "browser-lane-agent")
+        self.assertEqual(TASK_CLASSES["mercor_pass"], "job-hunter-agent")
 
     def test_prompt_contains_model_led_submit_guard_and_human_stop(self):
         prompt = " ".join(

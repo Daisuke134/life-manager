@@ -115,6 +115,7 @@ class MacosLoopRegistryTest(unittest.TestCase):
         self.assertEqual(row["resource_class"], "agent")
         self.assertEqual(row["admission_class"], "borrow")
         self.assertEqual(row["priority"], "support")
+        self.assertEqual(row["admission_effect_scope"], "occurrence")
         self.assertTrue(row["coalesce_reserved_wakes"])
         self.assertTrue(row["coalesce_queued_wakes"])
 

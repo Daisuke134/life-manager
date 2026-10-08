@@ -1,32 +1,34 @@
 ---
 name: fundraiser-agent
 description: >-
-  Continuous Life Manager fundraising through the existing application
-  behavior. Every hour it discovers live Web/X opportunities, applies to
-  as many eligible programs as possible, and records authoritative readback.
+  Continuous Life Manager fundraising through the existing application and
+  outreach behavior. Every hour it discovers eligible programs and new VC or
+  AI/AGI founder contacts, then records authoritative readback.
 metadata:
   owner: life-manager
-  model: application-lane-agent
+  model: fundraiser-agent
   side_effect_owner: existing-browser-worker
   private_data: startup-context-and-scoped-founder-profile
 ---
 
 # Fundraiser Agent
 
-This skill gives the existing Life Manager application behavior one objective:
-fundraise continuously, 24/7. The existing Life Manager owner starts a pass every
-hour. Each pass submits as many applications as possible from the newly
-eligible candidates within its execution window. There is no arbitrary per-pass or per-day
-application maximum, and the pass continues after the first submitted application.
+This skill gives the existing Life Manager Fundraiser owner one objective:
+fundraise continuously, 24/7. The owner starts a pass every hour. Each pass
+submits eligible program applications and makes target-specific introductions
+to new VCs and AI/AGI lab founders within its execution window. There is no
+arbitrary per-pass or per-day application maximum, and the pass continues after
+the first verified result.
 
 This is an instruction layer, not a scheduler, browser driver, provider adapter,
 form compiler, or application script. Reuse the existing Life Manager scheduler,
-  application route, browser worker, runtime jobs, effect claims, receipts, and Telegram
-reporting path.
+Fundraiser runtime, browser worker, Gmail transport, effect claims, receipts, and
+Telegram reporting path. The recorder's private append-only target-intent ledger
+is the target-level replay fence, not a new owner or scheduler.
 
 ## Required shared context
 
-- Use the existing `application-lane-agent` route. Do not create another
+- Use the existing `fundraiser-agent` route. Do not create another
   planner or invoke another model.
 - Read `.agents/startup-context.json` afresh on every pass as the public
   product/company/mission/business-model/traction fact source.
@@ -34,6 +36,10 @@ reporting path.
   founder profile. Never copy private values into public evidence or Telegram.
 - Read current runtime application receipts. Deduplicate exactly on organization,
   program, cohort/window, and account; a new cohort remains a new opportunity.
+- Read the recorder's target-intent ledger before any external effect. A target
+  with pending, successful, or unknown intent stays fenced across occurrences;
+  only a verified pre-effect failure releases that target. Never reopen or send
+  to the legacy `DeepScale.Ventures` target.
 - Use the existing authenticated browser worker. Lease the existing authenticated
   X CDP identity read-only for discovery, then release it before application work.
 
@@ -42,6 +48,13 @@ reporting path.
 1. Search the live Web and rendered X broadly in English and Japanese. X is lead
    evidence; verify deadline, eligibility, terms, and application route on a
    current official page.
+   Also discover new VCs and AI/AGI lab founders whose public investment or
+   research focus fits Life Manager. Verify current roles and published business
+   contact routes on official pages. Never guess an address or use a private
+   contact route. Use startup-context facts to describe Life Manager as a manager
+   that completes delegated real-world work and reports evidence, then invite one
+   purpose per recipient: a podcast, Zoom, or in-person discussion. Say I can
+   travel to meet in person if useful; do not purchase travel or tickets.
 2. Build a live candidate queue and process it until the execution window ends.
    A duplicate, closed, unsuitable, or blocked candidate advances immediately to
    the next candidate; it never ends the pass while work remains.
@@ -61,19 +74,27 @@ reporting path.
    publicity, or binding program commitments. If identity proof, KYC, signature,
    or another non-inferable ceremony blocks one candidate, record that candidate
    as failed and continue immediately. Never create or wait on a human checkpoint.
-6. Claim the shared `application` effect immediately before each final Submit.
-   Submit that exact identity once, capture fresh UI and/or provider-mail readback,
-   and then continue to the next candidate. `submit_unknown` is replay-zero.
+6. Prepare each exact draft through the existing recorder, which durably binds
+   target identity, occurrence, and digest. Claim the shared `application` effect
+   immediately before one final Submit or email send. The recorder durably records
+   each target's `effect_attempted` state before the send. Continue to another
+   target only after the prior target is `submitted_verified` or
+   `verified_pre_effect_failure`. An unresolved `effect_attempted` or
+   `submit_unknown` holds the current occurrence; never relabel it as `pre_effect`.
+   `submit_unknown` is replay-zero.
+   Do not attach or send private data. Outreach uses no attachment; do not buy
+   travel, lodging, or paid tickets.
 7. Send a real-time Telegram update immediately after every submitted or
-   `submit_unknown` application, then send the pass aggregate. Candidate failures
-   are included in the aggregate and never request human action.
+   `submit_unknown` application or introduction, then send the pass aggregate.
+   Candidate failures are included in the aggregate and never request human action.
 
 ## Evidence and outcome
 
-A verified application requires an immutable ApplicationReceipt backed by a fresh
-official completion screenshot delivered to Telegram with its provider message
-ID. Keep source URLs, official evidence, identity, action history, effect result,
-PNG path, and Telegram message ID in the existing runtime contract. Provider UI
-or mail without that delivered image is evidence-incomplete, not verified. Zero
-verified applications is not a successful no-op; report it as a failed pass with
-checked sources and continue from durable state on the next hourly wake.
+A verified application or introduction requires an immutable ApplicationReceipt
+backed by a fresh official completion or exact Sent screenshot delivered to
+Telegram with its provider message ID. Keep source URLs, official evidence,
+identity, action history, effect result, PNG path, and Telegram message ID in the
+existing runtime contract. Provider UI or mail without that delivered image is
+evidence-incomplete, not verified. Zero verified results is not a successful
+no-op; report it as a failed pass with checked sources and continue from durable
+state on the next hourly wake.

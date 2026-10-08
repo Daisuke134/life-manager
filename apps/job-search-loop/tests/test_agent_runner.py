@@ -28,10 +28,10 @@ class AgentRunnerTests(unittest.TestCase):
             )
 
     def test_task_routes_are_pinned(self):
-        self.assertEqual(TASK_CLASSES["tailor"], "composition-agent")
-        self.assertEqual(TASK_CLASSES["inbox"], "composition-agent")
-        self.assertEqual(TASK_CLASSES["submit"], "browser-lane-agent")
-        self.assertEqual(TASK_CLASSES["improve"], "high-value-agent")
+        self.assertEqual(TASK_CLASSES["tailor"], "job-hunter-agent")
+        self.assertEqual(TASK_CLASSES["inbox"], "job-hunter-agent")
+        self.assertEqual(TASK_CLASSES["submit"], "job-hunter-agent")
+        self.assertEqual(TASK_CLASSES["improve"], "job-hunter-agent")
 
     def test_mercor_pass_supplies_required_escalation_reason(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -48,6 +48,9 @@ class AgentRunnerTests(unittest.TestCase):
                     "stdout": json.dumps(
                         {
                             "status": "success",
+                            "selected_provider": "codex",
+                            "selected_model": "gpt-6-luna",
+                            "selected_effort": "max",
                             "result_path": str(root / "result.json"),
                         }
                     ),
@@ -91,6 +94,9 @@ class AgentRunnerTests(unittest.TestCase):
                     "stdout": json.dumps(
                         {
                             "status": "success",
+                            "selected_provider": "codex",
+                            "selected_model": "gpt-6-luna",
+                            "selected_effort": "max",
                             "result_path": str(root / "result.json"),
                         }
                     ),

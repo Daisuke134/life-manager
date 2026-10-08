@@ -1399,6 +1399,7 @@
     },
     "fundraiser": {
       "admission_class": "borrow",
+      "admission_effect_scope": "occurrence",
       "cadence": {
         "start_interval_seconds": 3600
       },
@@ -1890,7 +1891,7 @@
         "max_runs": 100
       },
       "domain": "earn",
-      "effect_class": "application",
+      "effect_class": "none",
       "entrypoint": "apps/job-search-loop/scripts/run-health.sh",
       "label": "ai.anicca.job-search-health",
       "log_root": "~/.local/state/anicca/job-search/logs",

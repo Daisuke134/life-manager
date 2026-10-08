@@ -10,12 +10,12 @@ from typing import Any
 
 
 TASK_CLASSES = {
-    "extract": "composition-agent",
-    "tailor": "composition-agent",
-    "inbox": "composition-agent",
-    "mercor_pass": "browser-lane-agent",
-    "submit": "browser-lane-agent",
-    "improve": "high-value-agent",
+    "extract": "job-hunter-agent",
+    "tailor": "job-hunter-agent",
+    "inbox": "job-hunter-agent",
+    "mercor_pass": "job-hunter-agent",
+    "submit": "job-hunter-agent",
+    "improve": "job-hunter-agent",
 }
 AGENT_RUNNER_TIMEOUT_SECONDS = 1_000
 
@@ -122,13 +122,14 @@ class AgentRunner:
             "--task-class",
             task_class,
         ]
-        if task == "mercor_pass":
-            argv.extend([
-                "--escalation-reason",
-                "bounded multi-page Mercor application completion with official browser readback",
-            ])
+        escalation_reason = (
+            "bounded multi-page Mercor application completion with official browser readback"
+            if task == "mercor_pass"
+            else "Job Hunter discovery and qualified application work with existing provider receipts"
+        )
+        argv.extend(["--escalation-reason", escalation_reason])
         prompt_input = None
-        if task_class in {"composition-agent", "diagnostic-agent"}:
+        if task in {"extract", "tailor", "inbox"}:
             argv.append("--prompt-stdin")
             prompt_input = prompt
         else:
@@ -190,6 +191,12 @@ class AgentRunner:
             )
         try:
             summary = json.loads(completed.stdout)
+            if (
+                summary.get("selected_provider") != "codex"
+                or summary.get("selected_model") != "gpt-6-luna"
+                or summary.get("selected_effort") != "max"
+            ):
+                raise ContractError("job hunter selected an unexpected model route")
             result_path = Path(summary["result_path"])
             value = json.loads(result_path.read_text(encoding="utf-8"))
             schema = json.loads(Path(schema_path).read_text(encoding="utf-8"))
