@@ -128,12 +128,22 @@ class TitleTaken(RuntimeError):
     """Creators Market titles are unique per language across all creators."""
 
 
+def _sticker_type_value(listing: dict) -> str:
+    """Creators Market's sticker_type radio value (confirmed live 2026-10-08: static=スタンプ,
+    animation=アニメーションスタンプ)."""
+    return "static" if listing.get("type") == "static_sticker" else "animation"
+
+
+def _image_count_value(listing_or_item: dict) -> str:
+    return str(listing_or_item.get("count") or listing_or_item.get("sticker_count") or 24)
+
+
 async def _create_item(page: Page, listing: dict, selection: dict) -> dict:
     listing = _fit_listing(listing)
     saves: list = []
     page.on("response", lambda r: saves.append(r) if r.request.method == "POST" and r.url.endswith("/api/v2/sticker") else None)
     await _goto(page, f"{BASE}/sticker/create")
-    radio = page.locator("input[name=sticker_type][value=animation]")
+    radio = page.locator(f"input[name=sticker_type][value={_sticker_type_value(listing)}]")
     await radio.locator("xpath=ancestor::label[1]").click()
     assert await radio.is_checked()
     await page.fill('input[name="meta[en][title]"]', listing["title"]["en"])
@@ -202,7 +212,7 @@ async def _select_taste_character_campaign(page: Page, selection: dict) -> None:
 
 async def _upload_images(page: Page, item: dict, package_dir: Path) -> None:
     await _goto(page, f"{BASE}/sticker/{item['product_id']}/image")
-    await page.select_option("#number_of_images", "24")
+    await page.select_option("#number_of_images", _image_count_value(item))
     ok_button = page.locator("button:visible", has_text="OK").last
     try:
         await ok_button.wait_for(timeout=15000)
@@ -222,7 +232,7 @@ async def _upload_images(page: Page, item: dict, package_dir: Path) -> None:
 
 
 async def _tag_all(page: Page, item: dict, tags: dict) -> None:
-    for number in range(1, 25):
+    for number in range(1, int(_image_count_value(item)) + 1):
         sticker_id = f"{number:02d}"
         wanted = set(tags.get(sticker_id, []))
         await _goto(page, f"{BASE}/sticker/{item['product_id']}/tag#/{sticker_id}")
