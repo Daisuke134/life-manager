@@ -724,7 +724,7 @@ TODO（何を・どう直すか）
 |---|---|---|---|---|
 | 1 | L19 | 静止スタンプ（¥190）ラインを本番で 1 セット申請 | Creators Market で審査待ちを readback | コード本番済み（#7039）。工場が静止ラインを選んだ時点で live 証明 |
 | 2 | L28 | 画像生成を ChatGPT サブスク（`~/.agents/skills/chatgpt-imagegen`）に統一し原価 0 | 静止・キャラ画像が chatgpt-imagegen で生成され cost_usd 0 を記録 | DONE（#7046） |
-| 3 | L26 | 特集（例 835 冬を感じるスタンプ）に条件が合えば自動参加 | #7034 merge・release・次の申請で参加を readback | コード本番済み（#7034 `1872befb`）。手動で 48137583 を 835 に参加済み |
+| 3 | L26 | 特集（例 835 冬を感じるスタンプ）に条件が合えば自動参加 | #7034 merge・release・次の申請で参加を readback | 48137583 が 835「冬」で却下（2026-10-08、冬の絵が 8 個に届かず）。修正: 選定が `campaign_theme_ids` を列挙し、条件個数+4 以上の時だけ参加（決定的ガード）。却下の自動再申請も 4 つの欠陥（英語タイトル照合・返信フォーム化した本文末尾・二重 URL・value 属性の無い「参加しない」）で一度も動いていなかった → 修正し、48137583 を `leave_features` で自動再申請、審査待ちを readback |
 | 4 | L29 | 動くスタンプを fal ではなく ChatGPT のコマ画像→APNG で作る（fal 残高 −$10.95 で停止中） | 1 セットを無課金で生成し申請 | コード本番済み（#7068、#7074 provenance 修正）。**DONE**。set-012（48151688「動く！ポンタの毎日敬語スタンプ」、24 個）を ChatGPT コマ画像→整数秒ループ APNG（#7081）で無課金生成し、自然実行で 2026-10-08 07:19Z 申請。Creators Market で「審査待ち」を readback |
 | 5 | L20 | 文字入り版（「了解」「ありがとう」等）を別 SKU で出す | 1 セット申請 | 工場配線済み（静止、Pillow 描画、#7080）。自然 wake の with_text 申請 readback 待ち |
 | 6 | L17 | IG の日常投稿・交流を回す（10/10 から engagement と bio リンク） | 自然 slot の新規 reel と ledger、10/10 以降の engagement 記録 | #7064 で schema 400 を修正後、自然 slot で published を ledger readback（10/07 08:15Z `DeMFSYRvqDF`、11:15Z `DeMSaWrPhWV`、10/08 04:15Z `DeOXH3iBbnV`）。残りは 10/10 以降の engagement 記録 |
@@ -6058,6 +6058,21 @@ Fresh read-only review rejected the idle-readback-only patch: a new StartInterva
 - `life-manager-disk-cleanup` naturally passed at 16:40 JST. `df -k /tmp` at 16:41 JST shows 5,671,864 KiB available. Earlier ENOSPC lines under the 71a5 release are historical evidence, not yet proven as the cause of the c61 occurrence.
 
 **現在cursor:** `PR #7091 remaining required CI PASS → main merge → PID 96926 natural terminal and exact phase evidence → current-main handoff receipt → eBook/fence owner convergence and exact occurrence readback → 9 unique PUBLISHED/day → paid order+PDF → paid active subscription MRR → gated Capafy canary/order readback`。Production sources/owners/posting remain unmodified by this task.
+
+### Mobile distribution cursor
+
+このreadbackでmobile acquisition TODOの順序は変えず、item 1の現在証拠とcursorを更新する。
+
+- Postiz公式GETは16:21 JST時点で31 integrations、TikTok 17 profiles、enabled 16 / disabled 1（`@anicca.jp8`）。10/8 JSTのunique `PUBLISHED`は9件。`@anicca.jp`と`@anicca_slideshow`が各2件、`@anicca.he`、`@anicca.jp4`、`@anicca.jpx`、`@honne_reveal`、`@obou_anicca`が各1件。`@anicca.comedy`、`@anicca.daily`、`@anicca_buddha`、`@aniccaaffirmation`、`@aniccaen2`、`@aniccajp`、`@aniccajp2`、`@honnevideo`、`@monk_anicca`は0件。enabled 16 profilesの3/day targetは48件、現時点の不足は39件。disabled profileはenable/route確認まで目標達成へ算入しない。
+- 16:21 JSTのreadbackでは`/Users/anicca/loops/current`がimmutable release `20261008T155630-6cc0c56b`、release reconcilerがloaded-runningで、直近occurrence `18dc7b67a05f8020-39546`は`entrypoint_exit_75` / `reconcile_owner`。mobile posting ownersは`8f342d8d`または`71a5f878`をloadedし、その時点のmain `c61f2c89`へ未収束。mainはその後`07aa3fb3`へ進み、mobile ownersのfresh readbackはまだない。
+- EN2の直近terminalは`life-manager-anicca-en2-affirmation-tiktok` / run `18dc78532d578968-91053` / `entrypoint_exit_1`で、stderrは`mobile app loop requires node`。`runtime/loop/lm_loop_apply.py`はmanaged runtimeを`LIFE_MANAGER_RUNTIME_NODE`と`LIFE_MANAGER_RUNTIME_PYTHON`としてplistへ設定する一方、`apps/life-manager/scripts/mobile-app`は両方を読まず、`LIFE_MANAGER_NODE` / `LIFE_MANAGER_PYTHON`とPATHだけを使う。launchd PATHにruntimeがないためrunner前に終了する。wrapperは両managed runtimeをfallbackに使うsource修正を含む。
+- Buddha ownerの直近failureは`Larry JA marketing.video.publish job is not claimable`。jobのclaimable stateとowner mappingは未解決。既存effect-unknown fenceは公式な同一投稿ID/receiptで特定できるまで保持し、再送しない。
+- `life-manager-tiktok-metrics`はoccurrence `18d9f8ffb829e890-94915`を`history_incomplete` / `no_readback_adapter`で保持する。これは後続のsocial-metrics TODOで解決し、distribution投稿と混同しない。
+- TDD回帰testは隔離PATHで両managed runtimeを渡し、修正前RED（`mobile app loop requires node`）・修正後GREEN。`mobile-app-command.test.js`は12/12、`bash -n`、`git diff --check`、`./bin/lm-loop-contract`（18 loops / 187 registry jobs / errors 0）、`runtime/loop/tests`（793/793）、`loop-adapter-registry.test.js`（15/15）がPASS。runtime suiteは既存SQLite connectionの`ResourceWarning`を出すが失敗なし。
+- Production promotion gateは未達。16:21 readbackのinstalled release `20261008T155630-6cc0c56b`に対する`lm-loop doctor`は`ok=false`で、retired installed label `ai.anicca.provision-browser.capafy.kosuke`が1件。mobile laneはこの別owner labelを変更せず、doctorがPASSするまでowner applyを行わない。
+- PR #7089の初回`OSS self-contained boundary`はmainの#7084が変更した`skills/capafy-autopublish` treeとmanifest hash不一致でFAIL。PR差分は同treeを変更しない。canonical verifier計算は245 files / SHA-256 `7d59dbe788a1edb593d16240413cdb6573e0b49b8297b63d4da539179eb61fa6`。manifestをその値へ更新し、canonical verifierとCI run `37744122051`（head `db56b9b6`）、`37745525945`（head `f4cbeb51`）は全件PASS。mainはその後`07aa3fb3`へ進み、このPR headのrequired CIはまだ取り直す必要がある。
+
+**現在cursor:** source fixとfocused acceptanceは完了。最新main `07aa3fb3`を同期したmerge commitでrequired CIを取り直し、全件PASS後にPR #7089をmainへ統合する。productionでは別ownerのretired labelをowner-safeに解消して`lm-loop doctor`がPASSした後だけimmutable releaseへ対象ownerを個別反映し、EN2のnatural runとPostiz receiptを確認する。残るowner/job/profileの問題を一つずつ閉じ、全enabled profileがJST日3件のunique `PUBLISHED`に達するまでitem 1を完了扱いしない。
 
 ### 2026-10-08 16:53 JST — PR #7091 merged; production remains on old release
 

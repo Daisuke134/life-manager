@@ -204,10 +204,12 @@ async def _select_taste_character_campaign(page: Page, selection: dict) -> None:
             await select.select_option(selection["taste_id"])
         elif selection.get("character_category_id") in values:
             await select.select_option(selection["character_category_id"])
-    campaign_value = selection.get("campaign_value") or "on"
-    campaign_radio = page.locator(f"input[type=radio][value='{campaign_value}']")
+    campaign_value = selection.get("campaign_value")
+    # 参加しない has no value attribute (DOM .value reads "on", CSS [value='on'] matches nothing).
+    campaign_radio = page.locator(f"input[type=radio][value='{campaign_value}']" if campaign_value
+                                  else "input[type=radio]:not([value])")
     if await campaign_radio.count():
-        await campaign_radio.first.locator("xpath=ancestor::label[1]").click()
+        await campaign_radio.first.evaluate("e => e.click()")  # feature radios are not wrapped in a <label>
 
 
 async def _upload_images(page: Page, item: dict, package_dir: Path) -> None:

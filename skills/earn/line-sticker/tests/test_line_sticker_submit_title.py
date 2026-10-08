@@ -147,10 +147,7 @@ class _FakeRadio:
     def first(self):
         return self
 
-    def locator(self, *a, **k):
-        return self
-
-    async def click(self) -> None:
+    async def evaluate(self, script: str) -> None:
         self._clicked.append(self._value)
 
 
@@ -170,7 +167,9 @@ class _FakeCampaignPage:
     def locator(self, selector: str, *a, **k):
         if selector == "select":
             return _FakeSelectLocator()
-        value = selector.split("value='")[1].rstrip("']")
+        # 参加しない has no value attribute; the live DOM reports its .value as "on".
+        value = selector.split("value='")[1].rstrip("']") if "value='" in selector else "on"
+        assert "value='on'" not in selector, "CSS [value='on'] never matches the live radio"
         return _FakeRadio(self.clicked, value)
 
 
