@@ -439,7 +439,7 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
 | N4 | 審査枠（未公開 5 本上限）を空ける・上限が増えたか確認 | 下書き 3＋却下 1 が消える | 未公開 9 本（審査中 5・下書き 3・却下 1）、空き 0。新規は出せていない。サポート回答待ち。10/08 10:39 に優先審査の催促＋上限の確認をメール |
 | N5 | 新規 agent は上位勢をそのまま真似る（10/08 市場 846 本の実測: 稼ぐ出品者は 1〜3 本で売上の 73〜100% が 1 本の当たり＋短尺動画。54 本出した One File Tools は 289 件、39 本の私たちは 62 件）。当たり分野＝動画フック・株／お金の追跡・スポーツ分析、価格＝週 $9.99〜19.99・月 $19.99〜29.99・年 ≥ $99.99、回数は少なめ。無料の入口版から有料版へ流す（Akira 型） | 新 agent が承認され 30日注文 > 0 | 工場の既定モデルを Sonnet 5.5 実行へ変更中（branch `capafy/factory-sonnet-5-5-runtime`）。枠が空き次第出る |
 | N6 | 宣伝の計測: Capafy 管理画面で登録した ct だけが計上される | 登録 ct 経由の訪問・注文が traffic-sources に出る | ✅ 8 本登録。訪問はまだ 0 |
-| N7 | 短尺動画（3 秒フック→実演→「Capafy で <名前> を検索」）を Instagram・TikTok へ。承認を待たない（4 本とも審査中でも公開検索に出て購入可、10/08 10:40 確認） | 動画が投稿され、注文につながる | Hook Lab 動画 v2 完成。今日から 1 日 1 本で投稿するよう codex-money-printer（D5）に依頼（10/08 10:40）。残り 3 本の動画は未作成 |
+| N7 | 短尺動画（3 秒フック→実演→「Capafy で <名前> を検索」）を Instagram・TikTok へ。承認を待たない（4 本とも審査中でも公開検索に出て購入可、10/08 10:40 確認） | 動画が投稿され、注文につながる | **1 本目公開**: Hook Lab 動画 v2 を Postiz 経由で @capafy.hooklab へ（post `cmuyxv5wy0dizkz0y07j9qkkp`、PUBLISHED、https://www.instagram.com/reel/DeN5oujDBeC/ 、10/08 11:50 JST）。自動 owner `life-manager-capafy-ig` は launchd disabled のまま（pack/media/approval ref 未設定）。次: 残り 3 本の動画と 1 日 1 本の自動化 |
 | N7b | 自社メディア aniccaai.com の記事＋X（3 時間ごと） | 記事が公開され、登録 ct 経由の訪問が出る | 公開中（10/08 は h00〜h09 の 4 本 published、10/07 は h06 blocked・h15〜h21 なし）。OpenSEO のキーワード選定は writer の article-daily だけで、Capafy 記事には未適用 |
 | N8 | 工場・宣伝が止まらない運転 | 毎時の集計・3 時間ごとの宣伝・工場が自然に回る | 毎時確認中。ディスクは他セッションの作業で揺れる |
 
