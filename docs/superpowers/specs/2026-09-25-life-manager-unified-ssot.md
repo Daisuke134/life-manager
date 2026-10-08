@@ -5297,26 +5297,27 @@ PR #7030の全required checksはhead `99648f4f` / base `a7899e37`でPASSした�
 
 この節が先行するCFO状態メモを更新する。実行順は **A5 → A6 → A8 → A9 → A10** のまま。A7の個人MoneytreeとA3/A4のCloud・geocoding費用削減はDaisの指示で後順位とし、このCFO業務のblockerにしない。CFO設計詳細は `docs/superpowers/specs/2026-10-02-life-manager-cfo-cost-observability-design.md` を参照し、TODO/順序/状態の正本は本SSOTだけに置く。
 
-14:58 JST以前の詳細readbackとTODOは直下の15:05 JST状態に置き換えた。過去の証拠履歴はGitで保持する。
+14:58/15:05/15:13 JST以前の詳細readbackとTODOは直下の15:16 JST状態に置き換えた。過去の証拠履歴はGitで保持する。
 
-**最新readback（2026-10-08 15:05 JST。以下が上記14:58記録を置き換える）:**
+**最新readback（2026-10-08 15:16 JST。以下が上記の過去状態を置き換える）:**
 
-- latest `origin/main`は`1872befbd4c237cad6a73f4a2cd1ba297fd54bdb`。A5 branch HEADは`ce8b188e4a46b0e604fc3e06968cdbff8f1d0238`で、main `d3b0d992`までは取り込み済みだが`1872befb`は未取り込み。`/Users/anicca/loops/current`はrelease `20261008T150139-620d941e`（SHA `620d941eae9abe2d2bd56becf5a1811a085e6a18`）を指す。
-- release reconcilerの旧run `18dc7831218c0590-15799`は14:55:04 JSTにSHA `8ddccaff`上で開始し15:03:50 JSTに`entrypoint_exit_143` / exit143で終了。直接原因は未確定。current release `620d941e`上の新run `18dc78bd552580c0-11196`は15:05:06 JSTに開始し、最終readback時点で`loaded-running`。CFO ownerはまだSHA `8f342d8d` / `loaded-idle`。fleet stateはSHA `8f342d8d`、13:44:07 JST、6 changed / 177 skipped / 4 errorsの古いsnapshotで、新runの結果を表さない。
+- latest `origin/main`は`68b03657e2b79c2b233f9426911bb2ea22ba43bc`。A5 branch HEAD `3f25077e0b2c1be99b2735ed74f9b64a07b3f13e`には`1872befb`までmerge済みだが、latest `68b03657`は未取り込み。`/Users/anicca/loops/current`はrelease `20261008T151401-68b03657`（SHA `68b03657e2b79c2b233f9426911bb2ea22ba43bc`）を指す。
+- current release `620d941e`上のreconciler run `18dc78bd552580c0-11196`は15:05:06 JST開始、15:15:14 JSTに`entrypoint_exit_143` / exit143で終了。direct signal sourceは未確定。current release `68b03657`上の新run `18dc7959bdb11c70-88792`は15:16:18 JST開始し、最終readback時点で実行中。CFO ownerはSHA `8f342d8d` / `loaded-idle`のまま。fleet stateはSHA `8f342d8d`、13:44:07 JST、6 changed / 177 skipped / 4 errorsの古いsnapshotで、新runの結果を表さない。
 - CFO natural occurrence `18dc787a14117b40-77083`は15:00:53 JSTにreport `pass`（release `8f342d8d`）。同じoccurrenceのsidecarは15:00:19 JSTに`status=sent`、provider message ID `105259`、report snapshotは15:00:25 JST。ただしruntime eventは`effect_status=unknown`で`provider_receipt_id`と`official_readback_ref`がnull。送信sidecarだけでruntime effectをverifiedにしない。再送・手動resolveはしない。
 - B7 snapshot `2026-10-08T06:00:25.141035Z`: historical revenue/netは18 loopsすべてunknown（173 gaps）、trailing revenue/cost/netは18 loopsすべてunknown（168 gaps）、company MRRはunknown（26 gaps）。`mobile-apps` MRR USD 20.34のみverified。Google Cloud 2026-09 bill JPY 27,889 / 41 SKU rowsはbilled額としてverifiedだがcash-paidはunknown、loop配賦はunattributed。全社の確定revenue/expense/netはまだ出せない。
-- PR #6827 remote head `99814e52f3a930ad034e4b02ad4fade26975e432` / base `8bf65f15d014f914d96a6abce56ada18b7c45efb`はdraft。現remote headの失敗はOSS self-contained boundaryの`manifest_inventory_mismatch`のみで、他のrequired checksはpass。local branchには245-file/hash `88f3665a…`へのmanifest修正があり、`node scripts/verify-oss-self-contained.mjs`はPASSしたが、これはmain `d3b0d992`までの状態。`1872befb`取り込み後にinventoryを再計算して同じheadで検証する。
-- A5 source testsはSQL/API/UI `112/112`、privacy `api=177/browser=63/recipes=19/channels=9`、registry `136/136`、loop contract PASS、Node adapter `15/15`、full runtime `790/790`。fresh review（Critical/Importantなし）も`f2ea57e828`系の前回headの証拠であり、最新main同期後の新headでは再検証する。
+- PR #6827 remote head `99814e52f3a930ad034e4b02ad4fade26975e432` / base `8bf65f15d014f914d96a6abce56ada18b7c45efb`はdraftのまま。remote headの失敗はOSS self-contained boundaryの`manifest_inventory_mismatch`のみ。local branchはmain `1872befb`同期後にinventoryを再生成し、`node scripts/verify-oss-self-contained.mjs` PASS、self-contained tests 12/12 PASS。
+- main `1872befb`同期後のA5 SQL/API/UI/adapter testsは127/127、privacy `api=177/browser=63/recipes=19/channels=9` PASS、registry fixture PASS、`./bin/lm-loop-contract` PASS（18 catalog loops / 187 registry jobs / 112 mapped）。full runtime suiteは791 tests中789 PASS、残る2件は`cut-loop-release`がcommit `3f25077e`のremote未pushを拒否した。latest main `68b03657`同期後に再実行する。fresh whole-branch reviewもnew headで必要。
 - CFO receipt専用branch `fix/cfo-telegram-runtime-receipt-20261007`（commit `b63e42f27f`）はopen PRなし。managed leaseは`2026-10-08T14:08:14Z`まで有効。owner/leaseのreadbackなしにそのworktreeを編集しない。
 
-**完了（pushed source SHA `f2ea57e828`）:** SQL zero-estimate regression testとUI distinct trace count assertionsはRED→GREEN。A5 focused tests、privacy、registry、loop contract、Node adapter、full runtime 790/790はPASS。OSS verifierとself-contained tests 12/12はlatest-main local workspaceでPASS。remote OSS failureはmanifest修正前headの結果なので、新headで再確認する。
+**完了:** SQL zero-estimate regression testとUI distinct trace count assertionsはRED→GREEN。main `1872befb`同期後のA5 focused tests 127/127、privacy、OSS verifier/tests 12/12、registry fixture、loop contractはPASS。full runtimeの2件だけはlocal-only commit guardに当たり、push後に再実行する。
 
 **残りatomic TODO（この順）:**
 
-1. 最新`origin/main`の`1872befb`を既存A5 branchへmergeし、OSS inventoryを現rootから再生成する。
-2. merge後の同一headで`git diff --check`、A5 focused tests、OSS verifier/tests、loop contract、runtime testsを実行し、tenant境界・privacy・trace・unknown-vs-zeroを確認する。
-3. 同じA5 branchをforceなしでpushしてPR #6827を更新し、新headのrequired CIとfresh read-only reviewをPASSさせてからready/mergeする。
-4. current `620d941e` reconciler run `18dc78bd552580c0-11196`のnatural terminal、fleet state、CFO owner apply row/loaded SHAをreadbackする。exit143の旧run原因は未確定なので、新runのdurable evidenceを先に読む。手動restart/stop/applyはしない。
+1. latest `origin/main` `68b03657`を既存A5 branchへmergeし、OSS inventoryを現rootから再生成する。
+2. merge後の同一headでOSS verifier/tests、A5 focused tests、privacy、registry/loop contract、必要なruntime tests、`git diff --check`を再実行する。
+3. push直前にmainを再fetchし、進んでいればmerge・inventory・関連checkを更新する。その後forceなしpushでPR #6827を更新する。
+4. push後に`cut-loop-release` pressure testsを再実行し、runtime suite全791件をPASSさせる。新headのrequired CIとfresh read-only reviewもPASSさせてからready/mergeする。
+5. current `68b03657` reconciler run `18dc7959bdb11c70-88792`のnatural terminal、fleet state、CFO owner apply row/loaded SHAをreadbackする。旧`620d941e` runのexit143原因は未確定なので、新runのdurable evidenceを先に読む。手動restart/stop/applyはしない。
 5. active leaseのあるreceipt専用branchのownerを尊重しながら、同一occurrenceのsidecar/provider IDをruntime eventのreceipt/readbackへ結ぶ。15:00 occurrenceは再送しない。
 6. source merge後にadditive SQL migrationを対象Supabase projectへ適用し、migration history、RPC存在、service-role grantをofficial readbackする。
 7. main由来immutable releaseでCFO ownerへapplyし、loaded SHA、`priority=revenue`、日次/MTD cost panel、同一occurrenceの送信receiptをreadbackする。
@@ -5325,12 +5326,12 @@ PR #7030の全required checksはhead `99648f4f` / base `a7899e37`でPASSした�
 10. A9でAsia/Tokyo daily/MTD/trailingをsource期間に揃え、agent/loop/platform別と全社revenue・expense・net・MRR・freshness・coverageを既存CLI/panelへ表示する。
 11. A10で7日連続natural report、official readback、全loop coverage、period一致、duplicate/replay zeroを確認する。それまでは全社CFO完了やverified $10k MRRを主張しない。
 
-**現在cursor:** A5 Task 7 latest-main sync。branch `feat/cfo-a5-cost-visibility-20261007` HEAD `ce8b188e`、latest main `1872befb`は未取り込み。PR #6827はdraft、remote head `99814e52`。Moneytree/A3/A4は明示どおり後順位で、このCFO cursorのblockerにしない。
+**現在cursor:** A5 Task 7 latest-main sync。branch `feat/cfo-a5-cost-visibility-20261007` HEAD `3f25077e`、latest main `68b03657`は未取り込み。PR #6827はdraft、remote headは`99814e52`のまま。Moneytree/A3/A4は明示どおり後順位で、このCFO cursorのblockerにしない。
 
 **Blockerと解消方法:**
 
-- **PR/OSS gate:**失敗は古いremote headのinventory mismatchだけ。local修正はmain `d3b0d992`まででPASS済み。最新`1872befb`をmergeし、inventoryを再計算してpushし、新headのOSS checkをPASSさせる。
-- **Production rollout:**前回reconciler runはexit143、直接原因は未確定。`620d941e`上の新runは実行中で、CFO ownerは`8f342d8d`のまま。natural terminal、ownerごとのapply記録、fleet stateを読む。exit143が再発した場合は該当occurrenceのstderrとsupervisor signal sourceを追い、その原因だけを修正する。手動restartはしない。
+- **PR/OSS gate:**remote PRは古いheadのままでinventory mismatch。local verifier/testsは`1872befb`まででPASS。latest `68b03657`をmergeし、inventory/CIを新head用に更新する。
+- **Production rollout:**`620d941e`上のreconcilerは15:15 JSTにexit143、直接原因は未確定。`68b03657`上の新runは15:16 JSTから実行中で、CFO ownerは`8f342d8d`のまま。natural terminal、ownerごとのapply記録、fleet stateを読む。exit143が再発した場合は該当occurrenceのstderrとsupervisor signal sourceを追い、その原因だけを修正する。手動restartはしない。
 - **Report receipt:**15:00 sidecarは同一occurrenceの送信を示すが、runtime eventはreceipt/readbackなしのunknown。active lease中のreceipt branchでprovider IDと公式証拠をjoinし、再送しない。
 - **Company economics:**確認できているのはmobile-apps MRR USD 20.34と2026-09 Google billed total JPY 27,889のみ。全社revenue/net/MRRはunknownで、Googleのcash settlementとloop配賦も未確認。A9集計前にA6/A8の公式receipt coverageを埋める。Moneytreeは後順位。
 ### 2026-10-08 12:19 JST — eBook source merge readback and production cursor
