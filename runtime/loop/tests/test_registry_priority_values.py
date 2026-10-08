@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 
 REGISTRY = Path(__file__).resolve().parents[3] / "config" / "loop-registry.json"
-VALID = {"critical_paid", "revenue", "support"}
+VALID = {"distribution", "critical_paid", "revenue", "support"}
 
 
 def test_every_registry_priority_is_valid():

@@ -1111,7 +1111,7 @@ def _legacy_pending_admission_identity(loop_id: str) -> dict[str, str] | None:
         or occurrence_effect_unknown
     ):
         return None
-    if admission_class == "borrow" and priority in {"revenue", "critical_paid"}:
+    if admission_class == "borrow" and priority in {"distribution", "revenue", "critical_paid"}:
         return None
     return {
         "resource_class": resource_class,
