@@ -6575,3 +6575,21 @@ The next cursor is item 1 commit/push. No Dais manual action is currently requir
 +6. Merge docs PR #7124 only when its inherited OSS inventory check passes; no Capafy edits in this workstream.
 +
 +**現在cursor:** `resolve the exact English render/effect → bind the confirmed English Monk IG account → publish once/read back → restore 3/day → map and measure Letter subscriptions and PDF-linked eBook sales`. Source handoff is loaded on main-derived production release `8b75fa53`. No Capafy action, effect replay, or forced restart.
+
+### 2026-10-08 20:13 JST — fixed helper waits on the active old owner
+
+- Fresh readback at 20:13 JST: production loads `life-manager-release-reconciler` on release `8b75fa53` (PID `72182`); `~/loops/current` is `a248ce97`. A current self-handoff helper from `a248ce97` is running while waiting for old PID `72182`; its latest receipt is `old_service_active_timeout`, state `running`, target `a248ce97`. The helper default `LIFE_MANAGER_SELF_HANDOFF_WAIT_SECONDS` is 120 seconds; do not stop the old owner.
+- The stale 88df helper cleanup succeeded and has a private structured receipt. The current helper now runs the fixed state counter; when PID `72182` reaches a natural terminal it can succeed if it observes two consecutive no-PID `not running` reads. If the helper times out first, use a fresh preflight and `lm-loop apply --loaded-idle-only` for latest immutable `a248ce97` only while the owner has no PID.
+- The eBook EN publish fence remains `resource_effect_unknown` on `18dc6de8dcf3a0e8-75262`; HeyGen sidecar has no ID/output. Postiz has no English Monk Instagram route; the exact handle question is unanswered. No post has been made.
+- Docs PR #7124 remains open. The OSS boundary check fails with `manifest_inventory_mismatch skills/capafy-autopublish` on latest main; that manifest belongs to the other owner's Capafy work and is not changed here.
+
+**Atomic TODO (eBook only):**
+
+1. Let PID `72182` reach natural terminal; verify a fresh handoff receipt and target release SHA/argv. Do not stop/restart it.
+2. If the helper times out while PID `72182` is still active, wait for the next natural terminal, then use fresh preflight and one-target `--loaded-idle-only` apply for current immutable release `a248ce97`; verify loaded SHA/argv.
+3. Reconcile the Oct 8 render to an exact HeyGen video ID/output or authoritative no-effect; choose A12/A13/A14 only with exact media and prior-post proof.
+4. Connect the exact active English Monk Instagram handle; Postiz currently has no such integration and `@monk_anicca` is unavailable. The handle request is pending.
+5. Publish one verified MP4 and confirm official `PUBLISHED` receipt/URL; then restore 3 daily slots.
+6. Measure paid order-to-PDF sales separately from MRR. `The Anicca Reset` is `$10.99` one-time; the `$9.99/month` Letter has `0` active subscribers. Add Letter to the product/attribution registry and target 1,002 active subscribers for at least `$10K` gross MRR before fees.
+
+**現在cursor:** `natural terminal of PID72182 → successful fixed-helper receipt or idle-only apply of a248ce97 → exact eBook media/effect reconciliation → bind English Monk IG handle → publish/readback → restore 3/day → map and grow the paid Letter funnel`. No Capafy action, stop/restart, raw `launchctl`, or replay.
