@@ -7553,3 +7553,10 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 - The prior CI failure `manifest_inventory_mismatch skills/capafy-autopublish` is corrected in the local PR diff; run `37803106325` is from the earlier head and does not validate this correction. The remote PR head remains `b69a6679` until this latest-main merge and note are pushed.
 
 **現在cursor:** run exact-head required CI and a fresh read-only review on the current pushed PR #7185 head → merge #7185 → natural main release/readback → disk/effect recovery → stable same-window capacity decision. Keep Life Manager host cap 8 bounded; Capafy service cap 5 is separate.
+
+
+### 2026-10-09 00:59 JST — #7176 latest-main sync
+
+- Before main moved, PR #7185 head `47ba3513` had all required checks PASS and a fresh source review of ship. Main then advanced from `0b9d0f10` to `d7d3cbae` through #7176 (Mobile distribution/off-slot readback docs only); merged locally as `69f17a3a`, with no source conflict. Prior-head CI/review do not cover this merged base.
+
+**現在cursor:** exact-head required CI and fresh read-only review on the current pushed PR #7185 head → merge #7185 → natural main release/readback → disk/effect recovery → stable capacity decision. Host cap remains bounded at 8; Capafy’s service cap 5 is separate.
