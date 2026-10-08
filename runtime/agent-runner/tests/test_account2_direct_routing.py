@@ -46,3 +46,19 @@ class CodexProfileRoutingTest(unittest.TestCase):
 
 
 if __name__ == "__main__": unittest.main()
+
+
+class CodexBusyLockFailsFastBeforeFallbackTest(unittest.TestCase):
+    def test_codex_candidate_with_a_later_fallback_never_waits_silently_on_a_busy_lock(self):
+        """2026-10-09: Capafy CP1 (application-lane-agent) waited 420s on a busy acct1 lock and was
+        killed by the silent-start watchdog, although claude-direct was configured right behind it."""
+        config = json.loads(CONFIG.read_text(encoding="utf-8"))
+        offenders = []
+        for name, task in config["task_classes"].items():
+            candidates = task.get("candidates", [])
+            for index, candidate in enumerate(candidates):
+                later_fallback = any(c.get("provider") != "codex" for c in candidates[index + 1:])
+                if candidate.get("provider") == "codex" and later_fallback \
+                        and not candidate.get("fail_fast_provider_lease"):
+                    offenders.append((name, index))
+        self.assertEqual(offenders, [])
