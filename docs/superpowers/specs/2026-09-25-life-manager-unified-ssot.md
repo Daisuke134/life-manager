@@ -9907,6 +9907,19 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 
 **現在cursor:** natural fleet apply after coalescing deadline → CFO owner SHA + queue rebind → natural receipt-backed CFO report → A5 → A6 → A8 → A9 → A10。Money Tree/A7とGoogle API置換・Cloud費削減はこのcursor完了後。
 
+### 2026-10-09 07:04 JST — Anicca画像cache検証とJP1遅延投稿
+
+このreadbackは画像生成sourceとJP1の当日配信状態を更新する。画像APIの追加・新規生成はしない。
+
+- **画像source/cache:** Anicca iOSの永続cache `/Users/anicca/.local/state/life-manager/tenants/dais-local/marketing/slide-pack-rotation/anicca-ios/image-cache` はPNG 26枚・39,824 KiB。現行pack factoryの固定背景prompt 26個をSHA-256へ変換し、全26個が同名cache assetへ一致することをread-onlyで確認した。cache画像のmetadataは空で、元provider（Gemini等）と個別請求は未確認。
+- **実行コード:** current pointerはimmutable release `20261009T063806-131ef4cd`、JP1 LaunchAgentは`3b543ffa012db4cc2046f4f9b55f32bdbb27fdf4`。背景resolver / slide factory / copy generator / rotation runnerの4ファイルは`131ef4cd`とfresh `origin/main=4c5f1e60d3e5007897b57a30f186e80e1215585d`で差分なし。処理はcache背景を読み、決定的なローカル文面をPillowで合成し、完成mediaをcontent object storeへ保存した後に一時workspace JPEGだけを消す。GPT Image / Gemini / FALの生成APIは呼ばず、cache missはfail-closed。既存の男性カフェ素材は文字入り完成slide、夕焼け素材との対応は未確認で、現在の26背景cacheに含まれるとは断定しない。
+- **JP1 official receipt:** Postiz official GET `/posts`（integration `cmlrv8jq000hun60yy57eaptx`、2026-10-09 06:15–07:04 JST）に当日1行があり、state=`PUBLISHED`、provider post ID=`cmv0318u300xepr0yn6lx3ce3`、publish time=`07:02 JST`。同じIDをJP1 owner statusが`effect_status=verified`として返した。これは06:30 due slotから32分遅れており、当日3/3の証拠ではない。Postizの`releaseURL`はプロフィールURL`https://www.tiktok.com/@anicca.jpx`で、個別post permalinkやTelegram配信はこのreadbackだけでは確認できない。
+- **失敗境界/capacity:** 06:56–07:00 JSTのJP1 attemptsは`host_admission_deferred:resource_capacity_busy`、`effect_status=not_applicable`、provider receiptなしで終了した。その後の自然実行で上記receiptが成立した。07:00:49 JSTのread-only admission snapshotではagent reservation 5件とlive agent claim 1件が同時にあり、3b/131efの`LIFE_MANAGER_HOST_MAX_AGENT_TOTAL_RUNS` default 2を超えていた。active reservationの一部は旧release `aba80c99` / `d7d3cbae`、一部は`3b543ffa`で、旧2 releaseの`resource_admission.py`にはtotal-agent cap checkがない。release skewがover-cap reservationに寄与した可能性が高いが、個々のreservation writerは未特定。外部効果がないcapacity拒否と、投稿済みreceiptを混同しない。
+
+**Mobile order update:** 旧cursor=`slot guard merge → owner apply → JP1 retry → 3/day proof`。新順=`(1) 完了: 26/26 background prompt cache hit・no image API sourceを確認し、JP1 06:30 slotの遅延PUBLISHED receiptを取得 → (2) natural release reconciliationでactive ownersを最新mainへ収束させ、agent-cap policyとshared reservationsを再測定。古いowner/receiptを手動で消さない → (3) JP1の個別post permalinkとloop-owned Telegram report linkをreadback → (4) 18 mobile ownerすべてで正規slotごとの異なる3件/日のPostiz receiptを検証 → (5) per-post views/likes/comments/sharesを保存し、hook/format別に反復 → (6) ASC acquisition・RevenueCat subscription/settlement・Mixpanel/PostHog onboardingを同一期間で結び、distribution→ASO→onboarding順に$10K net MRRへ改善。理由は、背景生成費は投稿阻害ではなく、実際のJP1停止は一時的なadmission-capacity contentionであり、3/dayとmetrics coverageが未達のため。
+
+**現在mobile cursor:** latest-main natural reconcile/18 owner SHA + shared agent reservation readback → JP1 permalink/Telegram link → all targets 3/day receipt proof → persisted per-post metrics → ASC/RevenueCat/in-app funnel → $10K net MRR iteration. GPT Image/Geminiによる投稿ごとの再生成は不要。
+
 ### 2026-10-09 07:05 JST — CFO owner/report verified; company P&L is still partial
 
 このsnapshotは07:03:35Zのproduction readbackで06:48 JSTのCFO statusを置き換える。目標と実行順`A5 → A6 → A8 → A9 → A10`は維持し、個人Money Tree/A7とCloud API置換・節約はこのbusiness-CFO lane外。
