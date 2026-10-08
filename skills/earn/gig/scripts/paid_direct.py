@@ -191,7 +191,8 @@ PAID_DECISION_SCHEMA_VERSION = 5
 PAID_DECISION_PROMPT_VERSION = "paid-semantic-decision-v25"
 PAID_DECISION_MODEL = "gpt-5.6-terra"
 PAID_FILE_MODEL = "gpt-5.6-terra"
-PAID_REVIEW_TASK_CLASS = "paid-review-agent"
+PAID_DECISION_TASK_CLASS = "paid-decision-agent"
+LEGACY_PAID_DECISION_TASK_CLASS = "escalation-agent"
 PAID_OWNER_TASK_CLASS = "paid-owner-agent"
 PAID_RUNNER_CANDIDATES = {
     ("codex", "gpt-5.6-terra"),
@@ -1498,10 +1499,16 @@ def _validate_paid_decision(value: dict[str, Any], feedback: str, requirements: 
     return value
 
 
-def _decision_runner_proof(evidence: Path) -> dict[str, Any]:
+def _decision_runner_proof(evidence: Path, *, allow_legacy: bool = False) -> dict[str, Any]:
     summary = _runner_summary(evidence)
+    task_class = summary.get("task_class")
+    allowed_task_classes = {PAID_DECISION_TASK_CLASS}
+    if allow_legacy:
+        allowed_task_classes.add(LEGACY_PAID_DECISION_TASK_CLASS)
+    if task_class not in allowed_task_classes:
+        raise Failure("paid_work_decision")
     expected = {"status": "success", "task_label": "paid-work-decision",
-                "task_class": PAID_REVIEW_TASK_CLASS, "escalated": True}
+                "task_class": task_class, "escalated": True}
     if any(summary.get(key) != value for key, value in expected.items()):
         raise Failure("paid_work_decision")
     provider_model = (summary.get("selected_provider"), summary.get("selected_model"))
@@ -1804,7 +1811,7 @@ def _prepare_blind_output_audit(
         started = time.time_ns()
         command = [
             "/usr/bin/sandbox-exec", "-f", str(profile), sys.executable, str(isolated_runner),
-            "--task-class", PAID_REVIEW_TASK_CLASS,
+            "--task-class", "escalation-agent",
             "--prompt-file", str(prompt), "--schema", str(schema),
             "--evidence-dir", str(evidence_dir), "--task-label", "paid-output-blind-audit",
             "--loop", _runner_loop_id(), "--workdir", str(isolated), "--timeout-seconds", "1800", "--read-only",
@@ -2209,7 +2216,9 @@ def _cached_paid_decision(root: Path, receipt: Any, prompt: Path,
                         "selected_provider", "selected_model", "summary_sha256", "result_sha256"}
             or runner.get("status") != "success"
             or runner.get("task_label") != "paid-work-decision"
-            or runner.get("task_class") != PAID_REVIEW_TASK_CLASS
+            or runner.get("task_class") not in {
+                PAID_DECISION_TASK_CLASS, LEGACY_PAID_DECISION_TASK_CLASS,
+            }
             or runner.get("escalated") is not True
             or (runner.get("selected_provider"), runner.get("selected_model")) not in PAID_RUNNER_CANDIDATES
             or any(not re.fullmatch(r"[0-9a-f]{64}", runner.get(key, ""))
@@ -2222,7 +2231,7 @@ def _cached_paid_decision(root: Path, receipt: Any, prompt: Path,
     if (evidence_root.is_symlink() or not evidence_root.is_dir()
             or evidence.is_symlink() or not evidence.is_dir()):
         raise ValueError("missing paid decision evidence")
-    proof = _decision_runner_proof(evidence)
+    proof = _decision_runner_proof(evidence, allow_legacy=True)
     if proof != runner:
         raise ValueError("tampered paid decision evidence")
     result_path = _consultation_result_path(evidence)
@@ -2263,7 +2272,7 @@ def _stable_cached_paid_decision(root: Path, receipt: Any, schema_sha256: str,
             or evidence.is_symlink() or not evidence.is_dir()):
         raise ValueError("missing paid decision evidence")
     runner = receipt["runner"]
-    if _decision_runner_proof(evidence) != runner:
+    if _decision_runner_proof(evidence, allow_legacy=True) != runner:
         raise ValueError("tampered paid decision evidence")
     validated = _validate_paid_decision(
         _load(_consultation_result_path(evidence)), feedback, requirements,
@@ -2355,7 +2364,7 @@ def _paid_decision(args, item_path: Path, root: Path, base: Path) -> dict[str, A
         raise Failure("paid_work_decision")
     started_ns = time.time_ns()
     try:
-        decision_command = [sys.executable, str(args.agent_runner), "--task-class", PAID_REVIEW_TASK_CLASS,
+        decision_command = [sys.executable, str(args.agent_runner), "--task-class", PAID_DECISION_TASK_CLASS,
               "--prompt-file", str(prompt), "--schema", str(schema), "--evidence-dir", str(evidence),
               "--task-label", "paid-work-decision", "--escalation-reason",
               "Paid delivery routing must use an authorized escalation semantic model.",
@@ -2366,7 +2375,7 @@ def _paid_decision(args, item_path: Path, root: Path, base: Path) -> dict[str, A
             )
         try:
             value = _consultation_runner_result(
-                evidence, task_label="paid-work-decision", task_class=PAID_REVIEW_TASK_CLASS,
+                evidence, task_label="paid-work-decision", task_class=PAID_DECISION_TASK_CLASS,
                 model=PAID_DECISION_MODEL, started_ns=started_ns,
             )
         except Failure as error:
@@ -2517,7 +2526,7 @@ def _requirements_snapshot(root: Path) -> bytes:
 def _validate_verifier_runner(managed: Path, semantic_status: str,
                               min_mtime_ns: int | None = None) -> dict[str, Any]:
     summary = _runner_summary(managed)
-    expected = {"status": "success", "task_label": "paid-remote-verifier", "task_class": PAID_REVIEW_TASK_CLASS,
+    expected = {"status": "success", "task_label": "paid-remote-verifier", "task_class": "escalation-agent",
                 "escalated": True}
     if (not isinstance(summary, dict)
             or any(summary.get(key) != value for key, value in expected.items())
@@ -3115,7 +3124,7 @@ def _file_mode(root: Path, item: dict[str, Any]) -> bool:
 
 def _file_runner_result(evidence: Path, *, task_label: str,
                         started_ns: int | None,
-                        task_class: str = PAID_REVIEW_TASK_CLASS) -> tuple[dict[str, Any], dict[str, str]]:
+                        task_class: str = "escalation-agent") -> tuple[dict[str, Any], dict[str, str]]:
     summary = _runner_summary(evidence)
     expected = {
         "status": "success", "task_label": task_label, "task_class": task_class,
@@ -3368,7 +3377,7 @@ def _prepare_source_census(args, root: Path, requirements_sha256: str, code_root
         started = time.time_ns()
         command = [
             "/usr/bin/sandbox-exec", "-f", str(profile), sys.executable, str(isolated_runner),
-            "--task-class", PAID_REVIEW_TASK_CLASS,
+            "--task-class", "escalation-agent",
             "--prompt-file", str(prompt), "--schema", str(isolated_schema),
             "--evidence-dir", str(evidence), "--task-label", "paid-source-census",
             "--loop", _runner_loop_id(), "--workdir", str(isolated), "--timeout-seconds", "3600",
@@ -3832,7 +3841,7 @@ def _validate_file_authorization(root: Path, stable: Path, feedback: str,
             or not review_authorized
             or not _text(result.get("reason"))
             or summary.get("task_label") != "paid-file-verifier"
-            or summary.get("task_class") != PAID_REVIEW_TASK_CLASS
+            or summary.get("task_class") != "escalation-agent"
             or summary.get("escalated") is not True
             or (summary.get("selected_provider"), summary.get("selected_model")) not in PAID_RUNNER_CANDIDATES):
         raise ValueError("stale file authorization")
@@ -4662,7 +4671,7 @@ def _build_and_authorize_file(args, item_path: Path, root: Path, item: dict[str,
         )
         verifier_started = time.time_ns()
         verifier_command = [
-            sys.executable, str(args.agent_runner), "--task-class", PAID_REVIEW_TASK_CLASS,
+            sys.executable, str(args.agent_runner), "--task-class", "escalation-agent",
             "--prompt-file", str(verifier_prompt), "--schema", str(args.artifact_schema),
             "--evidence-dir", str(verifier_evidence), "--task-label", "paid-file-verifier",
             "--loop", _runner_loop_id(), "--workdir", str(root), "--timeout-seconds", "1800", "--read-only",
@@ -5369,7 +5378,7 @@ def _consultation_runner_result(evidence: Path, *, task_label: str, task_class: 
     summary = _runner_summary(evidence)
     expected = {"status": "success", "task_label": task_label, "task_class": task_class,
                 }
-    if task_class in {PAID_REVIEW_TASK_CLASS, PAID_OWNER_TASK_CLASS}:
+    if task_class in {"escalation-agent", PAID_DECISION_TASK_CLASS, PAID_OWNER_TASK_CLASS}:
         expected["escalated"] = True
     if (any(summary.get(key) != value for key, value in expected.items())
             or (summary.get("selected_provider"), summary.get("selected_model")) not in PAID_RUNNER_CANDIDATES):
@@ -5892,7 +5901,7 @@ def _run_remote_repair(args, item_path: Path, root: Path, feedback: str, base: P
         # remote-verifier-result.json, and a read-only sandbox denies it both the socket and the
         # file - which is why this gate had never once passed. Tampering stays fenced by the
         # snapshots either side of the run.
-        verifier_command = [sys.executable, str(args.agent_runner), "--task-class", PAID_REVIEW_TASK_CLASS,
+        verifier_command = [sys.executable, str(args.agent_runner), "--task-class", "escalation-agent",
               "--prompt-file", str(prompt), "--schema", str(args.runner_schema),
               "--evidence-dir", str(verifier_evidence), "--task-label", "paid-remote-verifier",
               "--escalation-reason", "Fresh model independently verifies the paid live target",

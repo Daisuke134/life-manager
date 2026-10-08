@@ -4558,7 +4558,7 @@ def test_stable_decision_cache_ignores_compiled_runtime_context_churn(tmp_path, 
         "runner": runner,
         **value,
     }
-    monkeypatch.setattr(paid, "_decision_runner_proof", lambda _path: runner)
+    monkeypatch.setattr(paid, "_decision_runner_proof", lambda _path, **_kwargs: runner)
     monkeypatch.setattr(paid, "_consultation_result_path", lambda _path: result)
 
     assert paid._stable_cached_paid_decision(
