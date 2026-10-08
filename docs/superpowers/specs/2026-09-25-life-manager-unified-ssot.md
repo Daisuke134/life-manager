@@ -168,7 +168,7 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
   - `job-search-inbox`: `inbox.py:398`。model の申告件数と thread ID の数が食い違った時に安全側で止まる、意図された fail-closed。二重返信を防ぐための仕組みで、test でも固定されているので変更しない。
   - Instagram en-card / obou: `LM_DATA_DIR is required` と ledger の job id 衝突。obou の Instagram は `marketing-destinations.json` で `ebook_account_out_of_mobile_scope`（上限 0）なので、直すより退役させる候補。state root が共有 events.jsonl のため、run 単位の切り分けは未完。
   - `life-manager-honne-ja`: 昼の ENOSPC（空きが 0.56GB だった時点）による。publish は fence で止まっていた。
-| T7 | Gig収益順: 1A sender/hydration owner fix + 1B capacity/doctor gate → Coconala Paid contract → Coconala Storefront → exact actionable Reply → Apply/Negotiation → CrowdWorks → Mercor → Freelancer → Upwork policy gate → Job Hunter → receipt-based net economics → SelfBuild last。Lancers rows25–27はskip、Answersは対象外 | contractごとのbuyer-visible receipt・settlement・fee/cost・replay-zero |
+| T7 | Gig収益順: 1A完了 → 1B stable capacity gate と Paid source PR acceptance を並行 → 既存Coconala有償義務 → product storefront（Coconala → Freelancer Services → Upwork Project Catalog。Upworkはpolicy gate後）→ actionable Reply → 各platformのApply/Negotiation/Paid → listing/contract別のsettled net → SelfBuild last。Lancers rows25–27はskip、Answersは対象外、未登録のFiverrは現行loopに追加しない | productのofficial active listing・unique paid order・settlement/fee/cost/net・replay-zero |
 | T8 | CFO: ループごとの settled revenue と cost の join（ループ別P&L）を毎日出す | P&L 行ごとに receipt id がある |
 | T9 | Mobile funnel と `/en` `/lm` `/income` の整合（install→activation→課金） | attribution receipt |
 | T10 | one-shot capability capsule | 目標・承認の質問なしで初回の実行が通る |
@@ -4407,9 +4407,9 @@ flowchart TD
 4. **販売境界:** anicca-products PR #420はOPEN（head `e22509d3cb84e0ba99867f31879d3d1aa8da38f4`、Landing CI success）。fresh manual production workflowでSupabase project refとaggregate countsを確認し、target一致とreview後にDDL/schema/ACL、natural paid Checkout、Stripe receipt、locale PDF delivery、refund/fee/settlement/replay-zeroを閉じる。one-time `$10.99` / `¥1,580`はMRRに数えない。
 5. **継続売上とCapafy:** user-initiated Letter/Tegami recurring CTAの14日cohortとsettled net MRRを確認し、その後にCapafy Instagram marketing laneを進める。USD 10,000 verified net MRRは未達の目標。
 
-### 2026-10-08 JST — Gig atomic cursor
+### 2026-10-08 JST — Gig initial cursor snapshot (superseded)
 
-**現在のGig cursor: 1（L9-07 Coconala Storefront）。** これはGig lane内のcursorであり、全社laneの順序は変えない。CFO A5–A10は別owner。最新runtime/source証拠は[Gig readback spec](2026-10-08-gig-paid-context-ref-boundary.md)に記録する。
+この番号付きsnapshotは後続の`Remaining atomic Gig TODO`より前の履歴であり、実行順の正本として使わない。現在のGig cursorは同節の1B capacity gate。これはGig lane内のcursorで、全社laneの順序を変えない。CFO A5–A10は別owner。runtime/sourceの詳細は[Gig readback spec](2026-10-08-gig-paid-context-ref-boundary.md)を参照する。
 
 1. Coconala Storefront parser修正 `d017c50b` のPR/CI/mergeを完了する。source suite 58/58 PASS・read-only review PASSは実測済みだが、PR/mergeは未完了。
 2. `hf-gig-storefront-direct:18d8d288748508e8-23902`を同一occurrenceの公式receiptまたは受理可能なpre-effect terminalで照合する。証拠が無ければeffect fenceを保持し、timestampや近接sidecarからbindingを作らず、独立する有償案件へ進む。
@@ -4785,26 +4785,35 @@ flowchart LR
 
 ### Remaining atomic Gig TODO
 
-この一覧はGig laneの未完了作業だけを実行順に置く。Lancers rows25–27は`waiting_external`のまま完全skip、Answersは対象外、SelfBuildは最後。`$10K MRR`は目標で、実績と混同しない。
+この一覧だけがGig laneの未完了作業と実行順を持つ。Lancers rows25–27はwaiting_externalのまま完全skip、Answersは対象外、SelfBuildは最後。$10K MRRは目標であり、Gig storefrontの単発受注や総売上とは混同しない。
 
-**先行gate状態（2026-10-08T13:13Z readback）:** 1A sender safetyはmainへmerge済み。R16 release churnのrate-limit PR #7148（`879959c5`）とbudget-only partial継続PR #7149（`e1b061f1`）はmainへmergeされ、production currentは13:08:44Zにrelease `e1b061f1`へ自然更新。release reconcilerの自然run `18dc9000c290e7f8-88837`はpass/exit 0、`lm-loop doctor`も`ok=true`/unmanaged 0。install済みは24 generations/294 jobsで、`e1b061f1` 15、`3981bca3` 75、旧`804effc5` 16。1Bはなお未完了: cleanup receipt 13:03:29Zだけ`met`（free_after 2,201,583,616 bytes）だったが、13:08:29Zは897,564,672、13:10:43Zは761,442,304 bytesで両方unmet。13:13:46Z `df`は642,196 KiB。従ってfloorの継続達成は未証明。
+Storefrontの収益方針: 出品点数ではなく、再利用できる同一商品を新規応募より先に積み上げる。競合から取り入れるのは売れ筋として実証できる商品の構成（対象課題→具体的成果→固定入力/範囲→価格/納期/修正境界→作例/FAQ/購入条件）で、説明文・画像・作例は独自に作る。注文ごとに別仕様を作るのではなく、パッケージと選択可能な追加option内で完結する商品を優先する。出品状態、unique order、settlement/payout、実費とnetを分けて報告し、単発売上をMRRと呼ばない。
 
-1. **1B host capacity回復:** release fixは自然反映しdoctor PASSだが、capacityはまだ揺れる。最新cleanup receiptは13:10:43Zに761,442,304 bytes、`capacity_recovery=unmet`、errors/protected deletions 0。13:13:46Z `df`は642,196 KiB。13:03:29Zに一度だけ2,201,583,616 bytesでfloor達成した後、後続2 passで再び下回ったため、1Bは継続して開いたままにする。次のregistered cleanup natural terminalと同時刻`df`でfloorが維持されるまで確認する。保護外削除、floor override、manual restartはしない。
-2. **Coconala契約 `18180857` のreadback・Paid decision route修正・必要な納品:** 1Bが維持され、browser owner/profileが空いていることをCLIで確認してからfresh official selected-talkroom snapshotを一度取得する。13:11ZのPaid occurrence `18dc8fa839b742e0-44996`はSHA `3981bca3`で`disk_headroom_low`、receiptなし。`latest.json`は12:23Z保存でbuyer stateとして古い。Paid source fix `eba671ab31`はdecision model/allow-list mismatchを直し、関連287 tests/59 subtestsとOSS/source-boundary/diff-check PASS。PR #7129 remote head `e3bc1aede5`ではSecurity Scan 10/10 PASS、fresh read-only reviewはCritical/Important 0（Ready to merge）。最新mainの#7151 test fixture fixを取り込んだlocal headは`6e09c75a`で、canonical cursor更新後にPRへpushする。新head CI/reviewがPASSした後mergeし、main-derived release/loaded SHAの反映を自然readbackする。buyer返信・正式納品はfresh evidenceが要求する時だけ一度行い、acceptance/settlement/payout/duplicate-zeroまで確認する。`18211957`は完了済み。
-3. **Coconala Storefront effect fenceとlive listing:** 13:11Z owner `hf-gig-storefront-direct`はSHA `3981bca3` / loaded-running、occurrence `18dc8fd22703e2c8-71831`が`disk_headroom_low`・effect-unknown、provider receipt/readbackなし。旧fence `18d8d288748508e8-23902`は`pre-effect-reconcile --dry-run`で`no_pre_effect_terminal`/unprovable、resolved 0。再publishしない。seller inventory fileは2026-10-07T20:53:44Z保存で古く、現行公開状態に流用しない。capacity回復・owner natural terminal後にfresh official listing/readbackを取得しexact identity/receiptを確認する。
-4. **Coconala Reply:** 全inbox sweepはしない。official message identity、outbox intent、occurrenceが完全joinする actionable buyer messageだけを処理する。`effect_unknown`をofficial readbackなしに再送しない。
-5. **Coconala Apply/Negotiation:** latest occurrence `hf-gig-apply-direct:18dc883c78566d00-15601`（10:49:05Z）は`resource_effect_unknown`でsafely fenced、provider receipt/readbackなし。exact official fence reconciliation後にfresh eligible jobだけをsubmitし、proposal receipt→buyer reply→agreed termsをjoinする。
-6. **CrowdWorks:** 他ownerのworktree leaseを守る。source merge後にnatural Application/Paid/Reply/Report、provider receipt、delivery→acceptance→settlementを確認する。
-7. **Mercor:** official receiptまたはsame-occurrence no-effect proofが得られるまでApplication/Paid/Reply unknown fencesを保持し、再submitしない。
-8. **Freelancer:** account-bound authとofficial Services inventoryを確認する。funded project/awardとlifecycle権限が揃うまでbid/deliveryを有効化しない。
-9. **Upwork:** official-policy-compliant routeとeligibilityを確認するまで自動browser/scraping/proposalを閉じる。
-10. **Job Hunter:** eligible jobとofficial application receiptを伴うnatural runだけを数える。候補0件やprocess passは応募ではない。
-11. **Gig economics:** contractごとにsettled receipt、fee/refund、actual cost、net、replay-zeroをjoinする。
-12. **最後 — SelfBuild:** 他Gig revenue loopを閉じた後に限りL9-11を修復・検証する。
+公開benchmark（2026-10-08 JST, official marketplace pages）: Coconala AI業務効率化カテゴリは「おすすめ」「定番」表示で、公式売上ランキングとは明記しない。[AIエージェント開発](https://coconala.com/services/3471101)はカテゴリ一覧で23評価/¥50,000、詳細ページで18評価/出品者累計59件/2枠空き・待ち0と表示が異なる。[入力業務自動化](https://coconala.com/services/3691561)も一覧28評価・詳細20評価、出品者累計139件、3枠/待ち2、予定14日/実績約16日。評価数と出品者累計は当該商品の販売数・売上・入金ではないため、順位やrevenueとみなさない。Upworkの[Project Catalog公式ガイド](https://support.upwork.com/hc/en-us/articles/360057397533-How-to-create-a-project-in-Project-Catalog)は、需要・固定納品物・作例を選定軸にし、最大3 package tiers、add-ons、納期、修正回数、作例、必要情報、工程、FAQを案内する。確認した[AI自動化の実例ページ](https://www.upwork.com/services/product/development-it-an-ai-automation-that-removes-a-repetitive-process-from-your-week-2099452461206190516)はOfflineで販売成功の証拠ではなく、パッケージ構成の例に限る。[Freelancer Services公式FAQ](https://www.freelancer.com/faq/topic.php?id=52)は定型サービス、固定/時間/購読型、購入後にprojectを作る流れを説明するが、成功件数を示さない。レビューや推薦だけではbestseller認定しない。
 
-**TODO順変更:** 順序は変更しない。1A完了、1Bは13:03:29Zに一度floorを満たしたが13:08/13:10のcleanupで再低下し、13:13Z `df`も642,196 KiBのため未完了。残順は`1B capacity recovery → Coconala 18180857 official readback/Paid source promotion → Storefront exact fence/listing → Reply → Apply/Negotiation → CrowdWorks → Mercor → Freelancer → Upwork policy gate → Job Hunter → settled economics → SelfBuild last`。Lancers rows25–27はskip、Answersは対象外。
+Fresh readback（2026-10-08T13:38Z）: lm-loop doctor=true（unmanaged/missing/retired 0）だが、host volumeは274,152 KiB freeで2 GiB floor未達。life-manager-disk-cleanup run 18dc914ebc88a478-50013は13:36:06Z entrypoint_exit_1。mainのR17記録（PR #7153、docs only）はswap 8.7/9.4 GB of 16 GB RAM、corespotlightd 4.4 GBを記録し、空き容量の揺れの原因としてmemory/swap圧を挙げる。disk ownerの作業範囲なので、Gig側からhost cleanupやsystem processを変更しない。
+- hf-gig-paid-direct: release e1b061f1、13:37Z occurrence 18dc914bfeb1b6a8-42936がdisk_headroom_low / exit 75、provider receiptなし。
+- hf-gig-storefront-direct: release 3981bca3、13:37Z occurrence 18dc91503bf09ad0-53855がdisk_headroom_low / exit 75、receiptなし。9/26 occurrence 18d8d288748508e8-23902のeffect fenceはofficial_readback_requiredのまま。当時のinventory official_inventory_empty_or_invalid / service_count=0は空のストアの証拠ではない。現在の全listing/order readbackは未取得。
+- hf-gig-reply-detector: 13:37Z occurrence 18dc9168619277f0-6019がdisk_headroom_low。過去fence 18dbf6546032eca0-25901はofficial reply readback待ち。
+- hf-gig-apply-direct: 13:36Z occurrence 18dc913e2667ea18-12209がdisk_headroom_low。過去fence 18dadcd76d9c61b0-37711はofficial application readback待ち。
+- 4 ownerはいずれも最新wakeにprovider receiptなし。現在のlisting count、注文、settlement、payoutはunknownで、revenueあり/なしに置き換えない。
 
-**Current cursor:** 1B。production currentはrelease `e1b061f1`、reconciler natural run PASS、`lm-loop doctor=true`。cleanupでfloorを一度（13:03Z）満たしたが、後続receiptは13:08Z 897,564,672 / 13:10Z 761,442,304 bytesに戻り、13:13Z `df`は642,196 KiB。次のcleanup natural receiptとsame-time `df`がfloorを維持するまでCoconala browser操作を始めない。Paid source PR #7129 code head `e3bc1aede5`のCI 10/10とread-only review PASS、Critical/Important 0。local branch `6e09c75a`はmain #7151も含み、spec cursor修正後に最新headをpushしてfinal same-head CIを通す。
+TODO順変更: 旧順=1A/1B gates → Coconala Paid → Coconala Storefront → Reply/Apply → CrowdWorks/Mercor/Freelancer/Upwork → economics → SelfBuild。新順=1B capacity recovery と Paid-source PR acceptanceを並行 → 現行Paid obligations → Coconala exact fence/inventory → repeatable Coconala product → Freelancer Services → Upwork Catalog（policy/eligibility gate）→ Reply → client Apply/Negotiation → per-listing/per-contract settled economics → SelfBuild last。理由はDaisが持続的な自社商品売上を新規応募より優先したため。既存有償義務は先に閉じ、Lancers skipとAnswers除外を維持する。Upwork自動化が許可されなくてもCoconala/Freelancerのstorefrontを止めない。
+
+残りのatomic TODO（完了まで）:
+
+1. 1B host capacity: disk ownerの根本修正後、natural cleanup receiptと同時刻dfでfree >= 2 GiB、errors 0、protected deletions 0を確認する。R17 swap pressure後も基準を安定して満たすまでStorefront browser mutationを行わない。
+2. Paid source と既存注文: PR #7129を最新mainへ同期し、更新後headのCIをPASSさせてmergeする。main-derived release/owner natural wakeを確認し、容量回復後にCoconala order 18180857のfresh official talkroom/order readbackを一度取得する。必要な納品だけを行い、acceptance/settlement/payout/replay-zeroを読む。stale latest.jsonでbuyer状態を決めない。
+3. Coconala storefront fence: 18d8d288748508e8-23902を正確なofficial listing/profile readbackと照合し、重複ゼロを確認する。provider readbackで同一effectが確定するまで再publish・fence解除をしない。現行listing ID/status/view/inquiry/orderをfresh inventoryとして保存する。
+4. 売れ筋型を当社の固定商品へ変換: skills/gig-work/profile/listings/catalog.json（generated_at 2026-09-04）とCoconalaのfresh repeat-buyer demand/競合 evidenceを更新する。実証データに基づく商品を1件選び、固定scope/inputs/deliverables/price/delivery/revision/support、独自の作例/画像、追加optionを定義する。個別開発を増やさず、platform fee・model/tool/fulfillment cost控除後に赤字にならない価格にする。既存Storefront ownerから一度publishし、official active listing IDをreadbackする。
+5. native storefrontへ拡張: Freelancer Servicesのaccount auth・公開inventory・条件を公式readbackし、同一商品を現地のformat/feeに合わせて掲載する。次にUpwork Project Catalogのaccount/policy gateとcurrent inventoryを公式確認し、許可された操作だけで掲載する。bot policy gateで自動掲載不可ならdraft/evidenceだけ保存して次へ進む。CrowdWorks/Mercorはnative catalog capabilityを公式確認するまで応募型loopのまま。Fiverrはactive registry外なのでこの作業でloop/credential/effectを新設しない。
+6. Reply: Coconala/CrowdWorks/Mercor/Freelancer/Upworkのfresh actionable buyer messageだけに限定し、exact thread+outbox+receiptをjoinして一度返信する。古いeffect_unknownはownerの公式readbackで解消するまで再送しない。
+7. Apply/Negotiation/Paid: Coconala、CrowdWorks、Mercor、Freelancer、Upworkの対応可能案件を各ownerの現在policy/authorization内で処理し、proposal receipt→buyer reply→funded terms→delivery→acceptance→settlementへつなぐ。Lancersは全面skip、Answersは対象外。
+8. Storefront asset economics: listingごとのview/inquiry/unique paid order/repeat/refund/platform fee/payout/actual fulfillment cost/time/netを同一期間で結ぶ。掲載やレビューをrevenueにせず、初回売上とrepeatable positive contributionを分けて判断する。
+9. 最後 — SelfBuild: 全収益loopとstorefront/productizationを閉じた後に、既定順のself-build/self-healing作業へ戻る。
+
+現在cursor: 1B capacity recovery。並行してPR #7129の最新main同期とsource acceptanceを完了し、容量回復後に既存有償注文→Storefront exact readback/fence→自社商品→native catalog rolloutへ進む。
+
 ### 2026-10-08 08:35 JST — Mobile post-merge runtime cursor
 
 この追記は上記08:23のPR #6993/owner/capacity/TestFlight状態をmerge後readbackで置き換える。全社§84-Aの順序は変更しない。
@@ -5069,7 +5078,7 @@ Source / cursor follow-up (2026-10-08 12:52 JST): docs PR #7048はmerge commit `
 
 **現在cursor:** parallel gate 1A（sender安全修正）と1B（cleanup safe receipt＋安定2 GiB超）を完了する。両gate後にCoconala Paid owner/threadと既存契約を確認し、その後Storefront→Coconala Apply/Negotiation→CrowdWorks→Mercor/Freelancer/Upwork/Job Hunter→契約別収益確認→SelfBuild最後の順で進む。Lancers rows25–27はskip、Answersは対象外。
 
-### 2026-10-08 10:15 JST — Gig run status after capacity recovery
+### 2026-10-08 10:15 JST — Historical Gig run status (superseded by Remaining atomic Gig TODO)
 
 このsnapshotは10:08 JSTのruntime/capacity状態を更新し、Gig TODO順を変更しない。
 
@@ -5078,7 +5087,7 @@ Source / cursor follow-up (2026-10-08 12:52 JST): docs PR #7048はmerge commit `
 - sender source branchはremote `10ba32a170`のままで、latest main `44488d9d7c`から17 commits behind。worktreeにはtransport/testのuncommitted変更2 fileが残り、fresh reviewで再現したP1は未解決・未検証・未merge。現行runtimeへ反映していない。
 - Coconalaの最後のofficial order/talkroom snapshotは10/7でstale。fresh provider readbackがない限りbuyer待ち、納品、受入、settlementを現在状態として断定しない。
 
-**現在cursor:** 並列gate 1Aのsender P1修正・test/review/CIと、1Bのcleanup summary readback・安定capacity/target lock auditを完了する。その後にCoconala Paid/order/inboxをfresh readbackする。
+**このsnapshot時点のcursor（履歴）:** 1A sender P1と1B capacity gate。現在の残TODO・順序・cursorは上記Remaining atomic Gig TODOのみを正本として扱う。
 
 ### 2026-10-08 11:08 JST — Business CFO status refresh and remaining cursor
 
