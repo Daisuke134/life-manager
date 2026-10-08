@@ -221,7 +221,14 @@ async function runHonneJaCycle(argv, deps = {}) {
   if (!verifyMarketingVideoPublicationReceipt(publication) || publication.provider_reconciled !== true || !direct.test(publication.public_url)) {
     throw new Error(`${lane.name} publication receipt is not account-bound and reconciled`);
   }
-  const publicationResult = { created: publicationQueued.created, public_url: publication.public_url, provider_post_id: publication.provider_post_id };
+  const publicationResult = {
+    created: publicationQueued.created,
+    status: publication.status,
+    provider_reconciled: publication.provider_reconciled === true,
+    replay_created: !publicationQueued.created,
+    public_url: publication.public_url,
+    provider_post_id: publication.provider_post_id,
+  };
   if (!telegramNativeUrlVerified(lane, env, publication.public_url)) {
     return { slot, generation: { created: generationQueued.created, creative_id: artifact.creative_id }, publication: publicationResult, telegram: { created: false, held: true, message_id: null } };
   }

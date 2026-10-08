@@ -88,7 +88,7 @@ test(`the shared mobile wrapper preserves ${binding.name} release binding throug
   const staleReleaseSha = "b".repeat(40);
   fs.writeFileSync(
     python,
-    `#!/bin/sh\nprintf '%s|release=%s\\n' "$*" "\${LIFE_MANAGER_RELEASE_SHA-unset}" >> "${calls}"\ncase "$1" in\n  *run-with-timeout.py) printf '%s\\n' '{"publication":{"created":false,"provider_post_id":"postiz-existing-1"}}' ;;\n  *) printf '%s\\n' '{"status":"no_match"}' ;;\nesac\nexit 0\n`,
+    `#!/bin/sh\nprintf '%s|release=%s\\n' "$*" "\${LIFE_MANAGER_RELEASE_SHA-unset}" >> "${calls}"\ncase "$1" in\n  *run-with-timeout.py) printf '%s\\n' '{"publication":{"created":false,"status":"published","provider_reconciled":true,"replay_created":false,"provider_post_id":"postiz-existing-1"}}' ;;\n  *) printf '%s\\n' '{"status":"no_match"}' ;;\nesac\nexit 0\n`,
     { mode: 0o700 },
   );
   fs.writeFileSync(
@@ -122,7 +122,7 @@ test(`the shared mobile wrapper preserves ${binding.name} release binding throug
   assert.match(invoked[0], /--resolve/);
   assert.match(invoked[1], /runtime\/run-with-timeout\.py/);
   assert.ok(invoked.every((call) => call.endsWith(`|release=${releaseSha}`)), "the release binding must survive loading mutable marketing env");
-  assert.equal(result.stdout.trim(), '{"publication":{"created":false,"provider_post_id":"postiz-existing-1"}}');
+  assert.equal(result.stdout.trim(), '{"publication":{"created":false,"status":"published","provider_reconciled":true,"replay_created":false,"provider_post_id":"postiz-existing-1"}}');
   assert.deepEqual(JSON.parse(fs.readFileSync(resultHint, "utf8")), {
     schema_version: 1,
     kind: "life_manager_effect_result",
@@ -212,6 +212,52 @@ test("the mobile result helper accepts exact reconciled receipt shapes only", (t
   const ambiguous = run({ provider_post_id: "postiz-ambiguous-1" }, "ambiguous");
   assert.notEqual(ambiguous.result.status, 0);
   assert.equal(fs.existsSync(ambiguous.output), false);
+});
+
+test("retained #6591 fixture: an Instagram replay without official readback cannot settle an effect-unknown hold", (t) => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "lm-instagram-effect-unknown-"));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const input = path.join(directory, "runner.stdout");
+  const output = path.join(directory, "effect-result.json");
+  fs.writeFileSync(input, `${JSON.stringify({ publication: { created: false, provider_post_id: "postiz-replay-6591" } })}\n`);
+
+  const result = spawnSync(process.execPath, [path.join(root, "apps/life-manager/scripts/mobile-effect-result.js"), input], {
+    cwd: root,
+    env: {
+      ...process.env,
+      LIFE_MANAGER_LOOP_ID: "life-manager-anicca-main-instagram",
+      LIFE_MANAGER_OCCURRENCE_ID: "life-manager-anicca-main-instagram:18db4935a708d788-75177",
+      LIFE_MANAGER_RELEASE_SHA: "1a7a8e2faf1eb34931f05287d846fc036bc9eec0",
+      LIFE_MANAGER_RESULT_HINT_PATH: output,
+    },
+    encoding: "utf8",
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.equal(fs.existsSync(output), false);
+
+  const readbackInput = path.join(directory, "readback.stdout");
+  const readbackOutput = path.join(directory, "readback-result.json");
+  fs.writeFileSync(readbackInput, `${JSON.stringify({ publication: {
+    created: false,
+    status: "published",
+    provider_reconciled: true,
+    replay_created: false,
+    provider_post_id: "postiz-replay-6591",
+  } })}\n`);
+  const readback = spawnSync(process.execPath, [path.join(root, "apps/life-manager/scripts/mobile-effect-result.js"), readbackInput], {
+    cwd: root,
+    env: {
+      ...process.env,
+      LIFE_MANAGER_LOOP_ID: "life-manager-anicca-main-instagram",
+      LIFE_MANAGER_OCCURRENCE_ID: "life-manager-anicca-main-instagram:18db4935a708d788-75177",
+      LIFE_MANAGER_RELEASE_SHA: "1a7a8e2faf1eb34931f05287d846fc036bc9eec0",
+      LIFE_MANAGER_RESULT_HINT_PATH: readbackOutput,
+    },
+    encoding: "utf8",
+  });
+  assert.equal(readback.status, 0, readback.stderr);
+  assert.equal(JSON.parse(fs.readFileSync(readbackOutput, "utf8")).effect_status, "reconciled");
 });
 
 test("unknown loop ids fail closed", () => {

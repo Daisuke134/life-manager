@@ -32,9 +32,7 @@ function readResult(file) {
 }
 
 function effectStatus(publication) {
-  if (typeof publication.created === "boolean") {
-    return publication.created ? "verified" : "reconciled";
-  }
+  if (publication.created === true) return "verified";
   if (publication.status === "published" && publication.provider_reconciled === true
       && publication.replay_created === false) {
     return "reconciled";
