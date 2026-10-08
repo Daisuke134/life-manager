@@ -253,47 +253,57 @@ def _readback_expression(candidate: str, message: str, marker: str, sender: str 
         }
         return values.filter(Boolean).join(' ');
       };
-      const isOutgoing = node => {
+      const senderMarkerEvidence = current => {
         let positive = false;
         let contradiction = false;
-        const inspected = new Set();
-        let current = node;
-        for (; current && current !== messageList; current = current.parentElement) {
-          inspected.add(current);
+        for (const raw of [current.getAttribute?.('data-direction'),
+          current.getAttribute?.('data-message-direction')]) {
+          if (raw == null || !String(raw).trim()) continue;
+          const direction = String(raw).trim().toLowerCase();
+          if (['outgoing', 'outbound', 'self', 'own', 'me'].includes(direction)) positive = true;
+          else contradiction = true;
         }
-        for (const descendant of node.querySelectorAll?.('*') || []) inspected.add(descendant);
+        const isOwn = current.getAttribute?.('data-is-own');
+        if (isOwn != null) {
+          if (['true', '1', 'yes'].includes(String(isOwn).toLowerCase())) positive = true;
+          else contradiction = true;
+        }
+        const marker = [current.getAttribute?.('data-e2e'), current.className]
+          .filter(Boolean).join(' ');
+        if (/(incoming|inbound|received)/i.test(marker)
+            || /(?:^|[-_ ])other(?:$|[-_ ])/i.test(marker)) contradiction = true;
+        if (/(outgoing|outbound|self|ownmessage)/i.test(marker)
+            || /(?:^|[-_ ])own(?:$|[-_ ])/i.test(marker)) positive = true;
+        for (const raw of [current.getAttribute?.('data-sender-handle'), current.getAttribute?.('data-sender')]) {
+          if (raw == null || !String(raw).trim()) continue;
+          const senderHandles = (String(raw).match(/@[A-Za-z0-9._-]+/g) || [])
+            .map(handle => handle.toLowerCase());
+          if (senderHandles.length) {
+            if (expectedSender && senderHandles.every(handle => handle === expectedSender)) positive = true;
+            else contradiction = true;
+          } else if (['me', 'self', 'own', 'outgoing', 'outbound'].includes(String(raw).trim().toLowerCase())) {
+            positive = true;
+          } else {
+            contradiction = true;
+          }
+        }
+        return {positive, contradiction};
+      };
+      const isOutgoing = node => {
+        const path = [];
+        for (let current = node; current && current !== messageList; current = current.parentElement) {
+          path.push(current);
+        }
+        // The nearest ancestor carrying outgoing proof is the bounded row scope.
+        // Never scan messageList: its descendants can include a different conversation row.
+        const row = path.find(current => senderMarkerEvidence(current).positive) || node;
+        const inspected = new Set([row, ...(row.querySelectorAll?.('*') || [])]);
+        let positive = false;
+        let contradiction = false;
         for (const current of inspected) {
-          for (const raw of [current.getAttribute?.('data-direction'),
-            current.getAttribute?.('data-message-direction')]) {
-            if (raw == null || !String(raw).trim()) continue;
-            const direction = String(raw).trim().toLowerCase();
-            if (['outgoing', 'outbound', 'self', 'own', 'me'].includes(direction)) positive = true;
-            else contradiction = true;
-          }
-          const isOwn = current.getAttribute?.('data-is-own');
-          if (isOwn != null) {
-            if (['true', '1', 'yes'].includes(String(isOwn).toLowerCase())) positive = true;
-            else contradiction = true;
-          }
-          const marker = [current.getAttribute?.('data-e2e'), current.className]
-            .filter(Boolean).join(' ');
-          if (/(incoming|inbound|received)/i.test(marker)
-              || /(?:^|[-_ ])other(?:$|[-_ ])/i.test(marker)) contradiction = true;
-          if (/(outgoing|outbound|self|ownmessage)/i.test(marker)
-              || /(?:^|[-_ ])own(?:$|[-_ ])/i.test(marker)) positive = true;
-          for (const raw of [current.getAttribute?.('data-sender-handle'), current.getAttribute?.('data-sender')]) {
-            if (raw == null || !String(raw).trim()) continue;
-            const senderHandles = (String(raw).match(/@[A-Za-z0-9._-]+/g) || [])
-              .map(handle => handle.toLowerCase());
-            if (senderHandles.length) {
-              if (expectedSender && senderHandles.every(handle => handle === expectedSender)) positive = true;
-              else contradiction = true;
-            } else if (['me', 'self', 'own', 'outgoing', 'outbound'].includes(String(raw).trim().toLowerCase())) {
-              positive = true;
-            } else {
-              contradiction = true;
-            }
-          }
+          const evidence = senderMarkerEvidence(current);
+          positive ||= evidence.positive;
+          contradiction ||= evidence.contradiction;
         }
         return positive && !contradiction;
       };
