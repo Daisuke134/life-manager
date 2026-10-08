@@ -4991,3 +4991,28 @@ Source / production follow-up (2026-10-08 11:01 JST): PR #7012は`b692e70a`と�
 8. first paid eBook orderとmatching PDF delivery後にだけCapafy Instagram marketingを始める。identity/既存Postiz route/ownerをreadbackし、1 canary/24hと14日readbackを閉じる。
 
 **Daisの作業:** Postiz再接続・手動投稿は不要。今の阻害は旧HeyGen effect証拠、空き容量、retired label gate、source PR統合であり、英語ownerの次投稿は旧effectとproduction gateの後。
+
+### 2026-10-08 11:43 JST — eBook provider readback and shared-gate cursor
+
+この節は11:36 JSTのeBook snapshotを更新する。英語の旧HeyGen intent fenceはEnglish ownerだけに適用し、日本語Watercolorの2 ownerは別integration/effectとして扱う。両日本語ownerにも共通host capacityとrelease/apply gatesは適用する。
+
+**最新公式・runtime readback:**
+
+- Postiz direct GET（11:42:10 JST）では3 integrationすべてenabled。10/8の対象receiptは英語TikTok 0、日本語TikTok 1、日本語Instagram 1（2/9）。次の日本語slotは12:30 JSTで、その前の新規投稿は確認していない。
+- HeyGen direct GET（同時点）ではtitle `Anicca`該当video 0件、wallet残高USD 11.78。旧intentのvideo IDまたはUSD 0.52に結び付くbilling detailがなく、英語effectはunknownのまま。別IDでない限り08:00 intentは再送しない。
+- 空き容量は`652,800 KiB`（約0.62 GiB）。cleanup occurrence `18dc6d7c936c08f0-63724`は11:38:53 JSTに`apply_lock_busy` / exit 78 / `effect_status=not_applicable`。release reconcilerは現在PID 80014で稼働中（active run scratch ID `18dc6d5fe9c91548-80014`）。cleanupを重ねず、reconcilerの自然terminalとlock解放を先にreadbackする。
+- `launchctl-safe preflight`は11:43 JSTにPASS（UID 501、Aqua、manager PID 1）。`launchctl-safe print`のretired label `ai.anicca.provision-browser.capafy.kosuke`は`spawn scheduled`、PIDなし、last exit code 2。registryは期待argv hashと欠落entrypointをguardとして記録し、doctorはこのretired labelだけで`ok=false`。guard付きowner経路で解決する。
+- Fresh branch reviewはCritical 0 / Important 0 / Minor 1。MinorはHeyGen completed後のwallet/cost read failureでcreate診断metadataの一部がsidecarから消える点（`heygen_candidate.py` 327/334行）。provider IDと再create防止は残るので今回は延期し、ledgerへ記録した。
+
+**更新後の残りatomic TODO:**
+
+1. source修正と正本specのbranchをpushし、PRを作成する。required CIをPASSさせてmainへmergeする。これはprovider mutationを起こさない。
+2. running release reconciler PID 80014のterminalとapply-lock releaseをreadbackする。停止・並列apply・manual cleanupを行わない。
+3. guarded retired Capafy provision-browser labelをownerのguarded retired-label経路で解消し、`lm-loop doctor`がPASSすることを確認する。期待argv hash/entrypoint欠落/loaded PIDがguardと一致しない場合は削除せず証拠を追加する。
+4. cleanup ownerの次eligible runで空き容量`>=2 GiB`、errors 0、protected deletions 0のreceiptを取得し、同時刻`df`で確認する。容量不足中は3 eBook ownersを起動しない。
+5. 共通gatesが通った後、日本語TikTokとInstagramの12:30 slotを各ownerから一度実行し、各Postiz `PUBLISHED` receipt/post ID/public URLを照合する。英語unknown fenceは別に保持し、日本語のreceiptを英語slotの成功扱いにしない。
+6. 英語の旧08:00 effectについてvideo IDまたはitemized billing readbackを続ける。安全なdisposition後に限り、次の別英語slotでHeyGen/ Postiz receiptを同一occurrenceへ結ぶ。
+7. 3 accounts各3 unique `PUBLISHED` receipts/day（計9）とreplay-zeroを自然実測し、click attribution→locale Checkout→settled Stripe→一致PDF納品へ結ぶ。Letter/Tegamiのsettled recurring net contributionで14日cohortを測り、USD 10,000 net MRRはreceipt証明まで目標のままにする。
+8. 初回paid eBook orderと一致PDF receiptの後にCapafy IG D5へ進み、既存identity/route/ownerをreadbackして1 canary/24hを行う。
+
+**現在cursor:** item 1（source PR）。同時にitem 2のPID 80014はnatural terminal待ち。Daisに必要な再接続・手動投稿はない。
