@@ -94,6 +94,9 @@ class TerraDefaultTest(unittest.TestCase):
                         "effort": "max", "service_tier": "fast",
                         "profile_alias": "acct1", "fail_fast_provider_lease": True,
                     }]
+                # 2026-10-08: short loop calls must not queue behind a long acct1 run.
+                if name in {"composition-agent", "marketing-agent", "browser-lane-agent"}:
+                    expected = [dict(expected[0], fail_fast_provider_lease=True)]
                 # Paid and explicit escalation stay Codex-only. Other executable
                 # classes retain their existing cross-provider fallback contract.
                 fallback = {"provider": "claude-direct", "model": "claude-sonnet-5"}
