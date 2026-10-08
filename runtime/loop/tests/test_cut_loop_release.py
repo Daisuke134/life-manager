@@ -598,6 +598,7 @@ class CutLoopReleaseTest(unittest.TestCase):
                     "PATH": f"{fake_bin}:{os.environ['PATH']}",
                     "LIFE_MANAGER_SOURCE_REPO": str(root),
                     "LOOPS_ROOT": str(loops),
+                    "LIFE_MANAGER_RELEASE_CUT_MIN_INTERVAL_SECONDS": "0",
                     "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(root / "admission"),
                     "LIFE_MANAGER_RECOVERY_INTENTS_PATH": str(root / "recovery-intents.jsonl"),
                     "LIFE_MANAGER_RELEASE_RECONCILER_STATE_ROOT": str(root / "reconciler-state"),
