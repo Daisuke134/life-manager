@@ -5289,16 +5289,23 @@ PR #7030の全required checksはhead `99648f4f` / base `a7899e37`でPASSした�
 - A5 Task 5は専用worktreeで実装済み（`a551db6aa4`）し、fresh reviewの重要指摘だったbrowser template regexの二重escapeを`6dbdb02876`で修正。生成browser validatorを実行する回帰testを追加し、UI 44/44、privacy evaluator、diff checkがPASS。fixのread-only re-reviewもPASS。Task 5報告は`ba55d62176`。現在A5 branch HEADは`ba55d62176`、この作業は未push・未merge。working plan `docs/superpowers/plans/2026-10-07-cfo-a5-cost-visibility.md`にはTask 5–7があり、同planの更新はworktree内で未commit。Task 6 priority changeとTask 7 final integrationは未完了。
 - queue snapshotではCFOがeligible deterministic queueの27/28番目、priority=`support`だった。`revenue`への変更はまだ未実装で、`admission_class=borrow`と`resource_class=deterministic`は維持する。これはsupport backlogを減らす案で、満杯時の`resource_capacity_busy`は直さず、hard cap・自動停止も追加しない。
 - `loop_pnl.py --date`はreporting dateを変える一方、B7 snapshot windowは現在時刻を使う。usage-eventの一部に日付filterはあるが、全sourceのAsia/Tokyo期間filterは未受入。
-- docs PR #7027のremote head `5c471bd6`では旧baseに対するrequired checksがPASS。branchには最新main `0c2bb882`をmerge済みだが、このCFO状態更新は未pushで、新headのchecksは未実行。
+- docs PR #7027にはlatest main `0c2bb882`を含むCFO状態更新をpush済み。最新commitでrequired checksを再実行中。
 
 **残りatomic TODO（この順）:**
 
-1. **A5 sourceを完了する:** 実装済みTask 5 fixをfresh review PASSの状態で保持する。Task 6では既存registry testを`priority=revenue`期待へ変更してREDを確認し、CFO rowのpriorityだけを変更してGREENにする（`admission_class=borrow`と`resource_class=deterministic`は維持）。Task 7でA5 focused tests、privacy evaluator、focused registry test、`./bin/lm-loop-contract`、diff/reviewを実行し、latest main同期後に既存PR #6827を更新してrequired CIをPASSさせmergeする。
-2. **A5をrelease・natural reportまで閉じる:** main由来immutable releaseを適用後、現在runningのreconcilerをkill/restartせず自然終端まで待つ。終端後にCFO owner apply receipt・loaded SHA・label apply lock解放をreadbackし、次の自然hourly occurrenceで実reportとdelivery/provider receiptを確認する。再び`apply_lock_busy`なら該当occurrenceの直前・同時刻のlabel apply ownerを直接readbackし、lock削除や手動再送はしない。
-3. **A6を閉じる:** 2026-09 Cost Tableと同一期間・project・SKU/serviceのbilled/usage dollar evidenceを照合し、credits・tax・roundingを一致させる。cash-paidはbank/provider settlement receiptがある場合だけ記録し、A5 traceがない費用はunattributedのままにする。
-4. **A8 company coverage:** 18 product loops / 186 runtime jobsについて、settled revenue/refund/feeとprovider/API/cloud/subscription actual costをsource・期間・通貨・owner・receipt単位で接続する。推定・stale・failed・unknownをsettledやzeroへ変換しない。
-5. **A9 daily CFO report:** Asia/Tokyoの日次/MTD/trailing期間を全sourceで実際にfilterし、agent/loop/platform別と全社のrevenue・refund/fee・actual/estimated/unknown expense・net・MRR・freshness・coverageを既存CLI/panelに出す。`--date`の表示日付と集計windowが一致するtestを加える。
-6. **A10 natural acceptance:** main由来releaseで7日連続の自然report、全18 loops/186 jobsのcoverage、official readback、delivery receipt、period consistency、unknown owner/actionとduplicate/replayゼロを確認する。これ以前は全社CFO完了やverified $10k MRRを主張しない。
+1. **A5 Task 6 RED:** 既存CFO registry testを`priority=revenue`期待に変え、対象testを実行して現状の`support`値で失敗することを確認する。
+2. **A5 Task 6 GREEN:** CFO rowの`priority`だけを`revenue`にし、`admission_class=borrow` / `resource_class=deterministic`を維持して同じtestを通す。
+3. **A5 Task 6 contract:** focused registry testと`./bin/lm-loop-contract`を実行する。予約枠、spend cap、自動停止は追加しない。
+4. **A5 Task 7 acceptance:** migration/API/UI focused tests、privacy evaluator、diff checkを実行し、tenant/period filter・trace allowlist・unknown≠zeroをreviewする。最終source diffのread-only reviewをPASSさせる。
+5. **A5 source integration:** uncommitted plan更新を含めてcommitし、latest mainをA5 branchへmerge、既存PR #6827へpushする。最新headのrequired checksをPASSさせてmergeする。旧headのOSS/Gitleaks結果は採用しない。
+6. **Release reconciler recovery:** source作業と並行して、ENOSPCの対象filesystem/quotaとowner-output write pathを特定し、原因に応じて空き領域またはoutput処理を安全に修正する。evidence/state logを根拠なく消さず、次のnatural reconcileがpartialではなくCFO ownerを含めて完了することをreadbackする。
+7. **A5 production migration:** PR merge後にadditive A5 SQL migrationを対象Supabase projectへ適用し、migration履歴と`lm_usage_cost_period_summary`の存在・権限をofficial readbackで確認する。
+8. **A5 production release:** main由来immutable releaseを作成/適用し、reconciler terminal・CFO owner apply receipt・loaded SHA・lock解放をreadbackする。reconcilerがpartialなら自然成功まで追い、手動restartやlock削除をしない。
+9. **A5 natural acceptance:** 次のnatural hourly CFO occurrence（現時点の予測は約14:04 JST）でreport/delivery receiptとdaily/month-to-date cost panelを確認する。`apply_lock_busy`再発時は同一label apply rowを照合する。
+10. **A6 Google cost reconciliation:** 2026-09 Cost Tableと同一期間/project/SKU/serviceのbilled/usageを照合し、credits・tax・roundingを合わせる。cash-paidはsettlement receiptがある場合だけ記録し、trace欠損はunattributedのままにする。
+11. **A8 company coverage:** 18 product loops / 186 runtime jobsのsettled revenue/refund/feeとprovider/API/cloud/subscription actual costをsource・期間・通貨・owner・receipt単位で接続する。推定・stale・failed・unknownをsettled/zeroへ変換しない。
+12. **A9 daily CFO report:** Asia/Tokyo日次/MTD/trailingを各sourceでfilterし、agent/loop/platform別と全社のrevenue・refund/fee・actual/estimated/unknown expense・net・MRR・freshness・coverageを既存CLI/panelへ出す。`--date`表示値と集計window一致をtestする。
+13. **A10 natural acceptance:** main由来releaseで7日連続のnatural report、全18 loops/186 jobs coverage、official readback、delivery receipt、period consistency、unknown owner/actionとduplicate/replayゼロを確認する。それまでは全社CFO完了やverified $10k MRRを主張しない。
 
 **現在cursor:** A5 Task 5の修正review PASS後、Task 6 priority RED→GREENへ進む。Task 5 codeはローカルA5 branchにあり未push・未merge。Task 6は未着手。CFO productionの最新wakeは`apply_lock_busy`で、新しいreport receiptがない。
 
