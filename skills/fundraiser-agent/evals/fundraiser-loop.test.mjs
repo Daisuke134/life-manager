@@ -56,6 +56,23 @@ function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+async function effectMarkerEnv(root, occurrenceId) {
+  const marker = join(root, "effect-marker.json");
+  await writeFile(marker, JSON.stringify({
+    schema_version: 1,
+    owner_id: "fundraiser",
+    occurrence_id: occurrenceId,
+    phase: "pre_effect",
+    effect: 0,
+  }) + "\n");
+  await chmod(marker, 0o600);
+  return {
+    ...process.env,
+    FUNDRAISER_EFFECT_MARKER: marker,
+    FUNDRAISER_OCCURRENCE_ID: occurrenceId,
+  };
+}
+
 function makeBrowser(form, submitResult = { kind: "confirmed", receiptRef: "ui-confirmation-1" }) {
   const state = { fields: new Map(), actions: [], submitCount: 0, submitResult };
   const browser = {
@@ -202,8 +219,8 @@ test("production contract runs hourly and maximizes real applications", () => {
   assert.match(contract, /every hour/i);
   assert.equal(loopRegistry.loops.fundraiser.cadence.start_interval_seconds, 3600);
   assert.match(fundraiserPlist, /<key>StartInterval<\/key><integer>3600<\/integer>/);
-  assert.match(contract, /as many[^\n]*applications[^\n]*as possible/i);
-  assert.match(contract, /continue[^\n]*after[^\n]*(?:first|one)[^\n]*(?:submit|application)/i);
+  assert.match(contract, /no\s+arbitrary per-pass or per-day application maximum/i);
+  assert.match(contract, /pass continues after\s+the first verified result/i);
   assert.match(contract, /authenticated[^\n]*X[^\n]*CDP/i);
   assert.match(contract, /Telegram[^\n]*(?:immediately|real.?time)/i);
   assert.match(contract, /reasonable inference/i);
@@ -214,9 +231,9 @@ test("production contract runs hourly and maximizes real applications", () => {
   assert.match(dailyPrompt, /SR008[^\n]*terminal[^\n]*SR009[^\n]*new opportunity/i);
   assert.match(dailyPrompt, /Fall 2026[^\n]*F26[^\n]*same cohort/i);
   assert.match(dailyPrompt, /unchanged blocker[^\n]*new discovery/i);
-  assert.match(dailyPrompt, /cdp_tab_gc\.py --owner ai\.anicca\.fundraiser/);
-  assert.match(dailyPrompt, /cdp_default_tab\.py open about:blank --owner ai\.anicca\.fundraiser/);
-  assert.match(dailyPrompt, /cdp_default_tab\.py close "\$TARGET_ID" --owner ai\.anicca\.fundraiser/);
+  assert.match(dailyPrompt, /cdp_tab_gc\.py --owner "\$CLOAK_BROWSER_OWNER"/);
+  assert.match(dailyPrompt, /cdp_default_tab\.py open about:blank --owner "\$CLOAK_BROWSER_OWNER"/);
+  assert.match(dailyPrompt, /cdp_default_tab\.py close "\$TARGET_ID" --owner "\$CLOAK_BROWSER_OWNER"/);
   assert.match(dailyPrompt, /FUNDRAISER_EVIDENCE_DIR\/target-id/);
   assert.match(dailyPrompt, /helper has no `list` command/);
   assert.doesNotMatch(dailyPrompt, /cdp_context_lease\.py/);
@@ -263,7 +280,9 @@ test("production contract runs hourly and maximizes real applications", () => {
   assert.match(runtimeScript, /FUNDRAISER_APPLICATIONS_DIR/);
   assert.match(runtimeScript, /record-application\.py/);
   assert.doesNotMatch(runtimeScript, /delete context\./);
-  assert.match(runtimeScript, /--prepare --draft <draft> --ledger "\$STATE_ROOT\/application-receipts\.jsonl" --applications-dir "\$STATE_ROOT\/applications"/);
+  assert.match(runtimeScript, /export FUNDRAISER_RECORD_APPLICATION=.*record-application\.py/);
+  assert.match(dailyPrompt, /\$FUNDRAISER_RECORD_APPLICATION --prepare/);
+  assert.match(dailyPrompt, /\$FUNDRAISER_RECORD_APPLICATION --claim-effect/);
   assert.match(dailyPrompt, /application_digest/);
   assert.match(runtimeScript, /MIN_FREE_KIB=\$\(\(1536 \* 1024\)\)/);
   assert.match(runtimeScript, /PRESSURE_FREE_KIB=\$\(\(2 \* 1024 \* 1024\)\)/);
@@ -323,6 +342,8 @@ test("verified application recorder writes a full dossier and rejects exact repl
   const draft = join(root, "draft.json");
   const ledger = join(root, "receipts.jsonl");
   const applications = join(root, "applications");
+  const occurrenceId = "fundraiser:verified-recorder-test";
+  const effectEnv = await effectMarkerEnv(root, occurrenceId);
   const contextVersion = "2026-08-27.2";
   const contextDigest = "9fbe6198c6d61da47d68767eec90a1d95d2e07058f024448d86372b5f3035338";
   await writeFile(png, "official completion image");
@@ -340,23 +361,29 @@ test("verified application recorder writes a full dossier and rejects exact repl
     "--expected-context-digest", contextDigest];
   const prepare = spawnSync("python3", [applicationRecorder.pathname, "--prepare", "--draft", draft,
     "--ledger", ledger, "--applications-dir", applications,
-    ...expectedContextArgs], { encoding: "utf8" });
+    "--occurrence", occurrenceId, ...expectedContextArgs], { encoding: "utf8", env: effectEnv });
   assert.equal(prepare.status, 0, prepare.stderr);
   const prepared = JSON.parse(await readFile(draft, "utf8"));
   assert.match(prepared.application_digest, /^[a-f0-9]{64}$/);
-  prepared.submitted_at = prepared.previewed_at;
-  prepared.evidence = { completion_png: png, telegram_photo_message_id: 123,
-    provider_readback: "Thank you for applying" };
   const args = [applicationRecorder.pathname, "--draft", draft, "--ledger", ledger,
-    "--applications-dir", applications, "--run-id", "test-run", ...expectedContextArgs];
+    "--applications-dir", applications, "--run-id", "20261008T000000Z-12345",
+    "--occurrence", occurrenceId, ...expectedContextArgs];
   prepared.question_answers[0].answer = "Tampered after preview";
   await writeFile(draft, JSON.stringify(prepared));
-  const tampered = spawnSync("python3", args, { encoding: "utf8" });
+  const tampered = spawnSync("python3", args, { encoding: "utf8", env: effectEnv });
   assert.notEqual(tampered.status, 0);
   assert.match(tampered.stderr, /application_digest does not match/);
   prepared.question_answers[0].answer = "Life Manager";
   await writeFile(draft, JSON.stringify(prepared));
-  const first = spawnSync("python3", args, { encoding: "utf8" });
+  const claim = spawnSync("python3", [applicationRecorder.pathname, "--claim-effect", "--draft", draft,
+    "--ledger", ledger, "--applications-dir", applications,
+    "--occurrence", occurrenceId, ...expectedContextArgs], { encoding: "utf8", env: effectEnv });
+  assert.equal(claim.status, 0, claim.stderr);
+  prepared.submitted_at = new Date(Date.parse(prepared.previewed_at) + 1000).toISOString();
+  prepared.evidence = { completion_png: png, telegram_photo_message_id: 123,
+    provider_readback: "Thank you for applying" };
+  await writeFile(draft, JSON.stringify(prepared));
+  const first = spawnSync("python3", args, { encoding: "utf8", env: effectEnv });
   assert.equal(first.status, 0, first.stderr);
   const row = JSON.parse((await readFile(ledger, "utf8")).trim());
   assert.equal(row.status, "submitted_verified");
@@ -366,9 +393,9 @@ test("verified application recorder writes a full dossier and rejects exact repl
   assert.match(row.application_record_sha256, /^[a-f0-9]{64}$/);
   const dossier = JSON.parse(await readFile(row.application_record_path, "utf8"));
   assert.equal(dossier.question_answers[0].answer, "Life Manager");
-  const replay = spawnSync("python3", args, { encoding: "utf8" });
+  const replay = spawnSync("python3", args, { encoding: "utf8", env: effectEnv });
   assert.notEqual(replay.status, 0);
-  assert.match(replay.stderr, /duplicate terminal application/);
+  assert.equal((await readFile(ledger, "utf8")).trim().split("\n").length, 1);
 });
 
 test("application prepare rejects a prior terminal cohort despite date wording drift", async () => {
@@ -376,6 +403,8 @@ test("application prepare rejects a prior terminal cohort despite date wording d
   const draft = join(root, "draft.json");
   const ledger = join(root, "receipts.jsonl");
   const applications = join(root, "applications");
+  const occurrenceId = "fundraiser:dedupe-recorder-test";
+  const effectEnv = await effectMarkerEnv(root, occurrenceId);
   const contextVersion = "2026-08-27.2";
   const contextDigest = "9fbe6198c6d61da47d68767eec90a1d95d2e07058f024448d86372b5f3035338";
   await writeFile(ledger, `${JSON.stringify({
@@ -398,8 +427,9 @@ test("application prepare rejects a prior terminal cohort despite date wording d
   }));
   const prepare = spawnSync("python3", [applicationRecorder.pathname, "--prepare", "--draft", draft,
     "--ledger", ledger, "--applications-dir", applications,
+    "--occurrence", occurrenceId,
     "--expected-context-version", contextVersion, "--expected-context-digest", contextDigest],
-  { encoding: "utf8" });
+  { encoding: "utf8", env: effectEnv });
   assert.notEqual(prepare.status, 0);
   assert.match(prepare.stderr, /duplicate terminal application/);
 
@@ -408,8 +438,9 @@ test("application prepare rejects a prior terminal cohort despite date wording d
   await writeFile(draft, JSON.stringify(newCohort));
   const allowed = spawnSync("python3", [applicationRecorder.pathname, "--prepare", "--draft", draft,
     "--ledger", ledger, "--applications-dir", applications,
+    "--occurrence", occurrenceId,
     "--expected-context-version", contextVersion, "--expected-context-digest", contextDigest],
-  { encoding: "utf8" });
+  { encoding: "utf8", env: effectEnv });
   assert.equal(allowed.status, 0, allowed.stderr);
 });
 
