@@ -201,8 +201,8 @@ run_fleet_apply() {
   local log_path="$state_dir/fleet-apply.jsonl"
   mkdir -p "$state_dir"
 
-  local last_sha last_status last_next_retry last_ok_epoch last_attempt_epoch
-  IFS=$'\t' read -r last_sha last_status last_next_retry last_ok_epoch last_attempt_epoch < <(
+  local last_sha last_status last_next_retry last_ok_epoch last_attempt_epoch last_budget_progress_continue
+  IFS=$'\t' read -r last_sha last_status last_next_retry last_ok_epoch last_attempt_epoch last_budget_progress_continue < <(
     FLEET_APPLY_STATE_PATH="$state_path" "$runtime_python" - <<'PY'
 import json, os
 path = os.environ["FLEET_APPLY_STATE_PATH"]
@@ -230,7 +230,20 @@ try:
     ).replace(tzinfo=datetime.timezone.utc).timestamp())
 except ValueError:
     last_attempt_epoch = 0
-print(f"{sha}\t{status}\t{next_retry}\t{last_ok_epoch}\t{last_attempt_epoch}")
+if "budget_progress_continue" in data:
+    budget_progress_continue = data.get("budget_progress_continue") is True
+else:
+    try:
+        changed = int(data.get("changed", 0) or 0)
+    except (TypeError, ValueError):
+        changed = 0
+    budget_progress_continue = (
+        status == "partial"
+        and data.get("message") == "timed out owners: none; budget exceeded"
+        and changed > 0
+        and next_retry > 0
+    )
+print(f"{sha}\t{status}\t{next_retry}\t{last_ok_epoch}\t{last_attempt_epoch}\t{int(budget_progress_continue)}")
 PY
   )
 
@@ -251,7 +264,8 @@ PY
     local coalesce_until_epoch="$((last_try_epoch + min_interval_seconds))"
     # A budget-progress partial may record a shorter retry window than the ordinary SHA
     # coalescing interval; honor that same deadline when the activated SHA changes.
-    if [ "${last_next_retry:-0}" -gt 0 ] \
+    if [ "${last_budget_progress_continue:-0}" = "1" ] \
+      && [ "${last_next_retry:-0}" -gt 0 ] \
       && [ "${last_next_retry:-0}" -lt "$coalesce_until_epoch" ]; then
       coalesce_until_epoch="$last_next_retry"
     fi
@@ -576,8 +590,10 @@ PY
   { [ "$status" = "error" ] || [ "$status" = "partial" ]; } && next_retry_epoch=$((now_epoch + backoff_seconds))
   # A pass that only ran out of budget (no hung owner) after applying owners is progress, not a
   # failure: continue on the same sha soon so the fleet converges before the next release.
+  local budget_progress_continue=0
   if [ "$status" = "partial" ] && [ "$budget_exceeded" -eq 1 ] && [ -z "$timed_out_owners" ] \
     && [ "$changed" -gt 0 ]; then
+    budget_progress_continue=1
     next_retry_epoch=$((now_epoch + ${LIFE_MANAGER_FLEET_APPLY_CONTINUE_SECONDS:-300}))
   fi
   local new_last_ok_epoch="${last_ok_epoch:-0}"
@@ -587,6 +603,7 @@ PY
     FLEET_APPLY_SHA="$release_sha" FLEET_APPLY_STATUS="$status" \
     FLEET_APPLY_CHANGED="$changed" FLEET_APPLY_SKIPPED="$skipped" FLEET_APPLY_ERRORS="$errors" \
     FLEET_APPLY_MESSAGE="$message" FLEET_APPLY_NEXT_RETRY="$next_retry_epoch" \
+    FLEET_APPLY_BUDGET_PROGRESS_CONTINUE="$budget_progress_continue" \
     FLEET_APPLY_LAST_OK_EPOCH="$new_last_ok_epoch" \
     "$runtime_python" - <<'PY'
 import json, os, time
@@ -599,6 +616,7 @@ record = {
     "message": os.environ["FLEET_APPLY_MESSAGE"],
     "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     "next_retry_epoch": int(os.environ["FLEET_APPLY_NEXT_RETRY"]),
+    "budget_progress_continue": os.environ["FLEET_APPLY_BUDGET_PROGRESS_CONTINUE"] == "1",
     "last_ok_epoch": int(os.environ["FLEET_APPLY_LAST_OK_EPOCH"]),
 }
 state_path = os.environ["FLEET_APPLY_STATE_PATH"]

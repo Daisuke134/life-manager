@@ -7036,3 +7036,44 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 6. 同時間窓のlive claims/reservations/queue/class contention/CPU/RAM/diskを測る。実測でdiskや外部writerではなくglobal/per-class capの飽和が証明された場合だけcapを変更する。
 
 **現在cursor:** commit/push latest-main branch → exact-head PR CI/review/merge → fix SHAのimmutable release/natural fleet continuation → disk owner特定/安全回復 → target receipt/natural run → same-window capacity/economics。
+
+
+### 2026-10-08 22:31 JST — reviewで通常errorの再試行間隔短縮を検出
+
+- 独立read-only reviewは`fix-first`。最初の修正は`last_next_retry`をpartial/errorの種別を問わず新SHA coalesceに使うため、通常の`error`やtimeout partialでも1800秒より早く再applyし得る。通常errorの`next_retry_epoch`はfleet処理開始時の`now_epoch + backoff_seconds`、`at`は処理終了時に保存されるため、実行時間分だけretry期限が`last_attempt + 1800s`より先に来る。
+- 現テストは`test_budget_partial_short_retry_allows_new_sha_before_min_interval`を含めfleet-apply test file 32/32 passだが、共通test環境のerror backoffは100000秒で、通常errorの新SHA coalesceを保つケースを検証していない。期限が経過した通常errorを新SHAで即applyしない回帰testが必要。
+- reviewerの`ASTRA REVIEW`は、budget進捗partialだけ短縮し、通常error/owner-timeout partialは従来の1800秒を保つよう修正することを要求する。reviewerのmodel/effortは観測できていない。
+
+**順序更新:** 旧順=`budget partialのnext_retryを全statusへ適用 → PR/merge`。新順=`(1) 通常errorの期限切れ後に新SHAを有効化しても1800秒coalesceが維持される失敗test → (2) structured stateにbudget-progress markerを記録し、それを持つpartialだけ短いnext_retryをSHA変更時に適用 → (3) 旧stateのmessageから該当budget partialを一度だけ識別するfallbackをtest → (4) 既存fleet-apply test file → (5) push/PR/exact-head CI/fresh review → (6) release/自然fleet継続`。理由は、fleet再収束を早めながら、通常errorの既存負荷抑制を弱めないためである。
+
+**残TODO（完了まで・この順）:**
+
+1. **現在cursor—通常errorの失敗回帰testを書く。** 初回のowner applyを`FAKE_APPLY_MODE=fail`、backoff=0で走らせ、error後に新SHAへ切替える。1800秒未満なら2回目のapplyが増えず、state SHAも旧SHAのままのことをassertする。現実装でREDを確認する。
+2. `bin/reconcile-agent-runner-release.sh::run_fleet_apply`がbudget-progress partialに限って短縮を有効にする構造化booleanをstateへ保存し、新SHA coalesceでのみ参照する。旧stateにfieldがない場合、`status=partial`、`message="timed out owners: none; budget exceeded"`、`changed>0`の条件で一度だけ互換判定する。budget partial testはfield欠落状態で新SHA再開を確認する。
+3. 通常error regressionがGREEN、budget partial regressionがGREEN、既存fleet-apply test file全件とshell/diff/source-boundary checksをpassさせる。新しいread-only reviewerは`ship`と判定する。
+4. latest-main task branchをcommit/pushし、同一headのrequired CI/ship reviewを取得してmergeする。productionへはdisk-safeな自然handoffだけを使い、active reconcilerをstop/restartしない。
+5. diskは別cursorとして、host writer/Swap/owner I/Oをfresh readbackで特定し、safe cleanup/admission contractを満たすまでtarget loopのprovider実行をclaimしない。
+
+**現在cursor:** write normal-error RED regression → add budget-progress-only state and legacy fallback → rerun full relevant tests → fresh read-only ship review → exact-head CI/merge → natural release/fleet continuation → safe disk recovery/target outcomes.
+
+
+### 2026-10-08 22:45 JST — 通常errorのcoalesceを保つ修正を検証
+
+- 前回reviewの指摘を修正した。`run_fleet_apply`は`budget_progress_continue=true`の時だけ、新SHA coalesceへ短い`next_retry_epoch`を適用する。新しいstateは条件を満たしたbudget-progress partialだけtrueを保存し、通常error/owner-timeout partialはfalseを保存する。fieldのない旧stateは`partial`、messageが`timed out owners: none; budget exceeded`、`changed>0`、正の`next_retry_epoch`をすべて満たす時だけ互換扱いする。
+- 回帰testは修正前REDを確認した。通常errorをbackoff=0で記録後、新SHAの二回目applyが発生して非0で終わった。修正後は通常errorが30分coalesceを維持するtest、marker欠落の旧budget-partial test、既存fleet-apply test fileの33/33がpassした。`bash -n bin/reconcile-agent-runner-release.sh`、`bash scripts/verify-source-boundary.sh`、`git diff --check`もpass。
+- 編集直前の`df -k /`は`208,788 KiB` freeで、cleanup契約の2 GiB floorを大幅に下回る。安全なwriter/cleanup対象はまだ特定できていないため、disk/admission回復と三loop実行は未完了。
+- `git fetch origin`後、task branchは`origin/main`より2 commit遅れている。共通祖先は`a3c28b0d06db83a31de55995119a6087815ac241`、最新mainは`ac963290ce`。現在branch `888bec807e`にsource/test/specの未commit差分がある。
+
+**順序更新:** 旧cursor=`normal-error test → marker実装 → 33件確認 → reviewer → PR/merge`。新順=`(1) source/test/SSOTをcommit-push → (2) 最新origin/main 2 commitsをtask branchへ通常mergeし、他者差分を保つ → (3) exact-head PR CIとfresh read-only ship review → (4) mergeし、停止/restartなしのimmutable releaseと自然fleet applyを確認 → (5) safe writer attributionと2 GiB以上の自然cleanup receipt/admission pass → (6) target別effect fence/readbackと各loopのnatural run → (7) 同一窓のcapacity計測後、global/per-class capが実際に飽和している場合だけ最小変更`。理由は、回帰修正自体はgreenだがmainが先行し、productionの現blockerはdiskで、global capの飽和は未観測だからである。
+
+**残TODO（完了まで・この順）:**
+
+1. **現在cursor—source/test/SSOTを専用branchへcommit/pushする。** `fix/loop-capacity-queue-20261008`の3ファイルのみをstageし、先行するユーザー差分を含めない。
+2. `git fetch origin`後の`origin/main`をbranchへ通常mergeし、最新mainとsource/test/SSOT変更を保持する。新HEADをpushし、branchが最新mainを含むことを確認する。
+3. PRを作成し、正確なHEAD SHAに対するrequired CIとfresh read-only reviewerの`ship`を取得する。指摘があれば修正・pushし、headが変わったCI/reviewは取り直す。PRをmergeする。
+4. merge SHAからimmutable releaseを自然生成させる。active reconcilerをstop/restartせず、loaded release SHAと自然fleet-apply stateがbudget partialを継続し、通常errorは1800秒coalesceすることをreadbackする。
+5. `host-inventory`と次回full inventory、cleanup receipts、`df`/APFS、owner/process I/Oを同時刻で突合し、空き減少の具体的なwriterまたは安全なowner専有回収対象を特定する。保護領域を触らず、cleanup receiptで`free_after >= 2 GiB`、`errors=0`、`protected_deletions=0`と後続admission passを確認する。
+6. disk/admissionが回復したら各対象のeffect fenceをofficial provider readbackで解決する。`effect_unknown`は再送せず、loaded-idle ownerだけを通常手順で適用し、Connector/Luma registration、Job Hunter/Workday submission、Fundraiser/VC・AI founder outreachの各natural occurrence、receipt、`gpt-6-luna/max/fast`、Telegram報告を照合する。
+7. 三loopの自然runと同一時間窓でclaims、reservations、eligible queue age、admission reason、class contention、CPU/RAM/disk、実同時稼働loop数を測定する。configured global cap 8と実測容量を区別し、disk/owner repair後もcap saturationでrevenue ownerが待つ証拠がある場合だけ、最小のclass/global変更を判断する。応募、返信、面談、funding、settled cash、costsを別々に記録する。
+
+**現在cursor:** commit/push 3 files → merge latest origin/main (2 commits ahead) → exact-head PR CI/fresh ship review/merge → natural immutable release/readback → disk writer attribution and >=2 GiB cleanup/admission → target effects and natural outcomes → same-window capacity/economics.

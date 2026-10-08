@@ -665,6 +665,32 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
                              "a new release within the min interval of the last attempt must be "
                              "coalesced even though that attempt failed")
 
+    def test_new_release_after_normal_error_keeps_min_interval_with_expired_backoff(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha1 = self._make_repo(root)
+            self._activate(root, self._make_release(root, sha1))
+            calls_log = root / "calls.log"
+            env = self._base_env(root, repo, calls_log=calls_log, apply_mode="fail")
+            env["LIFE_MANAGER_FLEET_APPLY_BACKOFF_SECONDS"] = "0"
+
+            first = self._run(env)
+            self.assertNotEqual(first.returncode, 0)
+            self.assertEqual(self._apply_call_count(calls_log), 1)
+            self.assertEqual(self._state(root)["status"], "error")
+
+            sha2 = self._advance_repo(repo)
+            self._activate(root, self._make_release(root, sha2))
+            second = self._run(env)
+
+            self.assertEqual(second.returncode, 0, second.stderr)
+            self.assertEqual(
+                self._apply_call_count(calls_log),
+                1,
+                "an ordinary error must keep the full SHA coalescing interval",
+            )
+            self.assertEqual(self._state(root)["sha"], sha1)
+
     def test_new_release_after_a_failed_apply_is_applied_once_the_interval_elapses(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -991,6 +1017,11 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             self.assertEqual(first_state["status"], "partial")
             self.assertEqual(first_state["changed"], 1)
             self.assertLessEqual(first_state["next_retry_epoch"], int(time.time()))
+            self.assertEqual(first_state["message"], "timed out owners: none; budget exceeded")
+            state_path = root / "reconciler-state" / "fleet-apply-state.json"
+            legacy_state = json.loads(state_path.read_text())
+            legacy_state.pop("budget_progress_continue", None)
+            state_path.write_text(json.dumps(legacy_state))
 
             sha2 = self._advance_repo(repo)
             release2 = self._make_release(
