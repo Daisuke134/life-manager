@@ -8370,6 +8370,39 @@ This entry supersedes the prior producer-review cursor. CFO priority remains A5 
 
 **Current cursor:** commit local source/spec → merge latest main d785c539 → final status + push → exact-head CI/fresh review → merge PR → reconciler/doctor/queue natural readback → CFO natural receipt/report → A5 → A6 → A8 → A9 → A10.
 
+### 2026-10-09 05:08 JST — latest-main merge and push cursor
+
+このsnapshotは05:07のCFO statusを置き換える。CFO順序`A5 → A6 → A8 → A9 → A10`を維持し、A7/Money TreeとCloud cost workは対象外。
+
+- **Main/source:** latest `origin/main=d785c5391a02df0b0d0adcf8934ee7319345fdc7`を通常mergeし、local HEADは`f11b1f75e9c36ce7337b83dd7a87d680957672ac`。main差分の57行のSSOT/mobile evidenceを保持。CFO source/test/manifest/status commitは`d51ae70454`で作成済み、main merge済みだが未push。
+- **PR:** remote #7106はまだhead `335e870cff0282789538dbd5e7172085af7eddba` / base `0421f72ac1f4949b26f3dc1dfca9de1b35070742`。HTTPError fixとd785 main syncはremoteに未反映。335 headのレビューはImportant 1、対象fixをlocalでRED→GREEN済み。20:04Zのsecurity checksは一部実行中だったため、新headで再取得する。
+- **Local acceptance:** final source before documentation-only main merge: CFO/shared receipt Python 55/55、CFO Node 60/60、loop adapter 15/15、OSS verifier PASS（189 tracked shared files; digest `ecf5be017e1f3346061dbd26a15e663b7884bfd90b904ac20576cde246c5107e`）、loop contract 18/188/113・errors 0、diff check PASS。HTTPError malformed responseはuncertain fence、explicit `ok:false` rejectionはpre-send。
+- **Live CFO truth:** 直近production readbackは19:54Zのloaded-idle SHA `8d986ff4...`、terminal `18dca4d2e811ae18-37503` exit 75 `resource_capacity_busy`、provider receiptなし。doctorはrelease-reconciler self-handoff labelをunmanaged。queueは19:45Z snapshot以降のowner position不明（DB lock）。月次/loop別revenue・expenseは依然unknown。local full runtime suiteは819 tests中2件のENOSPC failure記録があり未再実行。
+
+**順序変更:** 旧cursor=`source commit → merge d785 → push`。新cursor=`(1) 完了: HTTPError receipt fence + regression tests + manifest + focused acceptance → (2) 完了: source/specをd51ae70454でcommit → (3) 完了: latest main d785c539をmerge → (4) current statusをmain-sync後にrefresh/push → (5) exact-head CI + fresh review → (6) PR merge`。理由は、source fix・最新SSOT merge・statusをremoteにまとめて載せ、古いbase/headのchecksを使わないため。
+
+**Remaining atomic TODO (この順):**
+
+1. [x] HTTPError non-JSON/ambiguous responseを`delivery_uncertain`にし、valid `ok:false`をpre-sendとして残す回帰testと最小修正。
+2. [x] CFO/shared receipt Python 55/55、CFO Node 60/60、adapter 15/15、OSS verifier、loop contract、diff checkをPASS。
+3. [x] source/test/manifest/CFO statusをcommit `d51ae70454`。
+4. [x] latest main `d785c539`をmergeし、mobile SSOT evidence 57行を保持。
+5. [ ] current status/head/baseを最終specへ記録し、latest-main-synced branchをpushしてremote PR readback。
+6. [ ] resulting exact PR headでrequired CIをすべてPASSし、fresh full-diff reviewでCritical/Important 0を確認。
+7. [ ] PR #7106をmerge。
+8. [ ] main由来immutable releaseをnormal owner routeでreconcileし、reconciler self-handoff、CFO loaded SHA、doctorをreadback。稼働ownerを停止/再起動しない。
+9. [ ] fresh queue/DB read後、finite cap内で既存claimをnatural terminalへ進める。cap増加・claim削除・effect_unknown再送をしない。
+10. [ ] owner-idle/queue-safe時にaccepted releaseをCFOへ適用し、natural reportのdelivery/runtime/provider/B7 receipt、period/currency/source coverage、replay-zeroを確認。証拠前はtotals unknown。
+11. [ ] A5 production migration/RPC/permissions/panel readback。
+12. [ ] A6 Google billed-vs-cashとreceipt-backed operation/loop attribution。
+13. [ ] A8で18 loops /188 jobs（113 mapped）のrevenue/refund/fee/measured costとshared/control/platform overheadをcoverage complete。
+14. [ ] A9の日次/MTD/trailing/MRRをloop別・全社でreconcile。
+15. [ ] A10で7日連続自然reportのcoverage/freshness/receipt/period/currency/replay-zeroを確認。
+
+**Blockerと解消方法:** 修正はlocalで完了、latest mainもmerge済みだが未push。current statusを最終specへ反映してpushし、結果のexact PR headだけでCI/reviewを取り直す。productionのcapacity defer、unmanaged reconciler self-handoff、queue DB lockは残るため、通常owner/reconciler経路とfresh queue/natural terminalで解く。売上・費用の実額はreceipt-backed natural CFO reportがなく未確認。
+
+**Current cursor:** final current-status spec update → push branch → exact-head CI/fresh review → merge #7106 → release/reconciler + queue natural readback → CFO natural report → A5 → A6 → A8 → A9 → A10.
+
 ### Marketing IntelからWriterへの記事候補連携（並列作業）
 
 **目的:** `marketing-weekly-review`がTelegramへ報告する未検証の`CONTENT`戦術を、既存Writerの`article-daily`トピックキューへ候補として渡す。AffiliateやX repostには配線しない。
