@@ -175,25 +175,15 @@ def _stdout_pass_line(
         if (not isinstance(pass_id, str) or not pass_id.startswith("storefront-direct-")
                 or not isinstance(observed, (int, float)) or isinstance(observed, bool)):
             continue
-        if started <= float(observed) <= stopped + 5:
+        if started <= float(observed) <= stopped:
             matches.append(value)
     if len(matches) != 1:
         raise EvidenceError("stdout_pass_count_invalid")
     row = matches[0]
-    if "runtime_run_id" not in row and "runtime_occurrence_id" not in row:
-        legacy_pass_id = re.fullmatch(
-            r"storefront-direct-(\d{19})-\d+", str(row.get("pass_id") or ""),
-        )
-        pass_started = int(legacy_pass_id.group(1)) / 1_000_000_000 if legacy_pass_id else None
-        if (pass_started is None or not started <= pass_started <= stopped):
-            raise EvidenceError("stdout_runtime_binding_invalid")
-        binding_method = "pass_id_timestamp"
-    else:
-        if (row.get("runtime_run_id") != run_id
-                or row.get("runtime_occurrence_id") != occurrence_id):
-            raise EvidenceError("stdout_runtime_binding_invalid")
-        binding_method = "runtime_ids"
-    return {**row, "_stdout_binding_method": binding_method}
+    if (row.get("runtime_run_id") != run_id
+            or row.get("runtime_occurrence_id") != occurrence_id):
+        raise EvidenceError("stdout_runtime_binding_invalid")
+    return row
 
 
 def _validate_pass_line(row: dict, terminal: dict) -> None:
@@ -256,7 +246,7 @@ def _build_evidence(state_root: Path, stdout_log: Path, database: Path,
     if not started <= stopped:
         raise EvidenceError("runtime_event_time_invalid")
     pass_line = _stdout_pass_line(
-        stdout_log, started, stopped,
+        stdout_log, started, stopped + 5,
         run_id=run_id, occurrence_id=occurrence_id,
     )
     _validate_pass_line(pass_line, terminal)
@@ -267,7 +257,6 @@ def _build_evidence(state_root: Path, stdout_log: Path, database: Path,
         "start_event_id": start["event_id"],
         "terminal_event_id": terminal["event_id"],
         "pass_id": pass_line["pass_id"],
-        "stdout_binding_method": pass_line["_stdout_binding_method"],
         "reason": pass_line["reason"],
         "window_started_at": start["timestamp"],
         "window_stopped_at": terminal["timestamp"],
