@@ -261,6 +261,14 @@ owned/X publication, and DEV/Substack receipts. Composition receives the prior
 sealed campaign as the control and may change only the Agent-selected variable;
 missing control evidence fails closed before any public effect.
 
+Each newly discovered English campaign captures the official Alec Wilcock and
+Greg Preece affiliate case studies alongside product and pricing sources. The
+composer uses their documented tutorial and audience-fit methods as strategy
+evidence, writes original English-first copy, adds a concise Japanese secondary
+subtitle/summary, and keeps one clearly visible disclosed CTA. Reported creator
+earnings remain attributed to those case studies and are never presented as
+Anicca's results or as guaranteed outcomes.
+
 Every future generic campaign acquires its own PartnerStack custom link before
 publication by reusing the verified ElevenLabs link adapter. The raw URL stays in
 the mode-0600 private Markdown; public receipts retain only provider identity and

@@ -181,6 +181,25 @@ def source_text(state_root: Path, bundle: dict) -> str:
 
 
 def prompt_for(state_root: Path, bundle: dict) -> str:
+    experiment = bundle.get("experiment")
+    language_prompt = ""
+    if bundle["locale"] == "en" and experiment is None:
+        language_prompt = """
+Write in English as the primary language, then add a concise Japanese subtitle/summary
+as the final section. Translate only supported points; add no new factual claims.
+"""
+    case_study_prompt = ""
+    if experiment is None and any(
+        isinstance(source, dict) and source.get("evidence_class") == "first_person_case"
+        for source in bundle.get("sources", [])
+    ):
+        case_study_prompt = """
+Use the included official affiliate case studies as strategy evidence: show a specific
+workflow tutorial for a relevant audience, keep it useful over time, and place the
+single CTA above the fold. Create original wording; do not copy the cases
+or present their reported earnings as Anicca's results. Attribute any case-study
+figures to the source as reported results, not guarantees.
+"""
     opportunity = bundle.get("opportunity_decision")
     opportunity_prompt = ""
     if opportunity:
@@ -191,7 +210,6 @@ Its falsifiable hypothesis is: {opportunity['hypothesis']}
 The success metric is: {opportunity['success_metric']}
 Use this as strategy context. Do not state the hypothesis as a proven outcome.
 """
-    experiment = bundle.get("experiment")
     experiment_prompt = ""
     if experiment:
         control = json.loads((
@@ -233,6 +251,8 @@ Do not invent experience, income, performance, price, approval, urgency, or guar
 Include `Disclosure: This article contains an affiliate link.` before the CTA.
 Use the literal placeholder {{{{AFFILIATE_LINK}}}} exactly once; no real tracking URL is available.
 Return JSON with exactly `title` and `markdown`. The markdown must be at least 800 characters.
+{language_prompt}
+{case_study_prompt}
 {experiment_prompt}
 {opportunity_prompt}
 

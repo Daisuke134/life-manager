@@ -10,12 +10,9 @@
 // adapter still run unchanged at publish time; this module only produces
 // objects that satisfy them instead of a human pasting them in.
 //
-// Dais direction (2026-09-28): the approved backgrounds are good and must be
-// REUSED forever (never regenerated); only the TEXT must be new every pack,
-// driven by the family's explore/exploit performance. So every slide's
-// background comes from the fixed, already-cached set below via
-// getCachedBackground() (network-free, $0/pack); only generateSlideCopy()'s
-// text is fresh per pack (a few hundred LLM tokens, the only real cost).
+// Marketing packs use only existing cached backgrounds and deterministic
+// local copy variants. Missing assets fail closed; this path makes no model
+// or image-generation calls.
 
 const crypto = require("node:crypto");
 const fs = require("node:fs");
@@ -174,8 +171,7 @@ async function generateSlidePackCandidates({
   packFormat,
   form,
   lastSlideRole,
-  geminiApiKey,
-  generateText,
+  variantSeed,
   resolveBackground = getCachedBackground,
   avoidTextsByFamily = {},
   python,
@@ -199,10 +195,9 @@ async function generateSlidePackCandidates({
       try {
         copy = await generateSlideCopy({
           familyId,
-          apiKey: geminiApiKey,
           avoidTexts: avoidTextsByFamily[familyId] || [],
           locale,
-          ...(generateText ? { generateText } : {}),
+          variantSeed: `${variantSeed || now()}:${id}`,
         });
       } catch (error) {
         if (typeof onRejected === "function") onRejected({ id, familyId, reasons: [error.message], score: 0 });
@@ -314,4 +309,3 @@ async function generateSlidePackCandidates({
 }
 
 module.exports = { FAMILIES, MAX_PACK_COST_USD, generateSlidePackCandidates, renderSlideImage };
-
