@@ -9870,3 +9870,29 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 **順序更新:** 旧cursor=`reconciler terminal → latest-main release → owner readback`。新順=`(1) 完了: reconciler occurrenceのexit120とSQLite disk-full境界を記録 → (2) 3件のcleanup probe errorと、未計測Library/Projects/temp領域をallowlist内でread-only特定し、closedなregenerable cacheがあれば既存cleanup ownerだけで回収。open cache、user state、Simulator、worktree、unknown pathは保持 → (3) 次のnatural reconciler occurrenceで最新main immutable release cut/applyを確認し、SQLite readbackと全mobile owner SHAを再取得。再びdisk-fullなら同じowner/occurrenceに根拠を結び、原因境界を狭める → (4) R26 exact Postiz receipts → (5) 正規slotごと全target 3件/日 + Telegram URL → (6) per-post metrics → (7) ASC/RevenueCat/in-app funnel → (8) distributionを先に反復し、ASO/onboarding/UXを続けて検証済み$10K net MRRを目指す。理由は、fresh sourceはmain済みだが実際のapplyがSQLiteのdisk-fullで止まり、許可cleanupは回収できず、残る大きなcacheにはopen handleがあるため。
 
 **現在mobile cursor:** safe allowlist内のprobe-error/cache readback → next natural reconcilerのlatest-main cut/apply → SQLite capacity failure解消と全mobile owner SHA readback → R26照合 → 正規slotごとの3投稿/日 + Telegram URL → per-post metrics → ASC/RevenueCat/in-app → distributionから$10K net MRRまで反復。資産・不明データの削除や投稿再送はしない。
+
+### 2026-10-09 06:48 JST — CFO sourceはmain済み、CFO owner/queue adoption待ち
+
+このsnapshotは06:38 JSTのCFO readbackを上書きする。CFOの目的・設計は変えず、財務可視化をCloudコスト削減より先に進める。
+
+- **Source/main:** CFOの`admission_class=revenue`変更と回帰testはPR #7106経由でmerge済み。latest main/current immutable releaseは`131ef4cd2526fbc7020cbf75365d95b3b92bf63b` (`20261009T063806-131ef4cd`)。current release内のCFO registry rowは`revenue`だが、これはownerへの反映を意味しない。
+- **Natural release reconciler:** `life-manager-release-reconciler` occurrence `18dcac101168f480-30176`は`2026-10-08T21:47:35Z`にexit 0 / `pass`で終了し、ownerはloaded-idle。`doctor`は`ok=false`だが、理由は別label `ai.anicca.life-manager-release-reconciler-self-handoff` 1件がunmanagedであること。missing entrypointやretired labelは0件。
+- **Fleet apply:** `fleet-apply-state.json`の最終applyは`2026-10-08T21:36:52Z`、target SHA `3b543ffa`、`status=error`、66 changed / 118 skipped / 4 errors。4件は`life-manager-instagram-metrics`、`hf-gig-reply-detector`、`job-search-inbox`、`alpaca-investment-live`で、CFO ownerではない（このCFO作業では編集しない）。release reconcilerの実装はSHA切替後の全fleet applyを最終試行から既定1,800秒coalesceする。plistにinterval overrideは見えず、次に再試行可能なのは最短`2026-10-08T22:06:52Z`（07:06:52 JST）。自然reconcilerを待ち、fleet全体の手動applyやowner停止はしない。
+- **CFO owner/queue:** `life-manager-cfo-hourly`はloaded-idleだがinstalled SHA `3b543ffa`のまま。最新occurrence `18dcaa87c4549458-50307`（21:17:37Z）はexit 75 / `host_admission_deferred:resource_capacity_busy`、provider receiptなし。read-only admission DBではCFO queue sequence `578998`、`deterministic/borrow`、base priority `revenue`、`effect_unknown=0`、reservationなし。source policyと既存queue metadataがまだ一致せず、built-in admission rebindのreadbackも未取得。manual DB writeは禁止。
+- **Financial truth:** CFOのlast successは16:25:13Z、last receiptなし。settled revenue / expense / net、月次MRR、agent/loop別実額はunknownであり、0円とは扱わない。
+- **Host:** `df -k /`は903,920 KiB available。現在のsource releaseはcut済み。空き容量は診断値であり、CFOの金額や完了判定の代用にしない。
+
+**Scope/order update:** 旧cursor=`reconciler terminal → latest release/CFO owner readback → queue rebind → natural CFO report → A5 → A6 → A8 → A9 → A10`。新cursor=`(1) 変更なし: default coalescing期限後のnatural reconciler apply/readback → (2) CFO loaded SHAとqueue rebind確認 → (3) 次のnatural CFO reportとsettlement/coverage/replay-zero確認 → (4) A5 → A6 → A8 → A9 → A10`。理由はsourceがmain/currentにある一方、CFO ownerとqueueは旧状態のままで、実額のreceiptもないため。Money Tree（A7）はDaisの指示に従いbusiness CFO完了後までactive order外に置き、このCFO cursorのblockerにしない。A6のGoogle請求額計測はCFO内で続けるが、Google API置換やCloud運用費削減は計測後の別cursorとする。
+
+**Remaining atomic TODO (この順):**
+
+1. [ ] 07:06:52 JST以降のnatural `life-manager-release-reconciler`をreadbackし、current SHA `131ef4cd`向けapply結果とCFO owner別resultを確認する。期限前の手動fleet apply・restartはしない。
+2. [ ] CFOがまだ旧SHAなら、exact owner result / lock / idle stateを診断し、既存owner-scoped `lm-loop apply`と`_admission_rebind_guard`で解消する。CFO installed SHA=`131ef4cd`と、sequence `578998`を維持した`revenue` queue rebind、reservation/effect fence不変をreadbackする。直接DBを書かない。
+3. [ ] 次のnatural hourly CFO occurrenceを待ち、同一occurrenceのruntime/provider receipt、B7 settlement/source coverage、通貨・期間・refund/fee/cost、replay-zeroを照合する。receiptが揃うまで売上・支出・netはunknown。
+4. [ ] A5 production migration/RPC/permission/panel readbackを完了する。
+5. [ ] A6 Google公式請求/usageをproject・service・SKU・operation・期間で照合し、settled billingとcash・`lm_api_cost` estimateを分け、operation/loop帰属とcoverage gapを出す。
+6. [ ] A8の18 loops / 188 jobs / 113 mapped（`lm-loop-contract` readback）について全収益streamのsettlement/refund/feeとbank/card/provider費用をreceiptで結ぶ。未配賦・未取得はunknownとして残し、shared overheadも全社expenseへ含める。
+7. [ ] A9 CLI/reportで各agent・loop・platformと全社の日次/MTD/trailing/MRRについてrevenue・expense・net・coverage/freshness/sourceを一貫表示する。
+8. [ ] A10を7日連続のnatural reportで検証する。各日のsource receipt、settlement、cost coverage、partial/unknown表示をreadbackし、推定値をactualへ昇格しない。
+
+**現在cursor:** natural fleet apply after coalescing deadline → CFO owner SHA + queue rebind → natural receipt-backed CFO report → A5 → A6 → A8 → A9 → A10。Money Tree/A7とGoogle API置換・Cloud費削減はこのcursor完了後。
