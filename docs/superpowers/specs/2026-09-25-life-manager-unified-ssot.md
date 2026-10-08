@@ -4861,7 +4861,7 @@ flowchart LR
 
 **残TODO（完了まで、この順）:**
 
-1. **現在cursor — PR #7182 exact-head acceptance:** latest `origin/main=1f5f016526edea5d279668f0662518d6ab2e8c99`（#7215 R24 / #7216を含む）をlocal merge HEAD `2610beea7f6e8408cf208a246ad69088fd3a734e`まで同期済み。統合後のGig suite `85 passed`、R23/R24 + Line Sticker `49 passed / 3 subtests`、loop contract `18/188/113/0`、compile/boundary/diff-check PASS。R23 test-only `wake_epoch=0` correctionを含むtreeとこのcurrent-state SSOTをcommit/pushし、新headのrequired CIとfresh read-only reviewをPASSして#7182をmergeする。R24 production codeの変更はこのGig taskでは行わない。
+1. **現在cursor — PR #7182 exact-head acceptance:** latest `origin/main=e75c7f7a4af84b4386ccc5b40dc14837f5986ced`（PR #7217 R25 Postiz credential fallbackを含む）をlocal merge HEAD `aee126b5af39b97d57e2ecca5a700f7d6b9eefa8`まで同期済み。R25はGig filesに触れず、統合treeでGig suite `85 passed`・R23/R24 + Line Sticker `49 passed / 3 subtests`・loop contract `18/188/113/0`・source boundary/compile/diff-check PASS。Gig source diffはfresh review `SHIP`以降変わらない。最新main+current-state SSOTをcommit/pushし、新head required CIをPASSさせて#7182をmergeする。fresh reviewは同一Gig diffの直近SHIPを保持する。
 2. **main-derived release/owner readback:** #7182 merge後、#7179 numeric-floor removalを含むimmutable main releaseを確認する。target owner-idle・apply lock free・effect-fence条件を満たすときだけreconciler/owner経路で反映し、loaded SHA/argv/state/admissionとnatural terminalを確認。数値free-space floorは復活させない。実ENOSPCやunsafe pathは個別原因として直す。
 3. **Coconala Paid obligation:** order 18180857のfresh official order/talkroom readbackをownerのterminal・project lock解放後に取得し、現時点で必要な作業を確定する。未完了scopeがある場合だけ必要なrevision/formal deliveryを一度行い、buyer acceptance・settlement/payout・replay-zeroを結ぶ。stale snapshotでbuyer状態を推測しない。
 4. **旧Storefront effect fence:** occurrence 18d8d288748508e8-23902を同一effectのofficial listing/order historyまたはaccepted occurrence-bound pre-effect proofで照合する。現CLI dry-runはresolved=[] / no_pre_effect_terminal。証拠が揃うまで保持し、再publish/replayしない。
@@ -4872,7 +4872,7 @@ flowchart LR
 9. **Storefront portfolio economics:** listingごとのunique paid order/repeat/refund/platform fee/payout/actual fulfillment cost/time/netを同一期間で結び、settled net contributionが正で反復できたか判定する。seller totals/reviews/grossは会社売上・利益・MRRにしない。
 10. **最後 — SelfBuild:** 全収益loopとproduct storefrontの上記条件を閉じた後だけself-build/self-healingを再開する。
 
-**現在cursor:** item 1 — latest main `1f5f016526`同期とfocused verificationは完了。fresh production readbackをSSOTへ保持済み。次にcurrent treeをcommit/pushし、new-head CI/fresh reviewを通す。productionはStorefront/Paid旧SHA・admission blocker・Storefront effect fenceが残るため、source PR受入後もnatural terminal・owner-idle・lock-free・exact effect proofまでapply/掲載変更しない。
+**現在cursor:** item 1 — latest main `e75c7f7a4a`同期後のfocused verificationはpass。fresh owner/effect statusをSSOTへ記録済み。current spec commit/push後のrequired CIを通す。Storefront/Paid ownersはcurrent pointerより古いSHAで、Storefront effect fence/admission blockerが残るため、自然terminal・owner-idle・lock-free・exact effect proofまでapply/掲載変更しない。
 
 ### 2026-10-09 00:28 JST — Storefront収益cursorとexposure review修正
 
@@ -5078,6 +5078,19 @@ flowchart LR
 - **Production readback (18:45:13Z):** current release pointer `20261009T033943-6c7b83ee`, `RELEASE.json.sha=6c7b83ee1c6317f1e34bcdb6d9303cb79c23a098`, cut `18:40:08Z`. Storefront is `loaded-idle` on old SHA `3981bca3`; occurrence `18dca20ce030b310-688` is `host_admission_deferred:disk_headroom_low`, no receipt. Old occurrence fence `18d8d288748508e8-23902` remains unknown; dry-run is `resolved=[] / no_pre_effect_terminal`. Paid is `loaded-running` on old SHA `25bee172`; occurrence `18dca1aaeae7a280-93817` is `host_admission_deferred:resource_fifo_wait`, no receipt. Release reconciler is `loaded-idle` on old SHA `e1b061f1`; latest occurrence `18dca209ac91c718-92872` passed, but owner migration is not proven. Available disk is `583520 KiB`.
 - Current Coconala SKU 4244556 is publicly buyable at ¥5,000, with one-medium workflow documentation/checklist and a +¥5,000 second-medium option. Seller total 26 and public availability are not SKU orders. No unique paid order, settlement, payout, or positive net contribution is proven; no listing edits, publishes, replays, or fence resolution occurred.
 - **Current cursor:** commit/push latest-main+R23 fixture+SSOT, run exact-head CI/fresh review, merge #7182; then natural release/owner readback → existing Paid order → exact Storefront fence readback → one fixed-scope productized offer → Freelancer/Upwork gates → same-period economics → SelfBuild last.
+
+### 2026-10-09 03:53 JST — R25 main sync and natural storefront readback
+
+- `origin/main=e75c7f7a4af84b4386ccc5b40dc14837f5986ced` (#7217 R25: Postiz key fallback) is merged locally at HEAD `aee126b5af39b97d57e2ecca5a700f7d6b9eefa8`; R25 does not touch Gig code. Remote PR #7182 is still head `d27b8d4d7c6b0181a95ce94c23b6bca8917a44c7` / base `1f5f016526edea5d279668f0662518d6ab2e8c99`; this latest merge and the current-state cursor are not pushed yet.
+- Local focused checks on the code-equivalent 1f tree remain green: Gig `85 passed`; R23/R24 + Line Sticker `49 passed / 3 subtests`; loop contract `18/188/113/0`; compile/boundary/diff-check PASS. The R25 diff is a separate Postiz provider change.
+- **Production readback (18:53:01Z):** current release pointer `20261009T034745-e75c7f7a`, `RELEASE.json.sha=e75c7f7a4af84b4386ccc5b40dc14837f5986ced`, cut `18:48:14Z`. Storefront is loaded-idle on `6c7b83ee` (older R24 release), occurrence `18dca2a04fd91a70-33019` has `effect=unknown` / `resource_effect_unknown`, no provider receipt; old fence `18d8d288748508e8-23902` remains held. Dry-run still returns `resolved=[] / no_pre_effect_terminal`. Paid is loaded-running on old SHA `25bee172`; latest occurrence `18dca1aaeae7a280-93817` is `resource_fifo_wait`, no receipt. Release reconciler is loaded-running on old `e1b061f1`, latest occurrence `18dca209ac91c718-92872` passed but has not converged target owners. Available disk is `904732 KiB`.
+- No listing change, publish, retry, delivery, settled SKU sale, payout, or positive net is verified. The public page of 4244556 is buyable, but that does not resolve the old effect or prove sales.
+
+### 2026-10-09 03:55 JST — local focused acceptance on R25 main
+
+- After merge of `origin/main=e75c7f7a4af84b4386ccc5b40dc14837f5986ced` (#7217 Postiz-only), local focused acceptance is `85` Gig tests passed, `49` R23/R24 + Line Sticker tests passed with `3` subtests, `lm-loop-contract=18/188/113/0`, source-boundary/compile/diff-check PASS. The current Gig source diff is unchanged from the fresh `SHIP` review on c017; R25 affects only Postiz.
+- Remote PR #7182 is still `d27b8d4d7c6b0181a95ce94c23b6bca8917a44c7` based on `1f5f016526...`; the e75 sync plus current-state SSOT are local and will create the next PR head. Do not reuse d27 checks as the e75-head gate.
+- **Next:** commit/push the e75 merge + SSOT update → pass exact-head CI → merge #7182 → follow existing owner/effect fence order. The 18:53Z runtime readback in the preceding note remains the current verified provider/owner evidence.
 
 ### 2026-10-08 08:35 JST — Mobile post-merge runtime cursor
 
