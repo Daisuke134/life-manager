@@ -16,7 +16,7 @@ class TerraDefaultTest(unittest.TestCase):
 
         self.assertEqual(set(configured_task_classes(config)), set(config["task_classes"]))
         self.assertIn("paid-owner-agent", configured_task_classes(config))
-        self.assertIn("paid-review-agent", configured_task_classes(config))
+        self.assertIn("paid-decision-agent", configured_task_classes(config))
 
     def test_marketing_agent_uses_luna_for_life_manager_daily_contract(self):
         config_path = Path(__file__).resolve().parents[1] / "config.json"
@@ -89,7 +89,7 @@ class TerraDefaultTest(unittest.TestCase):
                          "effort": "medium", "profile_alias": "acct1",
                          "timeout_seconds": 180},
                     ]
-                if name == "paid-review-agent":
+                if name == "paid-decision-agent":
                     expected = [
                         {"provider": "codex", "model": "gpt-5.6-terra",
                          "effort": "medium", "profile_alias": "acct1",
@@ -108,7 +108,7 @@ class TerraDefaultTest(unittest.TestCase):
                 # classes retain their existing cross-provider fallback contract.
                 fallback = {"provider": "claude-direct", "model": "claude-sonnet-5"}
                 if name not in {
-                    "paid-owner-agent", "paid-review-agent", "escalation-agent", "codex-brain-agent",
+                    "paid-owner-agent", "paid-decision-agent", "escalation-agent", "codex-brain-agent",
                     "affiliate-marketing-agent", "affiliate-escalation-agent",
                     "self-heal-code-agent", "self-fix-code-agent",
                     "connector-agent", "job-hunter-agent", "fundraiser-agent",
@@ -116,10 +116,10 @@ class TerraDefaultTest(unittest.TestCase):
                     expected.append(fallback)
                 self.assertEqual(candidates, expected)
 
-    def test_paid_review_route_fails_fast_to_the_next_codex_profile(self):
+    def test_paid_decision_route_fails_fast_to_the_next_codex_profile(self):
         config_path = Path(__file__).resolve().parents[1] / "config.json"
         config = json.loads(config_path.read_text(encoding="utf-8"))
-        task = config["task_classes"]["paid-review-agent"]
+        task = config["task_classes"]["paid-decision-agent"]
 
         self.assertTrue(task["requires_explicit_escalation"])
         self.assertEqual(task["timeout_seconds"], 900)
