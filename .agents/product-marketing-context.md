@@ -12,11 +12,13 @@ The local self-hosted runtime and the cloud product are two delivery modes for t
 ### Cloud-first Travel wedge (first commercial path)
 
 The first cloud offer is a Web-first Google Calendar travel-time agent. A visitor opens the public `/lm`
-page, connects Google Calendar, grants Google identity and Calendar permissions, and Life Manager scans
-eligible events and adds Travel blocks automatically. Calendar is the daily product surface; the Web page
-is for connecting and billing, with no dashboard or chat thread. Life Manager does not read Gmail. Events
-with unresolved locations or routes stay unchanged instead of receiving guessed travel times. The offer
-uses the existing seven-day card-required trial and USD 29/month price after a confirmed Travel block.
+page, connects Google Calendar, grants Google identity and Calendar permissions, and Life Manager starts
+processing eligible events automatically in the backend. As soon as the selected Calendar is confirmed
+ACTIVE, the Web page shows the connected state and hard paywall; it does not wait for a scan or Travel
+block. Calendar is the daily product surface; the Web page is for connecting and billing, with no dashboard
+or chat thread. Life Manager does not read Gmail. Events with unresolved locations or routes stay unchanged
+instead of receiving guessed travel times. The offer uses the existing seven-day card-required trial and
+USD 29/month price. Recurring automation starts only after Stripe confirms the trial or paid subscription.
 Google's identity check is still required; do not describe this flow as login-free or claim that the user
 never has to authorize Calendar.
 
@@ -111,5 +113,6 @@ thesis, and track submission, confirmation, reply, meeting, and outcome as one e
 
 The Cloud Travel business target is USD 10,000 gross MRR. At the existing USD 29/month price, the plan
 requires 345 active paid subscribers; this is arithmetic, not a forecast. Optimize from measured
-landing → Calendar authorization → confirmed Travel block → card-backed trial → paid invoice → renewal,
-refund, and cancellation cohorts.
+landing → Calendar authorization → Calendar ACTIVE → paywall → card-backed trial → paid invoice → renewal,
+refund, and cancellation cohorts. Track the first confirmed Travel block separately as activation value; it
+does not gate the paywall or trial offer.

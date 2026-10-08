@@ -2,9 +2,9 @@
 
 > For agentic workers: Execute inline with superpowers:executing-plans. Work task-by-task in this dedicated worktree; do not modify production state from this branch.
 
-**Goal:** Replace the current address/dashboard/three-day flow with a one-button Google Calendar connection, one automatic initial Travel scan, a single connected/trial-offer screen, and a verified seven-day Stripe trial on the existing $29/month price.
+**Goal:** Match the proven automatic Telegram travel engine in the Web entry: one Google Calendar connection, an immediate hard paywall with the existing seven-day card trial regardless of Travel-block count, and backend automatic Travel updates without a scan UI.
 
-**Architecture:** Keep Google identity verification and Calendar consent as separate provider steps behind one user action. Use the existing exact-tenant Web auth, Calendar binding, travel owner, dedupe ledger, Stripe webhook, and attribution contracts. The initial Calendar scan is one-shot; scheduled Calendar work starts only after Stripe confirms a card-backed trial or paid subscription.
+**Architecture:** Keep Google identity verification and Calendar consent behind one user action. After exact Calendar ACTIVE readback, show the connected/paywall screen immediately while the backend starts automatic processing through the existing exact-tenant travel owner and dedupe ledger. Travel-block/scan status never gates the offer. Stripe webhook remains authoritative: recurring Calendar work starts only after a card-backed trial or paid subscription is confirmed.
 
 **Tech Stack:** CommonJS Node.js HTTP server, Supabase Auth/PostgREST/RPC, Composio Google Calendar, existing travel engine, Stripe Checkout/Billing, Node test runner, browser-based E2E with synthetic Calendar data.
 
@@ -15,8 +15,8 @@
 - Serve the Web product at LM_PANEL_BASE/lm; the Google Calendar is the customer's daily surface.
 - The page has no dashboard, chat thread, home-address question, Life Manager password, Gmail access, or browser location request.
 - The first CTA says Google Calendarに接続; Google account verification and Calendar permission remain required.
-- Preserve the existing $29/month Stripe price. Use a seven-day, card-required subscription trial; do not activate a trial before at least one Travel block is confirmed.
-- A one-time initial scan may write Travel blocks before Checkout. Periodic scans start only after Stripe confirms the trial/subscription and payment method.
+- Preserve the existing $29/month price. Show the seven-day, card-required trial offer immediately after Calendar is ACTIVE, regardless of scan status or Travel-block count; the trial starts only after explicit Checkout consent and Stripe webhook confirmation.
+- Start the initial automatic Travel pass after Calendar is ACTIVE without exposing a scan control or waiting screen. Periodic scans start only after Stripe confirms the trial/subscription and payment method.
 - The Stripe webhook remains the sole writer of lm_users.paid. Web cancel/payment failure pauses future Calendar reads/writes and preserves existing Travel blocks. Preserve existing Telegram billing behavior.
 - Reuse the shared travel owner, exact ACTIVE Calendar account, event-level effect fences, route cache, and duplicate prevention. Never guess an unknown origin or destination.
 - A location question may use an already-linked Telegram route. Do not send a Web location question or trial-ending reminder by email. Show a Messages link only when its business recipient and monitored response owner are verified.
@@ -27,8 +27,8 @@
 
 - Expired, missing, or replayed OAuth state never creates a tenant session.
 - A stale, foreign, changed, or non-ACTIVE Calendar account never triggers a Calendar read or write.
-- No saved base and no recent physical Calendar event means no guessed route, no Travel block, and no trial offer.
-- A zero-block scan never starts Checkout or scheduled automation; an uncertain provider write stays fenced until exact Calendar readback.
+- No saved base and no recent physical Calendar event means no guessed route or Travel block; the connected/paywall screen still appears after Calendar is ACTIVE.
+- A zero-block scan does not suppress Checkout or the trial offer. It does not start recurring automation before Stripe confirmation; an uncertain provider write stays fenced until exact Calendar readback.
 - Duplicate, stale, canceled, or failed Stripe events cannot re-enable Web automation or overwrite a newer billing state.
 - Checkout abandonment, trial cancellation, and payment failure preserve existing Travel blocks.
 - UTM attribution survives Google auth and is joined to Calendar activation, trial, invoice, refund, and retention measures.
@@ -60,7 +60,7 @@
 - [x] Step 6: Implemented the migration, record_lm_web_initial_scan RPC, exact Web-only one-shot scheduler path, no-home resume, and no-email routing for Web-only question loops. Unknown-origin events remain unchanged.
 - [x] Step 7: Focused result: web-travel 40/40, scheduler 15/15, travel 21/21; the one-shot path retains exact ACTIVE binding, leaves periodic automation off, and confirms zero/uncertain/duplicate cases.
 
-### Task 2: Single-action Calendar onboarding and one combined result/offer screen
+### Task 2: Single-action Calendar onboarding and immediate connected/paywall screen
 
 **Files:**
 - Modify: apps/life-manager/lib/web-auth.js
@@ -73,10 +73,10 @@
 
 **Interfaces:**
 - The initial Google callback returns to a fixed /lm continuation that starts Calendar OAuth automatically; all redirects remain server-owned.
-- A successful Calendar callback starts the one-time scan automatically. The client may show only an in-place loading state while that request runs.
-- renderWebPage(model) renders the signed-out CTA, scan/loading, compact zero-block state, combined connected/trial offer, or trial-active confirmation; it never renders the old dashboard.
+- A successful Calendar callback starts the backend Travel process automatically. The browser does not wait for scan completion or display scan/loading/zero-block results.
+- renderWebPage(model) renders the signed-out CTA, immediate connected/trial offer, trial-active confirmation, or billing/error state; it never renders the old dashboard or a scan control.
 
-- [x] Step 1: Add failing page/auth/calendar tests for the exact CTA, automatic Calendar OAuth continuation, automatic first scan, combined offer, zero-block state without Checkout, Messages visibility, and absence of dashboard/home-address/chat UI.
+- [x] Step 1: Add failing page/auth/calendar tests for the exact CTA, automatic Calendar OAuth continuation, automatic first scan, combined offer, zero-block state, Messages visibility, and absence of dashboard/home-address/chat UI. The prior zero-block/no-offer expectation is superseded by WB-15d.0 below.
 - [x] Step 2: Run those focused tests and confirm the expected states are missing.
 - [x] Step 3: Implement the single-action flow and server-rendered states. Keep the optional Messages link hidden until its recipient and response owner are verified.
 - [x] Step 4: Run the focused auth/calendar/page tests at mobile and desktop viewport sizes in the browser harness.
@@ -102,14 +102,14 @@
 
 **Interfaces:**
 - createWebCheckoutSession(uid, user, opts) returns { url, trialEnd, trialEligible }, uses only the configured existing $29/month price, collects a payment method, and uses a verified Web uid for Stripe correlation.
-- Checkout is unavailable until the initial Calendar scan has confirmed a Travel block. A first-time eligible uid receives one seven-day card-required trial; a prior trial or canceled subscription can restart only on an explicit no-trial $29/month Checkout, charged at start.
+- Checkout becomes available after exact Calendar ACTIVE readback and first-time trial eligibility; it does not require web_initial_scan_completed_at or web_first_travel_at. A first-time eligible uid receives one seven-day card-required trial; a prior trial or canceled subscription can restart only on explicit no-trial $29/month Checkout, charged at start.
 - The webhook grants Web automation only for a valid trialing subscription with a retained payment method or a verified paid invoice. Web past_due, cancellation, and failed payment pause future Calendar work; Telegram grace behavior remains unchanged.
 - A customer-portal session lets a user cancel/manage billing without a Life Manager dashboard. No Life Manager trial-ending reminder email is sent.
 - The scheduled travel path rejects unpaid, expired-trial, canceled, or failed-payment Web tenants before Calendar event reads; the one-time pre-trial scan and Telegram behavior remain unchanged.
 - Web Travel events set a zero-minute Google Calendar popup reminder, and the initial scan only counts a confirmed Travel block after its reminder is read back. The official Composio `GOOGLECALENDAR_CREATE_EVENT` schema has no `reminders` field, so the Web-only event write uses Composio's authenticated proxy against the same exact connected account; it never extracts or stores Google's OAuth token. This makes the post-onboarding notification claim match the event we create.
 - A live Stripe API key can never verify a webhook with the test-mode endpoint secret.
 
-- [x] Step 1: Add failing Checkout tests for the existing price, first seven-day trial, required payment method, exact uid metadata, blocked zero-block/active users, no-trial paid restart after trial/cancellation, and idempotent repeated requests.
+- [x] Step 1: Add failing Checkout tests for the existing price, first seven-day trial, required payment method, exact uid metadata, prior-trial/active-user guards, no-trial paid restart after trial/cancellation, and idempotent repeated requests. The prior zero-block offer gate is superseded by WB-15d.0 below.
 - [x] Step 2: Add failing webhook tests for trial activation, paid invoice, payment failure, cancellation reservation, duplicate/out-of-order events, Web past-due pause, and unchanged Telegram grace.
 - [x] Step 3: Run focused billing tests and confirm these Web-specific behaviors are missing.
 - [x] Step 4: Implement Checkout, portal, webhook reconciliation, Web card/trial/cancel entitlement, pending-return UI, no-trial paid restart, both scheduled-travel entitlement gates, and proxy-written zero-minute Calendar popup reminders.
@@ -151,17 +151,20 @@
 
 The public `/lm` page and production retry path are live. PR #6995 deployed the OAuth tenant-isolation fix and Safari callback-download fix. The no-code callback readback proves failure recovery only; a successful Google callback and Calendar consent through a dedicated test identity are still unverified.
 
-**Scope update:** Per Dais's latest direction, Life Manager marketing work is complete for this phase. No new marketing account, campaign, post, article, or posting-cadence task belongs in this app-completion queue. This records the requested scope; it does not assert that a post was published or that marketing generated revenue. The latest recorded 30-day Web/Stripe report remains at zero authenticated users, Calendar connections, Travel blocks, trials, and paid invoices, with gross Web MRR `$0`. The `$10K MRR` target remains unmet.
+**Telegram baseline read from source:** `/start` offers a Calendar connection link; the automatic scheduler's travel tick invokes the shared Travel owner every 30 minutes; the ask engine can ask Telegram-linked users whether an event is online/in-person or ask for a missing location. There is no user-operated scan step in that flow. The Telegram-specific home-address and optional phone/call prompts are not copied into the one-action Web entry. Telegram's `/subscribe` command opens its configured Stripe Payment Link; the Web keeps the owner-specified seven-day card-required trial and existing $29/month offer.
 
-**Current priority: verify the complete Web app experience end to end.** The expected path is `/lm` → one Google Calendar connect action → Google identity verification and Calendar permission → automatic initial Calendar scan and Travel-block writes → one combined connected/trial-offer screen. There is no separate value screen, dashboard, or chat thread. The seven-day trial remains card-required and uses the existing `$29/month` price; scheduled scans begin only after Stripe confirms an active trial or paid subscription.
+**Scope update:** Per Dais's latest direction, Life Manager marketing work is complete for this phase. No new marketing account, campaign, post, article, or posting-cadence task belongs in this app-completion queue. This records scope; it does not assert that a post was published or revenue generated. The latest recorded 30-day Web/Stripe report remains at zero authenticated users, Calendar connections, Travel blocks, trials, and paid invoices, with gross Web MRR `$0`. The `$10K MRR` target remains unmet.
 
-- [ ] **WB-15d.1 — Provision isolated E2E fixtures.** The read-only search found no dedicated Google test identity in the central credential file or Railway configuration. `life-call` production uses a live Stripe key; Railway’s separate `life-manager` project has only a production service, and the Anicca API has Google OAuth client credentials but no test user. Create/designate a dedicated Google test identity and Calendar, store its credentials only in the central credential SSOT, and configure a separate Railway test/staging service plus Stripe test-mode webhook. Do not change the live `life-call` Stripe configuration or use Dais's personal account/Calendar.
-- [ ] **WB-15d.2 — Complete real OAuth on mobile Safari.** From `aniccaai.com/lm`, press `Google Calendarに接続`; verify Google identity callback, Calendar consent, stable Web-only tenant binding, and return to the app. Confirm the callback never becomes a plain-text download and retry recovers from a denied/expired consent.
-- [ ] **WB-15d.3 — Verify automatic Calendar value.** Use an isolated test calendar with a known in-person event, an online event, and an event with missing/ambiguous location. Confirm one correctly timed Travel block and Calendar reminder for the eligible event; leave unresolved/online events unchanged; repeat the scan and confirm no duplicate. A zero-block scan must not offer Checkout.
-- [ ] **WB-15d.4 — Verify the exact post-scan UI.** After at least one confirmed Travel block, show the combined connected/trial offer without an extra value page or dashboard. On zero blocks, show the existing recovery state without starting Checkout. Confirm no Gmail access, home-address question, or browser-location request.
-- [ ] **WB-15d.5 — Finish Checkout through an isolated Stripe test route.** Verify the existing `$29/month` price, required payment method, seven-day trial, webhook-confirmed entitlement, customer portal, cancellation, expiry, and payment-failure pause. Keep test and live Stripe credentials separate; make no live charge; clean up test subscriptions after readback.
-- [ ] **WB-15d.6 — Verify the complete lifecycle and metrics.** Confirm scheduled Calendar work starts only after trial/paid entitlement, stops after cancellation or failure, and preserves existing Travel blocks. Read back the same test user's Google auth, active Calendar, first Travel block, Checkout, trial, invoice, cancellation, and refund events without treating internal E2E traffic as customers.
-- [ ] **WB-15d.7 — Re-read the deployed experience.** Verify the main-derived `life-call` release and public `/lm` CTA on mobile and desktop after the provider flow succeeds. Record exact browser result, app build, isolated provider IDs, and test cleanup receipt.
+**Current priority:** Match the Telegram backend flow and the corrected Web paywall contract. After exact Calendar ACTIVE readback, the Web page immediately shows “Calendar connected” plus the card-required seven-day trial offer. The backend starts automatic Travel processing independently. The offer is visible even when the initial pass is pending, returns zero blocks, or the user has no upcoming eligible event. The page never shows a scan spinner, result screen, zero-block screen, or rescan button, and it never claims a block was added before readback. Stripe confirmation, not a Travel block, starts recurring automation.
+
+- [ ] **WB-15d.0 — Correct the Web paywall/auto-fill contract.** Write failing tests for ACTIVE Calendar + no event, zero-block scan, and pending scan: all must show the connected/trial offer with Checkout available while no Travel block is claimed. Update web-travel.js and billing.js so Calendar ACTIVE + first-trial eligibility, not web_first_travel_at or scan completion, determines the offer and checkout. Update web-page.js to remove scan/loading/zero-block UI and false “already added” copy. Keep the backend initial pass automatic and keep recurring automation gated on the Stripe webhook. Preserve exact-account, trial-reuse, cancellation, and payment-failure guards.
+- [ ] **WB-15d.1 — Provision isolated E2E fixtures.** The read-only search found no dedicated Google test identity in the central credential file or Railway configuration. life-call production uses a live Stripe key; the separate life-manager Railway project has only production, and the Anicca API has Google OAuth client credentials but no test user. Create/designate a dedicated Google test identity and Calendar, store credentials only in the central SSOT, and configure a separate test/staging service with a Stripe test-mode webhook. Do not alter live configuration or use Dais's personal account/Calendar.
+- [ ] **WB-15d.2 — Complete real OAuth on mobile Safari.** From aniccaai.com/lm, press Google Calendarに接続; verify Google identity callback, Calendar consent, stable Web-only tenant binding, and return to the connected/paywall screen. The first automatic pass must not be a user action.
+- [ ] **WB-15d.3 — Verify automatic Calendar value and Telegram ask behavior.** Use an isolated calendar with an eligible in-person event, an online event, and a missing/ambiguous location. Confirm the backend adds one correct Travel block/reminder when possible, does not guess, and handles existing Telegram-linked online/offline/location questions through ask.js. Replays create no duplicates. Zero blocks do not hide the paywall or display a scan result.
+- [ ] **WB-15d.4 — Verify the immediate connected/paywall UI.** The same screen appears as soon as Calendar is ACTIVE, before scan results, whether there are zero, pending, or confirmed Travel blocks. It says the manager will add eligible travel time automatically; it does not claim an existing block. No separate value screen, dashboard, chat, home-address question, or scan UI.
+- [ ] **WB-15d.5 — Finish Checkout through an isolated Stripe test route.** Verify the existing $29/month price, required payment method, seven-day trial, webhook-confirmed entitlement, customer portal, cancellation, expiry, and payment-failure pause. Keep test/live Stripe credentials separate; make no live charge; clean up test subscriptions.
+- [ ] **WB-15d.6 — Verify automatic lifecycle and metrics.** The initial Travel pass starts after Calendar ACTIVE; recurring Travel ticks start only after Stripe confirms trial/paid entitlement, stop after cancellation/failure, and preserve existing blocks. Read back auth, Calendar, first Travel block (if eligible), Checkout, trial, invoice, cancellation, and refund without counting internal E2E as customers.
+- [ ] **WB-15d.7 — Re-read deployed experience.** Verify the main-derived life-call release and public /lm CTA on mobile and desktop after the provider flow succeeds. Record app build, isolated provider IDs, and test cleanup receipt.
 
 ### Web OAuth callback screenshot regression
 
@@ -181,4 +184,4 @@ The review reopened Task 3 because prior tests did not exercise the real initial
 - [~] Focused onboarding/billing/scheduler and webhook HTTP integration suites pass (181 tests). Synthetic browser E2E passes at 390x844/1440x900 through zero-block → explicit rescan → Travel offer → Checkout. Stripe TEST API readback now confirms the existing $29/month price, a saved-card seven-day `trialing` subscription, a paid $0 trial invoice, portal-session creation, scheduled cancellation, and final cancellation cleanup. The hosted Checkout page displays the 7-day/$29 terms but headless and direct-CDP submit attempts remain in Stripe's CAPTCHA/Processing state; all test sessions/subscriptions were expired or canceled. No live charge occurred.
 - [x] Obtain a fresh read-only review and CI before reopening WB-12. PR #6981 merged as `9fb58c74`; source review and required contract check passed.
 
-Current cursor: WB-15d.1 — locate a dedicated Google test identity, isolated Calendar, and test-mode webhook route across the local credential SSOT, sibling repositories, and Railway; then run WB-15d.2 through WB-15d.7 in order.
+Current cursor: WB-15d.0 — change the source gate and UI to show the paywall immediately after Calendar ACTIVE, independent of Travel-block/scan result; keep the backend automatic and the page scan-free.
