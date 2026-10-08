@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "render": "mkdir -p renders && remotion render src/index.ts LifeManagerCalendar renders/life-manager-calendar-connect-v1.mp4"
+    "render": "mkdir -p renders && remotion render src/index.ts LifeManagerCalendar renders/life-manager-cloud-web-first-v2.mp4"
   },
   "keywords": [],
   "author": "",
