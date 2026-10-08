@@ -6082,6 +6082,31 @@ Fresh read-only review rejected the idle-readback-only patch: a new StartInterva
 
 **現在cursor:** source fixとfocused acceptanceは完了。最新main `07aa3fb3`を同期したmerge commitでrequired CIを取り直し、全件PASS後にPR #7089をmainへ統合する。productionでは別ownerのretired labelをowner-safeに解消して`lm-loop doctor`がPASSした後だけimmutable releaseへ対象ownerを個別反映し、EN2のnatural runとPostiz receiptを確認する。残るowner/job/profileの問題を一つずつ閉じ、全enabled profileがJST日3件のunique `PUBLISHED`に達するまでitem 1を完了扱いしない。
 
+### 2026-10-08 17:28 JST — reconciler failure phase and state parser still unresolved
+
+この追記は17:14 snapshotを08:28Z production readbackで更新する。
+
+**確認済み:**
+
+- `origin/main=dc90716408`、`~/loops/current=/Users/anicca/loops/releases/20261008T171655-dc907164`。mainにはPR #7095の150秒per-label apply-lock waitが入るが、target ownersはまだ旧release上。
+- Reconciler latest terminal `18dc804af4ade8a0-94732`は08:25:59Zに`entrypoint_exit_1`。`error_detail`には`fleet-apply ... coalesced`と`self-handoff: helper already loaded for release dc907...`がある。current mainのcoalesce branchはreturn 0なので、この末尾だけでは失敗phaseを特定できない。
+- Self-handoff receiptはtarget `dc90716408`に対し`failed / old_service_state_unknown`、`old_service_state=null`, `old_service_pid=null`, `run_lock.status=acquired`。実際の`launchctl-safe print`出力行はまだ証拠として保存していない。
+- main `runtime/loop/lm_loop_run.py`はper-label apply lockを取得した後、start event作成後にlock scopeを抜け、それから`_run_admitted`を実行する。handoff helperは同じlockを取得してからLaunchAgent stateを別readbackする。active entrypointとlock acquisitionが同時に見える可能性はあるが、current receiptの`state_unknown`をmulti-word `not running`と断定しない。
+- 別のunleased/dirty worktree `fix/reconciler-handoff-state-readback-20261008`には、single-token state parserを広げ、`not running`をfixtureにする未commit変更がある。owner/lease/PRは未確認。primaryは触れず、owner確認をAGMSGで依頼済み。
+- Reconciler fleet-apply run `18dc7ea23147ab48-58583`は07:53–08:15Zの約22m44でpartial (`changed=74, skipped=24, errors=3`, budget exceeded)終了。self-handoff helperは同release中に再度`helper already loaded`を記録した。handoff helper既定waitは120秒、fleet apply budgetは最大1200秒であり、timeout mismatchがある可能性も残る。
+- 08:28Z target owners: Connector c61 / idle / local passのみ、Job Hunter daily 07aa / passだがeffectなし、Inbox/Health 07aa / capacity busy、Fundraiser 07aa / PID76084 / FIFO wait、Paid 6cc / PID10293 / running。doctorはretired Capafy labelとunmanaged handoff helperで`ok=false`。
+- 最後の直接capacity snapshotは16:11 JSTの8/8 live claim・free0。08:28 health summaryはslot occupancyを示さない。
+
+**順序更新:** 旧順=`handoff receipt → doctor → target apply → business readback`。新順=`unleased parser worktreeのowner確認と最新event phase diagnosis → old_service_state_unknown / helper-already-loaded / long fleet apply timeoutの境界を分けてfocused regressionを作る → main-derived source fixをreview/CI/merge → current reconciler natural terminalとtarget dc907 handoff receipt/argv readback → Capafy owner-safe label解決とhelper cleanup後doctor PASS → owner lock/admissionがfree/eligibleなときだけ5 target ownerを逐次apply → natural provider outcome/Telegram/old-fence resolution/replay-zero → same-window capacity comparison`。理由はmain sourceは進んだがcurrent handoff receiptはstate unknown、fleet runは22分超partialで、target ownersは07aa以前またはadmission waitにあるため。現在cursor=`dirty parser worktreeのowner確認とreconciler occurrence 18dc804af4ade8a0-94732のphase evidence read-only追跡`。
+
+**残TODO（完了まで）:**
+
+1. **現在cursor:** `fix/reconciler-handoff-state-readback-20261008`のdirty diff ownerを確認し、同じ`bin/reconcile-agent-self-handoff.sh`を重複編集しない。latest receiptのold stateがnullになった実`launchctl-safe print`値をowner-safe readbackで特定する。
+2. Focused RED testでmulti-word state parse、helper already-loaded idempotence、old serviceがactiveの間のrun-lock/handoff境界を区別する。120秒handoff waitと1200秒fleet budgetの不一致は自然run時間とreceiptで確認後、必要な最小修正を加える。provider/browser actionは行わない。
+3. source review/required CI後、latest main由来immutable releaseを自然にcurrentへ載せ、reconciler handoff target/loaded SHA/argv receiptを確認する。old service PIDをkill/bootout/stop/restartしない。
+4. Capafy owner-safe retired label解決、helper cleanup、doctor PASS後にtarget lock/admission/idleを確認し、Connector、Job Hunter、Fundraiserを一つずつapplyする。#7095の150秒lock waitを含むsourceが各targetへloadedされたことを確認する。
+5. Connector Luma+Calendar+Telegram、Job Hunterのnew Workday application official state/Telegram、Fundraiserのnew VC/AI-AGI founder Gmail message ID/exact Sent/Telegramを同一occurrenceへ結ぶ。Danaher `R1316263`・DeepScale・LAUNCH old fencesは公式readbackまたはstrict verified-pre-effectまで保持し、同target再送をしない。replay-zeroとsettlement gateを閉じ、最後にcapacityを同window比較して実測余力がある場合だけlane/capを調整する。
+
 ### 2026-10-08 16:53 JST — PR #7091 merged; production remains on old release
 
 - PR #7091 merged at 16:49 JST as merge commit `07aa3fb3d23987ee4b494c4e09f2e02543cc371c`. Latest-main source contains the run-lock handoff fix; required CI all passed, fresh adversarial review passed. This is source integration, not production promotion.
