@@ -5913,3 +5913,28 @@ This snapshot supersedes the 13:59–14:04 source/release status. PR #7055 backo
 - **shared gate:** `lm-loop doctor`はretired installed label `ai.anicca.provision-browser.capafy.kosuke`により`ok=false`。別owner stateを変更しない。PR #7072のFundraiser MEDIUM review findingは`codex-money-printer`へ送信済みで、follow-up修正がまだ入っていないためFundraiserへのapplyを保留する。
 
 **現在cursor:** 1) release reconciler/Paid/Fundraiserをnatural terminalとloaded-stateまでreadbackし、stop/restart/重複applyしない。2) PR #7072 follow-upでFundraiser close-last-tab→new-context regressionと最小修正をownerが閉じる。3) retired label owner-safe解決後`lm-loop doctor`をpassさせる。4) follow-upを含むmain-derived releaseをowner単位で載せ、official readback/replay-zeroを確認する。5) その後だけ同window capacity/load測定に沿って並列数を調整する。
+
+### 2026-10-08 16:17 JST — CFO current status and remaining order
+
+この更新はCFO laneだけを進め、他laneのcursorは変更しない。Moneytree（A7）とCloud/geocoding削減（A3/A4）はDaisの指示どおり後順位であり、このCFO完了の前提にしない。
+
+**最新readback（2026-10-08 16:15–16:17 JST）:**
+
+- **Git/PR:** `origin/main`=`c61f2c8902ed7babd0da6ce5adf0c087bfa9deab`。専用worktree `/Users/anicca/Projects/life-manager-main/.worktrees/cfo-a5-cost-visibility-20261007` はbranch `feat/cfo-a5-cost-visibility-20261007`、HEAD `61471574e8733484bd37ca4f283917e7b9436a89`、mainを含み、working treeはclean。remote branchは`79091677cbdaa5258dfc735b7bb715984e0e00ba`のままで、localは10 commits ahead。PR #6827はOPEN/DRAFT、remote head `79091677` / base `64db1c2e`。表示中のchecksはすべてSUCCESSだが旧remote headのみの結果で、local HEADのCI/review証拠ではない。
+- **本番release/owner:** `/Users/anicca/loops/current`は`20261008T155630-6cc0c56b`（SHA `6cc0c56b`）。CFO loop statusは`loaded-idle`、ownerのinstalled SHAは`71a5f878`でcurrent symlinkと一致しない。最新occurrence `18dc7b93cae78be0-51184`は2026-10-08T06:57:24Zに`host_admission_deferred:resource_capacity_busy` / exit 75。eventは`effect_status=not_applicable`、`provider_receipt_id`と`official_readback_ref`はnullだが、statusの`last_effect` clockは06:57:06Zを示す。したがって「送信なし」とは断定せず、公式receipt/readbackがなく結果未確認とする。release reconcilerはPID 19290でloaded-running、最新terminal occurrence `18dc7b67a05f8020-39546`は06:58:04Zに`entrypoint_exit_75` / retryable。main由来の新releaseへの収束は未確認。
+- **admission/disk:** durable occupancyの最後の記録（16:11 JST / 07:11:14Z）はcap 8に対して8/8 live claims、空きslot 0。これはその時点の記録であり、この更新時刻の同時実行数とはみなさない。最後のdisk readbackは98%使用・5.8 GiB free。過去のreconciler ENOSPCは確認済みで、今回の空き容量だけでは再発しない保証にならない。mainにはSQLite admission read-only修正（#7072）とfleet apply coalescing修正（#7085）があるが、現production release `6cc0c56b`には未反映。
+- **実数:** 最新保存B7 snapshot `2026-10-08T06:00:25Z`では、historical revenue/netは18 loops unknown（173 gaps）、trailing revenue/cost/netは18 loops unknown（168 gaps）、company MRRはunknown（26 gaps）。確認できるMRRはmobile-apps USD 20.34のみで、settled revenue・利益ではない。2026-09 Google Cloud Cost Tableのbilled invoiceはJPY 27,889 / 41 SKU rows。cash paidはunknown、loop allocationはunattributed。全社revenue/expense/net/MRRを確定値としては報告できない。これは保存snapshotの値でありfresh provider queryではない。
+
+**残りatomic TODO（この順）:**
+
+1. このspec更新を含むlocal branchをfast-forward pushし、PR #6827のremote head/baseを最新mainへ同期する。PRをDRAFTのまま保ち、push後の同一headでrequired CIを再取得する。旧headのgreenを新headの証明に流用しない。
+2. pushed head全体のfresh read-only reviewを取得し、指摘を解消してからPRをready/mergeする。merge後のmain SHAを記録する。
+3. 現行reconcilerと容量/lock/diskの自然な状態変化をowner単位でreadbackする。必要ならsafe cleanupの既存経路だけを使う。reconcilerを手動restartせず、重複applyせず、capを上げて`resource_capacity_busy`を隠さない。自然に空いたslotでmain-derived immutable releaseへ収束したこと、CFO ownerのloaded SHA/argvとregistry priorityを確認する。
+4. 15:00 JST CFO reportのdelivery sidecarと同一occurrence runtime eventを結ぶ。既存記録はsidecar `sent` / provider message ID `105259`だが、runtime eventのreceipt/readbackが欠けるため再送しない。別receipt-owner/leaseのreadbackを先に行い、所有者が解放するまでそのworktreeを編集しない。
+5. A5 cost visibilityをproductionで閉じる: additive migration/RPC/権限readback、provider/SKU/operation/unitごとのtrace attribution、daily/MTD panel、同一occurrence delivery receiptを確認する。
+6. A6でGoogle 2026-09 billed usage・credits・tax・roundingを同期間Monitoring estimateと照合し、cash settlementは公式決済receiptが取れた場合のみ記録する。loop帰属はA5 traceがないSKUをunattributedのままにする。
+7. A8で18 product loops / 186 runtime jobsのsettled revenue/refund/feeとprovider/API/cloud/subscription actual costを、source・period・currency・owner・official receipt単位で結ぶ。欠損をzeroにしない。
+8. A9でAsia/Tokyoのdaily/MTD/trailingを実source期間でfilterし、agent/loop/platform別と全社revenue・expense・net・MRR・freshness・coverageを既存CLI/reportへ出す。`loop_pnl.py --date`のlabel-only挙動を直す。
+9. A10でmain由来immutable releaseによる7日連続natural report、18/18 loops・186/186 jobs coverage、official readback、receipt、期間一致、重複/replay zeroを受け入れる。それまでは全社CFO完了やverified $10k MRRを主張しない。
+
+**現在cursor:** item 1 — local branchは最新main `c61f2c89`を含むが、PR remote head `79091677`は未更新。**実blocker:** production CFOの直近runはcapacityでdeferされ、last recorded admission snapshotは満杯、reconcilerは`entrypoint_exit_75`後も稼働中で新main releaseへの反映がない。解消は最新headのPR/CIを閉じた後、既存reconcilerが自然に終端・再収束し、容量とdisk/lockが空いたowner slotでCFOを載せること。現時点でDaisの手動作業は不要。CFO設計順はA5→A6→A8→A9→A10のまま。
