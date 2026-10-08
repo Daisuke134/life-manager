@@ -8293,20 +8293,20 @@ This entry supersedes the prior producer-review cursor. CFO priority remains A5 
 
 **Current cursor:** commit/push 2 fixes + canonical status → exact-head CI + fresh review → resolve local ENOSPC without protected-path deletion → merge #7106 → immutable release/reconciler self-handoff → CFO queue natural drain → CFO receipt → A5 → A6 → A8 → A9 → A10.
 
-### 2026-10-09 05:01 JST — CFO exact-head review and superseding cursor
+### 2026-10-09 05:05 JST — CFO exact-head review and superseding cursor
 
 このsnapshotは04:47のCFO status/TODOを置き換える。事業CFOの目的と後続順`A5 → A6 → A8 → A9 → A10`は維持する。個人Money Tree/A7とCloud cost optimizationは対象外。
 
-- **Latest main / branch:** `origin/main=a211e324`まで同期した後にmainが`0421f72ac1f4949b26f3dc1dfca9de1b35070742`へ進んだため、この最新mainもlocal HEAD `d7a4d6e91d48e5985e21b210185d6ef2413f1bc8`へ通常merge済み。追加分はSSOTのLine Sticker row 13のreadback 1行だけ。source/test/manifest修正はcommit `fba39bd809`で一度push済みだが、その後のmain mergeと本statusはまだpushしていない。PR #7106のremote headは`fba39bd809`、直近PR API readbackのbaseRefOidは`a211e324`。
-- **Exact-head acceptance:** old PR head `df6fed7e`の`OSS self-contained boundary`は`manifest_inventory_mismatch skills/_shared`でFAILし、同headでLoop control/TruffleHogは実行中だった。修正を含むpush head `fba39bd8`の最初のreadbackでは全required checksがpending。main `0421f72a`を追加mergeしたため、次のpush headで全checksを取り直す。CodeRabbitはOSS repositoryのmanual review必須でskip。旧headの結果は新headに流用しない。
-- **Fresh read-only review / local fixes:** 指定head `df6fed7e`でCritical 0、2つのImportant receipt境界指摘。(1) `sendMessage`最初のchunkの非JSON応答が`started=false`扱いになり再送可能になる。(2)欠損message IDが`"None"` receiptへ変換されverifiedになり得る。両方の回帰testは修正前RED、現在の最小修正後GREEN。非JSON responseと不正message IDは`delivery_uncertain` fenceを保持し、正の整数message IDだけをreceiptに使う。
+- **Latest main / branch:** 最新main `0421f72ac1f4949b26f3dc1dfca9de1b35070742`はlocal branchへ通常mergeし、main-sync + CFO status commit `335e870cff0282789538dbd5e7172085af7eddba`としてpush済み。PR #7106のremote head/baseは`335e870c` / `0421f72a`。
+- **Exact-head acceptance:** PR head `335e870c`のreadbackではTravel contracts、OSS boundary、Agent instruction、shellはPASS。Security ScanのLoop control、startup drift、gitleaks、TruffleHog、PII、Python checksは20:04Z時点で実行中。CodeRabbitはmanual review必須のためskip。旧headの結果はこのheadの受入証拠にしない。
+- **Fresh read-only review / fixes / new finding:** head `335e870c`でCritical 0、Important 1。前回の2境界（成功応答bodyの非JSONと欠損message ID）はRED→GREEN済み。新しい指摘は、`urllib.error.HTTPError`のbodyが非JSON/invalid時に`TelegramError`となり、`started=false`→再送可能へ戻る経路。正しい`ok:false` JSONは明示拒否としてpre-send扱いを維持し、それ以外の曖昧HTTP error responseはdelivery-uncertainでfenceする。これは未修正で、回帰testが必要。
 - **Manifest:** `skills/_shared`のtracked inventoryは189 files、最終treeからdigest `9c60cfc2529405e5e4c47a4fe22e9e8ad550ad730b2671fb1955115b56d83486`へ更新済み。`node scripts/verify-oss-self-contained.mjs`はPASS。
 - **Local focused verification:** CFO/Telegram/effect outbox Python 53/53、CFO Node 60/60、loop-adapter Node 15/15、OSS self-contained boundary PASS、`./bin/lm-loop-contract` PASS（18 loops / 188 jobs / 113 mapped / 0 errors）、`git diff --check` PASS。
 - **CFO runtime readback (2026-10-08T19:54Z):** `life-manager-cfo-hourly`は`loaded-idle`、loaded SHA `8d986ff49817ca7bab939efe8ff5cfe2fb6c0044`。最新terminal `18dca4d2e811ae18-37503`（19:33:04Z）はexit 75 / `host_admission_deferred:resource_capacity_busy`、provider receipt/readbackなし。last successは16:25Zでruntime receiptなし。現在の月次・loop別売上/費用はunknown。`lm-loop doctor --json`は`ok=false`で`ai.anicca.life-manager-release-reconciler-self-handoff`のみunmanaged。
 - **Queue / capacity:** 最後に成功したreadbackは19:45:50Zでglobal 8/8、deterministic 3/3。19:46:57ZのDB readは`database is locked`。この後のqueue owner/positionは未確認なので、古いsnapshotを現在値として扱わない。finite capを増やさず、ownerを停止せず、claim削除・effect_unknown再送をしない。
 - **Local suite / finances:** local full runtime suiteは819 tests中2件が一時archive/dependency extractionのENOSPCで失敗し、19:46:57Zのfree spaceは238,064 KiB。これはtest assertion failureではない。保護対象cache/worktreeを消していない。9月Google請求¥27,889はbilledでありpaid/cash-settledやloop allocationの証拠ではない。A5 source PR #6827はmergedだがproduction migration/RPC/permissions/panel readbackは未完。
 
-**順序変更:** 旧cursor=`commit/push 2 receipt fixes → exact-head CI/review → merge`。新cursor=`(1) 完了: latest main a211e324、さらに0421f72aをlocal branchへmerge → (2) 完了: 2つのTelegram receipt欠陥をRED→GREENで修正 → (3) 完了: shared manifest digestをfinal treeへ同期 → (4) 完了: focused acceptance → (5) 完了: source fixをfba39bd809としてpush → (6) 0421f72a mergeとcurrent statusをpush → (7) exact-head required CI + fresh full-diff review → (8) #7106 merge`。理由は、PR更新中にmainが進んだため、最新SSOTの1行も保持してから最終headをCI/レビューへ出す。
+**順序変更:** 旧cursor=`latest-main sync/status push → exact-head CI/review → merge`。新cursor=`(1) 完了: latest main 0421f72aまで同期し、statusを335e870cとしてpush → (2) 完了: 2つのreceipt欠陥をRED→GREENで修正、manifest再計算、focused acceptance → (3) current exact-head reviewで見つかったHTTPError-body ambiguityを失敗testで再現 → (4) 最小 no-replay修正とmanifest再計算 → (5) focused acceptance → (6) push new head → (7) exact-head CI + fresh review → (8) #7106 merge`。理由は、全体reviewでPOST後のHTTPError decode失敗も再送経路になると分かったため、merge前に同じ共有receipt境界で閉じる。
 
 **Remaining atomic TODO (この順):**
 
@@ -8316,21 +8316,59 @@ This entry supersedes the prior producer-review cursor. CFO priority remains A5 
 4. [x] `skills/_shared/telegram.py`と`skills/_shared/marketplace-core/scripts/telegram_delivery.py`を最小修正。post-send malformed response/missing receiptはdelivery-uncertain fence、invalid message IDはreject、明確なAPI rejectionは従来どおりpre-send扱い。
 5. [x] 両回帰testとCFO receipt/reconciliation関連focused suitesをPASS。local full suiteは以前819 tests中2件がENOSPCで失敗し未再実行。protected path/cache削除はせず、同suiteを必須gateとせずrequired CIのcoverageで判定する。
 6. [x] `docs/manifests/oss-merge-1-sources.json`の`skills/_shared` count=189 / digestをfinal tracked inventoryに同期。OSS verifier、`git diff --check`、`./bin/lm-loop-contract`はPASS。
-7. [x] source/test/manifest fixesをcommit `fba39bd809`として専用branchへpushし、remote readbackを確認。
-8. [ ] 最新main `0421f72a` mergeと本status updateをpushし、PR remote headをreadbackする。
-9. [ ] 新しいexact PR headで全required CIをPASSし、fresh read-only reviewがCritical/Important 0と判定するまで修正を繰り返す。旧headの結果は使わない。
-10. [ ] acceptance後にPR #7106をmergeし、main由来immutable releaseをnormal owner routeでreconcile。release reconciler self-handoff、CFO loaded SHA、doctorをreadbackする。稼働ownerをstop/restartしない。
-11. [ ] queue/DBがreadableになった時点で最新claims/reservationsを再readし、finite cap内で既存claimをnatural terminalへ進める。owner positionを確認せず再送・削除しない。
-12. [ ] CFOをowner-idle/queue-safe時にaccepted releaseへ適用し、次のnatural reportでdelivery/runtime/provider/B7 receipts、period/currency/source coverage、replay-zeroを確認する。current totalsはその証拠が揃うまでunknown。
-13. [ ] A5 production migration/RPC/permissions/panel readback。
-14. [ ] A6 Google billed-vs-cash照合と、receipt-backed operation/loop attribution。
-15. [ ] A8の18 business loops / 188 runtime jobs（113 catalog mapped）についてsettled revenue/refund/fee/measured costとshared/control/platform overheadをcoverage completeにする。
-16. [ ] A9でJST日次/MTD/trailing/MRRをloop別・全社でreconcileする。
-17. [ ] A10でcoverage/freshness/receipt/period/currency/replay-zeroを満たす自然reportを7日連続でreadbackする。
+7. [x] source/test/manifest fixesをcommit `fba39bd809`としてpushし、remote readbackを確認。
+8. [x] latest main mergeとCFO statusをcommit `335e870cff`としてpushし、base/head readback `0421f72a` / `335e870c`を確認。
+9. [ ] HTTPError response bodyが非JSON/invalidのfirst-chunk regressionを追加し、修正前にdeliveryがpending/pre-sendへ戻るREDを確認する。valid explicit `ok:false` rejectionとの区別も保持する。
+10. [ ] `_request`でambiguous HTTPError responseを`TelegramDeliveryUnknown`へ分類し、明示された`ok:false`のみ確認済みrejectionとして扱う。再送fenceを維持する。
+11. [ ] 新testとCFO/shared Telegram focused testsをPASS。変更後の`skills/_shared` inventory count/digestを再計算してmanifestを同期し、OSS verifier、loop contract、diff checkをPASS。
+12. [ ] source/test/manifest/specをpushし、PR exact head/baseをreadback。
+13. [ ] 新しいexact PR headで全required CIをPASSし、fresh read-only reviewがCritical/Important 0と判定するまで修正。旧headの結果は使わない。
+14. [ ] acceptance後にPR #7106をmergeし、main由来immutable releaseをnormal owner routeでreconcile。release reconciler self-handoff、CFO loaded SHA、doctorをreadbackする。稼働ownerをstop/restartしない。
+15. [ ] queue/DBがreadableになった時点で最新claims/reservationsを再readし、finite cap内で既存claimをnatural terminalへ進める。owner positionを確認せず再送・削除しない。
+16. [ ] CFOをowner-idle/queue-safe時にaccepted releaseへ適用し、次のnatural reportでdelivery/runtime/provider/B7 receipts、period/currency/source coverage、replay-zeroを確認する。current totalsはその証拠が揃うまでunknown。
+17. [ ] A5 production migration/RPC/permissions/panel readback。
+18. [ ] A6 Google billed-vs-cash照合と、receipt-backed operation/loop attribution。
+19. [ ] A8の18 business loops / 188 runtime jobs（113 catalog mapped）についてsettled revenue/refund/fee/measured costとshared/control/platform overheadをcoverage completeにする。
+20. [ ] A9でJST日次/MTD/trailing/MRRをloop別・全社でreconcileする。
+21. [ ] A10でcoverage/freshness/receipt/period/currency/replay-zeroを満たす自然reportを7日連続でreadbackする。
 
-**Blockerと解消方法:** local source blockersはtest-firstで修正しfocused acceptance済み。source fixesはpush済みだが、最新main `0421f72a`のsync/statusは未pushで、新exact headのCI/reviewがない。main mergeとstatusをpushし、そのheadでrequired CIとfresh reviewを通す。CFO runtimeはdeterministic-capacity deferとrelease-reconciler self-handoffが未解決、queue DBの最後のreadはlockだった。ownerを停止したりcapを上げたりせず、通常reconciler経路・fresh queue read・既存claimのnatural terminalを確認してからCFOを適用する。current revenue/expense totalsはfresh natural report/provider receiptがないためunknown。
+**Blockerと解消方法:** 新しいImportant findingはHTTPError非JSON/不正bodyをpre-send失敗扱いする経路。失敗testを先に追加し、明示`ok:false`以外の曖昧responseをuncertain fenceにして修正する。その後manifestと新exact-head CI/reviewを取り直す。CFO runtimeはdeterministic-capacity deferとrelease-reconciler self-handoffが未解決、queue DBの最後のreadはlockだった。ownerを停止したりcapを上げたりせず、通常reconciler経路・fresh queue read・既存claimのnatural terminalを確認してからCFOを適用する。current revenue/expense totalsはfresh natural report/provider receiptがないためunknown。
 
-**Current cursor:** push latest-main `0421f72a` merge + current status → exact-head required CI + fresh review → merge #7106 → reconciler/doctor + fresh queue/natural terminal → CFO natural receipt/report → A5 → A6 → A8 → A9 → A10.
+**Current cursor:** HTTPError non-JSON RED test → uncertain/no-replay implementation → refresh shared manifest + focused acceptance → push source/spec → exact-head CI + fresh review → merge #7106 → reconciler/doctor + fresh queue/natural terminal → CFO natural receipt/report → A5 → A6 → A8 → A9 → A10.
+
+### 2026-10-09 05:07 JST — HTTP error receipt fence and fresh main cursor
+
+このsnapshotは05:05のCFO status/TODOを置き換える。事業CFO順序`A5 → A6 → A8 → A9 → A10`を維持し、A7/Money TreeとCloud cost workは対象外。
+
+- **PR/review:** remote PR #7106 head `335e870cff0282789538dbd5e7172085af7eddba` / base `0421f72ac1f4949b26f3dc1dfca9de1b35070742`。fresh read-only reviewはCritical 0、Important 1で、HTTPError本文をdecodeできない時のpre-send誤分類を指摘。20:04Zのhead-335 check readbackではTravel/OSS/Agent instruction/Shell PASS、Loop control/Startup/Gitleaks/TruffleHog/PII/Pythonは実行中。CodeRabbitはmanual review必須でskip。
+- **HTTPError fix:** 502 + non-JSON bodyでoutboxが`pending`/`pre_send_failed`へ戻るtestを修正前REDで確認。`skills/_shared/telegram.py`はPOST後のmalformed/ambiguous HTTP errorを`TelegramDeliveryUnknown`としてfenceし、valid Telegram `ok:false` rejectionだけを確認済みpre-send failureに維持。RED→GREENの回帰testで不確実送信は1回のみ、replayは0回、明示rejectionは従来のpre-send経路を確認。
+- **Local verification:** CFO/shared receipt Python 55/55、CFO Node 60/60、loop adapter Node 15/15、`node scripts/verify-oss-self-contained.mjs` PASS、`./bin/lm-loop-contract` PASS（18 loops /188 jobs /113 mapped /0 errors）、`git diff --check` PASS。final tracked `skills/_shared` inventoryは189 files、digest `ecf5be017e1f3346061dbd26a15e663b7884bfd90b904ac20576cde246c5107e`。
+- **Main sync:** 作業中にmainが`d785c5391a02df0b0d0adcf8934ee7319345fdc7`（PR #7210）へ進んだ。差分はunified SSOT 1 fileのみ。fetch済みだが、現時点ではCFO branchに未merge。source workをcommit後に通常mergeし、他ownerのmobile evidenceを保持してからPR headを作る。
+- **Runtime/financial truth:** CFO直近readbackは19:33:04Zの`resource_capacity_busy`（exit 75、provider receiptなし）、loaded SHA `8d986ff4...`。doctorはrelease-reconciler self-handoff labelのみunmanaged。queueは19:45Zのcapacity readback後、19:46ZにDB lock。売上・費用の月次/loop別totalsはnatural receiptなしでunknown。local full suiteの以前の2 ENOSPC failuresも未解消・未再実行。
+
+**順序変更:** 旧cursor=`head 335 CI/review → merge`。新cursor=`(1) 完了: HTTPError malformed/ambiguous boundaryをRED→GREENで修正 → (2) 完了: shared inventoryを再計算しfocused acceptance → (3) source/specをcommit → (4) latest main d785c539をmergeしSSOT更新 → (5) push → (6) new exact-head CI + fresh review → (7) #7106 merge`。理由は、新しいImportant findingが外部メッセージの重複送信を許すため、既存PRをmergeする前にno-replay fenceを閉じる必要がある。
+
+**Remaining atomic TODO (この順):**
+
+1. [x] HTTPError非JSON回帰testを修正前REDで確認。
+2. [x] ambiguous HTTPErrorをdelivery-uncertain/no-replayにし、明示`ok:false`をpre-sendに保つ最小修正。
+3. [x] 4つのPython suites 55/55、CFO Node 60/60、adapter Node 15/15、OSS verifier、loop contract、diff checkをPASS。shared manifest digestを更新。
+4. [ ] source/test/manifest/current CFO statusを専用branchへcommit。
+5. [ ] latest `origin/main=d785c539`を通常mergeし、SSOT記録を保ったまま再diff/test。
+6. [ ] latest-main merge + final statusをcommit/pushし、PR base/headをreadback。
+7. [ ] 新exact headのrequired CIをPASSし、fresh read-only reviewでCritical/Important 0を確認。旧head結果を流用しない。
+8. [ ] PR #7106をmerge後、main由来immutable releaseをnormal owner routeでreconcile。reconciler self-handoff、CFO loaded SHA、doctorをreadback。稼働ownerをstop/restartしない。
+9. [ ] fresh queue/DB read後、finite capacity内で既存claimをnatural terminalへ。cap増加、claim削除、effect_unknown再送はしない。
+10. [ ] accepted releaseをowner-idle/queue-safe時にCFOへ適用し、次のnatural reportのdelivery/runtime/provider/B7 receipts、period/currency/source coverage、replay-zeroを確認する。証拠前のtotalsはunknown。
+11. [ ] A5 production migration/RPC/permissions/panel readback。
+12. [ ] A6 Google billed-vs-cash照合とreceipt-backed operation/loop attribution。
+13. [ ] A8で18 business loops /188 runtime jobs（113 catalog mapped）すべてのsettled revenue/refund/fee/measured costとshared/control/platform overheadをcoverage completeにする。
+14. [ ] A9でJST日次/MTD/trailing/MRRをloop別・全社でreconcile。
+15. [ ] A10で7日連続の自然reportについてcoverage/freshness/receipt/period/currency/replay-zeroをreadback。
+
+**Blockerと解消方法:** source上のHTTPError receipt blockerはローカル修正・focused tests完了、未push。最新main `d785c539`も未merge。source/specをcommitし、latest mainを同期してから1つの最終headとしてpushし、その正確なheadでCIとfresh reviewを通す。production側はcapacity defer、unmanaged release self-handoff、queue DB lockが残る。ownerを止めたりcapを拡げず、reconciler owner routeとfresh queue/natural terminalで解く。実際の売上・費用はreceipt-backed CFO reportがなくunknown。
+
+**Current cursor:** commit local source/spec → merge latest main d785c539 → final status + push → exact-head CI/fresh review → merge PR → reconciler/doctor/queue natural readback → CFO natural receipt/report → A5 → A6 → A8 → A9 → A10.
 
 ### Marketing IntelからWriterへの記事候補連携（並列作業）
 

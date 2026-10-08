@@ -244,10 +244,20 @@ class TelegramClient:
             try:
                 payload = self._decode_response(raw_error)
             except TelegramError:
+                if method == "sendMessage":
+                    raise TelegramDeliveryUnknown(
+                        "Telegram send HTTP error response is invalid; delivery unknown",
+                        error_code=exc.code,
+                    ) from None
                 raise TelegramError(
                     f"Telegram HTTP error {exc.code}",
                     error_code=exc.code,
                 ) from None
+            if method == "sendMessage" and payload.get("ok") is not False:
+                raise TelegramDeliveryUnknown(
+                    "Telegram send HTTP error response is ambiguous; delivery unknown",
+                    error_code=exc.code,
+                )
         except (urllib.error.URLError, socket.timeout, TimeoutError, OSError) as exc:
             raise TelegramDeliveryUnknown(
                 f"Telegram transport failed; delivery unknown: {self._redact(exc)}"

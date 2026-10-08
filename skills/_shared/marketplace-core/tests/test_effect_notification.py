@@ -1,5 +1,7 @@
 import importlib.util
+import io
 import sys
+import urllib.error
 import urllib.request
 from datetime import datetime
 from pathlib import Path
@@ -16,7 +18,7 @@ def load(name, filename):
     return module
 
 
-def _notify_with_response(tmp_path, monkeypatch, case, body):
+def _notify_with_response(tmp_path, monkeypatch, case, body, http_status=None):
     notification = load(f"test_effect_notification_{case}", "effect_notification.py")
     delivery = load(f"test_effect_delivery_{case}", "telegram_delivery.py")
     env_file = tmp_path / "telegram.env"
@@ -35,6 +37,10 @@ def _notify_with_response(tmp_path, monkeypatch, case, body):
 
     def opener(request, timeout):
         calls.append((request, timeout))
+        if http_status is not None:
+            raise urllib.error.HTTPError(
+                request.full_url, http_status, "gateway error", None, io.BytesIO(body)
+            )
         return Response()
 
     monkeypatch.setattr(urllib.request, "urlopen", opener)
@@ -182,6 +188,39 @@ def test_non_json_first_chunk_response_is_fenced_not_replayed(tmp_path, monkeypa
     assert first["delivery_uncertain"] == 1
     assert replay["attempted"] == 0
     assert len(calls) == 1
+
+
+def test_non_json_http_error_after_first_chunk_is_fenced_not_replayed(tmp_path, monkeypatch):
+    first, replay, calls = _notify_with_response(
+        tmp_path,
+        monkeypatch,
+        "non_json_http_error",
+        b"gateway error",
+        http_status=502,
+    )
+
+    assert first["delivery"] == "delivery_uncertain"
+    assert first["attempted"] == 1
+    assert first["delivery_uncertain"] == 1
+    assert replay["attempted"] == 0
+    assert len(calls) == 1
+
+
+def test_explicit_telegram_http_rejection_remains_pre_send(tmp_path, monkeypatch):
+    first, replay, calls = _notify_with_response(
+        tmp_path,
+        monkeypatch,
+        "explicit_http_rejection",
+        b'{"ok":false,"error_code":400,"description":"Bad Request"}',
+        http_status=400,
+    )
+
+    assert first["delivery"] == "pending"
+    assert first["pre_send_failed"] == 1
+    assert first["delivery_uncertain"] == 0
+    assert replay["attempted"] == 0
+    assert replay["pre_send_failed"] == 1
+    assert len(calls) == 2
 
 
 def test_missing_message_id_is_uncertain_not_a_provider_receipt(tmp_path, monkeypatch):
