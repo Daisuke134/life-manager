@@ -19,11 +19,11 @@ closes a fence, never a guess):
     ``evidence/<run_id>/`` right before invoking the agent) was created
     anywhere in the account's plausible run window: proof of no dispatch,
     close via ``resolve_pre_effect_occurrence``.
-  - An evidence directory *does* exist in that window with a
-    ``submitted_verified`` row in application-receipts.jsonl for it: proof an
-    application really was submitted, close via ``resolve_unknown_occurrence``
-    with that receipt (completion_png/telegram_photo_message_id) as the
-    provider receipt.
+  - A local ``submitted_verified`` row, dossier, completion PNG, and Telegram
+    photo corroborate the recorded action, but do not let this adapter query the
+    provider or supply a provider receipt ID. Keep that occurrence fenced until
+    an exact provider-owned readback can be performed; do not use the Telegram
+    message ID as the application provider receipt.
   - Anything else (an evidence directory exists but its outcome cannot be
     read back cleanly, or the admission-layer event does not show the
     entrypoint-preflight signature) is inconclusive: stays fenced.
