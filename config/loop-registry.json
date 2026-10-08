@@ -1521,6 +1521,28 @@
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager/ebook"
     },
+    "ebook-en-instagram-daily": {
+      "priority": "revenue",
+      "resource_class": "agent",
+      "admission_class": "revenue",
+      "cadence": {"calendar_interval":[{"Hour":8,"Minute":0},{"Hour":14,"Minute":0},{"Hour":21,"Minute":0}]},
+      "cleanup": {"max_age_days":14,"max_runs":100},
+      "domain": "growth",
+      "effect_class": "publish",
+      "adapter": "exec",
+      "command": ["ebook-en-instagram-daily"],
+      "effect_reconcile": {
+        "argv": ["apps/life-manager/scripts/mobile-postiz-provider-reconcile.py", "--auto-owner", "ebook-en-instagram-daily", "--identity-dir", "~/.local/state/life-manager/ebook/effect-identities"],
+        "occurrence_flag": "--occurrence-id",
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 120
+      },
+      "entrypoint": "apps/life-manager/scripts/ebook-distribute-daily.sh",
+      "label": "ai.anicca.life-manager-ebook-en-instagram-daily",
+      "log_root": "~/.local/state/life-manager/logs",
+      "provider_route": "deterministic",
+      "state_root": "~/.local/state/life-manager/ebook"
+    },
     "ebook-ja-instagram-daily": {
       "priority": "revenue",
       "resource_class": "agent",
