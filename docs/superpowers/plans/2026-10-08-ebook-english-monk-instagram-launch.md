@@ -4,42 +4,43 @@
 
 **Scope:** English eBook distribution only. Capafy remains with its separate owner. Keep English TikTok and Japanese eBook owners separate. Do not publish a different clip as the Hadrian video. Do not buy a HeyGen plan unless a later production-cost check shows it is needed.
 
-**Current evidence (rechecked 2026-10-09 00:49 JST):**
+**Current evidence (rechecked 2026-10-09 00:57 JST):**
 
-- HeyGen official `video get db2dab0924e19b88c14e03a6a7849069` returns `completed` (13.4008 seconds). The matching local MP4 exists at `~/.local/state/life-manager/marketing/ebook/renders/ebook-run.571924dc4e4867349fc6fd13.mp4`, is 1080×1920 H.264, and has SHA-256 `132d9b326059f9b74d6020e4bca50f0a77d2f2f5ca0595d2f2feb56449c12183`.
-- That MP4 is **not verified as the requested Hadrian clip**. Its script-ledger hook is “When a mistake follows you” and its body does not identify Hadrian. The four local eBook runs and their script records contain no Hadrian/Adrian item. HeyGen `video list --limit 100` currently returns zero rows. Do not publish this MP4 under the Hadrian request.
-- Postiz official `GET /public/v1/integrations` returned HTTP 200, 31 integrations, and 9 Instagram integrations; none is the English Monk account. The dedicated account registry remains `setup_required` with `publisher_integration_id=null`.
-- The credential SSOT entry for `instagram-english-monk` matches the intended `monk_anicca` handle but remains `phone_verification_pending`. The visible Instagram signup page is still at `/accounts/emailsignup/` and shows a phone prompt; no CAPTCHA is present. The latest `read_sms_otp.py` probe returns `sqlite3.OperationalError: unable to open database file`; metadata confirms `~/Library/Messages/chat.db` exists and is user-readable, while a previous probe returned macOS `Operation not permitted`. This points to protected Messages access, not a missing file. iPhone Mirroring still needs the selected device reconnected. Do not change privacy settings or bypass verification.
-- PR #7173 is merged to `main` as `0f7cfb616dcb585a42868f2a5092c8cd9951675e`; the `ebook-en-instagram-daily` source owner is in main. Production has not caught up: `~/loops/current` still points to `20261009T000957-1fe7db3b`, and runtime health reports the Instagram loop as unknown. Its registry priority is `revenue`; host `df` at 00:49 JST shows `2,490,008 KiB` free (about 2.37 GiB), above the 512 MiB floor. Earlier at 00:40 JST it was `1,579,312 KiB`; capacity fluctuates, so read it again before applying.
-- The separate English TikTok owner remains loaded on SHA `25bee172` and safely fenced on its old 2 GiB admission rule; do not use it as a substitute or change it in this Instagram task. At the 00:37 JST readback, the release reconciler ran on old SHA `e1b061f1` and latest occurrence `18dc97c7aa1d0750-49084` was `entrypoint_exit_1`; the last recorded fleet apply on release `25bee172` was partial (73 changed, 90 skipped, 3 errors, budget exceeded). Latest main `0b9d0f10` includes the retry fix, but `~/loops/current` is still at `1fe7db3b`. Do not stop/restart the reconciler or launch a fleet-wide apply.
-- Existing `lm-loop apply` already supports an owner-targeted path through `LIFE_MANAGER_APPLY_TARGET` and `--loaded-idle-only`; its source calls `apply_registry(..., target=...)`. The focused target contract passes 2/2. Once the main-derived release contains this owner and the exact target is ready, use only `LIFE_MANAGER_APPLY_TARGET=ebook-en-instagram-daily ~/loops/current/bin/lm-loop apply --loaded-idle-only`; never use `--all` for this work.
-- Local focused acceptance passes Node 20/20, Python 4/4, runtime loop bounds 138/138, targeted apply contract 2/2, fleet retry contract 34/34, loop contract 18 loops/188 registry jobs, and `git diff --check`. PR #7173 merged with `--admin`; its source owner remains setup-required until the exact Instagram integration is live.
-- Last verified Stripe readback (19:37 JST) showed `/monk` at `$10.99` one-time, Daily Anicca Letter at `$9.99/month`, and 0 active paid subscriptions. This is historical, not a current readback. At that price 1,002 active subscribers yield `$10,009.98` gross MRR before fees/refunds; one-time eBook orders do not count as MRR.
-- The user authorized a HeyGen monthly plan if needed. It is not needed to post the already completed MP4, so no purchase was made. Reassess only after the exact asset, target account, and recurring video cost are known.
+- HeyGen title searches for `Hadrian` and `Adrian` return no matches. Monk Factory contains two completed HeyGen IDs (`f4ce3e44217e4844b988e501414cf199` and `2f6c427ce4bc460eb07d17bd7da67d2f`), but each title is its UUID and neither has a script/run mapping. The nearby `en-02` script is about a 90-second emotion wave, not Hadrian. Neither is safe to label as the requested video.
+- The known Life Manager MP4 `ebook-run.571924dc4e4867349fc6fd13.mp4` is also different: its script-ledger hook is “When a mistake follows you.” Do not substitute either video.
+- Monk Factory's old morning log reports a Postiz post to integration `cmo5rwq2p00twn10yrsdglng3`. The current product/account registry maps that ID to English TikTok, not Instagram. Its old Instagram ID is historical and is not the current `instagram.monk_anicca` profile. The last official Postiz GET (00:37 JST) returned 31 integrations / 9 Instagram integrations and no English Monk match; the current account registry has `publisher_integration_id=null` and `status=setup_required`.
+- The credential SSOT entry for `instagram-english-monk` remains `phone_verification_pending`. Instagram's signup page showed its normal phone prompt and no CAPTCHA. Reading the SMS through `~/Library/Messages/chat.db` is blocked by macOS privacy access; iPhone Mirroring requested reconnecting the selected device. Do not change privacy settings or bypass verification.
+- PR #7173 is merged to `main` as `0f7cfb616dcb585a42868f2a5092c8cd9951675e`. The source owner is in main, but `~/loops/current` still points to `20261009T000957-1fe7db3b`; `lm-loop health --loop ebook-en-instagram-daily` returns `unknown health loop`. At 00:57 JST, `df -k /` reports `1,340,980 KiB` free (about 1.28 GiB), above the owner's 512 MiB floor. Do not run a fleet-wide apply or stop/restart the shared reconciler.
+- The English Instagram owner generates a fresh approved baseline script and HeyGen render for each scheduled slot before posting through Postiz. Its manual-slot path only accepts a matching canonical render receipt; it cannot publish an arbitrary old Monk Factory MP4. A loaded owner can be kickstarted with `lm-loop start`, but outside a due slot the normal entrypoint returns `no_due_slot`. The Hadrian one-off needs its exact asset and a supported durable Postiz receipt path.
+- The owner's schedule is 08:00, 14:00, and 21:00 JST for this English Instagram account only. The English TikTok integration and Japanese eBook lane remain separate.
+- The last Stripe readback (19:37 JST) was 0 active paid Letter subscriptions and is historical; current live subscription count remains unknown. `/monk` is a $10.99 one-time eBook purchase; Daily Anicca Letter is $9.99/month. The canonical $10K goal is monthly bank net after fees and costs, so 1,002 active subscriptions (= $10,009.98 gross MRR) is only a pre-fee reference, not the goal. No HeyGen plan was purchased; the user authorized one if the actual rendering budget requires it.
 
 ## Ideal flow
 
 ```mermaid
 flowchart LR
-  A[Approved English eBook script] --> B[Exact Hadrian video ID + MP4 receipt]
-  B --> C[Verified English Monk Instagram account]
-  C --> D[Account warmup complete]
-  D --> E[Enabled matching Postiz integration]
-  E --> F[English Instagram owner, 08:00 / 14:00 / 21:00 JST]
-  H[Revenue owner admission at 512 MiB] --> F
-  F --> G[PUBLISHED receipt + native Reel URL]
-  G --> I[/monk: $10.99 one-time eBook]
-  I --> J[Paid order + matching PDF receipt]
-  J --> K[Optional $9.99/month Letter]
-  K --> L[Stripe invoice.paid + active subscription]
-  L --> M[MRR ledger: 1,002 active subscribers ≈ $10K gross]
+  A[Approved English baseline script] --> B[HeyGen Avatar IV render + SHA/cost receipt]
+  B --> C[Verified and warmed English Monk Instagram]
+  C --> D[Enabled matching Postiz integration]
+  E[Revenue admission: 512 MiB floor] --> F[Owner: 08:00 / 14:00 / 21:00 JST]
+  D --> F
+  F --> G[Postiz PUBLISHED receipt + native Reel URL]
+  G --> H[Tracked /go/ee campaign link]
+  H --> I[/monk: $10.99 one-time eBook]
+  I --> J[Paid order + delivered PDF]
+  J --> K[Daily Anicca Letter: $9.99/month]
+  K --> L[Stripe paid invoice + active subscription]
+  L --> M[Net ledger subtracts fees, HeyGen, email/API costs]
+  M --> N[$10K monthly net target]
+  O[Hadrian existing video: exact ID, file, script and render receipt] -. one-off .-> P[Durable Postiz intent and no-duplicate check]
+  P --> G
 ```
 
-The one-time eBook is an acquisition purchase; only active paid Letter subscriptions count toward MRR. Current status: the exact Hadrian clip and Instagram route are unresolved. Current free space clears the new revenue-owner floor; the installed release still needs to include that policy and the new owner.
+The recurring owner creates new clips from its approved baseline; it does not ingest the old Hadrian clip. That one-off needs a matching asset/script receipt and a supported Postiz intent before publication. The one-time eBook is not MRR. 1,002 active $9.99 subscriptions equal $10,009.98 gross MRR before fees and costs; the net target needs a larger count based on actual unit margin. Current Hadrian asset, Instagram verification, and Postiz binding remain unresolved.
 
 ## Atomic TODO
 
-Order update: old order=`verify Instagram → connect Postiz → add owner → recover 2 GiB → fleet-wide apply → post the completed MP4 → 3/day → MRR`. New order=`source owner merge (complete) → identify and verify the exact Hadrian asset → complete account verification and warmup → connect Postiz → wait for a main-derived release → target-apply only ebook-en-instagram-daily with LIFE_MANAGER_APPLY_TARGET → publish once → prove 3/day → close paid-order/PDF and Letter attribution`. Reason: source is integrated; the completed English MP4 is a different script, the new owner needs only 512 MiB, and a targeted apply path exists. The exact video/account gates still prevent a safe post.
+Order update: old order=`merge owner → wait for scheduled slot → publish a completed MP4 → call 1,002 gross subscribers $10K MRR`. New order=`(parallel) identify exact Hadrian asset and finish normal phone verification → begin account warmup and connect the exact profile to Postiz → add a supported one-off Postiz receipt path only if the Hadrian asset is outside canonical render state → build a main-derived release and apply only ebook-en-instagram-daily → publish the Hadrian clip immediately once eligible → run fresh approved content at 08:00/14:00/21:00 JST → reconcile eBook orders/PDFs and Letter net MRR`. Reason: the old factory evidence is TikTok-only, the Instagram identity is not verified or connected, and the canonical loop cannot accept an arbitrary old MP4. User's $10K target is net, not gross. No Capafy work is in this order.
 
 ### 1. Source owner implementation — complete
 
@@ -49,42 +50,47 @@ Order update: old order=`verify Instagram → connect Postiz → add owner → r
 
 ### 2. Identify the exact Hadrian video and prove it is unpublished
 
-- Search HeyGen with `~/.local/bin/heygen video list --title Hadrian --limit 100` and `--title Adrian`; inspect the English eBook script ledger and run receipts under `~/.local/state/life-manager/marketing/ebook/`.
+- HeyGen title searches for `Hadrian` and `Adrian` returned no matches. Monk Factory's two completed IDs have no script mapping; its historical `en-02` clip is an emotion script. The exact user-requested asset remains unidentified.
 - Do not substitute `ebook-run.571924dc4e4867349fc6fd13`: its completed MP4 maps to hook “When a mistake follows you”, not Hadrian.
 - For the exact candidate, require a matching English script/run ID, HeyGen completed video ID, local MP4 path and SHA-256, plus official publication-history lookup showing no prior post on the intended target.
-- **Completion evidence:** the requested Hadrian script, video ID, MP4 hash, and target-specific no-duplicate evidence all point to one asset. If no such asset exists in the account/library, the missing input is the exact video ID or file; do not render a duplicate from an unknown script.
+- **Completion evidence:** the requested Hadrian script, video ID, MP4 hash, render-cost receipt, and target-specific no-duplicate evidence all point to one asset. If no such asset exists in the account/library, the missing input is the exact video ID or file; do not render a duplicate from an unknown script.
 
 ### 3. Complete account verification and required warmup
 
-- Continue only the existing `instagram-english-monk` signup with the exact `monk_anicca` handle using Instagram's normal phone verification.
+- Continue only the existing `instagram-english-monk` signup with the exact `monk_anicca` handle using Instagram's normal phone verification. The owner-side operation needed now is reconnecting the selected iPhone in System Settings so its SMS can be read through Messages.
 - The current status is `phone_verification_pending`. The prior SMS reader hit macOS TCC on `~/Library/Messages/chat.db`, and iPhone Mirroring requested reconnecting the selected iPhone. The required owner-side action is to reconnect that iPhone in System Settings so its verification SMS can be read through the normal Messages app.
 - Do not change privacy settings, bypass phone verification, create a disposable address, or reuse another product account. After signup, finish the profile without a day-zero commercial link and complete the Instagram account warmup before commercial posting.
-- **Completion evidence:** live exact handle and profile; account status updated in the mode-600 credential SSOT; warmup record meets the installed skill's window.
+- Begin the installed account warmup immediately after normal verification. Keep content prep, release prep, and the Postiz binding moving during warmup.
+- **Completion evidence:** live exact handle and profile; account status updated in the mode-600 credential SSOT; warmup record meets the installed skill's seven-day window.
 
 ### 4. Connect that exact profile to Postiz
 
 - Use the normal Postiz account connection after the exact profile is live.
 - Read back `/public/v1/integrations`; require the matching Instagram profile, stable integration ID, and `disabled=false`; update the single account registry row and English eBook pack with that ID.
+- Do not reuse English TikTok integration `cmo5rwq2p00twn10yrsdglng3` or historical Instagram integration IDs.
 - **Completion evidence:** Postiz official GET and the registry point to the same English Monk profile and enabled integration.
 
 ### 5. Install the owner on the current revenue admission policy
 
 - Build only a main-derived immutable release containing this owner and the `priority=revenue` 512 MiB floor. When `~/loops/current` points to that release, inspect target status and the apply lock, then run `LIFE_MANAGER_APPLY_TARGET=ebook-en-instagram-daily ~/loops/current/bin/lm-loop apply --loaded-idle-only`; verify the one-owner result, loaded SHA, and argv. Do not pass `--all`, delete open/protected paths, or stop/restart the active release reconciler.
 - If the shared release reconciler moves `~/loops/current` first, read back its release SHA and use the same owner-targeted apply only after the apply lock is free.
+- The current disk read is above the 512 MiB owner floor, so 2 GiB cleanup is not an eBook prerequisite. Keep the account fail-closed until phone verification, warmup, and Postiz binding are complete.
 - **Completion evidence:** installed release SHA/argv match `main`, the owner is registered and eligible, and host admission reports no deferral. The 2 GiB legacy English TikTok fence is separate.
 
 ### 6. Publish the exact Hadrian video once
 
-- Use the canonical English Instagram owner and Postiz adapter. Reuse an exact completed render receipt; do not call HeyGen create for that asset.
-- Require fresh target integration pre-readback, one owner occurrence, and duplicate protection. Do not replay an uncertain effect.
+- First check whether the exact Hadrian asset has a canonical eBook render receipt. The current owner accepts only its matching `ebook-run.*` receipt for manual-slot reuse; it does not import an arbitrary old MP4.
+- If the asset is outside canonical state, implement only the minimal owner-scoped import path in `apps/life-manager/scripts/ebook-distribute-daily.js`, reusing `createMarketingVideoPublicationLoopAdapter` and the existing publication receipt/identity checks. Add a focused contract to `apps/life-manager/scripts/ebook-distribute-daily.test.js`; verify with `node --test apps/life-manager/scripts/ebook-distribute-daily.test.js`. The imported record must bind the exact script, HeyGen ID, MP4 SHA, cost receipt, English Monk profile, caption, and one-off publication identity.
+- Once the account is warmed and Postiz reads back the exact enabled Instagram profile, publish the exact asset immediately through this durable Postiz path. Do not wait for the next 08:00/14:00/21:00 slot and do not replay an uncertain effect.
 - **Completion evidence:** Postiz `PUBLISHED`, matching integration/profile, provider receipt ID, native Reel URL, matching MP4 hash, and durable local receipt.
 
 ### 7. Prove three posts per day, then close the revenue loop
 
-- Verify the natural 08:00, 14:00, and 21:00 JST slots each produce one unique `PUBLISHED` receipt and public URL for English Monk Instagram.
+- After the Hadrian one-off, apply/start only `ebook-en-instagram-daily` from a main-derived release. Verify the natural 08:00, 14:00, and 21:00 JST slots each produce one unique `PUBLISHED` receipt and public URL for English Monk Instagram; each slot renders a fresh approved baseline clip.
 - Verify each paid `$10.99` eBook order against its delivered PDF. Connect optional `$9.99/month` Daily Anicca Letter enrollment and count only active paid subscriptions from current Stripe readback.
-- **Completion evidence:** three unique official post receipts per day; separately reconciled paid orders/PDFs and active paid subscriptions. `$10K` gross MRR is a target requiring 1,002 active `$9.99/month` subscribers, not a promised result.
+- Reconcile net monthly recurring earnings as active paid Letter revenue minus Stripe fees/refunds and actual recurring HeyGen, email, and API costs. At $9.99/month, 1,002 subscribers make $10,009.98 gross MRR only; use the measured net margin to calculate the active subscriber count for the $10K bank-net goal.
+- **Completion evidence:** three unique official post receipts per day; separately reconciled paid orders/PDFs, active paid subscriptions, and net recurring contribution. No current $10K revenue claim until official receipts support it.
 
 ## Current cursor
 
-`identify the exact unpublished Hadrian clip (current completed English clip does not match) → finish owner phone verification and warmup → bind Postiz to that exact profile → wait for a main-derived release and apply only ebook-en-instagram-daily through LIFE_MANAGER_APPLY_TARGET → publish once with receipt → verify three natural posts/day → reconcile paid eBook/PDF and optional Letter MRR`. The English TikTok fence remains separate; do not retry it as part of Instagram work.
+`parallel: receive exact Hadrian video ID/file and reconnect the selected iPhone → complete phone verification, start seven-day warmup, and bind the exact Instagram profile in Postiz → add the one-off import receipt path only if the video is outside canonical render state → build a main-derived release and apply only ebook-en-instagram-daily with LIFE_MANAGER_APPLY_TARGET → publish Hadrian immediately with one official Postiz receipt → run fresh approved clips at 08:00/14:00/21:00 JST → reconcile paid eBook/PDF and net Letter subscription contribution`. Current blockers: exact Hadrian asset, phone verification, Postiz profile binding, and production release adoption. English TikTok remains separate.
