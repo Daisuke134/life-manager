@@ -261,7 +261,9 @@ def load_health_snapshot() -> dict:
         cwd=ROOT,
         text=True,
         capture_output=True,
-        timeout=40,
+        # 9s on an idle host, but >40s under load (load average 17, 2026-10-08): a 40s limit
+        # made every snapshot time out and all 187 jobs read as telemetry_gap.
+        timeout=int(os.environ.get("LIFE_MANAGER_HEALTH_SNAPSHOT_TIMEOUT", "180")),
         check=False,
     )
     if result.returncode not in {0, 1}:
@@ -286,9 +288,16 @@ def main() -> int:
             "detail": str(error)[:200],
         }, sort_keys=True))
         return 1
-    print(json.dumps({
+    summary = {
         key: value for key, value in result.items() if key != "recovery_intents"
-    } | {"recovery_intent_count": len(result["recovery_intents"])}, sort_keys=True))
+    } | {"recovery_intent_count": len(result["recovery_intents"])}
+    try:  # outcome freshness of the money loops; never allowed to break the observer
+        from runtime.loop import money_liveness
+        home = state_root.parent
+        summary["money_liveness"] = money_liveness.run(home, state_root)
+    except Exception as error:  # noqa: BLE001
+        summary["money_liveness"] = {"error": str(error)[:200]}
+    print(json.dumps(summary, sort_keys=True))
     return 0
 
 
