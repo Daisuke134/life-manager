@@ -10082,3 +10082,23 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 6. [ ] **A10 seven-day acceptance:** 修正後の自然なCFO reportを7日連続で、同じoccurrenceのB7/runtime/provider receipt・period/currency・coverage/freshness・duplicate resolution・replay-zeroと突合する。7日間のうち1日でもreceipt/period/coverageに欠落があればその日の原因を記録して連続countをやり直す。全社actualやUSD `10K` MRRはsource coverageが閉じるまで未確認として報告する。
 
 **現在cursor:** duplicate occurrence receipt trace → A6 Google cash/usage attribution → A8 all-loop/job actual coverage → A9 source-period reporting → A10 seven-day natural acceptance。**非blocking:** CFO ownerの新release自然adoptionとauthenticated panel表示。**対象外:** Money Tree/personal cash、Cloud API置換・削減。CFO基盤の完成は正確な計測・報告であり、USD `10K` MRR達成自体はその後の各revenue agentの成長作業。
+
+### 2026-10-09 08:28 JST — duplicate report receipt proof verified; cursor advances to Google cash/usage
+
+このsnapshotはcurrent immutable releaseのCFO専用reconcilerを使い、`life-manager-cfo-hourly:18dcaff67a1fd568-63133`を再検証した結果を記録する。
+
+- `python3 ~/loops/current/skills/cfo/effect_reconcile.py --occurrence-id life-manager-cfo-hourly:18dcaff67a1fd568-63133`は`verified=true`、`proof_type=pre_effect`、`resolution_kind=duplicate`、`delivery_counters=0/0/0/0`、provider message `105585`を返した。outboxの配信時刻`2026-10-08T22:50:42.521099Z`は対象run開始`2026-10-08T22:57:04.949468Z`より前で、terminal event ID `84dc0b13c501e0b98fdde1e8`に結び付く。`official_readback_ref=telegram-outbox://event/82d06af6845a415605306da8510cd05d1278872fea8e1fd9acdfd92a28501e66/d364d56b7154dbb46c2f90ef6a181f5606a976fbf0acb545632a245ee26ed1e9`。
+- 対象occurrenceはすでにadmission `released` / `effect_unknown=0`だったため、reconcilerの状態は`PROOF_READY`。DBやappend-only runtime eventは変更していない。runtime eventの`effect_status=unknown`はそのまま残るが、今は同じoccurrence・terminal event・先行provider receiptを検証したproof refがこのSSOTに保存された。二重送信はなく、再送していない。
+- 共通`lm-loop pre-effect-reconcile --dry-run`が空結果だったのは、このoccurrenceにactive admission fenceがなかったため。これは失敗ではなく、CFO report専用reconcilerで同じoccurrenceの証跡を検証する必要があった。
+
+**順序更新と理由:** 旧cursor=`duplicate occurrence receipt proof → A6 Google cash/usage trace → A8 → A9 → A10`。新cursor=`(1) 完了: duplicate occurrenceのCFO専用pre-effect proofを検証し、receipt refをSSOTに保持 → (2) 現在: Google 2026-09 billed amountのcash-paid statusを公式決済証拠で確認 → (3) A6 9,042 Google usage eventsのloop/owner traceを閉じる → (4) A8 all-loop/job actual coverage → (5) A9 source-period reporting → (6) A10 seven-day natural acceptance`。完了証拠が`verified=true`かつexact terminal event/provider ID/time-boundなので、receipt-trace cursorを閉じた。`effect_status=unknown`の過去event本文はappend-onlyのため書き換えない。
+
+**Remaining atomic TODO（この順）:**
+
+1. [ ] **A6 cash readback:** Google Billingの2026-09 payment activity/transaction receipt（必要なら該当statementの当該取引）でJPY `27,889`のcash-paid status、日付、receipt IDを確認し、`skills/cfo/adapters/google_cost_table.py`のreadbackへ記録する。公式決済証拠が見つからない場合は`cash_paid=unknown`のままにする。Money Treeは使わない。
+2. [ ] **A6 usage trace:** PR #6847はOPEN/DRAFTでproduction証拠ではない。所有者とbranchをreadbackしてから、`apps/life-manager/lib/usage-event.js::usageRuntimeEnv`を起点にGoogle Maps/Places・Gemini/grounding producerが`loop_id`、`owner_id`、occurrence/runtime traceをusage eventへ渡す経路を閉じる。対象testsは`apps/life-manager/lib/usage-event.test.js`、`apps/life-manager/lib/ask-usage.test.js`、`apps/life-manager/lib/gemini-usage.test.js`。traceのない行は`unattributed`のままにし、invoice比率で配賦しない。
+3. [ ] **A8 complete coverage:** 最新の`config/loop-registry.json`と`apps/life-manager/config/product-loop-catalog.json`からloops/jobs/mapped inventoryを更新し、各business loopのsettled revenue、refund、platform fee、API/model/tool/infra billed costをofficial receiptまたはsource-backed verified-zero windowへ結ぶ。unmapped jobsを根拠付きでloopまたはshared/control/platform overheadへ分類する。現時点のgap 173/168/26をゼロ扱いせず、残gapがあれば全社値は`unknown`。
+4. [ ] **A9 truthful source-period report:** `skills/cfo/loop_pnl.py::main`で`--date YYYY-MM-DD`の日別集計をJST `[00:00, 次日00:00)`へ限定し、既存`collect(day, loops)`/`build_table()`を活用する。`skills/cfo/test_loop_pnl.py`に当日23:59 JSTは含む・翌日00:00 JSTは除外する境界とCLI出力の回帰testを追加し、`python3 -m unittest skills.cfo.test_loop_pnl`で確認する。daily/MTD/trailing/MRRと、loop別/全社のsettled revenue、refund/fees、billed expense、cash paid、net、currency、freshness、coverage、unknownを区別する。
+5. [ ] **A10 seven-day acceptance:** 自然なCFO reportを7日連続で、same-occurrence B7/runtime/provider receipt、period/currency、coverage/freshness、duplicate reconciliation proof、replay-zeroと突合する。1日でも欠落した場合はその日の原因を記録して連続countをやり直す。全社actualやUSD `10K` MRRはcoverageが閉じるまで未確認として報告する。
+
+**現在cursor:** A6 Google cash readback → A6 usage trace → A8 all-loop/job actual coverage → A9 source-period reporting → A10 seven-day natural acceptance。Money Tree/personal cashとCloud API置換・削減は対象外。
