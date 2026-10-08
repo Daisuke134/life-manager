@@ -48,7 +48,6 @@ def test_worker_recovers_ambiguous_note_then_repairs_same_key(
     gates.mkdir(parents=True)
     for name in ("article-resume-pending.sh", "resume_failure_circuit.py"):
         shutil.copy(ROOT / "scripts" / name, scripts)
-    shutil.copy(ROOT / "scripts" / "writer_capacity_floor.py", scripts)
     for name in ("publication_remote.py", "publication_resume.py"):
         shutil.copy(ROOT / "scripts" / name, scripts)
     shutil.copy(ROOT / "scripts" / "article_adoption_selection.py", scripts)

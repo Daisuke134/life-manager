@@ -79,7 +79,6 @@ from pathlib import Path
 RECOVERY_FLOOR_BYTES = 2 * 1024**3
 _POLICY_FLAGS = (
     ("disk-writers.stop", "disk_writers_stop"),
-    ("disk-pressure.block", "disk_pressure_block"),
 )
 
 def _host_state_dir():
@@ -87,14 +86,8 @@ def _host_state_dir():
     return Path(configured) if configured else Path.home() / ".local/state/life-manager/state"
 
 def _producer_gate():
-    ignored = {
-        "disk-writers.stop": os.environ.get("LIFE_MANAGER_IGNORE_DISK_WRITERS_STOP") in {"1", "true", "yes"},
-        "disk-pressure.block": os.environ.get("LIFE_MANAGER_IGNORE_DISK_PRESSURE_BLOCK") in {"1", "true", "yes"},
-    }
     host_state = _host_state_dir()
     for filename, reason in _POLICY_FLAGS:
-        if ignored[filename]:
-            continue
         try:
             info = (host_state / filename).lstat()
         except FileNotFoundError:
@@ -187,15 +180,21 @@ assert_no_self_fix_attempt(){
   assert_no_self_fix_markers "$home" "$loop"
 }
 
-echo "(G) finite SelfFix admission rejects low/unknown/host flags before effects"
+echo "(G) finite SelfFix admission ignores low space but honors unknown/explicit stop"
 GATE_FLOOR=$((11 * 1024 * 1024 * 1024))
 LOW_HOME="$D_RUNTIME/low-home"; prepare_self_fix_home "$LOW_HOME" "$((GATE_FLOOR-1))"
+: > "$LOW_HOME/.local/state/life-manager/state/disk-pressure.block"
 LOW_OUT="$(run_fake_self_fix "$LOW_HOME" gate-low \
   LIFE_MANAGER_IGNORE_DISK_WRITERS_STOP=1 LIFE_MANAGER_IGNORE_DISK_PRESSURE_BLOCK=1 \
   LIFE_MANAGER_DISK_HEADROOM_KIB=1 2>&1)"; LOW_RC=$?
-a "low headroom is typed as deferred" "$LOW_OUT" 'disk_headroom_low'
-eq "low headroom exits deferred" "$LOW_RC" '75'
-assert_no_self_fix_attempt "$LOW_HOME" gate-low
+ne "low headroom does not create a disk blocker" "$LOW_OUT" 'disk_headroom_low'
+eq "low headroom still runs SelfFix" "$LOW_RC" '0'
+LOW_WAIT=0
+while [ "$LOW_WAIT" -lt 100 ] && [ ! -f "$LOW_HOME/observed-runtime.env" ]; do
+  sleep 0.05
+  LOW_WAIT=$((LOW_WAIT+1))
+done
+eq "low headroom runs the agent" "$([ -f "$LOW_HOME/observed-runtime.env" ] && echo present || echo absent)" present
 
 UNKNOWN_HOME="$D_RUNTIME/unknown-home"; prepare_self_fix_home "$UNKNOWN_HOME" unknown
 UNKNOWN_OUT="$(run_fake_self_fix "$UNKNOWN_HOME" gate-unknown 2>&1)"; UNKNOWN_RC=$?
@@ -203,13 +202,11 @@ a "unknown capacity fails closed" "$UNKNOWN_OUT" 'disk_headroom_unavailable'
 eq "unknown capacity exits deferred" "$UNKNOWN_RC" '75'
 assert_no_self_fix_attempt "$UNKNOWN_HOME" gate-unknown
 
-for flag in disk-writers.stop disk-pressure.block; do
+for flag in disk-writers.stop; do
   FLAG_HOME="$D_RUNTIME/flag-${flag##*.}-$flag"; prepare_self_fix_home "$FLAG_HOME" "$((16*1024*1024*1024))"
   : > "$FLAG_HOME/.local/state/life-manager/state/$flag"
   if [ "$flag" = "disk-writers.stop" ]; then
     ignore_name=LIFE_MANAGER_IGNORE_DISK_WRITERS_STOP; reason=disk_writers_stop; loop=gate-stop
-  else
-    ignore_name=LIFE_MANAGER_IGNORE_DISK_PRESSURE_BLOCK; reason=disk_pressure_block; loop=gate-pressure
   fi
   FLAG_OUT="$(run_fake_self_fix "$FLAG_HOME" "$loop" "$ignore_name=1" \
     LIFE_MANAGER_DISK_HEADROOM_KIB=1 2>&1)"; FLAG_RC=$?
@@ -221,10 +218,10 @@ done
 DROP_HOME="$D_RUNTIME/drop-home"; prepare_self_fix_home "$DROP_HOME" "$((16*1024*1024*1024))"
 DROP_OUT="$(run_fake_self_fix "$DROP_HOME" gate-drop-after-browser \
   SELF_FIX_TEST_DROP_AFTER_BROWSER=1 SELF_FIX_TEST_DROP_BYTES="$((GATE_FLOOR-1))" 2>&1)"; DROP_RC=$?
-a "capacity is rechecked before markers and agent spawn" "$DROP_OUT" 'disk_headroom_low'
-eq "post-browser low capacity exits deferred" "$DROP_RC" '75'
+ne "post-browser low capacity does not block agent spawn" "$DROP_OUT" 'disk_headroom_low'
+eq "post-browser low capacity still runs SelfFix" "$DROP_RC" '0'
 eq "preflight may ensure browser only after first pass" "$(cat "$DROP_HOME/ensure-browser.calls" 2>/dev/null | wc -l | tr -d ' ')" '1'
-assert_no_self_fix_markers "$DROP_HOME" gate-drop-after-browser
+eq "post-browser low capacity runs the agent" "$([ -f "$DROP_HOME/observed-runtime.env" ] && echo present || echo absent)" present
 
 HELD_HOME="$D_RUNTIME/held-home"; prepare_self_fix_home "$HELD_HOME" "$((16*1024*1024*1024))"
 HELD_LOOP=gate-held; HELD_CANONICAL="$HELD_LOOP-loop"

@@ -6,7 +6,8 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import shutil
+import pwd
+import stat
 import sys
 from pathlib import Path
 
@@ -17,34 +18,29 @@ from publication_resume import (
     PublicationStore,
 SUPPORTED_PAIRS,
 )
-from writer_capacity_floor import (
-    CapacityFloorError,
-    resolve_disk_floor_bytes,
-)
 
 
-def assert_disk_headroom() -> None:
-    """Keep every external publication boundary on Coconala's disk floor."""
-    state_path = os.environ.get("ARTICLE_PUBLICATION_STATE", "")
-    state_dir = os.environ.get("ARTICLE_STATE_DIR", "")
-    if state_path:
-        state_root = Path(state_path).parent
-    elif state_dir:
-        state_root = Path(state_dir)
-    else:
-        raise InvariantError("managed_publication_state_required")
+def assert_disk_writer_stop() -> None:
+    """Honor the canonical explicit stop before managed publication."""
+    canonical_home = Path(pwd.getpwuid(os.getuid()).pw_dir)
+    control_dir = canonical_home / ".local" / "state" / "life-manager" / "state"
     try:
-        available = shutil.disk_usage(state_root).free
+        root = control_dir.lstat()
     except OSError as error:
-        raise InvariantError("disk_headroom_unavailable") from error
+        raise InvariantError("disk_control_state_unavailable") from error
+    if (not stat.S_ISDIR(root.st_mode) or control_dir.is_symlink()
+            or root.st_uid != os.getuid() or root.st_mode & (stat.S_IWGRP | stat.S_IWOTH)):
+        raise InvariantError("disk_control_state_unsafe")
+    flag = control_dir / "disk-writers.stop"
     try:
-        required = resolve_disk_floor_bytes(Path(state_dir) if state_dir else state_root)
-    except CapacityFloorError as error:
-        raise InvariantError(str(error)) from error
-    if available < required:
-        raise InvariantError(
-            f"disk_headroom_low available={available} required={required}"
-        )
+        entry = flag.lstat()
+    except FileNotFoundError:
+        return
+    except OSError as error:
+        raise InvariantError("disk_control_state_unavailable") from error
+    if not stat.S_ISREG(entry.st_mode):
+        raise InvariantError("disk_control_state_unsafe")
+    raise InvariantError("disk_writers_stop")
 
 
 def store_from_env(*, validate_boundary: bool = True) -> PublicationStore:
@@ -151,9 +147,7 @@ def main() -> int:
     manual.add_argument("--pair", required=True, choices=SUPPORTED_PAIRS)
     args = parser.parse_args()
     if args.command == "preflight" and managed_article_context():
-        # Check the real publication filesystem before PublicationStore can
-        # validate/repair a primary state file from its backup.
-        assert_disk_headroom()
+        assert_disk_writer_stop()
     if args.command in {"quarantine-identity-conflict", "migrate-substack-en-identity"}:
         # This is the one migration command whose purpose is to repair the
         # legacy equal-identity boundary; the method itself performs the
