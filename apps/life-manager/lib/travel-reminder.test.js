@@ -185,6 +185,14 @@ test("origin precedence is fresh live location, previous venue within 90m, then 
   assert.deepEqual(resolveReminderOrigin(current, { events: [previous, current], liveLocation: expired, home: HOME, nowMs: NOW }), {
     kind: "previous", value: "東京駅",
   });
+  const stale = { ...fresh, observedAtMs: NOW - 120_001 };
+  assert.deepEqual(resolveReminderOrigin(current, { events: [previous, current], liveLocation: stale, home: HOME, nowMs: NOW }), {
+    kind: "previous", value: "東京駅",
+  });
+  const invalid = { ...fresh, latitude: 91 };
+  assert.deepEqual(resolveReminderOrigin(current, { events: [previous, current], liveLocation: invalid, home: HOME, nowMs: NOW }), {
+    kind: "previous", value: "東京駅",
+  });
   const far = { ...previous, endMs: START - 2 * 60 * 60 * 1000 };
   assert.deepEqual(resolveReminderOrigin(current, { events: [far, current], home: HOME, nowMs: NOW }), {
     kind: "home", value: HOME,

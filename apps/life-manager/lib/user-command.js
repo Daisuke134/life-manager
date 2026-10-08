@@ -3,6 +3,7 @@
 const crypto = require("node:crypto");
 const { DEFAULTS: RUNTIME_DEFAULTS } = require("./runtime-preferences.js");
 const { normalizePhone } = require("./telegram-onboard.js");
+const { inspectTelegramLiveLocation } = require("./live-location.js");
 
 const BOOLEAN_SETTINGS = new Set(["call_enabled", "notifications_enabled", "daily_automation_enabled"]);
 const USER_SETTINGS = new Set(["call_language", "wake_policy"]);
@@ -126,7 +127,7 @@ async function buildControlCenter(scope, deps = {}) {
   const prefs = { ...RUNTIME_DEFAULTS, call_time_zone: "Asia/Tokyo", ...(await store.readPreferences(scope)) };
   delete prefs.delegation_enabled;
   const location = await store.readLocation(scope);
-  const locationLive = Boolean(location && (!location.expires_at || Date.parse(location.expires_at) > (deps.nowMs == null ? Date.now() : deps.nowMs)));
+  const locationLive = inspectTelegramLiveLocation(location, deps.nowMs == null ? Date.now() : deps.nowMs).fresh;
   let calendarState = user.calendar_provider === "composio_gcal" ? "ACTIVE" : "INACTIVE";
   try { if (deps.calendarStatus) calendarState = await deps.calendarStatus(scope); }
   catch { calendarState = "ERROR"; }

@@ -6,6 +6,7 @@ const { isHelperBlock } = require("./wake-filter.js");
 const { shouldMarkAnswered } = require("./answered.js");
 const { recordTelnyxWakeReceipt, recordTelnyxWakeOutcome } = require("./telnyx-receipt.js");
 const { resolveLateRecipients } = require("./late-recipient-resolver.js");
+const { inspectTelegramLiveLocation } = require("./live-location.js");
 const {
   createLateDraft,
   createLateApprovalCallbackData,
@@ -33,8 +34,8 @@ function escapeTelegramHtml(value) {
 
 function evaluateLateArrival({ nowMs, event, travelMinutes, location }) {
   if (!location) return { decision: "location_missing" };
-  const expiresMs = Date.parse(location.expires_at || location.expiresAt || "");
-  if (!Number.isFinite(expiresMs) || expiresMs <= nowMs) return { decision: "location_expired" };
+  const freshness = inspectTelegramLiveLocation(location, nowMs);
+  if (!freshness.fresh) return { decision: freshness.reason === "missing" ? "location_missing" : `location_${freshness.reason}` };
   if (!event || !Number.isFinite(event.startMs)) return { decision: "no_event" };
   if (!Number.isFinite(travelMinutes) || travelMinutes < 0) return { decision: "route_unavailable" };
   const arrivalMs = nowMs + travelMinutes * 60_000;
@@ -313,7 +314,7 @@ async function processLocationLateNotice(input, deps = {}) {
   const candidates = (input.events || []).filter((candidate) => candidate && !isHelperBlock(candidate.summary) &&
     candidate.location && Number.isFinite(candidate.startMs));
   const gate = evaluateLateArrival({ nowMs, event: candidates[0] || null, travelMinutes: null, location: input.location });
-  if (["location_missing", "location_expired", "no_event"].includes(gate.decision)) return gate;
+  if (gate.decision !== "route_unavailable") return gate;
 
   // A meeting we already acted on must not hide the rest of the day. Seen in production 2026-07-25:
   // an all-day located event was claimed in the morning and ran until evening, so every later event
@@ -396,10 +397,7 @@ function supaHeaders(key, prefer) {
 
 async function upsertLiveLocation(uid, location, opts = {}) {
   const f = opts.fetchImpl || fetch;
-  if (!opts.supaUrl || !opts.supaKey || !uid || !location ||
-      !Number.isFinite(location.latitude) || !Number.isFinite(location.longitude) ||
-      !Number.isFinite(location.observedAtMs) || !Number.isFinite(location.expiresAtMs) ||
-      location.expiresAtMs <= location.observedAtMs) return false;
+  if (!opts.supaUrl || !opts.supaKey || !uid || !location || !inspectTelegramLiveLocation(location, opts.nowMs).fresh) return false;
   const response = await f(`${opts.supaUrl}/rest/v1/lm_user_locations?on_conflict=uid`, {
     method: "POST",
     headers: supaHeaders(opts.supaKey, "resolution=merge-duplicates,return=minimal"),
@@ -419,12 +417,43 @@ async function upsertLiveLocation(uid, location, opts = {}) {
 async function getLiveLocation(uid, nowMs = Date.now(), opts = {}) {
   const f = opts.fetchImpl || fetch;
   if (!opts.supaUrl || !opts.supaKey || !uid) return null;
-  const url = `${opts.supaUrl}/rest/v1/lm_user_locations?uid=eq.${encodeURIComponent(uid)}&select=uid,latitude,longitude,observed_at,expires_at&limit=1`;
+  const params = new URLSearchParams({
+    uid: `eq.${uid}`,
+    select: "uid,latitude,longitude,telegram_message_id,observed_at,expires_at",
+    limit: "1",
+  });
+  const url = `${opts.supaUrl}/rest/v1/lm_user_locations?${params}`;
   const response = await f(url, { headers: supaHeaders(opts.supaKey) }).catch(() => null);
   if (!response || !response.ok) return null;
   const rows = await response.json().catch(() => []);
   const row = Array.isArray(rows) && rows[0] ? rows[0] : null;
-  return row && Date.parse(row.expires_at) > nowMs ? row : null;
+  if (!row) return null;
+  const freshness = inspectTelegramLiveLocation(row, nowMs);
+  if (!freshness.fresh) {
+    await deleteObservedLiveLocation(uid, row, opts);
+    return null;
+  }
+  return row;
+}
+
+async function deleteObservedLiveLocation(uid, location, opts = {}) {
+  const f = opts.fetchImpl || fetch;
+  if (!opts.supaUrl || !opts.supaKey || !uid || !location) return null;
+  const params = new URLSearchParams({
+    uid: `eq.${uid}`,
+    latitude: `eq.${location.latitude}`,
+    longitude: `eq.${location.longitude}`,
+    telegram_message_id: `eq.${String(location.telegram_message_id || "")}`,
+    observed_at: `eq.${location.observed_at}`,
+    expires_at: `eq.${location.expires_at}`,
+    select: "uid,latitude,longitude,telegram_message_id,observed_at,expires_at",
+  });
+  const response = await f(`${opts.supaUrl}/rest/v1/lm_user_locations?${params}`, {
+    method: "DELETE", headers: supaHeaders(opts.supaKey, "return=representation"),
+  }).catch(() => null);
+  if (!response || !response.ok) return null;
+  const rows = await response.json().catch(() => null);
+  return Array.isArray(rows) ? { deleted: rows.length } : null;
 }
 
 // /stop (spec §12.1 row 4): the user's manual disconnect. The uid filter is the tenant boundary — an

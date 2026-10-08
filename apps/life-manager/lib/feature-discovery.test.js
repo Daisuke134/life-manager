@@ -21,13 +21,17 @@ const NOW = Date.parse("2026-07-21T00:00:00.000Z");
 test("LM-32: location and payout gates distinguish missing, expired, fresh, and registered states", () => {
   assert.deepEqual(lockedDiscoveryGates({ location: null, payoutDestination: null }, NOW), ["location", "payout"]);
   assert.deepEqual(lockedDiscoveryGates({
-    location: { expires_at: new Date(NOW).toISOString() },
+    location: { latitude: 35, longitude: 139, observed_at: new Date(NOW - 1000).toISOString(), expires_at: new Date(NOW).toISOString() },
     payoutDestination: null,
   }, NOW), ["location", "payout"], "expiry at now is closed");
   assert.deepEqual(lockedDiscoveryGates({
-    location: { expires_at: new Date(NOW + 1).toISOString() },
+    location: { latitude: 35, longitude: 139, observed_at: new Date(NOW - 1000).toISOString(), expires_at: new Date(NOW + 1).toISOString() },
     payoutDestination: { type: "wallet", address: "0xtest" },
   }, NOW), [], "fresh location and any persisted payout destination are unlocked");
+  assert.deepEqual(lockedDiscoveryGates({
+    location: { latitude: 35, longitude: 139, observed_at: new Date(NOW - 120_001).toISOString(), expires_at: new Date(NOW + 60_000).toISOString() },
+    payoutDestination: null,
+  }, NOW), ["location", "payout"], "an unexpired but stale location stays locked");
 });
 
 test("LM-32: seven-day throttle includes the exact boundary and rejects future timestamps", () => {
@@ -88,7 +92,10 @@ test("LM-32: user run sends one due locked gate and persists only after Telegram
 
   const unlocked = await runDiscoveryForUser({ ...user, payout_destination: { type: "wallet" } }, NOW, {
     token: "t",
-    getLiveLocation: async () => ({ expires_at: new Date(NOW + 60_000).toISOString() }),
+    getLiveLocation: async () => ({
+      latitude: 35, longitude: 139,
+      observed_at: new Date(NOW - 1000).toISOString(), expires_at: new Date(NOW + 60_000).toISOString(),
+    }),
     sendMessage: async () => { throw new Error("unlocked gates must never send"); },
     saveDiscovery: async () => { throw new Error("unlocked gates must never persist"); },
   });
