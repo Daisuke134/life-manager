@@ -1157,6 +1157,36 @@ def sweep_historical_no_dispatch(
             "kept": kept, "resolved": resolved, "applied": bool(apply)}
 
 
+DEFAULT_MARKETING_ENV = Path.home() / ".local/state/life-manager/private/marketing.env"
+_KEY_LINE = re.compile(r"^(?:export\s+)?LM_POSTIZ_API_KEY=(?P<v>'[^'\n]*'|\"[^\"\n]*\"|[^\s'\"$`\\]+)\s*$")
+
+
+def _postiz_api_key(env_file: Path | None = None) -> str:
+    """The Postiz key: the environment first, else one exact line of marketing.env.
+
+    The fence reconciler runs this adapter without the key that mobile-app loads from
+    marketing.env, so every readback failed closed and the backlog never drained (2026-10-09).
+    The file is parsed, never sourced, and only if it is a private regular file we own.
+    """
+    key = os.environ.get("POSTIZ_API_KEY") or os.environ.get("LM_POSTIZ_API_KEY", "")
+    if key:
+        return key
+    path = Path(env_file) if env_file is not None else DEFAULT_MARKETING_ENV
+    try:
+        info = path.stat()
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
+                or info.st_mode & 0o077):
+            return ""
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return ""
+    for line in lines:
+        match = _KEY_LINE.match(line.strip())
+        if match:
+            return match.group("v").strip("'\"")
+    return ""
+
+
 def reconcile_pending_owner(
     *, owner_id: str, identity_dir: Path, data_dir: Path, tenant_id: str,
     admission_db: Path, api_key: str, apply: bool,
@@ -1384,11 +1414,11 @@ def main(argv: list[str] | None = None) -> int:
         if args.historical_no_dispatch:
             result = sweep_historical_no_dispatch(
                 args.auto_owner, identity_dir=args.identity_dir, admission_db=args.admission_db,
-                api_key=os.environ.get("POSTIZ_API_KEY") or os.environ.get("LM_POSTIZ_API_KEY", ""),
+                api_key=_postiz_api_key(),
                 apply=args.resolve, max_items=max(1, args.historical_max_items))
             print(json.dumps(result, ensure_ascii=False, sort_keys=True))
             return 0 if result.get("status") in {"clean", "resolved", "swept"} else 1
-        api_key = os.environ.get("POSTIZ_API_KEY") or os.environ.get("LM_POSTIZ_API_KEY", "")
+        api_key = _postiz_api_key()
         runtime_scope = _runtime_occurrence_scope(args.auto_owner, args.occurrence_id)
         if runtime_scope is None:
             result = reconcile_pending_owner(
