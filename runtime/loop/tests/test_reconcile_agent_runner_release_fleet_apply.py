@@ -937,6 +937,33 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             self.assertEqual(state["status"], "partial")
             self.assertIn("budget exceeded", state["message"])
 
+    def test_budget_exceeded_with_progress_retries_soon_not_after_the_full_backoff(self):
+        # Each pass ran out of budget after 60-86 owners and then waited 30 minutes; a newer sha
+        # arrived first, so the fleet never converged and GC could free no generation.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha = self._make_repo(root)
+            release_dir = self._make_release(
+                root,
+                sha,
+                loop_ids=("first-earn", "second-earn"),
+                entry_overrides={
+                    "first-earn": {"domain": "earn", "priority": "revenue"},
+                    "second-earn": {"domain": "earn", "priority": "revenue"},
+                },
+            )
+            self._activate(root, release_dir)
+            env = self._base_env(root, repo, calls_log=root / "calls.log", apply_mode="slow_first")
+            env["FAKE_SLOW_LOOP_ID"] = "first-earn"
+            env["LIFE_MANAGER_FLEET_APPLY_TIMEOUT_SECONDS"] = "4"
+            env["LIFE_MANAGER_FLEET_APPLY_PER_OWNER_TIMEOUT_SECONDS"] = "3"
+            env["LIFE_MANAGER_FLEET_APPLY_CONTINUE_SECONDS"] = "30"
+
+            self._run(env)
+            state = self._state(root)
+            self.assertEqual(state["status"], "partial")
+            self.assertLess(state["next_retry_epoch"], time.time() + 60)
+
     def test_partial_apply_honors_backoff_before_same_release_retry(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
