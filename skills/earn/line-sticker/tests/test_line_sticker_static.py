@@ -177,6 +177,39 @@ class TextBearingVariant(unittest.TestCase):
         self.assertNotEqual(plain.tobytes(), lettered.tobytes())
         self.assertEqual(alpha.getpixel((0, 0)), 0)  # still transparent outside the art + lettering
 
+    def test_black_background_is_keyed_out_like_green(self) -> None:
+        # set-014 (2026-10-08): the image model returned some stickers on black instead of the
+        # requested chroma green; 30% of the art box shipped as opaque black.
+        from PIL import Image
+        art = Image.new("RGB", (512, 512), (0, 0, 0))
+        art.paste((200, 120, 60), (150, 120, 360, 400))
+        out = STATIC._fit_sticker(art)
+        alpha = out.getchannel("A")
+        self.assertEqual(alpha.getpixel((0, 0)), 0)
+        bbox = alpha.getbbox()
+        sub = out.crop(bbox)
+        pixels = list(sub.getdata())
+        black_opaque = sum(1 for r, g, b, a in pixels if a > 200 and r < 12 and g < 12 and b < 12)
+        self.assertLess(black_opaque / len(pixels), 0.02)
+
+    def test_candidate_with_an_opaque_black_box_is_flagged_for_regeneration(self) -> None:
+        from PIL import Image
+        with tempfile.TemporaryDirectory() as tmp:
+            boxed, clean = Path(tmp) / "boxed.png", Path(tmp) / "clean.png"
+            Image.new("RGBA", (100, 100), (0, 0, 0, 255)).save(boxed)
+            art = Image.new("RGBA", (100, 100), (0, 0, 0, 0))
+            art.paste((200, 120, 60, 255), (20, 20, 80, 80))
+            art.save(clean)
+            self.assertTrue(STATIC._has_black_box(boxed))
+            self.assertFalse(STATIC._has_black_box(clean))
+
+    def test_green_background_still_keys_and_dark_art_is_kept(self) -> None:
+        from PIL import Image
+        art = Image.new("RGB", (512, 512), (0, 255, 0))
+        art.paste((30, 20, 20), (150, 120, 360, 400))  # dark brown art on a green screen
+        out = STATIC._fit_sticker(art)
+        self.assertGreater(out.getchannel("A").getbbox()[2] - out.getchannel("A").getbbox()[0], 100)
+
     def test_text_listing_title_marks_the_text_version_within_limit(self) -> None:
         listing = STATIC.mark_text_listing({"title": {"ja": "動く！ふわもちうさぎの毎日返事スタンプ", "en": "Fuwamochi Bunny Daily Replies"},
                                             "description": {"ja": "説明", "en": "desc"}})
