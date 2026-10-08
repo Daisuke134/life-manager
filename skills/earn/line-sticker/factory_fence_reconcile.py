@@ -2,16 +2,21 @@
 """Close one line-sticker-factory-hourly effect_unknown admission fence.
 
 Same decision shape as distribute_fence_reconcile.py / capafy_ig_fence_reconcile.py: one proof per
-occurrence, never a guess. The factory's only external effect is writing to LINE Creators Market
-(create the item, upload images, set tags, request review), and every one of those steps is
-recorded in the set's own ``creators-item.json`` (written by ``factory._submit`` right after each
-step). A run that touched LINE therefore leaves a creators-item.json newer than the run's start;
-a run that left none touched nothing external.
+occurrence, never a guess. The factory's only external effect is writing to LINE Creators Market (create the item, upload
+images, set tags, request review). ``factory._submit`` records those steps in the set's own
+``creators-item.json``, so the proof reads the fields only the factory writes, never file mtimes
+(the readback loop rewrites every set's creators-item.json, which would hold the fence forever):
 
-  - No ``creators-item.json`` under the state root was modified at or after the occurrence's
-    ``queued_at``, and enough time has passed: close as no-effect.
-  - Any such file (an item written after the run started) stays fenced: the run may have reached
-    LINE, and only the item's own status readback can say.
+  - ``created_at`` / ``review_requested_at`` at or after the occurrence's ``queued_at`` (ISO8601,
+    ``Z`` or naive = UTC): the run created the item or requested review.
+  - ``state`` in metadata_saved / images_uploaded / tagged: submission is mid-flight; uploads and
+    tagging leave no timestamp, only the state moves, so the run may have touched LINE.
+  - An unreadable creators-item.json cannot be excluded and counts as a hit.
+  - ``state_observed`` / ``purchase_url`` / ``store_public`` / ``last_auto_resubmit_at`` are written
+    by readback and are never evidence.
+
+  - No hit and enough time has passed: close as no-effect.
+  - Any hit stays fenced: only the item's own status readback can say.
 
 Usage:
     python3 factory_fence_reconcile.py --occurrence line-sticker-factory-hourly:<run_id> [--resolve]
@@ -37,9 +42,8 @@ OWNER_ID = "line-sticker-factory-hourly"
 MAX_RUN_SECONDS = 5400
 NO_EFFECT_MIN_AGE_SECONDS = 300
 STATE_ROOT = Path.home() / ".local/state/life-manager/line-sticker"
-# stage.json advances on every wake whether or not LINE was reached; only creators-item.json is written
-# after a LINE step (create, upload, tag, request), so it alone proves an external effect.
-TRACKED = ("creators-item.json",)
+MID_SUBMISSION_STATES = frozenset({"metadata_saved", "images_uploaded", "tagged"})
+FACTORY_TIME_FIELDS = ("created_at", "review_requested_at")
 
 
 def fenced_row(owner_id: str, occurrence_id: str) -> tuple[str, dt.datetime]:
@@ -57,13 +61,35 @@ def fenced_row(owner_id: str, occurrence_id: str) -> tuple[str, dt.datetime]:
     return str(row[0]), dt.datetime.fromtimestamp(float(row[1]), dt.timezone.utc)
 
 
+def _at_or_after(value: Any, since: dt.datetime) -> bool:
+    if not isinstance(value, str) or not value:
+        return False
+    try:
+        stamp = dt.datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return True  # an unparseable factory timestamp cannot be excluded
+    if stamp.tzinfo is None:
+        stamp = stamp.replace(tzinfo=dt.timezone.utc)
+    return stamp >= since
+
+
 def touched_since(state_root: Path, since: dt.datetime) -> list[str]:
     hits = []
     for set_dir in sorted(state_root.glob("set-*")):
-        for name in TRACKED:
-            path = set_dir / name
-            if path.exists() and dt.datetime.fromtimestamp(path.stat().st_mtime, dt.timezone.utc) >= since:
-                hits.append(f"{set_dir.name}/{name}")
+        path = set_dir / "creators-item.json"
+        if not path.exists():
+            continue
+        label = f"{set_dir.name}/{path.name}"
+        try:
+            item = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(item, dict):
+                raise ValueError("item is not an object")
+        except (OSError, ValueError):
+            hits.append(label)
+            continue
+        if item.get("state") in MID_SUBMISSION_STATES or any(
+                _at_or_after(item.get(field), since) for field in FACTORY_TIME_FIELDS):
+            hits.append(label)
     return hits
 
 
