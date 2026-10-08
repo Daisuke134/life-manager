@@ -4552,3 +4552,26 @@ L9-11 Self-BuildはこのGig laneの全項目完了後、既存の全社順序�
 - CrowdWorks Applicationはowner runが`effect=unknown`・provider receiptなし。CrowdWorks source修正worktreeもactive lease中。Mercor Applicationも`resource_effect_unknown`・receiptなし。双方とも新たな応募・返信を再試行しない。
 
 **現在cursor:** L9-07 Coconala Paid owner natural terminal / project lock release / exact official readback。floor回復だけではPaid結果やinbox receiptの成功を意味しない。
+
+### 2026-10-08 09:27 JST — Gig／Storefront実行順と収益loop実測更新
+
+この追記は§84-AのGig部分を具体化し、08:58のcapacity/Paid cursorを最新readbackで更新する。旧Gig順序はCoconala→Lancers→CrowdWorks→Job Hunter。新順序は、既存Coconala契約の納品→Coconala Storefront→Coconalaの新規適格Apply/交渉→CrowdWorks→Mercor→Freelancer→Upwork規約適合経路→Job Hunter。買い手への既存契約義務を先に閉じ、その後、自社で管理できるStorefrontを収益優先にするため。Lancers rows25–27は`waiting_external`のまま飛ばし、他platformを止めない。Answersは対象外。SelfBuildは全収益loopの最後に置く。CFO A5–A10とCAPAFYは各ownerの担当範囲で、このGig cursorでは編集しない。
+
+**現在の実測（2026-10-08 09:27 JST）:** `lm-loop status all`にはGig product loopが22 job登録（Coconala 7、Lancers 7、CrowdWorks 5、Mercor 3）。19は`loaded-idle`、3は`loaded-running`。idle側の最新terminalは`exit=75 / host_admission_deferred:disk_headroom_low`が中心で、Coconala daily-reportは`resource_capacity_busy`。同readbackにはGigの`provider_receipt_id`がなく、登録・loaded・runningは応募、返信、納品、販売、settlementの成立を示さない。AGMSG roster登録もagent sessionの稼働証拠ではない。`df -Pk /`の空きは`1,664,388 KiB`で共有producer floor `2,097,152 KiB`未満。disk-cleanup ownerには別worktree leaseがあるため、そのownerのrecovery/readbackを待ち、手動削除・unlock・restart・floor迂回をしない。
+
+最後に確認したCoconala公式状態（2026-10-07 23:08–23:11 UTC）では公開service 20件、service contract 20/20 PASS、seller-listのsales表示0件、publication ledgerと公開inventoryの不一致。sales表示0はsettlement証拠ではない。選択済み既存有償talkroomは`取引中/進行中`、buyer revision段階、seller reply未解決、正式納品receiptなし。Storefront occurrence `hf-gig-storefront-direct:18d8d288748508e8-23902`は未解決で、dry-runは`no_pre_effect_terminal`、専用helperは`stdout_runtime_binding_invalid`。buyer ID・本文・recipient情報はprivate evidenceに残し、この公開SSOTには書かない。
+
+#### 残り原子cursor
+
+1. **並列A — Coconala Paid送信readiness修正:** `skills/browser/scripts/tiktok_message_transport.py`は同一originの`/messages` frame、正しいrecipient、空composer、loaded conversationを安定readbackするまで送信しない。送信後は正確な本文・recipient・空composerの安定readbackを有限pollする。timeout/曖昧さは`effect=unknown`のまま再送しない。focused tests、fresh read-only review、CI、commit/PRを完了する。
+2. **並列B — shared capacity回復:** disk-cleanup ownerが自分のlease内でsafe recoveryを完了し、safe receiptと2 GiB以上の安定した空き容量をreadbackするのを待つ。Gig ownerごとのlock/eligibilityも確認する。BがPASSする前にbrowser/providerを起動しない。
+3. **A+B後 — Coconala既存有償契約:** private evidenceが指す現在進行中talkroomを公式threadから再readbackし、buyerのrevision要求を正確に確認する。要求されたdeliverableを完成し、正式納品receiptを一度だけ取得する。続いて買い手検収・fee・settlement/payoutを同一契約へ結び、replay-zeroを確認する。納品済み契約は契約ごとに公式検収・精算を読む。要求やreceiptが不明なら推測納品しない。
+4. **Coconala Storefront:** 旧occurrence fenceをowner-specific official/pre-effect evidenceで解決し、installed SHA/argvとdoctor/admissionをreadbackする。eligible後、公式service inventory・publication・purchase/sales・fee・settlementを分けて確認し、publication ledgerは公式receiptでのみ整合する。既存20件を重複作成しない。
+5. **Coconala Apply/交渉:** 新着の適格案件だけを公式sourceから読み、既存effect fenceを確認してから応募receipt→buyer reply→合意条件を案件/occurrence単位で結ぶ。
+6. **CrowdWorks:** `lm-gig-contract-owner-1007`のApplication receipt leaseを尊重し、source修正を重複実装しない。ownerのcommit/PR/CI後にApplication/Paid/Replyの自然occurrenceとprovider receiptを読み、納品→検収→fee/payoutへ結ぶ。
+7. **Mercor:** Application/Paid/Replyの`effect_unknown`を正確なprovider receiptまたは同じoccurrenceのno-effect証拠で解決する。old effectに結びつかないreadbackの間は再応募・再送しない。
+8. **Freelancer:** account identityと公式Services inventoryをreadbackして自accountのlisting状態を確認する。provider authorizationなしのauto-bidや、過去の`uncertain` publishを再実行しない。
+9. **Upwork:** bot/API policyに沿う許可経路が確立するまで自動browser操作・data collectionをしない。official Project Catalog/APIでaccount eligibilityとcommercial useが確認できなければlisting/apply automationは再開しない。
+10. **Job Hunter:** eligible候補がある自然runだけを読み、proposal receiptをplatform/occurrence単位で照合する。候補0は成功扱いしない。
+11. **各Gig完了判定:** buyer-visible acceptance、settled payout、platform fee、実費、replay-zeroが契約単位でそろったものだけ完了とする。$10K MRRは目標であり、listing・応募・gross・未決済額を実績へ数えない。
+12. **最後:** 上記収益loop処理後にSelfBuildを修復・検証する。Lancers rows25–27を再試行せず、AnswersとSelfBuildをこのcursorより前に開始しない。
