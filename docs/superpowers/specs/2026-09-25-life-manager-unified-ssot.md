@@ -4847,7 +4847,7 @@ flowchart LR
 
 **残TODO（完了まで、この順）:**
 
-1. **現在cursor — PR #7182 acceptance:** source/test/SSOT commit `83eb3a39d3`はremoteへpush済み、PR head=`83eb3a39d3bd49cca826e8aa60b077199e56e9dd`、base=`9abbdb9d1cfacd2797b5b02cae5095923be40826`。fresh read-only reviewと同一headのrequired CIをPASSさせてからmergeする。別ownerのcapacity/doctor recoveryは独立laneで進められるが、ここから他ownerのworktree/stateを編集しない。
+1. **現在cursor — 通常選定call-site修正:** fresh reviewは`run_once`の初回`_prepare_next_hypothesis`だけが`analytics.get("_fresh_snapshots")`を渡さないと指摘。経路テストを追加して修正前REDを確認した。初回呼び出しにもcurrent snapshotsを渡し、三つの選定callすべての回帰をGREENにしてからcommit/pushする。新headでfresh reviewとrequired CIをPASSさせてmergeする。別ownerのcapacity/doctor recoveryは独立laneで進められるが、ここから他ownerのworktree/stateを編集しない。
 2. **main由来release:** current main `9abbdb9d1cfacd2797b5b02cae5095923be40826`を含むmerged fixのimmutable releaseを既存natural reconcilerに渡し、`RELEASE.json`・Storefront/Paidのloaded SHA/argv/admissionを確認する。production source完了はloaded SHAにpriority/floor/exposure fixが含まれてから。
 3. **Coconala Paid obligation:** order `18180857`のfresh official order/talkroom readbackをownerが実行する。今も未完了の場合だけ必要なrevision/formal deliveryを一度行い、buyer acceptance・settlement/payout・replay-zeroを結ぶ。古いsnapshotから現在の待ち状態を推測しない。
 4. **旧Storefront fence:** `18d8d288748508e8-23902`を、同一effectの公式listing/order履歴または受理可能なoccurrence-bound pre-effect receiptで照合する。現在はdry-runがbinding不足で保留。証拠が取れなければfenceを保持し、再公開しない。
@@ -4858,7 +4858,7 @@ flowchart LR
 9. **Storefront economics:** listingごとのunique paid order・repeat・refund・platform fee・payout・実作業時間/実費を同一期間で結び、settled net contributionが正で再現したか報告する。掲載・seller累計・grossを利益/MRRにしない。
 10. **最後 — SelfBuild:** 収益loopとproduct storefrontの上記done条件を閉じた後だけ、self-build/self-healingを再開する。
 
-**現在cursor:** 1 — PR #7182 exact-head review/required CI → PASS後だけmerge。production Storefrontは旧effect fence・古いinstalled SHA・未照合販売状態を保持。
+**現在cursor:** 1 — primary selectorへcurrent snapshotsを渡し、3 call-sitesの回帰をGREEN → commit/push → exact-head fresh review/required CI。production Storefrontは旧effect fence・古いinstalled SHA・未照合販売状態を保持。
 
 ### 2026-10-09 00:28 JST — Storefront収益cursorとexposure review修正
 
@@ -4876,6 +4876,13 @@ flowchart LR
 - source/test/SSOTはcommit `83eb3a39d3`でpush済み。PR #7182 base=`9abbdb9d1c`、head=`83eb3a39d3bd49cca826e8aa60b077199e56e9dd`。現時点でreview結果もrequired CI結果も未着。storefront publicationとsettled revenueは未確認。
 
 **現在cursor:** exact-head fresh review/required CI → PR #7182 merge → immutable release/natural readback。
+
+### 2026-10-09 00:42 JST — reviewerが初回候補選定経路の欠落を検出
+
+- Fresh read-only reviewはFIX-FIRST。`run_once`の初回`_prepare_next_hypothesis`呼び出しがcurrent run snapshotsを渡さず、引数既定値`None`によりdiscretionary candidateが`measurement_exposure_unknown`で止まる。後続のreselection callは渡すが、primary callの欠落を補わない。
+- `test_every_run_once_hypothesis_selection_receives_current_snapshots`を追加して修正前REDを確認。run_once内の3箇所すべてが`analytics.get("_fresh_snapshots")`を渡す契約を固定する。
+
+**現在cursor:** 初回selectorへfresh snapshotsを1引数追加 → 三call-site回帰GREEN → focused suite/contract/source-boundary → commit/push → exact-head fresh review/required CI → PR #7182 merge。
 
 ### 2026-10-08 08:35 JST — Mobile post-merge runtime cursor
 
