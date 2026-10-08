@@ -13,7 +13,7 @@
 
 - eBook checkout/webhook/PDF fulfillmentは anicca-products の既存Stripe・Netlify・Supabase・Resend経路を使う。
 - eBookとCapafyのcreative・投稿ownerはLife Managerの既存Marketing Engine、account registry、publication adapterへ接続する。旧OpenClaw schedulerは再有効化しない。
-- eBook marketingは本人所有と公式statusを確認したInstagram/TikTok accountに配信する。DaisがEnglish Monk Instagramを明示指定したため、専用accountの作成とPostiz接続を許可する。他productのaccountは流用しない。registryとprovider readbackでidentity・good-standing・enabled integrationを確認できないrouteではeffectを起こさない。
+- eBook marketingは本人所有と公式statusを確認したInstagram/TikTok accountに配信する。English Monkの指定先は既存の`@monk_anicca` Instagram。credential SSOTに既存recordはあるがphone verification pendingで、native identity/readinessとPostiz integrationは未確認。別アカウントを作らず、English Monk TikTokや他product accountへfallbackしない。
 - Capafyは既存の life-manager-capafy-ig Postiz laneを唯一のpublish ownerにする。Capafy product code・価格・listing・account lifecycleは変更しない。
 - eBook向けsystem-generated baseline creativeは、ユーザーが委任したeBook marketingのstanding policy内で配信する。対象product、locale、既存account、approved claims、CTA/token、renderer、media formatを決定的に検査し、Daisが直接編集したcopyは明示確認なしに変更・公開しない。
 
@@ -22,10 +22,20 @@
 - English `ebook-en-anicca-monk`は既存のHeyGen CLIを使い、Marketing Engineのapproved baseline scriptをAvatar IVで映像化する。HeyGenのfreeform script writerに商品claimを作らせない。avatar/voice IDは既存のAnicca monk素材を使い、API render receiptと費用readbackを保存する。
 - Japanese `ebook-ja-watercolor`はWatercolor Monk Factoryの既存Kling scene 02–10/12/13を使い、Life Manager所有のversioned asset rootへ一度コピーしてSHA-256で検証する。distribution実行時に旧factory checkoutやOpenClaw sourceへアクセスしない。コピーした映像へMarketing Engineの日本語baseline scriptを既存のローカル音声・caption rendererで合わせる。FFmpegにlibass subtitles filterがないhostでは、Pillowで日本語caption overlayを作り、FFmpegの`overlay` filterで焼き付ける。両rendererは同じMarketing Engineのscript・product/slot receipt・campaign token契約を使う。
 - 各localeはpackのAsia/Tokyo slotsで毎日3本を生成する。1 product/slotにつきrenderは1回とし、同じ動画をそのslotに属する全active Postiz targetへ配る。owner occurrenceごとの投稿effectは最大1件。
-- Japanese Instagram/TikTokはactive targetとして登録済み。English Monk Instagramが指定先であり、既存のEnglish TikTok routeとは別ownerとして扱う。専用Instagram accountとenabled Postiz integrationの公式readbackがそろうまでは`setup_required`でfail-closedにする。`@anicca.en`やTikTokへはfallbackしない。投稿前にPostiz integrationのidentity/enabled readbackを行い、disabledまたは不一致ならeffectを発生させない。
+- Japanese Instagram/TikTokはactive targetとして登録済み。English Monk Instagramが指定先で、English TikTokとは別owner・別Postiz integrationとして扱う。`@monk_anicca`の通常電話確認、ready状態、enabled Instagram integrationの公式readbackがそろうまでは`setup_required`でfail-closedにする。`@anicca.en`やTikTokへはfallbackしない。投稿前にPostiz integrationのidentity/enabled readbackを行い、disabledまたは不一致ならeffectを発生させない。
 - HeyGenはrender前後のwallet readbackを各render receiptへ記録する。walletを読めないrunはcreate前に止める。create後にcost/deltaが確定できないrunはreceiptをreconciliation holdに置き、次のrenderを始めない。既存のHeyGen auto-reload設定を変更しない。
 
-## 現状（2026-10-06 14:05 JST refresh）
+### English Monk Instagram: desired contract and current readback (2026-10-09 03:44 JST)
+
+- **Target:** existing `@monk_anicca` Instagram account, published by `ebook-en-instagram-daily` through Postiz at 08:00, 14:00, and 21:00 JST. The English TikTok owner remains separate; this workstream does not fall back to it.
+- **Postiz:** authenticated official readback returned 31 integrations / 9 Instagram integrations. The only `monk_anicca` integration is TikTok ID `cmo5rwq2p00twn10yrsdglng3`, `disabled=false`; there is no English Monk Instagram integration. The verified target hold is `english_monk_instagram_not_connected`, `integration_id=null`, `target_daily_limit=0`. Evidence: `/Users/anicca/.local/state/life-manager/ebook/evidence/postiz-readback-english-monk-instagram-20261008T1844Z.json`.
+- **Account:** private credential record `instagram-english-monk` remains `phone_verification_pending`. This is not an official Instagram identity or good-standing readback. Complete normal SMS verification on the selected iPhone, then confirm the exact native profile and whether it is already warmed; use the seven-day warmer only if it is a fresh account.
+- **Video:** authenticated HeyGen `video get` confirms ID `db2dab0924e19b88c14e03a6a7849069` completed at 13.4 seconds. Its local MP4 exists at `/Users/anicca/.local/state/life-manager/marketing/ebook/renders/ebook-run.571924dc4e4867349fc6fd13.mp4`, SHA-256 `132d9b326059f9b74d6020e4bca50f0a77d2f2f5ca0595d2f2feb56449c12183`, H.264 1080x1920; the private script ledger identifies it as “When a mistake follows you,” not Hadrian. Do not publish this clip as the requested Hadrian video. The HeyGen list endpoint returned empty pages while direct ID lookup succeeded; use the exact ID receipt as the authoritative readback.
+- **Runtime:** `~/loops/current` points to `20261009T034745-e75c7f7a`; the English Instagram owner remains loaded-idle on older SHA `ee25a794751917116f6558e2cde798dcd5c5b5a2` with no run or provider receipt. Latest source main contains the owner row. No Instagram `PUBLISHED` receipt is verified.
+- **Spend:** the completed clip used `$0.52`; current HeyGen wallet is `$11.78` with `$10` auto-reload below `$5` enabled. HeyGen's [official pricing page](https://www.heygen.com/pricing) lists Creator at `$29/month` / 600 credits, but does not prove those plan credits cover this API wallet. No monthly plan was purchased; the existing video is already generated and the account connection is the immediate blocker.
+- **Revenue target:** `/monk` is `$10.99` one-time; Daily Anicca Letter is `$9.99/month`. At `$9.99`, 1,002 active paid subscriptions equal `$10,009.98` gross MRR before fees/refunds/costs. The `$10K` target is portfolio-wide verified net MRR, not one-time eBook sales.
+
+## Historical snapshot (2026-10-06 14:05 JST; superseded for English Monk Instagram above)
 
 ### eBook商品・売上経路
 
@@ -101,7 +111,7 @@
 - 2026-10-06 02:20 JSTのGitHub repository searchでは、最新のlocal/free-code候補は[fiptcha](https://github.com/figranium/fiptcha)（Apache-2.0、2026-10-05 16:42Z更新）。既存のactive Playwright-compatible `page`を受け取りbrowserを起動しない。reCAPTCHA v2 / hCaptcha / Turnstileに対応するが、dynamic 3x3 gridは不安定でdirect-CDP compatibilityは未検証。既存owner helper `skills/fundraiser-agent/runtime/solve-recaptcha-v2.py`は標準reCAPTCHA v2専用で、registered pageのtarget-id、widget site key/response textarea/callbackを必要とする。[Captcha Solver API Python SDK](https://github.com/captcha-solver-api/python-sdk)はrepository licenseがMITのSDKだが、外部API serviceの無料枠/価格はこの調査では確認していないため「無料solver」とは判定しない。Capafy runtime errorはCAPTCHAの証拠ではなく、このturnでは認証済みbrowser画面を未確認。実challengeが現れた場合だけchallenge typeを確認し、既存helperまたはregistered CDP sessionで互換確認できた手段を使う。identity/appeal/suspensionはsolverで回避しない。
 - Capafyの既存landing redirectはInstagram bio clickを記録し、seller analyticsは注文・収益を集計する。1投稿ごとの注文IDが得られない期間の投稿→売上対応はcandidate attributionとして表示し、因果と断定しない。
 
-## 現状のarchitecture
+## Historical architecture snapshot (superseded by the current readback above)
 
 ~~~mermaid
 flowchart LR
@@ -142,12 +152,15 @@ flowchart LR
     HEYGEN --> WALLET2["HeyGen wallet post-read + exact delta"]
     WALLET2 --> ENRENDER["EN render receipt; hold if cost unknown"]
     WATERCOLOR --> JARENDER["JA render receipt"]
-    ENRENDER --> ENPOST["ebook-en-tiktok-daily: 08:00 / 14:00 / 21:00 JST"]
+    ENRENDER --> ENPOST["English Monk Instagram owner: 08:00 / 14:00 / 21:00 JST"]
+    ENRENDER --> ENTIKTOK["English Monk TikTok owner: separate route and receipts"]
     JARENDER --> JAPOST["ebook-ja TikTok + Instagram: 07:00 / 12:30 / 20:00 JST"]
-    ENPOST -. "Postiz integration disabled; no channel slot confirmed" .-> ENHOLD["EN effect-free hold"]
+    ENPOST -. "phone verification pending; Postiz Instagram integration absent; target_daily_limit=0" .-> ENHOLD["English Monk Instagram hold"]
     ENPOST --> ENRECEIPT["Postiz receipt + public URL"]
+    ENTIKTOK --> ENTTRECEIPT["English TikTok Postiz receipt + public URL"]
     JAPOST --> JARECEIPT["Postiz receipts + public URLs"]
     ENRECEIPT --> GO["/go/<ee_/ej_ token> click receipt"]
+    ENTTRECEIPT --> GO
     JARECEIPT --> GO
     GO --> PAGE["/monk または /achan"]
     PAGE --> CHECKOUT["Stripe one-time Checkout + attribution metadata"]
