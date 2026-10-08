@@ -7474,6 +7474,26 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 **Current cursor:** find an existing designated non-personal Google test identity and configure the matching staging Supabase Google provider/callback → real OAuth, Calendar ACTIVE, and first Travel write → Stripe test Checkout/webhook/cancel lifecycle → production behavior readback. Then verify a Japan-capable Spectrum sender line and opt-in tenant pairing, and run measured acquisition cohorts. Staging still has Google Auth disabled and no test user; never use Dais's personal account or Calendar. Keep Advanced iMessage location disabled until its separate credentials, Japan routing, and consent path are verified. Keep `WB-15d` and `WB-16` active; latest recorded Web MRR remains `$0`, and 345 active `$29` subscriptions equal `$10,005` gross MRR. Japanese acquisition is not ready to scale until the English public `/lm` page is localized or routed to Japanese.
 
 
+### 2026-10-09 00:34 JST — exact reconcile fence failure and live-capacity evidence
+
+- PR #7156 merged at `f1dc2642d7667870e2ad91182018be7f6ba587a0`; latest `origin/main` is `1739d3f39bb66b5386120fb75503e561f256c23c` (#7181, unrelated Web auth). `~/loops/current` remains release `1fe7db3b634bb910187b846c7246aa7fe0dcba82`, cut at 15:13:26 UTC. It contains #7177's 512 MiB revenue floor but not #7156's retry fix. The current reconciler uses a 1,800-second release-cut minimum; if unchanged, the earliest natural cut containing the merge is 15:43:26 UTC.
+- Exact route evidence: `lm-loop reconcile shared-agent-runner` and deterministic results contain failed rows whose error is exactly `admission rebind refused: effect_unknown` (including `hf-gig-reply-detector` and `life-manager-instagram-metrics`). These owners remain fenced, as required, but `runtime/loop/lm_loop.py` includes the refusal in `failed`, sets `ok=false`, and returns non-zero; `reconcile_release` then marks the whole release-reconciler occurrence failed. The recovery supervisor's `healthy_readback_pending` result is explicitly classified as exit 0, so it is not this non-zero cause.
+- Live capacity snapshots: at 15:24 UTC, 3 live claims + 5 active reservations = all 8 configured finite slots; at 15:28 UTC, 3 claims + 3 reservations = 6 occupied. The later queue snapshot has 64 owner rows (31 agent, 1 browser, 32 deterministic), 19 matching active queued occurrences, with the oldest about 20.8 days. This proves transient global-cap saturation and a retained backlog, not continuous 8-way execution.
+- Host samples vary: free space moved from `987,800 KiB` (~0.94 GiB) at 15:23:32 UTC to `1,613,636 KiB` (~1.54 GiB) at 15:31:41 UTC. Swap use was 8.10 GiB of 9 GiB at the latter sample on a 16 GiB host. Logs include earlier `ENOSPC` writes in release-reconciler state. No exact disk writer is identified yet. Do not increase the global cap while disk and swap remain unstable.
+- At 15:33 UTC, Connector is loaded from `25bee172` and blocked by `resource_capacity_busy`; Job Hunter is on `1fe7db3b` and has an `entrypoint_exit_75`; Fundraiser remains on `25bee172`, is capacity-blocked, and has four unresolved `effect_unknown` occurrences. No provider result or revenue is claimed.
+
+**順序更新:** 旧cursorは「release readback → owner outcomes → capacity measurement」だった。新順序は「(1) `lm-loop reconcile`のexact `effect_unknown`拒否をfailedではなくfenced-skipとして返す回帰テストとsource修正（fenceは解除しない）→ (2) exact-head CI/review/merge → (3) release cut interval到達後の自然main releaseとloaded-SHA readback → (4) cleanup/ENOSPC writerをowner receiptで診断・復旧 → (5) Fundraiserの4 occurrenceをofficial readbackしreplay-zero → (6) 三targetのnatural provider outcomes → (7) disk/swapが安定した同一windowでclaims/reservations/queue age/class cap/RAMを測り、global cap 8が持続的制約か判定」。理由は、release reconcile自体が既知のeffect fenceをfailとして扱っており、制御planeの失敗を先に除かないと最新releaseとowner結果を正しく評価できないため。
+
+**現在cursor:** add a failing regression for exact effect_unknown reconcile refusal while preserving the fence → make only that refusal a safe fenced-skip; keep all other reconcile failures non-zero → exact-head CI/fresh review/merge → natural release/readbacks → disk and effect recovery → post-recovery capacity decision. Do not raise concurrency to unbounded.
+
+
+### 2026-10-09 00:39 JST — effect-fence reconcile regression fixed locally
+
+- Added a failing regression for `lm-loop reconcile`: an exact `admission rebind refused: effect_unknown` on one owner must leave that owner fenced, report it under `skipped_effect_unknown`, and continue applying an independent eligible owner. A separate case verifies unrelated errors still make the route fail.
+- The red test initially returned 1 and marked the fenced owner failed. `runtime/loop/lm_loop.py` now classifies only that exact refusal as a safe fenced skip; the four Fundraiser unknown occurrences and other owner fences remain untouched. `lm-loop reconcile` stays non-zero for other errors.
+- Verification: reconcile tests 36/36 PASS; the full `test_lm_loop_apply.py` suite 178/178 PASS; source-boundary and diff checks PASS. The worktree branch is based on main `1739d3f3`; latest origin/main advanced to `7eda2619` (#7183, Capafy server cap) during the change. That update is unrelated to Life Manager admission code and must be merged before exact-head CI.
+
+**現在cursor:** commit/push this source fix, regression, and cursor → merge latest main `7eda2619` → exact-head required CI and fresh read-only review → merge → natural release/readback → cleanup/effect recovery → same-window capacity decision. No global cap increase is made before stable disk/swap measurements.
 ### 2026-10-09 00:15 JST — 英語Instagramのowner-target applyを確認
 
 - 現在の`df -k /`は空き`2,781,104 KiB`（約2.65 GiB）。新Instagram ownerは`priority=revenue`なので、最新mainの512 MiB runner floorを超えている。ディスクcleanupはこのownerの前提ではない。
@@ -7501,3 +7521,64 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 - Current CTA terms remain `/monk` $10.99 one-time and Letter $9.99/month. The credential SSOT has no live Stripe credential, so current active paid subscriptions are unknown; the last official readback (19:37 JST) was 0. 1,002 active Letter subscribers yield $10,009.98 gross MRR before fees/refunds. No HeyGen monthly plan is needed for the existing completed MP4, and none was purchased.
 - **順序更新:** 旧cursor=`merge source PR→identify Hadrian video→phone verification→Postiz→apply/post`。新cursor=`identify exact Hadrian asset→complete phone verification/warmup→connect exact Postiz profile→wait for current release to include merged source→target-apply only English Instagram owner→publish once/read receipt→natural 3/day→paid order/PDF and Letter MRR`. 理由はsource mergeが完了したため。現在は外部asset/accountの2 gateが先。
 - **現在cursor:** Hadrian video ID/fileとiPhone再接続の本人確認を待つ。Postizへexact profileが現れたらofficial GETで確認し、その後current release SHA/owner lockを確認してtarget apply、1件の公式投稿receiptまで進む。
+
+### 2026-10-09 00:41 JST — latest-main merge and reconcile-fence fix status
+
+- Preserved the concurrent #7183 / #7173 SSOT records while merging current main `7eda261900f89ccdbb85f647ab1577d7325ac87a`. #7183 caps Capafy unlisted Agents at the server's measured 5; that provider limit is separate from Life Manager's finite-run host cap 8.
+- The effect-fence reconciliation fix is on branch `fix/loop-reconcile-effect-fence-20261009` at `b97622ef3012517c619e0476597447ce465df1ad` and is now combined locally with #7183. The RED regression reproduced exit 1; the fix returns an explicit fenced skip for the exact `effect_unknown` refusal, continues independent owners, and keeps unrelated errors non-zero. Reconcile-focused tests pass 36/36, `test_lm_loop_apply.py` passes 178/178, source-boundary and diff checks pass.
+- Production remains separate: current release is `1fe7db3b`, main is `7eda2619`, and the release reconciler is still on `e1b061f1`. It repeatedly reports `entrypoint_exit_1` while reconcile results include exact effect-unknown fences; the new code is not yet in an immutable release. Host samples show transient cap saturation (8/8 reservations+claims, then 6/8) and a retained queue; disk/swap are unstable, so no global cap increase is made yet.
+
+**現在cursor:** create/update PR for `fix/loop-reconcile-effect-fence-20261009` at its latest-main head → exact-head required CI and fresh read-only review → merge → natural main release/readback → disk/effect recovery → same-window capacity decision. Keep host cap 8 bounded; Capafy service cap 5 is a separate provider constraint.
+
+
+### 2026-10-09 00:42 JST — reconcile-fence PR cursor
+
+- PR #7185 is open, base `7eda261900f89ccdbb85f647ab1577d7325ac87a`, head `8eca80f169cb983aac3e7dd8157a9d34a6fe7084`; latest main is an ancestor. Its initial CI run is `37802872310`; review and required checks have not completed. This cursor update will create a new PR head, so that run is not acceptance evidence for the resulting head.
+
+**現在cursor:** push this cursor correction, then run required CI and a fresh read-only review on the resulting PR #7185 head → merge #7185 → wait for the main-derived natural release/readback → recover disk and effect fences → decide host-cap changes from a stable capacity window.
+
+
+### 2026-10-09 00:43 JST — fresh source review and cursor correction
+
+- Fresh read-only review of PR #7185 head `a28cf316b195e7482f0e8031ed94fe9528c09cb7` returned `fix-first` solely because the preceding cursor still asked to push a correction already present on that head. The source change was accepted: only the exact effect-unknown refusal is fenced-skip, independent owners continue, other errors remain non-zero, and no external-effect fence is cleared.
+- PR #7185 still has base `7eda2619`; check run `37802950202` had not started its jobs at this snapshot. This cursor correction creates a new head, so the next checks and review must use the resulting pushed head.
+
+**現在cursor:** exact-head required CI and fresh read-only review on the current pushed PR #7185 head → merge #7185 → natural main release/readback → disk/effect recovery → stable same-window capacity decision. Keep host cap 8 bounded; do not equate it with Capafy’s separate service cap 5.
+
+
+### 2026-10-09 00:49 JST — OSS boundary manifest aligned after main update
+
+- Exact-head run `37803106325` failed `OSS self-contained boundary` with `manifest_inventory_mismatch skills/capafy-autopublish`. This is inherited from #7183's `inventory_status.py` change: the absorbed-root manifest still had its previous inventory digest.
+- Updated only `docs/manifests/oss-merge-1-sources.json` for the same 245-file root to digest `e8c476780e9b4292a6b427767847b08a1f3c56f6c66c0e3a216aad799f3c7569`. Local `node scripts/verify-oss-self-contained.mjs` and `git diff --check` pass.
+- The old head's CI is not acceptance evidence for this manifest correction. All required checks must run on the next pushed PR #7185 head.
+
+**現在cursor:** exact-head required CI and fresh read-only review on the current pushed PR #7185 head → merge #7185 → natural main release/readback → disk/effect recovery → stable same-window capacity decision. Keep host cap 8 bounded; the Capafy service limit is separate.
+
+
+### 2026-10-09 00:50 JST — #7184 sync and manifest-check recovery
+
+- Main advanced from `7eda2619` to `0b9d0f10` via #7184 (authentication readback docs) while PR #7185 CI ran. Merged that main update locally as `54a61254`; no source conflict. The OSS manifest correction from the #7183 inventory change passes `node scripts/verify-oss-self-contained.mjs` locally.
+- The prior CI failure `manifest_inventory_mismatch skills/capafy-autopublish` is corrected in the local PR diff; run `37803106325` is from the earlier head and does not validate this correction. The remote PR head remains `b69a6679` until this latest-main merge and note are pushed.
+
+**現在cursor:** run exact-head required CI and a fresh read-only review on the current pushed PR #7185 head → merge #7185 → natural main release/readback → disk/effect recovery → stable same-window capacity decision. Keep Life Manager host cap 8 bounded; Capafy service cap 5 is separate.
+
+
+### 2026-10-09 00:59 JST — #7176 latest-main sync
+
+- Before main moved, PR #7185 head `47ba3513` had all required checks PASS and a fresh source review of ship. Main then advanced from `0b9d0f10` to `d7d3cbae` through #7176 (Mobile distribution/off-slot readback docs only); merged locally as `69f17a3a`, with no source conflict. Prior-head CI/review do not cover this merged base.
+
+**現在cursor:** exact-head required CI and fresh read-only review on the current pushed PR #7185 head → merge #7185 → natural main release/readback → disk/effect recovery → stable capacity decision. Host cap remains bounded at 8; Capafy’s service cap 5 is separate.
+
+
+### 2026-10-09 01:12 JST — English Monk Hadrian asset and net-revenue status
+
+- PR `#7173` is merged; `ebook-en-instagram-daily` is in main. The production pointer still reads `20261009T000957-1fe7db3b`, and `lm-loop health --loop ebook-en-instagram-daily` returns `unknown health loop`. The 00:57 JST disk sample had `1,340,980 KiB` free, above the owner’s 512 MiB floor. Do not use a fleet-wide apply or stop/restart the shared reconciler.
+- HeyGen title searches for `Hadrian` and `Adrian` return no matches. Monk Factory stores two completed HeyGen IDs (`f4ce3e44217e4844b988e501414cf199`, `2f6c427ce4bc460eb07d17bd7da67d2f`), but their titles are UUIDs and neither is linked to a script/run receipt. The nearby `en-02` script is about a 90-second emotion wave. The known Life Manager English MP4 is the separate “When a mistake follows you” clip. No exact Hadrian asset is verified.
+- Monk Factory’s old successful-post log uses Postiz integration `cmo5rwq2p00twn10yrsdglng3`, which the product registry maps to English TikTok. It is not evidence of an English Instagram post. The current Instagram account row has `publisher_integration_id=null`, `status=setup_required`; the last official Postiz GET at 00:37 JST had no English Monk integration.
+- `instagram-english-monk` remains `phone_verification_pending`; the normal signup page showed a phone prompt and no CAPTCHA. The SMS cannot be read through `chat.db` under current macOS privacy access; reconnect the selected iPhone in System Settings and use Messages normally. Do not alter privacy settings or bypass verification.
+- The Instagram owner renders fresh approved English baseline content through HeyGen for 08:00, 14:00, and 21:00 JST, then publishes through Postiz. Its manual-slot path only reuses its own canonical render receipt; it cannot ingest an arbitrary old Monk Factory MP4. No Instagram post or HeyGen-plan purchase occurred.
+- The $10.99 eBook is a one-time purchase, not MRR. Daily Anicca Letter is $9.99/month. 1,002 active subscriptions equal $10,009.98 gross MRR before fees/refunds/render/email/API costs. Dais’s canonical $10K target is bank net after fees and costs, so the required active count is higher and depends on measured unit margin. Current live subscription count is unknown; the last Stripe readback was historical.
+
+**順序更新:** 旧cursor=`source merge → 予定時刻を待つ → 完了済みMP4を投稿 → 1,002人を$10K MRR扱い`。新cursor=`(並行) Hadrianの正確な動画ID/ファイルを特定 + 通常の電話確認 → 7日warmup開始と正確なInstagramをPostiz接続 → 旧動画がcanonical receipt外なら最小のone-off Postiz receipt経路を追加 → main-derived releaseとEnglish Instagram ownerだけをapply → eligibleになった時点でHadrianを即時投稿 → 新規baseline動画を08/14/21 JSTに投稿 → eBook/PDFとLetterの銀行純利益を照合`。理由は既存投稿ログがTikTok宛で、現在のInstagram identityが未確認・未接続、canonical ownerも旧MP4を受け付けないため。CAPAFYは対象外。
+
+**現在cursor:** Daisの入力が必要な具体物は、Hadrian動画のIDまたはファイルと、選択中iPhoneの再接続。これと並行して仕様PRのCI/mergeを完了する。本人確認後はwarmup、Postiz接続、target-only release applyへ進み、Hadrianの公式`PUBLISHED` receiptを得た後、English Monk Instagramだけの3投稿/日を確認する。$10K判定はLetterのactive paid invoiceとfees・HeyGen・email/API costの実readbackで行う。
