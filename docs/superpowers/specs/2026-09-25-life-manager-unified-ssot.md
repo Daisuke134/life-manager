@@ -5957,3 +5957,29 @@ This snapshot supersedes the 13:59–14:04 source/release status. PR #7055 backo
 5. 各loopのnatural business occurrenceを確認する。Connector=`Luma registration + Calendar event + Telegram receipt`。Job Hunter=`新規適格Workday application official status/receipt + Telegram`。Fundraiser=`新規VC/AI-AGI founderのGmail provider message ID + exact Sent + Telegram`。copyにmanager構想とpodcast/Zoom/対面の会話提案を含める。human-required gateを迂回しない。
 6. Workday Danaher `R1316263`とFundraiser旧DeepScale/LAUNCH unknownを同一targetの公式readbackまたはstrict verified-pre-effectで解決し、未解決targetは再送しない。全receiptをoccurrenceへ結び、重複なし・replay-zeroを確認する。Fundraise収入はsettlement確認後にだけ実績へ数える。
 7. loopsが自然稼働した後にcurrent-vs-baselineのsame-window claims、queue age、wait、CPU/RAM/diskを比較する。余力が実証された場合だけcap/laneを調整し、8/8やOS負荷を見ずに増枠しない。3 loopのproduction readback/replay-zeroを閉じたらこのlaneを完了し、MX-01へ戻る。
+
+### 2026-10-08 16:41 JST — reconciler retry gate and active context follow-up
+
+この追記は16:23のowner snapshotとTODOを更新する。spec/manifest PR #7082は07:36:21Zにmergeされ、mainは`963b047cb6`。productionの最新readbackと別ownerのfollow-upを分けて記録する。
+
+**read-only evidence（2026-10-08 16:40–16:41 JST）:**
+
+- `/Users/anicca/loops/current`は`20261008T162236-c61f2c89`、root availableは4,671,024 KiB。mainの`963b047c`はspec/manifestのみを足すため、releaseのsource SHAは引き続きc61である。
+- `life-manager-release-reconciler`はSHA `c61f2c89` / loaded-running PID `96926`。07:38:42Zのoccurrence `18dc7da1bdc4d1b0-31693`は`entrypoint_exit_1`で、fleet applyが`coalesced`（last attempt 07:22:51Z、minimum interval 1800s）を返した。これは同じpartial attemptをすぐ再実行しなかった記録であり、target owner全体の収束ではない。次の自然attemptまではstop/restart/wakeを重ねない。
+- 前回occurrence `18dc7bb051b863d0-19290`（旧SHA `6cc0c56b`）は`changed=53, skipped=18, errors=2`でbudget exceeded。owner ledger/outputはfatal errorをCapafy retired browser identity guardと`alpaca-investment-live` bootstrap I/Oに対応させ、`hf-gig-reply-detector`は`effect_unknown` fenceによるskipとして記録する。これらは本laneのowner stateではないため直接修正しない。
+- ConnectorはSHA `c61f2c89` / loaded-idle、local deterministic passのみ。Job Hunter daily/inbox/healthはidleで、daily/inboxは`apply_lock_busy`、healthは`resource_capacity_busy`。FundraiserはSHA `71a5f878` / idle。`18dc7bf593b9ebb0-79351`はstrict pre-effect proof済みだが、DeepScale `18d9b0b6311a2018-87933`とLAUNCH `18dc7222f6b5ec78-20440`の2 old admission fencesはcurrent。Workday Danaher `R1316263`のofficial statusも不足。
+- `hf-gig-paid-direct`は旧SHA `6cc0c56b` / loaded-running PID `62589`。停止・再起動しない。`lm-loop doctor`はretired installed label `ai.anicca.provision-browser.capafy.kosuke`で`ok=false`。
+- 最後のdurable capacity snapshotは16:11 JSTの8/8 live claim、reservation 0、queue71/eligible70。16:41のfleet health summaryはslot occupancyを示さず、8/8を現在値とは扱わない。
+- Fundraiser follow-upは既存active lease owner `lm-cfo-observability-1002`のworktree `/Users/anicca/Projects/life-manager-main/.worktrees/fundraiser-context-park-20261008` / branch `fix/fundraiser-context-park-20261008`で進行中。HEAD `85f175379e`はmain `963b047cb6`より1 commit遅れており、同期してからPRを作るようAGMSGで依頼済み。primaryはそのworktreeを編集しない。
+
+**順序更新:** 旧順=`Paid/reconciler natural terminal → Fundraiser context fix → Capafy doctor → release/apply → 3-loop readback → capacity compare`。新順=`Paid active ownerとreconciler active runを自然terminalまで監視 → 30-minute coalesce window後のreconciler natural attemptとtarget admission/lock readback → active ownerがFundraiser close-last-tab→next-context regressionを修正しlatest mainへ同期・review/CI/merge → Capafy owner-safe retired-label解決とdoctor PASS → follow-up入りimmutable releaseをtarget ownerがidle/eligibleの時だけ逐次apply → 3 loop natural business result・official readback・Telegram → old target fence close/replay-zero → stable same-window capacity measurementと必要時のみlane/cap変更 → MX-01`。理由はcurrent c61 releaseがtarget loopへ部分適用され、前回partial fleet applyの直後はnew reconciler runが30分coalesceし、Paid ownerもactiveだからである。現在cursor=`PID 62589 / PID 96926 のnatural terminalとcoalesced retry windowを観測する`。
+
+**残TODO（完了までの順序）:**
+
+1. **現在cursor:** `hf-gig-paid-direct` PID `62589`と`life-manager-release-reconciler` PID `96926`を自然terminalまでread-onlyで監視し、coalesce解除後のnext natural run、shared lock、owner別admissionを再取得する。手動wake/stop/restart、重複applyをしない。
+2. `lm-cfo-observability-1002`のactive context follow-upが`CLOAK_CONTEXT_PARK_ON_IDLE=1`をFundraiser runnerからhelperへ伝播し、last-tab close後の次acquireで同じcontextを再利用するfocused regressionをRED→GREENで閉じる。現在のbranchをmain `963b047cb6`へ同期し、review/CIをPASSさせてmergeする。Fundraiserへのapplyはfollow-upを含むrelease後。
+3. Capafy ownerがretired installed labelをowner-safeに解消し、`lm-loop doctor` PASSをreadbackする。別ownerのstateを変更しない。
+4. follow-upを含むmain由来immutable releaseを作成し、current/loaded SHA・shared apply lock free・target admission eligible・各owner idleを確認する。Connector、Job Hunter daily/inbox/health、Fundraiserをowner-scopedに一つずつapplyし、loaded argv/envと実model `gpt-6-luna/max/fast`を確認する。
+5. 各loopのnatural occurrenceでConnectorのLuma registration/Calendar/Telegram、Job Hunterの新規適格Workday official application state/Telegram、Fundraiserの新規VC/AI-AGI founder向けGmail message ID/exact Sent/Telegramを照合する。Danaher `R1316263`、DeepScale、LAUNCHは公式statusまたはstrict verified-pre-effectが得られるまでfencedにし、同targetを再送しない。manager構想とpodcast/Zoom/対面提案を保ち、human-required gateを迂回しない。
+6. receipt/readbackを同一occurrenceへ結び、重複なし・replay-zeroを確認する。Fundraise収入はsettlement確認後だけ実績へ数える。
+7. 3 loopがnaturalに稼働した後、same-window claim/queue age/wait/CPU/RAM/diskを測り、安定した余力が証明された場合だけcap/laneを変更する。8/8の古いsnapshotやOS load aloneでは増枠しない。全production gateを閉じたらこのlaneを完了し、MX-01へ戻る。
