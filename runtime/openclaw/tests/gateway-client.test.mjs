@@ -47,3 +47,17 @@ test('exact session read rejects foreign rows and keeps missing liveness unknown
  assert.equal((await readSession(c,{sessionKey:identity.sessionKey,agentId:'manager'})).liveness,'unknown');
  c.reply={sessions:[{key:identity.sessionKey,agentId:'foreign'}]};await assert.rejects(readSession(c,{sessionKey:identity.sessionKey,agentId:'manager'}));
 });
+test('SDK reconnect restores observation of the same run without resubmitting it',async()=>{
+ const c=await ready();c.reply={runId:'upstream-1',status:'timeout'};
+ await waitRun(c,'upstream-1');c.options.onClose();
+ await assert.rejects(waitRun(c,'upstream-1'),/not_ready/);
+ c.options.onHelloOk({});await waitRun(c,'upstream-1');
+ assert.deepEqual(c.calls.map(call=>call[0]),['agent.wait','agent.wait']);
+});
+test('close immediately after first hello cannot leave a disconnected client ready',async()=>{
+ const connecting=connectGateway({url:'ws://127.0.0.1:12345',token:'private'},Client);
+ await Promise.resolve();const c=Client.last;c.options.onHelloOk({});c.options.onClose();
+ assert.equal(await connecting,c);
+ await assert.rejects(submitRun(c,request,identity,'manager'),/not_ready/);
+ assert.equal(c.calls.length,0);
+});

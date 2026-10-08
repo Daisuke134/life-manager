@@ -21,3 +21,6 @@ Ruling: session_roleはv2に存在しないため、trusted task_classをroleと
 実行ledger更新: Task1 existing probe lockを種にnpm lock生成成功、5published pins/integrity確認。Task3 fixture canonical path修正後Python5 PASS。Task4 Node5 RPC境界tests RED→GREEN、full runtime conformance未完。Task5 env allowlist RED→GREEN。requestDigest/non-JSON schema RED→GREEN追加、全Node11/Python5 PASS。
 Ruling: 固定公開SessionRowにactiveRunIdsなし。exact sessions.list readだけを実装してliveness=unknownを返し、claim解放へ未接続。旧specの停止proofは未達と記録する。危険:後続実装がunknownをfalseへ変換すると二重実行。
 一次資料: https://github.com/openclaw/openclaw/blob/fc23bc864e4553c2d215e479eeec47b67a0bf943/packages/gateway-protocol/src/schema/sessions-row.ts 、同commit src/gateway/agent-turn/agent-turn-service.ts。SDK tarball2026.8.1のreadiness.d.mts/package.jsonを確認。Context7 /openclaw/openclaw docsでhello/start/request contract照合。
+
+Final: fixed independent review reconnect readiness and first-hello close race — 2回帰tests RED→GREEN、全Node13/Python5 PASS。
+Ruling: finishing skillの統合確認menuは依頼済commit/push/通常統合で質問しないユーザー指示に劣後する。PR main統合を自律実行し、本番切替はしない。

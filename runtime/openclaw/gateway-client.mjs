@@ -14,18 +14,21 @@ export async function connectGateway({url,token,onEvent}, Client) {
   if(target.protocol!=='ws:' || !['127.0.0.1','[::1]'].includes(target.hostname) || target.username || target.password || target.search || target.hash)throw new Error('invalid_gateway_url');
   required(token);
   if(!Client) ({GatewayClient:Client}=await import('@openclaw/gateway-client'));
-  let client;let timer;
+  let client;let timer;let closing=false;
   try {
     await new Promise((resolve,reject)=>{
       timer=setTimeout(()=>reject(new Error('deadline')),5000);
       client=new Client({url,token,minProtocol:4,maxProtocol:4,onEvent,
         hostDeps:{logDebug:()=>{},logError:()=>{},redactForLog:()=> '[redacted]'},
-        onHelloOk:()=>resolve(),onConnectError:()=>reject(new Error('connect_failed')),
+        onHelloOk:()=>{if(!closing) {readyClients.add(client);resolve();}},
+        onConnectError:()=>reject(new Error('connect_failed')),
         onClose:()=>{if(client)readyClients.delete(client);}});
       client.start();
     });
-    readyClients.add(client);return client;
+    return client;
   } catch {
+    closing=true;
+    if(client)readyClients.delete(client);
     if(client) {try{await client.stopAndWait({timeoutMs:1000});}catch{}}
     throw new Error('gateway_connect_failed');
   } finally {clearTimeout(timer);}
