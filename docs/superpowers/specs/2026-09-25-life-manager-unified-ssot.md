@@ -4631,3 +4631,15 @@ L9-11 Self-BuildはこのGig laneの全項目完了後、既存の全社順序�
 - fresh `df -k /`は空き`1,080,932 KiB`（2026-10-08 00:32Z）まで低下。共有2 GiB floor未満なので、browser/provider自然runとimmutable release/applyはまだ実行しない。disk-cleanup ownerのleaseは継続尊重する。
 
 **現在cursor:** source commit `181d1fe578`のfresh adversarial review → PR/new-head CI → main統合。並列でdisk-cleanup ownerのsafe receiptと安定2 GiB超readbackを待つ。両方のgate後に初めてCoconala Paid project lock/inboxをreadbackし、既存有償契約のrevision・正式納品・検収・精算を閉じる。Storefront occurrence fenceの解決とinventory/sales/settlement readbackはその次。
+
+### 2026-10-08 09:35 JST — sender adversarial reviewの反証
+
+fresh read-only reviewerは`181d1fe578`で3つの誤判定をfixture再現したため、sourceはまだmerge不可。focused 25/25 PASSはこの反証を打ち消さない。
+
+- `exact_message`がdocument bodyの`includes`で判定され、未送信composer draft/部分一致を送信済みとして`sent`記録できる。
+- frameの`src`だけを見て実`document.location`のorigin/pathを検証していない。
+- `messageList`要素の存在と空list二回だけで`attempting/unknown`を`not_sent`へ変え、再送を許す。
+
+**修正条件:** exact-messageはcomposerを除いたmessage-list内の1個のmessage bubbleとの完全一致に限定する。実document URL origin/pathを検証する。空listだけで`unknown` fenceを解放しない。focused regressionsで誤ったdedupe・誤ったnot-sent・誤ったframe受理を全て再現不能にしてから再レビューし、new-head CIを通す。
+
+**現在cursor:** 上記3件のRED test追加→最小source修正→focused suite→fresh adversarial re-review。host空きは1,080,932 KiBで2 GiB floor未満のままなので、provider操作・target applyは引き続き保留。
