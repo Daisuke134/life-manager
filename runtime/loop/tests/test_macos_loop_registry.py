@@ -284,7 +284,7 @@ class MacosLoopRegistryTest(unittest.TestCase):
         row = registry["loops"]["life-manager-cfo-hourly"]
         self.assertEqual(row.get("resource_class"), "deterministic")
         self.assertEqual(row.get("admission_class"), "borrow")
-        self.assertEqual(row.get("priority"), "support")
+        self.assertEqual(row.get("priority"), "revenue")
         self.assertTrue(row.get("coalesce_reserved_wakes"))
         self.assertTrue(row.get("coalesce_queued_wakes"))
         self.assertTrue(row.get("reconcile_queued_release"))
