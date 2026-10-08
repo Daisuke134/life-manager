@@ -845,6 +845,21 @@ test("PANEL-A5: browser renders normalized unknown SKU as 未確認", async () =
   assert.doesNotMatch(result.body, /<td>Anthropic<\/td><td>unknown<\/td>/);
 });
 
+test("PANEL-A5: generated browser accepts auth-json and rejects auth.json trace IDs", () => {
+  const browser = emittedLedgerBrowser();
+  const dto = task2LedgerDto();
+  const group = dto.api_cost.periods.daily.groups[0];
+  group.loop_id = "auth-json";
+  group.latest_trace.run_id = "run-auth-json";
+  group.latest_trace.occurrence_id = "auth-json:occ-1";
+
+  assert.doesNotThrow(() => browser.validate(dto));
+
+  const unsafe = structuredClone(dto);
+  unsafe.api_cost.periods.daily.groups[0].loop_id = "auth.json";
+  assert.throws(() => browser.validate(unsafe), /invalid ledger payload/);
+});
+
 test("PANEL-A5: browser renders loop/owner grouping and newest trace", async () => {
   const browser = emittedLedgerBrowser();
   const dto = task2LedgerDto();

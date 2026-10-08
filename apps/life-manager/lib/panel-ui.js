@@ -896,7 +896,7 @@ function renderPanelPage(options = {}) {
       return typeof value === "string"
         && value !== "unknown"
         && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(value)
-        && !/(?:(?:token|secret|password|credential|api.?key)\s*[=:]|auth\.json|sk-[A-Za-z0-9_-]{16,})/i.test(value)
+        && !/(?:(?:token|secret|password|credential|api.?key)\\s*[=:]|auth\\.json|sk-[A-Za-z0-9_-]{16,})/i.test(value)
         && displaySafeText(value, false);
     }
 
