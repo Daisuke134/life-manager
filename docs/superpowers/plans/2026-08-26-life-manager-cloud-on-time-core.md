@@ -73,7 +73,7 @@
 **Files:** Create `lib/travel-reminder.js`, `lib/travel-reminder.test.js`; modify `lib/travel.js` exports only as required.
 
 1. Write failing tests for physical-event computed-departure T-5, non-travel start T-5, due-window/catch-up boundaries, and no early send.
-2. Test origin precedence: fresh live location, previous event location, configured home. If none exists, format an event-only reminder without inventing a route.
+2. Test origin precedence: a user-shared Telegram live fix observed within 120 seconds and not expired, previous event location, configured home. Stale, future-dated, expired, or out-of-range fixes fall back and their exact stored row is conditionally cleared. Future Travel blocks never use today's live fix. If no origin exists, format an event-only reminder without inventing a route.
 3. Test the exact Japanese message structure: next event, leave/start time, ordered legs, transfers, fare, and optional facts only when provider-supplied.
 4. Test HTML escaping, `telegram-t5` claim-before-send, duplicate suppression, and claim release after send failure.
 5. Run `node --test lib/travel-reminder.test.js`; confirm module/behavior RED.
