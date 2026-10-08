@@ -22,6 +22,11 @@ ICON="${3:?icon path required}"
 REUSE_AGENT_ID="${4:-}"
 EXPECTED_UPDATE_ID="${CAPAFY_EXPECTED_AGENT_ID:-}"
 EXPECTED_UPDATE_FROM_VERSION="${CAPAFY_EXPECTED_FROM_VERSION_ID:-}"
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/frozen_guard.sh"
+_UPDATE_AGENT_ID=""
+[ -f "${1:-}/UPDATE.json" ] && _UPDATE_AGENT_ID="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("agent_id") or "")' "${1}/UPDATE.json" 2>/dev/null || true)"
+capafy_refuse_frozen "$REUSE_AGENT_ID" "$EXPECTED_UPDATE_ID" "$_UPDATE_AGENT_ID"
 
 # The workflow changes directory to the publisher before it reads LISTING again.
 # Resolve caller-relative paths once at the boundary so a valid repo-owned source
