@@ -221,7 +221,8 @@ def host_cleanup_command(root: Path, home: Path, state_dir=None) -> list[str]:
 
 def _host_cleanup_capacity_status(result: object) -> str:
     free_after = result.get("free_after") if isinstance(result, dict) else None
-    if not isinstance(free_after, int) or isinstance(free_after, bool):
+    if (not isinstance(free_after, int) or isinstance(free_after, bool)
+            or free_after < 0):
         return "unknown"
     return "met" if free_after >= HOST_CLEANUP_RECOVERY_FLOOR_BYTES else "unmet"
 
@@ -229,7 +230,7 @@ def _host_cleanup_capacity_status(result: object) -> str:
 def host_cleanup_ok(returncode: int, result: object) -> bool:
     if not isinstance(result, dict):
         return False
-    stop = result.get("disk_writers_stop", {"status": "absent"})
+    stop = result.get("disk_writers_stop")
     stop_status = stop.get("status") if isinstance(stop, dict) else None
     return (
         returncode == 0

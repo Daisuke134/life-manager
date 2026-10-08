@@ -48,13 +48,14 @@ allow-listed regenerable artifact after an open-path probe confirms
   `disk-pressure.block` is advisory. The explicit `disk-writers.stop` file
   remains a separate hard operator control.
 - The central cleanup terminal reports capacity recovery separately from
-  cleanup success: integer `free_after` is compared with the 2 GiB diagnostic
-  target; a shortfall is `unmet`, and missing or invalid capacity is `unknown`.
+  cleanup success: a nonnegative integer `free_after` is compared with the
+  2 GiB diagnostic target; a shortfall is `unmet`, and missing, negative, or
+  invalid capacity is `unknown`.
   A measured `unmet` status alone does not fail the cleanup occurrence. These
   statuses do not replace `errors` or `protected_deletions`.
 - The direct governor CLI stores capacity status separately from `ok`. It exits
   nonzero for unknown capacity, deletion errors, protected deletions, or a
-  preserved explicit `disk-writers.stop`; it exits zero for a clean pass whose
+  preserved or invalid `disk-writers.stop` readback; it exits zero for a clean pass whose
   measured recovery is `unmet`. A busy singleton lock reports
   `cleanup_lock_busy` with unknown capacity and exits 75 without running cleanup.
 - Candidate order rotates through `state_dir/candidate-cursor.json`. The cursor

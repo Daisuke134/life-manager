@@ -59,6 +59,7 @@ class LoopCleanupTest(unittest.TestCase):
         }))
         self.assertTrue(host_cleanup_ok(0, {
             "errors": 0, "protected_deletions": 0, "free_after": recovery_floor,
+            "disk_writers_stop": {"status": "absent"},
         }))
 
     def test_host_cleanup_accepts_clean_unmet_recovery_metric(self):
@@ -68,6 +69,7 @@ class LoopCleanupTest(unittest.TestCase):
             "reclaimed": 8_071,
             "errors": 0,
             "protected_deletions": 0,
+            "disk_writers_stop": {"status": "absent"},
         }
         self.assertTrue(host_cleanup_ok(0, receipt))
         ok, result = host_cleanup_readback(0, json.dumps(receipt) + "\n")
@@ -83,6 +85,12 @@ class LoopCleanupTest(unittest.TestCase):
             {"errors": 0, "protected_deletions": 0, "free_after": None},
             {"errors": 0, "protected_deletions": 0, "free_after": True},
             {"errors": 0, "protected_deletions": 0, "free_after": "2147483648"},
+            {
+                "errors": 0,
+                "protected_deletions": 0,
+                "free_after": -1,
+                "disk_writers_stop": {"status": "absent"},
+            },
         )
         for receipt in receipts:
             with self.subTest(receipt=receipt):
@@ -102,6 +110,7 @@ class LoopCleanupTest(unittest.TestCase):
             "errors": 0,
             "protected_deletions": 0,
             "free_after": recovery_floor,
+            "disk_writers_stop": {"status": "absent"},
         }
         ok, result = host_cleanup_readback(
             0, json.dumps(receipt) + "\n"

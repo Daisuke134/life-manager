@@ -4521,7 +4521,7 @@ L9-11 Self-BuildはこのGig laneの全項目完了後、既存の全社順序�
 
 この節がeBookの最新cursorで、08:23 JSTのTODO順と容量評価を置き換える。GitHub/mainのsource fixはmergedだが、production release/applyはまだ行っていない。
 
-**TODO順変更:** 旧順=`English CLI修正をmainへmerge→release/apply→08:00 EN回収→残りslot`。新順=`cleanup ownerのfresh floor-met receiptと同時刻dfを確認→active release-reconcilerの終端とhost apply lock解放を確認→main由来immutable release→ebook-en owner限定apply→同じ08:00 slotをowner経由で再開・公式readback→12:30以降のslot→Checkout/PDF→Letter/Tegami cohort→Capafy Instagram`。理由: source修正はmainに入ったが、08:41 JSTのEnglish owner wakeは`disk_headroom_low`でeffect前に延期された。cleanup ownerは08:42 JSTにnatural passで2 GiB床を回復した一方、release-reconcilerは現在loaded-runningのためapplyを重ねない。`marketingVideoDueSlot()`は08:00–14:00に同じ08:00 due slotを返す。現在cursor=`08:42 JST、source fix merged、capacity receipt met、release-reconciler running、EN 08:00未投稿`。
+**当時のTODO順変更:** 旧順=`English CLI修正をmainへmerge→release/apply→08:00 EN回収→残りslot`。新順=`cleanup owner receiptをdiagnosticとして記録→active release-reconcilerの終端とhost apply lock解放を確認→main由来immutable release→ebook-en owner限定apply→同じ08:00 slotをowner経由で再開・公式readback→12:30以降のslot→Checkout/PDF→Letter/Tegami cohort→Capafy Instagram`。理由: source修正はmainに入ったが、08:41 JSTのEnglish owner wakeは`disk_headroom_low`でeffect前に延期されていた。cleanup receiptの2 GiB回復値はproducer gateではなく、release-reconcilerがloaded-running中のapply lockは別の所有権境界として尊重する。`marketingVideoDueSlot()`は08:00–14:00に同じ08:00 due slotを返す。当時cursor=`08:42 JST、source fix merged、release-reconciler running、EN 08:00未投稿`。
 
 **main / loaded release:** PR #6990は全required CI PASSとfresh reviewのCritical/Importantなしを確認後、merge commit `f5395fd88d033fa94ae8366470d46d0b635e57d7`でmainへ統合済み。sourceはEnglish ownerにだけ`LIFE_MANAGER_HEYGEN=<home>/.local/bin/heygen`を明示し、一般PATHを拡張しない。productionでloadedなのはまだrelease `076c5be87c7ba76da6e6ba7d1a4b508e7d492ddd`なので、修正は未配備・未実行。
 
@@ -4546,7 +4546,7 @@ L9-11 Self-BuildはこのGig laneの全項目完了後、既存の全社順序�
 
 ### eBook Monk CLI telemetry / release-reconcile cursor — 2026-10-08 08:53 JST
 
-この節がeBookの最新cursorで、08:42 JSTの状態を置き換える。mainにはHeyGen CLI path修正があるが、English ownerはまだ旧releaseで稼働し、次の有効なpostを確認できていない。
+この節は2026-10-08 08:53 JST時点のeBook snapshotで、現在の実行cursorではない。後続の「remove numeric disk-headroom stops from all loops」契約がこの節のfree-space gateを置き換える。mainにはHeyGen CLI path修正があるが、English ownerはまだ旧releaseで稼働し、次の有効なpostを確認できていなかった。
 
 **最新source / loaded SHA:** `origin/main=d03e5be37a8977d67d3ab75ac09322f00ded9be6`。PR #6990の`f5395fd8` source fixはmainに含まれる。`~/loops/current`はmain由来release `3f1bd81a77b9001284678888b641aaedb1e3e497`を指す。一方`ebook-en-tiktok-daily`はまだ`076c5be87c7ba76da6e6ba7d1a4b508e7d492ddd`をloadedしている。current mainからEnglish ownerへCLI pathを明示する部分は実装済みだが、HeyGen telemetry opt-outはまだ未実装。
 
@@ -4554,15 +4554,15 @@ L9-11 Self-BuildはこのGig laneの全項目完了後、既存の全社順序�
 
 **exact 08:46 effect readback:** `ebook-en-tiktok-daily:18dc640352e0bf38-60485`の08:46:40 JST terminalは`error_detail=eBook render is not ready: setup_required`, `effect_identity_status=not_written`, `next_action=official_readback_required`。08:00 run receipt `ebook-run.571924dc4e4867349fc6fd13`は`missing=["heygen_cli"]`, `external_effects=[]`。Postiz公式GET 08:47:37 JSTでEnglish Monk 0件、JAはTikTok/Instagram各1件`PUBLISHED`。HEYGEN_NO_ANALYTICS付き公式video list GETも3ページ0 rows、wallet残高USD 12.30。recovery intentのexact `hold_effect_unknown`記録は残るが、Admission DBのactive `admission_effect_unknown=false`で、`pre-effect-reconcile --dry-run`は`resolved=[] / unprovable=[]`。状態を手で編集しない。新しいowner effectは公式readbackと同一occurrenceの証拠に結び付ける。
 
-**host / apply blocker:** 08:53:13 JSTの`df -Pk /` Availableは`2,189,584 KiB`で2 GiB recovery floorを約41 MiBだけ上回る。最新cleanup receipt（08:47:38 JST）は`free_after=2,125,578,240` bytes、floor unmet、errors 0、protected deletions 0、inventory gaps 23、reclaimed 8,072 bytes。08:50:38 JSTのcleanup occurrence `life-manager-disk-cleanup:18dc644e1e0b5688-91388`は`apply_lock_busy`でdeferされた。`life-manager-release-reconciler`はrelease `3f1bd81a`上でloaded-running PID `18805`、最新run exit 75 / `reconcile_owner`。last fleet outputでは`article-daily`と`article-resume`のapplyを確認し、English eBook ownerへの3f1bd81 apply receiptはまだない。release reconcilerがglobal apply lockを占有する間にcleanupまたはEnglish ownerを並行applyしない。
+**historical host / apply snapshot:** 08:53:13 JSTの`df -Pk /` Availableは`2,189,584 KiB`で、当時の2 GiB recovery target近辺だった。最新cleanup receipt（08:47:38 JST）は`free_after=2,125,578,240` bytes、recovery=`unmet`、errors 0、protected deletions 0、inventory gaps 23、reclaimed 8,072 bytes。08:50:38 JSTのcleanup occurrence `life-manager-disk-cleanup:18dc644e1e0b5688-91388`は`apply_lock_busy`でdeferされた。`life-manager-release-reconciler`はrelease `3f1bd81a`上でloaded-running PID `18805`、最新run exit 75 / `reconcile_owner`。last fleet outputでは`article-daily`と`article-resume`のapplyを確認し、English eBook ownerへの3f1bd81 apply receiptはまだなかった。release reconcilerがglobal apply lockを占有していることは同時applyを避ける理由だが、free-space floorはproducer条件ではない。
 
-**TODO順変更:** 旧順=`CLI path fixをrelease→English 08:00 owner run→残りslot`。新順=`HeyGen telemetry opt-outをEnglish owner限定で実装・merge→release-reconciler自然終端とglobal apply lock解放→cleanup ownerのfresh floor-met receiptと同時刻dfを回復→English ownerのloaded SHAをtarget apply→exact 08:00 occurrenceをowner経由で一度実行・official readback→残slot`。現在cursor=`08:53 JST、mainにpath fixあり、telemetry opt-out PR作成中、release reconcilerとdisk headroomがproduction blockers`。
+**当時のTODO順変更:** 旧順=`CLI path fixをrelease→English 08:00 owner run→残りslot`。新順=`HeyGen telemetry opt-outをEnglish owner限定で実装・merge→release-reconciler自然終端とglobal apply lock解放→cleanup receiptを診断値として記録（floor-metを待たない）→English ownerのloaded SHAをtarget apply→exact 08:00 occurrenceをowner経由で一度実行・official readback→残slot`。当時cursor=`08:53 JST、mainにpath fixあり、telemetry opt-out PR作成中、release reconcilerとowner apply lockがproduction blockers`。
 
 **残りAtomic TODO（eBook順序）:**
 
 1. `HEYGEN_NO_ANALYTICS=1`を`ebook-en-tiktok-daily`のchild environmentに限定する回帰testと実装をmainへ統合する。現在のownerはold releaseなので、この設定はまだ未反映。
 2. `life-manager-release-reconciler`の自然終端とglobal apply lock解放を読み、同ownerを止めずにexact loaded argv/SHAを再確認する。
-3. lock-free後、registered cleanup ownerの次のbounded passで`free_after >= 2,147,483,648`, errors 0, protected deletions 0を取得し、同時刻`df`で床を確認する。`inventory_gaps=23`と再度の容量減少writerも追う。
+3. lock-free後、registered cleanup ownerの次のbounded passでreceiptの`free_after`, errors, protected deletionsを診断記録し、`inventory_gaps=23`と再度の容量減少writerを追う。2 GiB値はproducer applyの前提にしない。
 4. main由来current releaseにEnglish ownerをtarget applyし、loaded SHAを確認する。`HEYGEN_NO_ANALYTICS=1`と`LIFE_MANAGER_HEYGEN=$HOME/.local/bin/heygen`がowner child environmentに入った状態で、登録ownerを一度だけ起動して同じ08:00 due slotを回収する。直接Postiz APIで投稿しない。
 5. exact occurrenceでPostiz `PUBLISHED`/public URL、HeyGen video SHA、wallet before/after costを確認する。次にJA TikTok/Instagram各12:30・20:00、EN TikTok 14:00・21:00を読み、3 posts/account/dayの9-post目標へ進む。effectが不明ならofficial readback前に再送しない。
 6. anicca-products PR #420のproduction Supabase readback/DDL、natural paid Checkout→Stripe receipt→locale PDF→fees/refunds/settlement/replay-zero、Letter/Tegami 14日cohortを順に閉じる。one-time `$10.99` / `¥1,580`はMRRに含めず、USD 10,000 verified net MRRは未達目標。
@@ -4611,7 +4611,7 @@ PR #7002の旧head `d05bc616`は`Startup context drift`がlive `aniccaai.com/lm`
 
 1. PR #7002のspec/planをmain `4056d35903`へrebase/pushし、fresh required CIをPASSしてmainへmergeする。
 2. release reconciler PID `55054`の自然terminal後、current symlinkをmain `4056d35903`由来にし、cleanup ownerのloaded SHA/argvをreadbackする。
-3. PR #7003入りcleanup ownerでXcode `DerivedData`をopen-file guard付きで回収し、fresh receipt `free_after >= 2,147,483,648` bytes、errors 0、protected deletions 0と同時刻`df -Pk /`を確認する。
+3. PR #7003入りcleanup ownerでXcode `DerivedData`をopen-file guard付きで回収し、receiptの`free_after`・errors・protected deletionsと同時刻`df -Pk /`を診断記録する。2 GiB到達はowner実行条件にしない。
 4. host apply lock解放後、`ebook-en-tiktok-daily`のloaded SHA/argvとchild environmentを確認する。遅れている場合だけlaunchctl-safe preflight後にこのownerだけtarget applyする。
 5. 旧occurrenceのeffect fenceをexact owner/provider readbackで解決してからEnglish ownerを次のdue slotで1回起動する。HeyGen video ID/SHAとwallet差分、Postiz unique `PUBLISHED`/public URLを同一effectへ結ぶ。
 6. 各3 account/dayのunique provider receiptsとreplay-zeroを自然slotで確認し、その後にcheckout→Stripe settlement/refund/fee/costをattributionへjoinする。one-time ebook salesはMRRに含めず、USD 10,000 verified net MRRは未達目標。
@@ -4684,13 +4684,13 @@ flowchart LR
 **現在のproduction readback（11:29 JST）:** Postizは既存3 integrationがenabled、今日は日本語TikTok/Instagram各1件`PUBLISHED`、English 0件（2/9）。HeyGen video listは全2ページで0件、wallet USD 11.78。08:00 sidecarは`delivery_uncertain`、ID/statusなしで保持される。`ebook-en-tiktok-daily`の11:29:17 JST occurrence `18dc6cf6724ee330-76845`は`host_admission_deferred:disk_headroom_low`、`effect_status=not_applicable`、provider receiptなしで終わり、このwakeではprovider callを発生させていない。これは旧sidecarのunknownとは別。
 
 - `/Users/anicca/loops/current`はrelease `20261008T112353-dbf93c31`、English ownerはSHA `3d88f9eb5d00d1ed3651b9ab3f5dd822df0b0bdf`。release reconciler PID `19278`はrunning / `next_action=reconcile_owner` / 直近exit 75。owner全体や兄弟loopのapply/restartをしない。
-- 11:27:02 JST cleanup receiptは`free_after=3,243,356,160` bytes、errors 0、protected deletions 0。11:29 `df -Pk /`は`2,027,784 KiB`（約1.93 GiB）で2 GiB floorを下回る。次のrelease/owner操作はfresh floor-met receiptとreconciler terminal後に行う。
+- 11:27:02 JST cleanup receiptは`free_after=3,243,356,160` bytes、errors 0、protected deletions 0。11:29 `df -Pk /`は`2,027,784 KiB`（約1.93 GiB）。これは当時の観測値で、2 GiB floorはrelease/producer admission条件ではない。reconcilerの所有権状態は別途readbackする。
 
 **残りAtomic TODO（eBook→Capafy順）:**
 
 1. 08:00 HeyGen sidecarをfenceしたままにする。CLIにはwallet transaction historyがなく、full video listも0件。解決に必要な外部証拠は当該createのvideo IDまたはUSD 0.52変化を帰属できるbilling record。成功/失敗へ丸めず、同slotを再実行しない。
 2. mainの最新SHA `a582ea2a1fd2d4bef52ae41beab91b227b9758a2`へsource branchをrebaseし、focused review/CI付きのPRをmergeする。production releaseにはまだ入っていない。
-3. release reconcilerを自然終端まで監視し、cleanup ownerのfresh receiptで`free_after >= 2,147,483,648` bytes、errors 0、protected deletions 0をreadbackする。disk floor未達またはcontrol owner running中は投稿ownerを起動しない。`lm-loop doctor`のretired Capafy provision-browser labelは別ownerの修正gateとして明記し、こちらで変更しない。
+3. release reconcilerを自然終端まで監視し、cleanup owner receiptの`free_after`・errors・protected deletionsをdiagnosticとしてreadbackする。数値floor未達を投稿ownerの実行条件にしない。`lm-loop doctor`のretired Capafy provision-browser labelは別ownerの修正gateとして明記し、こちらで変更しない。
 4. source merge後、current main-derived releaseとEnglish owner loaded SHA/argv/env hashをreadbackし、旧SHAの場合だけsafe preflight後にEnglish ownerのみtarget applyする。今回のrenderer fixがloadされても旧sidecarは自動解決しない。
 5. 08:00 effectが公式証拠で安全に閉じた後、次の別slotをowner経由で1回実行し、HeyGen video ID/status/output SHA/wallet costとPostiz `PUBLISHED`/post ID/public URLを同一occurrenceへ結ぶ。
 6. natural scheduleで3 accountそれぞれ3件/日、合計9 unique receipts/dayとreplay-zeroを確認する。checkout→paid Stripe receipt→matching locale PDF→refund/fee/direct costを結び、Letter/Tegami settled subscriptionsの14日cohortでnet MRRを測る。one-time eBook売上はMRRでない。
@@ -7171,7 +7171,7 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 This contract supersedes every earlier or later historical cursor and TODO step in this SSOT that makes producer work wait for a numeric free-space value, including the capacity snapshots below. Those snapshots remain evidence of past state, not active execution gates.
 
 - The global loop runner previously deferred ordinary jobs below 2 GiB and selected paid jobs below 1 GiB; main later lowered `critical_paid` to 256 MiB and `revenue` to 512 MiB. Producer, Gig, and Writer wrappers add 512 MiB or measured Writer-capacity floors. Writer publication and release creation have separate numeric disk checks. These checks repeatedly defer revenue and other scheduled work.
-- **Contract:** no loop, producer wrapper, Writer publication path, or release builder rejects work solely because measured free bytes are below a configured floor. Keep actual filesystem errors, unavailable/unsafe state, durable-effect fences, and the explicit hard `disk-writers.stop` operator control; launchd environment variables cannot bypass that stop file. Cleanup reports the 2 GiB recovery metric separately from pass/fail: a measured shortfall alone does not make the cleanup occurrence fail, while unknown measurement, cleanup errors, protected deletions, and an unresolved explicit stop remain visible.
+- **Contract:** no loop, producer wrapper, Writer publication path, or release builder rejects work solely because measured free bytes are below a configured floor. Keep actual filesystem errors, unavailable/unsafe state, durable-effect fences, and the explicit hard `disk-writers.stop` operator control; launchd environment variables cannot bypass that stop file. Cleanup reports the 2 GiB recovery metric separately from pass/fail: a measured shortfall alone does not make the cleanup occurrence fail, while missing/negative measurement, cleanup errors, protected deletions, and a missing/invalid/unresolved explicit stop readback remain visible.
 - **Limit:** this removes preventive headroom stops; it cannot prevent a real write from failing with `ENOSPC`. Record that as the actual failed operation and continue the next scheduled occurrence. Never replay an external effect whose outcome is unknown.
 
 **順序更新:** 旧順序=`cleanupがfree_after >= 2 GiBへ戻すまで全loopをadmission待機 → release反映 → natural run`。新順序=`numeric headroom checksを全producer/release経路から除去 → focused acceptanceとfresh review → mainへ統合 → immutable releaseを通常経路で反映 → natural occurrencesを確認し、実際のENOSPCはwrite failureとして記録 → cleanupは回復指標を継続`。理由は、固定空き容量だけによる全loop停止をユーザーが明示的に廃止したため。既に実行中のownerや外部effectは中断・再送しない。
@@ -7182,7 +7182,7 @@ This contract supersedes every earlier or later historical cursor and TODO step 
 2. [x] Regression testsを変更し、`0` bytesのvalid measurementでadmission・Writer publication・agent-runner retentionが進み、unavailable measurement・unsafe control path・explicit hard stopは引き続き拒否されることを確認する。
 3. [x] Loop contract、host/Gig/Browser/Writer/SelfFix/agent-runner focused tests、shell contracts、JSON/shell syntax、`git diff --check`を既存headで確認する。static source scanでfree-space比較によるactive admission stopはなく、historical event decoding、cleanup recovery metric、Writerのclone-cleanup triggerは別用途のまま残る。Writerはpwd ownerのcanonical host stop pathを使い、Gig control rootのsymlink/owner/mode validationを行う。
 4. [x] Fresh reviewのstop-path迂回を修正する。共通host guardとGig guardはOS userのcanonical `.local/.../state`・`.openclaw/state`を常に確認する。Gig TODOの512 MiB待機を撤回し、runner manifest hashとbaseline例外を同期する。
-5. [x] Cleanup CLIと`runtime/loop/central_cleanup.py` wrapperの`ok`/exit statusを`capacity_recovery.status`と分離する。recovery=`unmet`だけなら、測定成功・errors=0・protected_deletions=0の場合にnonzero終了しない。unknown measurement・実cleanup error・explicit stopは引き続きfailureとして記録する。既存のcontract expectationsを更新する。
+5. [x] Cleanup CLIと`runtime/loop/central_cleanup.py` wrapperの`ok`/exit statusを`capacity_recovery.status`と分離する。recovery=`unmet`だけなら、非負の測定成功・errors=0・protected_deletions=0・明示stopなしの場合にnonzero終了しない。負値/unknown measurement・実cleanup error・protected deletion・missing/invalid stop readbackはfailureとして記録する。既存のcontract expectationsを更新する。
 6. [ ] PR #7179 current headの必須CIとfresh read-only reviewをpassさせ、同じheadをSHIPで確認する。
 7. [ ] latest-main専用PRをmergeする。main由来immutable releaseを自然経路で反映し、loaded SHA/argvと新規natural occurrenceのadmission resultを読む。cleanup receiptは診断値として継続する。
 

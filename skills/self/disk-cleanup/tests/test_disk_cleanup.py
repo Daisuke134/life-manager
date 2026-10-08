@@ -1963,11 +1963,15 @@ def test_cli_candidate_is_rejected(tmp_path: Path) -> None:
 @pytest.mark.parametrize(
     "cleanup_result,capacity_status,expected_returncode",
     (
-        ({"errors": 0, "protected_deletions": 0, "free_after": 2 * GiB - 1}, "unmet", 0),
+        ({"errors": 0, "protected_deletions": 0, "free_after": 2 * GiB - 1,
+          "disk_writers_stop": {"status": "absent"}}, "unmet", 0),
         ({"errors": 0, "protected_deletions": 0}, "unknown", 1),
-        ({"errors": 1, "protected_deletions": 0, "free_after": 12 * GiB}, "met", 1),
-        ({"errors": 0, "protected_deletions": 1, "free_after": 12 * GiB}, "met", 1),
-        ({"errors": 0, "protected_deletions": 0, "free_after": 2 * GiB}, "met", 0),
+        ({"errors": 1, "protected_deletions": 0, "free_after": 12 * GiB,
+          "disk_writers_stop": {"status": "absent"}}, "met", 1),
+        ({"errors": 0, "protected_deletions": 1, "free_after": 12 * GiB,
+          "disk_writers_stop": {"status": "absent"}}, "met", 1),
+        ({"errors": 0, "protected_deletions": 0, "free_after": 2 * GiB,
+          "disk_writers_stop": {"status": "absent"}}, "met", 0),
     ),
 )
 def test_cli_outcome_tracks_capacity_and_cleanup_errors(
