@@ -180,6 +180,10 @@ def test_crossing_auto_reload_threshold_keeps_render_fenced_and_never_recreates(
             return subprocess.CompletedProcess(args, 0, json.dumps({
                 "data": {"video_id": "video_12345678", "status": "completed"}
             }), "")
+        if args[2] == "get":
+            return subprocess.CompletedProcess(args, 0, json.dumps({
+                "data": {"id": "video_12345678", "status": "completed"}
+            }), "")
         Path(args[-1]).write_bytes(b"video")
         return subprocess.CompletedProcess(args, 0, "{}", "")
 
@@ -230,6 +234,108 @@ def test_unknown_create_outcome_is_durable_and_replay_never_creates_again(tmp_pa
     assert sum(args[2] == "create" for args in calls if len(args) > 2) == 1
 
 
+def test_noncompleted_create_persists_video_id_and_replay_never_creates_again(tmp_path):
+    calls = []
+    balances = iter((12.3, 11.8))
+
+    def execute(args, **kwargs):
+        calls.append(args)
+        if args[1:3] == ["auth", "status"]:
+            return subprocess.CompletedProcess(args, 0, "{}", "")
+        if args[1:4] == ["user", "me", "get"]:
+            return subprocess.CompletedProcess(args, 0, wallet_response(next(balances)), "")
+        if args[2] == "create":
+            return subprocess.CompletedProcess(args, 0, json.dumps({
+                "data": {"video_id": "video_12345678", "status": "processing"}
+            }), "")
+        if args[2] == "get":
+            return subprocess.CompletedProcess(args, 0, json.dumps({
+                "data": {"id": "video_12345678", "status": "completed"}
+            }), "")
+        if args[2] == "download":
+            Path(args[-1]).write_bytes(b"video")
+            return subprocess.CompletedProcess(args, 0, "{}", "")
+        raise AssertionError(f"unexpected HeyGen command: {args[1:3]}")
+
+    output = tmp_path / "processing.mp4"
+    intent = tmp_path / "effect.json"
+    try:
+        first = render(script="Breathe.", output=output, intent_path=intent,
+                       environment=READY, executor=execute)
+    except Exception as exc:
+        raise AssertionError(
+            f"valid video ID must be retained for reconciliation; got {type(exc).__name__}"
+        ) from exc
+
+    assert first["state"] == "reconciliation_required"
+    saved = json.loads(intent.read_text())
+    assert saved["state"] == "provider_created"
+    assert saved["video_id"] == "video_12345678"
+    assert saved["provider_status"] == "processing"
+
+    replay = render(script="Breathe.", output=output, intent_path=intent,
+                    environment=READY, executor=execute)
+    assert replay["state"] == "rendered"
+    assert sum(args[2] == "create" for args in calls if len(args) > 2) == 1
+    assert [args for args in calls if args[1:3] == ["video", "get"]] == [[
+        READY["LIFE_MANAGER_HEYGEN"], "video", "get", "video_12345678",
+    ]]
+
+
+def test_create_timeout_with_video_id_is_reconciled_without_second_create(tmp_path):
+    calls = []
+    balances = iter((12.3, 11.8))
+
+    def execute(args, **kwargs):
+        calls.append(args)
+        if args[1:3] == ["auth", "status"]:
+            return subprocess.CompletedProcess(args, 0, "{}", "")
+        if args[1:4] == ["user", "me", "get"]:
+            return subprocess.CompletedProcess(args, 0, wallet_response(next(balances)), "")
+        if args[2] == "create":
+            raise subprocess.CalledProcessError(
+                4, args,
+                output=json.dumps({"data": {
+                    "video_id": "video_87654321", "status": "processing",
+                }}),
+                stderr="video generation timed out before completion",
+            )
+        if args[2] == "get":
+            return subprocess.CompletedProcess(args, 0, json.dumps({
+                "data": {"id": "video_87654321", "status": "completed"}
+            }), "")
+        if args[2] == "download":
+            Path(args[-1]).write_bytes(b"video")
+            return subprocess.CompletedProcess(args, 0, "{}", "")
+        raise AssertionError(f"unexpected HeyGen command: {args[1:3]}")
+
+    output = tmp_path / "timeout.mp4"
+    intent = tmp_path / "timeout-effect.json"
+    try:
+        first = render(script="Breathe.", output=output, intent_path=intent,
+                       environment=READY, executor=execute)
+    except Exception as exc:
+        raise AssertionError(
+            f"timeout with a valid provider ID must be recoverable; got {type(exc).__name__}"
+        ) from exc
+
+    assert first["state"] == "reconciliation_required"
+    saved = json.loads(intent.read_text())
+    assert saved["state"] == "provider_created"
+    assert saved["video_id"] == "video_87654321"
+    assert saved["provider_status"] == "processing"
+    assert saved["create_exit_code"] == 4
+    assert saved["create_error_class"] == "CalledProcessError"
+
+    replay = render(script="Breathe.", output=output, intent_path=intent,
+                    environment=READY, executor=execute)
+    assert replay["state"] == "rendered"
+    assert sum(args[2] == "create" for args in calls if len(args) > 2) == 1
+    assert [args for args in calls if args[1:3] == ["video", "get"]] == [[
+        READY["LIFE_MANAGER_HEYGEN"], "video", "get", "video_87654321",
+    ]]
+
+
 def test_download_failure_resumes_from_stored_video_id_without_second_create(tmp_path):
     calls = []
     fail_download = True
@@ -245,6 +351,10 @@ def test_download_failure_resumes_from_stored_video_id_without_second_create(tmp
         if args[2] == "create":
             return subprocess.CompletedProcess(args, 0, json.dumps({
                 "data": {"video_id": "video_12345678", "status": "completed"}
+            }), "")
+        if args[2] == "get":
+            return subprocess.CompletedProcess(args, 0, json.dumps({
+                "data": {"id": "video_12345678", "status": "completed"}
             }), "")
         if fail_download:
             fail_download = False
@@ -283,6 +393,10 @@ def test_replay_recovers_crash_after_output_rename_without_second_create(tmp_pat
         if args[2] == "create":
             return subprocess.CompletedProcess(args, 0, json.dumps({
                 "data": {"video_id": "video_12345678", "status": "completed"}
+            }), "")
+        if args[2] == "get":
+            return subprocess.CompletedProcess(args, 0, json.dumps({
+                "data": {"id": "video_12345678", "status": "completed"}
             }), "")
         Path(args[-1]).write_bytes(b"video")
         return subprocess.CompletedProcess(args, 0, "{}", "")

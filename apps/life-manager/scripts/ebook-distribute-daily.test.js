@@ -2,6 +2,7 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const { spawnSync } = require("node:child_process");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
@@ -171,6 +172,69 @@ test("renderer receives scoped HeyGen environment only for the English eBook", a
     assert.equal(japanese.HEYGEN_NO_ANALYTICS, null);
     assert.equal(japanese.LM_POSTIZ_API_KEY, null);
     assert.equal(japanese.PRIVATE_UNRELATED_SECRET, null);
+  } finally {
+    fs.rmSync(temporaryRoot, { recursive: true, force: true });
+  }
+});
+
+test("Python renderer emits a safe failure envelope without exception text", () => {
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebook-renderer-error-envelope-"));
+  try {
+    const renderer = path.join(ROOT, "skills/earn/marketing-engine/ebook_distribute_daily.py");
+    const result = spawnSync("python3", [renderer, "--product", "invalid", "--slot-at",
+      "2026-10-08T08:00:00+09:00", "--state-root", stateDir], {
+      cwd: ROOT,
+      env: { HOME: process.env.HOME || "/tmp", PATH: process.env.PATH || "", LANG: "C.UTF-8" },
+      encoding: "utf8",
+    });
+    let failure = null;
+    try { failure = JSON.parse(String(result.stdout || "").trim()); } catch {}
+    assert.equal(result.status, 1);
+    assert.deepEqual(failure, {
+      schema_version: "marketing.ebook-render-failure.v1",
+      error_class: "ValueError",
+    });
+    assert.equal(result.stderr, "");
+  } finally {
+    fs.rmSync(stateDir, { recursive: true, force: true });
+  }
+});
+
+test("English owner propagates only safe renderer error metadata", async () => {
+  const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ebook-renderer-safe-error-"));
+  const fakePython = path.join(temporaryRoot, "fake-python");
+  fs.writeFileSync(fakePython, `#!${process.execPath}\nprocess.stdout.write(JSON.stringify({ schema_version: "marketing.ebook-render-failure.v1", error_class: "ValueError" }) + "\\n");\nprocess.stderr.write("PRIVATE_UNRELATED_SECRET must not leak\\n");\nprocess.exitCode = 1;\n`);
+  fs.chmodSync(fakePython, 0o700);
+
+  const stateDir = path.join(temporaryRoot, "state");
+  const env = {
+    HOME: process.env.HOME || "",
+    PATH: process.env.PATH || "",
+    LIFE_MANAGER_LOOP_ID: "ebook-en-tiktok-daily",
+    LIFE_MANAGER_OCCURRENCE_ID: "ebook-en-tiktok-daily:renderer-error-test",
+    LIFE_MANAGER_RELEASE_ROOT: ROOT,
+    LIFE_MANAGER_RESULT_HINT_PATH: path.join(stateDir, "entrypoint-result.json"),
+    LIFE_MANAGER_HEYGEN: path.join(temporaryRoot, "bin/heygen"),
+    HEYGEN_NO_ANALYTICS: "1",
+    LM_DATA_DIR: path.join(stateDir, "data"),
+    LM_EBOOK_PUBLISHING_ENABLED: "true",
+    LM_POSTIZ_API_KEY: "test-only-not-a-real-key",
+    LM_PYTHON: fakePython,
+    LM_RUNTIME_TENANT_ID: "dais-local",
+  };
+
+  try {
+    let message = "";
+    try {
+      await run(["ebook-en-tiktok-daily"], {
+        env,
+        nowMs: Date.parse("2026-10-08T08:00:00+09:00"),
+      });
+    } catch (error) {
+      message = error.message;
+    }
+    assert.equal(message, "eBook renderer failed: ValueError (exit 1)");
+    assert.doesNotMatch(message, /PRIVATE_UNRELATED_SECRET|test-only-not-a-real-key/);
   } finally {
     fs.rmSync(temporaryRoot, { recursive: true, force: true });
   }
