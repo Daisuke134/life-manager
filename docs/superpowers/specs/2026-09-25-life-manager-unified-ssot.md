@@ -7293,19 +7293,19 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 
 **architecture判断:** このsnapshotのqueue待ちはdisk admission deferが支配的で、configured cap 8の飽和は見えていない。capを無限化・引き上げせず、disk/writerとeffect fenceを解決した後に同一windowで再測定する。owner supervisorの大量常駐とfinite-run並列数も別指標として扱う。
 
-**順序更新:** 旧cursor=`PR #7156 checks/review pass → merge`。新順=`(1) このlive readbackを含むSSOTをcommit-pushし、新PR headを固定 → (2) exact-head CI/fresh reviewを再取得しmerge → (3) immutable release/natural fleet readback → (4) disk writer/容量変動を特定し2 GiB/admission pass → (5) Fundraiserの4 unknown occurrenceをofficial readbackでfence解消 → (6) 三loop natural provider outcomes → (7) disk recovery後の同一windowで実際の有限job並列数とclass capを計測`。理由は、現時点で三loopがadmission前のdisk条件で止まり、global capの変更は症状を解決しないためである。
+**順序更新:** 旧cursor=`PR #7156 checks/review pass → merge`。新順=`(1) このlive readbackを含むSSOTをcommit-pushし、新PR headを固定 → (2) exact-head CI/fresh reviewを再取得しmerge → (3) immutable release/natural fleet readback → (4) disk writer/容量変動を特定してcleanup receiptを診断 → (5) Fundraiserの4 unknown occurrenceをofficial readbackでfence解消 → (6) owner-idle/lock-freeの三loop natural provider outcomes without numeric free-space gate → (7) 同一windowで実際の有限job並列数とclass capを計測`。理由は、producerの数値floorで実行を待たせないためである。
 
 **残TODO（完了まで・この順）:**
 
 1. **現在cursor—このSSOT更新をcommit/pushしてPR #7156のheadを更新する。** code/testは変えていないが、更新後headでcheck/reviewを取り直す。
 2. 更新後のPR headでrequired CIとfresh read-only reviewerの`ship`を得てPRをmergeする。headが変われば再取得する。
 3. main由来immutable releaseを自然handoffし、reconcilerを停止せず、fleet retry stateと各target ownerのloaded SHA/admissionをreadbackする。
-4. disk cleanupのfast/full inventory、receipt、`df`/APFS、physical I/O/owner別runを同時窓で取り、free変動を作る具体的owner/pathまたはsafe owner-owned cleanupを特定する。`free_after >= 2 GiB`、`errors=0`、`protected_deletions=0`、stable admissionを確認する。
+4. disk cleanupのfast/full inventory、receipt、`df`/APFS、physical I/O/owner別runを同時窓で取り、free変動を作る具体的owner/pathまたはsafe owner-owned cleanupを特定する。`free_after`・`errors`・`protected_deletions`は診断値として記録し、2 GiB到達をproducer実行やadmissionの条件にしない。
 5. Fundraiserの4 occurrence (`18dc890e2982e370-31599`, `18dc7f3bc472c260-76084`, `18dc7222f6b5ec78-20440`, `18d9b0b6311a2018-87933`)をprovider official readbackで個別照合し、receiptなしのunknownを再送せず解決する。
 6. loaded-idle、lock-free、effect fence解消後に各ownerを通常自然実行させ、Luma registration、Workday application、VC/AI-founder outreachの同-occurrence provider result、`gpt-6-luna/max/fast`、Telegram reportを確かめる。numeric free-space admissionは使わない。
 7. disk/writer修正後にclaims、reservations、eligible queue age、class contention、CPU/RAM/diskと実際の有限job数を同一windowで測る。global cap 8とresident process数を区別し、class/global cap saturationが実証された場合だけ最小変更を行う。結果と経済数値を別集計する。
 
-**現在cursor:** push SSOT-only PR update → exact-head CI/fresh ship review/merge → natural immutable release and readback → exact disk writer/recovery/admission → Fundraiser official effect reconciliation → target natural outcomes → post-recovery same-window capacity/economics.
+**現在cursor:** push SSOT-only PR update → exact-head CI/fresh ship review/merge → natural immutable release and readback → exact disk writer/cleanup diagnostics → Fundraiser official effect reconciliation → owner-idle natural outcomes without numeric capacity wait → same-window capacity/economics.
 
 
 ### 2026-10-08 23:02 JST — PR cursorとlatest-main競合を更新

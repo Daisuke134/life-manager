@@ -97,7 +97,7 @@
       },
       "absorbed_files": [
         {
-          "source": "skills/agent-runner/agent_runner.py",
+          "source": "runtime/agent-runner/agent_runner.py",
           "target": "runtime/agent-runner/agent_runner.py",
           "sha256": "0cc597a399f95d0ff58a20fb5b26ad64d93be65c96c068fc2cb8d6b7a4713bc8"
         },
