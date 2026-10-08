@@ -6129,3 +6129,12 @@ The next cursor is item 1 commit/push. No Dais manual action is currently requir
 - Commit `d4c106b37b` is pushed on `fix/reconciler-handoff-state-readback-20261008`; PR #7098 is OPEN and MERGEABLE. The six completed CI checks pass. Loop control contracts, TruffleHog, and gitleaks are still running; CodeRabbit is skipped by the repository's manual-review policy. The fresh independent source review passed.
 
 **現在cursor:** `PR #7098 required CI PASS → merge main → PID 22671 natural terminal → next handoff receipt exact-state + target SHA/argv → canonical eBook owner mapping and effect reconciliation → natural 9 unique PUBLISHED/day → paid checkout+PDF → paid subscription MRR → gated Capafy canary/order/banked-net`. Do not replay unknown publishing effects or manually restart the reconciler.
+
+### 2026-10-08 17:40 JST — latest-main CI blocker traced
+
+- `origin/main=7bb8ce087b` advanced after PR #7098 opened; it includes #7097 and #7099. Latest main is merged into this task branch. After the merge, focused handoff tests remain 9/9, edited shell syntax passes, and `git diff --check` passes.
+- PR #7098 check run `37750631403` completed: Loop control contracts, Python unittest, shell syntax, gitleaks, TruffleHog, and the other checks pass. Only `OSS self-contained boundary` fails. Its exact result is `manifest_hash_mismatch runtime/agent-runner/config.json`.
+- Local reproduction on the merged latest-main tree returns exactly that one violation. The source manifest `docs/manifests/oss-merge-1-sources.json` expects SHA-256 `abcac21a91b794054f03b01bbd7a88ff62e9dcd5868c08d077e81fc8003fddac` for the absorbed target; PR #7099 changed the file, whose current digest is `3bd2508d5b96834f5c446bdf91f2a6e06874a1ec5dbe368c6614ef3e0de2676a`. The same boundary check is red on #7099. The reconciler change does not touch this manifest or agent-runner config.
+- The mismatch belongs to the agent-runner manifest update for #7099, outside this eBook/Capafy task. Keep #7098 open; do not bypass the failing check or modify the unrelated manifest in this task branch.
+
+**現在cursor:** `sync latest-main branch to remote → agent-runner manifest owner updates the classified digest → rerun #7098 required CI → merge #7098 → PID 22671 natural terminal + exact handoff receipt → canonical eBook owner mapping/effect reconciliation → 9 unique PUBLISHED/day → paid order+PDF → paid Letter/Tegami MRR → gated Capafy canary/order/banked-net`. The last production owner readback remains 17:27 JST; no newer provider or owner receipt is claimed.
