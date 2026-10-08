@@ -165,6 +165,10 @@ python3 "$ARTICLE_ROOT/scripts/topic_state.py" \
   echo "=== article-daily topic-state initialization failed closed ===" >>"$LOG"
   exit 1
 }
+if ! python3 "$ARTICLE_ROOT/scripts/import_marketing_intel.py" \
+  --skill-dir "$ARTICLE_ROOT" --state-dir "$STATE_DIR" >>"$LOG" 2>&1; then
+  echo "article-daily: Marketing Intel import failed; continue with the existing topic queue" >>"$LOG"
+fi
 ARTICLE_PROVIDER_HEALTH="${ARTICLE_PROVIDER_HEALTH:-$STATE_DIR/provider-health.json}"
 ARTICLE_MODEL_RUNNER="${ARTICLE_MODEL_RUNNER:-$ARTICLE_ROOT/runtime/model-runner.sh}"
 ARTICLE_MODEL_AGENT_TIMEOUT_SECONDS="${ARTICLE_MODEL_AGENT_TIMEOUT_SECONDS:-900}"
