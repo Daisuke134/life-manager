@@ -34,7 +34,7 @@ from runtime.loop.runtime_event import (
     build_runtime_start_event,
     validate_runtime_event,
 )
-from runtime.host.disk_admission import RECOVERY_FLOOR_BYTES, disk_free_bytes
+from runtime.host.disk_admission import disk_free_bytes
 from runtime.host.memory_admission import memory_free_percent
 from runtime.host.resource_admission import (
     OCCURRENCE_ID_PATTERN,
@@ -720,39 +720,8 @@ def _queue_priority(entry: dict) -> str | None:
     return value if isinstance(value, str) and value else None
 
 
-_DISK_FLOOR_BY_PRIORITY_MIB = {"critical_paid": 256, "revenue": 512}
-
-
-def _disk_floor(entry: dict) -> int:
-    """Revenue producers keep shipping on a low floor; a cleanup agent owns space. Others keep 2 GiB."""
-    mib = _DISK_FLOOR_BY_PRIORITY_MIB.get(entry.get("priority"))
-    if mib is None:
-        return RECOVERY_FLOOR_BYTES
-    override = os.environ.get(f"LIFE_MANAGER_DISK_FLOOR_{entry['priority'].upper()}_BYTES")
-    return min(RECOVERY_FLOOR_BYTES, int(override) if override else mib * 1024**2)
-
-
-def _disk_headroom_deferred(receipt_parent: Path, *, phase: str,
-                            floor: int = RECOVERY_FLOOR_BYTES) -> dict | None:
-    """Defer only if free space stays below the floor for the whole wait window.
-
-    Free space swung between 1.2 and 2.9 GiB within minutes on 2026-10-08 (other sessions' temp
-    files, release builds), so one instantaneous reading below the floor used to skip the entire
-    15-minute slot. A dip that recovers is waited out; a persistent shortage still defers.
-    """
-    # Only wait before a slot is claimed; after the claim (post_claim) a wait would hold the slot.
-    wait = float(os.environ.get("LIFE_MANAGER_DISK_HEADROOM_WAIT_SECONDS", "120")) \
-        if phase == "pre_enqueue" else 0.0
-    deadline = time.monotonic() + wait
-    while True:
-        result = _disk_headroom_once(receipt_parent, phase=phase, floor=floor)
-        if result is None or result["reason"] != "disk_headroom_low" or time.monotonic() >= deadline:
-            return result
-        time.sleep(10)
-
-
-def _disk_headroom_once(receipt_parent: Path, *, phase: str,
-                        floor: int = RECOVERY_FLOOR_BYTES) -> dict | None:
+def _disk_headroom_deferred(receipt_parent: Path, *, phase: str) -> dict | None:
+    """Defer only when filesystem capacity cannot be measured."""
     try:
         available = disk_free_bytes(receipt_parent)
     except Exception:
@@ -760,9 +729,6 @@ def _disk_headroom_once(receipt_parent: Path, *, phase: str,
     if isinstance(available, bool) or not isinstance(available, int) or available < 0:
         reason = "disk_headroom_unavailable"
         available_bytes = None
-    elif available < floor:
-        reason = "disk_headroom_low"
-        available_bytes = available
     else:
         return None
     return {
@@ -771,7 +737,7 @@ def _disk_headroom_once(receipt_parent: Path, *, phase: str,
         "reason": reason,
         "phase": phase,
         "available_bytes": available_bytes,
-        "required_bytes": floor,
+        "required_bytes": 0,
     }
 
 
@@ -1371,7 +1337,7 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
                                   "reason": "resource_admission_unavailable"})
             return 75
-        disk_deferred = _disk_headroom_deferred(receipt.parent, phase="pre_enqueue", floor=_disk_floor(entry))
+        disk_deferred = _disk_headroom_deferred(receipt.parent, phase="pre_enqueue")
         if interrupted:
             if durable:
                 try:
@@ -1480,7 +1446,7 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                                       "reason": "resource_claim_identity_invalid"})
                 return 75
             on_claimed(claimed_occurrence_id)
-        disk_deferred = _disk_headroom_deferred(receipt.parent, phase="post_claim", floor=_disk_floor(entry))
+        disk_deferred = _disk_headroom_deferred(receipt.parent, phase="post_claim")
         if interrupted:
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
                                   "reason": "resource_admission_interrupted"})

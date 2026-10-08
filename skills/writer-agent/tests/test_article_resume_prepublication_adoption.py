@@ -50,8 +50,23 @@ def test_cross_day_adoption_precedes_both_quality_plans_and_never_starts_daily(
         )
     scripts.mkdir(parents=True, exist_ok=True)
     runtime.mkdir()
+    fake_life_manager_repo = tmp_path / "life-manager"
+    env_loader = fake_life_manager_repo / "apps/life-manager/scripts/lib/load-env-file.sh"
+    env_loader.parent.mkdir(parents=True)
+    _write(env_loader, "lm_load_env_file() { :; }\n")
+    disk_guard = fake_life_manager_repo / "runtime/host/disk_admission.py"
+    disk_guard.parent.mkdir(parents=True)
+    shutil.copy(ROOT.parents[1] / "runtime/host/disk_admission.py", disk_guard)
+    test_home = tmp_path / "home"
+    (test_home / ".local/state/life-manager/state").mkdir(parents=True)
     shutil.copy(ROOT / "scripts/article-resume-pending.sh", scripts)
     shutil.copy(ROOT / "scripts/writer-runtime-env.sh", scripts)
+    shutil.copy(ROOT / "scripts/article_adoption_selection.py", scripts)
+    _write(scripts / "writer_repair_dispatch.py", "print('{\"status\":\"NONE\"}')\n")
+    _write(
+        scripts / "writer_unavailable_incident_bridge.py",
+        "print('{\"status\":\"NONE\"}')\n",
+    )
     calls = tmp_path / "calls"
     _write(
         state / "articles.jsonl",
@@ -169,10 +184,6 @@ def test_cross_day_adoption_precedes_both_quality_plans_and_never_starts_daily(
         f"print(json.dumps({{'status':'ok','prompt_path':{str(repair_prompt)!r}}}))\n",
     )
     _write(
-        scripts / "writer_capacity_floor.py",
-        "print(536870912)\n",
-    )
-    _write(
         scripts / "publication_contract_resolver.py",
         "import os\n"
         "open(os.environ['CALLS'], 'a').write('publication-foreground\\n')\n"
@@ -197,9 +208,11 @@ def test_cross_day_adoption_precedes_both_quality_plans_and_never_starts_daily(
     )
 
     env = {
-            **os.environ,
-            "ARTICLE_ROOT": str(fake_root),
-            "ARTICLE_STATE_DIR": str(state),
+                **os.environ,
+                "ARTICLE_ROOT": str(fake_root),
+                "HOME": str(test_home),
+                "LIFE_MANAGER_REPO": str(fake_life_manager_repo),
+                "ARTICLE_STATE_DIR": str(state),
             "ARTICLE_OWNER_FENCE_ACTIVE": "1",
             "ARTICLE_LOCAL_DATE": "2026-08-31",
             "ARTICLE_LOCAL_HOUR": "00",
@@ -628,8 +641,8 @@ def test_cross_day_adoption_precedes_both_quality_plans_and_never_starts_daily(
     assert not calls.exists()
     assert not (tmp_path / "daily-started").exists()
 
-    # Two ledger-backed ambiguous runs are never resolved by arbitrary sort
-    # order; the owner refuses before invoking either adopter.
+        # Before the configured daily wake, two ambiguous runs do not trigger an
+        # arbitrary adoption or a duplicate daily run.
     _write(
         target / "gates/generation-state.json",
         json.dumps({"run_id": target_id, "status": "provider-failed-ambiguous"}),
@@ -653,6 +666,6 @@ def test_cross_day_adoption_precedes_both_quality_plans_and_never_starts_daily(
         text=True,
         check=False,
     )
-    assert ambiguous.returncode == 1
+    assert ambiguous.returncode == 0, ambiguous.stderr
     assert not calls.exists()
     assert not (tmp_path / "daily-started").exists()

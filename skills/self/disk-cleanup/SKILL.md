@@ -43,29 +43,31 @@ allow-listed regenerable artifact after an open-path probe confirms
 - Homebrew, pip, and uv package download caches are regenerable candidates and
   are reclaimed only after the same confirmed-closed check.
 - The 5-minute pass has one atomic lock and no LLM deletion authority.
-- Pressure is asserted below 2 GiB and is not cleared until the recovery floor
-  is reached; the 20 GiB threshold starts preventive containment.
+- The 2 GiB recovery value is a cleanup diagnostic only; it does not determine
+  cleanup pass/fail and does not pause producer or release loops.
+  `disk-pressure.block` is advisory. The explicit `disk-writers.stop` file
+  remains a separate hard operator control.
 - The central cleanup terminal reports capacity recovery separately from
-  deletion outcomes: integer `free_after` must meet the existing 2 GiB floor;
-  a shortfall is `unmet`, and missing or invalid capacity is `unknown`. These
+  cleanup success: a nonnegative integer `free_after` is compared with the
+  2 GiB diagnostic target; a shortfall is `unmet`, and missing, negative, or
+  invalid capacity is `unknown`.
+  A measured `unmet` status alone does not fail the cleanup occurrence. These
   statuses do not replace `errors` or `protected_deletions`.
-- The direct governor CLI stores the same capacity status and `ok` in its pass
-  receipt and exits nonzero for unmet or unknown capacity, deletion errors, or
-  protected deletions. A busy singleton lock reports `cleanup_lock_busy` with
-  unknown capacity and exits 75 without running cleanup.
+- The direct governor CLI stores capacity status separately from `ok`. It exits
+  nonzero for unknown capacity, deletion errors, protected deletions, or a
+  preserved or invalid `disk-writers.stop` readback; it exits zero for a clean pass whose
+  measured recovery is `unmet`. A busy singleton lock reports
+  `cleanup_lock_busy` with unknown capacity and exits 75 without running cleanup.
 - Candidate order rotates through `state_dir/candidate-cursor.json`. The cursor
   advances atomically under the governor's singleton lock; if disk exhaustion
   prevents that metadata write, the in-memory rotation still sweeps and retries
   the cursor once only after the sweep's fresh free-space reading meets 2 GiB.
   Cursor writes do not consume the terminal receipt reserve, and the receipt
   records cursor-write failures separately from deletion errors.
-- The shared runner defers new finite data-plane wakes below 2 GiB, measuring
-  the volume that contains the host-admission receipt before queueing and again
-  after claim before child dispatch. Control-plane safety loops and continuous
-  owners bypass this gate. It releases any prior reservation through the
-  existing defer path and never stops a running owner. Its fixed 2 GiB floor
-  is independent of the individual-wrapper `LIFE_MANAGER_DISK_HEADROOM_KIB`
-  setting.
+- The shared runner does not defer a wake because free bytes are below a floor.
+  It still defers if filesystem measurement is unavailable and preserves the
+  explicit `disk-writers.stop` control. A real write failure is recorded at the
+  failing operation; it is not converted into a headroom admission result.
 - After the final post-inventory capacity readback reaches 2 GiB, the governor
   removes `disk-writers.stop` only when its same-UID 0600 regular file still has
   the exact `host-disk-recovery` owner, `disk_headroom_low` reason, required

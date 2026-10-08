@@ -17,11 +17,13 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 _GUARD = _REPO_ROOT / "runtime/host/disk_admission.py"
 _READABLE = stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH
 _REMOVED_ENV = (
-    "LIFE_MANAGER_DISK_HEADROOM_KIB", "LIFE_MANAGER_HOST_STATE_DIR",
-    "LIFE_MANAGER_PRODUCER_STATE_DIR", "LIFE_MANAGER_IGNORE_DISK_PRESSURE_BLOCK",
+    "BROWSER_DISK_HEADROOM_KIB", "GIG_DISK_HEADROOM_KIB",
+    "LIFE_MANAGER_DISK_HEADROOM_KIB",
+    "LIFE_MANAGER_HOST_STATE_DIR",
+    "LIFE_MANAGER_PRODUCER_STATE_DIR",
     "LIFE_MANAGER_IGNORE_DISK_WRITERS_STOP",
-    "GIG_DISK_HEADROOM_KIB", "GIG_HOST_STATE_DIR", "GIG_STATE_DIR",
-    "GIG_IGNORE_DISK_PRESSURE_BLOCK", "GIG_IGNORE_DISK_WRITERS_STOP",
+    "GIG_HOST_STATE_DIR", "GIG_STATE_DIR",
+    "GIG_IGNORE_DISK_WRITERS_STOP",
     "DISK_CONTROL_STATE_DIR", "OPENCLAW_STATE_DIR",
 )
 
@@ -46,17 +48,12 @@ def _disk_preflight(home: Path | None = None, guard: Path | None = None) -> bool
             or not guard.stat().st_mode & _READABLE
         ):
             return False
-        required_kib = int(os.environ.get("BROWSER_DISK_HEADROOM_KIB", "524288"))
-        if not 262_144 <= required_kib <= 4_194_304:
-            return False
         child_env = os.environ.copy()
         for key in _REMOVED_ENV:
             child_env.pop(key, None)
         child_env.update(
             {
                 "HOME": str(home),
-                "LIFE_MANAGER_DISK_HEADROOM_KIB": str(required_kib),
-                "LIFE_MANAGER_IGNORE_DISK_PRESSURE_BLOCK": "1",
                 "LIFE_MANAGER_HOST_STATE_DIR": str(home / ".local/state/life-manager/state"),
                 "LIFE_MANAGER_PRODUCER_STATE_DIR": str(home / ".local/state/life-manager/browser-provision"),
             }

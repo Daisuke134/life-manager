@@ -10,7 +10,6 @@ import pytest
 
 
 SCRIPT = Path(__file__).parents[1] / "scripts" / "publication-guard.py"
-FLOOR_BYTES = 524_288 * 1024
 sys.path.insert(0, str(SCRIPT.parent))
 SPEC = importlib.util.spec_from_file_location("publication_guard_disk", SCRIPT)
 GUARD = importlib.util.module_from_spec(SPEC)
@@ -18,126 +17,60 @@ assert SPEC.loader is not None
 SPEC.loader.exec_module(GUARD)
 
 
-def test_publication_guard_refuses_below_coconala_floor(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("ARTICLE_PUBLICATION_STATE", "/var/lib/life-manager/writer/state.json")
-    monkeypatch.setattr(GUARD.shutil, "disk_usage", lambda _path: SimpleNamespace(free=FLOOR_BYTES - 1))
-    with pytest.raises(GUARD.InvariantError, match="disk_headroom_low"):
-        GUARD.assert_disk_headroom()
-
-
-def test_publication_guard_allows_at_floor(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("ARTICLE_PUBLICATION_STATE", "/var/lib/life-manager/writer/state.json")
-    monkeypatch.setattr(GUARD.shutil, "disk_usage", lambda _path: SimpleNamespace(free=FLOOR_BYTES))
-    GUARD.assert_disk_headroom()
-
-
-def test_capacity_receipt_raises_host_floor(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    receipt = tmp_path / "capacity" / "article-run-floor.json"
-    receipt.parent.mkdir()
-    receipt.write_text(json.dumps({
-        "schema": "writer.capacity-receipt",
-        "version": 1,
-        "observed_consumption_kib": 604_404,
-        "atomic_reserve_kib": 524_288,
-        "required_free_kib": 1_128_692,
-    }), encoding="utf-8")
-    monkeypatch.delenv("ARTICLE_DISK_MIN_FREE_BYTES", raising=False)
-    assert GUARD.resolve_disk_floor_bytes(tmp_path) == 1_128_692 * 1024
-
-
-def test_capacity_receipt_rejects_unbound_arithmetic(tmp_path: Path) -> None:
-    receipt = tmp_path / "capacity" / "article-run-floor.json"
-    receipt.parent.mkdir()
-    receipt.write_text(json.dumps({
-        "schema": "writer.capacity-receipt",
-        "version": 1,
-        "observed_consumption_kib": 604_404,
-        "atomic_reserve_kib": 524_288,
-        "required_free_kib": 524_288,
-    }), encoding="utf-8")
-    with pytest.raises(GUARD.CapacityFloorError, match="capacity_receipt_invalid"):
-        GUARD.resolve_disk_floor_bytes(tmp_path)
-
-
-def test_publication_guard_checks_publication_state_filesystem(
-    monkeypatch: pytest.MonkeyPatch,
+def test_preflight_does_not_block_on_low_disk_or_legacy_floor_settings(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
 ) -> None:
-    seen: list[Path] = []
-    monkeypatch.setenv(
-        "ARTICLE_PUBLICATION_STATE",
-        "/var/lib/life-manager/writer/runs/active/gates/publication-state.json",
-    )
-    monkeypatch.delenv("ARTICLE_STATE_DIR", raising=False)
-    monkeypatch.setattr(
-        GUARD.shutil,
-        "disk_usage",
-        lambda path: seen.append(Path(path)) or SimpleNamespace(free=1_073_741_824),
-    )
-
-    GUARD.assert_disk_headroom()
-
-    assert seen == [Path("/var/lib/life-manager/writer/runs/active/gates")]
-
-
-def test_publication_guard_requires_managed_state_path(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("ARTICLE_PUBLICATION_STATE", raising=False)
-    monkeypatch.delenv("ARTICLE_STATE_DIR", raising=False)
-    with pytest.raises(GUARD.InvariantError, match="managed_publication_state_required"):
-        GUARD.assert_disk_headroom()
-
-
-@pytest.mark.parametrize("value", ["0", "1", "536870911", "-1", "not-a-number"])
-def test_publication_guard_rejects_floor_below_canonical_or_invalid(
-    monkeypatch: pytest.MonkeyPatch,
-    value: str,
-) -> None:
-    monkeypatch.setenv("ARTICLE_PUBLICATION_STATE", "/var/lib/life-manager/writer/state.json")
-    monkeypatch.setenv("ARTICLE_DISK_MIN_FREE_BYTES", value)
-    monkeypatch.setattr(GUARD.shutil, "disk_usage", lambda _path: SimpleNamespace(free=10**12))
-    with pytest.raises(GUARD.InvariantError, match="disk_headroom_configuration_invalid"):
-        GUARD.assert_disk_headroom()
-
-
-@pytest.mark.parametrize("value", ["1", "524287"])
-def test_publication_guard_rejects_gig_floor_below_canonical(
-    monkeypatch: pytest.MonkeyPatch,
-    value: str,
-) -> None:
-    monkeypatch.setenv("ARTICLE_PUBLICATION_STATE", "/var/lib/life-manager/writer/state.json")
-    monkeypatch.delenv("ARTICLE_DISK_MIN_FREE_BYTES", raising=False)
-    monkeypatch.setenv("GIG_DISK_HEADROOM_KIB", value)
-    monkeypatch.setattr(GUARD.shutil, "disk_usage", lambda _path: SimpleNamespace(free=10**12))
-    with pytest.raises(GUARD.InvariantError, match="disk_headroom_configuration_invalid"):
-        GUARD.assert_disk_headroom()
-
-
-def test_preflight_disk_gate_runs_before_store_creation(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("ARTICLE_AUTOPUBLISH", "1")
-    monkeypatch.setenv("ARTICLE_PUBLICATION_STATE", "/var/lib/life-manager/writer/state.json")
-    monkeypatch.setattr(GUARD.shutil, "disk_usage", lambda _path: SimpleNamespace(free=FLOOR_BYTES - 1))
-    store_created = False
-
-    def fail_if_store_created(*_args: object, **_kwargs: object) -> object:
-        nonlocal store_created
-        store_created = True
-        raise AssertionError("PublicationStore must not be created before disk gate")
-
-    monkeypatch.setattr(GUARD, "store_from_env", fail_if_store_created)
+    monkeypatch.setenv("ARTICLE_PUBLICATION_STATE", "/tmp/writer/state.json")
+    monkeypatch.setenv("ARTICLE_DISK_MIN_FREE_BYTES", "not-a-number")
+    monkeypatch.setenv("GIG_DISK_HEADROOM_KIB", "not-a-number")
+    monkeypatch.setattr(GUARD, "manual_or_store", lambda: None)
     monkeypatch.setattr(
         sys,
         "argv",
         [
-            str(SCRIPT),
-            "preflight",
-            "--pair",
-            "note/ja",
-            "--target-kind",
-            "note-key",
-            "--target",
-            "example",
+            str(SCRIPT), "preflight", "--pair", "note/ja",
+            "--target-kind", "note-key", "--target", "example",
         ],
     )
 
-    with pytest.raises(GUARD.InvariantError, match="disk_headroom_low"):
+    assert GUARD.main() == 0
+    assert json.loads(capsys.readouterr().out) == {"action": "manual-unmanaged"}
+
+
+def test_managed_publication_still_requires_durable_state_paths(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    for key in ("ARTICLE_RUN_DIR", "ARTICLE_PUBLICATION_STATE", "ARTICLE_LEDGER"):
+        monkeypatch.delenv(key, raising=False)
+    with pytest.raises(GUARD.InvariantError, match="ARTICLE_RUN_DIR"):
+        GUARD.store_from_env()
+
+
+def test_launchd_state_override_cannot_bypass_canonical_writer_stop(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    home = tmp_path / "home"
+    control_dir = home / ".local/state/life-manager/state"
+    control_dir.mkdir(parents=True, exist_ok=True)
+    (control_dir / "disk-writers.stop").write_text("owner=operator\n", encoding="utf-8")
+    monkeypatch.setattr(GUARD.pwd, "getpwuid", lambda _uid: SimpleNamespace(pw_dir=str(home)))
+    monkeypatch.setenv("ARTICLE_AUTOPUBLISH", "1")
+    monkeypatch.setenv("LIFE_MANAGER_HOST_STATE_DIR", "/tmp/empty-redirected-state")
+    monkeypatch.setattr(
+        GUARD,
+        "manual_or_store",
+        lambda: pytest.fail("a stop file must block before publication store access"),
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            str(SCRIPT), "preflight", "--pair", "note/ja",
+            "--target-kind", "note-key", "--target", "example",
+        ],
+    )
+
+    with pytest.raises(GUARD.InvariantError, match="disk_writers_stop"):
         GUARD.main()
-    assert store_created is False
