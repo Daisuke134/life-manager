@@ -4849,7 +4849,7 @@ flowchart LR
 
 **残TODO（完了まで、この順）:**
 
-1. **現在cursor — latest-main syncとPR最終受け入れ:** PR #7192は2026-10-08 16:44Zにmain `ba39c13aeb11131b30ec32f2ddaad4f0945b5025`としてmergeされ、stale agent-runner manifestが修正された。Gig worktreeへこのmain commitを同期した後、PR #7182のexact-head CI/reviewをPASSさせる。Gig source reviewはSHIP、local focused suite 103/103とsource checksはPASS。
+1. **現在cursor — latest-main syncとPR最終受け入れ:** main `ba39c13aeb`はlocal merge `d3dc02ce67`としてGig branchに入っているが、未push。local OSS checker、focused tests 103/103、loop contract 18/188/0、source-boundary/compile PASS。Code review SHIP。現在のremote PR head `1798649720`はbase `1b0f7d95`を示す古いAPI viewなので、latest-main mergeと本SSOTをpushしてhead/baseを揃え、そのexact-head CIをPASSさせてからmergeする。
 2. **main由来release:** PR #7192のmanifest修正mergeとPR #7182受け入れ後、最新main由来immutable releaseで`RELEASE.json`、Storefront/Paidのloaded SHA/argv/admissionを確認する。
 3. **Coconala Paid obligation:** order `18180857`のfresh official order/talkroom readbackをownerが実行する。今も未完了の場合だけ必要なrevision/formal deliveryを一度行い、buyer acceptance・settlement/payout・replay-zeroを結ぶ。古いsnapshotから現在の待ち状態を推測しない。
 4. **旧Storefront fence:** `18d8d288748508e8-23902`を、同一effectの公式listing/order履歴または受理可能なoccurrence-bound pre-effect receiptで照合する。現在はdry-runがbinding不足で保留。証拠が取れなければfenceを保持し、再公開しない。
@@ -4964,7 +4964,7 @@ flowchart LR
 - `life-manager-release-reconciler`は旧SHA `e1b061f1`、PID `20087`で稼働中。最新occurrence `18dc9a2588c0f7f0-36473`はexit 1。`lm-loop doctor --json`はunmanaged label `ai.anicca.life-manager-release-reconciler-self-handoff`のためnot ok。production/provider stateは変更していない。
 - local Gig focused suiteは103/103、contract/source checksもPASS。source head `8d685fe8c3`のfresh reviewはSHIP。PR head `62821ca878`のSecurity Scan run `37807003724`は8 checksがgreenで、`Loop control contracts`だけ実行中。このSSOT更新でPR headが変わるため、new exact-head CIもPASSが必要。
 
-**現在cursor:** main `ba39c13aeb`をGig branchへmerge → local checksとPR #7182 exact-head CI/reviewをPASS → merge → main由来release/自然Storefront readback。
+**現在cursor:** local main merge `d3dc02ce67` + T7 SSOTをpush → current PR exact-head CI/review PASS → #7182 merge → immutable release/natural Storefront readback。
 
 ### 2026-10-09 01:26 JST — exact-head Security Scan passed
 
@@ -4989,7 +4989,7 @@ flowchart LR
 - owner PR #7192（branch `docs/lm-marketing-runtime-audit-20261009`、head `afdb5a37d9d30b6cbfa149621ced49fa23ad267e`）がmanifest digestを`501cfcef…`へ更新し、OSS checkはPASS。Loop control contractsとTruffleHogはreadback時点で進行中。Gig worktreeではagent-runner/manifestを編集していない。
 - production Storefrontはloaded SHA `3981bca3`。16:20Zの空きは1,073,248 KiB、latest occurrence `18dc9a1b08446f80-11742`は`disk_headroom_low`、旧effect fence `18d8d288748508e8-23902`はunknown。release reconciler SHA `e1b061f1`はexit 1、doctor not ok。精算済み販売receiptは未確認。
 
-**現在cursor:** main `ba39c13aeb`をGig branchへmerge → local checksとPR #7182 exact-head CI/reviewをPASS → merge → main由来release/自然Storefront readback。
+**現在cursor:** local main merge `d3dc02ce67` + T7 SSOTをpush → current PR exact-head CI/review PASS → #7182 merge → immutable release/natural Storefront readback。
 
 
 ### 2026-10-09 01:46 JST — agent-runner manifest修正がmainへmerge
@@ -4998,6 +4998,15 @@ flowchart LR
 - Gig worktreeは`8f0d7dc5dd2da58797c0458234021ea9e4d314ee`時点でba39未同期、本SSOT更新が未commitだった。Gig laneではagent-runner/manifestを編集していない。修正ownerが既にmerge済みのためAGMSG送信は行っていない。
 
 **現在cursor:** このSSOT更新をcommit/push → main `ba39c13aeb`を同期 → local checksとexact-head CI/review → PASS後にPR #7182をmerge。
+
+
+### 2026-10-09 01:48 JST — agent-runner manifest修正をlocal同期
+
+- PR #7192はmain commit `ba39c13aeb11131b30ec32f2ddaad4f0945b5025`としてmergeされ、`runtime/agent-runner/config.json`のinventory metadataが修正された。Gig worktreeへ通常mergeしてlocal commit `d3dc02ce67617a92963be833a7e4f82f47a0da24`となった。mergeは未push。統合済みtreeのlocal OSS checkerはPASS。
+- merge後のfocused Storefront suiteは103/103 PASS、`lm-loop-contract`は18 loops / 188 registry jobs / 0 errors、source-boundaryとcompileもPASS。source reviewは変更のないGig codeに対してSHIPのまま。
+- Remote PR #7182は旧head `1798649720`、古いbase view `1b0f7d95`のまま。latest-main mergeとSSOTをpushして最終head/baseを揃えた後、exact-head CIをPASSさせてmergeする。
+
+**現在cursor:** `d3dc02ce` + T7 SSOTをpush → exact-head CI/review → PASS後にPR #7182をmerge → main由来releaseとStorefront自然readback。
 
 
 ### 2026-10-08 08:35 JST — Mobile post-merge runtime cursor
