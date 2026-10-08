@@ -83,15 +83,31 @@ async def read(cdp: str, item: dict) -> dict:
                 result["rejection_message"] = await _fetch_rejection_message(page, item)
                 result["rejected_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
             if result["purchase_url"]:
-                store = f"https://store.line.me/stickershop/product/{item['product_id']}/ja"
-                await page.goto(store, wait_until="domcontentloaded", timeout=60000)
-                await page.wait_for_timeout(2000)
+                # Open the 購入用URL itself: the store's product id is not the item id, so a store URL built
+                # from the item id is a 404 (every post and article linked to one until 2026-10-09).
+                await page.goto(result["purchase_url"], wait_until="domcontentloaded", timeout=60000)
+                await page.wait_for_timeout(2500)
                 text = await page.inner_text("body")
-                result["store_url"] = store
-                result["store_public"] = item["title_ja"] in text
+                result["store_public"] = "アイテムが見つかりません" not in text and item["title_ja"] in text
             return result
         finally:
             await page.close()
+
+
+NOT_A_STATUS = (None, "", "unknown", "browser_unavailable", "needs_login")
+
+
+def apply_reading(item: dict, result: dict) -> dict:
+    """Fold one readback into the item. A reading that did not happen (browser busy, login needed)
+    carries no status, so it must not replace the last real one: 2026-10-09 it turned all ten on-sale
+    sets into browser_unavailable and the sell loop, which only promotes 販売中 sets, had nothing to post."""
+    status = result.get("status")
+    if status not in NOT_A_STATUS:
+        item["state_observed"] = status
+    for key in ("purchase_url", "store_public", "rejection_message", "rejected_at"):
+        if result.get(key) not in (None, ""):
+            item[key] = result[key]
+    return item
 
 
 def main() -> None:
@@ -112,10 +128,9 @@ def main() -> None:
     LEDGER.parent.mkdir(parents=True, exist_ok=True)
     with LEDGER.open("a") as ledger:
         ledger.write(json.dumps(row, ensure_ascii=False) + "\n")
-    if result.get("status") != item.get("state_observed"):
-        item["state_observed"] = result.get("status")
-        item.update({k: v for k, v in result.items()
-                     if k in ("purchase_url", "store_url", "store_public", "rejection_message", "rejected_at") and v})
+    updated = apply_reading(dict(item), result)
+    if updated != item:
+        item = updated
         args.item_file.write_text(json.dumps(item, ensure_ascii=False, indent=1))
     if result.get("status") == "リジェクト" and result.get("rejection_message"):
         fixed = line_sticker_resubmit.resubmit(args.item_file.parent, item, result["rejection_message"])
