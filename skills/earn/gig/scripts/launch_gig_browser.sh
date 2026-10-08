@@ -5,14 +5,12 @@ set -euo pipefail
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
 
 # The launchd plist points at the stable `current` release symlink. Keep this
-# preflight in the executable so the next natural browser start is protected
-# without reloading (and evicting) the shared authenticated session.
-GIG_DISK_HEADROOM_KIB=524288
+# preflight in the executable so explicit writer stops are read before startup.
 GIG_HOST_STATE_DIR="$HOME/.local/state/life-manager/state"
 GIG_STATE_DIR="$HOME/gig"
-unset GIG_IGNORE_DISK_PRESSURE_BLOCK GIG_IGNORE_DISK_WRITERS_STOP
+unset GIG_IGNORE_DISK_WRITERS_STOP
 unset DISK_CONTROL_STATE_DIR OPENCLAW_STATE_DIR LIFE_MANAGER_HOST_STATE_DIR
-export GIG_DISK_HEADROOM_KIB GIG_HOST_STATE_DIR GIG_STATE_DIR
+export GIG_HOST_STATE_DIR GIG_STATE_DIR
 GIG_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DISK_GUARD="$GIG_SCRIPT_DIR/gig_disk_guard.py"
 if ! /usr/bin/python3 "$DISK_GUARD" /usr/bin/true; then

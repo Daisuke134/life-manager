@@ -19,7 +19,7 @@ if str(ROOT) not in sys.path:
 from runtime.loop.loop_cleanup import gc_releases, remove_owned_tree
 from runtime.host.resource_admission import process_starts
 
-HOST_CLEANUP_RECOVERY_FLOOR_BYTES = 2 * 1024**3  # Dais 2026-10-07; matches disk_admission
+HOST_CLEANUP_RECOVERY_FLOOR_BYTES = 2 * 1024**3  # cleanup receipt target; not producer admission
 
 
 def installed_state_roots(agents_dir: Path) -> set[Path]:
@@ -221,15 +221,24 @@ def host_cleanup_command(root: Path, home: Path, state_dir=None) -> list[str]:
 
 def _host_cleanup_capacity_status(result: object) -> str:
     free_after = result.get("free_after") if isinstance(result, dict) else None
-    if not isinstance(free_after, int) or isinstance(free_after, bool):
+    if (not isinstance(free_after, int) or isinstance(free_after, bool)
+            or free_after < 0):
         return "unknown"
     return "met" if free_after >= HOST_CLEANUP_RECOVERY_FLOOR_BYTES else "unmet"
 
 
 def host_cleanup_ok(returncode: int, result: object) -> bool:
-    return (returncode == 0 and isinstance(result, dict)
-            and result.get("errors") == 0 and result.get("protected_deletions") == 0
-            and _host_cleanup_capacity_status(result) == "met")
+    if not isinstance(result, dict):
+        return False
+    stop = result.get("disk_writers_stop")
+    stop_status = stop.get("status") if isinstance(stop, dict) else None
+    return (
+        returncode == 0
+        and result.get("errors") == 0
+        and result.get("protected_deletions") == 0
+        and _host_cleanup_capacity_status(result) != "unknown"
+        and stop_status in {"absent", "cleared"}
+    )
 
 
 def host_cleanup_readback(returncode: int, stdout: str) -> tuple[bool, dict]:

@@ -31,7 +31,6 @@ def isolated_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     monkeypatch.setenv("HOME", str(home))
     monkeypatch.setenv("LIFE_MANAGER_HOST_STATE_DIR", str(host_state))
     monkeypatch.setenv("LIFE_MANAGER_PRODUCER_STATE_DIR", str(producer_state))
-    monkeypatch.setenv("LIFE_MANAGER_DISK_HEADROOM_KIB", "0")
     healthy = 16 * 1024**3
     monkeypatch.setattr(shutil, "disk_usage", lambda _path: SimpleNamespace(
         total=healthy, used=0, free=healthy,
@@ -69,6 +68,18 @@ def test_disk_free_bytes_measures_the_requested_receipt_volume(
     assert calls == [path]
 
 
+def test_zero_free_bytes_does_not_block_child(tmp_path, monkeypatch):
+    guard = load_guard()
+    monkeypatch.setattr(
+        shutil, "disk_usage", lambda _path: SimpleNamespace(total=1, used=1, free=0),
+    )
+    calls = []
+    monkeypatch.setattr(guard.os, "execvpe", lambda *args: calls.append(args))
+
+    assert guard.main(["/bin/true"]) == 0
+    assert calls and calls[0][1] == ["/bin/true"]
+
+
 @pytest.mark.parametrize("free_bytes", (None, -1, True, "unknown", "missing"))
 def test_disk_free_bytes_returns_unavailable_for_invalid_measurements(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, free_bytes,
@@ -88,14 +99,14 @@ def test_disk_free_bytes_returns_unavailable_for_invalid_measurements(
 
 @pytest.mark.parametrize(
     ("filename", "reason"),
-    (("disk-writers.stop", "disk_writers_stop"),
-     ("disk-pressure.block", "disk_pressure_block")),
+    (("disk-writers.stop", "disk_writers_stop"),),
 )
 def test_policy_flags_fail_closed(
     monkeypatch: pytest.MonkeyPatch, filename: str, reason: str,
 ):
     host_state = Path(os.environ["LIFE_MANAGER_HOST_STATE_DIR"])
     host_state.joinpath(filename).write_text("blocked\n", encoding="utf-8")
+    monkeypatch.setenv("LIFE_MANAGER_IGNORE_DISK_WRITERS_STOP", "1")
     guard = load_guard()
     assert guard.disk_headroom_ok() is False
     receipt = json.loads(
@@ -134,10 +145,9 @@ def test_symlink_policy_directory_fails_closed(monkeypatch: pytest.MonkeyPatch, 
     assert guard.disk_headroom_ok() is False
 
 
-def test_ignore_is_explicit_and_flag_specific(monkeypatch: pytest.MonkeyPatch):
+def test_pressure_marker_is_advisory(monkeypatch: pytest.MonkeyPatch):
     host_state = Path(os.environ["LIFE_MANAGER_HOST_STATE_DIR"])
     host_state.joinpath("disk-pressure.block").write_text("blocked\n", encoding="utf-8")
-    monkeypatch.setenv("LIFE_MANAGER_IGNORE_DISK_PRESSURE_BLOCK", "1")
     guard = load_guard()
     assert guard.disk_headroom_ok() is True
 

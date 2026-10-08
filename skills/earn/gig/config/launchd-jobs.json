@@ -62,14 +62,8 @@
   },
 
   "writer_env": {
-    "LIFE_MANAGER_IGNORE_DISK_PRESSURE_BLOCK": "1",
-    "LIFE_MANAGER_IGNORE_DISK_WRITERS_STOP": "1",
-    "LIFE_MANAGER_DISK_HEADROOM_KIB": "524288",
     "LIFE_MANAGER_HOST_STATE_DIR": "{{LIFE_MANAGER_HOME}}/state",
     "LIFE_MANAGER_PRODUCER_STATE_DIR": "{{WRITER_STATE_DIR}}",
-    "GIG_IGNORE_DISK_PRESSURE_BLOCK": "1",
-    "GIG_IGNORE_DISK_WRITERS_STOP": "1",
-    "GIG_DISK_HEADROOM_KIB": "524288",
     "CLOAK_BROWSER_LAUNCHD_LABEL": "ai.anicca.life-manager-daily-driver",
     "CLOAK_CDP_BASE_URL": "http://localhost:9222",
     "CDP_DAILY_DRIVER_PORT": "9222",
@@ -113,7 +107,6 @@
         "GIG_BROWSER_PROFILE": "{{HOME}}/.cloak/profiles/gig-upwork",
         "GIG_BROWSER_OWNER": "upwork-revenue-browser",
         "GIG_BROWSER_FINGERPRINT": "80138",
-        "GIG_DISK_HEADROOM_KIB": "524288",
         "SESSION_VAULT_DIR": "{{HOME}}/.cloak/vault/gig-upwork",
         "CLOAK_BROWSER_LAUNCHD_LABEL": "ai.anicca.life-manager-upwork-browser"
       },
@@ -167,10 +160,7 @@
         "CLOAK_CONTEXT_LEASES_FILE": "{{CLOAK_VAULT_DIR}}/gig-leases.json",
         "CLOAK_SESSION_VAULT_FILE": "{{SESSION_VAULT_DIR}}/auth-state.json",
         "CDP_LOCK_DIR": "{{GIG_STATE_DIR}}/.cdp-gig.lock",
-        "GIG_OPERATOR_BRAKE_FILE": "{{GIG_BRAKE_DIR}}/apply.operator.brake",
-        "GIG_IGNORE_DISK_PRESSURE_BLOCK": "1",
-        "GIG_IGNORE_DISK_WRITERS_STOP": "1",
-        "GIG_DISK_HEADROOM_KIB": "524288"
+        "GIG_OPERATOR_BRAKE_FILE": "{{GIG_BRAKE_DIR}}/apply.operator.brake"
       },
       "StartInterval": 60,
       "ThrottleInterval": 60,
@@ -194,9 +184,6 @@
       "env": {
         "CLOAK_BROWSER_OWNER": "gig-storefront-direct",
         "CLOAK_CONTEXT_LEASES_FILE": "{{CLOAK_VAULT_DIR}}/gig-leases.json",
-        "GIG_IGNORE_DISK_PRESSURE_BLOCK": "1",
-        "GIG_IGNORE_DISK_WRITERS_STOP": "1",
-        "GIG_DISK_HEADROOM_KIB": "524288",
         "GIG_OPERATOR_BRAKE_FILE": "{{GIG_BRAKE_DIR}}/storefront.operator.brake",
         "GIG_NEGOTIATE_RUN_LOG": "{{GIG_LOG_DIR}}/gig-reply-detector-launchd.out.log",
         "GIG_STOREFRONT_TARGET_SERVICE_ID": "{{GIG_STOREFRONT_TARGET_SERVICE_ID}}",
@@ -242,10 +229,7 @@
         "CDP_GUARD_LOCK": "{{GIG_STATE_DIR}}/.cdp-gig-guard.lock",
         "CDP_GUARD_LOG": "{{GIG_LOG_DIR}}/cdp-gig-browser-guard.log",
         "GIG_CDP_HEALTH_URL": "http://127.0.0.1:{{CDP_PORT}}/json/version",
-        "GIG_NO_CONTACT_REGISTRY": "{{HOME}}/.config/anicca/gig/no-contact.json",
-        "GIG_IGNORE_DISK_PRESSURE_BLOCK": "1",
-        "GIG_IGNORE_DISK_WRITERS_STOP": "1",
-        "GIG_DISK_HEADROOM_KIB": "524288"
+        "GIG_NO_CONTACT_REGISTRY": "{{HOME}}/.config/anicca/gig/no-contact.json"
       },
       "KeepAlive": true,
       "ThrottleInterval": 30,
@@ -266,8 +250,7 @@
         "GIG_BROWSER_PORT": "{{CDP_PORT}}",
         "GIG_BROWSER_PROFILE": "{{CDP_DAILY_DRIVER_PROFILE}}",
         "GIG_BROWSER_FINGERPRINT": "{{GIG_BROWSER_FINGERPRINT}}",
-        "GIG_BROWSER_TLS_COMPAT": "{{GIG_BROWSER_TLS_COMPAT}}",
-        "GIG_DISK_HEADROOM_KIB": "524288"
+        "GIG_BROWSER_TLS_COMPAT": "{{GIG_BROWSER_TLS_COMPAT}}"
       },
       "RunAtLoad": true,
       "KeepAlive": true,

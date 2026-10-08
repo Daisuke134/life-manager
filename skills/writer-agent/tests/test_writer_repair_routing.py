@@ -434,7 +434,7 @@ def _copy_resume_runtime(scripts: Path) -> None:
     for name in (
         "article-resume-pending.sh",
         "writer-runtime-env.sh",
-        "writer_capacity_floor.py",
+        "article_adoption_selection.py",
     ):
         shutil.copy(ROOT / "scripts" / name, scripts)
 
