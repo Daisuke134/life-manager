@@ -223,6 +223,35 @@ def test_rebind_queued_owner_updates_admission_without_changing_sequence(tmp_pat
     assert occurrence[0]["base_priority"] == "revenue"
 
 
+def test_rebind_queued_owner_migrates_resource_class_without_changing_fifo_identity(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="4")
+    ticket, reason = admission.enqueue_durable(
+        "deterministic", "job-search-inbox", admission_class="borrow",
+        priority="support", occurrence_id="job-search-inbox:wake",
+    )
+    assert ticket is not None and reason in {"ready", "capacity_busy", "fifo_wait"}
+    before_queue = durable_rows(tmp_path, "queue")[0]
+    before_occurrence = durable_rows(tmp_path, "occurrences")[0]
+
+    result = admission.rebind_queued_owner(
+        "job-search-inbox", resource_class="agent", admission_class="borrow",
+        priority="support",
+    )
+
+    assert result == "rebound"
+    after_queue = durable_rows(tmp_path, "queue")[0]
+    assert (after_queue["sequence"], after_queue["owner_id"]) == (
+        before_queue["sequence"], before_queue["owner_id"],
+    )
+    assert after_queue["resource_class"] == "agent"
+    after_occurrence = durable_rows(tmp_path, "occurrences")[0]
+    assert after_occurrence["occurrence_id"] == before_occurrence["occurrence_id"]
+    assert after_occurrence["resource_class"] == "agent"
+    assert after_occurrence["state"] == "queued"
+    assert after_occurrence["effect_unknown"] == 0
+
+
 def test_rebind_queued_owner_waits_through_long_reader_snapshot(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="4")
     ticket, reason = admission.enqueue_durable(
@@ -348,7 +377,7 @@ def test_rebind_queued_owner_releases_unclaimed_reservation_only_for_policy_drif
     assert occurrence["base_priority"] == "revenue"
 
 
-def test_rebind_queued_owner_keeps_active_reservation_when_policy_is_unchanged(
+def test_rebind_queued_owner_keeps_active_reservation_during_class_migration(
         tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="4")
     ticket, _ = admission.enqueue_durable(
@@ -360,13 +389,14 @@ def test_rebind_queued_owner_keeps_active_reservation_when_policy_is_unchanged(
     monkeypatch.setattr(admission.time, "time", lambda: 102)
 
     result = admission.rebind_queued_owner(
-        "source-refresh", resource_class="deterministic",
+        "source-refresh", resource_class="agent",
         admission_class="borrow", priority="support",
         replace_reserved_policy_drift=True,
     )
 
-    assert result == "reserved"
+    assert result == "resource_class_reserved"
     assert durable_rows(tmp_path, "reservations")[0]["owner_id"] == "source-refresh"
+    assert durable_rows(tmp_path, "queue")[0]["resource_class"] == "deterministic"
 
 
 def test_rebind_queued_owner_keeps_reservation_at_claimed_effect_boundary(
@@ -422,7 +452,7 @@ def test_reserved_policy_rebind_fences_occurrence_scoped_unknown(
     monkeypatch.setattr(admission.time, "time", lambda: 105)
 
     result = admission.rebind_queued_owner(
-        owner, resource_class="deterministic", admission_class="revenue",
+        owner, resource_class="agent", admission_class="revenue",
         priority="revenue", effect_scope="occurrence",
         replace_reserved_policy_drift=True,
     )
@@ -468,7 +498,7 @@ def test_rebind_occurrence_scoped_owner_preserves_old_unknown_and_migrates_queue
     admission.release_and_reserve(old, effect_unknown=True, reserve=False, now=103)
 
     assert admission.rebind_queued_owner(
-        owner, resource_class="agent", admission_class="revenue",
+        owner, resource_class="deterministic", admission_class="revenue",
         priority="revenue", effect_scope="occurrence",
     ) == "rebound"
 
@@ -476,11 +506,13 @@ def test_rebind_occurrence_scoped_owner_preserves_old_unknown_and_migrates_queue
     assert (rows[f"{owner}:old"]["state"], rows[f"{owner}:old"]["effect_unknown"]) == (
         "claimed", 1,
     )
+    assert rows[f"{owner}:old"]["resource_class"] == "agent"
     assert rows[f"{owner}:new"]["state"] == "queued"
+    assert rows[f"{owner}:new"]["resource_class"] == "deterministic"
     priority = durable_rows(tmp_path, "priorities")[0]
     assert priority["effect_scope"] == "occurrence"
     new, reason = admission.claim_durable(
-        "agent", owner, admission_class="revenue", effect_scope="occurrence", now=104,
+        "deterministic", owner, admission_class="revenue", effect_scope="occurrence", now=104,
     )
     assert new is not None and reason == "acquired"
     assert json.loads(new.read_text())["occurrence_id"] == f"{owner}:new"

@@ -1946,6 +1946,7 @@
       "priority": "support",
       "provider_route": "shared-agent-runner",
       "resource_class": "agent",
+      "reconcile_queued_release": true,
       "state_root": "~/.local/state/anicca/job-search"
     },
     "job-search-learning": {

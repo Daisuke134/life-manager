@@ -1080,6 +1080,30 @@ class LmLoopApplyTest(unittest.TestCase):
             "example", resource_class="agent", admission_class="revenue", priority="revenue"
         )
 
+    def test_admission_rebind_guard_defers_class_reserved_even_when_release_rebind_allowed(self):
+        entry = {
+            "resource_class": "agent",
+            "admission_class": "borrow",
+            "priority": "support",
+        }
+        item = {"label": "ai.anicca.example"}
+        with (
+            patch.object(lm_loop, "_pending_admission_owners", return_value={"example"}),
+            patch.object(lm_loop, "_skip_if_not_loaded_idle", return_value=None),
+            patch.object(
+                lm_loop, "rebind_queued_owner", return_value="resource_class_reserved",
+            ) as rebind,
+            lm_loop._admission_rebind_guard(
+                "example", True, entry=entry, item=item, release_sha=SHA,
+                launchctl_safe=Path("/tmp/launchctl-safe"),
+                allow_reserved_release_rebind=True,
+            ) as decision,
+        ):
+            self.assertEqual(decision, "pending")
+        rebind.assert_called_once_with(
+            "example", resource_class="agent", admission_class="borrow", priority="support"
+        )
+
     def test_admission_rebind_guard_replaces_reserved_policy_drift_after_idle_readback(self):
         entry = {
             "resource_class": "agent",
@@ -3106,9 +3130,10 @@ class LmLoopApplyTest(unittest.TestCase):
         release = self._release("release-auto-pending-release-opt-in").resolve()
         value = registry()
         value["loops"]["example"].update({
-            "resource_class": "deterministic",
-            "admission_class": "revenue",
-            "priority": "revenue",
+            "resource_class": "agent",
+            "admission_class": "borrow",
+            "priority": "support",
+            "provider_route": "shared-agent-runner",
             "reconcile_queued_release": True,
         })
         value["loops"]["paid-sibling"] = {
@@ -3123,7 +3148,7 @@ class LmLoopApplyTest(unittest.TestCase):
         (release / "config/loop-registry.json").write_text(json.dumps(value))
         rows = [{
             "classification": "managed",
-            "provider_route": "deterministic",
+            "provider_route": "shared-agent-runner",
             "launchd_state": "loaded-idle",
             "installed_release_sha": "b" * 40,
             "event_release_sha": "b" * 40,
@@ -3152,7 +3177,7 @@ class LmLoopApplyTest(unittest.TestCase):
             redirect_stdout(io.StringIO()) as output,
         ):
             self.assertEqual(lm_loop.main([
-                "reconcile", "deterministic", "--loaded-idle-only",
+                "reconcile", "shared-agent-runner", "--loaded-idle-only",
             ]), 0)
 
         self.assertEqual([row["target"] for row in applied], ["example"])
