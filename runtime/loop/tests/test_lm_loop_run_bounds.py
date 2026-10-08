@@ -3699,35 +3699,27 @@ def test_disk_headroom_that_stays_low_still_defers_after_the_wait(tmp_path):
     assert deferred["reason"] == "disk_headroom_low" and deferred["available_bytes"] == floor - 1
 
 
-def test_critical_paid_loop_runs_between_one_and_two_gib_free(tmp_path):
-    """2026-10-08: free space sat at 1.2-1.9 GiB for hours (swap pressure) and one 2 GiB gate
-    stopped every loop, paid-order producers included. critical_paid keeps a lower floor."""
+def test_revenue_loops_keep_shipping_on_a_low_floor_and_the_rest_keep_two_gib(tmp_path):
+    """2026-10-09 Dais: shipping and marketing must not stop on a 2 GiB gate; a cleanup agent owns
+    space. critical_paid 256 MiB, revenue 512 MiB, everything else the shared 2 GiB."""
     from runtime.loop.lm_loop_run import _disk_floor, _disk_headroom_deferred
-    gib = 1024**3
-    paid, other = {"priority": "critical_paid"}, {"priority": "revenue"}
-    assert _disk_floor(paid) == gib and _disk_floor(other) == 2 * gib and _disk_floor({}) == 2 * gib
+    mib, gib = 1024**2, 1024**3
+    paid, rev, other = {"priority": "critical_paid"}, {"priority": "revenue"}, {"priority": "support"}
+    assert _disk_floor(paid) == 256 * mib and _disk_floor(rev) == 512 * mib
+    assert _disk_floor(other) == 2 * gib and _disk_floor({}) == 2 * gib
     with (patch.dict(os.environ, {"LIFE_MANAGER_DISK_HEADROOM_WAIT_SECONDS": "0"}),
-          patch("runtime.loop.lm_loop_run.disk_free_bytes", return_value=gib + gib // 2)):
+          patch("runtime.loop.lm_loop_run.disk_free_bytes", return_value=600 * mib)):
         assert _disk_headroom_deferred(tmp_path, phase="pre_enqueue", floor=_disk_floor(paid)) is None
+        assert _disk_headroom_deferred(tmp_path, phase="pre_enqueue", floor=_disk_floor(rev)) is None
         deferred = _disk_headroom_deferred(tmp_path, phase="pre_enqueue", floor=_disk_floor(other))
     assert deferred["reason"] == "disk_headroom_low" and deferred["required_bytes"] == 2 * gib
 
 
-def test_critical_paid_loop_still_defers_below_its_own_floor(tmp_path):
+def test_revenue_loops_still_defer_below_their_own_floor(tmp_path):
     from runtime.loop.lm_loop_run import _disk_floor, _disk_headroom_deferred
-    gib = 1024**3
+    mib = 1024**2
     with (patch.dict(os.environ, {"LIFE_MANAGER_DISK_HEADROOM_WAIT_SECONDS": "0"}),
-          patch("runtime.loop.lm_loop_run.disk_free_bytes", return_value=gib - 1)):
-        deferred = _disk_headroom_deferred(
-            tmp_path, phase="pre_enqueue", floor=_disk_floor({"priority": "critical_paid"}))
-    assert deferred["reason"] == "disk_headroom_low" and deferred["required_bytes"] == gib
-
-
-def test_coconala_storefront_uses_critical_paid_disk_floor():
-    registry_path = Path(__file__).resolve().parents[3] / "config" / "loop-registry.json"
-    registry = json.loads(registry_path.read_text(encoding="utf-8"))
-    storefront = registry["loops"]["hf-gig-storefront-direct"]
-
-    assert storefront["priority"] == "critical_paid"
-    assert storefront["admission_class"] == "revenue"
-    assert loop_runner._disk_floor(storefront) == 1024**3
+          patch("runtime.loop.lm_loop_run.disk_free_bytes", return_value=200 * mib)):
+        paid = _disk_headroom_deferred(tmp_path, phase="pre_enqueue", floor=_disk_floor({"priority": "critical_paid"}))
+        rev = _disk_headroom_deferred(tmp_path, phase="pre_enqueue", floor=_disk_floor({"priority": "revenue"}))
+    assert paid["required_bytes"] == 256 * mib and rev["required_bytes"] == 512 * mib
