@@ -3172,6 +3172,30 @@ Capafy の $10k MRR までの全順序（20 項目、段階・完了条件・状
 
 Capafy＋PromptBase＋自社 checkout をまとめた $10k MRR の全体計画（売り場ごとの目標・週ごとの数字・OSS 公開条件）は `docs/superpowers/plans/2026-10-05-agent-skill-factory-10k-mrr.md`。Capafy の実行順・記録はこれまでどおり `docs/superpowers/plans/2026-10-04-capafy-10k-mrr-recipe.md`。
 
+## 3 つの稼ぐエージェントと共通マーケティング（2026-10-08 12:50 JST 実測）
+
+目標: 各エージェントで $10k MRR。順序: Capafy → Writer → Mobile。Capafy の細目は `docs/superpowers/plans/2026-10-04-capafy-10k-mrr-recipe.md` が正本。
+
+### As-Is
+| エージェント | 作る | 売る（宣伝） | Telegram にリンク報告 | 直近の売上 |
+|---|---|---|---|---|
+| Capafy | 工場 `capafy-loop-daily`（15 分ごと）。下書き 9531771963 で CP1 が 3 回止まり、新規出荷 0（10/08 修正 2 件を本番反映済み） | aniccaai.com 記事＋X（3 時間ごと、公開中）、Instagram @capafy.hooklab に Postiz 経由で手動 2 本＋予約 2 本（自動 owner は disabled） | 10/08 に配信ループへ追加（共通 `telegram-notify.sh`）。初回 13:15 | 直近 7 日 $0。4 本中 3 本が 10/08 12:00 承認 |
+| Writer（note・Substack 有料記事） | `article-daily` が **9/29 以降止まっている**（launchd `last exit 78`。`zenn-deferred-worker.py` が読み取り専用の release 内 `skills/writer-agent/state` に書こうとして PermissionError、ディスク満杯の ENOSPC も） | 記事自体＋X | 仕組み（`article-completion-notify.py`）はあるが、9/2 を最後に送信なし（ループが完走しないため） | money ledger 0 行（`database is locked`・ENOSPC で同期失敗）。9/29 の有料記事 3 本は公開中 |
+| Mobile（iOS アプリ） | アプリ工場は未再確認 | TikTok/IG/YouTube の 10 レーンが Postiz で毎日公開中（10/07 も PUBLISHED） | **動いている**（`apps/life-manager/lib/telegram.js`、10/05〜10/07 に公開 URL 付きで送信） | anicca-ios MRR $20.34、honne-ai $0（10/07） |
+
+共通部品: Postiz（Capafy・Mobile）、`telegram-notify.sh`（Writer・Capafy）と `telegram.js`（Mobile）の 2 系統、aniccaai.com 掲載（Writer・Capafy で別スクリプト）。アプリ向けの無料記事レーンは無い。
+
+### To-Be
+- 3 エージェントとも「作る loop＋売る loop」が自然実行で回り、公開のたびにリンク付きで Telegram に届く。
+- 宣伝は 1 つのマーケティングエンジン（`skills/earn/marketing-engine`＋Postiz＋aniccaai.com 掲載＋1 つの Telegram 送信）を全製品が共有する。新しい仕組みは作らず、既存の Mobile レーン（Postiz・Telegram が動いている）を基準に寄せる。
+- 計測は各売り場の公式の仕組み（Capafy プロモーションリンク ct、PromptBase `?via=`、App Store/RevenueCat）。
+
+### 残り TODO（この順）
+1. Capafy: 計画書の N 表の順（ReelFarm 同梱トークンの除去 → 工場の新規出荷 → Hook Lab・YouTube 再提出 → 残りの「注意」→ IG 自動化・プロフィールリンク → お試し停止）。
+2. Writer: `zenn-deferred-worker.py` の書き込み先を state dir（`ARTICLE_STATE_DIR`）へ → `article-daily` の自然実行を復旧 → 公開時の Telegram リンク報告の受領を確認 → money ledger 同期の復旧。
+3. Mobile: アプリの無料記事を既存の Writer/aniccaai.com 掲載で出す（新レーンは作らない）。
+4. 共通: Telegram 送信を 1 系統に寄せる（既存のどちらかを呼ぶ形。新規実装しない）。
+
 ## Dais指定のeBook → Capafy Instagram実行順
 
 - **旧順序:** checkout → webhook source → attribution → eBook publisher → first paid/PDF receipt → Capafy D5。production schema constraints・migration・lead-magnet sender/sourceは分離されず、source readinessとproduction readinessが混在していた。
