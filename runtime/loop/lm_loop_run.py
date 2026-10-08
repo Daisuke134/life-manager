@@ -86,7 +86,10 @@ EFFECT_RESULT_HINT_ENTRYPOINTS = frozenset({
 EFFECT_RESULT_HINT_LOOP_ENTRYPOINTS = {
     "life-manager-cfo-hourly": "skills/cfo/run.sh",
 }
-NO_EFFECT_RESULT_HINT_ENTRYPOINT = "apps/life-manager/scripts/ebook-distribute-daily.sh"
+NO_EFFECT_RESULT_HINT_ENTRYPOINTS = frozenset({
+    "apps/life-manager/scripts/ebook-distribute-daily.sh",
+    "apps/life-manager/scripts/mobile-app",
+})
 # Loop IDs allowed to use the pre-effect hint when their registry entrypoint is
 # shared (e.g. runtime/loop/entry_dispatch.py dispatches several owners from one
 # entrypoint string). Entrypoint membership above is not enough to scope trust
@@ -941,8 +944,11 @@ def _effect_result_hint_allowed(loop_id: str, entrypoint: str | None) -> bool:
 
 def _verified_no_effect_result(path: Path, loop_id: str, occurrence_id: str,
                                entrypoint: str) -> tuple[str, str] | None:
-    if entrypoint != NO_EFFECT_RESULT_HINT_ENTRYPOINT:
+    if entrypoint not in NO_EFFECT_RESULT_HINT_ENTRYPOINTS:
         return None
+    allowed_reasons = ({"setup_required", "no_due_slot"}
+                       if entrypoint == "apps/life-manager/scripts/ebook-distribute-daily.sh"
+                       else {"no_due_slot", "daily_limit_reached"})
     value = _read_private_result_hint(path)
     expected_fields = {
         "schema_version", "kind", "status", "effect", "owner_id",
@@ -958,7 +964,7 @@ def _verified_no_effect_result(path: Path, loop_id: str, occurrence_id: str,
             or value.get("owner_id") != loop_id
             or value.get("occurrence_id") != occurrence_id
             or not isinstance(value.get("reason"), str)
-            or value.get("reason") not in {"setup_required", "no_due_slot"}):
+            or value.get("reason") not in allowed_reasons):
         return None
     return "not_applicable", f"lm-no-effect://{loop_id}/{occurrence_id}/{value['reason']}"
 
@@ -1717,7 +1723,7 @@ def main(argv: list[str] | None = None) -> int:
                 and _effect_result_hint_allowed(loop_id, entry.get("entrypoint"))
                 and claimed_occurrence_id is not None):
             hint_path = scratch / "entrypoint-result.json"
-            if entry.get("entrypoint") == NO_EFFECT_RESULT_HINT_ENTRYPOINT:
+            if entry.get("entrypoint") in NO_EFFECT_RESULT_HINT_ENTRYPOINTS:
                 effect_result = _verified_no_effect_result(
                     hint_path, loop_id, claimed_occurrence_id, entry["entrypoint"])
             if effect_result is None:

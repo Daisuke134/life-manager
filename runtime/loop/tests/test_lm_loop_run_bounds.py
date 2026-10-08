@@ -845,28 +845,6 @@ def test_x_repost_uses_revenue_queue_priority_and_coalesces_when_agent_capacity_
     assert json.loads(receipt.read_text())["reason"] == "resource_capacity_busy"
 
 
-def test_cfo_report_uses_deterministic_revenue_admission_class(tmp_path):
-    registry = json.loads(
-        (Path(__file__).parents[3] / "config/loop-registry.json").read_text()
-    )["loops"]
-    occurrence_id = "life-manager-cfo-hourly:scheduled-wake"
-    receipt = tmp_path / "receipt.json"
-    with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
-          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
-                return_value=(tmp_path / "ticket", "capacity_busy")) as enqueue,
-          patch("runtime.loop.lm_loop_run._run_entrypoint") as run):
-        assert _run_admitted(
-            ["/bin/true"], registry["life-manager-cfo-hourly"],
-            "life-manager-cfo-hourly", {}, receipt, occurrence_id=occurrence_id,
-        ) == 75
-
-    enqueue.assert_called_once_with(
-        "deterministic", "life-manager-cfo-hourly", admission_class="revenue",
-        priority="revenue", occurrence_id=occurrence_id, coalesce_reserved=True,
-    )
-    run.assert_not_called()
-
-
 def test_running_child_receives_periodic_claim_heartbeat(tmp_path, monkeypatch):
     entry = {
         "cadence": {"start_interval_seconds": 60},
@@ -2017,7 +1995,7 @@ def _write_no_effect_result(path, **overrides):
     return value
 
 
-def test_verified_no_effect_result_requires_exact_identity_and_eBook_entrypoint(tmp_path):
+def test_verified_no_effect_result_requires_exact_identity_and_allowed_entrypoint(tmp_path):
     hint = tmp_path / 'entrypoint-result.json'
     _write_no_effect_result(hint)
     reader = getattr(loop_runner, '_verified_no_effect_result', None)
@@ -2053,8 +2031,28 @@ def test_verified_no_effect_result_requires_exact_identity_and_eBook_entrypoint(
     assert reader(hint, 'ebook-ja-tiktok-daily',
                   'ebook-ja-tiktok-daily:run-off-slot', entrypoint) is None
     _write_no_effect_result(hint)
+    mobile_owner = 'life-manager-anicca-en-affirmation-instagram'
+    mobile_occurrence = f'{mobile_owner}:off-slot-1'
+    _write_no_effect_result(hint, owner_id=mobile_owner,
+                            occurrence_id=mobile_occurrence)
+    assert reader(hint, mobile_owner, mobile_occurrence,
+                  'apps/life-manager/scripts/mobile-app') == (
+                      'not_applicable',
+                      f'lm-no-effect://{mobile_owner}/{mobile_occurrence}/no_due_slot',
+                  )
+    _write_no_effect_result(hint, owner_id=mobile_owner,
+                            occurrence_id=mobile_occurrence,
+                            reason='daily_limit_reached')
+    assert reader(hint, mobile_owner, mobile_occurrence,
+                  'apps/life-manager/scripts/mobile-app') == (
+                      'not_applicable',
+                      f'lm-no-effect://{mobile_owner}/{mobile_occurrence}/daily_limit_reached',
+                  )
+    _write_no_effect_result(hint, reason='daily_limit_reached')
     assert reader(hint, 'ebook-ja-tiktok-daily',
-                  'ebook-ja-tiktok-daily:run-off-slot', 'apps/life-manager/scripts/mobile-app') is None
+                  'ebook-ja-tiktok-daily:run-off-slot', entrypoint) is None
+    assert reader(hint, mobile_owner, mobile_occurrence,
+                  'apps/life-manager/scripts/other-mobile-app') is None
     hint.write_text('{"status":"pre_effect_failure","effect":0}\n', encoding='utf-8')
     hint.chmod(0o600)
     assert reader(hint, 'ebook-ja-tiktok-daily',

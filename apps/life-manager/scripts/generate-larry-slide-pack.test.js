@@ -9,7 +9,7 @@ const { spawnSync } = require("node:child_process");
 const test = require("node:test");
 
 const { importContentObject } = require("../lib/content-object-store.js");
-const { JA_LANE, EN_SLIDESHOW_TIKTOK_LANE, JA_BUDDHA_TIKTOK_LANE } = require("../lib/marketing-native-carousel-publication-adapter.js");
+const { JA_LANE, EN_AFFIRMATION_LANE, EN_SLIDESHOW_TIKTOK_LANE, JA_BUDDHA_TIKTOK_LANE } = require("../lib/marketing-native-carousel-publication-adapter.js");
 const {
   MIN_DAYS_BETWEEN_REPEAT,
   poolPath,
@@ -72,6 +72,58 @@ test("resolveLarryJaSlot generates a pool from empty and returns a candidate", {
   assert.ok(fs.existsSync(pool));
 });
 
+test("resolveLarryJaSlot returns a typed no-due result before the first slot without generating a pack", async (t) => {
+  const dataDir = tempDataDir(t);
+  const env = { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT };
+  let generateCalls = 0;
+  await assert.rejects(resolveLarryJaSlot({
+    env,
+    now: () => "2026-10-09T00:05:00.000+09:00",
+    lane: EN_AFFIRMATION_LANE,
+    productionSlots: ["10:00", "15:00", "20:00"],
+    generateCandidates: async () => {
+      generateCalls += 1;
+      throw new Error("must not generate before the first due slot");
+    },
+  }), (error) => error && error.code === "NO_DUE_SLOT");
+  assert.equal(generateCalls, 0);
+  assert.equal(fs.existsSync(poolPath(dataDir, TENANT, EN_AFFIRMATION_LANE.productId, EN_AFFIRMATION_LANE.lane)), false);
+});
+
+test("resolveLarryJaSlot stops after the lane's verified daily receipt limit", async (t) => {
+  const dataDir = tempDataDir(t);
+  const env = { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT };
+  writeDistributionLedger(dataDir, [
+    "2026-10-09T00:05:00.000+09:00",
+    "2026-10-09T00:13:00.000+09:00",
+    "2026-10-09T00:17:00.000+09:00",
+  ].map((publishedAt, index) => ({
+    effect_key: `marketing:carousel:anicca-ios:creative:${"a".repeat(64)}:${"b".repeat(64)}:${"c".repeat(64)}:${crypto.createHash("sha256").update(`slot-${index}`).digest("hex")}`,
+    job_id: `published-off-slot-${index}`,
+    receipt: {
+      kind: "marketing_native_carousel_distribution",
+      status: "published",
+      integration_ref: EN_AFFIRMATION_LANE.integrationRef,
+      pack_sha256: "a".repeat(64),
+      published_at: publishedAt,
+      provider_post_id: `postiz-off-slot-${index}`,
+      provider_reconciled: true,
+    },
+  })));
+  let generateCalls = 0;
+  await assert.rejects(resolveLarryJaSlot({
+    env,
+    now: () => "2026-10-09T01:05:00.000Z",
+    lane: EN_AFFIRMATION_LANE,
+    productionSlots: ["10:00", "15:00", "20:00"],
+    generateCandidates: async () => {
+      generateCalls += 1;
+      throw new Error("must not generate after the lane daily limit");
+    },
+  }), (error) => error && error.code === "DAILY_LIMIT_REACHED");
+  assert.equal(generateCalls, 0);
+});
+
 test("resolveLarryJaSlot does not regenerate once the pool already has enough candidates", { timeout: 60_000 }, async (t) => {
   makeFixtureBackgroundOnce();
   const dataDir = tempDataDir(t);
@@ -107,15 +159,15 @@ test("resolveLarryJaSlot never repeats a pack posted within MIN_DAYS_BETWEEN_REP
 test("resolveLarryJaSlot skips content rotation when this integration already published the exact due slot", async (t) => {
   const dataDir = tempDataDir(t);
   const env = { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT };
-  const slot = "2026-09-28T01:30:00.000Z";
-  const slotHash = "604a92d13641f0953e91b185a3b3a72c2c8dad510877a892a99b6b09b03d3611";
+  const slot = "2026-09-28T01:00:00.000Z";
+  const slotHash = crypto.createHash("sha256").update(slot).digest("hex");
   writeDistributionLedger(dataDir, [{
     effect_key: `marketing:carousel:anicca-ios:creative:${"a".repeat(64)}:${"b".repeat(64)}:${"c".repeat(64)}:${slotHash}`,
     job_id: "published-slot-job",
     receipt: {
       kind: "marketing_native_carousel_distribution",
       status: "published",
-      integration_ref: EN_SLIDESHOW_TIKTOK_LANE.integrationRef,
+      integration_ref: EN_AFFIRMATION_LANE.integrationRef,
       pack_sha256: "a".repeat(64),
       published_at: NOW,
       provider_post_id: "postiz-slot-publication-1",
@@ -125,10 +177,9 @@ test("resolveLarryJaSlot skips content rotation when this integration already pu
   let generations = 0;
   const result = await resolveLarryJaSlot({
     env,
-    now: () => NOW,
-    slot,
-    lane: EN_SLIDESHOW_TIKTOK_LANE,
-    productionSlots: ["09:00", "15:00", "21:00"],
+    now: () => "2026-09-28T01:05:00.000Z",
+    lane: EN_AFFIRMATION_LANE,
+    productionSlots: ["10:00", "15:00", "20:00"],
     generateCandidates: async () => {
       generations += 1;
       return [{ packRef: `object://sha256/${"d".repeat(64)}`, familyId: "fresh" }];
