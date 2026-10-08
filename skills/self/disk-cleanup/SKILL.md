@@ -30,6 +30,9 @@ allow-listed regenerable artifact after an open-path probe confirms
 - `sweep()` accepts only candidates carrying internal allow-list discovery proof
   for the exact regenerable families; the CLI `--candidate` escape hatch is
   rejected so an arbitrary path cannot be promoted by an operator flag.
+- The exact `~/Library/Developer/Xcode/DerivedData` tree is a regenerable build
+  cache candidate. It is reclaimed only after the path is confirmed closed;
+  Xcode Archives and project source remain outside this allow-list.
 - The 5-minute pass has one atomic lock and no LLM deletion authority.
 - Pressure is asserted below 2 GiB and is not cleared until the recovery floor
   is reached; the 20 GiB threshold starts preventive containment.
