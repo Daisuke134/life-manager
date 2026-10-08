@@ -6592,4 +6592,30 @@ The next cursor is item 1 commit/push. No Dais manual action is currently requir
 5. Publish one verified MP4 and confirm official `PUBLISHED` receipt/URL; then restore 3 daily slots.
 6. Measure paid order-to-PDF sales separately from MRR. `The Anicca Reset` is `$10.99` one-time; the `$9.99/month` Letter has `0` active subscribers. Add Letter to the product/attribution registry and target 1,002 active subscribers for at least `$10K` gross MRR before fees.
 
-**現在cursor:** `natural terminal of PID72182 → successful fixed-helper receipt or idle-only apply of a248ce97 → exact eBook media/effect reconciliation → bind English Monk IG handle → publish/readback → restore 3/day → map and grow the paid Letter funnel`. No Capafy action, stop/restart, raw `launchctl`, or replay.
+**20:13 JST時点cursor（20:27 JSTに更新）:** `natural terminal of PID72182 → successful fixed-helper receipt or idle-only apply of a248ce97 → exact eBook media/effect reconciliation → bind English Monk IG handle → publish/readback → restore 3/day → map and grow the paid Letter funnel`. No Capafy action, stop/restart, raw `launchctl`, or replay.
+
+### 2026-10-08 20:27 JST — eBook publishing blockers rechecked
+
+- この記録が20:13 JSTのcursorを置き換える。
+- Source branch is synchronized with `origin/main=71fd30f8e2`. This update changes only the eBook cursor in this SSOT.
+- `lm-loop status ebook-en-tiktok-daily --explain --json` reports the owner loaded-idle on installed release `8b75fa53`, PID absent, and safely fenced. The active occurrence `18dc6de8dcf3a0e8-75262` failed with `render_reconciliation_required`; provider receipt and official readback are absent. The status also retains a separate historical unknown publish occurrence `18dc753144ba2928-65645`, without a provider receipt. Neither fence is cleared.
+- `~/loops/current` points to immutable release `20261008T202253-71fd30f8`. The release reconciler remains loaded-running as PID `72182` on `8b75fa53`; do not stop or restart it. Its last health event is `entrypoint_exit_1` at 11:03 UTC, while the current status still reports the process running.
+- The Oct 8 English render sidecar is `delivery_uncertain`, with no HeyGen `video_id`; its expected MP4 is absent. The only three files in the current eBook render directory are Japanese `ebook-ja` Watercolor previews. Local eBook/Monk Factory search found no `Hadrian`/`Adrian` asset record.
+- Official HeyGen CLI list and title searches (`Hadrian`, `Adrian`, `monk`, `mistake follows you`) return zero videos. The connected HeyGen app tool requires reauthentication, and the CloakBrowser page opened to the public HeyGen site rather than an authenticated video library. The CLI account has not been proven to be the exact account used by the Oct 8 render, so this is not authoritative no-effect evidence. Do not regenerate or replay the render.
+- Official Postiz `GET /integrations` returns 31 integrations, including 9 Instagram integrations; none is bound to English Monk. The product registry binds `@monk_anicca` only to English eBook TikTok. `@anicca.en` and `@anicca.encards` belong to iOS lanes. No English Monk Instagram identity appears in the credential SSOT or current CloakBrowser account filenames. Do not route the eBook video to another product account.
+- No post or monthly-plan purchase occurred. A HeyGen subscription would not resolve the unknown render effect or supply the missing Instagram route. Uploading requires a verified existing MP4; reconsider a new render only after authoritative no-effect evidence.
+- Latest recorded Stripe readback remains: `The Anicca Reset` is `$10.99` one-time; `Daily Anicca Letter` is `$9.99/month` with `0` active subscribers. The one-time eBook is not MRR. `1,002 × $9.99 = $10,009.98` gross MRR before fees/refunds; this is a target, not current revenue.
+
+**順序変更:** 旧cursorは「PID `72182` の自然終了とhandoff完了を待つ → HeyGen効果と動画を照合 → Instagramを結線 → 投稿 → 3回/日の復帰 → Letter funnel」。新cursorは「HeyGenの同一アカウント/効果と動画を特定 → English Monk Instagramを特定・結線 → reconcilerの自然終了後に最新releaseへ安全に収束 → 1本を投稿して公式readback → Checkout/PDFとLetter funnelを確認 → 3回/日の運用を復帰」。動画とInstagramの確認はreconcilerの自然終了を待たずに進められ、handoff待ちは投稿の直接要因ではなく定期運用を戻す直前に行えばよいため。外部効果unknownの再送は禁止を維持する。
+
+**Atomic TODO (eBook only):**
+
+1. HeyGenのOct 8作成試行を、その試行と同じアカウントの公式履歴で照合し、動画ID/完了MP4またはauthoritative no-effectを確定する。現状はAPI一覧0件・MCP再認証要求で、アカウント対応が未確定。再生成しない。
+2. 正確なEnglish Monk MP4を取得し、run/creativeと結び付け、過去投稿の有無を照合する。現在の`ebook-ja`プレビューは代用しない。
+3. English Monkの現行Instagram `@handle` と所有者を確定し、Postizの有効integrationとcanonical eBook ownerに結び付ける。現状のPostizに該当IG integrationはない。
+4. 現在実行中のPID `72182` が自然終了した後、fresh preflightとno-PID readbackを確認し、`~/loops/current` のimmutable release `71fd30f8` へ対象限定の安全なhandoff/applyを行う。loaded SHA/argvと成功receiptを確認する。稼働中は触らない。
+5. 検証済みMP4を確定したEnglish Monk Instagramへ1回だけ公開し、Postiz公式`PUBLISHED` receiptと公開URLを確認する。
+6. 最初の投稿を出した後、既存`$9.99/month` Letterをmarketing product/attribution registryと導線へ接続し、CheckoutとeBook PDF deliveryを読み合わせる。one-time eBook saleとactive paid subscription MRRを別計上する。
+7. 正式Instagram routeで3 slots/dayを復帰し、各natural postの公式readbackを記録する。active paid Letter subscriptionsが1,002件に達するまでは`$10K MRR`を達成と報告しない。
+
+**現在cursor:** `HeyGen試行の同一アカウントreadbackと正確な英語動画 → English Monk IG handle/integration → PID72182の自然終了後に71fd30f8へ安全handoff → 1件publish/readback → Checkout/PDFとLetter計測 → 3回/日を再開し自然投稿を確認`。現時点でユーザーから必要な識別情報は、現行English Monk Instagramの`@handle`（またはPostiz上の該当アカウント接続）1点。Capafyの作業は含めない。
