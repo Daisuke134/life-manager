@@ -6765,3 +6765,13 @@ The next cursor is item 1 commit/push. No Dais manual action is currently requir
 3. main由来immutable releaseへCFO source/schemaを含め、loaded-idleのownerだけcanonical `lm-loop` routeで反映する。新しいnatural CFO reportでruntime terminalのprovider receipt/ref、B7/outbox hash、admission、replay-zeroを照合する。
 4. host-disk ownerがstale watchdog release参照をcanonical lifecycleで修復し、fresh `free_after >= 11,811,160,064`, errors 0, protected deletions 0をreadbackする（次回CFO 2 GiB admissionの代替条件ではない）。
 5. A5 production migration/RPC/permission/panel readback → A6 Google invoice/Monitoring/cash settlement and loop attribution → A8 18-loop revenue/cost + 187-job classification → A9 source-period daily/MTD/trailing/MRR → A10 seven-day natural coverage/replay-zero。
+
+### 2026-10-08 20:16 JST — latest-main sync and CFO gate rechecked
+
+この追記が20:14 JSTのPR stateを更新する。branch worktreeは`origin/main=44d340554a8d9bdc4b56bb8674d9e2aff388eaea`まで同期済み。20:16時点のpre-push HEADは`96d7edf709f286e08083b019f73d4422c963d49e`で、remote PR #7106 headはまだ`7eb71810774f05edcf015e3542880869f287c67f`; 従って旧head checksはこのmain-sync/doc差分を検証していない。
+
+- 同期後local verification: CFO Python `348 passed, 318 subtests passed`; CFO Node `25/25`; shared notification `4/4`; loop contract `18/187/112`; source-boundaryとdiff-check PASS。OSS verifierは引き続き`manifest_inventory_mismatch: skills/capafy-autopublish`でFAILし、CFO worktreeからは再現できる。問題は前項のmain-side manifest driftであり、CFO code/testのfailureではない。
+- PR #7106旧head run `37768531965`: OSS FAIL、Python/gitleaks/agent instruction/PII/shell/startup checks PASS、loop controlとTruffleHogはpending。CodeRabbitはdraft skip。main-syncをpush後、新headで必須checkとreviewを取り直す。
+- CFO productionの最新terminal/receipt/capacity stateは20:07 entryから変化なし。新しい自然successful reportは未観測。古い3件はread-only receipt verifiedだが元runtime terminal linkはnull。
+
+**現在cursor:** `latest-main sync + current SSOTをPR #7106へpush → Capafy owner manifest refresh後のOSS PASS → 新head required checks + fresh review → merge → immutable CFO release / loaded-idle反映 → natural report receipt/runtime-link/replay-zero → A5 → A6 → A8 → A9 → A10`. host-disk watchdogの11 GiB回復は別ownerの並行・非ゲートcursor。
