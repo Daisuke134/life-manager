@@ -85,13 +85,14 @@ async function runConnectorAgenticRegistration(input = {}, deps = {}) {
         },
       },
     },
-    taskClass: "repeatable-agent",
+    taskClass: "connector-agent",
+    taskLabel: "connector-event-registration",
     timeoutMs: 90_000,
     evidenceDir: path.join(String(input.evidenceDir), "agentic-registration"),
     repoRoot: input.repoRoot,
     runnerPath: input.runnerPath,
   });
-  if (!result || !result.summary || result.summary.selected_model !== "gpt-5.6-terra"
+  if (!result || !result.summary || result.summary.selected_model !== "gpt-6-luna"
     || !result.value || result.value.status !== "ready" || !Array.isArray(result.value.answers)) unavailable();
   const seen = new Set();
   const answers = result.value.answers.map((answer) => {

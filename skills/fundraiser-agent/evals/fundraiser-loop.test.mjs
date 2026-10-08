@@ -296,9 +296,9 @@ test("production contract runs hourly and maximizes real applications", () => {
   assert.match(dailyPrompt, /cdp\.py insert/);
   assert.match(dailyPrompt, /framework validation remains unresolved/);
   assert.match(dailyPrompt, /absolute path/);
-  assert.match(runtimeScript, /--task-class application-lane-agent/);
-  assert.doesNotMatch(runtimeScript, /--escalation-reason/);
-  assert.equal(runnerConfig.task_classes["application-lane-agent"].timeout_seconds, 3600);
+  assert.match(runtimeScript, /--task-class fundraiser-agent/);
+  assert.match(runtimeScript, /--escalation-reason "Fundraiser program discovery/);
+  assert.equal(runnerConfig.task_classes["fundraiser-agent"].timeout_seconds, 3600);
   assert.doesNotMatch(contract, /at most one/i);
   assert.doesNotMatch(contract, /per user-local day/i);
 });

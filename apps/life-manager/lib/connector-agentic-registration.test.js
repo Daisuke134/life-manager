@@ -32,7 +32,7 @@ test("uses one Terra turn for form decisions without exposing any browser route"
       calls += 1;
       invocation = input;
       return {
-        summary: { selected_model: "gpt-5.6-terra" },
+        summary: { selected_model: "gpt-6-luna" },
         value: {
           status: "ready",
           answers: [{
@@ -53,7 +53,7 @@ test("uses one Terra turn for form decisions without exposing any browser route"
       value: "I build useful Life Manager and AI agent systems.",
     }],
   });
-  assert.equal(invocation.taskClass, "repeatable-agent");
+  assert.equal(invocation.taskClass, "connector-agent");
   assert.match(invocation.prompt, /What brings you to this event/);
   assert.doesNotMatch(invocation.prompt, /9222|9223|endpoint|page_websocket|target_id|owner_token/i);
   assert.doesNotMatch(invocation.prompt, /Playwright|connectOverCDP|browser\.close|context\.pages|require\(/i);
@@ -76,7 +76,7 @@ test("rejects incomplete, unknown, duplicate, or option-invalid Terra answers", 
   ]) {
     await assert.rejects(runConnectorAgenticRegistration(base, {
       runAgentRunner: async () => ({
-        summary: { selected_model: "gpt-5.6-terra" },
+        summary: { selected_model: "gpt-6-luna" },
         value: { status: "ready", answers },
       }),
     }), /unavailable/);

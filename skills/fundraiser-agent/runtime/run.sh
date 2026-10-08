@@ -152,6 +152,7 @@ export FUNDRAISER_EFFECT_MARKER="$MARKER_PATH"
 export FUNDRAISER_STATE_ROOT="$STATE_ROOT"
 export FUNDRAISER_EVIDENCE_DIR="$EVIDENCE_DIR"
 export FUNDRAISER_RECEIPTS="$STATE_ROOT/application-receipts.jsonl"
+export FUNDRAISER_TARGET_INTENTS="$STATE_ROOT/target-intents.jsonl"
 export FUNDRAISER_APPLICATIONS_DIR="$STATE_ROOT/applications"
 export FUNDRAISER_RECORD_APPLICATION="$REPO_ROOT/skills/fundraiser-agent/runtime/record-application.py"
 export FUNDRAISER_CURSOR="$STATE_ROOT/cursor.json"
@@ -201,6 +202,13 @@ RUNTIME_PROMPT="$EVIDENCE_DIR/runtime-prompt.md"
 
 ## Concrete local runtime
 
+- Continue both eligible program applications and introductions to new VCs or AI/AGI lab founders. Verify the recipient's current role and business contact route on an official organization page. Use startup-context facts to describe Life Manager as a manager that completes delegated real-world work and reports evidence; invite one public business recipient to one podcast, Zoom, or in-person discussion. For an in-person meeting, say I can travel if useful. Do not guess addresses, use private contacts, attach or send private data, or buy travel, lodging, or paid tickets. Outreach uses no attachment.
+- The legacy DeepScale.Ventures unknown is permanently blocked. Do not rediscover or resend it under another name, cohort, purpose, contact route, digest, or occurrence.
+- The target-intent recorder protocol supersedes older prepare/send directions. Process targets sequentially. Before each target, create a mode-600 final draft and run \`python3 "$REPO_ROOT/skills/fundraiser-agent/runtime/record-application.py" --prepare --occurrence "$FUNDRAISER_OCCURRENCE_ID" --draft <draft> --ledger "$FUNDRAISER_RECEIPTS" --applications-dir "$FUNDRAISER_APPLICATIONS_DIR" --expected-context-version "$FUNDRAISER_CONTEXT_VERSION" --expected-context-digest "$FUNDRAISER_CONTEXT_DIGEST"\`. This durably appends the target identity, occurrence, and digest.
+  After final review, call the same recorder with \`--claim-effect --occurrence "$FUNDRAISER_OCCURRENCE_ID"\` and the same draft arguments immediately before the one Submit or email send. It records per-target \`effect_attempted\` before the external action; do not send if the claim command fails.
+  After verified provider/Sent readback and Telegram photo receipt, finalize through the recorder. Prepare the next target only after the prior one is \`submitted_verified\` or \`verified_pre_effect_failure\`. For an unclaimed target with direct proof that no request was dispatched, the owner marker may be \`pre_effect\` before the first success or \`post_effect_verified\` after earlier success; leave it unchanged.
+  If a target reaches \`effect_attempted\` or \`submit_unknown\` without a verified outcome, stop external effects for this occurrence and preserve its held marker. Never relabel an unknown as \`pre_effect\`. A later natural occurrence may work other targets while the exact unresolved target remains fenced. Never write terminal receipt rows directly.
+
 - This is real run \`$RUN_ID\`, owned by \`ai.anicca.fundraiser\`.
 - Work in \`$REPO_ROOT\`; use the existing authenticated Chrome CDP endpoint \`$FUNDRAISER_CDP_ENDPOINT\` (leased for identity \`$BROWSER_IDENTITY\` via \`skills/browser/browser-guard.sh\` for this run only — never a hardcoded host:port, and never Dais's own personal Chrome).
 - Search both the live Web and rendered authenticated X UI. X is discovery only; verify on the official program website before applying.
@@ -208,7 +216,7 @@ RUNTIME_PROMPT="$EVIDENCE_DIR/runtime-prompt.md"
 - If the leased browser transport fails during this pass, do not acquire another lease, restart the browser, or continue provider actions. Preserve all existing receipts and return a non-success result with the transport observation. If any Submit or outbound request may have started, record submit_unknown and retain its exact identity fence; otherwise record the observation failure without claiming a provider effect. The next natural wake owns browser foundation recovery and fresh endpoint binding before dispatch.
 - Read private founder values only from \`~/.config/anicca/job-search/profile.json\` and \`~/.local/share/anicca/credentials.json\`; never print or report their values.
 - The only attachable pitch deck is the deterministic preflight-verified file \`$FUNDRAISER_VERIFIED_DECK\`; never attach another deck path.
-- Never append a \`submitted_verified\` row directly. Before Submit, create a mode-600 draft JSON containing organization, program, cohort_window, account, official_url, contact {method,destination}, every rendered question and actual answer in question_answers, attachment names, the exact non-secret claims/source paths used in context_used, context_version \`$FUNDRAISER_CONTEXT_VERSION\`, and context_digest \`$FUNDRAISER_CONTEXT_DIGEST\`. Run \`python3 "$REPO_ROOT/skills/fundraiser-agent/runtime/record-application.py" --prepare --draft <draft> --ledger "$STATE_ROOT/application-receipts.jsonl" --applications-dir "$STATE_ROOT/applications" --expected-context-version "$FUNDRAISER_CONTEXT_VERSION" --expected-context-digest "$FUNDRAISER_CONTEXT_DIGEST"\` and require its prepared application_digest before claiming the final effect. This pre-submit gate rejects prior terminal applications even when cohort dates or URL spelling drift. After official screenshot and Telegram photo delivery, add submitted_at and evidence {completion_png,telegram_photo_message_id,provider_readback} without changing the prepared fields; then run \`python3 "$REPO_ROOT/skills/fundraiser-agent/runtime/record-application.py" --draft <draft> --ledger "$STATE_ROOT/application-receipts.jsonl" --applications-dir "$STATE_ROOT/applications" --run-id "$RUN_ID" --expected-context-version "$FUNDRAISER_CONTEXT_VERSION" --expected-context-digest "$FUNDRAISER_CONTEXT_DIGEST"\`. Only its successful output establishes \`submitted_verified\`. Use direct compact rows only for non-success terminal states.
+- For draft preparation, the immediate effect claim, terminal status, and final receipt, use the target-intent recorder sequence above. Never write receipt rows directly.
 - Write the durable next discovery cursor atomically to \`$STATE_ROOT/cursor.json\`.
 - Immediately after every candidate terminal, execute \`bash $SENDER "Codex::: Fundraiser: <program, truthful status, non-secret readback, running counts>"\` and require \`TELEGRAM_SENT=true\`.
 - An application is verified only after its official form completion page or exact Gmail Sent message is captured as a PNG, visually readable, sent with \`bash $PHOTO_SENDER "<png>" "Codex::: Fundraiser proof: <program>"\`, and the output contains \`TELEGRAM_PHOTO_SENT=true MSGID=<id>\`. Save them as exact top-level receipt keys \`"completion_png":"<absolute path>"\` and \`"telegram_photo_message_id":<integer>\`; mentioning them only inside \`readback_reference\` is invalid.
@@ -221,7 +229,8 @@ chmod 600 "$RUNTIME_PROMPT"
 echo "=== fundraiser $RUN_ID start ===" >>"$LOG"
 set +e
 cat "$RUNTIME_PROMPT" | "$RUN_AGENT" \
-  --task-class application-lane-agent \
+  --task-class fundraiser-agent \
+  --escalation-reason "Fundraiser program discovery and public VC or AI lab introductions with official readback" \
   --schema "$SCHEMA" \
   --evidence-dir "$EVIDENCE_DIR" \
   --task-label fundraiser-continuous \
@@ -236,6 +245,10 @@ if [ "$RC" -eq 0 ] && [ -f "$EVIDENCE_DIR/summary.json" ]; then
   READBACK="$(python3 - "$EVIDENCE_DIR/summary.json" <<'PY'
 import json, pathlib, sys
 summary = json.loads(pathlib.Path(sys.argv[1]).read_text())
+if (summary.get("selected_provider") != "codex"
+        or summary.get("selected_model") != "gpt-6-luna"
+        or summary.get("selected_effort") != "max"):
+    raise SystemExit("fundraiser selected an unexpected model route")
 result = json.loads(pathlib.Path(summary["result_path"]).read_text())
 print(result["status"])
 print(f'submitted={result["submitted"]} unknown={result["submit_unknown"]} checkpoints={result["checkpoints"]}')
