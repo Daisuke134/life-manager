@@ -7099,3 +7099,21 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 7. 三loopの自然runと同一時間窓でclaims、reservations、eligible queue age、admission reason、class contention、CPU/RAM/disk、実同時稼働loop数を測定する。configured global cap 8と実測容量を区別し、disk/owner repair後もcap saturationでrevenue ownerが待つ証拠がある場合だけ、最小のclass/global変更を判断する。応募、返信、面談、funding、settled cash、costsを別々に記録する。
 
 **現在cursor:** commit/push 3 files → merge latest origin/main (2 commits ahead) → exact-head PR CI/fresh ship review/merge → natural immutable release/readback → disk writer attribution and >=2 GiB cleanup/admission → target effects and natural outcomes → same-window capacity/economics.
+
+
+### 2026-10-08 22:47 JST — latest main merge後の確認
+
+- `52552a9e43`を専用branchへpushした後、最新`origin/main`（`ac963290ce`。元の共通祖先`a3c28b0d06`から2 commit進み）を通常mergeした。競合はなく、mainのmarketing/sticker変更とSSOT追記を保持している。
+- merge後HEAD `deaaa76f62`でfleet-apply suite 33/33、`bash -n bin/reconcile-agent-runner-release.sh`、`bash scripts/verify-source-boundary.sh`、`git diff --check origin/main...HEAD`がpass。worktreeはcleanで、merge commitを含むtask branchはremote branchより3 commit先行している。
+- diskは依然として2 GiB floor未達（直近測定は約204 MiB free）。loop capacityの実測と三loopのnatural provider resultは未完了。
+
+**現在cursor:** merge HEAD/spec updateをpush → PRを作成しexact-head CIとfresh read-only `ship` review → merge → immutable release/natural fleet readback → disk writer attribution/2 GiB cleanup/admission → target effect readbackと各loop natural run → same-window capacity/economics。
+
+**残TODO（完了まで・この順）:**
+
+1. **現在cursor—最新main merge commitとこのSSOT cursorをpushする。** task branchだけを更新し、`origin/main`への直接pushはしない。
+2. task branchからPRを作り、正確なHEAD SHAでrequired CIとfresh read-only reviewを取得する。reviewが`ship`でなければ指摘を修正し、更新後HEADでCI/reviewを取り直す。条件が揃ったらPRをmergeする。
+3. merge SHA由来のimmutable releaseを自然handoffさせ、reconcilerを止めずloaded SHAとfleet stateをreadbackする。budget-progress partialは短い期限で次のSHAへ継続し、通常errorは1800秒のcoalesceを維持することを確認する。
+4. `host-inventory`、次回dueのfull inventory、cleanup receipts、`df`/APFS、owner/process I/Oを同時刻で突合し、writerまたは安全なowner専有回収対象を特定する。protected pathを変更せず、cleanup receiptで`free_after >= 2 GiB`、`errors=0`、`protected_deletions=0`と後続admission passを確認する。
+5. disk/admission回復後、target別effect fenceをofficial provider readbackで解決してからConnector/Luma、Job Hunter/Workday、Fundraiser/VC・AI founderの各loopを自然実行し、receipt、`gpt-6-luna/max/fast`、Telegram reportをoccurrenceへ結び付ける。`effect_unknown`は再送しない。
+6. 三loopと同じ時間窓のclaims/reservations/eligible queue age/admission reason/class contention/CPU/RAM/diskと実同時稼働数を測定する。global cap 8は設定値と実測capacityを分け、disk/owner修正後もcap飽和でrevenue ownerが待つと証明された場合だけ最小のclass/global変更を行う。応募、返信、面談、funding、settled cash、costsを別々に記録する。
