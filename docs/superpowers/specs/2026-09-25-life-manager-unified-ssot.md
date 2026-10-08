@@ -6291,3 +6291,25 @@ Fresh read-only review rejected the idle-readback-only patch: a new StartInterva
 7. Continue A6 Google billed-usage/credits/tax/rounding reconciliation → A8 settled revenue/refunds/fees plus actual costs for 18 loops/186 jobs → A9 existing CLI/report daily/MTD/trailing → A10 seven consecutive natural reports with full coverage/official receipts/replay-zero.
 
 **現在cursor:** manifest/main sync and focused A5 acceptance are complete locally; push this head, prove full same-head CI, then ready/merge PR #6827. Production remains gated by current disk pressure and the still-running old release reconciler; PR #7098 is a separate diagnostic follow-up, not yet a complete handoff fix. A6→A8→A9→A10 follow, with A7 and A3/A4 deferred.
+
+### 2026-10-08 17:48 JST — A5 latest-main acceptance and current production gates
+
+この節は17:39の状態を更新する。A5 branchは`origin/main=a8a10c67a9b057b581faeb0609f377ba59839e4a`（#7100/#7101を含む）をlocalにmerge済み。
+
+- **Local source acceptance:** local HEAD `7273530a`。A5 SQL/API/UI `113/113`; panel privacy `api=177/browser=63/recipes=19/channels=9`; manifest verifier `ok=true`; OSS self-contained `12/12`; Node adapter `15/15`; loop contract `ok=true` (`18/187/112`)。これらはa8a local treeで実行済み。remote CI run `37751419130`はHEAD `7c8dcdbe`に対して全checks PASS（Loop control 801 tests）だが、a8a local headのCI証拠ではない。
+- **PR #6827:** OPEN/DRAFT。remote head `7c8dcdbe`, base `7bb8ce08`。A5 status/manifest updatesとlatest main mergeを含むlocal head `7273530a`はremote未push。次はlocal headのpushとsame-head CI。
+- **OSS root fix:** #7099が`runtime/agent-runner/config.json`を変更してmanifest digestを古くした。A5 branchでは対象file hashだけを`b87bccd948b0680aef156889c13b3f1beaa15fcc4628cbca150c6b96d1c51b69`へ更新し、canonical verifierと12テストをPASS。PR #7098はhead `df169494` / base `7bb8ce08`でOPEN/UNSTABLEのまま。この古いbaseでのOSS failはA5 manifest fixがmainに入った後に解消見込みだが、PR #7098のCI/rebase/readbackは別途完了が必要。
+- **Disk / CFO:** canonical host receipt `/Users/anicca/.local/state/life-manager/state/last-receipt.json` at 17:46:18 JST reports `free_after=3,422,220,288 bytes`, recovery floor `2,147,483,648`, capacity `met`, `errors=0`, `protected_deletions=0`. 17:37:24 JST CFO attempt `18dc810d0924f630-17719` had already been deferred as `disk_headroom_low`; provider receipt/readback is null, last successful report remains 15:00:53 JST, and next eligible interval is 3600s. No later CFO retry is recorded yet, so wait for its next natural eligibility after recovered headroom.
+- **Release handoff:** current immutable release `20261008T174230-a8a10c67`. Reconciler still runs old SHA `3c87f64f`, PID `48706`; latest event `18dc8156a7b89c18-9660` at 17:42:42 JST is `entrypoint_exit_1`. The latest handoff receipt targets `a8a10c67` and fails `old_service_active_timeout`, recording state `running` / PID `48706`. Do not stop/restart it; wait for natural terminal and a matching target-SHA/argv receipt. Earlier `old_service_state_unknown` on `not running` remains a separate transition-state parse gap.
+
+**残TODO:**
+
+1. Push local head `7273530a` (latest main, SSOT/plan and manifest correction), then require same-head full CI including Python runtime/Loop control and security checks.
+2. After every same-head check passes, mark PR #6827 ready and merge admin-first; record the merge SHA.
+3. Integrate PR #7098 after its owner rebases on latest main and completes CI/review. Preserve fail-closed behavior; if Launchd reports `not running` without PID, confirm quiescence with repeated reads under the per-label lock rather than booting out an active/ambiguous service.
+4. Wait for the old reconciler's natural terminal/handoff to current SHA and exact loaded argv; then verify CFO owner SHA and wait for the eligible natural retry. Disk headroom is now receipt-confirmed met, but the 17:37 defer itself still lacks a later report receipt.
+5. Join the 15:00:53 JST CFO sidecar/message ID `105259` to its exact runtime event and official receipt; do not resend before reconciliation.
+6. Apply A5 additive migration/RPC/permissions through the canonical production route and read back tenant/period scope, cost attribution/trace, daily/MTD panel and same-occurrence report receipt.
+7. Continue A6 Google billed/credits/tax/rounding → A8 settled revenue/cost coverage for 18 loops/186 jobs → A9 existing CLI/report daily/MTD/trailing → A10 seven-day natural report/coverage/official receipts/replay-zero.
+
+**現在cursor:** push `7273530a` → same-head CI → PR #6827 ready/merge. In production, the disk floor is now receipt-confirmed; the active old reconciler and CFO's next eligible natural run remain unresolved. PR #7098 must be rebased/reviewed separately. Do not restart, replay, delete by hand, or raise caps.
