@@ -253,7 +253,9 @@ class TelegramClient:
                     f"Telegram HTTP error {exc.code}",
                     error_code=exc.code,
                 ) from None
-            if method == "sendMessage" and payload.get("ok") is not False:
+            if method == "sendMessage" and (
+                500 <= exc.code < 600 or payload.get("ok") is not False
+            ):
                 raise TelegramDeliveryUnknown(
                     "Telegram send HTTP error response is ambiguous; delivery unknown",
                     error_code=exc.code,

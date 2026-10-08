@@ -223,6 +223,22 @@ def test_explicit_telegram_http_rejection_remains_pre_send(tmp_path, monkeypatch
     assert len(calls) == 2
 
 
+def test_http_5xx_with_false_ok_is_delivery_uncertain_not_replayed(tmp_path, monkeypatch):
+    first, replay, calls = _notify_with_response(
+        tmp_path,
+        monkeypatch,
+        "http_5xx_false_ok",
+        b'{"ok":false,"error_code":500,"description":"Internal Server Error"}',
+        http_status=502,
+    )
+
+    assert first["delivery"] == "delivery_uncertain"
+    assert first["attempted"] == 1
+    assert first["delivery_uncertain"] == 1
+    assert replay["attempted"] == 0
+    assert len(calls) == 1
+
+
 def test_missing_message_id_is_uncertain_not_a_provider_receipt(tmp_path, monkeypatch):
     first, replay, calls = _notify_with_response(
         tmp_path,
