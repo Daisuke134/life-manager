@@ -7896,11 +7896,11 @@ This entry supersedes the prior producer-review cursor. CFO priority remains A5 
 
 **Current cursor:** `host-policy owner restores positive guard before next CFO effect → push ee25a794-synced CFO branch/fixture/SSOT → exact-head CI + fresh review → merge source PR → cleanup/reconciler recovery → guarded release/apply/readback → natural CFO receipt/replay-zero → A5 → A6 → A8 → A9 → A10`.
 
-### 2026-10-09 03:49 JST — CFO readback, capacity diagnosis, and current execution order
+### 2026-10-09 03:53 JST — CFO readback, capacity diagnosis, and current execution order
 
 この追記は02:56 JSTのCFO statusを更新する。事業CFOの範囲と順序 `A5 → A6 → A8 → A9 → A10` は維持し、Money TreeとCloud費用削減はこの完了レーンに含めない。
 
-- **最新main / source PR:** `origin/main=e75c7f7a` (#7217 R25 Postiz-key fallback; R24 DB-lock retry/call logging and R23 owner rotation are in its ancestry) をCFO worktreeへ統合済み。PR #7106の最後のremote head readbackは`8fa614fdf2fd6a15e92b0e9e8e36d9e43a5e7195`、required checksではLoop control/Python/TruffleHog/gitleaksがpending、CodeRabbitはmanual review requiredでskip。local worktreeにはe75c7f7aと今回のspec更新があり未push。PR diffは18 files、+1,811/-74で、CFO reconciliation/runtime/shared delivery・testsを含む。R24 sync後のCFO Node tests 59/59、fence reconcile 27/27、contract 18/188/113・errors 0、`git diff --check` PASS。R25は別のPostiz pathでCFOの実装差分外。push後headでrequired CIと全18-fileのfresh reviewを取り直す。
+- **最新main / source PR:** `origin/main=0d74d4a4` (#7218 Line Sticker readback adapter; R25/R24/R23 are in its ancestry) をCFO worktreeへ統合済み。PR #7106のremote head readbackは`38968bf5e1b3adc4cc53cbfd6f3c50cf707b4356` (base `e75c7f7a`)、その時点でTravel contract 1件pending、CodeRabbitはmanual review requiredでskip。local branchには0d74d4a4とこのstatus updateが入る。PR diffは18 files、+1,813/-74。R24 sync後のCFO Node tests 59/59、fence reconcile 27/27、contract 18/188/113・errors 0、`git diff --check` PASS。今回のspec commitでheadが変わるため、旧headのcheckは新headの受入証拠ではない。
 - **CFO production:** `lm-loop status life-manager-cfo-hourly` は `loaded-idle` / installed SHA `ee25a794751917116f6558e2cde798dcd5c5b5a2`。最新terminal occurrence `18dca05580433fd0-26537` (`2026-10-08T18:10:48.969Z`) はexit 75、`host_admission_deferred:resource_capacity_busy`、failure layer `admission`、`effect_status=not_applicable`、`provider_receipt_id=null`、`official_readback_ref=null`。最後のsuccessful reportは16:25Zで、runtime receipt refは未記録。18:24Zのread-only DB snapshotでは次のCFO occurrence `18dc9c4ccb645ab0-72084`が`deterministic/borrow`, `state=queued`, `effect_unknown=0`。未確認の新しい金額・送信・収益は主張しない。
 - **capacity原因:** 18:48:39Zのread-only snapshotでCFO occurrence `18dc9c4ccb645ab0-72084`は`deterministic/borrow`, `queued`, `effect_unknown=0`, FIFO sequence `578998`。同時点のdeterministic reservationは`x402-settlement-recorder`の1件のみで、active deterministic owner claimは0件。したがって18:10Zの`resource_capacity_busy`はhistoryであり、18:48時点のqueue滞留は単純な2/2 occupancyでは説明できない。sequence上はCFOより前の古いdeterministic waitersが残り、R23 fairness rotationはcurrent pointerにあるがCFO loaded SHAは旧版。対処はR23/R24をownerへloadし、同一occurrenceのqueue position/admission receiptをreadbackすること。manual delete/retry/cap increaseはしない。
 - **release / host policy:** current pointerは`20261009T033943-6c7b83ee`、`RELEASE.json`の`sha=6c7b83ee1c6317f1e34bcdb6d9303cb79c23a098`。CFO labelは`ee25a794751917116f6558e2cde798dcd5c5b5a2`、release reconcilerは`e1b061f1`のまま。mainは数値free-spaceだけを理由にproducerをdeferしないが、実`ENOSPC`はfailureであり2 GiBはcleanup receipt metricに留まる。`lm-loop doctor --json`は`ok=false`、unmanaged label `ai.anicca.life-manager-release-reconciler-self-handoff` 1件。18:48Zのreconciler readbackはloaded-running on `e1b061f1`、last success 18:44:38Zだがdoctor labelは残る。`df` at 18:48Zは594,900 KiB (~0.57 GiB); これはcurrent CFO capacity blockerではなくENOSPC risk readback。
@@ -7912,7 +7912,7 @@ This entry supersedes the prior producer-review cursor. CFO priority remains A5 
 
 1. [ ] latest-main sync/spec updateをPR #7106のbranchへpushし、新headのrequired CIをPASSさせる。PRの18 files（+1,814/-75）全体にfresh read-only reviewを取得し、pending checkがあればそのheadで直して再検証する。
 2. [ ] PR #7106をmergeし、accepted email adapterが`attempted=1, delivered=1, delivery_uncertain=0, pre_send_failed=0`を返すsourceをmainへ統合する。
-3. [ ] release-reconcilerのowner経路でlatest main e75c7f7aを反映し、R24 lock recovery/R23 rotationがloaded SHAに入ったことを確認する。active reconcilerをstop/restartしない。
+3. [ ] release-reconcilerのowner経路でlatest main 0d74d4a4を反映し、R24 lock recovery/R23 rotationがloaded SHAに入ったことを確認する。active reconcilerをstop/restartしない。
 4. [ ] `lm-loop doctor --json`のunmanaged self-handoff labelを正規owner経路で解消し、`ok=true`とowner/label SHA一致をreadbackする。current loaded reconciler `e1b061f1`にはR24がまだ入っておらず、occurrence `18dca1d69ebec330-79315`は`entrypoint_exit_1`、receiptに詳細causeなし。
 5. [ ] current queued CFO occurrence `18dc9c4ccb645ab0-72084`を自然terminal/readbackまで待つ。18:48 snapshotではFIFO sequence `578998`で、deterministic reservationは`x402-settlement-recorder`の1件、active deterministic process claimは0件のため、full 2-slot occupancyは確認できない。R23 rotationはpointerにあるがCFO loaded SHAは旧版。queue position/admission receiptをreadbackし、ownerを停止・手動削除せずfinite capを維持する。
 6. [ ] CFOがloaded-idleでqueue/effect fenceが解消済みの時だけlatest-main immutable releaseをowner経路で反映し、`life-manager-cfo-hourly` loaded SHAとpointerを照合する。numeric disk floorをgateにせず、実`ENOSPC`は対象writerで診断する。
@@ -7923,8 +7923,107 @@ This entry supersedes the prior producer-review cursor. CFO priority remains A5 
 11. [ ] A9: CLI/reportでJST daily、MTD、trailing、MRRを別期間として表示し、`loop_pnl.py --date`がsource rowsを選択日で絞ること、loop別・会社合計がsource rowsに一致することを確認する。
 12. [ ] A10: 7日連続のnatural reportを観測し、全loop・全jobの収益/費用coverage、freshness、receipt、period/currency整合、company total、replay-zeroを確認する。完了まで未確認値を0にしない。
 
-**現在cursor:** latest-main e75c7f7aとspecをPR #7106 branchへpush → exact-head CI + fresh review → merge → R24/R23 release-reconciler + doctor readback → CFO deterministic queue natural terminal → CFO loaded SHA/readback → natural CFO receipt/replay-zero → A5 → A6 → A8 → A9 → A10。
+**現在cursor:** latest-main 0d74d4a4とspecをPR #7106 branchへpush → exact-head CI + fresh review → merge → R24/R23 release-reconciler + doctor readback → CFO deterministic queue natural terminal → CFO loaded SHA/readback → natural CFO receipt/replay-zero → A5 → A6 → A8 → A9 → A10。
 **追加readback (2026-10-09 03:48 JST):** CFOはloaded-idleの`ee25a794`、直近 terminal `18dca05580433fd0-26537`は18:10Zのpre-effect `resource_capacity_busy`。次occurrence `18dc9c4ccb645ab0-72084`はeffect_unknown=0でqueued (FIFO sequence `578998`)。18:48Zのadmission snapshotではdeterministic reservationは`x402-settlement-recorder` 1件、active deterministic process claimは0件で、単純な満杯状態ではない。R23はcurrent pointer `6c7b83ee`にあるがCFO label/R24 reconcilerは旧SHAのため、queue starvation/FIFO pathを修正済みとは数えない。release reconcilerはloaded `e1b061f1`、18:44Zにpassした一方`doctor`はunmanaged self-handoff label 1件のため`ok=false`。空き容量594,900 KiB (~0.57 GiB)はreadback値で、numeric admission gateではない。latest-main/spec sync後のremote PR checksは旧headのもので、新headで再取得する。
+
+### 2026-10-09 03:58 JST — CFO live readback and superseding cursor
+
+この記録が直前の03:48 statusとCFO TODOを置き換える。CFO business order `A5 → A6 → A8 → A9 → A10`を維持する。Money TreeとCloud cost optimizationはこのレーン外。
+
+- **Branch/PR:** `origin/main=e75c7f7a`をこのCFO branchへ統合済み。remote PR #7106 head `38968bf5e1b3adc4cc53cbfd6f3c50cf707b4356`は18 files (+1,813/-74); last exact-head readback has `Travel and online notification contracts` pending, other checks pass, CodeRabbit manual review is skipped. This status commit creates a newer head; the checks/review must be repeated on that exact head before merge.
+- **Local verification:** after main/R24 sync, `test_fence_reconcile.py` 27/27, CFO Node suites 59/59, `./bin/lm-loop-contract` 18 catalog loops / 188 jobs / 113 mapped / 0 errors, and `git diff --check` pass. R23's formerly failing fixed-order test is corrected in R24 by passing a fixed `wake_epoch`; rotation behavior remains.
+- **CFO facts:** owner is `loaded-idle` on SHA `ee25a794`. Latest terminal run `18dca2de0eb4e798-62398` at 18:57:13Z exited 75 / `resource_capacity_busy`, `effect_status=not_applicable`, with no provider receipt or official readback. Last successful report is 16:25Z and runtime receipt is absent; no current monthly revenue/expense total is proven.
+- **Capacity/DB diagnostic:** the last confirmed CFO queue row is `18dc9c4ccb645ab0-72084` (`deterministic/borrow`, sequence `578998`, `effect_unknown=0`) from 18:53Z. At 18:57Z, read-only admission DB and `status --explain` queries failed with `database is locked`; `lsof` showed concurrent Python DB clients including old release-reconciler PID `11997`, but it did not prove the exact lock holder. The 18:53 snapshot had deterministic revenue claims `marketing-owner-events` and `job-search-daily`, plus one `x402-settlement-recorder` deterministic/borrow reservation. Thus the last run's capacity error is confirmed; the exact current queue owner after the lock is not. Do not delete/replay claims or make the finite cap unbounded.
+- **Release/doctor:** `~/loops/current` is `20261009T034745-e75c7f7a`; CFO remains on `ee25a794`, reconciler on `e1b061f1`. R24/R23 code is in the release pointer but not loaded by those owners. `lm-loop doctor --json` remains `ok=false` for `ai.anicca.life-manager-release-reconciler-self-handoff`. Disk was 867,220 KiB (~0.83 GiB) at 18:57Z: an ENOSPC risk metric, not a numeric producer admission gate; actual ENOSPC remains a failure.
+- **Google evidence:** the official 2026-09 invoice is ¥27,889 billed. It does not establish October spend, cash payment, loop allocation, or a current company P&L.
+
+**Remaining TODO (in order):**
+
+1. [x] Sync latest main and publish this CFO spec update on PR #7106's branch.
+2. [ ] On the resulting exact head, pass required CI and obtain a fresh read-only review of all 18 changed files; resolve any failed check on that head.
+3. [ ] Merge PR #7106 after clean checks/review; its accepted email delivery contract is `attempted=1, delivered=1, delivery_uncertain=0, pre_send_failed=0`.
+4. [ ] Through the normal owner route, load R24/R23 into the release reconciler, clear the self-handoff doctor label, and read back the exact loaded SHA. Do not stop/restart the active reconciler.
+5. [ ] After R24 is loaded and the admission DB is readable, re-read CFO status and the queued occurrence's exact owner/class/sequence. The 18:57 read-only query failed with `database is locked`; the last confirmed queued row was `18dc9c4ccb645ab0-72084`. Let live claims finish naturally; do not delete rows, replay, or remove the finite cap.
+6. [ ] Apply the latest main-derived release to CFO only when loaded-idle and queue/effect state is clear; verify pointer and `life-manager-cfo-hourly` loaded SHA match.
+7. [ ] Read back the next natural CFO report: delivery counters, provider receipt, runtime run/occurrence/release SHA, B7 snapshot hash/counters, exact period, and replay-zero. Do not mark complete without these.
+8. [ ] A5: expose usage/estimate/billed actual/unknown per provider/SKU/operation/loop; production-readback migration/RPC permissions/panel, preserving owner/run/occurrence/release trace.
+9. [ ] A6: reconcile official Google Cost Table invoice period/project/service/SKU/tax/credits/rounding to estimates and evidenced operation/loop attribution; keep billed separate from cash paid.
+10. [ ] A8: cover all 18 business loops and 188 runtime jobs (113 mapped, remaining 75 shared/control/platform) with settled revenue/refund/fees and actual costs by matching period/currency/receipt; missing data stays unknown.
+11. [ ] A9: verify JST daily, MTD, trailing, and MRR reports; ensure `loop_pnl.py --date` filters source rows and totals reconcile.
+12. [ ] A10: observe seven consecutive natural reports with complete coverage, source receipts, freshness, matching periods/currencies, accurate company totals, and replay-zero.
+
+**Current cursor:** exact-head CI + fresh review → merge #7106 → load/reconcile R24/R23 and doctor → queued CFO natural terminal → CFO loaded SHA → receipt-backed natural report/replay-zero → A5 → A6 → A8 → A9 → A10.
+
+### 2026-10-09 03:58 JST — live CFO blockers and cursor refresh
+
+このreadbackは直前の03:53 status/TODOを置き換える。事業CFOの順序 `A5 → A6 → A8 → A9 → A10`、Money Tree/Cloud cost workの除外は維持する。
+
+- **Branch/PR:** local branch is synced through main `e75c7f7a`; remote PR #7106 head readback before this update is `38968bf5e1b3adc4cc53cbfd6f3c50cf707b4356`, base `e75c7f7a`, open/unstable, 18 files (+1,813/-74). Its Travel contract check was pending; CodeRabbit skips manual review. The current spec update is to be published as a new head, so run checks/review on that exact head.
+- **CFO:** loaded-idle on `ee25a794`; latest report attempt `18dca2de0eb4e798-62398` at 18:57:13Z exited 75 / `resource_capacity_busy`, `effect_status=not_applicable`, with no provider receipt/readback. Last successful report is 16:25Z without runtime receipt; current-period revenue/cost totals remain unknown.
+- **Admission read:** at 18:57Z, `status --explain` and a read-only admission DB query failed `database is locked`. The last queue row confirmed before that lock was `18dc9c4ccb645ab0-72084` (deterministic/borrow, sequence 578998, effect_unknown=0). `lsof` showed concurrent Python DB clients, including release-reconciler PID 11997, but did not prove which transaction held the lock. The current queue owner/class must be re-read after the lock clears; do not delete claims or replay.
+- **Release/doctor:** current pointer is `20261009T034745-e75c7f7a`; CFO is still on `ee25a794`, reconciler on `e1b061f1`. Main/pointer include R23/R24, but neither CFO nor reconciler has loaded them. `lm-loop doctor --json` is `ok=false` for `ai.anicca.life-manager-release-reconciler-self-handoff`. Disk is 867,220 KiB (~0.83 GiB), a real ENOSPC risk but not a numeric producer gate. The Sept invoice is ¥27,889 billed only; October/cash-paid/per-loop/current CFO totals are unverified.
+- **Verification:** R24-focused tests pass (fence reconcile 27/27, CFO Node 59/59); `lm-loop-contract` passes 18/188/113 with zero errors. No runtime owner was stopped/restarted and no external report was sent by this session.
+
+**Immediate remaining TODO:**
+
+1. [x] Sync latest main and publish the CFO spec update on the PR branch.
+2. [ ] On the resulting exact PR #7106 head, pass all required CI and obtain a fresh read-only review of the full diff.
+3. [ ] Merge #7106 after same-head acceptance.
+4. [ ] Through the normal owner route, load R24/R23 into the release reconciler, clear the self-handoff doctor label, and read back the loaded SHA. Do not stop/restart active owners.
+5. [ ] After the admission DB is readable, identify the current queued CFO occurrence and active slots; let claims finish naturally under the finite cap.
+6. [ ] Load the accepted immutable release to CFO only when idle/queue state is clear; verify SHA, then read back the next natural report's delivery/provider/runtime/B7 evidence and replay-zero.
+7. [ ] Continue A5 → A6 → A8 → A9 → A10 as listed above.
+
+**Current cursor:** exact-head CI + fresh review → merge #7106 → reconcile R24/R23 and doctor → current CFO queue/readback → natural receipt/replay-zero → A5 → A6 → A8 → A9 → A10.
+
+### 2026-10-09 03:59 JST — current CFO status supersedes the 03:58 snapshot
+
+このreadbackが直前のcurrent stateとTODOを置き換える。CFO order `A5 → A6 → A8 → A9 → A10`を維持し、Money Tree/Cloud cost optimizationは対象外。
+
+- **Main/PR:** latest `origin/main=1512b167` is integrated locally (#7194 eBook readback docs; R25/R24/R23 are ancestors). Last remote PR #7106 head was `38968bf5e1b3adc4cc53cbfd6f3c50cf707b4356` on base `e75c7f7a`, with Travel contract pending and CodeRabbit manual review skipped. The local branch now also contains 1512b167 and this status update; publish it, then rerun exact-head CI and fresh review of all 18 PR files.
+- **CFO:** `life-manager-cfo-hourly` is loaded-idle on `ee25a794`. Latest terminal run `18dca2de0eb4e798-62398` at 18:57:13Z exited 75 / `resource_capacity_busy`, with no provider receipt/readback and `effect_status=not_applicable`. Last successful report remains 16:25Z with no runtime receipt. Current monthly revenue/expense total is unverified.
+- **Admission diagnostic:** read-only admission DB and `status --explain` at 18:57 failed `database is locked`. The last confirmed queue row (18:53) is `18dc9c4ccb645ab0-72084`, deterministic/borrow, sequence 578998, `effect_unknown=0`; it is not proven to remain the current queued row. `lsof` showed concurrent Python clients, including the old release-reconciler PID 11997; the exact lock holder is not proven. R24 is in release pointer e75c7f7a but not loaded by the e1b061f1 reconciler. Do not delete/replay claims.
+- **Release/space:** current pointer is `20261009T034745-e75c7f7a`; CFO is still on `ee25a794`, reconciler on `e1b061f1`. Doctor remains `ok=false` for unmanaged label `ai.anicca.life-manager-release-reconciler-self-handoff`. Free space at 18:57 is 867,220 KiB (~0.83 GiB): not a numeric producer gate, but an ENOSPC risk; actual ENOSPC remains a failure.
+- **Verification:** R24-focused tests pass (`test_fence_reconcile.py` 27/27, CFO Node suites 59/59); contract is 18/188/113 with zero errors. The R23 fixed-order test expectation is corrected by R24's explicit `wake_epoch` fixture.
+
+**Remaining atomic TODO:**
+
+1. [x] Sync main through 0d74d4a4 and publish this CFO spec update on the task branch.
+2. [ ] On the resulting PR #7106 head, pass required CI and obtain fresh read-only review of all 18 changed files; fix any failures on that exact head.
+3. [ ] Merge #7106 after same-head acceptance; retain the accepted email delivery counter contract.
+4. [ ] Through the normal owner path, load R24/R23 into the release reconciler and CFO, resolve the self-handoff doctor label, and read back exact SHAs. Do not stop/restart active owners.
+5. [ ] After the admission DB is readable, re-read the current CFO queue occurrence, class, and owner position; let live claims finish naturally while keeping finite caps.
+6. [ ] Read back the next natural CFO report's delivery/provider/runtime/B7 receipt, exact period, and replay-zero; do not claim totals without evidence.
+7. [ ] Continue A5 → A6 → A8 → A9 → A10 as specified above.
+
+**Current cursor:** exact-head CI/review → merge #7106 → owner-load R24/R23 + doctor readback → current CFO queue readback/natural terminal → CFO receipt/replay-zero → A5 → A6 → A8 → A9 → A10.
+
+### 2026-10-09 03:59 JST — superseding CFO runtime and queue readback
+
+この更新は03:58のstatus/TODOを置き換える。Business CFO order `A5 → A6 → A8 → A9 → A10`を維持し、Money TreeとCloud cost optimizationはこのlaneに含めない。
+
+- **Main/PR:** local branch is synced through `origin/main=0d74d4a4` (#7218; R25/R24/R23 in ancestry). Last remote PR #7106 head readback was `38968bf5e1b3adc4cc53cbfd6f3c50cf707b4356` on base e75c7f7a, with Travel contract pending and CodeRabbit manual review skipped; this spec sync is included in the branch push, so rerun exact-head CI/review. PR is 18 files, +1,813/-74.
+- **Verification:** local latest branch has CFO Node 59/59, fence reconcile 27/27, `lm-loop-contract` 18/188/113 with zero errors, and `git diff --check` pass. The local fence tests include R24's fixed `wake_epoch` fixture and DB-lock retries.
+- **CFO:** owner remains loaded-idle on `ee25a794`. Latest terminal `18dca2de0eb4e798-62398` at 18:57:13Z exited 75 / `resource_capacity_busy`, pre-effect, without provider receipt/readback. Last successful report was 16:25Z and has no runtime receipt; current revenue/expense totals remain unverified.
+- **Admission diagnostic:** the current CFO status is readable, but read-only `status --explain`/SQLite at 18:57 fails `database is locked`. `lsof` shows concurrent Python clients including release-reconciler PID 11997; exact transaction owner is not proven. The last confirmed CFO queue row is `18dc9c4ccb645ab0-72084` (deterministic/borrow, sequence 578998, `effect_unknown=0`) at 18:53; its current state must be re-read after DB lock clears.
+- **Release/doctor:** `~/loops/current` is `20261009T034745-e75c7f7a`; CFO remains on `ee25a794`, reconciler on old `e1b061f1`. R23/R24 are in the release pointer but not loaded by these owners. `lm-loop doctor --json` is `ok=false` for unmanaged label `ai.anicca.life-manager-release-reconciler-self-handoff`. Disk is 867,220 KiB (~0.83 GiB): an ENOSPC risk, not a numeric producer gate. September's official Google bill is ¥27,889; it is not October spend, cash-paid, loop attribution, or current P&L.
+
+**Remaining atomic TODO (current order):**
+
+1. [x] Sync main through 0d74d4a4 and publish this CFO SSOT update on PR #7106's branch.
+2. [ ] On the resulting exact PR head, pass all required CI and obtain fresh read-only review of the full 18-file diff; fix any failure on that same head.
+3. [ ] Merge #7106 after same-head acceptance.
+4. [ ] Through the normal owner route, load R24/R23 into the release reconciler, resolve the self-handoff doctor label, and verify the exact loaded SHA. Do not stop/restart active owners.
+5. [ ] After the DB lock clears, re-read the CFO occurrence/queue owner/class/position; let live claims finish naturally under the existing finite caps. Do not delete or replay rows.
+6. [ ] Read back the queued CFO occurrence to terminal; load the accepted latest release to CFO only when idle/effect state is clear, then verify its SHA.
+7. [ ] Verify the next natural CFO report's delivery/provider/runtime/B7 receipts, exact period, and replay-zero; do not claim totals without this evidence.
+8. [ ] Complete A5 cost visibility and production RPC/panel readback.
+9. [ ] Complete A6 Google billed-vs-cash reconciliation and evidenced operation/loop attribution.
+10. [ ] Complete A8 settled revenue/refund/fee and billed/paid cost coverage for all 18 loops and 188 jobs; keep gaps unknown.
+11. [ ] Complete A9 source-filtered JST daily/MTD/trailing/MRR reports with reconciled totals.
+12. [ ] Complete A10: seven consecutive natural reports with complete coverage, freshness, receipts, correct periods/currencies, and replay-zero.
+
+**Current cursor:** exact-head CI/review → merge #7106 → R24/R23 owner readback + doctor → current CFO queue/DB readback → natural receipt/replay-zero → A5 → A6 → A8 → A9 → A10.
 
 ### Marketing IntelからWriterへの記事候補連携（並列作業）
 
