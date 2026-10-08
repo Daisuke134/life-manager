@@ -41,8 +41,11 @@ def load_on_sale_sets(line_sticker_state_root: Path) -> list[dict]:
         clip_ids = sorted(p.stem for p in clips_dir.glob("*.mp4"))
         if not clip_ids:
             continue
-        store_url = item.get("store_url")
-        if not isinstance(store_url, str) or not store_url.startswith("https://"):
+        # The only trustworthy link is the one Creators Market itself shows as 購入用URL
+        # (https://line.me/S/sticker/<store id>). The store's product id differs from the item id,
+        # so a URL built from the item id is a 404 (all promotion pointed at one until 2026-10-09).
+        store_url = item.get("purchase_url")
+        if not isinstance(store_url, str) or not store_url.startswith("https://line.me/S/sticker/"):
             continue
         sets.append({
             "set_id": set_dir.name,
@@ -52,7 +55,7 @@ def load_on_sale_sets(line_sticker_state_root: Path) -> list[dict]:
             "title_ja": item.get("title_ja") or listing.get("title", {}).get("ja", ""),
             "character_name": listing.get("character_name", ""),
             "store_url": store_url,
-            "purchase_url": item.get("purchase_url"),
+            "purchase_url": store_url,
         })
     return sets
 
