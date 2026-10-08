@@ -4848,7 +4848,7 @@ flowchart LR
 
 **残TODO（完了まで、この順）:**
 
-1. **現在cursor — PR #7182 final acceptance:** Capafy PR #7185 corrected the main-side manifest inventory and its Security Scan passed. This branch includes main `1136b703c4`; local OSS checker, 103 focused Storefront tests, loop contract (18/188/0), source-boundary, and compile pass. Fresh read-only review on Gig code head `8d685fe8c3` returned SHIP. Required Security Scan run `37806800815` is still pending. Merge #7182 only after required checks pass. No Capafy source is edited in this lane.
+1. **現在cursor — final PR acceptance:** Security Scan run `37807003724` and CodeRabbit passed on current head `62821ca878`; fresh read-only code review is SHIP. This SSOT update changes the PR head, so push the status update, rerun required CI on that exact head, and merge #7182 only when all jobs pass. No Capafy source is changed in this lane.
 2. **main由来release:** After PR #7182 acceptance/merge, create or await the existing main-derived immutable release containing main `1136b703c4` and the Gig preflight fix; read back `RELEASE.json`, Storefront/Paid loaded SHA/argv/admission.
 3. **Coconala Paid obligation:** order `18180857`のfresh official order/talkroom readbackをownerが実行する。今も未完了の場合だけ必要なrevision/formal deliveryを一度行い、buyer acceptance・settlement/payout・replay-zeroを結ぶ。古いsnapshotから現在の待ち状態を推測しない。
 4. **旧Storefront fence:** `18d8d288748508e8-23902`を、同一effectの公式listing/order履歴または受理可能なoccurrence-bound pre-effect receiptで照合する。現在はdry-runがbinding不足で保留。証拠が取れなければfenceを保持し、再公開しない。
@@ -4955,6 +4955,22 @@ flowchart LR
 - latest-main merge後のlocal focused suiteは103/103 PASS、loop contractは18/188/0、main `1136b703c4`上のOSS checker・source-boundary・compileもPASS。PR #7182のfinal-head Security Scan run `37806800815`はpending。PR #7185の修正でbase側のmanifest mismatchは解消した。
 
 **現在cursor:** PR final-headのrequired CIを確認 → PASS後に#7182をmerge → main由来releaseとStorefrontの自然readback。
+
+
+### 2026-10-09 01:20 JST — 最終CI中のproduction再readback
+
+- 16:20Z時点の`df -k /System/Volumes/Data`は1,073,248 KiB空き。`~/loops/current`はrelease `d7d3cbaeaf`だが、`hf-gig-storefront-direct`は旧SHA `3981bca3`をloaded中。occurrence `18dc9a1b08446f80-11742`は`host_admission_deferred:disk_headroom_low`、provider receiptなし。effect fence `18d8d288748508e8-23902`はcurrent `effect_unknown`のまま。
+- `life-manager-release-reconciler`は旧SHA `e1b061f1`、PID `20087`で稼働中。最新occurrence `18dc9a2588c0f7f0-36473`はexit 1。`lm-loop doctor --json`はunmanaged label `ai.anicca.life-manager-release-reconciler-self-handoff`のためnot ok。production/provider stateは変更していない。
+- local Gig focused suiteは103/103、contract/source checksもPASS。source head `8d685fe8c3`のfresh reviewはSHIP。PR head `62821ca878`のSecurity Scan run `37807003724`は8 checksがgreenで、`Loop control contracts`だけ実行中。このSSOT更新でPR headが変わるため、new exact-head CIもPASSが必要。
+
+**現在cursor:** current-head CI PASSをspecへ記録してpush → new exact-head CIをPASS → PR #7182 merge → immutable release/natural Storefront readback。
+
+### 2026-10-09 01:26 JST — exact-head Security Scan passed
+
+- PR #7182のhead `62821ca878`はmain `1136b703c4`をbaseとする。Security Scan run `37807003724`はLoop control contracts、OSS boundary、Python/unittest、secret scanを含む9 jobsすべてSUCCESS。fresh read-only reviewerはGig code head `8d685fe8c3`をSHIPと判定。
+- このT7状況更新でPR headが変わるため、merge前に新headのrequired CIをもう一度PASSさせる。source acceptanceは完了しているが、production Storefrontは旧SHA/effect fenceのままで、settled sale receiptはない。
+
+**現在cursor:** このSSOT状況更新をpush → 新headのrequired CIをPASS → #7182をmerge → production releaseと自然readback。
 
 
 ### 2026-10-08 08:35 JST — Mobile post-merge runtime cursor
