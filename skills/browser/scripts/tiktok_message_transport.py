@@ -245,19 +245,29 @@ def _readback_expression(candidate: str, message: str, marker: str, sender: str 
         const row = boundedMessageRowFor(node);
         if (!row) return {value: '', owned: false};
         const values = [];
+        const messageBodyLines = new Set(String(node.innerText || '').split(/\r?\n/)
+          .map(normalize).filter(Boolean));
+        const statusTextFor = item => String(item.innerText || '').split(/\r?\n/)
+          .map(normalize).filter(line => line && !messageBodyLines.has(line)).join(' ');
         for (let current = node; current && current !== messageList; current = current.parentElement) {
           values.push(current.getAttribute?.('data-status'), current.getAttribute?.('data-message-status'),
             current.getAttribute?.('aria-label'), current.getAttribute?.('title'),
             statusClass(current.className));
+          if (current.matches?.(statusSelector)) values.push(statusTextFor(current));
         }
         // Status descendants and siblings belong only to a scope with one canonical message root.
         for (const item of row.scope.querySelectorAll?.(statusSelector) || []) {
           values.push(item.getAttribute?.('data-status'), item.getAttribute?.('data-message-status'),
             item.getAttribute?.('aria-label'), item.getAttribute?.('title'),
-            statusClass(item.className), item.innerText);
+            statusClass(item.className), statusTextFor(item));
         }
         return {value: values.filter(Boolean).join(' '), owned: true};
       };
+      const explicitPositiveMarkers = new Set([
+        'outgoing', 'outbound', 'self', 'own', 'ownmessage',
+        'outgoing-message', 'outbound-message', 'self-message', 'own-message',
+        'message-outgoing', 'message-outbound', 'message-self', 'message-own',
+      ]);
       const senderMarkerEvidence = current => {
         let positive = false;
         let contradiction = false;
@@ -277,8 +287,10 @@ def _readback_expression(candidate: str, message: str, marker: str, sender: str 
           .filter(Boolean).join(' ');
         if (/(incoming|inbound|received)/i.test(marker)
             || /(?:^|[-_ ])other(?:$|[-_ ])/i.test(marker)) contradiction = true;
-        if (/(outgoing|outbound|self|ownmessage)/i.test(marker)
-            || /(?:^|[-_ ])own(?:$|[-_ ])/i.test(marker)) positive = true;
+        const dataE2e = String(current.getAttribute?.('data-e2e') || '').trim().toLowerCase();
+        const classes = String(current.className || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
+        if (explicitPositiveMarkers.has(dataE2e)
+            || classes.some(token => explicitPositiveMarkers.has(token))) positive = true;
         for (const raw of [current.getAttribute?.('data-sender-handle'), current.getAttribute?.('data-sender')]) {
           if (raw == null || !String(raw).trim()) continue;
           const senderHandles = (String(raw).match(/@[A-Za-z0-9._-]+/g) || [])
