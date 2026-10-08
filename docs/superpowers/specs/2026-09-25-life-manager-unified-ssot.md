@@ -5124,3 +5124,9 @@ PR #7030の初回CIで`OSS self-contained boundary`だけがfailした。原因�
 PR #7030 head `3f194c8e`のrequired checksは12:04 JSTまでに全件PASSした。その後mainはPR #7033で`a7899e37f8dfd266be263ec4c891f80b1427b0ff`へ進み、`skills/capafy-autopublish` inventoryと本SSOTが更新された。eBook source変更はないが、PRのbaseはまだ`bcfc32c2`であり、green checksは新baseを含まない。
 
 **現在cursor:** 最新mainをmerge commitでPR branchへ同期し、OSS self-contained verifierのinventory digestを検証する。base更新後にrequired CIを再実行してmergeする。PR branchのsource修正、provider fence、capacity/owner状態は変わらない。
+
+### 2026-10-08 12:06 JST — eBook PR inventory resync after main #7033
+
+PR #7030はlatest main `a7899e37f8dfd266be263ec4c891f80b1427b0ff`をmerge commit経由でbranchへ取り込んだ。main PR #7033は`skills/capafy-autopublish`内の既存ファイルを更新し、self-contained verifierで再び`manifest_inventory_mismatch`になった。Capafy実装diffはmain由来のみ。243-file inventoryのhashだけを最新index順で`3b83b77a69097619902bf06c8d9f1af96eed884ef7d68f1a8ca55c1d10cd8c33`に更新し、`node scripts/verify-oss-self-contained.mjs --json`は`ok=true, violations=[]`。
+
+**現在cursor:** このmanifest/spec追記をpushし、latest mainを含むPR headでrequired CIをPASSさせてからmergeする。旧headのgreen CIはbase a789を含まない。
