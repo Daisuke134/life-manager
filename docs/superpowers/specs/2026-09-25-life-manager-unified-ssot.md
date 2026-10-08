@@ -7117,3 +7117,30 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 4. `host-inventory`、次回dueのfull inventory、cleanup receipts、`df`/APFS、owner/process I/Oを同時刻で突合し、writerまたは安全なowner専有回収対象を特定する。protected pathを変更せず、cleanup receiptで`free_after >= 2 GiB`、`errors=0`、`protected_deletions=0`と後続admission passを確認する。
 5. disk/admission回復後、target別effect fenceをofficial provider readbackで解決してからConnector/Luma、Job Hunter/Workday、Fundraiser/VC・AI founderの各loopを自然実行し、receipt、`gpt-6-luna/max/fast`、Telegram reportをoccurrenceへ結び付ける。`effect_unknown`は再送しない。
 6. 三loopと同じ時間窓のclaims/reservations/eligible queue age/admission reason/class contention/CPU/RAM/diskと実同時稼働数を測定する。global cap 8は設定値と実測capacityを分け、disk/owner修正後もcap飽和でrevenue ownerが待つと証明された場合だけ最小のclass/global変更を行う。応募、返信、面談、funding、settled cash、costsを別々に記録する。
+
+
+### 2026-10-08 23:00 JST — PR review/CIとlive capacityの初回readback
+
+- PR #7156のhead `7866fad47742010cd079d9cf12e662f69e63a5f7`でrequired GitHub checksは全passし、fresh read-only reviewerは`ship`。このSSOT更新はPR headを変えるため、merge前に新headでchecks/reviewを取り直す。
+- 22:59 JST read-only snapshot: `df -k /` free=`265,176 KiB`（約259 MiB）、2 GiB floor未達。22:46 JST host cleanup receiptは`free_after=225,701,888` bytes、`errors=0`、`protected_deletions=0`、capacity recovery=`unmet`。free spaceは22:51の30秒内にも約1 GiBから約490 MiBへ減った。
+- 同窓のadmission DBはqueue=77（agent 37、browser 2、deterministic 38）、active reservation=0、expired reservation=0、`owners/` claim file=0。priority/retry/effect-fenceだけで計算したqueue-level candidateは56（agent borrow 22/revenue 5、browser borrow 2、deterministic borrow 26/revenue 1）、最古は約3.5時間。ただしdisk/headroomは未達なのでresource admission可能なready件数とは扱わない。
+- resident `runtime.loop.lm_loop_run` owner processは59。これは常駐supervisor数であり、59本の有限jobが同時実行中という意味ではない。設定global finite-run cap=8と実際の有限job並列数は区別する。現在のsnapshotでactive claim/reservationは0なので、global cap飽和がqueueの原因とは実証されていない。
+- owner別`lm-loop status <id> --explain --json` readbackは三者とも古いimmutable release `e1b061f1fdaa040d2461be457fe410c398afc95c`、最終exit 75、`host_admission_deferred:disk_headroom_low`、次action=`retry_after_eligibility`。Connector occurrence `life-manager-connector-native:18dc91212d346eb0-10117`、Job Hunter `job-search-daily:18dc90e91a79fe08-41708`、Fundraiser `fundraiser:18dc91832c82aec0-69957`。いずれも現在のrunにprovider receipt/readbackはない。
+- Fundraiserには旧occurrenceのunresolved `effect_unknown`が4件あり、`next_action=official_readback_required`。provider receipt/readbackなしに再送しない。別途の`status all --explain --json`集約は60秒超となり、個別owner照会は1–5秒で完了した。
+- 10秒の物理I/O sampleは`kernel_task`の`PgOut/WrData/WrMeta`約30.1 MB、Codex約13.1 MB等を観測したが、数百MiBのfree変動を説明するowner/pathは特定できていない。30秒sampleではswap使用量が約104 MiB減る間にdisk freeも約534 MiB減っており、swap単独原因とは言えない。
+
+**architecture判断:** このsnapshotのqueue待ちはdisk admission deferが支配的で、configured cap 8の飽和は見えていない。capを無限化・引き上げせず、disk/writerとeffect fenceを解決した後に同一windowで再測定する。owner supervisorの大量常駐とfinite-run並列数も別指標として扱う。
+
+**順序更新:** 旧cursor=`PR #7156 checks/review pass → merge`。新順=`(1) このlive readbackを含むSSOTをcommit-pushし、新PR headを固定 → (2) exact-head CI/fresh reviewを再取得しmerge → (3) immutable release/natural fleet readback → (4) disk writer/容量変動を特定し2 GiB/admission pass → (5) Fundraiserの4 unknown occurrenceをofficial readbackでfence解消 → (6) 三loop natural provider outcomes → (7) disk recovery後の同一windowで実際の有限job並列数とclass capを計測`。理由は、現時点で三loopがadmission前のdisk条件で止まり、global capの変更は症状を解決しないためである。
+
+**残TODO（完了まで・この順）:**
+
+1. **現在cursor—このSSOT更新をcommit/pushしてPR #7156のheadを更新する。** code/testは変えていないが、更新後headでcheck/reviewを取り直す。
+2. 更新後のPR headでrequired CIとfresh read-only reviewerの`ship`を得てPRをmergeする。headが変われば再取得する。
+3. main由来immutable releaseを自然handoffし、reconcilerを停止せず、fleet retry stateと各target ownerのloaded SHA/admissionをreadbackする。
+4. disk cleanupのfast/full inventory、receipt、`df`/APFS、physical I/O/owner別runを同時窓で取り、free変動を作る具体的owner/pathまたはsafe owner-owned cleanupを特定する。`free_after >= 2 GiB`、`errors=0`、`protected_deletions=0`、stable admissionを確認する。
+5. Fundraiserの4 occurrence (`18dc890e2982e370-31599`, `18dc7f3bc472c260-76084`, `18dc7222f6b5ec78-20440`, `18d9b0b6311a2018-87933`)をprovider official readbackで個別照合し、receiptなしのunknownを再送せず解決する。
+6. disk/admission eligibleかつeffect fence解決済みのownerだけを通常自然実行させ、Luma registration、Workday application、VC/AI-founder outreachの同-occurrence provider result、`gpt-6-luna/max/fast`、Telegram reportを確かめる。
+7. disk/writer修正後にclaims、reservations、eligible queue age、class contention、CPU/RAM/diskと実際の有限job数を同一windowで測る。global cap 8とresident process数を区別し、class/global cap saturationが実証された場合だけ最小変更を行う。結果と経済数値を別集計する。
+
+**現在cursor:** push SSOT-only PR update → exact-head CI/fresh ship review/merge → natural immutable release and readback → exact disk writer/recovery/admission → Fundraiser official effect reconciliation → target natural outcomes → post-recovery same-window capacity/economics.
