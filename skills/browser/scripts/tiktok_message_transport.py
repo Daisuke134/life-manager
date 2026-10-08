@@ -223,6 +223,7 @@ def _readback_expression(candidate: str, message: str, marker: str, sender: str 
       const editorText = normalize(editor?.innerText || '');
       const editorEmpty = !!editor && !editorText;
       const bubbleSelector = '[data-e2e="dm-message"],[data-e2e="dm-message-text"],[data-e2e*="message-bubble"],[data-e2e*="message-content"],[class*="DivChatMessage"],[class*="DivMessageBubble"]';
+      const rowBubbleSelector = '[data-e2e="dm-message"],[data-e2e*="message-bubble"],[class*="DivChatMessage"],[class*="DivMessageBubble"]';
       const messageLikeSelector = '[data-e2e*="message"],[class*="Message"]';
       const statusSelector = '[data-e2e*="status"],[class*="Status"],[aria-live],[data-status],[data-message-status]';
       const bubbles = [...(messageList?.querySelectorAll(bubbleSelector) || [])]
@@ -289,15 +290,26 @@ def _readback_expression(candidate: str, message: str, marker: str, sender: str 
         }
         return {positive, contradiction};
       };
+      const boundedMessageRowFor = node => {
+        for (let scope = node.parentElement; scope && scope !== messageList; scope = scope.parentElement) {
+          const messages = [...(scope.querySelectorAll?.(rowBubbleSelector) || [])]
+            .filter(item => item && item.isConnected !== false);
+          const roots = messages.filter(item =>
+            !messages.some(other => other !== item && other.contains?.(item)));
+          if (roots.length === 1 && (roots[0] === node || roots[0].contains?.(node))) return scope;
+        }
+        return null;
+      };
       const isOutgoing = node => {
         const path = [];
         for (let current = node; current && current !== messageList; current = current.parentElement) {
           path.push(current);
         }
-        // The nearest ancestor carrying outgoing proof is the bounded row scope.
-        // Never scan messageList: its descendants can include a different conversation row.
-        const row = path.find(current => senderMarkerEvidence(current).positive) || node;
-        const inspected = new Set([row, ...(row.querySelectorAll?.('*') || [])]);
+        const row = boundedMessageRowFor(node);
+        if (!row) return false;
+        // Check every ancestor marker, then only the nearest ancestor with one message root.
+        // Never scan messageList: its descendants can include another conversation row.
+        const inspected = new Set([...path, row, ...(row.querySelectorAll?.('*') || [])]);
         let positive = false;
         let contradiction = false;
         for (const current of inspected) {

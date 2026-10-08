@@ -30,42 +30,61 @@ const statusMatches = item =>
   || (item.getAttribute('data-message-status') !== null)
   || ((item.getAttribute('data-e2e') || "").toLowerCase().includes("status"))
   || item.className.includes("Status") || item.getAttribute('aria-live') !== null;
+const bubbleMatches = item => {
+  const e2e = item.getAttribute('data-e2e') || "";
+  return e2e === "dm-message"
+    || /message-(bubble|content)/i.test(e2e)
+    || item.className.includes("DivChatMessage") || item.className.includes("DivMessageBubble");
+};
 const el = (text = "", attrs = {}) => ({
   innerText: text, textContent: text, className: attrs.class || "", isConnected: true,
   getAttribute: name => Object.hasOwn(attrs, name) ? attrs[name] : null,
-  contains(target) { return target === this; }, closest() { return null; },
+  contains(target) { return target === this || descendants(this).includes(target); }, closest() { return null; },
   querySelectorAll() { return this.statuses || []; }, querySelector() { return null; },
 });
+const rowContainers = [];
 const installTreeQueries = node => {
-  node.querySelectorAll = selector => selector === "*" ? descendants(node)
-    : [...(node.statuses || []), ...descendants(node).flatMap(child => child.statuses || [])]
-      .filter(statusMatches);
+  node.querySelectorAll = selector => {
+    if (selector === "*") return descendants(node);
+    if (selector.includes('[data-e2e="dm-message"]') && !selector.includes('[data-e2e="dm-message-text"]')) {
+      return descendants(node).filter(bubbleMatches);
+    }
+    return [...(node.statuses || []), ...descendants(node),
+      ...descendants(node).flatMap(child => child.statuses || [])].filter(statusMatches);
+  };
+};
+const addRow = (bubble, attrs = {}, siblingAttrs = []) => {
+  const parent = el("", attrs);
+  parent.children = [bubble, ...siblingAttrs.map(sibling => el("", sibling))];
+  for (const child of parent.children) child.parentElement = parent;
+  installTreeQueries(parent);
+  rowContainers.push(parent);
+  return bubble;
 };
 const editor = el(fixture.editorText ?? "本文");
 const bubbles = (fixture.bubbles || []).map(b => {
-  const n = el(b.text || "", b.attrs || {});
+  const n = el(b.text || "", {"data-e2e": "dm-message", ...(b.attrs || {})});
   n.statuses = (b.statuses || []).map(s => el(s.text || "", s.attrs || {}));
   n.children = (b.childrenAttrs || []).map(attrs => el("", attrs));
   installTreeQueries(n);
-  if (b.parentAttrs || b.rowSiblingAttrs) {
-    const parent = el("", b.parentAttrs || {});
-    parent.children = [n, ...(b.rowSiblingAttrs || []).map(attrs => el("", attrs))];
-    for (const child of parent.children) child.parentElement = parent;
-    n.parentElement = parent;
-    installTreeQueries(parent);
-  }
-  return n;
+  return fixture.noRowBoundary && !b.parentAttrs && !b.rowSiblingAttrs
+    ? n : addRow(n, b.parentAttrs || {}, b.rowSiblingAttrs || []);
 });
-if (fixture.messageBubbles) bubbles.push(...fixture.messageBubbles.map(text => el(text)));
-if (fixture.otherRows) bubbles.push(...fixture.otherRows.map(row => el(row.text || "", row.attrs || {})));
+if (fixture.messageBubbles) bubbles.push(...fixture.messageBubbles.map(text =>
+  addRow(el(text, {"data-e2e": "dm-message"}))));
+if (fixture.otherRows) bubbles.push(...fixture.otherRows.map(row =>
+  addRow(el(row.text || "", {"data-e2e": "dm-message", ...(row.attrs || {})}),
+    row.parentAttrs || {}, row.siblingAttrs || [])));
 const unresolved = fixture.unresolvedMessage ? [el("", {"data-e2e": "dm-message-row"})] : [];
 const list = el(fixture.listText || "", {
   "aria-busy": fixture.listBusy ?? "false",
   "data-loaded": fixture.listLoaded,
   "data-hydrated": fixture.listHydrated,
 });
+list.children = [...rowContainers, ...unresolved];
+for (const child of list.children) child.parentElement = list;
 list.querySelectorAll = selector => selector.includes('[data-e2e*="message"],')
-  ? [...bubbles, ...unresolved] : selector === "*" ? bubbles
+  ? [...bubbles, ...unresolved] : selector === "*" ? descendants(list)
     : selector.toLowerCase().includes("message") ? bubbles : [];
 const header = el(fixture.headerText || "@candidate");
 const doc = {
@@ -988,23 +1007,26 @@ class TikTokMessageTransportTest(unittest.TestCase):
                 self.assertNotEqual(result["status"], "deduplicated_exact_official_readback")
                 self.assertFalse(result["retry_safe"])
 
-    def test_sibling_sender_conflicts_cannot_dedupe_exact_readback(self):
+    def test_ancestor_and_sibling_sender_conflicts_cannot_dedupe_exact_readback(self):
         payload = self.payload()
         expression = transport._readback_expression("@candidate", "本文", "TIKTOK_TEST", "@anicca.jp")
         conflicts = (
-            {"data-direction": "incoming"},
-            {"data-sender-handle": "@candidate"},
-            {"data-is-own": "false"},
+            {"parentAttrs": {"data-direction": "incoming"}, "rowSiblingAttrs": []},
+            {"parentAttrs": {"data-direction": "outgoing"},
+             "rowSiblingAttrs": [{"data-sender-handle": "@candidate"}]},
+            {"parentAttrs": {"data-direction": "outgoing"},
+             "rowSiblingAttrs": [{"data-is-own": "false"}]},
         )
-        for index, marker in enumerate(conflicts):
-            with self.subTest(marker=marker), tempfile.TemporaryDirectory() as tmp:
+        for index, conflict in enumerate(conflicts):
+            with self.subTest(conflict=conflict), tempfile.TemporaryDirectory() as tmp:
                 fixture = {
                     "topUrl": "https://www.tiktok.com/business-suite/messages?u=candidate",
                     "documentUrl": "https://www.tiktok.com/messages?u=candidate",
                     "headerText": "@candidate", "editorText": "", "listText": "本文",
-                    "bubbles": [{"text": "本文", "parentAttrs": {
-                        "data-direction": "outgoing", "data-sender-handle": "@anicca.jp",
-                    }, "rowSiblingAttrs": [marker]}],
+                    "bubbles": [{"text": "本文", "attrs": {
+                        "data-e2e": "dm-message", "data-direction": "outgoing",
+                        "data-sender-handle": "@anicca.jp",
+                    }, **conflict}],
                 }
                 readback = evaluate_js_expression(expression, fixture)
                 self.assertFalse(readback["message_sender_proven"])
@@ -1020,22 +1042,25 @@ class TikTokMessageTransportTest(unittest.TestCase):
                         (project_root / "delivery/tiktok-message-effects.jsonl").read_text().splitlines()]
                 self.assertEqual([row["state"] for row in rows], ["unknown"])
 
-    def test_sibling_sender_conflicts_after_dispatch_do_not_mark_sent(self):
+    def test_ancestor_and_sibling_sender_conflicts_after_dispatch_do_not_mark_sent(self):
         payload = self.payload()
         conflicts = (
-            {"data-direction": "incoming"},
-            {"data-sender-handle": "@candidate"},
-            {"data-is-own": "false"},
+            {"parentAttrs": {"data-direction": "incoming"}, "rowSiblingAttrs": []},
+            {"parentAttrs": {"data-direction": "outgoing"},
+             "rowSiblingAttrs": [{"data-sender-handle": "@candidate"}]},
+            {"parentAttrs": {"data-direction": "outgoing"},
+             "rowSiblingAttrs": [{"data-is-own": "false"}]},
         )
-        for index, marker in enumerate(conflicts):
-            with self.subTest(marker=marker), tempfile.TemporaryDirectory() as tmp:
+        for index, conflict in enumerate(conflicts):
+            with self.subTest(conflict=conflict), tempfile.TemporaryDirectory() as tmp:
                 fixture = {
                     "topUrl": "https://www.tiktok.com/business-suite/messages?u=candidate",
                     "documentUrl": "https://www.tiktok.com/messages?u=candidate",
                     "headerText": "@candidate", "editorText": "", "listText": "本文",
-                    "bubbles": [{"text": "本文", "parentAttrs": {
-                        "data-direction": "outgoing", "data-sender-handle": "@anicca.jp",
-                    }, "rowSiblingAttrs": [marker]}],
+                    "bubbles": [{"text": "本文", "attrs": {
+                        "data-e2e": "dm-message", "data-direction": "outgoing",
+                        "data-sender-handle": "@anicca.jp",
+                    }, **conflict}],
                 }
                 project_root = pathlib.Path(tmp) / str(index)
                 (project_root / "delivery").mkdir(parents=True)
@@ -1055,9 +1080,10 @@ class TikTokMessageTransportTest(unittest.TestCase):
             "topUrl": "https://www.tiktok.com/business-suite/messages?u=candidate",
             "documentUrl": "https://www.tiktok.com/messages?u=candidate",
             "headerText": "@candidate", "editorText": "", "listText": "本文\n別会話",
-            "bubbles": [{"text": "本文", "parentAttrs": {
-                "data-direction": "outgoing", "data-sender-handle": "@anicca.jp",
-            }}],
+            "bubbles": [{"text": "本文", "attrs": {
+                "data-e2e": "dm-message", "data-direction": "outgoing",
+                "data-sender-handle": "@anicca.jp",
+            }, "parentAttrs": {"data-direction": "outgoing"}}],
             "otherRows": [{"text": "別会話", "attrs": {
                 "data-direction": "incoming", "data-sender-handle": "@candidate",
             }}],
@@ -1071,6 +1097,29 @@ class TikTokMessageTransportTest(unittest.TestCase):
         rows = [json.loads(line) for line in
                 (self.project_root / "delivery/tiktok-message-effects.jsonl").read_text().splitlines()]
         self.assertEqual([row["state"] for row in rows], ["sent"])
+
+    def test_outgoing_marker_without_a_bounded_row_scope_is_unknown(self):
+        payload = self.payload()
+        fixture = {
+            "topUrl": "https://www.tiktok.com/business-suite/messages?u=candidate",
+            "documentUrl": "https://www.tiktok.com/messages?u=candidate",
+            "headerText": "@candidate", "editorText": "", "listText": "本文",
+            "noRowBoundary": True,
+            "bubbles": [{"text": "本文", "attrs": {
+                "data-e2e": "dm-message", "data-direction": "outgoing",
+                "data-sender-handle": "@anicca.jp",
+            }}],
+        }
+        expression = transport._readback_expression("@candidate", "本文", "TIKTOK_TEST", "@anicca.jp")
+        readback = evaluate_js_expression(expression, fixture)
+        self.assertFalse(readback["message_sender_proven"])
+        self.assertFalse(readback["exact_message"])
+        result = self.send(payload, FakeCDP(before_readback_fixture=fixture), send=False)
+        self.assertNotEqual(result["status"], "deduplicated_exact_official_readback")
+        self.assertFalse(result["retry_safe"])
+        rows = [json.loads(line) for line in
+                (self.project_root / "delivery/tiktok-message-effects.jsonl").read_text().splitlines()]
+        self.assertEqual([row["state"] for row in rows], ["unknown"])
 
 
 if __name__ == "__main__":
