@@ -5869,3 +5869,28 @@ This snapshot supersedes the 13:59–14:04 source/release status. PR #7055 backo
 **最新local TDD readback:** 追加したregressionはsource修正前にRED（profile lease、env scoping、Fundraiser owner/context mode、Connector GC、provider FD retention、failover scope）。実装後、`runtime/agent-runner/tests`は95 passed / 129 subtests、browser/Connector/Fundraiser focused suiteは41 passed。SQLite admissionは137 passed、browser capacity probe 3 passed、Connector production contract 1 passed。`./bin/lm-loop-contract`は18 loop / 187 job / errors 0、source-boundary・syntax・diff check・OSS verifierもPASS。これらは専用worktreeのsource evidenceで、本番owner/readbackを変更していない。詳細cursorは上記実行計画を参照。
 
 **最新本番owner readback（2026-10-08 15:52 JST）:** `/Users/anicca/loops/current`は`20261008T152333-71a5f878`。Connectorは旧SHA `8f342d8d` / loaded-running PID 32153で、occurrence `18dc7b56d3202188-94975`は`resource_capacity_busy`、Luma receiptなし。Job Hunter daily/inbox/healthとFundraiserはSHA `71a5f878` / loaded-idle。daily `18dc7a5858bc2dc8-94646`は`apply_lock_busy`、inbox `18dc7b3d8e7c40c0-29730`とhealth `18dc7b3e28742d50-31026`は`resource_capacity_busy`、Fundraiser `18dc7a440b321c48-41476`は`disk_headroom_low`。4件にprovider receipt/official readbackはなく、Fundraiser unknown `18dc7222f6b5ec78-20440` / `18d9b0b6311a2018-87933`は引き続きcurrent=true。active Connector PIDには触れず、owner applyも行っていない。
+
+### 2026-10-08 16:05 JST — Local revenue loop post-merge production cursor
+
+この追記は14:09 JSTの旧TODOと15:52 JSTのowner snapshotを更新する。source修正はmain統合済みだが、production完了とは分けて記録する。
+
+**Source gate closed:** PR #7072は2026-10-08 07:01:48Zにmergeされ、`origin/main`は`a02c457dd3edf8fcb41ce324e10dc024596afcdc`。head `663577b3`のrequired CIとCodeRabbitはすべて成功。容量admission、profile単位Codex lease、task-scoped failover、fundraiser context-only、Connectorのowner-wide tab cleanup除去はmain sourceに入った。これはsource受入れで、release作成・owner適用・provider効果ではない。
+
+**最新read-only本番状態（2026-10-08 16:05 JST）:**
+
+- `origin/main=a02c457d`。`/Users/anicca/loops/current`は旧immutable release `20261008T155630-6cc0c56b`。`df -Pk /`のavailableは6,374,416 KiB。
+- `life-manager-release-reconciler`はinstalled SHA `6cc0c56b`、loaded-running PID `19290`。直近terminal occurrence `18dc7b67a05f8020-39546`は06:58:04Zに`entrypoint_exit_75`。`life-manager-disk-cleanup`はloaded-idleだが直近`18dc7beff249ecd0-64624`は`apply_lock_busy`。
+- Connector `life-manager-connector-native`は旧SHA `8f342d8d`、loaded-idle。最新 `18dc7b649d6805e8-32153` はdeterministic `pass` / effect `not_applicable`で、Luma registration receipt・Calendar readback・Telegram outcomeはない。
+- Job Hunter `job-search-daily` / `job-search-inbox` / `job-search-health`は旧SHA `71a5f878`で、各々loaded-running PID `18428` / `40591` / `42277`。最新eventはdaily `18dc7bfb92e28bd8-95522`とinbox `18dc7b3d8e7c40c0-29730`が`resource_capacity_busy`、health `18dc7bca6a63bf78-84445`が`disk_headroom_low`。Workday receipt/official readbackなし。
+- Fundraiserは旧SHA `71a5f878`、loaded-running PID `79351`。最新 `18dc7be7ae944060-45433` は`resource_capacity_busy`で、provider receipt/readbackなし。`fundraiser:18d9b0b6311a2018-87933`（DeepScale.Ventures）と`fundraiser:18dc7222f6b5ec78-20440`（LAUNCH Accelerator）は`admission_effect_unknown.current=true`のまま。
+- これらのPIDとreconciler/apply lockがある間はstop/restart/applyを重ねない。6.37M KiBの空き容量だけからadmission passを推定しない。特にhealth ownerが`disk_headroom_low`を返した具体的なthreshold/receiptを、installed releaseの判定経路で特定する。過去の11 GiB記載を現行gateとみなさない。
+
+**順序更新:** 旧順=`source修正 → focused acceptance/review/CI → main merge → release/apply → natural occurrence/provider readback → replay-zero`。前半はPR #7072で完了。新順=`稼働中owner/reconcilerとhost admissionをread-onlyで収束確認 + 既存unknown targetをprovider別にread-only照合 → shared apply lock解放・target eligibility確認 → main由来immutable releaseの自然作成確認 → 5対象ownerを一つずつloaded-idle条件でapply/readback → 3 loopのnatural business occurrence → official receipt/readbackとTelegram照合 → exact target fence close・replay-zero`。理由はsource修正がmainに入った一方、現在のrelease/ownerは旧SHAで、実行中owner・`entrypoint_exit_75`・capacity/disk admissionが残るため。独立したWorkday/Fundraiserの旧target照合は待ち時間にread-onlyで進められる。現在cursor=`稼働中owner/reconcilerの自然terminalとadmission/apply-lock原因のread-only確認`。
+
+**残TODO（完了までの順序）:**
+
+1. **現在cursor:** release reconcilerとJob Hunter/Fundraiserの既存PIDが自然terminalになるまで待ち、`life-manager-release-reconciler` occurrence `18dc7b67a05f8020-39546` の`entrypoint_exit_75`、shared apply lock、target別admission、実際に適用されるdisk thresholdをread-onlyで特定する。disk-cleanup ownerのlock条件も確認する。stop/restart、global cap変更、他ownerのcleanupはしない。
+2. 並行して、Workday `Danaher R1316263`とFundraiserのDeepScale/LAUNCH 2 occurrenceを同一targetの公式portal/Gmail状態・provider receiptで照合する。Gmail検索0件やlocal `submitted=0`はno-effect proofではない。official statusまたはstrict verified-pre-effect proofが得られたtargetだけfenceを閉じる。未解決targetは再送しない。
+3. reconcilerが自然にterminalへ到達し、apply lockがfreeで、対象ownerがloaded-idleかつadmission eligibleになった時点で、`a02c457d`以降を含むmain由来immutable releaseをreadbackする。その後`life-manager-connector-native`、`job-search-daily`、`job-search-inbox`、`job-search-health`、`fundraiser`だけを`lm-loop`のowner-scoped経路で一つずつapplyし、各plist/loaded SHA・argv/env・実際のtask model（3専用classは`gpt-6-luna/max/fast`）を照合する。稼働中ownerへapplyを重ねない。
+4. 新SHAを使うnatural occurrenceを待ち、同一occurrenceのbusiness outcomeを確認する。Connector=`Luma registration + Google Calendar event + Telegram receipt`。Job Hunter=`新規の適格Workday jobへのapplication official status/receipt + Telegram`。Fundraiser=`新規VCとpublic business contactを持つAI/AGI lab founderへのGmail provider message ID + exact Sent + Telegram`。human-required gateは迂回しない。過去targetは新規targetとして再利用しない。
+5. receiptと公式readbackをoccurrence単位で照合し、重複なし・replay-zeroを確認する。旧unknownは公式statusまたはstrict verified-pre-effect証拠でだけ閉じる。3 loopそれぞれの自然実行・provider証拠・Telegram報告が揃った時点でこのlaneを完了し、次cursor `MX-01`へ戻る。資金調達収入はsettlement確認まで収益実績に数えない。
