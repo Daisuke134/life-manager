@@ -710,7 +710,7 @@ async function runResultCfo(options) {
   }
   const duplicate = delivery.attempted === 0;
   const resolutionKind = duplicate ? "duplicate" : "sent";
-  const sentAt = now.toISOString();
+  const sentAt = new Date().toISOString();
   if (sourceSnapshot) {
     const sourceOccurrenceId = sourceSnapshot.occurrenceId;
     sourceSnapshot = { ...sourceSnapshot, status: "sent", resolutionKind,

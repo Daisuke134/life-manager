@@ -1,5 +1,6 @@
 import importlib.util
 import sys
+from datetime import datetime
 from pathlib import Path
 
 
@@ -40,6 +41,32 @@ def test_shared_effect_notification_delivers_once_and_replays_zero(tmp_path):
     assert replay["delivery"] == "delivered"
     assert replay["attempted"] == 0
     assert calls == ["Codex::: effect happened"]
+
+
+def test_provider_ack_timestamp_is_after_claim_not_report_observation_time(tmp_path):
+    notification = load("test_effect_notification_delivery_time", "effect_notification.py")
+    outbox = load("test_effect_outbox_delivery_time", "telegram_outbox.py")
+    delivery = load("test_effect_delivery_time", "telegram_delivery.py")
+    database = tmp_path / "outbox.sqlite3"
+    observed_at = "2026-09-07T05:00:00Z"
+
+    result = notification.notify_effect(
+        database=database,
+        event_key="cfo:subject:telegram:2026-09-07:05",
+        message="CFO report",
+        observed_at=observed_at,
+        chat_id="123",
+        env_file=tmp_path / "telegram.env",
+        sender=lambda _message: delivery.SendResult(True, "provider-ack-1", None),
+    )
+
+    item = outbox.list_items(database)[0]
+    assert result["delivery"] == "delivered"
+    assert item.claimed_at is not None
+    assert item.delivered_at is not None
+    parse_utc = lambda value: datetime.fromisoformat(value.replace("Z", "+00:00"))
+    assert parse_utc(item.delivered_at) >= parse_utc(item.claimed_at)
+    assert item.delivered_at != observed_at
 
 
 def test_delivered_event_replays_receipt_when_generated_wording_drifts(tmp_path):

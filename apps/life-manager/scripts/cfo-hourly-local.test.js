@@ -482,6 +482,7 @@ test("CFO writes a runtime Telegram receipt only for a new confirmed send", asyn
   const firstHint = path.join(root, "first", "entrypoint-result.json");
   fs.mkdirSync(path.dirname(firstHint), { mode: 0o700 });
   const occurrenceId = "life-manager-cfo-hourly:telegram-run-1";
+  let providerReturnedAt;
   const env = {
     ...process.env,
     LIFE_MANAGER_RELEASE_SHA: "a".repeat(40),
@@ -494,15 +495,20 @@ test("CFO writes a runtime Telegram receipt only for a new confirmed send", asyn
     collect: async (date) => ({
       reporting_date: date, timezone: "Asia/Tokyo", rows: [],
     }),
-    notify: async () => ({
-      delivery: "delivered", provider_message_id: "9142", attempted: 1,
-      delivered: 1, delivery_uncertain: 0, pre_send_failed: 0,
-    }),
+    notify: async () => {
+      providerReturnedAt = new Date().toISOString();
+      return {
+        delivery: "delivered", provider_message_id: "9142", attempted: 1,
+        delivered: 1, delivery_uncertain: 0, pre_send_failed: 0,
+      };
+    },
   };
 
   const sent = await runResultCfo(options);
   assert.equal(sent.status, "sent");
   assert.equal(sent.resolutionKind, "sent");
+  const reportReceipt = JSON.parse(fs.readFileSync(path.join(stateDir, "last-result-report.json"), "utf8"));
+  assert.ok(Date.parse(reportReceipt.sentAt) >= Date.parse(providerReturnedAt));
   const hint = JSON.parse(fs.readFileSync(firstHint, "utf8"));
   assert.deepEqual(hint, {
     schema_version: 1,

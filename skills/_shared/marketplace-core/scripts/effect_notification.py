@@ -83,7 +83,7 @@ def notify_effect(
         )
     )
     outcome = delivery.deliver_pending(
-        outbox, Path(database), notifier, observed_at, limit=1
+        outbox, Path(database), notifier, limit=1
     )
     item = next(
         item for item in outbox.list_items(Path(database))

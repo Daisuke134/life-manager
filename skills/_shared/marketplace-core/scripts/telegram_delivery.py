@@ -7,6 +7,7 @@ cannot find because it gives a job no PATH — so it reported nothing for a day 
 """
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
 import importlib.util
 from pathlib import Path
 import sys
@@ -56,7 +57,7 @@ def send_via_shared_client(message: str, *, chat_id: str, env_file: Optional[Pat
         return SendResult(attempted, None, "transport_unknown" if attempted else "direct_transport_unavailable")
 
 
-def deliver_pending(outbox: Any, database: Path, notifier: Callable[[str], SendResult], now: str, *, limit: int = 20) -> Delivery:
+def deliver_pending(outbox: Any, database: Path, notifier: Callable[[str], SendResult], *, limit: int = 20) -> Delivery:
     """Drain the outbox once: quarantine abandoned claims, then send what is pending."""
     attempted = delivered = uncertain = pre_send = 0
     try: outbox.reclaim_stale(Path(database))
@@ -75,7 +76,8 @@ def deliver_pending(outbox: Any, database: Path, notifier: Callable[[str], SendR
                 break
             attempted += 1
             if result.provider_id:
-                outbox.mark_delivered(Path(database), item.event_key, result.provider_id, now, **fence); delivered += 1
+                delivered_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+                outbox.mark_delivered(Path(database), item.event_key, result.provider_id, delivered_at, **fence); delivered += 1
             else:
                 outbox.mark_delivery_uncertain(Path(database), item.event_key, result.error or "receipt_missing", **fence); uncertain += 1
         except getattr(outbox, "StaleClaim", ()):

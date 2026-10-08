@@ -554,7 +554,7 @@ def deliver_pending(database: Path, notifier: Callable[[str], object], now: obje
         return shared_delivery.SendResult(started, _provider_id(sent), error)
 
     delivered = shared_delivery.deliver_pending(
-        outbox, Path(database), send, _timestamp(now) or "unknown", limit=20,
+        outbox, Path(database), send, limit=20,
     )
     return DeliveryResult(
         delivered.attempted, delivered.delivered,
