@@ -125,9 +125,13 @@ python3 "$ARTICLE_ROOT/scripts/topic_state.py" \
   echo "=== article-daily topic-state initialization failed closed ===" >>"$LOG"
   exit 1
 }
-if ! python3 "$ARTICLE_ROOT/scripts/import_marketing_intel.py" \
-  --skill-dir "$ARTICLE_ROOT" --state-dir "$STATE_DIR" >>"$LOG" 2>&1; then
-  echo "article-daily: Marketing Intel import failed; continue with the existing topic queue" >>"$LOG"
+# Opt-in only (2026-10-09): the required paid-demand gate below rejects any queue card that is not a
+# paid-demand card, so an unconditional import made every run exit 75 and shipped no article.
+if [ "${ARTICLE_IMPORT_MARKETING_INTEL:-0}" = "1" ]; then
+  if ! python3 "$ARTICLE_ROOT/scripts/import_marketing_intel.py" \
+    --skill-dir "$ARTICLE_ROOT" --state-dir "$STATE_DIR" >>"$LOG" 2>&1; then
+    echo "article-daily: Marketing Intel import failed; continue with the existing topic queue" >>"$LOG"
+  fi
 fi
 ARTICLE_PROVIDER_HEALTH="${ARTICLE_PROVIDER_HEALTH:-$STATE_DIR/provider-health.json}"
 ARTICLE_MODEL_RUNNER="${ARTICLE_MODEL_RUNNER:-$ARTICLE_ROOT/runtime/model-runner.sh}"
