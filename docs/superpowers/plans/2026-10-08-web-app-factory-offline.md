@@ -62,3 +62,9 @@ Interfaces: reads only bounded JSON stdin and optional `--now ISO`; invokes Task
 4. Preserve the local branch and worktree without publication/integration during this expressly offline phase. Cost: production integration waits for the orchestrator.
 
 No deferred Minor review findings. The module is an offline factory slice, not proof of a functioning autonomous revenue loop.
+
+## Authorized publication follow-up
+
+The user requested a usable open-source deliverable after the local checkpoint. Authenticated GitHub metadata confirms Life Manager is public, MIT licensed and writable. Publish only this clean branch via a **draft PR**, with no merge/deployment. The new `web-app-factory.yml` CI follows the existing read-only checkout/Node 22 workflow shape and runs only dependency-free offline tests and the synthetic fixture. It creates no scheduler or provider effect. Targeted secret/privacy review covers the complete new diff before push.
+
+PDF Insight is separately writable and private, with no open PR and only main at the ownership check. Absence of a named Sophia owner is not an access denial. Any authorized private repairs remain in a separate private workspace; no private code/history is added to this public branch.
