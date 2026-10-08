@@ -101,6 +101,76 @@ test("iMessage ask loop waits for the current pending question before asking ano
   }
 });
 
+test("failed pending-ask ledger read stops before resolving or sending another iMessage question", async () => {
+  const originalFetch = global.fetch;
+  const requests = [];
+  const sends = [];
+  let resolveCalls = 0;
+  let rawCalls = 0;
+  global.fetch = async (url, init = {}) => {
+    const method = String(init.method || "GET");
+    requests.push({ url: String(url), method });
+    if (method === "GET") return { ok: false, status: 503, async json() { return []; } };
+    return { ok: true, status: 201, async json() { return []; } };
+  };
+  try {
+    await assert.rejects(() => askTick("lm_11111111-1111-4111-8111-111111111111", {
+      composioKey: "fixture-composio", supaUrl: "https://fixture.supabase.co",
+      supaKey: "fixture-service-role", geminiKey: "fixture-gemini", mapsKey: "fixture-maps",
+      imessageSenderId: "+819012345678",
+      imessageSend: async (_sender, text) => { sends.push(text); return { ok: true, receiptId: "provider-send-fixture" }; },
+      nowMs: Date.parse("2030-01-01T00:00:00Z"),
+      listEvents: async () => [{
+        id: "event-next", summary: "Lunch with Mai", start: { dateTime: "2030-01-01T12:00:00+09:00" }, location: "",
+      }],
+      patchEvent: async () => { throw new Error("unresolved ask must not patch Calendar"); },
+      recordResolution: async () => {},
+      recall: async () => null,
+      resolve: async () => { resolveCalls += 1; return { kind: "ask" }; },
+      geminiRaw: async () => {
+        rawCalls += 1;
+        if (rawCalls === 1) return { candidates: [{ content: { parts: [{ text: "No reliable venue found." }] } }] };
+        return {
+          candidates: [{
+            content: {
+              parts: [{
+                functionCall: {
+                  name: "submit_candidate",
+                  args: { found: false, candidate: "", source: "web_search" },
+                },
+              }],
+            },
+          }],
+        };
+      },
+      mail: { ready: () => false, searchInbox: async () => { throw new Error("iMessage ask must not read email"); } },
+    }), /lm_ask_log_read_failed/);
+    assert.equal(resolveCalls, 0);
+    assert.deepEqual(requests.map((request) => request.method), ["GET"]);
+    assert.deepEqual(sends, []);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test("malformed pending-ask ledger data is rejected instead of treated as an empty set", async () => {
+  const originalFetch = global.fetch;
+  try {
+    for (const json of [
+      async () => ({ error: "unexpected object" }),
+      async () => { throw new Error("malformed JSON"); },
+    ]) {
+      global.fetch = async () => ({ ok: true, status: 200, json });
+      await assert.rejects(() => askTick("lm_11111111-1111-4111-8111-111111111111", {
+        supaUrl: "https://fixture.supabase.co", supaKey: "fixture-service-role",
+        listEvents: async () => [],
+      }), /lm_ask_log_invalid_response/);
+    }
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
 test("ambiguous iMessage send keeps the atomic ask claim and does not replay the message", async () => {
   const originalFetch = global.fetch;
   const requests = [];

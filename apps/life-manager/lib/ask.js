@@ -374,8 +374,13 @@ async function askedSet(uid, supaUrl, supaKey) {
   const r = await fetch(`${supaUrl}/rest/v1/lm_ask_log?uid=eq.${encodeURIComponent(uid)}` +
     `&select=event_id,semantic_key,question_type,question_context,answer_value,answered_at`,
     { headers: { apikey: supaKey, Authorization: `Bearer ${supaKey}` } });
-  const d = await r.json().catch(() => []);
-  const rows = Array.isArray(d) ? d : [];
+  if (!r || r.ok !== true) {
+    const status = Number(r && r.status);
+    throw new Error(`lm_ask_log_read_failed${Number.isFinite(status) ? ` status=${status}` : ""}`);
+  }
+  let rows;
+  try { rows = await r.json(); } catch { throw new Error("lm_ask_log_invalid_response"); }
+  if (!Array.isArray(rows)) throw new Error("lm_ask_log_invalid_response");
   const result = new Set();
   result.seriesAnswers = {};
   result.pendingIMessage = false;
