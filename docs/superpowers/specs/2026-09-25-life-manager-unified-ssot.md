@@ -170,7 +170,7 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
   - `job-search-inbox`: `inbox.py:398`。model の申告件数と thread ID の数が食い違った時に安全側で止まる、意図された fail-closed。二重返信を防ぐための仕組みで、test でも固定されているので変更しない。
   - Instagram en-card / obou: `LM_DATA_DIR is required` と ledger の job id 衝突。obou の Instagram は `marketing-destinations.json` で `ebook_account_out_of_mobile_scope`（上限 0）なので、直すより退役させる候補。state root が共有 events.jsonl のため、run 単位の切り分けは未完。
   - `life-manager-honne-ja`: 昼の ENOSPC（空きが 0.56GB だった時点）による。publish は fence で止まっていた。
-| T7 | Gig収益順: 1A完了 → Storefront priority correctionとR17 host recoveryを並行 → 2 GiB natural windowでmain releaseをload → Storefront/Paid critical_paidはloaded SHAで1 GiB floor → 既存Coconala有償義務 → storefront product → Freelancer Services → Upwork Project Catalog（policy gate後）→ Reply/Apply/Negotiation/Paid → settled net → SelfBuild last。Lancers rows25–27はskip、Answers対象外 | active listing・unique paid order・settlement/fee/cost/net・replay-zero |
+| T7 | Gig収益順: 1A完了 → Storefront priority correction → latest main releaseをowner-idle/lock-freeで適用（numeric free-space floorなし）→ 既存Coconala有償義務 → storefront product → Freelancer Services → Upwork Project Catalog（policy gate後）→ Reply/Apply/Negotiation/Paid → settled net → SelfBuild last。Lancers rows25–27はskip、Answers対象外 | active listing・unique paid order・settlement/fee/cost/net・replay-zero |
 | T8 | CFO: ループごとの settled revenue と cost の join（ループ別P&L）を毎日出す | P&L 行ごとに receipt id がある |
 | T9 | Mobile funnel と `/en` `/lm` `/income` の整合（install→activation→課金） | attribution receipt |
 | T10 | one-shot capability capsule | 目標・承認の質問なしで初回の実行が通る |
@@ -4852,12 +4852,12 @@ Historical official seller analytics at /Users/anicca/gig/storefront-direct/anal
 - hf-gig-apply-direct: 13:36Z occurrence 18dc913e2667ea18-12209がdisk_headroom_low。過去fence 18dadcd76d9c61b0-37711はofficial application readback待ち。
 - 4 ownerはいずれも最新wakeにprovider receiptなし。現在のlisting count、注文、settlement、payoutはunknownで、revenueあり/なしに置き換えない。
 
-TODO順変更: 旧順=一律2 GiB capacity gate → Paid merge → Coconala order → Storefront → client loops → economics → SelfBuild。新順=Storefront priority correction（test付き）とR17 host recoveryを並行 → 2 GiB natural release window → loaded critical_paid Storefront/Paidで1 GiB floorを確認 → existing Coconala Paid obligation → exact Storefront fence/current SKU metrics → Freelancer Services/Upwork Catalog → Reply/Apply/Negotiation → settled economics → SelfBuild last。理由はR18の1 GiB例外がcritical_paidだけに適用され、Storefrontがregistryでrevenueのままだったため。admission_class=revenueとeffect fenceは維持する。
+TODO順変更（旧案・superseded）: 旧順=一律2 GiB capacity gate → Paid merge → Storefront correction → client loops → economics。PR #7179の新順=`numeric floorを全producerから削除 → merge/release → owner/lock/effect fenceを守ってnatural run → cleanup receiptを診断値として記録 → official settlement/economics`。2 GiB/1 GiB floorのpriority correctionは実行しない。
 
 残りのatomic TODO（完了まで）:
 
-1. Storefrontのpriority mismatchを直す: main R18 codeはpriority=critical_paidに1 GiB floorを適用するが、hf-gig-storefront-directはpriority=revenueのため2 GiBを要求する。registryのpriorityだけcritical_paidへ変え、admission_class=revenueは維持する。registry rowから実際の_disk_floor=1 GiBを選ぶfailing regression testを追加し、focused testsとlm-loop-contractを通す。critical_paidはgeneric recovery-intentを抑制するため、Storefrontの60秒scheduled ownerとeffect fenceを復旧境界として維持し、unknown effectを再試行しない。
-2. Capacity recovery と source rollout: PR #7166のR18 floor changeはmainにmerged済み。disk-cleanup/release-reconcilerのpriorityはcritical_paidではないため、それらは2 GiB floorを維持する。R17 ownerがnatural receiptと同時dfで2 GiB超のwindowを作り、Storefront priority source fixを含むmain-derived releaseをnaturalにloadするまで待つ。loaded SHA/argvをreadbackする。その後critical_paid Storefront/Paidは1 GiB floorで動けるが、現在のfree 770,820 KiBは1 GiB未満。
+1. [superseded by PR #7179] Storefrontのpriority mismatchとR18の1 GiB exceptionを使った2 GiB/1 GiB admission floor correctionは実行しない。Registry priority、effect fence、owner cadenceは変更不要。
+2. Source rollout: PR #7179のnumeric-floor removalをmain-derived releaseへ反映し、loaded SHA/argvをreadbackする。cleanup `free_after`は回復診断値として記録するが、2 GiB windowを待たずnatural producer occurrenceへ進む。actual `ENOSPC`はそのwrite failureとして記録する。
 3. 既存Coconala有償義務: Paid ownerがR18を含むmain-derived SHAでnatural wakeした後、order 18180857のfresh official talkroom/order readbackを一度取得する。必要な納品だけを行いacceptance/settlement/payout/replay-zeroを読む。stale latest.jsonでbuyer状態を決めない。
 4. Coconala storefront fence: 18d8d288748508e8-23902を正確なofficial listing/profile readbackと照合し、重複ゼロを確認する。service 4244556が現在公開中なのは確認済みだが、old fenceのexact effect readbackではない。pre-effect-reconcile dry-runは13:52Zもno_pre_effect_terminalでunprovable。exact provider readbackまでfence保持、再publish・解除なし。
 5. SKU 4244556のconversion改善: seller-side view/inquiry/unique order/subscription/refund/payout metricsをfresh readbackする。最後に保存された27 SKUの公式analyticsは購入0で、最も見られた4357844は32 views/0 purchaseかつ受付終了。Coconala comparablesの明確な課題・納品物・境界・納期・作例・FAQ・option/継続購入の型を使い、4244556の原文/画像を独自に磨く。今の5,000円/月次repeat/追加媒体optionはfresh cost/conversionで採算を確認後に維持/変更し、fence解決前は変更しない。
@@ -4868,7 +4868,7 @@ TODO順変更: 旧順=一律2 GiB capacity gate → Paid merge → Coconala orde
 10. 最後 — SelfBuild: 全収益loopとstorefront/productizationを閉じた後に、既定順のself-build/self-healing作業へ戻る。
 10. 最後 — SelfBuild: 全収益loopとstorefront/productizationを閉じた後に、既定順のself-build/self-healing作業へ戻る。
 
-現在cursor: Storefrontのpriority mismatchをcritical_paidへ変えるsource fix。並行blockerはR17 disk recovery。release/reconcilerを更新する2 GiB natural windowまでは現installed Storefront 3981bca3の2 GiB gateが残る。
+現在cursor: PR #7179のnumeric-floor removalをmain-derived immutable releaseへ反映し、owner-idle/lock-freeとeffect fencesを確認してStorefront/Paidを自然実行する。cleanup 2 GiBはreceipt metricのみで、source release後のproducer admission条件にしない。
 ### 2026-10-08 08:35 JST — Mobile post-merge runtime cursor
 
 この追記は上記08:23のPR #6993/owner/capacity/TestFlight状態をmerge後readbackで置き換える。全社§84-Aの順序は変更しない。
@@ -7136,12 +7136,13 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 1. [x] Global runner、common/Gig/Writer/SelfFix/browser/release-builder/agent-runnerからnumeric free-space admission checksとobsolete floor environmentを除去する。explicit `disk-writers.stop`はenvironment overrideでも回避不可とし、measurement/state integrity、effect fencesを維持する。cleanup recovery metricは変更しない。
 2. [x] Regression testsを変更し、`0` bytesのvalid measurementでadmission・Writer publication・agent-runner retentionが進み、unavailable measurement・unsafe control path・explicit hard stopは引き続き拒否されることを確認する。
 3. [x] Loop contract、host/Gig/Browser/Writer/SelfFix/agent-runner focused tests、shell contracts、JSON/shell syntax、`git diff --check`を既存headで確認する。static source scanでfree-space比較によるactive admission stopはなく、historical event decoding、cleanup recovery metric、Writerのclone-cleanup triggerは別用途のまま残る。Writerはpwd ownerのcanonical host stop pathを使い、Gig control rootのsymlink/owner/mode validationを行う。
-4. [ ] Fresh reviewで見つかったstop-path迂回を塞ぐ。共通host guardとGig guardはOS userのcanonical `.local/.../state`・`.openclaw/state`を環境変数による代替先より先に必ず確認する。Gig TODOの古い512 MiB待機を更新し、`agent_runner.py`のOSS manifest hashを同期する。PR #7179の同じheadでCIとfresh read-only reviewを通す。
-5. [ ] latest-main専用PRをmergeする。main由来immutable releaseを自然経路で反映し、loaded SHA/argvと新規natural occurrenceのadmission resultを読む。disk cleanupは別ownerの稼働を妨げず、recovery receiptを報告指標として継続する。
+4. [x] Fresh reviewのstop-path迂回を修正する。共通host guardとGig guardはOS userのcanonical `.local/.../state`・`.openclaw/state`を常に確認する。Gig TODOの512 MiB待機を撤回し、runner manifest hashとbaseline例外を同期する。
+5. [ ] PR #7179 current headの必須CIとfresh read-only reviewをpassさせ、同じheadをSHIPで確認する。
+6. [ ] latest-main専用PRをmergeする。main由来immutable releaseを自然経路で反映し、loaded SHA/argvと新規natural occurrenceのadmission resultを読む。cleanup receiptは診断値として継続する。
 
 **完了条件:** 実行可能なloopのpreflightがfree-space数値だけを理由にdefer/exitしない。実ENOSPC、測定不能、明示stop、effect-unknownは正確な理由で区別される。main由来releaseの適用とnatural readbackを確認するまではsource修正の範囲で報告し、収益はproviderの公式settlement/readbackなしに主張しない。
 
-**現在cursor:** PR #7179 current headのGig/shared canonical stop-root修正とOSS manifest更新 → latest mainを取り込み → push → exact-head CI/fresh SHIP review → merge → immutable release/natural readback → Affiliateの既存publish fenceをofficial readbackで照合 → sales/settlement receipt。
+**現在cursor:** PR #7179 current headの必須CI + fresh SHIP review → merge → immutable release/natural readback → Affiliateの既存publish fenceをofficial readbackで照合 → sales/settlement receipt。
 
 
 ### Marketing IntelからWriterへの記事候補連携（並列作業）
@@ -7334,9 +7335,9 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 - The stale watchdog root cause is fixed in production through the main-derived current release at the time (`25bee172fa532b848b106c317766b36e1ddd1ddb`). `launchctl-safe preflight` passed; `skills/self/disk-cleanup/install-launchd.sh` exited 0; safe readback shows the loaded program is `/Users/anicca/.local/bin/disk-watchdog.sh`, state=`running`, runs=1. The stable wrapper follows `~/loops/current`, avoiding a pinned-release path.
 - The first post-install cleanup receipt at `2026-10-08T14:20:46Z` was `free_before=672,919,552`, `free_after=655,257,600`, `reclaimed=6,411`, `errors=0`, `protected_deletions=0`, recovery=`unmet`, preserved open=3/protected_descendant=10. `df -k /` at `23:22:53 JST` was `753,124 KiB`; the watchdog runs, but the disk floor is not recovered and the exact remaining writer is unknown.
 
-**設計決定:** do not raise global finite-run cap 8 or label the three prospecting owners `critical_paid`. Keep borrow/support at 2 GiB, extend the existing 1 GiB floor to revenue-priority owners, and retain their inner producer guards. Use the already-installed stable disk watchdog as the low-disk recovery lane. Add swap telemetry to admission receipts before choosing any swap threshold; current measurements show high swap but not a sole cause. OpenClaw remains the selected harness; it does not own Life Manager's host admission policy.
+**旧設計案（superseded by the 2026-10-09 numeric-gate removal direction):** the previous draft proposed a 2 GiB borrow/support floor and a 1 GiB revenue floor. Do not implement these free-space floors or label prospecting owners `critical_paid` for capacity. Keep cleanup receipt reporting, actual filesystem errors, explicit stop controls, effect fences, and owner locks distinct. OpenClaw remains the selected harness; it does not own Life Manager's host admission policy.
 
-**順序更新:** old `critical_paid-only 1 GiB floor` → `revenue-priority 1 GiB floor + stable recovery watchdog` → `post-recovery measurement`. Reason: the user target loops are explicitly `priority=revenue`, while R18's 2 GiB shared gate runs before queue priority; `critical_paid`'s new exception does not change their admission. The global cap is unoccupied in the observed window.
+**順序更新:** 旧順=`priority別2 GiB/1 GiB floor`。新順=`numeric free-space admission floorsを全producer/release pathから削除 → merge/release → loaded-idle/lock-free ownerをnatural run → cleanup metricと実際のwrite errorsを別々にreadback`。理由は、空き容量の数値だけで全loopの実行を先送りしないという明示指示。
 
 **残TODO（完了まで・この順）:**
 

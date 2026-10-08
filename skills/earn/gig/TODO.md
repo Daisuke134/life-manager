@@ -15,9 +15,11 @@
   `222360163`. Never resend this room; formal delivery remains untouched.
 - **Coconala loop:** still a separate system task. Paid has a local
   `entrypoint_exit_1` result-write boundary and must receive a fresh no-effect
-  wake/readback only after disk headroom and release gates pass. Storefront still
-  needs its official provider readback; Apply remains unloaded after
-  effect-free cancellation. Do not treat Ryu's manual completion as loop proof.
+  wake/readback after PR #7179 is released and provider/effect fences permit.
+  Numeric free-space is not an admission condition; record actual `ENOSPC` at
+  the failing write. Storefront still needs its official provider readback;
+  Apply remains unloaded after effect-free cancellation. Do not treat Ryu's
+  manual completion as loop proof.
 - **CrowdWorks/CloudWorks:** reconcile each exact occurrence-level
   `effect_unknown` fence with its own provider receipt or admissible no-effect
   proof; no blanket retry/resend.
@@ -327,7 +329,7 @@ Upwork page was opened and no provider effect was attempted.
 |---|---|---|---|
 | Freelancer.com | authorization receipt 0; OAuth/inventory absent; funded project 0 | all Freelancer labels disabled/retired; no owner | obtain one account-bound BrowserSkill lease or official OAuth, then read identity/projects/milestones/hourly/IP/payments/payouts and persist a source-complete snapshot |
 | Upwork | source-complete snapshot observed `2026-09-24T17:30:28Z` has `contracts=[]`; only `inspect/read_payments/read_payouts` are approved until `2026-09-25T17:30:28Z`; `search/propose/message/accept_offer/deliver_milestone` remain denied | both legacy labels disabled/retired; no owner | refresh identity/contracts/transactions/withdrawals through a dedicated account-bound lease, renew mutation receipts, and require one funded contract with a positive milestone |
-| Coconala | latest Paid wake has `effect=0`; no Ryu resend | Paid admission has no provider effect but terminal `entrypoint_exit_1`; host disk/admission is unstable; Storefront still requires official readback | restore stable host headroom through the canonical owner, then reconcile the no-effect/readback gates; keep Ryu manual-only |
+| Coconala | latest Paid wake has `effect=0`; no Ryu resend | Paid admission has no provider effect but terminal `entrypoint_exit_1`; Storefront still requires official readback | after PR #7179 is released, reconcile the no-effect/readback gates without a numeric free-space prerequisite; keep Ryu manual-only |
 | CrowdWorks (クラウドワークス) | no new provider receipt; old Paid/application/reply/report effect fences remain | Paid/application are unloaded or failed; browser owner last terminal `entrypoint_exit_1`; report is admission-blocked | reconcile each exact occurrence with provider receipt or admissible no-effect proof; no blanket retry |
 | Lancers | project `5606124` historical proposal `27965342` is verified, but current source-complete inventory has `contract_candidate_count=0` and balance `¥0` | Paid/application/negotiate/storefront/Telegram-report fences remain; browser/work-sync are running | reconcile exact fences, then wait for a current funded contract before Paid registration |
 | Mercor | latest Paid terminal `pass`; no funded work proof | Paid loaded-idle; old application/reply fences remain | preserve fences and obtain a real funded contract before treating revenue as proven |
