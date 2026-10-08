@@ -1900,9 +1900,9 @@
       "label": "ai.anicca.job-search-daily",
       "log_root": "~/.local/state/anicca/job-search/logs",
       "priority": "revenue",
-      "provider_route": "deterministic",
+      "provider_route": "shared-agent-runner",
       "reconcile_queued_release": true,
-      "resource_class": "deterministic",
+      "resource_class": "agent",
       "state_root": "~/.local/state/anicca/job-search"
     },
     "job-search-health": {
@@ -1944,8 +1944,8 @@
       "label": "ai.anicca.job-search-inbox",
       "log_root": "~/.local/state/anicca/job-search/logs",
       "priority": "support",
-      "provider_route": "deterministic",
-      "resource_class": "deterministic",
+      "provider_route": "shared-agent-runner",
+      "resource_class": "agent",
       "state_root": "~/.local/state/anicca/job-search"
     },
     "job-search-learning": {
