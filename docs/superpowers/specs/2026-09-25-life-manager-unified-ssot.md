@@ -5840,10 +5840,12 @@ This snapshot supersedes the 13:59–14:04 source/release status. PR #7055 backo
 
 **進捗（2026-10-08 14:23 JST）:** 既存`account_profile_order`が`acct1`から`acct2`へのCodex候補展開をすでに行うため、候補設定は増やさず、3専用task classだけに`fail_fast_provider_lease=true`を追加した。busyは既存のnonblocking provider lease helperでprovider起動前にtypedに返し、acct2へ進む。両home busy時はexit 75 / token charge 0。既存のquota/auth/timeout failover規則と通常classの同home直列待ちは維持する。REDはhome lock下1秒待ち、acct2を飛ばす、全busyがexit 1となる挙動。GREEN後、`test_provider_lease.py`と`test_codex_account_failover.py`は42 passed / 24 subtests passed。変更は専用branchのみで、main/release/productionには未反映。
 
+**進捗（2026-10-08 14:29 JST）:** `runtime/browser/capacity_probe.py`は使い捨てChromiumを起動せず、browser registry resolverで確認した`interactive:dais` endpointの`/json/version`と、既存`cdp_context_lease.py audit`のcontext件数だけを読む。context ID/URLを出力しない。`runtime/browser/tests/test_capacity_probe.py`は3/3 pass。resource classは変更していない。
+
 **残TODO（完了までの順序）:**
 
 1. Provider read-only reconciliationを継続する。LAUNCH exact status/receiptとDanaher Workday、DeepScale official statusを同一targetへ結合する。証明不足ならfenceを維持する。この読み取りはsource作業と並行する。
-2. **現在cursor — browser contextとcapacity probe:** Connector/Fundraiserを既存task-owned CDP contextへ移し、Connector controllerをleased contextだけに限定する。session-vault seed/authを確認するまではprofile lockを短縮しない。browser capacity probeは登録daily-driverへのread-only status/countへ変え、Chromiumを起動しない。durable owner resource classは変えない。
+2. **現在cursor — Connector/Fundraiser context isolation:** 各ownerを既存task-owned CDP contextへ移し、Connector controllerとFundraiser CDP helperをleased context/targetだけに限定する。session-vault seed/authを確認するまではprofile lockを短縮しない。capacity probeのread-only変更は14:29 JSTにsource/test完了、PR/production未反映。durable owner resource classは変えない。
 3. admission/provider/browserのfocused tests、source-boundary、`./bin/lm-loop-contract`、fresh read-only review、required CIをPASSさせ、PRをmainへ統合する。
 4. active release reconcilerの自然terminalとshared apply lockをreadbackし、fresh disk/admission snapshotを取る。latest-main immutable release後、Connector、Job Hunter daily/health/inbox、Fundraiserをtarget owner単位でapplyし、loaded SHA/argv/envを確認する。現在のglobal `doctor=false`原因は別ownerなので変更しない。対象限定applyの安全性が証明できない場合だけ具体的なowner blockerとして残す。
 5. 各loopを自然runし、ConnectorのLuma registration + Calendar + Telegram receipt、Job HunterのWorkday official application state + Telegram outcome、Fundraiserの新規VC/AI founder Gmail provider message ID + exact Sent + Telegram receiptを同一occurrenceで照合する。既存unknown targetは候補から除外し、再送しない。

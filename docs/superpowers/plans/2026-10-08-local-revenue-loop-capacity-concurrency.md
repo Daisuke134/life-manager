@@ -37,12 +37,12 @@ Connector、Job Hunter、Fundraiserの既存loopを、現行`lm-loop`上で安�
 - `runtime/agent-runner/tests/test_provider_lease.py`と`runtime/agent-runner/tests/test_codex_account_failover.py`は42 passed / 24 subtests passed。
 - 実装前に既存profileの`codex login status`をread-only・sanitizedで再確認する。認証値を出力しない。
 
-### 4. Connector/Fundraiser browserをtask-owned contextへ移し、probeをread-only化
+### 4. Connector/Fundraiser browserをtask-owned contextへ移す; capacity probeはsource branchで完了
 
 - `skills/connector/discover.js`、`apps/life-manager/lib/connector-browser-target-controller.js`、`apps/life-manager/lib/connector-browser-target-controller.test.js`、`skills/connector/test/discover.test.js`を確認・更新する。Connector controllerはdefault contextを仮定せず、leaseのcontext IDに属するtargetだけを作成/検出/終了する。
 - `skills/fundraiser-agent/runtime/run.sh`と`skills/fundraiser-agent/runtime/test_run_control_plane.py`を更新し、既存`skills/browser/scripts/cdp_context_lease.py`のowner contextとvault seedを使う。raw CDP helperも同じcontext/targetに限定する。
 - 共有`interactive:dais` profile lockは、task contextのsession認証・provider操作・cleanupが既存testで通るまで維持する。通った後に短いidentity checkへ縮める。
-- `runtime/browser/capacity_probe.py`と`runtime/browser/tests/test_capacity_probe.py`を変更し、登録identity resolver経由でdaily-driverの`/json/version`とcontext countをread-onlyで観測する。Chromium processを起動・終了しない。
+- `runtime/browser/capacity_probe.py`と`runtime/browser/tests/test_capacity_probe.py`はsource branchで完了。登録identity resolver経由でdaily-driverの`/json/version`と`cdp_context_lease.py audit`のcontext countをread-onlyで観測する。Chromium processを起動・終了しない。focused testは3/3 pass。
 - durable admission ownerの`resource_class`は変更しない。
 
 ### 5. Source acceptance
