@@ -869,7 +869,7 @@
       },
       "domain": "earn",
       "effect_class": "publish",
-      "entrypoint": "skills/earn/line-sticker/line-sticker-factory.sh",
+      "effect_reconcile": {"argv": ["skills/earn/line-sticker/factory_fence_reconcile.py"], "occurrence_flag": "--occurrence", "resolve_flag": "--resolve", "timeout_seconds": 60}, "entrypoint": "skills/earn/line-sticker/line-sticker-factory.sh",
       "browser_identity": "line-creators:dais",
       "browser_target_owner": "line-creators-browser",
       "label": "ai.anicca.line-sticker-factory-hourly",
