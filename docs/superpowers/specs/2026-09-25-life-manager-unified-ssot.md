@@ -7723,3 +7723,9 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 - 生成済みslideはcontent object storeへimportし、rotation poolにその参照を保存した後、`.workspace`内の合成JPEGだけを削除する。これは元背景・保存済みslideの破棄ではない。image-cacheとobject storeはrelease外のruntime dataとして保持する。
 - Daisの要件: 既存の承認済み画像（既存Gemini画像を含む）を継続再利用し、投稿ごとに画像モデルを呼ばない。ハッシュ名だけでは26枚の生成元や、旧male/female/sunset画像が現cacheに含まれるかを証明できないため、これらの由来・旧画像との対応は未確認として扱う。特定の旧画像を使う必要がある場合は既存fileを一度だけ承認cacheへ対応付ける。新規生成はしない。
 - **TODOへの影響:** 画像生成の切替・画像APIの追加は不要で、distributionの先行順も変えない。次は既存mobile marketing cursorどおり、自然slotのPostiz receiptと全accountの投稿実績・metricsを確認する。指定された旧背景がcacheにあるかの照合は、投稿cadenceを止めない非blocking確認。
+
+### 2026-10-09 03:01 JST — PR #7200 のmain由来fixture差分
+
+- 最新main `ee25a794` 同期後のPR #7200 CI (`37820031402`) は、Loop control contractsの810件中1件で失敗した。失敗は `test_production_render_matches_byte_stable_fixture`。原因はmain PR #7201が `line-sticker-factory-hourly` の `effect_reconcile` をregistryへ追加した一方、`runtime/loop/tests/fixtures/macos-loop-jobs.json` を再生成していないこと。
+- canonical renderer `runtime.loop.macos_loop_registry.render_job_models(config/loop-registry.json)` でfixtureだけを再生成し、失敗したfocused unittestは1/1 PASS。production loopの挙動は変更していない。
+- **現在mobile cursor:** fixtureとこの記録をPR #7200へpush → 新headの全required CIを確認 → PASS後にmainへmerge → 稼働中の`life-manager-release-reconciler` occurrence `18dc9f2e8ad98918-71931` が自然terminalになるまで観測し、owner別installed SHA/fleet結果をreadback → fenceが残るownerだけR22のPostiz no-dispatch証明へ進み、公式readback/evidence_ref付きで個別解消 → 3件/日の自然投稿receiptとmetricsを確認する。稼働中reconcilerは止めない。
