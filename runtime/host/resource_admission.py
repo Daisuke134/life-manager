@@ -604,16 +604,15 @@ def _database(path: Path) -> sqlite3.Connection:
 
 
 def _limits(resource_class: str, admission_class: str = "borrow") -> tuple[int, int]:
-    total = _capacity("LIFE_MANAGER_HOST_MAX_FINITE_RUNS", 8)
+    total = _capacity("LIFE_MANAGER_HOST_MAX_FINITE_RUNS", 10)
     if admission_class == "revenue":
         if resource_class == "agent":
             return total, _capacity("LIFE_MANAGER_HOST_MAX_REVENUE_RUNS", total)
         if resource_class == "browser":
             return total, _capacity("LIFE_MANAGER_HOST_MAX_BROWSER_RUNS", 1)
-        # Keep one deterministic revenue slot available when two support
-        # deterministic owners are active. The total finite-run cap still
-        # controls the host-wide bound.
-        return total, _capacity("LIFE_MANAGER_HOST_MAX_DETERMINISTIC_RUNS", 3)
+        # Keep five deterministic revenue slots available; the total finite-run
+        # cap still controls the host-wide bound.
+        return total, _capacity("LIFE_MANAGER_HOST_MAX_DETERMINISTIC_RUNS", 5)
     per_class = _capacity(
         "LIFE_MANAGER_HOST_MAX_AGENT_RUNS" if resource_class == "agent"
         else "LIFE_MANAGER_HOST_MAX_BROWSER_RUNS" if resource_class == "browser"
@@ -749,7 +748,7 @@ def _queue_order(row: dict[str, object], now: float) -> tuple[int, int, int, flo
             and isinstance(queued_at, (int, float)) and not isinstance(queued_at, bool)
             and now - float(queued_at) >= PRIORITY_AGE_SECONDS[priority])
     # The revenue floor leaves one borrow slot; let an aged support owner use it.
-    borrow_slot = _revenue_floor(_capacity("LIFE_MANAGER_HOST_MAX_FINITE_RUNS", 8)) > 0
+    borrow_slot = _revenue_floor(_capacity("LIFE_MANAGER_HOST_MAX_FINITE_RUNS", 10)) > 0
     overdue_support = aged and priority == "support" and row.get("admission_class") == "borrow" and borrow_slot
     wait_started = (float(queued_at) if isinstance(queued_at, (int, float))
                     and not isinstance(queued_at, bool) else float("inf"))
@@ -827,6 +826,10 @@ def _capacity_available(occupied: list[dict[str, object]],
     total, per_class = _limits(resource_class, admission_class)
     if len(occupied) >= total:
         return False
+    if (resource_class == "agent"
+            and sum(row.get("resource_class") == "agent" for row in occupied)
+            >= _capacity("LIFE_MANAGER_HOST_MAX_AGENT_TOTAL_RUNS", 2)):
+        return False
     if (admission_class == "revenue" and _revenue_floor(total)
             and _legacy_owner_present(occupied)):
         return False
@@ -847,6 +850,10 @@ def _capacity_overflow(occupied: list[dict[str, object]],
                        resource_class: str, admission_class: str) -> bool:
     total, per_class = _limits(resource_class, admission_class)
     if len(occupied) > total:
+        return True
+    if (resource_class == "agent"
+            and sum(row.get("resource_class") == "agent" for row in occupied)
+            > _capacity("LIFE_MANAGER_HOST_MAX_AGENT_TOTAL_RUNS", 2)):
         return True
     if sum(_uses_limited_capacity(row, resource_class, admission_class)
            for row in occupied) > per_class:
