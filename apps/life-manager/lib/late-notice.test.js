@@ -45,6 +45,12 @@ test("location gate distinguishes missing, expired, on-time, and late", () => {
   assert.deepEqual(evaluateLateArrival({ nowMs: NOW, event: EVENT, travelMinutes: 43, location: LIVE }), {
     decision: "late", arrivalMs: Date.parse("2026-07-21T10:28:00+09:00"), lateMinutes: 13,
   });
+  assert.deepEqual(evaluateLateArrival({ nowMs: NOW, event: EVENT, travelMinutes: 35, location: {
+    ...LIVE, observed_at: new Date(NOW - 120_001).toISOString(), expires_at: new Date(NOW + 60_000).toISOString(),
+  } }), { decision: "location_stale" });
+  assert.deepEqual(evaluateLateArrival({ nowMs: NOW, event: EVENT, travelMinutes: 35, location: {
+    ...LIVE, observed_at: new Date(NOW + 1).toISOString(), expires_at: new Date(NOW + 60_000).toISOString(),
+  } }), { decision: "location_future" });
 });
 
 test("success copy follows spec table and rounds the notice ETA up to five minutes", () => {
@@ -60,7 +66,7 @@ test("location helpers upsert the latest live fix, enforce expiry, and atomicall
     { ok: true, status: 201, json: async () => [] },
   ];
   const fetchImpl = async (url, init = {}) => { calls.push({ url, init }); return replies.shift(); };
-  const opts = { supaUrl: "https://db.test", supaKey: "k", fetchImpl };
+  const opts = { supaUrl: "https://db.test", supaKey: "k", fetchImpl, nowMs: NOW };
   assert.equal(await upsertLiveLocation("u1", {
     latitude: LIVE.latitude, longitude: LIVE.longitude,
     observedAtMs: Date.parse(LIVE.observed_at), expiresAtMs: Date.parse(LIVE.expires_at), messageId: "41",
@@ -76,6 +82,57 @@ test("location helpers upsert the latest live fix, enforce expiry, and atomicall
   assert.equal(await claimLateEvent("u1", "event-1", opts), true);
   assert.match(calls[2].url, /lm_late_notice_log/);
   assert.deepEqual(JSON.parse(calls[2].init.body), { uid: "u1", event_key: "event-1" });
+});
+
+test("upsertLiveLocation discards stale or invalid webhook fixes before database I/O", async () => {
+  let calls = 0;
+  const fetchImpl = async () => { calls++; return { ok: true, status: 201 }; };
+  const opts = { supaUrl: "https://db.test", supaKey: "k", fetchImpl, nowMs: NOW };
+  assert.equal(await upsertLiveLocation("u1", {
+    latitude: LIVE.latitude, longitude: LIVE.longitude,
+    observedAtMs: NOW - 120_001, expiresAtMs: NOW + 60_000, messageId: "42",
+  }, opts), false);
+  assert.equal(await upsertLiveLocation("u1", {
+    latitude: 91, longitude: LIVE.longitude,
+    observedAtMs: NOW - 1000, expiresAtMs: NOW + 60_000, messageId: "43",
+  }, opts), false);
+  assert.equal(calls, 0);
+});
+
+test("getLiveLocation rejects stale data and conditionally deletes only the exact row read", async () => {
+  const stale = {
+    uid: "u1", ...LIVE,
+    telegram_message_id: "41",
+    observed_at: new Date(NOW - 120_001).toISOString(),
+    expires_at: new Date(NOW + 60_000).toISOString(),
+  };
+  const current = { ...stale, latitude: 35.7, observed_at: new Date(NOW - 1000).toISOString() };
+  let currentInDb = stale;
+  const calls = [];
+  const fetchImpl = async (url, init = {}) => {
+    const parsed = new URL(url);
+    calls.push({ parsed, init });
+    if ((init.method || "GET") === "GET") return { ok: true, status: 200, json: async () => [stale] };
+    assert.equal(init.method, "DELETE");
+    assert.equal(parsed.searchParams.get("uid"), "eq.u1");
+    assert.equal(parsed.searchParams.get("latitude"), `eq.${stale.latitude}`);
+    assert.equal(parsed.searchParams.get("longitude"), `eq.${stale.longitude}`);
+    assert.equal(parsed.searchParams.get("telegram_message_id"), `eq.${stale.telegram_message_id}`);
+    assert.equal(parsed.searchParams.get("observed_at"), `eq.${stale.observed_at}`);
+    assert.equal(parsed.searchParams.get("expires_at"), `eq.${stale.expires_at}`);
+    assert.match(init.headers.Prefer, /return=representation/);
+    // Simulate a newer webhook replacing the row between GET and DELETE. Exact filters protect it.
+    currentInDb = current;
+    const fields = ["uid", "latitude", "longitude", "telegram_message_id", "observed_at", "expires_at"];
+    const matches = fields.every((field) => parsed.searchParams.get(field) === `eq.${currentInDb[field]}`);
+    const removed = matches ? [currentInDb] : [];
+    if (matches) currentInDb = null;
+    return { ok: true, status: 200, json: async () => removed };
+  };
+  const result = await getLiveLocation("u1", NOW, { supaUrl: "https://db.test", supaKey: "k", fetchImpl });
+  assert.equal(result, null);
+  assert.equal(calls.length, 2);
+  assert.deepEqual(currentInDb, current, "a newer row survives the stale-row cleanup race");
 });
 
 test("deleteLiveLocation removes exactly the named tenant's row and reports the honest count", async () => {
