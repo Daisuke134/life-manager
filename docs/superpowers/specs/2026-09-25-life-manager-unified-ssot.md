@@ -7020,6 +7020,10 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 
 **受入:** 最小fixtureで対象フィルタ、出典URL復元、未処理IDのみの取り込み、再実行と処理済みstageでの重複ゼロを確認する。`article-daily`が通常のtopic-state初期化後にこの取込を呼び、既存キューの選択順を保持する。source統合後、disk admissionが回復してから自然occurrenceでWriterの既存公開経路を通し、公開URLと公式売上readbackを確認するまで収益を主張しない。
 
-**順序:** source/test変更は現在のguard PR・disk cleanupの主cursorと独立して進め、外部effectやowner stateを触らない。主cursorの順序は変更しない。production反映と自然実行はdisk cleanup receipt `free_after >= 2 GiB`・`errors=0`・`protected_deletions=0`およびadmission passの後に行う。
+**順序:** source/test変更は現在のguard PR・disk cleanupの主cursorと独立して進め、主cursorの順序は変更しない。Writer runtimeへはowner idleとtopic-state lock freeを確認して候補カード1枚だけを追加した。これは公開ではない。production反映と自然実行はdisk cleanup receipt `free_after >= 2 GiB`・`errors=0`・`protected_deletions=0`およびadmission passの後に行う。
 
-**現在cursor:** fixture RED → 最小importerとarticle-daily接続 → focused acceptance → commit/push・PR/merge → immutable release → disk/admission回復後の自然Writer occurrence → 公開URL・公式売上readback。
+**進捗:** PR #7158は全required CIとfresh read-only SHIP review後、main commit `be130839878c2e46bc677ee225fa19ae48785288`としてmerge済み。importerのfixtureはRED→GREENで、CONTENT対象・URL復元・queue/in-progress/doneの重複ゼロ・既存queue順維持を確認した。実データのdry-runは8戦術を1カードにまとめた。Writer runtime queueにも`marketing-intel-content-tactics-20261008.md`を登録し、同じ8 IDsと出典URLをreadbackした。既存の`paid-demand-*`カードが先に選ばれる順序を維持している。
+
+**production blocker:** installed releaseは`e1b061f1fdaa040d2461be457fe410c398afc95c`のまま。`article-daily:18dc916eb4d3db60-20672`は13:39 UTCに`host_admission_deferred:disk_headroom_low`で安全停止し、provider receipt/readbackはnull。disk-cleanup `life-manager-disk-cleanup:18dc92ac75b78b40-81064`は14:01 UTCに`entrypoint_exit_1`。最後のstructured receiptは13:58 UTC時点で`free_after=244379648` bytes、2 GiB floor unmet、`errors=0`、`protected_deletions=0`、`reclaimed=0`。14:02 UTCの`df`は`251816 KiB` free。公開記事・公式売上readbackは未確認で、収益はunknown。
+
+**現在cursor:** cleanup ownerのnatural receipt/admission passで2 GiB floorを回復 → main `be130839`由来immutable release → idle `article-daily`へowner限定apply/readback → natural Writer occurrenceで既存先行カード、その後にこの8戦術カードを処理 → 公開URL・note paywall状態・公式売上readback。既存unknown effectはreplayしない。
