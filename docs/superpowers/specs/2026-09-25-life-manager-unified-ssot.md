@@ -5010,6 +5010,17 @@ Source / production follow-up (2026-10-08 11:01 JST): PR #7012は`b692e70a`と�
 
 **現在cursor:** item 1。PR #7024はCI passだがopenで、sourceは未merge。11:26 JSTのPostiz readbackではAnicca iOS TikTok当日receipt 0件。RevenueCat USD 20.34は10/05 complete MRR observation、net MRRは未照合。
 
+### 2026-10-08 11:44 JST — TikTok P0 latest delivery readback
+
+このsnapshotは11:26 mobile baselineの時刻依存項目を更新し、TikTok P0およびTODO順を維持する。
+
+- Postiz公式GETのJST窓再読込: 10/07は21 `PUBLISHED` / 48 target、10/08 11:44 JSTまでは1件（`@obou_anicca` eBook）。Anicca iOSは0件。10/07 account別は`@aniccaaffirmation`1、`@anicca.jp4`2、`@obou_anicca`2、`@anicca_slideshow`3、`@anicca.he`2、`@anicca_buddha`8、`@honnevideo`3、他9 enabled profileが0。native-carousel ledgerは`@anicca_slideshow`3件をslideshowとして確認する。スクリーンショットの`@anicca.jp`/`@anicca.jp1`には投稿日がないため、view countを今週の配信成果としない。
+- PR #7024はhead `f91c6163` / base `5de5319c`でopen、CI status checksはすべてsuccess、GitHubは`mergeable`。current `origin/main`=`94372580`でPR baseは古い。source fixは未merge・未releaseで、production ownerはrelease `8d396690`を維持する。
+- `df -Pk /`は`2,310,456 KiB` freeで2 GiB floorを`213,304 KiB`上回る。ただしcleanup receiptの再読込と、先行するdisk-deferred TikTok occurrenceの自然retryは未確認。main ownerの直近attemptは`host_admission_deferred:disk_headroom_low`で、current occurrence rowも存在しない。空き容量の単一snapshotをowner recovery成功として数えない。
+- Owner全体のhistorical `effect_unknown` refsとPostizの403媒体readbackは11:26 snapshotから未変更。current-occurrence source gateと同一slot replay-zeroの確認後も、過去fenceは個別証拠まで保持する。
+
+**現在cursor:** source PR #7024を最新main `94372580`へ更新しmergeする。その後、disk cleanup receipt・release reconciler terminal・各native TikTok owner loaded SHAを確認し、次の自然slotでAnicca iOS native carouselのPUBLISHED receiptを作る。現時点で配信修正は本番未反映、Anicca iOSの10/08 PUBLISHEDは0件。
+
 ### 2026-10-08 11:26 JST — Mobile distribution, acquisition and $10k MRR refresh
 
 この更新はmobile laneのTikTok P0と`$10,000 verified net MRR`目標を維持する。TikTok source codeはPR #7024にあり、PRがopenのため、source acceptanceと本番配信を分けて記録する。
