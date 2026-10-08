@@ -4682,7 +4682,7 @@ flowchart LR
 
 旧順序=`Coconala Paid owner/cleanup terminal → inbox join → existing contract → Storefront → Apply/Negotiation → other platforms → economics → SelfBuild`。新順序は最初の2 gateを並列にし、その後のplatform順序は維持する。理由: senderのfresh adversarial reviewでfalse-sent/誤recipient送信につながるP1が再現し、同時に空き容量とdisk-cleanup ownerが未解決。古いpartial sourceを使わず、shared capacityを迂回せず、既存契約義務からStorefrontへ進む。現在cursorは1A/1B。
 
-1. **並列1A — sender source安全修正:** 専用branch `fix/gig-tiktok-pre-send-guard-20261008`のsource commit `6eab61d9`はbranchに保持され、latest main `6639a538`まで取り込み済み。本文と同じ`pending`状態表示、候補が混ざる複数宛先header、複数matching iframe、sender row境界、Enter直前のrecipient/navigation変更をfail-closedにする。55/55 focused tests、`py_compile`、`git diff --check`、source-boundary、fresh adversarial reviewはPASS。ブラウザ/providerへの接続・実送信はしていない。PRは未作成で、required CI・merge・後続の自然owner readbackが残る。PR/CIがPASSするまでsource acceptanceを完了扱いせず、productionへ適用しない。
+1. **並列1A — sender source安全修正:** 専用branch `fix/gig-tiktok-pre-send-guard-20261008`のsource commit `6eab61d9`はbranchに保持され、latest main `6639a538`まで取り込み済み。本文と同じ`pending`状態表示、候補が混ざる複数宛先header、複数matching iframe、sender row境界、Enter直前のrecipient/navigation変更をfail-closedにする。55/55 focused tests、`py_compile`、`git diff --check`、source-boundary、fresh adversarial reviewはPASS。ブラウザ/providerへの接続・実送信はしていない。PR #7042の初回head `cc02e6dd` / base `6639a538`のcheck結果を受けて、latest main `53d49879`をGig branchへmerge済み（push・required CI rerun待ち）。`OSS self-contained boundary`は`skills/capafy-autopublish`の`manifest_inventory_mismatch`でFAILし、base main run `37722582624`の同jobもFAIL後にrun cancel。latest main head `53d49879`のPR #7044 check run `37723049835`でも同じOSS jobがFAILした。Gig PR diffはCapafy path/manifestを変更していない。`Loop control`と`TruffleHog`はpending。Capafy manifestをこのGig PRで変更せず、Capafy baseline inventory修正がmainに入った後にrequired CIを再実行する。CI・merge・後続の自然owner readbackまではsource acceptance/production反映を完了扱いしない。
 2. **並列1B — shared capacity:** 2026-10-08 03:22:39Zの同時readbackはprocess-start一致live claim 4件＋active reservation 4件（相互重複なし）で8/8枠、queue 78件（agent 36 / browser 2 / deterministic 40）。占有classはagent/revenue 6、agent/borrow 1、deterministic/revenue 1。コード既定のfinite-run上限は8、187 LaunchAgent plistは`LIFE_MANAGER_HOST_MIN_REVENUE_RUNS=3`、`MAX_*` overrideなし。borrow総数は最大5だがclass上限はagent 1 / browser 1 / deterministic 2のため、標準borrow同時実行は最大4。revenue側既定はagent 8 / browser 1 / deterministic 3。このsnapshotでは`resource_capacity_busy`の総枠飽和を確認したが、queue行すべてがeligibleとは未確認。03:22:39Zの`df -Pk /`は6,780,648 KiB free、memory pressureは49% free。CPU利用率と長時間負荷時の安全並列数は未測定。cleanup event `18dc6f999854bb40-71475`は03:17:37Zに`blocked`、最新run `18dc6fdf84c98420-85345`は03:22:37Zにrelease `ca7d58b6`で`execute/running`、いずれも`free_after/errors/protected_deletions`を記録していない。`last-receipt.json`は09-29の値のまま。次はcleanup ownerの自然terminal後に構造化receiptと2回のfree-space readbackを照合し、対象ownerのlock/class/queue eligibilityを確認する。手動削除・unlock・restart・floor迂回・global cap増加はしない。
 3. **両gate後 — Coconala Paid owner:** natural terminalとproject lock解放を確認し、同一occurrenceのofficial result/provider receiptを読む。`pass`、local ledger、Google Sheetの日付は単独で送信証明にしない。
 4. **Coconala inbox join:** 固定待機のlocal readerをconversation-list-ready＋複数回安定までbounded pollingへ直し、公式inboxとfull Sheet rangeをreadbackする。recipient→exact official send receipt→inbound replyを結ぶ。joinが完全でない間、送信数/返信数を断定・再送しない。
@@ -5148,3 +5148,13 @@ PR #7030の全required checksはhead `99648f4f` / base `a7899e37`でPASSした�
 - 広いOpenClaw/native Codex migration・OSS比較は別担当の[PR #6814](https://github.com/Daisuke134/life-manager/pull/6814)がopen/unmerged。Gig側ではその設計を複製せず、既存admission内でclaim保持時間とclass別waitを測り、必要なら測定後に1 classずつ調整する。global上限の引上げやruntime migrationはまだ実施しない。
 
 **現在cursor:** Remaining atomic Gig TODOの並列1A/1B。1Aはsource PR/CI/merge待ち、1Bはcleanup構造化receiptと安定headroom/queue eligibility readback待ち。その後のplatform順は上のリストどおり。
+
+### 2026-10-08 12:31 JST — Gig source PR baseline CI blocker
+
+この更新は1AのCI状態だけを置き換え、TODO順を変更しない。
+
+- PR #7042の初回head `cc02e6dd` / base `6639a538`のCI記録はmerge blockerのまま。Gig branchにはlatest main `53d49879`をmerge済みで、次のpush後にCIを再実行する。
+- Root cause evidence: ローカル`node scripts/verify-oss-self-contained.mjs --json`とCIが同じ`manifest_inventory_mismatch` / `skills/capafy-autopublish`を報告する。Gig PRのdiffにCapafy pathや`docs/manifests/oss-merge-1-sources.json`は含まれない。base run `37722582624`のOSS jobが同様にFAILした後run cancelし、最新main由来PR #7044のcheckでも同じ境界checkがFAILした。
+- 別laneのmanifestを重ねて変更しない。base側のOSS inventoryが整ったmainを取り込んでPR #7042のrequired checksを再実行する。Pass前にmergeしない。
+
+**現在cursor:** parallel 1A PR #7042 CI/baseline resolutionと1B cleanup receipt/capacity eligibilityの並行gate。後続platform順は`Remaining atomic Gig TODO`に従う。
