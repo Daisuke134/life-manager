@@ -4966,3 +4966,46 @@ Source / production follow-up (2026-10-08 11:01 JST): PR #7012は`b692e70a`と�
 5. **A10受入:** main由来immutable releaseで7日連続の自然runを読み、18/18 loops・186/186 jobs、official readback、delivery receipt、unknown owner/action、期間一致、重複/再送ゼロを確認する。これ以前は全社CFO完了や$10k verified MRRを主張しない。
 
 **現在cursor:** A5。A5 worktree leaseとproduction reconcilerは別の所有境界として維持する。reconciler/CFO ownerの自然runを重ねて起動せず、A5 lease解放後にA5へ戻る。A7 MoneytreeとA4/A3 Cloud savingsは引き続き対象外・後順位。
+
+### 2026-10-08 11:26 JST — Mobile distribution, acquisition and $10k MRR refresh
+
+この更新はmobile laneのTikTok P0と`$10,000 verified net MRR`目標を維持する。TikTok source codeはPR #7024にあり、PRがopenのため、source acceptanceと本番配信を分けて記録する。
+
+**最新のTikTok readback（Postiz公式GET、2026-10-08 11:26 JST）:**
+
+- TikTok integrationsは17（enabled 16 / disabled 1）。10/07 JSTの公式Postiz `PUBLISHED`は21件 / 48目標。アカウント別は`aniccaaffirmation` 1、`anicca.jp4` 2、`obou_anicca` 2、`anicca_slideshow` 3、`anicca.he` 2、`anicca_buddha` 8、`honnevideo` 3。残る9 enabled accountsは0。`anicca_buddha`の超過分は他accountの不足を埋めない。native-carousel ledgerでは`@anicca_slideshow`の3件はslideshow receiptsとして確認できるが、Postiz list件数だけから他18件のmedia typeを推定しない。
+- 10/08 JST 11:26までのTikTok `PUBLISHED`は1件だけで、eBookの`@obou_anicca`。Anicca iOS TikTokは0件。これは当日途中のsnapshotで、日次最終値ではない。
+- screenshotsの`@anicca.jp` / `@anicca.jp1` profile gridは過去の投稿が存在することを示すが、投稿日を示さない。native-carousel ledger上の最終receiptはそれぞれ9/28 22:38 JST、9/28 06:30 JST。`@anicca_slideshow`は10/07に3件あるため、「全accountで過去投稿なし」とは記録しない。
+- `life-manager-tiktok-metrics`はloaded-idle / release `8d396690`、直近`exit 75 / host_admission_deferred:resource_effect_unknown`、provider receiptなし。現在の投稿views/engagementを信頼できる新鮮なTikTok sourceから確認できていない。
+- Disk readbackは`2,029,816 KiB` free（2 GiB floorを`67,336 KiB`下回る）。JP1とEN affirmationの直近owner attemptはdisk floorでdeferした。`life-manager-release-reconciler`はrelease `dbf93c31`、loaded-running PID `19278` / `next_action=reconcile_owner`。`lm-loop doctor`はretired label `ai.anicca.provision-browser.capafy.kosuke`で`ok=false`だが、このlabelをTikTok applyのgateと推測しない。実際にtarget applyを拒否した場合だけ、そのownerのreadbackで解消する。
+- PR #7024 (`fix/mobile-tiktok-current-occurrence-20261008`)のheadは`f91c6163`、baseは`5de5319c`、current mainは`dbf93c31`。11:26時点でPR checksはすべてPASS、PRはopen/mergeableだがmain追従前のため最新mainへ更新してからmergeする。codeは未merge・未releaseで、TikTok posting recovery済みとは扱わない。
+
+**App metrics / revenue baseline:**
+
+- 最新complete RevenueCat pointは10/05 UTC: Anicca iOS USD 20.34 MRR / 5 active subscriptions。他5 product IDsはUSD 0。10/07のweekly portfolio emailもAnicca USD 20.34 MRR、5 paid、0 trials、28-day sales USD 32.56と表示する。これはsubscription MRR/provider revenue observationで、Apple settled proceedsやnet profitではない。EmailのApple 28-day revenue `0.0`は表示値として保存し、settlement済み売上0と断定しない。
+- 同emailのAnicca iOS acquisitionはlast 7 days 8 downloads / last 28 days 37 downloads。これは約1.14/dayのlast-week averageで、100 first-time downloads/day目標の約1/87.5。ASCの最新保存済みdaily acquisition readbackは10/04–05で3 first-time downloads / 25 unique impressions / 0 unique product-page views（小標本）。10/07 emailの期間集計とASC daily report periodを混同しない。
+- Mixpanel/PostHogのfresh cohort funnelは今回確認できない。過去の`purchase_completed` event countをRevenueCat paid usersやApple receiptへjoinするまで購入人数/売上にしない。
+- Current RevenueCat snapshotからの算術比較ではUSD 20.34はUSD 10,000目標の約1/492。5 activeで割ったUSD 4.07/activeをそのまま維持すると約2,459 active subscribers相当だが、これは現在の収益/price mixに基づく単純換算でありforecastでもverified netでもない。$10kのDoneはsame-period Apple/RevenueCat settled revenueからrefund/fee/actual costsを引いたnet receiptで判定する。
+
+**理想状態:**
+
+- Distributionは各有効TikTok accountに1日3つの異なるslot・copy variantを投稿し、Postiz/TikTokのunique `PUBLISHED` receiptとaccount-level countで揃う。写真carouselとvideoを別formatとして記録する。
+- 各postはaccount/post/caption hook/CTA/store link/campaignに結び、6h/24h/72h/7dなどsourceが返すviews/likes/comments/shares/savesを保存する。ASCはimpressions→product-page views→first-time downloads、RevenueCatはtrial/paid/cancel/refund/MRR、Mixpanel/PostHogはunique-user onboarding/paywall cohortを同campaignへ結ぶ。
+- Teamは週ごとに1つのdistribution変数（hookまたはcaption）だけを変え、best/worst postから次のcopyを決める。配信不足が解消する前にASO/onboardingを同時変更しない。
+- Anicca iOSをASC first-time downloads 100/dayのtrailing 7-day averageへ伸ばし、conversion funnelを測定した後にpaywall/onboardingを改善して、same-period verified net MRR USD 10,000を証明する。
+
+**残りTODO（最短順、atomic）:**
+
+1. **Source integration:** PR #7024をcurrent main `dbf93c31`へ更新する。checksは11:26時点でpassしているが、PR baseは`5de5319c`。branchのfresh CIを確認し、PRをmergeする。
+2. **Capacity/release:** free diskを2 GiB floor以上へ既存disk-cleanup ownerだけで戻し、receiptの`errors=0 / protected_deletions=0`を確認する。PR merge後、既存release reconcilerの自然terminalを待ってmain-derived immutable releaseをcut/applyする。TikTok ownerは一件ずつtargeted applyし、loaded SHA/argv/admissionをreadbackする。retired Capafy labelが実際のtarget applyを拒否した時だけそのownerを解消する。
+3. **First natural recovery:** current-occurrence gate適用後の最初のclean Anicca iOS carousel slotを一件確認する。Postiz detailのaccount/integration/`PUBLISHED`/slot、6-image order、local artifact identityを結び、同じeffect keyのreceipt replay-zeroを確認する。過去fenceをclearするための新規投稿はしない。
+4. **Anicca iOS cadence:** native carousel owners `life-manager-anicca-main-tiktok` (`@anicca.jp`), `life-manager-anicca-jp1-tiktok` (`@anicca.jp1` / Postiz profile `@anicca.jpx`), `life-manager-anicca-en-slideshow-tiktok` (`@anicca_slideshow`), `life-manager-anicca-en-affirmation-tiktok` (`@aniccaaffirmation`), `life-manager-anicca-en2-affirmation-tiktok` (`@aniccaen2`), `life-manager-anicca-buddha-tiktok` (`@anicca_buddha`)へreleaseを適用し、各3 unique native-slideshow receipts/JST日をaccount別に確認する。missed slotを一度にbackfillしない。
+5. **All connected profiles:** Postiz current 17 profilesのrouteを完成する。`config/marketing-destinations.json`の4 enabled holds、disabled `@anicca.jp8`、integration未接続`@anicca.videojp` / `@anicca_girl`を一件ずつ確定する。現16 enabledなら3/day目標48/day、`@anicca.jp8`がenabledになれば51/day。unauthorized/unconnected accountsを配信済みとして数えない。
+6. **Historical effect cleanup:** remaining TikTok `effect_unknown`をowner・occurrenceごとにexact receiptまたはexact pre-effect proofで解決する。Mainの4,207等はfence referencesでありpost countではない。`@anicca.jp` 9/25 rowのmedia bytesはHTTP 403のままなので、receipt proofが回復しない間はholdし、bulk clear/replayしない。
+7. **Metrics:** `life-manager-tiktok-metrics`のresource/effect blockerをowner経由で解決し、fresh per-post view/engagement receiptを保存する。既存Postiz/ASC/RevenueCat/Mixpanel/PostHog collectorsを再利用し、freshness・coverage・unsupportedを明示する。
+8. **Content iterations:** baseline後にhook/captionを一変数ずつ変え、1日3回/各accountを保ち、7日周期で勝ちcopyへ配分する。background/asset再制作は条件にしない。
+9. **Acquisition:** Anicca iOS first-time downloadsを100/day trailing 7-day averageへ伸ばす。Impression→page→installの詰まりが測定された場合だけscreenshots/ASOを変更する。
+10. **Monetization:** campaign/cohortごとにinstall→onboarding completion→paywall→trial→paid→renewal/refundを照合し、一回に一つだけonboarding/paywall仮説を改善する。MRRだけでなくchurn/retention/Apple settlement/fees/costを確認する。
+11. **$10k gate / factory:** net MRR USD 10,000を同期間settled receipts・refund/fee・actual costで検証する。その後に同playbookを他の既公開appへ展開する。10k未達を達成と報告せず、全appが未検証のままfactory cadenceを増やさない。
+
+**現在cursor:** item 1。PR checks passだがPR #7024は未merge、release `8d396690`のproduction ownersは未復旧。Postiz 10/08 11:26時点Anicca iOS TikTok `PUBLISHED=0`。RevenueCat USD 20.34は10/05 complete MRR observation、net MRRはunknown。
