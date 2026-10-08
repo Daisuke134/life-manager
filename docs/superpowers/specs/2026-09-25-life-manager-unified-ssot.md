@@ -7716,6 +7716,17 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 
 **現在cursor:** test correction + verification記録をcommit/push → final-head review/CI → PR merge → natural release/owner SHA readback → 3 loopの新admission結果/実ENOSPC/official effect receipts → Job Hunter false-success repair → target loopsの自然結果とTelegram → 同一窓capacity測定。旧releaseのdisk blockが消えたと推定せず、`effect_unknown`を再送しない。
 
+### 2026-10-09 02:29 JST — fleet applyがobsolete release SHAを継続
+
+- PR #7189はmerge SHA `f603ad06cc2cdaa97c9712cf9ccafe474d04a19c`。`~/loops/current` はまだ `20261009T022138-4346b61c` を指し、#7189を含む新sourceのnatural releaseは未確認。`life-manager-release-reconciler` は旧release `e1b061f1`、process run `18dc9d0c0fe82418-32070` で稼働中。stop/restartはしていない。
+- `fleet-apply-owners.jsonl` の同runは17:11:55Z〜17:27:01Zに162 ownerを全て古い `aba80c9971c563b54810f3f037f72c4de8578d00` でapply/skipし、157件 `rc=0`、5件 `rc=1`。current pointerは17:21:38Zに `4346b61c` へ進んだ後も、少なくとも5分間このrunが `aba80c99` を対象に記録した。Job Search/Connectorは同runの `aba80c99` で `reason=current` skip、Fundraiserは `rc=0 changed=0 skipped=1`。最新statusでは3 ownerとも旧SHAで `disk_headroom_low`、provider receiptなし。
+- root cause: `bin/reconcile-agent-runner-release.sh` は一回のrunでSHAを捕捉し、最大120秒/owner・全体1200秒まで逐次applyする一方、途中のpointer変更を見ていなかった。現在はownerごとの前とpass終端でcurrent SHAを再確認し、各CLI applyへ `LIFE_MANAGER_APPLY_REQUIRE_CURRENT=1` を渡す。`lm_loop.main` が `apply_live(require_current=True)` へ渡し、shared protocol lock内でcurrentを照合する。`activate_current` は同じlockをexclusive取得するため、pointer swapが先ならowner変更前にexact `release is no longer current` で拒否し、applyがlockを先に取ればcutはそのowner完了まで待つ。fleet側はexact拒否を `partial/release_superseded` として記録し、新SHAのnext tickだけ通常coalesceを短縮する。effect fence・per-label lockは維持。
+- TDD回帰: `test_new_current_release_stops_stale_sha_fleet_apply_and_retries_latest` はpointerがowner間で動くケース、`test_current_change_before_owner_apply_refuses_stale_release_under_lock` はpre-apply競合をRED→GREENで確認。`test_reconcile_agent_runner_release_fleet_apply.py`: 36 passed / 14 subtests; `test_lm_loop_apply.py` lock/CLI 3 passed / 176 deselected; `bash -n`と`git diff --check`もPASS。
+
+**順序更新:** 旧cursor=`PR #7189 merge → natural release/owner SHA readback → 3 target loop status`。新順=`(1) 完了: owner間pointer swapとpre-apply raceを回帰テストで固定 → (2) 完了: fleet applyのcurrent再確認 + CLI `require_current`をprotocol lock下で適用し、exact stale refusalをsuperseded/short retryとして記録 → (3) source/spec/testをcommit/pushし、fresh read-only reviewとexact-head CI → (4) latest mainへPR merge → (5) 現行e1b061 reconcilerには触れず、natural releaseで最新SHAへowner単位reconcile → (6) 3対象の新SHA/admission/公式receiptを再観測 → (7) Job Hunterのbrowser `transport_failed` がouter passになる修正 → (8) unresolved effect fenceを公式readbackまたはstrict pre-effect proofだけで扱う → (9) Connector/Luma、Job Hunter/Workday、Fundraiserのreceipt付きnatural result/Telegram → (10) 同一窓のqueue age、claims/reservations、resource classes、CPU/RAM/diskを測定し、host cap8が実bottleneckの場合だけbounded調整`。理由は、現runがcurrentより前のSHAで180 owner rowsを処理し、pointer advance後も古いSHAを使い続けた実ログがあるため。
+
+**現在cursor:** 完了: 2種類のpointer raceを回帰テストでRED→GREEN、fleet suite 36 passed / 14 subtests、lock/CLI 3 passed、shell syntaxとdiff check。次: source/spec/testをcommit/push → fresh read-only final-head review + exact-head CI → PR merge → old reconcilerを止めずnatural release/owner SHA readback → 3対象の実admission/receipt → Job Hunter false-success修正とofficial effect reconciliation → 同一窓queue/capacity判定。stop/restart、手動apply、`effect_unknown` replayをしない。
+
 ### 2026-10-09 02:45 JST — Anicca iOS画像の再利用と生成費
 
 - `~/loops/current` はimmutable release `20261009T022138-4346b61c`。現行main `da4e7edc` とこのreleaseで、背景解決・slide factory・copy generator・rotation runnerの実装差分はない。
@@ -7724,8 +7735,37 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 - Daisの要件: 既存の承認済み画像（既存Gemini画像を含む）を継続再利用し、投稿ごとに画像モデルを呼ばない。ハッシュ名だけでは26枚の生成元や、旧male/female/sunset画像が現cacheに含まれるかを証明できないため、これらの由来・旧画像との対応は未確認として扱う。特定の旧画像を使う必要がある場合は既存fileを一度だけ承認cacheへ対応付ける。新規生成はしない。
 - **TODOへの影響:** 画像生成の切替・画像APIの追加は不要で、distributionの先行順も変えない。次は既存mobile marketing cursorどおり、自然slotのPostiz receiptと全accountの投稿実績・metricsを確認する。指定された旧背景がcacheにあるかの照合は、投稿cadenceを止めない非blocking確認。
 
+### 2026-10-09 02:46 JST — 4346 release readback and Job Hunter false pass
+
+- Current pointer still targets `20261009T022138-4346b61c` (numeric disk gates removed); #7189 merge `f603ad06` and this branch's stale-SHA guard are not yet in an immutable production release. The prior fleet apply state is `partial` at 17:29:59Z: SHA `aba80c99`, changed=80, skipped=96, errors=3, `budget exceeded`.
+- Latest owner status: Job Hunter is installed on `4346b61c`, event `job-search-daily:18dc9eb62cb074c8-25376` says `pass`, but event has `effect_status=not_applicable` and no provider receipt. Connector remains on `aba80c99`; its latest run says `pass`, no provider receipt. Fundraiser remains on `25bee172`, `host_admission_deferred:disk_headroom_low`, no provider receipt. Release reconciler remains installed on `e1b061f1`; no stop/restart was performed.
+- Read-only Job Hunter evidence `daily-20261009-024117`: outer `summary.json=status:success`, model `gpt-6-luna/max`, two attempts; Workday discovery found zero new rows, retained two queued IDs, deficit 48. Attempt 2 result is `transport_failed`, `submitted=[]`, `submit_unknown=[]`; Telegram wake report says `failed/transport_failed`. No Workday submission is evidenced. Code path: `apps/job-search-loop/job_search_loop/browser_agent/orchestrator.py::validate_pass_result` sets `real_nonzero_runtime_completion` but returns `None` for the single terminal nonzero runtime completion; `invoke_runner` interprets `None` as success. Next source task is a regression in `runtime/loop/tests/test_model_browser_loop.py` and a minimal fix so a terminal browser command failure cannot become an outer pass; never retry if submission is unknown.
+- Final local validation for stale-SHA repair after protocol-lock wiring: `test_reconcile_agent_runner_release_fleet_apply.py` 36 passed / 14 subtests; `test_lm_loop_apply.py` 179 passed / 42 subtests; `bash -n` and `git diff --check` pass. Fresh review and CI for the updated unpushed head are still required.
+
+**順序更新:** 旧cursor=`PR #7199 review/CI → merge → natural release → Job Hunter false-pass repair`。新順=`(1) final stale-SHA headをcommit/pushし、fresh review + exact-head CI → (2) PR #7199をmerge → (3) 現行reconcilerを止めずnatural release/handoffとowner SHAをreadback → (4) Job Hunterの`validate_pass_result` terminal-failure false-passをtest-firstで修正し、同じWorkday rowを自然wakeで再開（submit_unknownが0である証拠を維持） → (5) Fundraiserのeffect fenceは公式readbackかstrict pre-effect proofだけで解決 → (6) Connector/Luma、Job Hunter/Workday、Fundraiserそれぞれのprovider receiptとTelegram報告を確認 → (7) same-window queue age/claims/reservations/resource classes/CPU/RAM/diskを測り、実測bottleneckに基づいてhost cap8をbounded調整する`。理由は、最新readbackでJob Hunterが「pass」でもWorkday attemptは明示的transport failureで、実応募0とtelegramsのfailed報告が揃い、成功判定コードの具体的な根拠が得られたため。
+
+**現在cursor:** stale-SHA raceをprotocol shared/exclusive lockで閉じたcode+test+specをcommit/push → fresh review/CI → merge → natural new release + owner readback → Job Hunter false-pass fix → provider receipt付き自然結果 → bounded capacity measurement。現行reconcilerをstop/restartせず、unknown external effectを再送しない。
+
+### 2026-10-09 02:48 JST — final main sync before stale-SHA acceptance
+
+- Latest `origin/main=ee25a794` is integrated locally at merge head `6a9239b4`; this keeps #7201 Line Sticker reconciliation, #7202 R22 spec, and #7198 Telegram fixes. No conflict with stale-SHA source/tests. The remote PR head is still the prior push; this sync is not yet pushed.
+- Fresh source review of prior code head `2d35533a` returned `SHIP`, confirming protocol shared/exclusive locking closes the pre-apply pointer race on the supported `activate_current` path. The exact final head after this main sync still needs review and CI.
+
+**順序更新:** 旧cursor=`protocol-lock fix → test → final review/CI`。新順=`(1) latest-main sync完了 → (2) `test_reconcile_agent_runner_release_fleet_apply.py`と`test_lm_loop_apply.py`をsync後に再実行、shell syntax/diff check → (3) merge commitをpush → (4) exact-head fresh review + required CI → (5) PR #7199 merge → (6) current `4346b61c`からのnatural release/handoffを観測し、owner SHAとfenceをreadback → (7) Job Hunter false-passを`validate_pass_result`の回帰テストで修正 → (8) 3対象の公式receipt/Telegram result → (9) 同一窓queue/capacityを測り、host cap8を実測で判断する`。理由は、最新mainが受け入れ前にさらに進んだため、完成PRをそのmain上で検証する必要があるため。
+
+**現在cursor:** 完了: latest main `ee25a794` をmergeし、sync後にfleet suite 36 passed / 14 subtests、apply suite 179 passed / 42 subtests、`bash -n`と`git diff --check`がPASS。次: merge/spec updateをpush → exact-head fresh review + CI → PR #7199 merge → natural release/owner readback → Job Hunter false-pass fix → 3 loopsのreceipt付きnatural result → capacity measurement。live reconcilerは動作中のまま保持し、`effect_unknown`を再送しない。
+
 ### 2026-10-09 03:01 JST — PR #7200 のmain由来fixture差分
 
 - 最新main `ee25a794` 同期後のPR #7200 CI (`37820031402`) は、Loop control contractsの810件中1件で失敗した。失敗は `test_production_render_matches_byte_stable_fixture`。原因はmain PR #7201が `line-sticker-factory-hourly` の `effect_reconcile` をregistryへ追加した一方、`runtime/loop/tests/fixtures/macos-loop-jobs.json` を再生成していないこと。
 - canonical renderer `runtime.loop.macos_loop_registry.render_job_models(config/loop-registry.json)` でfixtureだけを再生成し、失敗したfocused unittestは1/1 PASS。production loopの挙動は変更していない。
 - **現在mobile cursor:** fixtureとこの記録をPR #7200へpush → 新headの全required CIを確認 → PASS後にmainへmerge → 稼働中の`life-manager-release-reconciler` occurrence `18dc9f2e8ad98918-71931` が自然terminalになるまで観測し、owner別installed SHA/fleet結果をreadback → fenceが残るownerだけR22のPostiz no-dispatch証明へ進み、公式readback/evidence_ref付きで個別解消 → 3件/日の自然投稿receiptとmetricsを確認する。稼働中reconcilerは止めない。
+
+### 2026-10-09 03:05 JST — latest-main registry fixture correction
+
+- PR #7199 final-head CI `Loop control contracts` failed only `test_production_render_matches_byte_stable_fixture`: main #7201 added the Line Sticker `effect_reconcile` registry field but did not regenerate `runtime/loop/tests/fixtures/macos-loop-jobs.json`.
+- Regenerated the byte-stable fixture from current `config/loop-registry.json` using `runtime.loop.macos_loop_registry.render_job_models`; output is 113,893 bytes. The exact failing unittest now passes, and `git diff --check` passes. No production behavior changed.
+
+**順序更新:** 旧cursor=`PR #7199 exact-head CI/review → merge`。新順=`(1) latest-main fixture correctionを含めcommit/push → (2) exact-head CIとfresh reviewを取り直す → (3) merge → (4) current=ee25 release / owner readbackと3 loop receipt → (5) Job Hunter false-pass PR #7203をmerge/releaseと合わせ、Workday same-row safe retry → (6) Fundraiser unknown fenceとConnector receiptを解決 → (7) saturation/host headroomを同一窓で再測定`。理由は、CIの唯一の失敗がmain統合で更新されたregistryとfixtureの不一致と判明したため。
+
+**現在cursor:** fixture correction + 03:04 capacity snapshotは未commit。`git diff --check`とtargeted registry test pass。次: commit/push → PR #7199 fresh review/CI → merge後natural owner reconciliation。旧reconcilerには触れず、unknown effectを再送しない。
