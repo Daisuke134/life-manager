@@ -1,0 +1,38 @@
+{
+  "schema": "lm.foundation-stderr-acceptance.v1",
+  "source_commit": "b059a04a8b2afb3597af2dc193c7822b043d3ce2",
+  "main_merge_sha": "d1d5850630946bdb04818e62849f22af0e669379",
+  "pr": "https://github.com/Daisuke134/life-manager/pull/7038",
+  "source_tests": {
+    "module": 133,
+    "focused": 3,
+    "independent_related": 22,
+    "independent_binary_boundaries": 7,
+    "ci": "success https://github.com/Daisuke134/life-manager/actions/runs/37722610004"
+  },
+  "release_root": "/Users/anicca/loops/releases/20261008T123856-d1d58506",
+  "release_helper_sha256": "f11d3b7badff83aba3ea59e17a7adcc5c8f7704fb78111077389a0856f4776e2",
+  "apply_target": "life-manager-health-observer",
+  "loaded_argv_readback": true,
+  "natural_event": {
+    "event_id": "cea7177d75ce6aec8bb87b88",
+    "timestamp": "2026-10-08T03:48:45.273825+00:00",
+    "loop_id": "life-manager-health-observer",
+    "run_id": "18dc7136883a17c0-13707",
+    "release_sha": "d1d5850630946bdb04818e62849f22af0e669379",
+    "phase": "report",
+    "status": "pass",
+    "exit_code": 0,
+    "error_class": null,
+    "effect_class": "none",
+    "effect_status": "not_applicable"
+  },
+  "business_owners_changed": 0,
+  "manual_provider_actions": 0,
+  "remaining": [
+    "all business-owner rollout not performed",
+    "in-flight regular capture file growth not bounded by this change",
+    "FD-02 producer budget/retention not implemented",
+    "phase capacity architecture not implemented"
+  ]
+}
