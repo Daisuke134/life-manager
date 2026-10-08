@@ -6606,3 +6606,11 @@ The next cursor is item 1 commit/push. No Dais manual action is currently requir
 7. After all three owners run naturally on the new release, capture claims/reservations/queue age/admission reasons/CPU/RAM/disk in one interval. If SQLite remains locked, trace the exact writer using `runtime/host/resource_admission.py::_database` and callers before changing caps. Current total available concurrency is unmeasured; OpenClaw's 8-per-session and 5-active-child limits do not answer it. Keep OpenClaw and Life Manager admission authority; only revisit architecture if this measured bottleneck remains after #7125 and owner repair.
 
 **現在cursor:** finish/push merge to main `91c0e48b75` → PR #7121 same-head CI/review/merge → immutable release/handoff/doctor → exact provider fences → owner apply/natural receipts → same-window capacity/economics.
+
+### 2026-10-08 19:50 JST — PR #7121 OSS inventory blocker traced
+
+- PR #7121 head `9fa17322e7` on base `91c0e48b75` reported `manifest_inventory_mismatch / skills/capafy-autopublish`. The branch has no Capafy source changes; main PR #7122 changed the tracked `skills/capafy-autopublish/scripts/daily_loop.sh` without refreshing the shared absorbed-root digest. The manifest still counted 245 files, so this was an inventory-hash drift, not a Fundraiser boundary failure.
+- Updated only `docs/manifests/oss-merge-1-sources.json` to the canonical tracked-file inventory SHA-256 `7dd9b49c0297df410753c412fb0d38182df3662962a8b283b56b448bd39f16ec`. Local `node scripts/verify-oss-self-contained.mjs --json` now returns `ok=true`, `violations=[]`; `git diff --check` passes. Capafy source remains untouched.
+- The latest PR #7121 required-check run was on the previous head and had OSS red, with Loop control and secret scans still pending. This manifest/spec update changes the head; rerun every required check and refresh the independent review on the exact pushed SHA.
+
+**現在cursor:** push manifest digest + this SSOT correction → fresh read-only review and required CI for PR #7121's new head → merge after all checks pass → FoundersEdge readback or keep exact fence → latest-main immutable release/handoff/doctor → eligible owner applies → three natural provider receipts → same-window concurrency/economics.
