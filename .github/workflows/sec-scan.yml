@@ -35,6 +35,22 @@ jobs:
       - name: Verify registry, releases, apply fencing, and clean install
         run: python3 -m unittest discover -s runtime/loop/tests -p 'test_*.py'
 
+  openclaw-foundation:
+    name: OpenClaw offline foundations
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.16.0'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify portable request and guarded RPC boundaries
+        run: node --test runtime/openclaw/tests/*.test.mjs
+      - name: Verify private dispatch persistence and single sender
+        run: python3 -m unittest discover -s runtime/openclaw/tests -p 'test_*.py'
+
   context-drift:
     name: Startup context drift
     runs-on: ubuntu-latest
