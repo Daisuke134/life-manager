@@ -396,6 +396,18 @@ def discover_official_plan(root, state_root, now, opportunity_selector=select_op
                 "url": "https://elevenlabs.io/pricing", "evidence_class": "official_price",
                 "license": "PROPRIETARY_REFERENCE_ONLY", "freshness_days": 7,
             },
+            {
+                "id": "elevenlabs-alec", "adapter": "crwl",
+                "url": "https://elevenlabs.io/blog/alec-wilcock-on-becoming-a-top-affiliate-for-elevenlabs",
+                "evidence_class": "first_person_case",
+                "license": "PROPRIETARY_REFERENCE_ONLY", "freshness_days": 90,
+            },
+            {
+                "id": "elevenlabs-greg", "adapter": "crwl",
+                "url": "https://elevenlabs.io/blog/greg-preece-on-youtube-monetisation-with-the-elevenlabs-affiliate-program",
+                "evidence_class": "first_person_case",
+                "license": "PROPRIETARY_REFERENCE_ONLY", "freshness_days": 90,
+            },
         ],
     }
     if experiment:
