@@ -6237,3 +6237,34 @@ Fresh read-only review rejected the idle-readback-only patch: a new StartInterva
 8. A10: main-derived immutable releaseで7日連続のnatural report、18/18 loops・186/186 jobs coverage、official receipt/readback、期間一致、重複/replay zeroを受け入れる。それまでは全社CFO完了・verified $10k MRRを主張しない。
 
 **現在cursor:** spec/planのstatus commit → updated-head CI → PR #6827 ready/merge。production側は並行してactive reconcilerを保持し、natural handoff・CFO SHA/admission・receiptをreadbackする。再起動やcap引上げは解決策にしない。
+
+### 2026-10-08 17:31 JST — A5 CI green; current release handoff parser root cause
+
+この追記は17:21節をfresh readbackで補正する。A5設計順はA5→A6→A8→A9→A10。A7 MoneytreeとA3/A4 Cloud/geocoding削減は後順位のまま。
+
+- **Source/PR:** PR #6827 head `81f7fa8cc69299e30e926a6a5992919573b9edf4` / base `dc90716408f8d86c37fec363bdeb92bc3eed9e09`、OPEN/DRAFT、CLEAN。same-head run `37749607370` とCloud reminder workflow `37749607465`の全表示checksはPASS。Loop control contractsは801 tests / 3m55s。PR未merge。
+- **Current release/owner:** `/Users/anicca/loops/current`は`20261008T171655-dc907164`。`life-manager-cfo-hourly`はloaded-idle、installed SHA `07aa3fb3`。最新blocked occurrence `18dc7f9265f7e380-83653`は17:10:19 JST `resource_capacity_busy` / exit75で、provider receipt/readbackなし。last successは15:00:53 JST、次eligible intervalは1h。
+- **Handoff root cause:** 17:30 JST receiptはtarget `dc907164`、`status=failed`, `error=old_service_state_unknown`, state/PID null。`launchctl-safe print`の17:26 readbackは`state = not running`（PIDなし）、17:31 readbackは`state = running`, PID `58131`, program release `3c87f64f`。launchd stateが遷移している。source `bin/reconcile-agent-self-handoff.sh`は1語だけのstate正規表現を使うため、`not running`全体を取り出せず空stateとしてfail-closedする。現在のhandoff receipt/loaded ownerのSHAが一致せず、本番CFO ownerへ新releaseが未収束。
+- **Collision boundary:** 別worktree `/Users/anicca/Projects/life-manager-main/.worktrees/reconciler-handoff-active-process-20261008`, branch `fix/reconciler-handoff-state-readback-20261008` に同じhandoff script/test/SSOTのdirty diffが存在する。open PRなし、worktree leaseなし。そこへの編集・cherry-pickはしていない。現在のdiffはstate全体をreceiptへ記録する観測修正で、productionの`not running`状態をidleとしてhandoff可能にする実装ではない。統合前にowner調整・重複差分解消が必要。
+
+**残TODO（順序）:**
+
+1. 現在head `81f7fa8`のCI greenを確認済み。PR #6827をready/mergeし、merge SHAを記録する。PRはまだdraftなのでsourceはmain未反映。
+2. handoff state parser修正をowner調整の上で統合する。`state = not running`・PIDなしを、同じper-label lock保持中に複数readbackで安定確認した場合だけquiescentとして扱い、他のunknown stateはfail-closedのままにする。実行中PIDを止めず、自然handoff後にreceiptのtarget SHA/loaded argvをreadbackする。
+3. CFO ownerのmain-derived SHA、next natural admission eligibility、同一occurrence report receiptを確認する。capacity deferは自然eligible retryで解消し、cap増加・手動再送・owner restartはしない。
+4. 15:00:53 JST report sidecar/provider message ID `105259`を同一occurrence runtime event/official receiptに結ぶ。照合前に再送しない。
+5. A5 additive migration/RPC/権限をcanonical production routeで反映し、tenant/period bounds・provider/SKU/operation/unit・loop/owner/trace・daily/MTD panel・unknown/zero・estimate/settledをreadbackする。
+6. A6 Google 2026-09 billed usage・credits・tax・rounding reconciliation。A8は18 product loops / 186 jobsのsettled revenue/refund/feesとactual costsをreceipt単位で結合。A9はdaily/MTD/trailingを既存CLI/reportでagent/loop/platform別に表示し`loop_pnl.py --date`を直す。
+7. A10はmain-derived immutable releaseによる7日連続natural report、18/18 loops・186/186 jobs coverage、official receipt/readback、期間一致、duplicate/replay zeroを受け入れる。未達の間はverified全社net/MRRや$10k MRRを主張しない。
+
+**現在cursor:** PR #6827 ready/merge → state parser修正ownerとSSOT appendを調整 → natural release handoff → CFO SHA/admission/report receipt → A5 production migration/RPC/panel。A6→A8→A9→A10を続ける。
+
+### 2026-10-08 17:33 JST — main advanced; handoff receipt PR is now open
+
+この節は17:31のreadback後に変わったGitHub状態を記録する。
+
+- **Main:** `origin/main=54c9b1750de7f43464676b206ce5590a2ec24987` (#7099) に進んだ。A5 branch/PR #6827はまだbase `dc907164`なのでstale。A5作業は専用worktreeだけで継続し、latest mainを取り込んで同一head CIを再取得する。
+- **Handoff PR:** PR #7098 `fix(reconciler): preserve Launchd state in handoff receipt` がOPEN / non-draft、head `f33254ec`, base `dc907164`。CIは開始中、reviewDecisionはまだ空。差分は`state = ...`全体をreceiptへ残すdiagnostic修正で、未知値をfail-closedする挙動は維持する。したがってproductionが観測した`not running`をquiescentとしてhandoff可能にする修正はまだ完了していない。PR ownerが最新stateをreceiptで確定した後、`not running` + PIDなしを同じlock下の複数readbackで確認する回帰修正を統合し、その後に自然handoffを待つ。
+- **Production:** current releaseは引き続き`20261008T171655-dc907164`。CFO ownerは`07aa3fb3` / loaded-idle、17:10の`resource_capacity_busy`が最後の試行でreceiptなし。release reconcilerはloaded旧SHA `3c87f64f`。handoff receiptはtarget `dc907164`で`old_service_state_unknown`。17:26 safe readbackは`not running`/PIDなし、17:31は`running`/PID58131へ遷移しているため、active processを停止せず自然なstate変化と公式receiptを待つ。
+
+**現在cursor:** A5 branchへmain `54c9b175`を同期 → spec/plan correctionをpush → same-head CI → PR #6827 ready/merge。PR #7098はownerのCI/review/mergeを別PRで追い、state-readback behavioral fixと自然handoffを確認してからA5 production migration/reportへ進む。Moneytree A7とA3/A4は引き続き後順位。
