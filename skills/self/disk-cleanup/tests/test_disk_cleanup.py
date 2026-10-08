@@ -1331,6 +1331,50 @@ def test_discovery_includes_exact_regenerable_model_and_runtime_caches(tmp_path:
     assert owners["swiftpm-cache"] == tmp_path / "Library/Caches/org.swift.swiftpm"
 
 
+def test_xcode_derived_data_is_exact_and_requires_closed_lsof(tmp_path: Path) -> None:
+    derived_data = tmp_path / "Library/Developer/Xcode/DerivedData"
+    generated_source = derived_data / "Anicca/Build/Intermediates.noindex/DerivedSources/Generated.swift"
+    generated_source.parent.mkdir(parents=True)
+    generated_source.write_bytes(b"generated build output")
+    archive = tmp_path / "Library/Developer/Xcode/Archives"
+    archive.mkdir(parents=True)
+    (archive / "user.xcarchive").write_bytes(b"preserve")
+
+    open_governor = HostDiskGovernor(
+        home=tmp_path,
+        state_dir=tmp_path / "state",
+        lsof=lambda _path: "open",
+        usage=lambda: (0, 1),
+    )
+    candidates = [
+        item for item in open_governor.discover_candidates()
+        if item["owner"] == "xcode-derived-data-cache"
+    ]
+
+    assert [Path(item["path"]) for item in candidates] == [derived_data]
+    open_result = open_governor.sweep(candidates)
+
+    assert derived_data.exists()
+    assert open_result["preserved_reasons"] == {"open": 1}
+
+    closed_governor = HostDiskGovernor(
+        home=tmp_path,
+        state_dir=tmp_path / "state",
+        lsof=lambda _path: "confirmed-closed",
+        usage=lambda: (0, 1),
+    )
+    closed_candidates = [
+        item for item in closed_governor.discover_candidates()
+        if item["owner"] == "xcode-derived-data-cache"
+    ]
+    closed_result = closed_governor.sweep(closed_candidates)
+
+    assert not derived_data.exists()
+    assert archive.exists()
+    assert closed_result["errors"] == 0
+    assert closed_result["protected_deletions"] == 0
+
+
 def test_camoufox_sdk_cache_requires_closed_lsof_before_reclaim(tmp_path: Path) -> None:
     cache = tmp_path / "Library/Caches/camoufox"
     executable = cache / "Camoufox.app/Contents/MacOS/camoufox"

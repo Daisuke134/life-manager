@@ -4649,3 +4649,42 @@ PR gate update (2026-10-08): latest rebase CI passes Loop control, Python, OSS b
 - 既知のCoconala order/talkroom readbackは10/7時点のsnapshotでfreshness切れ。最新provider確認はまだ無いので、現在もbuyer reply/delivery待ちとは断定しない。対象の直近local evidenceは`formal_delivery_confirmed=false`だが、再開時に必ずofficial threadをfresh readbackする。顧客ID・本文はprivate evidenceにだけ保持する。
 
 **現在cursor:** Remaining atomic Gig TODOの並列gate 1A（sender P1修正→test/re-review/CI）と1B（cleanup owner safe receipt＋安定2 GiB超readback）。その後だけCoconala Paid owner/inbox/order、existing contract delivery、Storefront、次platformの順に進む。Lancers rows25–27は`waiting_external`でskip、Answersは対象外、SelfBuildは最後。
+
+### 2026-10-08 09:54 JST — TikTok distribution outage takes mobile cursor
+
+このmobile-lane更新は08:58のTikTok配信snapshotとTODO順を置き換える。TikTok配信をmobileの最優先にする。私はcapacityを作業目的のように扱いすぎた。capacityは投稿を再開するための直近gateであり、成果そのものではない。
+
+**確認した事実:**
+
+- 09:33の2枚の画像は`@anicca.jp`と`@anicca.jp1`の過去投稿・再生数を示す。投稿日時は画面に出ておらず、09-28以降のPostiz配信や現在のslideshow投稿の証明ではない。
+- Postiz official GET（09:53 JST）でTikTok integration 17件（enabled 16 / disabled 1）。10/07 JSTは21 `PUBLISHED`で、enabled 16件の目標48件に未達。10/08は現在まで1件だけ（`@obou_anicca`、eBook lane）、Anicca iOS accountの公開receiptは0件。Postiz list/detail GETには投稿media配列がなく、`content`と`settings`はopaque stringなので、21件や1件をslideshow成功として数えない。Postiz GETもviews/engagementを返さない。
+- owner native-carousel ledgerには203件のreconciled TikTok receiptがある。最後のledger receiptは`@anicca.jp`が09-28 22:38 JST、`@anicca.jp1`が09-28 06:30 JST、`@aniccaaffirmation`が10-07 20:15 JST、`@anicca_buddha`が10-07 20:54 JST、`@anicca_slideshow`が10-07 21:05 JST。これはこれら5 profileのowner ledger最終記録であり、Postiz外の投稿が無いことまでは断定しない。少なくとも画像の2 profileには09-28以降のslideshow receiptがない。
+- 09:54 JSTの`lm-loop status --json`では、Anicca EN affirmation、EN slideshow、EN2、HE、JP1、Buddha、main TikTokの最新試行が`host_admission_deferred:disk_headroom_low`でPostiz dispatch前に延期されている。unknown admission refsは`@anicca.jp` loop 4,207、`@anicca.jp1` 3,500、`@anicca_slideshow` 4,123、EN affirmation 4,268、Buddha 3,993、HE 408、TikTok metrics 1。これらは過去occurrence/fence参照数で、投稿数やunique post数ではない。disk blockerを取り除いても古い`effect_unknown` reconcileが別途必要で、再送許可にはならない。
+- 09:54 JSTの`df -Pk /`は空き`1,848,700 KiB`で2 GiB基準未満。cleanup ownerは`apply_lock_busy`、release reconcilerはloaded-running PID `55054` / release `c65449ef`。cleanup source candidateは未mergeなのでcurrent cleanup codeにDerivedData追加はまだ無い。手動restartや並行applyはしない。
+- `config/marketing-destinations.json`にはTikTok route 12件とhold 7件がある。holdの内訳はPostiz enabledだが未routeの4 profile（`@anicca.comedy`、`@anicca.daily`、`@aniccajp`、`@aniccajp2`）、disabled integrationの`@anicca.jp8`、integration未接続の`@anicca.videojp`と`@anicca_girl`。従って現在のroute coverageは接続済みprofile全部をまだ覆っていない。
+
+**原因と最小source修正:** 複数TikTok ownerが共有disk floorでPostiz接続前に拒否されている。登録済みcleanup allowlistに再生成可能な`~/Library/Developer/Xcode/DerivedData`が無く、09:09のread-only inventoryでは約3.5 GiBを占めていた。`fix/disk-cleanup-xcode-deriveddata-20261008`のcandidateはこのexact cache rootだけをcleanup対象にし、既存のopen-file/use guardを維持し、隣接する`Archives`は対象外とする。source commit `e2dfdb81f90a805f9dbe4fdda96fc647e7272c82`をPR #7003で提出。latest main `c65449ef8c2649c28ffa760b989eb75843e6cbd5`取り込み後のPR headは`dbed54c6f7d6ea29b60126067e59f87d8dcab879`、差分は4 files。focused tests 109/109、loop-adapter tests 15/15、GitHub Python syntax+unittest、secret/PII/OSS/Loop control contract checksはPASS。`Startup context drift`だけFAILで、今回触っていない`https://aniccaai.com/lm`に現行context digestが無いという内容。同じauditはbase main release `46ec94bd`でもFAILし、GitHubのmain branch required-status-checks endpointは404（未設定）。現行installed releaseの`lm-loop doctor`も`ok=false`で、missing entrypoints 0 / unmanaged labels 0だがretired installed label `ai.anicca.provision-browser.capafy.kosuke`が1件ある。これはTikTok source/cleanupの変更ではなく、promotion前の別fleet gateとして記録する。source candidateはPR integration、immutable release、自然cleanup receiptとfresh capacity readbackを通るまで本番修正完了ではない。
+
+**新mobile TODO順:**
+
+1. `fix/disk-cleanup-xcode-deriveddata-20261008`のDerivedData allowlist修正を完了する。focused cleanup suiteを実行してcommit/pushし、required CIを通してからmainへ統合する。DerivedDataを手動削除したりopen-file guardを弱めたりしない。
+2. 現行release reconcilerの自然terminal後、別fleet gateのretired installed labelをowner経由で解消してfresh `lm-loop doctor`をPASSさせる。その後registered cleanup ownerをmain由来immutable releaseから自然実行させ、`free >= 2 GiB`、`errors=0`、`protected_deletions=0`をreceiptで確認し、mobile ownerごとのloaded SHA/argv/admission/次slotをreadbackする。容量回復は投稿receiptではない。
+3. 既存TikTok `effect_unknown` occurrenceをowner経由で一件ずつofficial Postiz readbackと突合する。provider post、integration、occurrence、caption/media identity、timestampが一意な時だけreceiptを保存し、同一eventのreplay-zeroを確認する。曖昧または未一致ならholdを保つ。
+4. Postizで現存する全TikTok profileのrouteを完成する。既存approved slideshow/mediaを再利用しcaption/hookだけ変える。4 enabled holdを既存ownerへ追加し、`@anicca.jp8`を既存owner/config経由で復旧する。`@anicca.videojp`と`@anicca_girl`は接続済み・retired・接続待ちのどれかを公式状態で確定し、接続が無いものを配信済みとして数えない。
+5. 各有効profileで、異なるcopy variantによる3つのunique `PUBLISHED` receiptをJST日単位で確認する。17 connected profilesを対象にすると51件/日。account別・integration別・unique provider post IDで確認し、あるaccountの過剰投稿で別accountの不足を埋めない。まず次の自然slot、その後に完全なJST日を通して継続性を確認する。
+6. TikTokのpost-level views/engagementをfixed checkpointsで収集し、account、post、caption variant、CTA/store link、campaignへ結合する。未提供metricはunknownのままにする。同時にASC impressions/product-page views/first-time downloads、RevenueCat trial/paid/refund/MRRをapp/campaign単位で照合する。RevenueCat MRRをsettled net revenueと混ぜない。
+7. Mixpanel/PostHogの実イベントを監査し、install→onboarding→paywall→trial/purchaseのcohort計測を補完する。基準値が取れてからcontentまたはonboardingの仮説を一つずつ試し、勝ちvariantを残す。
+8. Anicca iOSでASC first-time downloadsを100件/日（trailing 7-day平均）まで伸ばし、実証したplaybookを他の既公開appsへ順次展開する。その後、cohort根拠に基づきonboarding/paywallを改善する。ASOはstore-page conversionが詰まりとASC evidenceで確認できた場合に行う。USD 10,000 verified net MRRは、settled receipt/refund/fee/actual costで確認するまで未達目標。
+
+**現在cursor:** item 1。PR #7003のsource acceptanceはPASS、最新headのGitHub checksは実行中（Startup context driftはbase mainでも再現する別lane failure）。TikTok productionはdisk floor未達で停止中。最新のPostiz実績は10/07が21/48、10/08は09:53まで1件のみでAnicca iOS 0件。画像2 profileのnative-carousel ledgerは09-28で止まっている。slideshow形式とviews/engagementはPostiz GETだけでは確認できない。
+
+### 2026-10-08 10:02 JST — Gig status-only refresh after main advanced
+
+このreadbackは09:53 JSTのGig runtime snapshotを更新し、TODO順は変更しない。
+
+- 最新mainは`4056d35903`。Gig `lm-loop status all`（01:02Z直前）は22 job（Coconala 7/Lancers 7/CrowdWorks 5/Mercor 3）、`loaded-idle=19 / loaded-running=3`、receipt 0、idle errorsは`disk_headroom_low=18 / resource_capacity_busy=1`。job数は14–16のagent session数ではなく、loaded状態は稼働・売上の証拠でもない。
+- 01:02Zの`df -k /`は`1,678,324 KiB` freeで2 GiB floor未満。cleanup ownerの01:00Z付近のterminalは`entrypoint_exit_1 / reconcile_owner`。別ownerのlease中なのでstate/sourceを変更しない。
+- sender source branchのremote headは`10ba32a170`、latest mainより14 commits behind。fresh reviewerが3つのP1を再現済み。worktreeにはtransport/testの未commit編集が残るが、再テスト・最新main同期・reviewは未完である。
+- Coconala公式talkroomの最後の記録は10/7のstale snapshot。現在のbuyer状態、納品、受入、settlementはunknownで、再開時に最新official threadを読む。
+
+**現在cursor:** Remaining atomic Gig TODOのparallel gate 1A/1B。両方の完了後にCoconala Paid owner/threadをfresh readbackし、既存契約、Storefront、残platformを既記載順で閉じる。Lancers rows25–27はskip、Answersは対象外、SelfBuildは最後。
