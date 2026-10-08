@@ -4623,3 +4623,11 @@ L9-11 Self-BuildはこのGig laneの全項目完了後、既存の全社順序�
 10. **Job Hunter:** eligible候補がある自然runだけを読み、proposal receiptをplatform/occurrence単位で照合する。候補0は成功扱いしない。
 11. **各Gig完了判定:** buyer-visible acceptance、settled payout、platform fee、実費、replay-zeroが契約単位でそろったものだけ完了とする。$10K MRRは目標であり、listing・応募・gross・未決済額を実績へ数えない。
 12. **最後:** 上記収益loop処理後にSelfBuildを修復・検証する。Lancers rows25–27を再試行せず、AnswersとSelfBuildをこのcursorより前に開始しない。
+
+### 2026-10-08 09:32 JST — source修正の検証とcapacity再低下
+
+- `fix/tiktok-message-hydration-20261008`のcommit `181d1fe578`で、Paid送信前のofficial frame/readiness確認と送信後のexact readback pollingを実装した。focused testsは25/25 PASS、`py_compile`と`git diff --check`もPASS。provider送信・browser操作は0件。これはsource証明であり、main統合・immutable release・natural run・Coconala納品receiptではない。
+- fresh `lm-loop status all`は前回と同じ22 Gig jobs（Coconala 7/Lancers 7/CrowdWorks 5/Mercor 3）、`loaded-idle=19 / loaded-running=3`。idle 19のlatest errorは`disk_headroom_low`（daily reportだけ`resource_capacity_busy`）。browser 3件もprocess状態でありGig provider receiptではない。
+- fresh `df -k /`は空き`1,080,932 KiB`（2026-10-08 00:32Z）まで低下。共有2 GiB floor未満なので、browser/provider自然runとimmutable release/applyはまだ実行しない。disk-cleanup ownerのleaseは継続尊重する。
+
+**現在cursor:** source commit `181d1fe578`のfresh adversarial review → PR/new-head CI → main統合。並列でdisk-cleanup ownerのsafe receiptと安定2 GiB超readbackを待つ。両方のgate後に初めてCoconala Paid project lock/inboxをreadbackし、既存有償契約のrevision・正式納品・検収・精算を閉じる。Storefront occurrence fenceの解決とinventory/sales/settlement readbackはその次。
