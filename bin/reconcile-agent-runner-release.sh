@@ -246,7 +246,8 @@ PY
       return 0
     fi
   fi
-  if [ "$last_sha" = "$release_sha" ] && [ "$last_status" = "error" ] \
+  if [ "$last_sha" = "$release_sha" ] \
+    && { [ "$last_status" = "error" ] || [ "$last_status" = "partial" ]; } \
     && [ "$now_epoch" -lt "${last_next_retry:-0}" ]; then
     printf 'agent-runner fleet-apply: release %s failed previously; backoff until epoch %s\n' \
       "$release_sha" "$last_next_retry" >&2

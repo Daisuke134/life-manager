@@ -5535,3 +5535,85 @@ flowchart LR
 11. Anicca iOSで10,000 USD verified net MRRと再現可能なper-app unit economicsを確認した後、同playbookを既存appへ1つずつ広げる。100,000 USD / 10,000,000 USDとmobile app factoryは長期目標であり、再現性が証明されるまで達成扱いしない。
 
 **Current cursor:** item 1 (TikTok distribution). Telegram link formatter is merged and loaded; fresh proof for a newly generated Telegram report is pending. At 13:25 JST, Postiz is 5/51 and the five delivered profiles each have one post.
+
+### 2026-10-08 13:27 JST — eBook owner apply complete; fence and Capafy automation remain
+
+PR #7050はmainへmerge済み（merge commit `dcf04b2dbf401bbd07e78e9c9efd204f0e4cc5b9`）。この追記はmain `4dad886ca7a3798dd7ccb9879216bd93a7b25cb5`からのreadbackで、13:13の理想architectureは維持し、production cursorを更新する。
+
+**13:25–13:27 JST readback:**
+
+- Postiz公式GET（13:27:37 JST）でeBook targetは2/9のまま：EN TikTok 0、JA TikTok 1、JA Instagram 1。12:30のJP runsはpre-provider admission deferで、既存2 receiptとは別occurrence。
+- `life-manager-release-reconciler` PID 72756はrun `18dc7288225a6d08-72756`でfleet owner applyを継続中。13:27時点で153 owner result rowsあり、最後は`x-repost-ja-pass`。現在のprocess/host apply lockに重ねてapplyしない。最後に保存されたfleet summary（13:10）は`status=partial`, `changed=76`, `errors=2`, `skipped=24`, `message=budget exceeded`であり、これは進行中runのterminal summaryではない。
+- eBook EN TikTok、JA TikTok、JA Instagram ownerはすべて`loaded-idle`でimmutable release SHA `8f342d8d71396bc7e9f542ae09af9b46781ff410`にapply済み（fleet owner rowsは各`rc=0, changed=1`）。それぞれのlatest business eventは古いSHAのunknown/blocked occurrenceのままなので、loaded source更新はeffect claimの解決を意味しない。
+- `lm-fence-reconciler`はSHA `46ec94bdea884fd7afa61e603a79fdd1b3048ef7`の`loaded-idle`。13:19の自然runは`pass`だが、3つの旧occurrenceに対する最新structured callはいずれも`no_match / exact_pending_receipt_unavailable / inspected=0 / closed=false`。effect identity sidecarは存在せず、claimsは残る。
+- Capafy Postiz profile `capafy.hooklab`のintegrationは公式GETで`disabled=false`、13:25時点で今日2件`PUBLISHED`。これはeBook 2/9と混ぜない。Capafy owner `capafy-ig-marketing-daily`と`life-manager-capafy-ig`は`disabled`かつ古いSHA `2e87d30d24b95c7c51e49861bc18a62b97c0b4c2`。進行中fleet applyは両方で`Bootstrap failed: 5 (Input/output error)`を記録し、previous jobへrestoreした。provider接続/再接続ではなく、owner automation applyが未解決。既存2投稿は連続cadenceの証拠ではない。
+- current symlinkは`20261008T124623-8f342d8d`。13:20の空き容量は6,556,752 KiBで2 GiB floor超。物理disk floorは現在のprimary blockerではない。
+- 13:13時点のHeyGen公式video listはtitle `Anicca`で0件、wallet USD 11.78。English old run `18dc6de8dcf3a0e8-75262`はidentity `not_written` / `effect=unknown`のまま。EN registry `tiktok.monk_anicca=disabled_verified`も未解決。旧effectを再送しない。
+- eBookの現行pack価格（USD 10.99 / JPY 1,580）は単発売り価格。settled paid order、対応PDF receipt、月額Letter/Tegami price/subscriptionは未確認。$10,000 net MRRは目標であり、現時点の実績ではない。
+
+**TODO順変更:** 旧順=`release reconciler terminal → eBook ownersとfence reconcilerをapply → JP claim recovery → catch-up → EN effect/account → 9/day → checkout/MRR → Capafy`。新順=`現在のfleet apply runを自然terminalしlock readback → 既にapply済みの3 eBook ownersをloaded-state確認 → fence reconcilerを現行releaseへtarget apply/readback → JP old receipt identitiesをowner pathで一意recover → 12:30 catch-up判定 → EN old effectとaccount eligibilityを個別解決 → EN distinct-slot canary → 3 accounts×3 PUBLISHED/day → checkout/PDF/recurring MRR証拠 → Capafy ownerのBootstrap 5 root causeを特定し、承認済みcanary cadenceへ復旧`。理由: eBook ownersは現行sourceへ移ったがidentity claimsは残り、Capafy provider linkは健全でもlocal scheduler/applyがdisabledだった。current cursor=`release reconciler run 18dc7288225a6d08-72756のnatural terminalとapply-lock readback`。Capafyの既存2投稿から3/day cadenceを推定しない。
+
+**Remaining atomic TODO（上から順に1つずつ）:**
+
+1. release reconciler run `18dc7288225a6d08-72756`の自然terminalとfleet summaryを取得し、target/global apply lock解放をreadbackする。現在のprocessをstop/restartせず、applyを重ねない。
+2. EN TikTok、JA TikTok、JA Instagramのloaded SHA/argv/state-path/readbackを`lm-loop status`で確認する。現行source SHAは全3 ownerへapply済みだが、旧business eventは未解決のまま。
+3. `lm-fence-reconciler`をlock解放後にowner-safe target applyし、loaded SHA/argvを確認する。current exact-occurrence adapterが読み込まれた後も既存callsが`no_match`なら、同じrun/occurrenceからPostiz ID・account/integration・slot・media/caption hashesまで一意に結ぶ最小owner-path recoveryを実装し、DB/sidecarを直接編集しない。
+4. 2つのJP old PUBLISHED run (`18dc5e822e430b80-45345`, `18dc648de93a3c68-68679`)だけidentityをrecover/resolveし、公式Postiz readbackとclaim releaseを確認する。12:30 blocked runs (`18dc7047fd1a6850-93639`, `18dc7047ecc63f38-93638`)は別occurrenceとしてprovider receiptなしを維持する。
+5. JP claimsが閉じた後、既存due-slot functionでmissed 12:30がまだdueか判定し、eligibleならownerのnatural wakeでcatch-upする。TikTok/Instagram各PUBLISHED ID/URLをreadbackする。20:00まで手動で待つ・投稿することはしない。
+6. English old occurrence `18dc6de8dcf3a0e8-75262`のHeyGen video IDまたは同createのitemized billing evidenceを探し、exact dispositionする。video list 0だけでeffect unknownを解放せず、旧08:00は再送しない。
+7. `tiktok.monk_anicca`の公式publish eligibilityを確認する。canonical `approved_active`の証拠がなければexisting owned English account候補を公式確認してからregistry/packを切り替える。
+8. old English effectとeligible destinationの両方が解決後、別の英語slotをowner経由で1回実行し、HeyGen ID/status/output SHA/costとPostiz PUBLISHED ID/URLを同一occurrenceに結ぶ。
+9. eBook 3 accountsすべてで各3 unique PUBLISHED/day（合計9/day）とreplay-zeroを自然readbackする。6 videos/dayをEN 3、JP 3から配布する形を維持する。
+10. post→UTM click→locale checkout→settled Stripe order→same-order PDF receiptをjoinし、Letter/Tegami月額price・settled subscriber count・net monthly costsからnet MRRを計算する。subscriptionが存在しない場合は価格を作らず既存offerの実装/選択を行う。
+11. eBook初回paid order + 対応PDF receipt後、Capafyの2 IG ownerの`Bootstrap failed: 5` root causeをowner-safe経路で解消する。Postiz profile `capafy.hooklab`は既に接続し2件公開済みなのでreconnect/CAPTCHAから始めず、`lm-loop status`とapply logでLaunchAgent bootstrap boundaryを特定し、targeted apply/readback後に1 canary/24hを確認する。
+
+**Daisの作業:** いま必要な再接続、CAPTCHA、手動投稿はない。Capafy automationのblockingはPostiz接続ではなくlocal owner apply errorである。本人確認がproviderから明示要求された場合だけ人の操作が外部前提になる。
+
+### 2026-10-08 13:39 JST — repeated partial fleet apply ignores backoff
+
+この追記は13:27 eBook/Capafy snapshotの次cursorを更新する。latest source main at diagnosis is `e80d1a968d`; active release remains `8f342d8d`.
+
+**Root-cause evidence:**
+
+- Fleet run `18dc7288225a6d08-72756` terminaled at 13:31:59 JST with `exit=1`, `status=partial`, `changed=60`, `errors=3`, `skipped=119`, message `budget exceeded`, and `next_retry=13:43:56 JST`.
+- A new run `18dc73b6c42eb038-98716` started at 13:33 JST, before that retry time. At 13:39:36 it was still active and had recorded 170 owner apply results, most recently `marketing-owner-events`. This confirms the same release entered another fleet apply before the saved retry time.
+- Source condition in `bin/reconcile-agent-runner-release.sh::run_fleet_apply` writes `next_retry_epoch` for both `error` and `partial`, but the skip guard checks only `last_status == error`. A same-SHA `partial` state therefore bypasses its intended backoff. The current source code is the root cause of repeated fleet-wide apply; the new run began a same-SHA fleet apply before the stored 13:43:56 retry deadline.
+- This is separate from the two prior Capafy apply failures (`Bootstrap failed: 5`) and the `life-manager-instagram-metrics` failure. The backoff fix prevents an early repeated fleet sweep; it does not repair those individual owner failures.
+- The 13:32 status readback had eBook owners on SHA `8f342d8d` but `lm-fence-reconciler` still on `46ec94bd`. The active 13:33 fleet run may have changed its state later, so read its final owner row and current loaded SHA after terminal before deciding whether another target apply is needed.
+
+**TODO順変更:** 旧順=`fleet run terminal → target apply fence reconciler → identity recovery`。新順=`partial-backoff regression test → minimal backoff guard fix → merge/release → current fleet run terminal → verify no new full apply before next_retry → target fence reconciler only if still behind → identity recovery → JP catch-up → EN recovery/account eligibility → 9/day → checkout/PDF/subscription MRR → Capafy owner bootstrap recovery after the eBook revenue gate`。理由: 13:31 partial run直後の13:33 wakeが13:43:56のbackoff期限前に再びfleet applyを始め、13:39までに170 ownerを処理した。現在cursor=`regression testでpartial same-SHA stateがfuture next_retry中にapplyを開始しないことを再現`。
+
+**Remaining atomic TODO（上から順に）:**
+
+1. `runtime/loop/tests/test_reconcile_agent_runner_release_fleet_apply.py`に、同一SHA・`status=partial`・future `next_retry_epoch`なら次tickの`lm-loop apply`呼び出し数が増えないfocused regression testを追加し、現行コードで期待どおりfailすることを確認する。
+2. `bin/reconcile-agent-runner-release.sh`のguardを`error`と`partial`両方で同じSHA/backoff期間中skipする最小修正にし、focused testとloop contractをpassさせる。
+3. PR/CI/merge後、main由来releaseを自然運転でreadbackする。現在のactive runを止めたり新しいfleet applyを重ねない。`partial`の`next_retry_epoch`まで新しいfleet owner rowが増えず、再試行がbackoff後に限られることを確認する。
+4. current release reconcilerのfleet summary/owner rows/terminal eventを確認し、eBook 3 ownersがすでにSHA `8f342d8d`へ移った状態を維持する。`lm-fence-reconciler`のloaded SHAを再読し、旧SHAならshared apply lock解放後にowner限定でtarget applyする。
+5. JPの旧PUBLISHED claims `18dc5e822e430b80-45345` / `18dc648de93a3c68-68679`をreceipt/account/integration/slot/hashと一意にjoinし、owner-pathでだけresolveする。曖昧ならfenceを維持する。
+6. 12:30 JP slotがdueなら自然owner wakeでcatch-upし、各integrationの新しいPUBLISHED receiptを確認する。英語は旧HeyGen effectのexact dispositionと`disabled_verified` account gateを別々に解消してから次slotを1回実行する。
+7. eBookの9 unique PUBLISHED/day、replay-zero、post→click→settled order→matching PDF→settled monthly subscriptionのnet MRRを確認する。単発売上をMRRに足さない。
+8. Capafyの`capafy.hooklab`はPostiz接続と今日2 PUBLISHEDを確認済み。2 automation ownersはdisabledで`Bootstrap failed: 5`; eBook paid order + PDF後にこのLaunchAgent apply errorの根因をowner経路で直し、1 canary/24hの公式readbackを得る。再接続/CAPTCHAは現証拠では必要ない。
+
+### 2026-10-08 13:45 JST — partial-backoff fix is RED/GREEN; production still old
+
+この追記は13:39 cursorを更新する。回帰テストと修正はworking branch上で検証済みだが、まだmain/releaseには未反映。
+
+**Verification:**
+
+- TDD regression `test_partial_apply_honors_backoff_before_same_release_retry`は修正前に`apply_call_count=2`でfailし、guardが`partial`のfuture retryを無視することを再現した。
+- `bin/reconcile-agent-runner-release.sh`のbackoff guardをsame-SHA `error` / `partial`双方へ適用する3行差分後、focused test pass。`test_reconcile_agent_runner_release_fleet_apply.py`は27/27 pass、`bash -n`と`git diff --check`もpass。PR #7055の現在headに含むsource changeは未push。
+- productionではrun `18dc73b6c42eb038-98716`が13:44:07 JSTにterminalし、fleet summaryは`error`, `changed=6`, `errors=4`, `skipped=177`, next retry `14:06:05 JST`。その後PID 44954が新runで起動し、13:45:48にはloaded-running。変更前release SHAは`8f342d8d`。停止/restart/target applyは行わない。
+- eBook 3 ownersと`lm-fence-reconciler`はSHA `8f342d8d`で`loaded-idle`。しかしfence-reconcilerの13:39 natural run後、3 exact old claim callsは`inconclusive / runtime_occurrence_missing_or_invalid / closed=false`であり、JP/EN identitiesはまだ解決していない。
+- Postiz 13:27 GETはeBook 2/9、Capafy `capafy.hooklab` 2 PUBLISHED。Capafyの2 automation ownersはdisabledのまま、Bootstrap 5 root cause未解決。
+
+**TODO順変更:** 旧順=`partial backoff test/fix → current release run terminal → fence reconcile → identity recovery`。新順=`source test+guardをPR/CI/merge → old release runのnatural terminal → patched main releaseのnatural load/readback → partial stateではretry deadline前にfleet owner rowsが増えないことを観測 → fence adapterのruntime_occurrence_missing原因を特定 → identity recovery → JP catch-up → EN old effect/account → 9/day → eBook checkout/PDF/MRR → Capafy bootstrap recovery`。理由: focused testでsource bugは再現・修正済みだが、productionは古いSHAのまま。13:44 runはpartialではなくerrorにterminalし、retry期限を14:06:05に設定した。13:45の新runはまだloaded-running。
+
+**Remaining atomic TODO:**
+
+1. regression testと3行backoff fixを含むPR #7055のsource diffをcommit/pushし、CI/reviewをpassさせてmergeする。部分的なfleet applyを新たに手動起動しない。
+2. 現在のPID 44954 runのnatural terminalとtarget/global lock解放をreadbackする。main merge後、release reconcilerがpatched mainから新releaseをcut/loadした際のSHA/argvを確認する。
+3. 新SHA下で、`partial` fleet stateのfuture `next_retry_epoch`より前に同一SHAのfleet owner apply rowが増えないことをnatural runで確認する。既存`error` backoff時刻の14:06:05を越えるまで不用意な手動retryをしない。
+4. `lm-fence-reconciler`の既存runtime lookupが`runtime_occurrence_missing_or_invalid`となる箇所をexact occurrenceからsource/stateへ追跡する。distribution receipt、runtime occurrence、claim linkageを一意結ぶ最小owner-path recoveryを作り、直接DB/sidecar編集をしない。
+5. JP claimsがowner pathでcloseした後にだけ12:30 slotをdue判定し、eligibleなら自然catch-upする。Englishのold HeyGen effectと`disabled_verified` destinationは個別に解決し、別slotで1回publishする。
+6. 3 eBook account×3 unique PUBLISHED/day、replay-zero、settled order/PDF/monthly subscription evidenceを順に閉じる。one-time eBook saleをMRRに含めない。
+7. eBook paid order+matching PDF後、CapafyのPostiz-connected profileに対する2 disabled ownerのBootstrap 5 root causeをowner-safe apply経路で解消し、one-canary receiptと継続cadenceを分けてreadbackする。
