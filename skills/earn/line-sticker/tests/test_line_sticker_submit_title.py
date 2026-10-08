@@ -27,8 +27,24 @@ class Retitle(unittest.TestCase):
         out = MODULE._retitle({"character_name": "Pip", "title": {"ja": "もちハム", "en": "Mochi Hamster"}})
         self.assertEqual(out["title"], {"ja": "もちハム (Pip)", "en": "Mochi Hamster (Pip)"})
 
-    def test_no_character_name_means_no_retry(self) -> None:
-        self.assertIsNone(MODULE._retitle({"title": {"ja": "a", "en": "b"}}))
+    def test_no_character_name_falls_back_to_a_numbered_title(self) -> None:
+        # set-015 (2026-10-08): character_name was empty, so a duplicate title could never be retried
+        # and the factory stalled on "既に存在するタイトルのため利用できません".
+        out = MODULE._retitle({"title": {"ja": "星くずカワウソの毎日返事【文字入り】", "en": "Stardust Otter Daily Reply (with text)"}})
+        self.assertIsNotNone(out)
+        # Over the limit with vol.2 added: the words before 【文字入り】 give way, the mark stays whole.
+        self.assertTrue(out["title"]["ja"].endswith("【文字入り】 vol.2"), out["title"]["ja"])
+        self.assertTrue(out["title"]["en"].endswith("(with text) vol.2"), out["title"]["en"])
+        self.assertTrue(all(MODULE._title_units(t) <= MODULE.TITLE_MAX for t in out["title"].values()))
+
+    def test_a_numbered_title_that_is_taken_again_counts_up(self) -> None:
+        listing = {"title": {"ja": "もちハム vol.2", "en": "Mochi vol.2"}}
+        self.assertEqual(MODULE._retitle(listing)["title"], {"ja": "もちハム vol.3", "en": "Mochi vol.3"})
+
+    def test_a_long_title_is_clamped_to_make_room_for_the_number(self) -> None:
+        out = MODULE._retitle({"title": {"ja": "とても長いスタンプのタイトルがここに入ります毎日使える", "en": "A very long sticker title that fills the limit"}})
+        self.assertTrue(all(MODULE._title_units(t) <= MODULE.TITLE_MAX for t in out["title"].values()))
+        self.assertTrue(all(t.endswith("vol.2") for t in out["title"].values()))
 
 
 class InlineTitleError(unittest.TestCase):

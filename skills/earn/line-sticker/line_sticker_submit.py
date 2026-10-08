@@ -107,10 +107,34 @@ def _fit_listing(listing: dict) -> dict:
     return dict(listing, title=titles, description=descs)
 
 
+_VOL_RE = re.compile(r"\s*vol\.(\d+)$")
+
+
+def _numbered(listing: dict) -> dict:
+    """Make a taken title unique with a "vol.N" suffix (a normal sequel marker on the store), counting up
+    from an existing one, clamped so the suffix survives the width limit."""
+    titles = {}
+    for lang, title in listing["title"].items():
+        match = _VOL_RE.search(title)
+        base, number = (title[:match.start()], int(match.group(1)) + 1) if match else (title, 2)
+        suffix = f" vol.{number}"
+        limit = TITLE_MAX - _title_units(suffix)
+        # Keep a trailing bracketed mark such as 【文字入り】 / (with text) whole; cut the words before it.
+        mark = re.search(r"(【[^】]*】|\([^)]*\))$", base)
+        if mark and _title_units(base) > limit:
+            head, tail = base[:mark.start()].rstrip(), mark.group(1)
+            gap = " " if base[mark.start() - 1:mark.start()] == " " else ""
+            base = _fit(head, max(0, limit - _title_units(tail) - len(gap))).rstrip() + gap + tail
+        titles[lang] = _fit(base, limit) + suffix
+    return dict(listing, title=titles)
+
+
 def _retitle(listing: dict) -> dict | None:
     name = listing.get("character_name") or ""
     if not name:
-        return None
+        # set-015 (2026-10-08): no character name meant no retry at all, and the factory stalled on a
+        # duplicate title; a numbered title always works.
+        return _numbered(listing)
     fallback = {"en": f"{name} Stickers", "ja": f"{name}のスタンプ"}
     titles = {}
     for lang, title in listing["title"].items():
