@@ -196,9 +196,52 @@ def test_analytics_collection_degrades_instead_of_aborting_on_slow_browser_call(
         "status": "unavailable", "value": None,
         "reason": "official_readback_failed_after_retries",
     }
+    assert result["_fresh_snapshots"][0]["official"] is False
     rows = [json.loads(line) for line in
             (state_dir / "analytics.jsonl").read_text(encoding="utf-8").splitlines()]
     assert rows and rows[0]["official"] is False
+
+
+def test_current_analytics_readback_is_fresh_even_when_history_dedupes(tmp_path, monkeypatch):
+    from datetime import datetime, timezone
+
+    now = int(datetime.now(timezone.utc).timestamp())
+    body = (
+        "サービス別分析\n対象期間：2026/09/09 - 2026/10/08\n"
+        "閲覧数 300回\n販売数 3件\nお気に入り数 2回"
+    )
+
+    async def read_analytics(_ws, url, _expression):
+        return {"url": url, "title": "サービス別分析", "body": body}
+
+    monkeypatch.setattr(listing_inventory, "_eval_json", read_analytics)
+
+    def fake_run(argv, **_kwargs):
+        if "open" in argv:
+            return SimpleNamespace(returncode=0, stdout=json.dumps({
+                "ok": True, "ws": "ws://127.0.0.1:9222/devtools/page/test",
+                "target_id": "test-tab",
+            }))
+        return SimpleNamespace(returncode=0, stdout="")
+
+    monkeypatch.setattr(direct.subprocess, "run", fake_run)
+    state_dir, evidence_dir = tmp_path / "state", tmp_path / "evidence"
+    state_dir.mkdir()
+    evidence_dir.mkdir()
+
+    first = direct._collect_analytics(
+        state_dir, evidence_dir, now, [direct.TARGET_SERVICE_ID],
+    )
+    second = direct._collect_analytics(
+        state_dir, evidence_dir, now + 30, [direct.TARGET_SERVICE_ID],
+    )
+
+    history = (state_dir / "analytics.jsonl").read_text(encoding="utf-8").splitlines()
+    assert len(history) == 1
+    assert first["_fresh_snapshots"][0]["observed_at_epoch"] == now
+    assert second["_fresh_snapshots"][0]["observed_at_epoch"] == now + 30
+    assert first["_fresh_snapshots"][0]["snapshot_key"] == second["_fresh_snapshots"][0]["snapshot_key"]
+    assert second["_fresh_snapshots"][0]["official"] is True
 
 
 def _args(tmp_path: Path):
@@ -1102,10 +1145,13 @@ def test_a_service_with_an_open_experiment_is_not_selected_again(tmp_path):
     measurement window read as work. When it is the only candidate the answer is nothing.
     """
     scorecard = tmp_path / "scorecard.json"
-    scorecard.write_text(json.dumps({"priority_backlog": [
-        {"priority": 1, "service_id": "91000001", "field": "image", "before": 0,
-         "success_metric": "views_to_inquiry", "reason": "verified gap"},
-    ]}))
+    scorecard.write_text(json.dumps({
+        "portfolio_policy": {"version": 1, "minimum_views_for_measurement": 100},
+        "priority_backlog": [{
+            "priority": 1, "service_id": "91000001", "field": "image", "before": 0,
+            "success_metric": "views_to_inquiry", "reason": "verified gap",
+        }],
+    }))
     effects = tmp_path / "effects.jsonl"
     effects.write_text(json.dumps({
         "status": "accepted", "effect": 1, "service_id": "91000001",

@@ -170,7 +170,7 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
   - `job-search-inbox`: `inbox.py:398`。model の申告件数と thread ID の数が食い違った時に安全側で止まる、意図された fail-closed。二重返信を防ぐための仕組みで、test でも固定されているので変更しない。
   - Instagram en-card / obou: `LM_DATA_DIR is required` と ledger の job id 衝突。obou の Instagram は `marketing-destinations.json` で `ebook_account_out_of_mobile_scope`（上限 0）なので、直すより退役させる候補。state root が共有 events.jsonl のため、run 単位の切り分けは未完。
   - `life-manager-honne-ja`: 昼の ENOSPC（空きが 0.56GB だった時点）による。publish は fence で止まっていた。
-| T7 | Gig収益順: 1A完了 → Storefront priority correction → latest main releaseをowner-idle/lock-freeで適用（numeric free-space floorなし）→ 既存Coconala有償義務 → storefront product → Freelancer Services → Upwork Project Catalog（policy gate後）→ Reply/Apply/Negotiation/Paid → settled net → SelfBuild last。Lancers rows25–27はskip、Answers対象外 | active listing・unique paid order・settlement/fee/cost/net・replay-zero |
+| T7 | Gig収益順: 1A完了 → Storefront priority correction PR #7169 main統合済み → exposure preflight source fix PR #7182のlatest-main acceptance/merge → #7179を含むlatest main releaseをowner-idle/lock-freeで適用（numeric free-space floorなし、実際のENOSPCは原因として記録）→ 既存Coconala有償義務 → Coconala storefront fence/現行SKU計測と改善 → Freelancer Services（account/policy gate後）→ Upwork Project Catalog（bot/API policy gate後）→ Reply/Apply/Negotiation/Paid → listing別settled net → SelfBuild last。Lancers rows25–27はskip、Answers対象外 | active listing・unique paid order・settlement/fee/cost/net・replay-zero |
 | T8 | CFO: ループごとの settled revenue と cost の join（ループ別P&L）を毎日出す | P&L 行ごとに receipt id がある |
 | T9 | Mobile funnel と `/en` `/lm` `/income` の整合（install→activation→課金） | attribution receipt |
 | T10 | one-shot capability capsule | 目標・承認の質問なしで初回の実行が通る |
@@ -4840,45 +4840,303 @@ flowchart LR
 
 ### Remaining atomic Gig TODO
 
-この一覧だけがGig laneの未完了作業と実行順を持つ。Lancers rows25–27はwaiting_externalのまま完全skip、Answersは対象外、SelfBuildは最後。$10K MRRは目標であり、Gig storefrontの単発受注や総売上とは混同しない。
+この節がGig laneの残TODOと実行順の正本。Lancers rows25–27は`waiting_external`のまま完全skipし、Answersは対象外、SelfBuildは最後に置く。$10K MRRは目標であり、単発受注・seller累計・未精算売上と混同しない。
 
-Storefrontの収益方針: 出品点数ではなく、再利用できる同一商品を新規応募より先に積み上げる。競合から取り入れるのは売れ筋として実証できる商品の構成（対象課題→具体的成果→固定入力/範囲→価格/納期/修正境界→作例/FAQ/購入条件）で、説明文・画像・作例は独自に作る。注文ごとに別仕様を作るのではなく、パッケージと選択可能な追加option内で完結する商品を優先する。まず現在公開中のSKU 4244556を最初の検証対象にし、conversionを読む前に近似サービスを増やさない。出品状態、unique order、settlement/payout、実費とnetを分けて報告し、単発売上をMRRと呼ばない。
+**Storefrontの収益方針:** 受託の応募収入を続けつつ、最も拡張しやすい軸は自社で範囲を決めて繰り返し販売できるproductized storefrontとする。Coconala・Freelancer・公開許可のある他platformでは、成功商品の購入決定構造を同じ順序・同等の具体度で再現する（課題と完成結果→固定範囲→納品物→価格/package→追加option→納期→購入前入力→作例→FAQ→対象外）。注文ごとの別仕様を増やさず、再利用できる成果物と選択式追加optionで提供する。商品文面・画像・実績・顧客事例は自社オリジナルまたは検証済みのものだけを使い、競合の表現・資産を複製せず、レビュー・累計・grossを自社売上に見せない。公開前にplatform fee・直接tool cost・実測fulfillment時間を引いた一件あたりnet contributionが正であることを確認する。継続販売の成功はunique buyer receipt、settlement、refund/fee/costを結んだ正のnet contributionが反復した時にのみ判定する。
 
-公開benchmark（2026-10-08 JST, official marketplace pages）: Coconala AI業務効率化カテゴリは「おすすめ」「定番」表示で、公式売上ランキングとは明記しない。[AIエージェント開発](https://coconala.com/services/3471101)はカテゴリ一覧で23評価/¥50,000、詳細ページで18評価/出品者累計59件/2枠空き・待ち0と表示が異なる。[入力業務自動化](https://coconala.com/services/3691561)も一覧28評価・詳細20評価、出品者累計139件、3枠/待ち2、予定14日/実績約16日。評価数と出品者累計は当該商品の販売数・売上・入金ではないため、順位やrevenueとみなさない。Upworkの[Project Catalog公式ガイド](https://support.upwork.com/hc/en-us/articles/360057397533-How-to-create-a-project-in-Project-Catalog)は、需要・固定納品物・作例を選定軸にし、最大3 package tiers、add-ons、納期、修正回数、作例、必要情報、工程、FAQを案内する。確認した[AI自動化の実例ページ](https://www.upwork.com/services/product/development-it-an-ai-automation-that-removes-a-repetitive-process-from-your-week-2099452461206190516)はOfflineで販売成功の証拠ではなく、パッケージ構成の例に限る。[Freelancer Services公式FAQ](https://www.freelancer.com/faq/topic.php?id=52)は定型サービス、固定/時間/購読型、購入後にprojectを作る流れを説明するが、成功件数を示さない。レビューや推薦だけではbestseller認定しない。
+**確認済みの商品構造比較（2026-10-09、公式Coconalaページ）:** [商品データ作成自動化](https://coconala.com/services/1991922)は現在のページに商品別の販売件数表示がない。69件は評価・感想、189お気に入り、出品者総販売実績1,098件、販売枠5/待ち0人、基本¥80,000を表示する。基本範囲を「API取得元1つ＋出品先1モール」と明示し、取得→加工→出品用データ、Excel確認、取扱説明書を納品物にし、例外処理・cloud運用・Mac対応を別optionにしている。これは固定範囲・納品物・追加optionの構造例であり、商品別販売実績や利益の証拠ではない。Upwork公式[Project Catalog guide](https://support.upwork.com/hc/en-us/articles/360057397533-How-to-create-a-project-in-Project-Catalog)は固定納品物・最大3段階のpackage・add-on・納期・修正範囲・作例・FAQを案内する。Freelancer公式[Services FAQ](https://www.freelancer.com/faq/topic.php?id=52)は定型サービスの存在を示すが、成功件数は示さない。レビュー・推薦・出品者累計を商品販売やsettled netに置き換えない。
 
-R18 admission readback（main PR #7166, merge c6c89873, 2026-10-08）: _disk_floor selects 1 GiB only when registry priority=critical_paid; other owners remain 2 GiB. Current registry has hf-gig-paid-direct=critical_paid but hf-gig-storefront-direct=revenue, so the Storefront still uses 2 GiB until this task changes its priority. This classification also suppresses generic recovery intents; Storefront keeps its scheduled owner and exact effect fences as its safe recovery path. At 14:12Z free space was 770,820 KiB, below even the 1 GiB critical_paid floor.
+**追加の売れ筋readback（2026-10-09、公式Coconalaページ）:** [SNS運用サービス 1275969](https://coconala.com/services/1275969)はサービス個別の表示販売実績1,022件・評価800件・お気に入り2,541件、受付0枠/待ち20人、実績納期約113日。出品者累計2,727件は別指標。[Instagram 1か月運用 2634948](https://coconala.com/services/2634948)は個別表示販売実績399件・評価217件・お気に入り1,174件、受付0枠/待ち30人、実績納期約52日。ページは月6投稿¥30,000、週3投稿¥50,000と3か月追加option¥60,000を表示し、出品者チーム累計1,255件は個別件数と別。これらはページに表示された販売/評価数であり、当社の精算・入金・利益や競合のsettled netではない。両商品から取り入れるのは結果・期間の明示、基本範囲、納品/投稿数、選択式package/option、作例・信頼情報の配置。当社への推論として、同じ広い個別運用を再現すると納期・個別工数が増える可能性があるため、再利用可能な固定成果物を保ち、文面・画像・実績は複製しない。
 
-R18 admission state (main PR #7166, source merge c6c89873): _disk_floor gives 1 GiB only when registry priority=critical_paid; all other priorities keep 2 GiB. Current hf-gig-paid-direct is critical_paid, while hf-gig-storefront-direct is still revenue. Therefore the merged R18 source does not yet lower the Storefront floor. Changing its priority also suppresses generic recovery-intent; the existing 60-second scheduled Storefront owner and its exact effect fence remain the recovery boundary.
+**全platform storefront準備の現状:** `skills/gig-work/profile/listings/catalog.json`には20件のsoftware/automation offerがあり、`ai-agent-automation-integration`の案は¥50,000/¥100,000/¥280,000のtierを持つ。ただしcatalogの生成日は2026-09-04で、platform overridesはCoconala/Lancers/CrowdWorksのみ。Freelancer/Upwork用overrideやFreelancer storefront ownerは現行repo readbackで見つからず、catalog案を既存公開listingや販売実績とは扱わない。Freelancer公式FAQはfixed/hourly/subscriptionの定型Serviceと購入後のproject化を示すが、当該FAQにはlisting別の販売数を示さない。Upwork/Freelancerではcurrent account/inventory/fee/policy readback後に、最も再利用性の高い自社offerをnative形式へ投影する。
 
-Historical readback（2026-10-08T13:38Z、14:02Zの後続snapshotで更新）: lm-loop doctor=true（unmanaged/missing/retired 0）だが、host volumeは274,152 KiB freeで2 GiB floor未達。life-manager-disk-cleanup run 18dc914ebc88a478-50013は13:36:06Z entrypoint_exit_1。mainのR17記録（PR #7153、docs only）はswap 8.7/9.4 GB of 16 GB RAM、corespotlightd 4.4 GBを記録し、空き容量の揺れの原因としてmemory/swap圧を挙げる。disk ownerの作業範囲なので、Gig側からhost cleanupやsystem processを変更しない。
-- hf-gig-paid-direct: release e1b061f1、13:37Z occurrence 18dc914bfeb1b6a8-42936がdisk_headroom_low / exit 75、provider receiptなし。
-- hf-gig-storefront-direct: release 3981bca3、13:37Z occurrence 18dc91503bf09ad0-53855がdisk_headroom_low / exit 75、receiptなし。9/26 occurrence 18d8d288748508e8-23902のeffect fenceはofficial_readback_requiredのまま。当時のinventory official_inventory_empty_or_invalid / service_count=0は空のストアの証拠ではない。現在の全listing/order readbackは未取得。
-- Coconala official public GET（2026-10-08T13:46Z）はprofile https://coconala.com/users/2564121 とbuyable service 4244556を確認。SKUは¥5,000、1媒体分の手順書/チェックリスト/実装メモ、追加媒体option +¥5,000、定期購入は2か月目から10%引き、販売枠5/待ち0、お気に入り2。表示される総販売実績26件はseller累計であり、このSKUの注文/収益ではない。公開面ではSKU別settlement/payoutが見えず、実収益はunknownのまま。9/26 08:42:43Zと08:48:26Zのofficial inventory snapshotは同じ20 service IDを含むが、08:45:58Zのfenced occurrenceに結びつくexact receiptではないためeffect fenceを解除しない。
-13:47Z owner status: storefront occurrence 18dc91d22bbab9c0-38765 is loaded-running (PID 23959), last exit 75, blocker disk_headroom_low; the prior 9/26 fence remains official_readback_required. The same-time df is 867,380 KiB free, still below the 2 GiB gate.
-13:52:41Z pre-effect-reconcile --dry-run returned resolved=[] and unprovable=[18d8d288748508e8-23902: no_pre_effect_terminal]; keep the old fence and require exact provider readback.
-Historical official seller analytics at /Users/anicca/gig/storefront-direct/analytics.jsonl: latest rows for 27 service IDs have separate complete windows ending 2026-08-16 through 2026-09-25; every known purchase count is 0, known views range 0-32, favorites 0-1, and gross_jpy is unavailable. Do not sum these nonmatching windows or treat them as current. SKU 4244556 latest window 2026-08-27–2026-09-25: 15 views, 0 favorites, 0 purchases; top-view SKU 4357844 had 32 views/0 purchases but its current public page is 受付終了. This shows no SKU is a proven winner in the last saved analytics; 4244556 remains the active pilot because its public page is buyable.
-**Latest runtime readback（2026-10-08T14:02Z）:** df at 14:00:04Z is 270,208 KiB free (<2 GiB). Cleanup occurrence 18dc92ac75b78b40-81064 failed at 14:01:19Z with entrypoint_exit_1; last success remains 13:04:19Z. Storefront occurrence 18dc928a5d202668-1054 at 14:00:58Z is disk_headroom_low; status shows loaded-running PID 1573 and the 9/26 effect_unknown fence remains. Paid occurrence 18dc92a850ae7ba0-71074 at 14:02:05Z is disk_headroom_low/exit 75 with no provider effect. Reply occurrence 18dc9280a470b208-81333 (13:57:40Z) and Apply occurrence 18dc929b2a249ee0-36733 (14:01:08Z) are also disk_headroom_low with their prior fences held. No latest owner has a provider receipt.
-- hf-gig-reply-detector: 13:37Z occurrence 18dc9168619277f0-6019がdisk_headroom_low。過去fence 18dbf6546032eca0-25901はofficial reply readback待ち。
-- hf-gig-apply-direct: 13:36Z occurrence 18dc913e2667ea18-12209がdisk_headroom_low。過去fence 18dadcd76d9c61b0-37711はofficial application readback待ち。
-- 4 ownerはいずれも最新wakeにprovider receiptなし。現在のlisting count、注文、settlement、payoutはunknownで、revenueあり/なしに置き換えない。
+**Coconala SKU 4244556の基準:** 公開ページで¥5,000、1媒体分のSNS投稿工程・公開前確認の手順書/チェック表、追加媒体option +¥5,000、2か月目以降10%引きの定期購入選択肢、販売枠5/待ち0、お気に入り2を確認。ページの総販売実績26件は出品者累計で、SKU別売上ではない。`/Users/anicca/gig/storefront-direct/analytics.jsonl`の最後の保存分は9/25終了の別々の窓で、27 SKUのうち25件だけ最新公式窓がcomplete、既知購入数合計0、gross unavailable。SKU 4244556は2026-08-27〜09-25に15 views / 0 purchases / 0 favorites。鮮度が切れているため現在の転換率・収益・定期renewalとはしない。local owner ledgerにはこのSKUへの本文4件とpackage1件のprovider-accepted変更があり、5件すべて`NO_OP / metric_unmeasurable_insufficient_exposure`で終了、`baseline=null` / `observed=null`。変更受理や出品はconversion改善の証拠ではない。最新の4244556 hypothesis行のactive pointerはnull。古い行は当時activeだった別SKU 4330368を指すが、その実験は後にterminal=trueで閉じている。Coconala ownerはこのSKUをlocal `~/gig/private/storefront-bundle/families.json`の`sns_operations`に結び、`storefront_direct.py`で管理する。repoの`skills/gig-work/profile/listings/catalog.json`は別のplatform-agnostic catalogなので、Coconala SKUを直接更新する入力とは扱わない。Freelancer/Upwork用の商品投影は同catalogのplatform-specific fieldsを使う。
 
-TODO順変更（旧案・superseded）: 旧順=一律2 GiB capacity gate → Paid merge → Storefront correction → client loops → economics。PR #7179の新順=`numeric floorを全producerから削除 → merge/release → owner/lock/effect fenceを守ってnatural run → cleanup receiptを診断値として記録 → official settlement/economics`。2 GiB/1 GiB floorのpriority correctionは実行しない。
+**Storefront source状況:** PR #7169でowner priorityをcritical_paidへ変更済み（main merge 4bbcd9082b8a6465cef8c4327e45c2ff5ff109b1）。PR #7179でnumeric free-space admission floorを削除済み（main merge 4346b61cd5e2bd548e1a4352e9354ce65897fb62、required checks 9/9 PASS）。exposure preflight PR #7182は、初回reviewで公式性・complete window・snapshot identity・freshness不足が見つかり、修正後のGig source diffはfresh read-only reviewでSHIP。head 37f467053dのCI 9/9はPASSしたが、その後PR #7179を含むmain 4346b61cd5をlocal mergeしたため、新headのCIを取り直す。新mainのdisk policyはproductionに未反映で、release aba80c99 / Storefront loaded SHA 3981bca3 / Paid loaded SHA 25bee172の現状readbackは後続snapshotに記録する。numeric floorは戻さず、actual ENOSPC・unsafe state・owner lock・effect fenceは別々に扱う。
 
-残りのatomic TODO（完了まで）:
+**現在の実測（2026-10-09 00:55 JST / 2026-10-08 15:55Z）:** `df -k /System/Volumes/Data`は1,379,456 KiB available（約1.31 GiB）。`origin/main=0b9d0f10cea3381af3ffdeef4a36875e489097b0`、`~/loops/current`はrelease `1fe7db3b`、Storefront installed SHAは旧`3981bca3`。最新occurrence `18dc98c45455a248-93881`は`host_admission_deferred:disk_headroom_low` / receiptなし。古いeffect fence `18d8d288748508e8-23902`はcurrent unknown。release-reconcilerは旧SHA `e1b061f1`でPID `33109` running、直近occurrence `18dc97c7aa1d0750-49084`は`entrypoint_exit_1`。`lm-loop doctor --json`はunmanaged `ai.anicca.life-manager-release-reconciler-self-handoff`のため`ok=false`。Gig側からcleanup・restart・effect gate迂回はしていない。
 
-1. [superseded by PR #7179] Storefrontのpriority mismatchとR18の1 GiB exceptionを使った2 GiB/1 GiB admission floor correctionは実行しない。Registry priority、effect fence、owner cadenceは変更不要。
-2. Source rollout: PR #7179のnumeric-floor removalをmain-derived releaseへ反映し、loaded SHA/argvをreadbackする。cleanup `free_after`は回復診断値として記録するが、2 GiB windowを待たずnatural producer occurrenceへ進む。actual `ENOSPC`はそのwrite failureとして記録する。
-3. 既存Coconala有償義務: Paid ownerがR18を含むmain-derived SHAでnatural wakeした後、order 18180857のfresh official talkroom/order readbackを一度取得する。必要な納品だけを行いacceptance/settlement/payout/replay-zeroを読む。stale latest.jsonでbuyer状態を決めない。
-4. Coconala storefront fence: 18d8d288748508e8-23902を正確なofficial listing/profile readbackと照合し、重複ゼロを確認する。service 4244556が現在公開中なのは確認済みだが、old fenceのexact effect readbackではない。pre-effect-reconcile dry-runは13:52Zもno_pre_effect_terminalでunprovable。exact provider readbackまでfence保持、再publish・解除なし。
-5. SKU 4244556のconversion改善: seller-side view/inquiry/unique order/subscription/refund/payout metricsをfresh readbackする。最後に保存された27 SKUの公式analyticsは購入0で、最も見られた4357844は32 views/0 purchaseかつ受付終了。Coconala comparablesの明確な課題・納品物・境界・納期・作例・FAQ・option/継続購入の型を使い、4244556の原文/画像を独自に磨く。今の5,000円/月次repeat/追加媒体optionはfresh cost/conversionで採算を確認後に維持/変更し、fence解決前は変更しない。
-6. Native storefront rollout: Freelancer Servicesのaccount auth・公開inventory・条件を公式readbackし、同じ固定商品をsite format/feeに合わせて掲載する。次にUpwork Project Catalogのaccount/policy gateとcurrent inventoryを確認し、許可された操作だけで掲載する。bot policy gateで自動掲載不可ならdraft/evidenceのみ保存して次へ進む。CrowdWorks/Mercorにnative catalogがあると公式確認できるまで応募型loopのまま。Fiverrはactive registry外なのでloop/credential/effectを新設しない。
-7. Reply: Coconala/CrowdWorks/Mercor/Freelancer/Upworkのfresh actionable buyer messageだけを処理し、exact thread+outbox+receiptをjoinして一度返信。古いeffect_unknownはofficial readbackまで再送しない。
-8. Apply/Negotiation/Paid: Coconala、CrowdWorks、Mercor、Freelancer、Upworkの対応可能案件を現在policy/authorization内で処理し、proposal receipt→buyer reply→funded terms→delivery→acceptance→settlementへつなぐ。Lancersは全面skip、Answers対象外。
-9. Storefront asset economics: listingごとのview/inquiry/unique paid order/repeat/refund/platform fee/payout/actual fulfillment cost/time/netを同一期間で結ぶ。掲載・レビュー・seller累計をrevenueにしない。
-10. 最後 — SelfBuild: 全収益loopとstorefront/productizationを閉じた後に、既定順のself-build/self-healing作業へ戻る。
-10. 最後 — SelfBuild: 全収益loopとstorefront/productizationを閉じた後に、既定順のself-build/self-healing作業へ戻る。
+過去のStorefront fence `hf-gig-storefront-direct:18d8d288748508e8-23902`は`effect_unknown`のまま。`storefront_pre_effect_reconcile.py --dry-run`は`HELD / stdout_runtime_binding_invalid`を返す。9/26のstdoutには厳密なruntime run/occurrence bindingがないため、時刻だけで結ばない。公開SKU 4244556の存在や現在の購入可能状態はこの古いeffectの証明ではない。再送・fence解除は禁止。
 
-現在cursor: PR #7179のnumeric-floor removalをmain-derived immutable releaseへ反映し、owner-idle/lock-freeとeffect fencesを確認してStorefront/Paidを自然実行する。cleanup 2 GiBはreceipt metricのみで、source release後のproducer admission条件にしない。
+**計測ゲートの初回実装（branch `fix/gig-storefront-exposure-preflight-20261009`, commit `072d56517b`, PR #7182 / main未統合）:** `_measurement_feasible`を`_prepare_next_hypothesis`でprovider effect前に再利用し、exposure unknown/minimum未達なら`executable=false`にする。compliance修正とstale offer訂正は露出判定だけを免除し、effect fenceは解除しない。初回検証はfocused tests 92/92だったが、reviewで公式性・期間完全性・identity・鮮度の未検証が判明。
+
+**修正ソースのacceptance（commit `83eb3a39d3`）:** gateは`_collect_analytics`が同一runで公式に読んだservice snapshotsを受け取り、過去`analytics.jsonl`のdedupe行を現時点の鮮度証明に使わない。`official`・正規source URL・completeで有効なwindow・canonical snapshot/content hash・非負integer views・futureを含まない最大3,600秒を検証し、不備はunknownへfail closed。testsで非公式・不完全・不正日付・別source・stale・future・snapshot key不一致を修正前に再現し、同じ値の再読込で履歴を重複appendせずcurrent snapshotだけが新時刻を持つことも確認した。focused Storefront suiteは102/102、`lm-loop-contract`は18 loops/187 jobs/0 errors、source-boundary・`py_compile`・`git diff --check` PASS。remote branchとPR headは`83eb3a39d3bd49cca826e8aa60b077199e56e9dd`で一致。exact-head fresh reviewとrequired CIは保留中。
+
+**残TODO（完了まで、この順）:**
+
+1. **現在cursor — PR #7182 latest-main acceptance:** latest `origin/main=f95409baab20a6beb220898c198d9d52b92e96f6`（#7229 documentation-only capacity evidence）をlocal merge HEAD `d334672ff21edfbcd41c1776728316203ad282a9`まで同期済み。Gig source diffは前回SHIP review以降不変。latest code-equivalent focused tests: Gig `85 passed`, fixture `1 passed`, Line Sticker/R23/R24 `53 passed / 3 subtests`, loop contract `18/188/113/0`, source-boundary/compile/diff-check PASS。#7229はdocs only。current-state SSOTをpushし、f954上のnew-head required CIをPASSさせて#7182をmergeする。
+2. **main-derived release/owner readback:** #7182 merge後、#7179 numeric-floor removalを含むimmutable main releaseを確認する。target owner-idle・apply lock free・effect-fence条件を満たすときだけreconciler/owner経路で反映し、loaded SHA/argv/state/admissionとnatural terminalを確認。数値free-space floorは復活させない。実ENOSPCやunsafe pathは個別原因として直す。
+3. **Coconala Paid obligation:** order 18180857のfresh official order/talkroom readbackをownerのterminal・project lock解放後に取得し、現時点で必要な作業を確定する。未完了scopeがある場合だけ必要なrevision/formal deliveryを一度行い、buyer acceptance・settlement/payout・replay-zeroを結ぶ。stale snapshotでbuyer状態を推測しない。
+4. **旧Storefront effect fence:** occurrence 18d8d288748508e8-23902を同一effectのofficial listing/order historyまたはaccepted occurrence-bound pre-effect proofで照合する。現CLI dry-runはresolved=[] / no_pre_effect_terminal。証拠が揃うまで保持し、再publish/replayしない。
+5. **Coconala SKU 4244556とproductized offer:** seller-side current same-window views/inquiries/unique paid orders/renewals/refunds/fees/payout/actual fulfillment cost/timeを取得する。公開中の競合上位商品から購入決定構造を再取得し、現在inventoryと旧effect fenceを照合した後、重複しない自社offerを一つ選び、fixed scope・納品物・価格package/add-on・納期・購入前入力・自社作例・FAQ・対象外のdraftを完成する。公開前にplatform fee・直接tool cost・実測fulfillment時間を差し引いた単位netが正であることを確かめ、許可されたnative listing routeで公開・official page readbackを得る。旧fenceが未解決の間は同一SKUを変更・再publishしない。露出が測定可能量に足りなければ現在SKUを変えず、十分な窓の後に一度に一変数だけ検証する。unique paid order・settlement・refund/fee/costを同一期間で結び、購入/renewalがない月次optionをMRRに数えない。
+6. **Freelancer Services storefront:** account-bound auth、現在inventory、fee、duplicate、uncertain publish状態を公式readbackする。現catalogにはFreelancer override/storefront ownerが見つからないため、Coconalaで採択した自社fixed-scope offerをplatform-native service packageへ投影し、上位商品の構造を参考にしつつ独自の文面・作例を使う。許可されたpublish routeだけで公開listing・unique order・payout/feeのreceiptを確認する。
+7. **Upwork Project Catalog:** current account/inventory/policyを公式readbackする。未承認bot/scraping/commercial API操作はしない。許可されたnative publish routeが確認できる場合のみCoconalaと共通の自社offerをfixed deliverable/tier/add-onへ投影し、上位カタログの構造を参考にした独自の文面・作例で掲載する。public listing・unique order・payout/feeをreadbackする。不可ならdraft/evidenceのみを保ち、自動出品済みとは扱わない。
+8. **Reply/Apply/Negotiation/Paid:** Coconala/CrowdWorks/Mercor/Freelancer等はfresh actionable workだけをownerごとに処理し、exact proposal/thread/funded terms/delivery/acceptance/settlement receiptを結ぶ。別ownerのleaseやeffect fenceを越えない。Lancers rows25–27はskip、Answers対象外。
+9. **Storefront portfolio economics:** listingごとのunique paid order/repeat/refund/platform fee/payout/actual fulfillment cost/time/netを同一期間で結び、settled net contributionが正で反復できたか判定する。seller totals/reviews/grossは会社売上・利益・MRRにしない。
+10. **最後 — SelfBuild:** 全収益loopとproduct storefrontの上記条件を閉じた後だけself-build/self-healingを再開する。
+
+**現在cursor:** item 1 — latest main `f95409baab`はlocal merge済み。latest owner/effect readbackを04:33節へ追加し、current SSOTをpushしてnew-head CIを通す。Storefront/Paid ownersはcurrent pointerより古いSHA、Storefront effect fenceはheldなので、自然terminal・owner-idle・lock-free・exact proofまでapply/掲載変更しない。
+
+### 2026-10-09 00:28 JST — Storefront収益cursorとexposure review修正
+
+- Daisは、contract workの応募だけでなく、固定範囲の自社Storefrontを最大の持続的収益資産として優先し、成功商品から構造を学んで各platform向けに展開する方針を再確認した。方針をこのSSOTへ統一し、競合の文面・画像・実績表現の複製はしない。
+- mainは`9abbdb9d1cfacd2797b5b02cae5095923be40826`まで進み、branchへ通常mergeした。fresh read-only reviewはPR #7182にfix-firstを返し、`_measurement_feasible`が公式性、完全window、source/snapshot identity、freshnessを検証しないと指摘。古い/非公式な`known`行を数値ゲートに使えてしまうため、まずこの契約をテストで固定する。
+- production readback at 00:28 JST: `df` available 995,108 KiB、current release `1fe7db3b`、Storefront installed `3981bca3`。occurrence `18dc975a3e06d608-77411`はreadback時点でrunning、terminal/provider receiptなし。直前 `18dc972fd44a9328-67254` は`disk_headroom_low`。old fence `18d8d288748508e8-23902`はcurrent unknown。release-reconcilerは旧SHA `e1b061f1` / PID `93880`でrunning、last occurrence `18dc973ea65a6fb0-14256` exit 1。doctor unmanaged labelでnot ok。外部runtime stateは別ownerのままにする。
+
+**現在cursor:** `_measurement_feasible`向けのstale/nonofficial/incomplete/wrong-identity回帰と、同一内容を再読込したfresh current snapshotのhistory-dedupe回帰をRED確認 → `_collect_analytics` current snapshotを渡すofficial fresh complete contractを最小実装 → focused suite・loop contract・source boundary → commit/push → exact-head fresh review/CI → PR #7182 merge → immutable releaseとStorefront自然occurrence/official readback → current fenceを一件ずつ照合 → product storefront economicsとFreelancer/Upworkの許可済み投影へ進む。収益を確認したとはまだ言えない。
+
+### 2026-10-09 00:40 JST — exposure guard local acceptance
+
+- 修正前にstale/nonofficial/incomplete/wrong-source/future/mismatched-keyの誤許可を回帰テストで再現した。さらに、同一内容の再読込では`analytics.jsonl`がsnapshot keyで重複排除し、履歴行の時刻が更新されないことを確認。このため当該runの`_collect_analytics` snapshotをpreflightへ渡し、履歴ledgerは変更せず現在の公式readbackで鮮度を見る。
+- focused Storefront suiteは102/102 PASS。loop contract（18 loops / 187 jobs / 0 errors）、source-boundary、`py_compile`、`git diff --check`もPASS。
+- production readback: `df` available 1,585,240 KiB、current release `1fe7db3b`、Storefront installed SHA `3981bca3`。15:34Z occurrence `18dc97af171c4370-86787`はdisk admission defer、receiptなし。old effect fence `18d8d288748508e8-23902`はunknown。release-reconciler旧SHA `e1b061f1` / PID `33109`はrunningで、15:35Z occurrence `18dc97c7aa1d0750-49084` exit 1。doctorはunmanaged labelで`ok=false`。provider stateは変更していない。
+- source/test/SSOTはcommit `83eb3a39d3`でpush済み。PR #7182 base=`9abbdb9d1c`、head=`83eb3a39d3bd49cca826e8aa60b077199e56e9dd`。現時点でreview結果もrequired CI結果も未着。storefront publicationとsettled revenueは未確認。
+
+**現在cursor:** exact-head fresh review/required CI → PR #7182 merge → immutable release/natural readback。
+
+### 2026-10-09 00:42 JST — reviewerが初回候補選定経路の欠落を検出
+
+- Fresh read-only reviewはFIX-FIRST。`run_once`の初回`_prepare_next_hypothesis`呼び出しがcurrent run snapshotsを渡さず、引数既定値`None`によりdiscretionary candidateが`measurement_exposure_unknown`で止まる。後続のreselection callは渡すが、primary callの欠落を補わない。
+- `test_every_run_once_hypothesis_selection_receives_current_snapshots`を追加して修正前REDを確認。run_once内の3箇所すべてが`analytics.get("_fresh_snapshots")`を渡す契約を固定する。
+
+**現在cursor:** 初回selectorへfresh snapshotsを1引数追加 → 三call-site回帰GREEN → focused suite/contract/source-boundary → commit/push → exact-head fresh review/required CI → PR #7182 merge。
+
+### 2026-10-09 00:45 JST — 初回selector call-site修正
+
+- `_prepare_next_hypothesis`の通常初回呼び出しにも`analytics.get("_fresh_snapshots")`を渡した。追加のAST経路テストは修正前にFAIL、修正後PASSし、3つのrun_once selector callがすべてcurrent snapshotsを渡す。
+- focused Storefront suite 103/103 PASS。`lm-loop-contract`（18 loops / 187 jobs / 0 errors）、source-boundary、`py_compile`、`git diff --check`もPASS。修正はまだ未commit/未push。
+
+**現在cursor:** source/testと本SSOTをcommit/push → exact-head fresh review/required CI → PR #7182 merge → immutable release/natural readback。
+
+### 2026-10-09 00:46 JST — selector fix pushed for final acceptance
+
+- Primary `run_once` selection now passes `_fresh_snapshots`; the AST regression failed before and passed after the one-argument fix. The focused suite is 103/103 PASS; loop contract, source boundary, Python compile, and diff check are also PASS.
+- Commit `b2b1502f3be293b6a1ee0abee38f5f42c5cb607b` is verified on the remote branch and PR #7182. Base remains `9abbdb9d1cfacd2797b5b02cae5095923be40826`. Exact-head Security Scan run `37803437757` is pending, and a fresh read-only reviewer is checking the final head. No merge or production/provider mutation has occurred.
+
+**現在cursor:** wait for exact-head review/required CI → merge #7182 only after PASS → immutable release and natural storefront readback.
+
+### 2026-10-09 00:55 JST — GitHub OSS gate traces to current main
+
+- Review of Gig code head `b2b1502f3be293b6a1ee0abee38f5f42c5cb607b` returned SHIP; latest PR head `ca2c8ae3c14a39b7247c8fe75bba7cdae1d3d8b0` adds only the SSOT cursor update. GitHub run `37803526342` completed with 8/9 checks PASS and only OSS self-contained boundary FAIL: `manifest_inventory_mismatch skills/capafy-autopublish`.
+- The failed job's merge ref parent is current main `0b9d0f10cea3381af3ffdeef4a36875e489097b0`, despite PR API `baseRefOid=9abbdb9d1cfacd2797b5b02cae5095923be40826`. Main includes Capafy PR #7183 / commit `7eda261900`, which changed one file under the declared 245-file absorbed root without updating `docs/manifests/oss-merge-1-sources.json`: declared digest `d211d4e2…`, computed current-main digest `6622435b…`. The same OSS verifier passes on the Gig branch alone. No Capafy files have been edited in this lane.
+- Production remains outside the source lane: disk available 1,379,456 KiB; Storefront installed `3981bca3`, occurrence `18dc98c45455a248-93881` deferred for `disk_headroom_low`, receipt absent; current old fence `18d8d288748508e8-23902` is `effect_unknown`. Release reconciler SHA `e1b061f1` / PID `33109` has `entrypoint_exit_1`; doctor is not ok due the unmanaged label.
+
+**現在cursor:** resolve the main-side OSS manifest mismatch with its owner → sync latest main → rerun required checks on the final PR head → merge #7182 only on PASS.
+
+### 2026-10-09 00:58 JST — latest main synchronized; external CI gate remains
+
+- `origin/main` advanced to `d7d3cbaeaf989b1678efc0e572a7c3b9aece6d76` via #7176. The new changes are outside Gig source; this worktree merged main normally as local merge `5bdcdf0cb339e21676506c225921d72dd6de29c0`, preserving every incoming file. Merge is not yet pushed.
+- On the merged tree, focused Storefront tests are 103/103 PASS; `lm-loop-contract` is 18 catalog loops / 188 registry jobs / 0 errors; `verify-source-boundary.sh` and Python compile PASS. The full OSS checker reproduces only `manifest_inventory_mismatch skills/capafy-autopublish`. This matches GitHub Security Scan #37803526342: 8/9 jobs PASS, with OSS boundary as the only failure.
+- `origin/main` keeps Capafy PR #7183 commit `7eda261900` but its manifest root digest is stale (`d211d4e2…` declared; `6622435b…` measured over 245 files). No Capafy source or manifest file is modified by Gig work.
+
+**現在cursor:** finish current exact-head run readback → push latest-main merge with the updated SSOT → wait for the main manifest correction → sync its commit and rerun required CI → merge only when every required check passes.
+
+### 2026-10-09 01:02 JST — latest-head CI still blocked by main manifest
+
+- PR #7182 currently points to `847eee104dfdacc9f8fe0fdd15196454754ca790` with base `d7d3cbaeaf989b1678efc0e572a7c3b9aece6d76`. Security Scan run `37805283468` has already failed its OSS boundary step; exact error detail is being read after run completion. The earlier run #37803526342 recorded `manifest_inventory_mismatch skills/capafy-autopublish`; local OSS check after merging current main returns the same one violation. Focused tests remain 103/103, and loop contract is 18/188/0.
+- Latest-main merge commit `5bdcdf0cb339e21676506c225921d72dd6de29c0` is local and unpushed. It contains current main changes without Gig source overlap. The Capafy correction remains an external owner action; no Capafy source or manifest edit is in this lane.
+
+**現在cursor:** finish current exact-head run readback → push latest-main merge + updated SSOT → await the Capafy manifest correction → sync corrected main → exact-head CI/review → merge #7182 only after PASS.
+
+### 2026-10-09 01:05 JST — latest-main branch and CI status
+
+- PR branch now contains current main `d7d3cbaeaf989b1678efc0e572a7c3b9aece6d76` via merge `5bdcdf0cb339e21676506c225921d72dd6de29c0`, and SSOT state is pushed. PR #7182 head is `76723e6dcdc4386aad978622289db0456215c153`, base d7d3. Current exact-head Security Scan is pending; the previous run on head `847eee104d` showed the known Capafy manifest mismatch.
+- After latest-main merge, local focused Storefront suite is 103/103 PASS, `lm-loop-contract` is 18/188/0, source-boundary and Python compile PASS. The local OSS checker returns only the Capafy inventory mismatch; GitHub source review remains SHIP for the unchanged Gig code head `b2b1502f3b`.
+- No Capafy files or production/provider state were edited. Storefront remains on SHA `3981bca3` with the old effect fence and disk admission defer; no settled storefront sale is confirmed.
+
+**現在cursor:** wait for main-side Capafy manifest correction → sync its main commit → final exact-head CI/review → merge #7182 only after all required gates PASS.
+
+### 2026-10-09 01:06 JST — Gig最新main同期済み、外部CI gateが残る
+
+- PR #7182のheadは`853ac54d8b48dc3509a1a92025d7187adfd906b0`、baseは`d7d3cbaeaf989b1678efc0e572a7c3b9aece6d76`。Security Scan run `37806118330`はpending。branchにはmerge `5bdcdf0cb339e21676506c225921d72dd6de29c0`でlatest mainと本SSOT更新が入っている。
+- 変更のないGig code head `b2b1502f3b`はfresh reviewでSHIP。latest-main同期後のfocused testsは103/103 PASS、loop contractは18/188/0、source-boundaryとcompileもPASS。local OSS checkerはCapafy root digest mismatchだけを返す。
+- Capafy source/manifestとprovider stateは変更していない。Storefrontは旧SHA `3981bca3`でdisk admission defer、過去effect fenceはunknown、settled salesは未確認。
+
+**現在cursor:** Capafyのmain-side manifest修正 → そのcommitを同期 → exact-head CI/review → 全PASS後にPR #7182をmerge。
+
+
+### 2026-10-09 01:10 JST — main manifest correction merged
+
+- PR #7185 merged to main `1136b703c45fec29f8535170f72d13e28c168321`; its Capafy manifest refresh changed the declared inventory to `e8c47678…`. The same Security Scan run `37805257432` passed the OSS self-contained boundary and all other listed jobs.
+- This Gig worktree merged latest main as `4fbac0ff9d613e3a251da556a6ca88b00c46531f`. On that tree, `node scripts/verify-oss-self-contained.mjs --json` returns `ok=true`; focused Storefront suite is 103/103, loop contract 18/188/0, source-boundary and compile pass. No Capafy source was changed.
+- PR #7182 still needs the latest-main merge and this SSOT state pushed, then final exact-head review/required CI. Production Storefront remains installed at `3981bca3` with disk admission defer and an unresolved historical effect fence; no settled storefront sale is confirmed.
+
+**現在cursor:** push `4fbac0ff9d` + this SSOT → exact-head read-only review/required CI → merge #7182 on PASS → main-derived release/natural Storefront readback.
+
+
+
+### 2026-10-09 01:12 JST — final source review SHIP; CI pending
+
+- fresh contextのread-only reviewerはGig code head `8d685fe8c3fe3d15e8b8ad70bfc45936b0d652a2`をSHIPと判定。`run_once`の3つの`_prepare_next_hypothesis`と`_close_outcome`はすべて同run snapshotsを受け取り、unknown/stale/nonofficial analyticsはfail-closed。effect fenceの実装変更なし。review担当はテスト/provider/browserを実行していない。
+- latest-main merge後のlocal focused suiteは103/103 PASS、loop contractは18/188/0、main `1136b703c4`上のOSS checker・source-boundary・compileもPASS。PR #7182のfinal-head Security Scan run `37806800815`はpending。PR #7185の修正でbase側のmanifest mismatchは解消した。
+
+**現在cursor:** PR final-headのrequired CIを確認 → PASS後に#7182をmerge → main由来releaseとStorefrontの自然readback。
+
+
+### 2026-10-09 01:20 JST — 最終CI中のproduction再readback
+
+- 16:20Z時点の`df -k /System/Volumes/Data`は1,073,248 KiB空き。`~/loops/current`はrelease `d7d3cbaeaf`だが、`hf-gig-storefront-direct`は旧SHA `3981bca3`をloaded中。occurrence `18dc9a1b08446f80-11742`は`host_admission_deferred:disk_headroom_low`、provider receiptなし。effect fence `18d8d288748508e8-23902`はcurrent `effect_unknown`のまま。
+- `life-manager-release-reconciler`は旧SHA `e1b061f1`、PID `20087`で稼働中。最新occurrence `18dc9a2588c0f7f0-36473`はexit 1。`lm-loop doctor --json`はunmanaged label `ai.anicca.life-manager-release-reconciler-self-handoff`のためnot ok。production/provider stateは変更していない。
+- local Gig focused suiteは103/103、contract/source checksもPASS。source head `8d685fe8c3`のfresh reviewはSHIP。PR head `62821ca878`のSecurity Scan run `37807003724`は8 checksがgreenで、`Loop control contracts`だけ実行中。このSSOT更新でPR headが変わるため、new exact-head CIもPASSが必要。
+
+**現在cursor:** local main merge `d3dc02ce67` + T7 SSOTをpush → current PR exact-head CI/review PASS → #7182 merge → immutable release/natural Storefront readback。
+
+### 2026-10-09 01:26 JST — exact-head Security Scan passed
+
+- PR #7182のhead `62821ca878`はmain `1136b703c4`をbaseとする。Security Scan run `37807003724`はLoop control contracts、OSS boundary、Python/unittest、secret scanを含む9 jobsすべてSUCCESS。fresh read-only reviewerはGig code head `8d685fe8c3`をSHIPと判定。
+- このT7状況更新でPR headが変わるため、merge前に新headのrequired CIをもう一度PASSさせる。source acceptanceは完了しているが、production Storefrontは旧SHA/effect fenceのままで、settled sale receiptはない。
+
+**現在cursor:** このSSOT状況更新をpush → 新headのrequired CIをPASS → #7182をmerge → production releaseと自然readback。
+
+
+### 2026-10-09 01:34 JST — exact-head acceptance complete
+
+- PR #7182 head `296828eb37537dde5f68eff7d02bae6fca8de76a`、base main `1136b703c45fec29f8535170f72d13e28c168321`はmergeable。Security Scan run `37808959321`は9 jobsすべてSUCCESS、CodeRabbitもSUCCESS。変更のないGig source diffはfresh read-only reviewでSHIP。
+- local focused Storefront suiteは103/103 PASS。local loop contract 18/188/0、source-boundary、main `1136b703c4`上のOSS checker、compileもPASS。次はPRを通常mergeし、main由来releaseと自然readbackを確認する。
+- production readbackはsource acceptanceと別：最新release `d7d3cbaeaf`、Storefront loaded SHA `3981bca3`、disk admission deferと古い`effect_unknown` fenceが継続。Storefrontの精算済み売上は確認できていない。
+
+**現在cursor:** PR #7182をmerge → main由来immutable releaseとStorefront自然occurrenceを確認 → 古いfenceを再送なしで一件ずつ照合 → Coconala economics完了後にFreelancer/Upwork storefrontへ進む。
+
+
+### 2026-10-09 01:40 JST — agent-runner manifest修正はPR #7192で進行中（当時）
+
+- main `1b0f7d9523282f45c6974d04a111dc0fc0380837`でPR #7182のOSS checkは`manifest_hash_mismatch runtime/agent-runner/config.json`。manifest宣言`2eb171de…`に対しmain fileの実hashは`501cfcef…`。原因はGig差分でなく、merge済みagent-runner PR #7191のmanifest追随漏れ。
+- owner PR #7192（branch `docs/lm-marketing-runtime-audit-20261009`、head `afdb5a37d9d30b6cbfa149621ced49fa23ad267e`）がmanifest digestを`501cfcef…`へ更新し、OSS checkはPASS。Loop control contractsとTruffleHogはreadback時点で進行中。Gig worktreeではagent-runner/manifestを編集していない。
+- production Storefrontはloaded SHA `3981bca3`。16:20Zの空きは1,073,248 KiB、latest occurrence `18dc9a1b08446f80-11742`は`disk_headroom_low`、旧effect fence `18d8d288748508e8-23902`はunknown。release reconciler SHA `e1b061f1`はexit 1、doctor not ok。精算済み販売receiptは未確認。
+
+**現在cursor:** local main merge `d3dc02ce67` + T7 SSOTをpush → current PR exact-head CI/review PASS → #7182 merge → immutable release/natural Storefront readback。
+
+
+### 2026-10-09 01:46 JST — agent-runner manifest修正がmainへmerge
+
+- PR #7192は16:44:46Zにmain commit `ba39c13aeb11131b30ec32f2ddaad4f0945b5025`としてmergeされた。`docs/manifests/oss-merge-1-sources.json`のagent-runner digestを`runtime/agent-runner/config.json`に合わせ、OSS boundaryとLoop control contractsを含むrequired Security ScanがすべてPASS。
+- Gig worktreeは`8f0d7dc5dd2da58797c0458234021ea9e4d314ee`時点でba39未同期、本SSOT更新が未commitだった。Gig laneではagent-runner/manifestを編集していない。修正ownerが既にmerge済みのためAGMSG送信は行っていない。
+
+**現在cursor:** このSSOT更新をcommit/push → main `ba39c13aeb`を同期 → local checksとexact-head CI/review → PASS後にPR #7182をmerge。
+
+
+### 2026-10-09 01:48 JST — agent-runner manifest修正をlocal同期
+
+- PR #7192はmain commit `ba39c13aeb11131b30ec32f2ddaad4f0945b5025`としてmergeされ、`runtime/agent-runner/config.json`のinventory metadataが修正された。Gig worktreeへ通常mergeしてlocal commit `d3dc02ce67617a92963be833a7e4f82f47a0da24`となった。mergeは未push。統合済みtreeのlocal OSS checkerはPASS。
+- merge後のfocused Storefront suiteは103/103 PASS、`lm-loop-contract`は18 loops / 188 registry jobs / 0 errors、source-boundaryとcompileもPASS。source reviewは変更のないGig codeに対してSHIPのまま。
+- Remote PR #7182は旧head `1798649720`、古いbase view `1b0f7d95`のまま。latest-main mergeとSSOTをpushして最終head/baseを揃えた後、exact-head CIをPASSさせてmergeする。
+
+**現在cursor:** `d3dc02ce` + T7 SSOTをpush → exact-head CI/review → PASS後にPR #7182をmerge → main由来releaseとStorefront自然readback。
+
+
+### 2026-10-09 03:02 JST — storefront, latest-main fixture, and runtime state
+
+- **Market evidence:** Coconala 1275969 shows service sales 1,022 / ratings 800 / favorites 2,541, sold out with 20 waiters and actual delivery about 113 days; 2634948 shows service sales 399 / ratings 217 / favorites 1,174, sold out with 30 waiters and actual delivery about 52 days. 1991922 has no service-specific sales count on its current page: 69 is ratings, seller total is 1,098. These public counters are not settlement/profit. SKU 4244556 remains public at ¥5,000, 5 slots / 0 waiters / 2 favorites; its last saved official analytics window ended 2026-09-25 at 15 views / 0 purchase / 0 favorites, so current conversion is unknown.
+- **Main/R22:** latest main ee25a79475 includes PR #7202's Postiz historical no-dispatch design and Line Sticker adapter. That provider-bound Postiz proof is not Coconala listing evidence and does not resolve Storefront fence 18d8d288748508e8-23902.
+- **Required-CI failure and minimal correction:** run 37820073331 on branch head b5e failed only test_production_render_matches_byte_stable_fixture: PR #7202 added effect_reconcile to the line-sticker registry row but its byte-stable macOS fixture was stale. The failure reproduced locally; the fixture was regenerated with the canonical render_job_models(config/loop-registry.json), and that exact test passes 1/1. No Gig runtime behavior changed for this correction. After ee25 integration, loop contract is 18 loops / 188 registry jobs / 0 errors; line-sticker fence test 4/4; OSS/source-boundary/compile pass. Focused Gig/storefront+disk tests 121/121 and runtime disk/resource tests 153/153 were PASS after the previous main integration.
+- **Production readback (2026-10-08 18:02Z):** current RELEASE.json is ee25a794751917116f6558e2cde798dcd5c5b5a2, cut 17:56:57Z. Storefront remains loaded on 3981bca3; occurrence 18dc9fbe091668e8-56668 exited 75 at disk admission, provider receipt null, and old fence 18d8d288748508e8-23902 remains claimed with stdout_runtime_binding_invalid / official_readback_required. Paid remains loaded on 25bee172; last status is resource_capacity_busy with no provider receipt. Release reconciler is still on e1b061f1; doctor remains not ok due unmanaged label ai.anicca.life-manager-release-reconciler-self-handoff. Available disk is 978,872 KiB; numeric free-space is diagnostic, not the producer gate. Browser owner hf-gig-browser is running; its shared-profile lease was not checked and no manual attach/provider action was performed.
+- No Coconala SKU-level settled sale, payout, buyer acceptance, or fresh analytics receipt is confirmed.
+
+**順序更新:** 旧cursor=PR #7182 head b5e CI/review PASS → merge。最新main ee25ではCIがbyte-stable fixture不一致で失敗したため、新cursor=fixture correction + latest-main SSOT/source integration → push → exact-head required CI + fresh review → merge #7182 → owner-idle/lock-free/effect-safeなmain-derived release readback → Coconala Paid official order/talkroom readback → Coconala old effect fenceのexact official reconciliation → current SKU same-window metrics/exposure → Freelancer Services → Upwork policy gate → Reply/Apply/Negotiation/Paid → settled listing net → SelfBuild last。R22/Postiz no-dispatch proofをCoconalaへ流用しない。
+
+**現在cursor:** fixture correctionとこのSSOT更新をpushし、新head CI/reviewをPASSさせる。その後PR #7182をmergeし、release ee25がowner-loadedになるのを確認してから、Coconala Paid/Storefrontのofficial readbackを進める。old effect fenceはofficial bindingまで保持する。
+
+
+### 2026-10-09 03:15 JST — Gig latest-main acceptance and live owner readback
+
+- `origin/main=d3d0896616aacc0f5b173c2a04608b0f5486cbe9`（#7205/#7207を含む）をGig branchへlocal mergeし、merge HEADは`94476f33e2fa55b285a44cc95d877ee3c737ec51`。PR #7182 remote headは`691faaca1cd6498cd536970b6f8245a7f9c82b81`のまま、GitHubに記録されたbaseは`ee25a794751917116f6558e2cde798dcd5c5b5a2`。この同期後headのCI/reviewはまだない。#7205のPostiz proofはprovider固有で、Coconala listing fenceを閉じない。
+- local verification: Storefront direct/compliance/fence `81 passed`; canonical macOS byte-stable render fixture `1 passed`; Line Sticker title regression `19 passed`; `lm-loop-contract`は18 loops / 188 jobs / 113 mapped / 0 errors; source-boundary PASS。誤ったtest filenameを指定した1回はテスト未実行のため、正しいtest pathで再実行して合格を確認した。
+- **Natural release readback (18:15:12Z):** `~/loops/current`は`20261009T030940-d3d08966`、`RELEASE.json.sha=d3d0896616aacc0f5b173c2a04608b0f5486cbe9`、cut=`2026-10-08T18:10:12Z`。StorefrontはPID `84510`でloaded-runningだがinstalled SHAは旧`3981bca3`; occurrence `18dca06871ad1be0-83538`は`host_admission_deferred:disk_headroom_low` / receiptなし。old fence `18d8d288748508e8-23902`はeffect unknownのまま。`pre-effect-reconcile --dry-run`は`resolved=[]` / `no_pre_effect_terminal`。
+- Paid ownerはPID `85042`でloaded-running / installed SHA `25bee172`; occurrence `18dc9de57e146828-74344`はexit 0 / passだが`effect=not_applicable`、provider receipt/readbackなし。release reconcilerはPID `97187`で旧SHA `e1b061f1`のloaded-running。`df -Pk /` available=`544928 KiB`。main #7179のnumeric producer floor除去はsourceにはあるが、Storefrontは旧SHAのため新挙動をまだ示していない。稼働ownerへ手動apply/restartせず自然遷移を待つ。
+- このreadbackまでにlistingの文面・価格・画像変更、publish、再送、fence解放は行っていない。SKU別のfresh order、settlement、payout、positive net contributionも未確認。現在の売上を主張しない。
+
+### 2026-10-09 03:20 JST — exact-head review found two Storefront measurement bugs
+
+- Fresh read-only review of pushed PR #7182 head `c88f81354be2e3e7e04028bdcbe7cbb23f24a8ec` returned `FIX-FIRST`. Reviewer requested `gpt-6.1-sol / medium`; the collaboration result did not expose realized model/effort metadata, so realization remains unverified. No provider/browser/runtime effect occurred.
+- **P1 — candidate identity:** if `_prepare_next_hypothesis` falls through backlog rows to `_scorecard_gap_candidate`, it does not reset the local `service_id` to the returned candidate. The measurement gate can use the last skipped backlog service's views, or reference an unbound ID when backlog is empty. Reviewer reproduced a gap for service `90000006` being evaluated with service `90000005` analytics. Fix by passing the selected candidate's service ID and add a RED regression for the fallback path.
+- **P2 — analytics window:** the gate checks date order/future bounds but not that a complete official window is the current 30-calendar-day period. Reviewer reproduced an old `2020/01/01–2020/01/02` range with a fresh observation timestamp being accepted as 300 current 30-day views. Historical local official analytics readback contains 1,796 windows with endpoint difference 29 days and observed-local-date minus end-date of 0 or 1 day; use an inclusive 30-day range and at most one calendar day lag as the observed format, while keeping the independent 3,600-second read-freshness check.
+- c88f8135 Security Scan run `37823221911` was still in progress at this read; a fix commit will supersede its head. Fresh runtime status at 18:18:48Z: current release remains `d3d08966`; Storefront PID `91852` / SHA `3981bca3` / occurrence `18dca092d82e67a0-84510` again defers `host_admission_deferred:disk_headroom_low` with no receipt, and old effect fence `18d8d288748508e8-23902` remains held. Paid is loaded-idle on old SHA `25bee172`; occurrence `18dca0935b36ea28-85042` also deferred for disk with no receipt. No sale, payout, listing change, retry, or fence resolution is verified.
+
+### 2026-10-09 03:25 JST — latest-main review fix verified locally
+
+- `origin/main=928855186dcd0dc512636e7b59407fbbd02071ac`（PR #7206を含む。release `e9216edc47`には#7208を含む）をGig branchへmergeし、local merge HEAD=`f93b43baa1cb099b13c68d71064c19c79c28d03a`。remote PR #7182 headはまだ`c88f81354be2e3e7e04028bdcbe7cbb23f24a8ec`で、このlatest-main+fix treeは未push。
+- c88 reviewの2 findingをtest-firstで再現: candidate-gap fallbackは空backlogで`UnboundLocalError`、別backlog IDでは誤ったviewsを選ぶ。古い30日windowと31暦日windowもfresh snapshotとして通る。修正では選択済みcandidateのIDを直接計測し、complete windowがinclusive 30日、終端が観測日当日または前日、snapshot自体が3,600秒以内であることを別々に検査する。
+- 統合tree検証: review回帰4/4 PASS、Storefront direct/compliance/fence `85 passed`、loop contract `18 loops / 188 jobs / 113 mapped / 0 errors`、`py_compile`・`git diff --check`・source-boundary PASS。Historical local official analytics 1,796行はwindow開始/終端差29日、観測日と終端の差0–1日だが、これは現在のSKU売上/購入/settlement証拠ではない。
+- **Production readback (18:22:57Z):** `~/loops/current`は`e9216edc47`。Storefront PID `10606` / loaded SHA `3981bca3`、occurrence `18dca0bea6cbeaf8-91852`は`host_admission_deferred:disk_headroom_low` / receiptなし。旧fence `18d8d288748508e8-23902`はheldで、dry-runは`resolved=[]` / `no_pre_effect_terminal`。Paidはloaded-idle / SHA `25bee172`、occurrence `18dca0d7c99189d0-66214`もdisk admission defer / receiptなし。`df` available=`238240 KiB`。Listing edit/publish/replay/payoutは行っていない。
+- PR remote head c88のCI resultは新headへ適用しない。次はこのlatest-main+fix+SSOT treeをcommit/pushし、新head CI/fresh reviewを通す。その後のみsource merge → release/owner readback → Paid obligation → exact Storefront fence proof → Coconala productized offer → Freelancer → Upwork → contract-work receipt/economics → SelfBuild last。
+
+### 2026-10-09 03:34 JST — storefront examples refreshed; latest-main test integration
+
+- Official Coconala public pages refreshed via `crwl`: service 1275969 shows 1,022 service sales / 800 ratings / 2,541 favorites, 20 waiting, approx 113-day actual delivery; seller lifetime total 2,727 is separate. Service 2634948 shows 399 service sales / 217 ratings / 1,174 favorites, 30 waiting, approx 52-day actual delivery; its seller/team total is 1,255. Service 1991922 shows 69 ratings / 189 favorites / 5 open slots / 0 waiting and seller total 1,098, but no service-specific sales count is displayed; it offers a fixed three-step data flow with add-on boundaries and 7-day target / about 15-day actual delivery. Treat page counters as demand signals, never our revenue or competitor settlement.
+- Own SKU 4244556 currently opens a public purchase page at ¥5,000 for one-medium workflow/checklist documentation, with +¥5,000 additional-medium option and recurring purchase 10% discount after month one; 5 slots / 0 waiting / 2 favorites. Displayed seller total 26 is not SKU sales. Public availability is confirmed; current SKU purchases, payout, net, and fresh seller analytics remain unknown.
+- Latest `origin/main=f3e019f95d` includes R23's time-rotating fence owner start. On this merged tree, `runtime/loop/tests/test_fence_reconcile.py::ReconcileTest::test_cap_and_round_robin_respected_across_owners` fails because it relies on wall-clock `wake_epoch` but asserts a fixed alphabetical first owner. Isolated rerun reproduces the same mismatch (`owner-b, owner-a, owner-b` vs expected `owner-a, owner-b, owner-a`). The minimal correction is to pin `wake_epoch=0` in that test; production round-robin code stays unchanged.
+- **Current cursor:** apply the test-only R23 clock fixture correction, rerun R23 + Line Sticker + Gig focused suites, update this same SSOT cursor, then commit/push on top of `f3e019f95d` → exact-head required CI + fresh read-only review → merge #7182. Storefront/Paid owners remain old-sha/admission blocked, and the old Storefront fence remains held; listing, sale, or payout is not verified.
+
+### 2026-10-09 03:36 JST — latest-main test fixture and fresh storefront status
+
+- The R23 control-contract failure was isolated to an old test relying on the default wall clock after #7214 made the start owner rotate every 10-minute wake. `test_cap_and_round_robin_respected_across_owners` now supplies `wake_epoch=0.0`; no reconciler production behavior changed. Post-fix R23 + Line Sticker tests pass (`47 passed, 3 subtests`), and Gig Storefront direct/compliance/fence pass `85/85`.
+- Fresh official Coconala product-page GETs at 18:33Z: own service 4244556 is publicly purchasable at ¥5,000 for a one-medium workflow/checklist handoff, with +¥5,000 second-medium option and month-two 10% recurring discount; the page shows 5 slots/0 waiting/2 favorites. Seller lifetime 26 is not SKU sales. No SKU-specific order or settlement evidence appears on the public page. Top examples remain 1275969 (1,022 service sales, 800 ratings, 2,541 favorites, 20 waiting, ~113-day actual delivery) and 2634948 (399 service sales, 217 ratings, 1,174 favorites, 30 waiting, ~52-day actual delivery); 1991922 shows 69 ratings and seller total 1,098 but no service-specific sales count. These structure/demand signals are not our revenue.
+- Production readback at 18:36:07Z: current release pointer `20261009T033059-f3e019f9`. Storefront PID `17401` remains loaded on old SHA `3981bca3`; occurrence `18dca18cafdbba28-30540` deferred `host_admission_deferred:disk_headroom_low` with no provider receipt. Old fence `18d8d288748508e8-23902` remains held; pre-effect dry-run is `resolved=[] / no_pre_effect_terminal`. Paid is loaded-idle on old SHA `25bee172`; occurrence `18dca1aaeae7a280-93817` deferred `host_admission_deferred:resource_fifo_wait` with no receipt. Release reconciler PID `92776` is still on old SHA `e1b061f1`, last event `entrypoint_exit_1`. Available disk is `1,204,956 KiB`. No listing edit, new publish, retry, delivery, settled sale, or payout is confirmed.
+- **Current cursor:** commit/push the latest-main branch with the one-line deterministic R23 test fixture and this SSOT; then pass new-head required CI + fresh review → merge #7182 → natural release/owner status → existing Coconala Paid readback → exact old Storefront fence proof. The public page being purchasable does not release that fence or prove revenue.
+
+### 2026-10-09 03:45 JST — R24 latest-main sync, focused acceptance, and owner state
+
+- latest `origin/main=1f5f016526edea5d279668f0662518d6ab2e8c99` (#7215/#7216) is merged locally at `2610beea7f6e8408cf208a246ad69088fd3a734e`. Remote #7182 head remains `c0174ab61353b1e1a3d5a28370f1a5fe518a4658`, base still displays the prior `f3e019f95d`; local latest-main+PR tree is not yet pushed. The new exact-head CI/review has not run.
+- Focused local acceptance after R24: Gig Storefront direct/compliance/fence `85 passed`; fence reconciler + Line Sticker title `49 passed / 3 subtests`; loop contract `18 loops / 188 jobs / 113 mapped / 0 errors`; `py_compile`, source-boundary and diff-check PASS. R23 default-start regression is deterministic with test-only `wake_epoch=0`; R23/R24 production code from main is untouched.
+- **Production readback (18:45:13Z):** current release pointer `20261009T033943-6c7b83ee`, `RELEASE.json.sha=6c7b83ee1c6317f1e34bcdb6d9303cb79c23a098`, cut `18:40:08Z`. Storefront is `loaded-idle` on old SHA `3981bca3`; occurrence `18dca20ce030b310-688` is `host_admission_deferred:disk_headroom_low`, no receipt. Old occurrence fence `18d8d288748508e8-23902` remains unknown; dry-run is `resolved=[] / no_pre_effect_terminal`. Paid is `loaded-running` on old SHA `25bee172`; occurrence `18dca1aaeae7a280-93817` is `host_admission_deferred:resource_fifo_wait`, no receipt. Release reconciler is `loaded-idle` on old SHA `e1b061f1`; latest occurrence `18dca209ac91c718-92872` passed, but owner migration is not proven. Available disk is `583520 KiB`.
+- Current Coconala SKU 4244556 is publicly buyable at ¥5,000, with one-medium workflow documentation/checklist and a +¥5,000 second-medium option. Seller total 26 and public availability are not SKU orders. No unique paid order, settlement, payout, or positive net contribution is proven; no listing edits, publishes, replays, or fence resolution occurred.
+- **Current cursor:** commit/push latest-main+R23 fixture+SSOT, run exact-head CI/fresh review, merge #7182; then natural release/owner readback → existing Paid order → exact Storefront fence readback → one fixed-scope productized offer → Freelancer/Upwork gates → same-period economics → SelfBuild last.
+
+### 2026-10-09 03:53 JST — R25 main sync and natural storefront readback
+
+- `origin/main=e75c7f7a4af84b4386ccc5b40dc14837f5986ced` (#7217 R25: Postiz key fallback) is merged locally at HEAD `aee126b5af39b97d57e2ecca5a700f7d6b9eefa8`; R25 does not touch Gig code. Remote PR #7182 is still head `d27b8d4d7c6b0181a95ce94c23b6bca8917a44c7` / base `1f5f016526edea5d279668f0662518d6ab2e8c99`; this latest merge and the current-state cursor are not pushed yet.
+- Local focused checks on the code-equivalent 1f tree remain green: Gig `85 passed`; R23/R24 + Line Sticker `49 passed / 3 subtests`; loop contract `18/188/113/0`; compile/boundary/diff-check PASS. The R25 diff is a separate Postiz provider change.
+- **Production readback (18:53:01Z):** current release pointer `20261009T034745-e75c7f7a`, `RELEASE.json.sha=e75c7f7a4af84b4386ccc5b40dc14837f5986ced`, cut `18:48:14Z`. Storefront is loaded-idle on `6c7b83ee` (older R24 release), occurrence `18dca2a04fd91a70-33019` has `effect=unknown` / `resource_effect_unknown`, no provider receipt; old fence `18d8d288748508e8-23902` remains held. Dry-run still returns `resolved=[] / no_pre_effect_terminal`. Paid is loaded-running on old SHA `25bee172`; latest occurrence `18dca1aaeae7a280-93817` is `resource_fifo_wait`, no receipt. Release reconciler is loaded-running on old `e1b061f1`, latest occurrence `18dca209ac91c718-92872` passed but has not converged target owners. Available disk is `904732 KiB`.
+- No listing change, publish, retry, delivery, settled SKU sale, payout, or positive net is verified. The public page of 4244556 is buyable, but that does not resolve the old effect or prove sales.
+
+### 2026-10-09 03:55 JST — local focused acceptance on R25 main
+
+- After merge of `origin/main=e75c7f7a4af84b4386ccc5b40dc14837f5986ced` (#7217 Postiz-only), local focused acceptance is `85` Gig tests passed, `49` R23/R24 + Line Sticker tests passed with `3` subtests, `lm-loop-contract=18/188/113/0`, source-boundary/compile/diff-check PASS. The current Gig source diff is unchanged from the fresh `SHIP` review on c017; R25 affects only Postiz.
+- Remote PR #7182 is still `d27b8d4d7c6b0181a95ce94c23b6bca8917a44c7` based on `1f5f016526...`; the e75 sync plus current-state SSOT are local and will create the next PR head. Do not reuse d27 checks as the e75-head gate.
+- **Next:** commit/push the e75 merge + SSOT update → pass exact-head CI → merge #7182 → follow existing owner/effect fence order. The 18:53Z runtime readback in the preceding note remains the current verified provider/owner evidence.
+
+### 2026-10-09 04:04 JST — latest-main fixture repair and current Gig owner state
+
+- `origin/main=1512b16759474aa2f094585d946845182e7aac75` (R25 + #7218 + #7194 docs) is merged locally at HEAD `4208f1aa004c7b85a8d52931682aea31a7d40e14`. #7218 added a readback reconciler registry row without refreshing the byte-stable launchd fixture; the mismatch reproduced, then the canonical `render_job_models` output was written. Fixture test passes `1/1`; Line Sticker + R23/R24 tests pass `53/53 + 3 subtests`; loop contract `18/188/113/0`, compile, source-boundary, diff-check PASS. Gig source/test files have not changed since the last `85 passed` Storefront suite on e75-equivalent code.
+- Remote PR #7182 is still head `b6a8d35adac61be8996d785e1912636bd49e3178` on base e75; this main+fixture+SSOT tree is not pushed. Reuse the fresh `SHIP` review because the Gig source diff is unchanged; exact-head CI still must pass.
+- **Production readback (19:03:59Z):** current release pointer `20261009T034745-e75c7f7a`, SHA `e75c7f7a4af84b4386ccc5b40dc14837f5986ced`, cut `18:48:14Z`. Storefront is loaded-running on older SHA `6c7b83ee`; occurrence `18dca32f3e6848f8-36477` ends `effect=unknown` / `resource_effect_unknown`, provider receipt absent. Old fence `18d8d288748508e8-23902` remains held; dry-run says `resolved=[] / no_pre_effect_terminal`. Paid is loaded-running on old SHA `25bee172`; occurrence `18dca1aaeae7a280-93817` is `resource_fifo_wait` with no provider receipt. Release reconciler remains old SHA `e1b061f1`, loaded-running, last terminal pass. `df` available=`278592 KiB`.
+- The refreshed public Coconala page shows SKU 4244556 is buyable, but has no SKU sale/settlement/payout evidence. Do not edit or republish it; visible purchase button does not resolve its old effect fence. No order, payout, or positive net contribution is verified.
+- **Current cursor:** commit/push main+fixture+SSOT → new-head CI pass → merge #7182 → let release/owners progress naturally → re-read Paid obligation → resolve Storefront's exact fence by official evidence → build and validate one fixed-scope Coconala offer → Freelancer/Upwork → portfolio settlement economics → SelfBuild last.
+
+### 2026-10-09 04:15 JST — R26 latest-main sync and current production evidence
+
+- Latest `origin/main=8d986ff49817ca7bab939efe8ff5cfe2fb6c0044` (R26 and #7220–#7222) is merged locally at `a4c13d62f1c7f6cfeeb84667406c6d5b1a8018b8`. R26 withdrew the time-window Postiz historical no-dispatch sweep after it closed fences on an unsound proof. That proof is Postiz-specific and is not used for Coconala's effect fence. Local focused acceptance is Gig `85 passed`, byte-stable fixture `1 passed`, Line Sticker/R23/R24 `53 passed / 3 subtests`, loop contract `18/188/113/0`, compile/boundary/diff-check PASS. Gig source diff remains unchanged from the fresh `SHIP` review.
+- Remote PR #7182 head remains `99a5fde07778bd3f1e9552a8ccd96d862bf7ff5c`, based before this latest main. The current R26 sync and updated SSOT are not pushed; run exact-head CI after pushing.
+- **Production readback (19:14:10Z):** `~/loops/current` is `20261009T041337-8d986ff4`, SHA `8d986ff49817ca7bab939efe8ff5cfe2fb6c0044`, cut `19:14:09Z`. Storefront is loaded-idle on older SHA `6c7b83ee`; occurrence `18dca3bd46015a58-97184` is `effect=unknown` / `resource_effect_unknown`, provider receipt absent. Old fence `18d8d288748508e8-23902` is still held; dry-run remains `resolved=[] / no_pre_effect_terminal`. Paid is loaded-idle on older SHA `25bee172`; occurrence `18dca3da55878a98-63660` deferred `host_admission_deferred:disk_headroom_low` with no receipt. Release reconciler is loaded-running on old SHA `e1b061f1`; latest occurrence `18dca3935678c0a8-11622` passed but target migration is unverified. Available disk is `1,063,452 KiB`.
+- The public page for SKU 4244556 is buyable, but no SKU-specific paid order, payout, or settled net evidence exists. No listing edits, new publishes, retries, deliveries, or fence resolution were performed.
+- **Current cursor:** commit/push latest-main+SSOT → new-head CI → merge #7182 → natural owner migration/readback → exact Paid obligation readback → official Storefront fence proof → measurement and one repeatable fixed-scope Coconala offer → Freelancer → Upwork → settled net economics → SelfBuild last.
+
+### 2026-10-09 04:17 JST — documentation-only main sync
+
+- `origin/main=af19c008c033e8b603d602f0dbacfe936e0c3dae` includes PR #7224, a Line Sticker evidence note with no source change. The Gig branch merge HEAD is `22ab7423dce6ab8d7bf126fc74d076fba50c9695`; the Gig production diff is unchanged from the prior `SHIP` review. Local focused tests and source acceptance remain green.
+- **Fresh production readback (19:17:05Z):** current pointer `20261009T041542-8d986ff4`, SHA `8d986ff49817ca7bab939efe8ff5cfe2fb6c0044`, cut `19:16:09Z`. Storefront is loaded-idle on older SHA `6c7b83ee`; occurrence `18dca3eb79a7fff0-5668` is `effect=unknown` / `resource_effect_unknown`, no provider receipt; old fence `18d8d288748508e8-23902` remains held and dry-run is `resolved=[] / no_pre_effect_terminal`. Paid is loaded-running on old SHA `25bee172`; occurrence `18dca3da55878a98-63660` is `resource_capacity_busy`, no receipt. Release reconciler remains running on `e1b061f1`, latest pass occurrence `18dca3935678c0a8-11622`. Available disk is `823484 KiB`. No storefront edit, publish, retry, order or payout is proven.
+- The next step is to commit/push this cursor update and require exact-head CI on af19; after source merge, wait for the natural main release/owner handoff before the paid obligation and exact Storefront fence readback.
+
+### 2026-10-09 04:26 JST — latest-main sync and storefront fence still held
+
+- `origin/main=1f2842f443a0bbab328a2f9b91ed9b86892d3981` (#7225 Line Sticker static budget) is local at merge HEAD `6dd0b9d08843f0fe4a15b61cd19008af5afa6ac9`. Gig source diff is unchanged since the fresh `SHIP` review. Local checks: Line Sticker static `25 passed`; readback/title + R23/R24 `53 passed / 3 subtests`; Gig source-equivalent suite `85 passed`; loop contract `18/188/113/0`; fixture `1/1`; compile/boundary/diff-check PASS.
+- **Production readback (19:25:42Z):** current release `20261009T041542-8d986ff4`, SHA `8d986ff49817ca7bab939efe8ff5cfe2fb6c0044`, cut `19:16:09Z`. Storefront loaded-idle on old SHA `6c7b83ee`; occurrence `18dca460546a0a10-68176` remains `effect=unknown` / `resource_effect_unknown`, no provider receipt, and old fence `18d8d288748508e8-23902` is unprovable (`resolved=[] / no_pre_effect_terminal`). Paid loaded-running on old SHA `25bee172`; occurrence `18dca4482cdee708-10856` is `disk_headroom_low`, no receipt. Reconciler PID `91381` remains on old SHA `e1b061f1`, latest occurrence `18dca43806fdf7f0-69352` passed. `df` available=`355288 KiB`. No listing edits, order receipts, payouts, or positive SKU net are confirmed.
+- **Current cursor:** commit/push the latest-main SSOT state and run new-head required CI → merge #7182 → wait for natural release/owner handoff → obtain official Paid order readback → resolve only the exact Storefront fence with provider evidence → measure 4244556 and prepare one original fixed-scope offer → Freelancer → Upwork → settled portfolio economics → SelfBuild last.
+
+### 2026-10-09 04:27 JST — latest-main SSOT sync and production state
+
+- `origin/main=440ce764f34f44f6883a9bba99ab0dd312d66189` (#7223, documentation-only capacity cursor) is merged locally at HEAD `bad169230218184531fd3d22eec5779ea570958d`. Latest source change touching runtime was R26; it is provider-specific Postiz and does not resolve Coconala. Focused Gig/fixture/Line Sticker/R23/R24/loop-contract checks passed on the code-equivalent main.
+- **Production readback (19:26:41Z):** current release pointer `20261009T041542-8d986ff4`, SHA `8d986ff49817ca7bab939efe8ff5cfe2fb6c0044`, cut `19:16:09Z`. Storefront is loaded-idle on old SHA `6c7b83ee`; occurrence `18dca46eb8bb6b18-554` is `effect=unknown` / `resource_effect_unknown`, no provider receipt. Old fence `18d8d288748508e8-23902` remains held; dry-run `resolved=[] / no_pre_effect_terminal`. Paid is loaded-running on old SHA `25bee172`; occurrence `18dca4482cdee708-10856` is `disk_headroom_low`, no receipt. Release reconciler is loaded-running on old SHA `e1b061f1`, latest occurrence `18dca43806fdf7f0-69352` passed. Available disk is `346824 KiB`.
+- No current SKU paid-order/settlement/payout or positive net contribution is proven. No listing edit, publish, replay, delivery, or fence resolution occurred.
+- **Current cursor:** commit/push latest-main+current-state SSOT → exact-head CI → merge #7182 → natural release/owner convergence → official Paid order readback → exact Storefront fence proof → measure SKU 4244556 and prepare one fixed-scope original offer → Freelancer → Upwork → settled net economics → SelfBuild last.
+
+### 2026-10-09 04:33 JST — capacity-doc sync and current storefront gate
+
+- `origin/main=f95409baab20a6beb220898c198d9d52b92e96f6` (#7229 docs-only capacity evidence) is local at merge HEAD `d334672ff21edfbcd41c1776728316203ad282a9`. Source-equivalent focused tests are Gig `85 passed`, byte-stable fixture `1 passed`, Line Sticker/R23/R24 `53 passed / 3 subtests`, loop contract `18/188/113/0`, compile/source-boundary/diff-check PASS. No Gig source file changed in #7229. Remote PR #7182 is still head `355564b5755997ff5a6ee6c2516eed23181a3a15` / base `af19c008c033e8b603d602f0dbacfe936e0c3dae`; local latest-main SSOT sync is not pushed.
+- **Production readback (19:33:18Z):** current release pointer `20261009T041542-8d986ff4`, SHA `8d986ff49817ca7bab939efe8ff5cfe2fb6c0044`, cut `19:16:09Z`. Storefront is loaded-idle on old SHA `6c7b83ee`; occurrence `18dca4d1e3d7e5c0-35071` remains `effect=unknown` / `resource_effect_unknown`, provider receipt absent. The old fence `18d8d288748508e8-23902` remains unprovable (`resolved=[] / no_pre_effect_terminal`). Paid is loaded-idle on old SHA `25bee172`; occurrence `18dca4b554eefc98-66528` deferred `disk_headroom_low` with no receipt. Release reconciler is loaded-running on old SHA `e1b061f1`, latest pass occurrence `18dca43806fdf7f0-69352`. Available disk is `331224 KiB`.
+- Public SKU 4244556 remains buyable, but seller total 26 is not SKU sales; no current paid order, settlement, payout, or positive net is proven. No listing mutation, replay, or fence resolution has occurred.
+- **Current cursor:** commit/push the f954 main sync and owner-state SSOT → new-head CI → merge #7182 → natural release/owner convergence → Paid official readback → exact Storefront fence proof → one fixed-scope original offer → Freelancer → Upwork → settled economics → SelfBuild last.
+
 ### 2026-10-08 08:35 JST — Mobile post-merge runtime cursor
 
 この追記は上記08:23のPR #6993/owner/capacity/TestFlight状態をmerge後readbackで置き換える。全社§84-Aの順序は変更しない。
