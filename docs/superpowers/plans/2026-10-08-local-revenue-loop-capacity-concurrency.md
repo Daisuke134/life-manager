@@ -22,12 +22,13 @@ Connector、Job Hunter、Fundraiserの既存loopを、現行`lm-loop`上で安�
 - Danaher `R1316263`とDeepScale.Venturesの既存targetもofficial readbackまたはstrict verified-pre-effect evidenceで照合する。
 - 証拠が足りないtargetはfencedのまま保持し、再送しない。この読み取りはsource修正と並行して進める。
 
-### 2. Admission SQLiteのhot pathから不要なwriterを外す
+### 2. [完了: source branch] Admission SQLiteのhot pathから不要なwriterを外す
 
 - `runtime/host/resource_admission.py::_database`と全callerを確認する。
 - `runtime/host/tests/test_resource_admission.py`へ、既存schemaのopen/readで`BEGIN IMMEDIATE`やmigration DDLを実行しないfocused regressionを追加し、現行コードでfailすることを確認する。
 - 既存schemaの接続はread/open pathだけで返し、legacy schema migrationとindex/schema作成は必要な初期化時に一度だけ行う最小変更にする。
 - `control.lock`、`synchronous=FULL`、current DELETE journal contract、migration rollback、effect-unknown rowsを保持する。
+- RED/GREEN: 実writer lock下で旧`BEGIN IMMEDIATE`が失敗し、修正後にpass。全`runtime/host/tests/test_resource_admission.py`は137/137 pass。main/release/productionへの反映は未完。
 
 ### 3. 3 task classに既存Codex profile候補を追加
 
