@@ -40,8 +40,9 @@ Connector、Job Hunter、Fundraiserの既存loopを、現行`lm-loop`上で安�
 ### 4. Connector/Fundraiser browserをtask-owned contextへ移す; capacity probeはsource branchで完了
 
 - `skills/connector/discover.js`、`apps/life-manager/lib/connector-browser-target-controller.js`、`apps/life-manager/lib/connector-browser-target-controller.test.js`、`skills/connector/test/discover.test.js`を確認・更新する。Connector controllerはdefault contextを仮定せず、leaseのcontext IDに属するtargetだけを作成/検出/終了する。
-- `skills/fundraiser-agent/runtime/run.sh`と`skills/fundraiser-agent/runtime/test_run_control_plane.py`を更新し、既存`skills/browser/scripts/cdp_context_lease.py`のowner contextとvault seedを使う。raw CDP helperも同じcontext/targetに限定する。
-- 共有`interactive:dais` profile lockは、task contextのsession認証・provider操作・cleanupが既存testで通るまで維持する。通った後に短いidentity checkへ縮める。
+- `skills/browser/browser-context-lease.sh`はregistered endpoint、owner、domain cookie allowlist、seeded context ID/target IDを一元化する。`skills/connector/run.sh`と`skills/fundraiser-agent/runtime/run.sh`はprofile busyならresolverでread-only endpointを取り、task contextをseedする。profile guardはcontext準備中だけ保持し、その後解放する。
+- Connector `apps/life-manager/lib/connector-browser-target-controller.js`はleased contextにtargetを作成し、probe/closeも同contextのexact targetに限定する。Fundraiser `skills/browser/scripts/cdp.py`はcontext IDに合わないtargetのoperationを拒否する。
+- Vault内に`luma.com`および`x.com`/`twitter.com` domain cookiesがあることを確認した。cookie値は読まず、lease helperはseed count=0を拒否する。
 - `runtime/browser/capacity_probe.py`と`runtime/browser/tests/test_capacity_probe.py`はsource branchで完了。登録identity resolver経由でdaily-driverの`/json/version`と`cdp_context_lease.py audit`のcontext countをread-onlyで観測する。Chromium processを起動・終了しない。focused testは3/3 pass。
 - durable admission ownerの`resource_class`は変更しない。
 
@@ -50,6 +51,7 @@ Connector、Job Hunter、Fundraiserの既存loopを、現行`lm-loop`上で安�
 - 変更ごとに対象focused testをpassさせる。主な対象: `runtime/host/tests/test_resource_admission.py`、`runtime/agent-runner/tests/test_provider_lease.py`、`runtime/agent-runner/tests/test_codex_account_failover.py`、`runtime/browser/tests/test_capacity_probe.py`、Connector/Fundraiserの上記test。
 - `bash scripts/verify-source-boundary.sh`、`./bin/lm-loop-contract`、`git diff --check`をpassさせる。
 - 対象source acceptance、fresh read-only review、required CIをpassしてPRをmainへ統合する。
+- 2026-10-08 15:57 JST source snapshot: context/CDP 21 tests、Connector wrapper 2、Fundraiser wrapper 7、Connector controller+contract 10 tests pass。`./bin/lm-loop-contract`、source-boundary、shell syntax、diff checkもpass。fresh read-only review、required CI、mergeは未完。
 
 ### 6. Immutable releaseとtarget owner apply
 

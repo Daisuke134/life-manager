@@ -5842,11 +5842,16 @@ This snapshot supersedes the 13:59–14:04 source/release status. PR #7055 backo
 
 **進捗（2026-10-08 14:29 JST）:** `runtime/browser/capacity_probe.py`は使い捨てChromiumを起動せず、browser registry resolverで確認した`interactive:dais` endpointの`/json/version`と、既存`cdp_context_lease.py audit`のcontext件数だけを読む。context ID/URLを出力しない。`runtime/browser/tests/test_capacity_probe.py`は3/3 pass。resource classは変更していない。
 
+**進捗（2026-10-08 14:53 JST）:** ConnectorとFundraiserは既存`cdp_context_lease.py`のowner contextを使い、`luma.com` / `x.com,twitter.com`だけvaultからseedする。domain-matched cookieの存在のみreadbackし、cookie値は読まない。Connector controllerはleased `browserContextId`を指定してtargetを作成し、probe/closeもそのcontextにあるexact targetだけを扱う。Fundraiserのraw `cdp.py`もcontext IDを指定し、page operation前に別context targetを拒否する。profile guardはcontext作成中だけ取得し、別ownerがprofileを使う場合はregistered resolverをread-onlyで確認する。source branchのfocused結果はcontext helper 2、CDP 19、Connector controller 9、Connector wrapper 2、Fundraiser wrapper 7 pass。変更はmain/release/productionへ未反映。
+
+**進捗（2026-10-08 14:55 JST）:** ConnectorとFundraiserのshell ownerは`browser-context-lease.sh`を使い、profile busyならregistered resolverでidentityをread-only確認してtask contextを作る。profile guardはcontext seedの間だけ保持し、contextがreadyになったら解放する。`CLOAK_CONTEXT_COOKIE_DOMAINS=luma.com`と`x.com,twitter.com`に対応するvault cookieの存在だけを確認した（cookie値は読んでいない）。helperはdomain-scoped cookie countが0ならfail-closedする。Connector controllerはleased contextにtargetを作成し、Fundraiser `cdp.py`はtarget create/page/closeを`CLOAK_BROWSER_CONTEXT_ID`に限定する。focused checks: helper 2、CDP 19、Connector controller 9、Connector wrapper 2、Fundraiser wrapper 7 pass。変更は専用branchのみでmain/release/production未反映。
+
+**進捗（2026-10-08 15:57 JST）:** 最新main `d3b0d992`へrebase後、source-boundary、`./bin/lm-loop-contract`（catalog 18 / registry 187 / errors 0）、`bash -n`、`git diff --check`がpass。context/CDP 21 tests、Connector wrapper 2、Fundraiser wrapper 7、Connector controller+contract 10がpass。Private vaultはLuma/Xのdomain-scoped cookiesを持つことだけ確認済みで、値は読んでいない。context/profile isolationはsource branchのみで、main/release/productionには未反映。
+
 **残TODO（完了までの順序）:**
 
-1. Provider read-only reconciliationを継続する。LAUNCH exact status/receiptとDanaher Workday、DeepScale official statusを同一targetへ結合する。証明不足ならfenceを維持する。この読み取りはsource作業と並行する。
-2. **現在cursor — Connector/Fundraiser context isolation:** 各ownerを既存task-owned CDP contextへ移し、Connector controllerとFundraiser CDP helperをleased context/targetだけに限定する。session-vault seed/authを確認するまではprofile lockを短縮しない。capacity probeのread-only変更は14:29 JSTにsource/test完了、PR/production未反映。durable owner resource classは変えない。
-3. admission/provider/browserのfocused tests、source-boundary、`./bin/lm-loop-contract`、fresh read-only review、required CIをPASSさせ、PRをmainへ統合する。
-4. active release reconcilerの自然terminalとshared apply lockをreadbackし、fresh disk/admission snapshotを取る。latest-main immutable release後、Connector、Job Hunter daily/health/inbox、Fundraiserをtarget owner単位でapplyし、loaded SHA/argv/envを確認する。現在のglobal `doctor=false`原因は別ownerなので変更しない。対象限定applyの安全性が証明できない場合だけ具体的なowner blockerとして残す。
-5. 各loopを自然runし、ConnectorのLuma registration + Calendar + Telegram receipt、Job HunterのWorkday official application state + Telegram outcome、Fundraiserの新規VC/AI founder Gmail provider message ID + exact Sent + Telegram receiptを同一occurrenceで照合する。既存unknown targetは候補から除外し、再送しない。
-6. 3 loopのproduction readbackとreplay-zeroを確認する。旧Danaher/DeepScale/LAUNCH targetはofficial statusまたはstrict verified-pre-effect proofだけでcloseし、証拠不足はfencedのまま明示する。全gate後、このlaneを完了し全社SSOTの次cursor `MX-01`へ戻る。
+1. Provider read-only reconciliationを継続する。LAUNCH exact status/receiptとDanaher Workday、DeepScale official statusを同一targetへ結合し、証明不足ならfenceを維持する。この読み取りはsource review/CIと並行する。
+2. **現在cursor — source acceptance:** source diffを専用branchへcommit/pushし、fresh read-only reviewでCritical/Important findingを解消する。required CIをpassしてPRをmainへ統合する。
+3. release reconcilerのnatural terminal・shared apply lock・fresh disk/admissionを再readbackする。latest-main immutable release後、Connector、Job Hunter daily/health/inbox、Fundraiserをowner単位でapplyし、loaded SHA/argv/envを確認する。別owner由来のglobal doctor issueは変更しない。
+4. 各loopを自然runし、ConnectorのLuma registration + Calendar + Telegram receipt、Job HunterのWorkday official application state + Telegram outcome、Fundraiserの新規VC/AI founder Gmail provider message ID + exact Sent + Telegram receiptを同一occurrenceで照合する。旧unknown targetは候補から除外し、再送しない。
+5. 3 loopのproduction readbackとreplay-zeroを確認する。Danaher/DeepScale/LAUNCHはofficial statusまたはstrict verified-pre-effect proofだけでcloseし、証拠不足はfencedのまま明示する。全gate後、このlaneを完了して全社SSOTの次cursor `MX-01`へ戻る。

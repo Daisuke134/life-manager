@@ -39,9 +39,14 @@ release_lock() {
   "$NODE_BIN" "$HERE/lib/native-state.js" release "$STATE_DIR" "$OWNER_TOKEN" >/dev/null 2>&1 || true
 }
 
-BROWSER_GUARD="$REPO_ROOT/skills/browser/browser-guard.sh"
-BROWSER_FOUNDATION="$REPO_ROOT/skills/browser/ensure_browser.sh"
-BROWSER_TAB_GC="$REPO_ROOT/skills/browser/scripts/cdp_tab_gc.py"
+BROWSER_GUARD="${LIFE_MANAGER_BROWSER_GUARD:-$REPO_ROOT/skills/browser/browser-guard.sh}"
+BROWSER_FOUNDATION="${LIFE_MANAGER_BROWSER_FOUNDATION:-$REPO_ROOT/skills/browser/ensure_browser.sh}"
+BROWSER_TAB_GC="${LIFE_MANAGER_BROWSER_TAB_GC:-$REPO_ROOT/skills/browser/scripts/cdp_tab_gc.py}"
+BROWSER_RESOLVER="${LIFE_MANAGER_BROWSER_RESOLVER:-$REPO_ROOT/skills/browser/resolve_cdp_endpoint.py}"
+BROWSER_CONTEXT_LEASE="${LIFE_MANAGER_BROWSER_CONTEXT_LEASE:-$REPO_ROOT/skills/browser/scripts/cdp_context_lease.py}"
+BROWSER_CONTEXT_HELPER="${LIFE_MANAGER_BROWSER_CONTEXT_HELPER:-$REPO_ROOT/skills/browser/browser-context-lease.sh}"
+BROWSER_REGISTRY="${AI_BROWSER_REGISTRY:-$HOME/.config/ai/registry/browsers.toml}"
+BROWSER_CONTEXT_COOKIE_DOMAINS="${LIFE_MANAGER_BROWSER_CONTEXT_COOKIE_DOMAINS:-luma.com}"
 BROWSER_IDENTITY="${LIFE_MANAGER_BROWSER_IDENTITY:-}"
 if [ -z "$BROWSER_IDENTITY" ] || [ -z "$CLOAK_BROWSER_OWNER" ]; then
   BROWSER_JOIN="$(python3 - "$REPO_ROOT/config/loop-registry.json" <<'PY'
@@ -65,12 +70,16 @@ fi
   exit 2
 }
 export CLOAK_BROWSER_OWNER
+export CLOAK_CONTEXT_COOKIE_DOMAINS="$BROWSER_CONTEXT_COOKIE_DOMAINS"
+source "$BROWSER_CONTEXT_HELPER"
 
 BROWSER_LEASED=0
 release_browser() {
-  [ "$BROWSER_LEASED" -eq 1 ] || return 0
-  "$BROWSER_GUARD" release "$BROWSER_IDENTITY" >/dev/null 2>&1 || true
-  BROWSER_LEASED=0
+  browser_context_lease_release >/dev/null 2>&1 || true
+  if [ "$BROWSER_LEASED" -eq 1 ]; then
+    "$BROWSER_GUARD" release "$BROWSER_IDENTITY" >/dev/null 2>&1 || true
+    BROWSER_LEASED=0
+  fi
 }
 release_all() {
   release_browser
@@ -90,9 +99,9 @@ trap release_all EXIT
 
 "$NODE_BIN" "$HERE/lib/native-state.js" heartbeat "$STATE_DIR" "$OWNER_TOKEN" native_started >/dev/null || exit 2
 
-# Resolve the browser identity from the canonical browser registry before any provider
-# page work. The guard selects the live host/port by profile ownership, so a proxy or an
-# IPv4/IPv6 port collision cannot be mistaken for the daily-driver.
+# Resolve the registered browser identity before provider page work. The guard is a short
+# identity/recovery lease; a busy profile can be read-only resolved while this owner uses
+# its isolated context.
 [ -x "$BROWSER_GUARD" ] || {
   printf 'Connector browser foundation unavailable: %s\n' "$BROWSER_GUARD" >&2
   "$NODE_BIN" "$HERE/lib/native-state.js" heartbeat "$STATE_DIR" "$OWNER_TOKEN" browser_foundation_missing >/dev/null 2>&1 || true
@@ -103,7 +112,14 @@ if BROWSER_ENDPOINT="$(AI_BROWSER_HOLDER_PID=$$ bash "$BROWSER_GUARD" acquire "$
   BROWSER_LEASED=1
 else
   BROWSER_RC=$?
-  if [ "$BROWSER_RC" -eq 10 ] && [ -x "$BROWSER_FOUNDATION" ]; then
+  if [ "$BROWSER_RC" -eq 9 ]; then
+    BROWSER_ENDPOINT="$(browser_context_resolve_registered_endpoint \
+      "$BROWSER_IDENTITY" "$BROWSER_RESOLVER" "$BROWSER_REGISTRY")" || {
+      printf 'Connector registered browser unavailable while another owner holds profile\n' >&2
+      "$NODE_BIN" "$HERE/lib/native-state.js" heartbeat "$STATE_DIR" "$OWNER_TOKEN" browser_lease_failed >/dev/null 2>&1 || true
+      exit 75
+    }
+  elif [ "$BROWSER_RC" -eq 10 ] && [ -x "$BROWSER_FOUNDATION" ]; then
     # Recovery is still owned by the existing daily-driver supervisor. Its probe is
     # forced to IPv6 because this host currently has an unrelated IPv4 :9222 listener.
     BROWSER_PORT="${CDP_DAILY_DRIVER_PORT:-9222}"
@@ -118,12 +134,23 @@ else
         exit 75
         ;;
     esac
-    BROWSER_ENDPOINT="$(AI_BROWSER_HOLDER_PID=$$ bash "$BROWSER_GUARD" acquire "$BROWSER_IDENTITY" 2>&1)" || {
-      printf 'Connector browser lease unavailable after recovery: %s\n' "$BROWSER_ENDPOINT" >&2
-      "$NODE_BIN" "$HERE/lib/native-state.js" heartbeat "$STATE_DIR" "$OWNER_TOKEN" browser_lease_failed >/dev/null 2>&1 || true
-      exit 75
-    }
-    BROWSER_LEASED=1
+    if BROWSER_ENDPOINT="$(AI_BROWSER_HOLDER_PID=$$ bash "$BROWSER_GUARD" acquire "$BROWSER_IDENTITY" 2>&1)"; then
+      BROWSER_LEASED=1
+    else
+      BROWSER_RC=$?
+      if [ "$BROWSER_RC" -eq 9 ]; then
+        BROWSER_ENDPOINT="$(browser_context_resolve_registered_endpoint \
+          "$BROWSER_IDENTITY" "$BROWSER_RESOLVER" "$BROWSER_REGISTRY")" || {
+          printf 'Connector registered browser unavailable after recovery\n' >&2
+          "$NODE_BIN" "$HERE/lib/native-state.js" heartbeat "$STATE_DIR" "$OWNER_TOKEN" browser_lease_failed >/dev/null 2>&1 || true
+          exit 75
+        }
+      else
+        printf 'Connector browser lease unavailable after recovery\n' >&2
+        "$NODE_BIN" "$HERE/lib/native-state.js" heartbeat "$STATE_DIR" "$OWNER_TOKEN" browser_lease_failed >/dev/null 2>&1 || true
+        exit 75
+      fi
+    fi
   else
     printf 'Connector browser lease unavailable: %s\n' "$BROWSER_ENDPOINT" >&2
     "$NODE_BIN" "$HERE/lib/native-state.js" heartbeat "$STATE_DIR" "$OWNER_TOKEN" browser_lease_failed >/dev/null 2>&1 || true
@@ -133,11 +160,24 @@ fi
 case "$BROWSER_ENDPOINT" in
   http://127.0.0.1:*|http://localhost:*|http://\[::1\]:*) ;;
   *)
-    printf 'Connector browser endpoint invalid: %s\n' "$BROWSER_ENDPOINT" >&2
+    printf 'Connector browser endpoint invalid\n' >&2
+    release_browser
+    "$NODE_BIN" "$HERE/lib/native-state.js" heartbeat "$STATE_DIR" "$OWNER_TOKEN" browser_lease_failed >/dev/null 2>&1 || true
     exit 75
     ;;
 esac
-export CLOAK_CDP_BASE_URL="$BROWSER_ENDPOINT"
+if ! browser_context_lease_acquire \
+    "$BROWSER_ENDPOINT" "$CLOAK_BROWSER_OWNER" "$CLOAK_CONTEXT_COOKIE_DOMAINS" "$BROWSER_CONTEXT_LEASE"; then
+  printf 'Connector task browser context unavailable\n' >&2
+  release_browser
+  "$NODE_BIN" "$HERE/lib/native-state.js" heartbeat "$STATE_DIR" "$OWNER_TOKEN" browser_lease_failed >/dev/null 2>&1 || true
+  exit 75
+fi
+# The task context is isolated now; release any short identity lease before the pass.
+if [ "$BROWSER_LEASED" -eq 1 ]; then
+  "$BROWSER_GUARD" release "$BROWSER_IDENTITY" >/dev/null 2>&1 || true
+  BROWSER_LEASED=0
+fi
 if ! python3 "$BROWSER_TAB_GC" --owner "$CLOAK_BROWSER_OWNER" >/dev/null 2>&1; then
   printf 'Connector browser tab GC failed; continuing with provider readback fence\n' >&2
 fi

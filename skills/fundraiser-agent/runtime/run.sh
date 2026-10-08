@@ -28,18 +28,19 @@ PHOTO_SENDER="$REPO_ROOT/skills/_shared/send-telegram-photo.sh"
 LOOP_CLI="${LIFE_MANAGER_LOOP_CLI:-$REPO_ROOT/bin/lm-loop}"
 MIN_FREE_KIB=$((1536 * 1024))
 PRESSURE_FREE_KIB=$((2 * 1024 * 1024))
-# The shared daily-driver browser is reached only through the registry-based
-# lease guard, never a literal host:port. #6048 stopped pinning the
-# daily-driver Chrome to 127.0.0.1 (that address now belongs to Dais's own
-# personal Google Chrome, pid 465), so a hardcoded "http://localhost:9222"
-# here would either connect refused or, worse, silently drive Dais's own
-# browser instead of the shared one. browser-guard.sh resolves the live,
-# UUID-verified endpoint for the "interactive:dais" identity and refuses to
-# hand back a mismatched browser (see ~/.config/ai/registry/browsers.toml).
+# Use the registered daily-driver identity and a task-owned browser context.
+# The profile guard protects endpoint recovery when available; a held profile
+# is resolved read-only so another owner can keep working in its own context.
 BROWSER_GUARD="${LIFE_MANAGER_BROWSER_GUARD:-$REPO_ROOT/skills/browser/browser-guard.sh}"
 BROWSER_FOUNDATION="${LIFE_MANAGER_BROWSER_FOUNDATION:-$REPO_ROOT/skills/browser/ensure_browser.sh}"
 BROWSER_IDENTITY="${LIFE_MANAGER_BROWSER_IDENTITY:-interactive:dais}"
+BROWSER_CONTEXT_LEASE="${LIFE_MANAGER_BROWSER_CONTEXT_LEASE:-$REPO_ROOT/skills/browser/scripts/cdp_context_lease.py}"
+BROWSER_CONTEXT_HELPER="${LIFE_MANAGER_BROWSER_CONTEXT_HELPER:-$REPO_ROOT/skills/browser/browser-context-lease.sh}"
+BROWSER_RESOLVER="${LIFE_MANAGER_BROWSER_RESOLVER:-$REPO_ROOT/skills/browser/resolve_cdp_endpoint.py}"
+BROWSER_REGISTRY="${AI_BROWSER_REGISTRY:-$HOME/.config/ai/registry/browsers.toml}"
 export CLOAK_BROWSER_OWNER="${LIFE_MANAGER_BROWSER_TARGET_OWNER:-fundraiser}"
+export CLOAK_CONTEXT_COOKIE_DOMAINS="${FUNDRAISER_CONTEXT_COOKIE_DOMAINS:-x.com,twitter.com}"
+source "$BROWSER_CONTEXT_HELPER"
 
 write_boundary_marker() {
   local phase="$1" effect="$2" temporary
@@ -71,10 +72,14 @@ available_kib() {
 }
 
 BROWSER_LEASED=0
+BROWSER_ENDPOINT=""
+
 release_browser() {
-  [ "$BROWSER_LEASED" -eq 1 ] || return 0
-  "$BROWSER_GUARD" release "$BROWSER_IDENTITY" >/dev/null 2>&1 || true
-  BROWSER_LEASED=0
+  browser_context_lease_release >/dev/null 2>&1 || true
+  if [ "$BROWSER_LEASED" -eq 1 ]; then
+    "$BROWSER_GUARD" release "$BROWSER_IDENTITY" >/dev/null 2>&1 || true
+    BROWSER_LEASED=0
+  fi
 }
 
 # An application browser pass temporarily needs close to 1 GiB. Starting below this floor
@@ -96,12 +101,17 @@ fi
   echo "fundraiser: browser foundation unavailable" >>"$LOG"
   exit 2
 }
-BROWSER_ENDPOINT=""
 if BROWSER_ENDPOINT="$(AI_BROWSER_HOLDER_PID=$$ "$BROWSER_GUARD" acquire "$BROWSER_IDENTITY" 2>&1)"; then
   BROWSER_LEASED=1
 else
   BROWSER_RC=$?
-  if [ "$BROWSER_RC" -eq 10 ] && [ -x "$BROWSER_FOUNDATION" ]; then
+  if [ "$BROWSER_RC" -eq 9 ]; then
+    BROWSER_ENDPOINT="$(browser_context_resolve_registered_endpoint \
+      "$BROWSER_IDENTITY" "$BROWSER_RESOLVER" "$BROWSER_REGISTRY")" || {
+      echo "fundraiser: deferred registered browser unavailable while another owner holds profile" >>"$LOG"
+      exit 75
+    }
+  elif [ "$BROWSER_RC" -eq 10 ] && [ -x "$BROWSER_FOUNDATION" ]; then
     # Identity mismatch or unreachable: ask the registered owner to recover the
     # daily-driver profile (same recovery path life-manager-connector-native
     # uses), then take one more lease attempt before giving up this wake.
@@ -113,14 +123,23 @@ else
         exit 75
         ;;
     esac
-    BROWSER_ENDPOINT="$(AI_BROWSER_HOLDER_PID=$$ "$BROWSER_GUARD" acquire "$BROWSER_IDENTITY" 2>&1)" || {
-      echo "fundraiser: deferred browser lease unavailable after recovery: $BROWSER_ENDPOINT" >>"$LOG"
-      exit 75
-    }
-    BROWSER_LEASED=1
+    if BROWSER_ENDPOINT="$(AI_BROWSER_HOLDER_PID=$$ "$BROWSER_GUARD" acquire "$BROWSER_IDENTITY" 2>&1)"; then
+      BROWSER_LEASED=1
+    else
+      BROWSER_RC=$?
+      if [ "$BROWSER_RC" -eq 9 ]; then
+        BROWSER_ENDPOINT="$(browser_context_resolve_registered_endpoint \
+          "$BROWSER_IDENTITY" "$BROWSER_RESOLVER" "$BROWSER_REGISTRY")" || {
+          echo "fundraiser: deferred registered browser unavailable after recovery" >>"$LOG"
+          exit 75
+        }
+      else
+        echo "fundraiser: deferred browser lease unavailable after recovery" >>"$LOG"
+        exit 75
+      fi
+    fi
   else
-    # Exit 9 (BUSY, another owner holds the lease) is normal, not a failure:
-    # skip this wake and let the next scheduled pass pick the work up.
+    # Unknown guard failures do not justify attaching to or recovering a browser.
     echo "fundraiser: deferred browser lease unavailable rc=$BROWSER_RC: $BROWSER_ENDPOINT" >>"$LOG"
     exit 75
   fi
@@ -133,6 +152,18 @@ case "$BROWSER_ENDPOINT" in
     exit 75
     ;;
 esac
+
+if ! browser_context_lease_acquire \
+    "$BROWSER_ENDPOINT" "$CLOAK_BROWSER_OWNER" "$CLOAK_CONTEXT_COOKIE_DOMAINS" "$BROWSER_CONTEXT_LEASE"; then
+  echo "fundraiser: deferred task browser context unavailable" >>"$LOG"
+  release_browser
+  exit 75
+fi
+# The task context is isolated now; release any short identity lease before the run.
+if [ "$BROWSER_LEASED" -eq 1 ]; then
+  "$BROWSER_GUARD" release "$BROWSER_IDENTITY" >/dev/null 2>&1 || true
+  BROWSER_LEASED=0
+fi
 
 mkdir -p "$STATE_ROOT/evidence" "$EVIDENCE_DIR"
 chmod 700 "$STATE_ROOT" "$STATE_ROOT/evidence" "$EVIDENCE_DIR"
@@ -210,7 +241,7 @@ RUNTIME_PROMPT="$EVIDENCE_DIR/runtime-prompt.md"
   If a target reaches \`effect_attempted\` or \`submit_unknown\` without a verified outcome, stop external effects for this occurrence and preserve its held marker. Never relabel an unknown as \`pre_effect\`. A later natural occurrence may work other targets while the exact unresolved target remains fenced. Never write terminal receipt rows directly.
 
 - This is real run \`$RUN_ID\`, owned by \`ai.anicca.fundraiser\`.
-- Work in \`$REPO_ROOT\`; use the existing authenticated Chrome CDP endpoint \`$FUNDRAISER_CDP_ENDPOINT\` (leased for identity \`$BROWSER_IDENTITY\` via \`skills/browser/browser-guard.sh\` for this run only — never a hardcoded host:port, and never Dais's own personal Chrome).
+- Work in \`$REPO_ROOT\`; use the registered CDP endpoint \`$FUNDRAISER_CDP_ENDPOINT\` and this run's seeded context \`$CLOAK_BROWSER_CONTEXT_ID\`. The existing CDP helper restricts page targets to that context. Never attach to another context or Dais's personal Chrome.
 - Search both the live Web and rendered authenticated X UI. X is discovery only; verify on the official program website before applying.
 - Use existing browser helpers under \`skills/browser/\`; do not launch or kill a browser.
 - If the leased browser transport fails during this pass, do not acquire another lease, restart the browser, or continue provider actions. Preserve all existing receipts and return a non-success result with the transport observation. If any Submit or outbound request may have started, record submit_unknown and retain its exact identity fence; otherwise record the observation failure without claiming a provider effect. The next natural wake owns browser foundation recovery and fresh endpoint binding before dispatch.
