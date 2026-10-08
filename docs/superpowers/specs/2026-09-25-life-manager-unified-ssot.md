@@ -7703,12 +7703,12 @@ This entry supersedes the prior producer-review cursor. CFO priority remains A5 
 
 **Current cursor:** `sync branch to ba39c13a → push/CI/review for PR #7106 → safe-floor/HOST-row resolution → primary merge → natural release handoff/doctor → distinct CFO receipt/readback/replay-zero → cleanup recovery → A5 production readback → A6 → A8 → A9 → A10`.
 
-### 2026-10-09 01:56 JST — CFO email counter regression and live cursor
+### 2026-10-09 02:02 JST — CFO email counter regression and live cursor
 
 この追記が直前のCFO cursorを更新する。事業CFOの順序 **A5 → A6 → A8 → A9 → A10** は維持し、Moneytree/A7とCloud費用削減はこのlaneから除外する。
 
 - **Review / source fix:** fresh read-only review of PR #7106 head `5df87bbbec84967edcefb71dbbb942382df64fa2` found an Important email regression. The default email adapter returned only `attempted=1`, while `cfo-result-local.js` requires the exact sent tuple `(attempted, delivered, delivery_uncertain, pre_send_failed)=(1,1,0,0)` before persisting sent state. A new integration test using the real adapter with only the external send stubbed failed RED with `cfo_delivery_counters_invalid`; the adapter now returns the required tuple on provider acceptance. The focused result/delivery tests pass 33/33 after the fix, `git diff --check` passes, and no email was sent externally. This fixes one review finding; a fresh review is still required on the pushed head.
-- **Branch / CI:** latest `origin/main=83e223c3fa` has been merged locally into `fix/cfo-telegram-runtime-receipt-20261007` (local merge HEAD `30cb8492e9` before the pending source/test/spec update). PR #7106 remains open/draft at remote head `5df87bb`; all required checks on that old head passed, but those checks do not cover the new email fix or latest-main merge. Push the combined update, then require exact-head CI and fresh read-only review before integration.
+- **Branch / CI:** latest `origin/main=83e223c3fa` is merged. The email-counter fix, integration test, and CFO SSOT update were committed/pushed as `fac716b2` to PR #7106 (base `83e223c3fa`); the PR remains open/draft. On exact head `fac716b2`, 7/10 required checks passed and Loop control, gitleaks, and TruffleHog were still pending at 02:01 JST; none had failed. CodeRabbit is skipped because the PR is draft. A fresh read-only reviewer has confirmed the email regression is closed in an interim message; final review is still running. This SSOT cursor correction creates a new PR head, so `fac716b2` checks/review do not validate the resulting head.
 - **Production readback:** `~/loops/current` points to `20261009T014034-aba80c99`, but `life-manager-cfo-hourly` remains loaded-idle on old SHA `d7d3cbaeaf989b1678efc0e572a7c3b9aece6d76`. Its latest natural occurrence is `18dc9a8f896a8c88-73023` at `2026-10-08T16:25:13Z`, exit 0 but `effect=unknown`, `provider_receipt_id=null`, `official_readback_ref=null`; do not resend or call the report trace-verified. `lm-loop doctor --json` is `ok=false` with unmanaged label `ai.anicca.life-manager-release-reconciler-self-handoff`. At 2026-10-09 01:55 JST, free disk is 711,736 KiB (about 695 MiB), below the 2 GiB recovery floor. No production state was changed.
 - **Disk-policy separation:** current main still keeps `critical_paid=256 MiB`, `revenue=512 MiB`, and 2 GiB for other work; `_disk_floor()` has a separate invalid-override lower-bound issue. PR #7179 is open/non-draft and mergeable; its current checks pass, but it removes numeric disk floors. Keep #7179 unmerged per Dais's no-unbounded-admission intent. Its host-policy repair is a separate owner lane, not a source dependency of #7106; do not let that PR's proposed no-floor policy gate the unrelated receipt/counter source fix. If the host-policy lane is resumed, preserve the positive defaults, allow overrides only to raise the floor up to 2 GiB, fail malformed input closed, test zero/negative/tiny/malformed/over-maximum values, and reconcile HOST row 10. The older note that #7179's latest OSS check failed is superseded by the current green check readback.
 
@@ -7716,8 +7716,8 @@ This entry supersedes the prior producer-review cursor. CFO priority remains A5 
 
 **Remaining TODO (atomic, current order):**
 
-1. Commit and push the latest-main sync, email-counter adapter fix, regression test, and this SSOT update to PR #7106.
-2. Run required CI and a fresh same-head read-only review. If both pass, make the PR ready and merge; keep PR #7179's no-floor change unmerged.
+1. [x] Merge latest main, fix the default-email delivery tuple, add the real-adapter regression test, and push the source/spec update to PR #7106 (`fac716b2`).
+2. On the resulting exact PR head, pass all required CI and obtain a final fresh read-only review. If both pass, make the PR ready and merge; keep PR #7179's no-floor change unmerged.
 3. Have the release-reconciler and cleanup owners resolve their own runtime state: obtain a structured cleanup receipt with at least 2 GiB free, zero errors, zero protected deletions, and a healthy owner-path handoff; do not stop/restart the active reconciler or use fleet-wide apply.
 4. After the main-derived release contains the merged source, apply only the CFO owner when loaded-idle and read back the exact loaded SHA. On the next natural occurrence, match runtime terminal receipt/ref, provider receipt, B7 counters/hash, admission state, and replay-zero. Do not replay the historical `effect=unknown` occurrence.
 5. Complete A5 production migration/RPC permissions and panel readback; its source work is already merged in PR #6827.
@@ -7726,7 +7726,7 @@ This entry supersedes the prior producer-review cursor. CFO priority remains A5 
 8. Complete A9 source-backed daily, MTD, trailing-period, and MRR reports with currencies, freshness, and coverage gaps.
 9. Complete A10 with seven consecutive natural reports, complete source coverage, accurate totals, and replay-zero.
 
-**Current cursor:** `commit/push source+SSOT+latest-main → exact-head CI + fresh review → merge #7106 (leave #7179 unmerged) → structured cleanup/reconciler owner recovery → main-derived CFO apply/readback → natural report receipt/replay-zero → A5 → A6 → A8 → A9 → A10`.
+**Current cursor:** `exact-head CI + final fresh review on the resulting PR #7106 head → merge #7106 (leave #7179 unmerged) → structured cleanup/reconciler owner recovery → main-derived CFO apply/readback → natural report receipt/replay-zero → A5 → A6 → A8 → A9 → A10`.
 ### Marketing IntelからWriterへの記事候補連携（並列作業）
 
 **目的:** `marketing-weekly-review`がTelegramへ報告する未検証の`CONTENT`戦術を、既存Writerの`article-daily`トピックキューへ候補として渡す。AffiliateやX repostには配線しない。
