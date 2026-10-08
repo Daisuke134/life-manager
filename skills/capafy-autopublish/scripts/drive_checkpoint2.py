@@ -1131,7 +1131,19 @@ def _raw_fill_workspace_conversation_fields(page, listing_path):
     if isinstance(tab, dict) and tab.get("ok"):
         for kind in ("mousePressed", "mouseReleased"):
             page.call("Input.dispatchMouseEvent", {"type": kind, "x": float(tab["x"]), "y": float(tab["y"]), "button": "left", "clickCount": 1})
-        time.sleep(1)
+        # Wait for the tab content to render instead of a fixed 1s sleep. On 2026-10-08 (drafts
+        # 8580209829 / 3257394572) the fields were not there after 1s, every role was skipped as
+        # "absent on this layout", the function printed "already filled" while the required provider
+        # field and the DPA checkbox were empty, and the submit button never appeared.
+        waited = 0.0
+        while waited < 10.0:
+            probe = page.evaluate(_workspace_conversation_field_expression("welcome"))
+            if isinstance(probe, dict) and probe.get("ok"):
+                break
+            time.sleep(0.5)
+            waited += 0.5
+        else:
+            print("workspace tab: fields did not render within 10s; continuing with what is present")
 
     example = test_input or welcome
     values = {
