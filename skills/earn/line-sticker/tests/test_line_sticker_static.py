@@ -132,5 +132,60 @@ class ChooseLineType(unittest.TestCase):
         self.assertEqual(STATIC.choose_line_type(Path("/x"), heavy_animated, None), "static")
 
 
+class TextBearingVariant(unittest.TestCase):
+    """SSOT 5.L row 5 (L20): top creators sell the same character text-free AND 文字入り."""
+
+    def _plan(self, **overrides) -> dict:
+        plan = {
+            "series_of": "set-003", "character_id": "char-x-001", "character_prompt": "a mascot",
+            "theme": "毎日返事", "text_mode": "with_text",
+            "copy_target": {"product_url": "https://store.line.me/stickershop/product/1", "theme": "返事",
+                            "phrases": ["ありがとう"], "expression_style": "bold lettering",
+                            "text_or_no_text": "text", "title_pattern": "<キャラ名>の毎日返事【文字入り】"},
+            "format_gap": None,
+            "stickers": [{"id": f"s{i}", "prompt": "pose", "tags": ["OK"], "text": "了解"} for i in range(16)],
+            "main_id": "s0", "tab_id": "s1",
+            "listing": {"title": {"ja": "キャラの毎日返事", "en": "Daily replies"},
+                        "description": {"ja": "説明", "en": "desc"}},
+        }
+        plan.update(overrides)
+        return plan
+
+    def test_plan_schema_accepts_text_mode_and_sticker_text(self) -> None:
+        import jsonschema
+        schema = json.loads((MODULE_ROOT / "schemas/static-plan.schema.json").read_text())
+        jsonschema.validate(self._plan(), schema)
+        no_text = self._plan(text_mode="no_text",
+                             stickers=[{"id": f"s{i}", "prompt": "p", "tags": ["OK"], "text": None} for i in range(16)])
+        jsonschema.validate(no_text, schema)
+        with self.assertRaises(jsonschema.ValidationError):
+            jsonschema.validate(self._plan(text_mode="maybe"), schema)
+
+    def test_text_render_keeps_sticker_within_line_limits(self) -> None:
+        from PIL import Image
+        art = Image.new("RGB", (512, 512), (0, 255, 0))
+        art.paste((200, 60, 60), (150, 120, 360, 400))
+        plain = STATIC._fit_sticker(art)
+        lettered = STATIC._fit_sticker(art, text="おつかれさま")
+        self.assertEqual(lettered.size, plain.size)
+        width, height = lettered.size
+        self.assertTrue(width <= 370 and height <= 320 and width % 2 == 0 and height % 2 == 0)
+        self.assertEqual(lettered.mode, "RGBA")
+        alpha = lettered.getchannel("A")
+        bbox = alpha.getbbox()
+        self.assertTrue(bbox[0] >= 10 and bbox[1] >= 10 and bbox[2] <= width - 10 and bbox[3] <= height - 10)
+        self.assertNotEqual(plain.tobytes(), lettered.tobytes())
+        self.assertEqual(alpha.getpixel((0, 0)), 0)  # still transparent outside the art + lettering
+
+    def test_text_listing_title_marks_the_text_version_within_limit(self) -> None:
+        listing = STATIC.mark_text_listing({"title": {"ja": "動く！ふわもちうさぎの毎日返事スタンプ", "en": "Fuwamochi Bunny Daily Replies"},
+                                            "description": {"ja": "説明", "en": "desc"}})
+        self.assertTrue(listing["title"]["ja"].endswith("【文字入り】"))
+        self.assertIn("with text", listing["title"]["en"].lower())
+        for title in listing["title"].values():
+            self.assertLessEqual(SUBMIT._title_units(title), SUBMIT.TITLE_MAX)
+        self.assertEqual(STATIC.mark_text_listing(listing), listing)  # idempotent
+
+
 if __name__ == "__main__":
     unittest.main()

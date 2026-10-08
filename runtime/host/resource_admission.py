@@ -404,6 +404,51 @@ def _acquire_bounded(descriptor: int, timeout_seconds: float = 5.0) -> bool:
             time.sleep(min(0.01, remaining))
 
 
+def _database_schema_is_current(connection: sqlite3.Connection, version: int) -> bool:
+    if version != 2:
+        return False
+    tables = {
+        row[0]: row[1]
+        for row in connection.execute(
+            "SELECT name,sql FROM sqlite_master WHERE type='table'"
+        )
+    }
+    required_columns = {
+        "queue": {"sequence", "owner_id", "resource_class"},
+        "reservations": {"owner_id", "resource_class", "sequence", "lease_until"},
+        "priorities": {
+            "owner_id", "admission_class", "admission_policy", "next_eligible_at",
+            "base_priority", "queued_at", "effect_unknown", "effect_scope",
+        },
+        "occurrences": {
+            "occurrence_id", "owner_id", "resource_class", "admission_class",
+            "base_priority", "queued_at", "state", "sequence", "effect_unknown",
+        },
+    }
+    if not required_columns.keys() <= tables.keys():
+        return False
+    if any(f"{table}_legacy_browser" in tables for table in ("queue", "occurrences")):
+        return False
+    if any("'browser'" not in str(tables[table]) for table in ("queue", "occurrences")):
+        return False
+    for table, expected in required_columns.items():
+        columns = {
+            row[1] for row in connection.execute(f"PRAGMA table_info({table})")
+        }
+        if not expected <= columns:
+            return False
+    indexes = {
+        row[0] for row in connection.execute(
+            "SELECT name FROM sqlite_master WHERE type='index'"
+        )
+    }
+    return {
+        "idx_occurrences_owner_state_effect",
+        "idx_occurrences_state_effect",
+        "idx_occurrences_effect_owner_queue",
+    } <= indexes
+
+
 def _database(path: Path) -> sqlite3.Connection:
     connection = sqlite3.connect(path, timeout=5.0)
     os.chmod(path, 0o600)
@@ -413,6 +458,8 @@ def _database(path: Path) -> sqlite3.Connection:
     if version not in {0, 2}:
         connection.close()
         raise RuntimeError("unsupported durable admission schema")
+    if _database_schema_is_current(connection, version):
+        return connection
     legacy_class_tables = []
     renames = []
     for table in ("queue", "occurrences"):

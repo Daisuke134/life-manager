@@ -137,5 +137,23 @@ class LineTypeHistory(unittest.TestCase):
             self.assertEqual(MODULE._recent_line_types(state_root), ["static", "animated"])
 
 
+class TextModeForwarding(unittest.TestCase):
+    def test_character_stage_forwards_text_mode_and_phrases_to_plan_json(self) -> None:
+        def text_plan(set_dir, prior, market_items=None):
+            plan = _static_plan(set_dir, prior, market_items)
+            plan["text_mode"] = "with_text"
+            for sticker in plan["stickers"]:
+                sticker["text"] = "了解"
+            return plan
+        with tempfile.TemporaryDirectory() as tmp:
+            state_root = Path(tmp)
+            deps = _fake_static_deps(static_planner=text_plan)
+            MODULE.wake(state_root, deps)
+            MODULE.wake(state_root, deps)
+            plan = MODULE._read_json(state_root / "set-001" / "plan.json")
+            self.assertEqual(plan["text_mode"], "with_text")
+            self.assertEqual(plan["stickers"][0]["text"], "了解")
+
+
 if __name__ == "__main__":
     unittest.main()
