@@ -185,7 +185,7 @@
 
 ### Task 6: Publish the first eBook campaign and record its natural order
 
-**Prerequisites:** Task 5 source owners merged; Product PR #422 deployed with checkout GET `405` and both locale PDF URLs `200 application/pdf`; Japanese TikTok and Instagram identities and enabled Postiz routes verified. The completed cleanup and Product PR #420 receipt-table DDL do not gate the first one-time eBook post. PR #420 remains separate hardening before durable webhook/subscription receipt claims and 14-day receipt-based measurement. English stays held until its existing TikTok integration reads back `disabled=false`; no English Instagram route is registered.
+**Prerequisites:** Task 5 source owners merged; Product PR #422 deployed with checkout GET `405` and both locale PDF URLs `200 application/pdf`; Japanese TikTok and Instagram identities and enabled Postiz routes verified. The completed cleanup and Product PR #420 receipt-table DDL do not gate the first one-time eBook post. PR #420 remains separate hardening before durable webhook/subscription receipt claims and 14-day receipt-based measurement. Dais has selected English Monk Instagram; its dedicated account and enabled Postiz integration must be verified before publishing. The existing English TikTok owner remains separate and is not a fallback.
 
 - [x] Product PR #422 merged and deployed; production checkout GET returns `405`, English and Japanese PDF URLs return `200 application/pdf` (fresh readback 2026-10-07).
 - [x] PR #6825 merged at main `034d46e8c267eb477ad2b79e48e28ba0f66b7fe6`. Immutable release `20261007T130114-034d46e8` / SHA `034d46e8c267eb477ad2b79e48e28ba0f66b7fe6` is selected; doctor remains red only for separate Capafy retired browser PID 8198.
@@ -203,7 +203,7 @@
 - [x] Official Postiz GET at 2026-10-08 16:21 JST returned HTTP 200 for integrations and posts; 31 total / 30 enabled. In the JST-day window, eBook routes show 0 EN TikTok, 1 JP TikTok `PUBLISHED`, and 1 JP Instagram `PUBLISHED` (2/9 target). This confirms Postiz status only; daily cadence and native URLs remain unverified.
 - [x] Historical HeyGen wallet GET captured at `2026-10-08T02:47Z` showed USD 12.30 and Auto Reload at USD 5 / USD 10. `launchctl-safe enable` and target apply on release `64c078b3` had succeeded at that time. This snapshot predates today's effect fence and does not describe current owner state. Rollback record: `/Users/anicca/.local/state/life-manager/ebook/reconciliation/owner-applies/ebook-en-tiktok-daily-20261007T174912Z.json`.
 - [x] Read-only HeyGen CLI readback at 2026-10-08 16:29 JST: `video list --title Anicca --limit 100` paginated 2 pages and returned 0 matching videos; `user me get` returned wallet USD 11.78. This does not identify the cause of the balance difference or resolve the fenced render occurrence.
-- [ ] After the English owner reaches current main and its existing render fence is reconciled, use the next natural 21:00 JST occurrence to read the HeyGen wallet delta, unique Postiz `PUBLISHED` receipt, and native TikTok URL. Then verify 08:00/14:00/21:00 cadence; one successful receipt does not prove recurrence. Do not replay the current unknown occurrence. Historical wallet evidence: `/Users/anicca/.local/state/life-manager/ebook/evidence/heygen-wallet-readback-20261007T174700Z.json`.
+- [ ] Add the dedicated English Monk Instagram owner and use the existing completed render receipt for the first immediate post; do not regenerate the video. The selected English cadence remains 08:00/14:00/21:00 JST. Verify the official Instagram `PUBLISHED` receipt and native Reel URL, then verify three distinct daily receipts. Do not replay an unknown occurrence.
 - [x] Historical doctor snapshot at 2026-10-08 02:57 JST showed retired Capafy browser label PID 8198. The 16:28 JST eBook readback now shows all three eBook owners on SHA `71a5f878` with `resource_effect_unknown`; the current cursor is exact occurrence reconciliation in the unified SSOT.
 - [ ] Verify the intended three daily slots per locale through provider receipts and public URLs.
 - [ ] Product PR #420 remains OPEN; checks pass, but Supabase CLI has no linked project and repository secrets contain only public anon key/URL. DDL route plus post-migration schema/RPC/ACL and durable receipt readback remain unresolved.
@@ -212,6 +212,8 @@
 - [ ] Start the 14-day receipt-based cohort measurement with one-time eBook sales and paid active subscriptions counted separately. Continue Capafy D5 only after the existing paid+PDF gate.
 
 - **Cursor authority:** the current order and cursor live only in `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md`; this plan records Task 6 acceptance details.
+
+**English Monk Instagram execution plan:** `docs/superpowers/plans/2026-10-08-ebook-english-monk-instagram-launch.md` owns the dedicated Instagram route, immediate existing-video post, and 3/day recurrence tasks.
 
 ### Task 7: Capafy Instagram marketing handoff — existing D5 plan only
 

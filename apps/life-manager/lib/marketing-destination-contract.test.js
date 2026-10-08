@@ -31,9 +31,14 @@ test("the marketing destination SSOT fixes every retained route and every non-ta
   assert.equal(value.targets.filter((row) => ["anicca", "honne-ai"].includes(row.product_id)).length, 18);
   assert.equal(value.targets.filter((row) => row.product_id.startsWith("ebook-")).length, 3);
   assert.equal(value.targets.filter((row) => row.product_id === "ebook-ja").length, 2);
-  assert.equal(value.holds.length, 11);
+  assert.equal(value.holds.length, 12);
   assert.equal(value.holds.filter((row) => row.integration_id).length, 9);
-  assert.equal(value.holds.filter((row) => row.integration_id === null).length, 2);
+  assert.equal(value.holds.filter((row) => row.integration_id === null).length, 3);
+  assert.deepEqual(
+    value.holds.find((row) => row.postiz_profile === "@monk_anicca"),
+    { platform: "instagram", postiz_profile: "@monk_anicca", integration_id: null,
+      reason: "english_monk_instagram_not_connected", target_daily_limit: 0 },
+  );
   assert.ok(value.targets.every((row) => row.cadence_jst.length === 3));
   const englishMonk = value.targets.find((row) => row.lane_id === "ebook-en-tiktok");
   assert.deepEqual(
@@ -52,7 +57,7 @@ test("the marketing destination SSOT fixes every retained route and every non-ta
   );
   assert.deepEqual(
     value.holds.filter((row) => row.integration_id === null).map((row) => `${row.platform}:${row.postiz_profile}`).sort(),
-    ["tiktok:@anicca.videojp", "tiktok:@anicca_girl"],
+    ["instagram:@monk_anicca", "tiktok:@anicca.videojp", "tiktok:@anicca_girl"],
   );
 });
 
