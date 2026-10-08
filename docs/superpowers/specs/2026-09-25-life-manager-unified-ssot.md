@@ -9966,3 +9966,23 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 5. [ ] **A10:** verify seven consecutive natural reports with same-occurrence B7/runtime/provider receipts, complete-or-owner-visible coverage gaps, accurate period/currency and replay-zero. Do not report company totals as zero while any source is missing.
 
 **現在cursor:** A6 billed/cash/operation attribution → A8 complete loop/job coverage → A9 source-period report → A10 seven-day natural acceptance. A5 RPC is active; only its authenticated panel readback remains pending. A7/Money Tree and Cloud API substitution remain outside this lane.
+
+### 2026-10-09 07:31 JST — September Google bill and app usage are not loop-reconciled
+
+このsnapshotは07:21のA6 evidenceを更新する。請求額・アプリ内usage estimateの両方は読めるが、通貨・source class・loop traceが異なるため、一方を他方へ合わせたり比例配賦したりしない。
+
+- **September bounded usage query:** production `lm_usage_cost_period_summary` for `2026-09-01 00:00`–`2026-10-01 00:00 JST` returned 33,755 provider-usage events. Google-related rows (`google_maps`, `gemini`, `google_search_grounding`) are 9,042 events and USD `46.48873788` in application-level estimates: `google_maps` USD `44.005` / 8,950 events, `gemini` USD `1.95873788` / 77, and `google_search_grounding` USD `0.525` / 15. All 9,042 have null settled actual and `loop_id=unattributed` / `owner_id=unattributed`; linked trace events are 0. This estimate is not a Google invoice amount.
+- **Incomplete categories:** the same window includes route-cache 24,710 events and transit API 3 events with unknown estimates/actuals. Do not infer zero cost from cache, missing estimate, or absent receipt.
+- **Invoice/payment distinction:** the September Cost Table invoice remains billed JPY `27,889`, cash-paid status unknown, loop allocation unattributed. A bounded Gmail search found an invoice-ready message but no matching Google Payments payment/receipt email for Oct 1–19; this absence does not prove unpaid. No FX conversion is applied to compare the USD estimates with the JPY billed total.
+- **Producer coordination:** draft PR #6847 meters Google Places requests in `apps/life-manager/lib/ask.js`; this A6 readback did not modify its branch or files. Any instrumentation follow-up must first verify that owner/lease and must preserve provider/occurrence trace rather than allocate from invoice ratios.
+
+**順序更新:** 旧cursor=`A6 Google invoice/cash/loop reconciliation → A8 → A9 → A10`。新cursor=`(1) 完了: A6 billed totalと同期間application estimatesを別source/通貨で観測 → (2) 現在: 9,042 Google関連usage eventのunattributed traceとactual欠落を閉じる。invoice/SKU/operationとcash statusをreceiptで結ぶ → (3) A8全loop/job revenue-cost coverage → (4) A9 source-periodレポート → (5) A10 7日連続natural reports`。理由は、Septemberのusage amountは推定として存在する一方、全Google-related eventでloop/owner traceとsettled actualが欠け、invoiceとの正確な配賦を証明できないため。Money Tree/A7とCloud API置換は引き続き対象外。
+
+**Remaining atomic TODO (この順):**
+
+1. [ ] **A6:** reconcile the JPY `27,889` invoice and USD `46.48873788` September usage estimate by project/service/SKU/operation, tax/credits and source window; keep currencies separate, leave cash status unknown absent posted-payment evidence, and keep all 9,042 Google-related events unallocated until validated loop/owner traces exist.
+2. [ ] **A8:** close settled revenue/refund/fee and billed-cost evidence for every current business loop; account for all 18 loops / 188 runtime jobs / 113 mapped jobs and show shared/control/platform overhead explicitly.
+3. [ ] **A9:** provide truthful source-bounded JST daily/MTD/trailing/MRR per loop/platform/company, with estimates, billed actuals, settled cash/revenue, unknown counts and freshness kept distinct.
+4. [ ] **A10:** verify seven consecutive natural reports against same-occurrence provider/runtime/B7 receipts, period/currency, cost coverage and replay-zero; partial values stay partial.
+
+**現在cursor:** A6 billed/usage/cash/trace reconciliation → A8 all-loop/job coverage → A9 source-period CFO report → A10 seven-day natural acceptance. A5 panel auth remains separately deferred; it does not stop this A6 read-only reconciliation.
