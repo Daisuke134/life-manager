@@ -4,13 +4,15 @@
 
 **Scope:** English eBook distribution only. Capafy remains with its separate owner. Keep English TikTok and Japanese eBook owners separate. Do not publish a different clip as the Hadrian video. Do not buy a HeyGen plan unless a later production-cost check shows it is needed.
 
+**Disk admission:** PR #7179 supersedes numeric free-space floors in this plan. The old 512 MiB revenue floor is not an owner prerequisite; cleanup's 2 GiB recovery value is diagnostic only.
+
 **Current evidence (rechecked 2026-10-09 01:26 JST):**
 
 - HeyGen title searches for `Hadrian` and `Adrian` return no matches. Monk Factory contains two completed HeyGen IDs (`f4ce3e44217e4844b988e501414cf199` and `2f6c427ce4bc460eb07d17bd7da67d2f`). I downloaded and transcribed both locally; both contain the same 90-second emotion script, not Hadrian. Neither is safe to label as the requested video.
 - The known Life Manager MP4 `ebook-run.571924dc4e4867349fc6fd13.mp4` is also different: its script-ledger hook is “When a mistake follows you.” Do not substitute either video.
 - Monk Factory's old morning log reports a Postiz post to integration `cmo5rwq2p00twn10yrsdglng3`. The current product/account registry maps that ID to English TikTok, not Instagram. Its old Instagram ID is historical and is not the current `instagram.monk_anicca` profile. The last official Postiz GET (00:37 JST) returned 31 integrations / 9 Instagram integrations and no English Monk match; the current account registry has `publisher_integration_id=null` and `status=setup_required`.
 - The credential SSOT entry for `instagram-english-monk` remains `phone_verification_pending`. Instagram's signup page showed its normal phone prompt and no CAPTCHA. Reading the SMS through `~/Library/Messages/chat.db` is blocked by macOS privacy access; iPhone Mirroring requested reconnecting the selected device. Do not change privacy settings or bypass verification.
-- PR #7173 is merged to `main` as `0f7cfb616dcb585a42868f2a5092c8cd9951675e`. The source owner is in main, but `~/loops/current` still points to `20261009T000957-1fe7db3b`; `lm-loop health --loop ebook-en-instagram-daily` returns `unknown health loop`. At 00:57 JST, `df -k /` reports `1,340,980 KiB` free (about 1.28 GiB), above the owner's 512 MiB floor. Do not run a fleet-wide apply or stop/restart the shared reconciler.
+- PR #7173 is merged to `main` as `0f7cfb616dcb585a42868f2a5092c8cd9951675e`. The source owner is in main, but `~/loops/current` still points to `20261009T000957-1fe7db3b`; `lm-loop health --loop ebook-en-instagram-daily` returns `unknown health loop`. At 00:57 JST, `df -k /` reported `1,340,980 KiB` free (about 1.28 GiB); that historical measurement is not an admission gate. Do not run a fleet-wide apply or stop/restart the shared reconciler.
 - The English Instagram owner generates a fresh approved baseline script and HeyGen render for each scheduled slot before posting through Postiz. Its manual-slot path only accepts a matching canonical render receipt; it cannot publish an arbitrary old Monk Factory MP4. A loaded owner can be kickstarted with `lm-loop start`, but outside a due slot the normal entrypoint returns `no_due_slot`. The Hadrian one-off needs its exact asset and a supported durable Postiz receipt path.
 - The registry defines four distinct eBook social owners, each with three daily slots: English TikTok and English Instagram at 08:00/14:00/21:00 JST; Japanese TikTok and Japanese Instagram at 07:00/12:30/20:00 JST. That is 12 scheduled posts/day across four accounts, not proof of 12 successful posts. This task owns only the English Instagram lane's three posts/day; the other owners remain separate.
 - The last Stripe readback (19:37 JST) was 0 active paid Letter subscriptions and is historical; current live subscription count remains unknown. `/monk` is a $10.99 one-time eBook purchase; Daily Anicca Letter is $9.99/month. The canonical $10K goal is monthly bank net after fees and costs, so 1,002 active subscriptions (= $10,009.98 gross MRR) is only a pre-fee reference, not the goal. No HeyGen plan was purchased; the user authorized one if the actual rendering budget requires it.
@@ -22,7 +24,7 @@ flowchart LR
   A[Approved English baseline script] --> B[HeyGen Avatar IV render + SHA/cost receipt]
   B --> C[Verified and warmed English Monk Instagram]
   C --> D[Enabled matching Postiz integration]
-  E[Revenue admission: 512 MiB floor] --> F[Owner: 08:00 / 14:00 / 21:00 JST]
+  E[No numeric free-space floor] --> F[Owner: 08:00 / 14:00 / 21:00 JST]
   D --> F
   F --> G[Postiz PUBLISHED receipt + native Reel URL]
   G --> H[Tracked /go/ee campaign link]
@@ -70,12 +72,12 @@ Order update: old order=`merge owner → wait for scheduled slot → publish a c
 - Do not reuse English TikTok integration `cmo5rwq2p00twn10yrsdglng3` or historical Instagram integration IDs.
 - **Completion evidence:** Postiz official GET and the registry point to the same English Monk profile and enabled integration.
 
-### 5. Install the owner on the current revenue admission policy
+### 5. Install the owner without a numeric free-space gate
 
-- Build only a main-derived immutable release containing this owner and the `priority=revenue` 512 MiB floor. When `~/loops/current` points to that release, inspect target status and the apply lock, then run `LIFE_MANAGER_APPLY_TARGET=ebook-en-instagram-daily ~/loops/current/bin/lm-loop apply --loaded-idle-only`; verify the one-owner result, loaded SHA, and argv. Do not pass `--all`, delete open/protected paths, or stop/restart the active release reconciler.
+- Build only a main-derived immutable release containing this owner. When `~/loops/current` points to that release, inspect target status and the apply lock, then run `LIFE_MANAGER_APPLY_TARGET=ebook-en-instagram-daily ~/loops/current/bin/lm-loop apply --loaded-idle-only`; verify the one-owner result, loaded SHA, and argv. Do not pass `--all`, delete open/protected paths, or stop/restart the active release reconciler.
 - If the shared release reconciler moves `~/loops/current` first, read back its release SHA and use the same owner-targeted apply only after the apply lock is free.
-- The current disk read is above the 512 MiB owner floor, so 2 GiB cleanup is not an eBook prerequisite. Keep the account fail-closed until phone verification, warmup, and Postiz binding are complete.
-- **Completion evidence:** installed release SHA/argv match `main`, the owner is registered and eligible, and host admission reports no deferral. The 2 GiB legacy English TikTok fence is separate.
+- Free-space measurements are diagnostic; neither the old 512 MiB owner floor nor cleanup's 2 GiB recovery target is an apply prerequisite. Keep the account fail-closed until phone verification, warmup, and Postiz binding are complete.
+- **Completion evidence:** installed release SHA/argv match `main`, the owner is registered and eligible, and owner/effect/apply-lock gates pass. Actual write errors remain attributable to the operation that failed.
 
 ### 6. Publish the exact Hadrian video once
 
