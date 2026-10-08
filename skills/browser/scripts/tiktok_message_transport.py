@@ -187,6 +187,359 @@ def _append(path: Path, result: dict, state: str) -> None:
         os.fsync(handle.fileno())
 
 
+def _readback_expression(candidate: str, message: str, marker: str, sender: str = "") -> str:
+    return r'''/* __MARKER__ */ (() => {
+      const candidate = __CANDIDATE__;
+      const expectedSender = __SENDER__.toLowerCase();
+      const expected = __MESSAGE__;
+      const normalize = value => String(value || '').replace(/\s+/g, ' ').trim();
+      const isOfficial = (raw, top = false) => {
+        try {
+          const url = new URL(raw);
+          const host = ['tiktok.com', 'www.tiktok.com'].includes(url.hostname.toLowerCase());
+          const path = top ? /^\/business-suite\/messages\/?$/i : /^\/(?:business-suite\/)?messages\/?$/i;
+          return url.protocol === 'https:' && host && path.test(url.pathname);
+        } catch (_) { return false; }
+      };
+      const matchingFrames = [...document.querySelectorAll('iframe')]
+        .filter(x => String(x.src || '').includes('/messages?'));
+      const frame = matchingFrames.length === 1 ? matchingFrames[0] : null;
+      const doc = frame?.contentDocument;
+      const editor = doc?.querySelector('[contenteditable="true"][aria-label*="メッセージ"]');
+      const messageList = doc?.querySelector('[data-e2e="dm-new-message-list"]');
+      const heads = [...(doc?.querySelectorAll('[data-e2e*="chat-header"],[class*="ChatHeader"],[class*="ConversationHeader"]') || [])];
+      const handles = heads.flatMap(node => (node.innerText || '').match(/@[A-Za-z0-9._-]+/g) || []).map(x => x.toLowerCase());
+      const topUrl = location.href;
+      const documentUrl = doc?.URL || '';
+      const uniqueHandles = [...new Set(handles)];
+      const routeHandles = [topUrl, documentUrl].flatMap(raw => {
+        try {
+          const values = new URL(raw).searchParams.getAll('u');
+          return values.filter(value => /^@?[A-Za-z0-9._-]+$/.test(value)
+            && (!/^\d+$/.test(value.replace(/^@/, '')) || /^@?\d+$/.test(candidate)))
+            .map(value => ('@' + value.replace(/^@/, '')).toLowerCase());
+        } catch (_) { return []; }
+      });
+      const uniqueRouteHandles = [...new Set(routeHandles)];
+      const routeRecipientConflict = routeHandles.some(handle => handle !== candidate.toLowerCase());
+      const headerRouteConflict = uniqueHandles.length === 1 && routeHandles.length > 0
+        && uniqueRouteHandles.some(handle => handle !== uniqueHandles[0]);
+      const recipientAmbiguous = matchingFrames.length > 1 || uniqueHandles.length > 1
+        || uniqueRouteHandles.length > 1 || routeRecipientConflict || headerRouteConflict;
+      const recipientBound = matchingFrames.length === 1
+        && uniqueHandles.length === 1 && uniqueHandles[0] === candidate.toLowerCase()
+        && !routeRecipientConflict && !headerRouteConflict;
+      const messageListText = normalize(messageList?.innerText || '');
+      let frameLocationUrl = '';
+      try { frameLocationUrl = frame?.contentWindow?.location?.href || ''; } catch (_) {}
+      const officialDocument = isOfficial(topUrl, true) && isOfficial(documentUrl)
+        && documentUrl === frameLocationUrl;
+      const busy = messageList?.getAttribute('aria-busy');
+      const messageListHydrated = !!messageList && doc?.readyState === 'complete'
+        && busy !== 'true'
+        && (busy === 'false' || messageList.getAttribute('data-loaded') === 'true'
+            || messageList.getAttribute('data-hydrated') === 'true');
+      const editorText = normalize(editor?.innerText || '');
+      const editorEmpty = !!editor && !editorText;
+      const bubbleSelector = '[data-e2e="dm-message"],[data-e2e="dm-message-text"],[data-e2e*="message-bubble"],[data-e2e*="message-content"],[class*="DivChatMessage"],[class*="DivMessageBubble"]';
+      const rowBubbleSelector = '[data-e2e="dm-message"],[data-e2e*="message-bubble"],[class*="DivChatMessage"],[class*="DivMessageBubble"]';
+      const messageLikeSelector = '[data-e2e*="message"],[class*="Message"]';
+      const statusSelector = '[data-e2e*="status"],[class*="Status"],[aria-live],[data-status],[data-message-status],[aria-label],[title]';
+      const bubbles = [...(messageList?.querySelectorAll(bubbleSelector) || [])]
+        .filter(node => node && node.isConnected !== false);
+      const knownBubbles = new Set(bubbles);
+      const messageLikeNodes = [...(messageList?.querySelectorAll(messageLikeSelector) || [])]
+        .filter(node => node && node.isConnected !== false
+          && !/message[-_ ]?(list|composer)/i.test(node.getAttribute?.('data-e2e') || '')
+          && !node.closest?.('[contenteditable="true"]'));
+      const messageNodeResolutionComplete = messageLikeNodes.every(node => knownBubbles.has(node))
+        && (!messageListText || bubbles.length > 0);
+      const contextReady = officialDocument && recipientBound && !!editor && messageListHydrated
+        && messageNodeResolutionComplete;
+      const statusPattern = /\b(failed|error|pending|sending|queued|cancel(?:led|ed)|undelivered|not[ -]?sent)\b|失敗|エラー|送信中|未配信|保留|待機中/i;
+      const statusClass = value => String(value || '').match(
+        /failed|error|pending|sending|queued|cancel(?:led|ed)|undelivered|not[ -]?sent/i
+      )?.[0] || '';
+      const statusFor = node => {
+        const row = boundedMessageRowFor(node);
+        if (!row) return {value: '', owned: false};
+        const values = [];
+        const statusTextFor = item => {
+          const rawText = String(item.innerText || '');
+          if (!item.contains?.(node)) return rawText;
+          const clone = item.cloneNode?.(true);
+          if (!clone) return rawText;
+          const path = [];
+          let current = node;
+          while (current && current !== item) {
+            const parent = current.parentElement;
+            const index = [...(parent?.children || [])].indexOf(current);
+            if (index < 0) return rawText;
+            path.push(index);
+            current = parent;
+          }
+          if (current !== item) return rawText;
+          let target = clone;
+          for (let index = path.length - 1; index >= 0; index--) {
+            target = target.children?.[path[index]];
+            if (!target) return rawText;
+          }
+          if (target === clone) return '';
+          if (typeof target.remove === 'function') target.remove();
+          else if (target.parentNode?.removeChild) target.parentNode.removeChild(target);
+          else return rawText;
+          return String(clone.innerText ?? clone.textContent ?? '');
+        };
+        for (let current = node; current && current !== messageList; current = current.parentElement) {
+          values.push(current.getAttribute?.('data-status'), current.getAttribute?.('data-message-status'),
+            current.getAttribute?.('aria-label'), current.getAttribute?.('title'),
+            statusClass(current.className));
+          if (current.matches?.(statusSelector)) values.push(statusTextFor(current));
+        }
+        // Status descendants and siblings belong only to a scope with one canonical message root.
+        for (const item of row.scope.querySelectorAll?.(statusSelector) || []) {
+          values.push(item.getAttribute?.('data-status'), item.getAttribute?.('data-message-status'),
+            item.getAttribute?.('aria-label'), item.getAttribute?.('title'),
+            statusClass(item.className), statusTextFor(item));
+        }
+        return {value: values.filter(Boolean).join(' '), owned: true};
+      };
+      const explicitPositiveMarkers = new Set([
+        'outgoing', 'outbound', 'self', 'own', 'ownmessage',
+        'outgoing-message', 'outbound-message', 'self-message', 'own-message',
+        'message-outgoing', 'message-outbound', 'message-self', 'message-own',
+      ]);
+      const senderMarkerEvidence = current => {
+        let positive = false;
+        let contradiction = false;
+        for (const raw of [current.getAttribute?.('data-direction'),
+          current.getAttribute?.('data-message-direction')]) {
+          if (raw == null || !String(raw).trim()) continue;
+          const direction = String(raw).trim().toLowerCase();
+          if (['outgoing', 'outbound', 'self', 'own', 'me'].includes(direction)) positive = true;
+          else contradiction = true;
+        }
+        const isOwn = current.getAttribute?.('data-is-own');
+        if (isOwn != null) {
+          if (['true', '1', 'yes'].includes(String(isOwn).toLowerCase())) positive = true;
+          else contradiction = true;
+        }
+        const marker = [current.getAttribute?.('data-e2e'), current.className]
+          .filter(Boolean).join(' ');
+        if (/(incoming|inbound|received)/i.test(marker)
+            || /(?:^|[-_ ])other(?:$|[-_ ])/i.test(marker)) contradiction = true;
+        const dataE2e = String(current.getAttribute?.('data-e2e') || '').trim().toLowerCase();
+        const classes = String(current.className || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
+        if (explicitPositiveMarkers.has(dataE2e)
+            || classes.some(token => explicitPositiveMarkers.has(token))) positive = true;
+        for (const raw of [current.getAttribute?.('data-sender-handle'), current.getAttribute?.('data-sender')]) {
+          if (raw == null || !String(raw).trim()) continue;
+          const senderHandles = (String(raw).match(/@[A-Za-z0-9._-]+/g) || [])
+            .map(handle => handle.toLowerCase());
+          if (senderHandles.length) {
+            if (expectedSender && senderHandles.every(handle => handle === expectedSender)) positive = true;
+            else contradiction = true;
+          } else if (['me', 'self', 'own', 'outgoing', 'outbound'].includes(String(raw).trim().toLowerCase())) {
+            positive = true;
+          } else {
+            contradiction = true;
+          }
+        }
+        return {positive, contradiction};
+      };
+      const boundedMessageRowFor = node => {
+        let bounded = null;
+        for (let scope = node.parentElement; scope && scope !== messageList; scope = scope.parentElement) {
+          const messages = [...(scope.querySelectorAll?.(rowBubbleSelector) || [])]
+            .filter(item => item && item.isConnected !== false);
+          const roots = messages.filter(item =>
+            !messages.some(other => other !== item && other.contains?.(item)));
+          if (roots.length > 1) break;
+          if (roots.length === 1 && (roots[0] === node || roots[0].contains?.(node))) {
+            bounded = {scope, root: roots[0]};
+          }
+        }
+        return bounded;
+      };
+      const isOutgoing = node => {
+        const row = boundedMessageRowFor(node);
+        if (!row) return false;
+        let positive = false;
+        let contradiction = false;
+        const rowNodes = new Set([row.scope, row.root, ...(row.scope.querySelectorAll?.('*') || [])]);
+        for (const current of rowNodes) {
+          const evidence = senderMarkerEvidence(current);
+          positive ||= evidence.positive;
+          contradiction ||= evidence.contradiction;
+        }
+        // Outside the bounded row, ancestor markers can veto proof but cannot establish it.
+        // Never inspect messageList descendants: they can belong to another conversation row.
+        for (let current = row.scope.parentElement; current && current !== messageList;
+             current = current.parentElement) {
+          contradiction ||= senderMarkerEvidence(current).contradiction;
+        }
+        return positive && !contradiction;
+      };
+      const expectedText = normalize(expected);
+      const exactBubbles = bubbles.filter(node => {
+        const content = normalize(node.querySelector?.('[data-e2e="dm-message-text"],[data-e2e*="message-content"],[class*="DivMessageContent"]')?.innerText || '');
+        return content === expectedText || normalize(node.innerText) === expectedText;
+      });
+      const possibleBubbleMatch = bubbles.some(node => normalize(node.innerText).includes(expectedText));
+      const exactStatuses = exactBubbles.map(statusFor);
+      const messageSenderProven = exactBubbles.length > 0 && exactBubbles.every(isOutgoing);
+      const messageStatusSafe = messageSenderProven && exactStatuses.every(status => status.owned)
+        && !exactStatuses.some(status => statusPattern.test(status.value));
+      const exactMessage = contextReady && messageSenderProven && messageStatusSafe;
+      const snapshotKey = JSON.stringify({
+        documentUrl, topUrl, recipientBound, editorText, messageListText, busy,
+        bubbles: bubbles.map(node => {
+          const status = statusFor(node);
+          return [normalize(node.innerText), status.owned, status.value];
+        }),
+      });
+      return {
+        url: topUrl, document_url: documentUrl, official_document: officialDocument,
+        recipient_bound: recipientBound, recipient_ambiguous: recipientAmbiguous,
+        editor: !!editor, editor_empty: editorEmpty,
+        editor_text: editorText,
+        context_ready: contextReady, message_list_hydrated: messageListHydrated,
+        message_node_resolution_complete: messageNodeResolutionComplete,
+        matching_bubble: exactBubbles.length > 0 || possibleBubbleMatch,
+        exact_message: exactMessage,
+        message_sender_proven: messageSenderProven, message_status_safe: messageStatusSafe,
+        message_status: exactStatuses.map(status => status.value).join(' '),
+        conversation_loaded: messageListHydrated,
+        message_count: bubbles.length, snapshot_key: snapshotKey,
+      };
+    })()'''.replace("__MARKER__", marker).replace(
+        "__CANDIDATE__", json.dumps(candidate)
+    ).replace("__SENDER__", json.dumps(sender)).replace("__MESSAGE__", json.dumps(message))
+
+
+def _send_guard_expressions(candidate: str, message: str) -> tuple[str, str]:
+    token = "__tiktok_dm_send_guard_" + hashlib.sha256(
+        (candidate + "\0" + message).encode()
+    ).hexdigest()[:16]
+    install = r'''/* TIKTOK_DISPATCH_GUARD */ (() => {
+      const token = __TOKEN__;
+      const candidate = __CANDIDATE__;
+      const expected = __MESSAGE__;
+      const normalize = value => String(value || '').replace(/\s+/g, ' ').trim();
+      const official = (raw, top = false) => {
+        try {
+          const url = new URL(raw);
+          const host = ['tiktok.com', 'www.tiktok.com'].includes(url.hostname.toLowerCase());
+          const path = top ? /^\/business-suite\/messages\/?$/i : /^\/(?:business-suite\/)?messages\/?$/i;
+          return url.protocol === 'https:' && host && path.test(url.pathname);
+        } catch (_) { return false; }
+      };
+      const contextReady = (win, event) => {
+        try {
+          const doc = win.document;
+          const topUrl = win.top.location.href;
+          const docUrl = doc.URL;
+          if (!official(topUrl, true) || !official(docUrl) || docUrl !== win.location.href) return false;
+          const frames = [...win.top.document.querySelectorAll('iframe')]
+            .filter(frame => String(frame.src || '').includes('/messages?'));
+          if (frames.length !== 1 || frames[0].contentWindow !== win) return false;
+          const editor = doc.querySelector('[contenteditable="true"][aria-label*="メッセージ"]');
+          const list = doc.querySelector('[data-e2e="dm-new-message-list"]');
+          const busy = list?.getAttribute('aria-busy');
+          const hydrated = !!list && doc.readyState === 'complete' && busy !== 'true'
+            && (busy === 'false' || list.getAttribute('data-loaded') === 'true'
+                || list.getAttribute('data-hydrated') === 'true');
+          const bubbleSelector = '[data-e2e="dm-message"],[data-e2e="dm-message-text"],[data-e2e*="message-bubble"],[data-e2e*="message-content"],[class*="DivChatMessage"],[class*="DivMessageBubble"]';
+          const messageLikeSelector = '[data-e2e*="message"],[class*="Message"]';
+          const bubbles = [...(list?.querySelectorAll(bubbleSelector) || [])];
+          const knownBubbles = new Set(bubbles);
+          const messageLikeNodes = [...(list?.querySelectorAll(messageLikeSelector) || [])]
+            .filter(node => !/message[-_ ]?(list|composer)/i.test(node.getAttribute?.('data-e2e') || '')
+              && !node.closest?.('[contenteditable="true"]'));
+          const listText = normalize(list?.innerText || '');
+          const messageNodesResolved = messageLikeNodes.every(node => knownBubbles.has(node))
+            && (!listText || bubbles.length > 0);
+          const expectedText = normalize(expected);
+          const duplicateMessage = bubbles.some(node => normalize(node.innerText).includes(expectedText));
+          const heads = [...(doc.querySelectorAll('[data-e2e*="chat-header"],[class*="ChatHeader"],[class*="ConversationHeader"]') || [])];
+          const handles = heads.flatMap(node => (node.innerText || '').match(/@[A-Za-z0-9._-]+/g) || [])
+            .map(value => value.toLowerCase());
+          const uniqueHandles = [...new Set(handles)];
+          const routeHandles = [topUrl, docUrl].flatMap(raw => {
+            try {
+              const values = new URL(raw).searchParams.getAll('u');
+              return values.filter(value => /^@?[A-Za-z0-9._-]+$/.test(value)
+                && (!/^\d+$/.test(value.replace(/^@/, '')) || /^@?\d+$/.test(candidate)))
+                .map(value => ('@' + value.replace(/^@/, '')).toLowerCase());
+            } catch (_) { return []; }
+          });
+          if (uniqueHandles.length !== 1 || uniqueHandles[0] !== candidate.toLowerCase()
+              || routeHandles.some(handle => handle !== candidate.toLowerCase())) return false;
+          const active = doc.activeElement;
+          const focused = !!editor && (active === editor || !!editor.contains?.(active));
+          const targetIsEditor = !event || (!!editor && (event.target === editor || !!editor.contains?.(event.target)));
+          return !!editor && editor.isConnected !== false && normalize(editor.innerText) === normalize(expected)
+            && focused && targetIsEditor && hydrated && messageNodesResolved && !duplicateMessage
+            && handles.includes(candidate.toLowerCase());
+        } catch (_) { return false; }
+      };
+      const installIn = win => {
+        try {
+          if (!win || !win.document || typeof win.addEventListener !== 'function') return false;
+          if (win[token]?.installed === true) return true;
+          const state = {installed: true, seen: false, status: null, keydownAllowed: false};
+          const guard = event => {
+            if (event.key !== 'Enter') return;
+            state.seen = true;
+            const allowed = contextReady(win, event);
+            if (event.type === 'keydown') {
+              state.keydownAllowed = allowed;
+              if (!allowed) state.status = 'blocked';
+              else if (state.status !== 'blocked') state.status = 'allowed';
+            } else if (event.type === 'keyup'
+                && (!state.keydownAllowed || !allowed)) {
+              if (state.status !== 'allowed') state.status = 'blocked';
+            }
+            if ((event.type === 'keydown' && !allowed)
+                || (event.type === 'keyup' && (!state.keydownAllowed || !allowed))) {
+              event.preventDefault();
+              event.stopPropagation();
+              event.stopImmediatePropagation();
+            }
+          };
+          win[token] = state;
+          win.addEventListener('keydown', guard, true);
+          win.addEventListener('keyup', guard, true);
+          return true;
+        } catch (_) { return false; }
+      };
+      const windows = [window];
+      if (window === window.top) {
+        for (const frame of [...document.querySelectorAll('iframe')]) {
+          try { if (frame.contentWindow) windows.push(frame.contentWindow); } catch (_) {}
+        }
+      }
+      const installed = windows.map(installIn);
+      return {guard_installed: installed.length > 0 && installed.every(Boolean),
+        ready: windows.some(win => contextReady(win, null))};
+    })()'''.replace("__TOKEN__", json.dumps(token)).replace(
+        "__CANDIDATE__", json.dumps(candidate)
+    ).replace("__MESSAGE__", json.dumps(message))
+    read_status = r'''/* TIKTOK_DISPATCH_GUARD_STATUS */ (() => {
+      const token = __TOKEN__;
+      const windows = [window];
+      if (window === window.top) {
+        for (const frame of [...document.querySelectorAll('iframe')]) {
+          try { if (frame.contentWindow) windows.push(frame.contentWindow); } catch (_) {}
+        }
+      }
+      const statuses = windows.map(win => win[token]).filter(state => state?.seen).map(state => state.status);
+      return {guard_status: statuses.includes('blocked') ? 'blocked'
+        : statuses.includes('allowed') ? 'allowed' : null};
+    })()'''.replace("__TOKEN__", json.dumps(token))
+    return install, read_status
+
+
 def send_one(payload: dict, *, cdp_client=cdp, send: bool = False, wait=time.sleep,
              project_root: Path | None = None, dedupe_runner=subprocess.run) -> dict:
     """Preflight or send once. An uncertain mutation is never retried here."""
@@ -260,41 +613,84 @@ def send_one(payload: dict, *, cdp_client=cdp, send: bool = False, wait=time.sle
 
         cdp_client.navigate(target, route)
         wait(7)
-        before = cdp_client.evaluate(target, f'''/* TIKTOK_COMPOSER_BEFORE */ (() => {{
-          const frame = [...document.querySelectorAll('iframe')].find(x => x.src.includes('/messages?'));
-          const doc = frame?.contentDocument;
-          const body = doc?.body?.innerText || '';
-          const editor = doc?.querySelector({json.dumps(EDITOR)});
-          const messageList = doc?.querySelector('[data-e2e="dm-new-message-list"]');
-          const heads = [...(doc?.querySelectorAll('[data-e2e*="chat-header"],[class*="ChatHeader"],[class*="ConversationHeader"]') || [])];
-          const handles = heads.flatMap(node => (node.innerText || '').match(/@[A-Za-z0-9._-]+/g) || []).map(x => x.toLowerCase());
-          const recipientBound = handles.includes({json.dumps(candidate)});
-          return {{url: location.href, recipient_bound: recipientBound,
-            editor: !!editor, editor_empty: !editor || !(editor.innerText || '').trim(),
-            exact_message: body.includes({json.dumps(message)}),
-            conversation_loaded: !!messageList,
-            message_count: messageList && (messageList.innerText || '').trim() ? 1 : 0}};
-        }})()''')
+        before = cdp_client.evaluate(
+            target, _readback_expression(candidate, message, "TIKTOK_COMPOSER_BEFORE", sender)
+        )
         if not isinstance(before, dict) or "__error__" in before:
             result["status"] = "composer_unreadable"
             return result
-        result["official_url"] = before.get("url")
-        if before.get("exact_message") is True and before.get("recipient_bound") is True:
+        uncertain_prior = bool(prior and prior[-1].get("state") in {"attempting", "unknown", "sent"})
+        if before.get("official_document") is True:
+            result["official_url"] = before.get("url")
+        if before.get("recipient_ambiguous") is True:
+            result.update(status="recipient_context_ambiguous", retry_safe=False)
+            try:
+                if not prior or prior[-1].get("state") != "unknown":
+                    _append(ledger, result, "unknown")
+            except Exception as error:
+                result.update(ledger_terminal_write="failed", error_type=type(error).__name__)
+            return result
+        if (before.get("official_document") is not True
+                or before.get("message_list_hydrated") is not True
+                or before.get("message_node_resolution_complete") is not True
+                or before.get("context_ready") is not True):
+            result.update(
+                status="reconcile_required" if uncertain_prior else "conversation_context_unready",
+                retry_safe=not uncertain_prior,
+            )
+            return result
+        if before.get("recipient_bound") is not True or before.get("editor") is not True:
+            result.update(
+                status="reconcile_required" if uncertain_prior else "composer_recipient_binding_failed",
+                retry_safe=not uncertain_prior,
+            )
+            return result
+        if before.get("matching_bubble") is True and before.get("message_status_safe") is not True:
+            result.update(status="message_delivery_unconfirmed", effect=1, retry_safe=False)
+            try:
+                if not prior or prior[-1].get("state") != "unknown":
+                    _append(ledger, result, "unknown")
+            except Exception as error:
+                result.update(ledger_terminal_write="failed", error_type=type(error).__name__)
+            return result
+        if before.get("exact_message") is True and before.get("message_status_safe") is True:
             result.update(status="deduplicated_exact_official_readback", exact_readback=True)
             if not prior or prior[-1].get("state") != "sent":
                 _append(ledger, result, "sent")
             return result
-        if (before.get("recipient_bound") is not True or before.get("editor") is not True
-                or before.get("editor_empty") is not True):
-            result["status"] = "composer_recipient_binding_failed"
+        if before.get("editor_empty") is not True:
+            result.update(
+                status="reconcile_required" if uncertain_prior else "composer_recipient_binding_failed",
+                retry_safe=not uncertain_prior,
+            )
             return result
         if (prior and prior[-1].get("state") in {"attempting", "unknown"}
-                and before.get("conversation_loaded") is True
-                and before.get("message_count") == 0):
-            _append(ledger, result, "not_sent")
-            result.update(status="not_sent_exact_official_readback", retry_safe=True)
-            return result
-        if prior and prior[-1].get("state") in {"attempting", "unknown", "sent"}:
+                and type(before.get("message_count")) is int
+                and before.get("message_count") == 0
+                and before.get("message_list_hydrated") is True
+                and before.get("editor_empty") is True
+                and isinstance(before.get("snapshot_key"), str)):
+            wait(0.5)
+            stable = cdp_client.evaluate(
+                target, _readback_expression(candidate, message, "TIKTOK_EMPTY_STABLE", sender)
+            )
+            stable_empty = (
+                isinstance(stable, dict) and "__error__" not in stable
+                and stable.get("official_document") is True
+                and stable.get("context_ready") is True
+                and stable.get("message_list_hydrated") is True
+                and stable.get("message_node_resolution_complete") is True
+                and stable.get("recipient_bound") is True
+                and stable.get("editor_empty") is True
+                and type(stable.get("message_count")) is int
+                and stable.get("message_count") == 0
+                and stable.get("snapshot_key") == before.get("snapshot_key")
+            )
+            if stable_empty:
+                _append(ledger, result, "not_sent")
+                result.update(status="not_sent_exact_official_readback", retry_safe=True)
+                return result
+        if uncertain_prior:
             result.update(status="reconcile_required", retry_safe=False)
             return result
         if not send:
@@ -302,27 +698,50 @@ def send_one(payload: dict, *, cdp_client=cdp, send: bool = False, wait=time.sle
             return result
 
         focused = cdp_client.evaluate(target, f'''/* TIKTOK_FOCUS */ (() => {{
-          const frame = [...document.querySelectorAll('iframe')].find(x => x.src.includes('/messages?'));
+          const frames = [...document.querySelectorAll('iframe')]
+            .filter(x => String(x.src || '').includes('/messages?'));
+          if (frames.length !== 1) return false;
+          const frame = frames[0];
           const editor = frame?.contentDocument?.querySelector({json.dumps(EDITOR)});
           if (!editor) return false; editor.focus(); return true;
         }})()''')
         if focused is not True:
             result["status"] = "composer_focus_failed"
             return result
-        cdp_client.insert(target, message)
-        filled = cdp_client.evaluate(target, f'''/* TIKTOK_FILLED */ (() => {{
-          const frame = [...document.querySelectorAll('iframe')].find(x => x.src.includes('/messages?'));
-          const editor = frame?.contentDocument?.querySelector({json.dumps(EDITOR)});
-          return {{text: editor?.innerText || ''}};
-        }})()''')
-        if not isinstance(filled, dict) or _text(filled.get("text")) != _text(message):
-            result["status"] = "composer_fill_mismatch"
+        pre_insert = cdp_client.evaluate(
+            target, _readback_expression(candidate, message, "TIKTOK_PRE_INSERT", sender)
+        )
+        if (not isinstance(pre_insert, dict) or "__error__" in pre_insert
+                or pre_insert.get("context_ready") is not True
+                or pre_insert.get("recipient_bound") is not True
+                or pre_insert.get("editor_empty") is not True):
+            result["status"] = "composer_guard_unavailable"
             return result
 
         result.update(effect=1, retry_safe=False)
         _append(ledger, result, "attempting")
         try:
-            cdp_client.key(target, "Enter")
+            cdp_client.insert(target, message)
+            filled = cdp_client.evaluate(
+                target, _readback_expression(candidate, message, "TIKTOK_FILLED", sender)
+            )
+            if (not isinstance(filled, dict) or "__error__" in filled
+                    or filled.get("context_ready") is not True
+                    or filled.get("recipient_bound") is not True
+                    or _text(filled.get("editor_text")) != _text(message)):
+                raise RuntimeError("composer_fill_or_context_unverified")
+            guard_expression, guard_status_expression = _send_guard_expressions(candidate, message)
+            guarded = cdp_client.guarded_key(
+                target, guard_expression, guard_status_expression, "Enter"
+            )
+            if (not isinstance(guarded, dict) or "__error__" in guarded
+                    or guarded.get("guard_status") != "allowed"):
+                result.update(
+                    status="send_unknown_reconcile_required",
+                    send_guard_status=(guarded.get("guard_status") if isinstance(guarded, dict) else None),
+                )
+                _append(ledger, result, "unknown")
+                return result
         except Exception:
             result["status"] = "send_unknown_reconcile_required"
             try:
@@ -332,18 +751,9 @@ def send_one(payload: dict, *, cdp_client=cdp, send: bool = False, wait=time.sle
             return result
         try:
             wait(4)
-            after = cdp_client.evaluate(target, f'''/* TIKTOK_AFTER */ (() => {{
-              const frame = [...document.querySelectorAll('iframe')].find(x => x.src.includes('/messages?'));
-              const doc = frame?.contentDocument;
-              const body = doc?.body?.innerText || '';
-              const editor = doc?.querySelector({json.dumps(EDITOR)});
-              const heads = [...(doc?.querySelectorAll('[data-e2e*="chat-header"],[class*="ChatHeader"],[class*="ConversationHeader"]') || [])];
-              const handles = heads.flatMap(node => (node.innerText || '').match(/@[A-Za-z0-9._-]+/g) || []).map(x => x.toLowerCase());
-              const recipientBound = handles.includes({json.dumps(candidate)});
-              return {{url: location.href, recipient_bound: recipientBound,
-                editor_empty: !editor || !(editor.innerText || '').trim(),
-                exact_message: body.includes({json.dumps(message)})}};
-            }})()''')
+            after = cdp_client.evaluate(
+                target, _readback_expression(candidate, message, "TIKTOK_AFTER", sender)
+            )
         except Exception:
             result["status"] = "send_unknown_reconcile_required"
             try:
@@ -351,10 +761,19 @@ def send_one(payload: dict, *, cdp_client=cdp, send: bool = False, wait=time.sle
             except Exception as error:
                 result.update(ledger_terminal_write="failed", error_type=type(error).__name__)
             return result
-        if isinstance(after, dict):
+        if isinstance(after, dict) and after.get("official_document") is True:
             result["official_url"] = after.get("url") or result.get("official_url")
-        exact = (isinstance(after, dict) and after.get("recipient_bound") is True
-                 and after.get("editor_empty") is True and after.get("exact_message") is True)
+        exact = (
+            isinstance(after, dict) and "__error__" not in after
+            and after.get("official_document") is True
+            and after.get("context_ready") is True
+            and after.get("message_list_hydrated") is True
+            and after.get("message_node_resolution_complete") is True
+            and after.get("recipient_bound") is True
+            and after.get("editor_empty") is True
+            and after.get("exact_message") is True
+            and after.get("message_status_safe") is True
+        )
         result["exact_readback"] = exact
         result["status"] = ("sent_exact_official_readback" if exact
                             else "send_unknown_reconcile_required")
