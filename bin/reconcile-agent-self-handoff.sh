@@ -181,7 +181,7 @@ while :; do
     fi
     fail_handoff "old_service_readback_failed" 69
   fi
-  old_state="$(printf '%s\n' "$old_detail" | sed -nE 's/^[[:space:]]*state = ([[:alnum:]_-]+)[[:space:]]*$/\1/p' | head -n 1)"
+  old_state="$(printf '%s\n' "$old_detail" | sed -nE 's/^[[:space:]]*state = (.*)$/\1/p' | head -n 1)"
   old_pid="$(printf '%s\n' "$old_detail" | sed -nE 's/^[[:space:]]*pid = ([0-9]+)[[:space:]]*$/\1/p' | head -n 1)"
   case "$old_state" in
     waiting|idle)
