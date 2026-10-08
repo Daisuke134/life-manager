@@ -1915,6 +1915,17 @@ def test_verified_no_effect_result_requires_exact_identity_and_allowed_entrypoin
                       'not_applicable',
                       f'lm-no-effect://{mobile_owner}/{mobile_occurrence}/no_due_slot',
                   )
+    _write_no_effect_result(hint, owner_id=mobile_owner,
+                            occurrence_id=mobile_occurrence,
+                            reason='daily_limit_reached')
+    assert reader(hint, mobile_owner, mobile_occurrence,
+                  'apps/life-manager/scripts/mobile-app') == (
+                      'not_applicable',
+                      f'lm-no-effect://{mobile_owner}/{mobile_occurrence}/daily_limit_reached',
+                  )
+    _write_no_effect_result(hint, reason='daily_limit_reached')
+    assert reader(hint, 'ebook-ja-tiktok-daily',
+                  'ebook-ja-tiktok-daily:run-off-slot', entrypoint) is None
     assert reader(hint, mobile_owner, mobile_occurrence,
                   'apps/life-manager/scripts/other-mobile-app') is None
     hint.write_text('{"status":"pre_effect_failure","effect":0}\n', encoding='utf-8')

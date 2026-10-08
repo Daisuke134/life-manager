@@ -243,6 +243,35 @@ test("the mobile result helper records an off-slot no_due_slot result as exact n
   });
 });
 
+test("the mobile result helper records a daily-limit result as exact no-effect proof", (t) => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "lm-mobile-daily-limit-result-"));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const helper = path.join(root, "apps/life-manager/scripts/mobile-effect-result.js");
+  const input = path.join(directory, "daily-limit.stdout");
+  const output = path.join(directory, "daily-limit.json");
+  fs.writeFileSync(input, `${JSON.stringify({ status: "daily_limit_reached", reason: "daily_limit_reached" })}\n`);
+  const result = spawnSync(process.execPath, [helper, input], {
+    cwd: root,
+    env: {
+      ...process.env,
+      LIFE_MANAGER_LOOP_ID: "life-manager-anicca-en-affirmation-instagram",
+      LIFE_MANAGER_OCCURRENCE_ID: "life-manager-anicca-en-affirmation-instagram:daily-limit-1",
+      LIFE_MANAGER_RESULT_HINT_PATH: output,
+    },
+    encoding: "utf8",
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(JSON.parse(fs.readFileSync(output, "utf8")), {
+    schema_version: 1,
+    kind: "life_manager_no_effect_result",
+    status: "verified_no_effect",
+    effect: 0,
+    owner_id: "life-manager-anicca-en-affirmation-instagram",
+    occurrence_id: "life-manager-anicca-en-affirmation-instagram:daily-limit-1",
+    reason: "daily_limit_reached",
+  });
+});
+
 test("the shared mobile wrapper persists exact no-effect proof for a no_due_slot result", (t) => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "lm-mobile-no-due-wrapper-"));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));

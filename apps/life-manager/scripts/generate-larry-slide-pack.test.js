@@ -90,6 +90,40 @@ test("resolveLarryJaSlot returns a typed no-due result before the first slot wit
   assert.equal(fs.existsSync(poolPath(dataDir, TENANT, EN_AFFIRMATION_LANE.productId, EN_AFFIRMATION_LANE.lane)), false);
 });
 
+test("resolveLarryJaSlot stops after the lane's verified daily receipt limit", async (t) => {
+  const dataDir = tempDataDir(t);
+  const env = { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT };
+  writeDistributionLedger(dataDir, [
+    "2026-10-09T00:05:00.000+09:00",
+    "2026-10-09T00:13:00.000+09:00",
+    "2026-10-09T00:17:00.000+09:00",
+  ].map((publishedAt, index) => ({
+    effect_key: `marketing:carousel:anicca-ios:creative:${"a".repeat(64)}:${"b".repeat(64)}:${"c".repeat(64)}:${crypto.createHash("sha256").update(`slot-${index}`).digest("hex")}`,
+    job_id: `published-off-slot-${index}`,
+    receipt: {
+      kind: "marketing_native_carousel_distribution",
+      status: "published",
+      integration_ref: EN_AFFIRMATION_LANE.integrationRef,
+      pack_sha256: "a".repeat(64),
+      published_at: publishedAt,
+      provider_post_id: `postiz-off-slot-${index}`,
+      provider_reconciled: true,
+    },
+  })));
+  let generateCalls = 0;
+  await assert.rejects(resolveLarryJaSlot({
+    env,
+    now: () => "2026-10-09T01:05:00.000Z",
+    lane: EN_AFFIRMATION_LANE,
+    productionSlots: ["10:00", "15:00", "20:00"],
+    generateCandidates: async () => {
+      generateCalls += 1;
+      throw new Error("must not generate after the lane daily limit");
+    },
+  }), (error) => error && error.code === "DAILY_LIMIT_REACHED");
+  assert.equal(generateCalls, 0);
+});
+
 test("resolveLarryJaSlot does not regenerate once the pool already has enough candidates", { timeout: 60_000 }, async (t) => {
   makeFixtureBackgroundOnce();
   const dataDir = tempDataDir(t);

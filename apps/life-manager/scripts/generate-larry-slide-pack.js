@@ -130,6 +130,21 @@ async function resolveLarryJaSlot({ env = process.env, now = () => new Date().to
   if (initialSlotReceipt) {
     return { slot: dueSlot, selected: null, alreadyPublished: true, providerPostId: initialSlotReceipt.providerPostId };
   }
+  const dayFormatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const localDay = dayFormatter.format(new Date(nowIso));
+  const publishedToday = initialPostedHistory.filter((row) => {
+    if (row.integrationRef !== lane.integrationRef) return false;
+    const publishedAt = new Date(row.postedAt);
+    return Number.isFinite(publishedAt.getTime()) && dayFormatter.format(publishedAt) === localDay;
+  }).length;
+  if (publishedToday >= productionSlots.length) {
+    throw Object.assign(new Error(`${lane.name} daily publication limit reached`), { code: "DAILY_LIMIT_REACHED" });
+  }
 
   const objectStore = createContentObjectStore({ objectDir: path.join(dataDir, "objects") });
   const workspaceDir = path.join(dataDir, "tenants", encodeURIComponent(tenantId), "marketing", "slide-pack-rotation", lane.productId, ".workspace");

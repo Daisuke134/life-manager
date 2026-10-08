@@ -8,6 +8,7 @@ const path = require("node:path");
 const SAFE_OWNER = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const SAFE_RECEIPT = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const MAX_RESULT_BYTES = 1024 * 1024;
+const MOBILE_NO_EFFECT_REASONS = new Set(["no_due_slot", "daily_limit_reached"]);
 
 function required(value, label) {
   const text = String(value == null ? "" : value).trim();
@@ -26,9 +27,9 @@ function readResult(file) {
   const resultKeys = value && typeof value === "object" && !Array.isArray(value)
     ? Object.keys(value).sort()
     : [];
-  if (value?.status === "no_due_slot" && value?.reason === "no_due_slot"
+ if (MOBILE_NO_EFFECT_REASONS.has(value?.status) && value?.reason === value.status
       && resultKeys.length === 2 && resultKeys[0] === "reason" && resultKeys[1] === "status") {
-    return { noEffectReason: "no_due_slot" };
+    return { noEffectReason: value.reason };
   }
   if (!value || typeof value !== "object" || Array.isArray(value)
       || !value.publication || typeof value.publication !== "object"
@@ -90,7 +91,7 @@ function main(argv = process.argv.slice(2), env = process.env) {
     throw new Error("mobile effect identity is invalid");
   }
   const result = readResult(argv[0]);
-  if (result && result.noEffectReason === "no_due_slot") {
+  if (result && MOBILE_NO_EFFECT_REASONS.has(result.noEffectReason)) {
     writePrivateJson(output, {
       schema_version: 1,
       kind: "life_manager_no_effect_result",
@@ -98,7 +99,7 @@ function main(argv = process.argv.slice(2), env = process.env) {
       effect: 0,
       owner_id: ownerId,
       occurrence_id: occurrenceId,
-      reason: "no_due_slot",
+      reason: result.noEffectReason,
     });
     return;
   }
