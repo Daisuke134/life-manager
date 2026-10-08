@@ -39,6 +39,7 @@ REPO_ROOT = HERE.parents[2]
 if str(HERE) not in sys.path:
     sys.path.insert(0, str(HERE))
 
+import chatgpt_keyframes  # noqa: E402
 import seedance_set  # noqa: E402
 
 STAGES = ("plan", "character", "clips", "apng", "select", "package", "submit", "images", "submitted")
@@ -277,6 +278,7 @@ def run_character(set_dir: Path, state_root: Path, deps: Deps) -> str:
         return "images"
     seedance_plan = {
         "reference": "ref-padded.png",
+        "character_prompt": plan_draft.get("character_prompt", ""),
         "motions": [
             {"id": m["id"], "prompt": m["prompt"],
              "start": m.get("start") if m.get("start") is not None else 0.0,
@@ -470,26 +472,22 @@ def wake(state_root: Path, deps: Deps) -> dict:
 # --------------------------------------------------------------------------------------
 
 def production_deps() -> Deps:
-    import urllib.error
-
     from line_sticker_planner import planner, character_image, selector  # noqa: E402 (local import keeps tests dependency-free)
     from line_sticker_submit import submit as browser_submit  # noqa: E402
     from line_sticker_notify import notify  # noqa: E402
     import line_sticker_static  # noqa: E402
 
+    # SSOT L29 (Dais 2026-10-08): fal's Seedance balance is exhausted (-$10.95, HTTP 403) and
+    # image cost must stay $0, so the animated line never calls fal for clips/apng any more —
+    # chatgpt_keyframes (sprite-sheet + slice, $0 against the ChatGPT subscription) is the only
+    # animated path now, unconditionally, not merely a fallback. seedance_set.clips/apng (fal)
+    # stay in the module only for their APNG-assembly helpers chatgpt_keyframes.apng() reuses,
+    # and for tests/test_seedance_fal_retry.py's retry-logic coverage.
     def clips_runner(set_dir: Path, plan: dict) -> None:
-        try:
-            seedance_set.clips(set_dir, plan)
-        except urllib.error.HTTPError as exc:
-            if exc.code == 403:
-                # fal account out of balance: record it so the next plan() picks the static line
-                # instead of stalling on video generation (SSOT L19, observed 2026-10-08).
-                _atomic_write_json(line_sticker_static.fal_balance_marker(set_dir.parent),
-                                    {"at": now_utc().isoformat(), "code": 403})
-            raise
+        chatgpt_keyframes.clips(set_dir, plan)
 
     def apng_runner(set_dir: Path, plan: dict) -> None:
-        seedance_set.apng(set_dir, plan)
+        chatgpt_keyframes.apng(set_dir, plan)
 
     def packager(set_dir: Path, plan_path: Path, order: list[str], main_id: str, tab_id: str) -> None:
         seedance_set.package(set_dir, plan_path, order, main_id, tab_id)

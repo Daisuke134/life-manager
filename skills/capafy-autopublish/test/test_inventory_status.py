@@ -226,8 +226,8 @@ def test_repo_update_request_targets_existing_online_version(monkeypatch, tmp_pa
 
     module.main()
     decision = json.loads(capsys.readouterr().out.splitlines()[-1])
-    assert decision["action"] == "update_existing"
-    assert decision["item"]["agent_id"] == "9999999999"
+    # Dais 2026-10-08: no update of an accepted Agent is ever selected.
+    assert decision.get("action") != "update_existing"
 
     monkeypatch.setattr(module, "server_agents", lambda: [agent("other", "under_review")])
     module.main()
@@ -808,7 +808,7 @@ def test_retired_offline_agent_is_not_recovered(monkeypatch, tmp_path, capsys) -
     assert decision.get("action") != "recover_delisted"
 
 
-def test_non_retired_offline_agent_is_still_recovered(monkeypatch, tmp_path, capsys) -> None:
+def test_offline_agent_is_never_recovered(monkeypatch, tmp_path, capsys) -> None:
     module = load_module()
     monkeypatch.setattr(module, "FEATURES", str(tmp_path / "no-legacy"))
     monkeypatch.setattr(module, "CATALOG", str(tmp_path / "no-catalog"))
@@ -824,9 +824,9 @@ def test_non_retired_offline_agent_is_still_recovered(monkeypatch, tmp_path, cap
     module.main()
     decision = json.loads(capsys.readouterr().out.splitlines()[-1])
 
-    assert decision["verdict"] == "PUBLISHABLE"
-    assert decision["action"] == "recover_delisted"
-    assert decision["item"]["agent_id"] == "sold-1"
+    # Dais 2026-10-08: already-submitted Agents are never recovered; new Agents only.
+    assert decision.get("action") != "recover_delisted"
+    assert (decision.get("item") or {}).get("agent_id") != "sold-1"
 
 
 def test_malformed_retired_json_fails_closed(monkeypatch, tmp_path, capsys) -> None:
