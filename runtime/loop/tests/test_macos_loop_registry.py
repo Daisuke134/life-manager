@@ -1743,3 +1743,23 @@ class RetirementGuardRegistryTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_mobile_app_publish_loops_declare_the_postiz_effect_reconcile():
+    """2026-10-09: 18 Anicca/Honne posting loops had no effect_reconcile, so any killed run left
+    the owner fenced (effect_unknown) for hours and growth stopped. Sibling ebook-*-daily uses the
+    Postiz provider reconcile with --auto-owner."""
+    import json
+    from pathlib import Path
+    registry = json.loads((Path(__file__).resolve().parents[3] / "config/loop-registry.json").read_text())
+    missing = []
+    for loop_id, row in registry["loops"].items():
+        if row.get("entrypoint") != "apps/life-manager/scripts/mobile-app" or row.get("effect_class") != "publish":
+            continue
+        rec = row.get("effect_reconcile") or {}
+        argv = rec.get("argv") or []
+        ok = (argv[:3] == ["apps/life-manager/scripts/mobile-postiz-provider-reconcile.py", "--auto-owner", loop_id]
+              and rec.get("occurrence_flag") == "--occurrence-id" and rec.get("resolve_flag") == "--resolve")
+        if not ok:
+            missing.append(loop_id)
+    assert missing == []
