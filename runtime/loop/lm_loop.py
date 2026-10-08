@@ -3157,7 +3157,7 @@ def main(argv: list[str] | None = None) -> int:
             and row["loop_id"] not in requested_ids
             and row["loop_id"] not in pending_policy_mismatches
             and row["loop_id"] not in pending_release_rebinds)})
-        applied, failed = [], []
+        applied, failed, skipped_effect_unknown = [], [], []
         for row in eligible:
             try:
                 results = apply_live(
@@ -3183,7 +3183,13 @@ def main(argv: list[str] | None = None) -> int:
                     else:
                         applied.append(result)
             except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as exc:
-                failed.append({"loop_id": row["loop_id"], "error": str(exc)})
+                if (isinstance(exc, RuntimeError)
+                        and str(exc) == "admission rebind refused: effect_unknown"):
+                    # Preserve this owner's external-effect fence without failing the
+                    # independent release reconciliation for other eligible owners.
+                    skipped_effect_unknown.append(row["loop_id"])
+                else:
+                    failed.append({"loop_id": row["loop_id"], "error": str(exc)})
         pre_effect_reconciled: list[dict] = []
         if automatic_release_reconciler and AUTO_PRE_EFFECT_RECONCILE_ENABLED:
             loaded_running = {row["loop_id"] for row in rows
@@ -3208,6 +3214,7 @@ def main(argv: list[str] | None = None) -> int:
             "ok": not failed, "route": route, "release_sha": current_sha,
             "skipped_non_ancestor": skipped_non_ancestor,
             "skipped_pending": sorted(set(skipped_pending)),
+            "skipped_effect_unknown": sorted(set(skipped_effect_unknown)),
             "eligible": len(eligible), "applied": applied, "failed": failed,
             "pre_effect_reconciled": pre_effect_reconciled,
             "skipped_running": [row["loop_id"] for row in rows if (

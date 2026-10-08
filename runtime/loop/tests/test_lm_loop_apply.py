@@ -3391,6 +3391,80 @@ class LmLoopApplyTest(unittest.TestCase):
         self.assertEqual(receipt["applied"], [])
         self.assertEqual(receipt["skipped_pending"], ["example"])
 
+    def test_reconcile_treats_effect_unknown_rebind_as_fenced_skip(self):
+        release = self._release("release-effect-unknown-reconcile").resolve()
+        value = two_loop_registry()
+        for entry in value["loops"].values():
+            entry["provider_route"] = "shared-agent-runner"
+        (release / "config/loop-registry.json").write_text(json.dumps(value))
+        rows = [{
+            "classification": "managed", "provider_route": "shared-agent-runner",
+            "launchd_state": "loaded-idle", "installed_release_sha": "b" * 40,
+            "event_release_sha": "b" * 40, "loop_id": loop_id,
+        } for loop_id in ("example", "second")]
+        applied = []
+
+        def reconcile_apply(_release, _agents, _safe, *, target, **_kwargs):
+            if target == "example":
+                raise RuntimeError("admission rebind refused: effect_unknown")
+            applied.append(target)
+            return [{"ok": True, "loop_id": target, "changed": True}]
+
+        with (
+            patch.object(lm_loop, "ROOT", release),
+            patch.object(lm_loop, "snapshot", return_value=rows),
+            patch.object(lm_loop, "_loaded_sha_is_ancestor", return_value=True),
+            patch.object(lm_loop, "apply_live", side_effect=reconcile_apply),
+            patch.dict(os.environ, {
+                "LIFE_MANAGER_RELEASE_ROOT": str(release),
+                "LIFE_MANAGER_LOOP_ID": "life-manager-release-reconciler",
+            }),
+            redirect_stdout(io.StringIO()) as output,
+        ):
+            result = lm_loop.main([
+                "reconcile", "shared-agent-runner", "--loaded-idle-only", "--max-owners", "2",
+            ])
+
+        receipt = json.loads(output.getvalue())
+        self.assertEqual(result, 0, "an unresolved external-effect fence is a safe skip")
+        self.assertTrue(receipt["ok"])
+        self.assertEqual(receipt["failed"], [])
+        self.assertEqual(receipt["skipped_effect_unknown"], ["example"])
+        self.assertEqual(applied, ["second"])
+        self.assertEqual([row["loop_id"] for row in receipt["applied"]], ["second"])
+
+    def test_reconcile_keeps_non_fence_errors_fatal(self):
+        release = self._release("release-reconcile-other-error").resolve()
+        value = registry()
+        value["loops"]["example"]["provider_route"] = "shared-agent-runner"
+        (release / "config/loop-registry.json").write_text(json.dumps(value))
+        row = {
+            "classification": "managed", "provider_route": "shared-agent-runner",
+            "launchd_state": "loaded-idle", "installed_release_sha": "b" * 40,
+            "event_release_sha": "b" * 40, "loop_id": "example",
+        }
+        with (
+            patch.object(lm_loop, "ROOT", release),
+            patch.object(lm_loop, "snapshot", return_value=[row]),
+            patch.object(lm_loop, "_loaded_sha_is_ancestor", return_value=True),
+            patch.object(lm_loop, "apply_live",
+                         side_effect=RuntimeError("disk write failed")),
+            patch.dict(os.environ, {
+                "LIFE_MANAGER_RELEASE_ROOT": str(release),
+                "LIFE_MANAGER_LOOP_ID": "life-manager-release-reconciler",
+            }),
+            redirect_stdout(io.StringIO()) as output,
+        ):
+            result = lm_loop.main([
+                "reconcile", "shared-agent-runner", "--loaded-idle-only", "--max-owners", "1",
+            ])
+
+        receipt = json.loads(output.getvalue())
+        self.assertEqual(result, 1)
+        self.assertFalse(receipt["ok"])
+        self.assertEqual(receipt["failed"], [{"loop_id": "example", "error": "disk write failed"}])
+        self.assertEqual(receipt["skipped_effect_unknown"], [])
+
     def test_default_reconcile_rechecks_owner_queued_after_snapshot(self):
         release = self._release("release-default-late-pending").resolve()
         current = self.root / "current-default-late-pending"
