@@ -5617,3 +5617,29 @@ PR #7050はmainへmerge済み（merge commit `dcf04b2dbf401bbd07e78e9c9efd204f0e
 5. JP claimsがowner pathでcloseした後にだけ12:30 slotをdue判定し、eligibleなら自然catch-upする。Englishのold HeyGen effectと`disabled_verified` destinationは個別に解決し、別slotで1回publishする。
 6. 3 eBook account×3 unique PUBLISHED/day、replay-zero、settled order/PDF/monthly subscription evidenceを順に閉じる。one-time eBook saleをMRRに含めない。
 7. eBook paid order+matching PDF後、CapafyのPostiz-connected profileに対する2 disabled ownerのBootstrap 5 root causeをowner-safe apply経路で解消し、one-canary receiptと継続cadenceを分けてreadbackする。
+
+### 2026-10-08 13:59 JST — backoff fix loaded; eBook fence lacks target occurrence
+
+PR #7055はmainへmerge済み（`8486f4e854a0e630542aba34d31405b082cd2e45`）。current symlinkは新release `20261008T135350-8486f4e8`で、そこにpartial-backoff修正がある。promotion/readbackはまだ進行中。
+
+**13:54–13:59 JST readback:**
+
+- release reconciler PID 1229 / run `18dc751507efc988-1229`はSHA `8486f4e8`から実行中。eBook 3 ownersと`lm-fence-reconciler`はまだ旧SHA `8f342d8d`で`loaded-idle`。旧fleet stateはSHA `8f342d8d`, `status=error`, `next_retry=14:06:05 JST`。新SHAのapplyは別の初回promotionとして必要であり、旧stateのsame-SHA backoffとは混ぜない。
+- Exact call results for the three held ebook claims are now `inconclusive / runtime_occurrence_missing_or_invalid / closed=false`.
+- Root cause is identified in the owner call path: the three ebook registry `effect_reconcile` rows invoke `mobile-postiz-provider-reconcile.py --auto-owner ...` with `occurrence_flag=null`. `lm-fence-reconciler` calls that child while its own runtime environment contains the fence reconciler's owner identity; because no ebook target occurrence is passed, `_runtime_occurrence_scope()` refuses the child call as missing or mismatched. The adapter's current CLI also rejects combining `--auto-owner` with `--occurrence-id`.
+- A safe fix is to pass each target as `--occurrence-id` for the three ebook adapters and allow that exact occurrence to scope `--auto-owner`. `reconcile_current_occurrence()` still validates owner prefix, exact admission row, unique local identity, and fresh official Postiz readback before any resolution. This fixes target routing only; the three old identity sidecars are still absent and their claims remain fenced until the exact local receipt join succeeds.
+- Postiz official GET at 13:54:40 confirms eBook 2/9 (EN TikTok 0, JA TikTok 1, JA Instagram 1) and separate Capafy IG 2 `PUBLISHED` posts. HeyGen title `Anicca` list is 0. Capafy's two automation owners remain disabled after `Bootstrap failed: 5`; Postiz integration is enabled.
+
+**TODO順変更:** 旧順=`partial-backoff fix → target apply fence reconciler → identity recovery → catch-up`。新順=`new 8486f4e8 natural release apply/readback → exact occurrence handoff fix/test for 3 ebook adapters → natural fence run and confirm the failure advances to identity-missing rather than runtime-scope-missing → owner-path recovery of unique old identities → JP catch-up → English old effect/account gate → 9/day → paid order/PDF/recurring MRR → Capafy owner bootstrap repair/canary`。理由: backoff code is now in current symlink, but owner plists remain old; the latest fence calls fail before identity or provider lookup because the target occurrence is not passed. Current cursor=`release reconciler run 18dc751507efc988-1229 natural terminal and SHA readback`.
+
+**Remaining atomic TODO:**
+
+1. Let run `18dc751507efc988-1229` terminal naturally. Read current release, owner SHAs, fleet summary, and apply-lock state; do not overlap the active reconciler.
+2. In a latest-main branch, set `occurrence_flag="--occurrence-id"` on the EN/JA TikTok and JA Instagram ebook `effect_reconcile` entries. Update `mobile-postiz-provider-reconcile.py` so `--auto-owner OWNER --occurrence-id OWNER:claim` selects only that explicit occurrence, validates its owner prefix, and ignores the parent's `lm-fence-reconciler` runtime identity. Keep `--auto-owner` without an explicit target fail-closed whenever runtime context exists.
+3. Add a failing-then-passing test that invokes the explicit target while the inherited environment names `lm-fence-reconciler`, and a registry/build_argv test proving each ebook fence call includes the exact occurrence.
+4. Merge/release the adapter fix and use the next natural `lm-fence-reconciler` wake. Confirm it no longer returns `runtime_occurrence_missing_or_invalid`; if it returns `identity_missing_or_invalid`, keep the claim fenced and continue exact identity reconstruction.
+5. Recover the two JP PUBLISHED identities from a unique join of runtime claim, marketing job/effect key, distribution receipt, Postiz ID/account/integration/slot/hashes, and fresh provider readback. Never write an identity by hand.
+6. Resolve JP claims only through the owner adapter. If 12:30 is still due afterward, catch it up through the natural owner wake and confirm new TikTok/Instagram PUBLISHED receipts.
+7. Resolve English `effect_unknown` from HeyGen video ID or itemized billing evidence, and independently establish an `approved_active` English destination before a distinct-slot canary.
+8. Verify 3 unique PUBLISHED receipts per eBook account/day (9 total) with replay-zero; then join post→UTM click→settled checkout→matching PDF→settled monthly subscription to compute net MRR. Do not count one-time eBook sales as MRR.
+9. After the eBook paid-order/PDF gate, diagnose the two disabled Capafy IG owners' Bootstrap 5 apply failure using the owner path, restore one canary/24h, and verify the owner-linked PUBLISHED receipt. Do not treat the existing two Capafy posts as cadence proof or reconnect/CAPTCHA work.
