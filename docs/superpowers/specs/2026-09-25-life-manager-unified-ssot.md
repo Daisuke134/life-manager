@@ -6538,3 +6538,21 @@ The next cursor is item 1 commit/push. No Dais manual action is currently requir
 4. Verify the next natural self-handoff receipt and terminal event, then continue the English video/fence, Instagram binding, one-post/readback, cadence, and Letter MRR cursors above.
 
 **現在cursor:** `natural terminal of d35aa4bc PID34577 → preflight/no-PID proof → safe unload of stale inactive helper → targeted loaded-idle-only apply of b2bcba46 → loaded SHA/argv and successful receipt → exact video and English IG route → one verified post → 3/day → Letter subscriptions and MRR`. No Capafy action, raw `launchctl`, forced restart, or effect replay.
+
+### 2026-10-08 19:59 JST — stale helper label blocks the next natural update
+
+- Latest readback: preflight passes; main reconciler is running on `d35aa4bc` as PID `34577`; the helper label is not running but remains loaded from old release `88dfdaf4`. `~/loops/current` is `20261008T195517-b2bcba46`.
+- The d35aa runner's `schedule_self_handoff()` returns early whenever the helper label prints as loaded; it does not compare the loaded helper path with the target release. This leaves the stale 88df helper in place after the source fix is applied. The most recent old-helper receipt is still `old_service_state_unknown` for `state=not running`.
+- The current docs PR #7124 still fails the inherited OSS check `manifest_inventory_mismatch skills/capafy-autopublish`; this is outside the eBook branch and belongs to the other Capafy owner. No Capafy file is changed here.
+
+**Order update:** the previous cursor said “apply latest main, then natural handoff.” The new order is “wait for the d35aa reconciler process to reach a natural terminal → with fresh preflight and no PID on both labels, acquire its existing per-label lock, boot out only the stale inactive 88df helper through `launchctl-safe`, and verify absence → let the next natural d35aa wake schedule a fresh helper for current release b2bc.” This avoids booting out any running service; if either label becomes active, skip the cleanup and wait for its next natural terminal.
+
+**Atomic TODO (eBook only):**
+
+1. Observe PID `34577` to natural terminal. Do not stop/restart it.
+2. Re-read the service and helper with `launchctl-safe` after a fresh preflight. Require both to have no PID, and require the helper's loaded program to be the stale `88dfdaf4` path.
+3. Under `/Users/anicca/loops/.apply-locks/ai.anicca.life-manager-release-reconciler.lock`, unload only the inactive helper with `launchctl-safe bootout`; verify `launchctl-safe print` reports the helper absent. Abort if lock/preflight/state differs.
+4. Let the next natural reconciler wake create a helper from the current release; verify two consecutive no-PID `not running` reads, target SHA/argv, and a successful receipt.
+5. Continue the eBook video, exact English Monk Instagram binding, one-post/readback, 3/day cadence, and $9.99 Letter MRR funnel tasks recorded above.
+
+**現在cursor:** `natural terminal of d35aa PID34577 → fresh preflight/no-PID proof → safe unload of stale 88df helper under the existing lock → next natural wake uses current b2bc helper → successful receipt and loaded SHA/argv → resolve English video + IG handle → publish once/read back → restore 3/day → grow Letter subscriptions toward 1,002 paid active subscribers`. No Capafy action, raw `launchctl`, forced restart, or effect replay.
