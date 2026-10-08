@@ -6088,3 +6088,13 @@ Fresh read-only review rejected the idle-readback-only patch: a new StartInterva
 4. ConnectorのLuma registration + Calendar + Telegram、Job Hunterの新規適格Workday application official status + Telegram、Fundraiserの新規VC/AI-AGI founder向けGmail message ID + exact Sent + Telegramを同じoccurrenceに結ぶ。manager構想とpodcast/Zoom/対面提案を保ち、human-required gateを迂回しない。
 5. Danaher `R1316263`、DeepScale、LAUNCHのold fenceを同一targetのofficial statusまたはstrict verified-pre-effect proofで解決する。未解決targetは再送しない。全receiptのoccurrence bind、duplicate-free、replay-zeroを確認し、Fundraise収入はsettlement後だけ計上する。
 6. 3 loopのnatural proof後にsame-window claim/queue/wait/CPU/RAM/diskを比較し、安定した余力が実測された場合だけcap/laneを調整する。過去の8/8 snapshotを現在値とみなさない。production gateを閉じたら本laneを完了しMX-01へ戻る。
+
+### 2026-10-08 16:57 JST — target release handoff timed out on active old service
+
+この追記は16:52のsource/release stateを更新する。
+
+**handoff readback（07:57Z）:** `~/loops/current`は`20261008T165311-07aa3fb3`。release reconcilerはSHA `3c87f64f` / loaded-running PID `58583`で、直近natural occurrence `18dc7e6b8cbaf958-35373`は07:52:05ZにPASS。self-handoff receiptはtarget SHA `07aa3fb3`へ向けて更新されたが、receipt statusは`failed` / `error=old_service_active_timeout`、`old_service_state=running` / PID `58583`、per-label run lockは`acquired`。handoff-watchはpassを続けるが、07aa loaded argvのverified receiptはまだない。`lm-loop doctor`はretired Capafy labelに加えてunmanaged helper `ai.anicca.life-manager-release-reconciler-self-handoff`を表示する。手動bootout/stop/restartやhelper削除をしない。
+
+**target owner state:** Connector c61 / idle、Job Hunter daily c61 / `apply_lock_busy`、inbox 6cc / `resource_capacity_busy`、health c61 / `resource_capacity_busy`、Fundraiser 71a / idle、Paid 6cc / loaded-running PID `10293`。3 revenue target loopにprovider receiptなし。Fundraiserのstrict pre-effect occurrenceは解決済みだが、DeepScale/LAUNCH旧2 fencesとDanaher `R1316263`は未解決。
+
+**TODO順更新:** 旧cursor=`07aa current release handoff → Capafy doctor → target apply`。新cursor=`PID 58583とhelperのnatural handoff/readback → old_service_active_timeoutの再現有無を確認し、07aa loaded SHA/argv receiptを得る → helperが自然に消えた後Capafy owner-safe retired label解決とdoctor PASS → target owner idle/admission eligible時に5 ownerを個別apply → natural provider outcome/Telegram/old fence解決/replay-zero → capacity measurement`。理由はmain source `#7091`はcurrent symlinkにあるが、self-handoff receiptがactive old service timeoutで止まり、Fundraiser/Job Hunter ownerは旧SHAのままだからである。現在cursor=`old service PID 58583のnatural terminalと07aa target receiptを待つ`。
