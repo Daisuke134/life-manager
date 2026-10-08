@@ -1252,3 +1252,48 @@ def test_raw_cp2_picks_the_display_model_before_filling_workspace_fields(monkeyp
 
     assert module._raw_cp2("https://capafy.ai/developer/createAgent?token=t&page=review", "secret", cdp) is True
     assert order == ["model", "workspace"]
+
+
+def test_raw_fill_workspace_conversation_fields_waits_for_the_tab_to_render(tmp_path, monkeypatch) -> None:
+    """2026-10-08 (drafts 8580209829 and 3257394572): CP3 clicked the Agent ワークスペース tab, slept
+    one second, found no fields yet, skipped every role as "absent on this layout" and printed
+    "already filled" while the required provider field and the DPA checkbox were still empty. The
+    submit button then never appeared. Fields are absent until some real time has passed after the
+    tab click; the fix must wait for them."""
+    module = load_module()
+    clock = {"slept": 0}
+    monkeypatch.setattr(module.time, "sleep", lambda s=0, *_a: clock.__setitem__("slept", clock["slept"] + (s or 0)))
+    listing = tmp_path / "LISTING.md"
+    listing.write_text(_LISTING_MD, encoding="utf-8")
+    calls = []
+
+    def rendered():
+        return clock["slept"] >= 3.0  # the tab content appears 3 seconds after the click
+
+    class _Page:
+        def evaluate(self, expression):
+            if "role=tab" in expression or "Agent Workspace" in expression:
+                return {"ok": True, "x": 1, "y": 2}  # the tab click itself works; only its content is late
+            if "workspace-field-count" in expression:
+                return {"ok": True, "value": ""} if rendered() else {"ok": False}
+            if "workspace-focus-count" in expression:
+                return {"ok": True}
+            if "dpa-checkbox-count" in expression:
+                return {"ok": True, "checked": False, "x": 5, "y": 6} if rendered() else {"ok": False}
+            if "submit-button-count" in expression:
+                return {"ok": True, "label": "draft", "text": "下書きを保存"}
+            if "draft-save-count" in expression:
+                return {"ok": True, "x": 3, "y": 4, "disabled": False}
+            pytest.fail(f"unexpected evaluate: {expression}")
+
+        def call(self, method, params=None):
+            calls.append((method, params))
+
+        def press_enter(self):
+            calls.append(("press_enter", None))
+
+    assert module._raw_fill_workspace_conversation_fields(_Page(), str(listing)) is True
+    inserted = [p["text"] for (m, p) in calls if m == "Input.insertText"]
+    assert "openrouter.ai" in inserted, "the required provider field must be filled once the tab renders"
+    assert ("Input.dispatchMouseEvent", {"type": "mousePressed", "x": 5.0, "y": 6.0, "button": "left", "clickCount": 1}) in calls, \
+        "the DPA checkbox must be checked once the tab renders"
