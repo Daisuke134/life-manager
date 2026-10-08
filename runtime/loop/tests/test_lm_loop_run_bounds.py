@@ -1789,6 +1789,46 @@ def test_cfo_effect_result_hint_requires_exact_loop_and_entrypoint(tmp_path):
     wrong_entrypoint = observed_env(
         "life-manager-cfo-hourly", "skills/cfo/other.sh", "wrong-entrypoint")
     assert "LIFE_MANAGER_RESULT_HINT_PATH" not in wrong_entrypoint
+
+
+def test_cfo_nonzero_telegram_result_keeps_message_effect_unknown(tmp_path):
+    occurrence = "life-manager-cfo-hourly:telegram-run-incomplete-counters"
+    claim = tmp_path / "claim-cfo"
+    claim.write_text(json.dumps({"occurrence_id": occurrence}))
+    observed = {}
+
+    def run_child(*_args, **kwargs):
+        observed.update(kwargs["env"])
+        kwargs["on_started"](4242)
+        return 1
+
+    with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket-cfo", "ready")),
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                return_value=(claim, "acquired")),
+          patch("runtime.loop.lm_loop_run.transfer_durable_resource"),
+          patch("runtime.loop.lm_loop_run.release_and_reserve_resource",
+                return_value=[]) as release,
+          patch("runtime.loop.lm_loop_run._dispatch_reserved"),
+          patch("runtime.loop.lm_loop_run._run_entrypoint", side_effect=run_child)):
+        assert _run_admitted(["/bin/true"], {
+            "cadence": {"start_interval_seconds": 3600},
+            "provider_route": "deterministic", "resource_class": "deterministic",
+            "admission_class": "borrow", "priority": "revenue",
+            "effect_class": "message", "runtime_timeout_seconds": 45,
+            "entrypoint": "skills/cfo/run.sh",
+        }, "life-manager-cfo-hourly", {}, tmp_path / "receipt-cfo",
+            occurrence_id=occurrence) == 1
+
+    assert observed["LIFE_MANAGER_LOOP_ID"] == "life-manager-cfo-hourly"
+    assert observed["LIFE_MANAGER_RESULT_HINT_PATH"] == str(
+        tmp_path / "entrypoint-result.json")
+    assert not (tmp_path / "receipt-cfo" / "entrypoint-result.json").exists()
+    release.assert_called_once_with(
+        claim, requeue=False, reserve=True, effect_unknown=True)
+
+
 def test_mobile_publish_failure_after_hint_clear_keeps_unknown_effect_fence(tmp_path):
     claim = tmp_path / "claim-mobile"
     claim.write_text(json.dumps({

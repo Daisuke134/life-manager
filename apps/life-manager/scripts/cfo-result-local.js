@@ -20,16 +20,16 @@ function occurrenceId(value) {
 
 function writeRuntimeTelegramEffectHint(env, currentOccurrenceId, destination, delivery, duplicate) {
   if (env?.LIFE_MANAGER_LOOP_ID !== "life-manager-cfo-hourly"
-    || destination.channel !== "telegram" || duplicate
-    || delivery?.delivery !== "delivered" || delivery.attempted !== 1
+    || destination.channel !== "telegram" || duplicate) return null;
+  if (delivery?.delivery !== "delivered" || delivery.attempted !== 1
     || delivery.delivered !== 1 || delivery.delivery_uncertain !== 0
-    || delivery.pre_send_failed !== 0) return;
+    || delivery.pre_send_failed !== 0) return false;
   const providerReceiptId = delivery.provider_message_id;
-  if (typeof providerReceiptId !== "string" || !TELEGRAM_MESSAGE_ID.test(providerReceiptId)) return;
+  if (typeof providerReceiptId !== "string" || !TELEGRAM_MESSAGE_ID.test(providerReceiptId)) return false;
   let exactOccurrence;
-  try { exactOccurrence = occurrenceId(currentOccurrenceId); } catch { return; }
+  try { exactOccurrence = occurrenceId(currentOccurrenceId); } catch { return false; }
   const file = String(env.LIFE_MANAGER_RESULT_HINT_PATH || "");
-  if (!file || path.basename(file) !== EFFECT_RESULT_HINT_FILENAME) return;
+  if (!file || path.basename(file) !== EFFECT_RESULT_HINT_FILENAME) return false;
 
   const effectResult = {
     schema_version: 1,
@@ -48,13 +48,15 @@ function writeRuntimeTelegramEffectHint(env, currentOccurrenceId, destination, d
       fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL
         | (fs.constants.O_NOFOLLOW || 0), 0o600);
     const opened = fs.fstatSync(descriptor);
-    if (!opened.isFile() || opened.nlink !== 1) return;
+    if (!opened.isFile() || opened.nlink !== 1) return false;
     fs.fchmodSync(descriptor, 0o600);
-    if ((fs.fstatSync(descriptor).mode & 0o777) !== 0o600) return;
+    if ((fs.fstatSync(descriptor).mode & 0o777) !== 0o600) return false;
     fs.writeFileSync(descriptor, `${JSON.stringify(effectResult)}\n`, "utf8");
     fs.fsyncSync(descriptor);
+    return true;
   } catch {
     // A missing or pre-existing hint is fail-closed: the runtime keeps the effect unknown.
+    return false;
   } finally {
     if (descriptor !== undefined) {
       try { fs.closeSync(descriptor); } catch { /* The provider receipt remains authoritative. */ }
@@ -722,7 +724,11 @@ async function runResultCfo(options) {
   persist({ ...pending, status: "sent", occurrenceId: currentOccurrenceId,
     messageSha256: pending.messageSha256 || messageSha256(pending.message),
     resolutionKind, providerMessageId: String(delivery.provider_message_id), sentAt });
-  writeRuntimeTelegramEffectHint(sourceEnv, currentOccurrenceId, destination, delivery, duplicate);
+  const runtimeHintWritten = writeRuntimeTelegramEffectHint(
+    sourceEnv, currentOccurrenceId, destination, delivery, duplicate);
+  if (runtimeHintWritten === false) {
+    throw new Error("cfo_runtime_telegram_receipt_hint_missing");
+  }
   return {
     status: duplicate ? "quiet" : "sent", reason: duplicate ? "unchanged" : null,
     reportingDate: pending.reportingDate, delivered: !duplicate,

@@ -551,7 +551,7 @@ test("CFO writes a runtime Telegram receipt only for a new confirmed send", asyn
     effect_status: "verified",
   })}\n`;
   fs.writeFileSync(historicalHint, historicalBytes, { mode: 0o600 });
-  const historical = await runResultCfo({
+  await assert.rejects(runResultCfo({
     ...options,
     stateDir: path.join(root, "historical-state"),
     occurrenceId: "life-manager-cfo-hourly:telegram-run-historical-path",
@@ -561,8 +561,7 @@ test("CFO writes a runtime Telegram receipt only for a new confirmed send", asyn
       delivery: "delivered", provider_message_id: "9143", attempted: 1,
       delivered: 1, delivery_uncertain: 0, pre_send_failed: 0,
     }),
-  });
-  assert.equal(historical.status, "sent");
+  }), /cfo_runtime_telegram_receipt_hint_missing/);
   assert.equal(fs.readFileSync(historicalHint, "utf8"), historicalBytes);
 
   const failedHint = path.join(root, "failed", "entrypoint-result.json");
@@ -579,7 +578,7 @@ test("CFO writes a runtime Telegram receipt only for a new confirmed send", asyn
   assert.equal(fs.existsSync(failedHint), false);
 });
 
-test("CFO does not write a runtime receipt for multiple or incomplete delivery counters", async (t) => {
+test("CFO keeps runtime receipt incomplete for multiple or incomplete delivery counters", async (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-cfo-invalid-delivery-counters-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const cases = [
@@ -603,9 +602,10 @@ test("CFO does not write a runtime receipt for multiple or incomplete delivery c
 
   for (const [name, delivery] of cases) {
     const hintPath = path.join(root, name, "entrypoint-result.json");
+    const stateDir = path.join(root, `${name}-state`);
     fs.mkdirSync(path.dirname(hintPath), { mode: 0o700 });
-    const result = await runResultCfo({
-      stateDir: path.join(root, `${name}-state`),
+    await assert.rejects(runResultCfo({
+      stateDir,
       subjectId: "dais-local", reportChannel: "telegram", chatId: "123",
       occurrenceId: `life-manager-cfo-hourly:${name}`,
       env: {
@@ -617,10 +617,12 @@ test("CFO does not write a runtime receipt for multiple or incomplete delivery c
       now: "2026-10-07T12:00:00.000Z",
       collect: async (date) => ({ reporting_date: date, timezone: "Asia/Tokyo", rows: [] }),
       notify: async () => delivery,
-    });
+    }), /cfo_runtime_telegram_receipt_hint_missing/);
 
-    assert.equal(result.status, "sent", name);
     assert.equal(fs.existsSync(hintPath), false, name);
+    const report = JSON.parse(fs.readFileSync(path.join(stateDir, "last-result-report.json"), "utf8"));
+    assert.equal(report.status, "sent", name);
+    assert.equal(report.providerMessageId, delivery.provider_message_id, name);
   }
 });
 
