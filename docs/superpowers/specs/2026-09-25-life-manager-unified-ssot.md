@@ -6749,3 +6749,24 @@ The next cursor is item 1 commit/push. No Dais manual action is currently requir
 8. In one time window, measure active claims, reservations, eligible queue age, admission reasons, per-class contention, CPU/RAM/disk, and actual simultaneous target loops. The configured finite-run default is 8, not measured live capacity. Keep OpenClaw and Life Manager admission authority unless measured scheduler limits remain after disk/owner repairs. Report applications, replies, meetings, funding, settled cash, and costs separately.
 
 **現在cursor:** push latest-main sync/digest/spec → exact-head checks and fresh review → merge → cleanup receipt >= 2 GiB → immutable release/natural handoff/doctor → exact effect fences → owner-by-owner natural runs → capacity/economic evidence.
+
+
+### 2026-10-08 20:45 JST — PR cursor corrected after fresh review
+
+- Fresh read-only review of PR #7121 head cb8be2c529f75bb76fb9c4125b030e11279a84c1 against base 804effc5d7c4a1e0702df3f42a425fb273a97022 found no code finding, but raised one Important SSOT finding: the current TODO/cursor still asked to push a latest-main sync already pushed. This entry marks that push complete and moves the cursor to current-head acceptance. The review’s code inspection found no critical or minor issue in the fail-closed Fundraiser reconciler.
+- At 20:42 JST, CI run 37771611383 was for cb8be2c5; Agent instruction, PII, Startup, Python/unittest, and Shell passed; Loop control, OSS, TruffleHog, and gitleaks were still pending. This cursor update creates a new PR head, so only the subsequent exact-head checks and review count.
+- Completed sync: latest main 804effc5, merge in branch, manifest digest d211d4e2671a532f3a8209ebabc5a1817fcbba7a10e727d22e88417a4451993f, local OSS verifier/source-boundary/diff-check pass. Commit cb8be2c5 was confirmed on the remote before this cursor update.
+- Production readback at 20:41 JST: current release is 804effc5. The latest cleanup occurrence 18dc8b16c58afb40-45114 failed at 11:41:58Z; current disk free is 1,283,560 KiB, below the 2 GiB recovery floor. The previous structured host-cleanup result reclaimed 6,409 bytes and left free_after below the floor. The next owner wake remains on its scheduled launchd cadence; do not issue another kickstart while the label is idle and launchctl-safe previously timed out.
+
+**残TODO（最新から完了まで）:**
+
+1. [x] Sync latest main, correct the Capafy inventory, push the status/spec to the PR branch, and verify the remote SHA.
+2. Run all required PR #7121 checks on the head produced by this cursor update; obtain a fresh read-only SHIP review on that same SHA; then merge with gh pr merge 7121 --admin.
+3. Let life-manager-disk-cleanup reach its next natural terminal. Require a fresh owner result with free_after >= 2 GiB, errors=0, protected_deletions=0. If it remains below floor, inspect the current candidate rotation and launchd readback before any owner-scoped retry; never delete a candidate directly.
+4. After source merge, verify the main-derived current release and natural release-reconciler pass. Resolve retired Capafy/unmanaged handoff labels through their owners, then require doctor unmanaged=0, missing=0, installed-retired=0.
+5. Resolve each exact FoundersEdge/DeepScale/LAUNCH/Workday Learning/Danaher effect by official provider status or strict pre-effect proof. Keep uncertain targets fenced and never replay them.
+6. Apply Connector, Job Hunter, and Fundraiser one owner at a time only when loaded-idle, admission-eligible, and lock-free. Fix disk/admission causes at their owning function before changing capacity.
+7. Verify natural Luma registration, Workday applications, and new-target VC/AI/AGI founder cold mail with matching provider/sent-mail receipts, gpt-6-luna/max/fast run events, and Telegram reports. Follow positive Fundraiser replies to agreed podcast/Zoom or invited in-person meetings and record outcomes/costs.
+8. Measure claims/reservations/eligible queue age/admission reasons/per-class contention/CPU/RAM/disk in one time window; report actual simultaneous loops and separate applications, replies, meetings, funding, settled cash, and costs. Keep configured cap 8 distinct from live occupancy; retain OpenClaw unless measurements prove a scheduler-specific limit.
+
+**現在cursor:** push this cursor correction → latest-head CI and fresh review → merge → cleanup receipt >= 2 GiB → natural release/doctor → exact effect fences → owner natural outcomes → same-window capacity/economics.
