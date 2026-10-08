@@ -247,11 +247,11 @@ def _readback_expression(candidate: str, message: str, marker: str, sender: str 
         const values = [];
         for (let current = node; current && current !== messageList; current = current.parentElement) {
           values.push(current.getAttribute?.('data-status'), current.getAttribute?.('data-message-status'),
+            current.getAttribute?.('aria-label'), current.getAttribute?.('title'),
             statusClass(current.className));
-          if (current === row) break;
         }
-        // Status siblings belong to this message only when the bounded row has one canonical root.
-        for (const item of row.querySelectorAll?.(statusSelector) || []) {
+        // Status descendants and siblings belong only to a scope with one canonical message root.
+        for (const item of row.scope.querySelectorAll?.(statusSelector) || []) {
           values.push(item.getAttribute?.('data-status'), item.getAttribute?.('data-message-status'),
             item.getAttribute?.('aria-label'), item.getAttribute?.('title'),
             statusClass(item.className), item.innerText);
@@ -302,7 +302,9 @@ def _readback_expression(candidate: str, message: str, marker: str, sender: str 
           const roots = messages.filter(item =>
             !messages.some(other => other !== item && other.contains?.(item)));
           if (roots.length > 1) break;
-          if (roots.length === 1 && (roots[0] === node || roots[0].contains?.(node))) bounded = scope;
+          if (roots.length === 1 && (roots[0] === node || roots[0].contains?.(node))) {
+            bounded = {scope, root: roots[0]};
+          }
         }
         return bounded;
       };
@@ -313,9 +315,9 @@ def _readback_expression(candidate: str, message: str, marker: str, sender: str 
         }
         const row = boundedMessageRowFor(node);
         if (!row) return false;
-        // Check every ancestor marker, then only the nearest ancestor with one message root.
+        // Check every ancestor marker and the outermost scope with one canonical message root.
         // Never scan messageList: its descendants can include another conversation row.
-        const inspected = new Set([...path, row, ...(row.querySelectorAll?.('*') || [])]);
+        const inspected = new Set([...path, row.scope, row.root, ...(row.scope.querySelectorAll?.('*') || [])]);
         let positive = false;
         let contradiction = false;
         for (const current of inspected) {
