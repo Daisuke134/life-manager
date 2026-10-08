@@ -83,7 +83,10 @@ EFFECT_RESULT_HINT_ENTRYPOINTS = frozenset({
     "apps/life-manager/scripts/ebook-distribute-daily.sh",
     "apps/life-manager/scripts/mobile-app",
 })
-NO_EFFECT_RESULT_HINT_ENTRYPOINT = "apps/life-manager/scripts/ebook-distribute-daily.sh"
+NO_EFFECT_RESULT_HINT_ENTRYPOINTS = frozenset({
+    "apps/life-manager/scripts/ebook-distribute-daily.sh",
+    "apps/life-manager/scripts/mobile-app",
+})
 # Loop IDs allowed to use the pre-effect hint when their registry entrypoint is
 # shared (e.g. runtime/loop/entry_dispatch.py dispatches several owners from one
 # entrypoint string). Entrypoint membership above is not enough to scope trust
@@ -922,7 +925,7 @@ def _verified_effect_result(path: Path, loop_id: str,
 
 def _verified_no_effect_result(path: Path, loop_id: str, occurrence_id: str,
                                entrypoint: str) -> tuple[str, str] | None:
-    if entrypoint != NO_EFFECT_RESULT_HINT_ENTRYPOINT:
+    if entrypoint not in NO_EFFECT_RESULT_HINT_ENTRYPOINTS:
         return None
     value = _read_private_result_hint(path)
     expected_fields = {
@@ -1694,7 +1697,7 @@ def main(argv: list[str] | None = None) -> int:
                 and entry.get("entrypoint") in EFFECT_RESULT_HINT_ENTRYPOINTS
                 and claimed_occurrence_id is not None):
             hint_path = scratch / "entrypoint-result.json"
-            if entry.get("entrypoint") == NO_EFFECT_RESULT_HINT_ENTRYPOINT:
+            if entry.get("entrypoint") in NO_EFFECT_RESULT_HINT_ENTRYPOINTS:
                 effect_result = _verified_no_effect_result(
                     hint_path, loop_id, claimed_occurrence_id, entry["entrypoint"])
             if effect_result is None:

@@ -116,7 +116,10 @@ async function resolveLarryJaSlot({ env = process.env, now = () => new Date().to
   const dataDir = path.resolve(required(env.LM_DATA_DIR, "LM_DATA_DIR"));
   const tenantId = required(env.LM_RUNTIME_TENANT_ID, "LM_RUNTIME_TENANT_ID");
   const nowIso = now();
-  const dueSlot = slot || marketingVideoDueSlot(Date.parse(nowIso), "Asia/Tokyo", productionSlots) || nowIso;
+  const dueSlot = slot || marketingVideoDueSlot(Date.parse(nowIso), "Asia/Tokyo", productionSlots);
+  if (!dueSlot) {
+    throw Object.assign(new Error(`${lane.name} production has no due slot yet`), { code: "NO_DUE_SLOT" });
+  }
   const distributionLedger = distributionLedgerPath(dataDir, tenantId, lane.productId);
   const initialPostedHistory = readPostedHistory(distributionLedger);
   const slotHash = crypto.createHash("sha256").update(dueSlot).digest("hex");

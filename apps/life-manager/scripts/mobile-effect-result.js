@@ -23,6 +23,13 @@ function readResult(file) {
   const lines = fs.readFileSync(file, "utf8").split(/\r?\n/).filter((line) => line.trim());
   if (lines.length !== 1) throw new Error("mobile result must contain one JSON line");
   const value = JSON.parse(lines[0]);
+  const resultKeys = value && typeof value === "object" && !Array.isArray(value)
+    ? Object.keys(value).sort()
+    : [];
+  if (value?.status === "no_due_slot" && value?.reason === "no_due_slot"
+      && resultKeys.length === 2 && resultKeys[0] === "reason" && resultKeys[1] === "status") {
+    return { noEffectReason: "no_due_slot" };
+  }
   if (!value || typeof value !== "object" || Array.isArray(value)
       || !value.publication || typeof value.publication !== "object"
       || Array.isArray(value.publication)) {
@@ -82,7 +89,20 @@ function main(argv = process.argv.slice(2), env = process.env) {
       || occurrenceId.length > 256) {
     throw new Error("mobile effect identity is invalid");
   }
-  const publication = readResult(argv[0]);
+  const result = readResult(argv[0]);
+  if (result && result.noEffectReason === "no_due_slot") {
+    writePrivateJson(output, {
+      schema_version: 1,
+      kind: "life_manager_no_effect_result",
+      status: "verified_no_effect",
+      effect: 0,
+      owner_id: ownerId,
+      occurrence_id: occurrenceId,
+      reason: "no_due_slot",
+    });
+    return;
+  }
+  const publication = result;
   const providerReceiptId = required(publication.provider_post_id, "provider_post_id");
   if (!SAFE_RECEIPT.test(providerReceiptId)) throw new Error("provider_post_id is invalid");
   writePrivateJson(output, {
