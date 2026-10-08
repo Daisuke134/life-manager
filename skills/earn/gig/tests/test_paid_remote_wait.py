@@ -5439,12 +5439,34 @@ def test_paid_decision_contract_matches_runtime_fast_fail_route():
     assert all(candidate["provider"] == "codex" for candidate in candidates)
 
 
-def test_cached_decision_reuses_hash_bound_legacy_escalation_proof(tmp_path, monkeypatch):
+def test_cached_decision_reuses_hash_bound_legacy_escalation_proof(tmp_path):
     paid = load("paid_direct")
     evidence = tmp_path / "evidence" / "agent-PAID_WORK_DECISION"
     evidence.mkdir(parents=True)
     result_path = evidence / "attempt-01.result.json"
-    write_json(result_path, {"cached": True})
+    feedback = "a" * 64
+    requirements = "b" * 64
+    identity = {"message_id": "m1", "content_sha256": "d" * 64, "side": "buyer"}
+    decision = {
+        "decision": "actionable",
+        "mode": "remote",
+        "feedback_sha256": feedback,
+        "requirements_sha256": requirements,
+        "latest_message_identity": identity,
+        "required_output": "Deliver the completed provider outcome.",
+        "required_effect": "Publish and verify the provider outcome.",
+        "required_outcomes": [{
+            "outcome_id": "provider-outcome",
+            "source_message_identities": [identity],
+            "required_output": "Deliver the completed provider outcome.",
+            "required_effect": "Publish and verify the provider outcome.",
+        }],
+        "required_assets": [],
+        "delivery_stage": "none",
+        "formal_approval_evidence": None,
+        "unresolved": [],
+    }
+    write_json(result_path, decision)
     write_json(evidence / "summary.json", {
         "status": "success",
         "task_label": "paid-work-decision",
@@ -5457,7 +5479,6 @@ def test_cached_decision_reuses_hash_bound_legacy_escalation_proof(tmp_path, mon
     prompt = tmp_path / "decision.prompt.txt"
     prompt.write_text("same decision prompt", encoding="utf-8")
     prompt_sha256 = paid.hashlib.sha256(prompt.read_bytes()).hexdigest()
-    decision = {field: None for field in paid.PAID_DECISION_FIELDS}
     runner = paid._decision_runner_proof(evidence, allow_legacy=True)
     receipt = {
         "schema_version": paid.PAID_DECISION_SCHEMA_VERSION,
@@ -5470,14 +5491,18 @@ def test_cached_decision_reuses_hash_bound_legacy_escalation_proof(tmp_path, mon
         "runner": runner,
         **decision,
     }
-    monkeypatch.setattr(paid, "_validate_paid_decision", lambda *_args, **_kwargs: decision)
 
     cached = paid._cached_paid_decision(
         tmp_path, receipt, prompt, prompt_sha256, "a" * 64, "b" * 64, "c" * 64,
-        "feedback", "requirements", {}, {}, "d" * 64,
+        feedback, requirements, identity, identity, "d" * 64,
+    )
+    stable_cached = paid._stable_cached_paid_decision(
+        tmp_path, receipt, "a" * 64, "c" * 64, feedback, requirements,
+        identity, identity, "d" * 64,
     )
 
     assert cached == decision
+    assert stable_cached == decision
     with pytest.raises(paid.Failure):
         paid._decision_runner_proof(evidence)
 
