@@ -63,8 +63,7 @@ Connector、Job Hunter、Fundraiserの既存loopを、現行`lm-loop`上で安�
 - 対象source acceptance、fresh read-only review、required CIをpassしてPRをmainへ統合する。
 - 既存source snapshot: context/CDP 21 tests、Connector wrapper 2、Fundraiser wrapper 7、Connector controller+contract 10 tests pass。`./bin/lm-loop-contract`、source-boundary、shell syntax、diff checkもpass。
 - Additional acceptance: `runtime/host/tests/test_resource_admission.py` 137 passed; `runtime/browser/tests/test_capacity_probe.py` 3 passed; Connector production contract 1 passed. `./bin/lm-loop-contract` reports catalog 18 / registry 187 / errors 0. Source boundary, shell syntax, Python compile, diff check and OSS self-contained verifier pass.
-- The current local candidate implements the RED findings and passes the focused suites above. Those source edits and the updated manifest are not yet on the remote PR branch.
-- **現在cursor — sourceをpushしてfresh review/CI:** ローカルcandidateはfocused acceptance済み。commit/push後にfresh read-only reviewとPR required CIをPASSさせてmainへ統合する。旧headでのPython/OSS失敗はfixture/manifest修正後の結果と混同しない。
+- **GREEN source candidate:** the focused suites above pass; the source and manifest are pushed at head `91555137`. Fresh read-only review found no issues. All required CI for this head is still running; see current cursor below.
 - TDD RED on source head `7201c8d4`: focused regressions reported 8 failures, 1 pass, and 23 passing subtests. The failures reproduce missing profile-level lock API, inherited fail-fast policy affecting unrelated tasks, Fundraiser owner/context-mode mismatch, and Connector's owner-wide tab GC call. `test_terra_default.py` now passes. No production owner or provider was changed by these fixture tests.
 - Additional runner-call-site RED on head `5f015b68`: the two profile-policy subtests fail because `run()` passes neither the stable account lock path nor an explicit task-scoped fail-fast boolean to `run_provider_process`.
 - The unmarked-task wait and provider-retained-lease-on-runner-kill regressions also fail before implementation, confirming that the shared profile lease must cover all Codex candidates and its file descriptor must survive the runner process.
@@ -93,8 +92,8 @@ Connector、Job Hunter、Fundraiserの既存loopを、現行`lm-loop`上で安�
 
 ## 現在cursorと残TODO（完了までの順序）
 
-1. **現在cursor — source review/CI:** local code + manifest + focused acceptanceを専用branchへcommit/pushし、fresh read-only reviewとPR #7072の全required CIをPASSさせてmainへ統合する。
-2. LAUNCH occurrence `fundraiser:18dc7222f6b5ec78-20440`、Danaher `R1316263`、DeepScale.Venturesの既存effectをread-onlyで照合する。これはreview/CIと並行し、同一targetのofficial statusまたはstrict verified-pre-effect proofがないものはfencedのまま保ち、再送しない。
+1. **現在cursor — PR acceptance:** PR #7072 head `91555137` has no independent review findings and all required CI checks PASS. This status update creates another PR head, so its required checks must pass before merge.
+2. LAUNCH occurrence `fundraiser:18dc7222f6b5ec78-20440`、Danaher `R1316263`、DeepScale.Venturesの既存effectをread-onlyで照合する。これはCIと並行し、Gmail検索は3 queryで0件だったがno-effect proofではない。同一targetのofficial portal/Workday statusまたはstrict verified-pre-effect proofがないものはfencedのまま保ち、再送しない。
 3. release reconcilerのnatural terminal、shared apply lock、disk/headroom、target admission、unknown fenceをfresh readbackする。latest-main由来immutable releaseを作り、Connector `life-manager-connector-native`、Job Hunter daily/health/inbox、Fundraiserだけをowner単位でapplyし、loaded SHA/argv/envを確認する。active ownerを止めず、applyを重ねない。
 4. 3 loopのnatural occurrenceを確認する。ConnectorはLuma registration + Google Calendar + Telegram receipt、Job Hunterは新規適格Workday jobのofficial state/receipt + Telegram、Fundraiserは新規VCとAI/AGI founderへのGmail provider message ID + exact Sent + Telegram receiptを同一occurrenceへ結ぶ。human-required gateを迂回しない。
 5. 各occurrenceのreplay-zeroを確認し、過去unknownは同一targetのofficial statusまたはstrict verified-pre-effect proofがある場合だけcloseする。証拠が取れないものはfencedのまま記録し、新規targetの処理とは分ける。
