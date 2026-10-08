@@ -958,3 +958,18 @@ def test_only_the_deciding_call_counts_a_draft_attempt(monkeypatch, tmp_path, ca
     monkeypatch.setenv("CAPAFY_COUNT_DRAFT_ATTEMPT", "1")
     module.main(); capsys.readouterr()
     assert module.load_draft_attempts() == {"4973250899": 1}
+
+
+def test_unlisted_cap_defaults_to_the_servers_five_and_is_overridable():
+    """2026-10-09: 4 under review + 1 rejected = 5 and the server refused every create."""
+    import importlib, os, sys
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+    os.environ.pop("CAPAFY_UNLISTED_CAP", None)
+    import inventory_status
+    assert importlib.reload(inventory_status).CAP == 5
+    os.environ["CAPAFY_UNLISTED_CAP"] = "9"
+    try:
+        assert importlib.reload(inventory_status).CAP == 9
+    finally:
+        os.environ.pop("CAPAFY_UNLISTED_CAP", None)
+        importlib.reload(inventory_status)

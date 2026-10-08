@@ -3252,6 +3252,7 @@ Capafy の新規出荷が「毎日・永続」になっていない原因は 3 �
 | R16 | 空きディスクが 2 GiB 床の前後で振れ続け、工場の実行が `disk_headroom_low` で先送りされる | リリースを 10 分前後おきに切る（複数セッション）。各約 100 MB で、ラベルが読み込んでいる世代は GC が保護する。2026-10-08 21:45 実測: リリース 39 個中 32 個が保護、ラベルは 24 世代に分散（81 個が `804effc5`）、reconciler は `budget exceeded` の partial で収束せず、cleanup owner 自身が ENOSPC で失敗（悪循環）。colima は 0、`.worktrees` のマージ済み 4 本（約 800 MB）はリース付きで残っていた | 部分対処: reconciler の自動 cut に最小間隔 `LIFE_MANAGER_RELEASE_CUT_MIN_INTERVAL_SECONDS`（既定 1800 秒）を追加（complete な現行リリースが間隔内なら切らない）。マージ済み worktree 4 本を runbook で退役（空き 1.0→1.9 GB）。fleet apply は予算切れ(約1200秒で60〜86ラベル)の後30分待っていたため収束しなかった。予算切れで前進した pass は `LIFE_MANAGER_FLEET_APPLY_CONTINUE_SECONDS`（既定300秒）後に同じ sha で続行する。残る候補: (b) fleet-apply を収束させて旧世代の保護を外す、(c) 退役済み PR の worktree をリース解放まで自動で畳む | ⚠ |
 | R17 | R16 の対策後も空きディスクが 200MB〜2.3GB で数分ごとに振れる | 2026-10-08 22:20 実測: 16GB RAM に swap が 8.7GB/9.4GB。swap は同じ APFS コンテナの空きを食うので、メモリ圧で「空き」が落ちる。`corespotlightd` が 4.4GB 常駐、Codex アプリ約 2GB+1GB、Chromium 約 4 プロセス 2GB、ChatGPT | `corespotlightd` を再起動（launchd が自動復帰）。残る対策: 常駐アプリのメモリ上限、Spotlight の除外、host admission は空き容量と swap 使用率を併記して診断する | ⚠ |
 | R18 | 「今日は動いて明日は壊れる」が構造として残る | 2026-10-08 23:07 実測: 187 ジョブ中 failed 69 / safely_fenced 72 / healthy 12。失敗のほぼ全てが同一の `host_admission_deferred:disk_headroom_low`。単一の共有ゲート(空き 2 GiB 床)が 187 ループ全部を同時に止める。(1) 優先度が無く、収益ループも保守ループも同列に止まる (2) 掃除ジョブ自身が同じゲートと ENOSPC で失敗する (3) 空きディスクの原因は swap(メモリ圧)で、ゲートはメモリを見ない (4) 16 GB RAM の 1 台に 187 ループとデスクトップアプリが同居 (5) 手動 cut で世代が増え続け GC が解放できない | 部分対処: 床は優先度別(Dais 2026-10-09「制限で出荷を止めない。掃除は cleanup agent の仕事」): `critical_paid` 256 MiB、`revenue` 512 MiB、それ以外は 2 GiB(`_disk_floor`、`LIFE_MANAGER_DISK_FLOOR_<PRIORITY>_BYTES` で上書き)。2026-10-09 に未使用・未ピン留め・プロセスなしの中間リリース 10 世代(約 1.1 GiB)を削除し空き 0.6→1.75 GiB。残る恒久案: 優先度クラス別 admission(収益 > 成長 > 保守、低空き時は収益のみ実行)、掃除と readback 用の予約枠、swap 使用率をゲート信号に追加、同時実行のメモリ予算、リリース cut を reconciler 一本化、重い工場のクラウド host への移設 | ⚠ |
+| R19 | 工場が新規 Agent を作れず `PREPARE_FAILED`(publish-init failed for new agent) で止まる | 2026-10-09 00:25 実測: サーバー一覧 = under_review 4 + review_rejected 1 = **未公開 5**(Capafy の上限)。00:10 に成功したのは既存 draft の再開で、新規作成ではない。サポート(10/8)も上限引き上げを製品提案として扱い、上限の存在を前提にしている。10/8 に私が置いた `CAP=1_000_000`(上限なし)は誤り。公式 docs: draft の削除に API は無く画面操作のみ | `CAP` の既定を実測の 5 に戻した(`CAPAFY_UNLISTED_CAP` で上書き可)。出荷の律速は Capafy の審査速度。空き枠を作る手: 却下済み `4973250899` の削除(画面操作)、審査の優先依頼(送信済み)、上限引き上げ(依頼済み・製品チーム評価中)。ledger の `status` 文字列は古く(21 件中 14 件が実は承認済み)、承認数の正本はサーバー一覧 | ⚠ |
 
 ### 残り（この順）
 1. R3 の自然解除を確認（15:29 の起動で effect_unknown が 0 になること）。同じ型（失敗で fence を残す）の他ループ 22 本のうち、お金に関わるものを同様に直す。
@@ -6331,6 +6332,33 @@ Fresh read-only review rejected the idle-readback-only patch: a new StartInterva
 - Commit `e0d60679628152eeba6d7b8669f8245e743e80d5` is pushed to `fix/no-gemini-mobile-marketing-20261008`; PR [#7152](https://github.com/Daisuke134/life-manager/pull/7152) is open as draft against `main` `96daa787a7c897edd740c047b955d8d9afa6800b`. All reported CI checks pass, including loop control contracts, Python syntax/unittest, PII, secret scans, OSS boundary, and travel/notification contracts. CodeRabbit reports `Review skipped: draft pull request`; no reviewer or sub-agent was started.
 - This is not merged or production-active. The user asked to skip further reviews; keep the PR draft. Last observed Larry (`f9d94048`, unresolved `official_readback_required`) and Honne JA (`8f342d8d`, disk admission/effect fence) owner states remain separate promotion blockers. Current cursor: do not claim saved production cost yet; the source patch is ready on the pushed branch, while production continues on its installed release until integration and safe owner promotion.
 
+
+### 2026-10-08 23:01 JST — English Monk Instagram and disk state refreshed
+
+- Dais confirms eBook-only scope; another owner handles Capafy. English Monk Instagram is the required destination, and the already-rendered video should publish immediately once the route is usable. Do not route this content to the existing TikTok or iOS `@anicca.en` account.
+- Official HeyGen GET returns video `db2dab0924e19b88c14e03a6a7849069` as `completed` (13.4008 seconds). The run receipt and local MP4 match SHA-256 `132d9b326059f9b74d6020e4bca50f0a77d2f2f5ca0595d2f2feb56449c12183`; `ffprobe` confirms H.264 1080×1920, 13.44 seconds. No new render or monthly HeyGen subscription is needed.
+- Fresh Postiz official GET returns 31 integrations, including 9 `instagram-standalone` routes. It contains no English Monk Instagram integration. The existing `monk_anicca` TikTok integration is enabled and has zero posts in the last 24 hours; it remains a separate route.
+- The dedicated Instagram signup is still at phone verification. Adding either existing Gmail address fails because it is already used by another Instagram account; previous email codes are stale. `read_sms_otp.py` fails to open `~/Library/Messages/chat.db` outside the Messages privacy grant. CUA search found no fresh Instagram SMS, and iPhone Mirroring says the selected iPhone needs reconnection in System Settings. No CAPTCHA is present. Do not change Apple privacy settings or use duplicate/temporary email identities to bypass the account check. The concrete external action, if the local SMS read remains unavailable, is to reconnect the already selected iPhone in System Settings.
+- Shared cleanup owner `life-manager-disk-cleanup` remains loaded-idle with `entrypoint_exit_1`. Two canonical shared-state passes did not reach the 2 GiB floor: latest receipt `2026-10-08T13:55:54Z` reports `free_after=149,340,160`, `reclaimed=6,411`, `evaluated=13`, `preserved=12`, `open=3`, `protected_descendant=9`, `errors=0`, `protected_deletions=0`. Read-only candidate inspection identifies open `codex-cache`, `daily-driver-cache`, and `google-cache`; old release generations are protected by their `state/*.jsonl`. Latest `df` at 22:57 JST reports `224,212 KiB` free. No protected path or active app is closed to force reclamation.
+- `ebook-en-tiktok-daily` is loaded-idle on installed main SHA `e1b061f1`; its latest admission is blocked by `host_admission_deferred:disk_headroom_low`. It retains claimed effect-unknown occurrence `18dc6de8dcf3a0e8-75262`, `next_action=official_readback_required`, with cause `eBook render is not ready: render_reconciliation_required`; the Loop event has no provider receipt, while the separate completed HeyGen sidecar has the video receipt. `life-manager-release-reconciler` is loaded-running on main SHA `e1b061f1` (PID `79677` at the 22:57 JST status readback); its latest occurrence exited 1 while it remained running. Do not stop or restart it.
+- Last verified Stripe readback at 19:37 JST: `/monk` is `$10.99` one-time; Daily Anicca Letter is `$9.99/month`, with 0 active subscriptions. `$10K` gross MRR requires 1,002 paid active Letter subscribers; eBook one-time orders do not count as MRR. Refresh before making a current revenue claim.
+
+**順序更新:** 旧順序=`natural reconciler handoff → shared English effect fence resolution → Instagram route → post → 3/day → MRR`。新順序=`complete the legitimate English Monk Instagram verification → connect and verify its Postiz integration → add a separate account-scoped Instagram owner with owner-specific publication identity and an exact existing-slot override → recover shared disk admission → publish the completed MP4 immediately through the Instagram owner → verify receipt/public URL → resume 08:00/14:00/21:00 JST → resolve the old TikTok-owner fence before any TikTok rerun → connect paid eBook orders/PDF receipts to optional paid Letter subscriptions`. 理由は、指定Instagram integrationが未登録であり、旧effect claimは別のTikTok ownerに属するため、target-specific readback/fenceを維持したままInstagramの新規ownerを準備できる。disk admissionは新owner実行時の共有gateとして残す。
+
+**残TODO（eBookのみ・この順）:**
+
+1. **English Monk account verification:** 既存のSMS受信経路から最新Instagram codeを取得する。macOS Messages DBはTCCで拒否され、iPhone Mirroringも未接続。Appleのprivacy設定を自動変更せず、既存ユーザー所有の本人確認経路だけを使う。完了証拠はlive profile handleとsignup status。
+2. **Postiz binding:** live accountをPostizへ接続し、`GET /integrations`で正確なInstagram profile、integration ID、`disabled=false`を確認する。既存product accountへ付け替えない。
+3. **Dedicated owner source:** `ebook-en-instagram-daily`を既存eBook publisherへ追加する。更新対象は `apps/life-manager/scripts/ebook-distribute-daily.js`（`JOBS`/`selectTarget`/`run`）、English pack/account registry、`config/marketing-destinations.json`、`config/loop-registry.json`、product-loop catalog、およびowner contract test。EN slotsは08:00/14:00/21:00 JST。既存のproduct/slot campaign tokenは共有し、JS publication IDにownerをsuffixして同slotのTikTokとInstagramのprovider intent/caption pathを分けることをfocused testで確認する。
+4. **Source-to-production:** latest main由来の専用branchでfocused acceptance・必須CI・reviewを通し、PR merge後のimmutable releaseとtarget owner SHA/argvを確認する。稼働中のrelease reconcilerには触れない。
+5. **Host admission:** canonical shared cleanup policyで2 GiB floorを回復する。現在のallowlistでは3 cache rootsがopen、9 release rootsがprotectedのためholdされる。次の操作は新たなclose/readback証拠に基づくこと。open appを終了したりprotected pathを削除したりしない。
+6. **Immediate first post:** account-scoped ownerから既存run `ebook-run.571924dc4e4867349fc6fd13` のcompleted MP4を使い、exact pack slot `2026-10-07T23:00:00.000Z` を指定するstrict one-shot overrideで、追加レンダーなしにInstagramへ1件公開する。official Postiz `PUBLISHED` receipt、native Reel URL、integration/profile、video hashを照合し、同じintentを再送しない。既存TikTok occurrence `18dc6de8dcf3a0e8-75262` は別owner fenceとして保持し、このInstagram postのno-effect条件にしない。
+7. **Recurring cadence:** 08:00/14:00/21:00 JSTの3件をそれぞれ自然発生し、毎日3件のunique `PUBLISHED` receiptとreplay-zeroを確認する。
+8. **$10K MRR funnel:** $10.99 one-time eBook saleとPDF deliveryを別計上する。既存$9.99/月LetterをMarketing Engineのproduct/attribution registryへ接続し、購入者が選択する導線を追加して、paid invoiceとactive paid subscriberをStripe公式readbackで数える。目標は1,002 active subscribers、現時点の最終確認は0。
+
+**現在cursor:** `SMSの正規本人確認/端末接続 → English Monk IGをPostizへ接続 → owner/sourceとexact-slot reuseを追加 → shared disk admissionを回復 → 完成済みMP4を今すぐ1件publish/readback → 3/dayの自然運用 → 旧TikTok owner fenceをそのtarget用にreconcile → paid PDF/Letter MRR`. 実行仕様と図: `docs/superpowers/plans/2026-10-08-ebook-english-monk-instagram-launch.md`。Capafyは対象外。
+
+
 ### 2026-10-08 23:04 JST — PR #7152 merged; production still capacity-blocked
 
 この追記は22:29のdraft snapshotを置き換える。§84-Aとmobile distributionの既存TODO順は変えず、current cursorはdistribution item 1のまま。
@@ -7354,6 +7382,19 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 **現在cursor:** commit/push latest-main merge and this cursor → exact-head PR #7156 CI/fresh `ship` review → merge → revenue-floor follow-up branch and tests → immutable release/watchdog receipt → disk/admission recovery → effect readbacks and target natural outcomes → post-recovery capacity measurement.
 
 
+### 2026-10-08 23:52 JST — English eBook Instagram の現在状態と順序
+
+- **範囲:** 今回は英語eBookのEnglish Monk Instagramだけを扱う。Capafyは別ownerの範囲。DaisはHeyGen月額契約を必要なら許可しているが、既存の完成動画があるため現時点では購入しない。
+- **HeyGen公式readback:** `video get db2dab0924e19b88c14e03a6a7849069` は`completed`、13.4008秒。ローカルMP4 `~/.local/state/life-manager/marketing/ebook/renders/ebook-run.571924dc4e4867349fc6fd13.mp4` は1080×1920 H.264、SHA-256 `132d9b326059f9b74d6020e4bca50f0a77d2f2f5ca0595d2f2feb56449c12183`。
+- **内容の不一致:** 対応script `script.f73a3a1549e1b8e9f86eaeed` のhookは`When a mistake follows you`で、本文は過去を手放す短いreflection。Hadrianの内容だという根拠はない。ローカルeBookの4つの動画run/scriptを照合してもHadrian/Adrianは0件。HeyGen `video list --limit 100`も0件。依頼されたHadrian動画とは照合できていないので、このMP4をHadrianとして投稿しない。
+- **Instagram/Postiz公式readback:** Postiz `GET /public/v1/integrations` はHTTP 200、全31件・Instagram 9件でEnglish Monkは0件。`instagram-english-monk` credentialは希望handle `monk_anicca` と一致するが`phone_verification_pending`。Instagram画面はsignupのphone prompt、CAPTCHAなし。Messages DBのSMS読取はmacOS TCCに拒否され、iPhone Mirroringは選択済みiPhoneの再接続を要求する。privacy設定変更や本人確認回避はしない。
+- **source/runtime:** PR #7173に`ebook-en-instagram-daily` ownerとfail-closed setupが実装済み。PRの既存headに対するrequired CIは全件PASS。最新`origin/main`をローカルmergeした後のfocused acceptanceもNode 20/20、Python 4/4、loop contract 18 loops/188 registry jobs、`git diff --check`がPASS。更新branchのpush、新head CI/review/mergeは未完。production runtimeでは同owner IDがunknownで未導入。
+- **host admission:** `/`の空きは210,436 KiBで、2 GiB floorを下回る。open/protected pathを消さず、disk admissionが回復するまでowner applyを行わない。稼働中のrelease reconcilerには触れない。
+- **収益:** 最終確認したStripe値（19:37 JST）は`/monk`が$10.99一回払い、Daily Anicca Letterが$9.99/月、active paid subscriptions 0。これは最新readbackではない。1,002件の有効な$9.99月額契約で$10,009.98 gross MRRとなるが、手数料・返金前の目標値。一回払いeBookはMRRに含めない。
+- **順序更新:** 旧順序=`Instagram認証→Postiz接続→owner source→release/apply→現在の完成MP4を投稿→3/day→MRR`。新順序=`最新mainを含むPR #7173のfocused acceptance/CI/review/merge→Hadrianの正確な動画ID・MP4・未投稿状態を照合→本人のphone verificationとwarmup→Postizの正確なprofile binding→2 GiB admissionとmain-derived release/apply→対象動画を1回投稿し公式receipt確認→自然な3/day→paid eBook/PDFとLetterを計測`。理由は現在見つかった英語MP4がHadrianではなく、対象Instagram accountも未認証/未接続だから。source mergeはこれらの外部ゲートと独立して進められる。
+- **現在cursor:** 最新main同期済みbranchをpushし、PR #7173の新head CI/reviewを通す。同時にHeyGen/ebook ledgerの追加記録からHadrian動画を探す。owner phone verificationは選択済みiPhoneをSystem Settingsで再接続しSMSを通常のMessages経路で読めるまで待つ。正確な動画とlive accountが確認できるまでpublishしない。
+
+
 ### 2026-10-08 23:54 JST — mixed owner-error retry guard
 
 - Fresh read-only review of PR #7156 head 73332795af31de851c227355349a0c1dea3b537a against origin/main e9fa073d83363ae828ceeacf8b529d2773f21550 returned fix-first: a budget-exceeded partial could also contain owner errors and still receive the short budget-progress retry; the legacy-state inference had the same gap. Review also found this SSOT's prior cursor/head was stale.
@@ -7370,6 +7411,15 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 - At this snapshot the PR remote head is `ce83c92734`; the `b374df90cf` latest-main merge is local and needs pushing. Checks from the previous head do not cover the merge head.
 
 **現在cursor:** confirm the remote PR head contains latest main `5ef786aa8a` and source fix `ce83c92734` → exact-head required CI and fresh read-only review → merge #7156 → main-derived immutable release and natural readback → revenue-floor follow-up → disk/admission recovery → Fundraiser official effect readbacks → target natural outcomes and post-recovery capacity measurement.
+
+
+### 2026-10-09 00:03 JST — 英語Instagram owner の admission と rollout 再確認
+
+- 最新host readbackは`df -k /`で空き`1,715,424 KiB`（約1.64 GiB）。最新main `1fe7db3b`の`runtime/loop/lm_loop_run.py`はpriority `revenue`に512 MiB floorを設定し、PR #7173で追加した`ebook-en-instagram-daily`のregistry priorityも`revenue`。よってこの新ownerに2 GiB cleanup gateは不要で、現容量は新基準を満たす。既存の旧releaseに載るEnglish TikTok ownerは2 GiB floorで`host_admission_deferred:disk_headroom_low`のまま。TikTokは今回の投稿先にしない。
+- `~/loops/current`は旧immutable release `20261008T232013-25bee172`。release-reconcilerの最新 occurrence `18dc953500b1a818-7211`は`entrypoint_exit_1`で、記録理由は`fleet-apply`の1,800秒coalescingと同release用self-handoff helperが既にloadedであること。reconciler processは稼働継続中なので停止/再起動しない。disk-cleanup occurrence `18dc95d4bdeb7180-2150`も`entrypoint_exit_1`だがeffectなしで、英語Instagram新ownerの512 MiB条件には不要。
+- Instagram/Postiz/videoのreadbackは前項から未解決のまま: exact Hadrian assetは見つからず、既知の完成英語MP4は別script。`instagram-english-monk`はphone verification待ち、Postizに対応integrationなし。最新の`read_sms_otp.py`は`sqlite3.OperationalError: unable to open database file`で停止したが、`chat.db`は存在し通常のfile read bitもある。過去にはmacOS `Operation not permitted`も記録されているため、OS保護されたMessages accessとして扱い、権限を迂回しない。Hadrian以外の動画を投稿しない。
+- **順序/criterion更新:** 旧順=`2 GiBまでcleanup→owner apply→publish`。新順=`PR #7173をmerge→既存reconcilerのnatural rolloutを待ち、mainの512 MiB revenue admissionでEnglish Instagram ownerを適用→exact Hadrian asset/phone verification/Postiz bindingを満たしてからpublish`。理由は最新mainが新規revenue ownerのfloorを512 MiBへ下げ、現在空き容量が既にその基準を超えるため。2 GiB gateと古いTikTok holdをInstagramの阻害要因として扱わない。
+- **現在cursor:** 最新spec/admission更新後のPR #7173 headをpushし、そのheadのrequired CIがすべてPASSすることを確認してmergeする。既存のfresh read-only source reviewは差分にmerge blockerなし。並行してexact Hadrian動画ID/ファイルを探し、owner phone verificationは選択済みiPhoneをSystem Settingsで再接続して通常のMessages経路を使う。Postizにexact profileを接続するまではpublishしない。
 
 
 ### 2026-10-09 00:04 JST — revenue floor merged; capacity cursor reordered
@@ -7421,3 +7471,30 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 - Verification: reconcile tests 36/36 PASS; the full `test_lm_loop_apply.py` suite 178/178 PASS; source-boundary and diff checks PASS. The worktree branch is based on main `1739d3f3`; latest origin/main advanced to `7eda2619` (#7183, Capafy server cap) during the change. That update is unrelated to Life Manager admission code and must be merged before exact-head CI.
 
 **現在cursor:** commit/push this source fix, regression, and cursor → merge latest main `7eda2619` → exact-head required CI and fresh read-only review → merge → natural release/readback → cleanup/effect recovery → same-window capacity decision. No global cap increase is made before stable disk/swap measurements.
+### 2026-10-09 00:15 JST — 英語Instagramのowner-target applyを確認
+
+- 現在の`df -k /`は空き`2,781,104 KiB`（約2.65 GiB）。新Instagram ownerは`priority=revenue`なので、最新mainの512 MiB runner floorを超えている。ディスクcleanupはこのownerの前提ではない。
+- `~/loops/current`はrelease `25bee172`。そのrelease-reconciler occurrence `18dc955601ac2dd0-93858`は`entrypoint_exit_1`。exact fleet stateは`status=partial, changed=73, skipped=90, errors=3, message=timed out owners: none; budget exceeded`。self-handoff helperも同じ旧releaseでloaded。別ownerへ手動applyを重ねず、停止/再起動もしない。
+- 原因調査で、`runtime/loop/lm_loop.py`は既に`LIFE_MANAGER_APPLY_TARGET`を読み、`runtime/loop/lm_loop_apply.py::apply_registry(..., target=...)`へ一ownerだけ渡す。`--all`との併用は拒否し、`--loaded-idle-only`と併用できる。existing focused test `runtime/loop/tests/test_lm_loop_apply.py`を2件実行し両方PASS。新CLI実装は不要。
+- **安全な反映手順:** PR #7173 merge後、`~/loops/current`がそのmain-derived immutable releaseを指すことを確認する。target statusとapply lockをreadbackし、lock-freeなら`LIFE_MANAGER_APPLY_TARGET=ebook-en-instagram-daily ~/loops/current/bin/lm-loop apply --loaded-idle-only`を実行する。この既存経路は対象ownerだけをapplyする。`--all`は使わず、exact Hadrian asset/本人確認/Postiz bindingが整うまではpublishしない。
+- **順序更新:** 旧順=`2 GiBへcleanup→fleet-wide apply→owner確認`。新順=`PR #7173をmerge→main-derived releaseを確認→既存target applyでEnglish Instagram ownerだけapply→外部投稿ゲート完了後publish`。理由は新ownerが512 MiBを満たし、CLIに既存の単一owner target機能があり、全fleet applyの最新runがbudget超過したため。
+- **現在cursor:** PR #7173の直前headは`Loop control contracts`以外のrequired checksがPASS、同checkだけrunner queueでpendingだった。今回のspec correctionをpushした新headのrequired CIを全PASSさせてmergeする。fresh read-only source reviewは差分にmerge blockerなし。次にexact Hadrian videoとowner phone verification/Postiz接続を完了してから上記target applyと一回投稿に進む。
+
+
+### 2026-10-09 00:25 JST — current releaseと英語owner readback
+
+- `~/loops/current`は`20261009T000957-1fe7db3b`。最新`origin/main=9abbdb9d`、PR #7173 baseも`9abbdb9d`。空き容量`1,001,848 KiB`（約0.95 GiB）で、新ownerの512 MiB revenue floorを超える。
+- `ebook-en-instagram-daily`はPR未mergeのためcurrent releaseに未登録。英語TikTok ownerは`safely_fenced`で、event SHA `8b75fa53`、loaded SHA `25bee172`、occurrence `18dc8c1cbd8be268-42376`。その旧ownerを再送先にしない。
+- release-reconciler最新 occurrence `18dc9712889c8b88-7388` は旧loaded SHA `e1b061f1`で`entrypoint_exit_1`。fleet applyのstructured stateは15:08Zに`partial, changed=73, skipped=90, errors=3, budget exceeded`。current pointerが1feへ進んでもInstagram ownerは未登録。targeted `LIFE_MANAGER_APPLY_TARGET`手順は前項の通り。
+- Hadrian動画はHeyGen/4つのlocal eBook runsで未発見。既知の完成英語MP4は別script。Instagram credentialは`phone_verification_pending`で、Messages SQLite accessは`unable to open database file`。Postiz 31 integrations/9 Instagram中にEnglish Monkなし。
+- Stripe live credentialはcredential SSOTに存在せず、active paid Letter countは更新不能。最後のofficial readback（19:37 JST）は0 active subscribersで、現在値としては扱わない。$9.99/月×1,002 active subscribers = $10,009.98 gross MRRという算術目標だけを維持する。
+- **現在cursor:** current-state修正をPR #7173へpushし、新head required CI/reviewを全PASSさせてmergeする。その後、owner phone verification、正確なHadrian asset ID/path、Postiz exact profile bindingを揃え、main-derived releaseとlock-freeを確認してInstagram ownerだけtarget-applyする。1件のofficial `PUBLISHED` receiptとnative Reel URLの後に3/dayを検証する。
+
+
+### 2026-10-09 00:41 JST — latest-main merge and reconcile-fence fix status
+
+- Preserved the concurrent #7183 / #7173 SSOT records while merging current main `7eda261900f89ccdbb85f647ab1577d7325ac87a`. #7183 caps Capafy unlisted Agents at the server's measured 5; that provider limit is separate from Life Manager's finite-run host cap 8.
+- The effect-fence reconciliation fix is on branch `fix/loop-reconcile-effect-fence-20261009` at `b97622ef3012517c619e0476597447ce465df1ad` and is now combined locally with #7183. The RED regression reproduced exit 1; the fix returns an explicit fenced skip for the exact `effect_unknown` refusal, continues independent owners, and keeps unrelated errors non-zero. Reconcile-focused tests pass 36/36, `test_lm_loop_apply.py` passes 178/178, source-boundary and diff checks pass.
+- Production remains separate: current release is `1fe7db3b`, main is `7eda2619`, and the release reconciler is still on `e1b061f1`. It repeatedly reports `entrypoint_exit_1` while reconcile results include exact effect-unknown fences; the new code is not yet in an immutable release. Host samples show transient cap saturation (8/8 reservations+claims, then 6/8) and a retained queue; disk/swap are unstable, so no global cap increase is made yet.
+
+**現在cursor:** create/update PR for `fix/loop-reconcile-effect-fence-20261009` at its latest-main head → exact-head required CI and fresh read-only review → merge → natural main release/readback → disk/effect recovery → same-window capacity decision. Keep host cap 8 bounded; Capafy service cap 5 is a separate provider constraint.
