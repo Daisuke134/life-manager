@@ -221,6 +221,15 @@ class CodexProfileBoundaryTest(unittest.TestCase):
             self.assertEqual(env["CODEX_HOME"], str(root / "automation"))
             self.assertEqual((root / "automation/auth.json").resolve(), auth.resolve())
 
+    def test_profile_busy_fails_over_only_for_explicit_fast_fail_candidates(self):
+        unmarked = {
+            "provider": "codex", "profile_alias": "acct1",
+            "account_fallback_next": True, "fail_fast_provider_lease": False,
+        }
+        marked = {**unmarked, "fail_fast_provider_lease": True}
+        self.assertEqual(codex_failover_action(unmarked, "codex_home_busy", False, False), "stop")
+        self.assertEqual(codex_failover_action(marked, "codex_home_busy", False, False), "retry_next_account")
+
     def test_local_revenue_tasks_keep_luna_fast_and_expand_existing_account_order(self):
         config = json.loads((ROOT / "config.json").read_text(encoding="utf-8"))
         for name in ("connector-agent", "job-hunter-agent", "fundraiser-agent"):
