@@ -6058,3 +6058,12 @@ Fresh read-only review rejected the idle-readback-only patch: a new StartInterva
 - `life-manager-disk-cleanup` naturally passed at 16:40 JST. `df -k /tmp` at 16:41 JST shows 5,671,864 KiB available. Earlier ENOSPC lines under the 71a5 release are historical evidence, not yet proven as the cause of the c61 occurrence.
 
 **現在cursor:** `PR #7091 remaining required CI PASS → main merge → PID 96926 natural terminal and exact phase evidence → current-main handoff receipt → eBook/fence owner convergence and exact occurrence readback → 9 unique PUBLISHED/day → paid order+PDF → paid active subscription MRR → gated Capafy canary/order readback`。Production sources/owners/posting remain unmodified by this task.
+
+### 2026-10-08 16:53 JST — PR #7091 merged; production remains on old release
+
+- PR #7091 merged at 16:49 JST as merge commit `07aa3fb3d23987ee4b494c4e09f2e02543cc371c`. Latest-main source contains the run-lock handoff fix; required CI all passed, fresh adversarial review passed. This is source integration, not production promotion.
+- At 16:52 JST, `~/loops/current` still points to `20261008T164623-3c87f64f`, which predates the merge. Release reconciler PID `35373` is loaded-running. The prior run `18dc7e43b76b4158-26121` ended 16:48 JST with `entrypoint_exit_143` and no error_detail. The self-handoff helper service is currently absent. Do not stop/restart PID `35373` or apply owners while it is active; let the natural handoff use the new-main helper and then read its receipt.
+- eBook EN/JA TikTok/JA Instagram remain loaded-idle on SHA `71a5f878` with three `resource_effect_unknown` occurrences. `lm-fence-reconciler` remains loaded-idle on SHA `8f342d8d`. Capafy direct and Postiz automation owners remain disabled on `2e87d30d`; the old direct lane retains `active_ig_handle_unresolvable`.
+- Latest Postiz GET remains the 16:21 JST snapshot: eBook 2/9 (EN 0, JP TikTok 1, JP Instagram 1), Capafy 2 `PUBLISHED`; no later scheduled post slot has elapsed. HeyGen readback at 16:29 JST shows 0 `Anicca` videos across two pages and wallet USD 11.78; this does not resolve the older render fence. Product PR #420 is still `OPEN`.
+
+**現在cursor:** `PID 35373 natural terminal → verify new-main immutable release and self-handoff receipt → exact eBook occurrence reconciliation and target-owner SHA convergence → safe next eBook post slot → paid Checkout+matching PDF (PR #420 durable receipt gate) → paid active subscription MRR → gated Capafy canary/order readback`。Daisの手作業は現在不要。
