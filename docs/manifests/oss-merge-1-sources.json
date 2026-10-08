@@ -99,12 +99,12 @@
         {
           "source": "skills/agent-runner/agent_runner.py",
           "target": "runtime/agent-runner/agent_runner.py",
-          "sha256": "2aa835f66c1aca0650412159918f096c70fcb8daae85e426d6bc3d2cf7434639"
+          "sha256": "62849c09326a17e32c5f2bbd86be3123443ebaa9421a1e4d7398d94b655ee8e1"
         },
         {
           "source": "skills/agent-runner/config.json",
           "target": "runtime/agent-runner/config.json",
-          "sha256": "b4f07ab9880640780fb975a87ffe367f6fde7bbc84fde6610433b19b909bc7ce"
+          "sha256": "abcac21a91b794054f03b01bbd7a88ff62e9dcd5868c08d077e81fc8003fddac"
         },
         {
           "source": "skills/agent-runner/context_packet.py",
