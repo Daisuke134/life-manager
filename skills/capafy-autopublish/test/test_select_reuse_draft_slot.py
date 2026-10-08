@@ -13,7 +13,8 @@ def _run(extra):
     agents = [{"agent_id": "4973250899", "name": TITLE + SUFFIX, "agent_status": "draft"}]
     agents += [{"agent_id": str(1000 + i), "name": f"Other {i}", "agent_status": "review_rejected"} for i in range(4)]
     return subprocess.run([sys.executable, str(SCRIPT), "--title", TITLE, "--require-free-slot", *extra],
-                          input=json.dumps({"agents": agents}), capture_output=True, text=True)
+                          input=json.dumps({"agents": agents}), capture_output=True, text=True,
+                          env={**__import__("os").environ, "CAPAFY_REVIEW_CAP": "5"})
 
 
 def test_reusing_the_fifth_occupant_draft_needs_no_free_slot():

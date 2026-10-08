@@ -128,12 +128,22 @@ class TitleTaken(RuntimeError):
     """Creators Market titles are unique per language across all creators."""
 
 
+def _sticker_type_value(listing: dict) -> str:
+    """Creators Market's sticker_type radio value (confirmed live 2026-10-08: static=スタンプ,
+    animation=アニメーションスタンプ)."""
+    return "static" if listing.get("type") == "static_sticker" else "animation"
+
+
+def _image_count_value(listing_or_item: dict) -> str:
+    return str(listing_or_item.get("count") or listing_or_item.get("sticker_count") or 24)
+
+
 async def _create_item(page: Page, listing: dict, selection: dict) -> dict:
     listing = _fit_listing(listing)
     saves: list = []
     page.on("response", lambda r: saves.append(r) if r.request.method == "POST" and r.url.endswith("/api/v2/sticker") else None)
     await _goto(page, f"{BASE}/sticker/create")
-    radio = page.locator("input[name=sticker_type][value=animation]")
+    radio = page.locator(f"input[name=sticker_type][value={_sticker_type_value(listing)}]")
     await radio.locator("xpath=ancestor::label[1]").click()
     assert await radio.is_checked()
     await page.fill('input[name="meta[en][title]"]', listing["title"]["en"])
@@ -194,15 +204,17 @@ async def _select_taste_character_campaign(page: Page, selection: dict) -> None:
             await select.select_option(selection["taste_id"])
         elif selection.get("character_category_id") in values:
             await select.select_option(selection["character_category_id"])
-    campaign_value = selection.get("campaign_value") or "on"
-    campaign_radio = page.locator(f"input[type=radio][value='{campaign_value}']")
+    campaign_value = selection.get("campaign_value")
+    # 参加しない has no value attribute (DOM .value reads "on", CSS [value='on'] matches nothing).
+    campaign_radio = page.locator(f"input[type=radio][value='{campaign_value}']" if campaign_value
+                                  else "input[type=radio]:not([value])")
     if await campaign_radio.count():
-        await campaign_radio.first.locator("xpath=ancestor::label[1]").click()
+        await campaign_radio.first.evaluate("e => e.click()")  # feature radios are not wrapped in a <label>
 
 
 async def _upload_images(page: Page, item: dict, package_dir: Path) -> None:
     await _goto(page, f"{BASE}/sticker/{item['product_id']}/image")
-    await page.select_option("#number_of_images", "24")
+    await page.select_option("#number_of_images", _image_count_value(item))
     ok_button = page.locator("button:visible", has_text="OK").last
     try:
         await ok_button.wait_for(timeout=15000)
@@ -217,12 +229,14 @@ async def _upload_images(page: Page, item: dict, package_dir: Path) -> None:
     await page.locator("input[type=file]").first.set_input_files(str(package_dir / "submission.zip"))
     await page.wait_for_timeout(20000)
     body = await page.inner_text("body")
-    if "エラー" in body:
+    # Rejected slots show an English "Error" badge (live 2026-10-08); "未登録の画像" means some
+    # images did not register. Either way the upload is not done.
+    if "エラー" in body or re.search(r"\bError\b", body) or "未登録の画像" in body:
         raise RuntimeError(f"image_upload_error:{body[:300]}")
 
 
 async def _tag_all(page: Page, item: dict, tags: dict) -> None:
-    for number in range(1, 25):
+    for number in range(1, int(_image_count_value(item)) + 1):
         sticker_id = f"{number:02d}"
         wanted = set(tags.get(sticker_id, []))
         await _goto(page, f"{BASE}/sticker/{item['product_id']}/tag#/{sticker_id}")

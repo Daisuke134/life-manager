@@ -25,8 +25,8 @@ else
 fi
 lm_require_env_keys LM_POSTIZ_API_KEY
 
-NODE_BIN="${LIFE_MANAGER_NODE:-$(command -v node || true)}"
-PYTHON_BIN="${LIFE_MANAGER_PYTHON:-$(command -v python3 || true)}"
+NODE_BIN="${LIFE_MANAGER_NODE:-${LIFE_MANAGER_RUNTIME_NODE:-$(command -v node || true)}}"
+PYTHON_BIN="${LIFE_MANAGER_PYTHON:-${LIFE_MANAGER_RUNTIME_PYTHON:-$(command -v python3 || true)}}"
 [ -n "$NODE_BIN" ] && [ -x "$NODE_BIN" ] || { printf 'mobile app loop requires node\n' >&2; exit 1; }
 [ -n "$PYTHON_BIN" ] && [ -x "$PYTHON_BIN" ] || { printf 'mobile app loop requires python3\n' >&2; exit 1; }
 
@@ -49,6 +49,11 @@ export LIFE_MANAGER_MOBILE_PRODUCT_WORKSPACE_REL="$PRODUCT_WORKSPACE_REL"
 
 RESULT_CAPTURE="$(mktemp "${TMPDIR:-/tmp}/lm-mobile-result.XXXXXX")"
 trap 'rm -f -- "$RESULT_CAPTURE"' EXIT
+# Clear the no-publish proof only after reconciliation and local setup pass,
+# immediately before the publisher starts; later failures remain effect-unknown.
+if [ -n "${LIFE_MANAGER_RESULT_HINT_PATH:-}" ]; then
+  rm -f -- "$LIFE_MANAGER_RESULT_HINT_PATH"
+fi
 set +e
 "$PYTHON_BIN" "$REPO_ROOT/runtime/run-with-timeout.py" --grace-seconds 10 1200 \
   "$NODE_BIN" "$RUNNER" "$ACTION" | tee "$RESULT_CAPTURE"

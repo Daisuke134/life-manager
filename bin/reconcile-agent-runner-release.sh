@@ -201,8 +201,8 @@ run_fleet_apply() {
   local log_path="$state_dir/fleet-apply.jsonl"
   mkdir -p "$state_dir"
 
-  local last_sha last_status last_next_retry last_ok_epoch
-  IFS=$'\t' read -r last_sha last_status last_next_retry last_ok_epoch < <(
+  local last_sha last_status last_next_retry last_ok_epoch last_attempt_epoch
+  IFS=$'\t' read -r last_sha last_status last_next_retry last_ok_epoch last_attempt_epoch < <(
     FLEET_APPLY_STATE_PATH="$state_path" "$runtime_python" - <<'PY'
 import json, os
 path = os.environ["FLEET_APPLY_STATE_PATH"]
@@ -223,18 +223,38 @@ try:
     last_ok_epoch = int(data.get("last_ok_epoch", 0) or 0)
 except (TypeError, ValueError):
     last_ok_epoch = 0
-print(f"{sha}\t{status}\t{next_retry}\t{last_ok_epoch}")
+try:
+    import datetime
+    last_attempt_epoch = int(datetime.datetime.strptime(
+        str(data.get("at", "")), "%Y-%m-%dT%H:%M:%SZ"
+    ).replace(tzinfo=datetime.timezone.utc).timestamp())
+except ValueError:
+    last_attempt_epoch = 0
+print(f"{sha}\t{status}\t{next_retry}\t{last_ok_epoch}\t{last_attempt_epoch}")
 PY
   )
 
   local now_epoch
   now_epoch="$(date -u +%s)"
   local min_interval_seconds="${LIFE_MANAGER_FLEET_APPLY_MIN_INTERVAL_SECONDS:-1800}"
-  if [ "$last_status" = "ok" ]; then
-    if [ "$last_sha" = "$release_sha" ]; then
-      printf 'agent-runner fleet-apply: release %s already applied; skipping\n' "$release_sha" >&2
+  if [ "$last_status" = "ok" ] && [ "$last_sha" = "$release_sha" ]; then
+    printf 'agent-runner fleet-apply: release %s already applied; skipping\n' "$release_sha" >&2
+    return 0
+  fi
+  # Coalesce on the last *attempt*, not only the last success. Two to four owners failed on
+  # every attempt on 2026-10-08, so last_ok_epoch stayed 0, this guard never fired, and every
+  # merge re-bootstrapped the fleet (636 recorded applies) -- resetting every StartInterval
+  # timer so the 15-minute Capafy factory could not run for over an hour.
+  if [ "$last_sha" != "$release_sha" ] && [ -n "$last_status" ]; then
+    local last_try_epoch="${last_ok_epoch:-0}"
+    [ "${last_attempt_epoch:-0}" -gt "$last_try_epoch" ] && last_try_epoch="$last_attempt_epoch"
+    if [ "$last_try_epoch" -gt 0 ] && [ "$now_epoch" -lt "$((last_try_epoch + min_interval_seconds))" ]; then
+      printf 'agent-runner fleet-apply: release %s coalesced; last attempt at epoch %s, min interval %ss\n' \
+        "$release_sha" "$last_try_epoch" "$min_interval_seconds" >&2
       return 0
     fi
+  fi
+  if [ "$last_status" = "ok" ]; then
     # Releases are cut on every merge -- one every ~20 minutes during a busy night -- and each
     # apply re-bootstraps ~150 idle launchd owners, which loads the host (measured cause of the
     # Mac mini's WindowServer kernel panics under load). Coalesce: a new sha within the min
@@ -246,7 +266,8 @@ PY
       return 0
     fi
   fi
-  if [ "$last_sha" = "$release_sha" ] && [ "$last_status" = "error" ] \
+  if [ "$last_sha" = "$release_sha" ] \
+    && { [ "$last_status" = "error" ] || [ "$last_status" = "partial" ]; } \
     && [ "$now_epoch" -lt "${last_next_retry:-0}" ]; then
     printf 'agent-runner fleet-apply: release %s failed previously; backoff until epoch %s\n' \
       "$release_sha" "$last_next_retry" >&2
@@ -699,7 +720,9 @@ except (OSError, ValueError, plistlib.InvalidFileException):
     print("")
 PY
   )"
-  if [ -n "$handoff_release_sha" ] && [ "$installed_reconciler_sha" != "$handoff_release_sha" ]; then
+  if [ -n "$handoff_release_sha" ] \
+    && { [ "${LIFE_MANAGER_RECONCILER_FORCE_HANDOFF:-0}" = "1" ] \
+      || [ "$installed_reconciler_sha" != "$handoff_release_sha" ]; }; then
     schedule_self_handoff "$handoff_release_root" "$handoff_release_sha"
   fi
   exit 0

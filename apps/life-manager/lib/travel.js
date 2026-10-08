@@ -157,6 +157,13 @@ async function listEvents7d(uid, apiKey, nowMs, calendar, gmailAccountId, { stri
     location: e.location || "",
     startIso: (e.start || {}).dateTime || "",
     timezone: (e.start || {}).timeZone || e.timeZone || e.timezone || "",
+    reminders: e.reminders && typeof e.reminders === "object" ? {
+      useDefault: e.reminders.useDefault === true,
+      overrides: Array.isArray(e.reminders.overrides) ? e.reminders.overrides
+        .filter((reminder) => reminder && typeof reminder === "object")
+        .map((reminder) => ({ method: reminder.method || "",
+          minutes: reminder.minutes == null ? null : Number(reminder.minutes) })) : [],
+    } : null,
     startMs: Date.parse((e.start || {}).dateTime || ""),
     endMs: Date.parse((e.end || {}).dateTime || ""),
   })).filter((e) => Number.isFinite(e.startMs));
@@ -680,7 +687,7 @@ async function directionsMinutes(src, dst, mapsKey, anchorAtMs = null, nowMs = D
   return minutesFromSeconds(routeDurationSeconds(route));
 }
 
-async function createTravelBlock(uid, apiKey, leaveMs, arriveMs, fromName, toName, dstAddr, calendar, gmailAccountId, expectedCalendarAccountId) {
+async function createTravelBlock(uid, apiKey, leaveMs, arriveMs, fromName, toName, dstAddr, calendar, gmailAccountId, expectedCalendarAccountId, allowWebInitialScan) {
   const cal = calendar || getCalendar({ apiKey, gmailAccountId, expectedCalendarAccountId });
   const hours = Math.floor((arriveMs - leaveMs) / 3600000);
   const minutes = Math.round(((arriveMs - leaveMs) % 3600000) / 60000);
@@ -691,18 +698,22 @@ async function createTravelBlock(uid, apiKey, leaveMs, arriveMs, fromName, toNam
     calendar_id: "primary", timezone: "UTC", location: dstAddr,
     send_updates: "none", exclude_organizer: true, create_meeting_room: false,
     description: "Auto-inserted by Life Manager — adjust if the route is wrong.",
+    ...(expectedCalendarAccountId ? {
+      reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 0 }] },
+    } : {}),
   };
   let result;
   try {
     result = expectedCalendarAccountId
-      ? await cal.createEvent(uid, eventArgs, { expectedCalendarAccountId })
+      ? await cal.createEvent(uid, eventArgs, { expectedCalendarAccountId, allowWebInitialScan: allowWebInitialScan === true })
       : await cal.createEvent(uid, eventArgs);
   } catch { result = null; }
   const status = result?.effect === "no_effect" ? "no_effect"
     : result?.effect === "unknown" || result?.successful !== true ? "unknown" : "created";
   const startMs = Date.parse(`${eventArgs.start_datetime}Z`);
   const endMs = startMs + (hours * 60 + eventArgs.event_duration_minutes) * 60000;
-  return { status, summary: eventArgs.summary, startMs, endMs, destination: dstAddr };
+  return { status, summary: eventArgs.summary, startMs, endMs, destination: dstAddr,
+    reminders: eventArgs.reminders || null };
 }
 
 async function reconcileTravelBlock(uid, apiKey, nowMs, calendar, gmailAccountId, expectedCalendarAccountId, write) {
@@ -714,7 +725,9 @@ async function reconcileTravelBlock(uid, apiKey, nowMs, calendar, gmailAccountId
     const normalize = (value) => String(value || "").replace(/\s+/g, "").toLowerCase();
     const matches = events.filter((event) => event.summary === write.summary
       && event.startMs === write.startMs && event.endMs === write.endMs
-      && normalize(event.location) === normalize(write.destination));
+      && normalize(event.location) === normalize(write.destination)
+      && (!write.reminders || event.reminders && event.reminders.useDefault === false
+        && event.reminders.overrides.some((reminder) => reminder.method === "popup" && reminder.minutes === 0)));
     return matches.length === 1 ? { ...write, status: "verified" } : write;
   } catch { return write; }
 }
@@ -786,7 +799,7 @@ async function recordTravelTelegramReceipt(uid, eventKey, leg, messageId, supaUr
   return { ok: true, matched };
 }
 
-async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, nowMs = Date.now(), bufferMin = 5, calendar, supaUrl, supaKey, _directionsRoute, _directionsMinutes, _routeCache, _reserveManagedAction, _completeManagedAction, _releaseManagedAction, _agentResolveLocation, gmailAccountId, expectedCalendarAccountId } = {}) {
+async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, nowMs = Date.now(), bufferMin = 5, calendar, supaUrl, supaKey, _directionsRoute, _directionsMinutes, _routeCache, _reserveManagedAction, _completeManagedAction, _releaseManagedAction, _agentResolveLocation, _recordUsageEvent, gmailAccountId, expectedCalendarAccountId, allowWebInitialScan = false } = {}) {
   const directionsFn = _directionsMinutes || directionsMinutes;
   const routeFn = _directionsRoute || (!_directionsMinutes ? directionsRoute : null);
   const cal = calendar || getCalendar({ apiKey, gmailAccountId, expectedCalendarAccountId });
@@ -860,7 +873,9 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
           // silent skip — never-late beats clean code. (Lazy require avoids any load-order coupling.)
           try {
             const agentResolveLocation = _agentResolveLocation || require("./ask.js").agentResolveLocation;
-            const res = await agentResolveLocation(ev, { home, mapsKey, geminiKey });
+            const res = await agentResolveLocation(ev, {
+              home, mapsKey, geminiKey, uid, recordUsageEvent: _recordUsageEvent,
+            });
             if (res && res.kind === "online") {
               skipped++;
               await releaseAllowance(evKey, allowanceState);
@@ -892,7 +907,7 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
             let goClaimed = false;
             try { goClaimed = await claimTravel(uid, evKey, "go", supaUrl, supaKey); } catch { goClaimed = false; }
             if (goClaimed) {
-              let write = await createTravelBlock(uid, apiKey, leaveMs, arriveMs, origin, dest, dest, cal, gmailAccountId, expectedCalendarAccountId);
+              let write = await createTravelBlock(uid, apiKey, leaveMs, arriveMs, origin, dest, dest, cal, gmailAccountId, expectedCalendarAccountId, allowWebInitialScan);
               write = await reconcileTravelBlock(uid, apiKey, nowMs, cal, gmailAccountId, expectedCalendarAccountId, write);
               if (write.status === "created") {
                 inserted++;
@@ -989,7 +1004,7 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
     let returnClaimed = false;
     try { returnClaimed = await claimTravel(uid, evKey, "return", supaUrl, supaKey); } catch { returnClaimed = false; }
     if (returnClaimed) {
-      let write = await createTravelBlock(uid, apiKey, retLeaveMs, retArriveMs, venue, home, home, cal, gmailAccountId, expectedCalendarAccountId);
+      let write = await createTravelBlock(uid, apiKey, retLeaveMs, retArriveMs, venue, home, home, cal, gmailAccountId, expectedCalendarAccountId, allowWebInitialScan);
       write = await reconcileTravelBlock(uid, apiKey, nowMs, cal, gmailAccountId, expectedCalendarAccountId, write);
       if (write.status === "created") {
         inserted++;

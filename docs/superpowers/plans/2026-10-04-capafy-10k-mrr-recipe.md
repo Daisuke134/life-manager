@@ -426,17 +426,28 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
 
 **毎日見る数字（成績表）:** 口座着金・出金待ち・agent 別利益・検索 view → 成約・売上 0 の連続日数。
 **順序の理由:** 先に「売れているのに安すぎる・赤字・枠の無駄」を止める（同じ客数で手取りが増える）。売上の 69% は Capafy 内検索なので、外部宣伝より検索・カード・レビューを先にする。数を増やすのは価格と見つけてもらう型が決まってから。
-**2026-10-06 の追加項目（表の #1〜#20 より先に、この順で実行）:**
+**2026-10-08 の実行順（表の #1〜#20 より先に、この順で実行。2026-10-06 版を置き換え）:**
 
-| # | Task | 完了条件（公式 readback） | 状態 |
+| # | Task | 完了条件（公式 readback） | 状態（2026-10-08 10:xx JST） |
 |---|---|---|---|
-| N1 | 注文 0 の切り分け: 売れた 4 本と競合（HookAce・Video Hook Forensics 等）の Capafy 内検索・カテゴリ順位を毎日記録し、9/29 前後の版更新・無料トライアル廃止との対応を見る | 0 の原因が 1 つに絞れる（または棄却が記録される） | ✅ 原因特定（2026-10-07）: buyer ページの「セキュリティスキャン 注意」= catalog の test/ を同梱した 2 本だけ（hook-lab・marketing-strategist）。他 7 本と HookAce は「通常」。Hook Lab は閲覧数そのまま・有料注文 約1/日 → 9/30 から 0。修正 #6809 `c0da6b38`（test/ を同梱しない＋価格・モデル据え置きの Hook Lab 再提出）。完了判定: Hook Lab が「通常」表示＋有料注文の再開 |
-| N2 | 審査枠を空ける: 却下中の Marketing Strategist（9563867391、30日 −$16.45）と Customer Renewal Evidence Brief（4973250899）を取り下げる（#6594 の release 反映後） | Capafy API で 2 本 offline、枠 3/5 以下 | 自然解消（10/06 21:24 JST）: 審査中 1・却下 1、枠に空き。Marketing Strategist は DeepSeek 版を審査中 |
-| N3 | ディスク満杯で工場が落ちる（10/06 06:23Z `OSError: [Errno 28] No space left on device`、`duplicate_gate.py`） | 次の自然 run が ENOSPC なしで終わる | 一部: 10/07 空き 640MiB→1.6GiB（自分の統合済み worktree 2 本・使われていない simulator を削除）。新しい再発源: `hf-reddit-loop-daily` が run ごとに loop-tmp へ camoufox.zip（819MB）を再取得（verify-loops-audit と同じ型）。Data 219.5GB のうち実測できたのは ~93GB、残りは TCC で計測不可の領域。恒久対策は F4（codex-money-printer）|
-| N4 | 宣伝ループの今日の失敗（10/06 10:15 `model pass exit=1`、未公開） | 次の自然 run で記事 HTTP 200＋X published | 稼働中: 10/07 は 5 回中 4 回公開。`model pass exit=1` は成功時も出る既知の値（スクリプト内コメント）。失敗は 07:15 の 1 回（モデルが何も書かずに終了、ディスク満杯の時間帯）|
-| N5 | 売れない agent は書き直さず、勝った型（hook/台本・金融/スポーツ追跡）を学びを入れた新 agent として出す（#11・#13 に合流） | 新 agent の 30日注文 > 0 | 工場で継続 |
+| N1 | 売れていた 4 本を Sonnet に戻す（説明文はそのまま） | 承認・販売中 | ✅ **10/08 14:53 実測で 4 本とも承認・販売中**（Capafy API status 4）: Hook Lab v1.0.6・TikTok v1.0.4・YouTube v1.0.5 は 12:00、Slide Maker v1.0.3 は 14:41 承認（Dais のスクリーンショットと一致）。Hook Lab v1.0.7 は 10/08 15:10 に承認済み（価格・上限・モデル同一。ただし card の文章は未反映のため buyer スキャンは「注意」: FAQ に無い年額・welcome 文末切れ）。購入者ページの「セキュリティスキャン」欄は Capafy 自動表示で審査結果とは別: Hook Lab「却下」（同梱メモの「scan のため test/ を外した」文が原因、v1.0.7 で除去済み）、Slide Maker「注意」（古い提出メモに DeepSeek 記載）、TikTok・YouTube・Marketing Strategist「通常」。「却下」だけを単独で書かない |
+| N1b | 承認後、4 本の実モデル ID を `anthropic/claude-sonnet-5.5` に（OpenRouter: 5 と同じ $2/$10。Capafy の表示名は選択肢がないので「Claude Sonnet 5」のまま） | Capafy API の hosted model が 5.5 | 承認待ち。再審査が要るかは承認後の画面で確認 |
+| N2 | 工場は 2 本立て（Dais 10/08 15:26）: **(1) 新規 agent の出荷が主役**、**(2) 承認済みで売れていない agent は説明文などを直して改善（副）**。売れている 4 本（FROZEN.json）は常に不可侵、自動の値上げ禁止 | (1) 新規が 15 分ごとに審査へ。(2) 対象が改善版を出し、30 日注文が増える | (1) ✅ 稼働（release f3e49261 以降。`allocate_action` は新規・未提出下書き・承認後公開のみ）。(2) ⏳ 未実装: 10/08 14:50 に「新規のみ」へ絞ったとき retries・recoveries・updates を外したまま。復活は (1) の最初の 1 本が審査に出た後に、`capafy_daily_decision` の zero_sales 判定→説明文だけの UPDATE.json 生成→frozen_guard 通過、の順で作る。関所 `frozen_guard.sh` は (2) でも有効 |
+| N2b | 無料お試しをやめる（Dais 10/08「無料サービスではなく利益のため」）: 13 本にお試しあり（最大 Contract Red Flags 150 回）。上位 15 本はお試しなし。値下げの自動化は作らない（Dais 10/08 撤回） | お試し付き agent が 0 | Contract Red Flags（Sonnet 4.6・お試し 150 回・注文 0）を非公開化中。残り 12 本は審査なしで外せるかをサポートに質問（10/08 10:39 送信）。審査が要るなら枠を食うので新規優先 |
+| N2c | 赤字 agent を止める: Marketing Strategist（30日 −$16.45、DeepSeek・週 $6.99/36 回）、Academic Results Humanizer（−$4.58、Sonnet 4.6・offline）、Contract Red Flags（−$1.57、Sonnet 4.6・無料お試しの原価） | 30日利益がマイナスの agent が 0 | 未着手。原因（1 注文あたりの使用量・お試し）を見てから回数上限を下げる |
+| N3 | 「注意」警告 7 本の原因特定 | サポート回答または buyer ページで全本「通常」 | サポート回答待ち（10/07 送信） |
+| N4 | 審査枠 | 工場が自前の上限で止めない | 公式ガイド 29 頁・ヘルプセンター・Web（Bing 4 クエリ・note）に未公開数の上限記載なし。工場の自前上限は 3 か所あった（inventory_status.py CAP、select_publish_agent.py CAPAFY_REVIEW_CAP、14:34 の CAP_FULL で発覚）— 全て撤廃（release 8bf65f15）。サーバーが断れば原文を記録して戻す。サポートへ 10/08 10:39 質問済み、返答待ち |
+| N5 | 新規 agent は上位勢をそのまま真似る（10/08 市場 846 本: 稼ぐ出品者は 1〜3 本で売上の 73〜100% が当たり 1 本＋短尺動画。54 本の One File Tools は 289 件、39 本の当社は 62 件）。当たり分野＝動画フック・株／お金の追跡・スポーツ分析、価格＝週 $9.99〜19.99・月 $19.99〜29.99・年 ≥ $99.99、回数少なめ、お試しなし。無料の入口（Akira 型） | 新 agent が承認され 30 日注文 > 0 | 工場の候補順を修正済み（release d28ed3f9）: Hook Grader 無料版 → Podcast Clip Hook Lab → Earnings Call Brief（Sonnet 5.5 実行・週 $9.99/20・月 $19.99/40・年 $99.99/480）。次の工場の回（15:05 頃）で create_fresh の実行を確認 |
+| N6 | 宣伝の計測: Capafy 管理画面で登録した ct だけが計上される | 登録 ct 経由の訪問・注文が traffic-sources に出る | ✅ 8 本登録。訪問はまだ 0 |
+| N7 | 短尺動画を Instagram へ（承認を待たない） | 投稿され注文につながる | @capafy.hooklab に Postiz 経由: Hook Lab https://www.instagram.com/reel/DeN5oujDBeC/ （11:50）、TikTok Script Pro https://www.instagram.com/reel/DeN8cAHFVWP/ （12:14）、YouTube Script Writer 17:00 予約、Slide Maker 20:00 予約。Capafy プロモーションリンク hooklab_ig / tiktok_ig / youtube_ig / slides_ig を登録し予約 2 本のキャプションに入れた。IG キャプションのリンクはタップ不可→プロフィールリンクを hooklab_ig にする（次）。自動 owner `life-manager-capafy-ig` は launchd disabled のまま |
+| N7b | aniccaai.com 記事＋X（3 時間ごと）と Telegram 報告 | 記事が公開され、リンクが Telegram に届く | 公開中（例 https://aniccaai.com/blog/capafy-hook-lab-2026-10-08-h09 ）。10/08 に配信ループへ Telegram 報告（記事・X・Capafy リンク、枠ごと 1 回）を追加 |
+| N8 | 工場・宣伝が止まらない運転 | 毎時の集計・3 時間ごとの宣伝・工場が自然に回る | 毎時確認中。ディスクは他セッションの作業で揺れる |
+| N9 | ReelFarm 同梱トークン（3040652346）| — | **対象外（Dais 10/08: ReelFarm は使っておらず解約済み）**。作業を中止 |
+| N10 | 残りの「注意」（10/08 12:50 全 36 本スキャン: 却下 1・注意 6・結果なし 1・通常 28） | 全本「通常」 | Performance Review Writer（welcome 途中切れ）、Talent Review Deck Writer（無関係タグ calendar）、Academic Humanizer（SKILL.md 先頭メタデータの解析エラー）、Anicca Life Manager（公開キー一覧と設定の不一致）を直して再提出。Portfolio Tracker は金融分野の規則による注意で対象外 |
 
-**現在のカーソル（2026-10-07）:** N1 の本番確認（Hook Lab 再提出 → 承認 → スキャン「通常」→ 有料注文）。並行: N3・N4。
+**主指標（Dais 10/08）:** 直近 7 日の売上（`capafy-skill-analytics.json` `account_totals.last_7d`）。すべての報告の先頭に書く。10/08 時点 $0.00・0 件。30日の数字や利益で $0 の週を薄めない。今週の優先: 4 本の承認を早める → 承認と同時に短尺動画 → 赤字 3 本を止める → 新規。
+
+**現在のカーソル（2026-10-08 17:06 JST）:** **新規出荷が 7 日ぶりに通った**（4933688052 Incident Update Fact Guard が審査中、16:50）。以後は工場が 15 分ごとに新規だけを出す。静かな時間（リリースを切らない）を保って 2〜3 回の自然起動を確認 → 売れていない承認済みの改善レーン（Talent Review Deck Writer・Academic Humanizer・Anicca Life Manager）→ CLI の書き込み動詞の確認。売れている 4 本は不可侵。
 
 
 ## 進捗ログ（実行順のカーソル）
@@ -500,3 +511,5 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
   - 我々の現状との差: 宣伝は aniccaai.com 記事＋X（ct 経由の来訪 0）、Instagram は 8/24 から 0 本。成功者の型（短尺動画＋名前検索 CTA）を一度も実行していない。→ D5（Instagram, 担当: codex-money-printer）の creative はこの 3 段台本を正本にし、CTA は `ct=` リンクより「Capafy で <名前> を検索」を主にする（検索経由が計測上も最大の流入源）。TikTok / Shorts も同じ台本で横展開する。
 - 2026-10-07 16:xx JST **売上停止の主因（訂正）**: 9/29 の #6153 `1abb1ae845` で売れていた 4 本（Hook Lab・TikTok・YouTube・Slide Maker）を Sonnet → DeepSeek に切替。buyer ページに「パブリッシャー提供 DeepSeek V4.1 Flash」と表示され、翌 9/30 から 4 本とも有料注文 0（traffic-sources v2 日別）。市場の売上は Sonnet 系が大半（Sonnet 4.6 3,687 件・Sonnet 5 1,135 件 vs DeepSeek 2,526 件だが 24 本中 2 本に集中）。Dais 承認で 4 本を Claude Sonnet 5 に戻す（Capafy に Sonnet 5.5 の表示選択肢が無い）: #6861 Hook Lab、#6862 3 本。価格は本番のまま（YouTube の年 cap 8640→720 のみ、満額利用で赤字のため）。4 本は FROZEN.json。審査枠 6/5（下書き 3・却下 1）のため 3 本は枠待ち、Capafy サポートに削除を依頼（2026-10-07）。
 - 2026-10-07 19:3x JST **売れていた 4 本を Sonnet 5 に戻して審査提出（Capafy API readback: 4 本とも status=1・isConfirmedSkills=1・isConfirmedConfigKeys=1）**: Hook Lab v1.0.6（17:47 run、test/ 無し、日$3.99/週$9.99/月$19.99）、TikTok Script Pro v1.0.4（19:03、日$2.99/週$5.99/月$19.99）、Slide Maker v1.0.3（19:20、週$9.99/月$24.99）、YouTube Script Writer v1.0.5（19:30、週$9.99/月$9.99/年$99.99、CP1 で年 cap 720 を入力し PRICES_MATCH 3。API の billing は審査中のため旧版の 8640 を表示中＝承認後に確認）。途中で直した工場の穴: (1) Capafy の表示モデルに Sonnet 5.5 が無い → Sonnet 5、(2) 更新下書きは価格カードが空で始まるのに CP1 エージェントが `missing` で停止 → CP1_AGENTIC.md に入力手順、(3) 再ログイン後に管理画面が日本語化し期間ラベルが 週次/月次 → 価格ゲートが全プラン missing と誤判定 → `cp1_agent.py` の LABEL_CYCLE に日本語、(4) 管理画面ブラウザの DevToolsActivePort が 09:52 の孤児ヘルパーの古いポートのまま → 孤児を止めて古いファイルを除去、(5) 停止した run の effect fence → `capafy_factory_fence_reconcile.py` の公式 readback（effected=false）で解除。次: 承認後に buyer ページの「セキュリティスキャン」表示と有料注文の再開を確認。
+
+- 2026-10-08 10:xx JST **状態更新（Dais 依頼）**: 売上は 9/30 以降 0（10/07・10/08 も 0）。売れていた 4 本は Sonnet 5 で審査中。工場の穴（価格カード空・日本語ラベル・管理画面ブラウザの古いポート・Sonnet 5.5 非対応）、宣伝の穴（未登録 ct・エージェント時間切れで未公開・毎時集計の優先度・ディスク停止）を本番で修正。残りは Capafy の審査とサポート回答待ち、短尺動画の投稿 owner 待ち。

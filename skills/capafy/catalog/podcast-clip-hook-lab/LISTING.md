@@ -1,6 +1,7 @@
-Primary Model: DeepSeek V4.1 Flash · category: ソーシャルメディア · tags: podcast clips, hook writing, short-form, captions, creator workflow
+Primary Model: Claude Sonnet 5.5 · category: ソーシャルメディア · tags: podcast clips, hook writing, short-form, captions, creator workflow
 
-Demand rank: 1 of 3 eligible proven-winner families for this catalog pass. The release-owned `sales_selector.py` output identifies `Hook Lab — Win the First 3 Seconds` as the top real-profit 30-day winner (+$19.57) and `TikTok Script Pro — Hook-First Short Videos` as another profitable short-form winner. Podcast Clip Hook Lab stays in that proven Hook Lab family while addressing an uncovered customer job: a text-first treatment for a pasted podcast excerpt. This is a family-priority and catalog-gap rank, not a sales claim for this candidate.
+Demand rank: 1
+Demand note: of 3 eligible proven-winner families for this catalog pass. The release-owned `sales_selector.py` output identifies `Hook Lab — Win the First 3 Seconds` as the top real-profit 30-day winner (+$19.57) and `TikTok Script Pro — Hook-First Short Videos` as another profitable short-form winner. Podcast Clip Hook Lab stays in that proven Hook Lab family while addressing an uncovered customer job: a text-first treatment for a pasted podcast excerpt. This is a family-priority and catalog-gap rank, not a sales claim for this candidate.
 
 ## Offline selection notes
 
@@ -12,14 +13,13 @@ Each episode has a different speaker, excerpt, audience, approved quote, and con
 
 ## Unit economics
 
-This follows the high-frequency short-form three-tier shape with bounded message caps. The day plan has `No Free Trial`; week and month both state a free-trial choice. A future submission must verify platform pricing independently.
+Pricing copies the top Capafy sellers (Serenity, Alpha Consensus, 2026-10-08 market sweep): week $9.99 / 20, month $19.99 / 40, year $99.99 / 480, no free trial. Claude Sonnet 5.5 at ~$0.12 per request keeps every plan profitable at its full cap.
 
 | cycle | price | cap | trial |
 |---|---:|---:|---|
-| day | $2.99 | 10 | No Free Trial |
-| week | $5.99 | 25 | Free Trial 24h / 3 requests |
-| month | $12.99 | 60 | Free Trial 72h / 10 requests |
-
+| week | $9.99 | 20 | No Free Trial |
+| month | $19.99 | 40 | No Free Trial |
+| year | $99.99 | 480 | No Free Trial |
 ## Verified demonstration
 
 See `evidence/verified-demonstration.md` for a concrete pasted excerpt, actual text-only output, and verification notes.

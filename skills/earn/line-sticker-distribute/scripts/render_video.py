@@ -77,14 +77,32 @@ def build_filter_complex(clip_count: int, overlay_heights: list[int]) -> str:
     return ";".join(chains)
 
 
-def render(clip_paths: list[Path], title_ja: str, store_url: str, output_path: Path) -> None:
+def render(
+    clip_paths: list[Path], title_ja: str, store_url: str, output_path: Path,
+    beat_texts: list[str] | None = None,
+) -> None:
+    """beat_texts, when given, overlays one short text per clip (in order) instead of the
+    repeated title_ja -- the daily-life/seasonal/reaction mini-story formats copied from top
+    creators (see schemas/caption_hook.schema.json content_type). Its length must equal
+    len(clip_paths); omit (content_type == "showcase") to keep the original single-title
+    overlay unchanged."""
     if not clip_paths:
         raise ValueError("at least one clip is required")
+    if beat_texts is not None and len(beat_texts) != len(clip_paths):
+        raise ValueError("beat_texts must have exactly one entry per clip")
     output_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     with tempfile.TemporaryDirectory(prefix="lsd-render-") as tmp:
         tmp_dir = Path(tmp)
-        title_png = tmp_dir / "title.png"
-        _text_png(title_ja, width=CANVAS_W - 40, font_size=42, path=title_png)
+        overlay_pngs: list[Path] = []
+        if beat_texts:
+            for i, text in enumerate(beat_texts):
+                beat_png = tmp_dir / f"beat-{i}.png"
+                _text_png(text, width=CANVAS_W - 40, font_size=42, path=beat_png)
+                overlay_pngs.append(beat_png)
+        else:
+            title_png = tmp_dir / "title.png"
+            _text_png(title_ja, width=CANVAS_W - 40, font_size=42, path=title_png)
+            overlay_pngs = [title_png] * len(clip_paths)
         end_title_png = tmp_dir / "end-title.png"
         _text_png(f"「{title_ja}」を", width=CANVAS_W - 40, font_size=38, path=end_title_png)
         end_cta_png = tmp_dir / "end-cta.png"
@@ -93,8 +111,8 @@ def render(clip_paths: list[Path], title_ja: str, store_url: str, output_path: P
         cmd = ["ffmpeg", "-y"]
         for clip in clip_paths:
             cmd += ["-i", str(clip)]
-        for _ in clip_paths:
-            cmd += ["-loop", "1", "-t", str(CLIP_SECONDS), "-i", str(title_png)]
+        for overlay_png in overlay_pngs:
+            cmd += ["-loop", "1", "-t", str(CLIP_SECONDS), "-i", str(overlay_png)]
         cmd += ["-loop", "1", "-t", str(END_CARD_SECONDS), "-i", str(end_title_png)]
         cmd += ["-loop", "1", "-t", str(END_CARD_SECONDS), "-i", str(end_cta_png)]
         cmd += [
@@ -118,6 +136,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--title-ja", required=True)
     parser.add_argument("--store-url", required=True)
     parser.add_argument("--output", required=True)
+    parser.add_argument(
+        "--beat-texts", default=None,
+        help="comma-separated per-clip overlay text, one per --clip-order entry (daily_life/"
+             "seasonal_hook/reaction_pick); omit to keep the single-title showcase overlay",
+    )
     args = parser.parse_args(argv)
 
     clips_dir = Path(args.clips_dir).expanduser()
@@ -128,8 +151,9 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps({"state": "missing_clips", "missing": missing}))
         return 1
 
+    beat_texts = args.beat_texts.split(",") if args.beat_texts else None
     output_path = Path(args.output).expanduser()
-    render(clip_paths, args.title_ja, args.store_url, output_path)
+    render(clip_paths, args.title_ja, args.store_url, output_path, beat_texts=beat_texts)
     size_bytes = output_path.stat().st_size
     print(json.dumps({
         "state": "rendered",

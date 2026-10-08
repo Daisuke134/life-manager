@@ -55,6 +55,10 @@ const { sendPanelLink, handlePanelRequest, handleMoneyPrinterGuestRequest, panel
 const { handleWebAuthRequest, resolveWebUser } = require("./lib/web-auth.js");
 const { handleWebCalendarRequest } = require("./lib/web-calendar.js");
 const { handleWebTravelRequest, buildTodaySnapshot } = require("./lib/web-travel.js");
+const { handleWebBillingRequest, trialEndFor } = require("./lib/web-billing.js");
+const {
+  recordWebFunnelRequest, recordWebFunnelStripeEvent,
+} = require("./lib/web-funnel-events.js");
 const { renderWebPage } = require("./lib/web-page.js");
 const { handlePanelApiRequest, handlePanelOAuthCallback, handleTelegramOAuthCallback, composioCalendarStart, composioCalendarDisconnect } = require("./lib/panel-api.js");
 const { createMoneyPrinterSource } = require("./lib/money-printer-source.js");
@@ -89,7 +93,7 @@ const { handleBrowserTaskMessage } = require("./lib/browser-task-intake.js");
 const { completeBrowserHandoff, startBrowserJobLoop } = require("./lib/browser-job-runtime.js");
 const { startInvestmentDryRunLoop } = require("./lib/investment-dry-run.js");
 const { makeSteelCdpClient } = require("./lib/steel-cdp-client.js");
-const { claimEvent, unclaimEvent, applyBilling } = require("./lib/billing.js");
+const { claimEvent, unclaimEvent, applyBilling, parseStripeEvent } = require("./lib/billing.js");
 const { parseWriterStartPayload, bindWriterAttribution } = require("./lib/writer-attribution.js");
 const { constructStripeWebhookEvent, stripeWebhookAllowed } = require("./lib/stripe-webhook-signature.js");
 const { recordCost } = require("./lib/ledger.js");
@@ -100,7 +104,9 @@ const { planProductOnboarding } = require("./lib/product-onboarding.js");
 const { ingestMentalOutcome } = require("./lib/mental-outcome-http.js");
 const { enqueueJob } = require("./lib/runtime-job-store.js");
 const { createAgentEconomyControlStore, economyReply } = require("./lib/agent-economy-control.js");
-const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY || "sk_test_placeholder"); // apiKey unused by constructEvent
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY || "sk_test_placeholder", {
+  apiVersion: "2026-09-30.endive",
+}); // apiKey unused by constructEvent
 const SUPA_URL = process.env.SUPABASE_URL, SUPA_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const COMPOSIO_KEY = process.env.COMPOSIO_API_KEY;
 let moneyPrinterSource, moneyPrinterRuntimePool, moneyPrinterRuntimeStore, investmentStateStore, cloudCitizenStore, agentEconomyControlStore;
@@ -493,6 +499,15 @@ function ctxFromReq(req) {
     voiceReservation };
 }
 
+const STRIPE_REFUND_EVENTS = new Set(["refund.created", "refund.updated"]);
+
+async function recordStripeWebFunnelEvent(event, billingResult) {
+  const parsed = parseStripeEvent(event);
+  return recordWebFunnelStripeEvent(event, parsed, billingResult, {
+    stripeClient: stripe, supaUrl: SUPA_URL, supaKey: SUPA_KEY,
+  });
+}
+
 const server = http.createServer(async (req, res) => {
   const path = (req.url || "").split("?")[0];
   if (path === "/lm") {
@@ -501,6 +516,7 @@ const server = http.createServer(async (req, res) => {
       res.end("Method not allowed");
       return;
     }
+    void recordWebFunnelRequest(req.url, { method: req.method, supaUrl: SUPA_URL, supaKey: SUPA_KEY });
     let user = null;
     let snapshot = null;
     try { user = await resolveWebUser(req, res, { publicOrigin: LM_PANEL_BASE }); } catch {}
@@ -510,6 +526,7 @@ const server = http.createServer(async (req, res) => {
           supaUrl: SUPA_URL, supaKey: SUPA_KEY,
           publicOrigin: LM_PANEL_BASE, panelBaseUrl: LM_PANEL_BASE,
           composioKey: COMPOSIO_KEY, composioAuthConfig: process.env.COMPOSIO_GCAL_AUTH_CONFIG,
+          skipCalendarDetails: true,
         });
       } catch (error) {
         if (error && [401, 403].includes(error.status)) {
@@ -524,10 +541,18 @@ const server = http.createServer(async (req, res) => {
         };
       }
     }
+    let checkoutPending = false;
+    try { checkoutPending = new URL(req.url || "/lm", LM_PANEL_BASE || "https://aniccaai.com").searchParams.get("checkout") === "success"; } catch {}
+    let authError = "";
+    try { authError = new URL(req.url || "/lm", LM_PANEL_BASE || "https://aniccaai.com").searchParams.get("auth_error") === "connection" ? "connection" : ""; } catch {}
+    const trialEnd = snapshot && snapshot.checkoutAvailable ? trialEndFor(Date.now()) : null;
     const html = renderWebPage({
       user,
+      authError,
       snapshot,
-      stripePaymentLink: process.env.LM_STRIPE_PAYMENT_LINK || process.env.STRIPE_PAYMENT_LINK,
+      trialOffer: trialEnd ? { firstChargeAt: new Date(trialEnd * 1000).toISOString(), timezone: "Asia/Tokyo" } : null,
+      customerPortalAvailable: Boolean(snapshot && snapshot.stripeCustomerId),
+      checkoutPending,
     });
     res.writeHead(200, {
       "content-type": "text/html; charset=utf-8",
@@ -538,9 +563,13 @@ const server = http.createServer(async (req, res) => {
     return;
   }
   if (path === "/auth/google" || path === "/auth/google/callback") {
+    if (path === "/auth/google") {
+      void recordWebFunnelRequest(req.url, { method: req.method, supaUrl: SUPA_URL, supaKey: SUPA_KEY });
+    }
     handleWebAuthRequest(req, res, { publicOrigin: LM_PANEL_BASE }).catch(() => {
-      if (!res.headersSent) res.writeHead(503, { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" });
-      res.end("Web sign-in unavailable");
+      if (res.headersSent) { res.end(); return; }
+      res.writeHead(302, { location: "/lm?auth_error=connection", "cache-control": "no-store", "content-length": "0" });
+      res.end();
     });
     return;
   }
@@ -563,6 +592,19 @@ const server = http.createServer(async (req, res) => {
     }).catch(() => {
       if (!res.headersSent) res.writeHead(502, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
       res.end(JSON.stringify({ error: "travel_unavailable" }));
+    });
+    return;
+  }
+  if (path === "/api/lm-web/checkout" || path === "/api/lm-web/billing/portal") {
+    handleWebBillingRequest(req, res, {
+      supaUrl: SUPA_URL, supaKey: SUPA_KEY,
+      publicOrigin: LM_PANEL_BASE,
+      composioKey: COMPOSIO_KEY,
+      composioAuthConfig: process.env.COMPOSIO_GCAL_AUTH_CONFIG,
+      stripeClient: stripe,
+    }).catch(() => {
+      if (!res.headersSent) res.writeHead(502, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
+      res.end(JSON.stringify({ error: "billing_unavailable" }));
     });
     return;
   }
@@ -1594,10 +1636,34 @@ const server = http.createServer(async (req, res) => {
         console.error("[stripe] bad signature", e.message);
         res.writeHead(400); res.end("invalid signature"); return; // REQ-35: reject, no billing side effect
       }
-      const claimed = await claimEvent(event.id, event.type, SUPA_URL, SUPA_KEY); // REQ-36 idempotency
-      if (!claimed) { res.writeHead(200); res.end("duplicate"); return; }         // duplicate delivery → ack, no re-apply
+      let claimed;
+      try { claimed = await claimEvent(event.id, event.type, SUPA_URL, SUPA_KEY); }
+      catch (error) {
+        console.error("[stripe] claim failed", error.message);
+        res.writeHead(500); res.end("claim failed"); return;
+      }
+      if (!claimed) {
+        // Web billing writes are CAS-protected/idempotent. Replay a duplicate Web event so an earlier
+        // claim whose DB read/apply failed can recover even if its unclaim request also failed.
+        const parsed = parseStripeEvent(event);
+        const isRefund = STRIPE_REFUND_EVENTS.has(event.type);
+        if (!isRefund && (!parsed || !parsed.isWebTravel)) { res.writeHead(200); res.end("duplicate"); return; }
+        try {
+          const result = isRefund ? { action: "refund-observed" }
+            : await applyBilling(event, { supaUrl: SUPA_URL, supaKey: SUPA_KEY, stripe, notify: dunningNotify });
+          if (!await recordStripeWebFunnelEvent(event, result)) throw new Error("Web funnel receipt write failed");
+          console.log("[stripe] duplicate Web event reconciled", event.type, JSON.stringify(result));
+          res.writeHead(200); res.end("reconciled");
+        } catch (error) {
+          console.error("[stripe] duplicate Web apply failed", error.message);
+          res.writeHead(500); res.end("apply failed");
+        }
+        return;
+      }
       try {
-        const result = await applyBilling(event, { supaUrl: SUPA_URL, supaKey: SUPA_KEY, notify: dunningNotify });
+        const result = STRIPE_REFUND_EVENTS.has(event.type) ? { action: "refund-observed" }
+          : await applyBilling(event, { supaUrl: SUPA_URL, supaKey: SUPA_KEY, stripe, notify: dunningNotify });
+        if (!await recordStripeWebFunnelEvent(event, result)) throw new Error("Web funnel receipt write failed");
         console.log("[stripe]", event.type, JSON.stringify(result));
         res.writeHead(200); res.end("ok");
       } catch (e) {

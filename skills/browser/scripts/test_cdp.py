@@ -114,6 +114,69 @@ def test_new_target_claims_and_returns_id(monkeypatch):
     assert events == [("owned-tab", "paid-room", 1)]
 
 
+def test_new_target_is_created_inside_opted_in_browser_context(monkeypatch):
+    module = _load_module()
+    monkeypatch.setenv("CLOAK_BROWSER_CONTEXT_ID", "task-context-123")
+    calls = []
+    inventory_reads = 0
+
+    def browser_call(method, params):
+        nonlocal inventory_reads
+        calls.append((method, params))
+        if method == "Target.getTargets":
+            inventory_reads += 1
+            return {"targetInfos": [] if inventory_reads == 1 else [{
+                "targetId": "owned-tab",
+                "browserContextId": "task-context-123",
+            }]}
+        return {"targetId": "owned-tab"}
+
+    monkeypatch.setattr(module, "_browser_call", browser_call)
+    monkeypatch.setattr(module.target_ownership, "claim_target", lambda *_args, **_kwargs: None)
+
+    assert module.new_target("https://example.com", "fundraiser") == "owned-tab"
+    assert next(call for call in calls if call[0] == "Target.createTarget") == (
+        "Target.createTarget",
+        {"url": "https://example.com", "browserContextId": "task-context-123"},
+    )
+
+
+def test_close_refuses_owned_target_from_another_context(monkeypatch):
+    module = _load_module()
+    monkeypatch.setenv("CLOAK_BROWSER_CONTEXT_ID", "task-context-123")
+    calls = []
+    module.target_ownership.claim_target("old-context-tab", "fundraiser")
+
+    def browser_call(method, params):
+        calls.append((method, params))
+        return {"targetInfos": [{
+            "targetId": "old-context-tab",
+            "browserContextId": "another-context",
+        }]}
+
+    monkeypatch.setattr(module, "_browser_call", browser_call)
+    with pytest.raises(PermissionError, match="browser context"):
+        module.close_target("old-context-tab", "fundraiser")
+    assert calls == [("Target.getTargets", {})]
+
+
+def test_page_socket_refuses_target_from_another_context_before_connect(monkeypatch):
+    module = _load_module()
+    monkeypatch.setenv("CLOAK_BROWSER_CONTEXT_ID", "task-context-123")
+    calls = []
+    monkeypatch.setattr(module, "_browser_call", lambda method, params: calls.append((method, params)) or {
+        "targetInfos": [{
+            "targetId": "old-context-tab",
+            "browserContextId": "another-context",
+        }],
+    })
+    with patch.object(module, "create_connection") as create_connection:
+        with pytest.raises(PermissionError, match="browser context"):
+            module._page("old-context-tab")
+    assert calls == [("Target.getTargets", {})]
+    create_connection.assert_not_called()
+
+
 def test_new_target_prunes_missing_owner_rows_before_enforcing_limit(
     tmp_path, monkeypatch,
 ):

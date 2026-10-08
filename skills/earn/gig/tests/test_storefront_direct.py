@@ -39,6 +39,22 @@ def test_lease_command_budget_includes_bounded_batch_recovery(monkeypatch, tmp_p
     assert observed["timeout"] == direct.LEASE_COMMAND_TIMEOUT_SECONDS == 160
 
 
+def test_storefront_receipt_carries_exact_runtime_run_and_occurrence(monkeypatch):
+    monkeypatch.setenv("LIFE_MANAGER_LOOP_ID", "hf-gig-storefront-direct")
+    monkeypatch.setenv("LIFE_MANAGER_RUN_ID", "runtime-run-1")
+    monkeypatch.setenv(
+        "LIFE_MANAGER_OCCURRENCE_ID", "hf-gig-storefront-direct:claimed-occurrence-1",
+    )
+
+    row = direct._receipt(
+        "storefront-direct-pass-1", status="pending",
+        reason="official_inventory_empty_or_invalid",
+    )
+
+    assert row["runtime_run_id"] == "runtime-run-1"
+    assert row["runtime_occurrence_id"] == "hf-gig-storefront-direct:claimed-occurrence-1"
+
+
 def test_storefront_proposal_runner_class_is_accepted_and_toolless(tmp_path):
     runner_dir = SCRIPTS.parents[3] / "runtime/agent-runner"
     sys.path.insert(0, str(runner_dir))
@@ -1173,6 +1189,133 @@ def test_service_contract_requires_exact_coconala_heading_lines():
             assert str(error) == "official_service_contract_invalid"
         else:
             raise AssertionError(f"near-match public text accepted: {text!r}")
+
+
+def test_public_service_contract_uses_unique_dom_body_scope(monkeypatch):
+    import asyncio
+    from contextlib import asynccontextmanager
+
+    import cdp_nav_snapshot
+
+    service_id = "4409818"
+    children = [
+        {"id": None, "inner_text": "ココナラの安心保証\n保証内容の案内"},
+        {"id": "serviceContentsSummary", "inner_text": "サービス内容"},
+        {"id": None, "inner_text": "説明テキスト"},
+        {"id": "serviceContentsNote", "inner_text": "購入にあたってのお願い"},
+        {"id": None, "inner_text": "確認事項"},
+        {"id": None, "inner_text": "有料オプション\n追加内容"},
+    ]
+    scope = "\n".join(child["inner_text"] for child in children)
+    body = {
+        "id": None, "classes": ("c-serviceContentsSummary",),
+        "inner_text": scope, "children": children,
+    }
+    menu = children[1]
+    dom_nodes = [body, *children]
+    page_text = (
+        "ホーム\nIT\nプログラミング\n出品タイトル\nキャッチ\n評価 -\n"
+        + scope + "\n販売実績 8 件\nプロフィール\nprofile marker\n"
+        "おすすめサービス\nrecommendation marker"
+    )
+    ws_expressions = []
+    cdp_expressions = []
+
+    def selected_scope(expression, nodes):
+        selector = expression.partition("querySelectorAll(")[2].partition(")")[0].strip("'\"")
+        if selector.startswith("#"):
+            matches = [node for node in nodes if node["id"] == selector[1:]]
+        elif selector.startswith("."):
+            matches = [node for node in nodes if selector[1:] in node.get("classes", ())]
+        else:
+            matches = []
+        return matches[0]["inner_text"] if len(matches) == 1 else None
+
+    async def evaluate_json(_ws_url, _url, expression):
+        ws_expressions.append(expression)
+        return {"text": page_text, "scope": selected_scope(expression, dom_nodes)}
+
+    async def wait_for_load(*_args):
+        return None
+
+    async def send(_payload):
+        return None
+
+    async def call(_ws, method, params, _cid):
+        if method == "Runtime.evaluate":
+            expression = params["expression"]
+            cdp_expressions.append(expression)
+            value = json.dumps({
+                "text": page_text,
+                "scope": selected_scope(expression, dom_nodes),
+            }, ensure_ascii=False)
+            return {"result": {"result": {"value": value}}}
+        return {}
+
+    @asynccontextmanager
+    async def hidden_page_target(_url):
+        yield "ws://fixture"
+
+    @asynccontextmanager
+    async def cdp_session(_ws_url):
+        yield SimpleNamespace(send=send)
+
+    monkeypatch.setattr(listing_inventory, "_eval_json", evaluate_json)
+    monkeypatch.setattr(listing_inventory, "_wait_for_load", wait_for_load)
+    monkeypatch.setattr(listing_inventory, "_call", call)
+    monkeypatch.setattr(listing_inventory, "_cdp_session", cdp_session)
+    monkeypatch.setattr(cdp_nav_snapshot, "hidden_page_target", hidden_page_target)
+    monkeypatch.setenv("CLOAK_CDP_BASE_URL", "http://test-only")
+
+    async def observe_both_paths():
+        return (
+            await listing_inventory._fetch_category(None, service_id, ws_url="ws://fixture"),
+            await listing_inventory._fetch_category("http://fixture", service_id),
+        )
+
+    assert menu["inner_text"] == "サービス内容"
+    assert len(body["children"]) == 6
+    observations = asyncio.run(observe_both_paths())
+    for observation in observations:
+        assert observation["public_text"] == scope
+        assert observation["category"] == "IT/プログラミング"
+        assert observation["sales_count"] == 8
+        assert "profile marker" not in observation["public_text"]
+        assert "recommendation marker" not in observation["public_text"]
+        source = _official_source(service_id)
+        source.update(observation)
+        direct._service_contract(source, "2026-10-08T00:00:00+00:00")
+
+    assert len(ws_expressions) == len(cdp_expressions) == 1
+    assert all("sections.length===1" in expression for expression in ws_expressions)
+    assert all("sections.length===1" in expression for expression in cdp_expressions)
+
+    invalid_wrappers = (
+        [menu],
+        [menu, body, body],
+        [menu, {**body, "inner_text": "購入にあたってのお願い\n本文\nサービス内容"}],
+    )
+    for nodes in invalid_wrappers:
+        dom_nodes[:] = nodes
+        for observation in asyncio.run(observe_both_paths()):
+            assert observation["public_text"] == ""
+            source = _official_source(service_id)
+            source.update(observation)
+            with pytest.raises(RuntimeError, match="^official_service_contract_invalid$"):
+                direct._service_contract(source, "2026-10-08T00:00:00+00:00")
+
+
+def test_public_service_scope_requires_unique_ordered_headings():
+    valid = "サービス内容\n説明\n購入にあたってのお願い\n確認\n有料オプション\n追加"
+    assert listing_inventory.extract_public_service_scope(valid) == valid
+
+    invalid_scopes = (
+        "サービス内容\n説明",
+        "サービス内容\n説明\nサービス内容\n購入にあたってのお願い",
+        "購入にあたってのお願い\n確認\nサービス内容",
+        "サービス内容\n購入にあたってのお願い\n確認\n購入にあたってのお願い",
+    )
+    assert all(listing_inventory.extract_public_service_scope(text) is None for text in invalid_scopes)
 
 
 def test_exact_faq_is_the_only_seller_field_and_public_delta():

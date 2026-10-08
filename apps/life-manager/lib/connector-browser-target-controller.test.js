@@ -66,7 +66,9 @@ function fixture({ baselineCount = 1, delayedOwnedInsertion = false } = {}) {
       return {
         async send(method) {
           calls.push(["page-send", page.targetId, method]);
-          return { targetInfo: { targetId: page.targetId } };
+          return {
+            targetInfo: { targetId: page.targetId, browserContextId: "task-context-123" },
+          };
         },
         async detach() { calls.push(["page-detach", page.targetId]); },
       };
@@ -104,11 +106,54 @@ function fixture({ baselineCount = 1, delayedOwnedInsertion = false } = {}) {
     baseline,
     browser,
     calls,
+    context,
     owned,
     removeOwnedTarget() { liveTargetIds.delete("OWNED123"); },
     setTargetInventory(value) { targetInfosOverride = value; },
-  };
+};
 }
+
+test("creates, probes, and closes Connector targets only in the leased browser context", async () => {
+  const fx = fixture();
+  const foreignPage = { targetId: "FOREIGN123", async evaluate() { return 1; } };
+  const foreignContext = {
+    pages() { return [foreignPage]; },
+    async newCDPSession(page) {
+      fx.calls.push(["foreign-page-session", page.targetId]);
+      return {
+        async send() {
+          return { targetInfo: { targetId: page.targetId, browserContextId: "foreign-context" } };
+        },
+        async detach() {},
+      };
+    },
+  };
+  fx.browser.contexts = () => [fx.context, foreignContext];
+  let controller;
+  assert.doesNotThrow(() => {
+    controller = createConnectorBrowserTargetController({
+      browser: fx.browser,
+      browserContextId: "task-context-123",
+    });
+  });
+
+  const target = await controller.create();
+
+  assert.equal(target.page, fx.owned);
+  assert.deepEqual(
+    fx.calls.find(([name, method]) => name === "browser-send" && method === "Target.createTarget"),
+    ["browser-send", "Target.createTarget", {
+      url: "about:blank", browserContextId: "task-context-123",
+    }],
+  );
+  assert.equal(await controller.probe(target.page_websocket), true);
+  fx.setTargetInventory([{
+    targetId: target.target_id,
+    browserContextId: "task-context-123",
+  }]);
+  assert.equal(await controller.close(target.target_id), true);
+  assert.equal(fx.calls.some(([name]) => name === "foreign-page-session"), false);
+});
 
 test("creates exactly one default-context target and binds only its exact Playwright page", async () => {
   const fx = fixture();

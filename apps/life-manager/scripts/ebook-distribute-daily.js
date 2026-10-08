@@ -121,6 +121,25 @@ function writeEffectResult(publication) {
   });
 }
 
+function writeNoEffectResult(env, ownerId, reason) {
+  const file = required(env.LIFE_MANAGER_RESULT_HINT_PATH, "Life Manager result hint path");
+  const configuredOwner = required(env.LIFE_MANAGER_LOOP_ID, "Life Manager loop ID");
+  const occurrenceId = required(env.LIFE_MANAGER_OCCURRENCE_ID, "Life Manager occurrence ID");
+  if (configuredOwner !== ownerId || !occurrenceId.startsWith(`${ownerId}:`)
+      || !["setup_required", "no_due_slot"].includes(reason)) {
+    throw new Error("eBook no-effect result identity is invalid");
+  }
+  atomicJson(file, {
+    schema_version: 1,
+    kind: "life_manager_no_effect_result",
+    status: "verified_no_effect",
+    effect: 0,
+    owner_id: ownerId,
+    occurrence_id: occurrenceId,
+    reason,
+  });
+}
+
 function selectTarget({ root, pack, ownerId, platform, accountId }) {
   const lane = JOBS[ownerId];
   if (!lane || lane.productId !== pack?.product_id || lane.platform !== platform
@@ -211,24 +230,44 @@ function approvedBaselineScript(script, pack) {
     && JSON.stringify(pack.allowed_claims) === JSON.stringify(APPROVED_CLAIMS_BY_PRODUCT[pack.product_id]));
 }
 
-function renderInput({ python, root, stateRoot, slotAt, product }) {
+function renderInput({ python, root, stateRoot, slotAt, product, ownerEnv = process.env }) {
   const renderer = path.join(root, "skills/earn/marketing-engine/ebook_distribute_daily.py");
+  const rendererEnv = {
+    HOME: ownerEnv.HOME || "",
+    PATH: ownerEnv.PATH || "",
+    LANG: ownerEnv.LANG || "C.UTF-8",
+    LC_ALL: ownerEnv.LC_ALL || "",
+    TMPDIR: ownerEnv.TMPDIR || "/tmp",
+  };
+  if (product === "ebook-en") {
+    for (const key of ["LIFE_MANAGER_HEYGEN", "HEYGEN_NO_ANALYTICS"]) {
+      const value = ownerEnv[key];
+      if (typeof value === "string" && value.trim()) rendererEnv[key] = value;
+    }
+  }
   const result = spawnSync(python, [renderer, "--product", product, "--slot-at", slotAt,
     "--state-root", stateRoot], {
     cwd: root,
-    env: {
-      HOME: process.env.HOME || "",
-      PATH: process.env.PATH || "",
-      LANG: process.env.LANG || "C.UTF-8",
-      LC_ALL: process.env.LC_ALL || "",
-      TMPDIR: process.env.TMPDIR || "/tmp",
-    },
+    env: rendererEnv,
     encoding: "utf8",
     timeout: 20 * 60 * 1000,
     maxBuffer: 2 * 1024 * 1024,
   });
   if (result.status !== 0) {
-    throw new Error(`eBook renderer failed with exit ${result.status}`);
+    let errorClass = "unknown";
+    const lines = String(result.stdout || "").split(/\r?\n/).filter(Boolean);
+    if (lines.length === 1) {
+      try {
+        const failure = JSON.parse(lines[0]);
+        if (failure.schema_version === "marketing.ebook-render-failure.v1"
+            && typeof failure.error_class === "string"
+            && /^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(failure.error_class)) {
+          errorClass = failure.error_class;
+        }
+      } catch {}
+    }
+    const exitCode = Number.isInteger(result.status) ? result.status : "unknown";
+    throw new Error(`eBook renderer failed: ${errorClass} (exit ${exitCode})`);
   }
   const lines = String(result.stdout || "").split(/\r?\n/).filter(Boolean);
   if (lines.length !== 1) throw new Error("eBook renderer returned invalid JSON");
@@ -393,11 +432,15 @@ async function run(argv = process.argv.slice(2), deps = {}) {
     root, pack, ownerId, platform: lane.platform, accountId: lane.accountId,
   });
   if (setup_required) {
+    writeNoEffectResult(env, ownerId, "setup_required");
     return { state: "setup_required", reason: setup_reason, owner_id: ownerId, effect: 0 };
   }
   const slotAt = marketingVideoDueSlot(deps.nowMs == null ? Date.now() : deps.nowMs,
     "Asia/Tokyo", pack.slots_jst);
-  if (!slotAt) return { state: "no_due_slot", owner_id: ownerId, effect: 0 };
+  if (!slotAt) {
+    writeNoEffectResult(env, ownerId, "no_due_slot");
+    return { state: "no_due_slot", owner_id: ownerId, effect: 0 };
+  }
 
   if (env.LM_EBOOK_PUBLISHING_ENABLED !== "true") {
     throw new Error("eBook publication readiness gate is closed");
@@ -410,6 +453,7 @@ async function run(argv = process.argv.slice(2), deps = {}) {
     stateRoot,
     slotAt,
     product: lane.productId,
+    ownerEnv: env,
   });
   const { receipt, script, publication_id: publicationId, attribution_token: token } = input;
   if (!approvedBaselineScript(script, pack)

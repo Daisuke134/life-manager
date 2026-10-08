@@ -1,10 +1,24 @@
 {
   "type": "object",
   "additionalProperties": false,
-  "required": ["theme", "series_of", "character_id", "character_prompt", "motions", "listing"],
+  "required": ["theme", "series_of", "character_id", "character_prompt", "motions", "listing", "copy_target", "format_gap"],
   "properties": {
     "theme": {"type": "string"},
     "series_of": {"type": ["string", "null"]},
+    "copy_target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["product_url", "theme", "phrases", "expression_style", "text_or_no_text", "title_pattern"],
+      "properties": {
+        "product_url": {"type": "string"},
+        "theme": {"type": "string"},
+        "phrases": {"type": "array", "items": {"type": "string"}},
+        "expression_style": {"type": "string"},
+        "text_or_no_text": {"type": "string", "enum": ["text", "no_text"]},
+        "title_pattern": {"type": "string"}
+      }
+    },
+    "format_gap": {"type": ["string", "null"]},
     "character_id": {"type": "string"},
     "character_prompt": {"type": "string"},
     "motions": {

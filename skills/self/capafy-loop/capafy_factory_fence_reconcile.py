@@ -72,6 +72,34 @@ MAX_RUN_SECONDS = 3600
 # release latency, not provider propagation delay.
 POST_PROCESSING_DELAY_SECONDS = 120
 NO_EFFECT_MIN_AGE_SECONDS = MAX_RUN_SECONDS + POST_PROCESSING_DELAY_SECONDS
+# Waiting MAX_RUN_SECONDS only guarantees the run is no longer in flight. When the run's own
+# process is provably gone, an hour of waiting adds nothing: 2026-10-08 a PREPARE_FAILED run
+# (no agent spend) fenced the factory for an hour, twice in one day.
+FINISHED_RUN_MIN_AGE_SECONDS = 60
+
+
+def run_finished(occurrence_id: str, queued_at: dt.datetime, *, process_start_fn=None) -> bool:
+    """True only when the runner pid encoded as the occurrence suffix is gone or was reused.
+
+    Unparseable ids and any doubt return False (keep waiting): never guess a run is over.
+    """
+    import re
+    match = re.search(r"-(\d+)$", occurrence_id)
+    if not match:
+        return False
+    if process_start_fn is None:
+        from runtime.host.resource_admission import process_start as process_start_fn
+    try:
+        started = process_start_fn(int(match.group(1)))
+    except Exception:  # noqa: BLE001
+        return False
+    if started is None:
+        return True
+    try:
+        began = dt.datetime.strptime(" ".join(str(started).split()), "%a %b %d %H:%M:%S %Y").astimezone()
+    except ValueError:
+        return False
+    return began > queued_at + dt.timedelta(seconds=30)  # a newer process owns that pid now
 
 PUBLISHER_DIR = REPO_ROOT / "skills/capafy-autopublish/vendor/capafy-publisher"
 SNAPSHOT_DIR = Path(
@@ -268,6 +296,7 @@ def reconcile(
     resolve_pre_effect_fn: Callable[..., bool] | None = None,
     evidence_dir: Path = EVIDENCE_DIR,
     now: dt.datetime | None = None,
+    run_finished_fn: Callable[[str, dt.datetime], bool] | None = None,
     resolve: bool = False,
 ) -> dict[str, Any]:
     now = now or dt.datetime.now(dt.timezone.utc)
@@ -317,7 +346,9 @@ def reconcile(
         return result
 
     age_seconds = (now - queued_at).total_seconds()
-    if age_seconds <= NO_EFFECT_MIN_AGE_SECONDS:
+    finished = (run_finished_fn or run_finished)(occurrence_id, queued_at) \
+        if age_seconds > FINISHED_RUN_MIN_AGE_SECONDS else False
+    if age_seconds <= NO_EFFECT_MIN_AGE_SECONDS and not finished:
         return {
             "owner_id": OWNER_ID, "occurrence_id": occurrence_id, "verified": False,
             "reason": f"too_recent:{int(age_seconds)}s<={NO_EFFECT_MIN_AGE_SECONDS}s",

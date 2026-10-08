@@ -31,7 +31,7 @@ case "$TASK_CLASS" in
   # Keep this in sync with runtime/agent-runner/config.json.  Capafy's CP1/CP2/CP3
   # browser flow deliberately uses application-lane-agent (3600s); rejecting it
   # here made the bounded drainer fail before the provider could start.
-  repeatable-agent|tool-agent|browser-lane-agent|application-lane-agent|application-intent-planner|marketing-agent|high-value-agent|self-heal-code-agent|self-fix-code-agent) ;;
+  repeatable-agent|tool-agent|browser-lane-agent|application-lane-agent|application-intent-planner|connector-agent|job-hunter-agent|fundraiser-agent|marketing-agent|high-value-agent|self-heal-code-agent|self-fix-code-agent) ;;
   *) echo "run_agent.sh: invalid or missing --task-class" >&2; exit 2 ;;
 esac
 [ -n "$EVIDENCE_DIR" ] || { echo "run_agent.sh: missing --evidence-dir" >&2; exit 2; }
@@ -80,8 +80,40 @@ set +e
   --evidence-dir "$EVIDENCE_DIR" \
   --task-label "$TASK_LABEL" \
   --loop "$LOOP" \
-  --workdir "$WORKDIR" <"$PROMPT_FILE" >"$RUNNER_STDOUT"
+  --workdir "$WORKDIR" <"$PROMPT_FILE" >"$RUNNER_STDOUT" &
+RUNNER_PID=$!
+# Silent-start watchdog. 2026-10-08 17:13 JST the Capafy CP1 agent wrote 0 bytes for the whole 1200s
+# outer timeout (the runner waits on the provider profile lease with no output), burning a factory
+# pass with nothing to diagnose. If no provider child has written anything within the window, record
+# who holds the provider profile locks and stop the runner so the caller can move on.
+SILENT_LIMIT="${RUN_AGENT_SILENT_START_SECONDS:-420}"
+SILENT_POLL="${RUN_AGENT_SILENT_POLL_SECONDS:-5}"
+SILENT_WAITED=0
+SILENT_STOPPED=0
+while kill -0 "$RUNNER_PID" 2>/dev/null; do
+  sleep "$SILENT_POLL"
+  SILENT_WAITED=$((SILENT_WAITED + SILENT_POLL))
+  if [ -n "$(find "$EVIDENCE_DIR" -maxdepth 1 -name 'attempt-*.std*.log' -size +0c 2>/dev/null)" ]; then
+    break  # the provider has produced output: leave it to the outer timeout
+  fi
+  if [ "$SILENT_WAITED" -ge "$SILENT_LIMIT" ]; then
+    {
+      echo "no provider output after ${SILENT_LIMIT}s (runner pid $RUNNER_PID)"
+      echo "--- processes holding provider profile locks:"
+      for f in "$HOME"/.local/state/life-manager/codex-runner/*/.agent-runner-profile-provider.lock; do
+        [ -e "$f" ] && { echo "$f"; lsof "$f" 2>/dev/null | tail -n +2; }
+      done
+      echo "--- codex processes:"
+      ps -Ao pid,etime,command | grep -i "[c]odex" | cut -c1-160
+    } >"$EVIDENCE_DIR/silent-start-diagnosis.txt" 2>&1
+    kill "$RUNNER_PID" 2>/dev/null
+    SILENT_STOPPED=1
+    break
+  fi
+done
+wait "$RUNNER_PID"
 RC=$?
+[ "$SILENT_STOPPED" = 1 ] && RC=75
 set -e
 
 if [ "$RC" -ne 0 ]; then

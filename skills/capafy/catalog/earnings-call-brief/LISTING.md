@@ -1,6 +1,7 @@
-Primary Model: DeepSeek V4.1 Flash · category: 分析 · tags: earnings summary, investor research, transcript analysis, financial brief
+Primary Model: Claude Sonnet 5.5 · category: 分析 · tags: earnings summary, investor research, transcript analysis, financial brief
 
-Demand rank: 3 — finance summaries are a BEST_PRACTICES.md §13 proven-winner family. This is deliberately distinct from the catalog's `portfolio-tracker`: buyers paste one reporting-period record for a source-bounded earnings brief, rather than a daily portfolio or watchlist snapshot. The local `capafy-sales-ranking.json`, produced by `sales_selector.py`, reports 52 listings and profitable content-family winners; it supports using the proven recurring-input shape but is not a claim that this unsubmitted candidate has sales.
+Demand rank: 2
+Demand note: finance summaries are a BEST_PRACTICES.md §13 proven-winner family. This is deliberately distinct from the catalog's `portfolio-tracker`: buyers paste one reporting-period record for a source-bounded earnings brief, rather than a daily portfolio or watchlist snapshot. The local `capafy-sales-ranking.json`, produced by `sales_selector.py`, reports 52 listings and profitable content-family winners; it supports using the proven recurring-input shape but is not a claim that this unsubmitted candidate has sales.
 
 ## Renewal reason
 
@@ -10,15 +11,13 @@ language, and unanswered questions. A prior-period brief cannot substitute for t
 ## Unit economics
 
 This is a bounded, text-only recurring analysis workflow. The three-tier caps follow the documented
-high-frequency content pattern. Per BEST_PRACTICES.md §3, day has no trial; week and month use the
-required free-trial defaults for a new candidate.
+Pricing copies the top Capafy sellers (Serenity, Alpha Consensus, 2026-10-08 market sweep): week $9.99 / 20, month $19.99 / 40, year $99.99 / 480, no free trial. Claude Sonnet 5.5 at ~$0.12 per request keeps every plan profitable at its full cap.
 
 | cycle | price | cap | trial |
 |---|---:|---:|---|
-| day | $2.99 | 10 | No Free Trial |
-| week | $7.99 | 25 | Free Trial 24h / 3 requests |
-| month | $19.99 | 60 | Free Trial 72h / 5 requests |
-
+| week | $9.99 | 20 | No Free Trial |
+| month | $19.99 | 40 | No Free Trial |
+| year | $99.99 | 480 | No Free Trial |
 ## Verified demonstration
 
 See `evidence/verified-demonstration.md` for a concrete pasted record, its actual text output, and

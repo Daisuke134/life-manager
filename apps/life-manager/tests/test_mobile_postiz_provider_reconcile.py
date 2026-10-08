@@ -460,6 +460,8 @@ def test_owner_reconcile_skips_unjoined_history_and_resolves_one_exact_receipt(
     )
     monkeypatch.setattr(module, "_admission_state", lambda *_: ("claimed", 1))
     monkeypatch.setattr(module, "_authoritative_admission_db", lambda: tmp_path / "admission.sqlite3")
+    pending_counts = iter((1, 0))
+    monkeypatch.setattr(module, "_pending_unknown_count", lambda *_: next(pending_counts, 0))
     resolved = []
 
     def resolver(**kwargs):
@@ -490,6 +492,7 @@ def test_owner_reconcile_keeps_unjoined_unknown_without_provider_request(
     identity_dir.mkdir()
     write_identity(identity_dir / "unknown.jsonl", identity())
     monkeypatch.setattr(module, "_admission_state", lambda *_: ("claimed", 1))
+    monkeypatch.setattr(module, "_pending_unknown_count", lambda *_: 1)
     monkeypatch.setattr(
         module, "_request_json",
         lambda *_: (_ for _ in ()).throw(AssertionError("must not read provider")),
@@ -534,6 +537,8 @@ def test_owner_reconcile_applies_bound_after_owner_filter(
             else ("released", 0)
         ),
     )
+    pending_counts = iter((1, 0))
+    monkeypatch.setattr(module, "_pending_unknown_count", lambda *_: next(pending_counts, 0))
     monkeypatch.setattr(module, "_ledger_for_identity", lambda *_: tmp_path / "ledger")
     monkeypatch.setattr(module, "_local_receipt", lambda *_: {"provider_id": "post-1"})
     calls = []
@@ -578,6 +583,8 @@ def test_owner_reconcile_continues_after_inconclusive_exact_candidate(
     write_identity(identity_dir / "a.jsonl", first)
     write_identity(identity_dir / "b.jsonl", second)
     monkeypatch.setattr(module, "_admission_state", lambda *_: ("claimed", 1))
+    pending_counts = iter((2, 0))
+    monkeypatch.setattr(module, "_pending_unknown_count", lambda *_: next(pending_counts, 0))
     monkeypatch.setattr(module, "_ledger_for_identity", lambda *_: tmp_path / "ledger")
     monkeypatch.setattr(module, "_local_receipt", lambda *_: {"provider_id": "post-1"})
     calls = []
@@ -721,3 +728,52 @@ def test_the_japanese_bio_cta_is_a_known_suffix(tmp_path: Path, monkeypatch) -> 
         receipt_cta_sha256=hashlib.sha256(ja.encode()).hexdigest(),
     )
     assert proof["verified"] is True
+
+
+def test_auto_owner_explicit_occurrence_uses_target_over_fence_parent_identity(
+        monkeypatch, capsys) -> None:
+    module = load_module()
+    owner_id = "ebook-ja-tiktok-daily"
+    occurrence_id = f"{owner_id}:old-claim"
+    monkeypatch.setenv("LIFE_MANAGER_RUN_ID", "fence-run")
+    monkeypatch.setenv("LIFE_MANAGER_LOOP_ID", "lm-fence-reconciler")
+    monkeypatch.setenv("LIFE_MANAGER_OWNER_ID", "lm-fence-reconciler")
+    monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", "lm-fence-reconciler:fence-run")
+    calls = []
+
+    def reconcile_current_occurrence(**kwargs):
+        calls.append(kwargs)
+        return {"status": "clean", "owner_id": owner_id,
+                "occurrence_id": occurrence_id}
+
+    monkeypatch.setattr(module, "reconcile_current_occurrence", reconcile_current_occurrence)
+    try:
+        exit_code = module.main([
+            "--auto-owner", owner_id, "--occurrence-id", occurrence_id,
+        ])
+    except SystemExit as error:
+        exit_code = error.code
+
+    assert exit_code == 0
+    assert len(calls) == 1
+    assert calls[0]["owner_id"] == owner_id
+    assert calls[0]["occurrence_id"] == occurrence_id
+    assert json.loads(capsys.readouterr().out)["occurrence_id"] == occurrence_id
+
+
+def test_auto_owner_explicit_occurrence_rejects_another_owner_prefix(
+        monkeypatch, capsys) -> None:
+    module = load_module()
+    owner_id = "ebook-ja-tiktok-daily"
+    monkeypatch.setenv("LIFE_MANAGER_LOOP_ID", "lm-fence-reconciler")
+    monkeypatch.setenv("LIFE_MANAGER_OWNER_ID", "lm-fence-reconciler")
+    try:
+        exit_code = module.main([
+            "--auto-owner", owner_id, "--occurrence-id", "ebook-ja-instagram-daily:claim",
+        ])
+    except SystemExit as error:
+        exit_code = error.code
+
+    assert exit_code == 1
+    result = json.loads(capsys.readouterr().out)
+    assert result["reason"] == "runtime_occurrence_missing_or_invalid"

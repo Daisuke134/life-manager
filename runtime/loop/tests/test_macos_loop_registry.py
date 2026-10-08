@@ -113,8 +113,9 @@ class MacosLoopRegistryTest(unittest.TestCase):
         ]
         self.assertEqual(row["cadence"], {"start_interval_seconds": 3600})
         self.assertEqual(row["resource_class"], "agent")
-        self.assertEqual(row["admission_class"], "borrow")
-        self.assertEqual(row["priority"], "support")
+        self.assertEqual(row["admission_class"], "revenue")
+        self.assertEqual(row["priority"], "revenue")
+        self.assertEqual(row["admission_effect_scope"], "occurrence")
         self.assertTrue(row["coalesce_reserved_wakes"])
         self.assertTrue(row["coalesce_queued_wakes"])
 
@@ -151,14 +152,20 @@ class MacosLoopRegistryTest(unittest.TestCase):
                 self.assertTrue(row.get("coalesce_reserved_wakes"))
                 self.assertTrue(row.get("coalesce_queued_wakes"))
 
-    def test_job_search_effect_free_jobs_declare_rebind_contract(self):
+    def test_job_search_daily_and_inbox_declare_admission_contract(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         for loop_id in ("job-search-daily", "job-search-inbox"):
             with self.subTest(loop_id=loop_id):
                 row = registry["loops"][loop_id]
-                self.assertEqual(row.get("resource_class"), "deterministic")
-                self.assertEqual(row.get("admission_class"), "borrow")
-                self.assertEqual(row.get("priority"), "support")
+                if loop_id == "job-search-daily":
+                    self.assertEqual(row.get("resource_class"), "deterministic")
+                    self.assertEqual(row.get("admission_class"), "revenue")
+                    self.assertEqual(row.get("priority"), "revenue")
+                    self.assertTrue(row.get("reconcile_queued_release"))
+                else:
+                    self.assertEqual(row.get("resource_class"), "deterministic")
+                    self.assertEqual(row.get("admission_class"), "borrow")
+                    self.assertEqual(row.get("priority"), "support")
                 self.assertTrue(row.get("coalesce_reserved_wakes"))
                 self.assertTrue(row.get("coalesce_queued_wakes"))
 
@@ -277,7 +284,7 @@ class MacosLoopRegistryTest(unittest.TestCase):
         row = registry["loops"]["life-manager-cfo-hourly"]
         self.assertEqual(row.get("resource_class"), "deterministic")
         self.assertEqual(row.get("admission_class"), "borrow")
-        self.assertEqual(row.get("priority"), "support")
+        self.assertEqual(row.get("priority"), "revenue")
         self.assertTrue(row.get("coalesce_reserved_wakes"))
         self.assertTrue(row.get("coalesce_queued_wakes"))
         self.assertTrue(row.get("reconcile_queued_release"))
@@ -653,7 +660,7 @@ class MacosLoopRegistryTest(unittest.TestCase):
             loop_id for loop_id, row in registry["loops"].items()
             if row["entrypoint"] == "apps/life-manager/scripts/mobile-app"
         ]
-        assert len(mobile_ids) == 17  # obou-instagram retired: ebook account, out of mobile scope
+        assert len(mobile_ids) == 18  # 17 existing mobile owners plus the EN2 TikTok owner
         for loop_id in mobile_ids:
             with self.subTest(loop_id=loop_id):
                 row = registry["loops"][loop_id]

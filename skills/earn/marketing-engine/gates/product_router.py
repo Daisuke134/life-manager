@@ -63,7 +63,7 @@ class Registry:
 def _validate_product(row: dict, path: pathlib.Path) -> None:
     require(set(row) == PRODUCT_FIELDS, f"product fields differ: {path}")
     require(row["schema_version"] == "marketing.product.v1", f"product schema differs: {path}")
-    require(row["type"] in {"ios_app", "ebook"}, f"product type invalid: {path}")
+    require(row["type"] in {"ios_app", "ebook", "web_app"}, f"product type invalid: {path}")
     require(isinstance(row["destination_url"], str) and row["destination_url"].startswith("https://"),
             f"product destination must be https: {path}")
     price = row["price"]

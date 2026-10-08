@@ -14,6 +14,7 @@ def load_module():
     module = importlib.util.module_from_spec(spec)
     assert spec.loader is not None
     spec.loader.exec_module(module)
+    module.CAP = 5  # fixtures below are written against a 5-slot cap
     return module
 
 
@@ -197,14 +198,25 @@ def test_load_revenue_by_agent_reads_analytics_snapshot(tmp_path) -> None:
 def test_repo_update_request_targets_existing_online_version(monkeypatch, tmp_path, capsys) -> None:
     module = load_module()
     monkeypatch.setattr(module, "FEATURES", str(tmp_path / "no-legacy"))
-    monkeypatch.setattr(module, "CATALOG", str(Path(__file__).parents[2] / "capafy/catalog"))
+    # Fixture catalog: a non-frozen Agent carrying an UPDATE.json (sellers in
+    # FROZEN.json never get one; see test_frozen_agent_update_is_never_selected).
+    import shutil
+    catalog = tmp_path / "catalog"
+    shutil.copytree(Path(__file__).parents[2] / "capafy/catalog/hook-lab", catalog / "hook-lab",
+                    ignore=shutil.ignore_patterns("test"))
+    (catalog / "hook-lab" / "UPDATE.json").write_text(json.dumps({
+        "agent_id": "9999999999", "from_version_id": "2107714882678706176",
+        "target_model_id": "anthropic/claude-sonnet-5",
+        "icon_sha256": "71fd45e7303c4c87fa86c6ee0c532e09419a9123b0806b9e4572e34ba679176f",
+        "reason": "fixture", "dais_approved_exception": "fixture"}))
+    monkeypatch.setattr(module, "CATALOG", str(catalog))
     items = module.ready_inventory()
     request = next(item for item in items if item["feature"] == "catalog:hook-lab")
-    assert request["update_request"]["agent_id"] == "8123079349"
+    assert request["update_request"]["agent_id"] == "9999999999"
     assert request["icon"].endswith("icon.webp")
     others = [item for item in items
               if item.get("update_request") and item is not request]
-    rows = [agent("8123079349", "online", name=request["title"],
+    rows = [agent("9999999999", "online", name=request["title"],
                   latestAgentVersionId=request["update_request"]["from_version_id"]),
             *[agent(item["update_request"]["agent_id"], "online", name=item["title"],
                     latestAgentVersionId="stale-" + item["update_request"]["from_version_id"])
@@ -214,14 +226,38 @@ def test_repo_update_request_targets_existing_online_version(monkeypatch, tmp_pa
 
     module.main()
     decision = json.loads(capsys.readouterr().out.splitlines()[-1])
-    assert decision["action"] == "update_existing"
-    assert decision["item"]["agent_id"] == "8123079349"
+    # Dais 2026-10-08: no update of an accepted Agent is ever selected.
+    assert decision.get("action") != "update_existing"
 
     monkeypatch.setattr(module, "server_agents", lambda: [agent("other", "under_review")])
     module.main()
     missing = json.loads(capsys.readouterr().out.splitlines()[-1])
     assert missing == {"verdict": "SERVER_UNREADABLE",
                        "reason": "same-Agent update target is missing or changed"}
+
+
+def test_frozen_agent_update_is_never_selected(monkeypatch, tmp_path, capsys) -> None:
+    module = load_module()
+    frozen = tmp_path / "FROZEN.json"
+    frozen.write_text(json.dumps({"agent_ids": ["9999999999"]}))
+    monkeypatch.setattr(module, "load_frozen_ids", lambda path=None: {"9999999999"})
+    import shutil
+    catalog = tmp_path / "catalog"
+    shutil.copytree(Path(__file__).parents[2] / "capafy/catalog/hook-lab", catalog / "hook-lab",
+                    ignore=shutil.ignore_patterns("test"))
+    (catalog / "hook-lab" / "UPDATE.json").write_text(json.dumps({
+        "agent_id": "9999999999", "from_version_id": "2107714882678706176", "target_model_id": "anthropic/claude-sonnet-5",
+        "icon_sha256": "71fd45e7303c4c87fa86c6ee0c532e09419a9123b0806b9e4572e34ba679176f",
+        "reason": "fixture", "dais_approved_exception": "fixture"}))
+    monkeypatch.setattr(module, "FEATURES", str(tmp_path / "no-legacy"))
+    monkeypatch.setattr(module, "CATALOG", str(catalog))
+    title = next(i for i in module.ready_inventory() if i["feature"] == "catalog:hook-lab")["title"]
+    monkeypatch.setattr(module, "server_agents", lambda: [
+        agent("9999999999", "online", name=title, latestAgentVersionId="2107714882678706176")])
+    module.main()
+    decision = json.loads(capsys.readouterr().out.splitlines()[-1])
+    assert decision.get("action") != "update_existing"
+    assert (decision.get("item") or {}).get("agent_id") != "9999999999"
 
 
 def test_unknown_status_fails_closed_without_free_slot_claim() -> None:
@@ -772,7 +808,7 @@ def test_retired_offline_agent_is_not_recovered(monkeypatch, tmp_path, capsys) -
     assert decision.get("action") != "recover_delisted"
 
 
-def test_non_retired_offline_agent_is_still_recovered(monkeypatch, tmp_path, capsys) -> None:
+def test_offline_agent_is_never_recovered(monkeypatch, tmp_path, capsys) -> None:
     module = load_module()
     monkeypatch.setattr(module, "FEATURES", str(tmp_path / "no-legacy"))
     monkeypatch.setattr(module, "CATALOG", str(tmp_path / "no-catalog"))
@@ -788,9 +824,9 @@ def test_non_retired_offline_agent_is_still_recovered(monkeypatch, tmp_path, cap
     module.main()
     decision = json.loads(capsys.readouterr().out.splitlines()[-1])
 
-    assert decision["verdict"] == "PUBLISHABLE"
-    assert decision["action"] == "recover_delisted"
-    assert decision["item"]["agent_id"] == "sold-1"
+    # Dais 2026-10-08: already-submitted Agents are never recovered; new Agents only.
+    assert decision.get("action") != "recover_delisted"
+    assert (decision.get("item") or {}).get("agent_id") != "sold-1"
 
 
 def test_malformed_retired_json_fails_closed(monkeypatch, tmp_path, capsys) -> None:

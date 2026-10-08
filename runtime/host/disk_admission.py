@@ -14,7 +14,10 @@ from typing import Sequence
 
 
 DEFAULT_REQUIRED_KIB = 524288
-RECOVERY_FLOOR_BYTES = 11 * 1024**3
+# Dais 2026-10-07: an 11 GiB floor kept every producer stopped at 5-12 GiB free
+# (promotion and sales loops idle for hours). 2 GiB still leaves room for a
+# release cut (~300 MB) and browser runs while stopping well before a full disk.
+RECOVERY_FLOOR_BYTES = 2 * 1024**3
 try:
     REQUIRED_KIB = int(
         os.environ.get("LIFE_MANAGER_DISK_HEADROOM_KIB", str(DEFAULT_REQUIRED_KIB))

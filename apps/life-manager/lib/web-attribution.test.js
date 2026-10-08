@@ -220,7 +220,7 @@ test("preserves signed first-touch through Google OAuth", async () => {
   await handleWebAuthRequest(oauthCallback(`lm-web-attribution=${attributionCookie}`), callback, flow.options);
 
   assert.equal(callback.statusCode, 302);
-  assert.equal(callback.getHeader("location"), "/lm");
+  assert.equal(callback.getHeader("location"), "/lm?start_calendar=1");
   const patch = flow.calls.find((call) => call.method === "PATCH");
   assert.ok(patch, "callback stores attribution on the existing user row");
   assert.equal(patch.url.pathname, "/rest/v1/lm_users");
@@ -320,18 +320,16 @@ test("zero-row update retains attribution unless readback verifies storage", asy
   }
 });
 
-test("checkout carries verified uid only", () => {
+test("Web Checkout uses the server session and never exposes a static payment URL or client uid", () => {
   const html = renderWebPage({
     user: { uid: VERIFIED_UID, csrf: "csrf-token" },
-    snapshot: { setupState: "ready", paid: false },
+    snapshot: { setupState: "trial_offer", checkoutAvailable: true, paid: false },
     stripePaymentLink: "https://buy.stripe.com/example",
     query: { uid: "lm_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" },
   });
-  const match = html.match(/href="(https:\/\/buy\.stripe\.com\/[^\"]+)"/);
-
-  assert.ok(match);
-  assert.equal(new URL(match[1]).searchParams.get("client_reference_id"), VERIFIED_UID);
-  assert.doesNotMatch(match[1], /aaaaaaaa/);
+  assert.match(html, /\/api\/lm-web\/checkout/);
+  assert.doesNotMatch(html, /buy\.stripe\.com/);
+  assert.doesNotMatch(html, /client_reference_id=|uid=lm_aaaaaaaa/);
 });
 
 test("carries only approved UTM values from /lm to the Google sign-in link", () => {

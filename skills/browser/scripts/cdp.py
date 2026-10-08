@@ -6,6 +6,7 @@ from __future__ import annotations
 import base64
 import json
 import os
+import re
 import sys
 import time
 import urllib.request
@@ -30,6 +31,34 @@ def _endpoint() -> tuple[str, str]:
 HOST, PORT = _endpoint()
 _HOST_FOR_URL = f"[{HOST}]" if ":" in HOST else HOST
 BASE = f"http://{_HOST_FOR_URL}:{PORT}"
+_VERIFIED_CONTEXT_TARGETS: set[tuple[str, str]] = set()
+
+
+def _browser_context_id() -> str | None:
+    context_id = os.environ.get("CLOAK_BROWSER_CONTEXT_ID", "").strip()
+    if not context_id:
+        return None
+    if not re.fullmatch(r"[A-Za-z0-9._-]{1,128}", context_id):
+        raise ValueError("CLOAK_BROWSER_CONTEXT_ID invalid")
+    return context_id
+
+
+def _assert_target_context(target_id: str) -> None:
+    context_id = _browser_context_id()
+    if context_id is None:
+        return
+    key = (context_id, target_id)
+    if key in _VERIFIED_CONTEXT_TARGETS:
+        return
+    inventory = _browser_call("Target.getTargets", {})
+    target_infos = inventory.get("targetInfos") if isinstance(inventory, dict) else None
+    if not isinstance(target_infos, list):
+        raise RuntimeError("Target.getTargets returned no targetInfos list")
+    target = next((row for row in target_infos
+                   if isinstance(row, dict) and row.get("targetId") == target_id), None)
+    if target is None or target.get("browserContextId") != context_id:
+        raise PermissionError("target is outside the leased browser context")
+    _VERIFIED_CONTEXT_TARGETS.add(key)
 
 
 def _rpc(ws, call_id: int, method: str, params: dict | None = None) -> dict:
@@ -81,8 +110,13 @@ def new_target(url: str = "about:blank", owner: str | None = None) -> str:
     """Create one page and bind its lifecycle to the declared owner."""
     owner = target_ownership.require_owner(owner)
     _prune_missing_target_rows(owner)
-    target_id = _browser_call("Target.createTarget", {"url": url})["targetId"]
+    context_id = _browser_context_id()
+    params = {"url": url}
+    if context_id:
+        params["browserContextId"] = context_id
+    target_id = _browser_call("Target.createTarget", params)["targetId"]
     try:
+        _assert_target_context(target_id)
         target_ownership.claim_target(
             target_id,
             owner,
@@ -99,11 +133,13 @@ def close_target(target_id: str, owner: str | None = None) -> None:
     owner = target_ownership.require_owner(owner)
     if not target_ownership.owns_target(target_id, owner):
         raise PermissionError(f"target {target_id} is not owned by {owner}")
+    _assert_target_context(target_id)
     _browser_call("Target.closeTarget", {"targetId": target_id})
     target_ownership.release_target(target_id, owner)
 
 
 def _page(tid: str):
+    _assert_target_context(tid)
     return create_connection(
         f"ws://{_HOST_FOR_URL}:{PORT}/devtools/page/{tid}", timeout=30, max_size=None, suppress_origin=True
     )
@@ -171,6 +207,95 @@ def key(tid: str, value: str) -> dict:
         return {"key": value}
     finally:
         ws.close()
+
+
+def guarded_key(tid: str, guard_expression: str, guard_status_expression: str,
+                value: str = "Enter") -> dict:
+    """Dispatch one native Enter while a page capture guard covers document changes."""
+    if value != "Enter":
+        raise ValueError("guarded_key_supports_enter_only")
+    ws = _page(tid)
+    script_id = None
+    key_dispatched = False
+    result = {"__error__": "send_guard_registration_failed", "key_dispatched": False,
+              "guard_status": "unread"}
+    try:
+        try:
+            _rpc(ws, 1, "Page.enable")
+            installed_script = _rpc(ws, 2, "Page.addScriptToEvaluateOnNewDocument", {
+                "source": guard_expression,
+            })
+            script_id = installed_script.get("identifier")
+            if not isinstance(script_id, str) or not script_id:
+                result = {"__error__": "send_guard_registration_failed", "key_dispatched": False,
+                          "guard_status": "unread"}
+            else:
+                installed = _rpc(ws, 3, "Runtime.evaluate", {
+                    "expression": guard_expression,
+                    "returnByValue": True,
+                    "awaitPromise": True,
+                    "userGesture": True,
+                })
+                if installed.get("exceptionDetails"):
+                    result = {"__error__": "send_guard_install_failed", "key_dispatched": False,
+                              "guard_status": "unread"}
+                else:
+                    guard = installed.get("result", {}).get("value")
+                    if (not isinstance(guard, dict) or guard.get("guard_installed") is not True
+                            or guard.get("ready") is not True):
+                        result = {"__error__": "send_guard_unavailable", "key_dispatched": False,
+                                  "guard_status": "unread"}
+                    else:
+                        identity = {
+                            "code": "Enter",
+                            "windowsVirtualKeyCode": 13,
+                            "nativeVirtualKeyCode": 13,
+                        }
+                        for call_id, kind in ((4, "keyDown"), (5, "keyUp")):
+                            if kind == "keyDown":
+                                key_dispatched = True
+                            _rpc(ws, call_id, "Input.dispatchKeyEvent", {
+                                "type": kind,
+                                "key": value,
+                                **identity,
+                            })
+
+                        status_result = _rpc(ws, 6, "Runtime.evaluate", {
+                            "expression": guard_status_expression,
+                            "returnByValue": True,
+                            "awaitPromise": True,
+                            "userGesture": True,
+                        })
+                        status = status_result.get("result", {}).get("value")
+                        if (status_result.get("exceptionDetails") or not isinstance(status, dict)
+                                or status.get("guard_status") not in {"allowed", "blocked"}):
+                            result = {"__error__": "send_guard_result_missing", "key_dispatched": True,
+                                      "guard_status": "unread"}
+                        else:
+                            result = {"key": value, "guard_status": status["guard_status"],
+                                      "key_dispatched": True}
+        except Exception as error:
+            result = {"__error__": "guarded_key_dispatch_failed",
+                      "key_dispatched": key_dispatched,
+                      "guard_status": result.get("guard_status", "unread"),
+                      "error_type": type(error).__name__}
+    finally:
+        if script_id:
+            try:
+                _rpc(ws, 7, "Page.removeScriptToEvaluateOnNewDocument", {
+                    "identifier": script_id,
+                })
+            except Exception as error:
+                result.update(cleanup_status="failed", cleanup_error_type=type(error).__name__)
+                if key_dispatched:
+                    result.update(__error__="send_guard_cleanup_failed", key_dispatched=True)
+        try:
+            ws.close()
+        except Exception as error:
+            result.update(socket_close_status="failed", socket_close_error_type=type(error).__name__)
+            if key_dispatched:
+                result.update(__error__="send_guard_cleanup_failed", key_dispatched=True)
+    return result
 
 
 def set_file(tid: str, selector: str, path: str, index: int = 0) -> dict:

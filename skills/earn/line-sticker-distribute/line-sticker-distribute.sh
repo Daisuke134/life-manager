@@ -35,8 +35,33 @@ if [ -z "${POSTIZ_API_KEY:-}" ]; then
   [ -n "${LM_POSTIZ_API_KEY:-}" ] && export POSTIZ_API_KEY="$LM_POSTIZ_API_KEY"
 fi
 
+ACCOUNTS_CONFIG="${LINE_STICKER_DISTRIBUTE_ACCOUNTS_CONFIG:-$REPO_ROOT/config/line-sticker-distribute-accounts.json}"
+
+# Day-3+ capped engagement and the one-time bio link (SSOT L17 gaps #2/#4) are each their own
+# bounded, idempotent, date-gated step (see skills/loop-development/SKILL.md "Sustainable 24/7
+# loops" -- one bounded transition per owned resource per wake). Best-effort: a failure here must
+# never block the main post-due pass below.
+python3 "$SCRIPT_DIR/scripts/engagement_daily.py" \
+  --accounts-config "$ACCOUNTS_CONFIG" --state-root "$STATE_ROOT" "$@" >>"$LOG" 2>&1 || true
+python3 "$SCRIPT_DIR/scripts/bio_link_setup.py" \
+  --accounts-config "$ACCOUNTS_CONFIG" --state-root "$STATE_ROOT" "$@" >>"$LOG" 2>&1 || true
+# One free Japanese article a day on aniccaai.com (the site for everything Life Manager ships,
+# Dais 2026-10-08), published through the Writer's landing checkout exactly like
+# capafy-distribute-daily. JST 12:00 hour only; best-effort, never blocks the reel pass.
+if [ "$(TZ=Asia/Tokyo date +%H)" = "12" ]; then
+  (
+    ARTICLE_ROOT="$REPO_ROOT/skills/writer-agent"
+    # shellcheck source=../../writer-agent/scripts/writer-runtime-env.sh
+    source "$ARTICLE_ROOT/scripts/writer-runtime-env.sh"
+    export ARTICLE_SELF_OWNED_LANDING_ROOT="$HOME/.local/state/life-manager/writer/checkouts/self-owned-landing"
+    python3 "$SCRIPT_DIR/scripts/article_daily.py" \
+      --line-sticker-state-root "${LINE_STICKER_STATE_ROOT:-$HOME/.local/state/life-manager/line-sticker}" \
+      --state-root "$STATE_ROOT"
+  ) >>"$LOG" 2>&1 || true
+fi
+
 exec python3 "$SCRIPT_DIR/scripts/line_sticker_distribute.py" \
-  --accounts-config "${LINE_STICKER_DISTRIBUTE_ACCOUNTS_CONFIG:-$REPO_ROOT/config/line-sticker-distribute-accounts.json}" \
+  --accounts-config "$ACCOUNTS_CONFIG" \
   --line-sticker-state-root "${LINE_STICKER_STATE_ROOT:-$HOME/.local/state/life-manager/line-sticker}" \
   --state-root "$STATE_ROOT" \
   "$@" >>"$LOG" 2>&1

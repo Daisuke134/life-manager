@@ -6,6 +6,24 @@ import pytest
 import scout
 
 
+def test_browser_ws_uses_registered_identity_endpoint(monkeypatch):
+    seen = []
+
+    class Response:
+        def read(self):
+            return b'{"webSocketDebuggerUrl":"ws://127.0.0.1:9233/devtools/browser/test"}'
+
+    def open_url(url, *, timeout):
+        seen.append((url, timeout))
+        return Response()
+
+    monkeypatch.setenv("CLOAK_CDP_BASE_URL", "http://127.0.0.1:9233/")
+    monkeypatch.setattr(scout.urllib.request, "urlopen", open_url)
+
+    assert scout._browser_ws() == "ws://127.0.0.1:9233/devtools/browser/test"
+    assert seen == [("http://127.0.0.1:9233/json/version", 8)]
+
+
 def test_browser_attach_failure_closes_and_releases_target(monkeypatch):
     events = []
 

@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import datetime
 import json
 from pathlib import Path
 import sys
+import tempfile
 import unittest
 
 import jsonschema
@@ -27,6 +29,13 @@ def _base_plan(**overrides) -> dict:
             for i in range(30)
         ],
         "listing": {"title": {"ja": "テスト", "en": "Test"}, "description": {"ja": "説明", "en": "desc"}},
+        "copy_target": {
+            "product_url": "https://store.line.me/stickershop/product/1/ja",
+            "theme": "敬語・仕事", "phrases": ["よろしくお願いします"],
+            "expression_style": "シンプルな線画", "text_or_no_text": "no_text",
+            "title_pattern": "動く！<キャラ名>の<シーン>",
+        },
+        "format_gap": None,
     }
     plan.update(overrides)
     return plan
@@ -44,6 +53,15 @@ class PlanSchema(unittest.TestCase):
         del plan["series_of"]
         with self.assertRaises(jsonschema.ValidationError):
             jsonschema.validate(plan, SCHEMA)
+
+    def test_rejects_a_plan_missing_copy_target(self) -> None:
+        plan = _base_plan()
+        del plan["copy_target"]
+        with self.assertRaises(jsonschema.ValidationError):
+            jsonschema.validate(plan, SCHEMA)
+
+    def test_accepts_a_plan_with_format_gap_noted(self) -> None:
+        jsonschema.validate(_base_plan(format_gap="上位は静止画・文字入りが多いが今回は動く・文字なしで作る"), SCHEMA)
 
 
 class PlanPrompt(unittest.TestCase):
@@ -65,6 +83,159 @@ class PlanPrompt(unittest.TestCase):
     def test_prompt_with_no_prior_sets_still_asks_for_series_of(self) -> None:
         prompt = MODULE._build_plan_prompt([])
         self.assertIn("series_of", prompt)
+
+    def test_prompt_includes_market_items_and_requires_copy_target(self) -> None:
+        market_items = [{
+            "product_id": "123", "title": "ちいかわ", "author": "ナガノ", "price_jpy": 190,
+            "format": "animated", "sticker_count": 40, "text_or_no_text": "no_text",
+        }]
+        prompt = MODULE._build_plan_prompt([], market_items)
+        self.assertIn("ちいかわ", prompt)
+        self.assertIn("copy_target", prompt)
+        self.assertIn("format_gap", prompt)
+
+    def test_prompt_with_no_market_items_still_requires_copy_target(self) -> None:
+        prompt = MODULE._build_plan_prompt([], None)
+        self.assertIn("copy_target", prompt)
+
+    def test_prompt_tells_the_model_to_prefer_the_best_selling_character_once_sales_exist(self) -> None:
+        prior_facts = [
+            {"set": "set-003", "character_id": "char-otter-001", "character_description": "an otter",
+             "theme": "毎日リアクション", "title": {"ja": "カワウソ"}, "state_observed": "販売中", "sales_jpy": 1200},
+            {"set": "set-004", "character_id": "char-bear-001", "character_description": "a bear",
+             "theme": "敬語", "title": {"ja": "クマ"}, "state_observed": "販売中", "sales_jpy": 0},
+        ]
+        prompt = MODULE._build_plan_prompt(prior_facts)
+        self.assertIn("sales_jpy", prompt)
+        self.assertIn("売上が最も大きいキャラクター", prompt)
+
+
+class GuardCampaignValue(unittest.TestCase):
+    WINTER = [{"value": "835", "title": "冬を感じるスタンプ", "deadline": "2026-12-04",
+               "conditions": "個数：8-40個\nパッケージの8個以上が「冬」に関連したクリエイティブであること"}]
+    ORDER = [f"m{i}" for i in range(24)]
+
+    def test_a_value_with_enough_on_theme_stickers_passes_through(self) -> None:
+        # 8 required + 4 margin: LINE judges "on theme" subjectively and rejects the whole set otherwise.
+        self.assertEqual(MODULE._guard_campaign_value("835", self.WINTER, self.ORDER[:12], self.ORDER), "835")
+
+    def test_too_few_on_theme_stickers_drops_the_feature(self) -> None:
+        # 48137583 (New Year set) was rejected 2026-10-08: fewer than 8 images read as winter.
+        self.assertIsNone(MODULE._guard_campaign_value("835", self.WINTER, self.ORDER[:11], self.ORDER))
+
+    def test_theme_ids_outside_the_selected_order_do_not_count(self) -> None:
+        self.assertIsNone(MODULE._guard_campaign_value("835", self.WINTER, ["x"] * 20, self.ORDER))
+
+    def test_null_stays_null(self) -> None:
+        self.assertIsNone(MODULE._guard_campaign_value(None, []))
+
+    def test_a_value_the_model_invented_is_dropped(self) -> None:
+        self.assertIsNone(MODULE._guard_campaign_value("999", [{"value": "835"}]))
+
+    def test_a_value_not_in_the_open_list_is_dropped_even_if_once_valid(self) -> None:
+        # open_features already excludes expired entries; anything missing from it is unjoinable.
+        self.assertIsNone(MODULE._guard_campaign_value("835", []))
+
+
+class DeadlinePassed(unittest.TestCase):
+    def test_missing_deadline_is_not_treated_as_passed(self) -> None:
+        self.assertFalse(MODULE._deadline_passed(None, datetime.date(2026, 10, 8)))
+
+    def test_future_deadline_is_not_passed(self) -> None:
+        self.assertFalse(MODULE._deadline_passed("2026-12-04", datetime.date(2026, 10, 8)))
+
+    def test_past_deadline_is_passed(self) -> None:
+        self.assertTrue(MODULE._deadline_passed("2026-10-01", datetime.date(2026, 10, 8)))
+
+    def test_unparseable_deadline_fails_closed(self) -> None:
+        self.assertTrue(MODULE._deadline_passed("not-a-date", datetime.date(2026, 10, 8)))
+
+
+class OpenFeatures(unittest.TestCase):
+    def test_no_features_file_returns_empty(self) -> None:
+        original = MODULE.FEATURES_FILE
+        MODULE.FEATURES_FILE = Path(tempfile.mkdtemp()) / "missing-features.json"
+        try:
+            self.assertEqual(MODULE._open_features(datetime.date(2026, 10, 8)), [])
+        finally:
+            MODULE.FEATURES_FILE = original
+
+    def test_expired_features_are_filtered_out(self) -> None:
+        original = MODULE.FEATURES_FILE
+        with tempfile.TemporaryDirectory() as tmp:
+            MODULE.FEATURES_FILE = Path(tmp) / "features.json"
+            MODULE.FEATURES_FILE.write_text(json.dumps({"features": [
+                {"value": "811", "title": "秋を感じるスタンプ", "deadline": "2026-10-01"},
+                {"value": "835", "title": "冬を感じるスタンプ", "deadline": "2026-12-04"},
+            ]}))
+            try:
+                open_features = MODULE._open_features(datetime.date(2026, 10, 8))
+            finally:
+                MODULE.FEATURES_FILE = original
+        self.assertEqual([f["value"] for f in open_features], ["835"])
+
+
+class SelectorPromptIncludesOpenFeatures(unittest.TestCase):
+    def test_prompt_names_the_open_feature_and_guard_drops_an_expired_one(self) -> None:
+        original_features_file = MODULE.FEATURES_FILE
+        original_run_agent = MODULE._run_agent
+        captured = {}
+        with tempfile.TemporaryDirectory() as tmp:
+            set_dir = Path(tmp)
+            MODULE.FEATURES_FILE = set_dir / "features.json"
+            MODULE.FEATURES_FILE.write_text(json.dumps({"features": [
+                {"value": "835", "title": "冬を感じるスタンプ", "deadline": "2099-12-04",
+                 "conditions": "8個以上40個以下、新規キャラクターのみ"},
+            ]}))
+            (set_dir / "candidates-sheet.png").write_bytes(b"\x89PNG\r\n")
+
+            def fake_run_agent(*, prompt, schema, evidence_dir, task_label, images=None):
+                captured["prompt"] = prompt
+                return {
+                    "order": [f"m{i}" for i in range(24)], "main": "m0", "tab": "m1",
+                    "rejected": [], "listing": {"title": {"ja": "た", "en": "t"}, "description": {"ja": "d", "en": "d"}},
+                    "tags": [], "taste_id": "1", "character_category_id": "10",
+                    "campaign_value": "835", "campaign_theme_ids": [f"m{i}" for i in range(12)],
+                }
+
+            MODULE._run_agent = fake_run_agent
+            try:
+                plan = {"motions": [{"id": f"m{i}"} for i in range(30)], "listing": {}}
+                result = MODULE.selector(set_dir, plan)
+            finally:
+                MODULE._run_agent = original_run_agent
+                MODULE.FEATURES_FILE = original_features_file
+
+        self.assertIn("冬を感じるスタンプ", captured["prompt"])
+        self.assertIn("8個以上40個以下", captured["prompt"])
+        self.assertEqual(result["campaign_value"], "835")
+
+    def test_guard_nulls_out_a_value_that_is_not_actually_open(self) -> None:
+        original_features_file = MODULE.FEATURES_FILE
+        original_run_agent = MODULE._run_agent
+        with tempfile.TemporaryDirectory() as tmp:
+            set_dir = Path(tmp)
+            MODULE.FEATURES_FILE = set_dir / "features.json"
+            MODULE.FEATURES_FILE.write_text(json.dumps({"features": []}))
+            (set_dir / "candidates-sheet.png").write_bytes(b"\x89PNG\r\n")
+
+            def fake_run_agent(*, prompt, schema, evidence_dir, task_label, images=None):
+                return {
+                    "order": [f"m{i}" for i in range(24)], "main": "m0", "tab": "m1",
+                    "rejected": [], "listing": {"title": {"ja": "た", "en": "t"}, "description": {"ja": "d", "en": "d"}},
+                    "tags": [], "taste_id": "1", "character_category_id": "10",
+                    "campaign_value": "835",  # the model picked a value that is not open any more
+                }
+
+            MODULE._run_agent = fake_run_agent
+            try:
+                plan = {"motions": [{"id": f"m{i}"} for i in range(30)], "listing": {}}
+                result = MODULE.selector(set_dir, plan)
+            finally:
+                MODULE._run_agent = original_run_agent
+                MODULE.FEATURES_FILE = original_features_file
+
+        self.assertIsNone(result["campaign_value"])
 
 
 if __name__ == "__main__":

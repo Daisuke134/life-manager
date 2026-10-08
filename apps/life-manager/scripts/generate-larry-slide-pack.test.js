@@ -8,7 +8,8 @@ const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 const test = require("node:test");
 
-const { JA_LANE, EN_SLIDESHOW_TIKTOK_LANE } = require("../lib/marketing-native-carousel-publication-adapter.js");
+const { importContentObject } = require("../lib/content-object-store.js");
+const { JA_LANE, EN_SLIDESHOW_TIKTOK_LANE, JA_BUDDHA_TIKTOK_LANE } = require("../lib/marketing-native-carousel-publication-adapter.js");
 const {
   MIN_DAYS_BETWEEN_REPEAT,
   poolPath,
@@ -364,4 +365,92 @@ test("selection rereads publication history after the factory finishes", async (
     },
   });
   assert.equal(result.selected.packRef, fresh.packRef);
+});
+
+test("resolveLarryJaSlot skips existing packs whose caption or slide text repeats on the same account", async (t) => {
+  const dataDir = tempDataDir(t);
+  const objectDir = path.join(dataDir, "objects");
+  function importObject(name, content) {
+    const source = path.join(dataDir, name);
+    fs.writeFileSync(source, content);
+    return importContentObject(source, { objectDir }).ref;
+  }
+  function slides(prefix) {
+    return Array.from({ length: 6 }, (_, index) => `${prefix}-${index + 1}`);
+  }
+  const repeatedCaption = "same caption copy";
+  const repeatedText = slides("same slide copy");
+  const uniqueTexts = slides("unique approved text");
+  const repeatedCaptionRef = importObject("recent-caption.txt", repeatedCaption);
+  const repeatedTextPackRef = importObject("recent-text-pack.json", JSON.stringify({
+    slides: repeatedText.map((text) => ({ text })),
+  }));
+  const candidates = [
+    {
+      packRef: importObject("duplicate-caption-pack.json", JSON.stringify({ slides: slides("caption-duplicate").map((text) => ({ text })) })),
+      captionRef: repeatedCaptionRef,
+      familyId: "caption-duplicate",
+      createdAt: "2026-09-01T00:00:00.000Z",
+    },
+    {
+      packRef: repeatedTextPackRef,
+      captionRef: importObject("text-duplicate-caption.txt", "different caption copy"),
+      familyId: "text-duplicate",
+      createdAt: "2026-09-02T00:00:00.000Z",
+    },
+    {
+      packRef: importObject("double-duplicate-pack.json", JSON.stringify({
+        slides: repeatedText.map((text) => ({ text })),
+      })),
+      captionRef: repeatedCaptionRef,
+      familyId: "double-duplicate",
+      createdAt: "2026-09-03T00:00:00.000Z",
+    },
+    {
+      packRef: importObject("unique-pack.json", JSON.stringify({ slides: uniqueTexts.map((text) => ({ text })) })),
+      captionRef: importObject("unique-caption.txt", "unique caption copy"),
+      familyId: "unique",
+      createdAt: "2026-09-04T00:00:00.000Z",
+    },
+  ];
+  const pool = poolPath(dataDir, TENANT, JA_BUDDHA_TIKTOK_LANE.productId, JA_BUDDHA_TIKTOK_LANE.lane);
+  fs.mkdirSync(path.dirname(pool), { recursive: true });
+  fs.writeFileSync(pool, candidates.map((candidate) => JSON.stringify(candidate)).join("\n") + "\n");
+  const repeatedTextHash = crypto.createHash("sha256").update(JSON.stringify(repeatedText)).digest("hex");
+  const uniqueTextHash = crypto.createHash("sha256").update(JSON.stringify(uniqueTexts)).digest("hex");
+  writeDistributionLedger(dataDir, [
+    { receipt: {
+      integration_ref: JA_BUDDHA_TIKTOK_LANE.integrationRef,
+      pack_sha256: "a".repeat(64),
+      caption_sha256: repeatedCaptionRef.slice(-64),
+      text_sha256: "b".repeat(64),
+      published_at: "2026-10-07T07:00:00.000Z",
+    } },
+    { receipt: {
+      integration_ref: JA_BUDDHA_TIKTOK_LANE.integrationRef,
+      pack_sha256: "c".repeat(64),
+      caption_sha256: "d".repeat(64),
+      text_sha256: repeatedTextHash,
+      published_at: "2026-10-07T08:00:00.000Z",
+    } },
+    { receipt: {
+      integration_ref: "integration://postiz/tiktok/other-account",
+      pack_sha256: "e".repeat(64),
+      caption_sha256: candidates[3].captionRef.slice(-64),
+      text_sha256: uniqueTextHash,
+      published_at: "2026-10-07T09:00:00.000Z",
+    } },
+  ]);
+  let generationCalls = 0;
+  const result = await resolveLarryJaSlot({
+    env: { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT },
+    now: () => "2026-10-08T08:00:00.000Z",
+    slot: "2026-10-08T04:00:00.000Z",
+    lane: JA_BUDDHA_TIKTOK_LANE,
+    productionSlots: ["07:00", "13:00", "20:00"],
+    generateCandidates: async () => { generationCalls += 1; return []; },
+  });
+
+  assert.equal(result.selected.packRef, candidates[3].packRef);
+  assert.equal(generationCalls, 0, "an existing approved unique text variant should avoid new material generation");
 });

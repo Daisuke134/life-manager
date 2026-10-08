@@ -522,8 +522,8 @@ class CodexAutomationAuthMissing(ValueError):
     pass
 
 
-def acquire_provider_lease(path_value: str) -> int | None:
-    """Acquire the optional provider-owned lock and return its open descriptor."""
+def acquire_provider_lease(path_value: str, *, deadline: float | None = None) -> int | None:
+    """Acquire one provider lock, optionally waiting until the run deadline."""
     if not path_value:
         return None
     descriptor = os.open(Path(path_value).expanduser(), os.O_RDWR | os.O_CREAT, 0o600)
@@ -531,13 +531,19 @@ def acquire_provider_lease(path_value: str) -> int | None:
         os.fchmod(descriptor, 0o600)
         if not stat.S_ISREG(os.fstat(descriptor).st_mode):
             raise ValueError("provider lease path must be a regular file")
-        try:
-            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except OSError as error:
-            if error.errno in (errno.EACCES, errno.EAGAIN):
-                raise ProviderLeaseBusy() from error
-            raise
-        return descriptor
+        while True:
+            try:
+                fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                return descriptor
+            except OSError as error:
+                if error.errno not in (errno.EACCES, errno.EAGAIN):
+                    raise
+                if deadline is None:
+                    raise ProviderLeaseBusy("provider profile lease is busy") from error
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise ProviderLeaseBusy("provider profile lease deadline expired") from error
+                time.sleep(min(0.01, remaining))
     except BaseException:
         os.close(descriptor)
         raise
@@ -910,13 +916,17 @@ def run_provider_process(command: list[str], *, stdout: Any, stderr: Any,
                          completion_path: Path | None = None,
                          completion_paths: tuple[Path, ...] = (),
                          lease_fd: int | None = None,
+                         profile_lease_path: str | Path | None = None,
+                         fail_fast_home_busy: bool = False,
                          deadline: float | None = None) -> int:
     """Run one provider in an isolated process group with a hard timeout."""
     global _ACTIVE_PROVIDER_PROCESS
     deadline = time.monotonic() + timeout if deadline is None else deadline
+    profile_lock_fd = None
     provider_lock_fd = None
     process: subprocess.Popen[bytes] | None = None
     child_env = dict(env)
+    child_env.pop("LIFE_MANAGER_CODEX_HOME_BUSY_POLICY", None)
     cleanup_marker = child_env.pop(CODEX_INVOCATION_HOME_MARKER, None)
     cleanup_home = None
     if cleanup_marker and child_env.get("CODEX_HOME"):
@@ -927,28 +937,38 @@ def run_provider_process(command: list[str], *, stdout: Any, stderr: Any,
         ):
             cleanup_home = marked_home
     try:
+        if profile_lease_path is not None:
+            profile_lock_fd = acquire_provider_lease(
+                str(profile_lease_path),
+                deadline=None if fail_fast_home_busy else deadline,
+            )
         codex_home = child_env.get("CODEX_HOME")
         codex_home_lock_contended = False
         if codex_home:
             lock_path = Path(codex_home) / ".agent-runner-provider.lock"
             lock_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-            provider_lock_fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
-            while True:
-                try:
-                    fcntl.flock(provider_lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                    break
-                except OSError as error:
-                    if error.errno not in (errno.EACCES, errno.EAGAIN):
-                        raise
-                    codex_home_lock_contended = True
-                    remaining = deadline - time.monotonic()
-                    if remaining <= 0:
-                        raise ProviderLeaseBusy("codex automation home is busy") from error
-                    time.sleep(min(0.01, remaining))
-            if codex_home_lock_contended and time.monotonic() >= deadline:
-                raise ProviderLeaseBusy("codex automation home is busy")
+            if fail_fast_home_busy:
+                provider_lock_fd = acquire_provider_lease(str(lock_path))
+            else:
+                provider_lock_fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
+                while True:
+                    try:
+                        fcntl.flock(provider_lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                        break
+                    except OSError as error:
+                        if error.errno not in (errno.EACCES, errno.EAGAIN):
+                            raise
+                        codex_home_lock_contended = True
+                        remaining = deadline - time.monotonic()
+                        if remaining <= 0:
+                            raise ProviderLeaseBusy("codex automation home is busy") from error
+                        time.sleep(min(0.01, remaining))
+                if codex_home_lock_contended and time.monotonic() >= deadline:
+                    raise ProviderLeaseBusy("codex automation home is busy")
             remove_incompatible_codex_model_cache(Path(codex_home))
-        inherited_fds = tuple(fd for fd in (lease_fd, provider_lock_fd) if fd is not None)
+        inherited_fds = tuple(
+            fd for fd in (lease_fd, profile_lock_fd, provider_lock_fd) if fd is not None
+        )
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             raise subprocess.TimeoutExpired(command, timeout)
@@ -1021,11 +1041,15 @@ def run_provider_process(command: list[str], *, stdout: Any, stderr: Any,
                 if provider_lock_fd is not None:
                     os.close(provider_lock_fd)
             finally:
-                if cleanup_home and termination_succeeded:
-                    try:
-                        shutil.rmtree(cleanup_home, ignore_errors=True)
-                    finally:
-                        _OWNED_CODEX_INVOCATION_HOMES.discard(cleanup_home)
+                try:
+                    if profile_lock_fd is not None:
+                        os.close(profile_lock_fd)
+                finally:
+                    if cleanup_home and termination_succeeded:
+                        try:
+                            shutil.rmtree(cleanup_home, ignore_errors=True)
+                        finally:
+                            _OWNED_CODEX_INVOCATION_HOMES.discard(cleanup_home)
     return process.returncode
 
 
@@ -1166,6 +1190,11 @@ def command_for(provider: str, executable: str, provider_config: dict[str, Any],
         if not resume_session_id:
             command.append("--ephemeral")
         command.extend(["--model", model, "-c", f'model_reasoning_effort="{effort}"'])
+        service_tier = candidate.get("service_tier")
+        if service_tier is not None:
+            if not isinstance(service_tier, str) or not service_tier.strip():
+                raise ValueError("codex service_tier must be non-empty text")
+            command.extend(["-c", f"service_tier={json.dumps(service_tier)}"])
         model_provider = provider_config.get("model_provider")
         if model_provider:
             if not isinstance(model_provider, str):
@@ -1404,6 +1433,12 @@ def codex_failover_action(
         return "stop"
     if result_fresh and error_class != "transient_unavailable":
         return "stop"
+    if error_class == "codex_home_busy":
+        if not candidate.get("fail_fast_provider_lease"):
+            return "stop"
+        if candidate.get("account_fallback_next"):
+            return "retry_next_account"
+        return "continue_next_non_codex"
     if candidate.get("account_fallback_next"):
         if error_class in {"transient_quota", "transient_auth", "codex_prelaunch_auth_missing"}:
             return "retry_next_account"
@@ -1478,6 +1513,11 @@ def run() -> int:
             task_config["candidates"], config.get("providers", {})
         )
         for candidate in candidates:
+            service_tier = candidate.get("service_tier")
+            if service_tier is not None and (
+                not isinstance(service_tier, str) or not service_tier.strip()
+            ):
+                raise ValueError("candidate service_tier must be non-empty text")
             if "timeout_seconds" not in candidate:
                 continue
             candidate_timeout = candidate["timeout_seconds"]
@@ -1640,6 +1680,10 @@ def run() -> int:
         launch_error = ""
         adapter_error = ""
         codex_prelaunch_auth_missing = False
+        codex_prelaunch_home_busy = False
+        fail_fast_provider_lease = (
+            provider == "codex" and effective_candidate.get("fail_fast_provider_lease") is True
+        )
         required_capabilities: list[str] = []
         model_capabilities: dict[str, Any] = {}
         candidate_prompt = prompt
@@ -1680,8 +1724,24 @@ def run() -> int:
                 prompt_via_stdin=parsed.prompt_stdin,
                 rollout_budget_tokens=pass_token_budget if budget_enabled else None,
             )
+            profile_lease_path = None
+            if provider == "codex":
+                automation_home = provider_config.get("automation_home")
+                if not automation_home:
+                    raise ValueError("Codex candidate requires an account profile home")
+                profile_home = Path(os.path.expandvars(os.path.expanduser(str(automation_home))))
+                profile_lease_path = str(profile_home / ".agent-runner-profile-provider.lock")
             with stdout_path.open("wb") as stdout, stderr_path.open("wb") as stderr:
                 try:
+                    child_env = provider_process_env(
+                        provider,
+                        provider_config,
+                        task_class=parsed.task_class,
+                        invocation_id=(
+                            f"{os.getpid()}-{index}-{uuid.uuid4().hex}"
+                            if provider == "codex" else None
+                        ),
+                    )
                     rc = run_provider_process(
                         command,
                         stdout=stdout,
@@ -1690,15 +1750,9 @@ def run() -> int:
                         cwd=parsed.workdir,
                         input_bytes=candidate_prompt.encode("utf-8") if parsed.prompt_stdin else None,
                         stdin=None if parsed.prompt_stdin else subprocess.DEVNULL,
-                        env=provider_process_env(
-                            provider,
-                            provider_config,
-                            task_class=parsed.task_class,
-                            invocation_id=(
-                                f"{os.getpid()}-{index}-{uuid.uuid4().hex}"
-                                if provider == "codex" else None
-                            ),
-                        ),
+                        env=child_env,
+                        profile_lease_path=profile_lease_path,
+                        fail_fast_home_busy=fail_fast_provider_lease,
                         completion_path=result_path,
                         completion_paths=completion_fallback_paths,
                         lease_fd=lease_fd,
@@ -1709,6 +1763,7 @@ def run() -> int:
                     rc = 124
                 except ProviderLeaseBusy as error:
                     launch_error = str(error)
+                    codex_prelaunch_home_busy = provider == "codex"
                     stderr.write((launch_error + "\n").encode())
                     rc = 75
                 except OSError as error:
@@ -1747,9 +1802,11 @@ def run() -> int:
         usage = extract_provider_usage(provider, stdout_text, model=effective_candidate.get("model"))
         if codex_prelaunch_auth_missing:
             usage["measurement"] = "prelaunch_auth_missing"
+        elif codex_prelaunch_home_busy:
+            usage["measurement"] = "prelaunch_provider_home_busy"
         if budget_enabled:
             charged_tokens = (
-                0 if codex_prelaunch_auth_missing
+                0 if codex_prelaunch_auth_missing or codex_prelaunch_home_busy
                 else budget_charge_tokens(provider, usage, token_reservation)
             )
             settlement = budget_ledger.settle(
@@ -1776,6 +1833,7 @@ def run() -> int:
         )
         error_class = None if accepted_result else (
             "codex_prelaunch_auth_missing" if codex_prelaunch_auth_missing
+            else "codex_home_busy" if codex_prelaunch_home_busy
             else classify_provider_error(
                 rc, timed_out, stdout_text, stderr_text, launch_error, provider=provider,
             )
@@ -1936,7 +1994,10 @@ def run() -> int:
         os.close(lease_fd)
     if selected:
         return 0
-    return 75 if budget_blocked else 1
+    home_busy_only = bool(attempts) and all(
+        row.get("error_class") == "codex_home_busy" for row in attempts
+    )
+    return 75 if budget_blocked or home_busy_only else 1
 
 
 if __name__ == "__main__":

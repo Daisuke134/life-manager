@@ -14,7 +14,7 @@ const products = require("../config/mobile-products.json");
 const registry = require("../../../config/loop-registry.json");
 
 test("all mobile publication loops share one command and one manifest", () => {
-  assert.equal(Object.keys(manifest.loops).length, 17); // obou-instagram retired (ebook account, out of mobile scope)
+  assert.equal(Object.keys(manifest.loops).length, 18); // obou-instagram retired (ebook account, out of mobile scope)
   assert.deepEqual(
     new Set(products.products.map((item) => item.product_id)),
     new Set(Object.values(manifest.loops).map((item) => item.product_id)),
@@ -47,6 +47,13 @@ test("all mobile publication loops share one command and one manifest", () => {
       assert.ok(fs.existsSync(path.join(root, resolved.source.canonical_source_rel, "BenYinFanYiAI.xcodeproj", "project.pbxproj")));
     }
   }
+});
+
+test("the EN2 TikTok account resolves to the shared Anicca iOS carousel runner", () => {
+  const resolved = resolveMobileAppLoop("life-manager-anicca-en2-affirmation-tiktok");
+  assert.equal(resolved.productId, "anicca-ios");
+  assert.equal(path.basename(resolved.runner), "anicca-larry-ja-rotating.js");
+  assert.equal(resolved.action, "run-en2-affirmation-tiktok-production");
 });
 
 test("retired per-lane boot wrappers are absent", () => {
@@ -221,4 +228,65 @@ test("an unregistered or mismatched product fails before runner execution", (t) 
     () => resolveMobileAppLoop("life-manager-honne-ja", undefined, registryFile),
     /product is not registered/,
   );
+});
+
+test("the mobile wrapper uses managed Node and Python when launchd PATH has neither", (t) => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "lm-mobile-managed-runtime-"));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const isolatedPath = path.join(directory, "path");
+  fs.mkdirSync(isolatedPath);
+  for (const [name, target] of Object.entries({
+    bash: "/bin/bash",
+    dirname: "/usr/bin/dirname",
+    grep: "/usr/bin/grep",
+    mktemp: "/usr/bin/mktemp",
+    rm: "/bin/rm",
+    tee: "/usr/bin/tee",
+    tr: "/usr/bin/tr",
+  })) {
+    fs.symlinkSync(target, path.join(isolatedPath, name));
+  }
+
+  const managedNode = path.join(directory, "managed-node");
+  const managedPython = path.join(directory, "managed-python");
+  const nodeCalls = path.join(directory, "node-calls.txt");
+  const pythonCalls = path.join(directory, "python-calls.txt");
+  const envFile = path.join(directory, "marketing.env");
+  fs.writeFileSync(managedNode, [
+    "#!/bin/sh",
+    "echo \"$1\" >> " + JSON.stringify(nodeCalls),
+    "echo 'runner.js\tpublish\tanicca-ios\tappstore\tmobile-products/anicca-ios'",
+    "",
+  ].join("\n"), { mode: 0o700 });
+  fs.writeFileSync(managedPython, [
+    "#!/bin/sh",
+    "echo \"$*\" >> " + JSON.stringify(pythonCalls),
+    "case \"$1\" in",
+    "  *mobile-postiz-provider-reconcile.py) exit 0 ;;",
+    "  *run-with-timeout.py) echo '{\"runner\":\"ok\"}'; exit 0 ;;",
+    "  *) exit 99 ;;",
+    "esac",
+    "",
+  ].join("\n"), { mode: 0o700 });
+  fs.writeFileSync(envFile, "LM_POSTIZ_API_KEY=fake-local-test-token\n", { mode: 0o600 });
+
+  const result = spawnSync(path.join(root, "apps/life-manager/scripts/mobile-app"), [
+    "life-manager-anicca-en2-affirmation-tiktok",
+  ], {
+    cwd: root,
+    env: {
+      HOME: directory,
+      PATH: isolatedPath,
+      TMPDIR: directory,
+      LIFE_MANAGER_MARKETING_ENV_FILE: envFile,
+      LIFE_MANAGER_RUNTIME_NODE: managedNode,
+      LIFE_MANAGER_RUNTIME_PYTHON: managedPython,
+    },
+    encoding: "utf8",
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(fs.readFileSync(nodeCalls, "utf8").trim(), path.join(root, "apps/life-manager/scripts/mobile-app-command.js"));
+  assert.equal(fs.readFileSync(pythonCalls, "utf8").trim().split("\n").length, 2);
+  assert.equal(result.stdout.trim(), '{"runner":"ok"}');
 });

@@ -1,11 +1,12 @@
-# Life Manager Fundraiser — continuous application pass
+# Life Manager Fundraiser — continuous applications and investor outreach
 
 This pass is already planned, approved, implemented, and running. Do not use a
 goal setter, create a goal, draft a plan, read design/spec/TODO files, inspect
 unrelated loops, review code, or edit code. Begin immediately with configured
 actions beginning with `apply_now`, including one-shot repair actions such as
 `apply_now_callback_fix`, then continue into authenticated X and live Web
-discovery. The only useful output of this wake is real application work and receipts.
+discovery. The useful output of this wake is real application work and verified,
+target-specific introductions with receipts.
 
 ## Ledger-first selection
 
@@ -75,13 +76,41 @@ create a service, executor, browser profile, provider adapter, or target registr
 ## Objective
 
 Discover and submit as many new eligible accelerator, fellowship, grant, startup
-program, and public investor intake applications as possible during this pass.
-There is no arbitrary application maximum. Continue after the first application;
-stop only when the execution window is exhausted and durable continuation state
-is saved. Zero receipt-backed applications is a failed pass, never a successful
-no-op. Do not voluntarily end a pass at zero submissions: after a candidate or
-technical failure, immediately continue with the next eligible candidate and
-keep working for at least one official receipt-backed submission.
+program, and public investor intake applications as possible. Also continuously
+identify new venture-capital firms and AI/AGI lab founders whose public focus fits
+Life Manager, then invite one publicly listed business contact per target to a
+podcast, Zoom, or in-person discussion. Continue until the execution window ends
+and durable continuation state is saved. Zero receipt-backed applications or
+verified introductions is a failed pass, never a successful no-op. After a
+failure proven before effect claim, continue with the next eligible target. An
+unresolved claimed effect holds the current occurrence as described below.
+
+## Investor and AI/AGI lab outreach
+
+- Use live Web and rendered X only to discover targets; verify the organization,
+  the recipient's current role, and the contact route on an official organization
+  page before writing. Use only a publicly published business contact route.
+  Never infer an email pattern, use a private/personal address, or rely on a
+  third-party address listing.
+- Prefer new VCs and AI/AGI labs whose stated investment or research focus fits
+  Life Manager. Use `.agents/startup-context.json` as the source for product facts.
+  Describe Life Manager as a manager that completes delegated real-world work
+  and reports evidence, rather than an assistant that only answers questions.
+- Make each message about one target and one purpose. Invite a podcast, Zoom, or
+  in-person discussion. Say I can travel to meet in person if useful. Keep claims
+  factual, use no private founder-profile data,
+  send no attachment, and make no binding promise. Do not buy travel, lodging, or
+  paid tickets.
+- Use the existing Gmail transport. Before sending, run the outbound validator;
+  require the Gmail message ID and an exact Sent readback for the recipient and
+  subject. Open that exact Sent message in Gmail, save a readable screenshot,
+  deliver it through the existing Telegram photo sender, and record the photo
+  message ID with the application recorder. Use `program` to name the single
+  outreach purpose, `cohort_window` as `continuous-introduction`, the official
+  contact page as `official_url`, and `attachments: []` in the prepared draft.
+- The target-intent ledger binds the target/purpose identity to the occurrence
+  and application digest. A pending, successful, or unknown target stays fenced
+  across occurrences. The existing DeepScale.Ventures unknown stays blocked.
 
 ## Context
 
@@ -231,14 +260,14 @@ continue immediately to the next candidate and live discovery.
    submit, and completion readback for that candidate has finished.
    Use the repository helpers exactly as follows; do not call `--help`, pass a
    WebSocket URL where a target ID is required, or supply JavaScript as a filename:
-   - `python3 skills/browser/scripts/cdp_tab_gc.py --owner ai.anicca.fundraiser`
-   - `TARGET_ID="$(python3 skills/browser/scripts/cdp_default_tab.py open about:blank --owner ai.anicca.fundraiser | jq -r '.target_id')"`
+   - `python3 skills/browser/scripts/cdp_tab_gc.py --owner "$CLOAK_BROWSER_OWNER"`
+   - `TARGET_ID="$(python3 skills/browser/scripts/cdp_default_tab.py open about:blank --owner "$CLOAK_BROWSER_OWNER" | jq -r '.target_id')"`
    - Require a non-empty `TARGET_ID`; use it for every CDP command. Never print or
      persist the full helper JSON or WebSocket URL.
    - Immediately persist only the non-secret ID with `printf '%s' "$TARGET_ID" > "$FUNDRAISER_EVIDENCE_DIR/target-id"`; in every later shell command restore it with `TARGET_ID="$(cat "$FUNDRAISER_EVIDENCE_DIR/target-id")"`. The helper has no `list` command.
    - `python3 skills/browser/scripts/cdp.py nav "$TARGET_ID" "$URL"`
    - `printf '%s\n' "$JS" | python3 skills/browser/scripts/cdp.py eval "$TARGET_ID" -`
-   - `python3 skills/browser/scripts/cdp_default_tab.py close "$TARGET_ID" --owner ai.anicca.fundraiser`
+   - `python3 skills/browser/scripts/cdp_default_tab.py close "$TARGET_ID" --owner "$CLOAK_BROWSER_OWNER"`
 3. Verify every actionable X or search lead on the current official program page.
 4. Queue every currently open, reasonably eligible public application route.
    Prefer in-person Tokyo and United States cohorts, with San Francisco Bay Area
@@ -320,18 +349,28 @@ For every queued candidate until the execution window ends:
    filename or file input before classifying failure. Never abandon the candidate
    after only that immediate post-upload timeout.
    When an official program or investor page explicitly publishes an email
-   address as its application or funding-intake route, do not compose through
-   the Gmail browser UI. Compose a fresh, target-specific natural-language body;
+   address as its application, funding-intake, or business-contact route, do not
+   compose through the Gmail browser UI. Compose a fresh, target-specific body;
+   investor and AI/AGI lab outreach must use only startup-context facts, describe
+   Life Manager as a manager that completes delegated real-world work and reports
+   evidence, and invite a podcast, Zoom, or in-person discussion. Use one public
+   business recipient and one purpose per message; do not guess an address or
+   attach or send private data. Outreach uses no attachment. Application emails
+   may attach the verified deck only when the official intake route requests it.
    never reuse a hardcoded application template. Create multiline text with a
    single-quoted heredoc so real line breaks are preserved and `$` currency is
    never interpreted by the shell. End every message with `Daisuke Narita`, not
    `Life Manager founder`. Read the Gmail account from the private founder profile,
    load the existing `GOG_KEYRING_PASSWORD` without printing it, and reuse the
-   repository's proven Gmail transport. Before any external send, pipe the body
-   through `python3 skills/fundraiser-agent/runtime/validate-outbound-email.py`.
-   Send only when that preflight exits zero, and explicitly select the verified
-   primary identity with `--from "$GMAIL_ACCOUNT"`:
-   `printf '%s' "$BODY" | python3 skills/fundraiser-agent/runtime/validate-outbound-email.py | /opt/homebrew/bin/gog gmail send --account "$GMAIL_ACCOUNT" --from "$GMAIL_ACCOUNT" --to "$TO" --subject "$SUBJECT" --body-file - --attach "$FUNDRAISER_VERIFIED_DECK" --json --no-input`.
+   repository's proven Gmail transport. Save the exact body and validator output
+   as separate mode-600 files under `$FUNDRAISER_EVIDENCE_DIR`. Do not pipe the
+   validator into `gog`. Use one sequential `&&` chain so `gog` starts only after
+   the validator finishes with exit 0. Explicitly select the verified primary
+   identity with `--from "$GMAIL_ACCOUNT"`.
+   For an application that requests the deck, run:
+   `umask 077 && RAW_BODY_FILE="$FUNDRAISER_EVIDENCE_DIR/<receipt-safe-name>-body.txt" && VALIDATED_BODY_FILE="$FUNDRAISER_EVIDENCE_DIR/<receipt-safe-name>-body.validated.txt" && printf '%s' "$BODY" > "$RAW_BODY_FILE" && chmod 600 "$RAW_BODY_FILE" && : > "$VALIDATED_BODY_FILE" && chmod 600 "$VALIDATED_BODY_FILE" && python3 skills/fundraiser-agent/runtime/validate-outbound-email.py < "$RAW_BODY_FILE" > "$VALIDATED_BODY_FILE" && /opt/homebrew/bin/gog gmail send --account "$GMAIL_ACCOUNT" --from "$GMAIL_ACCOUNT" --to "$TO" --subject "$SUBJECT" --body-file "$VALIDATED_BODY_FILE" --attach "$FUNDRAISER_VERIFIED_DECK" --json --no-input`.
+   For an investor or lab introduction, run the same sequence without the deck:
+   `umask 077 && RAW_BODY_FILE="$FUNDRAISER_EVIDENCE_DIR/<receipt-safe-name>-body.txt" && VALIDATED_BODY_FILE="$FUNDRAISER_EVIDENCE_DIR/<receipt-safe-name>-body.validated.txt" && printf '%s' "$BODY" > "$RAW_BODY_FILE" && chmod 600 "$RAW_BODY_FILE" && : > "$VALIDATED_BODY_FILE" && chmod 600 "$VALIDATED_BODY_FILE" && python3 skills/fundraiser-agent/runtime/validate-outbound-email.py < "$RAW_BODY_FILE" > "$VALIDATED_BODY_FILE" && /opt/homebrew/bin/gog gmail send --account "$GMAIL_ACCOUNT" --from "$GMAIL_ACCOUNT" --to "$TO" --subject "$SUBJECT" --body-file "$VALIDATED_BODY_FILE" --json --no-input`.
    Require the returned Gmail message ID and an exact `in:sent to:<recipient>
    subject:<subject>` readback. Then open that exact message in the authenticated
    Gmail Sent UI and preserve its rendered provider screen as the completion PNG.
@@ -369,13 +408,13 @@ For every queued candidate until the execution window ends:
    do not fail merely because there is no prewritten answer. Treat the
    rendered form's actual required fields as authoritative and attach the current
    verified deck when requested.
-5. At the final review surface, verify the program, cohort/window, account,
+5. At the final review surface, verify the target, purpose, account,
    required answers, every rendered file input, challenge state, and that the
    submit control is actually unobstructed. Reject any visible answer containing
    bracketed placeholders such as `[founder name]` or `[sender address]`, literal
    `\\n`, or malformed currency such as `,000`; resolve
    it from authorized context or reject this candidate without submitting. Claim the shared `application`
-   effect immediately before the final Submit action.
+   effect immediately before the final Submit or email send.
    Before that claim, save a mode-600 application draft under the current evidence
    directory. It must contain the official URL, actual contact destination/method,
    every visible question paired with the final rendered answer (including blank
@@ -383,21 +422,36 @@ For every queued candidate until the execution window ends:
    used to derive answers. It must also contain `context_version` equal to
    `$FUNDRAISER_CONTEXT_VERSION` and `context_digest` equal to
    `$FUNDRAISER_CONTEXT_DIGEST`. Run `$FUNDRAISER_RECORD_APPLICATION --prepare`
-   with both expected-context arguments and require its returned
-   `application_digest` before claiming the final effect. Do not change any
-   prepared answer, attachment, identity, or context field after that preview.
+   with `--occurrence "$FUNDRAISER_OCCURRENCE_ID"`, the ledger, applications
+   directory, and both expected-context arguments. Require its returned
+   `application_digest`; this durably records a target-level pending intent keyed
+   by recipient-purpose identity, occurrence, and digest. Recheck the final
+   surface, then call `$FUNDRAISER_RECORD_APPLICATION --claim-effect` with the
+   same occurrence, draft, ledger, applications directory, and expected context
+   immediately before the one final Submit or email send. This appends a durable
+   per-target `effect_attempted` state before the send. Do not change any prepared
+   answer, attachment, identity, or context field after preview. Process another
+   target in this occurrence only after the prior target is recorded
+   `submitted_verified` or `verified_pre_effect_failure`.
    For email, record the recipient and pair the complete
    rendered subject/body with synthetic questions `Email subject` and `Email body`.
    Never put passwords, cookies, CAPTCHA values, or authentication tokens in it.
-6. Perform one trusted final Submit action, then capture fresh completion UI and
+6. Perform one trusted final Submit action or one email send, then capture fresh completion UI and
    matching official mail when available. If a network request may have reached
-   the provider but the outcome is ambiguous, record terminal `submit_unknown`
-   and never resubmit it. If fresh evidence proves no submit event or network
-   request left the page and the unchanged form exposes a local validation,
-   missing-upload, or interaction fault, repair that local fault and retry with
-   one distinct trusted interaction; this is not a duplicate external effect.
-   A technical failure is nonterminal for the pass: record it, then continue to
-   the next candidate rather than ending at zero.
+   the provider but the outcome is ambiguous, call the recorder with
+   `--terminal-status submit_unknown --status-evidence <private evidence reference>`
+   and never resubmit that target. Record `verified_pre_effect_failure` only when
+   direct evidence proves no request was dispatched and this target was not
+   claimed. The occurrence marker may be `pre_effect` before the first success,
+   or `post_effect_verified` after an earlier verified target; the recorder
+   leaves that occurrence state unchanged. That status releases only this target.
+   Never write terminal rows directly. Another target may be prepared only after
+   the prior target reaches `submitted_verified` or
+   `verified_pre_effect_failure`. If a target is `effect_attempted` or
+   `submit_unknown`, stop external effects for this occurrence, preserve the
+   occurrence marker as held, report the outcome, and continue from a later
+   natural occurrence. A failure before effect claim may be recorded and the
+   pass may continue to another target.
    Never infer completion from generic copy such as `Thank you for your interest`
    that was already present on the application form. Success requires a fresh
    post-submit official completion surface and the application form/final Submit
@@ -418,8 +472,9 @@ For every queued candidate until the execution window ends:
    the delivered Telegram photo remains `evidence_incomplete` and must never be
    reported as a verified submission.
    Add only the official submitted_at time and evidence fields to the prepared draft,
-   then invoke `$FUNDRAISER_RECORD_APPLICATION` with the draft, ledger, applications
-   directory, run ID, and the same expected context version/digest. Never append `submitted_verified` yourself.
+   then invoke `$FUNDRAISER_RECORD_APPLICATION` with the draft, occurrence, ledger,
+   applications directory, run ID, and the same expected context version/digest.
+   Never append `submitted_verified` yourself.
    The recorder atomically
    writes the full dossier, hashes it, rejects a prior terminal identity, and appends
    the compact index row. If it fails, report `evidence_incomplete`; do not recreate

@@ -79,6 +79,7 @@ function consumeWebAttribution(cookie, secret, nowMs = Date.now()) {
 module.exports = {
   WEB_ATTRIBUTION_COOKIE,
   WEB_ATTRIBUTION_MAX_AGE_SECONDS,
+  sanitizeWebAttribution: boundedFields,
   captureWebAttribution,
   consumeWebAttribution,
 };

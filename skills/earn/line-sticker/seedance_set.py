@@ -155,6 +155,12 @@ def _hole_seeds(path: Path) -> list[dict[str, int]]:
     return seeds
 
 
+def loop_seconds(frame_count: int) -> int:
+    """Creators Market rejected 6-frame 0.6s loops (live 2026-10-08) while 20-frame 2.0s loops pass:
+    one loop must last whole seconds. Keep ~100ms/frame and round the loop up to a whole second."""
+    return max(1, -(-frame_count // FPS))
+
+
 def _write_apng(images: list[Image.Image], path: Path, plays: int) -> None:
     # LINE requires every frame at full canvas size; PIL and ffmpeg both crop frames to the changed
     # region, so assemble full-size frames directly from each frame's own PNG encoding.
@@ -173,7 +179,8 @@ def _write_apng(images: list[Image.Image], path: Path, plays: int) -> None:
             out.append(_chunk(b"IHDR", dict(chunks)[b"IHDR"]))
             out.append(_chunk(b"acTL", struct.pack(">II", len(images), plays)))
         width, height = image.size
-        out.append(_chunk(b"fcTL", struct.pack(">IIIIIHHBB", sequence, width, height, 0, 0, 1, FPS, 0, 0)))
+        out.append(_chunk(b"fcTL", struct.pack(">IIIIIHHBB", sequence, width, height, 0, 0,
+                                                   loop_seconds(len(images)), len(images), 0, 0)))
         sequence += 1
         for kind, data in chunks:
             if kind != b"IDAT":
@@ -187,6 +194,36 @@ def _write_apng(images: list[Image.Image], path: Path, plays: int) -> None:
     path.write_bytes(b"".join(out))
 
 
+def assemble_candidate(frames: list[np.ndarray]) -> list[Image.Image]:
+    """Crop RGBA frames (any source: fal video or a sliced sprite sheet) to the character's
+    bounding box, scale to fit CANVAS and flatten compression/generation noise. Shared by the
+    fal-video path (apng()) and the fal-free chatgpt-imagegen path (chatgpt_keyframes.py)."""
+    ys, xs = np.nonzero(np.max([f[..., 3] for f in frames], axis=0) > 16)
+    top, bottom, left, right = ys.min(), ys.max() + 1, xs.min(), xs.max() + 1
+    scale = min((CANVAS[0] - 12) / (right - left), (CANVAS[1] - 12) / (bottom - top))
+    size = (max(1, round((right - left) * scale)), max(1, round((bottom - top) * scale)))
+    offset = ((CANVAS[0] - size[0]) // 2, (CANVAS[1] - size[1]) // 2)
+    images = []
+    for frame in frames:
+        canvas = Image.new("RGBA", CANVAS, (0, 0, 0, 0))
+        canvas.paste(Image.fromarray(frame[top:bottom, left:right], "RGBA").resize(size, Image.LANCZOS), offset)
+        # Flatten video-compression/generation noise so the RGBA APNG stays far below the 1 MB limit.
+        images.append(canvas.quantize(64, method=Image.Quantize.FASTOCTREE, dither=Image.Dither.NONE).convert("RGBA"))
+    return images
+
+
+def write_contact_sheet(thumbs: list[tuple], path: Path) -> None:
+    """Contact sheet: first and middle frame of every candidate on a checker-free grey for
+    inspection. ``thumbs`` rows are (motion_id, first_frame, middle_frame, ...extra)."""
+    cols = 6
+    sheet = Image.new("RGB", (cols * 330, ((len(thumbs) + cols - 1) // cols) * 290), (200, 200, 200))
+    for index, (_motion_id, _first, middle, *_rest) in enumerate(thumbs):
+        cell = Image.new("RGBA", (330, 290), (200, 200, 200, 255))
+        cell.alpha_composite(middle, (5, 10))
+        sheet.paste(cell.convert("RGB"), ((index % cols) * 330, (index // cols) * 290))
+    sheet.save(path)
+
+
 def apng(set_dir: Path, plan: dict) -> None:
     out = set_dir / "candidates"
     out.mkdir(exist_ok=True)
@@ -196,29 +233,12 @@ def apng(set_dir: Path, plan: dict) -> None:
         if not mp4.exists():
             continue
         frames = [_key(f) for f in _frames(mp4, motion.get("start", 0.3), motion.get("seconds", 2.0))][:20]
-        ys, xs = np.nonzero(np.max([f[..., 3] for f in frames], axis=0) > 16)
-        top, bottom, left, right = ys.min(), ys.max() + 1, xs.min(), xs.max() + 1
-        scale = min((CANVAS[0] - 12) / (right - left), (CANVAS[1] - 12) / (bottom - top))
-        size = (max(1, round((right - left) * scale)), max(1, round((bottom - top) * scale)))
-        offset = ((CANVAS[0] - size[0]) // 2, (CANVAS[1] - size[1]) // 2)
-        images = []
-        for frame in frames:
-            canvas = Image.new("RGBA", CANVAS, (0, 0, 0, 0))
-            canvas.paste(Image.fromarray(frame[top:bottom, left:right], "RGBA").resize(size, Image.LANCZOS), offset)
-            # Flatten video-compression noise so the RGBA APNG stays far below the 1 MB limit.
-            images.append(canvas.quantize(64, method=Image.Quantize.FASTOCTREE, dither=Image.Dither.NONE).convert("RGBA"))
+        images = assemble_candidate(frames)
         path = out / f"{motion['id']}.png"
         _write_apng(images, path, motion.get("plays", 2))
         thumbs.append((motion["id"], images[0], images[len(images) // 2], path.stat().st_size))
         print(json.dumps({"id": motion["id"], "frames": len(images), "bytes": path.stat().st_size}))
-    # Contact sheet: first and middle frame of every candidate on a checker-free grey for inspection.
-    cols = 6
-    sheet = Image.new("RGB", (cols * 330, ((len(thumbs) + cols - 1) // cols) * 290), (200, 200, 200))
-    for index, (_, first, middle, _) in enumerate(thumbs):
-        cell = Image.new("RGBA", (330, 290), (200, 200, 200, 255))
-        cell.alpha_composite(middle, (5, 10))
-        sheet.paste(cell.convert("RGB"), ((index % cols) * 330, (index // cols) * 290))
-    sheet.save(set_dir / "candidates-sheet.png")
+    write_contact_sheet(thumbs, set_dir / "candidates-sheet.png")
 
 
 CHARACTER_ID = "char-hamster-001"
@@ -229,21 +249,34 @@ def _sha256_file(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _clip_receipt(receipt: dict) -> dict:
+    """Provenance row for one clip. fal receipts carry request_id/sha256; chatgpt-imagegen sprite
+    sheets (L29) carry sheet_sha256 only, so derive a stable id from the sheet hash."""
+    if receipt.get("provider") == "chatgpt-imagegen":
+        sheet = receipt["sheet_sha256"]
+        return {"id": receipt["id"], "request_id": f"chatgpt:{sheet[:16]}", "sha256": sheet,
+                "estimated_usd": str(receipt.get("estimated_usd", 0))}
+    return {"id": receipt["id"], "request_id": receipt["request_id"],
+            "sha256": receipt["sha256"], "estimated_usd": str(receipt["estimated_usd"])}
+
+
+def _animation_provider(set_dir: Path, order: list[str]) -> str:
+    first = json.loads((set_dir / "clips" / f"{order[0]}.json").read_text()) if order else {}
+    return "chatgpt-imagegen" if first.get("provider") == "chatgpt-imagegen" else ENDPOINT
+
+
 def _write_provenance(set_dir: Path, plan_path: Path, out: Path, names: list[str], order: list[str]) -> None:
     assets = {name: {"sha256": _sha256_file(out / name), "intentional_alpha_holes": _hole_seeds(out / name)} for name in names}
     clip_receipts = []
     for motion_id in order:
         receipt = json.loads((set_dir / "clips" / f"{motion_id}.json").read_text())
-        clip_receipts.append({
-            "id": receipt["id"], "request_id": receipt["request_id"],
-            "sha256": receipt["sha256"], "estimated_usd": str(receipt["estimated_usd"]),
-        })
+        clip_receipts.append(_clip_receipt(receipt))
     actual_cost_usd = sum(Decimal(receipt["estimated_usd"]) for receipt in clip_receipts)
     provenance = {
         "set_id": set_dir.name,
         "character_id": CHARACTER_ID,
         "rights": "original_ai_generated",
-        "providers": {"image": IMAGE_PROVIDER, "animation": ENDPOINT},
+        "providers": {"image": IMAGE_PROVIDER, "animation": _animation_provider(set_dir, order)},
         "assets": assets,
         "generation": {
             "character_sha256": _sha256_file(set_dir / "char-ref.png"),

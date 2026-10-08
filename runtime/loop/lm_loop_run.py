@@ -65,6 +65,7 @@ HEARTBEAT_INTERVAL_SECONDS = 30.0
 HEARTBEAT_BUSY_TOLERANCE_SECONDS = 240.0
 PRE_EFFECT_HINT_ENTRYPOINTS = frozenset({
     "apps/life-manager/scripts/ebook-distribute-daily.sh",
+    "apps/life-manager/scripts/mobile-app",
     "skills/affiliate/affiliate",
     "skills/earn/crowdworks/scripts/application-owner",
     "skills/earn/crowdworks/scripts/paid-owner",
@@ -85,6 +86,7 @@ EFFECT_RESULT_HINT_ENTRYPOINTS = frozenset({
 EFFECT_RESULT_HINT_LOOP_ENTRYPOINTS = {
     "life-manager-cfo-hourly": "skills/cfo/run.sh",
 }
+NO_EFFECT_RESULT_HINT_ENTRYPOINT = "apps/life-manager/scripts/ebook-distribute-daily.sh"
 # Loop IDs allowed to use the pre-effect hint when their registry entrypoint is
 # shared (e.g. runtime/loop/entry_dispatch.py dispatches several owners from one
 # entrypoint string). Entrypoint membership above is not enough to scope trust
@@ -153,13 +155,23 @@ def _child_environment_for_owner(
     )
     environment["LM_RUNTIME_TENANT_ID"] = EBOOK_RUNTIME_TENANT_ID
 
-    # eBook renderers discover ffmpeg, ffprobe, heygen, and fontconfig through
-    # PATH. launchd's default PATH omits Homebrew binaries.
+    # eBook renderers discover ffmpeg, ffprobe, and fontconfig through PATH.
+    # launchd's default PATH omits Homebrew binaries.
     if loop_id in EBOOK_POSTIZ_LOOP_IDS:
         inherited_path = environment.get("PATH") or os.defpath
         path_entries = inherited_path.split(os.pathsep)
         if "/opt/homebrew/bin" not in path_entries:
             environment["PATH"] = os.pathsep.join(("/opt/homebrew/bin", inherited_path))
+
+    if loop_id == "ebook-en-tiktok-daily":
+        # HeyGen's CLI telemetry must not gate the provider command on PostHog DNS.
+        environment["HEYGEN_NO_ANALYTICS"] = "1"
+        # The CLI lives under the user's local bin, which is intentionally not
+        # added to every eBook owner's PATH.
+        if not str(environment.get("LIFE_MANAGER_HEYGEN", "")).strip():
+            environment["LIFE_MANAGER_HEYGEN"] = str(
+                (home or Path.home()).expanduser() / ".local/bin/heygen"
+            )
 
     # Ignore any inherited alias. The credential SSOT is the only source for eBook
     # publisher authentication. Do not even pass it to the child while publishing
@@ -830,17 +842,7 @@ def _proven_pre_effect_failure(path: Path) -> bool:
         return False
 
 
-def _verified_effect_result(path: Path, loop_id: str,
-                            occurrence_id: str, *,
-                            entrypoint: str | None = None) -> tuple[str, str] | None:
-    if loop_id == "life-manager-cfo-hourly":
-        if entrypoint != EFFECT_RESULT_HINT_LOOP_ENTRYPOINTS[loop_id]:
-            return None
-        expected_provider = "telegram"
-    else:
-        if entrypoint is not None and entrypoint not in EFFECT_RESULT_HINT_ENTRYPOINTS:
-            return None
-        expected_provider = "postiz"
+def _read_private_result_hint(path: Path) -> dict | None:
     descriptor = -1
     try:
         descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
@@ -861,14 +863,31 @@ def _verified_effect_result(path: Path, loop_id: str,
         value = json.loads(data)
     except (UnicodeDecodeError, json.JSONDecodeError):
         return None
+    return value if isinstance(value, dict) else None
+
+
+def _verified_effect_result(path: Path, loop_id: str,
+                            occurrence_id: str, *,
+                            entrypoint: str | None = None) -> tuple[str, str] | None:
+    if loop_id == "life-manager-cfo-hourly":
+        if entrypoint != EFFECT_RESULT_HINT_LOOP_ENTRYPOINTS[loop_id]:
+            return None
+        expected_provider = "telegram"
+    else:
+        if entrypoint is not None and entrypoint not in EFFECT_RESULT_HINT_ENTRYPOINTS:
+            return None
+        expected_provider = "postiz"
+    value = _read_private_result_hint(path)
     expected_fields = {
         "schema_version", "kind", "status", "effect", "owner_id",
         "occurrence_id", "provider", "provider_receipt_id", "effect_status",
     }
     if (not isinstance(value, dict) or set(value) != expected_fields
+            or type(value.get("schema_version")) is not int
             or value.get("schema_version") != 1
             or value.get("kind") != "life_manager_effect_result"
             or value.get("status") != "verified_effect"
+            or type(value.get("effect")) is not int
             or value.get("effect") != 1
             or value.get("owner_id") != loop_id
             or value.get("occurrence_id") != occurrence_id
@@ -888,19 +907,47 @@ def _effect_result_hint_allowed(loop_id: str, entrypoint: str | None) -> bool:
             or EFFECT_RESULT_HINT_LOOP_ENTRYPOINTS.get(loop_id) == entrypoint)
 
 
+def _verified_no_effect_result(path: Path, loop_id: str, occurrence_id: str,
+                               entrypoint: str) -> tuple[str, str] | None:
+    if entrypoint != NO_EFFECT_RESULT_HINT_ENTRYPOINT:
+        return None
+    value = _read_private_result_hint(path)
+    expected_fields = {
+        "schema_version", "kind", "status", "effect", "owner_id",
+        "occurrence_id", "reason",
+    }
+    if (not isinstance(value, dict) or set(value) != expected_fields
+            or type(value.get("schema_version")) is not int
+            or value.get("schema_version") != 1
+            or value.get("kind") != "life_manager_no_effect_result"
+            or value.get("status") != "verified_no_effect"
+            or type(value.get("effect")) is not int
+            or value.get("effect") != 0
+            or value.get("owner_id") != loop_id
+            or value.get("occurrence_id") != occurrence_id
+            or not isinstance(value.get("reason"), str)
+            or value.get("reason") not in {"setup_required", "no_due_slot"}):
+        return None
+    return "not_applicable", f"lm-no-effect://{loop_id}/{occurrence_id}/{value['reason']}"
+
+
 def _apply_verified_effect_result(
         event: dict, result: tuple[str, str] | None) -> dict:
     updated = dict(event)
     updated["evidence_refs"] = list(event.get("evidence_refs", []))
     if result is not None and updated.get("status") == "pass":
-        updated["effect_status"] = result[0]
-        provider = result[1].partition("://")[0]
-        if provider in {"postiz", "telegram"}:
-            updated["provider"] = provider
-        receipt_id = result[1].rsplit("/", 1)[-1]
-        if "provider_receipt_id" in updated:
-            updated["provider_receipt_id"] = receipt_id
-            updated["official_readback_ref"] = result[1]
+        if result[0] == "not_applicable":
+            updated["effect_class"] = "none"
+            updated["effect_status"] = "not_applicable"
+        else:
+            updated["effect_status"] = result[0]
+            provider = result[1].partition("://")[0]
+            if provider in {"postiz", "telegram"}:
+                updated["provider"] = provider
+            receipt_id = result[1].rsplit("/", 1)[-1]
+            if "provider_receipt_id" in updated:
+                updated["provider_receipt_id"] = receipt_id
+                updated["official_readback_ref"] = result[1]
         if result[1] not in updated["evidence_refs"]:
             updated["evidence_refs"].append(result[1])
     return validate_runtime_event(updated)
@@ -921,6 +968,9 @@ def _terminal_outcome(return_code: int, *, host_deferred: str | None = None
 # scratch dir is removed once the terminal event is written). Bounded so one
 # noisy child cannot bloat the shared events.jsonl.
 ENTRYPOINT_STDERR_TAIL_MAX_BYTES = 2048
+ENTRYPOINT_STDERR_REPLAY_MAX_BYTES = 64 * 1024
+ENTRYPOINT_STDERR_REPLAY_EDGE_BYTES = 32 * 1024
+ENTRYPOINT_STDERR_TRUNCATION_MARKER = b"\n...[stderr truncated]...\n"
 
 
 def _forward_process_group_signal(pgid: int, signum: int) -> None:
@@ -1065,23 +1115,37 @@ def _run_entrypoint_with_stderr_capture(
             os.close(descriptor)
         except OSError:
             pass
+    replay = b""
+    tail = b""
     try:
-        data = capture_path.read_bytes()
+        with capture_path.open("rb") as captured:
+            captured.seek(0, os.SEEK_END)
+            size = captured.tell()
+            if size <= ENTRYPOINT_STDERR_REPLAY_MAX_BYTES:
+                captured.seek(0)
+                replay = captured.read(size)
+                tail = replay[-ENTRYPOINT_STDERR_TAIL_MAX_BYTES:]
+            else:
+                captured.seek(0)
+                head = captured.read(ENTRYPOINT_STDERR_REPLAY_EDGE_BYTES)
+                captured.seek(size - ENTRYPOINT_STDERR_REPLAY_EDGE_BYTES)
+                end = captured.read(ENTRYPOINT_STDERR_REPLAY_EDGE_BYTES)
+                replay = head + ENTRYPOINT_STDERR_TRUNCATION_MARKER + end
+                tail = end[-ENTRYPOINT_STDERR_TAIL_MAX_BYTES:]
     except OSError:
-        data = b""
+        replay = b""
+        tail = b""
     finally:
         try:
             capture_path.unlink()
         except OSError:
             pass
-    tail = b""
-    if data:
+    if replay:
         try:
-            sys.stderr.buffer.write(data)
+            sys.stderr.buffer.write(replay)
             sys.stderr.buffer.flush()
         except (OSError, ValueError):
             pass
-        tail = data[-ENTRYPOINT_STDERR_TAIL_MAX_BYTES:]
     return return_code, tail
 
 
@@ -1516,7 +1580,21 @@ def main(argv: list[str] | None = None) -> int:
         item_lock = _label_apply_lock_path(current, entry["label"])
         with ExitStack() as apply_lock_stack:
             try:
-                apply_lock_stack.enter_context(_apply_lock(current, item_lock))
+                # The per-label apply lock is held only while that one label is being
+                # re-bootstrapped (seconds, up to ~2 minutes). A wake that lands in that window used
+                # to exit 78 at once, which loses a daily one-shot for the whole day
+                # (article-daily 06:00). Wait for it, then fall back to the recorded deferral.
+                lock_wait_deadline = time.monotonic() + float(
+                    os.environ.get("LIFE_MANAGER_APPLY_LOCK_WAIT_SECONDS", "150"))
+                while True:
+                    try:
+                        apply_lock_stack.enter_context(_apply_lock(current, item_lock))
+                        break
+                    except RuntimeError as busy:
+                        if str(busy) != "production apply is already owned" \
+                                or time.monotonic() >= lock_wait_deadline:
+                            raise
+                        time.sleep(5)
             except RuntimeError as error:
                 if str(error) != "production apply is already owned":
                     raise
@@ -1606,9 +1684,14 @@ def main(argv: list[str] | None = None) -> int:
         if (return_code == 0
                 and _effect_result_hint_allowed(loop_id, entry.get("entrypoint"))
                 and claimed_occurrence_id is not None):
-            effect_result = _verified_effect_result(
-                scratch / "entrypoint-result.json", loop_id, claimed_occurrence_id,
-                entrypoint=entry.get("entrypoint"))
+            hint_path = scratch / "entrypoint-result.json"
+            if entry.get("entrypoint") == NO_EFFECT_RESULT_HINT_ENTRYPOINT:
+                effect_result = _verified_no_effect_result(
+                    hint_path, loop_id, claimed_occurrence_id, entry["entrypoint"])
+            if effect_result is None:
+                effect_result = _verified_effect_result(
+                    hint_path, loop_id, claimed_occurrence_id,
+                    entrypoint=entry.get("entrypoint"))
         effect_identity_ref = None
         effect_identity_status = None
         if entry.get("effect_class") != "none" and return_code != 0:

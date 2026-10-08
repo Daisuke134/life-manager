@@ -28,7 +28,7 @@ from runtime.loop.lm_loop_run import (
     _enqueue_recovery_intent, _persist_effect_identity, _resource_class,
     _heartbeat_loop, _run_admitted, _run_entrypoint,
     _run_entrypoint_with_stderr_capture, _runtime_limit,
-    _sqlite_database_busy,
+    _proven_pre_effect_failure, _sqlite_database_busy,
     _should_enqueue_recovery_intent, _terminal_outcome, _verified_effect_result,
     build_loop_command,
     main as lm_loop_run_main,
@@ -217,6 +217,51 @@ def test_ebook_child_environment_exposes_renderers_only_to_ebook_lanes():
     sibling = loop_runner._child_environment_for_owner("article-daily", base)
     assert sibling["PATH"] == inherited_path
     assert base["PATH"] == inherited_path
+
+
+def test_english_ebook_child_environment_sets_scoped_heygen_cli_path(tmp_path):
+    inherited_path = os.pathsep.join(("/usr/bin", "/bin", "/usr/sbin", "/sbin"))
+    base = {"PATH": inherited_path, "LM_EBOOK_PUBLISHING_ENABLED": "false"}
+
+    english = loop_runner._child_environment_for_owner(
+        "ebook-en-tiktok-daily", base, home=tmp_path,
+    )
+
+    assert english["LIFE_MANAGER_HEYGEN"] == str(tmp_path / ".local/bin/heygen")
+    assert english["PATH"] == f"/opt/homebrew/bin{os.pathsep}{inherited_path}"
+
+    english_override = loop_runner._child_environment_for_owner(
+        "ebook-en-tiktok-daily",
+        {**base, "LIFE_MANAGER_HEYGEN": "/opt/custom/heygen"},
+        home=tmp_path,
+    )
+    assert english_override["LIFE_MANAGER_HEYGEN"] == "/opt/custom/heygen"
+
+    japanese = loop_runner._child_environment_for_owner(
+        "ebook-ja-tiktok-daily", base, home=tmp_path,
+    )
+    assert "LIFE_MANAGER_HEYGEN" not in japanese
+    assert japanese["PATH"] == f"/opt/homebrew/bin{os.pathsep}{inherited_path}"
+    assert loop_runner._child_environment_for_owner(
+        "article-daily", base, home=tmp_path,
+    ) == base
+
+
+def test_english_ebook_child_environment_disables_heygen_telemetry_only_for_english_owner(tmp_path):
+    base = {"PATH": "/usr/bin:/bin", "LM_EBOOK_PUBLISHING_ENABLED": "false"}
+
+    english = loop_runner._child_environment_for_owner(
+        "ebook-en-tiktok-daily", base, home=tmp_path,
+    )
+    assert english["HEYGEN_NO_ANALYTICS"] == "1"
+
+    japanese = loop_runner._child_environment_for_owner(
+        "ebook-ja-tiktok-daily", base, home=tmp_path,
+    )
+    assert "HEYGEN_NO_ANALYTICS" not in japanese
+    assert loop_runner._child_environment_for_owner(
+        "article-daily", base, home=tmp_path,
+    ) == base
 
 
 def test_ebook_owner_passes_ssot_postiz_key_to_child_entrypoint(tmp_path):
@@ -1020,10 +1065,11 @@ def test_entrypoint_completes_handoff_before_effect_gate(tmp_path):
 
 def test_entrypoint_stderr_capture_is_captured_and_still_passes_through(tmp_path, capfd):
     child = (
-        "import sys; "
-        "sys.stderr.write('boom: precondition missing\\n'); "
-        "sys.exit(1)"
+        "import os, stat, sys; "
+        "sys.stderr.buffer.write(b'boom: precondition missing\\n'); "
+        "sys.exit(1 if stat.S_ISREG(os.fstat(2).st_mode) else 86)"
     )
+    expected = b"boom: precondition missing\n"
     scratch = tmp_path / "scratch"
     scratch.mkdir()
 
@@ -1032,32 +1078,88 @@ def test_entrypoint_stderr_capture_is_captured_and_still_passes_through(tmp_path
     )
 
     assert result == 1
-    assert tail.strip() == b"boom: precondition missing"
+    assert tail == expected[-ENTRYPOINT_STDERR_TAIL_MAX_BYTES:]
     # Passthrough is preserved: the child's stderr still reaches this
     # process's real stderr, exactly like before capture existed.
     captured = capfd.readouterr()
-    assert "boom: precondition missing" in captured.err
+    assert captured.err.encode() == expected
     # The capture file is a private, cleaned-up implementation detail, not a
     # durable artifact -- nothing is left behind in the run's scratch dir.
     assert list(scratch.iterdir()) == []
 
 
-def test_entrypoint_stderr_capture_is_bounded_to_its_last_bytes(tmp_path):
+def test_entrypoint_stderr_capture_replays_bounded_slices_for_large_output(
+        tmp_path, capfd, monkeypatch):
+    chunk_size = 32 * 1024
+    head = b"H" * chunk_size
+    middle = b"M" * (200 * 1024)
+    final_error = b"ERROR: final failure\n"
+    full_output = head + middle + final_error
+    marker = b"\n...[stderr truncated]...\n"
+    expected_replay = head + marker + full_output[-chunk_size:]
     child = (
         "import sys; "
-        "sys.stderr.write('a' * 6000); "
-        "sys.exit(1)"
+        f"sys.stderr.buffer.write(b'H' * {chunk_size} + b'M' * {len(middle)} "
+        f"+ {final_error!r}); "
+        "sys.exit(9)"
     )
     scratch = tmp_path / "scratch"
     scratch.mkdir()
+    capture_path = scratch / "entrypoint-stderr.log"
+    real_path_open = Path.open
+    read_sizes = []
+    seek_positions = []
+
+    class BoundedCaptureReader:
+        def __init__(self, handle):
+            self.handle = handle
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            self.handle.close()
+
+        def seek(self, offset, whence=0):
+            seek_positions.append((offset, whence))
+            return self.handle.seek(offset, whence)
+
+        def tell(self):
+            return self.handle.tell()
+
+        def read(self, size=-1):
+            read_sizes.append(size)
+            assert 0 <= size <= chunk_size
+            return self.handle.read(size)
+
+    def observe_open(path, *args, **kwargs):
+        handle = real_path_open(path, *args, **kwargs)
+        if path == capture_path:
+            return BoundedCaptureReader(handle)
+        return handle
+
+    real_read_bytes = Path.read_bytes
+
+    def reject_whole_capture_read(path):
+        if path == capture_path:
+            raise AssertionError("capture must use bounded seek/read")
+        return real_read_bytes(path)
+
+    monkeypatch.setattr(Path, "open", observe_open)
+    monkeypatch.setattr(Path, "read_bytes", reject_whole_capture_read)
 
     result, tail = _run_entrypoint_with_stderr_capture(
         [sys.executable, "-c", child], scratch, timeout_seconds=5,
     )
 
-    assert result == 1
-    assert len(tail) == ENTRYPOINT_STDERR_TAIL_MAX_BYTES
-    assert tail == b"a" * len(tail)
+    assert result == 9
+    assert tail == full_output[-ENTRYPOINT_STDERR_TAIL_MAX_BYTES:]
+    assert b"ERROR: final failure\n" in tail
+    assert capfd.readouterr().err.encode() == expected_replay
+    assert read_sizes == [chunk_size, chunk_size]
+    assert (0, os.SEEK_END) in seek_positions
+    assert (len(full_output) - chunk_size, os.SEEK_SET) in seek_positions
+    assert list(scratch.iterdir()) == []
 
 
 def test_entrypoint_without_stderr_capture_is_unaffected(capfd):
@@ -1638,6 +1740,7 @@ def test_mobile_child_receives_effect_result_hint_path(tmp_path):
         "apps/life-manager/scripts/mobile-app",
     })
     assert "apps/life-manager/scripts/ebook-distribute-daily.sh" in PRE_EFFECT_HINT_ENTRYPOINTS
+    assert "apps/life-manager/scripts/mobile-app" in PRE_EFFECT_HINT_ENTRYPOINTS
     assert {"ebook-en-tiktok-daily", "ebook-ja-instagram-daily", "ebook-ja-tiktok-daily"} <= PRE_EFFECT_HINT_LOOP_IDS
     assert observed["LIFE_MANAGER_RESULT_HINT_PATH"] == str(
         tmp_path / "entrypoint-result.json")
@@ -1686,8 +1789,52 @@ def test_cfo_effect_result_hint_requires_exact_loop_and_entrypoint(tmp_path):
     wrong_entrypoint = observed_env(
         "life-manager-cfo-hourly", "skills/cfo/other.sh", "wrong-entrypoint")
     assert "LIFE_MANAGER_RESULT_HINT_PATH" not in wrong_entrypoint
+def test_mobile_publish_failure_after_hint_clear_keeps_unknown_effect_fence(tmp_path):
+    claim = tmp_path / "claim-mobile"
+    claim.write_text(json.dumps({
+        "occurrence_id": "life-manager-honne-ja:run-1",
+    }))
+
+    def run_child(*_args, **kwargs):
+        kwargs["on_started"](4242)
+        hint = Path(kwargs["env"]["LIFE_MANAGER_RESULT_HINT_PATH"])
+        assert hint.is_file(), "mobile publisher must begin with a fail-closed no-effect marker"
+        assert json.loads(hint.read_text(encoding="utf-8")) == {
+            "status": "pre_effect_failure", "effect": 0,
+        }
+        hint.unlink()
+        return 1
+
+    with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "ready")),
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                return_value=(claim, "acquired")),
+          patch("runtime.loop.lm_loop_run.transfer_durable_resource"),
+          patch("runtime.loop.lm_loop_run.release_and_reserve_resource",
+                return_value=[]) as release,
+          patch("runtime.loop.lm_loop_run._dispatch_reserved"),
+          patch("runtime.loop.lm_loop_run._run_entrypoint", side_effect=run_child)):
+        assert _run_admitted(["/bin/true"], {
+            "cadence": {"start_interval_seconds": 60},
+            "provider_route": "postiz", "resource_class": "agent",
+            "admission_class": "revenue", "effect_class": "publish",
+            "entrypoint": "apps/life-manager/scripts/mobile-app",
+        }, "life-manager-honne-ja", {}, tmp_path / "mobile-receipt",
+            occurrence_id="life-manager-honne-ja:run-1") == 1
+
+    release.assert_called_once_with(
+        claim, requeue=False, reserve=True, effect_unknown=True)
 
 
+def test_pre_effect_hint_fails_closed_when_absent_or_malformed(tmp_path):
+    absent = tmp_path / "absent.json"
+    malformed = tmp_path / "malformed.json"
+    malformed.write_text("not-json\n", encoding="utf-8")
+    malformed.chmod(0o600)
+
+    assert _proven_pre_effect_failure(absent) is False
+    assert _proven_pre_effect_failure(malformed) is False
 def _write_effect_result(path, **overrides):
     value = {
         "schema_version": 1,
@@ -1711,8 +1858,16 @@ def test_verified_mobile_effect_result_requires_exact_private_identity(tmp_path)
     _write_effect_result(hint)
 
     assert _verified_effect_result(
-        hint, "life-manager-honne-ja", "life-manager-honne-ja:run-1",
+       hint, "life-manager-honne-ja", "life-manager-honne-ja:run-1",
     ) == ("reconciled", "postiz://posts/postiz-post-1")
+    _write_effect_result(hint, schema_version=True)
+    assert _verified_effect_result(
+        hint, "life-manager-honne-ja", "life-manager-honne-ja:run-1",
+    ) is None
+    _write_effect_result(hint, effect=True)
+    assert _verified_effect_result(
+        hint, "life-manager-honne-ja", "life-manager-honne-ja:run-1",
+    ) is None
 
     _write_effect_result(hint, occurrence_id="life-manager-honne-ja:other")
     assert _verified_effect_result(
@@ -1784,8 +1939,82 @@ def test_verified_cfo_telegram_effect_result_uses_message_receipt_ref(tmp_path):
         hint, "life-manager-cfo-hourly", "life-manager-cfo-hourly:telegram-run-1",
         entrypoint="skills/cfo/run.sh",
     ) is None
+def _write_no_effect_result(path, **overrides):
+    value = {
+        'schema_version': 1,
+        'kind': 'life_manager_no_effect_result',
+        'status': 'verified_no_effect',
+        'effect': 0,
+        'owner_id': 'ebook-ja-tiktok-daily',
+        'occurrence_id': 'ebook-ja-tiktok-daily:run-off-slot',
+        'reason': 'no_due_slot',
+    }
+    value.update(overrides)
+    path.write_text(json.dumps(value) + '\n', encoding='utf-8')
+    path.chmod(0o600)
+    return value
 
 
+def test_verified_no_effect_result_requires_exact_identity_and_eBook_entrypoint(tmp_path):
+    hint = tmp_path / 'entrypoint-result.json'
+    _write_no_effect_result(hint)
+    reader = getattr(loop_runner, '_verified_no_effect_result', None)
+    assert callable(reader)
+    if not callable(reader):
+        return
+
+    entrypoint = 'apps/life-manager/scripts/ebook-distribute-daily.sh'
+    expected = (
+        'not_applicable',
+        'lm-no-effect://ebook-ja-tiktok-daily/ebook-ja-tiktok-daily:run-off-slot/no_due_slot',
+    )
+    assert reader(hint, 'ebook-ja-tiktok-daily',
+                 'ebook-ja-tiktok-daily:run-off-slot', entrypoint) == expected
+    _write_no_effect_result(hint, schema_version=True)
+    assert reader(hint, 'ebook-ja-tiktok-daily',
+                  'ebook-ja-tiktok-daily:run-off-slot', entrypoint) is None
+    _write_no_effect_result(hint, effect=False)
+    assert reader(hint, 'ebook-ja-tiktok-daily',
+                  'ebook-ja-tiktok-daily:run-off-slot', entrypoint) is None
+    _write_no_effect_result(hint, reason=[])
+    try:
+        invalid_reason = reader(hint, 'ebook-ja-tiktok-daily',
+                                'ebook-ja-tiktok-daily:run-off-slot', entrypoint)
+    except TypeError as error:
+        assert False, f'array reason must fail closed without raising: {error}'
+    assert invalid_reason is None
+
+    _write_no_effect_result(hint, occurrence_id='ebook-ja-tiktok-daily:other')
+    assert reader(hint, 'ebook-ja-tiktok-daily',
+                  'ebook-ja-tiktok-daily:run-off-slot', entrypoint) is None
+    _write_no_effect_result(hint, reason='arbitrary')
+    assert reader(hint, 'ebook-ja-tiktok-daily',
+                  'ebook-ja-tiktok-daily:run-off-slot', entrypoint) is None
+    _write_no_effect_result(hint)
+    assert reader(hint, 'ebook-ja-tiktok-daily',
+                  'ebook-ja-tiktok-daily:run-off-slot', 'apps/life-manager/scripts/mobile-app') is None
+    hint.write_text('{"status":"pre_effect_failure","effect":0}\n', encoding='utf-8')
+    hint.chmod(0o600)
+    assert reader(hint, 'ebook-ja-tiktok-daily',
+                  'ebook-ja-tiktok-daily:run-off-slot', entrypoint) is None
+
+
+def test_verified_no_effect_result_marks_the_terminal_as_no_effect():
+    owner = 'ebook-ja-tiktok-daily'
+    occurrence = f'{owner}:run-off-slot'
+    ref = f'lm-no-effect://{owner}/{occurrence}/no_due_slot'
+    event = build_runtime_event(
+        loop_id=owner, domain='growth', run_id='run-off-slot',
+        release_sha='a' * 40, provider='postiz', profile_alias=None,
+        effect_class='publish', succeeded=True, blocker=None,
+        claimed_occurrence_id=occurrence,
+    )
+
+    updated = _apply_verified_effect_result(event, ('not_applicable', ref))
+
+    assert updated['effect_class'] == 'none'
+    assert updated['effect_status'] == 'not_applicable'
+    assert updated['evidence_refs'][-1] == ref
 def test_verified_mobile_effect_result_upgrades_only_success_event(tmp_path):
     event = build_runtime_event(
         loop_id="life-manager-honne-ja", domain="growth", run_id="run-1",
@@ -2064,6 +2293,7 @@ def test_main_records_apply_lock_busy_before_dispatch(tmp_path):
               "LIFE_MANAGER_STATE_ROOT": str(state_root),
               "LIFE_MANAGER_RUN_ID": "run-1",
               "WAKE_ID": "wake-1",
+              "LIFE_MANAGER_APPLY_LOCK_WAIT_SECONDS": "0",
           }, clear=False),
           patch("runtime.loop.lm_loop_run._apply_lock",
                 side_effect=RuntimeError("production apply is already owned")),
@@ -2111,6 +2341,7 @@ def test_main_reports_sanitized_prestart_event_write_failure(tmp_path, capsys):
               "LIFE_MANAGER_STATE_ROOT": str(tmp_path / "state"),
               "LIFE_MANAGER_RUN_ID": "run-1",
               "WAKE_ID": "wake-1",
+              "LIFE_MANAGER_APPLY_LOCK_WAIT_SECONDS": "0",
           }, clear=False),
           patch("runtime.loop.lm_loop_run._apply_lock",
                 side_effect=RuntimeError("production apply is already owned")),
@@ -2776,7 +3007,7 @@ def test_memory_deferral_preserves_queue_and_releases_reservation(tmp_path):
 
 
 def test_disk_headroom_low_defers_before_queue_or_provider_child(tmp_path):
-    floor = 11 * 1024**3
+    floor = 2 * 1024**3
     entry = {"cadence": {"start_interval_seconds": 60},
              "provider_route": "shared-agent-runner", "effect_class": "application"}
     receipt = tmp_path / "host-admission.json"
@@ -2825,11 +3056,11 @@ def test_unavailable_disk_measurement_defers_before_queue(tmp_path):
     deferred = json.loads(receipt.read_text())
     assert deferred["reason"] == "disk_headroom_unavailable"
     assert deferred["effect"] == 0
-    assert deferred["required_bytes"] == 11 * 1024**3
+    assert deferred["required_bytes"] == 2 * 1024**3
 
 
 def test_normal_disk_headroom_keeps_finite_provider_dispatch(tmp_path):
-    floor = 11 * 1024**3
+    floor = 2 * 1024**3
     entry = {"cadence": {"start_interval_seconds": 60},
              "provider_route": "shared-agent-runner", "effect_class": "application"}
     receipt = tmp_path / "host-admission.json"
@@ -2850,7 +3081,7 @@ def test_normal_disk_headroom_keeps_finite_provider_dispatch(tmp_path):
 
 
 def test_disk_drop_after_claim_requeues_without_provider_dispatch(tmp_path):
-    floor = 11 * 1024**3
+    floor = 2 * 1024**3
     entry = {"cadence": {"start_interval_seconds": 60},
              "provider_route": "shared-agent-runner", "effect_class": "application"}
     receipt = tmp_path / "host-admission.json"
@@ -3486,3 +3717,40 @@ def test_heartbeat_loop_fails_immediately_when_ownership_is_lost(tmp_path, monke
     with patch("runtime.loop.lm_loop_run.heartbeat_durable_resource", return_value=False) as beat:
         _heartbeat_loop(tmp_path / "claim", stopped, failed)
     assert failed.is_set() and beat.call_count == 1
+
+
+def test_main_waits_for_a_label_apply_lock_that_frees_up(tmp_path):
+    """2026-10-08: a wake that lands while its label is being applied used to exit 78 at once and
+    the daily one-shot (article-daily 06:00) was lost for the day. It now waits for the short
+    per-label apply to finish."""
+    release = _write_prestart_lock_release(tmp_path)
+    state_root = tmp_path / "state"
+    attempts = []
+
+    class _Free:
+        def __enter__(self):
+            return None
+
+        def __exit__(self, *_):
+            return False
+
+    def lock(*_a, **_k):
+        attempts.append(1)
+        if len(attempts) < 3:
+            raise RuntimeError("production apply is already owned")
+        return _Free()
+
+    with (patch.dict(os.environ, {"LIFE_MANAGER_STATE_ROOT": str(state_root),
+                                  "LIFE_MANAGER_RUN_ID": "run-w", "WAKE_ID": "wake-w"}, clear=False),
+          patch("runtime.loop.lm_loop_run._apply_lock", side_effect=lock),
+          patch("runtime.loop.lm_loop_run.time.sleep") as sleep,
+          patch("runtime.loop.lm_loop_run.build_loop_command", side_effect=RuntimeError("past-the-lock")),
+          patch("runtime.loop.lm_loop_run.try_acquire_resource"),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource")):
+        lm_loop_run_main(["example-publisher", str(release)])
+
+    assert len(attempts) == 3, "it must keep trying until the lock frees"
+    assert sleep.call_count == 2
+    events_file = state_root / "events.jsonl"
+    blockers = [json.loads(l).get("blocker") for l in events_file.read_text().splitlines()] if events_file.exists() else []
+    assert "apply_lock_busy" not in blockers, "a lock that freed up must not be recorded as busy"

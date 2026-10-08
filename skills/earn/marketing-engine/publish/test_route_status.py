@@ -1,4 +1,5 @@
 import pathlib
+import json
 import sys
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -18,6 +19,17 @@ def test_exact_active_integration_is_ready():
     result = evaluate_route(ACCOUNT, [{
         "id": "integration-1", "identifier": "tiktok", "profile": "@obou_anicca",
         "disabled": False,
+    }])
+    assert result["route_ready"] is True
+    assert result["blockers"] == []
+
+
+def test_live_english_monk_tiktok_registry_matches_enabled_postiz_identity():
+    account_path = HERE.parent / "registry" / "accounts" / "tiktok.monk_anicca.json"
+    account = json.loads(account_path.read_text(encoding="utf-8"))
+    result = evaluate_route(account, [{
+        "id": "cmo5rwq2p00twn10yrsdglng3", "identifier": "tiktok",
+        "profile": "monk_anicca", "disabled": False,
     }])
     assert result["route_ready"] is True
     assert result["blockers"] == []

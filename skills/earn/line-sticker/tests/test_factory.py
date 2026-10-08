@@ -15,7 +15,7 @@ sys.path.insert(0, str(MODULE_ROOT))
 import factory as MODULE  # noqa: E402
 
 
-def _plan(set_dir, prior):
+def _plan(set_dir, prior, market_items=None):
     return {
         "theme": "test", "series_of": None, "character_id": "char-test-001", "character_prompt": "a test mascot",
         "motions": [{"id": f"m{i}", "prompt": f"motion {i}"} for i in range(30)],
@@ -104,6 +104,35 @@ class FullRun(unittest.TestCase):
             self.assertEqual(MODULE.run(state_root, deps)["action"], "skip")
 
 
+class SubmittedCleanup(unittest.TestCase):
+    def test_submitted_set_drops_candidates_but_keeps_package_and_clips(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_root = Path(tmp)
+            MODULE.run(state_root, _fake_deps(max_sets_per_day=5))
+            set_dir = state_root / "set-001"
+            self.assertEqual(MODULE.read_stage(set_dir), "submitted")
+            self.assertFalse((set_dir / "candidates").exists())
+            self.assertTrue((set_dir / "package").exists())
+            self.assertTrue((set_dir / "clips").exists())  # distribute renders from selected clips
+
+
+class SubmitNotifyTitle(unittest.TestCase):
+    def test_notify_reports_the_title_actually_filed_after_a_retitle(self) -> None:
+        # set-012 (2026-10-08) was filed as ポンタ after a duplicate-title retitle; the event said こむぎ.
+        payloads = []
+        with tempfile.TemporaryDirectory() as tmp:
+            deps = _fake_deps(
+                max_sets_per_day=5,
+                submit=lambda set_dir, item, listing, tags: {
+                    "product_id": "123", "url": "https://example.test/sticker/123",
+                    "state": "review_requested", "title_ja": "ポンタのテスト",
+                },
+                notify=lambda set_dir, payload: payloads.append(payload),
+            )
+            MODULE.run(Path(tmp), deps)
+        self.assertEqual([p.get("title_ja") for p in payloads if "product_id" in p], ["ポンタのテスト"])
+
+
 class FullRunSubmit(unittest.TestCase):
     def test_run_keeps_going_through_submit_sub_states(self) -> None:
         states = iter(["metadata_saved", "images_uploaded", "tagged", "review_requested"])
@@ -116,6 +145,33 @@ class FullRunSubmit(unittest.TestCase):
             report = MODULE.run(state_root, _fake_deps(submit=staged_submit))
             self.assertEqual(report["next_stage"], "submitted")
             self.assertEqual(MODULE.read_stage(state_root / "set-001"), "submitted")
+
+
+class UnrecoveredSpendCap(unittest.TestCase):
+    def _seed(self, state_root, costs, sales):
+        for i, cost in enumerate(costs, 1):
+            d = state_root / f"set-{i:03d}"
+            d.mkdir(parents=True)
+            MODULE._atomic_write_json(d / "stage.json", {"stage": "submitted", "cost_usd": str(cost)})
+            MODULE._atomic_write_json(d / "creators-item.json", {"product_id": str(100 + i)})
+        MODULE._atomic_write_json(state_root / "sales.json", {"products": [
+            {"product_id": str(100 + i), "sales_jpy": s} for i, s in enumerate(sales, 1)]})
+
+    def test_no_new_set_while_spend_minus_revenue_exceeds_the_cap(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_root = Path(tmp)
+            self._seed(state_root, [30, 15], [0, None])
+            report = MODULE.wake(state_root, _fake_deps(max_sets_per_day=50, max_unrecovered_usd=MODULE.Decimal("40")))
+            self.assertEqual(report["reason"], "unrecovered_spend_cap")
+            self.assertFalse((state_root / "set-003").exists())
+
+    def test_revenue_reopens_production(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_root = Path(tmp)
+            self._seed(state_root, [30, 15], [1500, None])  # 1500 JPY = 10 USD recovered
+            report = MODULE.wake(state_root, _fake_deps(max_sets_per_day=50, max_unrecovered_usd=MODULE.Decimal("40")))
+            self.assertNotEqual(report.get("reason"), "unrecovered_spend_cap")
+            self.assertTrue((state_root / "set-003").exists())
 
 
 class DailyCap(unittest.TestCase):
@@ -256,9 +312,9 @@ class SeriesSequel(unittest.TestCase):
 
             seen = {}
 
-            def capturing_planner(set_dir, prior_facts):
+            def capturing_planner(set_dir, prior_facts, market_items=None):
                 seen["facts"] = prior_facts
-                return _plan(set_dir, prior_facts)
+                return _plan(set_dir, prior_facts, market_items)
 
             deps = _fake_deps(planner=capturing_planner)
             MODULE.wake(state_root, deps)  # starts set-002, runs plan stage
@@ -266,7 +322,79 @@ class SeriesSequel(unittest.TestCase):
                 "set": "set-001", "character_id": "char-otter-001",
                 "character_description": "a stardust otter", "theme": "毎日リアクション",
                 "title": {"ja": "毎日使えるカワウソ", "en": "Otter"}, "state_observed": "販売中",
+                "sales_jpy": None,
             }])
+
+    def test_market_items_feed_the_planner(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_root = Path(tmp)
+            state_root.mkdir(exist_ok=True)
+            MODULE._atomic_write_json(state_root / "market.json", {
+                "observed_at": MODULE.now_utc().isoformat(),
+                "items": [{"product_id": str(n), "title": f"item-{n}"} for n in range(20)],
+            })
+
+            seen = {}
+
+            def capturing_planner(set_dir, prior_facts, market_items=None):
+                seen["market_items"] = market_items
+                return _plan(set_dir, prior_facts, market_items)
+
+            deps = _fake_deps(planner=capturing_planner)
+            MODULE.wake(state_root, deps)  # starts set-001, runs plan stage
+            self.assertEqual(len(seen["market_items"]), 15)
+            self.assertEqual(seen["market_items"][0]["product_id"], "0")
+
+    def test_missing_market_json_feeds_the_planner_an_empty_list(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_root = Path(tmp)
+            seen = {}
+
+            def capturing_planner(set_dir, prior_facts, market_items=None):
+                seen["market_items"] = market_items
+                return _plan(set_dir, prior_facts, market_items)
+
+            deps = _fake_deps(planner=capturing_planner)
+            MODULE.wake(state_root, deps)
+            self.assertEqual(seen["market_items"], [])
+
+    def test_prior_set_facts_include_known_sales_and_leave_unknown_unset(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_root = Path(tmp)
+            source_dir = state_root / "set-001"
+            source_dir.mkdir(parents=True)
+            MODULE._atomic_write_json(source_dir / "plan-draft.json", {
+                "theme": "毎日リアクション", "series_of": None,
+                "character_id": "char-otter-001", "character_prompt": "a stardust otter",
+                "motions": [], "listing": {"title": {"ja": "x", "en": "x"}, "description": {"ja": "x", "en": "x"}},
+            })
+            MODULE._atomic_write_json(source_dir / "listing.json", {"title": {"ja": "毎日使えるカワウソ", "en": "Otter"}})
+            MODULE._atomic_write_json(source_dir / "creators-item.json", {
+                "state_observed": "販売中", "product_id": "48077815",
+            })
+            MODULE._atomic_write_json(state_root / "sales.json", {
+                "observed_at": "2026-10-07T00:00:00+00:00",
+                "products": [{"product_id": "48077815", "title_ja": "毎日使えるカワウソ", "sales_jpy": 0}],
+            })
+
+            facts = MODULE._prior_set_facts(state_root)
+            self.assertEqual(facts[0]["sales_jpy"], 0)
+
+            # A tracked set with no matching sales.json row (product never readback yet) stays
+            # unknown, never silently 0.
+            other_dir = state_root / "set-002"
+            other_dir.mkdir(parents=True)
+            MODULE._atomic_write_json(other_dir / "plan-draft.json", {
+                "theme": "敬語", "series_of": None, "character_id": "char-bear-001",
+                "character_prompt": "a bear", "motions": [],
+                "listing": {"title": {"ja": "y", "en": "y"}, "description": {"ja": "y", "en": "y"}},
+            })
+            MODULE._atomic_write_json(other_dir / "listing.json", {"title": {"ja": "敬語クマ", "en": "Bear"}})
+            MODULE._atomic_write_json(other_dir / "creators-item.json", {
+                "state_observed": "審査待ち", "product_id": "99999999",
+            })
+            facts = MODULE._prior_set_facts(state_root)
+            self.assertIsNone(facts[1]["sales_jpy"])
 
 
 class CostCap(unittest.TestCase):

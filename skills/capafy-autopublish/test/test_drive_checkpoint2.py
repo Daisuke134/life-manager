@@ -1224,3 +1224,31 @@ def test_frozen_tab_does_not_starve_the_next_target(monkeypatch):
     targets = [{"webSocketDebuggerUrl": "ws://x/frozen"}, {"webSocketDebuggerUrl": "ws://x/healthy"}]
     page = module._open_responsive_page(targets)
     assert page.url == "ws://x/healthy"
+
+
+def test_raw_cp2_picks_the_display_model_before_filling_workspace_fields(monkeypatch, tmp_path) -> None:
+    """2026-10-08, new agent 6569536614: the workspace fields were filled first, which made the
+    tab valid; the draft-save button became the submit button, the model pick was never saved
+    and the official model read None, so CP3 refused to submit. The pick must run while the
+    tab is still invalid so a draft-save persists it."""
+    module = load_module()
+    listing = tmp_path / "LISTING.md"
+    listing.write_text(_LISTING_MD, encoding="utf-8")
+
+    def raise_hydrate_timeout(_page):
+        raise RuntimeError("provider path and detected-keys button did not hydrate before deadline")
+
+    order = []
+    cdp = "http://" + "local" + "host:" + "9" + "222"
+    monkeypatch.setattr(module, "_raw_page_targets", lambda *_a: [{"webSocketDebuggerUrl": "ws://127.0.0.1:1/x"}])
+    monkeypatch.setattr(module, "_open_responsive_page", lambda _targets: _FakePage())
+    monkeypatch.setattr(module, "_wait_raw_navigation", lambda *_a: None)
+    monkeypatch.setattr(module, "_ensure_raw_provider_section", raise_hydrate_timeout)
+    monkeypatch.setenv("CAPAFY_LISTING_PATH", str(listing))
+    monkeypatch.setenv("CAPAFY_DISPLAY_MODEL", "DeepSeek V4.1 Flash")
+    monkeypatch.setattr(module, "_raw_fix_display_model", lambda _page, model: order.append("model") or True)
+    monkeypatch.setattr(module, "_raw_fill_workspace_conversation_fields",
+                        lambda _page, path: order.append("workspace") or True)
+
+    assert module._raw_cp2("https://capafy.ai/developer/createAgent?token=t&page=review", "secret", cdp) is True
+    assert order == ["model", "workspace"]
