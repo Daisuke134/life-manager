@@ -42,3 +42,13 @@ test('a retry keeps its key across caller restarts and releases, while logical t
   assert.notEqual(fresh({}).sessionKey, fresh({task_id: 'review'}).sessionKey);
   assert.throws(() => buildRunIdentity(validateRunRequest(fixture()), '../manager'));
 });
+test('request digest catches changed content and release while ignoring caller restart',async()=>{
+ const {requestDigest}=await import('../protocol.mjs');
+ const a=fixture();
+ assert.equal(requestDigest(a),requestDigest({...a,run_id:'attempt-2'}));
+ for(const patch of [{prompt:'new prompt'},{schema:{type:'array'}},{release_sha:'b'.repeat(40)}])assert.notEqual(requestDigest(a),requestDigest({...a,...patch}));
+ assert.equal(requestDigest({...a,schema:{type:'object',properties:{a:{type:'string'}}}}),requestDigest({...a,schema:{properties:{a:{type:'string'}},type:'object'}}));
+});
+test('non-JSON schemas cannot silently change during request cloning',()=>{
+ for(const schema of [{value:NaN},{value:undefined},{value:()=>1},new Date()])assert.throws(()=>validateRunRequest({...fixture(),schema}));
+});

@@ -12,6 +12,7 @@
     "openclaw": "2026.9.8",
     "@openclaw/gateway-client": "2026.8.1",
     "@openclaw/diagnostics-otel": "2026.9.8",
-    "@openclaw/codex": "2026.9.8"
+    "@openclaw/codex": "2026.9.8",
+    "@openclaw/gateway-protocol": "2026.8.1"
   }
 }

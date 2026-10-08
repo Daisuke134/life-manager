@@ -11,6 +11,20 @@ function closed(value, fields) {
 }
 function safeId(value) { return typeof value === 'string' && /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$/.test(value) && !value.includes('..'); }
 export const tupleDigest = tuple => createHash('sha256').update(JSON.stringify(tuple)).digest('hex');
+function jsonValue(value, ancestors = new Set()) {
+  if (value === null || typeof value === 'string' || typeof value === 'boolean') return value;
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (!value || typeof value !== 'object' || ancestors.has(value)) fail('JSON value');
+  if (!Array.isArray(value) && ![Object.prototype, null].includes(Object.getPrototypeOf(value))) fail('JSON object');
+  ancestors.add(value);
+  const out = Array.isArray(value) ? value.map(v => jsonValue(v, ancestors)) :
+    Object.fromEntries(Object.keys(value).sort().map(k => [k, jsonValue(value[k], ancestors)]));
+  ancestors.delete(value); return out;
+}
+export function requestDigest(request) {
+  const {run_id, ...content} = validateRunRequest(request);
+  return createHash('sha256').update(JSON.stringify(jsonValue(content))).digest('hex');
+}
 function freeze(value) {
   if (value && typeof value === 'object') { Object.values(value).forEach(freeze); Object.freeze(value); }
   return value;
@@ -39,7 +53,7 @@ export function validateRunRequest(value) {
     closed(r, ['thread_id', 'owner_id', 'proof_ref']);
     if (!safeId(r.thread_id) || r.owner_id !== value.owner_id || typeof r.proof_ref !== 'string' || !path.isAbsolute(r.proof_ref)) fail('owned_resume_ref');
   }
-  return freeze(JSON.parse(JSON.stringify(value)));
+  return freeze(jsonValue(value));
 }
 export function buildRunIdentity(request, agentId) {
   if (!safeId(agentId)) fail('agentId');

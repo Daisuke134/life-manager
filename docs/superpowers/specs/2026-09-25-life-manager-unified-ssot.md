@@ -10088,12 +10088,20 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 目的: 既存agentを止めず、専用worktreeで移行接続を実装する。完了条件: 関連テスト、read-only review、commit/push、PRのsource証拠。自然仕事・公式receiptを確認するまで本番移行完了としない。
 範囲: `runtime/openclaw/` のportable paths、closed request、stable identity、排他的dispatch保存、private Gateway境界。既存runner/registry/auth/launchd/注文stateへ未接続。
 設計参照: docs/main-agents-readiness branchの `2026-10-07-main-agents-readiness.md` OC/NC/MI atoms。
-順序変更: 旧=OC001/014/NC02→Gateway。新=OC001–006→OC007–013→profile/native fence→domain/admission接続→owner移行。理由: profileを本番検証する前に、再送防止とsecret境界をsourceで成立させる。現在cursor=OC001。
-- [ ] OC001: `runtime/openclaw/package.json`/lock exact依存、インストールscript実行なし。
-- [ ] OC002: `paths.mjs::resolveHarnessPaths` 既存data root再利用。
-- [ ] OC003/004: `protocol.mjs::validateRunRequest/buildRunIdentity` closed v2、同task stable key、fresh task session。
-- [ ] OC005/006: `dispatch_store.py::load_dispatch/save_dispatch` 排他lock、0600、fsync、tuple/digest照合、unknown再送禁止。
-- [ ] OC007–011: `gateway-client.mjs` 公式SDKだけでhello/submit/wait/abort/exact session照合。
+順序変更: 旧=OC001/014/NC02→Gateway。新=OC001–006→OC007–013→profile/native fence→domain/admission接続→owner移行。理由: profileを本番検証する前に、再送防止とsecret境界をsourceで成立させる。現在cursor=OC012（pinned runtime conformance未完）。
+- [x] OC001 lock: `runtime/openclaw/package.json`/lockに公開5package exact version/integrity。既存probe lock再利用、package-lock-only/ignore-scripts完了。公開runtime conformanceはOC012へ未完として分離。
+- [x] OC002: `paths.mjs::resolveHarnessPaths` 既存data root再利用。
+- [x] OC003/004: `protocol.mjs::validateRunRequest/buildRunIdentity` closed v2、同task stable key、fresh task session。
+- [x] OC005/006: `dispatch_store.py::load_dispatch/save_dispatch` 排他lock、0600、fsync、tuple/digest照合、unknown再送禁止。
+- [x] OC007–010 source boundary: `gateway-client.mjs` 公式SDKだけでhello/submit/wait/abort/exact session照合。
 - [ ] OC012: pinned SDK/runtimeの隔離contract検証（fake model、外部効果0）。
-- [ ] OC013: `environment.mjs::buildGatewayEnv` private rootとallowlist、ambient secrets非継承。
+- [x] OC013: `environment.mjs::buildGatewayEnv` private rootとallowlist、ambient secrets非継承。
 未完のprofile/claim/tool broker/caller/商品binding/cutover/退役は元設計のまま。すべてsource PASSまで公開route有効化0。Temporal追加なし、native ChatGPT Codex以外の推論fallbackなし。
+
+Source evidence: Node 11tests/Python 5tests PASS、RPC境界はinjected test clientで確認（real Gateway/native Codexは未確認）。正式protocol依存は `@openclaw/gateway-protocol`（旧名称404を修正）。lock生成時ENOSPCの固有npm tmpのみ撤去、既存lock再利用で生成成功。host Node25.6.1はpin/runtime engine不適合、Node24.16.0 bundle復元が必要。
+- [ ] OC011: `gateway-client.mjs::readSession` のexact scoped row readは実装済み。公開pinned rowにactiveRunIdsがないためliveness unknown保持。`OC020` に使うsupported lifecycle proofを実装し、それまでclaim解放/route有効化0。
+- [ ] OC012: package-lockからisolated bundleを作り、Node24.16.0 + SDK2026.8.1 + runtime2026.9.8でhello/agent.wait/abortをprivate fixture検証。各runのreceipt/liveness fieldは固定版sourceに照合してconsumerを修正。
+- [ ] OC014/NC02/NC04: `profile.mjs` + native endpoint account readback + restricted tool policy。個人Codex login/logout/restart/import0、既存endpointへattach。
+- [ ] OC017–028: `admission.py`/`tool_broker.py`/pluginと `lm_loop_run.py` のclaim lifetime接続。未確認effectを再送せず既存domain guardを通す。
+- [ ] OC029–035/MI01–02: full caller artifact/schema/usage/画像/owned thread fork、既存 `agent_runner.py` へdisabled route接続。
+公開sourceを追加しただけではdurability/同時稼働/revenue改善は未証明。本番gateway/scheduler/agent/source routes変更0。
