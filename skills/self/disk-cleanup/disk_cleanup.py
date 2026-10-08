@@ -302,6 +302,32 @@ def _is_code_sign_clone(path: Path) -> bool:
     )
 
 
+@lru_cache(maxsize=1)
+def _browser_clone_roots(temporary: Path) -> tuple[Path, ...]:
+    """Share the exact browser clone roots between discovery and sweep proof."""
+    roots = {temporary.parent / "X"}
+    if sys.platform == "darwin" and temporary == Path("/tmp"):
+        try:
+            result = subprocess.run(
+                ["/usr/bin/getconf", "DARWIN_USER_TEMP_DIR"],
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=2,
+            )
+        except (OSError, subprocess.SubprocessError):
+            result = None
+        if result is not None and result.returncode == 0:
+            darwin_temp = Path(result.stdout.strip())
+            if (
+                darwin_temp.is_absolute()
+                and darwin_temp.is_dir()
+                and not darwin_temp.is_symlink()
+            ):
+                roots.add(darwin_temp.parent / "X")
+    return tuple(sorted(roots, key=str))
+
+
 def _default_lsof(path: Path) -> str:
     if (
         RELEASE_NAME_PATTERN.fullmatch(path.name)
@@ -848,9 +874,10 @@ class HostDiskGovernor:
                 _real_directory_fingerprint(self.home, lexical),
             )
             return current == proof
+        temporary_path = Path(tempfile.gettempdir())
         try:
             resolved = path.resolve()
-            temporary = Path(tempfile.gettempdir()).resolve()
+            temporary = temporary_path.resolve()
         except OSError:
             return False
         if item.get("class") == "ephemeral" and item.get("owner") == "temporary-run":
@@ -863,9 +890,15 @@ class HostDiskGovernor:
                 )
             )
         if item.get("class") == "regenerable_output" and item.get("owner") == "browser":
-            clone_root = temporary.parent / "X"
+            try:
+                clone_roots = {
+                    clone_root.resolve()
+                    for clone_root in _browser_clone_roots(temporary_path)
+                }
+            except OSError:
+                return False
             return (
-                resolved.parent.parent == clone_root
+                resolved.parent.parent in clone_roots
                 and resolved.parent.name
                 in {"com.google.Chrome.code_sign_clone", "org.chromium.Chromium.code_sign_clone"}
                 and resolved.name.startswith("code_sign_clone.")
@@ -1402,24 +1435,23 @@ class HostDiskGovernor:
                             }
                         )
         temporary = Path(tempfile.gettempdir())
-        temp_parent = temporary.parent
-        clone_root = temp_parent / "X"
         for collection_name in (
             "com.google.Chrome.code_sign_clone",
             "org.chromium.Chromium.code_sign_clone",
         ):
-            collection = clone_root / collection_name
-            if collection.is_dir() and not collection.is_symlink():
-                for child in sorted(collection.glob("code_sign_clone.*")):
-                    if child.is_dir() and not child.is_symlink():
-                        candidates.append(
-                            {
-                                "path": child,
-                                "class": "regenerable_output",
-                                "owner": "browser",
-                                "discovery": "allowlisted",
-                            }
-                        )
+            for clone_root in _browser_clone_roots(temporary):
+                collection = clone_root / collection_name
+                if collection.is_dir() and not collection.is_symlink():
+                    for child in sorted(collection.glob("code_sign_clone.*")):
+                        if child.is_dir() and not child.is_symlink():
+                            candidates.append(
+                                {
+                                    "path": child,
+                                    "class": "regenerable_output",
+                                    "owner": "browser",
+                                    "discovery": "allowlisted",
+                                }
+                            )
         # These are owned one-shot test/build homes. The prefix is the proof;
         # arbitrary /private/tmp directories remain unknown and are preserved.
         if temporary.is_dir():
