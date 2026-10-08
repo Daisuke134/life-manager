@@ -4848,8 +4848,8 @@ flowchart LR
 
 **残TODO（完了まで、この順）:**
 
-1. **現在cursor — main-side OSS boundary blocker:** Gig code reviewはSHIP、最新ローカルSuiteは103/103 PASS。PR #7182のrequired OSS gateはCapafy PR #7183由来の`manifest_inventory_mismatch skills/capafy-autopublish`で止まる。245-file rootの宣言digestは`d211d4e2…`、current mainの実測は`6622435b…`。main-side ownerにmanifest修正を渡し、Gig laneではCapafy source/manifestを編集しない。owner修正がmainへ入ったら同期し、exact-head review/CI PASS後にmergeする。
-2. **main由来release:** latest main `d7d3cbaeaf989b1678efc0e572a7c3b9aece6d76`とGig preflight fixを含むimmutable releaseを、OSS manifest gate解消後に既存natural reconcilerへ渡し、`RELEASE.json`・Storefront/Paidのloaded SHA/argv/admissionを確認する。production source完了はloaded SHAにpriority/floor/exposure fixが含まれてから。
+1. **現在cursor — PR #7182 final acceptance:** Capafy PR #7185 has corrected the main-side manifest inventory and its Security Scan passed. This worktree now includes main `1136b703c4`; local OSS checker, 103 focused Storefront tests, loop contract (18/188/0), source-boundary, and compile pass. Commit/push the latest-main merge plus this SSOT update, obtain fresh exact-head review/required CI, and merge #7182 only after PASS. No Capafy source is edited here.
+2. **main由来release:** After PR #7182 acceptance/merge, create or await the existing main-derived immutable release containing main `1136b703c4` and the Gig preflight fix; read back `RELEASE.json`, Storefront/Paid loaded SHA/argv/admission.
 3. **Coconala Paid obligation:** order `18180857`のfresh official order/talkroom readbackをownerが実行する。今も未完了の場合だけ必要なrevision/formal deliveryを一度行い、buyer acceptance・settlement/payout・replay-zeroを結ぶ。古いsnapshotから現在の待ち状態を推測しない。
 4. **旧Storefront fence:** `18d8d288748508e8-23902`を、同一effectの公式listing/order履歴または受理可能なoccurrence-bound pre-effect receiptで照合する。現在はdry-runがbinding不足で保留。証拠が取れなければfenceを保持し、再公開しない。
 5. **Coconala商品を売れる型へ改善:** seller-sideでSKU 4244556のfresh views・inquiries・unique paid orders・renewals/refunds・platform fee・payoutを同一期間で取得する。過去5変更は全て`NO_OP / metric_unmeasurable_insufficient_exposure`でliftなし、保存済み15 views / 0 purchaseは古い窓。固定scope・完成成果物・選択式optionの自社商品構造を維持し、exposure gateと旧effect fenceが両方解決してから一度に一変数だけ変更する。exposure不足時はlistingを変えず、公式analyticsの自然readbackと許可済みdistributionでqualified trafficを増やす。近似SKUを重複出品しない。月次optionは実renewalと毎月の納品内容が確認できるまでMRRに数えない。
@@ -4859,7 +4859,7 @@ flowchart LR
 9. **Storefront economics:** listingごとのunique paid order・repeat・refund・platform fee・payout・実作業時間/実費を同一期間で結び、settled net contributionが正で再現したか報告する。掲載・seller累計・grossを利益/MRRにしない。
 10. **最後 — SelfBuild:** 収益loopとproduct storefrontの上記done条件を閉じた後だけ、self-build/self-healingを再開する。
 
-**現在cursor:** latest main `d7d3cbaeaf`との同期はPR #7182へpush済み。Capafyのmain側manifest修正後にそのcommitを同期 → 必須CI全PASS → PR #7182をmerge。production Storefrontは旧SHA・effect fence・settled sales unknownを維持。
+**現在cursor:** local latest-main merge `4fbac0ff9d` + this SSOT are not yet pushed → push → fresh exact-head review/required CI → merge #7182 on PASS. Production remains on the old Storefront SHA/fence; settled sales are unknown.
 
 ### 2026-10-09 00:28 JST — Storefront収益cursorとexposure review修正
 
@@ -4937,6 +4937,16 @@ flowchart LR
 - Capafy source/manifestとprovider stateは変更していない。Storefrontは旧SHA `3981bca3`でdisk admission defer、過去effect fenceはunknown、settled salesは未確認。
 
 **現在cursor:** Capafyのmain-side manifest修正 → そのcommitを同期 → exact-head CI/review → 全PASS後にPR #7182をmerge。
+
+
+### 2026-10-09 01:10 JST — main manifest correction merged
+
+- PR #7185 merged to main `1136b703c45fec29f8535170f72d13e28c168321`; its Capafy manifest refresh changed the declared inventory to `e8c47678…`. The same Security Scan run `37805257432` passed the OSS self-contained boundary and all other listed jobs.
+- This Gig worktree merged latest main as `4fbac0ff9d613e3a251da556a6ca88b00c46531f`. On that tree, `node scripts/verify-oss-self-contained.mjs --json` returns `ok=true`; focused Storefront suite is 103/103, loop contract 18/188/0, source-boundary and compile pass. No Capafy source was changed.
+- PR #7182 still needs the latest-main merge and this SSOT state pushed, then final exact-head review/required CI. Production Storefront remains installed at `3981bca3` with disk admission defer and an unresolved historical effect fence; no settled storefront sale is confirmed.
+
+**現在cursor:** push `4fbac0ff9d` + this SSOT → exact-head read-only review/required CI → merge #7182 on PASS → main-derived release/natural Storefront readback.
+
 
 
 ### 2026-10-08 08:35 JST — Mobile post-merge runtime cursor
