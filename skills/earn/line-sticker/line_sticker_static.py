@@ -22,6 +22,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 import urllib.error
 import urllib.request
 import zipfile
@@ -52,6 +53,13 @@ FONT_CANDIDATES = (
 )
 TEXT_BAND_PX = 72  # bottom band reserved for the phrase; art shrinks into the rest
 TEXT_STROKE_PX = 6
+# market.json 2026-10-08: of the top 40, 21 are 40-sticker sets, 17 are 24, none are 16. Every
+# 40-set reaches its highest rank on sticker count alone; LINE's static maximum is 40.
+STATIC_STICKER_COUNT = 40
+# One wake may run 90 min (runtime_timeout_seconds 5400) and 40 images take ~80 min, so a wake stops
+# making images after this budget and leaves the rest for the next wake (stage stays "images").
+IMAGE_BUDGET_SECONDS = 3600
+_monotonic = time.monotonic
 TEXT_MARK = {"ja": "【文字入り】", "en": " (with text)"}
 GENERIC_TITLE_SUFFIXES = ("スタンプ", " Stickers", " stickers", " Sticker")
 
@@ -103,7 +111,7 @@ format_gap に一言で記録する（無ければ null）。
   文字入り版（「了解」「ありがとう」「おつかれさま」等の短い文字で、場面に合うスタンプを選びやすい）の
   両方を売る。選んだキャラクターに文字なしセットが既にあり、copy_target が text_or_no_text="text" の
   売れ筋なら "with_text" を選ぶ（市場データの文字入り売れ筋を優先して copy_target にする）。
-- stickers: ちょうど16個（LINEの静止画は8/16/24/32/40のいずれか、上位作者に多い16を使う）。毎日の
+- stickers: ちょうど{STATIC_STICKER_COUNT}個（LINEの静止画の上限。市場調査では上位40件中21件が40個、17件が24個で、16個は0件）。毎日の
   チャットで使う意図（ありがとう・OK・ごめん・おやすみ・笑う・泣く・怒る・眠い・驚く・大好き・
   がんばる・はい・了解・お疲れ様・おはよう・こんにちは 等、上位作者の網羅パターンを参考に）を幅広く
   カバーし、各要素は id（短い英数字スラッグ、重複不可）、prompt（画像生成モデル向けの英語指示。
@@ -120,7 +128,15 @@ format_gap に一言で記録する（無ければ null）。
 
 有効タグ一覧: {json.dumps(json.loads(TAGS_FILE.read_text()) if TAGS_FILE.exists() else [], ensure_ascii=False)}
 
-JSON Schemaに厳密に従ったJSONだけを返す。stickersはちょうど16個の重複のないidにする。"""
+JSON Schemaに厳密に従ったJSONだけを返す。stickersはちょうど{STATIC_STICKER_COUNT}個の重複のないidにする。"""
+
+
+def _check_sticker_count(plan: dict) -> None:
+    """The model decides the phrases; code owns the count. A short or duplicated plan is rejected so
+    the factory plans again instead of filing a set that top sellers' 40-sticker sets outrank."""
+    ids = [sticker["id"] for sticker in plan["stickers"]]
+    if len(ids) != STATIC_STICKER_COUNT or len(set(ids)) != len(ids):
+        raise ValueError(f"static plan needs {STATIC_STICKER_COUNT} distinct stickers, got {len(ids)} ({len(set(ids))} distinct)")
 
 
 def static_planner(set_dir: Path, prior_facts: list[dict], market_items: list[dict] | None = None) -> dict:
@@ -128,6 +144,7 @@ def static_planner(set_dir: Path, prior_facts: list[dict], market_items: list[di
     with tempfile.TemporaryDirectory(prefix=".static-plan-", dir=set_dir) as tmp:
         plan = _run_agent(prompt=prompt, schema=HERE / "schemas/static-plan.schema.json",
                           evidence_dir=Path(tmp) / "evidence", task_label=f"line-sticker-static-plan-{set_dir.name}")
+    _check_sticker_count(plan)
     if plan.get("text_mode") == "with_text":
         plan["listing"] = mark_text_listing(plan["listing"])
     return plan
@@ -293,10 +310,13 @@ def static_images(set_dir: Path, plan: dict) -> None:
     ref = set_dir / plan.get("reference", "ref-padded.png")
     character_prompt = plan.get("character_prompt", "")
     with_text = plan.get("text_mode") == "with_text"
+    started = _monotonic()
     for sticker in plan["stickers"]:
         png_path = out / f"{sticker['id']}.png"
         if png_path.exists() and not _has_black_box(png_path):
             continue
+        if _monotonic() - started > IMAGE_BUDGET_SECONDS:
+            return  # run_images sees the missing ones and keeps the stage; the next wake continues
         image, backend, cost = _generate_sticker_image(
             ref, character_prompt, sticker["prompt"], f"line-sticker-static-image-{set_dir.name}-{sticker['id']}")
         _fit_sticker(image, sticker.get("text") if with_text else None).save(png_path)
