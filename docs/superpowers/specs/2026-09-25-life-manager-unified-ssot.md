@@ -5022,7 +5022,17 @@ Source / production follow-up (2026-10-08 11:01 JST): PR #7012は`b692e70a`と�
 
 **現在cursor:** A5. Lease `codex-cfo-a5` remains active until `2026-10-08T03:18:04Z`; implement this one-field change only after fresh lease readback and acquisition of the existing A5 worktree.
 
-### 2026-10-08 11:47 JST — A6 historical Monitoring comparison boundary
+### 2026-10-08 12:10 JST — A6 historical Monitoring comparison boundary
 
 - 既存のread-only Monitoring `serviceruntime.googleapis.com/api/request_count` query（UTC 2026-09-01–2026-10-01）はGeocoding 20,258、Directions 14,230、Places Text Search 5,800、Places Details 72 requestsを返した。invoice-month CSV quantitiesはそれぞれ19,403 / 14,105 / 5,672 / 75で、差は+855 / +125 / +128 / -3。
 - これは過去のusage-count診断で、同期間のdollar estimateとbilled amountのreconciliationではない。Google invoice-month usageはlate-reported costの移動があり、CSV usage datesはday-level精度。request countはbillable unitsでもloop帰属でもなく、404をcost zeroとみなさない。A6 acceptanceは未完了のまま。
+
+### 2026-10-08 12:11 JST — CFO admission status after source deployment
+
+- `origin/main` / latest main-derived release is `a7899e37`; CFO owner is still loaded on `94372580`. The A6 Google-cost code is present on `94372580`, but the owner has not yet been reconciled to the newer main release.
+- Latest CFO occurrence `life-manager-cfo-hourly:18dc6e7ab7e08950-11908` (02:57:05Z) is `host_admission_deferred:resource_capacity_busy`, exit 75, `effect_status=not_applicable`, with no provider receipt or official report readback. The earlier 02:48 wake was `resource_fifo_wait`.
+- Read-only durable queue ordering at about 03:05Z showed 28 eligible deterministic queue rows; CFO was position 27/28 with `admission_class=borrow`, `priority=support`. This confirms the support-priority backlog; `resource_capacity_busy` is a separate host-capacity condition and must not be misdiagnosed as FIFO.
+- Release reconciler on main-derived SHA `a7899e37` has a retryable `entrypoint_exit_1` / `reconcile_owner` event. Do not restart it or manually replay CFO; wait for its natural terminal and inspect the next owner apply receipt.
+- The A5 lease remains active through `2026-10-08T03:18:04Z`. After release, update only the CFO registry priority to `revenue` while keeping `admission_class=borrow` and `resource_class=deterministic`, then test the priority contract and confirm a natural report. This does not reserve a revenue slot or add a cap.
+
+**現在cursor:** A5。CFO cost attribution and wake priority remain the next source task; A6 source is loaded but the new-release report and A6 settlement/Monitoring reconciliation are still unverified.
