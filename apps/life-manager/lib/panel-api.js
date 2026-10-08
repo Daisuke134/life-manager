@@ -29,6 +29,7 @@ const MERCOR_FIND_WORK_GOAL = "Open https://work.mercor.com/explore and list the
   + "Stop at any login, OTP, CAPTCHA, KYC, camera, microphone, or personal-experience question.";
 const ONBOARDING_ACTIONS = new Set(["name.save", "home.save", "notifications.enable", "phone.save", "phone.skip", "call.enable", "call.skip", "payment.skip"]);
 const CALL_MINUTES_BEFORE = Object.freeze([10, 5]);
+const API_COST_SUMMARY_TIME_ZONE = "Asia/Tokyo";
 const SCORE_ORGANS = Object.freeze(["daily", "physical", "mental", "financial"]);
 const SORTED_SCORE_ORGANS = Object.freeze([...SCORE_ORGANS].sort());
 const CALENDAR_ENABLE_TIMEOUT_MS = 20_000;
@@ -97,6 +98,47 @@ function todayBounds(nowMs, timeZone) {
   const startMs = zonedMidnightMs(key, timeZone);
   const tomorrowKey = dateKey(startMs + 36 * 60 * 60 * 1000, timeZone);
   return { key, startMs, endMs: zonedMidnightMs(tomorrowKey, timeZone) };
+}
+
+async function readApiCostSummaryPeriod(uid, startMs, endMs, opts) {
+  const periodStart = new Date(startMs).toISOString();
+  const periodEnd = new Date(endMs).toISOString();
+  const unavailable = { status: "unavailable", period_start: periodStart, period_end: periodEnd, rows: null };
+  try {
+    const base = String(opts.supaUrl || "").replace(/\/$/, "");
+    const response = await (opts.fetchImpl || fetch)(`${base}/rest/v1/rpc/lm_usage_cost_period_summary`, {
+      method: "POST",
+      headers: { ...headers(opts.supaKey), "content-type": "application/json" },
+      body: JSON.stringify({
+        p_period_start: periodStart,
+        p_period_end: periodEnd,
+        p_tenant_id: uid,
+      }),
+    });
+    if (!response.ok) return unavailable;
+    const rows = await jsonOr(response, null);
+    if (!Array.isArray(rows)) return unavailable;
+    return {
+      status: rows.length === 0 ? "verified_empty" : "available",
+      period_start: periodStart,
+      period_end: periodEnd,
+      rows,
+    };
+  } catch {
+    return unavailable;
+  }
+}
+
+async function readApiCostPeriods(uid, opts) {
+  const nowMs = opts.nowMs == null ? Date.now() : opts.nowMs;
+  const today = todayBounds(nowMs, API_COST_SUMMARY_TIME_ZONE);
+  const monthStartKey = `${today.key.slice(0, 7)}-01`;
+  const monthStartMs = zonedMidnightMs(monthStartKey, API_COST_SUMMARY_TIME_ZONE);
+  const [daily, monthly] = await Promise.all([
+    readApiCostSummaryPeriod(uid, today.startMs, nowMs, opts),
+    readApiCostSummaryPeriod(uid, monthStartMs, nowMs, opts),
+  ]);
+  return { daily, monthly };
 }
 
 async function readRows(table, params, opts = {}, optional = false) {
@@ -309,6 +351,7 @@ function aggregateCosts(rows) {
 }
 
 async function ledger(uid, opts) {
+  const costPeriodsPromise = readApiCostPeriods(uid, opts);
   const { rows: costs } = await readRows("lm_api_cost", {
     uid: `eq.${uid}`, select: "ts,kind,quantity,unit,est_usd,meta", order: "ts.desc",
   }, opts);
@@ -332,6 +375,7 @@ async function ledger(uid, opts) {
   }, opts);
   return {
     apiCostEntries: costs,
+    apiCostPeriods: await costPeriodsPromise,
     financialEntries,
     reportReceipts,
   };
