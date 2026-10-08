@@ -261,7 +261,7 @@ async function evaluateJourney() {
       location: { latitude: 35.0, longitude: 139.0, live_period: 86_400 },
     } });
     const persistedLocation = await upsertLiveLocation("u1", locationUpdate, {
-      supaUrl: "https://fixture.invalid", supaKey: "service", fetchImpl,
+      supaUrl: "https://fixture.invalid", supaKey: "service", fetchImpl, nowMs: NOW + 2_000,
     });
     const locationRow = state.locations.find((row) => row.uid === "u1") || {};
 

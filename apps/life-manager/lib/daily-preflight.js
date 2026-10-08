@@ -8,6 +8,7 @@ const { GATE_ORDER, discoveryMessage } = require("./feature-discovery.js");
 const { schedulerCohortFilter } = require("./user-selector.js");
 const { acceptRouteResults, minutesFromSeconds, parseDurationSeconds } = require("./travel.js");
 const { collectProductionControlledL3 } = require("./daily-preflight-collectors.js");
+const { inspectTelegramLiveLocation } = require("./live-location.js");
 
 const DEPENDENCY_NAMES = Object.freeze([
   "health",
@@ -469,12 +470,12 @@ async function callCheck(env, fetchImpl, signal, webSocketProbe) {
 async function locationCheck(env, fetchImpl, signal, nowMs) {
   const user = await currentSchedulerUser(env, fetchImpl, signal);
   const url = `${env.SUPABASE_URL}/rest/v1/lm_user_locations?uid=eq.${encodeURIComponent(user.uid)}` +
-    "&select=observed_at,expires_at&limit=1";
+    "&select=latitude,longitude,observed_at,expires_at&limit=1";
   const rows = await requestJson(fetchImpl, url, { headers: supabaseHeaders(env) }, signal);
   if (!Array.isArray(rows)) fail("location_read_failed", { schema_read: false });
   const row = rows[0] || null;
-  const expiresAt = Date.parse(row && row.expires_at);
-  const state = !row ? "absent" : Number.isFinite(expiresAt) && expiresAt > nowMs ? "fresh" : "expired";
+  const freshness = inspectTelegramLiveLocation(row, nowMs);
+  const state = !row ? "absent" : freshness.fresh ? "fresh" : freshness.reason;
   if (state !== "fresh") fail("location_not_fresh", {
     schema_read: true, current_user_state: state, row_present: Boolean(row), user_ref: hashedRef(user.uid), write_attempted: false,
   });

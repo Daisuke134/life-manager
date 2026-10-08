@@ -334,7 +334,7 @@ function makeFixture() {
       },
       location: {
         uid: "u1", latitude: 35.0, longitude: 139.0,
-        observed_at: "2026-07-21T11:00:00.000Z", expires_at: "2026-07-21T13:00:00.000Z",
+        observed_at: "2026-07-21T11:59:00.000Z", expires_at: "2026-07-21T12:01:00.000Z",
       },
       wakes: [
         { uid: "u1", event_key: "evt-u1|10", called_at: "2026-07-21T08:50:00.000Z", answered_at: "2026-07-21T08:50:10.000Z", call_outcome: "conversation", telnyx_hangup_cause: "normal_clearing", telnyx_call_duration_seconds: 10 },
@@ -388,7 +388,7 @@ function makeFixture() {
     },
     u2: {
       user: { uid: "u2", call_language: "en", calendar_provider: "secret", telegram_chat_id: "202" },
-      location: { uid: "u2", expires_at: "2026-07-22T00:00:00.000Z" },
+      location: { uid: "u2", latitude: 35, longitude: 139, observed_at: "2026-07-21T11:59:00.000Z", expires_at: "2026-07-21T12:01:00.000Z" },
       wakes: [{ uid: "u2", event_key: "secret-u2", called_at: "2026-07-21T09:00:00.000Z", answered_at: "2026-07-21T09:00:01.000Z" }],
       costs: [{ uid: "u2", ts: "2026-07-21T09:00:00.000Z", kind: "secret-u2", quantity: 999, unit: "secret", est_usd: 999 }],
     },
