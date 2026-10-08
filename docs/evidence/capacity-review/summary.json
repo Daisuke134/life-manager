@@ -1,0 +1,60 @@
+{
+  "schema": "lm.capacity-review.v1",
+  "observed_date": "2026-10-08",
+  "scope": "read_only_local_runtime",
+  "total_finite_slots": 8,
+  "loaded_revenue_floor": 3,
+  "borrow_global_ceiling": 5,
+  "class_limits": {
+    "borrow_agent": 1,
+    "finite_browser": 1,
+    "borrow_deterministic": 2,
+    "revenue_deterministic": 3,
+    "revenue_agent": 8
+  },
+  "initial_snapshot": {
+    "running_claims": 5,
+    "active_reservations": 3,
+    "admission_occupied": 8,
+    "queue_entries": 80,
+    "claims_stale": false
+  },
+  "later_snapshot": {
+    "eligible_queue_entries": 63,
+    "fenced_queued_owners": 24,
+    "reservations": 2
+  },
+  "hardware": {
+    "ram_bytes": 17179869184,
+    "physical_cpu": 10,
+    "node_available_parallelism": 10
+  },
+  "disk": {
+    "current_loaded_floor_bytes": 2147483648,
+    "sample_earlier_available_kib": 3135428,
+    "sample_later_available_kib": 2081752,
+    "later_below_floor": true
+  },
+  "bounded_latest_events": {
+    "disk_low_owners": 29,
+    "memory_deferred_owners_observed": 0,
+    "coverage": "96 state roots / 174 owners / last 512KiB per file; not full history"
+  },
+  "global_provider_lease": "not_observed",
+  "mercor_local_provider_lease": "present_in_child_launcher",
+  "openclaw_v2026_9_8": {
+    "cron_max_concurrent": 8,
+    "top_agent_default": "max(8, availableParallelism * 4)",
+    "default_if_available_parallelism_10": 40,
+    "subagent_max_concurrent_per_parent": 8,
+    "max_direct_children_default": 5
+  },
+  "production_mutations": 0,
+  "real_model_calls": 0,
+  "limits": [
+    "snapshots change during observation",
+    "DB and claim files have no common read lock",
+    "account rate/quota not measured",
+    "RAM of whole host not measured"
+  ]
+}

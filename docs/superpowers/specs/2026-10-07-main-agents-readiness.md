@@ -1406,3 +1406,13 @@ catalog全業務のモデル呼出はOpenClaw/native Codex。全finite起動auth
 ## 参照
 
 [manifest](../../research/openclaw-full-cutover-atoms.json)、[source比較](../../research/2026-10-07-local-harness-source-judgment.md)、[旧baseline](../../evidence/openclaw-cutover/baseline.json)。公式Codex/画像/RPC/terminalReply契約は公開tagのsourceで確認済み。全223atomは実装済の意味ではない。無停止を断言せず、対象限定handoffとrollbackで既存業務を保護する。
+
+## 容量制約の実測とjob粒度の修正
+
+[容量source/外部調査](../../research/2026-10-08-local-concurrency-architecture.md)を参照。fresh上限8、初期5running+3reservation、borrow ceiling5。OpenClaw公開tag cronも8。したがって長い業務commandをそのまま新cronへ置くことだけでは混雑を解消しない。
+
+OpenClaw/Codexのharness移行は維持するが、cronの仕事は短いstart/signalとし、モデル・browser・readback・buildと外部待機の資源を分ける。モデル/compute終了を証明してslotを解放し、domain effect fenceは公式照合まで維持する。単に8を32へ増やす、未終了runをfreeとみなす、unknownを解放することを容量対策にしない。
+
+長期待機を汎用OSSへ委譲する補完基盤はTemporalが第一候補。モデル/tool実行はOpenClaw/native Codex、durable workflow/timer/signal/worker queueはTemporal、業務receiptはLM。これは別agent harnessへの再移行ではない。既存全workerをlong-running Activityに入れるだけでも同じ問題が残るため、activityは短いphase単位とする。導入/DB設置は今回未実施、disk floor以下のhostへ新serviceを追加しない。既存実行atomのSを本番へ進める前に、このphase/待機契約を実装へ反映する必要がある。
+
+現loaded disk floorは2GiB、fresh free1.9853GiB。旧11GiBの数値を現状判断に使わない。今日のdisk gateと、class/予約/長時間slot/unknown effectを別原因として診断する。quota/ホスト全体RAMは未測定で0や正常と断定しない。
