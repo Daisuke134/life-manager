@@ -3202,6 +3202,28 @@ Capafy＋PromptBase＋自社 checkout をまとめた $10k MRR の全体計画�
 3. Mobile: アプリの無料記事を既存の Writer/aniccaai.com 掲載で出す（新レーンは作らない）。
 4. 共通: Telegram 送信を 1 系統に寄せる（既存のどちらかを呼ぶ形。新規実装しない）。
 
+## 3 つの稼ぐエージェント 状態スナップショット（2026-10-08 23:50 JST 実測）
+
+| エージェント | 24/7 で動いているか | 収益 | 根拠 |
+|---|---|---|---|
+| Capafy（新規エージェントの量産） | いいえ。出荷は波状で、止まっている日の方が多い | 累計 gross $102.75（有料 32 件、うち一回払い $9.99）。MRR 未計上。9/30 以降の新規売上 $0 | 台帳 66 件: 8/26–9/1 に 17、9/28–10/1 に 15、10/8 に 3。9/2–9/27（26 日）と 10/2–10/7 は 0 件。承認済み 46 / 審査中 20。`capafy-loop-daily` は 21:24 を最後に `disk_headroom_low` |
+| Writer（有料記事） | いいえ。`article-daily` は fenced、writer 系ジョブは 10/8 午後から `disk_headroom_low` | 未確認（台帳 sync が 12:19Z 以降停止） | health: `article-daily` safely_fenced、`writer-*` failed |
+| PromptBase | いいえ。`promptbase-loop-daily` は telemetry_gap | 売上 0 件 / $0（観測 10/6） | `promptbase-sales.json` |
+
+Capafy の新規出荷が「毎日・永続」になっていない原因は 3 つ: (1) 共有ゲート `disk_headroom_low`（R16-R18）(2) 候補の補充が手動（R13）(3) 審査待ち 20 件は承認を待つだけで、出荷側の律速ではない。承認率は台帳の `status` 文字列からは母集団が汚れているため算出しない（未確認）。
+
+### 残りの TODO（順序＝最短で収益に効く順）
+
+1. メモリ圧の解消（Dais 実行待ち）: ChatGPT/Codex アプリ終了、Spotlight 停止（`sudo mdutil -i off /System/Volumes/Data`）、不要セッション終了。空き 1 GiB 超で `capafy-loop-daily`・`article-daily` が動く
+2. 自然実行の確認: 新候補 6 件が拾われ、台帳が増えること。以後 24 時間の出荷件数を毎日測る
+3. R18 恒久策: 掃除/readback の予約枠、swap のゲート信号、同時実行のメモリ予算、リリース cut の reconciler 一本化
+4. R13 候補の自動補充（低水位で offline build、commit/PR/merge/release まで自動）
+5. 重い工場のクラウド host への移設（16 GB RAM に 187 ループは過密）
+6. Writer: 06:00 JST の自然実行、台帳 sync、Telegram リンク報告
+7. PromptBase: telemetry_gap の解消、日次出品の再開
+8. マーケティング: `entrypoint_exit_1`（anicca-en-widget-instagram / anicca-he）の原因切り分け、x-tweeter / x-repost の長期停止、計測ジョブの復旧
+9. レーン 2（売れていない承認済みの改善）、CLI 書き込み動詞の検証
+
 ## 「昨日は動いたのに今日は壊れている」を起こさない（Dais 2026-10-08・根本対策）
 
 原則: ループは「プロセスが走った」ではなく「成果物が新しい」ことで生きていると判定する。人が知らないまま止まっているループを 0 にする。一時しのぎの手動解除は対策に数えない。
