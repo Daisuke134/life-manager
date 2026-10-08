@@ -343,3 +343,36 @@ class WakeBudgetTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RotatingStartTest(unittest.TestCase):
+    def test_start_rotates_the_non_priority_owners_so_a_late_owner_gets_a_turn(self):
+        targets = {name: [f"{name}:1"] for name in ("a", "b", "c", "d", "e", "f")}
+        first = [o for o, _ in round_robin(targets, cap=2)]
+        later = [o for o, _ in round_robin(targets, cap=2, start=4)]
+        self.assertEqual(first, ["a", "b"])
+        self.assertEqual(later, ["e", "f"])
+
+    def test_priority_owners_are_always_first_regardless_of_the_rotation(self):
+        targets = {name: [f"{name}:1"] for name in ("a", "b", "c", "fin")}
+        calls = [o for o, _ in round_robin(targets, cap=2, priority_owners={"fin"}, start=2)]
+        self.assertEqual(calls[0], "fin")
+        self.assertEqual(calls[1], "c")
+
+    def test_every_owner_is_served_over_consecutive_wakes(self):
+        targets = {f"o{n:02d}": [f"o{n:02d}:1"] for n in range(41)}
+        served = set()
+        for wake in range(3):
+            served |= {o for o, _ in round_robin(targets, cap=20, start=wake * 20)}
+        self.assertEqual(served, set(targets))
+
+    def test_reconcile_derives_a_different_start_per_wake_from_the_clock(self):
+        seen = []
+        loops = {f"o{n:02d}": {"effect_reconcile": {"argv": ["x.py"], "occurrence_flag": "--occurrence"}}
+                 for n in range(6)}
+        fenced = {k: (f"{k}:1",) for k in loops}
+        for tick in (0.0, 600.0, 1200.0):
+            reconcile(registry=_registry(loops), root=Path("/r"), cap=1, budget_seconds=100,
+                      clock=lambda: tick, run_call=lambda argv, timeout=60: (seen.append(argv[argv.index("--occurrence") + 1]) or (0, "")),
+                      read_fenced=lambda f=fenced: f, log_path=None, wake_epoch=tick)
+        self.assertEqual(len(set(seen)), 3, seen)
