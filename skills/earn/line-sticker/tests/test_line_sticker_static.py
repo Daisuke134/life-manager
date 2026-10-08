@@ -186,6 +186,13 @@ class TextBearingVariant(unittest.TestCase):
             self.assertLessEqual(SUBMIT._title_units(title), SUBMIT.TITLE_MAX)
         self.assertEqual(STATIC.mark_text_listing(listing), listing)  # idempotent
 
+    def test_text_mark_drops_the_generic_suffix_instead_of_cutting_a_word(self) -> None:
+        # 48156132 (2026-10-08) was filed as "星くずカワウソの毎日返事ス【文字入り】".
+        listing = STATIC.mark_text_listing({"title": {"ja": "星くずカワウソの毎日返事スタンプ",
+                                                      "en": "Stardust Otter Daily Replies Stickers"},
+                                            "description": {"ja": "説明", "en": "desc"}})
+        self.assertEqual(listing["title"]["ja"], "星くずカワウソの毎日返事【文字入り】")
+
 
 if __name__ == "__main__":
     unittest.main()
