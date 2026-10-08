@@ -157,20 +157,47 @@ def _fit_sticker(rgb_image) -> "object":
     return seedance_set._fill_pinholes(canvas)
 
 
+def _generate_sticker_image(ref_path: Path, character_prompt: str, sticker_prompt: str, task_label: str):
+    """Cost-free ChatGPT subscription image first (Dais 2026-10-08); Gemini (image-conditioned on
+    the character reference, paid) only when the CLI is unavailable or fails. ChatGPT-imagegen is
+    generate-only (no reference-image input), so the character description is folded into the
+    prompt text each time to keep the look consistent across stickers."""
+    import chatgpt_image_backend as chatgpt
+    from PIL import Image
+
+    full_prompt = (f"{character_prompt} {sticker_prompt} Flat 2D illustration, solid flat pure "
+                   "chroma green (#00FF00) background filling the entire frame, no text, no logo, "
+                   "no watermark.")
+    try:
+        out_path = chatgpt.generate(full_prompt)
+        try:
+            image = Image.open(out_path).convert("RGB")
+            image.load()
+        finally:
+            out_path.unlink(missing_ok=True)
+        return image, "chatgpt_imagegen", Decimal("0")
+    except chatgpt.ChatGptImageGenUnavailable as exc:
+        chatgpt.log_fallback(task_label, exc)
+        image, usage = _gemini_sticker_image(ref_path, sticker_prompt)
+        return image, "gemini_fallback", STATIC_IMAGE_COST_USD
+
+
 def static_images(set_dir: Path, plan: dict) -> None:
     """Generate every sticker in plan['stickers'] that is not already on disk (idempotent/resumable:
     a crash mid-set redoes only the missing ones, like seedance_set.clips())."""
     out = set_dir / "candidates"
     out.mkdir(exist_ok=True)
     ref = set_dir / plan.get("reference", "ref-padded.png")
+    character_prompt = plan.get("character_prompt", "")
     for sticker in plan["stickers"]:
         png_path = out / f"{sticker['id']}.png"
         if png_path.exists():
             continue
-        image, usage = _gemini_sticker_image(ref, sticker["prompt"])
+        image, backend, cost = _generate_sticker_image(
+            ref, character_prompt, sticker["prompt"], f"line-sticker-static-image-{set_dir.name}-{sticker['id']}")
         _fit_sticker(image).save(png_path)
         (out / f"{sticker['id']}.cost.json").write_text(json.dumps(
-            {"model": IMAGE_MODEL, "estimated_usd": str(STATIC_IMAGE_COST_USD), "usage": usage}))
+            {"backend": backend, "estimated_usd": str(cost)}))
 
 
 # --------------------------------------------------------------------------------------
