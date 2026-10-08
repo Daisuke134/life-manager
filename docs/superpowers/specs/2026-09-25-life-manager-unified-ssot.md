@@ -4848,7 +4848,7 @@ flowchart LR
 
 **残TODO（完了まで、この順）:**
 
-1. **現在cursor — PR #7182 final acceptance:** Capafy PR #7185 has corrected the main-side manifest inventory and its Security Scan passed. This worktree now includes main `1136b703c4`; local OSS checker, 103 focused Storefront tests, loop contract (18/188/0), source-boundary, and compile pass. Commit/push the latest-main merge plus this SSOT update, obtain fresh exact-head review/required CI, and merge #7182 only after PASS. No Capafy source is edited here.
+1. **現在cursor — PR #7182 final acceptance:** Capafy PR #7185 corrected the main-side manifest inventory and its Security Scan passed. This branch includes main `1136b703c4`; local OSS checker, 103 focused Storefront tests, loop contract (18/188/0), source-boundary, and compile pass. Fresh read-only review on Gig code head `8d685fe8c3` returned SHIP. Required Security Scan run `37806800815` is still pending. Merge #7182 only after required checks pass. No Capafy source is edited in this lane.
 2. **main由来release:** After PR #7182 acceptance/merge, create or await the existing main-derived immutable release containing main `1136b703c4` and the Gig preflight fix; read back `RELEASE.json`, Storefront/Paid loaded SHA/argv/admission.
 3. **Coconala Paid obligation:** order `18180857`のfresh official order/talkroom readbackをownerが実行する。今も未完了の場合だけ必要なrevision/formal deliveryを一度行い、buyer acceptance・settlement/payout・replay-zeroを結ぶ。古いsnapshotから現在の待ち状態を推測しない。
 4. **旧Storefront fence:** `18d8d288748508e8-23902`を、同一effectの公式listing/order履歴または受理可能なoccurrence-bound pre-effect receiptで照合する。現在はdry-runがbinding不足で保留。証拠が取れなければfenceを保持し、再公開しない。
@@ -4947,6 +4947,14 @@ flowchart LR
 
 **現在cursor:** push `4fbac0ff9d` + this SSOT → exact-head read-only review/required CI → merge #7182 on PASS → main-derived release/natural Storefront readback.
 
+
+
+### 2026-10-09 01:12 JST — final source review SHIP; CI pending
+
+- fresh contextのread-only reviewerはGig code head `8d685fe8c3fe3d15e8b8ad70bfc45936b0d652a2`をSHIPと判定。`run_once`の3つの`_prepare_next_hypothesis`と`_close_outcome`はすべて同run snapshotsを受け取り、unknown/stale/nonofficial analyticsはfail-closed。effect fenceの実装変更なし。review担当はテスト/provider/browserを実行していない。
+- latest-main merge後のlocal focused suiteは103/103 PASS、loop contractは18/188/0、main `1136b703c4`上のOSS checker・source-boundary・compileもPASS。PR #7182のfinal-head Security Scan run `37806800815`はpending。PR #7185の修正でbase側のmanifest mismatchは解消した。
+
+**現在cursor:** PR final-headのrequired CIを確認 → PASS後に#7182をmerge → main由来releaseとStorefrontの自然readback。
 
 
 ### 2026-10-08 08:35 JST — Mobile post-merge runtime cursor
