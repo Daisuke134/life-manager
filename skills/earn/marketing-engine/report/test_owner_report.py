@@ -484,12 +484,23 @@ class OwnerReportRendererTest(unittest.TestCase):
         self.assertEqual(replay_receipt["message_ids"], [403])
         self.assertEqual(calls, [1])
 
-    def test_checkpoint_uses_exact_metric_values_and_natural_null_reason(self):
+    def test_checkpoint_renders_available_metrics_and_never_prints_none(self):
         measured = self.event("checkpoint", "anicca-ios")
         measured_text = owner_report.render_japanese(measured)
         self.assertIn("42", measured_text)
         self.assertIn("50", measured_text)
+        self.assertIn("リーチ 38", measured_text)
+        self.assertIn("いいね 4", measured_text)
+        self.assertIn("コメント 2", measured_text)
+        self.assertIn("シェア 1", measured_text)
+        self.assertIn("保存 3", measured_text)
         self.assertIn(f"投稿リンク: {NATIVE_URL}", measured_text)
+
+        measured["facts"]["impressions"] = None
+        missing_metric_text = owner_report.render_japanese(measured)
+        self.assertIn("表示回数 未取得", missing_metric_text)
+        self.assertNotIn("None", missing_metric_text)
+
         measured["facts"]["native_url"] = "unavailable"
         self.assertIn("投稿リンク: 取得できませんでした", owner_report.render_japanese(measured))
 
