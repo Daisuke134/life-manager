@@ -38,6 +38,7 @@ def _run(tmp_path, free_kib: int, guard_script: str, foundation_script: str = "#
         ' f.write(json.dumps({"argv":sys.argv[1:],"endpoint":os.environ.get("CLOAK_CDP_BASE_URL"),'
         '"owner":os.environ.get("CLOAK_BROWSER_OWNER"),'
         '"domains":os.environ.get("CLOAK_CONTEXT_COOKIE_DOMAINS"),'
+        '"park_on_idle":os.environ.get("CLOAK_CONTEXT_PARK_ON_IDLE"),'
         '"holder":os.environ.get("AI_BROWSER_HOLDER_PID")})+"\\n")\n'
         'if sys.argv[1] == "acquire":\n'
         ' target_id = None if "--context-only" in sys.argv else "seed-fundraiser"\n'
@@ -100,6 +101,7 @@ def test_browser_profile_busy_uses_registered_identity_and_isolated_context(tmp_
         guard_script="#!/bin/sh\nexit 9\n",
         foundation_script='#!/bin/sh\nprintf "recovery must not run" >&2\nexit 1\n',
         hold_run_lock=True,
+        extra_env={"CLOAK_CONTEXT_PARK_ON_IDLE": ""},
     )
     lease_calls_path = tmp_path / "context-lease.calls"
     assert result.returncode == 0
@@ -114,6 +116,7 @@ def test_browser_profile_busy_uses_registered_identity_and_isolated_context(tmp_
     assert prompt.count('--owner "$CLOAK_BROWSER_OWNER"') == 3
     assert lease_calls[0]["endpoint"] == "http://[::1]:9333"
     assert lease_calls[0]["domains"] == "x.com,twitter.com"
+    assert lease_calls[0]["park_on_idle"] == "1"
     assert lease_calls[0]["holder"]
     assert not calls.exists() or calls.read_text().strip() == ""
 
