@@ -59,14 +59,14 @@
 **Interfaces:**
 - Consumes `table.google_billed_expenses` from Task 1.
 - Produces the existing CFO result message with invoice period, billed amount, service totals, unknown cash payment and unattributed ownership; it does not alter B0 settled net.
-- The Japanese message labels invoice period, currency, billed total, service totals, `支払状況: 未確認`, and `loop配賦: 未帰属`; the JSON field retains the full service/SKU breakdown.
+- The Japanese message labels invoice period, currency, billed total, service totals, usage/credit/tax/rounding reconciliation, `支払状況: 未確認`, and `loop配賦: 未帰属`; the JSON field retains the full service/SKU breakdown.
 
-- [ ] **Step 1: Write RED tests** named `test_summary_displays_billed_invoice_without_claiming_cash_paid` and `test_summary_renders_unknown_billing_as_unknown_not_zero`.
-- [ ] **Step 2: Run RED** with `node --test apps/life-manager/lib/cfo-result-summary.test.js`; confirm invoice data is currently omitted from the message.
-- [ ] **Step 3: Implement** a compact Japanese service-level summary; the JSON projection retains all service/SKU rows, while the message labels invoice month, billed total, `支払状況: 未確認`, and `loop配賦: 未帰属`.
-- [ ] **Step 4: Run GREEN** with `node --test apps/life-manager/lib/cfo-result-summary.test.js`; confirm account/project/invoice identifiers are absent and the invoice month is not presented as today's daily expense.
-- [ ] **Step 5: Run affected verification**: `python3 -m unittest skills.cfo.test_loop_pnl`; `node --test apps/life-manager/lib/cfo-result-summary.test.js`; `git diff --check`.
-- [ ] **Step 6: Commit** the renderer and tests.
+- [x] **Step 1: Write RED tests** named `test_summary_displays_billed_invoice_without_claiming_cash_paid` and `test_summary_renders_unknown_billing_as_unknown_not_zero`.
+- [x] **Step 2: Run RED** with `node --test apps/life-manager/lib/cfo-result-summary.test.js`; the two new tests failed because invoice data was omitted from the message.
+- [x] **Step 3: Implement** a compact Japanese summary with service totals and usage/credit/tax/rounding reconciliation; the JSON projection retains all service/SKU rows, while the message labels invoice month, billed total, `支払状況: 未確認`, and `loop配賦: 未帰属`.
+- [x] **Step 4: Run GREEN** with `node --test apps/life-manager/lib/cfo-result-summary.test.js`; all 15 tests passed, including the legacy text check.
+- [x] **Step 5: Run affected verification**: `python3 -m unittest skills.cfo.test_google_billed_expense skills.cfo.test_loop_pnl` (49 passed); `node --test apps/life-manager/lib/cfo-result-summary.test.js` (15 passed); `git diff --check`.
+- [x] **Step 6: Commit** the renderer and tests.
 
 ## Scope Boundary
 
