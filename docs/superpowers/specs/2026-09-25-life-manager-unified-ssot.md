@@ -7021,16 +7021,18 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 - 原因境界は`bin/reconcile-agent-runner-release.sh::run_fleet_apply`。`last_next_retry`は読み出すが、SHA変更時のcoalesce判定は`last_attempt_epoch + min_interval_seconds`だけで、#7149がbudget超過partial用に短縮した`next_retry_epoch`を参照しない。回帰対象は`runtime/loop/tests/test_reconcile_agent_runner_release_fleet_apply.py`。
 - diskは別のblockerとして残る。`13:16:56Z`のnatural full cleanupは`free_after=685,985,792`、2 GiB floor未達、`reclaimed=38,831,612`、`errors=0`、`protected_deletions=0`、inventory gaps=19。`13:19Z`の`df`は616,024 KiB free。full inventoryはLibrary、Projects/life-manager-main、gig、Homebrew、`/private/var/folders`のsizeを取得できず、急な空き減少のownerを特定できていない。#7149またはgreen doctorをdisk回復の証拠にしない。
 - `Connector`は旧SHA `804effc5`の自然terminal `pass`だが、`effect_class=none`、provider receipt/readbackなしのためLuma登録は未証明。Job Hunterはdisk defer、Fundraiserは直近runが`resource_fifo_wait`でprovider receiptなし。
+- mainのR17はswap pressureをdisk変動の原因と記録した。fresh readbackでは16 GiB RAM、swap used `8,738.94 MiB`、`memory_pressure` free=40%、`corespotlightd` RSS=`16,720 KiB`。60秒のpaired sampleはswap `8,762.62→8,690.62 MiB`、disk free `459,730,944→469,835,776` bytesで方向は整合するが、単独で1.27 GBの変動を説明しない。現在の`corespotlightd`を再起動せず、owner/source attributionは継続する。
+- regression testは修正前にRED（apply call count `1`、期待`3`）を確認し、修正後にGREEN。fleet-apply test fileは32/32、`bash -n bin/reconcile-agent-runner-release.sh`、`git diff --check origin/main...HEAD`、`bash scripts/verify-source-boundary.sh`もpass。検証済みSHAはrebase後のHEAD。
 
 **順序更新:** 旧順=`disk writer recovery → #7149 release/doctor → target outcomes`。新順=`(1) 観測した新SHA retry deadlineの失敗test → (2) 同一SHA backoffと通常1800秒coalesceを維持しつつ、budget進捗partialの記録済み`next_retry_epoch`をSHA変更時にも適用 → (3) push/merge/releaseし、自然reconcilerがfix SHAを継続applyすることを確認 → (4) disk writerを独立して特定し、既存2 GiB契約へ安全に回復 → (5) target別fence/receiptとowner natural run → (6) 同一窓のcapacity測定`。理由は、#7149とdoctorは本番に反映済みだが、短縮retryを読む判定漏れが次のfleet applyを止めているためである。disk pressureは独立したblockerとして残る。
 
 **残TODO（完了まで・この順）:**
 
-1. **現在cursor—失敗回帰testを書く。** `runtime/loop/tests/test_reconcile_agent_runner_release_fleet_apply.py`で、初回runが`status=partial`、`budget_exceeded=1`、`changed>0`、短い`next_retry_epoch`を保存し、そのdeadline経過後かつ1800秒より前に第2 SHAを有効化する。第2 SHAのowner applyが一度だけ実行されることをassertする。command: `python3 -m unittest runtime.loop.tests.test_reconcile_agent_runner_release_fleet_apply.ReconcileAgentRunnerReleaseFleetApplyTest.test_budget_partial_short_retry_allows_new_sha_before_min_interval -v`。現状のREDは2回目のapplyがcoalesceされ、call countが増えないこと。
-2. `bin/reconcile-agent-runner-release.sh::run_fleet_apply`の最小修正で、budget進捗partialに記録された短い`next_retry_epoch`を新SHAのcoalesce期限にも反映する。同一SHA backoffと通常1800秒coalesceの既存testを維持し、focused testとこのscriptの既存fleet-apply testsを実行する。
-3. 現task branchをcommit/pushし、同一headの必須CI/fresh reviewを通してmergeする。active reconcilerをstop/restartせず、fix SHAのimmutable releaseと自然継続applyを確認する。
+1. [x] `runtime/loop/tests/test_reconcile_agent_runner_release_fleet_apply.py::test_budget_partial_short_retry_allows_new_sha_before_min_interval`を先に追加し、修正前RED（1回apply、期待3回）を確認する。
+2. [x] `bin/reconcile-agent-runner-release.sh::run_fleet_apply`で、短い`next_retry_epoch`を新SHAのcoalesce期限に適用する。修正後の回帰testとfleet-apply test file 32/32、`bash -n`、diff check、source-boundaryがpass。
+3. **現在cursor:** latest `origin/main`をmerge済みのtask branchをcommit/pushし、fresh PR、同一headのrequired CI/reviewを通してmergeする。active reconcilerをstop/restartせず、fix SHAのimmutable releaseと自然継続applyを確認する。
 4. host-scoped inventory/owner traceからdisk writerを特定し、ownerが所有する安全な手順で回復する。cleanup receipt `free_after >= 2 GiB`、`errors=0`、`protected_deletions=0`と後続admission passを確認する。CodexBar updaterはdisk-cleanup skillの24時間超・exact identity条件を満たすまで操作しない。
 5. disk/admission eligibleになったらtarget別effectをreplayせず照合し、loaded-idle ownerだけ適用する。各自然occurrenceにLuma/Workday/VC mailのreceipt、model、Telegram reportを結び付ける。
 6. 同時間窓のlive claims/reservations/queue/class contention/CPU/RAM/diskを測る。実測でdiskや外部writerではなくglobal/per-class capの飽和が証明された場合だけcapを変更する。
 
-**現在cursor:** 新SHA short-retry RED test → `run_fleet_apply`修正 → exact-head CI/review/merge/release → natural fleet continuation → disk owner特定/安全回復 → target receipt/natural run → same-window capacity/economics。
+**現在cursor:** commit/push latest-main branch → exact-head PR CI/review/merge → fix SHAのimmutable release/natural fleet continuation → disk owner特定/安全回復 → target receipt/natural run → same-window capacity/economics。
