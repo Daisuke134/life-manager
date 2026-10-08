@@ -6792,3 +6792,11 @@ The next cursor is item 1 commit/push. No Dais manual action is currently requir
 3. main由来immutable CFO releaseへ反映し、loaded-idleのownerだけcanonical `lm-loop` routeで適用する。次のnatural reportでruntime terminal receipt/ref、B7/outbox provider ID/hash、admissionとreplay-zeroを確認する。
 4. 次のCFO wake前に2 GiB admissionをfresh readbackし、必要ならexisting host-disk ownerがwatchdog targetをcanonical lifecycleで直す。11 GiB recoveryは並行の再発防止cursor。
 5. A5 production migration/RPC/panel readback → A6 Google bill/settlement/operation attribution → A8全18 loop revenue/cost + 187 job classification → A9正しいsource-period daily/MTD/trailing/MRR → A10 seven-day natural coverage/replay-zero。
+
+### 2026-10-08 20:19 JST — latest main synced; current CFO receipt and PR gate recorded
+
+この追記が20:17 JSTのpre-sync stateを更新する。最新main `3d1dfdd2f4e0637cea98d49e2e580a9f2845b86f` とCFO cursorを専用branch/PR #7106へpush済み。PRはopen/draftでmergeableだが、20:19 JST時点でcurrent headのrequired checksは未表示、CodeRabbitはdraft skip。fresh reviewとmergeは未実施。
+
+- main-sync後のlocal verification: CFO `348 passed, 318 subtests passed`; CFO Node `25/25`; Line Sticker main-change focused test `14/14`; shared notification `4/4`; loop contract `18/187/112`; source-boundaryとdiff-check PASS。OSS verifierだけが`manifest_inventory_mismatch: skills/capafy-autopublish`でFAILし、最新mainにもmanifest修正は未着。CFO laneはCapafy source/worktreeを変更しない。
+- Latest CFO natural report `18dc890cf6d3b810-28491` は20:04 JSTに成功、Telegram ID `105378`; read-only proof verified、admission released/0。元terminalはreceipt/ref nullのまま。最新host receiptは20:15 JSTに約1.83 GiBで2 GiB floor未満、errors 0。
+- **現在cursor:** Capafy owner manifest refresh → current PR headのrequired CI + fresh review → merge → immutable CFO release / loaded-idle適用 → next natural CFO receipt/runtime-link/replay-zero → A5 → A6 → A8 → A9 → A10。次回wake前に2 GiB admissionを再確認し、手動send/replayしない。11 GiB/watchdog修復は既存host-disk ownerの並行・非ゲートcursor。
