@@ -4373,28 +4373,109 @@ L9-11 Self-BuildはこのGig laneの全項目完了後、既存の全社順序�
 
 **Daisの作業:** 既存Postiz integrationとHeyGen認証の再接続・再認証は不要。手動設定も不要。投稿を止めているのは未loaded main release、release/apply lock、容量receiptの揺れ、English CLI telemetryです。Life Manager側で順に解消する。
 
-### eBook Monk current blocker cursor — 2026-10-08 09:19 JST
+### eBook Monk current blocker cursor — 2026-10-08 10:05 JST
 
-この節がeBookの最新cursorで、09:05 JSTの古いcursorを更新する。対象は英語TikTokのMonk Anicca（`@monk_anicca`）。Postiz接続は生きているが、英語rendererへの環境変数受け渡しとproduction release/capacityが未完了。
+この節がeBookの最新cursorで、09:41 JSTの記録を更新する。対象は英語TikTokのMonk Anicca（`@monk_anicca`）。Postiz接続は有効。code修正とcapacity cleanup修正はmainにあるが、current releaseとdaily delivery readbackが遅れている。
 
-**source / review / release:** `origin/main=487795f47d410c1d060f8181a3300354642eca4d`（PR #6997）。PR #6999はopenで、environment allowlistの断線修正とsubprocess RED/GREEN regressionをcommit `3df0114191`としてpush済み。前回Important findingはsource上修正済みで、fresh review/CI/mergeが残る。current immutable symlinkは`/Users/anicca/loops/releases/20261008T084554-3f1bd81a`（SHA `3f1bd81a77b9001284678888b641aaedb1e3e497`）で、PR #6999の変更はproductionに未配備。
+**理想の配信architecture:**
 
-**Monk / official provider readback（09:14 JST）:** Postiz `GET /public/v1/integrations`は`cmo5rwq2p00twn10yrsdglng3`（TikTok `monk_anicca`）を`disabled=false`として返した。ローカルaccount registryも`approved_active`。今日のPostiz official posts GETでは日本語TikTok `cmuynjaq808iblc0yd2396uhg`と日本語Instagram `cmuynjkih08ihlc0y38o87z0n`が各1件`PUBLISHED`、英語Monkは0件。再接続やDaisの操作は不要。
+```mermaid
+flowchart LR
+  EN["英語script"] --> HG["HeyGen Avatar IV"]
+  JA["日本語script"] --> WMF["Watercolor Mark Factory"]
+  HG --> VIDEO["承認済みvideo + caption + tracking token"]
+  WMF --> VIDEO
+  VIDEO --> PZ["Postiz queue / slot idempotency"]
+  PZ --> ENT["Monk Anicca TikTok / 3回/日"]
+  PZ --> JAT["Obou Anicca TikTok / 3回/日"]
+  PZ --> JAI["Obou Anicca Instagram / 3回/日"]
+  ENT --> READ["official PUBLISHED + public URL"]
+  JAT --> READ
+  JAI --> READ
+  READ --> CLICK["click attribution"]
+  CLICK --> CHECKOUT["owned checkout / Stripe receipt"]
+  CHECKOUT --> NET["fees - refunds - actual cost = net revenue"]
+```
 
-**HeyGen official readback:** installed CLIは`HEYGEN_NO_ANALYTICS=1`でvideo listを2ページ読み、title `Anicca`のvideo 0件。wallet残高はUSD 12.30、auto-reload threshold USD 5。英語動画生成・投稿はまだ確認できない。
+投稿数はviewや売上ではない。one-time eBook purchaseもMRRではない。MRRはrecurring offerのsettled receipt/refund/fee/costを別に照合する。
 
-**capacity / fleet apply（09:14 JST）:** `df -Pk /` Availableは`1,911,884 KiB`で2 GiB floor未達。`disk-cleanup/last-receipt.json`は`observed_at=2026-10-01T05:14:09Z`の古いreceiptなので現在の容量証明に使えない。release reconciler PID `70071`は稼働中。`fleet-apply-state.json`は09:08:58 JST時点でSHA `3f1bd81a77b9001284678888b641aaedb1e3e497`、`status=partial`、errors 3、message `timed out owners: none; budget exceeded`。current releaseもmain最新SHAではない。reconcilerとcapacityが落ち着く前にtarget applyやowner startを重ねない。
+**source / review / release:** PR #6999は全Security Scan checks PASS、fresh read-only reviewもfindingなしでmerge済み。英語ownerの`LIFE_MANAGER_HEYGEN`と`HEYGEN_NO_ANALYTICS`はJavaScript wrapperからPython renderer subprocessへ英語商品だけ渡る。cleanup PR #7003もmerge済み（`4056d35903dc1ace75b97ae8f816b75473cb6f47`）で、閉じている場合だけXcode `DerivedData`をcleanup候補にする。実subprocess RED/GREEN test、Node 11/11、Python runtime bounds 133 passed、source boundary PASS。現行`origin/main=4056d35903dc1ace75b97ae8f816b75473cb6f47`。current immutable symlinkはまだ`/Users/anicca/loops/releases/20261008T094938-c65449ef`で、PR #7003 sourceより1 commit前。
+
+**Monk / official provider readback（09:30 JST）:** Postiz integrations GETはTikTok `monk_anicca` / ID `cmo5rwq2p00twn10yrsdglng3`を`disabled=false`で返した。英語Monkは今日0件。日本語TikTok `cmuynjaq808iblc0yd2396uhg`とInstagram `cmuynjkih08ihlc0y38o87z0n`は各1件`PUBLISHED`。再接続・再認証は不要。
+
+**HeyGen official readback（09:14 JST）:** CLI video listを全2ページ確認しtitle `Anicca`は0件、walletはUSD 12.30（auto-reload threshold USD 5）。source merge後もproductionに未反映のため英語動画は未生成。
+
+**capacity / release reconcile（10:04 JST）:** 10:00 fast cleanup receiptは`free_after=1,886,650,368` bytes、errors 0、protected deletions 0、inventory gaps 23、reclaimed 8,080 bytes。10:04 `df -Pk /` Availableは`1,664,288 KiB`（約1.59 GiB）で2 GiB floor未達。PR #7003は`DerivedData`を既存のopen-file guardつきcleanup allowlistへ追加しmainにmerge済み。live `DerivedData`は3,703,084 KiB、Xcode build process/open fdなし。current release `20261008T094938-c65449ef`には未反映で、reconciler PID `55054`が同release上で稼働中。reconciler terminal後、PR #7003入りreleaseからcleanup ownerを一度走らせ、fresh receiptと`df`で床回復を判定する。
+
+PR #7002の旧head `d05bc616`は`Startup context drift`がlive `aniccaai.com/lm` digest不一致で失敗。PR #7003の最新main checkではStartup context PASS。spec branchをmain `4056d35903`へrebaseし、latest CIを通してspecを統合する。
+
+`launchctl-safe preflight`はPASS（UID/Directory Services 501、Aqua、manager UID 501/PID 1）。`launchctl-safe list`では`ai.anicca.life-manager-disk-cleanup`とrelease reconciler handoffが見えるが、`com.anicca.disk-sentinel`、`com.anicca.emergency-disk-guard`、legacy disk-cleanerはdisabled。`disk-pressure.block`と`disk-writers.stop`は不在。sentinel/guardはTelegram alertとwriter backpressureを伴うため、こちらでは有効化していない。
 
 **残りAtomic TODO（eBook順序）:**
 
-1. 完了（commit `3df0114191`、PR #6999へpush済み）: `ebook-distribute-daily.js::renderInput()`は`LIFE_MANAGER_HEYGEN`と`HEYGEN_NO_ANALYTICS`を英語renderer subprocessだけへ渡す。実subprocess regressionは変更前RED、変更後GREEN。eBook Node tests 11/11、Python runtime bounds 133 passed、source boundary PASS。英語routeのstale disabled assertionsも現行registryに揃えた。
-2. fresh reviewとPR #6999 required CIをPASSさせ、最新mainへ統合する。
-3. release reconcilerの自然terminalとhost apply lock解放を確認する。cleanup ownerの新しいreceiptで`free_after >= 2,147,483,648` bytes、errors 0、protected deletions 0を読み、同時刻の`df`も2 GiB以上にする。capacityが再低下する原因とcleanup inventory gapsを特定する。
-4. main由来immutable releaseを準備し、`ebook-en-tiktok-daily`だけをtarget applyしてloaded SHA/argvとowner環境を確認する。古いoccurrenceのeffect fenceはexact owner/provider readbackで解決し、stateを直接編集しない。
-5. 次のdue slotでownerを一度起動し、HeyGen video ID/SHAとwallet差分、Postiz `PUBLISHED`/public URLを同じeffectへ結ぶ。今日の日本語2 accountと英語Monkを各3 slots/dayの登録cadenceで読み、各account 3件・合計9件をofficial readbackで確認する。直接postはしない。
-6. anicca-products PR #420のproduction Supabase readback/DDLとnatural paid Checkout→Stripe receipt→locale PDF→fees/refunds/settlement/replay-zero、Letter/Tegami 14日cohortを順に閉じる。one-time `$10.99` / `¥1,580`はMRRではなく、USD 10,000 verified net MRRは未達目標。
+1. PR #7002のspec/planをmain `4056d35903`へrebase/pushし、fresh required CIをPASSしてmainへmergeする。
+2. release reconciler PID `55054`の自然terminal後、current symlinkをmain `4056d35903`由来にし、cleanup ownerのloaded SHA/argvをreadbackする。
+3. PR #7003入りcleanup ownerでXcode `DerivedData`をopen-file guard付きで回収し、fresh receipt `free_after >= 2,147,483,648` bytes、errors 0、protected deletions 0と同時刻`df -Pk /`を確認する。
+4. host apply lock解放後、`ebook-en-tiktok-daily`のloaded SHA/argvとchild environmentを確認する。遅れている場合だけlaunchctl-safe preflight後にこのownerだけtarget applyする。
+5. 旧occurrenceのeffect fenceをexact owner/provider readbackで解決してからEnglish ownerを次のdue slotで1回起動する。HeyGen video ID/SHAとwallet差分、Postiz unique `PUBLISHED`/public URLを同一effectへ結ぶ。
+6. 各3 account/dayのunique provider receiptsとreplay-zeroを自然slotで確認し、その後にcheckout→Stripe settlement/refund/fee/costをattributionへjoinする。one-time ebook salesはMRRに含めず、USD 10,000 verified net MRRは未達目標。
 
-**Daisの作業:** なし。Monk AniccaのPostiz integrationは接続・有効で、HeyGen walletにも残高がある。現在の停止点はLife Managerの環境変数境界、main/release反映、reconciler/capacityで、こちらで解消する。
+**Daisの作業:** Monk Aniccaの再接続・再認証は不要。PR #7003のsafe `DerivedData` cleanupが次のcapacity回収経路なので、quarantine mountやsentinel再有効化は現時点で依頼しない。disabled sentinel/guardはTelegram alertとwriter backpressureを伴う。
+
+### eBook Monk current blocker cursor — 2026-10-08 10:44 JST
+
+この節がeBookの現在cursorで、10:05 JSTの記録とTODO順を置き換える。対象は英語`@monk_anicca`、日本語WatercolorのTikTok/Instagram、後段のCapafy Instagram marketing。DaisにPostizの再接続・再認証を依頼する状態ではない。
+
+**理想のarchitecture:** 英語・日本語を各localeのrendererで1日3本ずつ作り、Postizのslot/idempotency管理を通して3アカウントへ配信する。英語はHeyGen動画3本→TikTok 3投稿、日本語はWatercolor動画3本→TikTokとInstagramへ各3投稿なので、合計6 render・9 provider投稿/日。各投稿の公式`PUBLISHED` receiptと公開URLをclick attribution、locale別Checkout、Stripe receipt、正しいPDF納品へ結ぶ。eBook一回購入はMRRに含めず、任意のLetter/Tegami subscriptionのsettled receiptsから返金・fee・実費を引いてnet MRRを測る。初回paid eBook注文と対応PDF receiptの後にだけCapafy D5 Instagram canaryを開始し、現行recipeの上限は1 canary/24時間。
+
+```mermaid
+flowchart LR
+  ENS["English script × 3/day"] --> HG["HeyGen Avatar IV"]
+  JAS["日本語script × 3/day"] --> WMF["Watercolor Mark Factory"]
+  HG --> ENVID["EN video + caption + tracking token"]
+  WMF --> JAVID["JA video + caption + tracking token"]
+  ENVID --> PZ["Postiz queue + slot idempotency"]
+  JAVID --> PZ
+  PZ --> ENT["Monk Anicca TikTok × 3/day"]
+  PZ --> JAT["Obou TikTok × 3/day"]
+  PZ --> JAI["Obou Instagram × 3/day"]
+  ENT --> PUB["PUBLISHED + public URL"]
+  JAT --> PUB
+  JAI --> PUB
+  PUB --> CLICK["attributed clicks"]
+  CLICK --> PAY["locale checkout + Stripe receipt"]
+  PAY --> PDF["matching locale PDF delivery"]
+  PDF --> SUB["optional Letter / Tegami subscription"]
+  SUB --> NET["settled net MRR: receipts - refunds - fees - direct cost"]
+  PDF --> GATE["first paid order + PDF receipt"]
+  GATE --> CAP["Capafy IG: one Postiz canary / 24h"]
+```
+
+**TODO順変更:** 旧順=`capacity回復→release reconciler終了→English owner apply→08:00 slot再実行→残りslot→Checkout/PDF→Capafy`。新順=`08:00 HeyGen unknown effectを公式照合してfence維持→video ID/statusを失わないsource修正とsanitized診断→release reconciler自然終了→English ownerのloaded SHA確認/必要時だけtarget apply→effect安全解決後の次の別slotで1回実行→9件/日の継続readback→paid Checkout/PDF→subscription net MRR→Capafy D5`。理由: 08:00 English runはprovider receiptなしの`effect_unknown`で、HeyGen wallet変化も発生原因を特定できないため。同じslotを再送するのは安全でない。capacityは10:44の自然cleanup receiptで回復済み。現在cursor=`10:44 JST、JAは2/9 PUBLISHED、ENは0/3、08:00 HeyGen intentはdelivery_uncertain、release reconciler稼働中`。
+
+**公式provider readback（10:22 JST）とruntime refresh（10:34 JST）:**
+
+- source PR #6999（英語ownerだけへ`LIFE_MANAGER_HEYGEN` / `HEYGEN_NO_ANALYTICS`を渡す修正）とcleanup PR #7003（open-file guard付きXcode `DerivedData`候補追加）はmain統合済み。10:44 JSTの`origin/main=cedfca48f9b30e10b73330bfbebe62163209bf36`。`/Users/anicca/loops/current`はimmutable release `20261008T103047-8d396690`を指すが、English ownerのloaded SHAは`c65449ef8c2649c28ffa760b989eb75843e6cbd5`。release reconciler PID `665`がrunningなのでtarget applyを重ねない。
+- capacityは自然cleanupで回復: 10:44:14 JST receipt `free_after=4,210,524,160` bytes、`errors=0`、`protected_deletions=0`、`inventory_gaps=23`。同時刻`df -Pk /` available `4,102,912 KiB`（約3.91 GiB）。2 GiB floorを満たす。
+- cleanupの前回manual wake `18dc6a35e334ebd0-55563`は10:39:39 JSTにexit 1 / `entrypoint_exit_1` / `retryable=true`で終わり、receiptを更新しなかった。近接stderrには別run ID `18dc66d6150b66b0-87105`の`Errno 28: No space left on device`があるが、そのerrorとcleanup occurrenceの対応は未証明。10:41の`launchctl-safe kickstart`は30秒でtimeoutした。続く10:44のnatural owner passは成功し、capacity receiptを更新した。cleanup owner失敗の詳細は診断cursorに残すが、現在のeBook gateではない。
+- `ebook-en-tiktok-daily`の10:44:20 JST latest run `18dc6a87d07f6590-93747` / occurrence `ebook-en-tiktok-daily:18dc6a6ab58f8430-15080`もexit 1、`effect_status=unknown`、`provider_receipt_id=null`、`next_action=official_readback_required`。08:00 sidecarは`delivery_uncertain`のままで、成功receiptはない。sourceではcreate responseからIDをparseした後、`status == completed`を要求し、例外時にID/statusなしのsidecarを書き直す。この欠落はsource上の回復性不具合だが、今回のprovider結果を起こした原因とは未確定。JS wrapperも非zero終了時にstderr/stdoutを捨て、`eBook renderer failed with exit 1`だけ返す。
+- Postiz公式GETでEnglish Monk TikTok `cmo5rwq2p00twn10yrsdglng3`、JA TikTok `cmo5s4edx00vgn10ygnu34a0n`、JA Instagram `cmooplxmu04tpmd0y4h3cpk33`はいずれも`disabled=false`。本日`PUBLISHED`はJA TikTok `cmuynjaq808iblc0yd2396uhg`とJA Instagram `cmuynjkih08ihlc0y38o87z0n`の各1件、English Monk 0件。合計2/9。Postiz再接続は不要。
+- HeyGen CLIのtitle `Anicca`検索は2ページを最後まで読み、0件。公式walletはUSD 11.78、sidecar記録のcreate前残高はUSD 12.30。差額USD 0.52が当該createに起因するかは証明されておらず、動画作成成功とも失敗とも扱わない。
+- Capafyは後段のまま。両publisher owner (`capafy-ig-marketing-daily`, `life-manager-capafy-ig`)はdisabled。旧direct ownerはeffect fence `18db7caff1178a88-68028`を`active_ig_handle_unresolvable`で保持し、新Postiz ownerは`LM_CAPAFY_IG_PACK_REF`未設定の診断履歴があり、plistにもpack refと`CAPAFY_IG_POSTIZ_INTEGRATION_ID`がない。Postiz公式integration `Hook Lab by Anicca` (`cmuuycr5402uzqw0yhanqggo9`)は`disabled=false`だが、今日の投稿は0件でnative username/good-standingは未確認。初回paid eBook + matching PDF receiptも未確認なのでD5を開始しない。D5詳細 → `docs/superpowers/plans/2026-10-04-capafy-10k-mrr-recipe.md`。
+
+**残りAtomic TODO（eBook→Capafy順）:**
+
+1. `ebook-run.571924dc4e4867349fc6fd13.heygen-effect.json`の08:00 unknown effectを維持する。HeyGen公式video/billing readbackでvideo IDまたはcreate前後walletの帰属を特定する。見つからない状態を成功/失敗へ丸めたり、同slotを再実行したり、fenceを手で消したりしない。
+2. `skills/earn/marketing-engine/render_eval/test_heygen_candidate.py`に、create応答がvideo ID付き`processing`を返す場合の失敗testを追加する。sidecarへID/statusが残り、再runで`heygen video get <id>`を照会し、`video create`は二度目に呼ばれないことを確認する。
+3. `heygen_candidate.py`を最小修正し、ID/statusを`completed`判定前にdurable保存する。`ebook-distribute-daily.js::renderInput`は失敗時にsafeなerror class/exit metadataを親へ返し、raw stderrやcredentialを出さないFocused testを加える。
+4. source fixをlatest main由来branch/PRへpushし、focused acceptance・fresh review・required CIをPASSしてmergeする。
+5. release reconcilerの自然終了とapply lock解放をreadbackする。current main-derived immutable releaseとEnglish owner loaded SHA/argv/envを確認し、古い場合だけsafe preflight後に`ebook-en-tiktok-daily`のみtarget applyする。raw `launchctl`やowner全体のrestartはしない。
+6. 旧effectの帰属が安全に閉じ、修正版がloadedされた後、次の別slotで登録ownerを1回だけ実行する。HeyGen video ID/output SHA/実費差分と、Postiz exact integrationの`PUBLISHED`/post ID/public URLを同一occurrenceへ結ぶ。直接Postiz APIから投稿しない。
+7. natural scheduleでEN TikTok・JA TikTok・JA Instagramが各3件/日、合計9 unique `PUBLISHED` receiptsに届くか追い、重複/replayが0であることを確認する。単発成功を永続cadenceの証拠と扱わない。
+8. locale Checkout→Stripe paid receipt→matching PDF delivery→settlement/refund/fee/direct costを照合する。one-time eBook購入をMRRへ数えず、Letter/Tegamiのsettled recurring receiptsを14日cohortで測り、USD 10,000 net MRRは確認後だけ達成扱いにする。
+9. 初回paid eBookとmatching PDFが揃ったら、Capafy Instagram D5だけを再開する。正しいInstagram identity / good-standing、Postiz integration ID、pack ref、single publisher ownerを確認し、1 canary/24hと14日readbackを行う。Capafy product/listing/account-lifecycle開発には触れない。
+
+**Daisの作業:** 現時点でPostiz再接続・再認証や手動設定は不要。残りはHeyGenの曖昧なeffectを公式証跡で確定できるかと、自所有rendererのreceipt/診断修正である。
 
 ### 2026-10-08 07:43 JST — Gig live-acceptance cursor correction
 
