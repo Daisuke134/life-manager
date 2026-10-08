@@ -76,10 +76,13 @@ EXACT_CACHE_ROOTS = {
     "ffmpeg-cache": "Library/Caches/ffmpeg-static-nodejs",
     "google-cache": "Library/Caches/Google",
     "hyperframes-cache": ".cache/hyperframes",
+    "homebrew-cache": "Library/Caches/Homebrew",
     "npm-cache": ".npm/_cacache",
     "npx-cache": ".npm/_npx",
     "github-cache": ".cache/gh",
+    "pip-cache": "Library/Caches/pip",
     "swiftpm-cache": "Library/Caches/org.swift.swiftpm",
+    "uv-cache": ".cache/uv",
     "xcode-derived-data-cache": "Library/Developer/Xcode/DerivedData",
     "whisper-model-cache": ".cache/whisper",
     "zig-cache": ".cache/zig",
@@ -884,8 +887,7 @@ class HostDiskGovernor:
             return (
                 resolved.parent == temporary
                 and (
-                    (resolved.name.startswith("cfo-") and resolved.name != "cfo-")
-                    or resolved.name == "capafy-hf-npm-cache"
+                    resolved.name == "capafy-hf-npm-cache"
                     or resolved.name.startswith("capafy-hf-npm.")
                 )
             )
@@ -1452,8 +1454,8 @@ class HostDiskGovernor:
                                     "discovery": "allowlisted",
                                 }
                             )
-        # These are owned one-shot test/build homes. The prefix is the proof;
-        # arbitrary /private/tmp directories remain unknown and are preserved.
+        # Only exact package-manager caches are candidates. Generic /private/tmp
+        # paths can be active worktrees and remain unknown and preserved.
         if temporary.is_dir():
             for child in sorted(temporary.iterdir()):
                 try:
@@ -1466,7 +1468,7 @@ class HostDiskGovernor:
                     )
                 except OSError:
                     old_capafy = False
-                if child.is_dir() and (child.name.startswith("cfo-") or old_capafy):
+                if child.is_dir() and old_capafy:
                     candidates.append(
                         {
                             "path": child,
@@ -1666,8 +1668,10 @@ class HostDiskGovernor:
         if (
             requested.is_symlink()
             or resolved.parent != temporary
-            or not resolved.name.startswith("cfo-")
-            or resolved.name == "cfo-"
+            or not (
+                resolved.name == "capafy-hf-npm-cache"
+                or resolved.name.startswith("capafy-hf-npm.")
+            )
         ):
             result = {
                 "tier": classify_tier(free_before),

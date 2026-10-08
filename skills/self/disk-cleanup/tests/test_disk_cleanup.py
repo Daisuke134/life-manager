@@ -42,7 +42,7 @@ def test_tier_boundaries_use_bytes() -> None:
 
 def test_closed_regenerable_artifact_is_reclaimed(tmp_path: Path, monkeypatch) -> None:
     state = tmp_path / "state"
-    candidate = tmp_path / "tmp" / "cfo-complete"
+    candidate = tmp_path / "tmp" / "capafy-hf-npm.complete"
     candidate.mkdir(parents=True)
     (candidate / "payload").write_bytes(b"x" * 64)
     monkeypatch.setattr(disk_cleanup.tempfile, "gettempdir", lambda: str(candidate.parent))
@@ -63,9 +63,106 @@ def test_closed_regenerable_artifact_is_reclaimed(tmp_path: Path, monkeypatch) -
     assert receipt["protected_deletions"] == 0
 
 
+def test_closed_package_download_caches_are_discovered_and_reclaimed(
+    tmp_path: Path,
+) -> None:
+    relative_roots = {
+        "homebrew-cache": "Library/Caches/Homebrew",
+        "pip-cache": "Library/Caches/pip",
+        "uv-cache": ".cache/uv",
+    }
+    paths = {}
+    for owner, relative in relative_roots.items():
+        path = tmp_path / relative
+        path.mkdir(parents=True)
+        (path / "artifact").write_bytes(b"regenerable package data")
+        paths[owner] = path
+    governor = HostDiskGovernor(
+        home=tmp_path,
+        state_dir=tmp_path / "state",
+        lsof=lambda _path: "confirmed-closed",
+        usage=lambda: (0, 1),
+    )
+
+    candidates = [
+        item for item in governor.discover_candidates()
+        if item.get("owner") in relative_roots
+    ]
+    result = governor.sweep(candidates)
+
+    assert {item["owner"] for item in candidates} == set(relative_roots)
+    assert all(not path.exists() for path in paths.values())
+    assert result["reclaimed"] > 0
+    assert result["errors"] == 0
+    assert result["protected_deletions"] == 0
+
+
+@pytest.mark.parametrize("git_marker_type", ["file", "directory"])
+def test_temporary_worktree_candidate_is_preserved(
+    tmp_path: Path, monkeypatch, git_marker_type: str
+) -> None:
+    temporary = tmp_path / "tmp"
+    candidate = temporary / "cfo-active-worktree"
+    candidate.mkdir(parents=True)
+    git_marker = candidate / ".git"
+    if git_marker_type == "file":
+        git_marker.write_text("gitdir: /private/tmp/worktrees/active/.git/worktrees/active\n")
+    else:
+        git_marker.mkdir()
+    progress = candidate / "progress.txt"
+    progress.write_text("uncommitted work\n")
+    monkeypatch.setattr(disk_cleanup.tempfile, "gettempdir", lambda: str(temporary))
+    governor = HostDiskGovernor(
+        home=tmp_path,
+        state_dir=tmp_path / "state",
+        lsof=lambda _path: "confirmed-closed",
+        usage=lambda: (0, 1),
+    )
+
+    candidates = governor.discover_candidates()
+    assert not any(Path(item["path"]).resolve() == candidate.resolve() for item in candidates)
+    result = governor.sweep([{
+        "path": candidate,
+        "class": "ephemeral",
+        "owner": "temporary-run",
+        "discovery": "allowlisted",
+    }])
+
+    assert candidate.is_dir()
+    assert progress.read_text() == "uncommitted work\n"
+    assert result["preserved_reasons"] == {"unknown_artifact": 1}
+    assert result["errors"] == 0
+    assert result["protected_deletions"] == 0
+
+
+def test_core_simulator_assets_are_never_discovered_as_candidates(
+    tmp_path: Path,
+) -> None:
+    simulator = tmp_path / "Library/Developer/CoreSimulator"
+    device_data = simulator / "Devices/device/data"
+    device_data.mkdir(parents=True)
+    (device_data / "shipping-build.txt").write_text("preserve simulator data\n")
+    governor = HostDiskGovernor(
+        home=tmp_path,
+        state_dir=tmp_path / "state",
+        lsof=lambda _path: "confirmed-closed",
+        usage=lambda: (0, 1),
+    )
+
+    candidates = governor.discover_candidates()
+
+    assert not any(
+        Path(item["path"]).resolve() == simulator.resolve()
+        or simulator.resolve() in Path(item["path"]).resolve().parents
+        or Path(item["path"]).resolve() in simulator.resolve().parents
+        for item in candidates
+    )
+    assert (device_data / "shipping-build.txt").read_text() == "preserve simulator data\n"
+
+
 def test_open_or_protected_artifact_is_preserved(tmp_path: Path, monkeypatch) -> None:
     state = tmp_path / "state"
-    open_candidate = tmp_path / "tmp" / "cfo-open"
+    open_candidate = tmp_path / "tmp" / "capafy-hf-npm.open"
     open_candidate.mkdir(parents=True)
     monkeypatch.setattr(disk_cleanup.tempfile, "gettempdir", lambda: str(open_candidate.parent))
     protected = tmp_path / ".codex" / "logs.sqlite"
@@ -99,7 +196,7 @@ def test_open_or_protected_artifact_is_preserved(tmp_path: Path, monkeypatch) ->
 
 def test_protected_roots_never_enter_runtime_manifest(tmp_path: Path, monkeypatch) -> None:
     temporary = tmp_path / "tmp"
-    disposable_candidate = temporary / "cfo-disposable"
+    disposable_candidate = temporary / "capafy-hf-npm.disposable"
     protected_candidates = []
     protected_paths = []
     for index, relative in enumerate(
@@ -122,7 +219,7 @@ def test_protected_roots_never_enter_runtime_manifest(tmp_path: Path, monkeypatc
             "project/publication-receipt.json",
         )
     ):
-        candidate = temporary / f"cfo-protected-{index}"
+        candidate = temporary / f"capafy-hf-npm.protected-{index}"
         path = candidate / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("protected")
@@ -158,7 +255,7 @@ def test_protected_roots_never_enter_runtime_manifest(tmp_path: Path, monkeypatc
 
 def test_effect_recheck_preserves_new_protected_descendant(tmp_path: Path, monkeypatch) -> None:
     temporary = tmp_path / "tmp"
-    candidate = temporary / "cfo-race"
+    candidate = temporary / "capafy-hf-npm.race"
     candidate.mkdir(parents=True)
     (candidate / "payload").write_text("regenerable")
     monkeypatch.setattr(disk_cleanup.tempfile, "gettempdir", lambda: str(temporary))
@@ -188,8 +285,8 @@ def test_effect_recheck_preserves_new_protected_descendant(tmp_path: Path, monke
 @pytest.mark.parametrize("max_age", [300, float("nan")])
 def test_active_lease_preserves_artifact(tmp_path: Path, monkeypatch, max_age: float) -> None:
     temporary = tmp_path / "tmp"
-    candidate = temporary / "cfo-lease-race"
-    lease = temporary / "cfo-lease-race.lease"
+    candidate = temporary / "capafy-hf-npm.lease-race"
+    lease = temporary / "capafy-hf-npm.lease-race.lease"
     candidate.mkdir(parents=True)
     (candidate / "payload").write_text("in-flight")
     monkeypatch.setattr(disk_cleanup.tempfile, "gettempdir", lambda: str(temporary))
@@ -224,8 +321,8 @@ def test_active_lease_preserves_artifact(tmp_path: Path, monkeypatch, max_age: f
 
 def test_lease_probe_error_fails_closed(tmp_path: Path, monkeypatch) -> None:
     temporary = tmp_path / "tmp"
-    candidate = temporary / "cfo-lease-probe-error"
-    lease = temporary / "cfo-lease-probe-error.lease"
+    candidate = temporary / "capafy-hf-npm.lease-probe-error"
+    lease = temporary / "capafy-hf-npm.lease-probe-error.lease"
     candidate.mkdir(parents=True)
     (candidate / "payload").write_text("in-flight")
     monkeypatch.setattr(disk_cleanup.tempfile, "gettempdir", lambda: str(temporary))
@@ -260,7 +357,7 @@ def test_lease_probe_error_fails_closed(tmp_path: Path, monkeypatch) -> None:
 
 def test_expired_lease_open_path_is_preserved(tmp_path: Path, monkeypatch) -> None:
     temporary = tmp_path / "tmp"
-    candidate = temporary / "cfo-open-race"
+    candidate = temporary / "capafy-hf-npm.open-race"
     lease = temporary / "expired.lease"
     candidate.mkdir(parents=True)
     (candidate / "payload").write_text("in-flight")
@@ -1831,7 +1928,7 @@ def test_lsof_stderr_is_probe_error(monkeypatch) -> None:
 
 def test_lsof_failure_fails_closed(tmp_path: Path, monkeypatch) -> None:
     temporary = tmp_path / "tmp"
-    candidate = temporary / "cfo-lsof-error"
+    candidate = temporary / "capafy-hf-npm.lsof-error"
     candidate.mkdir(parents=True)
     (candidate / "payload").write_text("in-flight")
     monkeypatch.setattr(disk_cleanup.tempfile, "gettempdir", lambda: str(temporary))
@@ -2333,7 +2430,7 @@ def test_run_once_global_budget_preserves_candidate_and_does_not_advance_full_ma
     tmp_path: Path, monkeypatch
 ) -> None:
     clock = [0.0]
-    candidate = tmp_path / "tmp" / "cfo-budget"
+    candidate = tmp_path / "tmp" / "capafy-hf-npm.budget"
     candidate.mkdir(parents=True)
     monkeypatch.setattr(disk_cleanup.tempfile, "gettempdir", lambda: str(candidate.parent))
 
@@ -2383,7 +2480,7 @@ def test_run_once_rotates_candidate_start_after_budget_exhaustion(
     temporary.mkdir()
     candidates = []
     for index in range(4):
-        path = temporary / f"cfo-budget-{index}"
+        path = temporary / f"capafy-hf-npm.budget-{index}"
         path.mkdir()
         (path / "payload").write_text("x")
         candidates.append({
@@ -2425,7 +2522,11 @@ def test_run_once_rotates_candidate_start_after_budget_exhaustion(
         assert result["preserved_reasons"] == {"probe-budget-exhausted": 4}
         rotations.append(result.get("candidate_rotation"))
 
-    assert visited == ["cfo-budget-0", "cfo-budget-1", "cfo-budget-2"]
+    assert visited == [
+        "capafy-hf-npm.budget-0",
+        "capafy-hf-npm.budget-1",
+        "capafy-hf-npm.budget-2",
+    ]
     persisted_cursor = {"status": "persisted", "errors": []}
     assert rotations == [
         {
@@ -2452,7 +2553,7 @@ def test_run_once_rotates_candidate_start_after_budget_exhaustion(
 def _make_cursor_enospc_governor(tmp_path: Path, monkeypatch, free_bytes: int):
     state = tmp_path / "state"
     temporary = tmp_path / "tmp"
-    candidate = temporary / "cfo-cursor-enospc"
+    candidate = temporary / "capafy-hf-npm.cursor-enospc"
     candidate.mkdir(parents=True)
     (candidate / "payload").write_text("keep")
     monkeypatch.setattr(disk_cleanup.tempfile, "gettempdir", lambda: str(temporary))
@@ -2658,7 +2759,7 @@ def test_cursor_enospc_preserves_terminal_reserve_and_reports_postcommit_enospc(
 
 def test_run_once_rechecks_budget_after_lsof_before_reclaim(tmp_path: Path, monkeypatch) -> None:
     clock = [0.0]
-    candidate = tmp_path / "tmp" / "cfo-lsof-budget"
+    candidate = tmp_path / "tmp" / "capafy-hf-npm.lsof-budget"
     candidate.mkdir(parents=True)
     monkeypatch.setattr(disk_cleanup.tempfile, "gettempdir", lambda: str(candidate.parent))
 
@@ -2703,7 +2804,7 @@ def test_run_once_rechecks_budget_after_lsof_before_reclaim(tmp_path: Path, monk
 def test_gui_bootstrap_health_failure_is_observation_only(
     tmp_path: Path, monkeypatch, launchctl_status: int
 ) -> None:
-    candidate = tmp_path / "tmp" / "cfo-health-failure"
+    candidate = tmp_path / "tmp" / "capafy-hf-npm.health-failure"
     candidate.mkdir(parents=True)
     monkeypatch.setattr(disk_cleanup.tempfile, "gettempdir", lambda: str(candidate.parent))
     monkeypatch.setattr(disk_cleanup.sys, "platform", "darwin")
@@ -2772,7 +2873,7 @@ def test_gui_bootstrap_health_failure_is_observation_only(
 def test_canary_health_exception_preserves_without_process_action(
     tmp_path: Path, monkeypatch
 ) -> None:
-    canary = tmp_path / "tmp" / "cfo-health-exception"
+    canary = tmp_path / "tmp" / "capafy-hf-npm.health-exception"
     canary.mkdir(parents=True)
     (canary / "payload").write_text("keep")
     monkeypatch.setattr(disk_cleanup.tempfile, "gettempdir", lambda: str(canary.parent))
@@ -2811,7 +2912,7 @@ def test_exact_canary_reclaims_one_regenerable_path_and_replay_is_noop(
     tmp_path: Path, monkeypatch
 ) -> None:
     temp_root = tmp_path / "tmp"
-    canary = temp_root / "cfo-life-manager-canary"
+    canary = temp_root / "capafy-hf-npm.life-manager-canary"
     canary.mkdir(parents=True)
     (canary / "payload").write_bytes(b"canary" * 1024)
     monkeypatch.setattr(disk_cleanup.tempfile, "gettempdir", lambda: str(temp_root))
