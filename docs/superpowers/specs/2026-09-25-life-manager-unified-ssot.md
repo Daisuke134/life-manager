@@ -8749,6 +8749,59 @@ This entry supersedes the prior producer-review cursor. CFO priority remains A5 
 
 **Current cursor:** commit current status → push latest-main branch → exact-head CI/fresh review → merge #7106 → production CFO self-handoff/queue/receipt → A5 → A6 → A8 → A9 → A10.
 
+### 2026-10-09 05:39 JST — two Lancers callers still ignored provider_rejected
+
+このsnapshotは05:38のCFO status/TODOを置き換える。後続CFO順序`A5 → A6 → A8 → A9 → A10`は維持し、A7/Money TreeとCloud cost workは対象外。
+
+- **Fresh review:** exact PR head `4affcf1fba154ff018db10b027d285c25cd553ba` / base `6cc7facb6f6057880c73515d95c37fe8afea6c2f` has Critical 0, Important 1. `skills/earn/lancers/scripts/lane_report.py` can return `ok=true`/exit 0 when the typed shared `provider_rejected` counter is 1. `storefront_offer.py --apply` likewise exits 0 when `provider_rejected` is the only nonzero delivery counter.
+- **Fix contract:** both callers expose `provider_rejected`; lane report's `ok` is false and its process exits 1, and storefront apply returns exit 1. This is result propagation only; do not retry or alter the already-fenced outbox claim.
+- **Remote checks:** head `4aff` exact-head CI has Travel/OSS/Agent instruction/Startup/PII/Shell PASS; Loop control, gitleaks, TruffleHog and Python were in progress at the last read. Review fix is not yet in this head.
+- **Local baseline:** shared/Lancers/CrowdWorks Python 58/58, Lancers package 89/89, CFO Node 61/61, artifact 2/2, cross-venue 26/26, loop/host 61/61, mobile 20/20, OSS and contract PASS. The unrelated full investment-core suite remains 132/1 due the unchanged cadence assertion.
+- **Production CFO:** last event `18dca6235b756448-13826` is still `resource_capacity_busy` / exit 75 with no provider receipt; loaded SHA remains `8d986ff4...`; doctor reports unmanaged release-reconciler self-handoff. Actual revenue/expense totals remain unknown.
+
+**順序変更:** 旧cursor=`4aff exact-head CI/review → merge`。新cursor=`(1) Lancers lane/storefront RED tests for provider_rejected → (2) propagate count and fail `ok`/exit status → (3) focused Lancers/shared suite + manifest/OSS/contract → (4) push new head → (5) exact-head CI + fresh review → (6) merge #7106`。理由は、両callerが共通transportのknown rejectionをsuccessとして下流へ報告し得るため。
+
+**Remaining atomic TODO (この順):**
+
+1. [ ] RED tests: lane report emits `ok=false`, `provider_rejected=1`, exit 1; storefront `--apply` exits 1 on the same delivery result.
+2. [ ] Add `provider_rejected` to both callers' result predicates/JSON; keep all other delivery counters and outbox retry fence unchanged.
+3. [ ] Run Lancers/CrowdWorks/provider tests, shared outbox, CFO Node, package parity, merged loop/host; recompute manifest and run OSS/contract/diff checks.
+4. [ ] Commit/push caller fixes + current status on base `6cc7facb`; verify remote PR head/base.
+5. [ ] Exact-head required CI all pass and fresh review reports Critical/Important 0.
+6. [ ] Merge PR #7106.
+7. [ ] Production: reconciler self-handoff/loaded SHA/doctor, fresh queue/claim natural terminal, CFO natural receipt-backed report and replay-zero; do not stop owners or raise caps.
+8. [ ] A5 production migration/RPC/permissions/panel; A6 Google billed-vs-cash/loop attribution; A8 loop/job economics; A9 period/MRR; A10 7-day natural reports.
+
+**Blockerと解消方法:** two downstream Lancers callers do not gate on the newly separated provider rejection counter. Add the two failure-path tests first, include rejection in their result status/output, then push and rerun exact-head CI/review. Production capacity/reconciler/queue blockers remain separate from this source fix; actual totals stay unknown.
+
+**Current cursor:** lane/storefront rejection RED tests → propagate `provider_rejected` and exit 1 → focused acceptance + manifest → push → exact-head CI/review → merge → production CFO readbacks → A5 → A6 → A8 → A9 → A10.
+
+### 2026-10-09 05:42 JST — all Lancers provider-rejection callers fixed locally
+
+このsnapshotは05:39のCFO status/TODOを置き換える。CFO order`A5 → A6 → A8 → A9 → A10`、A7/Money TreeとCloud cost lane外を維持する。
+
+- **Lancers callers:** `lane_report.py` now reports `provider_rejected` and exits 1; `storefront_offer.py --apply` includes `telegram_delivery` counters in JSON, sets `ok=false`, and exits 1 on rejection. Both new caller-level tests were RED before the fix and now pass.
+- **Local acceptance:** Lancers package/rejection tests 93/93, CrowdWorks rejection tests 3/3, shared Telegram/outbox Python 53/53, CFO Node 61/61, artifact parity 2/2, cross-venue Python 26/26, loop/host Python 61/61, mobile canary 20/20, OSS verifier and loop contract pass (18/188/113, zero errors), diff check PASS. Full investment-core suite remains 1 unchanged weekly cadence mismatch in 132 tests.
+- **Remote PR:** exact remote #7106 head is still `4affcf1fba154ff018db10b027d285c25cd553ba` / base `6cc7facb6f6057880c73515d95c37fe8afea6c2f`. The reviewed finding and CI there predate the lane/storefront fixes. At 20:41Z, all checks except Loop control, gitleaks, and TruffleHog had passed; those were still running. CodeRabbit is manual-review skipped.
+- **Production CFO:** latest run remains `18dca6235b756448-13826` at 19:57:03Z, exit 75 `resource_capacity_busy`, provider receipt missing, old loaded SHA `8d986ff4...`; doctor reports unmanaged release-reconciler self-handoff. Actual revenue/expense totals remain unknown.
+
+**順序変更:** 旧cursor=`fix lane/storefront callers → push → exact CI/review`。新cursor=`(1) 完了: two RED caller-level tests → (2) 完了: result JSON/counters + exit 1 behavior → (3) 完了: Lancers 93, CrowdWorks 3, shared 53, CFO 61, artifact 2, cross-venue 26, loop/host 61, mobile 20, OSS/contract/diff pass → (4) commit/push latest-base source/status → (5) exact-head CI + fresh review → (6) merge #7106`。理由は、Lancers caller flagsが拒否counterをsuccessへ変換する最後の報告経路だから。
+
+**Remaining atomic TODO (この順):**
+
+1. [x] Fix Lancers lane-report and storefront-offer callers to expose rejection and fail `ok`/exit code.
+2. [x] Targeted suites and structural gates pass with latest base `6cc7facb`.
+3. [ ] Commit current callers/tests/status and push exact base/head; confirm PR remote readback.
+4. [ ] All required CI on that head pass and fresh full-diff review reports Critical/Important 0.
+5. [ ] Merge PR #7106.
+6. [ ] Normal owner/reconciler: self-handoff, loaded SHA/doctor, fresh queue/claim natural terminal; do not stop owners or increase finite caps.
+7. [ ] Receipt-backed CFO natural report with period/currency/source coverage, per-loop settled revenue/cost, replay-zero; actual totals stay unknown until then.
+8. [ ] A5 production migration/RPC/permissions/panel; A6 billed-vs-cash/attribution; A8 complete loop/job coverage; A9 MRR/period reconcile; A10 seven-day natural reports.
+
+**Blockerと解消方法:** Lancers lane report and storefront apply no longer report confirmed provider rejection as success, but this correction is local-only. Commit/push these callers and status on base 6cc7, then use the new exact head for CI and fresh review. Production blockers remain separate: `resource_capacity_busy`, unmanaged release-reconciler self-handoff, and stale/locked queue. Current verified finance totals are still unavailable.
+
+**Current cursor:** commit/push Lancers caller correction + status → exact-head CI/fresh review → merge PR → production CFO natural readbacks → A5 → A6 → A8 → A9 → A10.
+
 ### Marketing IntelからWriterへの記事候補連携（並列作業）
 
 **目的:** `marketing-weekly-review`がTelegramへ報告する未検証の`CONTENT`戦術を、既存Writerの`article-daily`トピックキューへ候補として渡す。AffiliateやX repostには配線しない。
