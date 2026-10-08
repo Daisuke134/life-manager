@@ -17,6 +17,7 @@ from runtime.host import resource_admission as admission
 def isolated(tmp_path, monkeypatch, total="1"):
     monkeypatch.setenv("LIFE_MANAGER_RESOURCE_ADMISSION_ROOT", str(tmp_path))
     monkeypatch.setenv("LIFE_MANAGER_HOST_MAX_FINITE_RUNS", total)
+    monkeypatch.setenv("LIFE_MANAGER_HOST_MAX_AGENT_TOTAL_RUNS", total)
     # Unit tests below exercise raw slot semantics unless a floor is explicit.
     monkeypatch.setenv("LIFE_MANAGER_HOST_MIN_REVENUE_RUNS", "0")
 
@@ -32,6 +33,7 @@ def test_unconfigured_deterministic_revenue_capacity_admits_five_workers(
     capacity_env = (
         "LIFE_MANAGER_HOST_MAX_FINITE_RUNS",
         "LIFE_MANAGER_HOST_MAX_REVENUE_RUNS",
+        "LIFE_MANAGER_HOST_MAX_AGENT_TOTAL_RUNS",
         "LIFE_MANAGER_HOST_MAX_AGENT_RUNS",
         "LIFE_MANAGER_HOST_MAX_DETERMINISTIC_RUNS",
         "LIFE_MANAGER_HOST_MAX_BROWSER_RUNS",
@@ -2526,28 +2528,142 @@ def test_revenue_workers_share_host_capacity_beyond_borrow_agent_limit(
         admission.release_and_reserve(claim, reserve=False)
 
 
-def test_default_host_capacity_allows_twelve_revenue_workers(tmp_path, monkeypatch):
+def test_default_durable_host_capacity_allows_ten_workers(tmp_path, monkeypatch):
     monkeypatch.setenv("LIFE_MANAGER_RESOURCE_ADMISSION_ROOT", str(tmp_path))
     monkeypatch.delenv("LIFE_MANAGER_HOST_MAX_FINITE_RUNS", raising=False)
     monkeypatch.delenv("LIFE_MANAGER_HOST_MAX_REVENUE_RUNS", raising=False)
+    monkeypatch.delenv("LIFE_MANAGER_HOST_MAX_AGENT_TOTAL_RUNS", raising=False)
+    monkeypatch.delenv("LIFE_MANAGER_HOST_MAX_AGENT_RUNS", raising=False)
+    monkeypatch.delenv("LIFE_MANAGER_HOST_MAX_BROWSER_RUNS", raising=False)
+    monkeypatch.setenv("LIFE_MANAGER_HOST_MAX_DETERMINISTIC_RUNS", "12")
     monkeypatch.delenv("LIFE_MANAGER_HOST_MIN_REVENUE_RUNS", raising=False)
+    admission.activate_durable_v2()
     claims = []
 
-    for index in range(12):
-        claim, reason = admission.try_acquire(
-            "agent", f"revenue-{index}", retain_ticket=False,
-            admission_class="revenue",
+    for index in range(10):
+        owner = f"revenue-{index}"
+        ticket, _ = admission.enqueue_durable(
+            "deterministic", owner, admission_class="revenue", now=100 + index,
+        )
+        assert ticket is not None
+        claim, reason = admission.claim_durable(
+            "deterministic", owner, admission_class="revenue", now=100 + index,
         )
         assert claim is not None and reason == "acquired"
         claims.append(claim)
 
-    blocked, reason = admission.try_acquire(
-        "agent", "revenue-thirteen", retain_ticket=False,
-        admission_class="revenue",
+    ticket, _ = admission.enqueue_durable(
+        "deterministic", "revenue-eleven", admission_class="revenue", now=200,
+    )
+    assert ticket is not None
+    blocked, reason = admission.claim_durable(
+        "deterministic", "revenue-eleven", admission_class="revenue", now=200,
     )
     assert blocked is None and reason == "capacity_busy"
     for claim in claims:
-        admission.release(claim)
+        admission.release_and_reserve(claim, reserve=False)
+
+
+def test_default_agent_total_capacity_spans_revenue_and_borrow_claims(
+        tmp_path, monkeypatch):
+    for name in (
+        "LIFE_MANAGER_HOST_MAX_FINITE_RUNS",
+        "LIFE_MANAGER_HOST_MAX_REVENUE_RUNS",
+        "LIFE_MANAGER_HOST_MAX_AGENT_TOTAL_RUNS",
+        "LIFE_MANAGER_HOST_MAX_AGENT_RUNS",
+        "LIFE_MANAGER_HOST_MAX_BROWSER_RUNS",
+        "LIFE_MANAGER_HOST_MAX_DETERMINISTIC_RUNS",
+        "LIFE_MANAGER_HOST_MIN_REVENUE_RUNS",
+    ):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("LIFE_MANAGER_RESOURCE_ADMISSION_ROOT", str(tmp_path))
+    admission.activate_durable_v2()
+
+    claims = []
+    for owner, admission_class in (
+        ("agent-revenue", "revenue"), ("agent-support", "borrow"),
+    ):
+        ticket, _ = admission.enqueue_durable(
+            "agent", owner, admission_class=admission_class,
+        )
+        assert ticket is not None
+        claim, reason = admission.claim_durable(
+            "agent", owner, admission_class=admission_class,
+        )
+        assert claim is not None and reason == "acquired"
+        claims.append(claim)
+
+    ticket, _ = admission.enqueue_durable(
+        "agent", "agent-revenue-overflow", admission_class="revenue",
+    )
+    assert ticket is not None
+    blocked, reason = admission.claim_durable(
+        "agent", "agent-revenue-overflow", admission_class="revenue",
+    )
+    assert blocked is None and reason == "capacity_busy"
+    for claim in claims:
+        admission.release_and_reserve(claim, reserve=False)
+
+
+def test_agent_total_capacity_explicit_override_is_durable(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="10")
+    monkeypatch.setenv("LIFE_MANAGER_HOST_MAX_AGENT_TOTAL_RUNS", "3")
+    monkeypatch.setenv("LIFE_MANAGER_HOST_MAX_REVENUE_RUNS", "10")
+    admission.activate_durable_v2()
+
+    claims = []
+    for index in range(3):
+        owner = f"agent-revenue-{index}"
+        ticket, _ = admission.enqueue_durable(
+            "agent", owner, admission_class="revenue", now=100 + index,
+        )
+        assert ticket is not None
+        claim, reason = admission.claim_durable(
+            "agent", owner, admission_class="revenue", now=100 + index,
+        )
+        assert claim is not None and reason == "acquired"
+        claims.append(claim)
+
+    ticket, _ = admission.enqueue_durable(
+        "agent", "agent-revenue-overflow", admission_class="revenue", now=200,
+    )
+    assert ticket is not None
+    blocked, reason = admission.claim_durable(
+        "agent", "agent-revenue-overflow", admission_class="revenue", now=200,
+    )
+    assert blocked is None and reason == "capacity_busy"
+    for claim in claims:
+        admission.release_and_reserve(claim, reserve=False)
+
+
+def test_global_capacity_explicit_override_is_durable(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="4")
+    monkeypatch.setenv("LIFE_MANAGER_HOST_MAX_DETERMINISTIC_RUNS", "10")
+    admission.activate_durable_v2()
+
+    claims = []
+    for index in range(4):
+        owner = f"revenue-{index}"
+        ticket, _ = admission.enqueue_durable(
+            "deterministic", owner, admission_class="revenue", now=100 + index,
+        )
+        assert ticket is not None
+        claim, reason = admission.claim_durable(
+            "deterministic", owner, admission_class="revenue", now=100 + index,
+        )
+        assert claim is not None and reason == "acquired"
+        claims.append(claim)
+
+    ticket, _ = admission.enqueue_durable(
+        "deterministic", "revenue-overflow", admission_class="revenue", now=200,
+    )
+    assert ticket is not None
+    blocked, reason = admission.claim_durable(
+        "deterministic", "revenue-overflow", admission_class="revenue", now=200,
+    )
+    assert blocked is None and reason == "capacity_busy"
+    for claim in claims:
+        admission.release_and_reserve(claim, reserve=False)
 
 
 def test_revenue_floor_keeps_borrowers_from_consuming_reserved_headroom(

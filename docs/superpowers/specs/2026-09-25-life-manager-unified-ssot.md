@@ -8271,8 +8271,8 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 
 1. **完了:** 12/5案の仕様誤りを修正し、latest main `724e18f01713681b8dde0e9af985c0da9e7bf593` をmerge commit `09214f24335ecacd907a6d1ce3cc27dc5ecadcb7` で取り込んでpushした。PR #7234 はOPEN、head=`09214f24335ecacd907a6d1ce3cc27dc5ecadcb7`。
 2. **Superseded before merge:** pre-refresh head `57757c303439466c413823d7d84d80f22da748b1` の`global12/deterministic5`は142件passしたが、512-MiB共有disk gateが存在しないこととprovider slotsを表さないことがreviewで判明した。現在のmainもglobal8/deterministic-revenue3であり、10/2/5/1の変更はまだ未実装。旧headのテスト結果を最新head acceptanceとして扱わない。
-3. **現在cursor—REDを作る。** `runtime/host/tests/test_resource_admission.py` にdurable admissionでのglobal default 10、revenue/borrowをまたぐaggregate agent cap 2、明示overrideの回帰を追加し、まず失敗を確認する。`runtime/loop/tests/test_macos_loop_registry.py` でJob Hunter daily/inboxの`resource_class=agent`を要求する。
-4. GREENでは`runtime/host/resource_admission.py`にglobal10/agent-total2/deterministic-revenue5/browser1を適用し、`config/loop-registry.json`のJob Hunter daily/inboxだけをagent classへ移す。per-class overrides、revenue priority、effect fenceは維持する。disk guardは数値floorなし・cleanup低容量signalのみ無視・operator stop尊重という最新main契約を保つ。
+3. **完了 RED:** `runtime/host/tests/test_resource_admission.py` にdurable global default 10、revenue/borrowをまたぐagent total 2、agent override、global overrideを追加し、`runtime/loop/tests/test_macos_loop_registry.py` でJob Hunter daily/inboxをagent classに要求した。focused実行は`5 failed, 2 passed`: default global10・agent total2/override・daily/inbox classで現行不一致を再現し、global explicit overrideケースはpassした。
+4. **現在cursor—GREEN:** `runtime/host/resource_admission.py`にglobal10/agent-total2/deterministic-revenue5/browser1を適用し、`config/loop-registry.json`のJob Hunter daily/inboxだけをagent classへ移す。per-class overrides、revenue priority、effect fenceは維持する。disk guardは数値floorなし・cleanup低容量signalのみ無視・operator stop尊重という最新main契約を保つ。
 5. `runtime/host/tests/test_resource_admission.py` と `runtime/loop/tests/test_macos_loop_registry.py` を実行し、`./bin/lm-loop-contract`、`bash scripts/verify-source-boundary.sh`、`git diff --check`をpassさせて、source/test/registry/specをpushする。最新baseは`724e18f01713681b8dde0e9af985c0da9e7bf593`、merge commitは`09214f24335ecacd907a6d1ce3cc27dc5ecadcb7`。
 6. exact-head CIとfresh read-only reviewを完了し、PRをmainへ統合する。
 7. active release reconcilerを止めず、main由来immutable releaseへの自然handoffとowner SHA/argvをreadbackする。処理中のConnector/Job Hunter/Fundraiser occurrenceを中断・重複させない。
@@ -8283,7 +8283,7 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 12. global default 10適用後、queue owner数と最古eligible age、live claims/reservations/agent profile contention/class contention、実 finite-run数、CPU/RAM/swap/diskを同一窓で採る。eligible backlogが残りheadroomもある場合は、provider profileまたはshared durable queue/fence stateを増やし、queueをdrainする。
 13. 3 target loopの同一occurrenceへ自然terminal、Luma/Workday/VC-mail official receipt、`gpt-6-luna/max/fast`、既存Telegram reportを結び、unknown fence/replay-zeroとcapacity/queue readbackを完了条件として確認する。
 
-**現在cursor:** write and run RED durable capacity/registry regressions → implement provider-aware 10/2/5/1 admission and Job Hunter class mapping → exact-head focused acceptance and push → CI/review/merge → natural release/fleet adoption → Job Hunter terminal-marker repair → Connector Luma and Fundraiser official readbacks → disk-writer/operator-stop owner repair → same-window backlog/provider/host measurement and further bounded scale until no eligible work remains queued.
+**現在cursor:** implement GREEN provider-aware 10/2/5/1 admission and Job Hunter class mapping → focused acceptance and push → CI/review/merge → natural release/fleet adoption → Job Hunter terminal-marker repair → Connector Luma and Fundraiser official readbacks → disk-writer/operator-stop owner repair → same-window backlog/provider/host measurement and further bounded scale until no eligible work remains queued.
 
 ### 2026-10-09 05:08 JST — slot-guard implementation and measured metrics health
 
