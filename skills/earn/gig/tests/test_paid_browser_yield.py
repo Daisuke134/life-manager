@@ -1,5 +1,6 @@
 import importlib.util
 import inspect
+import ast
 import os
 import json
 import subprocess
@@ -64,6 +65,34 @@ def test_paid_browser_yield_is_noop_without_outer_lease(monkeypatch):
 def test_remote_owner_and_verifier_model_stages_use_browser_yield():
     source = inspect.getsource(paid._run_remote_repair)
     assert source.count("_yield_registered_browser_lease()") >= 2
+
+
+def test_paid_work_decision_yields_browser_lease_while_model_runs_read_only():
+    tree = ast.parse(inspect.getsource(paid._paid_decision))
+    runner_calls = [
+        node for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "_run_private_model_serialized"
+    ]
+    yielded_blocks = [
+        node for node in ast.walk(tree)
+        if isinstance(node, ast.With)
+        and any(
+            isinstance(item.context_expr, ast.Call)
+            and isinstance(item.context_expr.func, ast.Name)
+            and item.context_expr.func.id == "_yield_registered_browser_lease"
+            for item in node.items
+        )
+    ]
+
+    assert len(runner_calls) == 1
+    assert any(any(call is nested for nested in ast.walk(block)) for block in yielded_blocks
+               for call in runner_calls)
+    assert any(
+        isinstance(node, ast.Constant) and node.value == "--read-only"
+        for node in ast.walk(tree)
+    )
 
 
 def test_browser_guard_release_cannot_remove_another_live_holder(tmp_path):

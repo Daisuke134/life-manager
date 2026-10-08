@@ -189,10 +189,13 @@ def _run_private_model_serialized(root: Path, command: list[str], label: str, st
             os.close(effect_descriptor)
 PAID_DECISION_SCHEMA_VERSION = 5
 PAID_DECISION_PROMPT_VERSION = "paid-semantic-decision-v25"
-PAID_DECISION_MODEL = "gpt-5.6-terra"
+PAID_DECISION_MODEL = "gpt-6.1-sol"
 PAID_FILE_MODEL = "gpt-5.6-terra"
+PAID_DECISION_TASK_CLASS = "paid-decision-agent"
+LEGACY_PAID_DECISION_TASK_CLASS = "escalation-agent"
 PAID_OWNER_TASK_CLASS = "paid-owner-agent"
 PAID_RUNNER_CANDIDATES = {
+    ("codex", "gpt-6.1-sol"),
     ("codex", "gpt-5.6-terra"),
     ("codex", "gpt-5.6-sol"),
     ("codex", "gpt-5.6-luna"),
@@ -1497,10 +1500,16 @@ def _validate_paid_decision(value: dict[str, Any], feedback: str, requirements: 
     return value
 
 
-def _decision_runner_proof(evidence: Path) -> dict[str, Any]:
+def _decision_runner_proof(evidence: Path, *, allow_legacy: bool = False) -> dict[str, Any]:
     summary = _runner_summary(evidence)
+    task_class = summary.get("task_class")
+    allowed_task_classes = {PAID_DECISION_TASK_CLASS}
+    if allow_legacy:
+        allowed_task_classes.add(LEGACY_PAID_DECISION_TASK_CLASS)
+    if task_class not in allowed_task_classes:
+        raise Failure("paid_work_decision")
     expected = {"status": "success", "task_label": "paid-work-decision",
-                "task_class": "escalation-agent", "escalated": True}
+                "task_class": task_class, "escalated": True}
     if any(summary.get(key) != value for key, value in expected.items()):
         raise Failure("paid_work_decision")
     provider_model = (summary.get("selected_provider"), summary.get("selected_model"))
@@ -2208,7 +2217,9 @@ def _cached_paid_decision(root: Path, receipt: Any, prompt: Path,
                         "selected_provider", "selected_model", "summary_sha256", "result_sha256"}
             or runner.get("status") != "success"
             or runner.get("task_label") != "paid-work-decision"
-            or runner.get("task_class") != "escalation-agent"
+            or runner.get("task_class") not in {
+                PAID_DECISION_TASK_CLASS, LEGACY_PAID_DECISION_TASK_CLASS,
+            }
             or runner.get("escalated") is not True
             or (runner.get("selected_provider"), runner.get("selected_model")) not in PAID_RUNNER_CANDIDATES
             or any(not re.fullmatch(r"[0-9a-f]{64}", runner.get(key, ""))
@@ -2221,7 +2232,7 @@ def _cached_paid_decision(root: Path, receipt: Any, prompt: Path,
     if (evidence_root.is_symlink() or not evidence_root.is_dir()
             or evidence.is_symlink() or not evidence.is_dir()):
         raise ValueError("missing paid decision evidence")
-    proof = _decision_runner_proof(evidence)
+    proof = _decision_runner_proof(evidence, allow_legacy=True)
     if proof != runner:
         raise ValueError("tampered paid decision evidence")
     result_path = _consultation_result_path(evidence)
@@ -2262,7 +2273,7 @@ def _stable_cached_paid_decision(root: Path, receipt: Any, schema_sha256: str,
             or evidence.is_symlink() or not evidence.is_dir()):
         raise ValueError("missing paid decision evidence")
     runner = receipt["runner"]
-    if _decision_runner_proof(evidence) != runner:
+    if _decision_runner_proof(evidence, allow_legacy=True) != runner:
         raise ValueError("tampered paid decision evidence")
     validated = _validate_paid_decision(
         _load(_consultation_result_path(evidence)), feedback, requirements,
@@ -2354,15 +2365,18 @@ def _paid_decision(args, item_path: Path, root: Path, base: Path) -> dict[str, A
         raise Failure("paid_work_decision")
     started_ns = time.time_ns()
     try:
-        decision_command = [sys.executable, str(args.agent_runner), "--task-class", "escalation-agent",
+        decision_command = [sys.executable, str(args.agent_runner), "--task-class", PAID_DECISION_TASK_CLASS,
               "--prompt-file", str(prompt), "--schema", str(schema), "--evidence-dir", str(evidence),
               "--task-label", "paid-work-decision", "--escalation-reason",
               "Paid delivery routing must use an authorized escalation semantic model.",
               "--loop", _runner_loop_id(), "--workdir", str(root), "--timeout-seconds", "1800", "--read-only"]
-        _run_private_model_serialized(root, decision_command, "paid-work-decision", "paid_work_decision")
+        with _yield_registered_browser_lease():
+            _run_private_model_serialized(
+                root, decision_command, "paid-work-decision", "paid_work_decision",
+            )
         try:
             value = _consultation_runner_result(
-                evidence, task_label="paid-work-decision", task_class="escalation-agent",
+                evidence, task_label="paid-work-decision", task_class=PAID_DECISION_TASK_CLASS,
                 model=PAID_DECISION_MODEL, started_ns=started_ns,
             )
         except Failure as error:
@@ -5365,7 +5379,7 @@ def _consultation_runner_result(evidence: Path, *, task_label: str, task_class: 
     summary = _runner_summary(evidence)
     expected = {"status": "success", "task_label": task_label, "task_class": task_class,
                 }
-    if task_class in {"escalation-agent", PAID_OWNER_TASK_CLASS}:
+    if task_class in {"escalation-agent", PAID_DECISION_TASK_CLASS, PAID_OWNER_TASK_CLASS}:
         expected["escalated"] = True
     if (any(summary.get(key) != value for key, value in expected.items())
             or (summary.get("selected_provider"), summary.get("selected_model")) not in PAID_RUNNER_CANDIDATES):
