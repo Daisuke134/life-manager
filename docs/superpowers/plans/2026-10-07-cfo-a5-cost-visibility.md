@@ -163,5 +163,6 @@
 - [x] Fetch/merge latest main `64db1c2e` and push the existing `feat/cfo-a5-cost-visibility-20261007` branch as head `4145c84311`.
 - [x] On pushed head `4145c84311`, rerun the complete runtime suite; all 791 tests pass.
 - [x] Required checks on head `4145c84311` pass; CodeRabbit skipped review because the PR is draft.
-- [ ] Push this status-only spec/plan update, confirm required checks on its new head, obtain a fresh read-only whole-branch review, then mark PR #6827 ready and merge.
+- [x] Push the status-only update as PR head `e57aa44e`; its required checks pass, while CodeRabbit review is skipped on the draft.
+- [ ] Obtain a fresh read-only whole-branch review, then mark PR #6827 ready and merge. This next docs-only status push also requires checking its new-head CI.
 - [ ] Do not apply the database migration or manually run/restart the production CFO owner from this worktree; production migration/release/natural-report readback follows the canonical SSOT cursor.
