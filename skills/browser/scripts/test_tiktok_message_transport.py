@@ -22,7 +22,7 @@ SPEC.loader.exec_module(transport)
 
 class FakeCDP:
     def __init__(self, *, identity="expected", exact_before=False, after=None, route=True,
-                 confirmed_empty=False, before_sequence=None, after_sequence=None):
+                 before_sequence=None, after_sequence=None):
         self.identity = identity
         self.exact_before = exact_before
         self.after = after or {
@@ -32,11 +32,11 @@ class FakeCDP:
             "frame_origin": "https://www.tiktok.com",
             "frame_path": "/messages",
             "frame_ready_state": "complete",
+            "conversation_loaded": True,
             "editor_empty": True,
             "exact_message": True,
         }
         self.route = route
-        self.confirmed_empty = confirmed_empty
         self.before_sequence = list(before_sequence or [])
         self.after_sequence = list(after_sequence or [])
         self.before_reads = 0
@@ -86,7 +86,7 @@ class FakeCDP:
                 "editor_empty": True,
                 "exact_message": self.exact_before,
                 "conversation_loaded": True,
-                "message_count": 0 if self.confirmed_empty else None,
+                "explicit_empty_state": False,
             }
         if "TIKTOK_FOCUS" in expression:
             return True
@@ -210,14 +210,16 @@ class TikTokMessageTransportTest(unittest.TestCase):
             "frame_present": False, "frame_origin": None, "frame_path": None,
             "frame_ready_state": "loading",
             "recipient_bound": False, "editor": False, "editor_empty": True,
-            "exact_message": False, "conversation_loaded": False, "message_count": None,
+            "exact_message": False, "conversation_loaded": False,
+            "explicit_empty_state": False,
         }
         ready = {
             "url": "https://www.tiktok.com/business-suite/messages?u=candidate",
             "frame_present": True, "frame_origin": "https://www.tiktok.com",
             "frame_path": "/messages", "frame_ready_state": "complete",
             "recipient_bound": True, "editor": True, "editor_empty": True,
-            "exact_message": False, "conversation_loaded": True, "message_count": 0,
+            "exact_message": False, "conversation_loaded": True,
+            "explicit_empty_state": True,
         }
         fake = FakeCDP(before_sequence=[loading, ready, ready])
 
@@ -229,22 +231,43 @@ class TikTokMessageTransportTest(unittest.TestCase):
         self.assertFalse(any(call[0] == "insert" for call in fake.calls))
 
     def test_rejects_unofficial_messages_frame_before_preflight(self):
-        untrusted = {
+        base = {
             "url": "https://www.tiktok.com/business-suite/messages?u=candidate",
-            "frame_present": True, "frame_origin": "https://example.com",
+            "frame_present": True, "frame_origin": "https://www.tiktok.com",
             "frame_path": "/messages", "frame_ready_state": "complete",
             "recipient_bound": True, "recipient_handles": ["@candidate"],
             "editor": True, "editor_empty": True, "exact_message": False,
-            "conversation_loaded": True, "message_count": 0,
+            "conversation_loaded": True, "explicit_empty_state": False,
         }
-        fake = FakeCDP(before_sequence=[untrusted] * transport.READBACK_MAX_ATTEMPTS)
+        for field, value in (("frame_origin", "https://example.com"),
+                             ("frame_path", "/not-messages")):
+            with self.subTest(field=field):
+                untrusted = {**base, field: value}
+                fake = FakeCDP(before_sequence=[untrusted] * transport.READBACK_MAX_ATTEMPTS)
 
-        result = self.send(self.payload(), fake, send=False)
+                result = self.send(self.payload(), fake, send=False)
+
+                self.assertEqual(result["status"], "composer_hydration_timeout")
+                self.assertEqual(result["effect"], 0)
+                self.assertEqual(fake.before_reads, transport.READBACK_MAX_ATTEMPTS)
+                self.assertFalse(any(call[0] == "insert" for call in fake.calls))
+
+    def test_unsent_composer_draft_cannot_be_misread_as_existing_message(self):
+        draft = {
+            "url": "https://www.tiktok.com/business-suite/messages?u=candidate",
+            "frame_present": True, "frame_origin": "https://www.tiktok.com",
+            "frame_path": "/messages", "frame_ready_state": "complete",
+            "recipient_bound": True, "recipient_handles": ["@candidate"],
+            "editor": True, "editor_empty": False, "exact_message": False,
+            "conversation_loaded": True, "explicit_empty_state": False,
+        }
+        fake = FakeCDP(before_sequence=[draft] * transport.READBACK_MAX_ATTEMPTS)
+
+        result = self.send(self.payload(), fake, send=True)
 
         self.assertEqual(result["status"], "composer_hydration_timeout")
         self.assertEqual(result["effect"], 0)
-        self.assertEqual(fake.before_reads, transport.READBACK_MAX_ATTEMPTS)
-        self.assertFalse(any(call[0] == "insert" for call in fake.calls))
+        self.assertFalse(any(call[0] in {"insert", "key"} for call in fake.calls))
 
     def test_sends_once_and_requires_exact_official_readback(self):
         fake = FakeCDP()
@@ -260,13 +283,15 @@ class TikTokMessageTransportTest(unittest.TestCase):
             "url": "https://www.tiktok.com/business-suite/messages?u=candidate",
             "frame_present": True, "frame_origin": "https://www.tiktok.com",
             "frame_path": "/messages", "frame_ready_state": "complete",
-            "recipient_bound": True, "editor_empty": False, "exact_message": False,
+            "recipient_bound": True, "conversation_loaded": False,
+            "editor_empty": False, "exact_message": False,
         }
         visible = {
             "url": "https://www.tiktok.com/business-suite/messages?u=candidate",
             "frame_present": True, "frame_origin": "https://www.tiktok.com",
             "frame_path": "/messages", "frame_ready_state": "complete",
-            "recipient_bound": True, "editor_empty": True, "exact_message": True,
+            "recipient_bound": True, "conversation_loaded": True,
+            "editor_empty": True, "exact_message": True,
         }
         fake = FakeCDP(after_sequence=[not_yet_visible, visible, visible])
 
@@ -291,7 +316,7 @@ class TikTokMessageTransportTest(unittest.TestCase):
         self.assertFalse(result["retry_safe"])
         self.assertEqual(sum(call[0] == "insert" for call in fake.calls), 1)
 
-    def test_unknown_is_released_only_after_official_empty_conversation_readback(self):
+    def test_unknown_stays_fenced_when_message_list_is_empty_or_unhydrated(self):
         payload = self.payload()
         first = FakeCDP(after={
             "url": "https://www.tiktok.com/business-suite/messages?u=candidate",
@@ -301,18 +326,26 @@ class TikTokMessageTransportTest(unittest.TestCase):
         })
         self.assertEqual(self.send(payload, first)["status"], "send_unknown_reconcile_required")
 
-        reconciled_cdp = FakeCDP(confirmed_empty=True, route=False)
-        reconciled = self.send(payload, reconciled_cdp, send=False)
-        self.assertEqual(reconciled["status"], "not_sent_exact_official_readback")
-        self.assertTrue(reconciled["retry_safe"])
-        self.assertFalse(reconciled["exact_readback"])
-        self.assertFalse(any(
-            call[0] == "navigate" and call[2].endswith("/@candidate")
-            for call in reconciled_cdp.calls
-        ))
+        empty_shell = {
+            "url": "https://www.tiktok.com/business-suite/messages?u=candidate",
+            "frame_present": True, "frame_origin": "https://www.tiktok.com",
+            "frame_path": "/messages", "frame_ready_state": "complete",
+            "recipient_bound": True, "recipient_handles": ["@candidate"],
+            "editor": True, "editor_empty": True, "exact_message": False,
+            "conversation_loaded": False, "explicit_empty_state": False,
+        }
+        reconcile = FakeCDP(before_sequence=[empty_shell] * transport.READBACK_MAX_ATTEMPTS,
+                            route=False)
+        result = self.send(payload, reconcile, send=False)
+        self.assertEqual(result["status"], "composer_hydration_timeout")
+        self.assertFalse(result["retry_safe"])
+        self.assertFalse(any(call[0] in {"insert", "key"} for call in reconcile.calls))
 
-        retry = self.send(payload, FakeCDP(), send=True)
-        self.assertEqual(retry["status"], "sent_exact_official_readback")
+        retry_cdp = FakeCDP()
+        retry = self.send(payload, retry_cdp, send=True)
+        self.assertEqual(retry["status"], "reconcile_required")
+        self.assertFalse(retry["retry_safe"])
+        self.assertFalse(any(call[0] in {"insert", "key"} for call in retry_cdp.calls))
 
     def test_send_ack_exception_returns_unknown_and_next_run_cannot_resend(self):
         class AckLost(FakeCDP):

@@ -240,6 +240,8 @@ def send_one(payload: dict, *, cdp_client=cdp, send: bool = False, wait=time.sle
         fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
         lock.close()
         raise ValueError("effect_key_payload_conflict")
+    if prior and prior[-1].get("state") in {"attempting", "unknown", "sent"}:
+        result["retry_safe"] = False
     contacted = _contacted_recipient(ledger, candidate, result["effect_key"])
     if contacted is not None:
         result.update(
@@ -303,33 +305,40 @@ def send_one(payload: dict, *, cdp_client=cdp, send: bool = False, wait=time.sle
         before_expression = f'''/* TIKTOK_COMPOSER_BEFORE */ (() => {{
           const frame = [...document.querySelectorAll('iframe')].find(x => x.src.includes('/messages?'));
           const doc = frame?.contentDocument;
-          const body = doc?.body?.innerText || '';
           const editor = doc?.querySelector({json.dumps(EDITOR)});
           const messageList = doc?.querySelector('[data-e2e="dm-new-message-list"]');
+          const listText = (messageList?.innerText || '').trim();
+          const listBusy = !!messageList?.matches('[aria-busy="true"]')
+            || !!messageList?.querySelector('[aria-busy="true"],[role="progressbar"],[data-e2e*="loading"],[class*="Loading"]')
+            || /loading|読み込み中/i.test(listText);
+          const explicitEmpty = /no messages|メッセージはありません/i.test(listText);
+          const conversationLoaded = !!messageList && !listBusy && (!!listText || explicitEmpty);
+          const normalise = value => (value || '').replace(/\\s+/g, ' ').trim();
+          const messageNodes = messageList
+            ? [messageList, ...messageList.querySelectorAll('*')].filter(node => !editor || !node.contains(editor))
+            : [];
+          const exactMessage = messageNodes.some(node => normalise(node.innerText) === normalise({json.dumps(message)}));
           const heads = [...(doc?.querySelectorAll('[data-e2e*="chat-header"],[class*="ChatHeader"],[class*="ConversationHeader"]') || [])];
           const handles = heads.flatMap(node => (node.innerText || '').match(/@[A-Za-z0-9._-]+/g) || []).map(x => x.toLowerCase());
           const recipientBound = handles.includes({json.dumps(candidate)});
           let frameUrl = null;
-          try {{ frameUrl = frame ? new URL(frame.src, location.href) : null; }} catch (_) {{}}
+          try {{ frameUrl = doc?.location?.href ? new URL(doc.location.href) : null; }} catch (_) {{}}
           return {{url: location.href, recipient_bound: recipientBound, recipient_handles: handles,
             frame_present: !!frame, frame_origin: frameUrl?.origin || null,
             frame_path: frameUrl?.pathname || null, frame_ready_state: doc?.readyState || null,
             editor: !!editor, editor_empty: !editor || !(editor.innerText || '').trim(),
-            exact_message: body.includes({json.dumps(message)}),
-            conversation_loaded: !!messageList,
-            message_count: messageList && (messageList.innerText || '').trim() ? 1 : 0}};
+            exact_message: exactMessage,
+            conversation_loaded: conversationLoaded,
+            explicit_empty_state: explicitEmpty}};
         }})()'''
         before, before_attempts, before_ready = _poll_until_stable(
             cdp_client, target, before_expression,
             ready=lambda row: (
                 _official_messages_frame(row)
                 and row.get("recipient_bound") is True
-                and (
-                    (row.get("editor") is True
-                     and row.get("editor_empty") is True
-                     and row.get("conversation_loaded") is True)
-                    or row.get("exact_message") is True
-                )
+                and row.get("editor") is True
+                and row.get("editor_empty") is True
+                and row.get("conversation_loaded") is True
             ),
             terminal=lambda row: (
                 _official_messages_frame(row)
@@ -359,12 +368,6 @@ def send_one(payload: dict, *, cdp_client=cdp, send: bool = False, wait=time.sle
         if (before.get("recipient_bound") is not True or before.get("editor") is not True
                 or before.get("editor_empty") is not True):
             result["status"] = "composer_recipient_binding_failed"
-            return result
-        if (prior and prior[-1].get("state") in {"attempting", "unknown"}
-                and before.get("conversation_loaded") is True
-                and before.get("message_count") == 0):
-            _append(ledger, result, "not_sent")
-            result.update(status="not_sent_exact_official_readback", retry_safe=True)
             return result
         if prior and prior[-1].get("state") in {"attempting", "unknown", "sent"}:
             result.update(status="reconcile_required", retry_safe=False)
@@ -406,24 +409,38 @@ def send_one(payload: dict, *, cdp_client=cdp, send: bool = False, wait=time.sle
             after_expression = f'''/* TIKTOK_AFTER */ (() => {{
               const frame = [...document.querySelectorAll('iframe')].find(x => x.src.includes('/messages?'));
               const doc = frame?.contentDocument;
-              const body = doc?.body?.innerText || '';
               const editor = doc?.querySelector({json.dumps(EDITOR)});
+              const messageList = doc?.querySelector('[data-e2e="dm-new-message-list"]');
+              const listText = (messageList?.innerText || '').trim();
+              const listBusy = !!messageList?.matches('[aria-busy="true"]')
+                || !!messageList?.querySelector('[aria-busy="true"],[role="progressbar"],[data-e2e*="loading"],[class*="Loading"]')
+                || /loading|読み込み中/i.test(listText);
+              const explicitEmpty = /no messages|メッセージはありません/i.test(listText);
+              const conversationLoaded = !!messageList && !listBusy && (!!listText || explicitEmpty);
+              const normalise = value => (value || '').replace(/\\s+/g, ' ').trim();
+              const messageNodes = messageList
+                ? [messageList, ...messageList.querySelectorAll('*')].filter(node => !editor || !node.contains(editor))
+                : [];
+              const exactMessage = messageNodes.some(node => normalise(node.innerText) === normalise({json.dumps(message)}));
               const heads = [...(doc?.querySelectorAll('[data-e2e*="chat-header"],[class*="ChatHeader"],[class*="ConversationHeader"]') || [])];
               const handles = heads.flatMap(node => (node.innerText || '').match(/@[A-Za-z0-9._-]+/g) || []).map(x => x.toLowerCase());
               const recipientBound = handles.includes({json.dumps(candidate)});
               let frameUrl = null;
-              try {{ frameUrl = frame ? new URL(frame.src, location.href) : null; }} catch (_) {{}}
+              try {{ frameUrl = doc?.location?.href ? new URL(doc.location.href) : null; }} catch (_) {{}}
               return {{url: location.href, recipient_bound: recipientBound,
                 frame_present: !!frame, frame_origin: frameUrl?.origin || null,
                 frame_path: frameUrl?.pathname || null, frame_ready_state: doc?.readyState || null,
+                conversation_loaded: conversationLoaded,
+                explicit_empty_state: explicitEmpty,
                 editor_empty: !editor || !(editor.innerText || '').trim(),
-                exact_message: body.includes({json.dumps(message)})}};
+                exact_message: exactMessage}};
             }})()'''
             after, after_attempts, after_ready = _poll_until_stable(
                 cdp_client, target, after_expression,
                 ready=lambda row: (
                     _official_messages_frame(row)
                     and row.get("recipient_bound") is True
+                    and row.get("conversation_loaded") is True
                     and row.get("editor_empty") is True
                     and row.get("exact_message") is True
                 ),
