@@ -24,6 +24,7 @@ import json
 import os
 import subprocess
 import time
+import sqlite3
 import sys
 from pathlib import Path
 from typing import Callable, Mapping
@@ -147,6 +148,25 @@ def _append_jsonl(path: Path, rows: list[dict]) -> None:
             handle.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
 
 
+LOCK_RETRIES = 4
+LOCK_RETRY_SECONDS = 2.0
+
+
+def _read_with_retry(read_fenced: Callable[[], dict[str, tuple[str, ...]]],
+                     sleep: Callable[[float], None]) -> dict[str, tuple[str, ...]]:
+    """Read the fences, waiting out a transient ``database is locked`` (2026-10-09: it ended
+    the whole wake after a handful of calls).  Any other error, or a lock that outlasts the
+    retries, propagates."""
+    for attempt in range(LOCK_RETRIES + 1):
+        try:
+            return read_fenced()
+        except sqlite3.OperationalError as error:
+            if "locked" not in str(error).lower() or attempt == LOCK_RETRIES:
+                raise
+            sleep(LOCK_RETRY_SECONDS)
+    raise AssertionError("unreachable")
+
+
 def reconcile(
     *,
     registry: Mapping[str, object],
@@ -158,10 +178,11 @@ def reconcile(
     read_fenced: Callable[[], dict[str, tuple[str, ...]]] = _admission_effect_unknown_occurrences,
     log_path: Path | None = DEFAULT_LOG,
     wake_epoch: float | None = None,
+    sleep: Callable[[float], None] = time.sleep,
 ) -> dict:
     """Run one bounded reconciliation pass and return the summary dict."""
     loops = registry.get("loops", {}) if isinstance(registry, Mapping) else {}
-    fenced = read_fenced()
+    fenced = _read_with_retry(read_fenced, sleep)
     checked = sum(len(occurrences) for occurrences in fenced.values())
     targets, needs_adapter = plan_targets(fenced, loops)
     priority_owners = frozenset(
@@ -176,6 +197,7 @@ def reconcile(
     calls = round_robin(targets, cap, priority_owners=priority_owners, start=start)
     closed = 0
     deferred = 0
+    locked = False
     records: list[dict] = []
     started = clock()
     for owner_id, occurrence in calls:
@@ -186,7 +208,16 @@ def reconcile(
             continue
         argv = build_argv(reconcile_cfg, root, occurrence)
         exit_code, tail = run_call(argv, timeout=timeout)
-        after = read_fenced()
+        try:
+            after = _read_with_retry(read_fenced, sleep)
+        except sqlite3.OperationalError:
+            # Keep what already ran in the log and end the wake cleanly; the next wake resumes.
+            locked = True
+            records.append({
+                "owner_id": owner_id, "occurrence_id": occurrence or "",
+                "exit_code": exit_code, "closed": False, "stdout_tail": tail,
+            })
+            break
         still_open = set(after.get(owner_id, ()))
         if occurrence is None:
             before = set(fenced.get(owner_id, ()))
@@ -208,13 +239,16 @@ def reconcile(
             })
     if log_path is not None:
         _append_jsonl(log_path, records)
-    return {
+    summary = {
         "checked": checked,
         "closed": closed,
         "still_fenced": checked - closed,
         "deferred_calls": deferred,
         "needs_readback_adapter": needs_adapter,
     }
+    if locked:
+        summary["status"] = "partial_database_locked"
+    return summary
 
 
 def main(argv: list[str] | None = None) -> int:
