@@ -177,6 +177,24 @@ class TextBearingVariant(unittest.TestCase):
         self.assertNotEqual(plain.tobytes(), lettered.tobytes())
         self.assertEqual(alpha.getpixel((0, 0)), 0)  # still transparent outside the art + lettering
 
+    def test_static_plan_asks_for_the_top_seller_count_not_16(self) -> None:
+        # market.json 2026-10-08: of the top 40, 21 are 40-sticker sets, 17 are 24, 0 are 16.
+        self.assertEqual(STATIC.STATIC_STICKER_COUNT, 40)
+        prompt = STATIC._build_static_plan_prompt([], None)
+        self.assertIn("ちょうど40個", prompt)
+        self.assertNotIn("ちょうど16個", prompt)
+        self.assertNotIn("上位作者に多い16", prompt)
+
+    def test_a_plan_with_the_wrong_sticker_count_is_rejected(self) -> None:
+        plan = {"stickers": [{"id": f"s{i}"} for i in range(16)]}
+        with self.assertRaises(ValueError):
+            STATIC._check_sticker_count(plan)
+        STATIC._check_sticker_count({"stickers": [{"id": f"s{i}"} for i in range(40)]})
+
+    def test_duplicate_sticker_ids_are_rejected(self) -> None:
+        with self.assertRaises(ValueError):
+            STATIC._check_sticker_count({"stickers": [{"id": "a"}] * 40})
+
     def test_black_background_is_keyed_out_like_green(self) -> None:
         # set-014 (2026-10-08): the image model returned some stickers on black instead of the
         # requested chroma green; 30% of the art box shipped as opaque black.
