@@ -5839,3 +5839,18 @@ This snapshot supersedes the 13:59–14:04 source/release status. PR #7055 backo
 **TODO順変更:** 旧順=`exact-occurrence source merge → latest release natural fleet converge → eBook/fence owner apply → identity recovery`。新順=`active old-service PIDが残る間はbootoutしないhandoff regression testを先にREDで再現 → self-handoff helperがlaunchctl-safe readbackで実際のold-service PID/idleを確認し、activeならbounded wait、unknownならfail-closedでreceiptを残す最小修正 → focused test/bash syntax/loop contract/source review/CI → main merge → current SHA 71a5 processの自然terminalと次release handoff receiptをreadback → eBook 3 ownersとfence reconcilerをcurrent main SHAへtarget apply/readback → exact occurrence route → unique identity recovery → JP catch-up if due / EN old-effect resolution → 9 unique PUBLISHED/day → settled checkout/PDF/monthly subscription net MRR → paid-order+PDF gate後にCapafy bootstrap fix/canary`。理由: 2 consecutive reconciler runs exited143 before eBook plan positions and left owner SHA stale; latest release helper must protect an active run before fleet convergence can complete. 現在cursor=`handoff helperのactive-service protectionをTDDでREDにする`。
 
 現在、main SHA `71a5f878`のreconcilerはloaded-running。source patchは専用branchで作り、running ownerを手動停止・再起動・重複applyせず、handoff helperの次回natural loadで安全に引き継ぐ。Daisの手動操作は不要。
+
+**handoff retry rule:** active-service timeout and unreadable/unknown service state write an exact failure receipt and unload only the self-handoff helper after successful preflight. The old reconciler remains loaded and untouched; the next watcher tick can retry.
+
+### 2026-10-08 15:52 JST — close the handoff race with the existing run lock
+
+このreview-driven refinementは15:27 cursorのidle-readback案を置き換える。単発のstate readbackだけでは、次のStartIntervalがbootout前に始まるTOCTOUが残る。
+
+- Independent reviewはHIGH race（2回目のidle readback後に次runが開始）とMEDIUM stale-helper retry（self-bootoutが失敗するとwatcherがloaded helperを再利用）を指摘。これを最小の既存同期で閉じる。
+- Reconciler runは`runtime/loop/lm_loop_run.py`から`_label_apply_lock_path(current, label)`のper-label exclusive `flock`を保持する。self-handoff helperも同じ`~/loops/.apply-locks/<reconciler-label>.lock`を取得し、old service bootout・target load/readbackまで保持する。新しいrunは同じ既存lockでeffectを始められない。idle Launchd readbackは追加確認として残す。
+- Lock waitは最大2400秒。設計根拠はreconciler fetch 600秒 + reconcile 300秒 + fleet apply 1200秒とgrace。timeout/unknown stateではreceiptにlock/readback状態を残し、old serviceをbootoutせずhelperだけを外す。handoff watcherはactive helperを維持し、終了済みhelperを再armできるようstale `waiting` stateを処理する。
+- 最新production readback: disk-cleanup occurrence `18dc7aeff1249248-54562`はPASS、06:46:17Z receipt時点でerrors 0。06:50Z disk freeは4,763,528 KiB。eBook 3 ownersはSHA `71a5f878` / loaded-idleだがbusiness claimsはunknownのまま。`lm-fence-reconciler`はSHA `8f342d8d`。release reconcilerはSHA `71a5f878` / loaded-running PID `84853`、前occurrenceは06:46:52Z `entrypoint_exit_1`。stop/restart/重複applyは行わない。
+
+**TODO順変更:** 旧順=`exact-occurrence release → eBook/fence owner apply → claims recovery`。新順=`RED: per-label run lockをheld中のhandoffはold serviceをbootoutせず、lock release後にだけ次へ進むtest → helper lock-holderを実装し同じ既存flockをold bootout/target readbackまで保持 → timeout時receiptとhelper self-retryを実装 → focused tests/bash syntax/loop contract → independent read-only review/CI → PR merge → current 71a processのnatural terminal/新handoff receipt → eBook/fence loaded SHA/argv readback → exact occurrence route → unique identity recovery → JP catch-up if due / EN old-effect resolution → 9 unique PUBLISHED/day → settled checkout/PDF/monthly subscription net MRR → eBook paid order+PDF後Capafy repair/canary`。理由: mainにmerge済みのoccurrence fixを含む複数のrelease reconciler runsがexit143で26/187以前に終わり、handoffが収束を阻害した。現在cursor=`existing per-label lock holderのRED test`。
+
+Daisの作業は不要。手動投稿・CAPTCHA・Postiz再接続は現在のblockingではない。
