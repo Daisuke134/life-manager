@@ -116,7 +116,10 @@ async function resolveLarryJaSlot({ env = process.env, now = () => new Date().to
   const dataDir = path.resolve(required(env.LM_DATA_DIR, "LM_DATA_DIR"));
   const tenantId = required(env.LM_RUNTIME_TENANT_ID, "LM_RUNTIME_TENANT_ID");
   const nowIso = now();
-  const dueSlot = slot || marketingVideoDueSlot(Date.parse(nowIso), "Asia/Tokyo", productionSlots) || nowIso;
+  const dueSlot = slot || marketingVideoDueSlot(Date.parse(nowIso), "Asia/Tokyo", productionSlots);
+  if (!dueSlot) {
+    throw Object.assign(new Error(`${lane.name} production has no due slot yet`), { code: "NO_DUE_SLOT" });
+  }
   const distributionLedger = distributionLedgerPath(dataDir, tenantId, lane.productId);
   const initialPostedHistory = readPostedHistory(distributionLedger);
   const slotHash = crypto.createHash("sha256").update(dueSlot).digest("hex");
@@ -126,6 +129,21 @@ async function resolveLarryJaSlot({ env = process.env, now = () => new Date().to
   const initialSlotReceipt = alreadyPublished(initialPostedHistory);
   if (initialSlotReceipt) {
     return { slot: dueSlot, selected: null, alreadyPublished: true, providerPostId: initialSlotReceipt.providerPostId };
+  }
+  const dayFormatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const localDay = dayFormatter.format(new Date(nowIso));
+  const publishedToday = initialPostedHistory.filter((row) => {
+    if (row.integrationRef !== lane.integrationRef) return false;
+    const publishedAt = new Date(row.postedAt);
+    return Number.isFinite(publishedAt.getTime()) && dayFormatter.format(publishedAt) === localDay;
+  }).length;
+  if (publishedToday >= productionSlots.length) {
+    throw Object.assign(new Error(`${lane.name} daily publication limit reached`), { code: "DAILY_LIMIT_REACHED" });
   }
 
   const objectStore = createContentObjectStore({ objectDir: path.join(dataDir, "objects") });

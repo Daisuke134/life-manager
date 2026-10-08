@@ -1870,7 +1870,7 @@ def _write_no_effect_result(path, **overrides):
     return value
 
 
-def test_verified_no_effect_result_requires_exact_identity_and_eBook_entrypoint(tmp_path):
+def test_verified_no_effect_result_requires_exact_identity_and_allowed_entrypoint(tmp_path):
     hint = tmp_path / 'entrypoint-result.json'
     _write_no_effect_result(hint)
     reader = getattr(loop_runner, '_verified_no_effect_result', None)
@@ -1906,8 +1906,28 @@ def test_verified_no_effect_result_requires_exact_identity_and_eBook_entrypoint(
     assert reader(hint, 'ebook-ja-tiktok-daily',
                   'ebook-ja-tiktok-daily:run-off-slot', entrypoint) is None
     _write_no_effect_result(hint)
+    mobile_owner = 'life-manager-anicca-en-affirmation-instagram'
+    mobile_occurrence = f'{mobile_owner}:off-slot-1'
+    _write_no_effect_result(hint, owner_id=mobile_owner,
+                            occurrence_id=mobile_occurrence)
+    assert reader(hint, mobile_owner, mobile_occurrence,
+                  'apps/life-manager/scripts/mobile-app') == (
+                      'not_applicable',
+                      f'lm-no-effect://{mobile_owner}/{mobile_occurrence}/no_due_slot',
+                  )
+    _write_no_effect_result(hint, owner_id=mobile_owner,
+                            occurrence_id=mobile_occurrence,
+                            reason='daily_limit_reached')
+    assert reader(hint, mobile_owner, mobile_occurrence,
+                  'apps/life-manager/scripts/mobile-app') == (
+                      'not_applicable',
+                      f'lm-no-effect://{mobile_owner}/{mobile_occurrence}/daily_limit_reached',
+                  )
+    _write_no_effect_result(hint, reason='daily_limit_reached')
     assert reader(hint, 'ebook-ja-tiktok-daily',
-                  'ebook-ja-tiktok-daily:run-off-slot', 'apps/life-manager/scripts/mobile-app') is None
+                  'ebook-ja-tiktok-daily:run-off-slot', entrypoint) is None
+    assert reader(hint, mobile_owner, mobile_occurrence,
+                  'apps/life-manager/scripts/other-mobile-app') is None
     hint.write_text('{"status":"pre_effect_failure","effect":0}\n', encoding='utf-8')
     hint.chmod(0o600)
     assert reader(hint, 'ebook-ja-tiktok-daily',
