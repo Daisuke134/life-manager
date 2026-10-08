@@ -1132,6 +1132,23 @@ def reconcile_pending_owner(
     }
 
 
+def _identity_for_occurrence(identity_dir: Path, owner_id: str,
+                              occurrence_id: str) -> dict[str, Any] | None:
+    try:
+        sidecars = sorted(identity_dir.expanduser().glob("*.jsonl"), key=lambda item: item.name)
+    except OSError:
+        return None
+    match = None
+    for sidecar in sidecars:
+        identity = read_identity(sidecar, owner_id, occurrence_id)
+        if identity is None or identity.get("runtime_run_id") != sidecar.stem:
+            continue
+        if match is not None:
+            return None
+        match = identity
+    return match
+
+
 def reconcile_current_occurrence(
     *, owner_id: str, occurrence_id: str, identity_dir: Path, data_dir: Path,
     tenant_id: str, admission_db: Path, api_key: str, apply: bool,
@@ -1157,9 +1174,7 @@ def reconcile_current_occurrence(
     if state not in {"claimed", "released"} or effect_unknown != 1:
         return _inconclusive(owner_id, occurrence_id, "admission_occurrence_missing_or_invalid")
 
-    runtime_run_id = occurrence_id.split(":", 1)[1]
-    identity_path = identity_dir.expanduser() / f"{runtime_run_id}.jsonl"
-    identity = read_identity(identity_path, owner_id, occurrence_id)
+    identity = _identity_for_occurrence(identity_dir, owner_id, occurrence_id)
     if identity is None:
         return _inconclusive(owner_id, occurrence_id, "identity_missing_or_invalid")
     ledger = _ledger_for_identity(identity, data_dir, tenant_id)

@@ -65,6 +65,9 @@ def test_runtime_auto_owner_passes_a_clean_occurrence_while_older_occurrences_re
     admission_db = tmp_path / "admission.sqlite3"
     identity_dir = tmp_path / "effect-identities"
     identity_dir.mkdir()
+    old_sidecar = identity_dir / "run-old.jsonl"
+    old_sidecar.write_text(json.dumps({"occurrence_id": old_occurrence}) + "\n", encoding="utf-8")
+    old_sidecar.chmod(0o600)
     with sqlite3.connect(admission_db) as connection:
         connection.execute(
             "CREATE TABLE occurrences (owner_id TEXT, occurrence_id TEXT, state TEXT, effect_unknown INTEGER)"
@@ -79,6 +82,14 @@ def test_runtime_auto_owner_passes_a_clean_occurrence_while_older_occurrences_re
     monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", current_occurrence)
     monkeypatch.setenv("LIFE_MANAGER_RUN_ID", "run-current")
     monkeypatch.setenv("LIFE_MANAGER_LOOP_ID", owner)
+    scanned_sidecars = []
+    safe_jsonl = reconcile._safe_jsonl
+
+    def record_sidecar_read(path):
+        scanned_sidecars.append(path)
+        return safe_jsonl(path)
+
+    monkeypatch.setattr(reconcile, "_safe_jsonl", record_sidecar_read)
 
     result_code = reconcile.main([
         "--auto-owner", owner,
@@ -93,6 +104,7 @@ def test_runtime_auto_owner_passes_a_clean_occurrence_while_older_occurrences_re
     assert result_code == 0, result
     assert result["status"] == "clean"
     assert result["occurrence_id"] == current_occurrence
+    assert scanned_sidecars == []
     with sqlite3.connect(admission_db) as connection:
         assert connection.execute(
             "SELECT state,effect_unknown FROM occurrences WHERE occurrence_id=?",
@@ -983,11 +995,27 @@ def test_runtime_auto_owner_resolves_current_proof_and_leaves_other_fence_for_re
     fixture = _native_carousel_recovery_fixture(tmp_path, monkeypatch)
     owner = fixture["owner"]
     identity = fixture["identity"]
-    old_occurrence = f"{owner}:run-old"
-    old_sidecar = fixture["identity_dir"] / "run-old.jsonl"
-    old_sidecar.write_text(json.dumps({"occurrence_id": old_occurrence}) + "\n", encoding="utf-8")
+    fixture_occurrence = identity["occurrence_id"]
+    identity["occurrence_id"] = f"{owner}:18d864fa9d9c6858-71847"
+    identity["runtime_run_id"] = "18d87e42d43a1de0-7377"
+    current_sidecar = fixture["identity_dir"] / f"{identity['runtime_run_id']}.jsonl"
+    original_sidecar = fixture["identity_dir"] / "run-1.jsonl"
+    original_sidecar.unlink()
+    current_sidecar.write_text(json.dumps(identity) + "\n", encoding="utf-8")
+    current_sidecar.chmod(0o600)
+
+    old_identity = _identity_for_neighbor_slot(
+        identity, run_id="18d87e42d43a1de0-1111", slot="2026-10-06T09:00:00.000Z",
+    )
+    old_occurrence = old_identity["occurrence_id"]
+    old_sidecar = fixture["identity_dir"] / f"{old_identity['runtime_run_id']}.jsonl"
+    old_sidecar.write_text(json.dumps(old_identity) + "\n", encoding="utf-8")
     old_sidecar.chmod(0o600)
     with sqlite3.connect(fixture["admission_db"]) as connection:
+        connection.execute(
+            "UPDATE occurrences SET occurrence_id=? WHERE owner_id=? AND occurrence_id=?",
+            (identity["occurrence_id"], owner, fixture_occurrence),
+        )
         connection.execute(
             "INSERT INTO occurrences VALUES (?, ?, 'released', 1)",
             (owner, old_occurrence),
