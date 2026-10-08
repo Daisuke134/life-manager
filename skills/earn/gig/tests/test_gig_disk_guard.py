@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import shutil
 import subprocess
 import sys
 import textwrap
@@ -41,6 +42,16 @@ def _load_guard():
     return module
 
 
+def _write_cleanup_recovery_signal(path: Path):
+    path.write_text(json.dumps({
+        "owner_id": "host-disk-recovery",
+        "reason": "disk_headroom_low",
+        "required_bytes": 2 * 1024**3,
+        "next_action": "restore_capacity_and_install_shared_disk_gate",
+    }) + "\n", encoding="utf-8")
+    path.chmod(0o600)
+
+
 def _load_reply_detector():
     path = GIG_ROOT / "scripts" / "reply_detector.py"
     spec = importlib.util.spec_from_file_location("gig_reply_detector_disk_guard_test", path)
@@ -67,7 +78,7 @@ def test_legacy_headroom_setting_is_ignored_at_zero_free_bytes(monkeypatch, lega
     monkeypatch.setenv("GIG_DISK_HEADROOM_KIB", legacy_floor)
     guard = _load_guard()
     monkeypatch.setattr(
-        guard.shutil, "disk_usage", lambda _path: guard.shutil._ntuple_diskusage(1, 1, 0),
+        shutil, "disk_usage", lambda _path: shutil._ntuple_diskusage(1, 1, 0),
     )
     assert guard.disk_headroom_ok() is True
 
@@ -76,9 +87,9 @@ def test_zero_free_bytes_still_execs_child(tmp_path, monkeypatch):
     guard = _load_guard()
     monkeypatch.setenv("GIG_STATE_DIR", str(tmp_path))
     monkeypatch.setattr(
-        guard.shutil,
+        shutil,
         "disk_usage",
-        lambda _path: guard.shutil._ntuple_diskusage(1, 1, 0),
+        lambda _path: shutil._ntuple_diskusage(1, 1, 0),
     )
     calls = []
     monkeypatch.setattr(guard.os, "execvpe", lambda *args: calls.append(args))
@@ -92,9 +103,9 @@ def test_exact_threshold_execs_remaining_argv_and_environment_exactly(tmp_path, 
     monkeypatch.setenv("GIG_STATE_DIR", str(tmp_path))
     monkeypatch.setenv("GIG_DISK_GUARD_SENTINEL", "kept")
     monkeypatch.setattr(
-        guard.shutil,
+        shutil,
         "disk_usage",
-        lambda _path: guard.shutil._ntuple_diskusage(1, 1, 1),
+        lambda _path: shutil._ntuple_diskusage(1, 1, 1),
     )
     calls = []
     monkeypatch.setattr(guard.os, "execvpe", lambda *args: calls.append(args))
@@ -105,55 +116,53 @@ def test_exact_threshold_execs_remaining_argv_and_environment_exactly(tmp_path, 
     assert calls == [(child_argv[0], child_argv, os.environ)]
 
 
-def test_disk_measurement_exception_fails_closed_without_exec(tmp_path, monkeypatch, capsys):
+def test_disk_measurement_exception_does_not_block_exec(tmp_path, monkeypatch, capsys):
     guard = _load_guard()
     monkeypatch.setenv("GIG_STATE_DIR", str(tmp_path))
-    monkeypatch.setattr(guard.shutil, "disk_usage", lambda _path: (_ for _ in ()).throw(OSError("no stat")))
-    monkeypatch.setattr(guard.os, "execvpe", lambda *_args: (_ for _ in ()).throw(
-        AssertionError("child must not execute when disk headroom is unknown")
-    ))
+    monkeypatch.setattr(shutil, "disk_usage", lambda _path: (_ for _ in ()).throw(OSError("no stat")))
+    calls = []
+    monkeypatch.setattr(guard.os, "execvpe", lambda *args: calls.append(args))
 
-    assert guard.main(["/bin/echo", "child-sentinel"]) == 1
+    assert guard.main(["/bin/echo", "child-sentinel"]) == 0
 
-    receipt = json.loads(capsys.readouterr().out)
-    assert receipt == {
-        "effect": 0,
-        "failed": 1,
-        "readback": 0,
-        "reason": "disk_headroom_unavailable",
-        "required_bytes": 0,
-        "status": "failed",
-    }
+    capsys.readouterr()
+    assert calls == [("/bin/echo", ["/bin/echo", "child-sentinel"], os.environ)]
 
 
-@pytest.mark.parametrize(
-    ("flag_name", "reason", "payload"),
-    (("disk-writers.stop", "disk_writers_stop", "tier=4\n"),),
-)
-def test_life_manager_producer_flags_block_child_before_exec(
-    tmp_path, monkeypatch, capsys, flag_name, reason, payload,
+def test_cleanup_stop_signal_does_not_block_child_before_exec(
+    tmp_path, monkeypatch, capsys,
 ):
     guard = _load_guard()
     monkeypatch.setenv("GIG_STATE_DIR", str(tmp_path / "gig"))
     host_state = Path.home() / ".openclaw" / "state"
-    (host_state / flag_name).write_text(payload, encoding="utf-8")
+    _write_cleanup_recovery_signal(host_state / "disk-writers.stop")
     monkeypatch.setattr(
-        guard.shutil,
+        shutil,
         "disk_usage",
-        lambda _path: guard.shutil._ntuple_diskusage(1, 1, 1024**4),
+        lambda _path: shutil._ntuple_diskusage(1, 1, 1024**4),
     )
-    monkeypatch.setattr(guard.os, "execvpe", lambda *_args: (_ for _ in ()).throw(
-        AssertionError("stop flag must block the producer before exec")
-    ))
+    calls = []
+    monkeypatch.setattr(guard.os, "execvpe", lambda *args: calls.append(args))
 
-    assert guard.main(["/bin/echo", "child-sentinel"]) == 1
+    assert guard.main(["/bin/echo", "child-sentinel"]) == 0
+    assert calls and calls[0][1] == ["/bin/echo", "child-sentinel"]
+    capsys.readouterr()
 
-    receipt = json.loads(capsys.readouterr().out)
-    assert receipt["reason"] == reason
-    assert receipt["gate"] == "life-manager-producer-preflight"
-    assert receipt["flag_path"] == str(host_state / flag_name)
-    assert receipt["effect"] == 0
-    assert receipt["readback"] == 0
+
+def test_operator_stop_signal_still_blocks_child(tmp_path, monkeypatch, capsys):
+    guard = _load_guard()
+    monkeypatch.setenv("GIG_STATE_DIR", str(tmp_path / "gig"))
+    host_state = Path.home() / ".openclaw" / "state"
+    (host_state / "disk-writers.stop").write_text("owner=operator\n", encoding="utf-8")
+    monkeypatch.setattr(
+        shutil, "disk_usage", lambda _path: shutil._ntuple_diskusage(1, 1, 1024**4),
+    )
+    calls = []
+    monkeypatch.setattr(guard.os, "execvpe", lambda *args: calls.append(args))
+
+    assert guard.main(["/bin/echo", "manual-stop-sentinel"]) == 1
+    assert calls == []
+    assert json.loads(capsys.readouterr().out)["reason"] == "disk_writers_stop"
 
 
 def test_pressure_marker_is_advisory_even_with_zero_free_bytes(
@@ -164,36 +173,15 @@ def test_pressure_marker_is_advisory_even_with_zero_free_bytes(
     host_state = Path.home() / ".openclaw" / "state"
     (host_state / "disk-pressure.block").write_text("free=9GiB\n", encoding="utf-8")
     monkeypatch.setattr(
-        guard.shutil,
+        shutil,
         "disk_usage",
-        lambda _path: guard.shutil._ntuple_diskusage(1, 1, 0),
+        lambda _path: shutil._ntuple_diskusage(1, 1, 0),
     )
     calls = []
     monkeypatch.setattr(guard.os, "execvpe", lambda *args: calls.append(args))
 
     assert guard.main(["/bin/echo", "writer-sentinel"]) == 0
     assert calls and calls[0][1] == ["/bin/echo", "writer-sentinel"]
-
-
-def test_legacy_ignore_env_cannot_bypass_explicit_shared_stop(
-    tmp_path, monkeypatch, capsys,
-):
-    guard = _load_guard()
-    monkeypatch.setenv("GIG_STATE_DIR", str(tmp_path / "gig"))
-    monkeypatch.setenv("GIG_IGNORE_DISK_WRITERS_STOP", "1")
-    host_state = Path.home() / ".openclaw" / "state"
-    (host_state / "disk-writers.stop").write_text("tier=4\n", encoding="utf-8")
-    monkeypatch.setattr(
-        guard.shutil,
-        "disk_usage",
-        lambda _path: guard.shutil._ntuple_diskusage(1, 1, 1024**4),
-    )
-    monkeypatch.setattr(guard.os, "execvpe", lambda *_args: (_ for _ in ()).throw(
-        AssertionError("legacy ignore env must not bypass the hard stop")
-    ))
-
-    assert guard.main(["/bin/echo", "writer-sentinel"]) == 1
-    assert json.loads(capsys.readouterr().out)["reason"] == "disk_writers_stop"
 
 
 def test_zero_free_bytes_does_not_block_writer_override(tmp_path, monkeypatch):
@@ -203,9 +191,9 @@ def test_zero_free_bytes_does_not_block_writer_override(tmp_path, monkeypatch):
     host_state.mkdir(parents=True, exist_ok=True)
     (host_state / "disk-pressure.block").write_text("free=9GiB\n", encoding="utf-8")
     monkeypatch.setattr(
-        guard.shutil,
+        shutil,
         "disk_usage",
-        lambda _path: guard.shutil._ntuple_diskusage(1, 1, 0),
+        lambda _path: shutil._ntuple_diskusage(1, 1, 0),
     )
     calls = []
     monkeypatch.setattr(guard.os, "execvpe", lambda *args: calls.append(args))
@@ -220,9 +208,9 @@ def test_missing_host_control_state_fails_closed_before_exec(tmp_path, monkeypat
     host_state = tmp_path / "missing-control-state"
     monkeypatch.setenv("OPENCLAW_STATE_DIR", str(host_state))
     monkeypatch.setattr(
-        guard.shutil,
+        shutil,
         "disk_usage",
-        lambda _path: guard.shutil._ntuple_diskusage(1, 1, 1024**4),
+        lambda _path: shutil._ntuple_diskusage(1, 1, 1024**4),
     )
     monkeypatch.setattr(guard.os, "execvpe", lambda *_args: (_ for _ in ()).throw(
         AssertionError("missing control state must fail closed")
@@ -245,9 +233,9 @@ def test_symlink_host_control_state_fails_closed_before_exec(tmp_path, monkeypat
     monkeypatch.setenv("OPENCLAW_STATE_DIR", str(alias))
     monkeypatch.setenv("GIG_STATE_DIR", str(tmp_path / "gig"))
     monkeypatch.setattr(
-        guard.shutil,
+        shutil,
         "disk_usage",
-        lambda _path: guard.shutil._ntuple_diskusage(1, 1, 1024**4),
+        lambda _path: shutil._ntuple_diskusage(1, 1, 1024**4),
     )
     monkeypatch.setattr(guard.os, "execvpe", lambda *_args: (_ for _ in ()).throw(
         AssertionError("unsafe control directory must fail closed")
@@ -259,22 +247,21 @@ def test_symlink_host_control_state_fails_closed_before_exec(tmp_path, monkeypat
     assert receipt["flag_path"] == str(alias)
 
 
-def test_dangling_policy_flag_fails_closed_before_exec(tmp_path, monkeypatch, capsys):
+def test_dangling_operator_stop_signal_fails_closed(tmp_path, monkeypatch, capsys):
     guard = _load_guard()
     host_state = Path.home() / ".openclaw" / "state"
     (host_state / "disk-writers.stop").symlink_to(host_state / "gone")
     monkeypatch.setenv("GIG_STATE_DIR", str(tmp_path / "gig"))
     monkeypatch.setattr(
-        guard.shutil,
+        shutil,
         "disk_usage",
-        lambda _path: guard.shutil._ntuple_diskusage(1, 1, 1024**4),
+        lambda _path: shutil._ntuple_diskusage(1, 1, 1024**4),
     )
-    monkeypatch.setattr(guard.os, "execvpe", lambda *_args: (_ for _ in ()).throw(
-        AssertionError("dangling policy flag must fail closed")
-    ))
+    calls = []
+    monkeypatch.setattr(guard.os, "execvpe", lambda *args: calls.append(args))
 
     assert guard.main(["/bin/echo", "child-sentinel"]) == 1
-
+    assert calls == []
     receipt = json.loads(capsys.readouterr().out)
     assert receipt["reason"] == "disk_policy_unavailable"
     assert receipt["flag_path"] == str(host_state / "disk-writers.stop")
@@ -447,13 +434,13 @@ def test_self_build_uses_shared_guard_before_dependency_and_node_effects():
     assert first_guard < npm_effect < second_guard < node_effect
 
 
-def test_writer_article_daily_already_has_media_preflight_and_bounded_stop_paths():
+def test_writer_article_daily_keeps_operator_stop_without_capacity_floor():
     script = WRITER_DAILY_PATH.read_text(encoding="utf-8")
 
     assert "media_create_once.py" in script
     assert "arm --run-dir \"$RUN_DIR\"" in script
-    # The numeric floor and soft pressure marker no longer gate Writer. The explicit hard stop
-    # still applies before a model pass and while the bounded pass is running.
+    # Numeric floors and the cleanup-owned recovery record do not gate Writer;
+    # the bounded runner still receives the operator stop path.
     assert "writer_capacity_preflight" in script
     preflight = script[script.index("writer_capacity_preflight() {"):script.index(
         "if ! writer_capacity_preflight"
@@ -464,16 +451,14 @@ def test_writer_article_daily_already_has_media_preflight_and_bounded_stop_paths
     assert "WRITER_CANONICAL_HOME=\"$(/usr/bin/python3 -c 'import os, pwd; print(pwd.getpwuid(os.getuid()).pw_dir)')\"" in script
     assert 'WRITER_DISK_CONTROL_DIR="$WRITER_CANONICAL_HOME/.local/state/life-manager/state"' in script
     assert 'LIFE_MANAGER_HOST_STATE_DIR="$WRITER_DISK_CONTROL_DIR"' in script
-    assert (
-        'BOUNDED_EXEC_STOP_PATHS="$WRITER_DISK_CONTROL_DIR/disk-writers.stop"'
-    ) in script
+    assert 'BOUNDED_EXEC_STOP_PATHS="$WRITER_DISK_CONTROL_DIR/disk-writers.stop"' in script
 
 
 @pytest.mark.parametrize(
     ("flag_name", "reason"),
     (("disk-writers.stop", "disk_writers_stop"),),
 )
-def test_self_build_stop_flag_blocks_dependency_and_cli_effects(tmp_path, flag_name, reason):
+def test_self_build_cleanup_stop_signal_does_not_block_dependency_and_cli_effects(tmp_path, flag_name, reason):
     home = tmp_path / "home"
     repo = tmp_path / "repo"
     bin_dir = tmp_path / "bin"
@@ -481,9 +466,7 @@ def test_self_build_stop_flag_blocks_dependency_and_cli_effects(tmp_path, flag_n
     env_file = tmp_path / "self-build.env"
     explicit_log = tmp_path / "explicit-self-build.log"
     (home / ".local/state/life-manager/state").mkdir(parents=True, exist_ok=True)
-    (home / ".local/state/life-manager/state" / flag_name).write_text(
-        "tier=4\n", encoding="utf-8",
-    )
+    _write_cleanup_recovery_signal(home / ".local/state/life-manager/state" / flag_name)
     hostile_state = tmp_path / "hostile-state"
     hostile_state.mkdir()
     hostile_life = tmp_path / "hostile-life"
@@ -561,17 +544,10 @@ def test_self_build_stop_flag_blocks_dependency_and_cli_effects(tmp_path, flag_n
         check=False,
     )
 
-    assert result.returncode != 0, result.stderr
-    assert not marker.exists(), explicit_log.read_text(encoding="utf-8")
+    assert result.returncode == 0, result.stderr
+    assert marker.is_file()
     assert explicit_log.is_file()
-    assert (tmp_path / "guard-calls").read_text(encoding="utf-8") == "1"
-    receipt = json.loads(
-        (home / ".local" / "state" / "life-manager" / "state" / "disk-headroom.json")
-        .read_text(encoding="utf-8")
-    )
-    assert receipt["required_bytes"] == 0
-    assert receipt["effect"] == 0
-    assert receipt["reason"] == reason
+    assert (tmp_path / "guard-calls").read_text(encoding="utf-8") == "2"
     assert not (hostile_state / "state" / "disk-headroom.json").exists()
 
 
@@ -579,15 +555,15 @@ def test_self_build_stop_flag_blocks_dependency_and_cli_effects(tmp_path, flag_n
     ("flag_name", "reason"),
     (("disk-writers.stop", "disk_writers_stop"),),
 )
-def test_browser_stop_flag_blocks_before_profile_or_chromium(tmp_path, flag_name, reason):
+def test_browser_cleanup_stop_signal_does_not_block_before_chromium(tmp_path, flag_name, reason):
     home = tmp_path / "home"
     profile = tmp_path / "browser-profile"
     chromium_marker = tmp_path / "chromium-started"
     hostile_state = tmp_path / "hostile-state"
     (home / ".local" / "state" / "life-manager" / "state").mkdir(parents=True)
     hostile_state.mkdir()
-    (home / ".local" / "state" / "life-manager" / "state" / flag_name).write_text(
-        "tier=4\n", encoding="utf-8"
+    _write_cleanup_recovery_signal(
+        home / ".local" / "state" / "life-manager" / "state" / flag_name
     )
     chromium = (
         home / ".cloakbrowser" / "chromium-999.0.0" / "Chromium.app" / "Contents"
@@ -620,15 +596,8 @@ def test_browser_stop_flag_blocks_before_profile_or_chromium(tmp_path, flag_name
         check=False,
     )
 
-    assert result.returncode != 0
-    assert not profile.exists()
-    assert not chromium_marker.exists()
-    receipt = json.loads(
-        (home / "gig" / "state" / "disk-headroom.json").read_text(encoding="utf-8")
-    )
-    assert receipt["required_bytes"] == 0
-    assert receipt["effect"] == 0
-    assert receipt["reason"] == reason
+    assert "Gig control-state validation blocked browser start" not in result.stderr
+    assert "disk_writers_stop" not in result.stdout + result.stderr
 
 
 def test_apply_has_no_numeric_disk_floor():

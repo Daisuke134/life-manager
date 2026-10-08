@@ -43,27 +43,27 @@
   "candidate_profiles": {},
   "task_classes": {
     "marketing-agent": {
-      "route": "affiliate-terra-high-strategy",
+      "route": "affiliate-sol-medium-strategy",
       "requires_explicit_escalation": true,
       "token_reservation": 32768,
       "timeout_seconds": 900,
       "candidates": [
         {
           "provider": "codex",
-          "model": "gpt-5.6-terra",
-          "effort": "high"
+          "model": "gpt-6.1-sol",
+          "effort": "medium"
         }
       ]
     },
     "escalation-agent": {
-      "route": "affiliate-sol-one-use-repair",
+      "route": "affiliate-sol-high-one-use-repair",
       "requires_explicit_escalation": true,
       "token_reservation": 65536,
       "timeout_seconds": 3600,
       "candidates": [
         {
           "provider": "codex",
-          "model": "gpt-5.6-sol",
+          "model": "gpt-6.1-sol",
           "effort": "high"
         }
       ]

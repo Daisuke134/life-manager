@@ -36,6 +36,52 @@ def _event(*, loop_id: str, phase: str, status: str, epoch: int, blocker=None):
     }
 
 
+def _write_cleanup_recovery_signal(path: Path) -> None:
+    path.write_text(json.dumps({
+        "owner_id": "host-disk-recovery",
+        "reason": "disk_headroom_low",
+        "required_bytes": 2 * 1024**3,
+        "next_action": "restore_capacity_and_install_shared_disk_gate",
+    }) + "\n", encoding="utf-8")
+    path.chmod(0o600)
+
+
+def test_slo_does_not_label_cleanup_recovery_signal_as_hard_stop(tmp_path):
+    legacy = tmp_path / "gig"
+    legacy.mkdir()
+    host_state = tmp_path / "host-state"
+    host_state.mkdir()
+    _write_cleanup_recovery_signal(host_state / "disk-writers.stop")
+
+    snapshot = gig_slo.collect_snapshot(
+        state_dir=legacy,
+        host_state_dir=host_state,
+        telegram_database=tmp_path / "telegram.sqlite3",
+        now=1_800_000_000,
+    )
+
+    assert snapshot["disk"]["hard_stop"] is False
+    assert snapshot["disk"]["cleanup_recovery_pending"] is True
+
+
+def test_slo_still_labels_operator_stop_as_hard_stop(tmp_path):
+    legacy = tmp_path / "gig"
+    legacy.mkdir()
+    host_state = tmp_path / "host-state"
+    host_state.mkdir()
+    (host_state / "disk-writers.stop").write_text("owner=operator\n", encoding="utf-8")
+
+    snapshot = gig_slo.collect_snapshot(
+        state_dir=legacy,
+        host_state_dir=host_state,
+        telegram_database=tmp_path / "telegram.sqlite3",
+        now=1_800_000_000,
+    )
+
+    assert snapshot["disk"]["hard_stop"] is True
+    assert snapshot["disk"]["cleanup_recovery_pending"] is False
+
+
 def test_collect_snapshot_uses_current_runtime_lane_events(tmp_path):
     now = 1_800_000_000
     legacy = tmp_path / "gig"

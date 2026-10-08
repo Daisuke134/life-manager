@@ -40,12 +40,16 @@ class CompositionOwnerTests(unittest.TestCase):
             })
         self.assertIn("English as the primary language", prompt)
         self.assertIn("Japanese subtitle/summary", prompt)
-        self.assertNotIn("workflow tutorial", prompt)
+        self.assertIn("800–1,200 English words", prompt)
+        self.assertIn("Never pad or invent", prompt)
+        self.assertIn("decision-stage search query", prompt)
+        self.assertIn("workflow tutorial", prompt)
+        self.assertIn("above the fold", prompt)
         self.assertIn("workflow tutorial", case_study_prompt)
-        self.assertIn("single CTA above the fold", case_study_prompt)
+        self.assertIn("single disclosed CTA above the fold after a short intro", case_study_prompt)
         self.assertIn("not guarantees", case_study_prompt)
 
-    def test_experiment_preserves_control_language_and_content_structure(self) -> None:
+    def test_experiment_preserves_control_and_uses_fixed_bilingual_format(self) -> None:
         spec = importlib.util.spec_from_file_location("affiliate_composition_owner", SCRIPT)
         module = importlib.util.module_from_spec(spec)
         assert spec.loader is not None
@@ -94,8 +98,9 @@ class CompositionOwnerTests(unittest.TestCase):
                 },
             })
         self.assertIn("Change only `title`", prompt)
-        self.assertNotIn("Japanese subtitle/summary", prompt)
-        self.assertNotIn("workflow tutorial", prompt)
+        self.assertIn("Japanese subtitle/summary", prompt)
+        self.assertIn("selected variable", prompt)
+        self.assertIn("preserve the control", prompt)
 
     def test_compact_nested_experiment_lineage_is_accepted(self) -> None:
         spec = importlib.util.spec_from_file_location("affiliate_composition_owner", SCRIPT)
@@ -184,17 +189,21 @@ class CompositionOwnerTests(unittest.TestCase):
             build_handoff = mock.Mock(return_value="c" * 64)
             build_policy = mock.Mock(return_value="d" * 64)
 
-            first = module.wake(
-                root, state, run_model=run_model, handoff_builder=build_handoff,
-                policy_builder=build_policy, disk_floor_bytes=1,
-            )
+            with mock.patch.object(
+                module, "runtime_guard", return_value={"state": "DISK_GUARD_UNKNOWN"},
+            ) as guard:
+                first = module.wake(
+                    root, state, run_model=run_model, handoff_builder=build_handoff,
+                    policy_builder=build_policy,
+                )
+            guard.assert_called_once()
             second = module.wake(
                 root, state, run_model=run_model, handoff_builder=build_handoff,
-                policy_builder=build_policy, disk_floor_bytes=1,
+                policy_builder=build_policy,
             )
             third = module.wake(
                 root, state, run_model=run_model, handoff_builder=build_handoff,
-                policy_builder=build_policy, disk_floor_bytes=1,
+                policy_builder=build_policy,
             )
 
             self.assertEqual(first["state"], "READY_FOR_POLICY")
@@ -249,7 +258,6 @@ class CompositionOwnerTests(unittest.TestCase):
                 root, state, run_model=run_model,
                 handoff_builder=mock.Mock(return_value="c" * 64),
                 policy_builder=mock.Mock(return_value="d" * 64),
-                disk_floor_bytes=1,
             )
 
             # The already-live campaign is skipped despite its stale hash, so the

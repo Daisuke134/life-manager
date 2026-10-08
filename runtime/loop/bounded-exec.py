@@ -9,6 +9,12 @@ import signal
 import subprocess
 import sys
 import time
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+from runtime.host.disk_admission import is_cleanup_disk_recovery_signal
 
 STOP_PATHS_ENV = "BOUNDED_EXEC_STOP_PATHS"
 POLL_INTERVAL_SECONDS, DRAIN_GRACE_SECONDS = 0.1, 1.0
@@ -83,11 +89,13 @@ def _owned_descendants_alive(descendants: dict[int, str]) -> bool:
 def _stop_requested() -> bool:
     for path in filter(None, os.environ.get(STOP_PATHS_ENV, "").split(os.pathsep)):
         try:
-            return bool(os.lstat(path))
+            os.lstat(path)
         except FileNotFoundError:
             continue
         except (OSError, ValueError):
             return True
+        if Path(path).name == "disk-writers.stop" and is_cleanup_disk_recovery_signal(path):
+            continue
         return True
     return False
 

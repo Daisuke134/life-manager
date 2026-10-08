@@ -13,7 +13,7 @@ grep -F 'START_REASON' "$WRAPPER" >/dev/null
 ! grep -F 'no second article' "$WRAPPER" >/dev/null
 ! grep -F 'RESUME_EXISTING=' "$WRAPPER" >/dev/null
 grep -F 'writer_capacity_preflight' "$WRAPPER" >/dev/null
-grep -F 'disk-writers.stop' "$WRAPPER" >/dev/null
+grep -F 'BOUNDED_EXEC_STOP_PATHS="$WRITER_DISK_CONTROL_DIR/disk-writers.stop"' "$WRAPPER" >/dev/null
 grep -F 'WRITER_DISK_CONTROL_DIR="$WRITER_CANONICAL_HOME/.local/state/life-manager/state"' "$WRAPPER" >/dev/null
 ! grep -F 'LIFE_MANAGER_HOST_STATE_DIR:-' "$WRAPPER" >/dev/null
 ! grep -E 'CANONICAL_DISK_HEADROOM|DISK_MIN_FREE_BYTES|DISK_LOW_THRESHOLD|disk floor blocked|disk-pressure\.block' "$WRAPPER" >/dev/null
@@ -21,4 +21,4 @@ grep -F 'WRITER_DISK_CONTROL_DIR="$WRITER_CANONICAL_HOME/.local/state/life-manag
 grep -F 'ARTICLE_PROVIDER="${ARTICLE_PROVIDER:-codex}"' "$ROOT/skills/writer-agent/scripts/article-resume-pending.sh" >/dev/null
 grep -F 'PRE_START_REASON" = "no-same-jst-day-run"' "$ROOT/skills/writer-agent/scripts/article-resume-pending.sh" >/dev/null
 
-echo 'PASS: low disk no longer blocks Writer; explicit hard stop remains'
+echo 'PASS: low disk and cleanup recovery signals do not block Writer; operator stop remains'

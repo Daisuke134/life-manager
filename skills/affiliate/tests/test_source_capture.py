@@ -169,15 +169,12 @@ class SourceCaptureTest(unittest.TestCase):
             with mock.patch.object(MODULE, "capture", return_value=[]):
                 receipt = MODULE.refresh_all(
                     root, state, now=1000, cooldown_seconds=86400,
-                    disk_floor_bytes=1,
                 )
                 replay = MODULE.refresh_all(
                     root, state, now=1001, cooldown_seconds=86400,
-                    disk_floor_bytes=1,
                 )
                 cooldown = MODULE.refresh_all(
                     root, state, now=1002, cooldown_seconds=86400,
-                    disk_floor_bytes=1,
                 )
             self.assertEqual(receipt["state"], "IN_PROGRESS")
             self.assertEqual([row["plan_id"] for row in receipt["plans"]], ["alpha-en"])
@@ -200,10 +197,10 @@ class SourceCaptureTest(unittest.TestCase):
             state = Path(directory) / "state"
             with (mock.patch.object(MODULE, "discover_official_plan", return_value={"state": "COOLDOWN"}),
                   mock.patch.object(MODULE, "capture", return_value=[])):
-                first = MODULE.refresh_all(root, state, now=1000, disk_floor_bytes=1)
-                second = MODULE.refresh_all(root, state, now=1001, disk_floor_bytes=1)
-                third = MODULE.refresh_all(root, state, now=1002, disk_floor_bytes=1)
-                replay = MODULE.refresh_all(root, state, now=1003, disk_floor_bytes=1)
+                first = MODULE.refresh_all(root, state, now=1000)
+                second = MODULE.refresh_all(root, state, now=1001)
+                third = MODULE.refresh_all(root, state, now=1002)
+                replay = MODULE.refresh_all(root, state, now=1003)
             self.assertEqual(first["state"], "IN_PROGRESS")
             self.assertEqual(first["pending_count"], 2)
             self.assertEqual([row["plan_id"] for row in first["plans"]], ["alpha-en"])
@@ -223,7 +220,7 @@ class SourceCaptureTest(unittest.TestCase):
             (root / "config" / "source-plans").mkdir(parents=True)
             state = Path(directory) / "state"
             with mock.patch.object(MODULE, "run_adapter", side_effect=MODULE.CaptureError("offline")):
-                first = MODULE.refresh_all(root, state, now=1000, disk_floor_bytes=1)
+                first = MODULE.refresh_all(root, state, now=1000)
             self.assertEqual(first["discovery_state"], "FAILED")
             with mock.patch.object(MODULE, "run_adapter", side_effect=AssertionError("retried today")):
                 second = MODULE.discover_official_plan(root, state, now=1001)
@@ -243,9 +240,9 @@ class SourceCaptureTest(unittest.TestCase):
             state = Path(directory) / "state"
             with (mock.patch.object(MODULE, "discover_official_plan", return_value={"state": "COOLDOWN"}),
                   mock.patch.object(MODULE, "capture", side_effect=MODULE.CaptureError("upstream")) as capture):
-                first = MODULE.refresh_all(root, state, now=1000, disk_floor_bytes=1)
-                cooldown = MODULE.refresh_all(root, state, now=1001, disk_floor_bytes=1)
-                retry = MODULE.refresh_all(root, state, now=1000 + 86400, disk_floor_bytes=1)
+                first = MODULE.refresh_all(root, state, now=1000)
+                cooldown = MODULE.refresh_all(root, state, now=1001)
+                retry = MODULE.refresh_all(root, state, now=1000 + 86400)
             self.assertEqual(first["state"], "PARTIAL")
             self.assertEqual(cooldown["state"], "COOLDOWN")
             self.assertEqual(retry["state"], "PARTIAL")
@@ -270,7 +267,7 @@ class SourceCaptureTest(unittest.TestCase):
             }))
             with (mock.patch.object(MODULE, "discover_official_plan", return_value={"state": "COOLDOWN"}),
                   mock.patch.object(MODULE, "capture", return_value=[])):
-                result = MODULE.refresh_all(root, state, now=1001, disk_floor_bytes=1)
+                result = MODULE.refresh_all(root, state, now=1001)
             self.assertEqual(result["state"], "IN_PROGRESS")
             self.assertEqual([row["plan_id"] for row in result["plans"]], ["alpha-en"])
             self.assertEqual(result["pending_count"], 1)
@@ -287,11 +284,11 @@ class SourceCaptureTest(unittest.TestCase):
             state = Path(directory) / "state"
             with (mock.patch.object(MODULE, "discover_official_plan", return_value={"state": "COOLDOWN"}),
                   mock.patch.object(MODULE, "capture", return_value=[])):
-                first = MODULE.refresh_all(root, state, now=1000, disk_floor_bytes=1)
+                first = MODULE.refresh_all(root, state, now=1000)
                 (plans / "gamma-en.json").write_text(json.dumps({
                     "schema_version": 1, "plan_id": "gamma-en", "locale": "en", "sources": [],
                 }))
-                second = MODULE.refresh_all(root, state, now=1001, disk_floor_bytes=1)
+                second = MODULE.refresh_all(root, state, now=1001)
             self.assertEqual([row["plan_id"] for row in first["plans"]], ["alpha-en"])
             self.assertEqual([row["plan_id"] for row in second["plans"]], ["alpha-en", "beta-en"])
             self.assertEqual(second["pending_count"], 1)
@@ -326,7 +323,7 @@ class SourceCaptureTest(unittest.TestCase):
 
             with (mock.patch.object(MODULE, "discover_official_plan", side_effect=concurrent_progress),
                   mock.patch.object(MODULE, "capture", return_value=[])):
-                result = MODULE.refresh_all(root, state, now=1001, disk_floor_bytes=1)
+                result = MODULE.refresh_all(root, state, now=1001)
             self.assertEqual([row["plan_id"] for row in result["plans"]], [
                 "alpha-en", "beta-en", "gamma-en",
             ])
@@ -355,7 +352,7 @@ class SourceCaptureTest(unittest.TestCase):
 
             def run_first():
                 first_result.append(MODULE.refresh_all(
-                    root, state, now=1000, disk_floor_bytes=1,
+                    root, state, now=1000,
                 ))
 
             with (
@@ -366,7 +363,7 @@ class SourceCaptureTest(unittest.TestCase):
                 first.start()
                 self.assertTrue(discovery_entered.wait(timeout=5))
                 second = MODULE.refresh_all(
-                    root, state, now=1001, disk_floor_bytes=1,
+                    root, state, now=1001,
                 )
                 release_discovery.set()
                 first.join(timeout=5)
@@ -377,7 +374,7 @@ class SourceCaptureTest(unittest.TestCase):
             self.assertEqual(first_result[0]["state"], "COMPLETE")
             capture.assert_called_once()
 
-    def test_disk_guard_preserves_partial_cycle_cursor(self):
+    def test_unavailable_disk_measurement_does_not_pause_partial_cycle_cursor(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory) / "skill"
             plans = root / "config" / "source-plans"
@@ -389,15 +386,19 @@ class SourceCaptureTest(unittest.TestCase):
             state = Path(directory) / "state"
             with (mock.patch.object(MODULE, "discover_official_plan", return_value={"state": "COOLDOWN"}),
                   mock.patch.object(MODULE, "capture", return_value=[])):
-                first = MODULE.refresh_all(root, state, now=1000, disk_floor_bytes=1)
-                with mock.patch.object(MODULE, "runtime_guard", return_value={"state": "DISK_BLOCKED"}):
-                    blocked = MODULE.refresh_all(root, state, now=1001, disk_floor_bytes=1)
-                resumed = MODULE.refresh_all(root, state, now=1002, disk_floor_bytes=1)
+                first = MODULE.refresh_all(root, state, now=1000)
+                with mock.patch.object(
+                    MODULE, "runtime_guard", return_value={"state": "DISK_GUARD_UNKNOWN"},
+                ):
+                    continued = MODULE.refresh_all(root, state, now=1001)
+                resumed = MODULE.refresh_all(root, state, now=1002)
             self.assertEqual(first["state"], "IN_PROGRESS")
-            self.assertEqual(blocked["state"], "DISK_BLOCKED")
-            self.assertEqual([row["plan_id"] for row in resumed["plans"]], [
+            self.assertEqual(continued["state"], "COMPLETE")
+            self.assertEqual([row["plan_id"] for row in continued["plans"]], [
                 "alpha-en", "beta-en",
             ])
+            self.assertEqual(resumed["state"], "COOLDOWN")
+            self.assertEqual(resumed["plans"], [])
 
 
 if __name__ == "__main__":
