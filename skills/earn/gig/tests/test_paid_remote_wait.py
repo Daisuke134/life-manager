@@ -4558,7 +4558,7 @@ def test_stable_decision_cache_ignores_compiled_runtime_context_churn(tmp_path, 
         "runner": runner,
         **value,
     }
-    monkeypatch.setattr(paid, "_decision_runner_proof", lambda _path: runner)
+    monkeypatch.setattr(paid, "_decision_runner_proof", lambda _path, **_kwargs: runner)
     monkeypatch.setattr(paid, "_consultation_result_path", lambda _path: result)
 
     assert paid._stable_cached_paid_decision(
@@ -5418,21 +5418,94 @@ def test_manual_ryu_room_does_not_stall_other_paid_room(tmp_path):
     assert paid._admitted_paid_projects(args, [other]) == [other]
 
 
-def test_paid_runner_contract_matches_runtime_terra_route():
+def test_paid_decision_contract_matches_runtime_fast_fail_route():
     paid = load("paid_direct")
     runtime_config = json.loads(
         (SCRIPTS.parents[3] / "runtime" / "agent-runner" / "config.json").read_text()
     )
-    escalation_route = runtime_config["task_classes"]["escalation-agent"]["candidates"]
+    route = runtime_config["task_classes"][paid.PAID_DECISION_TASK_CLASS]
+    candidates = route["candidates"]
 
-    assert paid.PAID_DECISION_MODEL == "gpt-5.6-terra"
+    assert paid.PAID_DECISION_MODEL == "gpt-6.1-sol"
     assert paid.PAID_FILE_MODEL == "gpt-5.6-terra"
+    assert paid.PAID_DECISION_TASK_CLASS == "paid-decision-agent"
+    assert route["requires_explicit_escalation"] is True
+    assert all(candidate.get("fail_fast_provider_lease") is True for candidate in candidates)
     assert ("codex", "gpt-5.6-terra") in paid.PAID_RUNNER_CANDIDATES
+    assert ("codex", "gpt-6.1-sol") in paid.PAID_RUNNER_CANDIDATES
     assert {
         (candidate["provider"], candidate["model"])
-        for candidate in escalation_route
+        for candidate in candidates
     } <= paid.PAID_RUNNER_CANDIDATES
-    assert all(candidate["provider"] == "codex" for candidate in escalation_route)
+    assert all(candidate["provider"] == "codex" for candidate in candidates)
+
+
+def test_cached_decision_reuses_hash_bound_legacy_escalation_proof(tmp_path):
+    paid = load("paid_direct")
+    evidence = tmp_path / "evidence" / "agent-PAID_WORK_DECISION"
+    evidence.mkdir(parents=True)
+    result_path = evidence / "attempt-01.result.json"
+    feedback = "a" * 64
+    requirements = "b" * 64
+    identity = {"message_id": "m1", "content_sha256": "d" * 64, "side": "buyer"}
+    decision = {
+        "decision": "actionable",
+        "mode": "remote",
+        "feedback_sha256": feedback,
+        "requirements_sha256": requirements,
+        "latest_message_identity": identity,
+        "required_output": "Deliver the completed provider outcome.",
+        "required_effect": "Publish and verify the provider outcome.",
+        "required_outcomes": [{
+            "outcome_id": "provider-outcome",
+            "source_message_identities": [identity],
+            "required_output": "Deliver the completed provider outcome.",
+            "required_effect": "Publish and verify the provider outcome.",
+        }],
+        "required_assets": [],
+        "delivery_stage": "none",
+        "formal_approval_evidence": None,
+        "unresolved": [],
+    }
+    write_json(result_path, decision)
+    write_json(evidence / "summary.json", {
+        "status": "success",
+        "task_label": "paid-work-decision",
+        "task_class": "escalation-agent",
+        "escalated": True,
+        "selected_provider": "codex",
+        "selected_model": "gpt-5.6-terra",
+        "result_path": result_path.name,
+    })
+    prompt = tmp_path / "decision.prompt.txt"
+    prompt.write_text("same decision prompt", encoding="utf-8")
+    prompt_sha256 = paid.hashlib.sha256(prompt.read_bytes()).hexdigest()
+    runner = paid._decision_runner_proof(evidence, allow_legacy=True)
+    receipt = {
+        "schema_version": paid.PAID_DECISION_SCHEMA_VERSION,
+        "prompt_version": paid.PAID_DECISION_PROMPT_VERSION,
+        "schema_sha256": "a" * 64,
+        "context_sha256": "b" * 64,
+        "context_inputs_sha256": "c" * 64,
+        "operator_policy_sha256": "d" * 64,
+        "prompt_sha256": prompt_sha256,
+        "runner": runner,
+        **decision,
+    }
+
+    cached = paid._cached_paid_decision(
+        tmp_path, receipt, prompt, prompt_sha256, "a" * 64, "b" * 64, "c" * 64,
+        feedback, requirements, identity, identity, "d" * 64,
+    )
+    stable_cached = paid._stable_cached_paid_decision(
+        tmp_path, receipt, "a" * 64, "c" * 64, feedback, requirements,
+        identity, identity, "d" * 64,
+    )
+
+    assert cached == decision
+    assert stable_cached == decision
+    with pytest.raises(paid.Failure):
+        paid._decision_runner_proof(evidence)
 
 
 def test_paid_owners_have_a_long_running_route():
