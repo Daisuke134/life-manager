@@ -168,7 +168,7 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
   - `job-search-inbox`: `inbox.py:398`。model の申告件数と thread ID の数が食い違った時に安全側で止まる、意図された fail-closed。二重返信を防ぐための仕組みで、test でも固定されているので変更しない。
   - Instagram en-card / obou: `LM_DATA_DIR is required` と ledger の job id 衝突。obou の Instagram は `marketing-destinations.json` で `ebook_account_out_of_mobile_scope`（上限 0）なので、直すより退役させる候補。state root が共有 events.jsonl のため、run 単位の切り分けは未完。
   - `life-manager-honne-ja`: 昼の ENOSPC（空きが 0.56GB だった時点）による。publish は fence で止まっていた。
-| T7 | Paid cursor: Coconala Paid の no-effect wake → Storefront の公式readback → CrowdWorks の fence → Lancers の inventory → Freelancer/Upwork の account-bound auth → Mercor | 各 provider の readback |
+| T7 | Gig収益順: 1A sender/hydration owner fix + 1B capacity/doctor gate → Coconala Paid contract → Coconala Storefront → exact actionable Reply → Apply/Negotiation → CrowdWorks → Mercor → Freelancer → Upwork policy gate → Job Hunter → receipt-based net economics → SelfBuild last。Lancers rows25–27はskip、Answersは対象外 | contractごとのbuyer-visible receipt・settlement・fee/cost・replay-zero |
 | T8 | CFO: ループごとの settled revenue と cost の join（ループ別P&L）を毎日出す | P&L 行ごとに receipt id がある |
 | T9 | Mobile funnel と `/en` `/lm` `/income` の整合（install→activation→課金） | attribution receipt |
 | T10 | one-shot capability capsule | 目標・承認の質問なしで初回の実行が通る |
@@ -4749,27 +4749,28 @@ flowchart LR
 
 ### Remaining atomic Gig TODO
 
-PR #7042 sender-safety source fixはmainへmerge済み（merge commit `bd3ef82567e7906052d3d731cda6feca616cf4ee`）。以下は未完了項目だけを実行順に並べる。旧順序=`Paid/release-reconciler terminal → Inbox full sweep → contract → Storefront → Apply/platforms → economics → SelfBuild`。新順序=`現行Paid/release-reconciler natural terminal + global doctor gate → main commit a02c457dを含むimmutable releaseのowner convergence → exact paid contract 18180857 → Storefront → exact actionable Reply fence join → Apply/Negotiation → 他platforms → economics/replay-zero → SelfBuild最後`。理由: exact Coconala talkroomではbuyer revisionがactionableだが、全文Inbox sweepは未完で高コスト。Capacity PR #7072のsource mergeは完了したため、これを重複実装せず、current releaseへの反映とnatural proofを同時に進める。Lancers rows25–27は`waiting_external`でskipし、Answersは対象外。
+この一覧はGig laneの未完了作業だけを実行順に置く。Lancers rows25–27は`waiting_external`のまま完全skip、Answersは対象外、SelfBuildは最後。`$10K MRR`は目標で、実績と混同しない。
 
-横断capacity gate: PR #7072 `663577b3`はmerge commit `a02c457dd3edf8fcb41ce324e10dc024596afcdc`としてmainへ統合済み。`~/loops/current`はまだ前SHA `6cc0c56b`で、source fixは未load。対象3 loopのnatural readbackまでは、8超のlive runや重いtest suiteの一斉追加をしない。独立worktreeでのsource編集とcurrent Paid ownerはこのgateと並行できる。
+1A. **TikTok sender/hydration follow-up（別owner進行中）:** worktree `/Users/anicca/Projects/life-manager-main/.worktrees/gig-contract-current-readback-20261008`、branch `fix/tiktok-message-hydration-20261008`、HEAD `10ba32a170`。`skills/browser/scripts/tiktok_message_transport.py`とそのtestに未commit差分があり、open PRはない。PR #7042のmerged sender-safety修正とは別follow-up。担当ownerのcommit/push、focused RED→GREEN、review/required CI、merge readbackを確認する。同じ2 fileを重複編集しない。
 
-1. **現在cursor — 稼働中ownerをnatural terminalまで観測:** `hf-gig-paid-direct` PID `7527`は16:02 JST時点でhealthy表示だが、release `68b03657`のrunを39分超継続し、Coconala Paid/project/browser lockを保持。release reconcilerの直近health terminalは旧SHA `da12ba88`で`entrypoint_exit_75 / reconcile_owner`、process readbackはPID `19290`が旧release `6cc0c56b`上で稼働中。どちらも停止/restart/replayせず、exact terminal・lock解放・loaded SHAを`lm-loop status/health`で確認する。
-2. **Capacity rollout gate:** `lm-loop doctor`は`ok=false`、retired installed label `ai.anicca.provision-browser.capafy.kosuke`を報告（missing=0, unmanaged=0）。全面apply前のdoctor gateを迂回せず、別ownerのCapafy stateを変更しない。さらにfresh reviewでFundraiser context-lifetime MEDIUMが見つかりownerへAGMSG連絡済み。follow-up regression/fixがmergeするまではPR #7072を含むreleaseをFundraiserへapplyしない。owner-safe lifecycleでretired labelも解決しdoctorがpassした後、最新mainからimmutable releaseを作り、shared apply lock解放後に既存owner経路で対象loopを適用する。
-3. **PR #7072対象3 loopのproduction proof:** Follow-up fixを含むreleaseを前提にConnector、Job Hunter、Fundraiserのloaded SHA/argvをreadbackし、各natural run後にCodex profile lease / browser contextの競合が解消したか、provider receipt/official readbackとreplay-zeroを照合する。source CI PASSをproduction完了と扱わない。直近baselineと同じ稼働windowでoccupancy、queue-age、capacity/apply/disk defer、CPU/RAM/diskを比較し、測定なしにcapを上げない。
-4. **Coconala paid contract `18180857`のbuyer revision→formal delivery→acceptance/settlement:** 06:43:45Z official readbackはHTTP200 `/talkrooms/18180857`、coverage complete、`transaction_state=取引中`、¥9,000、delivery date 2026-09-18、buyer feedback=`revision`、`formal_delivery_confirmed=false`。local stateは`WORK_REQUIRED` / `active_feedback_cycle.action=resubmit` / `artifact_ready_pending_browser=false`。direct-message routeの404は誤ったrouteで契約不存在の証拠ではない。active Paid lock解放後、同一project/occurrenceで要求されたrevisionを完成し、artifact ready後にowner pathで正式納品を一度だけ行い、buyer acceptance→fee/payout→replay-zeroを結ぶ。
-5. **Coconala Storefront:** occurrence `hf-gig-storefront-direct:18dc755e9a829ae8-91215`はold fence `18d8d288748508e8-23902` / `stdout_runtime_binding_invalid`で残る。exact owner readback/adapterで既存公開状態・sales・fee・settlementを照合し、重複掲載しない。
-6. **Coconala Reply historical fences:** head-only inbox 30件/page1 of5は全文coverageでなく、outbox aggregate 226 pending /25 blocked /2 reconcile_pending /364 repliedは現在のbuyer-waiting数ではない。全文semantic sweepを収益gateにせず、exact actionable targetだけをofficial receipt・outbox intent・message identityへjoinする。曖昧な`effect_unknown`は保持して再送しない。
-7. **Coconala Apply/Negotiation:** fresh eligible workのみ公式sourceから読み、target fence→proposal receipt→buyer reply→合意条件をexact occurrenceに結ぶ。Lancers rows25–27は`waiting_external`でskipし、後続platformを止めない。
-8. **CrowdWorks:** `lm-gig-contract-owner-1007`のApplication/source leaseを尊重し重複編集しない。owner merge/release後にApplication/Paid/Reply natural occurrencesと各provider receipt、納品→検収→fee/payoutを確認する。
-9. **Mercor:** Application/Paid/Replyの`effect_unknown`はexact official receiptか同一occurrence no-effect証拠があるまで保持し、再応募・再送しない。
-10. **Freelancer:** account-bound authenticationとofficial Services inventoryで現行listingを確認。uncertain publishはreceiptなしに再publishしない。auto-bidはprovider-approved scopeまでhold。
-11. **Upwork:** official policyに適合する自動化routeとeligibilityが確認できない限りautomated browser/scraping/proposalをしない。`$10K MRR`を目標とし、売上実績と混同しない。
-12. **Gig economics → 最後SelfBuild:** 許可platformのsettled receipt、fee、actual cost、net、replay-zeroを同一contractにjoinし、全Gig収益loopが閉じた後にのみL9-11 SelfBuildを修復・検証する。
+1B. **Capacity safe gate:** cleanupの実state receipt `~/.local/state/life-manager/state/last-receipt.json`は`observed_at=2026-10-08T08:21:11Z`、`free_after=3,877,363,712` bytes、2 GiB recovery floor=`met`、`errors=0`、`protected_deletions=0`、`ok=true`。disk-floor条件はpass。`lm-loop doctor --json`はretired installed label `ai.anicca.provision-browser.capafy.kosuke`のため`ok=false`で、owner-safe解決がまだ必要。古い別state `~/.openclaw/state/last-receipt.json`は現行receiptではない。floorやglobal capを緩めず、別owner stateを変更しない。
+2. **Coconala Paid ownerのterminal/lock解放:** `hf-gig-paid-direct`は旧SHA `6cc0c56b`のPID `10293`でloaded-running。子PID `12032`が`with-browser.sh coconala:kosuke`経由で`~/gig/.paid-direct.lock`を保持している。最新terminal `hf-gig-paid-direct:18dc7c1c1c1b1440-62589`（16:46 JST）は`pass / effect=not_applicable`で、provider receipt/readbackはない。自然terminalとlock解放をCLIで確認する。stop/restart、再送、browser takeoverは禁止。release reconciler PID `6794`もloaded-running、SHA `3c87f64f`、`next_action=reconcile_owner`のためapplyを重ねない。
+3. **既存Coconala契約 `18180857`の現在要件→納品→精算:** lock解放後、公式talkroom/ordersをfresh readbackして、現行buyer message、revision要否、formal delivery状態を確定する。最後の記録（2026-10-08 16:19 JST）は`取引中`、`revision`、`formal_delivery_confirmed=false`だが鮮度切れなので現状とは扱わない。revisionがまだ必要なら要求分を完成し、artifact ready後にowner pathで正式納品を一度だけ行い、buyer acceptance→settlement/payout/fee→duplicate-zeroを同一project/occurrenceへ結ぶ。`18211957`は完了済みのため追加actionしない。
+4. **Coconala Storefrontのeffect fenceと公開商品readback:** `hf-gig-storefront-direct`はSHA `07aa3fb3`でloaded-idle、17:20 status readbackのoccurrence `18dc80231efdb950-37503`は`effect=unknown`・receiptなし。過去fence `18d8d288748508e8-23902`は`stdout_runtime_binding_invalid`で、公式`pre-effect-reconcile --dry-run`も`no_pre_effect_terminal`。fenceを保持し、Paid/browser lockとdoctor rollout gate解放後に公式inventory、listing、view/inquiry、sales、fee、settlementを照合する。存在確認前に再掲載・重複更新しない。
+5. **Coconala Reply:** 全inbox sweepを収益gateにしない。公式message identity・outbox intent・occurrenceが一致するactionable targetだけ一度対応し、`effect_unknown`はreadbackなしに再送しない。
+6. **Coconala Apply/Negotiation:** latest occurrence `hf-gig-apply-direct:18dc7fe59d256de8-85280`はeffect unknown・receiptなし。exact fenceを公式readbackで解決してから、新規eligible jobのみ proposal receipt→buyer reply→合意条件へ結ぶ。
+7. **CrowdWorks:** 別owner worktreeのleaseを尊重し重複編集しない。Application/Paid/Reply/Reportのunknown occurrenceは、owner source merge後にnatural terminalと各公式receipt、納品→検収→settlementを確認する。
+8. **Mercor:** Application/Paid/Replyのunknown fenceを公式receiptまたは同一occurrenceのno-effect証拠があるまで保持し、再応募・再送しない。
+9. **Freelancer:** account-bound authと公式Services inventoryを確認し、funded project/awardと明示的なlifecycle authorizationが揃うまで応募・bid・納品loopを有効化しない。
+10. **Upwork:** 公式policyに適合するrouteとeligibilityを確認できるまでbrowser automation/scraping/proposalを行わない。
+11. **Job Hunter:** eligible candidateがあるnatural runでのみofficial application receiptを確認する。candidate 0やprocess passは応募成功に数えない。
+12. **Gig economics:** settled receipts、fee/refund、actual costs、net、replay-zeroを同一contractに結ぶ。
+13. **最後 — SelfBuild:** ほかのGig収益loopが閉じてからL9-11 SelfBuildを修復する。これより前に開始しない。
 
-**現在cursor:** item1のPaid PID7527/release reconcilerのnatural terminal、続いてitem2のdoctor/immutable-release gate。item4以降のbuyer actionは同じPaid lockを別workerで並行操作しない。
-11. **Job Hunter:** eligible候補のあるnatural runだけを読み、provider proposal receiptをjob/occurrence単位で確認する。候補0は成功扱いしない。
-12. **Gig economics / 24-7 acceptance:** 許可platformごとにnatural wake/terminal、buyer-visible official receipt、settlement、fee、actual expense、replay-zeroを同一契約に結ぶ。listing・process・応募・gross・未決済額は収益完了ではない。$10K MRRは未達の目標。
-13. **最後 — SelfBuild:** ほかのGig収益loopが閉じてからL9-11 SelfBuildを修復・検証する。これより前に開始しない。
+
+**最新readback（17:21 JST）:** main=`dc90716408f8d86c37fec363bdeb92bc3eed9e09`、current immutable release=`20261008T171655-dc907164`。`lm-loop doctor --json`はretired label 1件でfalse。`hf-gig-paid-direct`は旧SHA `6cc0c56b` / PID `10293`でrunningし、child PID `12032`が`~/gig/.paid-direct.lock`を保持。最後のterminalは16:46 JST pass/effect-not-applicable、receiptなし。Release reconcilerはPID `6794` / SHA `3c87f64f` / loaded-running / `next_action=reconcile_owner`。Storefront latest `18dc80231efdb950-37503`とApply latest `18dc7fe59d256de8-85280`はeffect unknown・receiptなし。Macは10 CPU / 16 GiB、load 17.77/15.34/14.69、disk floorはreceiptでmet。finite-run maxは8、revenue floorは3（5は理論borrow枠）；status allの293件・46 loaded-runningはclaim occupancyではなく、最新の正確なoccupancy sampleは16:45の8/8で現時点の値としては扱わない。
+
+**現在cursor:** 1Aは別ownerの未commit follow-upなので同一filesを編集しない。1Bのdisk floorはreceipt込みでPASS、doctor gateはCapafy owner待ち。次にCoconala Paid PID `10293`の自然terminal/lock解放をreadbackし、`18180857`のfresh official stateを確認する。Paidのactive lockとdoctor gateが残る間は正式納品・Storefront mutationを開始しない。
 
 ### 2026-10-08 08:35 JST — Mobile post-merge runtime cursor
 
