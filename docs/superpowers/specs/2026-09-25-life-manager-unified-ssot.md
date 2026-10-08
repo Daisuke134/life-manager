@@ -7896,7 +7896,7 @@ This entry supersedes the prior producer-review cursor. CFO priority remains A5 
 
 **Current cursor:** `host-policy owner restores positive guard before next CFO effect → push ee25a794-synced CFO branch/fixture/SSOT → exact-head CI + fresh review → merge source PR → cleanup/reconciler recovery → guarded release/apply/readback → natural CFO receipt/replay-zero → A5 → A6 → A8 → A9 → A10`.
 
-### 2026-10-09 03:48 JST — CFO readback, capacity diagnosis, and current execution order
+### 2026-10-09 03:49 JST — CFO readback, capacity diagnosis, and current execution order
 
 この追記は02:56 JSTのCFO statusを更新する。事業CFOの範囲と順序 `A5 → A6 → A8 → A9 → A10` は維持し、Money TreeとCloud費用削減はこの完了レーンに含めない。
 
