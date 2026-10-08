@@ -598,8 +598,8 @@ class ModelBrowserLoopContractTests(unittest.TestCase):
             self.assertEqual(
                 outcomes,
                 [
-                    "runtime_command_after_nonzero_completion",
-                    "runtime_command_after_nonzero_completion",
+                    None,
+                    "submission_outcome_unknown",
                 ],
             )
 
@@ -955,6 +955,67 @@ class ModelBrowserLoopContractTests(unittest.TestCase):
                 (root / "semantic-validation.json").read_text(encoding="utf-8")
             )
             self.assertEqual(receipt["reason"], "runtime_command_nonzero_completion")
+
+    def test_invoke_runner_never_retries_submit_unknown_after_runtime_failure(self):
+        from job_search_loop.browser_agent import orchestrator
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_queue_complete_observe_fixture(root, ())
+            summary = json.loads((root / "summary.json").read_text(encoding="utf-8"))
+            summary["status"] = "success"
+            (root / "summary.json").write_text(json.dumps(summary), encoding="utf-8")
+            (root / "result.json").write_text(
+                json.dumps({
+                    "status": "transport_failed", "submitted": [],
+                    "submit_unknown": ["row-1"], "blocked": ["row-1"],
+                }),
+                encoding="utf-8",
+            )
+            command = "/bin/zsh -lc '/opt/homebrew/bin/python3 -m job_search_loop.browser_agent.runtime "
+            wait = command + "wait --milliseconds 6000'"
+            observe = command + "observe'"
+            events = [
+                {"type": "item.started", "item": {
+                    "id": "wait-1", "type": "command_execution", "command": wait,
+                }},
+                {"type": "item.completed", "item": {
+                    "id": "wait-1", "type": "command_execution", "command": wait,
+                    "exit_code": 1, "aggregated_output": "runtime failure",
+                }},
+                {"type": "item.started", "item": {
+                    "id": "observe-1", "type": "command_execution", "command": observe,
+                }},
+                {"type": "item.completed", "item": {
+                    "id": "observe-1", "type": "command_execution", "command": observe,
+                    "exit_code": 0, "aggregated_output": json.dumps({"status": "observed"}),
+                }},
+            ]
+            (root / "stdout.log").write_text(
+                "".join(json.dumps(item) + "\n" for item in events), encoding="utf-8",
+            )
+            completed = Mock(returncode=0)
+            with patch(
+                "job_search_loop.browser_agent.orchestrator.subprocess.run",
+                return_value=completed,
+            ) as run:
+                returncode = orchestrator.invoke_runner(
+                    runner=Path("/runtime/agent_runner.py"),
+                    prompt=Path("/app/prompts/daily-pass.md"),
+                    schema=Path("/app/schemas/pass-result.v1.schema.json"),
+                    evidence_dir=root,
+                    workdir=Path("/repo"),
+                    timeout_seconds=900,
+                    python="/python3",
+                    active_provider="workday",
+                )
+
+            self.assertEqual(returncode, 2)
+            run.assert_called_once()
+            receipt = json.loads(
+                (root / "semantic-validation.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(receipt["reason"], "submission_outcome_unknown")
 
     def test_semantic_retry_shares_the_original_wake_timeout(self):
         from job_search_loop.browser_agent import orchestrator
