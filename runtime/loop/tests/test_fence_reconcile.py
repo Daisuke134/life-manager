@@ -4,6 +4,7 @@ These tests use fake ``run_call``/``read_fenced`` callables so no real owner
 script, browser, or admission database is touched.
 """
 
+import json
 import sys
 import tempfile
 import unittest
@@ -56,6 +57,22 @@ class BuildArgvTest(unittest.TestCase):
     def test_empty_argv_raises(self):
         with self.assertRaises(ValueError):
             build_argv({"argv": []}, Path("/r"), None)
+
+    def test_ebook_postiz_reconcile_entries_pass_each_exact_occurrence(self):
+        root = Path(__file__).resolve().parents[3]
+        registry = json.loads((root / "config/loop-registry.json").read_text())
+        owners = (
+            "ebook-en-tiktok-daily",
+            "ebook-ja-tiktok-daily",
+            "ebook-ja-instagram-daily",
+        )
+        for owner_id in owners:
+            with self.subTest(owner_id=owner_id):
+                config = registry["loops"][owner_id]["effect_reconcile"]
+                self.assertEqual(config["occurrence_flag"], "--occurrence-id")
+                occurrence_id = f"{owner_id}:claim-1"
+                argv = build_argv(config, Path("/release"), occurrence_id)
+                self.assertEqual(argv[-3:], ["--occurrence-id", occurrence_id, "--resolve"])
 
 
 class PlanTargetsTest(unittest.TestCase):
