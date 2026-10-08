@@ -34,7 +34,7 @@ def _write_set(root: Path, set_id: str, *, state_observed: str, clip_ids: list[s
     (set_dir / "creators-item.json").write_text(json.dumps({
         "state_observed": state_observed,
         "title_ja": f"{set_id}-title",
-        "store_url": f"https://store.line.me/stickershop/product/{set_id}/ja",
+        "purchase_url": f"https://line.me/S/sticker/{set_id}",
     }), encoding="utf-8")
     (set_dir / "listing.json").write_text(json.dumps({
         "title": {"ja": f"{set_id}-title"},
@@ -50,6 +50,31 @@ class PickSetOnSaleOnlyTest(unittest.TestCase):
             _write_set(root, "set-live", state_observed="販売中", clip_ids=["a", "b"])
             sets = pick_set.load_on_sale_sets(root)
             self.assertEqual([s["set_id"] for s in sets], ["set-live"])
+
+    def test_the_purchase_url_not_a_built_store_url_is_what_gets_promoted(self):
+        # 2026-10-09: store_url was built from the Creators Market item id (48067450), but the store's
+        # product id is different (37142349), so every post and article linked to a 404 page.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _write_set(root, "set-live", state_observed="販売中", clip_ids=["a"])
+            item_file = root / "set-live" / "creators-item.json"
+            item = json.loads(item_file.read_text(encoding="utf-8"))
+            item["purchase_url"] = "https://line.me/S/sticker/37142349"
+            item_file.write_text(json.dumps(item), encoding="utf-8")
+            sets = pick_set.load_on_sale_sets(root)
+            self.assertEqual(sets[0]["store_url"], "https://line.me/S/sticker/37142349")
+
+    def test_a_set_without_a_purchase_url_is_not_promoted(self):
+        # Better to post nothing than to send buyers to a dead link.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _write_set(root, "set-live", state_observed="販売中", clip_ids=["a"])
+            item_file = root / "set-live" / "creators-item.json"
+            item = json.loads(item_file.read_text(encoding="utf-8"))
+            del item["purchase_url"]
+            item["store_url"] = "https://store.line.me/stickershop/product/48067450/ja"  # the old, wrong link
+            item_file.write_text(json.dumps(item), encoding="utf-8")
+            self.assertEqual(pick_set.load_on_sale_sets(root), [])
 
     def test_no_sets_on_sale_returns_none(self):
         with tempfile.TemporaryDirectory() as tmp:
