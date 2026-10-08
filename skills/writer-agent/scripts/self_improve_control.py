@@ -52,6 +52,12 @@ PROTECTED_PATTERN = re.compile(
 HEX64 = re.compile(r"[0-9a-f]{64}")
 
 
+def _writer_state(skill_dir: Path) -> Path:
+    """Production runs from a read-only release; state lives in WRITER_STATE_DIR."""
+    env = os.environ.get("WRITER_STATE_DIR")
+    return Path(env) if env else Path(skill_dir) / "state"
+
+
 def _required_pairs_for_state(state: dict[str, Any]) -> tuple[str, ...]:
     return (
         LEGACY_EXACT8_PAIRS
@@ -1167,7 +1173,7 @@ def _sync_money(skill_dir: Path) -> None:
             sys.executable,
             str(skill_dir / "scripts/money_sync.py"),
             "--state-dir",
-            str(skill_dir / "state"),
+            str(_writer_state(skill_dir)),
         ],
         check=True,
         capture_output=True,
@@ -1200,7 +1206,7 @@ def run_cycle(
     reviewer: Callable[[str], dict[str, Any]] | None = None,
     commit_changes: bool = True,
 ) -> dict[str, Any]:
-    state_root = skill_dir / "state"
+    state_root = _writer_state(skill_dir)
     ledger = state_root / "articles.jsonl"
     learning = state_root / "learning"
     metrics_root = learning / "metrics"
@@ -1571,7 +1577,7 @@ def active_experiment(state_root: Path) -> Path | None:
 
 
 def current_experiment(skill_dir: Path) -> dict[str, Any]:
-    record = active_experiment(skill_dir / "state")
+    record = active_experiment(_writer_state(skill_dir))
     if record is None:
         return {"status": "NONE"}
     experiment = json.loads(record.read_text(encoding="utf-8"))
@@ -1587,7 +1593,7 @@ def current_experiment(skill_dir: Path) -> dict[str, Any]:
 
 
 def verify_latest(skill_dir: Path, state_dir: Path | None = None) -> dict[str, Any]:
-    state_root = Path(state_dir) if state_dir is not None else skill_dir / "state"
+    state_root = Path(state_dir) if state_dir is not None else _writer_state(skill_dir)
     ledger = state_root / "articles.jsonl"
     states = sorted(
         state_root.glob("runs/*/gates/publication-state.json")
@@ -1701,7 +1707,7 @@ def main() -> int:
         elif args.command == "verify":
             result = verify_latest(args.skill_dir, args.state_dir)
         elif args.command == "record-application":
-            experiment = active_experiment(args.skill_dir / "state")
+            experiment = active_experiment(_writer_state(args.skill_dir))
             if experiment is None:
                 print('{"status":"NO_ACTIVE_EXPERIMENT"}')
                 return 0
