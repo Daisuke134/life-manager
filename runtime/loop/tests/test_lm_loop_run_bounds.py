@@ -3721,3 +3721,13 @@ def test_critical_paid_loop_still_defers_below_its_own_floor(tmp_path):
         deferred = _disk_headroom_deferred(
             tmp_path, phase="pre_enqueue", floor=_disk_floor({"priority": "critical_paid"}))
     assert deferred["reason"] == "disk_headroom_low" and deferred["required_bytes"] == gib
+
+
+def test_coconala_storefront_uses_critical_paid_disk_floor():
+    registry_path = Path(__file__).resolve().parents[3] / "config" / "loop-registry.json"
+    registry = json.loads(registry_path.read_text(encoding="utf-8"))
+    storefront = registry["loops"]["hf-gig-storefront-direct"]
+
+    assert storefront["priority"] == "critical_paid"
+    assert storefront["admission_class"] == "revenue"
+    assert loop_runner._disk_floor(storefront) == 1024**3
