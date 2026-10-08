@@ -4373,9 +4373,9 @@ L9-11 Self-BuildはこのGig laneの全項目完了後、既存の全社順序�
 
 **Daisの作業:** 既存Postiz integrationとHeyGen認証の再接続・再認証は不要。手動設定も不要。投稿を止めているのは未loaded main release、release/apply lock、容量receiptの揺れ、English CLI telemetryです。Life Manager側で順に解消する。
 
-### eBook Monk current blocker cursor — 2026-10-08 09:32 JST
+### eBook Monk current blocker cursor — 2026-10-08 09:37 JST
 
-この節がeBookの最新cursorで、09:19 JSTの記録を更新する。対象は英語TikTokのMonk Anicca（`@monk_anicca`）。Postiz接続は有効で、次の停止点はproduction releaseとhost capacity。
+この節がeBookの最新cursorで、09:32 JSTの記録を更新する。対象は英語TikTokのMonk Anicca（`@monk_anicca`）。Postiz接続は有効で、次の停止点はproduction releaseとhost capacity。
 
 **source / review / release:** PR #6999は全Security Scan checks PASS、fresh read-only reviewもfindingなしでmerge済み。`origin/main=46ec94bdea884fd7afa61e603a79fdd1b3048ef7`。英語ownerの`LIFE_MANAGER_HEYGEN`と`HEYGEN_NO_ANALYTICS`はJavaScript wrapperからPython renderer subprocessへ英語商品だけ渡る。実subprocess RED/GREEN test、Node 11/11、Python runtime bounds 133 passed、source boundary PASS。current immutable symlinkは引き続き`/Users/anicca/loops/releases/20261008T084554-3f1bd81a`（SHA `3f1bd81a77b9001284678888b641aaedb1e3e497`）で、merge commitは未反映。
 
@@ -4383,19 +4383,19 @@ L9-11 Self-BuildはこのGig laneの全項目完了後、既存の全社順序�
 
 **HeyGen official readback（09:14 JST）:** CLI video listを全2ページ確認しtitle `Anicca`は0件、walletはUSD 12.30（auto-reload threshold USD 5）。source merge後もproductionに未反映のため英語動画は未生成。
 
-**capacity / release reconcile（09:32 JST）:** disk governorの明示full passは09:31:34 JSTに完了。receipt: `free_before=1,331,056,640`, `free_after=1,287,729,152` bytes、floor `2,147,483,648`未達、`errors=0`, `protected_deletions=0`, `inventory_gaps=16`, logical `reclaimed=13,886,595,091` bytes、terminal `ok=false`。同じ時点に近い`df -Pk /` readbackは`1,075,420 KiB`（約1.05 GiB free）。full inventoryはHomebrew 14.16 GB、Gig 9.35 GB、`anicca-project` 4.47 GB、`.openclaw` 4.45 GB、`anicca` 3.49 GB、`/private/var/folders` 0.86 GB、`/private/tmp` 0.32 GBと計測。一方、`/private/tmp`, `/private/var/folders`, Library, Projectsにchild/permission/timeout gapsが残る。`lsof +L1`に大きなopen-deleted fileはなく、`tmutil listlocalsnapshots /`はsnapshotなし。logical reclaimedとvolume freeの差の原因は未確定。安全cleanupで回収できた未ロックworktreeは除去済み。別Capafy worktreeにはmanaged leaseがあるため保持する。PII scanの一時コピー削除は自動reviewに拒否され、迂回していない。
+**capacity / release reconcile（09:37 JST）:** disk governorの明示full passは09:31:34 JSTに完了。receipt: `free_before=1,331,056,640`, `free_after=1,287,729,152` bytes、floor `2,147,483,648`未達、`errors=0`, `protected_deletions=0`, `inventory_gaps=16`, logical `reclaimed=13,886,595,091` bytes、terminal `ok=false`。09:37 `df -Pk /` Availableは`1,058,240 KiB`（約1.01 GiB）。`diskutil apfs list`はcontainer free `1,083,478,016` bytes、root volumeにsealed `com.apple.os.update-*` snapshotを1つ表示し、Data volume snapshotはなし。`lsof +L1`に50 MB以上のopen-deleted fileなし。full inventoryはHomebrew 14.16 GB、Gig 9.35 GB、`anicca-project` 4.47 GB、`.openclaw` 4.45 GB、`anicca` 3.49 GB、`/private/var/folders` 0.86 GB、`/private/tmp` 0.32 GBと計測する一方、16のchild-limit/permission/timeout gapsが残る。logical reclaimedとAPFS/`df` freeの差の原因は未確定。未ロック・origin/mainより211 commit遅れ・ahead 0のCapafy worktreeは除去済み。別Capafy worktreeにはmanaged leaseがあるため保持する。PII scan一時コピーは実行process/open fdなしだが、自動reviewが直接削除を拒否し、`/Volumes/AniccaQuarantine`も未mountのため迂回していない。
 
-最新persisted fleet state（09:18:50 JST）はSHA `3f1bd81a77b9001284678888b641aaedb1e3e497`、`status=error`, errors 4。last outputには`admission rebind refused: effect_unknown`と、`ai.anicca.alpaca-investment-live`および`ai.anicca.capafy-ig-marketing-daily`のBootstrap I/O errorがある。09:32のprocess readbackではreconcilerは停止中。target applyはhost freeが床を下回るため未実施。
+最新persisted fleet state（09:18:50 JST）はSHA `3f1bd81a77b9001284678888b641aaedb1e3e497`、`status=error`, errors 4。last outputには`admission rebind refused: effect_unknown`と、`ai.anicca.alpaca-investment-live`および`ai.anicca.capafy-ig-marketing-daily`のBootstrap I/O errorがある。09:32時点のprocess readbackではreconcilerは停止中だった。target applyはhost freeが床を下回るため未実施。docs-only PR #7002はspec/planをpush済みだが、CI `Startup context drift`がlive `aniccaai.com/lm`のcontext digest不一致で失敗中。変更差分はspec/planのみで、公開pageはこの作業の対象外。
 
 **残りAtomic TODO（eBook順序）:**
 
-1. 容量のlogical reclaimed / `df`差を解明する。inventory gaps 16のうち`/private/tmp`, `/private/var/folders`, Library, Projectsのsize/permission/timeout境界を狭め、書き込み元と安全なallow-listed回収対象を特定する。leased Capafy worktree、未知パス、open fileは保持する。
+1. 容量のlogical reclaimed / APFS/`df`差を解明する。inventory gaps 16のうち`/private/tmp`, `/private/var/folders`, Library, Projectsのsize/permission/timeout境界を狭め、書き込み元と安全なallow-listed回収対象を特定する。off-volume cleanupが必要な対象は指定quarantine volumeのmount状態を確認する。leased Capafy worktree、未知パス、open file、sealed OS update snapshotは保持する。
 2. `free_after >= 2,147,483,648` bytesのfresh cleanup receiptと同時刻`df`を得て、errors 0 / protected deletions 0を確認する。次のapply中はrelease reconcilerとhost apply lockがterminal/open-freeであることをreadbackする。
 3. main merge SHA `46ec94b`を含むimmutable releaseを作り、launchctl-safe preflight後に`ebook-en-tiktok-daily`だけtarget applyする。loaded SHA/argvとchild environmentをreadbackし、旧occurrenceのeffect fenceはexact owner/provider readbackで解決する。stateを手で編集しない。
 4. 次のdue slotでEnglish ownerを一度起動し、HeyGen video ID/SHAとwallet差分、Postiz `PUBLISHED`/public URLを同一effectへ結ぶ。今日の日本語2 accountとEnglish Monkの各登録slotをofficial readbackで確認し、各account 3件/day・合計9件/dayへ到達させる。
 5. anicca-products PR #420のproduction Supabase readback/DDLとnatural paid Checkout→Stripe receipt→locale PDF→fees/refunds/settlement/replay-zero、Letter/Tegami 14日cohortを順に閉じる。one-time `$10.99` / `¥1,580`はMRRではなく、USD 10,000 verified net MRRは未達目標。
 
-**Daisの作業:** なし。Monk Aniccaは接続・有効で、再認証は不要。英語動画と投稿の停止原因はLife Manager release/capacityで、解消をこちらが継続する。
+**Daisの作業:** Monk Aniccaの再接続・再認証は不要。off-volume quarantineを使う場合の指定mount point `/Volumes/AniccaQuarantine` は現状未mount。容量ゲートを越えられる安全な対象が見つかれば、owner/cleanup policy経由でこちらが処理する。
 
 ### 2026-10-08 07:43 JST — Gig live-acceptance cursor correction
 
