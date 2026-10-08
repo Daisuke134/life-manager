@@ -7484,6 +7484,25 @@ This entry supersedes the prior local-review cursor. The business CFO order rema
 
 **現在cursor:** `commit/push this SSOT status delta → new-head CI + fresh review (CFO source unchanged from 98d59061) → structured cleanup receipt/admission → local full runtime at recovered headroom → merge/promotion → natural CFO receipt/replay-zero → A5 → A6 → A8 → A9 → A10`。
 
+### CFO producer counter guard — implementation status
+
+This section supersedes the prior pending implementation cursor. The CFO business order remains A5 → A6 → A8 → A9 → A10.
+
+- Source implementation is complete in local commit `15ea90817d` on merge HEAD `543bec2a16`; it validates provider ID and exact counter semantics before marking B7/report `sent`, rejects invalid/null B7 v4 tuples, treats B7 v3 as idempotency-only for same-occurrence recovery, and prevents a same-occurrence sent/duplicate replay from returning quiet success without proof. Invalid delivery leaves report/B7 pending and relies on the shared outbox fence to prevent a second provider send.
+- TDD/local acceptance passes after the fix: CFO result Node 29/29, hourly Node 26/26, CFO pytest 354 + 318 subtests, runtime fence focus 2/2, loop contract 18 loops / 187 jobs / 112 mapped / 0 errors, adapter registry 15/15, and `git diff --check`.
+- The latest base is `origin/main=ac963290ce9a13ab2da5f188c23d584b0910c58d`; local HEAD includes it. PR #7106 still points to older remote head `7131b650`, so the source fix and current SSOT edits are not yet pushed. The fresh review of `98d59061` found the source defect described above; a new review is required for this fix.
+- Full runtime suite is not rerun: the previous 807-test run had 3 failures / 1 error, including `ENOSPC` while building a dependency bundle; current free space is about 707 MiB, below the 2 GiB operating threshold. CFO last natural occurrence `18dc9090aca2ab58-40295` is pre-effect deferred at `disk_headroom_low`; disk-cleanup latest `18dc91db6baae128-53715` exits `entrypoint_exit_1`. No user data is removed.
+
+**Remaining TODO (this order):**
+
+1. Commit/push the local source+SSOT changes and latest-main merge to PR #7106.
+2. Run exact-head required CI and obtain fresh same-SHA read-only review; merge only when both pass.
+3. Get a structured cleanup receipt with `free_after >= 2 GiB`, `errors=0`, `protected_deletions=0`, and subsequent admission pass; then rerun full runtime suite.
+4. Promote through main-derived immutable release and verify the next eligible natural CFO occurrence's runtime/provider receipt, B7 counters, admission, and replay-zero.
+5. Complete A5 production migration/RPC/permissions/panel readback → A6 invoice/cash/operation attribution → A8 18-loop economics + all 187 job classifications → A9 source-period daily/MTD/trailing/MRR → A10 seven natural reports with full coverage.
+
+**Current cursor:** `push source+SSOT/current-main merge → final-head CI/review → host structured capacity receipt/admission → full runtime rerun → merge/promotion/natural CFO readback → A5 → A6 → A8 → A9 → A10`.
+
 ### CFO producer sent-state invariant — current
 
 このcurrent sectionが前項のsource cursorを更新する。事業CFOの順序はA5 → A6 → A8 → A9 → A10のまま。
