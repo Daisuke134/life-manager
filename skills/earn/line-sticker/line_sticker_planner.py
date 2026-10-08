@@ -134,8 +134,10 @@ def _sample_bg_color(png_path: Path) -> str:
     return "0x%02X%02X%02X" % rgb
 
 
-def character_image(set_dir: Path, plan_draft: dict) -> None:
+def _character_image_gemini(plan_draft: dict) -> tuple[bytes, dict]:
     # Gemini image: the OpenAI org ran out of credit on 2026-10-05 while this key stays funded.
+    # Fallback only (Dais 2026-10-08: image generation must be cost-free via the ChatGPT
+    # subscription first - see chatgpt_image_backend.py).
     body = {"contents": [{"parts": [{"text": plan_draft["character_prompt"]}]}],
             "generationConfig": {"responseModalities": ["IMAGE"], "imageConfig": {"aspectRatio": "1:1"}}}
     request = urllib.request.Request(
@@ -147,13 +149,29 @@ def character_image(set_dir: Path, plan_draft: dict) -> None:
         result = json.load(response)
     parts = result["candidates"][0]["content"]["parts"]
     image_b64 = next(part["inlineData"]["data"] for part in parts if "inlineData" in part)
-    from PIL import Image
+    return base64.b64decode(image_b64), {"model": IMAGE_MODEL, "usage": result.get("usageMetadata", {})}
+
+
+def character_image(set_dir: Path, plan_draft: dict) -> None:
+    import chatgpt_image_backend as chatgpt
+
     char_ref = set_dir / "char-ref.png"
-    Image.open(io.BytesIO(base64.b64decode(image_b64))).convert("RGB").save(char_ref)
-    (set_dir / "char-ref.receipt.json").write_text(json.dumps(
-        {"model": IMAGE_MODEL, "prompt": plan_draft["character_prompt"], "usage": result.get("usageMetadata", {})},
-        indent=1, ensure_ascii=False,
-    ))
+    from PIL import Image
+    try:
+        out_path = chatgpt.generate(plan_draft["character_prompt"] + " Flat 2D illustration, "
+                                     "solid flat pure chroma green (#00FF00) background filling "
+                                     "the entire frame, no text, no logo, no watermark.")
+        try:
+            Image.open(out_path).convert("RGB").save(char_ref)
+        finally:
+            out_path.unlink(missing_ok=True)
+        receipt = {"backend": "chatgpt_imagegen", "prompt": plan_draft["character_prompt"], "cost_usd": "0"}
+    except chatgpt.ChatGptImageGenUnavailable as exc:
+        chatgpt.log_fallback(f"character_image:{set_dir.name}", exc)
+        image_bytes, meta = _character_image_gemini(plan_draft)
+        Image.open(io.BytesIO(image_bytes)).convert("RGB").save(char_ref)
+        receipt = {"backend": "gemini_fallback", "prompt": plan_draft["character_prompt"], "cost_usd": "0.02", **meta}
+    (set_dir / "char-ref.receipt.json").write_text(json.dumps(receipt, indent=1, ensure_ascii=False))
     bg = _sample_bg_color(char_ref)
     subprocess.run([
         "ffmpeg", "-y", "-loglevel", "error", "-i", str(char_ref),

@@ -56,10 +56,10 @@ READY_TO_PUBLISH = {"approved", "pending_online", "audit_passed_pending_online"}
 UNLISTED = {"draft", "under_review", "review_rejected"}
 REJECTED = {"review_rejected", "banned"}
 RECOVERABLE = {"offline", "user_offline", "user_delisted", "taken_down"}
-# 5 was observed in 2026-07; on 2026-10-08 Capafy held 9 unlisted Agents at once and
-# neither the publisher docs nor the web state a limit. A real server refusal on
-# create shows up in the factory log and is the signal to lower this again.
-CAP = 10
+# Capafy states no limit on unlisted Agents (publisher docs, web, 2026-10-08) and held
+# 9 at once, so we do not self-limit (Dais 2026-10-08: submit as many as Capafy
+# accepts). A server refusal on create in the factory log is the only reason to cap.
+CAP = 1_000_000
 
 # Capafy's AI-generator stamps this exact suffix on the stub draft it creates
 # before any repo content is supplied. Must match select_publish_agent.py's
@@ -622,6 +622,9 @@ def main():
         print(json.dumps(verdict, ensure_ascii=False))
         return 0
     retired_ids, retired_titles = retired
+    # Dais 2026-10-08: a FROZEN.json Agent (a seller) is handled exactly like a retired
+    # one -- no update, no draft resume, no recovery -- whatever UPDATE.json says.
+    retired_ids = set(retired_ids) | set(load_frozen_ids())
 
     online_titles = {(a.get("name") or "").strip() for a in agents if a.get("agentStatus") in ONLINE}
     unlisted = [a for a in agents if a.get("agentStatus") in UNLISTED]
@@ -742,9 +745,12 @@ def main():
         {"agent_id": str(agent.get("agentId")), "title": (agent.get("name") or "").strip()}
         for agent in ready_to_publish
     ]
+    # Dais 2026-10-08: the factory ships NEW Agents only. Agents already submitted --
+    # selling or not, rejected or delisted -- are never updated, retried or recovered.
+    # Kept: fresh creates, never-submitted drafts, and approved-but-not-yet-online publishes.
     v = allocate_action(
-        normalized, retry_items, fresh_items, resumable_drafts, recovery_items, ready_publish_items,
-        updates=drop_profitable_updates(update_items), stub_retries=stub_retry_items, revenue_by_agent=load_revenue_by_agent(),
+        normalized, [], fresh_items, resumable_drafts, [], ready_publish_items,
+        updates=[], stub_retries=stub_retry_items, revenue_by_agent=load_revenue_by_agent(),
     )
 
     v.update({

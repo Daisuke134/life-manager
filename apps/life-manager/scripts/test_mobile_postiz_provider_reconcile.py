@@ -56,6 +56,141 @@ def test_auto_owner_reconcile_fails_closed_when_an_unknown_receipt_is_unresolved
         assert json.loads(capsys.readouterr().out) == result
 
 
+def test_runtime_auto_owner_passes_a_clean_occurrence_while_older_occurrences_remain_unknown(
+    tmp_path, monkeypatch, capsys,
+):
+    owner = "life-manager-anicca-main-tiktok"
+    old_occurrence = f"{owner}:run-old"
+    current_occurrence = f"{owner}:run-current"
+    admission_db = tmp_path / "admission.sqlite3"
+    identity_dir = tmp_path / "effect-identities"
+    identity_dir.mkdir()
+    old_sidecar = identity_dir / "run-old.jsonl"
+    old_sidecar.write_text(json.dumps({"occurrence_id": old_occurrence}) + "\n", encoding="utf-8")
+    old_sidecar.chmod(0o600)
+    with sqlite3.connect(admission_db) as connection:
+        connection.execute(
+            "CREATE TABLE occurrences (owner_id TEXT, occurrence_id TEXT, state TEXT, effect_unknown INTEGER)"
+        )
+        connection.executemany(
+            "INSERT INTO occurrences VALUES (?, ?, ?, ?)",
+            [
+                (owner, old_occurrence, "released", 1),
+                (owner, current_occurrence, "released", 0),
+            ],
+        )
+    monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", current_occurrence)
+    monkeypatch.setenv("LIFE_MANAGER_RUN_ID", "run-current")
+    monkeypatch.setenv("LIFE_MANAGER_LOOP_ID", owner)
+    scanned_sidecars = []
+    safe_jsonl = reconcile._safe_jsonl
+
+    def record_sidecar_read(path):
+        scanned_sidecars.append(path)
+        return safe_jsonl(path)
+
+    monkeypatch.setattr(reconcile, "_safe_jsonl", record_sidecar_read)
+
+    result_code = reconcile.main([
+        "--auto-owner", owner,
+        "--identity-dir", str(identity_dir),
+        "--data-dir", str(tmp_path / "data"),
+        "--admission-db", str(admission_db),
+        "--tenant-id", "dais-local",
+        "--resolve",
+    ])
+    result = json.loads(capsys.readouterr().out)
+
+    assert result_code == 0, result
+    assert result["status"] == "clean"
+    assert result["occurrence_id"] == current_occurrence
+    assert scanned_sidecars == []
+    with sqlite3.connect(admission_db) as connection:
+        assert connection.execute(
+            "SELECT state,effect_unknown FROM occurrences WHERE occurrence_id=?",
+            (old_occurrence,),
+        ).fetchone() == ("released", 1)
+
+
+@pytest.mark.parametrize("occurrence_id", [
+    None,
+    "life-manager-anicca-main-tiktok:invalid/id",
+    "life-manager-anicca-buddha-tiktok:run-1",
+])
+def test_runtime_auto_owner_fails_closed_when_occurrence_identity_is_missing_or_invalid(
+    tmp_path, monkeypatch, capsys, occurrence_id,
+):
+    owner = "life-manager-anicca-main-tiktok"
+    admission_db = tmp_path / "admission.sqlite3"
+    with sqlite3.connect(admission_db) as connection:
+        connection.execute(
+            "CREATE TABLE occurrences (owner_id TEXT, occurrence_id TEXT, state TEXT, effect_unknown INTEGER)"
+        )
+    if occurrence_id is None:
+        monkeypatch.delenv("LIFE_MANAGER_OCCURRENCE_ID", raising=False)
+    else:
+        monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", occurrence_id)
+    monkeypatch.setenv("LIFE_MANAGER_RUN_ID", "run-current")
+    monkeypatch.setenv("LIFE_MANAGER_LOOP_ID", owner)
+
+    result_code = reconcile.main([
+        "--auto-owner", owner,
+        "--data-dir", str(tmp_path / "data"),
+        "--admission-db", str(admission_db),
+        "--tenant-id", "dais-local",
+        "--resolve",
+    ])
+    result = json.loads(capsys.readouterr().out)
+
+    assert result_code == 1, result
+    assert result["status"] == "inconclusive"
+    assert result["reason"] == "runtime_occurrence_missing_or_invalid"
+
+
+def test_runtime_auto_owner_does_not_substitute_an_older_identity_for_current_unknown(
+    tmp_path, monkeypatch, capsys,
+):
+    owner = "life-manager-anicca-main-tiktok"
+    old_occurrence = f"{owner}:run-old"
+    current_occurrence = f"{owner}:run-current"
+    admission_db = tmp_path / "admission.sqlite3"
+    identity_dir = tmp_path / "effect-identities"
+    identity_dir.mkdir()
+    old_sidecar = identity_dir / "run-old.jsonl"
+    old_sidecar.write_text(json.dumps({"occurrence_id": old_occurrence}) + "\n", encoding="utf-8")
+    old_sidecar.chmod(0o600)
+    with sqlite3.connect(admission_db) as connection:
+        connection.execute(
+            "CREATE TABLE occurrences (owner_id TEXT, occurrence_id TEXT, state TEXT, effect_unknown INTEGER)"
+        )
+        connection.executemany(
+            "INSERT INTO occurrences VALUES (?, ?, ?, ?)",
+            [
+                (owner, old_occurrence, "released", 1),
+                (owner, current_occurrence, "claimed", 1),
+            ],
+        )
+    monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", current_occurrence)
+    monkeypatch.setenv("LIFE_MANAGER_RUN_ID", "run-current")
+    monkeypatch.setenv("LIFE_MANAGER_LOOP_ID", owner)
+
+    result_code = reconcile.main([
+        "--auto-owner", owner,
+        "--identity-dir", str(identity_dir),
+        "--data-dir", str(tmp_path / "data"),
+        "--admission-db", str(admission_db),
+        "--tenant-id", "dais-local",
+        "--resolve",
+    ])
+    result = json.loads(capsys.readouterr().out)
+
+    assert result_code == 1, result
+    assert result["status"] == "inconclusive"
+    assert result["occurrence_id"] == current_occurrence
+    assert result["reason"] == "identity_missing_or_invalid"
+    assert old_sidecar.read_text(encoding="utf-8") == json.dumps({"occurrence_id": old_occurrence}) + "\n"
+
+
 def test_product_scoped_flat_distribution_row_matches_without_product_field(tmp_path):
     identity = {
         "product_id": "ebook-ja",
@@ -852,6 +987,106 @@ def test_pending_owner_recovers_only_one_exact_native_carousel_receipt(tmp_path,
         text=True, capture_output=True, cwd=Path(reconcile.__file__).resolve().parents[3], check=False,
     )
     assert checked.returncode == 0, checked.stderr or checked.stdout
+
+
+def test_runtime_auto_owner_resolves_current_proof_and_leaves_other_fence_for_receipt_dedup(
+    tmp_path, monkeypatch, capsys,
+):
+    fixture = _native_carousel_recovery_fixture(tmp_path, monkeypatch)
+    owner = fixture["owner"]
+    identity = fixture["identity"]
+    fixture_occurrence = identity["occurrence_id"]
+    identity["occurrence_id"] = f"{owner}:18d864fa9d9c6858-71847"
+    identity["runtime_run_id"] = "18d87e42d43a1de0-7377"
+    current_sidecar = fixture["identity_dir"] / f"{identity['runtime_run_id']}.jsonl"
+    original_sidecar = fixture["identity_dir"] / "run-1.jsonl"
+    original_sidecar.unlink()
+    current_sidecar.write_text(json.dumps(identity) + "\n", encoding="utf-8")
+    current_sidecar.chmod(0o600)
+
+    old_identity = _identity_for_neighbor_slot(
+        identity, run_id="18d87e42d43a1de0-1111", slot="2026-10-06T09:00:00.000Z",
+    )
+    old_occurrence = old_identity["occurrence_id"]
+    old_sidecar = fixture["identity_dir"] / f"{old_identity['runtime_run_id']}.jsonl"
+    old_sidecar.write_text(json.dumps(old_identity) + "\n", encoding="utf-8")
+    old_sidecar.chmod(0o600)
+    with sqlite3.connect(fixture["admission_db"]) as connection:
+        connection.execute(
+            "UPDATE occurrences SET occurrence_id=? WHERE owner_id=? AND occurrence_id=?",
+            (identity["occurrence_id"], owner, fixture_occurrence),
+        )
+        connection.execute(
+            "INSERT INTO occurrences VALUES (?, ?, 'released', 1)",
+            (owner, old_occurrence),
+        )
+    fixture["ledger"].parent.mkdir(parents=True)
+    fixture["ledger"].write_text(json.dumps({
+        "effect_key": "another-effect",
+        "job_id": "another-job",
+        "receipt": {"status": "published"},
+    }) + "\n", encoding="utf-8")
+    fixture["ledger"].chmod(0o600)
+    monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", identity["occurrence_id"])
+    monkeypatch.setenv("LIFE_MANAGER_RUN_ID", "run-1")
+    monkeypatch.setenv("LIFE_MANAGER_LOOP_ID", owner)
+    monkeypatch.setenv("POSTIZ_API_KEY", "test-only")
+    resolved = []
+
+    def resolve_unknown_occurrence(**kwargs):
+        assert kwargs["owner_id"] == owner
+        assert kwargs["occurrence_id"] == identity["occurrence_id"]
+        proof = kwargs["official_readback"]()
+        assert proof["provider_receipt_id"] == fixture["provider_id"]
+        assert reconcile._local_receipt(identity, fixture["ledger"])[1] == fixture["provider_id"]
+        resolved.append(kwargs["occurrence_id"])
+        with sqlite3.connect(fixture["admission_db"]) as connection:
+            connection.execute(
+                "UPDATE occurrences SET state='released',effect_unknown=0 WHERE owner_id=? AND occurrence_id=?",
+                (owner, identity["occurrence_id"]),
+            )
+        return True
+
+    monkeypatch.setattr(reconcile, "resolve_unknown_occurrence", resolve_unknown_occurrence)
+    result_code = reconcile.main([
+        "--auto-owner", owner,
+        "--identity-dir", str(fixture["identity_dir"]),
+        "--data-dir", str(fixture["data_dir"]),
+        "--admission-db", str(fixture["admission_db"]),
+        "--tenant-id", "dais-local",
+        "--resolve",
+    ])
+    result = json.loads(capsys.readouterr().out)
+
+    assert result_code == 0, result
+    assert result["status"] == "resolved"
+    assert result["occurrence_id"] == identity["occurrence_id"]
+    assert resolved == [identity["occurrence_id"]]
+    with sqlite3.connect(fixture["admission_db"]) as connection:
+        assert connection.execute(
+            "SELECT state,effect_unknown FROM occurrences WHERE occurrence_id=?",
+            (old_occurrence,),
+        ).fetchone() == ("released", 1)
+    rows = reconcile._safe_jsonl(fixture["ledger"])
+    assert rows is not None and rows[-1]["effect_key"] == identity["effect_key"]
+    assert rows[-1]["receipt"]["provider_post_id"] == fixture["provider_id"]
+
+    node = shutil.which("node")
+    assert node
+    adapter_path = Path(reconcile.__file__).resolve().parents[1] / "lib" / "marketing-native-carousel-publication-adapter.js"
+    code = (
+        "const adapter=require(process.argv[1]).createMarketingNativeCarouselPublicationLoopAdapter({ledgerPath:()=>process.argv[2]});"
+        "adapter.reconcile({tenant_id:'dais-local',effect_key:process.argv[3]}).then(result=>{"
+        "process.stdout.write(JSON.stringify(result));process.exit(result.state==='present'?0:1);});"
+    )
+    checked = subprocess.run(
+        [node, "-e", code, str(adapter_path), str(fixture["ledger"]), identity["effect_key"]],
+        text=True, capture_output=True, cwd=Path(reconcile.__file__).resolve().parents[3], check=False,
+    )
+    assert checked.returncode == 0, checked.stderr or checked.stdout
+    dedup = json.loads(checked.stdout)
+    assert dedup["state"] == "present"
+    assert dedup["receipt"]["provider_post_id"] == fixture["provider_id"]
 
 
 def test_native_carousel_recovery_refuses_ambiguous_or_changed_remote_media(tmp_path, monkeypatch):

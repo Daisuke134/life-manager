@@ -254,7 +254,20 @@ function renderInput({ python, root, stateRoot, slotAt, product, ownerEnv = proc
     maxBuffer: 2 * 1024 * 1024,
   });
   if (result.status !== 0) {
-    throw new Error(`eBook renderer failed with exit ${result.status}`);
+    let errorClass = "unknown";
+    const lines = String(result.stdout || "").split(/\r?\n/).filter(Boolean);
+    if (lines.length === 1) {
+      try {
+        const failure = JSON.parse(lines[0]);
+        if (failure.schema_version === "marketing.ebook-render-failure.v1"
+            && typeof failure.error_class === "string"
+            && /^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(failure.error_class)) {
+          errorClass = failure.error_class;
+        }
+      } catch {}
+    }
+    const exitCode = Number.isInteger(result.status) ? result.status : "unknown";
+    throw new Error(`eBook renderer failed: ${errorClass} (exit ${exitCode})`);
   }
   const lines = String(result.stdout || "").split(/\r?\n/).filter(Boolean);
   if (lines.length !== 1) throw new Error("eBook renderer returned invalid JSON");

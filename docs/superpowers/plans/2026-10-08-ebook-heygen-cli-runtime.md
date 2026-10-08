@@ -8,7 +8,7 @@
 
 **Tech Stack:** Node.js, Python 3, node:test, pytest, Life Manager immutable releases.
 
-**Spec:** `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md` — “eBook Monk current blocker cursor — 2026-10-08 10:53 JST”.
+**Spec:** `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md` — “eBook Monk renderer recovery cursor — 2026-10-08 11:29 JST”.
 
 ## Global Constraints
 
@@ -155,9 +155,9 @@ Observed 10:52 JST: the full two-page title `Anicca` search returns zero videos.
 
 The sidecar remains `delivery_uncertain` without `video_id` or `provider_status`; `lm-loop status` remains `effect_status=unknown` and `next_action=official_readback_required`. Do not replay the same occurrence or clear the sidecar.
 
-- [ ] **Step 4: Obtain exact provider-side create or billing evidence**
+- [x] **Step 4: Complete available official provider readback; retain the exact missing artifact**
 
-Use HeyGen's official video/billing readback to match a video ID or prove the wallet change is unrelated. If those records cannot identify the create, keep the effect fenced and record the exact missing provider artifact; a zero-result title search alone does not explain the wallet delta.
+Observed 10:52 JST: the full two-page `Anicca` video search returns zero matches, and HeyGen CLI help exposes `video list`/`video get` plus `user me get`, but no wallet transaction-history command. The wallet is USD 11.78 versus the sidecar's USD 12.30 before-create balance. Exact missing provider evidence is the create/video ID or an itemized billing record tied to that request. Keep `delivery_uncertain`; this is a completed safe disposition, not proof that the provider effect did not occur.
 
 ### Task 5: Preserve HeyGen provider IDs and safe renderer diagnostics
 
@@ -172,31 +172,31 @@ Use HeyGen's official video/billing readback to match a video ID or prove the wa
 - Produces: a durable video ID/status before completion checks, and a sanitized parent error class/exit result.
 - Boundary: a valid provider ID is recovered with `heygen video get <video-id>`; no retry path may issue a second `video create` for that request hash.
 
-- [ ] **Step 1: Add a failing non-completed-create regression test**
+- [x] **Step 1: Add a failing non-completed-create regression test**
 
-Add `test_noncompleted_create_persists_video_id_and_replay_never_creates_again`. Mock `video create` returning a valid `video_id` with status `processing`; assert the intent stores both fields before returning reconciliation-required, and a second run uses `video get <video-id>` with exactly one total create call.
+Add `test_noncompleted_create_persists_video_id_and_replay_never_creates_again` for a valid `video_id` with status `processing`, plus `test_create_timeout_with_video_id_is_reconciled_without_second_create` for exit code 4 with parseable `video_id`/status in stdout. Assert each intent stores the ID/status and a replay uses `video get <video-id>` with exactly one total create call.
 
-- [ ] **Step 2: Run the regression to verify RED**
+- [x] **Step 2: Run the regression to verify RED**
 
-Run: `python3 -m pytest skills/earn/marketing-engine/render_eval/test_heygen_candidate.py::test_noncompleted_create_persists_video_id_and_replay_never_creates_again -q`
+Run: `python3 -m pytest skills/earn/marketing-engine/render_eval/test_heygen_candidate.py::test_noncompleted_create_persists_video_id_and_replay_never_creates_again skills/earn/marketing-engine/render_eval/test_heygen_candidate.py::test_create_timeout_with_video_id_is_reconciled_without_second_create -q`
 
-Expected: FAIL because the current exception handler writes `delivery_uncertain` without the parsed video ID or status.
+Expected: both FAIL because the current status check raises `ValueError`, and the exit-4 handler writes `delivery_uncertain` without the parsed video ID or status.
 
-- [ ] **Step 3: Persist the provider ID/status before validating completion**
+- [x] **Step 3: Persist the provider ID/status before validating completion**
 
-After parsing a valid ID, durably write `state=provider_created`, `video_id`, `provider_status`, and wallet-before data. For a non-completed status, return reconciliation-required and query that same ID on the next run; never call create again. Keep `delivery_uncertain` only when the provider ID itself cannot be proved.
+After parsing a valid ID from either a successful or exit-4 `video create` response, durably write `state=provider_created`, `video_id`, `provider_status`, wallet-before data, and safe nonzero exit metadata when present. For a non-completed status or timeout, return reconciliation-required and query that same ID on the next run; never call create again. Keep `delivery_uncertain` only when the provider ID itself cannot be proved.
 
-- [ ] **Step 4: Add a sanitized subprocess failure regression**
+- [x] **Step 4: Add a sanitized subprocess failure regression**
 
 Use the existing fake-renderer test to assert a nonzero result retains safe `error_class`/exit metadata while omitting arbitrary stderr text, credential-shaped strings, and request bodies.
 
-- [ ] **Step 5: Implement minimal error propagation and run focused checks**
+- [x] **Step 5: Implement minimal error propagation and run focused checks**
 
-Make the Python renderer emit a stable failure class and let `renderInput()` propagate only that class and exit metadata. Run the two focused test files plus `git diff --check`.
+Make the Python renderer emit a stable failure class and let `renderInput()` propagate only that class and exit metadata. Verified: HeyGen renderer 12/12, eBook distribution Node tests 13/13, loop-contract 18 loops / 187 jobs, source-boundary PASS, runtime loop suite 789/789, and `git diff --check` PASS. `lm-loop doctor` still reports the unrelated retired label `ai.anicca.provision-browser.capafy.kosuke`; record it as the production promotion limitation, not an eBook code regression.
 
-- [ ] **Step 6: Commit and integrate the source repair**
+- [x] **Step 6: Commit and integrate the source repair**
 
-Use a latest-main-derived owner branch, fresh read-only review, required CI, and the main merge path. Production release/apply stays in Task 6.
+PR #7030 was rebased/merge-synchronized with latest main, passed all required CI, and merged as `c5d3f20a1b59048c8709574e11e8cb777c3b972e`. Production release/apply remains in Task 6.
 
 ### Task 6: Promote the repair and verify one new English slot
 
@@ -224,3 +224,33 @@ Use the registered owner once for the next distinct slot. Do not retry the old 0
 - [ ] **Step 4: Continue the daily receipt check from the canonical SSOT**
 
 The target is three unique published posts per account/day (nine total), with one Japanese render shared across Japanese TikTok and Instagram. A single successful slot is not proof of recurring cadence.
+
+### Current promotion disposition — 2026-10-08 11:36 JST
+
+Task 5 source repair is committed and rebased onto `origin/main=94372580faf432189742de38cd474bfa0db6c4f0` in `fix/ebook-heygen-receipt-recovery-20261008`; the rebase changed no eBook files. Fresh branch review, push/PR, required checks, and merge remain. Current production symlink is `20261008T113408-94372580`; the English owner still loads `3d88f9eb5d00d1ed3651b9ab3f5dd822df0b0bdf` and its latest effect is unknown with no provider receipt. The reconciler is idle after an exit-143 event. Disk availability is 858,736 KiB, below the 2 GiB floor, and `lm-loop doctor` still finds retired label `ai.anicca.provision-browser.capafy.kosuke`. Keep the 08:00 HeyGen fence; do not create or publish until the exact old effect is safely dispositioned and the host/apply gates pass.
+
+11:43 JST refresh: official Postiz GET at 11:42 shows all three integrations enabled, Japanese TikTok=1, Japanese Instagram=1, English=0. HeyGen title search `Anicca` returns 0 videos and wallet remains USD 11.78. Disk free fell to 652,800 KiB. Cleanup occurrence `18dc6d7c936c08f0-63724` exited 78 (`apply_lock_busy`, no effect); release reconciler is now running as PID 80014, so preserve its lock and wait for its natural terminal. `launchctl-safe` reads the guarded retired Capafy provision-browser label as `spawn scheduled`, PID absent, last exit 2; preflight passes, while doctor remains false for that label. Japanese effect fencing is independent from the English HeyGen fence; after shared host gates recover, the two Japanese owners may proceed at their next distinct natural slot. Fresh branch review: Critical 0 / Important 0 / Minor 1; defer the cost-diagnostic-field persistence minor because video ID and no-second-create behavior remain intact.
+
+11:49 JST PR #7030 CI diagnosis: `OSS self-contained boundary` failed on a stale Capafy inventory digest inherited from base PR #7028's `CP1_AGENTIC.md` edit; no eBook source path was involved. Refreshed only `docs/manifests/oss-merge-1-sources.json` (`files=243`, digest `2b9e744435d78e144fa0f7bad5c20a57f3117858284dfbdf560ccde3f042140b`). The exact local verifier now passes; update the PR and rerun required CI. No Capafy implementation file changed.
+
+11:53 JST refresh: main advanced to `c78c4e84`; the published PR branch was synchronized without force-push by a merge commit. Fresh readback after English occurrence `18dc6de8dcf3a0e8-75262` still shows `effect=unknown`, HeyGen `Anicca` videos 0 / wallet USD 11.78, and Postiz 2/9 (English 0; Japanese each 1). Cleanup occurrence `18dc6dc27a256d78-72072` passed at 11:46 with `free_after=2,375,139,328`, errors 0, protected deletions 0; 11:52 `df` is above floor. Reconciler PID 80014 and cleanup PID 15358 are loaded-running; doctor remains false only for the guarded retired Capafy provision-browser label. Next publication receipt target is the Japanese owners' 12:30 slot; English stays fenced. The latest main merge, spec refresh, and PR push are the next source-plane actions; do not mutate provider state.
+
+11:56 JST refresh: latest `origin/main=bcfc32c2`; PR #7030 head `d59746df`, CI pending. All three eBook owners load release `94372580`. Cleanup occurrence `18dc6e2bd7705880-15358` passed at 11:53:18 JST; receipt free_after `7,753,392,128` bytes, errors 0, protected deletions 0, floor met. Current `df` shows 7,189,760 KiB free. Release reconciler PID 80014 remains running; doctor still fails only on the guarded retired Capafy provision-browser label. English effect remains unknown at occurrence `18dc6de8dcf3a0e8-75262`; fresh HeyGen/Postiz readback still shows no video or English post and wallet USD 11.78. The next delivery check is the Japanese owners' 12:30 slot after lock release.
+
+12:04 JST refresh: current symlink is `20261008T115828-a7899e37`, while all eBook owners remain on `94372580`. Release reconciler PID 36926 is loaded-running; capacity is 6,990,952 KiB free. Both Japanese owners have exact `PUBLISHED` receipts but `admission_effect_unknown.current=true` / `state=claimed` / `official_readback_required`. Do not clear claims manually; read them after the reconciler's natural terminal. The Capafy retired-label guard hash/path differs from current launchd argv, and its entrypoint and plist are absent; do not bootout or mutate that unrelated label. `apply_live(target=ebook-owner)` skips unrelated retired labels, so keep that global doctor warning separate from a future exact eBook target apply.
+
+12:05 JST PR status: every required check on head `3f194c8e` passed. Main then advanced to `a7899e37` via PR #7033, changing the Capafy inventory and shared SSOT; PR #7030 still targets base `bcfc32c2`. Sync the latest main via a merge commit, rerun the OSS self-contained check, refresh only its derived inventory digest if needed, and rerun required CI before merge.
+
+12:06 JST refresh: main #7033 is merged as `a7899e37`; its Capafy files changed the classified-root content digest. Refreshed only the 243-file mapping hash to `3b83b77a69097619902bf06c8d9f1af96eed884ef7d68f1a8ca55c1d10cd8c33`; the exact local OSS self-contained verifier passes. Push this latest-main merge and refreshed spec, then require fresh CI before PR #7030 merge.
+
+12:12 JST refresh: PR #7030 checks were all green on base `a7899e37`, then main #7037 changed Capafy autopublish files again. Merged latest main `ca7d58b6` into the published branch without force; updated only the 243-file OSS digest to `64b3b8d037c8dea56e4f57f976ae4310b364eeac028ce475e8790b53a6ed6a7a`. The local self-contained verifier passes. Push and rerun required CI before merge; the prior green checks do not include #7037.
+
+12:19 JST post-merge: PR #7030 is merged at `c5d3f20a`. `/Users/anicca/loops/current` still points to `20261008T121306-ca7d58b6`; reconciler PID 73416 is active and eBook owners remain on SHA `94372580`. Cleanup occurrence `18dc6f999854bb40-71475` is blocked by `apply_lock_busy`, while current disk free remains about 6.49 GiB. English unknown and both Japanese claimed admission rows remain. Source merge is complete; the remaining work is release/owner natural convergence, exact old-effect disposition, and receipts/checkout/PDF.
+
+12:21 JST refresh: main `fd3f5e49` also contains PR #7024's occurrence-scoped Postiz reconcile. In runtime context, `--auto-owner` now reconciles only the exact occurrence ID; this source is not loaded in current release `ca7d58b6`. English effect `18dc6de8` and Japanese claimed admissions remain. Run the exact-owner reconciliation after the new release loads and the current reconciler/lock is free; never use a neighboring identity or manually clear the DB.
+
+12:28 JST exact-identity diagnosis: the structured fence-reconciler call ledger reports all three old eBook occurrences `no_match / exact_pending_receipt_unavailable / inspected=0`; no matching `effect-identities/*.jsonl` sidecar exists for the Japanese receipt occurrences or English unknown occurrence. Their runtime events retain the two Japanese Postiz receipt IDs, while English event says `effect_identity_status=not_written`. Main #7024 narrows runtime auto-owner calls to the exact occurrence, but cannot reconstruct these old missing identities. Current route remains fenced until identity is matched from existing run/ledger/provider evidence; never synthesize the identity or edit admission DB. PR #7041 now merges latest main `53d49879`; updated Capafy digest `caef751afc6a2e815d6efc36ece93915daeba9a15b822f421e0e0e5339d1d841` passes the local verifier, and fresh required CI is pending.
+
+12:55 JST refresh: PR #7030 and PR #7041 are both merged. Postiz still shows 2/9; the 12:30 Japanese attempts exit75 before provider dispatch because the old claims remain. No matching effect-identity sidecars exist, although the distributions/marketing receipts/publication identity ledger contain exact IDs, hashes and slot candidates. Current release is `20261008T124623-8f342d8d`, while eBook owners load `fd3f5e49`/`94372580` and fence reconciler `46ec94bd`. Release reconciler PID63286 is active; cleanup sees apply_lock_busy; capacity is above floor. English effect remains unknown with no HeyGen video/wallet change. Restore exact identities from a unique local-ledger + official-provider join before releasing claims; missed 12:30 remains catch-up-eligible until 20:00 according to the existing due-slot function.
+
+12:40 JST refresh: main is `893a929f` and includes #7024's exact-occurrence adapter, but `lm-fence-reconciler` remains on `46ec94bd`; English/JP TikTok are `fd3f5e49`, JP Instagram `94372580`. The 12:30 Japanese owners both exited75 pre-provider with `host_admission_deferred:resource_effect_unknown`; Postiz remains 2/9. Their old receipt IDs and video/caption hashes exist in the local distribution receipt; no exact effect-identity sidecar exists, and fence calls report `no_match/exact_pending_receipt_unavailable/inspected=0`. Reconstruct the identity only from a unique join across owner event, local job/receipt, account/integration, slot/hashes, and fresh official Postiz readback; direct DB edits are forbidden. Next opportunity is the missed 12:30 slot only if the existing due-slot function still returns it after the exact claim clears.

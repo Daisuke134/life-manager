@@ -158,9 +158,10 @@ class MacosLoopRegistryTest(unittest.TestCase):
             with self.subTest(loop_id=loop_id):
                 row = registry["loops"][loop_id]
                 if loop_id == "job-search-daily":
-                    self.assertEqual(row.get("resource_class"), "agent")
+                    self.assertEqual(row.get("resource_class"), "deterministic")
                     self.assertEqual(row.get("admission_class"), "revenue")
                     self.assertEqual(row.get("priority"), "revenue")
+                    self.assertTrue(row.get("reconcile_queued_release"))
                 else:
                     self.assertEqual(row.get("resource_class"), "deterministic")
                     self.assertEqual(row.get("admission_class"), "borrow")

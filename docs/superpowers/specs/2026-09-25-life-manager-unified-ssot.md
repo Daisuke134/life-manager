@@ -455,6 +455,7 @@ Capafy の TODO（この順）: C1 ✅ 失敗の自動立て直し / C2 ✅ Hook
 モバイルアプリの TODO（Capafyの後。この順。2026-10-07更新）: 旧順序はA1重複投稿ガード→A2 distribution→A3 ASO→A4 onboarding→A5 app/factory。新順序はA1自然投稿の重複ゼロ確認→A2 tracked distribution・100 first-time downloads/day/app→A2 app/ASC/RevenueCat metrics coverage→6公開appすべて達成後にA4 in-app cohort/onboarding（Anicca first）→A3 ASOはstore-page bottleneckをASCが示した場合のみ→A5 positive unit economics/app factory。順序変更理由はDaisが現時点でdistributionと計測に集中し、ASOを同時に実験しないよう指定したこと、および約97.9kのAnicca social account-viewsに対しASCの最新値が3 downloads/2日で、post→install attributionが欠けること。計測baselineは配信と並行し、creative/ASO/onboarding experimentsは同時に走らせない。Aniccaを先に100/dayのtrailing 7-day averageへ到達させ、その後残る5公開appへ適用し、6件すべての目標は600/dayとする。オンボーディング検証は6件すべてのdistribution target達成後。Anicca 1.9.5の再提出はしない。
 - A1 🔧 同じ文面の繰り返し投稿を止める（2026-09-29 着手・#6127 merge・release 11056150 を 6 lane に反映）。原因: apps/life-manager/lib/marketing-native-carousel-publication-adapter.js の各 lane（EN affirmation IG/TikTok・EN slideshow・JA main・JA buddha・jp1）が 1 組の packRef/captionRef に固定され selectMarketingNativeCarouselLane() がそれ以外を拒否していた。修正: Larry JA の生成パイプラインを lane 引数化して 5 lane に適用、7 日内の caption/スライド文字 hash 重複を投稿前に止める共通 guard。費用は背景使い回し・文字のみ生成で 1 組ほぼ $0（上限 $0.30）。完了の証拠: 次の投稿（Affirmation Girl 14:15 JST 以降）が Postiz で過去と違う文面であること。YouTube Daily Affirmation App は別パイプライン（honne-ja-cycle の selectHook）で未対応。元の記録:実測（Postiz 公式 API、2026-09-25〜28 の 146 投稿）: TikTok Affirmation Girl 9 投稿で文面 2 種、TikTok anicca 7→2、TikTok アニッチャ iOS 9→2、TikTok アニッチャ お笑い 7→2、Instagram anicca 7→2、YouTube Daily Affirmation App 9→2（本音翻訳は 9→9 で毎回違う）。原因: 毎回新しい文字を作る仕組み（#6049〜#6058）は Larry JA の 1 lane にだけ入り、他の lane は少数の固定の文面・スライドを使い回している（スライド画像内の文字の重複は直す時に lane ごとに確定する）。直し方: Larry JA と同じ「背景は使い回し・文字は毎回生成・7 日内の再利用禁止・自動 gate・指標で型を選ぶ」を全 lane に広げ、Postiz の投稿本文とスライドの hash で同一アカウント内の重複を投稿前に止める。
 - A2 投稿 → App Store の流れを測る（アカウント・投稿ごとの再生 → プロフィール → ストア → install）。今は SNS 経由の install がほぼ 0。
+- A2 Telegram checkpoint reports: show the public post URL from the exact matching publication identity for every product/platform; if no verified URL exists, state that it could not be retrieved.
 - A3 ASO（App Store の検索で見つかる言葉・スクリーンショット・説明文）。
 - A4 オンボーディング → 課金の指標（場所ごと）。
 - A5 アプリの中身の改善・工場の未公開 4 本は、集客が回ってから。
@@ -714,6 +715,20 @@ TODO（何を・どう直すか）
 | L25 | host ディスクの空きを 11GiB 以上に戻す（全 loop の再開条件） | **blocker（host 全体）**。Data 228Gi 中 198〜200Gi 使用、空き 3〜6Gi。測定済み ~65G（.local 15G、gig 8.7G=進行中の受託案件、.cloak 10G、Projects 11G、loops 8.3G=全 release/bundle が稼働プロセスか保護リストで参照中、anicca-project 4.9G、.openclaw 4.8G）、残り ~130G は所在調査中（read-only エージェント）。LINE 側は申請済みセットの不要中間ファイルを自動削除済み（#6924） |
 | L26 | LINE Creators Market の「特集」企画に自動参加する（上位作者は特集に乗ってストアバナー/LINE公式での無料露出を得ている。既存は selector が `campaign_value` を常に null にして不参加固定） | DONE: 新規 `features_readback.py` が `line-creators:dais` で既存アイテムの編集ページ（`/sticker/<id>/update`）の特集ラジオ共有グループ（`value="on"`＝参加しない、実測 2026-10-08）を読み、各選択肢のタイトルを `/announce/` のお知らせ一覧とタイトル部分一致で突き合わせ、その記事本文（個数・金額・条件）を `conditions` として `~/.local/state/life-manager/line-sticker/features.json` に書く。既存の毎時 `line-sticker-readback-hourly`（`line-sticker-readback.sh`）が1行追加で呼ぶが、`features.json` の `observed_at`（JST日付）で自己ゲートし実質1日1回。`line_sticker_planner.selector` のプロンプト手順8を「不参加固定」から「open な特集一覧＋条件をモデルに渡し、今回のセットが条件を満たす特集が1つでもあればその value を選ぶ、なければ null」に変更、返ってきた `campaign_value` は決定的ガード `_guard_campaign_value`（features.json の open 一覧に無い値・期限切れは null）を通す。`line_sticker_submit._select_taste_character_campaign` は既存のまま（`campaign_value` の値を持つラジオを選択、null/未知は `"on"`=不参加）で対応済みを確認。テスト `tests/test_features_readback.py`（ラジオ labelのパース・お知らせ一致・自己ゲート）、`tests/test_line_sticker_planner.py` 追加分（guard・open_features フィルタ・プロンプトに特集が入ること）、`tests/test_line_sticker_submit_title.py` 追加分（特集 value のラジオを確実に選ぶこと）含め全 green。2026-10-08 実測の公開中特集: 799 そんな時もある！ネガティブ表現スタンプ、806 使いやすい！気づかいスタンプ（弊社の24枚動くセットはスタンプ枚数条件で過去に不採用)、811 秋を感じるスタンプ（受付〜10/19）、820 犬の日 スタンプ（受付〜11/16）、835 冬を感じるスタンプ（受付10/2〜12/4、新規キャラ限定・8〜40枚・¥190以上・冬関連8枚以上） |
 | L27 | 上位セラーを継続的に写す（新規 `market.py`。10 セット申請・4 販売中・売上¥0 のまま、planner が market 調査を一度も見ていなかった） | DONE: `skills/earn/line-sticker/market.py` が LINE STORE `top_creators`（全件+動く系 `category=2000`）・`new_creators` を login 不要の HTTP GET で毎日読み（`market.json` の `observed_at` で自己ゲート、`line-sticker-readback.sh` から `sales_readback.py` の直後に1行追加で呼ぶ）、上位 40 件を product_id 順に dedup して各商品ページの schema.org JSON-LD（title/description/price/author）とスタンプ一覧の `data-preview` type（static/animated/popup・枚数）を抽出、著者ページで著者のシリーズ本数（`author_sets`）も記録。上位 15 件だけ `agent_runner.py` にサムネイルを渡し文字有無・テーマ・画風・フレーズを分類。`line_sticker_planner._build_plan_prompt` は market 上位 15 件を見せ、`copy_target`（商品URL・テーマ・フレーズ・表現スタイル・文字有無・タイトルの型）を plan.schema.json の必須フィールドに追加（他者のキャラ・絵・文字の複製は禁止、企画パターンだけ写す）。市場が静止/文字入り中心なら `format_gap` に記録（別 TODO、今回は着手しない）。2026-10-08 実測スイープ（40件、分類なしの dry-run）: フォーマット static 24 / animated 15 / popup 1、価格帯 ¥190（静止の大半）〜¥250（動く系の大半）、上位は例外なく既存キャラの多セット展開（例: ナガノ34セット、動画工房36セット）。テスト: `tests/test_market.py`（新規、HTML fixture ベース・ネットワーク無し）+ `tests/test_line_sticker_planner.py`/`tests/test_factory.py` 追加分、全 green。`./bin/lm-loop-contract` PASS |
+
+#### 5.L 実行順（2026-10-08 Dais「1 つずつ最後まで」。この表が LINE スタンプの cursor の正本）
+
+成功者の稼ぎ方（一次・準一次ソース）: LINE 公式 10 周年 累計 1,000 億円・上位 10 名平均 13.52 億円（9 割は月数百円）; ゲスくま（ITmedia 2015-12-28）「ランキング上位で一番使いやすいものに合わせて作る」「1 位を 10 週で月 100 万円」; urajo（本人 note）10 年量産＋シリーズ化で 2023-02 売上 37 万円・分配 22 万円、累計 1,000 万円超; ユニコブログ 猫×毎日使える言葉で初日 2.7 万円。共通点 = ①ランキングの型を写す ②1 キャラ量産・シリーズ ③絵より送りやすい言葉 ④発売直後に SNS で人を集める。静止の最低価格は 2026-07-01 から ¥190。
+
+| 順 | ID | 1 つの作業 | 完了条件 | 状態 |
+|---|---|---|---|---|
+| 1 | L19 | 静止スタンプ（¥190）ラインを本番で 1 セット申請 | Creators Market で審査待ちを readback | 進行中（#7039 merge 済み） |
+| 2 | L28 | 画像生成を ChatGPT サブスク（`~/.agents/skills/chatgpt-imagegen`）に統一し原価 0 | 静止・キャラ画像が chatgpt-imagegen で生成され cost_usd 0 を記録 | 進行中 |
+| 3 | L26 | 特集（例 835 冬を感じるスタンプ）に条件が合えば自動参加 | #7034 merge・release・次の申請で参加を readback | CI 待ち。手動で 48137583 を 835 に参加済み |
+| 4 | L29 | 動くスタンプを fal ではなく ChatGPT のコマ画像→APNG で作る（fal 残高 −$10.95 で停止中） | 1 セットを無課金で生成し申請 | 未 |
+| 5 | L20 | 文字入り版（「了解」「ありがとう」等）を別 SKU で出す | 1 セット申請 | 未 |
+| 6 | L17 | IG の日常投稿・交流を回す（10/10 から engagement と bio リンク） | 自然 slot の新規 reel と ledger、10/10 以降の engagement 記録 | 仕組み本番済み、ホスト停止中は保留 |
+| 7 | L21 | 1 キャラのシリーズ本数を増やす（売上が出た型を優先） | sales.json に売上が出たキャラの続編が出る | 自動（L18/L27 配線済み） |
 
 ### 5.1 自己修復・自己改善の定義（T5 / T12 の正本）
 
@@ -3158,6 +3173,30 @@ Capafy の $10k MRR までの全順序（20 項目、段階・完了条件・状
 
 Capafy＋PromptBase＋自社 checkout をまとめた $10k MRR の全体計画（売り場ごとの目標・週ごとの数字・OSS 公開条件）は `docs/superpowers/plans/2026-10-05-agent-skill-factory-10k-mrr.md`。Capafy の実行順・記録はこれまでどおり `docs/superpowers/plans/2026-10-04-capafy-10k-mrr-recipe.md`。
 
+## 3 つの稼ぐエージェントと共通マーケティング（2026-10-08 12:50 JST 実測）
+
+目標: 各エージェントで $10k MRR。順序: Capafy → Writer → Mobile。Capafy の細目は `docs/superpowers/plans/2026-10-04-capafy-10k-mrr-recipe.md` が正本。
+
+### As-Is
+| エージェント | 作る | 売る（宣伝） | Telegram にリンク報告 | 直近の売上 |
+|---|---|---|---|---|
+| Capafy | 工場 `capafy-loop-daily`（15 分ごと）。下書き 9531771963 で CP1 が 3 回止まり、新規出荷 0（10/08 修正 2 件を本番反映済み） | aniccaai.com 記事＋X（3 時間ごと、公開中）、Instagram @capafy.hooklab に Postiz 経由で手動 2 本＋予約 2 本（自動 owner は disabled） | 10/08 に配信ループへ追加（共通 `telegram-notify.sh`）。初回 13:15 | 直近 7 日 $0。4 本中 3 本が 10/08 12:00 承認 |
+| Writer（note・Substack 有料記事） | `article-daily` が **9/29 以降止まっている**（launchd `last exit 78`。`zenn-deferred-worker.py` が読み取り専用の release 内 `skills/writer-agent/state` に書こうとして PermissionError、ディスク満杯の ENOSPC も） | 記事自体＋X | 仕組み（`article-completion-notify.py`）はあるが、9/2 を最後に送信なし（ループが完走しないため） | money ledger 0 行（`database is locked`・ENOSPC で同期失敗）。9/29 の有料記事 3 本は公開中 |
+| Mobile（iOS アプリ） | アプリ工場は未再確認 | TikTok/IG/YouTube の 10 レーンが Postiz で毎日公開中（10/07 も PUBLISHED） | **動いている**（`apps/life-manager/lib/telegram.js`、10/05〜10/07 に公開 URL 付きで送信） | anicca-ios MRR $20.34、honne-ai $0（10/07） |
+
+共通部品: Postiz（Capafy・Mobile）、`telegram-notify.sh`（Writer・Capafy）と `telegram.js`（Mobile）の 2 系統、aniccaai.com 掲載（Writer・Capafy で別スクリプト）。アプリ向けの無料記事レーンは無い。
+
+### To-Be
+- 3 エージェントとも「作る loop＋売る loop」が自然実行で回り、公開のたびにリンク付きで Telegram に届く。
+- 宣伝は 1 つのマーケティングエンジン（`skills/earn/marketing-engine`＋Postiz＋aniccaai.com 掲載＋1 つの Telegram 送信）を全製品が共有する。新しい仕組みは作らず、既存の Mobile レーン（Postiz・Telegram が動いている）を基準に寄せる。
+- 計測は各売り場の公式の仕組み（Capafy プロモーションリンク ct、PromptBase `?via=`、App Store/RevenueCat）。
+
+### 残り TODO（この順）
+1. Capafy: 計画書の N 表の順（ReelFarm 同梱トークンの除去 → 工場の新規出荷 → Hook Lab・YouTube 再提出 → 残りの「注意」→ IG 自動化・プロフィールリンク → お試し停止）。
+2. Writer: `zenn-deferred-worker.py` の書き込み先を state dir（`ARTICLE_STATE_DIR`）へ → `article-daily` の自然実行を復旧 → 公開時の Telegram リンク報告の受領を確認 → money ledger 同期の復旧。
+3. Mobile: アプリの無料記事を既存の Writer/aniccaai.com 掲載で出す（新レーンは作らない）。
+4. 共通: Telegram 送信を 1 系統に寄せる（既存のどちらかを呼ぶ形。新規実装しない）。
+
 ## Dais指定のeBook → Capafy Instagram実行順
 
 - **旧順序:** checkout → webhook source → attribution → eBook publisher → first paid/PDF receipt → Capafy D5。production schema constraints・migration・lead-magnet sender/sourceは分離されず、source readinessとproduction readinessが混在していた。
@@ -3667,7 +3706,7 @@ English owner `ebook-en-tiktok-daily`は`launchd_state=disabled`で、plistは�
 
 - **GitHub位置情報追加調査（gh）:** [Safari Track issue 18](https://github.com/nbarrett/safari-track/issues/18)は、iOSがバックグラウンドのPWA GPSを止めるためCapacitorネイティブ殻へ移行した実例。[GeoTracker-Apple-Automation](https://github.com/makiisthenes/GeoTracker-Apple-Automation)と[ShortcutsAPI](https://github.com/gavinsawyer/shortcuts-api)は、利用者がShortcuts内で位置automationを手動設定する必要がある。[icloud-location](https://github.com/jimmystridh/icloud-location)はMITだがAppleの非公開・非サポートWeb API、Apple account/trusted session/2FAに依存。[google-maps-location-sharing](https://github.com/davenicoll/google-maps-location-sharing)も公式APIなしとREADMEに明記し、HARからGoogle session cookieを取り出してinternal endpointを呼ぶ。どれもCalendarだけを接続するWeb顧客向け依存には採用しない。
 - **結論:** 対応できるのは有効なGoogle Calendar event historyと利用者が一度保存するbaseからの出発推定。閉じたWebページでlive locationを読む機能はV1/V2とも作らない。予定にない移動は分からないため「常に正確」「絶対遅れない」とは約束しない。
-- **Earlier Telegram/iMessage bridge research (historical):** OSS confirms personal iMessage/SMS can be automated through a signed-in Mac running Messages.app; the local imsg CLI requires macOS 14+, Full Disk Access for message-database reads, and Messages Automation permission for sends. This is a Mac-hosted bridge, not a cloud API. Apple's official Messages for Business is a different route that requires Apple registration/review. This is research only; iMessage is not connected to Life Manager and is not a V1 dependency. The former Resend question/trial-notice paths are superseded; current V1 behavior is recorded in the later Cloud channel and trial decision.
+- **Earlier Telegram/iMessage bridge research（2026-10-07 historical, superseded by 2026-10-08 channel decision）:** The old note described only a signed-in Mac bridge and Apple Messages for Business. New provider research found managed cloud iMessage APIs with REST outbound and WebSocket/signed-webhook inbound that do not require Life Manager to host a Mac. Current product scope selects both Telegram and iMessage as optional clarification channels; the managed iMessage adapter and tenant linking remain implementation work. Keep this history as provenance, not as the current channel decision.
 
 - **優先変更:** 旧グローバル順序は§84-AのPromptBase P5c → Capafy L9-01 → Writer/Ebook/Affiliate → Mobile Apps → Connector → Fundraiser → Paid contract work → Self-Build → Investment → CFO → TaskMarket/BlockRun → Cloud/self-funding。§84-Aの各外部effectは中断・再送せず、同じprovider ownerが継続する。CFO専用TODOは最新mainの順序を維持し、このWeb priority changeでは並べ替えない。
 - **初回Web-first順序（履歴、2026-10-07 paywall/channel steeringで置換）:** The earlier draft moved from mandatory home-address input and chat-first UI to a Calendar-only Web setup. Its interim order placed optional Telegram/iMessage contact linking before the trial gate. That order is superseded; the current execution order and rationale are recorded in the updated paywall/channel TODO below.
@@ -3683,8 +3722,8 @@ English owner `ebook-en-tiktok-daily`は`launchd_state=disabled`で、plistは�
 - **過去の並行TODO記録（2026-10-06。現行順は2026-10-07のTODO更新で置換）:** 当時はW3-P0をcurrent cursorとし、OAuth前提の修復待ちにStripe catalog/subscriber・service-wide provider-cost estimateを独立にreadbackした。Web別のsettlementを価格・CTA前提に置く当時案は後続で循環依存と判明したため廃止した。この段落は履歴であり、現行cursor・実行順は2026-10-07のWeb-first進行状態と原子TODOに従う。
 - **W3-P0解除手順（2026-10-08 readback更新）:** Supabase project/provider, site URL, Railway callback allowlist, migrations, schema, and exact Google OAuth callback are verified. Production /auth/google redirects to the expected Supabase project. WB-05 is complete; WB-06/07 need a safe test identity/calendar and remain before any public acquisition.
 - **Netlify source/deploy:** Daisuke134/anicca-products PR #421 merged as 7ca532244304f59c720e2a8c4f010b2f0548ecf4. Node 20 landing PR CI passed; production Netlify run 37431958870 completed Build, Deploy, and post-deploy money-path smoke successfully. Public https://aniccaai.com/lm still displays the Telegram CTA and $29/mo; this font/build fix did not change the offer.
-- **Cloud channel・scope（Web入口と既存Telegram Travel処理）:** For new Travel customers, `/lm` is the no-install entry for Google Calendar authorization, automatic Travel processing, an immediate connected/trial offer, Checkout, and billing management; Google Calendar is the daily surface. Once the exact selected Calendar account is ACTIVE, start the first automatic Travel pass in the backend and immediately show the connected state plus paywall without waiting for any Calendar write or result. Existing Telegram customers keep their current bot flow; new Web customers do not have to install Telegram. Reuse the existing Travel resolver and ask engine. That engine resolves online/in-person status and destinations from Calendar context/search, then asks through an already-linked Telegram chat only when it still needs the customer's answer. A Web-only user currently has no Telegram reply route; leave an unresolved event unchanged until an optional tenant-safe reply channel is implemented. Do not guess, read Gmail, add a Web chat, or imply that the existing owner-side Messages bridge is a customer messaging service. No trial-ending reminder email is sent by Life Manager.
-- **Location-source decision（2026-10-07 researched update）:** Do not require continuous/background GPS. For future events, use a previous physical Calendar event within 90 minutes, then an already-saved base. If a required trip origin or event destination is still unknown after Calendar/Places resolution, ask once through an already-linked Telegram chat; otherwise leave that event unchanged. Web V1 sends no Resend question email. Telegram live location is user-initiated; live_period is a sharing window, not an update guarantee. Current freshness checks test share expiry but have no maximum-age gate, so a stale coordinate can still be treated as current. Do not claim reliable real-time location or use a live share as an authoritative origin until the age gate is implemented and observed updates are validated. iMessage also does not silently provide GPS; no location tracker is planned for V1.
+- **Cloud channel・scope（Web入口＋Telegram/iMessage返信先）:** For new Travel customers, /lm remains the no-install entry for Google Calendar authorization, automatic Travel processing, the immediate connected/trial offer, Checkout, and billing management; Google Calendar is the daily product surface. Once the exact selected Calendar account is ACTIVE, start the first automatic Travel pass in the backend and immediately show the connected state plus paywall without waiting for a Calendar write or result. Keep the existing Telegram path. The two selected optional clarification channels are Telegram and iMessage; channel selection is settled, not a TODO. Neither is required for Calendar connection or automatic Travel filling, and the Web UI has no chat thread. Telegram's current ask route works for linked Telegram tenants; Life Manager has no customer-facing iMessage adapter yet. After automatic resolution fails, send one clarification only through a tenant-bound linked channel; if no working channel is linked, leave that event unchanged. Do not guess, read Gmail, or treat the owner's local Messages bridge as a customer service.
+- **Location-source decision（2026-10-07 researched update）:** Do not require continuous/background GPS. For future events, use a previous physical Calendar event within 90 minutes, then an already-saved base. If a required trip origin or event destination is still unknown after Calendar/Places resolution, ask once through the customer's linked Telegram or iMessage route; without a linked working route, leave that event unchanged. Web V1 sends no Resend question email. Telegram live location and Apple Messages location sharing are user-initiated, not passive trackers. Telegram live_period is a sharing window, not an update guarantee; current freshness checks lack a maximum-age gate. Do not claim reliable real-time location or use a live share as an authoritative route origin until age/freshness is validated. No location-tracking app is planned for V1.
 - **Telegram location defect:** Bot API `live_period` is a sharing window (60–86,400 seconds or indefinite), not update cadence; `Location` has no per-fix timestamp. Our parser substitutes `edit_date`/`date`, while `getLiveLocation` checks expiry and `freshLive` has no max-age gate. A stale coordinate can remain eligible, so WB-09 removes Telegram live share as an authoritative route origin and clears stale data; it is not a “real-time” source.
 - **Broader OSS/platform review:** W3C exposes Geolocation only to `Window`, not a Service Worker; the Safari sample calls `getCurrentPosition()` from the page. The 2017 Brotkrumen POC explicitly requires its phone awake with the PWA in the foreground. Cap-go's MPL-2.0 plugin and the older capacitor-community plugin run in a Capacitor native app and require background permissions; Capawesome offers a local queue/HTTP retry but requires a paid license and native app. OwnTracks, Traccar Client, and Overland require separate mobile clients; My Tracks is an OwnTracks server under a noncommercial license. Apple Location Push Service can request location through APNs but requires an installed app extension, Always authorization, and a server; Apple limits this to about 360 pushes/device/day, replenishing roughly one every few minutes. No repo provides passive background GPS to a closed ordinary Web page. Do not put a location app in a later V2 TODO under the current no-extra-app constraint.
 - **公開面・marketing status（2026-10-07＋最新の明示指示）:** `/en`は全体ブランドのBody/Mind/Money説明、`/lm`はTravel専用だがTelegram CTAのまま。公開socials analytics snapshotは2026-06-04/05でstale。`@anicca.ai` profile fetchは利用不可だがbanの証拠ではない。DaisはLife Manager Cloud専用の新Instagram/X account作成を明示したため、既存profileは変えずに専用accountを用意し、official setupとplatform policyに沿ってwarmする。これはban回避や投稿制限回避ではない。短尺demo/carouselはsynthetic Calendar dataで制作し、Reels/TikTok/Shortsへ別captionで展開する。現在のsource→paid数値とchannel spendは未計測。
@@ -4160,7 +4199,7 @@ flowchart LR
 - **TODO順変更（2026-10-08、Dais最新指示）:** 旧順=`WB-15c.2 marketing用のCloud公開owner/アカウントを探して配信開始→WB-16 $10K MRR`。新順=`WB-15d.1 安全なE2E fixtureをlocal credential SSOT・関連repo・Railwayから特定→WB-15d.2 実Google OAuth callbackとCalendar consent→WB-15d.3 backend自動Travel処理・Calendar block・時刻・重複防止→WB-15d.4 接続完了とtrial offerの一画面UX→WB-15d.5 Stripe test Checkout/trial/webhook/cancel→WB-15d.6 entitlement停止・funnel readback→WB-15d.7 production mobile/desktop readback→WB-16 Stripe検証済み$10K MRR`。理由: Daisはアプリ体験のend-to-end完了を最優先、Life Managerのmarketing作業は今回完了扱いと指示。この追補が上記WB-15/WB-15cの旧cursorをsupersedeする。marketing account・投稿・記事・cadenceを現在の実装TODOから外す。これはscope判断であり公開投稿の証拠や売上実績を意味しない。**アプリUX:** `/lm`→「Google Calendarに接続」→Google本人確認とCalendar権限→Calendar ACTIVE直後にbackendで自動処理開始＋同じ画面に接続完了/trial offer。別のvalue画面・dashboard・chat threadなし。7日間・カード必須trialと既存$29/月は維持し、Calendar block確認をCheckout条件にしない。**実測境界:** central credential SSOTに専用Google test identityなし。Railway read-only inventoryではAnicca productionの`life-call`がlive Stripe keyを使用し、API serviceのGoogle OAuth client configはuser identityではない。別の`life-manager` Railway projectはproduction serviceのみでtest environment/webhookなし。secret値は出力していない。個人Google/Calendarを使わない。最後に記録した30日Web/Stripe readbackはauthenticated/calendar/travel/trial/paidが0、gross MRR `$0`。$10K MRRは未達。**現在cursor=`WB-15d.1: central credential SSOTに専用IDがないことを踏まえ、専用Google test identity・isolated Calendarを用意して中央SSOTへ保存し、live life-callとは別のRailway test/staging serviceとStripe test webhookを構成する`**。
 ### WB-15d Web paywall correction — current cursor
 
-この更新は、Travel block確認をCheckout条件とするWB-15dの旧順序を置き換える。Telegramの実装では、`/start`がCalendar接続を始め、Telegram専用の住所・任意電話設定が続く。その後は共有schedulerがTravel処理を自動実行し、ask loopが解決できない予定だけをリンク済みTelegram chatで確認する。repo上の`/subscribe`は`/start`とは別の$29/月Stripe linkである。Webは共有Travel/ask backendを使い、Telegram固有の設定画面は持ち込まず、Dais指定の7日trial paywallをCalendar ACTIVE直後に出す。利用者向け処理操作・spinner・結果画面は作らない。
+この更新は、Travel block確認をCheckout条件とするWB-15dの旧順序を置き換える。Telegramの実装では、/startがCalendar接続を始め、Telegram専用の住所・任意電話設定が続く。その後、共有schedulerがTravel処理を自動実行し、現在のask loopは解決できない予定をリンク済みTelegram chatで確認する。/subscribeは/startとは別の月額$29 Stripe linkである。チャネル方針はTelegramとiMessageの両方を任意の返信先として採用することに確定した。Webは共有Travel/ask backendを使い、Telegram固有の設定画面は持ち込まず、Dais指定の7日trial paywallをCalendar ACTIVE直後に出す。利用者向け処理操作・spinner・結果画面は作らない。
 
 **旧順:** WB-15d.1でGoogle test identity/stagingを先に用意 → OAuth/Calendar → Travel block確認 → paywall → Stripe lifecycle → production readback。
 **新順:** WB-15d.0でCalendar ACTIVE直後のpaywallとバックエンド自動処理を実装・fixture検証 → source commit/push/PR/CI/merge → WB-15d.1で隔離E2E identity/staging → OAuth/Calendar readback → Calendar auto-fill/Stripe lifecycle E2E → production readback → WB-16 verified $10K MRR。
@@ -4183,8 +4222,8 @@ flowchart TD
   I --> K["Google Calendarに<br/>Travel blockと出発リマインダー"]
   I --> L{"予定の場所を<br/>自動解決できるか"}
   L -->|できる| K
-  L -->|できずTelegram連携済み| M["既存ask loopがTelegramで確認"]
-  L -->|できずWeb-only| N["推測登録しない<br/>返信経路は残TODO"]
+  L -->|TelegramまたはiMessage連携済み| M["既存ask loopが連携先で確認"]
+  L -->|返信先未連携| N["推測登録しない<br/>未解決予定は変更しない"]
   D --> O["ページを閉じてもよい<br/>日々見る場所はCalendar"]
 ```
 
@@ -4196,9 +4235,9 @@ flowchart TD
 
 **Staging Stripe test setup:** The central credential SSOT contains an active Stripe test key and Stripe test readback found one active USD $29/month price. A test-mode webhook for `https://life-call-staging-staging.up.railway.app/api/stripe/webhook` is enabled for 8 Checkout/Subscription/Invoice/Refund events. `life-call-staging` variable readback confirms test-mode key, matching $29 test price, and matching `STRIPE_TEST_WEBHOOK_SECRET`; its signing secret is stored only in `~/.local/share/anicca/credentials.json` with mode 600. No live Stripe endpoint or price changed. This config has not received an authenticated Checkout event because staging Auth has no test user and its Google provider is disabled.
 
-**Web-only clarification gap:** `scheduler.js::questionChannelForUser` routes linked Telegram users to the existing `ask.js` online/offline/location flow, but returns `null` for a Web-only UID. Therefore Web-only events the agent cannot resolve remain unchanged; no question is sent and Gmail is not used. Preserve the Telegram ask behavior for customers who explicitly link Telegram; the Calendar-only Web flow must not require installing Telegram. Add a tenant-safe optional Telegram link/reply route for Web customers who want to answer manager questions. GitHub search found `anicca-dais/skills/imsg-bridge`, but it sends/reads SMS through the owner’s local Messages.app for account verification and does not provide a multi-tenant customer channel or inbound event-reply routing. Do not treat it as a product adapter or expose the owner’s personal Messages address.
+**Web clarification channel implementation gap — channel choice is settled:** Telegram and iMessage are the two selected optional reply channels. scheduler.js::questionChannelForUser currently routes linked Telegram users to ask.js and returns null for Web-only UIDs; Life Manager has no customer-facing iMessage adapter. Managed iMessage APIs provide a cloud path without requiring Life Manager to host a Mac. Vendor documentation reviewed: Claw Messenger offers REST outbound plus a persistent WebSocket for inbound replies and says one Agency line can serve many users ($199/month per line, $250 setup, 1,000 messages included, then $0.005/message); Linq documents signed/retried inbound webhooks; Sendblue documents inbound webhooks with outbound pricing by contract; Photon documents a managed cloud provider with signed webhooks and dedicated/shared line models. These are vendor-published claims, not our production readback. First pilot candidate: Claw Messenger, subject to one controlled inbound/reply E2E, sender-to-tenant binding, acceptable-use/number terms, and real cost readback. The owner-side anicca-dais/skills/imsg-bridge and local BlueBubbles/imsg paths are not the product adapter. Apple Messages for Business is a separate official channel requiring an approved MSP; the managed API path is distinct. Implement both tenant-bound optional links without requiring either app for Calendar automation, reject email matching, verify inbound signatures, dedupe replies, and leave unresolved events unchanged until a linked route works.
 
-**現在cursor=`WB-15d.1c: staging専用SupabaseのWeb schema/Authを整備し、専用の非個人Google test identityとCalendarを用意してOAuth → Calendar自動処理 → Stripe TEST Checkout/webhook/cancel E2Eを完了する。個人Google/Calendar・本番Stripeは使わない。並行するWB-15d.3b: Web-only利用者向けにtenant-safeな任意Telegram連携と返信経路を実装する。Calendar接続にTelegramを必須にせず、実装までは未解決予定を変更しない。PR #7029のspec/manifest correctionはmainへmerge済み。Production public routeはdeploy済みだが、authenticated production flowは未確認。marketing作業はこのphaseのTODO外。`**
+**現在cursor=`WB-15d.1c: staging専用SupabaseのWeb schema/Authを整備し、専用の非個人Google test identityとCalendarを用意してOAuth → Calendar自動処理 → Stripe TEST Checkout/webhook/cancel E2Eを完了する。個人Google/Calendar・本番Stripeは使わない。WB-15d.3b: チャネル選定は完了（Telegram＋iMessage）。Web-only利用者のtenant-safeなTelegram連携とmanaged cloud iMessage adapter／返信経路を実装・検証する。どちらもCalendar接続には必須にせず、返信先未連携なら未解決予定を変更しない。PR #7029/#7031のspec/manifest/cursor更新はmainへmerge済み。Production public routeはdeploy済みだがauthenticated production flowは未確認。marketing作業はこのphaseのTODO外。`**
 **実測境界:** central credential SSOTに専用Google test identityなし。Railwayの現状test/stagingとStripe test webhookのreadbackは別TODOで確認する。個人Google/Calendarや本番Stripeをテストに使わない。最後の記録済み30日Web/Stripe readbackはgross Web MRR `$0`、$10K MRRは未達。
 
 - **WB-12 metric boundaries:** landing/connectはHTTP request数で人数ではない。初回購入と更新は全invoice履歴で区別する。MRRはWebhook確認済みのpaid row・現行Stripe subscription・price itemを照合する。Stripeのpaid payoutはStripe側のstatusであり銀行入金ではない。Fee集計はWeb顧客に帰属するcharge/refund BalanceTransactionのみで、FX・アカウント費用はunknown。推計費用の行が欠ければ総推計額もnull。
@@ -4507,7 +4546,7 @@ flowchart LR
 - cleanupの前回manual wake `18dc6a35e334ebd0-55563`は10:39:39 JSTにexit 1 / `entrypoint_exit_1` / `retryable=true`で終わり、receiptを更新しなかった。近接stderrには別run ID `18dc66d6150b66b0-87105`の`Errno 28: No space left on device`があるが、そのerrorとcleanup occurrenceの対応は未証明。10:41の`launchctl-safe kickstart`は30秒でtimeoutした。続く10:44のnatural owner passは成功し、capacity receiptを更新した。cleanup owner失敗の詳細は診断cursorに残すが、現在のeBook gateではない。
 - `ebook-en-tiktok-daily`の10:52:51 JST latest run `18dc6af76e72b3a0-84894` / occurrence `ebook-en-tiktok-daily:18dc6a80d5810f50-74876`はexit 1、`effect_status=unknown`、`provider_receipt_id=null`、`next_action=official_readback_required`。08:00 sidecarは`delivery_uncertain`のままで、成功receiptはない。sourceではcreate responseからIDをparseした後、`status == completed`を要求し、例外時にID/statusなしのsidecarを書き直す。この欠落はsource上の回復性不具合だが、今回のprovider結果を起こした原因とは未確定。JS wrapperも非zero終了時にstderr/stdoutを捨て、`eBook renderer failed with exit 1`だけ返す。
 - Postiz公式GET（10:52 JST）でEnglish Monk TikTok `cmo5rwq2p00twn10yrsdglng3`、JA TikTok `cmo5s4edx00vgn10ygnu34a0n`、JA Instagram `cmooplxmu04tpmd0y4h3cpk33`はいずれも`disabled=false`。本日`PUBLISHED`はJA TikTok `cmuynjaq808iblc0yd2396uhg`とJA Instagram `cmuynjkih08ihlc0y38o87z0n`の各1件、English Monk 0件。合計2/9。Postiz再接続は不要。
-- HeyGen CLIのtitle `Anicca`検索（10:52 JST）は2ページを最後まで読み、0件。公式walletはUSD 11.78、sidecar記録のcreate前残高はUSD 12.30。差額USD 0.52が当該createに起因するかは証明されておらず、動画作成成功とも失敗とも扱わない。
+- HeyGen CLIのtitle `Anicca`検索（10:52 JST）は2ページを最後まで読み、0件。CLI helpには`video list`/`video get`と`user me get`があるがwallet取引履歴コマンドはない。公式walletはUSD 11.78、sidecar記録のcreate前残高はUSD 12.30。差額USD 0.52が当該createに起因するかは証明されておらず、動画作成成功とも失敗とも扱わない。fence解決に足りない外部証拠は当該createのvideo IDまたは請求明細。
 - Capafyは後段のまま。両publisher owner (`capafy-ig-marketing-daily`, `life-manager-capafy-ig`)はdisabled。旧direct ownerはeffect fence `18db7caff1178a88-68028`を`active_ig_handle_unresolvable`で保持し、新Postiz ownerは`LM_CAPAFY_IG_PACK_REF`未設定の診断履歴があり、plistにもpack refと`CAPAFY_IG_POSTIZ_INTEGRATION_ID`がない。Postiz公式integration `Hook Lab by Anicca` (`cmuuycr5402uzqw0yhanqggo9`)は`disabled=false`だが、今日の投稿は0件でnative username/good-standingは未確認。初回paid eBook + matching PDF receiptも未確認なのでD5を開始しない。D5詳細 → `docs/superpowers/plans/2026-10-04-capafy-10k-mrr-recipe.md`。
 
 **残りAtomic TODO（eBook→Capafy順）:**
@@ -4523,6 +4562,31 @@ flowchart LR
 9. 初回paid eBookとmatching PDFが揃ったら、Capafy Instagram D5だけを再開する。正しいInstagram identity / good-standing、Postiz integration ID、pack ref、single publisher ownerを確認し、1 canary/24hと14日readbackを行う。Capafy product/listing/account-lifecycle開発には触れない。
 
 **Daisの作業:** 現時点でPostiz再接続・再認証や手動設定は不要。残りはHeyGenの曖昧なeffectを公式証跡で確定できるかと、自所有rendererのreceipt/診断修正である。
+
+### eBook Monk renderer recovery cursor — 2026-10-08 11:29 JST
+
+この追記が10:53 cursor以降の最新状態とsource修正を記録する。投稿対象・理想architecture・Capafy開始gateは上のcursorに従う。
+
+**原因と境界:** HeyGen CLI schemaはcreate結果に`data.video_id`と`status`を必須とする。`heygen --help`の終了コード4は「resource created but operation not yet complete」を意味する。現sourceは`subprocess.run(check=True)`の`CalledProcessError.stdout`を読まず、またstatusが`completed`以外ならvideo IDをsidecar保存する前に例外を起こし、例外handlerが`delivery_uncertain`だけを書いてID/statusを落としていた。これはlive unknownと整合するsource defectだが、実際の08:00 CLI終了コードはログに残らず、この実行の直接原因とは未確定。
+
+**source repair (branch `fix/ebook-heygen-receipt-recovery-20261008`, main統合前):** RED/GREEN testを2つ追加した。create応答`status=processing`のID保持と、exit code 4でもstdoutにIDがある場合のID/status/exit metadata保持を確認し、次runが同じIDへ`video get`を使い、create回数を1回に保つ。rendererは安全な`error_class`だけのfailure envelopeを出し、JS parentはclass/exit codeのみを伝播してstderrとcredentialを隠す。focused testsはHeyGen 12/12、eBook Node 13/13、runtime loop suite 789/789、loop-contract 18 loops / 187 jobs、source-boundary PASS、`git diff --check` PASS。`lm-loop doctor`はeBook外のretired label `ai.anicca.provision-browser.capafy.kosuke`だけで`ok=false`。
+
+**現在のproduction readback（11:29 JST）:** Postizは既存3 integrationがenabled、今日は日本語TikTok/Instagram各1件`PUBLISHED`、English 0件（2/9）。HeyGen video listは全2ページで0件、wallet USD 11.78。08:00 sidecarは`delivery_uncertain`、ID/statusなしで保持される。`ebook-en-tiktok-daily`の11:29:17 JST occurrence `18dc6cf6724ee330-76845`は`host_admission_deferred:disk_headroom_low`、`effect_status=not_applicable`、provider receiptなしで終わり、このwakeではprovider callを発生させていない。これは旧sidecarのunknownとは別。
+
+- `/Users/anicca/loops/current`はrelease `20261008T112353-dbf93c31`、English ownerはSHA `3d88f9eb5d00d1ed3651b9ab3f5dd822df0b0bdf`。release reconciler PID `19278`はrunning / `next_action=reconcile_owner` / 直近exit 75。owner全体や兄弟loopのapply/restartをしない。
+- 11:27:02 JST cleanup receiptは`free_after=3,243,356,160` bytes、errors 0、protected deletions 0。11:29 `df -Pk /`は`2,027,784 KiB`（約1.93 GiB）で2 GiB floorを下回る。次のrelease/owner操作はfresh floor-met receiptとreconciler terminal後に行う。
+
+**残りAtomic TODO（eBook→Capafy順）:**
+
+1. 08:00 HeyGen sidecarをfenceしたままにする。CLIにはwallet transaction historyがなく、full video listも0件。解決に必要な外部証拠は当該createのvideo IDまたはUSD 0.52変化を帰属できるbilling record。成功/失敗へ丸めず、同slotを再実行しない。
+2. mainの最新SHA `a582ea2a1fd2d4bef52ae41beab91b227b9758a2`へsource branchをrebaseし、focused review/CI付きのPRをmergeする。production releaseにはまだ入っていない。
+3. release reconcilerを自然終端まで監視し、cleanup ownerのfresh receiptで`free_after >= 2,147,483,648` bytes、errors 0、protected deletions 0をreadbackする。disk floor未達またはcontrol owner running中は投稿ownerを起動しない。`lm-loop doctor`のretired Capafy provision-browser labelは別ownerの修正gateとして明記し、こちらで変更しない。
+4. source merge後、current main-derived releaseとEnglish owner loaded SHA/argv/env hashをreadbackし、旧SHAの場合だけsafe preflight後にEnglish ownerのみtarget applyする。今回のrenderer fixがloadされても旧sidecarは自動解決しない。
+5. 08:00 effectが公式証拠で安全に閉じた後、次の別slotをowner経由で1回実行し、HeyGen video ID/status/output SHA/wallet costとPostiz `PUBLISHED`/post ID/public URLを同一occurrenceへ結ぶ。
+6. natural scheduleで3 accountそれぞれ3件/日、合計9 unique receipts/dayとreplay-zeroを確認する。checkout→paid Stripe receipt→matching locale PDF→refund/fee/direct costを結び、Letter/Tegami settled subscriptionsの14日cohortでnet MRRを測る。one-time eBook売上はMRRでない。
+7. 初回paid eBookとmatching PDF後にCapafy Instagram D5へ進む。正しいidentity, Postiz integration ID, pack ref, single ownerを読み、既存計画どおり1 canary/24hと14日readbackを行う。
+
+**Daisの作業:** 再接続や手動投稿は不要。残りはsource PR、release/capacity recovery、HeyGenの旧effect証跡、通常slotのreadbackである。
 
 ### 2026-10-08 07:43 JST — Gig live-acceptance cursor correction
 
@@ -4652,26 +4716,26 @@ flowchart LR
 - Upwork公式[bot policy](https://support.upwork.com/hc/en-us/articles/43342677368467-Use-bots-and-other-automation-properly)は未承認automationでのrequest/data collectionを制限対象とする。公式[API request requirements](https://support.upwork.com/hc/en-us/articles/115015857647-Request-an-API-key-from-Upwork)はAPIのcommercial useをサポートしないと明記する。Project ListはDrafts 0 / Under Review 0を表示し、active catalog itemは観測されない。追加browser automation、scraping、automated proposalは行わない。
 - Freelancer公式[Services FAQ](https://www.freelancer.com/faq/topic.php?id=52)はpredefined-service storefrontを提供する。ローカルに過去のuncertain/rate-limited publish状態はあるがcurrent provider receiptはない。既存profile/local traceはaccount-bound authenticationや現在のservice公開を証明しない。全actionはunknown、automatic biddingは[provider integration approval](https://developers.freelancer.com/docs/api-overview/types-of-integrations)なしに有効化しない。
 
-**現在cursor:** L9-07 Coconala Paid ownerの自然terminal / lock release / exact readback。以後のplatform実行は、上記の別owner leaseとprovider authorizationに従う。
+**08:48 JST時点のcursor（後続TODOで更新済み）:** L9-07 Coconala Paid ownerの自然terminal / lock release / exact readback。このsnapshotより下の`Remaining atomic Gig TODO`を現在の正順として扱う。
 
 ### Remaining atomic Gig TODO
 
-旧順序=`Coconala Paid owner/cleanup terminal → inbox join → existing contract → Storefront → Apply/Negotiation → other platforms → economics → SelfBuild`。新順序は最初の2 gateを並列にし、その後のplatform順序は維持する。理由: senderのfresh adversarial reviewでfalse-sent/誤recipient送信につながるP1が再現し、同時に空き容量とdisk-cleanup ownerが未解決。古いpartial sourceを使わず、shared capacityを迂回せず、既存契約義務からStorefrontへ進む。現在cursorは1A/1B。
+PR #7042のsender source修正はmainへmerge済み（merge commit `bd3ef82567e7906052d3d731cda6feca616cf4ee`）。cleanup/capacityの1B readbackも完了しており、以下は未完了項目だけを並べる。旧順序=`PR #7042のsource merge → Paid run → inbox → existing contract → Storefront → Apply/Negotiation → other platforms → economics → SelfBuild`。新順序=`稼働中release reconciler/Paid ownerのnatural terminal → merged sender guardを含むimmutable releaseのtargeted owner convergence → Inbox official readback/fence join → existing contract → Storefront → Apply/Negotiation → other platforms → economics → SelfBuild`。理由: sourceは受入済みだが、current releaseと`hf-gig-paid-direct` loaded SHAがmain merge前であり、両ownerが現在動作中。停止や重複applyをせず、次の安全なgateを先に閉じる。広域capacity設計は別担当のPR #6814に属する。
 
-1. **並列1A — sender source安全修正:** branch `fix/tiktok-message-hydration-20261008`のremote commit `10ba32a170`では、Node fixtureが「failed messageでもsent」「別recipient/非公式frameの同文をsent」「PRE_ENTER後のrecipient変更でEnter=1」のP1を再現した。latest `origin/main=44488d9d7c`に対しbranchは17 commits behind（11 commits unique）で、local worktreeには未検証・未pushの2-file変更が残る。次はlocal diffを監査し、最新main由来の専用source branchに必要最小修正だけ載せる。message status/recipient/frame検査を`sent` ledger記録より先に行い、Enter keydown時にも同じdocument内のone-shot guardを設ける。Node fixture・focused tests・fresh adversarial review・PR required CIがPASSするまでmerge/releaseしない。
-2. **並列1B — shared capacity:** latest `df -k /`は4,846,408 KiB free。`life-manager-disk-cleanup:18dc68a09694ff90-14630`は01:10:52Zに`pass`だが、installed releaseは`c65449ef`で`provider_receipt_id/readback`はnull。次は同一occurrenceのsummaryで`errors=0 / protected_deletions=0`を確認し、2 GiB以上の2回目の安定した空きreadbackと対象Gig owner lock/admissionを取得する。main `44488d9d7c`由来cleanup sourceのtarget-loaded readbackとは分ける。disk-cleanup ownerのleaseを尊重し、手動削除・unlock・restart・floor迂回はしない。
-3. **両gate後 — Coconala Paid owner:** natural terminalとproject lock解放を確認し、同一occurrenceのofficial result/provider receiptを読む。`pass`、local ledger、Google Sheetの日付は単独で送信証明にしない。
-4. **Coconala inbox join:** 固定待機のlocal readerをconversation-list-ready＋複数回安定までbounded pollingへ直し、公式inboxとfull Sheet rangeをreadbackする。recipient→exact official send receipt→inbound replyを結ぶ。joinが完全でない間、送信数/返信数を断定・再送しない。
-5. **既存Coconala有償契約:** 最後に公式readbackした`取引中/進行中` talkroomを最新threadで再確認する。buyer revision要求がまだ未完なら、要求されたdeliverableを完成して正式納品receiptを一度だけ取得し、buyer acceptance→fee→settlement/payout→replay-zeroを同一契約/occurrenceで閉じる。すでに正式納品済みならそのreceiptの検収・精算だけを読む。顧客ID/本文はprivate evidenceに置く。
-6. **Coconala Storefront:** 旧occurrence fenceをowner-specific official/pre-effect evidenceで解決する。20件の公開表示・service contractは過去readbackで確認済みだが、seller sales表示は0・publication ledgerは不一致、settlementは未確認。installed SHA/argv、doctor/admission gate、official inventory/sales/fee/settlementを個別に読む。20件を重複掲載しない。
-7. **Coconala Apply/Negotiation:** fresh eligible workだけを公式sourceで確認し、existing effect fence→proposal receipt→buyer reply→合意条件をoccurrenceごとに結ぶ。Lancers rows25–27は`waiting_external`のままskipし、auth/solver/proposal/retryをせず後続platformを止めない。Answersは対象外。
-8. **CrowdWorks:** `lm-gig-contract-owner-1007`にApplication-receipt/sourceのactive worktree leasesがある。lease/registrationはactive workの証明ではないが、担当範囲を重複編集しない。owner commit/PR/CI/release後にApplication/Paid/Replyのnatural occurrencesとprovider receiptsを個別確認し、納品→検収→fee/payoutを閉じる。
-9. **Mercor:** Application/Paid/Replyの`effect_unknown`をexact official receiptか同一occurrenceのno-effect証拠で解決する。old effect fenceが残る間は再応募・再送しない。
-10. **Freelancer:** account-bound authenticationとofficial Services inventoryで現行listingを読む。`publish_uncertain`等の古いlocal stateはprovider receiptではないため再publishしない。auto-bidはprovider-approved scopeが証明されるまでhold。
-11. **Upwork:** 既存のcommercial automated laneは公式policyに適合する実行経路が無いため、自動browser/scraping/proposalはしない。officially supported routeとaccount eligibilityが確認できない限りautomated earning loopに数えない。
-12. **Job Hunter:** eligible候補のある自然runだけを読み、provider proposal receiptをjob/occurrence単位で確認する。候補0は成功扱いしない。
-13. **Gig economics / 24-7 acceptance:** 許可されたplatformごとに自然wake/terminal、official buyer-visible receipt、settlement、fee、実費、replay-zeroを同一契約に結ぶ。listing・process・応募・gross・未決済額を収益完了に数えない。$10K MRRは未達の目標。
-14. **最後:** 上記Gig収益loopが閉じてからL9-11 SelfBuildを修復・検証する。これより前にSelfBuildを開始しない。
+1. **並列gate — release reconcilerとPaid ownerをnatural terminalまでreadback:** `life-manager-release-reconciler` run `18dc76a9ec9c65b0-19319`はPID `73162`でloaded-running、current release SHA `bd3ef825`。このrunの直前のterminal eventは`entrypoint_exit_75` / `next_action=reconcile_owner`。`hf-gig-paid-direct`はPID `65735`でloaded-running、installed SHA `53d49879`。occurrence `18dc75450c9ba558-32109`はcapacity busy / exit75、child claim `18dc75532b4b7a88-65735` / PID `66268`はrunningでprovider receipt/official readbackなし。両ownerの自然終端、exact event、global/target lock解放を確認する。どちらもstop/restart/replayしない。
+2. **Merged sender guardのtargeted production readback:** current symlink `/Users/anicca/loops/releases/20261008T142708-bd3ef825`はPR #7042 merge sourceを含むが、Paid ownerはまだold SHA `53d49879`。gate 1後、release reconcilerが`hf-gig-paid-direct`を新SHAへ反映したか確認する。未反映ならexisting `lm-loop` release/apply pathをowner限定で使い、loaded argv/SHA/state pathをreadbackする。raw `launchctl`、全fleet apply、手動wakeはしない。次のnatural runで新sender guardと正確なofficial send receipt/replay-zeroを確認する。
+3. **Coconala Inbox official readback/fence join:** Paid/reconcilerがterminalしprofile leaseが空いた後、immutable `~/loops/current`の`coconala_queue_snapshot.py --mode direct-inbox-head-only --hidden-no-screenshot`を既存reply stateの専用evidence pathで実行し、semantic-effectsを有効にしない。official message/thread IDをreply outboxとfull Sheet rangeへ一意joinし、送信・返信数を確定する。old unknown claim `18dbf6546032eca0-25901`は`no_readback_adapter`で残るため、exact official evidenceなしにcloseしない。conversation-list-readyのbounded polling不具合が再現する場合だけ既存readerを最小修正する。
+4. **既存Coconala有償契約 `18180857`:** last official readback `2026-10-07T22:19:49Z`では`取引中/進行中`でrevisionと正式納品は未確認。fresh talkroom threadを読み、buyer revisionが未完なら要求deliverableを完成して正式納品receiptを一度だけ取得し、buyer acceptance→fee→settlement/payout→replay-zeroを同じcontract/occurrenceに結ぶ。正式納品済みならreceipt・検収・精算だけ確認する。`18211957`は取引完了の前回readbackがあり、新証拠なしにactionしない。顧客ID/本文はprivate evidenceに置く。
+5. **Coconala Storefront:** latest occurrence `hf-gig-storefront-direct:18dc755e9a829ae8-91215`（05:03:21Z）は`host_admission_deferred:resource_effect_unknown`。fence `18d8d288748508e8-23902`は`stdout_runtime_binding_invalid / closed=false`で残る。owner-specific exact readback/adapter fix後に20 listings・sales・fee・settlementを確認し、重複掲載しない。
+6. **Coconala Apply/Negotiation:** fresh eligible workだけを公式sourceで確認し、existing effect fence→proposal receipt→buyer reply→合意条件をoccurrenceごとに結ぶ。Lancers rows25–27は`waiting_external`のままskipし、auth/solver/proposal/retryをせず後続platformを止めない。Answersは対象外。
+7. **CrowdWorks:** `lm-gig-contract-owner-1007`のApplication-receipt/source worktree leaseを尊重し、重複編集しない。owner commit/PR/CI/release後にApplication/Paid/Replyのnatural occurrencesとprovider receiptsを個別確認し、納品→検収→fee/payoutを閉じる。
+8. **Mercor:** Application/Paid/Replyの`effect_unknown`をexact official receiptか同一occurrenceのno-effect証拠で解決する。old effect fenceが残る間は再応募・再送しない。
+9. **Freelancer:** account-bound authenticationとofficial Services inventoryで現行listingを読む。`publish_uncertain`等はprovider receiptではないため再publishしない。auto-bidはprovider-approved scopeが証明されるまでhold。
+10. **Upwork:** official policyに適合するautomated routeとaccount eligibilityが確認できない限り、自動browser/scraping/proposalは実行しない。
+11. **Job Hunter:** eligible候補のあるnatural runだけを読み、provider proposal receiptをjob/occurrence単位で確認する。候補0は成功扱いしない。
+12. **Gig economics / 24-7 acceptance:** 許可platformごとにnatural wake/terminal、buyer-visible official receipt、settlement、fee、actual expense、replay-zeroを同一契約に結ぶ。listing・process・応募・gross・未決済額は収益完了ではない。$10K MRRは未達の目標。
+13. **最後 — SelfBuild:** ほかのGig収益loopが閉じてからL9-11 SelfBuildを修復・検証する。これより前に開始しない。
+
 ### 2026-10-08 08:35 JST — Mobile post-merge runtime cursor
 
 この追記は上記08:23のPR #6993/owner/capacity/TestFlight状態をmerge後readbackで置き換える。全社§84-Aの順序は変更しない。
@@ -4745,16 +4809,18 @@ flowchart LR
 
 目的: 3つの既存local ownerを最新の依頼どおりに稼働させ、Luma event registration、Workday job application、new VC/AI founder outreachを同じSSOT・effect fence・Telegram reportingの上で継続する。
 
-範囲の解釈: ConnectorはLumaイベント、Job HunterはWorkday求人、Fundraiserは新規VCおよびAI/AGI lab founderへの接触を担当する。schedulerや追加ownerは作らない。Fundraiserの公開メールは公開された会社・業務連絡先だけを使い、Life Managerを「質問に答えるassistant」でなく「委任された実務を完了し証拠を報告するmanager」と説明する。Podcast/Zoom/対面面談を提案し、対面のために移動できる旨を伝える。航空券、有料ticket、宿泊、binding commitmentはloopで購入・確定しない。
+範囲の解釈: ConnectorはLumaイベント、Job HunterはWorkday求人、Fundraiserは新規VCおよびAI/AGI lab founderへの接触を担当する。LR-01〜LR-07のrestoreでschedulerや追加ownerは作らない。別レーンのLR-08で容量設計を比較し、実装前にレビューする。Fundraiserの公開メールは公開された会社・業務連絡先だけを使い、Life Managerを「質問に答えるassistant」でなく「委任された実務を完了し証拠を報告するmanager」と説明する。Podcast/Zoom/対面面談を提案し、対面のために移動できる旨を伝える。航空券、有料ticket、宿泊、binding commitmentはloopで購入・確定しない。
 
-TODO順序の更新: 旧主cursorはHost disk recoveryの自然監視・回復容量、続いてMX-01だった。新しい順序は、LR-01 shared agent-runnerのtask-scoped GPT-6 Luna max/fast route → LR-02 Fundraiser target-level durable intent fence → LR-03 Fundraiserの新規VC/AI founder discoveryとcold email → LR-04 Job Hunter Workday routeとhealth effect classification → LR-05 Connector Luma route → LR-06 Fundraiser / Job Hunter dailyのrevenue admission分類 → immutable release/owner別apply → 各loopの自然run / official readback → MX-01へ戻る。理由: 収益ownerのcapacity分類はPR #7012でmainへ入り、現在の実行cursorはそのreleaseを反映する段階へ移ったため。Host disk recoveryは本番applyの前提として継続し、完了扱いにしない。LR-01〜LR-06は実装・review・CI・merge済み。現在cursorは既存fleet applyの自然終端、その後main `b63ee012`由来releaseと3 ownerのreadback。
+TODO順序の更新: 旧主cursorはHost disk recoveryの自然監視・回復容量、続いてMX-01だった。新しい順序は、LR-01 shared agent-runnerのtask-scoped GPT-6 Luna max/fast route → LR-02 Fundraiser target-level durable intent fence → LR-03 Fundraiserの新規VC/AI founder discoveryとcold email → LR-04 Job Hunter Workday routeとhealth effect classification → LR-05 Connector Luma route → LR-06 revenue admission分類 → LR-07 reserved Job Hunter queueのpolicy rebind（PR #7022はmerge済み）→ LR-08 capacity architectureの設計レビューと承認 → Danaher / DeepScaleのread-only official readback（設計と並行可）→ 承認された容量変更の実装・CI・merge → host / release gate → owner別applyとloaded SHA / admission readback → 各loopの自然run / official receipt / replay-zero → 既存のMX-01へ戻る。理由: #7012 applyのqueue resource class不一致はLR-07で修正したが、live snapshotでは有限run枠8/8、79件のqueued ownerが確認され、capacity designなしでは3 loopの継続的なadmissionを保証できない。LR-01〜LR-07は実装・review・CI・merge済み。現在cursorはLR-08の容量設計レビューと2 target fenceのread-only照合。Host capacityとunknown fenceは迂回しない。
 
 - LR-01: 対象loop専用のtask classを追加し、既存Codex subscription profileを維持したままgpt-6-luna、reasoning max、Codex fast service tierを指定する。共通runnerは候補にservice_tierがあるときだけfastを渡す。無関係なtask class、provider、fallbackは変更しない。
 - LR-02: Fundraiserのapplication prepare時にtarget identity、occurrence、application digestをprivate append-only stateへ永続化し、未解決targetを別occurrenceから再送できないようにする。target statusはpending→effect_attempted→submitted_verified/submit_unknown、またはverified_pre_effect_failureとし、同一occurrenceの次targetは前targetがverifiedまたは送信前failure確認済みの場合だけ許可する。append-only履歴はtargetごとの最新rowで判定する。unknownをpre_effectへ戻さない。旧fundraiser:18d9b0b6311a2018-87933 / DeepScale.Venturesはofficial status/readbackがないunknownとして保持し、同targetを再送しない。
 - LR-03: 既存のlive Web/X discovery、startup context、Gmail sender、exact Sent readback、Telegram screenshot receiptを再利用する。新規VCとAI/AGI lab founderのうち製品との適合をmodelが判断したtargetへ、一対象一目的で個別のcold introductionを送る。公開business contact以外へ宛先を推測しない。本文とvalidator出力はmode 600で保存し、validatorが成功終了した後だけGmail送信を開始する。Gmail provider message ID、exact Sent readback、readable screenshotとTelegram provider message IDが揃う前にverifiedと報告しない。
 - LR-04: Job Hunterのmodel task classだけをGPT-6 Luna routeへ切り替え、Workday discovery/applicationと既存resume/profile/fenceを維持する。browser操作後にHTTPS contextが読めない場合はaction receipt/evidence/checkpointを先に保存し、transport_failedとして止める。job-search-healthはrun-health.shとhealthcheck.shがlocal-onlyであることを再確認した上でeffect_class=noneへ訂正し、過去job-search-health:18d885350a43c6b8-19603のadmission unknownは手動clearしない。
 - LR-05: Connectorのjudgmentとbrowser task classだけをGPT-6 Luna routeへ切り替え、既存Luma workflow・30分owner・browser leaseを維持する。registrationはLuma provider readback、Calendar readback、Telegram provider IDが揃ったときだけverifiedとする。
-- LR-06: Fundraiserを`admission_class=revenue` / `priority=revenue`へ、Workdayを実際にagent-runnerとbrowser orchestratorを起動する`job-search-daily`だけ`resource_class=agent` / `admission_class=revenue` / `priority=revenue`へ変更する。既存の予約revenue容量と同種のapplication ownerに合わせる。health/inbox observerとConnectorのclassは変更しない。Workday DanaherとDeepScale.Venturesのunknown fenceは維持する。
+- LR-06: Fundraiserを`admission_class=revenue` / `priority=revenue`へ、Workday `job-search-daily`を`admission_class=revenue` / `priority=revenue`へ変更する。Workday ownerの既存`resource_class=deterministic`は維持する。health/inbox observerとConnectorのclassは変更しない。Workday DanaherとDeepScale.Venturesのunknown fenceは維持する。
+- LR-07: `job-search-daily`へ`reconcile_queued_release=true`を追加し、同じdeterministic queue resource class内で既存reserved occurrenceのadmission class/priorityをrevenueへrebindする。queue row・FIFO順・occurrence identityは維持する。policy driftのrebindではreservation leaseを解放し得るため、loaded-idleを確認し、同じqueued occurrenceを既存dispatcherが再予約する。claimed occurrenceとeffect_unknownで保護されたadmission rowはrebindしない。Workday target submit/effect_unknown fenceは別stateであり変更しない。`resource_admission.rebind_queued_owner`はresource class差を拒否するため、ownerを`agent`へ変えない。
+- LR-08: capacity architectureは`lm-loop` registry、immutable release、target effect fence、provider receiptを維持して設計する。現行mainの有限run上限は既定8で、直近admission snapshotは8/8 occupied。187 loop中56は`resource_class`未指定、72は`admission_class`と`priority`未指定のため、まず全revenue ownerと共有capacity ownerに明示的なclass/policyを付け、browser（CloakBrowser/Mac）、Luna agent、deterministicのlane別上限・revenue予約枠・公平なqueue・拒否理由counterを定義する。上限8の一括引上げだけでは修正しない。Hatchetのworker slots / keyed concurrency / round-robinをpilot候補にし、[Temporal task queue / worker slots](https://docs.temporal.io/develop/worker-performance)と比較する。Hatchet pilotを含むarchitecture実装は、この設計specのレビュー後に専用branchで進める。
 - Promotion: source branchのacceptanceとPR/CI/merge後、最新Host disk recovery evidence、full lm-loop doctor、shared apply lock、対象ownerのeffect fenceを再読する。disk-writers.stopを作成・削除せず、host floorやguard inventoryを迂回しない。対象apply後の自然occurrence、official readback、replay-zeroを確認してからこのlaneを閉じる。
 
 開始時の証拠: source worktree fix/local-revenue-loops-20261008 はorigin/main f3f768215e1ef44dcf3410998dadfd932636644dから作成し、lease owner codex-root、task local-revenue-loops-20261008。2026-10-08 00:06 JSTのdf readbackは空き4.9 GiB、disk-writers.stopは不在。直近life-manager-disk-cleanup occurrence 18dc472a654cc7c0-92445はentrypoint_exit_1で、receiptのfree_afterは約4.09 GB、inventory_gaps=23、reclaimed=0。10-07のHost disk記録にある11.81 GB floor/guard inventoryを置き換える新readbackは未取得のため、production applyは再確認まで未許可。過去のlm-loop doctor readbackにはretired installed label ai.anicca.provision-browser.capafy.kosukeが1件あり、他ownerの状態は変更しない。
@@ -4777,7 +4843,36 @@ Host / CI follow-up (2026-10-08 10:41 JST): `df -Pk /`は4,095,476 KiB freeで�
 
 Source / production follow-up (2026-10-08 11:01 JST): PR #7012は`b692e70a`としてmerge済み。latest `origin/main`は`5ce85b5c`、`/Users/anicca/loops/current`はimmutable release `20261008T105854-3d88f9eb` (SHA `3d88f9eb`)を指す。このrelease registryはFundraiser=`agent/revenue/revenue`、Job Hunter daily=`agent/revenue/revenue`、Connector=`browser/revenue/revenue`。ただしowner readbackはFundraiser=6a9b、Job Hunter daily/health/inbox=8d、Connector=46ecのままで、外部効果receiptなし。b63 release reconciler run `18dc6b4d3b03f640-10532`は`entrypoint_exit_143`で終了し、3d88 release reconcilerはloaded-idle、次の自然wake待ち。8d fleet apply stateは01:54:54Z時点でpartial (changed=75, skipped=22, errors=29)のまま、b63 apply owner rowsは0件。`df -Pk /`は3,661,480 KiB freeで2 GiB floorを上回り、cleanup `18dc6b1920986b08-69837`はPASS。現在の阻害は新release/owner apply未収束。Danaher / DeepScale unknown fenceを維持し、再送しない。
 
-残TODO: 1) このproduction cursorを含むdocs PR #7019のCIをPASSさせてmainへmergeする。2) reconcilerの次の自然cycleでlatest main `5ce85b5c`由来のimmutable releaseを作成・適用し、3 target ownerのloaded SHAとadmission rowをreadbackする。並列apply/restartを行わず、effect unknown fenceを保持する。3) 3 loopそれぞれの自然runで、ConnectorはLuma + Calendar receipt、Job HunterはWorkday official application state、FundraiserはGmail Sent + Telegram provider receiptを確認し、Danaher / DeepScale fenceとreplay-zeroを維持する。
+Production apply diagnosis (2026-10-08 11:08 JST): 3d88 fleet run `18dc6b789c54a3d8-55256`はFundraiserを`rc=0, changed=1`で反映したが、Job Hunter dailyは`rc=1` / `queued owner resource class changed`で拒否。durable queueに残るdaily occurrenceは`deterministic/borrow/support`かつreservedで、Workday submission/effectは発生していない。根拠は`fleet-apply-last-output.log`、`fleet-apply-owners.jsonl`、read-only admission DB。`runtime/host/resource_admission.py`は既存queueのresource class差を拒否し、`reconcile_queued_release=true`のpolicy rebindは同一resource class内でadmission/priorityを更新する。LR-07はresource classをdeterministicへ戻し、この既存rebind契約をopt-inする。queue row・FIFO順・occurrence identityは維持される一方、policy driftではreservation leaseが解放・再作成され得る。Workday target submit/effect_unknown fenceは別stateとして変更しない。
+
+Production / capacity follow-up (2026-10-08 12:48 JST): `origin/main=540e191a`、`/Users/anicca/loops/current`は`20261008T124623-8f342d8d` (SHA `8f342d8d`)。PR #7022はmerge commit `fdc092ebac37f64f44bba262b6adc482e12b2079`でmainへ統合済み、required CIは全件PASS。`lm-loop health`は187 jobs（running 25 / healthy 41 / failed 39 / safely_fenced 74 / effect_unknown 7 / telemetry_gap 1）、process scan 38件。
+
+- 03:47Zの最後の成功したread-only admission snapshotは4 live owners + 4 valid reservations = 8/8、queueはagent 38 / deterministic 34 / browser 1。03:48Zの再読込はSQLite `database is locked`で失敗したため、より新しい占有数は不明。`df -Pk /` Availableは6,018,268 KiB。latest cleanup receipt / guard inventoryは未確認。`lm-loop doctor --json`はretired installed label `ai.anicca.provision-browser.capafy.kosuke`により`ok=false`。
+- Connector: installed SHA `46ec94bdea884fd7afa61e603a79fdd1b3048ef7`、latest occurrence `life-manager-connector-native:18dc701035ae2e50-31558` は`entrypoint_exit_75`、provider receipt / Luma readbackなし。
+- Job Hunter daily: installed SHA `8d396690b68b3f6f9533ef4810671eadbc9c0a70`、latest occurrence `job-search-daily:18dc70b7d3e34db0-88527` はlocal `pass`だが`effect_class=none`、provider receipt / Workday official application readbackなし。main registryはすでに`deterministic/revenue/revenue`と`reconcile_queued_release=true`を持つ。
+- Fundraiser: installed SHA `94372580faf432189742de38cd474bfa0db6c4f0`、latest occurrence `fundraiser:18dc6edc8b393f20-86747` はlocal `pass`でもprovider receiptなし。DeepScale.Venturesの`fundraiser:18d9b0b6311a2018-87933`は`effect_unknown=current` / `official_readback_required`。
+- Release reconciler: installed SHA `8f342d8d`でloaded-running readbackがあり、直近terminalは`entrypoint_exit_143`。同ownerの自然終端を待ち、別apply/restartを重ねない。main `540e191a`由来のimmutable releaseとowner applyは未確認。
+
+Source / cursor follow-up (2026-10-08 12:52 JST): docs PR #7048はmerge commit `08146dd24a30a5d0cbf874668d01f2ce8b4612fa`でmainへ統合済み。runtime/registry変更はなく、12:48 production snapshotはその時点の証拠として残す。今後のrelease targetはcut時点のlatest mainで決める。
+
+残TODO（順序）: 1) PR #7022のsource gateは完了。次cursorはLR-08容量設計のレビュー。設計対象は3 revenue loopと共有capacity owner、laneはbrowser/Mac・Luna agent・deterministic、占有・予約・queue齢・拒否quotaを可視化し、測定に基づくrevenue最低枠とfair queueを定義する。Hatchetは限定pilot候補、Temporalは比較対象。global capを測定なしに上げず、effect ledger/fenceを維持する。2) LR-08設計と並行し、Danaher Workday / DeepScale.Venturesのread-only official statusを照合する。verifiedまたは証明済みpre-effectとしてowner ledgerをreconcileし、未確定ならfence維持・同target再送禁止。3) 設計のレビュー後、承認された容量変更を専用branchで実装・CI・review・mergeする。all revenue source rowsのresource/admission/priority分類を明示し、reserved capacityとlane fairnessを反映する。4) owner-safe lifecycleでretired labelを解消し`lm-loop doctor`をPASS、fresh cleanup receiptでhost floor / guard inventoryを確認し、current reconcilerを自然終端まで待つ。5) release-cut時点のlatest main由来immutable releaseを作成し、shared lockがfreeでtarget fenceが読めた後にConnector / Job Hunter daily-health-inbox / Fundraiserをowner単位で適用する。loaded argv/SHAとadmission rowをreadbackし、Fundraiser active run中はapplyしない。6) 各loopを自然実行し、ConnectorはLuma + Calendar + Telegram receipt、Job HunterはWorkday official application state、FundraiserはGmail Sent/provider message ID + Telegram receiptを確認する。Danaher / DeepScale unknown fenceを保ち、各occurrenceのreplay-zeroを検証する。7) 3 loopのnatural/readback gateが全て閉じてから本laneを完了し、既存全社TODOのMX-01へ戻る。
+
+### 2026-10-08 13:24 JST — Danaher / DeepScale official readback update
+
+このread-only照合は12:48 production snapshotのcapacity/load値を更新しない。WorkdayとFundraiserの過去・現在の証拠を対象occurrenceへ結合できず、両target fenceはunknownのまま維持する。再送、state変更、fence解除、再認証は行っていない。
+
+- **Danaher / Genedata Business Account Manager:** 既存Gmailの公式「Application Status Update」は2026-09-08 16:14、message ID `1a07fde1ae4019c7`、thread `FMfcgzQhWLQBlZPDSRsXGttmwsjvlgzk`で不採用を示す。9月の応募受理メールも検索結果にある。不採用メールではrequisition IDを確認できず、応募受理メール本文のID有無は未確認。対象Workday occurrenceのlocal application IDは`b7c310a7b634528895b307a0995aee61da36ccfd2480df8b98844abfa7b8e1cb`、requisitionは`R1316263`。10月7日の`daily-20261007-234208`は`transport_failed`で、`Business Account Manager after:2026/10/06`のGmail検索は0件。Workday userHomeは`/login`へredirectし、個別のcandidate historyを読めなかった。従って過去の不採用は確認できても、R1316263または10月7日のeffectと結合できず、targetはunknownのまま。
+- **DeepScale.Ventures / Seed Lead:** 公式応募フォームはHTTP 200で一般公開入力画面を返すが、個別statusやreceiptは表示しない。既存Gmailの`deepscale`検索と`in:sent (deepscale OR "DeepScale.Ventures")`はいずれも0件。private `application-receipts.jsonl`のrun `20260929T043704Z-87970`には初期navigation HTTP 403・submitなしの記録がある一方、対応する`events.jsonl` occurrence `fundraiser:18d9b0b6311a2018-87933`はreceipt/readback nullの`effect_unknown`。これらのlocal記録と今回の公開フォーム/Gmail readbackだけでは、strict `verified_pre_effect`条件を満たさず、target fenceを解除しない。
+
+**更新後の残TODO（この順）:**
+
+1. **現在cursor — LR-08容量設計レビュー:** 8/8占有は03:47Z snapshotのみで、03:48Z以後の最新値はSQLite lockで未取得。これを「現在値」と扱わず、実行前にfresh admission/queue-age/resource snapshotを取る。Browser/Mac、Luna agent、deterministicごとの上限・revenue予約枠・fair queue・拒否理由counterを設計し、Hatchet pilotとTemporal案を比較してレビューを完了する。測定なしにglobal capを上げない。
+2. **並行するowner read-only reconcile:** DanaherはWorkdayの既存candidate historyをrequisition `R1316263`へ照合し、取得不能なら不足するprovider recordを記録してfenceを維持する。DeepScaleは上記run/occurrenceのreceiptとstrict pre-effect proofを既存ownerの条件で再評価し、証明できなければfenceを維持する。どちらも同targetを再送しない。
+3. LR-08設計のレビュー後、承認した最小容量変更だけを専用branchで実装し、focused acceptance・独立review・required CI後にmainへ統合する。全revenue owner/shared capacity ownerのresource/admission/priorityを明示し、effect fence・receipt・immutable releaseを保つ。
+4. owner-safe pathでretired installed labelを解消し`lm-loop doctor`をPASSさせる。fresh cleanup receiptとdisk readbackでhost floor / guard inventoryを確認し、release reconcilerの自然terminal、shared apply lock、対象ownerのtarget fenceをreadbackする。
+5. release-cut時点のlatest mainからimmutable releaseを作り、Connector、Job Hunter daily/health/inbox、Fundraiserを既存owner単位でapplyする。各ownerのloaded argv/SHA・admission rowを確認し、active runやunknown targetを横切らない。
+6. 各ownerを自然実行し、ConnectorはLuma registration + Google Calendar + Telegram receipt、Job HunterはWorkday official application state、Fundraiserは新規適格VC/AI founderへのGmail provider message ID + exact Sent + Telegram receiptを同一occurrenceで確認する。Job Hunter/Fundraiserはfenced targetを候補から除外し、unknown targetへ再送しない。
+7. 各occurrenceの公式結果とreplay-zeroを確認する。old Danaher/DeepScale targetは公式statusで閉じるかstrict verified-pre-effect proofが成立した場合だけ解決し、それ以外はfencedのまま未解決として明示する。3 loopの自然実行・公式readback・replay-zero gateが閉じたらこのlaneを完了し、統合SSOTの次cursor MX-01へ戻る。
 
 ### 2026-10-08 09:53 JST — Gig-only status refresh and current cursor
 
@@ -4964,3 +5059,635 @@ Source / production follow-up (2026-10-08 11:01 JST): PR #7012は`b692e70a`と�
 5. **A10受入:** main由来immutable releaseで7日連続の自然runを読み、18/18 loops・186/186 jobs、official readback、delivery receipt、unknown owner/action、期間一致、重複/再送ゼロを確認する。これ以前は全社CFO完了や$10k verified MRRを主張しない。
 
 **現在cursor:** A5。A5 worktree leaseとproduction reconcilerは別の所有境界として維持する。reconciler/CFO ownerの自然runを重ねて起動せず、A5 lease解放後にA5へ戻る。A7 MoneytreeとA4/A3 Cloud savingsは引き続き対象外・後順位。
+
+### 2026-10-08 11:29 JST — CFO release-retry diagnosis
+
+この追記は11:20 JST以降の自然release更新と同時刻owner evidenceを反映する。CFO順序は変えず、A5→A6→A8→A9→A10のまま。
+
+**新しい実測:**
+
+- PR #7011（A6 source）とPR #7025（前回CFO status refresh）はmainへmerge済み。`/Users/anicca/loops/current`はrelease `20261008T112353-dbf93c31`を指し、`RELEASE.json`はSHA `dbf93c310713dabd4c3d389dfad185dfec5d5987`、`cut_at=2026-10-08T02:25:38Z`、`provenance=ancestor-of-origin-main`。A6 parser/report sourceはmain由来immutable releaseに含まれる。
+- 02:29:08Z時点の`life-manager-cfo-hourly`は依然release `3d88f9eb`をloaded-idleで使う。最新report occurrence `18dc6c21758dc280-19514`は`apply_lock_busy`、exit 78、`effect_status=not_applicable`、receipt/readbackなし。
+- この競合はfleet owner logで特定した。02:14:02.749ZのCFO hourly reportと02:14:02.975Zの`life-manager-release-reconciler`による同一labelのapplyが競合し、reconcilerはCFO ownerをrelease `3d88f9eb`へ`rc=0, changed=1`でapplyした。失敗reportにprovider effectはなく、3d88のowner適用を新releaseへの適用と混同しない。
+- 最新reconcilerはrelease `dbf93c31`でloaded-running。直近run `18dc6caa09f1ea40-74246`は`entrypoint_exit_75 / reconcile_owner`。`fleet-apply-state.json`は02:22:48Z時点でSHA `3d88f9eb`、`status=partial`、`changed=84 / errors=4 / skipped=22`、message=`budget exceeded`、`next_retry_epoch=2026-10-08T02:34:23Z`。error詳細はそのretryでowner別にreadbackする。reconcilerをrestartせず、scheduleを待つ。
+- A5 leaseは依然`codex-cfo-a5`所有で`2026-10-08T03:18:04Z`までactive。A5 PR #6827はopen/draftの旧head/baseで、編集・mergeはlease解放readback後に行う。
+- 最後に完了したB7 financial projectionは依然`2026-10-08T01:58:13Z` snapshot。全社historical/trailing revenue・cost・netはunknown/null、18/18 loops unknown（173/168 gaps）、MRR全社unknown（26 gaps、17/18 unknown）。mobile-apps USD 20.34はMRRのみ。Google Cloudは2026-09 billed invoice ¥27,889のみ、cash paid/loop allocationはunknown/unattributed。最新の2:14 wakeはlock conflictでprojectionを更新していない。
+
+**残りTODO（順序維持）:**
+
+1. **A5:** `codex-cfo-a5` lease解放をreadbackし、latest mainへ追従後、SQL/API/panelが`runtime_trace.loop_id`・`owner_id`・`run_id`・`occurrence_id`・`release_sha`をprovider/SKU/operation/unit別に保持するよう修正、回帰test、review、checks、mergeを完了する。
+2. **A6 production/settlement close:** 02:34:23Zのbounded fleet retryと次の自然CFO wakeをreadbackし、CFO ownerがrelease `dbf93c31`へ移ったか確認する。`apply_lock_busy`が消え、report delivery/readbackがあることを確認する。B7の`actual-cost-readback`を実ソースで接続し、2026-09 Cost Table ¥27,889を同期間Monitoring estimate・tax/credits/roundingと照合。cash-paidとloop attributionは公式receipt/A5 traceがある場合だけ記録する。
+3. **A8:** 18 loops / 186 jobsのsettled revenue/refund/feeとprovider/API/cloud/subscription actual costを期間・通貨・owner・official receipt単位で埋め、unknownを0にしない。
+4. **A9:** Asia/Tokyo日次/MTD/trailing receipt filteringを行うCFO reportでagent/loop/platform別と全社revenue・expense・net・MRR・coverage/freshnessを表示する。`loop_pnl.py --date`のlabel-onlyを修正する。
+5. **A10:** main由来releaseで7日連続の自然run、全18 loops/186 jobs、official readback、delivery receipt、unknown owner/action、重複ゼロを確認する。完了前にCFO completeや$10k verified MRRを主張しない。
+
+**現在cursor:** A5。A6のコードはmain由来releaseまで到達したが、CFO owner/readbackと全社financial coverageは未完了。A5 lease、fleet retry、CFO hourly wakeは個別ownerの自然境界で進め、手動restart/apply/retryを重ねない。
+
+### 2026-10-08 11:35 JST — CFO reconciler remains active after retry epoch
+
+- 02:35:24Zのreadbackでrelease reconcilerはrelease `dbf93c31`上のPID `19278`で`loaded-running`、run `18dc6caa09f1ea40-74246`。最新terminal diagnosticは`entrypoint_exit_75 / reconcile_owner`で、processはまだactive。02:34:23Zのfleet retry epochを過ぎたが、fleet stateは02:22:48Zのpartial snapshot（84 changed / 4 errors / 22 skipped）のまま更新されていない。これはまだ新しいterminal/readbackがないことを示す。
+- CFO ownerは引き続きrelease `3d88f9eb`、last occurrence `18dc6c21758dc280-19514`の`apply_lock_busy`のまま。provider receipt、official readback、自然report成功は未確認。
+- 現在の安全な次手は、active release reconcilerの自然terminalを待ち、fleet owner rows・`current` SHA・CFO loaded SHA/statusを再readbackすること。PIDを止めたり、新しいapply/retryを重ねない。
+
+**現在cursor:** A5。A5 lease期限`2026-10-08T03:18:04Z`まで所有境界を維持しつつ、reconciler自然終端を待つ。両者を同じblocker扱いせず、独立のowner/actionとして進める。
+
+### 2026-10-08 11:46 JST — A6 verified September Cost Table detail
+
+- 保存済み公式2026-09 Cost Table CSVを既存`google_cost_table.load_directory`で再読込し、invoice total ¥27,889（JPY）をverifiedで再確認した。cash-paid=`unknown`、loop allocation=`unattributed`のまま。
+- 税前service/SKU合計: Places API ¥9,419.856821、Geocoding API ¥7,493.014626、Gemini API ¥5,160.873099、Directions API ¥3,271.171127、Cloud KMS ¥9.530434、Cloud Storage ¥0.005144、Cloud Run ¥0。合計¥25,354.451251。
+- 請求調整: usage gross ¥25,354.504771、credits -¥0.053520、tax ¥2,535、rounding -¥0.451251。これらを合算したinvoice totalが¥27,889。service totalsにはtaxを含めない。
+- このCost Tableはbilled amountの根拠だが、各SKUのAPI request count・agent/loop owner・cash settlementは示さない。対象local evidence inventoryから同期間Google Monitoring estimateはまだ確認できていない。請求額をOctober spendへ外挿せず、Google API replacementやbudget cutoffもこのatomでは行わない。
+
+**現在cursor:** A5。A6はinvoice detailを把握済みだが、Monitoring estimate照合・owner attribution・cash settlement・本番report readbackは未完了。
+
+### 2026-10-08 11:52 JST — A6 source loaded, natural report still pending
+
+- 02:48:17Zのrelease reconciler owner logで`life-manager-cfo-hourly`をrelease `94372580faf432189742de38cd474bfa0db6c4f0`へ`rc=0, changed=1`でapplyした。`lm-loop status`もCFO owner loaded SHA `94372580`を返す。これはsource deployment readbackであり、CFO report receiptやfinancial readbackではない。
+- 新release下の自然occurrence `18dc6dffb7e33a68-24438`（02:48:16Z）は`host_admission_deferred:resource_fifo_wait`、exit 75、`effect_status=not_applicable`、retryable、provider receipt/readbackなし。CFO report本体はこのwakeでは実行されていない。`next_eligible_run=interval:3600s`。次のnatural eligible wakeを待ち、手動start/retryを重ねない。
+- 02:52Zのreadbackではrelease reconcilerもまだ`loaded-running`。CFO ownerの個別SHA反映とfleet全体のreconcile完了は別に扱う。A5 leaseは引き続き`codex-cfo-a5`所有で`03:18:04Z`までactive。
+- A6 Cost Tableのservice detailは上記11:46節に記録済み。cash settlement、同期間Monitoring dollar estimate、SKU→provider operation→agent/loop joinは未確認のまま。
+
+**現在cursor:** A5。A6 sourceはロード済みだが、A5 attribution、CFO natural report、A6 settlement/reconciliation、A8–A10 acceptanceは未完了。
+
+### 2026-10-08 12:08 JST — A5 CFO FIFO priority diagnosis
+
+- Main `94372580`のCFO registry rowは`resource_class=deterministic` / `admission_class=borrow` / `priority=support`。03:05Z read-only snapshot of the real `resource_admission._durable_queue_rows` had 28 eligible deterministic queue rows and CFO at zero-based index 26 (27th of 28), behind one revenue owner and a support backlog. Earlier CFO wakes show both `resource_fifo_wait` and `resource_capacity_busy`; each was `effect_status=not_applicable` with no report receipt.
+- Runtime `_queue_order` ranks the priority before admission class; `enqueue_durable` promotes an existing queued priority without changing its queue age. Therefore a registry-only priority promotion can reduce FIFO starvation without changing capacity classification or taking a revenue-reserved slot.
+- **Ruling:** after owner lease `codex-cfo-a5` is released, change only `life-manager-cfo-hourly.priority` from `support` to `revenue`; retain `admission_class=borrow` and `resource_class=deterministic`. This puts CFO ahead of support backlog but still after true revenue-class work. Cost if wrong: one short CFO report may delay a support task by one slot; no revenue slot is reserved or core provider feature stopped.
+- Acceptance: first make the existing CFO registry test expect `priority=revenue` while keeping `admission_class=borrow` (observe RED), then change the registry row (GREEN); run the focused loop-registry test and `./bin/lm-loop-contract`. After merge/release, verify a natural CFO occurrence reaches report phase; a separate `resource_capacity_busy` must remain accurately reported if the host is actually full.
+
+**現在cursor:** A5. Lease `codex-cfo-a5` remains active until `2026-10-08T03:18:04Z`; implement this one-field change only after fresh lease readback and acquisition of the existing A5 worktree.
+
+### 2026-10-08 12:10 JST — A6 historical Monitoring comparison boundary
+
+- 既存のread-only Monitoring `serviceruntime.googleapis.com/api/request_count` query（UTC 2026-09-01–2026-10-01）はGeocoding 20,258、Directions 14,230、Places Text Search 5,800、Places Details 72 requestsを返した。invoice-month CSV quantitiesはそれぞれ19,403 / 14,105 / 5,672 / 75で、差は+855 / +125 / +128 / -3。
+- これは過去のusage-count診断で、同期間のdollar estimateとbilled amountのreconciliationではない。Google invoice-month usageはlate-reported costの移動があり、CSV usage datesはday-level精度。request countはbillable unitsでもloop帰属でもなく、404をcost zeroとみなさない。A6 acceptanceは未完了のまま。
+
+### 2026-10-08 12:11 JST — CFO admission status after source deployment
+
+- `origin/main` / latest main-derived release is `a7899e37`; CFO owner is still loaded on `94372580`. The A6 Google-cost code is present on `94372580`, but the owner has not yet been reconciled to the newer main release.
+- Latest CFO occurrence `life-manager-cfo-hourly:18dc6e7ab7e08950-11908` (02:57:05Z) is `host_admission_deferred:resource_capacity_busy`, exit 75, `effect_status=not_applicable`, with no provider receipt or official report readback. The earlier 02:48 wake was `resource_fifo_wait`.
+- Read-only durable queue ordering at about 03:05Z showed 28 eligible deterministic queue rows; CFO was position 27/28 with `admission_class=borrow`, `priority=support`. This confirms the support-priority backlog; `resource_capacity_busy` is a separate host-capacity condition and must not be misdiagnosed as FIFO.
+- Release reconciler on main-derived SHA `a7899e37` has a retryable `entrypoint_exit_1` / `reconcile_owner` event. Do not restart it or manually replay CFO; wait for its natural terminal and inspect the next owner apply receipt.
+- The A5 lease remains active through `2026-10-08T03:18:04Z`. After release, update only the CFO registry priority to `revenue` while keeping `admission_class=borrow` and `resource_class=deterministic`, then test the priority contract and confirm a natural report. This does not reserve a revenue slot or add a cap.
+
+**現在cursor:** A5。CFO cost attribution and wake priority remain the next source task; A6 source is loaded but the new-release report and A6 settlement/Monitoring reconciliation are still unverified.
+
+### 2026-10-08 12:12 JST — A5 CFO queue priority decision
+
+- At the 03:05Z read-only deterministic-queue snapshot, 28 owners were eligible and `life-manager-cfo-hourly` was position 27/28 (zero-based 26), with `admission_class=borrow` and `base_priority=support`. The queue head began `job-search-daily`, `lancers-revenue-work-sync`, then older support jobs. CFO wakes have now been deferred by both `resource_fifo_wait` and `resource_capacity_busy`; each recorded `effect_status=not_applicable`, with no provider effect.
+- The current registry sets CFO `priority=support`. Runtime `_queue_order` sorts priority before admission class, and the owner-level `enqueue_durable` path promotes priority without resetting queue age. `priority=revenue` is valid while `admission_class=borrow`; it does not reserve a revenue-class slot.
+- **Ruling:** after the active A5 lease is released, change only CFO `priority` from `support` to `revenue`, keeping `resource_class=deterministic` and `admission_class=borrow`. This moves the short CFO report ahead of the support backlog but behind actual revenue-class work. Cost if wrong: one CFO report may delay one support owner; it does not cut off core work or reserve revenue capacity. A separate `resource_capacity_busy` remains distinct and is not fixed by this priority change.
+- **Verification:** update the existing `test_life_manager_cfo_hourly_declares_effect_rebind_contract` assertion first and confirm RED, then change the registry field and confirm GREEN. Run the focused registry test and `./bin/lm-loop-contract`; after main-derived release/apply, confirm a natural CFO wake reaches report phase. Do not edit the active A5 worktree before lease release.
+
+**現在cursor:** A5; owner lease `codex-cfo-a5` remains active until `2026-10-08T03:18:04Z`.
+## 現行容量基盤を先行する
+
+Daisが現行基盤を先に実装し、安定後にOpenClawへ進む順を指定。旧順序=OC-001以降、新順序=FD-01 bounded stderr replay→FD-02 disk producer budget/retention→FD-03 phase slot→FD-04 readback容量→FD-05自然成果→FD-06 OpenClaw移行。現在cursor=FD-01、source実装着手。根拠はlarge child stderrの全量read/replayとwhole job slot占有。既存workflow/account/claim/scheduleを同時変更しない。[scope](2026-10-08-local-foundation-first.md)。
+
+### 2026-10-08 11:36 JST — eBook Monk latest cursor and atomic path
+
+この追記は11:29 JSTのeBook renderer recovery cursorを更新する。目標と理想architectureは前節のまま（英語HeyGen 3本/日、日本語Watercolor 3本/日、日本語動画を2 accountで共有し、3 account合計9件/日のPostiz `PUBLISHED` receiptを取る）。
+
+**TODO順変更:** 旧順=`旧08:00 HeyGen effectの公式照合→source repairをPR/merge→capacity/release gate→次slot`。新順=`source repairと正本specを最新mainへ統合→旧effect fenceを維持して特定可能な公式証拠を探す→capacity/doctor/release gateを解く→旧effectが安全に処理できた後の別slotで1件投稿→3 account×3件/日の自然receipt→Checkout/PDF/subscription net MRR→Capafy D5`。理由: source統合はproviderへの再送なしで完了でき、曖昧な旧effectを安全に保持したまま進められる。mergeは投稿の許可や旧effect解決を意味しない。**現在cursor:** item 1、HeyGen receipt-recovery source branchのPR/CI/merge。
+
+**最新readback（2026-10-08 11:36 JST）:**
+
+- Git: task branch `fix/ebook-heygen-receipt-recovery-20261008`をlatest `origin/main=94372580faf432189742de38cd474bfa0db6c4f0`へrebase済み。main上の差分はCapafy CP1文書1件だけで、eBook source変更と競合しない。source commitはrebase後`ebfa114edc4a4439801c7a9eb160ffe71db0eb4e`。この節を含めてfresh review→push/PR→required checks→mergeが必要。
+- Production release symlinkは`20261008T113408-94372580`。English ownerは旧SHA `3d88f9eb5d00d1ed3651b9ab3f5dd822df0b0bdf`をloadし、latest occurrence `18dc6ce9fd0d2660-46133`はexit 1 / `effect_status=unknown` / `next_action=official_readback_required` / provider receiptなし。11:29時点のHeyGen全video listは2 pagesで該当0件、walletはUSD 11.78（sidecar before-create USD 12.30）。wallet差額USD 0.52のitemized attributionまたは旧createのvideo IDが不足し、08:00 intentは`delivery_uncertain`のまま保持する。同じintentを再送しない。
+- Postizの最新公式readbackは11:29 JST: 既存3 integrationは有効、日本語TikTok/Instagram各1件、English 0件（2/9）。11:36時点では次slotの12:30前で、新しい投稿receiptは確認していない。接続し直す作業はない。
+- `life-manager-release-reconciler`はinstalled SHA `94372580`上でloaded-idle。直近eventは旧SHA `dbf93c31`のexit 143、次action `reconcile_owner`。同時に `lm-loop doctor` はmissing/unmanaged 0だが、別ownerのretired label `ai.anicca.provision-browser.capafy.kosuke`により`ok=false`。
+- `/`の空き容量は`858,736 KiB`（約0.82 GiB）で2 GiB floor未達。recovery receiptでfloor・errors 0・protected deletions 0をfreshに確認するまで投稿ownerを動かさない。
+- Capafy D5は別laneの後順位。first paid eBook orderと一致するPDF delivery receiptを確認してから、既存recipeのInstagram canaryを最大1件/24hで開始する。現時点でそのgateは未確認。
+
+**残りatomic TODO（この順）:**
+
+1. rebase済みsource repairをfresh read-only reviewし、専用branchをpushしてPRを作成、required CI後にmainへmergeする。これはproductionへ投稿しないsource統合。
+2. 08:00 HeyGen intentのvideo IDまたは同じcreateに紐付くitemized billing evidenceを既存の公式readback経路で探す。見つからない間は`delivery_uncertain`を保持し、同じslotをretryせず、wallet差額を売上/費用へ推定計上しない。
+3. stale Capafy provision-browser labelはそのownerの管理境界で解消する。併せてcleanup/release ownerの自然terminal、fresh cleanup receipt（2 GiB以上、errors 0、protected deletions 0）、`lm-loop doctor` PASSを読み、active apply lockがないことを確認する。別ownerのstateやbrowserは直接変更しない。
+4. main由来immutable releaseを切り、English ownerだけのloaded SHA/argv/child env scopeを確認する。旧effectが未解決なら投稿しない。
+5. 旧effectの安全なdisposition後、次の別slotで既存ownerを1回自然実行し、HeyGen video ID/status/output SHA/costとPostiz `PUBLISHED` post ID/public URLを同一occurrenceへ結ぶ。failure時は新しい証拠を追加して原因を狭める。成功1件をcadence完了としない。
+6. 自然slotで各account 3件/日、計9 unique provider receipts/dayとreplay-zeroを確認する。各投稿をclick attribution→locale Checkout→paid Stripe receipt→matching PDF deliveryへjoinする。
+7. one-time eBook決済をMRRに含めず、Letter/Tegamiのsettled recurring receiptsからrefund・fee・direct costを引いた14日cohortを計測する。USD 10,000 verified net MRRは期間一致のreceiptが揃うまで未達の目標。
+8. first paid eBook orderとmatching PDF delivery後にだけCapafy Instagram marketingを始める。identity/既存Postiz route/ownerをreadbackし、1 canary/24hと14日readbackを閉じる。
+
+**Daisの作業:** Postiz再接続・手動投稿は不要。今の阻害は旧HeyGen effect証拠、空き容量、retired label gate、source PR統合であり、英語ownerの次投稿は旧effectとproduction gateの後。
+
+### 2026-10-08 11:43 JST — eBook provider readback and shared-gate cursor
+
+この節は11:36 JSTのeBook snapshotを更新する。英語の旧HeyGen intent fenceはEnglish ownerだけに適用し、日本語Watercolorの2 ownerは別integration/effectとして扱う。両日本語ownerにも共通host capacityとrelease/apply gatesは適用する。
+
+**最新公式・runtime readback:**
+
+- Postiz direct GET（11:42:10 JST）では3 integrationすべてenabled。10/8の対象receiptは英語TikTok 0、日本語TikTok 1、日本語Instagram 1（2/9）。次の日本語slotは12:30 JSTで、その前の新規投稿は確認していない。
+- HeyGen direct GET（同時点）ではtitle `Anicca`該当video 0件、wallet残高USD 11.78。旧intentのvideo IDまたはUSD 0.52に結び付くbilling detailがなく、英語effectはunknownのまま。08:00 intentは公式証拠で安全にdispositionするまで再送しない。別video IDの発見だけでは同effectの成否証明にならない。
+- 空き容量は`652,800 KiB`（約0.62 GiB）。cleanup occurrence `18dc6d7c936c08f0-63724`は11:38:53 JSTに`apply_lock_busy` / exit 78 / `effect_status=not_applicable`。release reconcilerは現在PID 80014で稼働中（active run scratch ID `18dc6d5fe9c91548-80014`）。cleanupを重ねず、reconcilerの自然terminalとlock解放を先にreadbackする。
+- `launchctl-safe preflight`は11:43 JSTにPASS（UID 501、Aqua、manager PID 1）。`launchctl-safe print`のretired label `ai.anicca.provision-browser.capafy.kosuke`は`spawn scheduled`、PIDなし、last exit code 2。registryは期待argv hashと欠落entrypointをguardとして記録し、doctorはこのretired labelだけで`ok=false`。guard付きowner経路で解決する。
+- Fresh branch reviewはCritical 0 / Important 0 / Minor 1。MinorはHeyGen completed後のwallet/cost read failureでcreate診断metadataの一部がsidecarから消える点（`heygen_candidate.py` 327/334行）。provider IDと再create防止は残るので今回は延期し、ledgerへ記録した。
+
+**更新後の残りatomic TODO:**
+
+1. source修正と正本specのbranchをpushし、PRを作成する。required CIをPASSさせてmainへmergeする。これはprovider mutationを起こさない。
+2. running release reconciler PID 80014のterminalとapply-lock releaseをreadbackする。停止・並列apply・manual cleanupを行わない。
+3. guarded retired Capafy provision-browser labelをownerのguarded retired-label経路で解消し、`lm-loop doctor`がPASSすることを確認する。期待argv hash/entrypoint欠落/loaded PIDがguardと一致しない場合は削除せず証拠を追加する。
+4. cleanup ownerの次eligible runで空き容量`>=2 GiB`、errors 0、protected deletions 0のreceiptを取得し、同時刻`df`で確認する。容量不足中は3 eBook ownersを起動しない。
+5. 共通gatesが通った後、日本語TikTokとInstagramの12:30 slotを各ownerから一度実行し、各Postiz `PUBLISHED` receipt/post ID/public URLを照合する。英語unknown fenceは別に保持し、日本語のreceiptを英語slotの成功扱いにしない。
+6. 英語の旧08:00 effectについてvideo IDまたはitemized billing readbackを続ける。安全なdisposition後に限り、次の別英語slotでHeyGen/ Postiz receiptを同一occurrenceへ結ぶ。
+7. 3 accounts各3 unique `PUBLISHED` receipts/day（計9）とreplay-zeroを自然実測し、click attribution→locale Checkout→settled Stripe→一致PDF納品へ結ぶ。Letter/Tegamiのsettled recurring net contributionで14日cohortを測り、USD 10,000 net MRRはreceipt証明まで目標のままにする。
+8. 初回paid eBook orderと一致PDF receiptの後にCapafy IG D5へ進み、既存identity/route/ownerをreadbackして1 canary/24hを行う。
+
+**現在cursor:** item 1（source PR）。同時にitem 2のPID 80014はnatural terminal待ち。Daisに必要な再接続・手動投稿はない。
+
+### 2026-10-08 11:49 JST — eBook PR CI inventory repair
+
+PR #7030の初回CIで`OSS self-contained boundary`だけがfailした。原因はbase main PR #7028が`skills/capafy-autopublish/CP1_AGENTIC.md`を更新し、`docs/manifests/oss-merge-1-sources.json`のderived inventory digestが古いままになっていたこと。eBook diffはCapafy sourceに触れていない。manifestのCapafy rootは243 filesのまま、verifierと同じGit index/path sortでdigestだけ`2b9e744435d78e144fa0f7bad5c20a57f3117858284dfbdf560ccde3f042140b`へ更新し、ローカルの`node scripts/verify-oss-self-contained.mjs --json`は`ok=true, violations=[]`。
+
+**現在cursor:** このbaseline更新をPR #7030へpushし、required CI全件を再実行する。source修正、provider fence、production容量/label gateの状態は変わらない。
+
+### 2026-10-08 11:53 JST — eBook readback after latest English occurrence
+
+この節は11:49のCI cursorと11:43のproduction cursorを更新する。PR branchはlatest main `c78c4e841e348f69aadbd3026bb3595484377111`をmerge commit経由で取り込んだ。main側の差分にeBook source変更はなく、更新はCapafy/Life Manager文書で、OSS inventory verifierは引き続きPASS。PR #7030の旧head CIは新headのCIに置き換わる。
+
+**最新readback（11:52 JST）:**
+
+- English ownerの最新occurrence `18dc6de8dcf3a0e8-75262`は11:50 JSTにexit 1 / `effect_status=unknown` / provider receiptなし / `official_readback_required`。その後のHeyGen title `Anicca` listは0件、walletはUSD 11.78のまま。Postiz direct GET（11:52:35 JST）でもEnglish 0件、日本語TikTok 1、日本語Instagram 1（合計2/9）、3 integrationすべてenabled。英語effectは未解決なので同intentを再送しない。
+- capacity recoveryは戻った。cleanup ownerの11:46:25 JST occurrence `18dc6dc27a256d78-72072`はexit 0 / pass。11:45:39 JSTのreceiptは`free_after=2,375,139,328` bytes、errors 0、protected deletions 0。11:52 `df -Pk /`は7,571,448 KiB available。これは現在のcapacity readbackであり、永続安定の証明ではない。
+- release reconciler PID 80014とcleanup owner PID 15358は11:52時点でloaded-running。重複kickstart/applyせず、それぞれの自然terminalとapply-lock解放を確認する。`lm-loop doctor`は引き続きretired guarded label `ai.anicca.provision-browser.capafy.kosuke`だけで`ok=false`。preflightはPASS済み。
+- PR #7030の新headではOSS boundary/Python/shell/Startup/PII/agent-instruction checksがPASS、Loop control contracts・TruffleHog・gitleaksは実行中。
+
+**現在cursorと残りatomic TODO:**
+
+1. PR #7030のlatest-main merge commitをpushし、required CIを全部PASSさせてmergeする。
+2. active reconciler/cleanup ownerを停止せず、自然terminal・apply-lock解放をreadbackする。
+3. 次の日本語12:30 slotで、既存日本語ownersが各1回自然実行し、Postiz `PUBLISHED` receipt/post ID/public URLが付くかを確認する。capacityは現在floorを超えている。英語unknown fenceは別ownerのまま保持する。
+4. 英語の旧effectについてvideo IDか同createに紐づくbilling evidenceを探す。現在のtitle/wallet/Postiz読み取りは未解決を示す。安全なdisposition前に08:00 intentを再送しない。
+5. guarded retired labelをownerの安全経路で解消して`lm-loop doctor`をPASSさせ、main-derived source releaseの適用gateを閉じる。natural Japanese postingの必要条件とrelease applyのgateを混同しない。
+6. 英語effectを安全に閉じた後、次の別slotだけをowner経由で実行し、HeyGen ID/status/output SHA/costとPostiz receiptをoccurrenceへ結ぶ。3 account×3件/日（9 receipts）とreplay-zeroを自然実測する。
+7. click attribution→locale Checkout→settled Stripe→matching PDF→Letter/Tegami settled recurring net MRRを照合する。first paid orderとmatching PDF後にのみCapafy Instagram D5（1 canary/24h）へ進む。USD 10,000 net MRRは証拠が揃うまで目標のまま。
+
+**Daisの作業:** 再接続・手動投稿は不要。次の明確な配信点は12:30 JSTの日本語2 owner。英語はeffect照合後の別slotへ進む。
+
+### 2026-10-08 11:56 JST — eBook shared capacity recovered; next delivery cursor
+
+この節は11:53 cursorを更新する。PR branchはmain `bcfc32c2c9e49d21593fba3931dfdc7a44bd942d`までmerge commitで同期済み。latest source/spec PR #7030 head `d59746df0e23b50b14e436d68c82cc264b044d5c`はOPENで、required CIが進行中。
+
+**最新readback:**
+
+- `/Users/anicca/loops/current`と英語/日本語2 ownerはすべてrelease SHA `94372580faf432189742de38cd474bfa0db6c4f0`をload。source repairはまだmainにない。
+- cleanup owner occurrence `18dc6e2bd7705880-15358`は11:53:18 JSTにnatural pass。11:53:08 receiptは`free_after=7,753,392,128` bytes、recovery floor 2,147,483,648 met、errors 0、protected deletions 0。11:56 `df -Pk /`は7,189,760 KiB available。capacity gateは現在met。
+- release reconciler PID 80014は11:56時点でloaded-running。`lm-loop doctor`はmissing/unmanaged 0、guarded retired label `ai.anicca.provision-browser.capafy.kosuke`だけにより`ok=false`。並列apply・restartをしない。
+- English latest occurrenceは`18dc6de8dcf3a0e8-75262`（11:50 JST、exit1、effect unknown、receiptなし）。その後のHeyGen listにtitle `Anicca` videoなし、wallet USD 11.78。Postiz 11:52:35 GETは3 integration enabled、English 0、日本語TikTok 1、日本語Instagram 1（今日2/9）。08:00 English intentは引き続きunknownで再送しない。
+- 12:30 JSTが次の日本語slot。日本語effect identityは英語HeyGen fenceから独立している。owner/reconciler lockが解けたら登録済みownerの自然runとPostiz公式receiptで判定する。
+
+**現在のatomic TODO:**
+
+1. PR #7030のlatest-main head CIを全件PASSさせてmainへmergeする。
+2. release reconciler PID 80014のnatural terminalとapply-lock解放を確認する。停止・重複起動しない。
+3. 12:30 JSTに日本語TikTokとInstagramを各ownerから1回自然実行し、`PUBLISHED`、post ID、public URLを確認する。defer時は同occurrenceのadmission原因をreadbackする。
+4. guarded retired labelを既存owner経由で解消し、`lm-loop doctor` PASSを確認する。これはmain-derived source release適用の前に閉じる。
+5. English 08:00 unknown effectはvideo IDまたは同createに紐づくitemized billing recordを調べ続ける。解決前に旧intentを再送せず、別video IDだけで旧effectをclearしない。安全なdisposition後、別slotのHeyGen/Postiz receiptsを同一occurrenceへ結ぶ。
+6. 3 account×3件/日、計9 unique Postiz receiptsとreplay-zeroを自然実測し、click→locale Checkout→settled Stripe→matching PDFを計測する。Letter/Tegami subscriptionのsettled recurring receiptsから返金・fee・実費を引いて14日net MRR cohortを測る。
+7. first paid eBook orderと一致PDF receiptの後だけCapafy Instagram D5へ進み、既存identity/routeで1 canary/24hを実施する。USD 10,000 net MRRは目標であり、settled evidence前に達成扱いしない。
+
+**Daisの作業:** 再接続や手動投稿は不要。空き容量は戻った。現在の最初の公開確認対象は12:30 JSTの日本語2投稿、英語は旧effect照合の後。
+
+### 2026-10-08 12:04 JST — eBook pre-slot admission cursor
+
+この節は11:56の状態を更新する。PR #7030はbase `bcfc32c2`、head `3f194c8e`でOPEN、required CIはLoop control contractsのみpending。OSS boundary、Python、shell、Startup、PII、gitleaks、TruffleHogはPASS。
+
+**Production readback:**
+
+- current symlinkは`20261008T115828-a7899e37`、空き容量は6,990,952 KiB。11:53 cleanup receiptは`free_after=7,753,392,128` bytes、floor met、errors 0、protected deletions 0。
+- release reconcilerはPID 36926でloaded-running。English/2 Japanese ownersはSHA `94372580`をloadしており、current symlinkより遅れている。
+- 日本語ownersは公式Postiz `PUBLISHED` receiptsを各1件持つ（TikTok `cmuynjaq808iblc0yd2396uhg`, Instagram `cmuynjkih08ihlc0y38o87z0n`）。ただし両者の`admission_effect_unknown.current=true`、state `claimed`、next action `official_readback_required`が残る。effectは`reconciled`でもowner admissionは未解放。reconciler terminal後に同じreceiptのbindを再読する。claimを手動削除したり同slotを再送したりしない。
+- English latest occurrence `18dc6de8dcf3a0e8-75262`は11:50 JSTの`render_reconciliation_required` / `effect_status=unknown`。11:52のHeyGen listはAnicca動画0、wallet USD 11.78、Postiz English 0。旧effectは未確定で、08:00 intentを再送しない。
+- `lm-loop doctor`はretired `ai.anicca.provision-browser.capafy.kosuke`だけでfalse。実際のlaunchd serviceはPIDなし・spawn-scheduled・exit2。configured guard hash `846e…`とobserved argv hash `dee012…`が一致せず、両方のguarded entrypoint pathはmissing。直接bootoutしない。このretired labelはeBookとは別のowner境界で、`apply_live(target=eBook-owner)`は無関係なretired labelsを処理しない。
+
+**現在のatomic TODO:**
+
+1. PR #7030のLoop control contractsをPASSさせてmainへmergeする。
+2. reconciler PID 36926のnatural terminalとapply-lock releaseを確認する。停止・並列applyをしない。
+3. Japanese TikTok/Instagramそれぞれの`claimed` admissionが公式Postiz receiptでreconciled/releasedになったことをreadbackする。残るclaimは登録済みownerのexact `official_readback_required`経路で診断し、状態を手動clearしない。
+4. source merge後、必要な場合だけ`launchctl-safe preflight`を通してEnglish ownerへtargeted applyする。Global doctorの別owner警告でeBook ownerを一律停止せず、正確なtarget lockとloaded SHAを確認する。
+5. 12:30 JSTの日本語slotで各ownerのnatural runと公式`PUBLISHED` receipt/post ID/public URLを確認する。claimが残っている場合はdefer原因をそのoccurrenceから狭める。
+6. English unknown effectのvideo IDまたはitemized billing evidenceを調べ続ける。安全に閉じた後だけ、旧08:00と別の英語slotでHeyGen/Postiz receiptを同一occurrenceへ結ぶ。
+7. 3 accounts×3 unique posts/day、replay-zero、click→Checkout→settled Stripe→matching PDF、Letter/Tegami 14日settled net MRR cohortを確認する。first paid eBook+matching PDF後だけCapafy Instagram D5へ進み、1 canary/24hとする。
+
+**現在cursor:** item 1（PR CI）。日本語receiptはあるが2 admission claimsがclaimedのため、12:30枠前にreconciler terminal後のowner readbackを確認する。
+
+### 2026-10-08 12:05 JST — eBook PR base moved after green CI
+
+PR #7030 head `3f194c8e`のrequired checksは12:04 JSTまでに全件PASSした。その後mainはPR #7033で`a7899e37f8dfd266be263ec4c891f80b1427b0ff`へ進み、`skills/capafy-autopublish` inventoryと本SSOTが更新された。eBook source変更はないが、PRのbaseはまだ`bcfc32c2`であり、green checksは新baseを含まない。
+
+**現在cursor:** 最新mainをmerge commitでPR branchへ同期し、OSS self-contained verifierのinventory digestを検証する。base更新後にrequired CIを再実行してmergeする。PR branchのsource修正、provider fence、capacity/owner状態は変わらない。
+
+### 2026-10-08 12:06 JST — eBook PR inventory resync after main #7033
+
+PR #7030はlatest main `a7899e37f8dfd266be263ec4c891f80b1427b0ff`をmerge commit経由でbranchへ取り込んだ。main PR #7033は`skills/capafy-autopublish`内の既存ファイルを更新し、self-contained verifierで再び`manifest_inventory_mismatch`になった。Capafy実装diffはmain由来のみ。243-file inventoryのhashだけを最新index順で`3b83b77a69097619902bf06c8d9f1af96eed884ef7d68f1a8ca55c1d10cd8c33`に更新し、`node scripts/verify-oss-self-contained.mjs --json`は`ok=true, violations=[]`。
+
+**現在cursor:** このmanifest/spec追記をpushし、latest mainを含むPR headでrequired CIをPASSさせてからmergeする。旧headのgreen CIはbase a789を含まない。
+
+### 2026-10-08 12:12 JST — eBook PR resynced to main #7037
+
+PR #7030の全required checksはhead `99648f4f` / base `a7899e37`でPASSした。merge直前にmain #7037が`skills/capafy-autopublish`を再更新したため、PR branchに最新mainをmerge commitで取り込み、243-file rootのderived hashを`64b3b8d037c8dea56e4f57f976ae4310b364eeac028ce475e8790b53a6ed6a7a`へ更新した。`node scripts/verify-oss-self-contained.mjs --json`は`ok=true, violations=[]`。
+
+**現在cursor:** 新しいmerge/hash commitをpushし、main `ca7d58b6`を含むheadでrequired CIを再実行する。前のgreen CIはこのbase changeを含まないため、PR mergeはまだ行わない。
+
+### CFO current cursor
+
+この節が先行するCFO状態メモを更新する。実行順は **A5 → A6 → A8 → A9 → A10** のまま。A7の個人MoneytreeとA3/A4のCloud・geocoding費用削減はDaisの指示で後順位とし、このCFO業務のblockerにしない。CFO設計詳細は `docs/superpowers/specs/2026-10-02-life-manager-cfo-cost-observability-design.md` を参照し、TODO/順序/状態の正本は本SSOTだけに置く。
+
+**確認済み状態（2026-10-08 13:18 JST readback）:**
+
+- `/Users/anicca/loops/current`はrelease `20261008T124623-8f342d8d`（main SHA `8f342d8d71396bc7e9f542ae09af9b46781ff410`）を指す。`life-manager-release-reconciler`の13:10:19 JST runは`entrypoint_exit_1` / `effect_status=not_applicable`で終了。次の60秒周期retryは13:11:20 JSTにPID `72756`で開始し、13:18 JST readbackではrunning（約7分）。`fleet-apply-state.json`は同SHAで直近partial（76 changed、24 skipped、2 errors、`budget exceeded`）。stderrにはscript line 435の`printf: write error: No space left on device`があり、該当処理はowner apply outputを`fleet-apply-last-output.log`へ追記している。確認時のData volumeは97%使用、6.4 GiB freeで、output logは約9 KiB、owner logは約18.6 MiB、launchd stderr/stdoutは約22/30 MiB。ENOSPCを返した時点・対象のquota/volumeは未特定なので、容量原因を断定したり、証拠ログを削除したりしない。
+- CFO ownerはrelease `8f342d8d`でloaded-idle。最新occurrence `18dc7229cfac25f0-36963`は13:04:35 JSTに`apply_lock_busy` / exit 78 / `effect_status=not_applicable` / retryableで終わり、`provider_receipt_id`と`official_readback_ref`はnull。statusの`last_success`は01:58:19Z、`last_receipt`はnullで、その後のCFO report deliveryは未確認。owner別apply logにはrelease reconcilerが同じCFO ownerを04:04:25–04:04:36Zに11秒間applyした`rc=0, changed=1`行がある。これはCFOのlock acquisition時刻04:04:35.69Zと重なり、同じlabel apply lock競合の直接証拠と整合する。現在はreconciler processとlabel lock holderのいずれも見つからず、lockは解放済みと判断する。次のnatural CFO eligibilityはattemptから3600秒後（約14:04 JST）。
+- 別原因だった03:57:07Zの`host_admission_deferred:resource_capacity_busy`は、04:00Z snapshotで`marketing-owner-events`と`capafy-loop-daily`がborrow deterministic枠2つを占有していたことと整合する。04:06Zの最新owner statusでは`capafy-loop-daily`はloaded-idle、`marketing-owner-events`はloaded-running。現時点で同じ2枠満杯とは確認できず、前回の容量不足を最新`apply_lock_busy`の原因とは扱わない。これはAPI spend capではなく既存並列制御。
+- 保存済みB7 projectionはsnapshot `2026-10-08T01:58:13Z`のまま。historical/trailingはいずれも18/18 loopが`unknown`、coverage gapは173/168件、company MRRは`unknown`で26 gaps、duplicate receiptは0件。最新CFO wakeはreportを更新していない。unknownは売上ゼロ・費用ゼロを意味しない。
+- Google公式2026-09 Cost Tableは請求額¥27,889（税込）。税前service明細はPlaces ¥9,419.856821、Geocoding ¥7,493.014626、Gemini ¥5,160.873099、Directions ¥3,271.171127、KMS ¥9.530434、Storage ¥0.005144、Cloud Run ¥0。cash-paidは未確認、loop/agent配賦はunattributed。Monitoring request countは同期間の請求額照合ではない。A6のbilled/usage照合、credits・tax・rounding、settlementとloop配賦は未完了。
+- A5 Task 5は専用worktreeで実装済み（`a551db6aa4`）し、fresh reviewの重要指摘だったbrowser template regexの二重escapeを`6dbdb02876`で修正。生成browser validatorを実行する回帰testを追加し、UI 44/44、privacy evaluator、diff checkがPASS。fixのread-only re-reviewもPASS。Task 5報告は`ba55d62176`。現在A5 branch HEADは`ba55d62176`、この作業は未push・未merge。working plan `docs/superpowers/plans/2026-10-07-cfo-a5-cost-visibility.md`にはTask 5–7があり、同planの更新はworktree内で未commit。Task 6 priority changeとTask 7 final integrationは未完了。
+- queue snapshotではCFOがeligible deterministic queueの27/28番目、priority=`support`だった。`revenue`への変更はまだ未実装で、`admission_class=borrow`と`resource_class=deterministic`は維持する。これはsupport backlogを減らす案で、満杯時の`resource_capacity_busy`は直さず、hard cap・自動停止も追加しない。
+- `loop_pnl.py --date`はreporting dateを変える一方、B7 snapshot windowは現在時刻を使う。usage-eventの一部に日付filterはあるが、全sourceのAsia/Tokyo期間filterは未受入。
+- docs PR #7027にはlatest main `dcf04b2d`までを含めてCFO状態更新をpush済み。最新commitでrequired checksを再実行中。
+
+**残りatomic TODO（この順）:**
+
+1. **A5 Task 6 RED:** 既存CFO registry testを`priority=revenue`期待に変え、対象testを実行して現状の`support`値で失敗することを確認する。
+2. **A5 Task 6 GREEN:** CFO rowの`priority`だけを`revenue`にし、`admission_class=borrow` / `resource_class=deterministic`を維持して同じtestを通す。
+3. **A5 Task 6 contract:** focused registry testと`./bin/lm-loop-contract`を実行する。予約枠、spend cap、自動停止は追加しない。
+4. **A5 Task 7 acceptance:** migration/API/UI focused tests、privacy evaluator、diff checkを実行し、tenant/period filter・trace allowlist・unknown≠zeroをreviewする。最終source diffのread-only reviewをPASSさせる。
+5. **A5 source integration:** uncommitted plan更新を含めてcommitし、latest mainをA5 branchへmerge、既存PR #6827へpushする。最新headのrequired checksをPASSさせてmergeする。旧headのOSS/Gitleaks結果は採用しない。
+6. **Release reconciler recovery:** source作業と並行して、ENOSPCの対象filesystem/quotaとowner-output write pathを特定し、原因に応じて空き領域またはoutput処理を安全に修正する。evidence/state logを根拠なく消さず、次のnatural reconcileがpartialではなくCFO ownerを含めて完了することをreadbackする。
+7. **A5 production migration:** PR merge後にadditive A5 SQL migrationを対象Supabase projectへ適用し、migration履歴と`lm_usage_cost_period_summary`の存在・権限をofficial readbackで確認する。
+8. **A5 production release:** main由来immutable releaseを作成/適用し、reconciler terminal・CFO owner apply receipt・loaded SHA・lock解放をreadbackする。reconcilerがpartialなら自然成功まで追い、手動restartやlock削除をしない。
+9. **A5 natural acceptance:** 次のnatural hourly CFO occurrence（現時点の予測は約14:04 JST）でreport/delivery receiptとdaily/month-to-date cost panelを確認する。`apply_lock_busy`再発時は同一label apply rowを照合する。
+10. **A6 Google cost reconciliation:** 2026-09 Cost Tableと同一期間/project/SKU/serviceのbilled/usageを照合し、credits・tax・roundingを合わせる。cash-paidはsettlement receiptがある場合だけ記録し、trace欠損はunattributedのままにする。
+11. **A8 company coverage:** 18 product loops / 186 runtime jobsのsettled revenue/refund/feeとprovider/API/cloud/subscription actual costをsource・期間・通貨・owner・receipt単位で接続する。推定・stale・failed・unknownをsettled/zeroへ変換しない。
+12. **A9 daily CFO report:** Asia/Tokyo日次/MTD/trailingを各sourceでfilterし、agent/loop/platform別と全社のrevenue・refund/fee・actual/estimated/unknown expense・net・MRR・freshness・coverageを既存CLI/panelへ出す。`--date`表示値と集計window一致をtestする。
+13. **A10 natural acceptance:** main由来releaseで7日連続のnatural report、全18 loops/186 jobs coverage、official readback、delivery receipt、period consistency、unknown owner/actionとduplicate/replayゼロを確認する。それまでは全社CFO完了やverified $10k MRRを主張しない。
+
+**現在cursor:** A5 Task 5の修正review PASS後、Task 6 priority RED→GREENへ進む。Task 5 codeはローカルA5 branchにあり未push・未merge。Task 6は未着手。CFO productionの最新wakeは`apply_lock_busy`で、新しいreport receiptがない。
+
+**Blockerと解消方法:**
+
+- **CFO production report / release reconciliation:** 過去の`apply_lock_busy`は同じCFO ownerに対するrelease reconciler applyと重なり、owner logの11秒applyで説明できる。前回のlock holderは終了したが、新しいreconciler retryは現在runningのため次のhourly CFO wakeと再度競合する可能性がある。reconcilerはENOSPCでexit 1し、fleet applyはpartial。running retryをkill/restartせず、ENOSPCの実対象filesystem/quotaと該当output writeをread-onlyで特定し、必要なら安全な再生成可能データだけを整理して自然reconcileを確認する。証拠ログ/stateを根拠なく削除せず、原因が無制限outputなら対象を絞って集約/rotationを直す。次の自然CFO wakeは約14:04 JSTでreceiptを確認し、再発時だけ直前の同一label apply recordを再照合する。
+- **CFO data completeness:** 保存済みB7は01:58Zから更新されず、全18 loopとcompany MRRが`unknown`。A5をreleaseして自然reportを得た後、A6/A8でofficial billing/settlement evidenceとcoverage gapを埋める。unknownを0やverified $10k MRRに置き換えない。
+- **Spec PR #7027:** latest main `dcf04b2d`を含むCFO状態更新を既存PRへpush済み。最新commitのrequired checksをPASSさせてからmergeする。
+- **A5 PR #6827:** remote head `980fe867`はbase `034d46e8`上のままで、OSS boundaryとGitleaksがfailure。runtime trace source fixはlocal-onlyで、A5 branchはlatest main `dcf04b2d`より古い。Task 6/7完了後に最新mainをmergeしてpushし、新headのrequired checksを実行する。旧CIの結果は新headの証拠にしない。
+### 2026-10-08 12:19 JST — eBook source merge readback and production cursor
+
+PR #7030はrequired CI全件PASS後、merge commit `c5d3f20a1b59048c8709574e11e8cb777c3b972e`でmainへ統合済み。PRで追加したHeyGen ID/status保持、exit-4 stdout回収、sanitized failure propagation、正本spec/plan、Capafy inventory digestがmainにある。
+
+**最新production readback（12:19 JST）:**
+
+- `/Users/anicca/loops/current`は`20261008T121306-ca7d58b6`、main merge SHA `c5d3f20a`由来のreleaseはまだ作成/適用されていない。3 eBook ownersはSHA `94372580`をloadし、source fixは未反映。
+- `life-manager-release-reconciler`はPID 73416でloaded-running。cleanup occurrence `18dc6f999854bb40-71475`は`apply_lock_busy` / exit78 / no effect。`df -Pk /`は6,807,864 KiB freeだが、last cleanup receiptは11:53のfloor-met receiptのまま。
+- `lm-loop doctor`はretired Capafy browser labelのみでfalse。このguard mismatchは別ownerの境界。`apply_live(target=eBook-owner)`は無関係retired labelsを処理しないため、eBook target作業の条件にdoctor全体を追加しない。
+- English occurrence `18dc6de8dcf3a0e8-75262`はeffect unknown/receiptなし。最新のHeyGen title queryは該当動画0、wallet USD 11.78、Postiz English 0。旧08:00 intentは再送しない。
+- Postizの最新公式readback（11:52:35 JST）は3 integration enabled、日本語TikTok 1、日本語Instagram 1、英語0（2/9）。両日本語receiptは`reconciled`だがadmission DBでは各occurrenceが`claimed` / `official_readback_required`のまま。reconciler natural terminal後に同じreceiptでclaimが解放されたか確認する。
+
+**現在のatomic TODO:**
+
+1. reconciler PID 73416のnatural terminalを待ち、current release SHAとglobal/target apply-lockをreadbackする。停止・重複applyをしない。
+2. cleanup ownerを自然run/eligible再試行で通し、errors 0/protected deletions 0付きcapacity receiptを更新する。空きはfloorを超えているが、11:53 receiptから時間が経過している。
+3. 最新main由来immutable releaseを確認後、eBook ownersの古いSHAだけtargeted applyし、loaded SHA/argvとactive admissionを読む。irrelevantなretired Capafy labelを直接削除しない。
+4. Japaneseの2 `claimed` admission occurrenceを同じPostiz `PUBLISHED` receiptでowner reconciliationし、claim clear/readbackを確かめる。12:30 JST slotはclaimとlockの状態に応じて自然実行し、各公開receiptを確認する。手動clear/replayはしない。
+5. English旧effectのvideo IDまたは同createに紐づくitemized billing evidenceを探す。安全なdispositionまで旧intentを再送しない。source fixがloaded後も旧sidecarは自動解決しない。
+6. 英語fenceが安全に閉じた後、別slotでHeyGen ID/status/output SHA/costとPostiz receipt/post URLを同一occurrenceに結ぶ。全3 accountで3件/日の9 unique receiptsとreplay-zeroを確認する。
+7. click→locale Checkout→settled Stripe→matching PDF→Letter/Tegami settled recurring net MRRの14日cohortを照合する。初回paid eBookと対応PDF後に限りCapafy Instagram D5を1 canary/24hで始める。$10,000 net MRRは証拠が揃うまで目標。
+
+**Daisの作業:** 再接続・CAPTCHA対応・手動投稿は不要。source PRはmainにある。次に閉じるのはreconciler/cleanup/owner admissionの既存境界。
+
+### 2026-10-08 12:21 JST — exact-occurrence reconcile source is merged; production still old
+
+main `fd3f5e490794acb5b1b7692e6ff1c38e9b45803e`にはPR #7024の`mobile-postiz-provider-reconcile.py`更新が入った。runtimeに`LIFE_MANAGER_OCCURRENCE_ID`がある`--auto-owner`経路は同ownerのそのoccurrenceだけを照合し、隣接slotを選ばない。これはadmission claimの安全な照合契約であり、まだcurrent releaseへ適用されていない。
+
+**最新readback:**
+
+- current symlinkは`20261008T121306-ca7d58b6`。release reconcilerはPID 73416でloaded-running。cleanup occurrence `18dc6f999854bb40-71475`は`apply_lock_busy` / exit78。11:53 receiptはfloor met、現在の`df`は6,785,156 KiB free。`doctor`はretired Capafy browser labelだけでfalse。
+- eBook ownersはSHA `94372580`をloadしたまま。日本語TikTok/Instagramの既存Postiz receiptsは各1件で`reconciled`だが、admission tableの両occurrenceは`state=claimed`, `effect_unknown=1`, `next_action=official_readback_required`。English `18dc6de8dcf3a0e8-75262`もunknownでreceiptなし。latest Postiz readbackは11:52:35 JSTの2/9（English0）。
+- PR #7030のHeyGen repairと#7024のexact-occurrence reconciliation sourceはmainにある。productionにloaded SHAは未反映で、旧sidecarのprovider IDは依然得られていない。
+
+**残りatomic TODO:**
+
+1. main `fd3f5e49`由来immutable releaseのnatural reconcileを待ち、release reconciler PID 73416のterminalとglobal apply lock releaseを確認する。並列起動・restartをしない。
+2. loaded SHAが新releaseへ移ったか各eBook ownerで読む。旧SHAなら`launchctl-safe preflight`後に該当ownerだけtargeted applyする。retired Capafy labelは別ownerのguarded cleanup debtであり、eBook target applyの条件にしない。
+3. 日本語2 claimをPR #7024のexact-occurrence `--auto-owner`経路で同一Postiz receiptに結ぶ。current runtime occurrenceを1件ずつ解決し、`state/effect_unknown`とofficial readbackを再確認する。手動DB editやslot retryをしない。
+4. 12:30 JSTの日本語slotを自然実行し、各`PUBLISHED` post ID/public URLとoccurrenceを読み返す。claim/lockが残ればそのownerのexact deferを診断し、投稿扱いしない。
+5. 英語`18dc6de8dcf3a0e8-75262`のHeyGen video IDまたは同createのitemized billing recordを探す。安全にdispositionするまで旧08:00を再送しない。新releaseの保護修正は過去の欠落IDを補わない。
+6. 英語fenceの後に次の別slotを1回実行し、HeyGen ID/status/output SHA/costとPostiz `PUBLISHED` receiptを同一occurrenceへ結ぶ。その後3 accounts各3件/日、9 unique receipts/dayとreplay-zeroを自然確認する。
+7. click→locale Checkout→settled Stripe→matching PDF→Letter/Tegami settled subscription net MRRを14日cohortで測る。初回paid eBook order+matching PDF後にだけCapafy IG D5を1 canary/24hで始める。
+
+**現在cursor:** item 1。providerへの新しいpostを手動送信しない。次の日本語枠は12:30 JSTで、自然run receiptを確認する。
+
+### 2026-10-08 12:23 JST — Gig parallelism and open-source capacity finding
+
+この更新はGig laneの容量判断だけを記録し、TODO順を変更しない。読み取りのみで、loop起動・cap変更・外部操作はしていない。
+
+- `2026-10-08T03:22:39Z`の実測はfinite-run 8/8枠、queue 78件。これはLife Manager admissionに入るfinite runの上限であり、Codexの編集session数ではない。個別worktreeと重ならない所有範囲でcode変更・fixture testを並列化し、live `lm-loop`実行と同一browser/provider leaseは既存admissionを通す。
+- `runtime/loop/lm_loop_run.py`はclaim取得後にchild commandを起動し、child終了後の`finally`でclaimを解放する。長い処理・待機もchildが終了するまで枠を占有し得る。次の改善候補は、external effect前後のintent/fenceを永続化した上で、実際に待機しているworkflowだけを短いdurable stepへ分け、compute claimをyieldすること。effectが起きた可能性のあるclaimは解放・再送しない。
+- `runtime/host/resource_admission.py`は`capacity_busy`と`fifo_wait`を別理由にしている。FIFO/priority順は次に枠を取るeligible ownerを選び、8/8満杯の容量そのものは増やさない。queue 78件のうち何件がeligibleかは未確認。
+- OpenClaw v2026.9.8のcron既定並列数は8、subagent既定は1 spawning sessionあたり8で、subagentsはGateway資源を共有する。[cron source](https://github.com/openclaw/openclaw/blob/v2026.9.8/src/config/cron-limits.ts)、[subagent operations](https://docs.openclaw.ai/tools/subagents/operations)、[queue docs](https://docs.openclaw.ai/concepts/queue)。OpenClawへの単純移行は現行LMの8枠やMacの物理容量を増やさない。CPU/RAMに応じたworker slot供給は[Temporal worker performance](https://docs.temporal.io/develop/worker-performance)の候補だが、今すぐ新runtimeを導入しない。
+- 広いOpenClaw/native Codex migration・OSS比較は別担当の[PR #6814](https://github.com/Daisuke134/life-manager/pull/6814)がopen/unmerged。Gig側ではその設計を複製せず、既存admission内でclaim保持時間とclass別waitを測り、必要なら測定後に1 classずつ調整する。global上限の引上げやruntime migrationはまだ実施しない。
+
+**現在cursor:** Remaining atomic Gig TODOの並列1A/1B。1Aはsource PR/CI/merge待ち、1Bはcleanup構造化receiptと安定headroom/queue eligibility readback待ち。その後のplatform順は上のリストどおり。
+
+### 2026-10-08 12:28 JST — exact identity sidecar is missing for old claims
+
+mainはPR #7039/#7040/#7044を含む`53d49879d79e5095f7cd4767cdedb95444ad1138`まで進んだ。PR #7041 branchはこのmainをmergeし、Capafy 243-file inventory hashを`caef751afc6a2e815d6efc36ece93915daeba9a15b822f421e0e0e5339d1d841`へ同期した。`node scripts/verify-oss-self-contained.mjs --json`は`ok=true, violations=[]`; branch pushと新CIが残る。
+
+**追加診断:**
+
+- Postiz direct GET（12:25 JST）は3 integration enabled、英語0、日本語TikTok 1、日本語Instagram 1（2/9）。HeyGen title `Anicca`はvideo 0、wallet USD 11.78。次slotは12:30 JST。
+- 3つの旧occurrenceに一致する`~/.local/state/life-manager/ebook/effect-identities/*.jsonl`は見つからない。sidecar directoryには別occurrenceの4 JSONLだけ。`lm-fence-reconciler`のstructured call logは各JP occurrenceについて`no_match / exact_pending_receipt_unavailable / inspected=0`。日本語のprovider receiptはeventsにあるが、identity bindがなくadmission `effect_unknown=1/state=claimed`を閉じられない。
+- 英語occurrence `18dc6de8dcf3a0e8-75262`のterminal eventは`effect_identity_status=not_written`、error detailは`render_reconciliation_required`。main #7030のsource repairは未来のresponse ID/statusを保持するが、過去のID-less sidecarは復元しない。
+- 現在のsource mainはexact-current-occurrence reconciliationを含むが、current symlinkは12:25時点で`20261008T122236-fd3f5e49`。`lm-fence-reconciler`自身は古いrelease `46ec94bd`をloadしたままで、eBook ownersもfd3f/943の混在。新実装の適用と旧sidecar復元は別問題。
+
+**残りatomic TODO（優先順）:**
+
+1. PR #7041のlatest-main merge/hash updateをpushし、新head required CIをPASSさせる。
+2. release reconcilerとowner lockが自然terminalするのを待ち、latest main由来immutable release SHAをcurrentと対象ownerの両方でreadbackする。
+3. 3つの旧occurrenceについて、runtime/eBook local artifactsとPostiz official receiptからexact effect identityを再構成できるか調べる。identity metadataを推測してDB/sidecarへ書かない。receipt, account, integration, slot, caption/media hashesが一意に一致した時だけ既存owner reconciliationでclaimを解放する。再構成不能ならexact artifactと原因をspecに残しfenceを保持する。
+4. 12:30の日本語owner自然slotを確認する。旧claimがowner admissionを止めた場合、exact occurrence・deferとowner SHAをreadbackし、新しい別slotを重複送信しない。
+5. English 08:00 effectはvideo IDまたはitemized billing detailなしではunknownのまま保持する。新sourceはload後の別slotからID/statusを保存し、future no-second-createを保証する。
+6. admission解放後、3 accountsそれぞれ3 unique `PUBLISHED` receipts/day（9 total）とreplay-zeroを自然確認し、attribution→Checkout→settled Stripe→matching locale PDF→Letter/Tegami recurring net MRRへ接続する。
+7. 初回paid eBook orderとmatching PDF receipt後だけCapafy IG D5へ進む（1 canary/24h）。$10,000 net MRRはsettled net subscription evidenceまで目標。
+
+**現在cursor:** item 1（PR #7041 latest-main CI）。production投稿を手動送信しない。
+
+### 2026-10-08 12:31 JST — Gig source PR baseline CI blocker
+
+この更新は1AのCI状態だけを置き換え、TODO順を変更しない。
+
+- PR #7042の初回head `cc02e6dd` / base `6639a538`のCI記録はmerge blockerのまま。Gig branchにはlatest main `53d49879`をmerge済みで、次のpush後にCIを再実行する。
+- Root cause evidence: ローカル`node scripts/verify-oss-self-contained.mjs --json`とCIが同じ`manifest_inventory_mismatch` / `skills/capafy-autopublish`を報告する。Gig PRのdiffにCapafy pathや`docs/manifests/oss-merge-1-sources.json`は含まれない。base run `37722582624`のOSS jobが同様にFAILした後run cancelし、最新main由来PR #7044のcheckでも同じ境界checkがFAILした。
+- 別laneのmanifestを重ねて変更しない。base側のOSS inventoryが整ったmainを取り込んでPR #7042のrequired checksを再実行する。Pass前にmergeしない。
+
+**現在cursor:** parallel 1A PR #7042 CI/baseline resolutionと1B cleanup receipt/capacity eligibilityの並行gate。後続platform順は`Remaining atomic Gig TODO`に従う。
+
+### 2026-10-08 12:40 JST — 12:30 slots deferred by missing exact identities
+
+PR #7030はmainにmerge済み、main #7024のexact-occurrence provider reconcilerもcurrent symlink `20261008T123759-d1d58506`に含まれる。ただし`lm-fence-reconciler`はSHA `46ec94bd`、English/JP TikTok ownersは`fd3f5e49`、JP Instagram ownerは`94372580`のままで、最新releaseへ全ownerが揃っていない。mainはdocs PR #7045を含む`893a929f`まで進んでいる。
+
+**12:30 JST slot readback:**
+
+- Postiz direct GET（12:34:20 JST）では3 integration enabled、English 0、日本語TikTok 1、日本語Instagram 1（2/9）。新規PUBLISHED postはない。
+- 日本語TikTok occurrence `18dc7047fd1a6850-93639`とInstagram `18dc7047ecc63f38-93638`はexit75 / `host_admission_deferred:resource_effect_unknown` / effect receiptなし。どちらもprovider dispatch前のadmission defer。
+- fence-reconciler call ledgerは既存2 JP occurrenceを`no_match / exact_pending_receipt_unavailable / inspected=0`で返した。`effect-identities/`には一致sidecarがない一方、`tenants/dais-local/marketing/video-publication/ebook-ja/distribution.jsonl`と`marketing/receipts.jsonl`にはPostiz ID、slot、video SHA、caption SHA、public URLがあり、`marketing-owner-events/state/publication-identity.jsonl`にはaccount/integration/state/content SHAがある。これらは再構成候補であり、単独の近接一致ではclaimを解除しない。
+- English 08:00 occurrence `18dc6de8dcf3a0e8-75262`は同じくunknownで`effect_identity_status=not_written`。HeyGen title queryはAnicca video 0、wallet USD 11.78。mainの将来向けsource fixは過去IDを復元しない。
+- current `df`は6,150,848 KiB free。cleanup/doctorの表示は別ownerのguarded Capafy browser labelのまま。
+
+**現在のremaining atomic TODO:**
+
+1. PR #7041をlatest main `893a929f`へ同期し、最新版のCapafy inventory hashでOSS verifierとrequired CIをPASSさせてmergeする。
+2. release reconcilerの自然terminal/lock解放後、`lm-fence-reconciler`と3 eBook ownersのloaded SHAを最新immutable releaseへtargeted applyする。active ownerを止めず、retired Capafy labelは別owner境界に残す。
+3. 各JP旧occurrenceについてdistribution receipt、marketing job/effect key、publication identity、local content hashes、fresh Postiz GETを同じprovider post ID・account・integration・slotへjoinする。全identity fieldsが一意に一致した場合のみ新owner adapterでsidecarをrebuildし、同一occurrenceの`--auto-owner --resolve` official proofでclaimを閉じる。曖昧ならfenceを保持して不足fieldを記録する。DBを直接編集しない。
+4. JP claimsがclosedなら、missed 12:30 slotが現在もdueか既存`marketingVideoDueSlot()`で判定し、eligibleな間にregistered ownersの自然runを確認する。new Postiz `PUBLISHED` IDs/public URLsが得られるまで2/9のまま数える。
+5. English旧effectはvideo IDかitemized billing recordが得られるまで再送しない。source fixのload後、過去claimとは別に次の英語slotを処理する。
+6. 3 accounts×3 unique `PUBLISHED` receipts/day（9 total）とreplay-zeroを確認し、click→locale Checkout→settled Stripe→matching PDF→Letter/Tegami net recurring MRRへ結ぶ。first paid order+PDF後にCapafy IG 1 canary/24hへ進む。
+
+**現在cursor:** item 1（PR #7041 latest-main merge/CI）。12:30 owner attemptsは投稿0件、既存実績は2/9。
+
+### 2026-10-08 12:55 JST — post-merge source/spec; production identity recovery remains
+
+PR #7030（HeyGen ID/status recovery）とPR #7041（post-merge cursor）はmainへmerge済み。latest mainは`cea5024c627339c4dc61addf59154e1c808d5426`。この節のatomic TODOはsource/spec統合後のproduction cursorである。
+
+**12:55 JST readback:**
+
+- Postiz direct GETは3 integrationすべてenabled、今日2/9（英語0、日本語TikTok1、日本語Instagram1）。12:30 slotの両日本語ownerは`host_admission_deferred:resource_effect_unknown` / exit75でprovider call前に終了し、新規postなし。
+- `/Users/anicca/loops/current`は`20261008T124623-8f342d8d`。空き容量は4,702,468 KiB（2 GiB floor超）。release reconciler PID63286はloaded-running、cleanup occurrenceは`apply_lock_busy`。`lm-loop doctor`はretired Capafy browser labelだけでfalse。
+- English `18dc6de8dcf3a0e8-75262`はeffect unknown / receiptなし / identity `not_written`。HeyGen Anicca video listは0、wallet USD 11.78。再送しない。
+- 既存JP provider receiptsはPostiz `PUBLISHED`。しかし両occurrenceに一致するeffect-identity sidecarはなく、fence-reconcilerのcallは`no_match / exact_pending_receipt_unavailable / inspected=0`。local distribution receipt、marketing job receipt、publication-identity recordには同じPostiz ID/account/integration/slot/hashがあり、exact joinの候補だが、identity metadataが検証できるまでclaimは閉じない。
+- current eBook ownersはEnglish/JP TikTok SHA `fd3f5e49`、JP Instagram `94372580`。`lm-fence-reconciler`は`46ec94bd`で古い。mainに入った#7024のoccurrence-scope sourceも、そのownerへまだ適用されていない。
+
+**remaining atomic TODO:**
+
+1. release reconciler PID63286のnatural terminalとtarget/global apply-lock解放を確認する。停止・重複applyをしない。
+2. latest main由来releaseをreadbackし、`lm-fence-reconciler`と各eBook ownerをtargeted applyで揃える。unrelated Capafy retired labelによるglobal doctor warningをeBook target applyの条件にしない。
+3. JP旧claimについて、runtime occurrence、marketing job/effect key、distribution receiptのcaption/video hashes、account/integration、publish slot、Postiz official readbackを一意にjoinする。exact identityを既存owner adapterで復元できた場合だけ、同一occurrenceを`--auto-owner --resolve`で解放し、official readbackを再確認する。単独receiptや近接slotからsidecarを推定しない。足りないfieldは明示してfenceを保持する。
+4. 12:30 missed slotは既存due-slot関数上、次の20:00 slotまでcurrent dueとなる。identity claimが安全に解放されたら、次のnatural owner wakeで12:30 slotをcatch-upし、2 accountそれぞれの`PUBLISHED` receipt/post ID/public URLを確認する。再送・手動publishはしない。
+5. English old effectはHeyGen video IDまたは同create itemized billing recordが揃うまでunknownのまま。旧08:00を再送せず、安全にdispositionした後の別slotでfuture-preserving rendererからreceiptを取得する。
+6. all ownersの自然slotで各3 unique posts/day、9 receipts/dayとreplay-zeroを確認し、click attribution→locale Checkout→settled Stripe→matching PDF→Letter/Tegami net recurring MRRへ繋ぐ。one-time eBook saleをMRRに含めない。
+7. first paid eBook orderとmatching PDF receipt後にだけCapafy Instagram D5を開始し、1 canary/24hとする。$10,000 net MRRはsettled recurring evidenceの目標。
+
+**Daisの作業:** Postiz再接続、CAPTCHA、手動postは不要。source/spec PRはmainにある。今の実ブロッカーはold effect identitiesの欠損とowner admission claimsである。
+
+### 2026-10-08 13:13 JST — eBook ideal flow and verified cursor
+
+この節はeBook laneの12:55/12:40 snapshotより新しい。全社TODOの順序は変えず、eBookの状態・順序だけを更新する。latest mainはPR #7051を含む`0c2bb882dee59e3eaadae4d94a6d42d9de463a81`。PR #7030（HeyGen response ID保持）と#7041（post-merge cursor）はmainへmerge済み。PR #7050はこの節を含むspec更新branchで継続中。
+
+**理想の配信・収益経路:** 英語はHeyGenで1日3本、日本語はWatercolorで1日3本を制作する。日本語の同じ3本をTikTokとInstagramへそれぞれ投稿するため、合計は6本制作・9件の投稿となる。各投稿のPostiz `PUBLISHED` receiptをclick/order/PDF receiptへ結び、MRRは別途、実際にsettleした月額subscriptionだけで計上する。
+
+```mermaid
+flowchart LR
+  subgraph EN[英語 lane]
+    ES[英語台本 3本/日] --> HG[HeyGen 3動画/日]
+    HG --> ET[Monk Anicca TikTok 3投稿/日]
+  end
+  subgraph JA[日本語 lane]
+    JS[日本語台本 3本/日] --> WC[Watercolor 3動画/日]
+    WC --> JT[Obou TikTok 3投稿/日]
+    WC --> JI[Obou Instagram 3投稿/日]
+  end
+  ET --> R[Postiz PUBLISHED receipt]
+  JT --> R
+  JI --> R
+  R --> C[UTM付きclick]
+  C --> O[locale別eBook checkout]
+  O --> P[settled order + 対応PDF receipt]
+  P --> S[Letter/Tegami 月額subscription<br/>価格・稼働証拠は未確認]
+  S --> M[net MRR]
+  M --> F[views・clicks・conversion・refund・costで次の台本を改善]
+  F --> ES
+  F --> JS
+  P --> CF[Capafy Instagram<br/>初回paid order + PDF後に1 canary/24h]
+```
+
+**13:09–13:10 JST readback:**
+
+- Postiz公式GET（13:09:52 JST）では、対象integrationはEN TikTok `cmo5rwq2p00twn10yrsdglng3`が0件、JA TikTok `cmo5s4edx00vgn10ygnu34a0n`が1件、JA Instagram `cmooplxmu04tpmd0y4h3cpk33`が1件、計2/9。日本語2件は`PUBLISHED`で、Post IDは`cmuynjaq808iblc0yd2396uhg`と`cmuynjkih08ihlc0y38o87z0n`。12:30の日本語occurrence `18dc7047fd1a6850-93639` / `18dc7047ecc63f38-93638`はexit75、`host_admission_deferred:resource_effect_unknown`でprovider dispatch前に終了し、新規postではない。
+- English旧occurrence `18dc6de8dcf3a0e8-75262`は`effect=unknown`、receiptなし、`effect_identity_status=not_written`。HeyGen公式CLIの`video list --title Anicca`は0件、`auth status`のwalletはUSD 11.78（13:10 JST）。この一覧結果だけでは旧createのeffectを否定できないため、同じ08:00 occurrenceを再送しない。
+- EN account registry `tiktok.monk_anicca`は`disabled_verified`で、publish preflightの`approved_active`条件を満たさない。Postiz APIのintegrationは`disabled=false`だが、接続表示はローカルpublish許可を意味しない。JP TikTok / Instagramのregistryは`approved_active`。
+- 既存JP `PUBLISHED` receiptのrun `18dc5e822e430b80-45345`（TikTok post `cmuynjaq808iblc0yd2396uhg`）とrun `18dc648de93a3c68-68679`（Instagram post `cmuynjkih08ihlc0y38o87z0n`）、英語unknown run `18dc6de8dcf3a0e8-75262`に一致するeffect-identity sidecarは4つのJSONLにない。fence-reconciler call ledgerは3つとも`no_match / exact_pending_receipt_unavailable / inspected=0 / closed=false`。event logに`pass/reconciled`があってもexact owner claimは閉じていない。JPのdistribution receiptにはpost URL、slot、video/caption hashがあり、occurrenceからPostiz IDまでの一意なowner identity結合は未確立。12:30 blocked runs `18dc7047fd1a6850-93639` / `18dc7047ecc63f38-93638`はこれらの既存PUBLISHED runsと別occurrenceで、provider receiptを持たない。
+- current symlinkは`20261008T124623-8f342d8d`。release reconciler PID 72756は13:10 readbackでrunning。ディスク空き6,735,776 KiBで2 GiB floorを超える。`lm-loop doctor`のfalseは別ownerのretired Capafy browser labelだけで、eBook target applyの条件にしない。
+- eBook packの価格はEN USD 10.99、JA JPY 1,580。いずれもpack上のeBook価格であり、月額subscription price、settled subscription、PDF deliveryを結ぶ購入receiptは今回確認していない。したがって$10,000 MRRは未達・未立証の目標であり、単発売上をMRRに数えない。
+
+**TODO順変更:** 旧順=`reconciler terminal → apply → JP identity → JP catch-up → EN unknown → 9/day → sales/MRR → Capafy`。新順=`reconciler terminal + lock readback → owner/reconcilerを現行source releaseへtarget apply → JP identityを一意joinしてowner経由resolve → 12:30がまだdueならnatural catch-up → EN旧effectとEN account eligibilityを別々に解決 → 英語の別slotを1回投稿 → 3 account×3 PUBLISHED/dayとreplay-zero → checkout/PDF/recurring economics → Capafy canary`。理由: 13:09のPostiz official GETで2/9しかなく、EN accountのcanonical statusもpublish禁止であることを確認した。current cursor=`release reconciler PID 72756の自然terminalとapply-lock readback`。20:00まで何もせず待つ必要はない。12:30 slotは既存due-slot契約上まだcatch-up対象になり得るが、claimを安全に解決してからownerのnatural wakeで判定する。
+
+**Remaining atomic TODO（上から順に1つずつ）:**
+
+1. release reconciler PID 72756の現在occurrenceが自然terminalし、target/global apply lockが解放されたことをreadbackする。serviceをstop/restartせず、並行applyもしない。
+2. 現在のimmutable releaseに#7024 exact-occurrence reconciliationが入っていることを確認し、`lm-fence-reconciler`と3 eBook ownerを対象限定で順に適用する。各loaded SHA/argvとtarget admissionをreadbackする。retired Capafy labelをeBook条件に足さない。
+3. 既存JP PUBLISHED runs `18dc5e822e430b80-45345` と `18dc648de93a3c68-68679`ごとにruntime occurrence、marketing job/effect key、distribution receipt、Postiz post ID/state、account/integration、slot、video/caption hashesを一意にjoinする。既存owner adapterが扱えなければ、直接DB/sidecarを書かず最小のowner-path recoveryを実装する。一意一致したoccurrenceだけ`--auto-owner --resolve`で解放し、公式readbackを確認する。曖昧なら不足fieldを残してfenceを保持する。
+4. JP旧claimの解決後、既存due-slot関数で12:30 slotがまだdueか判定する。dueなら登録済みownerのnatural wakeでcatch-upし、TikTok/Instagram各々の新しい`PUBLISHED` Post IDとURLを確認する。手動publishはしない。
+5. English 08:00 occurrenceのHeyGen video IDまたは同一createに結びつくitemized billing evidenceを探して旧effectを安全にdispositionする。video listが0件というだけで再送しない。
+6. `tiktok.monk_anicca`が公式にpublish可能か調べ、canonical statusを`approved_active`にできる根拠を得る。不可なら既存のowned English account候補を公式確認してからspec/registryを切り替える。Postiz `disabled=false`だけでactive扱いにしない。
+7. 旧effectが安全に閉じ、英語destinationが`approved_active`になった後、別の英語slotをowner経由で1回実行する。HeyGen video ID/status/output SHA/costとPostiz PUBLISHED ID/URLを同一occurrenceに結ぶ。
+8. 自然運行で各3 accountのunique `PUBLISHED` receiptを1日3件ずつ（合計9件/日）確認し、replay-zeroを維持する。6動画/日を9投稿/日へ配布する形を継続する。
+9. Postiz post→UTM click→locale checkout→settled Stripe order→同じorderのPDF delivery receiptを結ぶ。月額Letter/Tegami offerの現行価格とsettled subscriber countを別途確認し、net MRRを計算する。subscriptionが未稼働なら価格を推測せず、既存の承認済みofferを使う実装作業を切り出す。
+10. 初回paid eBook orderと対応PDF receiptが確認できた後にだけCapafy Instagram D5を1 canary/24hで始める。Capafyの商品開発・アカウント作成はこのeBook laneに含めない。
+
+**Daisの作業:** 現時点でPostiz再接続、CAPTCHA、手動投稿は不要。TikTokがアカウント本人確認を要求する場合だけその本人操作が外部前提になる。最初に進める実作業はrunning reconcilerの自然terminal readbackであり、20:00までの単純な待機ではない。
+
+### 2026-10-08 13:25 JST — mobile acquisition-first status and end-to-end TODO
+
+この節はmobile cross-appの12:40 JST以前の状況とTODO順を更新する。eBook固有の13:13 entryはそのlaneの記録として保持し、全社§84-Aの順序は変更しない。Dais指定の優先順はdistribution → marketing/app metrics → in-app funnel → onboarding/paywall → verified net MRR。
+
+**Fresh readback:**
+
+- `origin/main`=`dcf04b2dbf401bbd07e78e9c9efd204f0e4cc5b9`。`~/loops/current`はmain由来release `8f342d8d71396bc7e9f542ae09af9b46781ff410`。`life-manager-release-reconciler`はloaded-running / exit 1 / `reconcile_owner`のままで、全ownerがlatest main SHAに揃っていない。
+- Postiz official GET（13:25 JST, GET integrations + posts, external mutations 0）は31 integrations、TikTok 17、enabled 16、disabled 1（profile `@anicca.jp8`）。今日のJST 00:00–13:25は5件のTikTok `PUBLISHED`。profile別では`@obou_anicca`、`@anicca.jp`、`@anicca_slideshow`、`@anicca.jpx`、`@honne_reveal`が各1件、残る11 enabled profileは0件、disabled profileも0件。目標は接続済み17 profile全てなら51件/日、16 enabledだけでも48件/日であり、今日の5件は未達。
+- TikTok natural receipts: `@anicca.jp` / `cmuyz2obs0e4ikz0ybi6efs5c`、`@anicca.jp1` / `cmuyz2oe60e0jlc0y7nz9uvuo`、`@anicca_slideshow` / `cmuz11eea0f3kkz0ygwt43zls`を確認。各1件のPUBLISHED proofであり、3 posts/profile/dayの達成証明ではない。Buddhaは`entrypoint_exit_1` / effect unknown、EN/EN2 affirmationの直近terminalはdisk-headroom defer、eBook ENはeffect unknown、eBook JAは`resource_effect_unknown`、TikTok metrics ownerも`resource_effect_unknown`。曖昧なeffect fenceは解放・再送しない。
+- Post-metrics JSONLには10/8にTikTok checkpointが8行あり、5 measured・3 unavailable。今回の8行は`account_id`と`impressions`がnullで、全profileのmeasurement coverageではない。unsupported/missingは0と扱わない。
+- Telegram checkpoint link fix PR #7043とoccurrence-scoped TikTok reconciliation PR #7024はmainに統合済み。`marketing-owner-events`はPR #7043を含むreleaseをloadし、checkpointにはmetric row URLまたは一意に一致するpublication identity URLを表示し、どちらも無い時は`投稿リンク: 取得できませんでした`を出す。report suite 86/86とPR CIはPASS。まだ新形式の自然Telegram checkpoint delivery receiptは確認していないため、次回の実reportを読む。既に送信済みのreportは書き換えない。
+- ASC CLIのapp rosterは13:20 JSTに24 recordsを返した（test/draft artifactsを含む）。保存済みapp acquisition snapshotの最新は10/03で、Aniccaはその期間first-time downloads 0、impressions 16 / unique 11、product-page views 0。実際に公開中の6 app IDとテスト記録の対応は再照合が必要。
+- 10/07に受け取った週次メールの最後のreported snapshotはAnicca MRR USD 20.34、paid 5、trials 0、28日売上USD 32.56、7日DL 8、28日DL 37。HonneはMRR USD 0、7日DL 6、28日DL 8。これはユーザー提供のsnapshotで、今回のlive RevenueCat readbackやsettled net revenueではない。ローカルRevenueCat attribution JSONの最新は09/26でsource unavailable。10,000 USD net MRRは未達・未立証。
+- Anicca iOSにはMixpanel/PostHog SDKと`paywall_viewed`/`paywall_purchased`等のsource hooksがある。SDK/package存在は実event receiptやcomplete onboarding cohortの証明ではなく、現在のinstall→steps→paywall→trial/purchase funnelは未確認。
+
+**Remaining atomic TODO, in order:**
+
+1. Distributionをaccount別に復旧する。最新main由来releaseへownerをそろえ、effect unknownはPostiz exact identity/readbackでoccurrenceごとに閉じ、曖昧なものを保持する。@anicca.jp8を含む17 profileのenable/routeを公式状態で確定し、各profileに3 unique `PUBLISHED` receipts/JST日（17件なら51件、16 enabledのままなら48件）を確認する。他accountの過剰投稿で不足を埋めない。
+2. 今日の自然slotからaccount別receiptを更新する。現時点の5件を日次完了と扱わず、失敗・deferはowner/occurrence別に原因と次の安全なretryを記録する。投稿内容は既存承認済み素材を使い、背景や動画の新作を前提にせずcaption/hook/CTAの違いを管理する。
+3. Social metricsをすべての投稿に結ぶ。Postiz/native APIのviews、impressions、likes、comments、shares、savesを固定checkpoint（6/24/72/168h）で取得し、`account_id`、`product_id`、native post URL、copy variant、CTA/tracking linkへ結ぶ。現在blockedの`life-manager-tiktok-metrics`をexact owner readbackで復旧し、取れないfieldsは`unavailable/unknown`で残す。次の自然Telegram reportで投稿リンクが実際に届くことも確認する。
+4. ASC/RevenueCatのapp別baselineをfreshにする。24件のASC recordから実公開中の6 app IDを確定し、ASC first-time downloads、impressions、product-page viewsを日次で取り、RevenueCatのactive paid/trial/renewal/cancellation/refund/MRRをapp別に揃える。RevenueCat MRRとsettled Apple proceeds/refunds/feesを混ぜない。保存済みASC snapshot（10/03）とRevenueCat snapshot（09/26）はcurrentとして使わない。
+5. Marketing attributionを閉じる。投稿ごとにaccount、hook/copy、format、CTA/UTM、store destinationを記録し、Postiz views/clicks → ASC product page/installまでcampaign単位で結ぶ。attributionのないviewや時刻近接からconversion率を推測しない。新しいX/SEO/記事channelは既存TikTok cadenceと測定が安定してから一つずつ試す。
+6. Anicca iOSをASC first-time downloads 100件/日のtrailing 7-day平均へ伸ばす。最後のユーザー提供値は8件/週（約1.14件/日）なので約87.5倍の到達差があるが、これはforecastではない。7日平均を満たした後、残る実公開中5 appへ同じ計測付きdistribution playbookを順に展開し、per-app targetは各100件/日とする。
+7. In-app analyticsを実測する。Mixpanel/PostHogの実project/event exportでdistinct usersとinstall→onboarding step→paywall view→plan load success/failure→trial→purchase/restoreを検証し、ASC/RevenueCatの同一campaign/cohortへjoinする。SDK配置だけで完了にしない。
+8. Traffic/cohort baseline後にpaywall/onboardingを一仮説ずつ改善する。画面のプラン読み込み失敗を購入信頼性incidentとして解消し、hard/soft paywall、価格、trialの変更は一度に一つだけ測る。通知tapの同一quote問題は別のrelease gateとして扱い、#804のXcode Cloud readbackではrun PENDING/sourceCommitなし、ASC build 391は未検出なので、実buildのquoteId/body/locale検証が済むまで修正済みとしない。
+9. ASCがstore-page conversion bottleneckを示した場合だけASO/screenshot実験を行う。distribution、ASO、onboardingを同時に変えない。
+10. 10,000 USDのverified net MRRを、同期間のsettled recurring receipts − refunds − platform fees − actual provider/cloud costsで証明する。必要なactive subscribersとconversionは現行価格/retentionの実測後に算出し、gross RevenueCat MRRをnet達成値としない。
+11. Anicca iOSで10,000 USD verified net MRRと再現可能なper-app unit economicsを確認した後、同playbookを既存appへ1つずつ広げる。100,000 USD / 10,000,000 USDとmobile app factoryは長期目標であり、再現性が証明されるまで達成扱いしない。
+
+**Current cursor:** item 1 (TikTok distribution). Telegram link formatter is merged and loaded; fresh proof for a newly generated Telegram report is pending. At 13:25 JST, Postiz is 5/51 and the five delivered profiles each have one post.
+
+### 2026-10-08 13:27 JST — eBook owner apply complete; fence and Capafy automation remain
+
+PR #7050はmainへmerge済み（merge commit `dcf04b2dbf401bbd07e78e9c9efd204f0e4cc5b9`）。この追記はmain `4dad886ca7a3798dd7ccb9879216bd93a7b25cb5`からのreadbackで、13:13の理想architectureは維持し、production cursorを更新する。
+
+**13:25–13:27 JST readback:**
+
+- Postiz公式GET（13:27:37 JST）でeBook targetは2/9のまま：EN TikTok 0、JA TikTok 1、JA Instagram 1。12:30のJP runsはpre-provider admission deferで、既存2 receiptとは別occurrence。
+- `life-manager-release-reconciler` PID 72756はrun `18dc7288225a6d08-72756`でfleet owner applyを継続中。13:27時点で153 owner result rowsあり、最後は`x-repost-ja-pass`。現在のprocess/host apply lockに重ねてapplyしない。最後に保存されたfleet summary（13:10）は`status=partial`, `changed=76`, `errors=2`, `skipped=24`, `message=budget exceeded`であり、これは進行中runのterminal summaryではない。
+- eBook EN TikTok、JA TikTok、JA Instagram ownerはすべて`loaded-idle`でimmutable release SHA `8f342d8d71396bc7e9f542ae09af9b46781ff410`にapply済み（fleet owner rowsは各`rc=0, changed=1`）。それぞれのlatest business eventは古いSHAのunknown/blocked occurrenceのままなので、loaded source更新はeffect claimの解決を意味しない。
+- `lm-fence-reconciler`はSHA `46ec94bdea884fd7afa61e603a79fdd1b3048ef7`の`loaded-idle`。13:19の自然runは`pass`だが、3つの旧occurrenceに対する最新structured callはいずれも`no_match / exact_pending_receipt_unavailable / inspected=0 / closed=false`。effect identity sidecarは存在せず、claimsは残る。
+- Capafy Postiz profile `capafy.hooklab`のintegrationは公式GETで`disabled=false`、13:25時点で今日2件`PUBLISHED`。これはeBook 2/9と混ぜない。Capafy owner `capafy-ig-marketing-daily`と`life-manager-capafy-ig`は`disabled`かつ古いSHA `2e87d30d24b95c7c51e49861bc18a62b97c0b4c2`。進行中fleet applyは両方で`Bootstrap failed: 5 (Input/output error)`を記録し、previous jobへrestoreした。provider接続/再接続ではなく、owner automation applyが未解決。既存2投稿は連続cadenceの証拠ではない。
+- current symlinkは`20261008T124623-8f342d8d`。13:20の空き容量は6,556,752 KiBで2 GiB floor超。物理disk floorは現在のprimary blockerではない。
+- 13:13時点のHeyGen公式video listはtitle `Anicca`で0件、wallet USD 11.78。English old run `18dc6de8dcf3a0e8-75262`はidentity `not_written` / `effect=unknown`のまま。EN registry `tiktok.monk_anicca=disabled_verified`も未解決。旧effectを再送しない。
+- eBookの現行pack価格（USD 10.99 / JPY 1,580）は単発売り価格。settled paid order、対応PDF receipt、月額Letter/Tegami price/subscriptionは未確認。$10,000 net MRRは目標であり、現時点の実績ではない。
+
+**TODO順変更:** 旧順=`release reconciler terminal → eBook ownersとfence reconcilerをapply → JP claim recovery → catch-up → EN effect/account → 9/day → checkout/MRR → Capafy`。新順=`現在のfleet apply runを自然terminalしlock readback → 既にapply済みの3 eBook ownersをloaded-state確認 → fence reconcilerを現行releaseへtarget apply/readback → JP old receipt identitiesをowner pathで一意recover → 12:30 catch-up判定 → EN old effectとaccount eligibilityを個別解決 → EN distinct-slot canary → 3 accounts×3 PUBLISHED/day → checkout/PDF/recurring MRR証拠 → Capafy ownerのBootstrap 5 root causeを特定し、承認済みcanary cadenceへ復旧`。理由: eBook ownersは現行sourceへ移ったがidentity claimsは残り、Capafy provider linkは健全でもlocal scheduler/applyがdisabledだった。current cursor=`release reconciler run 18dc7288225a6d08-72756のnatural terminalとapply-lock readback`。Capafyの既存2投稿から3/day cadenceを推定しない。
+
+**Remaining atomic TODO（上から順に1つずつ）:**
+
+1. release reconciler run `18dc7288225a6d08-72756`の自然terminalとfleet summaryを取得し、target/global apply lock解放をreadbackする。現在のprocessをstop/restartせず、applyを重ねない。
+2. EN TikTok、JA TikTok、JA Instagramのloaded SHA/argv/state-path/readbackを`lm-loop status`で確認する。現行source SHAは全3 ownerへapply済みだが、旧business eventは未解決のまま。
+3. `lm-fence-reconciler`をlock解放後にowner-safe target applyし、loaded SHA/argvを確認する。current exact-occurrence adapterが読み込まれた後も既存callsが`no_match`なら、同じrun/occurrenceからPostiz ID・account/integration・slot・media/caption hashesまで一意に結ぶ最小owner-path recoveryを実装し、DB/sidecarを直接編集しない。
+4. 2つのJP old PUBLISHED run (`18dc5e822e430b80-45345`, `18dc648de93a3c68-68679`)だけidentityをrecover/resolveし、公式Postiz readbackとclaim releaseを確認する。12:30 blocked runs (`18dc7047fd1a6850-93639`, `18dc7047ecc63f38-93638`)は別occurrenceとしてprovider receiptなしを維持する。
+5. JP claimsが閉じた後、既存due-slot functionでmissed 12:30がまだdueか判定し、eligibleならownerのnatural wakeでcatch-upする。TikTok/Instagram各PUBLISHED ID/URLをreadbackする。20:00まで手動で待つ・投稿することはしない。
+6. English old occurrence `18dc6de8dcf3a0e8-75262`のHeyGen video IDまたは同createのitemized billing evidenceを探し、exact dispositionする。video list 0だけでeffect unknownを解放せず、旧08:00は再送しない。
+7. `tiktok.monk_anicca`の公式publish eligibilityを確認する。canonical `approved_active`の証拠がなければexisting owned English account候補を公式確認してからregistry/packを切り替える。
+8. old English effectとeligible destinationの両方が解決後、別の英語slotをowner経由で1回実行し、HeyGen ID/status/output SHA/costとPostiz PUBLISHED ID/URLを同一occurrenceに結ぶ。
+9. eBook 3 accountsすべてで各3 unique PUBLISHED/day（合計9/day）とreplay-zeroを自然readbackする。6 videos/dayをEN 3、JP 3から配布する形を維持する。
+10. post→UTM click→locale checkout→settled Stripe order→same-order PDF receiptをjoinし、Letter/Tegami月額price・settled subscriber count・net monthly costsからnet MRRを計算する。subscriptionが存在しない場合は価格を作らず既存offerの実装/選択を行う。
+11. eBook初回paid order + 対応PDF receipt後、Capafyの2 IG ownerの`Bootstrap failed: 5` root causeをowner-safe経路で解消する。Postiz profile `capafy.hooklab`は既に接続し2件公開済みなのでreconnect/CAPTCHAから始めず、`lm-loop status`とapply logでLaunchAgent bootstrap boundaryを特定し、targeted apply/readback後に1 canary/24hを確認する。
+
+**Daisの作業:** いま必要な再接続、CAPTCHA、手動投稿はない。Capafy automationのblockingはPostiz接続ではなくlocal owner apply errorである。本人確認がproviderから明示要求された場合だけ人の操作が外部前提になる。
+
+### 2026-10-08 13:39 JST — repeated partial fleet apply ignores backoff
+
+この追記は13:27 eBook/Capafy snapshotの次cursorを更新する。latest source main at diagnosis is `e80d1a968d`; active release remains `8f342d8d`.
+
+**Root-cause evidence:**
+
+- Fleet run `18dc7288225a6d08-72756` terminaled at 13:31:59 JST with `exit=1`, `status=partial`, `changed=60`, `errors=3`, `skipped=119`, message `budget exceeded`, and `next_retry=13:43:56 JST`.
+- A new run `18dc73b6c42eb038-98716` started at 13:33 JST, before that retry time. At 13:39:36 it was still active and had recorded 170 owner apply results, most recently `marketing-owner-events`. This confirms the same release entered another fleet apply before the saved retry time.
+- Source condition in `bin/reconcile-agent-runner-release.sh::run_fleet_apply` writes `next_retry_epoch` for both `error` and `partial`, but the skip guard checks only `last_status == error`. A same-SHA `partial` state therefore bypasses its intended backoff. The current source code is the root cause of repeated fleet-wide apply; the new run began a same-SHA fleet apply before the stored 13:43:56 retry deadline.
+- This is separate from the two prior Capafy apply failures (`Bootstrap failed: 5`) and the `life-manager-instagram-metrics` failure. The backoff fix prevents an early repeated fleet sweep; it does not repair those individual owner failures.
+- The 13:32 status readback had eBook owners on SHA `8f342d8d` but `lm-fence-reconciler` still on `46ec94bd`. The active 13:33 fleet run may have changed its state later, so read its final owner row and current loaded SHA after terminal before deciding whether another target apply is needed.
+
+**TODO順変更:** 旧順=`fleet run terminal → target apply fence reconciler → identity recovery`。新順=`partial-backoff regression test → minimal backoff guard fix → merge/release → current fleet run terminal → verify no new full apply before next_retry → target fence reconciler only if still behind → identity recovery → JP catch-up → EN recovery/account eligibility → 9/day → checkout/PDF/subscription MRR → Capafy owner bootstrap recovery after the eBook revenue gate`。理由: 13:31 partial run直後の13:33 wakeが13:43:56のbackoff期限前に再びfleet applyを始め、13:39までに170 ownerを処理した。現在cursor=`regression testでpartial same-SHA stateがfuture next_retry中にapplyを開始しないことを再現`。
+
+**Remaining atomic TODO（上から順に）:**
+
+1. `runtime/loop/tests/test_reconcile_agent_runner_release_fleet_apply.py`に、同一SHA・`status=partial`・future `next_retry_epoch`なら次tickの`lm-loop apply`呼び出し数が増えないfocused regression testを追加し、現行コードで期待どおりfailすることを確認する。
+2. `bin/reconcile-agent-runner-release.sh`のguardを`error`と`partial`両方で同じSHA/backoff期間中skipする最小修正にし、focused testとloop contractをpassさせる。
+3. PR/CI/merge後、main由来releaseを自然運転でreadbackする。現在のactive runを止めたり新しいfleet applyを重ねない。`partial`の`next_retry_epoch`まで新しいfleet owner rowが増えず、再試行がbackoff後に限られることを確認する。
+4. current release reconcilerのfleet summary/owner rows/terminal eventを確認し、eBook 3 ownersがすでにSHA `8f342d8d`へ移った状態を維持する。`lm-fence-reconciler`のloaded SHAを再読し、旧SHAならshared apply lock解放後にowner限定でtarget applyする。
+5. JPの旧PUBLISHED claims `18dc5e822e430b80-45345` / `18dc648de93a3c68-68679`をreceipt/account/integration/slot/hashと一意にjoinし、owner-pathでだけresolveする。曖昧ならfenceを維持する。
+6. 12:30 JP slotがdueなら自然owner wakeでcatch-upし、各integrationの新しいPUBLISHED receiptを確認する。英語は旧HeyGen effectのexact dispositionと`disabled_verified` account gateを別々に解消してから次slotを1回実行する。
+7. eBookの9 unique PUBLISHED/day、replay-zero、post→click→settled order→matching PDF→settled monthly subscriptionのnet MRRを確認する。単発売上をMRRに足さない。
+8. Capafyの`capafy.hooklab`はPostiz接続と今日2 PUBLISHEDを確認済み。2 automation ownersはdisabledで`Bootstrap failed: 5`; eBook paid order + PDF後にこのLaunchAgent apply errorの根因をowner経路で直し、1 canary/24hの公式readbackを得る。再接続/CAPTCHAは現証拠では必要ない。
+
+### 2026-10-08 13:45 JST — partial-backoff fix is RED/GREEN; production still old
+
+この追記は13:39 cursorを更新する。回帰テストと修正はworking branch上で検証済みだが、まだmain/releaseには未反映。
+
+**Verification:**
+
+- TDD regression `test_partial_apply_honors_backoff_before_same_release_retry`は修正前に`apply_call_count=2`でfailし、guardが`partial`のfuture retryを無視することを再現した。
+- `bin/reconcile-agent-runner-release.sh`のbackoff guardをsame-SHA `error` / `partial`双方へ適用する3行差分後、focused test pass。`test_reconcile_agent_runner_release_fleet_apply.py`は27/27 pass、`bash -n`と`git diff --check`もpass。PR #7055の現在headに含むsource changeは未push。
+- productionではrun `18dc73b6c42eb038-98716`が13:44:07 JSTにterminalし、fleet summaryは`error`, `changed=6`, `errors=4`, `skipped=177`, next retry `14:06:05 JST`。その後PID 44954が新runで起動し、13:45:48にはloaded-running。変更前release SHAは`8f342d8d`。停止/restart/target applyは行わない。
+- eBook 3 ownersと`lm-fence-reconciler`はSHA `8f342d8d`で`loaded-idle`。しかしfence-reconcilerの13:39 natural run後、3 exact old claim callsは`inconclusive / runtime_occurrence_missing_or_invalid / closed=false`であり、JP/EN identitiesはまだ解決していない。
+- Postiz 13:27 GETはeBook 2/9、Capafy `capafy.hooklab` 2 PUBLISHED。Capafyの2 automation ownersはdisabledのまま、Bootstrap 5 root cause未解決。
+
+**TODO順変更:** 旧順=`partial backoff test/fix → current release run terminal → fence reconcile → identity recovery`。新順=`source test+guardをPR/CI/merge → old release runのnatural terminal → patched main releaseのnatural load/readback → partial stateではretry deadline前にfleet owner rowsが増えないことを観測 → fence adapterのruntime_occurrence_missing原因を特定 → identity recovery → JP catch-up → EN old effect/account → 9/day → eBook checkout/PDF/MRR → Capafy bootstrap recovery`。理由: focused testでsource bugは再現・修正済みだが、productionは古いSHAのまま。13:44 runはpartialではなくerrorにterminalし、retry期限を14:06:05に設定した。13:45の新runはまだloaded-running。
+
+**Remaining atomic TODO:**
+
+1. regression testと3行backoff fixを含むPR #7055のsource diffをcommit/pushし、CI/reviewをpassさせてmergeする。部分的なfleet applyを新たに手動起動しない。
+2. 現在のPID 44954 runのnatural terminalとtarget/global lock解放をreadbackする。main merge後、release reconcilerがpatched mainから新releaseをcut/loadした際のSHA/argvを確認する。
+3. 新SHA下で、`partial` fleet stateのfuture `next_retry_epoch`より前に同一SHAのfleet owner apply rowが増えないことをnatural runで確認する。既存`error` backoff時刻の14:06:05を越えるまで不用意な手動retryをしない。
+4. `lm-fence-reconciler`の既存runtime lookupが`runtime_occurrence_missing_or_invalid`となる箇所をexact occurrenceからsource/stateへ追跡する。distribution receipt、runtime occurrence、claim linkageを一意結ぶ最小owner-path recoveryを作り、直接DB/sidecar編集をしない。
+5. JP claimsがowner pathでcloseした後にだけ12:30 slotをdue判定し、eligibleなら自然catch-upする。Englishのold HeyGen effectと`disabled_verified` destinationは個別に解決し、別slotで1回publishする。
+6. 3 eBook account×3 unique PUBLISHED/day、replay-zero、settled order/PDF/monthly subscription evidenceを順に閉じる。one-time eBook saleをMRRに含めない。
+7. eBook paid order+matching PDF後、CapafyのPostiz-connected profileに対する2 disabled ownerのBootstrap 5 root causeをowner-safe apply経路で解消し、one-canary receiptと継続cadenceを分けてreadbackする。
+
+### 2026-10-08 13:53 JST — Gig capacity snapshot and OSS architecture comparison
+
+この追記はGigの容量診断だけを更新し、他レーンの順序やPR #6814の所有範囲を変更しない。source変更、global cap変更、loop起動/停止、browser/provider操作はしていない。
+
+- **現在のLM admission:** `runtime/host/resource_admission.py`のfinite-run global defaultは8。187個のLaunchAgent plistに`LIFE_MANAGER_HOST_MIN_REVENUE_RUNS=3`があり、`MAX_*` overrideはない。従ってborrowに理論上残す全体枠は5だが、borrowのclass capはagent 1 / browser 1 / deterministic 2で、通常のclass別合計は最大4。revenue側のclass capはagent 8 / browser 1 / deterministic 3。8は全体上限、5はrevenue floorから計算したborrow予算であり、両者を同じ「同時実行数」と呼ばない。
+- `lm-loop health --json`の04:41:36Z snapshotは178 jobs、last diagnosticで`resource_capacity_busy` 27、`resource_fifo_wait` 2だった。これらはjob単位の最後の状態で、試行回数ではない。04:47:06ZのPID/process-start一致live-owner snapshotは7/8 occupied（agent/revenue 6、deterministic/revenue 1）、reservation 0、durable queue 81（eligibility時刻を満たすもの80）。04:49:52Zは8 live claims（agent/revenue 6、deterministic/revenue 2）、reservation 0、queue 78（76 eligible）。04:53:08Zは7 live claims（agent/revenue 5、deterministic/revenue 2）＋1 active reservationで8/8 occupied、queue 80（79 eligible）。次の04:53:18Z readbackではそのreservation leaseはすでに失効していた。Coconala Paid occurrence `18dc730817ceef28-96058` / PID `96568`は全readbackで稼働中。これらは数分以内に7–8/8へ変わる実測で、単一の「今何本」値は時点付きで扱う。
+- Latest hardware readback 04:49:52Z: 10 CPU、16 GiB RAM、memory free 41%、load average 13.99 / 15.68 / 15.86、`df` available 5,693,256 KiB。04:40:08Z cleanup receiptは2 GiB floor met、`free_after=4,695,310,336` bytes、errors 0、protected deletions 0、inventory gaps 23。CPU load averageはCPU数を上回るが、どのagent/processが原因かは未帰属であり、ここから「安全に何本まで」と断定しない。
+- FIFO単独の詰まりではない。admissionは`capacity_busy`と`fifo_wait`を分け、priority/ageingを使う。今回のhealth snapshotではcapacity deferralがFIFO waitより多く、durable queueの80 eligibleは「容量・class・browser lockを今すぐ獲得できる」ことを意味しない。現時点の主要な観測はglobal cap近傍の占有と長いowner runで、単純なFIFO変更やcap引上げだけでは安全な処理量を保証しない。
+- Coding agentのsession/worktree数とLife Manager runtime claim数は別物。Codex/OpenClaw agentが8人いてもLM admission枠が8増えるわけではない。独立worktreeのsource変更・fixture testsは並行できるが、browser profile/provider stateの共有操作はowner lock/admissionを通す。Mac上のCPU/RAM/disk負荷も別の上限として残る。
+- **OSS調査:** OpenClawの公式queue docsはmain laneのCPUベースconcurrencyと、親sessionごとにdefault 8のsubagent queueを説明している。OpenClaw導入でLM固有の8枠、Coconala等のbrowser identity lock、Macの物理容量は置き換わらない（[OpenClaw queue docs](https://docs.openclaw.ai/concepts/queue)）。Temporalはworker slotを固定値またはCPU/RAM使用量に応じて調整し、Workflow/Activityごとのslot supplierを持つ（[Temporal worker performance](https://docs.temporal.io/develop/worker-performance)）。Hatchetはworker slot costとgroup round-robin concurrencyで資源量・公平性を表現できる（[Hatchet concurrency](https://docs.hatchet.run/v1/concurrency)、[Hatchet slot cost](https://docs.hatchet.run/reference/python/client)）。いずれもMacの容量を自動で増やすものではない。
+- 別担当のopen PR [#6814](https://github.com/Daisuke134/life-manager/pull/6814) (`docs/main-agents-readiness`, head `343e4401`)に16-agent/110-jobを保つharness・capacity比較があり、OpenClawをagent harness、Temporalをdurable long-workflow/queue補完として評価している。Gigでは同じarchitecture設計を複製しない。現在の推奨は、8を16/40へ単純増加させず、実際の外部待機だけをdurable waitにしてcompute slotをyieldし、browser/account lock・model/CPU・deterministic/read-only・build/testを分け、実測でslotを調整すること。PR #6814のownerレビューとpilot設計がこの作業の正本。
+
+**この質問に対するlive回答:** global hard capは8。04:53:08Zの最新完全snapshotは7 live＋1 reservationで8/8、直前04:47:06Zは7/8、04:49:52Zも8/8だった。5は全体上限ではなくborrow枠の理論値で、class capにより通常のborrow同時実行は最大4。loop外の独立testはLM admissionを使わないが、Mac負荷と共有provider/browser状態の制約は受ける。適切な固定同時テスト数はまだ測定されていない。
+
+### 2026-10-08 14:11 JST — latest admission and Coconala Paid cursor
+
+この追記はGigのlive statusだけを更新する。platform TODO順と別ownerのworktreeは変更しない。
+
+- 05:11:04Zのread-only host-admission snapshotは7 live claims＋1 unexpired reservationで8/8 occupied、queue 80（79 eligibility-ready）。classはlive agent/revenue 5、deterministic/revenue 2。Coconala Paid claim `hf-gig-paid-direct:18dc75532b4b7a88-65735` / PID `66268`を含む。05:05:45Zには7/8だったため空き枠は変動している。
+- 同時刻のMac readbackは10 CPU / 16 GiB RAM / memory free 35% / load average 15.62, 16.84, 16.82 / `df` available 4,736,504 KiB。2 GiB cleanup floorは超過しているが、load averageはCPU数を上回り、安全な同時ローカルtest数は未測定。
+- Paidの前occurrence `18dc730817ceef28-96058`はpass/no-effect/no receiptで、buyer-visible完了ではない。次occurrence `18dc75450c9ba558-32109`は05:01:31Zにcapacity defer。05:02:31Zからcontroller PID65735とchild PID66268がrunningで、provider receipt/official readbackはまだnull。`lm-loop status`の`current_snapshot`はPID65735、`historical_record`は前回deferを示す。owner claim sidecarはcurrent child claim `18dc75532b4b7a88-65735`を示す。run ID/occurrence/child claimを同一視しない。
+- 05:10Zのbrowser-guard readbackでは`coconala:kosuke` holderは空だったが、Paid processはrunningのままなのでprofileを使うInbox collectorはまだ起動しない。Reply detectorのlatest natural wake `18dc75239e32fe70-35705`（04:59:07Z）は`disk_headroom_low`。別にold effect claim `18dbf6546032eca0-25901`が`no_readback_adapter`で残り、provider receiptはない。
+- PR #7042のlocal branchはlatest main `fd0681c1619a19bcd5cd6c7dadd89187a58b8c4c`を取り込んでいるが、remote headはまだ`1cd9c6ab` / base `8486f4e8`。run `37729836346`のworkflow conclusionはsuccessでもGitHub shell syntax check-run statusが`IN_PROGRESS`と残るため、新しい同期headをpushしてfresh completed rollupを確認する。
+- Senderの追加差分を持つ別lease worktree `gig-contract-current-readback-20261008`はuncommittedな同じtransport/testファイルがあり、owner `lm-gig-contract-owner-1007`はAGMSG placement unverified。2回連絡したが返答はない。worktree/ファイルには触れず、既にreview済みのguardだけをmergeし、復帰時の別差分を残す。
+
+**Current cursor:** PR #7042の同期後CI statusを完了し、Paid current claimがnatural terminalになるのを監視する。profileが空いていてもPaid processがrunningならInbox collectorは起動しない。
+
+### 2026-10-08 14:19 JST — post-sync admission and current owner readback
+
+この追記はlatest main sync、capacity、Coconala Paid owner状態を更新する。別worktree・browser・providerは変更していない。
+
+- origin/main `d28ed3f9675c954dfc60395ff126e0f274793c71`はCapafy listing文書のみを変更した。Gig branchへmerge済み。source/feature内容は前回remote head `5f226522b6`でrequired CI all-passだったが、この新sync/spec headにはfresh CIが必要。
+- 05:19:39Z host-admission snapshotは5 live claims＋3 reservations = 8/8 occupied、queue 82（80 eligibility-ready）。live classはagent/revenue 4、deterministic/revenue 1。Macは10 CPU / 16 GiB RAM、memory free 45%、load average 14.97 / 17.29 / 17.15、disk available 4,401,716 KiB。load averageはCPU数を上回り、同時ローカルtest数の安全値は未測定。
+- Current Paid claim `hf-gig-paid-direct:18dc75532b4b7a88-65735`はcontroller PID65735 / child PID66268でrunning。PID65735のprocess snapshotではCPU 0.0%だったが、これだけで外部待機やhangとは判定しない。`lm-loop status`のcurrent PIDとhistorical capacity-defer recordを分け、owner sidecar claimを別IDとして保つ。browser lease statusは05:10時点holderなしだったが、Paid processはrunningで再取得できるためInbox readbackを開始しない。
+- Previous `hf-gig-reply-detector` status at05:03はold claim `18dbf6546032eca0-25901`を`no_readback_adapter`で保持し、自然wake `18dc75239e32fe70-35705`は04:59:07Zの`disk_headroom_low` / no receipt。05:04 dfではrecovery floor超だが、exact official Inbox readbackとclaim resolutionはまだない。
+- PR #7042 latest completed run `37731381698` is green at head `5f226522b6`; this local merge/spec update changes the branch head, so CI runs again after push. same-file sender branch remains untouched and its owner has not answered.
+
+**Current cursor:** push latest main `d28ed3f9` sync/spec, complete fresh PR checks, then wait for Paid claim natural terminal before the read-only Coconala Inbox collector.
+
+### 2026-10-08 14:32 JST — sender source merged; owner promotion still pending
+
+この追記は14:19のGitHub/production cursorを更新し、TODO順は上記`Remaining atomic Gig TODO`に一本化する。
+
+- PR #7042は2026-10-08T05:25:08Zにmergeされ、merge commitは`bd3ef82567e7906052d3d731cda6feca616cf4ee`。head `3c8004c4`の全9 required CI checksはPASS。sender helper `skills/browser/scripts/tiktok_message_transport.py`は`skills/earn/gig/scripts/paid_direct.py`から呼ばれる。これはmain source acceptanceであり、loaded production ownerの反映やprovider sendの成功ではない。
+- `~/loops/current`はimmutable release `20261008T142708-bd3ef825`を指す。このreleaseはmerge commitを含む。`life-manager-release-reconciler`は05:31Zにloaded-running / PID `73162` / SHA `bd3ef825`。そのrunのterminal eventは`entrypoint_exit_75`, `next_action=reconcile_owner`, effect `not_applicable`。stop/restartや別applyを重ねない。
+- `hf-gig-paid-direct`は05:31Zにloaded-running / PID `65735` / old SHA `53d49879`。active owner claim `18dc75532b4b7a88-65735`はchild PID `66268`で`running`; provider receiptとofficial readbackはnull。sender fixはまだこのownerへloadされていない。profile leaseが一時空でもこのprocessが再取得できるため、Inbox collectorを同時に起動しない。
+- 05:32:06Z admission snapshotは5 live claim＋2 reservation = 7/8、queue 80（79 eligibility-ready）。05:23Zは8/8だった。05:31Z Mac snapshotは10 CPU / 16 GiB RAM / load average 14.94 / 16.61 / 17.01 / available disk 2,888,480 KiB。slot数とOS負荷は時点によって変わる。
+- このassistantはstatus/lease/official code readbackのみ行い、Inbox collector、browser attach、provider action、release applyはまだ実行していない。
+
+**Current cursor:** Paid runとrelease reconcilerの自然terminalをreadbackし、lockがfreeになってからPaid ownerのloaded SHAを`bd3ef825`へ収束させる。次にInboxを一度だけ公式readbackし、outbox/Sheetへjoinする。

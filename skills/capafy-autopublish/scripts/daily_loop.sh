@@ -226,14 +226,14 @@ if [ -n "$FRESH" ]; then
   PREPARED="1"
   if [ -n "$REUSE_PREPARE_ID" ]; then
     PROMPT="$PROMPT
-SAME-AGENT MODEL SWITCH already re-prepared by the wrapper for agent_id=$F_ID (CP1_AGENTIC.md 'Switching an EXISTING agent's hosted model resets Skill confirmation'). Do NOT run publish_prepare.sh or publish_finish.sh. Its output:
+SAME-AGENT RE-PREPARE created fresh version $F_VERSION for agent_id=$F_ID, so earlier CP1 tab state is not evidence for this version. Do NOT run publish_prepare.sh or publish_finish.sh. Its output:
 $PREP_OUT
-Do only step 5b: open the Agent ワークスペース tab, click the pending skill card (badge 保留中 -> 確認済み) per that CP1_AGENTIC.md section, until official publish-remote-status shows latest_version.is_confirmed_skills=true, then stop. The wrapper runs publish_finish.sh (CP2 -> CP3) after you."
+Complete all three CP1 tabs using CP1_AGENTIC.md and the exact EDIT_URL_FILE, CONFIG_PATH, and TARGET PRICING above: Basic Info / 基本情報, Agent ワークスペース, and Pricing / 価格設定. Re-enter or verify every required value on this fresh version; do not stop after clicking the pending Skill card or seeing a green tab. Set every plan to its printed target, run scripts/cp1_agent.py prices $F_LISTING, and require PRICES_MATCH before continuing. Use the screenshot loop for each action. Then click 下書きを保存 followed by 提出を確認. Stop only after the card-save success signal appears AND official publish-remote-status confirms latest_version.agent_version_id=$F_VERSION and latest_version.is_confirmed_skills=true. The wrapper runs publish_finish.sh (CP2 -> CP3) after you."
   else
   PROMPT="$PROMPT
 PREPARE ALREADY DONE by the wrapper — do NOT run publish_prepare.sh or publish_finish.sh. Its output:
 $PREP_OUT
-Do only step 5b: drive CP1 per CP1_AGENTIC.md with the exact EDIT_URL_FILE above until official publish-remote-status shows latest_version.is_confirmed_skills=true, then stop. The wrapper runs publish_finish.sh (CP2 -> CP3) after you."
+Do only step 5b: complete all three CP1 tabs using CP1_AGENTIC.md and the exact EDIT_URL_FILE, CONFIG_PATH, and TARGET PRICING above: Basic Info / 基本情報 (fill every empty or red field from CONFIG_PATH), Agent ワークスペース, and Pricing / 価格設定. Clicking the pending Skill card alone does not set is_confirmed_skills on the server; it turns true only after the card is saved. Set every plan to its printed target, run scripts/cp1_agent.py prices with the listing above, and require PRICES_MATCH. Then click 下書きを保存 followed by 提出を確認. Stop only after the card-save success signal appears AND official publish-remote-status confirms latest_version.is_confirmed_skills=true. The wrapper runs publish_finish.sh (CP2 -> CP3) after you."
   fi
 fi
 EVIDENCE_DIR="$LIFE_MANAGER_STATE_HOME/state/agent-runner-evidence/capafy-drainer/$(date +%s)-$$"
