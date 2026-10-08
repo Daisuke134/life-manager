@@ -47,6 +47,10 @@ def _deadline_from_period(period: str, today: datetime.date) -> str | None:
     if not dates:
         return None
     year, month, day = dates[-1]
+    start_year = next((int(y) for y, _, _ in dates if y), None)  # "2026年8月5日 〜 10月7日": the end inherits 2026
+    if not year and start_year is not None:
+        first_month = int(next(m for y, m, _ in dates if y))
+        year = str(start_year + (1 if int(month) < first_month else 0))
     try:
         candidate = datetime.date(int(year or today.year), int(month), int(day))
     except ValueError:
@@ -69,6 +73,19 @@ def parse_feature_radio(value: str, label: str, today: datetime.date) -> dict | 
     period_match = PERIOD_RE.search(label)
     deadline = _deadline_from_period(period_match.group(1) or period_match.group(2), today) if period_match else None
     return {"value": value, "title": title_match.group(1), "deadline": deadline}
+
+
+RECEPTION_RE = re.compile(r"審査受付期間】?\s*([^\n]*(?:\n[^\n【]*)?)")
+
+
+def deadline_from_conditions(conditions: str, today: datetime.date) -> str | None:
+    """The 審査受付期間 end date from an announcement body. Radio labels carry no period for some
+    campaigns (806 気づかい, 799 ネガティブ), which left deadline=None; the planner then treated a
+    campaign closed on 2026-10-07 as open. The 特集期間 line follows and must not be read instead."""
+    match = RECEPTION_RE.search(conditions or "")
+    if not match:
+        return None
+    return _deadline_from_period(match.group(1), today)
 
 
 def match_announce_link(title: str, links: list[dict]) -> str | None:
@@ -149,6 +166,8 @@ async def _fetch(cdp: str, item_url: str) -> dict:
                     conditions = await page.inner_text("body")
                 parsed["announce_url"] = announce_url
                 parsed["conditions"] = conditions
+                if parsed.get("deadline") is None and conditions:
+                    parsed["deadline"] = deadline_from_conditions(conditions, today)
                 features.append(parsed)
             return {"status": "ok", "features": features}
         finally:
