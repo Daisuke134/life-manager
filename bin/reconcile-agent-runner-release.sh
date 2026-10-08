@@ -567,6 +567,12 @@ PY
 
   local next_retry_epoch=0
   { [ "$status" = "error" ] || [ "$status" = "partial" ]; } && next_retry_epoch=$((now_epoch + backoff_seconds))
+  # A pass that only ran out of budget (no hung owner) after applying owners is progress, not a
+  # failure: continue on the same sha soon so the fleet converges before the next release.
+  if [ "$status" = "partial" ] && [ "$budget_exceeded" -eq 1 ] && [ -z "$timed_out_owners" ] \
+    && [ "$changed" -gt 0 ]; then
+    next_retry_epoch=$((now_epoch + ${LIFE_MANAGER_FLEET_APPLY_CONTINUE_SECONDS:-300}))
+  fi
   local new_last_ok_epoch="${last_ok_epoch:-0}"
   [ "$status" = "ok" ] && new_last_ok_epoch="$now_epoch"
 
