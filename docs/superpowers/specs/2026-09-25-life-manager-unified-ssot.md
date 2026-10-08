@@ -4938,3 +4938,26 @@ Source / production follow-up (2026-10-08 11:01 JST): PR #7012は`b692e70a`と�
 5. **A10受入:** main由来immutable releaseで7日連続の自然runを読み、18/18 loops・186/186 jobs、official readback、delivery receipt、unknown owner/action、期間一致、重複/再送ゼロを確認する。これ以前は全社CFO完了や$10k verified MRRを主張しない。
 
 **現在cursor:** A5。A5 worktree leaseとproduction reconcilerは別の所有境界として維持する。reconciler/CFO ownerの自然runを重ねて起動せず、A5 lease解放後にA5へ戻る。A7 MoneytreeとA4/A3 Cloud savingsは引き続き対象外・後順位。
+
+### 2026-10-08 11:29 JST — CFO release-retry diagnosis
+
+この追記は11:20 JST以降の自然release更新と同時刻owner evidenceを反映する。CFO順序は変えず、A5→A6→A8→A9→A10のまま。
+
+**新しい実測:**
+
+- PR #7011（A6 source）とPR #7025（前回CFO status refresh）はmainへmerge済み。`/Users/anicca/loops/current`はrelease `20261008T112353-dbf93c31`を指し、`RELEASE.json`はSHA `dbf93c310713dabd4c3d389dfad185dfec5d5987`、`cut_at=2026-10-08T02:25:38Z`、`provenance=ancestor-of-origin-main`。A6 parser/report sourceはmain由来immutable releaseに含まれる。
+- 02:29:08Z時点の`life-manager-cfo-hourly`は依然release `3d88f9eb`をloaded-idleで使う。最新report occurrence `18dc6c21758dc280-19514`は`apply_lock_busy`、exit 78、`effect_status=not_applicable`、receipt/readbackなし。
+- この競合はfleet owner logで特定した。02:14:02.749ZのCFO hourly reportと02:14:02.975Zの`life-manager-release-reconciler`による同一labelのapplyが競合し、reconcilerはCFO ownerをrelease `3d88f9eb`へ`rc=0, changed=1`でapplyした。失敗reportにprovider effectはなく、3d88のowner適用を新releaseへの適用と混同しない。
+- 最新reconcilerはrelease `dbf93c31`でloaded-running。直近run `18dc6caa09f1ea40-74246`は`entrypoint_exit_75 / reconcile_owner`。`fleet-apply-state.json`は02:22:48Z時点でSHA `3d88f9eb`、`status=partial`、`changed=84 / errors=4 / skipped=22`、message=`budget exceeded`、`next_retry_epoch=2026-10-08T02:34:23Z`。error詳細はそのretryでowner別にreadbackする。reconcilerをrestartせず、scheduleを待つ。
+- A5 leaseは依然`codex-cfo-a5`所有で`2026-10-08T03:18:04Z`までactive。A5 PR #6827はopen/draftの旧head/baseで、編集・mergeはlease解放readback後に行う。
+- 最後に完了したB7 financial projectionは依然`2026-10-08T01:58:13Z` snapshot。全社historical/trailing revenue・cost・netはunknown/null、18/18 loops unknown（173/168 gaps）、MRR全社unknown（26 gaps、17/18 unknown）。mobile-apps USD 20.34はMRRのみ。Google Cloudは2026-09 billed invoice ¥27,889のみ、cash paid/loop allocationはunknown/unattributed。最新の2:14 wakeはlock conflictでprojectionを更新していない。
+
+**残りTODO（順序維持）:**
+
+1. **A5:** `codex-cfo-a5` lease解放をreadbackし、latest mainへ追従後、SQL/API/panelが`runtime_trace.loop_id`・`owner_id`・`run_id`・`occurrence_id`・`release_sha`をprovider/SKU/operation/unit別に保持するよう修正、回帰test、review、checks、mergeを完了する。
+2. **A6 production/settlement close:** 02:34:23Zのbounded fleet retryと次の自然CFO wakeをreadbackし、CFO ownerがrelease `dbf93c31`へ移ったか確認する。`apply_lock_busy`が消え、report delivery/readbackがあることを確認する。B7の`actual-cost-readback`を実ソースで接続し、2026-09 Cost Table ¥27,889を同期間Monitoring estimate・tax/credits/roundingと照合。cash-paidとloop attributionは公式receipt/A5 traceがある場合だけ記録する。
+3. **A8:** 18 loops / 186 jobsのsettled revenue/refund/feeとprovider/API/cloud/subscription actual costを期間・通貨・owner・official receipt単位で埋め、unknownを0にしない。
+4. **A9:** Asia/Tokyo日次/MTD/trailing receipt filteringを行うCFO reportでagent/loop/platform別と全社revenue・expense・net・MRR・coverage/freshnessを表示する。`loop_pnl.py --date`のlabel-onlyを修正する。
+5. **A10:** main由来releaseで7日連続の自然run、全18 loops/186 jobs、official readback、delivery receipt、unknown owner/action、重複ゼロを確認する。完了前にCFO completeや$10k verified MRRを主張しない。
+
+**現在cursor:** A5。A6のコードはmain由来releaseまで到達したが、CFO owner/readbackと全社financial coverageは未完了。A5 lease、fleet retry、CFO hourly wakeは個別ownerの自然境界で進め、手動restart/apply/retryを重ねない。
