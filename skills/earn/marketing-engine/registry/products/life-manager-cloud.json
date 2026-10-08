@@ -23,7 +23,7 @@
     "trial_started",
     "paid_invoice"
   ],
-  "revenue_events": ["paid_invoice", "renewal_invoice", "refund_recorded", "subscription_canceled"],
+  "revenue_events": ["paid_invoice", "refund_recorded", "subscription_canceled"],
   "margin_rule": "Use verified Stripe invoices and refunds; subtract Stripe fees, route and Composio usage, hosting, and attributed marketing spend once. Keep unmeasured costs unknown.",
   "audiences": [
     "Japanese commuters who check Calendar and Maps repeatedly to avoid arriving late",
