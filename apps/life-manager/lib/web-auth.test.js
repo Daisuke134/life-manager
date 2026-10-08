@@ -89,7 +89,12 @@ function makeClient({ exchange, user, signInUrl = "https://travel-test.supabase.
       },
       async getUser() {
         events.push(["getUser"]);
-        return { data: { user: user === undefined ? { id: SUBJECT, email: "verified@example.test" } : user }, error: null };
+        return { data: { user: user === undefined ? {
+          id: SUBJECT,
+          email: "verified@example.test",
+          app_metadata: { provider: "google", providers: ["google"] },
+          identities: [{ provider: "google", id: SUBJECT }],
+        } : user }, error: null };
       },
       async signOut(options) {
         events.push(["signOut", options]);
@@ -271,6 +276,65 @@ test("OAuth start keeps the PKCE verifier cookie separate from the authenticated
   const [, input] = events[0];
   assert.equal(input.provider, "google");
   assert.equal(input.options.redirectTo, `${CALLBACK_ORIGIN}/auth/google/callback`);
+});
+
+test("email-only Supabase sessions cannot resolve a Life Manager Web tenant", async () => {
+  const events = [];
+  const db = makeRestFetch();
+  const client = authClient({
+    events,
+    user: {
+      id: SUBJECT,
+      email: "verified@example.test",
+      app_metadata: { provider: "email", providers: ["email"] },
+      identities: [{ provider: "email", id: SUBJECT }],
+      user_metadata: { provider: "google" },
+    },
+  });
+  const fixture = authOptions(client, { fetch: db.fetch });
+
+  const resolved = await resolveWebUser({
+    method: "GET",
+    url: "/api/lm/travel",
+    headers: { cookie: "lm-web-auth=email-session" },
+  }, makeResponse(), { ...fixture.options, csrfSecret: "csrf-secret" });
+
+  assert.equal(resolved, null);
+  assert.deepEqual(events.map(([name]) => name), ["getUser"]);
+  assert.deepEqual(db.calls, []);
+});
+
+test("Google OAuth callback cannot provision a tenant from an email-only Supabase identity", async () => {
+  const events = [];
+  const db = makeRestFetch();
+  const funnelEvents = [];
+  const client = authClient({
+    events,
+    user: {
+      id: SUBJECT,
+      email: "verified@example.test",
+      app_metadata: { provider: "email", providers: ["email"] },
+      identities: [{ provider: "email", id: SUBJECT }],
+      user_metadata: { provider: "google" },
+    },
+    exchange: async (_code, cookies) => {
+      cookies.setAll([{ name: "lm-web-auth", value: "email-session", options: { path: "/", httpOnly: true } }]);
+      return { data: { session: { access_token: "email-session" } }, error: null };
+    },
+  });
+  const fixture = authOptions(client, {
+    fetch: db.fetch,
+    recordWebFunnelEventImpl: async (event) => { funnelEvents.push(event); return true; },
+  });
+  const res = makeResponse();
+
+  await handleWebAuthRequest(callbackRequest(), res, fixture.options);
+
+  assert.equal(res.statusCode, 302);
+  assert.equal(res.getHeader("location"), "/lm?auth_error=connection");
+  assert.equal(db.rows.length, 0);
+  assert.deepEqual(funnelEvents, []);
+  assert.deepEqual(events.map(([name]) => name), ["exchangeCodeForSession", "getUser", "signOut"]);
 });
 
 test("ignores client tenant fields and derives lm uid from subject", async () => {
