@@ -730,7 +730,7 @@ TODO（何を・どう直すか）
 | 6 | L17 | IG の日常投稿・交流を回す（10/10 から engagement と bio リンク） | 自然 slot の新規 reel と ledger、10/10 以降の engagement 記録 | #7064 で schema 400 を修正後、自然 slot で published を ledger readback（10/07 08:15Z `DeMFSYRvqDF`、11:15Z `DeMSaWrPhWV`、10/08 04:15Z `DeOXH3iBbnV`）。残りは 10/10 以降の engagement 記録。2026-10-08: 17:15 slot と set-013 計画が停止 → 原因は 20 分級の gpt-6-luna 実行が codex acct1 の profile lease を保持し、composition/marketing/browser-lane が acct2 未使用のまま timeout まで待っていたこと。3 経路を fail-fast（acct1 塞がり→acct2）に修正、同条件で 400 秒超→6 秒を実測。aniccaai.com（Life Manager 全商品の共通サイト、Dais 2026-10-08）に販売中セットの日本語紹介記事を毎日 JST 12 時台 1 本（`article_daily.py`、capafy と同じ公開器）。初回 https://aniccaai.com/blog/line-sticker-set-005-2026-10-08 を公開・readback。**blocker（2026-10-08 17:51 JST〜）**: 宣伝ループが毎 wake `host_admission_deferred:resource_effect_unknown`。17:15 slot の caption timeout run（`18dc800360d0b6b8-64240`、ledger に slot 記録なし＝投稿前）を pre_effect で解除しても `False`（claimed/released とも）で、fence の実体は未特定。admission 内部の調査は自動モードの安全確認で拒否されたため、解除には Dais の許可が必要 → 撤回: capafy の `effect_reconcile` 先例を写した `distribute_fence_reconcile.py`（IG Reels 一覧 vs ledger、ledger 外の Reel は投稿日時が run 開始前と確定できた時だけ除外、それ以外は保持）を登録し、正規経路で解除 |
 | 7 | L21 | 1 キャラのシリーズ本数を増やす（売上が出た型を優先） | sales.json に売上が出たキャラの続編が出る | 自動（L18/L27 配線済み） |
 | 8 | HOST | ディスク空き 11 GiB 未満で全 line-sticker loop が `disk_headroom_low` 待機（2026-10-08 20:45 JST〜、空き 1.0〜2.5 GiB） | 空き ≥11 GiB で factory/distribute が自然 wake で再開 | owner = codex-money-printer（host-disk-policy）。line-sticker 側で消せるものは無し（release GC 0、sticker state 0.7G）。最大の占有は ~/.codex-acct2 12G・~/.local 15G・~/.cloak 11G（不可侵）。agmsg で報告済み、他 owner の store は触らない |
-| 9 | L19 | set-014（48161243、¥190 静止・文字入り 16 個）の黒い箱 4 枚（hmm / panic / cheer / morning）を作り直して申請 | Creators Market で審査待ちを readback | 原因 = 画像モデルが緑でなく黒背景で返し緑抜きで消えなかった（箱 30〜44%、正常 0.1〜0.4%）。#7155 で黒背景も抜き、箱付き候補は再生成。本番 release `97efe82e` で実物 16 枚中 4 枚だけ検出を確認。**手順**: loop が再開できる状態になったら set-014 の stage を `images` に戻す（箱 4 枚だけ作り直し、LINE 側 48161243 の画像を差し替えて再申請） |
+| 9 | L19 | set-014（48161243、¥190 静止・文字入り 16 個）の黒い箱 4 枚（hmm / panic / cheer / morning）を作り直して申請 | Creators Market で審査待ちを readback | **DONE**（2026-10-08 15:19Z）。原因 = 画像モデルが緑でなく黒背景で返し緑抜きで消えなかった（箱 30〜44%）。#7155 で黒背景も抜き箱付き候補は再生成。本番 release `97efe82e` で候補を再生成（箱 4→0）、stage を `package` に戻して工場が包み直し・差し替え・再申請、公式画面で「審査待ち」を readback、申請パッケージ 16 枚に箱 0。途中の起動は post_claim の `disk_headroom_low`（空き 2 GiB 未満）で 1 回止まり、空きが 3.5 GiB に戻った後の再起動で通過 |
 | 10 | HOST | 空き容量判定（`lm_loop_run._disk_headroom_deferred` 2 GiB 未満で全 loop 後回し、`disk_admission.disk_headroom_ok` 512 MB 未満で実行拒否）の削除 | 空き 2 GiB 未満でも factory/distribute が wake する | Dais 2026-10-08 が「cleanup loop があるので判定は不要、外せ」と指示（床は 10/7 に 11→2 GiB へ下げ済み。以前の「11 GiB」は誤認）。claude の自動モード安全確認が「安全装置の弱体化」として編集を拒否、迂回せず保留。**実施者**: Dais の許可ルール追加後に claude、または codex-money-printer。lm-lead 依頼（2026-10-08 23:04 JST）により release 作成と `lm-loop apply` は host 回復まで全 session 停止。空き ~200 MB では git の worktree 作成・push も失敗する（実測） |
 
 ### 5.1 自己修復・自己改善の定義（T5 / T12 の正本）
@@ -7129,3 +7129,286 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 **production blocker (2026-10-09 readback):** `article-daily` is still installed on SHA `25bee172fa532b848b106c317766b36e1ddd1ddb`; its last terminal (`18dc93d7507dfae0-6815`, Oct 8 14:23 UTC) is `host_admission_deferred:disk_headroom_low`, exit 75, with no provider receipt/readback. The cleanup owner is on SHA `1fe7db3b634bb910187b846c7246aa7fe0dcba82` and its latest status is `loaded-idle / pass / exit 0` (Oct 8 15:17 UTC). The cleanup recovery metric remains 2 GiB; a previous receipt reported `free_after=882302976` bytes, which is not a producer admission rule. Current read-only `df` reports about 2.47 GiB free. PR #7179 removes numeric producer floors but is not yet in production. Affiliate is independently fenced by publish `resource_effect_unknown`; Capafy is independently fenced by publish `effect_unknown`. Both still require exact official readback before replay.
 
 **現在cursor:** PR #7179をmerge・releaseし、Writerをnumeric capacity gateなしで自然実行させる（owner lock・effect fenceを維持し、既存の先行カードを保つ）→ Affiliate/Capafyの各unknown publishをofficial readbackで照合し、証拠のないものは再送しない → 公開URL・note paywall状態・PartnerStack/公式売上readbackと実費を同じcampaignへ結ぶ。
+
+**履歴の扱い:** 以下の2026-10-08 capacity記録は当時の観測として保持する。そこにある「2 GiBまで待つ」producer admission手順は、この文書上の2026-10-09 numeric-gate removal方針で置き換え済み。2 GiBはcleanup回復receiptの指標だけに使う。
+
+### 2026-10-08 22:02 JST — capacity cursor refreshed from live disk/admission evidence
+
+- `origin/main` now includes PR #7149 at `e1b061f1fdaa040d2461be457fe410c398afc95c`; it lets release reconciliation continue after a budget-only partial. Production `~/loops/current` remains release `20261008T214419-3981bca3` / SHA `3981bca33258129eccd6ddb52e4960f9cec0ac0d`, so #7149 is not installed. `lm-loop doctor` reports missing=0, retired=0, and one unmanaged label: `ai.anicca.life-manager-release-reconciler-self-handoff`.
+- Latest fleet status: 187 managed jobs; 99 `disk_headroom_low`, 19 `resource_effect_unknown`, 4 `resource_capacity_busy`, 1 `resource_control_busy`, 5 `entrypoint_exit_1`, and 2 `resource_admission_unavailable`. Fundraiser and Job Hunter daily are loaded-idle on SHA `3981bca3` and blocked by disk; Connector is still on `804effc5` and has a loaded-running PID, so no apply/stop is implied.
+- Cleanup's natural run at `2026-10-08T12:58:32Z` reports `free_before=508,518,400`, `free_after=498,094,080`, recovery floor `2,147,483,648` unmet, `reclaimed=6,405`, `errors=0`, `protected_deletions=0`, `preserved={open:3, protected_descendant:7}`, `candidate_count=11`, and `disk_writers_stop=absent`; inventory gaps=23. The preceding run at `12:53:29Z` ended with `1,768,493,056` bytes free. The volume has no local APFS snapshots. A read-only deleted-open-file scan found no single file larger than about 14 MB. Safe disk-writer attribution remains unresolved; do not infer that the cleanup root fix restored capacity.
+- **Inventory path correction:** `central_cleanup.py::host_cleanup_command` passes `~/.local/state/life-manager/state` to `HostDiskGovernor`. Its host-scoped `host-inventory-full.json` is `observed_at=2026-10-08T12:13:06Z`, `mode=full`, gaps=19; the matching `host-inventory.json` is `observed_at=2026-10-08T13:08:29Z`, `mode=fast`, gaps=23. The `life-manager-disk-cleanup/host-inventory-full.json` previously inspected is only a per-loop copy from 2026-09-29 and is not current. The full-inventory marker is 12:13Z and `FULL_INVENTORY_INTERVAL_SECONDS=3600`, so use the next natural full pass after it becomes due rather than treating that old per-loop file as the current inventory.
+- The configured finite-run cap remains the default 8; all 192 installed plists leave `LIFE_MANAGER_HOST_MAX_FINITE_RUNS` and every per-class max unset. The three target owners use separate classes: Connector=`browser/revenue`, Job Hunter daily=`deterministic/revenue`, Fundraiser=`agent/revenue`. The admission DB has 77 queued owners, 5 reservations, 0 live claim files, and no live legacy waiter at the read; status shows the three loops blocked before work by disk. This evidence does not show the global cap is saturated. Browser's default class cap is 1, but a scheduler bottleneck for the three targets is not established while disk admission fails.
+
+**順序更新:** 旧順=`guard修正merge → release/handoff → cleanup floor → doctor/fence → target natural runs → same-window capacity`。新順=`(1) exact disk-writer/capacity attribution → (2) owner-safe recovery and producer-guard readback until a cleanup receipt reaches ≥2 GiB with errors=0/protected_deletions=0 plus a later admission pass → (3) natural release handoff containing #7149 and exact idle/readback of the unmanaged self-handoff label → (4) target-specific effect reconciliation/fences → (5) Connector, Job Hunter, Fundraiser natural runs → (6) same-window resource/capacity measurement; adjust caps only if this measurement proves saturation`。理由は、99件のdisk admission deferralと0件のlive claimが観測され、default cap 8の飽和ではなくdisk pressureが今の停止境界だからである。
+
+**残TODO（完了まで・この順）:**
+
+1. **現在cursor—disk圧迫のwriterを特定する。** `/Users/anicca/.local/state/life-manager/life-manager-disk-cleanup/logs/launchd.out.log` の連続する`host_cleanup`記録、正本の`/Users/anicca/.local/state/life-manager/state/host-inventory.json`と次回due時の`host-inventory-full.json`、`df -k /`、APFS空き、owner別の直近runを時刻で突合する。12:53:29Z→12:58:32Zの空き約1.27 GB減少を作った正確なowner/path/processまたは安全に回収できる対象を特定し、サイズ・loaded SHA・ownerを記録する。既知のcleanup候補はほぼ保護/開放中で、最大のdeleted-open fileも約14 MBのため、盲目的削除やSimulator/`memory/`/ブラウザーprofile/active worktreeの変更をしない。
+2. 原因を所有する既存source/functionだけを最小修正し、同じ境界の回帰確認を加える。producer guardのcoverageとhost disk ownerの実際のlease/loaded SHAをreadbackし、欠けているguardだけをそのowner経由で修復する。disk writerを止める場合は既存のowner手順を使い、`disk-writers.stop`を手作業で作成・削除しない。
+3. fixed-source cleanupの自然receiptで`free_after >= 2 GiB`、`errors=0`、`protected_deletions=0`と後続admission passを確認する。未達なら`candidate_count/reclaimed/preserved_reasons/cursor/inventory_gaps`から同じwriter診断へ戻る。
+4. disk gateが回復してから、active reconcilerを止めずに#7149を含むmain-derived immutable releaseへの自然handoffを確認する。`~/loops/current`、`RELEASE.json`、loaded SHA/argv、release reconciler terminalを照合し、`ai.anicca.life-manager-release-reconciler-self-handoff`は正確なargv/PID/no-PIDのowner-safe readback後に限りdoctorを解消する。
+5. current SSOTの既存順でtarget別unknownをofficial readbackまたはstrict pre-effect evidenceへ照合し、証拠なしはfence維持/replay-zero。disk/admission eligible・loaded-idle・lock-freeになったownerだけを一つずつ適用し、自然occurrenceにLuma登録、Workday応募、VC/AI-founder sent receipt、`gpt-6-luna/max/fast`、Telegram reportを同一occurrenceで結ぶ。
+6. 三loopの同じ時間窓でclaims/reservations/eligible queue age/admission reasons/per-class contention/CPU/RAM/diskをreadbackし、実際の同時稼働数を報告する。global cap 8と実測capacityを分け、disk修復後もspecific class capでslotが埋まりrevenue ownerが待つ場合に限り、最小のclass cap変更を決める。
+
+**完了条件:** disk cleanup receipt/admission pass、main-derived releaseからの三loop natural terminalと各official result/Telegram/model receipt、target別unknown fence/replay-zero、同一窓の実稼働capacity/economicsがすべて現行readbackで揃う。
+
+**現在cursor:** correlate the 12:53–12:58 disk drop to an exact writer/owner → repair only that owner and prove stable ≥2 GiB recovery/admission → natural #7149 release handoff/doctor → exact effect reconciliation → three target natural outcomes → same-window capacity/economics.
+
+
+### 2026-10-08 22:24 JST — 新SHAへのfleet再試行が短縮deadlineを無視
+
+- 自然handoffでPR #7149を含む`~/loops/releases/20261008T220718-e1b061f1` / SHA `e1b061f1fdaa040d2461be457fe410c398afc95c`が適用された。`lm-loop doctor`は`missing=0`、`retired=0`、`unmanaged=0`となり、self-handoff labelも消えた。
+- ただしfleet収束は止まっている。前回の`fleet-apply-state.json`はSHA `3981bca3`、`status=partial`、`changed=81`、`skipped=29`、`errors=2`、`message="timed out owners: none; budget exceeded"`、`next_retry_epoch=1791465457`（`2026-10-08T13:17:37Z`）だった。新release後の自然occurrence `13:15:17Z`と`13:18:42Z`は、`agent-runner fleet-apply: release e1b061... coalesced; last attempt ... min interval 1800s`を記録した。後者は記録済み短縮retry deadlineより後の時刻である。
+- 原因境界は`bin/reconcile-agent-runner-release.sh::run_fleet_apply`。`last_next_retry`は読み出すが、SHA変更時のcoalesce判定は`last_attempt_epoch + min_interval_seconds`だけで、#7149がbudget超過partial用に短縮した`next_retry_epoch`を参照しない。回帰対象は`runtime/loop/tests/test_reconcile_agent_runner_release_fleet_apply.py`。
+- diskは別のblockerとして残る。`13:16:56Z`のnatural full cleanupは`free_after=685,985,792`、2 GiB floor未達、`reclaimed=38,831,612`、`errors=0`、`protected_deletions=0`、inventory gaps=19。`13:19Z`の`df`は616,024 KiB free。full inventoryはLibrary、Projects/life-manager-main、gig、Homebrew、`/private/var/folders`のsizeを取得できず、急な空き減少のownerを特定できていない。#7149またはgreen doctorをdisk回復の証拠にしない。
+- `Connector`は旧SHA `804effc5`の自然terminal `pass`だが、`effect_class=none`、provider receipt/readbackなしのためLuma登録は未証明。Job Hunterはdisk defer、Fundraiserは直近runが`resource_fifo_wait`でprovider receiptなし。
+- mainのR17はswap pressureをdisk変動の原因と記録した。fresh readbackでは16 GiB RAM、swap used `8,738.94 MiB`、`memory_pressure` free=40%、`corespotlightd` RSS=`16,720 KiB`。60秒のpaired sampleはswap `8,762.62→8,690.62 MiB`、disk free `459,730,944→469,835,776` bytesで方向は整合するが、単独で1.27 GBの変動を説明しない。現在の`corespotlightd`を再起動せず、owner/source attributionは継続する。
+- regression testは修正前にRED（apply call count `1`、期待`3`）を確認し、修正後にGREEN。fleet-apply test fileは32/32、`bash -n bin/reconcile-agent-runner-release.sh`、`git diff --check origin/main...HEAD`、`bash scripts/verify-source-boundary.sh`もpass。検証済みSHAはrebase後のHEAD。
+
+**順序更新:** 旧順=`disk writer recovery → #7149 release/doctor → target outcomes`。新順=`(1) 観測した新SHA retry deadlineの失敗test → (2) 同一SHA backoffと通常1800秒coalesceを維持しつつ、budget進捗partialの記録済み`next_retry_epoch`をSHA変更時にも適用 → (3) push/merge/releaseし、自然reconcilerがfix SHAを継続applyすることを確認 → (4) disk writerを独立して特定し、既存2 GiB契約へ安全に回復 → (5) target別fence/receiptとowner natural run → (6) 同一窓のcapacity測定`。理由は、#7149とdoctorは本番に反映済みだが、短縮retryを読む判定漏れが次のfleet applyを止めているためである。disk pressureは独立したblockerとして残る。
+
+**残TODO（完了まで・この順）:**
+
+1. [x] `runtime/loop/tests/test_reconcile_agent_runner_release_fleet_apply.py::test_budget_partial_short_retry_allows_new_sha_before_min_interval`を先に追加し、修正前RED（1回apply、期待3回）を確認する。
+2. [x] `bin/reconcile-agent-runner-release.sh::run_fleet_apply`で、短い`next_retry_epoch`を新SHAのcoalesce期限に適用する。修正後の回帰testとfleet-apply test file 32/32、`bash -n`、diff check、source-boundaryがpass。
+3. **現在cursor:** latest `origin/main`をmerge済みのtask branchをcommit/pushし、fresh PR、同一headのrequired CI/reviewを通してmergeする。active reconcilerをstop/restartせず、fix SHAのimmutable releaseと自然継続applyを確認する。
+4. host-scoped inventory/owner traceからdisk writerを特定し、ownerが所有する安全な手順で回復する。cleanup receipt `free_after >= 2 GiB`、`errors=0`、`protected_deletions=0`と後続admission passを確認する。CodexBar updaterはdisk-cleanup skillの24時間超・exact identity条件を満たすまで操作しない。
+5. disk/admission eligibleになったらtarget別effectをreplayせず照合し、loaded-idle ownerだけ適用する。各自然occurrenceにLuma/Workday/VC mailのreceipt、model、Telegram reportを結び付ける。
+6. 同時間窓のlive claims/reservations/queue/class contention/CPU/RAM/diskを測る。実測でdiskや外部writerではなくglobal/per-class capの飽和が証明された場合だけcapを変更する。
+
+**現在cursor:** commit/push latest-main branch → exact-head PR CI/review/merge → fix SHAのimmutable release/natural fleet continuation → disk owner特定/安全回復 → target receipt/natural run → same-window capacity/economics。
+
+
+### 2026-10-08 22:31 JST — reviewで通常errorの再試行間隔短縮を検出
+
+- 独立read-only reviewは`fix-first`。最初の修正は`last_next_retry`をpartial/errorの種別を問わず新SHA coalesceに使うため、通常の`error`やtimeout partialでも1800秒より早く再applyし得る。通常errorの`next_retry_epoch`はfleet処理開始時の`now_epoch + backoff_seconds`、`at`は処理終了時に保存されるため、実行時間分だけretry期限が`last_attempt + 1800s`より先に来る。
+- 現テストは`test_budget_partial_short_retry_allows_new_sha_before_min_interval`を含めfleet-apply test file 32/32 passだが、共通test環境のerror backoffは100000秒で、通常errorの新SHA coalesceを保つケースを検証していない。期限が経過した通常errorを新SHAで即applyしない回帰testが必要。
+- reviewerの`ASTRA REVIEW`は、budget進捗partialだけ短縮し、通常error/owner-timeout partialは従来の1800秒を保つよう修正することを要求する。reviewerのmodel/effortは観測できていない。
+
+**順序更新:** 旧順=`budget partialのnext_retryを全statusへ適用 → PR/merge`。新順=`(1) 通常errorの期限切れ後に新SHAを有効化しても1800秒coalesceが維持される失敗test → (2) structured stateにbudget-progress markerを記録し、それを持つpartialだけ短いnext_retryをSHA変更時に適用 → (3) 旧stateのmessageから該当budget partialを一度だけ識別するfallbackをtest → (4) 既存fleet-apply test file → (5) push/PR/exact-head CI/fresh review → (6) release/自然fleet継続`。理由は、fleet再収束を早めながら、通常errorの既存負荷抑制を弱めないためである。
+
+**残TODO（完了まで・この順）:**
+
+1. **現在cursor—通常errorの失敗回帰testを書く。** 初回のowner applyを`FAKE_APPLY_MODE=fail`、backoff=0で走らせ、error後に新SHAへ切替える。1800秒未満なら2回目のapplyが増えず、state SHAも旧SHAのままのことをassertする。現実装でREDを確認する。
+2. `bin/reconcile-agent-runner-release.sh::run_fleet_apply`がbudget-progress partialに限って短縮を有効にする構造化booleanをstateへ保存し、新SHA coalesceでのみ参照する。旧stateにfieldがない場合、`status=partial`、`message="timed out owners: none; budget exceeded"`、`changed>0`の条件で一度だけ互換判定する。budget partial testはfield欠落状態で新SHA再開を確認する。
+3. 通常error regressionがGREEN、budget partial regressionがGREEN、既存fleet-apply test file全件とshell/diff/source-boundary checksをpassさせる。新しいread-only reviewerは`ship`と判定する。
+4. latest-main task branchをcommit/pushし、同一headのrequired CI/ship reviewを取得してmergeする。productionへはdisk-safeな自然handoffだけを使い、active reconcilerをstop/restartしない。
+5. diskは別cursorとして、host writer/Swap/owner I/Oをfresh readbackで特定し、safe cleanup/admission contractを満たすまでtarget loopのprovider実行をclaimしない。
+
+**現在cursor:** write normal-error RED regression → add budget-progress-only state and legacy fallback → rerun full relevant tests → fresh read-only ship review → exact-head CI/merge → natural release/fleet continuation → safe disk recovery/target outcomes.
+
+
+### 2026-10-08 22:45 JST — 通常errorのcoalesceを保つ修正を検証
+
+- 前回reviewの指摘を修正した。`run_fleet_apply`は`budget_progress_continue=true`の時だけ、新SHA coalesceへ短い`next_retry_epoch`を適用する。新しいstateは条件を満たしたbudget-progress partialだけtrueを保存し、通常error/owner-timeout partialはfalseを保存する。fieldのない旧stateは`partial`、messageが`timed out owners: none; budget exceeded`、`changed>0`、正の`next_retry_epoch`をすべて満たす時だけ互換扱いする。
+- 回帰testは修正前REDを確認した。通常errorをbackoff=0で記録後、新SHAの二回目applyが発生して非0で終わった。修正後は通常errorが30分coalesceを維持するtest、marker欠落の旧budget-partial test、既存fleet-apply test fileの33/33がpassした。`bash -n bin/reconcile-agent-runner-release.sh`、`bash scripts/verify-source-boundary.sh`、`git diff --check`もpass。
+- 編集直前の`df -k /`は`208,788 KiB` freeで、cleanup契約の2 GiB floorを大幅に下回る。安全なwriter/cleanup対象はまだ特定できていないため、disk/admission回復と三loop実行は未完了。
+- `git fetch origin`後、task branchは`origin/main`より2 commit遅れている。共通祖先は`a3c28b0d06db83a31de55995119a6087815ac241`、最新mainは`ac963290ce`。現在branch `888bec807e`にsource/test/specの未commit差分がある。
+
+**順序更新:** 旧cursor=`normal-error test → marker実装 → 33件確認 → reviewer → PR/merge`。新順=`(1) source/test/SSOTをcommit-push → (2) 最新origin/main 2 commitsをtask branchへ通常mergeし、他者差分を保つ → (3) exact-head PR CIとfresh read-only ship review → (4) mergeし、停止/restartなしのimmutable releaseと自然fleet applyを確認 → (5) safe writer attributionと2 GiB以上の自然cleanup receipt/admission pass → (6) target別effect fence/readbackと各loopのnatural run → (7) 同一窓のcapacity計測後、global/per-class capが実際に飽和している場合だけ最小変更`。理由は、回帰修正自体はgreenだがmainが先行し、productionの現blockerはdiskで、global capの飽和は未観測だからである。
+
+**残TODO（完了まで・この順）:**
+
+1. **現在cursor—source/test/SSOTを専用branchへcommit/pushする。** `fix/loop-capacity-queue-20261008`の3ファイルのみをstageし、先行するユーザー差分を含めない。
+2. `git fetch origin`後の`origin/main`をbranchへ通常mergeし、最新mainとsource/test/SSOT変更を保持する。新HEADをpushし、branchが最新mainを含むことを確認する。
+3. PRを作成し、正確なHEAD SHAに対するrequired CIとfresh read-only reviewerの`ship`を取得する。指摘があれば修正・pushし、headが変わったCI/reviewは取り直す。PRをmergeする。
+4. merge SHAからimmutable releaseを自然生成させる。active reconcilerをstop/restartせず、loaded release SHAと自然fleet-apply stateがbudget partialを継続し、通常errorは1800秒coalesceすることをreadbackする。
+5. `host-inventory`と次回full inventory、cleanup receipts、`df`/APFS、owner/process I/Oを同時刻で突合し、空き減少の具体的なwriterまたは安全なowner専有回収対象を特定する。保護領域を触らず、cleanup receiptで`free_after >= 2 GiB`、`errors=0`、`protected_deletions=0`と後続admission passを確認する。
+6. disk/admissionが回復したら各対象のeffect fenceをofficial provider readbackで解決する。`effect_unknown`は再送せず、loaded-idle ownerだけを通常手順で適用し、Connector/Luma registration、Job Hunter/Workday submission、Fundraiser/VC・AI founder outreachの各natural occurrence、receipt、`gpt-6-luna/max/fast`、Telegram報告を照合する。
+7. 三loopの自然runと同一時間窓でclaims、reservations、eligible queue age、admission reason、class contention、CPU/RAM/disk、実同時稼働loop数を測定する。configured global cap 8と実測容量を区別し、disk/owner repair後もcap saturationでrevenue ownerが待つ証拠がある場合だけ、最小のclass/global変更を判断する。応募、返信、面談、funding、settled cash、costsを別々に記録する。
+
+**現在cursor:** commit/push 3 files → merge latest origin/main (2 commits ahead) → exact-head PR CI/fresh ship review/merge → natural immutable release/readback → disk writer attribution and >=2 GiB cleanup/admission → target effects and natural outcomes → same-window capacity/economics.
+
+
+### 2026-10-08 22:47 JST — latest main merge後の確認
+
+- `52552a9e43`を専用branchへpushした後、最新`origin/main`（`ac963290ce`。元の共通祖先`a3c28b0d06`から2 commit進み）を通常mergeした。競合はなく、mainのmarketing/sticker変更とSSOT追記を保持している。
+- merge後HEAD `deaaa76f62`でfleet-apply suite 33/33、`bash -n bin/reconcile-agent-runner-release.sh`、`bash scripts/verify-source-boundary.sh`、`git diff --check origin/main...HEAD`がpass。worktreeはcleanで、merge commitを含むtask branchはremote branchより3 commit先行している。
+- diskは依然として2 GiB floor未達（直近測定は約204 MiB free）。loop capacityの実測と三loopのnatural provider resultは未完了。
+
+**現在cursor:** merge HEAD/spec updateをpush → PRを作成しexact-head CIとfresh read-only `ship` review → merge → immutable release/natural fleet readback → disk writer attribution/2 GiB cleanup/admission → target effect readbackと各loop natural run → same-window capacity/economics。
+
+**残TODO（完了まで・この順）:**
+
+1. **現在cursor—最新main merge commitとこのSSOT cursorをpushする。** task branchだけを更新し、`origin/main`への直接pushはしない。
+2. task branchからPRを作り、正確なHEAD SHAでrequired CIとfresh read-only reviewを取得する。reviewが`ship`でなければ指摘を修正し、更新後HEADでCI/reviewを取り直す。条件が揃ったらPRをmergeする。
+3. merge SHA由来のimmutable releaseを自然handoffさせ、reconcilerを止めずloaded SHAとfleet stateをreadbackする。budget-progress partialは短い期限で次のSHAへ継続し、通常errorは1800秒のcoalesceを維持することを確認する。
+4. `host-inventory`、次回dueのfull inventory、cleanup receipts、`df`/APFS、owner/process I/Oを同時刻で突合し、writerまたは安全なowner専有回収対象を特定する。protected pathを変更せず、cleanup receiptで`free_after >= 2 GiB`、`errors=0`、`protected_deletions=0`と後続admission passを確認する。
+5. disk/admission回復後、target別effect fenceをofficial provider readbackで解決してからConnector/Luma、Job Hunter/Workday、Fundraiser/VC・AI founderの各loopを自然実行し、receipt、`gpt-6-luna/max/fast`、Telegram reportをoccurrenceへ結び付ける。`effect_unknown`は再送しない。
+6. 三loopと同じ時間窓のclaims/reservations/eligible queue age/admission reason/class contention/CPU/RAM/diskと実同時稼働数を測定する。global cap 8は設定値と実測capacityを分け、disk/owner修正後もcap飽和でrevenue ownerが待つと証明された場合だけ最小のclass/global変更を行う。応募、返信、面談、funding、settled cash、costsを別々に記録する。
+
+### Marketing IntelからWriterへの記事候補連携（並列作業）
+
+**目的:** `marketing-weekly-review`がTelegramへ報告する未検証の`CONTENT`戦術を、既存Writerの`article-daily`トピックキューへ候補として渡す。AffiliateやX repostには配線しない。
+
+**契約:** `playbook.jsonl`から`testable=true`、statusが`new`または`queued`、`applies_to`に`content`を含み、`evidence_url`・`source_url`・`source-enrichments.jsonl`のいずれかで正確な出典URLを持つ戦術だけを取り込む。未処理戦術を出典付きの一枚のWriter topic cardにまとめ、`queue`・`in-progress`・`done`を通じて重複させない。記事カードは一人の読者、持ち帰る結果、支払う理由、検証計画を含み、戦術は実証済み効果ではなく検証仮説として扱う。`SOURCE FAILURES`は記事ネタに混ぜない。候補の作成は公開ではなく、Writer既存の需要・出典・品質ゲートとnote/SNS配信を維持する。
+
+**受入:** 最小fixtureで対象フィルタ、出典URL復元、未処理IDのみの取り込み、再実行と処理済みstageでの重複ゼロを確認する。`article-daily`が通常のtopic-state初期化後にこの取込を呼び、既存キューの選択順を保持する。source統合後、disk admissionが回復してから自然occurrenceでWriterの既存公開経路を通し、公開URLと公式売上readbackを確認するまで収益を主張しない。
+
+**順序:** source/test変更は現在のguard PR・disk cleanupの主cursorと独立して進め、外部effectやowner stateを触らない。主cursorの順序は変更しない。production反映と自然実行はdisk cleanup receipt `free_after >= 2 GiB`・`errors=0`・`protected_deletions=0`およびadmission passの後に行う。
+
+**現在cursor:** fixture RED → 最小importerとarticle-daily接続 → focused acceptance → commit/push・PR/merge → immutable release → disk/admission回復後の自然Writer occurrence → 公開URL・公式売上readback。
+
+### 2026-10-08 23:00 JST — PR review/CIとlive capacityの初回readback
+
+- PR #7156のhead `7866fad47742010cd079d9cf12e662f69e63a5f7`でrequired GitHub checksは全passし、fresh read-only reviewerは`ship`。このSSOT更新はPR headを変えるため、merge前に新headでchecks/reviewを取り直す。
+- 22:59 JST read-only snapshot: `df -k /` free=`265,176 KiB`（約259 MiB）、2 GiB floor未達。22:46 JST host cleanup receiptは`free_after=225,701,888` bytes、`errors=0`、`protected_deletions=0`、capacity recovery=`unmet`。free spaceは22:51の30秒内にも約1 GiBから約490 MiBへ減った。
+- 同窓のadmission DBはqueue=77（agent 37、browser 2、deterministic 38）、active reservation=0、expired reservation=0、`owners/` claim file=0。priority/retry/effect-fenceだけで計算したqueue-level candidateは56（agent borrow 22/revenue 5、browser borrow 2、deterministic borrow 26/revenue 1）、最古は約3.5時間。ただしdisk/headroomは未達なのでresource admission可能なready件数とは扱わない。
+- resident `runtime.loop.lm_loop_run` owner processは59。これは常駐supervisor数であり、59本の有限jobが同時実行中という意味ではない。設定global finite-run cap=8と実際の有限job並列数は区別する。現在のsnapshotでactive claim/reservationは0なので、global cap飽和がqueueの原因とは実証されていない。
+- owner別`lm-loop status <id> --explain --json` readbackは三者とも古いimmutable release `e1b061f1fdaa040d2461be457fe410c398afc95c`、最終exit 75、`host_admission_deferred:disk_headroom_low`、次action=`retry_after_eligibility`。Connector occurrence `life-manager-connector-native:18dc91212d346eb0-10117`、Job Hunter `job-search-daily:18dc90e91a79fe08-41708`、Fundraiser `fundraiser:18dc91832c82aec0-69957`。いずれも現在のrunにprovider receipt/readbackはない。
+- Fundraiserには旧occurrenceのunresolved `effect_unknown`が4件あり、`next_action=official_readback_required`。provider receipt/readbackなしに再送しない。別途の`status all --explain --json`集約は60秒超となり、個別owner照会は1–5秒で完了した。
+- 10秒の物理I/O sampleは`kernel_task`の`PgOut/WrData/WrMeta`約30.1 MB、Codex約13.1 MB等を観測したが、数百MiBのfree変動を説明するowner/pathは特定できていない。30秒sampleではswap使用量が約104 MiB減る間にdisk freeも約534 MiB減っており、swap単独原因とは言えない。
+
+**architecture判断:** このsnapshotのqueue待ちはdisk admission deferが支配的で、configured cap 8の飽和は見えていない。capを無限化・引き上げせず、disk/writerとeffect fenceを解決した後に同一windowで再測定する。owner supervisorの大量常駐とfinite-run並列数も別指標として扱う。
+
+**順序更新:** 旧cursor=`PR #7156 checks/review pass → merge`。新順=`(1) このlive readbackを含むSSOTをcommit-pushし、新PR headを固定 → (2) exact-head CI/fresh reviewを再取得しmerge → (3) immutable release/natural fleet readback → (4) disk writer/容量変動を特定し2 GiB/admission pass → (5) Fundraiserの4 unknown occurrenceをofficial readbackでfence解消 → (6) 三loop natural provider outcomes → (7) disk recovery後の同一windowで実際の有限job並列数とclass capを計測`。理由は、現時点で三loopがadmission前のdisk条件で止まり、global capの変更は症状を解決しないためである。
+
+**残TODO（完了まで・この順）:**
+
+1. **現在cursor—このSSOT更新をcommit/pushしてPR #7156のheadを更新する。** code/testは変えていないが、更新後headでcheck/reviewを取り直す。
+2. 更新後のPR headでrequired CIとfresh read-only reviewerの`ship`を得てPRをmergeする。headが変われば再取得する。
+3. main由来immutable releaseを自然handoffし、reconcilerを停止せず、fleet retry stateと各target ownerのloaded SHA/admissionをreadbackする。
+4. disk cleanupのfast/full inventory、receipt、`df`/APFS、physical I/O/owner別runを同時窓で取り、free変動を作る具体的owner/pathまたはsafe owner-owned cleanupを特定する。`free_after >= 2 GiB`、`errors=0`、`protected_deletions=0`、stable admissionを確認する。
+5. Fundraiserの4 occurrence (`18dc890e2982e370-31599`, `18dc7f3bc472c260-76084`, `18dc7222f6b5ec78-20440`, `18d9b0b6311a2018-87933`)をprovider official readbackで個別照合し、receiptなしのunknownを再送せず解決する。
+6. disk/admission eligibleかつeffect fence解決済みのownerだけを通常自然実行させ、Luma registration、Workday application、VC/AI-founder outreachの同-occurrence provider result、`gpt-6-luna/max/fast`、Telegram reportを確かめる。
+7. disk/writer修正後にclaims、reservations、eligible queue age、class contention、CPU/RAM/diskと実際の有限job数を同一windowで測る。global cap 8とresident process数を区別し、class/global cap saturationが実証された場合だけ最小変更を行う。結果と経済数値を別集計する。
+
+**現在cursor:** push SSOT-only PR update → exact-head CI/fresh ship review/merge → natural immutable release and readback → exact disk writer/recovery/admission → Fundraiser official effect reconciliation → target natural outcomes → post-recovery same-window capacity/economics.
+
+
+### 2026-10-08 23:02 JST — PR cursorとlatest-main競合を更新
+
+- reviewerはhead `45a0bfefbc40d62a177767cc7b71584a5f686b73`をread-only確認し`fix-first`。その時点のCIはCodeRabbitのmanual-review-skippedだけで、前head `7866fad4`の9 checks successを新headのCI成功とは扱えない。指摘は、既にpush済みのSSOT updateをTODO 1で再度「pushする」としていたcursor stale。
+- `origin/main`はその後`be130839878c2e46bc677ee225fa19ae48785288`（PR #7158、Writer marketing importer）へ進み、PR #7156が`DIRTY`になった。normal mergeでSSOT append競合が発生したため、loop capacity sectionとmain側Marketing Intel→Writer sectionを両方保持して解消した。loop source/testに競合はない。
+- merge conflictは両SSOT追記を保持して解消し、merge commit `06ad4cd938bcf3aff3add8c22d2568c76e80263b`としてpush済み。`origin/main` `be130839...`を含み、PR #7156はhead `06ad4cd9`・mergeability=`CLEAN`。このheadの新CI/reviewはまだ確認していない。
+
+**順序更新:** 旧TODO 1のSSOT pushとlatest-main mergeは完了済み。新順=`(1) merge後headでrequired CI/fresh review ship → (2) PR merge → (3) immutable release/natural fleet readback → (4) disk recovery/admission → (5) Fundraiser unknown fence → (6) target natural results → (7) post-recovery capacity measurement`。理由は、main #7158とのSSOT append競合を双方保持で解消し、PRが最新mainとmergeableになったため。
+
+**残TODO（完了まで・この順）:**
+
+1. [x] latest main `be130839...`を通常mergeし、SSOTの双方の追記を保って`06ad4cd9`へpush。PR #7156は`CLEAN`。
+2. **現在cursor—PR #7156の現在push済みheadでrequired CIを全passさせ、fresh read-only reviewerから`ship`を得る。** SHAは作業前のGitHub readbackで固定し、CI/reviewまたはPR headが変わったら取り直す。
+3. `gh pr merge 7156 --admin`を先に試し、拒否されたらexact blockerを記録して通常手順を続ける。merge後はmain SHA由来immutable releaseを自然handoffさせ、reconcilerを停止せずfleet retry stateとtarget ownerのloaded SHA/admissionをreadbackする。
+4. cleanup receipt、fast/full inventory、`df`/APFS、owner/process physical I/Oを同じ時間窓で採取し、free変動の正確なwriterまたはsafe owner-owned cleanupを特定する。`free_after >= 2 GiB`、`errors=0`、`protected_deletions=0`と後続admission passを確認する。
+5. Fundraiserの4 unknown occurrenceを個別provider official readbackで照合する。receiptがないeffectは再送せずfenceを維持する。
+6. disk/admission回復とeffect fence解決後にConnector/Luma、Job Hunter/Workday、Fundraiser/VC・AI founderの自然occurrenceを確認し、official result、`gpt-6-luna/max/fast`、Telegram reportを同一occurrenceに結び付ける。
+7. disk回復後の同一windowでactive claims/reservations/eligible queue age/class contention/CPU/RAM/diskと有限jobの実並列数を測る。configured cap 8を実測と区別し、cap saturationが実証された時だけ最小変更を行う。
+
+**現在cursor:** exact-head PR #7156 CI/fresh ship review on the current pushed head → PR merge → immutable release/natural readback → disk writer recovery/admission → Fundraiser official reconciliation → target natural outcomes → post-recovery capacity/economics.
+
+
+### 2026-10-08 23:24 JST — R18 partial fixes and watchdog recovery
+
+- Latest main `066400de03` includes #7165's stable watchdog installer and #7166's `_disk_floor` change: only `priority=critical_paid` receives 1 GiB; other priorities stay at 2 GiB. Target registry entries remain `priority=revenue` / `admission_class=revenue`, so Connector, Job Hunter daily, and Fundraiser still use 2 GiB. `resource_admission` already has revenue priority/reserve, but `lm_loop_run.py` checks the disk floor before queue enqueue; those priorities never help below 2 GiB.
+- The stale watchdog root cause is fixed in production through the main-derived current release at the time (`25bee172fa532b848b106c317766b36e1ddd1ddb`). `launchctl-safe preflight` passed; `skills/self/disk-cleanup/install-launchd.sh` exited 0; safe readback shows the loaded program is `/Users/anicca/.local/bin/disk-watchdog.sh`, state=`running`, runs=1. The stable wrapper follows `~/loops/current`, avoiding a pinned-release path.
+- The first post-install cleanup receipt at `2026-10-08T14:20:46Z` was `free_before=672,919,552`, `free_after=655,257,600`, `reclaimed=6,411`, `errors=0`, `protected_deletions=0`, recovery=`unmet`, preserved open=3/protected_descendant=10. `df -k /` at `23:22:53 JST` was `753,124 KiB`; the watchdog runs, but the disk floor is not recovered and the exact remaining writer is unknown.
+
+**設計決定:** do not raise global finite-run cap 8 or label the three prospecting owners `critical_paid`. Keep borrow/support at 2 GiB, extend the existing 1 GiB floor to revenue-priority owners, and retain their inner producer guards. Use the already-installed stable disk watchdog as the low-disk recovery lane. Add swap telemetry to admission receipts before choosing any swap threshold; current measurements show high swap but not a sole cause. OpenClaw remains the selected harness; it does not own Life Manager's host admission policy.
+
+**順序更新:** old `critical_paid-only 1 GiB floor` → `revenue-priority 1 GiB floor + stable recovery watchdog` → `post-recovery measurement`. Reason: the user target loops are explicitly `priority=revenue`, while R18's 2 GiB shared gate runs before queue priority; `critical_paid`'s new exception does not change their admission. The global cap is unoccupied in the observed window.
+
+**残TODO（完了まで・この順）:**
+
+1. **現在cursor—latest-main merge resolutionをcommit/pushする。** Preserve #7165 stable watchdog, #7166 critical-paid floor, #7162 Writer update, and this loop-capacity history.
+2. PR #7156 exact pushed headでrequired CI全passとfresh read-only `ship` reviewを取得し、mergeする。
+3. main由来immutable releaseを自然handoffし、loaded SHAをreadbackする。`com.anicca.disk-watchdog`のstable plist/argv維持と次のnatural runのreceiptを確認する。`free_after >= 2 GiB`、`errors=0`、`protected_deletions=0`、admission passまでwriter/path attributionを続ける。
+4. Dedicated architecture PRで`runtime/loop/lm_loop_run.py::_disk_floor`を`admission_class=revenue`かつ`priority=revenue`にも1 GiBとする。Borrow/supportは2 GiBを維持。Testsは`runtime/loop/tests/test_lm_loop_run_bounds.py`でrevenue at 1–2 GiBの間にqueue/dispatchできる、borrowはdeferする、revenueが1 GiB未満でdeferする、の3ケースを回帰テストする。
+5. Browser/Job Hunterの512 MiB producer guardを維持し、Fundraiserは外側1 GiB floorを通らない限りagent/browser workを開始しない。`effect_unknown` 4件はofficial readbackで解決するまで再送しない。
+6. disk/admission eligibleかつfence解決済みのConnector/Luma、Job Hunter/Workday、Fundraiser/VC・AI-founderのnatural runでofficial result、`gpt-6-luna/max/fast`、Telegram reportを同一occurrenceに結ぶ。
+7. disk回復後に同一windowのactive claim/reservation、eligible queue age、class contention、CPU/RAM/disk/swap、有限job数を測り、global cap 8は実測飽和が確認できた場合だけ変更する。heavy factoryのcloud移設はlocal capacity measurement後にcost/benefitが成立する場合だけ扱う。
+
+**現在cursor:** finish latest-main merge resolution → push → exact-head PR #7156 CI/review/merge → natural release and watchdog receipt → 2 GiB recovery → revenue-floor follow-up PR → Fundraiser readback → target natural outcomes → same-window capacity and swap measurement.
+
+### 2026-10-08 23:25 JST — latest-main sync and implementation plan
+
+- Main advanced to `9d63ed190194f46221428b7875c97820516b40e6` (#7168) after the `066400de03` sync; the branch now includes #7168 plus the prior #7165/#7166 changes. The normal merge had one SSOT append conflict; main's Writer update and this branch's loop record are both preserved in the worktree.
+- The merge resolution is not committed yet. PR #7156 remote head remains `e4b64e45bf`; its CI run is from that older head and cannot satisfy the new base. No architecture code for the revenue-floor extension is in this PR yet.
+- The follow-up plan is `docs/superpowers/plans/2026-10-08-revenue-admission-floor.md`: extend the existing floor rule from `critical_paid` to all `admission_class=revenue` owners, retain 1 GiB minimum and 2 GiB for borrow/support, and keep the global cap at 8 pending post-recovery measurement.
+
+**残TODO（完了まで・この順）:**
+
+1. **現在cursor—latest-main merge resolutionをcommitする。** Preserve #7165/#7166/#7168 changes and the loop-capacity SSOT sections.
+2. Commit the revenue-admission plan with this SSOT update; push the task branch and verify the PR diff still contains only this task's source/test/spec/plan files beyond latest main.
+3. PR #7156's new head must pass exact-head CI and fresh read-only `ship` review before merge.
+4. After #7156 merge, create the follow-up architecture branch from latest main and execute the revenue-floor plan with its focused regression tests and fresh review.
+5. Apply the main-derived immutable release through the natural owner path; verify stable watchdog run/receipt, target owner admission, and 2 GiB recovery/admission.
+6. Resolve Fundraiser's four `effect_unknown` occurrences through official provider readback without replay, then observe Connector/Luma, Job Hunter/Workday, and Fundraiser/VC-AI-founder natural outcomes.
+7. Measure claims/reservations/queue age/class contention/CPU/RAM/disk/swap and actual finite-job parallelism in one window after recovery. Change the cap only if observed saturation proves it is the remaining limit.
+
+**現在cursor:** commit latest-main merge → commit SSOT and revenue-floor plan → push → exact-head PR #7156 CI/review/merge → follow-up revenue-floor PR → immutable release/watchdog recovery → target readbacks and natural outcomes → same-window capacity measurement.
+
+### 2026-10-08 23:29 JST — watchdog natural run and follow-up plan
+
+- `com.anicca.disk-watchdog` safe readback after the stable-wrapper install shows `state=running`, `program=/Users/anicca/.local/bin/disk-watchdog.sh`, `runs=6`. Its next natural receipt at `2026-10-08T14:29:22Z` (`23:29:22 JST`) has `errors=0`, `protected_deletions=0`, `reclaimed=6,405`, `free_after=852,484,096`, recovery=`unmet`; paired `df -k /` was `816,616 KiB`. The stale-release error log has not changed since 23:22:18; the remaining lines are historical `can't open file` entries from before the stable install.
+- The stable watchdog is a recovery lane outside finite `lm_loop_run` admission. It runs the current immutable cleanup governor, but it has reclaimed only about 6 KiB per pass so far; the exact reason free space stays under 1 GiB is unresolved.
+- A follow-up executable plan is recorded at `docs/superpowers/plans/2026-10-08-revenue-admission-floor.md`. It changes only `_disk_floor` and its tests: `revenue` owners use the 1 GiB floor from #7166, borrow/support stay at 2 GiB, and the global finite-run cap remains 8. The remote PR head is still `e4b64e45bf`; this merge/plan update is not pushed yet, so old CI is not current evidence.
+
+**現在cursor:** commit latest-main merge resolution + revenue-floor plan → push branch → exact-head PR #7156 CI/fresh review/merge → natural release/readback → watchdog recovery/2 GiB admission → revenue-floor follow-up PR → Fundraiser fence readback → target natural outcomes → same-window capacity.
+
+
+### 2026-10-08 23:37 JST — review findings corrected on the current PR cursor
+
+- Fresh review of PR #7156 head `dce7259964983a1ed6148c03cf2e7895571fa4e2` returned `fix-first`: the latest cursor lagged the pushed head, two `df` samples shared the same label despite different values, and the budget-progress marker's new-state path was not tested.
+- The SSOT now orders the 23:25 and 23:29 notes chronologically and distinguishes `df -k /` at `23:22:53 JST` (`753,124 KiB`) from the paired sample at `23:29:22 JST` (`816,616 KiB`). The 23:25 cursor is historical; this entry supersedes it.
+- `test_budget_partial_short_retry_allows_new_sha_before_min_interval` exercises both `budget_progress_continue=true` and a field-absent legacy state. Each path uses the same partial-budget fixture and verifies the expired short deadline allows the new SHA before the 1,800-second coalesce interval.
+- Local verification passed: fleet-apply tests 33/33, `bash -n bin/reconcile-agent-runner-release.sh`, `bash scripts/verify-source-boundary.sh`, and `git diff --check`.
+- PR #7156 head `dce72599` has CI run `37793247368`; those results do not cover this test/SSOT update and are not a gate for the next head.
+
+**現在cursor:** commit/push this test and SSOT correction → exact-head CI/fresh read-only `ship` review → merge #7156 → main-derived release/watchdog readback → revenue-floor follow-up PR → target outcomes and post-recovery capacity.
+
+
+### 2026-10-08 23:40 JST — test/review correction and latest-main sync
+
+- Fresh review of `dce7259964983a1ed6148c03cf2e7895571fa4e2` returned `fix-first` for stale cursor ordering, mismatched `df` timestamp labels, and no regression on the new `budget_progress_continue` marker path. The dated notes are now chronological; `df` is recorded as `753,124 KiB` at `23:22:53 JST` and `816,616 KiB` at `23:29:22 JST`. The short-retry test now runs both marker-present and marker-absent legacy cases.
+- Local verification on the source/test tree: fleet-apply suite 33/33 in 46.439s, shell syntax PASS, source-boundary PASS, diff check PASS. PR head `dce72599` subsequently reported all required checks PASS; those checks do not cover the current uncommitted test/spec/merge updates.
+- The stable watchdog remains loaded through `/Users/anicca/.local/bin/disk-watchdog.sh`; readback at 23:39 shows 14 runs. Its natural receipt at `2026-10-08T14:39:42Z` is `free_after=275,648,512`, `reclaimed=6,409`, `errors=0`, `protected_deletions=0`, recovery=`unmet`; `df -k /` at 23:40:54 is `287,516 KiB`. `watchdog.err.log` has not changed since 23:22:18. The stable recovery path works; the remaining exact writer/cleanup candidate is still unknown.
+- Latest main is `bd5ff9441f` (#7171), including #7169's assignment of `priority=critical_paid` to the paid Coconala storefront. This confirms that `critical_paid` is reserved for paid customer work; Connector, Job Hunter, and Fundraiser remain `priority=revenue` and should not be reclassified to get the lower floor.
+
+**現在cursor:** finish merge with latest main `bd5ff9441f` and current test/spec fixes → push → new-head CI/fresh `ship` review → merge #7156 → revenue-floor follow-up PR → immutable release/watchdog and target readbacks.
+
+
+### 2026-10-08 23:45 JST — main #7172 sync and cursor correction
+
+- Main advanced from `bd5ff9441f` to `e9fa073d83` (#7172, Postiz readback; includes #7170 watchdog readback). The branch has a clean merge commit `afb3182295` containing this latest main; the canonical SSOT preserves the Postiz/disk updates and loop-capacity thread.
+- PR #7156 remote head is still `bd5208d8fe`. Its check run `37794590717` has seven passes and two pending (`Loop control contracts`, `TruffleHog`); these checks do not validate the current local merge head. The fresh review on `bd5208` found only a stale “merge/push pending” cursor; this entry replaces it. The marker-present/legacy tests and timestamp corrections are already in the branch.
+- The executable follow-up plan is committed in `docs/superpowers/plans/2026-10-08-revenue-admission-floor.md`. The low-disk watchdog is stable and running but latest receipt is still below 2 GiB; target owners remain on the older installed release and no provider result is claimed.
+
+**現在cursor:** commit/push latest-main merge and this cursor → exact-head PR #7156 CI/fresh `ship` review → merge → revenue-floor follow-up branch and tests → immutable release/watchdog receipt → disk/admission recovery → effect readbacks and target natural outcomes → post-recovery capacity measurement.
+
+
+### 2026-10-08 23:54 JST — mixed owner-error retry guard
+
+- Fresh read-only review of PR #7156 head 73332795af31de851c227355349a0c1dea3b537a against origin/main e9fa073d83363ae828ceeacf8b529d2773f21550 returned fix-first: a budget-exceeded partial could also contain owner errors and still receive the short budget-progress retry; the legacy-state inference had the same gap. Review also found this SSOT's prior cursor/head was stale.
+- Added a regression where one owner fails, a later owner applies, and the fleet budget leaves a third owner unstarted. Before the source change, both marker-present and legacy marker-absent cases recorded the short retry. The apply and legacy inference now require errors == 0; otherwise the regular backoff and new-SHA coalesce remain active.
+- Verification after the source/test change: fleet-apply suite 34/34 PASS in 51.547s; shell syntax, source boundary, and git diff --check PASS. The new focused regression passed for marker-present and legacy marker-absent state. This is local verification; these changes are not yet on the PR head.
+- At 23:54 JST, PR #7156 still points to 73332795...; run 37795141108 has all reported checks PASS except Loop control contracts, which is still pending. Those checks do not cover the local source/test change.
+
+**現在cursor:** commit/push the mixed-error guard, regression, and this corrected cursor → fresh exact-head CI and read-only review → merge #7156 → main-derived release/watchdog readback → revenue-floor follow-up PR → disk/admission recovery → official effect readbacks and target natural outcomes → post-recovery capacity measurement.
+
+
+### 2026-10-08 23:55 JST — latest-main sync for PR #7156
+
+- `origin/main` advanced from `e9fa073d83` to `5ef786aa8a` through doc-only PRs #7174 and #7175 while the mixed-error guard was being pushed. The source fix commit `ce83c92734` is on the PR branch; latest main is merged locally as `b374df90cf`, with no source conflict. The new main entries remain preserved in this SSOT.
+- At this snapshot the PR remote head is `ce83c92734`; the `b374df90cf` latest-main merge is local and needs pushing. Checks from the previous head do not cover the merge head.
+
+**現在cursor:** confirm the remote PR head contains latest main `5ef786aa8a` and source fix `ce83c92734` → exact-head required CI and fresh read-only review → merge #7156 → main-derived immutable release and natural readback → revenue-floor follow-up → disk/admission recovery → Fundraiser official effect readbacks → target natural outcomes and post-recovery capacity measurement.
+
+
+### 2026-10-09 00:04 JST — revenue floor merged; capacity cursor reordered
+
+- Main advanced from `5ef786aa8a` to `1fe7db3b63` via #7177 while PR #7156 CI was finishing. #7177 implements the updated 2026-10-09 direction: `critical_paid=256 MiB`, `revenue=512 MiB`, other priorities `2 GiB`; `_disk_floor` remains priority-based. This replaces the earlier follow-up plan's 1 GiB revenue-floor proposal. The plan file now records #7177 as implemented and points remaining work to this SSOT.
+- Merged latest main into the loop-capacity branch as local merge `e530f1988e`; it carries #7177 source and tests without source conflict. PR #7156 still needs the mixed-owner-error retry fix on top. #7177's PR checks showed the source tests and security checks passing; Loop control contracts was still pending at the last readback, so no full-CI claim is made for #7177 here.
+- This is a source-level improvement only. The previous natural disk receipt was below 512 MiB, so the floor change alone does not prove the three target loops can currently run. No provider result or revenue is claimed.
+
+**順序更新:** 旧順序は「PR #7156 merge → revenue-floor follow-up PR → disk/admission recovery」。新順序は「(1) #7177 floor + #7156 retry fixを含むbranchを最新main上でexact-head CI/review → (2) #7156 merge → (3) immutable release/natural admission readback → (4) cleanup receipt/free-spaceを見て三loopのeligible状態を確認 → (5) Fundraiserのunresolved effectをofficial readbackで解決、replay-zero → (6) Connector/Job Hunter/Fundraiserのnatural provider結果をoccurrence別に確認 → (7) 同一windowでqueue age、claims、reservations、実同時実行数、CPU/RAM/diskを測り、cap 8が実際の制約か判定」。理由は#7177がsource merge済みで、二重にfloor実装する必要がなく、natural release/readbackが未実施だから。
+
+**現在cursor:** commit/push latest-main merge `e530f1988e`, closed-out floor plan, and this order update → exact-head PR #7156 required CI/fresh read-only review → merge #7156 → immutable release/natural admission readback → disk/target receipts → unresolved effect reconciliation → natural outcomes → post-recovery capacity measurement.
+
+
+### 2026-10-09 00:06 JST — review found and corrected stale cursor
+
+- Fresh review of PR #7156 head `306c419530425e1ba425ef3dfe7ead1f583a7d03` returned `fix-first` only because the prior cursor still asked to commit/push the merge and floor-plan update, already completed at that head. The source fix, regression test, main ancestry, and plan status were otherwise accepted. This entry supersedes that cursor.
+- At 00:06 JST, PR #7156 remote head is `306c4195...`, base is `1fe7db3b...`; exact-head CI run `37797802933` has passed Shell syntax, Agent instruction, OSS boundary, PII, and Startup context, while Loop control contracts, Python, TruffleHog, and gitleaks remain pending.
+
+**現在cursor:** run exact-head required CI and fresh read-only review on the current pushed PR #7156 head → merge #7156 → immutable release and natural admission readback → disk/target receipts → unresolved-effect reconciliation → natural outcomes → post-recovery capacity measurement.
