@@ -206,6 +206,17 @@ def _plist(loop_id: str, entry: dict, release_root: Path, release_sha: str,
             first = (offset // 60) % every
             value["StartCalendarInterval"] = [
                 {"Hour": hour, "Minute": minute} for hour in range(first, 24, every)]
+    elif key == "start_interval_seconds" and 300 <= cadence < 3600 and cadence % 60 == 0 \
+            and 3600 % cadence == 0:
+        # Same wall as the hourly case above, for 5/10/15/20/30-minute loops: other actors cut and
+        # apply releases (re-bootstrapping the owner) more often than every 15 minutes, so a
+        # StartInterval of 900s never reached its first start (Capafy factory, 2026-10-08, two
+        # hours with zero starts). Wall-clock minutes survive a reload; the per-loop offset keeps
+        # owners from all firing on the same minute.
+        offset = int(hashlib.sha256(loop_id.encode()).hexdigest(), 16)
+        step = cadence // 60
+        first = offset % step
+        value["StartCalendarInterval"] = [{"Minute": minute} for minute in range(first, 60, step)]
     elif key == "start_interval_seconds":
         value["StartInterval"] = cadence
         if cadence < 10:

@@ -4,9 +4,16 @@
     {
       "id": "capafy-ship",
       "path": "state/capafy-autopublish/published.jsonl",
-      "max_age_hours": 24,
-      "meaning": "no new Capafy agent has been submitted",
+      "max_age_hours": 4,
+      "meaning": "no new Capafy agent has been submitted (the factory shipped on 2026-10-08 after a 7-day stall, so 4h is a real stall)",
       "look_at": "daily_loop.log, select_publish_agent, CP1 evidence under state/agent-runner-evidence/capafy-drainer"
+    },
+    {
+      "id": "capafy-factory-pass",
+      "path": "state/capafy-autopublish/daily_loop.log",
+      "max_age_hours": 1,
+      "meaning": "the Capafy factory (15-minute cadence) has not run a pass",
+      "look_at": "launchctl print ai.anicca.capafy-loop-daily (runs/last exit), host-admission occurrences for capafy-loop-daily (effect_unknown fence), release-reconciler/fleet-apply-state.json (timers reset by applies)"
     },
     {
       "id": "capafy-articles",
