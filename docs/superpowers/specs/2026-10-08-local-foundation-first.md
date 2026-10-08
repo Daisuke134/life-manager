@@ -19,3 +19,7 @@
 所有ファイルはruntime/loop/lm_loop_run.pyとruntime/loop/tests/test_lm_loop_run_bounds.py。既存testへsmall/large/bounded read/regular fd/exitと最終tail保持の最小回帰を追加しRED→GREEN。source/diff/必要既存contractsを確認し専用branch commit/push/PR/main。production反映はidle ownerとmain-derived release境界で実施し、稼働仕事を途中で止めない。
 
 この一手は長い子process実行中のreal file増加やdetached子が保持するfd全体を解決するものではない。その対策を成功扱いせずFD-02へ残す。完了報告はsource proofとrelease/natural readbackを分ける。
+
+## FD-01現在の確認
+
+source/独立review/CI/main統合PASS、PR #7038。main SHA d1d5850630946bdb04818e62849f22af0e669379。main由来不変releaseをcurrent不変更で作成し、idle/pending無しのhealth observer一件だけ反映。自然run 18dc7136883a17c0-13707のreport pass/exit0を同SHAで確認。売買/応募owner変更0、manual provider action0。全owner展開と実行中captureの増加対策は未完。次のcursorはFD-02。[receipt](../../evidence/foundation-stderr/acceptance.json)。

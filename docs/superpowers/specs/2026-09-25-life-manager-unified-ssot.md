@@ -5041,7 +5041,7 @@ Production / capacity readback (2026-10-08 12:32 JST): `origin/main=6639a538`、
 
 ## 現行容量基盤を先行する
 
-Daisが現行基盤を先に実装し、安定後にOpenClawへ進む順を指定。旧順序=OC-001以降、新順序=FD-01 bounded stderr replay→FD-02 disk producer budget/retention→FD-03 phase slot→FD-04 readback容量→FD-05自然成果→FD-06 OpenClaw移行。現在cursor=FD-01、source実装着手。根拠はlarge child stderrの全量read/replayとwhole job slot占有。既存workflow/account/claim/scheduleを同時変更しない。[scope](2026-10-08-local-foundation-first.md)。
+Daisが現行基盤を先に実装し、安定後にOpenClawへ進む順を指定。旧順序=OC-001以降、新順序=FD-01 bounded stderr replay→FD-02 disk producer budget/retention→FD-03 phase slot→FD-04 readback容量→FD-05自然成果→FD-06 OpenClaw移行。現在cursor=FD-02。FD-01はsource/独立review/CI/main統合とhealth observer一件の自然canaryまでPASS。売買/応募ownerの展開は未実施。根拠はlarge child stderrの全量read/replayとwhole job slot占有。既存workflow/account/claim/scheduleを同時変更しない。[scope](2026-10-08-local-foundation-first.md)。
 
 ### 2026-10-08 11:36 JST — eBook Monk latest cursor and atomic path
 
@@ -5190,3 +5190,5 @@ PR #7030はlatest main `a7899e37f8dfd266be263ec4c891f80b1427b0ff`をmerge commit
 PR #7030の全required checksはhead `99648f4f` / base `a7899e37`でPASSした。merge直前にmain #7037が`skills/capafy-autopublish`を再更新したため、PR branchに最新mainをmerge commitで取り込み、243-file rootのderived hashを`64b3b8d037c8dea56e4f57f976ae4310b364eeac028ce475e8790b53a6ed6a7a`へ更新した。`node scripts/verify-oss-self-contained.mjs --json`は`ok=true, violations=[]`。
 
 **現在cursor:** 新しいmerge/hash commitをpushし、main `ca7d58b6`を含むheadでrequired CIを再実行する。前のgreen CIはこのbase changeを含まないため、PR mergeはまだ行わない。
+
+FD-01確認: main d1d5850630946bdb04818e62849f22af0e669379、PR #7038。stdout/domain/claim不変更、stderr終了後bounded read/replay。自然run 18dc7136883a17c0-13707は同SHA report pass/exit0。receiptはdocs/evidence/foundation-stderr/acceptance.json。実行中capturefile増加と全business owner rolloutは未完。FD-02で既存retention/producer disk budgetを進め、並列数増加や新framework導入を先行させない。
