@@ -4885,15 +4885,7 @@ Source / cursor follow-up (2026-10-08 12:52 JST): docs PR #7048はmerge commit `
 - **Danaher / Genedata Business Account Manager:** 既存Gmailの公式「Application Status Update」は2026-09-08 16:14、message ID `1a07fde1ae4019c7`、thread `FMfcgzQhWLQBlZPDSRsXGttmwsjvlgzk`で不採用を示す。9月の応募受理メールも検索結果にある。不採用メールではrequisition IDを確認できず、応募受理メール本文のID有無は未確認。対象Workday occurrenceのlocal application IDは`b7c310a7b634528895b307a0995aee61da36ccfd2480df8b98844abfa7b8e1cb`、requisitionは`R1316263`。10月7日の`daily-20261007-234208`は`transport_failed`で、`Business Account Manager after:2026/10/06`のGmail検索は0件。Workday userHomeは`/login`へredirectし、個別のcandidate historyを読めなかった。従って過去の不採用は確認できても、R1316263または10月7日のeffectと結合できず、targetはunknownのまま。
 - **DeepScale.Ventures / Seed Lead:** 公式応募フォームはHTTP 200で一般公開入力画面を返すが、個別statusやreceiptは表示しない。既存Gmailの`deepscale`検索と`in:sent (deepscale OR "DeepScale.Ventures")`はいずれも0件。private `application-receipts.jsonl`のrun `20260929T043704Z-87970`には初期navigation HTTP 403・submitなしの記録がある一方、対応する`events.jsonl` occurrence `fundraiser:18d9b0b6311a2018-87933`はreceipt/readback nullの`effect_unknown`。これらのlocal記録と今回の公開フォーム/Gmail readbackだけでは、strict `verified_pre_effect`条件を満たさず、target fenceを解除しない。
 
-**更新後の残TODO（この順）:**
-
-1. **現在cursor — LR-08容量設計レビュー:** 8/8占有は03:47Z snapshotのみで、03:48Z以後の最新値はSQLite lockで未取得。これを「現在値」と扱わず、実行前にfresh admission/queue-age/resource snapshotを取る。Browser/Mac、Luna agent、deterministicごとの上限・revenue予約枠・fair queue・拒否理由counterを設計し、Hatchet pilotとTemporal案を比較してレビューを完了する。測定なしにglobal capを上げない。
-2. **並行するowner read-only reconcile:** DanaherはWorkdayの既存candidate historyをrequisition `R1316263`へ照合し、取得不能なら不足するprovider recordを記録してfenceを維持する。DeepScaleは上記run/occurrenceのreceiptとstrict pre-effect proofを既存ownerの条件で再評価し、証明できなければfenceを維持する。どちらも同targetを再送しない。
-3. LR-08設計のレビュー後、承認した最小容量変更だけを専用branchで実装し、focused acceptance・独立review・required CI後にmainへ統合する。全revenue owner/shared capacity ownerのresource/admission/priorityを明示し、effect fence・receipt・immutable releaseを保つ。
-4. owner-safe pathでretired installed labelを解消し`lm-loop doctor`をPASSさせる。fresh cleanup receiptとdisk readbackでhost floor / guard inventoryを確認し、release reconcilerの自然terminal、shared apply lock、対象ownerのtarget fenceをreadbackする。
-5. release-cut時点のlatest mainからimmutable releaseを作り、Connector、Job Hunter daily/health/inbox、Fundraiserを既存owner単位でapplyする。各ownerのloaded argv/SHA・admission rowを確認し、active runやunknown targetを横切らない。
-6. 各ownerを自然実行し、ConnectorはLuma registration + Google Calendar + Telegram receipt、Job HunterはWorkday official application state、Fundraiserは新規適格VC/AI founderへのGmail provider message ID + exact Sent + Telegram receiptを同一occurrenceで確認する。Job Hunter/Fundraiserはfenced targetを候補から除外し、unknown targetへ再送しない。
-7. 各occurrenceの公式結果とreplay-zeroを確認する。old Danaher/DeepScale targetは公式statusで閉じるかstrict verified-pre-effect proofが成立した場合だけ解決し、それ以外はfencedのまま未解決として明示する。3 loopの自然実行・公式readback・replay-zero gateが閉じたらこのlaneを完了し、統合SSOTの次cursor MX-01へ戻る。
+**LR-08残TODO:** この時点の設計・容量値・作業順は、正本末尾の「2026-10-08 14:09 JST — local revenue loop capacity and completion order」で更新する。以下に残る記述は12:48時点までの履歴であり、現在値として扱わない。
 
 ### 2026-10-08 09:53 JST — Gig-only status refresh and current cursor
 
@@ -5824,3 +5816,33 @@ This snapshot supersedes the 13:59–14:04 source/release status. PR #7055 backo
 - 14:55 JSTのmain #7071はCapafy計画書のみを更新し、最新head `d3b0d9926961883a5b65f376ce1d25c04a788403`としてclean merge済み。`skills/capafy-autopublish` treeは変わらず、245-file inventory hashは維持。
 
 **TODO順:** current cursor=`245-file latest-main inventory hashを正本へ反映 → exact OSS verifier PASS → 最新main再fetch → spec/manifest commit+push → new-head CI全required PASS → PR #7057 merge → release reconciler natural convergence → eBook ownersとfence reconcilerのloaded SHA/argv readback → exact occurrence route → unique identity recovery → JP catch-up if due → EN old-effect/account gate → 9 unique PUBLISHED/day → paid order/PDF/subscription net MRR → Capafy automation repair/canary`。投稿数と収益の未確認を完了扱いしない。Daisの手動作業は現時点で不要。
+### 2026-10-08 14:09 JST — Local revenue loop capacity and completion order
+
+この記録が上記LR-08の古いTODOを更新する。確認できた値と推論を分け、次の未完作業をこの順で進める。
+
+**確認済み（2026-10-08 14:09 JST前後のreadback）:**
+
+- `origin/main` は `fd0681c1619a19bcd5cd6c7dadd89187a58b8c4c`。`/Users/anicca/loops/current` はimmutable release `20261008T140847-fd0681c1` を指すが、対象ownerはまだ同一SHAではない。
+- `life-manager-release-reconciler` はPID `40071`、occurrence `18dc75b3dbb4d198-2730` で稼働中。自然terminalとshared apply lock readbackまでapply・stop・restartを重ねない。
+- Connector `life-manager-connector-native` はSHA `8f342d8d`、occurrence `18dc745c5c5f3b48-35170` がexit 75 / `effect=not_applicable` / provider receiptなし。Job Hunter daily `job-search-daily` は同じくSHA `8f342d8d`、occurrence `18dc75598109b920-79461` がlocal passだが`effect=not_applicable`、Workday receipt/readbackなし。FundraiserはSHA `8486f4e8`、occurrence `18dc75a4cc1924c8-61669` が`apply_lock_busy`でblocked / `effect=not_applicable` / receiptなし。3件ともprovider成果を確認した記録ではない。
+- 別のFundraiser occurrence `18dc7222f6b5ec78-20440` は05:04Zにtimeoutし、aggregate `effect_unknown`・receiptなし。target rowsはLAUNCH AcceleratorとPodcast invitationを`verified_pre_effect_failure`, `effect=0`, provider IDなしと記録する。Gmailのread-only exact-time/recipient検索は該当Sent 0件。既存Podcast Sent `1a1199c05daf8426` は開始前かつtarget hash不一致。aggregateを安全にcloseする未充足の公式証拠は、LAUNCHの同一targetに対するprovider application statusまたはapplication ID付きreceipt。取得まではfenceを維持し再送しない。
+- global finite-run capのsource defaultは8。8/8は03:47Zのsnapshotに限り、03:48Z以後の新鮮な占有数はSQLite `database is locked`で未確認。14:08 JSTの`df -Pk /`は5,827,820 KiB available。`lm-loop doctor`はretired Capafy label `ai.anicca.provision-browser.capafy.kosuke`とunmanaged handoff label `ai.anicca.life-manager-release-reconciler-self-handoff`で`ok=false`; missing entrypointsは0。これら外部ownerのstateは変更しない。
+
+**原因の根拠と設計判断:**
+
+- `runtime/host/resource_admission.py::_database` は既存schemaでもconnectionごとに`journal_mode=DELETE`、`synchronous=FULL`、`BEGIN IMMEDIATE`、schema検査・migration用UPDATE・index作成を実行する。runtime logでは`database is locked`がrecoveryと`runtime/loop/lm_loop.py::_read_admission_rows`のread pathで観測された。hot-pathのwriter transactionは直接確認済みの修正対象だが、競合する具体的writer ownerは未特定であり、focused reproductionで因果を確認する。WALへの切替はmixed-release migration手順なしに行わない。
+- `connector-agent`、`job-hunter-agent`、`fundraiser-agent` はすべて`gpt-6-luna/max/fast`だが、各task classはCodex profile `acct1`のみを指定する。provider runnerは同じ`CODEX_HOME`をexclusive lockし、busy時はtask timeoutまで待つ。従って3 task間で同時に動けるCodex provider callは現状最大1つ。task-scopedに既存`acct2`も候補化し、homeごとのlockを保てば最大2つにできる。両方busyなら短時間でretryable exitし、admission slotを長時間占有させない。
+- ConnectorとFundraiserは共有`interactive:dais` profile lockをowner run全体で保持し、Job Hunterは既存`cdp_context_lease.py`を使う。Connector/Fundraiserを同じ登録daily-driver内のtask-owned contextへ移す。context内の認証/sessionが確認できるまでprofile lockを解除しない。新browser/profile/loginは作らない。
+- `runtime/browser/capacity_probe.py` は一時Chromiumを`--no-sandbox`で起動し、終了時にkillする。実際の登録daily-driverを測っていない。既存browser identity resolverとread-only `/json/version`・context-count readbackを使い、追加Chromiumを起動しない。
+- `lm-loop`、durable admission queue、既存owner fence、receiptを維持する。Hatchet/Temporalへの全面移行はこのprovider-home lock・browser profile lock・effect reconciliationを解決せず、移行コストを増やすため採らない。8のglobal capはfresh measurements後まで上げない。
+
+**残TODO（完了までの順序）:**
+
+1. Provider read-only reconciliationを継続する。LAUNCH exact status/receiptとDanaher Workday、DeepScale official statusを同一targetへ結合する。証明不足ならfenceを維持する。このread-only作業はsource修正と並行する。
+2. `runtime/host/tests/test_resource_admission.py`に、既存schemaを開くread pathがwriter transaction/migrationを開始しない回帰を先に追加し、現行実装で失敗させる。`runtime/host/resource_admission.py`を最小修正し、legacy migration・`control.lock`・durability・effect fenceは維持する。focused testでlock contentionの再現と修正を確認する。
+3. `runtime/agent-runner/config.json`の3専用task classに、同じ`gpt-6-luna/max/fast`のまま`acct1`/`acct2`候補を設定する。`runtime/agent-runner/agent_runner.py`はtyped provider-home-busyをprovider起動前に即時返し、次のprofile候補へ進み、全profile busyならretryableに終了する。`runtime/agent-runner/tests/test_provider_lease.py`と関連account-failover testで、同一home重複なし・別home並行可・busy時の短時間終了を確認する。
+4. Connector `discover.js` / `connector-browser-target-controller.js` とFundraiser runtimeを既存task-owned CDP contextへ接続し、owner外contextを触らないことを既存lease testで確認する。`runtime/browser/capacity_probe.py`を登録browserへのread-only probeへ変更し、`runtime/browser/tests/test_capacity_probe.py`を更新する。resource classを変えずに済む範囲に留め、durable queueの未計画migrationを作らない。
+5. source-boundary、3つのfocused test、必要なloop contract/CIをPASSさせ、fresh read-only reviewを通して専用branchからPR/mergeする。これらはsource acceptanceでありproduction完了の代用にはしない。
+6. current release reconcilerの自然terminal・shared apply lock・fresh disk/admission snapshotを再読する。latest-main immutable release後、target ownerの安全な個別apply/readbackを行う。global `doctor`の外部owner問題を修正せず、target限定applyが安全と証明できない場合はその正確なowner blockerを保持する。
+7. 対象ownerのloaded SHA/argv/env・admissionを確認した後、各loopを自然runする。ConnectorはLuma registration + Calendar + Telegram receipt、Job HunterはWorkday official application state + Telegram outcome、Fundraiserは新規適格VC/AI founderへのGmail provider message ID + exact Sent + Telegram receiptを同一occurrenceに結ぶ。既存unknown targetは候補から除外し、再送しない。
+8. 3 loopすべての同一occurrence readback・replay-zeroを確認する。旧Danaher/DeepScale/LAUNCH targetはofficial statusまたはstrict verified-pre-effect proofでのみcloseし、証拠不足のtargetはfencedのまま明示する。3 loopのproduction gateが閉じた後、このlaneを完了して全社SSOTの次cursor `MX-01`へ戻る。
