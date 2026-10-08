@@ -4680,6 +4680,84 @@ PR gate update (2026-10-08): latest rebase CI passes Loop control, Python, OSS b
 
 **現在cursor:** item 1。PR #7003のsource acceptanceはPASS、最新headのGitHub checksは実行中（Startup context driftはbase mainでも再現する別lane failure）。TikTok productionはdisk floor未達で停止中。最新のPostiz実績は10/07が21/48、10/08は09:53まで1件のみでAnicca iOS 0件。画像2 profileのnative-carousel ledgerは09-28で止まっている。slideshow形式とviews/engagementはPostiz GETだけでは確認できない。
 
+### 2026-10-08 10:05 JST — TikTok post-merge delivery cursor
+
+この節は09:54のmobile cursorを置き換える。TikTok配信がmobileの最優先。私は前段でcapacity診断に長く留まり、配信目標を先頭に維持できていなかった。
+
+**Source mergeとproductionの分離:** PR #7003は全checks PASS後に01:00:51 UTCでmerge済み。merge SHA/main=`4056d35903dc1ace75b97ae8f816b75473cb6f47`。mainには閉じたXcode `DerivedData`だけを既存open-file guard付きでcleanup候補にする修正がある。現在のcleanup/release reconciler releaseは`c65449ef8c2649c28ffa760b989eb75843e6cbd5`で、`disk_cleanup.py`にはまだDerivedData candidateがない。PR mergeはproduction release/owner applyや投稿receiptではない。
+
+**10:05 JSTの実測:**
+
+- `df -Pk /` available=`1,658,144 KiB`。2 GiB floorより`439,008 KiB`不足。09:55のread-only inventoryでは`~/Library/Developer/Xcode/DerivedData`=`3,703,084 KiB`で、`xcodebuild`/`swift-frontend` processは観測されなかった。削除は登録済みcleanup ownerのopen-file guardを通る自然runに限る。
+- 01:04:36 UTC cleanup receiptは`free_after=1,701,683,200` bytes、`reclaimed=6,409` bytes、`errors=0`、`protected_deletions=0`、capacity=`unmet`。`life-manager-disk-cleanup`はrelease `c65449ef`、直近`entrypoint_exit_1`。`life-manager-release-reconciler`は同releaseでloaded-running PID `55054`、occurrence `18dc6785bbe030b0-42329`、過去terminal `entrypoint_exit_143` / `next_action=reconcile_owner`。このrunを止めたり手動で二重applyしたりしない。
+- Anicca main / JP1 / EN slideshow TikTok ownersはrelease `46ec94bd`のままで、最新試行は`host_admission_deferred:disk_headroom_low`。Postiz dispatch前に延期されており、投稿は発生していない。
+- c65449 releaseの`lm-loop doctor`は`missing_entrypoints=0`、`unmanaged_labels=0`だが`ok=false`。retired installed label `ai.anicca.provision-browser.capafy.kosuke`のguarded retirementが未解決で、promotion前の別fleet gateとしてowner経由のreadbackが必要。
+- Postiz official GET（10:02:56 UTC）は17 TikTok integrations（enabled 16 / disabled 1）。10/07 JSTは21/48、10/08 JSTは1件のみで`@obou_anicca`（eBook lane）。Anicca iOS accountは今日0件。Postiz list/detailはmedia形式を返さないため、10/07の21件をslideshow投稿数としない。owner native-carousel ledgerでは`@anicca_slideshow`の10/07 receiptsが3件ある一方、画像の`@anicca.jp`は09-28 22:38 JST、`@anicca.jp1`は09-28 06:30 JSTが最後。
+- central owner event historyでは対象TikTok loopのreport rowsは10/07から確認できる。9/28以降の最初の停止理由を示すretained reportがないため、9/28のtriggerを推測しない。現在確認できる停止原因はdisk admissionと古い`effect_unknown` fence。
+
+**残りTODO — この順に実行:**
+
+1. `life-manager-release-reconciler`の現runが自然terminalになるまで待ち、exact run/PIDとapply-lock解放を確認する。stop/restart/manual applyはしない。
+2. guarded retired label `ai.anicca.provision-browser.capafy.kosuke`を既存ownerの安全な手順で解消し、fresh `lm-loop doctor`をPASSさせる。別ownerのlaunchd/stateを直接変更しない。
+3. main SHA `4056d359`由来のimmutable releaseを既存reconciler経由で昇格し、DerivedData cleanup sourceがcleanup ownerへloadedされることを確認する。disk-pressure guardや2 GiB floorは迂回しない。
+4. cleanup ownerの自然runで`free >= 2 GiB`、`errors=0`、`protected_deletions=0`のreceiptを得る。その後Anicca/TikTok ownersのloaded SHA/argv/admission/次slotをreadbackする。capacity receiptだけでは投稿成功にしない。
+5. `effect_unknown`はoccurrenceごとにowner経由で公式Postiz post/integration/time/caption/media identityへ一意に結び、receiptとsame-event replay-zeroを確認する。main 4,207、JP1 3,500、EN slideshow 4,123、EN affirmation 4,268、Buddha 3,993、HE 408、TikTok metrics 1件のrefsはoccurrence/fence参照数で、投稿数ではない。bulk clear/replayしない。
+6. 現存17 Postiz profileを正しいproduct ownerへ割り当てる。4 enabled holdsを既存ownerへ追加し、disabled `@anicca.jp8`をowner経由で復旧する。未接続`@anicca.videojp`と`@anicca_girl`は接続状態をreadbackする。既存approved mediaを再利用しcaption/hookだけ変える。
+7. 17 connected profiles全て有効なら、異なるcopy variantのunique `PUBLISHED` receiptを3件/account/JST日（51件/日）確認する。account別に数え、over-postで不足を埋めない。まず次の自然slot、次に完全なJST日を通して確認する。
+8. TikTok views/engagementはnative/APIが返すper-post fieldsを固定checkpointで保存し、account/copy/CTA/store link/campaignへ結ぶ。続いてASC impressions/product-page views/first-time downloads、RevenueCat trial/paid/refund/MRR、Mixpanel/PostHog onboarding funnelを同campaign/cohortに結合する。unsupportedはunknownのまま。
+9. 計測baseline後にcontent variantを一つずつ改良し、Anicca iOSをASC first-time downloads 100/dayのtrailing 7-day平均へ伸ばす。その後onboarding/paywallを一仮説ずつ改善し、$10,000 verified net MRRをsettled receipts/refunds/fees/actual costsで証明する。
+
+**現在cursor:** item 1、release reconciler natural terminal / lock release。TikTokはまだproductionで復旧しておらず、10/08 JSTのAnicca iOS Postiz receiptは0件。
+
+### 2026-10-08 10:06 JST — TikTok owner rollout follow-up
+
+この追記は10:05のproduction cursorとTODO順を更新する。global `lm-loop doctor`の警告をTikTokのtargeted rollout gateと決めつけない。10:06時点で同じrelease reconcilerはJP1を`c65449ef`へ進めている一方、ownerはdisk admissionで停止している。
+
+- PR #7003のcleanup sourceはmain `4056d35903dc1ace75b97ae8f816b75473cb6f47`にmerge済み。現在のcleanup/release ownerは`c65449ef`にいるが、このreleaseには`xcode-derived-data-cache`候補がまだ含まれない。
+- 10:06 JSTの`lm-loop status`ではJP1 TikTok ownerは`c65449ef`、Anicca mainとEN slideshowは`46ec94bd`。全ての該当ownerは`host_admission_deferred:disk_headroom_low`。release reconcilerはloaded-running PID `55054` / occurrence `18dc6785bbe030b0-42329`、cleanup ownerはloaded-idle / `entrypoint_exit_1` / `reconcile_owner`。
+- `df -Pk /` available=`1,649,860 KiB`で2 GiB floor未満。10:04:36 JSTのlast cleanup receiptは`free_after=1,701,683,200` bytes、`reclaimed=6,409`、`errors=0`、`protected_deletions=0`、floor=`unmet`。
+- `lm-loop doctor`は`ok=false`（retired label `ai.anicca.provision-browser.capafy.kosuke` 1件）のままだが、JP1のtargeted release advanceは実際に起きた。従って今は別fleet warningとして監視し、次のTikTok owner/applyがこのlabelを理由に拒否された時だけ正確なgateを解消する。
+- 最新Postiz official GETは10:02:56 JST: 10/7 21/48、10/8は1件だけ（eBook `@obou_anicca`）。Anicca iOSは今日0件。Postiz media typeはunknownのまま。
+- retained owner report rowsは10/7以降で、9/28に止まった画像2 profileの当初triggerは未確定。現在確定できる阻害は古い`effect_unknown` refsとdisk floor。
+
+**現在のatomic TODO:**
+
+1. `life-manager-release-reconciler` occurrence `18dc6785bbe030b0-42329`の自然terminalとlock releaseをreadbackする。手動restartや並列applyは禁止。
+2. reconcilerにmain SHA `4056d359`をownerへ昇格させ、cleanup ownerのimmutable releaseがDerivedData allowlistを持つことを確認する。targeted applyがretired labelで実際に拒否された場合だけそのowner gateを解消する。
+3. 新cleanup codeの自然runで閉じたDerivedDataだけを再claimし、free>=2 GiB、errors=0、protected_deletions=0 receiptを得る。receiptとdfを同時readbackする。
+4. Anicca JP/JP1/slideshow等のTikTok ownersをmain releaseへ揃え、disk admissionを通す。各ownerのold `effect_unknown` occurrenceは既存owner経由で一つずつPostiz公式証拠へ結び、nested receipt/replay-zeroを確認する。refsをpost count扱いせずbulk clearしない。
+5. Postiz 17 profilesをproduct owner別に完全routeする。enabled hold 4、disabled `@anicca.jp8`、integration未接続2 profileの状態を個別に解決する。媒体を新作せずapproved mediaと異なるcaption/hookを使う。
+6. 全接続profileを有効にした後、3 unique `PUBLISHED` receipts/profile/JST日（17件なら51/day）を自然slot・account別に確認する。今日の既存21/48や1/17で達成扱いしない。
+7. TikTok per-post views/engagement、ASC impressions/product-page views/first-time downloads、RevenueCat trial/paid/refund/MRR、Mixpanel/PostHog onboarding funnelを同一campaign/cohortに結ぶ。Postizのlist/detailはmedia形式を出さないためnative/platform fieldsを別途計測し、unsupportedはunknownのまま。
+8. Anicca iOSを100 first-time downloads/dayのtrailing 7-day平均へ伸ばし、distribution/content variantのbaselineができてからonboarding/paywallを一仮説ずつ改善する。$10k verified net MRRはsettled revenue/refund/fee/actual-costの期間一致証拠が揃うまで未達。
+
+**現在cursor:** item 1、release reconciler natural terminal。source fixはmainにあるが、現行TikTok投稿と容量回復は未確認で、配信復旧完了とは報告しない。
+
+### 2026-10-08 10:30 JST — TikTok exact-readback blocker and live rollout
+
+この節は10:06のTikTok cursorを更新する。main `8d396690b68b3f6f9533ef4810671eadbc9c0a70`はPR #7003のcleanup修正を含むが、実行中ownerはまだrelease `6a9b0ab3`または`c65449ef`であり、TikTok全routeは再開していない。
+
+**現在の証拠:**
+
+- 10:28:41 JSTのcleanup receiptは`free_after=4,211,290,112` bytes、`reclaimed=116,510`、`errors=0`、`protected_deletions=0`、floor=`met`。10:30 `df -Pk /`も約3.97 GiB available。cleanup ownerはrelease `c65449ef`でnatural pass。DerivedDataは10:13以降`du=0`だが、このreceiptの回収量は約114 KiBであり、3.5 GiBが消えた原因をこのcleanup ownerに帰属できない。
+- `life-manager-release-reconciler`はrelease `6a9b0ab3`でloaded-running PID `94950` / occurrence `18dc68ffe1a11028-72172` / `next_action=reconcile_owner`。fleet apply logは6a9b対象47 owners（45 pass、2 error: guarded retired `ai.anicca.provision-browser.capafy.kosuke`と`hf-gig-reply-detector`のeffect-unknown fence）。TikTok cleanup ownerと全TikTok ownersの6a9b適用はまだ確認できない。reconcilerは1 owner最大120秒、fleet total budget 1,200秒で処理し、guarded retired labelsを先に試す。stop/restartや並列applyはしない。
+- Anicca main / Buddha / EN slideshowの最新ownersは`official_readback_required`、JP1は過去の`disk_headroom_low`のまま。いずれも新しいPostiz receiptなし。Tiktok metrics ownerもまだreceiptなし。別owner `tiktok-browser`はloaded-running PID `9253`のため、そのbrowser sessionへ直接attachしない。
+- Postiz official GET（10:30:09 JST）はTikTok integrations 17（enabled 16 / disabled 1）。10/07 JSTは21/48、10/08 JSTは1件だけで`@obou_anicca`（eBook lane）、Anicca iOSは0件。Postiz list/detailからmedia形式は判定できない。
+- Main `@anicca.jp`のexact carousel identity（slot 2026-09-25 16:00 JST）はread-only reconcileで`provider_readback_not_exact`。公式Postiz media URLのhost `uploads.postiz.com`がHTTP 403を返し、`GET /public/v1/media?search=<asset>`は200/pages=0/results=0。Postiz公式[Upload File](https://docs.postiz.com/public-api/uploads/upload-file)はuploadが`id`とpublic `path`を返す仕様、[List Media](https://docs.postiz.com/public-api/uploads/list-media)は`path`をpublic URL・separate download endpointなしと説明する。media bytes/orderを検証できないためadmission stateを変更していない。exact provider media evidenceが回復するか、既存TikTok ownerが同一caption/account/timeの公式public-post evidenceを取得するまでeffect fenceを維持する。
+- Local native-carousel ledgerは203件。`@anicca.jp`の最後は09-28 22:38 JST、`@anicca.jp1`は09-28 06:30 JST。`@anicca_slideshow`には10/07の3件がある。user screenshotは過去投稿の存在を示すが投稿日時を証明しない。central owner event reportは10/07以降しか残っていないため、9/28 gapの最初のtriggerは未確定。
+
+**現在の残TODO順:**
+
+1. release reconciler run `18dc68ffe1a11028-72172`をnatural terminalまで待ち、fleet apply owner logで6a9bのcleanup/TikTok対象がどこまで到達したか確認する。上記2 errorsを自動的に解決済みと数えない。
+2. `life-manager-disk-cleanup`をrelease `6a9b0ab3`へowner経由で進め、DerivedData exact-path/open-file guardがloadedされたことをreadbackし、次回natural cleanup receiptとfree-spaceを照合する。capacityは現在metだが、source ruleのproduction適用は未確認。
+3. Anicca TikTok ownersのloaded SHA/admission/次eligible slotを再readする。main/JP1/slideshowのold `effect_unknown` occurrenceは一件ずつ公式PostizまたはTikTok owner readbackへ結び、receiptとreplay-zeroを保存する。403のmedia fenceは推測でclearせず、TikTok browser ownerとのresource leaseも奪わない。
+4. 17 connected TikTok profilesをproduct owner別に完全routeする。4 enabled holds、disabled `@anicca.jp8`、integration未接続2 profileを一件ずつ確定する。approved mediaを再利用し、variationはcaption/hookだけにする。
+5. 全17 connected profileを有効にした後、異なるcopy variantで3 unique `PUBLISHED` receipts/account/JST日（51/day）を確認し、account間の過剰投稿で不足を相殺しない。todayの実績は10/07 21/48、10/08 1/17で、Anicca iOS 0。
+6. TikTok view/engagement、ASC impressions/product-page views/downloads、RevenueCat trial/paid/refund/MRR、Mixpanel/PostHog onboarding funnelを同campaign/cohortへ結ぶ。unsupported metricを0扱いしない。
+7. Anicca iOSを100 first-time downloads/dayのtrailing 7-day平均へ伸ばし、計測baseline後にcontent/onboardingを一仮説ずつ改善する。$10k verified net MRRは同期間settled revenue/refund/fee/actual costの証拠が揃うまで未達。
+
+**現在cursor:** item 1、release reconcilerのbounded natural terminalと6a9b target progress readback。capacity floor metでもAnicca iOSの今日のPostiz receiptは0件で、配信復旧は未完了。
+
 ### 2026-10-08 10:08 JST — Gig status refresh after PR #7004
 
 - PR #7004のGig TODO/spec更新はmainへmerge済み（merge commit `b418c917b17de171431655f58cb0b4f6be8d69a4`）。最新版のatomic TODOは上記`Remaining atomic Gig TODO`。
