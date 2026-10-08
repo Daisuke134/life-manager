@@ -47,7 +47,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Verify portable request and guarded RPC boundaries
-        run: node --test runtime/openclaw/tests/*.test.mjs
+        run: node --test runtime/openclaw/tests/*.test.mjs test/openclaw-portability.test.mjs
       - name: Verify private dispatch persistence and single sender
         run: python3 -m unittest discover -s runtime/openclaw/tests -p 'test_*.py'
 

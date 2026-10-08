@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { resolveHarnessPaths } from '../paths.mjs';
 import { validateRunRequest, buildRunIdentity } from '../protocol.mjs';
 
 export const fixture = () => ({
@@ -10,15 +9,6 @@ export const fixture = () => ({
   schema: {type: 'object'}, workdir: '/srv/lm/work', timeout_seconds: 60,
   effect_mode: 'read_only', session_isolation: 'stable_owner',
   attachments: [], owned_resume_ref: null,
-});
-test('portable paths retain the existing LM data root and never global OpenClaw', () => {
-  for (const home of ['/home/alice', '/Users/bob', '/srv/lm']) {
-    const p = resolveHarnessPaths({}, home);
-    assert.equal(p.stateRoot, `${home}/.local/state/life-manager/openclaw`);
-    assert.equal(p.credentialFile, `${home}/.local/share/anicca/credentials.json`);
-  }
-  assert.throws(() => resolveHarnessPaths({LM_DATA_DIR: 'relative'}, '/home/alice'));
-  assert.throws(() => resolveHarnessPaths({LM_CREDENTIALS_FILE: 'relative'}, '/home/alice'));
 });
 test('request validation rejects ambiguous and non-native routes without modifying input', () => {
   const input = fixture(); const copy = structuredClone(input);

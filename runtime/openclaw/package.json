@@ -6,7 +6,7 @@
     "node": "24.16.0"
   },
   "scripts": {
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --test tests/*.test.mjs ../../test/openclaw-portability.test.mjs"
   },
   "dependencies": {
     "openclaw": "2026.9.8",
