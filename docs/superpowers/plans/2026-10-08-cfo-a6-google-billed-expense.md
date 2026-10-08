@@ -74,3 +74,7 @@
 This completes only the invoice-billed fact ingestion/display portion of A6. A6 remains open until the monitoring-estimate comparison uses a matching period and the bill's tax/credit/rounding details reconcile. Loop attribution stays unattributed unless A5/runtime evidence proves it; A8 owns the final loop-versus-company-overhead join. Do not claim cash paid or a complete company P&L from this subtask.
 
 Independent review found and the fix pass closed three important parser issues: directory-list permission errors now return `unverified`; malformed thousands grouping is rejected; invoice reconciliation and service/SKU net retain exact Decimal precision. Regression tests for each finding now pass.
+
+## B7 actual-cost source status follow-up
+
+The latest saved B7 projection reports `actual-cost-readback=read_failed`. The configured launchd env file has neither `LM_CFO_ACTUAL_COST_READBACK` nor `LM_CFO_ACTUAL_COST`; the collector was passing an empty list into `_safe_b7_adapter`, which labeled an unconnected source `read_failed`. The source branch now returns `source_unconnected` when no path is configured, while a configured but unreadable payload remains `read_failed`. Regression tests are in `skills/cfo/test_b7_actual_cost_source.py`; the focused Python run (77 tests) and Node report tests (15 tests) pass. This adds no source, establishes no cost, and does not complete A8; the saved projection remains historical until a natural run from a merged release.
