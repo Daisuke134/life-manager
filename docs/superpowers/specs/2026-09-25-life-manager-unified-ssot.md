@@ -3197,6 +3197,27 @@ Capafy＋PromptBase＋自社 checkout をまとめた $10k MRR の全体計画�
 3. Mobile: アプリの無料記事を既存の Writer/aniccaai.com 掲載で出す（新レーンは作らない）。
 4. 共通: Telegram 送信を 1 系統に寄せる（既存のどちらかを呼ぶ形。新規実装しない）。
 
+## 「昨日は動いたのに今日は壊れている」を起こさない（Dais 2026-10-08・根本対策）
+
+原則: ループは「プロセスが走った」ではなく「成果物が新しい」ことで生きていると判定する。人が知らないまま止まっているループを 0 にする。一時しのぎの手動解除は対策に数えない。
+
+### 実測した根本原因（2026-10-08）
+| # | 症状 | 根本原因（証拠） | 対策 | 状態 |
+|---|---|---|---|---|
+| R1 | Capafy は 165 時間、新規出品 0、Writer は 219 時間、記事 0。誰も気づかない | 見張り（life-manager-health-observer）は結果をファイル（alerts.jsonl 56MB）に書くだけで人に届かず、確認も「プロセス成否」で成果物を見ていなかった | `runtime/loop/money_liveness.py` と `config/money-liveness.json`: 成果物が古いレーンを Telegram に 12 時間に 1 回通知、回復も 1 回通知、送信失敗は次回再送。実データで capafy-ship 165h・writer-articles 219h を検出 | ✅ 本番 release 620d941e、自然実行 15:08 で送信確認 |
+| R2 | 見張りの集計が 187 本すべて telegram_gap（正常 0） | 状態取得（`lm-loop health --json`）の制限が 40 秒。空いているときは 9 秒だが、負荷平均 17 の本番では毎回時間切れ | 制限 180 秒（環境変数で変更可）。直後に 正常 33・失敗 43・不明 5 に | ✅ |
+| R3 | 工場（capafy-loop-daily）が失敗で終わるたびに約 1 時間止まる（10/08 11:50 と 14:31 の 2 回） | 失敗した回が effect_unknown の印を残し、解除条件が「経過 3720 秒」（最長実行時間＋予備）。実行が終わっていても 1 時間待つ | `capafy_factory_fence_reconcile.run_finished()`: 受付番号の末尾の pid が消えている（または別プロセスに再利用）なら 60 秒で解除。判定不能は従来どおり待つ。公開一覧の差分による「効果なし」証明は据え置き | ✅ 本番 release 68b03657。自然解除の確認待ち（次の起動 15:29 頃） |
+| R4 | Writer が 9/29 から止まっている | リリース（読み取り専用）の中へ state を書こうとして PermissionError（zenn-deferred-worker・self_improve_control） | 書き込み先を WRITER_STATE_DIR へ（2 か所）。他にも `skill_dir/"state"` を直書きするスクリプトが残る | 一部 ✅。残りは下の TODO |
+| R5 | 実行枠が満杯で 33 本が見送り（`resource_capacity_busy`）、22 本が `resource_effect_unknown`。負荷平均 17 | 187 本が少ない枠（agent 1・browser 1・deterministic 2〜3）を取り合う。内訳は未特定 | 未着手（下の TODO） | 🔶 |
+| R6 | 売れている agent を工場が触った | 凍結が UPDATE.json の絞り込み 1 経路にしかなく、例外メモと下書き再開が素通り | 関所 `frozen_guard.sh`（prepare/finish）＋凍結 id を引退扱い＋工場は新規のみ | ✅ |
+
+### 残り（この順）
+1. R3 の自然解除を確認（15:29 の起動で effect_unknown が 0 になること）。同じ型（失敗で fence を残す）の他ループ 22 本のうち、お金に関わるものを同様に直す。
+2. R5: 負荷の内訳を測る（1 時間あたりの起動回数×所要）→ 5 分ごとの healthcheck 15 本と health 取得 9 秒の見直しから。枠の上限を上げる前に、不要な起動を減らす。
+3. R4 の残り: `skill_dir/"state"` を直書きするスクリプトを WRITER_STATE_DIR 経由へ（goodhart・rule_blame・beat_rate・claim_loop ほか）。リリース内への書き込みを検出するテストを 1 本足す。
+4. `money-liveness.json` に Mobile のレーン（honne/anicca 投稿の最新公開時刻）と Capafy の IG 投稿を足す。
+5. Writer の自然実行（10/09 06:00）で記事が出て Telegram にリンクが届くことを確認。
+
 ## Dais指定のeBook → Capafy Instagram実行順
 
 - **旧順序:** checkout → webhook source → attribution → eBook publisher → first paid/PDF receipt → Capafy D5。production schema constraints・migration・lead-magnet sender/sourceは分離されず、source readinessとproduction readinessが混在していた。
