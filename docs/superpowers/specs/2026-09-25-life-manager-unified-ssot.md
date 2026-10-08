@@ -4166,9 +4166,9 @@ flowchart LR
 
 **画面の正本:** `/lm` →「Google Calendarに接続」→ Google identity確認とCalendar権限 → CalendarがACTIVEになったら即「接続完了 + 7日無料trial（カード必須、以後$29/月）」を一画面表示。自動処理は裏で並行実行する。block未作成/0件/処理中でもpaywallを表示し、未確認のblockを追加済みと書かない。dashboard、chat thread、scan UI、手動rescan、Gmail access、home-address質問はない。
 
-**WB-15d.0 production readback:** PR #7018 merged as main SHA `3d88f9eb5d00d1ed3651b9ab3f5dd822df0b0bdf`; Anicca production `life-call` deployment is SUCCESS and `/health` returns the same SHA. Live Railway `/lm` shows the one Google Calendar connection CTA, identity/Calendar-permission disclosure, and no-Gmail copy. `aniccaai.com/lm` hands off to this route. No Google login, Calendar read/write, or live payment occurred.
+**WB-15d.0 production readback:** PR #7018 merged as main SHA `3d88f9eb5d00d1ed3651b9ab3f5dd822df0b0bdf`. The current production `life-call` main-derived deployment is SUCCESS at SHA `5de5319c4172ca4dab810ce248ee0c783a2da969`; `/health` returns that same SHA. Live Railway `/lm` shows the one Google Calendar connection CTA, identity/Calendar-permission disclosure, and no-Gmail copy. `aniccaai.com/lm` hands off to this route. No Google login, Calendar read/write, or live payment occurred.
 
-**Railway staging readback:** Anicca `staging/life-call-staging` source now tracks `main`; latest deployment SHA `cbf7ec28d37e7bb12254b5012924e1cca4dd4e97` is SUCCESS, `/health` returns 200, and signed-out `/lm` shows the Calendar connection CTA. Its Supabase project differs from production. Staging has Composio Calendar settings, but Supabase Auth Google provider is disabled and Auth lists zero users. A read-only `lm_users` schema probe returns HTTP 400 / `42703` because `calendar_connected_account_id` is absent from this staging schema. No dedicated test Google identity was found in central credential SSOT, staging Auth, or targeted local/GitHub search; existing Google credentials are not test-labeled. Do not use Dais's personal Google account or Calendar.
+**Railway staging readback:** Anicca `staging/life-call-staging` source tracks `main`; current successful deployment SHA is `5de5319c4172ca4dab810ce248ee0c783a2da969`, `/health` returns 200, and signed-out `/lm` shows the Calendar connection CTA. Its Supabase project differs from production. Staging has Composio Calendar settings, but Supabase Auth Google provider is disabled and Auth lists zero users. A read-only `lm_users` schema probe returns HTTP 400 / `42703` because `calendar_connected_account_id` is absent from this staging schema. No dedicated test Google identity was found in central credential SSOT, staging Auth, or targeted local/GitHub search; existing Google credentials are not test-labeled. Do not use Dais's personal Google account or Calendar.
 
 **Staging Stripe test setup:** The central credential SSOT contains an active Stripe test key and Stripe test readback found one active USD $29/month price. A test-mode webhook for `https://life-call-staging-staging.up.railway.app/api/stripe/webhook` is enabled for 8 Checkout/Subscription/Invoice/Refund events. `life-call-staging` variable readback confirms test-mode key, matching $29 test price, and matching `STRIPE_TEST_WEBHOOK_SECRET`; its signing secret is stored only in `~/.local/share/anicca/credentials.json` with mode 600. No live Stripe endpoint or price changed. This config has not received an authenticated Checkout event because staging Auth has no test user and its Google provider is disabled.
 
@@ -4916,3 +4916,25 @@ Source / production follow-up (2026-10-08 11:01 JST): PR #7012は`b692e70a`と�
 **今回はblockerではない項目:** A7 Personal Moneytreeはユーザー指示どおり対象外。A4.1–A4.3のfree geocoding/Cloud savingsとA3.4もCFO完了後へ延期し、現在のCFO cursorを止める理由にしない。A5 owner leaseとPR #7011のpending checkはそれぞれ所有者境界・CI上の実blockerであり、lease解放後のA5再開とpending checkの完了で解消する。
 
 **現在cursor:** A5。A5 leaseが有効な間は当該worktreeを編集せず、既に開いている独立A6 PRのcheck/請求照合準備を続ける。lease解放readback後にA5を先頭で再開する。
+
+### 2026-10-08 11:20 JST — CFO A6 merge readback and live cursor correction
+
+この追記は11:08 JST snapshot後のA6統合と本番owner状態を反映する。A5→A6→A8→A9→A10の順序とCFOの目的は変えない。
+
+**確認済みの変化:**
+
+- PR #7011は2026-10-08 02:19:37Zにmerge commit `5de5319c4172ca4dab810ce248ee0c783a2da969`としてmainへ統合済み。head `8225e994`の全required checks pass。fresh local reviewはCritical 0 / Important 0 / Minor 1で、64桁を超える非現実的なDecimal入力の丸めfindingはmerge blockerではないと判定された。A6 source統合は完了したが、A6の費用照合・本番readbackは未完了。
+- mainは`5de5319c`だが、`life-manager-cfo-hourly`は依然release `3d88f9eb`をloaded-idleで使う。02:20:25Z readbackの最新occurrence `life-manager-cfo-hourly:18dc6c21758dc280-19514`は02:14:02Zに`apply_lock_busy`、exit 78、`effect_status=not_applicable`、`retryable=true`、`next_action=retry_after_eligibility`、provider receipt/readbackなし。report効果前の延期なので、失敗runを再送・成功扱いしない。
+- 同時点のrelease reconcilerはrelease `3d88f9eb`でloaded-running、最新eventは`entrypoint_exit_143` / `next_action=reconcile_owner`。止めたりrestartしたりせず、既存ownerの自然終端を待つ。
+- CFO label apply lock fileは存在するが、02:21Zの`lsof` readbackでholder processはなかった。lock fileを削除しない。CFO loopのeffective scheduleはhourly (`0 */1 * * *`) なので、次の自然wakeを待ち、CFO loaded SHA・terminal・report readbackを再確認する。
+- A5 leaseはなおowner `codex-cfo-a5`、期限`2026-10-08T03:18:04Z`でactive。A5 PR #6827もopen/draft、head `980fe867`・base `034d46e8`のままで、最新main追従前の状態。
+
+**残りTODO（現在の正順）:**
+
+1. **A5 cost attribution:** leaseの解放をreadbackする（期限前解放なら即readback、未解放なら期限後に再確認）。その後A5 PR #6827を最新mainへ追従させ、集計SQL/API/panelで`runtime_trace.loop_id`・`owner_id`と`run_id`・`occurrence_id`・`release_sha`を保持する回帰test、review、required checks、mergeを完了する。
+2. **A6本番反映と照合:** 実行中のrelease reconcilerを自然終端まで待ち、その後にmain `5de5319c`由来immutable releaseとCFO owner loaded SHAをreadbackする。次のhourly CFO wakeで`apply_lock_busy`が解消し、reportのofficial delivery/readbackが得られるか確認する。反復時は該当occurrenceとlabel lock holderを同時刻に記録し、owner境界で調べる。source反映後、2026-09請求¥27,889と同期間Google Monitoring usageを照合し、cash settlementはbank/provider receipt、loop配賦はA5 traceがある場合だけ記録する。
+3. **A8 company coverage:** 18 loops / 186 runtime jobsに対し、期間・通貨・owner・official receipt付きsettled revenue/refund/feeとprovider/API/cloud/subscription actual costを揃える。latest projectionの`actual-cost-readback=read_failed`は未確認を意味し、0円ではない。source接続・readbackを実装し、欠損はunknown/unattributedに残す。
+4. **A9 daily CFO report:** Asia/Tokyoの日次・MTD・trailing実期間でreceiptをfilterし、agent/loop/platform別と全社のrevenue・refund/fee・billed/cash-paid expense・net・MRR・freshness/coverageを出す。`loop_pnl.py --date`のlabel-only挙動を修正する。
+5. **A10受入:** main由来immutable releaseで7日連続の自然runを読み、18/18 loops・186/186 jobs、official readback、delivery receipt、unknown owner/action、期間一致、重複/再送ゼロを確認する。これ以前は全社CFO完了や$10k verified MRRを主張しない。
+
+**現在cursor:** A5。A5 worktree leaseとproduction reconcilerは別の所有境界として維持する。reconciler/CFO ownerの自然runを重ねて起動せず、A5 lease解放後にA5へ戻る。A7 MoneytreeとA4/A3 Cloud savingsは引き続き対象外・後順位。
