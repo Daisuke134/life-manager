@@ -430,9 +430,9 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
 
 | # | Task | 完了条件（公式 readback） | 状態（2026-10-08 10:xx JST） |
 |---|---|---|---|
-| N1 | 売れていた 4 本を Sonnet に戻す（説明文はそのまま） | 承認・販売中 | ✅ **10/08 14:53 実測で 4 本とも承認・販売中**（Capafy API status 4）: Hook Lab v1.0.6・TikTok v1.0.4・YouTube v1.0.5 は 12:00、Slide Maker v1.0.3 は 14:41 承認（Dais のスクリーンショットと一致）。Hook Lab v1.0.7（welcome 文末・FAQ の 1 語のみの差、価格・上限・モデル同一）が審査中だが取り消し不可。購入者ページの「セキュリティスキャン」欄は Capafy 自動表示で審査結果とは別: Hook Lab「却下」（同梱メモの「scan のため test/ を外した」文が原因、v1.0.7 で除去済み）、Slide Maker「注意」、TikTok・YouTube・Marketing Strategist「通常」。「却下」だけを単独で書かない |
+| N1 | 売れていた 4 本を Sonnet に戻す（説明文はそのまま） | 承認・販売中 | ✅ **10/08 14:53 実測で 4 本とも承認・販売中**（Capafy API status 4）: Hook Lab v1.0.6・TikTok v1.0.4・YouTube v1.0.5 は 12:00、Slide Maker v1.0.3 は 14:41 承認（Dais のスクリーンショットと一致）。Hook Lab v1.0.7 は 10/08 15:10 に承認済み（価格・上限・モデル同一。ただし card の文章は未反映のため buyer スキャンは「注意」: FAQ に無い年額・welcome 文末切れ）。購入者ページの「セキュリティスキャン」欄は Capafy 自動表示で審査結果とは別: Hook Lab「却下」（同梱メモの「scan のため test/ を外した」文が原因、v1.0.7 で除去済み）、Slide Maker「注意」（古い提出メモに DeepSeek 記載）、TikTok・YouTube・Marketing Strategist「通常」。「却下」だけを単独で書かない |
 | N1b | 承認後、4 本の実モデル ID を `anthropic/claude-sonnet-5.5` に（OpenRouter: 5 と同じ $2/$10。Capafy の表示名は選択肢がないので「Claude Sonnet 5」のまま） | Capafy API の hosted model が 5.5 | 承認待ち。再審査が要るかは承認後の画面で確認 |
-| N2 | 工場は新規 agent だけを出す。承認済み・提出済みの agent は売れている・いない・却下・非公開を問わず更新・再提出・復旧しない（Dais 10/08） | 既存 agent への提出 0 件 | ✅ 本番（release f3e49261）。(1) カタログの UPDATE.json 0 件、(2) `frozen_guard.sh` が publish_prepare.sh・publish_finish.sh で FROZEN.json の id を理由に関係なく拒否（exit 3）、(3) inventory_status.py は凍結 id を引退扱い＋retries・recoveries・updates を allocate_action に渡さない。Hook Lab v1.0.7 は昼の修正の取りこぼしで 13:48 に提出された（FROZEN.json は UPDATE.json の絞り込みにしか使われず、例外メモと下書き再開の経路が素通りだった）。再発防止はテスト付き（inventory 43 件・frozen guard） |
+| N2 | 工場は 2 本立て（Dais 10/08 15:26）: **(1) 新規 agent の出荷が主役**、**(2) 承認済みで売れていない agent は説明文などを直して改善（副）**。売れている 4 本（FROZEN.json）は常に不可侵、自動の値上げ禁止 | (1) 新規が 15 分ごとに審査へ。(2) 対象が改善版を出し、30 日注文が増える | (1) ✅ 稼働（release f3e49261 以降。`allocate_action` は新規・未提出下書き・承認後公開のみ）。(2) ⏳ 未実装: 10/08 14:50 に「新規のみ」へ絞ったとき retries・recoveries・updates を外したまま。復活は (1) の最初の 1 本が審査に出た後に、`capafy_daily_decision` の zero_sales 判定→説明文だけの UPDATE.json 生成→frozen_guard 通過、の順で作る。関所 `frozen_guard.sh` は (2) でも有効 |
 | N2b | 無料お試しをやめる（Dais 10/08「無料サービスではなく利益のため」）: 13 本にお試しあり（最大 Contract Red Flags 150 回）。上位 15 本はお試しなし。値下げの自動化は作らない（Dais 10/08 撤回） | お試し付き agent が 0 | Contract Red Flags（Sonnet 4.6・お試し 150 回・注文 0）を非公開化中。残り 12 本は審査なしで外せるかをサポートに質問（10/08 10:39 送信）。審査が要るなら枠を食うので新規優先 |
 | N2c | 赤字 agent を止める: Marketing Strategist（30日 −$16.45、DeepSeek・週 $6.99/36 回）、Academic Results Humanizer（−$4.58、Sonnet 4.6・offline）、Contract Red Flags（−$1.57、Sonnet 4.6・無料お試しの原価） | 30日利益がマイナスの agent が 0 | 未着手。原因（1 注文あたりの使用量・お試し）を見てから回数上限を下げる |
 | N3 | 「注意」警告 7 本の原因特定 | サポート回答または buyer ページで全本「通常」 | サポート回答待ち（10/07 送信） |
@@ -447,7 +447,7 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
 
 **主指標（Dais 10/08）:** 直近 7 日の売上（`capafy-skill-analytics.json` `account_totals.last_7d`）。すべての報告の先頭に書く。10/08 時点 $0.00・0 件。30日の数字や利益で $0 の週を薄めない。今週の優先: 4 本の承認を早める → 承認と同時に短尺動画 → 赤字 3 本を止める → 新規。
 
-**現在のカーソル（2026-10-08 14:55 JST）:** 新規出荷の最初の 1 本（Hook Grader）が審査に出るのを確認 → 以後は工場が 15 分ごとに新規だけを出す。並行: 宣伝（IG 1 日 1 本の自動化・プロフィールリンク、記事＋X＋Telegram の自然実行確認）、全ループ共通の「黙って止まる」対策、Writer 再開確認（10/09 06:00）、Mobile 無料記事。売れている 4 本は触らない。
+**現在のカーソル（2026-10-08 15:27 JST）:** (1) 新規の最初の 1 本（Hook Grader）が審査に出るのを確認（工場の印の自動解除が 15:29 の起動で効くか）。待ちは「サポートの返事」だけ（Hook Lab v1.0.7 は承認済みで待ちではない）。(2) 売れていない承認済み agent の改善レーンは (1) の後に作る。売れている 4 本は触らない。
 
 
 ## 進捗ログ（実行順のカーソル）

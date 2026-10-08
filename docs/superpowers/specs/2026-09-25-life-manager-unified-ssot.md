@@ -722,12 +722,12 @@ TODO（何を・どう直すか）
 
 | 順 | ID | 1 つの作業 | 完了条件 | 状態 |
 |---|---|---|---|---|
-| 1 | L19 | 静止スタンプ（¥190）ラインを本番で 1 セット申請 | Creators Market で審査待ちを readback | 進行中（#7039 merge 済み） |
-| 2 | L28 | 画像生成を ChatGPT サブスク（`~/.agents/skills/chatgpt-imagegen`）に統一し原価 0 | 静止・キャラ画像が chatgpt-imagegen で生成され cost_usd 0 を記録 | 進行中 |
-| 3 | L26 | 特集（例 835 冬を感じるスタンプ）に条件が合えば自動参加 | #7034 merge・release・次の申請で参加を readback | CI 待ち。手動で 48137583 を 835 に参加済み |
-| 4 | L29 | 動くスタンプを fal ではなく ChatGPT のコマ画像→APNG で作る（fal 残高 −$10.95 で停止中） | 1 セットを無課金で生成し申請 | 未 |
+| 1 | L19 | 静止スタンプ（¥190）ラインを本番で 1 セット申請 | Creators Market で審査待ちを readback | コード本番済み（#7039）。工場が静止ラインを選んだ時点で live 証明 |
+| 2 | L28 | 画像生成を ChatGPT サブスク（`~/.agents/skills/chatgpt-imagegen`）に統一し原価 0 | 静止・キャラ画像が chatgpt-imagegen で生成され cost_usd 0 を記録 | DONE（#7046） |
+| 3 | L26 | 特集（例 835 冬を感じるスタンプ）に条件が合えば自動参加 | #7034 merge・release・次の申請で参加を readback | コード本番済み（#7034 `1872befb`）。手動で 48137583 を 835 に参加済み |
+| 4 | L29 | 動くスタンプを fal ではなく ChatGPT のコマ画像→APNG で作る（fal 残高 −$10.95 で停止中） | 1 セットを無課金で生成し申請 | コード本番済み（#7068、#7074 provenance 修正）。set-012 は ChatGPT で 30 動作→APNG→選定まで live 通過、package 修正後の自然実行で申請予定 |
 | 5 | L20 | 文字入り版（「了解」「ありがとう」等）を別 SKU で出す | 1 セット申請 | 未 |
-| 6 | L17 | IG の日常投稿・交流を回す（10/10 から engagement と bio リンク） | 自然 slot の新規 reel と ledger、10/10 以降の engagement 記録 | 仕組み本番済み、ホスト停止中は保留 |
+| 6 | L17 | IG の日常投稿・交流を回す（10/10 から engagement と bio リンク） | 自然 slot の新規 reel と ledger、10/10 以降の engagement 記録 | #6922 以降の全投稿がキャプション schema 400（'Missing beat_texts'）で失敗していた → #7064 で修正・release `ac0a94ed`。次の自然 slot で証明 |
 | 7 | L21 | 1 キャラのシリーズ本数を増やす（売上が出た型を優先） | sales.json に売上が出たキャラの続編が出る | 自動（L18/L27 配線済み） |
 
 ### 5.1 自己修復・自己改善の定義（T5 / T12 の正本）
@@ -3205,7 +3205,7 @@ Capafy＋PromptBase＋自社 checkout をまとめた $10k MRR の全体計画�
 | # | 症状 | 根本原因（証拠） | 対策 | 状態 |
 |---|---|---|---|---|
 | R1 | Capafy は 165 時間、新規出品 0、Writer は 219 時間、記事 0。誰も気づかない | 見張り（life-manager-health-observer）は結果をファイル（alerts.jsonl 56MB）に書くだけで人に届かず、確認も「プロセス成否」で成果物を見ていなかった | `runtime/loop/money_liveness.py` と `config/money-liveness.json`: 成果物が古いレーンを Telegram に 12 時間に 1 回通知、回復も 1 回通知、送信失敗は次回再送。実データで capafy-ship 165h・writer-articles 219h を検出 | ✅ 本番 release 620d941e、自然実行 15:08 で送信確認 |
-| R2 | 見張りの集計が 187 本すべて telegram_gap（正常 0） | 状態取得（`lm-loop health --json`）の制限が 40 秒。空いているときは 9 秒だが、負荷平均 17 の本番では毎回時間切れ | 制限 180 秒（環境変数で変更可）。直後に 正常 33・失敗 43・不明 5 に | ✅ |
+| R2 | 見張りの集計が 187 本すべて telemetry_gap（正常 0） | 状態取得（`lm-loop health --json`）の制限が 40 秒。空いているときは 9 秒だが、負荷平均 17 の本番では毎回時間切れ | 制限 180 秒（環境変数で変更可）。直後に 正常 33・失敗 43・不明 5 に | ✅ |
 | R3 | 工場（capafy-loop-daily）が失敗で終わるたびに約 1 時間止まる（10/08 11:50 と 14:31 の 2 回） | 失敗した回が effect_unknown の印を残し、解除条件が「経過 3720 秒」（最長実行時間＋予備）。実行が終わっていても 1 時間待つ | `capafy_factory_fence_reconcile.run_finished()`: 受付番号の末尾の pid が消えている（または別プロセスに再利用）なら 60 秒で解除。判定不能は従来どおり待つ。公開一覧の差分による「効果なし」証明は据え置き | ✅ 本番 release 68b03657。自然解除の確認待ち（次の起動 15:29 頃） |
 | R4 | Writer が 9/29 から止まっている | リリース（読み取り専用）の中へ state を書こうとして PermissionError（zenn-deferred-worker・self_improve_control） | 書き込み先を WRITER_STATE_DIR へ（2 か所）。他にも `skill_dir/"state"` を直書きするスクリプトが残る | 一部 ✅。残りは下の TODO |
 | R5 | 実行枠が満杯で 33 本が見送り（`resource_capacity_busy`）、22 本が `resource_effect_unknown`。負荷平均 17 | 187 本が少ない枠（agent 1・browser 1・deterministic 2〜3）を取り合う。内訳は未特定 | 未着手（下の TODO） | 🔶 |
