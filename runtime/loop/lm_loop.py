@@ -2842,11 +2842,14 @@ def main(argv: list[str] | None = None) -> int:
             "LIFE_MANAGER_LAUNCH_AGENTS_DIR", "~/Library/LaunchAgents")).expanduser()
         launchctl_safe = Path(os.environ.get(
             "LIFE_MANAGER_LAUNCHCTL_SAFE", str(release_root / "bin/launchctl-safe"))).expanduser()
+        require_current = os.environ.get(
+            "LIFE_MANAGER_APPLY_REQUIRE_CURRENT", "").strip().lower() in {"1", "true", "yes"}
         try:
             results = apply_live(
                 release_root, agents_dir, launchctl_safe,
                 target=target, protocol_reader=durable_protocol_version,
-                skip_busy=loaded_idle_only, preserve_pending_admission=loaded_idle_only)
+                skip_busy=loaded_idle_only, preserve_pending_admission=loaded_idle_only,
+                require_current=require_current)
         except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as exc:
             print(json.dumps({"ok": False, "error": str(exc)}, sort_keys=True))
             return 1
