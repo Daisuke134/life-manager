@@ -132,7 +132,7 @@
           "model": "gpt-5.6-luna",
           "effort": "medium",
           "timeout_seconds": 120,
-          "profile_alias": "acct1"
+          "profile_alias": "acct1", "fail_fast_provider_lease": true
         },
         {
           "provider": "claude-direct",
@@ -150,7 +150,7 @@
           "model": "gpt-5.6-terra",
           "effort": "medium",
           "timeout_seconds": 90,
-          "profile_alias": "acct1"
+          "profile_alias": "acct1", "fail_fast_provider_lease": true
         },
         {
           "provider": "claude-direct",
@@ -167,7 +167,7 @@
           "provider": "codex",
           "model": "gpt-5.6-terra",
           "effort": "medium",
-          "profile_alias": "acct1"
+          "profile_alias": "acct1", "fail_fast_provider_lease": true
         },
         {
           "provider": "claude-direct",
@@ -184,7 +184,7 @@
           "provider": "codex",
           "model": "gpt-5.6-terra",
           "effort": "medium",
-          "profile_alias": "acct1"
+          "profile_alias": "acct1", "fail_fast_provider_lease": true
         },
         {
           "provider": "claude-direct",
@@ -221,7 +221,7 @@
           "provider": "codex",
           "model": "gpt-5.6-terra",
           "effort": "medium",
-          "profile_alias": "acct1"
+          "profile_alias": "acct1", "fail_fast_provider_lease": true
         },
         {
           "provider": "claude-direct",
@@ -287,13 +287,13 @@
           "provider": "codex",
           "model": "gpt-5.6-luna",
           "effort": "high",
-          "profile_alias": "acct1"
+          "profile_alias": "acct1", "fail_fast_provider_lease": true
         },
         {
           "provider": "codex",
           "model": "gpt-5.6-terra",
           "effort": "medium",
-          "profile_alias": "acct1"
+          "profile_alias": "acct1", "fail_fast_provider_lease": true
         },
         {
           "provider": "claude-direct",
@@ -310,7 +310,7 @@
           "provider": "codex",
           "model": "gpt-5.6-terra",
           "effort": "medium",
-          "profile_alias": "acct1"
+          "profile_alias": "acct1", "fail_fast_provider_lease": true
         },
         {
           "provider": "claude-direct",
@@ -344,7 +344,7 @@
           "provider": "codex",
           "model": "gpt-5.6-terra",
           "effort": "medium",
-          "profile_alias": "acct1"
+          "profile_alias": "acct1", "fail_fast_provider_lease": true
         },
         {
           "provider": "claude-direct",
@@ -420,7 +420,7 @@
           "provider": "codex",
           "model": "gpt-5.6-sol",
           "effort": "medium",
-          "profile_alias": "acct1"
+          "profile_alias": "acct1", "fail_fast_provider_lease": true
         },
         {
           "provider": "claude-direct",
@@ -437,7 +437,7 @@
           "provider": "codex",
           "model": "gpt-5.6-terra",
           "effort": "medium",
-          "profile_alias": "acct1"
+          "profile_alias": "acct1", "fail_fast_provider_lease": true
         },
         {
           "provider": "claude-direct",
