@@ -5251,7 +5251,7 @@ PR #7030の全required checksはhead `99648f4f` / base `a7899e37`でPASSした�
 - A5の集計SQL/API/既存panel実装は専用branchでTask 1–4のfocused tests 107/107とprivacy evaluatorを通過しているが、mainには未統合。PR #6827はremote head `980fe867`のdraftのまま。専用worktreeのlocal HEADは`952a203d`で、現在の`origin/main=893a929`までは未追従。A5 leaseは`lm-cfo-observability-1002`が保持し、期限は`2026-10-08T07:37:56Z`。
 - A5 runtime traceはまだprovider/SKU/operation/unit集計に結び付いていない。queue snapshotではCFOがeligible deterministic queueの27/28番目、priority=`support`だった。priorityを`revenue`へ上げる案はsource未変更であり、`admission_class=borrow`と`resource_class=deterministic`は維持する。これはsupport待ちを減らす案で、実際に満杯の`resource_capacity_busy`は解消しない。hard cap・自動停止は追加しない。
 - `loop_pnl.py --date`は表示reporting dateを設定する一方、B7 snapshot windowは現在時刻を使う。日次usage eventには日付filterがあるが、全sourceのAsia/Tokyo期間filterはまだ受入確認できていない。
-- 最新mainを取り込んだこのworktreeで`node scripts/verify-oss-self-contained.mjs`はPASS。PR #7027のremote head `bea34fdc`は旧base `ca7d58b6`でGitHub `mergeStateStatus=DIRTY`、OSS failureは03:15Zの古いhead checkである。mainのmanifest修正後のchecksはまだ走っていない。
+- 最新main treeで`node scripts/verify-oss-self-contained.mjs`はPASS。PR #7027はhead `e1943c6b20` / base `893a929f7e`へ同期済み、GitHub `mergeStateStatus=UNSTABLE`で新headのrequired checksがpending。前回のOSS failureは旧headの結果で、新headのcheck結果を待つ。
 
 **残りatomic TODO（この順）:**
 
@@ -5266,6 +5266,6 @@ PR #7030の全required checksはhead `99648f4f` / base `a7899e37`でPASSした�
 
 **Blockerと解消方法:**
 
-- **CFO production report:** current releaseは`d1d58506`、CFO ownerは`a7899e37`のままで、新SHA reconciler occurrence `18dc70d851914eb8-87313`が進行中。これを自然終端させ、CFO loaded SHA・owner別apply結果・次の自然hourly report receiptをreadbackする。次も`entrypoint_exit_143`なら、同一release SHAのまま再現するかを確認し、そのrunのstderr/owner resultでsignal sourceを特定してから修正する。manual restart/applyはしない。
-- **Spec PR #7027:** current local latest-main treeのOSS verifierはPASSだが、PR branchはまだ古いhead/baseで`DIRTY`。このbranchに`origin/main=893a929`をmergeして更新をpushし、required checksを新headで再実行する。main側manifest mismatchは最新mainで解消しているため、active Capafy worktreeは触らない。
+- **CFO production report:** current releaseは`d1d58506`、CFO ownerは`a7899e37`のままで、新SHA reconciler occurrence `18dc70d851914eb8-87313`（PID `87313`）が進行中。これを自然終端させ、CFO loaded SHA・owner別apply結果・次の自然hourly report receiptをreadbackする。次も`entrypoint_exit_143`なら、同一release SHAのまま再現するかを確認し、そのrunのstderr/owner resultでsignal sourceを特定してから修正する。manual restart/applyはしない。
+- **Spec PR #7027:** head `e1943c6b20` / base `893a929f7e`の新head checksがpending。local verifierはPASSなので、checksをreadbackし、失敗が再発する場合だけ新headのexact findingを修正する。manifest mismatchは最新mainで解消済みであり、active Capafy worktreeは触らない。
 - **A5 PR #6827:** remote headは古く、旧headのOSS/Gitleaks checksがfailureのまま。最新main同期済みlocal branchをpushしてchecksを更新し、Gitleaksが新headでも失敗する場合だけsecret値を表示せずredacted findingを特定して修正する。
