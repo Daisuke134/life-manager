@@ -5960,3 +5960,13 @@ This snapshot supersedes the 13:59–14:04 source/release status. PR #7055 backo
 9. A10でmain-derived immutable releaseの7日連続natural report、18/18 loops・186/186 jobs coverage、official readback、期間一致、duplicate/replay zeroを受け入れる。それまでは全社CFO完了やverified $10k MRRを主張しない。
 
 **現在cursor:** item 1 — latest-mainの`skills/capafy-autopublish` inventory mismatchがPR CI blocker。解消方法は変更済みrootのcanonical inventory hashをmanifestへ反映して正確なverifierを通すこと。並行してproduction側では、CFO capacity deferと未収束reconcilerが残っている（直近status snapshotは16:17節参照）。A7 MoneytreeとA3/A4は引き続き後順位。
+
+### 2026-10-08 16:31 JST — A5 manifest gate fixed locally
+
+この更新は16:23節のmanifest/CI cursorだけを進める。別worktreeのCapafy sourceは変更していない。
+
+- **RED→GREEN:** 現在のA5 treeで`node scripts/verify-oss-self-contained.mjs --json`を実行し、`manifest_inventory_mismatch` / `skills/capafy-autopublish`を再現。main #7084の2ファイル変更を含むtracked treeは245 files。canonical計算でinventory SHAを`7d59dbe788a1edb593d16240413cdb6573e0b49b8297b63d4da539179eb61fa6`へ更新後、同verifierは`{"ok":true,"violations":[]}`、`node --test test/oss-self-contained.test.mjs`は12/12 PASS。
+- **main regression:** `python3 -m pytest -q runtime/host/tests/test_resource_admission.py`は137 passed。
+- **Git境界:** このreadback時点のA5 branch/PR headは`16af3053`で、上記manifest修正はlocal only。`origin/main`=`85f17537`はc61以降のdocs-only commitで、A5 branchには未統合。PR #6827の`16af3053` head checksではmanifest修正前のOSS checkがFAILし、他のcheckはPASS。新しいheadでのCI証拠はまだない。
+
+**現在cursor:** manifestのlocal再現・修正・focused verifierは完了。次は最新main `85f17537`をmergeし、A5 focused/privacy/registry/loop-contract/runtimeを再検証してからpushする。その後のsame-head CI/fresh review/mergeが完了するまでPR #6827はdraftのまま。A5 production migration/release/readbackとA6→A8→A9→A10は続く。

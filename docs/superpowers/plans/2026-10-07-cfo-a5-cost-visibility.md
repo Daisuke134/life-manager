@@ -152,7 +152,7 @@
 - [x] Refresh the absorbed Capafy source inventory for merged main; run `node scripts/verify-oss-self-contained.mjs` and `node --test test/oss-self-contained.test.mjs`.
 - [x] After merging latest main `1872befb`, recompute the OSS source inventory from the merged tree and rerun its verifier plus `node --test test/oss-self-contained.test.mjs`.
 - [x] Merge latest main through `64db1c2e` (including `71a5f878`, `55546755`, `68b03657`, and `b634a187`); rerun OSS verifier/self-contained tests after the code-bearing main sync (12/12 PASS). `64db1c2e` adds docs only.
-- [ ] Merge new main `a02c457d` into the A5 branch; run its focused SQLite admission regression (137/137), then rerun A5/OSS/loop-contract checks.
+- [x] Merge new main `a02c457d` into the A5 branch; run its focused SQLite admission regression (137/137). The branch contains this main commit; latest-main sync and whole-branch acceptance remain below.
 - [x] Run the complete A5 focused tests plus `npm run eval:panel-privacy`, the focused registry test, and `./bin/lm-loop-contract`.
 - [x] Rerun the A5 focused tests (127/127), privacy evaluator, registry/loop contract, and the first full runtime suite against the merged head. The suite reached 791 tests; only the two `cut-loop-release` pressure tests failed because current commit `3f25077e` exists only locally.
 - [x] After push, rerun the remote-SHA pressure tests; full runtime suite passes 791/791 on pushed head `4145c84311`.
@@ -165,5 +165,6 @@
 - [x] On pushed head `4145c84311`, rerun the complete runtime suite; all 791 tests pass.
 - [x] Required checks on head `4145c84311` pass; CodeRabbit skipped review because the PR is draft.
 - [x] Push status updates; current PR head `79091677` has required CI passing, while CodeRabbit review is skipped on the draft.
-- [ ] After syncing `a02c457d`, push the new head, confirm same-head CI/runtime tests, obtain a fresh read-only whole-branch review, then mark PR #6827 ready and merge.
+- [x] After main #7084 changed `skills/capafy-autopublish/scripts/drive_checkpoint2.py` and its test, recompute its tracked 245-file inventory as `7d59dbe788a1edb593d16240413cdb6573e0b49b8297b63d4da539179eb61fa6`; `node scripts/verify-oss-self-contained.mjs --json` is PASS and `node --test test/oss-self-contained.test.mjs` is 12/12 PASS.
+- [ ] Merge latest main `85f17537` into the A5 branch, rerun the A5 focused/privacy/registry/loop-contract/runtime acceptance on the synchronized head, push, obtain same-head required CI and fresh read-only whole-branch review, then mark PR #6827 ready and merge.
 - [ ] Do not apply the database migration or manually run/restart the production CFO owner from this worktree; production migration/release/natural-report readback follows the canonical SSOT cursor.
