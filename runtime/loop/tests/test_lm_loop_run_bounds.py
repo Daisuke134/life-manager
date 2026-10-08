@@ -1064,10 +1064,11 @@ def test_entrypoint_completes_handoff_before_effect_gate(tmp_path):
 
 def test_entrypoint_stderr_capture_is_captured_and_still_passes_through(tmp_path, capfd):
     child = (
-        "import sys; "
-        "sys.stderr.write('boom: precondition missing\\n'); "
-        "sys.exit(1)"
+        "import os, stat, sys; "
+        "sys.stderr.buffer.write(b'boom: precondition missing\\n'); "
+        "sys.exit(1 if stat.S_ISREG(os.fstat(2).st_mode) else 86)"
     )
+    expected = b"boom: precondition missing\n"
     scratch = tmp_path / "scratch"
     scratch.mkdir()
 
@@ -1076,32 +1077,88 @@ def test_entrypoint_stderr_capture_is_captured_and_still_passes_through(tmp_path
     )
 
     assert result == 1
-    assert tail.strip() == b"boom: precondition missing"
+    assert tail == expected[-ENTRYPOINT_STDERR_TAIL_MAX_BYTES:]
     # Passthrough is preserved: the child's stderr still reaches this
     # process's real stderr, exactly like before capture existed.
     captured = capfd.readouterr()
-    assert "boom: precondition missing" in captured.err
+    assert captured.err.encode() == expected
     # The capture file is a private, cleaned-up implementation detail, not a
     # durable artifact -- nothing is left behind in the run's scratch dir.
     assert list(scratch.iterdir()) == []
 
 
-def test_entrypoint_stderr_capture_is_bounded_to_its_last_bytes(tmp_path):
+def test_entrypoint_stderr_capture_replays_bounded_slices_for_large_output(
+        tmp_path, capfd, monkeypatch):
+    chunk_size = 32 * 1024
+    head = b"H" * chunk_size
+    middle = b"M" * (200 * 1024)
+    final_error = b"ERROR: final failure\n"
+    full_output = head + middle + final_error
+    marker = b"\n...[stderr truncated]...\n"
+    expected_replay = head + marker + full_output[-chunk_size:]
     child = (
         "import sys; "
-        "sys.stderr.write('a' * 6000); "
-        "sys.exit(1)"
+        f"sys.stderr.buffer.write(b'H' * {chunk_size} + b'M' * {len(middle)} "
+        f"+ {final_error!r}); "
+        "sys.exit(9)"
     )
     scratch = tmp_path / "scratch"
     scratch.mkdir()
+    capture_path = scratch / "entrypoint-stderr.log"
+    real_path_open = Path.open
+    read_sizes = []
+    seek_positions = []
+
+    class BoundedCaptureReader:
+        def __init__(self, handle):
+            self.handle = handle
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            self.handle.close()
+
+        def seek(self, offset, whence=0):
+            seek_positions.append((offset, whence))
+            return self.handle.seek(offset, whence)
+
+        def tell(self):
+            return self.handle.tell()
+
+        def read(self, size=-1):
+            read_sizes.append(size)
+            assert 0 <= size <= chunk_size
+            return self.handle.read(size)
+
+    def observe_open(path, *args, **kwargs):
+        handle = real_path_open(path, *args, **kwargs)
+        if path == capture_path:
+            return BoundedCaptureReader(handle)
+        return handle
+
+    real_read_bytes = Path.read_bytes
+
+    def reject_whole_capture_read(path):
+        if path == capture_path:
+            raise AssertionError("capture must use bounded seek/read")
+        return real_read_bytes(path)
+
+    monkeypatch.setattr(Path, "open", observe_open)
+    monkeypatch.setattr(Path, "read_bytes", reject_whole_capture_read)
 
     result, tail = _run_entrypoint_with_stderr_capture(
         [sys.executable, "-c", child], scratch, timeout_seconds=5,
     )
 
-    assert result == 1
-    assert len(tail) == ENTRYPOINT_STDERR_TAIL_MAX_BYTES
-    assert tail == b"a" * len(tail)
+    assert result == 9
+    assert tail == full_output[-ENTRYPOINT_STDERR_TAIL_MAX_BYTES:]
+    assert b"ERROR: final failure\n" in tail
+    assert capfd.readouterr().err.encode() == expected_replay
+    assert read_sizes == [chunk_size, chunk_size]
+    assert (0, os.SEEK_END) in seek_positions
+    assert (len(full_output) - chunk_size, os.SEEK_SET) in seek_positions
+    assert list(scratch.iterdir()) == []
 
 
 def test_entrypoint_without_stderr_capture_is_unaffected(capfd):

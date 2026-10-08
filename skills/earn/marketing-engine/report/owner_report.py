@@ -511,11 +511,20 @@ def _checkpoint_events(
         # unbound legacy data (which cannot be reassigned) or bound to this
         # exact product.  A bound mismatch is a hard failure.
         matched_identity = _matching_identity(identities, row, product_id)
+        native_url = row.get("native_url")
+        if not isinstance(native_url, str) or not native_url.startswith("https://"):
+            identity_urls = {
+                identity.get("native_post_url")
+                for _, identity in matched_identity
+                if isinstance(identity.get("native_post_url"), str)
+                and identity["native_post_url"].startswith("https://")
+            }
+            native_url = next(iter(identity_urls)) if len(identity_urls) == 1 else None
         reasons = row.get("metric_null_reasons") or {}
         facts = {
             "publication_id": row.get("publication_id") or row.get("postiz_id"),
             "native_post_id": row.get("native_post_id"),
-            "native_url": row.get("native_url"),
+            "native_url": native_url,
             "platform": row.get("platform") or row.get("provider_identifier") or "unknown",
             "checkpoint_status": row.get("checkpoint_status") or ("measured" if row.get("views") is not None else "missed"),
             "target_age_hours": row.get("target_age_hours"),
@@ -1256,6 +1265,11 @@ def render_japanese(event: dict) -> str:
             if natural == "取得できませんでした":
                 natural = "まだ取得できませんでした"
             lines.append(f"📊 {product_id}の{platform}チェックポイントは{natural}。")
+        native_url = facts.get("native_url")
+        if isinstance(native_url, str) and native_url.startswith("https://"):
+            lines.append(f"投稿リンク: {native_url}")
+        else:
+            lines.append("投稿リンク: 取得できませんでした")
     elif kind == "product_daily":
         lines.append(f"📦 {product_id}の今日の結果です。")
         mrr = facts.get("mrr")
