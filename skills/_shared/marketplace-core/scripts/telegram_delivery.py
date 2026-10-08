@@ -7,6 +7,7 @@ cannot find because it gives a job no PATH — so it reported nothing for a day 
 """
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
 import importlib.util
 from pathlib import Path
 import sys
@@ -17,11 +18,12 @@ SHARED_TELEGRAM = Path(__file__).resolve().parents[2] / "telegram.py"
 
 @dataclass(frozen=True)
 class SendResult:
-    """started=False means no provider call happened, so the claim is safe to return."""
+    """Separate no-call failures from provider-confirmed rejection and uncertain sends."""
 
     started: bool
     provider_id: Optional[str]
     error: Optional[str]
+    provider_rejected: bool = False
 
 
 @dataclass(frozen=True)
@@ -30,6 +32,7 @@ class Delivery:
     delivered: int = 0
     delivery_uncertain: int = 0
     pre_send_failed: int = 0
+    provider_rejected: int = 0
 
 
 def _load(name: str, path: Path):
@@ -49,16 +52,26 @@ def send_via_shared_client(message: str, *, chat_id: str, env_file: Optional[Pat
         )
         receipt = client.send_text(message)
         ids = receipt.get("message_ids") if isinstance(receipt, Mapping) else None
-        provider_id = str(ids[-1]) if isinstance(ids, list) and ids else None
+        raw_provider_id = ids[-1] if isinstance(ids, list) and ids else None
+        provider_id = (
+            str(raw_provider_id)
+            if isinstance(raw_provider_id, int)
+            and not isinstance(raw_provider_id, bool)
+            and raw_provider_id > 0
+            else None
+        )
         return SendResult(True, provider_id, "receipt_missing" if provider_id is None else None)
     except Exception as error:
+        if type(error).__name__ == "TelegramProviderRejected":
+            code = getattr(error, "error_code", None)
+            return SendResult(True, None, f"provider_rejected:{code or 'unknown'}", True)
         attempted = type(error).__name__ == "TelegramDeliveryUnknown"
         return SendResult(attempted, None, "transport_unknown" if attempted else "direct_transport_unavailable")
 
 
-def deliver_pending(outbox: Any, database: Path, notifier: Callable[[str], SendResult], now: str, *, limit: int = 20) -> Delivery:
+def deliver_pending(outbox: Any, database: Path, notifier: Callable[[str], SendResult], *, limit: int = 20) -> Delivery:
     """Drain the outbox once: quarantine abandoned claims, then send what is pending."""
-    attempted = delivered = uncertain = pre_send = 0
+    attempted = delivered = uncertain = pre_send = rejected = 0
     try: outbox.reclaim_stale(Path(database))
     except Exception: pass
     for _ in range(max(1, limit)):
@@ -74,13 +87,20 @@ def deliver_pending(outbox: Any, database: Path, notifier: Callable[[str], SendR
                 outbox.mark_pre_send_failed(Path(database), item.event_key, result.error or "process_not_started", **fence); pre_send += 1
                 break
             attempted += 1
+            if result.provider_rejected:
+                outbox.mark_provider_rejected(
+                    Path(database), item.event_key, result.error or "provider_rejected", **fence
+                )
+                rejected += 1
+                break
             if result.provider_id:
-                outbox.mark_delivered(Path(database), item.event_key, result.provider_id, now, **fence); delivered += 1
+                delivered_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+                outbox.mark_delivered(Path(database), item.event_key, result.provider_id, delivered_at, **fence); delivered += 1
             else:
                 outbox.mark_delivery_uncertain(Path(database), item.event_key, result.error or "receipt_missing", **fence); uncertain += 1
         except getattr(outbox, "StaleClaim", ()):
             break
-    return Delivery(attempted, delivered, uncertain, pre_send)
+    return Delivery(attempted, delivered, uncertain, pre_send, rejected)
 
 
 __all__ = ["SendResult", "Delivery", "send_via_shared_client", "deliver_pending"]

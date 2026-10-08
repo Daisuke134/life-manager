@@ -6822,6 +6822,67 @@ This readback supersedes the 00:37 JST post count and advances the source cursor
 
 **現在cursor:** push `7273530a` → same-head CI → PR #6827 ready/merge. In production, the disk floor is now receipt-confirmed; the active old reconciler and CFO's next eligible natural run remain unresolved. PR #7098 must be rebased/reviewed separately. Do not restart, replay, delete by hand, or raise caps.
 
+### 2026-10-08 18:09 JST — A5 source merged; provider receipt and runtime event disagree
+
+- **A5 source:** PR #6827 merged at 17:56:16 JST as merge commit `f9d94048ba0522bad881de2a1266f92011610dec`. Current `/Users/anicca/loops/current` is release `20261008T180015-f9d94048`. This is source integration, not a production CFO owner/report proof.
+- **Receipt branch:** `fix/cfo-telegram-runtime-receipt-20261007` already has pushed commit `b63e42f2` adding a strict, occurrence-scoped Telegram `entrypoint-result.json` hint after a confirmed new send. Its merge with current main is in progress locally; focused CFO Node tests `25/25`, CFO runtime-hint tests `6/6`, adapter `15/15`, loop contract `18/187/112`, Python compile, and changed-file diff checks pass. Full Python runtime suite is deferred to same-head GitHub CI because local host load is high. No PR is open yet.
+- **Latest report occurrence:** `life-manager-cfo-hourly:18dc81b66572bcc0-48104` (17:50:05 JST) has an execute-start and terminal pass event, but runtime terminal `effect_status=unknown`, with no `provider_receipt_id` or `official_readback_ref`. Owner sidecar `last-result-report.json` and redacted `last-result.json` say `sent`, provider message ID `105319`, and the sidecar `occurrenceId` matches. A read-only SQLite query confirms the exact outbox `event_key` row is `delivered`, provider ID `105319`, message SHA matches the sidecar, and no resend occurred. However, outbox metadata is internally inconsistent: `claimed_at=08:49:41Z` is later than `delivered_at=08:49:34Z` (which equals `created_at`). `effect_reconcile.py` read-only proof returns `occurrence_not_effect_unknown` because the admission occurrence is not fenced, so it cannot write a terminal official-readback ref. Treat the send as sidecar/outbox-confirmed but runtime trace as unreconciled; do not call this full traceability complete and do not resend.
+- **Next CFO attempt:** occurrence `18dc821fdcb40870-30557` at 17:57:05 JST was deferred as `resource_capacity_busy` / exit75, no receipt. The previous 17:37 disk defer remains historical. The canonical host cleanup receipt at17:46 reports 3,422,220,288 bytes free after (2 GiB floor met), errors0/protected deletions0; 18:08 `df` reports 2,597,628 KiB available. Capacity is presently above the floor but the next natural CFO receipt is still missing.
+- **Release handoff:** current reconciler remains loaded on old SHA `3c87f64f`; a read-only `launchctl-safe print` at18:09 reports `state = not running` with no PID, while the latest self-handoff receipt to target `f9d94048` is `old_service_state_unknown`. This is the one-word parser bug: the helper must treat exact `not running` + no PID as quiescent only after repeated reads while holding the same per-label lock. PR #7098 head `95f60567` remains OPEN against stale base `a8a10c67` and must rebase to `f9d94048`; its current branch is not yet merged.
+
+**残TODO:**
+
+1. Finish the active receipt-branch merge resolution, preserve both CFO `verified_effect` and main's existing eBook `verified_no_effect` paths, run focused tests, then push and pass same-head full Python/Loop CI plus security checks. Open/review/merge the receipt PR; this changes future CFO events, not the existing 17:50 event.
+2. Reconcile the existing 17:50 outbox receipt to its exact runtime occurrence without resend. Investigate/fix the `delivered_at < claimed_at` timestamp anomaly and the admission-ledger mismatch (`effect_status=unknown` event but `effect_unknown=0` occurrence); keep the event unreconciled until an exact proof record exists.
+3. Rebase PR #7098 on `f9d94048`; finish the `not running` no-PID behavioral regression and active-process wait/readback, then same-head CI/review/merge. Never stop the running old reconciler or boot out an active PID.
+4. Wait for natural handoff to release `f9d94048`, verify loaded reconciler/CFO SHA and next CFO occurrence receipt, and handle `resource_capacity_busy` by its natural eligibility path.
+5. Apply A5 additive migration/RPC/permissions through the canonical route; read back tenant/period bounds, cost attribution/trace and daily/MTD panel.
+6. Continue A6 Google billed/credits/tax/rounding → A8 settled revenue/refund/fees plus actual cost coverage for 18 loops/186 jobs → A9 existing CLI/report daily/MTD/trailing → A10 seven-day natural report with full coverage/official receipts/replay-zero.
+
+**現在cursor:** receipt branch merge resolution/test → same-head CI/PR → reconcile 17:50 delivery evidence without resend → PR #7098 handoff fix/rebase → natural `f9d94048` owner handoff → CFO receipt/A5 production readback. A6→A8→A9→A10 remain after A5; Moneytree A7 and cloud savings A3/A4 remain deferred.
+
+### 2026-10-08 18:09 JST — A5 source merged; receipt hint follow-up is in progress
+
+- **A5 source:** PR #6827 merged at 17:56:16 JST as `f9d94048ba0522bad881de2a1266f92011610dec`. Current immutable release is `20261008T180015-f9d94048`, but CFO owner is not yet loaded on it. A5 migration/RPC/permissions/panel production readback remains incomplete.
+- **Receipt branch:** `fix/cfo-telegram-runtime-receipt-20261007` has a strict CFO-only runtime result hint: only a new Telegram send with confirmed `delivered`, one attempt, provider ID, exact occurrence, and no uncertainty writes `entrypoint-result.json`; duplicates/uncertain sends do not write verified hints. Its merge with current main is in progress locally. Focused evidence after the merge: CFO Node tests `25/25`, targeted runtime hint tests `6/6`, adapter `15/15`, loop contract `18/187/112`, Python compile and changed-file diff checks PASS. Full Python runtime CI/review and a PR merge remain.
+- **Latest 17:50 report:** occurrence `life-manager-cfo-hourly:18dc81b66572bcc0-48104` has runtime terminal `pass/exit0` but `effect_status=unknown` and no runtime receipt/readback ref. Its owner sidecar and outbox row say `sent`/`delivered`, provider message ID `105319`, with matching occurrence, event key and SHA-256. A read-only SQLite query confirms the exact outbox row. However `claimed_at=08:49:41Z` is later than `delivered_at=08:49:34Z` (which equals `created_at`); `effect_reconcile.py` returns `occurrence_not_effect_unknown` because the admission row is not fenced. Treat sidecar/outbox as delivery evidence but keep the runtime trace unreconciled; do not resend or claim full traceability.
+- **Latest CFO attempt:** occurrence `18dc821fdcb40870-30557` at 17:57:05 JST deferred as `resource_capacity_busy` / exit75 with no receipt. Last successful process result remains 17:50:05 JST, with the preceding event/outbox discrepancy. Next eligible interval is 1h after 17:57 (approximately 18:57 JST), subject to admission.
+- **Release handoff:** current reconciler remains on old SHA `3c87f64f`. A read-only Launchd print at18:09 reports `state = not running` / no PID; the current handoff receipt targeting f9d still says `old_service_state_unknown`, state/PID null. PR #7098 is OPEN at head `95f60567` / base `a8a10c67`; it still needs latest-main rebase and behavior for `not running`, not only state capture. Do not stop/bootout an active or ambiguous process.
+- **Disk:** canonical host receipt at17:46:18Z records `free_after=3,422,220,288 bytes`, 2 GiB floor met, errors0/protected deletions0. `df` at18:08 shows `2,590,864 KiB` free, above the floor; the 17:57 CFO defer is capacity, not the prior disk reason.
+
+**残TODO:**
+
+1. Finish the active receipt-branch merge resolution, preserve both CFO `verified_effect` and main's eBook `verified_no_effect` paths, run focused tests, then push and pass same-head full Python/Loop CI plus security checks. Open/review/merge the receipt PR; this changes future CFO events, not the existing 17:50 event.
+2. Reconcile the existing 17:50 outbox receipt to its exact runtime occurrence without resend. Investigate/fix the `delivered_at < claimed_at` inconsistency and the admission-ledger mismatch (`effect_status=unknown` event but `effect_unknown=0` occurrence); keep the trace unresolved until an exact proof record exists.
+3. Rebase PR #7098 on f9d, add a regression for `not running` with no PID, and treat it as quiescent only after repeated reads while holding the per-label lock. Preserve fail-closed behavior for other states; merge and await natural handoff without stopping the old process.
+4. Verify f9d release handoff and CFO loaded SHA, then wait for the eligible natural retry. The 17:57 `resource_capacity_busy` attempt has no receipt.
+5. Apply A5 additive migration/RPC/permissions via the canonical production route; read back tenant/period isolation, provider/SKU/unit/loop/owner/trace, daily/MTD panel and same-occurrence receipt.
+6. Continue A6 Google billed/credits/tax/rounding → A8 18-loop/186-job settled revenue/cost coverage → A9 existing CLI/report daily/MTD/trailing → A10 seven consecutive natural reports with full coverage, official receipts and replay-zero. Do not claim verified company net or $10k MRR before A10.
+
+**現在cursor:** receipt branch merge resolution/test → same-head CI/PR → reconcile 17:50 delivery evidence without resend → PR #7098 handoff fix/rebase → natural f9d owner handoff → CFO receipt/A5 production readback → A6→A8→A9→A10.
+
+### 2026-10-08 18:17 JST — CFO cursor refresh; source is ahead of production
+
+- **範囲:** このlaneは事業CFO（agent/loop別 revenue・expense・net と観測証跡）。Moneytree/A7とCloud savings/A3/A4は今回の順序外であり、個人口座を読まない。
+- **A5 source:** PR #6827 は `f9d94048` としてmainへ統合済み。`/Users/anicca/loops/current` は immutable release `20261008T180015-f9d94048` を指す。しかし `lm-loop status life-manager-cfo-hourly --explain --json` の18:16 JST readbackでは loaded SHA は旧 `07aa3fb3`、loaded-idle、最新 occurrence `life-manager-cfo-hourly:18dc821fdcb40870-30557` は17:57 JSTの `host_admission_deferred:resource_capacity_busy` / exit 75 / `retry_after_eligibility`。このattemptはeffect前のdeferで、provider receiptなし。`admission_effect_unknown=false`。最後の成功processは17:50 JSTだが、そのdelivery/runtime traceは別途未解決。
+- **Receipt source PR:** PR #7106 はdraft/open、head `83bf6be9`、base `7a80d7a9`。focused local testsはPASSし、fresh read-only source reviewはship判定。18:17 JST時点でPython syntax/unit、PII、shell、instruction、OSS checksはPASS、`Loop control contracts`とTruffleHogは実行中、GitHub reviewDecisionは未決。新しいCFO effect-result hintは将来occurrence向けであり、17:50 eventを遡及修復しない。
+- **17:50 exact occurrence:** `life-manager-cfo-hourly:18dc81b66572bcc0-48104` のruntime terminalはpass/exit 0でも `effect_status=unknown`、receipt/readback refなし。CFO sidecarとoutboxは同じoccurrence/event key/message SHA、Telegram provider message ID `105319`、outbox `delivered`を示すためdelivery evidenceはあるが、`claimed_at=08:49:41Z` が `delivered_at=08:49:34Z` より後。read-only `skills/cfo/effect_reconcile.py` は `_read_admission` が occurrence の `effect_unknown=1` を要求するため `occurrence_not_effect_unknown` で停止した。再送は禁止。時刻不整合の原因候補は `skills/_shared/marketplace-core/scripts/telegram_delivery.py::deliver_pending` が送信前に取得された `now` 引数を `mark_delivered` へ渡すことだが、実際の呼び出し元・時刻採取点を含む原因確定は未了。
+- **Release handoff:** `lm-loop status life-manager-release-reconciler --explain --json` の18:15 JST readbackは旧SHA `3c87f64f`、loaded-running、PID `46277`、latest terminal `entrypoint_exit_1`。停止・bootout・手動置換はしない。PR #7098 はhead `95f60567` / base `a8a10c67`（current main `7a80d7a9` より古い）、merge state DIRTY。必須CIの `OSS self-contained boundary` は `manifest_hash_mismatch runtime/agent-runner/config.json` でFAIL。handoff parserが `not running` + PIDなしをquiescentとして扱う回帰テストも未確認。
+
+**残TODO（順序維持、Moneytreeなし）:**
+
+1. PR #7106 の同一head CIを完走させる。失敗があれば該当checkだけ修正し、focused testsとsame-head CIを再PASSさせてからreview/ready/mergeする。完了証拠はPR merged SHAがcurrent mainに存在すること。これは将来のreceipt補強で、17:50の修復ではない。
+2. `skills/_shared/marketplace-core/scripts/telegram_delivery.py::deliver_pending` の時刻採取を追い、provider成功応答後の時刻を `delivered_at` に保存する最小修正を行う。`skills/_shared/marketplace-core/tests/test_effect_notification.py` に `delivered_at >= claimed_at` と失敗/不確実送信ではdelivery時刻を作らない回帰テストを追加し、`python3 -m pytest -q skills/_shared/marketplace-core/tests/test_effect_notification.py` をPASSさせる。
+3. 17:50 occurrenceのruntime event・admission occurrence・outbox rowのwriterを同一 occurrence IDで照合し、`effect_status=unknown` と `effect_unknown=0` の不一致を書いた境界を特定する。`skills/cfo/test_effect_reconcile.py` に同一occurrence/provider ID/message SHAを用いる回帰を追加し、既存の厳格な `effect_unknown` guardを無条件に緩めず、receipt-backedで冪等な履歴reconcileを実装する。provider ID/hash/refとruntime terminal/admission readbackが一致するまでunknownのまま、再送なし。
+4. PR #7098 のownerがcurrent main `7a80d7a9`へrebaseし、`runtime/agent-runner/config.json` のmanifest digestをtracked sourceと一致させて `node scripts/verify-oss-self-contained.mjs` をPASSさせる。handoff parserに「同じper-label lock中の反復readbackで、正確に `state=not running` かつPIDなしだけquiescent、他状態はfail-closed」のテストを追加し、必須CIをPASSさせてmergeする。稼働中の旧Reconcilerを手動停止しない。
+5. Reconcilerの自然handoff後、`lm-loop status life-manager-release-reconciler --explain --json` と `lm-loop status life-manager-cfo-hourly --explain --json` でtarget release SHA・loaded argv・loaded-idleをreadbackする。CFOは次の自然eligibility後にrunを1回確認し、同一occurrenceのterminal、provider receipt、official readback refが揃うこと。`resource_capacity_busy` が続けば容量診断を行い、cap引上げやeffect replayはしない。
+6. A5 additive migration/RPC/permissionsをcanonical production routeで適用し、tenant/period isolation、provider/SKU/unit/loop/owner/runtime trace、daily/MTD panelをreadbackする。source mergeやmigration testだけをproduction完了としない。
+7. A6 Google billed expenseを invoice usage/credits/tax/rounding とcash-paidを分離して既存CFO reportへ接続する。未確認の支払・loop配賦はunknown/unattributedのままにする。
+8. A8で18 business loopsのsettled revenue/refund/feesと実費を照合し、runtime registry全186 jobsをloop別または明示的shared/control/platform overheadへ重複なく割り当てる。coverage gapはzeroに置換しない。
+9. A9で既存CLI/reportにdaily・MTD・trailing・MRRとsource freshness/coverage/receiptを表示し、verified amountとunknownを区別する。新CLI/新schedulerは作らない。
+10. A10で7日連続のnatural CFO reportを観測し、各期間・loop・費目のsource coverage、provider receipts、settlement/cost join、同一occurrence trace、replay-zeroを確認する。これより前は会社全体のverified netや10K MRR達成を主張しない。
+
+**CFO subcursor:** PR #7106 same-head checks → 17:50 timestamp/event-admission mismatchの最小source修正・no-resend reconcile → PR #7098 rebase/manifest/handoff fix → natural release handoff・CFO occurrence readback → A5 production readback → A6 → A8 → A9 → A10。
 ### 2026-10-08 18:12 JST — current handoff active-timeout; Fundraiser occurrence remains fenced
 
 **確認済み:**
@@ -6846,6 +6907,48 @@ This readback supersedes the 00:37 JST post count and advances the source cursor
 6. **自然business runs:** Connectorは新規Luma Compass eventの申込とCalendar/Telegram receiptを同一occurrenceへ結ぶ。Job Hunterは新規適格Workday roleのapplication ID/公式status/Telegramを同一occurrenceへ結ぶ。Fundraiserは新規VCとAI/AGI lab founderを検索・dedupeし、「assistantでなくmanagerを作る」説明、podcast/Zoom/訪問相談をcold mailする。Gmail exact Sent/message ID・返信/meeting booking・Telegram reportを同一occurrenceへ結ぶ。各loop summaryで`selected_model=gpt-6-luna`、`effort=max`、`service_tier=fast`を確認する。送信数をfunding/revenueとして計上しない。
 7. **容量と成果:** 3 loop natural run中のdurable claims/reservations/eligible queue/wait reasonsとCPU/RAM/diskを同じ時間窓で記録し、16:11 baselineと比較する。live headroomの安定した余力が実測できた時だけcap/laneを調整する。Workday applications、Founder返信/面談、実入金/settlementを分けて報告し、cashはofficial receiptとnet costが揃う時だけ計上する。
 
+### 2026-10-08 18:23 JST — CFO release loaded; disk headroom blocks the next report
+
+- **この追記が置き換える状態:** 18:17 JSTの旧CFO SHA `07aa3fb3` / `resource_capacity_busy` は履歴。最新readbackではCFO source release `f9d94048` はloaded-idleになったが、次の自然attemptはdisk admissionで止まっている。
+- **CFO occurrence:** `lm-loop status life-manager-cfo-hourly --explain --json` at 18:23 JST shows loaded SHA `f9d94048`, loaded-idle, latest occurrence `life-manager-cfo-hourly:18dc8375f8189a48-76190` at 18:21:34 JST, `host_admission_deferred:disk_headroom_low` / exit 75 / `retry_after_eligibility`; effect is `not_applicable`, with no provider receipt/readback. Last successful process remains 17:50 JST occurrence `18dc81b66572bcc0-48104`, whose delivery/runtime trace is unresolved.
+- **Disk evidence:** canonical host receipt observed at `2026-10-08T09:22:54Z` reports `free_after=1,462,837,248` bytes, `ok=false`, errors 0, protected deletions 0. `df -k /` at 18:23 JST reports 1,423,896 KiB available. This is below the earlier 2 GiB CFO floor; the host disk-cleanup contract does not clear pressure until a fresh recovery receipt reaches 11 GiB. No cleanup or deletion was run in this CFO task.
+- **Release reconciler:** latest readback at 18:23 JST remains old SHA `3c87f64f`, loaded-running PID `79132`, latest occurrence `18dc83578aa43710-92190`, `entrypoint_exit_1`. Do not stop, bootout, or replace the live owner.
+- **Concurrent PR state:** PR #7106's previous green checks belonged to old head `83bf6be9`; local branch now merges current main through `55c46527` and the SSOT merge conflict preserves both the Fundraiser/global cursor and CFO subcursor. The updated local head still needs push and same-head CI/review. PR #7098 has progressed to head `086caf87` / base `c1587853`; OSS boundary is now green but Loop control and TruffleHog are still running (Python, Gitleaks, PII, shell, instruction and startup checks pass). Current main is `55c46527`, so that PR still needs its owner to sync the latest base before final integration. Its new test only changes fake Launchd output to `not running` while still expecting `old_service_state_unknown`; full-state capture is covered, safe quiescent handoff is not.
+- **Historical 17:50 receipt:** provider ID `105319` and matching outbox/sidecar remain delivery evidence only; terminal still lacks provider receipt/readback ref, `claimed_at` remains later than `delivered_at`, and `_read_admission` rejects `occurrence_not_effect_unknown`. No resend.
+
+**CFO TODO順更新:** 旧順=`#7106 checks → 17:50 reconcile → #7098 handoff → CFO natural receipt → A5 → A6/A8/A9/A10`。新順=`host disk recovery → #7106 latest-main push/check/merge → #7098 latest-main check/merge and natural handoff → no-resend historical reconciliation → natural CFO report/receipt → A5 production readback → A6 → A8 → A9 → A10`。理由は、18:21 JSTの新しいCFO occurrenceが`disk_headroom_low`でeffect前にdeferし、同時にCFOが`f9d94048`へ進んだため。Moneytree A7とCloud savings A3/A4は引き続き対象外。
+
+**残TODO（CFO lane、atomic順）:**
+
+1. 既存 `skills/self/disk-cleanup` ownerの5分passでheadroomを回復し、receiptで `free_after >= 11 GiB`, `errors=0`, `protected_deletions=0` を確認する。`~/.cloak`、`.config/ai`、worktree、credentials、state、Simulator資産を手作業で消さない。fresh receipt後にCFOの自然eligible wakeを待つ。容量が戻らない間は新しいreport attemptもeffect-free deferとして記録する。
+2. receipt branch `fix/cfo-telegram-runtime-receipt-20261007` のSSOT統合をcurrent main `55c46527`までpushし、PR #7106の同じheadでfocused tests、Loop/Python/security checksとreviewをPASSさせてmergeする。旧head `83bf6be9`のgreen checksは新headの証明に使わない。
+3. PR #7098 ownerがbranchをcurrent main `55c46527`へ同期し、`node scripts/verify-oss-self-contained.mjs`と全必須CI/reviewを再PASSさせる。既存の「`not running`文字列をreceiptに保存する」testに加え、同一label lock下で反復readbackし「正確に`not running`かつPIDなし」だけquiescentになるbehavior regressionを実装する。PID `79132`を手動停止せず、reconcilerのnatural terminal/handoffとloaded SHAをreadbackする。
+4. current immutable releaseにreceipt hintが含まれた後、CFO ownerのloaded SHA/argvとdisk receiptを確認して自然eligible runを1回観測する。同一occurrenceのterminal pass、Telegram provider ID、`official_readback_ref`、report hash、outbox delivered row、replay-zeroがそろうまでdaily report完了としない。
+5. 17:50 occurrence `life-manager-cfo-hourly:18dc81b66572bcc0-48104` のruntime event・admission row・outbox writerを同一occurrence IDで追跡し、`effect_status=unknown` / `effect_unknown=0` の不一致を修正する。`skills/_shared/marketplace-core/scripts/telegram_delivery.py::deliver_pending` がpre-send `now`を `delivered_at` に使う可能性をtestで確定し、provider成功後時刻を保存する回帰を追加する。`skills/cfo/test_effect_reconcile.py` でreceipt-backed idempotent history reconcileを検証し、再送しない。
+6. A5 additive migration/RPC/permissionsをcanonical production routeで適用し、tenant/period bounds、provider/SKU/unit/loop/owner/runtime trace、daily/MTD panelをproduction readbackする。
+7. A6 invoice billed expense・credits・tax・rounding・cash-paidを区別して既存reportへつなぎ、未確認支払/loop配賦をunknown/unattributedで保持する。
+8. A8で18 business loopsのsettled revenue/refund/feesと実費を照合し、runtime registry全186 jobsをloop別またはshared/control/platform overheadへ重複なく分類する。
+9. A9で既存CLI/reportからdaily・MTD・trailing・MRR、freshness・coverage・receiptを示し、unknownをzeroにしない。
+10. A10の7日連続natural reportでsource coverage・official receipts・settlement/cost join・同一occurrence trace・replay-zeroを確認する。A10前は会社全体netや$10K MRRをverifiedと呼ばない。
+
+**CFO subcursor:** host disk recovery receipt → PR #7106 same-head merge → PR #7098 natural handoff → 17:50 no-resend reconciliation → natural CFO report receipt → A5 → A6 → A8 → A9 → A10。
+
+### 2026-10-08 18:26 JST — receipt branch synced to current main
+
+- `origin/main=12b06eeff82f897931eea6e784d22c3a328c98e4` (#7107) advanced after the 18:23 CFO readback; its change is limited to LINE sticker source/tests. The CFO receipt branch merged it without file conflict; local HEAD is `20612d06`.
+- PR #7106's remote head is still `8e3b4cce`; the latest-main/spec merge is local and must be pushed. Green checks on `83bf6be9` do not apply to the new head. After push, wait for same-head CI/review before marking ready or merged.
+- PR #7098 remains owned by its existing owner; last verified head `086caf87` / base `c1587853` has a green OSS boundary but pending Loop control/TruffleHog at 18:23. Current main is now `12b06ee`; its `not running` test still preserves `old_service_state_unknown` and does not prove the safe quiescent handoff behavior.
+
+**CFO subcursor:** host disk recovery receipt ≥11 GiB → push receipt branch synced through `12b06ee` → same-head CI/review/merge → owner completes PR #7098 handoff behavior and natural terminal → no-resend reconciliation → natural CFO report receipt → A5 → A6 → A8 → A9 → A10。
+
+### 2026-10-08 18:28 JST — pushed receipt spec; CFO remains disk-deferred
+
+- **PR #7106:** pre-refresh readback was head `c61941a3`, base `12b06eef`; PR remains draft/open. This spec-only status commit changes the head, so its queued/running checks become stale and must rerun on the final pushed head. At pre-refresh, instruction, Loop control, startup, OSS, Gitleaks, TruffleHog, and shell were queued; PII and Python were running; CodeRabbit status was success. Merge/review decision is not complete.
+- **CFO:** loaded release remains `f9d94048`. Latest occurrence `life-manager-cfo-hourly:18dc83c0aac88be0-99847` at `2026-10-08T09:26:55Z` again deferred `disk_headroom_low` / exit 75 / `retry_after_eligibility`, effect `not_applicable`, no provider receipt/readback. Last cleanup receipt remains `09:22:54Z`, `free_after=1,462,837,248`, `ok=false`, errors 0, protected deletions 0. Later `df -k /` showed 1,964,680 KiB available, still below 2 GiB; no fresh recovery receipt ≥11 GiB is observed.
+- **PR #7098:** head `086caf87` checks are now all green and merge state is CLEAN on base `c1587853`, but current main is `12b06eef`; it needs latest-main sync and same-head checks. Its `not running` fixture still asserts `old_service_state_unknown`, so it tests diagnostic preservation rather than safe quiescent handoff. The release reconciler remains on old SHA `3c87f64f`; no stop/restart/bootout.
+- **Old 17:50 report:** occurrence `life-manager-cfo-hourly:18dc81b66572bcc0-48104` remains delivery-evidenced by sidecar/outbox message ID `105319` but unreconciled with runtime trace; no resend.
+
+**CFO subcursor:** fresh disk cleanup receipt ≥11 GiB → PR #7106 same-head CI/review/merge → PR #7098 current-main sync + safe-handoff behavior + natural terminal → 17:50 no-resend reconciliation → CFO natural report with exact receipt/readback → A5 production panel → A6 → A8 → A9 → A10。
 ### 2026-10-08 17:24 JST — production state readback gap isolated
 
 - PR #7091 source and PR #7093 cursor docs are merged. Latest `origin/main=dc90716408`; the handoff receipt-diagnostic follow-up is a separate uncommitted branch based on this SHA.
@@ -6931,6 +7034,39 @@ The next cursor is item 1 commit/push. No Dais manual action is currently requir
 
 **現在cursor（eBook only）:** `commit/push latest-main sync + manifest cleanup → fresh #7098 required CI and merge → recover the Oct 8 HeyGen video ID/output or authoritative no-effect → confirm destination (current owner is TikTok; English IG route is absent) → verify exact media is unique → publish once and read back official receipt → restore English 3/day owner cadence → verify checkout + PDF → track paid Letter MRR`. No Capafy action or unverified repost.
 
+### 2026-10-08 18:30 JST — #7098 source merged; production handoff remains open
+
+- **PR #7098:** merged at `2026-10-08T09:28:30Z` as `7100882bca845a35d4b460dfe62c8c35638969de`; all required checks passed. This source change records the complete Launchd state text and preserves fail-closed unknown handling. It does not prove that `not running` with no PID is a safe quiescent handoff: the changed fixture still expects `old_service_state_unknown`.
+- **Reconciler readback:** at `09:28:50Z`, `life-manager-release-reconciler` remains loaded-running on old SHA `3c87f64f`, PID `79132`, latest occurrence `18dc83578aa43710-92190`, `entrypoint_exit_1`. The merge is not loaded in this owner and no natural handoff is proven. Do not stop/restart/bootout.
+- **CFO latest attempt:** occurrence `life-manager-cfo-hourly:18dc83c0aac88be0-99847` at `09:26:55Z` remains `disk_headroom_low` / exit 75 / `retry_after_eligibility`, effect `not_applicable`, no provider receipt/readback. Loaded CFO SHA remains `f9d94048`. Latest cleanup receipt is `09:22:54Z` with `free_after=1,462,837,248`, `ok=false`; later `df` has 1,964,680 KiB available, still below the 2 GiB CFO admission floor and the disk-cleanup 11 GiB recovery target.
+- **Receipt PR #7106:** remote head `c61941a3`, based on `12b06eef`; at the latest check it remains draft/open. Instruction/startup/OSS/PII/shell checks pass, while Loop control, Python, Gitleaks, and TruffleHog were running. Main has since advanced to `7100882b`; the CFO branch must merge that latest main and rerun same-head checks. No merge/review decision is complete.
+- **Historical report:** 17:50 occurrence `life-manager-cfo-hourly:18dc81b66572bcc0-48104` still has delivery evidence (provider message ID `105319`) but no reconciled runtime receipt/ref; timestamp and admission mismatch remain. Do not resend.
+
+**CFO TODO順更新:** PR #7098's diagnostic source gate is complete; the remaining handoff behavior is separate. Current sequence is `disk recovery receipt → sync CFO receipt branch through main 7100882 and pass PR #7106 checks/review → update bin/reconcile-agent-self-handoff.sh so repeated exact state/PID readback under the same per-label lock treats only not-running + no PID as quiescent; keep unknown fail-closed; add regression in runtime/loop/tests/test_reconcile_agent_self_handoff.py and run python3 -m unittest runtime.loop.tests.test_reconcile_agent_self_handoff plus bash -n → natural reconciler handoff/new immutable release → 17:50 no-resend reconciliation → natural CFO report receipt → A5 production panel readback → A6 → A8 → A9 → A10`. The 18:21/18:26 CFO deferrals and the still-loaded old reconciler are the active production blockers; source merges alone do not clear them.
+
+**CFO subcursor:** fresh disk receipt ≥11 GiB → PR #7106 latest-main sync/CI/merge → safe handoff follow-up and natural terminal → no-resend reconciliation → natural CFO report with exact receipt/readback → A5 → A6 → A8 → A9 → A10。
+
+### 2026-10-08 18:32 JST — CFO report delivered; runtime receipt remains unreconciled
+
+- **Fresh disk / CFO attempt:** host receipt at `09:28:28Z` reports `free_after=2,606,665,728`, `ok=true`, errors 0, protected deletions 0; `df` at 18:31 JST reports 2,927,788 KiB available. The CFO 2 GiB admission floor is now passed, but the host recovery target of 11 GiB is not. CFO occurrence `life-manager-cfo-hourly:18dc83dfaf4b7f28-83377` at `09:29:32Z` ended pass/exit 0 on loaded SHA `f9d94048`, but runtime `effect_status=unknown`, `provider_receipt_id=null`, `official_readback_ref=null`; `admission_effect_unknown.current=false`.
+- **Same-occurrence delivery evidence:** `last-result-report.json` says `sent`, occurrence `18dc83dfaf4b7f28-83377`, provider message ID `105334`, event key `cfo-result:lm_784ad279-4d2c-4274-a318-b51e38285a61:telegram:2026-10-08:09`, message SHA-256 `6aa81417733095a12b919367bebf20201d2b2938e1fc94c82a79b14a4539dfd3`. Read-only `mode=ro` SQLite query confirms that exact outbox row is `delivered`, provider ID and SHA match, attempt count 1. Delivery is evidenced; runtime terminal is still unreconciled. Do not resend.
+- **Confirmed timestamp source:** The loaded entrypoint `skills/cfo/run.sh` starts `apps/life-manager/scripts/cfo-hourly-local.js::main`, which invokes `apps/life-manager/scripts/cfo-result-local.js::runResultCfo`. `runResultCfo` captures `now` before collection, passes it as `observedAt` through `cfo-report-delivery.js::notifyCfoReport` → `financial-transition-local.js::notifyViaLocalOutbox` → `skills/cfo/notify.py` → `effect_notification.notify_effect`. That function uses it to enqueue the event and also passes it to `telegram_delivery.deliver_pending`, which writes the same pre-send value as `delivered_at` after provider acknowledgement. `runResultCfo` likewise reuses start-time `now` as sidecar/B7 `sentAt`. For occurrence `18dc83dfaf4b7f28-83377`, SQLite shows `created_at=delivered_at=09:29:09.891Z`, while `claimed_at=09:29:18.376698Z`; the same reversal occurred for 17:50. RED tests now reproduce both failures: outbox `delivered_at < claimed_at`, and CFO sidecar `sentAt` precedes provider return.
+- **Receipt source PR:** PR #7106 is draft/open, head `b2cacb9b`, base `7100882b`, merge state UNSTABLE while same-head Loop/Python/security checks run; `reviewDecision` is empty. Its receipt hint is still future-source work, not repair of the just-sent occurrence.
+- **Release reconciler:** PR #7098 is source-merged as `7100882b`, but the latest readback still showed old SHA `3c87f64f` / PID `79132`; the merged state-text change is not loaded. A separate behavior fix is still required for repeated same-lock readback of exact `not running` + no PID; keep other states fail-closed.
+
+**CFO TODO順更新:** first correct the producer-to-outbox timestamp flow, then reconcile the sent effects without replay: (1) write failing tests for `telegram_outbox.delivered_at >= claimed_at` and the CFO sidecar's `sentAt >= provider-return time`; (2) remove the stale caller-supplied timestamp from `telegram_delivery.deliver_pending`, sample UTC time after successful provider return, update its three callsites, and set `runResultCfo.sentAt` after its awaited notification; (3) run `skills/_shared/marketplace-core/tests/test_effect_notification.py` and `apps/life-manager/scripts/cfo-hourly-local.test.js`; (4) add idempotent no-resend reconciliation for occurrences `18dc83dfaf4b7f28-83377` and `18dc81b66572bcc0-48104` in `skills/cfo/test_effect_reconcile.py`, without globally relaxing the `effect_unknown` guard; (5) pass PR #7106 CI/review/merge; (6) add safe quiescent handoff behavior and tests at `bin/reconcile-agent-self-handoff.sh` / `runtime/loop/tests/test_reconcile_agent_self_handoff.py`; (7) prove natural release/owner readback and a later CFO report with provider ID + runtime ref + replay-zero; (8) A5 panel → A6 → A8 → A9 → A10. Reason: disk admission now permits a run and sidecar/outbox evidence confirms delivery, exposing pre-send timestamp reuse and runtime-link reconciliation as the active CFO defects. The 11 GiB host recovery target remains a recurrence-prevention TODO, not the blocker for the last successful occurrence.
+
+**CFO subcursor:** RED tests → post-provider timestamps in the shared outbox + CFO sentAt → focused GREEN tests → no-resend reconciliation → PR #7106 checks/merge → safe reconciler handoff → natural CFO report with linked receipt/readback → A5 → A6 → A8 → A9 → A10; separately continue host disk recovery to 11 GiB.
+
+### 2026-10-08 18:55 JST — timestamp source fix GREEN; promotion pending
+
+- The source fix is local in worktree `/Users/anicca/Projects/life-manager-main/.worktrees/cfo-telegram-runtime-receipt-20261007`, branch `fix/cfo-telegram-runtime-receipt-20261007`, based on `origin/main=c4f31dbab3010f790623a1da74335dcd7354b079`. The remote PR head is still `90302f29`; these code changes are not pushed or released.
+- `skills/_shared/marketplace-core/scripts/telegram_delivery.py::deliver_pending` no longer accepts the pre-send observation timestamp; it creates `delivered_at` after the provider call returns. Its callers in `effect_notification.py`, CrowdWorks, and Lancers use the new signature. `cfo-result-local.js::runResultCfo` records sidecar/B7 `sentAt` after `await notify`.
+- TDD: the new outbox timestamp test failed on the prior code with `delivered_at=2026-09-07` before `claimed_at=2026-10-08`; the new CFO sidecar test failed because `sentAt` equaled the start-time fixture. Both pass after the change. `marketplace-core` tests: 311 passed; CFO Node: 25 passed; CrowdWorks: 2 passed; Lancers: 23 passed + 8 subtests; loop adapter registry: 15 passed; `./bin/lm-loop-contract`: `ok=true` (18 loops / 187 jobs / 112 mapped).
+- Full runtime loop suite ran 801 tests; two tests failed only because the test harness refuses to cut a release from local-only commit `df1d328d`: `test_pressure_flag_allows_measured_bounded_sparse_release` and `test_pressure_measurement_uses_parsed_bin_closure_with_tabs`. Rerun those after pushing the branch. `lm-loop doctor --json` remains `ok=false` due to unmanaged helper label `ai.anicca.life-manager-release-reconciler-self-handoff`; this belongs to the still-running release-reconciler handoff owner.
+- Production CFO remains loaded on `f9d94048`; occurrence `18dc83dfaf4b7f28-83377` is still delivered-evidenced by provider ID `105334` but runtime `effect_status=unknown` with no provider receipt/ref. No resend or reconciliation write was performed. Reconciler/PR #7098 diagnostic source merged, but the old owner remains on `3c87f64f` / PID `79132` and the safe `not running` quiescent handoff behavior is still a separate promotion gate.
+
+**CFO subcursor:** commit/push timestamp repair → rerun the two remote-object-gated runtime tests and same-head CI → reconcile the sent 18:29/17:50 effects without replay → implement safe reconciler handoff follow-up → promote/load receipt source → natural CFO report with linked receipt/readback → A5 → A6 → A8 → A9 → A10. Continue host disk recovery to 11 GiB to prevent repeat admission deferrals.
 ### 2026-10-08 18:37 JST — source fix merged; eBook publishing evidence is still incomplete
 
 - PR #7098 merged at 18:28 JST as `7100882bca845a35d4b460dfe62c8c35638969de`; same-head required CI run `37756217279` passed all nine checks, including Loop control and OSS self-contained boundary. The manifest hash mismatch is closed in main.
@@ -6941,6 +7077,88 @@ The next cursor is item 1 commit/push. No Dais manual action is currently requir
 
 **現在cursor（eBook only）:** `allow old reconciler to reach natural terminal and read back exact handoff state/SHA/argv → reconcile Oct 8 HeyGen video ID/output or get the exact user-selected asset → confirm the English Monk destination (connected TikTok vs missing English Instagram integration) → verify the selected MP4 is unique/not previously published → publish through the matching owner route and confirm official PUBLISHED receipt → restore the natural 3/day English cadence → verify Stripe order + matching PDF → count only paid active Letter subscriptions as MRR`. No manual retry, repost, stop, or restart.
 
+### 2026-10-08 19:00 JST — post-provider timestamp fix tested; OSS digest refresh pending
+
+- Timestamp source repair is in branch `fix/cfo-telegram-runtime-receipt-20261007` at pushed HEAD `7c45aad5`, based on main `88dfdaf4`. It removes the pre-send `now` argument from the shared delivery helper, captures `delivered_at` after provider acknowledgement, and records CFO sidecar/B7 `sentAt` after the awaited notification.
+- TDD RED reproduced both defects: outbox `delivered_at < claimed_at` and sidecar `sentAt` before provider callback return. GREEN: marketplace-core 311, CFO Node 25, CrowdWorks 2, Lancers 23 + 8 subtests, loop adapter registry 15, `lm-loop-contract` 18/187/112. Full runtime suite ran 801 tests; only two release-cut tests failed because `df1d328d` was local-only. After push, those exact two tests passed 2/2.
+- `node scripts/verify-oss-self-contained.mjs --json` initially failed only `manifest_inventory_mismatch skills/_shared`. The verifier-matched `skills/_shared` inventory is 189 files with digest `d76806f7d6ecad45619ca33fae04e6184c87361b8e31d361fc2475fcb3df1d02`; the manifest update is local but not committed/pushed yet. Local OSS verification now returns `ok=true, violations=[]`.
+- PR #7106 is still draft/open at pushed head `7c45aad5`; its OSS failure is for the stale remote manifest. Same-head Loop control remains running; other completed checks pass. Commit/push the manifest correction, then rerun same-head checks/review.
+- Production remains separate: CFO owner is still on `f9d94048`; latest occurrence `life-manager-cfo-hourly:18dc8566471771e0-69952` at `09:57:06Z` deferred `resource_capacity_busy` before effect. The previously sent occurrence `18dc83dfaf4b7f28-83377` remains delivery-evidenced but runtime-unreconciled; do not resend. `lm-loop doctor` still reports unmanaged helper label `ai.anicca.life-manager-release-reconciler-self-handoff`; the release reconciler is active on old SHA `3c87f64f`.
+
+**CFO subcursor:** commit/push the corrected `skills/_shared` manifest digest → same-head PR checks/review → reconcile sent occurrences `18dc83dfaf4b7f28-83377` and `18dc81b66572bcc0-48104` without replay → safe release-reconciler handoff follow-up → natural CFO report with linked receipt/ref → A5 panel → A6 → A8 → A9 → A10. Keep host disk recovery toward 11 GiB as recurrence prevention.
+
+### 2026-10-08 19:02 JST — manifest inventory repaired locally; PR refresh next
+
+- The `skills/_shared` absorbed-root manifest is corrected to 189 files / inventory SHA-256 `d76806f7d6ecad45619ca33fae04e6184c87361b8e31d361fc2475fcb3df1d02`. `node scripts/verify-oss-self-contained.mjs --json` now returns `ok=true, violations=[]`; this repairs the exact PR #7106 OSS failure without a baseline exception.
+- Timestamp fix source/tests are already pushed in branch `fix/cfo-telegram-runtime-receipt-20261007` at `7c45aad5`; the manifest/spec refresh remains local. The two full-suite release-cut failures now pass 2/2 after the prior branch object was pushed. This local manifest commit will change the PR head; required same-head checks must rerun.
+- Latest production readback remains CFO `f9d94048`, latest occurrence `18dc8566471771e0-69952` deferred `resource_capacity_busy` / effect `not_applicable`; sent occurrence `18dc83dfaf4b7f28-83377` remains delivered-evidenced but runtime-unreconciled. Reconciler remains on old SHA `3c87f64f`; `doctor` still reports unmanaged self-handoff label. No provider replay or production mutation performed.
+
+**CFO subcursor:** commit/push manifest/spec refresh → same-head OSS/Loop/Python/security checks and review → no-resend reconcile 18dc83dfaf4b7f28-83377 + 18dc81b66572bcc0-48104 → safe release-reconciler handoff → new natural CFO receipt/readback → A5 → A6 → A8 → A9 → A10.
+
+### 2026-10-08 19:28 JST — CFO status refresh; local reconcile tests and capacity remain open
+
+この追記が19:02 JSTのCFO subcursorを更新する。事業CFOの順序 **A5 → A6 → A8 → A9 → A10** は維持し、Moneytree A7・Cloud費用削減A3/A4は対象外。設計は `docs/superpowers/specs/2026-10-02-life-manager-cfo-cost-observability-design.md`、実行cursorとTODOの正本は本SSOT。
+
+- **Branch/PR:** worktree `/Users/anicca/Projects/life-manager-main/.worktrees/cfo-telegram-runtime-receipt-20261007`, branch `fix/cfo-telegram-runtime-receipt-20261007`, local HEAD `a1513a999fc493bb0c99638c732694149e840457` は `origin/main=91066e3368e129578d6b4a6e870b7fffab419458` をmerge済み。lease owner `lm-cfo-observability-1002` はactive。PR #7106 はremote head `31df090307f406e544af1e831fbbab00f1d6d552` / base `f611817ee6925c5b738dc8df99e2b6b1466359c3` のdraft/openで、remote headの列挙済みCIはPASS、CodeRabbitはdraftのためskip。これらはlocal HEADや未commit差分の証拠ではない。
+- **Local source blocker:** `skills/cfo/effect_reconcile.py` と `skills/cfo/test_effect_reconcile.py` に未commitのno-resend/B7-history fallback変更がある。`python3 -m pytest -q skills/cfo/test_effect_reconcile.py` は21 passed / 3 failed。2件はarchive fallbackが対応snapshot不在時に既存の `result_report_missing` / `occurrence_mismatch` でなく `b7_snapshot_missing` を返す回帰。正確なB7 archiveがない時は元のfail-closed理由を保持し、存在するarchiveが不正な場合は引き続き拒否する。残るproducer testはsubprocess環境に必要な `LIFE_MANAGER_RELEASE_SHA` がなく `cfo_b7_identity_invalid`。test fixtureにrelease SHAを渡し、本番検証を弱めない。
+- **Production CFO:** current installed release/owner SHAは `88dfdaf4fa3142777b9f21ae7e397ee2bd037645`。最新occurrence `life-manager-cfo-hourly:18dc865762a165a0-73442` は `2026-10-08T10:14:53Z` にexit 75 / `host_admission_deferred:resource_capacity_busy` / failure layer `admission`、effect `not_applicable`、provider receipt/readbackなし、`retry_after_eligibility`。last successは `18dc83dfaf4b7f28-83377` at `09:29:32Z`; current hourly reportは新たに成功していない。原因クラスは確認済みだが、その時点の具体的なresource reservation ownerは特定できていないため、capを上げずadmissionの自然な空きを待つ。
+- **Already-sent reports:** occurrence `18dc83dfaf4b7f28-83377` のB7 snapshotはmessage ID `105334`、event key period `2026-10-08:09`、hash `6aa81417…`。`18dc81b66572bcc0-48104` はID `105319`、period `:08`、hash `2aac2eae…`。outbox read-only rowsは双方 `delivered`, attempt_count 1でB7のID/hashと一致するが、両方とも `claimed_at` が `delivered_at` より後である。runtime eventのreceipt/readback linkはnullであり、送信済み報告を再送しない。`~/.local/state/life-manager/host-admission/resources/admission-v2.sqlite3` のread-only照合は `database is locked` となったので、`released/effect_unknown=0` という過去readbackをfresh確認扱いしない。lock解放後、同一occurrenceのDB rowをread-onlyで再照合してからproof-only reconciliationを行い、既にreleasedならDB stateを変更しない。
+- **Disk capacity:** host receipt `~/.local/state/life-manager/state/last-receipt.json` は `2026-10-08T10:23:36Z`, `free_after=2,393,694,208`, `errors=0`, `protected_deletions=0` で2 GiB admission floorはmetだが、11 GiB recovery targetは未達。19:27 JSTの後続 `df -k /` は1,221,940 KiB available（約1.16 GiB）で、現在は2 GiB floorも下回る。`life-manager-disk-cleanup` のpass/`cleanup-latest.json`はこのhost `free_after` receiptの代わりにならない。次の有限CFO wakeもdisk gateでdeferする可能性が高い（推論）。既存 `com.anicca.disk-watchdog` / `skills/self/disk-cleanup/disk_cleanup.py` のallow-listed safe passを継続し、fresh host receiptが `free_after >= 11,811,160,064`, errors 0, protected deletions 0を示すまで回復済みとしない。保護対象を手動削除しない。
+- **Release handoff:** PR #7098のstate-text parser変更はmainにmerge済みだが、`life-manager-release-reconciler` はSHA `3c87f64f`, PID `7017`, latest occurrence `18dc85e5d6d1b398-87372` / exit 1でloaded-running。正確な `not running` + no PIDのsafe natural handoffは未証明。PIDをstop/restart/bootoutせず、担当ownerのsource/receiptとnatural terminalを待ち、target SHAとloaded argvをreadbackする。
+- **A5 / inventory:** PR #6827のsourceは2026-10-08T08:56:16Zにmerge済みだが、production migration/RPC/permission/panel readbackは未確認。最新 `./bin/lm-loop-contract` は `ok=true`, 18 catalog loops / 187 registry jobs / 112 mapped jobs。残る75 jobsは `control=35`, `platform=14`, `shared=26`; これはjob inventoryであり収益owner数ではない。設計書の今後のcoverage targetを187/112に更新した。
+- **A6 onward:** 2026-09 Google invoice billed total ¥27,889のreceipt/identityは記録済みだが、posted cash settlementとloop/provider-operation attributionは未確認。A8は18 loopすべてのsettled revenue/refund/feesと実費、全187 runtime jobsの費用分類を閉じる。A9では `loop_pnl.py --date` が実際に日次source期間をfilterし、daily/MTD/trailing/MRRを分離する。A10は7日連続natural report、全loop/jobのcoverage、同期間source receipt、receipt/runtime link、replay-zeroを確認する。
+
+**残TODO（atomic順）:**
+
+1. `skills/cfo/effect_reconcile.py::_current_report` のarchive fallbackを修正し、snapshotがない場合は元の拒否理由、存在するが不正な場合はarchive validation errorを保つ。
+2. `test_current_result_report_is_generated_by_real_producer_and_reconciled` のNode subprocessへ `LIFE_MANAGER_RELEASE_SHA` を渡す。続けて `python3 -m pytest -q skills/cfo/test_effect_reconcile.py` を全PASSさせる。
+3. focused timestamp/no-resend tests、`git diff --check`、OSS boundary、`./bin/lm-loop-contract`を確認し、source修正がPASSしてからsourceだけをこの最新main branchへcommit/pushする。このcursor/spec更新は独立したdocs commitで先に反映し、fail中のWIP testはPRへ含めない。
+4. PR #7106の更新headでrequired CIとfresh reviewをPASSさせ、ready/mergeする。現在remoteでgreenなのは旧head `31df0903`のみである。
+5. `~/.local/state/life-manager/host-admission/resources/admission-v2.sqlite3` のlockが解けた後、2件のexact occurrence rowとB7/outbox/runtime eventをread-onlyで揃え、no-resend proofを確認する。再送もglobal fence緩和も行わない。
+6. release reconciler担当のsafe handoff変更・test・自然terminalを確認し、最新main immutable release、CFO loaded SHA/argv、receipt hintをreadbackする。稼働PIDを止めない。
+7. disk watchdogのfresh receiptで11 GiB以上・errors 0・protected deletions 0を確認する。現行receiptは11 GiB回復未達で、後続dfは2 GiB未満。
+8. CFOの自然eligible runを待ち、同じoccurrenceのterminal、Telegram provider ID、official/runtime ref、B7/outbox hash一致、replay-zeroを確認する。
+9. A5のproduction migration/RPC/permissionをcanonical routeで適用し、tenant/period guard、provider/SKU/operation/unit、loop/owner/traceのpanel readbackを行う。
+10. A6でinvoice period/SKU/tax/credit/roundingとMonitoring estimateを照合し、cash-paidとinvoice-billed、attributedとunattributedを分離する。
+11. A8で全18 business loopsのsettled revenue/refund/feesと実費を照合し、187 jobsすべてをreceipt-backed loop attributionまたはshared/control/platform overheadへ分類する。
+12. A9で実source期間によるdaily/MTD/trailing/MRR report、通貨・freshness・coverage・receiptを実装/確認し、unknownをzeroにしない。
+13. A10で7日連続natural reportの完全coverage、source/runtime/provider receipt結合、期間一致、重複/replay zeroを確認する。これ以前に全社netや$10k MRRをverifiedと報告しない。
+
+**現在cursor:** no-resend reconcileの3 failing testsを修正 → focused suite PASS → latest-main source/spec pushとsame-head CI/review → no-replay proof → safe natural handoff・host capacity recovery → natural CFO report receipt → A5 production readback → A6 → A8 → A9 → A10。
+
+### 2026-10-08 19:38 JST — CFO natural report proof ready; runtime fence and watchdog remain
+
+この更新が19:28 JST時点のCFO occurrence/capacity/TODOを置き換える。トップレベル順序 **A5 → A6 → A8 → A9 → A10** は変更しない。
+
+- **Latest CFO occurrence:** `life-manager-cfo-hourly:18dc875a10c8ac80-19079` はrelease `88dfdaf4fa3142777b9f21ae7e397ee2bd037645`で `2026-10-08T10:33:14.487972Z` にpass/exit 0。runtime terminal eventは `effect_status=unknown`, `provider_receipt_id=null`, `official_readback_ref=null`。同occurrenceのsidecar/B7は `sent`, provider message ID `105358`, event key `cfo-result:lm_784ad279-4d2c-4274-a318-b51e38285a61:telegram:2026-10-08:10`, message hash `2a6b7b2ad511080894a0626a897fa09784f7fe327b4b7bfd6b539e936f4fe2f3`, release SHA一致を示す。
+- **Read-only receipt proof:** `python3 skills/cfo/effect_reconcile.py` を `--resolve`なしで同occurrenceに実行し、`verified=true`, `proof_type=cfo_result_telegram_provider_receipt`, `provider_receipt_id=telegram:105358`, `resolution_state=PROOF_READY` とreadback `telegram-outbox://event/1979fec03b38f78645dc8a28f7be3dc315ed82c3bd4dba5769845c649307c1ad/d4f97ef1a29306844e5cf2b8cbfc0c8c8250e463ab9df110368a813bc44fc241` を得た。admission rowは `claimed/effect_unknown=1` のまま。`--resolve`やDB書込みは行っていないため、証拠は揃ったがfence closureは未完了。
+- **Previous sent occurrences:** 同じread-only proofは `18dc83dfaf4b7f28-83377` / provider `105334` / ref `telegram-outbox://event/1f63c7fc478135795f23259254dd171188429f1091c470284d917babb5e0318f/f999f6c3567d72c01354f3e3b9b7889e2d7da1a1434b82b2d2c68d60441a4c0c` と `18dc81b66572bcc0-48104` / provider `105319` / ref `telegram-outbox://event/bee5318daf1ebdef5d77b013a55996ac3e55c42afd6495181a6cc2cb7af03cb4/35e392d49cecc86d1f564c68da5fb44cbcdd6d3654f177be74fa877ef70dbfdf` で `verified=true`。両admission rowはread-onlyで `released/effect_unknown=0` を確認済み。これらはproofのみでよく、state変更・再送をしない。
+- **Capacity correction:** latest host receipt captured at `2026-10-08T10:33:37Z` recorded `free_after=2,421,915,648`, `ok=true`, errors 0, protected deletions 0 (2 GiB floor met; 11 GiB recovery target unmet). `df -k /` then fluctuated from 147,300 KiB at `19:37:19 JST` (<2 GiB) to 2,934,228 KiB at the subsequent `19:38 JST` sample (>2 GiB). Do not project either sample forward; check a fresh host receipt/`df` immediately before the next finite wake. The 11 GiB target is recurrence prevention, not the next report's eligibility gate.
+- **Watchdog root cause (confirmed):** installed `com.anicca.disk-watchdog.plist` は存在しないrelease `/Users/anicca/loops/releases/20261007T190835-8eb1585e/skills/self/disk-cleanup/disk_cleanup.py` を指し、`watchdog.err.log` に `can't open file ... [Errno 2]` が繰り返される。現在の `~/loops/current` は `/Users/anicca/loops/releases/20261008T193557-f6ddc8c4` で、そのreleaseにはdisk scriptがある。5分 `life-manager-disk-cleanup` loopのpassはhost watchdog receiptではない。修復cursorは本SSOTの既存host-disk項目（2026-10-08 03:08/03:23 sections）と同じ: watchdog target/release-retentionをcanonical owner lifecycleで直し、raw plist edit/installerや新cleanup実装を追加しない。稼働中label/PIDはowner handoffなしに変更しない。
+- **Other open gates:** local `skills/cfo/effect_reconcile.py` / `test_effect_reconcile.py` のfocused suiteは21 passed / 3 failedのまま。修正対象はarchive不在時の旧拒否理由保持2件とproducer fixtureへの `LIFE_MANAGER_RELEASE_SHA` 付与1件。PR #7106のremote greenは旧remote head `31df0903`だけで、local latest-main/doc/source未commit差分には適用されない。release reconcilerはSHA `3c87f64f`、latest occurrence `18dc8612b9964870-7017` at `10:35:51Z`, exit 1 / `reconcile_owner`で、自然handoff未完了。
+
+**現在cursorと残TODO（atomic順）:**
+
+1. `skills/cfo/effect_reconcile.py::_current_report` がarchiveなしの場合 `result_report_missing` / `occurrence_mismatch` を保持し、有効archiveがあれば正しく検証するよう修正する。
+2. producer test subprocessへ正しい `LIFE_MANAGER_RELEASE_SHA` を渡し、`python3 -m pytest -q skills/cfo/test_effect_reconcile.py` を全PASSさせる。
+3. focused tests、`git diff --check`、OSS boundary、`./bin/lm-loop-contract`を再確認してsourceのみcommit/pushする。spec updatesはdocs-only commitとし、fail中のWIP codeを混ぜない。
+4. PR #7106の更新headでrequired CI/fresh reviewを通してmergeし、release reconcilerのowner-managed safe handoff後にCFO loaded SHA/argvをreadbackする。稼働PIDを止めない。
+5. latest occurrence `18dc875a10c8ac80-19079` についてreceipt proofが直前にも `verified=true` であること、admission rowがまだ正確に `claimed/effect_unknown=1` であることをread-onlyで再確認し、accepted source loaded後にこの1行だけ `--resolve`。その後`released/effect_unknown=0`をreadbackし、再送しない。過去2件は既にreleasedなのでproof-onlyのまま。
+6. next finite CFO run直前にfresh host receipt/`df`で2 GiB admission eligibilityと容量slotを確認し、自然runのruntime eventへprovider receipt/readbackが結合することを検証する。現時点の直近runはpassだが、runtime fenceは未解決。
+7. 11 GiB host recoveryを再発防止の別cursorとして続ける（次回eligible CFO runの前提にはしない）。stale watchdog targetを既存host-disk owner/release lifecycleで修復し、fresh `free_after >= 11,811,160,064`, errors 0, protected deletions 0のreceiptを得る。
+8. A5 production migration/RPC/permissions/panel readback → A6 Google invoice vs Monitoring/cash settlement → A8全18 loops/187 jobsのsource-backed収益・費用coverage → A9 source-period daily/MTD/trailing/MRR report → A10 seven-day natural acceptanceを順に完了する。
+
+**補足:** この追記時点では、CFO送信receiptのread-only proofは得られたが`--resolve`は未実施。2 GiB floorは変動が大きく、11 GiB recovery target未達と次回admission eligibilityを別々に報告する。
+
+### 2026-10-08 19:42 JST — capacity sample and watchdog cursor refreshed
+
+この追記は19:38節のcapacity/release-path時点値を更新する。CFO receipt proofのadmission状態は変更していない。
+
+- **Disk observations:** latest host `last-receipt.json` observed at `2026-10-08T10:38:32Z` has `free_after=1,342,816,256`, `ok=false` for its 2 GiB floor, errors 0, protected deletions 0; the direct `df -k /` sample at `19:41:56 JST` has 2,924,164 KiB available (about 2.79 GiB). These disagree because capacity is changing between observations; neither is a durable eligibility promise. Re-read the canonical host-admission gate immediately before a finite CFO wake. The 11 GiB recovery target remains unmet and is separate recurrence-prevention work.
+- **Watchdog owner:** at `19:41:56 JST`, `~/loops/current` resolves to `/Users/anicca/loops/releases/20261008T193926-d35aa4bc`, and its `skills/self/disk-cleanup/disk_cleanup.py` exists. The installed `com.anicca.disk-watchdog.plist` still references missing release `20261007T190835-8eb1585e`; `watchdog.err.log` last read at `19:36:42 JST` contains repeated `can't open file` errors. Repair remains the already-recorded host-disk owner/release-retention cursor: refresh the label through its canonical owner lifecycle and protect the referenced immutable tree from retirement; do not hand-edit the plist or add another cleaner.
+- **CFO proof state unchanged:** `18dc875a10c8ac80-19079` still has read-only `PROOF_READY` for `telegram:105358`, but admission remains `claimed/effect_unknown=1`; the two older exact receipts remain `released/0`. No `--resolve`, DB write, stop, restart, provider replay, or Telegram send occurred.
+
+**実行順の補正:** 3 failing source tests → focused PASS → source-only commit/push and same-head CI/review → safe release handoff/source load → exact current-occurrence `--resolve` and `released/0` readback → immediate fresh 2 GiB admission/capacity eligibility → next natural CFO receipt/runtime-link check → A5 production readback → A6 → A8 → A9 → A10. Continue the 11 GiB disk recovery target on its existing owner lane; do not gate the next CFO run on 11 GiB if fresh admission eligibility is met.
 ### 2026-10-08 18:51 JST — English Monk Instagram selected; handoff state narrowed
 
 - Dais confirms this workstream is eBook-only; another owner handles Capafy. Dais explicitly identifies English Monk Instagram as the intended destination and says the existing video should be posted. This resolves the earlier TikTok-vs-Instagram question: do not use TikTok as a fallback.
@@ -6991,6 +7209,129 @@ The next cursor is item 1 commit/push. No Dais manual action is currently requir
 
 **現在cursor:** `natural terminal of 18dc8612b9964870-7017 → exact successful handoff receipt + loaded SHA/argv → reconcile the English video and unknown effect → bind the exact Instagram account → publish once/read back → restore 3/day → map the existing $9.99 Letter subscription into the marketing funnel → verify paid order+PDF and active subscription MRR`. No Capafy action, forced restart, or replay.
 
+### 2026-10-08 20:07 JST — CFO source GREEN; historical receipts proven; next wake deferred
+
+この追記が19:42 JSTのCFO subcursorを更新する。事業CFOの順序 **A5 → A6 → A8 → A9 → A10** は変更しない。Moneytree A7とCloud費用削減A3/A4は別laneのため、このCFO作業では扱わない。設計正本は `docs/superpowers/specs/2026-10-02-life-manager-cfo-cost-observability-design.md`、実行順とcursorは本SSOT。
+
+- **Source/worktree:** `/Users/anicca/Projects/life-manager-main/.worktrees/cfo-telegram-runtime-receipt-20261007`, branch `fix/cfo-telegram-runtime-receipt-20261007`, active lease owner `lm-cfo-observability-1002`; branchは `origin/main=a248ce9716323250bb4c041277ff99a1ee5e641d` を取り込み済み。CFO receipt reconciler・test・generated schemaの差分はこの記録時点で未commit。既存のPR #7106の旧head greenはこの差分の検証ではない。
+- **Source/tests (local):** occurrence固有B7 archiveをcurrent reportの欠落/別occurrence時だけfallbackとして検証し、archive directoryのsymlinkを拒否する。既に`released/effect_unknown=0`ならread-only proofだけを返し、resolverを呼ばない。producer test fixtureには`LIFE_MANAGER_RELEASE_SHA`を渡し、generated schemaはcanonical generatorのenumに同期した。`python3 -m pytest -q skills/cfo` は `348 passed, 318 subtests passed`; `node apps/life-manager/scripts/cfo-hourly-local.test.js` は25件、`python3 -m pytest -q skills/_shared/marketplace-core/tests/test_effect_notification.py` は4件PASS; `./bin/lm-loop-contract`（18 loops / 187 jobs / 112 mapped）とsource-boundaryもPASS。OSS verifierは現在`manifest_inventory_mismatch` at `skills/capafy-autopublish`でFAIL。worktreeのCapafy sourceは`origin/main`と同一で、mainのmanifest最終更新`54d9daa3`より後のCapafy変更`a248ce97`によりinventoryが古い。CFO laneはCapafy filesを編集しない。
+- **既送信receipt (read-only):** `18dc81b66572bcc0-48104` → Telegram `105319`; `18dc83dfaf4b7f28-83377` → `105334`; `18dc875a10c8ac80-19079` → `105358`。各occurrenceでprovider ID、outbox/B7 hash、runtime start/terminal pairが一致し、proofは `verified=true`、admissionは `released/effect_unknown=0`。`--resolve`、DB write、Telegram再送は不要で未実施。
+- **残るtrace gap:** 上記3件の元のruntime terminal eventは現時点でも `status=pass`, `effect_status=unknown`, `provider_receipt_id=null`, `official_readback_ref=null`。別read-only proofは送信事実を確定するが、過去terminal event自体を書き換えた証拠ではない。次の新しい自然occurrenceでruntime eventへreceipt/refが結合するかを確認する。
+- **Live CFO:** installed owner release `88dfdaf4fa3142777b9f21ae7e397ee2bd037645`, loaded-idle。最新wake `life-manager-cfo-hourly:18dc88ac76dc18d8-8260` は `2026-10-08T10:57:07Z` にexit 75 / `host_admission_deferred:resource_capacity_busy` / effect `not_applicable` で、送信なし。最後の成功は `18dc875a10c8ac80-19079` at `10:33:14Z`。
+- **Capacity/watchdog:** host receipt `2026-10-08T11:01:51Z` は `free_after=2,246,336,512`, errors 0, protected deletions 0, `ok=true`（2 GiB admission floorはこの測定時点でPASS、11 GiB recovery targetは未達）。最新CFO eventの明示blockerはdisk-floorではなくresource capacity。20:04 JSTのread-only reservation snapshotには短期agent reservationが3件あったが、19:57 wake eventは原因ownerを記録していないため特定ownerへ断定しない。installed `com.anicca.disk-watchdog.plist` が存在しないrelease `20261007T190835-8eb1585e/skills/self/disk-cleanup/disk_cleanup.py` を参照し、stderrにも同ファイル不在が継続。`~/loops/current` はrelease `20261008T200340-8b75fa53`、そこにはscriptが存在する。watchdogは既存host-disk owner/release-retention lifecycleで直し、plistを手編集しない。次回wake前はfresh admission readbackを使い、11 GiB回復は再発防止として並行継続し、2 GiB条件へ混同しない。
+- **A5–A10 business coverage:** A5 sourceはmerge済みだがproduction migration/RPC/permission/panel readbackは未確認。A6では2026-09 Google billed invoice ¥27,889のidentityはあるが、posted cash settlementとloop/provider-operation別費用帰属が未確認。A8は18 loopのsettled revenue/refund/feesと実費、および187 runtime jobs全件のloop attribution/shared-control-platform overhead分類が未完（112 mapped、75 unmapped: control 35/platform 14/shared 26）。A9は`loop_pnl.py --date`がreport labelのみで、source rowsを一日へfilterしない。A10は7日連続natural reportと同期間の完全coverage/receipt link/replay-zero未達。
+
+**残TODO（atomic・このworktreeの実行順）:**
+
+1. CFO source/schema/test/SSOT変更をfocused verification後にcommit/pushする。PR #7106の新headでrequired CI/fresh reviewを通すが、merge前にCapafy ownerが`docs/manifests/oss-merge-1-sources.json`の`skills/capafy-autopublish` inventoryをmainの現行treeに同期し、OSS verifierをPASSさせる必要がある。Capafy source/worktreeへは重複編集しない。
+2. merge後、main由来immutable releaseへCFO sourceを含め、owner状態がloaded-idleの時だけcanonical `lm-loop` routeで反映する。別ownerのactive processはstop/restartしない。
+3. 次の自然eligible CFO occurrenceで、terminal eventのreceipt ID/ref、B7/outbox/provider ID/hash、admission状態を一対一で照合し、replay-zeroを確認する。capacity deferなら同じoccurrenceを手動再送せず、次のnatural wakeとfresh resource admissionを読む。
+4. 既存host-disk ownerにwatchdogの古いrelease参照をcanonical lifecycleで修復してもらい、fresh `free_after >= 11,811,160,064`, errors 0, protected deletions 0のhost receiptを確認する。CFOの2 GiB eligibilityとは別cursorで、locked/他owner worktreeを編集しない。
+5. A5 production migration/RPC/permissionsをcanonical routeで適用し、tenant/period guardとprovider/SKU/operation/unit/loop/owner/traceをpanel readbackする。
+6. A6でGoogle invoice period/SKU/tax/credit/rounding、Monitoring estimate、cash settlementを照合し、invoice-billed / cash-paid / attributed / unattributedを分ける。
+7. A8で全18 business loopsのsettled revenue/refund/feesとactual costsを照合し、187 runtime jobsすべてをsource-backed loop attributionまたはshared/control/platform overheadへ分類する。unknownをzeroにしない。
+8. A9で実source期間によるdaily/MTD/trailing/MRRを分離し、`--date`のsource filter、通貨、freshness、coverage、receiptを実装・検証する。
+9. A10で7日連続natural reportを観測し、期間一致・全source coverage・runtime/provider receipt結合・重複/replay zeroを確認する。この前に全社netや$10K MRRをverifiedと報告しない。
+
+**現在cursor:** `PR #7106へlocal-green source/schema/test/specをpush → 新head CI/review/merge → immutable release/loaded-idle反映 → 次のnatural CFO receipt/runtime-link readback → A5 → A6 → A8 → A9 → A10`。11 GiB disk復旧は既存host-disk ownerの並行・非ゲートcursor。
+
+### 2026-10-08 20:14 JST — CFO source pushed; upstream OSS gate blocks merge
+
+この追記が20:07 JSTのlocal-only cursorを更新する。business CFOの順序 **A5 → A6 → A8 → A9 → A10** は維持する。
+
+- **PR/source:** commit `7eb71810774f05edcf015e3542880869f287c67f` はPR #7106へpush済み。PRはopen/draft、base `a248ce9716323250bb4c041277ff99a1ee5e641d`、head `7eb71810774f05edcf015e3542880869f287c67f`。local source checksはCFO 348 tests + 318 subtests、CFO Node 25、shared notification 4、loop contract、source-boundaryがPASS。
+- **Same-head checks at 20:13 JST:** run `37768531965` でOSS self-contained boundaryがFAIL。Agent instruction / PII / shell syntax / startup driftはPASS。Loop control / TruffleHog / Python syntax+unittest / gitleaksはpending。CodeRabbitはdraftのためskip、fresh reviewは未実施。PRはmergeしない。
+- **Exact upstream blocker:** local OSS verifierの違反は `manifest_inventory_mismatch: skills/capafy-autopublish`。このworktreeのCapafy sourceは`origin/main`と同一。main上の最後の該当manifest refreshは`54d9daa3`、その後のcommit`a248ce97`がCapafy source/testを更新してinventoryを古くした。修正はCapafy ownerが`docs/manifests/oss-merge-1-sources.json`の該当inventoryを現行main treeから再生成し、verifierを通すこと。CFO laneはCapafy source/worktreeを編集しない。
+- **Production CFO unchanged:** installed SHA `88dfdaf4fa3142777b9f21ae7e397ee2bd037645`; latest wake `18dc88ac76dc18d8-8260` はresource-capacity defer、last success `18dc875a10c8ac80-19079`。3件の過去receiptはread-only verifiedかつadmission released/0だが、元terminalのreceipt/ref null gapは残る。hostの2 GiB receiptと、11 GiB recovery / stale watchdog修復は別gate。
+
+**現在cursor（残TODO）:**
+
+1. Capafy ownerによるmanifest inventory refreshを待つ。更新後、同じmain/current treeでOSS verifierを再実行しPASSさせる。CFO branchからCapafy filesは変更しない。
+2. PR #7106 headでpending checksを完了し、OSSを含む全required checksとfresh reviewをPASSさせてからmergeする。draftのままCodeRabbitをreview済みと扱わない。
+3. main由来immutable releaseへCFO source/schemaを含め、loaded-idleのownerだけcanonical `lm-loop` routeで反映する。新しいnatural CFO reportでruntime terminalのprovider receipt/ref、B7/outbox hash、admission、replay-zeroを照合する。
+4. host-disk ownerがstale watchdog release参照をcanonical lifecycleで修復し、fresh `free_after >= 11,811,160,064`, errors 0, protected deletions 0をreadbackする（次回CFO 2 GiB admissionの代替条件ではない）。
+5. A5 production migration/RPC/permission/panel readback → A6 Google invoice/Monitoring/cash settlement and loop attribution → A8 18-loop revenue/cost + 187-job classification → A9 source-period daily/MTD/trailing/MRR → A10 seven-day natural coverage/replay-zero。
+
+### 2026-10-08 20:16 JST — latest-main sync and CFO gate rechecked
+
+この追記が20:14 JSTのPR stateを更新する。branch worktreeは`origin/main=44d340554a8d9bdc4b56bb8674d9e2aff388eaea`まで同期済み。20:16時点のpre-push HEADは`96d7edf709f286e08083b019f73d4422c963d49e`で、remote PR #7106 headはまだ`7eb71810774f05edcf015e3542880869f287c67f`; 従って旧head checksはこのmain-sync/doc差分を検証していない。
+
+- 同期後local verification: CFO Python `348 passed, 318 subtests passed`; CFO Node `25/25`; shared notification `4/4`; loop contract `18/187/112`; source-boundaryとdiff-check PASS。OSS verifierは引き続き`manifest_inventory_mismatch: skills/capafy-autopublish`でFAILし、CFO worktreeからは再現できる。問題は前項のmain-side manifest driftであり、CFO code/testのfailureではない。
+- PR #7106旧head run `37768531965`: OSS FAIL、Python/gitleaks/agent instruction/PII/shell/startup checks PASS、loop controlとTruffleHogはpending。CodeRabbitはdraft skip。main-syncをpush後、新headで必須checkとreviewを取り直す。
+- CFO productionの最新terminal/receipt/capacity stateは20:07 entryから変化なし。新しい自然successful reportは未観測。古い3件はread-only receipt verifiedだが元runtime terminal linkはnull。
+
+**現在cursor:** `latest-main sync + current SSOTをPR #7106へpush → Capafy owner manifest refresh後のOSS PASS → 新head required checks + fresh review → merge → immutable CFO release / loaded-idle反映 → natural report receipt/runtime-link/replay-zero → A5 → A6 → A8 → A9 → A10`. host-disk watchdogの11 GiB回復は別ownerの並行・非ゲートcursor。
+
+### 2026-10-08 20:17 JST — latest natural CFO report proven; runtime link and capacity remain
+
+この追記が20:16 JSTのCFO production stateを更新する。
+
+- **Latest natural report:** `life-manager-cfo-hourly:18dc890cf6d3b810-28491` は installed release `88dfdaf4fa3142777b9f21ae7e397ee2bd037645` 上で `2026-10-08T11:04:33.670961Z` にpass/exit 0。read-only `effect_reconcile.py` proofは`verified=true`, provider ID `105378`, ref `telegram-outbox://event/74f360b594d78685fff4049cddc79587193553d2f6fbd5bdd1b2b5e54211f2a1/4c4811e2f7d069bff765636711cbc1b8a3396de7e3617ebb6821ccc6af01f370`, admission `released/effect_unknown=0`。`--resolve`/DB write/再送はしていない。
+- **Trace gap remains:** 同occurrenceの元runtime terminalは`status=pass`でも`effect_status=unknown`, provider receipt/ref null。sendはB7/outboxとadmissionで証明できるが、runtime terminalへの結合は未解決。過去の3件も同様で、再送せず新release後の自然occurrenceで直るか確認する。
+- **Current host capacity:** host receipt `2026-10-08T11:15:31Z` は`free_after=1,964,367,872`, errors 0, protected deletions 0, `ok=false`。これは2 GiB admission floor未満（約1.83 GiB）。20:04 JSTのreportは成功したが、次の自然wake前にfresh admissionを再読する。容量不足なら同occurrenceを手動で起動/再送しない。
+- **PR:** PR #7106 current head `e76878882f68e8338ec0dc8b51ed156bdc15a3e8`, base `44d340554a8d9bdc4b56bb8674d9e2aff388eaea`, open/draft。20:17 JST時点でcurrent headのrequired CIはまだ表示されず、CodeRabbitはdraft skip。直前headのOSS failと最新mainでのlocal OSS failは`skills/capafy-autopublish` inventory mismatch。PRへCapafy filesは含めず、そのownerのmanifest refreshを待つ。
+
+**現在cursor（残TODO）:**
+
+1. Capafy ownerが`docs/manifests/oss-merge-1-sources.json`の`skills/capafy-autopublish` inventoryを現行mainへ同期し、local OSS verifierをPASSさせる。
+2. 最新mainとこのSSOTを含むPR #7106 headのrequired CIをPASSし、fresh reviewを得てからmergeする。draftのCodeRabbit skipをreviewとして数えない。
+3. main由来immutable CFO releaseへ反映し、loaded-idleのownerだけcanonical `lm-loop` routeで適用する。次のnatural reportでruntime terminal receipt/ref、B7/outbox provider ID/hash、admissionとreplay-zeroを確認する。
+4. 次のCFO wake前に2 GiB admissionをfresh readbackし、必要ならexisting host-disk ownerがwatchdog targetをcanonical lifecycleで直す。11 GiB recoveryは並行の再発防止cursor。
+5. A5 production migration/RPC/panel readback → A6 Google bill/settlement/operation attribution → A8全18 loop revenue/cost + 187 job classification → A9正しいsource-period daily/MTD/trailing/MRR → A10 seven-day natural coverage/replay-zero。
+
+### 2026-10-08 20:19 JST — latest main synced; current CFO receipt and PR gate recorded
+
+この追記が20:17 JSTのpre-sync stateを更新する。最新main `3d1dfdd2f4e0637cea98d49e2e580a9f2845b86f` とCFO cursorを専用branch/PR #7106へpush済み。PRはopen/draftでmergeableだが、20:19 JST時点でcurrent headのrequired checksは未表示、CodeRabbitはdraft skip。fresh reviewとmergeは未実施。
+
+- main-sync後のlocal verification: CFO `348 passed, 318 subtests passed`; CFO Node `25/25`; Line Sticker main-change focused test `14/14`; shared notification `4/4`; loop contract `18/187/112`; source-boundaryとdiff-check PASS。OSS verifierだけが`manifest_inventory_mismatch: skills/capafy-autopublish`でFAILし、最新mainにもmanifest修正は未着。CFO laneはCapafy source/worktreeを変更しない。
+- Latest CFO natural report `18dc890cf6d3b810-28491` は20:04 JSTに成功、Telegram ID `105378`; read-only proof verified、admission released/0。元terminalはreceipt/ref nullのまま。最新host receiptは20:15 JSTに約1.83 GiBで2 GiB floor未満、errors 0。
+- **現在cursor:** Capafy owner manifest refresh → current PR headのrequired CI + fresh review → merge → immutable CFO release / loaded-idle適用 → next natural CFO receipt/runtime-link/replay-zero → A5 → A6 → A8 → A9 → A10。次回wake前に2 GiB admissionを再確認し、手動send/replayしない。11 GiB/watchdog修復は既存host-disk ownerの並行・非ゲートcursor。
+
+### 2026-10-08 20:42 JST — latest CFO gate and disk state after main 804eff sync
+
+この追記が20:19 entryを更新する。CFO branchはmain `804effc5d7c4a1e0702df3f42a425fb273a97022`を取り込んだ。pre-push HEAD `410ea617941b4affbb67b24cabe79c8e6ecba8ef`; PR #7106 remote headはまだ`15c46eef`で、このlocal syncのCIを含まない。
+
+- **Local verification:** `python3 -m pytest -q skills/cfo` 348 passed + 318 subtests; current-main Capafy inventory test 45/45; `./bin/lm-loop-contract` 18/187/112; source-boundary/diff-check PASS. OSS verifierは`manifest_inventory_mismatch: skills/capafy-autopublish`でFAIL。main commit `804effc5`もCapafy sourceを更新したがmanifest digestを更新しない。
+- **PR gate:** PR #7106の現remote head run `37769301398` はOSS fail、他のreported required checksはpass。fresh reviewは未実施、CodeRabbitはdraft skip。PR #6918はこの問題の修正として扱わない。read-only verificationでGitHub filesはSSOT/SKILLの文書2件だけ、base `f34f8b3d`から最新main `71fd30f8`と競合。disk-cleanup実装/manifestを変えず、merge不可。
+- **Manifest ownership:** active lease `Capafy CP1 reprepare handoff fix and real publish verification` の別worktreeにCapafy sourceとmanifest差分がある。CFO laneはこれらを編集しない。ownerがmain-current inventoryを更新し、OSS verifier/CIを通す必要がある。
+- **CFO production:** installed SHA `8b75fa53a282324da54a09fb07a97cee12e1ea2e`; latest occurrence `18dc89dc705c37c8-91793` at `2026-10-08T11:20:58Z` exit75 / `host_admission_deferred:disk_headroom_low`; last successful report `18dc890cf6d3b810-28491` at `11:04:33Z`, provider ID `105378`, read-only verified, admission released/0. Its runtime terminal still has null receipt/ref. New hint-writer source is not loaded in CFO's 8b75 release.
+- **Disk cleanup:** latest receipt `2026-10-08T11:41:48Z` has `free_after=1,352,364,032`, errors0, protected_deletions0, below 2 GiB. It evaluated 6 candidates; 5 were preserved (3 open, 2 protected descendants), reclaimed only 240,797 bytes. Latest cleanup occurrence `18dc8b16c58afb40-45114` exits1 because recovery floor remains unmet. Watchdog plist still points to missing release `20261007T190835-8eb1585e`. Latest release-reconciler owner is loaded-running (do not overlap its apply); the next natural CFO attempt is not currently eligible.
+
+**現在cursor:** active Capafy ownerのmain-current manifest fix → local CFO branchに最新main/specをcommit/push → new-head OSS + required CI/fresh review → PR #7106 merge → immutable CFO releaseをowner loaded-idle時に反映 → natural sent reportのruntime receipt/ref/replay-zeroを確認 → A5 production readback → A6 → A8 → A9 → A10。Disk cleanup/watchdogはexisting host-disk owner laneで進め、別owner worktree/plistを編集しない。
+
+### 2026-10-08 20:51 JST — shared registry fixture regression isolated and fixed locally
+
+この追記が20:42 JSTのsource/CI stateを更新する。最新main `804effc5d7c4a1e0702df3f42a425fb273a97022` を含むCFO branchのpre-fix PR headは`42f873ab`。
+
+- **Loop control RED→GREEN:** CI run `37771955091` の804-test suiteは1件だけFAIL: `test_production_render_matches_byte_stable_fixture`。原因はmain #7136の`line-sticker-distribute.effect_reconcile` registry更新後、`runtime/loop/tests/fixtures/macos-loop-jobs.json`が古いまま。ローカルでも同じテストがREDを再現したので、canonical `render_job_models(registry)`からfixtureだけを再生成し、対象テストPASS、`./bin/lm-loop-contract`は18/187/112でPASS。これはCFO PR headに同梱して新headのfull Loop control CIで再確認する。
+- **OSS blocker separate:** local OSS verifierとCI jobは`manifest_inventory_mismatch: skills/capafy-autopublish`でFAIL。active Capafy worktreeはsource+manifestを所有中で、CFO側は変更しない。PR #6918はlatest mainに対してconflictingで、実変更はSSOT/SKILLの文書2件のみのため解消策に数えない。
+- **Production CFO:** current installed owner SHA`804effc5`, latest natural occurrence `life-manager-cfo-hourly:18dc8b67cad08f88-85711` at 11:49Z deferred `host_admission_deferred:disk_headroom_low`; last successful Telegram receipt remains `105378` with runtime terminal link absent. Host receipt at 11:51Z is about 1.17 GiB, errors0, protected deletions0; successive natural disk-cleanup passes still miss the 2 GiB floor. No process was stopped or manually replayed.
+- **Source ownership:** future exact Telegram receipt hint writer is in the CFO PR branch, not the currently loaded main release. It requires the PR's merge/release, then a natural eligible send to prove runtime linkage.
+
+**現在cursor:** `push generated registry fixture + latest-main sync → current-head Loop control CI + fresh review; resolve Capafy manifest mismatch through its active owner → merge PR #7106 → immutable CFO release / loaded-idle apply → eligible natural report with runtime receipt/ref and replay-zero → A5 → A6 → A8 → A9 → A10`. Disk recovery remains the separate host-disk owner lane; do not broaden cleanup or kill writers.
+
+### 2026-10-08 20:58 JST — CFO PR manifest and production blocker refreshed
+
+この追記が20:51 JSTのCFO cursorを更新する。CFO順序 **A5 → A6 → A8 → A9 → A10** は維持し、Moneytree A7とCloud費用削減A3/A4はこのlaneへ含めない。
+
+- **Source/PR:** worktree `/Users/anicca/Projects/life-manager-main/.worktrees/cfo-telegram-runtime-receipt-20261007`、branch `fix/cfo-telegram-runtime-receipt-20261007`、この更新前のsource HEAD `1ff4dd79e082c2f4de8496bf7e624e77e71962fb`、`origin/main=804effc5d7c4a1e0702df3f42a425fb273a97022`。PR #7106はopen/draft/mergeable。本revisionで`skills/capafy-autopublish`のtracked 245 filesのmanifest inventoryを`d211d4e2671a532f3a8209ebabc5a1817fcbba7a10e727d22e88417a4451993f`へ同期する。active Capafy worktreeの差分は`daily_loop.sh`とそのtestのみでmanifestを変更しておらず、CFO worktreeからCapafy sourceは編集していない。
+- **CI gate:** remote run `37772999793` は更新前head `1ff4dd79`を検査し、OSS boundaryがmanifest mismatchでFAIL、Loop controlはread時点で実行中。他の報告済みchecksはPASS。CodeRabbitはdraftのため独立review未実施。このrunは本revisionのmanifest修正を検証していない。local `node scripts/verify-oss-self-contained.mjs --json`は`ok=true`、`node --test test/oss-self-contained.test.mjs`は12/12 PASS。本revisionをpushした新headのOSS/Loop control/required checksとfresh reviewを取得する。
+- **Production CFO:** read-only `lm-loop status life-manager-cfo-hourly`ではinstalled release `804effc5d7c4a1e0702df3f42a425fb273a97022`、last terminal occurrence `18dc8b67cad08f88-85711`（11:49:16Z）、exit 75 / `host_admission_deferred:disk_headroom_low`。read時のowner stateは`loaded-running`で、次のapply/release操作は重ねない。最後に確認済みの成功reportは`18dc890cf6d3b810-28491`（11:04:33Z）、Telegram provider ID `105378`、別read-only proofはverifiedだが、元runtime terminalのreceipt/refはnull。再送・resolve・DB writeは未実施。
+- **Capacity blocker:** fresh `df -k /`はavailable `1,690,840 KiB`（約1.61 GiB）で2 GiB admission floor未満。disk-cleanup statusは最新occurrence `18dc8be8cda71318-19705`が11:57:19Zにexit 1。従ってCFOの次の自然reportは容量条件を通るまでeligibleでない。2 GiBは次runのadmission条件、約11 GiBは別途のhost recovery targetであり混同しない。さらに`com.anicca.disk-watchdog.plist`が欠落release `/Users/anicca/loops/releases/20261007T190835-8eb1585e/skills/self/disk-cleanup/disk_cleanup.py`を指し、対象fileは存在しない。host-disk ownerはallow-listed regenerable artifactの所有者・closed状態を特定して2 GiB超まで回復し、watchdog参照をcanonical lifecycleから現行immutable releaseへ更新してreadbackする。protected/open path削除、広範囲cleanup、writer停止、別worktree/plist直接編集はしない。
+- **Business state:** A5 sourceはmerge済みだがproduction migration/RPC/panel readbackは未完。A6で確認できた2026-09 Google invoiceは¥27,889（Cost Table billed total）；cash settlementはunknown、provider operation/loop attributionはunattributed。A8のcoverageは18 loops / 187 jobs / 112 mapped / 75 unmapped。全loop settled revenue・refund・fees・actual cost、A9 source-periodレポート、A10 7日連続natural reportは未完。現時点で全社settled net/MRRを確定値として報告しない。
+
+**残TODO（atomic・現在順）:**
+
+1. PR #7106の更新後headでOSS boundary、Loop control、全required CIがPASSすることを確認する。PRをdraftのままにせずfresh reviewを取得し、PASS後にmainへ統合する。
+2. release reconcilerとCFO ownerがidleになるまで待ち、main由来immutable releaseのloaded SHAをreadbackする。実行中ownerへapply/stop/restartを重ねない。
+3. 2 GiB admission floorを満たした次のnatural CFO reportで、同一occurrenceのruntime terminal receipt/ref、B7/outbox/provider ID/hash、admission released、replay-zeroを照合する。過去reportは再送しない。
+4. A5 migration/RPC/permissionをcanonical production routeで適用し、tenant/period境界とdaily/MTD cost summaryのpanel readbackを行う。
+5. A6でGoogleのbilled Cost Table、credits/tax/rounding、Monitoring estimate、cash settlement、SKU→operation→loop attributionを照合し、billed/cash-paid/attributed/unattributedを分ける。
+6. A8で18 business loopsのsettled revenue/refund/fees/actual costsと187 jobsを全件照合し、loopまたはshared/control/platform overheadへ重複なく分類する。unknownをzeroにしない。
+7. A9で既存`loop_pnl.py --date`のsource-row期間filterを実装・検証し、daily/MTD/trailing/MRRにcurrency・freshness・coverage・receiptを表示する。
+8. A10で7日連続natural reportの全source coverage、settlement/cost join、runtime/provider receipt、期間一致、replay-zeroを確認する。
+
+**現在cursor:** `PR #7106 updated-head CI/review/merge → capacity >=2 GiB and owner loaded-idle → immutable CFO release/readback → next natural receipt/runtime-link/replay-zero → A5 → A6 → A8 → A9 → A10`。host recovery/watchdogはexisting host-disk ownerの並行作業で、CFO branchから触らない。
 ### 2026-10-08 — Life Manager Cloud UX, iMessage toolkit, and marketing readiness
 
 This note is specific to the Web Cloud travel product; it does not change the eBook or mobile-app marketing lanes.
@@ -7343,6 +7684,38 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 
 **現在cursor:** current SSOT/plan commit push完了 → current-head CI/fresh review → PR #7121 merge → isolated disk-discovery test/fix PR → cleanup owner diagnostics (no numeric producer gate) → immutable release/doctor → target effect readback → owner natural outcomes → same-window capacity/economics。
 
+### 2026-10-08 21:11 JST — CFO latest-main sync and capacity receipt
+
+この追記はCFO branchの20:58 JST statusを更新する。事業CFO順序 **A5 → A6 → A8 → A9 → A10** は変更しない。mainのFundraiser/host-capacity owner記録を保持し、CFO statusをその後へ追記した。
+
+- **PR/main sync:** PR #7106はopen/draft。直近CI `37774037067` はhead `ab4ed7176d27a45c4613d6634179e8123672224c`上で9/9 checks PASSしたが、その時点のbase `804effc5`に対する結果。最新mainはPR #7121 merge `da98a7729e563289cda2981f7adbd6e6cd43046f`へ進み、CFO branchとの唯一の内容競合はこのappend-only SSOTだった。競合解消でCFOと他owner両方の履歴を保持した。main側のCapafy inventoryは`d211d4e2671a532f3a8209ebabc5a1817fcbba7a10e727d22e88417a4451993f`で本branchと一致し、registry fixtureも共通の更新を持つ。merge commit後のcurrent-head CIと同一SHAのfresh reviewは未取得。
+- **CFO runtime:** installed release `804effc5d7c4a1e0702df3f42a425fb273a97022`、owner loaded-idle。最新occurrence `life-manager-cfo-hourly:18dc8bf27219e548-41754`は`2026-10-08T11:59:07Z`にexit75 / `host_admission_deferred:disk_headroom_low`、`effect_status=not_applicable`、provider receiptなし。last successは`18dc890cf6d3b810-28491`（11:04:33Z）、Telegram ID `105378`は別read-only proofでverifiedだが元runtime terminalのreceipt/refはnull。next eligibilityはinterval 3600s。手動start/replayしない。
+- **Capacity recovery:** disk-cleanup occurrence `life-manager-disk-cleanup:18dc8c74c23aa120-69962`は12:07:33ZにPASS。対応するstructured `host_cleanup` logの`observed_at=12:06:53Z`、`free_after=2,525,483,008` bytes（2 GiB floor `met`）、`errors=0`、`protected_deletions=0`、`reclaimed=38,831,614`。前回のCFO defer時とは異なり2 GiB gateはfresh receiptで回復した。host watchdogは依然missing release `20261007T190835-8eb1585e`を指すが、今回のCFO自然run eligibilityを止める根拠にはしない。約11 GiB recoveryは別ownerの並行目標。
+
+**残TODO（CFO・現在順）:**
+
+1. 最新main mergeのdiff/conflict markerを確認し、CFO focused tests、OSS verifier、loop contractを実行してmerge commitをpushする。
+2. 最新mainを含むPR #7106の新headで全required CIをPASSし、同じSHAのfresh read-only reviewを取得してからmainへ統合する。
+3. release reconcilerがnatural terminal/idleになるのを確認し、main由来immutable CFO releaseのloaded SHAをreadbackする。
+4. 次の自然eligible CFO reportを待ち、同一occurrenceのruntime terminal receipt/ref、B7/outbox/provider ID/hash、fresh admission、replay-zeroを照合する。過去reportは再送しない。
+5. A5 production migration/RPC/permissionをcanonical routeで適用し、tenant/period guardとdaily/MTD cost panelをreadbackする。
+6. A6でGoogle billed Cost Table、tax/credits/rounding、Monitoring estimate、cash settlement、SKU/operation/loop attributionを照合する。現確認値はSeptember billed ¥27,889だけで、cash-paid/loop attributionはunknown。
+7. A8で18 business loopsのsettled revenue/refund/fees/actual costsと187 jobsのloop/shared/control/platform分類を完了し、unknownをzeroにしない。
+8. A9で`loop_pnl.py --date`をsource-row期間に結び付け、daily/MTD/trailing/MRRのcurrency/freshness/coverage/receiptを検証する。
+9. A10で7日連続natural reportの全source coverage、settlement/cost join、runtime/provider receipt、期間一致、replay-zeroを確認する。
+
+**現在cursor:** `latest-main mergeをcommit/push → PR #7106 new-head CI/fresh review/merge → reconciler idle + immutable CFO release/readback → next natural CFO receipt/runtime-link/replay-zero → A5 → A6 → A8 → A9 → A10`。capacity floorはfresh receiptでPASSしたが、次の自然CFO reportはまだ未実行。
+
+### 2026-10-08 21:17 JST — runtime receipt counter regression proof
+
+この追記はPR #7106の21:11 statusを更新する。
+
+- **Review:** fresh read-only review of base `da98a772` / head `44c1e8ec` found no Critical/Important source issue. It identified a missing regression test for multiple attempts and missing/conflicting delivery counters; production guard already requires `attempted=1`, `delivered=1`, `delivery_uncertain=0`, and `pre_send_failed=0`.
+- **Test proof:** `apps/life-manager/scripts/cfo-hourly-local.test.js` now covers multiple attempts, missing attempt/uncertainty counters, and contradictory counters. `node apps/life-manager/scripts/cfo-hourly-local.test.js` passes 26/26. A controlled mutation removing the `attempted===1` guard made the new test fail on `multiple-attempts` (`true !== false`); the guard was restored and the 26-test file passes again. No production code was changed for this review finding.
+- **Head status:** run `37775414552` on head `44c1e8ec` completed 9/9 checks PASS, but it predates this regression test. The test+SSOT update must be pushed and checked/reviewed on its resulting exact head. PR #7106 remains draft/open and unmerged.
+- **Live CFO/capacity:** CFO remains loaded-idle on `804effc5`; last natural occurrence `18dc8bf27219e548-41754` at 11:59:07Z deferred before effect with `disk_headroom_low`. Host cleanup receipt at 12:06:53Z proved `free_after=2,525,483,008`, 2 GiB floor met, errors 0, protected deletions 0; next scheduled CFO occurrence remains the required natural report proof. Release reconciler process PID `85343` is still loaded-running with child `85581`; its latest terminal reported `entrypoint_exit_1`, so do not overlap its current owner run or infer release apply.
+
+**現在cursor:** `test+SSOT commit/push → current-head CI + fresh review → PR #7106 merge → reconciler natural terminal/idle → immutable CFO release/readback → next natural report receipt/runtime-link/replay-zero → A5 → A6 → A8 → A9 → A10`。host capacity admission is recovered by a fresh receipt; the natural CFO report and release handoff remain unverified.
 
 ### 2026-10-08 21:10 JST — #7121 merged; disk discovery fix locally accepted
 
@@ -7417,6 +7790,26 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 
 **現在cursor:** PR #7139 latest-head CI/fresh review → merge → immutable release/natural reconciler → cleanup receipt diagnostic → retired-label doctor/target fences → owner natural outcomes without numeric free-space gate → same-window capacity/economics。
 
+### 2026-10-08 21:33 JST — CFO effect fence root cause and fail-closed source fix
+
+この追記は21:17 JSTのCFO receipt counter statusを更新する。CFO business order **A5 → A6 → A8 → A9 → A10** は維持する。
+
+- **Root cause confirmed:** `writeRuntimeTelegramEffectHint`はcounter不正時にhintなしでreturnし、`runResultCfo`がその結果を無視して`sent`/exit 0にしていた。runtime runnerはeffectful childのexit 0でadmissionを`effect_unknown=false`に解放するため、invalid/missing delivery countersでもfenceが解放され得る。`skills/cfo/run.sh`はNodeの非ゼロ終了を伝播し、runtimeはeffectful childのnonzeroを`effect_unknown=true`で保持する既存契約。
+- **Source fix in this worktree:** runtime Telegram hint writerはnot-applicable / written / required-but-missingを区別する。新規CFO Telegram deliveryに厳密なcounter/receipt/occurrence/hint-write証拠がなければ、B7/outbox sent記録を残して再送を防いだうえで`cfo_runtime_telegram_receipt_hint_missing`をthrowし、entrypointを非ゼロ終了する。duplicateはno-effect扱いでhint不要。runtime terminalはunknownのままreconcile対象となる。
+- **Regression evidence:** invalid countersのNode testは旧実装でRED（必要なrejectionなし）、修正後は複数attempt、attempt欠落、uncertainty欠落、矛盾counterでrejection・hintなし・sent/outbox idempotency state保持を確認する。Python runtime testはCFO `skills/cfo/run.sh` nonzero terminalに対して`effect_unknown=true`を確認。CFO hourly Node 26/26、CFO result Node 25/25、runtime focused 2/2、`python3 -m unittest discover -s runtime/loop/tests -p 'test_*.py'` 804 tests PASS。これらのfull runtime結果はa7dd main sync前のsource treeに対する結果。
+- **Latest-main source/test acceptance:** `origin/main=a7dd9a2e9b716d271a804b2dd50e6b10f33e846a` (includes PR #7139 Darwin temp discovery/sweep fix and #7140 docs) is integrated in this worktree. The only merge conflict was append-only SSOT; both CFO and main owner sections are preserved with no conflict markers. After sync, `python3 -m pytest -q skills/self/disk-cleanup/tests/test_disk_cleanup.py` is 110/110; OSS verifier PASS and self-contained tests 12/12; loop contract 18/187/112; loop adapter registry 15/15; CFO hourly Node 26/26, CFO result Node 25/25, CFO Python 348 + 318 subtests; runtime loop unittest suite 804/804 on the immediately preceding tree (the a7dd delta changes disk cleanup and docs only). `git diff --check` PASS. Merge commit + CFO root-cause fix are not yet pushed. GitHub still reports the pre-sync PR head d33 as `CONFLICTING`; its checks/review do not cover the current staged merge or fail-closed fix.
+- **Current production gate:** CFO remains installed on `804effc5`; last occurrence `18dc8bf27219e548-41754` at 11:59:07Z deferred at `disk_headroom_low`. Latest structured host receipt at 12:27:35Z reports `free_after=1,393,659,904`, recovery floor unmet, errors 0, protected deletions 0; current `df` shows only `899,552 KiB`. Main now contains the Darwin candidate-discovery fix but it is not installed. Release reconciler latest occurrence `18dc8d5fc5402278-51563` exits 1 because release `da98a772` was coalesced within its 1800s minimum interval. `lm-loop doctor` also reports retired label `ai.anicca.provision-browser.capafy.kosuke`; these are separate owner/promotion blockers, and no active owner is stopped or manually retried.
+
+**残TODO（CFO・現在順）:**
+
+1. Commit/push the tested a7dd main sync, SSOT resolution, and CFO fail-closed receipt fix.
+2. PR #7106 new head must pass all required CI and receive a fresh same-SHA read-only review before merge; never use the old d33 or 44c1 results for the new head.
+3. Wait for an uncoalesced release-reconciler natural terminal and idle owner; verify the immutable main release/loaded SHA after promotion. The retired-label doctor finding remains owned by the other lane.
+4. Require a fresh cleanup receipt `free_after >= 2 GiB`, `errors=0`, `protected_deletions=0` and post-cleanup admission pass before the next eligible CFO report; do not manually resend an old occurrence.
+5. On the next natural CFO report after the fixed code is loaded, verify the same occurrence's runtime terminal provider receipt/ref, B7/outbox/provider ID/hash, `admission_effect_unknown=false`, and replay-zero.
+6. Complete A5 production migration/RPC/permission/panel readback → A6 Google billed/Monitoring/cash/operation attribution → A8 all 18 loops/187 jobs revenue-cost classification → A9 true source-period daily/MTD/trailing/MRR → A10 seven consecutive natural reports with full coverage and replay-zero.
+
+**現在cursor:** `commit/push tested a7dd sync + CFO fail-closed fix → exact-head CI/fresh review/merge → uncoalesced release-reconciler apply + retired-label doctor + >=2 GiB receipt → natural CFO receipt/runtime-link/replay-zero → A5 → A6 → A8 → A9 → A10`。
 
 ### 2026-10-08 21:30 JST — retired provision-browser guard identity corrected
 
@@ -7468,6 +7861,1076 @@ This contract supersedes every earlier or later historical cursor and TODO step 
 
 **現在cursor:** 数値free-space gatesとcleanup-owned low-space markerによるproducer blockを除去済み（operator stopは維持） → focused acceptance/CI + fresh review → merge/release → Affiliate old-ownerのnatural apply/readback → X effect reconcile → 英語記事+日本語要約を自然生成 → PartnerStack公式commission/payout readback。
 
+### 2026-10-08 22:23 JST — CFO delivery-counter reconciliation and current blockers
+
+この追記は21:33 JSTのCFO fence修正を更新する。事業CFOの順序 **A5 → A6 → A8 → A9 → A10** は維持する。Moneytree/A7とCloud費用削減はこのCFO laneに含めない。
+
+- **Source fix:** `last-result-report.json`と新B7 schema v4に送信counter 4項目 (`attempted`, `delivered`, `delivery_uncertain`, `pre_send_failed`) を保存する。sent証拠は厳密に`1,1,0,0`、duplicateは`0,0,0,0`だけを有効とし、欠落/不正値はproofを作らない。既存B7 v3は再送防止のため読めるが、counter証拠なしでeffectをreconcileしない。pending reportは同じevent key/hash/dateとdelivery occurrenceに一致するB7 v4がある時だけ回復する。outboxの`delivered`単独ではunknown fenceを解除しない。
+- **TDD evidence:** 新規回帰は修正前REDで、counter不一致でもresolverが呼ばれ、outbox receipt単独でもresolveへ進むことを確認した。追加のmutationでduplicate判定を旧`attempted===0`へ戻すと`attempted=0, delivered=1`回帰が`Missing expected rejection`でFAILし、厳密な4-counter判定へ戻すとPASSした。修正後はreconciler 31 tests、`python3 -m pytest -q skills/cfo` 354 tests + 318 subtests、CFO result Node 25/25、CFO hourly Node 26/26、runtime fence focus 2/2、loop adapter 15/15、loop contract 18 loops / 187 jobs / 112 mapped / 0 errors、disk cleanup 110/110、OSS verifier PASS、self-contained tests 12/12。
+- **Full-runtime status after latest-main fixture fix:** PR #7151 commit `f25077379f` adds `LIFE_MANAGER_RELEASE_CUT_MIN_INTERVAL_SECONDS=0` to the intended fresh-cut fixture; it is merged in `origin/main=96daa787a7c897edd740c047b955d8d9afa6800b`. The formerly failing test now passes alone (1/1). Full `python3 -m unittest discover -s runtime/loop/tests -p 'test_*.py'` on this unpushed local branch ran 807 tests and failed 3 / errored 1: two release-pressure tests reject local merge commit `fb95f51b` because it is not pushed yet; `test_release_builds_immutable_bytecode_for_its_runtime_python` hits `ENOSPC` while extracting the temporary npm dependency bundle. Afterward `df` showed only `438,468 KiB` available; the test temp directories were gone and `/Users/anicca/.npm` was 2.4 MiB, so no unowned data was deleted. Push the branch before re-running pressure tests; only rerun the full suite after host headroom recovers.
+- **Branch/main/CI review:** CFO worktree `/Users/anicca/Projects/life-manager-main/.worktrees/cfo-telegram-runtime-receipt-20261007`, branch `fix/cfo-telegram-runtime-receipt-20261007`。最新`origin/main=e1b061f1fdaa040d2461be457fe410c398afc95c`を取り込み、append-only SSOT競合は両laneの記録を保持して解消。source/merge commit `3ba5225bfa0ab1687373b83e7fb6ef066529207f`、spec-only follow-up `7b3e096cc044deac46ba76099dfbb57bf3c2754b`をpush済み。fresh read-only reviewはexact head `7b3e096c`でCFO sourceをSHIP、追加findingなし。PR #7106はopen/draft、mergeable、head `7b3e096c`。CI run `37782451068`はLoop control contractsのみFAILし、他required checksはPASS。CodeRabbitはstatus-check successで、PR review recordはまだ空。仕様更新の次commitはdocs-onlyとなるため、新headでchecksを取り直す。
+- **Live CFO:** read-only `lm-loop status --explain life-manager-cfo-hourly` はinstalled SHA `3981bca33258129eccd6ddb52e4960f9cec0ac0d`、loaded-idle。最新occurrence `18dc8f27d9c8fc78-69513` は`2026-10-08T12:58:10Z`にexit 75 / `host_admission_deferred:disk_headroom_low` / effect `not_applicable`で、送信なし。最新disk-cleanup occurrence `18dc8f467cc92330-45678` は12:58:50Zに`entrypoint_exit_1`。`df`の利用可能領域は約2.26 GiBだったが、これはownerのstructured cleanup receiptでもadmission passでもないため合格扱いしない。
+- **Promotion/doctor:** release-reconcilerはPID 97269でloaded-running、installed SHA `7e0eba74298bd0bc3dc44347c556162da1fad911`。最後のterminal evidenceは旧SHA `a7dd9a2e`上で`entrypoint_exit_1`、current main `e1b061f1`は未反映。`lm-loop doctor --json`は`unmanaged_labels=[ai.anicca.life-manager-release-reconciler-self-handoff]`を返す。reconcilerを停止・再起動せず、該当release/self-handoffのowner laneで原因修正後にnatural handoffし、doctorを再確認する。
+
+**残TODO（CFO・この順）:**
+
+1. release-reconciler owner laneでfull unittest fixture failureを直す: `test_cut_loop_release.test_reconciler_pins_captured_main_sha_when_origin_moves_during_cut`の`loops/releases/old/bin/lm-loop`実行可能stubをfixtureに用意し、対象テストとfull unittestをgreenにする。CFO laneはこのtest/runtimeを編集しない。
+2. `git fetch`でこの修正を含む最新mainを取り込み、PR #7106を更新する。最終headのrequired CIを全PASSにし、fresh same-SHA read-only reviewを取得するまでmergeしない。
+3. PR #7106をmainへ統合し、release-reconciler ownerのnatural handoffでmain由来immutable releaseを作成・readbackする。`unmanaged=0`等doctor条件もowner pathで解消する。実行中のreconcilerを手動restartしない。
+4. disk-cleanup ownerの自然terminalから`free_after >= 2 GiB`, `errors=0`, `protected_deletions=0`のfresh structured receiptと後続admission passを得る。単独の`df`値や旧receiptを代用しない。
+5. 固定CFO SHAの次のnatural eligible occurrenceで同一occurrenceのruntime terminal receipt/ref、B7/outbox counter tuple、provider ID/hash、admission状態とreplay-zeroを照合する。不正/legacy counterはunknownのまま保持し、再送しない。
+6. A5 production migration/RPC/permission/panel readback → A6 Google invoice/Monitoring/cash/operation attribution → A8 全18 loopsのsettled revenue/refund/fees/actual costsと全187 runtime jobs分類 → A9 source-period daily/MTD/trailing/MRR → A10 7日連続natural reports・完全coverage・replay-zero。
+
+**現在cursor:** `release-reconciler full-suite fixture owner fix + PR #7106 exact-head CI/fresh review → sync any new main → merge → natural immutable release/doctor → cleanup structured receipt + admission pass → fixed-CFO natural report receipt/readback/replay-zero → A5 → A6 → A8 → A9 → A10`。
+
+### 2026-10-08 22:26 JST — latest-main sync and CFO capacity readback
+
+この追記が直前のCFO cursorを更新する。A5 → A6 → A8 → A9 → A10は維持。
+
+- **Release-test correction:** PR #7151 (`f25077379f`)を含む`origin/main=96daa787a7c897edd740c047b955d8d9afa6800b`をbranchへmergeした。新mainでは`LIFE_MANAGER_RELEASE_CUT_MIN_INTERVAL_SECONDS=0`を該当fixtureに指定し、`test_reconciler_pins_captured_main_sha_when_origin_moves_during_cut`は単独1/1 PASS。旧head CI run `37782451068`の失敗はこのfixture修正前なので、現headのCI証拠ではない。
+- **Full suite on local unpushed merge:** `python3 -m unittest discover -s runtime/loop/tests -p 'test_*.py'` は807 testsで3 failures / 1 error。前記fixture failureは解消。Pressure tests 2件はmerge HEAD `fb95f51b`がremote branchにまだ無いため`exists only locally`で失敗し、branch pushで解消する。`test_release_builds_immutable_bytecode_for_its_runtime_python`はnpm dependency bundle展開中の`ENOSPC`。実行後free spaceは`444,324 KiB`、指定test temp pathは不在、`/Users/anicca/.npm`は2.4 MiB。大規模cleanupやユーザーデータ削除はしていない。
+- **Live owners (fresh read-only):** CFO installed SHAは`e1b061f1`でloaded-idle。occurrence `18dc9090aca2ab58-40295` (13:23:51Z) はexit75 `disk_headroom_low`, effect `not_applicable`で送信なし。disk-cleanup occurrence `18dc90c29b739810-55335` (13:26:01Z) は`entrypoint_exit_1`。`df` freeは約434 MiBで、cleanup structured receipt/admission passは無い。release-reconcilerはPID 82558でloaded-running、直近terminal `18dc90a7725cfa68-89188`はexit1。doctorは`ok=true`, missing/unmanaged/retired labelsは全て0。稼働中reconcilerには触れない。
+- **PR:** local merge HEAD `fb95f51b1a017acd91944d6f75ae15fb7ca8ae8e`は未push、remote PR #7106はhead `7b3e096c`のまま。`37782451068`は前main上でLoop control FAIL、他required checksはPASS。fresh reviewは7b3e sourceをSHIPしたが、今のmain mergeを含むheadへのreviewではない。
+
+**残TODO（この順）:**
+
+1. このSSOT更新と最新main mergeをcommit/pushし、release-pressure testsが`exists only locally`で落ちない状態にする。
+2. host disk headroomをowner経由のstructured cleanup receiptで回復し、`free_after >= 2 GiB`, `errors=0`, `protected_deletions=0`と後続admission passを確認する。単独の`df`値は合格証拠ではなく、ユーザーデータを直接削除しない。
+3. headroom回復後にfull runtime suiteを再実行する。targeted CFO suitesは前述のPASSを維持する。
+4. PR #7106の最新headで全required CIとfresh same-SHA read-only reviewを得るまでmergeしない。
+5. merge後、自然immutable release/doctor → 次のeligible CFO natural report receipt/runtime link/B7 counters/provider readback/replay-zero → A5 → A6 → A8 → A9 → A10。
+
+**現在cursor:** `push latest-main merge + SSOT → structured host cleanup receipt/admission pass → local full runtime rerun → PR exact-head CI/review → merge/promotion → fixed-CFO natural occurrence/readback → A5 → A6 → A8 → A9 → A10`。
+
+### CFO producer counter invariant and current cursor
+
+This entry supersedes the prior local-review cursor. The business CFO order remains A5 → A6 → A8 → A9 → A10; Moneytree and Cloud cost work remain out of this lane.
+
+- Fresh read-only review of source head `98d5906133dd8524b5ead8a6f51b420f168f2644` finds a source-level NO-SHIP issue: `persistedDeliveryCounters()` converts missing/invalid values to `null`; `validPersistedDeliveryCounters()` accepts `null`; `runResultCfo()` writes B7 and report status `sent` before runtime-hint validation. Production then throws after writing that false sent state, while non-runtime execution can return `sent`. The B7-v4 recovery branch can also restore a sent report without valid counters. Existing occurrence replay can reclassify a same-occurrence sent report as duplicate/zero.
+- Required behavior: validate the exact shared-sender tuple before changing B7/report to `sent`; only sent `(1,1,0,0)` and duplicate `(0,0,0,0)` are valid. Invalid/missing/boolean counters leave the existing report and B7 pending, return nonzero, write no runtime effect hint, and never invoke a second provider send; the persisted shared outbox remains the replay fence. B7 v4 reads reject null or semantically inconsistent counters. Legacy v3 remains an idempotency-only read and cannot recover an effectful same occurrence as verified `sent`. Same-occurrence sent replay cannot be turned into a zero-effect success.
+- `origin/main` is `a3c28b0d06db83a31de55995119a6087815ac241`, one docs-only commit ahead of source head `98d59061`; merge this latest main before source edits. The relevant design and call paths remain `cfo-result-local.js` → shared `notify_effect()`/outbox → runtime result hint, plus `skills/cfo/effect_reconcile.py`.
+- Host status from the latest read-only sample: CFO is loaded-idle on `e1b061f1` but the latest report occurrence is deferred at `disk_headroom_low`; disk-cleanup latest exit is `entrypoint_exit_1`; free space is about 434 MiB. No cleanup or unrelated production operation is authorized by this source fix.
+
+**TODO (atomic, current order):**
+
+1. Merge latest `origin/main` while preserving both SSOT entries.
+2. Add RED coverage: invalid notify counters leave report/B7 pending; B7 v4 null/mismatched counters and legacy v3 same-occurrence recovery cannot return sent; same-occurrence sent state cannot become a quiet duplicate.
+3. Make the smallest producer/reader change: reject invalid counter tuple before sent persistence; require exact semantic tuple in B7 v4; preserve outbox idempotency and fail closed on unverified legacy state.
+4. Run CFO producer/reconciler tests, full CFO pytest, Node CFO tests, and runtime fence focus; run full runtime suite only after host headroom recovers.
+5. Commit/push the source/spec diff, pass final-head CI and fresh same-SHA review, then merge.
+6. Obtain cleanup receipt/admission pass, promote to a main-derived immutable release, and verify one natural CFO occurrence's runtime/provider receipt, B7 tuple, admission, and replay-zero.
+7. Continue A5 → A6 → A8 → A9 → A10.
+
+**Current cursor:** `latest-main sync → TDD RED for false sent/null-counter recovery → strict pre-persistence counter validation + B7-v4 validation → focused acceptance → push/review/CI → promotion/natural readback → A5 → A6 → A8 → A9 → A10`.
+
+### 2026-10-08 22:27 JST — latest CFO PR head pushed; live gate refresh
+
+この追記が22:26 JSTのCFO cursorを更新する。CFO business order **A5 → A6 → A8 → A9 → A10** は維持する。
+
+- **Branch/PR:** latest-main merge `96daa787`とCFO source/specはpush済み、PR branch head `98d5906133dd8524b5ead8a6f51b420f168f2644`。PR #7106はopen/draft, mergeable。GitHub run `37784470507`でrequired checks実行中。CodeRabbit status-check successはformal reviewではなく、PR `reviews`は空。fresh same-head reviewerを依頼済み。
+- **Full suite:** latest-main fixture target `test_reconciler_pins_captured_main_sha_when_origin_moves_during_cut`は1/1 PASS。branch push前のlocal full runtime suiteは807 testsで3 failures / 1 error: local-only merge commitで落ちたrelease-pressure testsはbranch push済み、bytecode release testはnpm extract時`ENOSPC`。現在のhost freeは約434 MiBで、disk-cleanup ownerの最新occurrence `18dc90c29b739810-55335`は13:26:01Zに`entrypoint_exit_1`。他のowner dataは削除していない。
+- **Live CFO/release:** CFO loaded-idle, installed SHA `e1b061f1`; latest occurrence `18dc9090aca2ab58-40295` at 13:23:51Z exited 75 `disk_headroom_low`, effect `not_applicable`、送信なし。release-reconciler PID 82558 loaded-running on `e1b061f1`, latest terminal `18dc90a7725cfa68-89188` exit 1; doctor `ok=true` with missing/unmanaged/retired labels all 0. Running ownerは止めず、次のnatural receiptを待つ。
+
+**残TODO（現在順）:**
+
+1. `37784470507` exact-head required CIとfresh same-SHA reviewを完了。CI failureなら該当owner boundaryだけ修正し、新headで再実行。
+2. disk-cleanup ownerのstructured receiptで`free_after >= 2 GiB`, `errors=0`, `protected_deletions=0`と後続admission passを得る。headroom回復後にfull runtime suiteを再実行し、`ENOSPC`が消えたことを確認する。
+3. required CI/review PASS後にPR #7106をmainへ統合し、immutable release / natural handoff / doctor readbackを行う。
+4. 固定CFO sourceの次のeligible natural reportでruntime/provider receipt/ref、B7 counters/ID/hash、admissionとreplay-zeroを同一occurrenceで照合する。
+5. A5 production migration/RPC/permissions/panel readback → A6 invoice/cash/operation attribution → A8 18-loop revenue/cost + 187-job classification → A9 source-period daily/MTD/trailing/MRR → A10 7日連続natural reports/full coverage/replay-zero。
+
+**現在cursor:** `commit/push this SSOT status delta → new-head CI + fresh review (CFO source unchanged from 98d59061) → structured cleanup receipt/admission → local full runtime at recovered headroom → merge/promotion → natural CFO receipt/replay-zero → A5 → A6 → A8 → A9 → A10`。
+
+### CFO producer counter guard — implementation status
+
+This section supersedes the prior pending implementation cursor. The CFO business order remains A5 → A6 → A8 → A9 → A10.
+
+- Source implementation is complete in local commit `15ea90817d` on merge HEAD `543bec2a16`; it validates provider ID and exact counter semantics before marking B7/report `sent`, rejects invalid/null B7 v4 tuples, treats B7 v3 as idempotency-only for same-occurrence recovery, and prevents a same-occurrence sent/duplicate replay from returning quiet success without proof. Invalid delivery leaves report/B7 pending and relies on the shared outbox fence to prevent a second provider send.
+- TDD/local acceptance passes after the fix: CFO result Node 29/29, hourly Node 26/26, CFO pytest 354 + 318 subtests, runtime fence focus 2/2, loop contract 18 loops / 187 jobs / 112 mapped / 0 errors, adapter registry 15/15, and `git diff --check`.
+- The latest base is `origin/main=ac963290ce9a13ab2da5f188c23d584b0910c58d`; local HEAD includes it. PR #7106 still points to older remote head `7131b650`, so the source fix and current SSOT edits are not yet pushed. The fresh review of `98d59061` found the source defect described above; a new review is required for this fix.
+- Full runtime suite is not rerun: the previous 807-test run had 3 failures / 1 error, including `ENOSPC` while building a dependency bundle; current free space is about 707 MiB, below the 2 GiB operating threshold. CFO last natural occurrence `18dc9090aca2ab58-40295` is pre-effect deferred at `disk_headroom_low`; disk-cleanup latest `18dc91db6baae128-53715` exits `entrypoint_exit_1`. No user data is removed.
+
+**Remaining TODO (this order):**
+
+1. Commit/push the local source+SSOT changes and latest-main merge to PR #7106.
+2. Run exact-head required CI and obtain fresh same-SHA read-only review; merge only when both pass.
+3. Get a structured cleanup receipt with `free_after >= 2 GiB`, `errors=0`, `protected_deletions=0`, and subsequent admission pass; then rerun full runtime suite.
+4. Promote through main-derived immutable release and verify the next eligible natural CFO occurrence's runtime/provider receipt, B7 counters, admission, and replay-zero.
+5. Complete A5 production migration/RPC/permissions/panel readback → A6 invoice/cash/operation attribution → A8 18-loop economics + all 187 job classifications → A9 source-period daily/MTD/trailing/MRR → A10 seven natural reports with full coverage.
+
+**Current cursor:** `push source+SSOT/current-main merge → final-head CI/review → host structured capacity receipt/admission → full runtime rerun → merge/promotion/natural CFO readback → A5 → A6 → A8 → A9 → A10`.
+
+### CFO producer sent-state invariant — current
+
+このcurrent sectionが前項のsource cursorを更新する。事業CFOの順序はA5 → A6 → A8 → A9 → A10のまま。
+
+- Fresh review of source head `98d5906133dd8524b5ead8a6f51b420f168f2644` is NO-SHIP / fix-first. `cfo-result-local.js` maps invalid counters to `null`, accepts those values in B7 v4, and persists `sent` before runtime-hint validation. Thus receipt-bearing bad counters can leave a false sent record; same-occurrence replay can then rewrite it as zero-counter duplicate. B7 v3 recovery can also return sent without counter proof.
+- The latest `origin/main=97efe82e40b28911c98af1165281fcdafff3fbc2` is merged locally at HEAD `43af59b7b41466a80d0e76d355aebb0809e2558a`; it includes main PR #7155 line-sticker work, which remains upstream-owned and outside the CFO diff. The unified SSOT update is committed before this producer fix.
+- RED evidence is present in `cfo-hourly-local.test.js` and `cfo-result-local.test.js`: invalid delivery counters must leave B7/report pending; null B7 v4 counters and same-occurrence v3 sent recovery must reject; same-occurrence invalid sent state, cross-occurrence recovery, and duplicate receipt must not quietly claim the wrong effect. The existing source fails these assertions as expected.
+
+**TODO (current order):**
+
+1. [x] Merge latest main `97efe82e` while preserving the unified SSOT; no line-sticker source is edited in the CFO lane.
+2. Make producer counters strict before any B7/report `sent` write: only sent `1/1/0/0` or duplicate `0/0/0/0`; invalid response keeps pending state and throws while the shared outbox prevents resend.
+3. Make B7 v4 reader require the same semantic tuple; v3 remains idempotency-only and cannot recover the same effectful occurrence as sent. Prevent same-occurrence sent/duplicate replay from returning quiet without verified occurrence evidence; when a prior B7 delivery belongs to another occurrence, record only a zero-counter duplicate for the current no-effect run.
+4. Run the focused CFO Node tests, `python3 -m pytest -q skills/cfo`, result-reconciler tests, and runtime fence focus. Run full runtime suite only after host headroom recovers.
+5. Commit/push source and SSOT; pass exact-head CI and fresh read-only review, then merge.
+6. Obtain owner cleanup receipt/admission pass, promote via main-derived immutable release, and verify the next natural CFO report's runtime/provider receipt, B7 tuple, admission, and replay-zero.
+7. Continue A5 → A6 → A8 → A9 → A10.
+
+**Current cursor:** `strict producer validation + B7 v4 reader + same-occurrence replay guard → focused RED/GREEN → push/review/CI → merge/promotion/readback → A5 → A6 → A8 → A9 → A10`.
+
+### CFO sent-state correction — latest verified status
+
+This entry supersedes the prior producer-review cursor. CFO priority remains A5 → A6 → A8 → A9 → A10; Moneytree/A7 and Cloud-cost work remain outside this lane.
+
+- **Source proof and admission decision:** provider-ID P2 is fixed in source commit `0a5389e4af`: cross-occurrence sent-B7 recovery validates `TELEGRAM_MESSAGE_ID` before persisting sent state; the shared outbox remains the resend fence. The CFO registry deliberately keeps `priority=revenue` with `admission_class=borrow`: the merged A5 cost-visibility plan explicitly raises queue priority without reserving revenue capacity. The temporary local attempt to change this class was withdrawn; current config and rendered fixture retain `borrow/revenue`, and no queue-class migration is needed. Main now includes `1b0f7d95`, `aba80c99`, and `ba39c13a`; this branch is synchronizing to that head.
+- **Verification after main sync:** focused tests pass after restoring the intentional borrow/revenue policy: loop bounds 141/141, macOS registry 136 plus 197 subtests, resource admission 137/137, loop contract 18 loops / 188 jobs / 113 mapped / 0 errors, Node adapter 15/15, source-boundary, and diff check. Full `unittest discover` ran 812 tests but did not pass cleanly (3 failures, 26 errors) on the intermediate pre-push tree: two release-pressure tests rejected local commit `ccd4bc07` because it was not pushed; observed remaining errors include `ENOSPC`, SQLite `database is locked`, and a subprocess timeout. The class edit has since been withdrawn; do not claim full-suite green. Avoid repeating the disk-heavy suite while host space is low; current-head remote checks remain required.
+- **CFO source / PR:** PR #7106 remains open/draft. It contains the runtime receipt correction for future CFO occurrences; after the current-main sync, require fresh exact-head CI and read-only review. Its older published head passed its own checks, but that is not evidence for the current merged tree. Keep the PR draft and do not merge around the safe-floor gate.
+- **Admission policy:** main PR #7177 sets defaults `critical_paid=256 MiB`, `revenue=512 MiB`, other priorities 2 GiB. The revenue override still has a lower-bound bug: zero/negative values can lower the floor; malformed values must fail closed. If numeric floors are retained, use `min(RECOVERY_FLOOR_BYTES, max(priority_default_floor_bytes, int(configured_override)))`, so an override can raise but never lower the floor; test zero, negative, tiny positive, malformed, and above-maximum values. PR #7179 (`df8035cf531770fb52f6ebf3825a811dd59ef7f3`, based on `0dea7a7e` while current main is `ba39c13a`) remains open/non-draft and removes numeric floors from producer/release paths. Its latest OSS boundary check fails; do not merge the no-floor behavior. Its HOST row 10 conflicts with the CFO safety contract; the host-policy owner must reconcile the row and implementation. The CFO's `borrow/revenue` classification is intentional and is not a capacity-mismatch bug.
+- **Historical Telegram result:** occurrence `18dc9790b29a6f08-8561` has a B7 sidecar `sent` and exactly one local outbox row `delivered`, attempt 1; provider ID and message hash match. A read-only MTProto lookup found 18 dialogs and exactly one recipient-hash match, but that dialog returned only 15 messages from `2026-10-05T07:13:49Z` through `07:14:05Z`; neither the 15:30 nor 16:25 report ID was present. Read-only `effect_reconcile.py` also returned `occurrence_not_effect_unknown`: admission DB state is already `released` with `effect_unknown=0`, while the runtime event still has `effect=unknown` and null receipt refs. No state was changed and no message was resent. The local Telegram API receipt supports “accepted by Telegram”; current user-visible history and the runtime receipt link remain unverified.
+- **CFO production:** `~/loops/current` still points to release `/Users/anicca/loops/releases/20261009T005813-d7d3cbae` (SHA `d7d3cbae`); the CFO label is loaded-idle on `d7d3cbae`, behind current main. Latest natural occurrence `life-manager-cfo-hourly:18dc9a8f896a8c88-73023` at `2026-10-08T16:25:13Z` exits 0, but the runtime event remains `effect=unknown` with null receipt refs. Its B7 sidecar/outbox say `sent/delivered`, one attempt, matching provider ID/message hash. MTProto history still did not contain the provider ID. `effect_reconcile.py` returned `occurrence_not_effect_unknown` because the admission record is already `released` with `effect_unknown=0`; no state mutation or replay occurred. Admission readback now shows the earlier 15:57 ticket `cancelled`, the 16:25 occurrence `released`, and no CFO queue ticket or reservation. Earlier `resource_capacity_busy` deferrals at 15:57/16:13 were transient; the A5 plan's `borrow/revenue` policy is deliberate.
+- **Capacity / operations:** `df` at `2026-10-08T16:42:30Z` reports 956,020 KiB free (about 934 MiB), above the 512 MiB revenue floor but below the 2 GiB recovery target. Cleanup occurrence `life-manager-disk-cleanup:18dc9b72bbbdd0f8-9643` at `16:42:02Z` exits 1 `entrypoint_exit_1`. Release reconciler occurrence `life-manager-release-reconciler:18dc9aa484efd900-19193` at `16:39:29Z` exits 1 `entrypoint_exit_1`, loaded-running on old SHA `e1b061f1` (PID 82334) while `~/loops/current` points to `d7d3`; `lm-loop doctor --json` remains `ok=false` with unmanaged label `ai.anicca.life-manager-release-reconciler-self-handoff`. Do not stop or restart either owner; repair through owner path and natural readback.
+
+**Remaining TODO (in order):**
+
+**TODO順序変更:** 旧順=`prior Telegram history retry → change CFO to revenue/revenue → CI/review → promotion`。新順=`preserve the intentional borrow/revenue policy → finish the existing runtime-receipt source PR → resolve safe-floor/release gates → natural CFO receipt/readback`. 理由: the canonical A5 plan explicitly keeps CFO in borrow capacity, and a natural CFO run succeeded after earlier capacity-busy deferrals; changing class would contradict the accepted capacity policy.
+
+1. **Current cursor:** finish syncing the task branch to latest main `ba39c13a`, push the CFO runtime-receipt fix, then pass same-head required CI and obtain fresh read-only review on PR #7106. Keep it draft; do not merge around the safe-floor gate.
+2. Have the host-policy owner replace PR #7179's no-floor behavior with the raise-only positive floor contract, fail malformed overrides closed, add zero/negative/tiny/malformed/over-maximum tests, and reconcile canonical HOST row 10. Do not merge the current no-floor change.
+3. Have primary integrate PR #7106 only after exact-head checks/review and the safe-floor gate pass.
+4. Let the release-reconciler owner complete the natural main-derived handoff, resolve the unmanaged self-handoff label through its owner path, and read back that the CFO label loads the exact new SHA. Do not stop/restart the running owner.
+5. On the next distinct natural CFO occurrence, verify the runtime terminal links the Telegram provider receipt, B7 counters/hash match, and replay-zero in that same occurrence. The earlier API receipt is accepted, but current user-history visibility is unverified; do not replay it.
+6. Repair the cleanup owner's `entrypoint_exit_1` and obtain a fresh structured capacity receipt; current free space is above the CFO 512 MiB floor, so this is a separate operations risk.
+7. Continue the merged A5 plan through production migration/RPC/permissions/panel readback → **A6** Google invoice/cash/operation cost attribution → **A8** settled revenue/refunds/fees/measured costs for all 18 loops and classification of all 187 jobs → **A9** source-period daily/MTD/trailing/MRR → **A10** seven consecutive natural reports with complete coverage. A5's source work is in merged PR #6827; production readback remains.
+
+**Current cursor:** `sync branch to ba39c13a → push/CI/review for PR #7106 → safe-floor/HOST-row resolution → primary merge → natural release handoff/doctor → distinct CFO receipt/readback/replay-zero → cleanup recovery → A5 production readback → A6 → A8 → A9 → A10`.
+
+### 2026-10-09 02:11 JST — CFO email counter regression and live cursor
+
+この追記が直前のCFO cursorを更新する。事業CFOの順序 **A5 → A6 → A8 → A9 → A10** は維持し、Moneytree/A7とCloud費用削減はこのlaneから除外する。
+
+- **Review / source fix:** fresh read-only review of PR #7106 head `5df87bbbec84967edcefb71dbbb942382df64fa2` found an Important email regression. The default email adapter returned only `attempted=1`, while `cfo-result-local.js` requires the exact sent tuple `(attempted, delivered, delivery_uncertain, pre_send_failed)=(1,1,0,0)` before persisting sent state. A new integration test using the real adapter with only the external send stubbed failed RED with `cfo_delivery_counters_invalid`; the adapter now returns the required tuple on provider acceptance. The focused result/delivery tests pass 33/33 after the fix, `git diff --check` passes, and no email was sent externally. This fixes one review finding; a fresh review is still required on the pushed head.
+- **Branch / CI:** `origin/main=9449e1c7b1` is merged into PR #7106; its exact pushed head `cd9eaec273de973563ca8629eb9d16a0529d1a53` has all required CI checks passing and a fresh read-only source review of **ship, no findings**. Focused local acceptance on the latest-main-synced tree passed: CFO Node 59/59, runtime bounds 141/141, registry 137 tests + 197 subtests, `lm-loop-contract` 18 catalog loops / 188 registry jobs / 113 mapped / 0 errors, source-boundary, and diff check. The PR is ready and mergeable but not yet merged. The earlier CodeRabbit result was skipped while draft; GitHub's `reviewDecision` remains empty. This entry is a status-only correction; after pushing it, rerun required CI on the resulting exact head before merge.
+- **Production readback:** `~/loops/current` points to `20261009T014034-aba80c99`, but `life-manager-cfo-hourly` remains loaded-idle on old SHA `d7d3cbaeaf989b1678efc0e572a7c3b9aece6d76`. Its latest natural occurrence is `18dc9a8f896a8c88-73023` at `2026-10-08T16:25:13Z`, exit 0 but `effect=unknown`, `provider_receipt_id=null`, `official_readback_ref=null`; do not resend or call the report trace-verified. `lm-loop doctor --json` is `ok=false` with unmanaged label `ai.anicca.life-manager-release-reconciler-self-handoff`. At 2026-10-09 01:55 JST, free disk is 711,736 KiB (about 695 MiB), below the 2 GiB recovery floor. No production state was changed.
+- **Disk-policy separation:** current main still keeps `critical_paid=256 MiB`, `revenue=512 MiB`, and 2 GiB for other work; `_disk_floor()` has a separate invalid-override lower-bound issue. PR #7179 is open/non-draft and mergeable; its current checks pass, but it removes numeric disk floors. Keep #7179 unmerged per Dais's no-unbounded-admission intent. Its host-policy repair is a separate owner lane, not a source dependency of #7106; do not let that PR's proposed no-floor policy gate the unrelated receipt/counter source fix. If the host-policy lane is resumed, preserve the positive defaults, allow overrides only to raise the floor up to 2 GiB, fail malformed input closed, test zero/negative/tiny/malformed/over-maximum values, and reconcile HOST row 10. The older note that #7179's latest OSS check failed is superseded by the current green check readback.
+
+**TODO順序変更:** 旧cursor=`safe-floor/HOST-row resolution → PR #7106 merge`。新cursor=`email counter RED/GREEN fix → latest-main sync + push → exact-head CI + fresh review → integrate PR #7106 while keeping no-floor PR #7179 unmerged → recover the production release-reconciler/capacity owner path → natural CFO receipt/readback/replay-zero → A5 → A6 → A8 → A9 → A10`。理由: #7106はdisk floorを変更せず、mainは現在も数値floorを保持する一方、#7179は別ownerのno-floor変更であり、CFO receipt修正の依存ではない。安全なfloorは維持しつつ、独立したCFO作業を先へ進める。
+
+**Remaining TODO (atomic, current order):**
+
+1. [x] Fix default-email delivery counters, add the real-adapter regression test, update the CFO spec, and push source/spec commit `fac716b2` to PR #7106.
+2. [x] Merge latest main `9449e1c7b1` and push the latest-main-synced branch with the corrected CFO cursor.
+3. [x] Pass exact-head required CI and obtain a fresh read-only ship review on `cd9eaec2`; make PR #7106 ready and confirm mergeable. Keep PR #7179's no-floor change unmerged.
+4. [ ] Push this status-only SSOT correction, pass required CI on its resulting exact head, then merge PR #7106.
+5. Have the release-reconciler and cleanup owners resolve their own runtime state: obtain a structured cleanup receipt with at least 2 GiB free, zero errors, zero protected deletions, and a healthy owner-path handoff; do not stop/restart the active reconciler or use fleet-wide apply.
+6. After the main-derived release contains the merged source, apply only the CFO owner when loaded-idle and read back the exact loaded SHA. On the next natural occurrence, match runtime terminal receipt/ref, provider receipt, B7 counters/hash, admission state, and replay-zero. Do not replay the historical `effect=unknown` occurrence.
+7. Complete A5 production migration/RPC permissions and panel readback; its source work is already merged in PR #6827.
+8. Complete A6 Google billed-expense versus cash-paid and occurrence-backed provider/operation attribution; keep unsupported loop allocations unknown.
+9. Complete A8 settled revenue/refunds/fees/measured cost for all 18 business loops and classify all 188 registry jobs (113 catalog-mapped; remaining jobs stay explicit shared/control/platform overhead).
+10. Complete A9 source-backed daily, MTD, trailing-period, and MRR reports with currencies, freshness, and coverage gaps.
+11. Complete A10 with seven consecutive natural reports, complete source coverage, accurate totals, and replay-zero.
+
+**Current cursor:** `push this status-only SSOT correction → exact-head required CI → merge #7106 (leave #7179 unmerged) → structured cleanup/reconciler owner recovery → main-derived CFO apply/readback → natural report receipt/replay-zero → A5 → A6 → A8 → A9 → A10`.
+
+### 2026-10-09 02:16 JST — CFO latest-main disk-floor correction and live cursor
+
+この追記は直前のCFO entryを上書きする。事業CFOの目的と順序 **A5 → A6 → A8 → A9 → A10** は不変。Moneytree/A7とCloud費用削減は対象外。
+
+- **CFO source:** default-email counter fix is complete: the adapter returns `(attempted, delivered, delivery_uncertain, pre_send_failed)=(1,1,0,0)` after provider acceptance, and the real-adapter test passed RED→GREEN without an external email. PR #7106 head `cd9eaec2` is ready, required checks passed, and fresh review is SHIP/no findings on that head. Its base is still `9449e1c7`; these checks/review do not include the current main update below.
+- **Main disk-policy change:** main advanced to `4346b61c` when PR #7179 merged at `2026-10-08T17:09:52Z`. This supersedes the prior note that #7179 was open/unmerged. On current main, `runtime/loop/lm_loop_run.py::_disk_headroom_deferred()` now defers only if free space cannot be measured; any measured amount passes. `runtime/host/disk_admission.py::disk_headroom_ok()` likewise no longer compares available bytes against `REQUIRED_BYTES`. This is an actual source-level removal of numeric minimum-free-space gates, not merely a pending PR. A read-only merge-tree probe between main `4346b61c` and the CFO branch is conflict-free; the merged tree retains this no-floor behavior unless a separate correction is made.
+- **Production is still on the old guarded release:** `~/loops/current` is `20261009T014034-aba80c99`; CFO is loaded-idle on SHA `aba80c9971c563b54810f3f037f72c4de8578d00`. Latest CFO occurrence `18dc9cd088e7f7a8-87897` at `2026-10-08T17:08:13Z` is exit 75 / `host_admission_deferred:disk_headroom_low`, `effect_status=not_applicable`, no provider receipt/readback. Last successful report remains `18dc9a8f896a8c88-73023` at 16:25Z with runtime receipt refs null. At the 02:11 JST readback, free space was 442,484 KiB (about 432 MiB), below the old 512 MiB revenue floor and 2 GiB recovery target. Disk cleanup was loaded-running but last ended `entrypoint_exit_1` (`18dc9d1321782078-43883`); the release reconciler was loaded-running on `e1b061f1`, and doctor still showed unmanaged `ai.anicca.life-manager-release-reconciler-self-handoff`. No production state was changed.
+- **Owner boundary and safety:** the host-policy worktree is still leased to `lm-affiliate-fix-1008` (`remove-numeric-disk-headroom-gates-all-loops`, expiry `2026-10-08T23:28:29Z`); it is not this CFO worktree. Do not edit its files or deploy the no-floor main release while this lease is active. Before any new release, restore a positive minimum-free-space guard (retain at least the established critical-paid/revenue/other floors, cap raises at the 2 GiB recovery floor, and fail malformed overrides closed) with tests for zero, negative, tiny, malformed, and above-maximum values. This is a production safety gate; it does not invalidate the CFO email source fix.
+
+**TODO順序変更:** 旧cursor=`#7179 no-floor PR未merge → #7106 source checks → production apply`。新cursor=`sync #7106 to current main 4346b61c → exact-head CFO tests/CI + fresh review → merge CFO source PR → owner restores numeric disk guard while production stays on guarded release → cleanup/reconciler owner recovery → main-derived guarded release → natural CFO receipt/readback/replay-zero → A5 → A6 → A8 → A9 → A10`。理由: #7179は既にmainへmergeされ、CFO PRの旧headは古いbaseを見ている。一方、現在のproduction releaseはまだ旧positive floorを保持し、disk不足でCFOをpre-effect deferしているため、source統合と安全なproduction rolloutを分ける。
+
+**Remaining TODO (atomic, current order):**
+
+1. [x] Fix the default-email counter contract, add the real-adapter regression test, push the CFO receipt fix, and obtain passing CI/fresh SHIP review on head `cd9eaec2` against base `9449e1c7`.
+2. [ ] Merge current main `4346b61c` into PR #7106, update the SSOT cursor to this base, and run exact-head CFO tests/required CI plus fresh review. Do not reintroduce a floor change in this CFO PR while the host-policy owner lease is active.
+3. [ ] Merge the CFO source PR after exact-head acceptance; do not apply/deploy a main-derived release that lacks numeric disk guardrails.
+4. [ ] After the host-policy owner releases its lease, restore/test positive disk minimums and fail-closed override parsing in the host-policy lane; keep a release guard until this is merged.
+5. [ ] Resolve cleanup `entrypoint_exit_1` and release-reconciler self-handoff through their owner paths; obtain fresh structured capacity evidence (`free_after >= 2 GiB`, `errors=0`, `protected_deletions=0`) without stopping/restarting the running reconciler or using fleet-wide apply.
+6. [ ] Cut a guarded immutable release from current main, apply only CFO when loaded-idle, and verify exact loaded SHA.
+7. [ ] On the next natural CFO report, match runtime terminal receipt/ref, provider receipt, B7 counters/hash, admission state, and replay-zero; do not replay any historical unknown occurrence.
+8. [ ] Complete A5 production migration/RPC permissions and panel readback; source work is merged in PR #6827.
+9. [ ] Complete A6 Google billed-expense vs cash-paid plus occurrence-backed provider/operation attribution; unsupported loop allocations stay unknown.
+10. [ ] Complete A8 settled revenue/refunds/fees/measured cost for 18 business loops and classify all 188 registry jobs (113 catalog-mapped; shared/control/platform overhead remains explicit).
+11. [ ] Complete A9 source-backed daily, MTD, trailing-period, and MRR reporting with currency, freshness, and coverage gaps.
+12. [ ] Complete A10 with seven consecutive natural reports, full source coverage, accurate totals, and replay-zero.
+
+**Current cursor:** `sync branch to main 4346b61c → exact-head tests/CI/review → merge CFO source PR → keep production on guarded release until host floor is restored → capacity/reconciler owner recovery → guarded release/apply/readback → natural CFO receipt/replay-zero → A5 → A6 → A8 → A9 → A10`.
+
+### 2026-10-09 02:22 JST — CFO latest-main sync and host-test mismatch
+
+この追記は02:16 JSTのcursorを更新する。CFOの事業順序は **A5 → A6 → A8 → A9 → A10** のまま。
+
+- **Latest-main sync:** `origin/main=4346b61c` (PR #7179 merge) is merged locally into the CFO branch at `aa65e4ea`, conflict-free. PR #7106's remote head is still `cd9eaec2` with base `9449e1c7`; its prior CI and fresh SHIP review do not cover this sync. The local branch contains main's no-floor behavior but has not been pushed or applied to production.
+- **Focused acceptance on the synced tree:** CFO Node 59/59; runtime bounds 138/138; registry 137 tests + 197 subtests; Gig disk guard 31/31; `lm-loop-contract` 18 loops / 188 jobs / 113 mapped / 0 errors; source-boundary and diff check pass. `runtime/host/tests/test_disk_admission.py` has one inherited failure: `test_defaults_are_life_manager_owned` expects `$HOME` to determine `_host_state_dir()`, while current main derives the canonical home from `pwd.getpwuid(os.getuid()).pw_dir`. This is a test/contract mismatch, not a CFO email failure; no host-policy code or test was edited because the host-policy owner lease is active. The owner should align the test with the canonical-home contract (or explicitly revise the contract) and rerun the focused host suite.
+- **Current main vs production:** main has removed numeric free-space admission: `lm_loop_run.py::_disk_headroom_deferred()` accepts any measurable free-byte value, and `disk_admission.py::disk_headroom_ok()` no longer compares it with `REQUIRED_BYTES`. Production is not on that source: `~/loops/current` remains `20261009T014034-aba80c99`; CFO is loaded-idle at `aba80c9971c563b54810f3f037f72c4de8578d00`. The 17:08:13Z occurrence `18dc9cd088e7f7a8-87897` is exit 75 / `disk_headroom_low`, effect `not_applicable`, with no provider receipt. Disk is 442,484 KiB (about 432 MiB), below the production release's 512 MiB revenue floor. Disk cleanup is running but its latest terminal is `entrypoint_exit_1`; release reconciler remains on `e1b061f1` and doctor reports unmanaged self-handoff. No production state changed.
+- **Ownership:** `lm-affiliate-fix-1008` still holds the active `remove-numeric-disk-headroom-gates-all-loops` lease through `2026-10-08T23:28:29Z`; this session does not edit that worktree. Dais's no-unbounded-admission requirement means the newly merged no-floor source must not be promoted until the host-policy owner restores a positive guard and tests it. This safety repair blocks production rollout, not the CFO receipt source work.
+
+**TODO順序変更:** 旧cursor=`keep PR #7179 unmerged → merge CFO source`。新cursor=`push latest-main-synced CFO branch → exact-head tests/CI/review → merge CFO source → keep production on old guarded release until the host-policy owner restores a positive floor → cleanup/reconciler recovery → guarded release/apply/readback → natural CFO receipt/replay-zero → A5 → A6 → A8 → A9 → A10`。理由: #7179は既にmainへmerge済みだがproductionには未反映で、CFO sourceとhost-policy repairは独立して進められる一方、no-floor releaseを本番へ出すとユーザーの無制限禁止に反する。
+
+**Remaining TODO (atomic, current order):**
+
+1. [x] Implement and push the default-email counter fix/test and the CFO receipt source update.
+2. [x] Merge `origin/main=4346b61c` into the CFO worktree; no conflict. Keep the no-floor source out of production.
+3. [ ] Push the synced CFO branch/spec, then pass exact-head CFO/runtime tests, required CI, and fresh read-only review; merge PR #7106 after acceptance.
+4. [ ] After the host-policy owner releases its lease, align the inherited host test with the canonical `pwd` home contract and restore a positive disk minimum (retain critical-paid/revenue/other defaults, allow only bounded upward overrides, fail malformed overrides closed). Add boundary tests before creating/applying a release.
+5. [ ] Repair cleanup and release-reconciler state through their owners; obtain structured capacity evidence of at least 2 GiB free, zero errors, and zero protected deletions.
+6. [ ] Create a guarded main-derived immutable release, apply only the CFO owner while loaded-idle, and verify the loaded SHA.
+7. [ ] Verify the next natural CFO report's runtime/provider receipt, B7 counter/hash, admission state, and replay-zero. Never replay the historical unknown occurrence.
+8. [ ] Complete A5 production migration/RPC permissions and panel readback; A5 source is merged in PR #6827.
+9. [ ] Complete A6 billed Google expense vs cash paid and occurrence-backed provider/operation attribution.
+10. [ ] Complete A8 settled revenue/refunds/fees/measured costs for all 18 loops and explicit cost classification for 188 registry jobs.
+11. [ ] Complete A9 source-backed daily, MTD, trailing-period, and MRR reports with currency/freshness/coverage.
+12. [ ] Complete A10 with seven consecutive natural reports, complete coverage, accurate totals, and replay-zero.
+
+**Current cursor:** `push synced branch/spec → exact-head acceptance + fresh review → merge CFO source PR → restore guarded disk policy and align its test through the active owner → cleanup/reconciler recovery → guarded release/apply → natural CFO readback/replay-zero → A5 → A6 → A8 → A9 → A10`.
+
+### 2026-10-09 02:33 JST — CFO current-main sync and release-pointer readback
+
+この追記は02:22 JSTのCFO statusを更新する。事業順序 **A5 → A6 → A8 → A9 → A10** は変えない。
+
+- **Latest main:** `origin/main=f603ad06` (#7189) is merged locally into this CFO branch at `099e225d`. PR #7106 remote head remains `7d33c0a2`; the latest-main sync/spec update is not pushed. Exact-main-sync acceptance passes: CFO Node 59/59, runtime bounds 138/138, host disk/resource 153/153, registry 137 tests + 197 subtests, Gig disk guard 31/31, loop contract 18 loops / 188 jobs / 113 mapped / 0 errors, source-boundary and diff check. #7189 fixed the earlier canonical-home host-test mismatch.
+- **PR gate:** head `7d33c0a2` checks are 10/10 pass and the fresh source review on head `991e575e` (same CFO code) is SHIP/no findings. These do not validate the local `f603ad06` merge. PR #7106 is ready, but it needs exact-head CI/review after the new sync is pushed.
+- **No-floor release vs CFO:** `~/loops/current` now points to `20261009T022138-4346b61c`, whose source has no numeric disk floor. CFO itself remains loaded-idle on old guarded SHA `aba80c9971c563b54810f3f037f72c4de8578d00`; its latest occurrence `18dc9cd088e7f7a8-87897` at 17:08:13Z is pre-effect `disk_headroom_low`, exit 75, with no provider receipt/readback. Free disk is 287,308 KiB (about 281 MiB). Do not target-apply the no-floor release to CFO.
+- **Runtime owners:** disk cleanup is loaded-idle with latest `entrypoint_exit_1` (`18dc9e2b2db133e8-3504`); release reconciler is loaded-running on `e1b061f1` with latest `entrypoint_exit_1` (`18dc9d0c0fe82418-32070`). Doctor remains `ok=false` with unmanaged self-handoff. Host-policy owner `lm-affiliate-fix-1008` still holds the active lease. No owner was stopped/restarted and no effect was replayed.
+
+**TODO順序変更:** 旧cursor=`push branch based on 4346 → checks/review → merge`。新cursor=`push f603ad06-synced branch/spec → exact-head CI + fresh review → merge CFO source PR → restore numeric disk guard through its active owner before any CFO apply → cleanup/reconciler recovery → guarded release/apply → natural CFO receipt/replay-zero → A5 → A6 → A8 → A9 → A10`。理由: #7189 fixes the host-test contract, while #7179's no-floor behavior remains in latest main and a no-floor release pointer exists; the CFO owner is still on the old guarded release and disk-constrained.
+
+**Remaining TODO (atomic, current order):**
+
+1. [x] Fix the default-email counter contract and regression test; preserve strict Telegram receipt/replay handling.
+2. [x] Merge latest main `f603ad06` locally and pass focused synced-tree tests (counts above).
+3. [ ] Push the latest-main-synced branch and SSOT to PR #7106; pass required CI and fresh read-only review on the resulting exact head, then merge the CFO source PR.
+4. [ ] After the active host-policy lease is released, restore a positive disk minimum with bounded upward overrides and malformed-input fail-closed behavior. #7189 already aligns the canonical-home host test.
+5. [ ] Repair cleanup/release-reconciler through their owners; obtain structured capacity evidence of at least 2 GiB free, zero errors, and zero protected deletions.
+6. [ ] Only after the host guard is restored in main, cut a guarded immutable release, apply only CFO when loaded-idle, and verify the exact loaded SHA.
+7. [ ] Verify the next natural CFO report's runtime/provider receipt, B7 counter/hash, admission state, and replay-zero; never replay historical unknown occurrences.
+8. [ ] Complete A5 production migration/RPC permissions and panel readback; A5 source is merged in PR #6827.
+9. [ ] Complete A6 billed Google expense vs cash paid and occurrence-backed provider/operation attribution.
+10. [ ] Complete A8 settled revenue/refunds/fees/measured cost for 18 business loops and classify all 188 registry jobs.
+11. [ ] Complete A9 source-backed daily, MTD, trailing-period, and MRR with currency/freshness/coverage.
+12. [ ] Complete A10 with seven consecutive natural reports, complete coverage, accurate totals, and replay-zero.
+
+**Current cursor:** `push f603ad06-synced CFO branch/spec → exact-head CI + fresh review → merge CFO source PR → restore numeric disk guard with owner → cleanup/reconciler recovery → guarded release/apply → natural CFO readback/replay-zero → A5 → A6 → A8 → A9 → A10`.
+
+### 2026-10-09 02:43 JST — CFO post-#7198 sync and natural-run status
+
+この追記は02:33 JSTのCFO cursorを更新する。目標・事業順 **A5 → A6 → A8 → A9 → A10** は維持する。
+
+- **Latest source/PR:** `origin/main=da4e7edc` (#7198) is merged locally into the CFO branch at `dbf8b29e`. PR #7106 still remotely points to `9d74f457` / base `f603ad06`; the branch/spec containing the #7198 sync is not pushed. On the prior `f603ad06`-based head, required CI passed 10/10 and fresh source review was SHIP/no findings. Local focused acceptance after the new sync passes CFO Node 59/59, runtime bounds 138/138, host disk/resource 153/153, registry 137 tests + 197 subtests, Gig disk guard 31/31, loop contract 18/188/113, source-boundary and diff check. Exact-head checks/review must run again after pushing `da4e7edc`.
+- **Release vs loaded owner:** `~/loops/current` is still `20261009T022138-4346b61c`, the no-floor release pointer. The CFO label remains loaded-idle on guarded SHA `aba80c9971c563b54810f3f037f72c4de8578d00`; it has not adopted that pointer. The latest CFO attempt is still `18dc9cd088e7f7a8-87897` at `2026-10-08T17:08:13Z`, exit 75 / `disk_headroom_low`, effect `not_applicable`, no provider receipt/ref; last success is `18dc9a8f896a8c88-73023` at 16:25Z with runtime receipt refs absent. Current free disk is 1,289,500 KiB (about 1.26 GiB): above the old 512 MiB revenue floor but below the 2 GiB recovery target. No fresh CFO report or current company total is established.
+- **Owner state:** cleanup is loaded-running with latest terminal `18dc9e8e7dbb0158-50211`, exit 1 / `entrypoint_exit_1`; release reconciler remains loaded-running on `e1b061f1` with the last successful terminal `18dc9e7d9ce4aab8-19662`, but doctor still reports unmanaged self-handoff. The no-floor source remains in main/current pointer, while the CFO label is still guarded. The host-policy lease remains active; do not apply the no-floor pointer or modify its owner's worktree.
+
+**Remaining TODO (atomic, current order):**
+
+1. [x] Fix and test email counters and strict CFO runtime receipt handling.
+2. [x] Merge latest main `da4e7edc` locally and pass the focused synced-tree tests above.
+3. [ ] Push the latest-main-synced branch and SSOT to PR #7106, then pass exact-head required CI and fresh review and merge the CFO source change.
+4. [ ] Keep the no-floor pointer away from the CFO label. After the host-policy lease is released, restore positive numeric floors with bounded upward overrides and fail-closed malformed values.
+5. [ ] Repair cleanup and release-reconciler through their owners; obtain structured capacity evidence of at least 2 GiB free, zero errors, and zero protected deletions.
+6. [ ] Only after a guarded source release exists, apply it to CFO while loaded-idle and verify exact loaded SHA.
+7. [ ] Verify the next natural CFO report's provider/runtime receipt, B7 counter/hash, admission state, and replay-zero. Do not replay historical unknown occurrences.
+8. [ ] Complete A5 production migration/RPC permissions and panel readback; source is merged in PR #6827.
+9. [ ] Complete A6 billed Google expense vs cash paid and occurrence-backed provider/operation attribution.
+10. [ ] Complete A8 settled revenue/refunds/fees/measured costs for all 18 loops and classify all 188 registry jobs.
+11. [ ] Complete A9 source-backed daily, MTD, trailing-period, and MRR with currency/freshness/coverage.
+12. [ ] Complete A10 with seven consecutive natural reports, full coverage, accurate totals, and replay-zero.
+
+**Current cursor:** `push da4e7edc-synced branch/spec → exact-head CI + fresh review → merge CFO source PR → host owner restores numeric guard → cleanup/reconciler recovery → guarded release/apply/readback → natural CFO report/replay-zero → A5 → A6 → A8 → A9 → A10`.
+### 2026-10-09 02:56 JST — CFO no-floor owner was applied; pre-effect hold
+
+この追記は02:43 JSTのproduction statusを更新する。CFO labelへno-floor sourceが入っているため、numeric guardの復旧を先行させる。
+
+- **Production:** `~/loops/current` remains `20261009T022138-4346b61c`; CFO is loaded-idle on that same no-floor SHA `4346b61c`. Latest natural occurrence `18dc9f1a8bd5d6a0-27249` at `2026-10-08T17:57:06Z` exited 75 with `resource_capacity_busy`, `effect_status=not_applicable`, and no provider receipt/readback. Last successful report remains `18dc9a8f896a8c88-73023` at 16:25Z with runtime receipt refs absent. At 02:56 JST, free disk is 1,118,084 KiB (about 1.09 GiB), below the 2 GiB recovery target. This session did not restart, resend, or invoke a provider effect.
+- **Other owners:** disk cleanup is loaded-running on `4346b61c` with latest terminal `18dc9e8e7dbb0158-50211`, exit 1 / `entrypoint_exit_1`. Release reconciler is loaded-running on `e1b061f1`; latest `18dc9f2e8ad98918-71931` passed, but `lm-loop doctor` remains `ok=false` with unmanaged self-handoff. The host-policy owner lease (`lm-affiliate-fix-1008`) remains active. Do not edit that worktree or issue a competing apply/restart.
+
+**TODO順序変更:** 旧cursor=`push CFO source → CI → source merge → host guard before deployment`。新cursor=`main already loaded no-floor on CFO → restore positive numeric guard through active host-policy owner before next CFO effect → push latest-main/fixture/spec branch → exact-head CI/review → merge CFO source → cleanup/reconciler recovery → guarded release/apply/readback → natural CFO receipt/replay-zero → A5 → A6 → A8 → A9 → A10`。理由: the latest CFO occurrence is still fenced before any provider effect, but the owner itself now runs the no-floor source. Do not report a new financial total or allow an unguarded report send as complete.
+
+**Remaining TODO (atomic, current order):**
+
+1. [x] Fix and test default-email counters and strict CFO Telegram receipt/replay behavior.
+2. [x] Merge latest main `ee25a794` locally and regenerate the byte-stable registry fixture for #7201; synced-tree focused tests pass.
+3. [ ] After the active host-policy lease is released, restore the positive disk guard in main (256 MiB critical-paid / 512 MiB revenue / 2 GiB other, bounded upward override, malformed input fail closed) before the next CFO effect. The old release's threshold is not active on the current CFO label.
+4. [ ] Push the latest-main-synced CFO branch, fixture, and SSOT to PR #7106; pass exact-head required CI and fresh review, then merge the source PR.
+5. [ ] Repair cleanup and release-reconciler through their owners; obtain structured capacity evidence of at least 2 GiB free, zero errors, and zero protected deletions.
+6. [ ] Apply only a guarded main-derived immutable release to CFO when loaded-idle and verify the exact loaded SHA.
+7. [ ] Verify the next natural CFO report's runtime/provider receipt, B7 counter/hash, admission state, and replay-zero. Never replay the historical unknown occurrence.
+8. [ ] Complete A5 production migration/RPC permissions and panel readback; source is merged in PR #6827.
+9. [ ] Complete A6 billed Google expense vs cash paid and occurrence-backed provider/operation attribution.
+10. [ ] Complete A8 settled revenue/refunds/fees/measured cost for 18 business loops and classify all 188 registry jobs.
+11. [ ] Complete A9 source-backed daily, MTD, trailing-period, and MRR with currency/freshness/coverage.
+12. [ ] Complete A10 with seven consecutive natural reports, complete coverage, accurate totals, and replay-zero.
+
+**Current cursor:** `host-policy owner restores positive guard before next CFO effect → push ee25a794-synced CFO branch/fixture/SSOT → exact-head CI + fresh review → merge source PR → cleanup/reconciler recovery → guarded release/apply/readback → natural CFO receipt/replay-zero → A5 → A6 → A8 → A9 → A10`.
+
+### 2026-10-09 03:53 JST — CFO readback, capacity diagnosis, and current execution order
+
+この追記は02:56 JSTのCFO statusを更新する。事業CFOの範囲と順序 `A5 → A6 → A8 → A9 → A10` は維持し、Money TreeとCloud費用削減はこの完了レーンに含めない。
+
+- **最新main / source PR:** `origin/main=0d74d4a4` (#7218 Line Sticker readback adapter; R25/R24/R23 are in its ancestry) をCFO worktreeへ統合済み。PR #7106のremote head readbackは`38968bf5e1b3adc4cc53cbfd6f3c50cf707b4356` (base `e75c7f7a`)、その時点でTravel contract 1件pending、CodeRabbitはmanual review requiredでskip。local branchには0d74d4a4とこのstatus updateが入る。PR diffは18 files、+1,813/-74。R24 sync後のCFO Node tests 59/59、fence reconcile 27/27、contract 18/188/113・errors 0、`git diff --check` PASS。今回のspec commitでheadが変わるため、旧headのcheckは新headの受入証拠ではない。
+- **CFO production:** `lm-loop status life-manager-cfo-hourly` は `loaded-idle` / installed SHA `ee25a794751917116f6558e2cde798dcd5c5b5a2`。最新terminal occurrence `18dca05580433fd0-26537` (`2026-10-08T18:10:48.969Z`) はexit 75、`host_admission_deferred:resource_capacity_busy`、failure layer `admission`、`effect_status=not_applicable`、`provider_receipt_id=null`、`official_readback_ref=null`。最後のsuccessful reportは16:25Zで、runtime receipt refは未記録。18:24Zのread-only DB snapshotでは次のCFO occurrence `18dc9c4ccb645ab0-72084`が`deterministic/borrow`, `state=queued`, `effect_unknown=0`。未確認の新しい金額・送信・収益は主張しない。
+- **capacity原因:** 18:48:39Zのread-only snapshotでCFO occurrence `18dc9c4ccb645ab0-72084`は`deterministic/borrow`, `queued`, `effect_unknown=0`, FIFO sequence `578998`。同時点のdeterministic reservationは`x402-settlement-recorder`の1件のみで、active deterministic owner claimは0件。したがって18:10Zの`resource_capacity_busy`はhistoryであり、18:48時点のqueue滞留は単純な2/2 occupancyでは説明できない。sequence上はCFOより前の古いdeterministic waitersが残り、R23 fairness rotationはcurrent pointerにあるがCFO loaded SHAは旧版。対処はR23/R24をownerへloadし、同一occurrenceのqueue position/admission receiptをreadbackすること。manual delete/retry/cap increaseはしない。
+- **release / host policy:** current pointerは`20261009T033943-6c7b83ee`、`RELEASE.json`の`sha=6c7b83ee1c6317f1e34bcdb6d9303cb79c23a098`。CFO labelは`ee25a794751917116f6558e2cde798dcd5c5b5a2`、release reconcilerは`e1b061f1`のまま。mainは数値free-spaceだけを理由にproducerをdeferしないが、実`ENOSPC`はfailureであり2 GiBはcleanup receipt metricに留まる。`lm-loop doctor --json`は`ok=false`、unmanaged label `ai.anicca.life-manager-release-reconciler-self-handoff` 1件。18:48Zのreconciler readbackはloaded-running on `e1b061f1`、last success 18:44:38Zだがdoctor labelは残る。`df` at 18:48Zは594,900 KiB (~0.57 GiB); これはcurrent CFO capacity blockerではなくENOSPC risk readback。
+- **Google金額の境界:** private evidenceにある2026-09 invoice billed totalは¥27,889。これは9月請求額であり、10月の今月費用、cash-paid、loop別actual cost、現時点のCFO totalを示さない。公式source artifactはA6でruntime/loop attributionへ結ぶ。
+
+**TODO順序変更:** 旧cursor=`host-policy guard復旧 → CFO branch push → PR CI/review/merge`。新cursor=`PR #7106 latest headのrequired CI + fresh review（18-file全diff）→ pass後merge → release-reconcilerをowner経路でlatest main e75c7f7aへreconcileし、R24 lock recovery/R23 rotationとdoctorをreadback → deterministic queueの既存CFO occurrenceを自然terminalまで観測（finite cap維持、ownerを停止しない）→ CFO label loaded SHA確認 → 次のnatural CFO report receipt/runtime/B7/replay-zero → A5 → A6 → A8 → A9 → A10`。理由: CFOはdeterministic class capacity待ち。R24/R23はcurrent pointerにあるがCFO/reconcilerは旧SHAで、doctorもunmanaged labelを報告する。
+
+**Remaining TODO (atomic, current order):**
+
+1. [ ] latest-main sync/spec updateをPR #7106のbranchへpushし、新headのrequired CIをPASSさせる。PRの18 files（+1,814/-75）全体にfresh read-only reviewを取得し、pending checkがあればそのheadで直して再検証する。
+2. [ ] PR #7106をmergeし、accepted email adapterが`attempted=1, delivered=1, delivery_uncertain=0, pre_send_failed=0`を返すsourceをmainへ統合する。
+3. [ ] release-reconcilerのowner経路でlatest main 0d74d4a4を反映し、R24 lock recovery/R23 rotationがloaded SHAに入ったことを確認する。active reconcilerをstop/restartしない。
+4. [ ] `lm-loop doctor --json`のunmanaged self-handoff labelを正規owner経路で解消し、`ok=true`とowner/label SHA一致をreadbackする。current loaded reconciler `e1b061f1`にはR24がまだ入っておらず、occurrence `18dca1d69ebec330-79315`は`entrypoint_exit_1`、receiptに詳細causeなし。
+5. [ ] current queued CFO occurrence `18dc9c4ccb645ab0-72084`を自然terminal/readbackまで待つ。18:48 snapshotではFIFO sequence `578998`で、deterministic reservationは`x402-settlement-recorder`の1件、active deterministic process claimは0件のため、full 2-slot occupancyは確認できない。R23 rotationはpointerにあるがCFO loaded SHAは旧版。queue position/admission receiptをreadbackし、ownerを停止・手動削除せずfinite capを維持する。
+6. [ ] CFOがloaded-idleでqueue/effect fenceが解消済みの時だけlatest-main immutable releaseをowner経路で反映し、`life-manager-cfo-hourly` loaded SHAとpointerを照合する。numeric disk floorをgateにせず、実`ENOSPC`は対象writerで診断する。
+7. [ ] CFO natural reportでdelivery counters、provider receipt/readback、runtime receipt/run/occurrence/release SHA、B7 snapshot hash/counters、正確な期間、replay-zeroを照合する。これが揃うまで財務reportを完成扱いしない。
+8. [ ] A5: usage/estimate/billed actual/unknownをprovider/SKU/operation/loop別に分け、`loop_id`/`owner_id`とrun/occurrence/release SHAを保つ。A5 migration/RPC permissions/panelをproduction readbackする。job IDがreceiptにない分はunknownのまま。
+9. [ ] A6: official Google Cost Table CSVのinvoice period/project/service/SKU/tax/credits/roundingをMonitoring estimateと照合し、receiptで裏付くものだけruntime job/agent/loopへ配賦する。billed expenseとposted/paid cashを分ける。
+10. [ ] A8: live catalogの18 loopとruntime registryの188 job（113 mapped、残り75はshared/control/platform）すべてについてsettled revenue/refund/feesとbilled/paid costをperiod/currency/source receipt別に結合し、重複とtransferを除く。欠落はunknown/coverage gapとして残す。
+11. [ ] A9: CLI/reportでJST daily、MTD、trailing、MRRを別期間として表示し、`loop_pnl.py --date`がsource rowsを選択日で絞ること、loop別・会社合計がsource rowsに一致することを確認する。
+12. [ ] A10: 7日連続のnatural reportを観測し、全loop・全jobの収益/費用coverage、freshness、receipt、period/currency整合、company total、replay-zeroを確認する。完了まで未確認値を0にしない。
+
+**現在cursor:** latest-main 0d74d4a4とspecをPR #7106 branchへpush → exact-head CI + fresh review → merge → R24/R23 release-reconciler + doctor readback → CFO deterministic queue natural terminal → CFO loaded SHA/readback → natural CFO receipt/replay-zero → A5 → A6 → A8 → A9 → A10。
+**追加readback (2026-10-09 03:48 JST):** CFOはloaded-idleの`ee25a794`、直近 terminal `18dca05580433fd0-26537`は18:10Zのpre-effect `resource_capacity_busy`。次occurrence `18dc9c4ccb645ab0-72084`はeffect_unknown=0でqueued (FIFO sequence `578998`)。18:48Zのadmission snapshotではdeterministic reservationは`x402-settlement-recorder` 1件、active deterministic process claimは0件で、単純な満杯状態ではない。R23はcurrent pointer `6c7b83ee`にあるがCFO label/R24 reconcilerは旧SHAのため、queue starvation/FIFO pathを修正済みとは数えない。release reconcilerはloaded `e1b061f1`、18:44Zにpassした一方`doctor`はunmanaged self-handoff label 1件のため`ok=false`。空き容量594,900 KiB (~0.57 GiB)はreadback値で、numeric admission gateではない。latest-main/spec sync後のremote PR checksは旧headのもので、新headで再取得する。
+
+### 2026-10-09 03:58 JST — CFO live readback and superseding cursor
+
+この記録が直前の03:48 statusとCFO TODOを置き換える。CFO business order `A5 → A6 → A8 → A9 → A10`を維持する。Money TreeとCloud cost optimizationはこのレーン外。
+
+- **Branch/PR:** `origin/main=e75c7f7a`をこのCFO branchへ統合済み。remote PR #7106 head `38968bf5e1b3adc4cc53cbfd6f3c50cf707b4356`は18 files (+1,813/-74); last exact-head readback has `Travel and online notification contracts` pending, other checks pass, CodeRabbit manual review is skipped. This status commit creates a newer head; the checks/review must be repeated on that exact head before merge.
+- **Local verification:** after main/R24 sync, `test_fence_reconcile.py` 27/27, CFO Node suites 59/59, `./bin/lm-loop-contract` 18 catalog loops / 188 jobs / 113 mapped / 0 errors, and `git diff --check` pass. R23's formerly failing fixed-order test is corrected in R24 by passing a fixed `wake_epoch`; rotation behavior remains.
+- **CFO facts:** owner is `loaded-idle` on SHA `ee25a794`. Latest terminal run `18dca2de0eb4e798-62398` at 18:57:13Z exited 75 / `resource_capacity_busy`, `effect_status=not_applicable`, with no provider receipt or official readback. Last successful report is 16:25Z and runtime receipt is absent; no current monthly revenue/expense total is proven.
+- **Capacity/DB diagnostic:** the last confirmed CFO queue row is `18dc9c4ccb645ab0-72084` (`deterministic/borrow`, sequence `578998`, `effect_unknown=0`) from 18:53Z. At 18:57Z, read-only admission DB and `status --explain` queries failed with `database is locked`; `lsof` showed concurrent Python DB clients including old release-reconciler PID `11997`, but it did not prove the exact lock holder. The 18:53 snapshot had deterministic revenue claims `marketing-owner-events` and `job-search-daily`, plus one `x402-settlement-recorder` deterministic/borrow reservation. Thus the last run's capacity error is confirmed; the exact current queue owner after the lock is not. Do not delete/replay claims or make the finite cap unbounded.
+- **Release/doctor:** `~/loops/current` is `20261009T034745-e75c7f7a`; CFO remains on `ee25a794`, reconciler on `e1b061f1`. R24/R23 code is in the release pointer but not loaded by those owners. `lm-loop doctor --json` remains `ok=false` for `ai.anicca.life-manager-release-reconciler-self-handoff`. Disk was 867,220 KiB (~0.83 GiB) at 18:57Z: an ENOSPC risk metric, not a numeric producer admission gate; actual ENOSPC remains a failure.
+- **Google evidence:** the official 2026-09 invoice is ¥27,889 billed. It does not establish October spend, cash payment, loop allocation, or a current company P&L.
+
+**Remaining TODO (in order):**
+
+1. [x] Sync latest main and publish this CFO spec update on PR #7106's branch.
+2. [ ] On the resulting exact head, pass required CI and obtain a fresh read-only review of all 18 changed files; resolve any failed check on that head.
+3. [ ] Merge PR #7106 after clean checks/review; its accepted email delivery contract is `attempted=1, delivered=1, delivery_uncertain=0, pre_send_failed=0`.
+4. [ ] Through the normal owner route, load R24/R23 into the release reconciler, clear the self-handoff doctor label, and read back the exact loaded SHA. Do not stop/restart the active reconciler.
+5. [ ] After R24 is loaded and the admission DB is readable, re-read CFO status and the queued occurrence's exact owner/class/sequence. The 18:57 read-only query failed with `database is locked`; the last confirmed queued row was `18dc9c4ccb645ab0-72084`. Let live claims finish naturally; do not delete rows, replay, or remove the finite cap.
+6. [ ] Apply the latest main-derived release to CFO only when loaded-idle and queue/effect state is clear; verify pointer and `life-manager-cfo-hourly` loaded SHA match.
+7. [ ] Read back the next natural CFO report: delivery counters, provider receipt, runtime run/occurrence/release SHA, B7 snapshot hash/counters, exact period, and replay-zero. Do not mark complete without these.
+8. [ ] A5: expose usage/estimate/billed actual/unknown per provider/SKU/operation/loop; production-readback migration/RPC permissions/panel, preserving owner/run/occurrence/release trace.
+9. [ ] A6: reconcile official Google Cost Table invoice period/project/service/SKU/tax/credits/rounding to estimates and evidenced operation/loop attribution; keep billed separate from cash paid.
+10. [ ] A8: cover all 18 business loops and 188 runtime jobs (113 mapped, remaining 75 shared/control/platform) with settled revenue/refund/fees and actual costs by matching period/currency/receipt; missing data stays unknown.
+11. [ ] A9: verify JST daily, MTD, trailing, and MRR reports; ensure `loop_pnl.py --date` filters source rows and totals reconcile.
+12. [ ] A10: observe seven consecutive natural reports with complete coverage, source receipts, freshness, matching periods/currencies, accurate company totals, and replay-zero.
+
+**Current cursor:** exact-head CI + fresh review → merge #7106 → load/reconcile R24/R23 and doctor → queued CFO natural terminal → CFO loaded SHA → receipt-backed natural report/replay-zero → A5 → A6 → A8 → A9 → A10.
+
+### 2026-10-09 03:58 JST — live CFO blockers and cursor refresh
+
+このreadbackは直前の03:53 status/TODOを置き換える。事業CFOの順序 `A5 → A6 → A8 → A9 → A10`、Money Tree/Cloud cost workの除外は維持する。
+
+- **Branch/PR:** local branch is synced through main `e75c7f7a`; remote PR #7106 head readback before this update is `38968bf5e1b3adc4cc53cbfd6f3c50cf707b4356`, base `e75c7f7a`, open/unstable, 18 files (+1,813/-74). Its Travel contract check was pending; CodeRabbit skips manual review. The current spec update is to be published as a new head, so run checks/review on that exact head.
+- **CFO:** loaded-idle on `ee25a794`; latest report attempt `18dca2de0eb4e798-62398` at 18:57:13Z exited 75 / `resource_capacity_busy`, `effect_status=not_applicable`, with no provider receipt/readback. Last successful report is 16:25Z without runtime receipt; current-period revenue/cost totals remain unknown.
+- **Admission read:** at 18:57Z, `status --explain` and a read-only admission DB query failed `database is locked`. The last queue row confirmed before that lock was `18dc9c4ccb645ab0-72084` (deterministic/borrow, sequence 578998, effect_unknown=0). `lsof` showed concurrent Python DB clients, including release-reconciler PID 11997, but did not prove which transaction held the lock. The current queue owner/class must be re-read after the lock clears; do not delete claims or replay.
+- **Release/doctor:** current pointer is `20261009T034745-e75c7f7a`; CFO is still on `ee25a794`, reconciler on `e1b061f1`. Main/pointer include R23/R24, but neither CFO nor reconciler has loaded them. `lm-loop doctor --json` is `ok=false` for `ai.anicca.life-manager-release-reconciler-self-handoff`. Disk is 867,220 KiB (~0.83 GiB), a real ENOSPC risk but not a numeric producer gate. The Sept invoice is ¥27,889 billed only; October/cash-paid/per-loop/current CFO totals are unverified.
+- **Verification:** R24-focused tests pass (fence reconcile 27/27, CFO Node 59/59); `lm-loop-contract` passes 18/188/113 with zero errors. No runtime owner was stopped/restarted and no external report was sent by this session.
+
+**Immediate remaining TODO:**
+
+1. [x] Sync latest main and publish the CFO spec update on the PR branch.
+2. [ ] On the resulting exact PR #7106 head, pass all required CI and obtain a fresh read-only review of the full diff.
+3. [ ] Merge #7106 after same-head acceptance.
+4. [ ] Through the normal owner route, load R24/R23 into the release reconciler, clear the self-handoff doctor label, and read back the loaded SHA. Do not stop/restart active owners.
+5. [ ] After the admission DB is readable, identify the current queued CFO occurrence and active slots; let claims finish naturally under the finite cap.
+6. [ ] Load the accepted immutable release to CFO only when idle/queue state is clear; verify SHA, then read back the next natural report's delivery/provider/runtime/B7 evidence and replay-zero.
+7. [ ] Continue A5 → A6 → A8 → A9 → A10 as listed above.
+
+**Current cursor:** exact-head CI + fresh review → merge #7106 → reconcile R24/R23 and doctor → current CFO queue/readback → natural receipt/replay-zero → A5 → A6 → A8 → A9 → A10.
+
+### 2026-10-09 03:59 JST — current CFO status supersedes the 03:58 snapshot
+
+このreadbackが直前のcurrent stateとTODOを置き換える。CFO order `A5 → A6 → A8 → A9 → A10`を維持し、Money Tree/Cloud cost optimizationは対象外。
+
+- **Main/PR:** latest `origin/main=1512b167` is integrated locally (#7194 eBook readback docs; R25/R24/R23 are ancestors). Last remote PR #7106 head was `38968bf5e1b3adc4cc53cbfd6f3c50cf707b4356` on base `e75c7f7a`, with Travel contract pending and CodeRabbit manual review skipped. The local branch now also contains 1512b167 and this status update; publish it, then rerun exact-head CI and fresh review of all 18 PR files.
+- **CFO:** `life-manager-cfo-hourly` is loaded-idle on `ee25a794`. Latest terminal run `18dca2de0eb4e798-62398` at 18:57:13Z exited 75 / `resource_capacity_busy`, with no provider receipt/readback and `effect_status=not_applicable`. Last successful report remains 16:25Z with no runtime receipt. Current monthly revenue/expense total is unverified.
+- **Admission diagnostic:** read-only admission DB and `status --explain` at 18:57 failed `database is locked`. The last confirmed queue row (18:53) is `18dc9c4ccb645ab0-72084`, deterministic/borrow, sequence 578998, `effect_unknown=0`; it is not proven to remain the current queued row. `lsof` showed concurrent Python clients, including the old release-reconciler PID 11997; the exact lock holder is not proven. R24 is in release pointer e75c7f7a but not loaded by the e1b061f1 reconciler. Do not delete/replay claims.
+- **Release/space:** current pointer is `20261009T034745-e75c7f7a`; CFO is still on `ee25a794`, reconciler on `e1b061f1`. Doctor remains `ok=false` for unmanaged label `ai.anicca.life-manager-release-reconciler-self-handoff`. Free space at 18:57 is 867,220 KiB (~0.83 GiB): not a numeric producer gate, but an ENOSPC risk; actual ENOSPC remains a failure.
+- **Verification:** R24-focused tests pass (`test_fence_reconcile.py` 27/27, CFO Node suites 59/59); contract is 18/188/113 with zero errors. The R23 fixed-order test expectation is corrected by R24's explicit `wake_epoch` fixture.
+
+**Remaining atomic TODO:**
+
+1. [x] Sync main through 0d74d4a4 and publish this CFO spec update on the task branch.
+2. [ ] On the resulting PR #7106 head, pass required CI and obtain fresh read-only review of all 18 changed files; fix any failures on that exact head.
+3. [ ] Merge #7106 after same-head acceptance; retain the accepted email delivery counter contract.
+4. [ ] Through the normal owner path, load R24/R23 into the release reconciler and CFO, resolve the self-handoff doctor label, and read back exact SHAs. Do not stop/restart active owners.
+5. [ ] After the admission DB is readable, re-read the current CFO queue occurrence, class, and owner position; let live claims finish naturally while keeping finite caps.
+6. [ ] Read back the next natural CFO report's delivery/provider/runtime/B7 receipt, exact period, and replay-zero; do not claim totals without evidence.
+7. [ ] Continue A5 → A6 → A8 → A9 → A10 as specified above.
+
+**Current cursor:** exact-head CI/review → merge #7106 → owner-load R24/R23 + doctor readback → current CFO queue readback/natural terminal → CFO receipt/replay-zero → A5 → A6 → A8 → A9 → A10.
+
+### 2026-10-09 04:47 JST — CFO review fixes, live capacity, and test status
+
+このsnapshotは04:23のCFO status/TODOを置き換える。事業CFOの順序は`A5 → A6 → A8 → A9 → A10`。A7（個人Money Tree rail）は今回の範囲外、Cloud cost optimizationも別lane。
+
+- **Main/PR:** `origin/main=1f2842f4`（#7225）をmerge済み。PR #7106のremote HEAD `7eff4c01` / base `1f2842f4`はOPENで、19:25Z時点のrequired checksは全表示PASS。CodeRabbitはmanual review必須のためskip、reviewDecisionは空。fresh read-only review（このrange）でCritical 0、Important 2が見つかった。両件の修正はlocalでRED→GREEN済みだが、まだpushしていないので、新headでCIとfresh reviewをやり直す。
+- **Review finding 1 — cross-occurrence receipt:** occurrence Aで作ったpending B7 reportをBが送信すると、A.jsonに`deliveryOccurrenceId=B`を保存するのに、historical reconcilerはB.jsonを要求していた。現在のsource fixはdelivery occurrenceに一致するarchiveを一意検索し、Bの`deliveryReleaseSha`も保存・検証する。曖昧/欠損時はfail-closed。
+- **Review finding 2 — partial Telegram chunks:** 先行chunkが送信された後のTelegramErrorを未送信扱いし、outboxが再送可能に戻る問題（既存shared transport defect）。shared `telegram.py`はpartial sendを`TelegramDeliveryUnknown`として返し、outboxが`delivery_uncertain` fenceを保持する。再送はしない。
+- **Focused verification:** CFO Node 60/60、CFO/Telegram Python 50/50、loop-adapter Node 15/15、`lm-loop-contract` PASS（18 catalog loops / 188 jobs / 113 mapped / 0 errors）、`git diff --check` PASS。
+- **Full runtime suite:** 819 testsを実行し1 error + 1 failure。両方ともENOSPCで、clean-user release archive extractionとlocked dependency bundleの一時展開が失敗した。これはassertion failureではない。19:46:57Zの`df -k /`は238,064 KiB available。保護対象の削除や数値producer floorの追加は行っていない。full local suiteは未完了で、remote exact-head CIも修正前のHEAD結果に過ぎない。
+- **CFO report:** `life-manager-cfo-hourly`はloaded-idle、SHA `8d986ff49817ca7bab939efe8ff5cfe2fb6c0044`。最新terminal `18dca4d2e811ae18-37503`（19:33:04Z）はexit 75 / `host_admission_deferred:resource_capacity_busy`、provider receiptなし。最後に成功したreportは16:25Zでruntime receiptなし。現在の売上・費用合計および10月P&Lは未確認。
+- **Queue/capacity:** 19:45:50Zの最後の成功readbackではglobal finite capacity 8/8、deterministic class 3/3、agent class 5/8。active claimsは`crowdworks-revenue-application`と`marketing-owner-events`; reservationsは`crowdworks-revenue-reply`、`hf-gig-paid-direct`、`lancers-revenue-negotiate`、`marketing-metrics-daily`、`lancers-revenue-work-sync`、`x402-settlement-recorder`。CFO row `18dc9c4ccb645ab0-72084`はdeterministic/borrow, revenue priority, sequence 578998, `effect_unknown=0`。19:46:57Zのread-only DB queryは`database is locked`となり、owner/positionのより新しい値は未確認。capを上げず、claimを止めず、row削除・再送をしない。
+- **Release/doctor:** immutable pointerは`20261009T041542-8d986ff4`。CFOはpointer上のSHAだがrelease reconcilerは旧`e1b061f1`のまま。reconcilerの直近readbackは19:36Zにpassだが、`lm-loop doctor --json`は`ok=false`でself-handoff labelのみunmanaged。ENOSPCは19:09Zに実発生し、後続runはpassした一方、local full suiteで再発した。数値disk admission floorは追加しない。
+- **A5/A6:** A5 source PR #6827はmerged、production migration/RPC/permissions/panel readbackは未完。9月Google invoice ¥27,889はbilledのみで、cash settlement/loop配賦の証拠ではない。10月費用や現在P&Lとして表示しない。
+
+**Blockerと解消方法:** PR #7106のsource fixesはRED→GREENだが未commit/push。push後、new exact-head CIとfresh reviewを通す。full local suiteはhost ENOSPCで止まったため、CIで同じ範囲を確認しつつ、owner-safeな再生成可能データで容量を回復できる箇所が確認できた場合だけcleanupしてlocal suiteを再実行する。CFOのruntime blockerはdeterministic class 3/3のcapacity busy、queue DBは間欠lock、release reconcilerは旧SHA。merge後にimmutable releaseを通常owner経路で流し、self-handoff/loaded SHAをreadbackし、finite cap内で既存claimを自然terminalへ進める。
+
+**Remaining atomic TODO (current order):**
+
+1. [x] latest main `1f2842f4`をbranchへ同期。
+2. [x] 2件のImportant review findingをfocused testsでRED→GREEN修正。
+3. [ ] source + current CFO statusをcommit/push。
+4. [ ] new exact PR headのrequired CIをPASSし、full diffのfresh read-only reviewでCritical/Important 0を確認。Local full runtime suiteもowner-safe storage recovery後に再実行し、ENOSPC以外のfailがないことを確認。
+5. [ ] same-head acceptance後にPR #7106をmerge。
+6. [ ] mainからimmutable releaseをcutし、normal owner routeでreconciler self-handoffを解消。reconciler/CFOのloaded SHAとdoctorをreadback。ownerをstop/restartしない。
+7. [ ] DB lock解消後にCFO queue/reservationsを再readし、active claimsをnatural terminalへ。finite capsを維持し、削除・再送しない。
+8. [ ] CFOをowner-idle/queue-safe時にaccepted releaseへ適用し、natural reportのdelivery/provider/runtime/B7 receipts、期間・通貨、source reconciliation、replay-zeroをreadback。
+9. [ ] A5 production migration/RPC/permissions/panel readback（source PR #6827 merged）。
+10. [ ] A6 Google billed-vs-cashを照合し、証拠のあるoperation/loopだけへ配賦。
+11. [ ] A8で18 loops / 188 runtime jobs（113 mapped）のsettled revenue・refund・fee・cost coverageとoverheadをclose。
+12. [ ] A9でJST日次（実日付filter）/MTD/trailing/MRRをloop別・全社でreconcile。
+13. [ ] A10でcoverage・freshness・receipts・期間/通貨・replay-zeroを満たす自然reportを7日連続でreadback。
+
+**Current cursor:** commit/push 2 fixes + canonical status → exact-head CI + fresh review → resolve local ENOSPC without protected-path deletion → merge #7106 → immutable release/reconciler self-handoff → CFO queue natural drain → CFO receipt → A5 → A6 → A8 → A9 → A10.
+
+### 2026-10-09 05:05 JST — CFO exact-head review and superseding cursor
+
+このsnapshotは04:47のCFO status/TODOを置き換える。事業CFOの目的と後続順`A5 → A6 → A8 → A9 → A10`は維持する。個人Money Tree/A7とCloud cost optimizationは対象外。
+
+- **Latest main / branch:** 最新main `0421f72ac1f4949b26f3dc1dfca9de1b35070742`はlocal branchへ通常mergeし、main-sync + CFO status commit `335e870cff0282789538dbd5e7172085af7eddba`としてpush済み。PR #7106のremote head/baseは`335e870c` / `0421f72a`。
+- **Exact-head acceptance:** PR head `335e870c`のreadbackではTravel contracts、OSS boundary、Agent instruction、shellはPASS。Security ScanのLoop control、startup drift、gitleaks、TruffleHog、PII、Python checksは20:04Z時点で実行中。CodeRabbitはmanual review必須のためskip。旧headの結果はこのheadの受入証拠にしない。
+- **Fresh read-only review / fixes / new finding:** head `335e870c`でCritical 0、Important 1。前回の2境界（成功応答bodyの非JSONと欠損message ID）はRED→GREEN済み。新しい指摘は、`urllib.error.HTTPError`のbodyが非JSON/invalid時に`TelegramError`となり、`started=false`→再送可能へ戻る経路。正しい`ok:false` JSONは明示拒否としてpre-send扱いを維持し、それ以外の曖昧HTTP error responseはdelivery-uncertainでfenceする。これは未修正で、回帰testが必要。
+- **Manifest:** `skills/_shared`のtracked inventoryは189 files、最終treeからdigest `9c60cfc2529405e5e4c47a4fe22e9e8ad550ad730b2671fb1955115b56d83486`へ更新済み。`node scripts/verify-oss-self-contained.mjs`はPASS。
+- **Local focused verification:** CFO/Telegram/effect outbox Python 53/53、CFO Node 60/60、loop-adapter Node 15/15、OSS self-contained boundary PASS、`./bin/lm-loop-contract` PASS（18 loops / 188 jobs / 113 mapped / 0 errors）、`git diff --check` PASS。
+- **CFO runtime readback (2026-10-08T19:54Z):** `life-manager-cfo-hourly`は`loaded-idle`、loaded SHA `8d986ff49817ca7bab939efe8ff5cfe2fb6c0044`。最新terminal `18dca4d2e811ae18-37503`（19:33:04Z）はexit 75 / `host_admission_deferred:resource_capacity_busy`、provider receipt/readbackなし。last successは16:25Zでruntime receiptなし。現在の月次・loop別売上/費用はunknown。`lm-loop doctor --json`は`ok=false`で`ai.anicca.life-manager-release-reconciler-self-handoff`のみunmanaged。
+- **Queue / capacity:** 最後に成功したreadbackは19:45:50Zでglobal 8/8、deterministic 3/3。19:46:57ZのDB readは`database is locked`。この後のqueue owner/positionは未確認なので、古いsnapshotを現在値として扱わない。finite capを増やさず、ownerを停止せず、claim削除・effect_unknown再送をしない。
+- **Local suite / finances:** local full runtime suiteは819 tests中2件が一時archive/dependency extractionのENOSPCで失敗し、19:46:57Zのfree spaceは238,064 KiB。これはtest assertion failureではない。保護対象cache/worktreeを消していない。9月Google請求¥27,889はbilledでありpaid/cash-settledやloop allocationの証拠ではない。A5 source PR #6827はmergedだがproduction migration/RPC/permissions/panel readbackは未完。
+
+**順序変更:** 旧cursor=`latest-main sync/status push → exact-head CI/review → merge`。新cursor=`(1) 完了: latest main 0421f72aまで同期し、statusを335e870cとしてpush → (2) 完了: 2つのreceipt欠陥をRED→GREENで修正、manifest再計算、focused acceptance → (3) current exact-head reviewで見つかったHTTPError-body ambiguityを失敗testで再現 → (4) 最小 no-replay修正とmanifest再計算 → (5) focused acceptance → (6) push new head → (7) exact-head CI + fresh review → (8) #7106 merge`。理由は、全体reviewでPOST後のHTTPError decode失敗も再送経路になると分かったため、merge前に同じ共有receipt境界で閉じる。
+
+**Remaining atomic TODO (この順):**
+
+1. [x] `origin/main=0421f72a`までをCFO branchへ通常merge（local HEAD `d7a4d6e9`）。
+2. [x] `test_effect_notification.py`にfirst-chunk non-JSON responseの統合回帰testを追加し、修正前にpending/replay可能へ戻るREDを確認。
+3. [x] missing/invalid `message_id`回帰testを追加し、修正前に`"None"`がprovider receiptとして通るREDを確認。
+4. [x] `skills/_shared/telegram.py`と`skills/_shared/marketplace-core/scripts/telegram_delivery.py`を最小修正。post-send malformed response/missing receiptはdelivery-uncertain fence、invalid message IDはreject、明確なAPI rejectionは従来どおりpre-send扱い。
+5. [x] 両回帰testとCFO receipt/reconciliation関連focused suitesをPASS。local full suiteは以前819 tests中2件がENOSPCで失敗し未再実行。protected path/cache削除はせず、同suiteを必須gateとせずrequired CIのcoverageで判定する。
+6. [x] `docs/manifests/oss-merge-1-sources.json`の`skills/_shared` count=189 / digestをfinal tracked inventoryに同期。OSS verifier、`git diff --check`、`./bin/lm-loop-contract`はPASS。
+7. [x] source/test/manifest fixesをcommit `fba39bd809`としてpushし、remote readbackを確認。
+8. [x] latest main mergeとCFO statusをcommit `335e870cff`としてpushし、base/head readback `0421f72a` / `335e870c`を確認。
+9. [ ] HTTPError response bodyが非JSON/invalidのfirst-chunk regressionを追加し、修正前にdeliveryがpending/pre-sendへ戻るREDを確認する。valid explicit `ok:false` rejectionとの区別も保持する。
+10. [ ] `_request`でambiguous HTTPError responseを`TelegramDeliveryUnknown`へ分類し、明示された`ok:false`のみ確認済みrejectionとして扱う。再送fenceを維持する。
+11. [ ] 新testとCFO/shared Telegram focused testsをPASS。変更後の`skills/_shared` inventory count/digestを再計算してmanifestを同期し、OSS verifier、loop contract、diff checkをPASS。
+12. [ ] source/test/manifest/specをpushし、PR exact head/baseをreadback。
+13. [ ] 新しいexact PR headで全required CIをPASSし、fresh read-only reviewがCritical/Important 0と判定するまで修正。旧headの結果は使わない。
+14. [ ] acceptance後にPR #7106をmergeし、main由来immutable releaseをnormal owner routeでreconcile。release reconciler self-handoff、CFO loaded SHA、doctorをreadbackする。稼働ownerをstop/restartしない。
+15. [ ] queue/DBがreadableになった時点で最新claims/reservationsを再readし、finite cap内で既存claimをnatural terminalへ進める。owner positionを確認せず再送・削除しない。
+16. [ ] CFOをowner-idle/queue-safe時にaccepted releaseへ適用し、次のnatural reportでdelivery/runtime/provider/B7 receipts、period/currency/source coverage、replay-zeroを確認する。current totalsはその証拠が揃うまでunknown。
+17. [ ] A5 production migration/RPC/permissions/panel readback。
+18. [ ] A6 Google billed-vs-cash照合と、receipt-backed operation/loop attribution。
+19. [ ] A8の18 business loops / 188 runtime jobs（113 catalog mapped）についてsettled revenue/refund/fee/measured costとshared/control/platform overheadをcoverage completeにする。
+20. [ ] A9でJST日次/MTD/trailing/MRRをloop別・全社でreconcileする。
+21. [ ] A10でcoverage/freshness/receipt/period/currency/replay-zeroを満たす自然reportを7日連続でreadbackする。
+
+**Blockerと解消方法:** 新しいImportant findingはHTTPError非JSON/不正bodyをpre-send失敗扱いする経路。失敗testを先に追加し、明示`ok:false`以外の曖昧responseをuncertain fenceにして修正する。その後manifestと新exact-head CI/reviewを取り直す。CFO runtimeはdeterministic-capacity deferとrelease-reconciler self-handoffが未解決、queue DBの最後のreadはlockだった。ownerを停止したりcapを上げたりせず、通常reconciler経路・fresh queue read・既存claimのnatural terminalを確認してからCFOを適用する。current revenue/expense totalsはfresh natural report/provider receiptがないためunknown。
+
+**Current cursor:** HTTPError non-JSON RED test → uncertain/no-replay implementation → refresh shared manifest + focused acceptance → push source/spec → exact-head CI + fresh review → merge #7106 → reconciler/doctor + fresh queue/natural terminal → CFO natural receipt/report → A5 → A6 → A8 → A9 → A10.
+
+### 2026-10-09 05:07 JST — HTTP error receipt fence and fresh main cursor
+
+このsnapshotは05:05のCFO status/TODOを置き換える。事業CFO順序`A5 → A6 → A8 → A9 → A10`を維持し、A7/Money TreeとCloud cost workは対象外。
+
+- **PR/review:** remote PR #7106 head `335e870cff0282789538dbd5e7172085af7eddba` / base `0421f72ac1f4949b26f3dc1dfca9de1b35070742`。fresh read-only reviewはCritical 0、Important 1で、HTTPError本文をdecodeできない時のpre-send誤分類を指摘。20:04Zのhead-335 check readbackではTravel/OSS/Agent instruction/Shell PASS、Loop control/Startup/Gitleaks/TruffleHog/PII/Pythonは実行中。CodeRabbitはmanual review必須でskip。
+- **HTTPError fix:** 502 + non-JSON bodyでoutboxが`pending`/`pre_send_failed`へ戻るtestを修正前REDで確認。`skills/_shared/telegram.py`はPOST後のmalformed/ambiguous HTTP errorを`TelegramDeliveryUnknown`としてfenceし、valid Telegram `ok:false` rejectionだけを確認済みpre-send failureに維持。RED→GREENの回帰testで不確実送信は1回のみ、replayは0回、明示rejectionは従来のpre-send経路を確認。
+- **Local verification:** CFO/shared receipt Python 55/55、CFO Node 60/60、loop adapter Node 15/15、`node scripts/verify-oss-self-contained.mjs` PASS、`./bin/lm-loop-contract` PASS（18 loops /188 jobs /113 mapped /0 errors）、`git diff --check` PASS。final tracked `skills/_shared` inventoryは189 files、digest `ecf5be017e1f3346061dbd26a15e663b7884bfd90b904ac20576cde246c5107e`。
+- **Main sync:** 作業中にmainが`d785c5391a02df0b0d0adcf8934ee7319345fdc7`（PR #7210）へ進んだ。差分はunified SSOT 1 fileのみ。fetch済みだが、現時点ではCFO branchに未merge。source workをcommit後に通常mergeし、他ownerのmobile evidenceを保持してからPR headを作る。
+- **Runtime/financial truth:** CFO直近readbackは19:33:04Zの`resource_capacity_busy`（exit 75、provider receiptなし）、loaded SHA `8d986ff4...`。doctorはrelease-reconciler self-handoff labelのみunmanaged。queueは19:45Zのcapacity readback後、19:46ZにDB lock。売上・費用の月次/loop別totalsはnatural receiptなしでunknown。local full suiteの以前の2 ENOSPC failuresも未解消・未再実行。
+
+**順序変更:** 旧cursor=`head 335 CI/review → merge`。新cursor=`(1) 完了: HTTPError malformed/ambiguous boundaryをRED→GREENで修正 → (2) 完了: shared inventoryを再計算しfocused acceptance → (3) source/specをcommit → (4) latest main d785c539をmergeしSSOT更新 → (5) push → (6) new exact-head CI + fresh review → (7) #7106 merge`。理由は、新しいImportant findingが外部メッセージの重複送信を許すため、既存PRをmergeする前にno-replay fenceを閉じる必要がある。
+
+**Remaining atomic TODO (この順):**
+
+1. [x] HTTPError非JSON回帰testを修正前REDで確認。
+2. [x] ambiguous HTTPErrorをdelivery-uncertain/no-replayにし、明示`ok:false`をpre-sendに保つ最小修正。
+3. [x] 4つのPython suites 55/55、CFO Node 60/60、adapter Node 15/15、OSS verifier、loop contract、diff checkをPASS。shared manifest digestを更新。
+4. [ ] source/test/manifest/current CFO statusを専用branchへcommit。
+5. [ ] latest `origin/main=d785c539`を通常mergeし、SSOT記録を保ったまま再diff/test。
+6. [ ] latest-main merge + final statusをcommit/pushし、PR base/headをreadback。
+7. [ ] 新exact headのrequired CIをPASSし、fresh read-only reviewでCritical/Important 0を確認。旧head結果を流用しない。
+8. [ ] PR #7106をmerge後、main由来immutable releaseをnormal owner routeでreconcile。reconciler self-handoff、CFO loaded SHA、doctorをreadback。稼働ownerをstop/restartしない。
+9. [ ] fresh queue/DB read後、finite capacity内で既存claimをnatural terminalへ。cap増加、claim削除、effect_unknown再送はしない。
+10. [ ] accepted releaseをowner-idle/queue-safe時にCFOへ適用し、次のnatural reportのdelivery/runtime/provider/B7 receipts、period/currency/source coverage、replay-zeroを確認する。証拠前のtotalsはunknown。
+11. [ ] A5 production migration/RPC/permissions/panel readback。
+12. [ ] A6 Google billed-vs-cash照合とreceipt-backed operation/loop attribution。
+13. [ ] A8で18 business loops /188 runtime jobs（113 catalog mapped）すべてのsettled revenue/refund/fee/measured costとshared/control/platform overheadをcoverage completeにする。
+14. [ ] A9でJST日次/MTD/trailing/MRRをloop別・全社でreconcile。
+15. [ ] A10で7日連続の自然reportについてcoverage/freshness/receipt/period/currency/replay-zeroをreadback。
+
+**Blockerと解消方法:** source上のHTTPError receipt blockerはローカル修正・focused tests完了、未push。最新main `d785c539`も未merge。source/specをcommitし、latest mainを同期してから1つの最終headとしてpushし、その正確なheadでCIとfresh reviewを通す。production側はcapacity defer、unmanaged release self-handoff、queue DB lockが残る。ownerを止めたりcapを拡げず、reconciler owner routeとfresh queue/natural terminalで解く。実際の売上・費用はreceipt-backed CFO reportがなくunknown。
+
+**Current cursor:** commit local source/spec → merge latest main d785c539 → final status + push → exact-head CI/fresh review → merge PR → reconciler/doctor/queue natural readback → CFO natural receipt/report → A5 → A6 → A8 → A9 → A10.
+
+### 2026-10-09 05:08 JST — latest-main merge and push cursor
+
+このsnapshotは05:07のCFO statusを置き換える。CFO順序`A5 → A6 → A8 → A9 → A10`を維持し、A7/Money TreeとCloud cost workは対象外。
+
+- **Main/source:** latest `origin/main=d785c5391a02df0b0d0adcf8934ee7319345fdc7`を通常mergeし、local HEADは`f11b1f75e9c36ce7337b83dd7a87d680957672ac`。main差分の57行のSSOT/mobile evidenceを保持。CFO source/test/manifest/status commitは`d51ae70454`で作成済み、main merge済みだが未push。
+- **PR:** remote #7106はまだhead `335e870cff0282789538dbd5e7172085af7eddba` / base `0421f72ac1f4949b26f3dc1dfca9de1b35070742`。HTTPError fixとd785 main syncはremoteに未反映。335 headのレビューはImportant 1、対象fixをlocalでRED→GREEN済み。20:04Zのsecurity checksは一部実行中だったため、新headで再取得する。
+- **Local acceptance:** final source before documentation-only main merge: CFO/shared receipt Python 55/55、CFO Node 60/60、loop adapter 15/15、OSS verifier PASS（189 tracked shared files; digest `ecf5be017e1f3346061dbd26a15e663b7884bfd90b904ac20576cde246c5107e`）、loop contract 18/188/113・errors 0、diff check PASS。HTTPError malformed responseはuncertain fence、explicit `ok:false` rejectionはpre-send。
+- **Live CFO truth:** 直近production readbackは19:54Zのloaded-idle SHA `8d986ff4...`、terminal `18dca4d2e811ae18-37503` exit 75 `resource_capacity_busy`、provider receiptなし。doctorはrelease-reconciler self-handoff labelをunmanaged。queueは19:45Z snapshot以降のowner position不明（DB lock）。月次/loop別revenue・expenseは依然unknown。local full runtime suiteは819 tests中2件のENOSPC failure記録があり未再実行。
+
+**順序変更:** 旧cursor=`source commit → merge d785 → push`。新cursor=`(1) 完了: HTTPError receipt fence + regression tests + manifest + focused acceptance → (2) 完了: source/specをd51ae70454でcommit → (3) 完了: latest main d785c539をmerge → (4) current statusをmain-sync後にrefresh/push → (5) exact-head CI + fresh review → (6) PR merge`。理由は、source fix・最新SSOT merge・statusをremoteにまとめて載せ、古いbase/headのchecksを使わないため。
+
+**Remaining atomic TODO (この順):**
+
+1. [x] HTTPError non-JSON/ambiguous responseを`delivery_uncertain`にし、valid `ok:false`をpre-sendとして残す回帰testと最小修正。
+2. [x] CFO/shared receipt Python 55/55、CFO Node 60/60、adapter 15/15、OSS verifier、loop contract、diff checkをPASS。
+3. [x] source/test/manifest/CFO statusをcommit `d51ae70454`。
+4. [x] latest main `d785c539`をmergeし、mobile SSOT evidence 57行を保持。
+5. [ ] current status/head/baseを最終specへ記録し、latest-main-synced branchをpushしてremote PR readback。
+6. [ ] resulting exact PR headでrequired CIをすべてPASSし、fresh full-diff reviewでCritical/Important 0を確認。
+7. [ ] PR #7106をmerge。
+8. [ ] main由来immutable releaseをnormal owner routeでreconcileし、reconciler self-handoff、CFO loaded SHA、doctorをreadback。稼働ownerを停止/再起動しない。
+9. [ ] fresh queue/DB read後、finite cap内で既存claimをnatural terminalへ進める。cap増加・claim削除・effect_unknown再送をしない。
+10. [ ] owner-idle/queue-safe時にaccepted releaseをCFOへ適用し、natural reportのdelivery/runtime/provider/B7 receipt、period/currency/source coverage、replay-zeroを確認。証拠前はtotals unknown。
+11. [ ] A5 production migration/RPC/permissions/panel readback。
+12. [ ] A6 Google billed-vs-cashとreceipt-backed operation/loop attribution。
+13. [ ] A8で18 loops /188 jobs（113 mapped）のrevenue/refund/fee/measured costとshared/control/platform overheadをcoverage complete。
+14. [ ] A9の日次/MTD/trailing/MRRをloop別・全社でreconcile。
+15. [ ] A10で7日連続自然reportのcoverage/freshness/receipt/period/currency/replay-zeroを確認。
+
+**Blockerと解消方法:** 修正はlocalで完了、latest mainもmerge済みだが未push。current statusを最終specへ反映してpushし、結果のexact PR headだけでCI/reviewを取り直す。productionのcapacity defer、unmanaged reconciler self-handoff、queue DB lockは残るため、通常owner/reconciler経路とfresh queue/natural terminalで解く。売上・費用の実額はreceipt-backed natural CFO reportがなく未確認。
+
+**Current cursor:** final current-status spec update → push branch → exact-head CI/fresh review → merge #7106 → release/reconciler + queue natural readback → CFO natural report → A5 → A6 → A8 → A9 → A10.
+
+### 2026-10-09 05:11 JST — final review found HTTP 5xx false-rejection ambiguity
+
+このsnapshotは05:08のCFO status/TODOを置き換える。事業CFOの後続順`A5 → A6 → A8 → A9 → A10`を維持し、個人Money Tree/A7とCloud cost workは対象外。
+
+- **PR exact head:** #7106 remote head `f7f1bcc4fb6d2f0becffa4302467837fcda3b3a7` / base `d785c5391a02df0b0d0adcf8934ee7319345fdc7`。main sync and source fixes are pushed.
+- **Fresh review:** Critical 0、Important 1。`skills/_shared/telegram.py`で`sendMessage` HTTP 5xxにbody `{"ok": false}`が含まれてもpre-sendの`TelegramError`になり、outboxが再送可能へ戻る。5xxはGatewayがprovider処理後に返る可能性を排除できないため、bodyが`ok:false`でも`TelegramDeliveryUnknown`でfenceする。4xxの明示`ok:false`のみpre-send扱いを維持する。該当の502 + `ok:false` regressionは未追加。
+- **Exact-head CI:** 20:10Z readbackでTravel, OSS boundary, Agent instruction, shell, startup context PASS。Loop control, gitleaks, TruffleHog, PII, Pythonは実行中。CodeRabbitはOSS manual review必須でskip。
+- **CFO runtime:** latest terminal `18dca6235b756448-13826` at 19:57:03Z is exit 75 `resource_capacity_busy`, provider receipt/readback null, loaded SHA `8d986ff4...`. Doctor remains `ok=false` only for unmanaged release-reconciler self-handoff. Current period/loop revenue and expense remain unknown; the last queue DB read was locked.
+- **Prior local acceptance:** HTTP non-JSON success/error paths, missing message ID, explicit 4xx rejection, CFO/shared Python 55/55, CFO Node 60/60, adapter Node 15/15, OSS verifier and loop contract pass. These tests precede the new 5xx+`ok:false` regression.
+
+**順序変更:** 旧cursor=`f7f1bcc4 exact-head CI/review → merge`。新cursor=`(1) 5xx + ok:false回帰testをREDで確認 → (2) 5xxはbodyを問わずuncertain/no-replay、4xx明示拒否はpre-sendを維持 → (3) focused suitesとshared manifestを再同期 → (4) push new exact head → (5) exact-head CI + fresh review → (6) #7106 merge`。理由は、HTTP 5xx false-responseを再送可能にする経路がfresh reviewで見つかり、同じ通知重複リスクがsource上に残るため。
+
+**Remaining atomic TODO (この順):**
+
+1. [ ] `test_effect_notification.py`へHTTP 502 + `{"ok":false}`回帰を追加し、修正前のpending/pre-send誤分類をREDで確認。
+2. [ ] `_request`でHTTP 5xxのsendMessageはpayload `ok:false`でも`TelegramDeliveryUnknown`にし、valid 4xx `ok:false`だけpre-sendにする。
+3. [ ] CFO/shared Python、CFO Node、adapter Node focused testsを再実行。`skills/_shared` inventory digestを再計算し、OSS boundary、loop contract、diff checkをPASS。
+4. [ ] source/test/manifest/specをcommit/pushし、PR exact head/baseをreadback。
+5. [ ] exact-head required CIをすべてPASSし、fresh read-only reviewがCritical/Important 0と判定するまで修正を続ける。HEAD変化後の古いCI/reviewは使わない。
+6. [ ] PR #7106をmerge。
+7. [ ] main由来immutable releaseをnormal owner routeでreconcileし、release-reconciler self-handoff、CFO loaded SHA、doctorをreadback。稼働ownerをstop/restartしない。
+8. [ ] fresh queue/DB read後、finite cap内でexisting claimsをnatural terminalへ進める。cap増加・claim削除・effect_unknown再送はしない。
+9. [ ] accepted releaseをCFOへ適用し、natural report delivery/runtime/provider/B7 receipt、period/currency/source coverage、replay-zeroを確認。receiptが揃うまで財務totalsはunknown。
+10. [ ] A5 production migration/RPC/permissions/panel readback。
+11. [ ] A6 Google billed-vs-cashとreceipt-backed operation/loop attribution。
+12. [ ] A8で18 business loops /188 runtime jobs（113 mapped）のsettled revenue/refund/fee/measured costとshared/control/platform overheadをcomplete。
+13. [ ] A9の日次/MTD/trailing/MRRをloop別・全社でreconcile。
+14. [ ] A10で7日連続自然reportのcoverage/freshness/receipt/period/currency/replay-zeroをreadback。
+
+**Blockerと解消方法:** source上にHTTP 5xx + `ok:false`が再送可能へ戻るImportant findingが残る。test-firstで5xxをuncertain fence、4xx明示拒否をpre-sendに分けてから、manifestとexact-head acceptanceを更新する。production capacity defer / unmanaged reconciler / queue DB lockは別のowner-side blockerであり、source mergeだけで解消したと扱わない。
+
+**Current cursor:** 502 + `ok:false` RED regression → minimal no-replay fix → focused tests/manifest → push → exact-head CI/fresh review → merge #7106 → production natural readbacks → A5 → A6 → A8 → A9 → A10.
+
+### 2026-10-09 05:12 JST — HTTP 5xx false-rejection boundary fixed locally
+
+このsnapshotは05:11のCFO status/TODOを置き換える。Money Tree/A7とCloud cost workは対象外、事業CFOの後続順は`A5 → A6 → A8 → A9 → A10`。
+
+- **Review finding fix:** fresh reviewのImportant finding `HTTP 5xx + body ok:false`を統合testでRED確認し、`skills/_shared/telegram.py`でHTTP 5xxをstatus-based uncertain fenceに変更。valid 4xx `ok:false` rejectionはpre-sendのまま。testはGREENで1回だけ送信呼出し、replay 0。
+- **Local acceptance:** CFO/shared receipt Python 56/56、CFO Node 60/60、adapter Node 15/15、OSS verifier PASS、`./bin/lm-loop-contract` 18/188/113・0 errors、`git diff --check` PASS。最終tracked `skills/_shared` inventory 189 files、digest `261c7a3aefbf0f18ce019d403123343359f738a46b7923c92456e449a4f249f9`。
+- **Remote status:** PR #7106 remote head `f7f1bcc4...` / base `d785c539...`はHTTP 5xx修正前。20:10Z時点のCIでTravel/OSS/Agent instruction/Shell/Startup PASS、Loop control/Gitleaks/TruffleHog/PII/Pythonが実行中。fresh reviewはこのheadにImportant 1を報告したため、head f7f1のCI/reviewを修正済みcodeの受入証拠にしない。
+- **Production CFO:** latest run `18dca6235b756448-13826` at 19:57:03Z remains exit 75 `resource_capacity_busy`; no provider receipt. Loaded SHA `8d986ff4...`, doctor still has only release-reconciler self-handoff unmanaged. Current revenue/expense totals remain unknown.
+
+**順序変更:** 旧cursor=`f7f1 exact-head checks/review → merge`。新cursor=`(1) 完了: HTTP 5xx + ok:falseをuncertain/no-replayに修正 → (2) 完了: 56 Python/60 CFO Node/15 adapter Node + OSS/contract/diff pass、manifest再計算 → (3) source/test/manifest/specをcommit/push → (4) resulting exact-head CI + fresh review → (5) #7106 merge → production natural CFO readback`。理由はHTTP 5xxがprovider処理後のGateway応答の可能性を残すため、明示rejection以外をretryableにしない。
+
+**Remaining atomic TODO (この順):**
+
+1. [x] HTTP 5xx + `ok:false` failure testを修正前REDで確認し、uncertain/no-replay実装後GREEN。
+2. [x] CFO/shared Python 56/56、CFO Node 60/60、adapter Node 15/15をPASS。
+3. [x] shared manifest digestを再計算し、OSS verifier / loop contract / diff checkをPASS。
+4. [ ] source/test/manifest/current CFO statusをcommit/pushし、PR head/baseをreadback。
+5. [ ] resulting exact headのrequired CIをPASSし、fresh reviewでCritical/Important 0。
+6. [ ] PR #7106をmerge。
+7. [ ] immutable release/reconciler self-handoff/CFO loaded SHA/doctorをnormal owner routeでreadback。稼働ownerを停止/再起動しない。
+8. [ ] fresh queue/DB readと既存claim natural terminal。finite cap維持、claim削除・effect_unknown再送なし。
+9. [ ] CFO natural reportでdelivery/runtime/provider/B7 receipt、period/currency/source coverage、replay-zeroを照合。確認できるまで財務totals unknown。
+10. [ ] A5 production migration/RPC/permissions/panel readback。
+11. [ ] A6 Google billed-vs-cash + receipt-backed operation/loop attribution。
+12. [ ] A8: 18 loops /188 jobs（113 mapped）のsettled revenue/refund/fee/measured cost + shared/control/platform overhead coverage。
+13. [ ] A9: loop別・全社の日次/MTD/trailing/MRR reconcile。
+14. [ ] A10: 7日連続自然reportのcoverage/freshness/receipt/period/currency/replay-zero。
+
+**Blockerと解消方法:** source defectはlocally fixed and tested、ただし修正はremote PRへ未push。manifest・statusを同じbranchへcommit/pushし、head f7f1ではなく新しいexact headでCIとfresh reviewを取り直す。productionはcapacity defer、unmanaged reconciler、DB lockが残るため自然owner/reconciler経路で解く。actual revenue/expense totalsはreceipt-backed reportがなくunknown。
+
+**Current cursor:** commit/push latest source + status → exact-head CI/fresh review → merge #7106 → reconciler/queue natural readbacks → CFO receipt-backed report → A5 → A6 → A8 → A9 → A10.
+
+### 2026-10-09 05:13 JST — latest-main sync after receipt fix
+
+このsnapshotは05:12のCFO status/TODOを置き換える。Money Tree/A7とCloud cost optimizationは今回のCFO lane外、事業CFOの順序は`A5 → A6 → A8 → A9 → A10`。
+
+- **Main/source:** latest `origin/main=d0d30b906c68f31f14394ddcf393d7e47a42212a`（#7233）をmergeし、local HEAD `d3ab72e3c1af63a1502086450387877cbe037b4e`。mainからLINE Stickerの4 filesだけを取り込み、変更を保持した。CFO source/test/manifest fixはcommit `2d3909bd60`。
+- **PR:** remote #7106はまだhead `f7f1bcc4fb6d2f0becffa4302467837fcda3b3a7` / base `d785c5391a02df0b0d0adcf8934ee7319345fdc7`。新しいHTTP 5xx fixとd0d30b9 syncは未push。f7f1のfresh review Important findingはlocalで修正したが、新head reviewは未取得。
+- **Local verification:** latest CFO/shared Python 56/56、CFO Node 60/60、adapter Node 15/15、OSS verifier PASS、loop contract 18/188/113・0 errors、`git diff --check` PASS。shared inventory 189 files, SHA-256 `261c7a3aefbf0f18ce019d403123343359f738a46b7923c92456e449a4f249f9`。
+- **Live CFO:** latest terminal `18dca6235b756448-13826` at 19:57:03Z is exit 75 `resource_capacity_busy`; provider receipt/readback missing; loaded SHA `8d986ff4...`. Doctor remains `ok=false` for release-reconciler self-handoff only. Current month/loop revenue and expense totals remain unknown; queue owner state is not freshly readable.
+
+**順序変更:** 旧cursor=`5xx false-ack fix → push → exact-head gates`。新cursor=`(1) 完了: HTTP 5xx + ok:falseをuncertain/no-replayへ修正 → (2) 完了: 56/60/15 testsとOSS/loop contract pass → (3) 完了: latest main d0d30b9をmergeしてLINE Sticker差分を保持 → (4) current SSOTをmain sync後の状態に更新/push → (5) exact-head CI + fresh review → (6) merge #7106`。理由は、source acceptanceへ進む間にmainで並行中のLINE Sticker owner修正が入り、最新SSOT/sourceを含むheadで一度に受け入れるため。
+
+**Remaining atomic TODO (この順):**
+
+1. [x] HTTP 5xx + `ok:false`回帰をRED→GREENで修正し、明示4xx rejectionをpre-sendに維持。
+2. [x] Focused suites 56 Python /60 CFO Node /15 adapter Node、OSS verifier、loop contract、diff checkをPASS。
+3. [x] main `d0d30b9`をmergeし、4件のLINE Sticker差分を保持。
+4. [ ] current CFO status/head/baseをspecへ記録し、最新main-synced branchをpush。
+5. [ ] new exact PR headのrequired CIを全PASS、fresh reviewでCritical/Important 0。
+6. [ ] PR #7106をmerge。
+7. [ ] immutable release/reconciler self-handoff/CFO loaded SHA/doctorをnormal owner routeでreadbackし、稼働ownerを停止/再起動しない。
+8. [ ] fresh queue/DB read後に既存claimをnatural terminalへ。finite cap維持、claim deletion/replayなし。
+9. [ ] CFO natural reportでdelivery/runtime/provider/B7 receipts、period/currency/source coverage、replay-zeroをreadback。証拠が揃うまでtotals unknown。
+10. [ ] A5 production migration/RPC/permissions/panel readback。
+11. [ ] A6 Google billed-vs-cash + receipt-backed operation/loop attribution。
+12. [ ] A8で18 loops /188 jobs（113 mapped）のsource-backed revenue/refund/fee/measured costとshared/control/platform overhead coverage。
+13. [ ] A9の日次/MTD/trailing/MRRをloop別・全社でreconcile。
+14. [ ] A10で7日連続自然reportのcoverage/freshness/receipts/period/currency/replay-zeroをreadback。
+
+**Blockerと解消方法:** final HTTP 5xx source fixはlocalで完了、main d0d30b9もmerge済みだが、両方ともremote PR head f7f1に未反映。current status commitを作ってpushし、新exact headだけでCI/reviewを取る。Production blockersは別: repeated `resource_capacity_busy`, unmanaged reconciler self-handoff, queue DB lock。通常owner/reconciler経路とfresh queue readで解く。current verified revenue/expense totalsはない。
+
+**Current cursor:** current status commit → push final main-synced branch → exact-head CI/fresh review → merge PR → production reconciler/queue readbacks → CFO receipt-backed report → A5 → A6 → A8 → A9 → A10.
+
+### 2026-10-09 05:14 JST — read-only review found three Telegram delivery blockers
+
+このsnapshotは05:13のCFO status/TODOを置き換える。事業CFOの後続順`A5 → A6 → A8 → A9 → A10`は維持し、A7/Money TreeとCloud cost workは対象外。
+
+- **Exact review:** remote PR #7106 head `4e3f89def611011485487befe0db3335a0f18a5f` / base `d0d30b906c68f31f14394ddcf393d7e47a42212a`。fresh read-only reviewはCritical 0、Important 3。
+- **Finding A — provider rejection after POST:** HTTP 4xx or explicit `ok:false` occurs after POST but becomes ordinary `TelegramError`→`started=false`→`pre_send_failed`→pending. This lies about whether the provider was called. Chosen contract: represent confirmed no-effect rejection as `provider_rejected` (attempted=1, rejected=1, pre_send_failed=0, delivery_uncertain=0), persist its reason in the existing outbox error field, and return to pending only through this explicit known-no-effect branch so a later wake may retry. Do not add a new SQLite status/schema migration. Only actual setup/pre-POST failures count as `pre_send_failed`.
+- **Finding B — media send methods:** `sendDocument`, `sendPhoto`, and `sendVideo` are POST effects but current ambiguity handling covers only `sendMessage`. Apply the same rules to all send methods: malformed successful bodies and any HTTP 5xx are `TelegramDeliveryUnknown` regardless of body; never accept a 5xx `ok:true` body as a receipt. A valid explicit rejection is `provider_rejected`.
+- **Finding C — packaged fallback copy:** `apps/life-manager/investment-core/telegram.py` diverges from `skills/_shared/telegram.py`; `investment-core/reporter.py` can load that fallback and `investment-core-artifact.test.js` requires byte equality. Bring the packaged file into exact parity with the shared canonical implementation, retaining any valuable package-only behavior in the canonical source if needed.
+- **Scope/acceptance:** add a Telegram response matrix for all outbound methods, provider rejection, malformed/non-JSON success, HTTP 5xx with `ok:true` and `ok:false`, and no-replay behavior. Verify CFO distinguishes provider rejection from pre-send/uncertain and never writes a success receipt for it. Keep current B7 persisted success/duplicate counters unchanged unless a rejected event actually becomes a sent report.
+- **Current remote gate:** head 4e3 has not passed final source review (Important 3). At 20:14Z OSS boundary/Travel/Agent instruction/Shell had passed; Loop control, Python, PII, Startup, secrets checks were in progress. The 4e3 CI/review will be superseded after code changes.
+- **Production CFO:** latest terminal remains `18dca6235b756448-13826` at 19:57:03Z, exit 75 `resource_capacity_busy`, no provider receipt. Loaded SHA is the old `8d986ff4...`; doctor reports only the unmanaged release-reconciler self-handoff. Revenue/expense totals remain unknown.
+
+**順序変更:** 旧cursor=`4e3 exact-head CI/review → merge`。新cursor=`(1) provider-rejection/result classification and media response matrix RED tests → (2) explicit provider_rejected attempt/counter/retry path, unknown fences for all send methods → (3) synchronize packaged investment-core transport with canonical shared source → (4) focused CFO/shared/investment-core tests + manifest/contract → (5) push a new main-synced head → (6) exact-head CI/fresh review → (7) merge #7106`。理由は、POST後の拒否を未送信に数える契約誤り、media POSTの未保護境界、fallback copyの差分が同じreceipt truthを壊し得るため。
+
+**Remaining atomic TODO (この順):**
+
+1. [ ] RED tests: provider 4xx/`ok:false` is `provider_rejected` (not pre-send/uncertain); no same-drain retry, pending only for later eligible wake.
+2. [ ] RED tests: sendMessage/Photo/Video/Document malformed 2xx and 5xx `ok:true`/`ok:false` all fence as unknown; valid 4xx rejection remains explicit no-effect.
+3. [ ] Implement `TelegramProviderRejected` and `provider_rejected` counter; record known rejection in outbox with existing schema, allow retry only through that typed no-effect result.
+4. [ ] Apply ambiguous response rules to every send method and require valid positive message IDs for every receipt.
+5. [ ] Sync packaged `investment-core/telegram.py` byte-for-byte with canonical shared transport; preserve canonical delimiter-safe splitting.
+6. [ ] CFO error classification, shared effect-notification/outbox suites, all investment-core tests and artifact parity pass; recompute `skills/_shared` manifest, OSS verifier, loop contract and diff check.
+7. [ ] Commit current source/spec/manifest, merge latest main if changed, push one main-synced head, read back PR head/base.
+8. [ ] On that exact head, all required CI passes and fresh full-diff review has Critical/Important 0.
+9. [ ] Merge PR #7106.
+10. [ ] Normal owner/reconciler path: release self-handoff, CFO loaded SHA, doctor and fresh queue/claim readback; do not stop/restart live owners or increase finite caps.
+11. [ ] CFO natural receipt-backed report + replay-zero and per-loop settlement/cost proof; keep totals unknown until verified.
+12. [ ] A5 production migration/RPC/permissions/panel; A6 billed-vs-cash and operation/loop attribution; A8 18-loop/188-job coverage; A9 period/MRR reconcile; A10 seven consecutive natural reports.
+
+**Blockerと解消方法:** 3 Important source blockers remain after the 4e3 review: provider rejection misclassification, media-method ambiguity gaps, packaged fallback drift. Resolve them as one shared-transport contract change with test-first cases, preserve outbox schema by using an explicit provider-rejected result/counter, sync the fallback copy, then rerun the focused suites and exact-head acceptance. Production-side `resource_capacity_busy`, release-reconciler self-handoff, and queue DB lock remain separate; normal owner/reconciler readback is required. Current finance totals remain unknown.
+
+**Current cursor:** provider response-matrix RED tests → typed rejection/no-replay and all-send ambiguity fixes → packaged parity → focused tests + manifest → latest-main push → exact-head CI/fresh review → merge → production CFO natural readbacks → A5 → A6 → A8 → A9 → A10.
+
+### 2026-10-09 05:26 JST — all three receipt findings fixed locally; latest main advanced
+
+このsnapshotは05:14のCFO statusを置き換える。後続CFO順序`A5 → A6 → A8 → A9 → A10`を維持する。A7/Money TreeとCloud cost workは対象外。
+
+- **Local fixes:** (1) `TelegramProviderRejected` distinguishes explicit provider-confirmed no-effect from pre-POST setup failure and unknown delivery. `provider_rejected` is a separate attempt counter/reason; existing outbox schema remains unchanged, and it returns to pending only through this typed known-no-effect path for a later wake. (2) all outbound Bot API methods (`sendMessage`, `sendDocument`, `sendPhoto`, `sendVideo`) treat malformed success bodies/HTTP 5xx as uncertain and never accept a 5xx body as receipt. (3) packaged `investment-core/telegram.py` and `telegram_outbox.py` now byte-match the shared sources; CFO raises `cfo_provider_rejected` rather than generic missing-receipt on confirmed rejection.
+- **Verification:** shared Telegram/outbox Python 53/53, CFO Node 61/61, artifact parity Node 2/2, cross-venue investment-core Python 26/26, OSS/loop-contract/diff checks passed before the latest main merge. Full `investment-core` discovery ran 132 tests: one unrelated existing cadence assertion fails because the unchanged test expects `start_interval_seconds=604800` while unchanged `config/loop-registry.json` uses `calendar_interval`; both files are identical to `origin/main` (`git diff --exit-code origin/main -- ...` passes). No fix to that unrelated loop cadence is included.
+- **Review/PR:** the reviewed remote head remains `4e3f89de` / base `d0d30b90`; its CI checks completed PASS, but the fresh review found three Important issues now fixed locally. Those check/review results predate the latest local changes and cannot accept them.
+- **Latest main:** `origin/main=68e7b3caf76a9e8ef75f23bc439a972d686deed8` (#7227) is fetched but not merged. It changes `runtime/loop/lm_loop_run.py` and tests as well as unrelated source/spec paths overlapping this PR. Commit local work first, then merge it without dropping either side, and re-run affected tests.
+- **Production CFO:** last terminal remains `18dca6235b756448-13826` at 19:57:03Z, exit 75 `resource_capacity_busy`, no provider receipt; loaded SHA `8d986ff4...`; doctor still reports only unmanaged release-reconciler self-handoff. Monthly/per-loop revenue and expense are unknown.
+
+**順序変更:** 旧cursor=`fix three review findings → run acceptance → push latest-main branch`。新cursor=`(1) 完了: rejection/media/parity fixes and focused suites → (2) recompute shared manifest after final shared edits → (3) commit source/test/spec → (4) merge latest main 68e7b3ca while preserving both runtime changes → (5) rerun affected focused/loop tests and refresh SSOT → (6) push → (7) exact-head CI + fresh review → (8) PR merge`。理由は、latest main now overlaps `lm_loop_run.py`; it must be integrated before final source acceptance to avoid silently losing either runtime behavior.
+
+**Remaining atomic TODO (この順):**
+
+1. [x] Typed provider rejection/counter and later-only retry; pre-POST failure and uncertain sends remain distinct.
+2. [x] Apply no-receipt-on-5xx/malformed-response rules to all send methods and preserve strict message IDs.
+3. [x] Sync packaged transport/outbox copies; focused artifact parity passes.
+4. [ ] Recompute final `skills/_shared` manifest digest and run OSS verifier after the final test/source edits.
+5. [ ] Commit CFO source/test/spec/manifest changes on the existing branch.
+6. [ ] Merge latest `origin/main=68e7b3ca`; preserve both `lm_loop_run.py` implementations and rerun affected tests, loop contract and diff check.
+7. [ ] Refresh final CFO status in the same branch, push and verify PR head/base.
+8. [ ] Exact-head required CI PASS + fresh full-diff review with Critical/Important 0.
+9. [ ] Merge PR #7106.
+10. [ ] Normal owner route: release-reconciler self-handoff, CFO loaded SHA, doctor, fresh queue/claim readback, and natural terminal; no stop/restart or finite-cap increase.
+11. [ ] Natural CFO report with provider/runtime/B7 receipts, full source/period/currency coverage, per-loop settled revenue/cost and replay-zero; until then totals remain unknown.
+12. [ ] A5 production migration/RPC/permissions/panel readback.
+13. [ ] A6 Google billed-vs-cash and receipt-backed operation/loop attribution.
+14. [ ] A8 coverage for 18 loops /188 runtime jobs (113 mapped), including shared/control/platform overhead.
+15. [ ] A9 daily/MTD/trailing/MRR reconciliation.
+16. [ ] A10 seven consecutive natural reports with complete coverage/freshness/receipts/replay-zero.
+
+**Blockerと解消方法:** source findingsはローカル修正・focused acceptance済みだが、manifest未再計算、source未commit/push、latest main未mergeであり、PRのCI/reviewは旧コードheadのまま。まずmanifestをfinal treeから再生成し、source/testをcommit、main 68e7b3caをconflict-safeにmergeして affected checks を通し、その後に新headをpushする。別系統のproduction blockersはresource capacity defer、unmanaged reconciler self-handoff、queue DB lock。通常owner/reconciler経路とfresh queue readbackで解く。収益/費用の実数はreceipt-backed reportがなくunknown。
+
+**Current cursor:** manifest+OSS → commit local source/spec → merge main 68e7b3ca → reconcile runtime diff/tests → final status and push → exact-head CI/fresh review → merge → production CFO receipt/report → A5 → A6 → A8 → A9 → A10.
+
+### 2026-10-09 05:28 JST — latest-main merge and transport acceptance complete
+
+このsnapshotは05:26のCFO status/TODOを置き換える。A7/Money TreeとCloud cost workは対象外、CFOの順序は`A5 → A6 → A8 → A9 → A10`。
+
+- **Main/source:** latest main `663eca5a32db2a9b9de0942df67fc9f37bfcfc61` is merged locally; local branch HEAD `c4f389c24916a117f0e14c5f7d0f09e8178c15b5` includes the latest loop/host behavior and docs. Shared transport, package fallback, outbox, CFO response classification and tests are locally committed before this merge.
+- **Local acceptance after merge:** shared Telegram/outbox Python 53/53; CFO Node 61/61; artifact parity Node 2/2; cross-venue Python 26/26; merged loop/host tests 61/61; OSS verifier PASS; `./bin/lm-loop-contract` 18 catalog /188 jobs /113 mapped /0 errors; `git diff --check` PASS. Shared inventory remains 189 files, digest `a8ac2783ab33fa50286f4588cf839cc4fc748f18939904dadf1fe5f999768052`.
+- **Ancillary suite:** full investment-core discovery previously ran 132 tests with one failure in the unchanged weekly cadence assertion (`start_interval_seconds=604800` versus unchanged registry `calendar_interval`). The failing test and config are byte-identical to current main; focused cross-venue and artifact parity suites pass. This unrelated mismatch is not edited in the CFO branch.
+- **PR/review:** remote #7106 is still head `4e3f89de` / base `d0d30b90`; three Important findings are fixed only locally and the final source diff/main merge is not pushed. CI on 4e3 was green, but it predates the fixes; obtain new exact-head CI and fresh review after push.
+- **Production CFO:** latest natural terminal remains `18dca6235b756448-13826` at 19:57:03Z, exit 75 `resource_capacity_busy`, no provider receipt/readback. Loaded SHA `8d986ff4...`; doctor only reports unmanaged release-reconciler self-handoff. Monthly/per-loop revenue and expense are unknown; queue state after the DB lock has no fresh readback.
+
+**順序変更:** 旧cursor=`latest main 68e7 merge → affected tests → push`。新cursor=`(1) 完了: latest main 663eca5aまでmerge → (2) 完了: 53/61/2/26/61 focused suites + OSS/contract/diff PASS → (3) final CFO status update and commit → (4) push latest-main branch → (5) exact-head CI + fresh review → (6) merge #7106`。理由は、mainがcheckout後にloop/host実装を更新したため、旧main上のテスト結果やレビューを使わず統合後の境界を受入する。
+
+**Remaining atomic TODO (この順):**
+
+1. [x] Three Important transport findings: explicit provider rejection counter/retry path, all-send-method ambiguity fence, byte-identical packaged fallback.
+2. [x] Latest main `663eca5a` merged and affected suites pass (loop/host 61/61; CFO/shared/artifact/cross-venue checks above).
+3. [ ] Current status/spec refresh commit and push the exact main-synced source branch; read back PR head/base.
+4. [ ] All required CI on the resulting exact head pass; fresh review has Critical/Important 0.
+5. [ ] Merge PR #7106.
+6. [ ] Normal owner/reconciler path: self-handoff, loaded SHA, doctor, fresh queue/claim and natural terminal; no stop/restart or cap increase.
+7. [ ] CFO natural receipt-backed report, period/currency/source coverage, per-loop settlements/cost and replay-zero; otherwise totals remain unknown.
+8. [ ] A5 production migration/RPC/permissions/panel.
+9. [ ] A6 Google billed-vs-cash and receipt-backed operation/loop attribution.
+10. [ ] A8 coverage for 18 loops /188 jobs and shared/control/platform overhead.
+11. [ ] A9 daily/MTD/trailing/MRR reconciliation.
+12. [ ] A10 seven consecutive natural reports with full coverage and replay-zero.
+
+**Blockerと解消方法:** locally tested fix and latest main are ready, but remote PR head `4e3f89de` is stale and has not received the fixes. Commit/push the final status/source branch, then accept only its exact-head CI and fresh review. Production is still blocked independently by `resource_capacity_busy`, unmanaged release-reconciler self-handoff and stale/locked queue read. Use normal owner/reconciler readback and natural claim drain. CFO actual revenue/expense totals remain unverified.
+
+**Current cursor:** commit current status → push branch → exact-head CI/fresh review → merge #7106 → production self-handoff/queue/CFO receipt readback → A5 → A6 → A8 → A9 → A10.
+
+### 2026-10-09 05:30 JST — newest main and all affected merges verified
+
+このsnapshotは05:28のCFO status/TODOを置き換える。CFO順序`A5 → A6 → A8 → A9 → A10`を維持する。A7/Money TreeとCloud cost workは対象外。
+
+- **Main merge:** latest main `724e18f01713681b8dde0e9af985c0da9e7bf593` (#7235) is merged locally at HEAD `ba0583bfa0edec1757c0049db1b47cca67eac425`. It adds the mobile canary slot guard and associated SSOT record; no CFO/shared Telegram paths conflict.
+- **Post-merge tests:** mobile canary tests 20/20; shared Telegram/outbox Python 53/53; CFO Node 61/61; artifact parity 2/2; cross-venue Python 26/26; loop/host 61/61; OSS verifier, loop contract (18/188/113, zero errors), and diff check pass. Full investment-core discovery previously ran 132 tests with one unchanged base failure in the weekly cadence expectation (`start_interval_seconds=604800` versus unchanged registry `calendar_interval`); its test/config match main and are not edited here.
+- **PR/review:** remote #7106 is still head `4e3f89de` / base `d0d30b90`; its required CI is green, but the exact-head review found Important 3. All three findings are locally fixed and tested; this source + latest-main state remains unpushed. Obtain new exact-head CI and fresh review after push.
+- **Production CFO:** latest terminal remains `18dca6235b756448-13826` at 19:57:03Z, exit 75 `resource_capacity_busy`, no provider receipt/readback. Loaded SHA `8d986ff4...`; doctor only reports unmanaged release-reconciler self-handoff. Monthly/per-loop revenue and expense remain unknown; queue state after its DB lock has no fresh readback.
+
+**順序変更:** 旧cursor=`merge 663eca5a → focused tests → push`。新cursor=`(1) 完了: latest main 724e18f0をmerge → (2) 完了: mobile 20/20 + CFO/shared 53/61/2/26/61 + loop/host 61/61 + OSS/contract PASS → (3) current status/spec commit and push → (4) exact-head CI + fresh review → (5) merge PR → (6) production CFO natural readbacks`。理由は、mainがcheckout後に更新されたmobile slot guardも保持し、すべての後続acceptanceを同一baseから行うため。
+
+**Remaining atomic TODO (この順):**
+
+1. [x] Three Important transport findings: explicit provider-rejection accounting, all-send-method ambiguity fences, and byte-identical packaged fallback.
+2. [x] Merge latest main `724e18f0`; mobile/loop/host focused suites and CFO/shared/artifact suites pass.
+3. [ ] Refresh this final CFO status on the merged branch, commit and push; read back exact PR head/base.
+4. [ ] All required CI on the resulting exact head pass; fresh full-diff review reports Critical/Important 0.
+5. [ ] Merge PR #7106.
+6. [ ] Normal owner/reconciler path: self-handoff, CFO loaded SHA, doctor, fresh queue/claim and natural terminal; no stop/restart or cap increase.
+7. [ ] CFO receipt-backed natural report, per-loop settlement/cost, period/currency/source coverage and replay-zero; totals stay unknown until proved.
+8. [ ] A5 production migration/RPC/permissions/panel readback.
+9. [ ] A6 Google billed-vs-cash and receipt-backed operation/loop attribution.
+10. [ ] A8 18-loop/188-job settled revenue/refund/fee/measured cost and shared/control/platform overhead coverage.
+11. [ ] A9 daily/MTD/trailing/MRR reconciliation.
+12. [ ] A10 seven consecutive natural reports with complete coverage/freshness/receipts/replay-zero.
+
+**Blockerと解消方法:** local source fixes and latest main are ready, but remote PR is stale at `4e3f89de` and its Important 3 review predates these fixes. Push the final merged/status head, then accept only exact-head CI and fresh review. Production still lacks a natural CFO receipt because of `resource_capacity_busy`, unmanaged release-reconciler self-handoff and stale/locked queue state; solve through normal owner/reconciler readback and natural drain. Actual revenue/expense totals remain unverified.
+
+**Current cursor:** commit current status → push latest-main branch → exact-head CI/fresh review → merge #7106 → production self-handoff/queue/CFO receipts → A5 → A6 → A8 → A9 → A10.
+
+### 2026-10-09 05:33 JST — Lancers adapter rejection mapping is the final source blocker
+
+このsnapshotは05:30のCFO status/TODOを置き換える。CFOの後続順`A5 → A6 → A8 → A9 → A10`と、A7/Money Tree・Cloud cost workの除外を維持する。
+
+- **PR/review:** remote #7106 head `5ae69e251cfde86a063b2424317dd18b5526f8e8` / base `724e18f01713681b8dde0e9af985c0da9e7bf593`。fresh read-only reviewはCritical 0、Important 1。Lancers `telegram_report.py`は`TelegramProviderRejected`を`attempted=False`へ落とし、shared drainが`pre_send_failed`として扱う。実際にはPOST後のprovider rejectionなので、attempted/rejection counterが消える。source fixは未実装。
+- **CI on 5ae:** Travel, Agent instructions, Startup, OSS, PII, Shell, Python pass。Loop control, gitleaks, TruffleHog were in progress at 20:32Z. CodeRabbit review is skipped by its manual-review OSS policy. 5ae results do not include the Lancers correction.
+- **Contract:** Lancers `SendResult` must retain `attempted=True` and a distinct `provider_rejected` flag/error; its adapter must forward that flag into shared `SendResult`, stop the current drain after the explicit rejection, emit `provider_rejected=1`, `pre_send_failed=0`, `delivery_uncertain=0`, and set the Lancers run's `ok=false`. Persist the known-no-effect rejection through the existing outbox field; no schema migration.
+- **Local baseline:** before this new finding, shared Telegram/outbox Python 53/53, CFO Node 61/61, artifact parity 2/2, cross-venue Python 26/26, loop/host 61/61, mobile canary 20/20, OSS and loop contract passed. Full investment-core suite had one unchanged base cadence assertion failure; its test and registry are byte-identical to main.
+- **Production CFO:** latest terminal remains `18dca6235b756448-13826` at 19:57:03Z, exit 75 `resource_capacity_busy`, no provider receipt; loaded SHA `8d986ff4...`; doctor reports only unmanaged release-reconciler self-handoff. Revenue/expense totals remain unknown.
+
+**順序変更:** 旧cursor=`5ae exact-head CI + review → merge`。新cursor=`(1) Lancers typed provider_rejected adapter RED test → (2) forward attempted/rejected fields and distinct counter through outbox/result JSON → (3) test run `ok=false`, no pre-send/uncertain misclassification, no same-drain retry → (4) focused Lancers/shared/CFO + manifest/OSS → (5) push new exact head → (6) exact-head CI + fresh review → (7) merge #7106`。理由は、Lancersの独自adapterがprovider rejectionを未送信に偽装し、receipt observabilityを壊しているため。
+
+**Remaining atomic TODO (この順):**
+
+1. [ ] Add a RED Lancers regression for an attempted provider rejection, and exercise its `SendResult`→shared drain conversion.
+2. [ ] Preserve `attempted=true` and `provider_rejected=true`, expose rejection count, ensure no same-drain retry and `ok=false` for the run.
+3. [ ] Run focused Lancers tests, shared outbox, CFO Node, packaged parity, affected loop/host tests; recompute manifest and pass OSS/loop contract/diff check.
+4. [ ] Commit/push the Lancers fix + current status on main base 724e18f0; read back remote PR head/base.
+5. [ ] On the exact resulting head, required CI all pass and fresh review finds Critical/Important 0.
+6. [ ] Merge PR #7106.
+7. [ ] Normal owner/reconciler route: self-handoff, CFO loaded SHA/doctor, fresh queue claim and natural terminal; no stop/restart or cap increase.
+8. [ ] Receipt-backed CFO natural report, per-loop settled revenue/cost, period/currency/source coverage and replay-zero; leave totals unknown before proof.
+9. [ ] A5 production migration/RPC/permissions/panel; A6 Google billed-vs-cash plus operation/loop attribution; A8 all-loop coverage; A9 period/MRR; A10 seven consecutive natural reports.
+
+**Blockerと解消方法:** Lancers独自adapterがprovider rejection後のPOSTをpre-send failureとして記録するImportant findingが1件残る。Lancersの`SendResult`にrejection状態を保持し、共通`provider_rejected`経路までforwardする。修正後に新headでCI/fresh reviewを取り直す。production側のcapacity defer/reconciler self-handoff/queue DB lockは別のowner-side blockers。CFOの実数はreceipt-backed report未取得でunknown。
+
+**Current cursor:** Lancers rejection RED test → typed adapter forwarding → focused tests/manifest → push exact head → CI/fresh review → merge → production CFO natural readback → A5 → A6 → A8 → A9 → A10.
+
+### 2026-10-09 05:34 JST — Lancers provider-rejection adapter fixed locally
+
+このsnapshotは05:33のCFO status/TODOを置き換える。個人Money Tree/A7とCloud cost workは対象外。CFO order remains `A5 → A6 → A8 → A9 → A10`.
+
+- **Lancers finding:** the fresh review on PR head `5ae69e25` found one Important: Lancers `_default_notifier` marked `TelegramProviderRejected` as `attempted=False`, and its adapter dropped the distinct rejection flag before shared `deliver_pending`.
+- **Local fix:** Lancers `SendResult`/`DeliveryResult` now carry `provider_rejected`; `_default_notifier` preserves `attempted=True` and the provider error code; adapter forwards rejection to the shared outbox; runner JSON reports `provider_rejected` and `ok=false`. The outbox records known no-effect in `last_error_code`, returns to pending through the typed rejection path, and stops the current drain. No schema migration or same-drain resend.
+- **RED→GREEN:** new Lancers tests failed before the fix (not attempted / no rejected counter) and now verify the default notifier, shared outbox state, and rejection counter.
+- **Local acceptance:** shared + Lancers Telegram/outbox Python 55/55; Lancers existing package tests 89/89; CFO Node 61/61; investment artifact parity 2/2; cross-venue 26/26; merged loop/host 61/61; OSS verifier, loop contract 18/188/113, and diff check PASS. Full investment-core discovery remains 132 tests with one unrelated unchanged weekly cadence assertion failing against the current registry; the test and config match main.
+- **Remote/production:** latest main remains `724e18f0`. Remote PR #7106 is still head `5ae69e25` / base `724e18f0`, so the Lancers change and test are not yet included. Review on 5ae had Important 1; new exact-head review is required. Production CFO still reports `resource_capacity_busy`, old loaded SHA, no provider receipt, and unmanaged release-reconciler self-handoff.
+
+**順序変更:** 旧cursor=`Lancers fix → push → review`。新cursor=`(1) 完了: RED→GREEN Lancers provider-rejection adapter test → (2) 完了: 55 shared/Lancers Python + 89 package + 61 CFO Node + 2 parity + 26 cross-venue + 61 loop/host + OSS/contract checks → (3) commit/push Lancers change + latest status → (4) exact-head CI + fresh review → (5) merge #7106 → production CFO readbacks`。理由は、POST後の拒否をLancersだけが未送信扱いしていた共有adapter境界を直し、known-no-effectを別counterとして保つため。
+
+**Remaining atomic TODO (この順):**
+
+1. [x] Lancers notifier marks explicit provider rejection as attempted and distinct from pre-send/uncertain.
+2. [x] Lancers passes the typed rejection through shared outbox; same drain stops and the result exposes `provider_rejected`.
+3. [x] Shared/Lancers, CFO, package-parity, cross-venue, merged loop/host and OSS/loop-contract checks pass (counts above).
+4. [ ] Commit/push this final status + Lancers source/test on base 724e18f0; read back PR head/base.
+5. [ ] All required CI on the resulting exact head pass; fresh review has Critical/Important 0.
+6. [ ] Merge PR #7106.
+7. [ ] Normal owner/reconciler path: clear self-handoff, verify CFO loaded SHA/doctor and fresh queue/claim natural terminal; no stop/restart/cap increase.
+8. [ ] CFO natural receipt-backed report with period/currency/source coverage, per-loop settled revenue/cost and replay-zero; keep totals unknown until proved.
+9. [ ] A5 production migration/RPC/permissions/panel; A6 billed-vs-cash and attribution; A8 loop/job coverage; A9 period/MRR; A10 seven consecutive natural reports.
+
+**Blockerと解消方法:** source finding is fixed and focused-tested, but uncommitted/unpushed. Publish it on the existing main-synced branch, then wait for exact-head CI and fresh review. Production is separately held by `resource_capacity_busy`, stale release-reconciler self-handoff, and no fresh queue read; use normal owner/reconciler natural path. Actual CFO revenue/expense totals remain unverified.
+
+**Current cursor:** commit/push final Lancers correction + status → exact-head CI/fresh review → merge #7106 → release/reconciler/queue readbacks → CFO natural receipt/report → A5 → A6 → A8 → A9 → A10.
+
+### 2026-10-09 05:37 JST — CrowdWorks rejection status added to the final adapter pass
+
+このsnapshotは05:34のCFO status/TODOを置き換える。Money Tree/A7とCloud cost workは対象外。CFO順序`A5 → A6 → A8 → A9 → A10`は維持する。
+
+- **Latest source fix:** fresh review on head `6ef1520c` found CrowdWorks `run()` could return `ok:true` for a `provider_rejected` send. Added a RED test, then `ok` now also requires `provider_rejected==0`; JSON exposes the counter. Together with the prior Lancers fix, both custom marketplace wrappers preserve known provider rejection and report failure truthfully.
+- **Local tests:** shared/Lancers/CrowdWorks receipt Python 58/58; Lancers package tests 89/89; CFO Node 61/61; investment artifact parity 2/2; cross-venue Python 26/26; merged loop/host 61/61; mobile canary 20/20; OSS verifier, loop contract 18/188/113, and diff check PASS.
+- **PR/current remote:** head `5ae69e25` / base `724e18f0` does not include the Lancers/CrowdWorks adapter fixes. Fresh review on 5ae had one Important for Lancers; review on 6ef found one Important for CrowdWorks. Need push a new head and request one fresh full-diff review after all adapter changes.
+- **Financial truth:** production CFO's last terminal remains `18dca6235b756448-13826` at 19:57:03Z, exit 75 `resource_capacity_busy`, no provider receipt, loaded SHA `8d986ff4...`. Doctor reports unmanaged release-reconciler self-handoff. Current revenue/expense totals remain unknown.
+
+**順序変更:** 旧cursor=`Lancers fix → push → exact review`。新cursor=`(1) 完了: Lancers rejection flag/counter preservation → (2) 完了: CrowdWorks `ok` false when rejected (RED→GREEN) → (3) 完了: 58 shared/Lancers/CrowdWorks Python + 89 Lancers package + 61 CFO Node + 2 parity + 26 cross-venue + 61 loop/host + 20 mobile + OSS/contract → (4) current source/spec commit and push → (5) exact-head CI + one fresh review → (6) merge #7106`。理由は、2 custom marketplace adaptersが共通拒否counterを別々に失う境界と、CrowdWorksが拒否時にもsuccessを報告する境界を閉じたため。
+
+**Remaining atomic TODO (この順):**
+
+1. [x] Lancers adapter forwards provider rejection as attempted/rejected and surfaces the counter.
+2. [x] CrowdWorks JSON sets `ok=false` and exposes `provider_rejected` when the shared delivery rejects.
+3. [x] Targeted shared/Lancers/CrowdWorks/CFO/investment/loop/mobile tests and OSS/contract checks pass.
+4. [ ] Commit current status and Lancers/CrowdWorks fixes; push final source branch; read back exact PR head/base.
+5. [ ] On that exact head, required CI all pass and fresh full-diff review has Critical/Important 0.
+6. [ ] Merge PR #7106.
+7. [ ] Normal owner/reconciler route: self-handoff, CFO loaded SHA/doctor, fresh queue/claim and natural terminal; no stop/restart or cap increase.
+8. [ ] CFO natural receipt-backed report with period/currency/source coverage, per-loop settlements/cost and replay-zero; totals remain unknown until verified.
+9. [ ] A5 production migration/RPC/permissions/panel; A6 billed-vs-cash/attribution; A8 all-loop coverage; A9 period/MRR; A10 seven consecutive natural reports.
+
+**Blockerと解消方法:** source defects are fixed and locally tested; remote PR is still 5ae69e25 and lacks both custom-adapter corrections. Commit/push the final head, then run exact-head CI and fresh review. Production remains separately blocked by `resource_capacity_busy`, unmanaged release-reconciler self-handoff, and stale queue read. Use normal owner/reconciler path and natural claim drain; do not restart owners or increase caps. No verified CFO actual totals are available.
+
+**Current cursor:** commit/push latest adapter fixes + status → exact-head CI/fresh review → merge #7106 → production CFO owner/queue/receipt readback → A5 → A6 → A8 → A9 → A10.
+
+### 2026-10-09 05:38 JST — latest spec main merged after CrowdWorks fix
+
+このsnapshotは05:37のCFO status/TODOを置き換える。CFO順序`A5 → A6 → A8 → A9 → A10`を維持し、A7/Money TreeとCloud cost workは対象外。
+
+- **Main/source:** `origin/main=6cc7facb6f6057880c73515d95c37fe8afea6c2f` (#7230) is merged locally at `82ae8b38469c3bcf4033a51ea0a0cc9554f17ef7`. The main delta is a 14-line Gig status SSOT edit; no source-code overlap.
+- **Adapter fixes:** Lancers and CrowdWorks both preserve `provider_rejected` as attempted-after-POST, expose the separate counter, set result `ok=false`, and use the shared no-same-drain-retry path. Local RED→GREEN tests cover both.
+- **Tests:** shared/Lancers/CrowdWorks Telegram Python 58/58; Lancers package tests 89/89; CFO Node 61/61; investment artifact parity 2/2; cross-venue Python 26/26; loop/host 61/61; mobile canary 20/20; OSS verifier, loop contract 18/188/113, and diff check PASS. Full investment-core discovery has one unchanged main cadence expectation failure (132 run / 1 failure).
+- **Remote PR:** #7106 is still head `5ae69e25` / base `724e18f0`. CrowdWorks fix and latest SSOT/main merge are not pushed. Review on 5ae found one Important; new exact-head review is pending after publication.
+- **Production CFO:** latest run remains `18dca6235b756448-13826` at 19:57:03Z, exit 75 `resource_capacity_busy`, provider receipt absent, old loaded SHA `8d986ff4...`; doctor reports unmanaged release-reconciler self-handoff. Verified finance totals remain unknown.
+
+**順序変更:** 旧cursor=`push 724e18f0 branch → CI/review`。新cursor=`(1) 完了: Lancers + CrowdWorks provider rejection status and `ok=false` → (2) 完了: focused shared/CFO/marketplace/loop/mobile suites and OSS/contract → (3) 完了: latest main 6cc7facb merged → (4) final status commit/push → (5) exact-head CI + fresh review → (6) merge → production CFO readbacks`。理由は、Gig status updateを含む最新SSOTを保ち、両custom marketplace adaptersのrejection counterを同一PR headで受け入れるため。
+
+**Remaining atomic TODO (この順):**
+
+1. [x] Lancers/CrowdWorks adapter rejection test-first fixes and independent counters; `ok=false` on confirmed rejection.
+2. [x] Latest main `6cc7facb` merged; all focused suites pass except the unrelated unchanged 1/132 investment cadence test.
+3. [ ] Commit/push current main-synced source + final status; read back remote PR head/base.
+4. [ ] Required CI passes on resulting exact head; fresh review reports Critical/Important 0.
+5. [ ] Merge PR #7106.
+6. [ ] Normal owner/reconciler: clear self-handoff, verify CFO loaded SHA/doctor and queue claims reach natural terminal without stop/restart/cap increase.
+7. [ ] Receipt-backed natural CFO report with complete source/period/currency coverage, per-loop settlement/cost and replay-zero. Do not infer totals before evidence.
+8. [ ] A5 production migration/RPC/permissions/panel; A6 billed-vs-cash/attribution; A8 loop/job economics coverage; A9 period/MRR; A10 seven consecutive natural reports.
+
+**Blockerと解消方法:** source and latest-main merges are complete locally; remote #7106 is stale and lacks both custom adapter fixes. Commit/push this final head and accept only its exact CI plus fresh review. Production remains blocked separately by `resource_capacity_busy`, release-reconciler self-handoff and stale queue state; use normal owner/reconciler readbacks. Current verified revenue/expense totals do not exist.
+
+**Current cursor:** commit current status → push latest-main branch → exact-head CI/fresh review → merge #7106 → production CFO self-handoff/queue/receipt → A5 → A6 → A8 → A9 → A10.
+
+### 2026-10-09 05:39 JST — two Lancers callers still ignored provider_rejected
+
+このsnapshotは05:38のCFO status/TODOを置き換える。後続CFO順序`A5 → A6 → A8 → A9 → A10`は維持し、A7/Money TreeとCloud cost workは対象外。
+
+- **Fresh review:** exact PR head `4affcf1fba154ff018db10b027d285c25cd553ba` / base `6cc7facb6f6057880c73515d95c37fe8afea6c2f` has Critical 0, Important 1. `skills/earn/lancers/scripts/lane_report.py` can return `ok=true`/exit 0 when the typed shared `provider_rejected` counter is 1. `storefront_offer.py --apply` likewise exits 0 when `provider_rejected` is the only nonzero delivery counter.
+- **Fix contract:** both callers expose `provider_rejected`; lane report's `ok` is false and its process exits 1, and storefront apply returns exit 1. This is result propagation only; do not retry or alter the already-fenced outbox claim.
+- **Remote checks:** head `4aff` exact-head CI has Travel/OSS/Agent instruction/Startup/PII/Shell PASS; Loop control, gitleaks, TruffleHog and Python were in progress at the last read. Review fix is not yet in this head.
+- **Local baseline:** shared/Lancers/CrowdWorks Python 58/58, Lancers package 89/89, CFO Node 61/61, artifact 2/2, cross-venue 26/26, loop/host 61/61, mobile 20/20, OSS and contract PASS. The unrelated full investment-core suite remains 132/1 due the unchanged cadence assertion.
+- **Production CFO:** last event `18dca6235b756448-13826` is still `resource_capacity_busy` / exit 75 with no provider receipt; loaded SHA remains `8d986ff4...`; doctor reports unmanaged release-reconciler self-handoff. Actual revenue/expense totals remain unknown.
+
+**順序変更:** 旧cursor=`4aff exact-head CI/review → merge`。新cursor=`(1) Lancers lane/storefront RED tests for provider_rejected → (2) propagate count and fail `ok`/exit status → (3) focused Lancers/shared suite + manifest/OSS/contract → (4) push new head → (5) exact-head CI + fresh review → (6) merge #7106`。理由は、両callerが共通transportのknown rejectionをsuccessとして下流へ報告し得るため。
+
+**Remaining atomic TODO (この順):**
+
+1. [ ] RED tests: lane report emits `ok=false`, `provider_rejected=1`, exit 1; storefront `--apply` exits 1 on the same delivery result.
+2. [ ] Add `provider_rejected` to both callers' result predicates/JSON; keep all other delivery counters and outbox retry fence unchanged.
+3. [ ] Run Lancers/CrowdWorks/provider tests, shared outbox, CFO Node, package parity, merged loop/host; recompute manifest and run OSS/contract/diff checks.
+4. [ ] Commit/push caller fixes + current status on base `6cc7facb`; verify remote PR head/base.
+5. [ ] Exact-head required CI all pass and fresh review reports Critical/Important 0.
+6. [ ] Merge PR #7106.
+7. [ ] Production: reconciler self-handoff/loaded SHA/doctor, fresh queue/claim natural terminal, CFO natural receipt-backed report and replay-zero; do not stop owners or raise caps.
+8. [ ] A5 production migration/RPC/permissions/panel; A6 Google billed-vs-cash/loop attribution; A8 loop/job economics; A9 period/MRR; A10 7-day natural reports.
+
+**Blockerと解消方法:** two downstream Lancers callers do not gate on the newly separated provider rejection counter. Add the two failure-path tests first, include rejection in their result status/output, then push and rerun exact-head CI/review. Production capacity/reconciler/queue blockers remain separate from this source fix; actual totals stay unknown.
+
+**Current cursor:** lane/storefront rejection RED tests → propagate `provider_rejected` and exit 1 → focused acceptance + manifest → push → exact-head CI/review → merge → production CFO readbacks → A5 → A6 → A8 → A9 → A10.
+
+### 2026-10-09 05:45 JST — source SHIP; final checks pending
+
+このsnapshotは05:39のCFO status/TODOを置き換える。CFO order`A5 → A6 → A8 → A9 → A10`、A7/Money TreeとCloud cost lane外を維持する。
+
+- **Lancers callers:** `lane_report.py` now reports `provider_rejected` and exits 1; `storefront_offer.py --apply` includes `telegram_delivery` counters in JSON, sets `ok=false`, and exits 1 on rejection. Both new caller-level tests were RED before the fix and now pass.
+- **Local acceptance:** Lancers package/rejection tests 93/93, CrowdWorks rejection tests 3/3, shared Telegram/outbox Python 53/53, CFO Node 61/61, artifact parity 2/2, cross-venue Python 26/26, loop/host Python 61/61, mobile canary 20/20, OSS verifier and loop contract pass (18/188/113, zero errors), diff check PASS. Full investment-core suite remains 1 unchanged weekly cadence mismatch in 132 tests.
+- **Remote PR:** #7106 head `78bd577987465ffb5a55af1491f1058e6abe7aed` / base `6cc7facb6f6057880c73515d95c37fe8afea6c2f`. Fresh source review is SHIP (Critical 0 / Important 0). At 20:44Z, Loop control, gitleaks and TruffleHog are still running; other displayed checks pass. CodeRabbit is manual-review skipped.
+- **Production CFO:** latest run remains `18dca6235b756448-13826` at 19:57:03Z, exit 75 `resource_capacity_busy`, provider receipt missing, old loaded SHA `8d986ff4...`; doctor reports unmanaged release-reconciler self-handoff. Actual revenue/expense totals remain unknown.
+
+**順序変更:** 旧cursor=`fix lane/storefront callers → push → exact CI/review`。新cursor=`(1) 完了: two RED caller-level tests → (2) 完了: result JSON/counters + exit 1 behavior → (3) 完了: Lancers 93, CrowdWorks 3, shared 53, CFO 61, artifact 2, cross-venue 26, loop/host 61, mobile 20, OSS/contract/diff pass → (4) commit/push latest-base source/status → (5) exact-head CI + fresh review → (6) merge #7106`。理由は、Lancers caller flagsが拒否counterをsuccessへ変換する最後の報告経路だから。
+
+**Remaining atomic TODO (この順):**
+
+1. [x] Fix Lancers lane-report and storefront-offer callers to expose rejection and fail `ok`/exit code.
+2. [x] Targeted suites and structural gates pass with latest base `6cc7facb`.
+3. [x] Commit/push the Lancers caller fixes and current status; remote head/base readback matches `78bd5779` / `6cc7facb`.
+4. [ ] Loop control, gitleaks and TruffleHog pass on exact head `78bd5779`; the fresh source review is already SHIP.
+5. [ ] Merge PR #7106.
+6. [ ] Normal owner/reconciler: self-handoff, loaded SHA/doctor, fresh queue/claim natural terminal; do not stop owners or increase finite caps.
+7. [ ] Receipt-backed CFO natural report with period/currency/source coverage, per-loop settled revenue/cost, replay-zero; actual totals stay unknown until then.
+8. [ ] A5 production migration/RPC/permissions/panel; A6 billed-vs-cash/attribution; A8 complete loop/job coverage; A9 MRR/period reconcile; A10 seven-day natural reports.
+
+**Blockerと解消方法:** source blockers are closed and the exact-head source review is SHIP. Merge waits on Loop control, gitleaks and TruffleHog for head 78bd; merge after these required checks pass. Production blockers remain separate: `resource_capacity_busy`, unmanaged release-reconciler self-handoff, and stale/locked queue. Current verified finance totals are still unavailable.
+
+**Current cursor:** required CI green on 78bd → merge PR → production CFO owner/queue/receipt readbacks → A5 → A6 → A8 → A9 → A10.
+
+### 2026-10-09 06:10 JST — latest main synced; CFO capacity and runtime blockers separated
+
+このsnapshotは05:45のCFO状態を更新する。CFOの目的と後続順`A5 → A6 → A8 → A9 → A10`は維持する。Money Tree/A7とCloud費用削減はこのlaneの対象外。
+
+- **Latest main / branch:** GitHub `main=62ac1887`をこのworktreeへmerge済み（local merge `0e27a255`、conflictなし）。remote feature branchは`03f2f948`のまま、local branchは23 commits ahead。GitHub mainはremote PR #7106のbase `6cc7facb`より先行している。
+- **PR #7106:** OPEN、remote head `03f2f948`。そのheadのrequired checksは全PASS。source reviewはコードhead `78bd5779`でSHIP（Critical 0 / Important 0）、`78bd`→`03f2`はspec statusのみ。新しいmain同期・このstatus更新をpushしたheadはまだCI/review対象ではなく、PR mergeabilityも現在UNKNOWN。CodeRabbitはmanual review skip。
+- **Capacity source:** latest mainはhost finite-run defaultを8→10、deterministic revenue slotsを3→5へ変更し、Job Hunterの2 entryをagent classへ移した。一方、CFO registryは`resource_class=deterministic`, `admission_class=borrow`, `priority=revenue`。priority名だけではreserved revenue capacityの利用証明にならないため、これを容量解消済みとは扱わない。CFOのlive queue/claim占有readbackが必要。
+- **Production CFO (last terminal 2026-10-08T20:39:29Z):** occurrence `18dca87301f003b8-67406`は`exit 75 / host_admission_deferred:resource_capacity_busy`、provider receiptなし。installed release `d0d30b90`、`loaded-idle`、last success `16:25:13Z`、last receiptなし。現在のmain `62ac1887`はこのownerにまだloadedでない。doctorは`ok=false`、unmanaged label `ai.anicca.life-manager-release-reconciler-self-handoff`。
+- **Active reconciler:** managed `life-manager-release-reconciler`はrelease `e1b061f1`のPID `6397`でloaded-running。最後に記録済みterminal `18dca94039f7fba8-83389`はexit 1 / `entrypoint_exit_1` / next action `reconcile_owner`（21:05Zのreadback時点）。PIDが生きている間は同じownerを停止・重複applyせず、terminalと正確なstderr/receiptをreadbackする。
+- **Disk state:** disk-cleanup occurrence `18dcaa05ff6d89f0-21017`は21:09ZにPASS、effectなし、receiptなし。`df -k /`は空き`253,100 KiB`。保存済み`last-receipt.json`は10/1の値で古い。現mainのcleanup skillでは2 GiBは診断目標でありPASS条件やCFO admission gateではない。今回のfetch/merge/spec更新は実行できたので、disk容量は現時点のGit書き込みblockerではない。
+- **Financial truth:** 新しいnatural CFO report/provider receiptはなく、loop別・全社のsettled revenue/expense/netは引き続きunknown。ゼロや見積額へ置き換えない。
+
+**順序変更:** 旧cursor=`head 78bd required CI → merge #7106 → production readbacks`。新cursor=`(1) 完了: current main 62ac1887をbranchへmerge → (2) 完了: CFO capacity/live-state snapshotをcanonical SSOTへ記録 → (3) この更新をpushし、新exact-head CI/fresh review → (4) #7106 merge → (5) active reconciler PID6397のterminalと失敗境界をreadbackし、normal owner routeでdoctor/loaded SHAを回復 → (6) read-only admission queue/claimでCFO borrower capacityの実占有を確認。必要ならglobal capを上げずCFO entitlementだけ最小修正しfocused test → (7) accepted main releaseとscheduled CFO retryからreceipt-backed natural report/replay-zero → (8) A5 → A6 → A8 → A9 → A10`。理由は、最新mainの容量設定がproduction未反映で、CFOはborrow classのまま実際にcapacity deferしているため。`priority=revenue`だけでは原因も解決も証明しない。
+
+**Remaining atomic TODO (この順):**
+
+1. [x] Latest GitHub main `62ac1887`をCFO専用branchへ通常mergeし、conflictなしを確認。
+2. [x] CFO実行・capacity policy・disk ownerのfresh readbackを整理し、このcursorへ記録。
+3. [ ] canonical spec updateをcommit/pushし、remote head/baseを再読する。
+4. [ ] 新exact headのrequired CIとfresh read-only reviewをPASSさせ、PR #7106をmerge。
+5. [ ] PID `6397`のrelease-reconcilerを同一ownerのままterminalまで観測し、`entrypoint_exit_1`の正確な原因をsummary/stderrで特定する。原因に対応するnormal reconcileを完了し、doctorのunmanaged label解消とaccepted loaded SHAを確認する。
+6. [ ] read-only admission DB/claim snapshotでdeterministic borrow枠のoccupied owner数・queue positionを確認する。容量が原因なら、finite global capを増やさずCFOの既存設計上のentitlementを最小修正し、回帰testを通す。実際の占有を読む前にclassを変更しない。
+7. [ ] merged main由来releaseと自然scheduled CFO retryを確認し、same occurrenceのruntime/provider/B7 receipt、period/currency/source coverage、replay-zeroを照合する。actual totalsはその証拠までunknown。
+8. [ ] A5 production migration/RPC/permissions/panel readback。
+9. [ ] A6 Google billed-vs-cash照合とofficial receiptによるoperation/loop別費用帰属。
+10. [ ] A8の18 business loops / 188 runtime jobs（113 mapped）についてsettled revenue/refund/fee/measured costとshared/control/platform overheadのcoverageを閉じる。
+11. [ ] A9で実日付filterのJST日次/MTD/trailing/MRRをloop別・全社で照合する。
+12. [ ] A10でcoverage/freshness/receipts/period/currency/replay-zeroを満たすnatural reportを7日連続でreadbackする。
+
+**Blockerと解消方法:** local spec編集とlatest-main syncは容量回復後に完了し、今はGit write可能。PRは旧headでCI PASSだがlatest-main同期を含む新headの受け入れが未実施。productionではCFOの`resource_capacity_busy`、active release-reconciler、unmanaged self-handoffが残る。PID6397を停止せずterminalまで追い、exact reconcile failureをreadbackしてowner経路で直す。次にadmission DBからborrow枠の実occupied ownersを特定し、必要な場合だけCFOの有限entitlementを修正する。新しいnatural provider receiptがないためCFOの実売上/費用は未確定。
+
+**Current cursor:** commit/push this SSOT + latest-main merge → exact-head CI/fresh review → merge #7106 → PID6397 terminal/error boundary → normal reconciler/doctor/loaded SHA → admission queue/claim diagnosis → natural CFO receipt/report → A5 → A6 → A8 → A9 → A10.
+
+### 2026-10-09 06:14 JST — admission census confirms the CFO borrower-capacity mismatch
+
+この追記は06:10の容量仮説をread-only DB evidenceで更新する。全体capは増やさず、CFOの既存finite revenue entitlementを使う方向で進める。
+
+- **Source/config:** current main `08429e49`までlocal branchへmerge済み。CFO registry rowは`deterministic / admission_class=borrow / priority=revenue`。current mainのdeterministic revenue poolは5枠、borrower defaultは2枠。CFOのplistには`LIFE_MANAGER_HOST_MAX_DETERMINISTIC_RUNS`個別overrideなし。`priority=revenue`はborrower entitlementを変更しない。
+- **Read-only admission snapshot (2026-10-08T21:12:27Z):** CFO queue rowはsequence `578998`、`deterministic/borrow`, base priority `revenue`、reservationなし。queue aggregateはagent borrow/revenue `30/8`、deterministic borrow/revenue `38/3`。active reservationsはagent 5 / deterministic 1、active owner filesはagent revenue 2 / deterministic revenue 1。唯一のdeterministic reservationは`lancers-revenue-work-sync`で、read時点のlease remainingは約1秒。CFO LaunchAgent plistにper-owner `LIFE_MANAGER_HOST_MAX_DETERMINISTIC_RUNS` overrideはない。main sourceのborrow default=2とdeterministic occupancy 2が一致し、CFO queueがborrow entitlementでclaimできない現行状態を強く支持する。
+- **Causality limit:** `resource_capacity_busy`のCFO terminalは20:39:29Zで、このDB snapshotは21:12Z。historical occurrenceと同時点のcapacity receiptではないため、20:39の原因を遡及的に確定したとは扱わない。current CFO queueでのborrow-class starvationは直接観測済み。
+- **Active process boundary:** release-reconciler PID `6397`はrelease `e1b061f1`からloaded-running。前回terminal `18dca94039f7fba8-83389`はexit 1 / `reconcile_owner`; active ownerを停止/重複applyしない。Disk-cleanupは`18dcaa05ff6d89f0-21017`で21:09Z PASS/effect 0だがfresh cleanup receiptなし。空き`240,116 KiB`で書き込みは可能、十分なrecoveryを意味しない。
+- **Ruling:** CFOは財務報告のcritical control ownerであり、既存のdeterministic revenue poolを使うべき。CFOだけを`admission_class=revenue`へ分類し、global/per-class capsは増やさない。回帰testで「borrower slotsが埋まってもCFOは既存revenue slotをclaimできる」「通常borrowerはその状況で待つ」を確認する。queue sequence/reservation/effect_unknownは保持する。
+
+**順序変更:** 旧cursor=`capacity claimsをさらに観測 → 必要ならCFO entitlement修正`。新cursor=`(1) 完了: read-only censusでCFOがborrow queue・reservationなし、2 deterministic slots occupiedを確認 → (2) registry consumerのRED regressionでCFO revenue eligibilityと通常borrower waitを確認 → (3) CFO rowだけborrow→revenue、global caps不変 → (4) focused tests/loop contract → (5) status + configをpush、exact-head CI/review → (6) #7106 merge → (7) owner idle/claim/effect_unknown条件をreadback後、official queue lock + CFO owner deploy lock下でsequence/reservationsを保ってCFO queue rowだけをrebind → (8) main release/applyをnormal ownerへ委譲し、CFO next natural occurrence/receipt → A5 → A6 → A8 → A9 → A10`。理由はCFO queue rowと実occupied capacityが見え、既存revenue slotがあるためglobal cap増加なしの個別entitlementが最小の修正だから。
+
+**Remaining atomic TODO:**
+
+1. [x] Read-only admission censusでCFOのborrow class、priority、reservationなし、deterministic occupancy 2を確認。
+2. [ ] 失敗するconsumer regressionを先に追加: CFO registry entryをadmission controllerへ渡すとrevenue slotをclaimでき、通常borrowerは2 borrowed deterministic occupants下でclaim拒否となる。
+3. [ ] CFO registry rowのみ`admission_class=revenue`へ変更し、global `LIFE_MANAGER_HOST_MAX_*`は変更しない。
+4. [ ] RED→GREEN focused tests、`./bin/lm-loop-contract`、`git diff --check`を通す。
+5. [ ] latest main `08429e49`上でcommit/pushし、新headのrequired CI/fresh review後にPR #7106をmerge。
+6. [ ] release-reconciler PID6397の同一owner terminal/error readbackと正常なreconcileを待つ。CFO/queue ownerを停止しない。
+7. [ ] CFO ownerがloaded-idle、claimed/effect_unknownなしを確認し、既存owner/admission lockを使う正規migrationでCFO queue/priority metadataだけをrebindする。sequence/reservationsは保存し、manual DB writeはしない。
+8. [ ] accepted immutable main releaseをnormal reconciler routeで適用し、CFO loaded SHA/doctorを確認する。
+9. [ ] 次のnatural CFO reportでdelivery/runtime/provider/B7 receipt、coverage、settlement、replay-zeroを確認し、初めてloop別/全社実額を報告する。
+10. [ ] A5 production migration/RPC/permissions/panel readback。
+11. [ ] A6 Google billed-vs-cash + receipt-backed operation/loop allocation。
+12. [ ] A8 18 loops/188 jobs（113 mapped）のsettled revenue/refund/fee/costとshared overhead coverage。
+13. [ ] A9 JST日次/MTD/trailing/MRRを実日付filterでreconcile。
+14. [ ] A10 coverage等の条件を満たすnatural CFO reportsを7日連続readback。
+
+**Blockerと解消方法:** CFOの現在queueはborrower classで2 deterministic slotsが占有され、reservationなし。minimal source fixはCFOだけを既存revenue admission poolへ移すこと。production queue metadataはrelease後にowner idle・effect fence・deploy/admission lockを確認してから正規migrationで更新する。active release-reconcilerはPID6397のterminalまで観測し、同一owner routeで`reconcile_owner`を完了する。receipt-backed CFO実額は未取得。
+
+**Current cursor:** TDD regression → CFO-only revenue admission config → focused acceptance → latest-main push/CI/review/merge → PID6397 normal reconciliation → safe CFO queue identity rebind → immutable release/loaded SHA → natural CFO receipt/report → A5 → A6 → A8 → A9 → A10.
+
+### 2026-10-09 06:20 JST — CFO admission fix is locally green; release promotion fails on ENOSPC
+
+このsnapshotは06:14の仮説をimplementation/readback結果で更新する。全社capを変えずCFOだけを既存revenue capacityへ移した。
+
+- **Source change:** `life-manager-cfo-hourly`の`admission_class`を`borrow`から`revenue`へ変更。resource class、priority、finite capacity valuesは変更なし。CFO registryを実admission DBで通す回帰testは修正前に`capacity_busy`でRED、変更後にCFOがrevenue slotをclaimし、同じ2 borrow slots下では通常borrowerが引き続きblockedとなるGREENを確認。
+- **Focused acceptance:** host resource-admission 146/146、loop-registry 137/137、`./bin/lm-loop-contract` PASS（18 loops / 188 jobs / 113 mapped / 0 errors）。RED→GREEN regression 1/1 PASS。
+- **Broad local suite:** `python3 -m unittest discover -s runtime/loop/tests -p 'test_*.py'`は820 testsを実行し、4 failures / 362 errors。出力には多数の`ENOSPC`/temp write errorsがあり、3件のrelease-cut testはlocal-only HEAD `4ef6df29`を未pushとして拒否。全remaining failures/errorsは未分類のため、このsuiteをPASSと主張しない。容量復旧とpush後に再実行する。
+- **Production CFO:** latest natural occurrence `18dcaa87c4549458-50307`（21:17:37Z）はinstalled SHA `3b543ffa`から`exit 75 / resource_capacity_busy`、receiptなし。source configはまだproductionへ反映されていない。
+- **Release blocker root cause:** release-reconciler occurrence `18dca9db9418a998-6397`は21:20:02Zにexit 1。`launchd.err.log`は`cut-loop-release: export of df2f5bca failed`と`OSError 28 / No space left on device`を示す。ここがimmutable releaseを作れない直接原因。source/entrypoint設定不良とは別。
+- **Disk owner:** `life-manager-disk-cleanup` occurrence `18dcaa91d8ab7570-77280`は21:18Z PASS/effect 0だがfree spaceは`142,644 KiB`、fresh cleanup receiptなし。古いreceiptは10/1付。2 GiBは現行skill上の診断値で、cleanup pass/fail gateではない。手動削除はしない。
+- **Financial truth:** accepted loaded releaseからのnatural CFO provider receiptなし。各loop/全社のsettled revenue/expense/netはunknown。
+
+**Remaining atomic TODO (この順):**
+
+1. [x] CFO admission mismatchをread-only DBで特定し、borrow capを再現するTDD regressionをRED→GREEN。
+2. [x] CFOだけ`admission_class=revenue`へ変更。Global/per-class capacity capは増やしていない。
+3. [x] Focused host/registry testsとloop contractをPASS。
+4. [ ] `git diff --check`を再確認し、registry/test/fixture/specをcommit/pushする。push後にexact head/baseをreadback。
+5. [ ] Exact-head required CIとfresh reviewをPASSさせPR #7106をmergeする。
+6. [ ] 既存disk-cleanup ownerから実測付きcapacity recoveryを取得する。現ownerのPASS/effect 0はrecovery receiptではない。protected deletionなし。
+7. [ ] Full runtime suiteを再実行し、820-test runのENOSPC/local-only failuresを解消・分類する。
+8. [ ] Release-reconcilerのnormal owner pathでmain由来immutable releaseをcutし、CFO configをload。ownerを手動停止/restartしない。
+9. [ ] CFO owner idle、claimed/effect_unknownなし、deploy/admission lock取得を確認し、CFO queue/priority metadataだけを既存APIでrebind。sequence/reservationsを保持し、manual DB writeをしない。
+10. [ ] 新SHAのnatural scheduled CFO reportからprovider/runtime/B7 receipts、settlement、coverage、replay-zeroをreadbackする。ここで初めてactual totalsを確定する。
+11. [ ] A5 production migration/RPC/permissions/panel readback。
+12. [ ] A6 Google billed-vs-cash + operation/loop cost attribution。
+13. [ ] A8 18 loops/188 jobs（113 mapped）全coverage。
+14. [ ] A9 JST日次/MTD/trailing/MRR reconcile。
+15. [ ] A10 条件を満たすnatural CFO reportsを7日連続readback。
+
+**Current cursor:** diff check → push CFO admission fix + spec → exact-head CI/review/merge → disk owner fresh recovery evidence → full suite → normal release-reconciler cut/load → safe CFO queue rebind → natural CFO receipt/report → A5 → A6 → A8 → A9 → A10.
+
+### 2026-10-09 06:24 JST — CFO admission fix and latest-main sync committed locally
+
+このsnapshotは06:20の作業状態を更新する。CFOのborrow starvation修正はsource/testでcommit済みだが、未push・未merge・未deploy。
+
+- **Branch/main:** latest GitHub main `397e2df2`をmerge commit `85ad7369`で取り込み、conflictなし。CFO変更はcommit `864697f6`（CFO rowだけ`admission_class=revenue`）。remote feature branchはまだ`03f2f948`、PR #7106のbaseは`6cc7facb`で、現在のlocal commitsは未push。
+- **Source acceptance:** 修正前のCFO registry→durable admission regressionはborrow slots満杯で`capacity_busy`を返すREDを確認。registry変更後はrevenue reserved slotをclaimし、通常borrowerは引き続き拒否されるGREEN。host admission 146/146、registry 137/137、loop contract PASS（18/188/113/0）、loop-adapter Node 15/15、`git diff --check` PASS。
+- **Full local runtime suite:** 820 testsで4 failures / 362 errors。大量の一時書込・npm extractionで`ENOSPC`が出ており、3つのrelease-cut checksはlocal-only HEAD `4ef6df29`をpush前として拒否。残りの全error原因は未分類のため、full suiteは未達成。pushと容量回復後に再実行する。
+- **Production CFO:** 最新natural terminal `18dcaa87c4549458-50307`（21:17:37Z）はrelease `3b543ffa`から`exit 75 / resource_capacity_busy`、provider receiptなし。local admission fixはまだloadedでなく、actual revenue/expense totalsはunknown。
+- **Release reconciler:** terminal `18dca9db9418a998-6397`は21:20:02Zにexit 1。log evidenceは`cut-loop-release: export of df2f5bca failed`と`OSError 28 / No space left on device`。21:23Zのreadbackでは同じmanaged labelがrelease `e1b061f1`からPID `81892`でloaded-running。重複apply/停止しない。
+- **Host space:** disk-cleanup occurrence `18dcaa91d8ab7570-77280`は21:18Z PASS/effect 0だがfresh recovery receiptなし。21:23Zの`df -k /`は`292,468 KiB` free。`lsof +L1`はChromium/rendererが削除済みinodeを保持していることを示す（processごとのsizeは重複し得るため単純加算しない）。Browser/identity ownerはkillしない。
+- **PR status:** remote head `03f2f948`のrequired checksはPASSだが、local commit `864697f6`とmain merge `85ad7369`は未検査。old-head review alone is insufficient for the new diff.
+
+**Remaining atomic TODO (この順):**
+
+1. [x] TDDでCFO borrower-capacity mismatchを再現し、CFOのみexisting revenue classへ変更。global capsは変更なし。
+2. [x] Focused host/registry tests、loop contract、loop-adapter Node、差分checkをPASS。
+3. [x] GitHub main `397e2df2`をlocal branchへmergeし、spec/statusをcommit。
+4. [ ] `git diff --check`を再確認し、commit `864697f6`と最新spec/main mergeをpushする。remote head/baseをreadback。
+5. [ ] 新exact headのrequired CI/fresh reviewをPASSさせPR #7106をmerge。
+6. [ ] existing host-disk ownerと自然なChromium file-handle closureからsafe capacity recoveryを得る。manual deletion、browser kill、identity変更はしない。
+7. [ ] local full runtime suiteのENOSPC errorsを容量回復後に再実行し、残りの4 failure/362 errorを分類する。
+8. [ ] release-reconciler PID81892の同一owner terminal/receiptを待ち、ENOSPC後にnormal reconcileでaccepted main releaseをcut/loadし、doctor/loaded SHAを確認する。
+9. [ ] CFO owner idle・claimed/effect_unknownなしを確認し、deploy/admission locks下でCFO queued metadataだけrevenueへrebindする。sequence/reservationsを維持。
+10. [ ] 次のnatural CFO reportからprovider/runtime/B7 receipt、settlement、coverage、replay-zeroをreadbackし、loop別/全社actual totalsを初めて確定。
+11. [ ] A5 production migration/RPC/permissions/panel。
+12. [ ] A6 Google billed-vs-cashとreceipt-backed operation/loop attribution。
+13. [ ] A8全18 loops/188 jobs（113 mapped）の収益・費用coverage。
+14. [ ] A9 JST日次/MTD/trailing/MRR reconcile。
+15. [ ] A10 valid natural CFO reportを7日連続readback。
+
+**Current cursor:** diff check → push local CFO fix + latest main/spec → exact-head CI/review/merge → safe storage recovery → active reconciler natural terminal and release readback → CFO queue rebind → natural receipt-backed report → A5 → A6 → A8 → A9 → A10.
 
 ### Marketing IntelからWriterへの記事候補連携（並列作業）
 

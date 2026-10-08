@@ -1,6 +1,16 @@
+import io
 from pathlib import Path
+import urllib.error
 
-from skills._shared.telegram import _split_text, load_config
+import pytest
+
+from skills._shared.telegram import (
+    TelegramClient,
+    TelegramDeliveryUnknown,
+    TelegramError,
+    _split_text,
+    load_config,
+)
 
 
 def test_alert_chat_id_is_the_portable_default(tmp_path: Path) -> None:
@@ -33,3 +43,101 @@ def test_split_text_preserves_the_delimiter_used_as_the_chunk_boundary() -> None
         assert len(chunks) == 2
         assert all(len(chunk) <= 4000 for chunk in chunks)
         assert "".join(chunks) == message
+
+
+def test_partial_multichunk_send_is_delivery_unknown(monkeypatch: pytest.MonkeyPatch) -> None:
+    client = TelegramClient(token="test-token", chat_id="12345")
+    attempted_chunks = []
+
+    def send(method: str, fields: dict[str, str], **_kwargs):
+        assert method == "sendMessage"
+        attempted_chunks.append(fields["text"])
+        if len(attempted_chunks) == 1:
+            return {"message_id": 101, "chat": {"id": 12345}, "date": 1}
+        raise TelegramError("Too Many Requests", error_code=429, retry_after=3)
+
+    monkeypatch.setattr(client, "_request", send)
+
+    with pytest.raises(TelegramDeliveryUnknown) as error:
+        client.send_text("a" * 4001)
+
+    assert len(attempted_chunks) == 2
+    assert len(attempted_chunks[0]) == 4000
+    assert attempted_chunks[1] == "a"
+    assert error.value.error_code == 429
+
+
+SEND_METHODS = ("sendMessage", "sendPhoto", "sendVideo", "sendDocument")
+
+
+class _Response:
+    def __init__(self, body: bytes) -> None:
+        self.body = body
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args):
+        return False
+
+    def read(self) -> bytes:
+        return self.body
+
+
+def _client_with_response(body: bytes, status: int | None = None) -> TelegramClient:
+    def opener(request, timeout):
+        if status is not None:
+            raise urllib.error.HTTPError(
+                request.full_url, status, "HTTP error", None, io.BytesIO(body)
+            )
+        return _Response(body)
+
+    return TelegramClient(token="test-token", chat_id="12345", opener=opener)
+
+
+@pytest.mark.parametrize("method", SEND_METHODS)
+def test_all_send_methods_treat_malformed_success_response_as_unknown(method: str) -> None:
+    client = _client_with_response(b"not-json")
+
+    with pytest.raises(TelegramDeliveryUnknown):
+        client._request(method, {"chat_id": "12345"})
+
+
+@pytest.mark.parametrize("method", SEND_METHODS)
+@pytest.mark.parametrize(
+    "body",
+    (
+        b"not-json",
+        b'{"ok":true,"result":{"message_id":123}}',
+        b'{"ok":false,"error_code":500,"description":"failure"}',
+    ),
+)
+def test_all_send_methods_treat_http_5xx_as_unknown(method: str, body: bytes) -> None:
+    client = _client_with_response(body, status=502)
+
+    with pytest.raises(TelegramDeliveryUnknown):
+        client._request(method, {"chat_id": "12345"})
+
+
+@pytest.mark.parametrize("method", SEND_METHODS)
+@pytest.mark.parametrize("status", (400, 429))
+def test_explicit_http_rejections_are_provider_rejected_not_pre_send(method: str, status: int) -> None:
+    client = _client_with_response(
+        b'{"ok":false,"error_code":400,"description":"Bad Request"}',
+        status=status,
+    )
+
+    with pytest.raises(TelegramError) as error:
+        client._request(method, {"chat_id": "12345"})
+    assert type(error.value).__name__ == "TelegramProviderRejected"
+
+
+@pytest.mark.parametrize("method", SEND_METHODS)
+def test_explicit_json_rejections_are_provider_rejected_not_pre_send(method: str) -> None:
+    client = _client_with_response(
+        b'{"ok":false,"error_code":400,"description":"Bad Request"}'
+    )
+
+    with pytest.raises(TelegramError) as error:
+        client._request(method, {"chat_id": "12345"})
+    assert type(error.value).__name__ == "TelegramProviderRejected"

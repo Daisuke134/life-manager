@@ -2188,8 +2188,11 @@ def test_apply_cli_flag_never_invokes_create_package(monkeypatch):
     monkeypatch.setattr(module, "run", lambda apply, product_path, state_path: {"ok": True})
 
     class _Delivery:
+        attempted = 0
+        delivered = 0
         delivery_uncertain = False
         pre_send_failed = False
+        provider_rejected = 0
 
     class _Reporter:
         @staticmethod
@@ -2611,8 +2614,11 @@ def test_main_apply_invokes_catalog_create_only_when_run_left_nothing_to_do(monk
     monkeypatch.setattr(module, "run_catalog_create", lambda state_path: calls.append(state_path) or {"action": "all_published", "skipped": []})
 
     class _Delivery:
+        attempted = 0
+        delivered = 0
         delivery_uncertain = False
         pre_send_failed = False
+        provider_rejected = 0
 
     class _Reporter:
         @staticmethod
@@ -2636,8 +2642,11 @@ def test_main_apply_does_not_invoke_catalog_create_when_run_already_had_an_effec
     )
 
     class _Delivery:
+        attempted = 0
+        delivered = 0
         delivery_uncertain = False
         pre_send_failed = False
+        provider_rejected = 0
 
     class _Reporter:
         @staticmethod
@@ -2660,8 +2669,11 @@ def test_apply_flow_result_shape_for_the_existing_listing_is_unaffected_by_catal
     monkeypatch.setattr(module, "run_catalog_create", lambda state_path: {"action": "all_published", "skipped": []})
 
     class _Delivery:
+        attempted = 0
+        delivered = 0
         delivery_uncertain = False
         pre_send_failed = False
+        provider_rejected = 0
 
     class _Reporter:
         @staticmethod

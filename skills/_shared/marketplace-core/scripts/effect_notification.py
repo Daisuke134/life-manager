@@ -62,6 +62,7 @@ def notify_effect(
             "delivered": 0,
             "delivery_uncertain": 0,
             "pre_send_failed": 0,
+            "provider_rejected": 0,
         }
     current = next(
         item for item in outbox.list_items(Path(database))
@@ -76,6 +77,7 @@ def notify_effect(
             "delivered": 0,
             "delivery_uncertain": 0,
             "pre_send_failed": 0,
+            "provider_rejected": 0,
         }
     notifier = sender or (
         lambda body: delivery.send_via_shared_client(
@@ -83,7 +85,7 @@ def notify_effect(
         )
     )
     outcome = delivery.deliver_pending(
-        outbox, Path(database), notifier, observed_at, limit=1
+        outbox, Path(database), notifier, limit=1
     )
     item = next(
         item for item in outbox.list_items(Path(database))
@@ -97,6 +99,7 @@ def notify_effect(
         "delivered": outcome.delivered,
         "delivery_uncertain": outcome.delivery_uncertain,
         "pre_send_failed": outcome.pre_send_failed,
+        "provider_rejected": outcome.provider_rejected,
     }
 
 

@@ -1792,11 +1792,19 @@ def main(argv: Sequence[str] | None = None) -> int:
     # a separate account_lock acquisition, never nested inside run()'s.
     if args.apply and result.get("action") == "unchanged":
         result["catalog_creation"] = run_catalog_create(args.state_path)
-    print(json.dumps(result, ensure_ascii=False, sort_keys=True, separators=(",", ":")), flush=True)
     if args.apply:
         reporter = _load("_anicca_lancers_storefront_reporter", HERE / "telegram_report.py")
         delivery = reporter.notify_storefront_wake(result)
-        if delivery.delivery_uncertain or delivery.pre_send_failed: return 1
+        result["telegram_delivery"] = {
+            "attempted": delivery.attempted,
+            "delivered": delivery.delivered,
+            "delivery_uncertain": delivery.delivery_uncertain,
+            "pre_send_failed": delivery.pre_send_failed,
+            "provider_rejected": delivery.provider_rejected,
+        }
+        if delivery.delivery_uncertain or delivery.pre_send_failed or delivery.provider_rejected:
+            result["ok"] = False
+    print(json.dumps(result, ensure_ascii=False, sort_keys=True, separators=(",", ":")), flush=True)
     return 0 if result.get("ok") is True else 1
 
 

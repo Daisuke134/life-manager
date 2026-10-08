@@ -9,11 +9,70 @@ const { renderResultSummary } = require("../lib/cfo-result-summary.js");
 const OCCURRENCE_ID = /^life-manager-cfo-hourly:[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const SHA256 = /^[a-f0-9]{64}$/;
 const RELEASE_SHA = /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/;
+const TELEGRAM_MESSAGE_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
+const EFFECT_RESULT_HINT_FILENAME = "entrypoint-result.json";
+const DELIVERY_COUNTER_FIELDS = ["attempted", "delivered", "delivery_uncertain", "pre_send_failed"];
+
+function validPersistedDeliveryCounters(value, resolutionKind) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const keys = Object.keys(value);
+  const expected = resolutionKind === "duplicate" ? [0, 0, 0, 0]
+    : resolutionKind === "sent" ? [1, 1, 0, 0] : null;
+  return expected !== null && keys.length === DELIVERY_COUNTER_FIELDS.length
+    && DELIVERY_COUNTER_FIELDS.every((field, index) => Object.prototype.hasOwnProperty.call(value, field)
+      && Number.isSafeInteger(value[field]) && value[field] === expected[index]);
+}
 
 function occurrenceId(value) {
   const text = String(value || "").trim();
   if (!OCCURRENCE_ID.test(text)) throw new Error("cfo_occurrence_invalid");
   return text;
+}
+
+function writeRuntimeTelegramEffectHint(env, currentOccurrenceId, destination, delivery, duplicate) {
+  if (env?.LIFE_MANAGER_LOOP_ID !== "life-manager-cfo-hourly"
+    || destination.channel !== "telegram" || duplicate) return null;
+  if (delivery?.delivery !== "delivered" || delivery.attempted !== 1
+    || delivery.delivered !== 1 || delivery.delivery_uncertain !== 0
+    || delivery.pre_send_failed !== 0) return false;
+  const providerReceiptId = delivery.provider_message_id;
+  if (typeof providerReceiptId !== "string" || !TELEGRAM_MESSAGE_ID.test(providerReceiptId)) return false;
+  let exactOccurrence;
+  try { exactOccurrence = occurrenceId(currentOccurrenceId); } catch { return false; }
+  const file = String(env.LIFE_MANAGER_RESULT_HINT_PATH || "");
+  if (!file || path.basename(file) !== EFFECT_RESULT_HINT_FILENAME) return false;
+
+  const effectResult = {
+    schema_version: 1,
+    kind: "life_manager_effect_result",
+    status: "verified_effect",
+    effect: 1,
+    owner_id: "life-manager-cfo-hourly",
+    occurrence_id: exactOccurrence,
+    provider: "telegram",
+    provider_receipt_id: providerReceiptId,
+    effect_status: "verified",
+  };
+  let descriptor;
+  try {
+    descriptor = fs.openSync(file,
+      fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL
+        | (fs.constants.O_NOFOLLOW || 0), 0o600);
+    const opened = fs.fstatSync(descriptor);
+    if (!opened.isFile() || opened.nlink !== 1) return false;
+    fs.fchmodSync(descriptor, 0o600);
+    if ((fs.fstatSync(descriptor).mode & 0o777) !== 0o600) return false;
+    fs.writeFileSync(descriptor, `${JSON.stringify(effectResult)}\n`, "utf8");
+    fs.fsyncSync(descriptor);
+    return true;
+  } catch {
+    // A missing or pre-existing hint is fail-closed: the runtime keeps the effect unknown.
+    return false;
+  } finally {
+    if (descriptor !== undefined) {
+      try { fs.closeSync(descriptor); } catch { /* The provider receipt remains authoritative. */ }
+    }
+  }
 }
 
 function messageSha256(message) {
@@ -432,7 +491,7 @@ function readB7SnapshotFile(stateDir, sourceOccurrenceId, allowMissing) {
     sourceProvenanceSha = crypto.createHash("sha256").update(canonicalJson(snapshot.sourceProvenance), "utf8").digest("hex");
     renderedMessage = renderResultSummary(snapshot.projection);
   } catch { throw new Error("cfo_b7_snapshot_invalid"); }
-  if (snapshot.schemaVersion !== 3 || !["pending", "sent"].includes(snapshot.status)
+  if (![3, 4].includes(snapshot.schemaVersion) || !["pending", "sent"].includes(snapshot.status)
     || snapshot.ownerId !== sourceOccurrenceId.slice(0, separator)
     || snapshot.runId !== sourceOccurrenceId.slice(separator + 1)
     || snapshot.occurrenceId !== sourceOccurrenceId || !RELEASE_SHA.test(String(snapshot.releaseSha || ""))
@@ -463,14 +522,21 @@ function readB7SnapshotFile(stateDir, sourceOccurrenceId, allowMissing) {
     || !SHA256.test(String(snapshot.recipientHash || ""))
     || snapshot.eventKey !== resultEventKey(snapshot.subjectId, snapshot.channel, snapshot.reportingPeriod.key)
     || !Number.isFinite(Date.parse(snapshot.createdAt))) throw new Error("cfo_b7_snapshot_invalid");
+  if (snapshot.schemaVersion === 4 && ((snapshot.status === "sent"
+    && !validPersistedDeliveryCounters(snapshot.deliveryCounters, snapshot.resolutionKind))
+    || (snapshot.status === "pending" && snapshot.deliveryCounters !== undefined))) {
+    throw new Error("cfo_b7_snapshot_invalid");
+  }
   if (snapshot.status === "sent") {
     let deliveryOccurrence;
     try { deliveryOccurrence = occurrenceId(snapshot.deliveryOccurrenceId); }
     catch { throw new Error("cfo_b7_snapshot_invalid"); }
     const deliverySeparator = deliveryOccurrence.indexOf(":");
-    if (typeof snapshot.providerMessageId !== "string" || !snapshot.providerMessageId
+    if (typeof snapshot.providerMessageId !== "string"
+      || !TELEGRAM_MESSAGE_ID.test(snapshot.providerMessageId)
       || !Number.isFinite(Date.parse(snapshot.sentAt)) || !["sent", "duplicate"].includes(snapshot.resolutionKind)
       || deliveryOccurrence.slice(0, deliverySeparator) !== snapshot.ownerId
+      || (snapshot.deliveryReleaseSha !== undefined && !RELEASE_SHA.test(String(snapshot.deliveryReleaseSha)))
       || snapshot.deliveryRunId !== deliveryOccurrence.slice(deliverySeparator + 1)) {
       throw new Error("cfo_b7_snapshot_invalid");
     }
@@ -547,7 +613,14 @@ async function runResultCfo(options) {
   };
   if (previous?.status === "sent" && previous.periodKey === periodKey) {
     if (!previous.providerMessageId) throw new Error("cfo_sent_provider_receipt_missing");
-    persist({ ...previous, occurrenceId: currentOccurrenceId, resolutionKind: "duplicate" });
+    if (previous.occurrenceId === currentOccurrenceId) {
+      if (!validPersistedDeliveryCounters(previous.deliveryCounters, previous.resolutionKind)) {
+        throw new Error("cfo_result_delivery_counters_unverified");
+      }
+      throw new Error("cfo_same_occurrence_replay_requires_reconcile");
+    }
+    persist({ ...previous, occurrenceId: currentOccurrenceId, resolutionKind: "duplicate",
+      deliveryCounters: { attempted: 0, delivered: 0, delivery_uncertain: 0, pre_send_failed: 0 } });
     return {
       status: "quiet", reason: "unchanged", reportingDate: date, delivered: false,
       providerMessageId: String(previous.providerMessageId), resolutionKind: "duplicate",
@@ -558,7 +631,8 @@ async function runResultCfo(options) {
   if (pending && (pending.channel !== destination.channel || pending.recipientHash !== recipientHash)) {
     throw new Error("cfo_pending_destination_changed");
   }
-  const newSourceIdentity = pending ? null : b7Identity(currentOccurrenceId, sourceEnv);
+  const deliveryIdentity = b7Identity(currentOccurrenceId, sourceEnv);
+  const newSourceIdentity = pending ? null : deliveryIdentity;
   let sourceSnapshot = null;
   let sourceSnapshotMissing = false;
   if (pending?.b7ReadbackRef) {
@@ -593,14 +667,34 @@ async function runResultCfo(options) {
     }
   }
   if (sourceSnapshot?.status === "sent") {
+    if (sourceSnapshot.deliveryOccurrenceId !== currentOccurrenceId) {
+      const deliveryCounters = { attempted: 0, delivered: 0, delivery_uncertain: 0, pre_send_failed: 0 };
+      persist({ ...pending, status: "sent", occurrenceId: currentOccurrenceId,
+        resolutionKind: "duplicate", providerMessageId: sourceSnapshot.providerMessageId,
+        sentAt: sourceSnapshot.sentAt, deliveryCounters });
+      return { status: "quiet", reason: "unchanged", reportingDate: pending.reportingDate,
+        delivered: false, providerMessageId: sourceSnapshot.providerMessageId, resolutionKind: "duplicate" };
+    }
+    if (sourceSnapshot.schemaVersion !== 4
+      || !validPersistedDeliveryCounters(sourceSnapshot.deliveryCounters, sourceSnapshot.resolutionKind)) {
+      throw new Error("cfo_b7_delivery_counters_unverified");
+    }
     const recovered = { ...pending, status: "sent", occurrenceId: currentOccurrenceId,
       resolutionKind: sourceSnapshot.resolutionKind, providerMessageId: sourceSnapshot.providerMessageId,
-      sentAt: sourceSnapshot.sentAt };
+      sentAt: sourceSnapshot.sentAt, deliveryCounters: sourceSnapshot.deliveryCounters };
     persist(recovered);
     const duplicate = sourceSnapshot.resolutionKind === "duplicate";
-    return { status: duplicate ? "quiet" : "sent", reason: duplicate ? "unchanged" : null,
-      reportingDate: pending.reportingDate, delivered: !duplicate,
-      providerMessageId: sourceSnapshot.providerMessageId, resolutionKind: sourceSnapshot.resolutionKind };
+    if (duplicate) throw new Error("cfo_same_occurrence_duplicate_requires_reconcile");
+    const runtimeHintWritten = writeRuntimeTelegramEffectHint(sourceEnv, currentOccurrenceId, destination, {
+      delivery: "delivered",
+      provider_message_id: String(sourceSnapshot.providerMessageId),
+      ...sourceSnapshot.deliveryCounters,
+    }, false);
+    if (runtimeHintWritten === false) {
+      throw new Error("cfo_runtime_telegram_receipt_hint_missing");
+    }
+    return { status: "sent", reason: null, reportingDate: pending.reportingDate, delivered: true,
+      providerMessageId: sourceSnapshot.providerMessageId, resolutionKind: "sent" };
   }
   if (pending && now.getTime() - Date.parse(pending.createdAt) >= 23 * 60 * 60 * 1000) {
     throw new Error("cfo_pending_receipt_requires_reconcile");
@@ -643,7 +737,7 @@ async function runResultCfo(options) {
     let sourceProvenanceSha256;
     try { sourceProvenanceSha256 = crypto.createHash("sha256").update(canonicalJson(sourceProvenance), "utf8").digest("hex"); }
     catch { throw new Error("cfo_b7_source_provenance_invalid"); }
-    sourceSnapshot = { schemaVersion: 3, ...newSourceIdentity, occurrenceId: currentOccurrenceId,
+    sourceSnapshot = { schemaVersion: 4, ...newSourceIdentity, occurrenceId: currentOccurrenceId,
       subjectId, channel: destination.channel, recipientHash, eventKey,
       reportingPeriod, projection, projectionSha256, sourceProvenance, sourceProvenanceSha256,
       messageSha256: messageSha256Value,
@@ -659,23 +753,41 @@ async function runResultCfo(options) {
     eventKey: pending.eventKey, observedAt: now.toISOString(), message: pending.message,
     occurrenceId: currentOccurrenceId,
   });
-  if (delivery?.delivery !== "delivered" || !delivery.provider_message_id) {
+  if (delivery?.provider_rejected > 0) throw new Error("cfo_provider_rejected");
+  if (delivery?.delivery !== "delivered" || typeof delivery.provider_message_id !== "string"
+    || !TELEGRAM_MESSAGE_ID.test(delivery.provider_message_id)) {
     throw new Error("cfo_provider_receipt_missing");
   }
-  const duplicate = delivery.attempted === 0;
+  const deliveryCounters = Object.fromEntries(DELIVERY_COUNTER_FIELDS.map(field => [field, delivery[field]]));
+  const duplicate = deliveryCounters.attempted === 0 && deliveryCounters.delivered === 0
+    && deliveryCounters.delivery_uncertain === 0 && deliveryCounters.pre_send_failed === 0;
   const resolutionKind = duplicate ? "duplicate" : "sent";
-  const sentAt = now.toISOString();
-  if (sourceSnapshot) {
+  if (!validPersistedDeliveryCounters(deliveryCounters, resolutionKind)) {
+    throw new Error("cfo_delivery_counters_invalid");
+  }
+  const sentAt = new Date().toISOString();
+  if (sourceSnapshot && !duplicate) {
     const sourceOccurrenceId = sourceSnapshot.occurrenceId;
-    sourceSnapshot = { ...sourceSnapshot, status: "sent", resolutionKind,
+    sourceSnapshot = { ...sourceSnapshot, schemaVersion: 4, status: "sent", resolutionKind,
+      deliveryCounters,
       providerMessageId: String(delivery.provider_message_id), sentAt,
       deliveryOccurrenceId: currentOccurrenceId,
+      deliveryReleaseSha: deliveryIdentity.releaseSha,
       deliveryRunId: currentOccurrenceId.slice(currentOccurrenceId.indexOf(":") + 1) };
     writeB7Snapshot(stateDir, sourceOccurrenceId, sourceSnapshot, false);
   }
   persist({ ...pending, status: "sent", occurrenceId: currentOccurrenceId,
     messageSha256: pending.messageSha256 || messageSha256(pending.message),
-    resolutionKind, providerMessageId: String(delivery.provider_message_id), sentAt });
+    resolutionKind, deliveryCounters,
+    providerMessageId: String(delivery.provider_message_id), sentAt });
+  if (duplicate && pending.occurrenceId === currentOccurrenceId) {
+    throw new Error("cfo_same_occurrence_duplicate_requires_reconcile");
+  }
+  const runtimeHintWritten = writeRuntimeTelegramEffectHint(
+    sourceEnv, currentOccurrenceId, destination, delivery, duplicate);
+  if (runtimeHintWritten === false) {
+    throw new Error("cfo_runtime_telegram_receipt_hint_missing");
+  }
   return {
     status: duplicate ? "quiet" : "sent", reason: duplicate ? "unchanged" : null,
     reportingDate: pending.reportingDate, delivered: !duplicate,

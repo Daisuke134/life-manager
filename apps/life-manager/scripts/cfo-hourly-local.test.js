@@ -457,7 +457,8 @@ test("B7 pending retry reuses the frozen Moneytree report without recollecting",
       notifyCalls += 1;
       return notifyCalls === 1
         ? { delivery: "pending", provider_message_id: null }
-        : { delivery: "delivered", provider_message_id: "personal-report-receipt" };
+        : { delivery: "delivered", provider_message_id: "personal-report-receipt",
+          attempted: 1, delivered: 1, delivery_uncertain: 0, pre_send_failed: 0 };
     },
   };
 
@@ -473,6 +474,169 @@ test("B7 pending retry reuses the frozen Moneytree report without recollecting",
   assert.equal(collectCalls, 1);
   assert.equal(fixture.counters.accountReads, 1);
   assert.equal(fixture.counters.transactionReads, 5);
+});
+
+test("CFO writes a runtime Telegram receipt only for a new confirmed send", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-cfo-runtime-receipt-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const stateDir = path.join(root, "state");
+  const firstHint = path.join(root, "first", "entrypoint-result.json");
+  fs.mkdirSync(path.dirname(firstHint), { mode: 0o700 });
+  const occurrenceId = "life-manager-cfo-hourly:telegram-run-1";
+  let providerReturnedAt;
+  const env = {
+    ...process.env,
+    LIFE_MANAGER_RELEASE_SHA: "a".repeat(40),
+    LIFE_MANAGER_LOOP_ID: "life-manager-cfo-hourly",
+    LIFE_MANAGER_RESULT_HINT_PATH: firstHint,
+  };
+  const options = {
+    stateDir, subjectId: "dais-local", reportChannel: "telegram", chatId: "123",
+    occurrenceId, env, now: "2026-10-07T10:00:00.000Z",
+    collect: async (date) => ({
+      reporting_date: date, timezone: "Asia/Tokyo", rows: [],
+    }),
+    notify: async () => {
+      providerReturnedAt = new Date().toISOString();
+      return {
+        delivery: "delivered", provider_message_id: "9142", attempted: 1,
+        delivered: 1, delivery_uncertain: 0, pre_send_failed: 0,
+      };
+    },
+  };
+
+  const sent = await runResultCfo(options);
+  assert.equal(sent.status, "sent");
+  assert.equal(sent.resolutionKind, "sent");
+  const reportReceipt = JSON.parse(fs.readFileSync(path.join(stateDir, "last-result-report.json"), "utf8"));
+  assert.ok(Date.parse(reportReceipt.sentAt) >= Date.parse(providerReturnedAt));
+  const hint = JSON.parse(fs.readFileSync(firstHint, "utf8"));
+  assert.deepEqual(hint, {
+    schema_version: 1,
+    kind: "life_manager_effect_result",
+    status: "verified_effect",
+    effect: 1,
+    owner_id: "life-manager-cfo-hourly",
+    occurrence_id: occurrenceId,
+    provider: "telegram",
+    provider_receipt_id: "9142",
+    effect_status: "verified",
+  });
+  const hintStat = fs.lstatSync(firstHint);
+  assert.equal(hintStat.isFile(), true);
+  assert.equal(hintStat.isSymbolicLink(), false);
+  assert.equal(hintStat.mode & 0o777, 0o600);
+
+  const duplicateHint = path.join(root, "duplicate", "entrypoint-result.json");
+  fs.mkdirSync(path.dirname(duplicateHint), { mode: 0o700 });
+  const duplicate = await runResultCfo({
+    ...options,
+    occurrenceId: "life-manager-cfo-hourly:telegram-run-2",
+    env: { ...env, LIFE_MANAGER_RESULT_HINT_PATH: duplicateHint },
+    notify: async () => { throw new Error("duplicate_must_not_send"); },
+  });
+  assert.equal(duplicate.status, "quiet");
+  assert.equal(fs.existsSync(duplicateHint), false);
+
+  const historicalHint = path.join(root, "historical", "entrypoint-result.json");
+  fs.mkdirSync(path.dirname(historicalHint), { mode: 0o700 });
+  const historicalBytes = `${JSON.stringify({
+    schema_version: 1,
+    kind: "life_manager_effect_result",
+    status: "verified_effect",
+    effect: 1,
+    owner_id: "life-manager-cfo-hourly",
+    occurrence_id: "life-manager-cfo-hourly:old-run",
+    provider: "telegram",
+    provider_receipt_id: "1234",
+    effect_status: "verified",
+  })}\n`;
+  fs.writeFileSync(historicalHint, historicalBytes, { mode: 0o600 });
+  await assert.rejects(runResultCfo({
+    ...options,
+    stateDir: path.join(root, "historical-state"),
+    occurrenceId: "life-manager-cfo-hourly:telegram-run-historical-path",
+    env: { ...env, LIFE_MANAGER_RESULT_HINT_PATH: historicalHint },
+    now: "2026-10-07T11:00:00.000Z",
+    notify: async () => ({
+      delivery: "delivered", provider_message_id: "9143", attempted: 1,
+      delivered: 1, delivery_uncertain: 0, pre_send_failed: 0,
+    }),
+  }), /cfo_runtime_telegram_receipt_hint_missing/);
+  assert.equal(fs.readFileSync(historicalHint, "utf8"), historicalBytes);
+
+  const failedHint = path.join(root, "failed", "entrypoint-result.json");
+  fs.mkdirSync(path.dirname(failedHint), { mode: 0o700 });
+  const failedOccurrence = "life-manager-cfo-hourly:telegram-run-failed";
+  await assert.rejects(runResultCfo({
+    ...options,
+    stateDir: path.join(root, "failed-state"),
+    occurrenceId: failedOccurrence,
+    env: { ...env, LIFE_MANAGER_RESULT_HINT_PATH: failedHint },
+    notify: async () => ({ delivery: "delivery_uncertain", provider_message_id: null,
+      attempted: 1, delivered: 0, delivery_uncertain: 1, pre_send_failed: 0 }),
+  }), /cfo_provider_receipt_missing/);
+  assert.equal(fs.existsSync(failedHint), false);
+});
+
+test("CFO keeps sent state pending without an exact provider receipt tuple", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-cfo-invalid-delivery-counters-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const cases = [
+    ["multiple-attempts", {
+      delivery: "delivered", provider_message_id: "9144", attempted: 2,
+      delivered: 1, delivery_uncertain: 0, pre_send_failed: 0,
+    }],
+    ["attempt-count-missing", {
+      delivery: "delivered", provider_message_id: "9145",
+      delivered: 1, delivery_uncertain: 0, pre_send_failed: 0,
+    }],
+    ["uncertainty-count-missing", {
+      delivery: "delivered", provider_message_id: "9146", attempted: 1,
+      delivered: 1, pre_send_failed: 0,
+    }],
+    ["contradictory-counters", {
+      delivery: "delivered", provider_message_id: "9147", attempted: 1,
+      delivered: 1, delivery_uncertain: 1, pre_send_failed: 0,
+    }],
+    ["zero-attempt-contradictory-delivery", {
+      delivery: "delivered", provider_message_id: "9148", attempted: 0,
+      delivered: 1, delivery_uncertain: 0, pre_send_failed: 0,
+    }],
+    ["invalid-provider-message-id", {
+      delivery: "delivered", provider_message_id: "invalid id", attempted: 1,
+      delivered: 1, delivery_uncertain: 0, pre_send_failed: 0,
+    }, /cfo_provider_receipt_missing/],
+  ];
+
+  for (const [name, delivery, expectedError = /cfo_delivery_counters_invalid/] of cases) {
+    const hintPath = path.join(root, name, "entrypoint-result.json");
+    const stateDir = path.join(root, `${name}-state`);
+    fs.mkdirSync(path.dirname(hintPath), { mode: 0o700 });
+    await assert.rejects(runResultCfo({
+      stateDir,
+      subjectId: "dais-local", reportChannel: "telegram", chatId: "123",
+      occurrenceId: `life-manager-cfo-hourly:${name}`,
+      env: {
+        ...process.env,
+        LIFE_MANAGER_RELEASE_SHA: "a".repeat(40),
+        LIFE_MANAGER_LOOP_ID: "life-manager-cfo-hourly",
+        LIFE_MANAGER_RESULT_HINT_PATH: hintPath,
+      },
+      now: "2026-10-07T12:00:00.000Z",
+      collect: async (date) => ({ reporting_date: date, timezone: "Asia/Tokyo", rows: [] }),
+      notify: async () => delivery,
+    }), expectedError);
+
+    assert.equal(fs.existsSync(hintPath), false, name);
+    const report = JSON.parse(fs.readFileSync(path.join(stateDir, "last-result-report.json"), "utf8"));
+    assert.equal(report.status, "pending", name);
+    assert.equal(report.providerMessageId, undefined, name);
+    const snapshot = JSON.parse(fs.readFileSync(path.join(stateDir, "b7-readbacks",
+      `life-manager-cfo-hourly:${name}.json`), "utf8"));
+    assert.equal(snapshot.status, "pending", name);
+    assert.equal(snapshot.deliveryCounters, undefined, name);
+  }
 });
 
 function revenue(overrides = {}) {
@@ -509,7 +673,8 @@ test("CFO reports verified records once and stays quiet on exact replay", async 
     now: () => new Date("2026-09-07T06:00:00.000Z"),
     notify: async (input) => {
       deliveries.push(input);
-      return { delivery: "delivered", provider_message_id: "telegram-1" };
+      return { delivery: "delivered", provider_message_id: "telegram-1",
+        attempted: 1, delivered: 1, delivery_uncertain: 0, pre_send_failed: 0 };
     },
   };
 
@@ -542,7 +707,8 @@ test("CFO sends at most one consolidated snapshot per local reporting day", asyn
     stateDir, subjectId: "dais-local", store,
     ingest: async () => ({ observed: 0, created: 0, sources: {} }),
     notify: async (input) => (deliveries.push(input),
-      { delivery: "delivered", provider_message_id: String(deliveries.length) }),
+      { delivery: "delivered", provider_message_id: String(deliveries.length),
+        attempted: 1, delivered: 1, delivery_uncertain: 0, pre_send_failed: 0 }),
   };
   assert.equal((await runHourlyCfo({ ...base, now: () => new Date("2026-09-07T06:00:00Z") })).status, "sent");
   await store.append(revenue({
@@ -570,7 +736,8 @@ test("CFO recognizes the previous snapshot format and does not resend on release
     stateDir, subjectId: "dais-local", store,
     ingest: async () => ({ observed: 0, created: 0, sources: {} }),
     now: () => new Date("2026-09-07T10:00:00Z"),
-    notify: async () => { sends += 1; return { delivery: "delivered", provider_message_id: "new" }; },
+    notify: async () => { sends += 1; return { delivery: "delivered", provider_message_id: "new",
+      attempted: 1, delivered: 1, delivery_uncertain: 0, pre_send_failed: 0 }; },
   });
   assert.equal(result.status, "quiet");
   assert.equal(sends, 0);
@@ -591,7 +758,8 @@ test("CFO freezes and retries the first same-day snapshot after a pre-send failu
       attempt += 1;
       return attempt === 1
         ? { delivery: "pending", provider_message_id: null, attempted: 0 }
-        : { delivery: "delivered", provider_message_id: "recovered", attempted: 1 };
+        : { delivery: "delivered", provider_message_id: "recovered", attempted: 1,
+          delivered: 1, delivery_uncertain: 0, pre_send_failed: 0 };
     },
   };
   assert.equal((await runHourlyCfo({ ...base, now: () => new Date("2026-09-07T06:00:00Z") })).status, "failed");

@@ -42,12 +42,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         notify = reporter.notify_negotiate_wake if args.lane == "negotiate" else reporter.notify_paid_wake
         delivery = notify(snapshot)
         result = {
-            "ok": delivery.delivery_uncertain == 0 and delivery.pre_send_failed == 0,
+            "ok": delivery.delivery_uncertain == 0 and delivery.pre_send_failed == 0
+            and delivery.provider_rejected == 0,
             "lane": args.lane,
             "attempted": delivery.attempted,
             "delivered": delivery.delivered,
             "delivery_uncertain": delivery.delivery_uncertain,
             "pre_send_failed": delivery.pre_send_failed,
+            "provider_rejected": delivery.provider_rejected,
         }
     except Exception as error:
         result = {"ok": False, "lane": args.lane, "error": type(error).__name__.lower()}

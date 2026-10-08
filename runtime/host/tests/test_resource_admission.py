@@ -68,6 +68,63 @@ def test_unconfigured_deterministic_revenue_capacity_admits_five_workers(
         admission.release_and_reserve(claim, reserve=False, now=201)
 
 
+def test_cfo_registry_uses_revenue_slot_when_deterministic_borrow_slots_are_full(
+        tmp_path, monkeypatch):
+    capacity_env = (
+        "LIFE_MANAGER_HOST_MAX_FINITE_RUNS",
+        "LIFE_MANAGER_HOST_MAX_REVENUE_RUNS",
+        "LIFE_MANAGER_HOST_MAX_AGENT_TOTAL_RUNS",
+        "LIFE_MANAGER_HOST_MAX_AGENT_RUNS",
+        "LIFE_MANAGER_HOST_MAX_DETERMINISTIC_RUNS",
+        "LIFE_MANAGER_HOST_MAX_BROWSER_RUNS",
+        "LIFE_MANAGER_HOST_MIN_REVENUE_RUNS",
+    )
+    for name in capacity_env:
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("LIFE_MANAGER_RESOURCE_ADMISSION_ROOT", str(tmp_path))
+    admission.activate_durable_v2()
+    cfo = json.loads((Path(__file__).resolve().parents[3]
+                      / "config/loop-registry.json").read_text())["loops"][
+                          "life-manager-cfo-hourly"]
+
+    claims = []
+    try:
+        for index in range(2):
+            owner = f"deterministic-borrower-{index}"
+            ticket, reason = admission.enqueue_durable(
+                "deterministic", owner, admission_class="borrow",
+                priority="support", now=100 + index,
+            )
+            assert ticket is not None, reason
+            claim, reason = admission.claim_durable(
+                "deterministic", owner, admission_class="borrow", now=100 + index,
+            )
+            assert claim is not None and reason == "acquired", reason
+            claims.append(claim)
+
+        ticket, reason = admission.enqueue_durable(
+            cfo["resource_class"], "life-manager-cfo-hourly",
+            admission_class=cfo["admission_class"], priority=cfo["priority"],
+            now=200,
+        )
+        assert ticket is not None, reason
+        cfo_claim, reason = admission.claim_durable(
+            cfo["resource_class"], "life-manager-cfo-hourly",
+            admission_class=cfo["admission_class"], now=201,
+        )
+        assert cfo_claim is not None and reason == "acquired", reason
+        claims.append(cfo_claim)
+
+        blocked, reason = admission.try_acquire(
+            "deterministic", "ordinary-borrower", admission_class="borrow",
+            retain_ticket=False,
+        )
+        assert blocked is None and reason == "capacity_busy"
+    finally:
+        for claim in reversed(claims):
+            admission.release_and_reserve(claim, reserve=False, now=300)
+
+
 def enqueue_after_barrier(root, index, barrier, results):
     os.environ["LIFE_MANAGER_RESOURCE_ADMISSION_ROOT"] = str(root)
     os.environ["LIFE_MANAGER_HOST_MAX_FINITE_RUNS"] = "3"

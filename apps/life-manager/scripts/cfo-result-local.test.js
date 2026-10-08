@@ -17,7 +17,8 @@ function setup(t) {
       Authorization: "Bearer fixture-secret" },
     collect: async date => ({ reporting_date: date, rows: [{ loop_id: "capafy",
       revenue: { status: "verified", amounts: { USD: value }, receipts: ["receipt:1"] } }] }),
-    notify: async input => { messages.push(input); return { delivery: "delivered", provider_message_id: "id" }; } };
+    notify: async input => { messages.push(input); return { delivery: "delivered", provider_message_id: "id",
+      attempted: 1, delivered: 1, delivery_uncertain: 0, pre_send_failed: 0 }; } };
   return { options, messages, change: v => { value = v; } };
 }
 
@@ -76,13 +77,19 @@ test("new occurrence persists the normalized B7 source bound to its delivered re
   options.collect = async () => table;
   options.notify = async input => {
     messages.push(input);
-    return { delivery: "delivered", provider_message_id: "provider-message-1", raw: { Authorization: "do-not-save" } };
+    return { delivery: "delivered", provider_message_id: "provider-message-1",
+      attempted: 1, delivered: 1, delivery_uncertain: 0, pre_send_failed: 0,
+      raw: { Authorization: "do-not-save" } };
   };
 
   await runResultCfo({ ...options, now: "2026-09-30T12:00:00Z" });
 
   const file = readbackFile(options.stateDir, options.occurrenceId);
   const snapshot = JSON.parse(fs.readFileSync(file, "utf8"));
+  assert.equal(snapshot.schemaVersion, 4);
+  assert.deepEqual(snapshot.deliveryCounters, {
+    attempted: 1, delivered: 1, delivery_uncertain: 0, pre_send_failed: 0,
+  });
   assert.deepEqual(snapshot.projection, table);
   assert.equal(snapshot.ownerId, "life-manager-cfo-hourly");
   assert.equal(snapshot.runId, "run-1");
@@ -110,6 +117,26 @@ test("new occurrence persists the normalized B7 source bound to its delivered re
   assert.equal(fs.statSync(file).mode & 0o777, 0o600);
   assert.doesNotMatch(fs.readFileSync(file, "utf8"), /fixture-secret|do-not-save|API_TOKEN|Authorization|owner@example\.test/);
   assert.doesNotMatch(fs.readFileSync(path.join(options.stateDir, "last-result-report.json"), "utf8"), /fixture-secret|do-not-save/);
+});
+
+test("default email adapter persists a sent report with the required delivery counters", async t => {
+  const { options } = setup(t);
+  options.notify = undefined;
+  options.sendEmail = async input => {
+    assert.equal(input.to, options.reportEmail);
+    assert.equal(input.idempotencyKey, "cfo-result:owner:email:2026-09-30:12");
+    return { sent: true, id: "provider-email-1" };
+  };
+
+  const result = await runResultCfo({ ...options, now: "2026-09-30T12:00:00Z" });
+
+  const report = JSON.parse(fs.readFileSync(path.join(options.stateDir, "last-result-report.json"), "utf8"));
+  assert.equal(result.status, "sent");
+  assert.equal(report.status, "sent");
+  assert.equal(report.providerMessageId, "provider-email-1");
+  assert.deepEqual(report.deliveryCounters, {
+    attempted: 1, delivered: 1, delivery_uncertain: 0, pre_send_failed: 0,
+  });
 });
 
 function writeMobileProvenanceFixture(options, { mutatePacket, mutateMobile } = {}) {
@@ -329,7 +356,8 @@ test("orphan B7 snapshot recovers after pending state rename failure without rec
   options.notify = async input => {
     messages.push(input);
     successfulNotifies += 1;
-    return { delivery: "delivered", provider_message_id: "recovered-after-crash" };
+    return { delivery: "delivered", provider_message_id: "recovered-after-crash",
+      attempted: 1, delivered: 1, delivery_uncertain: 0, pre_send_failed: 0 };
   };
 
   const reportFile = path.join(options.stateDir, "last-result-report.json");
@@ -358,6 +386,9 @@ test("orphan B7 snapshot recovers after pending state rename failure without rec
   assert.equal(collects, 1);
   assert.equal(successfulNotifies, 1);
   assert.equal(messages.length, 1);
+  assert.deepEqual(JSON.parse(fs.readFileSync(reportFile, "utf8")).deliveryCounters, {
+    attempted: 1, delivered: 1, delivery_uncertain: 0, pre_send_failed: 0,
+  });
   assert.deepEqual(JSON.parse(fs.readFileSync(reportFile, "utf8")).b7ReadbackRef, {
     path: `b7-readbacks/${options.occurrenceId}.json`,
     projectionSha256: crypto.createHash("sha256").update(canonicalJson(table)).digest("hex"),
@@ -374,7 +405,8 @@ test("late pending retry restores a sent sidecar receipt after sent-state rename
   options.notify = async input => {
     messages.push(input);
     notifyCalls += 1;
-    return { delivery: "delivered", provider_message_id: "sent-before-state-crash" };
+    return { delivery: "delivered", provider_message_id: "sent-before-state-crash",
+      attempted: 1, delivered: 1, delivery_uncertain: 0, pre_send_failed: 0 };
   };
 
   const reportFile = path.join(options.stateDir, "last-result-report.json");
@@ -403,12 +435,17 @@ test("late pending retry restores a sent sidecar receipt after sent-state rename
 
   const recovered = await runResultCfo({ ...options, occurrenceId: "life-manager-cfo-hourly:late-retry",
     now: "2026-10-01T12:01:00Z" });
-  assert.equal(recovered.status, "sent");
+  assert.equal(recovered.status, "quiet");
+  assert.equal(recovered.resolutionKind, "duplicate");
   assert.equal(recovered.providerMessageId, "sent-before-state-crash");
   assert.equal(collects, 1);
   assert.equal(notifyCalls, 1);
   const finalState = JSON.parse(fs.readFileSync(reportFile, "utf8"));
   assert.equal(finalState.status, "sent");
+  assert.equal(finalState.resolutionKind, "duplicate");
+  assert.deepEqual(finalState.deliveryCounters, {
+    attempted: 0, delivered: 0, delivery_uncertain: 0, pre_send_failed: 0,
+  });
   assert.equal(finalState.providerMessageId, "sent-before-state-crash");
   assert.equal(finalState.occurrenceId, "life-manager-cfo-hourly:late-retry");
 });
@@ -467,7 +504,8 @@ test("pending notification keeps its B7 source pending and retry reuses it witho
     beforeNotify.push({ status: snapshot.status, messageSha256: snapshot.messageSha256 });
     return ++attempts === 1
       ? { delivery: "pending", provider_message_id: null }
-      : { delivery: "delivered", provider_message_id: "provider-message-2", attempted: 0 };
+      : { delivery: "delivered", provider_message_id: "provider-message-2", attempted: 0,
+        delivered: 0, delivery_uncertain: 0, pre_send_failed: 0 };
   };
 
   await assert.rejects(runResultCfo({ ...options, now: "2026-09-30T12:00:00Z" }), /receipt_missing/);
@@ -490,11 +528,17 @@ test("pending notification keeps its B7 source pending and retry reuses it witho
   assert.deepEqual(resolved.projection, table);
   assert.equal(resolved.occurrenceId, options.occurrenceId);
   assert.equal(resolved.runId, "run-1");
-  assert.equal(resolved.deliveryOccurrenceId, retryOccurrence);
-  assert.equal(resolved.deliveryRunId, "retry-run");
-  assert.equal(resolved.status, "sent");
-  assert.equal(resolved.providerMessageId, "provider-message-2");
-  assert.equal(resolved.resolutionKind, "duplicate");
+  assert.equal(resolved.status, "pending");
+  assert.equal(resolved.providerMessageId, undefined);
+  assert.equal(resolved.resolutionKind, undefined);
+  const currentReport = JSON.parse(fs.readFileSync(path.join(options.stateDir, "last-result-report.json"), "utf8"));
+  assert.equal(currentReport.occurrenceId, retryOccurrence);
+  assert.equal(currentReport.status, "sent");
+  assert.equal(currentReport.providerMessageId, "provider-message-2");
+  assert.equal(currentReport.resolutionKind, "duplicate");
+  assert.deepEqual(currentReport.deliveryCounters, {
+    attempted: 0, delivered: 0, delivery_uncertain: 0, pre_send_failed: 0,
+  });
   assert.equal(messages[0].message, messages[1].message);
   assert.equal(messages[0].eventKey, messages[1].eventKey);
 });
@@ -541,7 +585,8 @@ test("legacy pending delivery without a source snapshot retries without inventin
   let collects = 0;
 
   assert.equal((await runResultCfo({ ...options, now, collect: async () => { collects += 1; return b7Table(date); },
-    notify: async input => { messages.push(input); return { delivery: "delivered", provider_message_id: "legacy-id" }; } })).status, "sent");
+    notify: async input => { messages.push(input); return { delivery: "delivered", provider_message_id: "legacy-id",
+      attempted: 1, delivered: 1, delivery_uncertain: 0, pre_send_failed: 0 }; } })).status, "sent");
 
   assert.equal(collects, 0);
   assert.equal(messages[0].message, message);
@@ -583,19 +628,63 @@ test("daily cadence stays quiet; ambiguous send freezes text and original key", 
   const { options, messages, change } = setup(t);
   let attempt = 0;
   const notify = async input => { messages.push(input); return ++attempt === 1
-    ? { delivery: "pending" } : { delivery: "delivered", provider_message_id: "recovered" }; };
+    ? { delivery: "pending" } : { delivery: "delivered", provider_message_id: "recovered",
+      attempted: 1, delivered: 1, delivery_uncertain: 0, pre_send_failed: 0 }; };
   await assert.rejects(runResultCfo({ ...options, notify, reportCadence: "daily", now: "2026-09-30T12:00:00Z" }), /receipt_missing/);
   change("999");
   assert.equal((await runResultCfo({ ...options, notify, reportCadence: "daily", now: "2026-09-30T13:00:00Z" })).status, "sent");
   assert.equal(messages[0].message, messages[1].message);
   assert.equal(messages[0].eventKey, messages[1].eventKey);
-  assert.equal((await runResultCfo({ ...options, reportCadence: "daily", now: "2026-09-30T14:00:00Z" })).status, "quiet");
+  await assert.rejects(
+    runResultCfo({ ...options, reportCadence: "daily", now: "2026-09-30T14:00:00Z" }),
+    /cfo_same_occurrence_replay_requires_reconcile/,
+  );
+  assert.equal(messages.length, 2);
 });
+
+test("cross-occurrence pending send binds the provider receipt to the delivery release", async t => {
+  const { options } = setup(t);
+  const deliveryOccurrenceId = "life-manager-cfo-hourly:run-2";
+  const deliveryReleaseSha = "b".repeat(40);
+  await assert.rejects(runResultCfo({ ...options,
+    notify: async () => ({ delivery: "pending" }),
+    now: "2026-09-30T12:00:00Z",
+  }), /cfo_provider_receipt_missing/);
+
+  await runResultCfo({ ...options,
+    occurrenceId: deliveryOccurrenceId,
+    env: { ...options.env, LIFE_MANAGER_RELEASE_SHA: deliveryReleaseSha },
+    notify: async () => ({ delivery: "delivered", provider_message_id: "delivery-2",
+      attempted: 1, delivered: 1, delivery_uncertain: 0, pre_send_failed: 0 }),
+    now: "2026-09-30T12:57:00Z",
+  });
+
+  const source = JSON.parse(fs.readFileSync(readbackFile(options.stateDir, options.occurrenceId), "utf8"));
+  assert.equal(source.status, "sent");
+  assert.equal(source.occurrenceId, options.occurrenceId);
+  assert.equal(source.deliveryOccurrenceId, deliveryOccurrenceId);
+  assert.equal(source.deliveryReleaseSha, deliveryReleaseSha);
+});
+
 test("pending receipt cannot be silently retargeted", async t => {
   const { options } = setup(t);
   await assert.rejects(runResultCfo({ ...options, now: "2026-09-30T12:00:00Z", notify: async () => ({}) }));
   await assert.rejects(runResultCfo({ ...options, reportEmail: "other@example.test", now: "2026-09-30T13:00:00Z" }), /destination_changed/);
 });
+
+test("confirmed provider rejection is not reported as pre-send or sent", async t => {
+  const { options } = setup(t);
+  await assert.rejects(runResultCfo({
+    ...options,
+    notify: async () => ({ delivery: "pending", attempted: 1, delivered: 0,
+      delivery_uncertain: 0, pre_send_failed: 0, provider_rejected: 1 }),
+    now: "2026-09-30T12:00:00Z",
+  }), /cfo_provider_rejected/);
+
+  const snapshot = JSON.parse(fs.readFileSync(readbackFile(options.stateDir, options.occurrenceId), "utf8"));
+  assert.equal(snapshot.status, "pending");
+});
+
 test("wrong-day and broken source collection never send", async t => {
   const { options, messages } = setup(t);
   await assert.rejects(runResultCfo({ ...options, now: "2026-09-30T12:00:00Z", collect: async () => ({ reporting_date: "2026-09-29" }) }), /date_mismatch/);
@@ -616,12 +705,149 @@ test("same-period replay is quiet, keeps provider receipt, and rebinds current o
   assert.equal(state.occurrenceId, "life-manager-cfo-hourly:run-2");
   assert.equal(state.providerMessageId, "id");
   assert.equal(state.resolutionKind, "duplicate");
+  assert.deepEqual(state.deliveryCounters, {
+    attempted: 0, delivered: 0, delivery_uncertain: 0, pre_send_failed: 0,
+  });
   assert.match(state.messageSha256, /^[a-f0-9]{64}$/);
   await assert.rejects(
     runResultCfo({ ...options, subjectId: "other-owner", now: "2026-09-30T12:00:00Z" }),
     /subject_changed/,
   );
   assert.equal(messages.length, 1);
+});
+
+test("cross-occurrence recovery rejects malformed sent B7 provider IDs before persisting sent", async t => {
+  const { options } = setup(t);
+  await runResultCfo({ ...options, now: "2026-09-30T12:00:00Z" });
+  const reportFile = path.join(options.stateDir, "last-result-report.json");
+  const report = JSON.parse(fs.readFileSync(reportFile, "utf8"));
+  report.status = "pending";
+  delete report.resolutionKind;
+  delete report.providerMessageId;
+  delete report.sentAt;
+  delete report.deliveryCounters;
+  fs.writeFileSync(reportFile, JSON.stringify(report));
+  const snapshotFile = readbackFile(options.stateDir, options.occurrenceId);
+  const snapshot = JSON.parse(fs.readFileSync(snapshotFile, "utf8"));
+  snapshot.providerMessageId = "malformed provider id";
+  fs.writeFileSync(snapshotFile, JSON.stringify(snapshot));
+  let notifications = 0;
+
+  await assert.rejects(runResultCfo({ ...options, occurrenceId: "life-manager-cfo-hourly:run-2",
+    notify: async () => { notifications += 1; return { delivery: "delivered", provider_message_id: "unexpected",
+      attempted: 1, delivered: 1, delivery_uncertain: 0, pre_send_failed: 0 }; },
+    now: "2026-09-30T12:00:00Z" }), /cfo_b7_snapshot_invalid/);
+
+  const pending = JSON.parse(fs.readFileSync(reportFile, "utf8"));
+  assert.equal(pending.status, "pending");
+  assert.equal(pending.occurrenceId, options.occurrenceId);
+  assert.equal(notifications, 0);
+});
+
+test("B7 v4 with null delivery counters cannot recover as sent", async t => {
+  const { options } = setup(t);
+  await runResultCfo({ ...options, now: "2026-09-30T12:00:00Z" });
+  const reportFile = path.join(options.stateDir, "last-result-report.json");
+  const report = JSON.parse(fs.readFileSync(reportFile, "utf8"));
+  report.status = "pending";
+  delete report.resolutionKind;
+  delete report.providerMessageId;
+  delete report.sentAt;
+  delete report.deliveryCounters;
+  fs.writeFileSync(reportFile, JSON.stringify(report));
+  const snapshotFile = readbackFile(options.stateDir, options.occurrenceId);
+  const snapshot = JSON.parse(fs.readFileSync(snapshotFile, "utf8"));
+  snapshot.deliveryCounters.attempted = null;
+  fs.writeFileSync(snapshotFile, JSON.stringify(snapshot));
+  let notifications = 0;
+
+  await assert.rejects(runResultCfo({ ...options, notify: async () => {
+    notifications += 1;
+    return { delivery: "delivered", provider_message_id: "must-not-send",
+      attempted: 1, delivered: 1, delivery_uncertain: 0, pre_send_failed: 0 };
+  }, now: "2026-09-30T12:00:00Z" }), /cfo_b7_snapshot_invalid/);
+
+  assert.equal(notifications, 0);
+  assert.equal(JSON.parse(fs.readFileSync(reportFile, "utf8")).status, "pending");
+});
+
+test("legacy sent B7 without counters cannot recover the same occurrence as sent", async t => {
+  const { options } = setup(t);
+  await runResultCfo({ ...options, now: "2026-09-30T12:00:00Z" });
+  const reportFile = path.join(options.stateDir, "last-result-report.json");
+  const report = JSON.parse(fs.readFileSync(reportFile, "utf8"));
+  report.status = "pending";
+  delete report.resolutionKind;
+  delete report.providerMessageId;
+  delete report.sentAt;
+  delete report.deliveryCounters;
+  fs.writeFileSync(reportFile, JSON.stringify(report));
+  const snapshotFile = readbackFile(options.stateDir, options.occurrenceId);
+  const snapshot = JSON.parse(fs.readFileSync(snapshotFile, "utf8"));
+  snapshot.schemaVersion = 3;
+  delete snapshot.deliveryCounters;
+  fs.writeFileSync(snapshotFile, JSON.stringify(snapshot));
+  let notifications = 0;
+
+  await assert.rejects(runResultCfo({ ...options, notify: async () => {
+    notifications += 1;
+    return { delivery: "delivered", provider_message_id: "must-not-send",
+      attempted: 1, delivered: 1, delivery_uncertain: 0, pre_send_failed: 0 };
+  }, now: "2026-09-30T12:00:00Z" }), /cfo_b7_delivery_counters_unverified/);
+
+  assert.equal(notifications, 0);
+  assert.equal(JSON.parse(fs.readFileSync(reportFile, "utf8")).status, "pending");
+});
+
+test("same-occurrence sent report with invalid counters cannot become a quiet duplicate", async t => {
+  const { options, messages } = setup(t);
+  await runResultCfo({ ...options, now: "2026-09-30T12:00:00Z" });
+  const reportFile = path.join(options.stateDir, "last-result-report.json");
+  const report = JSON.parse(fs.readFileSync(reportFile, "utf8"));
+  report.deliveryCounters.attempted = null;
+  fs.writeFileSync(reportFile, JSON.stringify(report));
+
+  await assert.rejects(
+    runResultCfo({ ...options, now: "2026-09-30T12:00:00Z" }),
+    /cfo_result_delivery_counters_unverified/,
+  );
+
+  assert.equal(messages.length, 1);
+  assert.equal(JSON.parse(fs.readFileSync(reportFile, "utf8")).resolutionKind, "sent");
+});
+
+test("same-occurrence duplicate receipt stays fenced for reconciliation", async t => {
+  const { options, messages } = setup(t);
+  let notifications = 0;
+  const notify = async input => {
+    messages.push(input);
+    notifications += 1;
+    return notifications === 1
+      ? { delivery: "pending", provider_message_id: null }
+      : { delivery: "delivered", provider_message_id: "id", attempted: 0,
+        delivered: 0, delivery_uncertain: 0, pre_send_failed: 0 };
+  };
+
+  await assert.rejects(
+    runResultCfo({ ...options, notify, now: "2026-09-30T12:00:00Z" }),
+    /cfo_provider_receipt_missing/,
+  );
+  await assert.rejects(
+    runResultCfo({ ...options, notify, now: "2026-09-30T12:01:00Z" }),
+    /cfo_same_occurrence_duplicate_requires_reconcile/,
+  );
+
+  const report = JSON.parse(fs.readFileSync(path.join(options.stateDir, "last-result-report.json"), "utf8"));
+  const snapshot = JSON.parse(fs.readFileSync(readbackFile(options.stateDir, options.occurrenceId), "utf8"));
+  assert.equal(report.status, "sent");
+  assert.equal(report.resolutionKind, "duplicate");
+  assert.deepEqual(report.deliveryCounters, {
+    attempted: 0, delivered: 0, delivery_uncertain: 0, pre_send_failed: 0,
+  });
+  assert.equal(snapshot.status, "pending");
+  assert.equal(snapshot.deliveryCounters, undefined);
+  assert.equal(notifications, 2);
+  assert.equal(messages.length, 2);
 });
 
 test("pending retry with an already-delivered outbox receipt is duplicate, not sent", async t => {
@@ -632,7 +858,8 @@ test("pending retry with an already-delivered outbox receipt is duplicate, not s
     attempt += 1;
     return attempt === 1
       ? { delivery: "pending", provider_message_id: null }
-      : { delivery: "delivered", provider_message_id: "id", attempted: 0 };
+      : { delivery: "delivered", provider_message_id: "id", attempted: 0,
+        delivered: 0, delivery_uncertain: 0, pre_send_failed: 0 };
   };
   await assert.rejects(
     runResultCfo({ ...options, notify, reportCadence: "daily", now: "2026-09-30T12:00:00Z" }),
