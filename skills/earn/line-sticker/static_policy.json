@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "source_url": "https://creator.line.me/en/guideline/sticker/",
+  "observed_at": "2026-10-08",
+  "max_policy_age_days": 30,
+  "sticker_counts": [8, 16, 24, 32, 40],
+  "default_sticker_count": 16,
+  "default_price_jpy": 190,
+  "main": {"width": 240, "height": 240, "animated": false},
+  "tab": {"width": 96, "height": 74, "animated": false},
+  "sticker": {"max_width": 370, "max_height": 320, "margin_px": 10},
+  "max_file_bytes": 1000000,
+  "max_zip_bytes": 60000000,
+  "required_color_types": [4, 6]
+}
