@@ -52,3 +52,7 @@ test('request digest catches changed content and release while ignoring caller r
 test('non-JSON schemas cannot silently change during request cloning',()=>{
  for(const schema of [{value:NaN},{value:undefined},{value:()=>1},new Date()])assert.throws(()=>validateRunRequest({...fixture(),schema}));
 });
+test('JSON arrays cannot impersonate typed SHA strings through regex coercion',()=>{
+ assert.throws(()=>validateRunRequest({...fixture(),release_sha:['a'.repeat(40)]}));
+ assert.throws(()=>validateRunRequest({...fixture(),attachments:[{path:'/srv/lm/image.png',mime_type:'image/png',sha256:['a'.repeat(64)]}]}));
+});

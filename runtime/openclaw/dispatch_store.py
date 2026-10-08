@@ -16,6 +16,7 @@ import tempfile
 
 FIELDS = {'version', 'owner_id', 'occurrence_id', 'task_id', 'session_key',
           'upstream_run_id', 'claim_ref', 'request_digest', 'phase'}
+MAX_RECORD_BYTES = 16384
 TRANSITIONS = {'prepared': {'dispatching'}, 'dispatching': {'accepted', 'unknown', 'terminal'},
                'accepted': {'unknown', 'terminal'}, 'unknown': {'accepted', 'terminal'}, 'terminal': set()}
 
@@ -63,6 +64,7 @@ def _read(path, identity):
     except OSError as e:raise ValueError('unsafe dispatch file') from e
     try:
         _check_fd(fd)
+        if os.fstat(fd).st_size > MAX_RECORD_BYTES:raise ValueError('oversized dispatch record')
         with os.fdopen(fd,'r',encoding='utf-8',closefd=False) as f:
             text=f.read(16385)
         if len(text)>16384:raise ValueError('oversized dispatch record')
@@ -87,6 +89,8 @@ def _lock(root,key):
 
 def save_dispatch(root, record, *, expected_phase):
     _validate(record)
+    encoded=(json.dumps(record,ensure_ascii=False,separators=(',',':'))+'\n').encode('utf-8')
+    if len(encoded)>MAX_RECORD_BYTES:raise ValueError('oversized dispatch record')
     identity=tuple(record[k] for k in ('owner_id','occurrence_id','task_id'))
     key=dispatch_key(*identity);root=_root(root,create=True);path=root/(key+'.json')
     with _lock(root,key):
@@ -101,8 +105,8 @@ def save_dispatch(root, record, *, expected_phase):
         elif record['phase']!='prepared':raise ValueError('first dispatch must be prepared')
         fd,name=tempfile.mkstemp(prefix='.'+key+'.',dir=root)
         try:
-            with os.fdopen(fd,'w',encoding='utf-8') as f:
-                json.dump(record,f,ensure_ascii=False,separators=(',',':'));f.write('\n');f.flush();os.fsync(f.fileno())
+            with os.fdopen(fd,'wb') as f:
+                f.write(encoded);f.flush();os.fsync(f.fileno())
             os.replace(name,path)
             directory=os.open(root,os.O_RDONLY)
             try:os.fsync(directory)

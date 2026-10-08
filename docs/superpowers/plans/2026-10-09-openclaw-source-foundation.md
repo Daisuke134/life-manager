@@ -24,3 +24,5 @@ Ruling: 固定公開SessionRowにactiveRunIdsなし。exact sessions.list read�
 
 Final: fixed independent review reconnect readiness and first-hello close race — 2回帰tests RED→GREEN、全Node13/Python5 PASS。
 Ruling: finishing skillの統合確認menuは依頼済commit/push/通常統合で質問しないユーザー指示に劣後する。PR main統合を自律実行し、本番切替はしない。
+
+Final: fixed digest型coercion — JSON-array regression RED→GREEN。Final: fixed unreadable oversized receipt — size/preservation regression RED→GREEN。全Node14/Python6 PASS。review他に重要指摘なし、実SDK/native runtime/claim/tool本番は明示未検証。Deferred minors: なし。PR7280、通常main append競合は双方の証拠を保持して解消。本番操作0。

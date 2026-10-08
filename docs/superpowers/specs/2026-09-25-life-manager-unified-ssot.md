@@ -10124,10 +10124,12 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 - [x] OC013: `environment.mjs::buildGatewayEnv` private rootとallowlist、ambient secrets非継承。
 未完のprofile/claim/tool broker/caller/商品binding/cutover/退役は元設計のまま。すべてsource PASSまで公開route有効化0。Temporal追加なし、native ChatGPT Codex以外の推論fallbackなし。
 
-Source evidence: Node 13tests/Python 5tests PASS、RPC境界はinjected test clientで確認（real Gateway/native Codexは未確認）。正式protocol依存は `@openclaw/gateway-protocol`（旧名称404を修正）。lock生成時ENOSPCの固有npm tmpのみ撤去、既存lock再利用で生成成功。host Node25.6.1はpin/runtime engine不適合、Node24.16.0 bundle復元が必要。
+Source evidence: Node 14tests/Python 6tests PASS、RPC境界はinjected test clientで確認（real Gateway/native Codexは未確認）。正式protocol依存は `@openclaw/gateway-protocol`（旧名称404を修正）。lock生成時ENOSPCの固有npm tmpのみ撤去、既存lock再利用で生成成功。host Node25.6.1はpin/runtime engine不適合、Node24.16.0 bundle復元が必要。
 - [ ] OC011: `gateway-client.mjs::readSession` のexact scoped row readは実装済み。公開pinned rowにactiveRunIdsがないためliveness unknown保持。`OC020` に使うsupported lifecycle proofを実装し、それまでclaim解放/route有効化0。
 - [ ] OC012: package-lockからisolated bundleを作り、Node24.16.0 + SDK2026.8.1 + runtime2026.9.8でhello/agent.wait/abortをprivate fixture検証。各runのreceipt/liveness fieldは固定版sourceに照合してconsumerを修正。
 - [ ] OC014/NC02/NC04: `profile.mjs` + native endpoint account readback + restricted tool policy。個人Codex login/logout/restart/import0、既存endpointへattach。
 - [ ] OC017–028: `admission.py`/`tool_broker.py`/pluginと `lm_loop_run.py` のclaim lifetime接続。未確認effectを再送せず既存domain guardを通す。
 - [ ] OC029–035/MI01–02: full caller artifact/schema/usage/画像/owned thread fork、既存 `agent_runner.py` へdisabled route接続。
 公開sourceを追加しただけではdurability/同時稼働/revenue改善は未証明。本番gateway/scheduler/agent/source routes変更0。
+
+Independent review: 3件の実不具合（再接続readiness、digest型coercion、read不能なoversized receipt保存）を各RED→GREENで修正。sourceテスト20 PASS。PR #7280 https://github.com/Daisuke134/life-manager/pull/7280 。本番移行は未完。

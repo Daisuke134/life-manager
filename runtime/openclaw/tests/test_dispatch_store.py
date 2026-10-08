@@ -63,6 +63,13 @@ class DispatchTest(unittest.TestCase):
         with self.assertRaises(ValueError):store.load_dispatch(self.root,'writer','wake:001','draft')
         p.unlink();target=Path(self.temp.name)/'target';target.write_text('{}');p.symlink_to(target)
         with self.assertRaises(ValueError):store.load_dispatch(self.root,'writer','wake:001','draft')
+    def test_oversized_record_is_rejected_before_persistence(self):
+        store.save_dispatch(self.root,record(),expected_phase=None)
+        v=record();v['task_id']='large';v['claim_ref']='/'+'x'*20000
+        with self.assertRaises(ValueError):store.save_dispatch(self.root,v,expected_phase=None)
+        self.assertIsNone(store.load_dispatch(self.root,'writer','wake:001','large'))
+        self.assertEqual(store.load_dispatch(self.root,'writer','wake:001','draft'),record())
+
     def test_symlink_root_never_writes_outside_private_dispatch(self):
         target=Path(self.temp.name)/'other';target.mkdir();self.root.symlink_to(target)
         with self.assertRaises(ValueError):store.save_dispatch(self.root,record(),expected_phase=None)

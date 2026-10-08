@@ -33,7 +33,7 @@ export function validateRunRequest(value) {
   closed(value, keys);
   if (value.version !== 2) fail('version');
   for (const k of ['owner_id', 'occurrence_id', 'run_id', 'task_id', 'task_class']) if (!safeId(value[k])) fail(k);
-  if (!/^[a-f0-9]{40}$/.test(value.release_sha)) fail('release_sha');
+  if (typeof value.release_sha !== 'string' || !/^[a-f0-9]{40}$/.test(value.release_sha)) fail('release_sha');
   if (value.provider !== 'codex') fail('provider');
   for (const k of ['model', 'effort', 'prompt']) if (typeof value[k] !== 'string' || !value[k].trim()) fail(k);
   if (!object(value.schema)) fail('schema');
@@ -45,7 +45,7 @@ export function validateRunRequest(value) {
   for (const a of value.attachments) {
     closed(a, ['path', 'mime_type', 'sha256']);
     if (typeof a.path !== 'string' || !path.isAbsolute(a.path) ||
-        !['image/png', 'image/jpeg', 'image/webp'].includes(a.mime_type) || !/^[a-f0-9]{64}$/.test(a.sha256)) fail('attachments');
+        !['image/png', 'image/jpeg', 'image/webp'].includes(a.mime_type) || typeof a.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(a.sha256)) fail('attachments');
   }
   // Ownership is verified by the caller bridge, never inferred from a thread ID.
   if (value.owned_resume_ref !== null) {
