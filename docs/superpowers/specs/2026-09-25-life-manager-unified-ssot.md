@@ -9988,3 +9988,13 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 4. [ ] **A10:** verify seven consecutive natural reports against same-occurrence provider/runtime/B7 receipts, period/currency, cost coverage and replay-zero; partial values stay partial.
 
 **現在cursor:** A6 billed/usage/cash/trace reconciliation → A8 all-loop/job coverage → A9 source-period CFO report → A10 seven-day natural acceptance. A5 panel auth remains separately deferred; it does not stop this A6 read-only reconciliation.
+
+### 2026-10-09 07:47 JST — current release is main-derived; CFO owner apply is still pending
+
+このsnapshotは07:31のA6 readbackにproduction release状態を追加する。CFO本体は動作中で、残るblockerはbusiness-source coverageとowner release adoptionである。
+
+- **Main/current:** latest main is `3abdb5db098aa12f18b0687ad262fe9e3f9c3249`; production `current` is immutable release `20261009T073910-6708b97f`, so the latest runtime code is main-derived. CFO owner remains loaded-idle on `131ef4cd2526fbc7020cbf75365d95b3b92bf63b`; its last natural occurrence is still the 21:57:09Z pass, and its revenue-class queue/fence readback is clean. No current CFO `resource_capacity_busy` blocker is observed.
+- **Owner adoption:** the latest recorded fleet apply is a partial attempt at `2026-10-08T22:28:07Z` targeting `131ef4cd` (`77 changed / 60 skipped / 4 errors`). Subsequent reconciler output coalesced target `6708b97f` against the 1,800-second interval from that attempt (earliest ordinary retry about 22:58Z); the CFO owner has not yet been observed on `6708b97f`. Let the existing reconciler adopt it naturally; do not force-apply or restart.
+- **Reconciler diagnostics:** occurrences at 22:40Z and 22:43Z recorded `entrypoint_exit_1`; the 22:46Z natural occurrence passed and a 22:47Z occurrence was running at the latest check. The failed occurrences' summary artifacts were absent from `loop-tmp`, and the exact-run stderr was empty/unavailable. Older launchd output contains ENOSPC, but it is not tied to these exact failures and is not asserted as their cause. Read the active occurrence to terminal and capture its own output before classifying or fixing the shared owner.
+
+**現在cursor:** A6 invoice/usage/cash/trace reconciliation → A8 full loop/job coverage → A9 source-period CFO report → A10 seven-day natural acceptance; in parallel, observe the normal owner apply to `6708b97f`. The release-adoption lag does not invalidate the CFO result already produced on `131ef4cd`.
