@@ -4733,6 +4733,31 @@ PR gate update (2026-10-08): latest rebase CI passes Loop control, Python, OSS b
 
 **現在cursor:** item 1、release reconciler natural terminal。source fixはmainにあるが、現行TikTok投稿と容量回復は未確認で、配信復旧完了とは報告しない。
 
+### 2026-10-08 10:30 JST — TikTok exact-readback blocker and live rollout
+
+この節は10:06のTikTok cursorを更新する。main `8d396690b68b3f6f9533ef4810671eadbc9c0a70`はPR #7003のcleanup修正を含むが、実行中ownerはまだrelease `6a9b0ab3`または`c65449ef`であり、TikTok全routeは再開していない。
+
+**現在の証拠:**
+
+- 10:28:41 JSTのcleanup receiptは`free_after=4,211,290,112` bytes、`reclaimed=116,510`、`errors=0`、`protected_deletions=0`、floor=`met`。10:30 `df -Pk /`も約3.97 GiB available。cleanup ownerはrelease `c65449ef`でnatural pass。DerivedDataは10:13以降`du=0`だが、このreceiptの回収量は約114 KiBであり、3.5 GiBが消えた原因をこのcleanup ownerに帰属できない。
+- `life-manager-release-reconciler`はrelease `6a9b0ab3`でloaded-running PID `94950` / occurrence `18dc68ffe1a11028-72172` / `next_action=reconcile_owner`。fleet apply logは6a9b対象47 owners（45 pass、2 error: guarded retired `ai.anicca.provision-browser.capafy.kosuke`と`hf-gig-reply-detector`のeffect-unknown fence）。TikTok cleanup ownerと全TikTok ownersの6a9b適用はまだ確認できない。reconcilerは1 owner最大120秒、fleet total budget 1,200秒で処理し、guarded retired labelsを先に試す。stop/restartや並列applyはしない。
+- Anicca main / Buddha / EN slideshowの最新ownersは`official_readback_required`、JP1は過去の`disk_headroom_low`のまま。いずれも新しいPostiz receiptなし。Tiktok metrics ownerもまだreceiptなし。別owner `tiktok-browser`はloaded-running PID `9253`のため、そのbrowser sessionへ直接attachしない。
+- Postiz official GET（10:30:09 JST）はTikTok integrations 17（enabled 16 / disabled 1）。10/07 JSTは21/48、10/08 JSTは1件だけで`@obou_anicca`（eBook lane）、Anicca iOSは0件。Postiz list/detailからmedia形式は判定できない。
+- Main `@anicca.jp`のexact carousel identity（slot 2026-09-25 16:00 JST）はread-only reconcileで`provider_readback_not_exact`。公式Postiz media URLのhost `uploads.postiz.com`がHTTP 403を返し、`GET /public/v1/media?search=<asset>`は200/pages=0/results=0。Postiz公式[Upload File](https://docs.postiz.com/public-api/uploads/upload-file)はuploadが`id`とpublic `path`を返す仕様、[List Media](https://docs.postiz.com/public-api/uploads/list-media)は`path`をpublic URL・separate download endpointなしと説明する。media bytes/orderを検証できないためadmission stateを変更していない。exact provider media evidenceが回復するか、既存TikTok ownerが同一caption/account/timeの公式public-post evidenceを取得するまでeffect fenceを維持する。
+- Local native-carousel ledgerは203件。`@anicca.jp`の最後は09-28 22:38 JST、`@anicca.jp1`は09-28 06:30 JST。`@anicca_slideshow`には10/07の3件がある。user screenshotは過去投稿の存在を示すが投稿日時を証明しない。central owner event reportは10/07以降しか残っていないため、9/28 gapの最初のtriggerは未確定。
+
+**現在の残TODO順:**
+
+1. release reconciler run `18dc68ffe1a11028-72172`をnatural terminalまで待ち、fleet apply owner logで6a9bのcleanup/TikTok対象がどこまで到達したか確認する。上記2 errorsを自動的に解決済みと数えない。
+2. `life-manager-disk-cleanup`をrelease `6a9b0ab3`へowner経由で進め、DerivedData exact-path/open-file guardがloadedされたことをreadbackし、次回natural cleanup receiptとfree-spaceを照合する。capacityは現在metだが、source ruleのproduction適用は未確認。
+3. Anicca TikTok ownersのloaded SHA/admission/次eligible slotを再readする。main/JP1/slideshowのold `effect_unknown` occurrenceは一件ずつ公式PostizまたはTikTok owner readbackへ結び、receiptとreplay-zeroを保存する。403のmedia fenceは推測でclearせず、TikTok browser ownerとのresource leaseも奪わない。
+4. 17 connected TikTok profilesをproduct owner別に完全routeする。4 enabled holds、disabled `@anicca.jp8`、integration未接続2 profileを一件ずつ確定する。approved mediaを再利用し、variationはcaption/hookだけにする。
+5. 全17 connected profileを有効にした後、異なるcopy variantで3 unique `PUBLISHED` receipts/account/JST日（51/day）を確認し、account間の過剰投稿で不足を相殺しない。todayの実績は10/07 21/48、10/08 1/17で、Anicca iOS 0。
+6. TikTok view/engagement、ASC impressions/product-page views/downloads、RevenueCat trial/paid/refund/MRR、Mixpanel/PostHog onboarding funnelを同campaign/cohortへ結ぶ。unsupported metricを0扱いしない。
+7. Anicca iOSを100 first-time downloads/dayのtrailing 7-day平均へ伸ばし、計測baseline後にcontent/onboardingを一仮説ずつ改善する。$10k verified net MRRは同期間settled revenue/refund/fee/actual costの証拠が揃うまで未達。
+
+**現在cursor:** item 1、release reconcilerのbounded natural terminalと6a9b target progress readback。capacity floor metでもAnicca iOSの今日のPostiz receiptは0件で、配信復旧は未完了。
+
 ### 2026-10-08 10:08 JST — Gig status refresh after PR #7004
 
 - PR #7004のGig TODO/spec更新はmainへmerge済み（merge commit `b418c917b17de171431655f58cb0b4f6be8d69a4`）。最新版のatomic TODOは上記`Remaining atomic Gig TODO`。
