@@ -6,6 +6,7 @@ const { directionsRoute, claimTravel, unclaimTravel, recordTravelTelegramReceipt
 const { isHelperBlock } = require("./wake-filter.js");
 const { sendMessage } = require("./telegram.js");
 const { computeDoorDepartureMs, computeT5ReminderMs } = require("./travel-timing.js");
+const { inspectTelegramLiveLocation } = require("./live-location.js");
 
 const T5_MS = 5 * 60 * 1000;
 const CATCH_UP_MS = 15 * 60 * 1000;
@@ -103,14 +104,8 @@ function nextReminderEvent(events, nowMs = Date.now()) {
 }
 
 function freshLive(location, nowMs) {
-  if (!location || typeof location !== "object") return null;
-  const lat = Number(location.latitude);
-  const lon = Number(location.longitude);
-  const observed = toMs(location.observedAtMs ?? location.observed_at);
-  const expires = toMs(location.expiresAtMs ?? location.expires_at);
-  const now = toMs(nowMs);
-  if (!Number.isFinite(lat) || !Number.isFinite(lon) || observed === null || expires === null || now === null) return null;
-  return expires > now && observed <= now ? { lat, lon } : null;
+  const assessed = inspectTelegramLiveLocation(location, nowMs);
+  return assessed.fresh ? { lat: assessed.latitude, lon: assessed.longitude } : null;
 }
 
 function resolveReminderOrigin(event, { events = [], liveLocation, home, nowMs = Date.now() } = {}) {

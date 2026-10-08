@@ -136,7 +136,7 @@ Transit APIの公式契約は次を使う。
 |---|---|
 | AC-18 | `notifications_enabled!==false`かつTelegram boundの全ユーザーへ、次のtimed non-helper eventを1 eventにつき最大1回通知する。call設定とは独立する。 |
 | AC-19 | physical eventは出発時刻のT-5、場所なし・online eventはevent開始のT-5を通知時刻にする。60秒tickはthreshold通過後15分までcatch upする。 |
-| AC-20 | originはfresh Telegram live location、90分以内に終わる前eventのlocation、home addressの順で決める。fresh locationが無ければ「現在地を把握している」と表示しない。live locationの`geo:lat,lon`は有限かつ有効範囲を検証してprovider座標へ直接渡し、住所Geocodingへ再投入しない。 |
+| AC-20 | imminent T-5 reminderのoriginは、ユーザーが明示共有したTelegram live location（最終更新から120秒以内かつshare期限内・座標範囲valid）、90分以内に終わる前eventのlocation、home addressの順で決める。stale/expired/future/invalidなlive fixは使用せず、保存値を同一行条件付きで削除する。future Travel blockのoriginに当日のlive shareを使わない。fresh locationが無ければ「現在地を把握している」と表示しない。live locationの`geo:lat,lon`はprovider座標へ直接渡し、住所Geocodingへ再投入しない。 |
 | AC-21 | route取得成功時の本文は、次予定、開始時刻、出発時刻、目的地、徒歩、各乗車の時刻・路線・種別・行先・乗降駅、存在するplatform、乗換、到着、存在する運賃をこの順で表示する。 |
 | AC-22 | route取得失敗時も、次予定、開始時刻、目的地、基準出発時刻を送る。経路取得失敗を明記し、通知全体を失敗にしない。 |
 | AC-23 | HTML escapingを全Calendar由来textへ適用する。Telegram本文にuid、email、phone、raw provider payload、credentialを含めない。 |

@@ -23,6 +23,7 @@ const {
   carrierActionForGeminiKind,
   makeGeminiEndHandler,
 } = require("./lib/call-bridge.cjs");
+const { inspectTelegramLiveLocation } = require("./lib/live-location.js");
 const {
   LIVE_MODEL,
   geminiLiveWsUrl,
@@ -1609,8 +1610,13 @@ const server = http.createServer(async (req, res) => {
             return;
           }
           if (u.kind === "location") {
+            const nowMs = Date.now();
+            if (!inspectTelegramLiveLocation(u, nowMs).fresh) {
+              res.writeHead(200); res.end("ok");
+              return;
+            }
             if (row) {
-              const saved = await upsertLiveLocation(row.uid, u, { supaUrl: SUPA_URL, supaKey: SUPA_KEY });
+              const saved = await upsertLiveLocation(row.uid, u, { supaUrl: SUPA_URL, supaKey: SUPA_KEY, nowMs });
               if (!saved) console.error(`[telegram] live location save failed uid=${row.uid.slice(0, 12)}`);
             }
             res.writeHead(200); res.end("ok");
