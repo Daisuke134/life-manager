@@ -4864,7 +4864,7 @@ flowchart LR
 
 **残TODO（完了まで、この順）:**
 
-1. **現在cursor — PR #7182 latest-main acceptance:** latest `origin/main=440ce764f34f44f6883a9bba99ab0dd312d66189`（#7223 docs-only capacity cursor）をlocal merge HEAD `bad169230218184531fd3d22eec5779ea570958d`まで同期済み。最新main `8d986ff4`上のGig `85 passed`; fixture `1 passed`; Line Sticker/R23/R24 `53 passed / 3 subtests`; loop contract `18/188/113/0`; compile/boundary/diff-check PASS。#7223は文書のみでGig code unchanged。fresh production statusを同じSSOTへ追記し、current treeをcommit/pushして新head CIをPASSさせ#7182をmergeする。
+1. **現在cursor — PR #7182 latest-main acceptance:** latest `origin/main=f95409baab20a6beb220898c198d9d52b92e96f6`（#7229 documentation-only capacity evidence）をlocal merge HEAD `d334672ff21edfbcd41c1776728316203ad282a9`まで同期済み。Gig source diffは前回SHIP review以降不変。latest code-equivalent focused tests: Gig `85 passed`, fixture `1 passed`, Line Sticker/R23/R24 `53 passed / 3 subtests`, loop contract `18/188/113/0`, source-boundary/compile/diff-check PASS。#7229はdocs only。current-state SSOTをpushし、f954上のnew-head required CIをPASSさせて#7182をmergeする。
 2. **main-derived release/owner readback:** #7182 merge後、#7179 numeric-floor removalを含むimmutable main releaseを確認する。target owner-idle・apply lock free・effect-fence条件を満たすときだけreconciler/owner経路で反映し、loaded SHA/argv/state/admissionとnatural terminalを確認。数値free-space floorは復活させない。実ENOSPCやunsafe pathは個別原因として直す。
 3. **Coconala Paid obligation:** order 18180857のfresh official order/talkroom readbackをownerのterminal・project lock解放後に取得し、現時点で必要な作業を確定する。未完了scopeがある場合だけ必要なrevision/formal deliveryを一度行い、buyer acceptance・settlement/payout・replay-zeroを結ぶ。stale snapshotでbuyer状態を推測しない。
 4. **旧Storefront effect fence:** occurrence 18d8d288748508e8-23902を同一effectのofficial listing/order historyまたはaccepted occurrence-bound pre-effect proofで照合する。現CLI dry-runはresolved=[] / no_pre_effect_terminal。証拠が揃うまで保持し、再publish/replayしない。
@@ -4875,7 +4875,7 @@ flowchart LR
 9. **Storefront portfolio economics:** listingごとのunique paid order/repeat/refund/platform fee/payout/actual fulfillment cost/time/netを同一期間で結び、settled net contributionが正で反復できたか判定する。seller totals/reviews/grossは会社売上・利益・MRRにしない。
 10. **最後 — SelfBuild:** 全収益loopとproduct storefrontの上記条件を閉じた後だけself-build/self-healingを再開する。
 
-**現在cursor:** item 1 — latest main `440ce764f3`はlocal merge済み。最新owner stateをSSOTへ追記し、PRのnew head CIを通す。production Storefront/Paid ownersはcurrent releaseより古いSHA、Storefront effect fenceはheldなので、自然terminal・owner-idle・lock-free・exact proofまでapply/掲載変更しない。
+**現在cursor:** item 1 — latest main `f95409baab`はlocal merge済み。latest owner/effect readbackを04:33節へ追加し、current SSOTをpushしてnew-head CIを通す。Storefront/Paid ownersはcurrent pointerより古いSHA、Storefront effect fenceはheldなので、自然terminal・owner-idle・lock-free・exact proofまでapply/掲載変更しない。
 
 ### 2026-10-09 00:28 JST — Storefront収益cursorとexposure review修正
 
@@ -5129,6 +5129,13 @@ flowchart LR
 - **Production readback (19:26:41Z):** current release pointer `20261009T041542-8d986ff4`, SHA `8d986ff49817ca7bab939efe8ff5cfe2fb6c0044`, cut `19:16:09Z`. Storefront is loaded-idle on old SHA `6c7b83ee`; occurrence `18dca46eb8bb6b18-554` is `effect=unknown` / `resource_effect_unknown`, no provider receipt. Old fence `18d8d288748508e8-23902` remains held; dry-run `resolved=[] / no_pre_effect_terminal`. Paid is loaded-running on old SHA `25bee172`; occurrence `18dca4482cdee708-10856` is `disk_headroom_low`, no receipt. Release reconciler is loaded-running on old SHA `e1b061f1`, latest occurrence `18dca43806fdf7f0-69352` passed. Available disk is `346824 KiB`.
 - No current SKU paid-order/settlement/payout or positive net contribution is proven. No listing edit, publish, replay, delivery, or fence resolution occurred.
 - **Current cursor:** commit/push latest-main+current-state SSOT → exact-head CI → merge #7182 → natural release/owner convergence → official Paid order readback → exact Storefront fence proof → measure SKU 4244556 and prepare one fixed-scope original offer → Freelancer → Upwork → settled net economics → SelfBuild last.
+
+### 2026-10-09 04:33 JST — capacity-doc sync and current storefront gate
+
+- `origin/main=f95409baab20a6beb220898c198d9d52b92e96f6` (#7229 docs-only capacity evidence) is local at merge HEAD `d334672ff21edfbcd41c1776728316203ad282a9`. Source-equivalent focused tests are Gig `85 passed`, byte-stable fixture `1 passed`, Line Sticker/R23/R24 `53 passed / 3 subtests`, loop contract `18/188/113/0`, compile/source-boundary/diff-check PASS. No Gig source file changed in #7229. Remote PR #7182 is still head `355564b5755997ff5a6ee6c2516eed23181a3a15` / base `af19c008c033e8b603d602f0dbacfe936e0c3dae`; local latest-main SSOT sync is not pushed.
+- **Production readback (19:33:18Z):** current release pointer `20261009T041542-8d986ff4`, SHA `8d986ff49817ca7bab939efe8ff5cfe2fb6c0044`, cut `19:16:09Z`. Storefront is loaded-idle on old SHA `6c7b83ee`; occurrence `18dca4d1e3d7e5c0-35071` remains `effect=unknown` / `resource_effect_unknown`, provider receipt absent. The old fence `18d8d288748508e8-23902` remains unprovable (`resolved=[] / no_pre_effect_terminal`). Paid is loaded-idle on old SHA `25bee172`; occurrence `18dca4b554eefc98-66528` deferred `disk_headroom_low` with no receipt. Release reconciler is loaded-running on old SHA `e1b061f1`, latest pass occurrence `18dca43806fdf7f0-69352`. Available disk is `331224 KiB`.
+- Public SKU 4244556 remains buyable, but seller total 26 is not SKU sales; no current paid order, settlement, payout, or positive net is proven. No listing mutation, replay, or fence resolution has occurred.
+- **Current cursor:** commit/push the f954 main sync and owner-state SSOT → new-head CI → merge #7182 → natural release/owner convergence → Paid official readback → exact Storefront fence proof → one fixed-scope original offer → Freelancer → Upwork → settled economics → SelfBuild last.
 
 ### 2026-10-08 08:35 JST — Mobile post-merge runtime cursor
 
