@@ -5042,6 +5042,87 @@ Source / cursor follow-up (2026-10-08 12:52 JST): docs PR #7048はmerge commit `
 
 **現在cursor:** A5。A5 worktree leaseとproduction reconcilerは別の所有境界として維持する。reconciler/CFO ownerの自然runを重ねて起動せず、A5 lease解放後にA5へ戻る。A7 MoneytreeとA4/A3 Cloud savingsは引き続き対象外・後順位。
 
+### 2026-10-08 11:29 JST — CFO release-retry diagnosis
+
+この追記は11:20 JST以降の自然release更新と同時刻owner evidenceを反映する。CFO順序は変えず、A5→A6→A8→A9→A10のまま。
+
+**新しい実測:**
+
+- PR #7011（A6 source）とPR #7025（前回CFO status refresh）はmainへmerge済み。`/Users/anicca/loops/current`はrelease `20261008T112353-dbf93c31`を指し、`RELEASE.json`はSHA `dbf93c310713dabd4c3d389dfad185dfec5d5987`、`cut_at=2026-10-08T02:25:38Z`、`provenance=ancestor-of-origin-main`。A6 parser/report sourceはmain由来immutable releaseに含まれる。
+- 02:29:08Z時点の`life-manager-cfo-hourly`は依然release `3d88f9eb`をloaded-idleで使う。最新report occurrence `18dc6c21758dc280-19514`は`apply_lock_busy`、exit 78、`effect_status=not_applicable`、receipt/readbackなし。
+- この競合はfleet owner logで特定した。02:14:02.749ZのCFO hourly reportと02:14:02.975Zの`life-manager-release-reconciler`による同一labelのapplyが競合し、reconcilerはCFO ownerをrelease `3d88f9eb`へ`rc=0, changed=1`でapplyした。失敗reportにprovider effectはなく、3d88のowner適用を新releaseへの適用と混同しない。
+- 最新reconcilerはrelease `dbf93c31`でloaded-running。直近run `18dc6caa09f1ea40-74246`は`entrypoint_exit_75 / reconcile_owner`。`fleet-apply-state.json`は02:22:48Z時点でSHA `3d88f9eb`、`status=partial`、`changed=84 / errors=4 / skipped=22`、message=`budget exceeded`、`next_retry_epoch=2026-10-08T02:34:23Z`。error詳細はそのretryでowner別にreadbackする。reconcilerをrestartせず、scheduleを待つ。
+- A5 leaseは依然`codex-cfo-a5`所有で`2026-10-08T03:18:04Z`までactive。A5 PR #6827はopen/draftの旧head/baseで、編集・mergeはlease解放readback後に行う。
+- 最後に完了したB7 financial projectionは依然`2026-10-08T01:58:13Z` snapshot。全社historical/trailing revenue・cost・netはunknown/null、18/18 loops unknown（173/168 gaps）、MRR全社unknown（26 gaps、17/18 unknown）。mobile-apps USD 20.34はMRRのみ。Google Cloudは2026-09 billed invoice ¥27,889のみ、cash paid/loop allocationはunknown/unattributed。最新の2:14 wakeはlock conflictでprojectionを更新していない。
+
+**残りTODO（順序維持）:**
+
+1. **A5:** `codex-cfo-a5` lease解放をreadbackし、latest mainへ追従後、SQL/API/panelが`runtime_trace.loop_id`・`owner_id`・`run_id`・`occurrence_id`・`release_sha`をprovider/SKU/operation/unit別に保持するよう修正、回帰test、review、checks、mergeを完了する。
+2. **A6 production/settlement close:** 02:34:23Zのbounded fleet retryと次の自然CFO wakeをreadbackし、CFO ownerがrelease `dbf93c31`へ移ったか確認する。`apply_lock_busy`が消え、report delivery/readbackがあることを確認する。B7の`actual-cost-readback`を実ソースで接続し、2026-09 Cost Table ¥27,889を同期間Monitoring estimate・tax/credits/roundingと照合。cash-paidとloop attributionは公式receipt/A5 traceがある場合だけ記録する。
+3. **A8:** 18 loops / 186 jobsのsettled revenue/refund/feeとprovider/API/cloud/subscription actual costを期間・通貨・owner・official receipt単位で埋め、unknownを0にしない。
+4. **A9:** Asia/Tokyo日次/MTD/trailing receipt filteringを行うCFO reportでagent/loop/platform別と全社revenue・expense・net・MRR・coverage/freshnessを表示する。`loop_pnl.py --date`のlabel-onlyを修正する。
+5. **A10:** main由来releaseで7日連続の自然run、全18 loops/186 jobs、official readback、delivery receipt、unknown owner/action、重複ゼロを確認する。完了前にCFO completeや$10k verified MRRを主張しない。
+
+**現在cursor:** A5。A6のコードはmain由来releaseまで到達したが、CFO owner/readbackと全社financial coverageは未完了。A5 lease、fleet retry、CFO hourly wakeは個別ownerの自然境界で進め、手動restart/apply/retryを重ねない。
+
+### 2026-10-08 11:35 JST — CFO reconciler remains active after retry epoch
+
+- 02:35:24Zのreadbackでrelease reconcilerはrelease `dbf93c31`上のPID `19278`で`loaded-running`、run `18dc6caa09f1ea40-74246`。最新terminal diagnosticは`entrypoint_exit_75 / reconcile_owner`で、processはまだactive。02:34:23Zのfleet retry epochを過ぎたが、fleet stateは02:22:48Zのpartial snapshot（84 changed / 4 errors / 22 skipped）のまま更新されていない。これはまだ新しいterminal/readbackがないことを示す。
+- CFO ownerは引き続きrelease `3d88f9eb`、last occurrence `18dc6c21758dc280-19514`の`apply_lock_busy`のまま。provider receipt、official readback、自然report成功は未確認。
+- 現在の安全な次手は、active release reconcilerの自然terminalを待ち、fleet owner rows・`current` SHA・CFO loaded SHA/statusを再readbackすること。PIDを止めたり、新しいapply/retryを重ねない。
+
+**現在cursor:** A5。A5 lease期限`2026-10-08T03:18:04Z`まで所有境界を維持しつつ、reconciler自然終端を待つ。両者を同じblocker扱いせず、独立のowner/actionとして進める。
+
+### 2026-10-08 11:46 JST — A6 verified September Cost Table detail
+
+- 保存済み公式2026-09 Cost Table CSVを既存`google_cost_table.load_directory`で再読込し、invoice total ¥27,889（JPY）をverifiedで再確認した。cash-paid=`unknown`、loop allocation=`unattributed`のまま。
+- 税前service/SKU合計: Places API ¥9,419.856821、Geocoding API ¥7,493.014626、Gemini API ¥5,160.873099、Directions API ¥3,271.171127、Cloud KMS ¥9.530434、Cloud Storage ¥0.005144、Cloud Run ¥0。合計¥25,354.451251。
+- 請求調整: usage gross ¥25,354.504771、credits -¥0.053520、tax ¥2,535、rounding -¥0.451251。これらを合算したinvoice totalが¥27,889。service totalsにはtaxを含めない。
+- このCost Tableはbilled amountの根拠だが、各SKUのAPI request count・agent/loop owner・cash settlementは示さない。対象local evidence inventoryから同期間Google Monitoring estimateはまだ確認できていない。請求額をOctober spendへ外挿せず、Google API replacementやbudget cutoffもこのatomでは行わない。
+
+**現在cursor:** A5。A6はinvoice detailを把握済みだが、Monitoring estimate照合・owner attribution・cash settlement・本番report readbackは未完了。
+
+### 2026-10-08 11:52 JST — A6 source loaded, natural report still pending
+
+- 02:48:17Zのrelease reconciler owner logで`life-manager-cfo-hourly`をrelease `94372580faf432189742de38cd474bfa0db6c4f0`へ`rc=0, changed=1`でapplyした。`lm-loop status`もCFO owner loaded SHA `94372580`を返す。これはsource deployment readbackであり、CFO report receiptやfinancial readbackではない。
+- 新release下の自然occurrence `18dc6dffb7e33a68-24438`（02:48:16Z）は`host_admission_deferred:resource_fifo_wait`、exit 75、`effect_status=not_applicable`、retryable、provider receipt/readbackなし。CFO report本体はこのwakeでは実行されていない。`next_eligible_run=interval:3600s`。次のnatural eligible wakeを待ち、手動start/retryを重ねない。
+- 02:52Zのreadbackではrelease reconcilerもまだ`loaded-running`。CFO ownerの個別SHA反映とfleet全体のreconcile完了は別に扱う。A5 leaseは引き続き`codex-cfo-a5`所有で`03:18:04Z`までactive。
+- A6 Cost Tableのservice detailは上記11:46節に記録済み。cash settlement、同期間Monitoring dollar estimate、SKU→provider operation→agent/loop joinは未確認のまま。
+
+**現在cursor:** A5。A6 sourceはロード済みだが、A5 attribution、CFO natural report、A6 settlement/reconciliation、A8–A10 acceptanceは未完了。
+
+### 2026-10-08 12:08 JST — A5 CFO FIFO priority diagnosis
+
+- Main `94372580`のCFO registry rowは`resource_class=deterministic` / `admission_class=borrow` / `priority=support`。03:05Z read-only snapshot of the real `resource_admission._durable_queue_rows` had 28 eligible deterministic queue rows and CFO at zero-based index 26 (27th of 28), behind one revenue owner and a support backlog. Earlier CFO wakes show both `resource_fifo_wait` and `resource_capacity_busy`; each was `effect_status=not_applicable` with no report receipt.
+- Runtime `_queue_order` ranks the priority before admission class; `enqueue_durable` promotes an existing queued priority without changing its queue age. Therefore a registry-only priority promotion can reduce FIFO starvation without changing capacity classification or taking a revenue-reserved slot.
+- **Ruling:** after owner lease `codex-cfo-a5` is released, change only `life-manager-cfo-hourly.priority` from `support` to `revenue`; retain `admission_class=borrow` and `resource_class=deterministic`. This puts CFO ahead of support backlog but still after true revenue-class work. Cost if wrong: one short CFO report may delay a support task by one slot; no revenue slot is reserved or core provider feature stopped.
+- Acceptance: first make the existing CFO registry test expect `priority=revenue` while keeping `admission_class=borrow` (observe RED), then change the registry row (GREEN); run the focused loop-registry test and `./bin/lm-loop-contract`. After merge/release, verify a natural CFO occurrence reaches report phase; a separate `resource_capacity_busy` must remain accurately reported if the host is actually full.
+
+**現在cursor:** A5. Lease `codex-cfo-a5` remains active until `2026-10-08T03:18:04Z`; implement this one-field change only after fresh lease readback and acquisition of the existing A5 worktree.
+
+### 2026-10-08 12:10 JST — A6 historical Monitoring comparison boundary
+
+- 既存のread-only Monitoring `serviceruntime.googleapis.com/api/request_count` query（UTC 2026-09-01–2026-10-01）はGeocoding 20,258、Directions 14,230、Places Text Search 5,800、Places Details 72 requestsを返した。invoice-month CSV quantitiesはそれぞれ19,403 / 14,105 / 5,672 / 75で、差は+855 / +125 / +128 / -3。
+- これは過去のusage-count診断で、同期間のdollar estimateとbilled amountのreconciliationではない。Google invoice-month usageはlate-reported costの移動があり、CSV usage datesはday-level精度。request countはbillable unitsでもloop帰属でもなく、404をcost zeroとみなさない。A6 acceptanceは未完了のまま。
+
+### 2026-10-08 12:11 JST — CFO admission status after source deployment
+
+- `origin/main` / latest main-derived release is `a7899e37`; CFO owner is still loaded on `94372580`. The A6 Google-cost code is present on `94372580`, but the owner has not yet been reconciled to the newer main release.
+- Latest CFO occurrence `life-manager-cfo-hourly:18dc6e7ab7e08950-11908` (02:57:05Z) is `host_admission_deferred:resource_capacity_busy`, exit 75, `effect_status=not_applicable`, with no provider receipt or official report readback. The earlier 02:48 wake was `resource_fifo_wait`.
+- Read-only durable queue ordering at about 03:05Z showed 28 eligible deterministic queue rows; CFO was position 27/28 with `admission_class=borrow`, `priority=support`. This confirms the support-priority backlog; `resource_capacity_busy` is a separate host-capacity condition and must not be misdiagnosed as FIFO.
+- Release reconciler on main-derived SHA `a7899e37` has a retryable `entrypoint_exit_1` / `reconcile_owner` event. Do not restart it or manually replay CFO; wait for its natural terminal and inspect the next owner apply receipt.
+- The A5 lease remains active through `2026-10-08T03:18:04Z`. After release, update only the CFO registry priority to `revenue` while keeping `admission_class=borrow` and `resource_class=deterministic`, then test the priority contract and confirm a natural report. This does not reserve a revenue slot or add a cap.
+
+**現在cursor:** A5。CFO cost attribution and wake priority remain the next source task; A6 source is loaded but the new-release report and A6 settlement/Monitoring reconciliation are still unverified.
+
+### 2026-10-08 12:12 JST — A5 CFO queue priority decision
+
+- At the 03:05Z read-only deterministic-queue snapshot, 28 owners were eligible and `life-manager-cfo-hourly` was position 27/28 (zero-based 26), with `admission_class=borrow` and `base_priority=support`. The queue head began `job-search-daily`, `lancers-revenue-work-sync`, then older support jobs. CFO wakes have now been deferred by both `resource_fifo_wait` and `resource_capacity_busy`; each recorded `effect_status=not_applicable`, with no provider effect.
+- The current registry sets CFO `priority=support`. Runtime `_queue_order` sorts priority before admission class, and the owner-level `enqueue_durable` path promotes priority without resetting queue age. `priority=revenue` is valid while `admission_class=borrow`; it does not reserve a revenue-class slot.
+- **Ruling:** after the active A5 lease is released, change only CFO `priority` from `support` to `revenue`, keeping `resource_class=deterministic` and `admission_class=borrow`. This moves the short CFO report ahead of the support backlog but behind actual revenue-class work. Cost if wrong: one CFO report may delay one support owner; it does not cut off core work or reserve revenue capacity. A separate `resource_capacity_busy` remains distinct and is not fixed by this priority change.
+- **Verification:** update the existing `test_life_manager_cfo_hourly_declares_effect_rebind_contract` assertion first and confirm RED, then change the registry field and confirm GREEN. Run the focused registry test and `./bin/lm-loop-contract`; after main-derived release/apply, confirm a natural CFO wake reaches report phase. Do not edit the active A5 worktree before lease release.
+
+**現在cursor:** A5; owner lease `codex-cfo-a5` remains active until `2026-10-08T03:18:04Z`.
 ## 現行容量基盤を先行する
 
 Daisが現行基盤を先に実装し、安定後にOpenClawへ進む順を指定。旧順序=OC-001以降、新順序=FD-01 bounded stderr replay→FD-02 disk producer budget/retention→FD-03 phase slot→FD-04 readback容量→FD-05自然成果→FD-06 OpenClaw移行。現在cursor=FD-01、source実装着手。根拠はlarge child stderrの全量read/replayとwhole job slot占有。既存workflow/account/claim/scheduleを同時変更しない。[scope](2026-10-08-local-foundation-first.md)。
@@ -5194,6 +5275,46 @@ PR #7030の全required checksはhead `99648f4f` / base `a7899e37`でPASSした�
 
 **現在cursor:** 新しいmerge/hash commitをpushし、main `ca7d58b6`を含むheadでrequired CIを再実行する。前のgreen CIはこのbase changeを含まないため、PR mergeはまだ行わない。
 
+### CFO current cursor
+
+この節が先行するCFO状態メモを更新する。実行順は **A5 → A6 → A8 → A9 → A10** のまま。A7の個人MoneytreeとA3/A4のCloud・geocoding費用削減はDaisの指示で後順位とし、このCFO業務のblockerにしない。CFO設計詳細は `docs/superpowers/specs/2026-10-02-life-manager-cfo-cost-observability-design.md` を参照し、TODO/順序/状態の正本は本SSOTだけに置く。
+
+**確認済み状態（2026-10-08 13:18 JST readback）:**
+
+- `/Users/anicca/loops/current`はrelease `20261008T124623-8f342d8d`（main SHA `8f342d8d71396bc7e9f542ae09af9b46781ff410`）を指す。`life-manager-release-reconciler`の13:10:19 JST runは`entrypoint_exit_1` / `effect_status=not_applicable`で終了。次の60秒周期retryは13:11:20 JSTにPID `72756`で開始し、13:18 JST readbackではrunning（約7分）。`fleet-apply-state.json`は同SHAで直近partial（76 changed、24 skipped、2 errors、`budget exceeded`）。stderrにはscript line 435の`printf: write error: No space left on device`があり、該当処理はowner apply outputを`fleet-apply-last-output.log`へ追記している。確認時のData volumeは97%使用、6.4 GiB freeで、output logは約9 KiB、owner logは約18.6 MiB、launchd stderr/stdoutは約22/30 MiB。ENOSPCを返した時点・対象のquota/volumeは未特定なので、容量原因を断定したり、証拠ログを削除したりしない。
+- CFO ownerはrelease `8f342d8d`でloaded-idle。最新occurrence `18dc7229cfac25f0-36963`は13:04:35 JSTに`apply_lock_busy` / exit 78 / `effect_status=not_applicable` / retryableで終わり、`provider_receipt_id`と`official_readback_ref`はnull。statusの`last_success`は01:58:19Z、`last_receipt`はnullで、その後のCFO report deliveryは未確認。owner別apply logにはrelease reconcilerが同じCFO ownerを04:04:25–04:04:36Zに11秒間applyした`rc=0, changed=1`行がある。これはCFOのlock acquisition時刻04:04:35.69Zと重なり、同じlabel apply lock競合の直接証拠と整合する。現在はreconciler processとlabel lock holderのいずれも見つからず、lockは解放済みと判断する。次のnatural CFO eligibilityはattemptから3600秒後（約14:04 JST）。
+- 別原因だった03:57:07Zの`host_admission_deferred:resource_capacity_busy`は、04:00Z snapshotで`marketing-owner-events`と`capafy-loop-daily`がborrow deterministic枠2つを占有していたことと整合する。04:06Zの最新owner statusでは`capafy-loop-daily`はloaded-idle、`marketing-owner-events`はloaded-running。現時点で同じ2枠満杯とは確認できず、前回の容量不足を最新`apply_lock_busy`の原因とは扱わない。これはAPI spend capではなく既存並列制御。
+- 保存済みB7 projectionはsnapshot `2026-10-08T01:58:13Z`のまま。historical/trailingはいずれも18/18 loopが`unknown`、coverage gapは173/168件、company MRRは`unknown`で26 gaps、duplicate receiptは0件。最新CFO wakeはreportを更新していない。unknownは売上ゼロ・費用ゼロを意味しない。
+- Google公式2026-09 Cost Tableは請求額¥27,889（税込）。税前service明細はPlaces ¥9,419.856821、Geocoding ¥7,493.014626、Gemini ¥5,160.873099、Directions ¥3,271.171127、KMS ¥9.530434、Storage ¥0.005144、Cloud Run ¥0。cash-paidは未確認、loop/agent配賦はunattributed。Monitoring request countは同期間の請求額照合ではない。A6のbilled/usage照合、credits・tax・rounding、settlementとloop配賦は未完了。
+- A5 Task 5は専用worktreeで実装済み（`a551db6aa4`）し、fresh reviewの重要指摘だったbrowser template regexの二重escapeを`6dbdb02876`で修正。生成browser validatorを実行する回帰testを追加し、UI 44/44、privacy evaluator、diff checkがPASS。fixのread-only re-reviewもPASS。Task 5報告は`ba55d62176`。現在A5 branch HEADは`ba55d62176`、この作業は未push・未merge。working plan `docs/superpowers/plans/2026-10-07-cfo-a5-cost-visibility.md`にはTask 5–7があり、同planの更新はworktree内で未commit。Task 6 priority changeとTask 7 final integrationは未完了。
+- queue snapshotではCFOがeligible deterministic queueの27/28番目、priority=`support`だった。`revenue`への変更はまだ未実装で、`admission_class=borrow`と`resource_class=deterministic`は維持する。これはsupport backlogを減らす案で、満杯時の`resource_capacity_busy`は直さず、hard cap・自動停止も追加しない。
+- `loop_pnl.py --date`はreporting dateを変える一方、B7 snapshot windowは現在時刻を使う。usage-eventの一部に日付filterはあるが、全sourceのAsia/Tokyo期間filterは未受入。
+- docs PR #7027にはlatest main `dcf04b2d`までを含めてCFO状態更新をpush済み。最新commitでrequired checksを再実行中。
+
+**残りatomic TODO（この順）:**
+
+1. **A5 Task 6 RED:** 既存CFO registry testを`priority=revenue`期待に変え、対象testを実行して現状の`support`値で失敗することを確認する。
+2. **A5 Task 6 GREEN:** CFO rowの`priority`だけを`revenue`にし、`admission_class=borrow` / `resource_class=deterministic`を維持して同じtestを通す。
+3. **A5 Task 6 contract:** focused registry testと`./bin/lm-loop-contract`を実行する。予約枠、spend cap、自動停止は追加しない。
+4. **A5 Task 7 acceptance:** migration/API/UI focused tests、privacy evaluator、diff checkを実行し、tenant/period filter・trace allowlist・unknown≠zeroをreviewする。最終source diffのread-only reviewをPASSさせる。
+5. **A5 source integration:** uncommitted plan更新を含めてcommitし、latest mainをA5 branchへmerge、既存PR #6827へpushする。最新headのrequired checksをPASSさせてmergeする。旧headのOSS/Gitleaks結果は採用しない。
+6. **Release reconciler recovery:** source作業と並行して、ENOSPCの対象filesystem/quotaとowner-output write pathを特定し、原因に応じて空き領域またはoutput処理を安全に修正する。evidence/state logを根拠なく消さず、次のnatural reconcileがpartialではなくCFO ownerを含めて完了することをreadbackする。
+7. **A5 production migration:** PR merge後にadditive A5 SQL migrationを対象Supabase projectへ適用し、migration履歴と`lm_usage_cost_period_summary`の存在・権限をofficial readbackで確認する。
+8. **A5 production release:** main由来immutable releaseを作成/適用し、reconciler terminal・CFO owner apply receipt・loaded SHA・lock解放をreadbackする。reconcilerがpartialなら自然成功まで追い、手動restartやlock削除をしない。
+9. **A5 natural acceptance:** 次のnatural hourly CFO occurrence（現時点の予測は約14:04 JST）でreport/delivery receiptとdaily/month-to-date cost panelを確認する。`apply_lock_busy`再発時は同一label apply rowを照合する。
+10. **A6 Google cost reconciliation:** 2026-09 Cost Tableと同一期間/project/SKU/serviceのbilled/usageを照合し、credits・tax・roundingを合わせる。cash-paidはsettlement receiptがある場合だけ記録し、trace欠損はunattributedのままにする。
+11. **A8 company coverage:** 18 product loops / 186 runtime jobsのsettled revenue/refund/feeとprovider/API/cloud/subscription actual costをsource・期間・通貨・owner・receipt単位で接続する。推定・stale・failed・unknownをsettled/zeroへ変換しない。
+12. **A9 daily CFO report:** Asia/Tokyo日次/MTD/trailingを各sourceでfilterし、agent/loop/platform別と全社のrevenue・refund/fee・actual/estimated/unknown expense・net・MRR・freshness・coverageを既存CLI/panelへ出す。`--date`表示値と集計window一致をtestする。
+13. **A10 natural acceptance:** main由来releaseで7日連続のnatural report、全18 loops/186 jobs coverage、official readback、delivery receipt、period consistency、unknown owner/actionとduplicate/replayゼロを確認する。それまでは全社CFO完了やverified $10k MRRを主張しない。
+
+**現在cursor:** A5 Task 5の修正review PASS後、Task 6 priority RED→GREENへ進む。Task 5 codeはローカルA5 branchにあり未push・未merge。Task 6は未着手。CFO productionの最新wakeは`apply_lock_busy`で、新しいreport receiptがない。
+
+**Blockerと解消方法:**
+
+- **CFO production report / release reconciliation:** 過去の`apply_lock_busy`は同じCFO ownerに対するrelease reconciler applyと重なり、owner logの11秒applyで説明できる。前回のlock holderは終了したが、新しいreconciler retryは現在runningのため次のhourly CFO wakeと再度競合する可能性がある。reconcilerはENOSPCでexit 1し、fleet applyはpartial。running retryをkill/restartせず、ENOSPCの実対象filesystem/quotaと該当output writeをread-onlyで特定し、必要なら安全な再生成可能データだけを整理して自然reconcileを確認する。証拠ログ/stateを根拠なく削除せず、原因が無制限outputなら対象を絞って集約/rotationを直す。次の自然CFO wakeは約14:04 JSTでreceiptを確認し、再発時だけ直前の同一label apply recordを再照合する。
+- **CFO data completeness:** 保存済みB7は01:58Zから更新されず、全18 loopとcompany MRRが`unknown`。A5をreleaseして自然reportを得た後、A6/A8でofficial billing/settlement evidenceとcoverage gapを埋める。unknownを0やverified $10k MRRに置き換えない。
+- **Spec PR #7027:** latest main `dcf04b2d`を含むCFO状態更新を既存PRへpush済み。最新commitのrequired checksをPASSさせてからmergeする。
+- **A5 PR #6827:** remote head `980fe867`はbase `034d46e8`上のままで、OSS boundaryとGitleaksがfailure。runtime trace source fixはlocal-onlyで、A5 branchはlatest main `dcf04b2d`より古い。Task 6/7完了後に最新mainをmergeしてpushし、新headのrequired checksを実行する。旧CIの結果は新headの証拠にしない。
 ### 2026-10-08 12:19 JST — eBook source merge readback and production cursor
 
 PR #7030はrequired CI全件PASS後、merge commit `c5d3f20a1b59048c8709574e11e8cb777c3b972e`でmainへ統合済み。PRで追加したHeyGen ID/status保持、exit-4 stdout回収、sanitized failure propagation、正本spec/plan、Capafy inventory digestがmainにある。
