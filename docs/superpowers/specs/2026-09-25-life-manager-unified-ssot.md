@@ -6748,3 +6748,20 @@ The next cursor is item 1 commit/push. No Dais manual action is currently requir
 9. A10で7日連続natural reportを観測し、期間一致・全source coverage・runtime/provider receipt結合・重複/replay zeroを確認する。この前に全社netや$10K MRRをverifiedと報告しない。
 
 **現在cursor:** `PR #7106へlocal-green source/schema/test/specをpush → 新head CI/review/merge → immutable release/loaded-idle反映 → 次のnatural CFO receipt/runtime-link readback → A5 → A6 → A8 → A9 → A10`。11 GiB disk復旧は既存host-disk ownerの並行・非ゲートcursor。
+
+### 2026-10-08 20:14 JST — CFO source pushed; upstream OSS gate blocks merge
+
+この追記が20:07 JSTのlocal-only cursorを更新する。business CFOの順序 **A5 → A6 → A8 → A9 → A10** は維持する。
+
+- **PR/source:** commit `7eb71810774f05edcf015e3542880869f287c67f` はPR #7106へpush済み。PRはopen/draft、base `a248ce9716323250bb4c041277ff99a1ee5e641d`、head `7eb71810774f05edcf015e3542880869f287c67f`。local source checksはCFO 348 tests + 318 subtests、CFO Node 25、shared notification 4、loop contract、source-boundaryがPASS。
+- **Same-head checks at 20:13 JST:** run `37768531965` でOSS self-contained boundaryがFAIL。Agent instruction / PII / shell syntax / startup driftはPASS。Loop control / TruffleHog / Python syntax+unittest / gitleaksはpending。CodeRabbitはdraftのためskip、fresh reviewは未実施。PRはmergeしない。
+- **Exact upstream blocker:** local OSS verifierの違反は `manifest_inventory_mismatch: skills/capafy-autopublish`。このworktreeのCapafy sourceは`origin/main`と同一。main上の最後の該当manifest refreshは`54d9daa3`、その後のcommit`a248ce97`がCapafy source/testを更新してinventoryを古くした。修正はCapafy ownerが`docs/manifests/oss-merge-1-sources.json`の該当inventoryを現行main treeから再生成し、verifierを通すこと。CFO laneはCapafy source/worktreeを編集しない。
+- **Production CFO unchanged:** installed SHA `88dfdaf4fa3142777b9f21ae7e397ee2bd037645`; latest wake `18dc88ac76dc18d8-8260` はresource-capacity defer、last success `18dc875a10c8ac80-19079`。3件の過去receiptはread-only verifiedかつadmission released/0だが、元terminalのreceipt/ref null gapは残る。hostの2 GiB receiptと、11 GiB recovery / stale watchdog修復は別gate。
+
+**現在cursor（残TODO）:**
+
+1. Capafy ownerによるmanifest inventory refreshを待つ。更新後、同じmain/current treeでOSS verifierを再実行しPASSさせる。CFO branchからCapafy filesは変更しない。
+2. PR #7106 headでpending checksを完了し、OSSを含む全required checksとfresh reviewをPASSさせてからmergeする。draftのままCodeRabbitをreview済みと扱わない。
+3. main由来immutable releaseへCFO source/schemaを含め、loaded-idleのownerだけcanonical `lm-loop` routeで反映する。新しいnatural CFO reportでruntime terminalのprovider receipt/ref、B7/outbox hash、admission、replay-zeroを照合する。
+4. host-disk ownerがstale watchdog release参照をcanonical lifecycleで修復し、fresh `free_after >= 11,811,160,064`, errors 0, protected deletions 0をreadbackする（次回CFO 2 GiB admissionの代替条件ではない）。
+5. A5 production migration/RPC/permission/panel readback → A6 Google invoice/Monitoring/cash settlement and loop attribution → A8 18-loop revenue/cost + 187-job classification → A9 source-period daily/MTD/trailing/MRR → A10 seven-day natural coverage/replay-zero。
