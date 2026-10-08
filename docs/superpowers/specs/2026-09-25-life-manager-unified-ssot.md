@@ -4848,7 +4848,7 @@ flowchart LR
 
 **残TODO（完了まで、この順）:**
 
-1. **現在cursor — CIのmain-side OSS boundary blocker:** PR #7182 code head `b2b1502f3b`はfresh read-only review SHIP。latest pushed head=`ca2c8ae3c14a39b7247c8fe75bba7cdae1d3d8b0`（SSOT更新のみ）。Security Scan run `37803526342`では8/9 gate PASS、`OSS self-contained boundary`だけが`manifest_inventory_mismatch skills/capafy-autopublish`でFAIL。GitHub merge-refはmain `0b9d0f10`を含み、PR APIのbaseは古い`9abbdb9d`を報告する。現mainのCapafy PR #7183 commit `7eda261900`変更に対し、245-file OSS inventoryは旧digest `d211d4e2…`のままで、main上の実測digestは`6622435b…`。Gig laneからCapafy source/manifestを編集せず、main-side owner修正がmergeされた後に同期・再検証し、exact-head CI PASS後にmergeする。
+1. **現在cursor — CIのmain-side OSS boundary blocker:** PR #7182 code head `b2b1502f3b`はfresh read-only review SHIP。current PR head=`847eee104dfdacc9f8fe0fdd15196454754ca790`、base=`d7d3cbaeaf989b1678efc0e572a7c3b9aece6d76`。Security Scan run `37805283468`はOSS boundaryで同じmanifest mismatchを検出し、残りjobsは実行中。current branchへはlatest-main merge `5bdcdf0cb339e21676506c225921d72dd6de29c0`をまだpushしていない。Capafy PR #7183 commit `7eda261900`変更後も245-file OSS inventoryはdeclared `d211d4e2…`、main computed `6622435b…`。Gig laneからCapafy source/manifestは編集しない。manifest ownerがmainを直すまではこのCI gateは通らないため、修正後mainへ同期し、exact-head CI PASS後にmergeする。
 2. **main由来release:** latest main `d7d3cbaeaf989b1678efc0e572a7c3b9aece6d76`とGig preflight fixを含むimmutable releaseを、OSS manifest gate解消後に既存natural reconcilerへ渡し、`RELEASE.json`・Storefront/Paidのloaded SHA/argv/admissionを確認する。production source完了はloaded SHAにpriority/floor/exposure fixが含まれてから。
 3. **Coconala Paid obligation:** order `18180857`のfresh official order/talkroom readbackをownerが実行する。今も未完了の場合だけ必要なrevision/formal deliveryを一度行い、buyer acceptance・settlement/payout・replay-zeroを結ぶ。古いsnapshotから現在の待ち状態を推測しない。
 4. **旧Storefront fence:** `18d8d288748508e8-23902`を、同一effectの公式listing/order履歴または受理可能なoccurrence-bound pre-effect receiptで照合する。現在はdry-runがbinding不足で保留。証拠が取れなければfenceを保持し、再公開しない。
@@ -4913,7 +4913,14 @@ flowchart LR
 - On the merged tree, focused Storefront tests are 103/103 PASS; `lm-loop-contract` is 18 catalog loops / 188 registry jobs / 0 errors; `verify-source-boundary.sh` and Python compile PASS. The full OSS checker reproduces only `manifest_inventory_mismatch skills/capafy-autopublish`. This matches GitHub Security Scan #37803526342: 8/9 jobs PASS, with OSS boundary as the only failure.
 - `origin/main` keeps Capafy PR #7183 commit `7eda261900` but its manifest root digest is stale (`d211d4e2…` declared; `6622435b…` measured over 245 files). No Capafy source or manifest file is modified by Gig work.
 
-**現在cursor:** push the latest-main sync and this T7 status → wait for the Capafy manifest owner to land the correction → sync corrected main → exact-head CI and review → merge #7182 only after PASS.
+**現在cursor:** finish current exact-head run readback → push latest-main merge with the updated SSOT → wait for the main manifest correction → sync its commit and rerun required CI → merge only when every required check passes.
+
+### 2026-10-09 01:02 JST — latest-head CI still blocked by main manifest
+
+- PR #7182 currently points to `847eee104dfdacc9f8fe0fdd15196454754ca790` with base `d7d3cbaeaf989b1678efc0e572a7c3b9aece6d76`. Security Scan run `37805283468` has already failed its OSS boundary step; exact error detail is being read after run completion. The earlier run #37803526342 recorded `manifest_inventory_mismatch skills/capafy-autopublish`; local OSS check after merging current main returns the same one violation. Focused tests remain 103/103, and loop contract is 18/188/0.
+- Latest-main merge commit `5bdcdf0cb339e21676506c225921d72dd6de29c0` is local and unpushed. It contains current main changes without Gig source overlap. The Capafy correction remains an external owner action; no Capafy source or manifest edit is in this lane.
+
+**現在cursor:** finish current exact-head run readback → push latest-main merge + updated SSOT → await the Capafy manifest correction → sync corrected main → exact-head CI/review → merge #7182 only after PASS.
 
 ### 2026-10-08 08:35 JST — Mobile post-merge runtime cursor
 
