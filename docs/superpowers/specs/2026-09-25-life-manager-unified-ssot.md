@@ -6680,3 +6680,22 @@ The next cursor is item 1 commit/push. No Dais manual action is currently requir
 **完了条件:** 三loopがmain-derived immutable releaseからloaded SHA/argv一致で少なくとも一回ずつ自然terminalし、Luma登録・Workday応募・新規VC/AI-founder cold mailのofficial/providerまたはsent-mail evidence、各natural runのgpt-6-luna/max/fast、Telegram報告が揃う。unknown effectはtargetごとにofficial readbackまたはfence維持、replay-zero。実同時実行数は同一窓のclaim/queue/resource readbackから算出し、cap 8やOpenClaw subagent limitsを稼働数と混同しない。面談・資金調達・settled cash・costは別々に報告する。
 
 **現在cursor:** push latest-main merge + manifest digest + SSOT → PR #7121 new-head CI/review → merge → immutable release → natural handoff/doctor → exact fences → owner natural runs → capacity/economic readback.
+
+
+### 2026-10-08 20:10 JST — latest-main spec push complete; acceptance is next
+
+- This advances the 20:07 TODO item 1 to complete: commit c9ab5c48263f9c6b1e8955e88fc28d7289828b6e pushed to fix/fundraiser-unknown-fence-20261008; remote SHA matched, worktree was clean, origin/main was a248ce9716323250bb4c041277ff99a1ee5e641d. The commit includes the latest-main merge, corrected 245-file Capafy digest 967a797d7ff606ce79579f5766ae7f08a87dbba94291fcb273e72986b57971ee, and this SSOT order update.
+- Readback immediately before this entry: PR #7121 OPEN, head c9ab5c48263f9c6b1e8955e88fc28d7289828b6e, base a248ce9716323250bb4c041277ff99a1ee5e641d, mergeState UNSTABLE. Run 37768184839 is for that head: Agent instruction, Startup, OSS, PII, and Shell pass; Loop control, Python/unittest, TruffleHog, and gitleaks are pending. The last SHIP review was on the older e35f4753 head, so it does not satisfy the fresh-review gate for the current branch head. This status commit itself will create a new PR head; re-read checks and review on the latest pushed SHA.
+
+**残TODO（現在から完了まで）:**
+
+1. [x] Push this status update and read back the remote branch SHA. The latest-main sync and manifest correction are in the pushed history.
+2. On the branch latest PR #7121 head, pass all required checks with gh pr checks 7121 and get a fresh read-only SHIP review on that exact SHA; then merge with gh pr merge 7121 --admin. Completion evidence: merged main SHA plus same-head checks/review.
+3. Run bin/cut-loop-release.sh origin/main after the merge; verify complete release manifest and ~/loops/current SHA.
+4. Let the release reconciler hand off naturally. Use ~/loops/current/bin/lm-loop status all --explain --json and doctor; clear stale labels through their owning loops and confirm unmanaged/missing/retired counts are zero before owner apply.
+5. Reconcile FoundersEdge 18dc7f3bc472c260-76084, DeepScale 18d9b0b6311a2018-87933, LAUNCH 18dc7222f6b5ec78-20440, Workday Learning 18d6ff42778e8868-14131, and Danaher R1316263 by exact official status or strict pre-effect proof. Keep any unresolved exact target fenced and do not replay it.
+6. Confirm idle/admission for each owner and apply one at a time. If admission-v2.sqlite3 remains locked, trace runtime/host/resource_admission.py::_database and its writer; use runtime/host/tests/test_resource_admission.py::test_open_current_schema_does_not_wait_for_writer_lock to verify the owner fix. Do not raise the configured cap without measured headroom.
+7. Confirm natural provider outcomes: Luma Compass event registration; Workday applications; novel VC and AI/AGI-founder cold mail. Read gpt-6-luna/max/fast from each natural-run event and send each result through its existing Telegram report path. For positive fundraiser replies, arrange a podcast or Zoom; after an in-person invitation, record the visit and actual cost.
+8. In the same time window, read active claims/reservations/queue age/admission reasons/per-class contention/CPU/RAM/disk and report actual simultaneous loops. Report applications, responses, meetings, funding, settled cash, and cost separately. Reconsider scheduler architecture only if a measured scheduler-specific bottleneck remains after owner fixes; keep configured cap 8 distinct from live capacity.
+
+**現在cursor:** latest-head CI/fresh review → merge → immutable release → natural handoff/doctor → exact effect readback → owner-by-owner natural outcomes → same-window capacity and economic readback.
