@@ -8468,6 +8468,38 @@ This entry supersedes the prior producer-review cursor. CFO priority remains A5 
 
 **Current cursor:** commit/push latest source + status → exact-head CI/fresh review → merge #7106 → reconciler/queue natural readbacks → CFO receipt-backed report → A5 → A6 → A8 → A9 → A10.
 
+### 2026-10-09 05:13 JST — latest-main sync after receipt fix
+
+このsnapshotは05:12のCFO status/TODOを置き換える。Money Tree/A7とCloud cost optimizationは今回のCFO lane外、事業CFOの順序は`A5 → A6 → A8 → A9 → A10`。
+
+- **Main/source:** latest `origin/main=d0d30b906c68f31f14394ddcf393d7e47a42212a`（#7233）をmergeし、local HEAD `d3ab72e3c1af63a1502086450387877cbe037b4e`。mainからLINE Stickerの4 filesだけを取り込み、変更を保持した。CFO source/test/manifest fixはcommit `2d3909bd60`。
+- **PR:** remote #7106はまだhead `f7f1bcc4fb6d2f0becffa4302467837fcda3b3a7` / base `d785c5391a02df0b0d0adcf8934ee7319345fdc7`。新しいHTTP 5xx fixとd0d30b9 syncは未push。f7f1のfresh review Important findingはlocalで修正したが、新head reviewは未取得。
+- **Local verification:** latest CFO/shared Python 56/56、CFO Node 60/60、adapter Node 15/15、OSS verifier PASS、loop contract 18/188/113・0 errors、`git diff --check` PASS。shared inventory 189 files, SHA-256 `261c7a3aefbf0f18ce019d403123343359f738a46b7923c92456e449a4f249f9`。
+- **Live CFO:** latest terminal `18dca6235b756448-13826` at 19:57:03Z is exit 75 `resource_capacity_busy`; provider receipt/readback missing; loaded SHA `8d986ff4...`. Doctor remains `ok=false` for release-reconciler self-handoff only. Current month/loop revenue and expense totals remain unknown; queue owner state is not freshly readable.
+
+**順序変更:** 旧cursor=`5xx false-ack fix → push → exact-head gates`。新cursor=`(1) 完了: HTTP 5xx + ok:falseをuncertain/no-replayへ修正 → (2) 完了: 56/60/15 testsとOSS/loop contract pass → (3) 完了: latest main d0d30b9をmergeしてLINE Sticker差分を保持 → (4) current SSOTをmain sync後の状態に更新/push → (5) exact-head CI + fresh review → (6) merge #7106`。理由は、source acceptanceへ進む間にmainで並行中のLINE Sticker owner修正が入り、最新SSOT/sourceを含むheadで一度に受け入れるため。
+
+**Remaining atomic TODO (この順):**
+
+1. [x] HTTP 5xx + `ok:false`回帰をRED→GREENで修正し、明示4xx rejectionをpre-sendに維持。
+2. [x] Focused suites 56 Python /60 CFO Node /15 adapter Node、OSS verifier、loop contract、diff checkをPASS。
+3. [x] main `d0d30b9`をmergeし、4件のLINE Sticker差分を保持。
+4. [ ] current CFO status/head/baseをspecへ記録し、最新main-synced branchをpush。
+5. [ ] new exact PR headのrequired CIを全PASS、fresh reviewでCritical/Important 0。
+6. [ ] PR #7106をmerge。
+7. [ ] immutable release/reconciler self-handoff/CFO loaded SHA/doctorをnormal owner routeでreadbackし、稼働ownerを停止/再起動しない。
+8. [ ] fresh queue/DB read後に既存claimをnatural terminalへ。finite cap維持、claim deletion/replayなし。
+9. [ ] CFO natural reportでdelivery/runtime/provider/B7 receipts、period/currency/source coverage、replay-zeroをreadback。証拠が揃うまでtotals unknown。
+10. [ ] A5 production migration/RPC/permissions/panel readback。
+11. [ ] A6 Google billed-vs-cash + receipt-backed operation/loop attribution。
+12. [ ] A8で18 loops /188 jobs（113 mapped）のsource-backed revenue/refund/fee/measured costとshared/control/platform overhead coverage。
+13. [ ] A9の日次/MTD/trailing/MRRをloop別・全社でreconcile。
+14. [ ] A10で7日連続自然reportのcoverage/freshness/receipts/period/currency/replay-zeroをreadback。
+
+**Blockerと解消方法:** final HTTP 5xx source fixはlocalで完了、main d0d30b9もmerge済みだが、両方ともremote PR head f7f1に未反映。current status commitを作ってpushし、新exact headだけでCI/reviewを取る。Production blockersは別: repeated `resource_capacity_busy`, unmanaged reconciler self-handoff, queue DB lock。通常owner/reconciler経路とfresh queue readで解く。current verified revenue/expense totalsはない。
+
+**Current cursor:** current status commit → push final main-synced branch → exact-head CI/fresh review → merge PR → production reconciler/queue readbacks → CFO receipt-backed report → A5 → A6 → A8 → A9 → A10.
+
 ### Marketing IntelからWriterへの記事候補連携（並列作業）
 
 **目的:** `marketing-weekly-review`がTelegramへ報告する未検証の`CONTENT`戦術を、既存Writerの`article-daily`トピックキューへ候補として渡す。AffiliateやX repostには配線しない。
