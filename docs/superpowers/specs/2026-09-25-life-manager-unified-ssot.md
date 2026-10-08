@@ -8578,6 +8578,37 @@ This entry supersedes the prior producer-review cursor. CFO priority remains A5 
 
 **Current cursor:** manifest+OSS → commit local source/spec → merge main 68e7b3ca → reconcile runtime diff/tests → final status and push → exact-head CI/fresh review → merge → production CFO receipt/report → A5 → A6 → A8 → A9 → A10.
 
+### 2026-10-09 05:28 JST — latest-main merge and transport acceptance complete
+
+このsnapshotは05:26のCFO status/TODOを置き換える。A7/Money TreeとCloud cost workは対象外、CFOの順序は`A5 → A6 → A8 → A9 → A10`。
+
+- **Main/source:** latest main `663eca5a32db2a9b9de0942df67fc9f37bfcfc61` is merged locally; local branch HEAD `c4f389c24916a117f0e14c5f7d0f09e8178c15b5` includes the latest loop/host behavior and docs. Shared transport, package fallback, outbox, CFO response classification and tests are locally committed before this merge.
+- **Local acceptance after merge:** shared Telegram/outbox Python 53/53; CFO Node 61/61; artifact parity Node 2/2; cross-venue Python 26/26; merged loop/host tests 61/61; OSS verifier PASS; `./bin/lm-loop-contract` 18 catalog /188 jobs /113 mapped /0 errors; `git diff --check` PASS. Shared inventory remains 189 files, digest `a8ac2783ab33fa50286f4588cf839cc4fc748f18939904dadf1fe5f999768052`.
+- **Ancillary suite:** full investment-core discovery previously ran 132 tests with one failure in the unchanged weekly cadence assertion (`start_interval_seconds=604800` versus unchanged registry `calendar_interval`). The failing test and config are byte-identical to current main; focused cross-venue and artifact parity suites pass. This unrelated mismatch is not edited in the CFO branch.
+- **PR/review:** remote #7106 is still head `4e3f89de` / base `d0d30b90`; three Important findings are fixed only locally and the final source diff/main merge is not pushed. CI on 4e3 was green, but it predates the fixes; obtain new exact-head CI and fresh review after push.
+- **Production CFO:** latest natural terminal remains `18dca6235b756448-13826` at 19:57:03Z, exit 75 `resource_capacity_busy`, no provider receipt/readback. Loaded SHA `8d986ff4...`; doctor only reports unmanaged release-reconciler self-handoff. Monthly/per-loop revenue and expense are unknown; queue state after the DB lock has no fresh readback.
+
+**順序変更:** 旧cursor=`latest main 68e7 merge → affected tests → push`。新cursor=`(1) 完了: latest main 663eca5aまでmerge → (2) 完了: 53/61/2/26/61 focused suites + OSS/contract/diff PASS → (3) final CFO status update and commit → (4) push latest-main branch → (5) exact-head CI + fresh review → (6) merge #7106`。理由は、mainがcheckout後にloop/host実装を更新したため、旧main上のテスト結果やレビューを使わず統合後の境界を受入する。
+
+**Remaining atomic TODO (この順):**
+
+1. [x] Three Important transport findings: explicit provider rejection counter/retry path, all-send-method ambiguity fence, byte-identical packaged fallback.
+2. [x] Latest main `663eca5a` merged and affected suites pass (loop/host 61/61; CFO/shared/artifact/cross-venue checks above).
+3. [ ] Current status/spec refresh commit and push the exact main-synced source branch; read back PR head/base.
+4. [ ] All required CI on the resulting exact head pass; fresh review has Critical/Important 0.
+5. [ ] Merge PR #7106.
+6. [ ] Normal owner/reconciler path: self-handoff, loaded SHA, doctor, fresh queue/claim and natural terminal; no stop/restart or cap increase.
+7. [ ] CFO natural receipt-backed report, period/currency/source coverage, per-loop settlements/cost and replay-zero; otherwise totals remain unknown.
+8. [ ] A5 production migration/RPC/permissions/panel.
+9. [ ] A6 Google billed-vs-cash and receipt-backed operation/loop attribution.
+10. [ ] A8 coverage for 18 loops /188 jobs and shared/control/platform overhead.
+11. [ ] A9 daily/MTD/trailing/MRR reconciliation.
+12. [ ] A10 seven consecutive natural reports with full coverage and replay-zero.
+
+**Blockerと解消方法:** locally tested fix and latest main are ready, but remote PR head `4e3f89de` is stale and has not received the fixes. Commit/push the final status/source branch, then accept only its exact-head CI and fresh review. Production is still blocked independently by `resource_capacity_busy`, unmanaged release-reconciler self-handoff and stale/locked queue read. Use normal owner/reconciler readback and natural claim drain. CFO actual revenue/expense totals remain unverified.
+
+**Current cursor:** commit current status → push branch → exact-head CI/fresh review → merge #7106 → production self-handoff/queue/CFO receipt readback → A5 → A6 → A8 → A9 → A10.
+
 ### Marketing IntelからWriterへの記事候補連携（並列作業）
 
 **目的:** `marketing-weekly-review`がTelegramへ報告する未検証の`CONTENT`戦術を、既存Writerの`article-daily`トピックキューへ候補として渡す。AffiliateやX repostには配線しない。
