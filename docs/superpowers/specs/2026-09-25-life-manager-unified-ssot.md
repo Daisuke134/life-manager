@@ -4835,7 +4835,7 @@ flowchart LR
 
 この節がGig laneの残TODOと実行順の正本。Lancers rows25–27は`waiting_external`のまま完全skipし、Answersは対象外、SelfBuildは最後に置く。$10K MRRは目標であり、単発受注・seller累計・未精算売上と混同しない。
 
-**Storefrontの収益方針:** 受託の応募収入を続けつつ、最も拡張しやすい軸は自社で範囲を決めて繰り返し販売できるproductized storefrontとする。Coconala・Freelancer・公開許可のある他platformで、成功商品から「課題と完成結果、固定された基本範囲、納品物、価格/package、追加option、納期、購入前入力、作例、FAQ、対象外」を学び、自社の実力・原価に合う商品を作る。注文ごとの別仕様を増やさず、再利用できる成果物と選択式追加optionで提供する。競合の文面・画像・実績表現を複製せず、レビュー・累計・grossを自社売上に見せない。継続はbuyer receiptと精算後のnet contributionが反復確認できた時にのみ成功と判定する。
+**Storefrontの収益方針:** 受託の応募収入を続けつつ、最も拡張しやすい軸は自社で範囲を決めて繰り返し販売できるproductized storefrontとする。Coconala・Freelancer・公開許可のある他platformでは、成功商品の購入決定構造を同じ順序・同等の具体度で再現する（課題と完成結果→固定範囲→納品物→価格/package→追加option→納期→購入前入力→作例→FAQ→対象外）。注文ごとの別仕様を増やさず、再利用できる成果物と選択式追加optionで提供する。商品文面・画像・実績・顧客事例は自社オリジナルまたは検証済みのものだけを使い、競合の表現・資産を複製せず、レビュー・累計・grossを自社売上に見せない。公開前にplatform fee・直接tool cost・実測fulfillment時間を引いた一件あたりnet contributionが正であることを確認する。継続販売の成功はunique buyer receipt、settlement、refund/fee/costを結んだ正のnet contributionが反復した時にのみ判定する。
 
 **確認済みの商品構造比較（2026-10-09、公式Coconalaページ）:** [商品データ作成自動化](https://coconala.com/services/1991922)は現在のページに商品別の販売件数表示がない。69件は評価・感想、189お気に入り、出品者総販売実績1,098件、販売枠5/待ち0人、基本¥80,000を表示する。基本範囲を「API取得元1つ＋出品先1モール」と明示し、取得→加工→出品用データ、Excel確認、取扱説明書を納品物にし、例外処理・cloud運用・Mac対応を別optionにしている。これは固定範囲・納品物・追加optionの構造例であり、商品別販売実績や利益の証拠ではない。Upwork公式[Project Catalog guide](https://support.upwork.com/hc/en-us/articles/360057397533-How-to-create-a-project-in-Project-Catalog)は固定納品物・最大3段階のpackage・add-on・納期・修正範囲・作例・FAQを案内する。Freelancer公式[Services FAQ](https://www.freelancer.com/faq/topic.php?id=52)は定型サービスの存在を示すが、成功件数は示さない。レビュー・推薦・出品者累計を商品販売やsettled netに置き換えない。
 
@@ -4857,18 +4857,18 @@ flowchart LR
 
 **残TODO（完了まで、この順）:**
 
-1. **現在cursor — PR #7182 latest-main acceptance:** branchにlatest main ee25a79475（#7179/#7189/#7198/#7202を含む）・T7 evidence・#7202後のbyte-stable loop fixtureを同期する。push後、exact-head required CIとfresh read-only reviewをPASSして#7182をmergeする。head 37fのprior 9/9 PASSは新mainの受け入れ証拠として使わない。
+1. **現在cursor — PR #7182 latest-main acceptance:** local branchはlatest `origin/main=d3d0896616`（#7205/#7207を含む）まで同期済み。#7205のPostiz historical no-dispatch proofはCoconalaのlisting/order evidenceではなく、Coconala fenceを解決しない。#7207のLine Sticker title修正とbyte-stable fixtureも含めた現在treeをcommit/pushし、exact-head required CIとfresh read-only reviewをPASSして#7182をmergeする。旧headの9/9 PASSや#7205のprovider固有proofを今回のhead/Coconala acceptanceへ流用しない。
 2. **main-derived release/owner readback:** #7182 merge後、#7179 numeric-floor removalを含むimmutable main releaseを確認する。target owner-idle・apply lock free・effect-fence条件を満たすときだけreconciler/owner経路で反映し、loaded SHA/argv/state/admissionとnatural terminalを確認。数値free-space floorは復活させない。実ENOSPCやunsafe pathは個別原因として直す。
 3. **Coconala Paid obligation:** order 18180857のfresh official order/talkroom readbackをownerのterminal・project lock解放後に取得し、現時点で必要な作業を確定する。未完了scopeがある場合だけ必要なrevision/formal deliveryを一度行い、buyer acceptance・settlement/payout・replay-zeroを結ぶ。stale snapshotでbuyer状態を推測しない。
 4. **旧Storefront effect fence:** occurrence 18d8d288748508e8-23902を同一effectのofficial listing/order historyまたはaccepted occurrence-bound pre-effect proofで照合する。現CLI dry-runはresolved=[] / no_pre_effect_terminal。証拠が揃うまで保持し、再publish/replayしない。
-5. **Coconala SKU 4244556 measurement:** seller-side current same-window views/inquiries/unique paid orders/renewals/refunds/fees/payout/actual fulfillment cost/timeを取得する。露出が測定可能量に足りなければlistingを変えず、platform policy内のqualified trafficをreadbackする。十分な窓の後に一度に一変数だけ検証し、net contributionで判定する。購入/renewalがない月次optionをMRRに数えない。
-6. **Freelancer Services storefront:** account-bound auth、現在inventory、fee、duplicate、uncertain publish状態を公式readbackする。現catalogにはFreelancer override/storefront ownerが見つからないため、再利用できる自社offerをplatform-native fixed-scope packageへ投影し、許可されたpublish routeだけでpublic listing/receiptを確認する。
-7. **Upwork Project Catalog:** current account/inventory/policyを公式readbackする。未承認bot/scraping/commercial API操作はしない。許可されたnative publish routeが確認できる場合のみfixed deliverable/tier/add-onで掲載し、public listingとunique orderをreadbackする。不可ならdraft/evidenceのみを保ち、自動出品済みとは扱わない。
+5. **Coconala SKU 4244556とproductized offer:** seller-side current same-window views/inquiries/unique paid orders/renewals/refunds/fees/payout/actual fulfillment cost/timeを取得する。公開中の競合上位商品から購入決定構造を再取得し、現在inventoryと旧effect fenceを照合した後、重複しない自社offerを一つ選び、fixed scope・納品物・価格package/add-on・納期・購入前入力・自社作例・FAQ・対象外のdraftを完成する。公開前にplatform fee・直接tool cost・実測fulfillment時間を差し引いた単位netが正であることを確かめ、許可されたnative listing routeで公開・official page readbackを得る。旧fenceが未解決の間は同一SKUを変更・再publishしない。露出が測定可能量に足りなければ現在SKUを変えず、十分な窓の後に一度に一変数だけ検証する。unique paid order・settlement・refund/fee/costを同一期間で結び、購入/renewalがない月次optionをMRRに数えない。
+6. **Freelancer Services storefront:** account-bound auth、現在inventory、fee、duplicate、uncertain publish状態を公式readbackする。現catalogにはFreelancer override/storefront ownerが見つからないため、Coconalaで採択した自社fixed-scope offerをplatform-native service packageへ投影し、上位商品の構造を参考にしつつ独自の文面・作例を使う。許可されたpublish routeだけで公開listing・unique order・payout/feeのreceiptを確認する。
+7. **Upwork Project Catalog:** current account/inventory/policyを公式readbackする。未承認bot/scraping/commercial API操作はしない。許可されたnative publish routeが確認できる場合のみCoconalaと共通の自社offerをfixed deliverable/tier/add-onへ投影し、上位カタログの構造を参考にした独自の文面・作例で掲載する。public listing・unique order・payout/feeをreadbackする。不可ならdraft/evidenceのみを保ち、自動出品済みとは扱わない。
 8. **Reply/Apply/Negotiation/Paid:** Coconala/CrowdWorks/Mercor/Freelancer等はfresh actionable workだけをownerごとに処理し、exact proposal/thread/funded terms/delivery/acceptance/settlement receiptを結ぶ。別ownerのleaseやeffect fenceを越えない。Lancers rows25–27はskip、Answers対象外。
 9. **Storefront portfolio economics:** listingごとのunique paid order/repeat/refund/platform fee/payout/actual fulfillment cost/time/netを同一期間で結び、settled net contributionが正で反復できたか判定する。seller totals/reviews/grossは会社売上・利益・MRRにしない。
 10. **最後 — SelfBuild:** 全収益loopとproduct storefrontの上記条件を閉じた後だけself-build/self-healingを再開する。
 
-**現在cursor:** item 1のlatest-main syncと#7182 final-head CI/review。runtime currentは4346だがStorefront/Paid ownersはold SHAで、latest mainはowner loadedではない。PR #7182受け入れ後にmain-derived release/readbackへ進む。
+**現在cursor:** item 1のlatest-main同期はlocal merge済み。focused tests・loop contract・source boundaryがPASSしたtreeと最新owner状態をSSOTへcommit/pushし、新headのCI/reviewを通す。runtimeはStorefront/Paid/reconcilerいずれも古いSHAのprocessがloaded-runningで、PR acceptance後も自然terminal/owner-idle/lock-freeを確認するまでapplyしない。
 
 ### 2026-10-09 00:28 JST — Storefront収益cursorとexposure review修正
 
@@ -5029,6 +5029,14 @@ flowchart LR
 
 **現在cursor:** fixture correctionとこのSSOT更新をpushし、新head CI/reviewをPASSさせる。その後PR #7182をmergeし、release ee25がowner-loadedになるのを確認してから、Coconala Paid/Storefrontのofficial readbackを進める。old effect fenceはofficial bindingまで保持する。
 
+
+### 2026-10-09 03:15 JST — Gig latest-main acceptance and live owner readback
+
+- `origin/main=d3d0896616aacc0f5b173c2a04608b0f5486cbe9`（#7205/#7207を含む）をGig branchへlocal mergeし、merge HEADは`94476f33e2fa55b285a44cc95d877ee3c737ec51`。PR #7182 remote headは`691faaca1cd6498cd536970b6f8245a7f9c82b81`のまま、GitHubに記録されたbaseは`ee25a794751917116f6558e2cde798dcd5c5b5a2`。この同期後headのCI/reviewはまだない。#7205のPostiz proofはprovider固有で、Coconala listing fenceを閉じない。
+- local verification: Storefront direct/compliance/fence `81 passed`; canonical macOS byte-stable render fixture `1 passed`; Line Sticker title regression `19 passed`; `lm-loop-contract`は18 loops / 188 jobs / 113 mapped / 0 errors; source-boundary PASS。誤ったtest filenameを指定した1回はテスト未実行のため、正しいtest pathで再実行して合格を確認した。
+- **Natural release readback (18:15:12Z):** `~/loops/current`は`20261009T030940-d3d08966`、`RELEASE.json.sha=d3d0896616aacc0f5b173c2a04608b0f5486cbe9`、cut=`2026-10-08T18:10:12Z`。StorefrontはPID `84510`でloaded-runningだがinstalled SHAは旧`3981bca3`; occurrence `18dca06871ad1be0-83538`は`host_admission_deferred:disk_headroom_low` / receiptなし。old fence `18d8d288748508e8-23902`はeffect unknownのまま。`pre-effect-reconcile --dry-run`は`resolved=[]` / `no_pre_effect_terminal`。
+- Paid ownerはPID `85042`でloaded-running / installed SHA `25bee172`; occurrence `18dc9de57e146828-74344`はexit 0 / passだが`effect=not_applicable`、provider receipt/readbackなし。release reconcilerはPID `97187`で旧SHA `e1b061f1`のloaded-running。`df -Pk /` available=`544928 KiB`。main #7179のnumeric producer floor除去はsourceにはあるが、Storefrontは旧SHAのため新挙動をまだ示していない。稼働ownerへ手動apply/restartせず自然遷移を待つ。
+- このreadbackまでにlistingの文面・価格・画像変更、publish、再送、fence解放は行っていない。SKU別のfresh order、settlement、payout、positive net contributionも未確認。現在の売上を主張しない。
 
 ### 2026-10-08 08:35 JST — Mobile post-merge runtime cursor
 
