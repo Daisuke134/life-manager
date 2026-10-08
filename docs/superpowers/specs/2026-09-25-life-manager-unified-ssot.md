@@ -7421,3 +7421,42 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 5. merge後、自然immutable release/doctor → 次のeligible CFO natural report receipt/runtime link/B7 counters/provider readback/replay-zero → A5 → A6 → A8 → A9 → A10。
 
 **現在cursor:** `push latest-main merge + SSOT → structured host cleanup receipt/admission pass → local full runtime rerun → PR exact-head CI/review → merge/promotion → fixed-CFO natural occurrence/readback → A5 → A6 → A8 → A9 → A10`。
+
+### CFO producer counter invariant and current cursor
+
+This entry supersedes the prior local-review cursor. The business CFO order remains A5 → A6 → A8 → A9 → A10; Moneytree and Cloud cost work remain out of this lane.
+
+- Fresh read-only review of source head `98d5906133dd8524b5ead8a6f51b420f168f2644` finds a source-level NO-SHIP issue: `persistedDeliveryCounters()` converts missing/invalid values to `null`; `validPersistedDeliveryCounters()` accepts `null`; `runResultCfo()` writes B7 and report status `sent` before runtime-hint validation. Production then throws after writing that false sent state, while non-runtime execution can return `sent`. The B7-v4 recovery branch can also restore a sent report without valid counters. Existing occurrence replay can reclassify a same-occurrence sent report as duplicate/zero.
+- Required behavior: validate the exact shared-sender tuple before changing B7/report to `sent`; only sent `(1,1,0,0)` and duplicate `(0,0,0,0)` are valid. Invalid/missing/boolean counters leave the existing report and B7 pending, return nonzero, write no runtime effect hint, and never invoke a second provider send; the persisted shared outbox remains the replay fence. B7 v4 reads reject null or semantically inconsistent counters. Legacy v3 remains an idempotency-only read and cannot recover an effectful same occurrence as verified `sent`. Same-occurrence sent replay cannot be turned into a zero-effect success.
+- `origin/main` is `a3c28b0d06db83a31de55995119a6087815ac241`, one docs-only commit ahead of source head `98d59061`; merge this latest main before source edits. The relevant design and call paths remain `cfo-result-local.js` → shared `notify_effect()`/outbox → runtime result hint, plus `skills/cfo/effect_reconcile.py`.
+- Host status from the latest read-only sample: CFO is loaded-idle on `e1b061f1` but the latest report occurrence is deferred at `disk_headroom_low`; disk-cleanup latest exit is `entrypoint_exit_1`; free space is about 434 MiB. No cleanup or unrelated production operation is authorized by this source fix.
+
+**TODO (atomic, current order):**
+
+1. Merge latest `origin/main` while preserving both SSOT entries.
+2. Add RED coverage: invalid notify counters leave report/B7 pending; B7 v4 null/mismatched counters and legacy v3 same-occurrence recovery cannot return sent; same-occurrence sent state cannot become a quiet duplicate.
+3. Make the smallest producer/reader change: reject invalid counter tuple before sent persistence; require exact semantic tuple in B7 v4; preserve outbox idempotency and fail closed on unverified legacy state.
+4. Run CFO producer/reconciler tests, full CFO pytest, Node CFO tests, and runtime fence focus; run full runtime suite only after host headroom recovers.
+5. Commit/push the source/spec diff, pass final-head CI and fresh same-SHA review, then merge.
+6. Obtain cleanup receipt/admission pass, promote to a main-derived immutable release, and verify one natural CFO occurrence's runtime/provider receipt, B7 tuple, admission, and replay-zero.
+7. Continue A5 → A6 → A8 → A9 → A10.
+
+**Current cursor:** `latest-main sync → TDD RED for false sent/null-counter recovery → strict pre-persistence counter validation + B7-v4 validation → focused acceptance → push/review/CI → promotion/natural readback → A5 → A6 → A8 → A9 → A10`.
+
+### 2026-10-08 22:27 JST — latest CFO PR head pushed; live gate refresh
+
+この追記が22:26 JSTのCFO cursorを更新する。CFO business order **A5 → A6 → A8 → A9 → A10** は維持する。
+
+- **Branch/PR:** latest-main merge `96daa787`とCFO source/specはpush済み、PR branch head `98d5906133dd8524b5ead8a6f51b420f168f2644`。PR #7106はopen/draft, mergeable。GitHub run `37784470507`でrequired checks実行中。CodeRabbit status-check successはformal reviewではなく、PR `reviews`は空。fresh same-head reviewerを依頼済み。
+- **Full suite:** latest-main fixture target `test_reconciler_pins_captured_main_sha_when_origin_moves_during_cut`は1/1 PASS。branch push前のlocal full runtime suiteは807 testsで3 failures / 1 error: local-only merge commitで落ちたrelease-pressure testsはbranch push済み、bytecode release testはnpm extract時`ENOSPC`。現在のhost freeは約434 MiBで、disk-cleanup ownerの最新occurrence `18dc90c29b739810-55335`は13:26:01Zに`entrypoint_exit_1`。他のowner dataは削除していない。
+- **Live CFO/release:** CFO loaded-idle, installed SHA `e1b061f1`; latest occurrence `18dc9090aca2ab58-40295` at 13:23:51Z exited 75 `disk_headroom_low`, effect `not_applicable`、送信なし。release-reconciler PID 82558 loaded-running on `e1b061f1`, latest terminal `18dc90a7725cfa68-89188` exit 1; doctor `ok=true` with missing/unmanaged/retired labels all 0. Running ownerは止めず、次のnatural receiptを待つ。
+
+**残TODO（現在順）:**
+
+1. `37784470507` exact-head required CIとfresh same-SHA reviewを完了。CI failureなら該当owner boundaryだけ修正し、新headで再実行。
+2. disk-cleanup ownerのstructured receiptで`free_after >= 2 GiB`, `errors=0`, `protected_deletions=0`と後続admission passを得る。headroom回復後にfull runtime suiteを再実行し、`ENOSPC`が消えたことを確認する。
+3. required CI/review PASS後にPR #7106をmainへ統合し、immutable release / natural handoff / doctor readbackを行う。
+4. 固定CFO sourceの次のeligible natural reportでruntime/provider receipt/ref、B7 counters/ID/hash、admissionとreplay-zeroを同一occurrenceで照合する。
+5. A5 production migration/RPC/permissions/panel readback → A6 invoice/cash/operation attribution → A8 18-loop revenue/cost + 187-job classification → A9 source-period daily/MTD/trailing/MRR → A10 7日連続natural reports/full coverage/replay-zero。
+
+**現在cursor:** `commit/push this SSOT status delta → new-head CI + fresh review (CFO source unchanged from 98d59061) → structured cleanup receipt/admission → local full runtime at recovered headroom → merge/promotion → natural CFO receipt/replay-zero → A5 → A6 → A8 → A9 → A10`。
