@@ -7714,3 +7714,11 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 **順序更新:** 旧cursor=`latest mainを同期 → 統合test → current PR head`。新順=`(1) test correctionとこの記録をcommit/push → (2) final PR headのfresh read-only review + required CI → (3) PR #7189 merge → (4) active reconcilerを止めずnatural immutable releaseと対象owner SHA readback → (5) #7179 policy下で3 loopを再観測し、numeric floor解除後のadmissionと実ENOSPCを区別 → (6) Job Hunter false-success経路を回帰修正し、unknown submitは再送しない → (7) Fundraiser/mobile fenceは公式readbackまたは厳密なpre-effect証明だけで処理 → (8) Connector/Luma、Job Hunter/Workday、Fundraiserのprovider receipt付き自然結果とTelegram報告 → (9) 同一窓のqueue age/claims/reservations/resource class/CPU/RAM/diskを測り、8枠が実測bottleneckならbounded capを判断する`。理由は、最新sourceは統合済みでもproduction pointerは旧releaseのままで、live gate解除も3対象の成功も未確認だから。
 
 **現在cursor:** test correction + verification記録をcommit/push → final-head review/CI → PR merge → natural release/owner SHA readback → 3 loopの新admission結果/実ENOSPC/official effect receipts → Job Hunter false-success repair → target loopsの自然結果とTelegram → 同一窓capacity測定。旧releaseのdisk blockが消えたと推定せず、`effect_unknown`を再送しない。
+
+### 2026-10-09 02:45 JST — Anicca iOS画像の再利用と生成費
+
+- `~/loops/current` はimmutable release `20261009T022138-4346b61c`。現行main `da4e7edc` とこのreleaseで、背景解決・slide factory・copy generator・rotation runnerの実装差分はない。
+- 投稿経路はGPT Image/Gemini/FALを呼ばない。`marketing-slide-background-image.js` は背景promptのSHA-256に一致する既承認PNG/JPGだけを永続cacheから読み、cache missは投稿用assetを生成せずfail closedする。実cacheは `/Users/anicca/.local/state/life-manager/tenants/dais-local/marketing/slide-pack-rotation/anicca-ios/image-cache` に26枚、39,824 KiB。画像とテキストは同じくローカルで組み立て、copy generatorは決定的な固定文選択で`costUsd=0`。
+- 生成済みslideはcontent object storeへimportし、rotation poolにその参照を保存した後、`.workspace`内の合成JPEGだけを削除する。これは元背景・保存済みslideの破棄ではない。image-cacheとobject storeはrelease外のruntime dataとして保持する。
+- Daisの要件: 既存の承認済み画像（既存Gemini画像を含む）を継続再利用し、投稿ごとに画像モデルを呼ばない。ハッシュ名だけでは26枚の生成元や、旧male/female/sunset画像が現cacheに含まれるかを証明できないため、これらの由来・旧画像との対応は未確認として扱う。特定の旧画像を使う必要がある場合は既存fileを一度だけ承認cacheへ対応付ける。新規生成はしない。
+- **TODOへの影響:** 画像生成の切替・画像APIの追加は不要で、distributionの先行順も変えない。次は既存mobile marketing cursorどおり、自然slotのPostiz receiptと全accountの投稿実績・metricsを確認する。指定された旧背景がcacheにあるかの照合は、投稿cadenceを止めない非blocking確認。
