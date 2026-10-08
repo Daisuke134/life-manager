@@ -6521,3 +6521,20 @@ The next cursor is item 1 commit/push. No Dais manual action is currently requir
 6. Map the existing `$9.99/month` Daily Anicca Letter Stripe price into the product/attribution registry. Current active subscriptions are `0`; 1,002 subscribers are needed for `$10K` gross MRR before fees. The `$10.99` eBook checkout is a one-time sale.
 
 **現在cursor:** `fresh no-PID owner readback + preflight → one-target loaded-idle-only apply to d35aa4bc → loaded SHA/argv and receipt readback → reconcile video and unknown effect → bind the exact Instagram account → publish/read back → restore 3/day → register and measure the $9.99 Letter MRR funnel`. No Capafy action, raw launchctl, forced restart, or effect replay.
+
+### 2026-10-08 19:59 JST — stale helper prevents the next self-handoff
+
+- Targeted apply on 19:46 JST returned `changed=true` for `life-manager-release-reconciler`, loading immutable release `d35aa4bc` with exact argv. Its natural wake completed; `~/loops/current` advanced to `20261008T195517-b2bcba46`.
+- Fresh `launchctl-safe preflight` at 19:59 JST passes (`mutation_allowed=true`). The main reconciler is running on PID `34577` with loaded SHA `d35aa4bc`; the self-handoff label is `not running`/no PID but still points to old helper path `88dfdaf4`. Its last receipt remains `old_service_state_unknown` for `state=not running`.
+- Source inspection shows `schedule_self_handoff()` returns “helper already loaded” whenever that label exists, without checking whether its `ProgramArguments` point to the current release. Thus the stale inactive helper prevents the fixed d35aa/b2bc code from scheduling a fresh helper. Do not boot it out while the main owner is running.
+- **Order change:** previous order was to wait for the loaded d35aa owner to self-handoff naturally. New order is: wait for its natural terminal; with fresh preflight and no PID for both labels, acquire the existing per-label apply lock, boot out only the stale inactive helper via `launchctl-safe`, confirm helper absence, then apply latest immutable current release `b2bcba46` to the owner with `--loaded-idle-only`. Reason: the old helper repeatedly fails and the runner skips any loaded helper regardless of release. If the owner becomes running, skip the mutation and wait for its next terminal.
+- Docs PR #7124 remains open because the latest-main OSS boundary check reports `manifest_inventory_mismatch skills/capafy-autopublish`; this is inherited from the other owner's Capafy path. No Capafy file is changed here.
+
+**Atomic TODO (eBook only):**
+
+1. Let PID `34577` reach natural terminal. Do not stop/restart it.
+2. Freshly rerun `launchctl-safe preflight` and safe-print both labels. Only if main and stale helper have no PID, take the existing owner apply lock, `launchctl-safe bootout` the inactive `88dfdaf4` helper, and verify the helper label is absent.
+3. Apply only `life-manager-release-reconciler` from immutable release `b2bcba46` with `LIFE_MANAGER_APPLY_TARGET` and `--loaded-idle-only`; verify loaded SHA/argv. If it skips as running, stop there and wait for the natural terminal.
+4. Verify the next natural self-handoff receipt and terminal event, then continue the English video/fence, Instagram binding, one-post/readback, cadence, and Letter MRR cursors above.
+
+**現在cursor:** `natural terminal of d35aa4bc PID34577 → preflight/no-PID proof → safe unload of stale inactive helper → targeted loaded-idle-only apply of b2bcba46 → loaded SHA/argv and successful receipt → exact video and English IG route → one verified post → 3/day → Letter subscriptions and MRR`. No Capafy action, raw `launchctl`, forced restart, or effect replay.
