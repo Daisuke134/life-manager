@@ -733,9 +733,12 @@ def process_artifact(args: argparse.Namespace, artifact_path: Path) -> bool:
 
 def parse_args() -> argparse.Namespace:
     skill_root = SCRIPT_DIR.parent
+    # Production runs from a read-only immutable release; state lives in WRITER_STATE_DIR
+    # (exported by writer-runtime-env.sh), the same root article-daily.sh uses.
+    state_root = Path(os.environ["WRITER_STATE_DIR"]) if os.environ.get("WRITER_STATE_DIR") else skill_root / "state"
     parser = argparse.ArgumentParser()
-    parser.add_argument("--ledger", type=Path, default=skill_root / "state/articles.jsonl")
-    parser.add_argument("--runs-root", type=Path, default=skill_root / "state/runs")
+    parser.add_argument("--ledger", type=Path, default=state_root / "articles.jsonl")
+    parser.add_argument("--runs-root", type=Path, default=state_root / "runs")
     parser.add_argument("--repo", type=Path, default=Path(os.environ.get("ZENN_REPO_PATH", str(Path.home() / ".local/state/life-manager/writer/checkouts/zenn-articles"))))
     parser.add_argument("--expected-remote", default=os.environ.get("ZENN_REPOSITORY_URL", ""))
     parser.add_argument("--before-push-hook", type=Path)
@@ -749,13 +752,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--heartbeat", type=Path, default=Path(os.environ.get("WRITER_STATE_DIR", str(Path.home() / ".local/state/life-manager/writer"))) / ".article-loop-last-pass")
     parser.add_argument("--notify-bin")
     parser.add_argument("--log", type=Path, default=Path(os.environ.get("WRITER_LOG_DIR", str(Path.home() / ".local/state/life-manager/writer/logs"))) / "article-zenn-retry.log")
-    parser.add_argument("--lock-file", type=Path, default=skill_root / "state/.zenn-deferred-worker.lock")
+    parser.add_argument("--lock-file", type=Path, default=state_root / ".zenn-deferred-worker.lock")
     parser.add_argument(
         "--publication-lock-dir",
         type=Path,
-        default=skill_root / "state/.article-daily.lockdir",
+        default=state_root / ".article-daily.lockdir",
     )
-    parser.add_argument("--backlog-state", type=Path, default=skill_root / "state/.zenn-deferred-backlog.json")
+    parser.add_argument("--backlog-state", type=Path, default=state_root / ".zenn-deferred-backlog.json")
     parser.add_argument("--backlog-alert-count", type=int, default=2)
     parser.add_argument("--backlog-alert-seconds", type=int, default=86400)
     return parser.parse_args()
