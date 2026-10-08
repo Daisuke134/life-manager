@@ -188,6 +188,24 @@ test("gate-closed and on-time decisions perform no claim, email, or Telegram I/O
   assert.equal(sideEffects, 0);
 });
 
+test("stale, future, and invalid live fixes stop before draft lookup or route calculation", async () => {
+  const rejected = [
+    [{ ...LIVE, observed_at: new Date(NOW - 120_001).toISOString(), expires_at: new Date(NOW + 60_000).toISOString() }, "location_stale"],
+    [{ ...LIVE, observed_at: new Date(NOW + 1).toISOString(), expires_at: new Date(NOW + 60_000).toISOString() }, "location_future"],
+    [{ ...LIVE, latitude: 91, observed_at: new Date(NOW - 1000).toISOString(), expires_at: new Date(NOW + 60_000).toISOString() }, "location_invalid"],
+  ];
+  for (const [location, decision] of rejected) {
+    let draftReads = 0, routeCalls = 0;
+    const result = await processLocationLateNotice({ user: { uid: "u1" }, location, events: [EVENT], nowMs: NOW }, {
+      getLateDraft: async () => { draftReads++; return { status: "awaiting_decision" }; },
+      routeMinutes: async () => { routeCalls++; return 43; },
+    });
+    assert.deepEqual(result, { decision });
+    assert.equal(draftReads, 0);
+    assert.equal(routeCalls, 0);
+  }
+});
+
 function resolvedRecipient() {
   return {
     display_name: "Meeting partner",

@@ -314,7 +314,7 @@ async function processLocationLateNotice(input, deps = {}) {
   const candidates = (input.events || []).filter((candidate) => candidate && !isHelperBlock(candidate.summary) &&
     candidate.location && Number.isFinite(candidate.startMs));
   const gate = evaluateLateArrival({ nowMs, event: candidates[0] || null, travelMinutes: null, location: input.location });
-  if (["location_missing", "location_expired", "no_event"].includes(gate.decision)) return gate;
+  if (gate.decision !== "route_unavailable") return gate;
 
   // A meeting we already acted on must not hide the rest of the day. Seen in production 2026-07-25:
   // an all-day located event was claimed in the morning and ran until evening, so every later event
