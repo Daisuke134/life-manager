@@ -7011,3 +7011,25 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 **完了条件:** disk cleanup receipt/admission pass、main-derived releaseからの三loop natural terminalと各official result/Telegram/model receipt、target別unknown fence/replay-zero、同一窓の実稼働capacity/economicsがすべて現行readbackで揃う。
 
 **現在cursor:** correlate the 12:53–12:58 disk drop to an exact writer/owner → repair only that owner and prove stable ≥2 GiB recovery/admission → natural #7149 release handoff/doctor → exact effect reconciliation → three target natural outcomes → same-window capacity/economics.
+
+
+### 2026-10-08 22:24 JST — 新SHAへのfleet再試行が短縮deadlineを無視
+
+- 自然handoffでPR #7149を含む`~/loops/releases/20261008T220718-e1b061f1` / SHA `e1b061f1fdaa040d2461be457fe410c398afc95c`が適用された。`lm-loop doctor`は`missing=0`、`retired=0`、`unmanaged=0`となり、self-handoff labelも消えた。
+- ただしfleet収束は止まっている。前回の`fleet-apply-state.json`はSHA `3981bca3`、`status=partial`、`changed=81`、`skipped=29`、`errors=2`、`message="timed out owners: none; budget exceeded"`、`next_retry_epoch=1791465457`（`2026-10-08T13:17:37Z`）だった。新release後の自然occurrence `13:15:17Z`と`13:18:42Z`は、`agent-runner fleet-apply: release e1b061... coalesced; last attempt ... min interval 1800s`を記録した。後者は記録済み短縮retry deadlineより後の時刻である。
+- 原因境界は`bin/reconcile-agent-runner-release.sh::run_fleet_apply`。`last_next_retry`は読み出すが、SHA変更時のcoalesce判定は`last_attempt_epoch + min_interval_seconds`だけで、#7149がbudget超過partial用に短縮した`next_retry_epoch`を参照しない。回帰対象は`runtime/loop/tests/test_reconcile_agent_runner_release_fleet_apply.py`。
+- diskは別のblockerとして残る。`13:16:56Z`のnatural full cleanupは`free_after=685,985,792`、2 GiB floor未達、`reclaimed=38,831,612`、`errors=0`、`protected_deletions=0`、inventory gaps=19。`13:19Z`の`df`は616,024 KiB free。full inventoryはLibrary、Projects/life-manager-main、gig、Homebrew、`/private/var/folders`のsizeを取得できず、急な空き減少のownerを特定できていない。#7149またはgreen doctorをdisk回復の証拠にしない。
+- `Connector`は旧SHA `804effc5`の自然terminal `pass`だが、`effect_class=none`、provider receipt/readbackなしのためLuma登録は未証明。Job Hunterはdisk defer、Fundraiserは直近runが`resource_fifo_wait`でprovider receiptなし。
+
+**順序更新:** 旧順=`disk writer recovery → #7149 release/doctor → target outcomes`。新順=`(1) 観測した新SHA retry deadlineの失敗test → (2) 同一SHA backoffと通常1800秒coalesceを維持しつつ、budget進捗partialの記録済み`next_retry_epoch`をSHA変更時にも適用 → (3) push/merge/releaseし、自然reconcilerがfix SHAを継続applyすることを確認 → (4) disk writerを独立して特定し、既存2 GiB契約へ安全に回復 → (5) target別fence/receiptとowner natural run → (6) 同一窓のcapacity測定`。理由は、#7149とdoctorは本番に反映済みだが、短縮retryを読む判定漏れが次のfleet applyを止めているためである。disk pressureは独立したblockerとして残る。
+
+**残TODO（完了まで・この順）:**
+
+1. **現在cursor—失敗回帰testを書く。** `runtime/loop/tests/test_reconcile_agent_runner_release_fleet_apply.py`で、初回runが`status=partial`、`budget_exceeded=1`、`changed>0`、短い`next_retry_epoch`を保存し、そのdeadline経過後かつ1800秒より前に第2 SHAを有効化する。第2 SHAのowner applyが一度だけ実行されることをassertする。command: `python3 -m unittest runtime.loop.tests.test_reconcile_agent_runner_release_fleet_apply.ReconcileAgentRunnerReleaseFleetApplyTest.test_budget_partial_short_retry_allows_new_sha_before_min_interval -v`。現状のREDは2回目のapplyがcoalesceされ、call countが増えないこと。
+2. `bin/reconcile-agent-runner-release.sh::run_fleet_apply`の最小修正で、budget進捗partialに記録された短い`next_retry_epoch`を新SHAのcoalesce期限にも反映する。同一SHA backoffと通常1800秒coalesceの既存testを維持し、focused testとこのscriptの既存fleet-apply testsを実行する。
+3. 現task branchをcommit/pushし、同一headの必須CI/fresh reviewを通してmergeする。active reconcilerをstop/restartせず、fix SHAのimmutable releaseと自然継続applyを確認する。
+4. host-scoped inventory/owner traceからdisk writerを特定し、ownerが所有する安全な手順で回復する。cleanup receipt `free_after >= 2 GiB`、`errors=0`、`protected_deletions=0`と後続admission passを確認する。CodexBar updaterはdisk-cleanup skillの24時間超・exact identity条件を満たすまで操作しない。
+5. disk/admission eligibleになったらtarget別effectをreplayせず照合し、loaded-idle ownerだけ適用する。各自然occurrenceにLuma/Workday/VC mailのreceipt、model、Telegram reportを結び付ける。
+6. 同時間窓のlive claims/reservations/queue/class contention/CPU/RAM/diskを測る。実測でdiskや外部writerではなくglobal/per-class capの飽和が証明された場合だけcapを変更する。
+
+**現在cursor:** 新SHA short-retry RED test → `run_fleet_apply`修正 → exact-head CI/review/merge/release → natural fleet continuation → disk owner特定/安全回復 → target receipt/natural run → same-window capacity/economics。

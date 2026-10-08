@@ -964,6 +964,58 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             self.assertEqual(state["status"], "partial")
             self.assertLess(state["next_retry_epoch"], time.time() + 60)
 
+    def test_budget_partial_short_retry_allows_new_sha_before_min_interval(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha1 = self._make_repo(root)
+            release1 = self._make_release(
+                root,
+                sha1,
+                loop_ids=("first-earn", "second-earn"),
+                entry_overrides={
+                    "first-earn": {"domain": "earn", "priority": "revenue"},
+                    "second-earn": {"domain": "earn", "priority": "revenue"},
+                },
+            )
+            self._activate(root, release1)
+            calls_log = root / "calls.log"
+            env = self._base_env(root, repo, calls_log=calls_log, apply_mode="slow_first")
+            env["FAKE_SLOW_LOOP_ID"] = "first-earn"
+            env["LIFE_MANAGER_FLEET_APPLY_TIMEOUT_SECONDS"] = "4"
+            env["LIFE_MANAGER_FLEET_APPLY_PER_OWNER_TIMEOUT_SECONDS"] = "3"
+            env["LIFE_MANAGER_FLEET_APPLY_CONTINUE_SECONDS"] = "0"
+
+            first = self._run(env)
+            self.assertNotEqual(first.returncode, 0)
+            first_state = self._state(root)
+            self.assertEqual(first_state["status"], "partial")
+            self.assertEqual(first_state["changed"], 1)
+            self.assertLessEqual(first_state["next_retry_epoch"], int(time.time()))
+
+            sha2 = self._advance_repo(repo)
+            release2 = self._make_release(
+                root,
+                sha2,
+                loop_ids=("first-earn", "second-earn"),
+                entry_overrides={
+                    "first-earn": {"domain": "earn", "priority": "revenue"},
+                    "second-earn": {"domain": "earn", "priority": "revenue"},
+                },
+            )
+            self._activate(root, release2)
+            env["FAKE_APPLY_MODE"] = "ok"
+            env.pop("FAKE_SLOW_LOOP_ID")
+
+            second = self._run(env)
+
+            self.assertEqual(second.returncode, 0, second.stderr)
+            self.assertEqual(
+                self._apply_call_count(calls_log),
+                3,
+                "a budget-progress retry deadline must override the old SHA's min interval",
+            )
+            self.assertEqual(self._state(root)["sha"], sha2)
+
     def test_partial_apply_honors_backoff_before_same_release_retry(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

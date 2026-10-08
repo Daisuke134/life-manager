@@ -248,7 +248,14 @@ PY
   if [ "$last_sha" != "$release_sha" ] && [ -n "$last_status" ]; then
     local last_try_epoch="${last_ok_epoch:-0}"
     [ "${last_attempt_epoch:-0}" -gt "$last_try_epoch" ] && last_try_epoch="$last_attempt_epoch"
-    if [ "$last_try_epoch" -gt 0 ] && [ "$now_epoch" -lt "$((last_try_epoch + min_interval_seconds))" ]; then
+    local coalesce_until_epoch="$((last_try_epoch + min_interval_seconds))"
+    # A budget-progress partial may record a shorter retry window than the ordinary SHA
+    # coalescing interval; honor that same deadline when the activated SHA changes.
+    if [ "${last_next_retry:-0}" -gt 0 ] \
+      && [ "${last_next_retry:-0}" -lt "$coalesce_until_epoch" ]; then
+      coalesce_until_epoch="$last_next_retry"
+    fi
+    if [ "$last_try_epoch" -gt 0 ] && [ "$now_epoch" -lt "$coalesce_until_epoch" ]; then
       printf 'agent-runner fleet-apply: release %s coalesced; last attempt at epoch %s, min interval %ss\n' \
         "$release_sha" "$last_try_epoch" "$min_interval_seconds" >&2
       return 0
