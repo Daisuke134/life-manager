@@ -320,6 +320,19 @@ test("saved Travel offer and active subscription screens do not reread Calendar 
   }
 });
 
+test("Calendar ACTIVE shows the trial offer before initial scan or first Travel block", async () => {
+  let eventReads = 0;
+  const f = fixture({ listEvents7dImpl: async () => { eventReads++; return []; } });
+
+  const snapshot = await buildTodaySnapshot(UID, f.opts);
+
+  assert.equal(snapshot.setupState, "trial_offer");
+  assert.equal(snapshot.checkoutAvailable, true);
+  assert.equal(snapshot.initialScanCompletedAt, null);
+  assert.equal(snapshot.firstTravelAt, null);
+  assert.equal(eventReads, 0);
+});
+
 test("scheduled cancellation is reflected by the Web screen entitlement", async () => {
   let eventReads = 0;
   const f = fixture({ listEvents7dImpl: async () => { eventReads++; return [event()]; } });
@@ -341,7 +354,7 @@ test("scheduled cancellation is reflected by the Web screen entitlement", async 
   assert.equal(eventReads, 0);
 });
 
-test("zero-block initial scan is recorded without a first Travel timestamp or trial", async () => {
+test("zero-block initial scan is recorded and does not gate the trial offer", async () => {
   const f = fixture({
     travelUserOnceImpl: async (_user, _deps) => ({ inserted: 0, verified: 0, outboundReports: [] }),
   });
@@ -351,8 +364,8 @@ test("zero-block initial scan is recorded without a first Travel timestamp or tr
 
   assert.equal(response.status, 200);
   const result = JSON.parse(response.body);
-  assert.equal(result.setupState, "no_eligible_events");
-  assert.equal(result.checkoutAvailable, false);
+  assert.equal(result.setupState, "trial_offer");
+  assert.equal(result.checkoutAvailable, true);
   assert.ok(f.row.web_initial_scan_completed_at);
   assert.equal(f.row.web_first_travel_at, null);
   assert.equal(f.row.trial_expires_at, null);
@@ -360,7 +373,7 @@ test("zero-block initial scan is recorded without a first Travel timestamp or tr
   assert.equal(f.scanRpcCalls[0].p_first_travel_at, null);
 });
 
-test("uncertain Calendar write is not recorded as first value", async () => {
+test("uncertain Calendar write remains pending without hiding the trial offer", async () => {
   const f = fixture({
     travelUserOnceImpl: async () => ({
       inserted: 1,
@@ -375,7 +388,7 @@ test("uncertain Calendar write is not recorded as first value", async () => {
   assert.equal(response.status, 200);
   const result = JSON.parse(response.body);
   assert.equal(result.scanState, "pending");
-  assert.equal(result.checkoutAvailable, false);
+  assert.equal(result.checkoutAvailable, true);
   assert.equal(f.row.web_initial_scan_completed_at, null);
   assert.equal(f.row.web_first_travel_at, null);
   assert.equal(f.scanRpcCalls.length, 0);
@@ -521,16 +534,16 @@ test("initial scan pauses automation without recording an explicit user pause", 
   });
 });
 
-test("no-home onboarding stays on the one-time scan path and locationless events get no guessed block", async () => {
+test("automatic Calendar processing still skips guesses when home or event location is missing", async () => {
   const noHome = fixture({ calendar: { async listEventsRaw() { return [event()]; } } });
-  const noHomeSnapshot = await buildTodaySnapshot(UID, noHome.opts);
+  const noHomeSnapshot = await buildTodaySnapshot(UID, { ...noHome.opts, includeCalendarDetails: true });
   assert.equal(noHomeSnapshot.setupState, "needs_initial_scan");
   assert.equal(noHomeSnapshot.nextEvent.location, "渋谷ヒカリエ");
   assert.equal(noHomeSnapshot.travelBlock, null);
 
   const locationless = fixture({ calendar: { async listEventsRaw() { return [event("event-no-location", "")]; } } });
   locationless.row.web_initial_scan_completed_at = "2030-01-01T00:00:00.000Z";
-  const locationlessSnapshot = await buildTodaySnapshot(UID, locationless.opts);
+  const locationlessSnapshot = await buildTodaySnapshot(UID, { ...locationless.opts, includeCalendarDetails: true });
   assert.equal(locationlessSnapshot.setupState, "no_eligible_events");
   assert.equal(locationlessSnapshot.nextEvent.location, "");
   assert.equal(locationlessSnapshot.travelBlock, null);

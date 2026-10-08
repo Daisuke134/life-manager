@@ -147,7 +147,23 @@
 - [x] Step 6 (source): Implement a read-only report over Web users, funnel events, all-time paid-invoice history, usage rows, current Stripe subscriptions, and attributable balance transactions/payout status. D7/D30 are labeled current webhook-verified paid-subscription retention; provider totals with missing estimates and unallocated hosting/marketing remain null.
 - [x] Step 7: Prior source acceptance passed 243/243 focused tests. Fresh reviews found three report defects: nonexistent `BalanceTransaction.payout`, available/pending zero on incomplete transaction reads, and incomplete/manual payouts counted as complete. Regression tests reproduced all three; implementation now uses the official payout filter only for `automatic=true` and `reconciliation_status=completed`, and returns unknown totals when attribution is incomplete. Current source acceptance passed 247/247 focused tests, PostgreSQL integration, synthetic browser E2E at 390x844/1440x900, syntax, and diff checks. PR #6981 merged as `9fb58c74`; Railway deploy is SUCCESS and `/health` is 200 at that SHA. The funnel migration is applied in the verified production Supabase project; SQL readback confirms RLS, service_role SELECT/INSERT, browser-role denial, and append-only guards; REST readback is 200. Stripe live price remains $29/month, Web subscription count/MRR is 0, and the live webhook preserves its original six events plus `refund.created`/`refund.updated`. The 30-day production report initially had zero events and `$0` Web MRR; provider actual, hosting, marketing and net contribution remain unknown. PR #424 merged the `/lm` Web-first CTA to `life-call /lm`; Netlify production deploy and post-deploy smoke passed. Live page shows Google Calendar connect, seven-day card-required trial, existing $29/month, and same-tab Web handoff. A tagged two-hop OAuth-start probe reaches Supabase and yields a Google authorization URL; no Google login or personal Calendar access occurred. TEST credentials have only legacy Netlify webhook endpoints, not a test endpoint for current Railway `life-call`; refund delivery has source-contract coverage and the live endpoint subscription, without a test-provider delivery receipt. The only recent funnel activity is tagged internal E2E (`landingViews=1`, `googleConnectStarts=2`), with no customer subscriptions; do not count it as acquisition. No live price or charge changed.
 
-## After this source plan
+### Task 5: Immediate connected/paywall after Calendar ACTIVE (WB-15d.0)
+
+**Files:**
+- Tests: `apps/life-manager/lib/billing.test.js`, `web-billing.test.js`, `web-travel.test.js`, `web-page.test.js`
+- Source: `apps/life-manager/lib/billing.js`, `web-billing.js`, `web-travel.js`, `web-page.js`
+
+**Interfaces:**
+- Calendar ACTIVE plus first-trial eligibility determines the connected/paywall offer; initial scan completion and `web_first_travel_at` do not.
+- The page immediately renders the seven-day card-required trial at the existing $29/month price. Background initial processing uses the existing exact-account travel owner and effect fence; no scan spinner, result/zero-block state, or rescan action is rendered.
+- Stripe webhook product/tenant checks, card-backed entitlement, recurring-automation gate, cancellation/failure pause, exact Calendar binding, and duplicate prevention remain intact.
+
+- [x] Step 1 (RED): Add failing cases for Checkout before any scan/block, ACTIVE Calendar with no events, zero-block and pending initial processing, invisible background setup dispatch, and rejection of unrelated Stripe products. The focused run confirms the offer is gated on a first Travel block and the page exposes scan UI. It also found a local install gap (`@noble/hashes/sha3.js` missing), which remains to fix before GREEN.
+- [ ] Step 2 (GREEN): Remove only the first-block/scan prerequisites from offer eligibility, Checkout, and Web billing event classification. Return the offer immediately after ACTIVE Calendar verification; keep backend processing and strict Travel readback separate from page state.
+- [ ] Step 3: Run `node --test lib/billing.test.js lib/web-billing.test.js lib/web-travel.test.js lib/web-page.test.js`; expected: all four focused suites pass, including no-scan and zero-block cases.
+- [ ] Step 4: Run the synthetic onboarding browser E2E at 390x844 and 1440x900; expected: connect → Calendar ACTIVE → immediate paywall, background initial pass, Stripe trial CTA, with no scan/results page.
+
+### After this source plan
 
 The public `/lm` page and production retry path are live. PR #6995 deployed the OAuth tenant-isolation fix and Safari callback-download fix. The no-code callback readback proves failure recovery only; a successful Google callback and Calendar consent through a dedicated test identity are still unverified.
 
