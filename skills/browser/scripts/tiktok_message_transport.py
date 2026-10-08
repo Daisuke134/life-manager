@@ -245,10 +245,32 @@ def _readback_expression(candidate: str, message: str, marker: str, sender: str 
         const row = boundedMessageRowFor(node);
         if (!row) return {value: '', owned: false};
         const values = [];
-        const messageBodyLines = new Set(String(node.innerText || '').split(/\r?\n/)
-          .map(normalize).filter(Boolean));
-        const statusTextFor = item => String(item.innerText || '').split(/\r?\n/)
-          .map(normalize).filter(line => line && !messageBodyLines.has(line)).join(' ');
+        const statusTextFor = item => {
+          const rawText = String(item.innerText || '');
+          if (!item.contains?.(node)) return rawText;
+          const clone = item.cloneNode?.(true);
+          if (!clone) return rawText;
+          const path = [];
+          let current = node;
+          while (current && current !== item) {
+            const parent = current.parentElement;
+            const index = [...(parent?.children || [])].indexOf(current);
+            if (index < 0) return rawText;
+            path.push(index);
+            current = parent;
+          }
+          if (current !== item) return rawText;
+          let target = clone;
+          for (let index = path.length - 1; index >= 0; index--) {
+            target = target.children?.[path[index]];
+            if (!target) return rawText;
+          }
+          if (target === clone) return '';
+          if (typeof target.remove === 'function') target.remove();
+          else if (target.parentNode?.removeChild) target.parentNode.removeChild(target);
+          else return rawText;
+          return String(clone.innerText ?? clone.textContent ?? '');
+        };
         for (let current = node; current && current !== messageList; current = current.parentElement) {
           values.push(current.getAttribute?.('data-status'), current.getAttribute?.('data-message-status'),
             current.getAttribute?.('aria-label'), current.getAttribute?.('title'),

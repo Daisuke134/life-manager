@@ -38,12 +38,35 @@ const bubbleMatches = item => {
     || /message-(bubble|content)/i.test(e2e)
     || item.className.includes("DivChatMessage") || item.className.includes("DivMessageBubble");
 };
+const refreshText = node => {
+  node.innerText = [node.rawText, ...(node.children || []).map(child => child.innerText || "")]
+    .filter(Boolean).join("\n");
+  node.textContent = [node.rawText, ...(node.children || []).map(child => child.textContent || "")]
+    .join("");
+};
 const el = (text = "", attrs = {}) => {
   const node = {
-    innerText: text, textContent: text, className: attrs.class || "", isConnected: true,
+    rawText: text, innerText: text, textContent: text, className: attrs.class || "",
+    isConnected: true, children: [],
     getAttribute: name => Object.hasOwn(attrs, name) ? attrs[name] : null,
     contains(target) { return target === this || descendants(this).includes(target); }, closest() { return null; },
     querySelectorAll() { return this.statuses || []; }, querySelector() { return null; },
+    cloneNode(deep = false) {
+      const clone = el(node.rawText, {...attrs});
+      if (deep) {
+        clone.children = node.children.map(child => child.cloneNode(true));
+        for (const child of clone.children) child.parentElement = child.parentNode = clone;
+        refreshText(clone);
+      }
+      return clone;
+    },
+    remove() {
+      const parent = node.parentElement;
+      if (!parent) return;
+      parent.children = parent.children.filter(child => child !== node);
+      node.parentElement = node.parentNode = null;
+      for (let current = parent; current; current = current.parentElement) refreshText(current);
+    },
   };
   node.matches = selector => statusMatches(node, selector);
   return node;
@@ -72,7 +95,7 @@ const wrapChildren = (children, attrs = {}, siblingAttrs = [], siblingTrees = []
   const parent = el("", attrs);
   parent.children = [...children, ...siblingAttrs.map(sibling => el("", sibling)),
     ...siblingTrees.map(makeTree)];
-  for (const child of parent.children) child.parentElement = parent;
+  for (const child of parent.children) child.parentElement = child.parentNode = parent;
   if (!parent.innerText && parent.className.includes("Status")) {
     parent.innerText = parent.children.map(child => child.innerText || "").filter(Boolean).join("\n");
     parent.textContent = parent.innerText;
@@ -112,7 +135,7 @@ const list = el(fixture.listText || "", {
   "data-hydrated": fixture.listHydrated,
 });
 list.children = [...rowContainers, ...unresolved];
-for (const child of list.children) child.parentElement = list;
+for (const child of list.children) child.parentElement = child.parentNode = list;
 list.querySelectorAll = selector => selector.includes('[data-e2e*="message"],')
   ? [...bubbles, ...unresolved] : selector === "*" ? descendants(list)
     : selector.toLowerCase().includes("message") ? bubbles : [];
@@ -1510,6 +1533,36 @@ class TikTokMessageTransportTest(unittest.TestCase):
         self.assertFalse(readback["exact_message"])
         result = self.send(payload, FakeCDP(before_readback_fixture=fixture), send=False)
         self.assertNotEqual(result["status"], "deduplicated_exact_official_readback")
+        self.assertFalse(result["retry_safe"])
+        rows = [json.loads(line) for line in
+                (self.project_root / "delivery/tiktok-message-effects.jsonl").read_text().splitlines()]
+        self.assertEqual([row["state"] for row in rows], ["unknown"])
+
+    def test_same_row_status_matching_message_body_blocks_exact_dedupe(self):
+        payload = self.payload()
+        payload["message"] = "pending"
+        fixture = {
+            "topUrl": "https://www.tiktok.com/business-suite/messages?u=candidate",
+            "documentUrl": "https://www.tiktok.com/messages?u=candidate",
+            "headerText": "@candidate", "editorText": "", "listText": "pending\npending",
+            "bubbles": [{"text": "pending", "attrs": {
+                "data-direction": "outgoing", "data-sender-handle": "@anicca.jp",
+            }, "parentAttrs": {"class": "target-row"}, "wrapperLevels": [{
+                "attrs": {"class": "message-row"}, "siblingTrees": [{
+                    "text": "pending", "attrs": {"class": "Status"},
+                }],
+            }]}],
+        }
+        expression = transport._readback_expression(
+            "@candidate", "pending", "TIKTOK_STATUS_RESIDUE", "@anicca.jp"
+        )
+        readback = evaluate_js_expression(expression, fixture)
+        self.assertIn("pending", readback["message_status"])
+        self.assertFalse(readback["message_status_safe"])
+        self.assertFalse(readback["exact_message"])
+
+        result = self.send(payload, FakeCDP(before_readback_fixture=fixture), send=False)
+        self.assertEqual(result["status"], "message_delivery_unconfirmed")
         self.assertFalse(result["retry_safe"])
         rows = [json.loads(line) for line in
                 (self.project_root / "delivery/tiktok-message-effects.jsonl").read_text().splitlines()]
