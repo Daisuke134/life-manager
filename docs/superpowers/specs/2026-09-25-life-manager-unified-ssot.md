@@ -6775,3 +6775,20 @@ The next cursor is item 1 commit/push. No Dais manual action is currently requir
 - CFO productionの最新terminal/receipt/capacity stateは20:07 entryから変化なし。新しい自然successful reportは未観測。古い3件はread-only receipt verifiedだが元runtime terminal linkはnull。
 
 **現在cursor:** `latest-main sync + current SSOTをPR #7106へpush → Capafy owner manifest refresh後のOSS PASS → 新head required checks + fresh review → merge → immutable CFO release / loaded-idle反映 → natural report receipt/runtime-link/replay-zero → A5 → A6 → A8 → A9 → A10`. host-disk watchdogの11 GiB回復は別ownerの並行・非ゲートcursor。
+
+### 2026-10-08 20:17 JST — latest natural CFO report proven; runtime link and capacity remain
+
+この追記が20:16 JSTのCFO production stateを更新する。
+
+- **Latest natural report:** `life-manager-cfo-hourly:18dc890cf6d3b810-28491` は installed release `88dfdaf4fa3142777b9f21ae7e397ee2bd037645` 上で `2026-10-08T11:04:33.670961Z` にpass/exit 0。read-only `effect_reconcile.py` proofは`verified=true`, provider ID `105378`, ref `telegram-outbox://event/74f360b594d78685fff4049cddc79587193553d2f6fbd5bdd1b2b5e54211f2a1/4c4811e2f7d069bff765636711cbc1b8a3396de7e3617ebb6821ccc6af01f370`, admission `released/effect_unknown=0`。`--resolve`/DB write/再送はしていない。
+- **Trace gap remains:** 同occurrenceの元runtime terminalは`status=pass`でも`effect_status=unknown`, provider receipt/ref null。sendはB7/outboxとadmissionで証明できるが、runtime terminalへの結合は未解決。過去の3件も同様で、再送せず新release後の自然occurrenceで直るか確認する。
+- **Current host capacity:** host receipt `2026-10-08T11:15:31Z` は`free_after=1,964,367,872`, errors 0, protected deletions 0, `ok=false`。これは2 GiB admission floor未満（約1.83 GiB）。20:04 JSTのreportは成功したが、次の自然wake前にfresh admissionを再読する。容量不足なら同occurrenceを手動で起動/再送しない。
+- **PR:** PR #7106 current head `e76878882f68e8338ec0dc8b51ed156bdc15a3e8`, base `44d340554a8d9bdc4b56bb8674d9e2aff388eaea`, open/draft。20:17 JST時点でcurrent headのrequired CIはまだ表示されず、CodeRabbitはdraft skip。直前headのOSS failと最新mainでのlocal OSS failは`skills/capafy-autopublish` inventory mismatch。PRへCapafy filesは含めず、そのownerのmanifest refreshを待つ。
+
+**現在cursor（残TODO）:**
+
+1. Capafy ownerが`docs/manifests/oss-merge-1-sources.json`の`skills/capafy-autopublish` inventoryを現行mainへ同期し、local OSS verifierをPASSさせる。
+2. 最新mainとこのSSOTを含むPR #7106 headのrequired CIをPASSし、fresh reviewを得てからmergeする。draftのCodeRabbit skipをreviewとして数えない。
+3. main由来immutable CFO releaseへ反映し、loaded-idleのownerだけcanonical `lm-loop` routeで適用する。次のnatural reportでruntime terminal receipt/ref、B7/outbox provider ID/hash、admissionとreplay-zeroを確認する。
+4. 次のCFO wake前に2 GiB admissionをfresh readbackし、必要ならexisting host-disk ownerがwatchdog targetをcanonical lifecycleで直す。11 GiB recoveryは並行の再発防止cursor。
+5. A5 production migration/RPC/panel readback → A6 Google bill/settlement/operation attribution → A8全18 loop revenue/cost + 187 job classification → A9正しいsource-period daily/MTD/trailing/MRR → A10 seven-day natural coverage/replay-zero。
