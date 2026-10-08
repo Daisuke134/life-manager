@@ -121,7 +121,15 @@ if (require.main === module) {
   const run = runner || (() => Promise.reject(new Error(`usage: anicca-larry-ja-rotating.js <${Object.keys(RUNNERS_BY_ACTION).join("|")}>`)));
   run(process.argv.slice(2))
     .then((result) => process.stdout.write(`${JSON.stringify(result)}\n`))
-    .catch((error) => { if (error && error.code === "NO_DUE_SLOT") { process.stdout.write(`${JSON.stringify({ status: "no_due_slot", reason: error.message })}\n`); return; } process.stderr.write(`${error.message}\n`); process.exitCode = 1; });
+    .catch((error) => {
+      if (error && ["NO_DUE_SLOT", "DAILY_LIMIT_REACHED"].includes(error.code)) {
+        const reason = error.code === "NO_DUE_SLOT" ? "no_due_slot" : "daily_limit_reached";
+        process.stdout.write(`${JSON.stringify({ status: reason, reason })}\n`);
+        return;
+      }
+      process.stderr.write(`${error.message}\n`);
+      process.exitCode = 1;
+    });
 }
 
 module.exports = {
