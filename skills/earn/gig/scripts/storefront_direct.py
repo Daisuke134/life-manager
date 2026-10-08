@@ -3460,7 +3460,7 @@ def _prepare_next_hypothesis(
     if type(observation_window_days) is not int or observation_window_days not in {7, 14}:
         observation_window_days = 14
     measurement_feasibility = _measurement_feasible(
-        fresh_snapshots, service_id, observation_window_days,
+        fresh_snapshots, str(candidate["service_id"]), observation_window_days,
         int(_portfolio_policy(scorecard_path).get("minimum_views_for_measurement", 100)),
         now,
     )
@@ -3550,6 +3550,10 @@ def _measurement_feasible(
         return {"status": "unknown", "reason": "official_analytics_window_invalid"}
     if window_start >= window_end or window_end > observed_date:
         return {"status": "unknown", "reason": "official_analytics_window_invalid"}
+    if (window_end - window_start).days + 1 != 30:
+        return {"status": "unknown", "reason": "official_analytics_window_length_invalid"}
+    if (observed_date - window_end).days > 1:
+        return {"status": "unknown", "reason": "official_analytics_window_stale"}
 
     metrics = latest.get("metrics")
     views = metrics.get("views") if isinstance(metrics, dict) else None

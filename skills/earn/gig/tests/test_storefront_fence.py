@@ -19,11 +19,11 @@ SERVICE_ID = "90000005"
 NOW = int(datetime.now(timezone.utc).timestamp())
 
 
-def analytics(tmp_path, views, status="known", *, observed_at=None, official=True,
-              complete=True, source_url=None, window_override=None, tamper_key=False):
+def analytics(tmp_path, views, status="known", *, service_id=SERVICE_ID, observed_at=None,
+              official=True, complete=True, source_url=None, window_override=None, tamper_key=False):
     observed_at = NOW if observed_at is None else observed_at
     observed_date = datetime.fromtimestamp(observed_at, timezone.utc).date()
-    start = (observed_date - timedelta(days=30)).strftime("%Y/%m/%d") if complete else None
+    start = (observed_date - timedelta(days=29)).strftime("%Y/%m/%d") if complete else None
     end = observed_date.strftime("%Y/%m/%d") if complete else None
     window = window_override or {"start": start, "end": end, "complete": complete}
     metrics = {
@@ -37,7 +37,7 @@ def analytics(tmp_path, views, status="known", *, observed_at=None, official=Tru
     }
     content_sha256 = hashlib.sha256(b"official synthetic analytics report").hexdigest()
     identity = {
-        "service_id": SERVICE_ID, "window_start": window.get("start"),
+        "service_id": str(service_id), "window_start": window.get("start"),
         "window_end": window.get("end"), "metrics": metrics,
         "content_sha256": content_sha256,
     }
@@ -49,9 +49,9 @@ def analytics(tmp_path, views, status="known", *, observed_at=None, official=Tru
     path = tmp_path / "analytics.jsonl"
     path.write_text(json.dumps({
         "version": 1, "snapshot_key": snapshot_key,
-        "service_id": SERVICE_ID, "observed_at_epoch": observed_at,
+        "service_id": str(service_id), "observed_at_epoch": observed_at,
         "official": official,
-        "source_url": source_url or f"https://coconala.com/mypage/analytics/{SERVICE_ID}",
+        "source_url": source_url or f"https://coconala.com/mypage/analytics/{service_id}",
         "window": window, "metrics": metrics, "content_sha256": content_sha256,
     }) + "\n", encoding="utf-8")
     return path
@@ -235,6 +235,88 @@ def test_missing_or_unknown_official_views_stay_unknown(tmp_path):
         [snapshot(analytics(tmp_path, 0, status="unavailable"))], SERVICE_ID, 14, 100, NOW,
     )
     assert unknown["status"] == "unknown" and unknown["reason"] == "no_official_views_for_service"
+
+
+@pytest.mark.parametrize("priority_backlog", [
+    [],
+    [{"service_id": SERVICE_ID, "field": "body", "success_metric": "inquiries"}],
+])
+def test_scorecard_gap_fallback_measures_the_selected_service(tmp_path, priority_backlog):
+    selected_id = "90000006"
+    scorecard = tmp_path / "scorecard.json"
+    scorecard.write_text(json.dumps({
+        "portfolio_policy": {"version": 1, "minimum_views_for_measurement": 100},
+        "priority_backlog": priority_backlog,
+        "services": [
+            {"service_id": SERVICE_ID, "scores": {"body": 1}},
+            {"service_id": selected_id, "scores": {"body": 1}},
+        ],
+    }), encoding="utf-8")
+    effects = tmp_path / "effects.jsonl"
+    effects.write_text(json.dumps({
+        "status": "accepted", "effect": 1, "service_id": SERVICE_ID,
+        "changed_field": "body", "accepted_at_epoch": NOW,
+        "experiment_key": "previous-body-test",
+    }) + "\n", encoding="utf-8")
+    versions = [
+        {"service_id": SERVICE_ID, "service_version_sha256": "a" * 64},
+        {"service_id": selected_id, "service_version_sha256": "c" * 64},
+    ]
+    mutation = [{
+        "service_id": selected_id, "changed_field": "body",
+        "precondition_listing_version_sha256": "c" * 64,
+        "contract_sha256": "d" * 64, "observation_window_days": 14,
+        "proposed_value": "fixed scope for selected service",
+    }]
+    stale_report_dir, selected_report_dir = tmp_path / "stale", tmp_path / "selected"
+    stale_report_dir.mkdir()
+    selected_report_dir.mkdir()
+    fresh_snapshots = [
+        snapshot(analytics(stale_report_dir, 50, service_id=SERVICE_ID)),
+        snapshot(analytics(selected_report_dir, 300, service_id=selected_id)),
+    ]
+
+    result = sd._prepare_next_hypothesis(
+        scorecard, effects, tmp_path / "outcomes.jsonl", versions, NOW,
+        mutation_contracts=mutation, fresh_snapshots=fresh_snapshots,
+    )
+
+    assert result["service_id"] == selected_id
+    assert result["measurement_feasibility"]["official_30d_views"] == 300
+    assert result["measurement_feasibility"]["projected_window_views"] == 140
+    assert result["executable"] is True
+
+
+def test_old_complete_30_day_window_is_not_current_analytics(tmp_path):
+    report_dir = tmp_path / "old-window"
+    report_dir.mkdir()
+    old = snapshot(analytics(
+        report_dir, 300,
+        window_override={"start": "2020/01/01", "end": "2020/01/30", "complete": True},
+    ))
+
+    result = sd._measurement_feasible([old], SERVICE_ID, 14, 100, NOW)
+
+    assert result["status"] == "unknown"
+    assert result["reason"] == "official_analytics_window_stale"
+
+
+def test_complete_window_must_cover_exactly_30_calendar_days(tmp_path):
+    report_dir = tmp_path / "long-window"
+    report_dir.mkdir()
+    observed = datetime.fromtimestamp(NOW, timezone.utc).date()
+    snapshot_row = snapshot(analytics(
+        report_dir, 300,
+        window_override={
+            "start": (observed - timedelta(days=30)).strftime("%Y/%m/%d"),
+            "end": observed.strftime("%Y/%m/%d"), "complete": True,
+        },
+    ))
+
+    result = sd._measurement_feasible([snapshot_row], SERVICE_ID, 14, 100, NOW)
+
+    assert result["status"] == "unknown"
+    assert result["reason"] == "official_analytics_window_length_invalid"
 
 
 def test_the_policy_states_the_threshold_it_enforces(tmp_path):
