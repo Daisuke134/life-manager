@@ -119,6 +119,26 @@ test("new occurrence persists the normalized B7 source bound to its delivered re
   assert.doesNotMatch(fs.readFileSync(path.join(options.stateDir, "last-result-report.json"), "utf8"), /fixture-secret|do-not-save/);
 });
 
+test("default email adapter persists a sent report with the required delivery counters", async t => {
+  const { options } = setup(t);
+  options.notify = undefined;
+  options.sendEmail = async input => {
+    assert.equal(input.to, options.reportEmail);
+    assert.equal(input.idempotencyKey, "cfo-result:owner:email:2026-09-30:12");
+    return { sent: true, id: "provider-email-1" };
+  };
+
+  const result = await runResultCfo({ ...options, now: "2026-09-30T12:00:00Z" });
+
+  const report = JSON.parse(fs.readFileSync(path.join(options.stateDir, "last-result-report.json"), "utf8"));
+  assert.equal(result.status, "sent");
+  assert.equal(report.status, "sent");
+  assert.equal(report.providerMessageId, "provider-email-1");
+  assert.deepEqual(report.deliveryCounters, {
+    attempted: 1, delivered: 1, delivery_uncertain: 0, pre_send_failed: 0,
+  });
+});
+
 function writeMobileProvenanceFixture(options, { mutatePacket, mutateMobile } = {}) {
   const financialSha = "f".repeat(64);
   const detailSha = "d".repeat(64);
