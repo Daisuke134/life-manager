@@ -5289,7 +5289,7 @@ PR #7030の全required checksはhead `99648f4f` / base `a7899e37`でPASSした�
 - A5 Task 5は専用worktreeで実装済み（`a551db6aa4`）し、fresh reviewの重要指摘だったbrowser template regexの二重escapeを`6dbdb02876`で修正。生成browser validatorを実行する回帰testを追加し、UI 44/44、privacy evaluator、diff checkがPASS。fixのread-only re-reviewもPASS。Task 5報告は`ba55d62176`。現在A5 branch HEADは`ba55d62176`、この作業は未push・未merge。working plan `docs/superpowers/plans/2026-10-07-cfo-a5-cost-visibility.md`にはTask 5–7があり、同planの更新はworktree内で未commit。Task 6 priority changeとTask 7 final integrationは未完了。
 - queue snapshotではCFOがeligible deterministic queueの27/28番目、priority=`support`だった。`revenue`への変更はまだ未実装で、`admission_class=borrow`と`resource_class=deterministic`は維持する。これはsupport backlogを減らす案で、満杯時の`resource_capacity_busy`は直さず、hard cap・自動停止も追加しない。
 - `loop_pnl.py --date`はreporting dateを変える一方、B7 snapshot windowは現在時刻を使う。usage-eventの一部に日付filterはあるが、全sourceのAsia/Tokyo期間filterは未受入。
-- docs PR #7027にはlatest main `0c2bb882`を含むCFO状態更新をpush済み。最新commitでrequired checksを再実行中。
+- docs PR #7027にはlatest main `dcf04b2d`までを含めてCFO状態更新をpush済み。最新commitでrequired checksを再実行中。
 
 **残りatomic TODO（この順）:**
 
@@ -5313,8 +5313,8 @@ PR #7030の全required checksはhead `99648f4f` / base `a7899e37`でPASSした�
 
 - **CFO production report / release reconciliation:** 過去の`apply_lock_busy`は同じCFO ownerに対するrelease reconciler applyと重なり、owner logの11秒applyで説明できる。前回のlock holderは終了したが、新しいreconciler retryは現在runningのため次のhourly CFO wakeと再度競合する可能性がある。reconcilerはENOSPCでexit 1し、fleet applyはpartial。running retryをkill/restartせず、ENOSPCの実対象filesystem/quotaと該当output writeをread-onlyで特定し、必要なら安全な再生成可能データだけを整理して自然reconcileを確認する。証拠ログ/stateを根拠なく削除せず、原因が無制限outputなら対象を絞って集約/rotationを直す。次の自然CFO wakeは約14:04 JSTでreceiptを確認し、再発時だけ直前の同一label apply recordを再照合する。
 - **CFO data completeness:** 保存済みB7は01:58Zから更新されず、全18 loopとcompany MRRが`unknown`。A5をreleaseして自然reportを得た後、A6/A8でofficial billing/settlement evidenceとcoverage gapを埋める。unknownを0やverified $10k MRRに置き換えない。
-- **Spec PR #7027:** latest main `0c2bb882`を含むCFO状態更新を既存PRへpush済み。最新commitのrequired checksをPASSさせてからmergeする。
-- **A5 PR #6827:** remote head `980fe867`はbase `034d46e8`上のままで、OSS boundaryとGitleaksがfailure。runtime trace source fixはlocal-onlyで、A5 branchはlatest main `0c2bb882`より古い。Task 6/7完了後に最新mainをmergeしてpushし、新headのrequired checksを実行する。旧CIの結果は新headの証拠にしない。
+- **Spec PR #7027:** latest main `dcf04b2d`を含むCFO状態更新を既存PRへpush済み。最新commitのrequired checksをPASSさせてからmergeする。
+- **A5 PR #6827:** remote head `980fe867`はbase `034d46e8`上のままで、OSS boundaryとGitleaksがfailure。runtime trace source fixはlocal-onlyで、A5 branchはlatest main `dcf04b2d`より古い。Task 6/7完了後に最新mainをmergeしてpushし、新headのrequired checksを実行する。旧CIの結果は新headの証拠にしない。
 ### 2026-10-08 12:19 JST — eBook source merge readback and production cursor
 
 PR #7030はrequired CI全件PASS後、merge commit `c5d3f20a1b59048c8709574e11e8cb777c3b972e`でmainへ統合済み。PRで追加したHeyGen ID/status保持、exit-4 stdout回収、sanitized failure propagation、正本spec/plan、Capafy inventory digestがmainにある。
