@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import os
 import tempfile
 import threading
 import time
@@ -1087,6 +1088,53 @@ class OwnerReportRendererTest(unittest.TestCase):
         self.assertTrue(report_path.exists())
         self.assertFalse(delivery_path.exists())
         client.from_env.assert_not_called()
+
+    def test_send_text_uses_cloud_bot_token_without_changing_chat_target(self):
+        import owner_report_cli
+
+        client = mock.Mock()
+        with (
+            mock.patch.dict(os.environ, {"LM_TELEGRAM_BOT_TOKEN": "cloud-token"}),
+            mock.patch.object(owner_report_cli, "TELEGRAM_TARGET", "report-chat"),
+            mock.patch.object(
+                owner_report_cli.TelegramClient, "from_env", return_value=client
+            ) as from_env,
+        ):
+            owner_report_cli._send_text("checkpoint")
+
+        environ = from_env.call_args.kwargs.get("environ", {})
+        self.assertEqual(environ.get("TELEGRAM_BOT_TOKEN"), "cloud-token")
+        client.send_text.assert_called_once_with(
+            "checkpoint", chat_id="report-chat"
+        )
+
+    def test_cloud_bot_token_reads_global_env_without_printing_it(self):
+        import owner_report_cli
+
+        global_env = self.root / "global.env"
+        global_env.write_text("export LM_TELEGRAM_BOT_TOKEN='cloud-token'\n")
+        with (
+            mock.patch.object(owner_report_cli, "CLOUD_BOT_ENV_FILE", global_env),
+            mock.patch.dict(os.environ, {"LM_TELEGRAM_BOT_TOKEN": ""}),
+        ):
+            token = owner_report_cli._cloud_bot_token()
+
+        self.assertEqual(token, "cloud-token")
+
+    def test_send_text_fails_closed_when_cloud_bot_token_is_missing(self):
+        import owner_report_cli
+
+        with (
+            mock.patch.object(
+                owner_report_cli, "CLOUD_BOT_ENV_FILE", self.root / "missing.env"
+            ),
+            mock.patch.dict(os.environ, {"LM_TELEGRAM_BOT_TOKEN": ""}),
+            mock.patch.object(owner_report_cli.TelegramClient, "from_env") as from_env,
+        ):
+            with self.assertRaises(owner_report_cli.TelegramError):
+                owner_report_cli._send_text("checkpoint")
+
+        from_env.assert_not_called()
 
     def test_cli_skips_already_delivered_event_before_rendering(self):
         import owner_report_cli
