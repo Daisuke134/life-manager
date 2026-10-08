@@ -6587,6 +6587,14 @@ The next cursor is item 1 commit/push. No Dais manual action is currently requir
 
 **Architecture sources checked:** OpenClaw `https://docs.openclaw.ai/tools/subagents/operations`, `https://docs.openclaw.ai/gateway/config-agents/entries-and-multi-agent`, upstream source `https://github.com/openclaw/openclaw/blob/main/docs/tools/subagents/operations.md`; Temporal `https://docs.temporal.io/task-queue` and `https://docs.temporal.io/activities`; FoundersEdge `https://www.foundersedge.com/apply/` and `https://www.foundersedge.com/frequently-asked-questions/`.
 
+### 2026-10-08 19:58 JST — post-#7127 inventory refresh before final PR head
+
+- Latest `origin/main=b2bcba4657` includes PR #7127 changes under `skills/capafy-autopublish`. The tracked inventory still has 245 files, but its content digest changed; the main-branch manifest had not yet recorded that change, so the same OSS gate failed on PR #7121.
+- Recomputed the digest using `scripts/verify-oss-self-contained.mjs`'s tracked-file ordering/hash algorithm: `3b4658c3c472c14a811049b31ce5ef15a9e9adbfe97e62a96d1ed13ab17fb967`. Only the shared manifest digest changes; no Capafy source is modified. Local verifier must return `ok=true` after this patch.
+- The PR's prior exact-head `9fbdab2d` review was SHIP and its required checks passed, but this latest-main merge plus manifest refresh changes the head again; rerun required CI and review on the resulting SHA before merge. Production remains on the earlier release/owner state recorded above.
+
+**現在cursor:** verify the new manifest digest locally → commit/push latest-main sync and manifest correction → fresh read-only review plus required CI on the new PR head → merge #7121 → provider-readback feasibility / keep FoundersEdge fenced if no provider ID exists → immutable release/handoff/doctor → exact fences and owner applies → natural receipts and same-window capacity/economics.
+
 ### 2026-10-08 19:36 JST — PR #7121 reviewed; required CI pending
 
 - Fresh read-only review of head `ad52406c46173ac1ab2b4212aa36edd61b9a50f5` against main `f6ddc8c4bafa359ad795111579ef62b058628fea` returned **SHIP**. It confirmed the resolver only closes verified pre-effect work; `effect_attempted` and `post_effect_verified` remain `post_effect_readback_required`; no local dossier/PNG/Telegram-only closure path remains. A recorder fixture still uses generic “Thank you for applying” text, but the runtime resolver does not read that ledger, so this is not a merge blocker for the fence guard.
