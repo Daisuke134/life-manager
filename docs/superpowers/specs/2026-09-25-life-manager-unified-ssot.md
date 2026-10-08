@@ -5016,3 +5016,9 @@ Source / production follow-up (2026-10-08 11:01 JST): PR #7012は`b692e70a`と�
 8. 初回paid eBook orderと一致PDF receiptの後にCapafy IG D5へ進み、既存identity/route/ownerをreadbackして1 canary/24hを行う。
 
 **現在cursor:** item 1（source PR）。同時にitem 2のPID 80014はnatural terminal待ち。Daisに必要な再接続・手動投稿はない。
+
+### 2026-10-08 11:49 JST — eBook PR CI inventory repair
+
+PR #7030の初回CIで`OSS self-contained boundary`だけがfailした。原因はbase main PR #7028が`skills/capafy-autopublish/CP1_AGENTIC.md`を更新し、`docs/manifests/oss-merge-1-sources.json`のderived inventory digestが古いままになっていたこと。eBook diffはCapafy sourceに触れていない。manifestのCapafy rootは243 filesのまま、verifierと同じGit index/path sortでdigestだけ`2b9e744435d78e144fa0f7bad5c20a57f3117858284dfbdf560ccde3f042140b`へ更新し、ローカルの`node scripts/verify-oss-self-contained.mjs --json`は`ok=true, violations=[]`。
+
+**現在cursor:** このbaseline更新をPR #7030へpushし、required CI全件を再実行する。source修正、provider fence、production容量/label gateの状態は変わらない。
