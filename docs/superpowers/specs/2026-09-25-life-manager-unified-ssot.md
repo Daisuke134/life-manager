@@ -6120,3 +6120,9 @@ Fresh read-only review rejected the idle-readback-only patch: a new StartInterva
 8. After the paid eBook+PDF gate, repair Capafy’s owner/profile and Postiz pack reference; publish at most one canary per 24 hours, then verify official order and banked net before increasing cadence.
 
 The next cursor is item 1 commit/push. No Dais manual action is currently required; the blockers are source promotion, safe natural handoff, exact effect/owner readbacks, and paid-result evidence.
+
+### 2026-10-08 17:31 JST — PR opened; required CI still running
+
+- Commit `d4c106b37b` is pushed on `fix/reconciler-handoff-state-readback-20261008`; PR #7098 is OPEN and MERGEABLE. The six completed CI checks pass. Loop control contracts, TruffleHog, and gitleaks are still running; CodeRabbit is skipped by the repository's manual-review policy. The fresh independent source review passed.
+
+**現在cursor:** `PR #7098 required CI PASS → merge main → PID 22671 natural terminal → next handoff receipt exact-state + target SHA/argv → canonical eBook owner mapping and effect reconciliation → natural 9 unique PUBLISHED/day → paid checkout+PDF → paid subscription MRR → gated Capafy canary/order/banked-net`. Do not replay unknown publishing effects or manually restart the reconciler.
