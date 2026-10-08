@@ -24,6 +24,7 @@ import json
 import os
 import subprocess
 import time
+import sqlite3
 import sys
 from pathlib import Path
 from typing import Callable, Mapping
@@ -41,6 +42,7 @@ MAX_CALLS_PER_WAKE = 20
 # Stays under the loop's runtime_timeout_seconds (1200): a call whose own timeout would
 # overrun this budget is deferred to the next wake instead of being killed mid-proof.
 WAKE_BUDGET_SECONDS = 1000
+WAKE_PERIOD_SECONDS = 600  # lm-fence-reconciler cadence (config/loop-registry.json)
 STDOUT_TAIL_LIMIT = 300
 DEFAULT_LOG = Path(
     "~/.local/state/life-manager/lm-fence-reconciler/reconcile-calls.jsonl"
@@ -111,10 +113,20 @@ def plan_targets(
 
 def round_robin(
     targets: Mapping[str, list[str | None]], cap: int, *,
-    priority_owners: set[str] | frozenset[str] = frozenset(),
+    priority_owners: set[str] | frozenset[str] = frozenset(), start: int = 0,
 ) -> list[tuple[str, str | None]]:
-    """Interleave owners fairly, serving explicit safety priorities first."""
-    owners = sorted(targets, key=lambda owner: (owner not in priority_owners, owner))
+    """Interleave owners fairly, serving explicit safety priorities first.
+
+    ``start`` rotates the non-priority owners so a fixed alphabetical order cannot starve the
+    owners at the back when ``cap`` is smaller than the number of owners (2026-10-09: 41 owners,
+    20 calls per wake, Anicca/Honne sat at positions 18+ and 16 of them were never called).
+    """
+    priority = sorted(owner for owner in targets if owner in priority_owners)
+    rest = sorted(owner for owner in targets if owner not in priority_owners)
+    if rest:
+        offset = start % len(rest)
+        rest = rest[offset:] + rest[:offset]
+    owners = priority + rest
     queues = {owner: list(values) for owner, values in targets.items()}
     calls: list[tuple[str, str | None]] = []
     while len(calls) < cap and any(queues.values()):
@@ -136,6 +148,25 @@ def _append_jsonl(path: Path, rows: list[dict]) -> None:
             handle.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
 
 
+LOCK_RETRIES = 4
+LOCK_RETRY_SECONDS = 2.0
+
+
+def _read_with_retry(read_fenced: Callable[[], dict[str, tuple[str, ...]]],
+                     sleep: Callable[[float], None]) -> dict[str, tuple[str, ...]]:
+    """Read the fences, waiting out a transient ``database is locked`` (2026-10-09: it ended
+    the whole wake after a handful of calls).  Any other error, or a lock that outlasts the
+    retries, propagates."""
+    for attempt in range(LOCK_RETRIES + 1):
+        try:
+            return read_fenced()
+        except sqlite3.OperationalError as error:
+            if "locked" not in str(error).lower() or attempt == LOCK_RETRIES:
+                raise
+            sleep(LOCK_RETRY_SECONDS)
+    raise AssertionError("unreachable")
+
+
 def reconcile(
     *,
     registry: Mapping[str, object],
@@ -146,10 +177,12 @@ def reconcile(
     run_call: Callable[..., tuple[int, str]] = run_call,
     read_fenced: Callable[[], dict[str, tuple[str, ...]]] = _admission_effect_unknown_occurrences,
     log_path: Path | None = DEFAULT_LOG,
+    wake_epoch: float | None = None,
+    sleep: Callable[[float], None] = time.sleep,
 ) -> dict:
     """Run one bounded reconciliation pass and return the summary dict."""
     loops = registry.get("loops", {}) if isinstance(registry, Mapping) else {}
-    fenced = read_fenced()
+    fenced = _read_with_retry(read_fenced, sleep)
     checked = sum(len(occurrences) for occurrences in fenced.values())
     targets, needs_adapter = plan_targets(fenced, loops)
     priority_owners = frozenset(
@@ -158,9 +191,13 @@ def reconcile(
         and loops[owner_id].get("domain") == "financial"
         and isinstance(loops[owner_id].get("effect_reconcile"), Mapping)
     )
-    calls = round_robin(targets, cap, priority_owners=priority_owners)
+    # The rotation comes from the wall clock (one step of ``cap`` owners per wake): no state file.
+    wake = time.time() if wake_epoch is None else wake_epoch
+    start = int(wake // WAKE_PERIOD_SECONDS) * cap
+    calls = round_robin(targets, cap, priority_owners=priority_owners, start=start)
     closed = 0
     deferred = 0
+    locked = False
     records: list[dict] = []
     started = clock()
     for owner_id, occurrence in calls:
@@ -171,7 +208,16 @@ def reconcile(
             continue
         argv = build_argv(reconcile_cfg, root, occurrence)
         exit_code, tail = run_call(argv, timeout=timeout)
-        after = read_fenced()
+        try:
+            after = _read_with_retry(read_fenced, sleep)
+        except sqlite3.OperationalError:
+            # Keep what already ran in the log and end the wake cleanly; the next wake resumes.
+            locked = True
+            records.append({
+                "owner_id": owner_id, "occurrence_id": occurrence or "",
+                "exit_code": exit_code, "closed": False, "stdout_tail": tail,
+            })
+            break
         still_open = set(after.get(owner_id, ()))
         if occurrence is None:
             before = set(fenced.get(owner_id, ()))
@@ -193,13 +239,16 @@ def reconcile(
             })
     if log_path is not None:
         _append_jsonl(log_path, records)
-    return {
+    summary = {
         "checked": checked,
         "closed": closed,
         "still_fenced": checked - closed,
         "deferred_calls": deferred,
         "needs_readback_adapter": needs_adapter,
     }
+    if locked:
+        summary["status"] = "partial_database_locked"
+    return summary
 
 
 def main(argv: list[str] | None = None) -> int:

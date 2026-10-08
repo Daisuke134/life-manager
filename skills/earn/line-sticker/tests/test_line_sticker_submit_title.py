@@ -47,6 +47,31 @@ class Retitle(unittest.TestCase):
         self.assertTrue(all(t.endswith("vol.2") for t in out["title"].values()))
 
 
+class TitleAttempts(unittest.TestCase):
+    """The order of titles tried when Creators Market says a title is already taken."""
+
+    LISTING = {"character_name": "Stardust Otter",
+               "title": {"ja": "星くずカワウソの毎日返事【文字入り】", "en": "Stardust Otter Daily Reply (with text)"}}
+
+    def test_original_then_numbered_forms_then_the_name_led_title(self) -> None:
+        # set-015 (2026-10-08): the name-led title became "Stardust Otterのスタンプ", an on-sale item of
+        # ours, and it threw away 【文字入り】; numbered forms of the planned title keep the meaning.
+        attempts = list(MODULE._title_attempts(self.LISTING))
+        self.assertEqual(attempts[0]["title"], self.LISTING["title"])
+        self.assertTrue(attempts[1]["title"]["ja"].endswith("【文字入り】 vol.2"), attempts[1]["title"]["ja"])
+        self.assertTrue(attempts[2]["title"]["ja"].endswith("【文字入り】 vol.3"), attempts[2]["title"]["ja"])
+        self.assertEqual(attempts[-1]["title"]["ja"], "Stardust Otterのスタンプ")
+
+    def test_attempts_are_bounded(self) -> None:
+        self.assertEqual(len(list(MODULE._title_attempts(self.LISTING))), MODULE.MAX_TITLE_ATTEMPTS)
+
+    def test_without_a_name_it_only_numbers(self) -> None:
+        attempts = list(MODULE._title_attempts({"title": {"ja": "もちハム", "en": "Mochi"}}))
+        self.assertEqual(attempts[0]["title"], {"ja": "もちハム", "en": "Mochi"})
+        self.assertTrue(attempts[1]["title"]["ja"].endswith("vol.2"))
+        self.assertEqual(len(attempts), MODULE.MAX_TITLE_ATTEMPTS - 1)
+
+
 class InlineTitleError(unittest.TestCase):
     def test_inline_duplicate_message_is_title_taken(self) -> None:
         self.assertTrue(MODULE._is_title_taken(["既に存在するタイトルのため利用できません"]))
