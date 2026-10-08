@@ -2237,6 +2237,12 @@
       "effect_class": "publish",
       "adapter": "exec",
       "command": ["life-manager-anicca-en-affirmation-instagram"],
+      "effect_reconcile": {
+        "argv": ["apps/life-manager/scripts/mobile-postiz-provider-reconcile.py", "--auto-owner", "life-manager-anicca-en-affirmation-instagram"],
+        "occurrence_flag": "--occurrence-id",
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 120
+      },
       "entrypoint": "apps/life-manager/scripts/mobile-app",
       "label": "ai.anicca.life-manager-anicca-en-affirmation-instagram",
       "log_root": "~/.local/state/life-manager/logs",
@@ -2271,6 +2277,12 @@
       "effect_class": "publish",
       "adapter": "exec",
       "command": ["life-manager-anicca-en-card-instagram"],
+      "effect_reconcile": {
+        "argv": ["apps/life-manager/scripts/mobile-postiz-provider-reconcile.py", "--auto-owner", "life-manager-anicca-en-card-instagram"],
+        "occurrence_flag": "--occurrence-id",
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 120
+      },
       "entrypoint": "apps/life-manager/scripts/mobile-app",
       "label": "ai.anicca.life-manager-anicca-en-card-instagram",
       "log_root": "~/.local/state/life-manager/logs",
@@ -2305,6 +2317,12 @@
       "effect_class": "publish",
       "adapter": "exec",
       "command": ["life-manager-anicca-en-slideshow-tiktok"],
+      "effect_reconcile": {
+        "argv": ["apps/life-manager/scripts/mobile-postiz-provider-reconcile.py", "--auto-owner", "life-manager-anicca-en-slideshow-tiktok"],
+        "occurrence_flag": "--occurrence-id",
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 120
+      },
       "entrypoint": "apps/life-manager/scripts/mobile-app",
       "label": "ai.anicca.life-manager-anicca-en-slideshow-tiktok",
       "log_root": "~/.local/state/life-manager/logs",
@@ -2339,6 +2357,12 @@
       "effect_class": "publish",
       "adapter": "exec",
       "command": ["life-manager-anicca-en-widget-instagram"],
+      "effect_reconcile": {
+        "argv": ["apps/life-manager/scripts/mobile-postiz-provider-reconcile.py", "--auto-owner", "life-manager-anicca-en-widget-instagram"],
+        "occurrence_flag": "--occurrence-id",
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 120
+      },
       "entrypoint": "apps/life-manager/scripts/mobile-app",
       "label": "ai.anicca.life-manager-anicca-en-widget-instagram",
       "log_root": "~/.local/state/life-manager/logs",
@@ -2364,6 +2388,12 @@
       "effect_class": "publish",
       "adapter": "exec",
       "command": ["life-manager-anicca-ai-youtube"],
+      "effect_reconcile": {
+        "argv": ["apps/life-manager/scripts/mobile-postiz-provider-reconcile.py", "--auto-owner", "life-manager-anicca-ai-youtube"],
+        "occurrence_flag": "--occurrence-id",
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 120
+      },
       "entrypoint": "apps/life-manager/scripts/mobile-app",
       "label": "ai.anicca.life-manager-anicca-ai-youtube",
       "log_root": "~/.local/state/life-manager/logs",
@@ -2389,6 +2419,12 @@
       "effect_class": "publish",
       "adapter": "exec",
       "command": ["life-manager-anicca-affirmation-youtube"],
+      "effect_reconcile": {
+        "argv": ["apps/life-manager/scripts/mobile-postiz-provider-reconcile.py", "--auto-owner", "life-manager-anicca-affirmation-youtube"],
+        "occurrence_flag": "--occurrence-id",
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 120
+      },
       "entrypoint": "apps/life-manager/scripts/mobile-app",
       "label": "ai.anicca.life-manager-anicca-affirmation-youtube",
       "log_root": "~/.local/state/life-manager/logs",
@@ -2423,6 +2459,12 @@
       "effect_class": "publish",
       "adapter": "exec",
       "command": ["life-manager-anicca-he"],
+      "effect_reconcile": {
+        "argv": ["apps/life-manager/scripts/mobile-postiz-provider-reconcile.py", "--auto-owner", "life-manager-anicca-he"],
+        "occurrence_flag": "--occurrence-id",
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 120
+      },
       "entrypoint": "apps/life-manager/scripts/mobile-app",
       "label": "ai.anicca.life-manager-anicca-he",
       "log_root": "~/.local/state/life-manager/logs",
@@ -2457,6 +2499,12 @@
       "effect_class": "publish",
       "adapter": "exec",
       "command": ["life-manager-anicca-ja-widget-instagram"],
+      "effect_reconcile": {
+        "argv": ["apps/life-manager/scripts/mobile-postiz-provider-reconcile.py", "--auto-owner", "life-manager-anicca-ja-widget-instagram"],
+        "occurrence_flag": "--occurrence-id",
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 120
+      },
       "entrypoint": "apps/life-manager/scripts/mobile-app",
       "label": "ai.anicca.life-manager-anicca-ja-widget-instagram",
       "log_root": "~/.local/state/life-manager/logs",
@@ -2479,6 +2527,12 @@
       "effect_class": "publish",
       "adapter": "exec",
       "command": ["life-manager-anicca-en-affirmation-tiktok"],
+      "effect_reconcile": {
+        "argv": ["apps/life-manager/scripts/mobile-postiz-provider-reconcile.py", "--auto-owner", "life-manager-anicca-en-affirmation-tiktok"],
+        "occurrence_flag": "--occurrence-id",
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 120
+      },
       "entrypoint": "apps/life-manager/scripts/mobile-app",
       "label": "ai.anicca.life-manager-anicca-en-affirmation-tiktok",
       "log_root": "~/.local/state/life-manager/logs",
@@ -2501,6 +2555,12 @@
       "effect_class": "publish",
       "adapter": "exec",
       "command": ["life-manager-anicca-en2-affirmation-tiktok"],
+      "effect_reconcile": {
+        "argv": ["apps/life-manager/scripts/mobile-postiz-provider-reconcile.py", "--auto-owner", "life-manager-anicca-en2-affirmation-tiktok"],
+        "occurrence_flag": "--occurrence-id",
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 120
+      },
       "entrypoint": "apps/life-manager/scripts/mobile-app",
       "label": "ai.anicca.life-manager-anicca-en2-affirmation-tiktok",
       "log_root": "~/.local/state/life-manager/logs",
@@ -2526,6 +2586,12 @@
       "effect_class": "publish",
       "adapter": "exec",
       "command": ["life-manager-anicca-jp1-tiktok"],
+      "effect_reconcile": {
+        "argv": ["apps/life-manager/scripts/mobile-postiz-provider-reconcile.py", "--auto-owner", "life-manager-anicca-jp1-tiktok"],
+        "occurrence_flag": "--occurrence-id",
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 120
+      },
       "entrypoint": "apps/life-manager/scripts/mobile-app",
       "label": "ai.anicca.life-manager-anicca-jp1-tiktok",
       "log_root": "~/.local/state/life-manager/logs",
@@ -2560,6 +2626,12 @@
       "effect_class": "publish",
       "adapter": "exec",
       "command": ["life-manager-anicca-jp4"],
+      "effect_reconcile": {
+        "argv": ["apps/life-manager/scripts/mobile-postiz-provider-reconcile.py", "--auto-owner", "life-manager-anicca-jp4"],
+        "occurrence_flag": "--occurrence-id",
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 120
+      },
       "entrypoint": "apps/life-manager/scripts/mobile-app",
       "label": "ai.anicca.life-manager-anicca-jp4",
       "log_root": "~/.local/state/life-manager/logs",
@@ -2594,6 +2666,12 @@
       "effect_class": "publish",
       "adapter": "exec",
       "command": ["life-manager-anicca-larry-ja-instagram"],
+      "effect_reconcile": {
+        "argv": ["apps/life-manager/scripts/mobile-postiz-provider-reconcile.py", "--auto-owner", "life-manager-anicca-larry-ja-instagram"],
+        "occurrence_flag": "--occurrence-id",
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 120
+      },
       "entrypoint": "apps/life-manager/scripts/mobile-app",
       "label": "ai.anicca.life-manager-anicca-larry-ja-instagram",
       "log_root": "~/.local/state/life-manager/logs",
@@ -2628,6 +2706,12 @@
       "effect_class": "publish",
       "adapter": "exec",
       "command": ["life-manager-anicca-main-instagram"],
+      "effect_reconcile": {
+        "argv": ["apps/life-manager/scripts/mobile-postiz-provider-reconcile.py", "--auto-owner", "life-manager-anicca-main-instagram"],
+        "occurrence_flag": "--occurrence-id",
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 120
+      },
       "entrypoint": "apps/life-manager/scripts/mobile-app",
       "label": "ai.anicca.life-manager-anicca-main-instagram",
       "log_root": "~/.local/state/life-manager/logs",
@@ -2653,6 +2737,12 @@
       "effect_class": "publish",
       "adapter": "exec",
       "command": ["life-manager-anicca-buddha-tiktok"],
+      "effect_reconcile": {
+        "argv": ["apps/life-manager/scripts/mobile-postiz-provider-reconcile.py", "--auto-owner", "life-manager-anicca-buddha-tiktok"],
+        "occurrence_flag": "--occurrence-id",
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 120
+      },
       "entrypoint": "apps/life-manager/scripts/mobile-app",
       "label": "ai.anicca.life-manager-anicca-buddha-tiktok",
       "log_root": "~/.local/state/life-manager/logs",
@@ -2687,6 +2777,12 @@
       "effect_class": "publish",
       "adapter": "exec",
       "command": ["life-manager-anicca-main-tiktok"],
+      "effect_reconcile": {
+        "argv": ["apps/life-manager/scripts/mobile-postiz-provider-reconcile.py", "--auto-owner", "life-manager-anicca-main-tiktok"],
+        "occurrence_flag": "--occurrence-id",
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 120
+      },
       "entrypoint": "apps/life-manager/scripts/mobile-app",
       "label": "ai.anicca.life-manager-anicca-main-tiktok",
       "log_root": "~/.local/state/life-manager/logs",
@@ -2908,6 +3004,12 @@
       "effect_class": "publish",
       "adapter": "exec",
       "command": ["life-manager-honne-en"],
+      "effect_reconcile": {
+        "argv": ["apps/life-manager/scripts/mobile-postiz-provider-reconcile.py", "--auto-owner", "life-manager-honne-en"],
+        "occurrence_flag": "--occurrence-id",
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 120
+      },
       "entrypoint": "apps/life-manager/scripts/mobile-app",
       "label": "ai.anicca.life-manager-honne-en",
       "log_root": "~/.local/state/life-manager/logs",
@@ -2942,6 +3044,12 @@
       "effect_class": "publish",
       "adapter": "exec",
       "command": ["life-manager-honne-ja"],
+      "effect_reconcile": {
+        "argv": ["apps/life-manager/scripts/mobile-postiz-provider-reconcile.py", "--auto-owner", "life-manager-honne-ja"],
+        "occurrence_flag": "--occurrence-id",
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 120
+      },
       "entrypoint": "apps/life-manager/scripts/mobile-app",
       "label": "ai.anicca.life-manager-honne-ja",
       "log_root": "~/.local/state/life-manager/logs",
