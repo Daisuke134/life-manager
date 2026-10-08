@@ -87,7 +87,7 @@ async function handleIMessageStreamMessage(space, message, opts = {}) {
   const resolveReply = opts.resolveIMessageReplyImpl
     || require("./telegram-reply.js").resolveIMessageReply;
   if (typeof resolveReply !== "function") return { handled: true, action: "reply_handler_unavailable" };
-  const reply = await resolveReply(user.uid, senderId, text, opts);
+  const reply = await resolveReply(user.uid, senderId, text, { ...opts, messageId });
   if (!reply || (!reply.filled && !reply.needsLocation && reply.online !== true)) {
     return { handled: true, action: "no_pending_reply" };
   }

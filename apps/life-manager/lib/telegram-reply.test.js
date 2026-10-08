@@ -46,9 +46,12 @@ test("a repeated Web-linked Telegram answer patches one Calendar event only once
   const webUser = {
     uid,
     telegram_chat_id: null,
+    web_message_telegram_chat_id: "123456789",
     calendar_provider: "composio_gcal",
     calendar_connected_account_id: "cal_abc123",
     gmail_account_id: null,
+    paid: true,
+    plan_status: "active",
   };
   const event = {
     id: "event-1",
@@ -92,4 +95,30 @@ test("a repeated Web-linked Telegram answer patches one Calendar event only once
   assert.equal(replay.filled, false);
   assert.equal(patches.length, 1);
   assert.equal(matches, 1);
+});
+
+test("expired Web billing entitlement blocks a Telegram-linked reply before Calendar access", async () => {
+  const uid = "lm_12345678-1234-4234-8234-123456789abc";
+  let calendarReads = 0;
+  let matches = 0;
+  const result = await resolveTelegramReply("123456789", "Shibuya", {
+    composioKey: "fixture-composio",
+    geminiKey: "fixture-gemini",
+    nowMs: Date.parse("2030-01-01T09:00:00Z"),
+    lookupUser: async () => ({
+      uid,
+      telegram_chat_id: null,
+      web_message_telegram_chat_id: "123456789",
+      calendar_provider: "composio_gcal",
+      calendar_connected_account_id: "cal_abc123",
+      paid: false,
+      plan_status: "incomplete",
+      web_billing_cancel_at_period_end: true,
+    }),
+    calendar: { async listEventsRaw() { calendarReads += 1; return []; } },
+    match: async () => { matches += 1; return null; },
+  });
+  assert.deepEqual(result, { filled: false, event: "", location: "" });
+  assert.equal(calendarReads, 0);
+  assert.equal(matches, 0);
 });

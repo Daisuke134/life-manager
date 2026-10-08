@@ -123,7 +123,8 @@ test("linked iMessage replies resolve only the linked Web tenant and use the sam
   const sent = [];
   const lookups = [];
   const replies = [];
-  const result = await api.handleIMessageStreamMessage(dmSpace(sent), textMessage("オンライン開催です"), {
+  const message = textMessage("オンライン開催です");
+  const result = await api.handleIMessageStreamMessage(dmSpace(sent), message, {
     consumeWebMessageLinkImpl: async () => null,
     webMessageUserBySenderImpl: async (...args) => { lookups.push(args); return { uid, channel: "imessage" }; },
     resolveIMessageReplyImpl: async (...args) => { replies.push(args); return { filled: true, event: "相談", location: "オンライン" }; },
@@ -131,6 +132,7 @@ test("linked iMessage replies resolve only the linked Web tenant and use the sam
   assert.equal(result.handled, true);
   assert.deepEqual(lookups.map((call) => call.slice(0, 2)), [["imessage", senderId]]);
   assert.deepEqual(replies.map((call) => call.slice(0, 3)), [[uid, senderId, "オンライン開催です"]]);
+  assert.equal(replies[0][3].messageId, message.id);
   assert.equal(sent.length, 1);
   assert.match(sent[0], /オンライン/);
 });

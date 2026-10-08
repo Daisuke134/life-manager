@@ -108,20 +108,31 @@ test("iMessage offline answer asks for a location and then resolves that pending
   let currentEvent = { ...event };
   const patches = [];
   const offline = await resolveIMessageReply(uid, senderId, "対面", {
+    messageId: "offline-message-1",
     linkedUser,
     pendingAsksImpl: async () => pending,
     markOfflineFollowupImpl: async (requestedUid, row, update) => {
       assert.equal(requestedUid, uid);
       assert.equal(row.event_id, event.id);
       assert.equal(update.answer_value, "offline");
-      pending = [askRow({ question_type: "calendar_online", answer_value: "offline", question_context: { replyChannel: "imessage", summary: event.summary, awaitingLocation: true } })];
+      assert.equal(update.question_context.lastInboundMessageId, "offline-message-1");
+      pending = [askRow({ question_type: "calendar_online", answer_value: "offline", question_context: { replyChannel: "imessage", summary: event.summary, awaitingLocation: true, lastInboundMessageId: "offline-message-1" } })];
       return true;
     },
     calendar: { async listEventsRaw() { throw new Error("offline choice alone must not read Calendar"); } },
   });
   assert.equal(offline.needsLocation, true);
 
+  const replayedOffline = await resolveIMessageReply(uid, senderId, "対面", {
+    messageId: "offline-message-1",
+    linkedUser,
+    pendingAsksImpl: async () => pending,
+    calendar: { async listEventsRaw() { throw new Error("duplicate offline message must not be treated as a location"); } },
+  });
+  assert.deepEqual(replayedOffline, { filled: false, reason: "duplicate_message" });
+
   const location = await resolveIMessageReply(uid, senderId, "渋谷駅", {
+    messageId: "location-message-1",
     linkedUser,
     pendingAsksImpl: async () => pending,
     calendar: {
@@ -134,6 +145,56 @@ test("iMessage offline answer asks for a location and then resolves that pending
   });
   assert.equal(location.filled, true);
   assert.equal(patches.length, 1);
+});
+
+test("replayed offline-answer message id cannot be reinterpreted as a location reply", async () => {
+  assert.equal(typeof resolveIMessageReply, "function", "the iMessage reply resolver must exist");
+  let calendarReads = 0;
+  let matches = 0;
+  const result = await resolveIMessageReply(uid, senderId, "対面", {
+    linkedUser,
+    messageId: "provider-offline-message-1",
+    pendingAsksImpl: async () => [askRow({
+      question_type: "calendar_online",
+      answer_value: "offline",
+      question_context: {
+        replyChannel: "imessage", summary: event.summary, awaitingLocation: true,
+        lastInboundMessageId: "provider-offline-message-1",
+      },
+    })],
+    calendar: { async listEventsRaw() { calendarReads += 1; return [event]; }, async patchEvent() { throw new Error("duplicate message must not write Calendar"); } },
+    match: async () => { matches += 1; return { eventId: event.id, location: "対面" }; },
+  });
+  assert.deepEqual(result, { filled: false, reason: "duplicate_message" });
+  assert.equal(calendarReads, 0);
+  assert.equal(matches, 0);
+});
+
+test("offline answer records the provider message id with an atomic last-message compare-and-set", async () => {
+  assert.equal(typeof resolveIMessageReply, "function", "the iMessage reply resolver must exist");
+  let request = null;
+  const result = await resolveIMessageReply(uid, senderId, "対面", {
+    messageId: "provider-offline-message-2",
+    linkedUser,
+    supaUrl: "https://fixture.supabase.co",
+    supaKey: "fixture-service-role",
+    pendingAsksImpl: async () => [askRow({ question_type: "calendar_online" })],
+    fetchImpl: async (url, init) => {
+      request = { url: String(url), init };
+      return {
+        ok: true,
+        async json() {
+          return [{ uid, event_id: event.id, question_context: JSON.parse(init.body).question_context }];
+        },
+      };
+    },
+    calendar: { async listEventsRaw() { throw new Error("offline follow-up should not read Calendar"); } },
+  });
+  assert.equal(result.needsLocation, true);
+  assert.ok(request);
+  const url = new URL(request.url);
+  assert.equal(url.searchParams.get("question_context->>lastInboundMessageId"), "is.null");
+  assert.equal(JSON.parse(request.init.body).question_context.lastInboundMessageId, "provider-offline-message-2");
 });
 
 test("iMessage reply with no pending ask does not access Calendar or infer an update", async () => {

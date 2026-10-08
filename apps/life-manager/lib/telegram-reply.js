@@ -53,9 +53,10 @@ async function resolveTelegramReply(chatId, text, deps = {}) {
   const remember = deps.remember || rememberPlace;
   const user = await lookupUser(chatId);
   if (!user || user.calendar_provider !== "composio_gcal") return out;
+  const now = deps.nowMs === undefined ? Date.now() : Number(deps.nowMs);
+  if (user.web_message_telegram_chat_id && !webTravelEntitled(user, now)) return out;
   const cal = deps.calendar || getCalendar({ apiKey: composioKey, gmailAccountId: user.gmail_account_id });
 
-  const now = Date.now();
   const items = await cal.listEventsRaw(user.uid, {
     timeMin: new Date(now).toISOString().replace(/\.\d{3}Z$/, "Z"),
     timeMax: new Date(now + 7 * 86400 * 1000).toISOString().replace(/\.\d{3}Z$/, "Z"),
@@ -111,6 +112,12 @@ async function updateIMessageAsk(uid, row, update, deps = {}) {
   url.searchParams.set("reply_token", `eq.${row.reply_token}`);
   url.searchParams.set("answered_at", "is.null");
   url.searchParams.set("question_context->>replyChannel", "eq.imessage");
+  if (Object.prototype.hasOwnProperty.call(deps, "expectedLastInboundMessageId")) {
+    const expectedMessageId = deps.expectedLastInboundMessageId;
+    url.searchParams.set("question_context->>lastInboundMessageId", expectedMessageId
+      ? `eq.${expectedMessageId}`
+      : "is.null");
+  }
   url.searchParams.set("select", "uid,event_id,question_type,question_context,answer_value,answered_at");
   const response = await fetchImpl(url.toString(), {
     method: "PATCH",
@@ -136,6 +143,10 @@ async function resolveIMessageReply(uid, senderId, replyText, deps = {}) {
   if (rows.length !== 1) return { filled: false, reason: "ambiguous_pending_ask" };
   const row = rows[0];
   const context = row.question_context;
+  const messageId = String(deps.messageId || "").trim();
+  if (messageId && context.lastInboundMessageId === messageId) {
+    return { filled: false, reason: "duplicate_message" };
+  }
 
   if (row.question_type === "calendar_online" && !context.awaitingLocation) {
     const answer = imessageOnlineAnswer(replyText);
@@ -151,8 +162,12 @@ async function resolveIMessageReply(uid, senderId, replyText, deps = {}) {
       const updated = await (deps.markOfflineFollowupImpl || updateIMessageAsk)(uid, row, {
         answer_value: "offline", answer_source: "imessage",
         answer_provenance: { kind: "imessage_stream" }, resolved_from: "user_answer",
-        question_context: { ...context, awaitingLocation: true },
-      }, deps);
+        question_context: {
+          ...context,
+          awaitingLocation: true,
+          ...(messageId ? { lastInboundMessageId: messageId } : {}),
+        },
+      }, { ...deps, expectedLastInboundMessageId: context.lastInboundMessageId || null });
       return updated ? { filled: false, needsLocation: true, event: context.summary || "" } : { filled: false, reason: "ask_already_answered" };
     }
   }
@@ -185,7 +200,7 @@ async function resolveIMessageReply(uid, senderId, replyText, deps = {}) {
   const updated = await (deps.markLocationAnsweredImpl || updateIMessageAsk)(uid, row, {
     answered_at: new Date(now).toISOString(), answer_source: "imessage", candidate_location: match.location,
     answer_provenance: { kind: "imessage_stream" }, resolved_from: "user_answer",
-    question_context: { ...context, awaitingLocation: false },
+    question_context: { ...context, awaitingLocation: false, ...(messageId ? { lastInboundMessageId: messageId } : {}) },
   }, deps);
   return updated ? { filled: true, event: ev.summary || "your event", location: match.location } : { filled: false, reason: "ask_already_answered" };
 }
