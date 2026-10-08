@@ -248,7 +248,9 @@ async def _tag_all(page: Page, item: dict, tags: dict) -> None:
             if name in wanted:
                 checkbox = label.locator("input[type=checkbox]")
                 if await checkbox.count() and not await checkbox.is_checked():
-                    await label.click()
+                    # A pointer click timed out on every wake for 48156132 (2026-10-08, 16-image tag page);
+                    # the DOM click toggles and persists the tag (verified with a reload).
+                    await label.evaluate("e => e.click()")
         await page.wait_for_timeout(1500)
 
 
