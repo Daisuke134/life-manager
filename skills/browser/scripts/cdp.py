@@ -173,6 +173,69 @@ def key(tid: str, value: str) -> dict:
         ws.close()
 
 
+def guarded_key(tid: str, guard_expression: str, guard_status_expression: str,
+                value: str = "Enter") -> dict:
+    """Dispatch one native Enter while a page capture guard covers document changes."""
+    if value != "Enter":
+        raise ValueError("guarded_key_supports_enter_only")
+    ws = _page(tid)
+    script_id = None
+    try:
+        _rpc(ws, 1, "Page.enable")
+        installed_script = _rpc(ws, 2, "Page.addScriptToEvaluateOnNewDocument", {
+            "source": guard_expression,
+        })
+        script_id = installed_script.get("identifier")
+        if not isinstance(script_id, str) or not script_id:
+            return {"__error__": "send_guard_registration_failed"}
+
+        installed = _rpc(ws, 3, "Runtime.evaluate", {
+            "expression": guard_expression,
+            "returnByValue": True,
+            "awaitPromise": True,
+            "userGesture": True,
+        })
+        if installed.get("exceptionDetails"):
+            return {"__error__": "send_guard_install_failed"}
+        guard = installed.get("result", {}).get("value")
+        if (not isinstance(guard, dict) or guard.get("guard_installed") is not True
+                or guard.get("ready") is not True):
+            return {"__error__": "send_guard_unavailable"}
+
+        identity = {
+            "code": "Enter",
+            "windowsVirtualKeyCode": 13,
+            "nativeVirtualKeyCode": 13,
+        }
+        for call_id, kind in ((4, "keyDown"), (5, "keyUp")):
+            _rpc(ws, call_id, "Input.dispatchKeyEvent", {
+                "type": kind,
+                "key": value,
+                **identity,
+            })
+
+        status_result = _rpc(ws, 6, "Runtime.evaluate", {
+            "expression": guard_status_expression,
+            "returnByValue": True,
+            "awaitPromise": True,
+            "userGesture": True,
+        })
+        if status_result.get("exceptionDetails"):
+            return {"__error__": "send_guard_result_missing", "key_dispatched": True}
+        status = status_result.get("result", {}).get("value")
+        if not isinstance(status, dict) or status.get("guard_status") not in {"allowed", "blocked"}:
+            return {"__error__": "send_guard_result_missing", "key_dispatched": True}
+        return {"key": value, "guard_status": status["guard_status"]}
+    finally:
+        try:
+            if script_id:
+                _rpc(ws, 7, "Page.removeScriptToEvaluateOnNewDocument", {
+                    "identifier": script_id,
+                })
+        finally:
+            ws.close()
+
+
 def set_file(tid: str, selector: str, path: str, index: int = 0) -> dict:
     ws = _page(tid)
     try:
