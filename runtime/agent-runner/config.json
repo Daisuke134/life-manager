@@ -380,6 +380,21 @@
         }
       ]
     },
+    "paid-review-agent": {
+      "route": "paid-review-fast-fail",
+      "requires_explicit_escalation": true,
+      "token_reservation": 65536,
+      "timeout_seconds": 900,
+      "candidates": [
+        {
+          "provider": "codex",
+          "model": "gpt-5.6-terra",
+          "effort": "medium",
+          "profile_alias": "acct1",
+          "fail_fast_provider_lease": true
+        }
+      ]
+    },
     "paid-owner-agent": {
       "route": "paid-owner-long-running",
       "requires_explicit_escalation": true,
