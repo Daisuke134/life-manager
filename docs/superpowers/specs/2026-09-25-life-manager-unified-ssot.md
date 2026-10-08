@@ -7203,3 +7203,14 @@ The next cursor is item 1 commit/push. No Dais manual action is currently requir
 9. A10で7日連続natural reportの全source coverage、settlement/cost join、runtime/provider receipt、期間一致、replay-zeroを確認する。
 
 **現在cursor:** `latest-main mergeをcommit/push → PR #7106 new-head CI/fresh review/merge → reconciler idle + immutable CFO release/readback → next natural CFO receipt/runtime-link/replay-zero → A5 → A6 → A8 → A9 → A10`。capacity floorはfresh receiptでPASSしたが、次の自然CFO reportはまだ未実行。
+
+### 2026-10-08 21:17 JST — runtime receipt counter regression proof
+
+この追記はPR #7106の21:11 statusを更新する。
+
+- **Review:** fresh read-only review of base `da98a772` / head `44c1e8ec` found no Critical/Important source issue. It identified a missing regression test for multiple attempts and missing/conflicting delivery counters; production guard already requires `attempted=1`, `delivered=1`, `delivery_uncertain=0`, and `pre_send_failed=0`.
+- **Test proof:** `apps/life-manager/scripts/cfo-hourly-local.test.js` now covers multiple attempts, missing attempt/uncertainty counters, and contradictory counters. `node apps/life-manager/scripts/cfo-hourly-local.test.js` passes 26/26. A controlled mutation removing the `attempted===1` guard made the new test fail on `multiple-attempts` (`true !== false`); the guard was restored and the 26-test file passes again. No production code was changed for this review finding.
+- **Head status:** run `37775414552` on head `44c1e8ec` completed 9/9 checks PASS, but it predates this regression test. The test+SSOT update must be pushed and checked/reviewed on its resulting exact head. PR #7106 remains draft/open and unmerged.
+- **Live CFO/capacity:** CFO remains loaded-idle on `804effc5`; last natural occurrence `18dc8bf27219e548-41754` at 11:59:07Z deferred before effect with `disk_headroom_low`. Host cleanup receipt at 12:06:53Z proved `free_after=2,525,483,008`, 2 GiB floor met, errors 0, protected deletions 0; next scheduled CFO occurrence remains the required natural report proof. Release reconciler process PID `85343` is still loaded-running with child `85581`; its latest terminal reported `entrypoint_exit_1`, so do not overlap its current owner run or infer release apply.
+
+**現在cursor:** `test+SSOT commit/push → current-head CI + fresh review → PR #7106 merge → reconciler natural terminal/idle → immutable CFO release/readback → next natural report receipt/runtime-link/replay-zero → A5 → A6 → A8 → A9 → A10`。host capacity admission is recovered by a fresh receipt; the natural CFO report and release handoff remain unverified.

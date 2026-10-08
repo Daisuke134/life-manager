@@ -579,6 +579,51 @@ test("CFO writes a runtime Telegram receipt only for a new confirmed send", asyn
   assert.equal(fs.existsSync(failedHint), false);
 });
 
+test("CFO does not write a runtime receipt for multiple or incomplete delivery counters", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-cfo-invalid-delivery-counters-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const cases = [
+    ["multiple-attempts", {
+      delivery: "delivered", provider_message_id: "9144", attempted: 2,
+      delivered: 1, delivery_uncertain: 0, pre_send_failed: 0,
+    }],
+    ["attempt-count-missing", {
+      delivery: "delivered", provider_message_id: "9145",
+      delivered: 1, delivery_uncertain: 0, pre_send_failed: 0,
+    }],
+    ["uncertainty-count-missing", {
+      delivery: "delivered", provider_message_id: "9146", attempted: 1,
+      delivered: 1, pre_send_failed: 0,
+    }],
+    ["contradictory-counters", {
+      delivery: "delivered", provider_message_id: "9147", attempted: 1,
+      delivered: 1, delivery_uncertain: 1, pre_send_failed: 0,
+    }],
+  ];
+
+  for (const [name, delivery] of cases) {
+    const hintPath = path.join(root, name, "entrypoint-result.json");
+    fs.mkdirSync(path.dirname(hintPath), { mode: 0o700 });
+    const result = await runResultCfo({
+      stateDir: path.join(root, `${name}-state`),
+      subjectId: "dais-local", reportChannel: "telegram", chatId: "123",
+      occurrenceId: `life-manager-cfo-hourly:${name}`,
+      env: {
+        ...process.env,
+        LIFE_MANAGER_RELEASE_SHA: "a".repeat(40),
+        LIFE_MANAGER_LOOP_ID: "life-manager-cfo-hourly",
+        LIFE_MANAGER_RESULT_HINT_PATH: hintPath,
+      },
+      now: "2026-10-07T12:00:00.000Z",
+      collect: async (date) => ({ reporting_date: date, timezone: "Asia/Tokyo", rows: [] }),
+      notify: async () => delivery,
+    });
+
+    assert.equal(result.status, "sent", name);
+    assert.equal(fs.existsSync(hintPath), false, name);
+  }
+});
+
 function revenue(overrides = {}) {
   const subjectId = overrides.subject_id || "dais-local";
   const key = overrides.idempotency_key || "stripe:payment:1";
