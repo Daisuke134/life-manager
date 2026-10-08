@@ -4847,7 +4847,7 @@ flowchart LR
 
 **残TODO（完了まで、この順）:**
 
-1. **現在cursor — 通常選定call-site修正:** fresh reviewは`run_once`の初回`_prepare_next_hypothesis`だけが`analytics.get("_fresh_snapshots")`を渡さないと指摘。経路テストを追加して修正前REDを確認した。初回呼び出しにもcurrent snapshotsを渡し、三つの選定callすべての回帰をGREENにしてからcommit/pushする。新headでfresh reviewとrequired CIをPASSさせてmergeする。別ownerのcapacity/doctor recoveryは独立laneで進められるが、ここから他ownerのworktree/stateを編集しない。
+1. **現在cursor — source commit/push:** 初回`_prepare_next_hypothesis`にもcurrent snapshotsを渡した。三選定call-siteのAST regressionは修正前RED→修正後PASS。focused Storefront suite 103/103、loop contract/source-boundary/compile/diff PASS。未commit source/test差分をSSOTと同じbranchへpushし、新headでfresh reviewとrequired CIをPASSさせてmergeする。別ownerのcapacity/doctor recoveryは独立laneで進められるが、ここから他ownerのworktree/stateを編集しない。
 2. **main由来release:** current main `9abbdb9d1cfacd2797b5b02cae5095923be40826`を含むmerged fixのimmutable releaseを既存natural reconcilerに渡し、`RELEASE.json`・Storefront/Paidのloaded SHA/argv/admissionを確認する。production source完了はloaded SHAにpriority/floor/exposure fixが含まれてから。
 3. **Coconala Paid obligation:** order `18180857`のfresh official order/talkroom readbackをownerが実行する。今も未完了の場合だけ必要なrevision/formal deliveryを一度行い、buyer acceptance・settlement/payout・replay-zeroを結ぶ。古いsnapshotから現在の待ち状態を推測しない。
 4. **旧Storefront fence:** `18d8d288748508e8-23902`を、同一effectの公式listing/order履歴または受理可能なoccurrence-bound pre-effect receiptで照合する。現在はdry-runがbinding不足で保留。証拠が取れなければfenceを保持し、再公開しない。
@@ -4858,7 +4858,7 @@ flowchart LR
 9. **Storefront economics:** listingごとのunique paid order・repeat・refund・platform fee・payout・実作業時間/実費を同一期間で結び、settled net contributionが正で再現したか報告する。掲載・seller累計・grossを利益/MRRにしない。
 10. **最後 — SelfBuild:** 収益loopとproduct storefrontの上記done条件を閉じた後だけ、self-build/self-healingを再開する。
 
-**現在cursor:** 1 — primary selectorへcurrent snapshotsを渡し、3 call-sitesの回帰をGREEN → commit/push → exact-head fresh review/required CI。production Storefrontは旧effect fence・古いinstalled SHA・未照合販売状態を保持。
+**現在cursor:** 1 — call-site fix local green → source/test/SSOT commit・push → exact-head fresh review/required CI。production Storefrontは旧effect fence・古いinstalled SHA・未照合販売状態を保持。
 
 ### 2026-10-09 00:28 JST — Storefront収益cursorとexposure review修正
 
@@ -4883,6 +4883,13 @@ flowchart LR
 - `test_every_run_once_hypothesis_selection_receives_current_snapshots`を追加して修正前REDを確認。run_once内の3箇所すべてが`analytics.get("_fresh_snapshots")`を渡す契約を固定する。
 
 **現在cursor:** 初回selectorへfresh snapshotsを1引数追加 → 三call-site回帰GREEN → focused suite/contract/source-boundary → commit/push → exact-head fresh review/required CI → PR #7182 merge。
+
+### 2026-10-09 00:45 JST — 初回selector call-site修正
+
+- `_prepare_next_hypothesis`の通常初回呼び出しにも`analytics.get("_fresh_snapshots")`を渡した。追加のAST経路テストは修正前にFAIL、修正後PASSし、3つのrun_once selector callがすべてcurrent snapshotsを渡す。
+- focused Storefront suite 103/103 PASS。`lm-loop-contract`（18 loops / 187 jobs / 0 errors）、source-boundary、`py_compile`、`git diff --check`もPASS。修正はまだ未commit/未push。
+
+**現在cursor:** source/testと本SSOTをcommit/push → exact-head fresh review/required CI → PR #7182 merge → immutable release/natural readback。
 
 ### 2026-10-08 08:35 JST — Mobile post-merge runtime cursor
 
