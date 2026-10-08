@@ -194,9 +194,9 @@ Use the existing fake-renderer test to assert a nonzero result retains safe `err
 
 Make the Python renderer emit a stable failure class and let `renderInput()` propagate only that class and exit metadata. Verified: HeyGen renderer 12/12, eBook distribution Node tests 13/13, loop-contract 18 loops / 187 jobs, source-boundary PASS, runtime loop suite 789/789, and `git diff --check` PASS. `lm-loop doctor` still reports the unrelated retired label `ai.anicca.provision-browser.capafy.kosuke`; record it as the production promotion limitation, not an eBook code regression.
 
-- [ ] **Step 6: Commit and integrate the source repair**
+- [x] **Step 6: Commit and integrate the source repair**
 
-Use a latest-main-derived owner branch, fresh read-only review, required CI, and the main merge path. Production release/apply stays in Task 6.
+PR #7030 was rebased/merge-synchronized with latest main, passed all required CI, and merged as `c5d3f20a1b59048c8709574e11e8cb777c3b972e`. Production release/apply remains in Task 6.
 
 ### Task 6: Promote the repair and verify one new English slot
 
@@ -244,3 +244,5 @@ Task 5 source repair is committed and rebased onto `origin/main=94372580faf43218
 12:06 JST refresh: main #7033 is merged as `a7899e37`; its Capafy files changed the classified-root content digest. Refreshed only the 243-file mapping hash to `3b83b77a69097619902bf06c8d9f1af96eed884ef7d68f1a8ca55c1d10cd8c33`; the exact local OSS self-contained verifier passes. Push this latest-main merge and refreshed spec, then require fresh CI before PR #7030 merge.
 
 12:12 JST refresh: PR #7030 checks were all green on base `a7899e37`, then main #7037 changed Capafy autopublish files again. Merged latest main `ca7d58b6` into the published branch without force; updated only the 243-file OSS digest to `64b3b8d037c8dea56e4f57f976ae4310b364eeac028ce475e8790b53a6ed6a7a`. The local self-contained verifier passes. Push and rerun required CI before merge; the prior green checks do not include #7037.
+
+12:19 JST post-merge: PR #7030 is merged at `c5d3f20a`. `/Users/anicca/loops/current` still points to `20261008T121306-ca7d58b6`; reconciler PID 73416 is active and eBook owners remain on SHA `94372580`. Cleanup occurrence `18dc6f999854bb40-71475` is blocked by `apply_lock_busy`, while current disk free remains about 6.49 GiB. English unknown and both Japanese claimed admission rows remain. Source merge is complete; the remaining work is release/owner natural convergence, exact old-effect disposition, and receipts/checkout/PDF.
