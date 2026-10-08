@@ -1,0 +1,22 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["items"],
+  "properties": {
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["product_id", "text_or_no_text", "theme", "art_style", "phrases"],
+        "properties": {
+          "product_id": {"type": "string"},
+          "text_or_no_text": {"type": "string", "enum": ["text", "no_text"]},
+          "theme": {"type": "string"},
+          "art_style": {"type": "string"},
+          "phrases": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    }
+  }
+}
