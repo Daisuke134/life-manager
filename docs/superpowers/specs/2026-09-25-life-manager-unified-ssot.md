@@ -4848,7 +4848,7 @@ flowchart LR
 
 **残TODO（完了まで、この順）:**
 
-1. **現在cursor — CIのmain-side OSS boundary blocker:** PR #7182 code head `b2b1502f3b`はfresh read-only review SHIP。latest pushed head=`76723e6dcdc4386aad978622289db0456215c153`、base=`d7d3cbaeaf989b1678efc0e572a7c3b9aece6d76`。run `37805283468`（head `847eee104d`）ではOSS boundary stepが同じmanifest mismatchで失敗し、その後latest-main mergeとSSOTをpushした。merged branch上のlocal OSS checkerも唯一の`manifest_inventory_mismatch skills/capafy-autopublish`を返す。Capafy PR #7183 commit `7eda261900`後も245-file inventoryはdeclared `d211d4e2…`、main computed `6622435b…`。Gig laneからCapafy source/manifestは編集しない。main-side owner修正が入るまではrequired CIが通らないため、修正mainへ同期後にexact-head CIを通してからmergeする。
+1. **現在cursor — main-side OSS boundary blocker:** Gig code reviewはSHIP、最新ローカルSuiteは103/103 PASS。PR #7182のrequired OSS gateはCapafy PR #7183由来の`manifest_inventory_mismatch skills/capafy-autopublish`で止まる。245-file rootの宣言digestは`d211d4e2…`、current mainの実測は`6622435b…`。main-side ownerにmanifest修正を渡し、Gig laneではCapafy source/manifestを編集しない。owner修正がmainへ入ったら同期し、exact-head review/CI PASS後にmergeする。
 2. **main由来release:** latest main `d7d3cbaeaf989b1678efc0e572a7c3b9aece6d76`とGig preflight fixを含むimmutable releaseを、OSS manifest gate解消後に既存natural reconcilerへ渡し、`RELEASE.json`・Storefront/Paidのloaded SHA/argv/admissionを確認する。production source完了はloaded SHAにpriority/floor/exposure fixが含まれてから。
 3. **Coconala Paid obligation:** order `18180857`のfresh official order/talkroom readbackをownerが実行する。今も未完了の場合だけ必要なrevision/formal deliveryを一度行い、buyer acceptance・settlement/payout・replay-zeroを結ぶ。古いsnapshotから現在の待ち状態を推測しない。
 4. **旧Storefront fence:** `18d8d288748508e8-23902`を、同一effectの公式listing/order履歴または受理可能なoccurrence-bound pre-effect receiptで照合する。現在はdry-runがbinding不足で保留。証拠が取れなければfenceを保持し、再公開しない。
@@ -4859,7 +4859,7 @@ flowchart LR
 9. **Storefront economics:** listingごとのunique paid order・repeat・refund・platform fee・payout・実作業時間/実費を同一期間で結び、settled net contributionが正で再現したか報告する。掲載・seller累計・grossを利益/MRRにしない。
 10. **最後 — SelfBuild:** 収益loopとproduct storefrontの上記done条件を閉じた後だけ、self-build/self-healingを再開する。
 
-**現在cursor:** 1 — Capafy manifest ownerのmain-side修正を待ち、修正済みlatest mainを同期 → fresh exact-head CI全PASS → PR #7182 merge。production Storefrontは旧effect fence・古いinstalled SHA・settled sales未確認を保持。
+**現在cursor:** latest main `d7d3cbaeaf`との同期はPR #7182へpush済み。Capafyのmain側manifest修正後にそのcommitを同期 → 必須CI全PASS → PR #7182をmerge。production Storefrontは旧SHA・effect fence・settled sales unknownを維持。
 
 ### 2026-10-09 00:28 JST — Storefront収益cursorとexposure review修正
 
@@ -4929,6 +4929,15 @@ flowchart LR
 - No Capafy files or production/provider state were edited. Storefront remains on SHA `3981bca3` with the old effect fence and disk admission defer; no settled storefront sale is confirmed.
 
 **現在cursor:** wait for main-side Capafy manifest correction → sync its main commit → final exact-head CI/review → merge #7182 only after all required gates PASS.
+
+### 2026-10-09 01:06 JST — Gig最新main同期済み、外部CI gateが残る
+
+- PR #7182のheadは`853ac54d8b48dc3509a1a92025d7187adfd906b0`、baseは`d7d3cbaeaf989b1678efc0e572a7c3b9aece6d76`。Security Scan run `37806118330`はpending。branchにはmerge `5bdcdf0cb339e21676506c225921d72dd6de29c0`でlatest mainと本SSOT更新が入っている。
+- 変更のないGig code head `b2b1502f3b`はfresh reviewでSHIP。latest-main同期後のfocused testsは103/103 PASS、loop contractは18/188/0、source-boundaryとcompileもPASS。local OSS checkerはCapafy root digest mismatchだけを返す。
+- Capafy source/manifestとprovider stateは変更していない。Storefrontは旧SHA `3981bca3`でdisk admission defer、過去effect fenceはunknown、settled salesは未確認。
+
+**現在cursor:** Capafyのmain-side manifest修正 → そのcommitを同期 → exact-head CI/review → 全PASS後にPR #7182をmerge。
+
 
 ### 2026-10-08 08:35 JST — Mobile post-merge runtime cursor
 
