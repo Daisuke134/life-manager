@@ -71,6 +71,8 @@ def _fixture(
     report_status="sent",
     terminal_status="pass",
     terminal_exit_code=0,
+    admission_state="claimed",
+    admission_effect_unknown=1,
 ):
     state_dir = tmp_path / "cfo"
     state_dir.mkdir(mode=0o700)
@@ -86,7 +88,7 @@ def _fixture(
         )
         connection.execute(
             "INSERT INTO occurrences VALUES(?,?,?,?)",
-            (OCCURRENCE, OWNER, "claimed", 1),
+            (OCCURRENCE, OWNER, admission_state, admission_effect_unknown),
         )
 
     outbox = state_dir / "telegram-outbox.sqlite3"
@@ -158,6 +160,105 @@ def _fixture(
     )
     (state_dir / "events.jsonl").chmod(0o600)
     return state_dir, admission_db, OCCURRENCE
+
+
+def test_exact_receipt_proves_already_released_occurrence_without_fence(tmp_path, monkeypatch):
+    state_dir, admission_db, occurrence = _fixture(
+        tmp_path, admission_state="released", admission_effect_unknown=0,
+    )
+
+    proof = build_proof(state_dir=state_dir, admission_db=admission_db, occurrence_id=occurrence)
+
+    assert proof["verified"] is True
+    assert proof["provider_receipt_id"] == "telegram:94946"
+    assert proof["occurrence_state"] == "released"
+    assert proof["admission_effect_unknown"] is False
+    assert proof["report_source"] == "last_result_report"
+
+    monkeypatch.setattr(
+        effect_reconcile_module,
+        "resolve_unknown_occurrence",
+        lambda *args, **kwargs: pytest.fail("released occurrence must not invoke a state resolver"),
+    )
+    result = reconcile(
+        state_dir=state_dir, admission_db=admission_db,
+        occurrence_id=occurrence, resolve=True,
+    )
+    assert result["resolution_state"] == "PROOF_READY_ALREADY_RELEASED"
+    with sqlite3.connect(admission_db) as connection:
+        assert connection.execute(
+            "SELECT state,effect_unknown FROM occurrences WHERE occurrence_id=?", (occurrence,)
+        ).fetchone() == ("released", 0)
+
+
+@pytest.mark.parametrize("symlink_archive_directory", [False, True])
+def test_historical_sent_result_uses_exact_per_occurrence_b7_snapshot(
+    tmp_path, symlink_archive_directory
+):
+    state_dir, admission_db, occurrence = _fixture(tmp_path)
+    current_report = state_dir / "last-result-report.json"
+    rotated = json.loads(current_report.read_text())
+    rotated["occurrenceId"] = f"{OWNER}:later-run"
+    current_report.write_text(json.dumps(rotated), encoding="utf-8")
+    current_report.chmod(0o600)
+
+    snapshots = state_dir / "b7-readbacks"
+    archive_directory = snapshots
+    if symlink_archive_directory:
+        archive_directory = tmp_path / "external-b7-readbacks"
+        archive_directory.mkdir(mode=0o700)
+        snapshots.symlink_to(archive_directory, target_is_directory=True)
+    else:
+        snapshots.mkdir(mode=0o700)
+    snapshot = {
+        "schemaVersion": 3,
+        "status": "sent",
+        "resolutionKind": "sent",
+        "ownerId": OWNER,
+        "runId": RUN_ID,
+        "releaseSha": RELEASE_SHA,
+        "occurrenceId": occurrence,
+        "subjectId": "subject",
+        "channel": "telegram",
+        "recipientHash": "c" * 64,
+        "eventKey": EVENT_KEY,
+        "messageSha256": MESSAGE_SHA256,
+        "providerMessageId": "94946",
+        "sentAt": "2026-09-26T12:27:20Z",
+        "reportingPeriod": {
+            "key": f"{DATE}:12",
+            "reportingDate": DATE,
+            "timezone": "Asia/Tokyo",
+            "snapshotAt": "2026-09-26T12:28:00Z",
+            "trailingStart": "2026-08-27T12:28:00Z",
+        },
+    }
+    archive = archive_directory / f"{occurrence}.json"
+    archive.write_text(json.dumps(snapshot), encoding="utf-8")
+    archive.chmod(0o600)
+
+    if symlink_archive_directory:
+        with pytest.raises(ValueError, match="b7_snapshot_directory_invalid"):
+            build_proof(state_dir=state_dir, admission_db=admission_db, occurrence_id=occurrence)
+        return
+
+    proof = build_proof(state_dir=state_dir, admission_db=admission_db, occurrence_id=occurrence)
+
+    assert proof["verified"] is True
+    assert proof["provider_receipt_id"] == "telegram:94946"
+    assert proof["report_source"] == "b7_occurrence_snapshot"
+
+
+def test_released_occurrence_without_provider_receipt_stays_rejected(tmp_path):
+    state_dir, admission_db, occurrence = _fixture(
+        tmp_path,
+        admission_state="released",
+        admission_effect_unknown=0,
+        outbox_status="delivery_uncertain",
+    )
+
+    with pytest.raises(ValueError, match="provider_receipt_not_delivered"):
+        build_proof(state_dir=state_dir, admission_db=admission_db, occurrence_id=occurrence)
 
 
 def test_sent_current_result_proves_exact_receipt_without_subject_or_body(tmp_path):
@@ -424,7 +525,7 @@ runResultCfo({
         check=False,
         capture_output=True,
         text=True,
-        env={**os.environ, "CFO_RESULT_MODULE": str(ROOT / "apps/life-manager/scripts/cfo-result-local.js"), "CFO_STATE_DIR": str(state_dir)},
+        env={**os.environ, "LIFE_MANAGER_RELEASE_SHA": RELEASE_SHA, "CFO_RESULT_MODULE": str(ROOT / "apps/life-manager/scripts/cfo-result-local.js"), "CFO_STATE_DIR": str(state_dir)},
     )
     assert result.returncode == 0, result.stderr
     report = json.loads((state_dir / "last-result-report.json").read_text())
