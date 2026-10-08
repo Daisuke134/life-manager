@@ -5093,3 +5093,33 @@ PR #7030の初回CIで`OSS self-contained boundary`だけがfailした。原因�
 7. first paid eBook orderと一致PDF receiptの後だけCapafy Instagram D5へ進み、既存identity/routeで1 canary/24hを実施する。USD 10,000 net MRRは目標であり、settled evidence前に達成扱いしない。
 
 **Daisの作業:** 再接続や手動投稿は不要。空き容量は戻った。現在の最初の公開確認対象は12:30 JSTの日本語2投稿、英語は旧effect照合の後。
+
+### 2026-10-08 12:04 JST — eBook pre-slot admission cursor
+
+この節は11:56の状態を更新する。PR #7030はbase `bcfc32c2`、head `3f194c8e`でOPEN、required CIはLoop control contractsのみpending。OSS boundary、Python、shell、Startup、PII、gitleaks、TruffleHogはPASS。
+
+**Production readback:**
+
+- current symlinkは`20261008T115828-a7899e37`、空き容量は6,990,952 KiB。11:53 cleanup receiptは`free_after=7,753,392,128` bytes、floor met、errors 0、protected deletions 0。
+- release reconcilerはPID 36926でloaded-running。English/2 Japanese ownersはSHA `94372580`をloadしており、current symlinkより遅れている。
+- 日本語ownersは公式Postiz `PUBLISHED` receiptsを各1件持つ（TikTok `cmuynjaq808iblc0yd2396uhg`, Instagram `cmuynjkih08ihlc0y38o87z0n`）。ただし両者の`admission_effect_unknown.current=true`、state `claimed`、next action `official_readback_required`が残る。effectは`reconciled`でもowner admissionは未解放。reconciler terminal後に同じreceiptのbindを再読する。claimを手動削除したり同slotを再送したりしない。
+- English latest occurrence `18dc6de8dcf3a0e8-75262`は11:50 JSTの`render_reconciliation_required` / `effect_status=unknown`。11:52のHeyGen listはAnicca動画0、wallet USD 11.78、Postiz English 0。旧effectは未確定で、08:00 intentを再送しない。
+- `lm-loop doctor`はretired `ai.anicca.provision-browser.capafy.kosuke`だけでfalse。実際のlaunchd serviceはPIDなし・spawn-scheduled・exit2。configured guard hash `846e…`とobserved argv hash `dee012…`が一致せず、両方のguarded entrypoint pathはmissing。直接bootoutしない。このretired labelはeBookとは別のowner境界で、`apply_live(target=eBook-owner)`は無関係なretired labelsを処理しない。
+
+**現在のatomic TODO:**
+
+1. PR #7030のLoop control contractsをPASSさせてmainへmergeする。
+2. reconciler PID 36926のnatural terminalとapply-lock releaseを確認する。停止・並列applyをしない。
+3. Japanese TikTok/Instagramそれぞれの`claimed` admissionが公式Postiz receiptでreconciled/releasedになったことをreadbackする。残るclaimは登録済みownerのexact `official_readback_required`経路で診断し、状態を手動clearしない。
+4. source merge後、必要な場合だけ`launchctl-safe preflight`を通してEnglish ownerへtargeted applyする。Global doctorの別owner警告でeBook ownerを一律停止せず、正確なtarget lockとloaded SHAを確認する。
+5. 12:30 JSTの日本語slotで各ownerのnatural runと公式`PUBLISHED` receipt/post ID/public URLを確認する。claimが残っている場合はdefer原因をそのoccurrenceから狭める。
+6. English unknown effectのvideo IDまたはitemized billing evidenceを調べ続ける。安全に閉じた後だけ、旧08:00と別の英語slotでHeyGen/Postiz receiptを同一occurrenceへ結ぶ。
+7. 3 accounts×3 unique posts/day、replay-zero、click→Checkout→settled Stripe→matching PDF、Letter/Tegami 14日settled net MRR cohortを確認する。first paid eBook+matching PDF後だけCapafy Instagram D5へ進み、1 canary/24hとする。
+
+**現在cursor:** item 1（PR CI）。日本語receiptはあるが2 admission claimsがclaimedのため、12:30枠前にreconciler terminal後のowner readbackを確認する。
+
+### 2026-10-08 12:05 JST — eBook PR base moved after green CI
+
+PR #7030 head `3f194c8e`のrequired checksは12:04 JSTまでに全件PASSした。その後mainはPR #7033で`a7899e37f8dfd266be263ec4c891f80b1427b0ff`へ進み、`skills/capafy-autopublish` inventoryと本SSOTが更新された。eBook source変更はないが、PRのbaseはまだ`bcfc32c2`であり、green checksは新baseを含まない。
+
+**現在cursor:** 最新mainをmerge commitでPR branchへ同期し、OSS self-contained verifierのinventory digestを検証する。base更新後にrequired CIを再実行してmergeする。PR branchのsource修正、provider fence、capacity/owner状態は変わらない。
