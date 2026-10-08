@@ -1162,6 +1162,23 @@ class MacosLoopRegistryTest(unittest.TestCase):
             registry["loops"][row["browser_target_owner"]]["resource_class"], "browser",
         )
 
+    def test_line_sticker_factory_does_not_compete_for_the_agent_slots(self):
+        # 2026-10-09: the factory (priority=revenue) lost 12 consecutive admissions to
+        # resource_capacity_busy while set-017, the first 40-sticker set, waited with all 40
+        # images made. The agent class is capped at 2 and was taken by lancers-revenue-paid,
+        # hf-gig-apply-reconcile and crowdworks-revenue-paid (~80% of admissions in 90 min).
+        # The factory only runs chatgpt-imagegen through agent_runner, which takes its own
+        # provider lease, and drives LINE through the line-creators-browser owner, so it needs
+        # no agent slot. Precedent: capafy-loop-daily is resource_class=deterministic.
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["line-sticker-factory-hourly"]
+        self.assertEqual(row["resource_class"], "deterministic")
+        self.assertEqual(row["admission_class"], "revenue")
+        self.assertEqual(row["priority"], "revenue")
+        self.assertEqual(
+            registry["loops"]["capafy-loop-daily"]["resource_class"], "deterministic",
+        )
+
     def test_hf_gig_browser_declares_browser_resource_class(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         row = registry["loops"]["hf-gig-browser"]
