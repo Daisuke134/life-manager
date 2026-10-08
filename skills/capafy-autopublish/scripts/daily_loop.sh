@@ -81,7 +81,7 @@ python3 "$AUTO/scripts/reconcile_ledger.py" --json >> "$LOG" 2>&1 || true
 # Ask the server: is there ANY real work? DRAINED/CAP_FULL = healthy idle → touch the marker and
 # SKIP the expensive headless Claude run (protects the subscription quota — no point spending an
 # LLM turn to re-discover "nothing to do"). Only PUBLISHABLE fires the publish flow.
-INV="$(python3 "$AUTO/scripts/inventory_status.py" 2>>"$LOG")"
+INV="$(CAPAFY_COUNT_DRAFT_ATTEMPT=1 python3 "$AUTO/scripts/inventory_status.py" 2>>"$LOG")"
 VERDICT="$(printf '%s\n' "$INV" | sed -n 's/^VERDICT=//p' | head -1)"
 echo "$TS inventory verdict=$VERDICT :: $(printf '%s' "$INV" | tail -1)" >> "$LOG"
 
