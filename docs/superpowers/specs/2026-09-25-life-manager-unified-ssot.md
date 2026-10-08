@@ -730,6 +730,8 @@ TODO（何を・どう直すか）
 | 6 | L17 | IG の日常投稿・交流を回す（10/10 から engagement と bio リンク） | 自然 slot の新規 reel と ledger、10/10 以降の engagement 記録 | #7064 で schema 400 を修正後、自然 slot で published を ledger readback（10/07 08:15Z `DeMFSYRvqDF`、11:15Z `DeMSaWrPhWV`、10/08 04:15Z `DeOXH3iBbnV`）。残りは 10/10 以降の engagement 記録。2026-10-08: 17:15 slot と set-013 計画が停止 → 原因は 20 分級の gpt-6-luna 実行が codex acct1 の profile lease を保持し、composition/marketing/browser-lane が acct2 未使用のまま timeout まで待っていたこと。3 経路を fail-fast（acct1 塞がり→acct2）に修正、同条件で 400 秒超→6 秒を実測。aniccaai.com（Life Manager 全商品の共通サイト、Dais 2026-10-08）に販売中セットの日本語紹介記事を毎日 JST 12 時台 1 本（`article_daily.py`、capafy と同じ公開器）。初回 https://aniccaai.com/blog/line-sticker-set-005-2026-10-08 を公開・readback。**blocker（2026-10-08 17:51 JST〜）**: 宣伝ループが毎 wake `host_admission_deferred:resource_effect_unknown`。17:15 slot の caption timeout run（`18dc800360d0b6b8-64240`、ledger に slot 記録なし＝投稿前）を pre_effect で解除しても `False`（claimed/released とも）で、fence の実体は未特定。admission 内部の調査は自動モードの安全確認で拒否されたため、解除には Dais の許可が必要 → 撤回: capafy の `effect_reconcile` 先例を写した `distribute_fence_reconcile.py`（IG Reels 一覧 vs ledger、ledger 外の Reel は投稿日時が run 開始前と確定できた時だけ除外、それ以外は保持）を登録し、正規経路で解除 |
 | 7 | L21 | 1 キャラのシリーズ本数を増やす（売上が出た型を優先） | sales.json に売上が出たキャラの続編が出る | 自動（L18/L27 配線済み） |
 | 8 | HOST | ディスク空き 11 GiB 未満で全 line-sticker loop が `disk_headroom_low` 待機（2026-10-08 20:45 JST〜、空き 1.0〜2.5 GiB） | 空き ≥11 GiB で factory/distribute が自然 wake で再開 | owner = codex-money-printer（host-disk-policy）。line-sticker 側で消せるものは無し（release GC 0、sticker state 0.7G）。最大の占有は ~/.codex-acct2 12G・~/.local 15G・~/.cloak 11G（不可侵）。agmsg で報告済み、他 owner の store は触らない |
+| 9 | L19 | set-014（48161243、¥190 静止・文字入り 16 個）の黒い箱 4 枚（hmm / panic / cheer / morning）を作り直して申請 | Creators Market で審査待ちを readback | 原因 = 画像モデルが緑でなく黒背景で返し緑抜きで消えなかった（箱 30〜44%、正常 0.1〜0.4%）。#7155 で黒背景も抜き、箱付き候補は再生成。本番 release `97efe82e` で実物 16 枚中 4 枚だけ検出を確認。**手順**: loop が再開できる状態になったら set-014 の stage を `images` に戻す（箱 4 枚だけ作り直し、LINE 側 48161243 の画像を差し替えて再申請） |
+| 10 | HOST | 空き容量判定（`lm_loop_run._disk_headroom_deferred` 2 GiB 未満で全 loop 後回し、`disk_admission.disk_headroom_ok` 512 MB 未満で実行拒否）の削除 | 空き 2 GiB 未満でも factory/distribute が wake する | Dais 2026-10-08 が「cleanup loop があるので判定は不要、外せ」と指示（床は 10/7 に 11→2 GiB へ下げ済み。以前の「11 GiB」は誤認）。claude の自動モード安全確認が「安全装置の弱体化」として編集を拒否、迂回せず保留。**実施者**: Dais の許可ルール追加後に claude、または codex-money-printer。lm-lead 依頼（2026-10-08 23:04 JST）により release 作成と `lm-loop apply` は host 回復まで全 session 停止。空き ~200 MB では git の worktree 作成・push も失敗する（実測） |
 
 ### 5.1 自己修復・自己改善の定義（T5 / T12 の正本）
 
@@ -3200,6 +3202,28 @@ Capafy＋PromptBase＋自社 checkout をまとめた $10k MRR の全体計画�
 3. Mobile: アプリの無料記事を既存の Writer/aniccaai.com 掲載で出す（新レーンは作らない）。
 4. 共通: Telegram 送信を 1 系統に寄せる（既存のどちらかを呼ぶ形。新規実装しない）。
 
+## 3 つの稼ぐエージェント 状態スナップショット（2026-10-08 23:50 JST 実測）
+
+| エージェント | 24/7 で動いているか | 収益 | 根拠 |
+|---|---|---|---|
+| Capafy（新規エージェントの量産） | いいえ。出荷は波状で、止まっている日の方が多い | 累計 gross $102.75（有料 32 件、うち一回払い $9.99）。MRR 未計上。9/30 以降の新規売上 $0 | 台帳 66 件: 8/26–9/1 に 17、9/28–10/1 に 15、10/8 に 3。9/2–9/27（26 日）と 10/2–10/7 は 0 件。承認済み 46 / 審査中 20。`capafy-loop-daily` は 21:24 を最後に `disk_headroom_low` |
+| Writer（有料記事） | いいえ。`article-daily` は fenced、writer 系ジョブは 10/8 午後から `disk_headroom_low` | 未確認（台帳 sync が 12:19Z 以降停止） | health: `article-daily` safely_fenced、`writer-*` failed |
+| PromptBase | いいえ。`promptbase-loop-daily` は telemetry_gap | 売上 0 件 / $0（観測 10/6） | `promptbase-sales.json` |
+
+Capafy の新規出荷が「毎日・永続」になっていない原因は 3 つ: (1) 共有ゲート `disk_headroom_low`（R16-R18）(2) 候補の補充が手動（R13）(3) 審査待ち 20 件は承認を待つだけで、出荷側の律速ではない。承認率は台帳の `status` 文字列からは母集団が汚れているため算出しない（未確認）。
+
+### 残りの TODO（順序＝最短で収益に効く順）
+
+1. メモリ圧の解消（Dais 実行待ち）: ChatGPT/Codex アプリ終了、Spotlight 停止（`sudo mdutil -i off /System/Volumes/Data`）、不要セッション終了。空き 1 GiB 超で `capafy-loop-daily`・`article-daily` が動く
+2. 自然実行の確認: 新候補 6 件が拾われ、台帳が増えること。以後 24 時間の出荷件数を毎日測る
+3. R18 恒久策: 掃除/readback の予約枠、swap のゲート信号、同時実行のメモリ予算、リリース cut の reconciler 一本化
+4. R13 候補の自動補充（低水位で offline build、commit/PR/merge/release まで自動）
+5. 重い工場のクラウド host への移設（16 GB RAM に 187 ループは過密）
+6. Writer: 06:00 JST の自然実行、台帳 sync、Telegram リンク報告
+7. PromptBase: telemetry_gap の解消、日次出品の再開
+8. マーケティング: `entrypoint_exit_1`（anicca-en-widget-instagram / anicca-he）の原因切り分け、x-tweeter / x-repost の長期停止、計測ジョブの復旧
+9. レーン 2（売れていない承認済みの改善）、CLI 書き込み動詞の検証
+
 ## 「昨日は動いたのに今日は壊れている」を起こさない（Dais 2026-10-08・根本対策）
 
 原則: ループは「プロセスが走った」ではなく「成果物が新しい」ことで生きていると判定する。人が知らないまま止まっているループを 0 にする。一時しのぎの手動解除は対策に数えない。
@@ -3227,7 +3251,7 @@ Capafy＋PromptBase＋自社 checkout をまとめた $10k MRR の全体計画�
 | R15 | 未完の下書きが永久に再開されず、毎回新規が作られる | 「空き枠があれば新規が下書きの再開より優先」という 9/28 の規則が、上限撤廃で常に真になった | 下書きを先に仕上げる。1 本につき判断の 1 か所（daily_loop.sh の決定側）で最大 3 回。1 回の回で在庫確認が 3 か所から呼ばれるため、数えるのは `CAPAFY_COUNT_DRAFT_ATTEMPT=1` の呼び出しだけ | ✅ |
 | R16 | 空きディスクが 2 GiB 床の前後で振れ続け、工場の実行が `disk_headroom_low` で先送りされる | リリースを 10 分前後おきに切る（複数セッション）。各約 100 MB で、ラベルが読み込んでいる世代は GC が保護する。2026-10-08 21:45 実測: リリース 39 個中 32 個が保護、ラベルは 24 世代に分散（81 個が `804effc5`）、reconciler は `budget exceeded` の partial で収束せず、cleanup owner 自身が ENOSPC で失敗（悪循環）。colima は 0、`.worktrees` のマージ済み 4 本（約 800 MB）はリース付きで残っていた | 部分対処: reconciler の自動 cut に最小間隔 `LIFE_MANAGER_RELEASE_CUT_MIN_INTERVAL_SECONDS`（既定 1800 秒）を追加（complete な現行リリースが間隔内なら切らない）。マージ済み worktree 4 本を runbook で退役（空き 1.0→1.9 GB）。fleet apply は予算切れ(約1200秒で60〜86ラベル)の後30分待っていたため収束しなかった。予算切れで前進した pass は `LIFE_MANAGER_FLEET_APPLY_CONTINUE_SECONDS`（既定300秒）後に同じ sha で続行する。残る候補: (b) fleet-apply を収束させて旧世代の保護を外す、(c) 退役済み PR の worktree をリース解放まで自動で畳む | ⚠ |
 | R17 | R16 の対策後も空きディスクが 200MB〜2.3GB で数分ごとに振れる | 2026-10-08 22:20 実測: 16GB RAM に swap が 8.7GB/9.4GB。swap は同じ APFS コンテナの空きを食うので、メモリ圧で「空き」が落ちる。`corespotlightd` が 4.4GB 常駐、Codex アプリ約 2GB+1GB、Chromium 約 4 プロセス 2GB、ChatGPT | `corespotlightd` を再起動（launchd が自動復帰）。残る対策: 常駐アプリのメモリ上限、Spotlight の除外、host admission は空き容量と swap 使用率を併記して診断する | ⚠ |
-| R18 | 「今日は動いて明日は壊れる」が構造として残る | 2026-10-08 23:07 実測: 187 ジョブ中 failed 69 / safely_fenced 72 / healthy 12。失敗のほぼ全てが同一の `host_admission_deferred:disk_headroom_low`。単一の共有ゲート(空き 2 GiB 床)が 187 ループ全部を同時に止める。(1) 優先度が無く、収益ループも保守ループも同列に止まる (2) 掃除ジョブ自身が同じゲートと ENOSPC で失敗する (3) 空きディスクの原因は swap(メモリ圧)で、ゲートはメモリを見ない (4) 16 GB RAM の 1 台に 187 ループとデスクトップアプリが同居 (5) 手動 cut で世代が増え続け GC が解放できない | 部分対処: `priority=critical_paid` の 6 ループは空き 1 GiB 床で動く(`LIFE_MANAGER_DISK_FLOOR_CRITICAL_PAID_BYTES`、他は 2 GiB のまま、`_disk_floor`)。残る恒久案: 優先度クラス別 admission(収益 > 成長 > 保守、低空き時は収益のみ実行)、掃除と readback 用の予約枠、swap 使用率をゲート信号に追加、同時実行のメモリ予算、リリース cut を reconciler 一本化、重い工場のクラウド host への移設 | ⚠ |
+| R18 | 「今日は動いて明日は壊れる」が構造として残る | 2026-10-08 23:07 実測: 187 ジョブ中 failed 69 / safely_fenced 72 / healthy 12。失敗のほぼ全てが同一の `host_admission_deferred:disk_headroom_low`。単一の共有ゲート(空き 2 GiB 床)が 187 ループ全部を同時に止める。(1) 優先度が無く、収益ループも保守ループも同列に止まる (2) 掃除ジョブ自身が同じゲートと ENOSPC で失敗する (3) 空きディスクの原因は swap(メモリ圧)で、ゲートはメモリを見ない (4) 16 GB RAM の 1 台に 187 ループとデスクトップアプリが同居 (5) 手動 cut で世代が増え続け GC が解放できない | 部分対処: 床は優先度別(Dais 2026-10-09「制限で出荷を止めない。掃除は cleanup agent の仕事」): `critical_paid` 256 MiB、`revenue` 512 MiB、それ以外は 2 GiB(`_disk_floor`、`LIFE_MANAGER_DISK_FLOOR_<PRIORITY>_BYTES` で上書き)。2026-10-09 に未使用・未ピン留め・プロセスなしの中間リリース 10 世代(約 1.1 GiB)を削除し空き 0.6→1.75 GiB。残る恒久案: 優先度クラス別 admission(収益 > 成長 > 保守、低空き時は収益のみ実行)、掃除と readback 用の予約枠、swap 使用率をゲート信号に追加、同時実行のメモリ予算、リリース cut を reconciler 一本化、重い工場のクラウド host への移設 | ⚠ |
 
 ### 残り（この順）
 1. R3 の自然解除を確認（15:29 の起動で effect_unknown が 0 になること）。同じ型（失敗で fence を残す）の他ループ 22 本のうち、お金に関わるものを同様に直す。
