@@ -19,6 +19,7 @@ import asyncio
 import datetime
 import json
 import re
+from urllib.parse import urljoin
 import subprocess
 import sys
 from pathlib import Path
@@ -31,8 +32,8 @@ STATE_ROOT_DEFAULT = Path.home() / ".local/state/life-manager" / "line-sticker"
 JST = datetime.timezone(datetime.timedelta(hours=9))
 NON_PARTICIPATION_VALUE = "on"
 TITLE_RE = re.compile(r"「([^」]+)」")
-PERIOD_RE = re.compile(r"受付\s*([0-9/〜\-]+)")
-DATE_RE = re.compile(r"(\d{1,2})/(\d{1,2})")
+PERIOD_RE = re.compile(r"審査受付期間[：:]\s*(.+?)(?:バナー|$)|受付\s*([0-9/〜\-]+)", re.S)
+DATE_RE = re.compile(r"(?:(\d{4})年)?(\d{1,2})[/月](\d{1,2})")
 
 
 def now_utc() -> datetime.datetime:
@@ -45,26 +46,28 @@ def _deadline_from_period(period: str, today: datetime.date) -> str | None:
     dates = DATE_RE.findall(period)
     if not dates:
         return None
-    month, day = (int(part) for part in dates[-1])
+    year, month, day = dates[-1]
     try:
-        candidate = datetime.date(today.year, month, day)
+        candidate = datetime.date(int(year or today.year), int(month), int(day))
     except ValueError:
         return None
+    if year:
+        return candidate.isoformat()
     if candidate < today:
-        candidate = datetime.date(today.year + 1, month, day)
+        candidate = datetime.date(today.year + 1, int(month), int(day))
     return candidate.isoformat()
 
 
 def parse_feature_radio(value: str, label: str, today: datetime.date) -> dict | None:
     """One radio option from the shared campaign group -> an open-feature record, or None for the
     参加しない option and any option whose label does not name a 「タイトル」 (unparseable)."""
-    if value == NON_PARTICIPATION_VALUE:
+    if value == NON_PARTICIPATION_VALUE or not value.isdigit():  # feature ids are numeric; true/false are other radios
         return None
     title_match = TITLE_RE.search(label)
     if not title_match:
         return None
     period_match = PERIOD_RE.search(label)
-    deadline = _deadline_from_period(period_match.group(1), today) if period_match else None
+    deadline = _deadline_from_period(period_match.group(1) or period_match.group(2), today) if period_match else None
     return {"value": value, "title": title_match.group(1), "deadline": deadline}
 
 
@@ -82,14 +85,10 @@ def _read_json(path: Path) -> dict | None:
     return json.loads(path.read_text())
 
 
-def _item_url(state_root: Path) -> str | None:
-    """The feature radio group lives on any item's edit page; reuse the first tracked item."""
-    for set_dir in sorted(state_root.glob("set-*")):
-        item = _read_json(set_dir / "creators-item.json")
-        product_id = (item or {}).get("product_id")
-        if product_id:
-            return f"{CREATOR_BASE}/sticker/{product_id}/update"
-    return None
+# Only a new item can join a feature, so on-sale items' edit pages show no feature radios
+# (48067450, 2026-10-08: features.json stayed empty); the create page lists every open one.
+# Reading it creates nothing.
+FEATURE_PAGE = f"{CREATOR_BASE}/sticker/create"
 
 
 def should_run_today(ledger_path: Path) -> bool:
@@ -123,7 +122,8 @@ async def _fetch(cdp: str, item_url: str) -> dict:
                     const group = Object.values(groups).find(g => g.some(r => r.value === 'on'));
                     return (group || []).map(r => ({
                         value: r.value,
-                        label: (r.closest('label') || {}).innerText || '',
+                        // Not wrapped in a <label>: the feature block 4 levels up holds the title and period.
+                        label: (r.parentElement?.parentElement?.parentElement?.parentElement || {}).innerText || '',
                     }));
                 }"""
             )
@@ -143,7 +143,7 @@ async def _fetch(cdp: str, item_url: str) -> dict:
                 conditions = None
                 announce_url = None
                 if href:
-                    announce_url = href if href.startswith("http") else f"{CREATOR_BASE}{href}"
+                    announce_url = urljoin(page.url, href)  # href is root-relative (/my/<id>/announce/...)
                     await page.goto(announce_url, wait_until="domcontentloaded", timeout=60000)
                     await page.wait_for_timeout(1500)
                     conditions = await page.inner_text("body")
@@ -166,18 +166,13 @@ def main() -> None:
         print(json.dumps({"status": "skipped_already_today"}))
         return
 
-    item_url = _item_url(state_root)
-    if not item_url:
-        print(json.dumps({"status": "no_item_yet"}))
-        return
-
     acquired = subprocess.run(["bash", str(GUARD), "acquire", IDENTITY], capture_output=True, text=True)
     if acquired.returncode != 0:
         # BUSY or unreachable is a skipped cycle; the self-gate retries on the next hourly wake.
         print(json.dumps({"status": "browser_unavailable", "detail": acquired.stderr.strip()[-200:]}))
         return
     try:
-        fetched = asyncio.run(_fetch(acquired.stdout.strip().splitlines()[-1], item_url))
+        fetched = asyncio.run(_fetch(acquired.stdout.strip().splitlines()[-1], FEATURE_PAGE))
     finally:
         subprocess.run(["bash", str(GUARD), "release", IDENTITY], capture_output=True)
 
@@ -187,7 +182,7 @@ def main() -> None:
 
     row = {
         "observed_at": now_utc().isoformat(),
-        "source_urls": [item_url, f"{CREATOR_BASE}/announce/"],
+        "source_urls": [FEATURE_PAGE, f"{CREATOR_BASE}/announce/"],
         "features": fetched["features"],
     }
     state_root.mkdir(parents=True, exist_ok=True)
