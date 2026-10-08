@@ -230,6 +230,10 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
         state_path = root / "reconciler-state" / "fleet-apply-state.json"
         state = json.loads(state_path.read_text())
         state["last_ok_epoch"] = state["last_ok_epoch"] - seconds_ago
+        # the guard now also reads the last attempt time ("at"); age both together
+        import datetime
+        attempt = datetime.datetime.strptime(state["at"], "%Y-%m-%dT%H:%M:%SZ") - datetime.timedelta(seconds=seconds_ago)
+        state["at"] = attempt.strftime("%Y-%m-%dT%H:%M:%SZ")
         state_path.write_text(json.dumps(state))
 
     def _run(self, env):
@@ -608,6 +612,50 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
                              "must be coalesced, not applied")
             state = self._state(root)
             self.assertEqual(state["sha"], sha1, "state must still reflect the last applied sha")
+
+    def test_new_release_after_a_failed_apply_is_coalesced_within_min_interval(self):
+        # 2026-10-08: two to four owners always failed, so every attempt was status=error with
+        # last_ok_epoch=0. The min-interval guard only counted successes, so it never fired and
+        # every merge re-bootstrapped the fleet (636 recorded applies), which reset every
+        # 15-minute StartInterval timer: the Capafy factory could not run for over an hour.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha1 = self._make_repo(root)
+            release1 = self._make_release(root, sha1)
+            self._activate(root, release1)
+            calls_log = root / "calls.log"
+            env = self._base_env(root, repo, calls_log=calls_log, apply_mode="fail")
+
+            first = self._run(env)
+            self.assertNotEqual(first.returncode, 0)
+            self.assertEqual(self._apply_call_count(calls_log), 1)
+            self.assertEqual(self._state(root)["status"], "error")
+
+            sha2 = self._advance_repo(repo)
+            release2 = self._make_release(root, sha2)
+            self._activate(root, release2)
+
+            self._run(env)
+            self.assertEqual(self._apply_call_count(calls_log), 1,
+                             "a new release within the min interval of the last attempt must be "
+                             "coalesced even though that attempt failed")
+
+    def test_new_release_after_a_failed_apply_is_applied_once_the_interval_elapses(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha1 = self._make_repo(root)
+            self._activate(root, self._make_release(root, sha1))
+            calls_log = root / "calls.log"
+            env = self._base_env(root, repo, calls_log=calls_log, apply_mode="fail")
+            self._run(env)
+            sha2 = self._advance_repo(repo)
+            self._activate(root, self._make_release(root, sha2))
+            state_path = root / "reconciler-state" / "fleet-apply-state.json"
+            state = json.loads(state_path.read_text())
+            state["at"] = "2026-01-01T00:00:00Z"  # the failed attempt is long past
+            state_path.write_text(json.dumps(state))
+            self._run(env)
+            self.assertEqual(self._apply_call_count(calls_log), 2)
 
     def test_after_min_interval_elapses_applies_once_to_latest_sha(self):
         with tempfile.TemporaryDirectory() as directory:
