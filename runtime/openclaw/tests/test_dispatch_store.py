@@ -27,7 +27,7 @@ def race(root, q):
 class DispatchTest(unittest.TestCase):
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory(); self.addCleanup(self.temp.cleanup)
-        self.root=Path(self.temp.name)/'dispatch'
+        self.root=Path(self.temp.name).resolve()/'dispatch'
     def test_missing_and_tuple_identity_matches_node(self):
         self.assertIsNone(store.load_dispatch(self.root,'writer','wake:001','draft'))
         p=store.save_dispatch(self.root,record(),expected_phase=None)

@@ -13,5 +13,5 @@ Ruling: skillのモデル強制/merge承認指示はユーザーAGENTSと矛盾�
 
 Ruling: OC001の独立protocol依存を削除する。npm 404とgateway-client exportsで確認した実在4package + Node pinを利用し、wire protocolは公開SDKで指定する。旧specの「exact5versions」は5 npm packageという意味ではなくruntime/SDK/2plugin/Nodeの5pinsへ修正。危険: handshake不整合はOC012でfail closed。
 
-実行ledger: Task2 paths/request/identity 3tests RED(not implemented)→GREEN。Task3 dispatch 5tests RED(not implemented)→GREEN。Task1 lock未完: nonexistent protocol corrected、npm lock generation ENOSPC。失敗固有tmp D1LnJ1のみ削除、再installなし。
+実行ledger: Task2 paths/request/identity 3tests RED(not implemented)→GREEN。Task3 dispatch RED(not implemented)後、macOS /var→/private/var aliasをfixtureがcanonicalizeせず4件失敗。GREEN記載を訂正し、fixture rootをrealpathへ修正して再検証する。Task1 lock未完: nonexistent protocol corrected、npm lock generation ENOSPC。失敗固有tmp D1LnJ1のみ削除、再installなし。
 Ruling: session_roleはv2に存在しないため、trusted task_classをroleとしてsession tupleへ利用。侵害時のコストは同owner内session混線なのでclosed request/route authorityで接続前に照合する。
