@@ -246,6 +246,23 @@ def test_english_ebook_child_environment_sets_scoped_heygen_cli_path(tmp_path):
     ) == base
 
 
+def test_english_ebook_child_environment_disables_heygen_telemetry_only_for_english_owner(tmp_path):
+    base = {"PATH": "/usr/bin:/bin", "LM_EBOOK_PUBLISHING_ENABLED": "false"}
+
+    english = loop_runner._child_environment_for_owner(
+        "ebook-en-tiktok-daily", base, home=tmp_path,
+    )
+    assert english["HEYGEN_NO_ANALYTICS"] == "1"
+
+    japanese = loop_runner._child_environment_for_owner(
+        "ebook-ja-tiktok-daily", base, home=tmp_path,
+    )
+    assert "HEYGEN_NO_ANALYTICS" not in japanese
+    assert loop_runner._child_environment_for_owner(
+        "article-daily", base, home=tmp_path,
+    ) == base
+
+
 def test_ebook_owner_passes_ssot_postiz_key_to_child_entrypoint(tmp_path):
     private = tmp_path / ".local/share/anicca"
     private.mkdir(parents=True)
