@@ -144,7 +144,7 @@ PR #6999 merged as `46ec94bdea884fd7afa61e603a79fdd1b3048ef7` after a fresh inde
 
 - [ ] **Step 1: Recover and verify host capacity**
 
-Use the disk-cleanup owner and its allow-listed inventory. Keep leased/unknown/open paths protected. Require fresh cleanup `free_after >= 2,147,483,648` bytes and same-time `df -Pk /` above 2 GiB.
+Use the disk-cleanup owner and its allow-listed inventory. Keep leased/unknown/open paths protected. The configured off-volume quarantine `/Volumes/AniccaQuarantine` is currently absent. Do not enable the disabled disk sentinel/guard without the owner action because they send Telegram alerts and apply writer backpressure. Require fresh cleanup `free_after >= 2,147,483,648` bytes and same-time `df -Pk /` above 2 GiB.
 
 - [ ] **Step 2: Build/apply the main-derived release**
 

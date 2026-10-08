@@ -4387,6 +4387,8 @@ L9-11 Self-BuildはこのGig laneの全項目完了後、既存の全社順序�
 
 最新persisted fleet state（09:18:50 JST）はSHA `3f1bd81a77b9001284678888b641aaedb1e3e497`、`status=error`, errors 4。last outputには`admission rebind refused: effect_unknown`と、`ai.anicca.alpaca-investment-live`および`ai.anicca.capafy-ig-marketing-daily`のBootstrap I/O errorがある。09:32時点のprocess readbackではreconcilerは停止中だった。target applyはhost freeが床を下回るため未実施。docs-only PR #7002はspec/planをpush済みだが、CI `Startup context drift`がlive `aniccaai.com/lm`のcontext digest不一致で失敗中。変更差分はspec/planのみで、公開pageはこの作業の対象外。
 
+`launchctl-safe preflight`はPASS（UID/Directory Services 501、Aqua、manager UID 501/PID 1）。`launchctl-safe list`では`ai.anicca.life-manager-disk-cleanup`とrelease reconciler handoffが見えるが、`com.anicca.disk-sentinel`、`com.anicca.emergency-disk-guard`、legacy disk-cleanerはdisabled。`disk-pressure.block`と`disk-writers.stop`は不在。sentinel/guardはTelegram alertとwriter backpressureを伴うため、こちらでは有効化していない。
+
 **残りAtomic TODO（eBook順序）:**
 
 1. 容量のlogical reclaimed / APFS/`df`差を解明する。inventory gaps 16のうち`/private/tmp`, `/private/var/folders`, Library, Projectsのsize/permission/timeout境界を狭め、書き込み元と安全なallow-listed回収対象を特定する。off-volume cleanupが必要な対象は指定quarantine volumeのmount状態を確認する。leased Capafy worktree、未知パス、open file、sealed OS update snapshotは保持する。
@@ -4395,7 +4397,7 @@ L9-11 Self-BuildはこのGig laneの全項目完了後、既存の全社順序�
 4. 次のdue slotでEnglish ownerを一度起動し、HeyGen video ID/SHAとwallet差分、Postiz `PUBLISHED`/public URLを同一effectへ結ぶ。今日の日本語2 accountとEnglish Monkの各登録slotをofficial readbackで確認し、各account 3件/day・合計9件/dayへ到達させる。
 5. anicca-products PR #420のproduction Supabase readback/DDLとnatural paid Checkout→Stripe receipt→locale PDF→fees/refunds/settlement/replay-zero、Letter/Tegami 14日cohortを順に閉じる。one-time `$10.99` / `¥1,580`はMRRではなく、USD 10,000 verified net MRRは未達目標。
 
-**Daisの作業:** Monk Aniccaの再接続・再認証は不要。off-volume quarantineを使う場合の指定mount point `/Volumes/AniccaQuarantine` は現状未mount。容量ゲートを越えられる安全な対象が見つかれば、owner/cleanup policy経由でこちらが処理する。
+**Daisの作業:** Monk Aniccaの再接続・再認証は不要。安全なoff-volume quarantineを使うには指定mount point `/Volumes/AniccaQuarantine` のmountが必要。sentinel/guardを再有効化する場合は、Telegram alertとwriter backpressureが発生する。
 
 ### 2026-10-08 07:43 JST — Gig live-acceptance cursor correction
 
