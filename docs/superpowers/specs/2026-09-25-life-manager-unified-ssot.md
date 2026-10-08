@@ -6587,14 +6587,6 @@ The next cursor is item 1 commit/push. No Dais manual action is currently requir
 
 **Architecture sources checked:** OpenClaw `https://docs.openclaw.ai/tools/subagents/operations`, `https://docs.openclaw.ai/gateway/config-agents/entries-and-multi-agent`, upstream source `https://github.com/openclaw/openclaw/blob/main/docs/tools/subagents/operations.md`; Temporal `https://docs.temporal.io/task-queue` and `https://docs.temporal.io/activities`; FoundersEdge `https://www.foundersedge.com/apply/` and `https://www.foundersedge.com/frequently-asked-questions/`.
 
-### 2026-10-08 19:58 JST — post-#7127 inventory refresh before final PR head
-
-- Latest `origin/main=b2bcba4657` includes PR #7127 changes under `skills/capafy-autopublish`. The tracked inventory still has 245 files, but its content digest changed; the main-branch manifest had not yet recorded that change, so the same OSS gate failed on PR #7121.
-- Recomputed the digest using `scripts/verify-oss-self-contained.mjs`'s tracked-file ordering/hash algorithm: `3b4658c3c472c14a811049b31ce5ef15a9e9adbfe97e62a96d1ed13ab17fb967`. Only the shared manifest digest changes; no Capafy source is modified. Local verifier must return `ok=true` after this patch.
-- The PR's prior exact-head `9fbdab2d` review was SHIP and its required checks passed, but this latest-main merge plus manifest refresh changes the head again; rerun required CI and review on the resulting SHA before merge. Production remains on the earlier release/owner state recorded above.
-
-**現在cursor:** verify the new manifest digest locally → commit/push latest-main sync and manifest correction → fresh read-only review plus required CI on the new PR head → merge #7121 → provider-readback feasibility / keep FoundersEdge fenced if no provider ID exists → immutable release/handoff/doctor → exact fences and owner applies → natural receipts and same-window capacity/economics.
-
 ### 2026-10-08 19:36 JST — PR #7121 reviewed; required CI pending
 
 - Fresh read-only review of head `ad52406c46173ac1ab2b4212aa36edd61b9a50f5` against main `f6ddc8c4bafa359ad795111579ef62b058628fea` returned **SHIP**. It confirmed the resolver only closes verified pre-effect work; `effect_attempted` and `post_effect_verified` remain `post_effect_readback_required`; no local dossier/PNG/Telegram-only closure path remains. A recorder fixture still uses generic “Thank you for applying” text, but the runtime resolver does not read that ledger, so this is not a merge blocker for the fence guard.
@@ -6631,3 +6623,60 @@ The next cursor is item 1 commit/push. No Dais manual action is currently requir
 - The latest PR #7121 required-check run was on the previous head and had OSS red, with Loop control and secret scans still pending. This manifest/spec update changes the head; rerun every required check and refresh the independent review on the exact pushed SHA.
 
 **現在cursor:** push manifest digest + this SSOT correction → fresh read-only review and required CI for PR #7121's new head → merge after all checks pass → FoundersEdge readback or keep exact fence → latest-main immutable release/handoff/doctor → eligible owner applies → three natural provider receipts → same-window concurrency/economics.
+
+
+### 2026-10-08 19:58 JST — latest-main inventory refresh
+
+- Latest origin/main=b2bcba4657 includes PR #7127 under skills/capafy-autopublish. The tracked inventory remains 245 files; the canonical digest is 3b4658c3c472c14a811049b31ce5ef15a9e9adbfe97e62a96d1ed13ab17fb967.
+- The branch updates only docs/manifests/oss-merge-1-sources.json for that digest; Capafy source is unchanged. The local self-contained verifier passes. The 7dd9b49c... value recorded earlier at 19:50 is superseded.
+
+
+### 2026-10-08 20:02 JST — pre-sync PR state snapshot for the three revenue loops
+
+- This historical snapshot was read at 20:02 JST before the latest-main sync; the 20:07 JST entry below supersedes its cursor. The readback was taken before this SSOT edit was pushed: origin/main was b2bcba4657a2b711c99b5017a51c69008b0a87e5; PR #7121 was OPEN, base b2bcba4657a2b711c99b5017a51c69008b0a87e5, head e35f4753a9567d452f58de35d4468df6787c9a6a, merge state UNSTABLE. Agent instruction contract, OSS self-contained boundary, PII, shell syntax, startup drift, and Python/unittest passed; Loop control, TruffleHog, and gitleaks were pending. Fresh read-only review of e35f4753 was SHIP conditional on same-head required CI. Because this SSOT edit is on PR #7121's branch, pushing it creates a new head; rerun checks and review on that resulting SHA.
+- The canonical 245-file inventory digest is 3b4658c3c472c14a811049b31ce5ef15a9e9adbfe97e62a96d1ed13ab17fb967. The local verifier passes; only the manifest digest changed for Capafy, with no Capafy source edit.
+- The last recorded production readback is 19:44 JST, not refreshed during this update: current release 20261008T193926-d35aa4bc; release reconciler loaded on old SHA 3c87f64f, PID 1882; lm-loop doctor reported the retired Capafy and unmanaged self-handoff labels. Prior admission reads were blocked by database is locked and a slow status-all probe, so available live concurrency remains unmeasured. The release config routes Connector, Job Hunter, and Fundraiser to gpt-6-luna/max/fast, but natural-run selected_model evidence is missing.
+- Capacity distinction: runtime/host/resource_admission.py::_limits defaults the global finite-run cap to 8; this is a configured ceiling, not the number currently runnable. OpenClaw's 8-subagents-per-session and 5-children-per-agent limits describe agent spawning, not Life Manager launchd-loop occupancy. Keep the chosen OpenClaw harness and Life Manager admission/effect authority. Do not migrate to Temporal or raise the cap unless same-window live measurements show the scheduler is the remaining bottleneck.
+
+**順序更新:** 旧順序は「main 91c0へのsync → PR #7121 checks → FoundersEdge readback → release → effect fences → owner apply → capacity」だった。mainはb2bcへ進み、manifest digestも更新済みなので、旧cursorは失効している。新順序は「このspec修正をpushしPR #7121の新HEADを受け入れ → merge → main由来release → natural handoff/doctor → 既存effect fenceを対象単位で照合 → admissionを見ながらownerを一つずつ自然実行 → same-window capacity/architecture測定 → 各loopの効果・収益readback」。理由は、source acceptanceがreleaseの前提であり、稼働中ownerを止めずに新releaseへhandoffし、未知effectを再送せずに別の一意なtargetを進められるため。
+
+**残TODO（完了まで・この順）:**
+
+1. **PR #7121のsource acceptance:** このSSOT差分をfix/fundraiser-unknown-fence-20261008へcommit/pushし、branch SHAとPR head/baseをghでreadbackする。git diff --check、node scripts/verify-oss-self-contained.mjs --jsonを確認し、新HEADのgh pr checks 7121でrequired checksを全PASSにする。新HEADのfresh read-only reviewもSHIPを得たらmergeする。完了証拠はmerged main SHAとPRのrequired-check/review記録。
+2. **immutable release:** merge済みorigin/mainからbin/cut-loop-release.sh origin/mainを実行する。release manifestがcompleteでmainのmerge SHAを含むこと、~/loops/currentがそのimmutable releaseを指すことを確認する。作業worktreeからproductionへ直接反映しない。
+3. **natural handoffとdoctor:** 稼働中のrelease reconcilerを止めず、~/loops/current/bin/lm-loop status all --explain --jsonで自然terminal、handoff receipt、target SHA、loaded argv、owner PIDを確認する。Capafy/handoff各ownerが自分のstale labelを解消した後、~/loops/current/bin/lm-loop doctorでunmanaged=0、missing=0、installed-retired=0を確認する。active run中のowner applyはしない。
+4. **既存effect fenceの照合:** FoundersEdge occurrence 18dc7f3bc472c260-76084はprovider-owned application ID/statusが取れた場合だけcloseする。DeepScale 18d9b0b6311a2018-87933、LAUNCH 18dc7222f6b5ec78-20440、Workday Learning 18d6ff42778e8868-14131、Danaher R1316263も各providerのexact statusまたは厳密なpre-effect proofで照合する。provider readbackが無ければそのtargetだけfencedのままにし、再送しない。他の新規・重複しないtargetの進行は妨げない。
+5. **capacityを観測しながらownerを一つずつ動かす:** host admissionとowner loaded-idleを~/loops/current/bin/lm-loop status all --explain --jsonで確認し、既存owner lock/apply lockが空いている時だけ一ownerずつ反映する。resource_capacity_busyやdisk_headroom_lowなら発生ownerとadmission reasonを記録し、capを上げて隠さない。admission-v2.sqlite3が再びlockedならruntime/host/resource_admission.py::_databaseとwriter callerを特定し、既存のruntime/host/tests/test_resource_admission.py::test_open_current_schema_does_not_wait_for_writer_lockをfocused acceptanceに使う。修正後の証拠はlock-freeで整合するclaim/reservation/queue readback。
+6. **三つのloopを自然実行し、効果をproviderで照合:** ConnectorはLuma Compassの該当イベントへ登録しofficial receiptを保存する。Job HunterはWorkdayの新規適格求人へ応募し、他ATSは対応と安全なreadbackがある場合だけ使う。Fundraiserは新しいVCとAI/AGI lab founder/key personを発見し、target-intentsの重複防止の下でmanager構想をcold mailする。各自然runでgpt-6-luna/max/fastをeventから確認し、Telegramへ結果を報告する。送信・応募のlocal logだけでは成功としない。
+7. **Fundraiserの返信から面談までを閉じる:** positive replyにはpodcastまたはZoomを提案し、合意した相手・日時を記録する。対面招待が確定した場合は訪問先へ移動する予定を組み、実際の交通・費用・面談結果を記録する。未返信を会話・meeting・fundingと数えない。
+8. **同一時間窓で実capacityと事業成果を確定:** Connector/Job Hunter/Fundraiserのnatural runと同じ窓でactive claim/reservation/queue age/admission reason、per-class contention、CPU/RAM/diskを取得し、同時に走ったloop数を実数で出す。capacity DB lockが残ればそのowner修正を先に行う。測定後もscheduler固有の制限が残る時だけarchitecture案を再評価する。applications、返信・面談、provider-confirmed funding、settled cash、費用を別々に記録し、cashはofficial receiptとcostが揃った分だけ計上する。
+
+**完了条件:** 三loopがmain由来immutable releaseからloaded argv/SHA一致で自然terminalし、Luma登録・Workday応募・新規VC/AI-founder送信にofficial/providerまたはsent-mail evidenceがあり、各自然runのgpt-6-luna/max/fastとTelegram報告を確認する。全effect unknownはexact target単位でprovider照合またはfence維持し、replay-zeroを保つ。実同時実行数は同一窓のclaim/queue/resource readbackから算出し、8という設定値やOpenClaw上限を実稼働数として扱わない。収益は応募・返信・面談と分け、settled cashと費用で評価する。
+
+**現在cursor:** このSSOT修正をpush → PR #7121新HEADのrequired CI/review → merge → immutable release → natural handoff/doctor → exact target fences → owner別natural run → same-window capacity/returns.
+
+
+### 2026-10-08 20:07 JST — latest-main sync and current completion cursor
+
+- Latest fetched origin/main is a248ce9716323250bb4c041277ff99a1ee5e641d, containing #7128 and #7130 after the b2bcba4657 base. #7130 changes the existing Capafy checkpoint script and test; the tracked Capafy inventory remains 245 files. Local branch merge commit d633005f73 includes this latest main while preserving the Fundraiser source diff and the SSOT update.
+- The post-#7130 canonical inventory digest is 967a797d7ff606ce79579f5766ae7f08a87dbba94291fcb273e72986b57971ee. The first verifier run after main sync exposed a stale manifest digest; docs/manifests/oss-merge-1-sources.json now contains the computed value. node scripts/verify-oss-self-contained.mjs --json returns ok=true, violations=[]; bash scripts/verify-source-boundary.sh and git diff --check pass.
+- GitHub readback at 20:06 JST: PR #7121 is OPEN, head e35f4753a9567d452f58de35d4468df6787c9a6a, base b2bcba4657a2b711c99b5017a51c69008b0a87e5, mergeState UNKNOWN. Required checks all pass on that old head in run 37767087267. Its independent read-only review is SHIP. The local latest-main merge, manifest correction, and SSOT update are not yet pushed; their resulting PR head needs fresh required CI and review.
+- Production remains only as last observed at 19:44 JST: release 20261008T193926-d35aa4bc; release reconciler PID 1882 on old SHA 3c87f64f; doctor still reports retired Capafy and unmanaged self-handoff labels. No fresh runtime query was made in this spec update. The database-lock sample did not return a trustworthy live claim/reservation count; current runnable concurrency is unknown. Configured global finite-run cap 8 remains a ceiling, not measured live capacity.
+
+**順序更新:** 旧順序=`b2bc main sync → PR #7121 same-head checks → merge → release → handoff → fences → owner runs → capacity`。その後mainが#7128/#7130で進み、#7130後のOSS verifierもfailしたため、そのcursorは失効した。新順序=`a248 main sync済みのbranchへinventory digest修正 + このSSOTをpush → 新HEADのrequired CI/fresh review → merge → main-derived immutable release → natural handoff/doctor → exact effect fences → owner別natural runs → same-window capacity/architecture and revenue readback`。理由は、最新mainのsource/hashを取り込んでからでなければPRとreleaseの受け入れ証拠が有効にならないため。
+
+**残TODO（完了まで・この順）:**
+
+1. **最新main同期をpush:** fix/fundraiser-unknown-fence-20261008 branchのmerge commit d633005f73と、docs/manifests/oss-merge-1-sources.json、docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.mdをcommit/pushする。git status --short --branch、git rev-parse HEAD、gh pr view 7121でremote branch/PR head/baseを照合する。完了証拠はlocal/remote SHA一致とclean worktree。
+2. **PR #7121 source acceptance:** 新しいPR headのgh pr checks 7121でLoop control, Agent instruction, OSS, PII, Shell, Startup, Python/unittest, TruffleHog, gitleaksを全PASSにし、同じSHAへのfresh read-only reviewをSHIPで得る。揃った後gh pr merge 7121 --adminを実行する。完了証拠はmerged main SHAとsame-head CI/review。
+3. **immutable release:** merge済みorigin/mainからbin/cut-loop-release.sh origin/mainを実行し、complete release manifestがmerge SHAを含むこと、~/loops/currentがそのreleaseを指すことを確認する。source worktreeからproductionへ直接applyしない。
+4. **natural handoff/doctor:** release reconcilerを止めずに自然terminalまで待つ。~/loops/current/bin/lm-loop status all --explain --jsonでhandoff receipt、target SHA、loaded argv、PIDを確認し、Capafy/handoff ownerが自分のstale labelを除去した後、~/loops/current/bin/lm-loop doctorでunmanaged=0、missing=0、installed-retired=0を確認する。
+5. **exact effect fences:** FoundersEdge 18dc7f3bc472c260-76084はprovider-owned ID/status readback時だけcloseする。DeepScale 18d9b0b6311a2018-87933、LAUNCH 18dc7222f6b5ec78-20440、Workday Learning 18d6ff42778e8868-14131、Danaher R1316263もofficial statusかstrict pre-effect proofで照合する。receiptが無ければ該当targetだけfencedのまま再送せず、他のunique targetは進める。
+6. **capacityを見ながらowner別に自然実行:** host admissionとloaded-idle/lockを~/loops/current/bin/lm-loop status all --explain --jsonで確認し、一度に一ownerだけapplyする。resource_capacity_busy/disk_headroom_lowのoccurrenceとownerを記録して原因を直す。admission-v2.sqlite3が再びlockedならruntime/host/resource_admission.py::_databaseとwriter callerを特定し、runtime/host/tests/test_resource_admission.py::test_open_current_schema_does_not_wait_for_writer_lockで修正を判定する。capは実測なしに変更しない。
+7. **三つの業務効果を閉じる:** ConnectorはLuma Compassの適格イベント登録、Job HunterはWorkdayの新規適格求人応募（他ATSは対応時のみ）、Fundraiserは新しいVCとAI/AGI lab founders/key peopleをtarget-intentsで重複排除してcold mailする。各自然runのeventでgpt-6-luna/max/fastを確認し、公式provider/送信receiptとTelegram報告を同一occurrenceへ結ぶ。応募/メールのlocal logだけで成功としない。
+8. **Fundraiser relationship follow-up:** positive replyにpodcastまたはZoomを提案し、合意済みの相手/日時を保存する。対面招待が確定したら訪問を組み、実費とmeeting resultを記録する。送信数・返信・面談・資金調達・settled cashは別指標とする。
+9. **same-window capacity/economics:** 三loopのnatural runと同一窓でclaims/reservations/queue age/admission reasons/per-class contention/CPU/RAM/diskを採取して実同時実行数を出す。DB lockまたはcapacity blockが残ればそのowner修正を先に行い、測定後もscheduler固有limitが確認された場合だけarchitectureを再評価する。cashはofficial settlement receiptとcostが揃った分だけ計上する。
+
+**完了条件:** 三loopがmain-derived immutable releaseからloaded SHA/argv一致で少なくとも一回ずつ自然terminalし、Luma登録・Workday応募・新規VC/AI-founder cold mailのofficial/providerまたはsent-mail evidence、各natural runのgpt-6-luna/max/fast、Telegram報告が揃う。unknown effectはtargetごとにofficial readbackまたはfence維持、replay-zero。実同時実行数は同一窓のclaim/queue/resource readbackから算出し、cap 8やOpenClaw subagent limitsを稼働数と混同しない。面談・資金調達・settled cash・costは別々に報告する。
+
+**現在cursor:** push latest-main merge + manifest digest + SSOT → PR #7121 new-head CI/review → merge → immutable release → natural handoff/doctor → exact fences → owner natural runs → capacity/economic readback.
