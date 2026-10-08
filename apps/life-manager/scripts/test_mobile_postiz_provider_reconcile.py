@@ -1340,32 +1340,6 @@ def test_historical_flag_runs_the_sweep_and_prints_a_summary(tmp_path, monkeypat
     assert code == 0 and out["applied"] is False and out["owner_id"] == owner
 
 
-def test_per_occurrence_call_without_identity_runs_a_capped_historical_sweep_when_resolving(
-        tmp_path, monkeypatch, capsys):
-    """The fence reconciler calls us once per fenced occurrence; an identity-less one used to end
-    in identity_missing_or_invalid forever. With --resolve it now also sweeps the owner's oldest
-    provable fences, capped, so 3e4 historical fences drain over wakes."""
-    owner = "life-manager-anicca-main-tiktok"
-    db = _hist_db(tmp_path, owner, [(f"{owner}:a", 1_790_000_000.0)])
-    idir = _hist_identity_dir(tmp_path, owner, ["integration://postiz/tiktok/cmx1"])
-    calls = {}
-
-    def fake_sweep(owner_id, **kw):
-        calls["kw"] = kw
-        return {"status": "resolved", "owner_id": owner_id, "inspected": 3, "provable": 3,
-                "kept": 0, "resolved": 3, "applied": kw["apply"]}
-
-    monkeypatch.setattr(reconcile, "sweep_historical_no_dispatch", fake_sweep)
-    monkeypatch.delenv("LIFE_MANAGER_OCCURRENCE_ID", raising=False)
-    code = reconcile.main(["--auto-owner", owner, "--occurrence-id", f"{owner}:a", "--resolve",
-                           "--identity-dir", str(idir), "--admission-db", str(db)])
-    out = json.loads(capsys.readouterr().out)
-    assert calls["kw"]["apply"] is True and calls["kw"]["max_items"] == reconcile.HISTORICAL_SWEEP_PER_CALL
-    # the called fence itself stays inconclusive (exit 1); the sweep drained others and the
-    # reconciler re-checks it on its next wake
-    assert out["historical_sweep"]["resolved"] == 3 and out["status"] == "inconclusive" and code == 1
-
-
 def test_per_occurrence_call_without_resolve_never_sweeps(tmp_path, monkeypatch, capsys):
     owner = "life-manager-anicca-main-tiktok"
     db = _hist_db(tmp_path, owner, [(f"{owner}:a", 1_790_000_000.0)])
@@ -1428,3 +1402,50 @@ def test_api_key_loader_ignores_unsafe_or_missing_files(tmp_path, monkeypatch):
     world.write_text("LM_POSTIZ_API_KEY=abc\n")
     world.chmod(0o644)
     assert reconcile._postiz_api_key(env_file=world) == ""
+
+
+def _hist_db(tmp_path, owner, rows):
+    db = tmp_path / "admission.sqlite3"
+    with sqlite3.connect(db) as c:
+        c.execute("CREATE TABLE occurrences (owner_id TEXT, occurrence_id TEXT, state TEXT, "
+                  "effect_unknown INTEGER, queued_at REAL)")
+        c.executemany("INSERT INTO occurrences VALUES (?,?,?,?,?)",
+                      [(owner, oid, "claimed", 1, ts) for oid, ts in rows])
+    return db
+
+
+def _hist_identity_dir(tmp_path, owner, refs):
+    d = tmp_path / "effect-identities"
+    d.mkdir(exist_ok=True)
+    for n, ref in enumerate(refs):
+        f = d / f"run-{n}.jsonl"
+        f.write_text(json.dumps({"kind": "life_manager_effect_identity", "loop_id": owner,
+                                 "occurrence_id": f"{owner}:old-{n}", "integration_ref": ref}) + "\n")
+        f.chmod(0o600)
+    return d
+
+
+def test_identity_less_fence_is_never_closed_by_a_time_window_alone(tmp_path, monkeypatch, capsys):
+    """2026-10-09: a real post's slot sits 25 min to 30 h after the occurrence's queued_at
+    (p50 ~7 h), so 'no post within +-30 min' proves nothing.  316 fences were closed on that
+    proof before it was caught.  Until a proof bound to the occurrence itself exists, the
+    per-occurrence call must NOT sweep, even with --resolve."""
+    owner = "life-manager-anicca-main-tiktok"
+    db = _hist_db(tmp_path, owner, [(f"{owner}:a", 1_790_000_000.0)])
+    idir = _hist_identity_dir(tmp_path, owner, ["integration://postiz/tiktok/cmx1"])
+    monkeypatch.setattr(reconcile, "sweep_historical_no_dispatch",
+                        lambda *a, **k: (_ for _ in ()).throw(AssertionError("must not sweep")))
+    monkeypatch.delenv("LIFE_MANAGER_OCCURRENCE_ID", raising=False)
+    reconcile.main(["--auto-owner", owner, "--occurrence-id", f"{owner}:a", "--resolve",
+                    "--identity-dir", str(idir), "--admission-db", str(db)])
+    assert json.loads(capsys.readouterr().out)["status"] == "inconclusive"
+
+
+def test_historical_sweep_cli_flag_refuses_to_resolve(tmp_path, capsys):
+    owner = "life-manager-anicca-main-tiktok"
+    db = _hist_db(tmp_path, owner, [(f"{owner}:a", 1_790_000_000.0)])
+    idir = _hist_identity_dir(tmp_path, owner, ["integration://postiz/tiktok/cmx1"])
+    code = reconcile.main(["--auto-owner", owner, "--historical-no-dispatch", "--resolve",
+                           "--identity-dir", str(idir), "--admission-db", str(db)])
+    out = json.loads(capsys.readouterr().out)
+    assert code == 1 and out["status"] == "inconclusive" and out["reason"] == "historical_window_proof_unsound"

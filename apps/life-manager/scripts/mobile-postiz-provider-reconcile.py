@@ -1411,6 +1411,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.auto_owner:
         if any((args.identity, args.ledger, args.owner_id)):
             parser.error("--auto-owner cannot be combined with --identity, --ledger, or --owner-id")
+        if args.historical_no_dispatch and args.resolve:
+            # 2026-10-09: a real post's slot sits 25 min - 30 h after queued_at (p50 ~7 h), so a
+            # +-30 min "no post" window proves nothing about THIS occurrence.  316 fences were
+            # closed on that proof.  Diagnostic dry-runs stay; closing is refused until a proof
+            # bound to the occurrence itself (slot / post id) exists.
+            result = _inconclusive(args.auto_owner, "", "historical_window_proof_unsound")
+            print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+            return 1
         if args.historical_no_dispatch:
             result = sweep_historical_no_dispatch(
                 args.auto_owner, identity_dir=args.identity_dir, admission_db=args.admission_db,
@@ -1443,15 +1451,6 @@ def main(argv: list[str] | None = None) -> int:
                 api_key=api_key,
                 apply=args.resolve,
             )
-            if (args.resolve and result.get("status") == "inconclusive"
-                    and result.get("reason") == "identity_missing_or_invalid"):
-                # An identity-less fence is a historical leftover: drain the owner's oldest
-                # provably never-posted ones, a few per call, so the backlog shrinks every wake.
-                sweep = sweep_historical_no_dispatch(
-                    args.auto_owner, identity_dir=args.identity_dir,
-                    admission_db=args.admission_db, api_key=api_key, apply=True,
-                    max_items=HISTORICAL_SWEEP_PER_CALL)
-                result = {**result, "historical_sweep": sweep}
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
         if result.get("status") in {"clean", "resolved"}:
             return 0

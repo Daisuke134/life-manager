@@ -177,6 +177,55 @@ class TextBearingVariant(unittest.TestCase):
         self.assertNotEqual(plain.tobytes(), lettered.tobytes())
         self.assertEqual(alpha.getpixel((0, 0)), 0)  # still transparent outside the art + lettering
 
+    def test_static_plan_asks_for_the_top_seller_count_not_16(self) -> None:
+        # market.json 2026-10-08: of the top 40, 21 are 40-sticker sets, 17 are 24, 0 are 16.
+        self.assertEqual(STATIC.STATIC_STICKER_COUNT, 40)
+        prompt = STATIC._build_static_plan_prompt([], None)
+        self.assertIn("ちょうど40個", prompt)
+        self.assertNotIn("ちょうど16個", prompt)
+        self.assertNotIn("上位作者に多い16", prompt)
+
+    def test_a_plan_with_the_wrong_sticker_count_is_rejected(self) -> None:
+        plan = {"stickers": [{"id": f"s{i}"} for i in range(16)]}
+        with self.assertRaises(ValueError):
+            STATIC._check_sticker_count(plan)
+        STATIC._check_sticker_count({"stickers": [{"id": f"s{i}"} for i in range(40)]})
+
+    def test_duplicate_sticker_ids_are_rejected(self) -> None:
+        with self.assertRaises(ValueError):
+            STATIC._check_sticker_count({"stickers": [{"id": "a"}] * 40})
+
+    def test_static_images_stop_at_the_time_budget_and_resume_next_wake(self) -> None:
+        # 40 images at ~2 min each is ~80 min against a 90 min wake cap: stop early, keep what exists,
+        # and let the next wake (stage stays "images") make the rest.
+        from decimal import Decimal
+        from PIL import Image
+        clock = {"now": 0.0}
+
+        def fake_generate(ref, character_prompt, sticker_prompt, task_label):
+            clock["now"] += 120.0  # two minutes per image
+            art = Image.new("RGB", (64, 64), (0, 255, 0))
+            art.paste((200, 120, 60), (16, 16, 48, 48))  # a keyed-out frame with real art, not an empty one
+            return art, "chatgpt_imagegen", Decimal("0")
+
+        original, original_clock = STATIC._generate_sticker_image, STATIC._monotonic
+        STATIC._generate_sticker_image, STATIC._monotonic = fake_generate, lambda: clock["now"]
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                set_dir = Path(tmp)
+                (set_dir / "ref-padded.png").write_bytes(b"png")
+                plan = {"character_prompt": "otter", "stickers": [
+                    {"id": f"s{i}", "prompt": "p", "text": None} for i in range(40)]}
+                STATIC.static_images(set_dir, plan)
+                made = len(list((set_dir / "candidates").glob("s*.png")))
+                self.assertEqual(made, int(STATIC.IMAGE_BUDGET_SECONDS // 120) + 1)
+                self.assertLess(made, 40)
+                clock["now"] = 0.0  # next wake: a fresh budget, only the missing ones are made
+                STATIC.static_images(set_dir, plan)
+                self.assertEqual(len(list((set_dir / "candidates").glob("s*.png"))), min(40, made * 2))
+        finally:
+            STATIC._generate_sticker_image, STATIC._monotonic = original, original_clock
+
     def test_black_background_is_keyed_out_like_green(self) -> None:
         # set-014 (2026-10-08): the image model returned some stickers on black instead of the
         # requested chroma green; 30% of the art box shipped as opaque black.
