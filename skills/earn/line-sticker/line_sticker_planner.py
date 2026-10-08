@@ -13,6 +13,7 @@ import base64
 import datetime
 import io
 import json
+import re
 import os
 import subprocess
 import sys
@@ -210,6 +211,9 @@ def selector(set_dir: Path, plan: dict) -> dict:
    plan.series_of で判断、価格は listing の既定値）が conditions を満たす特集が1つでもあれば、
    その value（文字列）をそのまま campaign_value に入れる。満たすものが無ければ null にする。
    複数満たす場合は最も条件が具体的に一致するものを1つだけ選ぶ（同時に複数の特集には参加できない）。
+   campaign_theme_ids: campaign_value を選んだ場合、order のうちその特集のテーマ（例: 冬なら雪・こたつ・
+   マフラー・雪だるま等）が一目で分かる絵の id を列挙する。テーマが見た目で明らかでないものは入れない。
+   条件の個数（例「8個以上」）+4 個に届かなければ campaign_value は null にする。不参加なら空配列。
    open_features: {json.dumps(open_features, ensure_ascii=False, indent=1)}
 
 JSON Schemaに厳密に従ったJSONだけを返す。orderはちょうど24個の重複のないidにする。"""
@@ -217,7 +221,8 @@ JSON Schemaに厳密に従ったJSONだけを返す。orderはちょうど24個�
         result = _run_agent(prompt=prompt, schema=HERE / "schemas/selection.schema.json",
                              evidence_dir=Path(tmp) / "evidence", task_label=f"line-sticker-select-{set_dir.name}",
                              images=[sheet])
-    result["campaign_value"] = _guard_campaign_value(result.get("campaign_value"), open_features)
+    result["campaign_value"] = _guard_campaign_value(result.get("campaign_value"), open_features,
+                                                     result.get("campaign_theme_ids", []), result.get("order", []))
     return result
 
 
@@ -237,8 +242,21 @@ def _open_features(today: datetime.date) -> list[dict]:
     return [f for f in features if not _deadline_passed(f.get("deadline"), today)]
 
 
-def _guard_campaign_value(value: str | None, open_features: list[dict]) -> str | None:
-    """Hard deterministic limit: a value the model invents or that has since expired is never sent."""
-    if value is None:
+THEME_MARGIN = 4  # LINE judges "on theme" itself; a bare minimum got 48137583 rejected (2026-10-08)
+
+
+def _required_theme_count(conditions: str | None) -> int:
+    match = re.search(r"(\d+)\s*個以上", conditions or "")
+    return int(match.group(1)) if match else 8
+
+
+def _guard_campaign_value(value: str | None, open_features: list[dict],
+                          theme_ids: list[str] = (), order: list[str] = ()) -> str | None:
+    """Hard deterministic limit: a value the model invents or that has since expired is never sent,
+    and a feature is joined only when enough selected stickers depict its theme -- a feature miss
+    rejects the whole set even when the stickers are fine."""
+    feature = next((f for f in open_features if f.get("value") == value), None) if value else None
+    if feature is None:
         return None
-    return value if any(f.get("value") == value for f in open_features) else None
+    on_theme = set(theme_ids) & set(order)
+    return value if len(on_theme) >= _required_theme_count(feature.get("conditions")) + THEME_MARGIN else None
