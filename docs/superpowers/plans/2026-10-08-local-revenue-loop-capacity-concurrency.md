@@ -68,6 +68,7 @@ Connector、Job Hunter、Fundraiserの既存loopを、現行`lm-loop`上で安�
 - Additional runner-call-site RED on head `5f015b68`: the two profile-policy subtests fail because `run()` passes neither the stable account lock path nor an explicit task-scoped fail-fast boolean to `run_provider_process`.
 - The unmarked-task wait and provider-retained-lease-on-runner-kill regressions also fail before implementation, confirming that the shared profile lease must cover all Codex candidates and its file descriptor must survive the runner process.
 - Failover policy RED: an unmarked Codex candidate currently receives `retry_next_account` for `codex_home_busy`; only candidates with explicit `fail_fast_provider_lease` may switch profiles on a busy lease.
+- Browser lease RED: the helper assigns `AI_BROWSER_HOLDER_PID` only to the initial acquire subprocess; it does not export the owner PID to later `cdp_default_tab.py` calls, so same-owner context reuse is not yet proven.
 
 ### 6. Immutable releaseとtarget owner apply
 

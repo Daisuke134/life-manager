@@ -29,7 +29,8 @@ def test_context_lease_acquire_and_release_scopes_owner_and_cookies(tmp_path):
         f"source {shlex.quote(str(HELPER))}",
         f"browser_context_lease_acquire http://[::1]:9333 fundraiser x.com,twitter.com {shlex.quote(str(lease))}",
         "printf '%s\\n' \"$BROWSER_CONTEXT_ENDPOINT\" \"$CLOAK_BROWSER_CONTEXT_ID\" "
-        "\"$LIFE_MANAGER_BROWSER_CONTEXT_TARGET_ID\" \"$BROWSER_CONTEXT_COOKIE_COUNT\"",
+        "\"$LIFE_MANAGER_BROWSER_CONTEXT_TARGET_ID\" \"$BROWSER_CONTEXT_COOKIE_COUNT\" "
+        "\"${AI_BROWSER_HOLDER_PID:-missing}\"",
         "browser_context_lease_release",
     ])
     result = subprocess.run(
@@ -40,18 +41,20 @@ def test_context_lease_acquire_and_release_scopes_owner_and_cookies(tmp_path):
     )
 
     assert result.returncode == 0, result.stderr
+    rows = [json.loads(line) for line in calls.read_text().splitlines()]
     assert result.stdout.splitlines() == [
         "http://[::1]:9333",
         "fundraiser-context",
         "fundraiser-seed",
         "4",
+        rows[0]["holder"],
     ]
-    rows = [json.loads(line) for line in calls.read_text().splitlines()]
     assert [row["action"] for row in rows] == ["acquire", "release"]
     assert all(row["owner"] == "fundraiser" for row in rows)
     assert all(row["endpoint"] == "http://[::1]:9333" for row in rows)
     assert rows[0]["domains"] == "x.com,twitter.com"
     assert rows[0]["holder"]
+    assert rows[0]["holder"].isdigit()
 
 
 def test_context_only_lease_matches_default_tab_mode_without_seed_target(tmp_path):
