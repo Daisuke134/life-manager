@@ -4843,11 +4843,11 @@ flowchart LR
 
 **計測ゲートの初回実装（branch `fix/gig-storefront-exposure-preflight-20261009`, commit `072d56517b`, PR #7182 / main未統合）:** `_measurement_feasible`を`_prepare_next_hypothesis`でprovider effect前に再利用し、exposure unknown/minimum未達なら`executable=false`にする。compliance修正とstale offer訂正は露出判定だけを免除し、effect fenceは解除しない。初回検証はfocused tests 92/92だったが、reviewで公式性・期間完全性・identity・鮮度の未検証が判明。
 
-**修正ソースのlocal acceptance（2026-10-09 00:39 JST / 未commit・未push）:** gateは`_collect_analytics`が同一runで公式に読んだservice snapshotsを受け取り、過去`analytics.jsonl`のdedupe行を現時点の鮮度証明に使わない。`official`・正規source URL・completeで有効なwindow・canonical snapshot/content hash・非負integer views・futureを含まない最大3,600秒を検証し、不備はunknownへfail closed。testsで非公式・不完全・不正日付・別source・stale・future・snapshot key不一致を修正前に再現し、同じ値の再読込で履歴を重複appendせずcurrent snapshotだけが新時刻を持つことも確認した。focused Storefront suiteは102/102、`lm-loop-contract`は18 loops/187 jobs/0 errors、source-boundary・`py_compile`・`git diff --check` PASS。PR #7182へのcommit/push、fresh review、CIは未完了。
+**修正ソースのacceptance（commit `83eb3a39d3`）:** gateは`_collect_analytics`が同一runで公式に読んだservice snapshotsを受け取り、過去`analytics.jsonl`のdedupe行を現時点の鮮度証明に使わない。`official`・正規source URL・completeで有効なwindow・canonical snapshot/content hash・非負integer views・futureを含まない最大3,600秒を検証し、不備はunknownへfail closed。testsで非公式・不完全・不正日付・別source・stale・future・snapshot key不一致を修正前に再現し、同じ値の再読込で履歴を重複appendせずcurrent snapshotだけが新時刻を持つことも確認した。focused Storefront suiteは102/102、`lm-loop-contract`は18 loops/187 jobs/0 errors、source-boundary・`py_compile`・`git diff --check` PASS。remote branchとPR headは`83eb3a39d3bd49cca826e8aa60b077199e56e9dd`で一致。exact-head fresh reviewとrequired CIは保留中。
 
 **残TODO（完了まで、この順）:**
 
-1. **現在cursor — corrective source acceptance:** official current-snapshot guardと回帰テストはlocal PASS。source/test/SSOTをこの専用branchへcommit・pushし、PR #7182のexact-head fresh reviewとrequired CIをPASSさせてからmergeする。別ownerのcapacity/doctor recoveryは独立laneで進められるが、ここから他ownerのworktree/stateを編集しない。
+1. **現在cursor — PR #7182 acceptance:** source/test/SSOT commit `83eb3a39d3`はremoteへpush済み、PR head=`83eb3a39d3bd49cca826e8aa60b077199e56e9dd`、base=`9abbdb9d1cfacd2797b5b02cae5095923be40826`。fresh read-only reviewと同一headのrequired CIをPASSさせてからmergeする。別ownerのcapacity/doctor recoveryは独立laneで進められるが、ここから他ownerのworktree/stateを編集しない。
 2. **main由来release:** current main `9abbdb9d1cfacd2797b5b02cae5095923be40826`を含むmerged fixのimmutable releaseを既存natural reconcilerに渡し、`RELEASE.json`・Storefront/Paidのloaded SHA/argv/admissionを確認する。production source完了はloaded SHAにpriority/floor/exposure fixが含まれてから。
 3. **Coconala Paid obligation:** order `18180857`のfresh official order/talkroom readbackをownerが実行する。今も未完了の場合だけ必要なrevision/formal deliveryを一度行い、buyer acceptance・settlement/payout・replay-zeroを結ぶ。古いsnapshotから現在の待ち状態を推測しない。
 4. **旧Storefront fence:** `18d8d288748508e8-23902`を、同一effectの公式listing/order履歴または受理可能なoccurrence-bound pre-effect receiptで照合する。現在はdry-runがbinding不足で保留。証拠が取れなければfenceを保持し、再公開しない。
@@ -4858,7 +4858,7 @@ flowchart LR
 9. **Storefront economics:** listingごとのunique paid order・repeat・refund・platform fee・payout・実作業時間/実費を同一期間で結び、settled net contributionが正で再現したか報告する。掲載・seller累計・grossを利益/MRRにしない。
 10. **最後 — SelfBuild:** 収益loopとproduct storefrontの上記done条件を閉じた後だけ、self-build/self-healingを再開する。
 
-**現在cursor:** 1 — local acceptance済みのsource/testをspecと一緒にcommit・push → exact-head fresh reviewとrequired CI → PASS後だけPR #7182をmerge。production Storefrontは旧effect fence・古いinstalled SHA・未照合販売状態を保持。
+**現在cursor:** 1 — PR #7182 exact-head review/required CI → PASS後だけmerge。production Storefrontは旧effect fence・古いinstalled SHA・未照合販売状態を保持。
 
 ### 2026-10-09 00:28 JST — Storefront収益cursorとexposure review修正
 
@@ -4873,9 +4873,9 @@ flowchart LR
 - 修正前にstale/nonofficial/incomplete/wrong-source/future/mismatched-keyの誤許可を回帰テストで再現した。さらに、同一内容の再読込では`analytics.jsonl`がsnapshot keyで重複排除し、履歴行の時刻が更新されないことを確認。このため当該runの`_collect_analytics` snapshotをpreflightへ渡し、履歴ledgerは変更せず現在の公式readbackで鮮度を見る。
 - focused Storefront suiteは102/102 PASS。loop contract（18 loops / 187 jobs / 0 errors）、source-boundary、`py_compile`、`git diff --check`もPASS。
 - production readback: `df` available 1,585,240 KiB、current release `1fe7db3b`、Storefront installed SHA `3981bca3`。15:34Z occurrence `18dc97af171c4370-86787`はdisk admission defer、receiptなし。old effect fence `18d8d288748508e8-23902`はunknown。release-reconciler旧SHA `e1b061f1` / PID `33109`はrunningで、15:35Z occurrence `18dc97c7aa1d0750-49084` exit 1。doctorはunmanaged labelで`ok=false`。provider stateは変更していない。
-- 修正は未commit/未push。storefront publicationとsettled revenueは未確認。
+- source/test/SSOTはcommit `83eb3a39d3`でpush済み。PR #7182 base=`9abbdb9d1c`、head=`83eb3a39d3bd49cca826e8aa60b077199e56e9dd`。現時点でreview結果もrequired CI結果も未着。storefront publicationとsettled revenueは未確認。
 
-**現在cursor:** acceptance済みのsource/testと本SSOTをcommit/push → exact-head fresh review/required CI → PR #7182 merge → immutable release/natural readback。
+**現在cursor:** exact-head fresh review/required CI → PR #7182 merge → immutable release/natural readback。
 
 ### 2026-10-08 08:35 JST — Mobile post-merge runtime cursor
 
