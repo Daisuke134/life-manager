@@ -21,4 +21,7 @@ done
 # Once per day (self-gated on sales.json's observed_at): per-product sales + 分配 distribution
 # numbers from the official 売上・統計情報 / 送金申請 pages, for the factory planner.
 "$PY" "$LIFE_MANAGER_REPO/skills/earn/line-sticker/sales_readback.py" || status=1
+# Once per day (self-gated on features.json's observed_at): open 特集 (feature-campaign) list and
+# their official announce conditions, so the planner's selector can judge a real campaign join.
+"$PY" "$LIFE_MANAGER_REPO/skills/earn/line-sticker/features_readback.py" || status=1
 exit "$status"

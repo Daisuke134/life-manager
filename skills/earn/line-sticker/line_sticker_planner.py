@@ -10,6 +10,7 @@ and validates the runner's JSON against the schemas next to it.
 from __future__ import annotations
 
 import base64
+import datetime
 import io
 import json
 import os
@@ -22,7 +23,10 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parents[2]
 AGENT_RUNNER = REPO_ROOT / "runtime/agent-runner/agent_runner.py"
-TAGS_FILE = Path(os.environ.get("LIFE_MANAGER_STATE_HOME", str(Path.home() / ".local/state/life-manager"))) / "line-sticker" / "tags-ja.json"
+STATE_HOME = Path(os.environ.get("LIFE_MANAGER_STATE_HOME", str(Path.home() / ".local/state/life-manager")))
+TAGS_FILE = STATE_HOME / "line-sticker" / "tags-ja.json"
+FEATURES_FILE = STATE_HOME / "line-sticker" / "features.json"
+JST = datetime.timezone(datetime.timedelta(hours=9))
 TASTE_OPTIONS = {
     "1": "カワイイ・キュート", "18": "ラブリー", "2": "かっこいい", "3": "シュール", "4": "ユニーク",
     "5": "ポップ", "6": "ナチュラル", "7": "シンプル", "8": "大人かわいい", "9": "ほのぼの",
@@ -147,6 +151,7 @@ def selector(set_dir: Path, plan: dict) -> dict:
     motion_ids = [m["id"] for m in plan["motions"]]
     grid = [{"row": index // 6, "col": index % 6, "id": motion_id} for index, motion_id in enumerate(motion_ids)]
     tags = json.loads(TAGS_FILE.read_text()) if TAGS_FILE.exists() else []
+    open_features = _open_features(datetime.datetime.now(JST).date())
     sheet = set_dir / "candidates-sheet.png"
     prompt = f"""添付の画像は候補スタンプの一覧シート（{set_dir / 'candidates-sheet.png'}）。6列グリッドで、
 各セルは1候補の代表フレーム。セルの行・列とモーションidの対応は次の通り（row,col,id）:
@@ -166,10 +171,41 @@ def selector(set_dir: Path, plan: dict) -> dict:
    有効タグ一覧: {json.dumps(tags, ensure_ascii=False)}
 6. taste_id: 次の候補からこのキャラクターに最も合うものを1つ選ぶ: {json.dumps(TASTE_OPTIONS, ensure_ascii=False)}
 7. character_category_id: 次の候補から1つ選ぶ: {json.dumps(CHARACTER_OPTIONS, ensure_ascii=False)}
-8. campaign_value は null にする（キャンペーン不参加）。
+8. campaign_value: 今参加できる特集企画は以下の open_features（LINE Creators Marketが公式に募集中の
+   ものだけ、締切済みは含まない）。各要素の conditions は公式お知らせ記事の本文（個数・金額・
+   新規/既存・季節などの参加条件が書かれている）。このセット（24個、新規キャラクターかどうかは
+   plan.series_of で判断、価格は listing の既定値）が conditions を満たす特集が1つでもあれば、
+   その value（文字列）をそのまま campaign_value に入れる。満たすものが無ければ null にする。
+   複数満たす場合は最も条件が具体的に一致するものを1つだけ選ぶ（同時に複数の特集には参加できない）。
+   open_features: {json.dumps(open_features, ensure_ascii=False, indent=1)}
 
 JSON Schemaに厳密に従ったJSONだけを返す。orderはちょうど24個の重複のないidにする。"""
     with tempfile.TemporaryDirectory(prefix=".select-", dir=set_dir) as tmp:
-        return _run_agent(prompt=prompt, schema=HERE / "schemas/selection.schema.json",
-                           evidence_dir=Path(tmp) / "evidence", task_label=f"line-sticker-select-{set_dir.name}",
-                           images=[sheet])
+        result = _run_agent(prompt=prompt, schema=HERE / "schemas/selection.schema.json",
+                             evidence_dir=Path(tmp) / "evidence", task_label=f"line-sticker-select-{set_dir.name}",
+                             images=[sheet])
+    result["campaign_value"] = _guard_campaign_value(result.get("campaign_value"), open_features)
+    return result
+
+
+def _deadline_passed(deadline: str | None, today: datetime.date) -> bool:
+    if not deadline:
+        return False
+    try:
+        return datetime.date.fromisoformat(deadline) < today
+    except ValueError:
+        return True  # unparseable deadline: treat as not-open rather than guess
+
+
+def _open_features(today: datetime.date) -> list[dict]:
+    if not FEATURES_FILE.exists():
+        return []
+    features = json.loads(FEATURES_FILE.read_text()).get("features", [])
+    return [f for f in features if not _deadline_passed(f.get("deadline"), today)]
+
+
+def _guard_campaign_value(value: str | None, open_features: list[dict]) -> str | None:
+    """Hard deterministic limit: a value the model invents or that has since expired is never sent."""
+    if value is None:
+        return None
+    return value if any(f.get("value") == value for f in open_features) else None

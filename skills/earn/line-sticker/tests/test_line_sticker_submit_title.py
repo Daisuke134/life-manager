@@ -133,3 +133,62 @@ class CleanCharacters(unittest.TestCase):
     def test_cut_title_does_not_end_on_a_connector(self) -> None:
         out = MODULE._fit_listing({"title": {"en": "Animated! Mofutan's Polite Family & Oshi Life"}, "description": {}})
         self.assertEqual(out["title"]["en"], "Animated! Mofutan's Polite Family")
+
+
+class _FakeRadio:
+    def __init__(self, clicked: list[str], value: str) -> None:
+        self._clicked = clicked
+        self._value = value
+
+    async def count(self) -> int:
+        return 1
+
+    @property
+    def first(self):
+        return self
+
+    def locator(self, *a, **k):
+        return self
+
+    async def click(self) -> None:
+        self._clicked.append(self._value)
+
+
+class _FakeSelectLocator:
+    async def count(self) -> int:
+        return 0
+
+
+class _FakeCampaignPage:
+    """Mimics only what ``_select_taste_character_campaign`` touches: no real <select>s, and one
+    radio per requested value (every value in LINE's shared feature-campaign radio group "exists").
+    """
+
+    def __init__(self) -> None:
+        self.clicked: list[str] = []
+
+    def locator(self, selector: str, *a, **k):
+        if selector == "select":
+            return _FakeSelectLocator()
+        value = selector.split("value='")[1].rstrip("']")
+        return _FakeRadio(self.clicked, value)
+
+
+class SelectCampaign(unittest.TestCase):
+    def test_a_feature_value_clicks_that_exact_radio_not_on(self) -> None:
+        import asyncio
+        page = _FakeCampaignPage()
+        asyncio.run(MODULE._select_taste_character_campaign(page, {"campaign_value": "835"}))
+        self.assertEqual(page.clicked, ["835"])
+
+    def test_null_campaign_value_clicks_the_non_participation_radio(self) -> None:
+        import asyncio
+        page = _FakeCampaignPage()
+        asyncio.run(MODULE._select_taste_character_campaign(page, {"campaign_value": None}))
+        self.assertEqual(page.clicked, ["on"])
+
+    def test_missing_campaign_value_key_also_defaults_to_non_participation(self) -> None:
+        import asyncio
+        page = _FakeCampaignPage()
+        asyncio.run(MODULE._select_taste_character_campaign(page, {}))
+        self.assertEqual(page.clicked, ["on"])
