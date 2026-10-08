@@ -6497,3 +6497,11 @@ The next cursor is item 1 commit/push. No Dais manual action is currently requir
 7. **End-to-end runs and capacity:** Luma Compassのregistration、Workday application、VC/AI-founder cold outreachをそれぞれnatural occurrenceで実行し、provider receipt・Telegram・`gpt-6-luna/max/fast`を同一runで照合する。並行時間窓のclaims/reservations/queue/CPU/RAM/diskを測って実同時実行数を報告し、容量不足が再発した場合だけadmission architectureを変更する。応募・送信・面談・資金調達・settled cashは別指標とし、現金は入金receiptとcost確認後だけ計上する。
 
 **現在cursor:** branchのlocal-only closure撤去をpush → 並行してFoundersEdge official readbackの有無/receipt IDとPR #7115 CI/reviewを確定 → 可能な場合だけprovider adapterを実装しfresh review/CI → 両sourceをlatest mainへ統合 → immutable release/handoff/doctor → occurrence fence closure → owner別apply → 3 loop natural receipts → same-window capacity/economic readback。
+
+### 2026-10-08 19:21 JST — fail-closed correction pushed
+
+- Branch `fix/fundraiser-unknown-fence-20261008` head `e10a30e358` is pushed on fetched main `91066e3368`. Latest tree contains no local-ledger post-effect close path; post-effect markers remain `post_effect_readback_required`. The unsafe first attempt `f426822` is only an ancestor of this corrected branch; no PR or production release contains it.
+- Corrected reconciler suite: 8/8; `git diff --check`, source-boundary, `lm-loop-contract` (`18/187/112`), and OSS self-contained verifier pass. The correction intentionally keeps FoundersEdge occurrence `18dc7f3bc472c260-76084` fenced because provider-owned application ID/status readback is still absent.
+- Last PR readback for #7115: OPEN, head `bba4ea5`, base `bdafa9ac30`, while fetched main is `91066e3368`; CI/review remained incomplete. Keep its active owner on that sync/review path.
+
+**現在cursor:** FoundersEdge official readback feasibility + PR #7115 latest-main CI/review in parallel. Only a provider-owned exact application ID/status can unlock the adapter task; if the provider offers no such readback, leave this occurrence fenced and continue independent Connector/Job Hunter source and capacity work without replaying it.
