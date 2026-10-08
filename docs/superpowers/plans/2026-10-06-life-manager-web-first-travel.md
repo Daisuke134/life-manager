@@ -213,7 +213,7 @@ Vercel Chat SDK is the OSS toolkit that most closely matches “one agent across
 - The first CTA begins Google identity confirmation and the separate Calendar consent; no Life Manager password is introduced.
 - Use the exact ACTIVE account ID read back by the Web tenant. Automatic initial processing starts on Calendar ACTIVE; the page does not wait for it. Recurring processing remains gated on Stripe trial/paid entitlement.
 
-- [ ] Step 1: From a mobile Safari-compatible browser session already authenticated as the dedicated test identity, open `/lm`, start the OAuth chain, grant only Calendar permission, and read back the same tenant through callback and later session resolution. Expected: no Gmail scope, no production identity, no cross-tenant binding.
+- [ ] Step 1: From a mobile Safari-compatible browser session already authenticated as the dedicated test identity, open `/lm`, start the OAuth chain, grant only Calendar permission, and read back the same tenant through callback and later session resolution. Expected: only a server-verified Google provider or linked Google identity is accepted; email-only Supabase Auth sessions are rejected before tenant access; no Gmail scope, no production identity, and no cross-tenant binding.
 - [ ] Step 2: Use the isolated Calendar to test a resolvable in-person event, an online event, and a missing/ambiguous location. Expected: one accurate Travel block with the event reminder, no block for online/unknown events, and replay-zero.
 - [ ] Step 3: Trigger the existing ask loop for an already-linked Telegram test tenant. Expected: one question in the existing Telegram chat, no email fallback for Web-only tenants, and no duplicate send.
 
