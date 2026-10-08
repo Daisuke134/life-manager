@@ -274,6 +274,7 @@ def run_character(set_dir: Path, state_root: Path, deps: Deps) -> str:
         _atomic_write_json(set_dir / "plan.json", {
             "reference": "ref-padded.png", "stickers": plan_draft["stickers"],
             "character_prompt": plan_draft.get("character_prompt", ""),
+            "text_mode": plan_draft.get("text_mode", "no_text"),
         })
         return "images"
     seedance_plan = {
