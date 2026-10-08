@@ -7258,6 +7258,15 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 **現在cursor:** finish latest-main merge resolution → push → exact-head PR #7156 CI/review/merge → natural release and watchdog receipt → 2 GiB recovery → revenue-floor follow-up PR → Fundraiser readback → target natural outcomes → same-window capacity and swap measurement.
 
 
+### 2026-10-08 23:29 JST — watchdog natural run and follow-up plan
+
+- `com.anicca.disk-watchdog` safe readback after the stable-wrapper install shows `state=running`, `program=/Users/anicca/.local/bin/disk-watchdog.sh`, `runs=6`. Its next natural receipt at `2026-10-08T14:29:22Z` has `errors=0`, `protected_deletions=0`, `reclaimed=6,405`, `free_after=852,484,096`, recovery=`unmet`; `df` at 23:22 was `773,540 KiB`. The stale-release error log has not changed since 23:22; the remaining lines are historical `can't open file` entries from before the stable install.
+- The stable watchdog is a recovery lane outside finite `lm_loop_run` admission. It runs the current immutable cleanup governor, but it has reclaimed only about 6 KiB per pass so far; the exact reason free space stays under 1 GiB is unresolved.
+- A follow-up executable plan is recorded at `docs/superpowers/plans/2026-10-08-revenue-admission-floor.md`. It changes only `_disk_floor` and its tests: `revenue` owners use the 1 GiB floor from #7166, borrow/support stay at 2 GiB, and the global finite-run cap remains 8. The remote PR head is still `e4b64e45bf`; this merge/plan update is not pushed yet, so old CI is not current evidence.
+
+**現在cursor:** commit latest-main merge resolution + revenue-floor plan → push branch → exact-head PR #7156 CI/fresh review/merge → natural release/readback → watchdog recovery/2 GiB admission → revenue-floor follow-up PR → Fundraiser fence readback → target natural outcomes → same-window capacity.
+
+
 ### 2026-10-08 23:25 JST — latest-main sync and implementation plan
 
 - Main advanced to `9d63ed190194f46221428b7875c97820516b40e6` (#7168) after the `066400de03` sync; the branch now includes #7168 plus the prior #7165/#7166 changes. The normal merge had one SSOT append conflict; main's Writer update and this branch's loop record are both preserved in the worktree.
