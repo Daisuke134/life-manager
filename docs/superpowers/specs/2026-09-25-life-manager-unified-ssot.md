@@ -6391,7 +6391,7 @@ Fresh read-only review rejected the idle-readback-only patch: a new StartInterva
 - This was a read-only snapshot only; no `post-metrics.jsonl` or creative ledger write occurred. `life-manager-tiktok-metrics` remains `host_admission_deferred:disk_headroom_low` with no provider receipt at its latest 14:35Z status. Persistence, copy/hook/CTA join, and future 6/24/72/168h checkpoints remain open.
 - The latest full portfolio list remains the 23:45 JST Postiz GET in the preceding item: 32 `PUBLISHED` / 90 daily target overall, TikTok 12/48, with no TikTok account at 3/3. Do not infer slideshow media type from the posts list.
 
-### 2026-10-09 00:12 JST — asset cache and installed-owner correction
+### 2026-10-09 00:20 JST — asset cache and installed-owner correction
 
 This readback supersedes the 23:35 JST statement that the mobile owners still loaded `97efe82e`.
 
@@ -6400,8 +6400,9 @@ This readback supersedes the 23:35 JST statement that the mobile owners still lo
 - Current `df -k /` readback is 3,725,828 KiB available at 99% volume capacity, above the prior 2 GiB admission floor. `lm-loop doctor --json` is still `ok=false` because `ai.anicca.life-manager-release-reconciler-self-handoff` is unmanaged. The reconciler is on `e1b061f1`; its 00:08:40 JST run for `25bee172` ended `entrypoint_exit_1` after fleet apply reported `partial` (`changed=73`, `skipped=90`, `errors=3`, `budget exceeded`) and self-handoff reported that the helper was already loaded. Do not run a duplicate fleet apply or restart while this handoff state is unresolved.
 - `life-manager-tiktok-metrics` is installed on `25bee172` but remains fenced by one `resource_effect_unknown` occurrence (`18d9f8ffb829e890-94915`); there is no provider receipt or `effect_reconcile` adapter. Do not replay the report. The earlier read-only 23:50 metrics snapshot is not durable analytics coverage.
 - **Postiz GET at 00:19 JST:** 31 integrations, 30 enabled and one disabled (`@anicca.jp8`). The local-day `/posts` query returned four rows and zero `PUBLISHED`: 0/90 across enabled integrations and 0/48 across the 16 enabled TikTok profiles at that time. This is an early-day readback, not evidence that a scheduled slot was missed; per-account slot status still needs its own owner readback.
+- PR #7156 merged at 00:18 JST as `f1dc2642`, adding its budget-progress guard to main. The selected release `25bee172` and installed reconciler `e1b061f1` predate that change, so this main merge has not yet changed or verified production handoff behavior.
 
-**Current cursor:** let the existing release handoff reach a terminal state and read back its exact target/result; then converge to an immutable release from current main `1fe7db3b` and confirm each mobile owner SHA. At the next natural mobile slots, verify that the generated pack references the persistent cache, the post has an official Postiz receipt/public URL, and no image API was called. Then resolve the metrics occurrence through an exact provider readback/adapter, persist per-post checkpoints, and continue the existing 3/day-per-account and funnel-measurement order. No new image generation or replay is required.
+**Current cursor:** let the existing release handoff reach a terminal state and read back its exact target/result; then converge to an immutable release from current main `f1dc2642` and confirm each mobile owner SHA. At the next natural mobile slots, verify that the generated pack references the persistent cache, the post has an official Postiz receipt/public URL, and no image API was called. Then resolve the metrics occurrence through an exact provider readback/adapter, persist per-post checkpoints, and continue the existing 3/day-per-account and funnel-measurement order. No new image generation or replay is required.
 
 ### 2026-10-08 16:53 JST — PR #7091 merged; production remains on old release
 
