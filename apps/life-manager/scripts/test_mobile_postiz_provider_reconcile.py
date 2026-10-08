@@ -1404,3 +1404,27 @@ def test_sweep_goes_newest_first_and_never_touches_fences_younger_than_the_safet
         owner, identity_dir=idir, admission_db=db, api_key="k", apply=True,
         list_posts=lambda *a: [], resolver=resolver, max_items=10)
     assert f"{owner}:young" not in seen
+
+
+def test_api_key_is_read_from_marketing_env_only_when_the_environment_lacks_it(tmp_path, monkeypatch):
+    """2026-10-09: the fence reconciler runs this adapter without the Postiz key, every readback
+    failed closed and 30k Anicca fences stayed open. mobile-app loads the key from marketing.env;
+    do the same, narrowly: one exact LM_POSTIZ_API_KEY line, never `source`."""
+    env = tmp_path / "marketing.env"
+    env.write_text("OTHER=1\nLM_POSTIZ_API_KEY='abc123'\nexport EVIL=$(touch /tmp/pwned)\n")
+    env.chmod(0o600)
+    monkeypatch.delenv("POSTIZ_API_KEY", raising=False)
+    monkeypatch.delenv("LM_POSTIZ_API_KEY", raising=False)
+    assert reconcile._postiz_api_key(env_file=env) == "abc123"
+    monkeypatch.setenv("POSTIZ_API_KEY", "from-env")
+    assert reconcile._postiz_api_key(env_file=env) == "from-env"
+
+
+def test_api_key_loader_ignores_unsafe_or_missing_files(tmp_path, monkeypatch):
+    monkeypatch.delenv("POSTIZ_API_KEY", raising=False)
+    monkeypatch.delenv("LM_POSTIZ_API_KEY", raising=False)
+    assert reconcile._postiz_api_key(env_file=tmp_path / "missing.env") == ""
+    world = tmp_path / "world.env"
+    world.write_text("LM_POSTIZ_API_KEY=abc\n")
+    world.chmod(0o644)
+    assert reconcile._postiz_api_key(env_file=world) == ""
