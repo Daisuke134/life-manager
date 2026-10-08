@@ -4662,3 +4662,11 @@ fresh read-only reviewerは`181d1fe578`で3つの誤判定をfixture再現した
 **修正条件:** focus直前とEnter直前に実document URL・recipient header・loaded transcript・composer内容を再検証する。contextが変わったらEnterしない。exact bubbleのstatusが明示failed/pending/sendingなら送信済み扱いにせずfenceを維持する。実生成JSのDOM fixture、26件以上のfocused suite、fresh adversarial re-reviewがPASSするまでmerge/releaseをしない。
 
 **現在cursor:** 上記P1/P2のregression再現→最小guard修正→sourceテスト→fresh re-review。host空きは`1,605,628 KiB`、2 GiB floor未満。disk-cleanup latest `apply_lock_busy`なのでprovider/browser実行はまだ保留。
+
+### 2026-10-08 09:45 JST — context guard sourceとruntime再readback
+
+- commit `2742517472`は送信前readiness・focus・本文入力後・Enter直前で同じactual document URL、recipient header、loaded transcript、composer状態を再検証する。contextが変わった場合はEnterせず`not_sent`を記録する。exact messageに明示`failed/error/pending/sending/queued/canceled/undelivered`が付く場合は成功にせず`unknown` fenceを維持する。
+- 最新focused suiteは29/29 PASS、`py_compile`と`git diff --check` PASS。provider送信/browser操作0件。P1/P2修正のfresh adversarial review、PR/new-head CIは未完了。
+- 00:44Z runtime readbackは22 Gig jobs（Coconala 7/Lancers 7/CrowdWorks 5/Mercor 3）、`loaded-idle=19 / loaded-running=3`、receipt 0。idle側`disk_headroom_low=18 / resource_capacity_busy=1`。空き`1,528,460 KiB`は2 GiB floor未満。disk-cleanup ownerのlatest occurrenceは`entrypoint_exit_1 / reconcile_owner`で、lease内のdiagnosis/recoveryを待つ。
+
+**現在cursor:** `2742517472`の生成JavaScriptを含むfresh adversarial re-review → PR/new-head CI → main統合。並列でdisk-cleanup ownerの再readbackとsafe recoveryを待つ。両gate後にCoconala Paid project lock/inbox、既存talkroomのrevision要求→正式納品→検収・精算、次にStorefront fence/inventory/sales/settlementへ進む。
