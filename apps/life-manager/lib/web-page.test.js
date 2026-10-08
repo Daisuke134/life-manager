@@ -41,8 +41,12 @@ function mountClient(html, responses = {}, href = "https://life.example/lm") {
     getAttribute(name) { return name === "href" ? this.href : null; },
   };
   const stateMatch = html.match(/id="lm-flow"[^>]*data-setup-state="([^"]*)"/);
+  const initialScanMatch = html.match(/data-initial-scan-needed="([^"]*)"/);
   const root = {
-    dataset: { setupState: stateMatch ? stateMatch[1] : "" },
+    dataset: {
+      setupState: stateMatch ? stateMatch[1] : "",
+      initialScanNeeded: initialScanMatch ? initialScanMatch[1] : "false",
+    },
     addEventListener(name, handler) { handlers[name] = handler; },
     querySelector(selector) {
       if (selector === "button[type='submit']" || selector === 'button[type="submit"]') {
@@ -120,7 +124,7 @@ test("connected state and seven-day trial offer share one screen with exact $29 
   const visible = visibleHtml(html);
 
   assert.match(visible, /Google Calendarに接続しました/);
-  assert.match(visible, /移動時間はCalendarに自動登録済みです/);
+  assert.match(visible, /対象の予定に移動時間を自動で追加します/);
   assert.match(visible, /本日のお支払いは\$0です/);
   assert.match(visible, /7日間/);
   assert.match(visible, /2030年1月8日/);
@@ -173,23 +177,38 @@ test("the trial action calls the server Checkout and redirects only to Stripe", 
   assert.deepEqual(client.redirects, ["https://checkout.stripe.com/c/pay/cs_test_123"]);
 });
 
-test("zero-block state shows a rescan action but no trial checkout", () => {
+test("zero-block state keeps the connected hard paywall and never offers a rescan action", () => {
   const html = visibleHtml(renderWebPage({
     user,
     snapshot: snapshot({
       setupState: "no_eligible_events",
       firstTravelAt: null,
       confirmedTravelBlockCount: 0,
-      checkoutAvailable: false,
+      checkoutAvailable: true,
       scanState: "zero_blocks",
     }),
+    trialOffer: { firstChargeAt: "2030-01-08T00:00:00.000Z", timezone: "Asia/Tokyo" },
   }));
 
   assert.match(html, /Calendarに接続しました/);
-  assert.match(html, /移動時間を追加できる予定はまだありません/);
-  assert.match(html, /data-action="rescan"/);
-  assert.doesNotMatch(html, /無料トライアル|Checkout|data-action="checkout"/);
+  assert.match(html, /7日間無料で試す/);
+  assert.match(html, /data-action="checkout"/);
+  assert.doesNotMatch(html, /追加できる予定はまだありません|data-action="rescan"|spinner|予定を確認しています/);
   assert.doesNotMatch(html, /lm-dashboard|homeAddress|chat thread/i);
+});
+
+test("pending initial processing renders the paywall immediately without scan UI", () => {
+  const html = visibleHtml(renderWebPage({
+    user,
+    snapshot: snapshot({
+      setupState: "needs_initial_scan", initialScanCompletedAt: null,
+      firstTravelAt: null, confirmedTravelBlockCount: 0, checkoutAvailable: true,
+    }),
+    trialOffer: { firstChargeAt: "2030-01-08T00:00:00.000Z", timezone: "Asia/Tokyo" },
+  }));
+  assert.match(html, /7日間の無料トライアルを始める/);
+  assert.match(html, /data-action="checkout"/);
+  assert.doesNotMatch(html, /spinner|予定を確認しています|再スキャン/i);
 });
 
 test("trial-active state confirms automation without rendering a daily dashboard", () => {
@@ -261,7 +280,8 @@ test("verified Messages contact link is omitted unless the server supplies one",
 test("Google auth return automatically starts Calendar OAuth using the server redirect", async () => {
   const page = renderWebPage({
     user,
-    snapshot: snapshot({ setupState: "needs_calendar", calendarState: "action_required", checkoutAvailable: false }),
+    snapshot: snapshot({ setupState: "needs_calendar", calendarState: "action_required",
+      initialScanCompletedAt: null, checkoutAvailable: false }),
   });
   const redirectUrl = "https://accounts.google.com/o/oauth2/v2/auth?state=server-value";
   const client = mountClient(page, {
@@ -275,12 +295,15 @@ test("Google auth return automatically starts Calendar OAuth using the server re
   assert.deepEqual(JSON.parse(start.init.body), {});
   assert.deepEqual(client.redirects, [redirectUrl]);
   assert.deepEqual(client.replacements, ["/lm"]);
+  assert.equal(client.requests.some((request) => request.path === "/api/lm-web/setup"), false);
 });
 
-test("Calendar return automatically runs one initial scan with an empty request body", async () => {
+test("Calendar return starts initial processing silently while keeping the connected paywall visible", async () => {
   const page = renderWebPage({
     user,
-    snapshot: snapshot({ setupState: "needs_initial_scan", checkoutAvailable: false }),
+    snapshot: snapshot({ setupState: "needs_initial_scan", initialScanCompletedAt: null,
+      firstTravelAt: null, checkoutAvailable: true }),
+    trialOffer: { firstChargeAt: "2030-01-08T00:00:00.000Z", timezone: "Asia/Tokyo" },
   });
   const client = mountClient(page, {
     "/api/lm-web/setup": { setupState: "trial_offer", checkoutAvailable: true },
@@ -291,30 +314,23 @@ test("Calendar return automatically runs one initial scan with an empty request 
   assert.equal(setup.init.method, "POST");
   assert.equal(setup.init.headers["x-lm-web-csrf"], user.csrf);
   assert.deepEqual(JSON.parse(setup.init.body), {});
-  assert.deepEqual(client.redirects, ["/lm"]);
+  assert.match(visibleHtml(page), /7日間の無料トライアルを始める/);
+  assert.deepEqual(client.redirects, []);
   assert.deepEqual(client.replacements, ["/lm"]);
 });
 
-test("zero-block rescan button sends an explicit rescan action", async () => {
+test("zero-block state has no manual rescan control", () => {
   const page = renderWebPage({
     user,
     snapshot: snapshot({
       setupState: "no_eligible_events", firstTravelAt: null,
-      confirmedTravelBlockCount: 0, checkoutAvailable: false, scanState: "zero_blocks",
+      confirmedTravelBlockCount: 0, checkoutAvailable: true, scanState: "zero_blocks",
     }),
+    trialOffer: { firstChargeAt: "2030-01-08T00:00:00.000Z", timezone: "Asia/Tokyo" },
   });
-  const client = mountClient(page, {
-    "/api/lm-web/setup": { setupState: "trial_offer", checkoutAvailable: true },
-  });
-  const button = { dataset: { action: "rescan" }, disabled: false };
-
-  await client.handlers.click({ target: { closest: () => button } });
-
-  const setup = client.requests.find((request) => request.path === "/api/lm-web/setup");
-  assert.equal(setup.init.method, "POST");
-  assert.equal(setup.init.headers["x-lm-web-csrf"], user.csrf);
-  assert.deepEqual(JSON.parse(setup.init.body), { rescan: true });
-  assert.deepEqual(client.redirects, ["/lm"]);
+  const visible = visibleHtml(page);
+  assert.doesNotMatch(visible, /data-action="rescan"|もう一度確認|再スキャン/);
+  assert.match(visible, /data-action="checkout"/);
 });
 
 test("the signed-out CTA preserves one source UTM through the auth start URL", async () => {

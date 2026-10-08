@@ -526,6 +526,7 @@ const server = http.createServer(async (req, res) => {
           supaUrl: SUPA_URL, supaKey: SUPA_KEY,
           publicOrigin: LM_PANEL_BASE, panelBaseUrl: LM_PANEL_BASE,
           composioKey: COMPOSIO_KEY, composioAuthConfig: process.env.COMPOSIO_GCAL_AUTH_CONFIG,
+          skipCalendarDetails: true,
         });
       } catch (error) {
         if (error && [401, 403].includes(error.status)) {

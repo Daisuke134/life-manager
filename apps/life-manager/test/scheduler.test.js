@@ -191,7 +191,6 @@ test("current card-backed Web trial remains eligible until trial_expires_at", as
   await travelUserOnce({
     uid: "lm_11111111-1111-4111-8111-111111111111", telegram_chat_id: null,
     daily_automation_enabled: true, paid: false, plan_status: "trialing", web_trial_payment_method_present: true,
-    web_first_travel_at: "2029-12-01T00:00:00.000Z",
     trial_expires_at: "2030-01-02T00:00:00.000Z",
   }, {
     apiKey: "provider-key", mapsKey: "maps-key", nowMs: Date.parse("2030-01-01T00:00:00.000Z"),
