@@ -208,6 +208,45 @@ class ProviderLeaseTest(unittest.TestCase):
         self.assertEqual(results, [0, 0])
         self.assertEqual([row[0] for row in rows], ["start", "end", "start", "end"])
 
+    def test_fail_fast_home_busy_returns_before_deadline_without_launching_provider(self):
+        codex_home = self.root / "codex-home"
+        codex_home.mkdir()
+        lock_path = codex_home / ".agent-runner-provider.lock"
+        lock_fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
+        fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        self.assertTrue(self._lease_is_busy(lock_path))
+
+        started = self.root / "provider-started"
+        provider = self.root / "provider.py"
+        provider.write_text(
+            "from pathlib import Path\n"
+            f"Path({str(started)!r}).touch()\n",
+            encoding="utf-8",
+        )
+        began = time.monotonic()
+        try:
+            with self.assertRaises(ProviderLeaseBusy):
+                run_provider_process(
+                    [sys.executable, str(provider)],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    timeout=1,
+                    cwd=str(self.root),
+                    input_bytes=None,
+                    stdin=subprocess.DEVNULL,
+                    env={
+                        **os.environ,
+                        "CODEX_HOME": str(codex_home),
+                        "LIFE_MANAGER_CODEX_HOME_BUSY_POLICY": "fail_fast",
+                    },
+                )
+        finally:
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)
+            os.close(lock_fd)
+
+        self.assertLess(time.monotonic() - began, 0.25)
+        self.assertFalse(started.exists())
+
     def test_stable_provider_completion_fallback_is_sealed_to_result_path(self):
         fallback = self.root / "pass-result.json"
         result = self.root / "attempt-01.result.json"

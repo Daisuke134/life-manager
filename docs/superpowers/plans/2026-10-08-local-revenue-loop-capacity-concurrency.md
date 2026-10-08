@@ -30,11 +30,11 @@ Connector、Job Hunter、Fundraiserの既存loopを、現行`lm-loop`上で安�
 - `control.lock`、`synchronous=FULL`、current DELETE journal contract、migration rollback、effect-unknown rowsを保持する。
 - RED/GREEN: 実writer lock下で旧`BEGIN IMMEDIATE`が失敗し、修正後にpass。全`runtime/host/tests/test_resource_admission.py`は137/137 pass。main/release/productionへの反映は未完。
 
-### 3. 3 task classに既存Codex profile候補を追加
+### 3. [完了: source branch] 既存Codex profile orderでhome busyをfail-fast
 
-- `runtime/agent-runner/config.json`の`connector-agent`、`job-hunter-agent`、`fundraiser-agent`だけを対象にする。各taskに`acct1`、`acct2`の同一model/effort/service-tier候補を設定する。
-- `runtime/agent-runner/agent_runner.py::run_provider_process`のhome lock待機を、provider process起動前のtyped busyへ変更する。profile候補の順に試し、全候補busyなら短時間でretryable exitする。
-- `runtime/agent-runner/tests/test_provider_lease.py`と`runtime/agent-runner/tests/test_codex_account_failover.py`で、同一homeの重複禁止、別homeの同時実行、busy時に次候補へ進むこと、provider起動後のtimeout/errorではfailoverしないことを確認する。
+- `runtime/agent-runner/config.json`は`account_profile_order=[acct1,acct2]`で既に候補展開する。3専用task classだけに`fail_fast_provider_lease=true`を追加し、同じ`gpt-6-luna/max/fast`を維持する。
+- `runtime/agent-runner/agent_runner.py::run_provider_process`は対象taskのCodex home lock busyを既存nonblocking lease helperで起動前に返す。`codex_failover_action`はこのtyped busyだけ次profileへ進め、全profile busyはretryable exit 75にする。provider起動後のtimeout/errorではfailoverしない。通常task classの同home直列待ちは維持する。
+- `runtime/agent-runner/tests/test_provider_lease.py`と`runtime/agent-runner/tests/test_codex_account_failover.py`は42 passed / 24 subtests passed。
 - 実装前に既存profileの`codex login status`をread-only・sanitizedで再確認する。認証値を出力しない。
 
 ### 4. Connector/Fundraiser browserをtask-owned contextへ移し、probeをread-only化

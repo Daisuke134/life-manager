@@ -29,10 +29,12 @@ class CodexProfileBoundaryTest(unittest.TestCase):
             candidates = [
                 {"provider": "codex", "model": "fixture-model", "effort": "medium",
                  "profile_alias": "acct1", "automation_home": "/fixture/acct1",
-                 "auth_file": "/fixture/acct1-auth", "account_fallback_next": True},
+                 "auth_file": "/fixture/acct1-auth", "account_fallback_next": True,
+                 "fail_fast_provider_lease": True},
                 {"provider": "codex", "model": "fixture-model", "effort": "medium",
                  "profile_alias": "acct2", "automation_home": "/fixture/acct2",
-                 "auth_file": "/fixture/acct2-auth", "account_fallback_next": False},
+                 "auth_file": "/fixture/acct2-auth", "account_fallback_next": False,
+                 "fail_fast_provider_lease": True},
             ]
             if include_claude:
                 candidates.append({"provider": "claude", "model": "fixture-claude"})
@@ -210,6 +212,23 @@ class CodexProfileBoundaryTest(unittest.TestCase):
             self.assertEqual(env["CODEX_HOME"], str(root / "automation"))
             self.assertEqual((root / "automation/auth.json").resolve(), auth.resolve())
 
+    def test_local_revenue_tasks_keep_luna_fast_and_expand_existing_account_order(self):
+        config = json.loads((ROOT / "config.json").read_text(encoding="utf-8"))
+        for name in ("connector-agent", "job-hunter-agent", "fundraiser-agent"):
+            with self.subTest(task_class=name):
+                candidates = config["task_classes"][name]["candidates"]
+                self.assertEqual(len(candidates), 1)
+                candidate = candidates[0]
+                self.assertEqual(candidate["model"], "gpt-6-luna")
+                self.assertEqual(candidate["effort"], "max")
+                self.assertEqual(candidate["service_tier"], "fast")
+                self.assertTrue(candidate.get("fail_fast_provider_lease"))
+                resolved = resolve_provider_profiles(candidates, config["providers"])
+                self.assertEqual(
+                    [row["profile_alias"] for row in resolved],
+                    ["acct1", "acct2"],
+                )
+
     def test_codex_candidate_without_profile_alias_fails_closed(self):
         with self.assertRaisesRegex(ValueError, "profile_alias"):
             resolve_provider_profiles(
@@ -386,10 +405,11 @@ class CodexProfileBoundaryTest(unittest.TestCase):
                     ("claude", None, "success"),
                 ])
 
-    def test_run_codex_home_busy_calls_claude_once(self):
+    def test_run_codex_home_busy_tries_other_account_before_claude(self):
         status, calls = self._run_candidate_fixture(
             {
                 ("codex", "acct1"): "busy",
+                ("codex", "acct2"): "busy",
                 ("claude", None): "success",
             },
             include_claude=True,
@@ -397,8 +417,47 @@ class CodexProfileBoundaryTest(unittest.TestCase):
         self.assertEqual(status, 0)
         self.assertEqual(calls, [
             ("codex", "acct1", "busy"),
+            ("codex", "acct2", "busy"),
             ("claude", None, "success"),
         ])
+
+    def test_run_codex_home_busy_selects_next_account_without_cross_provider_retry(self):
+        status, calls = self._run_candidate_fixture(
+            {
+                ("codex", "acct1"): "busy",
+                ("codex", "acct2"): "success",
+                ("claude", None): "success",
+            },
+            include_claude=True,
+        )
+        self.assertEqual(status, 0)
+        self.assertEqual(calls, [
+            ("codex", "acct1", "busy"),
+            ("codex", "acct2", "success"),
+        ])
+
+    def test_all_codex_homes_busy_returns_retryable_without_charging_tokens(self):
+        with mock.patch.dict(os.environ, {
+            "ANICCA_BUDGET_SCOPE_ID": "codex-home-busy-exhaustion-fixture",
+            "ANICCA_PASS_TOKEN_BUDGET": "1000",
+            "ANICCA_LOOP_DAILY_TOKEN_BUDGET": "10000",
+        }, clear=False):
+            status, calls, attempts, budget_events = self._run_candidate_fixture(
+                {("codex", "acct1"): "busy", ("codex", "acct2"): "busy"},
+                include_claude=False,
+                return_records=True,
+            )
+        self.assertEqual(status, 75)
+        self.assertEqual(calls, [
+            ("codex", "acct1", "busy"),
+            ("codex", "acct2", "busy"),
+        ])
+        self.assertEqual(
+            [row["error_class"] for row in attempts],
+            ["codex_home_busy", "codex_home_busy"],
+        )
+        settlements = [row for row in budget_events if row.get("type") == "settlement"]
+        self.assertEqual([row["charged_tokens"] for row in settlements], [0, 0])
 
     def test_fresh_unavailable_without_runtime_work_calls_claude_once(self):
         status, calls = self._run_candidate_fixture(

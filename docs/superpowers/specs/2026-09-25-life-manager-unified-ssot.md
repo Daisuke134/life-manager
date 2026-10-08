@@ -5838,12 +5838,13 @@ This snapshot supersedes the 13:59–14:04 source/release status. PR #7055 backo
 
 **進捗（2026-10-08 14:17 JST）:** `runtime/host/tests/test_resource_admission.py::test_open_current_schema_does_not_wait_for_writer_lock`を追加し、既存writer lockの下で現行`BEGIN IMMEDIATE`が`database is locked`を出すREDを確認した。`_database_schema_is_current`がcurrent schemaではmigration transactionを省く最小変更後、回帰testと`runtime/host/tests/test_resource_admission.py`全体が137/137 pass。変更は専用branchのsourceだけで、main/release/productionには未反映。
 
+**進捗（2026-10-08 14:23 JST）:** 既存`account_profile_order`が`acct1`から`acct2`へのCodex候補展開をすでに行うため、候補設定は増やさず、3専用task classだけに`fail_fast_provider_lease=true`を追加した。busyは既存のnonblocking provider lease helperでprovider起動前にtypedに返し、acct2へ進む。両home busy時はexit 75 / token charge 0。既存のquota/auth/timeout failover規則と通常classの同home直列待ちは維持する。REDはhome lock下1秒待ち、acct2を飛ばす、全busyがexit 1となる挙動。GREEN後、`test_provider_lease.py`と`test_codex_account_failover.py`は42 passed / 24 subtests passed。変更は専用branchのみで、main/release/productionには未反映。
+
 **残TODO（完了までの順序）:**
 
 1. Provider read-only reconciliationを継続する。LAUNCH exact status/receiptとDanaher Workday、DeepScale official statusを同一targetへ結合する。証明不足ならfenceを維持する。この読み取りはsource作業と並行する。
-2. **現在cursor — provider profile pool:** `runtime/agent-runner/config.json`の3専用task classへ既存`acct1`/`acct2`候補を設定し、`runtime/agent-runner/agent_runner.py`をprovider起動前のtyped home-busyで即時failoverする。gpt-6-luna/max/fast、homeごとのexclusive lock、開始後timeout時のno-failoverを維持し、profile lease/account-failoverのfocused testsをpassさせる。
-3. Connector/Fundraiserを既存task-owned CDP contextへ移し、Connector controllerをleased contextだけに限定する。session-vault seed/authを確認するまではprofile lockを短縮しない。browser capacity probeは登録daily-driverへのread-only status/countへ変え、Chromiumを起動しない。durable owner resource classは変えない。
-4. source-boundary、target focused tests、`./bin/lm-loop-contract`、fresh read-only review、required CIをPASSさせ、PRをmainへ統合する。
-5. active release reconcilerの自然terminalとshared apply lockをreadbackし、fresh disk/admission snapshotを取る。latest-main immutable release後、Connector、Job Hunter daily/health/inbox、Fundraiserをtarget owner単位でapplyし、loaded SHA/argv/envを確認する。現在のglobal `doctor=false`原因は別ownerなので変更しない。対象限定applyの安全性が証明できない場合だけ具体的なowner blockerとして残す。
-6. 各loopを自然runし、ConnectorのLuma registration + Calendar + Telegram receipt、Job HunterのWorkday official application state + Telegram outcome、Fundraiserの新規VC/AI founder Gmail provider message ID + exact Sent + Telegram receiptを同一occurrenceで照合する。既存unknown targetは候補から除外し、再送しない。
-7. 3 loopのproduction readbackとreplay-zeroを確認する。旧Danaher/DeepScale/LAUNCH targetはofficial statusまたはstrict verified-pre-effect proofだけでcloseし、証拠不足はfencedのまま明示する。全gate後、このlaneを完了し全社SSOTの次cursor `MX-01`へ戻る。
+2. **現在cursor — browser contextとcapacity probe:** Connector/Fundraiserを既存task-owned CDP contextへ移し、Connector controllerをleased contextだけに限定する。session-vault seed/authを確認するまではprofile lockを短縮しない。browser capacity probeは登録daily-driverへのread-only status/countへ変え、Chromiumを起動しない。durable owner resource classは変えない。
+3. admission/provider/browserのfocused tests、source-boundary、`./bin/lm-loop-contract`、fresh read-only review、required CIをPASSさせ、PRをmainへ統合する。
+4. active release reconcilerの自然terminalとshared apply lockをreadbackし、fresh disk/admission snapshotを取る。latest-main immutable release後、Connector、Job Hunter daily/health/inbox、Fundraiserをtarget owner単位でapplyし、loaded SHA/argv/envを確認する。現在のglobal `doctor=false`原因は別ownerなので変更しない。対象限定applyの安全性が証明できない場合だけ具体的なowner blockerとして残す。
+5. 各loopを自然runし、ConnectorのLuma registration + Calendar + Telegram receipt、Job HunterのWorkday official application state + Telegram outcome、Fundraiserの新規VC/AI founder Gmail provider message ID + exact Sent + Telegram receiptを同一occurrenceで照合する。既存unknown targetは候補から除外し、再送しない。
+6. 3 loopのproduction readbackとreplay-zeroを確認する。旧Danaher/DeepScale/LAUNCH targetはofficial statusまたはstrict verified-pre-effect proofだけでcloseし、証拠不足はfencedのまま明示する。全gate後、このlaneを完了し全社SSOTの次cursor `MX-01`へ戻る。
