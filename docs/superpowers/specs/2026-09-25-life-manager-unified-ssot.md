@@ -714,6 +714,20 @@ TODO（何を・どう直すか）
 | L25 | host ディスクの空きを 11GiB 以上に戻す（全 loop の再開条件） | **blocker（host 全体）**。Data 228Gi 中 198〜200Gi 使用、空き 3〜6Gi。測定済み ~65G（.local 15G、gig 8.7G=進行中の受託案件、.cloak 10G、Projects 11G、loops 8.3G=全 release/bundle が稼働プロセスか保護リストで参照中、anicca-project 4.9G、.openclaw 4.8G）、残り ~130G は所在調査中（read-only エージェント）。LINE 側は申請済みセットの不要中間ファイルを自動削除済み（#6924） |
 | L27 | 上位セラーを継続的に写す（新規 `market.py`。10 セット申請・4 販売中・売上¥0 のまま、planner が market 調査を一度も見ていなかった） | DONE: `skills/earn/line-sticker/market.py` が LINE STORE `top_creators`（全件+動く系 `category=2000`）・`new_creators` を login 不要の HTTP GET で毎日読み（`market.json` の `observed_at` で自己ゲート、`line-sticker-readback.sh` から `sales_readback.py` の直後に1行追加で呼ぶ）、上位 40 件を product_id 順に dedup して各商品ページの schema.org JSON-LD（title/description/price/author）とスタンプ一覧の `data-preview` type（static/animated/popup・枚数）を抽出、著者ページで著者のシリーズ本数（`author_sets`）も記録。上位 15 件だけ `agent_runner.py` にサムネイルを渡し文字有無・テーマ・画風・フレーズを分類。`line_sticker_planner._build_plan_prompt` は market 上位 15 件を見せ、`copy_target`（商品URL・テーマ・フレーズ・表現スタイル・文字有無・タイトルの型）を plan.schema.json の必須フィールドに追加（他者のキャラ・絵・文字の複製は禁止、企画パターンだけ写す）。市場が静止/文字入り中心なら `format_gap` に記録（別 TODO、今回は着手しない）。2026-10-08 実測スイープ（40件、分類なしの dry-run）: フォーマット static 24 / animated 15 / popup 1、価格帯 ¥190（静止の大半）〜¥250（動く系の大半）、上位は例外なく既存キャラの多セット展開（例: ナガノ34セット、動画工房36セット）。テスト: `tests/test_market.py`（新規、HTML fixture ベース・ネットワーク無し）+ `tests/test_line_sticker_planner.py`/`tests/test_factory.py` 追加分、全 green。`./bin/lm-loop-contract` PASS |
 
+#### 5.L 実行順（2026-10-08 Dais「1 つずつ最後まで」。この表が LINE スタンプの cursor の正本）
+
+成功者の稼ぎ方（一次・準一次ソース）: LINE 公式 10 周年 累計 1,000 億円・上位 10 名平均 13.52 億円（9 割は月数百円）; ゲスくま（ITmedia 2015-12-28）「ランキング上位で一番使いやすいものに合わせて作る」「1 位を 10 週で月 100 万円」; urajo（本人 note）10 年量産＋シリーズ化で 2023-02 売上 37 万円・分配 22 万円、累計 1,000 万円超; ユニコブログ 猫×毎日使える言葉で初日 2.7 万円。共通点 = ①ランキングの型を写す ②1 キャラ量産・シリーズ ③絵より送りやすい言葉 ④発売直後に SNS で人を集める。静止の最低価格は 2026-07-01 から ¥190。
+
+| 順 | ID | 1 つの作業 | 完了条件 | 状態 |
+|---|---|---|---|---|
+| 1 | L19 | 静止スタンプ（¥190）ラインを本番で 1 セット申請 | Creators Market で審査待ちを readback | 進行中（#7039 merge 済み） |
+| 2 | L28 | 画像生成を ChatGPT サブスク（`~/.agents/skills/chatgpt-imagegen`）に統一し原価 0 | 静止・キャラ画像が chatgpt-imagegen で生成され cost_usd 0 を記録 | 進行中 |
+| 3 | L26 | 特集（例 835 冬を感じるスタンプ）に条件が合えば自動参加 | #7034 merge・release・次の申請で参加を readback | CI 待ち。手動で 48137583 を 835 に参加済み |
+| 4 | L29 | 動くスタンプを fal ではなく ChatGPT のコマ画像→APNG で作る（fal 残高 −$10.95 で停止中） | 1 セットを無課金で生成し申請 | 未 |
+| 5 | L20 | 文字入り版（「了解」「ありがとう」等）を別 SKU で出す | 1 セット申請 | 未 |
+| 6 | L17 | IG の日常投稿・交流を回す（10/10 から engagement と bio リンク） | 自然 slot の新規 reel と ledger、10/10 以降の engagement 記録 | 仕組み本番済み、ホスト停止中は保留 |
+| 7 | L21 | 1 キャラのシリーズ本数を増やす（売上が出た型を優先） | sales.json に売上が出たキャラの続編が出る | 自動（L18/L27 配線済み） |
+
 ### 5.1 自己修復・自己改善の定義（T5 / T12 の正本）
 
 **目的**: Life Manager が、外部の coding agent（Dais が操作する Claude Code や Codex のセッション）にも人にも頼らず、自分の問題を見つけて、自分で直し、自分で改善すること。人と外部 agent はループの外にいる。
