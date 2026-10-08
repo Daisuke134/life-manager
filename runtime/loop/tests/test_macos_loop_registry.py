@@ -1773,3 +1773,14 @@ class MobileAppEffectReconcileTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_article_daily_declares_its_live_url_fence_reconcile():
+    """2026-10-09: one effect_unknown admission row from 9/29 kept article-daily deferred for 10 days
+    because the owner had no effect_reconcile.  Its adapter closes only on a live-URL publish proof."""
+    import json
+    from pathlib import Path
+    registry = json.loads((Path(__file__).resolve().parents[3] / "config/loop-registry.json").read_text())
+    rec = registry["loops"]["article-daily"].get("effect_reconcile") or {}
+    assert rec.get("argv") == ["skills/writer-agent/scripts/article_fence_reconcile.py"]
+    assert rec.get("occurrence_flag") == "--occurrence" and rec.get("resolve_flag") == "--resolve"

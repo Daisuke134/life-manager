@@ -566,6 +566,12 @@
       },
       "domain": "earn",
       "effect_class": "publish",
+      "effect_reconcile": {
+        "argv": ["skills/writer-agent/scripts/article_fence_reconcile.py"],
+        "occurrence_flag": "--occurrence",
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 120
+      },
       "entrypoint": "skills/writer-agent/article-daily.sh",
       "label": "ai.anicca.article-daily",
       "system_role": "shared",
