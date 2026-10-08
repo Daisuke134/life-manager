@@ -22,6 +22,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 import urllib.error
 import urllib.request
 import zipfile
@@ -55,6 +56,10 @@ TEXT_STROKE_PX = 6
 # market.json 2026-10-08: of the top 40, 21 are 40-sticker sets, 17 are 24, none are 16. Every
 # 40-set reaches its highest rank on sticker count alone; LINE's static maximum is 40.
 STATIC_STICKER_COUNT = 40
+# One wake may run 90 min (runtime_timeout_seconds 5400) and 40 images take ~80 min, so a wake stops
+# making images after this budget and leaves the rest for the next wake (stage stays "images").
+IMAGE_BUDGET_SECONDS = 3600
+_monotonic = time.monotonic
 TEXT_MARK = {"ja": "【文字入り】", "en": " (with text)"}
 GENERIC_TITLE_SUFFIXES = ("スタンプ", " Stickers", " stickers", " Sticker")
 
@@ -305,10 +310,13 @@ def static_images(set_dir: Path, plan: dict) -> None:
     ref = set_dir / plan.get("reference", "ref-padded.png")
     character_prompt = plan.get("character_prompt", "")
     with_text = plan.get("text_mode") == "with_text"
+    started = _monotonic()
     for sticker in plan["stickers"]:
         png_path = out / f"{sticker['id']}.png"
         if png_path.exists() and not _has_black_box(png_path):
             continue
+        if _monotonic() - started > IMAGE_BUDGET_SECONDS:
+            return  # run_images sees the missing ones and keeps the stage; the next wake continues
         image, backend, cost = _generate_sticker_image(
             ref, character_prompt, sticker["prompt"], f"line-sticker-static-image-{set_dir.name}-{sticker['id']}")
         _fit_sticker(image, sticker.get("text") if with_text else None).save(png_path)
