@@ -50,8 +50,17 @@ case "${1:-}" in
     service="$2"
     state="$(cat "$state_file")"
     case "$service:$state" in
-      gui/*/ai.anicca.life-manager-release-reconciler:unknown)
+      gui/*/ai.anicca.life-manager-release-reconciler:not_running)
         printf 'state = not running\n'
+        exit 0
+        ;;
+      gui/*/ai.anicca.life-manager-release-reconciler:not_running_pid)
+        printf 'state = not running\n'
+        printf 'pid = 42\n'
+        exit 0
+        ;;
+      gui/*/ai.anicca.life-manager-release-reconciler:unknown)
+        printf 'state = bootstrapping\n'
         exit 0
         ;;
       gui/*/ai.anicca.life-manager-release-reconciler:old)
@@ -104,6 +113,99 @@ exit 64
         )
         script.chmod(script.stat().st_mode | stat.S_IEXEC)
         return script
+
+    def _run_handoff_fixture(self, root: Path, launchd_state: str):
+        home = root / "home"
+        (home / "loops").mkdir(parents=True)
+        label = "ai.anicca.life-manager-release-reconciler"
+        fake_launchctl = self._fake_launchctl(root)
+        state_file = root / "launchd-state"
+        state_file.write_text(launchd_state, encoding="utf-8")
+        log_file = root / "launchd.log"
+        handoff_plist = root / "self-handoff.plist"
+        handoff_plist.write_bytes(plistlib.dumps({
+            "Label": "ai.anicca.life-manager-release-reconciler-self-handoff",
+            "ProgramArguments": [str(HANDOFF)],
+        }))
+        target_plist = root / "target.plist"
+        target_plist.write_bytes(plistlib.dumps({
+            "Label": label,
+            "ProgramArguments": [
+                "/target/bin/lm-loop-run",
+                "life-manager-release-reconciler",
+                "/target",
+            ],
+            "EnvironmentVariables": {
+                "LIFE_MANAGER_RELEASE_SHA": "0123456789012345678901234567890123456789",
+            },
+        }))
+        receipt = root / "self-handoff-receipt.json"
+        watcher_parent = subprocess.Popen(["/usr/bin/true"])
+        watcher_pid = str(watcher_parent.pid)
+        self.assertEqual(watcher_parent.wait(), 0)
+        env = {
+            **os.environ,
+            "HOME": str(home),
+            "TMPDIR": str(root),
+            "PYTHONPATH": str(ROOT),
+            "FAKE_LAUNCHD_STATE": str(state_file),
+            "FAKE_LAUNCHD_LOG": str(log_file),
+            "LIFE_MANAGER_RUNTIME_PYTHON": os.environ.get("PYTHON", "python3"),
+            "LIFE_MANAGER_RECONCILER_HANDOFF_LOCK_WAIT_SECONDS": "5",
+        }
+        result = subprocess.run(
+            [
+                "/bin/bash", str(HANDOFF),
+                "--parent-pid", watcher_pid,
+                "--old-service", label,
+                "--helper-service", "ai.anicca.life-manager-release-reconciler-self-handoff",
+                "--target-plist", str(target_plist),
+                "--handoff-plist", str(handoff_plist),
+                "--receipt", str(receipt),
+                "--launchctl", str(fake_launchctl),
+            ],
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        evidence = json.loads(receipt.read_text(encoding="utf-8"))
+        commands = log_file.read_text(encoding="utf-8").splitlines()
+        return result, evidence, commands, state_file, target_plist
+
+    def test_handoff_accepts_not_running_old_service_without_pid(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            result, evidence, commands, state_file, target_plist = self._run_handoff_fixture(
+                root, "not_running",
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(evidence["status"], "ok")
+            self.assertEqual(evidence["old_service_state"], "not running")
+            self.assertEqual(evidence["target_release_sha"],
+                             "0123456789012345678901234567890123456789")
+            domain = f"gui/{os.getuid()}"
+            old_service = f"{domain}/ai.anicca.life-manager-release-reconciler"
+            bootout_index = commands.index(f"bootout {old_service}")
+            self.assertGreaterEqual(
+                sum(command == f"print {old_service}" for command in commands[:bootout_index]),
+                2,
+            )
+            self.assertIn(f"bootstrap {domain} {target_plist}", commands)
+            self.assertEqual(state_file.read_text(encoding="utf-8"), "target")
+
+    def test_handoff_fails_closed_when_not_running_has_pid(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            result, evidence, commands, _, _ = self._run_handoff_fixture(root, "not_running_pid")
+            self.assertEqual(result.returncode, 69, result.stderr)
+            self.assertEqual(evidence["error"], "old_service_not_running_pid_present")
+            self.assertEqual(evidence["old_service_state"], "not running")
+            domain = f"gui/{os.getuid()}"
+            self.assertNotIn(
+                f"bootout {domain}/ai.anicca.life-manager-release-reconciler",
+                commands,
+            )
 
     def test_handoff_waits_for_parent_then_bootstraps_target_and_records_readback(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -599,7 +701,7 @@ exit 64
             self.assertEqual(state_file.read_text(encoding="utf-8"), "unknown")
             evidence = json.loads(receipt.read_text(encoding="utf-8"))
             self.assertEqual(evidence["error"], "old_service_state_unknown")
-            self.assertEqual(evidence["old_service_state"], "not running")
+            self.assertEqual(evidence["old_service_state"], "bootstrapping")
             self.assertEqual(evidence["run_lock"]["status"], "acquired")
             commands = log_file.read_text(encoding="utf-8").splitlines()
             domain = f"gui/{os.getuid()}"

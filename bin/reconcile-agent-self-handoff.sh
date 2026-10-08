@@ -199,6 +199,11 @@ while :; do
         [ "$idle_observations" -ge 2 ] && break
       fi
       ;;
+    "not running")
+      [ -z "$old_pid" ] || fail_handoff "old_service_not_running_pid_present" 69
+      idle_observations=$((idle_observations + 1))
+      [ "$idle_observations" -ge 2 ] && break
+      ;;
     running)
       case "$old_pid" in
         ''|0|1|*[!0-9]*)
