@@ -4600,3 +4600,30 @@ L9-11 Self-BuildはこのGig laneの全項目完了後、既存の全社順序�
 - CrowdWorks Applicationはowner runが`effect=unknown`・provider receiptなし。CrowdWorks source修正worktreeもactive lease中。Mercor Applicationも`resource_effect_unknown`・receiptなし。双方とも新たな応募・返信を再試行しない。
 
 **現在cursor:** L9-07 Coconala Paid owner natural terminal / project lock release / exact official readback。floor回復だけではPaid結果やinbox receiptの成功を意味しない。
+
+### 2026-10-08 09:37 JST — TikTok distribution outage takes mobile cursor
+
+このmobile-lane更新は08:58のTikTok配信snapshotとTODO順を置き換える。TikTok配信をmobileの最優先にする。私はcapacityを作業目的のように扱いすぎた。capacityは投稿を再開するための直近gateであり、成果そのものではない。
+
+**確認した事実:**
+
+- 09:33の2枚の画像は`@anicca.jp`と`@anicca.jp1`の過去投稿・再生数を示す。投稿日時は画面に出ておらず、09-28以降のPostiz配信や現在のslideshow投稿の証明ではない。
+- このturnで得た最新のPostiz公式GET（09:34 JST）はTikTok integration 17件（enabled 16 / disabled 1）。10/07 JSTは21 `PUBLISHED`で、enabled 16件の目標48件に未達。9 enabled accountは0件。10/08は09:34までに`@obou_anicca`の1件、残る15 enabled accountは0件だった。このGETは公開件数を示すが、各投稿がslideshowだったか、views/engagementはいくらかまでは示さない。
+- 09:37 JSTの`lm-loop status --json`では、Anicca EN affirmation、EN slideshow、EN2、HE、JP1、JP4、Buddha、main TikTokなど複数ownerの最新試行が`host_admission_deferred:disk_headroom_low`で終了している。これらの試行はPostiz dispatch前に延期された。過去の`effect_unknown`は別のfenceとして残り、再送許可にはならない。
+- 09:37 JSTの`df -Pk /`は空き`1,131,632 KiB`で、runtimeの2 GiB基準未満。disk-cleanup ownerは`apply_lock_busy`、release reconcilerは`loaded-running`。手動restartや並行applyはしない。
+- `config/marketing-destinations.json`にはTikTok route 12件とhold 7件がある。holdの内訳はPostiz enabledだが未routeの4 profile（`@anicca.comedy`、`@anicca.daily`、`@aniccajp`、`@aniccajp2`）、disabled integrationの`@anicca.jp8`、integration未接続の`@anicca.videojp`と`@anicca_girl`。従って現在のroute coverageは接続済みprofile全部をまだ覆っていない。
+
+**原因と最小source修正:** 複数TikTok ownerが共有disk floorでPostiz接続前に拒否されている。登録済みcleanup allowlistに再生成可能な`~/Library/Developer/Xcode/DerivedData`が無く、09:09のread-only inventoryでは約3.5 GiBを占めていた。`fix/disk-cleanup-xcode-deriveddata-20261008`のcandidateはこのexact cache rootだけをcleanup対象にし、既存のopen-file/use guardを維持し、隣接する`Archives`は対象外とする。source candidateはfull-checkout CI、main merge、immutable release、自然cleanup receiptとfresh capacity readbackを通るまで本番修正完了ではない。
+
+**新mobile TODO順:**
+
+1. `fix/disk-cleanup-xcode-deriveddata-20261008`のDerivedData allowlist修正を完了する。focused cleanup suiteを実行してcommit/pushし、required CIを通してからmainへ統合する。DerivedDataを手動削除したりopen-file guardを弱めたりしない。
+2. 現行release reconcilerの自然terminal後、registered cleanup ownerをmain由来immutable releaseから自然実行させる。`free >= 2 GiB`、`errors=0`、`protected_deletions=0`をreceiptで確認し、mobile ownerごとのloaded SHA/argv/admission/次slotをreadbackする。容量回復は投稿receiptではない。
+3. 既存TikTok `effect_unknown` occurrenceをowner経由で一件ずつofficial Postiz readbackと突合する。provider post、integration、occurrence、caption/media identity、timestampが一意な時だけreceiptを保存し、同一eventのreplay-zeroを確認する。曖昧または未一致ならholdを保つ。
+4. Postizで現存する全TikTok profileのrouteを完成する。既存approved slideshow/mediaを再利用しcaption/hookだけ変える。4 enabled holdを既存ownerへ追加し、`@anicca.jp8`を既存owner/config経由で復旧する。`@anicca.videojp`と`@anicca_girl`は接続済み・retired・接続待ちのどれかを公式状態で確定し、接続が無いものを配信済みとして数えない。
+5. 各有効profileで、異なるcopy variantによる3つのunique `PUBLISHED` receiptをJST日単位で確認する。17 connected profilesを対象にすると51件/日。account別・integration別・unique provider post IDで確認し、あるaccountの過剰投稿で別accountの不足を埋めない。まず次の自然slot、その後に完全なJST日を通して継続性を確認する。
+6. TikTokのpost-level views/engagementをfixed checkpointsで収集し、account、post、caption variant、CTA/store link、campaignへ結合する。未提供metricはunknownのままにする。同時にASC impressions/product-page views/first-time downloads、RevenueCat trial/paid/refund/MRRをapp/campaign単位で照合する。RevenueCat MRRをsettled net revenueと混ぜない。
+7. Mixpanel/PostHogの実イベントを監査し、install→onboarding→paywall→trial/purchaseのcohort計測を補完する。基準値が取れてからcontentまたはonboardingの仮説を一つずつ試し、勝ちvariantを残す。
+8. Anicca iOSでASC first-time downloadsを100件/日（trailing 7-day平均）まで伸ばし、実証したplaybookを他の既公開appsへ順次展開する。その後、cohort根拠に基づきonboarding/paywallを改善する。ASOはstore-page conversionが詰まりとASC evidenceで確認できた場合に行う。USD 10,000 verified net MRRは、settled receipt/refund/fee/actual costで確認するまで未達目標。
+
+**現在cursor:** item 1。TikTok ownerをdisk admissionから通せるよう、cleanupの狭いDerivedData source修正を完成・昇格させる。最新の確かな配信実績は10/07の21/48、10/08は09:34まで1件。全profileのslideshow配信やviews/engagementが機能しているとは報告しない。

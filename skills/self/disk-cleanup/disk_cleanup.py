@@ -80,6 +80,7 @@ EXACT_CACHE_ROOTS = {
     "npx-cache": ".npm/_npx",
     "github-cache": ".cache/gh",
     "swiftpm-cache": "Library/Caches/org.swift.swiftpm",
+    "xcode-derived-data-cache": "Library/Developer/Xcode/DerivedData",
     "whisper-model-cache": ".cache/whisper",
     "zig-cache": ".cache/zig",
 }
