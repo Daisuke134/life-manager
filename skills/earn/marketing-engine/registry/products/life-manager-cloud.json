@@ -1,0 +1,35 @@
+{
+  "schema_version": "marketing.product.v1",
+  "product_id": "life-manager-cloud",
+  "type": "web_app",
+  "live_status": "public_web_entry_live_auth_callback_success_unverified",
+  "destination_url": "https://aniccaai.com/lm",
+  "price": {"amount": 29, "currency": "USD", "basis": "monthly_after_7_day_card_required_trial"},
+  "approved_claims": [
+    "Connect Google Calendar to let Life Manager add travel blocks for eligible in-person events",
+    "Life Manager calculates travel time and departure time from available event location and route information",
+    "Life Manager does not read Gmail",
+    "The seven-day free trial requires a payment method, then renews at USD 29 per month until canceled",
+    "Events without a sufficiently resolved location are left unchanged rather than guessed"
+  ],
+  "cta": "Connect Google Calendar",
+  "conversion_events": [
+    "landing_view",
+    "google_connect_start",
+    "google_authenticated",
+    "calendar_active",
+    "first_travel_block",
+    "checkout_created",
+    "trial_started",
+    "paid_invoice"
+  ],
+  "revenue_events": ["paid_invoice", "refund_recorded", "subscription_canceled"],
+  "margin_rule": "Use verified Stripe invoices and refunds; subtract Stripe fees, route and Composio usage, hosting, and attributed marketing spend once. Keep unmeasured costs unknown.",
+  "audiences": [
+    "Japanese commuters who check Calendar and Maps repeatedly to avoid arriving late",
+    "People traveling to appointments, meetings, classes, and events with changing locations"
+  ],
+  "metric_adapters": ["life-manager-web-funnel-report", "stripe", "first-touch-utm"],
+  "primary_metric": "stripe_verified_paid_mrr",
+  "attribution_method": "first_touch_utm_to_life_manager_web_funnel"
+}

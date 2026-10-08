@@ -7,7 +7,7 @@
   "properties": {
     "schema_version": {"const": "marketing.product.v1"},
     "product_id": {"type": "string", "minLength": 1},
-    "type": {"enum": ["ios_app", "ebook"]},
+    "type": {"enum": ["ios_app", "ebook", "web_app"]},
     "live_status": {"type": "string", "minLength": 1},
     "destination_url": {"type": "string", "format": "uri", "pattern": "^https://"},
     "price": {"type":"object","additionalProperties":false,"required":["amount","currency","basis"],"properties":{"amount":{"type":"number","minimum":0},"currency":{"type":"string","minLength":3},"basis":{"type":"string","minLength":1}}},
