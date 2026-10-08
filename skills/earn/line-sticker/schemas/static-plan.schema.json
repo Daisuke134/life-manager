@@ -1,7 +1,7 @@
 {
   "type": "object",
   "additionalProperties": false,
-  "required": ["series_of", "character_id", "character_prompt", "theme", "copy_target", "stickers", "main_id", "tab_id", "listing"],
+  "required": ["series_of", "character_id", "character_prompt", "theme", "text_mode", "copy_target", "stickers", "main_id", "tab_id", "listing"],
   "properties": {
     "series_of": {"type": "string"},
     "copy_target": {
@@ -21,15 +21,17 @@
     "character_id": {"type": "string"},
     "character_prompt": {"type": "string"},
     "theme": {"type": "string"},
+    "text_mode": {"type": "string", "enum": ["no_text", "with_text"]},
     "stickers": {
       "type": "array",
       "minItems": 8,
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "prompt", "tags"],
+        "required": ["id", "prompt", "tags", "text"],
         "properties": {
           "id": {"type": "string"},
+          "text": {"type": ["string", "null"], "maxLength": 12},
           "prompt": {"type": "string"},
           "tags": {"type": "array", "items": {"type": "string"}}
         }
