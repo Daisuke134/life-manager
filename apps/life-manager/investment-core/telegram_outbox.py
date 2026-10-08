@@ -339,6 +339,29 @@ def mark_pre_send_failed(
         )
 
 
+def mark_provider_rejected(
+    database: Path, event_key: str, error_code: str, *, claimed_at: Optional[str] = None
+) -> None:
+    """Return a send to pending only after the provider explicitly confirms no effect."""
+
+    event_key = _require_text("event_key", event_key)
+    error_code = _require_text("error_code", error_code)
+    with _write_connection(database) as connection:
+        row = _fenced(_get_item(connection, event_key), claimed_at)
+        if row["status"] != "sending":
+            if row["status"] == "pending" and row["last_error_code"] == error_code:
+                return
+            raise InvalidState(row["status"])
+        connection.execute(
+            f"""
+            UPDATE {_TABLE}
+            SET status = 'pending', claimed_at = NULL, last_error_code = ?
+            WHERE event_key = ? AND status = 'sending'
+            """,
+            (error_code, event_key),
+        )
+
+
 def mark_delivery_uncertain(
     database: Path, event_key: str, error_code: str, *, claimed_at: Optional[str] = None
 ) -> None:
@@ -479,6 +502,7 @@ __all__ = [
     "list_items",
     "mark_delivered",
     "mark_delivery_uncertain",
+    "mark_provider_rejected",
     "mark_pre_send_failed",
     "reclaim_stale",
     "to_common_outbox",

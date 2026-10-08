@@ -8500,6 +8500,74 @@ This entry supersedes the prior producer-review cursor. CFO priority remains A5 
 
 **Current cursor:** current status commit → push final main-synced branch → exact-head CI/fresh review → merge PR → production reconciler/queue readbacks → CFO receipt-backed report → A5 → A6 → A8 → A9 → A10.
 
+### 2026-10-09 05:14 JST — read-only review found three Telegram delivery blockers
+
+このsnapshotは05:13のCFO status/TODOを置き換える。事業CFOの後続順`A5 → A6 → A8 → A9 → A10`は維持し、A7/Money TreeとCloud cost workは対象外。
+
+- **Exact review:** remote PR #7106 head `4e3f89def611011485487befe0db3335a0f18a5f` / base `d0d30b906c68f31f14394ddcf393d7e47a42212a`。fresh read-only reviewはCritical 0、Important 3。
+- **Finding A — provider rejection after POST:** HTTP 4xx or explicit `ok:false` occurs after POST but becomes ordinary `TelegramError`→`started=false`→`pre_send_failed`→pending. This lies about whether the provider was called. Chosen contract: represent confirmed no-effect rejection as `provider_rejected` (attempted=1, rejected=1, pre_send_failed=0, delivery_uncertain=0), persist its reason in the existing outbox error field, and return to pending only through this explicit known-no-effect branch so a later wake may retry. Do not add a new SQLite status/schema migration. Only actual setup/pre-POST failures count as `pre_send_failed`.
+- **Finding B — media send methods:** `sendDocument`, `sendPhoto`, and `sendVideo` are POST effects but current ambiguity handling covers only `sendMessage`. Apply the same rules to all send methods: malformed successful bodies and any HTTP 5xx are `TelegramDeliveryUnknown` regardless of body; never accept a 5xx `ok:true` body as a receipt. A valid explicit rejection is `provider_rejected`.
+- **Finding C — packaged fallback copy:** `apps/life-manager/investment-core/telegram.py` diverges from `skills/_shared/telegram.py`; `investment-core/reporter.py` can load that fallback and `investment-core-artifact.test.js` requires byte equality. Bring the packaged file into exact parity with the shared canonical implementation, retaining any valuable package-only behavior in the canonical source if needed.
+- **Scope/acceptance:** add a Telegram response matrix for all outbound methods, provider rejection, malformed/non-JSON success, HTTP 5xx with `ok:true` and `ok:false`, and no-replay behavior. Verify CFO distinguishes provider rejection from pre-send/uncertain and never writes a success receipt for it. Keep current B7 persisted success/duplicate counters unchanged unless a rejected event actually becomes a sent report.
+- **Current remote gate:** head 4e3 has not passed final source review (Important 3). At 20:14Z OSS boundary/Travel/Agent instruction/Shell had passed; Loop control, Python, PII, Startup, secrets checks were in progress. The 4e3 CI/review will be superseded after code changes.
+- **Production CFO:** latest terminal remains `18dca6235b756448-13826` at 19:57:03Z, exit 75 `resource_capacity_busy`, no provider receipt. Loaded SHA is the old `8d986ff4...`; doctor reports only the unmanaged release-reconciler self-handoff. Revenue/expense totals remain unknown.
+
+**順序変更:** 旧cursor=`4e3 exact-head CI/review → merge`。新cursor=`(1) provider-rejection/result classification and media response matrix RED tests → (2) explicit provider_rejected attempt/counter/retry path, unknown fences for all send methods → (3) synchronize packaged investment-core transport with canonical shared source → (4) focused CFO/shared/investment-core tests + manifest/contract → (5) push a new main-synced head → (6) exact-head CI/fresh review → (7) merge #7106`。理由は、POST後の拒否を未送信に数える契約誤り、media POSTの未保護境界、fallback copyの差分が同じreceipt truthを壊し得るため。
+
+**Remaining atomic TODO (この順):**
+
+1. [ ] RED tests: provider 4xx/`ok:false` is `provider_rejected` (not pre-send/uncertain); no same-drain retry, pending only for later eligible wake.
+2. [ ] RED tests: sendMessage/Photo/Video/Document malformed 2xx and 5xx `ok:true`/`ok:false` all fence as unknown; valid 4xx rejection remains explicit no-effect.
+3. [ ] Implement `TelegramProviderRejected` and `provider_rejected` counter; record known rejection in outbox with existing schema, allow retry only through that typed no-effect result.
+4. [ ] Apply ambiguous response rules to every send method and require valid positive message IDs for every receipt.
+5. [ ] Sync packaged `investment-core/telegram.py` byte-for-byte with canonical shared transport; preserve canonical delimiter-safe splitting.
+6. [ ] CFO error classification, shared effect-notification/outbox suites, all investment-core tests and artifact parity pass; recompute `skills/_shared` manifest, OSS verifier, loop contract and diff check.
+7. [ ] Commit current source/spec/manifest, merge latest main if changed, push one main-synced head, read back PR head/base.
+8. [ ] On that exact head, all required CI passes and fresh full-diff review has Critical/Important 0.
+9. [ ] Merge PR #7106.
+10. [ ] Normal owner/reconciler path: release self-handoff, CFO loaded SHA, doctor and fresh queue/claim readback; do not stop/restart live owners or increase finite caps.
+11. [ ] CFO natural receipt-backed report + replay-zero and per-loop settlement/cost proof; keep totals unknown until verified.
+12. [ ] A5 production migration/RPC/permissions/panel; A6 billed-vs-cash and operation/loop attribution; A8 18-loop/188-job coverage; A9 period/MRR reconcile; A10 seven consecutive natural reports.
+
+**Blockerと解消方法:** 3 Important source blockers remain after the 4e3 review: provider rejection misclassification, media-method ambiguity gaps, packaged fallback drift. Resolve them as one shared-transport contract change with test-first cases, preserve outbox schema by using an explicit provider-rejected result/counter, sync the fallback copy, then rerun the focused suites and exact-head acceptance. Production-side `resource_capacity_busy`, release-reconciler self-handoff, and queue DB lock remain separate; normal owner/reconciler readback is required. Current finance totals remain unknown.
+
+**Current cursor:** provider response-matrix RED tests → typed rejection/no-replay and all-send ambiguity fixes → packaged parity → focused tests + manifest → latest-main push → exact-head CI/fresh review → merge → production CFO natural readbacks → A5 → A6 → A8 → A9 → A10.
+
+### 2026-10-09 05:26 JST — all three receipt findings fixed locally; latest main advanced
+
+このsnapshotは05:14のCFO statusを置き換える。後続CFO順序`A5 → A6 → A8 → A9 → A10`を維持する。A7/Money TreeとCloud cost workは対象外。
+
+- **Local fixes:** (1) `TelegramProviderRejected` distinguishes explicit provider-confirmed no-effect from pre-POST setup failure and unknown delivery. `provider_rejected` is a separate attempt counter/reason; existing outbox schema remains unchanged, and it returns to pending only through this typed known-no-effect path for a later wake. (2) all outbound Bot API methods (`sendMessage`, `sendDocument`, `sendPhoto`, `sendVideo`) treat malformed success bodies/HTTP 5xx as uncertain and never accept a 5xx body as receipt. (3) packaged `investment-core/telegram.py` and `telegram_outbox.py` now byte-match the shared sources; CFO raises `cfo_provider_rejected` rather than generic missing-receipt on confirmed rejection.
+- **Verification:** shared Telegram/outbox Python 53/53, CFO Node 61/61, artifact parity Node 2/2, cross-venue investment-core Python 26/26, OSS/loop-contract/diff checks passed before the latest main merge. Full `investment-core` discovery ran 132 tests: one unrelated existing cadence assertion fails because the unchanged test expects `start_interval_seconds=604800` while unchanged `config/loop-registry.json` uses `calendar_interval`; both files are identical to `origin/main` (`git diff --exit-code origin/main -- ...` passes). No fix to that unrelated loop cadence is included.
+- **Review/PR:** the reviewed remote head remains `4e3f89de` / base `d0d30b90`; its CI checks completed PASS, but the fresh review found three Important issues now fixed locally. Those check/review results predate the latest local changes and cannot accept them.
+- **Latest main:** `origin/main=68e7b3caf76a9e8ef75f23bc439a972d686deed8` (#7227) is fetched but not merged. It changes `runtime/loop/lm_loop_run.py` and tests as well as unrelated source/spec paths overlapping this PR. Commit local work first, then merge it without dropping either side, and re-run affected tests.
+- **Production CFO:** last terminal remains `18dca6235b756448-13826` at 19:57:03Z, exit 75 `resource_capacity_busy`, no provider receipt; loaded SHA `8d986ff4...`; doctor still reports only unmanaged release-reconciler self-handoff. Monthly/per-loop revenue and expense are unknown.
+
+**順序変更:** 旧cursor=`fix three review findings → run acceptance → push latest-main branch`。新cursor=`(1) 完了: rejection/media/parity fixes and focused suites → (2) recompute shared manifest after final shared edits → (3) commit source/test/spec → (4) merge latest main 68e7b3ca while preserving both runtime changes → (5) rerun affected focused/loop tests and refresh SSOT → (6) push → (7) exact-head CI + fresh review → (8) PR merge`。理由は、latest main now overlaps `lm_loop_run.py`; it must be integrated before final source acceptance to avoid silently losing either runtime behavior.
+
+**Remaining atomic TODO (この順):**
+
+1. [x] Typed provider rejection/counter and later-only retry; pre-POST failure and uncertain sends remain distinct.
+2. [x] Apply no-receipt-on-5xx/malformed-response rules to all send methods and preserve strict message IDs.
+3. [x] Sync packaged transport/outbox copies; focused artifact parity passes.
+4. [ ] Recompute final `skills/_shared` manifest digest and run OSS verifier after the final test/source edits.
+5. [ ] Commit CFO source/test/spec/manifest changes on the existing branch.
+6. [ ] Merge latest `origin/main=68e7b3ca`; preserve both `lm_loop_run.py` implementations and rerun affected tests, loop contract and diff check.
+7. [ ] Refresh final CFO status in the same branch, push and verify PR head/base.
+8. [ ] Exact-head required CI PASS + fresh full-diff review with Critical/Important 0.
+9. [ ] Merge PR #7106.
+10. [ ] Normal owner route: release-reconciler self-handoff, CFO loaded SHA, doctor, fresh queue/claim readback, and natural terminal; no stop/restart or finite-cap increase.
+11. [ ] Natural CFO report with provider/runtime/B7 receipts, full source/period/currency coverage, per-loop settled revenue/cost and replay-zero; until then totals remain unknown.
+12. [ ] A5 production migration/RPC/permissions/panel readback.
+13. [ ] A6 Google billed-vs-cash and receipt-backed operation/loop attribution.
+14. [ ] A8 coverage for 18 loops /188 runtime jobs (113 mapped), including shared/control/platform overhead.
+15. [ ] A9 daily/MTD/trailing/MRR reconciliation.
+16. [ ] A10 seven consecutive natural reports with complete coverage/freshness/receipts/replay-zero.
+
+**Blockerと解消方法:** source findingsはローカル修正・focused acceptance済みだが、manifest未再計算、source未commit/push、latest main未mergeであり、PRのCI/reviewは旧コードheadのまま。まずmanifestをfinal treeから再生成し、source/testをcommit、main 68e7b3caをconflict-safeにmergeして affected checks を通し、その後に新headをpushする。別系統のproduction blockersはresource capacity defer、unmanaged reconciler self-handoff、queue DB lock。通常owner/reconciler経路とfresh queue readbackで解く。収益/費用の実数はreceipt-backed reportがなくunknown。
+
+**Current cursor:** manifest+OSS → commit local source/spec → merge main 68e7b3ca → reconcile runtime diff/tests → final status and push → exact-head CI/fresh review → merge → production CFO receipt/report → A5 → A6 → A8 → A9 → A10.
+
 ### Marketing IntelからWriterへの記事候補連携（並列作業）
 
 **目的:** `marketing-weekly-review`がTelegramへ報告する未検証の`CONTENT`戦術を、既存Writerの`article-daily`トピックキューへ候補として渡す。AffiliateやX repostには配線しない。

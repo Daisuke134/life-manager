@@ -671,6 +671,20 @@ test("pending receipt cannot be silently retargeted", async t => {
   await assert.rejects(runResultCfo({ ...options, now: "2026-09-30T12:00:00Z", notify: async () => ({}) }));
   await assert.rejects(runResultCfo({ ...options, reportEmail: "other@example.test", now: "2026-09-30T13:00:00Z" }), /destination_changed/);
 });
+
+test("confirmed provider rejection is not reported as pre-send or sent", async t => {
+  const { options } = setup(t);
+  await assert.rejects(runResultCfo({
+    ...options,
+    notify: async () => ({ delivery: "pending", attempted: 1, delivered: 0,
+      delivery_uncertain: 0, pre_send_failed: 0, provider_rejected: 1 }),
+    now: "2026-09-30T12:00:00Z",
+  }), /cfo_provider_rejected/);
+
+  const snapshot = JSON.parse(fs.readFileSync(readbackFile(options.stateDir, options.occurrenceId), "utf8"));
+  assert.equal(snapshot.status, "pending");
+});
+
 test("wrong-day and broken source collection never send", async t => {
   const { options, messages } = setup(t);
   await assert.rejects(runResultCfo({ ...options, now: "2026-09-30T12:00:00Z", collect: async () => ({ reporting_date: "2026-09-29" }) }), /date_mismatch/);

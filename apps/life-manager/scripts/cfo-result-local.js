@@ -753,6 +753,7 @@ async function runResultCfo(options) {
     eventKey: pending.eventKey, observedAt: now.toISOString(), message: pending.message,
     occurrenceId: currentOccurrenceId,
   });
+  if (delivery?.provider_rejected > 0) throw new Error("cfo_provider_rejected");
   if (delivery?.delivery !== "delivered" || typeof delivery.provider_message_id !== "string"
     || !TELEGRAM_MESSAGE_ID.test(delivery.provider_message_id)) {
     throw new Error("cfo_provider_receipt_missing");

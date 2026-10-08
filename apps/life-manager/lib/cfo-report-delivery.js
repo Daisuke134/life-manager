@@ -29,7 +29,7 @@ async function notifyCfoReport(input, options = {}) {
   // Provider acceptance is a receipt, not a claim that the inbox was read.
   return { delivery: response?.sent && response.id ? "delivered" : "pending",
     provider_message_id: response?.id || null, attempted: 1, delivered: response?.sent && response.id ? 1 : 0,
-    delivery_uncertain: 0, pre_send_failed: 0 };
+    delivery_uncertain: 0, pre_send_failed: 0, provider_rejected: 0 };
 }
 
 module.exports = { reportDestination, notifyCfoReport };

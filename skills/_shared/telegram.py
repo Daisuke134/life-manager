@@ -27,6 +27,7 @@ DEFAULT_API_BASE = "https://api.telegram.org"
 TEXT_CHUNK_LIMIT = 4000
 CAPTION_LIMIT = 1024
 CLOUD_FILE_LIMIT = 50 * 1024 * 1024
+SEND_METHODS = frozenset({"sendMessage", "sendDocument", "sendPhoto", "sendVideo"})
 
 
 class TelegramError(RuntimeError):
@@ -46,6 +47,10 @@ class TelegramError(RuntimeError):
 
 class TelegramDeliveryUnknown(TelegramError):
     """The transport failed after a send began, so delivery is unknown."""
+
+
+class TelegramProviderRejected(TelegramError):
+    """The provider explicitly rejected a send and confirmed that it had no effect."""
 
 
 def _parse_env_file(path: Path) -> dict[str, str]:
@@ -231,7 +236,7 @@ class TelegramClient:
                 try:
                     payload = self._decode_response(response.read())
                 except TelegramError:
-                    if method == "sendMessage":
+                    if method in SEND_METHODS:
                         raise TelegramDeliveryUnknown(
                             "Telegram send response is invalid; delivery unknown"
                         ) from None
@@ -241,10 +246,15 @@ class TelegramClient:
                 raw_error = exc.read()
             finally:
                 exc.close()
+            if method in SEND_METHODS and 500 <= exc.code < 600:
+                raise TelegramDeliveryUnknown(
+                    "Telegram send HTTP 5xx response; delivery unknown",
+                    error_code=exc.code,
+                ) from None
             try:
                 payload = self._decode_response(raw_error)
             except TelegramError:
-                if method == "sendMessage":
+                if method in SEND_METHODS:
                     raise TelegramDeliveryUnknown(
                         "Telegram send HTTP error response is invalid; delivery unknown",
                         error_code=exc.code,
@@ -253,9 +263,7 @@ class TelegramClient:
                     f"Telegram HTTP error {exc.code}",
                     error_code=exc.code,
                 ) from None
-            if method == "sendMessage" and (
-                500 <= exc.code < 600 or payload.get("ok") is not False
-            ):
+            if method in SEND_METHODS and payload.get("ok") is not False:
                 raise TelegramDeliveryUnknown(
                     "Telegram send HTTP error response is ambiguous; delivery unknown",
                     error_code=exc.code,
@@ -265,6 +273,10 @@ class TelegramClient:
                 f"Telegram transport failed; delivery unknown: {self._redact(exc)}"
             ) from None
 
+        if method in SEND_METHODS and payload.get("ok") is not True and payload.get("ok") is not False:
+            raise TelegramDeliveryUnknown(
+                "Telegram send response is ambiguous; delivery unknown"
+            )
         if not payload.get("ok"):
             error_code = payload.get("error_code")
             parameters = payload.get("parameters") or {}
@@ -284,7 +296,8 @@ class TelegramClient:
                     retry_count=1,
                 )
             description = self._redact(payload.get("description", "Telegram API error"))
-            raise TelegramError(
+            error_type = TelegramProviderRejected if method in SEND_METHODS else TelegramError
+            raise error_type(
                 description,
                 error_code=error_code if isinstance(error_code, int) else None,
                 retry_after=retry_after if isinstance(retry_after, int) else None,
@@ -379,7 +392,7 @@ class TelegramClient:
             file_path=media_path,
         )
         if not isinstance(result, dict):
-            raise TelegramError(f"{method} returned an invalid result")
+            raise TelegramDeliveryUnknown(f"{method} returned an invalid result; delivery unknown")
         return self._receipt(method, result)
 
     def send_document(

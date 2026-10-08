@@ -145,6 +145,7 @@ def test_delivered_event_replays_receipt_when_generated_wording_drifts(tmp_path)
         "delivered": 0,
         "delivery_uncertain": 0,
         "pre_send_failed": 0,
+        "provider_rejected": 0,
     }
     assert calls == ["Codex::: first wording"]
 
@@ -206,23 +207,6 @@ def test_non_json_http_error_after_first_chunk_is_fenced_not_replayed(tmp_path, 
     assert len(calls) == 1
 
 
-def test_explicit_telegram_http_rejection_remains_pre_send(tmp_path, monkeypatch):
-    first, replay, calls = _notify_with_response(
-        tmp_path,
-        monkeypatch,
-        "explicit_http_rejection",
-        b'{"ok":false,"error_code":400,"description":"Bad Request"}',
-        http_status=400,
-    )
-
-    assert first["delivery"] == "pending"
-    assert first["pre_send_failed"] == 1
-    assert first["delivery_uncertain"] == 0
-    assert replay["attempted"] == 0
-    assert replay["pre_send_failed"] == 1
-    assert len(calls) == 2
-
-
 def test_http_5xx_with_false_ok_is_delivery_uncertain_not_replayed(tmp_path, monkeypatch):
     first, replay, calls = _notify_with_response(
         tmp_path,
@@ -237,6 +221,60 @@ def test_http_5xx_with_false_ok_is_delivery_uncertain_not_replayed(tmp_path, mon
     assert first["delivery_uncertain"] == 1
     assert replay["attempted"] == 0
     assert len(calls) == 1
+
+
+def test_explicit_http_rejection_is_provider_rejected_not_pre_send(tmp_path, monkeypatch):
+    first, replay, calls = _notify_with_response(
+        tmp_path,
+        monkeypatch,
+        "provider_rejection",
+        b'{"ok":false,"error_code":400,"description":"Bad Request"}',
+        http_status=400,
+    )
+
+    assert first["delivery"] == "pending"
+    assert first["attempted"] == 1
+    assert first["provider_rejected"] == 1
+    assert first["pre_send_failed"] == 0
+    assert first["delivery_uncertain"] == 0
+    assert replay["attempted"] == 1
+    assert replay["provider_rejected"] == 1
+    assert len(calls) == 2
+
+
+def test_known_provider_rejection_stops_current_outbox_drain(tmp_path):
+    outbox = load("test_rejected_outbox", "telegram_outbox.py")
+    delivery = load("test_rejected_delivery", "telegram_delivery.py")
+    database = tmp_path / "outbox.sqlite3"
+    outbox.enqueue(
+        database,
+        event_key="cfo:subject:provider-rejected-drain",
+        message="CFO report",
+        created_at="2026-10-09T05:00:00Z",
+        repeat_after_seconds=None,
+    )
+    calls = []
+
+    class Rejected:
+        started = True
+        provider_id = None
+        error = "provider_rejected:400"
+        provider_rejected = True
+
+    def notifier(message):
+        calls.append(message)
+        return Rejected()
+
+    outcome = delivery.deliver_pending(outbox, database, notifier, limit=5)
+    item = outbox.list_items(database)[0]
+
+    assert outcome.attempted == 1
+    assert outcome.provider_rejected == 1
+    assert outcome.pre_send_failed == 0
+    assert outcome.delivery_uncertain == 0
+    assert item.status == "pending"
+    assert item.last_error_code == "provider_rejected:400"
+    assert calls == ["CFO report"]
 
 
 def test_missing_message_id_is_uncertain_not_a_provider_receipt(tmp_path, monkeypatch):

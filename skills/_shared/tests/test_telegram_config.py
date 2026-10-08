@@ -1,4 +1,6 @@
+import io
 from pathlib import Path
+import urllib.error
 
 import pytest
 
@@ -63,3 +65,79 @@ def test_partial_multichunk_send_is_delivery_unknown(monkeypatch: pytest.MonkeyP
     assert len(attempted_chunks[0]) == 4000
     assert attempted_chunks[1] == "a"
     assert error.value.error_code == 429
+
+
+SEND_METHODS = ("sendMessage", "sendPhoto", "sendVideo", "sendDocument")
+
+
+class _Response:
+    def __init__(self, body: bytes) -> None:
+        self.body = body
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args):
+        return False
+
+    def read(self) -> bytes:
+        return self.body
+
+
+def _client_with_response(body: bytes, status: int | None = None) -> TelegramClient:
+    def opener(request, timeout):
+        if status is not None:
+            raise urllib.error.HTTPError(
+                request.full_url, status, "HTTP error", None, io.BytesIO(body)
+            )
+        return _Response(body)
+
+    return TelegramClient(token="test-token", chat_id="12345", opener=opener)
+
+
+@pytest.mark.parametrize("method", SEND_METHODS)
+def test_all_send_methods_treat_malformed_success_response_as_unknown(method: str) -> None:
+    client = _client_with_response(b"not-json")
+
+    with pytest.raises(TelegramDeliveryUnknown):
+        client._request(method, {"chat_id": "12345"})
+
+
+@pytest.mark.parametrize("method", SEND_METHODS)
+@pytest.mark.parametrize(
+    "body",
+    (
+        b"not-json",
+        b'{"ok":true,"result":{"message_id":123}}',
+        b'{"ok":false,"error_code":500,"description":"failure"}',
+    ),
+)
+def test_all_send_methods_treat_http_5xx_as_unknown(method: str, body: bytes) -> None:
+    client = _client_with_response(body, status=502)
+
+    with pytest.raises(TelegramDeliveryUnknown):
+        client._request(method, {"chat_id": "12345"})
+
+
+@pytest.mark.parametrize("method", SEND_METHODS)
+@pytest.mark.parametrize("status", (400, 429))
+def test_explicit_http_rejections_are_provider_rejected_not_pre_send(method: str, status: int) -> None:
+    client = _client_with_response(
+        b'{"ok":false,"error_code":400,"description":"Bad Request"}',
+        status=status,
+    )
+
+    with pytest.raises(TelegramError) as error:
+        client._request(method, {"chat_id": "12345"})
+    assert type(error.value).__name__ == "TelegramProviderRejected"
+
+
+@pytest.mark.parametrize("method", SEND_METHODS)
+def test_explicit_json_rejections_are_provider_rejected_not_pre_send(method: str) -> None:
+    client = _client_with_response(
+        b'{"ok":false,"error_code":400,"description":"Bad Request"}'
+    )
+
+    with pytest.raises(TelegramError) as error:
+        client._request(method, {"chat_id": "12345"})
+    assert type(error.value).__name__ == "TelegramProviderRejected"
