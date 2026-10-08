@@ -186,6 +186,30 @@ def test_readonly_replay_keeps_effect_attempted_marker_held_as_post_effect(tmp_p
     assert proof["reason"] == "post_effect_readback_required"
 
 
+def test_post_effect_verified_marker_stays_fenced_until_provider_readback(tmp_path):
+    occurrence_id = "fundraiser:foundersedge-submitted"
+    calls = []
+    markers_root = tmp_path / "effect-markers"
+    _write_marker(markers_root, occurrence_id, "post_effect_verified")
+
+    proof = reconcile(
+        occurrence_id,
+        events_path=tmp_path / "events.jsonl",
+        evidence_root=tmp_path / "evidence",
+        markers_root=markers_root,
+        fenced_row_fn=lambda _owner, _occurrence: (
+            "claimed", dt.datetime(2026, 10, 8, 9, 1, tzinfo=dt.timezone.utc),
+        ),
+        resolve_fn=lambda *args, **kwargs: calls.append((args, kwargs)) or True,
+        resolve=True,
+    )
+
+    assert proof["verified"] is False
+    assert proof["reason"] == "post_effect_readback_required"
+    assert "closed" not in proof
+    assert calls == []
+
+
 def test_readonly_replay_keeps_human_required_marker_separate_from_effect_fence(tmp_path):
     occurrence_id = "fundraiser:human-required-1"
     events_path = tmp_path / "events.jsonl"

@@ -90,7 +90,7 @@ Connector、Job Hunter、Fundraiserの既存loopを、現行`lm-loop`上で安�
 - 対象occurrenceでduplicate/replayが0である。過去unknown targetはofficial statusかstrict verified-pre-effect proofがある場合だけ閉じる。
 - production gatesが揃った後にこのlaneを完了し、統合SSOTの次cursor `MX-01`へ戻る。
 
-## 現在cursorと残TODO（完了までの順序）
+## 履歴: PR #7072 acceptance cursor（現在はsuperseded）
 
 1. **現在cursor — latest-main acceptance:** force-with-lease push the rebase onto `da12ba88`, request a fresh read-only review, and pass every required check on the new PR head before merging PR #7072 through the repository's `--admin` first flow.
 2. LAUNCH occurrence `fundraiser:18dc7222f6b5ec78-20440`、Danaher `R1316263`、DeepScale.Venturesの既存effectをread-onlyで照合する。これはCIと並行し、Gmail検索は3 queryで0件だったがno-effect proofではない。同一targetのofficial portal/Workday statusまたはstrict verified-pre-effect proofがないものはfencedのまま保ち、再送しない。
@@ -98,3 +98,8 @@ Connector、Job Hunter、Fundraiserの既存loopを、現行`lm-loop`上で安�
 4. 3 loopのnatural occurrenceを確認する。ConnectorはLuma registration + Google Calendar + Telegram receipt、Job Hunterは新規適格Workday jobのofficial state/receipt + Telegram、Fundraiserは新規VCとAI/AGI founderへのGmail provider message ID + exact Sent + Telegram receiptを同一occurrenceへ結ぶ。human-required gateを迂回しない。
 5. 各occurrenceのreplay-zeroを確認し、過去unknownは同一targetのofficial statusまたはstrict verified-pre-effect proofがある場合だけcloseする。証拠が取れないものはfencedのまま記録し、新規targetの処理とは分ける。
 6. 3 loopのproduction readbackとreplay-zeroが揃ったらこのlaneを完了し、統合SSOTの次cursor `MX-01`へ戻る。
+
+## 現在cursor（2026-10-08）
+
+- PR #7072（`fix/local-revenue-capacity-concurrency-20261008`、head `663577b3ed96938d1c6e9c48acdadb46dad80099`）はmerged。Admission SQLite、Codex profile lease、browser context isolation、capacity probeのsource修正はmainへ統合済み。上のPR #7072 acceptance cursorは完了済みの履歴。
+- 現在の実行順序と最新のproduction blockersは [`2026-09-25-life-manager-unified-ssot.md`](../specs/2026-09-25-life-manager-unified-ssot.md) の `2026-10-08 20:59 JST — exact-head cursor and launchd cleanup diagnosis` を正本とする。現cursorはcurrent-head CI/fresh review → PR #7121 merge → disk-discovery修正PR → cleanup自然receipt/admission回復 → immutable release/natural handoff/doctor → target単位effect readback → owner別natural run → 同一窓capacity/economics。
