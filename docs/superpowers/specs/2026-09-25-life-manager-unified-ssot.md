@@ -6476,3 +6476,21 @@ The next cursor is item 1 commit/push. No Dais manual action is currently requir
 **Order rationale:** the earlier cursor asked which English Monk channel to use. Dais has now explicitly selected Instagram, so the destination question is removed and the Instagram account/connection readback is now the required route gate. The unknown HeyGen effect and source handoff gate remain earlier because they determine whether a safe unique video can be published.
 
 **現在cursor:** `push latest-main sync plus current SSOT update to PR #7115 → required CI on the new head → merge --admin first → verify natural handoff receipt and loaded SHA/argv → reconcile the exact English video and its prior-post status → connect the correct English Monk Instagram account → publish once and verify official receipt → restore 3/day cadence → verify paid order+PDF and active paid Letter MRR`. No Capafy action, manual replay, stop, or restart.
+
+### 2026-10-08 19:32 JST — source merged; live handoff still owns the production cursor
+
+- PR #7115 merged at 19:27 JST as `f6ddc8c4bafa359ad795111579ef62b058628fea`. Required CI run `37762960693` passed; the separate fresh source reviewer approved the counter correction. `origin/main` is now `f6ddc8c4`.
+- Fresh safe readback at 19:32 JST: `~/loops/current` still points to `20261008T185307-88dfdaf4`; production `life-manager-release-reconciler` runs the old SHA `3c87f64f` as PID `7017`, occurrence `18dc8612b9964870-7017` since 19:09 JST. Its child is the old release's `reconcile-agent-runner-release.sh`, currently invoking `lm-loop apply`. A self-handoff helper from old release `88dfdaf4` is also loaded (PID `65669`); receipt remains `old_service_active_timeout`, state `running`, PID `7017`, target `88dfdaf4`, run lock acquired. No stop/restart/apply was issued.
+- **Inference:** after the active fleet apply reaches terminal, the old helper may fail closed if it sees `not running`; the next natural release-reconciler wake should use merged main `f6ddc8c4` and the corrected helper. Verify this through the next receipt and loaded SHA/argv; do not force it.
+- The English eBook publish fence remains active on `18dc6de8dcf3a0e8-75262`, with no provider receipt. Postiz still has no English Monk Instagram integration. The exact active IG handle question is pending; no post or HeyGen plan purchase has occurred.
+
+**Atomic TODO (eBook only):**
+
+1. Let occurrence `18dc8612b9964870-7017` finish naturally; then verify a successful handoff receipt and loaded release SHA/argv. Keep the service and helper untouched while running.
+2. Reconcile the Oct 8 HeyGen effect and select a unique, unpublished English Monk MP4. A12/A13/A14 remain local candidates; their HeyGen IDs return no provider record.
+3. Confirm/connect the exact English Monk Instagram account. Postiz has no matching integration and public `@monk_anicca` is unavailable; do not substitute the iOS `@anicca.en` or TikTok.
+4. Publish the selected video once and confirm official `PUBLISHED` receipt and URL.
+5. Restore three daily English Monk Instagram slots through the canonical owner; verify each natural post.
+6. Verify paid Stripe order ↔ delivered PDF and count only active paid Letter subscriptions toward MRR. `$10K MRR` remains a target, not a verified result.
+
+**現在cursor:** `natural terminal of 18dc8612b9964870-7017 → exact successful handoff receipt + loaded SHA/argv → reconcile the English video and unknown effect → bind the exact Instagram account → publish once/read back → restore 3/day → verify paid order+PDF and active paid Letter MRR`. No Capafy action, forced restart, or replay.
