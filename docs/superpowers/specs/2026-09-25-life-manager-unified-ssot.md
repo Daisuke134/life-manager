@@ -8639,6 +8639,62 @@ This entry supersedes the prior producer-review cursor. CFO priority remains A5 
 
 **Current cursor:** commit current status → push latest-main branch → exact-head CI/fresh review → merge #7106 → production self-handoff/queue/CFO receipts → A5 → A6 → A8 → A9 → A10.
 
+### 2026-10-09 05:33 JST — Lancers adapter rejection mapping is the final source blocker
+
+このsnapshotは05:30のCFO status/TODOを置き換える。CFOの後続順`A5 → A6 → A8 → A9 → A10`と、A7/Money Tree・Cloud cost workの除外を維持する。
+
+- **PR/review:** remote #7106 head `5ae69e251cfde86a063b2424317dd18b5526f8e8` / base `724e18f01713681b8dde0e9af985c0da9e7bf593`。fresh read-only reviewはCritical 0、Important 1。Lancers `telegram_report.py`は`TelegramProviderRejected`を`attempted=False`へ落とし、shared drainが`pre_send_failed`として扱う。実際にはPOST後のprovider rejectionなので、attempted/rejection counterが消える。source fixは未実装。
+- **CI on 5ae:** Travel, Agent instructions, Startup, OSS, PII, Shell, Python pass。Loop control, gitleaks, TruffleHog were in progress at 20:32Z. CodeRabbit review is skipped by its manual-review OSS policy. 5ae results do not include the Lancers correction.
+- **Contract:** Lancers `SendResult` must retain `attempted=True` and a distinct `provider_rejected` flag/error; its adapter must forward that flag into shared `SendResult`, stop the current drain after the explicit rejection, emit `provider_rejected=1`, `pre_send_failed=0`, `delivery_uncertain=0`, and set the Lancers run's `ok=false`. Persist the known-no-effect rejection through the existing outbox field; no schema migration.
+- **Local baseline:** before this new finding, shared Telegram/outbox Python 53/53, CFO Node 61/61, artifact parity 2/2, cross-venue Python 26/26, loop/host 61/61, mobile canary 20/20, OSS and loop contract passed. Full investment-core suite had one unchanged base cadence assertion failure; its test and registry are byte-identical to main.
+- **Production CFO:** latest terminal remains `18dca6235b756448-13826` at 19:57:03Z, exit 75 `resource_capacity_busy`, no provider receipt; loaded SHA `8d986ff4...`; doctor reports only unmanaged release-reconciler self-handoff. Revenue/expense totals remain unknown.
+
+**順序変更:** 旧cursor=`5ae exact-head CI + review → merge`。新cursor=`(1) Lancers typed provider_rejected adapter RED test → (2) forward attempted/rejected fields and distinct counter through outbox/result JSON → (3) test run `ok=false`, no pre-send/uncertain misclassification, no same-drain retry → (4) focused Lancers/shared/CFO + manifest/OSS → (5) push new exact head → (6) exact-head CI + fresh review → (7) merge #7106`。理由は、Lancersの独自adapterがprovider rejectionを未送信に偽装し、receipt observabilityを壊しているため。
+
+**Remaining atomic TODO (この順):**
+
+1. [ ] Add a RED Lancers regression for an attempted provider rejection, and exercise its `SendResult`→shared drain conversion.
+2. [ ] Preserve `attempted=true` and `provider_rejected=true`, expose rejection count, ensure no same-drain retry and `ok=false` for the run.
+3. [ ] Run focused Lancers tests, shared outbox, CFO Node, packaged parity, affected loop/host tests; recompute manifest and pass OSS/loop contract/diff check.
+4. [ ] Commit/push the Lancers fix + current status on main base 724e18f0; read back remote PR head/base.
+5. [ ] On the exact resulting head, required CI all pass and fresh review finds Critical/Important 0.
+6. [ ] Merge PR #7106.
+7. [ ] Normal owner/reconciler route: self-handoff, CFO loaded SHA/doctor, fresh queue claim and natural terminal; no stop/restart or cap increase.
+8. [ ] Receipt-backed CFO natural report, per-loop settled revenue/cost, period/currency/source coverage and replay-zero; leave totals unknown before proof.
+9. [ ] A5 production migration/RPC/permissions/panel; A6 Google billed-vs-cash plus operation/loop attribution; A8 all-loop coverage; A9 period/MRR; A10 seven consecutive natural reports.
+
+**Blockerと解消方法:** Lancers独自adapterがprovider rejection後のPOSTをpre-send failureとして記録するImportant findingが1件残る。Lancersの`SendResult`にrejection状態を保持し、共通`provider_rejected`経路までforwardする。修正後に新headでCI/fresh reviewを取り直す。production側のcapacity defer/reconciler self-handoff/queue DB lockは別のowner-side blockers。CFOの実数はreceipt-backed report未取得でunknown。
+
+**Current cursor:** Lancers rejection RED test → typed adapter forwarding → focused tests/manifest → push exact head → CI/fresh review → merge → production CFO natural readback → A5 → A6 → A8 → A9 → A10.
+
+### 2026-10-09 05:34 JST — Lancers provider-rejection adapter fixed locally
+
+このsnapshotは05:33のCFO status/TODOを置き換える。個人Money Tree/A7とCloud cost workは対象外。CFO order remains `A5 → A6 → A8 → A9 → A10`.
+
+- **Lancers finding:** the fresh review on PR head `5ae69e25` found one Important: Lancers `_default_notifier` marked `TelegramProviderRejected` as `attempted=False`, and its adapter dropped the distinct rejection flag before shared `deliver_pending`.
+- **Local fix:** Lancers `SendResult`/`DeliveryResult` now carry `provider_rejected`; `_default_notifier` preserves `attempted=True` and the provider error code; adapter forwards rejection to the shared outbox; runner JSON reports `provider_rejected` and `ok=false`. The outbox records known no-effect in `last_error_code`, returns to pending through the typed rejection path, and stops the current drain. No schema migration or same-drain resend.
+- **RED→GREEN:** new Lancers tests failed before the fix (not attempted / no rejected counter) and now verify the default notifier, shared outbox state, and rejection counter.
+- **Local acceptance:** shared + Lancers Telegram/outbox Python 55/55; Lancers existing package tests 89/89; CFO Node 61/61; investment artifact parity 2/2; cross-venue 26/26; merged loop/host 61/61; OSS verifier, loop contract 18/188/113, and diff check PASS. Full investment-core discovery remains 132 tests with one unrelated unchanged weekly cadence assertion failing against the current registry; the test and config match main.
+- **Remote/production:** latest main remains `724e18f0`. Remote PR #7106 is still head `5ae69e25` / base `724e18f0`, so the Lancers change and test are not yet included. Review on 5ae had Important 1; new exact-head review is required. Production CFO still reports `resource_capacity_busy`, old loaded SHA, no provider receipt, and unmanaged release-reconciler self-handoff.
+
+**順序変更:** 旧cursor=`Lancers fix → push → review`。新cursor=`(1) 完了: RED→GREEN Lancers provider-rejection adapter test → (2) 完了: 55 shared/Lancers Python + 89 package + 61 CFO Node + 2 parity + 26 cross-venue + 61 loop/host + OSS/contract checks → (3) commit/push Lancers change + latest status → (4) exact-head CI + fresh review → (5) merge #7106 → production CFO readbacks`。理由は、POST後の拒否をLancersだけが未送信扱いしていた共有adapter境界を直し、known-no-effectを別counterとして保つため。
+
+**Remaining atomic TODO (この順):**
+
+1. [x] Lancers notifier marks explicit provider rejection as attempted and distinct from pre-send/uncertain.
+2. [x] Lancers passes the typed rejection through shared outbox; same drain stops and the result exposes `provider_rejected`.
+3. [x] Shared/Lancers, CFO, package-parity, cross-venue, merged loop/host and OSS/loop-contract checks pass (counts above).
+4. [ ] Commit/push this final status + Lancers source/test on base 724e18f0; read back PR head/base.
+5. [ ] All required CI on the resulting exact head pass; fresh review has Critical/Important 0.
+6. [ ] Merge PR #7106.
+7. [ ] Normal owner/reconciler path: clear self-handoff, verify CFO loaded SHA/doctor and fresh queue/claim natural terminal; no stop/restart/cap increase.
+8. [ ] CFO natural receipt-backed report with period/currency/source coverage, per-loop settled revenue/cost and replay-zero; keep totals unknown until proved.
+9. [ ] A5 production migration/RPC/permissions/panel; A6 billed-vs-cash and attribution; A8 loop/job coverage; A9 period/MRR; A10 seven consecutive natural reports.
+
+**Blockerと解消方法:** source finding is fixed and focused-tested, but uncommitted/unpushed. Publish it on the existing main-synced branch, then wait for exact-head CI and fresh review. Production is separately held by `resource_capacity_busy`, stale release-reconciler self-handoff, and no fresh queue read; use normal owner/reconciler natural path. Actual CFO revenue/expense totals remain unverified.
+
+**Current cursor:** commit/push final Lancers correction + status → exact-head CI/fresh review → merge #7106 → release/reconciler/queue readbacks → CFO natural receipt/report → A5 → A6 → A8 → A9 → A10.
+
 ### Marketing IntelからWriterへの記事候補連携（並列作業）
 
 **目的:** `marketing-weekly-review`がTelegramへ報告する未検証の`CONTENT`戦術を、既存Writerの`article-daily`トピックキューへ候補として渡す。AffiliateやX repostには配線しない。

@@ -250,6 +250,7 @@ class SendResult:
     attempted: bool
     provider_message_id: Optional[str] = None
     error_code: Optional[str] = None
+    provider_rejected: bool = False
 
 
 @dataclass(frozen=True)
@@ -258,6 +259,7 @@ class DeliveryResult:
     delivered: int = 0
     delivery_uncertain: int = 0
     pre_send_failed: int = 0
+    provider_rejected: int = 0
 def read_last_json(path: Path) -> Optional[Mapping[str, object]]:
     try:
         lines = Path(path).read_text(encoding="utf-8").splitlines()
@@ -551,14 +553,15 @@ def deliver_pending(database: Path, notifier: Callable[[str], object], now: obje
         sent = notifier(message)
         started = sent.attempted if isinstance(sent, SendResult) else True
         error = sent.error_code if isinstance(sent, SendResult) else "receipt_missing"
-        return shared_delivery.SendResult(started, _provider_id(sent), error)
+        provider_rejected = sent.provider_rejected if isinstance(sent, SendResult) else False
+        return shared_delivery.SendResult(started, _provider_id(sent), error, provider_rejected)
 
     delivered = shared_delivery.deliver_pending(
         outbox, Path(database), send, limit=20,
     )
     return DeliveryResult(
         delivered.attempted, delivered.delivered,
-        delivered.delivery_uncertain, delivered.pre_send_failed,
+        delivered.delivery_uncertain, delivered.pre_send_failed, delivered.provider_rejected,
     )
 
 
@@ -807,6 +810,9 @@ def _default_notifier(message: str) -> SendResult:
         provider_id = str(ids[-1]) if isinstance(ids, list) and ids else None
         return SendResult(True, provider_id, "receipt_missing" if provider_id is None else None)
     except Exception as error:
+        if type(error).__name__ == "TelegramProviderRejected":
+            code = getattr(error, "error_code", None)
+            return SendResult(True, None, f"provider_rejected:{code or 'unknown'}", True)
         attempted = type(error).__name__ == "TelegramDeliveryUnknown"
         return SendResult(attempted, None, "transport_unknown" if attempted else "direct_transport_unavailable")
 
@@ -827,7 +833,12 @@ def main(argv: Optional[Sequence[str]] = None, *, notifier: Optional[Callable[[s
             payload = run_inventory(state_path=Path(args.state_path)) if args.inventory_worker else _run_inventory_parent(args.state_path)
         else:
             now = args.now or datetime.now(timezone.utc).isoformat(); snapshot = collect_snapshot(application_log=Path(args.application_log), state_path=Path(args.state_path), ledger_database=Path(args.ledger_database), storefront_log=Path(args.storefront_log), now=now); enqueued = int(enqueue_snapshot(Path(args.database), snapshot, now)); delivery = deliver_pending(Path(args.database), notifier or _default_notifier, now)
-            payload = {"ok": delivery.delivery_uncertain == 0, "enqueued": enqueued, "attempted": delivery.attempted, "delivered": delivery.delivered, "delivery_uncertain": delivery.delivery_uncertain, "pre_send_failed": delivery.pre_send_failed}
+            payload = {"ok": delivery.delivery_uncertain == 0 and delivery.pre_send_failed == 0
+                and delivery.provider_rejected == 0, "enqueued": enqueued,
+                "attempted": delivery.attempted, "delivered": delivery.delivered,
+                "delivery_uncertain": delivery.delivery_uncertain,
+                "pre_send_failed": delivery.pre_send_failed,
+                "provider_rejected": delivery.provider_rejected}
     except Exception as exc:
         payload = {"ok": False, "error": re.sub(r"[^a-z0-9_]", "_", type(exc).__name__.lower())}
     out.write(json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + "\n"); out.flush()
