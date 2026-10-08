@@ -157,6 +157,7 @@ class MacosLoopRegistryTest(unittest.TestCase):
         for loop_id in ("job-search-daily", "job-search-inbox"):
             with self.subTest(loop_id=loop_id):
                 row = registry["loops"][loop_id]
+                self.assertEqual(row.get("provider_route"), "shared-agent-runner")
                 if loop_id == "job-search-daily":
                     self.assertEqual(row.get("resource_class"), "agent")
                     self.assertEqual(row.get("admission_class"), "revenue")
