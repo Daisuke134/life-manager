@@ -430,22 +430,22 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
 
 | # | Task | 完了条件（公式 readback） | 状態（2026-10-08 10:xx JST） |
 |---|---|---|---|
-| N1 | 売れていた 4 本を売れていた状態に戻す: Sonnet 5・本番価格のまま・Hook Lab の test/ 除外。説明文は 1 語も変えない（変更はモデル行と価格表だけ） | Capafy API status 4（承認）→ buyer ページの「セキュリティスキャン」が通常 → 有料注文が再開 | **審査中**（10/08 10:28 JST 再確認、4 本とも status=1）。承認後に YouTube 年 cap 720 を確認 |
+| N1 | 売れていた 4 本を Sonnet に戻す（説明文はそのまま） | Capafy API status 4 → buyer スキャン通常 → 注文再開 | **10/08 12:00 承認**: Hook Lab v1.0.6・TikTok v1.0.4・YouTube v1.0.5（＋Marketing Strategist v1.0.2）。Slide Maker v1.0.3 は 12:17 も審査中（管理画面「v1.0.3 審査中／v1.0.2 公開中」）。buyer スキャン: TikTok 通常・YouTube 通常・**Hook Lab 却下**（パッケージ同梱の LISTING/UPDATE.json に「scan のため test/ を外した」旨→監査回避と判定、FAQ に無い年額、welcome 途中切れ）。YouTube の本番年額 cap が 8640（LISTING は 720）。両方を #（package-only-skill-files）で修正し再提出待ち |
 | N1b | 承認後、4 本の実モデル ID を `anthropic/claude-sonnet-5.5` に（OpenRouter: 5 と同じ $2/$10。Capafy の表示名は選択肢がないので「Claude Sonnet 5」のまま） | Capafy API の hosted model が 5.5 | 承認待ち。再審査が要るかは承認後の画面で確認 |
 | N2 | 公開済み agent を工場が勝手に変えない。自動の値上げ・モデル変更・説明の書き換えは永久禁止 | 価格・モデル・カードの自動更新が 0 件 | ✅ 本番（`dais_approved_exception` 付き UPDATE.json だけ通す・日次判断は報告のみ・FROZEN.json に 4 本） |
 | N2b | 無料お試しをやめる（Dais 10/08「無料サービスではなく利益のため」）: 13 本にお試しあり（最大 Contract Red Flags 150 回）。上位 15 本はお試しなし。値下げの自動化は作らない（Dais 10/08 撤回） | お試し付き agent が 0 | Contract Red Flags（Sonnet 4.6・お試し 150 回・注文 0）を非公開化中。残り 12 本は審査なしで外せるかをサポートに質問（10/08 10:39 送信）。審査が要るなら枠を食うので新規優先 |
 | N2c | 赤字 agent を止める: Marketing Strategist（30日 −$16.45、DeepSeek・週 $6.99/36 回）、Academic Results Humanizer（−$4.58、Sonnet 4.6・offline）、Contract Red Flags（−$1.57、Sonnet 4.6・無料お試しの原価） | 30日利益がマイナスの agent が 0 | 未着手。原因（1 注文あたりの使用量・お試し）を見てから回数上限を下げる |
 | N3 | 「注意」警告 7 本の原因特定 | サポート回答または buyer ページで全本「通常」 | サポート回答待ち（10/07 送信） |
-| N4 | 審査枠（未公開 5 本上限）を空ける・上限が増えたか確認 | 下書き 3＋却下 1 が消える | 未公開 9 本（審査中 5・下書き 3・却下 1）、空き 0。新規は出せていない。サポート回答待ち。10/08 10:39 に優先審査の催促＋上限の確認をメール |
+| N4 | 審査枠 | 工場が自前の上限で止めない | Capafy 公式ガイド 29 頁・Web（note 20 件・Bing）に未公開数の上限記載なし。唯一の記載は「1 agent につきバージョン下書きは同時に 1 つ」。「5 本」は 2026-06 の運用メモと 2026-08-27 の作成失敗 4 回（サーバー原文は残っていない）からの推定。工場の CAP を撤廃（release ca7d58b6）。作成時にサーバーが断れば原文を記録して戻す。サポートに 10/08 10:39 質問済み |
 | N5 | 新規 agent は上位勢をそのまま真似る（10/08 市場 846 本の実測: 稼ぐ出品者は 1〜3 本で売上の 73〜100% が 1 本の当たり＋短尺動画。54 本出した One File Tools は 289 件、39 本の私たちは 62 件）。当たり分野＝動画フック・株／お金の追跡・スポーツ分析、価格＝週 $9.99〜19.99・月 $19.99〜29.99・年 ≥ $99.99、回数は少なめ。無料の入口版から有料版へ流す（Akira 型） | 新 agent が承認され 30日注文 > 0 | 工場の既定モデルを Sonnet 5.5 実行へ変更中（branch `capafy/factory-sonnet-5-5-runtime`）。枠が空き次第出る |
 | N6 | 宣伝の計測: Capafy 管理画面で登録した ct だけが計上される | 登録 ct 経由の訪問・注文が traffic-sources に出る | ✅ 8 本登録。訪問はまだ 0 |
-| N7 | 短尺動画（3 秒フック→実演→「Capafy で <名前> を検索」）を Instagram・TikTok へ。承認を待たない（4 本とも審査中でも公開検索に出て購入可、10/08 10:40 確認） | 動画が投稿され、注文につながる | **1 本目公開**: Hook Lab 動画 v2 を Postiz 経由で @capafy.hooklab へ（post `cmuyxv5wy0dizkz0y07j9qkkp`、PUBLISHED、https://www.instagram.com/reel/DeN5oujDBeC/ 、10/08 11:50 JST）。自動 owner `life-manager-capafy-ig` は launchd disabled のまま（pack/media/approval ref 未設定）。次: 残り 3 本の動画と 1 日 1 本の自動化 |
-| N7b | 自社メディア aniccaai.com の記事＋X（3 時間ごと） | 記事が公開され、登録 ct 経由の訪問が出る | 公開中（10/08 は h00〜h09 の 4 本 published、10/07 は h06 blocked・h15〜h21 なし）。OpenSEO のキーワード選定は writer の article-daily だけで、Capafy 記事には未適用 |
+| N7 | 短尺動画を Instagram へ（承認を待たない） | 投稿され注文につながる | @capafy.hooklab に Postiz 経由: Hook Lab https://www.instagram.com/reel/DeN5oujDBeC/ （11:50）、TikTok Script Pro https://www.instagram.com/reel/DeN8cAHFVWP/ （12:14）、YouTube Script Writer 17:00 予約、Slide Maker 20:00 予約。Capafy プロモーションリンク hooklab_ig / tiktok_ig / youtube_ig / slides_ig を登録し予約 2 本のキャプションに入れた。IG キャプションのリンクはタップ不可→プロフィールリンクを hooklab_ig にする（次）。自動 owner `life-manager-capafy-ig` は launchd disabled のまま |
+| N7b | aniccaai.com 記事＋X（3 時間ごと）と Telegram 報告 | 記事が公開され、リンクが Telegram に届く | 公開中（例 https://aniccaai.com/blog/capafy-hook-lab-2026-10-08-h09 ）。10/08 に配信ループへ Telegram 報告（記事・X・Capafy リンク、枠ごと 1 回）を追加 |
 | N8 | 工場・宣伝が止まらない運転 | 毎時の集計・3 時間ごとの宣伝・工場が自然に回る | 毎時確認中。ディスクは他セッションの作業で揺れる |
 
 **主指標（Dais 10/08）:** 直近 7 日の売上（`capafy-skill-analytics.json` `account_totals.last_7d`）。すべての報告の先頭に書く。10/08 時点 $0.00・0 件。30日の数字や利益で $0 の週を薄めない。今週の優先: 4 本の承認を早める → 承認と同時に短尺動画 → 赤字 3 本を止める → 新規。
 
-**現在のカーソル（2026-10-08 10:41 JST）:** N1（審査待ち・催促済み）と N7（宣伝を今すぐ）を並行。N2b（無料お試しをやめる）、N2c、N5（工場は Sonnet 5.5 実行で本番 release 8d396690）。順序変更の理由: Dais 10/08 指示で値下げ自動化を撤回し、宣伝を承認待ちから外した。旧順序 N1→N1b→N2b(値下げ)→N2c→N5→N7、新順序 N1∥N7→N2b(お試し停止)→N2c→N5。
+**現在のカーソル（2026-10-08 12:40 JST）:** 工場（下書き再開時の CP1 指示文を 3 タブ完了・保存・提出まで明記）→ Hook Lab・YouTube 再提出の承認 → 新規 agent 出荷。並行: N7（IG 自動化・プロフィールリンク）、N7b（Telegram 報告の自然実行確認）、N2b（お試し停止）、Slide Maker 承認待ち。
 
 
 ## 進捗ログ（実行順のカーソル）

@@ -303,6 +303,29 @@ subprocess.run([sys.executable, os.environ["LEDGER_TOOL"], "record", "--ledger",
                 "--date", slot, "--json", json.dumps(entry)], check=True)
 PY
 fi
+# Dais 2026-10-08: every published article reaches Telegram with clickable links.
+TG_MARK="$RUN_DIR/.telegram-sent"
+if [ ! -e "$TG_MARK" ] && [ "${CAPAFY_DISTRIBUTE_DRY_RUN:-0}" != "1" ]; then
+  TG_MSG="$(LEDGER="$LEDGER" SLOT="$SLOT" FALLBACK_URL="${ARTICLE_SELF_OWNED_BASE_URL:-https://aniccaai.com}/blog/$FREE_ARTICLE_SLUG" python3 - <<'PY' 2>>"$LOG"
+import json, os
+try:
+    e = json.load(open(os.environ["LEDGER"])).get(os.environ["SLOT"]) or {}
+except (OSError, ValueError):
+    e = {}
+if e.get("status") == "published":
+    d = e.get("destinations") or {}
+    article = (d.get("aniccaai") or {}).get("url") or os.environ["FALLBACK_URL"]
+    x = (d.get("x") or {}).get("url") or "not posted"
+    print(f"Capafy article published ({os.environ['SLOT']}, {e.get('capafy_skill', '')})\nArticle: {article}\nX: {x}\nCapafy: {e.get('cta_url', '')}")
+PY
+)"
+  if [ -n "$TG_MSG" ]; then
+    . "$LIFE_MANAGER_REPO/skills/_shared/scripts/telegram-notify.sh" 2>/dev/null || true
+    if command -v telegram_notify >/dev/null 2>&1 && telegram_notify "$TG_MSG" >>"$LOG" 2>&1; then
+      : >"$TG_MARK"
+    fi
+  fi
+fi
 POST_RC=0
 python3 "$SELF_DIR/capafy_distribute_ledger.py" check --ledger "$LEDGER" --date "$SLOT" >>"$LOG" 2>&1 || POST_RC=$?
 [ "$POST_RC" -eq 10 ] && exit 0
