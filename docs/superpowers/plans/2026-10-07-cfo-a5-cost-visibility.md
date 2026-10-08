@@ -151,6 +151,6 @@
 - [x] Run the complete A5 focused tests plus `npm run eval:panel-privacy`, the focused registry test, and `./bin/lm-loop-contract`.
 - [ ] Run `git diff --check`, review the full branch diff for tenant isolation, privacy, trace accuracy, unit separation, and unknown-versus-zero behavior.
 - [x] Update the canonical SSOT's A5 cursor and production evidence from fresh readbacks; distinguish the older-release ENOSPC messages from the current release's in-progress apply and keep unrelated owner failures outside A5 scope.
-- [x] Merge latest `origin/main`, push the existing `feat/cfo-a5-cost-visibility-20261007` branch, and update PR #6827; keep it draft until all required checks pass and the source review approves.
+- [ ] Fetch/merge latest `origin/main` (`9efbb3fd` at the current readback), then push the existing `feat/cfo-a5-cost-visibility-20261007` branch and update PR #6827; keep it draft until required checks and source review pass.
 - [x] On the pushed, main-synced branch, rerun `python3 -m unittest discover -s runtime/loop/tests -p 'test_*.py'` and `node --test apps/life-manager/lib/loop-adapter-registry.test.js`; specifically confirm the two `cut-loop-release` pressure tests no longer fail because the tested HEAD is only local.
 - [ ] Do not apply the database migration or manually run/restart the production CFO owner from this worktree; production migration/release/natural-report readback follows the canonical SSOT cursor.
