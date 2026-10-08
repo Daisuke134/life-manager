@@ -56,10 +56,10 @@ READY_TO_PUBLISH = {"approved", "pending_online", "audit_passed_pending_online"}
 UNLISTED = {"draft", "under_review", "review_rejected"}
 REJECTED = {"review_rejected", "banned"}
 RECOVERABLE = {"offline", "user_offline", "user_delisted", "taken_down"}
-# 5 was observed in 2026-07; on 2026-10-08 Capafy held 9 unlisted Agents at once and
-# neither the publisher docs nor the web state a limit. A real server refusal on
-# create shows up in the factory log and is the signal to lower this again.
-CAP = 10
+# Capafy states no limit on unlisted Agents (publisher docs, web, 2026-10-08) and held
+# 9 at once, so we do not self-limit (Dais 2026-10-08: submit as many as Capafy
+# accepts). A server refusal on create in the factory log is the only reason to cap.
+CAP = 1_000_000
 
 # Capafy's AI-generator stamps this exact suffix on the stub draft it creates
 # before any repo content is supplied. Must match select_publish_agent.py's
