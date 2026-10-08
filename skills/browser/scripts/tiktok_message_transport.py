@@ -201,15 +201,34 @@ def _readback_expression(candidate: str, message: str, marker: str, sender: str 
           return url.protocol === 'https:' && host && path.test(url.pathname);
         } catch (_) { return false; }
       };
-      const frame = [...document.querySelectorAll('iframe')].find(x => x.src.includes('/messages?'));
+      const matchingFrames = [...document.querySelectorAll('iframe')]
+        .filter(x => String(x.src || '').includes('/messages?'));
+      const frame = matchingFrames.length === 1 ? matchingFrames[0] : null;
       const doc = frame?.contentDocument;
       const editor = doc?.querySelector('[contenteditable="true"][aria-label*="メッセージ"]');
       const messageList = doc?.querySelector('[data-e2e="dm-new-message-list"]');
       const heads = [...(doc?.querySelectorAll('[data-e2e*="chat-header"],[class*="ChatHeader"],[class*="ConversationHeader"]') || [])];
       const handles = heads.flatMap(node => (node.innerText || '').match(/@[A-Za-z0-9._-]+/g) || []).map(x => x.toLowerCase());
-      const recipientBound = handles.includes(candidate.toLowerCase());
       const topUrl = location.href;
       const documentUrl = doc?.URL || '';
+      const uniqueHandles = [...new Set(handles)];
+      const routeHandles = [topUrl, documentUrl].flatMap(raw => {
+        try {
+          const values = new URL(raw).searchParams.getAll('u');
+          return values.filter(value => /^@?[A-Za-z0-9._-]+$/.test(value)
+            && (!/^\d+$/.test(value.replace(/^@/, '')) || /^@?\d+$/.test(candidate)))
+            .map(value => ('@' + value.replace(/^@/, '')).toLowerCase());
+        } catch (_) { return []; }
+      });
+      const uniqueRouteHandles = [...new Set(routeHandles)];
+      const routeRecipientConflict = routeHandles.some(handle => handle !== candidate.toLowerCase());
+      const headerRouteConflict = uniqueHandles.length === 1 && routeHandles.length > 0
+        && uniqueRouteHandles.some(handle => handle !== uniqueHandles[0]);
+      const recipientAmbiguous = matchingFrames.length > 1 || uniqueHandles.length > 1
+        || uniqueRouteHandles.length > 1 || routeRecipientConflict || headerRouteConflict;
+      const recipientBound = matchingFrames.length === 1
+        && uniqueHandles.length === 1 && uniqueHandles[0] === candidate.toLowerCase()
+        && !routeRecipientConflict && !headerRouteConflict;
       const messageListText = normalize(messageList?.innerText || '');
       let frameLocationUrl = '';
       try { frameLocationUrl = frame?.contentWindow?.location?.href || ''; } catch (_) {}
@@ -381,7 +400,8 @@ def _readback_expression(candidate: str, message: str, marker: str, sender: str 
       });
       return {
         url: topUrl, document_url: documentUrl, official_document: officialDocument,
-        recipient_bound: recipientBound, editor: !!editor, editor_empty: editorEmpty,
+        recipient_bound: recipientBound, recipient_ambiguous: recipientAmbiguous,
+        editor: !!editor, editor_empty: editorEmpty,
         editor_text: editorText,
         context_ready: contextReady, message_list_hydrated: messageListHydrated,
         message_node_resolution_complete: messageNodeResolutionComplete,
@@ -420,6 +440,9 @@ def _send_guard_expressions(candidate: str, message: str) -> tuple[str, str]:
           const topUrl = win.top.location.href;
           const docUrl = doc.URL;
           if (!official(topUrl, true) || !official(docUrl) || docUrl !== win.location.href) return false;
+          const frames = [...win.top.document.querySelectorAll('iframe')]
+            .filter(frame => String(frame.src || '').includes('/messages?'));
+          if (frames.length !== 1 || frames[0].contentWindow !== win) return false;
           const editor = doc.querySelector('[contenteditable="true"][aria-label*="メッセージ"]');
           const list = doc.querySelector('[data-e2e="dm-new-message-list"]');
           const busy = list?.getAttribute('aria-busy');
@@ -441,6 +464,17 @@ def _send_guard_expressions(candidate: str, message: str) -> tuple[str, str]:
           const heads = [...(doc.querySelectorAll('[data-e2e*="chat-header"],[class*="ChatHeader"],[class*="ConversationHeader"]') || [])];
           const handles = heads.flatMap(node => (node.innerText || '').match(/@[A-Za-z0-9._-]+/g) || [])
             .map(value => value.toLowerCase());
+          const uniqueHandles = [...new Set(handles)];
+          const routeHandles = [topUrl, docUrl].flatMap(raw => {
+            try {
+              const values = new URL(raw).searchParams.getAll('u');
+              return values.filter(value => /^@?[A-Za-z0-9._-]+$/.test(value)
+                && (!/^\d+$/.test(value.replace(/^@/, '')) || /^@?\d+$/.test(candidate)))
+                .map(value => ('@' + value.replace(/^@/, '')).toLowerCase());
+            } catch (_) { return []; }
+          });
+          if (uniqueHandles.length !== 1 || uniqueHandles[0] !== candidate.toLowerCase()
+              || routeHandles.some(handle => handle !== candidate.toLowerCase())) return false;
           const active = doc.activeElement;
           const focused = !!editor && (active === editor || !!editor.contains?.(active));
           const targetIsEditor = !event || (!!editor && (event.target === editor || !!editor.contains?.(event.target)));
@@ -588,6 +622,14 @@ def send_one(payload: dict, *, cdp_client=cdp, send: bool = False, wait=time.sle
         uncertain_prior = bool(prior and prior[-1].get("state") in {"attempting", "unknown", "sent"})
         if before.get("official_document") is True:
             result["official_url"] = before.get("url")
+        if before.get("recipient_ambiguous") is True:
+            result.update(status="recipient_context_ambiguous", retry_safe=False)
+            try:
+                if not prior or prior[-1].get("state") != "unknown":
+                    _append(ledger, result, "unknown")
+            except Exception as error:
+                result.update(ledger_terminal_write="failed", error_type=type(error).__name__)
+            return result
         if (before.get("official_document") is not True
                 or before.get("message_list_hydrated") is not True
                 or before.get("message_node_resolution_complete") is not True
@@ -656,7 +698,10 @@ def send_one(payload: dict, *, cdp_client=cdp, send: bool = False, wait=time.sle
             return result
 
         focused = cdp_client.evaluate(target, f'''/* TIKTOK_FOCUS */ (() => {{
-          const frame = [...document.querySelectorAll('iframe')].find(x => x.src.includes('/messages?'));
+          const frames = [...document.querySelectorAll('iframe')]
+            .filter(x => String(x.src || '').includes('/messages?'));
+          if (frames.length !== 1) return false;
+          const frame = frames[0];
           const editor = frame?.contentDocument?.querySelector({json.dumps(EDITOR)});
           if (!editor) return false; editor.focus(); return true;
         }})()''')

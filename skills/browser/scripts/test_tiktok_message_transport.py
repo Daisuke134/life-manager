@@ -149,9 +149,16 @@ const doc = {
 };
 const frame = {src: fixture.frameSrc || "https://www.tiktok.com/messages?u=candidate",
   contentDocument: doc, contentWindow: {location: {href: doc.URL}, document: doc}, isConnected: true};
+const otherFrame = {src: "https://www.tiktok.com/messages?u=someone-else",
+  contentDocument: doc, contentWindow: {location: {href: doc.URL}, document: doc}, isConnected: true};
 const win = {document: doc, location: new URL(doc.URL), listeners: {},
   addEventListener(type, callback, capture) { (this.listeners[type] ||= []).push({callback, capture}); }};
-win.top = fixture.topIsSelf === false ? {location: new URL(fixture.topUrl)} : win;
+frame.contentWindow = win;
+const topDocument = {querySelectorAll: selector => selector === "iframe"
+  ? (fixture.multipleMatchingFrames ? [frame, otherFrame] : [frame]) : []};
+const topWindow = {location: new URL(fixture.topUrl || "https://www.tiktok.com/business-suite/messages?u=candidate"),
+  document: topDocument};
+win.top = fixture.topIsSelf === false ? topWindow : win;
 let value;
 if (fixture.mode === "guard") {
   const install = vm.runInNewContext(fixture.expression, {window: win, document: doc, location: win.location, URL});
@@ -172,7 +179,8 @@ if (fixture.mode === "guard") {
     guard_status: win[token]?.status || null};
 } else {
   value = vm.runInNewContext(fixture.expression, {
-    document: {querySelectorAll: () => fixture.hasFrame === false ? [] : [frame]},
+    document: {querySelectorAll: selector => selector === "iframe"
+      ? (fixture.hasFrame === false ? [] : fixture.multipleMatchingFrames ? [frame, otherFrame] : [frame]) : []},
     location: {href: fixture.topUrl || "https://www.tiktok.com/business-suite/messages?u=candidate"}, URL,
   });
 }
@@ -585,12 +593,22 @@ class TikTokMessageTransportTest(unittest.TestCase):
         self.assertFalse(any(call[0] == "insert" for call in fake.calls))
 
     def test_recipient_binding_uses_exact_handle_tokens(self):
-        fake = FakeCDP()
-        self.send(self.payload(), fake, send=False)
-        expression = next(call[2] for call in fake.calls
-                          if call[0] == "evaluate" and "TIKTOK_COMPOSER_BEFORE" in call[2])
-        self.assertIn("handles.includes", expression)
-        self.assertNotIn("toLowerCase().includes", expression)
+        expression = transport._readback_expression(
+            "@candidate", "本文", "TIKTOK_EXACT_HANDLE", "@anicca.jp"
+        )
+        readback = evaluate_js_expression(expression, {
+            "topUrl": "https://www.tiktok.com/business-suite/messages?u=candidate",
+            "documentUrl": "https://www.tiktok.com/messages?u=candidate",
+            "headerText": "@candidate.extra", "editorText": "", "listText": "",
+        })
+        self.assertFalse(readback["recipient_bound"])
+
+        exact = evaluate_js_expression(expression, {
+            "topUrl": "https://www.tiktok.com/business-suite/messages?u=candidate",
+            "documentUrl": "https://www.tiktok.com/messages?u=candidate",
+            "headerText": "@candidate", "editorText": "", "listText": "",
+        })
+        self.assertTrue(exact["recipient_bound"])
 
     def test_payload_cannot_choose_an_alternate_effect_ledger(self):
         payload = self.payload()
@@ -774,6 +792,12 @@ class TikTokMessageTransportTest(unittest.TestCase):
                 "messageBubbles": ["本文"],
                 "topIsSelf": False,
             },
+            {
+                "documentUrl": "https://www.tiktok.com/messages?u=someone-else",
+                "topUrl": "https://www.tiktok.com/business-suite/messages?u=someone-else",
+                "headerText": "@someone-else\n@candidate",
+                "topIsSelf": False,
+            },
         ):
             with self.subTest(fixture=fixture):
                 result = dispatch_js_guard(fake.guard_expression, fixture)
@@ -795,6 +819,86 @@ class TikTokMessageTransportTest(unittest.TestCase):
         self.assertFalse(allowed["default_prevented"])
         self.assertTrue(allowed["keyup_prevented"])
         self.assertEqual(allowed["guard_status"], "allowed")
+
+    def test_ambiguous_recipient_candidates_fail_closed_and_write_unknown_ledger(self):
+        payload = self.payload()
+        fixture = {
+            "topUrl": "https://www.tiktok.com/business-suite/messages?u=someone-else",
+            "documentUrl": "https://www.tiktok.com/messages?u=someone-else",
+            "headerText": "@someone-else\n@candidate",
+            "editorText": "", "listText": "",
+        }
+        expression = transport._readback_expression(
+            "@candidate", "本文", "TIKTOK_AMBIGUOUS_RECIPIENT", "@anicca.jp"
+        )
+        readback = evaluate_js_expression(expression, fixture)
+        self.assertFalse(readback["recipient_bound"])
+        self.assertTrue(readback["recipient_ambiguous"])
+
+        result = self.send(payload, FakeCDP(before_readback_fixture=fixture), send=False)
+        self.assertEqual(result["status"], "recipient_context_ambiguous")
+        self.assertFalse(result["retry_safe"])
+        rows = [json.loads(line) for line in
+                (self.project_root / "delivery/tiktok-message-effects.jsonl").read_text().splitlines()]
+        self.assertEqual([row["state"] for row in rows], ["unknown"])
+
+        guard, _ = transport._send_guard_expressions("@candidate", "本文")
+        guarded = dispatch_js_guard(guard, fixture)
+        self.assertFalse(guarded["ready"])
+        self.assertTrue(guarded["default_prevented"])
+        self.assertEqual(guarded["guard_status"], "blocked")
+
+    def test_multiple_matching_frames_fail_closed_without_enter_or_sent_ledger(self):
+        payload = self.payload()
+        before = {
+            "topUrl": "https://www.tiktok.com/business-suite/messages?u=candidate",
+            "documentUrl": "https://www.tiktok.com/messages?u=candidate",
+            "headerText": "@candidate", "editorText": "", "listText": "",
+            "multipleMatchingFrames": True,
+        }
+        after = {
+            **before,
+            "listText": "本文",
+            "bubbles": [{"text": "本文", "attrs": {
+                "data-direction": "outgoing", "data-sender-handle": "@anicca.jp",
+            }}],
+        }
+        expression = transport._readback_expression(
+            "@candidate", "本文", "TIKTOK_MULTIPLE_FRAMES", "@anicca.jp"
+        )
+        readback = evaluate_js_expression(expression, after)
+        self.assertFalse(readback["recipient_bound"])
+        self.assertTrue(readback["recipient_ambiguous"])
+        self.assertFalse(readback["exact_message"])
+
+        with tempfile.TemporaryDirectory() as tmp:
+            preflight_root = pathlib.Path(tmp)
+            (preflight_root / "delivery").mkdir()
+            preflight = self.send(
+                payload, FakeCDP(before_readback_fixture=after), send=False,
+                project_root=preflight_root,
+            )
+            self.assertEqual(preflight["status"], "recipient_context_ambiguous")
+            rows = [json.loads(line) for line in
+                    (preflight_root / "delivery/tiktok-message-effects.jsonl").read_text().splitlines()]
+            self.assertEqual([row["state"] for row in rows], ["unknown"])
+
+        guard, _ = transport._send_guard_expressions("@candidate", "本文")
+        guarded = dispatch_js_guard(guard, {
+            **before, "editorText": "本文", "topIsSelf": False,
+        })
+        self.assertFalse(guarded["ready"])
+        self.assertTrue(guarded["default_prevented"])
+        self.assertEqual(guarded["guard_status"], "blocked")
+
+        fake = FakeCDP(before_readback_fixture=before, after_readback_fixture=after)
+        result = self.send(payload, fake)
+        self.assertEqual(result["status"], "recipient_context_ambiguous")
+        self.assertFalse(result["retry_safe"])
+        self.assertFalse(any(call[0] in {"insert", "guarded_key", "key"} for call in fake.calls))
+        rows = [json.loads(line) for line in
+                (self.project_root / "delivery/tiktok-message-effects.jsonl").read_text().splitlines()]
+        self.assertEqual([row["state"] for row in rows], ["unknown"])
 
     def test_cdp_guarded_key_keeps_page_guard_and_native_enter_in_one_session(self):
         calls = []
