@@ -30,16 +30,21 @@ const el = (text = "", attrs = {}) => ({
   contains(target) { return target === this; }, closest() { return null; },
   querySelectorAll() { return this.statuses || []; }, querySelector() { return null; },
 });
-const editor = el(fixture.editorText || "本文");
+const editor = el(fixture.editorText ?? "本文");
 const bubbles = (fixture.bubbles || []).map(b => {
   const n = el(b.text || "", b.attrs || {});
+  if (b.parentAttrs) n.parentElement = el("", b.parentAttrs);
   n.statuses = (b.statuses || []).map(s => el(s.text || "", s.attrs || {}));
   n.querySelectorAll = selector => selector.toLowerCase().includes("status") ? n.statuses : [];
   return n;
 });
 if (fixture.messageBubbles) bubbles.push(...fixture.messageBubbles.map(text => el(text)));
 const unresolved = fixture.unresolvedMessage ? [el("", {"data-e2e": "dm-message-row"})] : [];
-const list = el(fixture.listText || "", {"aria-busy": fixture.listBusy ?? "false"});
+const list = el(fixture.listText || "", {
+  "aria-busy": fixture.listBusy ?? "false",
+  "data-loaded": fixture.listLoaded,
+  "data-hydrated": fixture.listHydrated,
+});
 list.querySelectorAll = selector => selector.includes('[data-e2e*="message"],')
   ? [...bubbles, ...unresolved] : selector.toLowerCase().includes("message") ? bubbles : [];
 const header = el(fixture.headerText || "@candidate");
@@ -99,7 +104,9 @@ def dispatch_js_guard(expression, fixture):
 
 class FakeCDP:
     def __init__(self, *, identity="expected", exact_before=False, before=None, after=None, route=True,
-                 confirmed_empty=False, stable_empty=False, guarded_enter=None):
+                 confirmed_empty=False, stable_empty=False, guarded_enter=None,
+                 before_readback_fixture=None, after_readback_fixture=None,
+                 stable_readback_fixture=None):
         self.identity = identity
         self.exact_before = exact_before
         self.before = before
@@ -118,6 +125,9 @@ class FakeCDP:
         self.confirmed_empty = confirmed_empty
         self.stable_empty = stable_empty
         self.guarded_enter = guarded_enter or {"key": "Enter", "guard_status": "allowed"}
+        self.before_readback_fixture = before_readback_fixture
+        self.after_readback_fixture = after_readback_fixture
+        self.stable_readback_fixture = stable_readback_fixture
         self.guard_expression = None
         self.guard_status_expression = None
         self.calls = []
@@ -152,6 +162,8 @@ class FakeCDP:
         if any(marker in expression for marker in (
             "TIKTOK_COMPOSER_BEFORE", "TIKTOK_PRE_INSERT"
         )):
+            if self.before_readback_fixture is not None:
+                return evaluate_js_expression(expression, self.before_readback_fixture)
             return self.before or {
                 "url": "https://www.tiktok.com/business-suite/messages?u=candidate",
                 "official_document": True,
@@ -170,6 +182,8 @@ class FakeCDP:
                 "snapshot_key": "empty-snapshot" if self.confirmed_empty else "ready-snapshot",
             }
         if "TIKTOK_EMPTY_STABLE" in expression:
+            if self.stable_readback_fixture is not None:
+                return evaluate_js_expression(expression, self.stable_readback_fixture)
             return {
                 "official_document": self.stable_empty,
                 "context_ready": self.stable_empty,
@@ -199,6 +213,8 @@ class FakeCDP:
                 "message_node_resolution_complete": True,
             }
         if "TIKTOK_AFTER" in expression:
+            if self.after_readback_fixture is not None:
+                return evaluate_js_expression(expression, self.after_readback_fixture)
             return self.after
         raise AssertionError(expression)
 
@@ -710,7 +726,7 @@ class TikTokMessageTransportTest(unittest.TestCase):
                 patch.object(transport.cdp, "_rpc", side_effect=rpc):
             result = transport.cdp.guarded_key("target", "install-guard", "read-guard")
 
-        self.assertEqual(result, {"key": "Enter", "guard_status": "allowed"})
+        self.assertEqual(result, {"key": "Enter", "guard_status": "allowed", "key_dispatched": True})
         methods = [method for _, method, _ in calls if method != "close"]
         self.assertEqual(methods, [
             "Page.enable", "Page.addScriptToEvaluateOnNewDocument", "Runtime.evaluate",
@@ -741,6 +757,107 @@ class TikTokMessageTransportTest(unittest.TestCase):
         self.assertEqual(result["__error__"], "send_guard_unavailable")
         self.assertFalse(any(method == "Input.dispatchKeyEvent" for _, method, _ in calls))
         self.assertIn("Page.removeScriptToEvaluateOnNewDocument", [method for _, method, _ in calls])
+
+    def test_ancestor_failed_status_blocks_exact_and_keeps_send_fence(self):
+        fixture = {
+            "topUrl": "https://www.tiktok.com/business-suite/messages?u=candidate",
+            "documentUrl": "https://www.tiktok.com/messages?u=candidate",
+            "headerText": "@candidate", "editorText": "", "listText": "本文",
+            "bubbles": [{"text": "本文", "parentAttrs": {
+                "data-direction": "outgoing", "data-status": "failed",
+            }}],
+        }
+        expression = transport._readback_expression("@candidate", "本文", "TIKTOK_TEST", "@anicca.jp")
+        readback = evaluate_js_expression(expression, fixture)
+        self.assertFalse(readback["exact_message"])
+        self.assertTrue(readback["matching_bubble"])
+
+        result = self.send(self.payload(), FakeCDP(after_readback_fixture=fixture))
+        self.assertEqual(result["status"], "send_unknown_reconcile_required")
+        self.assertFalse(result["retry_safe"])
+        rows = [json.loads(line) for line in
+                (self.project_root / "delivery/tiktok-message-effects.jsonl").read_text().splitlines()]
+        self.assertEqual([row["state"] for row in rows], ["attempting", "unknown"])
+
+    def test_aria_busy_true_overrides_stale_loaded_marker_and_keeps_unknown_fenced(self):
+        fixture = {
+            "topUrl": "https://www.tiktok.com/business-suite/messages?u=candidate",
+            "documentUrl": "https://www.tiktok.com/messages?u=candidate",
+            "headerText": "@candidate", "editorText": "", "listText": "",
+            "listBusy": "true", "listLoaded": "true", "bubbles": [],
+        }
+        expression = transport._readback_expression("@candidate", "本文", "TIKTOK_TEST", "@anicca.jp")
+        self.assertFalse(evaluate_js_expression(expression, fixture)["message_list_hydrated"])
+
+        payload = self.payload()
+        first = FakeCDP(after={
+            "url": "https://www.tiktok.com/business-suite/messages?u=candidate",
+            "recipient_bound": True, "editor_empty": False, "exact_message": False,
+        })
+        self.assertEqual(self.send(payload, first)["status"], "send_unknown_reconcile_required")
+        reconciliation = FakeCDP(
+            confirmed_empty=True, stable_empty=True,
+            before_readback_fixture=fixture, stable_readback_fixture=fixture,
+        )
+        result = self.send(payload, reconciliation, send=False)
+        self.assertNotEqual(result["status"], "not_sent_exact_official_readback")
+        self.assertFalse(result["retry_safe"])
+
+    def test_partial_bubble_text_is_unknown_not_exact_or_retry_safe(self):
+        fixture = {
+            "topUrl": "https://www.tiktok.com/business-suite/messages?u=candidate",
+            "documentUrl": "https://www.tiktok.com/messages?u=candidate",
+            "headerText": "@candidate", "editorText": "", "listText": "前置き\n本文",
+            "bubbles": [{"text": "前置き\n本文", "attrs": {"data-direction": "outgoing"}}],
+        }
+        expression = transport._readback_expression("@candidate", "本文", "TIKTOK_TEST", "@anicca.jp")
+        readback = evaluate_js_expression(expression, fixture)
+        self.assertTrue(readback["matching_bubble"])
+        self.assertFalse(readback["exact_message"])
+
+        result = self.send(self.payload(), FakeCDP(after_readback_fixture=fixture))
+        self.assertEqual(result["status"], "send_unknown_reconcile_required")
+        self.assertFalse(result["retry_safe"])
+        rows = [json.loads(line) for line in
+                (self.project_root / "delivery/tiktok-message-effects.jsonl").read_text().splitlines()]
+        self.assertEqual([row["state"] for row in rows], ["attempting", "unknown"])
+
+    def test_guard_cleanup_failure_preserves_dispatch_result_and_sender_fence(self):
+        calls = []
+        class FakeSocket:
+            def close(self):
+                calls.append((self, "close", None))
+        socket = FakeSocket()
+
+        def rpc(ws, _call_id, method, params=None):
+            calls.append((ws, method, params))
+            if method == "Page.addScriptToEvaluateOnNewDocument":
+                return {"identifier": "guard-1"}
+            if method == "Runtime.evaluate":
+                value = ({"guard_installed": True, "ready": True}
+                         if params["expression"] == "install-guard"
+                         else {"guard_status": "allowed"})
+                return {"result": {"value": value}}
+            if method == "Page.removeScriptToEvaluateOnNewDocument":
+                raise RuntimeError("cleanup failed")
+            return {}
+
+        with patch.object(transport.cdp, "_page", return_value=socket), \
+                patch.object(transport.cdp, "_rpc", side_effect=rpc):
+            guarded = transport.cdp.guarded_key("target", "install-guard", "read-guard")
+
+        self.assertEqual(guarded["__error__"], "send_guard_cleanup_failed")
+        self.assertEqual(guarded["guard_status"], "allowed")
+        self.assertTrue(guarded["key_dispatched"])
+        self.assertEqual(guarded["cleanup_error_type"], "RuntimeError")
+
+        fake = FakeCDP(guarded_enter=guarded)
+        result = self.send(self.payload(), fake)
+        self.assertEqual(result["status"], "send_unknown_reconcile_required")
+        self.assertFalse(result["retry_safe"])
+        rows = [json.loads(line) for line in
+                (self.project_root / "delivery/tiktok-message-effects.jsonl").read_text().splitlines()]
+        self.assertEqual([row["state"] for row in rows], ["attempting", "unknown"])
 
 
 if __name__ == "__main__":

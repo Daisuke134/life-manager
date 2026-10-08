@@ -217,6 +217,7 @@ def _readback_expression(candidate: str, message: str, marker: str, sender: str 
         && documentUrl === frameLocationUrl;
       const busy = messageList?.getAttribute('aria-busy');
       const messageListHydrated = !!messageList && doc?.readyState === 'complete'
+        && busy !== 'true'
         && (busy === 'false' || messageList.getAttribute('data-loaded') === 'true'
             || messageList.getAttribute('data-hydrated') === 'true');
       const editorText = normalize(editor?.innerText || '');
@@ -235,18 +236,23 @@ def _readback_expression(candidate: str, message: str, marker: str, sender: str 
         && (!messageListText || bubbles.length > 0);
       const contextReady = officialDocument && recipientBound && !!editor && messageListHydrated
         && messageNodeResolutionComplete;
+      const statusPattern = /\b(failed|error|pending|sending|queued|cancel(?:led|ed)|undelivered|not[ -]?sent)\b|失敗|エラー|送信中|未配信|保留|待機中/i;
+      const statusClass = value => String(value || '').match(
+        /failed|error|pending|sending|queued|cancel(?:led|ed)|undelivered|not[ -]?sent/i
+      )?.[0] || '';
       const statusFor = node => {
-        const nodes = [...(node.querySelectorAll?.(statusSelector) || [])];
-        return nodes.flatMap(item => [
-          item.getAttribute?.('data-status'), item.getAttribute?.('aria-label'),
-          item.getAttribute?.('title'), item.getAttribute?.('data-e2e'),
-          item.className, item.innerText,
-        ].filter(Boolean)).join(' ');
+        const values = [];
+        for (let current = node; current && current !== messageList; current = current.parentElement) {
+          values.push(current.getAttribute?.('data-status'), current.getAttribute?.('data-message-status'),
+            statusClass(current.className));
+          for (const item of current.querySelectorAll?.(statusSelector) || []) {
+            values.push(item.getAttribute?.('data-status'), item.getAttribute?.('data-message-status'),
+              item.getAttribute?.('aria-label'), item.getAttribute?.('title'),
+              statusClass(item.className), item.innerText);
+          }
+        }
+        return values.filter(Boolean).join(' ');
       };
-      const ownStatus = node => [
-        node.getAttribute?.('data-status'), node.getAttribute?.('aria-label'),
-        node.getAttribute?.('title'), node.className,
-      ].filter(Boolean).join(' ');
       const isOutgoing = node => {
         let current = node;
         for (let depth = 0; current && current !== messageList && depth < 5; depth += 1) {
@@ -265,22 +271,15 @@ def _readback_expression(candidate: str, message: str, marker: str, sender: str 
         }
         return false;
       };
-      const blocked = /\b(failed|error|pending|sending|queued|cancel(?:led|ed)|undelivered|not[ -]?sent)\b|失敗|エラー|送信中|未配信|保留|待機中/i;
       const expectedText = normalize(expected);
-      const expectedLines = new Set(String(expected).split(/\n+/).map(normalize));
       const exactBubbles = bubbles.filter(node => {
         const content = normalize(node.querySelector?.('[data-e2e="dm-message-text"],[data-e2e*="message-content"],[class*="DivMessageContent"]')?.innerText || '');
-        const lines = String(node.innerText || '').split(/\n+/).map(normalize);
-        return content === expectedText || normalize(node.innerText) === expectedText || lines.includes(expectedText);
+        return content === expectedText || normalize(node.innerText) === expectedText;
       });
       const possibleBubbleMatch = bubbles.some(node => normalize(node.innerText).includes(expectedText));
-      const exactStatuses = exactBubbles.map(node => {
-        const statusLines = String(node.innerText || '').split(/\n+/).map(normalize)
-          .filter(line => line && !expectedLines.has(line) && blocked.test(line));
-        return `${ownStatus(node)} ${statusFor(node)} ${statusLines.join(' ')}`;
-      });
+      const exactStatuses = exactBubbles.map(statusFor);
       const messageSenderProven = exactBubbles.length > 0 && exactBubbles.every(isOutgoing);
-      const messageStatusSafe = messageSenderProven && !exactStatuses.some(value => blocked.test(value));
+      const messageStatusSafe = messageSenderProven && !exactStatuses.some(value => statusPattern.test(value));
       const exactMessage = contextReady && messageSenderProven && messageStatusSafe;
       const snapshotKey = JSON.stringify({
         documentUrl, topUrl, recipientBound, editorText, messageListText, busy,
@@ -329,7 +328,7 @@ def _send_guard_expressions(candidate: str, message: str) -> tuple[str, str]:
           const editor = doc.querySelector('[contenteditable="true"][aria-label*="メッセージ"]');
           const list = doc.querySelector('[data-e2e="dm-new-message-list"]');
           const busy = list?.getAttribute('aria-busy');
-          const hydrated = !!list && doc.readyState === 'complete'
+          const hydrated = !!list && doc.readyState === 'complete' && busy !== 'true'
             && (busy === 'false' || list.getAttribute('data-loaded') === 'true'
                 || list.getAttribute('data-hydrated') === 'true');
           const bubbleSelector = '[data-e2e="dm-message"],[data-e2e="dm-message-text"],[data-e2e*="message-bubble"],[data-e2e*="message-content"],[class*="DivChatMessage"],[class*="DivMessageBubble"]';
