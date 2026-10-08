@@ -237,7 +237,10 @@ Do only step 5b: complete all three CP1 tabs using CP1_AGENTIC.md and the exact 
   fi
 fi
 EVIDENCE_DIR="$LIFE_MANAGER_STATE_HOME/state/agent-runner-evidence/capafy-drainer/$(date +%s)-$$"
-printf '%s\n' "$PROMPT" | timeout 1200 env -u ANTHROPIC_API_KEY "$RUN_AGENT" \
+# 1200s was too short for the CP1 price tab driven by screenshots (2026-10-08 18:55: 76 UI steps, rc=124,
+# and the timeout leaves an effect_unknown fence that costs the next slot). 1800s keeps the whole pass
+# (prepare + agent + CP2/CP3) inside the 3600s loop limit. Stopgap until prices are set by a verified CLI verb.
+printf '%s\n' "$PROMPT" | timeout "${CAPAFY_CP1_AGENT_TIMEOUT_SECONDS:-1800}" env -u ANTHROPIC_API_KEY "$RUN_AGENT" \
   --task-class application-lane-agent \
   --evidence-dir "$EVIDENCE_DIR" \
   --task-label capafy-drainer \

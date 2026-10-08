@@ -26,6 +26,7 @@ import owner_report
 
 TELEGRAM_TARGET = os.environ.get("MKT_TELEGRAM_TARGET")
 DEFAULT_STATE_ROOT = REPO_ROOT / "skills" / "earn" / "marketing-engine" / "state"
+CLOUD_BOT_ENV_FILE = pathlib.Path.home() / ".config" / "env" / "global.env"
 
 
 def _parse_as_of(value: str | None) -> dt.datetime:
@@ -40,8 +41,30 @@ def _parse_as_of(value: str | None) -> dt.datetime:
     return parsed.astimezone(dt.timezone.utc)
 
 
+def _cloud_bot_token() -> str:
+    token = os.environ.get("LM_TELEGRAM_BOT_TOKEN")
+    if token:
+        return token
+    if CLOUD_BOT_ENV_FILE.is_file():
+        for raw in CLOUD_BOT_ENV_FILE.read_text(encoding="utf-8", errors="replace").splitlines():
+            line = raw.strip()
+            if line.startswith("export "):
+                line = line[7:].lstrip()
+            key, separator, value = line.partition("=")
+            if not separator or key.strip() != "LM_TELEGRAM_BOT_TOKEN":
+                continue
+            value = value.strip()
+            if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+                value = value[1:-1]
+            if value:
+                return value
+    raise TelegramError("Cloud Life Manager Telegram token is unavailable")
+
+
 def _send_text(text: str) -> dict:
-    client = TelegramClient.from_env()
+    environ = dict(os.environ)
+    environ["TELEGRAM_BOT_TOKEN"] = _cloud_bot_token()
+    client = TelegramClient.from_env(environ=environ)
     return client.send_text(text, chat_id=TELEGRAM_TARGET)
 
 
