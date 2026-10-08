@@ -183,10 +183,6 @@ async function runInitialWebTravelScan(uid, opts = {}, runOptions = {}) {
       checkoutAvailable: webTrialEligible(initialRow),
     });
   }
-  if (initialRow.stripe_subscription_id && initialRow.paid === true) {
-    return Object.assign(await buildTodaySnapshot(uid, opts), { scanState: "already_subscribed", checkoutAvailable: false });
-  }
-
   const paused = await applyWebTravelControl(uid, initialRow.calendar_connected_account_id, "initial_scan_pause", opts);
   if (paused.disconnectPending) throw webError(409, "disconnect_pending");
   if (paused.enablePending) throw webError(409, "calendar_enable_pending");
@@ -212,7 +208,12 @@ async function runInitialWebTravelScan(uid, opts = {}, runOptions = {}) {
   if (travelResult == null || snapshot.calendarState !== "connected"
     || snapshot.setupState === "sync_pending"
     || travelResult.inserted > 0 && snapshot.confirmedTravelBlockCount === 0) {
-    return Object.assign(snapshot, { scanState: "pending", checkoutAvailable: false });
+    const checkoutAvailable = webTrialEligible(current.row);
+    return Object.assign(snapshot, {
+      setupState: checkoutAvailable ? "trial_offer" : snapshot.setupState,
+      scanState: "pending",
+      checkoutAvailable,
+    });
   }
 
   const completedAt = new Date(opts.nowMs == null ? Date.now() : opts.nowMs).toISOString();
@@ -229,12 +230,16 @@ async function runInitialWebTravelScan(uid, opts = {}, runOptions = {}) {
       }, { supaUrl: opts.supaUrl, supaKey: opts.supaKey, fetchImpl: opts.fetchImpl });
     } catch { /* funnel telemetry must not block a confirmed Calendar result */ }
   }
-  const offerAvailable = Boolean(row.web_first_travel_at && !row.stripe_subscription_id);
+  const offerAvailable = webTrialEligible(row);
+  const entitled = webTravelEntitled(row, opts.nowMs == null ? Date.now() : opts.nowMs);
   return Object.assign(snapshot, {
-    setupState: row.web_first_travel_at ? "trial_offer" : "no_eligible_events",
+    setupState: offerAvailable ? "trial_offer"
+      : entitled ? String(row.plan_status || "").toLowerCase() === "trialing" ? "trial_active" : "subscribed"
+        : "billing_inactive",
     initialScanCompletedAt: row.web_initial_scan_completed_at,
     firstTravelAt: row.web_first_travel_at,
-    scanState: row.web_first_travel_at ? "complete" : "zero_blocks",
+    scanState: row.web_initial_scan_completed_at
+      ? row.web_first_travel_at ? "complete" : "zero_blocks" : "pending",
     checkoutAvailable: offerAvailable,
     syncState: syncState(snapshot, travelResult),
   });
@@ -305,6 +310,7 @@ function baseSnapshot(row, setupState, calendarState) {
     displayTimeZone: null,
     missingLocationCount: 0,
     initialScanCompletedAt: row && row.web_initial_scan_completed_at || null,
+    initialScanNeeded: !(row && row.web_initial_scan_completed_at),
     firstTravelAt: row && row.web_first_travel_at || null,
     confirmedTravelBlockCount: 0,
     scanState: null,
@@ -323,13 +329,15 @@ async function buildTodaySnapshot(uid, opts = {}) {
   const nowMs = opts.nowMs == null ? Date.now() : opts.nowMs;
   const firstRow = await readWebUserRow(uid, opts);
   await assertUnbound(uid, opts);
-  if (firstRow.web_first_travel_at && !webTrialEligible(firstRow) && !webTravelEntitled(firstRow, nowMs)) {
+  if (!webTrialEligible(firstRow) && !webTravelEntitled(firstRow, nowMs)
+    && (firstRow.web_first_travel_at || firstRow.stripe_subscription_id || firstRow.trial_expires_at)) {
     const snapshot = Object.assign(baseSnapshot(firstRow, "billing_inactive", "connected"),
       await readWebAutomationPreference(uid, opts));
     snapshot.subscriptionCheckoutAvailable = webPaidCheckoutEligible(firstRow);
     return snapshot;
   }
-  if (firstRow.web_first_travel_at) {
+  if (firstRow.web_first_travel_at || webTravelEntitled(firstRow, nowMs)
+    || !webTrialEligible(firstRow) && webPaidCheckoutEligible(firstRow)) {
     let active;
     try { active = await readActiveCalendarUser(uid, opts); }
     catch (error) {
@@ -349,7 +357,8 @@ async function buildTodaySnapshot(uid, opts = {}) {
       : entitled ? String(active.row.plan_status || "").toLowerCase() === "trialing" ? "trial_active" : "subscribed"
         : "billing_inactive";
     const snapshot = Object.assign(baseSnapshot(active.row, setupState, "connected"), preference);
-    snapshot.scanState = "complete";
+    snapshot.scanState = active.row.web_initial_scan_completed_at
+      ? active.row.web_first_travel_at ? "complete" : "zero_blocks" : "not_started";
     snapshot.checkoutAvailable = trialEligible;
     snapshot.subscriptionCheckoutAvailable = webPaidCheckoutEligible(active.row);
     return snapshot;
@@ -377,6 +386,14 @@ async function buildTodaySnapshot(uid, opts = {}) {
     || beforeReadRow.calendar_connected_account_id !== row.calendar_connected_account_id) {
     return Object.assign(baseSnapshot(beforeReadRow, "needs_calendar", "action_required"), preference);
   }
+  if (opts.skipCalendarDetails === true && webTrialEligible(beforeReadRow)) {
+    const snapshot = Object.assign(baseSnapshot(beforeReadRow, "trial_offer", "connected"), preference);
+    snapshot.checkoutAvailable = true;
+    snapshot.subscriptionCheckoutAvailable = webPaidCheckoutEligible(beforeReadRow);
+    snapshot.scanState = beforeReadRow.web_initial_scan_completed_at
+      ? beforeReadRow.web_first_travel_at ? "complete" : "zero_blocks" : "not_started";
+    return snapshot;
+  }
 
   let events;
   try {
@@ -389,7 +406,10 @@ async function buildTodaySnapshot(uid, opts = {}) {
       { strict: true, expectedCalendarAccountId: row.calendar_connected_account_id },
     );
   } catch {
-    return Object.assign(baseSnapshot(beforeReadRow, "sync_pending", "connected"), preference);
+    const snapshot = Object.assign(baseSnapshot(beforeReadRow, "sync_pending", "connected"), preference);
+    snapshot.checkoutAvailable = webTrialEligible(beforeReadRow);
+    snapshot.subscriptionCheckoutAvailable = webPaidCheckoutEligible(beforeReadRow);
+    return snapshot;
   }
   const ordered = events.slice().sort((a, b) => a.startMs - b.startMs);
   const nextEvent = ordered.find((event) => event.startMs >= nowMs && !isTravel(event.summary)) || null;

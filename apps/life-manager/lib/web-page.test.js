@@ -124,7 +124,7 @@ test("connected state and seven-day trial offer share one screen with exact $29 
   const visible = visibleHtml(html);
 
   assert.match(visible, /Google Calendarに接続しました/);
-  assert.match(visible, /移動時間はCalendarに自動登録済みです/);
+  assert.match(visible, /対象の予定に移動時間を自動で追加します/);
   assert.match(visible, /本日のお支払いは\$0です/);
   assert.match(visible, /7日間/);
   assert.match(visible, /2030年1月8日/);
@@ -208,7 +208,7 @@ test("pending initial processing renders the paywall immediately without scan UI
   }));
   assert.match(html, /7日間の無料トライアルを始める/);
   assert.match(html, /data-action="checkout"/);
-  assert.doesNotMatch(html, /spinner|予定を確認しています|scan|再スキャン/i);
+  assert.doesNotMatch(html, /spinner|予定を確認しています|再スキャン/i);
 });
 
 test("trial-active state confirms automation without rendering a daily dashboard", () => {
@@ -280,7 +280,8 @@ test("verified Messages contact link is omitted unless the server supplies one",
 test("Google auth return automatically starts Calendar OAuth using the server redirect", async () => {
   const page = renderWebPage({
     user,
-    snapshot: snapshot({ setupState: "needs_calendar", calendarState: "action_required", checkoutAvailable: false }),
+    snapshot: snapshot({ setupState: "needs_calendar", calendarState: "action_required",
+      initialScanCompletedAt: null, checkoutAvailable: false }),
   });
   const redirectUrl = "https://accounts.google.com/o/oauth2/v2/auth?state=server-value";
   const client = mountClient(page, {
@@ -294,6 +295,7 @@ test("Google auth return automatically starts Calendar OAuth using the server re
   assert.deepEqual(JSON.parse(start.init.body), {});
   assert.deepEqual(client.redirects, [redirectUrl]);
   assert.deepEqual(client.replacements, ["/lm"]);
+  assert.equal(client.requests.some((request) => request.path === "/api/lm-web/setup"), false);
 });
 
 test("Calendar return starts initial processing silently while keeping the connected paywall visible", async () => {

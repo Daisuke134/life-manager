@@ -4159,12 +4159,13 @@ flowchart LR
 この更新は上記の「Calendar block確認後にtrial Checkoutを提示」とWB-15dの旧順序を置き換える。TelegramのコードではCalendar接続リンクの後、共有schedulerが定期的にtravel ownerを実行し、ask loopがTelegram経由でオンライン/対面や未解決場所を確認する。Webにもこの自動バックエンド処理を使い、利用者向けscan操作・spinner・結果画面は作らない。
 
 **旧順:** WB-15d.1でGoogle test identity/stagingを先に用意 → OAuth/Calendar → travel scan → block確認後にpaywall → Stripe lifecycle → production readback。
-**新順:** WB-15d.0でCalendar ACTIVE直後のpaywallとバックエンド自動処理を実装・fixture検証 → WB-15d.1で隔離E2E identity/staging → OAuth/Calendar readback → Calendar auto-fill/Stripe lifecycle E2E → production readback → WB-16 verified $10K MRR。
+**新順:** WB-15d.0でCalendar ACTIVE直後のpaywallとバックエンド自動処理を実装・fixture検証 → source commit/push/PR/CI/merge → WB-15d.1で隔離E2E identity/staging → OAuth/Calendar readback → Calendar auto-fill/Stripe lifecycle E2E → production readback → WB-16 verified $10K MRR。
 **理由:** DaisはTelegramのように接続後は自動で処理し、利用者へscanを求めず、Travel block数に関係なく接続完了直後に7日間・カード必須trialを提示するよう指定した。既存$29/monthは維持する。initial processingはCalendar ACTIVE後にバックエンドで始め、継続処理はStripe webhookがcard-backed trial/paid状態を確認した後だけ許可する。marketing作業はこのphaseのTODOから外す。これはscope判断であり公開投稿や売上の証明ではない。
 
 **画面の正本:** `/lm` →「Google Calendarに接続」→ Google identity確認とCalendar権限 → CalendarがACTIVEになったら即「接続完了 + 7日無料trial（カード必須、以後$29/月）」を一画面表示。自動処理は裏で並行実行する。block未作成/0件/処理中でもpaywallを表示し、未確認のblockを追加済みと書かない。dashboard、chat thread、scan UI、手動rescan、Gmail access、home-address質問はない。
 
-**実測境界:** central credential SSOTに専用Google test identityなし。Railwayの現状test/stagingとStripe test webhookのreadbackは別TODOで確認する。個人Google/Calendarや本番Stripeをテストに使わない。最後の記録済み30日Web/Stripe readbackはgross Web MRR `$0`、$10K MRRは未達。**現在cursor=`WB-15d.0: sourceのoffer eligibility/UIを直し、Calendar ACTIVE・pending/zero-blockのfocused testを通す`**。
+**WB-15d.0 source acceptance:** offer eligibility、Checkout、Stripe Web billing classifierからfirst-Travel/scan gateを外し、ページからscan表示・手動rescanと未確認blockのsuccess copyを削除した。focused billing/Web suites `157/157`、scheduler `20/20`、synthetic browser E2E `390x844/1440x900` PASS。遅延させたzero-block処理の応答前にpaywallが出ることを確認。これはsource/fixture proofであり、Google OAuth/Calendar・Stripe hosted Checkoutの実provider proofではない。local `npm ci --ignore-scripts`はlockfile変更なし。**現在cursor=`WB-15d.0 sourceをcommit/pushし、fresh reviewとCIを通してmerge。その後WB-15d.1の隔離Google identity・Railway test service・Stripe test webhookの実体を再readback`**。
+**実測境界:** central credential SSOTに専用Google test identityなし。Railwayの現状test/stagingとStripe test webhookのreadbackは別TODOで確認する。個人Google/Calendarや本番Stripeをテストに使わない。最後の記録済み30日Web/Stripe readbackはgross Web MRR `$0`、$10K MRRは未達。
 
 - **WB-12 metric boundaries:** landing/connectはHTTP request数で人数ではない。初回購入と更新は全invoice履歴で区別する。MRRはWebhook確認済みのpaid row・現行Stripe subscription・price itemを照合する。Stripeのpaid payoutはStripe側のstatusであり銀行入金ではない。Fee集計はWeb顧客に帰属するcharge/refund BalanceTransactionのみで、FX・アカウント費用はunknown。推計費用の行が欠ければ総推計額もnull。
 

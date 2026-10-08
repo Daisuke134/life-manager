@@ -324,7 +324,7 @@ test("Calendar ACTIVE shows the trial offer before initial scan or first Travel 
   let eventReads = 0;
   const f = fixture({ listEvents7dImpl: async () => { eventReads++; return []; } });
 
-  const snapshot = await buildTodaySnapshot(UID, f.opts);
+  const snapshot = await buildTodaySnapshot(UID, { ...f.opts, skipCalendarDetails: true });
 
   assert.equal(snapshot.setupState, "trial_offer");
   assert.equal(snapshot.checkoutAvailable, true);
@@ -416,7 +416,7 @@ test("repeated initial setup reuses the confirmed Travel block and keeps one sca
   }]);
 });
 
-test("initial scan stays pending and offers no trial if the Travel popup reminder is not read back", async () => {
+test("initial scan stays pending but keeps the trial offer if the Travel popup reminder is not read back", async () => {
   const f = fixture();
   const block = travelBlock();
   delete block.reminders;
@@ -426,7 +426,7 @@ test("initial scan stays pending and offers no trial if the Travel popup reminde
   const result = await runInitialWebTravelScan(UID, f.opts);
 
   assert.equal(result.scanState, "pending");
-  assert.equal(result.checkoutAvailable, false);
+  assert.equal(result.checkoutAvailable, true);
   assert.equal(f.row.web_first_travel_at, null);
 });
 
@@ -536,15 +536,15 @@ test("initial scan pauses automation without recording an explicit user pause", 
 
 test("automatic Calendar processing still skips guesses when home or event location is missing", async () => {
   const noHome = fixture({ calendar: { async listEventsRaw() { return [event()]; } } });
-  const noHomeSnapshot = await buildTodaySnapshot(UID, { ...noHome.opts, includeCalendarDetails: true });
+  const noHomeSnapshot = await buildTodaySnapshot(UID, noHome.opts);
   assert.equal(noHomeSnapshot.setupState, "needs_initial_scan");
   assert.equal(noHomeSnapshot.nextEvent.location, "渋谷ヒカリエ");
   assert.equal(noHomeSnapshot.travelBlock, null);
 
   const locationless = fixture({ calendar: { async listEventsRaw() { return [event("event-no-location", "")]; } } });
   locationless.row.web_initial_scan_completed_at = "2030-01-01T00:00:00.000Z";
-  const locationlessSnapshot = await buildTodaySnapshot(UID, { ...locationless.opts, includeCalendarDetails: true });
-  assert.equal(locationlessSnapshot.setupState, "no_eligible_events");
+  const locationlessSnapshot = await buildTodaySnapshot(UID, locationless.opts);
+  assert.equal(locationlessSnapshot.setupState, "trial_offer");
   assert.equal(locationlessSnapshot.nextEvent.location, "");
   assert.equal(locationlessSnapshot.travelBlock, null);
   assert.equal(locationlessSnapshot.departureAt, null);
@@ -634,7 +634,7 @@ test("missing Calendar helper readback remains pending", async () => {
   const result = JSON.parse(response.body);
   assert.equal(response.status, 200);
   assert.equal(result.scanState, "pending");
-  assert.equal(result.checkoutAvailable, false);
+  assert.equal(result.checkoutAvailable, true);
   assert.equal(result.confirmedTravelBlockCount, 0);
   assert.equal(f.row.web_initial_scan_completed_at, null);
   assert.equal(f.row.web_first_travel_at, null);
