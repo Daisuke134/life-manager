@@ -4,6 +4,12 @@
 
 Connector、Job Hunter、Fundraiserの既存loopを、現行`lm-loop`上で安全に動かし、同時実行をCodex homeとbrowser profileの不要な長時間lockで塞がない。対象はSQLite admission hot path、3 task classのprovider profile pool、Connector/Fundraiserのowner-isolated browser context、使い捨てChromiumを起動するbrowser capacity probeに限定する。
 
+## Architecture review — decision for this repair
+
+- Keep `lm-loop`, its durable admission queue, effect fences, immutable releases, and provider receipts. The observed failures are in local boundaries: SQLite's existing-schema read path takes a writer lock, Codex locking is scoped to unique invocation homes, Fundraiser's wrapper and prompt use different browser owners, and Connector tab GC is not context-scoped.
+- OpenClaw's agent queue, Hatchet's worker slots, or Temporal's worker slots do not repair those account/browser identity boundaries. Moving the scheduler now adds migration work while leaving the observed lock and context defects in place. Keep this repair on the current control plane and fix those boundaries directly.
+- Keep the global finite-run cap at 8. After the three loops run naturally on the repaired release, collect fresh admission occupancy, queue age, per-class contention, and host load before proposing any cap or lane-limit change. The broader LR-08 revenue-owner classification and fairness design remains a separate SSOT item.
+
 ## Invariants
 
 - 3 task classは`gpt-6-luna` / `max` / `fast`を維持する。
@@ -56,8 +62,8 @@ Connector、Job Hunter、Fundraiserの既存loopを、現行`lm-loop`上で安�
 - `bash scripts/verify-source-boundary.sh`、`./bin/lm-loop-contract`、`git diff --check`をpassさせる。
 - 対象source acceptance、fresh read-only review、required CIをpassしてPRをmainへ統合する。
 - 既存source snapshot: context/CDP 21 tests、Connector wrapper 2、Fundraiser wrapper 7、Connector controller+contract 10 tests pass。`./bin/lm-loop-contract`、source-boundary、shell syntax、diff checkもpass。
-- PR #7072 (`fix/local-revenue-capacity-concurrency-20261008`) はhead `874b02f5`、base `d3b0d992`でOPEN。read-only reviewはCriticalなし、Important 2件（Fundraiser owner/context不一致、profile-level provider lease不足）、Minor 1件（継承envで対象外taskにもfail-fastが漏れる）を報告。Connector GCのcontext scopeもsource上で未解決。
-- 現CIは`test_terra_default.py`の3 task-class期待値不一致でPython unittestがFAIL。OSS manifest不一致もCIでFAILしたが、manifestをlocal更新後の`node scripts/verify-oss-self-contained.mjs --json`は`ok=true`。この更新をpush後にCIを再実行する。Loop control contractは直近readbackで実行中。
+- PR #7072 (`fix/local-revenue-capacity-concurrency-20261008`) は最新main `1872befb`へrebaseし、head `66799fde`でOPEN。read-only reviewはCriticalなし、Important 2件（Fundraiser owner/context不一致、profile-level provider lease不足）、Minor 1件（継承envで対象外taskにもfail-fastが漏れる）を報告。Connector GCのcontext scopeもsource上で未解決。
+- rebase前のheadでは`test_terra_default.py`の3 task-class期待値不一致とOSS manifest不一致でCIがFAIL。manifest更新後のローカルverifierは`ok=true`。rebase後のPR headでCodeRabbitはPASSし、他CIは未報告。
 
 ### 6. Immutable releaseとtarget owner apply
 
