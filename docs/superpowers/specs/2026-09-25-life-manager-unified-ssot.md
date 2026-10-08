@@ -10014,3 +10014,14 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 **TODO順序と現在cursor:** 旧cursor=`A6 billed/usage/cash/trace reconciliation → A8 → A9 → A10`, with CFO owner adoption pending. 新cursor=`(1) 完了: ownerを`6708b97f`へ自然adopt → (2) 完了: same-occurrence provider receipt/readback → (3) 現在: A6 invoice/usage/cash/trace reconciliation → (4) A8 all-loop/job coverage → (5) A9 source-period report → (6) A10 seven-day natural acceptance`。理由は、receipt-backed natural reportは回復したが、全社のsettled totalsとper-loop actualsはcoverage gapsによりunknownだから。
 
 **現在cursor:** A6 invoice/usage/cash/trace reconciliation → A8 full loop/job coverage → A9 source-period CFO report → A10 seven-day natural acceptance. A5 panel auth remains separately deferred; Money Tree/A7 and Cloud cost optimization remain outside this lane.
+
+### 2026-10-09 08:06 JST — A8 per-loop coverage census confirms company P&L is unknown
+
+The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-33192`) confirms the breadth of the A8 gap; it does not add new settled revenue or costs.
+
+- Historical company projection is `unknown` with 173 coverage gaps across 18/18 loops. Reasons: `missing_category` 162, `stale_readback` 5, `unverified_receipt` 3, `source_unconnected` 2, `missing_coverage` 1.
+- Trailing company projection is `unknown` with 168 gaps across 18/18 loops. MRR projection is `unknown` with 26 gaps across 17 loops; only `mobile-apps` MRR is verified at USD `20.34`.
+- Historical gap counts by loop: affiliate 10; agent-economy 9; capafy 10; cfo 10; connector 9; ebook 9; fundraiser 9; gig-coconala 10; gig-crowdworks 10; gig-lancers 10; gig-mercor 9; investment 11; job-hunter 9; line-sticker 9; mobile-apps 10; promptbase 9; self-build 10; writer 10. Every loop has nine missing categories; additional loop-specific source/readback gaps account for the remainder.
+- Do not convert any gap to zero. Close each source with an official settlement/expense receipt or a source-backed verified-zero window; keep bank/card/provider charges and shared overhead represented in company totals.
+
+**TODO順序と現在cursor:** 旧cursor=`A6 invoice/usage/cash/trace → A8 source coverage → A9 → A10`。新cursor=`(1) 現在: A6 billed invoiceと同期間usage/cash/loop traceを照合 → (2) A8の18 loop/188 job/113 mapped coverage gapsをsource ownerごと閉じる → (3) A9 daily/MTD/trailing/MRRを正しい期間で表示 → (4) A10 7日連続natural acceptance`。A5 panel authはTelegram-onlyのため別途deferred、A7/Money TreeとCloud savingsは対象外。
