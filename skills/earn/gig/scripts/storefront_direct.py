@@ -19,6 +19,7 @@ from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from urllib.parse import quote, urlsplit
+from zoneinfo import ZoneInfo
 
 SCRIPTS = Path(__file__).resolve().parent
 if str(SCRIPTS) not in sys.path:
@@ -62,6 +63,7 @@ DEFAULT_STOREFRONT_ROOT = Path(
 DEFAULT_SCORECARD = DEFAULT_STOREFRONT_ROOT / "scorecard.json"
 MEASURABLE_SUCCESS_METRICS = {"inquiries", "purchases", "views_to_inquiry", "views_to_purchase",
                               "net_receipt"}
+OFFICIAL_ANALYTICS_MAX_AGE_SECONDS = 3600
 DEFAULT_REPLY_TRANSCRIPTS = Path.home() / "gig" / "reply-transcripts.jsonl"
 DEFAULT_APPLIED = Path.home() / "gig" / "applied.jsonl"
 DEFAULT_EARNINGS = Path.home() / "gig" / "earnings.jsonl"
@@ -3066,7 +3068,7 @@ def _collect_analytics(
         if isinstance(row.get("window"), dict) and row["window"].get("complete") is True
     }
     window = json.loads(next(iter(windows))) if len(windows) == 1 else None
-    return {**target, "catalog_metrics": {
+    return {**target, "_fresh_snapshots": snapshots, "catalog_metrics": {
         "status": "current_full", "observed_at_epoch": now,
         "window": window, "coverage": {"observed": len(snapshots), "expected": len(service_ids)},
         "services_observed": len(snapshots), "totals": totals, "changes": changes,
@@ -3272,6 +3274,7 @@ def _prepare_next_hypothesis(
     compliance_violations: list[dict] | None = None,
     offer_refresh: list[dict] | None = None,
     unread_traffic: list[str] | None = None,
+    fresh_snapshots: list[dict] | None = None,
 ) -> dict | None:
     try:
         backlog = json.loads(scorecard_path.read_text(encoding="utf-8"))["priority_backlog"]
@@ -3457,8 +3460,9 @@ def _prepare_next_hypothesis(
     if type(observation_window_days) is not int or observation_window_days not in {7, 14}:
         observation_window_days = 14
     measurement_feasibility = _measurement_feasible(
-        effects_path.parent / "analytics.jsonl", service_id, observation_window_days,
+        fresh_snapshots, service_id, observation_window_days,
         int(_portfolio_policy(scorecard_path).get("minimum_views_for_measurement", 100)),
+        now,
     )
     executable = mutation_contract is not None
     guard_reason = None if executable else "proposal_contract_required"
@@ -3503,7 +3507,10 @@ def _portfolio_policy(scorecard_path: Path) -> dict:
     return policy
 
 
-def _measurement_feasible(analytics_path: Path, service_id: str, window_days: int, minimum_views: int) -> dict:
+def _measurement_feasible(
+    fresh_snapshots: list[dict] | None, service_id: str, window_days: int, minimum_views: int,
+    now: int | None = None,
+) -> dict:
     """Can this experiment's metric move enough to be read at all?
 
     Official views are a rolling thirty-day figure, so this projects that rate onto the
@@ -3511,24 +3518,60 @@ def _measurement_feasible(analytics_path: Path, service_id: str, window_days: in
     window that cannot reach the policy's minimum exposure buys noise while locking the
     listing, so the experiment closes as unknown instead of being waited out.
     """
-    if not analytics_path.is_file():
-        return {"status": "unknown", "reason": "official_analytics_missing"}
-    latest = None
-    try:
-        for line in analytics_path.read_text(encoding="utf-8").splitlines():
-            if not line.strip():
-                continue
-            row = json.loads(line)
-            if (str(row.get("service_id") or "") == service_id
-                    and ((row.get("metrics") or {}).get("views") or {}).get("status") == "known"
-                    and type(row.get("observed_at_epoch")) is int
-                    and (latest is None or row["observed_at_epoch"] > latest["observed_at_epoch"])):
-                latest = row
-    except json.JSONDecodeError:
-        return {"status": "unknown", "reason": "official_analytics_invalid"}
+    if fresh_snapshots is None:
+        return {"status": "unknown", "reason": "current_official_analytics_missing"}
+    latest = next((row for row in reversed(fresh_snapshots)
+                   if isinstance(row, dict) and str(row.get("service_id") or "") == service_id), None)
     if latest is None:
+        return {"status": "unknown", "reason": "current_official_analytics_missing"}
+
+    observed_at = latest.get("observed_at_epoch")
+    if type(observed_at) is not int or observed_at <= 0:
+        return {"status": "unknown", "reason": "official_analytics_timestamp_invalid"}
+    age = (int(time.time()) if now is None else now) - observed_at
+    if age < 0:
+        return {"status": "unknown", "reason": "official_analytics_future_observation"}
+    if age > OFFICIAL_ANALYTICS_MAX_AGE_SECONDS:
+        return {"status": "unknown", "reason": "official_analytics_stale"}
+    if latest.get("official") is not True:
+        return {"status": "unknown", "reason": "official_analytics_not_official"}
+    if latest.get("source_url") != f"https://coconala.com/mypage/analytics/{service_id}":
+        return {"status": "unknown", "reason": "official_analytics_source_mismatch"}
+    window = latest.get("window")
+    if not isinstance(window, dict) or window.get("complete") is not True:
+        return {"status": "unknown", "reason": "official_analytics_window_incomplete"}
+    try:
+        window_start = datetime.strptime(window["start"], "%Y/%m/%d").date()
+        window_end = datetime.strptime(window["end"], "%Y/%m/%d").date()
+        observed_date = datetime.fromtimestamp(observed_at, timezone.utc).astimezone(
+            ZoneInfo("Asia/Tokyo")
+        ).date()
+    except (KeyError, TypeError, ValueError, OSError, OverflowError):
+        return {"status": "unknown", "reason": "official_analytics_window_invalid"}
+    if window_start >= window_end or window_end > observed_date:
+        return {"status": "unknown", "reason": "official_analytics_window_invalid"}
+
+    metrics = latest.get("metrics")
+    views = metrics.get("views") if isinstance(metrics, dict) else None
+    monthly = views.get("value") if isinstance(views, dict) else None
+    if (not isinstance(views, dict) or views.get("status") != "known"
+            or type(monthly) is not int or monthly < 0):
         return {"status": "unknown", "reason": "no_official_views_for_service"}
-    monthly = int(latest["metrics"]["views"]["value"])
+    content_sha256 = latest.get("content_sha256")
+    if not isinstance(content_sha256, str) or not re.fullmatch(r"[0-9a-f]{64}", content_sha256):
+        return {"status": "unknown", "reason": "official_analytics_snapshot_identity_invalid"}
+    identity = {
+        "service_id": service_id, "window_start": window["start"],
+        "window_end": window["end"], "metrics": metrics,
+        "content_sha256": content_sha256,
+    }
+    expected_key = "storefront:analytics:v1:" + hashlib.sha256(json.dumps(
+        identity, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    ).encode()).hexdigest()
+    if type(latest.get("version")) is not int or latest.get("version") != 1 \
+            or latest.get("snapshot_key") != expected_key:
+        return {"status": "unknown", "reason": "official_analytics_snapshot_identity_invalid"}
+
     projected = int(monthly * window_days / 30)
     return {"status": "known", "official_30d_views": monthly,
             "projected_window_views": projected, "minimum_views": minimum_views,
@@ -3538,6 +3581,7 @@ def _measurement_feasible(analytics_path: Path, service_id: str, window_days: in
 
 def _close_outcome(
     state_dir: Path, analytics: dict, reply_transcripts: Path, scorecard_path: Path, now: int,
+    fresh_snapshots: list[dict] | None = None,
 ) -> dict | None:
     experiments_path, outcomes_path = state_dir / "experiments.jsonl", state_dir / "outcomes.jsonl"
     experiments = [json.loads(line) for line in experiments_path.read_text(encoding="utf-8").splitlines() if line]
@@ -3558,8 +3602,9 @@ def _close_outcome(
     # A window that cannot reach the policy's minimum exposure locks the listing without
     # buying evidence, so close it as unknown rather than wait the calendar out.
     feasibility = _measurement_feasible(
-        state_dir / "analytics.jsonl", str(experiment.get("service_id") or ""), window_days,
+        fresh_snapshots, str(experiment.get("service_id") or ""), window_days,
         int(_portfolio_policy(scorecard_path).get("minimum_views_for_measurement", 100)),
+        now,
     )
     if now < eligible_at and feasibility.get("status") == "known" and not feasibility["feasible"]:
         terminal_state, reason = True, "metric_unmeasurable_insufficient_exposure"
@@ -7167,6 +7212,7 @@ def run_once(args: argparse.Namespace) -> tuple[int, dict]:
                             args.state_dir / "effects.jsonl", args.state_dir / "outcomes.jsonl",
                             validated_contracts, int(time.time()), mutation_contracts,
                             compliance_violations, offer_refresh, unread_traffic,
+                            analytics.get("_fresh_snapshots"),
                         )
                 if (next_hypothesis is not None
                         and next_hypothesis.get("guard_reason") == "proposal_contract_required"):
@@ -7248,6 +7294,7 @@ def run_once(args: argparse.Namespace) -> tuple[int, dict]:
                             args.state_dir / "effects.jsonl", args.state_dir / "outcomes.jsonl",
                             validated_contracts, int(time.time()), mutation_contracts,
                             compliance_violations, offer_refresh, unread_traffic,
+                            analytics.get("_fresh_snapshots"),
                         )
                 mutation_contract = None
                 if proposal_noop is not None:
@@ -8331,6 +8378,7 @@ def run_once(args: argparse.Namespace) -> tuple[int, dict]:
                 args.state_dir, analytics,
                 getattr(args, "reply_transcripts", DEFAULT_REPLY_TRANSCRIPTS),
                 getattr(args, "scorecard", DEFAULT_SCORECARD), int(time.time()),
+                analytics.get("_fresh_snapshots"),
             )
             if next_hypothesis is not None:
                 _append_key_once(
