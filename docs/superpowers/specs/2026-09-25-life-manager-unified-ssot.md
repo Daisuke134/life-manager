@@ -7447,3 +7447,12 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 - **安全な反映手順:** PR #7173 merge後、`~/loops/current`がそのmain-derived immutable releaseを指すことを確認する。target statusとapply lockをreadbackし、lock-freeなら`LIFE_MANAGER_APPLY_TARGET=ebook-en-instagram-daily ~/loops/current/bin/lm-loop apply --loaded-idle-only`を実行する。この既存経路は対象ownerだけをapplyする。`--all`は使わず、exact Hadrian asset/本人確認/Postiz bindingが整うまではpublishしない。
 - **順序更新:** 旧順=`2 GiBへcleanup→fleet-wide apply→owner確認`。新順=`PR #7173をmerge→main-derived releaseを確認→既存target applyでEnglish Instagram ownerだけapply→外部投稿ゲート完了後publish`。理由は新ownerが512 MiBを満たし、CLIに既存の単一owner target機能があり、全fleet applyの最新runがbudget超過したため。
 - **現在cursor:** PR #7173の直前headは`Loop control contracts`以外のrequired checksがPASS、同checkだけrunner queueでpendingだった。今回のspec correctionをpushした新headのrequired CIを全PASSさせてmergeする。fresh read-only source reviewは差分にmerge blockerなし。次にexact Hadrian videoとowner phone verification/Postiz接続を完了してから上記target applyと一回投稿に進む。
+
+### 2026-10-09 00:25 JST — current releaseと英語owner readback
+
+- `~/loops/current`は`20261009T000957-1fe7db3b`。最新`origin/main=9abbdb9d`、PR #7173 baseも`9abbdb9d`。空き容量`1,001,848 KiB`（約0.95 GiB）で、新ownerの512 MiB revenue floorを超える。
+- `ebook-en-instagram-daily`はPR未mergeのためcurrent releaseに未登録。英語TikTok ownerは`safely_fenced`で、event SHA `8b75fa53`、loaded SHA `25bee172`、occurrence `18dc8c1cbd8be268-42376`。その旧ownerを再送先にしない。
+- release-reconciler最新 occurrence `18dc9712889c8b88-7388` は旧loaded SHA `e1b061f1`で`entrypoint_exit_1`。fleet applyのstructured stateは15:08Zに`partial, changed=73, skipped=90, errors=3, budget exceeded`。current pointerが1feへ進んでもInstagram ownerは未登録。targeted `LIFE_MANAGER_APPLY_TARGET`手順は前項の通り。
+- Hadrian動画はHeyGen/4つのlocal eBook runsで未発見。既知の完成英語MP4は別script。Instagram credentialは`phone_verification_pending`で、Messages SQLite accessは`unable to open database file`。Postiz 31 integrations/9 Instagram中にEnglish Monkなし。
+- Stripe live credentialはcredential SSOTに存在せず、active paid Letter countは更新不能。最後のofficial readback（19:37 JST）は0 active subscribersで、現在値としては扱わない。$9.99/月×1,002 active subscribers = $10,009.98 gross MRRという算術目標だけを維持する。
+- **現在cursor:** current-state修正をPR #7173へpushし、新head required CI/reviewを全PASSさせてmergeする。その後、owner phone verification、正確なHadrian asset ID/path、Postiz exact profile bindingを揃え、main-derived releaseとlock-freeを確認してInstagram ownerだけtarget-applyする。1件のofficial `PUBLISHED` receiptとnative Reel URLの後に3/dayを検証する。
