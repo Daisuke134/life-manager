@@ -17,3 +17,5 @@
 正確なファイル/関数/入力契約/検証/依存はspec内全223atomとmanifest。状態は統一SSOTだけ。旧harnessは未移行とrollbackの一時経路で、最終保持はしない。
 
 共通制約:同ChatGPT native account、production shadow effect0、唯一scheduler、旧仕事drain、同task再送0、run単位claim解放、別owner/Gateway全体停止0、公式結果確認、data/auth不変更。
+
+現在の選定はOpenClaw＋ChatGPT native Codexのみ。Temporalは必要依存や先行実装に含めない。最初のsource実装はOC-001/014/NC-02、次にOC-007/008/009/030/MI、商品binding、対象handoffと自然確認、旧runtime退役。旧OpenClaw222の保存定義を現在の稼働成功と混同しない。

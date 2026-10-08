@@ -1,0 +1,58 @@
+diff --git a/runtime/loop/lm_loop_run.py b/runtime/loop/lm_loop_run.py
+index 71c1103b13..3e13c27dcf 100755
+--- a/runtime/loop/lm_loop_run.py
++++ b/runtime/loop/lm_loop_run.py
+@@ -946,6 +946,9 @@ def _terminal_outcome(return_code: int, *, host_deferred: str | None = None
+ # scratch dir is removed once the terminal event is written). Bounded so one
+ # noisy child cannot bloat the shared events.jsonl.
+ ENTRYPOINT_STDERR_TAIL_MAX_BYTES = 2048
++ENTRYPOINT_STDERR_REPLAY_MAX_BYTES = 64 * 1024
++ENTRYPOINT_STDERR_REPLAY_EDGE_BYTES = 32 * 1024
++ENTRYPOINT_STDERR_TRUNCATION_MARKER = b"\n...[stderr truncated]...\n"
+ 
+ 
+ def _forward_process_group_signal(pgid: int, signum: int) -> None:
+@@ -1090,23 +1093,37 @@ def _run_entrypoint_with_stderr_capture(
+             os.close(descriptor)
+         except OSError:
+             pass
++    replay = b""
++    tail = b""
+     try:
+-        data = capture_path.read_bytes()
++        with capture_path.open("rb") as captured:
++            captured.seek(0, os.SEEK_END)
++            size = captured.tell()
++            if size <= ENTRYPOINT_STDERR_REPLAY_MAX_BYTES:
++                captured.seek(0)
++                replay = captured.read(size)
++                tail = replay[-ENTRYPOINT_STDERR_TAIL_MAX_BYTES:]
++            else:
++                captured.seek(0)
++                head = captured.read(ENTRYPOINT_STDERR_REPLAY_EDGE_BYTES)
++                captured.seek(size - ENTRYPOINT_STDERR_REPLAY_EDGE_BYTES)
++                end = captured.read(ENTRYPOINT_STDERR_REPLAY_EDGE_BYTES)
++                replay = head + ENTRYPOINT_STDERR_TRUNCATION_MARKER + end
++                tail = end[-ENTRYPOINT_STDERR_TAIL_MAX_BYTES:]
+     except OSError:
+-        data = b""
++        replay = b""
++        tail = b""
+     finally:
+         try:
+             capture_path.unlink()
+         except OSError:
+             pass
+-    tail = b""
+-    if data:
++    if replay:
+         try:
+-            sys.stderr.buffer.write(data)
++            sys.stderr.buffer.write(replay)
+             sys.stderr.buffer.flush()
+         except (OSError, ValueError):
+             pass
+-        tail = data[-ENTRYPOINT_STDERR_TAIL_MAX_BYTES:]
+     return return_code, tail
+ 
+ 

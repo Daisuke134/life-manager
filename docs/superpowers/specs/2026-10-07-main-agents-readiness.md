@@ -1413,6 +1413,14 @@ catalog全業務のモデル呼出はOpenClaw/native Codex。全finite起動auth
 
 OpenClaw/Codexのharness移行は維持するが、cronの仕事は短いstart/signalとし、モデル・browser・readback・buildと外部待機の資源を分ける。モデル/compute終了を証明してslotを解放し、domain effect fenceは公式照合まで維持する。単に8を32へ増やす、未終了runをfreeとみなす、unknownを解放することを容量対策にしない。
 
-長期待機を汎用OSSへ委譲する補完基盤はTemporalが第一候補。モデル/tool実行はOpenClaw/native Codex、durable workflow/timer/signal/worker queueはTemporal、業務receiptはLM。これは別agent harnessへの再移行ではない。既存全workerをlong-running Activityに入れるだけでも同じ問題が残るため、activityは短いphase単位とする。導入/DB設置は今回未実施、disk floor以下のhostへ新serviceを追加しない。既存実行atomのSを本番へ進める前に、このphase/待機契約を実装へ反映する必要がある。
+Temporalは比較した追加基盤の候補で、今回の依存・実装・完了条件には入れない。現在の移行先はOpenClawで確定。OpenClawのcron/agent/session/async機能を使い、全業務の長い待ちをそのままcron/model枠へ閉じ込めない。モデル終了が確認できた段階でcomputeだけを解放し、既存の注文/receipt/effect guardは維持する。新DBや別workflow serverの導入を先に行わない。
 
 現loaded disk floorは2GiB、fresh free1.9853GiB。旧11GiBの数値を現状判断に使わない。今日のdisk gateと、class/予約/長時間slot/unknown effectを別原因として診断する。quota/ホスト全体RAMは未測定で0や正常と断定しない。
+
+## 実装順とdiffの対象
+
+旧OpenClaw保存定義に222cron job、enabled79/disabled143を確認。設定の通常agent同時4/subagent同時8は登録数とは別。保存定義にlast-statusがないため、全222が現在成功したという証拠にはしない。既存global profileと登録jobを無断で再有効化/コピーしない。
+
+移行方針はOpenClawだけの標準agentハーネスとnative Codex。Temporal/Redis/別workflow engineは今回追加しない。実装の先頭はOC-001 dependencies lock、OC-014 dedicated config、NC-02 native account接続、OC-007/008/009 official SDK transport、OC-030 result互換、MI画像/fork、P商品worker binding、A engineとS起動authorityを一件ずつ切替、V自然結果、F旧ハーネス退役。調査・採用選択は実装TODOにしない。
+
+最初の基盤patchのactual diffはmainに統合済みの `_run_entrypoint_with_stderr_capture` のbounded read/replay。次の接続diffは各ファイル新規作成/既存branch切替で、稼働routeは切替まで旧のまま。ここで示す未来diffは未適用と明示する。Root handlerのbusiness stdout/schema/exit/effect契約を維持する。

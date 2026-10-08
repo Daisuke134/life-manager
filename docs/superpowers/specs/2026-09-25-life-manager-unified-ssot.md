@@ -3917,3 +3917,7 @@ source/運用の未完境界: 空きは約6GiBで11GiB未回復。session DBのf
 Daisの最新指定は全agent harnessをOpenClawへ移すこと。部分採用/retainを完成形にする前段の記述は失効し、移行中とrollback以外に旧harnessを残さない。残る商品worker/注文/収支/domain guardは業務機能で、旧harnessではない。新旧の採用判断・検索を実行TODOから除去し、全223atomを作成/接続/テスト/対象handoff/自然確認/退役へ統一。[spec](2026-10-07-main-agents-readiness.md)と[execution plan](../plans/2026-10-07-openclaw-full-cutover.md)が本文。
 
 旧順序=component判断→必要なA/S、新順序=OC/NC/MI/C共通接続→P商品binding実装→A engine→S schedule→V自然結果→F旧harness削除。現在cursor=OC-001、実装未着手。対象は最新catalog全業務（18分類111job、93finite/18continuous）。推論は既存ChatGPT native Codexのみ。active/queued/unknown対象は待機、他ownerを止めず、Gateway全体stopや同作用再送で切替を進めない。他lane/稼働effect変更なし。
+
+## ハーネス実装の焦点を固定
+
+OpenClaw移行とnative Codexを実装する。Temporalは外部比較候補であり現行依存/完了gateへ追加しない。先行する容量修正は稼働保全の最小source変更、次はOpenClaw接続の具体diffを実装。過去OpenClaw222保存jobを確認、active79/disabled143で全現在成功を示す証拠ではない。旧global profile/稼働jobを再起動/コピーしない。旧順=容量の別workflow基盤検討、新順=FDの最小稼働保全→OC-001/014/NC/SDK/result/binding→対象handoff→自然結果→旧runtime退役。現在cursorはFD-02/最小保全を先行し、OC本体は実装未着手。他業務lane/effect不変更。
