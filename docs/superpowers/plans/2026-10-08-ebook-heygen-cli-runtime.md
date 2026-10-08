@@ -8,7 +8,7 @@
 
 **Tech Stack:** Node.js, Python 3, node:test, pytest, Life Manager immutable releases.
 
-**Spec:** `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md` — “eBook Monk current blocker cursor — 2026-10-08 09:19 JST”.
+**Spec:** `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md` — “eBook Monk current blocker cursor — 2026-10-08 09:32 JST”.
 
 ## Global Constraints
 
@@ -127,6 +127,33 @@ Pass `run()`'s environment into `renderInput()`. Add the two keys to its subproc
 
 Observed: focused Node selection 3/3 PASS; complete `ebook-distribute-daily.test.js` 11/11 PASS; `python3 -m pytest runtime/loop/tests/test_lm_loop_run_bounds.py -q` 133 passed; `bash scripts/verify-source-boundary.sh` and `git diff --check` PASS.
 
-- [ ] **Step 5: Update PR #6999, review, and merge**
+- [x] **Step 5: Update PR #6999, review, and merge**
 
-Commit `3df0114191` is pushed to PR #6999. Obtain a fresh independent review, confirm required CI, then merge and follow the canonical owner-release path in the spec.
+PR #6999 merged as `46ec94bdea884fd7afa61e603a79fdd1b3048ef7` after a fresh independent review with no findings and all required Security Scan checks passing. Production release and owner readback remain in the canonical spec.
+
+### Task 4: Promote the merged renderer fix and verify English Monk delivery
+
+**Files:**
+- Production owner: `ebook-en-tiktok-daily`
+- Evidence: canonical eBook cursor in `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md`
+
+**Interfaces:**
+- Consumes: the immutable release built from main commit `46ec94b` and current owner effect fence.
+- Produces: one verified English HeyGen video and one Postiz `PUBLISHED` receipt per due slot.
+- Pre-flight: same-time host free space at or above 2 GiB, cleanup receipt with zero errors/protected deletions, reconciler terminal, and safe launchd preflight.
+
+- [ ] **Step 1: Recover and verify host capacity**
+
+Use the disk-cleanup owner and its allow-listed inventory. Keep leased/unknown/open paths protected. Require fresh cleanup `free_after >= 2,147,483,648` bytes and same-time `df -Pk /` above 2 GiB.
+
+- [ ] **Step 2: Build/apply the main-derived release**
+
+After release reconciler terminal and apply-lock readback, build the immutable release from current main and apply only `ebook-en-tiktok-daily` through the safe control path. Read back loaded SHA/argv and the English-only child environment.
+
+- [ ] **Step 3: Start one due owner occurrence and read back provider receipts**
+
+Only after the exact old effect fence is reconciled, start the registered owner once. Join HeyGen video ID/SHA, wallet delta, Postiz integration/post ID, `PUBLISHED` state, public URL, and the exact occurrence.
+
+- [ ] **Step 4: Verify recurring daily cadence**
+
+Use official Postiz reads to confirm each of the three eBook accounts reaches its configured three slots/day without cross-account compensation or duplicate effects.

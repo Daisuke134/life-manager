@@ -4373,28 +4373,29 @@ L9-11 Self-BuildはこのGig laneの全項目完了後、既存の全社順序�
 
 **Daisの作業:** 既存Postiz integrationとHeyGen認証の再接続・再認証は不要。手動設定も不要。投稿を止めているのは未loaded main release、release/apply lock、容量receiptの揺れ、English CLI telemetryです。Life Manager側で順に解消する。
 
-### eBook Monk current blocker cursor — 2026-10-08 09:19 JST
+### eBook Monk current blocker cursor — 2026-10-08 09:32 JST
 
-この節がeBookの最新cursorで、09:05 JSTの古いcursorを更新する。対象は英語TikTokのMonk Anicca（`@monk_anicca`）。Postiz接続は生きているが、英語rendererへの環境変数受け渡しとproduction release/capacityが未完了。
+この節がeBookの最新cursorで、09:19 JSTの記録を更新する。対象は英語TikTokのMonk Anicca（`@monk_anicca`）。Postiz接続は有効で、次の停止点はproduction releaseとhost capacity。
 
-**source / review / release:** `origin/main=487795f47d410c1d060f8181a3300354642eca4d`（PR #6997）。PR #6999はopenで、environment allowlistの断線修正とsubprocess RED/GREEN regressionをcommit `3df0114191`としてpush済み。前回Important findingはsource上修正済みで、fresh review/CI/mergeが残る。current immutable symlinkは`/Users/anicca/loops/releases/20261008T084554-3f1bd81a`（SHA `3f1bd81a77b9001284678888b641aaedb1e3e497`）で、PR #6999の変更はproductionに未配備。
+**source / review / release:** PR #6999は全Security Scan checks PASS、fresh read-only reviewもfindingなしでmerge済み。`origin/main=46ec94bdea884fd7afa61e603a79fdd1b3048ef7`。英語ownerの`LIFE_MANAGER_HEYGEN`と`HEYGEN_NO_ANALYTICS`はJavaScript wrapperからPython renderer subprocessへ英語商品だけ渡る。実subprocess RED/GREEN test、Node 11/11、Python runtime bounds 133 passed、source boundary PASS。current immutable symlinkは引き続き`/Users/anicca/loops/releases/20261008T084554-3f1bd81a`（SHA `3f1bd81a77b9001284678888b641aaedb1e3e497`）で、merge commitは未反映。
 
-**Monk / official provider readback（09:14 JST）:** Postiz `GET /public/v1/integrations`は`cmo5rwq2p00twn10yrsdglng3`（TikTok `monk_anicca`）を`disabled=false`として返した。ローカルaccount registryも`approved_active`。今日のPostiz official posts GETでは日本語TikTok `cmuynjaq808iblc0yd2396uhg`と日本語Instagram `cmuynjkih08ihlc0y38o87z0n`が各1件`PUBLISHED`、英語Monkは0件。再接続やDaisの操作は不要。
+**Monk / official provider readback（09:30 JST）:** Postiz integrations GETはTikTok `monk_anicca` / ID `cmo5rwq2p00twn10yrsdglng3`を`disabled=false`で返した。英語Monkは今日0件。日本語TikTok `cmuynjaq808iblc0yd2396uhg`とInstagram `cmuynjkih08ihlc0y38o87z0n`は各1件`PUBLISHED`。再接続・再認証は不要。
 
-**HeyGen official readback:** installed CLIは`HEYGEN_NO_ANALYTICS=1`でvideo listを2ページ読み、title `Anicca`のvideo 0件。wallet残高はUSD 12.30、auto-reload threshold USD 5。英語動画生成・投稿はまだ確認できない。
+**HeyGen official readback（09:14 JST）:** CLI video listを全2ページ確認しtitle `Anicca`は0件、walletはUSD 12.30（auto-reload threshold USD 5）。source merge後もproductionに未反映のため英語動画は未生成。
 
-**capacity / fleet apply（09:14 JST）:** `df -Pk /` Availableは`1,911,884 KiB`で2 GiB floor未達。`disk-cleanup/last-receipt.json`は`observed_at=2026-10-01T05:14:09Z`の古いreceiptなので現在の容量証明に使えない。release reconciler PID `70071`は稼働中。`fleet-apply-state.json`は09:08:58 JST時点でSHA `3f1bd81a77b9001284678888b641aaedb1e3e497`、`status=partial`、errors 3、message `timed out owners: none; budget exceeded`。current releaseもmain最新SHAではない。reconcilerとcapacityが落ち着く前にtarget applyやowner startを重ねない。
+**capacity / release reconcile（09:32 JST）:** disk governorの明示full passは09:31:34 JSTに完了。receipt: `free_before=1,331,056,640`, `free_after=1,287,729,152` bytes、floor `2,147,483,648`未達、`errors=0`, `protected_deletions=0`, `inventory_gaps=16`, logical `reclaimed=13,886,595,091` bytes、terminal `ok=false`。同じ時点に近い`df -Pk /` readbackは`1,075,420 KiB`（約1.05 GiB free）。full inventoryはHomebrew 14.16 GB、Gig 9.35 GB、`anicca-project` 4.47 GB、`.openclaw` 4.45 GB、`anicca` 3.49 GB、`/private/var/folders` 0.86 GB、`/private/tmp` 0.32 GBと計測。一方、`/private/tmp`, `/private/var/folders`, Library, Projectsにchild/permission/timeout gapsが残る。`lsof +L1`に大きなopen-deleted fileはなく、`tmutil listlocalsnapshots /`はsnapshotなし。logical reclaimedとvolume freeの差の原因は未確定。安全cleanupで回収できた未ロックworktreeは除去済み。別Capafy worktreeにはmanaged leaseがあるため保持する。PII scanの一時コピー削除は自動reviewに拒否され、迂回していない。
+
+最新persisted fleet state（09:18:50 JST）はSHA `3f1bd81a77b9001284678888b641aaedb1e3e497`、`status=error`, errors 4。last outputには`admission rebind refused: effect_unknown`と、`ai.anicca.alpaca-investment-live`および`ai.anicca.capafy-ig-marketing-daily`のBootstrap I/O errorがある。09:32のprocess readbackではreconcilerは停止中。target applyはhost freeが床を下回るため未実施。
 
 **残りAtomic TODO（eBook順序）:**
 
-1. 完了（commit `3df0114191`、PR #6999へpush済み）: `ebook-distribute-daily.js::renderInput()`は`LIFE_MANAGER_HEYGEN`と`HEYGEN_NO_ANALYTICS`を英語renderer subprocessだけへ渡す。実subprocess regressionは変更前RED、変更後GREEN。eBook Node tests 11/11、Python runtime bounds 133 passed、source boundary PASS。英語routeのstale disabled assertionsも現行registryに揃えた。
-2. fresh reviewとPR #6999 required CIをPASSさせ、最新mainへ統合する。
-3. release reconcilerの自然terminalとhost apply lock解放を確認する。cleanup ownerの新しいreceiptで`free_after >= 2,147,483,648` bytes、errors 0、protected deletions 0を読み、同時刻の`df`も2 GiB以上にする。capacityが再低下する原因とcleanup inventory gapsを特定する。
-4. main由来immutable releaseを準備し、`ebook-en-tiktok-daily`だけをtarget applyしてloaded SHA/argvとowner環境を確認する。古いoccurrenceのeffect fenceはexact owner/provider readbackで解決し、stateを直接編集しない。
-5. 次のdue slotでownerを一度起動し、HeyGen video ID/SHAとwallet差分、Postiz `PUBLISHED`/public URLを同じeffectへ結ぶ。今日の日本語2 accountと英語Monkを各3 slots/dayの登録cadenceで読み、各account 3件・合計9件をofficial readbackで確認する。直接postはしない。
-6. anicca-products PR #420のproduction Supabase readback/DDLとnatural paid Checkout→Stripe receipt→locale PDF→fees/refunds/settlement/replay-zero、Letter/Tegami 14日cohortを順に閉じる。one-time `$10.99` / `¥1,580`はMRRではなく、USD 10,000 verified net MRRは未達目標。
+1. 容量のlogical reclaimed / `df`差を解明する。inventory gaps 16のうち`/private/tmp`, `/private/var/folders`, Library, Projectsのsize/permission/timeout境界を狭め、書き込み元と安全なallow-listed回収対象を特定する。leased Capafy worktree、未知パス、open fileは保持する。
+2. `free_after >= 2,147,483,648` bytesのfresh cleanup receiptと同時刻`df`を得て、errors 0 / protected deletions 0を確認する。次のapply中はrelease reconcilerとhost apply lockがterminal/open-freeであることをreadbackする。
+3. main merge SHA `46ec94b`を含むimmutable releaseを作り、launchctl-safe preflight後に`ebook-en-tiktok-daily`だけtarget applyする。loaded SHA/argvとchild environmentをreadbackし、旧occurrenceのeffect fenceはexact owner/provider readbackで解決する。stateを手で編集しない。
+4. 次のdue slotでEnglish ownerを一度起動し、HeyGen video ID/SHAとwallet差分、Postiz `PUBLISHED`/public URLを同一effectへ結ぶ。今日の日本語2 accountとEnglish Monkの各登録slotをofficial readbackで確認し、各account 3件/day・合計9件/dayへ到達させる。
+5. anicca-products PR #420のproduction Supabase readback/DDLとnatural paid Checkout→Stripe receipt→locale PDF→fees/refunds/settlement/replay-zero、Letter/Tegami 14日cohortを順に閉じる。one-time `$10.99` / `¥1,580`はMRRではなく、USD 10,000 verified net MRRは未達目標。
 
-**Daisの作業:** なし。Monk AniccaのPostiz integrationは接続・有効で、HeyGen walletにも残高がある。現在の停止点はLife Managerの環境変数境界、main/release反映、reconciler/capacityで、こちらで解消する。
+**Daisの作業:** なし。Monk Aniccaは接続・有効で、再認証は不要。英語動画と投稿の停止原因はLife Manager release/capacityで、解消をこちらが継続する。
 
 ### 2026-10-08 07:43 JST — Gig live-acceptance cursor correction
 
