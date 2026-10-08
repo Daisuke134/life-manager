@@ -161,7 +161,7 @@ def sets_started_today(state_root: Path, *, today: datetime.date | None = None) 
 
 @dataclass
 class Deps:
-    planner: Callable[[Path, list[dict]], dict]
+    planner: Callable[[Path, list[dict], list[dict]], dict]
     character_image: Callable[[Path, dict], None]
     clips_runner: Callable[[Path, dict], None]
     apng_runner: Callable[[Path, dict], None]
@@ -209,8 +209,20 @@ def _prior_set_facts(state_root: Path) -> list[dict]:
 # Stage runners (pure state transitions; each returns the next stage or raises)
 # --------------------------------------------------------------------------------------
 
+def _market_items(state_root: Path) -> list[dict]:
+    """Today's top-seller sweep (market.py), trimmed to what the planner needs to pick a
+    copy_target. Missing market.json (first wake, before the daily sweep has ever run) is an
+    empty list; the plan schema still requires copy_target, so the very first plan before any
+    sweep has run will fail validation and retry next wake once market.json exists.
+    # ponytail: no bootstrap ordering guarantee between the hourly factory and the daily
+    # market sweep; acceptable because this only affects the very first set, add an explicit
+    # readiness check if that becomes a recurring stall."""
+    market = _read_json(state_root / "market.json")
+    return (market or {}).get("items", [])[:15]
+
+
 def run_plan(set_dir: Path, state_root: Path, deps: Deps) -> str:
-    plan = deps.planner(set_dir, _prior_set_facts(state_root))
+    plan = deps.planner(set_dir, _prior_set_facts(state_root), _market_items(state_root))
     _atomic_write_json(set_dir / "plan-draft.json", plan)
     _atomic_write_json(set_dir / "listing.json", plan["listing"])
     return "character"

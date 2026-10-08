@@ -14,6 +14,7 @@ def load_module():
     module = importlib.util.module_from_spec(spec)
     assert spec.loader is not None
     spec.loader.exec_module(module)
+    module.CAP = 5  # fixtures below are written against a 5-slot cap
     return module
 
 

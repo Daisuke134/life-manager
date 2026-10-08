@@ -24,4 +24,7 @@ done
 # Once per day (self-gated on features.json's observed_at): open 特集 (feature-campaign) list and
 # their official announce conditions, so the planner's selector can judge a real campaign join.
 "$PY" "$LIFE_MANAGER_REPO/skills/earn/line-sticker/features_readback.py" || status=1
+# Once per day (self-gated on market.json's observed_at, no login): top-seller sweep of LINE
+# STORE's public rankings so the factory planner copies what is actually selling today.
+"$PY" "$LIFE_MANAGER_REPO/skills/earn/line-sticker/market.py" || status=1
 exit "$status"

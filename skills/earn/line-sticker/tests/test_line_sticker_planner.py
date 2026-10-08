@@ -29,6 +29,13 @@ def _base_plan(**overrides) -> dict:
             for i in range(30)
         ],
         "listing": {"title": {"ja": "テスト", "en": "Test"}, "description": {"ja": "説明", "en": "desc"}},
+        "copy_target": {
+            "product_url": "https://store.line.me/stickershop/product/1/ja",
+            "theme": "敬語・仕事", "phrases": ["よろしくお願いします"],
+            "expression_style": "シンプルな線画", "text_or_no_text": "no_text",
+            "title_pattern": "動く！<キャラ名>の<シーン>",
+        },
+        "format_gap": None,
     }
     plan.update(overrides)
     return plan
@@ -46,6 +53,15 @@ class PlanSchema(unittest.TestCase):
         del plan["series_of"]
         with self.assertRaises(jsonschema.ValidationError):
             jsonschema.validate(plan, SCHEMA)
+
+    def test_rejects_a_plan_missing_copy_target(self) -> None:
+        plan = _base_plan()
+        del plan["copy_target"]
+        with self.assertRaises(jsonschema.ValidationError):
+            jsonschema.validate(plan, SCHEMA)
+
+    def test_accepts_a_plan_with_format_gap_noted(self) -> None:
+        jsonschema.validate(_base_plan(format_gap="上位は静止画・文字入りが多いが今回は動く・文字なしで作る"), SCHEMA)
 
 
 class PlanPrompt(unittest.TestCase):
@@ -67,6 +83,20 @@ class PlanPrompt(unittest.TestCase):
     def test_prompt_with_no_prior_sets_still_asks_for_series_of(self) -> None:
         prompt = MODULE._build_plan_prompt([])
         self.assertIn("series_of", prompt)
+
+    def test_prompt_includes_market_items_and_requires_copy_target(self) -> None:
+        market_items = [{
+            "product_id": "123", "title": "ちいかわ", "author": "ナガノ", "price_jpy": 190,
+            "format": "animated", "sticker_count": 40, "text_or_no_text": "no_text",
+        }]
+        prompt = MODULE._build_plan_prompt([], market_items)
+        self.assertIn("ちいかわ", prompt)
+        self.assertIn("copy_target", prompt)
+        self.assertIn("format_gap", prompt)
+
+    def test_prompt_with_no_market_items_still_requires_copy_target(self) -> None:
+        prompt = MODULE._build_plan_prompt([], None)
+        self.assertIn("copy_target", prompt)
 
     def test_prompt_tells_the_model_to_prefer_the_best_selling_character_once_sales_exist(self) -> None:
         prior_facts = [
