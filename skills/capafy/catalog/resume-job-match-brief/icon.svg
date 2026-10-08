@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Resume-to-Job Match Brief icon">
+  <rect width="512" height="512" rx="96" fill="#1f2a44"/>
+  <rect x="86" y="96" width="170" height="320" rx="18" fill="#f4efe4"/>
+  <rect x="256" y="96" width="170" height="320" rx="18" fill="#dbe6f5"/>
+  <path d="M120 158h100M120 210h100M120 262h70M290 158h100M290 210h100M290 262h70" stroke="#1f2a44" stroke-width="14" stroke-linecap="round"/>
+  <path d="M214 352l30 30 56-64" fill="none" stroke="#18a879" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
