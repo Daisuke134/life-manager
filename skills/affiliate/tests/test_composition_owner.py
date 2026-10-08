@@ -14,6 +14,89 @@ SCRIPT = Path(__file__).parents[1] / "scripts" / "composition_owner.py"
 
 
 class CompositionOwnerTests(unittest.TestCase):
+    def test_english_composition_uses_case_study_patterns_and_japanese_subtitles(self) -> None:
+        spec = importlib.util.spec_from_file_location("affiliate_composition_owner", SCRIPT)
+        module = importlib.util.module_from_spec(spec)
+        assert spec.loader is not None
+        spec.loader.exec_module(module)
+        with tempfile.TemporaryDirectory() as temporary:
+            state = Path(temporary)
+            prompt = module.prompt_for(state, {
+                "locale": "en", "plan_id": "new-en", "sources": [],
+            })
+            case_text = "Official first-person affiliate case study fixture."
+            case_hash = hashlib.sha256(case_text.encode()).hexdigest()
+            case_dir = state / "sources" / "elevenlabs-alec"
+            case_dir.mkdir(parents=True)
+            (case_dir / f"{case_hash}.md").write_text(case_text, encoding="utf-8")
+            case_study_prompt = module.prompt_for(state, {
+                "locale": "en", "plan_id": "new-en",
+                "sources": [{
+                    "source_id": "elevenlabs-alec",
+                    "locator": "https://elevenlabs.io/blog/alec-wilcock-on-becoming-a-top-affiliate-for-elevenlabs",
+                    "evidence_class": "first_person_case",
+                    "raw_sha256": case_hash,
+                }],
+            })
+        self.assertIn("English as the primary language", prompt)
+        self.assertIn("Japanese subtitle/summary", prompt)
+        self.assertNotIn("workflow tutorial", prompt)
+        self.assertIn("workflow tutorial", case_study_prompt)
+        self.assertIn("single CTA above the fold", case_study_prompt)
+        self.assertIn("not guarantees", case_study_prompt)
+
+    def test_experiment_preserves_control_language_and_content_structure(self) -> None:
+        spec = importlib.util.spec_from_file_location("affiliate_composition_owner", SCRIPT)
+        module = importlib.util.module_from_spec(spec)
+        assert spec.loader is not None
+        spec.loader.exec_module(module)
+        with tempfile.TemporaryDirectory() as temporary:
+            state = Path(temporary)
+            control = {
+                "receipt_type": "CAMPAIGN_HANDOFF",
+                "state": "READY_FOR_POLICY",
+                "plan_id": "control-en",
+                "title": "Control title",
+                "owned_article_markdown": "English control body.",
+            }
+            control["handoff_fingerprint"] = hashlib.sha256(json.dumps(
+                control, sort_keys=True, separators=(",", ":")
+            ).encode()).hexdigest()
+            handoffs = state / "campaign-handoffs"
+            handoffs.mkdir()
+            (handoffs / "control-en.json").write_text(json.dumps(control), encoding="utf-8")
+            policies = state / "campaign-policy"
+            policies.mkdir()
+            (policies / "control-en.json").write_text(json.dumps({
+                "decision": "PASS",
+                "handoff_fingerprint": control["handoff_fingerprint"],
+            }), encoding="utf-8")
+            case_text = "Official first-person affiliate case study fixture."
+            case_hash = hashlib.sha256(case_text.encode()).hexdigest()
+            case_dir = state / "sources" / "elevenlabs-alec"
+            case_dir.mkdir(parents=True)
+            (case_dir / f"{case_hash}.md").write_text(case_text, encoding="utf-8")
+            prompt = module.prompt_for(state, {
+                "locale": "en", "plan_id": "control-en-experiment-1",
+                "sources": [{
+                    "source_id": "elevenlabs-alec",
+                    "locator": "https://elevenlabs.io/blog/alec-wilcock-on-becoming-a-top-affiliate-for-elevenlabs",
+                    "evidence_class": "first_person_case",
+                    "raw_sha256": case_hash,
+                }],
+                "experiment": {
+                    "decision_id": "decision-1",
+                    "control_plan_id": "control-en",
+                    "selected_variable": "title",
+                    "instruction": "Change only the title.",
+                    "hypothesis": "A title change could improve discovery.",
+                    "success_metric": "exact-placement transaction_count >= 1",
+                },
+            })
+        self.assertIn("Change only `title`", prompt)
+        self.assertNotIn("Japanese subtitle/summary", prompt)
+        self.assertNotIn("workflow tutorial", prompt)
+
     def test_compact_nested_experiment_lineage_is_accepted(self) -> None:
         spec = importlib.util.spec_from_file_location("affiliate_composition_owner", SCRIPT)
         module = importlib.util.module_from_spec(spec)
