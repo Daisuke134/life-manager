@@ -1,7 +1,7 @@
 {
   "type": "object",
   "additionalProperties": false,
-  "required": ["order", "main", "tab", "rejected", "listing", "tags", "taste_id", "character_category_id", "campaign_value"],
+  "required": ["order", "main", "tab", "rejected", "listing", "tags", "taste_id", "character_category_id", "campaign_value", "campaign_theme_ids"],
   "properties": {
     "order": {"type": "array", "items": {"type": "string"}},
     "main": {"type": "string"},
@@ -10,6 +10,7 @@
     "taste_id": {"type": "string"},
     "character_category_id": {"type": "string"},
     "campaign_value": {"type": ["string", "null"]},
+    "campaign_theme_ids": {"type": "array", "items": {"type": "string"}},
     "listing": {
       "type": "object",
       "additionalProperties": false,

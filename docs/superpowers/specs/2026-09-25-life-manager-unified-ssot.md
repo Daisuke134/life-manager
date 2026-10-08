@@ -724,7 +724,7 @@ TODO（何を・どう直すか）
 |---|---|---|---|---|
 | 1 | L19 | 静止スタンプ（¥190）ラインを本番で 1 セット申請 | Creators Market で審査待ちを readback | コード本番済み（#7039）。工場が静止ラインを選んだ時点で live 証明 |
 | 2 | L28 | 画像生成を ChatGPT サブスク（`~/.agents/skills/chatgpt-imagegen`）に統一し原価 0 | 静止・キャラ画像が chatgpt-imagegen で生成され cost_usd 0 を記録 | DONE（#7046） |
-| 3 | L26 | 特集（例 835 冬を感じるスタンプ）に条件が合えば自動参加 | #7034 merge・release・次の申請で参加を readback | コード本番済み（#7034 `1872befb`）。手動で 48137583 を 835 に参加済み |
+| 3 | L26 | 特集（例 835 冬を感じるスタンプ）に条件が合えば自動参加 | #7034 merge・release・次の申請で参加を readback | 48137583 が 835「冬」で却下（2026-10-08、冬の絵が 8 個に届かず）。修正: 選定が `campaign_theme_ids` を列挙し、条件個数+4 以上の時だけ参加（決定的ガード）。却下の自動再申請も 4 つの欠陥（英語タイトル照合・返信フォーム化した本文末尾・二重 URL・value 属性の無い「参加しない」）で一度も動いていなかった → 修正し、48137583 を `leave_features` で自動再申請、審査待ちを readback |
 | 4 | L29 | 動くスタンプを fal ではなく ChatGPT のコマ画像→APNG で作る（fal 残高 −$10.95 で停止中） | 1 セットを無課金で生成し申請 | コード本番済み（#7068、#7074 provenance 修正）。**DONE**。set-012（48151688「動く！ポンタの毎日敬語スタンプ」、24 個）を ChatGPT コマ画像→整数秒ループ APNG（#7081）で無課金生成し、自然実行で 2026-10-08 07:19Z 申請。Creators Market で「審査待ち」を readback |
 | 5 | L20 | 文字入り版（「了解」「ありがとう」等）を別 SKU で出す | 1 セット申請 | 工場配線済み（静止、Pillow 描画、#7080）。自然 wake の with_text 申請 readback 待ち |
 | 6 | L17 | IG の日常投稿・交流を回す（10/10 から engagement と bio リンク） | 自然 slot の新規 reel と ledger、10/10 以降の engagement 記録 | #7064 で schema 400 を修正後、自然 slot で published を ledger readback（10/07 08:15Z `DeMFSYRvqDF`、11:15Z `DeMSaWrPhWV`、10/08 04:15Z `DeOXH3iBbnV`）。残りは 10/10 以降の engagement 記録 |
