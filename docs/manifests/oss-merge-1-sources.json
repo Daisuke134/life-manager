@@ -92,9 +92,6 @@
         "Developer-local candidate workspace",
         "Tests coupled to the source repository's legacy directory layout"
       ],
-      "upstream_sha256": {
-        "skills/agent-runner/agent_runner.py": "ea32d3446d0efb9eccb3046e87cf9e99c7190edcf0b659e270a37aae689824ae"
-      },
       "absorbed_files": [
         {
           "source": "runtime/agent-runner/agent_runner.py",
@@ -146,7 +143,7 @@
           "source": "skills/capafy-autopublish",
           "target": "skills/capafy-autopublish",
           "files": 245,
-          "inventory_sha256": "6622435b796293b2e8961d6856ea26a0e03f046653668c82a54422b4694d3545"
+          "inventory_sha256": "e8c476780e9b4292a6b427767847b08a1f3c56f6c66c0e3a216aad799f3c7569"
         },
         {
           "source": "skills/_shared",

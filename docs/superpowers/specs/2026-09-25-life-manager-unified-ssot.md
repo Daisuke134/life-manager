@@ -731,9 +731,9 @@ TODO（何を・どう直すか）
 | 5 | L20 | 文字入り版（「了解」「ありがとう」等）を別 SKU で出す | 1 セット申請 | **DONE**。set-013（48156132）が with_text で申請・審査待ち（L19 と同じセット） |
 | 6 | L17 | IG の日常投稿・交流を回す（10/10 から engagement と bio リンク） | 自然 slot の新規 reel と ledger、10/10 以降の engagement 記録 | #7064 で schema 400 を修正後、自然 slot で published を ledger readback（10/07 08:15Z `DeMFSYRvqDF`、11:15Z `DeMSaWrPhWV`、10/08 04:15Z `DeOXH3iBbnV`）。残りは 10/10 以降の engagement 記録。2026-10-08: 17:15 slot と set-013 計画が停止 → 原因は 20 分級の gpt-6-luna 実行が codex acct1 の profile lease を保持し、composition/marketing/browser-lane が acct2 未使用のまま timeout まで待っていたこと。3 経路を fail-fast（acct1 塞がり→acct2）に修正、同条件で 400 秒超→6 秒を実測。aniccaai.com（Life Manager 全商品の共通サイト、Dais 2026-10-08）に販売中セットの日本語紹介記事を毎日 JST 12 時台 1 本（`article_daily.py`、capafy と同じ公開器）。初回 https://aniccaai.com/blog/line-sticker-set-005-2026-10-08 を公開・readback。**blocker（2026-10-08 17:51 JST〜）**: 宣伝ループが毎 wake `host_admission_deferred:resource_effect_unknown`。17:15 slot の caption timeout run（`18dc800360d0b6b8-64240`、ledger に slot 記録なし＝投稿前）を pre_effect で解除しても `False`（claimed/released とも）で、fence の実体は未特定。admission 内部の調査は自動モードの安全確認で拒否されたため、解除には Dais の許可が必要 → 撤回: capafy の `effect_reconcile` 先例を写した `distribute_fence_reconcile.py`（IG Reels 一覧 vs ledger、ledger 外の Reel は投稿日時が run 開始前と確定できた時だけ除外、それ以外は保持）を登録し、正規経路で解除 |
 | 7 | L21 | 1 キャラのシリーズ本数を増やす（売上が出た型を優先） | sales.json に売上が出たキャラの続編が出る | 自動（L18/L27 配線済み） |
-| 8 | HOST | ディスク空き 11 GiB 未満で全 line-sticker loop が `disk_headroom_low` 待機（2026-10-08 20:45 JST〜、空き 1.0〜2.5 GiB） | 空き ≥11 GiB で factory/distribute が自然 wake で再開 | owner = codex-money-printer（host-disk-policy）。line-sticker 側で消せるものは無し（release GC 0、sticker state 0.7G）。最大の占有は ~/.codex-acct2 12G・~/.local 15G・~/.cloak 11G（不可侵）。agmsg で報告済み、他 owner の store は触らない |
+| 8 | HOST | Historical incident: installed line-sticker loops waited below the then-configured 11 GiB floor (2026-10-08; observed free space 1.0–2.5 GiB) | At the time, the old source resumed after ≥11 GiB; this numeric producer wait is superseded by PR #7179 | Historical owner was codex-money-printer. The recorded cleanup/protected-path findings remain evidence; they do not define a current admission rule. |
 | 9 | L19 | set-014（48161243、¥190 静止・文字入り 16 個）の黒い箱 4 枚（hmm / panic / cheer / morning）を作り直して申請 | Creators Market で審査待ちを readback | **DONE**（2026-10-08 15:19Z）。原因 = 画像モデルが緑でなく黒背景で返し緑抜きで消えなかった（箱 30〜44%）。#7155 で黒背景も抜き箱付き候補は再生成。本番 release `97efe82e` で候補を再生成（箱 4→0）、stage を `package` に戻して工場が包み直し・差し替え・再申請、公式画面で「審査待ち」を readback、申請パッケージ 16 枚に箱 0。途中の起動は post_claim の `disk_headroom_low`（空き 2 GiB 未満）で 1 回止まり、空きが 3.5 GiB に戻った後の再起動で通過 |
-| 10 | HOST | 空き容量判定（`lm_loop_run._disk_headroom_deferred` 2 GiB 未満で全 loop 後回し、`disk_admission.disk_headroom_ok` 512 MB 未満で実行拒否）の削除 | 空き 2 GiB 未満でも factory/distribute が wake する | Dais 2026-10-08 が「cleanup loop があるので判定は不要、外せ」と指示（床は 10/7 に 11→2 GiB へ下げ済み。以前の「11 GiB」は誤認）。claude の自動モード安全確認が「安全装置の弱体化」として編集を拒否、迂回せず保留。**実施者**: Dais の許可ルール追加後に claude、または codex-money-printer。lm-lead 依頼（2026-10-08 23:04 JST）により release 作成と `lm-loop apply` は host 回復まで全 session 停止。空き ~200 MB では git の worktree 作成・push も失敗する（実測） |
+| 10 | HOST | Remove numeric free-space admission floors from all producer and release paths (PR #7179) | Source contract: valid low/0-byte readings do not reject work solely by free-space value; production natural readback remains pending | PR #7179 removes the 2 GiB/1 GiB/512 MiB thresholds. The cleanup 2 GiB value remains a recovery receipt metric only. Actual `ENOSPC`, unavailable/unsafe state, explicit stop, owner locks, and effect fences remain separate outcomes; do not wait for a free-space target to run a producer. |
 
 ### 5.1 自己修復・自己改善の定義（T5 / T12 の正本）
 
@@ -4104,8 +4104,8 @@ owner/evidence: primary /root、Luna source worker cleanup_fix、fresh Sol revie
 
 #### Mobile current TODO order (supersedes the 01:42 JST cursor above)
 
-1. Let the existing 6c9a34c1 release reconciler reach a terminal state. Then let the existing disk-cleanup owner use the merged 2 GiB policy; require a natural receipt with `free_after >= 2 GiB`, `errors=0`, `protected_deletions=0`, and its stop-guard result. Current free space is below the floor and cleanup is blocked on `apply_lock_busy`.
-2. After those owner gates clear, let the existing reconciler converge the TikTok owners from `c5c4d791` to the complete main-derived `6c9a34c1` release. Verify exact loaded SHA per owner; no parallel apply or direct launchd mutation.
+1. Let the existing 6c9a34c1 release reconciler reach a terminal state. Let the existing disk-cleanup owner continue its natural occurrence and record `free_after`, `errors`, `protected_deletions`, and its stop-guard result. The 2 GiB value is a cleanup metric only; do not wait for it before producer work. Respect `apply_lock_busy` and the current owner lease.
+2. After the reconciler is idle and owner locks are clear, let it converge the TikTok owners from `c5c4d791` to the complete main-derived `6c9a34c1` release. Verify exact loaded SHA per owner; no parallel apply or direct launchd mutation. Numeric free-space is not an admission condition.
 3. Reconcile the 21,769 historical effect-unknown references one occurrence at a time using exact official Postiz receipt or exact pre-effect proof. Preserve no-match/inconclusive fences; verify replay-zero.
 4. Extend the manifest from 10 TikTok targets to all 16 enabled TikTok integrations by mapping the six extra profiles to existing product/owner/three-slot cadence and reusable media/text templates. Keep `@anicca.jp8` held while disabled. Then verify three natural `PUBLISHED` receipts per JST day for each of 16 accounts with account-level variety and replay-zero; separately verify the 25-target / 75-per-day total once all six are represented.
 5. Restore natural per-post 6/24/72/168-hour metrics and daily/weekly report persistence. Join Postiz post IDs/views/engagement to creative variants and tracked store links; keep unsupported impressions or missing platform fields unavailable, never zero. Complete aligned ASC acquisition coverage for six public apps and RevenueCat mappings/transactions without confusing MRR with settled net revenue.
@@ -4129,9 +4129,9 @@ owner/evidence: primary /root、Luna source worker cleanup_fix、fresh Sol revie
 
 **不変条件:** worktreeはcleanup候補にしない。active/uncertainなworktreeを削除・unlock・pruneせず、worktree retirementは [worktree lifecycle runbook](../../runbooks/worktree-lifecycle.md) の6条件をownerが同一操作で検証できるまで自動化しない。generic `/private/tmp`/`cfo-*` pathも候補にせず、exact Capafy npm cacheだけをclosed確認後に回収する。iOS Simulator runtime/image/device/data/dyld cacheも削除候補にしない。5分の `ai` ownerは管理runnerのまま保ち、60秒recovery labelだけを安定したlocal wrapper経由で現在のimmutable governorへ接続する。
 
-**TODO順序更新:** 旧cursor=`source修正 → release/watchdog apply → capacity receipt`。source acceptance・CI・review・merge・immutable release・stable watchdog apply/readbackは完了した。新cursor=`watchdog.out.logの次の60秒natural receiptを読む → openと出た3 cache rootのowner/file状況を再確認し、closedになったexact allowlist候補だけを自然sweepに任せる → free_after 2 GiB以上・errors 0・protected deletions 0を確認`。最新receiptは14候補中13保持（open 3 / memory/state protected descendant 10）、reclaimed 6,409 bytesで床未達。これ以上の候補は特定できていないため、worktree・Simulator・release/memory/stateは保持する。既存2 GiB producer/recovery floorはPR #6926の契約を保持する。
+**TODO順序更新:** 旧cursor=`source修正 → release/watchdog apply → capacity receipt`。source acceptance・CI・review・merge・immutable release・stable watchdog apply/readbackは完了した。新cursor=`watchdog.out.logの次の60秒natural receiptを読む → openと出た3 cache rootのowner/file状況を再確認し、closedになったexact allowlist候補だけを自然sweepに任せる → receiptのfree_after/errors/protected deletionsを診断記録する`。最新receiptは14候補中13保持（open 3 / memory/state protected descendant 10）、reclaimed 6,409 bytesでcleanup回復指標は未達。これ以上の候補は特定できていないため、worktree・Simulator・release/memory/stateは保持する。2 GiB値はproducer/release admissionに使わない。
 
-**完了条件:** sourceとinstalled wrapperの両方がworktree削除命令を含まず、temporary Git worktreeとSimulator sentinelが保持される。`com.anicca.disk-watchdog` はstable wrapperから `~/loops/current` のimmutable governorへ委譲し、loaded argvも一致する。5分ownerは管理runnerのまま新releaseへ載る。これらは確認済み。`free_after >= 2 GiB` のnatural receiptと`errors=0` / `protected_deletions=0`の回復確認は未達なので、容量回復まで「全面修復」と扱わない。
+**完了条件:** sourceとinstalled wrapperの両方がworktree削除命令を含まず、temporary Git worktreeとSimulator sentinelが保持される。`com.anicca.disk-watchdog` はstable wrapperから `~/loops/current` のimmutable governorへ委譲し、loaded argvも一致する。5分ownerは管理runnerのまま新releaseへ載る。これらは確認済み。cleanupの`free_after`・`errors`・`protected_deletions`を自然receiptで報告する。2 GiB未達でもproducer loopは待機しない。
 
 ### 2026-10-08 JST — Mobile post-merge owner and disk follow-up (03:08)
 
@@ -4486,8 +4486,8 @@ L9-11 Self-BuildはこのGig laneの全項目完了後、既存の全社順序�
 
 **残りAtomic TODO（eBook）:**
 
-1. **次のcleanup owner wake:** `free_after >= 2 GiB`、`errors=0`、`protected_deletions=0`のfresh receiptを取得する。full inventoryのgapとwriter rootを読む。既知のregenerable候補だけをregistered cleanup ownerに処理させ、unknown/open/protected dataを削除しない。
-2. **queued publication:** capacityが回復したら、同一no-effect occurrenceをowner経由で再開し、公式Postiz receiptを照合する。effect不明はreceipt前に再送しない。
+1. **次のcleanup owner wake:** fresh `host_cleanup` receiptから`free_after`、`errors`、`protected_deletions`を記録し、full inventoryのgapとwriter rootを読む。既知のregenerable候補だけをregistered cleanup ownerに処理させ、unknown/open/protected dataを削除しない。2 GiB未達をproducerの待機条件にしない。
+2. **queued publication:** owner/effect fenceが許せば、同一no-effect occurrenceをowner経由で再開し、公式Postiz receiptを照合する。数値free-spaceの回復を待たず、effect不明はreceipt前に再送しない。
 3. **今日の残り7 slot:** EN TikTok 08:00/14:00/21:00、JA TikTok/Instagram各12:30/20:00。英語は同一occurrenceでPostiz `PUBLISHED`、public URL、HeyGen video SHA、wallet render costを結ぶ。今日のtargetは9 unique posts、現在2。
 4. anicca-products PR #420のfresh manual production Supabase project/count readbackと対象一致後のDDL/schema/ACL、natural paid Checkout→Stripe→locale PDF→refund/fees/settlement/replay-zeroを閉じる。one-time `$10.99` / `¥1,580`はMRRではない。
 5. Letter/Tegami recurring CTAの14日cohortとsettled net MRRを確認し、その後にCapafy Instagram marketing laneへ進む。USD 10,000 verified net MRRは未達目標。
@@ -7502,17 +7502,17 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 
 ### 2026-10-09 00:15 JST — 英語Instagramのowner-target applyを確認
 
-- 現在の`df -k /`は空き`2,781,104 KiB`（約2.65 GiB）。新Instagram ownerは`priority=revenue`なので、最新mainの512 MiB runner floorを超えている。ディスクcleanupはこのownerの前提ではない。
+- 当時の`df -k /`は空き`2,781,104 KiB`（約2.65 GiB）。その時点のreleaseには512 MiB runner floorがあった。PR #7179がこの数値floorを削除するため、cleanup容量はInstagram ownerの実行前提ではない。
 - `~/loops/current`はrelease `25bee172`。そのrelease-reconciler occurrence `18dc955601ac2dd0-93858`は`entrypoint_exit_1`。exact fleet stateは`status=partial, changed=73, skipped=90, errors=3, message=timed out owners: none; budget exceeded`。self-handoff helperも同じ旧releaseでloaded。別ownerへ手動applyを重ねず、停止/再起動もしない。
 - 原因調査で、`runtime/loop/lm_loop.py`は既に`LIFE_MANAGER_APPLY_TARGET`を読み、`runtime/loop/lm_loop_apply.py::apply_registry(..., target=...)`へ一ownerだけ渡す。`--all`との併用は拒否し、`--loaded-idle-only`と併用できる。existing focused test `runtime/loop/tests/test_lm_loop_apply.py`を2件実行し両方PASS。新CLI実装は不要。
 - **安全な反映手順:** PR #7173 merge後、`~/loops/current`がそのmain-derived immutable releaseを指すことを確認する。target statusとapply lockをreadbackし、lock-freeなら`LIFE_MANAGER_APPLY_TARGET=ebook-en-instagram-daily ~/loops/current/bin/lm-loop apply --loaded-idle-only`を実行する。この既存経路は対象ownerだけをapplyする。`--all`は使わず、exact Hadrian asset/本人確認/Postiz bindingが整うまではpublishしない。
-- **順序更新:** 旧順=`2 GiBへcleanup→fleet-wide apply→owner確認`。新順=`PR #7173をmerge→main-derived releaseを確認→既存target applyでEnglish Instagram ownerだけapply→外部投稿ゲート完了後publish`。理由は新ownerが512 MiBを満たし、CLIに既存の単一owner target機能があり、全fleet applyの最新runがbudget超過したため。
+- **順序更新:** 旧順=`2 GiBへcleanup→fleet-wide apply→owner確認`。新順=`PR #7173をmerge→main-derived releaseを確認→loaded-idle/lock-free時に既存target applyでEnglish Instagram ownerだけapply→外部投稿ゲート完了後publish`。理由は単一owner applyが可能で、全fleet applyの最新runがbudget超過したため。2 GiB/512 MiBはproducer admission条件にしない。
 - **現在cursor:** PR #7173の直前headは`Loop control contracts`以外のrequired checksがPASS、同checkだけrunner queueでpendingだった。今回のspec correctionをpushした新headのrequired CIを全PASSさせてmergeする。fresh read-only source reviewは差分にmerge blockerなし。次にexact Hadrian videoとowner phone verification/Postiz接続を完了してから上記target applyと一回投稿に進む。
 
 
 ### 2026-10-09 00:25 JST — current releaseと英語owner readback
 
-- `~/loops/current`は`20261009T000957-1fe7db3b`。最新`origin/main=9abbdb9d`、PR #7173 baseも`9abbdb9d`。空き容量`1,001,848 KiB`（約0.95 GiB）で、新ownerの512 MiB revenue floorを超える。
+- その時点の`~/loops/current`は`20261009T000957-1fe7db3b`、`origin/main=9abbdb9d`。空き容量は`1,001,848 KiB`（約0.95 GiB）で、当時の512 MiB floorを超えていた。PR #7179はproducer free-space floorを削除するため、この数値をownerの実行条件にしない。
 - `ebook-en-instagram-daily`はPR未mergeのためcurrent releaseに未登録。英語TikTok ownerは`safely_fenced`で、event SHA `8b75fa53`、loaded SHA `25bee172`、occurrence `18dc8c1cbd8be268-42376`。その旧ownerを再送先にしない。
 - release-reconciler最新 occurrence `18dc9712889c8b88-7388` は旧loaded SHA `e1b061f1`で`entrypoint_exit_1`。fleet applyのstructured stateは15:08Zに`partial, changed=73, skipped=90, errors=3, budget exceeded`。current pointerが1feへ進んでもInstagram ownerは未登録。targeted `LIFE_MANAGER_APPLY_TARGET`手順は前項の通り。
 - Hadrian動画はHeyGen/4つのlocal eBook runsで未発見。既知の完成英語MP4は別script。Instagram credentialは`phone_verification_pending`で、Messages SQLite accessは`unable to open database file`。Postiz 31 integrations/9 Instagram中にEnglish Monkなし。
