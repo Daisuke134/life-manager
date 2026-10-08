@@ -6770,3 +6770,24 @@ The next cursor is item 1 commit/push. No Dais manual action is currently requir
 8. Measure claims/reservations/eligible queue age/admission reasons/per-class contention/CPU/RAM/disk in one time window; report actual simultaneous loops and separate applications, replies, meetings, funding, settled cash, and costs. Keep configured cap 8 distinct from live occupancy; retain OpenClaw unless measurements prove a scheduler-specific limit.
 
 **現在cursor:** push this cursor correction → latest-head CI and fresh review → merge → cleanup receipt >= 2 GiB → natural release/doctor → exact effect fences → owner natural outcomes → same-window capacity/economics.
+
+
+### 2026-10-08 20:47 JST — byte-stable loop fixture regression fixed locally
+
+- Required-check run 37771611383 on head cb8be2c5 failed Loop control contracts at test_production_render_matches_byte_stable_fixture. Main #7136 added line-sticker-distribute.effect_reconcile to config/loop-registry.json but did not update runtime/loop/tests/fixtures/macos-loop-jobs.json; the canonical renderer now emits that field.
+- Reproduced the expected RED locally, regenerated only runtime/loop/tests/fixtures/macos-loop-jobs.json with runtime.loop.macos_loop_registry.render_job_models(config/loop-registry.json), and the exact focused unittest now passes. No production loop code changed for this fixture issue.
+- Current PR #7121 head 6217dcb4 still has run 37772221399 underway: Agent instruction, OSS, PII, Startup, Python/unittest, and Shell pass; Loop control, TruffleHog, and gitleaks are pending. This fixture/spec push creates a new head, so repeat checks and fresh review on that exact resulting SHA. The fresh review of cb8be2c5 found no code issue and one stale-cursor Important finding; the 20:45 section now fixes that cursor.
+
+**順序更新:** 旧順序=`current head CI → fresh review → merge`。run 377716 exposed a byte-fixture mismatch from upstream #7136; local reproduction proved the only Loop control failure and the renderer-based fixture update passes focused acceptance. 新順序=`push latest fixture+SSOT → new-head required CI/fresh review → merge → owner-safe disk recovery → natural release/doctor → exact effect fences → loop runs → capacity/economics`。理由はfixture failureを直さずmergeするとmainのregistry rendererとbyte-stable acceptanceが再び乖離するため。
+
+**残TODO（完了まで・この順）:**
+
+1. Commit/push runtime/loop/tests/fixtures/macos-loop-jobs.json and this SSOT cursor on latest-main branch; verify clean tree and exact remote SHA. Main is 804effc5; Capafy inventory digest remains d211d4e2671a532f3a8209ebabc5a1817fcbba7a10e727d22e88417a4451993f.
+2. On the resulting current PR head, pass all required checks (including Loop control contracts, OSS, secret scans) and get a fresh read-only SHIP review on the same SHA; then merge #7121 with gh pr merge 7121 --admin.
+3. Let the next scheduled life-manager-disk-cleanup run complete. At 20:41 the host had 1,283,560 KiB free; 20:38 cleanup still ended below the 2 GiB floor despite safe candidate rotation. Require a fresh successful owner result with free_after >= 2 GiB, errors=0, protected_deletions=0; avoid another manual kickstart after the 30-second timeout unless fresh owner and launchd readback establish a safe retry.
+4. After merge, read back current release SHA and natural release-reconciler pass; clear retired Capafy/unmanaged handoff labels through owning paths; doctor must report unmanaged=0, missing=0, installed-retired=0 before target apply.
+5. Reconcile FoundersEdge 18dc7f3bc472c260-76084, DeepScale 18d9b0b6311a2018-87933, LAUNCH 18dc7222f6b5ec78-20440, Workday Learning's exact unknown, and Danaher R1316263 through official provider status or strict pre-effect proof. Keep unresolved target fences; never replay.
+6. Apply Connector, Job Hunter, and Fundraiser individually when loaded-idle, admission-eligible, lock-free, and disk-ready. Prove Luma registration, Workday applications, new unique VC/AI/AGI-founder cold mail, same-occurrence provider/sent-mail evidence, gpt-6-luna/max/fast, and Telegram results. Carry positive Fundraiser replies to agreed podcast/Zoom or invited in-person meeting with actual cost/result.
+7. Measure actual simultaneous loops with active claims, reservations, eligible queue age, per-class admission, CPU/RAM/disk in one window. The configured default cap is 8; the current live capacity is not yet proven. Keep OpenClaw unless a measured scheduler-specific limit persists after disk/owner repair; distinguish pipeline activity from settled cash and costs.
+
+**現在cursor:** push fixture+SSOT → exact-head CI/fresh review → merge → disk cleanup receipt >= 2 GiB → release/handoff/doctor → exact effect fences → owner natural runs → capacity/economic evidence.
