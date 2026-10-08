@@ -8776,13 +8776,13 @@ This entry supersedes the prior producer-review cursor. CFO priority remains A5 
 
 **Current cursor:** lane/storefront rejection RED tests → propagate `provider_rejected` and exit 1 → focused acceptance + manifest → push → exact-head CI/review → merge → production CFO readbacks → A5 → A6 → A8 → A9 → A10.
 
-### 2026-10-09 05:42 JST — all Lancers provider-rejection callers fixed locally
+### 2026-10-09 05:45 JST — source SHIP; final checks pending
 
 このsnapshotは05:39のCFO status/TODOを置き換える。CFO order`A5 → A6 → A8 → A9 → A10`、A7/Money TreeとCloud cost lane外を維持する。
 
 - **Lancers callers:** `lane_report.py` now reports `provider_rejected` and exits 1; `storefront_offer.py --apply` includes `telegram_delivery` counters in JSON, sets `ok=false`, and exits 1 on rejection. Both new caller-level tests were RED before the fix and now pass.
 - **Local acceptance:** Lancers package/rejection tests 93/93, CrowdWorks rejection tests 3/3, shared Telegram/outbox Python 53/53, CFO Node 61/61, artifact parity 2/2, cross-venue Python 26/26, loop/host Python 61/61, mobile canary 20/20, OSS verifier and loop contract pass (18/188/113, zero errors), diff check PASS. Full investment-core suite remains 1 unchanged weekly cadence mismatch in 132 tests.
-- **Remote PR:** exact remote #7106 head is still `4affcf1fba154ff018db10b027d285c25cd553ba` / base `6cc7facb6f6057880c73515d95c37fe8afea6c2f`. The reviewed finding and CI there predate the lane/storefront fixes. At 20:41Z, all checks except Loop control, gitleaks, and TruffleHog had passed; those were still running. CodeRabbit is manual-review skipped.
+- **Remote PR:** #7106 head `78bd577987465ffb5a55af1491f1058e6abe7aed` / base `6cc7facb6f6057880c73515d95c37fe8afea6c2f`. Fresh source review is SHIP (Critical 0 / Important 0). At 20:44Z, Loop control, gitleaks and TruffleHog are still running; other displayed checks pass. CodeRabbit is manual-review skipped.
 - **Production CFO:** latest run remains `18dca6235b756448-13826` at 19:57:03Z, exit 75 `resource_capacity_busy`, provider receipt missing, old loaded SHA `8d986ff4...`; doctor reports unmanaged release-reconciler self-handoff. Actual revenue/expense totals remain unknown.
 
 **順序変更:** 旧cursor=`fix lane/storefront callers → push → exact CI/review`。新cursor=`(1) 完了: two RED caller-level tests → (2) 完了: result JSON/counters + exit 1 behavior → (3) 完了: Lancers 93, CrowdWorks 3, shared 53, CFO 61, artifact 2, cross-venue 26, loop/host 61, mobile 20, OSS/contract/diff pass → (4) commit/push latest-base source/status → (5) exact-head CI + fresh review → (6) merge #7106`。理由は、Lancers caller flagsが拒否counterをsuccessへ変換する最後の報告経路だから。
@@ -8791,16 +8791,16 @@ This entry supersedes the prior producer-review cursor. CFO priority remains A5 
 
 1. [x] Fix Lancers lane-report and storefront-offer callers to expose rejection and fail `ok`/exit code.
 2. [x] Targeted suites and structural gates pass with latest base `6cc7facb`.
-3. [ ] Commit current callers/tests/status and push exact base/head; confirm PR remote readback.
-4. [ ] All required CI on that head pass and fresh full-diff review reports Critical/Important 0.
+3. [x] Commit/push the Lancers caller fixes and current status; remote head/base readback matches `78bd5779` / `6cc7facb`.
+4. [ ] Loop control, gitleaks and TruffleHog pass on exact head `78bd5779`; the fresh source review is already SHIP.
 5. [ ] Merge PR #7106.
 6. [ ] Normal owner/reconciler: self-handoff, loaded SHA/doctor, fresh queue/claim natural terminal; do not stop owners or increase finite caps.
 7. [ ] Receipt-backed CFO natural report with period/currency/source coverage, per-loop settled revenue/cost, replay-zero; actual totals stay unknown until then.
 8. [ ] A5 production migration/RPC/permissions/panel; A6 billed-vs-cash/attribution; A8 complete loop/job coverage; A9 MRR/period reconcile; A10 seven-day natural reports.
 
-**Blockerと解消方法:** Lancers lane report and storefront apply no longer report confirmed provider rejection as success, but this correction is local-only. Commit/push these callers and status on base 6cc7, then use the new exact head for CI and fresh review. Production blockers remain separate: `resource_capacity_busy`, unmanaged release-reconciler self-handoff, and stale/locked queue. Current verified finance totals are still unavailable.
+**Blockerと解消方法:** source blockers are closed and the exact-head source review is SHIP. Merge waits on Loop control, gitleaks and TruffleHog for head 78bd; merge after these required checks pass. Production blockers remain separate: `resource_capacity_busy`, unmanaged release-reconciler self-handoff, and stale/locked queue. Current verified finance totals are still unavailable.
 
-**Current cursor:** commit/push Lancers caller correction + status → exact-head CI/fresh review → merge PR → production CFO natural readbacks → A5 → A6 → A8 → A9 → A10.
+**Current cursor:** required CI green on 78bd → merge PR → production CFO owner/queue/receipt readbacks → A5 → A6 → A8 → A9 → A10.
 
 ### Marketing IntelからWriterへの記事候補連携（並列作業）
 
