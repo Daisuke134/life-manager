@@ -30,6 +30,15 @@ function exactTargetId(value) {
   return targetId;
 }
 
+function exactBrowserContextId(value) {
+  const contextId = String(value || "").trim();
+  if (!contextId) return null;
+  if (!/^[A-Za-z0-9._-]{1,128}$/.test(contextId)) {
+    unavailable("Connector browser context ID invalid");
+  }
+  return contextId;
+}
+
 function connectorPageWebsocketTargetId(value) {
   let parsed;
   try { parsed = new URL(String(value || "")); } catch { unavailable("Connector page websocket invalid"); }
@@ -49,6 +58,9 @@ function targetIdFromWebsocket(value) {
 function createConnectorBrowserTargetController(options = {}) {
   const browser = options.browser;
   const endpoint = String(options.endpoint || CONNECTOR_CDP_ENDPOINT);
+  const browserContextId = exactBrowserContextId(
+    options.browserContextId || process.env.CLOAK_BROWSER_CONTEXT_ID,
+  );
   const wait = options.wait || ((milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)));
   const bindTimeoutMs = options.bindTimeoutMs == null ? 5_000 : options.bindTimeoutMs;
   if (endpoint !== CONNECTOR_CDP_ENDPOINT) unavailable("Connector browser endpoint invalid");
@@ -56,20 +68,36 @@ function createConnectorBrowserTargetController(options = {}) {
     unavailable();
   }
   const contexts = browser.contexts();
-  if (!Array.isArray(contexts) || contexts.length !== 1) unavailable("Connector browser context unavailable");
-  const context = contexts[0];
-  if (!context || typeof context.pages !== "function" || typeof context.newCDPSession !== "function") {
+  if (
+    !Array.isArray(contexts)
+    || contexts.length === 0
+    || (!browserContextId && contexts.length !== 1)
+  ) unavailable("Connector browser context unavailable");
+  const defaultContext = browserContextId ? null : contexts[0];
+  if (defaultContext && (
+    typeof defaultContext.pages !== "function"
+    || typeof defaultContext.newCDPSession !== "function"
+  )) {
     unavailable("Connector browser context unavailable");
   }
   if (typeof wait !== "function" || !Number.isInteger(bindTimeoutMs) || bindTimeoutMs < 100 || bindTimeoutMs > 30_000) {
     unavailable();
   }
 
-  async function targetIdForPage(page) {
+  function activeContexts() {
+    return browserContextId ? browser.contexts() : [defaultContext];
+  }
+
+  async function targetInfoForPage(context, page) {
     const session = await context.newCDPSession(page);
     try {
       const result = await session.send("Target.getTargetInfo");
-      return exactTargetId(result && result.targetInfo && result.targetInfo.targetId);
+      const targetInfo = result && result.targetInfo;
+      return {
+        target_id: exactTargetId(targetInfo && targetInfo.targetId),
+        browser_context_id: typeof (targetInfo && targetInfo.browserContextId) === "string"
+          ? targetInfo.browserContextId : null,
+      };
     } finally {
       if (session && typeof session.detach === "function") await session.detach();
     }
@@ -79,15 +107,30 @@ function createConnectorBrowserTargetController(options = {}) {
     const deadline = Date.now() + bindTimeoutMs;
     do {
       const matches = [];
-      const pages = context.pages();
-      for (let index = pages.length - 1; index >= 0; index -= 1) {
-        const page = pages[index];
-        if (excludedPages.has(page)) continue;
-        try {
-          if (await targetIdForPage(page) === targetId) matches.push(page);
-        } catch {
-          // A disappearing unrelated page is not the owned target.
+      for (const context of activeContexts()) {
+        if (!context || typeof context.pages !== "function"
+                || typeof context.newCDPSession !== "function") {
+          continue;
         }
+        const pages = context.pages();
+        for (let index = pages.length - 1; index >= 0; index -= 1) {
+          const page = pages[index];
+          if (excludedPages.has(page)) continue;
+          try {
+            const targetInfo = await targetInfoForPage(context, page);
+            if (targetInfo.target_id !== targetId) continue;
+            if (browserContextId && targetInfo.browser_context_id !== browserContextId) {
+              unavailable("Connector target is outside the leased browser context");
+            }
+            matches.push(page);
+          } catch (error) {
+            if (String(error && error.message).includes("outside the leased browser context")) {
+              throw error;
+            }
+            // A disappearing unrelated page is not the owned target.
+          }
+        }
+        if (matches.length > 0) break;
       }
       if (matches.length === 1) return matches[0];
       if (matches.length > 1) unavailable("Connector target page binding ambiguous");
@@ -108,8 +151,10 @@ function createConnectorBrowserTargetController(options = {}) {
 
   return Object.freeze({
     async create() {
-      const baselinePages = new Set(context.pages());
-      const result = await browserCall("Target.createTarget", { url: "about:blank" });
+      const baselinePages = new Set(activeContexts().flatMap((context) => context.pages()));
+      const params = { url: "about:blank" };
+      if (browserContextId) params.browserContextId = browserContextId;
+      const result = await browserCall("Target.createTarget", params);
       const targetId = exactTargetId(result && result.targetId);
       try {
         const page = await findPage(targetId, baselinePages);
@@ -139,8 +184,16 @@ function createConnectorBrowserTargetController(options = {}) {
       if (!inventory || !Array.isArray(inventory.targetInfos)) {
         unavailable("Connector target inventory unavailable");
       }
-      const targetIds = inventory.targetInfos.map((target) => exactTargetId(target && target.targetId));
-      if (!targetIds.includes(targetId)) return true;
+      const targets = inventory.targetInfos.map((target) => ({
+        ...target,
+        targetId: exactTargetId(target && target.targetId),
+      }));
+      const matching = targets.filter((target) => target.targetId === targetId);
+      if (matching.length === 0) return true;
+      if (matching.length !== 1) unavailable("Connector target inventory ambiguous");
+      if (browserContextId && matching[0].browserContextId !== browserContextId) {
+        unavailable("Connector target is outside the leased browser context");
+      }
       const result = await browserCall("Target.closeTarget", { targetId });
       return result && result.success === true;
     },

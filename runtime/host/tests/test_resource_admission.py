@@ -417,6 +417,31 @@ def test_database_waits_for_transient_sqlite_writer_lock(tmp_path):
     assert "error" not in result
 
 
+def test_open_current_schema_does_not_wait_for_writer_lock(tmp_path, monkeypatch):
+    database = tmp_path / "admission-v2.sqlite3"
+    with admission._database(database):
+        pass
+
+    writer = sqlite3.connect(database, timeout=0.1)
+    writer.execute("BEGIN IMMEDIATE")
+    real_connect = sqlite3.connect
+
+    def connect_with_short_timeout(path, *args, **kwargs):
+        kwargs["timeout"] = 0.01
+        return real_connect(path, *args, **kwargs)
+
+    monkeypatch.setattr(admission.sqlite3, "connect", connect_with_short_timeout)
+    try:
+        connection = admission._database(database)
+        try:
+            assert connection.execute("SELECT COUNT(*) FROM queue").fetchone() == (0,)
+        finally:
+            connection.close()
+    finally:
+        writer.rollback()
+        writer.close()
+
+
 def test_browser_migration_keeps_legacy_table_on_conflicting_owner(tmp_path):
     database = tmp_path / "admission-v2.sqlite3"
     with sqlite3.connect(database) as connection:

@@ -92,7 +92,7 @@ class TerraDefaultTest(unittest.TestCase):
                     expected = [{
                         "provider": "codex", "model": "gpt-6-luna",
                         "effort": "max", "service_tier": "fast",
-                        "profile_alias": "acct1",
+                        "profile_alias": "acct1", "fail_fast_provider_lease": True,
                     }]
                 # Paid and explicit escalation stay Codex-only. Other executable
                 # classes retain their existing cross-provider fallback contract.
