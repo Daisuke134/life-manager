@@ -10111,3 +10111,25 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 5. [ ] **A10 seven-day acceptance:** 自然なCFO reportを7日連続で、same-occurrence B7/runtime/provider receipt、period/currency、coverage/freshness、duplicate reconciliation proof、replay-zeroと突合する。1日でも欠落した場合はその日の原因を記録して連続countをやり直す。全社actualやUSD `10K` MRRはcoverageが閉じるまで未確認として報告する。
 
 **現在cursor:** A6 Google cash readback → A6 usage trace → A8 all-loop/job actual coverage → A9 source-period reporting → A10 seven-day natural acceptance。Money Tree/personal cashとCloud API置換・削減は対象外。
+
+### 2026-10-09 08:44 JST — Google cash route verified; park payment readback and advance to usage trace
+
+このsnapshotは、gcloud/Gmail identityとIAM、Googleの公式Billing docs、登録済みbrowser identityをread-onlyで再確認した結果を反映する。Google September cash-paid statusは依然unknownであり、不払いとは断定しない。
+
+- gcloud active identityはcredential SSOTのGoogle accountと一致し、Cloud Billing accountは1件open、active principalは`roles/billing.admin`。そのため確認済み阻害点はgcloud IAM不足ではない。
+- 同じactive identityに結び付くGmail profileで2026-09請求のpayment/receiptを期間限定検索したが0件だった。メール不在は決済不在の証拠ではない。
+- [Google公式のpayment history手順](https://docs.cloud.google.com/billing/docs/how-to/view-history)はTransactions pageを正規のcost/payment historyとし、必要permissionを`billing.accounts.getPaymentInfo`と記載する。active accountにはBilling Admin roleがある。[公式receipt手順](https://docs.cloud.google.com/billing/docs/how-to/get-invoice)もreceiptをTransactions pageから取得すると説明する。BillingAccount REST resourceにはaccount metadata/IAM等のmethodがあるが、transaction history methodは掲載されていない。
+- `coconala:kosuke`のregistered browser contextは正しい`gig-daily-driver` vaultを指定してもactive gcloud identityを表示せず、`www.google.com`へ到達。context/browser leaseは正常release済み。Cloud Billing pageは開かず、再ログイン・recovery・`interactive:dais`利用・Money Tree・銀行画面・決済変更は行っていない。よって残るA6 cash阻害点は、same-account authenticated Cloud Billing browser sessionが現在の登録identityからreadbackできないこと。
+- PR #6847はOPEN/DRAFTの候補実装だがproduction evidenceではない。次のA6 usage作業では既存branchを変更せず、current mainのproducer/call-site/runtime trace経路を調べてから重複しない所有範囲を決める。
+
+**順序更新と理由:** 旧cursor=`A6 Google cash receipt → A6 usage trace → A8 → A9 → A10`。新cursor=`(1) A6 Google usage trace（現在、コードとtestで進められる） → (2) A8 all-loop/job actual coverage → (3) A9 source-period report → (4) A6 Google cash receipt（same-account Transactions sessionが利用可能になったら再開。A10より前に閉じる） → (5) A10 seven-day natural acceptance`。公式payment receiptへ至る登録browser pathが確認できなかったため、cash statusをunknownのまま保持して独立して進められるtrace/coverage/report作業へ進む。settled/cash totalsやA10完了条件からcash確認を削除しない。
+
+**Remaining atomic TODO（この順）:**
+
+1. [ ] **A6 usage trace（現在）:** `apps/life-manager/lib/usage-event.js`の`runtimeTrace`/`usageRuntimeEnv`とcurrent `apps/life-manager/lib/ask.js`、`apps/life-manager/lib/gemini-usage.js`、`apps/life-manager/server.js`の実呼び出し経路を追い、Google Maps/Places・Gemini/grounding producerごとに正しい`loop_id`、`owner_id`、run/occurrence、release SHAを渡す最小修正を決める。loopを証明できないshared service costはshared overheadのままにする。回帰は`apps/life-manager/lib/usage-event.test.js`、`apps/life-manager/lib/ask-usage.test.js`、`apps/life-manager/lib/gemini-usage.test.js`で追加/実行し、将来runのruntime/B7 readbackでtraceを確認する。過去9,042行は別の既存run/receiptで確定できない限り`unattributed`に残す。
+2. [ ] **A8 complete coverage:** 最新registry/catalogから全loop/job inventoryを再取得し、各business loopのsettled revenue、refund、platform fee、API/model/tool/infra billed costをofficial receiptまたはsource-backed verified-zeroへ結ぶ。未帰属jobsはloopまたはshared/control/platform overheadへ根拠付き分類する。coverage gapを0扱いしない。
+3. [ ] **A9 truthful source-period report:** `skills/cfo/loop_pnl.py::main`の`--date`をJST `[00:00, next day 00:00)`の日別集計に接続し、`skills/cfo/test_loop_pnl.py`で23:59含む/翌日00:00除外とCLI結果を回帰確認する。daily/MTD/trailing/MRR、loop別/全社のsettled revenue/refund/fee/billed expense/cash/net、currency、freshness、coverage、unknownを分ける。
+4. [ ] **A6 Google cash readback:** active gcloud accountに対応するregistered Cloud Billing browser sessionで`https://console.cloud.google.com/billing/history`を開き、Transactionsの2026-09 invoice/payment行とPayment receiptをreadbackしてJPY `27,889`のcash-paid status/date/receipt IDを記録する。現状はsession identityが未確認のため保留。証拠が得られなければcashは`unknown`のままにし、login/recoveryや別account browserへの迂回はしない。
+5. [ ] **A10 seven-day acceptance:** usage trace、coverage、source-period report、Google cash statusを含むCFO reportを7日連続の自然occurrenceで検証する。同一occurrence B7/runtime/provider receipt、period/currency、coverage/freshness、duplicate proof、replay-zeroを確認し、gapが1日でもあれば原因を記録して連続countを再開する。
+
+**現在cursor:** A6 Google usage trace → A8 all-loop/job coverage → A9 source-period report → A6 Google cash readback → A10 seven-day natural acceptance。Money Tree/personal cashとCloud API置換・削減は対象外。
