@@ -1376,3 +1376,31 @@ def test_per_occurrence_call_without_resolve_never_sweeps(tmp_path, monkeypatch,
     reconcile.main(["--auto-owner", owner, "--occurrence-id", f"{owner}:a",
                     "--identity-dir", str(idir), "--admission-db", str(db)])
     assert json.loads(capsys.readouterr().out)["status"] == "inconclusive"
+
+
+def test_sweep_goes_newest_first_and_never_touches_fences_younger_than_the_safety_margin(tmp_path):
+    """Oldest-first stalled: the oldest windows genuinely contain posts, so the same 25 were
+    kept every call. Newest-first (older than the margin) reaches provable windows, and a fence
+    younger than the margin may belong to a run that is still going."""
+    import time
+    owner = "life-manager-anicca-main-tiktok"
+    now = time.time()
+    rows = [(f"{owner}:old", now - 40 * 3600), (f"{owner}:mid", now - 20 * 3600),
+            (f"{owner}:young", now - 1 * 3600)]
+    db = _hist_db(tmp_path, owner, rows)
+    idir = _hist_identity_dir(tmp_path, owner, ["integration://postiz/tiktok/cmx1"])
+    seen = []
+
+    def resolver(owner_id, occurrence_id, *, no_dispatch_proof, expected_state="claimed"):
+        seen.append(occurrence_id)
+        return True
+
+    out = reconcile.sweep_historical_no_dispatch(
+        owner, identity_dir=idir, admission_db=db, api_key="k", apply=True,
+        list_posts=lambda *a: [], resolver=resolver, max_items=1)
+    assert seen == [f"{owner}:mid"], seen          # newest that is older than the margin
+    assert out["inspected"] == 1
+    out2 = reconcile.sweep_historical_no_dispatch(
+        owner, identity_dir=idir, admission_db=db, api_key="k", apply=True,
+        list_posts=lambda *a: [], resolver=resolver, max_items=10)
+    assert f"{owner}:young" not in seen
