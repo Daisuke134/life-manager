@@ -231,7 +231,7 @@ class ReconcileTest(unittest.TestCase):
             "resolve_flag": "--resolve"}} for owner in ("owner-a", "owner-b")}
         summary = reconcile(
             registry=_registry(loops), root=Path("/release"), cap=3,
-            run_call=run_call, read_fenced=read_fenced, log_path=None,
+            run_call=run_call, read_fenced=read_fenced, log_path=None, wake_epoch=0.0,
         )
         self.assertEqual(summary["checked"], 6)
         self.assertEqual(len(calls), 3)
@@ -376,3 +376,55 @@ class RotatingStartTest(unittest.TestCase):
                       clock=lambda: tick, run_call=lambda argv, timeout=60: (seen.append(argv[argv.index("--occurrence") + 1]) or (0, "")),
                       read_fenced=lambda f=fenced: f, log_path=None, wake_epoch=tick)
         self.assertEqual(len(set(seen)), 3, seen)
+
+
+class SurvivesLockedDatabaseTest(unittest.TestCase):
+    """2026-10-09: a `database is locked` from the post-call read killed the whole wake after a
+    handful of calls (stderr traceback), so Anicca/Honne never got a turn and the call log lost
+    the records of the calls that had already run."""
+
+    def _loops(self, n):
+        return {f"o{k:02d}": {"effect_reconcile": {"argv": ["x.py"], "occurrence_flag": "--occurrence"}}
+                for k in range(n)}
+
+    def test_a_transient_lock_on_the_post_call_read_is_retried_and_the_wake_continues(self):
+        import sqlite3
+        loops = self._loops(3)
+        fenced = {k: (f"{k}:1",) for k in loops}
+        state = {"n": 0}
+
+        def read_fenced():
+            state["n"] += 1
+            if state["n"] in (2, 3):          # the first post-call reads fail
+                raise sqlite3.OperationalError("database is locked")
+            return fenced
+
+        called = []
+        summary = reconcile(registry=_registry(loops), root=Path("/r"), cap=3, budget_seconds=100,
+                            clock=lambda: 0.0, sleep=lambda s: None,
+                            run_call=lambda argv, timeout=60: (called.append(argv[-1]) or (0, "")),
+                            read_fenced=read_fenced, log_path=None, wake_epoch=0.0)
+        self.assertEqual(len(called), 3)
+        self.assertIn("checked", summary)
+
+    def test_calls_already_made_are_logged_even_when_the_database_stays_locked(self):
+        import sqlite3
+        loops = self._loops(3)
+        fenced = {k: (f"{k}:1",) for k in loops}
+        state = {"n": 0}
+
+        def read_fenced():
+            state["n"] += 1
+            if state["n"] >= 3:
+                raise sqlite3.OperationalError("database is locked")
+            return fenced
+
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "calls.jsonl"
+            summary = reconcile(registry=_registry(loops), root=Path("/r"), cap=3, budget_seconds=100,
+                                clock=lambda: 0.0, sleep=lambda s: None,
+                                run_call=lambda argv, timeout=60: (0, ""),
+                                read_fenced=read_fenced, log_path=log, wake_epoch=0.0)
+            rows = [json.loads(l) for l in log.read_text().splitlines()]
+        self.assertTrue(rows, "calls made before the lock must still be recorded")
+        self.assertEqual(summary["status"], "partial_database_locked")
