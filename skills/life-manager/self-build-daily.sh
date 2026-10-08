@@ -85,20 +85,17 @@ export LM_SELFBUILD_LEDGER="$LEDGER"
 # existing semantics.
 DISK_GUARD="$LM_SELFBUILD_CANONICAL_DISK_GUARD"
 
-# Self-build is a write-heavy producer. Pin the repository's canonical floor and
-# host/state roots after dotenv loading so runtime configuration cannot lower or
-# redirect the shared guard boundary.
-LIFE_MANAGER_DISK_HEADROOM_KIB=524288
+# Pin host/state roots after dotenv loading so runtime configuration cannot
+# redirect the shared explicit-stop boundary.
 LIFE_MANAGER_HOST_STATE_DIR="$LM_SELFBUILD_CANONICAL_HOST_STATE"
 LIFE_MANAGER_PRODUCER_STATE_DIR="$LM_SELFBUILD_CANONICAL_STATE_HOME"
-export LIFE_MANAGER_DISK_HEADROOM_KIB
 export LIFE_MANAGER_HOST_STATE_DIR LIFE_MANAGER_PRODUCER_STATE_DIR
 
 # The dotenv file is allowed to set runtime values, but it can never bypass the
 # shared producer stop contract.
-unset LIFE_MANAGER_IGNORE_DISK_PRESSURE_BLOCK LIFE_MANAGER_IGNORE_DISK_WRITERS_STOP
-unset GIG_DISK_HEADROOM_KIB GIG_HOST_STATE_DIR GIG_STATE_DIR
-unset GIG_IGNORE_DISK_PRESSURE_BLOCK GIG_IGNORE_DISK_WRITERS_STOP
+unset LIFE_MANAGER_IGNORE_DISK_WRITERS_STOP
+unset LIFE_MANAGER_DISK_HEADROOM_KIB GIG_DISK_HEADROOM_KIB GIG_HOST_STATE_DIR GIG_STATE_DIR
+unset GIG_IGNORE_DISK_WRITERS_STOP
 unset DISK_CONTROL_STATE_DIR OPENCLAW_STATE_DIR
 
 TG_TARGET="${LM_SELFBUILD_TELEGRAM_TARGET:-${TELEGRAM_ALERT_CHAT_ID:-}}"

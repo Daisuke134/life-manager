@@ -149,7 +149,7 @@ def test_proposal_opens_with_commitment_and_has_no_pre_contract_question() -> No
     assert "契約範囲内でご納得いただけるまで" in proposal
 
 
-def test_disk_headroom_is_rechecked_before_irreversible_submit(tmp_path, monkeypatch) -> None:
+def test_explicit_disk_policy_is_rechecked_before_irreversible_submit(tmp_path, monkeypatch) -> None:
     snapshot = _single_application_snapshot()
     decisions = {"decisions": [{
         "request_id": "123",
@@ -179,7 +179,8 @@ def test_disk_headroom_is_rechecked_before_irreversible_submit(tmp_path, monkeyp
     )
 
     assert effects.click_count == 1
-    assert results[0]["status"] == "pre_submit_aborted:pre_submit_headroom:ParentContractError"
+    assert results[0]["status"] == "pre_submit_aborted:pre_submit_disk_policy:ParentContractError"
+    assert results[0]["error"] == "disk_policy_stop_or_unavailable"
 
 
 def test_missing_authenticated_identity_stops_before_irreversible_marker(

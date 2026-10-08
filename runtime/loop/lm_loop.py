@@ -2703,7 +2703,9 @@ def apply_live(release_root: Path, agents_dir: Path, launchctl_safe: Path,
                 retired_environment_keys = {
                     "affiliate-loop": ("AFFILIATE_LANDING_ROOT",),
                     "life-manager-cfo-hourly": ("LIFE_MANAGER_APP_DIR", "CFO_STATE_DIR"),
-                    "life-manager-selfbuild": ("LM_SELFBUILD_REPO",),
+                    "life-manager-selfbuild": (
+                        "LM_SELFBUILD_REPO", "LIFE_MANAGER_DISK_HEADROOM_KIB",
+                    ),
                     "agentmail-webhook": (
                         "AGENTMAIL_QUEUE_PATH", "AGENTMAIL_DB_PATH",
                         "AGENTMAIL_ADAPTER_STATE_DIR", "AGENTMAIL_SEMANTIC_STATE_DIR",
@@ -2728,17 +2730,12 @@ def apply_live(release_root: Path, agents_dir: Path, launchctl_safe: Path,
                     "franklin2-loop": (
                         "ANICCA_STATE_DIR", "FRANKLIN_PROXY_PORT", "OPENCLAW_ENV_FILE",
                     ),
-                    # These two lanes' plists were installed while they were still rendered
-                    # from skills/earn/gig/config/launchd-jobs.json's legacy manifest, which
-                    # explicitly set GIG_DISK_HEADROOM_KIB="0" for them (see gig_disk_guard.py's
-                    # module comment). Now that they are lm-loop registry loops, _plist() never
-                    # sets this key, so _preserve_operational_attributes carries that "0" forward
-                    # forever unless it is named here. Dropping it lets the safe code default
-                    # (524288 KiB) take over. hf-gig-storefront-direct is deliberately excluded:
-                    # its frozen value was already 524288, so retiring it has no effect and only
-                    # widens the blast radius of this change.
+                    # Retire the legacy numeric headroom setting from these plists. The shared
+                    # producer guard no longer admits or defers work based on a free-space floor.
                     "hf-gig-apply-direct": ("GIG_DISK_HEADROOM_KIB",),
+                    "hf-gig-paid-direct": ("GIG_DISK_HEADROOM_KIB",),
                     "hf-gig-reply-detector": ("GIG_DISK_HEADROOM_KIB",),
+                    "hf-gig-storefront-direct": ("GIG_DISK_HEADROOM_KIB",),
                     "pm-decision-loop": (
                         "ANICCA_HOME", "PM_TRADE_AGENT_HOME", "PKVAR",
                         "ANICCA_EVM_PRIVATE_KEY", "BASE_CHAIN_WALLET_KEY", "BLOCKRUN_WALLET_KEY",

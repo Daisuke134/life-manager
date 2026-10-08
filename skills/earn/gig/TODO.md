@@ -2,6 +2,8 @@
 
 > **参照用（2026-09-29 Dais 指示）。正本はこの文書ではなく `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md` の 1 本だけ。TODO・順序・状態はそちらだけを更新する。**
 
+> **Disk admission:** see the canonical SSOT section “remove numeric disk-headroom stops”; historical floor observations below no longer define a producer admission gate.
+
 
 ## Current cursor — 2026-09-25 11:33 JST (Ryu final comprehensive send completed)
 
@@ -13,9 +15,11 @@
   `222360163`. Never resend this room; formal delivery remains untouched.
 - **Coconala loop:** still a separate system task. Paid has a local
   `entrypoint_exit_1` result-write boundary and must receive a fresh no-effect
-  wake/readback only after disk headroom and release gates pass. Storefront still
-  needs its official provider readback; Apply remains unloaded after
-  effect-free cancellation. Do not treat Ryu's manual completion as loop proof.
+  wake/readback after PR #7179 is released and provider/effect fences permit.
+  Numeric free-space is not an admission condition; record actual `ENOSPC` at
+  the failing write. Storefront still needs its official provider readback;
+  Apply remains unloaded after effect-free cancellation. Do not treat Ryu's
+  manual completion as loop proof.
 - **CrowdWorks/CloudWorks:** reconcile each exact occurrence-level
   `effect_unknown` fence with its own provider receipt or admissible no-effect
   proof; no blanket retry/resend.
@@ -30,29 +34,21 @@
   and current mutation authorization; the latest official snapshot was
   `contracts=[]`, so no owner is registered.
 - **Mercor:** preserve old fences; latest official readback has `contracts=[]`.
-- **Shared release work:** merge/release the already-pushed loop hardening,
-  recover the disk-headroom admission floor, then run the bounded no-effect
-  natural wake, official readback, crash recovery, and replay-zero. The
+- **Shared release work:** merge/release PR #7179, which removes numeric
+  disk-headroom admission floors across loops, then run the bounded no-effect
+  natural wake, official readback, crash recovery, and replay-zero. Do not wait
+  for a free-space target before an owner can run. The
   activation order remains `account-bound auth → source-complete inventory →
   funded contract/milestone → current mutation/policy receipts → one owner →
   canary/readback → payment/payout readback → crash recovery → replay-zero`.
 
-## Current cursor — 2026-09-25 10:52 JST (Ryu latest-reply/send boundary)
+## Historical snapshot — 2026-09-25 10:52 JST (Ryu latest-reply/send boundary; superseded)
 
-The local Coconala talkroom source for Ryu `18211957` contains three buyer
-events observed on 2026-09-24: the external-integration question
-(`222273388`), the concept-ranking question (`222273444`), and the paid-option
-layout request (`222273899`). It also contains seller-side records
-`222277933` and `222278017`, but the separately stored official manual-send
-readback still ends at `222245383`; those later records are not independently
-proven as sent. BrowserSkill is currently healthy but has `0 browsers` and
-`0 sessions`, so no fresh authenticated Coconala readback or duplicate send was
-performed. Keep Ryu manual-only and do not claim the later response was sent.
-
-Next admissible action is to use an authenticated BrowserSkill session to read
-the live room, compare the latest buyer identity, then send one corrected reply
-only if it is genuinely newer and capture its official message receipt. The
-formal-delivery control remains untouched.
+At this historical snapshot the local Coconala evidence and official-send
+readback did not agree, so no new message was authorized. This snapshot is
+superseded by the current cursor above: official message ID `222360163` is the
+final manual send, and this room must never be resent. Do not act on the old
+readback gap or send instruction below this point in the historical record.
 
 ## Current cursor — 2026-09-25 08:43 JST (post-push boundary recheck)
 
@@ -61,9 +57,10 @@ committed and pushed on `fix/coconala-history-retry-20260924` at
 `7cdb0a8763`. The worktree is clean. No provider send, retry, credential
 creation, admission-fence mutation, or production apply occurred. Production
 still runs immutable release `d4fe081`; PR #5868 remains open, so the new code
-has not yet been runtime-verified. The remaining TODO is therefore execution,
-not another source rewrite: pass merge/release gates, wait for disk headroom,
-then take one no-effect Coconala readback before touching any other owner.
+has not yet been runtime-verified. The remaining TODO is merge/release and
+execution: pass the source gates, then take one no-effect Coconala readback.
+Free-space thresholds are not a prerequisite; record a real `ENOSPC` at the
+write that fails.
 
 ## Current cursor — 2026-09-25 08:39 JST (Coconala Paid result-write hardening)
 
@@ -82,11 +79,12 @@ suite (26 passed), the remote-wait suite (263 passed), and `lm-loop-contract`
 (`ok: true`). The change is source-only on the current branch; production is
 still the prior immutable release until merge/release gates pass.
 
-Next admissible work is to commit/push this hardening, then obtain a fresh
-no-effect Coconala Paid wake/readback only after the host disk gate is above its
-floor (latest read-only probe: `309636 KiB` available versus `524288 KiB`).
-Storefront still needs an official provider readback. Freelancer and
-Upwork remain external-gate workstreams, not registered Paid owners.
+Next admissible work is to merge/release PR #7179, then obtain a fresh no-effect
+Coconala Paid wake/readback when its provider/effect fences permit. The prior
+`524288 KiB` admission floor is removed by that PR; record an actual `ENOSPC`
+at the write that fails. Storefront still needs an official provider readback.
+Freelancer and Upwork remain external-gate workstreams, not registered Paid
+owners.
 
 ## Current cursor — 2026-09-25 08:31 JST (live all-platform re-read)
 
@@ -190,7 +188,7 @@ provider effect occurred.
 
 | platform | verified evidence now | local effect/loop state | exact next work |
 |---|---|---|---|
-| Coconala | Paid latest terminal is `pass`, `effect=none`, `admission_effect_unknown=false`; Ryu remains manual-only. Apply has five effect-free occurrences cancelled; Storefront has 81 effect-free occurrences cancelled but still requires an official readback. | Paid is loaded-idle; Apply is unloaded; Storefront is unloaded with `official_readback_required`. | Restore host admission headroom, obtain the Storefront official readback, and perform the no-effect natural wake/replay-zero. Do not resend Ryu. |
+| Coconala | Paid latest terminal is `pass`, `effect=none`, `admission_effect_unknown=false`; Ryu remains manual-only. Apply has five effect-free occurrences cancelled; Storefront has 81 effect-free occurrences cancelled but still requires an official readback. | Paid is loaded-idle; Apply is unloaded; Storefront is unloaded with `official_readback_required`. | After PR #7179 is released, obtain the Storefront official readback and perform the no-effect natural wake/replay-zero when provider/effect fences permit. No free-space target gates the wake. Do not resend Ryu. |
 | CrowdWorks (CloudWorks) | Admission DB has 44 claimed application fences, 1 exact Paid fence (`crowdworks-revenue-paid:18d62cf32eb0c678-48194`), 195 claimed reply fences, and 1 released report history fence with `effect_unknown=1`. | Paid/application are unloaded; browser last failed at `entrypoint_exit_1`; reply is loaded-idle but effect-unknown; report is blocked by the effect fence. | Obtain an occurrence-bound provider receipt or admissible no-effect proof for each exact fence. Do not blanket retry, edit the DB, or resend completed work. |
 | Lancers | Latest source-complete contract readback has `contract_candidate_count=0`; balance `¥0`. Historical project `5606124`/proposal `27965342` is not a funded contract. Admission has 41 application, 1 Paid (`lancers-revenue-paid:18d81967220136f8-89928`), 1 negotiate, 1 storefront, and 1 Telegram-report claimed fences. | Paid is unloaded; browser/work-sync are loaded; the other effect-unknown owners are blocked. | Reconcile each exact fence. Keep Paid closed until a current funded `ContractReceipt` and positive milestone/formal delivery surface are read back. |
 | Mercor | Latest official readbacks through `2026-09-20` show `contracts=[]`; no funded work is proven. | Paid is loaded-idle with a passing no-effect run; one old application and one old reply fence remain. | Preserve the old fences and continue read-only discovery; do not register a revenue owner without a real funded contract. |
@@ -261,7 +259,7 @@ inventory, and funded work are all proven.
 |---|---|---|---|
 | Freelancer.com | authorization receipts `0`; no authenticated official inventory; funded project `0` | all Freelancer labels are retired/disabled; no owner | connect the account-bound BrowserSkill profile or official OAuth; read identity, projects, milestones, hourly/IP contracts, payments, and payouts; persist a source-complete snapshot; only then register one owner after a positive funded project |
 | Upwork | official source-complete readback `2026-09-24T17:30:28Z` has `contracts=[]`; three read-only receipts (`inspect/read_payments/read_payouts`) are approved; `search/propose/message/accept_offer/deliver_milestone` are denied | legacy Upwork labels are retired/disabled; no Paid owner; the older candidate/proposal JSON is historical discovery, not a funded contract | obtain a dedicated account-bound BrowserSkill session; refresh contracts, transactions, and withdrawals; obtain provider-approved mutation receipts; prove one funded contract with a positive milestone; register one owner; run zero-effect canary, funded canary, receipt/payment/payout readback, crash recovery, and replay-zero |
-| Coconala | Paid provider effect `0`; Ryu is manual-only; current Paid pass has `admission_effect_unknown=false` | Paid is loaded-idle/no-effect; Apply has no live unknown fence but remains unloaded after effect-free cancellation; Storefront is unloaded and still requires `official_readback_required` | restore stable host/admission headroom, obtain Storefront official readback, then replay-zero; never resend Ryu or treat a no-effect pass as a customer delivery |
+| Coconala | Paid provider effect `0`; Ryu is manual-only; current Paid pass has `admission_effect_unknown=false` | Paid is loaded-idle/no-effect; Apply has no live unknown fence but remains unloaded after effect-free cancellation; Storefront is unloaded and still requires `official_readback_required` | after PR #7179 is installed, obtain Storefront official readback and replay-zero when owner/effect fences permit; no numeric headroom prerequisite. Never resend Ryu or treat a no-effect pass as a customer delivery |
 | CrowdWorks | admission DB has Paid `1`, application `44`, and reply `192` claimed `effect_unknown` occurrences; report has one released `effect_unknown` history row | Paid/application are unloaded; browser owner last failed at entrypoint; reply remains queued/capacity-constrained | resolve each exact occurrence with an occurrence-bound provider receipt or admissible no-effect proof; no blanket retry, DB edit, or fence clearing |
 | Lancers | current inventory is source-complete with `contract_candidate_count=0`, balance `¥0`; historical project `5606124` proposal `27965342` is not a current funded contract; admission has Paid `1`, application `40`, negotiate `1`, storefront `1`, Telegram-report `1` unknown fences | Paid is unloaded; work-sync holds an admission reservation; browser/work-sync are not proof of a funded job | reconcile every exact fence; keep the historical proposal as history only; register Paid only after a current funded contract and formal delivery surface are read back |
 | Mercor | latest official readbacks through `2026-09-20` show `contracts=[]`; no funded work proof | Paid has a clean no-effect pass and no live unknown fence; one old application and one old reply fence remain | preserve old fences, continue read-only discovery, and wait for a real funded contract before registering a revenue owner |
@@ -296,7 +294,7 @@ provider receipt.
 |---|---|---|---|
 | Freelancer.com | private authorization receipts `0`; no account-bound official inventory; funded project `0` | every Freelancer label is retired; no owner is registered | restore one account-bound BrowserSkill lease or official OAuth, read identity/projects/milestones/hourly/IP/payments/payouts, then require a positive funded project before one owner can be registered |
 | Upwork | official source-complete snapshot `2026-09-24T17:30:28Z` has `contracts=[]`; active receipts are only `inspect/read_payments/read_payouts`; `search/propose/message/accept_offer/deliver_milestone` are denied | both legacy Upwork labels are retired; no owner; readiness is `ready=false` for `authorization_missing` + `funded_contract_missing` | connect the dedicated account-bound browser, refresh official contracts/transactions/withdrawals while the three read-only receipts are valid, obtain provider-approved mutation authorization, and require one funded contract with a positive milestone before owner registration |
-| Coconala | Paid latest effect is `0`; Ryu remains manual-only and must not be resent | Paid is blocked by host capacity with no live effect-unknown admission row; Apply is unloaded after effect-free cancellation; Storefront is unloaded with `official_readback_required` | restore headroom, run the natural wake, obtain the exact Storefront official readback, then replay-zero; no provider resend |
+| Coconala | Paid latest effect is `0`; Ryu remains manual-only and must not be resent | Historical readback: Paid was held by the then-installed host gate; Apply was unloaded after effect-free cancellation; Storefront required `official_readback_required` | after PR #7179 is installed, run the natural wake when owner/effect fences permit, obtain Storefront official readback, then replay-zero. No numeric headroom prerequisite or provider resend. |
 | CrowdWorks (クラウドワークス) | latest Paid producer observed 5 works: 4 read back/no-effect, 1 pending buyer material; no new provider receipt | admission DB still fences exact unknown occurrences: application `44`, Paid `1`, reply `188`, report `1`; Paid/application are unloaded, reply is capacity-blocked | resolve each exact occurrence with a provider receipt or admissible no-effect proof; do not blanket retry or clear the DB |
 | Lancers | current inventory is source-complete with `contract_candidate_count=0` and balance `¥0`; historical project `5606124` is proposal `27965342`, not a current funded contract | admission DB fences application `40`, negotiate `1`, Paid `1`, storefront `1`, Telegram-report `1`; Paid is unloaded and storefront is capacity-blocked | reconcile exact fences first; only after a current funded contract and formal delivery surface exists may Paid be registered |
 | Mercor | latest official readbacks through `2026-09-20` show `contracts=[]`; no funded work proof | Paid is loaded-idle with a passing no-effect run and no live unknown fence; old application/reply fences remain | preserve old fences and continue read-only discovery until a real funded contract exists |
@@ -322,7 +320,7 @@ Upwork page was opened and no provider effect was attempted.
 |---|---|---|---|
 | Freelancer.com | authorization receipt 0; OAuth/inventory absent; funded project 0 | all Freelancer labels disabled/retired; no owner | obtain one account-bound BrowserSkill lease or official OAuth, then read identity/projects/milestones/hourly/IP/payments/payouts and persist a source-complete snapshot |
 | Upwork | source-complete snapshot observed `2026-09-24T17:30:28Z` has `contracts=[]`; only `inspect/read_payments/read_payouts` are approved until `2026-09-25T17:30:28Z`; `search/propose/message/accept_offer/deliver_milestone` remain denied | both legacy labels disabled/retired; no owner | refresh identity/contracts/transactions/withdrawals through a dedicated account-bound lease, renew mutation receipts, and require one funded contract with a positive milestone |
-| Coconala | latest Paid wake has `effect=0`; no Ryu resend | Paid admission has no provider effect but terminal `entrypoint_exit_1`; host disk/admission is unstable; Storefront still requires official readback | restore stable host headroom through the canonical owner, then reconcile the no-effect/readback gates; keep Ryu manual-only |
+| Coconala | latest Paid wake has `effect=0`; no Ryu resend | Paid admission has no provider effect but terminal `entrypoint_exit_1`; Storefront still requires official readback | after PR #7179 is released, reconcile the no-effect/readback gates without a numeric free-space prerequisite; keep Ryu manual-only |
 | CrowdWorks (クラウドワークス) | no new provider receipt; old Paid/application/reply/report effect fences remain | Paid/application are unloaded or failed; browser owner last terminal `entrypoint_exit_1`; report is admission-blocked | reconcile each exact occurrence with provider receipt or admissible no-effect proof; no blanket retry |
 | Lancers | project `5606124` historical proposal `27965342` is verified, but current source-complete inventory has `contract_candidate_count=0` and balance `¥0` | Paid/application/negotiate/storefront/Telegram-report fences remain; browser/work-sync are running | reconcile exact fences, then wait for a current funded contract before Paid registration |
 | Mercor | latest Paid terminal `pass`; no funded work proof | Paid loaded-idle; old application/reply fences remain | preserve fences and obtain a real funded contract before treating revenue as proven |
@@ -3493,8 +3491,9 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   profile was deleted.
 - [x] Current official snapshots remain Coconala `4/0/0/3/0`, CrowdWorks
   `5/1/0/4/1`, and Lancers `0/0/0/0/0`; all observed effects are zero.
-- [ ] Restore stable host headroom above 512MiB, then rerun the official
-  Coconala Paid owner and require terminal `pass`.
+- [ ] After PR #7179 is merged and installed, rerun the official Coconala Paid
+  owner only when its provider/effect fences permit; do not require 512 MiB of
+  free space. Record any actual `ENOSPC` at the failed write.
 - [ ] Obtain explicit approval before closing orphan CrowdWorks PID `16937`
   and restarting its canonical browser owner via `./bin/lm-loop`; verify
   receipt → CDP → authenticated readback.
@@ -3515,8 +3514,9 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 - [x] Confirmed the newest CrowdWorks Paid run ended `entrypoint_exit_1` at
   browser inventory. Its event still has `effect_status=unknown`, so the
   effect fence is intentionally retained and no submission is permitted.
-- [ ] Restore stable host headroom above 512MiB, then rerun Coconala Paid to
-  terminal `pass` and reconcile the official snapshot.
+- [ ] After PR #7179 is merged and installed, rerun Coconala Paid only when its
+  provider/effect fences permit, then reconcile the official snapshot. There
+  is no 512 MiB admission requirement.
 - [ ] Obtain approval to close only orphan CrowdWorks PID `16937`, restart
   `crowdworks-revenue-browser` via `./bin/lm-loop`, and verify receipt → CDP →
   authenticated readback. Never use the fallback launcher.
@@ -3540,8 +3540,9 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   `18d80118ccaef4a8-86867`.
 - [ ] Keep the remaining marker-less claimed fence
   `18d62cf32eb0c678-48194` until official provider/pre-effect evidence exists.
-- [ ] Restore host headroom above 512MiB, then rerun Coconala Paid to
-  terminal `pass` and reconcile the official snapshot.
+- [ ] After PR #7179 is merged and installed, rerun Coconala Paid only when its
+  provider/effect fences permit, then reconcile the official snapshot. There
+  is no 512 MiB admission requirement.
 - [ ] Obtain approval to close orphan CrowdWorks PID `16937`, restart the
   canonical browser owner through `./bin/lm-loop`, and verify receipt → CDP →
   authenticated readback.
@@ -3562,8 +3563,9 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 - [ ] Obtain approval to close only orphan CrowdWorks PID `16937`, restart
   its canonical owner via `./bin/lm-loop`, and verify receipt → CDP →
   authenticated readback.
-- [ ] Restore stable headroom above 512MiB using safe cache cleanup only, then
-  rerun Coconala Paid to terminal `pass`.
+- [ ] After PR #7179 is merged and installed, rerun Coconala Paid only when its
+  provider/effect fences permit. There is no 512 MiB admission requirement;
+  record any actual `ENOSPC` at the failed write.
 - [ ] Keep the marker-less CrowdWorks fence
   `18d62cf32eb0c678-48194` and Lancers' pre-inventory failure fenced; no retry
   or submission until official evidence is available.
@@ -4315,8 +4317,9 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 
 1. Keep all four fences closed until exact provider/run or pre-effect proof is
    available; release only via the supported resolver.
-2. Preserve the completed cleanup receipt and wait for stable headroom/control;
-   do not restart a live owner just because its observation is stale.
+2. Preserve the completed cleanup receipt; a numeric free-space value is not
+   an admission prerequisite. Respect explicit stop/effect controls and do not
+   restart a live owner just because its observation is stale.
 3. Promote one immutable release after the gates, canary CrowdWorks first, and
    advance each platform only with official readback and replay-zero.
 
@@ -4344,8 +4347,9 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 2. Keep all four historical fences closed and obtain exact provider/run or
    pre-effect proof through the supported resolver; never edit the admission DB
    or blind-retry/resend.
-3. Restore stable resource headroom and align release SHA, then promote one
-   immutable release and canary CrowdWorks with official readback/replay-zero.
+3. Align the release SHA and promote one immutable release; the numeric
+   headroom gate is removed by PR #7179. Canary CrowdWorks only with its exact
+   effect fence resolved, official readback, and replay-zero.
 4. Advance Lancers and Mercor one owner at a time with the same gates; keep
    Coconala/Ryu manual-only and Upwork disabled until their explicit gates pass.
 

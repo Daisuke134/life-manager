@@ -1,5 +1,9 @@
 # AUTOMATON ARTICLE → LAUNCH — full ordered TODO (the single place; do in order)
 
+## Disk admission policy — 2026-10-08
+
+Numeric free-space floors no longer defer Writer generation or publication. The 2 GiB value remains a cleanup recovery metric; actual `ENOSPC` is recorded at the write that fails. The source and all-loop rollout cursor is in `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md`.
+
 ## Current Writer money order
 
 この順序がWriterの現在の実行cursorである。後続項目は前項のreceiptなしに開始しない。
@@ -33,7 +37,7 @@ X Article JA である。Zenn JA、Dev.to EN、X Article EN、X Post JA は dorm
 
 ### Not done yet / remaining cursor
 
-- [ ] **W2: 次の自然JST日を1回だけwakeする。** 実測capacity floor `1,155,780,608` bytes以上をreadbackし、現行release `94c622f3…`でfresh run、
+- [ ] **W2: 次の自然JST日を1回だけwakeする。** Free-space floorによるwaitは行わず、現行releaseでfresh run、
       source article、article固有headline、GPT Image 2 receipt、quality、completionを揃える。同日runの再送や日付偽装はしない。
 - [x] **W2a: CTA帰属導線を本番で成立させる。** PR #407–#410、deploy #35424169317、custom domain `302` readbackまで完了。
 - [x] **W2b: Life Manager deterministic ref parserをmainへmergeし、immutable releaseへtarget applyする。** PR #5697、Main `94c622f3…`、
@@ -50,7 +54,7 @@ X Article JA である。Zenn JA、Dev.to EN、X Article EN、X Post JA は dorm
 ### Current blockers
 
 1. **最新releaseのfresh canary**: same-day safety blockを迂回して再送することはできない。次の自然JST日まで待つ必要があり、日付を偽装したcanaryは受け入れない。
-2. **host capacity**: floorは`1,155,780,608` bytesで、空きは約1.45GB付近まで変動する。floor未達ならgeneration前にfail-closedする。別ownerのbrowser/sessionを停止して回復しない。
+2. **host capacity**: free-space floorはgeneration/publicationを止めない。低容量時はbounded cleanupを試し、実際のwriteが`ENOSPC`ならそのoperation failureとして記録する。別ownerのbrowser/sessionは停止しない。
 3. **provider/payment boundary**: 旧releaseのactive-four canaryはliveだが、現行`94c622f3…`のfresh live URLとreceived payout receiptはまだ無い。コード、
       test、loaded/running、provider公開、収益を別々に証明する必要がある。
 4. **sales measurement**: private envを正規sourceしてreadback済み。Noteは今月`¥0 / 0 purchases`、Substackは`-`表示でunknown。

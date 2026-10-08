@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">Annual report risk change brief</title>
+  <desc id="desc">A document with comparison marks and a magnifying glass.</desc>
+  <rect width="128" height="128" rx="24" fill="#102A43"/>
+  <path d="M31 20h45l21 21v61a6 6 0 0 1-6 6H31a6 6 0 0 1-6-6V26a6 6 0 0 1 6-6Z" fill="#EAF4FF"/>
+  <path d="M76 20v21h21" fill="#A9D6E5"/>
+  <path d="M42 51h39M42 65h27M42 79h20" stroke="#52796F" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="82" cy="82" r="17" fill="none" stroke="#EF8354" stroke-width="7"/>
+  <path d="m94 94 12 12" stroke="#EF8354" stroke-width="7" stroke-linecap="round"/>
+</svg>

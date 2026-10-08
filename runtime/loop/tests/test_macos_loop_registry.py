@@ -1741,5 +1741,34 @@ class RetirementGuardRegistryTests(unittest.TestCase):
                                        "retired_labels": ["ai.anicca.orphan"], "guarded_retired_labels": bad})
 
 
+class MobileAppEffectReconcileTests(unittest.TestCase):
+    def test_mobile_app_publish_loops_declare_the_postiz_effect_reconcile(self):
+        """Mobile publish owners must reconcile effects through their own Postiz route."""
+        registry = json.loads(
+            (ROOT / "config/loop-registry.json").read_text(encoding="utf-8")
+        )
+        missing = []
+        for loop_id, row in registry["loops"].items():
+            if (
+                row.get("entrypoint") != "apps/life-manager/scripts/mobile-app"
+                or row.get("effect_class") != "publish"
+            ):
+                continue
+            reconcile = row.get("effect_reconcile") or {}
+            argv = reconcile.get("argv") or []
+            valid = (
+                argv[:3] == [
+                    "apps/life-manager/scripts/mobile-postiz-provider-reconcile.py",
+                    "--auto-owner",
+                    loop_id,
+                ]
+                and reconcile.get("occurrence_flag") == "--occurrence-id"
+                and reconcile.get("resolve_flag") == "--resolve"
+            )
+            if not valid:
+                missing.append(loop_id)
+        self.assertEqual(missing, [])
+
+
 if __name__ == "__main__":
     unittest.main()

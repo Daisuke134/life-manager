@@ -272,7 +272,7 @@ class ArticleStartPolicyTest(unittest.TestCase):
             )]
             self.assertEqual(run_model.count("BOUNDED_EXEC_STOP_PATHS="), 1)
             self.assertIn(
-                'BOUNDED_EXEC_STOP_PATHS="${LIFE_MANAGER_HOST_STATE_DIR:-$HOME/.local/state/life-manager/state}/disk-writers.stop"',
+                'BOUNDED_EXEC_STOP_PATHS="$WRITER_DISK_CONTROL_DIR/disk-writers.stop"',
                 run_model,
             )
 
@@ -337,6 +337,7 @@ class ArticleStartPolicyTest(unittest.TestCase):
                 f"ARTICLE_MODEL_RUNNER={runner}\nPROMPT_FILE={prompt}\n"
                 f"LOG={root / 'run.log'}\nGENERATION_STATE={state}\n"
                 "RUN_TS=test\nGENERATION_ARGS=(--fixture test)\nGENERATION_ATTEMPT_ACTIVE=1\n"
+                f"WRITER_DISK_CONTROL_DIR={root / 'control-state'}\n"
                 f"python3 {broker} &\nJUDGE_BROKER_PID=$!\n"
             )
             harness.write_text(

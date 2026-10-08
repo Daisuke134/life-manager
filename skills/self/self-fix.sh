@@ -60,7 +60,7 @@ if [ -f "$RESULT" ] && grep -q '^HELD_EFFECT_UNKNOWN' "$RESULT" 2>/dev/null; the
   exit 75
 fi
 
-# Keep this pure: use the shared admission policy and measurement without invoking disk_headroom_ok(), which
+# Keep this pure: use the shared stop policy and measurement without invoking disk_headroom_ok(), which
 # writes producer receipts. Verify the configured host state root exists first so the shared probe will not
 # bootstrap a missing directory around an unavailable gate.
 sf_disk_admission_probe() {
@@ -76,7 +76,7 @@ for name in ("LIFE_MANAGER_IGNORE_DISK_WRITERS_STOP", "LIFE_MANAGER_IGNORE_DISK_
 sys.path.insert(0, str(repo_root))
 reason = None
 available = None
-required = None
+required = 0
 host_state_dir = None
 try:
     from runtime.host import disk_admission
@@ -84,24 +84,17 @@ try:
     host_state_dir = str(host_state.absolute())
     if not host_state.is_dir() or host_state.is_symlink():
         raise OSError("host state directory unavailable")
-    required_bytes = disk_admission.RECOVERY_FLOOR_BYTES
     policy_gate = disk_admission._producer_gate()
     available_bytes = disk_admission.disk_free_bytes(host_state)
 except Exception:
     reason = "disk_policy_unavailable"
 else:
-    if isinstance(required_bytes, int) and not isinstance(required_bytes, bool) and required_bytes > 0:
-        required = required_bytes
     if isinstance(available_bytes, int) and not isinstance(available_bytes, bool) and available_bytes >= 0:
         available = available_bytes
-    if required is None:
-        reason = "disk_policy_unavailable"
-    elif policy_gate is not None:
+    if policy_gate is not None:
         reason = policy_gate[0]
     elif available is None:
         reason = "disk_headroom_unavailable"
-    elif available < required:
-        reason = "disk_headroom_low"
 result = {"status": "deferred" if reason else "admitted", "available_bytes": available,
           "required_bytes": required, "reason": reason, "host_state_dir": host_state_dir}
 print(json.dumps(result, sort_keys=True, separators=(",", ":")))
@@ -191,7 +184,8 @@ fi
 
 # The browser is shared with the other money loops: heal it, restore the logins, collect stray tabs.
 (
-  unset LIFE_MANAGER_IGNORE_DISK_WRITERS_STOP LIFE_MANAGER_IGNORE_DISK_PRESSURE_BLOCK LIFE_MANAGER_DISK_HEADROOM_KIB
+  unset LIFE_MANAGER_IGNORE_DISK_WRITERS_STOP LIFE_MANAGER_IGNORE_DISK_PRESSURE_BLOCK
+  unset LIFE_MANAGER_DISK_HEADROOM_KIB
   bash "$LIFE_MANAGER_REPO/skills/browser/ensure_browser.sh"
 ) || echo "WARN: browser not recovered"
 
