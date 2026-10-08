@@ -329,6 +329,25 @@ async def _idempotent_step(step, item: dict, next_state: str) -> dict:
     return dict(item, state=next_state)
 
 
+MAX_TITLE_ATTEMPTS = 6
+
+
+def _title_attempts(listing: dict):
+    """Titles to try in order when Creators Market reports one as taken: the planned one, then its
+    vol.2 / vol.3 numbered forms (they keep what the set is: 【文字入り】, the theme), and only
+    then the character-name-led title, which throws the wording away (set-015: it became
+    "Stardust Otterのスタンプ", an on-sale item of ours, and giving up there stalled the factory)."""
+    yield listing
+    current = listing
+    count = 1
+    while count < MAX_TITLE_ATTEMPTS - 1:
+        current = _numbered(current)
+        count += 1
+        yield current
+    if listing.get("character_name"):
+        yield _retitle(listing)
+
+
 async def _drive(cdp: str, item: dict, listing: dict, tags: dict, package_dir: Path, selection: dict) -> dict:
     async with async_playwright() as playwright:
         browser = await playwright.chromium.connect_over_cdp(cdp)
@@ -336,14 +355,13 @@ async def _drive(cdp: str, item: dict, listing: dict, tags: dict, package_dir: P
         page = await context.new_page()
         try:
             if not item:
-                try:
-                    return await _create_item(page, listing, selection)
-                except TitleTaken:
-                    # Retry once with the character's own name so both titles are distinctive.
-                    retitled = _retitle(listing)
-                    if retitled is None:
-                        raise
-                    return await _create_item(page, retitled, selection)
+                last: TitleTaken | None = None
+                for candidate in _title_attempts(listing):
+                    try:
+                        return await _create_item(page, candidate, selection)
+                    except TitleTaken as exc:
+                        last = exc
+                raise last
             if item.get("state") == "metadata_saved":
                 return await _idempotent_step(lambda: _upload_images(page, item, package_dir), item, "images_uploaded")
             if item.get("state") == "images_uploaded":
