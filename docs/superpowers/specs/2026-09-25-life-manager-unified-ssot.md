@@ -4849,8 +4849,8 @@ flowchart LR
 
 **残TODO（完了まで、この順）:**
 
-1. **現在cursor — PR #7182 merge:** code reviewはSHIP。local Storefront suiteは103/103、contract/source checksはPASS。exact head `296828eb37537dde5f68eff7d02bae6fca8de76a`、base `1136b703c45fec29f8535170f72d13e28c168321`に対するSecurity Scan `37808959321`とCodeRabbitはPASS。#7182をmergeし、main由来releaseとStorefront自然readbackへ進む。Capafy sourceはこのlaneで編集しない。
-2. **main由来release:** After PR #7182 acceptance/merge, create or await the existing main-derived immutable release containing main `1136b703c4` and the Gig preflight fix; read back `RELEASE.json`, Storefront/Paid loaded SHA/argv/admission.
+1. **現在cursor — latest-main syncとPR最終受け入れ:** PR #7192は2026-10-08 16:44Zにmain `ba39c13aeb11131b30ec32f2ddaad4f0945b5025`としてmergeされ、stale agent-runner manifestが修正された。Gig worktreeへこのmain commitを同期した後、PR #7182のexact-head CI/reviewをPASSさせる。Gig source reviewはSHIP、local focused suite 103/103とsource checksはPASS。
+2. **main由来release:** PR #7192のmanifest修正mergeとPR #7182受け入れ後、最新main由来immutable releaseで`RELEASE.json`、Storefront/Paidのloaded SHA/argv/admissionを確認する。
 3. **Coconala Paid obligation:** order `18180857`のfresh official order/talkroom readbackをownerが実行する。今も未完了の場合だけ必要なrevision/formal deliveryを一度行い、buyer acceptance・settlement/payout・replay-zeroを結ぶ。古いsnapshotから現在の待ち状態を推測しない。
 4. **旧Storefront fence:** `18d8d288748508e8-23902`を、同一effectの公式listing/order履歴または受理可能なoccurrence-bound pre-effect receiptで照合する。現在はdry-runがbinding不足で保留。証拠が取れなければfenceを保持し、再公開しない。
 5. **Coconala商品を売れる型へ改善:** seller-sideでSKU 4244556のfresh views・inquiries・unique paid orders・renewals/refunds・platform fee・payoutを同一期間で取得する。過去5変更は全て`NO_OP / metric_unmeasurable_insufficient_exposure`でliftなし、保存済み15 views / 0 purchaseは古い窓。固定scope・完成成果物・選択式optionの自社商品構造を維持し、exposure gateと旧effect fenceが両方解決してから一度に一変数だけ変更する。exposure不足時はlistingを変えず、公式analyticsの自然readbackと許可済みdistributionでqualified trafficを増やす。近似SKUを重複出品しない。月次optionは実renewalと毎月の納品内容が確認できるまでMRRに数えない。
@@ -4964,7 +4964,7 @@ flowchart LR
 - `life-manager-release-reconciler`は旧SHA `e1b061f1`、PID `20087`で稼働中。最新occurrence `18dc9a2588c0f7f0-36473`はexit 1。`lm-loop doctor --json`はunmanaged label `ai.anicca.life-manager-release-reconciler-self-handoff`のためnot ok。production/provider stateは変更していない。
 - local Gig focused suiteは103/103、contract/source checksもPASS。source head `8d685fe8c3`のfresh reviewはSHIP。PR head `62821ca878`のSecurity Scan run `37807003724`は8 checksがgreenで、`Loop control contracts`だけ実行中。このSSOT更新でPR headが変わるため、new exact-head CIもPASSが必要。
 
-**現在cursor:** greenなPR #7182をmerge → main由来immutable releaseとStorefront自然occurrenceをreadback。productionは旧SHA/effect fenceのままで、settled salesはunknown。
+**現在cursor:** main `ba39c13aeb`をGig branchへmerge → local checksとPR #7182 exact-head CI/reviewをPASS → merge → main由来release/自然Storefront readback。
 
 ### 2026-10-09 01:26 JST — exact-head Security Scan passed
 
@@ -4981,6 +4981,23 @@ flowchart LR
 - production readbackはsource acceptanceと別：最新release `d7d3cbaeaf`、Storefront loaded SHA `3981bca3`、disk admission deferと古い`effect_unknown` fenceが継続。Storefrontの精算済み売上は確認できていない。
 
 **現在cursor:** PR #7182をmerge → main由来immutable releaseとStorefront自然occurrenceを確認 → 古いfenceを再送なしで一件ずつ照合 → Coconala economics完了後にFreelancer/Upwork storefrontへ進む。
+
+
+### 2026-10-09 01:40 JST — agent-runner manifest修正はPR #7192で進行中（当時）
+
+- main `1b0f7d9523282f45c6974d04a111dc0fc0380837`でPR #7182のOSS checkは`manifest_hash_mismatch runtime/agent-runner/config.json`。manifest宣言`2eb171de…`に対しmain fileの実hashは`501cfcef…`。原因はGig差分でなく、merge済みagent-runner PR #7191のmanifest追随漏れ。
+- owner PR #7192（branch `docs/lm-marketing-runtime-audit-20261009`、head `afdb5a37d9d30b6cbfa149621ced49fa23ad267e`）がmanifest digestを`501cfcef…`へ更新し、OSS checkはPASS。Loop control contractsとTruffleHogはreadback時点で進行中。Gig worktreeではagent-runner/manifestを編集していない。
+- production Storefrontはloaded SHA `3981bca3`。16:20Zの空きは1,073,248 KiB、latest occurrence `18dc9a1b08446f80-11742`は`disk_headroom_low`、旧effect fence `18d8d288748508e8-23902`はunknown。release reconciler SHA `e1b061f1`はexit 1、doctor not ok。精算済み販売receiptは未確認。
+
+**現在cursor:** main `ba39c13aeb`をGig branchへmerge → local checksとPR #7182 exact-head CI/reviewをPASS → merge → main由来release/自然Storefront readback。
+
+
+### 2026-10-09 01:46 JST — agent-runner manifest修正がmainへmerge
+
+- PR #7192は16:44:46Zにmain commit `ba39c13aeb11131b30ec32f2ddaad4f0945b5025`としてmergeされた。`docs/manifests/oss-merge-1-sources.json`のagent-runner digestを`runtime/agent-runner/config.json`に合わせ、OSS boundaryとLoop control contractsを含むrequired Security ScanがすべてPASS。
+- Gig worktreeは`8f0d7dc5dd2da58797c0458234021ea9e4d314ee`時点でba39未同期、本SSOT更新が未commitだった。Gig laneではagent-runner/manifestを編集していない。修正ownerが既にmerge済みのためAGMSG送信は行っていない。
+
+**現在cursor:** このSSOT更新をcommit/push → main `ba39c13aeb`を同期 → local checksとexact-head CI/review → PASS後にPR #7182をmerge。
 
 
 ### 2026-10-08 08:35 JST — Mobile post-merge runtime cursor
