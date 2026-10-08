@@ -61,6 +61,10 @@ const JOBS = Object.freeze({
     productId: "ebook-en", platform: "tiktok", accountId: "tiktok.monk_anicca",
     formatId: "ebook-avatar-iv", form: FORM, locale: "en",
   },
+  "ebook-en-instagram-daily": {
+    productId: "ebook-en", platform: "instagram", accountId: "instagram.monk_anicca",
+    formatId: "ebook-avatar-iv", form: FORM, locale: "en",
+  },
   "ebook-ja-instagram-daily": {
     productId: "ebook-ja", platform: "instagram", accountId: "instagram.obou_anicca",
     formatId: "ebook-watercolor", form: FORM, locale: "ja",
@@ -75,6 +79,65 @@ function required(value, label) {
   const text = String(value == null ? "" : value).trim();
   if (!text) throw new Error(`${label} is required`);
   return text;
+}
+
+function ownerScopedPublicationId(publicationId, ownerId) {
+  return `${required(publicationId, "eBook publication ID")}-${required(ownerId, "eBook owner ID")}`;
+}
+
+function manualSlotOverride(argv, ownerId, occurrenceId, pack, nowMs) {
+  if (argv.length === 0 || (argv.length === 1 && argv[0] === ownerId)) return null;
+  if (argv.length !== 3 || argv[0] !== ownerId || argv[1] !== "--slot-at") {
+    throw new Error("eBook account owner ID is invalid");
+  }
+  if (!ownerId.startsWith("ebook-en-") || !occurrenceId.startsWith(`${ownerId}:manual-`)) {
+    throw new Error("eBook manual slot override identity is invalid");
+  }
+  const slotAt = argv[2];
+  const instant = Date.parse(slotAt);
+  if (!Number.isFinite(instant) || new Date(instant).toISOString() !== slotAt) {
+    throw new Error("eBook manual slot override is invalid");
+  }
+  if (instant > nowMs) throw new Error("eBook manual slot override cannot be in the future");
+  if (marketingVideoDueSlot(instant + 1000, "Asia/Tokyo", pack.slots_jst) !== slotAt) {
+    throw new Error("eBook manual slot override is not a configured pack slot");
+  }
+  return slotAt;
+}
+
+function requireExistingRenderedReceipt(stateRoot, productId, slotAt) {
+  const runKey = sha256(`${productId}|${slotAt}`).slice(0, 24);
+  const runId = `ebook-run.${runKey}`;
+  const runRoot = path.join(stateRoot, "runs");
+  const receiptPath = path.join(runRoot, `${runId}.json`);
+  if (!fs.existsSync(receiptPath)) {
+    throw new Error("eBook manual slot requires an existing rendered eBook receipt");
+  }
+  const receipt = readJson(receiptPath, "eBook manual render receipt");
+  const render = receipt.render;
+  const expectedOutput = path.join(stateRoot, "renders", `${runId}.mp4`);
+  if (receipt.run_id !== runId || receipt.product_id !== productId || receipt.slot_at !== slotAt
+      || receipt.state !== "rendered" || render?.state !== "rendered"
+      || path.resolve(String(render.output || "")) !== path.resolve(expectedOutput)
+      || !/^[0-9a-f]{64}$/.test(String(render.sha256 || ""))
+      || !fs.existsSync(expectedOutput)
+      || !fs.lstatSync(expectedOutput).isFile()
+      || sha256(fs.readFileSync(expectedOutput)) !== render.sha256) {
+    throw new Error("eBook manual slot receipt is not an exact completed render");
+  }
+  if (productId === "ebook-en") {
+    const sidecarPath = path.join(runRoot, `${runId}.heygen-effect.json`);
+    if (!fs.existsSync(sidecarPath)) {
+      throw new Error("eBook manual slot has no completed HeyGen receipt");
+    }
+    const sidecar = readJson(sidecarPath, "eBook manual HeyGen receipt");
+    if (sidecar.state !== "completed" || sidecar.provider_status !== "completed"
+        || !sidecar.video_id || sidecar.provider_receipt_id !== sidecar.video_id
+        || sidecar.video_id !== render.video_id) {
+      throw new Error("eBook manual slot has no matching completed HeyGen receipt");
+    }
+  }
+  return receipt;
 }
 
 function readJson(file, label) {
@@ -414,10 +477,12 @@ async function run(argv = process.argv.slice(2), deps = {}) {
   const env = deps.env || process.env;
   const ownerId = required(env.LIFE_MANAGER_LOOP_ID || argv[0], "eBook owner ID");
   const lane = JOBS[ownerId];
-  if (!lane || (argv.length && argv[0] !== ownerId) || argv.length > 1) {
+  if (!lane || (argv.length && argv[0] !== ownerId)) {
     throw new Error("eBook account owner ID is invalid");
   }
   required(env.LIFE_MANAGER_OCCURRENCE_ID, "Life Manager occurrence ID");
+  const occurrenceId = env.LIFE_MANAGER_OCCURRENCE_ID;
+  const nowMs = deps.nowMs == null ? Date.now() : deps.nowMs;
   required(env.LIFE_MANAGER_RESULT_HINT_PATH, "Life Manager result hint path");
   const root = path.resolve(required(env.LIFE_MANAGER_RELEASE_ROOT, "Life Manager release root"));
   const dataDir = path.resolve(required(env.LM_DATA_DIR, "LM_DATA_DIR"));
@@ -428,6 +493,7 @@ async function run(argv = process.argv.slice(2), deps = {}) {
   if (!packFile) throw new Error("eBook renderer pack is not registered");
   const pack = readJson(path.join(root, "skills/earn/marketing-engine/registry/ebook-packs", packFile),
     "eBook product pack");
+  const manualSlotAt = manualSlotOverride(argv, ownerId, occurrenceId, pack, nowMs);
   const { account, target, integrationId, setup_required, setup_reason } = selectTarget({
     root, pack, ownerId, platform: lane.platform, accountId: lane.accountId,
   });
@@ -435,8 +501,7 @@ async function run(argv = process.argv.slice(2), deps = {}) {
     writeNoEffectResult(env, ownerId, "setup_required");
     return { state: "setup_required", reason: setup_reason, owner_id: ownerId, effect: 0 };
   }
-  const slotAt = marketingVideoDueSlot(deps.nowMs == null ? Date.now() : deps.nowMs,
-    "Asia/Tokyo", pack.slots_jst);
+  const slotAt = manualSlotAt || marketingVideoDueSlot(nowMs, "Asia/Tokyo", pack.slots_jst);
   if (!slotAt) {
     writeNoEffectResult(env, ownerId, "no_due_slot");
     return { state: "no_due_slot", owner_id: ownerId, effect: 0 };
@@ -447,6 +512,7 @@ async function run(argv = process.argv.slice(2), deps = {}) {
   }
   const apiKey = required(env.LM_POSTIZ_API_KEY, "LM_POSTIZ_API_KEY");
   const stateRoot = path.join(dataDir, "marketing", "ebook");
+  if (manualSlotAt) requireExistingRenderedReceipt(stateRoot, lane.productId, slotAt);
   const input = renderInput({
     python: required(env.LM_PYTHON, "LM_PYTHON"),
     root,
@@ -455,7 +521,8 @@ async function run(argv = process.argv.slice(2), deps = {}) {
     product: lane.productId,
     ownerEnv: env,
   });
-  const { receipt, script, publication_id: publicationId, attribution_token: token } = input;
+  const { receipt, script, publication_id: basePublicationId, attribution_token: token } = input;
+  const publicationId = ownerScopedPublicationId(basePublicationId, ownerId);
   if (!approvedBaselineScript(script, pack)
       || receipt.product_id !== lane.productId || receipt.slot_at !== slotAt
       || receipt.script_id !== script.script_id
@@ -643,6 +710,7 @@ module.exports = {
   JOBS,
   approvedBaselineScript,
   normalizePostizInstagramReceiptRoute,
+  ownerScopedPublicationId,
   verifyLegacyPostizReceipt,
   run,
   selectTarget,

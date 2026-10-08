@@ -2,12 +2,13 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const crypto = require("node:crypto");
 const { spawnSync } = require("node:child_process");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 
-const { APPROVED_CLAIMS, JOBS, approvedBaselineScript, normalizePostizInstagramReceiptRoute, run, selectTarget, verifyLegacyPostizReceipt } = require("./ebook-distribute-daily.js");
+const { APPROVED_CLAIMS, JOBS, approvedBaselineScript, normalizePostizInstagramReceiptRoute, ownerScopedPublicationId, run, selectTarget, verifyLegacyPostizReceipt } = require("./ebook-distribute-daily.js");
 const { buildMarketingVideoPublicationJob } = require("../lib/marketing-video-publication-adapter.js");
 
 const ROOT = path.resolve(__dirname, "../../..");
@@ -33,7 +34,7 @@ test("each Japanese eBook publisher owner resolves one matching account and loca
   assert.equal(tiktok.account.language, "ja");
   assert.equal(tiktok.target.integration_id, tiktok.integrationId);
   assert.deepEqual(Object.keys(JOBS).sort(), [
-    "ebook-en-tiktok-daily", "ebook-ja-instagram-daily", "ebook-ja-tiktok-daily",
+    "ebook-en-instagram-daily", "ebook-en-tiktok-daily", "ebook-ja-instagram-daily", "ebook-ja-tiktok-daily",
   ]);
   assert.deepEqual(
     Object.entries(JOBS).filter(([owner]) => owner.startsWith("ebook-ja-")).map(([, lane]) => lane.platform).sort(),
@@ -63,6 +64,63 @@ test("English HeyGen owner resolves the approved active Monk TikTok route", () =
   assert.equal(selected.setup_required, false);
   assert.equal(selected.target.integration_id, "cmo5rwq2p00twn10yrsdglng3");
   assert.equal(selected.integrationId, "cmo5rwq2p00twn10yrsdglng3");
+});
+
+test("English Monk Instagram owner stays effect-free until its Postiz account is connected", async () => {
+  const ownerId = "ebook-en-instagram-daily";
+  const selected = selectTarget({
+    root: ROOT,
+    pack: PACK_EN,
+    ownerId,
+    platform: "instagram",
+    accountId: "instagram.monk_anicca",
+  });
+
+  assert.equal(selected.setup_required, true);
+  assert.equal(selected.setup_reason, "english_monk_instagram_not_connected");
+  assert.equal(selected.target, null);
+  assert.equal(selected.integrationId, null);
+
+  const dataDir = path.join(os.tmpdir(), `ebook-en-instagram-hold-${process.pid}-${Date.now()}`);
+  const env = {
+    LIFE_MANAGER_LOOP_ID: ownerId,
+    LIFE_MANAGER_OCCURRENCE_ID: `${ownerId}:run-1`,
+    LIFE_MANAGER_RELEASE_ROOT: ROOT,
+    LIFE_MANAGER_RESULT_HINT_PATH: path.join(dataDir, "entrypoint-result.json"),
+    LM_DATA_DIR: dataDir,
+    LM_RUNTIME_TENANT_ID: "dais-local",
+  };
+
+  try {
+    const result = await run([ownerId], { env, nowMs: Date.parse("2026-10-08T08:30:00+09:00") });
+    assert.deepEqual(result, {
+      state: "setup_required",
+      reason: "english_monk_instagram_not_connected",
+      owner_id: ownerId,
+      effect: 0,
+    });
+    assert.deepEqual(JSON.parse(fs.readFileSync(env.LIFE_MANAGER_RESULT_HINT_PATH, "utf8")), {
+      schema_version: 1,
+      kind: "life_manager_no_effect_result",
+      status: "verified_no_effect",
+      effect: 0,
+      owner_id: ownerId,
+      occurrence_id: env.LIFE_MANAGER_OCCURRENCE_ID,
+      reason: "setup_required",
+    });
+  } finally {
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
+test("same eBook slot has distinct publication IDs for TikTok and Instagram owners", () => {
+  const publicationId = "baseline.ebook-en.d4.s1-20261007T230000000Z";
+  const tiktok = ownerScopedPublicationId(publicationId, "ebook-en-tiktok-daily");
+  const instagram = ownerScopedPublicationId(publicationId, "ebook-en-instagram-daily");
+
+  assert.equal(tiktok, `${publicationId}-ebook-en-tiktok-daily`);
+  assert.equal(instagram, `${publicationId}-ebook-en-instagram-daily`);
+  assert.notEqual(tiktok, instagram);
 });
 
 test("English baseline policy accepts only the owned HeyGen script and claims", () => {
@@ -115,6 +173,251 @@ test("English owner writes a typed no-effect hint before its first scheduled slo
   }
 });
 
+test("manual slot override refuses to call the renderer when the existing receipt is missing", async () => {
+  const dataDir = path.join(os.tmpdir(), `ebook-en-manual-slot-${process.pid}-${Date.now()}`);
+  const fakePython = path.join(dataDir, "fake-python");
+  fs.mkdirSync(dataDir, { recursive: true });
+  fs.writeFileSync(fakePython, `#!${process.execPath}\nconst fs = require("node:fs");\nconst path = require("node:path");\nconst index = process.argv.indexOf("--state-root");\nconst stateRoot = process.argv[index + 1];\nfs.mkdirSync(stateRoot, { recursive: true });\nfs.writeFileSync(path.join(stateRoot, "renderer-called"), "yes");\n`);
+  fs.chmodSync(fakePython, 0o700);
+  const ownerId = "ebook-en-tiktok-daily";
+  const env = {
+    LIFE_MANAGER_LOOP_ID: ownerId,
+    LIFE_MANAGER_OCCURRENCE_ID: `${ownerId}:manual-slot-test`,
+    LIFE_MANAGER_RELEASE_ROOT: ROOT,
+    LIFE_MANAGER_RESULT_HINT_PATH: path.join(dataDir, "entrypoint-result.json"),
+    LM_DATA_DIR: dataDir,
+    LM_EBOOK_PUBLISHING_ENABLED: "true",
+    LM_POSTIZ_API_KEY: "test-only-not-a-real-key",
+    LM_PYTHON: fakePython,
+    LM_RUNTIME_TENANT_ID: "dais-local",
+  };
+
+  try {
+    await assert.rejects(
+      run([ownerId, "--slot-at", "2026-10-07T23:00:00.000Z"], {
+        env,
+        nowMs: Date.parse("2026-10-09T07:30:00+09:00"),
+      }),
+      /existing rendered eBook receipt/,
+    );
+    assert.equal(fs.existsSync(path.join(dataDir, "marketing/ebook/renderer-called")), false);
+  } finally {
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
+test("manual slot override reuses the exact completed render and scopes the publication to its owner", async () => {
+  const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ebook-en-manual-reuse-"));
+  const dataDir = path.join(temporaryRoot, "data");
+  const stateRoot = path.join(dataDir, "marketing", "ebook");
+  const slotAt = "2026-10-07T23:00:00.000Z";
+  const runId = "ebook-run.571924dc4e4867349fc6fd13";
+  const output = path.join(stateRoot, "renders", `${runId}.mp4`);
+  const videoBytes = Buffer.from("completed manual-slot video fixture");
+  const videoSha = crypto.createHash("sha256").update(videoBytes).digest("hex");
+  const script = {
+    script_id: "script.manual-slot-test",
+    creative_id: "baseline.ebook-en.d4.s1",
+    product_id: "ebook-en",
+    language: "en",
+    baseline: true,
+    renderer_id: "heygen-avatar-iv",
+    body: "When a mistake follows you. The past cannot be held in this breath.",
+    cta: "Read The Anicca Reset",
+    source_mechanism_ids: ["baseline.owner-authored.ebook-en.1.1"],
+  };
+  const renderReceipt = {
+    schema_version: "marketing.ebook-run.v1",
+    run_id: runId,
+    product_id: "ebook-en",
+    slot_at: slotAt,
+    script_id: script.script_id,
+    state: "rendered",
+    render: {
+      state: "rendered",
+      renderer_id: "heygen-avatar-iv",
+      output,
+      sha256: videoSha,
+      video_id: "db2dab0924e19b88c14e03a6a7849069",
+    },
+  };
+  const ownerInput = {
+    schema_version: "marketing.ebook-owner-input.v1",
+    receipt: renderReceipt,
+    script,
+    publication_id: `${script.creative_id}-20261007T230000000Z`,
+    attribution_token: `ee_${"a".repeat(20)}`,
+  };
+  const store = {
+    async readReceipt() {
+      return {
+        schema_version: 1,
+        kind: "marketing_video_distribution",
+        status: "published",
+        product_id: "ebook-en",
+        format_id: "ebook-avatar-iv",
+        form: "ebook-reflection-reel",
+        locale: "en",
+        creative_id: `${ownerInput.publication_id}-ebook-en-tiktok-daily`,
+        platform: "tiktok",
+        slot: slotAt,
+        video_sha256: videoSha,
+        caption_sha256: "b".repeat(64),
+        public_url: "https://www.tiktok.com/@monk_anicca/video/1234567890",
+        provider_post_id: "postiz_manual_slot_1",
+        provider_route: "postiz",
+        provider_reconciled: true,
+        published_at: "2026-10-08T00:00:00.000Z",
+      };
+    },
+  };
+  const fakePython = path.join(temporaryRoot, "fake-python");
+  fs.writeFileSync(fakePython, `#!${process.execPath}\nconst fs = require("node:fs");\nconst path = require("node:path");\nconst stateIndex = process.argv.indexOf("--state-root");\nconst stateRoot = process.argv[stateIndex + 1];\nfs.writeFileSync(path.join(stateRoot, "renderer-called"), "yes");\nprocess.stdout.write(fs.readFileSync(path.join(stateRoot, "owner-input.json"), "utf8") + "\\n");\n`);
+  fs.chmodSync(fakePython, 0o700);
+
+  try {
+    fs.mkdirSync(path.dirname(output), { recursive: true });
+    fs.mkdirSync(path.join(stateRoot, "runs"), { recursive: true });
+    fs.writeFileSync(output, videoBytes);
+    fs.writeFileSync(path.join(stateRoot, "runs", `${runId}.json`), JSON.stringify(renderReceipt));
+    fs.writeFileSync(path.join(stateRoot, "runs", `${runId}.heygen-effect.json`), JSON.stringify({
+      state: "completed",
+      provider_status: "completed",
+      video_id: renderReceipt.render.video_id,
+      provider_receipt_id: renderReceipt.render.video_id,
+    }));
+    fs.writeFileSync(path.join(stateRoot, "owner-input.json"), JSON.stringify(ownerInput));
+
+    const ownerId = "ebook-en-tiktok-daily";
+    const env = {
+      HOME: process.env.HOME || "",
+      PATH: process.env.PATH || "",
+      LIFE_MANAGER_LOOP_ID: ownerId,
+      LIFE_MANAGER_OCCURRENCE_ID: `${ownerId}:manual-existing-slot-test`,
+      LIFE_MANAGER_RELEASE_ROOT: ROOT,
+      LIFE_MANAGER_RESULT_HINT_PATH: path.join(dataDir, "entrypoint-result.json"),
+      LM_DATA_DIR: dataDir,
+      LM_EBOOK_PUBLISHING_ENABLED: "true",
+      LM_POSTIZ_API_KEY: "test-only-not-a-real-key",
+      LM_PYTHON: fakePython,
+      LM_RUNTIME_TENANT_ID: "dais-local",
+    };
+    const processEnv = ["LIFE_MANAGER_LOOP_ID", "LIFE_MANAGER_OCCURRENCE_ID", "LIFE_MANAGER_RESULT_HINT_PATH"];
+    const previousEnv = Object.fromEntries(processEnv.map((key) => [key, process.env[key] ?? null]));
+    Object.assign(process.env, Object.fromEntries(processEnv.map((key) => [key, env[key]])));
+    try {
+      const result = await run([ownerId, "--slot-at", slotAt], {
+        env,
+        nowMs: Date.parse("2026-10-09T07:30:00+09:00"),
+        store,
+      });
+
+      assert.equal(result.state, "published");
+      assert.equal(result.slot_at, slotAt);
+      assert.equal(result.creative_id, `${ownerInput.publication_id}-ebook-en-tiktok-daily`);
+      assert.equal(fs.existsSync(path.join(stateRoot, "renderer-called")), true);
+      assert.deepEqual(JSON.parse(fs.readFileSync(env.LIFE_MANAGER_RESULT_HINT_PATH, "utf8")), {
+        schema_version: 1,
+        kind: "life_manager_effect_result",
+        status: "verified_effect",
+        effect: 1,
+        owner_id: ownerId,
+        occurrence_id: env.LIFE_MANAGER_OCCURRENCE_ID,
+        provider: "postiz",
+        provider_receipt_id: "postiz_manual_slot_1",
+        effect_status: "reconciled",
+      });
+    } finally {
+      for (const key of processEnv) {
+        if (previousEnv[key] == null) delete process.env[key];
+        else process.env[key] = previousEnv[key];
+      }
+    }
+  } finally {
+    fs.rmSync(temporaryRoot, { recursive: true, force: true });
+  }
+});
+
+test("manual slot override rejects a future scheduled slot", async () => {
+  const dataDir = path.join(os.tmpdir(), `ebook-en-future-slot-${process.pid}-${Date.now()}`);
+  const ownerId = "ebook-en-tiktok-daily";
+  const env = {
+    LIFE_MANAGER_LOOP_ID: ownerId,
+    LIFE_MANAGER_OCCURRENCE_ID: `${ownerId}:manual-future-test`,
+    LIFE_MANAGER_RELEASE_ROOT: ROOT,
+    LIFE_MANAGER_RESULT_HINT_PATH: path.join(dataDir, "entrypoint-result.json"),
+    LM_DATA_DIR: dataDir,
+    LM_EBOOK_PUBLISHING_ENABLED: "true",
+    LM_POSTIZ_API_KEY: "test-only-not-a-real-key",
+    LM_PYTHON: process.execPath,
+    LM_RUNTIME_TENANT_ID: "dais-local",
+  };
+
+  await assert.rejects(
+    run([ownerId, "--slot-at", "2026-10-09T23:00:00.000Z"], {
+      env,
+      nowMs: Date.parse("2026-10-09T19:00:00.000Z"),
+    }),
+    /manual slot override cannot be in the future/,
+  );
+});
+
+test("manual slot override rejects an off-schedule local time", async () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebook-en-off-slot-"));
+  const ownerId = "ebook-en-tiktok-daily";
+  const env = {
+    LIFE_MANAGER_LOOP_ID: ownerId,
+    LIFE_MANAGER_OCCURRENCE_ID: `${ownerId}:manual-off-slot-test`,
+    LIFE_MANAGER_RELEASE_ROOT: ROOT,
+    LIFE_MANAGER_RESULT_HINT_PATH: path.join(dataDir, "entrypoint-result.json"),
+    LM_DATA_DIR: dataDir,
+    LM_EBOOK_PUBLISHING_ENABLED: "true",
+    LM_POSTIZ_API_KEY: "test-only-not-a-real-key",
+    LM_PYTHON: process.execPath,
+    LM_RUNTIME_TENANT_ID: "dais-local",
+  };
+
+  try {
+    await assert.rejects(
+      run([ownerId, "--slot-at", "2026-10-07T23:30:00.000Z"], {
+        env,
+        nowMs: Date.parse("2026-10-09T07:30:00+09:00"),
+      }),
+      /manual slot override is not a configured pack slot/,
+    );
+  } finally {
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
+test("manual slot override requires a manual occurrence identity", async () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebook-en-scheduled-override-"));
+  const ownerId = "ebook-en-tiktok-daily";
+  const env = {
+    LIFE_MANAGER_LOOP_ID: ownerId,
+    LIFE_MANAGER_OCCURRENCE_ID: `${ownerId}:scheduled-run-1`,
+    LIFE_MANAGER_RELEASE_ROOT: ROOT,
+    LIFE_MANAGER_RESULT_HINT_PATH: path.join(dataDir, "entrypoint-result.json"),
+    LM_DATA_DIR: dataDir,
+    LM_EBOOK_PUBLISHING_ENABLED: "true",
+    LM_POSTIZ_API_KEY: "test-only-not-a-real-key",
+    LM_PYTHON: process.execPath,
+    LM_RUNTIME_TENANT_ID: "dais-local",
+  };
+
+  try {
+    await assert.rejects(
+      run([ownerId, "--slot-at", "2026-10-07T23:00:00.000Z"], {
+        env,
+        nowMs: Date.parse("2026-10-09T07:30:00+09:00"),
+      }),
+      /manual slot override identity is invalid/,
+    );
+  } finally {
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
 test("renderer receives scoped HeyGen environment only for the English eBook", async () => {
   const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ebook-renderer-env-"));
   const fakePython = path.join(temporaryRoot, "fake-python");
@@ -124,7 +427,7 @@ test("renderer receives scoped HeyGen environment only for the English eBook", a
     "LM_POSTIZ_API_KEY",
     "PRIVATE_UNRELATED_SECRET",
   ];
-  fs.writeFileSync(fakePython, `#!${process.execPath}\nconst fs = require("node:fs");\nconst path = require("node:path");\nconst stateIndex = process.argv.indexOf("--state-root");\nconst stateRoot = process.argv[stateIndex + 1];\nfs.mkdirSync(stateRoot, { recursive: true });\nconst received = Object.fromEntries(${JSON.stringify(capturedKeys)}.map((key) => [key, process.env[key] ?? null]));\nfs.writeFileSync(path.join(stateRoot, "renderer-env.json"), JSON.stringify(received));\nprocess.stdout.write(JSON.stringify({ schema_version: "marketing.ebook-owner-input.v1", receipt: { state: "rendered" } }) + "\\n");\n`);
+  fs.writeFileSync(fakePython, `#!${process.execPath}\nconst fs = require("node:fs");\nconst path = require("node:path");\nconst stateIndex = process.argv.indexOf("--state-root");\nconst stateRoot = process.argv[stateIndex + 1];\nfs.mkdirSync(stateRoot, { recursive: true });\nconst received = Object.fromEntries(${JSON.stringify(capturedKeys)}.map((key) => [key, process.env[key] ?? null]));\nfs.writeFileSync(path.join(stateRoot, "renderer-env.json"), JSON.stringify(received));\nprocess.stdout.write(JSON.stringify({ schema_version: "marketing.ebook-owner-input.v1", receipt: { state: "rendered" }, publication_id: "baseline.ebook-en.d4.s1-20261008T080000000Z", attribution_token: "ee_aaaaaaaaaaaaaaaaaaaa" }) + "\\n");\n`);
   fs.chmodSync(fakePython, 0o700);
 
   async function captureRendererEnvironment(ownerId, now, overrides = {}) {

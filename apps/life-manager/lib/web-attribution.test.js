@@ -85,7 +85,12 @@ function makeFlow(initialRows = [], behavior = {}) {
       },
       async getUser() {
         events.push(["getUser"]);
-        return { data: { user: { id: SUBJECT, email: "verified@example.test" } }, error: null };
+        return { data: { user: {
+          id: SUBJECT,
+          email: "verified@example.test",
+          app_metadata: { provider: "google", providers: ["google"] },
+          identities: [{ provider: "google", id: SUBJECT }],
+        } }, error: null };
       },
       async signOut() { return { error: null }; },
     },
