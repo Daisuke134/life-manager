@@ -296,13 +296,31 @@ class TelegramClient:
     def send_text(self, text: str, *, chat_id: str | None = None) -> dict[str, Any]:
         receipts = []
         for chunk in _split_text(text):
-            result = self._request(
-                "sendMessage",
-                {"chat_id": chat_id or self.chat_id, "text": chunk},
-            )
-            if not isinstance(result, dict):
-                raise TelegramError("sendMessage returned an invalid result")
-            receipts.append(self._receipt("sendMessage", result))
+            try:
+                result = self._request(
+                    "sendMessage",
+                    {"chat_id": chat_id or self.chat_id, "text": chunk},
+                )
+                if not isinstance(result, dict):
+                    raise TelegramDeliveryUnknown(
+                        "sendMessage returned an invalid result; delivery unknown"
+                    )
+                receipt = self._receipt("sendMessage", result)
+            except TelegramDeliveryUnknown:
+                raise
+            except TelegramError as exc:
+                if not receipts:
+                    raise
+                raise TelegramDeliveryUnknown(
+                    f"Telegram text delivery incomplete after {len(receipts)} chunk(s)",
+                    error_code=exc.error_code,
+                    retry_after=exc.retry_after,
+                ) from None
+            except Exception:
+                raise TelegramDeliveryUnknown(
+                    f"Telegram text delivery incomplete after {len(receipts)} chunk(s)"
+                ) from None
+            receipts.append(receipt)
         return {
             "status": "delivered",
             "method": "sendMessage",

@@ -246,19 +246,44 @@ def _historical_b7_report(
     if (stat.S_ISLNK(directory_info.st_mode) or not stat.S_ISDIR(directory_info.st_mode)
             or os.path.realpath(snapshot_directory) != str(snapshot_directory)):
         raise _fail("b7_snapshot_directory_invalid")
+    delivery_run_id = occurrence_id[len(OWNER_ID) + 1 :]
     snapshot_path = snapshot_directory / f"{occurrence_id}.json"
-    if not os.path.lexists(snapshot_path):
-        raise _fail(missing_report_reason)
-    snapshot = _read_json(
-        snapshot_path,
-        label="b7_snapshot",
-    )
-    run_id = occurrence_id[len(OWNER_ID) + 1 :]
+    cross_occurrence = False
+    if os.path.lexists(snapshot_path):
+        snapshot = _read_json(snapshot_path, label="b7_snapshot")
+    else:
+        matches = []
+        for candidate_path in sorted(snapshot_directory.glob("*.json")):
+            source_occurrence_id = candidate_path.name[:-5]
+            if (not OCCURRENCE.fullmatch(source_occurrence_id)
+                    or not source_occurrence_id.startswith(f"{OWNER_ID}:")):
+                raise _fail("b7_snapshot_identity_invalid")
+            candidate = _read_json(candidate_path, label="b7_snapshot")
+            if (candidate.get("occurrenceId") != source_occurrence_id
+                    or candidate.get("ownerId") != OWNER_ID
+                    or candidate.get("runId") != source_occurrence_id[len(OWNER_ID) + 1 :]):
+                raise _fail("b7_snapshot_identity_invalid")
+            if (candidate.get("deliveryOccurrenceId") == occurrence_id
+                    and candidate.get("deliveryRunId") == delivery_run_id):
+                matches.append((candidate_path, candidate))
+        if not matches:
+            raise _fail(missing_report_reason)
+        if len(matches) != 1:
+            raise _fail("b7_delivery_occurrence_ambiguous")
+        snapshot_path, snapshot = matches[0]
+        cross_occurrence = True
+
+    source_occurrence_id = snapshot.get("occurrenceId")
+    if (not isinstance(source_occurrence_id, str)
+            or not OCCURRENCE.fullmatch(source_occurrence_id)
+            or not source_occurrence_id.startswith(f"{OWNER_ID}:")):
+        raise _fail("b7_snapshot_identity_invalid")
+    source_run_id = source_occurrence_id[len(OWNER_ID) + 1 :]
     period = snapshot.get("reportingPeriod")
     if (snapshot.get("schemaVersion") not in {3, 4} or snapshot.get("status") != "sent"
             or snapshot.get("ownerId") != OWNER_ID
-            or snapshot.get("runId") != run_id
-            or snapshot.get("occurrenceId") != occurrence_id
+            or snapshot.get("runId") != source_run_id
+            or snapshot_path.name != f"{source_occurrence_id}.json"
             or snapshot.get("channel") != "telegram"
             or not isinstance(period, dict)):
         raise _fail("b7_snapshot_identity_invalid")
@@ -274,7 +299,7 @@ def _historical_b7_report(
     delivery_occurrence_id = snapshot.get("deliveryOccurrenceId")
     if (not isinstance(delivery_occurrence_id, str)
             or delivery_occurrence_id != occurrence_id
-            or snapshot.get("deliveryRunId") != run_id):
+            or snapshot.get("deliveryRunId") != delivery_run_id):
         raise _fail("b7_delivery_occurrence_mismatch")
     if snapshot.get("schemaVersion") != 4:
         raise _fail("delivery_counters_unverified")
@@ -286,9 +311,18 @@ def _historical_b7_report(
     if not isinstance(provider_message_id, str) or not PROVIDER_ID.fullmatch(provider_message_id):
         raise _fail("provider_message_id_invalid")
     _event_epoch(snapshot.get("sentAt"))
-    release_sha = snapshot.get("releaseSha")
-    if not isinstance(release_sha, str) or not re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", release_sha):
+    source_release_sha = snapshot.get("releaseSha")
+    if (not isinstance(source_release_sha, str)
+            or not re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", source_release_sha)):
         raise _fail("release_sha_invalid")
+    delivery_release_sha = snapshot.get("deliveryReleaseSha")
+    if delivery_release_sha is not None and (
+            not isinstance(delivery_release_sha, str)
+            or not re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", delivery_release_sha)):
+        raise _fail("delivery_release_sha_invalid")
+    if cross_occurrence and delivery_release_sha is None:
+        raise _fail("delivery_release_sha_missing")
+    release_sha = delivery_release_sha or source_release_sha
     return {
         "resolution_kind": resolution_kind,
         "status": "sent",
@@ -298,7 +332,7 @@ def _historical_b7_report(
         "provider_message_id": provider_message_id,
         "release_sha": release_sha,
         "delivery_counters": delivery_counters,
-        "report_source": "b7_occurrence_snapshot",
+        "report_source": "b7_delivery_occurrence_archive" if cross_occurrence else "b7_occurrence_snapshot",
     }
 
 

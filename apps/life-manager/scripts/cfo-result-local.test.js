@@ -641,6 +641,31 @@ test("daily cadence stays quiet; ambiguous send freezes text and original key", 
   );
   assert.equal(messages.length, 2);
 });
+
+test("cross-occurrence pending send binds the provider receipt to the delivery release", async t => {
+  const { options } = setup(t);
+  const deliveryOccurrenceId = "life-manager-cfo-hourly:run-2";
+  const deliveryReleaseSha = "b".repeat(40);
+  await assert.rejects(runResultCfo({ ...options,
+    notify: async () => ({ delivery: "pending" }),
+    now: "2026-09-30T12:00:00Z",
+  }), /cfo_provider_receipt_missing/);
+
+  await runResultCfo({ ...options,
+    occurrenceId: deliveryOccurrenceId,
+    env: { ...options.env, LIFE_MANAGER_RELEASE_SHA: deliveryReleaseSha },
+    notify: async () => ({ delivery: "delivered", provider_message_id: "delivery-2",
+      attempted: 1, delivered: 1, delivery_uncertain: 0, pre_send_failed: 0 }),
+    now: "2026-09-30T12:57:00Z",
+  });
+
+  const source = JSON.parse(fs.readFileSync(readbackFile(options.stateDir, options.occurrenceId), "utf8"));
+  assert.equal(source.status, "sent");
+  assert.equal(source.occurrenceId, options.occurrenceId);
+  assert.equal(source.deliveryOccurrenceId, deliveryOccurrenceId);
+  assert.equal(source.deliveryReleaseSha, deliveryReleaseSha);
+});
+
 test("pending receipt cannot be silently retargeted", async t => {
   const { options } = setup(t);
   await assert.rejects(runResultCfo({ ...options, now: "2026-09-30T12:00:00Z", notify: async () => ({}) }));

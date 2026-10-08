@@ -536,6 +536,7 @@ function readB7SnapshotFile(stateDir, sourceOccurrenceId, allowMissing) {
       || !TELEGRAM_MESSAGE_ID.test(snapshot.providerMessageId)
       || !Number.isFinite(Date.parse(snapshot.sentAt)) || !["sent", "duplicate"].includes(snapshot.resolutionKind)
       || deliveryOccurrence.slice(0, deliverySeparator) !== snapshot.ownerId
+      || (snapshot.deliveryReleaseSha !== undefined && !RELEASE_SHA.test(String(snapshot.deliveryReleaseSha)))
       || snapshot.deliveryRunId !== deliveryOccurrence.slice(deliverySeparator + 1)) {
       throw new Error("cfo_b7_snapshot_invalid");
     }
@@ -630,7 +631,8 @@ async function runResultCfo(options) {
   if (pending && (pending.channel !== destination.channel || pending.recipientHash !== recipientHash)) {
     throw new Error("cfo_pending_destination_changed");
   }
-  const newSourceIdentity = pending ? null : b7Identity(currentOccurrenceId, sourceEnv);
+  const deliveryIdentity = b7Identity(currentOccurrenceId, sourceEnv);
+  const newSourceIdentity = pending ? null : deliveryIdentity;
   let sourceSnapshot = null;
   let sourceSnapshotMissing = false;
   if (pending?.b7ReadbackRef) {
@@ -769,6 +771,7 @@ async function runResultCfo(options) {
       deliveryCounters,
       providerMessageId: String(delivery.provider_message_id), sentAt,
       deliveryOccurrenceId: currentOccurrenceId,
+      deliveryReleaseSha: deliveryIdentity.releaseSha,
       deliveryRunId: currentOccurrenceId.slice(currentOccurrenceId.indexOf(":") + 1) };
     writeB7Snapshot(stateDir, sourceOccurrenceId, sourceSnapshot, false);
   }

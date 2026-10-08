@@ -315,6 +315,36 @@ def test_b7_receipt_for_another_delivery_occurrence_cannot_prove_current_effect(
         build_proof(state_dir=state_dir, admission_db=admission_db, occurrence_id=occurrence)
 
 
+def test_cross_occurrence_b7_receipt_survives_last_report_rotation(tmp_path):
+    state_dir, admission_db, delivery_occurrence = _fixture(tmp_path)
+    report_path = state_dir / "last-result-report.json"
+    report = json.loads(report_path.read_text())
+    report["occurrenceId"] = f"{OWNER}:later-run"
+    report_path.write_text(json.dumps(report), encoding="utf-8")
+    report_path.chmod(0o600)
+
+    source_occurrence = f"{OWNER}:source-run"
+    source_path = _write_b7_snapshot(state_dir, source_occurrence)
+    snapshot = json.loads(source_path.read_text())
+    snapshot["releaseSha"] = "a" * 40
+    snapshot["deliveryOccurrenceId"] = delivery_occurrence
+    snapshot["deliveryRunId"] = delivery_occurrence.split(":", 1)[1]
+    snapshot["deliveryReleaseSha"] = RELEASE_SHA
+    source_path.write_text(json.dumps(snapshot), encoding="utf-8")
+    source_path.chmod(0o600)
+
+    proof = build_proof(
+        state_dir=state_dir,
+        admission_db=admission_db,
+        occurrence_id=delivery_occurrence,
+    )
+
+    assert proof["verified"] is True
+    assert proof["occurrence_id"] == delivery_occurrence
+    assert proof["provider_receipt_id"] == "telegram:94946"
+    assert proof["report_source"] == "b7_delivery_occurrence_archive"
+
+
 def test_released_occurrence_without_provider_receipt_stays_rejected(tmp_path):
     state_dir, admission_db, occurrence = _fixture(
         tmp_path,
