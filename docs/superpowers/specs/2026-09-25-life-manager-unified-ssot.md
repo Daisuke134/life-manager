@@ -168,7 +168,7 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
   - `job-search-inbox`: `inbox.py:398`。model の申告件数と thread ID の数が食い違った時に安全側で止まる、意図された fail-closed。二重返信を防ぐための仕組みで、test でも固定されているので変更しない。
   - Instagram en-card / obou: `LM_DATA_DIR is required` と ledger の job id 衝突。obou の Instagram は `marketing-destinations.json` で `ebook_account_out_of_mobile_scope`（上限 0）なので、直すより退役させる候補。state root が共有 events.jsonl のため、run 単位の切り分けは未完。
   - `life-manager-honne-ja`: 昼の ENOSPC（空きが 0.56GB だった時点）による。publish は fence で止まっていた。
-| T7 | Gig収益順: 1A sender/hydration owner fix + 1B capacity/doctor gate → Coconala Paid contract → Coconala Storefront → exact actionable Reply → Apply/Negotiation → CrowdWorks → Mercor → Freelancer → Upwork policy gate → Job Hunter → receipt-based net economics → SelfBuild last。Lancers rows25–27はskip、Answersは対象外 | contractごとのbuyer-visible receipt・settlement・fee/cost・replay-zero |
+| T7 | Gig収益順: 1A完了 → 1B stable capacity gate と Paid source PR acceptance を並行 → 既存Coconala有償義務 → product storefront（Coconala → Freelancer Services → Upwork Project Catalog。Upworkはpolicy gate後）→ actionable Reply → 各platformのApply/Negotiation/Paid → listing/contract別のsettled net → SelfBuild last。Lancers rows25–27はskip、Answersは対象外、未登録のFiverrは現行loopに追加しない | productのofficial active listing・unique paid order・settlement/fee/cost/net・replay-zero |
 | T8 | CFO: ループごとの settled revenue と cost の join（ループ別P&L）を毎日出す | P&L 行ごとに receipt id がある |
 | T9 | Mobile funnel と `/en` `/lm` `/income` の整合（install→activation→課金） | attribution receipt |
 | T10 | one-shot capability capsule | 目標・承認の質問なしで初回の実行が通る |
@@ -3227,7 +3227,7 @@ Capafy＋PromptBase＋自社 checkout をまとめた $10k MRR の全体計画�
 | R15 | 未完の下書きが永久に再開されず、毎回新規が作られる | 「空き枠があれば新規が下書きの再開より優先」という 9/28 の規則が、上限撤廃で常に真になった | 下書きを先に仕上げる。1 本につき判断の 1 か所（daily_loop.sh の決定側）で最大 3 回。1 回の回で在庫確認が 3 か所から呼ばれるため、数えるのは `CAPAFY_COUNT_DRAFT_ATTEMPT=1` の呼び出しだけ | ✅ |
 | R16 | 空きディスクが 2 GiB 床の前後で振れ続け、工場の実行が `disk_headroom_low` で先送りされる | リリースを 10 分前後おきに切る（複数セッション）。各約 100 MB で、ラベルが読み込んでいる世代は GC が保護する。2026-10-08 21:45 実測: リリース 39 個中 32 個が保護、ラベルは 24 世代に分散（81 個が `804effc5`）、reconciler は `budget exceeded` の partial で収束せず、cleanup owner 自身が ENOSPC で失敗（悪循環）。colima は 0、`.worktrees` のマージ済み 4 本（約 800 MB）はリース付きで残っていた | 部分対処: reconciler の自動 cut に最小間隔 `LIFE_MANAGER_RELEASE_CUT_MIN_INTERVAL_SECONDS`（既定 1800 秒）を追加（complete な現行リリースが間隔内なら切らない）。マージ済み worktree 4 本を runbook で退役（空き 1.0→1.9 GB）。fleet apply は予算切れ(約1200秒で60〜86ラベル)の後30分待っていたため収束しなかった。予算切れで前進した pass は `LIFE_MANAGER_FLEET_APPLY_CONTINUE_SECONDS`（既定300秒）後に同じ sha で続行する。残る候補: (b) fleet-apply を収束させて旧世代の保護を外す、(c) 退役済み PR の worktree をリース解放まで自動で畳む | ⚠ |
 | R17 | R16 の対策後も空きディスクが 200MB〜2.3GB で数分ごとに振れる | 2026-10-08 22:20 実測: 16GB RAM に swap が 8.7GB/9.4GB。swap は同じ APFS コンテナの空きを食うので、メモリ圧で「空き」が落ちる。`corespotlightd` が 4.4GB 常駐、Codex アプリ約 2GB+1GB、Chromium 約 4 プロセス 2GB、ChatGPT | `corespotlightd` を再起動（launchd が自動復帰）。残る対策: 常駐アプリのメモリ上限、Spotlight の除外、host admission は空き容量と swap 使用率を併記して診断する | ⚠ |
-| R18 | 「今日は動いて明日は壊れる」が構造として残る | 2026-10-08 23:07 実測: 187 ジョブ中 failed 69 / safely_fenced 72 / healthy 12。失敗のほぼ全てが同一の `host_admission_deferred:disk_headroom_low`。単一の共有ゲート(空き 2 GiB 床)が 187 ループ全部を同時に止める。(1) 優先度が無く、収益ループも保守ループも同列に止まる (2) 掃除ジョブ自身が同じゲートと ENOSPC で失敗する (3) 空きディスクの原因は swap(メモリ圧)で、ゲートはメモリを見ない (4) 16 GB RAM の 1 台に 187 ループとデスクトップアプリが同居 (5) 手動 cut で世代が増え続け GC が解放できない | 未解決(症状側のみ対処: R1-R17)。恒久案: 優先度クラス別 admission(収益 > 成長 > 保守、低空き時は収益のみ実行)、掃除と readback 用の予約枠、swap 使用率をゲート信号に追加、同時実行のメモリ予算、リリース cut を reconciler 一本化、重い工場のクラウド host への移設 | ⚠ |
+| R18 | 「今日は動いて明日は壊れる」が構造として残る | 2026-10-08 23:07 実測: 187 ジョブ中 failed 69 / safely_fenced 72 / healthy 12。失敗のほぼ全てが同一の `host_admission_deferred:disk_headroom_low`。単一の共有ゲート(空き 2 GiB 床)が 187 ループ全部を同時に止める。(1) 優先度が無く、収益ループも保守ループも同列に止まる (2) 掃除ジョブ自身が同じゲートと ENOSPC で失敗する (3) 空きディスクの原因は swap(メモリ圧)で、ゲートはメモリを見ない (4) 16 GB RAM の 1 台に 187 ループとデスクトップアプリが同居 (5) 手動 cut で世代が増え続け GC が解放できない | 部分対処: `priority=critical_paid` の 6 ループは空き 1 GiB 床で動く(`LIFE_MANAGER_DISK_FLOOR_CRITICAL_PAID_BYTES`、他は 2 GiB のまま、`_disk_floor`)。残る恒久案: 優先度クラス別 admission(収益 > 成長 > 保守、低空き時は収益のみ実行)、掃除と readback 用の予約枠、swap 使用率をゲート信号に追加、同時実行のメモリ予算、リリース cut を reconciler 一本化、重い工場のクラウド host への移設 | ⚠ |
 
 ### 残り（この順）
 1. R3 の自然解除を確認（15:29 の起動で effect_unknown が 0 になること）。同じ型（失敗で fence を残す）の他ループ 22 本のうち、お金に関わるものを同様に直す。
@@ -4092,6 +4092,18 @@ owner/evidence: primary /root、Luna source worker cleanup_fix、fresh Sol revie
 2. With no active Xcode Cloud run, select the next unused build number (391 currently has zero ASC records), run one archive, and read back exact source SHA, `VALID` processing, encryption, beta group/review and join URL.
 3. Install that exact build, capture the actual APNs body/`quoteId`/locale, and prove the same quote opens from cold-start and background. Only then report the user-visible issue fixed or send a TestFlight link/video.
 
+### Disk cleanup watchdog and worktree preservation — current cursor
+
+**目的:** ディスク回復経路を常時動作させ、cleanupが作業中のworktreeやiOS Simulator資産を削除しない状態を作る。
+
+**確認事実:** `ai.anicca.life-manager-disk-cleanup` の最新receiptは `free_before=272,838,656` / `free_after=353,898,496` bytes、`reclaimed=6,407`、13候補中12保持（open 3 / protected descendant 9）、capacity recoveryはunmetでexit 1。60秒の `com.anicca.disk-watchdog` は削除済みimmutable release `20261007T190835-8eb1585e` を指し、`watchdog.err.log` に `can't open file` が記録されている。旧 `bin/disk-watchdog.sh` はcache/tmpの一括削除と、clean+merged+cwd不在だけを根拠にしたworktree unlock/remove/pruneを含む。後続の容量確認は約142 MiBまで低下し、pytestが一時領域を作れず停止した。closed Homebrew download cache 38,284 KiBだけを `lsof` open 0件確認後に回収し、最新Data空きは約259 MiBだが2 GiB床未達。iOS 26.5 runtimeと `AniccaGrowthTask2a` device dataは保持され、deviceはShutdown。
+
+**不変条件:** worktreeはcleanup候補にしない。active/uncertainなworktreeを削除・unlock・pruneせず、worktree retirementは [worktree lifecycle runbook](../../runbooks/worktree-lifecycle.md) の6条件をownerが同一操作で検証できるまで自動化しない。generic `/private/tmp`/`cfo-*` pathも候補にせず、exact Capafy npm cacheだけをclosed確認後に回収する。iOS Simulator runtime/image/device/data/dyld cacheも削除候補にしない。5分の `ai` ownerは管理runnerのまま保ち、60秒recovery labelだけを安定したlocal wrapper経由で現在のimmutable governorへ接続する。
+
+**TODO順序更新:** 旧cursor=`5分cleanupの2 GiB recovery契約を維持し、削除済みrelease参照の60秒watchdogを未修復のまま運用`。新cursor=`①worktree/Simulator sentinelとinstaller ownershipを検証する失敗テスト → ②旧shellをshared governor dispatcherへ置換し、install scriptは60秒watchdogだけを更新、closed Homebrew/pip/uv cacheをallowlist化 → ③focused tests・fresh read-only review・exact-head CI → ④merge後のimmutable releaseからwatchdogのみをsafe preflight付きでapply → ⑤launchd argv/readbackとnatural receiptを確認し、空き容量2 GiB以上・errors 0・protected deletions 0を確認`。理由は、現在の回復labelが存在しないreleaseを実行しておらず、旧shellのworktree判定も安全性を証明できないため。既存2 GiB producer/recovery floorはPR #6926で11 GiBから戻した契約を保持し、今回の範囲で変更しない。
+
+**完了条件:** sourceとinstalled wrapperの両方がworktree削除命令を含まず、fake active worktree/Simulator sentinelが保持される。`com.anicca.disk-watchdog` は固定古いreleaseでなく安定wrapperを起動し、そのwrapperが `~/loops/current` のimmutable governorへ委譲する。5分ownerのplist/argvは変更されない。修正版のnatural watchdog receiptが容量床・error・protected-deletion条件を満たすまで「全面修復」と扱わない。
+
 ### 2026-10-08 JST — Mobile post-merge owner and disk follow-up (03:08)
 
 この追補は直前の02:39 snapshotを置き換える。§84-Aの全社順序は維持し、mobile laneの事実と次のownerを更新する。
@@ -4411,9 +4423,9 @@ flowchart TD
 4. **販売境界:** anicca-products PR #420はOPEN（head `e22509d3cb84e0ba99867f31879d3d1aa8da38f4`、Landing CI success）。fresh manual production workflowでSupabase project refとaggregate countsを確認し、target一致とreview後にDDL/schema/ACL、natural paid Checkout、Stripe receipt、locale PDF delivery、refund/fee/settlement/replay-zeroを閉じる。one-time `$10.99` / `¥1,580`はMRRに数えない。
 5. **継続売上とCapafy:** user-initiated Letter/Tegami recurring CTAの14日cohortとsettled net MRRを確認し、その後にCapafy Instagram marketing laneを進める。USD 10,000 verified net MRRは未達の目標。
 
-### 2026-10-08 JST — Gig atomic cursor
+### 2026-10-08 JST — Gig initial cursor snapshot (superseded)
 
-**現在のGig cursor: 1（L9-07 Coconala Storefront）。** これはGig lane内のcursorであり、全社laneの順序は変えない。CFO A5–A10は別owner。最新runtime/source証拠は[Gig readback spec](2026-10-08-gig-paid-context-ref-boundary.md)に記録する。
+この番号付きsnapshotは後続の`Remaining atomic Gig TODO`より前の履歴であり、実行順の正本として使わない。現在のGig cursorは同節の1B capacity gate。これはGig lane内のcursorで、全社laneの順序を変えない。CFO A5–A10は別owner。runtime/sourceの詳細は[Gig readback spec](2026-10-08-gig-paid-context-ref-boundary.md)を参照する。
 
 1. Coconala Storefront parser修正 `d017c50b` のPR/CI/mergeを完了する。source suite 58/58 PASS・read-only review PASSは実測済みだが、PR/mergeは未完了。
 2. `hf-gig-storefront-direct:18d8d288748508e8-23902`を同一occurrenceの公式receiptまたは受理可能なpre-effect terminalで照合する。証拠が無ければeffect fenceを保持し、timestampや近接sidecarからbindingを作らず、独立する有償案件へ進む。
@@ -4789,31 +4801,40 @@ flowchart LR
 
 ### Remaining atomic Gig TODO
 
-この一覧はGig laneの未完了作業だけを実行順に置く。Lancers rows25–27は`waiting_external`のまま完全skip、Answersは対象外、SelfBuildは最後。`$10K MRR`は目標で、実績と混同しない。
+この一覧だけがGig laneの未完了作業と実行順を持つ。Lancers rows25–27はwaiting_externalのまま完全skip、Answersは対象外、SelfBuildは最後。$10K MRRは目標であり、Gig storefrontの単発受注や総売上とは混同しない。
 
-1A. **TikTok sender/hydration follow-up（別owner進行中）:** worktree `/Users/anicca/Projects/life-manager-main/.worktrees/gig-contract-current-readback-20261008`、branch `fix/tiktok-message-hydration-20261008`、HEAD `10ba32a170`。`skills/browser/scripts/tiktok_message_transport.py`とtestに未commit差分あり。18:09 JSTに担当者のtreeを変更せずfocused test `PYTHONDONTWRITEBYTECODE=1 python3 skills/browser/scripts/test_tiktok_message_transport.py`を実行し31/31 PASS。10:08Zのfresh GitHub readbackではopen PRなし、両fileは引き続きdirty。担当ownerのcommit/push、fresh review/required CI、merge readback待ち。同じ2 fileを重複編集しない。
+Storefrontの収益方針: 出品点数ではなく、再利用できる同一商品を新規応募より先に積み上げる。競合から取り入れるのは売れ筋として実証できる商品の構成（対象課題→具体的成果→固定入力/範囲→価格/納期/修正境界→作例/FAQ/購入条件）で、説明文・画像・作例は独自に作る。注文ごとに別仕様を作るのではなく、パッケージと選択可能な追加option内で完結する商品を優先する。まず現在公開中のSKU 4244556を最初の検証対象にし、conversionを読む前に近似サービスを増やさない。出品状態、unique order、settlement/payout、実費とnetを分けて報告し、単発売上をMRRと呼ばない。
 
-1B. **Host capacity safe gate:** latest cleanup receipt at `2026-10-08T10:03:30Z` reports `free_after=2,135,461,888` bytes, below the 2 GiB floor (`unmet`, `ok=false`), errors 0, protected deletions 0, inventory gaps 23. `df` at 10:08Z is `1,672,180 KiB`, also below floor. `lm-loop doctor --json` reports only retired Capafy label `ai.anicca.provision-browser.capafy.kosuke` (`unmanaged_labels=[]`). PR #7098 merged source at `7100882` and the self-handoff label has been removed; the old release reconciler remains at SHA `3c87f64f` with an `entrypoint_exit_1 / reconcile_owner` event. Do not raise capacity, manually delete files, or mutate the Capafy-owned label.
+公開benchmark（2026-10-08 JST, official marketplace pages）: Coconala AI業務効率化カテゴリは「おすすめ」「定番」表示で、公式売上ランキングとは明記しない。[AIエージェント開発](https://coconala.com/services/3471101)はカテゴリ一覧で23評価/¥50,000、詳細ページで18評価/出品者累計59件/2枠空き・待ち0と表示が異なる。[入力業務自動化](https://coconala.com/services/3691561)も一覧28評価・詳細20評価、出品者累計139件、3枠/待ち2、予定14日/実績約16日。評価数と出品者累計は当該商品の販売数・売上・入金ではないため、順位やrevenueとみなさない。Upworkの[Project Catalog公式ガイド](https://support.upwork.com/hc/en-us/articles/360057397533-How-to-create-a-project-in-Project-Catalog)は、需要・固定納品物・作例を選定軸にし、最大3 package tiers、add-ons、納期、修正回数、作例、必要情報、工程、FAQを案内する。確認した[AI自動化の実例ページ](https://www.upwork.com/services/product/development-it-an-ai-automation-that-removes-a-repetitive-process-from-your-week-2099452461206190516)はOfflineで販売成功の証拠ではなく、パッケージ構成の例に限る。[Freelancer Services公式FAQ](https://www.freelancer.com/faq/topic.php?id=52)は定型サービス、固定/時間/購読型、購入後にprojectを作る流れを説明するが、成功件数を示さない。レビューや推薦だけではbestseller認定しない。
 
-2. **Coconala Paid owner terminal and project lock release:** run `hf-gig-paid-direct:18dc82089bda50a0-70214` timed out at 09:55:42Z (`exit 124`) with no provider receipt/readback. Its next occurrence `18dc8595c04eecd0-84762` deferred at 10:00:35Z with `resource_capacity_busy` / `effect=not_applicable`, receipt null. A newer run `18dc85a3f7a2d918-18907` started at 10:01:31Z on release `88dfdaf4`; at 10:08Z it is still running, with `~/gig/.paid-direct.lock` held by PID `22727` and Coconala browser lease held by PID `19597`. No terminal/provider receipt exists for this live run. The prior browser lease from timed-out PID `70390` was released through `browser-guard` with an exact PID/token match; no browser process was stopped. Wait for the current owner to reach natural terminal and release both locks; do not stop/restart, replay, or overlap it.
+Historical readback（2026-10-08T13:38Z、14:02Zの後続snapshotで更新）: lm-loop doctor=true（unmanaged/missing/retired 0）だが、host volumeは274,152 KiB freeで2 GiB floor未達。life-manager-disk-cleanup run 18dc914ebc88a478-50013は13:36:06Z entrypoint_exit_1。mainのR17記録（PR #7153、docs only）はswap 8.7/9.4 GB of 16 GB RAM、corespotlightd 4.4 GBを記録し、空き容量の揺れの原因としてmemory/swap圧を挙げる。disk ownerの作業範囲なので、Gig側からhost cleanupやsystem processを変更しない。
+- hf-gig-paid-direct: release e1b061f1、13:37Z occurrence 18dc914bfeb1b6a8-42936がdisk_headroom_low / exit 75、provider receiptなし。
+- hf-gig-storefront-direct: release 3981bca3、13:37Z occurrence 18dc91503bf09ad0-53855がdisk_headroom_low / exit 75、receiptなし。9/26 occurrence 18d8d288748508e8-23902のeffect fenceはofficial_readback_requiredのまま。当時のinventory official_inventory_empty_or_invalid / service_count=0は空のストアの証拠ではない。現在の全listing/order readbackは未取得。
+- Coconala official public GET（2026-10-08T13:46Z）はprofile https://coconala.com/users/2564121 とbuyable service 4244556を確認。SKUは¥5,000、1媒体分の手順書/チェックリスト/実装メモ、追加媒体option +¥5,000、定期購入は2か月目から10%引き、販売枠5/待ち0、お気に入り2。表示される総販売実績26件はseller累計であり、このSKUの注文/収益ではない。公開面ではSKU別settlement/payoutが見えず、実収益はunknownのまま。9/26 08:42:43Zと08:48:26Zのofficial inventory snapshotは同じ20 service IDを含むが、08:45:58Zのfenced occurrenceに結びつくexact receiptではないためeffect fenceを解除しない。
+13:47Z owner status: storefront occurrence 18dc91d22bbab9c0-38765 is loaded-running (PID 23959), last exit 75, blocker disk_headroom_low; the prior 9/26 fence remains official_readback_required. The same-time df is 867,380 KiB free, still below the 2 GiB gate.
+13:52:41Z pre-effect-reconcile --dry-run returned resolved=[] and unprovable=[18d8d288748508e8-23902: no_pre_effect_terminal]; keep the old fence and require exact provider readback.
+Historical official seller analytics at /Users/anicca/gig/storefront-direct/analytics.jsonl: latest rows for 27 service IDs have separate complete windows ending 2026-08-16 through 2026-09-25; every known purchase count is 0, known views range 0-32, favorites 0-1, and gross_jpy is unavailable. Do not sum these nonmatching windows or treat them as current. SKU 4244556 latest window 2026-08-27–2026-09-25: 15 views, 0 favorites, 0 purchases; top-view SKU 4357844 had 32 views/0 purchases but its current public page is 受付終了. This shows no SKU is a proven winner in the last saved analytics; 4244556 remains the active pilot because its public page is buyable.
+**Latest runtime readback（2026-10-08T14:02Z）:** df at 14:00:04Z is 270,208 KiB free (<2 GiB). Cleanup occurrence 18dc92ac75b78b40-81064 failed at 14:01:19Z with entrypoint_exit_1; last success remains 13:04:19Z. Storefront occurrence 18dc928a5d202668-1054 at 14:00:58Z is disk_headroom_low; status shows loaded-running PID 1573 and the 9/26 effect_unknown fence remains. Paid occurrence 18dc92a850ae7ba0-71074 at 14:02:05Z is disk_headroom_low/exit 75 with no provider effect. Reply occurrence 18dc9280a470b208-81333 (13:57:40Z) and Apply occurrence 18dc929b2a249ee0-36733 (14:01:08Z) are also disk_headroom_low with their prior fences held. No latest owner has a provider receipt.
+- hf-gig-reply-detector: 13:37Z occurrence 18dc9168619277f0-6019がdisk_headroom_low。過去fence 18dbf6546032eca0-25901はofficial reply readback待ち。
+- hf-gig-apply-direct: 13:36Z occurrence 18dc913e2667ea18-12209がdisk_headroom_low。過去fence 18dadcd76d9c61b0-37711はofficial application readback待ち。
+- 4 ownerはいずれも最新wakeにprovider receiptなし。現在のlisting count、注文、settlement、payoutはunknownで、revenueあり/なしに置き換えない。
 
-3. **Existing Coconala contract `18180857` requirement→delivery→settlement:** after both locks release, run `coconala_queue_snapshot.py --mode selected-talkroom-only --talkroom-id 18180857 --project-id 18180857 --selected-order-input '{"talkroom_id":"18180857"}'` through `with-browser.sh coconala:kosuke`, while holding `~/gig/.paid-direct.lock` nonblocking and setting `CLOAK_BROWSER_OWNER=paid-direct-18180857`. The 09:57Z attempt omitted that required owner and returned `CLOAK_BROWSER_OWNER is required for a default CDP tab` before tab access; its failure evidence is `/Users/anicca/gig/evidence/paid-direct-live/paid-direct/18180857/official-readback-20261008T0957Z/snapshot-failure.json`. A corrected invocation was skipped at 10:01Z by the nonblocking project-lock guard; it made no provider request and its empty directory was removed. There is still no fresh buyer-state readback. Then establish whether revision is still required; only if so, complete it and use the owner path for one formal delivery. Verify buyer acceptance, settlement/payout/fee, and duplicate-zero. `18211957` is already complete; add no further seller action there.
+TODO順変更: 旧順=1A/1B gates → Coconala Paid → Coconala Storefront → Reply/Apply → CrowdWorks/Mercor/Freelancer/Upwork → economics → SelfBuild。新順=1B capacity recovery と Paid-source PR acceptanceを並行 → 現行Paid obligations → Coconala exact fence/inventory → repeatable Coconala product → Freelancer Services → Upwork Catalog（policy/eligibility gate）→ Reply → client Apply/Negotiation → per-listing/per-contract settled economics → SelfBuild last。理由はDaisが持続的な自社商品売上を新規応募より優先したため。既存有償義務は先に閉じ、Lancers skipとAnswers除外を維持する。Upwork自動化が許可されなくてもCoconala/Freelancerのstorefrontを止めない。
 
-4. **Coconala Storefront effect fence and live listing readback:** latest owner occurrence `hf-gig-storefront-direct:18dc85fbeaab34c8-48828` is blocked by `host_admission_deferred:disk_headroom_low`; its older occurrence remains blocked by `resource_effect_unknown` behind fence `18d8d288748508e8-23902`. Installed release `20261008T180015-f9d94048` runs the latest-main helper; exact dry-run returns `HELD / stdout_runtime_binding_invalid`. Latest main already accepts `official_inventory_empty_or_invalid → pending/pass` only when zero-effect/actionable/readback and runtime bindings match; tests cover that pair and refuse a different occurrence. For the old run, the stdout row has the right time window and `pending/effect=0/actionable=0/readback=0`, but `runtime_run_id` and `runtime_occurrence_id` are absent. The report event claims queue occurrence `18d8d2334ab70e80-9111`, while the fenced row is `18d8d288748508e8-23902`; DB readback shows the former `released/effect_unknown=0`, the latter `claimed/effect_unknown=1`. The validator correctly keeps this fence; do not loosen or duplicate its existing source fix. A fresh public readback at 18:53 JST confirms the seller page is reachable and shows 10 seller-section service URLs plus 24 related recommendations; evidence is `/Users/anicca/gig/evidence/coconala-public-storefront-readback-20261008T185356JST/summary.json`. This does not verify settlement or complete inventory/pagination. After Paid project/browser locks release, official seller readback may reconcile only this exact effect; otherwise keep the fence and do not publish again.
+残りのatomic TODO（完了まで）:
 
-5. **Coconala Reply:** skip full inbox sweep as a revenue gate. Handle only an exact actionable buyer message joined to official message identity, outbox intent, and occurrence. Never resend an `effect_unknown` message without official readback.
-6. **Coconala Apply/Negotiation:** latest occurrence `hf-gig-apply-direct:18dc85e129b09d18-74087` is blocked by `host_admission_deferred:disk_headroom_low`, no provider receipt/readback; its older effect-unknown fence remains. After 1B recovery, reconcile the exact fence from official readback, then submit only a fresh eligible job and join proposal receipt→buyer reply→agreed terms.
-7. **CrowdWorks:** respect the other owner’s worktree lease. After their source merge, confirm natural Application/Paid/Reply/Report occurrences, provider receipts, delivery→acceptance→settlement.
-8. **Mercor:** keep Application/Paid/Reply unknown fences until official receipt or exact same-occurrence no-effect proof; do not resubmit.
-9. **Freelancer:** confirm account-bound auth and official Services inventory; do not enable bids/delivery until a funded project/award and explicit lifecycle authorization exist.
-10. **Upwork:** keep automated browser/scraping/proposals closed until an official-policy-compliant route and eligibility are verified.
-11. **Job Hunter:** count only natural runs with eligible jobs and official application receipts. Candidate count zero or process pass is not an application.
-12. **Gig economics:** join settled receipts, fees/refunds, actual costs, net, and replay-zero per contract.
-13. **Last — SelfBuild:** repair and verify L9-11 only after the other Gig revenue loops are closed.
+1. 1B host capacity: disk ownerの根本修正後、natural cleanup receiptと同時刻dfでfree >= 2 GiB、errors 0、protected deletions 0を確認する。R17 swap pressure後も基準を安定して満たすまでStorefront browser mutationを行わない。
+2. Paid source と既存注文: PR #7129を最新mainへ同期し、更新後headのCIをPASSさせてmergeする。main-derived release/owner natural wakeを確認し、容量回復後にCoconala order 18180857のfresh official talkroom/order readbackを一度取得する。必要な納品だけを行い、acceptance/settlement/payout/replay-zeroを読む。stale latest.jsonでbuyer状態を決めない。
+3. Coconala storefront fence: 18d8d288748508e8-23902を正確なofficial listing/profile readbackと照合し、重複ゼロを確認する。service 4244556が現在公開中なのは確認済みだが、これはold fenceのexact effect readbackではない。provider readbackで同一effectが確定するまで再publish・fence解除をしない。ownerがfresh seller-side listing ID/status/view/inquiry/orderをreadbackする。
+4. SKU 4244556を最初の売れる固定商品にする: skills/gig-work/profile/listings/catalog.json（generated_at 2026-09-04）とfresh Coconala repeat-buyer demand/競合 evidenceを更新し、seller-side view/inquiry/unique order/subscription/refund/payout metricsを取得する。最後に保存された27 SKUの公式analyticsは購入0で、最も見られたSKU 4357844は現在受付終了なのでwinnerと扱わない。Coconala comparablesの「明確な課題・納品物・対応境界・納期・作例・FAQ・追加option/継続購入」の型を使い、4244556の原文/画像を独自に磨く。現在の¥5,000・月次repeat・追加媒体optionはfresh cost/conversionで採算を確かめてから維持/変更し、fence解決前にlistingを変更しない。まず近似SKUを増やさず、更新後の同一SKU view→inquiry→paid orderを読む。
+5. native storefrontへ拡張: Freelancer Servicesのaccount auth・公開inventory・条件を公式readbackし、同一商品を現地のformat/feeに合わせて掲載する。次にUpwork Project Catalogのaccount/policy gateとcurrent inventoryを公式確認し、許可された操作だけで掲載する。bot policy gateで自動掲載不可ならdraft/evidenceだけ保存して次へ進む。CrowdWorks/Mercorはnative catalog capabilityを公式確認するまで応募型loopのまま。Fiverrはactive registry外なのでこの作業でloop/credential/effectを新設しない。
+6. Reply: Coconala/CrowdWorks/Mercor/Freelancer/Upworkのfresh actionable buyer messageだけに限定し、exact thread+outbox+receiptをjoinして一度返信する。古いeffect_unknownはownerの公式readbackで解消するまで再送しない。
+7. Apply/Negotiation/Paid: Coconala、CrowdWorks、Mercor、Freelancer、Upworkの対応可能案件を各ownerの現在policy/authorization内で処理し、proposal receipt→buyer reply→funded terms→delivery→acceptance→settlementへつなぐ。Lancersは全面skip、Answersは対象外。
+8. Storefront asset economics: listingごとのview/inquiry/unique paid order/repeat/refund/platform fee/payout/actual fulfillment cost/time/netを同一期間で結ぶ。掲載やレビューをrevenueにせず、初回売上とrepeatable positive contributionを分けて判断する。
+9. 最後 — SelfBuild: 全収益loopとstorefront/productizationを閉じた後に、既定順のself-build/self-healing作業へ戻る。
 
-**TODO順変更:** old order put broad local-revenue production proof and an old Coconala cursor ahead of the present Gig gates. New order is `1A sender owner follow-up + 1B capacity/doctor gates → Paid owner natural terminal/lock release → contract 18180857 → Storefront → exact Reply → Apply/Negotiation → other allowed platforms → settled net/replay-zero → SelfBuild last`. Reason: the user narrowed this lane to contract-work income, requested 1A/1B first, and current readback shows disk below recovery floor, an active Paid project lock, and unresolved Storefront/Application fences. Lancers and Answers do not block later work.
+現在cursor: 1B capacity recovery。並行してPR #7129の最新main同期とsource acceptanceを完了し、容量回復後に既存有償注文→Storefront exact readback/fence→自社商品→native catalog rolloutへ進む。
 
-**Current cursor:** 1A/1B remain the first gates. 1A's 31 focused tests pass, but its owner has not committed/pushed the two source files or opened a PR; do not duplicate that edit. The latest cleanup receipt is below 2 GiB and `doctor` is false for the retired Capafy label. Paid run `18dc82089bda50a0-70214` timed out; a capacity-busy attempt `18dc8595c04eecd0-84762` is followed by a live owner run `18dc85a3f7a2d918-18907` holding project/browser locks, with no provider receipt. The public Storefront is live with 10 seller links, but sales/settlement are unknown and its automation fence remains. Next: let the active Paid owner release both locks, then run the targeted `18180857` official readback with `CLOAK_BROWSER_OWNER=paid-direct-18180857`. Only after that buyer-state readback should the owner perform any required revision or formal delivery; resolve Storefront only from exact official evidence.
 ### 2026-10-08 08:35 JST — Mobile post-merge runtime cursor
 
 この追記は上記08:23のPR #6993/owner/capacity/TestFlight状態をmerge後readbackで置き換える。全社§84-Aの順序は変更しない。
@@ -5078,7 +5099,7 @@ Source / cursor follow-up (2026-10-08 12:52 JST): docs PR #7048はmerge commit `
 
 **現在cursor:** parallel gate 1A（sender安全修正）と1B（cleanup safe receipt＋安定2 GiB超）を完了する。両gate後にCoconala Paid owner/threadと既存契約を確認し、その後Storefront→Coconala Apply/Negotiation→CrowdWorks→Mercor/Freelancer/Upwork/Job Hunter→契約別収益確認→SelfBuild最後の順で進む。Lancers rows25–27はskip、Answersは対象外。
 
-### 2026-10-08 10:15 JST — Gig run status after capacity recovery
+### 2026-10-08 10:15 JST — Historical Gig run status (superseded by Remaining atomic Gig TODO)
 
 このsnapshotは10:08 JSTのruntime/capacity状態を更新し、Gig TODO順を変更しない。
 
@@ -5087,7 +5108,7 @@ Source / cursor follow-up (2026-10-08 12:52 JST): docs PR #7048はmerge commit `
 - sender source branchはremote `10ba32a170`のままで、latest main `44488d9d7c`から17 commits behind。worktreeにはtransport/testのuncommitted変更2 fileが残り、fresh reviewで再現したP1は未解決・未検証・未merge。現行runtimeへ反映していない。
 - Coconalaの最後のofficial order/talkroom snapshotは10/7でstale。fresh provider readbackがない限りbuyer待ち、納品、受入、settlementを現在状態として断定しない。
 
-**現在cursor:** 並列gate 1Aのsender P1修正・test/review/CIと、1Bのcleanup summary readback・安定capacity/target lock auditを完了する。その後にCoconala Paid/order/inboxをfresh readbackする。
+**このsnapshot時点のcursor（履歴）:** 1A sender P1と1B capacity gate。現在の残TODO・順序・cursorは上記Remaining atomic Gig TODOのみを正本として扱う。
 
 ### 2026-10-08 11:08 JST — Business CFO status refresh and remaining cursor
 
@@ -7015,6 +7036,22 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 **現在cursor:** guard PR exact-head CI/fresh review → merge → immutable release/natural handoff → fixed-release cleanup receipt/admission → guarded Capafy retirement/doctor → target effects → owner natural outcomes → same-window capacity/economics。
 
 
+### Marketing IntelからWriterへの記事候補連携（並列作業）
+
+**目的:** `marketing-weekly-review`がTelegramへ報告する未検証の`CONTENT`戦術を、既存Writerの`article-daily`トピックキューへ候補として渡す。AffiliateやX repostには配線しない。
+
+**契約:** `playbook.jsonl`から`testable=true`、statusが`new`または`queued`、`applies_to`に`content`を含み、`evidence_url`・`source_url`・`source-enrichments.jsonl`のいずれかで正確な出典URLを持つ戦術だけを取り込む。未処理戦術を出典付きの一枚のWriter topic cardにまとめ、`queue`・`in-progress`・`done`を通じて重複させない。記事カードは一人の読者、持ち帰る結果、支払う理由、検証計画を含み、戦術は実証済み効果ではなく検証仮説として扱う。`SOURCE FAILURES`は記事ネタに混ぜない。候補の作成は公開ではなく、Writer既存の需要・出典・品質ゲートとnote/SNS配信を維持する。
+
+**受入:** 最小fixtureで対象フィルタ、出典URL復元、未処理IDのみの取り込み、再実行と処理済みstageでの重複ゼロを確認する。`article-daily`が通常のtopic-state初期化後にこの取込を呼び、既存キューの選択順を保持する。source統合後、disk admissionが回復してから自然occurrenceでWriterの既存公開経路を通し、公開URLと公式売上readbackを確認するまで収益を主張しない。
+
+**順序:** source/test変更は現在のguard PR・disk cleanupの主cursorと独立して進め、主cursorの順序は変更しない。Writer runtimeへはowner idleとtopic-state lock freeを確認して候補カード1枚だけを追加した。これは公開ではない。production反映と自然実行はdisk cleanup receipt `free_after >= 2 GiB`・`errors=0`・`protected_deletions=0`およびadmission passの後に行う。
+
+**進捗:** PR #7158は全required CIとfresh read-only SHIP review後、main commit `be130839878c2e46bc677ee225fa19ae48785288`としてmerge済み。importerのfixtureはRED→GREENで、CONTENT対象・URL復元・queue/in-progress/doneの重複ゼロ・既存queue順維持を確認した。実データのdry-runは8戦術を1カードにまとめた。Writer runtime queueにも`marketing-intel-content-tactics-20261008.md`を登録し、同じ8 IDsと出典URLをreadbackした。既存の`paid-demand-*`カードが先に選ばれる順序を維持している。
+
+**production blocker:** installed releaseは`e1b061f1fdaa040d2461be457fe410c398afc95c`のまま。`article-daily:18dc916eb4d3db60-20672`は13:39 UTCに`host_admission_deferred:disk_headroom_low`で安全停止し、provider receipt/readbackはnull。disk-cleanup `life-manager-disk-cleanup:18dc92ac75b78b40-81064`は14:01 UTCに`entrypoint_exit_1`。最後のstructured receiptは13:58 UTC時点で`free_after=244379648` bytes、2 GiB floor unmet、`errors=0`、`protected_deletions=0`、`reclaimed=0`。14:02 UTCの`df`は`251816 KiB` free。公開記事・公式売上readbackは未確認で、収益はunknown。
+
+**現在cursor:** cleanup ownerのnatural receipt/admission passで2 GiB floorを回復 → main `be130839`由来immutable release → idle `article-daily`へowner限定apply/readback → natural Writer occurrenceで既存先行カード、その後にこの8戦術カードを処理 → 公開URL・note paywall状態・公式売上readback。既存unknown effectはreplayしない。
+
 ### 2026-10-08 22:02 JST — capacity cursor refreshed from live disk/admission evidence
 
 - `origin/main` now includes PR #7149 at `e1b061f1fdaa040d2461be457fe410c398afc95c`; it lets release reconciliation continue after a budget-only partial. Production `~/loops/current` remains release `20261008T214419-3981bca3` / SHA `3981bca33258129eccd6ddb52e4960f9cec0ac0d`, so #7149 is not installed. `lm-loop doctor` reports missing=0, retired=0, and one unmanaged label: `ai.anicca.life-manager-release-reconciler-self-handoff`.
@@ -7179,3 +7216,26 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 7. disk回復後の同一windowでactive claims/reservations/eligible queue age/class contention/CPU/RAM/diskと有限jobの実並列数を測る。configured cap 8を実測と区別し、cap saturationが実証された時だけ最小変更を行う。
 
 **現在cursor:** exact-head PR #7156 CI/fresh ship review on the current pushed head → PR merge → immutable release/natural readback → disk writer recovery/admission → Fundraiser official reconciliation → target natural outcomes → post-recovery capacity/economics.
+
+
+### 2026-10-08 23:24 JST — R18 partial fixes and watchdog recovery
+
+- Latest main `066400de03` includes #7165's stable watchdog installer and #7166's `_disk_floor` change: only `priority=critical_paid` receives 1 GiB; other priorities stay at 2 GiB. Target registry entries remain `priority=revenue` / `admission_class=revenue`, so Connector, Job Hunter daily, and Fundraiser still use 2 GiB. `resource_admission` already has revenue priority/reserve, but `lm_loop_run.py` checks the disk floor before queue enqueue; those priorities never help below 2 GiB.
+- The stale watchdog root cause is fixed in production through the main-derived current release at the time (`25bee172fa532b848b106c317766b36e1ddd1ddb`). `launchctl-safe preflight` passed; `skills/self/disk-cleanup/install-launchd.sh` exited 0; safe readback shows the loaded program is `/Users/anicca/.local/bin/disk-watchdog.sh`, state=`running`, runs=1. The stable wrapper follows `~/loops/current`, avoiding a pinned-release path.
+- The first post-install cleanup receipt at `2026-10-08T14:20:46Z` was `free_before=672,919,552`, `free_after=655,257,600`, `reclaimed=6,411`, `errors=0`, `protected_deletions=0`, recovery=`unmet`, preserved open=3/protected_descendant=10. `df -k /` at 23:22 JST was `753,124 KiB`; the watchdog runs, but the disk floor is not recovered and the exact remaining writer is unknown.
+
+**設計決定:** do not raise global finite-run cap 8 or label the three prospecting owners `critical_paid`. Keep borrow/support at 2 GiB, extend the existing 1 GiB floor to revenue-priority owners, and retain their inner producer guards. Use the already-installed stable disk watchdog as the low-disk recovery lane. Add swap telemetry to admission receipts before choosing any swap threshold; current measurements show high swap but not a sole cause. OpenClaw remains the selected harness; it does not own Life Manager's host admission policy.
+
+**順序更新:** old `critical_paid-only 1 GiB floor` → `revenue-priority 1 GiB floor + stable recovery watchdog` → `post-recovery measurement`. Reason: the user target loops are explicitly `priority=revenue`, while R18's 2 GiB shared gate runs before queue priority; `critical_paid`'s new exception does not change their admission. The global cap is unoccupied in the observed window.
+
+**残TODO（完了まで・この順）:**
+
+1. **現在cursor—latest-main merge resolutionをcommit/pushする。** Preserve #7165 stable watchdog, #7166 critical-paid floor, #7162 Writer update, and this loop-capacity history.
+2. PR #7156 exact pushed headでrequired CI全passとfresh read-only `ship` reviewを取得し、mergeする。
+3. main由来immutable releaseを自然handoffし、loaded SHAをreadbackする。`com.anicca.disk-watchdog`のstable plist/argv維持と次のnatural runのreceiptを確認する。`free_after >= 2 GiB`、`errors=0`、`protected_deletions=0`、admission passまでwriter/path attributionを続ける。
+4. Dedicated architecture PRで`runtime/loop/lm_loop_run.py::_disk_floor`を`admission_class=revenue`かつ`priority=revenue`にも1 GiBとする。Borrow/supportは2 GiBを維持。Testsは`runtime/loop/tests/test_lm_loop_run_bounds.py`でrevenue at 1–2 GiBの間にqueue/dispatchできる、borrowはdeferする、revenueが1 GiB未満でdeferする、の3ケースを回帰テストする。
+5. Browser/Job Hunterの512 MiB producer guardを維持し、Fundraiserは外側1 GiB floorを通らない限りagent/browser workを開始しない。`effect_unknown` 4件はofficial readbackで解決するまで再送しない。
+6. disk/admission eligibleかつfence解決済みのConnector/Luma、Job Hunter/Workday、Fundraiser/VC・AI-founderのnatural runでofficial result、`gpt-6-luna/max/fast`、Telegram reportを同一occurrenceに結ぶ。
+7. disk回復後に同一windowのactive claim/reservation、eligible queue age、class contention、CPU/RAM/disk/swap、有限job数を測り、global cap 8は実測飽和が確認できた場合だけ変更する。heavy factoryのcloud移設はlocal capacity measurement後にcost/benefitが成立する場合だけ扱う。
+
+**現在cursor:** finish latest-main merge resolution → push → exact-head PR #7156 CI/review/merge → natural release and watchdog receipt → 2 GiB recovery → revenue-floor follow-up PR → Fundraiser readback → target natural outcomes → same-window capacity and swap measurement.
