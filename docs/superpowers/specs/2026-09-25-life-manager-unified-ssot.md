@@ -4837,7 +4837,7 @@ flowchart LR
 
 **source修正状況:** PR #7169でStorefront rowを`priority=critical_paid`へ変え、`admission_class=revenue`を維持した（merge `4bbcd9082b8a6465cef8c4327e45c2ff5ff109b1`、required CI PASS、read-only review SHIP）。PR #7177（main `1fe7db3b634bb910187b846c7246aa7fe0dcba82`）でfloorは`critical_paid=256 MiB`、`revenue=512 MiB`、その他2 GiBへ変更された。exposure preflightの初回実装はbranch commit `072d56517b`にあるが、PR #7182のfresh reviewはfix-first。理由は`_measurement_feasible`が`official=true`、完全window、source/snapshot identity、freshnessを確認せず、古い/非公式の`known` viewsでも裁量的変更を通し得ること。修正・再reviewまではPRをmergeせず、旧production releaseやeffect fenceを成功扱いしない。
 
-**現在の実測（2026-10-09 00:40 JST / 2026-10-08 15:40Z）:** `df -k /System/Volumes/Data`は1,585,240 KiB available（約1.51 GiB）。`origin/main`は`9abbdb9d1cfacd2797b5b02cae5095923be40826`（PR #7180含む）、`~/loops/current`はrelease `1fe7db3b`。Storefront installed SHAは旧`3981bca3`。15:34:13Zのoccurrence `18dc97af171c4370-86787`は`host_admission_deferred:disk_headroom_low`、provider receiptなし。古いeffect fence `18d8d288748508e8-23902`は依然current unknown。release-reconcilerは旧SHA `e1b061f1`でPID `33109` running、直近occurrence `18dc97c7aa1d0750-49084`は`entrypoint_exit_1`。`lm-loop doctor --json`はunmanaged `ai.anicca.life-manager-release-reconciler-self-handoff`のため`ok=false`。Storefront実運転と販売は現時点で確認できず、別ownerのruntime/capacityにはGig側からcleanup・restart・gate迂回をしない。
+**現在の実測（2026-10-09 00:55 JST / 2026-10-08 15:55Z）:** `df -k /System/Volumes/Data`は1,379,456 KiB available（約1.31 GiB）。`origin/main=0b9d0f10cea3381af3ffdeef4a36875e489097b0`、`~/loops/current`はrelease `1fe7db3b`、Storefront installed SHAは旧`3981bca3`。最新occurrence `18dc98c45455a248-93881`は`host_admission_deferred:disk_headroom_low` / receiptなし。古いeffect fence `18d8d288748508e8-23902`はcurrent unknown。release-reconcilerは旧SHA `e1b061f1`でPID `33109` running、直近occurrence `18dc97c7aa1d0750-49084`は`entrypoint_exit_1`。`lm-loop doctor --json`はunmanaged `ai.anicca.life-manager-release-reconciler-self-handoff`のため`ok=false`。Gig側からcleanup・restart・effect gate迂回はしていない。
 
 過去のStorefront fence `hf-gig-storefront-direct:18d8d288748508e8-23902`は`effect_unknown`のまま。`storefront_pre_effect_reconcile.py --dry-run`は`HELD / stdout_runtime_binding_invalid`を返す。9/26のstdoutには厳密なruntime run/occurrence bindingがないため、時刻だけで結ばない。公開SKU 4244556の存在や現在の購入可能状態はこの古いeffectの証明ではない。再送・fence解除は禁止。
 
@@ -4847,8 +4847,8 @@ flowchart LR
 
 **残TODO（完了まで、この順）:**
 
-1. **現在cursor — PR #7182 exact-head acceptance:** primary selector call-site fix commit `b2b1502f3b`、PR head=`b2b1502f3be293b6a1ee0abee38f5f42c5cb607b`、base=`9abbdb9d1cfacd2797b5b02cae5095923be40826`。fresh read-only review is running. Security Scan run `37803437757` is pending for this exact head. Get fresh review and all required CI PASS, then merge. 別ownerのcapacity/doctor recoveryは独立laneで進められるが、ここから他ownerのworktree/stateを編集しない。
-2. **main由来release:** current main `9abbdb9d1cfacd2797b5b02cae5095923be40826`を含むmerged fixのimmutable releaseを既存natural reconcilerに渡し、`RELEASE.json`・Storefront/Paidのloaded SHA/argv/admissionを確認する。production source完了はloaded SHAにpriority/floor/exposure fixが含まれてから。
+1. **現在cursor — CIのmain-side OSS boundary blocker:** PR #7182 code head `b2b1502f3b`はfresh read-only review SHIP。latest doc-only head=`ca2c8ae3c14a39b7247c8fe75bba7cdae1d3d8b0`。Security Scan run `37803526342`では8/9 gate PASS、`OSS self-contained boundary`だけが`manifest_inventory_mismatch skills/capafy-autopublish`でFAIL。現main `0b9d0f10`はCapafy PR #7183 commit `7eda261900`のsource変更を含む一方、OSS manifestは245-file inventoryを旧digest `d211d4e2…`のまま保持し、main上の実測digestは`6622435b…`。PR branch単独では同じOSS checkがPASS。Gig laneからCapafy source/manifestを編集せず、owner側の正本修正がmainへ入った後に最新mainを同期し、exact-head CIを再実行してPASS後mergeする。
+2. **main由来release:** 最新mainのOSS manifest修正とGig preflight fixを含むimmutable releaseを既存natural reconcilerに渡し、`RELEASE.json`・Storefront/Paidのloaded SHA/argv/admissionを確認する。production source完了はloaded SHAにpriority/floor/exposure fixが含まれてから。
 3. **Coconala Paid obligation:** order `18180857`のfresh official order/talkroom readbackをownerが実行する。今も未完了の場合だけ必要なrevision/formal deliveryを一度行い、buyer acceptance・settlement/payout・replay-zeroを結ぶ。古いsnapshotから現在の待ち状態を推測しない。
 4. **旧Storefront fence:** `18d8d288748508e8-23902`を、同一effectの公式listing/order履歴または受理可能なoccurrence-bound pre-effect receiptで照合する。現在はdry-runがbinding不足で保留。証拠が取れなければfenceを保持し、再公開しない。
 5. **Coconala商品を売れる型へ改善:** seller-sideでSKU 4244556のfresh views・inquiries・unique paid orders・renewals/refunds・platform fee・payoutを同一期間で取得する。過去5変更は全て`NO_OP / metric_unmeasurable_insufficient_exposure`でliftなし、保存済み15 views / 0 purchaseは古い窓。固定scope・完成成果物・選択式optionの自社商品構造を維持し、exposure gateと旧effect fenceが両方解決してから一度に一変数だけ変更する。exposure不足時はlistingを変えず、公式analyticsの自然readbackと許可済みdistributionでqualified trafficを増やす。近似SKUを重複出品しない。月次optionは実renewalと毎月の納品内容が確認できるまでMRRに数えない。
@@ -4858,7 +4858,7 @@ flowchart LR
 9. **Storefront economics:** listingごとのunique paid order・repeat・refund・platform fee・payout・実作業時間/実費を同一期間で結び、settled net contributionが正で再現したか報告する。掲載・seller累計・grossを利益/MRRにしない。
 10. **最後 — SelfBuild:** 収益loopとproduct storefrontの上記done条件を閉じた後だけ、self-build/self-healingを再開する。
 
-**現在cursor:** 1 — PR #7182 exact-head fresh review/required CI → PASS後にmerge。production Storefrontは旧effect fence・古いinstalled SHA・未照合販売状態を保持。
+**現在cursor:** 1 — Capafy ownerによるmain-side OSS manifest修正を待ち、最新mainを同期 → fresh exact-head CI全PASS → PR #7182 merge。production Storefrontは旧effect fence・古いinstalled SHA・settled sales未確認を保持。
 
 ### 2026-10-09 00:28 JST — Storefront収益cursorとexposure review修正
 
@@ -4897,6 +4897,14 @@ flowchart LR
 - Commit `b2b1502f3be293b6a1ee0abee38f5f42c5cb607b` is verified on the remote branch and PR #7182. Base remains `9abbdb9d1cfacd2797b5b02cae5095923be40826`. Exact-head Security Scan run `37803437757` is pending, and a fresh read-only reviewer is checking the final head. No merge or production/provider mutation has occurred.
 
 **現在cursor:** wait for exact-head review/required CI → merge #7182 only after PASS → immutable release and natural storefront readback.
+
+### 2026-10-09 00:55 JST — GitHub OSS gate traces to current main
+
+- Review of Gig code head `b2b1502f3be293b6a1ee0abee38f5f42c5cb607b` returned SHIP; latest PR head `ca2c8ae3c14a39b7247c8fe75bba7cdae1d3d8b0` adds only the SSOT cursor update. GitHub run `37803526342` completed with 8/9 checks PASS and only OSS self-contained boundary FAIL: `manifest_inventory_mismatch skills/capafy-autopublish`.
+- The failed job's merge ref parent is current main `0b9d0f10cea3381af3ffdeef4a36875e489097b0`, despite PR API `baseRefOid=9abbdb9d1cfacd2797b5b02cae5095923be40826`. Main includes Capafy PR #7183 / commit `7eda261900`, which changed one file under the declared 245-file absorbed root without updating `docs/manifests/oss-merge-1-sources.json`: declared digest `d211d4e2…`, computed current-main digest `6622435b…`. The same OSS verifier passes on the Gig branch alone. No Capafy files have been edited in this lane.
+- Production remains outside the source lane: disk available 1,379,456 KiB; Storefront installed `3981bca3`, occurrence `18dc98c45455a248-93881` deferred for `disk_headroom_low`, receipt absent; current old fence `18d8d288748508e8-23902` is `effect_unknown`. Release reconciler SHA `e1b061f1` / PID `33109` has `entrypoint_exit_1`; doctor is not ok due the unmanaged label.
+
+**現在cursor:** resolve the main-side OSS manifest mismatch with its owner → sync latest main → rerun required checks on the final PR head → merge #7182 only on PASS.
 
 ### 2026-10-08 08:35 JST — Mobile post-merge runtime cursor
 
