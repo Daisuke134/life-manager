@@ -5036,3 +5036,12 @@ Source / production follow-up (2026-10-08 11:01 JST): PR #7012は`b692e70a`と�
 - The A5 lease remains active through `2026-10-08T03:18:04Z`. After release, update only the CFO registry priority to `revenue` while keeping `admission_class=borrow` and `resource_class=deterministic`, then test the priority contract and confirm a natural report. This does not reserve a revenue slot or add a cap.
 
 **現在cursor:** A5。CFO cost attribution and wake priority remain the next source task; A6 source is loaded but the new-release report and A6 settlement/Monitoring reconciliation are still unverified.
+
+### 2026-10-08 12:12 JST — A5 CFO queue priority decision
+
+- At the 03:05Z read-only deterministic-queue snapshot, 28 owners were eligible and `life-manager-cfo-hourly` was position 27/28 (zero-based 26), with `admission_class=borrow` and `base_priority=support`. The queue head began `job-search-daily`, `lancers-revenue-work-sync`, then older support jobs. CFO wakes have now been deferred by both `resource_fifo_wait` and `resource_capacity_busy`; each recorded `effect_status=not_applicable`, with no provider effect.
+- The current registry sets CFO `priority=support`. Runtime `_queue_order` sorts priority before admission class, and the owner-level `enqueue_durable` path promotes priority without resetting queue age. `priority=revenue` is valid while `admission_class=borrow`; it does not reserve a revenue-class slot.
+- **Ruling:** after the active A5 lease is released, change only CFO `priority` from `support` to `revenue`, keeping `resource_class=deterministic` and `admission_class=borrow`. This moves the short CFO report ahead of the support backlog but behind actual revenue-class work. Cost if wrong: one CFO report may delay one support owner; it does not cut off core work or reserve revenue capacity. A separate `resource_capacity_busy` remains distinct and is not fixed by this priority change.
+- **Verification:** update the existing `test_life_manager_cfo_hourly_declares_effect_rebind_contract` assertion first and confirm RED, then change the registry field and confirm GREEN. Run the focused registry test and `./bin/lm-loop-contract`; after main-derived release/apply, confirm a natural CFO wake reaches report phase. Do not edit the active A5 worktree before lease release.
+
+**現在cursor:** A5; owner lease `codex-cfo-a5` remains active until `2026-10-08T03:18:04Z`.
