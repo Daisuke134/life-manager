@@ -430,7 +430,7 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
 
 | # | Task | 完了条件（公式 readback） | 状態（2026-10-08 10:xx JST） |
 |---|---|---|---|
-| N1 | 売れていた 4 本を Sonnet に戻す（説明文はそのまま） | Capafy API status 4 → buyer スキャン通常 → 注文再開 | **10/08 12:00 承認**: Hook Lab v1.0.6・TikTok v1.0.4・YouTube v1.0.5（＋Marketing Strategist v1.0.2）。Slide Maker v1.0.3 は 12:17 も審査中（管理画面「v1.0.3 審査中／v1.0.2 公開中」）。buyer スキャン: TikTok 通常・YouTube 通常・**Hook Lab 却下**（パッケージ同梱の LISTING/UPDATE.json に「scan のため test/ を外した」旨→監査回避と判定、FAQ に無い年額、welcome 途中切れ）。YouTube の本番年額 cap が 8640（LISTING は 720）。両方を #（package-only-skill-files）で修正し再提出待ち |
+| N1 | 売れていた 4 本を Sonnet に戻す（説明文はそのまま） | 承認・販売中 | **10/08 14:33 実測**: Hook Lab v1.0.6・TikTok v1.0.4・YouTube v1.0.5 は承認済みで販売中（Capafy API status 4・公開検索の販売バージョン一致・Dais の承認メール/管理画面「v1.0.6 公開中」）。Slide Maker v1.0.3 は審査中。Hook Lab v1.0.7 が審査中（13:48 の工場 CP1 が提出確認まで進めた。価格・上限・モデル・タイトルは v1.0.6 と同一、変更は welcome 文末と FAQ の 1 語。取り消し操作は無く、既存購入者は v1.0.6 のまま）。以後、売れている agent の UPDATE.json は置かない（Hook Lab・YouTube の UPDATE.json を削除済み） |
 | N1b | 承認後、4 本の実モデル ID を `anthropic/claude-sonnet-5.5` に（OpenRouter: 5 と同じ $2/$10。Capafy の表示名は選択肢がないので「Claude Sonnet 5」のまま） | Capafy API の hosted model が 5.5 | 承認待ち。再審査が要るかは承認後の画面で確認 |
 | N2 | 公開済み agent を工場が勝手に変えない。自動の値上げ・モデル変更・説明の書き換えは永久禁止 | 価格・モデル・カードの自動更新が 0 件 | ✅ 本番（`dais_approved_exception` 付き UPDATE.json だけ通す・日次判断は報告のみ・FROZEN.json に 4 本） |
 | N2b | 無料お試しをやめる（Dais 10/08「無料サービスではなく利益のため」）: 13 本にお試しあり（最大 Contract Red Flags 150 回）。上位 15 本はお試しなし。値下げの自動化は作らない（Dais 10/08 撤回） | お試し付き agent が 0 | Contract Red Flags（Sonnet 4.6・お試し 150 回・注文 0）を非公開化中。残り 12 本は審査なしで外せるかをサポートに質問（10/08 10:39 送信）。審査が要るなら枠を食うので新規優先 |
@@ -447,7 +447,7 @@ def test_rank_shelves_prefers_big_market_where_we_are_thin():
 
 **主指標（Dais 10/08）:** 直近 7 日の売上（`capafy-skill-analytics.json` `account_totals.last_7d`）。すべての報告の先頭に書く。10/08 時点 $0.00・0 件。30日の数字や利益で $0 の週を薄めない。今週の優先: 4 本の承認を早める → 承認と同時に短尺動画 → 赤字 3 本を止める → 新規。
 
-**現在のカーソル（2026-10-08 12:40 JST）:** 工場（下書き再開時の CP1 指示文を 3 タブ完了・保存・提出まで明記）→ Hook Lab・YouTube 再提出の承認 → 新規 agent 出荷。並行: N7（IG 自動化・プロフィールリンク）、N7b（Telegram 報告の自然実行確認）、N2b（お試し停止）、Slide Maker 承認待ち。
+**現在のカーソル（2026-10-08 14:35 JST）:** 新規出荷（売れ筋型の候補を先頭: Hook Grader 無料版 → Podcast Clip Hook Lab → Earnings Call Brief、Sonnet 5.5・週 $9.99/20・月 $19.99/40・年 $99.99/480・お試しなし）と宣伝（IG 1 日 1 本、記事＋X 3 時間ごと＋Telegram リンク）。売れている 3 本は触らない。次: 全ループ共通の「黙って止まる」対策（ディスク・読み取り専用書き込み・残留 fence・曖昧な指示）→ Writer 再開確認（10/09 06:00）→ Mobile 無料記事。
 
 
 ## 進捗ログ（実行順のカーソル）
