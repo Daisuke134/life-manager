@@ -28,6 +28,7 @@
 - Adjustment signs: discount, tax-adjustment, and rounding rows may be negative; test each signed amount independently.
 - Missing, unreadable, or malformed source: test that no file returns unavailable and unreadable/malformed/mismatched CSV data returns unverified with no zero amount.
 - Numeric integrity: reject malformed thousands grouping and keep exact Decimal precision for invoice reconciliation and service/SKU net.
+- B7 actual-cost source: no configured readback path is `source_unconnected`; a configured but unreadable path is `read_failed`. Neither state creates a zero or a receipt.
 - Privacy and attribution: test that account/project identifiers are absent from output and that payment/loop attribution remain unknown/unattributed.
 
 ---
