@@ -14,6 +14,7 @@ from unittest.mock import patch
 
 import runtime.loop.lm_loop as lm_loop
 import runtime.loop.health as health
+from runtime.host import resource_admission as admission
 from runtime.loop.lm_loop import (
     _admission_effect_unknown_owners, _last_event, _launchctl,
     _pending_admission_owners, _release_from_plist, _safe_launchctl,
@@ -32,6 +33,34 @@ REGISTRY = {"schema_version": 2, "loops": {"example": {
     "cleanup": {"max_runs": 10, "max_age_days": 7},
     "provider_route": "shared-agent-runner",
 }}}
+
+
+def _seed_pending_admission_fixture(database):
+    connection = admission._database(database)
+    try:
+        connection.executemany(
+            "INSERT INTO queue(owner_id,resource_class) VALUES (?, 'deterministic')",
+            [("queued-owner",), ("queued-unknown-owner",)],
+        )
+        occurrences = [
+            ("claimed-a", "claimed-owner", "claimed", 0),
+            ("claimed-b", "claimed-owner", "claimed", 1),
+            ("claimed-unknown", "claimed-unknown-owner", "claimed", 1),
+            ("queued", "queued-owner", "queued", 0),
+            ("queued-unknown", "queued-unknown-owner", "queued", 1),
+            ("orphan", "orphan-owner", "queued", 0),
+            ("released", "released-owner", "released", 0),
+        ]
+        connection.executemany(
+            """INSERT INTO occurrences(
+                   occurrence_id,owner_id,resource_class,admission_class,
+                   base_priority,queued_at,state,sequence,effect_unknown
+               ) VALUES (?,?,'deterministic','borrow','support',1,?,NULL,?)""",
+            occurrences,
+        )
+        connection.commit()
+    finally:
+        connection.close()
 
 
 class LmLoopReadonlyTest(unittest.TestCase):
@@ -200,6 +229,102 @@ class LmLoopReadonlyTest(unittest.TestCase):
                   patch("runtime.loop.lm_loop.time.sleep")):
                 self.assertEqual(_pending_admission_owners(), {"queued-owner"})
             self.assertEqual(len(calls), 2)
+
+    def test_pending_admission_query_avoids_temp_btree_and_preserves_scope(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database = Path(directory) / "admission-v2.sqlite3"
+            _seed_pending_admission_fixture(database)
+            original_connect = sqlite3.connect
+            queries = []
+
+            class CapturedConnection:
+                def __init__(self, connection):
+                    self.connection = connection
+
+                def __enter__(self):
+                    return self
+
+                def __exit__(self, *_exc):
+                    self.connection.close()
+                    return False
+
+                def execute(self, query, parameters=()):
+                    queries.append((query, parameters))
+                    return self.connection.execute(query, parameters)
+
+            def connect(*args, **kwargs):
+                return CapturedConnection(original_connect(*args, **kwargs))
+
+            with (patch("runtime.loop.lm_loop.admission_root", return_value=Path(directory)),
+                  patch("runtime.loop.lm_loop.sqlite3.connect", side_effect=connect)):
+                self.assertEqual(
+                    _pending_admission_owners(),
+                    {"claimed-owner", "claimed-unknown-owner", "queued-owner"},
+                )
+
+            self.assertEqual(len(queries), 1)
+            connection = original_connect(database.as_uri() + "?mode=ro", uri=True)
+            try:
+                plan = connection.execute(
+                    "EXPLAIN QUERY PLAN " + queries[0][0], queries[0][1],
+                ).fetchall()
+            finally:
+                connection.close()
+            details = " ".join(str(row[3]) for row in plan)
+            self.assertIn("idx_occurrences_state_effect", details)
+            self.assertNotIn("TEMP B-TREE", details)
+            self.assertIn("UNION ALL", queries[0][0].upper())
+
+    def test_pending_admission_owner_query_is_indexed_and_preserves_scope(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database = Path(directory) / "admission-v2.sqlite3"
+            _seed_pending_admission_fixture(database)
+            original_connect = sqlite3.connect
+            queries = []
+
+            class CapturedConnection:
+                def __init__(self, connection):
+                    self.connection = connection
+
+                def __enter__(self):
+                    return self
+
+                def __exit__(self, *_exc):
+                    self.connection.close()
+                    return False
+
+                def execute(self, query, parameters=()):
+                    queries.append((query, parameters))
+                    return self.connection.execute(query, parameters)
+
+            def connect(*args, **kwargs):
+                return CapturedConnection(original_connect(*args, **kwargs))
+
+            expected = {
+                "claimed-owner": True,
+                "claimed-unknown-owner": True,
+                "queued-owner": True,
+                "queued-unknown-owner": False,
+                "orphan-owner": False,
+                "released-owner": False,
+            }
+            with (patch("runtime.loop.lm_loop.admission_root", return_value=Path(directory)),
+                  patch("runtime.loop.lm_loop.sqlite3.connect", side_effect=connect)):
+                for owner_id, pending in expected.items():
+                    self.assertEqual(lm_loop._owner_has_pending_admission(owner_id), pending)
+
+            self.assertTrue(queries)
+            connection = original_connect(database.as_uri() + "?mode=ro", uri=True)
+            try:
+                plan = connection.execute(
+                    "EXPLAIN QUERY PLAN " + queries[0][0], queries[0][1],
+                ).fetchall()
+            finally:
+                connection.close()
+            details = " ".join(str(row[3]) for row in plan)
+            self.assertIn("idx_occurrences_owner_state_effect", details)
+            self.assertIn("sqlite_autoindex_queue_1", details)
+            self.assertNotIn("TEMP B-TREE", details)
 
     def test_effect_fence_read_does_not_turn_sqlite_lock_into_empty_fence_set(self):
         with tempfile.TemporaryDirectory() as directory:
