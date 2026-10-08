@@ -4856,6 +4856,23 @@ Source / cursor follow-up (2026-10-08 12:52 JST): docs PR #7048はmerge commit `
 
 残TODO（順序）: 1) PR #7022のsource gateは完了。次cursorはLR-08容量設計のレビュー。設計対象は3 revenue loopと共有capacity owner、laneはbrowser/Mac・Luna agent・deterministic、占有・予約・queue齢・拒否quotaを可視化し、測定に基づくrevenue最低枠とfair queueを定義する。Hatchetは限定pilot候補、Temporalは比較対象。global capを測定なしに上げず、effect ledger/fenceを維持する。2) LR-08設計と並行し、Danaher Workday / DeepScale.Venturesのread-only official statusを照合する。verifiedまたは証明済みpre-effectとしてowner ledgerをreconcileし、未確定ならfence維持・同target再送禁止。3) 設計のレビュー後、承認された容量変更を専用branchで実装・CI・review・mergeする。all revenue source rowsのresource/admission/priority分類を明示し、reserved capacityとlane fairnessを反映する。4) owner-safe lifecycleでretired labelを解消し`lm-loop doctor`をPASS、fresh cleanup receiptでhost floor / guard inventoryを確認し、current reconcilerを自然終端まで待つ。5) release-cut時点のlatest main由来immutable releaseを作成し、shared lockがfreeでtarget fenceが読めた後にConnector / Job Hunter daily-health-inbox / Fundraiserをowner単位で適用する。loaded argv/SHAとadmission rowをreadbackし、Fundraiser active run中はapplyしない。6) 各loopを自然実行し、ConnectorはLuma + Calendar + Telegram receipt、Job HunterはWorkday official application state、FundraiserはGmail Sent/provider message ID + Telegram receiptを確認する。Danaher / DeepScale unknown fenceを保ち、各occurrenceのreplay-zeroを検証する。7) 3 loopのnatural/readback gateが全て閉じてから本laneを完了し、既存全社TODOのMX-01へ戻る。
 
+### 2026-10-08 13:24 JST — Danaher / DeepScale official readback update
+
+このread-only照合は12:48 production snapshotのcapacity/load値を更新しない。WorkdayとFundraiserの過去・現在の証拠を対象occurrenceへ結合できず、両target fenceはunknownのまま維持する。再送、state変更、fence解除、再認証は行っていない。
+
+- **Danaher / Genedata Business Account Manager:** 既存Gmailの公式「Application Status Update」は2026-09-08 16:14、message ID `1a07fde1ae4019c7`、thread `FMfcgzQhWLQBlZPDSRsXGttmwsjvlgzk`で不採用を示す。9月の応募受理メールも検索結果にある。不採用メールではrequisition IDを確認できず、応募受理メール本文のID有無は未確認。対象Workday occurrenceのlocal application IDは`b7c310a7b634528895b307a0995aee61da36ccfd2480df8b98844abfa7b8e1cb`、requisitionは`R1316263`。10月7日の`daily-20261007-234208`は`transport_failed`で、`Business Account Manager after:2026/10/06`のGmail検索は0件。Workday userHomeは`/login`へredirectし、個別のcandidate historyを読めなかった。従って過去の不採用は確認できても、R1316263または10月7日のeffectと結合できず、targetはunknownのまま。
+- **DeepScale.Ventures / Seed Lead:** 公式応募フォームはHTTP 200で一般公開入力画面を返すが、個別statusやreceiptは表示しない。既存Gmailの`deepscale`検索と`in:sent (deepscale OR "DeepScale.Ventures")`はいずれも0件。private `application-receipts.jsonl`のrun `20260929T043704Z-87970`には初期navigation HTTP 403・submitなしの記録がある一方、対応する`events.jsonl` occurrence `fundraiser:18d9b0b6311a2018-87933`はreceipt/readback nullの`effect_unknown`。これらのlocal記録と今回の公開フォーム/Gmail readbackだけでは、strict `verified_pre_effect`条件を満たさず、target fenceを解除しない。
+
+**更新後の残TODO（この順）:**
+
+1. **現在cursor — LR-08容量設計レビュー:** 8/8占有は03:47Z snapshotのみで、03:48Z以後の最新値はSQLite lockで未取得。これを「現在値」と扱わず、実行前にfresh admission/queue-age/resource snapshotを取る。Browser/Mac、Luna agent、deterministicごとの上限・revenue予約枠・fair queue・拒否理由counterを設計し、Hatchet pilotとTemporal案を比較してレビューを完了する。測定なしにglobal capを上げない。
+2. **並行するowner read-only reconcile:** DanaherはWorkdayの既存candidate historyをrequisition `R1316263`へ照合し、取得不能なら不足するprovider recordを記録してfenceを維持する。DeepScaleは上記run/occurrenceのreceiptとstrict pre-effect proofを既存ownerの条件で再評価し、証明できなければfenceを維持する。どちらも同targetを再送しない。
+3. LR-08設計のレビュー後、承認した最小容量変更だけを専用branchで実装し、focused acceptance・独立review・required CI後にmainへ統合する。全revenue owner/shared capacity ownerのresource/admission/priorityを明示し、effect fence・receipt・immutable releaseを保つ。
+4. owner-safe pathでretired installed labelを解消し`lm-loop doctor`をPASSさせる。fresh cleanup receiptとdisk readbackでhost floor / guard inventoryを確認し、release reconcilerの自然terminal、shared apply lock、対象ownerのtarget fenceをreadbackする。
+5. release-cut時点のlatest mainからimmutable releaseを作り、Connector、Job Hunter daily/health/inbox、Fundraiserを既存owner単位でapplyする。各ownerのloaded argv/SHA・admission rowを確認し、active runやunknown targetを横切らない。
+6. 各ownerを自然実行し、ConnectorはLuma registration + Google Calendar + Telegram receipt、Job HunterはWorkday official application state、Fundraiserは新規適格VC/AI founderへのGmail provider message ID + exact Sent + Telegram receiptを同一occurrenceで確認する。Job Hunter/Fundraiserはfenced targetを候補から除外し、unknown targetへ再送しない。
+7. 各occurrenceの公式結果とreplay-zeroを確認する。old Danaher/DeepScale targetは公式statusで閉じるかstrict verified-pre-effect proofが成立した場合だけ解決し、それ以外はfencedのまま未解決として明示する。3 loopの自然実行・公式readback・replay-zero gateが閉じたらこのlaneを完了し、統合SSOTの次cursor MX-01へ戻る。
+
 ### 2026-10-08 09:53 JST — Gig-only status refresh and current cursor
 
 このreadbackはGig laneの状態だけを更新し、全社§84-Aや他laneの順序を変えない。
