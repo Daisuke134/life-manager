@@ -125,6 +125,62 @@ def test_rebind_queued_owner_updates_admission_without_changing_sequence(tmp_pat
     assert occurrence[0]["base_priority"] == "revenue"
 
 
+def test_rebind_queued_owner_waits_through_long_reader_snapshot(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="4")
+    ticket, reason = admission.enqueue_durable(
+        "agent", "writer", admission_class="borrow", priority="support",
+        occurrence_id="writer:wake",
+    )
+    assert ticket is not None and reason in {"ready", "capacity_busy", "fifo_wait"}
+
+    reader = sqlite3.connect(tmp_path / "admission-v2.sqlite3", timeout=0.2)
+    finished = threading.Event()
+    result = {}
+
+    def rebind():
+        try:
+            result["value"] = admission.rebind_queued_owner(
+                "writer", resource_class="agent", admission_class="revenue",
+                priority="revenue",
+            )
+        except BaseException as error:  # pragma: no cover - assertion reports the error
+            result["error"] = error
+        finally:
+            finished.set()
+
+    reader.execute("BEGIN")
+    try:
+        assert reader.execute(
+            "SELECT admission_class FROM priorities WHERE owner_id='writer'"
+        ).fetchone() == ("borrow",)
+        worker = threading.Thread(target=rebind)
+        worker.start()
+        assert not finished.wait(timeout=6), "rebind failed before the reader released its snapshot"
+    finally:
+        reader.rollback()
+        reader.close()
+        if "worker" in locals():
+            worker.join(timeout=5)
+
+    assert not worker.is_alive()
+    assert "error" not in result
+    assert result["value"] == "rebound"
+    assert durable_rows(tmp_path, "priorities")[0]["admission_class"] == "revenue"
+
+
+def test_database_preserves_wal_mode_for_mixed_release_upgrade(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    database = tmp_path / "admission-v2.sqlite3"
+    with sqlite3.connect(database) as connection:
+        assert connection.execute("PRAGMA journal_mode=WAL").fetchone() == ("wal",)
+
+    with admission._database(database):
+        pass
+
+    with sqlite3.connect(database) as connection:
+        assert connection.execute("PRAGMA journal_mode").fetchone() == ("wal",)
+
+
 def test_rebind_queued_owner_discards_expired_reservation(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="4")
     ticket, reason = admission.enqueue_durable(
