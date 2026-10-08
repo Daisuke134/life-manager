@@ -4841,11 +4841,11 @@ flowchart LR
 
 過去のStorefront fence `hf-gig-storefront-direct:18d8d288748508e8-23902`は`effect_unknown`のまま。`storefront_pre_effect_reconcile.py --dry-run`は`HELD / stdout_runtime_binding_invalid`を返す。9/26のstdoutには厳密なruntime run/occurrence bindingがないため、時刻だけで結ばない。公開SKU 4244556の存在や現在の購入可能状態はこの古いeffectの証明ではない。再送・fence解除は禁止。
 
-**計測ゲートのsource finding:** `_measurement_feasible`は現状`_close_outcome`でprovider effect受理後にだけ呼ばれ、仮説選択・proposal・publish前の判定に使われていない。従って最低露出未達でも変更が公開され、その後`NO_OP / metric_unmeasurable_insufficient_exposure`で閉じる。次の任意のbody/package/image experiment前に既存feasibility算出をpreflightへ再利用し、公式baseline不明またはpolicy minimum未達ならproposal呼び出しとprovider effectを行わずnon-executableで記録する。`compliance_repair`と旧offerの正確性修正はこの実験gateの対象外。
+**計測ゲートのsource修正（branch `fix/gig-storefront-exposure-preflight-20261009`, commit `072d56517b`, pushed / main未統合）:** `_measurement_feasible`は以前`_close_outcome`でprovider effect受理後にしか呼ばれず、proposal/publish前に使われていなかった。修正は既存feasibilityを`_prepare_next_hypothesis`へ再利用し、official baseline unknownまたはpolicy minimum未達ならproposalを作らず`executable=false`にする。compliance修正とstale offer訂正は露出判定だけを免除し、effect fenceは解除しない。検証: `python3 -m pytest -q skills/earn/gig/tests/test_storefront_fence.py skills/earn/gig/tests/test_storefront_metric_learning.py skills/earn/gig/tests/test_storefront_compliance_repair.py skills/earn/gig/tests/test_storefront_offer_refresh.py skills/earn/gig/tests/test_storefront_direct.py` 92/92、`./bin/lm-loop-contract`（18 catalog loops / 187 registry jobs / 0 errors）、`bash scripts/verify-source-boundary.sh`、`py_compile`、`git diff --check` PASS。PR/merge/release前なのでproduction未反映。
 
 **残TODO（完了まで、この順）:**
 
-1. **並行gate — source exposure preflightと外部capacity:** 私のsource範囲は`skills/earn/gig/scripts/storefront_direct.py`と`skills/earn/gig/tests/test_storefront_fence.py`。既存`_measurement_feasible`をcandidateがproposalへ進む前に呼び、official viewsがunknownまたは実験窓でpolicy minimum（100 views）未達ならtyped non-executable no-opにする。十分なviewsなら実験を進め、`compliance_repair`とstale `offer_digest`の正確性修正は露出判定だけを免除する。これらの例外も旧Storefront effect fenceを解除せず、TODO 4のexact reconciliation前はprovider mutationを行わない。RED→GREEN testでlow exposure/unknownは止まり、eligible exposureと必須修正は通ることを確認する。独立してR17 disk ownerの自然receiptで`free_after >= 2 GiB`・`errors=0`・`protected_deletions=0`と同時刻`df`を確認し、release-reconcilerの外部labelをowner経由で解消して`lm-loop doctor --json`をPASSさせる。別ownerのworktree・stateは編集しない。
+1. **並行gate — source acceptanceと外部capacity:** source commit `072d56517b`はremote branchへpush済み。PRを作成し、同一headのfresh read-only review・required CI・mergeを閉じる。productionにはまだ未反映。独立してR17 disk ownerの自然receiptで`free_after >= 2 GiB`・`errors=0`・`protected_deletions=0`と同時刻`df`を確認し、release-reconcilerの外部labelをowner経由で解消して`lm-loop doctor --json`をPASSさせる。別ownerのworktree・stateは編集しない。
 2. **main由来release:** main `1fe7db3b634bb910187b846c7246aa7fe0dcba82`以降とexposure preflight fixを含むimmutable releaseを既存natural reconcilerに渡し、`RELEASE.json`・Storefront/Paidのloaded SHA/argv/admissionを確認する。production source完了はloaded SHAにPR #7169・#7177とpreflight fixが含まれてから。
 3. **Coconala Paid obligation:** order `18180857`のfresh official order/talkroom readbackをownerが実行する。今も未完了の場合だけ必要なrevision/formal deliveryを一度行い、buyer acceptance・settlement/payout・replay-zeroを結ぶ。古いsnapshotから現在の待ち状態を推測しない。
 4. **旧Storefront fence:** `18d8d288748508e8-23902`を、同一effectの公式listing/order履歴または受理可能なoccurrence-bound pre-effect receiptで照合する。現在はdry-runがbinding不足で保留。証拠が取れなければfenceを保持し、再公開しない。
@@ -4856,7 +4856,7 @@ flowchart LR
 9. **Storefront economics:** listingごとのunique paid order・repeat・refund・platform fee・payout・実作業時間/実費を同一期間で結び、settled net contributionが正で再現したか報告する。掲載・seller累計・grossを利益/MRRにしない。
 10. **最後 — SelfBuild:** 収益loopとproduct storefrontの上記done条件を閉じた後だけ、self-build/self-healingを再開する。
 
-**現在cursor:** 1 — exposure preflight source fixと外部host capacity/doctor recoveryを並行して完了する。source fixは完了済みだが、production storefrontは未復旧・旧effect fence保持・SKU別売上未確認。
+**現在cursor:** 1 — exposure preflight branchのcommit/PR/exact-head review+CIと、別ownerの2 GiB capacity/doctor recoveryを並行する。source fixはlocal acceptance済みだが未merge/未load。production storefrontは旧effect fence保持・SKU別売上未確認。
 
 ### 2026-10-08 08:35 JST — Mobile post-merge runtime cursor
 
