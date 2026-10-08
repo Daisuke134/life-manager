@@ -4528,7 +4528,7 @@ L9-11 Self-BuildはこのGig laneの全項目完了後、既存の全社順序�
 
 旧順序=`Coconala Paid owner/cleanup terminal → inbox join → existing contract → Storefront → Apply/Negotiation → other platforms → economics → SelfBuild`。新順序は最初の2 gateを並列にし、その後のplatform順序は維持する。理由: senderのfresh adversarial reviewでfalse-sent/誤recipient送信につながるP1が再現し、同時に空き容量とdisk-cleanup ownerが未解決。古いpartial sourceを使わず、shared capacityを迂回せず、既存契約義務からStorefrontへ進む。現在cursorは1A/1B。
 
-1. **並列1A — sender source安全修正:** branch `fix/tiktok-message-hydration-20261008`の最後のremote commit `10ba32a170`では、Node fixtureが「failed messageでもsent」「別recipient/非公式frameの同文をsent」「PRE_ENTER後のrecipient変更でEnter=1」のP1を再現した。source branchはlatest main `c65449ef8c`より13 commit遅れ、local worktreeには未検証・未pushの2-file変更が残る。次はそのlocal diffを監査し、最新main由来の専用source branchに必要最小修正だけ載せる。message status/recipient/frame検査を`sent` ledger記録より先に行い、Enter keydown時にも同じdocument内のone-shot guardを設ける。Node fixture・focused tests・fresh adversarial review・PR required CIがPASSするまでmerge/releaseしない。
+1. **並列1A — sender source安全修正:** branch `fix/tiktok-message-hydration-20261008`のremote commit `10ba32a170`では、Node fixtureが「failed messageでもsent」「別recipient/非公式frameの同文をsent」「PRE_ENTER後のrecipient変更でEnter=1」のP1を再現した。latest `origin/main=b418c917b1`に対しbranchは17 commits behind（11 commits unique）で、local worktreeには未検証・未pushの2-file変更が残る。次はlocal diffを監査し、最新main由来の専用source branchに必要最小修正だけ載せる。message status/recipient/frame検査を`sent` ledger記録より先に行い、Enter keydown時にも同じdocument内のone-shot guardを設ける。Node fixture・focused tests・fresh adversarial review・PR required CIがPASSするまでmerge/releaseしない。
 2. **並列1B — shared capacity:** disk-cleanup ownerが自分のactive lease内で`entrypoint_exit_1 / reconcile_owner`を診断・修復するのを待ち、安全なcleanup receiptと2 GiB以上の安定したfree spaceをreadbackする。手動削除・unlock・restart・floor迂回はしない。
 3. **両gate後 — Coconala Paid owner:** natural terminalとproject lock解放を確認し、同一occurrenceのofficial result/provider receiptを読む。`pass`、local ledger、Google Sheetの日付は単独で送信証明にしない。
 4. **Coconala inbox join:** 固定待機のlocal readerをconversation-list-ready＋複数回安定までbounded pollingへ直し、公式inboxとfull Sheet rangeをreadbackする。recipient→exact official send receipt→inbound replyを結ぶ。joinが完全でない間、送信数/返信数を断定・再送しない。
@@ -4678,13 +4678,12 @@ PR gate update (2026-10-08): latest rebase CI passes Loop control, Python, OSS b
 
 **現在cursor:** item 1。PR #7003のsource acceptanceはPASS、最新headのGitHub checksは実行中（Startup context driftはbase mainでも再現する別lane failure）。TikTok productionはdisk floor未達で停止中。最新のPostiz実績は10/07が21/48、10/08は09:53まで1件のみでAnicca iOS 0件。画像2 profileのnative-carousel ledgerは09-28で止まっている。slideshow形式とviews/engagementはPostiz GETだけでは確認できない。
 
-### 2026-10-08 10:02 JST — Gig status-only refresh after main advanced
+### 2026-10-08 10:08 JST — Gig status refresh after PR #7004
 
-このreadbackは09:53 JSTのGig runtime snapshotを更新し、TODO順は変更しない。
+- PR #7004のGig TODO/spec更新はmainへmerge済み（merge commit `b418c917b17de171431655f58cb0b4f6be8d69a4`）。最新版のatomic TODOは上記`Remaining atomic Gig TODO`。
+- 01:08Zのfresh Gig runtimeは22 job（Coconala 7/Lancers 7/CrowdWorks 5/Mercor 3）、`loaded-idle=19 / loaded-running=3`、receipt 0。idle errorは`disk_headroom_low=18 / resource_capacity_busy=1`。22件はloop job数でagent人数ではなく、process stateはprovider work・売上の証拠ではない。
+- 01:08Zの`df -k /`は`1,688,688 KiB` free、2 GiB floorより408,464 KiB不足。cleanup ownerのlatest occurrence `life-manager-disk-cleanup:18dc685241d68e90-80610`は`entrypoint_exit_1 / reconcile_owner`。別ownerのactive leaseを尊重し、cleanup stateやsourceを変更しない。
+- Sender source branch remote head `10ba32a170`はmain `b418c917b1`より17 commits behind。local source worktreeのtransport/testに未commit変更があり、fresh reviewのP1 findingsは未解消・未再検証・未merge。実装対象は上記item 1A。
+- Coconala order/threadの最後のofficial readbackは10/7 snapshotで鮮度切れ。fresh official order/inbox確認なしにbuyer待ち・納品済み・収益済みを主張しない。
 
-- 最新mainは`4056d35903`。Gig `lm-loop status all`（01:02Z直前）は22 job（Coconala 7/Lancers 7/CrowdWorks 5/Mercor 3）、`loaded-idle=19 / loaded-running=3`、receipt 0、idle errorsは`disk_headroom_low=18 / resource_capacity_busy=1`。job数は14–16のagent session数ではなく、loaded状態は稼働・売上の証拠でもない。
-- 01:02Zの`df -k /`は`1,678,324 KiB` freeで2 GiB floor未満。cleanup ownerの01:00Z付近のterminalは`entrypoint_exit_1 / reconcile_owner`。別ownerのlease中なのでstate/sourceを変更しない。
-- sender source branchのremote headは`10ba32a170`、latest mainより14 commits behind。fresh reviewerが3つのP1を再現済み。worktreeにはtransport/testの未commit編集が残るが、再テスト・最新main同期・reviewは未完である。
-- Coconala公式talkroomの最後の記録は10/7のstale snapshot。現在のbuyer状態、納品、受入、settlementはunknownで、再開時に最新official threadを読む。
-
-**現在cursor:** Remaining atomic Gig TODOのparallel gate 1A/1B。両方の完了後にCoconala Paid owner/threadをfresh readbackし、既存契約、Storefront、残platformを既記載順で閉じる。Lancers rows25–27はskip、Answersは対象外、SelfBuildは最後。
+**現在cursor:** parallel gate 1A（sender安全修正）と1B（cleanup safe receipt＋安定2 GiB超）を完了する。両gate後にCoconala Paid owner/threadと既存契約を確認し、その後Storefront→Coconala Apply/Negotiation→CrowdWorks→Mercor/Freelancer/Upwork/Job Hunter→契約別収益確認→SelfBuild最後の順で進む。Lancers rows25–27はskip、Answersは対象外。
