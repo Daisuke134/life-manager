@@ -1320,12 +1320,19 @@ def _b7_window(day: date, snapshot_at: str | None, trailing_start: str | None,
 
 
 def _b7_table(day: date, projection: dict, *, snapshot_at: str, trailing_start: str) -> dict:
+    from skills.cfo.adapters import google_cost_table
+
+    billing_directory_value = os.environ.get("LM_CFO_GOOGLE_BILLING_DIR")
+    billing_directory = Path(billing_directory_value) if billing_directory_value else (
+        STATE / "life-manager-cfo-hourly" / "evidence" / "google-cloud-billing"
+    )
     return {
         "reporting_date": day.isoformat(),
         "timezone": "Asia/Tokyo",
         "snapshot_at": projection["snapshot_at"],
         "trailing_start": projection["trailing_start"],
         "economic_attribution": projection,
+        "google_billed_expenses": google_cost_table.load_directory(billing_directory),
     }
 
 
