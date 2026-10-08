@@ -5,8 +5,16 @@ import json
 from types import SimpleNamespace
 from pathlib import Path
 
+import pytest
+
 
 SCRIPT = Path(__file__).parents[1] / "scripts" / "inventory_status.py"
+
+
+@pytest.fixture(autouse=True)
+def _isolate_draft_attempts(monkeypatch, tmp_path):
+    # main() records draft attempts; never let a test write the production counter.
+    monkeypatch.setenv("CAPAFY_DRAFT_ATTEMPTS_PATH", str(tmp_path / "draft-attempts.json"))
 
 
 def load_module():
@@ -702,15 +710,39 @@ def test_profit_update_outranks_draft_resume_when_a_slot_is_free() -> None:
     assert module.allocate_action(full, [], [], resumable_drafts=[draft], updates=[update])["action"] == "update_existing"
 
 
-def test_fresh_skill_outranks_draft_resume_when_a_slot_is_free() -> None:
+def test_unfinished_draft_is_finished_before_a_new_skill_is_created() -> None:
+    """Dais 2026-10-08: with no cap, "a slot is free" is always true, so the old rule (fresh outranks
+    draft) meant a draft that already passed CP1/CP2 was never resumed and every pass started a new
+    one from scratch (8580209829 stalled at CP3 while three newer drafts were created)."""
     module = load_module()
     fresh = {"feature": "catalog:ad-hook-lab", "title": "Ad Hook Lab", "demand_rank": 3}
     draft = {"agent_id": "9466718786", "title": "Shorts Hook Lab"}
+    stub = {"agent_id": "4741926159", "title": "Delivery Commitment Evidence Ledger", "feature": "catalog:x"}
     free = module.normalize_agents([agent("1", "under_review")])
     full = module.normalize_agents([agent(str(i), "under_review") for i in range(5)])
 
-    assert module.allocate_action(free, [], [fresh], resumable_drafts=[draft])["action"] == "create_fresh"
+    assert module.allocate_action(free, [], [fresh], resumable_drafts=[draft])["action"] == "resume_draft"
     assert module.allocate_action(full, [], [fresh], resumable_drafts=[draft])["action"] == "resume_draft"
+    assert module.allocate_action(free, [], [fresh], stub_retries=[stub])["action"] == "retry_existing"
+    assert module.allocate_action(free, [], [fresh])["action"] == "create_fresh"
+
+
+def test_a_draft_is_attempted_at_most_three_times_then_new_skills_proceed(monkeypatch, tmp_path, capsys) -> None:
+    module = load_module()
+    monkeypatch.setattr(module, "FEATURES", str(tmp_path / "no-legacy"))
+    monkeypatch.setattr(module, "CATALOG", str(Path(__file__).parents[2] / "capafy/catalog"))
+    monkeypatch.setattr(module, "RETIRED", str(tmp_path / "no-retired.json"))
+    stub_name = "Earnings Call Brief — Pasted Results to Questions" + module.PLACEHOLDER_SUFFIX
+    monkeypatch.setattr(module, "server_agents", lambda: [agent("4973250899", "draft", name=stub_name)])
+
+    seen = []
+    for _ in range(5):
+        module.main()
+        decision = json.loads(capsys.readouterr().out.splitlines()[-1])
+        seen.append((decision["action"], (decision.get("item") or {}).get("agent_id")))
+
+    assert seen[:3] == [("retry_existing", "4973250899")] * 3, seen
+    assert all(action == "create_fresh" for action, _ in seen[3:]), seen
 
 
 def test_allocator_retries_lm_generated_stub_draft_at_full_cap() -> None:

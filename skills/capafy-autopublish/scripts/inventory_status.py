@@ -242,6 +242,38 @@ def load_frozen_ids(path=None):
         return set()
 
 
+MAX_DRAFT_ATTEMPTS = 3
+
+
+def _draft_attempts_path():
+    return os.environ.get("CAPAFY_DRAFT_ATTEMPTS_PATH") or os.path.join(
+        os.path.expanduser("~/.local/state/life-manager/state/capafy-autopublish"), "draft-attempts.json")
+
+
+def load_draft_attempts():
+    try:
+        data = json.load(open(_draft_attempts_path(), encoding="utf-8"))
+    except Exception:
+        return {}
+    return {str(k): int(v) for k, v in data.items() if isinstance(v, int)} if isinstance(data, dict) else {}
+
+
+def record_draft_attempt(agent_id, attempts):
+    """Count one selection of an unfinished draft; after MAX_DRAFT_ATTEMPTS it is left alone."""
+    if not agent_id:
+        return
+    attempts[agent_id] = attempts.get(agent_id, 0) + 1
+    path = _draft_attempts_path()
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as handle:
+            json.dump(attempts, handle, sort_keys=True)
+        os.replace(tmp, path)
+    except OSError:
+        pass
+
+
 def drop_profitable_updates(updates, path=None, frozen_path=None):
     """Dais 2026-10-07: never ship a new version of an Agent that is selling at a
     profit (30d orders > 0 and actual 30d profit > 0). The 9/29 and 10/06 version
@@ -347,10 +379,36 @@ def allocate_action(normalized, retries, publishable, resumable_drafts=None, rec
             "action_key": f"update:{item['agent_id']}:{request['from_version_id']}",
             "item": item,
         }
-    # With a free review slot, shipping a fresh Skill outranks resuming a draft:
-    # on 2026-09-28 one draft (Shorts Hook Lab) was re-selected wake after wake
-    # while Ad Hook Lab and the rest of the ranked queue could not ship. Drafts
-    # still resume when the five slots are full.
+    # Finish what is already in flight before creating something new. The old rule (fresh
+    # outranks draft while a slot is free) existed because one broken draft was re-selected wake
+    # after wake (2026-09-28, Shorts Hook Lab); main() now caps every draft at
+    # MAX_DRAFT_ATTEMPTS selections, so a draft cannot starve the queue. With the unlisted cap
+    # gone "a slot is free" is always true, so the old rule meant drafts that had already passed
+    # CP1/CP2 were never resumed and every pass started a new one from scratch (2026-10-08).
+    if resumable_drafts:
+        item = min(
+            resumable_drafts,
+            key=lambda row: (str(row.get("agent_id") or ""), str(row.get("title") or "")),
+        )
+        return {
+            "verdict": "PUBLISHABLE",
+            "reason": "resume exact-title repository draft",
+            "action": "resume_draft",
+            "action_key": f"resume:{item['agent_id']}",
+            "item": item,
+        }
+    if stub_retries:
+        item = min(
+            stub_retries,
+            key=lambda row: (str(row.get("agent_id") or ""), str(row.get("title") or "")),
+        )
+        return {
+            "verdict": "PUBLISHABLE",
+            "reason": "retry Capafy AI-generator stub draft on the same agent_id",
+            "action": "retry_existing",
+            "action_key": f"retry:{item['agent_id']}",
+            "item": item,
+        }
     if publishable and occupied < CAP and not ready_to_publish and not recoveries and not retries:
         item = min(publishable, key=lambda row: (
             row.get("demand_rank", UNRANKED_DEMAND), str(row.get("feature") or ""), str(row.get("title") or "")))
@@ -748,10 +806,15 @@ def main():
     # Dais 2026-10-08: the factory ships NEW Agents only. Agents already submitted --
     # selling or not, rejected or delisted -- are never updated, retried or recovered.
     # Kept: fresh creates, never-submitted drafts, and approved-but-not-yet-online publishes.
+    attempts = load_draft_attempts()
+    resumable_drafts = [d for d in resumable_drafts if attempts.get(str(d["agent_id"]), 0) < MAX_DRAFT_ATTEMPTS]
+    stub_retry_items = [d for d in stub_retry_items if attempts.get(str(d["agent_id"]), 0) < MAX_DRAFT_ATTEMPTS]
     v = allocate_action(
         normalized, [], fresh_items, resumable_drafts, [], ready_publish_items,
         updates=[], stub_retries=stub_retry_items, revenue_by_agent=load_revenue_by_agent(),
     )
+    if v.get("action") in ("resume_draft", "retry_existing"):
+        record_draft_attempt(str((v.get("item") or {}).get("agent_id") or ""), attempts)
 
     v.update({
         "online_count": len(online_titles),
