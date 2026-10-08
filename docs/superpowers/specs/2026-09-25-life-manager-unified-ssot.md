@@ -5318,19 +5318,19 @@ PR #7030の全required checksはhead `99648f4f` / base `a7899e37`でPASSした�
 
 この節が先行するCFO状態メモを更新する。実行順は **A5 → A6 → A8 → A9 → A10** のまま。A7の個人MoneytreeとA3/A4のCloud・geocoding費用削減はDaisの指示で後順位とし、このCFO業務のblockerにしない。CFO設計詳細は `docs/superpowers/specs/2026-10-02-life-manager-cfo-cost-observability-design.md` を参照し、TODO/順序/状態の正本は本SSOTだけに置く。
 
-14:58/15:05/15:13/15:16/15:19/15:26/15:27/15:34 JST以前の詳細readbackとTODOは直下の15:35 JST状態に置き換えた。過去の証拠履歴はGitで保持する。
+14:58/15:05/15:13/15:16/15:19/15:26/15:27/15:34/15:35 JST以前の詳細readbackとTODOは直下の15:38 JST状態に置き換えた。過去の証拠履歴はGitで保持する。
 
-**最新readback（2026-10-08 15:35 JST。以下が上記の過去状態を置き換える）:**
+**最新readback（2026-10-08 15:38 JST。以下が上記の過去状態を置き換える）:**
 
-- latest `origin/main`は`64db1c2e22368f00591672495ccc239549e824e8`。A5 branch HEAD `4145c843116f21272b8f4943f71830b0c3bf4b57`にはこのmainまでmerge・push済み。`/Users/anicca/loops/current`はrelease `20261008T152333-71a5f878`（SHA `71a5f878acce2d0418812321a8ef35438859cc9b`）を指す。
-- release reconcilerのrunは`620d941e`上の`18dc78bd552580c0-11196`が15:15:14、`68b03657`上の`18dc7959bdb11c70-88792`が15:22:24、`55546755`上の`18dc79bd88c7c888-37835`が15:25:33に、それぞれ`entrypoint_exit_143` / exit143で終了。3件ともdirect signal sourceは未確定。latest release `71a5f878`上のrun `18dc79e943223940-84853`は15:26:34 JSTに開始し、15:35 JST時点でPID 84853がrunning。owner logは31 rowsで最後は`line-sticker-distribute`、CFO rowなし、別owner rc=1が2件。CFO ownerはSHA `8f342d8d` / `loaded-idle`のまま。fleet stateもSHA `8f342d8d`・13:44:07 JST・6 changed / 177 skipped / 4 errorsの古いsnapshot。
+- latest `origin/main`は`64db1c2e22368f00591672495ccc239549e824e8`。A5 branch HEAD `69ecfc2ff76ca7c1a84071ed606f987df608b450`にはこのmainまでmerge・push済み。`/Users/anicca/loops/current`はrelease `20261008T152333-71a5f878`（SHA `71a5f878acce2d0418812321a8ef35438859cc9b`）を指す。
+- release reconcilerのrunは`620d941e`上の`18dc78bd552580c0-11196`が15:15:14、`68b03657`上の`18dc7959bdb11c70-88792`が15:22:24、`55546755`上の`18dc79bd88c7c888-37835`が15:25:33に、それぞれ`entrypoint_exit_143` / exit143で終了。3件ともdirect signal sourceは未確定。latest release `71a5f878`上のrun `18dc79e943223940-84853`は15:26:34 JST開始、15:38 JST readback時点でPID 84853がrunning。owner logは52 rows、最後は`the402-provider`、CFO rowなし、別owner rc=1が2件。CFO ownerはSHA `8f342d8d` / `loaded-idle`のまま。fleet stateもSHA `8f342d8d`・13:44:07 JST・6 changed / 177 skipped / 4 errorsの古いsnapshot。
 - CFO natural occurrence `18dc787a14117b40-77083`は15:00:53 JSTにreport `pass`（release `8f342d8d`）。同じoccurrenceのsidecarは15:00:19 JSTに`status=sent`、provider message ID `105259`、report snapshotは15:00:25 JST。ただしruntime eventは`effect_status=unknown`で`provider_receipt_id`と`official_readback_ref`がnull。送信sidecarだけでruntime effectをverifiedにしない。再送・手動resolveはしない。
 - B7 snapshot `2026-10-08T06:00:25.141035Z`: historical revenue/netは18 loopsすべてunknown（173 gaps）、trailing revenue/cost/netは18 loopsすべてunknown（168 gaps）、company MRRはunknown（26 gaps）。`mobile-apps` MRR USD 20.34のみverified。Google Cloud 2026-09 bill JPY 27,889 / 41 SKU rowsはbilled額としてverifiedだがcash-paidはunknown、loop配賦はunattributed。全社の確定revenue/expense/netはまだ出せない。
-- PR #6827 remote headは`4145c843116f21272b8f4943f71830b0c3bf4b57` / base `64db1c2e22368f00591672495ccc239549e824e8`、draft。required checksは全件PASS。CodeRabbitはdraftのためreview skip。fresh whole-branch reviewも未完了。
-- main `64db1c2e`同期後のA5 SQL/API/UI/adapter testsは127/127、privacy `api=177/browser=63/recipes=19/channels=9` PASS、OSS verifier/self-contained tests 12/12 PASS、registry fixture PASS、`./bin/lm-loop-contract` PASS（18 catalog loops / 187 registry jobs / 112 mapped）。full runtime suiteはpush済みhead `4145c843`で791/791 PASS。fresh whole-branch reviewが未完了。
+- PR #6827 remote headは`69ecfc2ff76ca7c1a84071ed606f987df608b450` / base `64db1c2e22368f00591672495ccc239549e824e8`、draft。最新readbackで5 checks pending（Loop control、Python syntax/unittest、Travel contracts、TruffleHog、gitleaks）、他はPASS。CodeRabbitはdraftのためreview skip。fresh whole-branch reviewも未完了。
+- main `64db1c2e`同期後のA5 SQL/API/UI/adapter testsは127/127、privacy `api=177/browser=63/recipes=19/channels=9` PASS、OSS verifier/self-contained tests 12/12 PASS、registry fixture PASS、`./bin/lm-loop-contract` PASS（18 catalog loops / 187 registry jobs / 112 mapped）。full runtime suiteはpush済みcode head `4145c843`で791/791 PASS、status-only head `69ecfc2f`ではpressure tests 7/7 PASS。fresh whole-branch reviewが未完了。
 - CFO receipt専用branch `fix/cfo-telegram-runtime-receipt-20261007`（commit `b63e42f27f`）はopen PRなし。managed leaseは`2026-10-08T14:08:14Z`まで有効。owner/leaseのreadbackなしにそのworktreeを編集しない。
 
-**完了:** main `64db1c2e`まで同期し、OSS verifier/self-contained tests 12/12、A5 focused tests 127/127、privacy、registry fixture、loop contractはPASS。push済みhead `4145c843`でruntime 791/791 PASS。
+**完了:** main `64db1c2e`まで同期し、OSS verifier/self-contained tests 12/12、A5 focused tests 127/127、privacy、registry fixture、loop contractはPASS。push済みcode head `4145c843`でruntime 791/791、status-only head `69ecfc2f`でpressure tests 7/7 PASS。
 
 **残りatomic TODO（この順）:**
 
@@ -5344,12 +5344,15 @@ PR #7030の全required checksはhead `99648f4f` / base `a7899e37`でPASSした�
 8. A9でAsia/Tokyo daily/MTD/trailingをsource期間に揃え、agent/loop/platform別と全社revenue・expense・net・MRR・freshness・coverageを既存CLI/panelへ表示する。
 9. A10で7日連続natural report、official readback、全loop coverage、period一致、duplicate/replay zeroを確認する。それまでは全社CFO完了やverified $10k MRRを主張しない。
 
-**現在cursor:** PR #6827 fresh review / ready gateとproduction reconciler run `18dc79e943223940-84853`のnatural terminal readback。branch `feat/cfo-a5-cost-visibility-20261007` HEAD `4145c843`、latest main `64db1c2e`はmerge済み。Moneytree/A3/A4は明示どおり後順位で、このCFO cursorのblockerにしない。
+**現在cursor:** PR #6827のlatest-head CI/review gateとproduction reconciler run `18dc79e943223940-84853`のnatural terminal readback。branch `feat/cfo-a5-cost-visibility-20261007` remote head `69ecfc2f`、latest main `64db1c2e`はmerge済み。ここに記録した状態更新はdocs-onlyで、push後にCIを再readbackする。Moneytree/A3/A4は明示どおり後順位で、このCFO cursorのblockerにしない。
 
 **Blockerと解消方法:**
 
-- **PR gate:**head `4145c843`のrequired checksは全件PASS。draftのためCodeRabbit reviewはskip。fresh reviewとdocumentation-only update後のCI readbackを済ませてからready/mergeする。
+15:38 JST production readback: `18dc79e943223940-84853` on release `71a5f878` is still running. Its owner log has 52 rows, last `the402-provider`, no CFO row, and two unrelated owner failures. Wait for this natural run's terminal and read its CFO apply row; do not restart it.
+
+- **PR gate:**remote head `69ecfc2f`では5 checks pending（Loop control、Python syntax/unittest、Travel contracts、TruffleHog、gitleaks）、他はPASS。CodeRabbitはdraftのためreview skip。docs-only updateをpushした後のCIとfresh reviewを通してからready/mergeする。
 - **Production rollout:**`620d941e`、`68b03657`、`55546755`のreconciler runは15:15–15:25 JSTに連続してexit143。release切替との時間相関はあるがsignal sourceの直接証拠はない。latest `71a5f878` run `18dc79e943223940-84853`は15:26 JST開始、15:35 JST時点でrunning。CFO ownerは`8f342d8d`、last natural reportは15:00。apply-owner logは31 rowsで最後は`line-sticker-distribute`、CFO rowなし、別owner failures 2件。次のterminalでrun artifact、stderr/supervisor signal、CFO owner apply rowを照合し、exit143ならその原因だけを修正する。手動restartはしない。
+15:38 JST時点の最新状態（上の古いproduction bulletを置き換える）: `71a5f878`上のrun `18dc79e943223940-84853`は稼働中。apply-owner logは52 rowsでCFO rowなし、別ownerにrc=1が2件。
 - **Report receipt:**15:00 sidecarは同一occurrenceの送信を示すが、runtime eventはreceipt/readbackなしのunknown。active lease中のreceipt branchでprovider IDと公式証拠をjoinし、再送しない。
 - **Company economics:**確認できているのはmobile-apps MRR USD 20.34と2026-09 Google billed total JPY 27,889のみ。全社revenue/net/MRRはunknownで、Googleのcash settlementとloop配賦も未確認。A9集計前にA6/A8の公式receipt coverageを埋める。Moneytreeは後順位。
 ### 2026-10-08 12:19 JST — eBook source merge readback and production cursor
