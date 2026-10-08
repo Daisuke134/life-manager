@@ -6504,3 +6504,118 @@ The next cursor is item 1 commit/push. No Dais manual action is currently requir
 6. Add the existing Stripe Letter price to the product/attribution registry and connect the eBook audience to its recurring offer; verify paid Stripe orders ↔ delivered PDFs separately from active Letter subscriptions. `$10K MRR` remains a target, not a verified result.
 
 **現在cursor:** `natural terminal of 18dc8612b9964870-7017 → exact successful handoff receipt + loaded SHA/argv → reconcile the English video and unknown effect → bind the exact Instagram account → publish once/read back → restore 3/day → map the existing $9.99 Letter subscription into the marketing funnel → verify paid order+PDF and active subscription MRR`. No Capafy action, forced restart, or replay.
+
+### 2026-10-08 19:42 JST — replace stale-helper wait with loaded-idle-only apply
+
+- The old helper from release `88dfdaf4` has now failed on the exact case fixed in main: `state=not running`, PID absent, receipt `old_service_state_unknown`, target `88dfdaf4`. `~/loops/current` now points to immutable release `20261008T193926-d35aa4bc`, whose `reconcile-agent-self-handoff.sh` contains the two-consecutive-`not running` counter. The release reconciler is loaded on old SHA `3c87f64f` but currently `not running` with no PID. Read-only `launchctl-safe preflight` passed (`mutation_allowed=true`, UID/Directory Services/Aqua/GUI readback all matched).
+- **Order change:** previous order was to wait for another natural old-helper attempt. New order is a single-owner `LIFE_MANAGER_APPLY_TARGET=life-manager-release-reconciler lm-loop apply --loaded-idle-only` against the current immutable release, after a fresh `launchctl-safe preflight` and fresh no-PID state read. Reason: the old helper from `88dfdaf4` demonstrably cannot process `not running`; current main now has the fix, and the target owner is idle. `--loaded-idle-only` skips if it becomes running before apply. Do not use raw `launchctl`, stop, or restart.
+- PR #7115 is merged to main. The source fix passed 12/12 focused tests, all required CI, and fresh review. This apply is its remaining runtime promotion step.
+
+**Atomic TODO (eBook only):**
+
+1. Re-read target state and run `launchctl-safe preflight`; if the reconciler has no PID and all checks pass, apply only `life-manager-release-reconciler` from immutable release `d35aa4bc` with `--loaded-idle-only`. If it reports `loaded-running`/skip, do not retry with a broader command.
+2. Confirm Launchd loaded SHA and argv equal the current immutable release; then read the new handoff receipt and next natural terminal event. Do not stop/restart.
+3. Reconcile the Oct 8 HeyGen effect; identify whether A12/A13/A14 or another exact MP4 is intended; confirm it was not previously posted.
+4. Connect the exact English Monk Instagram account. Current Postiz has no matching integration and public `@monk_anicca` is unavailable; do not substitute the iOS `@anicca.en` or TikTok.
+5. Publish one verified MP4 and confirm official `PUBLISHED` receipt/URL; then restore three daily slots.
+6. Map the existing `$9.99/month` Daily Anicca Letter Stripe price into the product/attribution registry. Current active subscriptions are `0`; 1,002 subscribers are needed for `$10K` gross MRR before fees. The `$10.99` eBook checkout is a one-time sale.
+
+**現在cursor:** `fresh no-PID owner readback + preflight → one-target loaded-idle-only apply to d35aa4bc → loaded SHA/argv and receipt readback → reconcile video and unknown effect → bind the exact Instagram account → publish/read back → restore 3/day → register and measure the $9.99 Letter MRR funnel`. No Capafy action, raw launchctl, forced restart, or effect replay.
+
+### 2026-10-08 19:59 JST — stale helper prevents the next self-handoff
+
+- Targeted apply on 19:46 JST returned `changed=true` for `life-manager-release-reconciler`, loading immutable release `d35aa4bc` with exact argv. Its natural wake completed; `~/loops/current` advanced to `20261008T195517-b2bcba46`.
+- Fresh `launchctl-safe preflight` at 19:59 JST passes (`mutation_allowed=true`). The main reconciler is running on PID `34577` with loaded SHA `d35aa4bc`; the self-handoff label is `not running`/no PID but still points to old helper path `88dfdaf4`. Its last receipt remains `old_service_state_unknown` for `state=not running`.
+- Source inspection shows `schedule_self_handoff()` returns “helper already loaded” whenever that label exists, without checking whether its `ProgramArguments` point to the current release. Thus the stale inactive helper prevents the fixed d35aa/b2bc code from scheduling a fresh helper. Do not boot it out while the main owner is running.
+- **Order change:** previous order was to wait for the loaded d35aa owner to self-handoff naturally. New order is: wait for its natural terminal; with fresh preflight and no PID for both labels, acquire the existing per-label apply lock, boot out only the stale inactive helper via `launchctl-safe`, confirm helper absence, then apply latest immutable current release `b2bcba46` to the owner with `--loaded-idle-only`. Reason: the old helper repeatedly fails and the runner skips any loaded helper regardless of release. If the owner becomes running, skip the mutation and wait for its next terminal.
+- Docs PR #7124 remains open because the latest-main OSS boundary check reports `manifest_inventory_mismatch skills/capafy-autopublish`; this is inherited from the other owner's Capafy path. No Capafy file is changed here.
+
+**Atomic TODO (eBook only):**
+
+1. Let PID `34577` reach natural terminal. Do not stop/restart it.
+2. Freshly rerun `launchctl-safe preflight` and safe-print both labels. Only if main and stale helper have no PID, take the existing owner apply lock, `launchctl-safe bootout` the inactive `88dfdaf4` helper, and verify the helper label is absent.
+3. Apply only `life-manager-release-reconciler` from immutable release `b2bcba46` with `LIFE_MANAGER_APPLY_TARGET` and `--loaded-idle-only`; verify loaded SHA/argv. If it skips as running, stop there and wait for the natural terminal.
+4. Verify the next natural self-handoff receipt and terminal event, then continue the English video/fence, Instagram binding, one-post/readback, cadence, and Letter MRR cursors above.
+
+**現在cursor:** `natural terminal of d35aa4bc PID34577 → preflight/no-PID proof → safe unload of stale inactive helper → targeted loaded-idle-only apply of b2bcba46 → loaded SHA/argv and successful receipt → exact video and English IG route → one verified post → 3/day → Letter subscriptions and MRR`. No Capafy action, raw `launchctl`, forced restart, or effect replay.
+
+### 2026-10-08 19:59 JST — stale helper label blocks the next natural update
+
+- Latest readback: preflight passes; main reconciler is running on `d35aa4bc` as PID `34577`; the helper label is not running but remains loaded from old release `88dfdaf4`. `~/loops/current` is `20261008T195517-b2bcba46`.
+- The d35aa runner's `schedule_self_handoff()` returns early whenever the helper label prints as loaded; it does not compare the loaded helper path with the target release. This leaves the stale 88df helper in place after the source fix is applied. The most recent old-helper receipt is still `old_service_state_unknown` for `state=not running`.
+- The current docs PR #7124 still fails the inherited OSS check `manifest_inventory_mismatch skills/capafy-autopublish`; this is outside the eBook branch and belongs to the other Capafy owner. No Capafy file is changed here.
+
+**Order update:** the previous cursor said “apply latest main, then natural handoff.” The new order is “wait for the d35aa reconciler process to reach a natural terminal → with fresh preflight and no PID on both labels, acquire its existing per-label lock, boot out only the stale inactive 88df helper through `launchctl-safe`, and verify absence → let the next natural d35aa wake schedule a fresh helper for current release b2bc.” This avoids booting out any running service; if either label becomes active, skip the cleanup and wait for its next natural terminal.
+
+**Atomic TODO (eBook only):**
+
+1. Observe PID `34577` to natural terminal. Do not stop/restart it.
+2. Re-read the service and helper with `launchctl-safe` after a fresh preflight. Require both to have no PID, and require the helper's loaded program to be the stale `88dfdaf4` path.
+3. Under `/Users/anicca/loops/.apply-locks/ai.anicca.life-manager-release-reconciler.lock`, unload only the inactive helper with `launchctl-safe bootout`; verify `launchctl-safe print` reports the helper absent. Abort if lock/preflight/state differs.
+4. Let the next natural reconciler wake create a helper from the current release; verify two consecutive no-PID `not running` reads, target SHA/argv, and a successful receipt.
+5. Continue the eBook video, exact English Monk Instagram binding, one-post/readback, 3/day cadence, and $9.99 Letter MRR funnel tasks recorded above.
+
+**現在cursor:** `natural terminal of d35aa PID34577 → fresh preflight/no-PID proof → safe unload of stale 88df helper under the existing lock → next natural wake uses current b2bc helper → successful receipt and loaded SHA/argv → resolve English video + IG handle → publish once/read back → restore 3/day → grow Letter subscriptions toward 1,002 paid active subscribers`. No Capafy action, raw `launchctl`, forced restart, or effect replay.
+
+### 2026-10-08 20:08 JST — source handoff is live; eBook publish remains fenced
+
+- Fresh post-apply readback at 20:06 JST: current immutable release is `20261008T200340-8b75fa53`; Launchd loads `life-manager-release-reconciler` with exact SHA/argv for that release, and its new `self-handoff` helper is absent. The handoff receipt is `status=ok`, old state `not running`, PID null, target SHA `8b75fa53a282324da54a09fb07a97cee12e1ea2e`, and exact loaded argv matches. The stale 88df helper was unloaded through `launchctl-safe` under the owner apply lock; receipt `helper-cleanup-f5a68a1c-b9c2-4e62-a97b-f1672ed628aa.json` records the action and absent readback. No active service was stopped.
++- The English eBook owner remains loaded on SHA `88dfdaf4` with `resource_effect_unknown` occurrence `18dc6de8dcf3a0e8-75262`, `render_reconciliation_required`, `provider_receipt_id=null`, and `official_readback_ref=null`. The Oct 8 HeyGen sidecar still has no video ID/output. Do not retry it.
++- Stripe read-only readback remains: `Daily Anicca Letter` is `$9.99/month`, with `0` active subscriptions; `The Anicca Reset` is `$10.99` one-time. Verified Letter MRR is `$0`. The one-time ebook cannot count as MRR; 1,002 active $9.99 subscribers yield `$10,009.98` gross MRR before fees/refunds.
++- Postiz still returns no English Monk Instagram integration, `@monk_anicca` remains unavailable publicly, and the current handle question is pending. No post or plan purchase has occurred.
++- Docs PR #7124 contains this post-merge cursor but remains unmerged because the OSS boundary reports `manifest_inventory_mismatch skills/capafy-autopublish` on latest main. The docs diff contains only this eBook spec; Capafy is owned elsewhere and unchanged here.
++
++**Atomic TODO (eBook only):**
++
++1. Resolve the exact English video and `render_reconciliation_required` effect through HeyGen provider readback or authoritative no-effect; do not repost the May 6 title or assume A12/A13/A14 has no prior post.
++2. Bind the exact English Monk Instagram handle to an active owned integration; do not substitute the iOS handle or TikTok.
++3. Publish the verified MP4 once and confirm official `PUBLISHED` receipt and URL.
++4. Restore three daily English Monk Instagram slots and verify natural posts.
++5. Add the existing Stripe Letter price to the marketing registry/funnel; verify paid orders against PDF delivery and count active subscriptions toward MRR.
++6. Merge docs PR #7124 only when its inherited OSS inventory check passes; no Capafy edits in this workstream.
++
++**現在cursor:** `resolve the exact English render/effect → bind the confirmed English Monk IG account → publish once/read back → restore 3/day → map and measure Letter subscriptions and PDF-linked eBook sales`. Source handoff is loaded on main-derived production release `8b75fa53`. No Capafy action, effect replay, or forced restart.
+
+### 2026-10-08 20:13 JST — fixed helper waits on the active old owner
+
+- Fresh readback at 20:13 JST: production loads `life-manager-release-reconciler` on release `8b75fa53` (PID `72182`); `~/loops/current` is `a248ce97`. A current self-handoff helper from `a248ce97` is running while waiting for old PID `72182`; its latest receipt is `old_service_active_timeout`, state `running`, target `a248ce97`. The helper default `LIFE_MANAGER_SELF_HANDOFF_WAIT_SECONDS` is 120 seconds; do not stop the old owner.
+- The stale 88df helper cleanup succeeded and has a private structured receipt. The current helper now runs the fixed state counter; when PID `72182` reaches a natural terminal it can succeed if it observes two consecutive no-PID `not running` reads. If the helper times out first, use a fresh preflight and `lm-loop apply --loaded-idle-only` for latest immutable `a248ce97` only while the owner has no PID.
+- The eBook EN publish fence remains `resource_effect_unknown` on `18dc6de8dcf3a0e8-75262`; HeyGen sidecar has no ID/output. Postiz has no English Monk Instagram route; the exact handle question is unanswered. No post has been made.
+- Docs PR #7124 remains open. The OSS boundary check fails with `manifest_inventory_mismatch skills/capafy-autopublish` on latest main; that manifest belongs to the other owner's Capafy work and is not changed here.
+
+**Atomic TODO (eBook only):**
+
+1. Let PID `72182` reach natural terminal; verify a fresh handoff receipt and target release SHA/argv. Do not stop/restart it.
+2. If the helper times out while PID `72182` is still active, wait for the next natural terminal, then use fresh preflight and one-target `--loaded-idle-only` apply for current immutable release `a248ce97`; verify loaded SHA/argv.
+3. Reconcile the Oct 8 render to an exact HeyGen video ID/output or authoritative no-effect; choose A12/A13/A14 only with exact media and prior-post proof.
+4. Connect the exact active English Monk Instagram handle; Postiz currently has no such integration and `@monk_anicca` is unavailable. The handle request is pending.
+5. Publish one verified MP4 and confirm official `PUBLISHED` receipt/URL; then restore 3 daily slots.
+6. Measure paid order-to-PDF sales separately from MRR. `The Anicca Reset` is `$10.99` one-time; the `$9.99/month` Letter has `0` active subscribers. Add Letter to the product/attribution registry and target 1,002 active subscribers for at least `$10K` gross MRR before fees.
+
+**20:13 JST時点cursor（20:27 JSTに更新）:** `natural terminal of PID72182 → successful fixed-helper receipt or idle-only apply of a248ce97 → exact eBook media/effect reconciliation → bind English Monk IG handle → publish/readback → restore 3/day → map and grow the paid Letter funnel`. No Capafy action, stop/restart, raw `launchctl`, or replay.
+
+### 2026-10-08 20:27 JST — eBook publishing blockers rechecked
+
+- この記録が20:13 JSTのcursorを置き換える。
+- Source branch is synchronized with `origin/main=71fd30f8e2`. This update changes only the eBook cursor in this SSOT.
+- `lm-loop status ebook-en-tiktok-daily --explain --json` reports the owner loaded-idle on installed release `8b75fa53`, PID absent, and safely fenced. The active occurrence `18dc6de8dcf3a0e8-75262` failed with `render_reconciliation_required`; provider receipt and official readback are absent. The status also retains a separate historical unknown publish occurrence `18dc753144ba2928-65645`, without a provider receipt. Neither fence is cleared.
+- `~/loops/current` points to immutable release `20261008T202253-71fd30f8`. The release reconciler remains loaded-running as PID `72182` on `8b75fa53`; do not stop or restart it. Its last health event is `entrypoint_exit_1` at 11:03 UTC, while the current status still reports the process running.
+- The Oct 8 English render sidecar is `delivery_uncertain`, with no HeyGen `video_id`; its expected MP4 is absent. The only three files in the current eBook render directory are Japanese `ebook-ja` Watercolor previews. Local eBook/Monk Factory search found no `Hadrian`/`Adrian` asset record.
+- Official HeyGen CLI list and title searches (`Hadrian`, `Adrian`, `monk`, `mistake follows you`) return zero videos. The English ebook runner passes `HOME` to `heygen_candidate` and does not pass `HEYGEN_API_KEY`; the CLI uses its stored file credential. `heygen auth status` confirms that same CLI is on a file-backed API key with wallet billing and `$11.78` remaining; the Oct 8 sidecar recorded `$12.30` before the request. Thus the official empty list is from the same API-key account and no video object is currently available there. The `$0.52` wallet difference is not tied to an itemized provider transaction or video receipt, so the paid effect is still unresolved. The connected HeyGen app tool separately requires reauthentication. Do not replay or regenerate this occurrence.
+- Official Postiz `GET /integrations` returns 31 integrations, including 9 Instagram integrations; current registry/credential data does not bind an Instagram integration to English Monk. The exact Postiz entry shown as `Monk Anicca` is integration `cmo5rwq2p00twn10yrsdglng3`, `identifier=tiktok`, enabled. The product registry binds `@monk_anicca` only to English eBook TikTok. `@anicca.en` and `@anicca.encards` belong to iOS lanes. No English Monk Instagram identity appears in the credential SSOT or current CloakBrowser account filenames. Do not route the eBook video to another product account.
+- No post or monthly-plan purchase occurred. A HeyGen subscription would not resolve the unknown render effect or supply the missing Instagram route. Uploading requires a verified existing MP4; reconsider a new render only after authoritative no-effect evidence.
+- Fresh read-only Stripe API readback at 20:30 JST confirms `The Anicca Reset` at `$10.99` one-time and `Daily Anicca Letter` at `$9.99/month`, with `0` active Letter subscriptions. The marketing-engine product registry has no Letter entry. The one-time eBook is not MRR; `1,002 × $9.99 = $10,009.98` gross MRR before fees/refunds, a target rather than current revenue.
+
+**順序変更:** 旧cursorは「PID `72182` の自然終了とhandoff完了を待つ → HeyGen効果と動画を照合 → Instagramを結線 → 投稿 → 3回/日の復帰 → Letter funnel」。新cursorは「HeyGenの同一アカウント/効果と動画を特定 → English Monk Instagramを特定・結線 → reconcilerの自然終了後に最新releaseへ安全に収束 → 1本を投稿して公式readback → Checkout/PDFとLetter funnelを確認 → 3回/日の運用を復帰」。動画とInstagramの確認はreconcilerの自然終了を待たずに進められ、handoff待ちは投稿の直接要因ではなく定期運用を戻す直前に行えばよいため。外部効果unknownの再送は禁止を維持する。
+
+**Atomic TODO (eBook only):**
+
+1. HeyGenのOct 8作成試行を、その試行と同じアカウントの公式履歴で照合し、動画ID/完了MP4またはauthoritative no-effectを確定する。現状はAPI一覧0件・MCP再認証要求で、アカウント対応が未確定。再生成しない。
+2. 正確なEnglish Monk MP4を取得し、run/creativeと結び付け、過去投稿の有無を照合する。現在の`ebook-ja`プレビューは代用しない。
+3. English Monkの現行Instagram `@handle` と所有者を確定し、Postizの有効integrationとcanonical eBook ownerに結び付ける。現状のPostizに該当IG integrationはない。
+4. 現在実行中のPID `72182` が自然終了した後、fresh preflightとno-PID readbackを確認し、`~/loops/current` のimmutable release `71fd30f8` へ対象限定の安全なhandoff/applyを行う。loaded SHA/argvと成功receiptを確認する。稼働中は触らない。
+5. 検証済みMP4を確定したEnglish Monk Instagramへ1回だけ公開し、Postiz公式`PUBLISHED` receiptと公開URLを確認する。
+6. 最初の投稿を出した後、既存`$9.99/month` Letterをmarketing product/attribution registryと導線へ接続し、CheckoutとeBook PDF deliveryを読み合わせる。one-time eBook saleとactive paid subscription MRRを別計上する。
+7. 正式Instagram routeで3 slots/dayを復帰し、各natural postの公式readbackを記録する。active paid Letter subscriptionsが1,002件に達するまでは`$10K MRR`を達成と報告しない。
+
+**現在cursor:** `HeyGen試行の同一アカウントreadbackと正確な英語動画 → English Monk IG handle/integration → PID72182の自然終了後に71fd30f8へ安全handoff → 1件publish/readback → Checkout/PDFとLetter計測 → 3回/日を再開し自然投稿を確認`。現時点でユーザーから必要な識別情報は、現行English Monk Instagramの`@handle`（またはPostiz上の該当アカウント接続）1点。Capafyの作業は含めない。
