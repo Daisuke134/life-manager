@@ -27,7 +27,7 @@ from pathlib import Path
 
 capture = Path(os.environ["STUB_CAPTURE"])
 keys = (
-    "HOME", "LIFE_MANAGER_DISK_HEADROOM_KIB", "LIFE_MANAGER_HOST_STATE_DIR",
+    "HOME", "LIFE_MANAGER_HOST_STATE_DIR",
     "LIFE_MANAGER_PRODUCER_STATE_DIR", "LIFE_MANAGER_IGNORE_DISK_PRESSURE_BLOCK",
     "LIFE_MANAGER_IGNORE_DISK_WRITERS_STOP", "GIG_DISK_HEADROOM_KIB",
     "GIG_HOST_STATE_DIR", "GIG_STATE_DIR", "GIG_IGNORE_DISK_PRESSURE_BLOCK",
@@ -35,12 +35,19 @@ keys = (
     "DISK_CONTROL_STATE_DIR", "OPENCLAW_STATE_DIR", "LIFE_MANAGER_HOST_STATE_DIR",
 )
 host_state = Path(os.environ["LIFE_MANAGER_HOST_STATE_DIR"])
-reason = None
-for filename, candidate in (("disk-writers.stop", "disk_writers_stop"),
-                            ("disk-pressure.block", "disk_pressure_block")):
-    if (host_state / filename).is_file():
-        reason = candidate
-        break
+stop_file = host_state / "disk-writers.stop"
+try:
+    stop_value = json.loads(stop_file.read_text(encoding="utf-8"))
+except (OSError, ValueError):
+    stop_value = None
+cleanup_recovery = (
+    isinstance(stop_value, dict)
+    and stop_value.get("owner_id") == "host-disk-recovery"
+    and stop_value.get("reason") == "disk_headroom_low"
+    and stop_value.get("required_bytes") == 2 * 1024**3
+    and stop_value.get("next_action") == "restore_capacity_and_install_shared_disk_gate"
+)
+reason = "disk_writers_stop" if stop_file.is_file() and not cleanup_recovery else None
 record = {"argv": sys.argv, "isolated": sys.flags.isolated,
           "env": {key: os.environ[key] for key in keys if key in os.environ}}
 capture.write_text(json.dumps(record), encoding="utf-8")
@@ -49,7 +56,7 @@ if reason:
     receipt.parent.mkdir(parents=True, exist_ok=True)
     receipt.write_text(json.dumps({"status": "failed", "failed": 1, "effect": 0,
                                    "readback": 0, "reason": reason,
-                                   "required_bytes": int(os.environ["LIFE_MANAGER_DISK_HEADROOM_KIB"]) * 1024}),
+                                   "required_bytes": 0}),
                        encoding="utf-8")
 raise SystemExit(1 if reason or os.environ.get("STUB_RESULT") == "1" else 0)
 """
@@ -132,7 +139,7 @@ class LocalBrowserPreflightTest(unittest.TestCase):
             self.assertEqual(record["isolated"], 1)
             child_env = record["env"]
             self.assertEqual(child_env["HOME"], str(home))
-            self.assertEqual(child_env["LIFE_MANAGER_DISK_HEADROOM_KIB"], "524288")
+            self.assertNotIn("LIFE_MANAGER_DISK_HEADROOM_KIB", child_env)
             self.assertEqual(child_env["LIFE_MANAGER_HOST_STATE_DIR"],
                              str(home / ".local/state/life-manager/state"))
             self.assertEqual(child_env["LIFE_MANAGER_PRODUCER_STATE_DIR"],
@@ -162,11 +169,10 @@ class LocalBrowserPreflightTest(unittest.TestCase):
             self.assertEqual(record["env"]["LIFE_MANAGER_HOST_STATE_DIR"],
                              str(home / ".local/state/life-manager/state"))
 
-    def test_consumer_passes_each_flag_path_to_guard_boundary(self) -> None:
+    def test_consumer_honors_only_the_explicit_writer_stop(self) -> None:
         # Policy semantics belong to Life Manager's guard suite; this stub only
         # verifies the Affiliate consumer's canonical path/env composition.
-        for flag, reason in (("disk-writers.stop", "disk_writers_stop"),
-                              ("disk-pressure.block", "disk_pressure_block")):
+        for flag, reason in (("disk-writers.stop", "disk_writers_stop"),):
             with self.subTest(flag=flag), tempfile.TemporaryDirectory() as temporary:
                 home = Path(temporary) / "home"
                 host_state = home / ".local/state/life-manager/state"
@@ -187,7 +193,31 @@ class LocalBrowserPreflightTest(unittest.TestCase):
                     (lane_state / "state/disk-headroom.json").read_text(encoding="utf-8")
                 )
                 self.assertEqual(receipt["reason"], reason)
-                self.assertEqual(receipt["required_bytes"], 524288 * 1024)
+                self.assertEqual(receipt["required_bytes"], 0)
+
+    def test_consumer_ignores_cleanup_recovery_signal(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            home = Path(temporary) / "home"
+            host_state = home / ".local/state/life-manager/state"
+            lane_state = home / ".local/state/life-manager/affiliate"
+            host_state.mkdir(parents=True)
+            lane_state.mkdir(parents=True)
+            stop_file = host_state / "disk-writers.stop"
+            stop_file.write_text(json.dumps({
+                "owner_id": "host-disk-recovery",
+                "reason": "disk_headroom_low",
+                "required_bytes": 2 * 1024**3,
+                "next_action": "restore_capacity_and_install_shared_disk_gate",
+            }) + "\n", encoding="utf-8")
+            stop_file.chmod(0o600)
+            guard = self.install_guard(home)
+            capture = home / "capture.json"
+            with patch.dict(os.environ, {
+                "HOME": "/hostile/home",
+                "STUB_CAPTURE": str(capture),
+            }, clear=False):
+                self.assertTrue(MODULE._disk_preflight(home, guard))
+            self.assertFalse((lane_state / "state/disk-headroom.json").exists())
 
     def test_missing_or_unreadable_guard_has_no_browser_or_profile_effect(self) -> None:
         for unreadable in (False, True):

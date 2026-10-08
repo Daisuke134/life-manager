@@ -89,17 +89,17 @@ class AffiliateAgentRoutingTests(unittest.TestCase):
         strategy = config["task_classes"]["affiliate-marketing-agent"]
         repair = config["task_classes"]["affiliate-escalation-agent"]
 
-        self.assertEqual(strategy["route"], "affiliate-terra-high-strategy")
+        self.assertEqual(strategy["route"], "affiliate-sol-medium-strategy")
         self.assertTrue(strategy["requires_explicit_escalation"])
         self.assertEqual(
             strategy["candidates"],
-            [{"provider": "codex", "model": "gpt-5.6-terra", "effort": "high", "profile_alias": "acct2"}],
+            [{"provider": "codex", "model": "gpt-6.1-sol", "effort": "medium", "profile_alias": "acct2"}],
         )
-        self.assertEqual(repair["route"], "affiliate-sol-one-use-repair")
+        self.assertEqual(repair["route"], "affiliate-sol-high-one-use-repair")
         self.assertTrue(repair["requires_explicit_escalation"])
         self.assertEqual(
             repair["candidates"],
-            [{"provider": "codex", "model": "gpt-5.6-sol", "effort": "high", "profile_alias": "acct2"}],
+            [{"provider": "codex", "model": "gpt-6.1-sol", "effort": "high", "profile_alias": "acct2"}],
         )
 
     def test_evidence_seal_binds_result_and_source_set_and_detects_tampering(self) -> None:

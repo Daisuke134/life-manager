@@ -765,6 +765,14 @@ def test_storefront_brake_prevents_lease_and_observation(tmp_path, monkeypatch):
     assert row["status"] == "operator_brake" and row["effect"] == 0
 
 
+def test_storefront_disk_control_failure_is_not_reported_as_pressure(monkeypatch, tmp_path):
+    args = _args(tmp_path)
+    monkeypatch.setattr(direct, "disk_headroom_ok", lambda: False)
+    monkeypatch.setattr(direct, "_operator_brake_status", lambda _path: "free")
+
+    assert direct._effect_gate_reason(args) == "disk_control_unavailable"
+
+
 @pytest.mark.parametrize(
     ("brake_status", "expected"),
     (("held", "operator_brake"), ("free", None), ("failed", "operator_brake_check_failed")),

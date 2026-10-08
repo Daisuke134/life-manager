@@ -73,10 +73,10 @@ class TerraDefaultTest(unittest.TestCase):
                     expected = [{"provider": "codex", "model": "gpt-6-luna",
                                  "effort": "max", "profile_alias": "acct2"}]
                 if name == "affiliate-marketing-agent":
-                    expected = [{"provider": "codex", "model": "gpt-5.6-terra",
-                                 "effort": "high", "profile_alias": "acct2"}]
+                    expected = [{"provider": "codex", "model": "gpt-6.1-sol",
+                                 "effort": "medium", "profile_alias": "acct2"}]
                 if name == "affiliate-escalation-agent":
-                    expected = [{"provider": "codex", "model": "gpt-5.6-sol",
+                    expected = [{"provider": "codex", "model": "gpt-6.1-sol",
                                  "effort": "high", "profile_alias": "acct2"}]
                 if name == "browser-lane-agent":
                     expected = [

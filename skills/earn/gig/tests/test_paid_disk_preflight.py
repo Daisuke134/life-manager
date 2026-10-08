@@ -183,11 +183,11 @@ def test_non_contract_browser_failure_is_not_owner_repair_finding():
     assert paid._browser_contract_finding(SimpleNamespace(stdout="")) is None
 
 
-def test_inflight_gate_reports_pressure(monkeypatch):
+def test_inflight_gate_reports_unavailable_control_state(monkeypatch):
     paid = _load_paid()
     monkeypatch.setattr(paid, "disk_headroom_ok", lambda: False)
 
-    assert paid._disk_gate_reason() == "disk_pressure"
+    assert paid._disk_gate_reason() == "disk_control_unavailable"
 
 
 def test_inflight_gate_fails_closed_when_probe_errors(monkeypatch):

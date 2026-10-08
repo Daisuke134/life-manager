@@ -16,12 +16,17 @@ from publication_resume import (
     DORMANT_PAIRS,
     InvariantError,
     PublicationStore,
-SUPPORTED_PAIRS,
+    SUPPORTED_PAIRS,
 )
 
+REPO_ROOT = Path(__file__).resolve().parents[3]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+from runtime.host.disk_admission import is_cleanup_disk_recovery_signal  # noqa: E402
 
-def assert_disk_writer_stop() -> None:
-    """Honor the canonical explicit stop before managed publication."""
+
+def assert_disk_control_state_safe() -> None:
+    """Keep control state trusted; ignore cleanup low-space, honor operator stops."""
     canonical_home = Path(pwd.getpwuid(os.getuid()).pw_dir)
     control_dir = canonical_home / ".local" / "state" / "life-manager" / "state"
     try:
@@ -40,6 +45,8 @@ def assert_disk_writer_stop() -> None:
         raise InvariantError("disk_control_state_unavailable") from error
     if not stat.S_ISREG(entry.st_mode):
         raise InvariantError("disk_control_state_unsafe")
+    if is_cleanup_disk_recovery_signal(flag):
+        return
     raise InvariantError("disk_writers_stop")
 
 
@@ -147,7 +154,7 @@ def main() -> int:
     manual.add_argument("--pair", required=True, choices=SUPPORTED_PAIRS)
     args = parser.parse_args()
     if args.command == "preflight" and managed_article_context():
-        assert_disk_writer_stop()
+        assert_disk_control_state_safe()
     if args.command in {"quarantine-identity-conflict", "migrate-substack-en-identity"}:
         # This is the one migration command whose purpose is to repair the
         # legacy equal-identity boundary; the method itself performs the

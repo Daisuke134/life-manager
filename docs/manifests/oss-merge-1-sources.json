@@ -104,7 +104,7 @@
         {
           "source": "skills/agent-runner/config.json",
           "target": "runtime/agent-runner/config.json",
-          "sha256": "501cfcef84c2d4733a4faf386fb36dce961cd2bbf0b3ee2784879ac27c47982c"
+          "sha256": "614561e324592147839214a6d32b32d3bb91232f00b9aa6cb4b5bf65f99c4eb3"
         },
         {
           "source": "skills/agent-runner/context_packet.py",

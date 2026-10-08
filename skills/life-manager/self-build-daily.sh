@@ -86,13 +86,13 @@ export LM_SELFBUILD_LEDGER="$LEDGER"
 DISK_GUARD="$LM_SELFBUILD_CANONICAL_DISK_GUARD"
 
 # Pin host/state roots after dotenv loading so runtime configuration cannot
-# redirect the shared explicit-stop boundary.
+# redirect shared control-state validation.
 LIFE_MANAGER_HOST_STATE_DIR="$LM_SELFBUILD_CANONICAL_HOST_STATE"
 LIFE_MANAGER_PRODUCER_STATE_DIR="$LM_SELFBUILD_CANONICAL_STATE_HOME"
 export LIFE_MANAGER_HOST_STATE_DIR LIFE_MANAGER_PRODUCER_STATE_DIR
 
-# The dotenv file is allowed to set runtime values, but it can never bypass the
-# shared producer stop contract.
+# The dotenv file is allowed to set runtime values, but it cannot redirect the
+# canonical control-state validation paths.
 unset LIFE_MANAGER_IGNORE_DISK_WRITERS_STOP
 unset LIFE_MANAGER_DISK_HEADROOM_KIB GIG_DISK_HEADROOM_KIB GIG_HOST_STATE_DIR GIG_STATE_DIR
 unset GIG_IGNORE_DISK_WRITERS_STOP
@@ -102,7 +102,7 @@ TG_TARGET="${LM_SELFBUILD_TELEGRAM_TARGET:-${TELEGRAM_ALERT_CHAT_ID:-}}"
 TELEGRAM_SENDER="$REPO_ROOT/skills/_shared/send-telegram.sh"
 
 if ! /usr/bin/python3 "$DISK_GUARD" /usr/bin/true >>"$LOG" 2>&1; then
-  printf 'self-build: disk guard blocked before dependency install\n' >>"$LOG"
+  printf 'self-build: control-state validation blocked before dependency install\n' >>"$LOG"
   exit 1
 fi
 
@@ -118,7 +118,7 @@ DAILY_ARGS=()
 [ "${LM_SELFBUILD_DRY_RUN:-0}" = "1" ] && DAILY_ARGS+=(--dry-run)
 
 if ! /usr/bin/python3 "$DISK_GUARD" /usr/bin/true >>"$LOG" 2>&1; then
-  printf 'self-build: disk guard blocked before daily CLI\n' >>"$LOG"
+  printf 'self-build: control-state validation blocked before daily CLI\n' >>"$LOG"
   exit 1
 fi
 

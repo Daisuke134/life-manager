@@ -1,17 +1,21 @@
 #!/usr/bin/env python3
-"""Check Gig writer controls and disk measurement without a free-space floor."""
+"""Ignore cleanup capacity signals while honoring explicit Gig operator stops."""
 
 from __future__ import annotations
 
 import json
 import os
 import pwd
-import shutil
 import stat
 import sys
 import tempfile
 from pathlib import Path
 from typing import Sequence
+
+REPO_ROOT = Path(__file__).resolve().parents[4]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+from runtime.host.disk_admission import is_cleanup_disk_recovery_signal  # noqa: E402
 
 
 # Free-space measurements are recorded for diagnosis, not used as an admission floor.
@@ -19,9 +23,7 @@ REQUIRED_BYTES = 0
 RECEIPT_PATH = Path("state") / "disk-headroom.json"
 
 _PRODUCER_GATE = "life-manager-producer-preflight"
-_POLICY_FLAGS = (
-    ("disk-writers.stop", "disk_writers_stop"),
-)
+_POLICY_FLAGS = (("disk-writers.stop", "disk_writers_stop"),)
 
 
 def _state_dir() -> Path:
@@ -120,7 +122,7 @@ def _canonical_host_state_dirs() -> tuple[Path, ...]:
 
 
 def _producer_gate() -> tuple[str, Path] | None:
-    """Read the shared Life Manager stop contract before starting a producer."""
+    """Validate the shared Life Manager control directories before producer work."""
     try:
         configured = _host_state_dir()
         candidates = (*_canonical_host_state_dirs(), configured)
@@ -152,40 +154,32 @@ def _producer_gate() -> tuple[str, Path] | None:
         for filename, reason in _POLICY_FLAGS:
             flag = host_state / filename
             try:
-                entry = flag.lstat()
+                flag_info = flag.lstat()
             except FileNotFoundError:
                 continue
             except OSError:
-                # A control path that cannot be read is not proof that the host is safe.
                 return "disk_policy_unavailable", flag
-            if not stat.S_ISREG(entry.st_mode):
+            if not stat.S_ISREG(flag_info.st_mode):
                 return "disk_policy_unavailable", flag
+            if is_cleanup_disk_recovery_signal(flag):
+                continue
             return reason, flag
     return None
 
 
 def disk_headroom_ok() -> bool:
-    """Return whether this producer may allocate new work on the host."""
+    """Ignore cleanup low-space signals while honoring explicit operator stops."""
     gate = _producer_gate()
     if gate is not None:
         reason, flag = gate
-        try:
-            available_bytes = int(shutil.disk_usage(_state_dir()).free)
-        except Exception:
-            available_bytes = None
         _failure(
             reason,
-            available_bytes,
+            None,
             metadata={
                 "gate": _PRODUCER_GATE,
                 "flag_path": str(flag),
             },
         )
-        return False
-    try:
-        available_bytes = int(shutil.disk_usage(_state_dir()).free)
-    except Exception:
-        _failure("disk_headroom_unavailable", None)
         return False
     return True
 

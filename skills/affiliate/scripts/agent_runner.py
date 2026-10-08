@@ -69,8 +69,23 @@ def _owner_path(value: str, owner_home: Path) -> Path:
 
 def allowlisted_environment(source: dict[str, str], executable: Path) -> dict[str, str]:
     owner_home = Path(source.get("HOME") or str(Path.home())).resolve()
+    runtime_node = source.get("LIFE_MANAGER_RUNTIME_NODE")
+    if not runtime_node:
+        raise PinError
+    try:
+        node_path = Path(runtime_node).expanduser().resolve(strict=True)
+    except (OSError, RuntimeError, ValueError) as error:
+        raise PinError from error
+    if not node_path.is_file() or not os.access(node_path, os.X_OK):
+        raise PinError
+    # Codex is a JavaScript CLI with a /usr/bin/env node shebang. Keep the
+    # parent's broad PATH excluded, but include the launchd-pinned Node runtime.
+    path_entries = (
+        str(node_path.parent), str(executable.parent),
+        "/usr/bin", "/bin", "/usr/sbin", "/sbin",
+    )
     child = {
-        "PATH": os.pathsep.join((str(executable.parent), "/usr/bin", "/bin", "/usr/sbin", "/sbin")),
+        "PATH": os.pathsep.join(dict.fromkeys(path_entries)),
         "HOME": str(owner_home),
         "AGENT_RUNNER_CONFIG": str(VENDOR / "config.json"),
     }

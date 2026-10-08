@@ -2757,21 +2757,12 @@ def owner_event(state, wake_event, sent_event_ids=None):
                 f"external_action_cap={wake_event.get('action_budget_used_attempts', 'UNKNOWN')}"
                 f"/{wake_event.get('action_budget_daily_cap', 'UNKNOWN')}"
             )
-        guard_state = wake_event.get("runtime_guard_state")
-        if guard_state in {"DISK_GUARD_BLOCKED", "DISK_GUARD_UNKNOWN"}:
-            free_bytes = wake_event.get("runtime_guard_free_bytes")
-            floor_bytes = wake_event.get("runtime_guard_floor_bytes")
-            blockers.append(
-                f"runtime_disk={guard_state}"
-                f"(free={free_bytes if isinstance(free_bytes, int) else 'UNKNOWN'}"
-                f"/floor={floor_bytes if isinstance(floor_bytes, int) else 'UNKNOWN'} bytes)"
-            )
         if not blockers:
             blockers.append(f"status={wake_event.get('status') or 'UNKNOWN'}")
         blocker_text = " / ".join(blockers)
         blocker_key = "BLOCKED:" + "|".join(
             (("COST_CAP_BLOCKED",) if cost_blocked else ())
-            + (action_state or "CLEAR", guard_state or "CLEAR")
+            + (action_state or "CLEAR",)
         )
         no_transactions = (
             cycle.get("state") == "NO_TRANSACTIONS"
@@ -2787,27 +2778,16 @@ def owner_event(state, wake_event, sent_event_ids=None):
             "外部作用は行わず、既知actual_billedのJST日次cost cap回復を再確認します。"
             "provider capture・ledger・Telegramの読取りは継続"
             if cost_blocked
-            else
-            "外部作用は行わず、JST日次capとディスクfloorの回復を再確認します。"
-            "provider capture・ledger・Telegramの読取りは継続"
-            if action_state == "ACTION_CAP_BLOCKED" and guard_state == "DISK_GUARD_BLOCKED"
             else "JST日次外部作用capがCLEARになるまで、公開・リンク作用を行わず読取りを継続"
             if action_state == "ACTION_CAP_BLOCKED"
-            else "ディスク空きがfloorを満たすまで、新規生成・公開を行わず読取りを継続"
-            if guard_state in {"DISK_GUARD_BLOCKED", "DISK_GUARD_UNKNOWN"}
             else "未解決の外部状態を再読取りし、作用なしで再試行を予約"
         )
         next_job = (
             "既知actual_billed costが次のJST日次capを下回った後、同じdurable placement jobを既存ownerが再開"
             if cost_blocked
             else
-            "ディスク空きが10GiB以上かつJST日次capがCLEARになった後、"
-            "同じdurable placement jobを既存ownerが再開（手動公開・captureはしない）"
-            if action_state == "ACTION_CAP_BLOCKED" and guard_state == "DISK_GUARD_BLOCKED"
-            else "JST日次capがCLEARになった後、同じdurable placement jobを既存ownerが再開"
+            "JST日次capがCLEARになった後、同じdurable placement jobを既存ownerが再開"
             if action_state == "ACTION_CAP_BLOCKED"
-            else "ディスク空きが10GiB以上になった後、同じdurable jobを既存ownerが再開"
-            if guard_state in {"DISK_GUARD_BLOCKED", "DISK_GUARD_UNKNOWN"}
             else "未解決の外部状態を既存ownerが再読取り"
         )
         add(

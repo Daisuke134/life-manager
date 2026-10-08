@@ -37,9 +37,19 @@ keys = (
     "DISK_CONTROL_STATE_DIR", "OPENCLAW_STATE_DIR", "LIFE_MANAGER_HOST_STATE_DIR",
 )
 host_state = Path(os.environ["LIFE_MANAGER_HOST_STATE_DIR"])
-reason = None
-if (host_state / "disk-writers.stop").is_file():
-    reason = "disk_writers_stop"
+stop_file = host_state / "disk-writers.stop"
+try:
+    stop_value = json.loads(stop_file.read_text(encoding="utf-8"))
+except (OSError, ValueError):
+    stop_value = None
+cleanup_recovery = (
+    isinstance(stop_value, dict)
+    and stop_value.get("owner_id") == "host-disk-recovery"
+    and stop_value.get("reason") == "disk_headroom_low"
+    and stop_value.get("required_bytes") == 2 * 1024**3
+    and stop_value.get("next_action") == "restore_capacity_and_install_shared_disk_gate"
+)
+reason = "disk_writers_stop" if stop_file.is_file() and not cleanup_recovery else None
 record = {"argv": sys.argv, "isolated": sys.flags.isolated,
           "env": {key: os.environ[key] for key in keys if key in os.environ}}
 capture.write_text(json.dumps(record), encoding="utf-8")
@@ -131,7 +141,7 @@ class CdpPersistentContextPreflightTests(unittest.TestCase):
             ):
                 self.assertNotIn(key, child_env)
 
-    def test_pressure_marker_is_advisory_but_hard_stop_fails_closed(self) -> None:
+    def test_pressure_and_cleanup_recovery_are_advisory_but_operator_stop_blocks(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             home = root / "home"
@@ -142,7 +152,17 @@ class CdpPersistentContextPreflightTests(unittest.TestCase):
             (host_state / "disk-pressure.block").write_text("blocked\n", encoding="utf-8")
             with patch.dict(os.environ, {"STUB_CAPTURE": str(capture)}, clear=False):
                 self.assertTrue(MODULE._disk_preflight(home, guard))
-            (host_state / "disk-writers.stop").write_text("blocked\n", encoding="utf-8")
+            stop_file = host_state / "disk-writers.stop"
+            stop_file.write_text(json.dumps({
+                "owner_id": "host-disk-recovery",
+                "reason": "disk_headroom_low",
+                "required_bytes": 2 * 1024**3,
+                "next_action": "restore_capacity_and_install_shared_disk_gate",
+            }) + "\n", encoding="utf-8")
+            stop_file.chmod(0o600)
+            with patch.dict(os.environ, {"STUB_CAPTURE": str(capture)}, clear=False):
+                self.assertTrue(MODULE._disk_preflight(home, guard))
+            stop_file.write_text("owner=operator\n", encoding="utf-8")
             with patch.dict(os.environ, {"STUB_CAPTURE": str(capture)}, clear=False):
                 self.assertFalse(MODULE._disk_preflight(home, guard))
             receipt = json.loads(
