@@ -10082,3 +10082,18 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 6. [ ] **A10 seven-day acceptance:** 修正後の自然なCFO reportを7日連続で、同じoccurrenceのB7/runtime/provider receipt・period/currency・coverage/freshness・duplicate resolution・replay-zeroと突合する。7日間のうち1日でもreceipt/period/coverageに欠落があればその日の原因を記録して連続countをやり直す。全社actualやUSD `10K` MRRはsource coverageが閉じるまで未確認として報告する。
 
 **現在cursor:** duplicate occurrence receipt trace → A6 Google cash/usage attribution → A8 all-loop/job actual coverage → A9 source-period reporting → A10 seven-day natural acceptance。**非blocking:** CFO ownerの新release自然adoptionとauthenticated panel表示。**対象外:** Money Tree/personal cash、Cloud API置換・削減。CFO基盤の完成は正確な計測・報告であり、USD `10K` MRR達成自体はその後の各revenue agentの成長作業。
+
+## OpenClaw source実装カーソル（本番非変更）
+
+目的: 既存agentを止めず、専用worktreeで移行接続を実装する。完了条件: 関連テスト、read-only review、commit/push、PRのsource証拠。自然仕事・公式receiptを確認するまで本番移行完了としない。
+範囲: `runtime/openclaw/` のportable paths、closed request、stable identity、排他的dispatch保存、private Gateway境界。既存runner/registry/auth/launchd/注文stateへ未接続。
+設計参照: docs/main-agents-readiness branchの `2026-10-07-main-agents-readiness.md` OC/NC/MI atoms。
+順序変更: 旧=OC001/014/NC02→Gateway。新=OC001–006→OC007–013→profile/native fence→domain/admission接続→owner移行。理由: profileを本番検証する前に、再送防止とsecret境界をsourceで成立させる。現在cursor=OC001。
+- [ ] OC001: `runtime/openclaw/package.json`/lock exact依存、インストールscript実行なし。
+- [ ] OC002: `paths.mjs::resolveHarnessPaths` 既存data root再利用。
+- [ ] OC003/004: `protocol.mjs::validateRunRequest/buildRunIdentity` closed v2、同task stable key、fresh task session。
+- [ ] OC005/006: `dispatch_store.py::load_dispatch/save_dispatch` 排他lock、0600、fsync、tuple/digest照合、unknown再送禁止。
+- [ ] OC007–011: `gateway-client.mjs` 公式SDKだけでhello/submit/wait/abort/exact session照合。
+- [ ] OC012: pinned SDK/runtimeの隔離contract検証（fake model、外部効果0）。
+- [ ] OC013: `environment.mjs::buildGatewayEnv` private rootとallowlist、ambient secrets非継承。
+未完のprofile/claim/tool broker/caller/商品binding/cutover/退役は元設計のまま。すべてsource PASSまで公開route有効化0。Temporal追加なし、native ChatGPT Codex以外の推論fallbackなし。
