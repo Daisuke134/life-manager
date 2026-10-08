@@ -1,5 +1,5 @@
 {
-  "why": "Dais 2026-10-07: never change an Agent that sells. These Agents get no automated version, price, model, card or package change. Only an UPDATE.json carrying dais_approved_exception may ship.",
+  "why": "Dais 2026-10-08: never change an Agent that sells. The factory refuses to prepare or submit these Agents for any reason (scripts/frozen_guard.sh in publish_prepare.sh and publish_finish.sh); there is no exception path. Only Dais changes them by hand.",
   "agent_ids": [
     "2844813315",
     "7686597754",

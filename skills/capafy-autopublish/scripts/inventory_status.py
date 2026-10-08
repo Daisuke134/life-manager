@@ -622,6 +622,9 @@ def main():
         print(json.dumps(verdict, ensure_ascii=False))
         return 0
     retired_ids, retired_titles = retired
+    # Dais 2026-10-08: a FROZEN.json Agent (a seller) is handled exactly like a retired
+    # one -- no update, no draft resume, no recovery -- whatever UPDATE.json says.
+    retired_ids = set(retired_ids) | set(load_frozen_ids())
 
     online_titles = {(a.get("name") or "").strip() for a in agents if a.get("agentStatus") in ONLINE}
     unlisted = [a for a in agents if a.get("agentStatus") in UNLISTED]

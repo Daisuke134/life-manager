@@ -16,6 +16,9 @@ ID="${1:?agent-id required}"
 SKILL_NAME="${2:?skill-name required}"
 LISTING="${3:-}"
 EXPECTED_AGENT_VERSION_ID="${4:-}"
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/frozen_guard.sh"
+capafy_refuse_frozen "$ID"
 
 AUTO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PUB="$AUTO/vendor/capafy-publisher"
