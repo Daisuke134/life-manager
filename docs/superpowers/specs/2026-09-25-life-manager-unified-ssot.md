@@ -3769,7 +3769,7 @@ English owner `ebook-en-tiktok-daily`は`launchd_state=disabled`で、plistは�
 - **Mobile TODO順 update（旧順→新順、2026-10-08 01:42 JST）:** the source-merge atom for the notification-body failure is complete. New client order is: (1) mirror main commit `19f9c5bd` to the Xcode Cloud source, verify the official repository/grant, then produce and process a valid TestFlight build; (2) capture actual APNs body, `quoteId`, locale, and installed version, then verify the same quote from cold-start and background. In parallel, production growth order remains: (3) let release/disk owners reach a verified terminal state and restore headroom through their owner path; (4) converge TikTok owners to a complete main-derived immutable release and confirm each loaded SHA; (5) reconcile old effect-unknown rows individually with official receipts or exact pre-effect evidence; (6) verify three natural `PUBLISHED` receipts/day for each of 10 configured targets and classify six additional enabled profiles before finalizing the denominator; (7) restore fresh Postiz metrics, store attribution, and app roster; (8) reach 100 ASC first-time downloads/day/app on a trailing 7-day average, Anicca first; (9) then refine Mixpanel onboarding/paywall cohorts one hypothesis at a time, use conditional ASO, and prove USD 10,000 same-period net MRR before factory expansion. No direct Postiz catch-up or bulk fence clearing.
 - **Disk-floor source mismatch readback（2026-10-08 02:12 JST）:** the cleanup governor's direct receipt at 02:09:14 reports `free_before=1,086,832,640`, `free_after=1,204,994,048`, `recovery_floor_bytes=11,811,160,064`, `status=unmet`, `errors=0`, `protected_deletions=0`, `reclaimed=115,570,403`, 23 inventory gaps, and preserved open=4/protected-descendant=6. Direct `df -Pk /` at 02:12:43 reports 1,172,236 KiB free. The receipt is from `~/.local/state/life-manager/state/last-receipt.json`; the disk-cleanup owner exits 1 because `skills/self/disk-cleanup/disk_cleanup.py` derives recovery from the 11 GiB PREVENTIVE tier while `runtime/host/disk_admission.py`, `runtime/loop/central_cleanup.py`, and the disk-cleanup skill specify 2 GiB. Central cleanup still requires child return code 0, so the child floor mismatch prevents a success receipt. Do not manually invoke the cleaner or alter cleanup candidates.
 - **Disk-floor recovery source candidate（2026-10-08 02:13 JST）:** branch `fix/disk-cleanup-floor-align-20261008`, commit `6201035266677f8c208c79fdb3c5132a5c00a591`, changes only `RECOVERY_FLOOR_BYTES` to 2 GiB and updates direct CLI/guard tests. It preserves the 20/11/6/3 GiB cleanup tiers, candidate allowlist, receipt reserve, open-path checks, and identity-checked stop guard. The new 2 GiB real `run_once()` test failed before the change with `status=unmet / floor=11,811,160,064` and passes after it. The full disk-cleanup suite passes 131/131; `runtime/loop/tests` 787/787; cleanup runtime contract 57/57; host disk admission 14/14; loop adapter Node tests 15/15. `lm-loop doctor` remains `ok=false` only for retired label `ai.anicca.provision-browser.capafy.kosuke`, outside this mobile/disk floor change.
-- **Capacity-fit review and release boundary（2026-10-08 02:13 JST）:** a fresh read-only review approved aligning cleanup recovery with the existing 2 GiB admission policy for already-built immutable release/apply operations. The current and immediately previous release directories measure 108,128 KiB and 107,644 KiB; a prior natural fleet-apply run changed 108 owners without disk ENOSPC, but ended `partial` from budget/other-owner errors. This does not prove the peak scratch/temporary storage of a new release cut. Current release is `20261008T015349-c5c4d791`; its release reconciler is still loaded-running, and the current floor candidate is not merged or deployed. Keep the new release-cut headroom measurement as a separate gate.
+- **Historical capacity-fit review and release boundary（2026-10-08 02:13 JST; superseded by “remove numeric disk-headroom stops from all loops”）:** the then-proposed 2 GiB release/apply headroom gate is no longer active. The old release-size measurements and partial fleet-apply result remain historical evidence only; a release builder or producer does not wait for a numeric free-space target.
 - **Mobile/disk TODO order update（旧順→新順、2026-10-08 02:13 JST）:** (1) finish CI/review and merge the 2 GiB floor alignment source change; (2) keep the existing disk owner as the only cleaner and verify its natural receipt reaches at least 2 GiB with `errors=0`, `protected_deletions=0`, and stop-guard result recorded; current free remains below 2 GiB; (3) before cutting any new release, measure actual peak staging/required-runtime bytes and require enough headroom to preserve the 2 GiB post-cut floor; sealed directory size alone does not prove peak; (4) cut the pushed main source and allow the existing release reconciler to converge, then verify disk-cleanup and all 10 TikTok target owners by loaded SHA; (5) re-count and reconcile historical TikTok `effect_unknown` occurrences individually only on exact official provider receipt/pre-effect evidence; the last complete 10-owner sample before the current c5c4 pass totaled 21,769, which must not be assumed current; (6) verify three natural `PUBLISHED` receipts/day on each of 10 configured TikTok targets, classify six extra enabled profiles, then fix the final all-account denominator; (7) restore fresh Postiz/ASC/RevenueCat metrics and tracked store attribution; (8) reach 100 first-time downloads/day/app on a trailing 7-day average, Anicca first; (9) then refine Mixpanel onboarding/paywall cohorts, conditional ASO, and same-period verified USD 10,000 net MRR before factory expansion. The separate notification TestFlight cursor remains open.
 
 ### Dais指定のWeb-first Life Manager Travel Product — 現在の最優先cursor
@@ -5015,7 +5015,7 @@ Source / cursor follow-up (2026-10-08 12:52 JST): docs PR #7048はmerge commit `
 - CrowdWorks Application/Storefrontの別owner leaseは存在する。lease/rosterは実作業の証拠ではないため、既存担当範囲を重複編集せず、owner成果とprovider receiptをreadbackする。
 - 既知のCoconala order/talkroom readbackは10/7時点のsnapshotでfreshness切れ。最新provider確認はまだ無いので、現在もbuyer reply/delivery待ちとは断定しない。対象の直近local evidenceは`formal_delivery_confirmed=false`だが、再開時に必ずofficial threadをfresh readbackする。顧客ID・本文はprivate evidenceにだけ保持する。
 
-**現在cursor:** Remaining atomic Gig TODOの並列gate 1A（sender P1修正→test/re-review/CI）と1B（cleanup owner safe receipt＋安定2 GiB超readback）。その後だけCoconala Paid owner/inbox/order、existing contract delivery、Storefront、次platformの順に進む。Lancers rows25–27は`waiting_external`でskip、Answersは対象外、SelfBuildは最後。
+**当時のcursor（履歴）:** Remaining atomic Gig TODOの並列gate 1A（sender P1修正→test/re-review/CI）と1B（cleanup receiptの診断・queue eligibility readback。free-space目標はproducer admission条件にしない）。その後のplatform順は維持する。
 
 ### 2026-10-08 09:54 JST — TikTok distribution outage takes mobile cursor
 
@@ -5131,7 +5131,7 @@ Source / cursor follow-up (2026-10-08 12:52 JST): docs PR #7048はmerge commit `
 - Sender source branch remote head `10ba32a170`はmain `b418c917b1`より17 commits behind。local source worktreeのtransport/testに未commit変更があり、fresh reviewのP1 findingsは未解消・未再検証・未merge。実装対象は上記item 1A。
 - Coconala order/threadの最後のofficial readbackは10/7 snapshotで鮮度切れ。fresh official order/inbox確認なしにbuyer待ち・納品済み・収益済みを主張しない。
 
-**現在cursor:** parallel gate 1A（sender安全修正）と1B（cleanup safe receipt＋安定2 GiB超）を完了する。両gate後にCoconala Paid owner/threadと既存契約を確認し、その後Storefront→Coconala Apply/Negotiation→CrowdWorks→Mercor/Freelancer/Upwork/Job Hunter→契約別収益確認→SelfBuild最後の順で進む。Lancers rows25–27はskip、Answersは対象外。
+**当時のcursor（履歴）:** parallel gate 1A（sender安全修正）と1B（cleanup receiptの診断・queue eligibility確認。数値free-space待ちは不要）を進める。両作業は並行し、provider/effect fenceを守ってplatform順を維持する。
 
 ### 2026-10-08 10:15 JST — Historical Gig run status (superseded by Remaining atomic Gig TODO)
 
@@ -5529,7 +5529,7 @@ main `fd3f5e490794acb5b1b7692e6ff1c38e9b45803e`にはPR #7024の`mobile-postiz-p
 - OpenClaw v2026.9.8のcron既定並列数は8、subagent既定は1 spawning sessionあたり8で、subagentsはGateway資源を共有する。[cron source](https://github.com/openclaw/openclaw/blob/v2026.9.8/src/config/cron-limits.ts)、[subagent operations](https://docs.openclaw.ai/tools/subagents/operations)、[queue docs](https://docs.openclaw.ai/concepts/queue)。OpenClawへの単純移行は現行LMの8枠やMacの物理容量を増やさない。CPU/RAMに応じたworker slot供給は[Temporal worker performance](https://docs.temporal.io/develop/worker-performance)の候補だが、今すぐ新runtimeを導入しない。
 - 広いOpenClaw/native Codex migration・OSS比較は別担当の[PR #6814](https://github.com/Daisuke134/life-manager/pull/6814)がopen/unmerged。Gig側ではその設計を複製せず、既存admission内でclaim保持時間とclass別waitを測り、必要なら測定後に1 classずつ調整する。global上限の引上げやruntime migrationはまだ実施しない。
 
-**現在cursor:** Remaining atomic Gig TODOの並列1A/1B。1Aはsource PR/CI/merge待ち、1Bはcleanup構造化receiptと安定headroom/queue eligibility readback待ち。その後のplatform順は上のリストどおり。
+**当時のcursor（履歴）:** Remaining atomic Gig TODOの並列1A/1B。cleanup構造化receiptは診断値として読み、queue eligibilityを確認する。free-space数値はproducerの実行条件にしない。
 
 ### 2026-10-08 12:28 JST — exact identity sidecar is missing for old claims
 
@@ -5562,7 +5562,7 @@ mainはPR #7039/#7040/#7044を含む`53d49879d79e5095f7cd4767cdedb95444ad1138`�
 - Root cause evidence: ローカル`node scripts/verify-oss-self-contained.mjs --json`とCIが同じ`manifest_inventory_mismatch` / `skills/capafy-autopublish`を報告する。Gig PRのdiffにCapafy pathや`docs/manifests/oss-merge-1-sources.json`は含まれない。base run `37722582624`のOSS jobが同様にFAILした後run cancelし、最新main由来PR #7044のcheckでも同じ境界checkがFAILした。
 - 別laneのmanifestを重ねて変更しない。base側のOSS inventoryが整ったmainを取り込んでPR #7042のrequired checksを再実行する。Pass前にmergeしない。
 
-**現在cursor:** parallel 1A PR #7042 CI/baseline resolutionと1B cleanup receipt/capacity eligibilityの並行gate。後続platform順は`Remaining atomic Gig TODO`に従う。
+**当時のcursor（履歴）:** parallel 1A PR #7042 CI/baseline resolutionと1B cleanup receipt/capacity diagnostics。cleanupはproducer admission gateではない。後続platform順は`Remaining atomic Gig TODO`に従う。
 
 ### 2026-10-08 12:40 JST — 12:30 slots deferred by missing exact identities
 
@@ -6345,7 +6345,7 @@ Fresh read-only review rejected the idle-readback-only patch: a new StartInterva
 - `ebook-en-tiktok-daily` is loaded-idle on installed main SHA `e1b061f1`; its latest admission is blocked by `host_admission_deferred:disk_headroom_low`. It retains claimed effect-unknown occurrence `18dc6de8dcf3a0e8-75262`, `next_action=official_readback_required`, with cause `eBook render is not ready: render_reconciliation_required`; the Loop event has no provider receipt, while the separate completed HeyGen sidecar has the video receipt. `life-manager-release-reconciler` is loaded-running on main SHA `e1b061f1` (PID `79677` at the 22:57 JST status readback); its latest occurrence exited 1 while it remained running. Do not stop or restart it.
 - Last verified Stripe readback at 19:37 JST: `/monk` is `$10.99` one-time; Daily Anicca Letter is `$9.99/month`, with 0 active subscriptions. `$10K` gross MRR requires 1,002 paid active Letter subscribers; eBook one-time orders do not count as MRR. Refresh before making a current revenue claim.
 
-**順序更新:** 旧順序=`natural reconciler handoff → shared English effect fence resolution → Instagram route → post → 3/day → MRR`。新順序=`complete the legitimate English Monk Instagram verification → connect and verify its Postiz integration → add a separate account-scoped Instagram owner with owner-specific publication identity and an exact existing-slot override → recover shared disk admission → publish the completed MP4 immediately through the Instagram owner → verify receipt/public URL → resume 08:00/14:00/21:00 JST → resolve the old TikTok-owner fence before any TikTok rerun → connect paid eBook orders/PDF receipts to optional paid Letter subscriptions`. 理由は、指定Instagram integrationが未登録であり、旧effect claimは別のTikTok ownerに属するため、target-specific readback/fenceを維持したままInstagramの新規ownerを準備できる。disk admissionは新owner実行時の共有gateとして残す。
+**順序更新:** 旧順序=`natural reconciler handoff → shared English effect fence resolution → Instagram route → post → 3/day → MRR`。新順序=`complete the legitimate English Monk Instagram verification → connect and verify its Postiz integration → add a separate account-scoped Instagram owner with owner-specific publication identity and an exact existing-slot override → publish the completed MP4 through the Instagram owner when account/provider/effect gates permit → verify receipt/public URL → resume 08:00/14:00/21:00 JST → resolve the old TikTok-owner fence before any TikTok rerun → connect paid eBook orders/PDF receipts to optional paid Letter subscriptions`. 理由は、指定Instagram integrationが未登録であり、旧effect claimは別のTikTok ownerに属するため、target-specific readback/fenceを維持したままInstagramの新規ownerを準備できる。numeric free-space admissionは新ownerの実行条件にしない。
 
 **残TODO（eBookのみ・この順）:**
 
@@ -6353,12 +6353,12 @@ Fresh read-only review rejected the idle-readback-only patch: a new StartInterva
 2. **Postiz binding:** live accountをPostizへ接続し、`GET /integrations`で正確なInstagram profile、integration ID、`disabled=false`を確認する。既存product accountへ付け替えない。
 3. **Dedicated owner source:** `ebook-en-instagram-daily`を既存eBook publisherへ追加する。更新対象は `apps/life-manager/scripts/ebook-distribute-daily.js`（`JOBS`/`selectTarget`/`run`）、English pack/account registry、`config/marketing-destinations.json`、`config/loop-registry.json`、product-loop catalog、およびowner contract test。EN slotsは08:00/14:00/21:00 JST。既存のproduct/slot campaign tokenは共有し、JS publication IDにownerをsuffixして同slotのTikTokとInstagramのprovider intent/caption pathを分けることをfocused testで確認する。
 4. **Source-to-production:** latest main由来の専用branchでfocused acceptance・必須CI・reviewを通し、PR merge後のimmutable releaseとtarget owner SHA/argvを確認する。稼働中のrelease reconcilerには触れない。
-5. **Host admission:** canonical shared cleanup policyで2 GiB floorを回復する。現在のallowlistでは3 cache rootsがopen、9 release rootsがprotectedのためholdされる。次の操作は新たなclose/readback証拠に基づくこと。open appを終了したりprotected pathを削除したりしない。
+5. **Host safety:** producerに数値free-space前提を置かない。cleanup receiptは診断し、実際のwrite failure・測定不能・explicit stop・owner lockはそれぞれの正確な原因として扱う。open appを終了したりprotected pathを削除したりしない。
 6. **Immediate first post:** account-scoped ownerから既存run `ebook-run.571924dc4e4867349fc6fd13` のcompleted MP4を使い、exact pack slot `2026-10-07T23:00:00.000Z` を指定するstrict one-shot overrideで、追加レンダーなしにInstagramへ1件公開する。official Postiz `PUBLISHED` receipt、native Reel URL、integration/profile、video hashを照合し、同じintentを再送しない。既存TikTok occurrence `18dc6de8dcf3a0e8-75262` は別owner fenceとして保持し、このInstagram postのno-effect条件にしない。
 7. **Recurring cadence:** 08:00/14:00/21:00 JSTの3件をそれぞれ自然発生し、毎日3件のunique `PUBLISHED` receiptとreplay-zeroを確認する。
 8. **$10K MRR funnel:** $10.99 one-time eBook saleとPDF deliveryを別計上する。既存$9.99/月LetterをMarketing Engineのproduct/attribution registryへ接続し、購入者が選択する導線を追加して、paid invoiceとactive paid subscriberをStripe公式readbackで数える。目標は1,002 active subscribers、現時点の最終確認は0。
 
-**現在cursor:** `SMSの正規本人確認/端末接続 → English Monk IGをPostizへ接続 → owner/sourceとexact-slot reuseを追加 → shared disk admissionを回復 → 完成済みMP4を今すぐ1件publish/readback → 3/dayの自然運用 → 旧TikTok owner fenceをそのtarget用にreconcile → paid PDF/Letter MRR`. 実行仕様と図: `docs/superpowers/plans/2026-10-08-ebook-english-monk-instagram-launch.md`。Capafyは対象外。
+**当時のcursor:** `SMSの正規本人確認/端末接続 → English Monk IGをPostizへ接続 → owner/sourceとexact-slot reuseを追加 → account/provider/effect gatesを満たして完成済みMP4をpublish/readback → 3/dayの自然運用 → 旧TikTok owner fenceをそのtarget用にreconcile → paid PDF/Letter MRR`. numeric free-space gateは置かない。実行仕様と図: `docs/superpowers/plans/2026-10-08-ebook-english-monk-instagram-launch.md`。Capafyは対象外。
 
 
 ### 2026-10-08 23:04 JST — PR #7152 merged; production still capacity-blocked
@@ -6926,7 +6926,7 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 6. **Prove natural business outcomes:** Luma Compass event registration; Workday applications; unique new VC and AI/AGI founder cold emails. Match each provider/sent-mail receipt and Telegram report to the same occurrence, and confirm gpt-6-luna/max/fast from each natural-run event. Fundraiser replies proceed to agreed podcast/Zoom; in-person visits require a confirmed invitation and actual cost/result record.
 7. **Close capacity and economics:** measure real simultaneous loop count, claims/reservations/eligible queue/admission reasons, CPU/RAM/disk in one window. The configured global finite-run default is 8, not measured available capacity; keep OpenClaw and Life Manager admission authority unless the measured scheduler limit remains after disk and owner repairs. Separate applications, replies, meetings, funding, settled cash, and costs.
 
-**現在cursor:** push latest-main merge + current SSOT + Capafy digest → exact-head CI/fresh review → merge → owner-safe disk recovery and receipt → immutable release/natural handoff/doctor → exact effect fences → target owner runs → same-window capacity/economics.
+**当時のcursor:** push latest-main merge + current SSOT + Capafy digest → exact-head CI/fresh review → merge → cleanup receiptを診断記録（数値free-space gateなし）→ immutable release/natural handoff/doctor → exact effect fences → target owner runs → same-window capacity/economics.
 
 
 ### 2026-10-08 20:39 JST — #7138 sync and post-release disk state
@@ -6951,7 +6951,7 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 7. Prove natural Luma registration, Workday applications, and deduped cold mail to new VCs/AI/AGI lab founders. Match each provider/sent-mail receipt, gpt-6-luna/max/fast event, and Telegram report to its occurrence. On positive Fundraiser replies, arrange the agreed podcast/Zoom; for an invited onsite visit record actual cost and outcome.
 8. In one time window, measure active claims, reservations, eligible queue age, admission reasons, per-class contention, CPU/RAM/disk, and actual simultaneous target loops. The configured finite-run default is 8, not measured live capacity. Keep OpenClaw and Life Manager admission authority unless measured scheduler limits remain after disk/owner repairs. Report applications, replies, meetings, funding, settled cash, and costs separately.
 
-**現在cursor:** push latest-main sync/digest/spec → exact-head checks and fresh review → merge → cleanup receipt >= 2 GiB → immutable release/natural handoff/doctor → exact effect fences → owner-by-owner natural runs → capacity/economic evidence.
+**当時のcursor:** push latest-main sync/digest/spec → exact-head checks and fresh review → merge → cleanup receiptを診断記録（2 GiB到達をproducer gateにしない）→ immutable release/natural handoff/doctor → exact effect fences → owner-by-owner natural runs → capacity/economic evidence.
 
 
 ### 2026-10-08 20:45 JST — PR cursor corrected after fresh review
@@ -6972,7 +6972,7 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 7. Verify natural Luma registration, Workday applications, and new-target VC/AI/AGI founder cold mail with matching provider/sent-mail receipts, gpt-6-luna/max/fast run events, and Telegram reports. Follow positive Fundraiser replies to agreed podcast/Zoom or invited in-person meetings and record outcomes/costs.
 8. Measure claims/reservations/eligible queue age/admission reasons/per-class contention/CPU/RAM/disk in one time window; report actual simultaneous loops and separate applications, replies, meetings, funding, settled cash, and costs. Keep configured cap 8 distinct from live occupancy; retain OpenClaw unless measurements prove a scheduler-specific limit.
 
-**現在cursor:** push this cursor correction → latest-head CI and fresh review → merge → cleanup receipt >= 2 GiB → natural release/doctor → exact effect fences → owner natural outcomes → same-window capacity/economics.
+**当時のcursor:** push this cursor correction → latest-head CI and fresh review → merge → cleanup receiptを診断記録（数値gateなし）→ natural release/doctor → exact effect fences → owner natural outcomes → same-window capacity/economics.
 
 
 ### 2026-10-08 20:47 JST — byte-stable loop fixture regression fixed locally
@@ -6993,7 +6993,7 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 6. Apply Connector, Job Hunter, and Fundraiser individually when loaded-idle, admission-eligible, lock-free, and disk-ready. Prove Luma registration, Workday applications, new unique VC/AI/AGI-founder cold mail, same-occurrence provider/sent-mail evidence, gpt-6-luna/max/fast, and Telegram results. Carry positive Fundraiser replies to agreed podcast/Zoom or invited in-person meeting with actual cost/result.
 7. Measure actual simultaneous loops with active claims, reservations, eligible queue age, per-class admission, CPU/RAM/disk in one window. The configured default cap is 8; the current live capacity is not yet proven. Keep OpenClaw unless a measured scheduler-specific limit persists after disk/owner repair; distinguish pipeline activity from settled cash and costs.
 
-**現在cursor:** push fixture+SSOT → exact-head CI/fresh review → merge → disk cleanup receipt >= 2 GiB → release/handoff/doctor → exact effect fences → owner natural runs → capacity/economic evidence.
+**当時のcursor:** push fixture+SSOT → exact-head CI/fresh review → merge → disk cleanup receiptを診断記録（数値gateなし）→ release/handoff/doctor → exact effect fences → owner natural runs → capacity/economic evidence.
 
 
 ### 2026-10-08 20:54 JST — current PR acceptance and production cursor
@@ -7146,6 +7146,8 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 
 ### 2026-10-08 — remove numeric disk-headroom stops from all loops
 
+This contract supersedes every earlier or later historical cursor in this SSOT that makes producer work wait for a numeric free-space value, including the capacity snapshots below. Those snapshots remain evidence of past state, not active execution gates.
+
 - The global loop runner previously deferred ordinary jobs below 2 GiB and selected paid jobs below 1 GiB; main later lowered `critical_paid` to 256 MiB and `revenue` to 512 MiB. Producer, Gig, and Writer wrappers add 512 MiB or measured Writer-capacity floors. Writer publication and release creation have separate numeric disk checks. These checks repeatedly defer revenue and other scheduled work.
 - **Contract:** no loop, producer wrapper, Writer publication path, or release builder rejects work solely because measured free bytes are below a configured floor. Keep actual filesystem errors, unavailable/unsafe state, durable-effect fences, and the explicit hard `disk-writers.stop` operator control; launchd environment variables cannot bypass that stop file. Do not treat a cleanup recovery metric as a producer admission rule: cleanup may continue to report whether it restored 2 GiB, while other loops keep making progress.
 - **Limit:** this removes preventive headroom stops; it cannot prevent a real write from failing with `ENOSPC`. Record that as the actual failed operation and continue the next scheduled occurrence. Never replay an external effect whose outcome is unknown.
@@ -7205,7 +7207,7 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 
 **完了条件:** main-derived releaseからの三loop natural terminalと各official result/Telegram/model receipt、target別unknown fence/replay-zero、同一窓の実稼働capacity/economicsを確認する。cleanup receiptは診断として記録し、2 GiB未達でproducerを待機させない。
 
-**現在cursor:** correlate the 12:53–12:58 disk drop to an exact writer/owner → repair only that owner and prove stable ≥2 GiB recovery/admission → natural #7149 release handoff/doctor → exact effect reconciliation → three target natural outcomes → same-window capacity/economics.
+**当時のcursor:** correlate the 12:53–12:58 disk drop to an exact writer/owner → record owner-safe cleanup diagnostics without a numeric admission target → natural #7149 release handoff/doctor → exact effect reconciliation → three target natural outcomes → same-window capacity/economics.
 
 
 ### 2026-10-08 22:24 JST — 新SHAへのfleet再試行が短縮deadlineを無視
@@ -7248,7 +7250,7 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 4. latest-main task branchをcommit/pushし、同一headのrequired CI/ship reviewを取得してmergeする。productionへはdisk-safeな自然handoffだけを使い、active reconcilerをstop/restartしない。
 5. diskは別cursorとして、host writer/Swap/owner I/Oをfresh readbackで特定し、safe cleanup/admission contractを満たすまでtarget loopのprovider実行をclaimしない。
 
-**現在cursor:** write normal-error RED regression → add budget-progress-only state and legacy fallback → rerun full relevant tests → fresh read-only ship review → exact-head CI/merge → natural release/fleet continuation → safe disk recovery/target outcomes.
+**当時のcursor:** write normal-error RED regression → add budget-progress-only state and legacy fallback → rerun full relevant tests → fresh read-only ship review → exact-head CI/merge → natural release/fleet continuation → disk diagnostics and target outcomes without a numeric free-space gate.
 
 
 ### 2026-10-08 22:45 JST — 通常errorのcoalesceを保つ修正を検証
@@ -7279,7 +7281,7 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 - merge後HEAD `deaaa76f62`でfleet-apply suite 33/33、`bash -n bin/reconcile-agent-runner-release.sh`、`bash scripts/verify-source-boundary.sh`、`git diff --check origin/main...HEAD`がpass。worktreeはcleanで、merge commitを含むtask branchはremote branchより3 commit先行している。
 - diskは依然として2 GiB floor未達（直近測定は約204 MiB free）。loop capacityの実測と三loopのnatural provider resultは未完了。
 
-**現在cursor:** merge HEAD/spec updateをpush → PRを作成しexact-head CIとfresh read-only `ship` review → merge → immutable release/natural fleet readback → disk writer attribution/2 GiB cleanup/admission → target effect readbackと各loop natural run → same-window capacity/economics。
+**当時のcursor:** merge HEAD/spec updateをpush → PRを作成しexact-head CIとfresh read-only `ship` review → merge → immutable release/natural fleet readback → disk writer attributionとcleanup診断（2 GiB admission gateなし）→ target effect readbackと各loop natural run → same-window capacity/economics。
 
 **残TODO（完了まで・この順）:**
 
@@ -7396,7 +7398,7 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 - The stable watchdog is a recovery lane outside finite `lm_loop_run` admission. It runs the current immutable cleanup governor, but it has reclaimed only about 6 KiB per pass so far; the exact reason free space stays under 1 GiB is unresolved.
 - A follow-up executable plan is recorded at `docs/superpowers/plans/2026-10-08-revenue-admission-floor.md`. It changes only `_disk_floor` and its tests: `revenue` owners use the 1 GiB floor from #7166, borrow/support stay at 2 GiB, and the global finite-run cap remains 8. The remote PR head is still `e4b64e45bf`; this merge/plan update is not pushed yet, so old CI is not current evidence.
 
-**現在cursor:** commit latest-main merge resolution + revenue-floor plan → push branch → exact-head PR #7156 CI/fresh review/merge → natural release/readback → watchdog recovery/2 GiB admission → revenue-floor follow-up PR → Fundraiser fence readback → target natural outcomes → same-window capacity.
+**当時のcursor:** commit latest-main merge resolution + revenue-floor plan → push branch → exact-head PR #7156 CI/fresh review/merge → natural release/readback → watchdog receipt diagnostics (no numeric producer admission) → revenue-floor follow-up PR → Fundraiser fence readback → target natural outcomes → same-window capacity.
 
 
 ### 2026-10-08 23:37 JST — review findings corrected on the current PR cursor
@@ -7426,7 +7428,7 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 - PR #7156 remote head is still `bd5208d8fe`. Its check run `37794590717` has seven passes and two pending (`Loop control contracts`, `TruffleHog`); these checks do not validate the current local merge head. The fresh review on `bd5208` found only a stale “merge/push pending” cursor; this entry replaces it. The marker-present/legacy tests and timestamp corrections are already in the branch.
 - The executable follow-up plan is committed in `docs/superpowers/plans/2026-10-08-revenue-admission-floor.md`. The low-disk watchdog is stable and running but latest receipt is still below 2 GiB; target owners remain on the older installed release and no provider result is claimed.
 
-**現在cursor:** commit/push latest-main merge and this cursor → exact-head PR #7156 CI/fresh `ship` review → merge → revenue-floor follow-up branch and tests → immutable release/watchdog receipt → disk/admission recovery → effect readbacks and target natural outcomes → post-recovery capacity measurement.
+**当時のcursor:** commit/push latest-main merge and this cursor → exact-head PR #7156 CI/fresh `ship` review → merge → revenue-floor follow-up branch and tests → immutable release/watchdog receipt → disk diagnostics without numeric producer admission → effect readbacks and target natural outcomes → capacity measurement.
 
 
 ### 2026-10-08 23:52 JST — English eBook Instagram の現在状態と順序
@@ -7436,9 +7438,9 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 - **内容の不一致:** 対応script `script.f73a3a1549e1b8e9f86eaeed` のhookは`When a mistake follows you`で、本文は過去を手放す短いreflection。Hadrianの内容だという根拠はない。ローカルeBookの4つの動画run/scriptを照合してもHadrian/Adrianは0件。HeyGen `video list --limit 100`も0件。依頼されたHadrian動画とは照合できていないので、このMP4をHadrianとして投稿しない。
 - **Instagram/Postiz公式readback:** Postiz `GET /public/v1/integrations` はHTTP 200、全31件・Instagram 9件でEnglish Monkは0件。`instagram-english-monk` credentialは希望handle `monk_anicca` と一致するが`phone_verification_pending`。Instagram画面はsignupのphone prompt、CAPTCHAなし。Messages DBのSMS読取はmacOS TCCに拒否され、iPhone Mirroringは選択済みiPhoneの再接続を要求する。privacy設定変更や本人確認回避はしない。
 - **source/runtime:** PR #7173に`ebook-en-instagram-daily` ownerとfail-closed setupが実装済み。PRの既存headに対するrequired CIは全件PASS。最新`origin/main`をローカルmergeした後のfocused acceptanceもNode 20/20、Python 4/4、loop contract 18 loops/188 registry jobs、`git diff --check`がPASS。更新branchのpush、新head CI/review/mergeは未完。production runtimeでは同owner IDがunknownで未導入。
-- **host admission:** `/`の空きは210,436 KiBで、2 GiB floorを下回る。open/protected pathを消さず、disk admissionが回復するまでowner applyを行わない。稼働中のrelease reconcilerには触れない。
+- **host status:** `/`の空きは当時210,436 KiB。これは履歴上の測定値で、producerの数値admission gateにしない。open/protected pathを消さず、稼働中のrelease reconcilerには触れない。
 - **収益:** 最終確認したStripe値（19:37 JST）は`/monk`が$10.99一回払い、Daily Anicca Letterが$9.99/月、active paid subscriptions 0。これは最新readbackではない。1,002件の有効な$9.99月額契約で$10,009.98 gross MRRとなるが、手数料・返金前の目標値。一回払いeBookはMRRに含めない。
-- **順序更新:** 旧順序=`Instagram認証→Postiz接続→owner source→release/apply→現在の完成MP4を投稿→3/day→MRR`。新順序=`最新mainを含むPR #7173のfocused acceptance/CI/review/merge→Hadrianの正確な動画ID・MP4・未投稿状態を照合→本人のphone verificationとwarmup→Postizの正確なprofile binding→2 GiB admissionとmain-derived release/apply→対象動画を1回投稿し公式receipt確認→自然な3/day→paid eBook/PDFとLetterを計測`。理由は現在見つかった英語MP4がHadrianではなく、対象Instagram accountも未認証/未接続だから。source mergeはこれらの外部ゲートと独立して進められる。
+- **順序更新:** 旧順序=`Instagram認証→Postiz接続→owner source→release/apply→現在の完成MP4を投稿→3/day→MRR`。新順序=`最新mainを含むPR #7173のfocused acceptance/CI/review/merge→Hadrianの正確な動画ID・MP4・未投稿状態を照合→本人のphone verificationとwarmup→Postizの正確なprofile binding→main-derived release/apply→対象動画を1回投稿し公式receipt確認→自然な3/day→paid eBook/PDFとLetterを計測`。理由は現在見つかった英語MP4がHadrianではなく、対象Instagram accountも未認証/未接続だから。source mergeはこれらの外部ゲートと独立して進められ、numeric free-space値をadmission条件にしない。
 - **現在cursor:** 最新main同期済みbranchをpushし、PR #7173の新head CI/reviewを通す。同時にHeyGen/ebook ledgerの追加記録からHadrian動画を探す。owner phone verificationは選択済みiPhoneをSystem Settingsで再接続しSMSを通常のMessages経路で読めるまで待つ。正確な動画とlive accountが確認できるまでpublishしない。
 
 
@@ -7449,7 +7451,7 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 - Verification after the source/test change: fleet-apply suite 34/34 PASS in 51.547s; shell syntax, source boundary, and git diff --check PASS. The new focused regression passed for marker-present and legacy marker-absent state. This is local verification; these changes are not yet on the PR head.
 - At 23:54 JST, PR #7156 still points to 73332795...; run 37795141108 has all reported checks PASS except Loop control contracts, which is still pending. Those checks do not cover the local source/test change.
 
-**現在cursor:** commit/push the mixed-error guard, regression, and this corrected cursor → fresh exact-head CI and read-only review → merge #7156 → main-derived release/watchdog readback → revenue-floor follow-up PR → disk/admission recovery → official effect readbacks and target natural outcomes → post-recovery capacity measurement.
+**当時のcursor:** commit/push the mixed-error guard, regression, and this corrected cursor → fresh exact-head CI and read-only review → merge #7156 → main-derived release/watchdog readback → revenue-floor follow-up PR → disk diagnostics without numeric producer admission → official effect readbacks and target natural outcomes → capacity measurement.
 
 
 ### 2026-10-08 23:55 JST — latest-main sync for PR #7156
@@ -7457,7 +7459,7 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 - `origin/main` advanced from `e9fa073d83` to `5ef786aa8a` through doc-only PRs #7174 and #7175 while the mixed-error guard was being pushed. The source fix commit `ce83c92734` is on the PR branch; latest main is merged locally as `b374df90cf`, with no source conflict. The new main entries remain preserved in this SSOT.
 - At this snapshot the PR remote head is `ce83c92734`; the `b374df90cf` latest-main merge is local and needs pushing. Checks from the previous head do not cover the merge head.
 
-**現在cursor:** confirm the remote PR head contains latest main `5ef786aa8a` and source fix `ce83c92734` → exact-head required CI and fresh read-only review → merge #7156 → main-derived immutable release and natural readback → revenue-floor follow-up → disk/admission recovery → Fundraiser official effect readbacks → target natural outcomes and post-recovery capacity measurement.
+**当時のcursor:** confirm the remote PR head contains latest main `5ef786aa8a` and source fix `ce83c92734` → exact-head required CI and fresh read-only review → merge #7156 → main-derived immutable release and natural readback → revenue-floor follow-up → disk diagnostics without numeric producer admission → Fundraiser official effect readbacks → target natural outcomes and capacity measurement.
 
 
 ### 2026-10-09 00:03 JST — 英語Instagram owner の admission と rollout 再確認
@@ -7546,14 +7548,16 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 - The effect-fence reconciliation fix is on branch `fix/loop-reconcile-effect-fence-20261009` at `b97622ef3012517c619e0476597447ce465df1ad` and is now combined locally with #7183. The RED regression reproduced exit 1; the fix returns an explicit fenced skip for the exact `effect_unknown` refusal, continues independent owners, and keeps unrelated errors non-zero. Reconcile-focused tests pass 36/36, `test_lm_loop_apply.py` passes 178/178, source-boundary and diff checks pass.
 - Production remains separate: current release is `1fe7db3b`, main is `7eda2619`, and the release reconciler is still on `e1b061f1`. It repeatedly reports `entrypoint_exit_1` while reconcile results include exact effect-unknown fences; the new code is not yet in an immutable release. Host samples show transient cap saturation (8/8 reservations+claims, then 6/8) and a retained queue; disk/swap are unstable, so no global cap increase is made yet.
 
-**現在cursor:** create/update PR for `fix/loop-reconcile-effect-fence-20261009` at its latest-main head → exact-head required CI and fresh read-only review → merge → natural main release/readback → disk/effect recovery → same-window capacity decision. Keep host cap 8 bounded; Capafy service cap 5 is a separate provider constraint.
+**現在cursor:** create/update PR for `fix/loop-reconcile-effect-fence-20261009` at its latest-main head → exact-head required CI and fresh read-only review → merge → natural main release/readback → diagnose actual disk errors and reconcile exact effect fences (no numeric producer free-space gate) → same-window capacity decision. Keep host cap 8 bounded; Capafy service cap 5 is a separate provider constraint.
 
 
 ### 2026-10-09 00:42 JST — reconcile-fence PR cursor
 
+This is a separate PR for effect-fence reconciliation and host-cap measurement. Its disk references are diagnostics; PR #7179's all-loop policy below is authoritative for numeric free-space admission.
+
 - PR #7185 is open, base `7eda261900f89ccdbb85f647ab1577d7325ac87a`, head `8eca80f169cb983aac3e7dd8157a9d34a6fe7084`; latest main is an ancestor. Its initial CI run is `37802872310`; review and required checks have not completed. This cursor update will create a new PR head, so that run is not acceptance evidence for the resulting head.
 
-**現在cursor:** push this cursor correction, then run required CI and a fresh read-only review on the resulting PR #7185 head → merge #7185 → wait for the main-derived natural release/readback → recover disk and effect fences → decide host-cap changes from a stable capacity window.
+**現在cursor:** push this cursor correction, then run required CI and a fresh read-only review on the resulting PR #7185 head → merge #7185 → wait for the main-derived natural release/readback → diagnose actual disk errors and reconcile exact effect fences (no numeric producer free-space gate) → decide host-cap changes from a stable capacity window.
 
 
 ### 2026-10-09 00:43 JST — fresh source review and cursor correction
@@ -7561,7 +7565,7 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 - Fresh read-only review of PR #7185 head `a28cf316b195e7482f0e8031ed94fe9528c09cb7` returned `fix-first` solely because the preceding cursor still asked to push a correction already present on that head. The source change was accepted: only the exact effect-unknown refusal is fenced-skip, independent owners continue, other errors remain non-zero, and no external-effect fence is cleared.
 - PR #7185 still has base `7eda2619`; check run `37802950202` had not started its jobs at this snapshot. This cursor correction creates a new head, so the next checks and review must use the resulting pushed head.
 
-**現在cursor:** exact-head required CI and fresh read-only review on the current pushed PR #7185 head → merge #7185 → natural main release/readback → disk/effect recovery → stable same-window capacity decision. Keep host cap 8 bounded; do not equate it with Capafy’s separate service cap 5.
+**現在cursor:** exact-head required CI and fresh read-only review on the current pushed PR #7185 head → merge #7185 → natural main release/readback → diagnose actual disk errors and reconcile exact effect fences (no numeric producer free-space gate) → stable same-window capacity decision. Keep host cap 8 bounded; do not equate it with Capafy’s separate service cap 5.
 
 
 ### 2026-10-09 00:49 JST — OSS boundary manifest aligned after main update
