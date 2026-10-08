@@ -19,6 +19,9 @@ class ParseFeatureRadio(unittest.TestCase):
     def test_non_participation_option_is_dropped(self) -> None:
         self.assertIsNone(MODULE.parse_feature_radio("on", "参加しない", datetime.date(2026, 10, 8)))
 
+    def test_non_feature_radios_on_the_create_page_are_dropped(self) -> None:
+        self.assertIsNone(MODULE.parse_feature_radio("true", "「スタンプ」", datetime.date(2026, 10, 8)))
+
     def test_label_without_a_title_is_dropped(self) -> None:
         self.assertIsNone(MODULE.parse_feature_radio("799", "something unparseable", datetime.date(2026, 10, 8)))
 
@@ -77,21 +80,13 @@ class ShouldRunToday(unittest.TestCase):
             self.assertTrue(MODULE.should_run_today(ledger))
 
 
-class ItemUrl(unittest.TestCase):
-    def test_uses_the_first_tracked_item_with_a_product_id(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            state_root = Path(tmp)
-            set_dir = state_root / "set-002"
-            set_dir.mkdir()
-            (set_dir / "creators-item.json").write_text(json.dumps({"product_id": "48067450"}))
-            self.assertEqual(
-                MODULE._item_url(state_root),
-                "https://creator.line.me/my/cCX4POFknN2lhLJE/sticker/48067450/update",
-            )
-
-    def test_no_tracked_item_returns_none(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            self.assertIsNone(MODULE._item_url(Path(tmp)))
+class LiveCreatePageLabel(unittest.TestCase):
+    def test_live_feature_block_text_parses_title_and_year_qualified_deadline(self) -> None:
+        # Text of the radio-835 block on /sticker/create, 2026-10-08.
+        label = ("タイトル： 「冬を感じるスタンプ」特集 審査受付期間： 2026年10月2日(金)11:00 〜 2026年12月4日(金)10:59"
+                 " (日本時間) バナー掲載期間(予定)： 2026年11月11日(水)11:00 〜 2027年1月8日(金)10:59 (日本時間)")
+        out = MODULE.parse_feature_radio("835", label, datetime.date(2026, 10, 8))
+        self.assertEqual(out, {"value": "835", "title": "冬を感じるスタンプ", "deadline": "2026-12-04"})
 
 
 if __name__ == "__main__":
