@@ -385,7 +385,7 @@ async function gates(uid, opts) {
   const nowMs = opts.nowMs == null ? Date.now() : opts.nowMs;
   const user = await readUser(uid, "payout_destination", opts);
   const { rows: locations } = await readRows("lm_user_locations", {
-    uid: `eq.${uid}`, select: "uid,observed_at,expires_at", limit: "1",
+    uid: `eq.${uid}`, select: "uid,latitude,longitude,observed_at,expires_at", limit: "1",
   }, opts);
   const location = locations[0] || null;
   const locked = new Set(lockedDiscoveryGates({
@@ -797,7 +797,7 @@ function createSupabaseCommandStore(opts = {}) {
     async assertCurrentScope(scope) { return Boolean((await rows("lm_users", new URLSearchParams({ uid: `eq.${scope.uid}`, telegram_chat_id: `eq.${scope.chatId}`, select: "uid", limit: "1" })))[0]); },
     async readUser(scope) { return (await rows("lm_users", new URLSearchParams({ uid: `eq.${scope.uid}`, telegram_chat_id: `eq.${scope.chatId}`, select: "uid,name,telegram_chat_id,phone,call_language,wake_policy,calendar_provider,calendar_connected_account_id,gmail_account_id,payout_destination", limit: "1" })))[0] || null; },
     async readPreferences(scope) { return (await rows("lm_panel_preferences", new URLSearchParams({ uid: `eq.${scope.uid}`, select: "call_enabled,notifications_enabled,daily_automation_enabled,delegation_enabled,call_time_zone", limit: "1" })))[0] || {}; },
-    async readLocation(scope) { return (await rows("lm_user_locations", new URLSearchParams({ uid: `eq.${scope.uid}`, select: "observed_at,expires_at", limit: "1" })))[0] || null; },
+    async readLocation(scope) { return (await rows("lm_user_locations", new URLSearchParams({ uid: `eq.${scope.uid}`, select: "latitude,longitude,observed_at,expires_at", limit: "1" })))[0] || null; },
     async readReceipt(scope, key) { const row = (await rows("lm_panel_command_receipts", new URLSearchParams({ uid: `eq.${scope.uid}`, chat_id: `eq.${scope.chatId}`, idempotency_key: `eq.${key}`, select: "request_hash,status,result", limit: "1" })))[0]; return row ? { requestHash: row.request_hash, status: row.status, result: row.result } : null; },
     async claimReceipt(scope, key, value) { const response = await fetchImpl(`${base}/rest/v1/lm_panel_command_receipts`, { method: "POST", headers: { ...headers(opts.supaKey), "content-type": "application/json", Prefer: "return=minimal" }, body: JSON.stringify({ uid: scope.uid, chat_id: scope.chatId, idempotency_key: key, request_hash: value.requestHash, command_type: value.commandType, status: value.status }) }); if (response.status === 409) return false; if (!response.ok) throw new Error("panel_receipt_failed"); return true; },
     async finishReceipt(scope, key, value) { const response = await fetchImpl(`${base}/rest/v1/lm_panel_command_receipts?uid=eq.${encodeURIComponent(scope.uid)}&chat_id=eq.${encodeURIComponent(scope.chatId)}&idempotency_key=eq.${encodeURIComponent(key)}`, { method: "PATCH", headers: { ...headers(opts.supaKey), "content-type": "application/json", Prefer: "return=minimal" }, body: JSON.stringify({ status: value.status, result: value.result, updated_at: new Date().toISOString() }) }); if (!response.ok) throw new Error("panel_receipt_failed"); },

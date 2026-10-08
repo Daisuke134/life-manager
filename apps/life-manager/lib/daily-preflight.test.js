@@ -91,7 +91,10 @@ function successfulFetch(url, options = {}) {
     return Promise.resolve(jsonResponse({ data: { id: "profile-private-id", enabled: true } }));
   }
   if (target.includes("/rest/v1/lm_user_locations?")) {
-    return Promise.resolve(jsonResponse([{ observed_at: "2026-07-21T00:00:00Z", expires_at: "2026-07-22T00:00:00Z" }]));
+    return Promise.resolve(jsonResponse([{
+      latitude: 35.681, longitude: 139.767,
+      observed_at: "2026-07-21T05:59:00.000Z", expires_at: "2026-07-21T06:10:00.000Z",
+    }]));
   }
   if (target === "https://api.resend.com/domains") {
     return Promise.resolve(jsonResponse({ data: [{ name: "aniccaai.com", status: "verified" }] }));
@@ -450,7 +453,7 @@ test("call: each Telnyx binding and auth gate mismatch fails nonzero", async (t)
   assert.equal(authMismatch.exitCode, 1);
 });
 
-test("location: required scheduler cohort user must have a present unexpired live-location row", async () => {
+test("location: required scheduler cohort user must have a current live-location fix", async () => {
   const nowMs = Date.parse("2026-07-21T06:00:00Z");
   const env = productionLikeEnv();
   const cohort = [{ uid: "synthetic-user" }];
@@ -465,7 +468,10 @@ test("location: required scheduler cohort user must have a present unexpired liv
     env,
     nowMs,
     fetchImpl: async (url) => String(url).includes("lm_user_locations")
-      ? jsonResponse([{ observed_at: "2026-07-20T00:00:00Z", expires_at: "2026-07-21T05:59:59Z" }])
+      ? jsonResponse([{
+        latitude: 35, longitude: 139,
+        observed_at: new Date(nowMs - 120_001).toISOString(), expires_at: new Date(nowMs + 60_000).toISOString(),
+      }])
       : jsonResponse(cohort),
     now: () => nowMs,
   });

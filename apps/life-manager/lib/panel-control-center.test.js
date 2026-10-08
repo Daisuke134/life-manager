@@ -22,7 +22,10 @@ function fixtureStore() {
     users, preferences, receipts, oauth, mutations,
     async readUser(scope) { const row = users.get(scope.uid); return row && row.telegram_chat_id === scope.chatId ? { ...row } : null; },
     async readPreferences(scope) { return { ...(preferences.get(scope.uid) || {}) }; },
-    async readLocation(scope) { return scope.uid === "u-a" ? { observed_at: "2026-07-21T00:00:00Z", expires_at: "2099-01-01T00:00:00Z" } : null; },
+    async readLocation(scope) { return scope.uid === "u-a" ? {
+      latitude: 35.681, longitude: 139.767,
+      observed_at: "2026-07-21T00:59:00Z", expires_at: "2026-07-21T01:30:00Z",
+    } : null; },
     async readReceipt(scope, key) { return receipts.get(`${scope.uid}:${key}`) || null; },
     async claimReceipt(scope, key, value) { const k = `${scope.uid}:${key}`; if (receipts.has(k)) return false; receipts.set(k, value); return true; },
     async finishReceipt(scope, key, value) { receipts.set(`${scope.uid}:${key}`, value); },
@@ -40,8 +43,23 @@ test("PANEL-0 personalized data differs and capabilities stay honest", async () 
   const b = await buildControlCenter({ uid: "u-b", chatId: "202" }, { store, nowMs: Date.parse("2026-07-21T01:00:00Z"), calendarStatus: async () => "INACTIVE" });
   assert.equal(a.identity.name, "Life Manager user"); assert.equal(b.identity.name, "Life Manager user"); assert.notDeepEqual(a.settings, b.settings);
   assert.equal(a.connections.calendar.state, "connected"); assert.equal(b.connections.calendar.state, "action_required");
+  assert.equal(a.context.locationAvailable, true);
   assert.equal(a.connections.email.state, "unavailable"); assert.equal(b.connections.email.state, "unavailable");
   assert.deepEqual(b.connections.email.actions, []); assert.doesNotMatch(JSON.stringify(a), /Dais/);
+});
+
+test("PANEL-0 does not report an unexpired stale location as available", async () => {
+  const store = fixtureStore();
+  store.readLocation = async () => ({
+    latitude: 35.681, longitude: 139.767,
+    observed_at: "2026-07-21T00:57:59.999Z", expires_at: "2026-07-21T01:30:00Z",
+  });
+  const result = await buildControlCenter(
+    { uid: "u-a", chatId: "101" },
+    { store, nowMs: Date.parse("2026-07-21T01:00:00Z"), calendarStatus: async () => "ACTIVE" },
+  );
+  assert.equal(result.context.locationAvailable, false);
+  assert.equal(result.connections.location.state, "action_required");
 });
 
 test("#1085 missing Calendar action uses the clear Connect Calendar label", async () => {

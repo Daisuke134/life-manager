@@ -8,6 +8,7 @@ const { DISCOVERY_STRINGS } = require("./i18n.js");
 const { sendMessage } = require("./telegram.js");
 const { getLiveLocation } = require("./late-notice.js");
 const { askPayoutQuestion } = require("./payout-question.js");
+const { inspectTelegramLiveLocation } = require("./live-location.js");
 
 const DISCOVERY_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const GATE_ORDER = Object.freeze(["location", "payout"]);
@@ -19,8 +20,7 @@ function hasPayoutDestination(destination) {
 }
 
 function lockedDiscoveryGates(context = {}, nowMs = Date.now()) {
-  const expiresAt = Date.parse(context.location && context.location.expires_at);
-  const freshLocation = Number.isFinite(expiresAt) && expiresAt > nowMs;
+  const freshLocation = inspectTelegramLiveLocation(context.location, nowMs).fresh;
   return GATE_ORDER.filter((gate) => gate === "location"
     ? !freshLocation
     : !hasPayoutDestination(context.payoutDestination));
