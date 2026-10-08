@@ -4969,3 +4969,12 @@ Source / production follow-up (2026-10-08 11:01 JST): PR #7012は`b692e70a`と�
 - 現在の安全な次手は、active release reconcilerの自然terminalを待ち、fleet owner rows・`current` SHA・CFO loaded SHA/statusを再readbackすること。PIDを止めたり、新しいapply/retryを重ねない。
 
 **現在cursor:** A5。A5 lease期限`2026-10-08T03:18:04Z`まで所有境界を維持しつつ、reconciler自然終端を待つ。両者を同じblocker扱いせず、独立のowner/actionとして進める。
+
+### 2026-10-08 11:46 JST — A6 verified September Cost Table detail
+
+- 保存済み公式2026-09 Cost Table CSVを既存`google_cost_table.load_directory`で再読込し、invoice total ¥27,889（JPY）をverifiedで再確認した。cash-paid=`unknown`、loop allocation=`unattributed`のまま。
+- 税前service/SKU合計: Places API ¥9,419.856821、Geocoding API ¥7,493.014626、Gemini API ¥5,160.873099、Directions API ¥3,271.171127、Cloud KMS ¥9.530434、Cloud Storage ¥0.005144、Cloud Run ¥0。合計¥25,354.451251。
+- 請求調整: usage gross ¥25,354.504771、credits -¥0.053520、tax ¥2,535、rounding -¥0.451251。これらを合算したinvoice totalが¥27,889。service totalsにはtaxを含めない。
+- このCost Tableはbilled amountの根拠だが、各SKUのAPI request count・agent/loop owner・cash settlementは示さない。対象local evidence inventoryから同期間Google Monitoring estimateはまだ確認できていない。請求額をOctober spendへ外挿せず、Google API replacementやbudget cutoffもこのatomでは行わない。
+
+**現在cursor:** A5。A6はinvoice detailを把握済みだが、Monitoring estimate照合・owner attribution・cash settlement・本番report readbackは未完了。
