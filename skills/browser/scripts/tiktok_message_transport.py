@@ -225,7 +225,7 @@ def _readback_expression(candidate: str, message: str, marker: str, sender: str 
       const bubbleSelector = '[data-e2e="dm-message"],[data-e2e="dm-message-text"],[data-e2e*="message-bubble"],[data-e2e*="message-content"],[class*="DivChatMessage"],[class*="DivMessageBubble"]';
       const rowBubbleSelector = '[data-e2e="dm-message"],[data-e2e*="message-bubble"],[class*="DivChatMessage"],[class*="DivMessageBubble"]';
       const messageLikeSelector = '[data-e2e*="message"],[class*="Message"]';
-      const statusSelector = '[data-e2e*="status"],[class*="Status"],[aria-live],[data-status],[data-message-status]';
+      const statusSelector = '[data-e2e*="status"],[class*="Status"],[aria-live],[data-status],[data-message-status],[aria-label],[title]';
       const bubbles = [...(messageList?.querySelectorAll(bubbleSelector) || [])]
         .filter(node => node && node.isConnected !== false);
       const knownBubbles = new Set(bubbles);
@@ -309,21 +309,21 @@ def _readback_expression(candidate: str, message: str, marker: str, sender: str 
         return bounded;
       };
       const isOutgoing = node => {
-        const path = [];
-        for (let current = node; current && current !== messageList; current = current.parentElement) {
-          path.push(current);
-        }
         const row = boundedMessageRowFor(node);
         if (!row) return false;
-        // Check every ancestor marker and the outermost scope with one canonical message root.
-        // Never scan messageList: its descendants can include another conversation row.
-        const inspected = new Set([...path, row.scope, row.root, ...(row.scope.querySelectorAll?.('*') || [])]);
         let positive = false;
         let contradiction = false;
-        for (const current of inspected) {
+        const rowNodes = new Set([row.scope, row.root, ...(row.scope.querySelectorAll?.('*') || [])]);
+        for (const current of rowNodes) {
           const evidence = senderMarkerEvidence(current);
           positive ||= evidence.positive;
           contradiction ||= evidence.contradiction;
+        }
+        // Outside the bounded row, ancestor markers can veto proof but cannot establish it.
+        // Never inspect messageList descendants: they can belong to another conversation row.
+        for (let current = row.scope.parentElement; current && current !== messageList;
+             current = current.parentElement) {
+          contradiction ||= senderMarkerEvidence(current).contradiction;
         }
         return positive && !contradiction;
       };
