@@ -1364,10 +1364,28 @@ class LmLoopApplyTest(unittest.TestCase):
                 self.assertEqual(hours, sorted({h % 24 for h in range(hours[0], hours[0] + 24, 24 // runs_per_day)}))
             else:
                 self.assertTrue(all("Hour" not in item for item in calendar))
-        value = registry()
-        value["loops"]["example"]["cadence"] = {"start_interval_seconds": 1800}
-        plist = plistlib.loads(build_apply_plan(value, self.root, SHA)[0]["plist_bytes"])
-        self.assertEqual(plist["StartInterval"], 1800)
+        # Sub-hour intervals that divide the hour hit the same wall: on 2026-10-08 the 15-minute
+        # Capafy factory started 0 times for two hours because other actors re-bootstrapped it
+        # more often than every 15 minutes. They render as wall-clock minutes that survive a reload.
+        for seconds, per_hour in ((300, 12), (900, 4), (1800, 2)):
+            value = registry()
+            value["loops"]["example"]["cadence"] = {"start_interval_seconds": seconds}
+            plist = plistlib.loads(build_apply_plan(value, self.root, SHA)[0]["plist_bytes"])
+            self.assertNotIn("StartInterval", plist, seconds)
+            calendar = plist["StartCalendarInterval"]
+            self.assertEqual(len(calendar), per_hour, seconds)
+            minutes = sorted(item["Minute"] for item in calendar)
+            step = seconds // 60
+            self.assertTrue(all("Hour" not in item for item in calendar))
+            self.assertTrue(all((b - a) == step for a, b in zip(minutes, minutes[1:])), minutes)
+            self.assertTrue(all(0 <= m < 60 for m in minutes))
+        # Not aligned to the hour, or too frequent to matter: unchanged.
+        for seconds in (420, 60, 120):
+            value = registry()
+            value["loops"]["example"]["cadence"] = {"start_interval_seconds": seconds}
+            plist = plistlib.loads(build_apply_plan(value, self.root, SHA)[0]["plist_bytes"])
+            self.assertEqual(plist["StartInterval"], seconds)
+            self.assertNotIn("StartCalendarInterval", plist)
 
     def test_investment_strategy_validation_uses_weekly_calendar_across_releases(self):
         registry_value = json.loads((ROOT / "config/loop-registry.json").read_text())
