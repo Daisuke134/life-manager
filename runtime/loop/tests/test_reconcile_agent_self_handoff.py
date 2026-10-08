@@ -51,7 +51,7 @@ case "${1:-}" in
     state="$(cat "$state_file")"
     case "$service:$state" in
       gui/*/ai.anicca.life-manager-release-reconciler:unknown)
-        printf 'state = bootstrapping\n'
+        printf 'state = not running\n'
         exit 0
         ;;
       gui/*/ai.anicca.life-manager-release-reconciler:old)
@@ -108,6 +108,8 @@ exit 64
     def test_handoff_waits_for_parent_then_bootstraps_target_and_records_readback(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
+            home = root / "home"
+            (home / "loops").mkdir(parents=True)
             fake_launchctl = self._fake_launchctl(root)
             state_file = root / "launchd-state"
             state_file.write_text("old", encoding="utf-8")
@@ -140,6 +142,9 @@ exit 64
 
             env = {
                 **os.environ,
+                "HOME": str(home),
+                "TMPDIR": str(root),
+                "PYTHONPATH": str(ROOT),
                 "FAKE_LAUNCHD_STATE": str(state_file),
                 "FAKE_LAUNCHD_LOG": str(log_file),
                 "LIFE_MANAGER_RUNTIME_PYTHON": os.environ.get("PYTHON", "python3"),
@@ -183,6 +188,8 @@ exit 64
     def test_handoff_waits_for_active_old_service_after_watcher_exits(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
+            home = root / "home"
+            (home / "loops").mkdir(parents=True)
             fake_launchctl = self._fake_launchctl(root)
             state_file = root / "launchd-state"
             state_file.write_text("old", encoding="utf-8")
@@ -208,6 +215,9 @@ exit 64
 
             env = {
                 **os.environ,
+                "HOME": str(home),
+                "TMPDIR": str(root),
+                "PYTHONPATH": str(ROOT),
                 "FAKE_LAUNCHD_STATE": str(state_file),
                 "FAKE_LAUNCHD_LOG": str(log_file),
                 "FAKE_ACTIVE_SERVICE_PID": str(os.getpid()),
@@ -243,6 +253,8 @@ exit 64
     def test_handoff_fails_closed_if_active_old_service_exceeds_wait_bound(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
+            home = root / "home"
+            (home / "loops").mkdir(parents=True)
             fake_launchctl = self._fake_launchctl(root)
             state_file = root / "launchd-state"
             state_file.write_text("old", encoding="utf-8")
@@ -268,6 +280,9 @@ exit 64
 
             env = {
                 **os.environ,
+                "HOME": str(home),
+                "TMPDIR": str(root),
+                "PYTHONPATH": str(ROOT),
                 "FAKE_LAUNCHD_STATE": str(state_file),
                 "FAKE_LAUNCHD_LOG": str(log_file),
                 "FAKE_ACTIVE_SERVICE_PID": str(os.getpid()),
@@ -584,7 +599,7 @@ exit 64
             self.assertEqual(state_file.read_text(encoding="utf-8"), "unknown")
             evidence = json.loads(receipt.read_text(encoding="utf-8"))
             self.assertEqual(evidence["error"], "old_service_state_unknown")
-            self.assertEqual(evidence["old_service_state"], "bootstrapping")
+            self.assertEqual(evidence["old_service_state"], "not running")
             self.assertEqual(evidence["run_lock"]["status"], "acquired")
             commands = log_file.read_text(encoding="utf-8").splitlines()
             domain = f"gui/{os.getuid()}"
@@ -597,6 +612,8 @@ exit 64
     def test_handoff_does_not_mutate_launchd_when_parent_does_not_exit(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
+            home = root / "home"
+            (home / "loops").mkdir(parents=True)
             fake_launchctl = self._fake_launchctl(root)
             state_file = root / "launchd-state"
             state_file.write_text("old", encoding="utf-8")
@@ -615,6 +632,9 @@ exit 64
             try:
                 env = {
                     **os.environ,
+                    "HOME": str(home),
+                    "TMPDIR": str(root),
+                    "PYTHONPATH": str(ROOT),
                     "FAKE_LAUNCHD_STATE": str(state_file),
                     "FAKE_LAUNCHD_LOG": str(log_file),
                     "LIFE_MANAGER_SELF_HANDOFF_WAIT_SECONDS": "0",
