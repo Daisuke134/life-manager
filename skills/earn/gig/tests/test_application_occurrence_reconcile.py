@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import sqlite3
 import sys
 from pathlib import Path
 
@@ -311,6 +312,114 @@ def test_batch_reconcile_keeps_fence_when_any_id_is_missing(tmp_path):
     assert result["reason"] == "batch_exact_ids_not_observed"
     assert fence.IntentStore(intent_root).read("123")["state"] == "prepared"
     assert fence.IntentStore(intent_root).read("456")["state"] == "prepared"
+
+
+def test_explicit_batch_subset_is_rejected_before_browser_lease(tmp_path, monkeypatch, capsys):
+    intent_root = tmp_path / "intents"
+    _bound_intent(intent_root, "123")
+    _bound_intent(intent_root, "456")
+    lease_calls = []
+
+    def fail_lease(*args, **kwargs):
+        lease_calls.append((args, kwargs))
+        raise AssertionError("incomplete request sets must not acquire a browser lease")
+
+    monkeypatch.setattr(reconcile.parent, "LeaseHandle", fail_lease)
+    evidence_dir = tmp_path / "evidence"
+    result_path = tmp_path / "result.json"
+
+    assert reconcile.main([
+        "--owner-id", OWNER,
+        "--occurrence-id", OCCURRENCE,
+        "--runtime-run-id", "run-1",
+        "--request-id", "123",
+        "--intent-root", str(intent_root),
+        "--evidence-dir", str(evidence_dir),
+        "--result", str(result_path),
+    ]) == 0
+
+    result = json.loads(capsys.readouterr().out)
+    assert result["reason"] == "occurrence_intent_mapping_incomplete"
+    assert result["effect"] == 0
+    assert result["readback"] == 0
+    assert lease_calls == []
+    assert not evidence_dir.exists()
+
+
+def test_discovery_keeps_unbound_v2_v3_v4_intents_fenced(tmp_path, monkeypatch):
+    database = tmp_path / "admission.sqlite3"
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            "CREATE TABLE occurrences (owner_id TEXT, occurrence_id TEXT, state TEXT, effect_unknown INTEGER)"
+        )
+        connection.execute(
+            "INSERT INTO occurrences VALUES (?, ?, 'claimed', 1)",
+            (OWNER, OCCURRENCE),
+        )
+    monkeypatch.setattr(
+        reconcile.resource_admission,
+        "_durable_paths",
+        lambda: (tmp_path, tmp_path, tmp_path, database),
+    )
+    intent_root = tmp_path / "intents"
+    _intent(
+        intent_root / "123.json",
+        request_id="123",
+        state="prepared",
+        phase="irreversible_attempt_started",
+    )
+    retainer_ids = [
+        "01KYPJ0M0ACF4DBAFSJVFN9K24",
+        "01KYPJ0M0ACF4DBAFSJVFN9K25",
+    ]
+    for request_id, version in zip(retainer_ids, (3, 4), strict=True):
+        value = fence.intent_payload(
+            request_id=request_id,
+            snapshot_sha256="a" * 64,
+            proposal_text="提案本文です。" * 40,
+            price_jpy=8000,
+            deliver_date="2026-09-25",
+            lease_fence={
+                "task": "legacy-binding-test",
+                "token": "b" * 32,
+                "generation": 1,
+            },
+            retainer_terms={
+                "work_frequency": "WEEK_ONE",
+                "weekly_hours_min": 1,
+                "weekly_hours_max": 2,
+            },
+            screening_answers=[{"question": "質問", "answer": "回答"}],
+            state="prepared",
+            effect_phase="irreversible_attempt_started",
+        )
+        if version == 3:
+            value["version"] = 3
+            value.pop("screening_answers")
+            value.pop("screening_answers_sha256")
+            value["cas"] = fence.build_cas(
+                request_id,
+                value["snapshot_sha256"],
+                value["proposal_sha256"],
+                value["price_jpy"],
+                value["deliver_date"],
+                value["retainer_terms_sha256"],
+            )
+        (intent_root / f"{request_id}.json").write_text(
+            json.dumps(value),
+            encoding="utf-8",
+        )
+
+    assert fence.validate_intent(json.loads(
+        (intent_root / f"{retainer_ids[0]}.json").read_text(encoding="utf-8")
+    )) == []
+    assert fence.validate_intent(json.loads(
+        (intent_root / f"{retainer_ids[1]}.json").read_text(encoding="utf-8")
+    )) == []
+    assert reconcile.discover_single_target(
+        owner_id=OWNER,
+        intent_root=intent_root,
+    ) is None
 
 
 def test_denied_or_incomplete_readback_never_calls_resolver(tmp_path):

@@ -390,6 +390,25 @@ def _require_single_occurrence_intent(
         raise ReconcileContractError("occurrence_has_multiple_bound_intents")
 
 
+def _require_complete_request_set(
+    intent_root: Path,
+    *,
+    occurrence_id: str,
+    runtime_run_id: str,
+    request_ids: list[str],
+) -> list[dict[str, object]]:
+    if len(request_ids) != len(set(request_ids)):
+        raise ReconcileContractError("request_ids_invalid")
+    bound = _bound_intents_for_occurrence(
+        intent_root,
+        occurrence_id=occurrence_id,
+        runtime_run_id=runtime_run_id,
+    )
+    if not bound or sorted(str(value["request_id"]) for value in bound) != sorted(request_ids):
+        raise ReconcileContractError("occurrence_intent_mapping_incomplete")
+    return bound
+
+
 def _batch_provider_proof(
     *,
     owner_id: str,
@@ -1110,7 +1129,6 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(result, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
         return 0
     evidence_dir = args.evidence_dir or _default_evidence_dir(args.occurrence_id)
-    evidence_dir.mkdir(parents=True, exist_ok=True)
     evidence_path = evidence_dir / "official-readback-request-batch.json"
     result_path = args.result or evidence_dir / "reconcile-result.json"
     task_suffix = hashlib.sha256(args.occurrence_id.encode("utf-8")).hexdigest()[:16]
@@ -1120,11 +1138,13 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         # Validate every exact intent before opening a browser context.
-        _bound_intents_for_occurrence(
+        _require_complete_request_set(
             args.intent_root,
             occurrence_id=args.occurrence_id,
             runtime_run_id=args.runtime_run_id,
+            request_ids=request_ids,
         )
+        evidence_dir.mkdir(parents=True, exist_ok=True)
         with parent.LeaseHandle(lease_script=args.lease_script, task=lease_task) as lease:
             effects = parent.CdpParentEffects(
                 ws_url=lease.ws_url,
