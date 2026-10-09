@@ -4,6 +4,7 @@ import tempfile
 import unittest
 import subprocess
 
+from ebook_packs import load_ebook_packs
 from product_router import RoutingError, canonical_product_id, load_registry
 from variation import create_plan, eligible_hooks
 
@@ -141,6 +142,10 @@ class ProductRegistryTest(unittest.TestCase):
                 self.assertEqual(account["product_id"], "ebook-ja")
             if "heygen-avatar-iv" in formats:
                 self.assertEqual(account["product_id"], "ebook-en")
+
+    def test_english_ebook_pack_uses_two_daily_slots(self):
+        packs = load_ebook_packs(ENGINE)
+        self.assertEqual(packs["ebook-en-anicca-monk"]["slots_jst"], ["08:00", "21:00"])
 
 
 class VariationPlanTest(unittest.TestCase):

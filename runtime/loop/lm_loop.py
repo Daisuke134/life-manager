@@ -234,6 +234,7 @@ def _is_ebook_verified_no_effect_terminal(entry: dict, row: dict) -> bool:
         and no_effect_refs[0] in {
             f"lm-no-effect://{loop_id}/{occurrence_id}/setup_required",
             f"lm-no-effect://{loop_id}/{occurrence_id}/no_due_slot",
+            f"lm-no-effect://{loop_id}/{occurrence_id}/render_not_ready",
         }
     )
 
