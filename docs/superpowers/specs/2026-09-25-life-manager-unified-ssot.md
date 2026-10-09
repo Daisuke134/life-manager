@@ -11209,3 +11209,9 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 - **Fact:** every ready catalog candidate self-declared `Demand rank: 1`, so ties fell back to alphabetical order and the next free review slot would go to `annual-report-risk-change-brief` (B2B). Market sweep 2026-10-08 (854 agents): sales per agent 77.1 short-video/creator, 56.7 analysis (one football seller = 3,093), 33.5 finance, 0.5-6.6 B2B decks. Our 30-day paid orders come from Hook Lab, TikTok Script Pro, Marketing Strategist, YouTube Script Writer, Slide Maker.
 - **Change:** `transcript-clip-map-free`, `podcast-clip-hook-lab`, `srt-subtitle-readability-fixer` set to `Demand rank: 0` with the evidence line. Review cap is 5 (all occupied by B2B evidence editors submitted 10/08-10/09); these three take the next slots.
 - **Next:** the catalog generator must stop producing B2B evidence/deck candidates and copy category-5 sellers; ranks must come from the market sweep, not the author.
+
+### 2026-10-09 22:30 JST — Capafy Instagram reels resumed (7 queued)
+
+- **Fact:** `@capafy.hooklab` had no post after 10/08 (4 reels). 7 new reels in Capafy's growth-page 3-part format (3s hook, real agent output, "Search <agent> on Capafy") were built from fresh Hook Lab / TikTok Script Pro SKILL.md runs and scheduled via Postiz at 13:00Z daily 10/09-10/15 with registered ct `hooklab_ig` / `tiktok_ig`. Tools: `skills/earn/capafy-marketing/scripts/capafy_reel_variant.py`, `capafy_reel_schedule.py` (PR #7397).
+- **Readback:** Postiz GET 22:26 JST: 10/09 post `cmv0tsnq102d0mq0yhdj0bsvi` PUBLISHED https://www.instagram.com/reel/DeRkPmSiW4Q/ ; other 6 QUEUE.
+- **Console 7-day fact (10/02-10/08):** 8.8K impressions, 471 detail views, 0 purchases, 0.00% conversion. IG promo links: 3 visits total. Conversion, not traffic, is the binding constraint.
