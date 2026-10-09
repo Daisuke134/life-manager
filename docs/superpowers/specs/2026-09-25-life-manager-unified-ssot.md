@@ -10933,3 +10933,41 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 - **Open PRs:** before this checkpoint commit, #7344 is based on main `15037dd2`, head `c7582ca2`, `MERGEABLE/UNSTABLE`; Loop control contracts is queued, Gitleaks and TruffleHog are in progress, and GitHub `reviews` is empty (CodeRabbit says manual review is required). This checkpoint changes its head, so re-read the new exact-head checks before merging. #7348 remains based on `16f2fe98`, head `0e8c410c`; Loop control contracts failed because `test_storage_failure.py` imports `pytest` while the job invokes `unittest` without pytest installed. Fix the test/dependency in that PR, rebase it on current main, and rerun its exact-head checks; do not edit that owner's files in this CFO branch.
 
 **現在cursor:** pass post-push exact-head checks and required review for CFO docs PR #7344, then merge → fix/rebase storage PR #7348 and pass its checks → safe disk recovery to the existing 2 GiB floor → reconcile the now-idle release owner from prior SHA `0dc40ef2` to latest-main release `15037dd2` or descendant and read back the reconciler/CFO loaded SHA → implement A8.1 billed-vs-cash company-cost support → refresh the ASC packet/readback and obtain a natural B7 occurrence that includes its period-bound receipt → A6 Google project/SKU/owner trace → remaining per-loop revenue/cost coverage → truthful company revenue/net/MRR and cash evidence → A10 seven-day natural acceptance.
+
+### 2026-10-09 13:57 JST — Updated Alpaca readback and paper effect fence
+
+この追記は13:21 JSTの投資snapshotを更新する。L9-12と「残り2件」の順序は変えず、AT-13にpaper effect reconciliationの未完条件を記録する。
+
+- **Paper strategy/account:** main-derived installed SHAは`0dc40ef2`。最後のdecision receipt（04:48:49Z）はQQQ `HOLD / hold_period_not_elapsed`、`held_sessions=8/21`、expected cost `$0.02`。Alpaca paper official GET（04:55:45Z）はequity `$99,996.90`、cash `$99,986.76`、QQQ `0.013493253`株、market value `$10.140315`、unrealized `+$0.150315`、orders `3`（QQQ buy 1件）、QQQ sellなし、open orders `0`。これは含み益で、closed round tripと実現net P&Lは未確認。
+- **Paper effect fence:** occurrence `alpaca-investment-paper:18dcc31cf10b9ed0-10327`は04:48:00Zに開始し、04:48:50Zに`entrypoint_exit_78`・`effect_status=unknown`・`effect_identity_status=not_written`で終端。後続`18dcc33a0d95cf40-76623`（04:50:05Z）は`host_admission_deferred:resource_effect_unknown`でdefer。`pre-effect-reconcile --dry-run`は`resolved=[]`、`unprovable=no_pre_effect_terminal`。Alpaca official GET（04:57:11Z）はそのoccurrenceの`queued_at=04:10:07Z`以後の全注文とopen ordersが空で、`effect_reconcile.py --readback-only`は`verified=true / PROOF_READY`を返したがfenceは未変更。Fresh read-only reviewは現helperの`provider_receipt_id`が検索時刻から合成されてprovider発行receiptではないこと、close callbackが同じproof objectを返すことを指摘し、write-mode closeを`FIX-FIRST`と判定。proof provenance/recheck契約を直すまでfenceを保持し、注文を再送しない。
+- **Runtime readback discrepancy:** 同時点の`lm-loop status --explain`はpaper owner `loaded-idle`、current SHA `0dc40ef2`と読む一方、`current_snapshot.last_exit=120`、04:50のstructured admission eventはexit `75`。この不一致も解消するまでownerの健全終端とは見なさない。
+- **Live/PLTR:** Alpaca live official GET（04:55:45Z）はequity `$66.49`、cash `$0`、`USDCUSD` `66.489696384`、market value `$66.490361`、unrealized `-$0.030192`、open orders `0`。注文10件は全て`BTC/USDC`、PLTR orders `0`。記録済みdeposit-time valuation `$66.75055405`との差は口座全体で約`-$0.26`であり、Life Manager ownerに帰属する実現net P&Lではない。live ownerはdisabledで、既存`effect_unknown` fenceも未解決。
+- **Profit conclusion:** 検証済みLife Manager投資利益はまだない。paper `+$0.150315`は未実現、live約`-$0.26`は口座全体の評価差で、どちらもownerの費用込み実現net P&Lではない。PLTRの注文も確認されていない。
+
+**このinvestment runtime subcursorの残り2件（順序固定、未完）:**
+
+1. [ ] **AT-13 qualified natural exit:** まず`18dcc31cf10b9ed0-10327`のno-order proofをprovider receipt/official-readbackとして正しく記録・再検証できるよう、`effect_reconcile.py`/resolverの契約を修正し、当該occurrenceだけを閉じる。その後、SHA `0dc40ef2`のpaper ownerによるeligibility後の自然occurrenceを確認し、`ranked_symbol_changed`または21 held sessions後の`hold_sessions_elapsed`だけをqualified exitとする。04:48 HOLD、effect_unknown、04:50 resource_effect_unknown defer、単なる`pass`は完了ではない。手動wake/sell/replayは禁止。
+2. [ ] **First closed round trip and truthful paper P&L:** 公式paper sell fillを既存QQQ buyとclient/effect identity・数量で照合し、provider receipt、fees、slippage、model/system costを結合して`paper_performance.py`でnet P&Lを算出し、同一occurrenceでreplay-zeroを確認する。closed round tripと全費用証拠が揃うまでP&L=`unknown`。
+
+**後続の別gate:** 30件の費用込みpaper round trips、strategy/cross-venue validation、AT-24/AT-29とfresh反対意見reviewを終えるまでlive funding/orderを行わない。この2件だけで投資loop全体を完了扱いにしない。
+
+**Current cursor:** correct and independently verify the exact paper no-order readback contract → close only the 04:48 unknown occurrence → natural qualified AT-13 exit → first closed round trip with cost-complete paper P&L. いまのところLife Manager ownerの実現投資利益は未確認。
+
+### 2026-10-09 14:03 JST — Main release adopted; paper fence still holds
+
+この追記は13:57 JSTのreadbackを更新する。L9-12と「残り2件」の順序は変えない。
+
+- **Release/paper owner:** `~/loops/current`はrelease `20261009T134741-84c56e11`、SHA `84c56e1190f611c7ccd2e9d55df6513df8c31d72`。05:00:08Zの自然occurrence `alpaca-investment-paper:18dcc3c60d7fad78-20988`は`host_admission_deferred:resource_effect_unknown`、exit `75`。同ownerの04:48 run `18dcc31cf10b9ed0-10327`に対するeffect_unknown fenceが継続し、official receipt/readback refはまだ登録されていない。`lm-loop status --explain`ではowner `loaded-idle`、installed SHAとevent SHAは一致し、latest recorded decisionは04:48:49ZのQQQ `HOLD / hold_period_not_elapsed`、8/21 sessions、expected cost `$0.02`。
+- **Paper official GET:** 05:03:00Zはequity `$99,996.90`、cash `$99,986.76`、QQQ `0.013493253`株、market value `$10.142743`、unrealized `+$0.152743`。orders `3`（QQQ buy 1件）、QQQ sellなし、open orders `0`。含み益であり、実現net P&Lではない。
+- **Effect proof boundary:** 04:57:11Zの`effect_reconcile.py --readback-only`は04:10:07Zのqueued_at以後に注文なし／open ordersなしを確認して`PROOF_READY`を返したが、fenceは閉じていない。Fresh reviewerは現helperが`provider_receipt_id`を検索時刻から合成し、close時にprovider GETを再実行しないため、write-mode close前にreadback provenance/recheck契約の修正が必要と判定。注文を再送しない。
+- **Live/PLTR:** 05:03:00ZのAlpaca live GETはequity `$66.49`、cash `$0`、`USDCUSD` `66.489696384`、market value `$66.490361`、unrealized `-$0.030192`、open orders `0`。orders `10`件はすべて`BTC/USDC`、PLTR orders `0`。記録済みdeposit-time valuation `$66.75055405`との差は口座全体で約`-$0.26`であり、Life Manager ownerの実現net P&Lではない。live ownerはdisabledのままunknown effect fenceが残る。
+- **Profit conclusion:** 検証済みLife Manager投資利益はまだない。paperの`+$0.152743`は未実現、liveの約`-$0.26`は口座全体の評価差であり、ownerの費用込み実現net P&Lではない。
+
+**このinvestment runtime subcursorの残り2件（順序固定、未完）:**
+
+1. [ ] **AT-13 qualified natural exit:** まず04:48のunknown occurrenceについてreadback provenance/recheck契約を直し、verified official no-order proofで当該occurrenceだけを閉じる。その後、SHA `84c56e11`のpaper ownerによる自然occurrenceを確認し、`ranked_symbol_changed`または21 held sessions後の`hold_sessions_elapsed`だけをqualified exitとする。04:48 HOLD/unknown fence、04:50/05:00 `resource_effect_unknown` admission defer、単なる`pass`は完了ではない。手動wake/sell/replayは禁止。
+2. [ ] **First closed round trip and truthful paper P&L:** 公式paper sell fillを既存QQQ buyとclient/effect identity・数量で照合し、provider receipt、fees、slippage、model/system costを結合して`paper_performance.py`でnet P&Lを算出し、同一occurrenceでreplay-zeroを確認する。closed round tripと全費用証拠が揃うまでP&L=`unknown`。
+
+**後続の別gate:** 30件の費用込みpaper round trips、strategy/cross-venue validation、AT-24/AT-29とfresh反対意見reviewを終えるまでlive funding/orderを行わない。この2件だけで投資loop全体を完了扱いにしない。
+
+**Current cursor:** correct and independently verify readback provenance/recheck for the 04:48 occurrence → close only that verified no-order fence → natural qualified AT-13 exit from SHA `84c56e11` → first closed round trip with cost-complete paper P&L. 検証済みowner利益は未確認。
