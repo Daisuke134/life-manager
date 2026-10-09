@@ -162,3 +162,19 @@ The baseline still matches only `manifest_inventory_mismatch` at
 returns no current violations after the refresh, and its existing 12 tests
 pass. A further tree change produces a different hash and fails again; other
 violation codes, paths, and source roots remain unsuppressed.
+
+## Addendum 2026-10-09 — historical Web-first wording false positive
+
+The full-history Gitleaks run for PR #7337 found one generic-api-key fingerprint
+from closed PR #7334, at commit 68e8bc2888ff119b59c6f65c67ef63759af20af9 in
+docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md:3848. The
+redacted match was ordinary prose describing reuse of the existing Calendar
+connection; it contained no credential. The line is reworded in the current
+tree. Gitleaks current-tree scan reports zero findings, and TruffleHog
+filesystem/history reports verified secrets zero on the clean PR head.
+
+Only this exact fingerprint is added to .gitleaksignore:
+68e8bc2888ff119b59c6f65c67ef63759af20af9:docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md:generic-api-key:3848
+
+The full-history scan remains enabled. A match at a different commit, path,
+rule, or line is not suppressed.

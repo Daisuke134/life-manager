@@ -45,7 +45,15 @@ Ruling: the live marketing CTA currently sends a visitor to Railway `/lm`, which
 
 Account boundary readback: Dais explicitly authorizes E2E with his existing Google account and forbids another login or account switch. The two registered Google-bearing browser contexts checked on 2026-10-09 displayed Google's sign-in page; neither showed the named existing account. No login, switch, consent, or Calendar access occurred. This describes only those checked contexts, not every device/session. Continue real E2E only through an already-authenticated existing session; do not create an account or initiate sign-in.
 
-Task 13 is complete. Current cursor: WB-12, resolving the official Composio account-plan/flat-fee evidence. The project-scoped usage readback is recorded in the canonical SSOT; it does not expose the fixed plan fee, and Railway has no COMPOSIO_ORG_API_KEY. Keep that fee unknown until an existing official account-billing receipt is available; reuse the existing Composio/Telegram Calendar connection and travel owner.
+Task 13 is complete. Current cursor: WB-06/07 real OAuth/Calendar E2E through a reachable already-authenticated existing session only; no login or account switch. Then WB-13 Stripe TEST lifecycle, WB-12 fixed-plan billing evidence before WB-15 marketing, and WB-16/17 revenue and profit gates. Reuse the existing Google OAuth callback, Composio Calendar connection, and shared Travel owner; do not add another connector, scheduler, or tenant system. WB-12 project-usage and funnel readbacks are recorded. The fixed plan fee remains unknown; that uncertainty does not block E2E or Stripe TEST.
+
+### Execution order update — 2026-10-09 — Project usage does not expose the fixed plan fee
+
+Old next order: resolve the exact Composio account plan/flat fee → real Web OAuth/Calendar E2E → Stripe lifecycle → Cloud marketing.
+
+New next order: real OAuth/Calendar E2E through the reachable existing session only (no login or account switch) → Stripe TEST lifecycle → resolve the Composio fixed fee from an official account billing record before marketing/profit readback.
+
+Reason: the corrected official project usage query reports 7,959 tool calls / USD 0 instant charge and is project-scoped; Railway has no organization API key across its service/environment inventory. This missing fixed-fee evidence does not prevent testing the existing Web OAuth/Calendar path or Stripe TEST lifecycle. Do not infer zero total vendor cost and do not start paid marketing or claim profitability until the fixed fee is reconciled. Continue to reuse the existing Telegram/Web Composio connector and shared Travel owner.
 
 ### Execution order update — 2026-10-08 — Source-only iMessage work while Google identity search remains open
 
