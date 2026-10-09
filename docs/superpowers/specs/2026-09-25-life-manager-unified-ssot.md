@@ -10881,6 +10881,19 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **現在cursor:** receipt-reserve ENOSPCとcapacity recovery → missed-slot catch-up source修正 → unknown fence/EN2 controlの公式readback → ready targetを当日不足分だけ即投稿 → PUBLISHED URL/Telegram URL → metrics → ASC/RevenueCat/in-app funnel。次slotや54/54 day-closeを待たない。
 
+### 2026-10-09 14:07 JST — Mobile: 日次3枠を次TODOのgateにしない
+
+- **直近readback:** 13:59 JSTのPostiz official GETは32 rows、Anicca/Honne 18 targetsで28/54 `PUBLISHED`、31 account-level不足。`@anicca.affirmation=8`（目標超過5）、`@anicca.en`・`@anicca-ai`・`@anicca.jp1`・`@anicca.jpx`は各2、`@aniccaen2=0`、残り12 targetsは各1。この更新ではproviderを再照合せず、新規投稿もしていない。5 ownersは`effect_unknown`、2 ownersはretryable `resource_capacity_busy`。exact Postiz reconcileで一致しなかったunknownはfenceを保持する。EN2はmanifestで`hold / target_daily_limit=0`。
+- **disk readback:** 14:07 JSTの`df -Pk /System/Volumes/Data`は140,544 KiB free。`life-manager-disk-cleanup`はoccurrence `18dcc42900303f80-49258`で`storage_write_failed_pre_effect / scratch_enospc`、provider effectなし。これはPostiz publisher自身の書込失敗を直接証明しない。
+- **投稿開始条件:** 現行disk-cleanup skillでは2 GiBは回復状況の診断目標であり、低空き容量だけではproducerを止めない。全publisherへ一律の2 GiB gateを設けない。対象owner自身のadmission、正確なeffect fence、Postiz route、およびintent/receiptを書けることを確認する。実際の書込失敗や`effect_unknown`は該当ownerだけを止め、他のready ownerは続ける。18 targetにはowner loopがあるが、全targetが共通`agent/revenue` admissionを使うため、無制限の独立capacityとは扱わない。
+- **非blocking配信:** 経過済みslotの不足は既存ownerから直ちにcatch-upし、次の時計時刻を待たない。まだ来ていないslotは既存owner scheduleで配信する。対象ownerの最初の正確なPostiz `PUBLISHED` receiptとpermalinkを確認したら、残り2枠や54/54 day-closeを待たず次の独立TODOへ進む。後続slot receiptは到着ごとに記録し、3 distinct `PUBLISHED` receipt/URL per account/dayが揃うまでは3/day達成と報告しない。当日3件を超えて投稿せず、effect_unknownを照合前に再送しない。
+- **保存素材:** 26個の既存PNGを永続assetとして再利用する。投稿ごとのGPT Image、Gemini、FAL呼び出しは行わず、copyとslide順を変える。
+
+**順序更新:** 旧順序=`2 GiB floor回復 → missed-slot source修正 → 全fence解決 → 3 slot全receipt / 54件day-close → 次TODO`。新順序=`(1) 最新Postiz countとownerごとのadmission/fence/書込可否をreadback → (2) ready ownerは経過済みslotの不足を既存APIで即投稿し、exact receipt/permalinkを保存。unknownと実書込失敗はそのownerだけ照合・修復 → (3) そのownerの最初のPUBLISHEDで配信経路を確認したら、3枠目やday-closeを待たず独立TODOへ進む。各ownerの残りslotはschedule通り継続しreceiptを順次回収 → (4) 各targetの日次3件receipt/URLを別途集計し未達は未達と表示 → (5) 全postのviews/engagementとTelegram URLを保存し、contentを反復 → (6) ASC/RevenueCat/in-app onboardingを接続し、検証済み$10K net MRRを追う。video-cycle catch-upは残るsource atom。native-carouselのcatch-upはPR #7359でmain済み。`
+
+**現在cursor:** 13:59 Postiz countと各owner状態は現時点の最新readbackだが、再確認が必要。まずready targetのfresh statusを読み、経過済みslotを既存owner/APIから即catch-upし、公式`PUBLISHED` + permalinkを保存する。そのownerの最初の成功後は次の独立TODOへ進み、未来slotや54/54 day-closeは待たない。残りの3/day receiptはschedule上で引き続き回収する。
+
+
 ### 2026-10-09 — Life Manager Cloud auth and marketing readback
 
 - **Production auth boundary:** Railway CLI read-only inspection confirms `life-call` production has `SUPABASE_ANON_KEY`; its JWT project ref matches `SUPABASE_URL`. Staging has the same matching pair. A fresh no-cookie `GET https://life-call-production.up.railway.app/auth/google` returns HTTP 302 to the same Supabase project's `/auth/v1/authorize` endpoint. The historical missing-key/503 condition is not the current failure. No Railway variable changed and no credential value was displayed.
