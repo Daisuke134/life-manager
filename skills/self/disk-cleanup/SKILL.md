@@ -108,6 +108,9 @@ and shared host `state_dir`.
 The 15-day `life-manager-disk-cleanup-15d` wake is registry-managed through
 `lm-loop`. Its entrypoint invokes only the shared `HostDiskGovernor`, so it
 shares the host cleanup lock without repeating release GC or scratch GC.
+It retries only the exact structured `cleanup_lock_busy` receipt (exit 75),
+for at most three attempts with five-second waits. Other failures return
+immediately.
 
 The watchdog adds no second deletion implementation. Its output goes to
 `life-manager-disk-cleanup/logs/watchdog.{out,err}.log` under the host state.

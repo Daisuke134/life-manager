@@ -8,6 +8,7 @@ import plistlib
 import shutil
 import subprocess
 import sys
+import time
 
 import pytest
 
@@ -119,6 +120,89 @@ def test_15d_entrypoint_uses_shared_governor_and_host_state(tmp_path: Path, monk
 
     assert module.main() == 73
     assert observed["argv"] == ["--home", str(home), "--state-dir", str(state_dir)]
+
+
+def test_15d_entrypoint_retries_only_structured_lock_busy(tmp_path: Path, monkeypatch, capsys) -> None:
+    sys.path.insert(0, str(MAINTENANCE_ENTRYPOINT.parent))
+    try:
+        spec = importlib.util.spec_from_file_location("disk_cleanup_maintenance_retry", MAINTENANCE_ENTRYPOINT)
+        assert spec is not None and spec.loader is not None
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+    finally:
+        sys.path.pop(0)
+
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setattr(sys, "argv", [str(MAINTENANCE_ENTRYPOINT)])
+    monkeypatch.setenv("HOME", str(home))
+    calls = []
+    waits = []
+
+    def fake_main() -> int:
+        calls.append(None)
+        if len(calls) < 3:
+            print(json.dumps({
+                "ok": False,
+                "status": "deferred",
+                "reason": "cleanup_lock_busy",
+                "effect": 0,
+                "readback": 0,
+            }))
+            return 75
+        print(json.dumps({"ok": True, "free_after": 123}))
+        return 0
+
+    monkeypatch.setattr(module.disk_cleanup, "main", fake_main)
+    monkeypatch.setattr(time, "sleep", waits.append)
+
+    assert module.main() == 0
+    assert len(calls) == 3
+    assert waits == [5, 5]
+    assert capsys.readouterr().out.strip() == '{"ok": true, "free_after": 123}'
+
+
+def test_15d_entrypoint_does_not_retry_other_exit_75_receipts(tmp_path: Path, monkeypatch, capsys) -> None:
+    sys.path.insert(0, str(MAINTENANCE_ENTRYPOINT.parent))
+    try:
+        spec = importlib.util.spec_from_file_location("disk_cleanup_maintenance_no_retry", MAINTENANCE_ENTRYPOINT)
+        assert spec is not None and spec.loader is not None
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+    finally:
+        sys.path.pop(0)
+
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setattr(sys, "argv", [str(MAINTENANCE_ENTRYPOINT)])
+    monkeypatch.setenv("HOME", str(home))
+    calls = []
+    waits = []
+
+    def fake_main() -> int:
+        calls.append(None)
+        print(json.dumps({
+            "ok": False,
+            "status": "deferred",
+            "reason": "different_lock_or_capacity_failure",
+            "effect": 0,
+            "readback": 0,
+        }))
+        return 75
+
+    monkeypatch.setattr(module.disk_cleanup, "main", fake_main)
+    monkeypatch.setattr(time, "sleep", waits.append)
+
+    assert module.main() == 75
+    assert len(calls) == 1
+    assert waits == []
+    assert json.loads(capsys.readouterr().out) == {
+        "ok": False,
+        "status": "deferred",
+        "reason": "different_lock_or_capacity_failure",
+        "effect": 0,
+        "readback": 0,
+    }
 
 
 def test_installer_updates_only_stable_watchdog_label(tmp_path: Path) -> None:
