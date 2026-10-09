@@ -326,3 +326,5 @@
 実行ledger: DS06 finite owned stdio relayを実装。binary32MiB/parent-control close/detached writer/symlink root/ENOSPC drainの5cases、policy込み8tests PASS。macOS Unix datagramのpeer resetをreadbackで処理してfinal private receiptを読む。provider/admission leaseとsecret envを継承しない。本番未接続。
 
 実行ledger: DS07 registered+trusted identityのrunner stderrをrelayへ接続、small replay互換/先頭+末尾保持。live relay PID/start/owner/runがあるscratchはGC保持。legacy unbound capture不変更。新2cases RED→GREEN、関連210tests/5subtests PASS。control loop envに正しいloop_idを渡す。現在running FD/daemon不変更。
+
+実行ledger: DS08 registered bound callerのstdout/stderrをowned relayへ。JSONL usage/tool-start evidenceとJSON wrapperをraw診断破棄前にbounded semantic fileへ確定、fresh result_path維持。oversized/capture missingは成功不可。新3case、related28tests/3subtests+agent-runner全102tests/137subtests PASS。旧unbound call kwargs不変更。

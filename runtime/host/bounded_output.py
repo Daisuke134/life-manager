@@ -46,12 +46,14 @@ def _private_json(path, value):
         handle.flush(); os.fsync(handle.fileno())
 
 
-def start_stderr_relay(private_root, policy, binding):
+def start_stderr_relay(private_root, policy, binding, *, stream_kind=None):
     root = _private_root(private_root)
     if set(binding) != {"owner_id", "run_id", "occurrence_id", "release_sha"} or binding["owner_id"] != policy.owner_id:
         raise ValueError("foreign relay binding")
     context = root / "relay-context.json"
-    _private_json(context, {"policy": asdict(policy), "binding": binding})
+    if stream_kind not in {None, "codex", "json"}:
+        raise ValueError("invalid structured stream kind")
+    _private_json(context, {"policy": asdict(policy), "binding": binding, "stream_kind": stream_kind})
     reader, writer = os.pipe()
     parent, child = socket.socketpair(socket.AF_UNIX, socket.SOCK_DGRAM)
     parent.setblocking(False)
@@ -119,7 +121,62 @@ class _PrivateRotatingHandler(RotatingFileHandler):
         raise sys.exc_info()[1]
 
 
-def relay_stderr(read_fd, control_fd, private_root, policy, binding):
+class _SemanticStream:
+    """Retain contract events before dropping raw diagnostic bytes."""
+    def __init__(self, kind, limit):
+        self.kind = kind
+        self.limit = limit
+        self.buffer = bytearray()
+        self.skipping = False
+        self.oversized = False
+        self.usage = None
+        self.tool_started = False
+        self.wrapper = None
+
+    def feed(self, chunk):
+        if self.kind == "json":
+            if not self.skipping:
+                self.buffer.extend(chunk)
+                if len(self.buffer) > self.limit:
+                    self.oversized = True
+                    self.buffer.clear(); self.skipping = True
+            return
+        for part in chunk.splitlines(keepends=True):
+            ended = part.endswith(b"\n")
+            if not self.skipping:
+                self.buffer.extend(part)
+                if len(self.buffer) > self.limit:
+                    self.oversized |= bytes(self.buffer[:32]).lstrip().startswith((b"{", b"["))
+                    self.buffer.clear(); self.skipping = True
+            if ended:
+                if not self.skipping:
+                    self.consume(bytes(self.buffer))
+                self.buffer.clear(); self.skipping = False
+
+    def consume(self, data):
+        try: value = json.loads(data)
+        except (ValueError, UnicodeError): return
+        if not isinstance(value, dict): return
+        if self.kind == "codex":
+            if value.get("type") == "turn.completed": self.usage = value
+            if value.get("type") in {"item.started", "item.completed"}:
+                item = value.get("item")
+                if isinstance(item, dict) and item.get("type") not in {"agent_message", "error"}:
+                    self.tool_started = True
+        else:
+            self.wrapper = value
+
+    def text(self):
+        if self.buffer and not self.skipping: self.consume(bytes(self.buffer))
+        if self.kind == "codex":
+            records = []
+            if self.tool_started: records.append({"type": "item.started", "item": {"type": "command_execution"}})
+            if self.usage is not None: records.append(self.usage)
+            return "\n".join(json.dumps(r, ensure_ascii=False, separators=(",", ":")) for r in records)
+        return json.dumps(self.wrapper, ensure_ascii=False, separators=(",", ":")) if self.wrapper is not None else ""
+
+
+def relay_stderr(read_fd, control_fd, private_root, policy, binding, stream_kind=None):
     os.umask(0o077)
     root = _private_root(private_root)
     control = socket.socket(fileno=control_fd)
@@ -135,12 +192,14 @@ def relay_stderr(read_fd, control_fd, private_root, policy, binding):
         error = getattr(exc, "errno", None) or "capture_unavailable"
     tail = b""
     written = dropped = head_written = 0
+    semantic = _SemanticStream(stream_kind, policy["structured_record_max_bytes"]) if stream_kind else None
 
     def receipt(eof):
         return {"binding": binding, "pid": os.getpid(), "observed_at": time.time(),
             "written_bytes": written, "dropped_bytes": dropped,
             "tail_b64": base64.b64encode(tail).decode("ascii"),
-            "storage_error": error, "eof": eof}
+            "storage_error": error, "eof": eof,
+            "result_oversized": semantic.oversized if semantic else False}
 
     def notify(value):
         packet = json.dumps(value, separators=(",", ":")).encode()
@@ -154,6 +213,7 @@ def relay_stderr(read_fd, control_fd, private_root, policy, binding):
             if not chunk:
                 break
             written += len(chunk)
+            if semantic is not None: semantic.feed(chunk)
             tail = (tail + chunk)[-2048:]
             if error is None:
                 try:
@@ -170,6 +230,13 @@ def relay_stderr(read_fd, control_fd, private_root, policy, binding):
                 dropped += len(chunk)
             notify(receipt(False))
         final = receipt(True)
+        if semantic is not None:
+            try:
+                fd = os.open(root / "semantic-stdout.json", os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+                with os.fdopen(fd, "w", encoding="utf-8") as stream:
+                    stream.write(semantic.text()); stream.flush(); os.fsync(stream.fileno())
+            except OSError as exc:
+                final["storage_error"] = exc.errno
         try: _private_json(root / "relay-result.json", final)
         except OSError: pass
         notify(final)
@@ -187,4 +254,4 @@ if __name__ == "__main__":
     with context_path.open() as stream:
         context = json.load(stream)
     relay_stderr(int(sys.argv[3]), int(sys.argv[4]), context_path.parent,
-                 context["policy"], context["binding"])
+                 context["policy"], context["binding"], context.get("stream_kind"))
