@@ -263,9 +263,6 @@ for relative in "${DEPENDENCY_RELATIVES[@]}"; do
   package_dir="$DEST/${relative:+$relative}"
   relative="${package_dir#"$DEST"}"
   if ! { [ -f "$package_dir/package.json" ] && [ -f "$package_dir/package-lock.json" ]; }; then
-    if [ -n "$FULL_CLONE_DONOR" ] && [ -d "$package_dir/node_modules" ]; then
-      find "$package_dir/node_modules" -depth -delete || die "cannot remove obsolete cloned dependencies"
-    fi
     continue
   fi
   link_locked_dependencies "$package_dir" || \
