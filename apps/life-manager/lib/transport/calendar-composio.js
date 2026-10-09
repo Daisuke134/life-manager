@@ -139,7 +139,9 @@ async function exec(tool, uid, args, apiKey, opts, recordOutcome, effectAwareCre
       return { effect: "unknown", result: { successful: false } };
     }
     const upstreamStatus = Number(proxied && proxied.status) || 0;
-    if (upstreamStatus >= 400 && upstreamStatus < 500) {
+    const proxyStatus = Number(response && response.status) || 0;
+    if ((upstreamStatus >= 400 && upstreamStatus < 500)
+      || (proxyStatus >= 400 && proxyStatus < 500)) {
       await recordOutcome("failure");
       return { effect: "no_effect", result: { successful: false } };
     }
