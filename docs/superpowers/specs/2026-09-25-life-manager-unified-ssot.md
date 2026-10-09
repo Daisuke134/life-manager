@@ -26,17 +26,19 @@
 
 **不変条件:** 11 GiBは今回の容量回復受入であり、全producerの起動floorを一律11 GiBへ変える指示ではない。iOS Simulator runtime/image/device/data/dyld、memory/state、credentials、browser identity、参照release、active/dirty/unmerged/leased/locked worktree、open/unknown dataを削除しない。古い同一UID test artifactと、Git clean/main統合済み/unleased/unlocked/closedを全て証明できるworktreeだけを今回の追加回収対象とする。証明できなければ保持。effect_unknownはexact official receipt/pre-effect proofまで解除・再送しない。Codex session履歴は容量が大きいだけで削除・圧縮対象にしない。
 
-**現在cursor: P0-1（未着手）。** この節の文書保存・統合と、以下の修復実装の完了は別。各atomは証拠取得後だけ `[x]` にし、失敗境界・次の安全な操作・cursorを同じ差分で更新する。
+**現在cursor: P0-6（temp root/TTLと保護境界）。** この節の文書保存・統合と、以下の修復実装の完了は別。各atomは証拠取得後だけ `[x]` にし、失敗境界・次の安全な操作・cursorを同じ差分で更新する。
+
+**引き継ぎ/診断証拠:** worktree HEAD `a6e03757`の4ファイル497行差分を`ea1784b0ec`で保持してpushし、最新main `3baccdbd`を`00b5d4ff5d`でmerge/push。leaseは既存owner `codex-root`でheartbeatを更新、直列lsof再確認でworktree下open handleなし。既存temp/worktree focused testは2 PASS。agmsg統括identityは`lm/codex-resource-orchestrator-1009`、既存cleanup担当へ重複書込抑制と状態照会を送信。自然receiptの成功/失敗が交互に現れ、失敗時の正確な親errorは`host_cleanup_identity_mismatch`。`disk_cleanup.py::main`のbusy lock出力はexit75だがidentityを含まず、`central_cleanup.host_cleanup_readback`の同-occurrence検査が失敗に変換する。REDはbusy出力identity欠落と親exit1を再現し、最小修正後の関連4 testsはGREEN。修正契約は、busy出力にもimmutable manifest由来の同run identityを載せ、親はそのidentityを検証した正確なbusyだけをeffect0のexit75延期として維持し、他のidentity mismatchはexit1のまま拒否する。旧ENOSPC修復とは区別し、容量不足時の既存reserve/cursor testsも再確認する。
 
 ### P0 — ディスク回復のatomic TODO
 
 再開worktree: `/Users/anicca/Projects/life-manager-main/.worktrees/disk-watchdog-worktree-safety-20261008`。branch `fix/disk-cleanup-15d-lm-loop-20261009`、引き継ぎHEAD `a6e037571404419501c6441af8e859e137eaa40b`。既存未commitのSSOT・SKILL・source・test差分を保持し、owner/lease/live process確認前に編集しない。別のactive cleanup worktreeも触らない。
 
-- [ ] **P0-1 所有/差分の引き継ぎ:** `git -C <worktree> status --short`、`branch --show-current`、`rev-parse HEAD`、`diff --stat`、`scripts/worktree-lease.py audit`とprocess/cwd/open handleを照合する。完了証拠: 4ファイルのdirty差分・実owner・lease・競合有無が明確で、既存変更を保持。
-- [ ] **P0-2 最新mainとの境界確定:** `git fetch origin main`、GitHub main SHA、worktree HEAD/upstreamを比較し、この節に対象ファイル/安全な再開位置を記録する。完了証拠: base差分と所有範囲を確定し、既存SSOT更新を失わない。
-- [ ] **P0-3 最新cleanup失敗の診断:** `bin/lm-loop status life-manager-disk-cleanup --explain --json`、最新occurrence summary/stdout/stderr、`runtime/loop/central_cleanup.py::main/host_cleanup_readback` → `skills/self/disk-cleanup/disk_cleanup.py`の呼び出しを照合する。完了証拠: 最初の失敗箇所/入力/例外/exitを特定し、旧ENOSPCと最新失敗を分離。
-- [ ] **P0-4 RED再現:** P0-3で特定した関数の既存関連testへ隔離fixtureを一つ追加し、最小の失敗を確認する。完了証拠: 本番の失敗境界と対応するRED出力。production破壊検証はしない。
-- [ ] **P0-5 原因修正:** P0-3のowner内の原因だけを修正して同じtestを実行する。完了証拠: GREENと、容量不足時に回復処理自身のmetadata/receipt書き込みが回収を止めないこと。
+- [x] **P0-1 所有/差分の引き継ぎ:** `git -C <worktree> status --short`、`branch --show-current`、`rev-parse HEAD`、`diff --stat`、`scripts/worktree-lease.py audit`とprocess/cwd/open handleを照合する。完了証拠: 4ファイルのdirty差分・実owner・lease・競合有無が明確で、既存変更を保持。
+- [x] **P0-2 最新mainとの境界確定:** `git fetch origin main`、GitHub main SHA、worktree HEAD/upstreamを比較し、この節に対象ファイル/安全な再開位置を記録する。完了証拠: base差分と所有範囲を確定し、既存SSOT更新を失わない。
+- [x] **P0-3 最新cleanup失敗の診断:** `bin/lm-loop status life-manager-disk-cleanup --explain --json`、最新occurrence summary/stdout/stderr、`runtime/loop/central_cleanup.py::main/host_cleanup_readback` → `skills/self/disk-cleanup/disk_cleanup.py`の呼び出しを照合する。完了証拠: 最初の失敗箇所/入力/例外/exitを特定し、旧ENOSPCと最新失敗を分離。
+- [x] **P0-4 RED再現:** P0-3で特定した関数の既存関連testへ隔離fixtureを一つ追加し、最小の失敗を確認する。完了証拠: 本番の失敗境界と対応するRED出力。production破壊検証はしない。
+- [x] **P0-5 原因修正:** P0-3のowner内の原因だけを修正して同じtestを実行する。完了証拠: GREENと、容量不足時に回復処理自身のmetadata/receipt書き込みが回収を止めないこと。
 - [ ] **P0-6 temp root/TTL:** `disk_cleanup.py::_temporary_roots`と`tests/test_disk_cleanup.py`の既存差分を完成させる。完了証拠: TMPDIR・`/private/tmp`・`/var/tmp`の古い同一UID test familyを検出し、使用中/所有不明/保護pathを保持するfocused test PASS。
 - [ ] **P0-7 symlink保護:** pytest run内のsymlinkと対応するstale `pytest-current` pointerのno-follow退役を完成させる。完了証拠: 外部target・使用中run・未知pointerを保持するfocused test PASS。
 - [ ] **P0-8 worktree保護:** 既存discovery/sweep差分のtracked/untracked/ignored、最新main統合、lease、lock、open、path identity検査を完成させる。完了証拠: 不成立/未知は保持し、全条件成立時だけ通常`git worktree remove`するtest PASS。force/unlock/pruneなし。

@@ -2136,6 +2136,9 @@ def main() -> int:
             "readback": 0,
             "capacity_recovery": _capacity_recovery({}),
         }
+        binding = cleanup_run_binding(dict(os.environ), REPOSITORY_ROOT)
+        if binding is not None:
+            result["identity"] = binding
         print(json.dumps(result, sort_keys=True))
         return 75
     try:

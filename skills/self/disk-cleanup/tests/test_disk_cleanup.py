@@ -2232,6 +2232,29 @@ def test_cli_reports_busy_lock_without_running_a_cleanup(tmp_path: Path, monkeyp
     assert not (tmp_path / "state" / "last-receipt.json").exists()
 
 
+def test_cli_busy_lock_preserves_managed_occurrence_identity(tmp_path: Path, monkeypatch, capsys) -> None:
+    release = tmp_path / "release"
+    release.mkdir()
+    (release / "RELEASE.json").write_text(json.dumps({"sha": "a" * 40}))
+    binding = {"owner_id": "life-manager-disk-cleanup", "run_id": "busy-1",
+               "occurrence_id": "life-manager-disk-cleanup:busy-1", "release_sha": "a" * 40}
+    monkeypatch.setattr(disk_cleanup, "REPOSITORY_ROOT", release)
+    monkeypatch.setenv("LIFE_MANAGER_RUN_ID", binding["run_id"])
+    monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", binding["occurrence_id"])
+    state = tmp_path / "state"
+    holder = HostDiskGovernor(home=tmp_path, state_dir=state)
+    assert holder.acquire_lock()
+    monkeypatch.setattr(disk_cleanup.sys, "argv", ["disk_cleanup.py", "--home", str(tmp_path), "--state-dir", str(state)])
+    try:
+        assert disk_cleanup.main() == 75
+        output = json.loads(capsys.readouterr().out)
+        assert output.get("identity") == binding
+        assert output["reason"] == "cleanup_lock_busy"
+        assert not (state / "last-receipt.json").exists()
+    finally:
+        holder.release_lock()
+
+
 def test_lock_is_atomic(tmp_path: Path) -> None:
     first = HostDiskGovernor(home=tmp_path, state_dir=tmp_path / "state")
     second = HostDiskGovernor(home=tmp_path, state_dir=tmp_path / "state")

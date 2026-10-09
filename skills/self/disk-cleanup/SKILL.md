@@ -67,7 +67,11 @@ allow-listed regenerable artifact after an open-path probe confirms
   nonzero for unknown capacity, deletion errors, protected deletions, or a
   preserved or invalid `disk-writers.stop` readback; it exits zero for a clean pass whose
   measured recovery is `unmet`. A busy singleton lock reports
-  `cleanup_lock_busy` with unknown capacity and exits 75 without running cleanup.
+  `cleanup_lock_busy` with unknown capacity and exits 75 without running cleanup. When invoked by the
+  managed owner it includes that occurrence identity from the immutable manifest;
+  central cleanup validates it and preserves the exact lock-busy deferral as exit
+  75, without running shared release/scratch cleanup. Missing/foreign identity is
+  still a failure, never a successful pass.
 - Candidate order rotates through `state_dir/candidate-cursor.json`. The cursor
   advances atomically under the governor's singleton lock; if disk exhaustion
   prevents that metadata write, the in-memory rotation still sweeps and retries

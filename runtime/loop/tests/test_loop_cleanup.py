@@ -138,6 +138,27 @@ class LoopCleanupTest(unittest.TestCase):
         self.assertTrue(ok)
         self.assertTrue(result["capacity_recovered"])
 
+    def test_central_cleanup_preserves_bound_lock_busy_deferral(self):
+        binding = {"owner_id": "life-manager-disk-cleanup", "run_id": "busy-1",
+                   "occurrence_id": "life-manager-disk-cleanup:busy-1", "release_sha": "a" * 40}
+        receipt = {"ok": False, "status": "deferred", "reason": "cleanup_lock_busy",
+                   "effect": 0, "readback": 0, "identity": binding}
+        process = subprocess.CompletedProcess([], 75, json.dumps(receipt), "")
+        with mock.patch.object(central_cleanup.subprocess, "run", return_value=process), \
+             mock.patch.object(central_cleanup, "cleanup_run_binding", return_value=binding), \
+             mock.patch.object(central_cleanup, "release_gc", return_value={"errors": 0}) as gc, \
+             mock.patch.object(central_cleanup, "scratch_gc", return_value={"errors": 0}) as scratch, \
+             mock.patch.object(sys, "argv", ["central_cleanup.py"]), \
+             mock.patch("builtins.print") as output:
+            self.assertEqual(central_cleanup.main(), 75)
+            gc.assert_not_called()
+            scratch.assert_not_called()
+            result = json.loads(output.call_args.args[0])
+            self.assertEqual(result["reason"], "cleanup_lock_busy")
+            self.assertEqual(result["identity"], binding)
+            self.assertFalse(result["ok"])
+            self.assertIsNone(result["capacity_recovered"])
+
     def test_no_effect_loop_ids_reads_registry(self):
         with tempfile.TemporaryDirectory() as directory:
             registry = Path(directory) / "loop-registry.json"
