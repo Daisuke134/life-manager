@@ -671,6 +671,42 @@ if route_status == "unreadable":
 if route_status == "nonregular":
     fail("topic-route-input-nonregular")
 
+generation_path = gates / "generation-state.json"
+generation_status = path_status(generation_path)
+if generation_status in {"symlink", "nonregular", "unreadable"}:
+    fail("generation-state-missing-or-symlink")
+
+def pre_topic_uninitialized_safe() -> tuple[bool, str]:
+    article_root = Path(os.environ.get("ARTICLE_ROOT", ""))
+    if article_root.is_symlink() or not article_root.is_dir():
+        return False, "writer-root-unavailable"
+    sys.path.insert(0, str(article_root / "scripts"))
+    try:
+        from article_generation_state import uninitialized_pre_topic_safe
+    except ImportError:
+        return False, "recovery-proof-unavailable"
+    return uninitialized_pre_topic_safe(
+        run_dir, run_id, run_dir / "article-daily-prompt.txt", ledger
+    )
+
+def skip_pre_topic_recovery(reason: str) -> None:
+    write_receipt({
+        "version": 1,
+        "run_id": run_id,
+        "action": "skip-pre-topic-recovery",
+        "reason": reason,
+    })
+    print(f"topic-card resume: skipped {reason}")
+    raise SystemExit(0)
+
+if generation_status == "absent":
+    if route_status != "absent":
+        fail("generation-state-missing-with-topic-route")
+    safe, reason = pre_topic_uninitialized_safe()
+    if not safe:
+        fail(f"uninitialized-pre-topic-{reason}")
+    skip_pre_topic_recovery(reason)
+
 # An adopted run must remain fenced even when a route is already present.  The
 # route branch below moves a card, so validate the ledger before it can mutate
 # queue/in-progress state.  A malformed/public/symlink ledger is never a safe
@@ -751,7 +787,6 @@ if route_status == "absent":
     # A SIGTERM before topic selection has no card to restore.  Resume the same
     # immutable prompt only when the generation journal proves that exact empty
     # boundary; every route-bearing or ambiguous run remains fail-closed.
-    generation_path = gates / "generation-state.json"
     if path_status(generation_path) != "regular":
         fail("generation-state-missing-or-symlink")
     if path_status(ledger) != "regular":
@@ -835,6 +870,11 @@ if route_status == "absent":
             )
         ):
             public_row = True
+    if generation.get("status") == "prepared" and attempts == []:
+        safe, reason = pre_topic_uninitialized_safe()
+        if not safe:
+            fail(f"uninitialized-pre-topic-{reason}")
+        skip_pre_topic_recovery(reason)
     if adopted_prepublication and not public_row:
         print("topic-card resume: skipped adopted prepublication")
         raise SystemExit(0)
