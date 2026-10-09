@@ -7,8 +7,9 @@ Same lease contract as browser_reel_publish (skills/browser/browser-guard.sh). T
 clickable, so the caption carries the purchase URL.
 
 Lesson from the Instagram lane (2026-10-09): navigating the posting tab away while the upload is
-still running cancels it. The composer tab is left alone until its dialog closes; the profile is
-read in a separate tab.
+still running cancels it. Threads too keeps uploading in the composer tab after its dialog closes,
+so that tab stays open until the post is on the profile (read in a separate tab), with a small ring
+of screenshots in /tmp/threads-watch.
 """
 from __future__ import annotations
 
@@ -21,6 +22,8 @@ REPO_ROOT = Path(__file__).resolve().parents[4]
 GUARD = REPO_ROOT / "skills/browser/browser-guard.sh"
 UPLOAD_SECONDS = 300
 RECONCILE_SECONDS = 120
+WATCH_DIR = Path("/tmp/threads-watch")
+WATCH_SLOTS = 6
 
 
 def post_codes(html: str, handle: str) -> set[str]:
@@ -85,19 +88,26 @@ def publish(*, video: Path, caption_file: Path, handle: str, browser_identity: s
                     return {**receipt, "outcome": "dry_run"}
                 dialog.get_by_role("button", name="投稿", exact=True).click(timeout=60000)
                 receipt["reached"] = "shared"
-                deadline = time.monotonic() + UPLOAD_SECONDS
-                while time.monotonic() < deadline and page.locator("div[role=dialog]").count():
-                    page.wait_for_timeout(3000)
+                # Threads closes the dialog and keeps uploading in this tab (2026-10-09: closing the tab
+                # right after the dialog left the profile at 0 posts). Keep it open until the post is on
+                # the profile, read in another tab; photograph this one so a stall can be seen.
+                WATCH_DIR.mkdir(parents=True, exist_ok=True)
+                deadline = time.monotonic() + UPLOAD_SECONDS + RECONCILE_SECONDS
+                shot = 0
+                while time.monotonic() < deadline:
+                    page.wait_for_timeout(15000)
+                    try:
+                        page.screenshot(path=str(WATCH_DIR / f"{shot % WATCH_SLOTS:02d}.png"))
+                    except Exception:  # noqa: BLE001 -- an observer must never break the post
+                        pass
+                    shot += 1
+                    code = new_post_code(before, _profile_codes(context, handle))
+                    if code:
+                        return {**receipt, "reached": "published", "outcome": "published",
+                                "post_url": f"https://www.threads.com/@{handle}/post/{code}"}
+                return {**receipt, "reached": "shared-unconfirmed"}
             finally:
                 page.close()
-            deadline = time.monotonic() + RECONCILE_SECONDS
-            while time.monotonic() < deadline:
-                code = new_post_code(before, _profile_codes(context, handle))
-                if code:
-                    return {**receipt, "reached": "published", "outcome": "published",
-                            "post_url": f"https://www.threads.com/@{handle}/post/{code}"}
-                time.sleep(15)
-            return {**receipt, "reached": "shared-unconfirmed"}
     except Exception as exc:  # noqa: BLE001 -- report, never raise past the receipt
         return {**receipt, "error": f"{type(exc).__name__}: {str(exc)[:300]}"}
     finally:
