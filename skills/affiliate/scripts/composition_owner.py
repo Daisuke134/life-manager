@@ -23,6 +23,7 @@ from runtime_guard import runtime_guard
 
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 TERMINAL = {"READY_FOR_POLICY", "FAILED", "QUARANTINED"}
+REQUIRED_ELEVENLABS_CASE_STUDY_IDS = frozenset({"elevenlabs-alec", "elevenlabs-greg"})
 DISCLOSURE = "Disclosure: This article contains an affiliate link."
 EXPERIMENT_VARIABLES = {"title", "opening_hook", "article_structure", "cta"}
 
@@ -134,6 +135,29 @@ def load_bundle(path: Path) -> dict:
         raise CompositionError
 
 
+def missing_elevenlabs_case_studies(bundle: dict) -> tuple[str, ...]:
+    if bundle.get("locale") != "en":
+        return ()
+    sources = bundle.get("sources")
+    if not isinstance(sources, list):
+        return ()
+    is_elevenlabs = any(
+        isinstance(source, dict)
+        and isinstance(source.get("locator"), str)
+        and source["locator"].startswith("https://elevenlabs.io/")
+        for source in sources
+    )
+    if not is_elevenlabs:
+        return ()
+    source_ids = {
+        source.get("source_id") for source in sources
+        if isinstance(source, dict)
+        and source.get("evidence_class") == "first_person_case"
+        and isinstance(source.get("source_id"), str)
+    }
+    return tuple(sorted(REQUIRED_ELEVENLABS_CASE_STUDY_IDS - source_ids))
+
+
 def atomic_write(path: Path, value: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     stage = path.with_name(f".{path.name}.{os.getpid()}")
@@ -211,13 +235,13 @@ and apply this pattern only within the selected variable.
         for source in bundle.get("sources", [])
     ):
         case_study_prompt = """
-Use the included official affiliate case studies as strategy evidence. For a baseline,
-show a specific workflow tutorial for a relevant audience, keep it useful over time,
-and place the single disclosed CTA above the fold after a short intro. For an
-experiment, apply case-study methods only within the selected variable and preserve
-the control's other content choices. Create original wording; do not copy the cases
-or present their reported earnings as Anicca's results; attribute them as reported,
-not guarantees.
+Use the included official affiliate case studies only to choose transferable tactics:
+firsthand product use, audience fit, a specific workflow tutorial, evergreen search
+intent, and a clear above-the-fold affiliate-link CTA. Do not copy their wording, name
+their participants, link to their case-study pages, or use their reported earnings as
+proof in this campaign. Keep product claims grounded in the official product and pricing
+sources. For an experiment, apply these tactics only within the selected variable and
+preserve the control's other content choices.
 """
     opportunity = bundle.get("opportunity_decision")
     opportunity_prompt = ""
@@ -761,6 +785,7 @@ def wake(
             key=lambda path: inbox_priority(path, state_root, skill_root),
         )
         blocked_result = None
+        waiting_case_study_plan_ids = []
         for path in paths:
             try:
                 bundle = load_bundle(path)
@@ -816,6 +841,9 @@ def wake(
             except (OSError, ValueError):
                 placement_receipt = {}
             if placement_receipt.get("state") == "LIVE":
+                continue
+            if missing_elevenlabs_case_studies(bundle):
+                waiting_case_study_plan_ids.append(bundle["plan_id"])
                 continue
             budget_retry_due = (
                 previous.get("state") == "FAILED"
@@ -917,7 +945,15 @@ def wake(
                 )
             atomic_write(receipt_path, receipt)
             return receipt
-        return blocked_result or {"state": "IDLE"}
+        if blocked_result:
+            return blocked_result
+        if waiting_case_study_plan_ids:
+            return {
+                "state": "WAITING_FOR_AFFILIATE_CASE_STUDIES",
+                "next_action": "await_source_refresh_backfill",
+                "waiting_plan_count": len(waiting_case_study_plan_ids),
+            }
+        return {"state": "IDLE"}
 
 
 def main() -> int:

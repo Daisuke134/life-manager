@@ -87,29 +87,34 @@ function zonedSlotInstant(clock, slot, timeZone) {
   return new Date(instant).toISOString();
 }
 
-// The slot currently due at `nowMs` in `timeZone`: the latest HONNE_JA_SLOTS
-// entry of the current local day whose wall time is <= now, as an exact UTC
-// instant; null before the first slot of the local day. Every tick inside the
-// same slot window resolves to the same instant, so the derived generation
-// job_id is idempotent across scheduler polls.
-function marketingVideoDueSlot(nowMs, timeZone = "Asia/Tokyo", slots = HONNE_JA_SLOTS) {
+// Every configured slot of the current local day whose wall time is <= now,
+// in schedule order. Keeping these instants lets a delayed owner consume the
+// oldest unposted slot instead of collapsing several queued wakes onto only
+// the latest due slot.
+function marketingVideoDueSlots(nowMs, timeZone = "Asia/Tokyo", slots = HONNE_JA_SLOTS) {
   if (typeof nowMs !== "number" || !Number.isFinite(nowMs)) {
     throw new Error("honne JA schedule time is invalid");
   }
   const local = wallClock(timeZone, new Date(nowMs));
   const nowMinutes = local.hour * 60 + local.minute;
-  let due = null;
+  const due = [];
   for (const slot of slots) {
     if (!SLOT_PATTERN.test(slot)) throw new Error("marketing video schedule slot is invalid");
     const [hour, minute] = slot.split(":").map(Number);
-    if (nowMinutes >= hour * 60 + minute) due = slot;
+    if (nowMinutes >= hour * 60 + minute) {
+      due.push(zonedSlotInstant(
+        { year: local.year, month: local.month, day: local.day },
+        slot,
+        timeZone,
+      ));
+    }
   }
-  if (!due) return null;
-  return zonedSlotInstant(
-    { year: local.year, month: local.month, day: local.day },
-    due,
-    timeZone,
-  );
+  return due;
+}
+
+// Legacy caller: return the latest passed slot, preserving its old contract.
+function marketingVideoDueSlot(nowMs, timeZone = "Asia/Tokyo", slots = HONNE_JA_SLOTS) {
+  return marketingVideoDueSlots(nowMs, timeZone, slots).at(-1) || null;
 }
 
 function honneJaDueSlot(nowMs, timeZone = "Asia/Tokyo") {
@@ -120,5 +125,6 @@ module.exports = {
   HONNE_JA_SLOTS,
   honneJaDueSlot,
   marketingVideoDueSlot,
+  marketingVideoDueSlots,
   zonedSlotInstant,
 };
