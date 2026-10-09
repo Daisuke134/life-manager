@@ -170,6 +170,9 @@ class CodexProfileBoundaryTest(unittest.TestCase):
                 "--loop", "fixture", "--workdir", str(root), "--timeout-seconds", "20",
             ]
             env = {
+                "HOME": str(root),
+                "LIFE_MANAGER_HOST_STATE_DIR": str(root / "host-state"),
+                "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(root / "admission"),
                 "AGENT_RUNNER_CONFIG": str(ROOT / "config.json"),
                 "ANICCA_USAGE_LEDGER": str(usage_ledger),
                 "ANICCA_TOKEN_BUDGET_LEDGER": str(root / "token-budget.jsonl"),
@@ -210,6 +213,13 @@ class CodexProfileBoundaryTest(unittest.TestCase):
             False, return_records=True, bounded=True)
         self.assertEqual(status, 0)
         self.assertEqual(attempts[0]["error_class"], "codex_prelaunch_auth_missing")
+
+    def test_bound_fixture_never_enters_the_real_runtime_journal_writer(self):
+        with mock.patch.object(agent_runner,"emit_runtime_event",
+                side_effect=AssertionError("fixture must not call the production journal writer")) as emit:
+            status, _ = self._run_candidate_fixture({("codex","acct1"):"success"},False,bounded=True)
+        self.assertEqual(status,0)
+        emit.assert_not_called()
 
     def test_bound_prelaunch_busy_keeps_account_failover(self):
         status, calls, attempts, _ = self._run_candidate_fixture(
