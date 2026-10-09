@@ -545,7 +545,7 @@ class LoopCleanupTest(unittest.TestCase):
                 mock.patch("runtime.loop.lm_loop_run.append_runtime_event",
                            side_effect=[None, OSError("receipt write failed")]),
             ):
-                self.assertEqual(lm_loop_run.main(["job", str(root)]), 0)
+                self.assertEqual(lm_loop_run.main(["job", str(root)]), 78)
             scratches = list((home / "state/loop-tmp/job").iterdir())
             self.assertEqual(len(scratches), 1)
             self.assertTrue((scratches[0] / ".owner.json").is_file())
