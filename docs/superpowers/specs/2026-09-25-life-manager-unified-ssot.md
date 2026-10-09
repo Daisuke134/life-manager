@@ -10716,6 +10716,7 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 - root causeは、start controlがuninitialized-safeとして同じprompt/run IDの再開を許す一方、topic-card recoveryがgeneration state必須として同じrunを拒否すること。run identityとprompt hashを維持し、完全なpre-topic/no-dispatch証拠を通る場合だけstate初期化へ進める。
 - 受入は、regular prompt/ledger、generation state・route・claimed-card・model output・broker requestなし、public ledger rowなしを確認してskip-pre-topic-recoveryを記録し、同じpromptのrelease rebind時にgeneration stateを安全に初期化すること。route/dispatchの兆候、symlink、不正ledger、未知artifactは引き続きfail-closedにする。focused regressionはskills/writer-agent/tests/test_topic_card_resume.py、生成state boundaryは同じfixtureで検証する。
 - 進捗: REDで未初期化runがgeneration-state-missing-or-symlinkに止まり、route input付きrunが誤ってcardを動かすことを確認。fresh reviewでmodel-stdout.logの実保存先がrun直下と判明し、そのケースもREDで再現してroot/gates両方のguardを追加した。最終focused verificationは55 passed、bash -n、source-boundary、git diff --checkがPASS。更新後のfresh read-only source reviewはSHIP。production stateやproviderは操作していない。
+- 12:15 JSTのnatural occurrence article-daily:18dcbe13bafebad8-29533はhost_admission_deferred:resource_capacity_busyで延期され、effect_status=not_applicable、effect_unknown=0、provider receiptなし、Admission DBではqueued。12:22 JSTのcurrent pointerはmain 3e7ca9e7だが、article-dailyはloaded-idleのrelease 3b77b78bのまま。writer-sales-measureもresource_capacity_busy。source修正は未merge/未反映で、この延期と区別する。手動dispatchやtarget applyはしていない。
 
 **残TODO（完了まで・この順）:**
 
@@ -10724,4 +10725,4 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 3. main由来immutable releaseをarticle-dailyへ対象限定で反映し、natural Writer occurrenceで同じ有料需要カードとMarketing Intel contextの使用を確認する。
 4. Noteのlive URL・¥500 monetization API readback、X告知のofficial readback、Writer sales measureとreplay-zeroを確認するまで収益を主張しない。Affiliate/X repost loopには接続しない。
 
-**現在cursor:** latest-main fetch/lease readback → commit/push → exact-head PR CI/fresh review/merge → immutable release/targeted apply → natural article-daily → Note/X official readback → sales measurement/replay-zero。
+**現在cursor:** PR #7341 exact-head CI/fresh review → merge → main-derived releaseでarticle-dailyをtarget apply → natural Writer occurrence → Note/X official readback → sales measurement/replay-zero。
