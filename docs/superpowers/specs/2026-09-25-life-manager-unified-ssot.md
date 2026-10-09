@@ -10486,12 +10486,12 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **次のatomic TODO:**
 
-1. [ ] `skills/earn/marketing-engine/identity/test_product_binding.py`に、Anicca/Honneの全18 `config/marketing-destinations.json` integration IDがcanonical `job_product_id`へbindされる回帰テストを追加し、現在の12件unmappedでREDを確認する。
-2. [ ] `skills/earn/marketing-engine/identity/product_binding.py`と`publication_ledger.py::bind_merged_rows`で、既存account-registry bindingを優先しつつ未登録mobile integrationのみ既存destination manifestから補完する。integration重複/product conflictはfail closed、binding sourceを記録する。各18 integrationとcanonical product mappingを確認する。
-3. [ ] account-level provider receiptを変更せず、main由来release後の既存serialized `marketing-owner-events` pipelineでidentity ledgerを再bindし、18/18 product attributionと8 burst rowsの`product_id=anicca-ios`をreadbackする。
+1. [x] `skills/earn/marketing-engine/identity/test_product_binding.py`で、Anicca/Honneの全18 `config/marketing-destinations.json` integration IDがaccount registryからcanonical `job_product_id`へbindされる回帰testを追加。RED確認: 現行account registryに6/18のみあり、testは未登録12 integrationを表示して失敗する。
+2. [ ] 既存の`registry/accounts`方式を維持して不足12 account manifestsを追加する。`publisher_integration_id`はdestination manifestのexact ID、`product_id=job_product_id`、legacy publisherを有効化しない`approved_quarantined`、schema-valid platform settingsを使う。`skills/earn/marketing-engine/gates/test_product_routing.py`のprovider allowlistを実manifestに同期し、既存`instagram.monk_anicca`のprovider-nullも期待値へ加える（baselineで同testが失敗）。product-binding testとregistry testsが全18 integrationをPASSする。
+3. [ ] account-level provider receiptを変更せず、main由来release後の既存serialized `marketing-owner-events` pipelineでidentity ledgerをreconcileし、18/18 product attributionと8 burst rowsの`product_id=anicca-ios`をreadbackする。
 4. [ ] `report:checkpoint` exit 1のexact stage原因を調べ、YouTube delivery_unknownはCloud履歴readbackでのみreconcileする。証明のない再送は禁止。
 5. [ ] Postiz 6/24/72/168-hour checkpointsを投稿ID別に保存し、metrics欠損を0扱いしない。投稿結果を同期間のASC/RevenueCat/in-app activation/onboarding/paywall/purchaseと結ぶ。
 6. [ ] 18 account×3 distinct `PUBLISHED` receipts=54/54を同日で判定する。slot2/3や20:00を待ってから他作業を始めない。
 7. [ ] Anicca iOSでdistribution、ASO/listing、onboarding/paywallの順に改善し、settled evidenceを伴うUSD 10,000 net MRRへ到達する。現時点の$20.34 MRRはsubscription observationでありsettled netではない。
 
-**現在cursor:** mobile product-bindingのRED test → destination fallbackの最小実装 → production publication ledger再bind → checkpoint/report fenceのreadback → per-post metrics/funnel → rolling 54/54 daily acceptance → $10K verified net MRR。**54/54日次判定は残りslotが自然に到来する間の作業を止めない。**
+**現在cursor:** mobile account-registry bindingのRED testは確認済み → 12 manifest data fixとprovider-registry regression → serialized production publication ledger rebind → checkpoint/report fence readback → per-post metrics/funnel → rolling 54/54 daily acceptance → $10K verified net MRR。**54/54日次判定は残りslotが自然に到来する間の作業を止めない。**
