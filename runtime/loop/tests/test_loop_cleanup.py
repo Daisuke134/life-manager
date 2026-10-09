@@ -184,20 +184,30 @@ class LoopCleanupTest(unittest.TestCase):
         receipt = {"ok": False, "status": "deferred", "reason": "cleanup_lock_busy",
                    "effect": 0, "readback": 0, "identity": binding}
         process = subprocess.CompletedProcess([], 75, json.dumps(receipt), "")
-        with mock.patch.object(central_cleanup.subprocess, "run", return_value=process), \
-             mock.patch.object(central_cleanup, "cleanup_run_binding", return_value=binding), \
-             mock.patch.object(central_cleanup, "release_gc", return_value={"errors": 0}) as gc, \
-             mock.patch.object(central_cleanup, "scratch_gc", return_value={"errors": 0}) as scratch, \
-             mock.patch.object(sys, "argv", ["central_cleanup.py"]), \
-             mock.patch("builtins.print") as output:
-            self.assertEqual(central_cleanup.main(), 75)
-            gc.assert_not_called()
-            scratch.assert_not_called()
-            result = json.loads(output.call_args.args[0])
-            self.assertEqual(result["reason"], "cleanup_lock_busy")
-            self.assertEqual(result["identity"], binding)
-            self.assertFalse(result["ok"])
-            self.assertIsNone(result["capacity_recovered"])
+        cases = (({"errors": 0, "source_reclaim": {"removed_files": 2,
+                  "protected_deletions": 0}}, 75), ({"errors": 1}, 1), (OSError("GC unavailable"), 1))
+        for gc_result, expected_exit in cases:
+            with self.subTest(gc_result=gc_result), \
+                 mock.patch.object(central_cleanup.subprocess, "run", return_value=process), \
+                 mock.patch.object(central_cleanup, "cleanup_run_binding", return_value=binding), \
+                 mock.patch.object(central_cleanup, "release_gc", return_value=gc_result,
+                     side_effect=gc_result if isinstance(gc_result, Exception) else None) as gc, \
+                 mock.patch.object(central_cleanup, "scratch_gc", return_value={"errors": 0}) as scratch, \
+                 mock.patch.object(sys, "argv", ["central_cleanup.py"]), \
+                 mock.patch("builtins.print") as output:
+                self.assertEqual(central_cleanup.main(), expected_exit)
+                gc.assert_called_once()
+                scratch.assert_not_called()
+                result = json.loads(output.call_args.args[0])
+                self.assertEqual(result["reason"], "cleanup_lock_busy")
+                self.assertEqual(result["identity"], binding)
+                self.assertFalse(result["ok"])
+                self.assertIsNone(result["capacity_recovered"])
+                if expected_exit == 75:
+                    self.assertEqual(result["source_reclaim"]["removed_files"], 2)
+                    self.assertEqual(result["errors"], 0)
+                else:
+                    self.assertEqual(result["errors"], 1)
 
     def test_no_effect_loop_ids_reads_registry(self):
         with tempfile.TemporaryDirectory() as directory:
