@@ -10494,3 +10494,25 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 7. [ ] Anicca iOSでdistribution、ASO/listing、onboarding/paywallの順に改善し、settled evidenceを伴うUSD 10,000 net MRRへ到達する。現時点の$20.34 MRRはsubscription observationでありsettled netではない。
 
 **現在cursor:** source registry/tests GREEN (branch only) → main integration → main-derived release/natural publication-ledger rebind → Telegram checkpoint delivery_unknown recovery → per-post metrics/funnel → rolling 54/54 daily acceptance → $10K verified net MRR。**54/54日次判定は残りslotが自然に到来する間の作業を止めない。**
+
+### 2026-10-09 11:11 JST — Mobile cursor更新: ownerごとに即投稿し、54/54待ちをgateにしない
+
+この順序が上記10:27 mobile TODOを更新する。日次54/54は「3回投稿できた」という結果の判定であり、投稿開始・他owner・metrics・修復を止める前提ではない。3回目のslot時刻や20:00まで待たず、Postiz APIとそのownerの書込みpreflightが通った時点で、そのownerの不足分を送る。1 ownerのfenceやfailureは他ownerを止めない。
+
+- **Source:** PR #7322の全18 mobile integration→product mappingはmerge commit `97da96ab7b2c71771e9a54d291eddae814cb0010`でmainに統合済み。現在の`origin/main=7c20304d5a1659a548d8f6546a648e8cb8833a75`に含まれる。10:27 snapshotの「source branch only / commit・PR・merge未完」は訂正する。production immutable releaseへのadoptionと18/18 ledger readbackは未完。
+- **Posting evidence:** 最後に確認した公式Postiz GETは10:49 JSTでmobile 25/54 `PUBLISHED`、scheduled 0。これは部分snapshotであり、現在の日次完了を示さない。最新の直近production readback（11:03 JST）ではcurrent release `20261009T102611-d3b3a279`、release reconcilerは10:54 JSTに`scratch_enospc`。この追記時のhost `df -h /`は450 MiB available（11:10 JST）だが、df値だけではowner書込み成功やpipeline健全を証明しない。
+- **Reusable assets:** 永続cacheは`/Users/anicca/.local/state/life-manager/tenants/dais-local/marketing/slide-pack-rotation/anicca-ios/image-cache`に26 PNG。投稿ごとのGemini/GPT Image/FAL呼出しはしない。背景は再利用し、caption/hookとslide順を変えてlocal composeする。残りは各published receiptにasset/object IDとhashが記録され、cacheの同じassetが実postに使われたことをreadbackすること。
+
+**残りatomic TODO（この順。投稿と終日判定を分離）:**
+
+1. [ ] **owner別preflightと実障害修復:** `marketing-owner-events`と各`life-manager-anicca-*` / `life-manager-honne-*` ownerのloaded release、Postiz API read/write、実際のscratch/durable writeを確認する。まず最後に観測した`scratch_enospc`をowner境界で修復する。固定の2 GiBをproducer gateにせず、実際のadmission拒否・write errorを解消する。Simulator、永続PNG、leased worktree、private stateは削除しない。
+2. [ ] **due ownerを即dispatch:** 18 targetそれぞれが1日3回独立に起きる既存owner worker/cadenceをreadbackする。各wakeでは公式Postiz receiptを先に数え、当日3件未満かつAPI・owner書込みpreflightが通れば、不足する投稿をその場で公開する。3回目の時刻、他accountの成功、54/54判定、metrics取得を待たない。1 ownerのfailure/effect fenceはそのownerだけを止める。catch-upも当日の不足数を上限3で数えてから行い、`effect_unknown`を再送しない。既存workerに実証された欠陥がある場合は、そのownerの既存経路を直し、別cron/schedulerを重ねない。
+3. [ ] **投稿receiptを即記録・報告:** 各送信後すぐPostiz公式readbackでdistinct post ID、`PUBLISHED`、direct permalinkを確認し、owner receiptとTelegram報告に同じlinkを保存する。`SCHEDULED`、request成功、空の報告は投稿成功と数えない。receipt不明ならprovider readbackでeffectを閉じるまで再送しない。
+4. [ ] **保存済み画像を再利用:** 上記26 PNGを使い、asset hash/object IDをpost identityへ結ぶ。背景生成APIを投稿ごとに呼ばない。画像の順番変更と本文/hookのvariationは許可し、cache missでは生成課金せず原因を記録する。
+5. [ ] **main fixをproductionへ届ける:** main由来immutable releaseでPR #7322をownerの通常経路へ反映し、serialized publication ledgerが18/18 integrationを正しい`job_product_id`へ結び、既存postも再bindしたことをreadbackする。このmetrics/product-binding作業は新規投稿をblockしない。
+6. [ ] **投稿別metricsを継続収集:** post ID/permalinkごとにviews・reach・likes・comments・shares・savesをAPIで取得し、観測時刻とprovider field missingを分けて保存する。6/24/72/168h checkpointは各post単位で進め、54/54や次slotを待たない。Postizの0/欠損を混同しない。
+7. [ ] **owner限定のfence/report修復:** `@aniccaen2`の過去`effect_unknown`とYouTube checkpointのTelegram `delivery_unknown`を各exact provider/history readbackで閉じる。曖昧なeffectは再送せず、片方のfenceで投稿fleet全体を止めない。
+8. [ ] **同日3回の結果判定:** 18 accountそれぞれで同一JST日のdistinct `PUBLISHED` receipt 3件、合計54/54をその日の3回目以後に集計し、URL付きで報告する。不足があればaccount・slot・owner原因を特定する。このdaily closeは結果報告のみで、次の投稿・metrics・修復のgateにしない。
+9. [ ] **10K MRR成長loop:** marketing post→ASC impression/product-page/download、RevenueCat subscription/settled proceeds、Mixpanel/PostHog activation/onboarding/paywall/purchaseを同期間で結ぶ。まずdistributionとcontentの勝ちhook/formatを反復し、次にlisting/ASO、その後onboarding/paywallを改善する。USD 10,000はrefund/fees/costを差し引いたverified net MRRで判定し、未達を達成と呼ばない。
+
+**現在cursor:** ownerごとに`API/write preflight → PASSなら不足分を即dispatch / FAILならそのownerだけ修復`を独立実行。他の健全ownerは並行して投稿 → receipt/link/asset hashを即保存 → production rebind・metrics・fence修復も投稿と並行 → 3回目以後に54/54日次集計 → ASC/RevenueCat/in-app funnel → distribution反復からverified $10K net MRR。**20:00や54/54を待つだけの停止状態は作らない。**
