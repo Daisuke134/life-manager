@@ -290,6 +290,8 @@ def reclaim_release_source(path: Path, source_repo: Path, *,
                     if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
                             or info.st_size != size or info.st_nlink != 1):
                         continue
+                    if info.st_blocks * 512 > max_bytes - result["reclaimed_bytes"]:
+                        continue
                     git("cat-file", "-e", oid + "^{blob}")
                     digest = hashlib.sha1(f"blob {size}\0".encode())
                     while chunk := os.read(leaf_fd, 512 * 1024):

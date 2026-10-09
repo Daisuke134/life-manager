@@ -39,6 +39,7 @@ jobs:
           python3 -m pytest -q
           runtime/loop/tests/test_lm_loop_run_bounds.py
           runtime/loop/tests/test_storage_failure.py
+          runtime/loop/tests/test_release_source_reclaim.py
           runtime/host/tests/test_storage_policy.py
           runtime/host/tests/test_bounded_output.py
           runtime/host/tests/test_storage_recurrence.py
