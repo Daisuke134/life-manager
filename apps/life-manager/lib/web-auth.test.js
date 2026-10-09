@@ -8,6 +8,7 @@ const {
   ensureWebUser,
   handleWebAuthRequest,
   resolveWebUser,
+  signedOutCalendarHandoffLocation,
   separateWebUidForSubject,
 } = require("./web-auth.js");
 
@@ -17,6 +18,29 @@ const SUBJECT = "11111111-2222-4333-8444-555555555555";
 const WEB_UID = `lm_${SUBJECT}`;
 const SERVICE_KEY = `test.${Buffer.from(JSON.stringify({ role: "service_role" })).toString("base64url")}.sig`;
 const ANON_KEY = "public-anon-key";
+
+test("signed-out Calendar CTA hands off once to Google auth with only unique allowlisted UTM values", () => {
+  assert.equal(typeof signedOutCalendarHandoffLocation, "function");
+  assert.equal(
+    signedOutCalendarHandoffLocation({
+      method: "GET",
+      url: "/lm?start_calendar=1&utm_source=instagram&utm_medium=social&utm_campaign=leave-on-time&utm_term=commute&return_to=https%3A%2F%2Fevil.example",
+    }),
+    "/auth/google?utm_source=instagram&utm_medium=social&utm_campaign=leave-on-time&utm_term=commute",
+  );
+  for (const url of [
+    "/lm",
+    "/other?start_calendar=1&utm_source=instagram",
+    "/lm?start_calendar=1&utm_source=instagram&utm_source=spam",
+    "/lm?start_calendar=1&start_calendar=1&utm_source=instagram",
+  ]) {
+    assert.equal(signedOutCalendarHandoffLocation({ method: "GET", url }), null, url);
+  }
+  assert.equal(
+    signedOutCalendarHandoffLocation({ method: "POST", url: "/lm?start_calendar=1" }),
+    null,
+  );
+});
 
 function response(status, body) {
   return {
