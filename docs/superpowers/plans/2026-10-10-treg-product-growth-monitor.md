@@ -96,7 +96,7 @@
 - [x] Record the four Apple listing IDs, exact listing URLs, and concise buyer descriptions grounded in the current Apple lookup metadata.
 - [x] Write the JSON Schema to reject unknown products/platforms, absent source/person URLs, missing reasons, and missing Treg call receipts.
 - [x] Run `python3 -m json.tool` on both JSON files.
-- [ ] Commit and push this task.
+- [x] Commit and push this task.
 
 ### Task 3: Implement the private weekly signal owner
 
