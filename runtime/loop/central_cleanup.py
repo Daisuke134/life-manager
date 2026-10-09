@@ -570,8 +570,17 @@ def main() -> int:
                 and host_result.get("status") == "deferred"
                 and host_result.get("effect") == 0
                 and host_result.get("readback") == 0):
-            print(json.dumps(host_result, sort_keys=True, separators=(",", ":")))
-            return 75
+            # Host temp/worktree sweeping has a separate lock from release GC.
+            try:
+                gc_result = release_gc(releases, current, agents,
+                    keep=int(os.environ.get("LIFE_MANAGER_RELEASE_KEEP", "1")))
+            except (OSError, ValueError) as error:
+                gc_result = {"errors": 1, "error": "release_cleanup_invocation_failed",
+                             "error_class": type(error).__name__}
+            print(json.dumps({**gc_result, **host_result,
+                "errors": gc_result["errors"], "host_cleanup": host_result},
+                sort_keys=True, separators=(",", ":")))
+            return 75 if gc_result["errors"] == 0 else 1
     except subprocess.TimeoutExpired:
         host_ok, host_result = False, {"error": "host_cleanup_timeout"}
     except OSError as error:

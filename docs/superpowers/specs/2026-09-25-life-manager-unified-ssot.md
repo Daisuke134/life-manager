@@ -26,7 +26,7 @@
 
 **不変条件:** 11 GiBは今回の容量回復受入であり、全producerの起動floorを一律11 GiBへ変える指示ではない。iOS Simulator runtime/image/device/data/dyld、memory/state、credentials、browser identity、参照release、active/dirty/unmerged/leased/locked worktree、open/unknown dataを削除しない。古い同一UID test artifactと、Git clean/main統合済み/unleased/unlocked/closedを全て証明できるworktreeだけを今回の追加回収対象とする。証明できなければ保持。effect_unknownはexact official receipt/pre-effect proofまで解除・再送しない。Codex session履歴は容量が大きいだけで削除・圧縮対象にしない。
 
-**現在cursor: S02/P0-14 回収自身の検証FDを使用中と誤認する境界の修復 → 自然code回収/P0-15 coverage/P0-12の11GiB回復 → 下記全社S順。** lock retryは#7423/main694e566597へ統合済みだが、ALL exportはENOSPCで未反映。GC抑制はmain a8fe894bのimmutable currentへ反映済み。根本修復全体は未完。この節の文書保存・統合と実装/本番成果の完了は別。各atomは証拠取得後だけ `[x]` にし、失敗境界・次の安全な操作・cursorを同じ差分で更新する。
+**現在cursor: S02/P0-14 watchdog busyで独立したrelease GCまで止まる境界の修復 → 自然code回収/P0-15 coverage/P0-12の11GiB回復 → 下記全社S順。** FD修正は#7424/main8c3a31c29cからcleanup限定immutable releaseへ反映済み。ALL exportはENOSPCで未反映、自然回収と11GiBは未達。GC抑制はmain a8fe894bのimmutable currentへ反映済み。根本修復全体は未完。この節の文書保存・統合と実装/本番成果の完了は別。各atomは証拠取得後だけ `[x]` にし、失敗境界・次の安全な操作・cursorを同じ差分で更新する。
 
 **引き継ぎ/診断証拠:** worktree HEAD `a6e03757`の4ファイル497行差分を`ea1784b0ec`で保持してpushし、最新main `3baccdbd`を`00b5d4ff5d`でmerge/push。leaseは既存owner `codex-root`でheartbeatを更新、直列lsof再確認でworktree下open handleなし。既存temp/worktree focused testは2 PASS。agmsg統括identityは`lm/codex-resource-orchestrator-1009`、既存cleanup担当へ重複書込抑制と状態照会を送信。自然receiptの成功/失敗が交互に現れ、失敗時の正確な親errorは`host_cleanup_identity_mismatch`。`disk_cleanup.py::main`のbusy lock出力はexit75だがidentityを含まず、`central_cleanup.host_cleanup_readback`の同-occurrence検査が失敗に変換する。REDはbusy出力identity欠落と親exit1を再現し、最小修正後の関連4 testsはGREEN。修正契約は、busy出力にもimmutable manifest由来の同run identityを載せ、親はそのidentityを検証した正確なbusyだけをeffect0のexit75延期として維持し、他のidentity mismatchはexit1のまま拒否する。旧ENOSPC修復とは区別し、容量不足時の既存reserve/cursor testsも再確認する。
 
@@ -127,6 +127,14 @@ lock retry source: 初回busy→release後取得のreal-Git ownerケースで旧
 反映は既存cutter/owner手順を使う。fresh free約0.22GiBでALL exportを試しENOSPC、cutterは途中rootを後始末し旧currentdb2eを維持した。この失敗をcapacity回復やproduction反映と扱わず、同じALL exportを再試行しない。source統合後、既存の非current・owner限定sparse immutable releaseの契約でcleanupだけを反映できるか、必要path/依存と物理生成予算を先に確認する。不成立ならclosed/regenerable候補の容量回復を先に行う。根拠なくfloorを緩めたり保護storeを削除したりしない。11GiBの自然受入と全社順は変更しない。
 
 自己検証FDのsource検証: actual open FDを反映するtiny real-Git owner fixtureのREDは期待2 filesに対し0。callbackへroot/parent/leafの検証FD tupleを渡し、同PIDかつその番号のFDだけをfresh inventoryから除外したGREENで自己検証のみは2 files、同PID別FDと他PID同番号はeffect0。既存no-follow/data/inode/rollback/deadline/resumeを含む11 tests PASS、contract18 catalog/190 jobs/errors0、diff check PASS。削除allowlistや保持境界を広げず、source/CI/本番readbackを区別する。
+
+**P0-14 FD修正の反映と実回収:** #7424/head0614ba517dのCI全10項目PASS後、main8c3a31c29c6642f07032755af000e8645c292e13へ統合。既存ownerのALL cut PID98066/start05:35:24JSTが終了しsame-SHA completed releaseなし/lock解放を確認した後、既存cutterのLOOPS_ACTIVATE_CURRENT=0・LOOPS_RELEASE_PATHS='bin runtime config skills/self/disk-cleanup skills/_shared'で20261010T053636-8c3a31c2を一度作成。main ancestry/6 critical sourceのGit hash一致/mode0555または0444、exact Python3.14 import smoke、cleanup一件のapply planを確認。GUI preflight PASS・loaded-idle・effect_unknown=falseで対象applyしinstall_event8f871e170c0b144fe40bef39、loaded argv/SHA=8c3a31c29cをreadback。current ALLは旧db2eのまま保持し、provider owner/停止設定は変更しない。
+
+反映版の既存--release-gc-onlyを手動で一回実行し、未参照001505-4888da70から1 file/source1,281,638 bytes/allocated1,282,048 bytesを回収、errors0/protected_deletions0、同時fresh free_after198,373,376 bytes。memory/2026-09-02.mdは同path/inode787440092/bytes1124/SHA2569485819cc3f675cd1d16ae37abe6b217290c326fb709d1775521c327c7daf254を保持。元RELEASE.jsonのinode787445018/bytes482/SHA256e1c1b344f665b41534eb22027b0752d8ffe56e2f6354c8cff82b232c9c894079は同rootのRECLAIMED-RELEASE.jsonへ保持し、部分回収したrootをALL候補から除外。logical/allocated回収をfresh net freeへ足し上げず、手動結果を自然acceptanceと扱わない。
+
+**P0-14自然実行の残る結び付き:** 新8c3a31c2の自然run18dcf6ed42160460-1289（20:37:31Z）と18dcf73293725198-5713（20:42:29Z）は、同identityのhost cleanup_lock_busy/deferred/exit75。central_cleanup.py::mainはこの分岐でrelease_gc呼出し前にreturnする。watchdogのtemp/worktree singletonとrelease GCのprotocol/apply locksは別であり、反映済みの--release-gc-onlyで独立した回収を実証した。先頭P0-14内の次修正は、exact bound host busy時だけ既存release_gcを一回実行し、その結果をbusy receiptへ載せること。hostのbusy/identity/effect0/readback0/capacity unknownは保持し、GC errorsはexit1へ伝播。scratch GCやhost sweepの二重起動、新scheduler、再試行回数/削除対象の拡張は行わない。既存focused main testを「GCなし」から「独立GC一回・host busyを保持・scratchなし」へRED→GREENで更新し、immutable対象反映後に自然receiptの回収量を確認する。ディスク→実行枠→各laneの全社順と、一件ずつ進める方式は変更しない。
+
+host busy時のsource検証: GCが0回のREDと、GC error/例外がexit75へ隠れる2 RED subcasesを確認。busy分岐内だけで既存release_gcを一回実行し、host identity/busy/capacity unknownを保持して結果をjoin、GC error/例外はexit1にする10行程度の修正。関連main4 tests＋3 subtests、既存source reclaim11 tests、contract18/190/errors0、diff check PASS。本番自然回収と11GiBはまだ未完。
 
 ### P0 — ディスク回復のatomic TODO
 
