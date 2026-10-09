@@ -24,8 +24,13 @@
     "diff_check": "PASS",
     "independent_static_review": "PASS"
   },
-  "ci": "pending",
-  "main_sha": null,
+  "ci": {
+    "run_id": 37884743178,
+    "head_sha": "41bbedc623922f67a3673ce7e730db7a2bff4198",
+    "checks_passed": 10,
+    "storage_and_recovery_steps": "PASS"
+  },
+  "main_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72",
   "production_applied": false,
   "remaining": [
     "DS14 exact-head CI/main",
@@ -36,5 +41,6 @@
   "limits": [
     "Host ENOSPC recurs during fixture creation and git fetch; tests above are actual completed passes, subsequent environment failures are not source PASS.",
     "Protected native Codex account stores are observed only. Managed diagnostic bounds cannot cap arbitrary external writers."
-  ]
+  ],
+  "pr": 7348
 }

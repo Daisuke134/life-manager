@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "status": "pending",
+  "main_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72",
+  "capacity_stable": false,
+  "natural_24h_complete": false,
+  "latest_verified_host_storage": {
+    "execution_ok": true,
+    "capacity_recovered": false,
+    "free_bytes": 199749632,
+    "observed_at": "2026-10-09T05:02:32Z",
+    "status": "unmet"
+  },
+  "remaining": [
+    "DS15 deferred owners: idle and official effect conditions",
+    "DS16 next-day natural outputs and recurrence",
+    "DS17 stable capacity and final verdict"
+  ],
+  "protected_store_action": "No deletion or move of native personal stores, memory, state JSONL, browser credentials or Simulator."
+}
