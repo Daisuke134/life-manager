@@ -28,6 +28,7 @@ import os
 from pathlib import Path
 import re
 import subprocess
+import threading
 import sys
 import time
 
@@ -44,6 +45,26 @@ PY3 = sys.executable
 
 class BrowserReelError(RuntimeError):
     pass
+
+
+# 2026-10-09: four shares in a row stuck on 'シェア中' (different sets each time), and one photo before
+# and after cannot tell a frozen page from a slow one. Photograph the tab while post_reel runs,
+# overwriting a small ring of files so the near-full disk does not grow. Observation only.
+WATCH_INTERVAL_SECONDS = 20.0
+WATCH_SLOTS = 6
+WATCH_DIR = Path("/tmp/ig-share-watch")
+
+
+def _watch_tab(tid: str, *, cdp_host: str, cdp_port: str, stop: threading.Event) -> None:
+    WATCH_DIR.mkdir(parents=True, exist_ok=True)
+    index = 0
+    while not stop.wait(WATCH_INTERVAL_SECONDS):
+        try:
+            _cdp(["shot", tid, str(WATCH_DIR / f"{index % WATCH_SLOTS:02d}.png")],
+                 cdp_host=cdp_host, cdp_port=cdp_port, timeout=30)
+        except Exception:  # noqa: BLE001 -- an observer must never break the post
+            pass
+        index += 1
 
 
 def _cdp(tid_cmd: list[str], *, cdp_host: str, cdp_port: str, timeout: int = 60) -> str:
@@ -299,7 +320,17 @@ def publish(
         # published on Instagram's side, but this process never saw the receipt and
         # crashed instead of returning it). 540s covers the measured worst case with
         # headroom.
-        done = subprocess.run(args, capture_output=True, text=True, timeout=540, env=env)
+        stop = threading.Event()
+        watcher = threading.Thread(
+            target=_watch_tab, kwargs={"tid": tid, "cdp_host": cdp_host, "cdp_port": cdp_port, "stop": stop},
+            daemon=True,
+        )
+        watcher.start()
+        try:
+            done = subprocess.run(args, capture_output=True, text=True, timeout=540, env=env)
+        finally:
+            stop.set()
+            watcher.join(timeout=5)
         try:
             result = json.loads(done.stdout.strip().splitlines()[-1])
         except (ValueError, IndexError):
