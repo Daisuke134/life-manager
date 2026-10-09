@@ -16,6 +16,7 @@ from runtime.loop.runtime_event import validate_runtime_event
 from runtime.loop.central_cleanup import installed_state_roots, loaded_release_roots
 from runtime.loop.central_cleanup import no_effect_loop_ids, open_release_roots, release_gc, scratch_gc
 from runtime.loop.central_cleanup import host_cleanup_command, host_cleanup_ok, host_cleanup_readback
+from runtime.loop import central_cleanup
 
 
 def completed(root: Path, name: str, size: int = 1) -> Path:
@@ -27,6 +28,44 @@ def completed(root: Path, name: str, size: int = 1) -> Path:
 
 
 class LoopCleanupTest(unittest.TestCase):
+    def test_cleanup_binding_uses_the_loaded_manifest(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "RELEASE.json").write_text(json.dumps({"sha": "a" * 40}))
+            binding = central_cleanup.cleanup_run_binding({
+                "LIFE_MANAGER_RUN_ID": "run-1",
+                "LIFE_MANAGER_OCCURRENCE_ID": "life-manager-disk-cleanup:run-1",
+                "LIFE_MANAGER_RELEASE_SHA": "b" * 40,
+            }, root)
+            self.assertEqual(binding, {"owner_id": "life-manager-disk-cleanup",
+                "run_id": "run-1", "occurrence_id": "life-manager-disk-cleanup:run-1",
+                "release_sha": "a" * 40})
+            self.assertIsNone(central_cleanup.cleanup_run_binding({}, root))
+    def test_cleanup_execution_is_not_capacity_recovery(self):
+        ok, result = host_cleanup_readback(0, json.dumps({
+            "free_after": 600 * 1024**2, "errors": 0,
+            "protected_deletions": 0, "disk_writers_stop": {"status": "absent"},
+        }))
+        self.assertTrue(ok)
+        self.assertTrue(result["execution_ok"])
+        self.assertFalse(result["capacity_recovered"])
+
+    def test_cleanup_readback_rejects_foreign_execution_identity(self):
+        binding = {"owner_id": "life-manager-disk-cleanup", "run_id": "run-1",
+                   "occurrence_id": "life-manager-disk-cleanup:run-1",
+                   "release_sha": "a" * 40}
+        receipt = {"free_after": 3 * 1024**3, "errors": 0,
+                   "protected_deletions": 0, "disk_writers_stop": {"status": "absent"},
+                   "identity": {**binding, "run_id": "other"}}
+        ok, result = host_cleanup_readback(0, json.dumps(receipt), binding=binding)
+        self.assertFalse(ok)
+        self.assertEqual(result["error"], "host_cleanup_identity_mismatch")
+        self.assertIsNone(result["capacity_recovered"])
+        receipt["identity"] = binding
+        ok, result = host_cleanup_readback(0, json.dumps(receipt), binding=binding)
+        self.assertTrue(ok)
+        self.assertTrue(result["capacity_recovered"])
+
     def test_no_effect_loop_ids_reads_registry(self):
         with tempfile.TemporaryDirectory() as directory:
             registry = Path(directory) / "loop-registry.json"
@@ -118,6 +157,8 @@ class LoopCleanupTest(unittest.TestCase):
         self.assertTrue(ok)
         self.assertEqual(result, {
             **receipt,
+            "execution_ok": True,
+            "capacity_recovered": True,
             "capacity_recovery": {
                 "status": "met",
                 "recovery_floor_bytes": recovery_floor,
@@ -147,6 +188,8 @@ class LoopCleanupTest(unittest.TestCase):
         self.assertFalse(ok)
         self.assertEqual(result, {
             **receipt,
+            "execution_ok": False,
+            "capacity_recovered": False,
             "capacity_recovery": {
                 "status": "unmet",
                 "recovery_floor_bytes": 2 * 1024**3,

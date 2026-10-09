@@ -32,6 +32,9 @@ from host_inventory import FULL_INVENTORY_BUDGET_SECONDS, collect_host_inventory
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 if str(REPOSITORY_ROOT) not in sys.path:
     sys.path.insert(0, str(REPOSITORY_ROOT))
+from runtime.loop.central_cleanup import cleanup_run_binding
+if str(REPOSITORY_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPOSITORY_ROOT))
 from runtime.loop.loop_cleanup import _release_immutable_store_probe
 
 GiB = 1024**3
@@ -1132,6 +1135,9 @@ class HostDiskGovernor:
     def _receipt(
         self, payload: dict, filename: str = "last-receipt.json"
     ) -> dict[str, object] | None:
+        binding = cleanup_run_binding(dict(os.environ), REPOSITORY_ROOT)
+        if binding is not None:
+            payload["identity"] = binding
         payload.setdefault("observed_at", time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
         data = (json.dumps(payload, ensure_ascii=False, sort_keys=True) + "\n").encode("utf-8")
         if len(data) > RECEIPT_PAYLOAD_MAX_BYTES:

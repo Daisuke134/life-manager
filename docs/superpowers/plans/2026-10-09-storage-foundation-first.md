@@ -22,7 +22,7 @@
 - terminal/event/resultは正本で、diagnostic raw logはbounded copy。schema/result/usageを確定する前にraw stdoutを捨てない。
 - readonly snapshotはmetadataのみ。private run rootは0700、file0600、nofollow/owner/start identity検証。source/fixtureはworktree、本番state/ログをコピーしない。
 - effect_unknownは公式readbackへ。capacity回復やprocess終了を外部効果の未実行証拠にしない。
-- DS01–14はsource/隔離fixture。DS15–17だけが本番promotion/自然証拠。現在の依頼は計画更新であり、本番操作はまだ実施しない。
+- DS01–14はsource/隔離fixture。DS15–17だけが本番promotion/自然証拠。現在の依頼は実装・main統合・安全な対象限定反映まで。進行中の仕事を止めず、DS15のowner/GUI境界を満たす対象だけ反映する。
 
 ## Review Focus
 
@@ -45,7 +45,7 @@
 
 ### Task 1: DS01 — host_cleanup_readback(returncode, stdout) -> tuple[bool, dict]
 
-**Files:** runtime/loop/central_cleanup.py  
+**Files:** runtime/loop/central_cleanup.py; skills/self/disk-cleanup/disk_cleanup.py
 **Test:** runtime/loop/tests/test_loop_cleanup.py  
 **Depends:** なし  
 **Interfaces:** Consumes=既存contractと上記依存の出力。Produces=`host_cleanup_readback(returncode, stdout) -> tuple[bool, dict]`。receiptへ最低限owner_id/run_id/occurrence_id/release_sha/phase/error_class/retryable/next_action/evidence_refsを保持（DS03 metadata値のみはnull許可）。
@@ -312,3 +312,5 @@
 - shared storage error分類は一箇所。recovery chainは既存reconcile_owner actionへ接続し、proof/errno/operationをrunnerから落とさない。
 - release cutは事前GCとcurrent切替を持つため、本番promotionへ分類。applyの正しいtargetは位置引数ではなくLIFE_MANAGER_APPLY_TARGET。
 - control socket閉鎖でrelay inputを閉じず、先頭32KiBと末尾2048bytesを保持する。
+
+実行ledger: DS01 readback/receipt identityをsource実装。4新規ケースRED→GREEN、関連175 tests + 5 subtests PASS。baselineでも失敗する旧cursorの2期待値を現行no-floor契約へ合わせ、metadata errorsは維持。本番反映はDS15まで未実施。

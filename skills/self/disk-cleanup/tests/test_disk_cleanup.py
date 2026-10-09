@@ -2617,7 +2617,10 @@ def test_cursor_mkstemp_enospc_keeps_sweeping_and_last_receipt_uses_reserve(
     assert sweep_calls == [1]
     assert candidate.exists()
     assert result["protected_deletions"] == 0
-    assert result["ok"] is False
+    # Cursor failure remains diagnostic; an unmet capacity metric is not a
+    # failed cleanup occurrence under the current no-floor contract.
+    assert result["ok"] is True
+    assert result["capacity_recovery"]["status"] == "unmet"
     cursor = result["candidate_rotation"]["cursor_persistence"]
     assert cursor["status"] == "failed"
     assert cursor["errors"][0] == {
@@ -2627,7 +2630,7 @@ def test_cursor_mkstemp_enospc_keeps_sweeping_and_last_receipt_uses_reserve(
         "next_action": "continue_sweep_then_retry_once_after_recovery",
     }
     receipt = json.loads((state / "last-receipt.json").read_text())
-    assert receipt["ok"] is False
+    assert receipt["ok"] is True
     assert receipt["capacity_recovery"]["status"] == "unmet"
     assert governor._receipt_reserve_valid(state / ".receipt-reserve")
 
@@ -2733,7 +2736,7 @@ def test_cursor_enospc_preserves_terminal_reserve_and_reports_postcommit_enospc(
         "argv",
         ["disk_cleanup.py", "--home", str(tmp_path), "--state-dir", str(state)],
     )
-    assert disk_cleanup.main() == 1
+    assert disk_cleanup.main() == 0
     result = json.loads(capsys.readouterr().out)
 
     assert sweep_calls == [1]
@@ -2742,7 +2745,7 @@ def test_cursor_enospc_preserves_terminal_reserve_and_reports_postcommit_enospc(
     assert result["protected_deletions"] == 0
     assert result["free_after"] == 2 * GiB - 1
     assert result["capacity_recovery"]["status"] == "unmet"
-    assert result["ok"] is False
+    assert result["ok"] is True
     assert result["candidate_rotation"]["cursor_persistence"]["errors"][0] == {
         "stage": "before_sweep",
         "error_class": "OSError",
@@ -2751,7 +2754,7 @@ def test_cursor_enospc_preserves_terminal_reserve_and_reports_postcommit_enospc(
     }
     receipt = json.loads((state / "last-receipt.json").read_text())
     assert receipt["capacity_recovery"]["status"] == "unmet"
-    assert receipt["ok"] is False
+    assert receipt["ok"] is True
     assert result["receipt_persistence"] == {
         "status": "committed_reserve_missing",
         "stage": "reserve_recreate_after_commit",
@@ -3351,3 +3354,18 @@ def test_receipt_replace_fd_reuse_does_not_close_unrelated_fd(
         os.fstat(retained_fd)
     finally:
         os.close(retained_fd)
+
+
+def test_receipt_carries_loaded_cleanup_identity(tmp_path, monkeypatch):
+    root = tmp_path / "release"
+    root.mkdir()
+    (root / "RELEASE.json").write_text(json.dumps({"sha": "a" * 40}))
+    monkeypatch.setattr(disk_cleanup, "REPOSITORY_ROOT", root)
+    monkeypatch.setenv("LIFE_MANAGER_RUN_ID", "run-1")
+    monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", "life-manager-disk-cleanup:run-1")
+    governor = HostDiskGovernor(home=tmp_path, state_dir=tmp_path / "state")
+    payload = {"free_after": 600 * 1024**2, "errors": 0, "protected_deletions": 0}
+    governor._receipt(payload)
+    saved = json.loads((tmp_path / "state/last-receipt.json").read_text())
+    assert saved["identity"] == {"owner_id": "life-manager-disk-cleanup", "run_id": "run-1", "occurrence_id": "life-manager-disk-cleanup:run-1", "release_sha": "a" * 40}
+    assert payload["identity"] == saved["identity"]
