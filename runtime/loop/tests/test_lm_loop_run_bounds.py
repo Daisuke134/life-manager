@@ -450,8 +450,8 @@ def test_mobile_wrapper_continues_new_occurrence_after_ownerwide_reconcile_miss(
             "#!/bin/sh\n"
             "printf \"%s\\n\" \"$1\" >> \"$LM_TEST_CALLS\"\n"
             "case \"$1\" in\n"
-            "  *mobile-postiz-provider-reconcile.py) printf \"%s\\n\" \"{\\\"status\\":\\"no_match\\",\\"inspected\\":0}\"; exit 1 ;;\n"
-            "  *run-with-timeout.py) touch \"$LM_TEST_RUNNER_CALLED\"; printf \"%s\\n\" \"{\\\"publication\\":{\\"created\\":true}}\"; exit 0 ;;\n"
+            "  *mobile-postiz-provider-reconcile.py) exit 1 ;;\n"
+            "  *run-with-timeout.py) touch \"$LM_TEST_RUNNER_CALLED\"; exit 0 ;;\n"
             "  *) exit 0 ;;\n"
             "esac\n",
             encoding="utf-8",
@@ -485,16 +485,16 @@ def test_mobile_wrapper_continues_new_occurrence_after_ownerwide_reconcile_miss(
         )
         return result, marker, calls
 
-    current=result_owner=owner+":new-slot"
+    current = owner + ":new-slot"
     allowed, allowed_marker, allowed_calls = invoke("allowed", current)
     assert allowed.returncode == 0, allowed.stderr
     assert allowed_marker.exists()
-    assert allowed_calls.read_text(encoding="utf-8").splitlines().__len__() == 2
+    assert len(allowed_calls.read_text(encoding="utf-8").splitlines()) == 2
 
     missing, missing_marker, missing_calls = invoke("missing", None)
     assert missing.returncode == 75, missing.stderr
     assert not missing_marker.exists()
-    assert missing_calls.read_text(encoding="utf-8").splitlines().__len__() == 1
+    assert len(missing_calls.read_text(encoding="utf-8").splitlines()) == 1
 
 
 def test_explicit_marketplace_occurrence_scope_is_forwarded_to_admission(tmp_path):
