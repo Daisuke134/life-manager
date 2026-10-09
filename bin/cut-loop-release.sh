@@ -49,6 +49,15 @@ esac
 SHA="$(git -C "$REPO_ROOT" rev-parse "$REF" 2>/dev/null)" || die "cannot resolve ref '$REF'"
 SHORT="${SHA:0:8}"
 
+ARCHIVE_PATHS=()
+if [ -n "$RELEASE_PATHS" ]; then
+  read -r -a ARCHIVE_PATHS <<<"$RELEASE_PATHS"
+fi
+if [ -z "${ARCHIVE_PATHS[*]:-}" ]; then
+  "$RUNTIME_PYTHON" "$SCRIPT_ROOT/runtime/host/disk_admission.py" \
+    --check-free-space "$LOOPS_ROOT" || exit "$?"
+fi
+
 cleanup() {
   local status=$?
   trap - EXIT INT TERM HUP
@@ -144,9 +153,7 @@ mkdir -p "$DEST" || die "cannot create $DEST"
 # loop-specific owner may request a whitespace-separated path allowlist; the default remains the
 # complete repository for callers that need it. This keeps a 300 KiB X runtime from requiring a
 # 57 MiB export on a disk-constrained host.
-ARCHIVE_PATHS=()
-if [ -n "$RELEASE_PATHS" ]; then
-  read -r -a ARCHIVE_PATHS <<<"$RELEASE_PATHS"
+if [ -n "${ARCHIVE_PATHS[*]:-}" ]; then
   # launchctl-safe is not standalone: every mutating command executes the shared Aqua/user
   # bootstrap preflight first. A sparse release that includes the wrapper but omits this module
   # cannot safely kick an owner, so close that dependency automatically instead of relying on
@@ -170,7 +177,7 @@ if [ -n "$RELEASE_PATHS" ]; then
     ARCHIVE_PATHS+=("runtime/browser")
   fi
 fi
-if [ "${#ARCHIVE_PATHS[@]}" -eq 0 ]; then
+if [ -z "${ARCHIVE_PATHS[*]:-}" ]; then
   git -C "$REPO_ROOT" archive --format=tar "$SHA" | tar -x -C "$DEST"
   ARCHIVE_RC=$?
 else
