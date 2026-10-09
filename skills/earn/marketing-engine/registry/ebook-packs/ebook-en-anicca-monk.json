@@ -12,7 +12,7 @@
   },
   "destination_url": "https://aniccaai.com/monk",
   "price": {"amount": 10.99, "currency": "USD"},
-  "slots_jst": ["08:00", "14:00", "21:00"],
+  "slots_jst": ["08:00", "21:00"],
   "accounts": [
     {"account_id": "tiktok.monk_anicca", "integration_id": "cmo5rwq2p00twn10yrsdglng3"},
     {"account_id": "instagram.monk_anicca", "integration_id": null}

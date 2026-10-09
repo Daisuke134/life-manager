@@ -18,6 +18,9 @@ const PACK = JSON.parse(fs.readFileSync(
 const PACK_EN = JSON.parse(fs.readFileSync(
   path.join(ROOT, "skills/earn/marketing-engine/registry/ebook-packs/ebook-en-anicca-monk.json"), "utf8",
 ));
+const MARKETING_DESTINATIONS = JSON.parse(fs.readFileSync(
+  path.join(ROOT, "config/marketing-destinations.json"), "utf8",
+));
 
 test("each Japanese eBook publisher owner resolves one matching account and locale", () => {
   const instagram = selectTarget({
@@ -64,6 +67,15 @@ test("English HeyGen owner resolves the approved active Monk TikTok route", () =
   assert.equal(selected.setup_required, false);
   assert.equal(selected.target.integration_id, "cmo5rwq2p00twn10yrsdglng3");
   assert.equal(selected.integrationId, "cmo5rwq2p00twn10yrsdglng3");
+});
+
+test("English Monk publishing uses the requested two daily slots", () => {
+  const target = MARKETING_DESTINATIONS.targets.find(
+    (item) => item.loop_name === "ebook-en-tiktok-daily",
+  );
+  assert.ok(target);
+  assert.deepEqual(PACK_EN.slots_jst, ["08:00", "21:00"]);
+  assert.deepEqual(target.cadence_jst, PACK_EN.slots_jst);
 });
 
 test("English Monk Instagram owner stays effect-free until its Postiz account is connected", async () => {
@@ -503,10 +515,10 @@ test("Python renderer emits a safe failure envelope without exception text", () 
   }
 });
 
-test("English owner propagates only safe renderer error metadata", async () => {
+test("English renderer reconciliation failure records no Postiz effect", async () => {
   const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ebook-renderer-safe-error-"));
   const fakePython = path.join(temporaryRoot, "fake-python");
-  fs.writeFileSync(fakePython, `#!${process.execPath}\nprocess.stdout.write(JSON.stringify({ schema_version: "marketing.ebook-render-failure.v1", error_class: "ValueError" }) + "\\n");\nprocess.stderr.write("PRIVATE_UNRELATED_SECRET must not leak\\n");\nprocess.exitCode = 1;\n`);
+  fs.writeFileSync(fakePython, `#!${process.execPath}\nprocess.stdout.write(JSON.stringify({ schema_version: "marketing.ebook-owner-input.v1", receipt: { state: "render_reconciliation_required" } }) + "\\n");\nprocess.stderr.write("PRIVATE_UNRELATED_SECRET must not leak\\n");\n`);
   fs.chmodSync(fakePython, 0o700);
 
   const stateDir = path.join(temporaryRoot, "state");
@@ -527,17 +539,31 @@ test("English owner propagates only safe renderer error metadata", async () => {
   };
 
   try {
-    let message = "";
-    try {
-      await run(["ebook-en-tiktok-daily"], {
-        env,
-        nowMs: Date.parse("2026-10-08T08:00:00+09:00"),
-      });
-    } catch (error) {
-      message = error.message;
-    }
-    assert.equal(message, "eBook renderer failed: ValueError (exit 1)");
-    assert.doesNotMatch(message, /PRIVATE_UNRELATED_SECRET|test-only-not-a-real-key/);
+    const result = await run(["ebook-en-tiktok-daily"], {
+      env,
+      nowMs: Date.parse("2026-10-08T08:00:00+09:00"),
+    });
+    assert.deepEqual(result, {
+      state: "render_not_ready",
+      owner_id: "ebook-en-tiktok-daily",
+      occurrence_id: "ebook-en-tiktok-daily:renderer-error-test",
+      effect: 0,
+      render_error_class: "render_reconciliation_required",
+    });
+    assert.deepEqual(JSON.parse(fs.readFileSync(env.LIFE_MANAGER_RESULT_HINT_PATH, "utf8")), {
+      schema_version: 1,
+      kind: "life_manager_no_effect_result",
+      status: "verified_no_effect",
+      effect: 0,
+      owner_id: "ebook-en-tiktok-daily",
+      occurrence_id: "ebook-en-tiktok-daily:renderer-error-test",
+      reason: "render_not_ready",
+    });
+    assert.equal(fs.existsSync(path.join(
+      env.LM_DATA_DIR, "tenants", "dais-local", "marketing", "video-publication", "ebook-en",
+      "distribution.jsonl",
+    )), false);
+    assert.doesNotMatch(JSON.stringify(result), /PRIVATE_UNRELATED_SECRET|test-only-not-a-real-key/);
   } finally {
     fs.rmSync(temporaryRoot, { recursive: true, force: true });
   }
