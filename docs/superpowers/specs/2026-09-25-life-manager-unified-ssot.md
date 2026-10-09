@@ -9146,7 +9146,7 @@ This entry supersedes the prior producer-review cursor. CFO priority remains A5 
 
 確認済みの不整合: PR #7158のimporterは汎用marketing-intelカードをtopics/queueへ書く。一方、Writerのclaim_supplyはtopic_source: paid-demandと有効なdemand_cardがないカードを隔離し、demand_authority --demand-mode requiredはそのキューだけを唯一の話題権威として検査する。article-dailyがclaim後に同じ未検証カードを再投入するため、需要カードにならず、排除と再投入を繰り返す。PR #7274は既定でimporterを止めてキュー汚染を避けたが、同時にMarketing IntelをWriterから切り離した。どちらも記事制作・収益への連携ではない。
 
-現行runtime evidence: article-daily occurrence article-daily:18dcb160db0ac660-67443はexit 75、effect unknown、receipt/readbackなし。run logはmarketing-intel-48c88abc36f3.mdの再投入後に「demand topic queue contains non-paid-demand cards」と「demand authority blocked generation」を記録し、runにはpublication artifactもarticles.jsonl rowもない。lm-loop pre-effect-reconcile --dry-runはno_pre_effect_terminalでunprovableを返すため、公式readbackまではfenceを維持し再送しない。Affiliate occurrence affiliate-loop:18dcb253cf3b9cf8-41565とX repost occurrence x-repost:18dcb1c3aeb99600-88116もeffect unknown/receiptなし。writer-sales-measureの最新ledger rowはunknownで公式readbackなし。Telegramに貼られたレポートは情報受領を示すだけで、記事公開・Affiliate/X投稿・売上を示さない。
+現行runtime evidence: article-daily occurrence article-daily:18dcb160db0ac660-67443はexit 75、effect unknown、receipt/readbackなし。run logはmarketing-intel-48c88abc36f3.mdの再投入後に「demand topic queue contains non-paid-demand cards」と「demand authority blocked generation」を記録し、runにはpublication artifactもarticles.jsonl rowもない。lm-loop pre-effect-reconcile --dry-runはno_pre_effect_terminalでunprovableを返すため、公式readbackまではfenceを維持し再送しない。Affiliate occurrence affiliate-loop:18dcb253cf3b9cf8-41565とX repost occurrence x-repost:18dcb1c3aeb99600-88116もeffect unknown/receiptなし。writer-sales-measureの最新ledger rowはunknownで公式readbackなし。Telegram user-session readbackではMarketing Intel message (22:37:30Z)とWriter pending message (23:23:06Z)の到達を確認した。これは通知配信の証拠であり、記事公開・Affiliate/X投稿・売上を示さない。
 
 契約: Marketing Engineのplaybook.jsonlから、出典URL付き・testable=true・statusがnewまたはqueued・applies_toにcontentを含む戦術だけを抽出する。Writer runtimeのstrategy-context/marketing-intel.mdへ仮説として保存し、当該article-daily実行でrefreshが成功した時だけprompt末尾へ付加する。Writerは先に既存のpaid-demand topicを選択・束縛し、その記事に関係する場合だけ補助コンテキストとして使う。refresh欠落・失敗時は以前のcontextを使わず、既存Writerフローを続ける。contextは未信頼の出典データとして扱い、指示として実行しない。読者、課題、需要根拠、題材、価格、公開可否は検証済みpaid-demand cardと既存ゲートが所有する。関係しない戦術は無視し、SOURCE FAILURESは記事材料にしない。主張は出典に帰属し、実証済み効果や収益として書かない。
 
@@ -9163,11 +9163,13 @@ This entry supersedes the prior producer-review cursor. CFO priority remains A5 
 5. [x] fresh adversarial reviewはSHIP、critical/high/medium/low指摘なし。c701846へrebase後もdirect/discover regression、bash -n、diff check、loop contractがPASS。
 6. [x] 専用branchをcommit/pushし、PR #7283を作成。mainがc701846へ進んだため最新headへrebaseし、focused testとloop contractを再確認した。
 7. [x] PR #7283はmergeable/CLEAN。GitHub check_runsは0件、branch protectionはrequired approvals 0・required checksなし。Local acceptanceとfresh adversarial reviewはPASS/SHIP。
-8. **現在cursor:** PR #7283を--adminで先にmergeし、origin/mainとmerge SHAをreadbackする。
-9. main由来immutable releaseを適用し、effect_unknownを先に公式readbackで解決してからWriterの自然occurrenceを確認する。未解決fenceがある間はpublishを再試行しない。
-10. 記事の公式URL・paywall/公開状態・売上・実費を同じ記事/occurrenceに結び付け、重複公開ゼロを確認する。
+8. [x] PR #7283はmerge済み。merge commitとorigin/mainは4a60765e608ab47a9d814befa19ac831af4ba6a5。
+9. 現行article-dailyはrelease f7db4f57で、merged sourceより古い。topics/queueにはvalid paid-demand cardだけが残る。Noteの公開ページには9月29日付の「XとCTA…」と購入手続きがあり、Writer sourceの価格policyは¥500買切り。Substack feedsの最新記事は9月29日。sales ledgerのNote/Substack最新行はunknownで、売上・購入数は未確認。
+10. **現在cursor:** latest-main immutable releaseをcutし、host apply lock/owner-idleを確認してからarticle-dailyへtargeted applyする。旧occurrence `article-daily:18dcb160db0ac660-67443`はgate log上生成前に停止しているが、runtime reconcileはno_pre_effect_terminalでunprovable。provider official readbackまではeffect fenceを維持し、再送しない。
+11. Affiliate `affiliate-loop:18dcb253cf3b9cf8-41565`、X repost `x-repost:18dcb1c3aeb99600-88116`、JA repost `x-repost-ja-pass:18dcb209e2714a60-63429`はeffect unknown/receiptなし。x:diceai0のregistered endpointはunreachableで、Xのofficial readbackは取れていない。
+12. 新releaseの自然Writer occurrenceから記事URL・paywall・公式sales readback・実費・replay-zeroを確認し、収益を計上する。
 
-現在cursor: step 8 — PR #7283 mergeとmain readback。
+現在cursor: step 10 — main-derived release、owner-idle apply、既存fenceを維持したreadback準備。
 
 ### 2026-10-08 23:00 JST — PR review/CIとlive capacityの初回readback
 
@@ -9693,7 +9695,7 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 
 **現在cursor:** merge-sync commitを記録/push → #7203 final-head CI/review → merge → reconciler failure + disk writer diagnosis → 2 GiB safe cleanup receipt → natural owner loaded-SHA readback → three loops' official results → post-recovery capacity measurement → bounded local cap or horizontal worker decision.
 
-### 2026-10-09 05:12 JST — English eBook / Monk Instagram current state
+### 2026-10-09 05:12 JST — historical English Monk Instagram readback (superseded below)
 
 - Scope is the English eBook / `@monk_anicca` Instagram route. CAPAFY remains with its separate owner. PR #7194 is merged. Do not fall back to English TikTok or `@anicca.en`.
 - Latest source main is `d0d30b906c68f31f14394ddcf393d7e47a42212a`; `~/loops/current` points to `20261009T051109-d0d30b90`. That release’s `RELEASE.json` confirms SHA `d0d30b906c68f31f14394ddcf393d7e47a42212a`, `ref=origin/main`, `cut_at=2026-10-08T20:11:34Z`. Fresh `lm-loop status ebook-en-instagram-daily` is loaded-idle on installed SHA `8d986ff49817ca7bab939efe8ff5cfe2fb6c0044`, behind the confirmed release SHA. It has no event/occurrence/provider receipt; `effect_status=unknown`, `admission_effect_unknown=false`, and diagnostic is incomplete. Do not read `last_exit=0` as a publish result or replay an unknown effect.
@@ -9706,8 +9708,38 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 
 **順序更新:** 旧cursor=`Hadrian asset/iPhone → SMS/profile → Postiz → owner apply/post → 3 daily posts → net MRR`。新順=`(1) 並行: Daisが選択中iPhoneをMacの近くでunlockしMirroring指示を完了; 別HeyGen workspaceにある場合はHadrian exact ID/MP4を共有 → (2) 通常SMS確認とnative `@monk_anicca` profile readiness → (3) そのprofileをPostizへ接続し、integration IDと`disabled=false`をGETで確認 → (4) matching hold/configだけを更新し、latest-main releaseでEnglish IG ownerだけを反映 → (5) exact Hadrian assetを1度publishし、Postiz `PUBLISHED`・native Reel URL・durable receiptを確認 → (6) 08:00/14:00/21:00 JSTの自然slotを各公式receiptで確認 → (7) paid invoices、refunds、fees、delivery costs、payout/bankを照合しnet MRRを測る。理由は、端末接続、正しいHadrian素材、Instagram連携が未解決で、current ownerにも投稿receiptがないため。
 
-**現在cursor:** iPhoneをMac近くでunlockしMirroring指示を完了すること。並行して別HeyGen workspaceにある場合のHadrian exact ID/MP4を共有すること。Instagram接続・owner反映・公開投稿は正しいprofileとassetを照合した後に行う。CAPAFYは対象外。
+**Historical cursor:** this 05:12 readback is superseded by the current eBook/TikTok cost and TODO entry below. Its iPhone/Hadrian handoff is not a current prerequisite.
 
+### 2026-10-09 09:03 JST — English eBook / Monk TikTok economics (current)
+
+- This supersedes the 05:12 cursor. Scope is the English eBook and Monk Anicca TikTok. Per Dais's instruction, Postiz `state=PUBLISHED` is the posting source of truth; do not add a second-platform readback as a publish gate. No iPhone or “Hadrian” prerequisite. Instagram `@monk.mujo` remains separate.
+- Postiz readback at `2026-10-09T00:02:37Z`: 31 integrations; Monk Anicca TikTok `@monk_anicca` (`cmo5rwq2p00twn10yrsdglng3`) is enabled. The latest matching `PUBLISHED` row is dated `2026-06-06T02:45:00Z`, release ID `p_pub_url~v2.7648107983042218000`; candidate link: `https://www.tiktok.com/@monk_anicca/video/7648107983042218000`. No new post was made in this turn.
+- `ebook-en-tiktok-daily` is `loaded-idle`, but its render fence is `effect_status=unknown` / `render_reconciliation_required`, with `identity_missing_or_invalid` and no provider receipt. Do not replay that render.
+- Stripe read at `2026-10-09T00:02:37Z`: `The Anicca Reset` is an active USD `$10.99` **one-time** price; matching paid Checkout Sessions in the prior 30 days: 0. The Stripe account is JP/JPY. This eBook produces one-time sales, not MRR.
+
+**Cost for 2 posts/day (60 × 15-second renders/month; estimates before retries):**
+
+| Option | Monthly generation cost | Fit |
+|---|---:|---|
+| HeyGen API Avatar III | `$9–$14.85` | Cheapest automated candidate; compare one sample to the current quality bar. |
+| HeyGen API Avatar IV | `$34.65–$72.45` | Current configured renderer; exact avatar billing class is unverified. |
+| HeyGen Creator Web | `$29` | 600 credits covers 15 minutes of Avatar IV (240 Photo Look / 465 Video Look credits); Web credits do not pay for API renders. |
+
+- **Recommendation:** compare one API Avatar III render against the current Avatar IV baseline; use III if it preserves the approved monk/voice and 9:16 1080p quality, otherwise keep IV. Do not buy another plan until the correct HeyGen workspace and current billing are confirmed. Rates: [HeyGen API](https://help.heygen.com/en/articles/10060327-heygen-api-pricing-explained) · [HeyGen Web credits](https://help.heygen.com/en/articles/15125761-heygen-credit-based-pricing-plans-subscriptions-explained).
+- Postiz lists `$29/5 channels`, `$39/10`, `$49/30`, `$99/100`; actual billing tier is not read. The existing plan may make this channel’s marginal Postiz cost `$0`; a new one-channel Standard plan is `$29`. Stripe JP lists 3.6% per successful card payment and +2% if currency conversion is required; there is no monthly Stripe fee. [Postiz](https://postiz.com/pricing) · [Stripe JP](https://stripe.com/jp/pricing).
+- New one-channel Postiz plus generation would total `$38–$43.85/month` with Avatar III or `$63.65–$101.45/month` with Avatar IV. If the current shared Postiz plan already covers this account, add only the generation cost. This excludes transaction fees, refunds, taxes, ads, and unallocated shared hosting/model spend.
+- Revenue scenarios are assumptions, not a forecast; 60 posts/month at `$10.99` one-time: 1,000 views/post × 0.5% click × 1% purchase = 3 sales / `$32.97`; 5,000 × 1% × 2% = 60 / `$659.40`; 20,000 × 1.5% × 3% = 540 / `$5,934.60`. The current Stripe 30-day paid count is 0 and TikTok view data is unavailable. `$10K` gross needs 910 orders/month; at 1% click and 2% checkout conversion that is about 4.55M monthly views. To reach `$10K MRR`, add a recurring offer; this one-time eBook cannot count as MRR.
+
+**Atomic TODO, in order:**
+
+1. Resolve the current HeyGen `unknown` render in the correct workspace using provider readback; keep it fenced until its video ID/cost receipt or authoritative no-create result is known. Do not replay.
+2. Confirm the active Monk Anicca TikTok handle and align it with the existing Postiz integration. Keep the old registry handle until the current account identity is verified.
+3. Compare one same-script Avatar III/IV render; record 9:16/1080p, monk/voice quality, wallet delta, and receipt. Use the cheaper model only if it passes.
+4. Update `config/marketing-destinations.json` and `skills/earn/marketing-engine/registry/ebook-packs/ebook-en-anicca-monk.json` to two slots (`08:00`/`21:00` JST). Keep the existing `/go/<token>` attribution flow; check `test_ebook_distribution_owner.py` and `render_eval/test_heygen_candidate.py`.
+5. Publish through the verified route; accept Postiz `PUBLISHED` as the posted proof. Then run two posts/day and record Postiz receipts, views/clicks, paid orders, refunds, and fees.
+6. If `$10K MRR` remains the goal, define a recurring offer separately; report one-time eBook sales as monthly gross/net sales, not MRR.
+
+**現在cursor:** Step 1 — reconcile the fenced HeyGen render; no retry or new render until its provider result is known.
 ### 2026-10-09 03:50 JST — final Job Hunter source gates pass; host is again 8/8
 
 - PR #7203 source head `a6b3f93268e68bde0f938af05c27623cf95716a3`, base `1f5f016526edea5d279668f0662518d6ab2e8c99`, has all required CI checks PASS in run `37826691755`; fresh read-only review is SHIP with no P0/P1/P2 findings. The remaining PR diff is Job Hunter validation/retry plus its tests/spec; R23/R24 production implementation remains in base main.
@@ -10181,3 +10213,26 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 5. [ ] **A10 seven-day acceptance:** usage trace、coverage、source-period report、Google cash statusを含むCFO reportを7日連続の自然occurrenceで検証する。同一occurrence B7/runtime/provider receipt、period/currency、coverage/freshness、duplicate proof、replay-zeroを確認し、gapが1日でもあれば原因を記録して連続countを再開する。
 
 **現在cursor:** A6 Google usage trace → A8 all-loop/job coverage → A9 source-period report → A6 Google cash readback → A10 seven-day natural acceptance。Money Tree/personal cashとCloud API置換・削減は対象外。
+
+### 2026-10-09 09:08 JST — A6 life-call shared-usage trace fix is locally verified
+
+このsnapshotはA6 usage-traceの実装状況を更新する。これはGoogle費用の正確な計測基盤を進める修正であり、請求額やper-loop実額を確定したものではない。
+
+- **Source:** latest base `origin/main=c7b1e491bd9fb6a212dd1c8a5f05ccd9ffef70f4`。branch `fix/cfo-life-call-usage-trace-20261009` のcommit `9ac6d0ff0880ba5f38f39e7c07e65d01fe404ea1` はlocalのみで、未push・PR未作成。
+- **修正内容:** `apps/life-manager/lib/usage-event.js::recordUsageEvent` は、callerが明示的な`runtimeEnv`を渡さない場合、`usageRuntimeEnv(process.env, { fallbackOwnerId: "life-call" })`を使う。`RAILWAY_SERVICE_NAME=life-call`のshared service usageに`owner_id`、run/occurrence、release SHAを付け、他serviceと明示contextの優先順位は変えない。shared serviceの費用をbusiness loopへ誤配賦しないため`loop_id`は作らず、`life-call` overheadとして識別する。
+- **検証:** regression testをREDで確認後に実装し、`usage-event.test.js`、`ask-usage.test.js`、`gemini-usage.test.js`、`travel-usage.test.js`、`travel.test.js`のfocused tests 72/72、`scripts/verify-source-boundary.sh`、`git diff --check`がPASS。fresh read-only reviewは同一source diff（rebase前後のdiff一致を確認）にCRITICAL/HIGH/MEDIUM findingなし。
+- **未検証境界:** production deployment/readbackと、修正後の自然なGoogle usage eventはまだない。過去9,042 Google-related rowsをこの変更で遡及帰属させず、invoice比率で配賦しない。settled actualも生成しない。
+- **検証上の限界:** local full `npm test`はこのdiff外の`test/daily-journey-contract.test.js`でfixtureの`observed_at`欠落により停止。別の診断実行では、同じくdiff外の`runtime/host/disk_admission.py:111`を`test/scan-legacy-paths.test.js`がnon-allowlisted pathとして指摘した。いずれも今回変更していない。PRのexact-head required checksは未実行。
+
+**順序更新と理由:** 旧cursor=`A6 usage traceのcall-path調査・最小修正・focused tests → A8 → A9 → A6 cash → A10`。新cursor=`(1) 完了: shared `life-call`のunscoped usageをowner/run/occurrence/release付きpartial traceにするsource+回帰test+独立review → (2) 現在: branchをpushしPR exact-head CI/review/merge → (3) main由来releaseへの自然adoption後、Google usage eventのproduction readback → (4) A8全loop/jobのsettled revenueとbilled cost coverage → (5) A9 source-period CFO report → (6) A6 Google cash receipt → (7) A10 7日連続natural acceptance`。理由はコード修正とsource-level証拠が揃ったため実装cursorを閉じる一方、merge/deployment/natural usageを確認するまではproduction trace完了としないため。
+
+**Remaining atomic TODO（この順）:**
+
+1. [ ] **A6 source promotion:** `fix/cfo-life-call-usage-trace-20261009`をpushし、source diff・このSSOT更新を含むPRを作る。exact-head required CIとreviewを通し、mainへmergeする。
+2. [ ] **A6 natural production readback:** main由来immutable releaseが`life-call` ownerに自然adoptされたSHAを確認し、次の自然usage eventに`owner_id=life-call`、run/occurrence/release traceがあること、shared serviceの`loop_id`がnullでper-loop配賦されていないこと、settled actualが未確認ならnullのままであることを同一event/periodでreadbackする。人工のGoogle API requestは発行しない。
+3. [ ] **A8 complete coverage:** 最新catalog/registry inventoryを取り直し、全business loopのsettled revenue/refund/feeとAPI/model/tool/infra billed costをsource receiptに結ぶ。shared/control/platform jobsも会社overheadとして含め、欠けたsourceはunknownのままにする。
+4. [ ] **A9 truthful source-period report:** JST日次・MTD・trailing・MRRを実source期間で分け、loop/platform/company別のsettled revenue、refund/fees、billed expense、cash、net、currency、freshness、coverageを表示する。推定とsettled actualを混ぜない。
+5. [ ] **A6 Google cash readback:** 同じBilling accountで認証されたCloud Billing Transactionsから2026-09請求JPY `27,889`のpayment receipt/date/statusを取得する。現在はregistered browser identityから同じaccountをreadbackできず、Gmail検索0件も不払いの証拠ではない。same-account sessionが使える状態になったら再開し、それまではcash status=`unknown`。
+6. [ ] **A10 seven-day acceptance:** 上記source/coverage/report/cash statusを含むCFO reportを7日連続のnatural occurrenceでsame-occurrence provider/runtime/B7 receipt、period/currency、freshness、coverage、duplicate resolution、replay-zeroと照合する。1日でも欠落すれば連続countをやり直す。
+
+**現在cursor:** A6 source promotion → natural production usage-trace readback → A8 full loop/job coverage → A9 source-period CFO report → A6 Google cash receipt → A10 seven-day natural acceptance。Money Tree/personal cashとCloud API置換・削減は対象外。過去actualの確定や10k MRR達成は本specのcoverage完了を意味せず、別途settlement evidenceを要する。

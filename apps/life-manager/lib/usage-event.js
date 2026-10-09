@@ -187,7 +187,7 @@ function normalizeUsageEvent(event = {}, runtimeEnv = {}) {
 }
 
 async function recordUsageEvent(event, opts = {}) {
-  const { runtimeEnv = process.env, ...writeOptions } = opts;
+  const { runtimeEnv = usageRuntimeEnv(process.env, { fallbackOwnerId: "life-call" }), ...writeOptions } = opts;
   const write = opts.recordCost || recordCost;
   return write(normalizeUsageEvent(event, runtimeEnv), writeOptions);
 }
