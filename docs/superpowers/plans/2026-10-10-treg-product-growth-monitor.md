@@ -149,6 +149,7 @@
 **Files:**
 
 - Modify: `runtime/agent-runner/agent_runner.py`
+- Modify: `docs/manifests/oss-merge-1-sources.json`
 - Create: `runtime/agent-runner/treg_budget_mcp.py`
 - Modify: `skills/earn/marketing-engine/intel/treg_lead_signals_weekly.py`
 - Create: `runtime/agent-runner/tests/test_treg_budget_mcp.py`
