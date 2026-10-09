@@ -2133,7 +2133,8 @@ def test_main_projects_exact_mobile_result_into_terminal_event(tmp_path):
     events = []
 
     def run_admitted(_command, _entry, loop_id, _env, receipt, *,
-                     occurrence_id, on_claimed, on_stderr_tail=lambda _tail: None, on_storage_failure=None):
+                     occurrence_id, on_claimed, on_stderr_tail=lambda _tail: None,
+                     on_storage_failure=None, on_terminal_event=None):
         on_claimed(occurrence_id)
         receipt.write_text('{"status":"pass","effect":0}\n', encoding="utf-8")
         receipt.chmod(0o600)
@@ -2304,7 +2305,7 @@ def test_main_keeps_scratch_protected_when_terminal_event_is_not_saved(tmp_path)
           patch("runtime.loop.lm_loop_run._run_admitted", side_effect=run_admitted),
           patch("runtime.loop.lm_loop_run.append_runtime_event", side_effect=append_event),
           patch("runtime.loop.lm_loop_run.remove_owned_tree") as remove):
-        assert lm_loop_run_main(["example-publisher", str(release)]) == 0
+        assert lm_loop_run_main(["example-publisher", str(release)]) == 78
 
     diagnostic = json.loads((state_root / "scratch-cleanup-diagnostics/run-1.json").read_text())
     assert diagnostic["terminal_saved"] is False
@@ -3340,6 +3341,38 @@ def test_post_claim_memory_deferral_requeues_without_dispatch(tmp_path):
     dispatch.assert_not_called(); run.assert_not_called()
 
 
+def test_terminal_event_precedes_requeue_when_memory_drops_after_claim(tmp_path):
+    entry = {"cadence": {"start_interval_seconds": 60},
+             "provider_route": "shared-agent-runner", "effect_class": "application"}
+    claim = tmp_path / "claim"
+    events = []
+
+    def persist_terminal(return_code, occurrence_id, stderr_tail):
+        events.append(("terminal", return_code, occurrence_id, stderr_tail))
+        return True
+
+    def release(_claim, **options):
+        events.append(("release", options))
+        return []
+
+    with (patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "ready")),
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                return_value=(claim, "acquired")),
+          patch("runtime.loop.lm_loop_run.memory_free_percent", side_effect=[50, 10]),
+          patch("runtime.loop.lm_loop_run.release_and_reserve_resource",
+                side_effect=release),
+          patch("runtime.loop.lm_loop_run._run_entrypoint_with_stderr_capture") as run):
+        assert _run_admitted(
+            ["/bin/true"], entry, "example", {}, tmp_path / "receipt",
+            on_terminal_event=persist_terminal,
+        ) == 75
+
+    assert events[0] == ("terminal", 75, None, b"")
+    assert events[1] == ("release", {"requeue": True, "reserve": False})
+    run.assert_not_called()
+
+
 def test_dispatch_reserved_kicks_only_current_loaded_idle_label(tmp_path):
     current = tmp_path / "release"
     agents = tmp_path / "agents"
@@ -3961,3 +3994,73 @@ def test_registered_entrypoint_stderr_uses_bounded_owned_relay(tmp_path, capfd):
     assert retained <= 2*1024**2 + 40*1024
     captured = capfd.readouterr().err
     assert captured.startswith("first-") and captured.endswith("-last")
+
+
+def test_terminal_event_enospc_fences_effectful_owner_before_next_wake(
+        tmp_path, monkeypatch):
+    release = _write_prestart_lock_release(tmp_path)
+    registry_path = release / "config/loop-registry.json"
+    registry = json.loads(registry_path.read_text(encoding="utf-8"))
+    registry["loops"]["example-publisher"].update({
+        "cadence": {"start_interval_seconds": 60},
+        "resource_class": "browser",
+        "admission_class": "revenue",
+    })
+    registry_path.write_text(json.dumps(registry), encoding="utf-8")
+    state_root = tmp_path / "state"
+    admission_root = tmp_path / "admission"
+    monkeypatch.setenv("LIFE_MANAGER_RESOURCE_ADMISSION_ROOT", str(admission_root))
+    monkeypatch.setenv("LIFE_MANAGER_HOST_MAX_FINITE_RUNS", "1")
+    monkeypatch.setenv("LIFE_MANAGER_HOST_MAX_BROWSER_RUNS", "1")
+    monkeypatch.setenv("LIFE_MANAGER_HOST_MIN_REVENUE_RUNS", "0")
+    admission.activate_durable_v2()
+
+    effects = []
+    next_occurrences = []
+    dispatches = []
+    append_runtime_event = loop_runner.append_runtime_event
+
+    def run_child(_command, _log_dir, *, on_started, **_kwargs):
+        on_started(os.getpid())
+        next_occurrences.append(admission.enqueue_durable(
+            "browser", "example-publisher", admission_class="revenue",
+            occurrence_id="example-publisher:run-2",
+        ))
+        effects.append("published")
+        return 0, b""
+
+    def append_event(path, event):
+        if event.get("phase") == "report":
+            raise OSError(errno.ENOSPC, "terminal receipt unavailable")
+        append_runtime_event(path, event)
+
+    with (patch.dict(os.environ, {
+              "LIFE_MANAGER_STATE_ROOT": str(state_root),
+              "LIFE_MANAGER_RUN_ID": "run-1",
+              "WAKE_ID": "wake-1",
+          }, clear=False),
+          patch("runtime.loop.lm_loop_run._apply_lock", return_value=nullcontext()),
+          patch("runtime.loop.lm_loop_run.build_loop_command",
+                return_value=["/bin/true"]),
+          patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run._run_entrypoint_with_stderr_capture",
+                side_effect=run_child),
+          patch("runtime.loop.lm_loop_run.append_runtime_event",
+                side_effect=append_event),
+          patch("runtime.loop.lm_loop_run._dispatch_reserved",
+                side_effect=lambda loop_ids: dispatches.extend(loop_ids))):
+        result = lm_loop_run_main(["example-publisher", str(release)])
+
+    assert effects == ["published"]
+    assert next_occurrences[0][0] is not None
+    assert dispatches == []
+    scratch = state_root / "loop-tmp/example-publisher/run-1"
+    assert (scratch / ".terminal-unrecorded").is_file()
+    assert result != 0
+
+    next_claim, reason = admission.claim_durable(
+        "browser", "example-publisher", admission_class="revenue",
+    )
+    if next_claim is not None:
+        admission.release_and_reserve(next_claim, effect_unknown=True, reserve=False)
+    assert next_claim is None and reason == "effect_unknown"
