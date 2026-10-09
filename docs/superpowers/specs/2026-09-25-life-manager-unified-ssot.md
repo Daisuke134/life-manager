@@ -26,7 +26,7 @@
 
 **不変条件:** 11 GiBは今回の容量回復受入であり、全producerの起動floorを一律11 GiBへ変える指示ではない。iOS Simulator runtime/image/device/data/dyld、memory/state、credentials、browser identity、参照release、active/dirty/unmerged/leased/locked worktree、open/unknown dataを削除しない。古い同一UID test artifactと、Git clean/main統合済み/unleased/unlocked/closedを全て証明できるworktreeだけを今回の追加回収対象とする。証明できなければ保持。effect_unknownはexact official receipt/pre-effect proofまで解除・再送しない。Codex session履歴は容量が大きいだけで削除・圧縮対象にしない。
 
-**現在cursor: S02/P0-14のowner memory複写停止（P0-13で全releaseのGC保持原因を実証） → 残る安全な容量回収/P0-15 coverage → P0-12の11GiB回復 → 下記全社S順。** GC抑制はmain a8fe894bのimmutable currentへ反映済み。根本修復全体は未完。この節の文書保存・統合と実装/本番成果の完了は別。各atomは証拠取得後だけ `[x]` にし、失敗境界・次の安全な操作・cursorを同じ差分で更新する。
+**現在cursor: S02/P0-14のowner memory複写停止（P0-13でmemoryによるGC保持を実証） → 残る安全な容量回収/P0-15 coverage → P0-12の11GiB回復 → 下記全社S順。** GC抑制はmain a8fe894bのimmutable currentへ反映済み。根本修復全体は未完。この節の文書保存・統合と実装/本番成果の完了は別。各atomは証拠取得後だけ `[x]` にし、失敗境界・次の安全な操作・cursorを同じ差分で更新する。
 
 **引き継ぎ/診断証拠:** worktree HEAD `a6e03757`の4ファイル497行差分を`ea1784b0ec`で保持してpushし、最新main `3baccdbd`を`00b5d4ff5d`でmerge/push。leaseは既存owner `codex-root`でheartbeatを更新、直列lsof再確認でworktree下open handleなし。既存temp/worktree focused testは2 PASS。agmsg統括identityは`lm/codex-resource-orchestrator-1009`、既存cleanup担当へ重複書込抑制と状態照会を送信。自然receiptの成功/失敗が交互に現れ、失敗時の正確な親errorは`host_cleanup_identity_mismatch`。`disk_cleanup.py::main`のbusy lock出力はexit75だがidentityを含まず、`central_cleanup.host_cleanup_readback`の同-occurrence検査が失敗に変換する。REDはbusy出力identity欠落と親exit1を再現し、最小修正後の関連4 testsはGREEN。修正契約は、busy出力にもimmutable manifest由来の同run identityを載せ、親はそのidentityを検証した正確なbusyだけをeffect0のexit75延期として維持し、他のidentity mismatchはexit1のまま拒否する。旧ENOSPC修復とは区別し、容量不足時の既存reserve/cursor testsも再確認する。
 
@@ -93,6 +93,8 @@ P0-13追加観測: selected8 state rootsは全て2秒以内に測定完了（loo
 **P0-13の実証されたrelease保持原因とP0-14の次atom:** readonly inventoryはvalid releases53、plist refs23、process argv refs6、explicit protected refs23、open FD refs11。これらとcurrentを除いたcandidate18の先頭8件は全てprotected_descendantで保持された。旧releaseとcurrentの最初の保護pathはroot memory/2026-09-02.md。現mainのGit treeでmemory/state JSONL保護に該当するpathはこの1件のみで、bin/runtime/apps/config/skillsの実行コードからこのroot memoryへの参照は見つからない。既存Git archiveがowner memoryを各immutable source snapshotへ複写し、gc_releases::_release_immutable_store_probeがrelease全体を保持するため、正常GCでも新generationを回収できない。memoryの保護を弱める修正は行わない。
 
 次の変更はroot .gitattributesの/memory/ export-ignore一行、既存test_cut_loop_release_pressure.pyのreal-Git fixture、必要なsource manifest digest、本節のみ。Git標準属性をtarget commitへ含め、既存cutterでも新mainの最初のexportからmemoryを新releaseへ複写しない。ALLは実行sourceを完備し、owner storeをreleaseへ複写する条件にしない。source repo・既存release・donorのmemoryは削除/移動/書換えしない。REDはnew releaseにmemoryが現れること、GREENは不在・既存memory同一bytes・code/dependency/ALL保持・新releaseのprotected-store probeがNoneであること。source/CI/main→既存release ownerの自然cut→実path不在とcutter/argv/hash readbackまで続ける。既存protected releaseの容量回収と11GiB受入は別の残atomであり、新export修正を根本容量回復Doneへ置換しない。
+
+P0-14 source検証: real-Git fixtureのREDはnew release/memoryの出現を再現。.gitattributesの一行をfixtureへ含めたGREENはsource/donor memory同一bytes、新releaseのmemory不在とimmutable-store probe=None、code/locked dependency/ALL保持を確認。pressure focused4 tests PASS、loop contract18/189/errors0、diff check PASS。広い既存cut suiteは11 pass/9 failureで、主な境界は実TMPDIRのENOSPCとsparse未展開のpackage-lockであり、ローカル全PASSと報告しない。fixture残骸の限定probeは0件、fresh freeはその後1,781,010,432 bytesへ変動（11GiB未達、帰属未確定）。以後large exportを伴う関連suiteはCIで実行し、ローカルの同失敗を再実行しない。対象test/新属性に既存source manifest mappingは無くdigest追加不要。次はexact-head CI/main→既存ownerの自然export不在readback。
 
 ### P0 — ディスク回復のatomic TODO
 
