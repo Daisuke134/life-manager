@@ -17,9 +17,11 @@ TregをLife Managerの製品成長エージェントから安全に使えるよ�
 
 ## 推奨構成
 
-既存`lm-loop` schedulerに専用owner `marketing-treg-lead-signals-weekly`を追加し、日曜21:10 JSTに一度だけ動かす。既存の未解決Telegram effectに触れない。Life Managerの製品成長agentには、Codexのper-invocation `CODEX_HOME`へremote Treg MCPを`-c`設定overrideで追加し、Treg agent tokenを`TREG_TOKEN`環境変数として渡す。秘密値そのものはargv・設定ファイル・証拠ログに保存しない。
+既存`lm-loop` schedulerに専用owner `marketing-treg-lead-signals-weekly`を追加し、日曜21:10 JSTに一度だけ動かす。既存の未解決Telegram effectに触れない。Life Manager agent invocationsにはrepo所有のTreg/lead-signals skillと専用agent tokenを渡す。週次監視はCodexのper-invocation remote Treg MCPを使う専用`read-only` task class `treg-lead-signals-agent`で実行し、登録済みの`gpt-6.1-sol` medium automation routeを使う。通常のagent taskは従来のtool/network policyを維持し、Treg CLI skillが使える実行環境から利用する。Treg agent tokenは`TREG_TOKEN`環境変数として渡し、秘密値そのものはargv・設定ファイル・証拠ログに保存しない。
 
 CodexのMCP設定はHTTP headerを環境変数から読み込む。通常shellのnetwork accessは有効化しない。参照: [Codex MCP設定](https://developers.openai.com/codex/mcp)、[Codexのsandboxとnetwork policy](https://learn.chatgpt.com/docs/agent-approvals-security)。
+
+週次監視は専用の`treg-lead-signals-agent` task classを使う。これはCodex-only、shell/tool-less read-only、account 2、`gpt-6.1-sol` mediumのautomation routeとし、Treg MCPだけを操作できる。
 
 監視対象は次の9製品。buyer descriptionはMarketing Engine registryを優先し、残る4アプリは公開製品名と既存App Store記録から作る短い作業定義とする。
 

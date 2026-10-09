@@ -29,7 +29,9 @@
 
 | File | Responsibility |
 |---|---|
-| `runtime/agent-runner/agent_runner.py` | Load the limited Treg token into the child environment and expose isolated skills/MCP to Codex runs. |
+| `runtime/agent-runner/agent_runner.py` | Load the limited Treg token into child environments, expose isolated skills, and add Treg MCP to the dedicated signal task. |
+| `runtime/agent-runner/config.json` | Add the dedicated Codex-only `treg-lead-signals-agent` class on the existing `gpt-6.1-sol` medium automation route. |
+| `skills/earn/marketing-engine/run_agent.sh` | Allow the new bounded Treg signal task class. |
 | `skills/earn/marketing-engine/intel/treg/SKILL.md` | Safe Treg catalog and call rules for Life Manager agents. |
 | `skills/earn/marketing-engine/intel/lead-signals/SKILL.md` | Product-fit qualification, baseline, and new-only signal rules. |
 | `skills/earn/marketing-engine/intel/lead-signals-products-extra.json` | Four published App Store product profiles absent from the five-row Marketing Engine registry. |
@@ -55,6 +57,8 @@
 **Files:**
 
 - Modify: `runtime/agent-runner/agent_runner.py`
+- Modify: `runtime/agent-runner/config.json`
+- Modify: `skills/earn/marketing-engine/run_agent.sh`
 - Create: `skills/earn/marketing-engine/intel/treg/SKILL.md`
 - Create: `skills/earn/marketing-engine/intel/lead-signals/SKILL.md`
 
@@ -62,12 +66,15 @@
 
 - Add `_load_treg_agent_token(credentials_path: Path | None = None) -> str | None`; accept exactly one `treg_agent:life-manager-product-growth` row and return its token only in memory.
 - Extend `provider_process_env(...)` to set `TREG_TOKEN` only from the dedicated agent row, then link the two repo-owned skill directories into the invocation's isolated `$HOME/.agents/skills`.
-- For Codex, use per-invocation `-c` overrides for the Treg remote MCP URL, `env_http_headers`, and the four allowed MCP tool names. Keep `--ignore-user-config`; pass only the header name and `TREG_TOKEN` variable name, never the token value.
+- For `treg-lead-signals-agent`, use per-invocation `-c` overrides for the Treg remote MCP URL, `env_http_headers`, the four allowed MCP tool names, and unattended approval for those scoped tool calls. Keep `--ignore-user-config`; pass only the header name and `TREG_TOKEN` variable name, never the token value.
+- Add `treg-lead-signals-agent` to `TOOLLESS_TASK_CLASSES` and `run_agent.sh`; configure it as Codex-only with model `gpt-6.1-sol`, effort `medium`, and profile `acct2`, with no provider fallback. It uses remote MCP tools while the shell remains disabled/read-only.
 - Preserve all model/provider selection and sandbox settings; no general network access is added.
 
 - [ ] Create the two skills with triggers, public-signal-only scope, per-call/weekly cost limits, no outreach, and no top-ups.
-- [ ] Implement exact-SSOT token loading, restrictive directory/file modes, safe symlink creation, and Treg MCP config generation without writing token values.
+- [ ] Implement exact-SSOT token loading for agent child environments, restrictive directory/file modes, safe skill symlinks, and MCP config overrides only for `treg-lead-signals-agent` without writing token values.
+- [ ] Add `treg-lead-signals-agent` using the existing account-2 profile and current `gpt-6.1-sol` medium model; include it in the `run_agent.sh` allowlist and Codex read-only/tool-less task set.
 - [ ] Run `python3 -m py_compile runtime/agent-runner/agent_runner.py`.
+- [ ] Run `python3 -m json.tool runtime/agent-runner/config.json` and `bash -n skills/earn/marketing-engine/run_agent.sh`.
 - [ ] Run a no-cost isolated `treg balance` smoke using the generated child environment; print only success, not the token or raw config.
 - [ ] Commit and push this task before moving to the loop implementation.
 
@@ -100,7 +107,8 @@
 
 **Interfaces:**
 
-- `run_weekly_monitor(*, state_root: Path, evidence_root: Path, agent_runner=...) -> dict` runs one `marketing-agent` pass and returns the Life Manager terminal result fields, `treg_call_ids`, `charged_micro`, `baseline_count`, `new_count`, and optional Telegram `provider_receipt_id`.
+- `run_weekly_monitor(*, state_root: Path, evidence_root: Path, agent_runner=...) -> dict` runs one `treg-lead-signals-agent` pass and returns the Life Manager terminal result fields, `treg_call_ids`, `charged_micro`, `baseline_count`, `new_count`, and optional Telegram `provider_receipt_id`.
+- The scheduled signal pass invokes `run_agent.sh --task-class treg-lead-signals-agent`; no general shell/network capability is needed for its Treg MCP calls.
 - CSV key: `(product_id, person_url, signal, source_url)`.
 - `reconcile_occurrence(state_root: Path, occurrence_id: str) -> dict` returns the exact stored receipt for that occurrence or a typed `unknown`; it never sends.
 - Registry owner: `marketing-treg-lead-signals-weekly`, Sunday 21:10 local calendar time, `effect_class=message`, `provider_route=shared-agent-runner`, separate state/log roots.
