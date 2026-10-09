@@ -749,6 +749,9 @@ def _effective_priority(row: dict[str, object], now: float) -> int:
         return rank
     if (priority in PRIORITY_AGE_SECONDS
             and now - float(queued_at) >= PRIORITY_AGE_SECONDS[priority]):
+        if priority == "critical_paid":
+            # Distribution wins fresh contention, but it must not starve paid work forever.
+            return PRIORITY_RANK["distribution"] - 1
         return PRIORITY_RANK["critical_paid"]
     return rank
 
