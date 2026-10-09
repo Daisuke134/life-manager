@@ -1,9 +1,15 @@
 import json
+import os
 import subprocess
+import sys
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(ROOT / "skills/writer-agent/scripts"))
+import article_daily_start_control as START
+import article_generation_state as GENERATION
+
 SCRIPT = ROOT / "skills/writer-agent/article-daily.sh"
 SOURCE = SCRIPT.read_text(encoding="utf-8")
 MARKER = 'python3 - "$RUN_DIR" "$STATE_DIR" "$RUN_TS" >>"$LOG" <<\'PYEOF\'\n'
@@ -22,6 +28,9 @@ def run_resume(
     route_symlink=False,
     generation_status="interrupted-safe",
     generation_return_code=0,
+    generation_state=True,
+    uninitialized_pre_topic=False,
+    uninitialized_marker=None,
     adoption_receipt=False,
     topic_card_receipt=True,
     card_stage="queue",
@@ -42,26 +51,57 @@ def run_resume(
         ledger.unlink()
         ledger.symlink_to(target)
     generation = gates / "generation-state.json"
-    attempt = {"status": generation_status}
-    if generation_status == "provider-returned":
-        attempt.update({
-            "return_code": generation_return_code,
-            "boundary": "prepublication-empty",
-        })
-    else:
-        attempt.update({
-            "boundary": "archived-prepublication-artifacts",
-            "archive_manifest": [] if empty else [{"path": "article-ja.md"}],
-        })
-    generation.write_text(
-        json.dumps({
-            "version": 1,
-            "run_id": run_id,
-            "status": generation_status,
-            "attempts": [attempt],
-        }),
-        encoding="utf-8",
-    )
+    if generation_state:
+        attempt = {"status": generation_status}
+        if generation_status == "provider-returned":
+            attempt.update({
+                "return_code": generation_return_code,
+                "boundary": "prepublication-empty",
+            })
+        else:
+            attempt.update({
+                "boundary": "archived-prepublication-artifacts",
+                "archive_manifest": [] if empty else [{"path": "article-ja.md"}],
+            })
+        generation.write_text(
+            json.dumps({
+                "version": 1,
+                "run_id": run_id,
+                "status": generation_status,
+                "attempts": [attempt],
+            }),
+            encoding="utf-8",
+        )
+    if uninitialized_pre_topic:
+        (run / "article-daily-prompt.txt").write_text(
+            f"Use {tmp_path}/loops/releases/old/skills/writer-agent/scripts/run.sh\n",
+            encoding="utf-8",
+        )
+        (run / "git-hash.txt").write_text("harness_git_hash=test\n", encoding="utf-8")
+        (gates / "product-selection.json").write_text('{"product_id":"anicca"}\n', encoding="utf-8")
+        (gates / "strategy-consumption.json").write_text(
+            json.dumps({"run_id": run_id, "status": "baseline", "versions": []}) + "\n",
+            encoding="utf-8",
+        )
+        (gates / ".generation-state.json.lock").touch()
+        broker = gates / "judge-broker"
+        broker.mkdir()
+        (broker / "heartbeat").touch()
+        for name in ("requests", "responses", "done"):
+            (broker / name).mkdir()
+        (gates / "topic-card-resume.json").write_text(
+            json.dumps({
+                "version": 1,
+                "run_id": run_id,
+                "action": "blocked",
+                "reason": "generation-state-missing-or-symlink",
+            }) + "\n",
+            encoding="utf-8",
+        )
+    if uninitialized_marker:
+        marker = run / uninitialized_marker
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        marker.write_text("dispatch marker\n", encoding="utf-8")
     if adoption_receipt:
         (gates / "prepublication-adoption.json").write_text(
             json.dumps({
@@ -99,6 +139,7 @@ def run_resume(
         text=True,
         capture_output=True,
         check=False,
+        env={**os.environ, "ARTICLE_ROOT": str(ROOT / "skills/writer-agent")},
     )
     receipt = json.loads(
         (gates / "topic-card-resume.json").read_text(encoding="utf-8")
@@ -137,6 +178,73 @@ def test_false_provider_return_code_does_not_skip_card_recovery(tmp_path):
     )
     assert result.returncode != 0
     assert receipt["reason"] == "topic-route-input-missing"
+
+
+def test_uninitialized_pre_topic_run_skips_card_recovery_and_rebinds_same_prompt(tmp_path):
+    run_id = "20260821-054500"
+    result, receipt = run_resume(
+        tmp_path,
+        route=None,
+        card_topic="paid-demand:unused",
+        generation_state=False,
+        uninitialized_pre_topic=True,
+    )
+    assert result.returncode == 0, result.stderr
+    assert receipt["action"] == "skip-pre-topic-recovery"
+    assert receipt["reason"] == "uninitialized-pre-topic-empty"
+
+    run = tmp_path / "runs" / run_id
+    current_root = tmp_path / "loops/releases/current/skills/writer-agent"
+    current_root.mkdir(parents=True)
+    rebound = GENERATION.rebind_release(
+        run,
+        run_id,
+        run / "article-daily-prompt.txt",
+        tmp_path / "articles.jsonl",
+        current_root,
+    )
+    assert rebound["action"] == "rebound"
+    state = json.loads((run / "gates/generation-state.json").read_text(encoding="utf-8"))
+    assert state["status"] == "prepared"
+    assert state["attempts"] == []
+    assert str(current_root) in (run / "article-daily-prompt.txt").read_text(encoding="utf-8")
+    decision = START.decide(tmp_path, "2026-08-21")
+    assert decision["action"] == "resume-generation"
+    assert decision["run_id"] == run_id
+
+
+def test_uninitialized_pre_topic_run_with_dispatch_marker_stays_blocked(tmp_path):
+    for name, route, marker, ledger_text, reason in (
+        (
+            "route",
+            {"topic_id": "paid-demand:unused"},
+            None,
+            "",
+            "generation-state-missing-with-topic-route",
+        ),
+        ("model", None, "gates/model-stdout.log", "", "uninitialized-pre-topic-dispatch-marker"),
+        ("model-root", None, "model-stdout.log", "", "uninitialized-pre-topic-dispatch-marker"),
+        (
+            "broker",
+            None,
+            "gates/judge-broker/requests/request.json",
+            "",
+            "uninitialized-pre-topic-judge-broker-dispatch-marker",
+        ),
+        ("ledger", None, None, "{malformed\\n", "uninitialized-pre-topic-unreadable"),
+    ):
+        result, receipt = run_resume(
+            tmp_path / name,
+            route=route,
+            card_topic="paid-demand:unused",
+            generation_state=False,
+            uninitialized_pre_topic=True,
+            uninitialized_marker=marker,
+            ledger_text=ledger_text,
+        )
+        assert result.returncode != 0
+        assert receipt["action"] == "blocked"
+        assert receipt["reason"] == reason
 
 
 def test_adopted_prepublication_does_not_rewrite_topic_card_receipt(tmp_path):
