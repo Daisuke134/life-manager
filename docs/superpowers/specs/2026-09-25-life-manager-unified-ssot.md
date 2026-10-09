@@ -10758,11 +10758,13 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 **残TODO（完了まで・この順）:**
 
 1. [x] focused regressionをREDで確認し、article-dailyのpre-topic recoveryとgeneration-state rebindに最小修正を入れる。
-2. [ ] latest-mainを再確認して専用branchをcommit/pushし、exact-head CIとfresh PR review後にmergeする。
+2. [x] latest-mainを再確認して専用branchからPR #7360を作成。exact-head CI全件PASSとfresh source review SHIP後にmergeし、mainへ統合した (merge commit b0cb5b5c084d72df0e9a4539feb91de7f7bf9c48)。
 3. main由来immutable releaseをarticle-dailyへ対象限定で反映し、natural Writer occurrenceで同じ有料需要カードとMarketing Intel contextの使用を確認する。
 4. Noteのlive URL・¥500 monetization API readback、X告知のofficial readback、Writer sales measureとreplay-zeroを確認するまで収益を主張しない。Affiliate/X repost loopには接続しない。
 
-**現在cursor:** PR #7360のbroker順序/readiness fixはsource reviewerがSHIP。SSOT更新後のexact-head CIを再取得中。PASS後にmerge→main由来immutable release→owner-idle確認→article-daily対象限定apply。13:18と14:02のoccurrenceはeffect_unknownのまま、Note/Substackは9/29の既存記事、X公式readbackは未取得、sales ledgerもunknown。再送せず、公式readback後に自然Writer runを確認し、Note ¥500・公開URL・sales・cost・replay-zeroを検証する。
+**現在cursor:** PR #7360のbroker順序/readiness修正は2026-10-09 05:29Zにmerge済み (b0cb5b5c084d72df0e9a4539feb91de7f7bf9c48)。PR exact-head checksは全件PASS、fresh source reviewはSHIP。main 692d89491581f33f4f6065016ad9fe45610de384はmergeを含み、Security Scanも全件PASS。installed article-dailyはrelease 84c56e1190f611c7ccd2e9d55df6513df8c31d72のままで、修正は未反映。run 20261008-232303はprepared/attempts=[]で、CONTENT戦術IDはprompt内にあるが記事生成・公開・売上の証拠なし。terminal eventはeffect_unknown、Admission rowはreleased/effect_unknown=0。Note/Substackは9/29の既存記事、X公式readbackなし、sales ledger unknown。Affiliate最新healthはeffect_unknown/entrypoint_exit_1/receiptなし。X repostはscratch_enospcでsafely_fenced、last successは10/5。Telegramのmarketing-weekly-reviewは調査報告であり、Affiliate/repost/売上のreceiptではない。
+共有host stateは~/.local/state/life-manager/state。最新のunbound governor receiptは2026-10-09 05:35Z: free_before=143712256, free_after=156368896, reclaimed=73446, preserved=11 (open=3, protected_descendant=8), errors=0, protected_deletions=0、recovery floor未達。5分ownerの05:37Z occurrenceはscratch_enospcで失敗。bound last-receiptは05:02Zのまま。共有stateの.receipt-reserveは欠落。05:56Zのdirect governorもreserve書込でENOSPCとなりfresh receiptを作れず、現freeは122MiB。先行するdirect invocationはloop state pathを使っており、正規host cleanup readbackではない。掃除結果は未確定なので再実行しない。
+次: shared host headroomを2GiB以上へ回復し、公式governorのfresh receipt (errors=0, protected_deletions=0) を得る→latest main由来immutable release→owner-idleとfresh read-only reviewを確認してarticle-dailyのみtarget apply→自然runでpaid-demand cardとMarketing Intel context使用、Note ¥500/Substack/X Articleの公式readback、sales/cost/replay-zeroを確認する。settlementまで収益を主張しない。
 ### 2026-10-09 12:17 JST — Mobile post count unchanged; latest-main source sync pending
 
 このreadbackは12:05 JST mobile snapshotを更新する。**3回目のslotや日次54/54を待たず、source/promotion/owner修復を続ける。**
