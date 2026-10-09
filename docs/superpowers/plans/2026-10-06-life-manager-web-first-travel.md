@@ -25,7 +25,7 @@
 - The iMessage stream handler is one process-local sequential consumer per `life-call` replica. Current production Railway readback shows one active `life-call` replica. Do not scale this service above one replica until cross-replica stream ownership and reply-effect claims are implemented; the user-id/ask ledger handles sequential replay after completed replies.
 - A location reply is written as an idempotent Calendar setter and then marked answered in `lm_ask_log`. A process stop between those steps may retry the same setter after a Calendar readback that still appears empty; this is not an exactly-once guarantee. Do not generalize this write pattern to non-idempotent external effects.
 - Demos and published content use synthetic Calendar data. Never expose private event titles, addresses, or voice recordings.
-- Do not change the public /lm landing or activate marketing publication from this branch; those remain later SSOT items after the app path and billing are verified.
+- Do not activate paid campaigns or recurring marketing publication from this branch before auth/Calendar/Stripe E2E. Ruling: Dais explicitly requires one direct Calendar-connect action. WB-14 may change only the existing CTA handoff to `/lm?start_calendar=1` → existing `/auth/google` while preserving consent copy, UTM, and Writer receipts; it adds no OAuth scopes, Calendar provider, billing path, or new product UI.
 
 ### Execution order update — 2026-10-08
 
@@ -33,7 +33,19 @@ Old remaining order: find the staging Google test identity/callback → real OAu
 
 New order: complete Task 8 and the 15 staging Web migrations → recover the production `lm_ask_log` catalog, add its source-owned baseline, validate locally, and apply it to staging → find a designated non-personal Google test identity and configure the exact staging callback → real OAuth/Calendar/Travel E2E → Stripe test lifecycle/funnel → Spectrum iMessage pairing/reply/location-consent pilot → production readback → measured Web acquisition → WB-16 verified $10K gross MRR.
 
-Reason: after the 15 Web migrations, staging still lacked the ask ledger used by the existing clarification engine. Restoring that independent source prerequisite does not require Google login or Calendar data, so it can be completed while the separate test-identity search continues. Fresh provider readback confirms the staging Google provider is disabled and Auth has no users; the stored Google identities are not test-labeled, and the separate Railway installed-app client has the wrong redirect/client for Supabase Auth. No personal Google account or Calendar is used. Current cursor: find a designated non-personal Google test identity and configure a matching staging Supabase Auth client/callback; then run real Web OAuth/Calendar/Travel E2E.
+Reason: after the 15 Web migrations, staging still lacked the ask ledger used by the existing clarification engine. Restoring that independent source prerequisite did not require Google login or Calendar data. Fresh provider readback at that time confirmed the staging Google provider was disabled and Auth had no users; the stored Google identities were not test-labeled, and the separate Railway installed-app client had the wrong redirect/client for Supabase Auth. This was the cursor at that time and is superseded by the 2026-10-09 update below.
+
+### Execution order update — 2026-10-09 — One-click Web Calendar handoff
+
+Old next order: finish Composio cost basis → accessible Google E2E → Stripe trial lifecycle → direct public CTA → Cloud marketing.
+
+New next order: direct CTA handoff through the existing Web OAuth/Calendar path → finish Composio account plan/usage attribution → Google E2E with Dais’s already-authorized existing account (no new login or account switch) → Stripe trial lifecycle → Cloud marketing.
+
+Ruling: the live marketing CTA currently sends a visitor to Railway `/lm`, which presents the same “Google Calendarに接続” action again. The approved direct path is `/lm?start_calendar=1`; signed-out requests record the existing landing event and redirect to `/auth/google`, and the OAuth callback already resumes Calendar consent automatically. This is a route-only simplification using the existing exact-tenant Composio flow and first-touch UTM handling. Cost if wrong: a user may reach Google sign-in and abandon, but the direct target is the same auth route already behind the current second click; no Calendar read/write or charge occurs before consent/Checkout. Keep campaigns and recurring publication gated on successful real E2E.
+
+Account boundary readback: Dais explicitly authorizes E2E with his existing Google account and forbids another login or account switch. The two registered Google-bearing browser contexts checked on 2026-10-09 displayed Google's sign-in page; neither showed the named existing account. No login, switch, consent, or Calendar access occurred. This describes only those checked contexts, not every device/session. Continue real E2E only through an already-authenticated existing session; do not create an account or initiate sign-in.
+
+**Task 13: Direct Calendar CTA handoff** is added below the source tasks and is the current source cursor.
 
 ### Execution order update — 2026-10-08 — Source-only iMessage work while Google identity search remains open
 
@@ -289,6 +301,21 @@ Vercel Chat SDK is the OSS toolkit that most closely matches “one agent across
 - [ ] Step 1: Verify desktop/mobile signed-out entry, Google Calendar CTA, $29/seven-day offer copy, and same-tab handoff. Expected: the live route matches the accepted copy and remains Web-first.
 - [ ] Step 2: Verify the deployed SHA and report authenticated OAuth, Calendar write, Stripe test/live evidence, provider cost, subscription count and MRR separately. Expected: no claim of authenticated production E2E from signed-out reads or synthetic tests.
 - [ ] Step 3: Update the canonical SSOT cursor and plan evidence; leave `WB-16` active until Stripe-verified $10K MRR is actually reached.
+
+### Task 13: Direct Calendar CTA handoff (WB-14)
+
+**Goal:** A visitor's one “Connect Google Calendar” click enters the existing verified auth-start route without a second app-page click. The signed-out `/lm?start_calendar=1` request records the app landing event and redirects to `/auth/google` with allowlisted UTM values. Authenticated Web users keep the existing automatic Calendar start. No auth provider, OAuth scope, Calendar adapter, price, trial, or billing behavior changes.
+
+**Files:** Life Manager `apps/life-manager/lib/web-auth.js`, `apps/life-manager/server.js`, `apps/life-manager/lib/web-auth.test.js`, `apps/landing/app/lm/LmBody.tsx`, `apps/life-manager/test/onboarding-resume-contract.test.js`; production landing source in `anicca-products/apps/landing/lib/writer-cta-url.js`, `apps/landing/netlify/functions/_lib/writer-cta.js`, and their existing tests.
+
+**Tests, in order:**
+1. RED: add a unit test for signed-out `/lm?start_calendar=1` generating only `/auth/google` plus unique allowlisted UTM values; verify no flag/no wrong path/duplicate UTM returns no handoff.
+2. RED: update existing Life Manager landing contract to require direct Web auth CTA and reject the Telegram-only handoff.
+3. RED: update public landing/writer receipt tests to expect `/lm?start_calendar=1`, retaining UTM and Writer click-receipt parameters.
+4. GREEN: implement the smallest server redirect and update both CTA sources.
+5. Verify the same-tab public handoff with the targeted Node tests; after merge, read back `aniccaai.com/lm` and the tagged `/lm?start_calendar=1` → `/auth/google` boundary without signing in or reading Calendar.
+
+**Expected:** public primary CTA needs one click before Google consent; `landing_view` and `google_connect_start` remain attributable; no Calendar data read/write occurs before Google grants permission. The authenticated callback continues to existing Composio consent and the automatic Travel flow.
 
 ### After this source plan
 
