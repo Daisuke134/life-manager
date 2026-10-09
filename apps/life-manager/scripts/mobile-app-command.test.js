@@ -138,7 +138,39 @@ test(`the shared mobile wrapper preserves ${binding.name} release binding throug
 });
 }
 
-test("the shared mobile wrapper does not publish after an unresolved prior effect", (t) => {
+test("the shared mobile wrapper fails closed without a managed occurrence", (t) => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "lm-mobile-unresolved-effect-"));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const calls = path.join(directory, "python-calls.txt");
+  const runnerCalled = path.join(directory, "runner-called");
+  const python = path.join(directory, "python");
+  const envFile = path.join(directory, "marketing.env");
+  fs.writeFileSync(
+    python,
+    `#!/bin/sh\nprintf '%s\\n' "$*" >> "${calls}"\ncase "$1" in\n  *mobile-postiz-provider-reconcile.py) printf '%s\\n' '{"status":"no_match","inspected":1}'; exit 1 ;;\n  *run-with-timeout.py) touch "${runnerCalled}"; printf '%s\\n' '{"publication":{"created":true,"provider_post_id":"should-not-publish"}}'; exit 0 ;;\n  *) exit 0 ;;\nesac\n`,
+    { mode: 0o700 },
+  );
+  fs.writeFileSync(envFile, "LM_POSTIZ_API_KEY=test-token\nLM_DATA_DIR=/tmp/lm-mobile-data\nLM_RUNTIME_TENANT_ID=dais-local\n", { mode: 0o600 });
+
+  const result = spawnSync(path.join(root, "apps/life-manager/scripts/mobile-app"), ["life-manager-honne-ja"], {
+    cwd: root,
+    env: {
+      ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !["LIFE_MANAGER_RELEASE_SHA", "LIFE_MANAGER_OCCURRENCE_ID"].includes(key))),
+      LIFE_MANAGER_MARKETING_ENV_FILE: envFile,
+      LIFE_MANAGER_NODE: process.execPath,
+      LIFE_MANAGER_PYTHON: python,
+      LIFE_MANAGER_LOOP_ID: "life-manager-honne-ja",
+    },
+    encoding: "utf8",
+  });
+
+  assert.equal(result.status, 75, result.stderr);
+  assert.match(result.stderr, /prior-effect reconciliation deferred/);
+  assert.equal(fs.readFileSync(calls, "utf8").trim().split("\n").length, 1);
+  assert.equal(fs.existsSync(runnerCalled), false);
+});
+
+test("the shared mobile wrapper continues a new admitted occurrence after an old owner fence", (t) => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "lm-mobile-unresolved-effect-"));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const calls = path.join(directory, "python-calls.txt");
@@ -160,15 +192,14 @@ test("the shared mobile wrapper does not publish after an unresolved prior effec
       LIFE_MANAGER_NODE: process.execPath,
       LIFE_MANAGER_PYTHON: python,
       LIFE_MANAGER_LOOP_ID: "life-manager-honne-ja",
-      LIFE_MANAGER_OCCURRENCE_ID: "life-manager-honne-ja:run-2",
+      LIFE_MANAGER_OCCURRENCE_ID: "life-manager-honne-ja:new-slot",
     },
     encoding: "utf8",
   });
 
-  assert.equal(result.status, 75, result.stderr);
-  assert.match(result.stderr, /prior-effect reconciliation deferred/);
-  assert.equal(fs.readFileSync(calls, "utf8").trim().split("\n").length, 1);
-  assert.equal(fs.existsSync(runnerCalled), false);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(fs.readFileSync(calls, "utf8").trim().split("\n").length, 2);
+  assert.equal(fs.existsSync(runnerCalled), true);
 });
 
 test("the mobile result helper accepts exact reconciled receipt shapes only", (t) => {
