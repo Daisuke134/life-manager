@@ -10720,6 +10720,7 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **現在cursor:** push merge commit `b753a521` to PR #7336 → rerun exact-head checks/review → merge → main-derived immutable release/owner adoption/private packet path → natural B7/CFO report readback and current-period gap → A8.3 Stripe settlement mapping → remaining A8/A6/A9/Google cash/A10. No production success is claimed from source merge or passing tests.
 
+
 ### 2026-10-09 12:17 JST — Mobile post count unchanged; latest-main source sync pending
 
 このreadbackは12:05 JST mobile snapshotを更新する。**3回目のslotや日次54/54を待たず、source/promotion/owner修復を続ける。**
@@ -10729,3 +10730,15 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 - **Runtime boundary:** `lm-loop doctor`は189 entries、missing/unmanaged 0でPASS。current pointerは`20261009T114519-a14f0679`だが、latest mainは`44b9fbff`、mobile ownersは17件が`7c20304d`、JP4が`d3b3a279`。source patchは未merge/未deploy。EN2の2 occurrenceはlocal event journalでpre-effect proof可能だが、本番statusのfenceは未解消。
 
 **現在mobile cursor:** latest main mergeをcommit/push → PR #7339 exact-head CIをPASSさせmainへmerge → latest-main immutable releaseをcutしmobile ownersを1件ずつtargeted apply → EN2のproduction pre-effect fence closureをreadback → due/missed accountをPostiz receipt countに基づき不足分だけ即dispatch → `PUBLISHED`/URL/asset hash/Telegram linkとper-post metricsを保存。1 ownerのfence・metrics失敗は他ownerを止めず、day-closeの54/54は結果判定だけにする。続けてASC/RevenueCat/in-app funnelからverified USD 10K net MRRへ進む。
+
+### 2026-10-09 12:22 JST — A8.2 source merged; CFO owner and packet remain old
+
+- **Source/CI:** PR #7336 merged to main as `44b9fbffac0feac442cf0bf04d4ec45afdd46dcd`; the PR's full check set passed and the independent read-only duplicate-ID review passed. The six-app adapter is now in source, not yet in the active CFO release.
+- **Production readback:** `~/loops/current` still points to release `20261009T121259-3b77b78b`, and `life-manager-cfo-hourly` remains loaded-idle on SHA `a14f0679b604d156a61e626b707c2008953bc40a`. The loaded adapter still accepts only one relationship artifact. Runtime `LM_CFO_MOBILE_APPS_ASC_FINANCIAL_PACKET` points to `cfo-asc-current-official-financial-packet.json`, `observed_at=2026-10-06T17:41:01Z`, source period `2026-08-30`–`2026-09-26`, with legacy single `{artifact_path,artifact_sha256}` shape. The private six-app packet exists separately and is not active.
+- **Latest natural CFO report:** occurrence `18dcbd8825135280-5449`, delivered receipt `105668`, `snapshot_at=2026-10-09T03:05:56Z`. Company historical/trailing revenue, cost-complete net, and MRR remain unknown. `mobile-apps USD 20.34` is an MRR observation, not settled proceeds. Google Cloud September bill is JPY `27,889`; payment and loop attribution are unknown.
+- **Release cursor:** `life-manager-release-reconciler` remains loaded-running on SHA `a14f0679`. Its last terminal occurrence `18dcbdeba2dc1f90-28054` failed with `agent-runner fleet-apply ... coalesced` (`min interval 1800s`). A later natural occurrence `18dcbe088e200248-5115` is still running with empty stderr and no terminal receipt. No restart, duplicate apply, or manual packet change was done.
+- **Tracking:** issue [#7342](https://github.com/Daisuke134/life-manager/issues/7342) tracks production release adoption, private packet activation, and the natural B7/CFO readback. The merged source issue #7335 is closed; production acceptance remains open.
+
+**残TODO順:** (1) let the current release-reconciler occurrence reach a terminal receipt and read its exact owner result; do not start a duplicate while it is running → (2) once a main-derived release containing `44b9fbff` is current and the CFO owner is safely idle, use the supported owner-targeted adoption path → (3) point the private packet setting at the six-app bundle, then verify a natural B7/CFO report with same-occurrence receipt, replay-zero, JPY `4,250` only for the source period and the current-period gap still explicit → (4) close A8.2 for the latest available Apple period → (5) continue A8.3 Stripe Session/product-to-loop and balance/refund settlement mapping → (6) A8.4 Capafy → A8.5 affiliate → A8.6 writer → A8.7–9 marketplace → A8.10 investment → A8.11–18 remaining source/classification → A8.1 company actual-cost receipts → A8.19 shared/control/platform costs → A6 natural Google trace → A9 period-truthful report → Google cash receipt → A10 seven-day natural acceptance.
+
+**現在cursor:** reconcile the already-running release owner → adopt main `44b9fbff` through the supported release path → activate the private six-app packet → natural B7/CFO readback/replay-zero → remaining per-loop revenue/cost coverage. CFO runtime delivery is currently healthy, but company P&L is not complete.
