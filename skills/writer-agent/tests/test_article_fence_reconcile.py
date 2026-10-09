@@ -88,3 +88,58 @@ def test_only_the_article_daily_owner_is_accepted(tmp_path):
                          articles_path=arts, fetch_status=lambda u: 200,
                          resolver=lambda *a, **k: True, resolve=True)
     assert result["status"] == "inconclusive" and result["reason"] == "owner_not_allowlisted"
+
+
+def _run_dir(runs, run_id, files):
+    d = runs / run_id
+    (d / "gates").mkdir(parents=True)
+    for name in files:
+        (d / name).write_text("x")
+    return d
+
+
+GATE_QUEUED = datetime(2026, 10, 8, 23, 18, 59, tzinfo=timezone.utc).timestamp()   # 08:18:59 JST
+GATE_OCC = f"{OWNER}:18dcb160db0ac660-67443"
+
+
+def _pre(m, tmp_path, runs, rows=(), resolve=True, closed=None):
+    closed = [] if closed is None else closed
+    return m.reconcile(GATE_OCC, queued_at=GATE_QUEUED, state="claimed", articles_path=_articles(tmp_path, list(rows)),
+                       runs_root=runs, fetch_status=lambda u: 200,
+                       pre_effect_resolver=lambda owner, occ, **k: closed.append((occ, k["pre_effect_readback"]())) or True,
+                       resolve=resolve), closed
+
+
+def test_a_run_that_stopped_at_the_gate_closes_as_pre_effect(tmp_path):
+    m = _load()
+    runs = tmp_path / "runs"
+    _run_dir(runs, "20261008-232303", ["git-hash.txt"])        # 08:23:03 JST, 4 min after the claim
+    result, closed = _pre(m, tmp_path, runs)
+    assert result["status"] == "pre_effect" and result["closed"] is True
+    occ, proof = closed[0]
+    assert occ == GATE_OCC and proof["proof_type"] == "pre_effect" and proof["verified"] is True
+    assert proof["owner_id"] == OWNER and proof["occurrence_id"] == GATE_OCC and proof["evidence_ref"]
+
+
+def test_a_run_that_reached_generation_or_has_no_run_never_closes_as_pre_effect(tmp_path):
+    m = _load()
+    for n, (files, rows, reason) in enumerate((
+        (["git-hash.txt", "article-daily-prompt.txt"], [], "run_reached_generation"),
+        (["git-hash.txt", "model-stdout.log"], [], "run_reached_generation"),
+        (["git-hash.txt"], [{"run_id": "20261008-232303"}], "run_reached_generation"),
+        (None, [], "no_run_paired_with_this_fence"),
+    )):
+        runs = tmp_path / f"runs{n}"
+        runs.mkdir()
+        if files is not None:
+            _run_dir(runs, "20261008-232303", files)
+        result, closed = _pre(m, tmp_path, runs, rows)
+        assert result["status"] == "inconclusive" and result["reason"] == reason and closed == []
+
+
+def test_pre_effect_without_resolve_writes_nothing(tmp_path):
+    m = _load()
+    runs = tmp_path / "runs"
+    _run_dir(runs, "20261008-232303", ["git-hash.txt"])
+    result, closed = _pre(m, tmp_path, runs, resolve=False)
+    assert result["status"] == "pre_effect" and result["closed"] is False and closed == []
