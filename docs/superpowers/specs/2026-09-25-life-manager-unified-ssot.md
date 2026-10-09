@@ -10236,6 +10236,15 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **現在cursor:** A6 source promotion → natural production usage-trace readback → A8 full loop/job coverage → A9 source-period CFO report → A6 Google cash receipt → A10 seven-day natural acceptance。Money Tree/personal cashとCloud API置換・削減は対象外。過去actualの確定や10k MRR達成は本specのcoverage完了を意味せず、別途settlement evidenceを要する。
 
+### 2026-10-09 09:20 JST — Investment paper parser PR and runtime cursor
+
+- Official paper GET found no orders after `2026-10-04T07:31:22Z` and no open orders. A fresh GET-backed reconcile released only `alpaca-investment-paper:18db432c694c3868-67965`; no order or cancel was sent. `admission_effect_unknown=false` afterward.
+- The parser fix is on `fix/investment-paper-lifecycle-pnl-20261009`, PR #7292: reuse only matching planned paper intents for legacy orderless lifecycle rows; allow only identical repeated filled-order snapshots. Orphans and conflicting snapshots remain fail-closed. Focused regression suite passed 14/14, and fresh read-only review was SHIP with no CRITICAL/HIGH/MEDIUM findings. Latest main was merged into the PR branch to preserve the current SSOT; exact-head CI is pending again.
+- Projecting the current paper receipts now returns `unknown / paper_round_trip_missing`: the QQQ paper position has no matching sell/closed round trip. Paper realized P&L is therefore unmeasured; the last stored unrealized observation was +$0.124273 through the 2026-10-02 session and is stale. The last confirmed live-account measurement remains net -$0.15 for 2026-09-09 through 2026-09-28; it is historical, not current. Do not combine the two.
+- Natural paper attempts through `2026-10-09T00:20:07Z` still defer before strategy/effect with `host_admission_deferred:resource_capacity_busy` and `effect_status=not_applicable`. No paper or live order was placed. Live remains disabled with its separate unresolved effect; no funding/live order before AT-24/AT-29 and fresh review. The ETF-only strategy excludes PLTR.
+
+**Investment subcursor:** keep AT-13 natural paper exit as the execution cursor. Finish PR #7292 exact-head checks/review and merge, cut a main-derived immutable release, then allow the paper owner to continue on its natural schedule. Do not manually wake, sell, replay, or enable live trading. Paper P&L remains unknown until a closed round trip is recorded.
+
 ### 2026-10-09 JST — Affiliate retry starvation and zero conversion
 
 **確認済み状態:** PR #7227のnumeric disk-admission修正はcurrent immutable release `f7db4f577d19c582106c3c230dd97837388941f6`に含まれ、cleanupは空き約2.3 GiBを回復した。全fleet applyはまだ一部ownerが旧SHAに残るためnatural reconciliationを継続する。公式PartnerStack overviewは直近30日264 clicks / 0 signups / $0 revenue、Commission Reportは0 rows、Payoutsも0 rowsでtax informationはrequired、payment providerはselection required。既存`campaign-handoffs/elevenlabs-discovered-subtitle-translator-en-experiment-2461e9f73d94.json`は2026-10-01生成の246-word English-only稿で、日本語要約がなく、現在の要求を満たさない。
