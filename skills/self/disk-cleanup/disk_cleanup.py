@@ -11,6 +11,7 @@ import argparse
 from contextlib import contextmanager, suppress
 import errno
 import fcntl
+import hashlib
 from functools import lru_cache
 import json
 import math
@@ -52,6 +53,13 @@ THRESHOLDS = ((20 * GiB, "NORMAL"), (11 * GiB, "PREVENTIVE"), (6 * GiB, "PRESSUR
 RECOVERY_FLOOR_BYTES = 2 * GiB
 RECEIPT_RESERVE_BYTES = 1024 * 1024
 RECEIPT_PAYLOAD_MAX_BYTES = 64 * 1024
+TEMPORARY_RUN_MIN_AGE_SECONDS = 60 * 60
+WORKTREE_REPOSITORY_RELATIVE = Path("Projects/life-manager-main")
+SLIDE_PACK_DIRECTORY_PATTERN = re.compile(
+    r"slide-pack-(?:objects|image-cache|workspace)(?:-cta)?-[A-Za-z0-9]{6}"
+)
+SLIDE_PACK_FIXTURE_PATTERN = re.compile(r"slide-pack-fixture-bg-\d{5,6}\.png")
+PYTEST_RUN_PATTERN = re.compile(r"pytest-\d+")
 # A release is ~1.2GiB, so unbounded generations fill the disk on their own.
 # Main plus the current immutable release are the rollback source. Older
 # unreferenced, closed generations must not consume another 1.2 GiB each.
@@ -268,7 +276,7 @@ def _bytes(
     if not path.exists() and not path.is_symlink():
         return 0
     if path.is_file() or path.is_symlink():
-        return path.stat().st_size
+        return path.lstat().st_size
     total = 0
     for root, dirs, files in os.walk(path, topdown=True, followlinks=False):
         if deadline is not None and clock() >= deadline:
@@ -277,7 +285,7 @@ def _bytes(
         for name in files:
             item = Path(root) / name
             try:
-                total += item.stat().st_size
+                total += item.lstat().st_size
             except OSError:
                 continue
     return total
@@ -355,6 +363,67 @@ def _readonly_temp_root() -> Path:
         raise original_error
 
 
+def _old_real_temporary_path(path: Path) -> bool:
+    try:
+        info = path.lstat()
+    except OSError:
+        return False
+    return (
+        (stat.S_ISDIR(info.st_mode) or stat.S_ISREG(info.st_mode))
+        and info.st_uid == os.getuid()
+        and time.time() - info.st_mtime >= TEMPORARY_RUN_MIN_AGE_SECONDS
+    )
+
+
+def _temporary_roots(primary: Path) -> tuple[Path, ...]:
+    roots: list[Path] = []
+    for candidate in (primary, Path("/private/tmp"), Path("/var/tmp")):
+        lexical = Path(os.path.abspath(candidate))
+        try:
+            info = lexical.lstat()
+        except OSError:
+            continue
+        if stat.S_ISDIR(info.st_mode):
+            resolved = lexical.resolve()
+            if resolved not in roots:
+                roots.append(resolved)
+    return tuple(roots)
+
+
+def _run_git(path: Path, *arguments: str, timeout: float = 5) -> subprocess.CompletedProcess[str] | None:
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(path), *arguments],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return result if result.returncode == 0 and not result.stderr.strip() else None
+
+
+def _worktree_records(repository: Path) -> list[dict[str, str | bool]] | None:
+    result = _run_git(repository, "worktree", "list", "--porcelain")
+    if result is None:
+        return None
+    records: list[dict[str, str | bool]] = []
+    current: dict[str, str | bool] = {}
+    for line in result.stdout.splitlines() + [""]:
+        if not line:
+            if current:
+                records.append(current)
+                current = {}
+            continue
+        key, _, value = line.partition(" ")
+        if key in {"locked", "bare", "detached", "prunable"}:
+            current[key] = value or True
+        else:
+            current[key] = value
+    return records
+
+
 @lru_cache(maxsize=1)
 def _browser_clone_roots(temporary: Path) -> tuple[Path, ...]:
     """Share the exact browser clone roots between discovery and sweep proof."""
@@ -386,6 +455,10 @@ def _default_lsof(path: Path) -> str:
         RELEASE_NAME_PATTERN.fullmatch(path.name)
         or _is_code_sign_clone(path)
         or path.name in GLOBAL_OPEN_PROBE_NAMES
+        or ".worktrees" in path.parts
+        or SLIDE_PACK_DIRECTORY_PATTERN.fullmatch(path.name) is not None
+        or SLIDE_PACK_FIXTURE_PATTERN.fullmatch(path.name) is not None
+        or PYTEST_RUN_PATTERN.fullmatch(path.name) is not None
     ):
         opened = _open_paths()
         if opened is None:
@@ -879,7 +952,14 @@ class HostDiskGovernor:
             )
         )
 
-    def _protected_descendant(self, path: Path, *, deadline: float | None = None) -> str | None:
+    def _protected_descendant(
+        self,
+        path: Path,
+        *,
+        deadline: float | None = None,
+        allow_generated_symlinks: bool = False,
+        allow_worktree_sources: bool = False,
+    ) -> str | None:
         errors: list[OSError] = []
         for root, directories, files in os.walk(
             path,
@@ -894,16 +974,155 @@ class HostDiskGovernor:
                     return "probe-budget-exhausted"
                 descendant = Path(root) / name
                 try:
-                    if descendant.is_symlink() or self._protected(descendant):
+                    if descendant.is_symlink():
+                        if allow_generated_symlinks:
+                            continue
+                        return "protected_descendant"
+                    if allow_worktree_sources and (
+                        descendant.name == ".env" or descendant.name.startswith(".env.")
+                        or any(token in descendant.name.lower()
+                               for token in ("credential", "secret", "cookie", "passkey", "recovery"))
+                    ):
+                        return "protected_descendant"
+                    if allow_worktree_sources and (
+                        (descendant.parent == path and descendant.name == ".git" and descendant.is_file())
+                        or descendant.suffix.lower() in SOURCE_SUFFIXES
+                        or descendant.name in {"source", "src"}
+                    ):
+                        continue
+                    if self._protected(descendant):
                         return "protected_descendant"
                 except OSError:
                     return "descendant_probe_error"
         return "descendant_probe_error" if errors else None
 
+    def _worktree_identity(
+        self,
+        path: Path,
+        *,
+        records: list[dict[str, str | bool]] | None = None,
+        deadline: float | None = None,
+    ) -> tuple[object, ...] | None:
+        """Prove one clean, unleased checkout is a redundant registered worktree."""
+        if deadline is not None and self.clock() >= deadline:
+            return None
+        repository = self.home / WORKTREE_REPOSITORY_RELATIVE
+        worktree_root = repository / ".worktrees"
+        lexical = Path(os.path.abspath(path))
+        if lexical.parent != Path(os.path.abspath(worktree_root)):
+            return None
+        repository_fingerprint = _real_directory_fingerprint(self.home, repository)
+        root_fingerprint = _real_directory_fingerprint(self.home, worktree_root)
+        path_fingerprint = _real_directory_fingerprint(self.home, lexical)
+        if repository_fingerprint is None or root_fingerprint is None or path_fingerprint is None:
+            return None
+        records = _worktree_records(repository) if records is None else records
+        if records is None:
+            return None
+        record = next(
+            (
+                candidate for candidate in records
+                if candidate.get("worktree") == str(lexical)
+            ),
+            None,
+        )
+        if (
+            record is None
+            or record.get("locked")
+            or record.get("prunable")
+            or not isinstance(record.get("HEAD"), str)
+        ):
+            return None
+        head = str(record["HEAD"])
+        if re.fullmatch(r"[0-9a-f]{40,64}", head) is None:
+            return None
+        marker = lexical / ".anicca-keep"
+        try:
+            marker.lstat()
+        except FileNotFoundError:
+            pass
+        except OSError:
+            return None
+        else:
+            return None
+        common_result = _run_git(repository, "rev-parse", "--git-common-dir")
+        head_result = _run_git(lexical, "rev-parse", "HEAD")
+        remote_result = _run_git(repository, "rev-parse", "--verify", "refs/remotes/origin/main^{commit}")
+        if common_result is None or head_result is None or remote_result is None:
+            return None
+        if head_result.stdout.strip() != head:
+            return None
+        common = Path(common_result.stdout.strip())
+        if not common.is_absolute():
+            common = repository / common
+        common = Path(os.path.abspath(common))
+        lease = common / "worktree-leases" / (
+            hashlib.sha256(str(lexical).encode("utf-8")).hexdigest() + ".json"
+        )
+        try:
+            lease.lstat()
+        except FileNotFoundError:
+            pass
+        except OSError:
+            return None
+        else:
+            return None
+        remote_head = remote_result.stdout.strip()
+        if re.fullmatch(r"[0-9a-f]{40,64}", remote_head) is None:
+            return None
+        if deadline is not None and self.clock() >= deadline:
+            return None
+        try:
+            ancestry = subprocess.run(
+                ["git", "-C", str(repository), "merge-base", "--is-ancestor", head, remote_head],
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
+            )
+        except (OSError, subprocess.SubprocessError):
+            return None
+        if ancestry.returncode != 0 or ancestry.stderr.strip():
+            return None
+        if deadline is not None and self.clock() >= deadline:
+            return None
+        status = _run_git(
+            lexical,
+            "status",
+            "--porcelain=v1",
+            "--untracked-files=all",
+            "--ignored=matching",
+        )
+        if status is None or status.stdout:
+            return None
+        if _release_immutable_store_probe(path, deadline=deadline, clock=self.clock) is not None:
+            return None
+        if self._protected_descendant(path, deadline=deadline, allow_worktree_sources=True) is not None:
+            return None
+        fresh_main = _run_git(repository, "ls-remote", "--exit-code", "origin", "refs/heads/main")
+        if fresh_main is None or fresh_main.stdout.split() != [remote_head, "refs/heads/main"]:
+            return None
+        if deadline is not None and self.clock() >= deadline:
+            return None
+        return (
+            repository_fingerprint,
+            root_fingerprint,
+            path_fingerprint,
+            str(common),
+            head,
+            remote_head,
+        )
+
     def _allowlisted_candidate(self, path: Path, item: dict) -> bool:
         """Require discovery proof and an exact regenerable path family."""
         if item.get("discovery") != "allowlisted":
             return False
+        if item.get("class") == "regenerable_output" and item.get("owner") == "zombie-worktree":
+            proof = item.get("worktree_identity")
+            return (
+                isinstance(proof, tuple)
+                and self._worktree_identity(path) == proof
+            )
         if item.get("class") == "regenerable_output" and item.get("owner") == "codex-app-updater":
             lexical = Path(os.path.abspath(path))
             expected_parents = {
@@ -930,15 +1149,29 @@ class HostDiskGovernor:
         try:
             temporary_path = _readonly_temp_root()
             resolved = path.resolve()
-            temporary = temporary_path.resolve()
+            temporary = set(_temporary_roots(temporary_path))
         except OSError:
             return False
         if item.get("class") == "ephemeral" and item.get("owner") == "temporary-run":
-            return (
-                resolved.parent == temporary
-                and (
-                    resolved.name == "capafy-hf-npm-cache"
-                    or resolved.name.startswith("capafy-hf-npm.")
+            old = _old_real_temporary_path(path)
+            legacy_cache = (
+                resolved.name == "capafy-hf-npm-cache"
+                or resolved.name.startswith("capafy-hf-npm.")
+            )
+            return (old or legacy_cache) and (
+                (
+                    resolved.parent in temporary
+                    and (
+                        resolved.name == "capafy-hf-npm-cache"
+                        or resolved.name.startswith("capafy-hf-npm.")
+                        or SLIDE_PACK_DIRECTORY_PATTERN.fullmatch(resolved.name) is not None
+                        or SLIDE_PACK_FIXTURE_PATTERN.fullmatch(resolved.name) is not None
+                    )
+                )
+                or (
+                    resolved.parent.parent in temporary
+                    and resolved.parent.name == f"pytest-of-{self.home.name}"
+                    and PYTEST_RUN_PATTERN.fullmatch(resolved.name) is not None
                 )
             )
         if item.get("class") == "regenerable_output" and item.get("owner") == "browser":
@@ -1260,6 +1493,7 @@ class HostDiskGovernor:
             "tier": classify_tier(free_before),
             "evaluated": len(candidates),
             "reclaimed": 0,
+            "worktrees_retired": 0,
             "preserved": 0,
             "errors": 0,
             "protected_deletions": 0,
@@ -1301,6 +1535,8 @@ class HostDiskGovernor:
             if deadline is not None and self.clock() + LSOF_TIMEOUT_SECONDS + POST_SWEEP_RESERVE_SECONDS >= deadline:
                 preserve("probe-budget-exhausted")
                 continue
+            if self.lsof is _default_lsof:
+                _open_paths.cache_clear()
             state = self.lsof(path)
             if deadline is not None and self.clock() >= deadline:
                 preserve("probe-budget-exhausted")
@@ -1322,9 +1558,13 @@ class HostDiskGovernor:
             # safe to drop is that nothing references it, checked during discovery.
             whole_tree_is_the_unit = item.get("owner") in {
                 "browser", "codex-app-updater", "codex-runtime-cache", "whisper-model-cache",
-                "release-retention",
+                "release-retention", "zombie-worktree",
             } | set(EXACT_CACHE_ROOTS)
-            descendant_state = None if whole_tree_is_the_unit else self._protected_descendant(path, deadline=deadline)
+            descendant_state = None if whole_tree_is_the_unit else self._protected_descendant(
+                path, deadline=deadline,
+                allow_generated_symlinks=(item.get("owner") == "temporary-run"
+                    and PYTEST_RUN_PATTERN.fullmatch(path.name) is not None),
+            )
             if descendant_state is not None:
                 result["errors"] += descendant_state == "descendant_probe_error"
                 preserve(descendant_state)
@@ -1335,7 +1575,7 @@ class HostDiskGovernor:
             if deadline is not None and self.clock() + POST_SWEEP_RESERVE_SECONDS >= deadline:
                 preserve("probe-budget-exhausted")
                 continue
-            if item.get("owner") == "release-retention":
+            if item.get("owner") in {"release-retention", "zombie-worktree"}:
                 # Walking a 1.2GiB release to size it costs the whole budget, and the
                 # total would be wrong anyway: releases are APFS clones, so a per-item
                 # sum counts shared blocks that freeing one copy does not return.
@@ -1356,7 +1596,11 @@ class HostDiskGovernor:
                 if deadline is not None and self.clock() + POST_SWEEP_RESERVE_SECONDS >= deadline:
                     preserve("probe-budget-exhausted")
                     continue
-            descendant_state = None if whole_tree_is_the_unit else self._protected_descendant(path, deadline=deadline)
+            descendant_state = None if whole_tree_is_the_unit else self._protected_descendant(
+                path, deadline=deadline,
+                allow_generated_symlinks=(item.get("owner") == "temporary-run"
+                    and PYTEST_RUN_PATTERN.fullmatch(path.name) is not None),
+            )
             if descendant_state is not None:
                 result["errors"] += descendant_state == "descendant_probe_error"
                 preserve(descendant_state)
@@ -1364,6 +1608,8 @@ class HostDiskGovernor:
             if deadline is not None and self.clock() + LSOF_TIMEOUT_SECONDS + POST_SWEEP_RESERVE_SECONDS >= deadline:
                 preserve("probe-budget-exhausted")
                 continue
+            if self.lsof is _default_lsof:
+                _open_paths.cache_clear()
             state = self.lsof(path)
             if deadline is not None and self.clock() >= deadline:
                 preserve("probe-budget-exhausted")
@@ -1385,18 +1631,77 @@ class HostDiskGovernor:
             try:
                 if item.get("owner") == "codex-app-updater":
                     self._remove_sparkle_tree(path, item)
+                elif item.get("owner") == "zombie-worktree":
+                    identity = item.get("worktree_identity")
+                    if not isinstance(identity, tuple) or self._worktree_identity(
+                        path, deadline=deadline
+                    ) != identity:
+                        result["errors"] += 1
+                        preserve("path_identity_changed")
+                        continue
+                    if self.lsof is _default_lsof:
+                        _open_paths.cache_clear()
+                    state = self.lsof(path)
+                    if state != "confirmed-closed":
+                        result["errors"] += state == "probe-error"
+                        preserve(state)
+                        continue
+                    if deadline is not None and self.clock() + POST_SWEEP_RESERVE_SECONDS >= deadline:
+                        preserve("probe-budget-exhausted")
+                        continue
+                    if self._worktree_identity(path, deadline=deadline) != identity:
+                        preserve("path_identity_changed")
+                        continue
+                    if deadline is not None and self.clock() + POST_SWEEP_RESERVE_SECONDS >= deadline:
+                        preserve("probe-budget-exhausted")
+                        continue
+                    repository = self.home / WORKTREE_REPOSITORY_RELATIVE
+                    removed = subprocess.run(
+                        ["git", "-C", str(repository), "worktree", "remove", str(path)],
+                        capture_output=True,
+                        text=True,
+                        check=False,
+                        timeout=min(15.0, deadline - self.clock() - POST_SWEEP_RESERVE_SECONDS)
+                            if deadline is not None else 15.0,
+                    )
+                    if removed.returncode != 0 or removed.stderr.strip():
+                        raise OSError(errno.EIO, "ordinary git worktree remove failed")
                 elif path.is_dir():
                     self._remove_tree(path)
                 else:
                     path.unlink()
-            except OSError:
+            except (OSError, subprocess.SubprocessError) as error:
                 result["errors"] += 1
-                preserve("remove_failed")
+                preserve("worktree_remove_timeout" if isinstance(error, subprocess.TimeoutExpired)
+                         else "remove_failed")
                 continue
             if path.exists() or path.is_symlink():
                 result["errors"] += 1
                 preserve("path_still_present")
                 continue
+            if item.get("owner") == "zombie-worktree":
+                records = _worktree_records(self.home / WORKTREE_REPOSITORY_RELATIVE)
+                if records is None or any(
+                    record.get("worktree") == str(Path(os.path.abspath(path)))
+                    for record in records
+                ):
+                    result["errors"] += 1
+                    preserve("worktree_registration_still_present")
+                    continue
+                result["worktrees_retired"] += 1
+            if (item.get("owner") == "temporary-run"
+                    and PYTEST_RUN_PATTERN.fullmatch(path.name) is not None):
+                pointer = path.parent / "pytest-current"
+                try:
+                    info = pointer.lstat()
+                    if (stat.S_ISLNK(info.st_mode) and info.st_uid == os.getuid()
+                            and os.readlink(pointer) in {path.name, str(path)}
+                            and pointer.lstat() == info):
+                        pointer.unlink()
+                except FileNotFoundError:
+                    pass
+                except OSError:
+                    result["errors"] += 1
             result["reclaimed"] += before
         free_after, _ = self.usage()
         result["free_before"] = free_before
@@ -1406,7 +1711,7 @@ class HostDiskGovernor:
             self._receipt(result)
         return result
 
-    def discover_candidates(self) -> list[dict]:
+    def discover_candidates(self, *, deadline: float | None = None) -> list[dict]:
         """Return only allow-listed regenerable families.
 
         Discovery is intentionally narrower than census: an unclassified path
@@ -1499,6 +1804,30 @@ class HostDiskGovernor:
                             }
                         )
         temporary = _readonly_temp_root()
+        repository = self.home / WORKTREE_REPOSITORY_RELATIVE
+        records = (
+            _worktree_records(repository)
+            if _real_directory_fingerprint(self.home, repository) is not None else None
+        )
+        if records is not None:
+            for record in records:
+                if deadline is not None and self.clock() >= deadline:
+                    break
+                raw_path = record.get("worktree")
+                if not isinstance(raw_path, str):
+                    continue
+                path = Path(raw_path)
+                proof = self._worktree_identity(
+                    path, records=records, deadline=deadline
+                )
+                if proof is not None:
+                    candidates.append({
+                        "path": path,
+                        "class": "regenerable_output",
+                        "owner": "zombie-worktree",
+                        "discovery": "allowlisted",
+                        "worktree_identity": proof,
+                    })
         for collection_name in (
             "com.google.Chrome.code_sign_clone",
             "org.chromium.Chromium.code_sign_clone",
@@ -1518,27 +1847,47 @@ class HostDiskGovernor:
                             )
         # Only exact package-manager caches are candidates. Generic /private/tmp
         # paths can be active worktrees and remain unknown and preserved.
-        if temporary.is_dir():
-            for child in sorted(temporary.iterdir()):
+        for temporary_root in _temporary_roots(temporary):
+            if deadline is not None and self.clock() >= deadline:
+                break
+            try:
+                children = sorted(temporary_root.iterdir())
+            except OSError:
+                continue
+            for child in children:
+                if deadline is not None and self.clock() >= deadline:
+                    break
+                old = _old_real_temporary_path(child)
+                exact_family = (
+                    child.name == "capafy-hf-npm-cache"
+                    or child.name.startswith("capafy-hf-npm.")
+                    or SLIDE_PACK_DIRECTORY_PATTERN.fullmatch(child.name) is not None
+                    or SLIDE_PACK_FIXTURE_PATTERN.fullmatch(child.name) is not None
+                )
+                if old and exact_family:
+                    candidates.append({
+                        "path": child,
+                        "class": "ephemeral",
+                        "owner": "temporary-run",
+                        "discovery": "allowlisted",
+                    })
+                if child.name != f"pytest-of-{self.home.name}" or not child.is_dir() or child.is_symlink():
+                    continue
                 try:
-                    old_capafy = (
-                        time.time() - child.stat().st_mtime >= 3600
-                        and (
-                            child.name == "capafy-hf-npm-cache"
-                            or child.name.startswith("capafy-hf-npm.")
-                        )
-                    )
+                    pytest_runs = sorted(child.iterdir())
                 except OSError:
-                    old_capafy = False
-                if child.is_dir() and old_capafy:
-                    candidates.append(
-                        {
-                            "path": child,
+                    continue
+                for run in pytest_runs:
+                    if (
+                        PYTEST_RUN_PATTERN.fullmatch(run.name) is not None
+                        and _old_real_temporary_path(run)
+                    ):
+                        candidates.append({
+                            "path": run,
                             "class": "ephemeral",
                             "owner": "temporary-run",
                             "discovery": "allowlisted",
-                        }
-                    )
+                        })
         return candidates
 
     def run_once(self) -> dict[str, object]:
@@ -1581,7 +1930,7 @@ class HostDiskGovernor:
             recovery = self._reconcile_stale_sparkle_updaters(sparkle_root)
             for key in updater_recovery:
                 updater_recovery[key] += recovery[key]
-        candidates = self.discover_candidates()
+        candidates = self.discover_candidates(deadline=deadline)
         candidate_count = len(candidates)
         candidate_start = self._candidate_start_index(candidate_count)
         candidate_next = (candidate_start + 1) % candidate_count if candidate_count else 0
@@ -1853,6 +2202,9 @@ def main() -> int:
             "readback": 0,
             "capacity_recovery": _capacity_recovery({}),
         }
+        binding = cleanup_run_binding(dict(os.environ), REPOSITORY_ROOT)
+        if binding is not None:
+            result["identity"] = binding
         print(json.dumps(result, sort_keys=True))
         return 75
     try:

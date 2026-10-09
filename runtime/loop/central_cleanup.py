@@ -423,6 +423,13 @@ def main() -> int:
             host_process.returncode, host_process.stdout,
             binding=cleanup_run_binding(dict(os.environ), ROOT),
         )
+        if (host_process.returncode == 75
+                and host_result.get("reason") == "cleanup_lock_busy"
+                and host_result.get("status") == "deferred"
+                and host_result.get("effect") == 0
+                and host_result.get("readback") == 0):
+            print(json.dumps(host_result, sort_keys=True, separators=(",", ":")))
+            return 75
     except subprocess.TimeoutExpired:
         host_ok, host_result = False, {"error": "host_cleanup_timeout"}
     except OSError as error:
