@@ -165,3 +165,19 @@ class MarketingIntelWriterContextTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ArticleDailyPreEffectMarkerTests(unittest.TestCase):
+    def test_article_daily_is_a_pre_effect_hint_entrypoint(self):
+        runner = (Path(__file__).resolve().parents[3] / "runtime" / "loop" / "lm_loop_run.py").read_text(encoding="utf-8")
+        block = runner[runner.index("PRE_EFFECT_HINT_ENTRYPOINTS = frozenset({"):]
+        block = block[: block.index("})")]
+        self.assertIn('"skills/writer-agent/article-daily.sh"', block)
+
+    def test_marker_is_cleared_after_the_gate_and_before_generation(self):
+        daily = (Path(__file__).resolve().parents[1] / "article-daily.sh").read_text(encoding="utf-8")
+        gate = daily.index("--demand-mode required >>")
+        clear = daily.index('rm -f -- "$LIFE_MANAGER_RESULT_HINT_PATH"')
+        prompt = daily.index("PROMPT='Run ONE daily Writer Agent article pass")
+        self.assertLess(gate, clear)
+        self.assertLess(clear, prompt)
