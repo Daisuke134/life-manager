@@ -642,6 +642,45 @@ def plan_set_sha256(root, state_root=None):
     return digest.hexdigest()
 
 
+def _active_unconverted_plan_id(state_root):
+    try:
+        funnel = json.loads(
+            (state_root / "money-funnel" / "latest.json").read_text(encoding="utf-8")
+        )
+        ledger = json.loads(
+            (state_root / "placement-ledger.json").read_text(encoding="utf-8")
+        )
+    except (OSError, TypeError, ValueError, json.JSONDecodeError):
+        return None
+    impressions = funnel.get("impressions") if isinstance(funnel, dict) else None
+    clicks = funnel.get("provider_clicks") if isinstance(funnel, dict) else None
+    transactions = funnel.get("transactions") if isinstance(funnel, dict) else None
+    placement_id = funnel.get("placement_id") if isinstance(funnel, dict) else None
+    if (
+        not isinstance(placement_id, str)
+        or not isinstance(impressions, dict)
+        or impressions.get("state") != "EXACT"
+        or type(impressions.get("count")) is not int or impressions["count"] <= 0
+        or not isinstance(clicks, dict)
+        or type(clicks.get("cumulative_unique_count")) is not int
+        or clicks["cumulative_unique_count"] <= 0
+        or not isinstance(transactions, dict)
+        or transactions.get("state") != "OBSERVED"
+        or type(transactions.get("count")) is not int or transactions["count"] != 0
+    ):
+        return None
+    placements = ledger.get("placements") if isinstance(ledger, dict) else None
+    if not isinstance(placements, list):
+        return None
+    matches = [
+        row for row in placements
+        if isinstance(row, dict) and row.get("placement_id") == placement_id
+    ]
+    if len(matches) != 1 or not isinstance(matches[0].get("plan_id"), str):
+        return None
+    return matches[0]["plan_id"]
+
+
 def write_composition_bundle(state_root, plan, receipts):
     sources = [{
         key: row[key] for key in ("source_id", "locator", "evidence_class", "raw_sha256")
@@ -760,6 +799,8 @@ def refresh_all(
             results = []
         attempted = {row["plan_id"] for row in results}
         remaining = [path for path in paths if path.stem not in attempted]
+        active_plan_id = _active_unconverted_plan_id(state_root)
+        remaining.sort(key=lambda path: (path.stem != active_plan_id, path.name))
         for path in remaining[:1]:
             plan_id = path.stem
             try:

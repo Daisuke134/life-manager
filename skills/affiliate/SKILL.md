@@ -278,6 +278,11 @@ claims stay grounded in official product and pricing sources. The campaign does
 not copy case-study wording, identify its creators, or use their reported earnings
 as proof or as a guarantee.
 
+During the one-time legacy backfill, the source refresher prioritizes the exact
+placement with measured impressions and provider clicks but zero observed
+transactions. Other plans keep their stable path order; unavailable or ambiguous
+funnel evidence does not change the order.
+
 Every future generic campaign acquires its own PartnerStack custom link before
 publication by reusing the verified ElevenLabs link adapter. The raw URL stays in
 the mode-0600 private Markdown; public receipts retain only provider identity and
