@@ -69,6 +69,8 @@
 
 **S01 disabled ownerの実証された境界:** fresh launchctl-safe print-disabledでalpaca-investment-live/capafy-ig-marketing-daily/life-manager-capafy-igがdisabled、GUI service absent、plist XMLはvalidと確認。reconcilerの無条件applyがbootstrap error5を反復する。停止を解除せず、runtime/loop/lm_loop.py::apply_liveのshared入口でsafe disabled readbackを確認し、disabledならskipped=disabled/changed=falseでplist・admission・fenceを保持する。readback失敗/不明はmutation前に拒否する。最小RED→GREENと既存apply testsで、無断enable/bootout/bootstrap・停止状態のresumeをしない契約を残す。Alpaca liveの資金/order/live gateは変更しない。
 
+**S01 source検証:** disabled fixtureのREDはadmission guardが呼ばれることを再現。apply_liveへ14行のshared readback/skipを追加し、disabled・probe失敗・空/未知形式をmutation前に保持/拒否する最小ケースがGREEN。関連186 testsの周辺failureは新read-only probeを持たないfixture/旧call順の期待とsparse未展開の2 sourceで、fixture更新/必要ファイル展開後185 pass、残るcall期待1件も修正し該当+新ケース3 tests PASS。native disabled outputの形式一致、loop-contract18 catalog/189 jobs/errors0、diff check PASS。sourceは停止を解除せず、金融計算/資金/orderを変更しない。次はexact-head CI/main/immutable release→disabledの自然skip receiptと停止保持の公式GUI readback。容量回復11GiBは別に未完。
+
 ### P0 — ディスク回復のatomic TODO
 
 再開worktree: `/Users/anicca/Projects/life-manager-main/.worktrees/disk-watchdog-worktree-safety-20261008`。branch `fix/disk-cleanup-15d-lm-loop-20261009`、引き継ぎHEAD `a6e037571404419501c6441af8e859e137eaa40b`。既存未commitのSSOT・SKILL・source・test差分を保持し、owner/lease/live process確認前に編集しない。別のactive cleanup worktreeも触らない。
