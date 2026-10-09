@@ -169,7 +169,7 @@
 - [x] Write the baseline, route-budget, runner-config, and parent-receipt regressions first; confirm each fails for its missing behavior.
 - [x] Implement the local MCP budget gate and hash-bound baseline marker with no new dependency.
 - [x] Run focused tests, source boundary, loop contract, syntax/JSON checks, and diff check.
-- [ ] Update the SSOT cursor with the corrected evidence and push the dedicated branch.
+- [x] Update the SSOT cursor with the corrected evidence and push the dedicated branch.
 
 ### Task 5: Source acceptance and production handoff
 
