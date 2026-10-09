@@ -228,6 +228,28 @@ class TransportValidationTest(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 distribute.load_accounts(config_path)
 
+    def test_browser_threads_requires_handle_and_browser_identity(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config_path = Path(tmp) / "accounts.json"
+            config_path.write_text(json.dumps({
+                "schema_version": 1, "timezone": "Asia/Tokyo",
+                "accounts": [{"lane_id": "t", "platform": "threads", "transport": "browser_threads",
+                              "cadence_jst": ["08:00"]}],
+            }), encoding="utf-8")
+            with self.assertRaises(RuntimeError):
+                distribute.load_accounts(config_path)
+
+    def test_valid_browser_threads_account_loads(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config_path = Path(tmp) / "accounts.json"
+            config_path.write_text(json.dumps({
+                "schema_version": 1, "timezone": "Asia/Tokyo",
+                "accounts": [{"lane_id": "t", "platform": "threads", "transport": "browser_threads",
+                              "handle": "stardust_doubutsu", "browser_identity": "instagram:capafy-provision",
+                              "cadence_jst": ["08:00"]}],
+            }), encoding="utf-8")
+            self.assertEqual(distribute.load_accounts(config_path)[0]["transport"], "browser_threads")
+
     def test_postiz_still_requires_integration_id(self):
         with tempfile.TemporaryDirectory() as tmp:
             config_path = Path(tmp) / "accounts.json"
@@ -258,7 +280,7 @@ class TransportValidationTest(unittest.TestCase):
         real_config = repo_root / "config" / "line-sticker-distribute-accounts.json"
         accounts = distribute.load_accounts(real_config)
         for account in accounts:
-            self.assertIn(account["transport"], ("postiz", "browser_reel"))
+            self.assertIn(account["transport"], ("postiz", "browser_reel", "browser_threads"))
             self.assertNotIn(account.get("handle"), (None, "anicca.jp8", "aniccajp", "aniccajp2",
                                                        "anicca.bochi"))
 
