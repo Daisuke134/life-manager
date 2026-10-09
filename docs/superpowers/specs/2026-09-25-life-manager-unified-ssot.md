@@ -11040,4 +11040,22 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
  **TODO順更新と理由:** 旧順序=private profile/MCP setup → exact-head CI/fresh review → PR merge → capacity recovery → Workday-to-Dreamwork cutover → official application。新順序=(1) owner-safe capacity bootstrapを回復し、cleanup child start-eventとnatural receiptが記録できるwrite spaceを取り戻す → (2) Dreamwork MCPをinstallし、日本で就労可能なRemote設定のprovider readbackを確認する（private profileは完了） → (3) SSOT更新後のexact-head CIを通し、Startup contextの一時HTTP 504をretry、fresh reviewerを起動してPRをmerge → (4) Workday unknownをofficial readbackで照合しJob HunterをDreamworkへmain由来releaseで切替える → (5) entitlementが応募を許す時だけfit-qualified求人を提出しofficial applied receipt/readback・replay-zero・Telegram reportを確認する。Free枠を購入で上げない → Fundraiser → Connector/Luma。理由は、同じENOSPCがcleanup start scratch、npm cache、reviewer thread storeで再現し、provider entitlementもFree applicationsLimit=0だから。
  
  **現在cursor:** owner-safe cleanup bootstrap and fresh receipt → Dreamwork MCP/provider preference readback → exact-head CI + fresh read-only review → PR merge → Job Hunter source cutover → official application receipt/replay-zero.
- 
+
+### 2026-10-09 15:12 JST — Fresh Alpaca paper/live readback and two-item cursor
+
+このreadbackで投資runtimeの利益状況と直近2件を更新する。L9-12、AT-13以降、30往復gateとlive gateの順序は変更しない。
+
+- **Paper account:** Alpaca paper GET（`2026-10-09T06:06:25–28Z`）はequity `$99,996.91`、cash `$99,986.76`、QQQ `0.013493253`株、market value `$10.149895`、unrealized `+$0.159895`。注文3件、sell 0、open orders 0、PLTR 0。これは含み益であり、売却済みround tripや実現net P&Lではない。
+- **Paper unknown fence:** `alpaca-investment-paper:18dcc31cf10b9ed0-10327`（queued `2026-10-09T04:10:07Z`）について公式GETはqueued_at以降の注文0/open orders 0を返したが、readback helperは検索時刻からsynthetic `provider_receipt_id`を生成し、resolverへcached proofを渡す。独立read-only reviewはwrite-closeをFIX-FIRSTと判定したためfenceを保持し、注文を再送しない。最後に確認したdecisionはQQQ `HOLD / hold_period_not_elapsed`、`held_sessions=8/21`、expected cost `$0.02`。
+- **Live account and PLTR:** Alpaca live GET（`2026-10-09T06:06:25–28Z`）はequity `$66.46`、cash `$0`、`USDCUSD` `66.489696384`、market value `$66.456452`、unrealized `-$0.064101`、open orders 0。06:12Zのfill/fee照合では10件すべてBTC/USDCのfilled order、5組の買い売り、PLTR order 0。公式fill/feeベースの口座全体の実現損失は`-0.266064617221 USDC`。これは口座全体の数値であり、LM所有取引への帰属・全model/system costは未証明。2組はlocal receiptと部分一致するがowner/occurrence/releaseの結合項目がなく、残り3組のlocal receipt joinもない。live ownerはdisabledでunknown fenceを保持する。
+- **利益結論:** 検証済みLife Manager投資利益は未確認。paperの`+$0.159895`は未実現。live口座全体はbroker basisで`-0.266064617221 USDC`だが、LMのcost-complete net P&Lとは報告しない。Palantir購入も行われていない。
+
+**このinvestment runtime subcursorの残り2件（順序固定、未完）:**
+
+1. [ ] **AT-13 qualified natural exit:** unknown fenceのreadback provenance/fresh recheck契約を修正し、当該occurrenceだけの公式no-order proofで閉じる。owner-scoped storageとagent eligibilityを回復してから自然occurrenceを待ち、`ranked_symbol_changed`または21 held sessions後の`hold_sessions_elapsed`だけをqualified exitとする。手動wake/sell/replayは禁止。
+2. [ ] **First closed round trip and truthful paper P&L:** 公式paper sell fillを既存QQQ buyとclient/effect identity・数量で照合し、receipt・fees・slippage・model/system costを結合して`paper_performance.py`でnet P&Lを算出し、同一occurrenceのreplay-zeroを確認する。closed round tripと全費用証拠が揃うまでP&L=`unknown`。
+
+**後続の別gate:** 30件の費用込みpaper round trips、strategy/cross-venue validation、AT-24/AT-29とfresh反対意見reviewを終えるまでlive funding/orderを行わない。直近2件だけで投資loop全体を完了扱いにしない。
+
+**現在cursor:** fresh no-order proof契約とstorage/eligibility recovery → 自然なAT-13 qualified exit → 初回round tripの費用込みpaper P&L。実口座の注文・資金移動は行わない。
+
