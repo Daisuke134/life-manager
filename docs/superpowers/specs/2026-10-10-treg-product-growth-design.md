@@ -19,13 +19,13 @@ TregをLife Managerの製品成長エージェントから安全に使えるよ�
 
 ## 推奨構成
 
-既存`lm-loop` schedulerに専用owner `marketing-treg-lead-signals-weekly`を追加し、日曜21:10 JSTに一度だけ動かす。既存の未解決Telegram effectに触れない。全Codex agent taskにrepo所有のTreg/lead-signals skillとlocal stdio MCP budget gateを使えるようにし、週次signal ownerは専用`read-only` task classとしてTreg MCPを必須化する。専用task classは登録済みの`gpt-6.1-sol` medium automation routeを使う。5つのOpenClaw agent workspacesにも両skillを設定するが、gatewayは未ロードのため実行中とは扱わない。runnerはcredential SSOTから限定identityの存在を確認し、local gateがtokenを読み取りupstream認証に使う。Codex本体やshell/provider子環境へtoken値を渡さない。
+既存`lm-loop` schedulerに専用owner `marketing-treg-lead-signals-weekly`を追加し、日曜21:10 JSTに一度だけ動かす。既存の未解決Telegram effectに触れない。全Codex agent taskと5つのOpenClaw agent workspacesにrepo所有のTreg/lead-signals skillを設定し、live Treg MCPはshell-disabledの専用`read-only` task classだけに提供する。shell-enabled taskは共有Treg taskまたは週次monitor outputを利用する。専用task classは登録済みの`gpt-6.1-sol` medium automation routeを使う。OpenClaw gatewayは未ロードのため実行中とは扱わない。runnerは専用taskに限ってcredential SSOTから限定identityの存在を確認し、local gateがtokenを読み取りupstream認証に使う。Codex本体やshell/provider子環境へtoken値を渡さない。
 
-Codexはstdio型のlocal MCP serverだけを起動する。gateはTreg remote MCPをstateless JSON HTTPで呼び、`Authorization: Bearer`で認証する。TregのMCP handlerはこのbearer tokenを内部API向け`X-Treg-Token`へ変換する。gateは4つの許可tool schema/resultを透過する。共有日次route ledgerはprivate `~/.local/state/life-manager/treg-budget/`に置き、全Codex task間でUTC日ごとに共有する。各occurrenceのroute/cost上限も独立して18/$0.054。未解決予約は別のprivate pending ledgerに保持し、日付が変わっても残す。各occurrenceのquote・receipt・unknownはprivate evidence内の専用ledgerに置く。`call`ごとに、日次/occurrence ledgerのroute枠、直前の`balance` readback、全日の未知予約、catalog quoteとmodel input内の`X-Treg-Route-Max-Cost: 0.003`を検証する。`fcntl` lock中に最大費用を先に記録し、その後だけremote callを送り、receiptがない場合は予約を解放せず、同じoccurrenceの次routeを拒否する。通常shellのnetwork accessは有効化しない。参照: [Codex MCP設定](https://developers.openai.com/codex/mcp)、[Treg MCP auth and call forwarding](https://github.com/superdesigndev/treg/blob/main/src/treg/mcp.py)、[Codexのsandboxとnetwork policy](https://learn.chatgpt.com/docs/agent-approvals-security)。
+Codexはstdio型のlocal MCP serverだけを起動する。gateはTreg remote MCPをstateless JSON HTTPで呼び、`Authorization: Bearer`で認証する。TregのMCP handlerはこのbearer tokenを内部API向け`X-Treg-Token`へ変換する。gateは4つの許可tool schema/resultを透過する。共有日次route ledgerはprivate `~/.local/state/life-manager/treg-budget/`に置き、Treg専用task invocations間でUTC日ごとに共有する。gateは起動時に受け取った日付に依存せず、各paid callで`fcntl` lockを取得した後に現在のUTC日を選ぶ。各occurrenceのroute/cost上限も独立して18/$0.054。未解決予約は別のprivate pending ledgerに保持し、日付が変わっても残す。各occurrenceのquote・receipt・unknownはprivate evidence内の専用ledgerに置く。`call`ごとに、日次/occurrence ledgerのroute枠、直前の`balance` readback、全日の未知予約、catalog quoteとmodel input内の`X-Treg-Route-Max-Cost: 0.003`を検証する。`fcntl` lock中に最大費用を先に記録し、その後だけremote callを送り、receiptがない場合は予約を解放せず、同じoccurrenceの次routeを拒否する。通常shellのnetwork accessは有効化しない。参照: [Codex MCP設定](https://developers.openai.com/codex/mcp)、[Treg MCP auth and call forwarding](https://github.com/superdesigndev/treg/blob/main/src/treg/mcp.py)、[Codexのsandboxとnetwork policy](https://learn.chatgpt.com/docs/agent-approvals-security)。
 
-CodexのすべてのLife Manager task classは4つの制限付きTreg MCP toolをlocal gate経由で利用できる。専用`Treg` tool approvalは既存の自動実行policyを使い、route回数、残高、price、reservationをgateが検査する。週次監視は専用の`treg-lead-signals-agent` task classを使い、これはCodex-only、shell/tool-less read-only、account 2、`gpt-6.1-sol` mediumのautomation routeとする。
+4つの制限付きTreg MCP toolは`Treg` task classだけがlocal gate経由で利用する。専用tool approvalは既存の自動実行policyを使い、route回数、残高、price、reservationをgateが検査する。週次監視とlive signal researchは専用の`treg-lead-signals-agent` task classを使い、これはCodex-only、shell/tool-less read-only、account 2、`gpt-6.1-sol` mediumのautomation routeとする。Sol候補はrestricted routeとして登録し、週次ownerは今回のユーザー承認済み用途を説明するescalation reasonを渡す。全Life Manager task classに両skillを設定し、shell-enabled agentがcurrent public dataを必要とする時は専用taskまたは共有monitor outputへ回す。
 
-一般Codex agentへ生のTreg tokenは配布しない。全agentのpaid routeは同じlocal gateを通り、Treg CLIを経由したgate迂回をCodex task environmentでは行えない。
+Tregのcredential pathはTreg task classのMCP configにだけ含める。shell-enabled Codex taskへTreg MCP configurationやcredential pathを渡さず、Treg CLI/direct HTTPを使わないようrepo-owned skillへ明記する。Treg MCP callsはlocal gateを通る。
 
 監視対象は次の9製品。buyer descriptionはMarketing Engine registryを優先し、残る4アプリは公開製品名と既存App Store記録から作る短い作業定義とする。
 
@@ -47,7 +47,7 @@ CodexのすべてのLife Manager task classは4つの制限付きTreg MCP tool�
 
 ## データと状態
 
-- Treg agent tokenはprivate credential SSOTから読み込む。読み込み対象は`service=treg_agent:life-manager-product-growth`のみ。runnerは利用可否を確認し、local MCP gateだけがtoken値を使う。Codex本体・shell/tool child environment・MCP configにはtoken値を渡さない。
+- Treg agent tokenはprivate credential SSOTから読み込む。読み込み対象は`service=treg_agent:life-manager-product-growth`のみ。runnerはTreg専用taskで利用可否を確認し、local MCP gateだけがtoken値を使う。Codex本体・shell/tool child environment・MCP configにはtoken値を渡さない。
 - CodexのMCP tool listは`catalog_search`、`catalog_get`、`call`、`balance`に限定する。Tregのadmin/team管理・top-up機能は追加しない。
 - 出力schemaのproduct ID enumは読み込んだ5つのcanonical profileと4つの補助profileから生成し、将来の製品追加時に古いenumで拒否しない。
 - 永続重複キーは`product_id + person_url + signal + source_url`。CSVはGit外の`~/.local/state/life-manager/marketing-treg-lead-signals/signals.csv`に保存し、directory `0700`、file `0600`を保つ。
@@ -56,7 +56,7 @@ CodexのすべてのLife Manager task classは4つの制限付きTreg MCP tool�
 - 2回目以降は、直近7日内に保存済みの完全一致keyをpromptへ渡して候補から除外し、最後はhostがCSV keyで再dedupeする。
 - Telegram送信前にoccurrence別outboxを永続化し、送信receiptと決定を保存した後にだけ`signals.csv`を進める。
 - 各runのTreg call IDs/costs、baseline/new件数、Telegram provider receiptをprivate evidenceに記録する。receiptが不確かな時はeffectをunknownのまま保ち、再送しない。
-- 日次gate ledgerはprivate `~/.local/state/life-manager/treg-budget/`へ置き、全Codex taskが同じUTC日に18 route / `$0.054`を共有する。occurrence ledgerも最大18/$0.054を個別に強制する。未解決予約は日次ledgerのローテーション後もpending ledgerに残す。occurrence ledgerの未settled予約が残れば、そのoccurrenceの後続callを拒否する。
+- 日次gate ledgerはprivate `~/.local/state/life-manager/treg-budget/`へ置き、Treg専用task invocationsが同じUTC日に18 route / `$0.054`を共有する。gateは各callで現在のUTC日を選び、occurrence ledgerも最大18/$0.054を個別に強制する。未解決予約は日次ledgerのローテーション後もpending ledgerに残す。occurrence ledgerの未settled予約が残れば、そのoccurrenceの後続callを拒否する。
 - `lm-loop-run` result hintsはこのloop IDと正確なentrypointだけを許可し、Telegram delivery receiptまたはbaseline/no-new proofのどちらかを受け入れる。`lm-fence-reconciler` adapterはoccurrence別terminal event、outbox、Telegram user-history readbackのmessage ID/body prefix/sender/timeを照合してunknownを解消する。送信はしない。
 
 ## フロー
@@ -78,7 +78,7 @@ flowchart LR
 
 ## 完了条件
 
-1. 5つの設定済みOpenClaw agent workspacesにはTreg/lead-signals skillが利用可能。全Codex Life Manager task classのTreg callsは共通のlocal gateと日次budgetを使い、生tokenはgate processだけが読む。
+1. 5つの設定済みOpenClaw agent workspacesとLife Manager Codex contextsにはTreg/lead-signals skillが利用可能。Live Treg toolsはshell-disabledの専用task classだけに提供し、同classの全callsが共通local gateと日次budgetを使う。生tokenはgate processだけが読む。
 2. Aniccaを最優先に9製品すべてのbuyer profileが監視対象となる。
 3. 新しいweekly ownerがmain由来immutable releaseで読み込まれ、自然実行でTreg call receipts、baseline、以降のdedupe、Telegram receiptまたはno-sendが記録される。
 4. `marketing-weekly-review`の既存unknown occurrence、別loopのstate、Telegram履歴は再送・書換えしない。

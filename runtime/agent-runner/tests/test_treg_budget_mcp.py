@@ -204,6 +204,42 @@ class TregBudgetGateTests(unittest.TestCase):
 
         self.assertEqual(next_fake.paid_calls, 0)
 
+    def test_long_lived_gate_uses_the_current_utc_day_shared_ledger(self):
+        gate_module = self.gate_module
+        yesterday = gate_module.dt.datetime(2026, 10, 9, 23, 59, tzinfo=gate_module.dt.timezone.utc)
+        today = gate_module.dt.datetime(2026, 10, 10, 0, 1, tzinfo=gate_module.dt.timezone.utc)
+        old_path = self.root / "treg-budget-daily-2026-10-09.json"
+        today_path = self.root / "treg-budget-daily-2026-10-10.json"
+        old_gate = gate_module.TregBudgetGate(
+            daily_ledger=old_path,
+            occurrence_ledger=self.root / "old-occurrence.json",
+            occurrence_id="treg-monitor:old-process",
+        )
+        today_gate = gate_module.TregBudgetGate(
+            daily_ledger=today_path,
+            occurrence_ledger=self.root / "today-occurrence.json",
+            occurrence_id="treg-monitor:today-process",
+        )
+        old_gate.record_quote("x.search", 3_000)
+        today_fake = FakeTreg()
+        today_fake.daily_ledger = today_path
+        old_fake = FakeTreg()
+        old_fake.daily_ledger = today_path
+
+        with patch.object(gate_module, "_now", return_value=yesterday):
+            old_gate.record_quote("x.search", 3_000)
+        with patch.object(gate_module, "_now", return_value=today):
+            today_gate.record_quote("x.search", 3_000)
+            for _ in range(18):
+                today_gate.call_paid(self.arguments(), today_fake)
+            old_gate.record_quote("x.search", 3_000)
+            with self.assertRaisesRegex(gate_module.GateRejected, "route_cap"):
+                old_gate.call_paid(self.arguments(), old_fake)
+
+        ledger = json.loads(today_path.read_text(encoding="utf-8"))
+        self.assertEqual(ledger["route_count"], 18)
+        self.assertEqual(old_fake.paid_calls, 0)
+
     def test_unsafe_quote_and_missing_header_block_before_paid_forward(self):
         self.gate.record_quote("x.search", 3_001)
         with self.assertRaisesRegex(self.gate_module.GateRejected, "quote_invalid"):
@@ -219,7 +255,7 @@ class TregBudgetGateTests(unittest.TestCase):
 
 
 class TregMCPCommandTests(unittest.TestCase):
-    def test_general_codex_task_uses_local_gate_without_token_environment_override(self):
+    def test_general_codex_task_does_not_receive_treg_gate_or_credential_path(self):
         with tempfile.TemporaryDirectory() as temporary:
             evidence = Path(temporary)
             evidence.chmod(0o700)
@@ -232,17 +268,17 @@ class TregMCPCommandTests(unittest.TestCase):
             )
             candidate = {"model": "gpt-6.1-sol", "effort": "medium"}
             budget_root = Path.home() / ".local" / "state" / "life-manager" / "treg-budget"
-            with patch.object(agent_runner, "_load_treg_agent_token", return_value="limited-test-token"):
+            with patch.object(agent_runner, "_load_treg_agent_token", return_value="limited-test-token") as load_token:
                 with patch.dict(os.environ, {"LIFE_MANAGER_OCCURRENCE_ID": "agent:command-test"}):
                     command = agent_runner.command_for(
                         "codex", "/fake/codex", {}, candidate, args, "bounded prompt", {}, result_path
                     )
+            load_token.assert_not_called()
 
         overrides = [command[index + 1] for index, value in enumerate(command[:-1]) if value == "-c"]
-        self.assertTrue(any(value.startswith("mcp_servers.treg.command=") for value in overrides))
-        self.assertTrue(any("mcp_servers.treg.args=" in value and "--daily-ledger" in value for value in overrides))
-        self.assertTrue(any("--credentials-path" in value for value in overrides))
-        self.assertTrue(any(str(budget_root) in value for value in overrides))
+        self.assertFalse(any(value.startswith("mcp_servers.treg.") for value in overrides))
+        self.assertFalse(any("--credentials-path" in value for value in overrides))
+        self.assertFalse(any(str(budget_root) in value for value in overrides))
         self.assertFalse(any("TREG_TOKEN" in value for value in overrides))
         self.assertFalse(any("mcp_servers.treg.url=" in value for value in overrides))
         self.assertFalse(any("env_http_headers" in value for value in overrides))
@@ -270,7 +306,7 @@ class TregMCPCommandTests(unittest.TestCase):
         self.assertFalse(any("TREG_TOKEN" in value for value in overrides))
 
     def test_provider_environment_keeps_token_out_of_general_tasks(self):
-        with patch.object(agent_runner, "_load_treg_agent_token", return_value="limited-test-token"):
+        with patch.object(agent_runner, "_load_treg_agent_token", return_value="limited-test-token") as load_token:
             with patch.object(agent_runner, "_load_clipproxy_api_key"):
                 env = agent_runner.provider_process_env(
                     "codex",
@@ -281,6 +317,7 @@ class TregMCPCommandTests(unittest.TestCase):
 
         self.assertNotIn("TREG_TOKEN", env)
         self.assertNotIn("LIFE_MANAGER_TREG_ENABLED", env)
+        load_token.assert_not_called()
 
     def test_stdio_handshake_lists_only_allowed_tools_and_forwards_free_balance(self):
         gate_module = load_gate_module(self)

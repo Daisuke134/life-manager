@@ -27,6 +27,9 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 OWNER_ID = "marketing-treg-lead-signals-weekly"
 TASK_CLASS = "treg-lead-signals-agent"
+TREG_ESCALATION_REASON = (
+    "User-authorized public product-signal research through the shared Treg budget gate."
+)
 ENTRYPOINT = "skills/earn/marketing-engine/intel/treg-lead-signals-weekly"
 MAX_ROUTE_MICRO = 3_000
 MAX_TOTAL_MICRO = 54_000
@@ -328,6 +331,7 @@ def _default_agent_runner(
     command = [
         str(ROOT / "skills/earn/marketing-engine/run_agent.sh"),
         "--task-class", TASK_CLASS,
+        "--escalation-reason", TREG_ESCALATION_REASON,
         "--task-label", label,
         "--loop", OWNER_ID,
         "--schema", str(schema_path),

@@ -272,8 +272,16 @@ class TregBudgetGate:
         self.pending_ledger = self.daily_ledger.parent / "treg-budget-pending.json"
         self.occurrence_id = occurrence_id
 
-    def _daily(self) -> dict[str, Any]:
-        value = _read_json(self.daily_ledger)
+    def _current_daily_ledger(self) -> Path:
+        prefix = "treg-budget-daily-"
+        if re.fullmatch(r"treg-budget-daily-\d{4}-\d{2}-\d{2}\.json", self.daily_ledger.name):
+            return self.daily_ledger.with_name(
+                f"{prefix}{_now().date().isoformat()}.json"
+            )
+        return self.daily_ledger
+
+    def _daily(self, daily_path: Path) -> dict[str, Any]:
+        value = _read_json(daily_path)
         if value is None:
             return _default_daily()
         if (
@@ -408,7 +416,10 @@ class TregBudgetGate:
             if isinstance(key, str) and key.lower() == "x-treg-route-max-cost"
         ] if isinstance(headers, dict) else []
         with _locked(self.daily_ledger):
-            daily = self._daily()
+            # A gate process can outlive the UTC day in its startup path.
+            # Select the active ledger only after taking the shared lock.
+            daily_path = self._current_daily_ledger()
+            daily = self._daily(daily_path)
             occurrence = self._occurrence()
             pending = self._pending()
             if occurrence["halted"] or any(
@@ -471,18 +482,19 @@ class TregBudgetGate:
                 "status": "unknown",
                 "created_at": reservation["created_at"],
             })
-            _write_json(self.daily_ledger, daily)
+            _write_json(daily_path, daily)
             _write_json(self.occurrence_ledger, occurrence)
             _write_json(self.pending_ledger, pending)
 
             try:
                 result = forward_tool("call", arguments)
             except Exception:
-                self._settle(daily, occurrence, pending, reservation, None, halt_reason="treg_call_effect_unknown")
+                self._settle(daily_path, daily, occurrence, pending, reservation, None, halt_reason="treg_call_effect_unknown")
                 raise GateRejected("treg_call_effect_unknown") from None
             receipt = _call_receipt(result)
             tool_error = _tool_result_error(result)
             self._settle(
+                daily_path,
                 daily,
                 occurrence,
                 pending,
@@ -498,6 +510,7 @@ class TregBudgetGate:
 
     def _settle(
         self,
+        daily_path: Path,
         daily: dict[str, Any],
         occurrence: dict[str, Any],
         pending: dict[str, Any],
@@ -540,7 +553,7 @@ class TregBudgetGate:
                 if item.get("reservation_id") != reservation["reservation_id"]
             ]
             pending["unresolved_micro"] -= MAX_ROUTE_MICRO
-        _write_json(self.daily_ledger, daily)
+        _write_json(daily_path, daily)
         _write_json(self.occurrence_ledger, occurrence)
         _write_json(self.pending_ledger, pending)
 

@@ -6,7 +6,7 @@
 
 **Goal:** Make Treg available to Life Manager product-growth agents and report only new public demand signals for all nine current products on a weekly schedule, with Anicca iOS first.
 
-**Architecture:** Codex receives a per-invocation local stdio Treg MCP budget gate and repository-owned `treg`/`lead-signals` skills. The gate proxies only the four allowed tools to Treg's stateless JSON/HTTP MCP and checks/reserves each paid route before forwarding. A new `lm-loop` owner uses the shared `marketing-agent` route to query X and Reddit, qualifies signals, records a private CSV baseline plus a hash marker, and sends a Telegram report only for newly seen keys. The existing `marketing-weekly-review` owner remains untouched because its latest Telegram occurrence is unresolved.
+**Architecture:** All configured Life Manager agent contexts receive repository-owned `treg`/`lead-signals` skills. Only the shell-disabled `treg-lead-signals-agent` task receives the per-invocation local stdio Treg MCP budget gate; shell-enabled tasks route live public-signal work through this shared task or its weekly monitor output. The gate proxies only the four allowed tools to Treg's stateless JSON/HTTP MCP and checks/reserves each paid route before forwarding. A new `lm-loop` owner qualifies signals, records a private CSV baseline plus a hash marker, and sends a Telegram report only for newly seen keys. The existing `marketing-weekly-review` owner remains untouched because its latest Telegram occurrence is unresolved.
 
 **Tech Stack:** Python stdlib, Codex remote MCP, Treg MCP/CLI, existing Life Manager agent-runner, `lm-loop`, shared Telegram transport, JSON/CSV state.
 
@@ -15,8 +15,9 @@
 ## Global Constraints
 
 - Read only `service=treg_agent:life-manager-product-growth` from `~/.local/share/anicca/credentials.json`; never persist the token in Git, argv, config files, logs, or chat.
-- Every Codex agent task uses the local stdio MCP gate when the dedicated Treg identity is present. The gate reads that token from credential SSOT itself; neither Codex nor its shell receives the token. Only `catalog_search`, `catalog_get`, `call`, and `balance` are exposed.
-- Treg tools use the existing unattended agent policy. Their shared private gate enforces 18 billed routes / `$0.054` per UTC day and blocks calls below the `$0.05` team balance floor.
+- Only the shell-disabled `treg-lead-signals-agent` task receives the local stdio MCP gate and credential path. The gate reads the token from credential SSOT; the task shell and model environment receive no token. Only `catalog_search`, `catalog_get`, `call`, and `balance` are exposed.
+- All configured agents receive the repository-owned skills. Other shell-enabled tasks do not receive Treg MCP configuration; they use the shared task/monitor for live public signals.
+- The shared private gate enforces 18 billed routes / `$0.054` per UTC day across Treg task invocations and blocks calls below the `$0.05` team balance floor.
 - Do not enable general shell network access for Codex.
 - Monitor nine products, Anicca first; query public X and Reddit posts from the last seven days only.
 - Limit each weekly monitor to 18 billed routes, at `$0.003` maximum per route and `$0.054` total; the local gate checks the latest balance before each call and leaves `$0.05`. Do not enable auto-top-up.
@@ -31,7 +32,7 @@
 
 | File | Responsibility |
 |---|---|
-| `runtime/agent-runner/agent_runner.py` | Detect the limited Treg identity without putting its value in child environments, expose isolated skills, and configure the local MCP gate for Codex tasks. |
+| `runtime/agent-runner/agent_runner.py` | Require the limited Treg identity for the shell-disabled Treg task, expose repository-owned skills to configured Codex contexts, and configure the local MCP gate only for that task. |
 | `runtime/agent-runner/treg_credentials.py` | Read only the scoped Treg credential from private SSOT for the runner's eligibility check and local gate. |
 | `runtime/agent-runner/treg_budget_mcp.py` | Run the local stdio MCP proxy, preserve the four upstream tool schemas/results, and hard-gate/reserve each billed call before forwarding. |
 | `runtime/agent-runner/config.json` | Add the dedicated Codex-only `treg-lead-signals-agent` class on the existing `gpt-6.1-sol` medium automation route. |
@@ -71,9 +72,9 @@
 **Interfaces:**
 
 - Add `_load_treg_agent_token(credentials_path: Path | None = None) -> str | None`; accept exactly one `treg_agent:life-manager-product-growth` row and return its token only in memory.
-- Extend `provider_process_env(...)` to remove any inherited `TREG_TOKEN`, check the dedicated credential for Codex eligibility, and link the two repo-owned skill directories into the invocation's isolated `$HOME/.agents/skills` without exporting the token.
-- For every eligible Codex task, use per-invocation `-c` overrides for the local stdio MCP command/args and four allowed tools. The gate reads the private credential SSOT and sends `Authorization: Bearer` upstream. Keep `--ignore-user-config`; no token value or token environment variable enters Codex config or child environments.
-- Add `treg-lead-signals-agent` to `TOOLLESS_TASK_CLASSES` and `run_agent.sh`; configure it as Codex-only with model `gpt-6.1-sol`, effort `medium`, and profile `acct2`, with no provider fallback. It uses the same local gated MCP as other Codex tasks while its shell remains disabled/read-only.
+- Extend `provider_process_env(...)` to remove any inherited `TREG_TOKEN`, require the dedicated credential for the shell-disabled Treg task, and link the two repo-owned skill directories into the invocation's isolated `$HOME/.agents/skills` without exporting the token.
+- For the shell-disabled Treg task only, use per-invocation `-c` overrides for the local stdio MCP command/args and four allowed tools. The gate reads the private credential SSOT and sends `Authorization: Bearer` upstream. Keep `--ignore-user-config`; no token value or token environment variable enters Codex config or child environments.
+- Add `treg-lead-signals-agent` to `TOOLLESS_TASK_CLASSES` and `run_agent.sh`; configure it as Codex-only with model `gpt-6.1-sol`, effort `medium`, and profile `acct2`, with no provider fallback. Mark the Sol route restricted and have the user-authorized weekly owner supply the explicit escalation reason. It uses the local gated MCP while its shell remains disabled/read-only.
 - Preserve all model/provider selection and sandbox settings; no general network access is added.
 
 - [x] Create the two skills with triggers, public-signal-only scope, per-call/weekly cost limits, no outreach, and no top-ups.
@@ -133,11 +134,11 @@
 - [x] Build the prompt from the five canonical products and four supplements; search the current catalog once per platform, inspect route prices, and make at most two routes per product.
 - [x] If the loaded product set would require more than 18 routes for one X and one Reddit scan per product, fail before paid calls instead of silently omitting products.
 - [x] Include `X-Treg-Route-Max-Cost: 0.003` in the `headers` argument of every billed `call`, and reject any captured call that omits it.
-- [ ] Enforce balance and route limits in the local MCP process before each paid route. Under a private `fcntl` lock, require a current catalog quote at or below `$0.003`, the exact max-cost header, fewer than 18 prior reservations, cumulative reserved cost below `$0.054`, and fresh balance less current route cost plus unresolved reservations at least `$0.05`; persist the reservation before forwarding and never release an uncertain reservation.
+- [x] Enforce balance and route limits in the local MCP process before each paid route. Under a private `fcntl` lock, select the current UTC-day ledger, require a current catalog quote at or below `$0.003`, the exact max-cost header, fewer than 18 prior reservations, cumulative reserved cost below `$0.054`, and fresh balance less current route cost plus unresolved reservations at least `$0.05`; persist the reservation before forwarding and never release an uncertain reservation.
 - [x] Require X/Reddit public results from the last seven days, fit/timing qualification, exact source URLs, and the per-call cost header.
 - [x] Generate the agent schema from the current product IDs. Validate the JSON and each receipt against captured Treg MCP results; reject if any route exceeds `$0.003`, total exceeds `$0.054`, or there are more than two billed routes per product.
 - [x] Keep at most one strongest new signal per product in the weekly report so one digest covers every product without flooding Telegram.
-- [ ] On the first run, write a private baseline and a SHA-256 marker and send no old leads. On later runs, require marker/CSV hash match, pass recent exact keys to the agent, then compare exact CSV keys and report only new rows; an unmarked header-only CSV must fail before paid calls.
+- [x] On the first run, write a private baseline and a SHA-256 marker and send no old leads. On later runs, require marker/CSV hash match, pass recent exact keys to the agent, then compare exact CSV keys and report only new rows; an unmarked header-only CSV must fail before paid calls.
 - [x] Write state atomically with `0700` directory and `0600` files. Persist `signals.csv` only after the outbox/Telegram decision is durably recorded.
 - [x] Use `skills/_shared/telegram.py`; persist the returned message IDs and receipt before reporting success. If no new rows, do not send and write a `verified_no_effect` hint.
 - [x] Add an owner/entrypoint-scoped receipt-hint allowlist; for a delivered message write a `verified_effect` hint with its Telegram message ID.
@@ -151,10 +152,12 @@
 
 - Modify: `runtime/agent-runner/agent_runner.py`
 - Modify: `docs/manifests/oss-merge-1-sources.json`
+- Modify: `runtime/agent-runner/config.json`
 - Create: `runtime/agent-runner/treg_credentials.py`
 - Create: `runtime/agent-runner/treg_budget_mcp.py`
 - Modify: `skills/earn/marketing-engine/intel/treg_lead_signals_weekly.py`
 - Create: `runtime/agent-runner/tests/test_treg_budget_mcp.py`
+- Modify: `runtime/agent-runner/tests/test_terra_default.py`
 - Create: `skills/earn/marketing-engine/intel/test_treg_lead_signals_weekly.py`
 - Modify: this plan and `docs/superpowers/specs/2026-10-10-treg-product-growth-design.md`
 
@@ -164,14 +167,16 @@
 - The shared daily ledger lives at private `~/.local/state/life-manager/treg-budget/`; each task's occurrence ledger lives beside its private evidence and matches every captured Treg receipt.
 - Unresolved maximum-cost reservations survive UTC daily-ledger rotation in a private pending ledger and are deducted from later balance preflights until an exact receipt settles them.
 - The gate durably records the maximum `$0.003` reservation before forwarding; a missing/invalid receipt never frees the route or its uncertain cost, and prevents another paid call in that occurrence.
-- General Codex tasks can call Treg only through this same gate; no Codex/provider shell process receives the dedicated token. The shared daily ledger therefore covers all Codex task classes.
+- Only the shell-disabled Treg task receives MCP configuration and its credential path; shell-enabled task classes receive the repository skills but no Treg server configuration.
+- The gate selects the UTC-day ledger under the shared lock for each paid call, including calls from a gate process started on the previous UTC day.
+- The `gpt-6.1-sol` route is explicitly restricted; the weekly owner supplies the user-authorized escalation reason, and routing tests record its `acct2` profile and Codex-only candidate list.
 - Parent validation matches every captured paid MCP call to the local gate's occurrence ledger and exact Treg receipt.
 - Existing `signals.csv` without a valid hash marker fails closed. An established empty baseline remains distinguishable from a pre-created header-only CSV.
 - Tests use local fixtures only; they make no paid Treg call and send no Telegram message.
 
 - [x] Write the baseline, route-budget, runner-config/credential-isolation, and parent-receipt regressions first; confirm each fails for its missing behavior.
 - [x] Implement the local MCP budget gate and hash-bound baseline marker with no new dependency.
-- [x] Run focused tests, source boundary, loop contract, syntax/JSON checks, and diff check after token-isolation changes.
+- [x] Run focused tests, declared agent-route contract, source boundary, loop contract, syntax/JSON checks, and diff check after token-isolation changes.
 - [ ] Update the SSOT cursor with final evidence and push the dedicated branch.
 
 ### Task 5: Source acceptance and production handoff
@@ -180,7 +185,7 @@
 
 - Modify: `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md`
 
-- [ ] Run `bash scripts/verify-source-boundary.sh`, `./bin/lm-loop-contract`, and `git diff --check`.
+- [x] Run `bash scripts/verify-source-boundary.sh`, `./bin/lm-loop-contract`, and `git diff --check`.
 - [ ] Confirm no secrets, signal rows, or provider outputs are staged.
 - [ ] Fetch current `origin/main`, preserve unrelated work, push the dedicated branch, and open a PR.
 - [ ] Run exact-head CI and read-only review, merge through the standard repository flow, then build a main-derived immutable release.

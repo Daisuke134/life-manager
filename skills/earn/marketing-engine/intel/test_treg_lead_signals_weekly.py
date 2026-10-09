@@ -1,8 +1,10 @@
 import csv
+import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 INTEL_DIR = Path(__file__).resolve().parent
@@ -37,6 +39,23 @@ class SignalBaselineTests(unittest.TestCase):
 
 
 class TregGateReceiptTests(unittest.TestCase):
+    def test_weekly_owner_passes_the_authorized_restricted_route_reason(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            evidence_dir = Path(temporary)
+            result = subprocess.CompletedProcess([], 0, "{}", "")
+            with patch.object(monitor.subprocess, "run", return_value=result) as run_agent:
+                monitor._default_agent_runner(
+                    "bounded public-signal prompt",
+                    evidence_dir / "schema.json",
+                    evidence_dir,
+                    "treg-monitor:explicit-escalation-test",
+                )
+
+        command = run_agent.call_args.args[0]
+        self.assertIn("--escalation-reason", command)
+        index = command.index("--escalation-reason")
+        self.assertEqual(command[index + 1], monitor.TREG_ESCALATION_REASON)
+
     def test_gate_ledger_must_match_captured_mcp_receipts(self):
         validator = getattr(monitor, "_validate_gate_ledger", None)
         self.assertTrue(callable(validator), "parent has no local-gate receipt validator")

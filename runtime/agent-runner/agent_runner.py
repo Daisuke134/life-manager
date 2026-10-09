@@ -701,15 +701,14 @@ def provider_process_env(provider: str, provider_config: dict[str, Any],
     # Never pass the dedicated Treg credential to a model or shell environment.
     # The local MCP gate reads the scoped row directly from credential SSOT.
     child_env.pop("TREG_TOKEN", None)
-    treg_agent_token = None
     if provider == "codex":
-        try:
-            treg_agent_token = _load_treg_agent_token()
-        except ValueError:
-            if task_class == TREG_SIGNAL_TASK_CLASS:
+        if task_class == TREG_SIGNAL_TASK_CLASS:
+            try:
+                has_treg_agent_token = bool(_load_treg_agent_token())
+            except ValueError:
                 raise
-        if task_class == TREG_SIGNAL_TASK_CLASS and not treg_agent_token:
-            raise ValueError("treg lead signal agent credential unavailable")
+            if not has_treg_agent_token:
+                raise ValueError("treg lead signal agent credential unavailable")
     elif task_class == TREG_SIGNAL_TASK_CLASS:
         raise ValueError("treg lead signal agent requires Codex")
     if provider != "codex":
@@ -759,8 +758,7 @@ def provider_process_env(provider: str, provider_config: dict[str, Any],
         automation_user_home.mkdir(parents=True, exist_ok=True, mode=0o700)
         automation_user_home.chmod(0o700)
         child_env["HOME"] = str(automation_user_home)
-        if treg_agent_token:
-            _link_treg_agent_skills(automation_user_home)
+        _link_treg_agent_skills(automation_user_home)
 
         ssl_cert_file_value = provider_config.get("ssl_cert_file")
         if ssl_cert_file_value:
@@ -1351,11 +1349,6 @@ def command_for(provider: str, executable: str, provider_config: dict[str, Any],
                 "reminder_at_remaining_tokens=[],"
                 "sampling_token_weight=1.0,prefill_token_weight=1.0}")])
         treg_enabled = args.task_class == TREG_SIGNAL_TASK_CLASS
-        if not treg_enabled:
-            try:
-                treg_enabled = _load_treg_agent_token() is not None
-            except ValueError:
-                treg_enabled = False
         if treg_enabled:
             evidence_dir = Path(args.evidence_dir).expanduser()
             occurrence_id = os.environ.get("LIFE_MANAGER_OCCURRENCE_ID", "")

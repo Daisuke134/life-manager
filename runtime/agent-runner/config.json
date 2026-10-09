@@ -337,6 +337,7 @@
     },
     "treg-lead-signals-agent": {
       "route": "treg-lead-signals-sol-medium",
+      "requires_explicit_escalation": true,
       "token_reservation": 49152,
       "timeout_seconds": 1800,
       "candidates": [
