@@ -10409,12 +10409,11 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 ### 2026-10-09 — 15日ごとの安全なディスク保守owner
 
-- `com.anicca.disk-cleanup-15d` を `StartInterval=1296000` で追加し、安定配置する保守wrapperから既存 `disk-watchdog.sh` と同じ `HostDiskGovernor`、singleton lock、allowlistを使う。削除実装・対象は増やさない。
-- 保守wrapperは `cleanup_lock_busy` の構造化receiptと終了コード75の組だけを最大3回・5秒間隔で再試行する。他の失敗はそのまま返す。保守専用stdout/stderrログを分ける。
-- 60秒watchdog、5分owner、時間単位のinventory passは維持する。この15日ownerはそれらを置き換えず、active/unknown worktree、iOS Simulator、open/protected path、参照中release、private stateを既存allowlistのまま保護する。
-- **受け入れ:** REDテストで15日interval、安定wrapper、lock競合だけの有限再試行、既存owner分離を確認する。導入失敗なら既存plist/wrapperを戻して元のloaded状態を再確認し、復元にも失敗した場合はexact backupを残す。`plutil`とfocused test後、mainへ統合し、main由来immutable releaseから `launchctl-safe` で導入する。loaded labelのinterval/program/log readbackと、natural run receiptの `errors=0` / `protected_deletions=0` / 容量結果を確認する。
+- `life-manager-disk-cleanup-15d` を `config/loop-registry.json` に追加し、`skills/self/disk-cleanup/maintenance_entrypoint.py` を15日ごとに `lm-loop` が所有する。entrypointはhost governorだけを呼び、既存60秒watchdog・5分ownerとsingleton lockを共有する。別のrelease/scratch GCや削除対象は増やさず、手書きplist/installerも作らない。
+- active/unknown worktree、iOS Simulator、open/protected path、参照中release、private stateは既存allowlistのまま保護する。cleanup governorが`cleanup_lock_busy`なら既存60秒/5分ownerが継続し、15日ownerもtyped terminalとして記録する。
+- **受け入れ:** REDテストでregistryのowner、entrypoint、15日cadence、control/effect contractを確認し、`bin/lm-loop-contract`とfocused testsを通す。mainへ統合後、main由来immutable releaseから`LIFE_MANAGER_APPLY_TARGET=life-manager-disk-cleanup-15d lm-loop apply`を実行し、loaded label/argv/release SHA/cadenceのreadbackとnatural terminal receiptを確認する。
 
-**現在cursor:** REDテスト → owner実装・focused検証 → commit/push/PR/merge → main由来release → safe install/readback → natural保守receiptとloop/admission再確認。
+**現在cursor:** RED registry test → registry-managed owner・contract gate → focused tests/review → commit/push/PR/merge → main由来release → targeted `lm-loop apply`/readback → natural receiptとcapacity/admission再確認。
 
 ### 2026-10-09 09:53 JST — Mobile投稿はslotごとに検証し、3回目まで他作業を止めない
 
