@@ -1,5 +1,4 @@
 import SwiftUI
-import StoreKit
 import RevenueCat
 
 // MARK: - S2 Age
@@ -572,80 +571,6 @@ struct ComparisonTableStepView: View {
             .padding(.bottom, 48)
         }
         .background(AppBackground())
-    }
-}
-
-// MARK: - S19 Rating Pre-Prompt
-
-struct RatingPrePromptStepView: View {
-    let next: () -> Void
-    @State private var awaitingReview = false
-
-    var body: some View {
-        VStack(spacing: 24) {
-            Spacer()
-            Text(String(localized: "onboarding_rating_title"))
-                .font(.system(size: 28, weight: .bold))
-                .multilineTextAlignment(.center)
-                .foregroundStyle(AppTheme.Colors.label)
-                .padding(.horizontal, 24)
-
-            HStack(spacing: 4) {
-                ForEach(0..<5) { _ in
-                    Image(systemName: "star.fill")
-                        .font(.system(size: 36))
-                        .foregroundStyle(.yellow)
-                }
-            }
-
-            Spacer()
-
-            Button {
-                AnalyticsManager.shared.track(.ratingPromptYesTapped)
-                requestStoreReview()
-            } label: {
-                Text(String(localized: "rating_cta"))
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity).frame(height: 56)
-                    .background(AppTheme.Colors.accent)
-                    .clipShape(RoundedRectangle(cornerRadius: 28))
-            }
-            .padding(.horizontal, 24)
-            .padding(.bottom, 48)
-        }
-        .background(AppBackground())
-        .onAppear { AnalyticsManager.shared.track(.ratingPromptShown) }
-        .onReceive(NotificationCenter.default.publisher(
-            for: UIApplication.didBecomeActiveNotification
-        )) { _ in
-            if awaitingReview {
-                awaitingReview = false
-                next()
-            }
-        }
-    }
-
-    private func requestStoreReview() {
-        let launchArguments = ProcessInfo.processInfo.arguments
-        if launchArguments.contains("UITESTING") || launchArguments.contains("-UITESTING") {
-            next()
-            return
-        }
-
-        AnalyticsManager.shared.track(.ratingStoreReviewRequested)
-        awaitingReview = true
-        if let scene = UIApplication.shared.connectedScenes
-            .first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene {
-            SKStoreReviewController.requestReview(in: scene)
-        }
-        // Fallback: system may suppress dialog (3x/year limit) or simulator
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            if self.awaitingReview {
-                self.awaitingReview = false
-                self.next()
-            }
-        }
     }
 }
 

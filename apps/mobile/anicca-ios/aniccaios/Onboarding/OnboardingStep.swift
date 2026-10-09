@@ -1,6 +1,6 @@
 import Foundation
 
-/// v7 Onboarding flow — 11 steps + 2 paywall.
+/// v8 Onboarding flow — 10 steps + soft paywall (rating prompt removed; review is post-value).
 enum OnboardingStep: Int, CaseIterable, Codable {
     case welcome = 0
     case goal = 1
@@ -10,8 +10,7 @@ enum OnboardingStep: Int, CaseIterable, Codable {
     case processing = 5
     case planReveal = 6
     case comparison = 7
-    case ratingPrompt = 8
-    case notifications = 9
+    case notifications = 8
 }
 
 enum PaywallStep: Int, CaseIterable, Codable {
@@ -20,8 +19,21 @@ enum PaywallStep: Int, CaseIterable, Codable {
 }
 
 extension OnboardingStep {
-    /// v6 (19-step) → v7 (11-step) migration.
-    /// Removed: age(1), tinderPain(5), whatTried(6), stressLevel(7), socialProof(8), meditExp(10), valueTimeline(13), valueDelivery(16)
+    /// v7 (11-step, rating at 8) → v8 (10-step, no rating).
+    static func migratedFromV7RawValue(_ rawValue: Int) -> OnboardingStep? {
+        switch rawValue {
+        case 0...7:
+            return OnboardingStep(rawValue: rawValue)
+        case 8, 9:
+            // ratingPrompt(8) and notifications(9) both land on notifications(8)
+            return .notifications
+        default:
+            return nil
+        }
+    }
+
+    /// v6 (19-step) → v8 (10-step) migration.
+    /// Removed: age(1), tinderPain(5), whatTried(6), stressLevel(7), socialProof(8), meditExp(10), valueTimeline(13), valueDelivery(16), ratingPrompt
     static func migratedFromV6RawValue(_ rawValue: Int) -> OnboardingStep? {
         switch rawValue {
         case 0: return .welcome
@@ -39,10 +51,9 @@ extension OnboardingStep {
         case 12: return .planReveal
         case 13: return .comparison       // valueTimeline → skip to comparison
         case 14: return .comparison
-        case 15: return .ratingPrompt     // appDemo removed → skip to ratingPrompt
-        case 16: return .ratingPrompt     // valueDelivery → skip to ratingPrompt
-        case 17: return .ratingPrompt
-        case 18: return .notifications
+        case 15, 16, 17, 18:
+            // appDemo / valueDelivery / ratingPrompt / notifications → notifications
+            return .notifications
         default: return nil
         }
     }
@@ -59,7 +70,6 @@ extension OnboardingStep {
         case .processing: return "processing"
         case .planReveal: return "plan_reveal"
         case .comparison: return "comparison"
-        case .ratingPrompt: return "rating_prompt"
         case .notifications: return "notifications"
         }
     }

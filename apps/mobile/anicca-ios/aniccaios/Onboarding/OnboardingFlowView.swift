@@ -2,9 +2,8 @@ import SwiftUI
 import RevenueCat
 import RevenueCatUI
 import UserNotifications
-import StoreKit
 
-/// v7 onboarding: 11 steps + 2-step SOFT paywall.
+/// v8 onboarding: 10 steps + 2-step SOFT paywall (no in-flow rating prompt).
 /// Paywall presented via .fullScreenCover + .interactiveDismissDisabled (スワイプ離脱は防止)。
 /// 右上の × (paywall-close-button) タップでのみ課金せずメイン画面へ遷移する。
 struct OnboardingFlowView: View {
@@ -70,7 +69,6 @@ struct OnboardingFlowView: View {
         case .processing:       ProcessingStepView(next: advance)
         case .planReveal:       PersonalizedInsightStepView(next: advance)
         case .comparison:       ComparisonTableStepView(next: advance)
-        case .ratingPrompt:     RatingPrePromptStepView(next: advance)
         case .notifications:    NotificationPermissionStepView(next: advance)
         }
     }
