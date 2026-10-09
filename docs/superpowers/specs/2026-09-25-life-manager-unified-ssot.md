@@ -10236,7 +10236,6 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 6. [ ] **A10 seven-day acceptance:** 上記source/coverage/report/cash statusを含むCFO reportを7日連続のnatural occurrenceでsame-occurrence provider/runtime/B7 receipt、period/currency、freshness、coverage、duplicate resolution、replay-zeroと照合する。1日でも欠落すれば連続countをやり直す。
 
 **現在cursor:** A6 source promotion → natural production usage-trace readback → A8 full loop/job coverage → A9 source-period CFO report → A6 Google cash receipt → A10 seven-day natural acceptance。Money Tree/personal cashとCloud API置換・削減は対象外。過去actualの確定や10k MRR達成は本specのcoverage完了を意味せず、別途settlement evidenceを要する。
-
 ### 2026-10-09 09:20 JST — Investment paper parser PR and runtime cursor
 
 - Official paper GET found no orders after `2026-10-04T07:31:22Z` and no open orders. A fresh GET-backed reconcile released only `alpaca-investment-paper:18db432c694c3868-67965`; no order or cancel was sent. `admission_effect_unknown=false` afterward.
@@ -10245,3 +10244,11 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 - Natural paper attempts through `2026-10-09T00:20:07Z` still defer before strategy/effect with `host_admission_deferred:resource_capacity_busy` and `effect_status=not_applicable`. No paper or live order was placed. Live remains disabled with its separate unresolved effect; no funding/live order before AT-24/AT-29 and fresh review. The ETF-only strategy excludes PLTR.
 
 **Investment subcursor:** keep AT-13 natural paper exit as the execution cursor. Finish PR #7292 exact-head checks/review and merge, cut a main-derived immutable release, then allow the paper owner to continue on its natural schedule. Do not manually wake, sell, replay, or enable live trading. Paper P&L remains unknown until a closed round trip is recorded.
+### 2026-10-09 — 15日ごとの安全なディスク保守owner
+
+- `com.anicca.disk-cleanup-15d` を `StartInterval=1296000` で追加し、安定配置する保守wrapperから既存 `disk-watchdog.sh` と同じ `HostDiskGovernor`、singleton lock、allowlistを使う。削除実装・対象は増やさない。
+- 保守wrapperは `cleanup_lock_busy` の構造化receiptと終了コード75の組だけを最大3回・5秒間隔で再試行する。他の失敗はそのまま返す。保守専用stdout/stderrログを分ける。
+- 60秒watchdog、5分owner、時間単位のinventory passは維持する。この15日ownerはそれらを置き換えず、active/unknown worktree、iOS Simulator、open/protected path、参照中release、private stateを既存allowlistのまま保護する。
+- **受け入れ:** REDテストで15日interval、安定wrapper、lock競合だけの有限再試行、既存owner分離を確認する。導入失敗なら既存plist/wrapperを戻して元のloaded状態を再確認し、復元にも失敗した場合はexact backupを残す。`plutil`とfocused test後、mainへ統合し、main由来immutable releaseから `launchctl-safe` で導入する。loaded labelのinterval/program/log readbackと、natural run receiptの `errors=0` / `protected_deletions=0` / 容量結果を確認する。
+
+**現在cursor:** REDテスト → owner実装・focused検証 → commit/push/PR/merge → main由来release → safe install/readback → natural保守receiptとloop/admission再確認。
