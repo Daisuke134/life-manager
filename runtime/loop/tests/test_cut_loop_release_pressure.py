@@ -89,6 +89,8 @@ class CutLoopReleasePressureTest(unittest.TestCase):
             cleanup = repo / "runtime/loop/central_cleanup.py"
             cleanup.parent.mkdir(parents=True)
             cleanup.write_text("raise SystemExit(0)\n", encoding="utf-8")
+            shutil.copy2(Path(__file__).resolve().parents[3] / "runtime/loop/loop_cleanup.py",
+                         cleanup.with_name("loop_cleanup.py"))
             (repo / "old.txt").write_text("old\n", encoding="utf-8")
             (repo / "package.json").write_text('{"name":"release-test","version":"1.0.0"}\n', encoding="utf-8")
             package_lock = '{"name":"release-test","version":"1.0.0","lockfileVersion":3,"packages":{}}\n'

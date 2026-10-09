@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Callable
 
 from runtime.loop.macos_loop_registry import validate_registry
+from runtime.loop.loop_cleanup import release_is_reclaimed
 
 
 _IMMUTABLE_RELEASE_WORKING_DIRECTORY = re.compile(
@@ -317,6 +318,8 @@ def build_apply_plan(registry: dict, release_root: Path, release_sha: str) -> li
     if not re.fullmatch(r"[0-9a-f]{40}", release_sha):
         raise ValueError("release SHA must be exact 40-character lowercase hex")
     release_root = release_root.resolve()
+    if release_is_reclaimed(release_root):
+        raise ValueError("release is reclaimed or its descriptor probe failed")
     try:
         manifest = json.loads((release_root / "RELEASE.json").read_text())
     except (OSError, json.JSONDecodeError) as exc:

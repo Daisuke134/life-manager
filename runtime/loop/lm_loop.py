@@ -33,6 +33,7 @@ from runtime.loop.lm_loop_apply import (
     install_one,
 )
 from runtime.loop.lm_loop_lifecycle import lifecycle, lifecycle_one
+from runtime.loop.loop_cleanup import release_is_reclaimed
 from runtime.loop.runtime_event import (
     DIAGNOSTIC_FIELDS, append_runtime_event, build_install_event, validate_runtime_event,
 )
@@ -2600,6 +2601,8 @@ def activate_current(current: Path, release_root: Path,
             release_root = release_root.resolve(strict=True)
             if not release_root.is_dir():
                 raise ValueError("release root is not a directory")
+            if release_is_reclaimed(release_root):
+                raise ValueError("release is reclaimed or its descriptor probe failed")
             if (protocol_reader() == 2
                     and not _supports_durable_admission_v2(release_root)):
                 raise RuntimeError("target release does not support durable admission v2")
@@ -2690,6 +2693,8 @@ def apply_live(release_root: Path, agents_dir: Path, launchctl_safe: Path,
                 _protocol_guarded=True,
             )
     release_root = release_root.resolve()
+    if release_is_reclaimed(release_root):
+        raise ValueError("release is reclaimed or its descriptor probe failed")
     if require_current and current.resolve(strict=True) != release_root:
         raise RuntimeError("release is no longer current")
     if (protocol_reader() == 2
