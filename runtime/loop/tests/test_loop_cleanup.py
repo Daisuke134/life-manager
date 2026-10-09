@@ -28,6 +28,22 @@ def completed(root: Path, name: str, size: int = 1) -> Path:
 
 
 class LoopCleanupTest(unittest.TestCase):
+    def test_scratch_gc_keeps_live_log_relay_after_parent_exit(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            run = root / "loop-tmp/example/run-1"; run.mkdir(parents=True)
+            (run / ".owner.json").write_text(json.dumps({"pid": 111,
+                "process_start": "parent", "effect_class": "none"}))
+            relay = run / "stderr-relay"; relay.mkdir(mode=0o700)
+            marker = relay / ".stderr-relay.json"
+            marker.write_text(json.dumps({"pid": 222, "process_start": "relay-start",
+                "binding": {"owner_id": "example", "run_id": "run-1"},
+                "role": "diagnostic_only"})); marker.chmod(0o600)
+            result = scratch_gc({root}, snapshot_started_ns=time.time_ns()+1,
+                                starts={222: "relay-start"})
+            self.assertTrue(run.exists())
+            self.assertEqual(result["removed"], 0)
+
     def test_byte_retention_reclaims_only_closed_regenerable_runs(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

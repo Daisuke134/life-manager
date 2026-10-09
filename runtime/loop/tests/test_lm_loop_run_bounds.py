@@ -1258,7 +1258,7 @@ def test_control_plane_safety_loops_bypass_data_plane_admission(tmp_path):
         run.assert_called_once()
         call_args, call_kwargs = run.call_args
         assert call_args == (["/bin/true"],)
-        assert call_kwargs["env"] == {}
+        assert call_kwargs["env"] == {"LIFE_MANAGER_LOOP_ID": loop_id}
         assert call_kwargs["timeout_seconds"] == 900
         # The capture wrapper hands _run_entrypoint a real fd, not a pipe.
         assert isinstance(call_kwargs["stderr_capture_fd"], int)
@@ -3910,3 +3910,17 @@ def test_main_waits_for_a_label_apply_lock_that_frees_up(tmp_path):
     events_file = state_root / "events.jsonl"
     blockers = [json.loads(l).get("blocker") for l in events_file.read_text().splitlines()] if events_file.exists() else []
     assert "apply_lock_busy" not in blockers, "a lock that freed up must not be recorded as busy"
+
+
+def test_registered_entrypoint_stderr_uses_bounded_owned_relay(tmp_path, capfd):
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+    child = "import os; os.write(2,b'first-'+b'x'*(4*1024**2)+b'-last')"
+    env = {**os.environ, "LIFE_MANAGER_LOOP_ID": "life-manager-disk-cleanup", "LIFE_MANAGER_RUN_ID": "run-1", "LIFE_MANAGER_OCCURRENCE_ID": "life-manager-disk-cleanup:run-1", "LIFE_MANAGER_RELEASE_SHA": "a"*40}
+    rc, tail = _run_entrypoint_with_stderr_capture([sys.executable, "-c", child], scratch, env=env, timeout_seconds=10)
+    assert rc == 0 and tail.endswith(b'-last')
+    assert (scratch / "stderr-relay/relay-result.json").is_file()
+    retained = sum(p.stat().st_size for p in (scratch / "stderr-relay").iterdir() if p.is_file())
+    assert retained <= 2*1024**2 + 40*1024
+    captured = capfd.readouterr().err
+    assert captured.startswith("first-") and captured.endswith("-last")

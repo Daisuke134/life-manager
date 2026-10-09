@@ -64,7 +64,7 @@ def start_stderr_relay(private_root, policy, binding):
              str(context), str(reader), str(child.fileno())],
             pass_fds=(reader, child.fileno()), start_new_session=True,
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=env)
-        start = subprocess.check_output(["ps", "-p", str(process.pid), "-o", "lstart="], text=True).strip()
+        start = " ".join(subprocess.check_output(["ps", "-p", str(process.pid), "-o", "lstart="], text=True).split())
         if not start:
             raise RuntimeError("relay process identity unavailable")
         _private_json(root / ".stderr-relay.json", {"pid": process.pid,

@@ -7,6 +7,7 @@ import json
 import os
 import plistlib
 import re
+import stat
 import subprocess
 import sys
 import time
@@ -86,6 +87,34 @@ def recorded_effect_classes(events_path: Path, loop_ids: set[str]) -> dict[tuple
     }
 
 
+def _diagnostic_relay_live(run_fd: int, starts: dict | None, loop_id: str, run_id: str) -> bool:
+    directory = descriptor = -1
+    try:
+        directory = os.open("stderr-relay", os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=run_fd)
+        descriptor = os.open(".stderr-relay.json", os.O_RDONLY | os.O_NOFOLLOW, dir_fd=directory)
+        info = os.fstat(descriptor)
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
+                or stat.S_IMODE(info.st_mode) != 0o600 or info.st_size > 4096):
+            return True
+        with os.fdopen(descriptor, "r", closefd=False) as handle:
+            value = json.load(handle)
+        binding = value["binding"]
+        if (type(value["pid"]) is not int or value["pid"] <= 0
+                or not isinstance(value["process_start"], str)
+                or binding.get("owner_id") != loop_id or binding.get("run_id") != run_id
+                or value.get("role") != "diagnostic_only" or starts is None):
+            return True
+        actual = starts.get(value["pid"])
+        return actual is not None and " ".join(actual.split()) == " ".join(value["process_start"].split())
+    except FileNotFoundError:
+        return False
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        return True
+    finally:
+        if descriptor >= 0: os.close(descriptor)
+        if directory >= 0: os.close(directory)
+
+
 def scratch_gc(roots: set[Path], *, snapshot_started_ns: int | None = None,
                starts: dict[int, str] | None = None,
                no_effect_loop_ids: set[str] | frozenset[str] = frozenset()
@@ -143,6 +172,10 @@ def scratch_gc(roots: set[Path], *, snapshot_started_ns: int | None = None,
                                     os.close(descriptor)
                             continue
                         result["evaluated"] += 1
+                        if _diagnostic_relay_live(run_fd, identities, loop_name, run_name):
+                            os.close(owner_fd); os.close(run_fd)
+                            result["preserved"] += 1
+                            continue
                         try:
                             try:
                                 os.stat(".terminal-unrecorded", dir_fd=run_fd,

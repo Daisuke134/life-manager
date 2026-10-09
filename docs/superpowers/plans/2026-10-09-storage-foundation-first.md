@@ -324,3 +324,5 @@
 実行ledger: DS05 managed byte retentionはclosed_run_ids/closed_releasesのpositive proofでのみ回収。active/protected/unknownを除外しunrecoverableを別計上。memory/state-journal保护を既存probeでrun retentionにも適用。4cases RED→GREEN、関連64tests/5subtests PASS。measure時chmod0、本番削除0。
 
 実行ledger: DS06 finite owned stdio relayを実装。binary32MiB/parent-control close/detached writer/symlink root/ENOSPC drainの5cases、policy込み8tests PASS。macOS Unix datagramのpeer resetをreadbackで処理してfinal private receiptを読む。provider/admission leaseとsecret envを継承しない。本番未接続。
+
+実行ledger: DS07 registered+trusted identityのrunner stderrをrelayへ接続、small replay互換/先頭+末尾保持。live relay PID/start/owner/runがあるscratchはGC保持。legacy unbound capture不変更。新2cases RED→GREEN、関連210tests/5subtests PASS。control loop envに正しいloop_idを渡す。現在running FD/daemon不変更。
