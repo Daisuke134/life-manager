@@ -4,11 +4,10 @@ import { Reveal } from '@/components/site/taste';
 import { useLaunchLocale } from '@/lib/launchLocale';
 import { launchStrings } from '@/lib/launchStrings';
 
-const TG_DEEPLINK = 'https://t.me/LifeManagerBotbot?start=lp';
+const WEB_APP_CTA_URL = 'https://life-call-production.up.railway.app/lm?start_calendar=1';
 const REPOSITORY_URL = 'https://github.com/Daisuke134/life-manager';
 
-// The public landing page is a single Telegram handoff. Authenticated onboarding and payment
-// continue in the Railway Mini App, so this page never reads query identity or owns user state.
+// The public landing page starts the existing Web Calendar connection in the same tab.
 export default function LmBody() {
   const { locale } = useLaunchLocale();
   const t = launchStrings[locale].lm;
@@ -31,12 +30,10 @@ export default function LmBody() {
                 </p>
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                   <a
-                    href={TG_DEEPLINK}
-                    target="_blank"
-                    rel="noreferrer"
+                    href={WEB_APP_CTA_URL}
                     className="inline-flex items-center justify-center rounded-pill bg-[hsl(var(--gold))] px-7 py-3 text-sm font-semibold text-black transition-all hover:-translate-y-0.5 hover:brightness-95 active:translate-y-0"
                   >
-                    {t.soonCta}
+                    {t.primaryCta}
                   </a>
                   <a
                     href={REPOSITORY_URL}
