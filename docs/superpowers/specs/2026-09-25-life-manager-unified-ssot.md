@@ -9148,11 +9148,13 @@ This entry supersedes the prior producer-review cursor. CFO priority remains A5 
 5. [x] fresh adversarial reviewはSHIP、critical/high/medium/low指摘なし。c701846へrebase後もdirect/discover regression、bash -n、diff check、loop contractがPASS。
 6. [x] 専用branchをcommit/pushし、PR #7283を作成。mainがc701846へ進んだため最新headへrebaseし、focused testとloop contractを再確認した。
 7. [x] PR #7283はmergeable/CLEAN。GitHub check_runsは0件、branch protectionはrequired approvals 0・required checksなし。Local acceptanceとfresh adversarial reviewはPASS/SHIP。
-8. **現在cursor:** PR #7283を--adminで先にmergeし、origin/mainとmerge SHAをreadbackする。
-9. main由来immutable releaseを適用し、effect_unknownを先に公式readbackで解決してからWriterの自然occurrenceを確認する。未解決fenceがある間はpublishを再試行しない。
-10. 記事の公式URL・paywall/公開状態・売上・実費を同じ記事/occurrenceに結び付け、重複公開ゼロを確認する。
+8. [x] PR #7283はmerge済み。merge commitとorigin/mainは4a60765e608ab47a9d814befa19ac831af4ba6a5。
+9. 現行article-dailyはrelease f7db4f57で、merged sourceより古い。topics/queueにはvalid paid-demand cardだけが残る。Noteの公開ページには9月29日付の「XとCTA…」と購入手続きがあり、Writer sourceの価格policyは¥500買切り。Substack feedsの最新記事は9月29日。sales ledgerのNote/Substack最新行はunknownで、売上・購入数は未確認。
+10. **現在cursor:** latest-main immutable releaseをcutし、host apply lock/owner-idleを確認してからarticle-dailyへtargeted applyする。旧occurrence `article-daily:18dcb160db0ac660-67443`はgate log上生成前に停止しているが、runtime reconcileはno_pre_effect_terminalでunprovable。provider official readbackまではeffect fenceを維持し、再送しない。
+11. Affiliate `affiliate-loop:18dcb253cf3b9cf8-41565`、X repost `x-repost:18dcb1c3aeb99600-88116`、JA repost `x-repost-ja-pass:18dcb209e2714a60-63429`はeffect unknown/receiptなし。x:diceai0のregistered endpointはunreachableで、Xのofficial readbackは取れていない。
+12. 新releaseの自然Writer occurrenceから記事URL・paywall・公式sales readback・実費・replay-zeroを確認し、収益を計上する。
 
-現在cursor: step 8 — PR #7283 mergeとmain readback。
+現在cursor: step 10 — main-derived release、owner-idle apply、既存fenceを維持したreadback準備。
 
 ### 2026-10-08 23:00 JST — PR review/CIとlive capacityの初回readback
 
