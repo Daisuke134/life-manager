@@ -372,6 +372,14 @@ START_DECISION="$(python3 "$START_CONTROL" --state-dir "$STATE_DIR" --local-date
 START_ACTION="$(printf '%s' "$START_DECISION" | jq -r '.action // "block-incomplete"')"
 START_RUN_ID="$(printf '%s' "$START_DECISION" | jq -r '.run_id // empty')"
 START_REASON="$(printf '%s' "$START_DECISION" | jq -r '.reason // empty')"
+# Hourly retry wakes (06:00-23:00 JST) exist so a busy agent class cannot cost a whole day.  Once today's
+# article is complete they stop here, before any gate, provider call or publication side effect.
+case "$START_REASON" in
+  new-after-complete:*)
+    echo "=== article-daily retry wake: today's article is already complete ($START_REASON); nothing to do $(date '+%F %T %Z') ===" >>"$LOG"
+    exit 0
+    ;;
+esac
 if [ -n "${ARTICLE_EXPECTED_NEW_DAILY_DATE:-}" ] \
   && { [ "$TODAY_JST" != "$ARTICLE_EXPECTED_NEW_DAILY_DATE" ] \
     || [ "$START_ACTION" != "new" ] \
