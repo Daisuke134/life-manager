@@ -10747,9 +10747,40 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **現在mobile cursor:** latest main mergeをcommit/push → PR #7339 exact-head CIをPASSさせmainへmerge → latest-main immutable releaseをcutしmobile ownersを1件ずつtargeted apply → EN2のproduction pre-effect fence closureをreadback → due/missed accountをPostiz receipt countに基づき不足分だけ即dispatch → `PUBLISHED`/URL/asset hash/Telegram linkとper-post metricsを保存。1 ownerのfence・metrics失敗は他ownerを止めず、day-closeの54/54は結果判定だけにする。続けてASC/RevenueCat/in-app funnelからverified USD 10K net MRRへ進む。
 
+### 2026-10-09 12:30 JST — Investment paper HOLD and release adoption cursor
+
+この追記で投資runtime snapshotを更新する。既存のL9-12/AT-13〜AT-29の順序、30-round-trip gate、live gateは変更しない。
+
+- **Release/admission:** `~/loops/current` はmain由来release `20261009T122537-55e8b166`（SHA `55e8b166a7c9d718eb2f2a5e58213bc108f550d1`）。12:30 JSTのpaper owner readbackではinstalled SHA `3e7ca9e7`、最新terminal `alpaca-investment-paper:18dcbedcd9e8fbb0-72324`（03:30:14Z、同SHA）が`host_admission_deferred:resource_capacity_busy`、`effect_status=not_applicable`、receiptなし。ownerはcurrent release SHA `55e8b166`へ未収束。手動wake/sell/replayはしない。
+- **Paper decision/account:** 12:17:55 JSTの自然occurrence `alpaca-investment-paper:18dcbe2cc211be60-88992` はQQQの`HOLD / hold_period_not_elapsed`、`held_sessions=8`、expected cost `$0.02`。current policyは`HOLD_SESSIONS=21`で、qualified exitは`ranked_symbol_changed`または`hold_sessions_elapsed`。Alpaca official GET（12:20:05 JST）はequity `$99,996.88`、cash `$99,986.76`、QQQ `0.013493253`株、market value `$10.122503`、unrealized `+$0.132503`、open orders `0`、QQQ sellなし。これは含み益で、閉じたround tripも実現net P&Lも確認できない。HOLD occurrenceは`effect_status=unknown`/receiptなしで、公式GETは現在open orderとQQQ sellを示さないが、同occurrenceのno-POST記録は未確証。effectを再送しない。
+- **Live/PLTR:** live ownerはdisabledのまま、`alpaca-investment-live:18d9e6f979d18818-14709`の`admission_effect_unknown` fenceが残る。前回公式account readback（02:15Z）の約`-$0.27`は口座全体の入金差で、Life Manager ownerへ帰属するrealized net P&Lではない。ETF universeにPLTRはなく、Palantir注文は未発生。
+
+**このinvestment runtime subcursorの残り2件（順序固定、未完）:**
+
+1. [ ] **AT-13 qualified natural exit:** main current SHA `55e8b166`のpaper owner adoption後、自然occurrenceのinstalled SHA・decision・effect/readbackを結ぶ。`ranked_symbol_changed`または21 held sessions後の`hold_sessions_elapsed`だけをqualified exitとする。8/21のHOLD、capacity defer、単なる`pass`は完了ではない。
+2. [ ] **First closed round trip and truthful paper P&L:** 公式paper sell fillを既存QQQ buyとclient/effect identity・数量で照合し、provider receipt、fees、slippage、model/system costを結合して`paper_performance.py`でnet P&Lを算出し、同一occurrenceでreplay-zeroを確認する。closed round tripと全費用証拠が揃うまでP&L=`unknown`。
+
+**Current cursor:** natural adoption of main SHA `55e8b166` → AT-13 qualified natural exit → first closed round trip with cost-complete paper P&L. その後も30 round tripsとAT-24/AT-29 + fresh反対意見reviewを通過するまでlive funding/orderは行わない。現時点で検証済みの投資利益はない。
+
 ### 2026-10-09 — Life Manager Cloud auth and marketing readback
 
 - **Production auth boundary:** Railway CLI read-only inspection confirms `life-call` production has `SUPABASE_ANON_KEY`; its JWT project ref matches `SUPABASE_URL`. Staging has the same matching pair. A fresh no-cookie `GET https://life-call-production.up.railway.app/auth/google` returns HTTP 302 to the same Supabase project's `/auth/v1/authorize` endpoint. The historical missing-key/503 condition is not the current failure. No Railway variable changed and no credential value was displayed.
 - **Existing Google session:** the registered `interactive:dais` browser profile is reachable but its Google tab is at `accounts.google.com/info/sessionexpired`. No login, account switch, consent, Calendar read/write, or account recovery was performed. Continue real OAuth/Calendar E2E only if a valid existing authenticated session becomes available; do not try to create or restore one.
 - **Reuse boundary:** the `life-manager-cloud` marketing product pack and existing Life Manager marketing generation/publication adapters are present. The Cloud-specific product loop is not in the canonical product-loop catalog, and no Cloud publishing owner is registered. The existing `life-manager-daily` owner remains loaded-idle on release `36881e439c04368837aa89e43aebcd9e3deac950` with unresolved publish occurrence `life-manager-daily:tiktok-retry-20260918-3`, no provider receipt, and no official readback. Its local distribution ledger contains a TikTok URL, but TikTok's current official page response is “Video currently unavailable”; this does not establish whether the prior publish occurred and was later removed. Keep that effect fenced and do not replay it.
 - **Current cursor:** WB-06/07 successful OAuth → Calendar ACTIVE → first automatic Travel write remains the live-customer critical path, using only an already-authenticated Google session. In parallel, prepare Cloud marketing by wiring the existing product pack, adapters, video assets, distribution, and attribution into the existing loop/runtime patterns. Keep publication inactive until the Web/Stripe E2E and exact provider effect readbacks are complete. Do not add a second Calendar connector, Travel engine, or marketing distribution engine.
+
+### 2026-10-09 12:54 JST — Investment cursor after HOLD receipt and official readback
+
+このreadbackで投資runtime subcursorを更新する。既存のL9-12/AT-13〜AT-29順序、30-round-trip gate、live gateは変更しない。
+
+- **Release/admission:** `~/loops/current` とpaper owner installed SHAは `55e8b166a7c9d718eb2f2a5e58213bc108f550d1`。03:45:02Zのcurrent-SHA occurrence `alpaca-investment-paper:18dcbfacf94fe268-81872`は`host_admission_deferred:resource_capacity_busy`・effect `not_applicable`・receiptなし。続く03:50:54Z occurrence `alpaca-investment-paper:18dcbffa5bef56e0-58097`は`pass`だがeffect `unknown`/provider receiptなし。対応する03:50:44Z decision receiptはQQQ `HOLD / hold_period_not_elapsed`、`held_sessions=8`、expected cost `$0.02`。
+- **Host disk:** `df -k /System/Volumes/Data`（03:54:10Z）はavailable `181,196 KiB`（約177 MiB）、capacity `100%`。`life-manager-disk-cleanup`の03:39:42Z occurrenceは`scratch_enospc`・exit 78。03:44:26Zのstatusは`pass`だったが、`free_after`を含む回復receiptはなく、2 GiB recovery floor未満。直近の計測付きcleanup（03:25:06Z）は`free_after=399,814,656` bytes、`reclaimed=57,939`、errors/protected deletions `0`、floor `unmet`。保護ファイル削除やglobal capacity変更はしない。
+- **Profit/readback:** Alpaca paper official GET（03:54:31Z）はequity `$99,996.89`、cash `$99,986.76`、QQQ `0.013493253`株、market value `$10.132084`、unrealized `+$0.142084`。provider order listは3件すべてfilledで、QQQは09/29のbuyだけ、QQQ sell/open orderなし。含み益であり、closed QQQ round tripやactive strategyの実現net P&Lは確認できない。03:50 decisionは`HOLD / hold_period_not_elapsed`、`held_sessions=8`、expected cost `$0.02`; current policy `HOLD_SESSIONS=21`。同occurrenceの`effect_status=unknown`/no receiptは残り、公式注文履歴に新規QQQ注文はないがrun-specific no-POSTは未確証。effectをreplayしない。
+- **Live/PLTR:** live ownerはdisabledで、`alpaca-investment-live:18d9e6f979d18818-14709`のunknown effect fenceが残る。直近の公式account snapshot（02:15Z）は口座全体で約`-$0.27`だが、Life Manager ownerへ帰属する実現net P&Lではない。ETF universeにPLTRはなく、Palantir orderは未発生。
+
+**このinvestment runtime subcursorの残り2件（順序固定、未完）:**
+
+1. [ ] **AT-13 qualified natural exit:** 既存cleanup owner pathでhost headroomを戻し、agent capacityが得られた自然occurrenceのdecision/effect/readbackをSHA `55e8b166`に結ぶ。`ranked_symbol_changed`または21 held sessions後の`hold_sessions_elapsed`だけをqualified exitとする。03:45 capacity defer、03:50 HOLD/unknown、`scratch_enospc`、単なる`pass`は完了ではない。手動wake/sell/replay、保護資産削除、global capacity変更はしない。
+2. [ ] **First closed round trip and truthful paper P&L:** 公式paper sell fillを既存QQQ buyとclient/effect identity・数量で照合し、provider receipt、fees、slippage、model/system costを結合して`paper_performance.py`でnet P&Lを算出し、同一occurrenceでreplay-zeroを確認する。closed round tripと全費用証拠が揃うまでP&L=`unknown`。
+
+**Current cursor:** owner-scoped disk recovery → natural paper terminal from SHA `55e8b166` → AT-13 qualified exit → first closed round trip with cost-complete paper P&L. その後も30 round tripsとAT-24/AT-29 + fresh反対意見reviewを通過するまでlive funding/orderは行わない。現時点で検証済み投資利益はない。
