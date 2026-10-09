@@ -6,18 +6,21 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import fcntl
-import httpx
 import json
 import os
 import re
 import stat
 import sys
 import tempfile
+import urllib.error
+import urllib.request
 import uuid
 from contextlib import contextmanager
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Callable, Iterator, Mapping
+
+from treg_credentials import load_treg_agent_token
 
 
 TREG_MCP_URL = "https://treg.to/mcp/"
@@ -40,6 +43,11 @@ class GateRejected(RuntimeError):
 
 class RemoteMCPError(RuntimeError):
     pass
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, request, response, code, message, headers, new_url):
+        return None
 
 
 def _now() -> dt.datetime:
@@ -424,7 +432,10 @@ class TregBudgetGate:
             if quote_time.tzinfo is None or _now() - quote_time > MAX_QUOTE_AGE or quote_time > _now() + dt.timedelta(minutes=1):
                 self._block(occurrence, endpoint_id, "treg_budget_quote_stale")
             if (
-                daily["route_count"] >= MAX_ROUTES
+                occurrence["route_count"] >= MAX_ROUTES
+                or occurrence["reserved_micro"] + MAX_ROUTE_MICRO > MAX_TOTAL_MICRO
+                or occurrence["charged_micro"] + occurrence["unresolved_micro"] + MAX_ROUTE_MICRO > MAX_TOTAL_MICRO
+                or daily["route_count"] >= MAX_ROUTES
                 or daily["reserved_micro"] + MAX_ROUTE_MICRO > MAX_TOTAL_MICRO
                 or daily["charged_micro"] + daily["unresolved_micro"] + MAX_ROUTE_MICRO > MAX_TOTAL_MICRO
             ):
@@ -538,19 +549,30 @@ class TregRemoteMCP:
     def __init__(self, token: str, *, url: str = TREG_MCP_URL) -> None:
         if not isinstance(token, str) or not token.strip():
             raise RemoteMCPError("treg_token_missing")
-        self.client = httpx.Client(
-            timeout=httpx.Timeout(180.0, connect=10.0),
-            headers={
-                "Accept": "application/json, text/event-stream",
-                "Authorization": f"Bearer {token.strip()}",
-                "Content-Type": "application/json",
-            },
-        )
+        self.headers = {
+            "Accept": "application/json, text/event-stream",
+            "Authorization": f"Bearer {token.strip()}",
+            "Content-Type": "application/json",
+        }
+        self.opener = urllib.request.build_opener(_NoRedirect())
         self.url = url
         self.request_id = 0
 
     def close(self) -> None:
-        self.client.close()
+        pass
+
+    def _send(self, message: dict[str, Any]) -> bytes:
+        request = urllib.request.Request(
+            self.url,
+            data=json.dumps(message, separators=(",", ":")).encode("utf-8"),
+            headers=self.headers,
+            method="POST",
+        )
+        try:
+            with self.opener.open(request, timeout=180.0) as response:
+                return response.read()
+        except (urllib.error.URLError, TimeoutError, OSError):
+            raise RemoteMCPError("treg_mcp_upstream_unavailable") from None
 
     def request(self, method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         self.request_id += 1
@@ -562,11 +584,9 @@ class TregRemoteMCP:
         if params is not None:
             message["params"] = params
         try:
-            response = self.client.post(self.url, json=message)
-            response.raise_for_status()
-            value = response.json()
-        except (httpx.HTTPError, ValueError):
-            raise RemoteMCPError("treg_mcp_upstream_unavailable") from None
+            value = json.loads(self._send(message).decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            raise RemoteMCPError("treg_mcp_upstream_response_invalid") from None
         if not isinstance(value, dict) or value.get("jsonrpc") != "2.0":
             raise RemoteMCPError("treg_mcp_upstream_response_invalid")
         if "error" in value:
@@ -584,11 +604,7 @@ class TregRemoteMCP:
         })
 
     def notify(self, method: str) -> None:
-        try:
-            response = self.client.post(self.url, json={"jsonrpc": "2.0", "method": method})
-            response.raise_for_status()
-        except httpx.HTTPError:
-            raise RemoteMCPError("treg_mcp_upstream_notification_failed") from None
+        self._send({"jsonrpc": "2.0", "method": method})
 
     def list_tools(self) -> dict[str, Any]:
         result = self.request("tools/list", {})
@@ -702,16 +718,19 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--daily-ledger", type=Path, required=True)
     parser.add_argument("--occurrence-ledger", type=Path, required=True)
     parser.add_argument("--occurrence-id", required=True)
+    parser.add_argument("--credentials-path", type=Path, required=True)
     args = parser.parse_args(argv)
-    token = os.environ.get("TREG_TOKEN")
     try:
+        token = load_treg_agent_token(args.credentials_path)
+        if not token:
+            raise RemoteMCPError("treg_token_missing")
         gate = TregBudgetGate(
             daily_ledger=args.daily_ledger,
             occurrence_ledger=args.occurrence_ledger,
             occurrence_id=args.occurrence_id,
         )
-        remote = TregRemoteMCP(token or "")
-    except (GateRejected, RemoteMCPError):
+        remote = TregRemoteMCP(token)
+    except (GateRejected, RemoteMCPError, ValueError):
         return 2
     try:
         return run_stdio(remote, gate)

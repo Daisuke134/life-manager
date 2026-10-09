@@ -322,7 +322,6 @@ def _default_agent_runner(
     schema_path: Path,
     evidence_dir: Path,
     occurrence_id: str,
-    budget_root: Path,
 ) -> subprocess.CompletedProcess[str]:
     run_id = occurrence_id.split(":", 1)[1]
     label = f"treg-lead-signals-{hashlib.sha256(run_id.encode()).hexdigest()[:12]}"
@@ -340,7 +339,6 @@ def _default_agent_runner(
     try:
         child_env = os.environ.copy()
         child_env["LIFE_MANAGER_OCCURRENCE_ID"] = occurrence_id
-        child_env["LIFE_MANAGER_TREG_BUDGET_ROOT"] = str(_assert_outside_repo(budget_root))
         return subprocess.run(
             command, input=prompt, text=True, capture_output=True,
             timeout=1_900, cwd=ROOT, env=child_env, check=False,
@@ -980,7 +978,6 @@ def run_weekly_monitor(
                 schema_path,
                 evidence_dir,
                 occurrence_id,
-                Path(state_root).expanduser().resolve() / "treg-budget",
             )
         else:
             completed = agent_runner(prompt, schema_path, evidence_dir, occurrence_id)

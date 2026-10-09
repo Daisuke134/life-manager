@@ -41,6 +41,7 @@ from runtime.loop.runtime_event import (  # noqa: E402
     rotate_jsonl_locked,
 )
 from token_budget import TokenBudgetLedger, budget_day_for  # noqa: E402
+from treg_credentials import load_treg_agent_token as _load_treg_agent_token  # noqa: E402
 # Every effort above medium costs the same order of money as Sol does, so all of them take the
 # explicit escalation route. Naming only "high" here let "xhigh" and "max" past the gate.
 RESTRICTED_EFFORTS = frozenset(("high", "xhigh", "max"))
@@ -63,7 +64,6 @@ PROVIDER_LEASE_BUSY = 75
 PROVIDER_LEASE_BUSY_LINE = "LIFE_MANAGER_PROVIDER_LEASE_BUSY"
 CODEX_INVOCATION_HOME_MARKER = "_LIFE_MANAGER_CODEX_INVOCATION_HOME"
 _OWNED_CODEX_INVOCATION_HOMES: set[Path] = set()
-TREG_AGENT_CREDENTIAL_SERVICE = "treg_agent:life-manager-product-growth"
 TREG_SIGNAL_TASK_CLASS = "treg-lead-signals-agent"
 TREG_MCP_TOOLS = ("catalog_search", "catalog_get", "call", "balance")
 TREG_SKILL_NAMES = ("treg", "lead-signals")
@@ -656,43 +656,6 @@ def _load_clipproxy_api_key(
     raise ValueError("codex model provider auth unavailable")
 
 
-def _load_treg_agent_token(credentials_path: Path | None = None) -> str | None:
-    """Return only the dedicated Life Manager Treg agent credential."""
-    path = credentials_path or (
-        Path.home() / ".local" / "share" / "anicca" / "credentials.json"
-    )
-    try:
-        file_stat = path.lstat()
-        parent_stat = path.parent.lstat()
-        if (
-            not stat.S_ISREG(file_stat.st_mode)
-            or stat.S_IMODE(file_stat.st_mode) != 0o600
-            or not stat.S_ISDIR(parent_stat.st_mode)
-            or stat.S_IMODE(parent_stat.st_mode) != 0o700
-        ):
-            raise ValueError("Treg credential SSOT permissions are invalid")
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except FileNotFoundError:
-        return None
-    except (OSError, json.JSONDecodeError) as error:
-        raise ValueError("Treg credential SSOT is unavailable or invalid") from error
-    credentials = data.get("credentials") if isinstance(data, dict) else None
-    if not isinstance(credentials, list):
-        raise ValueError("Treg credential SSOT has an invalid structure")
-    matches = [
-        row for row in credentials
-        if isinstance(row, dict) and row.get("service") == TREG_AGENT_CREDENTIAL_SERVICE
-    ]
-    if not matches:
-        return None
-    if len(matches) != 1:
-        raise ValueError("Treg agent credential is ambiguous")
-    token = matches[0].get("token")
-    if not isinstance(token, str) or not token.strip():
-        raise ValueError("Treg agent credential is empty")
-    return token.strip()
-
-
 def _private_directory(path: Path) -> None:
     if path.is_symlink():
         raise ValueError("Treg skill directory must not be a symlink")
@@ -735,19 +698,20 @@ def provider_process_env(provider: str, provider_config: dict[str, Any],
     """Build a provider-scoped, non-interactive child environment."""
     child_env = dict(os.environ if environ is None else environ)
     child_env.pop(CODEX_INVOCATION_HOME_MARKER, None)
-    # Never pass through an owner/admin token inherited from the host. Life
-    # Manager agents receive only the dedicated, limited credential SSOT row.
+    # Never pass the dedicated Treg credential to a model or shell environment.
+    # The local MCP gate reads the scoped row directly from credential SSOT.
     child_env.pop("TREG_TOKEN", None)
-    try:
-        treg_agent_token = _load_treg_agent_token()
-    except ValueError:
-        if task_class == TREG_SIGNAL_TASK_CLASS:
-            raise
-        treg_agent_token = None
-    if treg_agent_token:
-        child_env["TREG_TOKEN"] = treg_agent_token
+    treg_agent_token = None
+    if provider == "codex":
+        try:
+            treg_agent_token = _load_treg_agent_token()
+        except ValueError:
+            if task_class == TREG_SIGNAL_TASK_CLASS:
+                raise
+        if task_class == TREG_SIGNAL_TASK_CLASS and not treg_agent_token:
+            raise ValueError("treg lead signal agent credential unavailable")
     elif task_class == TREG_SIGNAL_TASK_CLASS:
-        raise ValueError("treg lead signal agent credential unavailable")
+        raise ValueError("treg lead signal agent requires Codex")
     if provider != "codex":
         child_env.pop("CODEX_HOME", None)
         child_env.pop("CLIPROXY_API_KEY", None)
@@ -1386,19 +1350,26 @@ def command_for(provider: str, executable: str, provider_config: dict[str, Any],
                 f"limit_tokens={rollout_budget_tokens},"
                 "reminder_at_remaining_tokens=[],"
                 "sampling_token_weight=1.0,prefill_token_weight=1.0}")])
-        if args.task_class == TREG_SIGNAL_TASK_CLASS:
+        treg_enabled = args.task_class == TREG_SIGNAL_TASK_CLASS
+        if not treg_enabled:
+            try:
+                treg_enabled = _load_treg_agent_token() is not None
+            except ValueError:
+                treg_enabled = False
+        if treg_enabled:
             evidence_dir = Path(args.evidence_dir).expanduser()
             occurrence_id = os.environ.get("LIFE_MANAGER_OCCURRENCE_ID", "")
-            budget_root_value = os.environ.get("LIFE_MANAGER_TREG_BUDGET_ROOT", "")
-            budget_root = Path(budget_root_value).expanduser() if budget_root_value else None
+            budget_root = Path.home() / ".local" / "state" / "life-manager" / "treg-budget"
+            if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,255}", occurrence_id):
+                if args.task_class == TREG_SIGNAL_TASK_CLASS:
+                    raise ValueError("treg budget gate state is unavailable")
+                occurrence_id = f"agent:{uuid.uuid4().hex}"
             if (
                 not evidence_dir.is_absolute()
                 or evidence_dir.is_symlink()
                 or not evidence_dir.is_dir()
                 or stat.S_IMODE(evidence_dir.stat().st_mode) != 0o700
                 or evidence_dir.stat().st_uid != os.getuid()
-                or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,255}", occurrence_id)
-                or budget_root is None
                 or not budget_root.is_absolute()
             ):
                 raise ValueError("treg budget gate state is unavailable")
@@ -1421,17 +1392,19 @@ def command_for(provider: str, executable: str, provider_config: dict[str, Any],
                 "--daily-ledger", str(daily_ledger),
                 "--occurrence-ledger", str(occurrence_ledger),
                 "--occurrence-id", occurrence_id,
+                "--credentials-path", str(
+                    Path.home() / ".local" / "share" / "anicca" / "credentials.json"
+                ),
             ]
             command.extend([
                 "-c", f"mcp_servers.treg.command={json.dumps(sys.executable)}",
                 "-c", f"mcp_servers.treg.args={json.dumps(gate_args)}",
-                "-c", 'mcp_servers.treg.env_vars=["TREG_TOKEN"]',
                 "-c", f"mcp_servers.treg.enabled_tools={json.dumps(list(TREG_MCP_TOOLS))}",
                 "-c", 'mcp_servers.treg.default_tools_approval_mode="approve"',
                 "-c", "mcp_servers.treg.startup_timeout_sec=20",
                 "-c", "mcp_servers.treg.tool_timeout_sec=200",
                 "-c", "mcp_servers.treg.enabled=true",
-                "-c", "mcp_servers.treg.required=true",
+                "-c", f"mcp_servers.treg.required={str(args.task_class == TREG_SIGNAL_TASK_CLASS).lower()}",
             ])
         command.extend(["--ignore-user-config", "--json"])
         if schema:

@@ -82,8 +82,12 @@ class TregBudgetGateTests(unittest.TestCase):
     def test_remote_mcp_auth_uses_bearer_header(self):
         remote = self.gate_module.TregRemoteMCP("test-token")
         try:
-            self.assertEqual(remote.client.headers.get("Authorization"), "Bearer test-token")
-            self.assertNotIn("X-Treg-Token", remote.client.headers)
+            headers = getattr(remote, "headers", None)
+            self.assertIsInstance(headers, dict, "remote MCP transport must expose its explicit headers")
+            if not isinstance(headers, dict):
+                return
+            self.assertEqual(headers.get("Authorization"), "Bearer test-token")
+            self.assertNotIn("X-Treg-Token", headers)
         finally:
             remote.close()
 
@@ -91,6 +95,21 @@ class TregBudgetGateTests(unittest.TestCase):
         result = {"structuredContent": {"balance_micro": 53_000, "holds_micro": None}}
 
         self.assertEqual(self.gate_module._balance_micro(result), 53_000)
+
+    def test_gate_loads_dedicated_token_from_private_ssot(self):
+        loader = getattr(self.gate_module, "load_treg_agent_token", None)
+        self.assertTrue(callable(loader), "Treg gate has no SSOT credential loader")
+        if not callable(loader):
+            return
+        with tempfile.TemporaryDirectory() as temporary:
+            credentials_path = Path(temporary) / "credentials.json"
+            credentials_path.write_text(json.dumps({"credentials": [
+                {"service": "other", "token": "ignore-me"},
+                {"service": "treg_agent:life-manager-product-growth", "token": "test-token"},
+            ]}), encoding="utf-8")
+            credentials_path.chmod(0o600)
+
+            self.assertEqual(loader(credentials_path), "test-token")
 
     def test_reservation_is_persisted_before_route_forward(self):
         self.gate.call_paid(self.arguments(), self.fake)
@@ -167,6 +186,24 @@ class TregBudgetGateTests(unittest.TestCase):
 
         self.assertEqual(next_fake.paid_calls, 0)
 
+    def test_occurrence_route_cap_survives_daily_ledger_rotation(self):
+        for _ in range(18):
+            self.gate.call_paid(self.arguments(), self.fake)
+
+        next_day = self.gate_module.TregBudgetGate(
+            daily_ledger=self.root / "next-day.json",
+            occurrence_ledger=self.occurrence_path,
+            occurrence_id="treg-monitor:test-occurrence",
+        )
+        next_day.record_quote("x.search", 3_000)
+        next_fake = FakeTreg()
+        next_fake.daily_ledger = self.root / "next-day.json"
+
+        with self.assertRaisesRegex(self.gate_module.GateRejected, "route_cap"):
+            next_day.call_paid(self.arguments(), next_fake)
+
+        self.assertEqual(next_fake.paid_calls, 0)
+
     def test_unsafe_quote_and_missing_header_block_before_paid_forward(self):
         self.gate.record_quote("x.search", 3_001)
         with self.assertRaisesRegex(self.gate_module.GateRejected, "quote_invalid"):
@@ -182,21 +219,21 @@ class TregBudgetGateTests(unittest.TestCase):
 
 
 class TregMCPCommandTests(unittest.TestCase):
-    def test_monitor_uses_local_stdio_gate_and_forwards_only_token_env_name(self):
+    def test_general_codex_task_uses_local_gate_without_token_environment_override(self):
         with tempfile.TemporaryDirectory() as temporary:
             evidence = Path(temporary)
             evidence.chmod(0o700)
             result_path = evidence / "result.json"
             args = argparse.Namespace(
-                task_class=agent_runner.TREG_SIGNAL_TASK_CLASS,
+                task_class="diagnostic-agent",
                 evidence_dir=evidence,
                 workdir=evidence,
                 image=[],
             )
             candidate = {"model": "gpt-6.1-sol", "effort": "medium"}
-            budget_root = evidence / "shared-treg-budget"
-            with patch.dict(os.environ, {"LIFE_MANAGER_OCCURRENCE_ID": "treg-monitor:test-occurrence"}):
-                with patch.dict(os.environ, {"LIFE_MANAGER_TREG_BUDGET_ROOT": str(budget_root)}):
+            budget_root = Path.home() / ".local" / "state" / "life-manager" / "treg-budget"
+            with patch.object(agent_runner, "_load_treg_agent_token", return_value="limited-test-token"):
+                with patch.dict(os.environ, {"LIFE_MANAGER_OCCURRENCE_ID": "agent:command-test"}):
                     command = agent_runner.command_for(
                         "codex", "/fake/codex", {}, candidate, args, "bounded prompt", {}, result_path
                     )
@@ -204,10 +241,46 @@ class TregMCPCommandTests(unittest.TestCase):
         overrides = [command[index + 1] for index, value in enumerate(command[:-1]) if value == "-c"]
         self.assertTrue(any(value.startswith("mcp_servers.treg.command=") for value in overrides))
         self.assertTrue(any("mcp_servers.treg.args=" in value and "--daily-ledger" in value for value in overrides))
+        self.assertTrue(any("--credentials-path" in value for value in overrides))
         self.assertTrue(any(str(budget_root) in value for value in overrides))
-        self.assertTrue(any('mcp_servers.treg.env_vars=["TREG_TOKEN"]' in value for value in overrides))
+        self.assertFalse(any("TREG_TOKEN" in value for value in overrides))
         self.assertFalse(any("mcp_servers.treg.url=" in value for value in overrides))
         self.assertFalse(any("env_http_headers" in value for value in overrides))
+
+    def test_signal_monitor_requires_gated_mcp_and_keeps_shell_disabled(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            evidence = Path(temporary)
+            evidence.chmod(0o700)
+            args = argparse.Namespace(
+                task_class=agent_runner.TREG_SIGNAL_TASK_CLASS,
+                evidence_dir=evidence,
+                workdir=evidence,
+                image=[],
+            )
+            candidate = {"model": "gpt-6.1-sol", "effort": "medium"}
+            with patch.dict(os.environ, {"LIFE_MANAGER_OCCURRENCE_ID": "treg-monitor:test-occurrence"}):
+                command = agent_runner.command_for(
+                    "codex", "/fake/codex", {}, candidate, args, "bounded prompt", {}, evidence / "result.json"
+                )
+
+        overrides = [command[index + 1] for index, value in enumerate(command[:-1]) if value == "-c"]
+        self.assertTrue(any('mcp_servers.treg.required=true' in value for value in overrides))
+        self.assertTrue(any('mcp_servers.treg.default_tools_approval_mode="approve"' in value for value in overrides))
+        self.assertTrue(any(value == "shell_tool" for value in command))
+        self.assertFalse(any("TREG_TOKEN" in value for value in overrides))
+
+    def test_provider_environment_keeps_token_out_of_general_tasks(self):
+        with patch.object(agent_runner, "_load_treg_agent_token", return_value="limited-test-token"):
+            with patch.object(agent_runner, "_load_clipproxy_api_key"):
+                env = agent_runner.provider_process_env(
+                    "codex",
+                    {},
+                    environ={"PATH": "/usr/bin:/bin", "TREG_TOKEN": "inherited-test-token"},
+                    task_class="diagnostic-agent",
+                )
+
+        self.assertNotIn("TREG_TOKEN", env)
+        self.assertNotIn("LIFE_MANAGER_TREG_ENABLED", env)
 
     def test_stdio_handshake_lists_only_allowed_tools_and_forwards_free_balance(self):
         gate_module = load_gate_module(self)
