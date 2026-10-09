@@ -10380,6 +10380,31 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 - Natural paper attempts through `2026-10-09T00:20:07Z` still defer before strategy/effect with `host_admission_deferred:resource_capacity_busy` and `effect_status=not_applicable`. No paper or live order was placed. Live remains disabled with its separate unresolved effect; no funding/live order before AT-24/AT-29 and fresh review. The ETF-only strategy excludes PLTR.
 
 **Investment subcursor:** keep AT-13 natural paper exit as the execution cursor. Finish PR #7292 exact-head checks/review and merge, cut a main-derived immutable release, then allow the paper owner to continue on its natural schedule. Do not manually wake, sell, replay, or enable live trading. Paper P&L remains unknown until a closed round trip is recorded.
+### 2026-10-09 JST — Affiliate retry starvation and zero conversion
+
+**確認済み状態:** PR #7227のnumeric disk-admission修正はcurrent immutable release `f7db4f577d19c582106c3c230dd97837388941f6`に含まれ、cleanupは空き約2.3 GiBを回復した。全fleet applyはまだ一部ownerが旧SHAに残るためnatural reconciliationを継続する。公式PartnerStack overviewは直近30日264 clicks / 0 signups / $0 revenue、Commission Reportは0 rows、Payoutsも0 rowsでtax informationはrequired、payment providerはselection required。既存`campaign-handoffs/elevenlabs-discovered-subtitle-translator-en-experiment-2461e9f73d94.json`は2026-10-01生成の246-word English-only稿で、日本語要約がなく、現在の要求を満たさない。
+
+**最新のdisk-floor読み戻し:** PR #7227（`68e7b3caf76a9e8ef75f23bc439a972d686deed8`）はmerge済み。現行main/current immutable release `1ee30425`とそれ以前の`c50ab9db`、`42bbad08`、`f7db4f57`は数値disk floorなし。実装は空き容量を診断記録し、低容量だけではadmissionを拒否しない。旧共有thresholdは2 GiB、旧producer guardは512 MiB、一部`critical_paid`は256 MiB。cleanupの2 GiBは回復状況のdiagnosticだけ。01:14Zのreadbackでは`/`に`779048 KiB`（約761 MiB）空き。185 loaded managed ownerのうち164はno-floor release、21は旧release。`hf-gig-reply-detector`は`cecffc9b`上で01:09Zにdisk deferし、古い`effect_unknown` fenceでapply拒否。`verify-loops-audit`は`d7d3cbae`上で旧releaseのままで、最新blockerは`resource_capacity_busy`。Fleet applyは01:07:25Zにrelease `42bbad08`をtargetにpartial（125 changed / 57 skipped / 3 errors）、effect-unknown fence 2件を記録し、30分間隔でcooldown中。`life-manager-disk-cleanup`は`c50ab9db`上で01:11:58Zに`entrypoint_exit_1`。直近構造receipt（01:03:24Z）は`free_after=719761408` bytes、`reclaimed=6411`、`errors=0`、`protected_deletions=0`、5候補をopen/protectedとして保持。PR #7295（15日owner）はmainへmerge済みだが、01:12Zのreadbackで`com.anicca.disk-cleanup-15d.plist`は未設置。旧`disk_headroom_low`記録のうち、#7227を含むrelease上のものは履歴。
+
+旧effect fence `affiliate-loop:18d83ba82b14fb40-24990`は、同一wakeの公式Telegram body readbackと、公開先が`WAITING_FOR_PLACEMENT_LINK`であった記録を結び、telegram reconciliation receipt `resolution_state=RESOLVED`で閉じた。Xの公式profile timelineではoccurrence時間帯の新規statusを確認しなかった。Admission readbackは`admission_effect_unknown.current=false`。このfenceのpublic effectは再送していない。次の自然affiliate-loop terminalはまだ未確認。
+
+**根本原因:** `skills/affiliate/scripts/composition_owner.py::budget_retry_is_due`は前日budget-blocked runの再試行を許可するが、`inbox_priority`は同一source-setのterminal `FAILED` receiptをpriority 2、未処理bundleをpriority 1にする。wakeは1 bundleだけ処理するため、budgetが再び使えるcampaignがfresh draftの後ろに残り、Oct 9のtoken ledgerでは新規plan `213f5d2b6550`と`241a5770490f`が各32,768 tokensを予約した一方、due retry `2461e9f73d94`は未予約である。
+
+**受け入れ条件:** budgetまたはcapability retryがdueなら、そのsame-source-set `FAILED` campaignをfresh draftより先に選ぶ。日次budgetがまだ満杯ならretryを昇格せず、32,768-token pass / 131,072-token JST-day capを維持する。未公開campaignだけを再生成し、既存LIVE placementを再投稿しない。自然実行後の実artifactで、根拠が支える十分なEnglish本文、短い日本語要約、開示、CTA、出典、policy PASSを確認し、その後にのみ公開・PartnerStack readbackへ進む。
+
+**Remaining atomic TODO（この順）:**
+
+1. [x] RED確認済み: `test_wake_prioritizes_due_budget_retry_before_fresh_draft`と`test_wake_prioritizes_capability_retry_before_fresh_draft`は、eligible retryよりfresh `a-fresh-en`を選ぶ失敗をそれぞれ再現した。
+2. [x] `skills/affiliate/scripts/composition_owner.py::inbox_priority`で、`budget_retry_is_due`または`runner_retry_is_due`がtrueのsame-source-set `RUNNER_REJECTED`だけpriority 0へ上げた。未eligible terminalの順位は維持。focused unittest 10件と`./bin/lm-loop-contract`（18 loops / 188 jobs / 113 mapped / 0 errors）がPASS。
+3. [x] capability-retry regressionをcommit-pushした。PR #7289のexact-head required checksは全件PASSし、fresh read-only reviewは`ship`。
+4. [ ] PR #7289をlatest-main exact headで再確認し、required CIが全件passしたらmergeする。実行: `gh pr merge 7289 --repo Daisuke134/life-manager --admin --merge`。受入: merge SHAをreadbackし、main由来releaseにAffiliate retry fixが含まれる。
+5. [ ] release reconcilerのcooldown後のnatural applyを続け、21の旧SHA ownerをownerごとに`loaded-idle`で反映する。`hf-gig-reply-detector`と`life-manager-instagram-metrics`はofficial readbackでeffect fenceを解決するまでapply/replayしない。launchd I/O errorはfresh owner readback後だけ再試行する。185 loaded owner、164 no-floor SHA、21旧SHA、historical `disk_headroom_low`、current `resource_capacity_busy`を区別する。PR #7295の`com.anicca.disk-cleanup-15d` ownerはrelease後に既存installerのsafe install/readbackで有効化する。
+6. [ ] budgetが再び使える自然wakeのsealed compositionを確認する。記事はEnglish-firstの詳細本文と日本語要約、出典、disclosure、CTAを満たし、policy PASSを得る。既存のapproved ownerだけで公開し、PartnerStackのclick/sign-up/commission/payoutと実費を同じ期間でreadbackする。売上が0なら0のまま記録する。
+
+**順序更新と理由:** 旧cursor=`(1) fleetで全旧ownerをadopt → (2) Affiliate retry PR #7289をmerge → (3) natural campaign/revenue`。新cursor=`(1) 完了: disk numeric gate除去をmain/current releaseへ反映 → (2) 現在: PR #7289のlatest-main exact-head CI/merge → (3) 次のmain由来releaseでAffiliate retry fixとdisk fixを同梱 → (4) natural fleet applyで旧ownerを安全にadoptしeffect fence/I/O blockerをowner別に解決 → (5) natural bilingual campaign/publication → (6) PartnerStack conversion/commission/payout/economics → (7) CFO A6/A8/A9/A10`。理由は、185 ownerのうち164がすでにno-floor release上にあり、残る21はfleet cooldown・busy・effect fence・launchd I/O errorにより即時に安全適用できない。#7289はchecks/reviewを通過しており、mergeを待たせてもこの旧ownerのblockerは解消しない。次のreleaseへ同梱してaffiliate revenue workを先へ進める。CFO TODOとunknown値は保持する。
+
+**現在cursor:** latest main `1ee30425` を含むbranchのexact-head CI → PR #7289 merge → next immutable release/natural fleet retry → 21 old-owner adoption and effect readback → natural Affiliate composition/publication/revenue readback → CFO A6/A8/A9/A10。
+
 ### 2026-10-09 — 15日ごとの安全なディスク保守owner
 
 - `com.anicca.disk-cleanup-15d` を `StartInterval=1296000` で追加し、安定配置する保守wrapperから既存 `disk-watchdog.sh` と同じ `HostDiskGovernor`、singleton lock、allowlistを使う。削除実装・対象は増やさない。
