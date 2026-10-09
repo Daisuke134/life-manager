@@ -158,6 +158,7 @@
 - Modify: `skills/earn/marketing-engine/intel/treg_lead_signals_weekly.py`
 - Create: `runtime/agent-runner/tests/test_treg_budget_mcp.py`
 - Modify: `runtime/agent-runner/tests/test_terra_default.py`
+- Modify: `runtime/loop/tests/fixtures/macos-loop-jobs.json`
 - Create: `skills/earn/marketing-engine/intel/test_treg_lead_signals_weekly.py`
 - Modify: this plan and `docs/superpowers/specs/2026-10-10-treg-product-growth-design.md`
 
@@ -173,13 +174,15 @@
 - If the balance readback crosses into a UTC day whose shared daily cap is already full, reject before writing a reservation or forwarding a paid route.
 - The `gpt-6.1-sol` route is explicitly restricted; the weekly owner supplies the user-authorized escalation reason, and routing tests record its `acct2` profile and Codex-only candidate list.
 - Parent validation matches every captured paid MCP call to the local gate's occurrence ledger and exact Treg receipt.
+- The byte-stable production launchd render fixture includes the new weekly owner and matches `render_job_models(config/loop-registry.json)` exactly.
 - Existing `signals.csv` without a valid hash marker fails closed. An established empty baseline remains distinguishable from a pre-created header-only CSV.
 - Tests use local fixtures only; they make no paid Treg call and send no Telegram message.
 
 - [x] Write the baseline, route-budget, runner-config/credential-isolation, and parent-receipt regressions first; confirm each fails for its missing behavior.
 - [x] Implement the local MCP budget gate and hash-bound baseline marker with no new dependency.
 - [x] Run focused tests, declared agent-route contract, source boundary, loop contract, syntax/JSON checks, and diff check after the balance-rollover correction.
-- [x] Update the SSOT cursor with final evidence and push the dedicated branch.
+- [x] Regenerate the launchd render fixture from the current registry and pass `test_production_render_matches_byte_stable_fixture`.
+- [ ] Update the SSOT cursor with final evidence and push the dedicated branch.
 
 ### Task 5: Source acceptance and production handoff
 
