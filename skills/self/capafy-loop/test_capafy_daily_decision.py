@@ -346,3 +346,18 @@ def test_frozen_agent_gets_no_decision_at_all():
     decisions = module.decide_actions(rows, server("hook"), CATALOG, BANDS, {}, frozen_ids={"hook"})
 
     assert decisions[0]["findings"] == [{"rule": "frozen", "action": "skip", "reason": "dais_frozen"}]
+
+
+def test_rank_shelves_top_winners_name_what_actually_sells():
+    # 2026-10-09: the "Analysis" shelf (3,172 sold) was one football seller (3,093); the
+    # factory read only the category label and built a B2B annual-report brief.
+    winners = [
+        {"name": "Ocup Football Analysis", "developer": "Otata", "category": 2, "sold": 3093.0},
+        {"name": "MLB Baseball Analysts", "developer": "Owlytics", "category": 2, "sold": 37.0},
+        {"name": "Our Football Read", "developer": "Anicca", "category": 2, "sold": 5.0},
+        {"name": "Tiny", "developer": "X", "category": 2, "sold": 1.0},
+        {"name": "Transcript to Shorts", "developer": "Akira", "category": 5, "sold": 2100.0},
+    ]
+    shelf = next(s for s in load_module().rank_shelves(winners, []) if s["category"] == 2)
+    assert [w["name"] for w in shelf["top_winners"]] == ["Ocup Football Analysis", "MLB Baseball Analysts", "Tiny"]
+    assert shelf["top_winners"][0]["sold"] == 3093.0
