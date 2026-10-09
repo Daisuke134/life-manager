@@ -6,7 +6,7 @@
 
 **Goal:** Make Treg available to Life Manager product-growth agents and report only new public demand signals for all nine current products on a weekly schedule, with Anicca iOS first.
 
-**Architecture:** Codex receives a per-invocation remote Treg MCP configuration and repository-owned `treg`/`lead-signals` skills. A new `lm-loop` owner uses the shared `marketing-agent` route to query X and Reddit, qualifies signals, records a private CSV baseline, and sends a Telegram report only for newly seen keys. The existing `marketing-weekly-review` owner remains untouched because its latest Telegram occurrence is unresolved.
+**Architecture:** Codex receives a per-invocation local stdio Treg MCP budget gate and repository-owned `treg`/`lead-signals` skills. The gate proxies only the four allowed tools to Treg's stateless JSON/HTTP MCP and checks/reserves each paid route before forwarding. A new `lm-loop` owner uses the shared `marketing-agent` route to query X and Reddit, qualifies signals, records a private CSV baseline plus a hash marker, and sends a Telegram report only for newly seen keys. The existing `marketing-weekly-review` owner remains untouched because its latest Telegram occurrence is unresolved.
 
 **Tech Stack:** Python stdlib, Codex remote MCP, Treg MCP/CLI, existing Life Manager agent-runner, `lm-loop`, shared Telegram transport, JSON/CSV state.
 
@@ -15,12 +15,12 @@
 ## Global Constraints
 
 - Read only `service=treg_agent:life-manager-product-growth` from `~/.local/share/anicca/credentials.json`; never persist the token in Git, argv, config files, logs, or chat.
-- Codex MCP uses `https://treg.to/mcp/`, `env_http_headers = { "X-Treg-Token" = "TREG_TOKEN" }`, and only `catalog_search`, `catalog_get`, `call`, and `balance` tools.
+- The local stdio MCP gate proxies to `https://treg.to/mcp/` with `TREG_TOKEN` passed through `env_vars` and upstream `Authorization: Bearer` auth; it exposes only `catalog_search`, `catalog_get`, `call`, and `balance`.
 - Only `treg-lead-signals-agent` receives unattended approval for those MCP tools; all other agent approval/sandbox policies stay as configured.
 - Do not enable general shell network access for Codex.
 - Monitor nine products, Anicca first; query public X and Reddit posts from the last seven days only.
-- Limit each weekly monitor to 18 billed routes, at `$0.003` maximum per route and `$0.054` total; stop when balance is below `$0.05`. Do not enable auto-top-up.
-- The dedicated Treg agent identity has a daily proxy-call cap of 18. Treg documents this gate as fail-open if its quota database check errors, so treat it as defense in depth and validate actual receipts/costs before reporting.
+- Limit each weekly monitor to 18 billed routes, at `$0.003` maximum per route and `$0.054` total; the local gate checks the latest balance before each call and leaves `$0.05`. Do not enable auto-top-up.
+- The dedicated Treg agent identity has a daily proxy-call cap of 18. Treg documents this gate as fail-open if its quota database check errors, so the local gate persists each maximum-cost reservation before forwarding and the server cap remains defense in depth.
 - No email/phone enrichment, outreach, posting, or marketing-weekly-review state changes.
 - Keep `signals.csv`, Treg receipts, and Telegram receipts outside Git under private state paths with directory mode `0700` and file mode `0600`.
 - First monitor run establishes a baseline without sending historical signals. Later runs report only keys absent from the baseline.
@@ -32,6 +32,7 @@
 | File | Responsibility |
 |---|---|
 | `runtime/agent-runner/agent_runner.py` | Load the limited Treg token into child environments, expose isolated skills, and keep the dedicated MCP server restricted to four tools. |
+| `runtime/agent-runner/treg_budget_mcp.py` | Run the local stdio MCP proxy, preserve the four upstream tool schemas/results, and hard-gate/reserve each billed call before forwarding. |
 | `runtime/agent-runner/config.json` | Add the dedicated Codex-only `treg-lead-signals-agent` class on the existing `gpt-6.1-sol` medium automation route. |
 | `skills/earn/marketing-engine/run_agent.sh` | Allow the new bounded Treg signal task class. |
 | `skills/earn/marketing-engine/intel/treg/SKILL.md` | Safe Treg catalog and call rules for Life Manager agents. |
@@ -39,6 +40,7 @@
 | `skills/earn/marketing-engine/intel/lead-signals-products-extra.json` | Four published App Store product profiles absent from the five-row Marketing Engine registry. |
 | `skills/earn/marketing-engine/intel/lead-signals-output.schema.json` | Template for qualified rows and Treg call receipts; the runner injects current product IDs. |
 | `skills/earn/marketing-engine/intel/treg_lead_signals_weekly.py` | Run the bounded agent pass, validate receipts, dedupe keys, write private state, and send only new rows. |
+| `runtime/agent-runner/tests/test_treg_budget_mcp.py` and `skills/earn/marketing-engine/intel/test_treg_lead_signals_weekly.py` | Prove pre-call route/balance gates and CSV baseline marker behavior without live Treg calls. |
 | `skills/earn/marketing-engine/intel/treg-lead-signals-weekly` | Repository-relative loop entrypoint. |
 | `skills/earn/marketing-engine/intel/treg_lead_signals_reconcile.py` | Read one occurrence's persisted Telegram receipt; never sends or retries. |
 | `runtime/loop/lm_loop_run.py` | Allow this exact owner/entrypoint to record a Telegram receipt or a verified no-message result. |
@@ -69,8 +71,8 @@
 
 - Add `_load_treg_agent_token(credentials_path: Path | None = None) -> str | None`; accept exactly one `treg_agent:life-manager-product-growth` row and return its token only in memory.
 - Extend `provider_process_env(...)` to set `TREG_TOKEN` only from the dedicated agent row, then link the two repo-owned skill directories into the invocation's isolated `$HOME/.agents/skills`.
-- For `treg-lead-signals-agent`, use per-invocation `-c` overrides for the Treg remote MCP URL, `env_http_headers`, the four allowed MCP tool names, and unattended approval for those scoped tool calls. Keep `--ignore-user-config`; pass only the header name and `TREG_TOKEN` variable name, never the token value.
-- Add `treg-lead-signals-agent` to `TOOLLESS_TASK_CLASSES` and `run_agent.sh`; configure it as Codex-only with model `gpt-6.1-sol`, effort `medium`, and profile `acct2`, with no provider fallback. It uses remote MCP tools while the shell remains disabled/read-only.
+- For `treg-lead-signals-agent`, use per-invocation `-c` overrides for the local stdio MCP command/args, `env_vars=["TREG_TOKEN"]`, the four allowed MCP tool names, and unattended approval for those scoped tool calls. Keep `--ignore-user-config`; pass only the token variable name, never the token value.
+- Add `treg-lead-signals-agent` to `TOOLLESS_TASK_CLASSES` and `run_agent.sh`; configure it as Codex-only with model `gpt-6.1-sol`, effort `medium`, and profile `acct2`, with no provider fallback. It uses the local gated MCP tools while the shell remains disabled/read-only.
 - Preserve all model/provider selection and sandbox settings; no general network access is added.
 
 - [x] Create the two skills with triggers, public-signal-only scope, per-call/weekly cost limits, no outreach, and no top-ups.
@@ -117,6 +119,8 @@
 
 - `run_weekly_monitor(*, state_root: Path, evidence_root: Path, agent_runner=...) -> dict` runs one `treg-lead-signals-agent` pass and returns the Life Manager terminal result fields, `treg_call_ids`, `charged_micro`, `baseline_count`, `new_count`, and optional Telegram `provider_receipt_id`.
 - The scheduled signal pass invokes `run_agent.sh --task-class treg-lead-signals-agent`; no general shell/network capability is needed for its Treg MCP calls.
+- The local stdio gate is the only process that connects to Treg; the Codex shell stays disabled and has no general network access.
+- The local gate's private ledger is authoritative for route reservations; end-of-run validation matches its occurrence rows to Codex JSONL arguments and Treg call IDs/costs.
 - Every billed MCP `call` includes `headers: {"X-Treg-Route-Max-Cost": "0.003"}`. Treg forwards this tool argument to its upstream route; the parent validates the captured arguments. The product ID enum and one-signal-per-product maximum are generated from the currently loaded profiles.
 - Validate call IDs, prices, costs, and exact source/profile URLs against the captured `mcp_tool_call` results in the agent's JSONL evidence; model-provided receipts alone are insufficient.
 - CSV key: `(product_id, person_url, signal, source_url)`.
@@ -128,11 +132,11 @@
 - [x] Build the prompt from the five canonical products and four supplements; search the current catalog once per platform, inspect route prices, and make at most two routes per product.
 - [x] If the loaded product set would require more than 18 routes for one X and one Reddit scan per product, fail before paid calls instead of silently omitting products.
 - [x] Include `X-Treg-Route-Max-Cost: 0.003` in the `headers` argument of every billed `call`, and reject any captured call that omits it.
-- [x] Check Treg balance before paid routes; reserve `$0.05` from the remaining balance after each quoted route; stop without top-up if the floor would be crossed.
+- [ ] Enforce balance and route limits in the local MCP process before each paid route. Under a private `fcntl` lock, require a current catalog quote at or below `$0.003`, the exact max-cost header, fewer than 18 prior reservations, cumulative reserved cost below `$0.054`, and fresh balance less current route cost plus unresolved reservations at least `$0.05`; persist the reservation before forwarding and never release an uncertain reservation.
 - [x] Require X/Reddit public results from the last seven days, fit/timing qualification, exact source URLs, and the per-call cost header.
 - [x] Generate the agent schema from the current product IDs. Validate the JSON and each receipt against captured Treg MCP results; reject if any route exceeds `$0.003`, total exceeds `$0.054`, or there are more than two billed routes per product.
 - [x] Keep at most one strongest new signal per product in the weekly report so one digest covers every product without flooding Telegram.
-- [x] On the first run, write a private baseline and send no old leads. On later runs, pass recent exact keys to the agent, then compare exact CSV keys and report only new rows.
+- [ ] On the first run, write a private baseline and a SHA-256 marker and send no old leads. On later runs, require marker/CSV hash match, pass recent exact keys to the agent, then compare exact CSV keys and report only new rows; an unmarked header-only CSV must fail before paid calls.
 - [x] Write state atomically with `0700` directory and `0600` files. Persist `signals.csv` only after the outbox/Telegram decision is durably recorded.
 - [x] Use `skills/_shared/telegram.py`; persist the returned message IDs and receipt before reporting success. If no new rows, do not send and write a `verified_no_effect` hint.
 - [x] Add an owner/entrypoint-scoped receipt-hint allowlist; for a delivered message write a `verified_effect` hint with its Telegram message ID.
@@ -140,7 +144,33 @@
 - [x] Run `python3 -m py_compile` on the three Python entrypoints and `./bin/lm-loop-contract`.
 - [x] Commit and push the loop as its own source change (`f3a39585fc`).
 
-### Task 4: Source acceptance and production handoff
+### Task 4: Close read-only review findings
+
+**Files:**
+
+- Modify: `runtime/agent-runner/agent_runner.py`
+- Create: `runtime/agent-runner/treg_budget_mcp.py`
+- Modify: `skills/earn/marketing-engine/intel/treg_lead_signals_weekly.py`
+- Create: `runtime/agent-runner/tests/test_treg_budget_mcp.py`
+- Create: `skills/earn/marketing-engine/intel/test_treg_lead_signals_weekly.py`
+- Modify: this plan and `docs/superpowers/specs/2026-10-10-treg-product-growth-design.md`
+
+**Acceptance:**
+
+- Each paid `call` is rejected locally before upstream forwarding unless the endpoint has a current safe quote, the exact route cap header is present, the shared UTC-day and occurrence ledgers have fewer than 18 reserved routes / `$0.054`, and a fresh balance read leaves `$0.05` after this route and unresolved reservations.
+- The daily ledger lives at private `state_root/treg-budget/` and is shared across occurrences that day. The occurrence ledger lives beside its private evidence and matches every captured Treg receipt.
+- Unresolved maximum-cost reservations survive UTC daily-ledger rotation in a private pending ledger and are deducted from later balance preflights until an exact receipt settles them.
+- The gate durably records the maximum `$0.003` reservation before forwarding; a missing/invalid receipt never frees the route or its uncertain cost, and prevents another paid call in that occurrence.
+- Parent validation matches every captured paid MCP call to the local gate's occurrence ledger and exact Treg receipt.
+- Existing `signals.csv` without a valid hash marker fails closed. An established empty baseline remains distinguishable from a pre-created header-only CSV.
+- Tests use local fixtures only; they make no paid Treg call and send no Telegram message.
+
+- [x] Write the baseline, route-budget, runner-config, and parent-receipt regressions first; confirm each fails for its missing behavior.
+- [x] Implement the local MCP budget gate and hash-bound baseline marker with no new dependency.
+- [x] Run focused tests, source boundary, loop contract, syntax/JSON checks, and diff check.
+- [ ] Update the SSOT cursor with the corrected evidence and push the dedicated branch.
+
+### Task 5: Source acceptance and production handoff
 
 **Files:**
 

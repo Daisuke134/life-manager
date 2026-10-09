@@ -309,7 +309,7 @@ Exact signal keys already recorded by the host from this same seven-day window; 
 
 Use only public X and Reddit posts from this seven-day window. First read the Treg balance. Search the Treg catalog exactly once for a public X post-search route and once for a public Reddit post-search route; inspect the current endpoint and price for each with catalog_get. Return those two route checks. Use only those selected routes.
 
-For every billed `call` tool input, set the `headers` argument's `X-Treg-Route-Max-Cost` value to `0.003`; Treg forwards that tool argument to the upstream route. Make at most one X and one Reddit route call per product, at most 18 billed routes total. Before each paid call, preserve at least $0.05 after subtracting prior charges and the quoted cost. If the balance funds only part of the scan, work in profile order, X then Reddit for each product, and stop at the first route whose quoted cost would cross the floor; do not skip ahead. Never top up or substitute a more expensive route. Check that each search is limited to the observation window.
+For every billed `call` tool input, set the `headers` argument's `X-Treg-Route-Max-Cost` value to `0.003`; Treg forwards that tool argument to the upstream route. The local gate independently enforces the route, total, and balance limits before forwarding. Make at most one X and one Reddit route call per product, at most 18 billed routes total. Before each paid call, preserve at least $0.05 after subtracting prior charges and unresolved reservations. If the balance funds only part of the scan, work in profile order, X then Reddit for each product, and stop at the first route whose quoted cost would cross the floor; do not skip ahead. If a Treg call is refused, errors, or returns without an exact receipt, stop paid calls for this occurrence and do not retry. Never top up or substitute a more expensive route. Check that each search is limited to the observation window.
 
 Keep a signal only when a public post shows first-person pain or clear intent that the named product can address. Omit generic discussion, promotion, vendors, recruiters, uncertain fits, and duplicates. Return at most one strongest new signal for each product across both platforms. For every signal, copy the exact post URL and author/profile URL from that call's result, use its call_id, report the observed date, and explain briefly in Japanese why the timing is relevant. Do not invent, shorten, or normalize URLs.
 
@@ -322,6 +322,7 @@ def _default_agent_runner(
     schema_path: Path,
     evidence_dir: Path,
     occurrence_id: str,
+    budget_root: Path,
 ) -> subprocess.CompletedProcess[str]:
     run_id = occurrence_id.split(":", 1)[1]
     label = f"treg-lead-signals-{hashlib.sha256(run_id.encode()).hexdigest()[:12]}"
@@ -337,9 +338,12 @@ def _default_agent_runner(
     ]
     previous_mask = os.umask(0o077)
     try:
+        child_env = os.environ.copy()
+        child_env["LIFE_MANAGER_OCCURRENCE_ID"] = occurrence_id
+        child_env["LIFE_MANAGER_TREG_BUDGET_ROOT"] = str(_assert_outside_repo(budget_root))
         return subprocess.run(
             command, input=prompt, text=True, capture_output=True,
-            timeout=1_900, cwd=ROOT, check=False,
+            timeout=1_900, cwd=ROOT, env=child_env, check=False,
         )
     finally:
         os.umask(previous_mask)
@@ -406,14 +410,88 @@ def _mcp_events(evidence_dir: Path) -> list[dict[str, Any]]:
             details = item.get("details") if isinstance(item.get("details"), dict) else item
             if details.get("type") != "mcp_tool_call" or details.get("server") != "treg":
                 continue
+            result = details.get("result")
+            result_errors = _named_values(result, {"error"})
+            tool_error = bool(details.get("error")) or details.get("status") == "error" or any(
+                value is True for value in _named_values(result, {"isError"})
+            ) or any(value not in (None, "", False) for value in result_errors)
             events.append({
                 "tool": details.get("tool"),
                 "arguments": details.get("arguments", {}),
-                "result": details.get("result"),
-                "error": details.get("error"),
+                "result": result,
+                "error": tool_error,
                 "status": details.get("status"),
             })
     return events
+
+
+def _validate_gate_ledger(
+    path: Path,
+    occurrence_id: str,
+    trace_receipts: list[dict[str, Any]],
+) -> dict[str, Any]:
+    try:
+        raw = _read_private(path, max_bytes=2 * 1024 * 1024)
+        ledger = json.loads(raw.decode("utf-8"))
+    except MonitorError as error:
+        code = "treg_gate_ledger_missing" if error.code == "private_file_unreadable" and not path.exists() else "treg_gate_ledger_invalid"
+        raise MonitorError(code) from None
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        raise MonitorError("treg_gate_ledger_invalid") from None
+    required = {
+        "schema_version", "occurrence_id", "quotes", "calls", "route_count",
+        "reserved_micro", "charged_micro", "unresolved_micro",
+        "halted", "halt_reason", "blocked_attempt_count", "blocked_attempts",
+    }
+    if (
+        not isinstance(ledger, dict)
+        or set(ledger) != required
+        or ledger.get("schema_version") != 1
+        or ledger.get("occurrence_id") != occurrence_id
+        or not isinstance(ledger.get("quotes"), dict)
+        or not isinstance(ledger.get("calls"), list)
+        or not isinstance(ledger.get("blocked_attempts"), list)
+        or type(ledger.get("route_count")) is not int
+        or type(ledger.get("reserved_micro")) is not int
+        or type(ledger.get("charged_micro")) is not int
+        or type(ledger.get("unresolved_micro")) is not int
+        or type(ledger.get("halted")) is not bool
+        or (ledger.get("halt_reason") is not None and not isinstance(ledger.get("halt_reason"), str))
+        or type(ledger.get("blocked_attempt_count")) is not int
+    ):
+        raise MonitorError("treg_gate_ledger_invalid")
+    calls = ledger["calls"]
+    if (
+        ledger["blocked_attempt_count"] != 0
+        or ledger["halted"]
+        or ledger["halt_reason"] is not None
+        or ledger["route_count"] != len(calls)
+        or ledger["route_count"] != len(trace_receipts)
+        or ledger["route_count"] > MAX_ROUTES
+        or ledger["reserved_micro"] != ledger["route_count"] * MAX_ROUTE_MICRO
+        or ledger["reserved_micro"] > MAX_TOTAL_MICRO
+        or ledger["unresolved_micro"] != 0
+    ):
+        raise MonitorError("treg_gate_route_ledger_mismatch")
+    charged = 0
+    for gate_call, receipt in zip(calls, trace_receipts, strict=True):
+        if (
+            not isinstance(gate_call, dict)
+            or gate_call.get("occurrence_id") != occurrence_id
+            or gate_call.get("reserved_micro") != MAX_ROUTE_MICRO
+            or gate_call.get("status") != "settled"
+            or gate_call.get("endpoint_id") != receipt.get("endpoint_id")
+            or gate_call.get("call_id") != receipt.get("call_id")
+            or gate_call.get("charged_micro") != receipt.get("charged_micro")
+            or receipt.get("error")
+            or receipt.get("call_id") is None
+            or receipt.get("charged_micro") is None
+        ):
+            raise MonitorError("treg_gate_receipt_mismatch")
+        charged += receipt["charged_micro"]
+    if charged != ledger["charged_micro"] or charged > MAX_TOTAL_MICRO:
+        raise MonitorError("treg_gate_receipt_mismatch")
+    return ledger
 
 
 def _one_event(events: list[dict[str, Any]], tool: str) -> dict[str, Any]:
@@ -712,6 +790,9 @@ def _read_signals(path: Path) -> list[dict[str, str]] | None:
         raw = _read_private(path, max_bytes=8 * 1024 * 1024)
     except MonitorError as error:
         if error.code == "private_file_unreadable" and not path.exists() and not path.is_symlink():
+            marker = path.with_name("signals.baseline.json")
+            if marker.exists() or marker.is_symlink():
+                raise MonitorError("signals_csv_missing_after_baseline") from None
             return None
         raise
     try:
@@ -728,6 +809,22 @@ def _read_signals(path: Path) -> list[dict[str, str]] | None:
     for row in rows:
         if set(row) != set(CSV_FIELDS) or any(not isinstance(row[field], str) for field in CSV_FIELDS):
             raise MonitorError("signals_csv_row_invalid")
+    marker_path = path.with_name("signals.baseline.json")
+    try:
+        marker = json.loads(_read_private(marker_path, max_bytes=4096).decode("utf-8"))
+    except MonitorError as error:
+        code = "signals_csv_baseline_missing" if error.code == "private_file_unreadable" else "signals_csv_baseline_invalid"
+        raise MonitorError(code) from None
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        raise MonitorError("signals_csv_baseline_invalid") from None
+    if (
+        not isinstance(marker, dict)
+        or set(marker) != {"schema_version", "signals_sha256", "row_count"}
+        or marker.get("schema_version") != 1
+        or marker.get("signals_sha256") != hashlib.sha256(raw).hexdigest()
+        or marker.get("row_count") != len(rows)
+    ):
+        raise MonitorError("signals_csv_baseline_mismatch")
     return rows
 
 
@@ -752,6 +849,12 @@ def _write_signals(path: Path, rows: list[dict[str, str]], product_order: Mappin
         _fsync_dir(path.parent)
     finally:
         temp_path.unlink(missing_ok=True)
+    raw = _read_private(path, max_bytes=8 * 1024 * 1024)
+    _atomic_json(path.with_name("signals.baseline.json"), {
+        "schema_version": 1,
+        "signals_sha256": hashlib.sha256(raw).hexdigest(),
+        "row_count": len(ordered),
+    })
 
 
 def _validate_result_hint_path(path_value: str | None) -> Path:
@@ -828,7 +931,7 @@ def run_weekly_monitor(
     *,
     state_root: Path,
     evidence_root: Path,
-    agent_runner: Callable[..., subprocess.CompletedProcess[str]] = _default_agent_runner,
+    agent_runner: Callable[..., subprocess.CompletedProcess[str]] | None = None,
 ) -> dict[str, Any]:
     occurrence_id = _occurrence_id(os.environ.get("LIFE_MANAGER_OCCURRENCE_ID"))
     hint_path = os.environ.get("LIFE_MANAGER_RESULT_HINT_PATH")
@@ -871,7 +974,16 @@ def run_weekly_monitor(
         prompt = _build_prompt(products, now, _recent_seen_keys(existing or [], now))
         record.update({"phase": "agent", "status": "agent_running", "billing_status": "pending", "charged_micro": None, "next_action": "validate_treg_tool_results"})
         _atomic_json(state_path, record)
-        completed = agent_runner(prompt, schema_path, evidence_dir, occurrence_id)
+        if agent_runner is None:
+            completed = _default_agent_runner(
+                prompt,
+                schema_path,
+                evidence_dir,
+                occurrence_id,
+                Path(state_root).expanduser().resolve() / "treg-budget",
+            )
+        else:
+            completed = agent_runner(prompt, schema_path, evidence_dir, occurrence_id)
         events = _mcp_events(evidence_dir)
         trace_receipts = _trace_call_receipts([event for event in events if event.get("tool") == "call"])
         partial, partial_total = _capture_partial(trace_receipts)
@@ -879,7 +991,7 @@ def run_weekly_monitor(
             "treg_calls": partial,
             "charged_micro": partial_total,
             "partial_charged_micro": partial_total,
-            "billing_status": "verified" if completed.returncode == 0 and partial_total is not None else "incomplete",
+            "billing_status": "incomplete",
         })
         _atomic_json(state_path, record)
         if completed.returncode != 0:
@@ -892,6 +1004,18 @@ def run_weekly_monitor(
             })
             _atomic_json(state_path, record)
             raise MonitorError("agent_run_failed")
+        gate_ledger = _validate_gate_ledger(
+            evidence_dir / "treg-budget-occurrence.json",
+            occurrence_id,
+            trace_receipts,
+        )
+        record.update({
+            "treg_gate_route_count": gate_ledger["route_count"],
+            "treg_gate_reserved_micro": gate_ledger["reserved_micro"],
+            "treg_gate_charged_micro": gate_ledger["charged_micro"],
+            "billing_status": "verified" if partial_total is not None else "incomplete",
+        })
+        _atomic_json(state_path, record)
         output = _agent_output(completed)
         normalized = _validate_output(output, products, events, now)
         record.update({

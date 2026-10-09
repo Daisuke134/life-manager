@@ -65,7 +65,6 @@ CODEX_INVOCATION_HOME_MARKER = "_LIFE_MANAGER_CODEX_INVOCATION_HOME"
 _OWNED_CODEX_INVOCATION_HOMES: set[Path] = set()
 TREG_AGENT_CREDENTIAL_SERVICE = "treg_agent:life-manager-product-growth"
 TREG_SIGNAL_TASK_CLASS = "treg-lead-signals-agent"
-TREG_MCP_URL = "https://treg.to/mcp/"
 TREG_MCP_TOOLS = ("catalog_search", "catalog_get", "call", "balance")
 TREG_SKILL_NAMES = ("treg", "lead-signals")
 
@@ -1388,11 +1387,49 @@ def command_for(provider: str, executable: str, provider_config: dict[str, Any],
                 "reminder_at_remaining_tokens=[],"
                 "sampling_token_weight=1.0,prefill_token_weight=1.0}")])
         if args.task_class == TREG_SIGNAL_TASK_CLASS:
+            evidence_dir = Path(args.evidence_dir).expanduser()
+            occurrence_id = os.environ.get("LIFE_MANAGER_OCCURRENCE_ID", "")
+            budget_root_value = os.environ.get("LIFE_MANAGER_TREG_BUDGET_ROOT", "")
+            budget_root = Path(budget_root_value).expanduser() if budget_root_value else None
+            if (
+                not evidence_dir.is_absolute()
+                or evidence_dir.is_symlink()
+                or not evidence_dir.is_dir()
+                or stat.S_IMODE(evidence_dir.stat().st_mode) != 0o700
+                or evidence_dir.stat().st_uid != os.getuid()
+                or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,255}", occurrence_id)
+                or budget_root is None
+                or not budget_root.is_absolute()
+            ):
+                raise ValueError("treg budget gate state is unavailable")
+            resolved_budget_root = budget_root.resolve()
+            try:
+                resolved_budget_root.relative_to(REPO_ROOT.resolve())
+            except ValueError:
+                pass
+            else:
+                raise ValueError("treg budget gate state is unavailable")
+            gate_script = HERE / "treg_budget_mcp.py"
+            if not gate_script.is_file():
+                raise ValueError("treg budget gate entrypoint is unavailable")
+            daily_ledger = resolved_budget_root / (
+                f"treg-budget-daily-{datetime.now(timezone.utc).date().isoformat()}.json"
+            )
+            occurrence_ledger = evidence_dir / "treg-budget-occurrence.json"
+            gate_args = [
+                str(gate_script.resolve()),
+                "--daily-ledger", str(daily_ledger),
+                "--occurrence-ledger", str(occurrence_ledger),
+                "--occurrence-id", occurrence_id,
+            ]
             command.extend([
-                "-c", f"mcp_servers.treg.url={json.dumps(TREG_MCP_URL)}",
-                "-c", 'mcp_servers.treg.env_http_headers={"X-Treg-Token" = "TREG_TOKEN"}',
+                "-c", f"mcp_servers.treg.command={json.dumps(sys.executable)}",
+                "-c", f"mcp_servers.treg.args={json.dumps(gate_args)}",
+                "-c", 'mcp_servers.treg.env_vars=["TREG_TOKEN"]',
                 "-c", f"mcp_servers.treg.enabled_tools={json.dumps(list(TREG_MCP_TOOLS))}",
                 "-c", 'mcp_servers.treg.default_tools_approval_mode="approve"',
+                "-c", "mcp_servers.treg.startup_timeout_sec=20",
+                "-c", "mcp_servers.treg.tool_timeout_sec=200",
                 "-c", "mcp_servers.treg.enabled=true",
                 "-c", "mcp_servers.treg.required=true",
             ])
