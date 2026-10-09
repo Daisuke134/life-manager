@@ -979,6 +979,12 @@ class HostDiskGovernor:
                             continue
                         return "protected_descendant"
                     if allow_worktree_sources and (
+                        descendant.name == ".env" or descendant.name.startswith(".env.")
+                        or any(token in descendant.name.lower()
+                               for token in ("credential", "secret", "cookie", "passkey", "recovery"))
+                    ):
+                        return "protected_descendant"
+                    if allow_worktree_sources and (
                         (descendant.parent == path and descendant.name == ".git" and descendant.is_file())
                         or descendant.suffix.lower() in SOURCE_SUFFIXES
                         or descendant.name in {"source", "src"}

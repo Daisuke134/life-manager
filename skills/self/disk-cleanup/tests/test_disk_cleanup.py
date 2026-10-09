@@ -196,8 +196,9 @@ def test_discover_stale_test_temporary_families_only(
     assert all(item["discovery"] == "allowlisted" for item in candidates)
 
 
+@pytest.mark.parametrize("protected_filename", ["credentials.json", ".env.sh"])
 def test_sweep_retires_only_registered_clean_merged_unleased_worktree(
-    tmp_path: Path, monkeypatch,
+    tmp_path: Path, monkeypatch, protected_filename: str,
 ) -> None:
     home = tmp_path / "home"
     repo = home / "Projects" / "life-manager-main"
@@ -273,8 +274,8 @@ def test_sweep_retires_only_registered_clean_merged_unleased_worktree(
     git(repo, "update-ref", "refs/heads/main", protected_head)
     credentials = worktrees / "credentials"
     git(repo, "worktree", "add", "-b", "credentials", str(credentials), main_head)
-    (credentials / "credentials.json").write_text("fixture credential must remain")
-    git(credentials, "add", "credentials.json")
+    (credentials / protected_filename).write_text("fixture credential must remain")
+    git(credentials, "add", protected_filename)
     git(credentials, "commit", "-m", "fixture credentials")
     credential_head = git(credentials, "rev-parse", "HEAD")
     git(repo, "reset", "--hard", protected_head)
