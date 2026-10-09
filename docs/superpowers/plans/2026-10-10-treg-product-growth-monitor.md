@@ -78,7 +78,7 @@
 - [x] Run `python3 -m json.tool runtime/agent-runner/config.json` and `bash -n skills/earn/marketing-engine/run_agent.sh`.
 - [x] Run `codex mcp list --json` with an isolated `CODEX_HOME` and the per-run overrides; verify the `treg` server lists without making a provider call.
 - [x] Run a no-cost isolated `treg balance` smoke using the generated child environment; print only success, not the token or raw config.
-- [ ] Commit and push this task before moving to the loop implementation.
+- [x] Commit and push this task before moving to the loop implementation.
 
 ### Task 2: Define the nine product profiles and agent output contract
 
