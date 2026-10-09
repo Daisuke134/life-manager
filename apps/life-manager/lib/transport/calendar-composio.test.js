@@ -146,6 +146,9 @@ test("Web Travel reminder writes use Calendar proxy and verify the exact popup r
       if (proxyResponseStatus === "rejected") {
         return { ok: false, status: 400, json: async () => ({ error: "invalid parameters" }) };
       }
+      if (proxyResponseStatus === "ambiguous") {
+        return { ok: false, status: 429, json: async () => ({ error: "rate limited" }) };
+      }
       return { ok: true, status: 200, json: async () => ({
         status: 200,
         data: { id: "gcal-event-1", reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 0 }] } },
@@ -187,6 +190,20 @@ test("Web Travel reminder writes use Calendar proxy and verify the exact popup r
   assert.equal(rejected.effect, "no_effect");
   assert.equal(rejected.successful, false);
   assert.equal(calls.length, 2);
+
+  proxyResponseStatus = "ambiguous";
+  const ambiguous = await calendar.createEvent(UID, {
+    summary: "[Travel] Home→Office",
+    start_datetime: "2030-01-01T00:00:00",
+    event_duration_minutes: 25,
+    location: "Office",
+    description: "Auto travel block",
+    reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 0 }] },
+    send_updates: "none",
+  }, { expectedCalendarAccountId: ACCOUNT_ID });
+  assert.equal(ambiguous.effect, "unknown");
+  assert.equal(ambiguous.successful, false);
+  assert.equal(calls.length, 3);
 });
 
 test("Composio calls with no verified unit rate are stored as unknown, not free", async () => {
