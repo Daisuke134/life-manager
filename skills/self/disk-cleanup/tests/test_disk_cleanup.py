@@ -261,6 +261,15 @@ def test_sweep_retires_only_registered_clean_merged_unleased_worktree(
     lease_path.parent.mkdir(parents=True)
     lease_path.write_text("{}\n")
 
+    protected_store = worktrees / "protected-store"
+    git(repo, "worktree", "add", "-b", "protected-store", str(protected_store), main_head)
+    (protected_store / "memory").mkdir()
+    (protected_store / "memory" / "fact").write_text("keep")
+    git(protected_store, "add", "memory/fact")
+    git(protected_store, "commit", "-m", "protected store")
+    protected_head = git(protected_store, "rev-parse", "HEAD")
+    git(repo, "update-ref", "refs/remotes/origin/main", protected_head)
+
     governor = HostDiskGovernor(
         home=home,
         state_dir=home / "state",
@@ -287,7 +296,43 @@ def test_sweep_retires_only_registered_clean_merged_unleased_worktree(
     assert result["protected_deletions"] == 0
     listing = git(repo, "worktree", "list", "--porcelain")
     assert str(safe) not in listing
-    assert all(path.is_dir() for path in (dirty, untracked, ignored, locked, kept, unmerged, leased))
+    assert all(path.is_dir() for path in (dirty, untracked, ignored, locked, kept, unmerged, leased, protected_store))
+
+
+@pytest.mark.parametrize("current_points_to_run", [True, False])
+def test_stale_pytest_symlinks_are_unlinked_without_following_targets(tmp_path: Path, monkeypatch, current_points_to_run: bool) -> None:
+    home = tmp_path / "home"
+    home.mkdir()
+    temporary = tmp_path / "T"
+    run = temporary / f"pytest-of-{home.name}" / "pytest-42"
+    run.mkdir(parents=True)
+    outside = home / "memory"
+    outside.mkdir()
+    sentinel = outside / "fact"
+    sentinel.write_text("must remain")
+    large_file = outside / "large"
+    large_file.write_bytes(b"x" * 4096)
+    file_link = run / "file-link"
+    file_link.symlink_to(large_file)
+    link_bytes = file_link.lstat().st_size
+    (run / "fixture-link").symlink_to(outside, target_is_directory=True)
+    os.utime(run, (1, 1))
+    other = run.parent / "pytest-43"
+    other.mkdir()
+    pointer = run.parent / "pytest-current"
+    pointer.symlink_to(run.name if current_points_to_run else other.name, target_is_directory=True)
+    monkeypatch.setattr(disk_cleanup, "_readonly_temp_root", lambda: temporary)
+    monkeypatch.setattr(disk_cleanup, "_temporary_roots", lambda _primary: (temporary,))
+    governor = HostDiskGovernor(home=home, state_dir=home / "state", lsof=lambda _path: "confirmed-closed", usage=lambda: (0, 1))
+    candidates = [item for item in governor.discover_candidates() if item.get("owner") == "temporary-run"]
+    result = governor.sweep(candidates, write_receipt=False)
+    assert not run.exists()
+    assert sentinel.read_text() == "must remain"
+    assert large_file.stat().st_size == 4096
+    assert result["reclaimed"] == link_bytes
+    assert other.is_dir()
+    assert pointer.is_symlink() is (not current_points_to_run)
+    assert result["protected_deletions"] == 0
 
 
 def test_core_simulator_assets_are_never_discovered_as_candidates(
@@ -1779,7 +1824,7 @@ def test_discover_and_sweep_allowlisted_tmp_cache_when_gettempdir_probe_fails(
             item for item in governor.discover_candidates()
             if item.get("owner") == "temporary-run"
         ]
-        assert [Path(item["path"]) for item in candidates] == [candidate]
+        assert [Path(item["path"]).resolve() for item in candidates] == [candidate.resolve()]
 
         result = governor.sweep(candidates, write_receipt=False)
 
@@ -2653,7 +2698,7 @@ def test_run_once_global_budget_preserves_candidate_and_does_not_advance_full_ma
     candidate.mkdir(parents=True)
     monkeypatch.setattr(disk_cleanup.tempfile, "gettempdir", lambda: str(candidate.parent))
 
-    def discover_candidates() -> list[dict]:
+    def discover_candidates(*, deadline=None) -> list[dict]:
         clock[0] = 105.0
         return [
             {
@@ -2736,7 +2781,7 @@ def test_run_once_rotates_candidate_start_after_budget_exhaustion(
             usage=lambda: (12 * GiB, 100 * GiB),
             clock=lambda: clock[0],
         )
-        monkeypatch.setattr(governor, "discover_candidates", lambda: candidates)
+        monkeypatch.setattr(governor, "discover_candidates", lambda **_kwargs: candidates)
         result = governor.run_once()
         assert result["preserved_reasons"] == {"probe-budget-exhausted": 4}
         rotations.append(result.get("candidate_rotation"))
@@ -2793,7 +2838,7 @@ def _make_cursor_enospc_governor(tmp_path: Path, monkeypatch, free_bytes: int):
         lsof=lambda _path: "open",
         usage=lambda: (free_bytes, 100 * GiB),
     )
-    monkeypatch.setattr(governor, "discover_candidates", lambda: candidates)
+    monkeypatch.setattr(governor, "discover_candidates", lambda **_kwargs: candidates)
     sweep_calls = []
     real_sweep = governor.sweep
 
@@ -3002,7 +3047,7 @@ def test_run_once_rechecks_budget_after_lsof_before_reclaim(tmp_path: Path, monk
     monkeypatch.setattr(
         governor,
         "discover_candidates",
-        lambda: [
+        lambda **_kwargs: [
             {
                 "path": candidate,
                 "class": "ephemeral",
@@ -3061,7 +3106,7 @@ def test_gui_bootstrap_health_failure_is_observation_only(
     monkeypatch.setattr(
         governor,
         "discover_candidates",
-        lambda: (_ for _ in ()).throw(AssertionError("discovery must not run")),
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("discovery must not run")),
     )
 
     result = governor.run_once()
@@ -3589,7 +3634,7 @@ def test_receipt_carries_loaded_cleanup_identity(tmp_path, monkeypatch):
 
 def test_governor_reports_growth_and_preservation_reason_without_false_recovery(tmp_path, monkeypatch):
     governor = HostDiskGovernor(home=tmp_path, state_dir=tmp_path / "state", usage=lambda: (600*1024**2,100*GiB), lsof=lambda _p: "confirmed-closed")
-    monkeypatch.setattr(governor, "discover_candidates", lambda: [])
+    monkeypatch.setattr(governor, "discover_candidates", lambda **_kwargs: [])
     monkeypatch.setattr(disk_cleanup, "collect_host_inventory", lambda **_k: {"coverage": {"mount_count":1,"root_count":1,"gaps":[]},"storage_growth":{"roots":[{"path":"/srv/lm/unknown","delta_bytes":1048576,"attribution":"unattributed"}],"non_additive":True}})
     assert governor.acquire_lock()
     try: result = governor.run_once()

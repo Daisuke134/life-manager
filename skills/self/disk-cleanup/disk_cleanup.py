@@ -276,7 +276,7 @@ def _bytes(
     if not path.exists() and not path.is_symlink():
         return 0
     if path.is_file() or path.is_symlink():
-        return path.stat().st_size
+        return path.lstat().st_size
     total = 0
     for root, dirs, files in os.walk(path, topdown=True, followlinks=False):
         if deadline is not None and clock() >= deadline:
@@ -285,7 +285,7 @@ def _bytes(
         for name in files:
             item = Path(root) / name
             try:
-                total += item.stat().st_size
+                total += item.lstat().st_size
             except OSError:
                 continue
     return total
@@ -1082,6 +1082,8 @@ class HostDiskGovernor:
         )
         if status is None or status.stdout:
             return None
+        if _release_immutable_store_probe(path, deadline=deadline, clock=self.clock) is not None:
+            return None
         return (
             repository_fingerprint,
             root_fingerprint,
@@ -1132,7 +1134,11 @@ class HostDiskGovernor:
             return False
         if item.get("class") == "ephemeral" and item.get("owner") == "temporary-run":
             old = _old_real_temporary_path(path)
-            return old and (
+            legacy_cache = (
+                resolved.name == "capafy-hf-npm-cache"
+                or resolved.name.startswith("capafy-hf-npm.")
+            )
+            return (old or legacy_cache) and (
                 (
                     resolved.parent in temporary
                     and (
@@ -1532,7 +1538,11 @@ class HostDiskGovernor:
                 "browser", "codex-app-updater", "codex-runtime-cache", "whisper-model-cache",
                 "release-retention", "zombie-worktree",
             } | set(EXACT_CACHE_ROOTS)
-            descendant_state = None if whole_tree_is_the_unit else self._protected_descendant(path, deadline=deadline)
+            descendant_state = None if whole_tree_is_the_unit else self._protected_descendant(
+                path, deadline=deadline,
+                allow_generated_symlinks=(item.get("owner") == "temporary-run"
+                    and PYTEST_RUN_PATTERN.fullmatch(path.name) is not None),
+            )
             if descendant_state is not None:
                 result["errors"] += descendant_state == "descendant_probe_error"
                 preserve(descendant_state)
@@ -1564,7 +1574,11 @@ class HostDiskGovernor:
                 if deadline is not None and self.clock() + POST_SWEEP_RESERVE_SECONDS >= deadline:
                     preserve("probe-budget-exhausted")
                     continue
-            descendant_state = None if whole_tree_is_the_unit else self._protected_descendant(path, deadline=deadline)
+            descendant_state = None if whole_tree_is_the_unit else self._protected_descendant(
+                path, deadline=deadline,
+                allow_generated_symlinks=(item.get("owner") == "temporary-run"
+                    and PYTEST_RUN_PATTERN.fullmatch(path.name) is not None),
+            )
             if descendant_state is not None:
                 result["errors"] += descendant_state == "descendant_probe_error"
                 preserve(descendant_state)
@@ -1639,6 +1653,19 @@ class HostDiskGovernor:
                     preserve("worktree_registration_still_present")
                     continue
                 result["worktrees_retired"] += 1
+            if (item.get("owner") == "temporary-run"
+                    and PYTEST_RUN_PATTERN.fullmatch(path.name) is not None):
+                pointer = path.parent / "pytest-current"
+                try:
+                    info = pointer.lstat()
+                    if (stat.S_ISLNK(info.st_mode) and info.st_uid == os.getuid()
+                            and os.readlink(pointer) in {path.name, str(path)}
+                            and pointer.lstat() == info):
+                        pointer.unlink()
+                except FileNotFoundError:
+                    pass
+                except OSError:
+                    result["errors"] += 1
             result["reclaimed"] += before
         free_after, _ = self.usage()
         result["free_before"] = free_before
@@ -1742,7 +1769,10 @@ class HostDiskGovernor:
                         )
         temporary = _readonly_temp_root()
         repository = self.home / WORKTREE_REPOSITORY_RELATIVE
-        records = _worktree_records(repository)
+        records = (
+            _worktree_records(repository)
+            if _real_directory_fingerprint(self.home, repository) is not None else None
+        )
         if records is not None:
             for record in records:
                 if deadline is not None and self.clock() >= deadline:
