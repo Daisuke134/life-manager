@@ -35,6 +35,7 @@ from runtime.loop.runtime_event import (
     build_runtime_start_event,
     validate_runtime_event,
 )
+from runtime.host.disk_admission import RECOVERY_FLOOR_BYTES, disk_free_bytes
 from runtime.host.memory_admission import memory_free_percent
 from runtime.host.storage_policy import load_storage_policy
 from runtime.host.storage_failure import classify_storage_failure
@@ -1392,6 +1393,20 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
             return 78
         return child_return_code
 
+    def disk_deferred(phase: str) -> bool:
+        available = disk_free_bytes(receipt.parent)
+        if available is not None and available >= RECOVERY_FLOOR_BYTES:
+            return False
+        if durable and phase == "pre_enqueue":
+            try:
+                defer_durable_resource(loop_id)
+            except (OSError, RuntimeError, sqlite3.Error):
+                pass
+        _atomic_json(receipt, {"status": "deferred", "effect": 0, "phase": phase,
+                     "reason": "disk_headroom_unavailable" if available is None else "disk_headroom_low",
+                     "available_bytes": available, "required_bytes": RECOVERY_FLOOR_BYTES})
+        return True
+
     def interrupt_wait(_signum, _frame):
         nonlocal interrupted
         interrupted = True
@@ -1413,6 +1428,8 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                     pass
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
                                   "reason": "resource_admission_interrupted"})
+            return 75
+        if disk_deferred("pre_enqueue"):
             return 75
         resource_class = _resource_class(entry)
         admission_class = _admission_class(entry)
@@ -1505,6 +1522,8 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                                       "reason": "resource_claim_identity_invalid"})
                 return 75
             on_claimed(claimed_occurrence_id)
+        if disk_deferred("post_claim"):
+            return 75
         if interrupted:
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
                                   "reason": "resource_admission_interrupted"})

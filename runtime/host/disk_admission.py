@@ -20,7 +20,7 @@ _PRODUCER_GATE = "life-manager-producer-preflight"
 _DISK_STOP_FLAGS = (("disk-writers.stop", "disk_writers_stop"),)
 _DISK_RECOVERY_OWNER = "host-disk-recovery"
 _DISK_RECOVERY_REASON = "disk_headroom_low"
-_DISK_RECOVERY_BYTES = 2 * 1024**3
+RECOVERY_FLOOR_BYTES = 2 * 1024**3
 _DISK_RECOVERY_ACTION = "restore_capacity_and_install_shared_disk_gate"
 
 
@@ -56,7 +56,7 @@ def is_cleanup_disk_recovery_signal(path: Path | str) -> bool:
         isinstance(value, dict)
         and value.get("owner_id") == _DISK_RECOVERY_OWNER
         and value.get("reason") == _DISK_RECOVERY_REASON
-        and value.get("required_bytes") == _DISK_RECOVERY_BYTES
+        and value.get("required_bytes") == RECOVERY_FLOOR_BYTES
         and value.get("next_action") == _DISK_RECOVERY_ACTION
     )
 
