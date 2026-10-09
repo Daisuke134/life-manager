@@ -1,0 +1,2900 @@
+{
+  "version": 3,
+  "base_sha": "c7b1e491bd9fb6a212dd1c8a5f05ccd9ffef70f4",
+  "state_authority": "docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md",
+  "catalog_count": 18,
+  "job_count": 113,
+  "finite_count": 95,
+  "continuous_count": 18,
+  "remaining_atom_count": 215,
+  "atoms": [
+    {
+      "target": "runtime/openclaw/gateway-client.mjs",
+      "symbol": "readSession(client, {sessionKey,agentId}) -> Promise<object>",
+      "change": "exact session readは実装済み。固定版の公開lifecycle/terminal receiptへ対応し、当該runが停止し当該tool childrenがsettleしたStopProofを作る。公開rowにないactiveRunIdsを仮定しない。unknownならclaim解放0。",
+      "checks": "foreign run/session、stale snapshot、abort ACKのみではStopProofなし。実固定Gateway fixtureで終了を確認。",
+      "kind": "code",
+      "id": "OC-011",
+      "depends": [
+        "OC-010"
+      ],
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "target": "runtime/openclaw/tests/release-contract.test.mjs",
+      "symbol": "testPinnedGatewayContract()",
+      "change": "SDKとgateway配布版のagent/agent.wait/sessions.abort/terminal payloadをprivate fake-model serverで記録し、既存fixtures/rpc-contract.jsonを作る。gateway-only instance、fake credential、model cost0、native tools disabled。",
+      "checks": "node --test runtime/openclaw/tests/release-contract.test.mjs。handshake v4、1dispatch、1terminal、abort後active0、secret marker出力0。status shape不一致ならconsumerを直すtaskへ進まずcontract差分を確定。",
+      "kind": "test",
+      "id": "OC-012",
+      "depends": [
+        "OC-011"
+      ],
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "target": "runtime/openclaw/profile.mjs",
+      "symbol": "buildGatewayConfig({paths,artifactWorkspace,port,agentId,modelRoute,effectMode}) -> object",
+      "change": "buildGatewayConfigは専用instanceと全owner/task profileを初回に用意。ambient/global profileを使わない。初期cronは全disabled、channelsなし。既存Codexモデル/account routeを維持、skillsはrepoの既存methodを参照。OTelはdiagnostics-otel、content capture無効、local OTLP endpointのみ。read_onlyとbrokeredのnative tool policyを明示し、未証明native paths/非承認subagentはdisabled。 推論agentRuntime.idはcodexで固定、plugins.allowにcodex、entries.codex.enabled=true。built-in openclaw runtime/API-key fallback/Claude/Gemini textを禁止。sessionCatalog.enabled=false。appServer.homeScope=userで既存native CodexのChatGPT accountを利用し、OpenClawへrefresh tokenを複製しない。 appServer.transport=unix、urlはNC-04の同native accountの確認済endpointのみ。OpenClaw管理OAuth profileへimportしない。",
+      "checks": "tests/profile.test.mjs:read_onlyではlm_effectなし、cronfalse、ambient account/credential valueなし。公開CLI config validateで通過。",
+      "kind": "code",
+      "id": "OC-014",
+      "depends": [
+        "OC-013",
+        "NC-01",
+        "NC-04"
+      ],
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "target": "runtime/openclaw/supervisor.mjs",
+      "symbol": "gatewayCommand(paths, profile) -> list[str]",
+      "change": "official openclaw executableのgateway argv/envを返す薄いbuilderだけ。常駐/再起動は既存LM registry+OS supervisorへ委譲。OPENCLAW_NO_RESPAWN=1、既存global gateway/configに変更なし。自作再起動daemonを増やさない。",
+      "checks": "supervisor.test.mjs:private config/node/packageのみ、global signal/install0、OS owner唯一。",
+      "kind": "code",
+      "id": "OC-015",
+      "depends": [
+        "OC-007",
+        "OC-014"
+      ],
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "target": "runtime/openclaw/supervisor.mjs",
+      "symbol": "stopGateway(handle, {drainTimeoutMs:5000}) -> Promise<StopProof>",
+      "change": "全対象sessionがdrainした時だけ専用instanceを既存OS supervisor経由で止める。個別runのtimeoutではGateway全体を止めない。他ownerのactive runがあればinstance stopをdefer。",
+      "checks": "supervisor.test.mjs:run A timeoutでrun BとGateway保持、foreign PID signal0、instance stop前drain必須。",
+      "kind": "code",
+      "id": "OC-016",
+      "depends": [
+        "OC-015"
+      ],
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "target": "runtime/openclaw/admission.py",
+      "symbol": "claim_model(owner_id: str, occurrence_id: str, inherited_claim: Path | None, registry_entry: dict) -> dict",
+      "change": "registry_entryはimmutable registryのtrusted owner row。継承claimは同owner/occurrenceかつresource_class=agentの場合だけ再利用する。deterministic/browser claimをmodel枠として借りない。この場合はresource_owner_id=m:<sha256(JSON配列[owner_id])>としてagent専用claimをenqueue_durable/claim_durableで追加し、admission_class/priorityは元rowを保持する。parent claimは変更しない。返却ModelClaimに元owner_idとresource_owner_id/refを含める。",
+      "checks": "tests/test_admission.py:agent継承はclaim1、deterministic/browser継承は追加agent枠1、same-owner queueの別resource衝突なし、元priority保持、foreign claim拒否、capacitybusyでmodel starts0。",
+      "kind": "code",
+      "id": "OC-017",
+      "depends": [
+        "OC-006"
+      ],
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "target": "runtime/openclaw/admission.py",
+      "symbol": "bind_execution(claim_ref: Path, gateway_pid: int) -> None",
+      "change": "既存transfer_durableでgateway PID/start identityへclaimをbindし、追加でupstream_run_id/task_id/session_keyへ結合。同gatewayの別runの生存を当該run完了証拠へ流用しない。",
+      "checks": "tests/test_admission.py:別PID/start identityを拒否、transfer後caller終了でもclaim継続。",
+      "kind": "code",
+      "id": "OC-018",
+      "depends": [
+        "OC-017",
+        "OC-015"
+      ],
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "target": "runtime/openclaw/admission.py",
+      "symbol": "heartbeat_model(claim_ref: Path) -> bool",
+      "change": "既存heartbeat_durableを呼ぶ。false/exceptionでstopping→upstream cancel/readbackへ進めるtyped resultを返す。staleだから即releaseしない。",
+      "checks": "tests/test_admission.py:heartbeat failureでclaim保持、retry無制限なし。",
+      "kind": "code",
+      "id": "OC-019",
+      "depends": [
+        "OC-018"
+      ],
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "target": "runtime/openclaw/admission.py",
+      "symbol": "release_model(claim_ref: Path, stop_proof: dict, effect_state: str) -> dict",
+      "change": "当該upstream run terminal、当該sessionのactiveRunIdsに当該runなし、当該runのowned tool children settlementを照合して既存releaseを一度だけ呼ぶ。Gateway全体の終了を要求しない。cancel ACK/WS close/親wrapper終了だけでは解放しない。不明effectは既存fenceを保持。",
+      "checks": "test_admission.py:run A解放後run B/Gateway生存、ACKのみrelease0、task違い拒否、effect unknown fence保持。",
+      "kind": "code",
+      "id": "OC-020",
+      "depends": [
+        "OC-019",
+        "OC-016"
+      ],
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "target": "runtime/loop/lm_loop_run.py",
+      "symbol": "_run_admitted() の finally release分岐",
+      "change": "新routeがdispatch recordでgatewayへclaimを引き継いだ場合のみ、子wrapper終了を理由とする旧releaseを行わずHA-020のterminal proofを要求する。既存routeのfinallyは変更しない。LIFE_MANAGER_LOOP_ID/CLAIM_REFをこのrouteへ常時渡す。",
+      "checks": "runtime/loop/tests/test_openclaw_resource_lifetime.py: caller死亡後gateway activeでcapacity再利用0、legacy route同結果。",
+      "kind": "code",
+      "id": "OC-021",
+      "depends": [
+        "OC-020"
+      ],
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "target": "runtime/openclaw/plugin/openclaw.plugin.json",
+      "symbol": "manifest.tools",
+      "change": "official plugin manifestでlm_read/lm_artifact/lm_effectを宣言。configSchemaはprivate instance/binding rootのみclosed schema。一般shell/browser/scheduler adminへのmodel直接アクセスは未証明なら拒否。",
+      "checks": "tests/plugin.test.mjs:tool宣言と実登録一致、unknown config field拒否。",
+      "kind": "code",
+      "id": "OC-022",
+      "depends": [
+        "OC-014"
+      ],
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "target": "runtime/openclaw/plugin/index.mjs",
+      "symbol": "default plugin register(api)",
+      "change": "definePluginEntryで3toolをcontextVersion:2で登録する。create(ctx)はctx.agentId/sessionKeyに一致するoperator BindingRecordだけをlookupし、固定Python/runtime/openclaw/tool_broker.py --invoke-stdinへ{binding_ref,tool_name,arguments}をstdinで渡す。shell:false、source-owned絶対script、callerからcommand/owner/credentialを受けない。assertInvocationCurrentを各call前に確認し、subprocess envへgateway/provider secretsを継承しない。",
+      "checks": "tests/plugin.test.mjs:偽owner paramsはauthority変更なし、stale invocationのprovider call0。",
+      "kind": "code",
+      "id": "OC-023",
+      "depends": [
+        "OC-022"
+      ],
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "target": "runtime/openclaw/tool_broker.py",
+      "symbol": "invoke_read(binding: dict, tool_name: str, arguments: dict) -> dict",
+      "change": "bindingのownerが持つread-only handlerを呼ぶ。初版handlerはinventory fixture readだけ。read-only経路でpublisher/submission/moneyコードを呼ばない。",
+      "checks": "tests/test_tool_broker.py:read許可、write tool要求でprovider write0、foreign owner拒否。",
+      "kind": "code",
+      "id": "OC-024",
+      "depends": [
+        "OC-023",
+        "OC-017"
+      ],
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "target": "runtime/openclaw/tool_broker.py",
+      "symbol": "invoke_effect(binding: dict, tool_name: str, arguments: dict) -> dict",
+      "change": "bindingと既存tool catalogで固定したowner domain adapterへ委譲。既存intent/marketplace ledger/outbox/official readbackを再利用し、effect開始前記録を守る。unknown状態はreconcileのみ。model finalやOpenClawのsuccessをreceiptにしない。CapafyはFROZEN published agentsを更新せず既存new-product policyを維持。",
+      "checks": "tests/test_tool_broker.py:unknown/fenceなし/leaseなしwrite0、same occurrence fakewrite1・same receipt。",
+      "kind": "code",
+      "id": "OC-025",
+      "depends": [
+        "OC-024"
+      ],
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "target": "runtime/openclaw/tool_broker.py",
+      "symbol": "write_artifact(binding: dict, relative_path: str, content: str) -> dict",
+      "change": "trusted binding.workspace配下のrelative pathだけへUTF-8成果物を書く。absolute/..、symlink parent、.git、credential/config/state領域を拒否。最大1MiB。temp write/fsync/replaceし{artifact_ref,sha256,bytes}を返す。canonical catalog/production sourceを直接書かない。 relative_path=caller-result.jsonの場合はbindingのcaller schemaをvalidateし、全JSONを同task private workspaceへatomic保存してSHA/owner/occurrence/task/upstream runのartifact receiptを返す。modelのreceipt文章を公式provider proofにしない。",
+      "checks": "tests/test_tool_broker.py:4成果物SKILL.md/LISTING.md/icon.svg/evidence/verified-demonstration.mdをprivateworkspaceに作れる。../、symlink、1MiB超過はwrite0。",
+      "kind": "code",
+      "id": "OC-026",
+      "depends": [
+        "OC-024"
+      ],
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "target": "runtime/openclaw/tool_broker.py",
+      "symbol": "main(argv: list[str], stdin: TextIO) -> int",
+      "change": "--invoke-stdinだけ受付。packetは{binding_ref,tool_name,arguments} closed schema。operator dispatchRoot内のBindingRecordをmode/owner/claim/actual parent PID・start identityと照合し、lm_read→invoke_read、lm_artifact→write_artifact、lm_effect→invoke_effectへdispatchする前にtool_name∈binding.allowed_toolsとeffect_modeとの整合を検証する。read_onlyのlm_effectはprovider開始前に拒否する。model supplied owner/claimを採用しない。stdoutはsanitized JSON、unknown/errorはtyped resultと非zero。",
+      "checks": "tests/test_tool_broker.py:foreign binding/parent mismatch/unknown tool/secret markerでeffect0、固定invoke packetが通る。shell command文字列は受けない。 read_only bindingへのlm_effect packetはprovider開始0。",
+      "kind": "code",
+      "id": "OC-027",
+      "depends": [
+        "OC-025",
+        "OC-026"
+      ],
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "target": "runtime/openclaw/tests/native-boundary.test.mjs",
+      "symbol": "testModelAndToolAdmissionFailClosed()",
+      "change": "配布版でplugin missing/timeout、native shell/MCP/HTTP、cron/direct RPC、subagentの5迂回をfake provider相手にprobeする。一般prompt hookだけで強制保証しない。",
+      "checks": "native-boundary.test.mjs:before-model hook例外/timeout、native Codex tools、shell/browser/skills経由の迂回、subagent model startをfixtureで試す。host claimなしmodel start0、effect fence外provider mutation0。不成立routeはlegacy維持。",
+      "kind": "test",
+      "id": "OC-028",
+      "depends": [
+        "OC-025",
+        "OC-012",
+        "OC-021",
+        "OC-027"
+      ],
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "target": "runtime/openclaw/schema_validate.py",
+      "symbol": "validate_result(instance: object, schema: dict) -> dict",
+      "change": "既存jsonschema==4.26.0のvalidators.validator_for(schema)でschemaをcheck_schemaし結果をvalidate。stdinは{instance,schema}、stdoutは{valid:true}または{valid:false,error_class:schema_invalid|result_invalid}だけ。値やschema全文をstderrへ出さない。",
+      "checks": "tests/test_schema_validate.py:additionalProperties:false拒否、required不足拒否、draft選択、fake secret markerを出力しない。",
+      "kind": "code",
+      "id": "OC-029",
+      "depends": [
+        "OC-003"
+      ],
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "target": "runtime/openclaw/result.mjs",
+      "symbol": "normalizeOutcome(raw, request) -> RunOutcome",
+      "change": "normalizeOutcomeは当該binding/taskのfresh caller-result.json+host artifact receiptを優先してschema検証する。無ければpinned terminalReplyの完全なvisible textだけを検証。terminalReplyは4096文字capであり、truncation/JSON不正/別task/古いfileはfailedまたはpendingにする。モデルに必要なlm_artifactの結果保存契約をhost promptへ追加。result_path/summaryは既存形へ戻し、domain tool effectのverifiedは公式readbackだけ。",
+      "checks": "result.test.mjs:10000文字JSONはfull artifactから通る、4096文字に切れたterminalReplyのみは拒否、old/foreign task artifact拒否、小さいJSONは既存schema通過、broker公式receipt以外でeffect verified0。",
+      "kind": "code",
+      "id": "OC-030",
+      "depends": [
+        "OC-012",
+        "OC-025",
+        "OC-029"
+      ],
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "target": "runtime/openclaw/telemetry.py",
+      "symbol": "project_usage(raw: dict, identity: dict) -> dict",
+      "change": "existing agent-usage fieldsへinput/output/cached/retry/subagent tokensをproject。cost_basisはprovider_reported/api_equivalent_estimate/unknownを分離。runId重複を二重計上しない。",
+      "checks": "tests/test_telemetry.py:retry usage含む、欠測null、同run二重charge0、fake secret marker非露出。",
+      "kind": "code",
+      "id": "OC-031",
+      "depends": [
+        "OC-030"
+      ],
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "target": "runtime/openclaw/telemetry.py",
+      "symbol": "project_runtime_event(outcome: dict, identity: dict) -> dict",
+      "change": "既存runtime_event.build_runtime_event/validate_runtime_eventを利用しrun/owner/occurrence/releaseをjoin。error_class/retryable/next_action/receipt/readbackを保持。",
+      "checks": "tests/test_telemetry.py:既存validator通過、release欠落でsuccess不可、unknown effect維持。",
+      "kind": "code",
+      "id": "OC-032",
+      "depends": [
+        "OC-031"
+      ],
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "target": "runtime/openclaw/cli.mjs",
+      "symbol": "main(argv, stdin, deps) -> Promise<number>",
+      "change": "request v2を読みprepare→host claim→trusted binding→RPC submit→ACK保存→wait→result/schema/domain receipt→terminal proof→release。stable sessionを使っても前task contextをeffect authorityにしない。exit0/1/2/75を現callerへ返す。",
+      "checks": "tests/cli.test.mjs:正常fixture各呼出順、ack喪失でsent1/dispatch0追加、timeoutでunknown。 request.workdirがREPO_ROOTでもartifactWorkspaceはその外のprivate path、source write0。",
+      "kind": "code",
+      "id": "OC-033",
+      "depends": [
+        "OC-003",
+        "OC-004",
+        "OC-006",
+        "OC-008",
+        "OC-009",
+        "OC-010",
+        "OC-011",
+        "OC-020",
+        "OC-030",
+        "OC-032",
+        "OC-028",
+        "NC-02",
+        "NC-03"
+      ],
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "target": "runtime/openclaw/runner_adapter.py",
+      "symbol": "run_openclaw(parsed, prompt: str, schema: dict, config: dict, budget_context: dict) -> int",
+      "change": "run_openclawは既存parsed.imageとcodex_resume_session_idをMI-01/02のapproved referenceへ変換してRunRequest v2へ渡す。usage/schema/result_path/lease/token budget契約を維持。対応が未証明の時だけsource-controlled legacyを選び、全移行完了にしない。画像やresumeを永久unsupportedのまま終わらせない。",
+      "checks": "tests/test_runner_adapter.py:summary result_path互換、pass/daily limit blockedでRPC0、same occurrence二重reserve0、usage unknownでreservation保持、未証明・不正imageでdispatch0。",
+      "kind": "code",
+      "id": "OC-034",
+      "depends": [
+        "OC-033",
+        "MI-01",
+        "MI-02"
+      ],
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "target": "runtime/agent-runner/agent_runner.py",
+      "symbol": "run() の evidence/lease/token-budget preflight後・candidate for-loop前",
+      "change": "agent_runnerの入口は移行中だけowner/task selectorで旧またはOpenClawへ分ける。RPC開始後の旧経路fallbackなし。全対象移行後はOpenClawだけにしprovider candidate for-loop/旧runtime dispatchをF-04で削除。",
+      "checks": "runtime/agent-runner/tests/test_openclaw_route.py:defaultlegacy、eligibleownerだけnew、空ownernew0、token/evidence/provider-lease preflightを迂回しない、未停止でlease release0。",
+      "kind": "code",
+      "id": "OC-035",
+      "depends": [
+        "OC-034",
+        "OC-021"
+      ],
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "target": "runtime/openclaw/tests/test_recovery.py",
+      "symbol": "test_ack_loss_preserves_claim()",
+      "change": "送信→ACK前crash fixture。sent recordが残り、同occurrence再開はreconcileのみ、新RPC agent0・claim保持をassert。",
+      "checks": "python3 -m pytest runtime/openclaw/tests/test_recovery.py::test_ack_loss_preserves_claim -q。",
+      "kind": "test",
+      "id": "OC-036",
+      "depends": [
+        "OC-035"
+      ],
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "target": "runtime/openclaw/tests/test_recovery.py",
+      "symbol": "test_provider_success_receipt_gap()",
+      "change": "fake provider成功→receipt保存前crash fixture。readbackで同receipt復元、provider write1、retry追加0をassert。",
+      "checks": "python3 -m pytest runtime/openclaw/tests/test_recovery.py::test_provider_success_receipt_gap -q。",
+      "kind": "test",
+      "id": "OC-037",
+      "depends": [
+        "OC-036"
+      ],
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "target": "runtime/openclaw/tests/test_recovery.py",
+      "symbol": "test_terminal_replay_zero()",
+      "change": "terminal保存済みoccurrenceを再投入。existing result/refを返しmodel/provider/toolの追加call0をassert。",
+      "checks": "python3 -m pytest runtime/openclaw/tests/test_recovery.py::test_terminal_replay_zero -q。",
+      "kind": "test",
+      "id": "OC-038",
+      "depends": [
+        "OC-037"
+      ],
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "target": "runtime/openclaw/fixtures/read-only-request.json",
+      "symbol": "固定canary request",
+      "change": "owner_id=harness-readonly-canary、occurrence_id=fixture-001、effect_mode=read_only、task_class=repeatable-agent、timeout_seconds=60、schema={type:object,required:[status,count],properties:{status:{const:success},count:{const:1}},additionalProperties:false}。model/providerはprivate fixture configに渡しsourceへcredentialを入れない。",
+      "checks": "tests/canary.test.mjs:validateRunRequest通過、fake modelの返答{status:success,count:1}、effect0。",
+      "kind": "config",
+      "id": "OC-039",
+      "depends": [
+        "OC-038"
+      ],
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "target": "apps/life-manager/scripts/harness-readonly-canary.py",
+      "symbol": "main(argv) -> int",
+      "change": "harness-readonly-canary.pyはprivate request/fixtureだけを読み既存operator bridgeへ渡す。production追加owner/scheduleを自動作成しない。source acceptanceと自然業務receiptを区別。",
+      "checks": "runtime/openclaw/tests/test_canary.py:caller pathsrelease相対、effect0、event same occurrence。",
+      "kind": "code",
+      "id": "OC-040",
+      "depends": [
+        "OC-039"
+      ],
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "OC-041",
+      "target": "config/openclaw-routes.json",
+      "symbol": "owners",
+      "change": "catalog全ownerの初期recordをengine=legacy,scheduler=legacy,enabled=false、source coverage refsなしで作る。continuousはnative_service。business cadenceは保持し、推論はCodex-only policyへ統一。",
+      "checks": "test_routes.py: unknown/default/disabledがlegacy、coverage refなしenable拒否。",
+      "depends": [
+        "OC-035"
+      ],
+      "kind": "code",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "OC-042",
+      "target": "runtime/openclaw/telemetry.py",
+      "symbol": "attach_trace_identity(envelope, binding) -> dict",
+      "change": "official model/tool spansのrun/sessionをtrusted LM owner/product/occurrence/task/releaseへ結合。content/authを記録せず欠測はnull。実請求とestimateを区別。",
+      "checks": "test_telemetry.py: foreign run拒否、missing0化なし、secret field除去、同run相関。",
+      "depends": [
+        "OC-031",
+        "OC-032"
+      ],
+      "kind": "code",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "OC-043",
+      "target": "runtime/openclaw/owner_inventory.py",
+      "symbol": "build_owner_inventory(registry, catalog, sources) -> dict",
+      "change": "product bindingをregistry/catalogからcompileするbuild helperを実装。既に記録した全model entrypoint/shared/direct/image/resume callの定義を読み、route/schema/tool/ownerを検証する。未定義ならbuild error。探索や新旧選択を実行TODOにしない。",
+      "checks": "test_inventory.py: nested deterministic modelとdirect APIをfixtureで検出、無モデルjobにmodel追加なし。",
+      "depends": [
+        "OC-041"
+      ],
+      "kind": "code",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "OC-044",
+      "target": "runtime/openclaw/schedule_transfer.py",
+      "symbol": "build_command_job(owner, release, cadence, epoch) -> dict",
+      "change": "official cron command payloadを作りexisting bin/lm-loop-runを実行する。AI不要の処理へmodelを追加しない。cadence/anchor/timezoneとimmutable argvを保持。最初はenabled=false、delivery none。",
+      "checks": "test_schedule_transfer.py: exact argv/cadence、continuous拒否、client adminのみcron編集。",
+      "depends": [
+        "OC-012",
+        "OC-043"
+      ],
+      "kind": "code",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "OC-045",
+      "target": "runtime/openclaw/schedule_transfer.py",
+      "symbol": "prepare_transfer(owner_id, expected_sha) -> dict",
+      "change": "owner deploy leaseを取得。active model/process/予約/queued occurrence/unknown effectを再観測し、残ればdefer。旧plist/cadence/release/new cron disabled状態をreceiptへ保存。",
+      "checks": "test_schedule_transfer.py: active/pending/fencedは変更0、foreign owner不変更。",
+      "depends": [
+        "OC-044"
+      ],
+      "kind": "code",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "OC-046",
+      "target": "runtime/openclaw/schedule_transfer.py",
+      "symbol": "commit_transfer(prepared) -> dict",
+      "change": "既存launchctl-safeで旧ownerの新wakeだけ停止→旧future scheduler停止readback→official cron enable。唯一schedulerをreadback、失敗時に新cronをdisabledとして旧scheduleだけ復元。稼働仕事を移送/再送しない。",
+      "checks": "test_schedule_transfer.py: fault各境界scheduler<=1、同effect重複0、途中receiptから復旧。",
+      "depends": [
+        "OC-045"
+      ],
+      "kind": "code",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "OC-047",
+      "target": "runtime/openclaw/schedule_transfer.py",
+      "symbol": "rollback_transfer(receipt) -> dict",
+      "change": "新wake pause→当該run drain/settlement確認→新cron disabled→旧source scheduleを復元。ledger/auth/workspace/provider effectを巻戻さない。Gateway全体stop禁止。",
+      "checks": "test_schedule_transfer.py: 別owner継続、unknownはreconcileへ、effect resend0。",
+      "depends": [
+        "OC-046"
+      ],
+      "kind": "code",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "OC-048",
+      "target": "runtime/loop/lm_loop_run.py",
+      "symbol": "_kick_reserved_owners() scheduler dispatch",
+      "change": "既存reservation/priority policyは保持。owner authorityがlegacyなら現行kick、OpenClawなら公式cron runへ同owner wakeをdispatch。controllerからmodel/publishを直実行しない。",
+      "checks": "test_openclaw_scheduler_authority.py:legacy不変、reservation duplicate0、authority mismatch拒否。",
+      "depends": [
+        "OC-046"
+      ],
+      "kind": "code",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "OC-049",
+      "target": "runtime/loop/lm_loop.py",
+      "symbol": "health/status/lifecycle OpenClaw projection",
+      "change": "既存CLI引数を維持。official health/session/cron状態とLM financial/effect状態を合成。stopはownerの新wake停止、run cancel/drainを対象限定。OS browser ownerは既存処理。",
+      "checks": "test_openclaw_cli.py:同じCLI互換、stop AでB継続、process pass≠business verified。",
+      "depends": [
+        "OC-042",
+        "OC-048"
+      ],
+      "kind": "code",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "OC-050",
+      "target": "runtime/openclaw/profile.mjs",
+      "symbol": "validate_subagent_policy(policy, parentBinding)",
+      "change": "official subagent機能を利用する条件を固定。childも別host claim/budget、独立workspace/fresh reviewer、同じtool fence。既存hookがfail-openになる経路はenabled falseのまま。",
+      "checks": "native-boundary.test.mjs:child model claimなしstart0、親停止時child settlementまで保持。",
+      "depends": [
+        "OC-028",
+        "OC-042",
+        "NC-03"
+      ],
+      "kind": "code",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "OC-051",
+      "target": "runtime/openclaw/profile.mjs",
+      "symbol": "resolve_skills_paths(releaseRoot, route)",
+      "change": "既存skillsをofficial skills loaderへ参照させる。新しいskill managerを作らない。modelが書いたskillを無審査でproductionへロードしない。",
+      "checks": "profile.test.mjs: release内approved skillのみ、Dais profile/secret snapshot複製0。",
+      "depends": [
+        "OC-014",
+        "OC-050"
+      ],
+      "kind": "code",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "OC-052",
+      "target": "config/loop-registry.json",
+      "symbol": "life-manager-openclaw-gateway service",
+      "change": "専用Gatewayのcontinuous serviceだけを既存supervisorへ登録。daemon二重所有なし、global OpenClaw upgradeなし。source build中は未install。",
+      "checks": "test_lm_loop_apply.py:immutable package/node/profile argv、既存110 owner cadence変更0。",
+      "depends": [
+        "OC-015",
+        "OC-051"
+      ],
+      "kind": "code",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "OC-053",
+      "target": "apps/life-manager/eval/agent-contract/gate.js",
+      "symbol": "decideCandidatePromotion(input) harness contract evidence",
+      "change": "既存decideCandidatePromotion/decidePromotionGateが要求する同task/baseline/live evidenceにschema/trace/tool/receipt/recovery refsを加える。新judge/benchmark frameworkを作らず、Codex-onlyを同じgateで評価する。",
+      "checks": "gate.test.js:欠測/自己申告fail、fake/real receiptの区別、旧cases PASS。",
+      "depends": [
+        "OC-028",
+        "OC-042"
+      ],
+      "kind": "code",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "OC-054",
+      "target": "skills/writer-agent/scripts/writer_learning_worker.py",
+      "symbol": "record_canary_application() harness evidence",
+      "change": "既存candidate/eval/canary記録へnative Codex account、harness version、同task trace/evidenceを結合。OpenClaw既製skills/subagentを利用し、production skill/codeを無審査で昇格しない。self-improve-evolve等他ownerへの適用はPの実call閉包を先に確認。",
+      "checks": "既存writer learning/candidate gate testでmissing evidence拒否、baseline候補不変、failed candidate本番enable0。",
+      "depends": [
+        "OC-050",
+        "OC-051",
+        "OC-053"
+      ],
+      "kind": "code",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "C-01",
+      "target": "runtime/loop/brain.mjs",
+      "symbol": "think",
+      "change": "brain.mjs::thinkの推論をnative Codex Gatewayに一本化。claude-p/proxyは新routeのfallbackに使わずwallet/compute toolは別所有を維持。旧実行の途中では切り替えない。",
+      "checks": "当該既存focused tests＋Gateway fake adapterで同input/output/schema、foreign owner mutation0、未確定generation再送0、baseline route不変。actual provider/model/accountが不明ならsource routeを有効化しない。",
+      "depends": [
+        "OC-034",
+        "OC-041",
+        "OC-028"
+      ],
+      "kind": "code",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "C-02",
+      "target": "apps/life-manager/scripts/dev-adversary-review.js",
+      "symbol": "runAdversaryReview",
+      "change": "runAdversaryReviewの直接ClaudeをChatGPT accountのnative Codex fresh_task reviewerへ変更。diff screening/minimal env/独立review threadを保持。builderの会話を継承しない。",
+      "checks": "当該既存focused tests＋Gateway fake adapterで同input/output/schema、foreign owner mutation0、未確定generation再送0、baseline route不変。actual provider/model/accountが不明ならsource routeを有効化しない。",
+      "depends": [
+        "OC-034",
+        "OC-041",
+        "OC-028"
+      ],
+      "kind": "code",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "C-03",
+      "target": "skills/writer-agent/scripts/craft-train.sh",
+      "symbol": "skillopt.model openai_chat invocation",
+      "change": "craft-train.shからdirect openai_chat課金生成を呼ばず、native Codexのskill-improvement経路へ接続。評価dataset/objectiveとquarantineは維持し、OpenClaw既製skill機構を使う。Codexに適合しないoptimizer入口はtyped setup_requiredで新route未完、API-keyで迂回しない。",
+      "checks": "当該既存focused tests＋Gateway fake adapterで同input/output/schema、foreign owner mutation0、未確定generation再送0、baseline route不変。actual provider/model/accountが不明ならsource routeを有効化しない。",
+      "depends": [
+        "OC-034",
+        "OC-041",
+        "OC-028"
+      ],
+      "kind": "code",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "C-04",
+      "target": "apps/life-manager/lib/marketing-slide-pack-text.js",
+      "symbol": "fetchGeminiText",
+      "change": "fetchGeminiTextのtext推論をChatGPT account接続のnative Codex Gatewayへ変更。既存caption/hook schema、approved claim/source facts、caller output shapeを維持。Gemini image/FAL等の既存制作toolをこのtext変更へ混ぜない。",
+      "checks": "当該既存focused tests＋Gateway fake adapterで同input/output/schema、foreign owner mutation0、未確定generation再送0、baseline route不変。actual provider/model/accountが不明ならsource routeを有効化しない。",
+      "depends": [
+        "OC-034",
+        "OC-041",
+        "OC-028"
+      ],
+      "kind": "code",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "C-05",
+      "target": "skills/earn/line-sticker/line_sticker_planner.py",
+      "symbol": "_run_agent",
+      "change": "plan/selectorをtrusted logical task_id付きshared adapterへ。JSON schemaとartifact pathを保持。",
+      "checks": "当該既存focused tests＋Gateway fake adapterで同input/output/schema、foreign owner mutation0、未確定generation再送0、baseline route不変。actual provider/model/accountが不明ならsource routeを有効化しない。",
+      "depends": [
+        "OC-034",
+        "OC-041",
+        "OC-028",
+        "MI-01"
+      ],
+      "kind": "code",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "C-06",
+      "target": "skills/earn/line-sticker/line_sticker_planner.py",
+      "symbol": "character_image",
+      "change": "直接Gemini image生成を既存specialized toolとして登録。既存provider fee/credential/image checkを保持。LLMで画像を代用しない。",
+      "checks": "当該既存focused tests＋Gateway fake adapterで同input/output/schema、foreign owner mutation0、未確定generation再送0、baseline route不変。actual provider/model/accountが不明ならsource routeを有効化しない。",
+      "depends": [
+        "OC-034",
+        "OC-041",
+        "OC-028"
+      ],
+      "kind": "code",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "C-07",
+      "target": "skills/earn/line-sticker/seedance_set.py",
+      "symbol": "clips",
+      "change": "FAL job IDを同じgeneration tool receiptへ結びpending時はpollだけ、再submitしない。画像動画モデルを同時変更しない。",
+      "checks": "当該既存focused tests＋Gateway fake adapterで同input/output/schema、foreign owner mutation0、未確定generation再送0、baseline route不変。actual provider/model/accountが不明ならsource routeを有効化しない。",
+      "depends": [
+        "OC-034",
+        "OC-041",
+        "OC-028"
+      ],
+      "kind": "code",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "C-08",
+      "target": "runtime/openclaw/tool_catalog.json",
+      "symbol": "catalog of existing recipe tools",
+      "change": "products/*.jsonの既存worker/tool bindingを束ねるcatalogを作成。canonical source、schema、owner scope、domain guard/readbackを固定。OpenClawから既存業務workerを実行し、任意argv/function/pathをmodelに決めさせない。",
+      "checks": "当該既存focused tests＋Gateway fake adapterで同input/output/schema、foreign owner mutation0、未確定generation再送0、baseline route不変。actual provider/model/accountが不明ならsource routeを有効化しない。",
+      "depends": [
+        "OC-034",
+        "OC-041",
+        "OC-028"
+      ],
+      "kind": "code",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "F-01",
+      "target": "install.sh",
+      "symbol": "local OpenClaw package/profile setup",
+      "change": "isolated clean-homeでlocked runtimeとprivate profileを初期化するinstallerを実装。現在の端末にはapplyしない。global OpenClaw/auth/browser/stateの複製・上書き0。実install採用はowner切替時のみ。",
+      "checks": "clean-home fixtureでsecret0、同install再実行で既存state保持。",
+      "depends": [
+        "OC-014",
+        "OC-015",
+        "NC-02"
+      ],
+      "kind": "finish",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "F-02",
+      "target": "scripts/verify-oss-self-contained.mjs",
+      "symbol": "OpenClaw artifact boundary",
+      "change": "runtime/openclawとlocked pluginのOSS notices/integrityを既存boundary検査へ接続。runtime state/secret/transcriptをrepoへ入れない。",
+      "checks": "source-boundary、gitleaks、PII検査PASS。",
+      "depends": [
+        "F-01"
+      ],
+      "kind": "finish",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "F-03",
+      "target": "THIRD_PARTY_NOTICES.md",
+      "symbol": "OpenClaw/SDK/OTel notices",
+      "change": "実際にbundleしたversion/license/provenanceを記録。未install依存を配布済と書かない。",
+      "checks": "package-lockとのversion一致。",
+      "depends": [
+        "F-01"
+      ],
+      "kind": "finish",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "F-04",
+      "target": "runtime/agent-runner/agent_runner.py",
+      "symbol": "remove only unreferenced legacy routing",
+      "change": "全V自然確認後、旧model runtime dispatch/provider fallback/旧job scheduling分岐の参照を0にして削除。bin/lm-loopはOpenClaw操作への互換facadeへ変更。native Codex binary、OS browser driver、商品worker、domain budget/effect/readback/finance/dataは保持する。",
+      "checks": "全caller closure参照0、既存source acceptance＋natural records一致。",
+      "depends": [
+        "V-gig-coconala",
+        "V-gig-lancers",
+        "V-gig-crowdworks",
+        "V-gig-mercor",
+        "V-promptbase",
+        "V-writer",
+        "V-affiliate",
+        "V-investment",
+        "V-agent-economy",
+        "V-job-hunter",
+        "V-fundraiser",
+        "V-connector",
+        "V-self-build",
+        "V-mobile-apps",
+        "V-ebook",
+        "V-capafy",
+        "V-line-sticker",
+        "V-cfo",
+        "F-01",
+        "F-02",
+        "F-03"
+      ],
+      "kind": "finish",
+      "conditional": false,
+      "boundary": "retirement"
+    },
+    {
+      "id": "F-05",
+      "target": "README.md",
+      "symbol": "local install/control/architecture",
+      "change": "local CLI/install/control/復旧/rollbackとOpenClaw/native Codex構成を実装された範囲で記載。分類/job数はcatalogから検証し固定値にしない。Cloud Web画面は範囲外。",
+      "checks": "catalogとREADMEの機能・CLI一致、isolated smoke、未実装を利用可能としない。",
+      "depends": [
+        "OC-049",
+        "F-01"
+      ],
+      "kind": "finish",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "F-06",
+      "target": "README.ja.md",
+      "symbol": "日本語ローカル操作契約",
+      "change": "同じ導入/停止/結果確認/復旧/rollbackを日本語で記載。全商品ワンクリック済の誤記なし。",
+      "checks": "README.mdと同じcommand/features。",
+      "depends": [
+        "F-05"
+      ],
+      "kind": "finish",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "F-07",
+      "target": "docs/evidence/openclaw-cutover/final.json",
+      "symbol": "final product/job reconciliation",
+      "change": "全catalog business jobsの新engine管理、全finiteのOpenClaw cron、continuousの同OS/browser driver、source/main/release/session/trace/domain成果、旧harness参照0、rollbackの一時退避以外旧job authority0を照合して保存。旧harnessを残したまま全移行完了とはしない。",
+      "checks": "最新catalog全job coverage、全finite cron移管、continuous owner維持、未確認effect0、旧harness参照0、自然成果readback。性能改善は実測のみ。",
+      "depends": [
+        "F-04",
+        "F-05",
+        "F-06"
+      ],
+      "kind": "finish",
+      "conditional": false,
+      "boundary": "production"
+    },
+    {
+      "id": "NC-01",
+      "target": "runtime/openclaw/profile.mjs",
+      "symbol": "validate_codex_only_config(config) -> Config",
+      "change": "全推論routeでagentRuntime.id=codex、fallbacks空、codex plugin enabledを検証。openclaw built-in runtime、OpenAI API-key profile、Claude/Gemini text route、API-key envのmodel利用を拒否。embedding等に別API課金を追加しない。",
+      "checks": "profile.test.mjs:missing Codex/auth→fail closed、Codex不在でAPI request0、approved native modelだけ。",
+      "depends": [
+        "OC-001"
+      ],
+      "kind": "code",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "NC-02",
+      "target": "runtime/openclaw/auth_readback.mjs",
+      "symbol": "readNativeCodexAccount(instance) -> AccountProof",
+      "change": "existing ChatGPT accountを使うnative Codex Unix endpointへ公式pluginで接続。appServer.transport=unix/homeScope=user、sessionCatalog=false、owner-only LM thread。account/login/logout/importを呼ばずnative account statusを読みkind/account hashを検証。他native sessionを変更せずtokensをOpenClaw DB/configへ複製しない。既存endpointを探し、無ければNC-04でLM-owned native daemonだけを用意。existing managed Codex binary/versionを使用し、bundled/global CLIを自動upgradeしない。",
+      "checks": "auth_readback.test.mjs:account ChatGPT確認、API-key account拒否、token export0、personal thread discovery/manage0。",
+      "depends": [
+        "NC-01",
+        "NC-04"
+      ],
+      "kind": "code",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "NC-03",
+      "target": "runtime/openclaw/tests/codex-restricted-tools.test.mjs",
+      "symbol": "testNativeCodexRestrictedToolAuthority()",
+      "change": "finite tools.allowがCodex restricted turnを作りnative Code Mode/environment/native MCP/hook relayを無効化・attestする公開機構を実体fixtureで確認。LM approved dynamic toolだけを許可。hook timeoutを安全保証としない。",
+      "checks": "native Codex→model response→allowed toolの経路、直shell/browser/unauthorized MCP/provider mutation0、別owner/thread不変更。",
+      "depends": [
+        "NC-02",
+        "OC-028"
+      ],
+      "kind": "code",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "NC-04",
+      "target": "runtime/openclaw/codex-endpoint.mjs",
+      "symbol": "resolveNativeCodexEndpoint(config, readback) -> EndpointPlan",
+      "change": "既存Codex user-home Unix endpointとaccount ownerを公式機構で検出し、存在すればattach-only。無い場合だけ既存OS supervisorへLM-owned native app-server argvを渡す。native account再loginなし、既存daemon/IDE stop0。command/binary/config/canonical socket/versionは同native accountの確認値で固定、hardcoded個人pathなし。",
+      "checks": "endpoint.test.mjs:existing endpointではspawn/stop0、不明owner拒否、LM-owned endpointのみ新規、account/key fallback変更0。",
+      "depends": [
+        "NC-01",
+        "OC-002"
+      ],
+      "kind": "code",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "MI-01",
+      "target": "runtime/openclaw/images.py",
+      "symbol": "encode_owned_images(paths, binding) -> list[GatewayAttachment]",
+      "change": "画像pathを同owner private artifact/証明済み入力rootで検証しMIME/SHAを保持。公式agent RPC attachmentsからnative Codex image inputへ渡す。Type.Unknownを無検証で渡さずpinned serverの受理schemaに合わせる。symlink/外部URL/credential fileを拒否。画像bufferはWS送信のメモリだけ、stdout/traceにはbytesを出さない。 GatewayAttachmentのwire fieldsは{type:\"image\",mimeType:<verified MIME>,fileName:<basename>,content:<base64 string>}。公開chat-attachments.tsのnormalizeAttachmentで受理される形に固定する。RunRequest保存時はpath/digestのみで、このwire objectはRPC送信時だけ生成。",
+      "checks": "test_images.py＋native-image.test.mjs: candidates-sheet PNGがCodex画像inputに届く、image無し旧task不変、foreign path拒否、視覚fixtureの期待結果通過。",
+      "depends": [
+        "OC-003",
+        "OC-012",
+        "NC-03"
+      ],
+      "kind": "code",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "MI-02",
+      "target": "runtime/openclaw/resume_bridge.mjs",
+      "symbol": "forkOwnedContinuation(binding, legacyThreadRef) -> ResumeProof",
+      "change": "既存resume refのLM owner/occurrence・task・leaseを証明して公式codex_threads forkを使いLM OpenClaw sessionへ結ぶ。旧threadを別app-serverから同時resume/writeしない。personal thread list/import/stopなし。既存domain checkpoint/receiptを保持し、historyでeffect権限を与えない。",
+      "checks": "resume.test.mjs:owned forkだけ、旧thread不変更、foreign ref拒否、Writer continuation context保持、同業務effect再送0。",
+      "depends": [
+        "OC-004",
+        "NC-02"
+      ],
+      "kind": "code",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "C-09",
+      "target": "skills/earn/promptbase/scripts/gen_examples.py",
+      "symbol": "_claude(prompt, system)",
+      "change": "既存functionの外部signatureとexample/schema/output artifactを保持し、内部モデル呼出をnative Codex OpenClaw bridgeへ置き換える。Claude/API-key/別model fallbackなし。listing/sale/financial readerの処理を変更しない。",
+      "checks": "既存example generation testsとGateway fakeでsystem/user sections、schema、artifact paths、real example requirement維持。",
+      "depends": [
+        "OC-034",
+        "NC-03"
+      ],
+      "kind": "code",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "OC-008-IMAGE",
+      "target": "runtime/openclaw/gateway-client.mjs",
+      "symbol": "submitRun approved attachments",
+      "change": "MI01で検証した画像wireをRPCへ渡し、現在のinput_binding_not_ready拒否を検証済み画像だけ解除。MI02のowned fork sessionへcontinuationを結合する。",
+      "checks": "approved image/resume fixture通過、foreign input dispatch0、bytes/path log0、ACK喪失request1。",
+      "depends": [
+        "MI-01",
+        "MI-02"
+      ],
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "P-gig-coconala",
+      "target": "runtime/openclaw/products/gig-coconala.json",
+      "symbol": "register existing product worker/tools",
+      "change": "product_id=gig-coconala、job_ids=[\"hf-gig-apply-direct\", \"hf-gig-apply-evidence-gc\", \"hf-gig-browser\", \"hf-gig-daily-report\", \"hf-gig-paid-direct\", \"hf-gig-reply-detector\", \"hf-gig-storefront-direct\"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。",
+      "checks": "binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。",
+      "depends": [
+        "OC-043",
+        "OC-053",
+        "C-08"
+      ],
+      "kind": "code",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "A-gig-coconala",
+      "target": "config/openclaw-routes.json",
+      "symbol": "enable_idle_owner(gig-coconala)",
+      "change": "P-gig-coconalaと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。",
+      "checks": "idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。",
+      "depends": [
+        "P-gig-coconala",
+        "OC-049",
+        "OC-052"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-hf-gig-apply-direct",
+      "target": "docs/evidence/openclaw-cutover/schedulers/hf-gig-apply-direct.json",
+      "symbol": "commit_transfer(hf-gig-apply-direct)",
+      "change": "owner=hf-gig-apply-direct、entrypoint=runtime/loop/entry_dispatch.py、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-gig-coconala",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-hf-gig-apply-evidence-gc",
+      "target": "docs/evidence/openclaw-cutover/schedulers/hf-gig-apply-evidence-gc.json",
+      "symbol": "commit_transfer(hf-gig-apply-evidence-gc)",
+      "change": "owner=hf-gig-apply-evidence-gc、entrypoint=skills/earn/gig/scripts/evidence_gc.py、cadence={\"start_interval_seconds\": 21600}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-gig-coconala",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-hf-gig-daily-report",
+      "target": "docs/evidence/openclaw-cutover/schedulers/hf-gig-daily-report.json",
+      "symbol": "commit_transfer(hf-gig-daily-report)",
+      "change": "owner=hf-gig-daily-report、entrypoint=skills/earn/gig/gig_daily_report.sh、cadence={\"calendar_interval\": {\"Hour\": 9, \"Minute\": 7}}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-gig-coconala",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-hf-gig-paid-direct",
+      "target": "docs/evidence/openclaw-cutover/schedulers/hf-gig-paid-direct.json",
+      "symbol": "commit_transfer(hf-gig-paid-direct)",
+      "change": "owner=hf-gig-paid-direct、entrypoint=skills/earn/gig/scripts/paid-direct-owner、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-gig-coconala",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-hf-gig-reply-detector",
+      "target": "docs/evidence/openclaw-cutover/schedulers/hf-gig-reply-detector.json",
+      "symbol": "commit_transfer(hf-gig-reply-detector)",
+      "change": "owner=hf-gig-reply-detector、entrypoint=skills/earn/gig/scripts/coconala-reply-owner、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-gig-coconala",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-hf-gig-storefront-direct",
+      "target": "docs/evidence/openclaw-cutover/schedulers/hf-gig-storefront-direct.json",
+      "symbol": "commit_transfer(hf-gig-storefront-direct)",
+      "change": "owner=hf-gig-storefront-direct、entrypoint=runtime/loop/entry_dispatch.py、cadence={\"start_interval_seconds\": 60}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-gig-coconala",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "V-gig-coconala",
+      "target": "docs/evidence/openclaw-cutover/products/gig-coconala-natural.json",
+      "symbol": "verify_natural(gig-coconala)",
+      "change": "catalogの各jobについて次の自然仕事のrelease/owner/occurrence/run/task/session/traceを業務contractとjoin。publish/application/delivery/settlementは公式readbackを使用。unknownは0やsuccessへ変換しない。",
+      "checks": "全job coverage、旧成果契約維持、replay-zero、既存order/receipt/cost保持。test/モデルfinal/exit0だけではPASS不可。",
+      "depends": [
+        "A-gig-coconala",
+        "S-hf-gig-apply-direct",
+        "S-hf-gig-apply-evidence-gc",
+        "S-hf-gig-daily-report",
+        "S-hf-gig-paid-direct",
+        "S-hf-gig-reply-detector",
+        "S-hf-gig-storefront-direct"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "P-gig-lancers",
+      "target": "runtime/openclaw/products/gig-lancers.json",
+      "symbol": "register existing product worker/tools",
+      "change": "product_id=gig-lancers、job_ids=[\"lancers-revenue-application\", \"lancers-revenue-browser\", \"lancers-revenue-negotiate\", \"lancers-revenue-paid\", \"lancers-revenue-storefront\", \"lancers-revenue-telegram-report\", \"lancers-revenue-work-sync\"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。",
+      "checks": "binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。",
+      "depends": [
+        "OC-043",
+        "OC-053",
+        "C-08"
+      ],
+      "kind": "code",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "A-gig-lancers",
+      "target": "config/openclaw-routes.json",
+      "symbol": "enable_idle_owner(gig-lancers)",
+      "change": "P-gig-lancersと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。",
+      "checks": "idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。",
+      "depends": [
+        "P-gig-lancers",
+        "OC-049",
+        "OC-052"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-lancers-revenue-application",
+      "target": "docs/evidence/openclaw-cutover/schedulers/lancers-revenue-application.json",
+      "symbol": "commit_transfer(lancers-revenue-application)",
+      "change": "owner=lancers-revenue-application、entrypoint=skills/earn/lancers/scripts/application-owner、cadence={\"start_interval_seconds\": 60}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-gig-lancers",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-lancers-revenue-negotiate",
+      "target": "docs/evidence/openclaw-cutover/schedulers/lancers-revenue-negotiate.json",
+      "symbol": "commit_transfer(lancers-revenue-negotiate)",
+      "change": "owner=lancers-revenue-negotiate、entrypoint=skills/earn/lancers/scripts/negotiate-owner、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-gig-lancers",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-lancers-revenue-paid",
+      "target": "docs/evidence/openclaw-cutover/schedulers/lancers-revenue-paid.json",
+      "symbol": "commit_transfer(lancers-revenue-paid)",
+      "change": "owner=lancers-revenue-paid、entrypoint=skills/earn/lancers/scripts/paid-owner、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-gig-lancers",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-lancers-revenue-storefront",
+      "target": "docs/evidence/openclaw-cutover/schedulers/lancers-revenue-storefront.json",
+      "symbol": "commit_transfer(lancers-revenue-storefront)",
+      "change": "owner=lancers-revenue-storefront、entrypoint=skills/earn/lancers/scripts/storefront-owner、cadence={\"start_interval_seconds\": 1800}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-gig-lancers",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-lancers-revenue-telegram-report",
+      "target": "docs/evidence/openclaw-cutover/schedulers/lancers-revenue-telegram-report.json",
+      "symbol": "commit_transfer(lancers-revenue-telegram-report)",
+      "change": "owner=lancers-revenue-telegram-report、entrypoint=skills/earn/lancers/scripts/telegram-report-owner、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-gig-lancers",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-lancers-revenue-work-sync",
+      "target": "docs/evidence/openclaw-cutover/schedulers/lancers-revenue-work-sync.json",
+      "symbol": "commit_transfer(lancers-revenue-work-sync)",
+      "change": "owner=lancers-revenue-work-sync、entrypoint=skills/earn/lancers/scripts/work-sync-owner、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-gig-lancers",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "V-gig-lancers",
+      "target": "docs/evidence/openclaw-cutover/products/gig-lancers-natural.json",
+      "symbol": "verify_natural(gig-lancers)",
+      "change": "catalogの各jobについて次の自然仕事のrelease/owner/occurrence/run/task/session/traceを業務contractとjoin。publish/application/delivery/settlementは公式readbackを使用。unknownは0やsuccessへ変換しない。",
+      "checks": "全job coverage、旧成果契約維持、replay-zero、既存order/receipt/cost保持。test/モデルfinal/exit0だけではPASS不可。",
+      "depends": [
+        "A-gig-lancers",
+        "S-lancers-revenue-application",
+        "S-lancers-revenue-negotiate",
+        "S-lancers-revenue-paid",
+        "S-lancers-revenue-storefront",
+        "S-lancers-revenue-telegram-report",
+        "S-lancers-revenue-work-sync"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "P-gig-crowdworks",
+      "target": "runtime/openclaw/products/gig-crowdworks.json",
+      "symbol": "register existing product worker/tools",
+      "change": "product_id=gig-crowdworks、job_ids=[\"crowdworks-revenue-application\", \"crowdworks-revenue-browser\", \"crowdworks-revenue-paid\", \"crowdworks-revenue-reply\", \"crowdworks-revenue-report\"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。",
+      "checks": "binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。",
+      "depends": [
+        "OC-043",
+        "OC-053",
+        "C-08"
+      ],
+      "kind": "code",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "A-gig-crowdworks",
+      "target": "config/openclaw-routes.json",
+      "symbol": "enable_idle_owner(gig-crowdworks)",
+      "change": "P-gig-crowdworksと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。",
+      "checks": "idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。",
+      "depends": [
+        "P-gig-crowdworks",
+        "OC-049",
+        "OC-052"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-crowdworks-revenue-application",
+      "target": "docs/evidence/openclaw-cutover/schedulers/crowdworks-revenue-application.json",
+      "symbol": "commit_transfer(crowdworks-revenue-application)",
+      "change": "owner=crowdworks-revenue-application、entrypoint=skills/earn/crowdworks/scripts/application-owner、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-gig-crowdworks",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-crowdworks-revenue-paid",
+      "target": "docs/evidence/openclaw-cutover/schedulers/crowdworks-revenue-paid.json",
+      "symbol": "commit_transfer(crowdworks-revenue-paid)",
+      "change": "owner=crowdworks-revenue-paid、entrypoint=skills/earn/crowdworks/scripts/paid-owner、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-gig-crowdworks",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-crowdworks-revenue-reply",
+      "target": "docs/evidence/openclaw-cutover/schedulers/crowdworks-revenue-reply.json",
+      "symbol": "commit_transfer(crowdworks-revenue-reply)",
+      "change": "owner=crowdworks-revenue-reply、entrypoint=skills/earn/crowdworks/scripts/reply-owner、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-gig-crowdworks",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-crowdworks-revenue-report",
+      "target": "docs/evidence/openclaw-cutover/schedulers/crowdworks-revenue-report.json",
+      "symbol": "commit_transfer(crowdworks-revenue-report)",
+      "change": "owner=crowdworks-revenue-report、entrypoint=skills/earn/crowdworks/scripts/report-owner、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-gig-crowdworks",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "V-gig-crowdworks",
+      "target": "docs/evidence/openclaw-cutover/products/gig-crowdworks-natural.json",
+      "symbol": "verify_natural(gig-crowdworks)",
+      "change": "catalogの各jobについて次の自然仕事のrelease/owner/occurrence/run/task/session/traceを業務contractとjoin。publish/application/delivery/settlementは公式readbackを使用。unknownは0やsuccessへ変換しない。",
+      "checks": "全job coverage、旧成果契約維持、replay-zero、既存order/receipt/cost保持。test/モデルfinal/exit0だけではPASS不可。",
+      "depends": [
+        "A-gig-crowdworks",
+        "S-crowdworks-revenue-application",
+        "S-crowdworks-revenue-paid",
+        "S-crowdworks-revenue-reply",
+        "S-crowdworks-revenue-report"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "P-gig-mercor",
+      "target": "runtime/openclaw/products/gig-mercor.json",
+      "symbol": "register existing product worker/tools",
+      "change": "product_id=gig-mercor、job_ids=[\"mercor-revenue-application\", \"mercor-revenue-paid\", \"mercor-revenue-reply\"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。",
+      "checks": "binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。",
+      "depends": [
+        "OC-043",
+        "OC-053",
+        "C-08"
+      ],
+      "kind": "code",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "A-gig-mercor",
+      "target": "config/openclaw-routes.json",
+      "symbol": "enable_idle_owner(gig-mercor)",
+      "change": "P-gig-mercorと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。",
+      "checks": "idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。",
+      "depends": [
+        "P-gig-mercor",
+        "OC-049",
+        "OC-052"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-mercor-revenue-application",
+      "target": "docs/evidence/openclaw-cutover/schedulers/mercor-revenue-application.json",
+      "symbol": "commit_transfer(mercor-revenue-application)",
+      "change": "owner=mercor-revenue-application、entrypoint=skills/earn/mercor/scripts/application-owner、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-gig-mercor",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-mercor-revenue-paid",
+      "target": "docs/evidence/openclaw-cutover/schedulers/mercor-revenue-paid.json",
+      "symbol": "commit_transfer(mercor-revenue-paid)",
+      "change": "owner=mercor-revenue-paid、entrypoint=skills/earn/mercor/scripts/paid-owner、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-gig-mercor",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-mercor-revenue-reply",
+      "target": "docs/evidence/openclaw-cutover/schedulers/mercor-revenue-reply.json",
+      "symbol": "commit_transfer(mercor-revenue-reply)",
+      "change": "owner=mercor-revenue-reply、entrypoint=skills/earn/mercor/scripts/reply-owner、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-gig-mercor",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "V-gig-mercor",
+      "target": "docs/evidence/openclaw-cutover/products/gig-mercor-natural.json",
+      "symbol": "verify_natural(gig-mercor)",
+      "change": "catalogの各jobについて次の自然仕事のrelease/owner/occurrence/run/task/session/traceを業務contractとjoin。publish/application/delivery/settlementは公式readbackを使用。unknownは0やsuccessへ変換しない。",
+      "checks": "全job coverage、旧成果契約維持、replay-zero、既存order/receipt/cost保持。test/モデルfinal/exit0だけではPASS不可。",
+      "depends": [
+        "A-gig-mercor",
+        "S-mercor-revenue-application",
+        "S-mercor-revenue-paid",
+        "S-mercor-revenue-reply"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "P-promptbase",
+      "target": "runtime/openclaw/products/promptbase.json",
+      "symbol": "register existing product worker/tools",
+      "change": "product_id=promptbase、job_ids=[\"promptbase-loop-daily\"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。",
+      "checks": "binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。",
+      "depends": [
+        "OC-043",
+        "OC-053",
+        "C-08",
+        "C-09"
+      ],
+      "kind": "code",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "A-promptbase",
+      "target": "config/openclaw-routes.json",
+      "symbol": "enable_idle_owner(promptbase)",
+      "change": "P-promptbaseと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。",
+      "checks": "idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。",
+      "depends": [
+        "P-promptbase",
+        "OC-049",
+        "OC-052"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-promptbase-loop-daily",
+      "target": "docs/evidence/openclaw-cutover/schedulers/promptbase-loop-daily.json",
+      "symbol": "commit_transfer(promptbase-loop-daily)",
+      "change": "owner=promptbase-loop-daily、entrypoint=skills/earn/promptbase/daily.sh、cadence={\"calendar_interval\": {\"Hour\": 4, \"Minute\": 20}}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-promptbase",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "V-promptbase",
+      "target": "docs/evidence/openclaw-cutover/products/promptbase-natural.json",
+      "symbol": "verify_natural(promptbase)",
+      "change": "catalogの各jobについて次の自然仕事のrelease/owner/occurrence/run/task/session/traceを業務contractとjoin。publish/application/delivery/settlementは公式readbackを使用。unknownは0やsuccessへ変換しない。",
+      "checks": "全job coverage、旧成果契約維持、replay-zero、既存order/receipt/cost保持。test/モデルfinal/exit0だけではPASS不可。",
+      "depends": [
+        "A-promptbase",
+        "S-promptbase-loop-daily"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "P-writer",
+      "target": "runtime/openclaw/products/writer.json",
+      "symbol": "register existing product worker/tools",
+      "change": "product_id=writer、job_ids=[\"writer-claim-loop\", \"writer-craft-train\", \"writer-money-sync\", \"writer-opportunity-discovery\", \"writer-opportunity-response\", \"writer-report\", \"writer-sales-measure\"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。",
+      "checks": "binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。",
+      "depends": [
+        "OC-043",
+        "OC-053",
+        "C-03",
+        "C-08"
+      ],
+      "kind": "code",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "A-writer",
+      "target": "config/openclaw-routes.json",
+      "symbol": "enable_idle_owner(writer)",
+      "change": "P-writerと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。",
+      "checks": "idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。",
+      "depends": [
+        "P-writer",
+        "OC-049",
+        "OC-052"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-writer-claim-loop",
+      "target": "docs/evidence/openclaw-cutover/schedulers/writer-claim-loop.json",
+      "symbol": "commit_transfer(writer-claim-loop)",
+      "change": "owner=writer-claim-loop、entrypoint=skills/writer-agent/scripts/claim-loop-owner、cadence={\"start_interval_seconds\": 900}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-writer",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-writer-craft-train",
+      "target": "docs/evidence/openclaw-cutover/schedulers/writer-craft-train.json",
+      "symbol": "commit_transfer(writer-craft-train)",
+      "change": "owner=writer-craft-train、entrypoint=skills/writer-agent/scripts/craft-train-owner、cadence={\"calendar_interval\": {\"Hour\": 23, \"Minute\": 10}}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-writer",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-writer-money-sync",
+      "target": "docs/evidence/openclaw-cutover/schedulers/writer-money-sync.json",
+      "symbol": "commit_transfer(writer-money-sync)",
+      "change": "owner=writer-money-sync、entrypoint=skills/writer-agent/scripts/money-sync-owner、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-writer",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-writer-opportunity-discovery",
+      "target": "docs/evidence/openclaw-cutover/schedulers/writer-opportunity-discovery.json",
+      "symbol": "commit_transfer(writer-opportunity-discovery)",
+      "change": "owner=writer-opportunity-discovery、entrypoint=skills/writer-agent/scripts/opportunity-discovery-owner、cadence={\"start_interval_seconds\": 86400}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-writer",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-writer-opportunity-response",
+      "target": "docs/evidence/openclaw-cutover/schedulers/writer-opportunity-response.json",
+      "symbol": "commit_transfer(writer-opportunity-response)",
+      "change": "owner=writer-opportunity-response、entrypoint=skills/writer-agent/scripts/opportunity-response-owner、cadence={\"start_interval_seconds\": 900}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-writer",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-writer-report",
+      "target": "docs/evidence/openclaw-cutover/schedulers/writer-report.json",
+      "symbol": "commit_transfer(writer-report)",
+      "change": "owner=writer-report、entrypoint=skills/writer-agent/scripts/writer-report-owner、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-writer",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-writer-sales-measure",
+      "target": "docs/evidence/openclaw-cutover/schedulers/writer-sales-measure.json",
+      "symbol": "commit_transfer(writer-sales-measure)",
+      "change": "owner=writer-sales-measure、entrypoint=skills/writer-agent/scripts/writer-sales-measure-worker.sh、cadence={\"start_interval_seconds\": 3600}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-writer",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "V-writer",
+      "target": "docs/evidence/openclaw-cutover/products/writer-natural.json",
+      "symbol": "verify_natural(writer)",
+      "change": "catalogの各jobについて次の自然仕事のrelease/owner/occurrence/run/task/session/traceを業務contractとjoin。publish/application/delivery/settlementは公式readbackを使用。unknownは0やsuccessへ変換しない。",
+      "checks": "全job coverage、旧成果契約維持、replay-zero、既存order/receipt/cost保持。test/モデルfinal/exit0だけではPASS不可。",
+      "depends": [
+        "A-writer",
+        "S-writer-claim-loop",
+        "S-writer-craft-train",
+        "S-writer-money-sync",
+        "S-writer-opportunity-discovery",
+        "S-writer-opportunity-response",
+        "S-writer-report",
+        "S-writer-sales-measure"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "P-affiliate",
+      "target": "runtime/openclaw/products/affiliate.json",
+      "symbol": "register existing product worker/tools",
+      "change": "product_id=affiliate、job_ids=[\"affiliate-browser\", \"affiliate-composition\", \"affiliate-impact-browser\", \"affiliate-loop\", \"affiliate-source-refresh\", \"affiliate-x-browser\"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。",
+      "checks": "binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。",
+      "depends": [
+        "OC-043",
+        "OC-053",
+        "C-08"
+      ],
+      "kind": "code",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "A-affiliate",
+      "target": "config/openclaw-routes.json",
+      "symbol": "enable_idle_owner(affiliate)",
+      "change": "P-affiliateと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。",
+      "checks": "idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。",
+      "depends": [
+        "P-affiliate",
+        "OC-049",
+        "OC-052"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-affiliate-composition",
+      "target": "docs/evidence/openclaw-cutover/schedulers/affiliate-composition.json",
+      "symbol": "commit_transfer(affiliate-composition)",
+      "change": "owner=affiliate-composition、entrypoint=skills/affiliate/affiliate、cadence={\"start_interval_seconds\": 600}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-affiliate",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-affiliate-loop",
+      "target": "docs/evidence/openclaw-cutover/schedulers/affiliate-loop.json",
+      "symbol": "commit_transfer(affiliate-loop)",
+      "change": "owner=affiliate-loop、entrypoint=skills/affiliate/affiliate、cadence={\"start_interval_seconds\": 600}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-affiliate",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-affiliate-source-refresh",
+      "target": "docs/evidence/openclaw-cutover/schedulers/affiliate-source-refresh.json",
+      "symbol": "commit_transfer(affiliate-source-refresh)",
+      "change": "owner=affiliate-source-refresh、entrypoint=skills/affiliate/affiliate、cadence={\"start_interval_seconds\": 600}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-affiliate",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "V-affiliate",
+      "target": "docs/evidence/openclaw-cutover/products/affiliate-natural.json",
+      "symbol": "verify_natural(affiliate)",
+      "change": "catalogの各jobについて次の自然仕事のrelease/owner/occurrence/run/task/session/traceを業務contractとjoin。publish/application/delivery/settlementは公式readbackを使用。unknownは0やsuccessへ変換しない。",
+      "checks": "全job coverage、旧成果契約維持、replay-zero、既存order/receipt/cost保持。test/モデルfinal/exit0だけではPASS不可。",
+      "depends": [
+        "A-affiliate",
+        "S-affiliate-composition",
+        "S-affiliate-loop",
+        "S-affiliate-source-refresh"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "P-investment",
+      "target": "runtime/openclaw/products/investment.json",
+      "symbol": "register existing product worker/tools",
+      "change": "product_id=investment、job_ids=[\"alpaca-investment-paper\", \"alpaca-investment-live\", \"investment-cross-venue-report\", \"investment-strategy-validation\"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。",
+      "checks": "binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。",
+      "depends": [
+        "OC-043",
+        "OC-053",
+        "C-08"
+      ],
+      "kind": "code",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "A-investment",
+      "target": "config/openclaw-routes.json",
+      "symbol": "enable_idle_owner(investment)",
+      "change": "P-investmentと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。",
+      "checks": "idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。",
+      "depends": [
+        "P-investment",
+        "OC-049",
+        "OC-052"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-alpaca-investment-paper",
+      "target": "docs/evidence/openclaw-cutover/schedulers/alpaca-investment-paper.json",
+      "symbol": "commit_transfer(alpaca-investment-paper)",
+      "change": "owner=alpaca-investment-paper、entrypoint=skills/alpaca-investment/run.py、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-investment",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-alpaca-investment-live",
+      "target": "docs/evidence/openclaw-cutover/schedulers/alpaca-investment-live.json",
+      "symbol": "commit_transfer(alpaca-investment-live)",
+      "change": "owner=alpaca-investment-live、entrypoint=skills/alpaca-investment/run.py、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-investment",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-investment-cross-venue-report",
+      "target": "docs/evidence/openclaw-cutover/schedulers/investment-cross-venue-report.json",
+      "symbol": "commit_transfer(investment-cross-venue-report)",
+      "change": "owner=investment-cross-venue-report、entrypoint=apps/life-manager/investment-core/cross_venue_run.py、cadence={\"start_interval_seconds\": 86400}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-investment",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-investment-strategy-validation",
+      "target": "docs/evidence/openclaw-cutover/schedulers/investment-strategy-validation.json",
+      "symbol": "commit_transfer(investment-strategy-validation)",
+      "change": "owner=investment-strategy-validation、entrypoint=skills/alpaca-investment/validation_runner.py、cadence={\"calendar_interval\": {\"Weekday\": 2, \"Hour\": 14, \"Minute\": 30}}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-investment",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "V-investment",
+      "target": "docs/evidence/openclaw-cutover/products/investment-natural.json",
+      "symbol": "verify_natural(investment)",
+      "change": "catalogの各jobについて次の自然仕事のrelease/owner/occurrence/run/task/session/traceを業務contractとjoin。publish/application/delivery/settlementは公式readbackを使用。unknownは0やsuccessへ変換しない。",
+      "checks": "全job coverage、旧成果契約維持、replay-zero、既存order/receipt/cost保持。test/モデルfinal/exit0だけではPASS不可。",
+      "depends": [
+        "A-investment",
+        "S-alpaca-investment-paper",
+        "S-alpaca-investment-live",
+        "S-investment-cross-venue-report",
+        "S-investment-strategy-validation"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "P-agent-economy",
+      "target": "runtime/openclaw/products/agent-economy.json",
+      "symbol": "register existing product worker/tools",
+      "change": "product_id=agent-economy、job_ids=[\"agent-economy-loop\", \"citizen-refill\", \"life-manager-x402-ledger\", \"sol-funding\", \"the402-provider\", \"the402-worker\", \"x402-acquisition-controller\", \"x402-claude-p\", \"x402-experiment-franklin1\", \"x402-franklin1\", \"x402-franklin2\", \"x402-inflow-watch\", \"x402-inflow-watch-claude-p\", \"x402-inflow-watch-franklin1\", \"x402-inflow-watch-franklin2\", \"x402-research-serve\", \"x402-sale-observer\", \"x402-seller-8404\", \"x402-settlement-recorder\"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。",
+      "checks": "binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。",
+      "depends": [
+        "OC-043",
+        "OC-053",
+        "C-01",
+        "C-08"
+      ],
+      "kind": "code",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "A-agent-economy",
+      "target": "config/openclaw-routes.json",
+      "symbol": "enable_idle_owner(agent-economy)",
+      "change": "P-agent-economyと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。",
+      "checks": "idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。",
+      "depends": [
+        "P-agent-economy",
+        "OC-049",
+        "OC-052"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-citizen-refill",
+      "target": "docs/evidence/openclaw-cutover/schedulers/citizen-refill.json",
+      "symbol": "commit_transfer(citizen-refill)",
+      "change": "owner=citizen-refill、entrypoint=bin/citizen-refill-launchd、cadence={\"start_interval_seconds\": 3600}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-agent-economy",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-life-manager-x402-ledger",
+      "target": "docs/evidence/openclaw-cutover/schedulers/life-manager-x402-ledger.json",
+      "symbol": "commit_transfer(life-manager-x402-ledger)",
+      "change": "owner=life-manager-x402-ledger、entrypoint=apps/life-manager/scripts/x402-sale-ledger-boot.sh、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-agent-economy",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-sol-funding",
+      "target": "docs/evidence/openclaw-cutover/schedulers/sol-funding.json",
+      "symbol": "commit_transfer(sol-funding)",
+      "change": "owner=sol-funding、entrypoint=skills/earn/sol-funding-owner、cadence={\"start_interval_seconds\": 60}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-agent-economy",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-x402-acquisition-controller",
+      "target": "docs/evidence/openclaw-cutover/schedulers/x402-acquisition-controller.json",
+      "symbol": "commit_transfer(x402-acquisition-controller)",
+      "change": "owner=x402-acquisition-controller、entrypoint=skills/earn/x402-sell/acquisition-controller-boot.sh、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-agent-economy",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-x402-experiment-franklin1",
+      "target": "docs/evidence/openclaw-cutover/schedulers/x402-experiment-franklin1.json",
+      "symbol": "commit_transfer(x402-experiment-franklin1)",
+      "change": "owner=x402-experiment-franklin1、entrypoint=skills/earn/x402-sell/experiment-tick.mjs、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-agent-economy",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-x402-inflow-watch",
+      "target": "docs/evidence/openclaw-cutover/schedulers/x402-inflow-watch.json",
+      "symbol": "commit_transfer(x402-inflow-watch)",
+      "change": "owner=x402-inflow-watch、entrypoint=skills/earn/x402-sell/watch-inflow.sh、cadence={\"calendar_interval\": [{\"Minute\": 5}, {\"Minute\": 35}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-agent-economy",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-x402-inflow-watch-claude-p",
+      "target": "docs/evidence/openclaw-cutover/schedulers/x402-inflow-watch-claude-p.json",
+      "symbol": "commit_transfer(x402-inflow-watch-claude-p)",
+      "change": "owner=x402-inflow-watch-claude-p、entrypoint=skills/earn/x402-sell/watch-inflow.sh、cadence={\"calendar_interval\": [{\"Minute\": 5}, {\"Minute\": 35}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-agent-economy",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-x402-inflow-watch-franklin1",
+      "target": "docs/evidence/openclaw-cutover/schedulers/x402-inflow-watch-franklin1.json",
+      "symbol": "commit_transfer(x402-inflow-watch-franklin1)",
+      "change": "owner=x402-inflow-watch-franklin1、entrypoint=skills/earn/x402-sell/watch-inflow.sh、cadence={\"calendar_interval\": [{\"Minute\": 5}, {\"Minute\": 35}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-agent-economy",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-x402-inflow-watch-franklin2",
+      "target": "docs/evidence/openclaw-cutover/schedulers/x402-inflow-watch-franklin2.json",
+      "symbol": "commit_transfer(x402-inflow-watch-franklin2)",
+      "change": "owner=x402-inflow-watch-franklin2、entrypoint=skills/earn/x402-sell/watch-inflow.sh、cadence={\"calendar_interval\": [{\"Minute\": 5}, {\"Minute\": 35}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-agent-economy",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-x402-sale-observer",
+      "target": "docs/evidence/openclaw-cutover/schedulers/x402-sale-observer.json",
+      "symbol": "commit_transfer(x402-sale-observer)",
+      "change": "owner=x402-sale-observer、entrypoint=skills/earn/x402-sell/sale-observer-boot.sh、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-agent-economy",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-x402-settlement-recorder",
+      "target": "docs/evidence/openclaw-cutover/schedulers/x402-settlement-recorder.json",
+      "symbol": "commit_transfer(x402-settlement-recorder)",
+      "change": "owner=x402-settlement-recorder、entrypoint=skills/earn/x402-sell/settlement-recorder-boot.sh、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-agent-economy",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "V-agent-economy",
+      "target": "docs/evidence/openclaw-cutover/products/agent-economy-natural.json",
+      "symbol": "verify_natural(agent-economy)",
+      "change": "catalogの各jobについて次の自然仕事のrelease/owner/occurrence/run/task/session/traceを業務contractとjoin。publish/application/delivery/settlementは公式readbackを使用。unknownは0やsuccessへ変換しない。",
+      "checks": "全job coverage、旧成果契約維持、replay-zero、既存order/receipt/cost保持。test/モデルfinal/exit0だけではPASS不可。",
+      "depends": [
+        "A-agent-economy",
+        "S-citizen-refill",
+        "S-life-manager-x402-ledger",
+        "S-sol-funding",
+        "S-x402-acquisition-controller",
+        "S-x402-experiment-franklin1",
+        "S-x402-inflow-watch",
+        "S-x402-inflow-watch-claude-p",
+        "S-x402-inflow-watch-franklin1",
+        "S-x402-inflow-watch-franklin2",
+        "S-x402-sale-observer",
+        "S-x402-settlement-recorder"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "P-job-hunter",
+      "target": "runtime/openclaw/products/job-hunter.json",
+      "symbol": "register existing product worker/tools",
+      "change": "product_id=job-hunter、job_ids=[\"job-search-daily\", \"job-search-health\", \"job-search-inbox\", \"job-search-learning\"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。",
+      "checks": "binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。",
+      "depends": [
+        "OC-043",
+        "OC-053",
+        "C-08"
+      ],
+      "kind": "code",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "A-job-hunter",
+      "target": "config/openclaw-routes.json",
+      "symbol": "enable_idle_owner(job-hunter)",
+      "change": "P-job-hunterと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。",
+      "checks": "idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。",
+      "depends": [
+        "P-job-hunter",
+        "OC-049",
+        "OC-052"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-job-search-daily",
+      "target": "docs/evidence/openclaw-cutover/schedulers/job-search-daily.json",
+      "symbol": "commit_transfer(job-search-daily)",
+      "change": "owner=job-search-daily、entrypoint=apps/job-search-loop/scripts/run-daily.sh、cadence={\"start_interval_seconds\": 1800}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-job-hunter",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-job-search-health",
+      "target": "docs/evidence/openclaw-cutover/schedulers/job-search-health.json",
+      "symbol": "commit_transfer(job-search-health)",
+      "change": "owner=job-search-health、entrypoint=apps/job-search-loop/scripts/run-health.sh、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-job-hunter",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-job-search-inbox",
+      "target": "docs/evidence/openclaw-cutover/schedulers/job-search-inbox.json",
+      "symbol": "commit_transfer(job-search-inbox)",
+      "change": "owner=job-search-inbox、entrypoint=apps/job-search-loop/scripts/run-inbox.sh、cadence={\"start_interval_seconds\": 900}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-job-hunter",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-job-search-learning",
+      "target": "docs/evidence/openclaw-cutover/schedulers/job-search-learning.json",
+      "symbol": "commit_transfer(job-search-learning)",
+      "change": "owner=job-search-learning、entrypoint=apps/job-search-loop/scripts/run-learning.sh、cadence={\"calendar_interval\": {\"Hour\": 9, \"Minute\": 15}}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-job-hunter",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "V-job-hunter",
+      "target": "docs/evidence/openclaw-cutover/products/job-hunter-natural.json",
+      "symbol": "verify_natural(job-hunter)",
+      "change": "catalogの各jobについて次の自然仕事のrelease/owner/occurrence/run/task/session/traceを業務contractとjoin。publish/application/delivery/settlementは公式readbackを使用。unknownは0やsuccessへ変換しない。",
+      "checks": "全job coverage、旧成果契約維持、replay-zero、既存order/receipt/cost保持。test/モデルfinal/exit0だけではPASS不可。",
+      "depends": [
+        "A-job-hunter",
+        "S-job-search-daily",
+        "S-job-search-health",
+        "S-job-search-inbox",
+        "S-job-search-learning"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "P-fundraiser",
+      "target": "runtime/openclaw/products/fundraiser.json",
+      "symbol": "register existing product worker/tools",
+      "change": "product_id=fundraiser、job_ids=[\"fundraiser\"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。",
+      "checks": "binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。",
+      "depends": [
+        "OC-043",
+        "OC-053",
+        "C-08"
+      ],
+      "kind": "code",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "A-fundraiser",
+      "target": "config/openclaw-routes.json",
+      "symbol": "enable_idle_owner(fundraiser)",
+      "change": "P-fundraiserと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。",
+      "checks": "idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。",
+      "depends": [
+        "P-fundraiser",
+        "OC-049",
+        "OC-052"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-fundraiser",
+      "target": "docs/evidence/openclaw-cutover/schedulers/fundraiser.json",
+      "symbol": "commit_transfer(fundraiser)",
+      "change": "owner=fundraiser、entrypoint=skills/fundraiser-agent/runtime/run.sh、cadence={\"start_interval_seconds\": 3600}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-fundraiser",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "V-fundraiser",
+      "target": "docs/evidence/openclaw-cutover/products/fundraiser-natural.json",
+      "symbol": "verify_natural(fundraiser)",
+      "change": "catalogの各jobについて次の自然仕事のrelease/owner/occurrence/run/task/session/traceを業務contractとjoin。publish/application/delivery/settlementは公式readbackを使用。unknownは0やsuccessへ変換しない。",
+      "checks": "全job coverage、旧成果契約維持、replay-zero、既存order/receipt/cost保持。test/モデルfinal/exit0だけではPASS不可。",
+      "depends": [
+        "A-fundraiser",
+        "S-fundraiser"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "P-connector",
+      "target": "runtime/openclaw/products/connector.json",
+      "symbol": "register existing product worker/tools",
+      "change": "product_id=connector、job_ids=[\"life-manager-connector-native\"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。",
+      "checks": "binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。",
+      "depends": [
+        "OC-043",
+        "OC-053",
+        "C-08"
+      ],
+      "kind": "code",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "A-connector",
+      "target": "config/openclaw-routes.json",
+      "symbol": "enable_idle_owner(connector)",
+      "change": "P-connectorと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。",
+      "checks": "idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。",
+      "depends": [
+        "P-connector",
+        "OC-049",
+        "OC-052"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-life-manager-connector-native",
+      "target": "docs/evidence/openclaw-cutover/schedulers/life-manager-connector-native.json",
+      "symbol": "commit_transfer(life-manager-connector-native)",
+      "change": "owner=life-manager-connector-native、entrypoint=skills/connector/run.sh、cadence={\"start_interval_seconds\": 1800}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-connector",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "V-connector",
+      "target": "docs/evidence/openclaw-cutover/products/connector-natural.json",
+      "symbol": "verify_natural(connector)",
+      "change": "catalogの各jobについて次の自然仕事のrelease/owner/occurrence/run/task/session/traceを業務contractとjoin。publish/application/delivery/settlementは公式readbackを使用。unknownは0やsuccessへ変換しない。",
+      "checks": "全job coverage、旧成果契約維持、replay-zero、既存order/receipt/cost保持。test/モデルfinal/exit0だけではPASS不可。",
+      "depends": [
+        "A-connector",
+        "S-life-manager-connector-native"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "P-self-build",
+      "target": "runtime/openclaw/products/self-build.json",
+      "symbol": "register existing product worker/tools",
+      "change": "product_id=self-build、job_ids=[\"life-manager-dev\", \"life-manager-recovery-supervisor\", \"life-manager-selfbuild\", \"self-improve-evolve\"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。",
+      "checks": "binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。",
+      "depends": [
+        "OC-043",
+        "OC-053",
+        "C-02",
+        "C-08"
+      ],
+      "kind": "code",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "A-self-build",
+      "target": "config/openclaw-routes.json",
+      "symbol": "enable_idle_owner(self-build)",
+      "change": "P-self-buildと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。",
+      "checks": "idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。",
+      "depends": [
+        "P-self-build",
+        "OC-049",
+        "OC-052"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-life-manager-dev",
+      "target": "docs/evidence/openclaw-cutover/schedulers/life-manager-dev.json",
+      "symbol": "commit_transfer(life-manager-dev)",
+      "change": "owner=life-manager-dev、entrypoint=apps/life-manager/scripts/life-manager-dev-daily.js、cadence={\"calendar_interval\": {\"Hour\": 4, \"Minute\": 10}}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-self-build",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-life-manager-recovery-supervisor",
+      "target": "docs/evidence/openclaw-cutover/schedulers/life-manager-recovery-supervisor.json",
+      "symbol": "commit_transfer(life-manager-recovery-supervisor)",
+      "change": "owner=life-manager-recovery-supervisor、entrypoint=runtime/loop/recovery-supervisor-cli.mjs、cadence={\"start_interval_seconds\": 60}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-self-build",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-life-manager-selfbuild",
+      "target": "docs/evidence/openclaw-cutover/schedulers/life-manager-selfbuild.json",
+      "symbol": "commit_transfer(life-manager-selfbuild)",
+      "change": "owner=life-manager-selfbuild、entrypoint=skills/life-manager/self-build-daily.sh、cadence={\"calendar_interval\": {\"Hour\": 4, \"Minute\": 10}}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-self-build",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-self-improve-evolve",
+      "target": "docs/evidence/openclaw-cutover/schedulers/self-improve-evolve.json",
+      "symbol": "commit_transfer(self-improve-evolve)",
+      "change": "owner=self-improve-evolve、entrypoint=skills/earn/marketing-engine/report/scheduled_runner.py、cadence={\"start_interval_seconds\": 21600}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-self-build",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "V-self-build",
+      "target": "docs/evidence/openclaw-cutover/products/self-build-natural.json",
+      "symbol": "verify_natural(self-build)",
+      "change": "catalogの各jobについて次の自然仕事のrelease/owner/occurrence/run/task/session/traceを業務contractとjoin。publish/application/delivery/settlementは公式readbackを使用。unknownは0やsuccessへ変換しない。",
+      "checks": "全job coverage、旧成果契約維持、replay-zero、既存order/receipt/cost保持。test/モデルfinal/exit0だけではPASS不可。",
+      "depends": [
+        "A-self-build",
+        "S-life-manager-dev",
+        "S-life-manager-recovery-supervisor",
+        "S-life-manager-selfbuild",
+        "S-self-improve-evolve"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "P-mobile-apps",
+      "target": "runtime/openclaw/products/mobile-apps.json",
+      "symbol": "register existing product worker/tools",
+      "change": "product_id=mobile-apps、job_ids=[\"life-manager-anicca-affirmation-youtube\", \"life-manager-anicca-ai-youtube\", \"life-manager-anicca-buddha-tiktok\", \"life-manager-anicca-en-affirmation-instagram\", \"life-manager-anicca-en-affirmation-tiktok\", \"life-manager-anicca-en-card-instagram\", \"life-manager-anicca-en-slideshow-tiktok\", \"life-manager-anicca-en-widget-instagram\", \"life-manager-anicca-en2-affirmation-tiktok\", \"life-manager-anicca-he\", \"life-manager-anicca-ja-widget-instagram\", \"life-manager-anicca-jp1-tiktok\", \"life-manager-anicca-jp4\", \"life-manager-anicca-larry-ja-instagram\", \"life-manager-anicca-main-instagram\", \"life-manager-anicca-main-tiktok\", \"life-manager-daily\", \"life-manager-daily-driver\", \"life-manager-honne-en\", \"life-manager-honne-ja\", \"life-manager-instagram-metrics\", \"life-manager-tiktok-metrics\", \"tiktok-browser\"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。",
+      "checks": "binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。",
+      "depends": [
+        "OC-043",
+        "OC-053",
+        "C-04",
+        "C-08"
+      ],
+      "kind": "code",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "A-mobile-apps",
+      "target": "config/openclaw-routes.json",
+      "symbol": "enable_idle_owner(mobile-apps)",
+      "change": "P-mobile-appsと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。",
+      "checks": "idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。",
+      "depends": [
+        "P-mobile-apps",
+        "OC-049",
+        "OC-052"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-life-manager-anicca-affirmation-youtube",
+      "target": "docs/evidence/openclaw-cutover/schedulers/life-manager-anicca-affirmation-youtube.json",
+      "symbol": "commit_transfer(life-manager-anicca-affirmation-youtube)",
+      "change": "owner=life-manager-anicca-affirmation-youtube、entrypoint=apps/life-manager/scripts/mobile-app、cadence={\"calendar_interval\": [{\"Hour\": 8, \"Minute\": 15}, {\"Hour\": 14, \"Minute\": 15}, {\"Hour\": 20, \"Minute\": 15}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-mobile-apps",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-life-manager-anicca-ai-youtube",
+      "target": "docs/evidence/openclaw-cutover/schedulers/life-manager-anicca-ai-youtube.json",
+      "symbol": "commit_transfer(life-manager-anicca-ai-youtube)",
+      "change": "owner=life-manager-anicca-ai-youtube、entrypoint=apps/life-manager/scripts/mobile-app、cadence={\"calendar_interval\": [{\"Hour\": 7, \"Minute\": 45}, {\"Hour\": 13, \"Minute\": 15}, {\"Hour\": 19, \"Minute\": 45}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-mobile-apps",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-life-manager-anicca-buddha-tiktok",
+      "target": "docs/evidence/openclaw-cutover/schedulers/life-manager-anicca-buddha-tiktok.json",
+      "symbol": "commit_transfer(life-manager-anicca-buddha-tiktok)",
+      "change": "owner=life-manager-anicca-buddha-tiktok、entrypoint=apps/life-manager/scripts/mobile-app、cadence={\"calendar_interval\": [{\"Hour\": 7, \"Minute\": 0}, {\"Hour\": 13, \"Minute\": 0}, {\"Hour\": 20, \"Minute\": 0}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-mobile-apps",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-life-manager-anicca-en-affirmation-instagram",
+      "target": "docs/evidence/openclaw-cutover/schedulers/life-manager-anicca-en-affirmation-instagram.json",
+      "symbol": "commit_transfer(life-manager-anicca-en-affirmation-instagram)",
+      "change": "owner=life-manager-anicca-en-affirmation-instagram、entrypoint=apps/life-manager/scripts/mobile-app、cadence={\"calendar_interval\": [{\"Hour\": 10, \"Minute\": 0}, {\"Hour\": 15, \"Minute\": 0}, {\"Hour\": 20, \"Minute\": 0}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-mobile-apps",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-life-manager-anicca-en-affirmation-tiktok",
+      "target": "docs/evidence/openclaw-cutover/schedulers/life-manager-anicca-en-affirmation-tiktok.json",
+      "symbol": "commit_transfer(life-manager-anicca-en-affirmation-tiktok)",
+      "change": "owner=life-manager-anicca-en-affirmation-tiktok、entrypoint=apps/life-manager/scripts/mobile-app、cadence={\"calendar_interval\": [{\"Hour\": 9, \"Minute\": 15}, {\"Hour\": 14, \"Minute\": 15}, {\"Hour\": 20, \"Minute\": 15}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-mobile-apps",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-life-manager-anicca-en-card-instagram",
+      "target": "docs/evidence/openclaw-cutover/schedulers/life-manager-anicca-en-card-instagram.json",
+      "symbol": "commit_transfer(life-manager-anicca-en-card-instagram)",
+      "change": "owner=life-manager-anicca-en-card-instagram、entrypoint=apps/life-manager/scripts/mobile-app、cadence={\"calendar_interval\": [{\"Hour\": 8, \"Minute\": 45}, {\"Hour\": 12, \"Minute\": 45}, {\"Hour\": 21, \"Minute\": 30}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-mobile-apps",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-life-manager-anicca-en-slideshow-tiktok",
+      "target": "docs/evidence/openclaw-cutover/schedulers/life-manager-anicca-en-slideshow-tiktok.json",
+      "symbol": "commit_transfer(life-manager-anicca-en-slideshow-tiktok)",
+      "change": "owner=life-manager-anicca-en-slideshow-tiktok、entrypoint=apps/life-manager/scripts/mobile-app、cadence={\"calendar_interval\": [{\"Hour\": 9, \"Minute\": 0}, {\"Hour\": 15, \"Minute\": 0}, {\"Hour\": 21, \"Minute\": 0}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-mobile-apps",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-life-manager-anicca-en-widget-instagram",
+      "target": "docs/evidence/openclaw-cutover/schedulers/life-manager-anicca-en-widget-instagram.json",
+      "symbol": "commit_transfer(life-manager-anicca-en-widget-instagram)",
+      "change": "owner=life-manager-anicca-en-widget-instagram、entrypoint=apps/life-manager/scripts/mobile-app、cadence={\"calendar_interval\": [{\"Hour\": 7, \"Minute\": 30}, {\"Hour\": 9, \"Minute\": 30}, {\"Hour\": 19, \"Minute\": 0}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-mobile-apps",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-life-manager-anicca-en2-affirmation-tiktok",
+      "target": "docs/evidence/openclaw-cutover/schedulers/life-manager-anicca-en2-affirmation-tiktok.json",
+      "symbol": "commit_transfer(life-manager-anicca-en2-affirmation-tiktok)",
+      "change": "owner=life-manager-anicca-en2-affirmation-tiktok、entrypoint=apps/life-manager/scripts/mobile-app、cadence={\"calendar_interval\": [{\"Hour\": 9, \"Minute\": 30}, {\"Hour\": 14, \"Minute\": 30}, {\"Hour\": 20, \"Minute\": 30}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-mobile-apps",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-life-manager-anicca-he",
+      "target": "docs/evidence/openclaw-cutover/schedulers/life-manager-anicca-he.json",
+      "symbol": "commit_transfer(life-manager-anicca-he)",
+      "change": "owner=life-manager-anicca-he、entrypoint=apps/life-manager/scripts/mobile-app、cadence={\"calendar_interval\": [{\"Hour\": 7, \"Minute\": 15}, {\"Hour\": 13, \"Minute\": 45}, {\"Hour\": 18, \"Minute\": 15}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-mobile-apps",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-life-manager-anicca-ja-widget-instagram",
+      "target": "docs/evidence/openclaw-cutover/schedulers/life-manager-anicca-ja-widget-instagram.json",
+      "symbol": "commit_transfer(life-manager-anicca-ja-widget-instagram)",
+      "change": "owner=life-manager-anicca-ja-widget-instagram、entrypoint=apps/life-manager/scripts/mobile-app、cadence={\"calendar_interval\": [{\"Hour\": 8, \"Minute\": 5}, {\"Hour\": 13, \"Minute\": 5}, {\"Hour\": 18, \"Minute\": 20}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-mobile-apps",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-life-manager-anicca-jp1-tiktok",
+      "target": "docs/evidence/openclaw-cutover/schedulers/life-manager-anicca-jp1-tiktok.json",
+      "symbol": "commit_transfer(life-manager-anicca-jp1-tiktok)",
+      "change": "owner=life-manager-anicca-jp1-tiktok、entrypoint=apps/life-manager/scripts/mobile-app、cadence={\"calendar_interval\": [{\"Hour\": 6, \"Minute\": 30}, {\"Hour\": 12, \"Minute\": 0}, {\"Hour\": 18, \"Minute\": 0}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-mobile-apps",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-life-manager-anicca-jp4",
+      "target": "docs/evidence/openclaw-cutover/schedulers/life-manager-anicca-jp4.json",
+      "symbol": "commit_transfer(life-manager-anicca-jp4)",
+      "change": "owner=life-manager-anicca-jp4、entrypoint=apps/life-manager/scripts/mobile-app、cadence={\"calendar_interval\": [{\"Hour\": 9, \"Minute\": 15}, {\"Hour\": 15, \"Minute\": 15}, {\"Hour\": 20, \"Minute\": 45}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-mobile-apps",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-life-manager-anicca-larry-ja-instagram",
+      "target": "docs/evidence/openclaw-cutover/schedulers/life-manager-anicca-larry-ja-instagram.json",
+      "symbol": "commit_transfer(life-manager-anicca-larry-ja-instagram)",
+      "change": "owner=life-manager-anicca-larry-ja-instagram、entrypoint=apps/life-manager/scripts/mobile-app、cadence={\"calendar_interval\": [{\"Hour\": 10, \"Minute\": 30}, {\"Hour\": 16, \"Minute\": 30}, {\"Hour\": 22, \"Minute\": 30}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-mobile-apps",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-life-manager-anicca-main-instagram",
+      "target": "docs/evidence/openclaw-cutover/schedulers/life-manager-anicca-main-instagram.json",
+      "symbol": "commit_transfer(life-manager-anicca-main-instagram)",
+      "change": "owner=life-manager-anicca-main-instagram、entrypoint=apps/life-manager/scripts/mobile-app、cadence={\"calendar_interval\": [{\"Hour\": 8, \"Minute\": 10}, {\"Hour\": 13, \"Minute\": 10}, {\"Hour\": 19, \"Minute\": 10}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-mobile-apps",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-life-manager-anicca-main-tiktok",
+      "target": "docs/evidence/openclaw-cutover/schedulers/life-manager-anicca-main-tiktok.json",
+      "symbol": "commit_transfer(life-manager-anicca-main-tiktok)",
+      "change": "owner=life-manager-anicca-main-tiktok、entrypoint=apps/life-manager/scripts/mobile-app、cadence={\"calendar_interval\": [{\"Hour\": 8, \"Minute\": 0}, {\"Hour\": 16, \"Minute\": 0}, {\"Hour\": 22, \"Minute\": 37}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-mobile-apps",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-life-manager-daily",
+      "target": "docs/evidence/openclaw-cutover/schedulers/life-manager-daily.json",
+      "symbol": "commit_transfer(life-manager-daily)",
+      "change": "owner=life-manager-daily、entrypoint=skills/life-manager/life-manager-daily.sh、cadence={\"calendar_interval\": {\"Hour\": 10, \"Minute\": 15}}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-mobile-apps",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-life-manager-honne-en",
+      "target": "docs/evidence/openclaw-cutover/schedulers/life-manager-honne-en.json",
+      "symbol": "commit_transfer(life-manager-honne-en)",
+      "change": "owner=life-manager-honne-en、entrypoint=apps/life-manager/scripts/mobile-app、cadence={\"calendar_interval\": [{\"Hour\": 7, \"Minute\": 0}, {\"Hour\": 11, \"Minute\": 0}, {\"Hour\": 20, \"Minute\": 30}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-mobile-apps",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-life-manager-honne-ja",
+      "target": "docs/evidence/openclaw-cutover/schedulers/life-manager-honne-ja.json",
+      "symbol": "commit_transfer(life-manager-honne-ja)",
+      "change": "owner=life-manager-honne-ja、entrypoint=apps/life-manager/scripts/mobile-app、cadence={\"calendar_interval\": [{\"Hour\": 8, \"Minute\": 30}, {\"Hour\": 12, \"Minute\": 30}, {\"Hour\": 21, \"Minute\": 30}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-mobile-apps",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-life-manager-instagram-metrics",
+      "target": "docs/evidence/openclaw-cutover/schedulers/life-manager-instagram-metrics.json",
+      "symbol": "commit_transfer(life-manager-instagram-metrics)",
+      "change": "owner=life-manager-instagram-metrics、entrypoint=apps/life-manager/scripts/instagram-metrics-production-boot.sh、cadence={\"start_interval_seconds\": 1800}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-mobile-apps",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-life-manager-tiktok-metrics",
+      "target": "docs/evidence/openclaw-cutover/schedulers/life-manager-tiktok-metrics.json",
+      "symbol": "commit_transfer(life-manager-tiktok-metrics)",
+      "change": "owner=life-manager-tiktok-metrics、entrypoint=apps/life-manager/scripts/tiktok-metrics-production-boot.sh、cadence={\"start_interval_seconds\": 1800}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-mobile-apps",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "V-mobile-apps",
+      "target": "docs/evidence/openclaw-cutover/products/mobile-apps-natural.json",
+      "symbol": "verify_natural(mobile-apps)",
+      "change": "catalogの各jobについて次の自然仕事のrelease/owner/occurrence/run/task/session/traceを業務contractとjoin。publish/application/delivery/settlementは公式readbackを使用。unknownは0やsuccessへ変換しない。",
+      "checks": "全job coverage、旧成果契約維持、replay-zero、既存order/receipt/cost保持。test/モデルfinal/exit0だけではPASS不可。",
+      "depends": [
+        "A-mobile-apps",
+        "S-life-manager-anicca-affirmation-youtube",
+        "S-life-manager-anicca-ai-youtube",
+        "S-life-manager-anicca-buddha-tiktok",
+        "S-life-manager-anicca-en-affirmation-instagram",
+        "S-life-manager-anicca-en-affirmation-tiktok",
+        "S-life-manager-anicca-en-card-instagram",
+        "S-life-manager-anicca-en-slideshow-tiktok",
+        "S-life-manager-anicca-en-widget-instagram",
+        "S-life-manager-anicca-en2-affirmation-tiktok",
+        "S-life-manager-anicca-he",
+        "S-life-manager-anicca-ja-widget-instagram",
+        "S-life-manager-anicca-jp1-tiktok",
+        "S-life-manager-anicca-jp4",
+        "S-life-manager-anicca-larry-ja-instagram",
+        "S-life-manager-anicca-main-instagram",
+        "S-life-manager-anicca-main-tiktok",
+        "S-life-manager-daily",
+        "S-life-manager-honne-en",
+        "S-life-manager-honne-ja",
+        "S-life-manager-instagram-metrics",
+        "S-life-manager-tiktok-metrics"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "P-ebook",
+      "target": "runtime/openclaw/products/ebook.json",
+      "symbol": "register existing product worker/tools",
+      "change": "product_id=ebook、job_ids=[\"ebook-en-instagram-daily\", \"ebook-en-tiktok-daily\", \"ebook-ja-instagram-daily\", \"ebook-ja-tiktok-daily\"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。",
+      "checks": "binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。",
+      "depends": [
+        "OC-043",
+        "OC-053",
+        "C-08"
+      ],
+      "kind": "code",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "A-ebook",
+      "target": "config/openclaw-routes.json",
+      "symbol": "enable_idle_owner(ebook)",
+      "change": "P-ebookと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。",
+      "checks": "idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。",
+      "depends": [
+        "P-ebook",
+        "OC-049",
+        "OC-052"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-ebook-en-instagram-daily",
+      "target": "docs/evidence/openclaw-cutover/schedulers/ebook-en-instagram-daily.json",
+      "symbol": "commit_transfer(ebook-en-instagram-daily)",
+      "change": "owner=ebook-en-instagram-daily、entrypoint=apps/life-manager/scripts/ebook-distribute-daily.sh、cadence={\"calendar_interval\": [{\"Hour\": 8, \"Minute\": 0}, {\"Hour\": 14, \"Minute\": 0}, {\"Hour\": 21, \"Minute\": 0}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-ebook",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-ebook-en-tiktok-daily",
+      "target": "docs/evidence/openclaw-cutover/schedulers/ebook-en-tiktok-daily.json",
+      "symbol": "commit_transfer(ebook-en-tiktok-daily)",
+      "change": "owner=ebook-en-tiktok-daily、entrypoint=apps/life-manager/scripts/ebook-distribute-daily.sh、cadence={\"calendar_interval\": [{\"Hour\": 8, \"Minute\": 0}, {\"Hour\": 14, \"Minute\": 0}, {\"Hour\": 21, \"Minute\": 0}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-ebook",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-ebook-ja-instagram-daily",
+      "target": "docs/evidence/openclaw-cutover/schedulers/ebook-ja-instagram-daily.json",
+      "symbol": "commit_transfer(ebook-ja-instagram-daily)",
+      "change": "owner=ebook-ja-instagram-daily、entrypoint=apps/life-manager/scripts/ebook-distribute-daily.sh、cadence={\"calendar_interval\": [{\"Hour\": 7, \"Minute\": 0}, {\"Hour\": 12, \"Minute\": 30}, {\"Hour\": 20, \"Minute\": 0}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-ebook",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-ebook-ja-tiktok-daily",
+      "target": "docs/evidence/openclaw-cutover/schedulers/ebook-ja-tiktok-daily.json",
+      "symbol": "commit_transfer(ebook-ja-tiktok-daily)",
+      "change": "owner=ebook-ja-tiktok-daily、entrypoint=apps/life-manager/scripts/ebook-distribute-daily.sh、cadence={\"calendar_interval\": [{\"Hour\": 7, \"Minute\": 0}, {\"Hour\": 12, \"Minute\": 30}, {\"Hour\": 20, \"Minute\": 0}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-ebook",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "V-ebook",
+      "target": "docs/evidence/openclaw-cutover/products/ebook-natural.json",
+      "symbol": "verify_natural(ebook)",
+      "change": "catalogの各jobについて次の自然仕事のrelease/owner/occurrence/run/task/session/traceを業務contractとjoin。publish/application/delivery/settlementは公式readbackを使用。unknownは0やsuccessへ変換しない。",
+      "checks": "全job coverage、旧成果契約維持、replay-zero、既存order/receipt/cost保持。test/モデルfinal/exit0だけではPASS不可。",
+      "depends": [
+        "A-ebook",
+        "S-ebook-en-instagram-daily",
+        "S-ebook-en-tiktok-daily",
+        "S-ebook-ja-instagram-daily",
+        "S-ebook-ja-tiktok-daily"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "P-capafy",
+      "target": "runtime/openclaw/products/capafy.json",
+      "symbol": "register existing product worker/tools",
+      "change": "product_id=capafy、job_ids=[\"capafy-browser\", \"capafy-distribute-daily\", \"capafy-goal-monitor\", \"capafy-goal-monitor-daily-close\", \"capafy-goal-monitor-hourly\", \"capafy-ig-account-manager\", \"capafy-ig-marketing-daily\", \"capafy-loop-daily\", \"capafy-loop-healthcheck\", \"capafy-outcome-monitor\", \"life-manager-capafy-ig\"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。",
+      "checks": "binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。",
+      "depends": [
+        "OC-043",
+        "OC-053",
+        "C-08"
+      ],
+      "kind": "code",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "A-capafy",
+      "target": "config/openclaw-routes.json",
+      "symbol": "enable_idle_owner(capafy)",
+      "change": "P-capafyと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。",
+      "checks": "idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。",
+      "depends": [
+        "P-capafy",
+        "OC-049",
+        "OC-052"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-capafy-distribute-daily",
+      "target": "docs/evidence/openclaw-cutover/schedulers/capafy-distribute-daily.json",
+      "symbol": "commit_transfer(capafy-distribute-daily)",
+      "change": "owner=capafy-distribute-daily、entrypoint=skills/earn/capafy-marketing/capafy-distribute-daily.sh、cadence={\"calendar_interval\": [{\"Hour\": 1, \"Minute\": 15}, {\"Hour\": 4, \"Minute\": 15}, {\"Hour\": 7, \"Minute\": 15}, {\"Hour\": 10, \"Minute\": 15}, {\"Hour\": 13, \"Minute\": 15}, {\"Hour\": 16, \"Minute\": 15}, {\"Hour\": 19, \"Minute\": 15}, {\"Hour\": 22, \"Minute\": 15}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-capafy",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-capafy-goal-monitor",
+      "target": "docs/evidence/openclaw-cutover/schedulers/capafy-goal-monitor.json",
+      "symbol": "commit_transfer(capafy-goal-monitor)",
+      "change": "owner=capafy-goal-monitor、entrypoint=skills/earn/capafy-marketing/capafy-goal-monitor.sh、cadence={\"calendar_interval\": {\"Hour\": 9, \"Minute\": 30}}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-capafy",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-capafy-goal-monitor-daily-close",
+      "target": "docs/evidence/openclaw-cutover/schedulers/capafy-goal-monitor-daily-close.json",
+      "symbol": "commit_transfer(capafy-goal-monitor-daily-close)",
+      "change": "owner=capafy-goal-monitor-daily-close、entrypoint=skills/earn/capafy-marketing/capafy-goal-monitor.sh、cadence={\"calendar_interval\": {\"Hour\": 23, \"Minute\": 50}}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-capafy",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-capafy-goal-monitor-hourly",
+      "target": "docs/evidence/openclaw-cutover/schedulers/capafy-goal-monitor-hourly.json",
+      "symbol": "commit_transfer(capafy-goal-monitor-hourly)",
+      "change": "owner=capafy-goal-monitor-hourly、entrypoint=skills/earn/capafy-marketing/capafy-goal-monitor.sh、cadence={\"calendar_interval\": {\"Minute\": 7}}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-capafy",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-capafy-ig-account-manager",
+      "target": "docs/evidence/openclaw-cutover/schedulers/capafy-ig-account-manager.json",
+      "symbol": "commit_transfer(capafy-ig-account-manager)",
+      "change": "owner=capafy-ig-account-manager、entrypoint=skills/earn/capafy-marketing/capafy-ig-account-manager.sh、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-capafy",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-capafy-ig-marketing-daily",
+      "target": "docs/evidence/openclaw-cutover/schedulers/capafy-ig-marketing-daily.json",
+      "symbol": "commit_transfer(capafy-ig-marketing-daily)",
+      "change": "owner=capafy-ig-marketing-daily、entrypoint=skills/earn/capafy-marketing/capafy-ig-marketing-daily.sh、cadence={\"start_interval_seconds\": 3600}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-capafy",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-capafy-loop-daily",
+      "target": "docs/evidence/openclaw-cutover/schedulers/capafy-loop-daily.json",
+      "symbol": "commit_transfer(capafy-loop-daily)",
+      "change": "owner=capafy-loop-daily、entrypoint=skills/self/capafy-loop/capafy-loop-daily.sh、cadence={\"start_interval_seconds\": 900}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-capafy",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-capafy-loop-healthcheck",
+      "target": "docs/evidence/openclaw-cutover/schedulers/capafy-loop-healthcheck.json",
+      "symbol": "commit_transfer(capafy-loop-healthcheck)",
+      "change": "owner=capafy-loop-healthcheck、entrypoint=skills/self/capafy-loop/capafy-loop-healthcheck.sh、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-capafy",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-capafy-outcome-monitor",
+      "target": "docs/evidence/openclaw-cutover/schedulers/capafy-outcome-monitor.json",
+      "symbol": "commit_transfer(capafy-outcome-monitor)",
+      "change": "owner=capafy-outcome-monitor、entrypoint=skills/earn/capafy-marketing/capafy-outcome-monitor.sh、cadence={\"start_interval_seconds\": 60}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-capafy",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-life-manager-capafy-ig",
+      "target": "docs/evidence/openclaw-cutover/schedulers/life-manager-capafy-ig.json",
+      "symbol": "commit_transfer(life-manager-capafy-ig)",
+      "change": "owner=life-manager-capafy-ig、entrypoint=apps/life-manager/scripts/capafy-ig-reel、cadence={\"calendar_interval\": [{\"Hour\": 9, \"Minute\": 0}, {\"Hour\": 14, \"Minute\": 0}, {\"Hour\": 20, \"Minute\": 0}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-capafy",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "V-capafy",
+      "target": "docs/evidence/openclaw-cutover/products/capafy-natural.json",
+      "symbol": "verify_natural(capafy)",
+      "change": "catalogの各jobについて次の自然仕事のrelease/owner/occurrence/run/task/session/traceを業務contractとjoin。publish/application/delivery/settlementは公式readbackを使用。unknownは0やsuccessへ変換しない。",
+      "checks": "全job coverage、旧成果契約維持、replay-zero、既存order/receipt/cost保持。test/モデルfinal/exit0だけではPASS不可。",
+      "depends": [
+        "A-capafy",
+        "S-capafy-distribute-daily",
+        "S-capafy-goal-monitor",
+        "S-capafy-goal-monitor-daily-close",
+        "S-capafy-goal-monitor-hourly",
+        "S-capafy-ig-account-manager",
+        "S-capafy-ig-marketing-daily",
+        "S-capafy-loop-daily",
+        "S-capafy-loop-healthcheck",
+        "S-capafy-outcome-monitor",
+        "S-life-manager-capafy-ig"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "P-line-sticker",
+      "target": "runtime/openclaw/products/line-sticker.json",
+      "symbol": "register existing product worker/tools",
+      "change": "product_id=line-sticker、job_ids=[\"line-creators-browser\", \"line-sticker-factory-hourly\", \"line-sticker-readback-hourly\"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。",
+      "checks": "binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。",
+      "depends": [
+        "OC-043",
+        "OC-053",
+        "C-05",
+        "C-06",
+        "C-07",
+        "C-08"
+      ],
+      "kind": "code",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "A-line-sticker",
+      "target": "config/openclaw-routes.json",
+      "symbol": "enable_idle_owner(line-sticker)",
+      "change": "P-line-stickerと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。",
+      "checks": "idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。",
+      "depends": [
+        "P-line-sticker",
+        "OC-049",
+        "OC-052"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-line-sticker-factory-hourly",
+      "target": "docs/evidence/openclaw-cutover/schedulers/line-sticker-factory-hourly.json",
+      "symbol": "commit_transfer(line-sticker-factory-hourly)",
+      "change": "owner=line-sticker-factory-hourly、entrypoint=skills/earn/line-sticker/line-sticker-factory.sh、cadence={\"start_interval_seconds\": 900}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-line-sticker",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-line-sticker-readback-hourly",
+      "target": "docs/evidence/openclaw-cutover/schedulers/line-sticker-readback-hourly.json",
+      "symbol": "commit_transfer(line-sticker-readback-hourly)",
+      "change": "owner=line-sticker-readback-hourly、entrypoint=skills/earn/line-sticker/line-sticker-readback.sh、cadence={\"calendar_interval\": {\"Minute\": 23}}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-line-sticker",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "V-line-sticker",
+      "target": "docs/evidence/openclaw-cutover/products/line-sticker-natural.json",
+      "symbol": "verify_natural(line-sticker)",
+      "change": "catalogの各jobについて次の自然仕事のrelease/owner/occurrence/run/task/session/traceを業務contractとjoin。publish/application/delivery/settlementは公式readbackを使用。unknownは0やsuccessへ変換しない。",
+      "checks": "全job coverage、旧成果契約維持、replay-zero、既存order/receipt/cost保持。test/モデルfinal/exit0だけではPASS不可。",
+      "depends": [
+        "A-line-sticker",
+        "S-line-sticker-factory-hourly",
+        "S-line-sticker-readback-hourly"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "P-cfo",
+      "target": "runtime/openclaw/products/cfo.json",
+      "symbol": "register existing product worker/tools",
+      "change": "product_id=cfo、job_ids=[\"life-manager-cfo-hourly\", \"life-manager-financial-report\", \"life-manager-payout\"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。",
+      "checks": "binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。",
+      "depends": [
+        "OC-043",
+        "OC-053",
+        "C-08"
+      ],
+      "kind": "code",
+      "conditional": false,
+      "boundary": "isolated_source"
+    },
+    {
+      "id": "A-cfo",
+      "target": "config/openclaw-routes.json",
+      "symbol": "enable_idle_owner(cfo)",
+      "change": "P-cfoと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。",
+      "checks": "idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。",
+      "depends": [
+        "P-cfo",
+        "OC-049",
+        "OC-052"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-life-manager-cfo-hourly",
+      "target": "docs/evidence/openclaw-cutover/schedulers/life-manager-cfo-hourly.json",
+      "symbol": "commit_transfer(life-manager-cfo-hourly)",
+      "change": "owner=life-manager-cfo-hourly、entrypoint=skills/cfo/run.sh、cadence={\"start_interval_seconds\": 3600}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-cfo",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-life-manager-financial-report",
+      "target": "docs/evidence/openclaw-cutover/schedulers/life-manager-financial-report.json",
+      "symbol": "commit_transfer(life-manager-financial-report)",
+      "change": "owner=life-manager-financial-report、entrypoint=apps/life-manager/scripts/financial-report-boot.sh、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-cfo",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "S-life-manager-payout",
+      "target": "docs/evidence/openclaw-cutover/schedulers/life-manager-payout.json",
+      "symbol": "commit_transfer(life-manager-payout)",
+      "change": "owner=life-manager-payout、entrypoint=apps/life-manager/scripts/payout-boot.sh、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
+      "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
+      "depends": [
+        "A-cfo",
+        "OC-046"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "V-cfo",
+      "target": "docs/evidence/openclaw-cutover/products/cfo-natural.json",
+      "symbol": "verify_natural(cfo)",
+      "change": "catalogの各jobについて次の自然仕事のrelease/owner/occurrence/run/task/session/traceを業務contractとjoin。publish/application/delivery/settlementは公式readbackを使用。unknownは0やsuccessへ変換しない。",
+      "checks": "全job coverage、旧成果契約維持、replay-zero、既存order/receipt/cost保持。test/モデルfinal/exit0だけではPASS不可。",
+      "depends": [
+        "A-cfo",
+        "S-life-manager-cfo-hourly",
+        "S-life-manager-financial-report",
+        "S-life-manager-payout"
+      ],
+      "boundary": "production"
+    }
+  ]
+}

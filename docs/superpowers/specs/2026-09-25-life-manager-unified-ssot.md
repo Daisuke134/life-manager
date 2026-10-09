@@ -4124,6 +4124,12 @@ Source evidence: Node 14tests/Python 6tests PASS、RPC境界はinjected test cli
 
 Independent review: 3件の実不具合（再接続readiness、digest型coercion、read不能なoversized receipt保存）を各RED→GREENで修正。sourceテスト20 PASS。PR #7280 https://github.com/Daisuke134/life-manager/pull/7280 。本番移行は未完。
 
+### 全残TODOの固定と実行境界
+
+全file/function/contract/testは `docs/superpowers/plans/2026-10-09-openclaw-remaining.md`、機械展開は `docs/research/openclaw-remaining-atoms.json`。baseline `c7b1e491bd9fb6a212dd1c8a5f05ccd9ffef70f4`、最新catalog 18分類/113job（finite 95、continuous 18）。残215atomはsource/native/caller/product binding/idle cutover/schedule自然確認/退役をすべて含む。旧111jobからebook-en-instagram-dailyとlife-manager-anicca-en2-affirmation-tiktokが追加。OC008はtext境界済みだが画像/continuation接続をfollow-up未完として明示する。
+
+順序更新: 旧=V全完了後にF installer/docs、新=F01/02/03/05/06のsource+isolated fixtureを本番移管前に完了し、A/S/V後にF04退役/F07最終。理由=現在の本番を維持したまま実装できる仕事を先に終える。既存の外部effectは中断/重複しない。現在cursor=OC012（実固定Gateway conformance）。既存loopを永久に一切変更しない条件では本番移行完了は成立しないため、進行中runを止めずidle ownerの次の仕事だけ移す。
+
 ## Host disk recovery incident
 
 目的: Macの容量逼迫を安全回収し、既存cleanupの稼働と管理下の有限ジョブの容量ガードを修復する。
