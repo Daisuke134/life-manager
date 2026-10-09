@@ -63,6 +63,8 @@
 
 **P0-14 自動Git GCの原因確定と最小修復:** 2件のGit temporary garbageだけを回収し、fresh free=3,185,614,848 bytes、正規pack/protected deletion=0、main fetch成功。その直後、release cutter PID75058 → fetch PID75087 → GC PID75092（UID501、start Fri Oct9 21:29:49、`git gc --auto --quiet --no-detach`）→ repack/pack-objectsの実行系を確認。新しいtmp_pack_nxjSDFはallocated1,000,341,504 bytesで更新中、空きが約1.41GiBへ再低下。reconcilerのfetchは既に--no-auto-maintenanceだが、cut-loop-release.shのfetchが欠落する。次はこのGCのstart/UID/parent/argvを再確認し、そのGit GC/pack子だけへSIGTERM、既存packとrelease builderは保持。sourceはcutter fetchへ既存と同じ--no-auto-maintenanceを追加し、RED→GREENを既存pressure testへ一つだけ残す。共有repoの自動GCはgc.auto=0/gc.autoPackLimit=0で止め、意図しないfull repackがagentのfetch/commitへ割り込まないようにする。正規Git maintenanceは明示owner、閉じたproducer、必要なpeak空きがある時だけ実行し、今ここでfull GCや新しいschedulerは追加しない。
 
+**P0-14 修正受入と次の回復:** GC/fetch/cutterの全PIDは再確認時に消失し、SIGTERMは未発行。cutterの自然終了はruntime bytecode build failedで、currentは19bc76c0のまま。既知GCのtmp_pack_nxjSDFはallocated1,219,100,672 bytes/inode787087971で残り、fresh Git garbage分類・open handleなし・対応producer終了を確認。追加回収はこの失敗GCの一時packと、同UID/通常ファイル/1時間以上古い/closed/Git garbageを全て再確認できるpack/tmp_pack_*だけに限定する。tmp_obj/正規pack/idx/refs/保護storeは保持。local gc.auto=0/gc.autoPackLimit=0 readback済み。実Git traceを使う最小REDはmaintenance run --auto起動を検出し、cutter fetchへ--no-auto-maintenance追加後の関連4 tests、bash -n、diff checkはPASS。次はこのsourceをpush/CI/main→容量復旧→main由来release/natural adoptionで、11GiB受入は未完。
+
 ### P0 — ディスク回復のatomic TODO
 
 再開worktree: `/Users/anicca/Projects/life-manager-main/.worktrees/disk-watchdog-worktree-safety-20261008`。branch `fix/disk-cleanup-15d-lm-loop-20261009`、引き継ぎHEAD `a6e037571404419501c6441af8e859e137eaa40b`。既存未commitのSSOT・SKILL・source・test差分を保持し、owner/lease/live process確認前に編集しない。別のactive cleanup worktreeも触らない。
