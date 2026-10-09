@@ -9229,6 +9229,12 @@ This entry supersedes the prior producer-review cursor. CFO priority remains A5 
 
 現在cursor: step 22 — PR checks完了と1時間age gateを待ち、production stateを変更せずに両方の次操作を準備する。
 
+**Writer runtime update (this cursor supersedes step 22 above):** PR #7341 is merged; main-derived release `0dc40ef2b6ba9924a740a6e3e8fabfe02b4eb2e9` is current and `article-daily` is loaded on that SHA. The paid-demand card `paid-demand:ad1417881227139e500b07322b874654862baeb092df6262d677a7b523f4fb87` matches the eight content tactics in Writer's refreshed `strategy-context/marketing-intel.md`. `ARTICLE_AUTOPUBLISH=1` remains configured for the existing paid Note, paid Substack, and X Article destinations.
+
+The natural occurrence `article-daily:18dcc1857642b0a0-84656` at 13:18 JST selected the existing run `20261008-232303`, imported all eight tactic IDs, and then stopped at `article_generation_state.py rebind-release` with `judge-broker-dispatch-marker`. In `article-daily.sh`, the judge broker starts before `rebind-release`; startup writes a run-scoped `gates/judge-broker/pid`, which makes the later no-dispatch proof reject its own preflight. The generation state is `prepared` with `attempts=[]`, and no article ledger row, provider receipt, or official readback exists. Keep this occurrence unresolved and never replay it; `effect_status=unknown` is not converted to no-effect.
+
+**Current cursor:** the source fix rebinds before broker startup and waits for a changed run-scoped heartbeat plus a matching live broker PID before starting the model. A fresh reviewer found the startup race and the readiness gate addresses it. Focused checks pass 3/3, shell syntax passes, and `git diff --check` is clean on base `15037dd28076ed87ddc691d54f3bc4ca76649148`; latest `origin/main` is now `84c56e1190f611c7ccd2e9d55df6513df8c31d72`, so the branch needs rebase. The latest disk-cleanup receipt (`2026-10-09T04:48:49Z`) records `reclaimed=0`, 10/10 candidates preserved (`open=3`, `protected_descendant=7`), and no protected deletions; a fresh 1 MiB write/fsync probe now succeeds. Next: fetch/rebase onto latest main, rerun focused checks, obtain fresh adversarial review, then commit/push and merge through exact-head PR gates. Keep occurrence `18dcc1857642b0a0-84656` fenced until official Note/Substack/X readback resolves `effect_status=unknown`; do not replay it from local empty state alone. After the fence is safely reconciled and release adoption is available, cut a main-derived release and use guarded `article-daily` apply; then verify published URLs, Note ¥500 price, sales measurement, costs, and replay-zero before claiming revenue.
+
 ### 2026-10-08 23:00 JST — PR review/CIとlive capacityの初回readback
 
 - PR #7156のhead `7866fad47742010cd079d9cf12e662f69e63a5f7`でrequired GitHub checksは全passし、fresh read-only reviewerは`ship`。このSSOT更新はPR headを変えるため、merge前に新headでchecks/reviewを取り直す。
@@ -10746,8 +10752,7 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 3. main由来immutable releaseをarticle-dailyへ対象限定で反映し、natural Writer occurrenceで同じ有料需要カードとMarketing Intel contextの使用を確認する。
 4. Noteのlive URL・¥500 monetization API readback、X告知のofficial readback、Writer sales measureとreplay-zeroを確認するまで収益を主張しない。Affiliate/X repost loopには接続しない。
 
-**現在cursor:** PR #7341 exact-head CI/fresh review → merge → main-derived releaseでarticle-dailyをtarget apply → natural Writer occurrence → Note/X official readback → sales measurement/replay-zero。
-
+**現在cursor:** brokerをinit/rebind後に起動し、新heartbeatと一致PIDを待つ修正を追加。focused test 3/3、`bash -n`、`git diff --check`はbase `15037dd2`でPASS。commit `35e580ab`はpush済み。最新mainは`f5bb1d66`。このrebaseを完了してchecksとfresh reviewを再取得 → exact-head PR checks/merge → main-derived release/target apply → effect unknownのofficial readback → natural Writer occurrence → Note ¥500・paid Substack・X ArticleのURL、sales、cost、replay-zeroを確認。最新cleanup receiptはreclaimed=0で候補10件を保護。
 ### 2026-10-09 12:17 JST — Mobile post count unchanged; latest-main source sync pending
 
 このreadbackは12:05 JST mobile snapshotを更新する。**3回目のslotや日次54/54を待たず、source/promotion/owner修復を続ける。**
