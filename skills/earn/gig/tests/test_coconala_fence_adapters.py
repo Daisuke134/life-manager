@@ -52,7 +52,7 @@ def test_application_reconcile_leases_registered_identity_only_after_exact_targe
     monkeypatch.setattr(
         wrapper.reconciler,
         "discover_single_target",
-        lambda *, owner_id, intent_root: ("occ-1", "123")
+        lambda *, owner_id, intent_root: ("occ-1", "run-1", ["123", "456"])
     )
     calls = []
 
@@ -79,12 +79,16 @@ def test_application_reconcile_leases_registered_identity_only_after_exact_targe
         "hf-gig-apply-direct",
         "--occurrence-id",
         "occ-1",
-        "--request-id",
-        "123",
+        "--runtime-run-id",
+        "run-1",
         "--intent-root",
         str(tmp_path),
         "--max-pages",
         "1000",
+        "--request-id",
+        "123",
+        "--request-id",
+        "456",
     ]
     assert kwargs["cwd"] == ROOT
     assert kwargs["env"]["BROWSER_WAIT_SECONDS"] == "0"

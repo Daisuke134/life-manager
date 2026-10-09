@@ -5,6 +5,7 @@ import importlib.util
 from pathlib import Path
 import inspect
 import sys
+import pytest
 
 
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
@@ -14,6 +15,15 @@ assert SPEC and SPEC.loader
 application_parent = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(application_parent)
 gig_disk_guard = importlib.import_module("gig_disk_guard")
+
+
+@pytest.fixture(autouse=True)
+def _runtime_occurrence(monkeypatch):
+    monkeypatch.setenv("LIFE_MANAGER_RUN_ID", "test-run")
+    monkeypatch.setenv(
+        "LIFE_MANAGER_OCCURRENCE_ID",
+        "hf-gig-apply-direct:test-run",
+    )
 
 
 def _single_application_snapshot() -> dict[str, object]:
@@ -183,6 +193,43 @@ def test_explicit_disk_policy_is_rechecked_before_irreversible_submit(tmp_path, 
     assert results[0]["error"] == "disk_policy_stop_or_unavailable"
 
 
+def test_missing_runtime_occurrence_identity_stops_before_browser_effect(tmp_path, monkeypatch):
+    snapshot = _single_application_snapshot()
+    decisions = {"decisions": [{
+        "request_id": "123",
+        "business_class": "submit_required",
+        "reason_codes": [],
+        "proposal_text": application_parent.commercial_proposal_text(
+            "既存業務の自動化を設計から検証まで担当します。" * 8,
+            price_jpy=20_000,
+            deliver_date="2026-09-01",
+        ),
+        "price_jpy": 20_000,
+        "deliver_date": "2026-09-01",
+        "work_frequency": None,
+        "weekly_hours_min": None,
+        "weekly_hours_max": None,
+        "screening_answers": [],
+    }]}
+    effects = application_parent.FixtureEffects(snapshot, {})
+    monkeypatch.delenv("LIFE_MANAGER_RUN_ID")
+    monkeypatch.delenv("LIFE_MANAGER_OCCURRENCE_ID")
+
+    with pytest.raises(
+        application_parent.ParentContractError,
+        match="runtime_occurrence_binding_required",
+    ):
+        application_parent.commit_decisions(
+            snapshot,
+            decisions,
+            store=application_parent.fence.IntentStore(tmp_path),
+            effects=effects,
+        )
+
+    assert effects.open_count == 0
+    assert effects.click_count == 0
+
+
 def test_missing_authenticated_identity_stops_before_irreversible_marker(
     tmp_path, monkeypatch
 ) -> None:
@@ -246,7 +293,12 @@ def test_old_effect_started_intent_stays_fenced_out_of_foreground_apply(tmp_path
     )
     with store.locked("123"):
         application_parent.fence._durable_replace(store.intent_path("123"), payload)
-        store.mark_irreversible_attempt_started_locked("123", expected_cas=payload["cas"])
+        store.mark_irreversible_attempt_started_locked(
+            "123",
+            expected_cas=payload["cas"],
+            runtime_run_id="test-run",
+            runtime_occurrence_id="hf-gig-apply-direct:test-run",
+        )
     effects = application_parent.FixtureEffects(snapshot, {})
 
     result = application_parent.commit_decisions(snapshot, decisions, store=store, effects=effects)
@@ -279,7 +331,12 @@ def test_same_wake_effect_started_intent_gets_exact_readback(tmp_path) -> None:
     )
     with store.locked("123"):
         application_parent.fence._durable_replace(store.intent_path("123"), payload)
-        store.mark_irreversible_attempt_started_locked("123", expected_cas=payload["cas"])
+        store.mark_irreversible_attempt_started_locked(
+            "123",
+            expected_cas=payload["cas"],
+            runtime_run_id="test-run",
+            runtime_occurrence_id="hf-gig-apply-direct:test-run",
+        )
     effects = application_parent.FixtureEffects(snapshot, {"official_applied_ids": ["123"]})
 
     result = application_parent.commit_decisions(snapshot, decision, store=store, effects=effects)
