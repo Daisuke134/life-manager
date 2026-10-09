@@ -28,7 +28,7 @@
 
 **不変条件:** iOS Simulator runtime/image/device/data/dyld、memory/state、credentials、browser identity、参照release、active/dirty/unmerged/leased/locked worktree、open/unknown dataを削除しない。各agentは自分が生成し所有する非authoritative scratchだけを片付け、中央cleanupは残ったclosed/orphaned artifactと証明済みの不要物を回収する。他agentの作業や正式receiptを消さない。effect_unknownはexact official receipt/pre-effect proofまで解除・再送しない。内部の余白・時間・byte予算は安全な制御に使い、空き容量の固定値を事業再開の条件にしない。
 
-**現在cursor: S02/P0-14 中央cleanupの軽い毎分passと各agentの自己後始末を改善 → P0-15/P1の仕事別資源制御 → S03/P0-12の収益loop継続稼働確認。** 旧cursorの空き容量探索→11GiB待ちを変更する。理由はcleanupとproducerの後始末を直して業務を続けることが目的であり、容量数値だけの達成はその証明にならないため。P0-13の観測はこの具体的修正の診断に限定し、全ディスクcensusを先行gateにしない。full producer guard/current ALL859df55aとcleanup/更新ownerの同SHA自然exit0は確認済み。収益loopの継続進行と自己後始末の全owner coverageは未証明なので、根本修復全体は未完。
+**現在cursor: S02/CLEAN-00 未使用Mac dataの手動回収と同対象の自動化 → P0-14 中央cleanupの軽い毎分passと各agentの自己後始末を改善 → P0-15/P1の仕事別資源制御 → S03/P0-12の収益loop継続稼働確認。** 旧cursorの空き容量探索→11GiB待ちを変更する。理由はcleanupとproducerの後始末を直して業務を続けることが目的であり、容量数値だけの達成はその証明にならないため。P0-13の観測はこの具体的修正の診断に限定し、全ディスクcensusを先行gateにしない。full producer guard/current ALL859df55aとcleanup/更新ownerの同SHA自然exit0は確認済み。収益loopの継続進行と自己後始末の全owner coverageは未証明なので、根本修復全体は未完。
 
 **引き継ぎ/診断証拠:** worktree HEAD `a6e03757`の4ファイル497行差分を`ea1784b0ec`で保持してpushし、最新main `3baccdbd`を`00b5d4ff5d`でmerge/push。leaseは既存owner `codex-root`でheartbeatを更新、直列lsof再確認でworktree下open handleなし。既存temp/worktree focused testは2 PASS。agmsg統括identityは`lm/codex-resource-orchestrator-1009`、既存cleanup担当へ重複書込抑制と状態照会を送信。自然receiptの成功/失敗が交互に現れ、失敗時の正確な親errorは`host_cleanup_identity_mismatch`。`disk_cleanup.py::main`のbusy lock出力はexit75だがidentityを含まず、`central_cleanup.host_cleanup_readback`の同-occurrence検査が失敗に変換する。REDはbusy出力identity欠落と親exit1を再現し、最小修正後の関連4 testsはGREEN。修正契約は、busy出力にもimmutable manifest由来の同run identityを載せ、親はそのidentityを検証した正確なbusyだけをeffect0のexit75延期として維持し、他のidentity mismatchはexit1のまま拒否する。旧ENOSPC修復とは区別し、容量不足時の既存reserve/cursor testsも再確認する。
 
@@ -211,11 +211,31 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 
 **As-Is:** 中央watchdogはStartInterval60でloaded、cleanupと更新ownerはmain由来859df55aで自然exit0を確認済み。安全な旧code回収とheavy producerの延期guardは動く。一方、各agentの終了時に自己生成scratchを確実に片付けるcoverage、中央の軽い毎分passが重いinventoryやbusyで滞らないこと、容量待ちから収益loopが自動で再開し継続することは未証明。したがって根本修復は未完。free/reclaimed bytesは診断値として記録するが、合否や事業再開KPIにしない。過去の11GiB達成待ちは撤回する。
 
-**cleanup改善の残TODO（この順。P0の実装対象を具体化する）:**
+**Mac全体の不要物回収（CLEAN-00、手動回収→同じ対象の自動化）:**
+
+目的はLife Managerに不要なローカルデータを回収し、不要物が再び溜まらない運用へ変えること。Daisは未使用の写真・ゴミ箱・書類・アプリの回収を明示している。macOSの「書類」はカテゴリであり`~/Documents`ではない。カテゴリ表示からパスや削除可能量を推測せず、allocated size・用途・open handle・同期状態を確認する。iCloud側の削除、必要な成果物/認証/履歴、active ownerの停止はこの回収に含めない。
+
+| 状態 | 対象パス・実測 | 次の操作と保持条件 |
+|---|---|---|
+| 実行中・Dais所有 | `/Users/anicca/.Trash`。スクリーンショット1.87GB。Finderで44,658項目の削除進行を観測。terminalからの内容readはTCCで拒否 | Daisが手動で空にしているため重ねて操作しない。完了後のFinder空表示とfilesystem readbackを確認する。表示にあった`_npx`・`lm-uv-cache-20261002`等の生成cacheは今後Trashへ移すだけでcleanup完了と扱わず、元producerの後始末へ接続する。Dais操作をprimaryのprotected-deletion=0証明として扱わない |
+| 次の確認 | `/Users/anicca/Pictures/Photos Library.photoslibrary`。写真カテゴリ1.69GB、実ディレクトリreadはTCC拒否 | Photos公式UIはiCloud写真=1・Macストレージ最適化=1・共有アルバム=1・同パスのsystem libraryをreadback。未upload/同期未完を確認し、Mac上のコピーだけを除去できる経路を選ぶ。ライブラリ内写真の一括削除は同期先の削除になり得るため行わない。Photos/同期writerの終了確認後、ローカルコピー回収を実施。Photosへ再同期して再蓄積しない設定まで閉じる |
+| 保持 | `/Users/anicca/Documents`333,820KiB、うち`Codex`333,764KiB。`Job Applications`、`~/Desktop/d_narita`の証明書、応募動画・Gig資料 | 書類108.21GBを消せる根拠にならない。LM関連の作業資料/応募/認証を保持。`Documents`/`Desktop`はFinderでiCloud配下に見えるため、不要項目でもremote deleteと混同せず同期状態を確認する |
+| 保持 | `/Applications/ChatGPT.app`1,649,220KiB、`Google Chrome.app`2,195,876KiB、`Xcode-26.6.0.app`3,639,464KiB。Claude/CodexBar/CuaDriver/TapKitも導入済み | 現在のagent/ブラウザ/iOS/UI基盤。実プロセスとruntime参照を確認し、容量目的で消さない。`~/Applications/ChatGPT 2.app`は24KiBの補助appで、重複名だけを理由に削除しない。未使用appは未特定。全アプリ9.61GBを削除可能量と扱わない |
+| 診断中 | 「書類108.21GB」「システムデータ88.46GB」の実パス対応。既知大物はCodex履歴、Git、release、依存、業務作業物。Library/OS領域にTCC/timeoutの未測定あり | 既存bounded inventoryで大きい未測定branchだけを絞る。未知領域やmacOS/VMを名前・大きさで消さない。必要な正式データが増え続ける場合は保持したまま保存先/容量計画を更新し、cleanupの取りこぼしと分ける |
+
+**CLEAN-00の原子的順序:** (a) DaisのTrash完了readback → (b) Photosのlocal-only回収と再蓄積防止 → (c) 書類カテゴリの大物を実パス・用途へ対応付け、unused/closed/非authoritativeと証明したパスだけ手動回収 → (d) 同じ候補判定をCLEAN-01へ組み込む。手動の新しい破壊的回収だけ一名のfresh read-only検証者で対象・保持条件を確認し、各定型passにreviewを増やさない。force quitはowner/start-time/実仕事を照合した自身の不要な残留producerだけ。Mac/loginwindow/Remote/ChatGPT substrate/他active ownerは停止しない。
+
+**自動化する差分:** `skills/self/disk-cleanup/disk_cleanup.py::discover_candidates/sweep`へ、確認済みローカル不要物の限定allowlistを追加し、既存UID・no-follow・open-path・保護descendant・時間/byte予算を再利用する。PhotosとApplicationsを毎回全削除するルールは作らない。`skills/self/disk-cleanup/launchd/com.anicca.disk-watchdog.plist`とそのcanonical lifecycleで、Trash変更時のイベント起動を検討する。既存StartInterval=60はfallbackとして保持し、新しいdaemon/poll loopは追加しない。先にそのloaded interpreterのTrash read/delete権限を確認し、TCC拒否を成功/空フォルダと扱わず、権限が必要ならその具体的不足を記録する。1〜5秒はイベントから安全な回収着手までの検証対象であり、全量削除完了や永久無障害の保証値ではない。open/コピー中/保護データは即時削除しない。
+
+**並列再開の条件と順序:** 軽いread-only調査、既存担当範囲の小さい修正は今も進められる。8〜10 Codexを一斉に新規worktree・依存導入・build/releaseへ走らせる状態は未受入。まずCLEAN-00/01の回収と次passの前進、CLEAN-02の実作業後始末、CLEAN-05の枠取得/待機/自動再開を実ownerで確認する。次にprimaryと独立writer一名で、一往復の修正→focused check→後始末→次作業を検証し、仕事種別のpeakとCLEAN-06の業務進行を見て一名ずつ増やす。build/依存導入/full releaseは既存共有枠で直列化する。全体cleanup完了まで全businessを停止させるgateや、固定GiB KPIは作らない。agent数だけ増やして無制限書込を許可しない。
+
+**順序更新:** 旧cursor=CLEAN-01のhot pass改善。新cursor=CLEAN-00(a)Trash readback→(b)Photos→(c)unused local data→CLEAN-01以下。理由はDaisがMac全体の未使用dataの手動回収と同対象の自動化を先に指定し、root-only worktree掃除では対象外の蓄積が残るため。既存外部effectや他者leaseを中断しない。CLEAN-02〜06・S06〜S18・会社US$10M MRRの順序/成果条件は維持する。
+
+**cleanup改善の残TODO（CLEAN-00の後、この順。P0の実装対象を具体化する）:**
 
 | 状態 | atom | 対象・次の変更 / 完了証拠 |
 |---|---|---|
-| 次の一手 | CLEAN-01 中央の毎分pass | skills/self/disk-cleanup/disk_cleanup.py::HostDiskGovernor.run_once/discover_candidates/sweep/_full_inventory_due。hot passを軽いallowlisted回収へ集中し、重い全体inventoryや予算切れの再走査がcleanupを滞らせる境界を最小probe/REDで確認・修正。既存60秒cadenceで継続して回収でき、busy/timeout後も次passが前進する自然receiptで確認 |
+| CLEAN-00後 | CLEAN-01 中央の毎分pass | skills/self/disk-cleanup/disk_cleanup.py::HostDiskGovernor.run_once/discover_candidates/sweep/_full_inventory_due。hot passを軽いallowlisted回収へ集中し、重い全体inventoryや予算切れの再走査がcleanupを滞らせる境界を最小probe/REDで確認・修正。既存60秒cadenceで継続して回収でき、busy/timeout後も次passが前進する自然receiptで確認 |
 | 未完 | CLEAN-02 各agentの自己後始末 | runtime/loop/lm_loop_run.pyの終了/finally境界、loop_cleanup.py::cleanup_run_root、bounded_output.py::prune_closed_diagnostics。成功・失敗・timeout・cancel後に、そのownerのclosedで非authoritativeなscratchを片付ける。childの終了とreceipt/state永続化を確認し、unknown effectやopen/未保存証拠を保持。既存testsで同じ安全契約を検証 |
 | 未完 | CLEAN-03 生成量を有限にする | config/storage-policy.json、runtime/host/storage_policy.pyと実producer。既存bounded stdio/retentionを再利用し、実測したscratch・生成物・診断logにowner別の有限保存契約を通す。必要成果/receiptは保持し、仕事の回数が増えても不要物が無制限増加しないことを自然runで確認 |
 | 未完 | CLEAN-04 中央が取り残しを回収 | central_cleanup.py::scratch_gc/release_gc/reclaim_unreferenced_source。既存の安全な回収を使い、終了ownerの残留・orphan・未参照regenerable codeを継続回収。lease/lock/UID/open FD/Git復元性を証明し、他agentの作業とprotected storeを保持。修復済みの自己FD/busy分岐をやり直さず、実証されたcoverageの抜けだけを直す |
@@ -235,12 +255,12 @@ P1の枠回復はCLEAN-05の生存/待ち境界として扱う。既存S06〜S18
 
 **「24/7 forever」の契約:** 各agentの自己後始末と中央cleanupを通常の実行lifecycleに組み込み、不要物の増加を生成側と回収側の両方で制御する。監督・待ち行列・復旧は常時動き、各仕事は有限の予算で実行・記録・片付け・次の仕事へ進む。ディスク圧迫を早期に自己所有の修復へつなげ、短期待機後に自動再開し、全収益loopを永久待機させない。正式state/receiptの成長には既存の許可・spend cap内で容量/保存先を計画し、障害になるまで放置しない。ほかのagentと業務loopの並列稼働を維持し、本sessionの改善は一件ずつ行う。保護データ削除、新framework、反復reviewで代用しない。
 
-**実行順:** 既存のP0→P1とlane入口の順を保ち、下記S01→S18へ対応付ける。原子的詳細は既存lane節を参照し複製しない。外部gate/未来slot/収益の到来で止まるatomは、証拠と戻るcursorを記録して次の独立したsafe atomを一件だけ進める。並列実装はしない。元の全lane目標を維持し、18 agent全greenやJob Hunter entitlement/投資30自然round tripsを、独立した既存商品の販売開始gateにしない。現在cursor=S02/CLEAN-01の中央cleanup hot pass。P0-13の観測はCLEAN-01〜05の実障害境界を狭めるために使い、数字や全体censusの達成待ちにしない。
+**実行順:** 既存のP0→P1とlane入口の順を保ち、下記S01→S18へ対応付ける。原子的詳細は既存lane節を参照し複製しない。外部gate/未来slot/収益の到来で止まるatomは、証拠と戻るcursorを記録して次の独立したsafe atomを一件だけ進める。並列実装はしない。元の全lane目標を維持し、18 agent全greenやJob Hunter entitlement/投資30自然round tripsを、独立した既存商品の販売開始gateにしない。現在cursor=S02/CLEAN-00のTrash readback→Photos local-only回収→unused data分類。その後CLEAN-01の中央cleanup hot pass。P0-13の観測はCLEAN-01〜05の実障害境界を狭めるために使い、数字や全体censusの達成待ちにしない。
 
 | 状態 | 順 | 次の一操作・対象 / 検証・DONE証拠 |
 |---|---|---|
 | 未完 | S01 | bin/reconcile-agent-runner-release.shとlm-loopのowner別loaded argv/SHAをcurrentへ照合し、未移行をowner別に閉じる。running/unknownを無断再bindしない。alpaca liveのbootstrap error5/service absentはlive gateを維持したまま診断し、root retryしない。DONE=全ownerの移行/保持理由と安全な自然進行が説明可能 |
-| 進行中 | S02 | 上記CLEAN-01〜05を一件ずつ進める。中央の軽い毎分pass、各agentの自己後始末、有限retention、orphan回収、仕事別資源制御と自動再開を既存shared runtimeで閉じる。DONE=実producerの自然lifecycleで不要物を継続処理できる証拠 |
+| 進行中 | S02 | 上記CLEAN-00〜05を一件ずつ進める。中央の軽い毎分pass、各agentの自己後始末、有限retention、orphan回収、仕事別資源制御と自動再開を既存shared runtimeで閉じる。DONE=実producerの自然lifecycleで不要物を継続処理できる証拠 |
 | 未完 | S03 | CLEAN-06/P0-12で実際の収益loopの自然進捗と自己/中央cleanupをjoin。ディスク由来の停止や証拠破損を防ぎ、人手の繰返し掃除なしで業務が続くことを確認する。protected dataとeffect fenceを保持し、空き容量の固定値を合否にしない |
 | 未完 | S04 | resource_admission.py::_limits/_capacity_available、claim/reservation/queue、PID/startを同一windowで照合し、expired/deadの正当な枠だけ既存reconcileで回復。DONE=P1-1〜3の生存/待ち境界とqueue identity/fence保持 |
 | 未完 | S05 | P1-4/5でqueue age/実並列/CPU/RAM/diskを自然測定し、改善作業は一件ずつ継続する。既存業務cadenceを満たすためのcap変更は不足が実証された時だけ行う。DONE=仕事が進み、枠/容量の再悪化がない |
