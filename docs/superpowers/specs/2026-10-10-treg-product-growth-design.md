@@ -14,7 +14,8 @@ TregをLife Managerの製品成長エージェントから安全に使えるよ�
 - 既存`marketing-weekly-review`は日曜21:00にTelegramへ送るが、直近occurrenceの効果が`unknown`で、readback adapterがない。既存occurrenceは再送・変更しない。
 - Marketing Engineの製品レジストリには5製品があり、App Storeで公開中の6アプリのうち追加4アプリは2026-10-05のApp Store記録にある。
 - App StoreのAnicca listing（`https://apps.apple.com/jp/app/id6755129214`）はAniccaをAIセルフケア・コンパニオンとして説明している。監視では`anicca-ios`をこのAI companionアプリの優先profileとして扱う。
-- Treg agent tokenは日次30 call上限・`local_run_enabled=false`。2026-10-09 14:42 UTC時点のreadbackは37 calls・残高`$0.98882`・自動補充なし。最初の監視はTregの日次枠が更新した後に行う。
+- Treg agent tokenの日次proxy-call capは18に設定し、`local_run_enabled=false`を維持する。2026-10-10 JSTの公式readbackは`used_today=37`、cap=18、残高readbackは`$0.98882`（2026-10-09 14:42 UTC時点）、自動補充なし。37件は以前の利用履歴で、次のpaid routeはUTC日次枠の更新後だけにする。
+- Treg公式実装はdaily capを`/call`の前に確認するが、quota databaseエラー時はfail-openにする。これは防御層として使い、1 routeの固定`$0.003` header、monitor内の18 route/cost検証、auto-top-up無効を併用する。参照: [Treg usage cap implementation](https://github.com/superdesigndev/treg/blob/main/src/treg/domain/governance/usage.py)。
 
 ## 推奨構成
 
@@ -77,7 +78,7 @@ flowchart LR
 2. Aniccaを最優先に9製品すべてのbuyer profileが監視対象となる。
 3. 新しいweekly ownerがmain由来immutable releaseで読み込まれ、自然実行でTreg call receipts、baseline、以降のdedupe、Telegram receiptまたはno-sendが記録される。
 4. `marketing-weekly-review`の既存unknown occurrence、別loopのstate、Telegram履歴は再送・書換えしない。
-5. Tregの自動補充を有効にせず、週あたりのTreg使用上限を`$0.054`以内に保つ。
+5. Tregの自動補充を有効にせず、日次proxy-call cap 18、routeごとの`$0.003` header、監視の予算検証で週あたり`$0.054`を目標にする。Tregの日次capはquota DB障害時にfail-openするため、絶対的なaggregate provider capとは扱わない。
 
 ## 失敗時の扱い
 

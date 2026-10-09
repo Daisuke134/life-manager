@@ -20,6 +20,7 @@
 - Do not enable general shell network access for Codex.
 - Monitor nine products, Anicca first; query public X and Reddit posts from the last seven days only.
 - Limit each weekly monitor to 18 billed routes, at `$0.003` maximum per route and `$0.054` total; stop when balance is below `$0.05`. Do not enable auto-top-up.
+- The dedicated Treg agent identity has a daily proxy-call cap of 18. Treg documents this gate as fail-open if its quota database check errors, so treat it as defense in depth and validate actual receipts/costs before reporting.
 - No email/phone enrichment, outreach, posting, or marketing-weekly-review state changes.
 - Keep `signals.csv`, Treg receipts, and Telegram receipts outside Git under private state paths with directory mode `0700` and file mode `0600`.
 - First monitor run establishes a baseline without sending historical signals. Later runs report only keys absent from the baseline.
@@ -125,6 +126,7 @@
 - Registry owner: `marketing-treg-lead-signals-weekly`, Sunday 21:10 local calendar time, `effect_class=message`, `provider_route=shared-agent-runner`, separate state/log roots.
 
 - [ ] Build the prompt from the five canonical products and four supplements; search the current catalog once per platform, inspect route prices, and make at most two routes per product.
+- [ ] If the loaded product set would require more than 18 routes for one X and one Reddit scan per product, fail before paid calls instead of silently omitting products.
 - [ ] Apply the fixed `X-Treg-Route-Max-Cost: 0.003` header to every request from the dedicated remote MCP server.
 - [ ] Check Treg balance before paid routes; reserve `$0.05` from the remaining balance after each quoted route; stop without top-up if the floor would be crossed.
 - [ ] Require X/Reddit public results from the last seven days, fit/timing qualification, exact source URLs, and `X-Treg-Route-Max-Cost: 0.003` on each call.
