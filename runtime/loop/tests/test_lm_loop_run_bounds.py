@@ -1756,7 +1756,7 @@ def test_mobile_child_receives_effect_result_hint_path(tmp_path):
         tmp_path / "entrypoint-result.json")
 
 
-def test_cfo_effect_result_hint_requires_exact_loop_and_entrypoint(tmp_path):
+def test_owner_effect_result_hint_requires_exact_loop_and_entrypoint(tmp_path):
     def observed_env(loop_id, entrypoint, run_id):
         claim = tmp_path / f"claim-{run_id}"
         claim.write_text(json.dumps({"occurrence_id": f"{loop_id}:{run_id}"}))
@@ -1792,13 +1792,29 @@ def test_cfo_effect_result_hint_requires_exact_loop_and_entrypoint(tmp_path):
         tmp_path / "entrypoint-result.json")
     assert EFFECT_RESULT_HINT_LOOP_ENTRYPOINTS == {
         "life-manager-cfo-hourly": "skills/cfo/run.sh",
+        "marketing-treg-lead-signals-weekly": "skills/earn/marketing-engine/intel/treg-lead-signals-weekly",
     }
+
+    treg = observed_env(
+        "marketing-treg-lead-signals-weekly",
+        "skills/earn/marketing-engine/intel/treg-lead-signals-weekly",
+        "treg-run-1",
+    )
+    assert treg["LIFE_MANAGER_LOOP_ID"] == "marketing-treg-lead-signals-weekly"
+    assert treg["LIFE_MANAGER_RESULT_HINT_PATH"] == str(
+        tmp_path / "entrypoint-result.json")
 
     sibling = observed_env("other-loop", "skills/cfo/run.sh", "sibling-run")
     assert "LIFE_MANAGER_RESULT_HINT_PATH" not in sibling
     wrong_entrypoint = observed_env(
         "life-manager-cfo-hourly", "skills/cfo/other.sh", "wrong-entrypoint")
     assert "LIFE_MANAGER_RESULT_HINT_PATH" not in wrong_entrypoint
+    wrong_treg_entrypoint = observed_env(
+        "marketing-treg-lead-signals-weekly",
+        "skills/earn/marketing-engine/intel/treg/wrong-entrypoint",
+        "wrong-treg-entrypoint",
+    )
+    assert "LIFE_MANAGER_RESULT_HINT_PATH" not in wrong_treg_entrypoint
 
 
 def test_cfo_nonzero_telegram_result_keeps_message_effect_unknown(tmp_path):
