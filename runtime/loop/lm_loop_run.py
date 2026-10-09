@@ -1299,12 +1299,36 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
     dispatch_after_release: list[str] = []
     interrupted = False
     return_code: int | None = None
+    claimed_occurrence_id = occurrence_id
+    stderr_tail = b""
+    terminal_event_attempted = False
+    terminal_event_saved = False
     previous = {}
     pre_effect_hint_allowed = (entry.get("entrypoint") in PRE_EFFECT_HINT_ENTRYPOINTS
                                 or loop_id in PRE_EFFECT_HINT_LOOP_IDS)
     entrypoint = entry.get("entrypoint")
     effect_result_hint_allowed = _effect_result_hint_allowed(loop_id, entrypoint)
     hint_allowed = pre_effect_hint_allowed or effect_result_hint_allowed
+
+    def _persist_terminal_before_release(child_return_code: int, tail: bytes) -> int:
+        nonlocal terminal_event_attempted, terminal_event_saved
+        if on_terminal_event is None or terminal_event_attempted:
+            return child_return_code
+        terminal_event_attempted = True
+        try:
+            terminal_event_saved = on_terminal_event(
+                child_return_code, claimed_occurrence_id, tail,
+            ) is True
+        except Exception as error:
+            terminal_event_saved = False
+            print(
+                "lm-loop-run: terminal event persistence failed "
+                f"({type(error).__name__})",
+                file=sys.stderr,
+            )
+        if not terminal_event_saved and child_return_code == 0:
+            return 78
+        return child_return_code
 
     def interrupt_wait(_signum, _frame):
         nonlocal interrupted
@@ -1489,23 +1513,10 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
         if return_code == 75 and interrupted:
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
                                   "reason": "resource_admission_interrupted"})
-        if on_terminal_event is not None:
-            # Persist the supervisor terminal before releasing the durable
-            # claim; otherwise a successful effectful child could be
-            # dispatched again if this append fails (for example, ENOSPC).
-            try:
-                terminal_saved = on_terminal_event(
-                    return_code, claimed_occurrence_id, stderr_tail,
-                ) is True
-            except Exception as error:
-                terminal_saved = False
-                print(
-                    "lm-loop-run: terminal event persistence failed "
-                    f"({type(error).__name__})",
-                    file=sys.stderr,
-                )
-            if not terminal_saved and return_code == 0:
-                return_code = 78
+        # Persist the supervisor terminal before releasing the durable claim;
+        # otherwise a successful effectful child could be dispatched again if
+        # this append fails (for example, ENOSPC).
+        return_code = _persist_terminal_before_release(return_code, stderr_tail)
         return return_code
     finally:
         heartbeat_stop.set()
@@ -1515,12 +1526,20 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
             heartbeat_thread.join(timeout=6)
         for signum, handler in previous.items():
             signal.signal(signum, handler)
+        if claim is not None and on_terminal_event is not None and not terminal_event_attempted:
+            _persist_terminal_before_release(
+                return_code if return_code is not None else 75,
+                stderr_tail,
+            )
         if claim is not None:
             try:
                 if durable:
                     release_options = {"requeue": not claim_started_child,
                                        "reserve": claim_started_child}
-                    if (claim_started_child and return_code != 0
+                    terminal_persistence_failed = (
+                        on_terminal_event is not None and not terminal_event_saved)
+                    if (claim_started_child
+                            and (return_code != 0 or terminal_persistence_failed)
                             and entry.get("effect_class") != "none"
                             and not (pre_effect_hint_allowed and _proven_pre_effect_failure(
                                 receipt.parent / "entrypoint-result.json"))):

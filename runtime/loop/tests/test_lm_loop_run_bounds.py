@@ -3385,6 +3385,38 @@ def test_post_claim_memory_deferral_requeues_without_dispatch(tmp_path):
     dispatch.assert_not_called(); run.assert_not_called()
 
 
+def test_terminal_event_precedes_requeue_when_memory_drops_after_claim(tmp_path):
+    entry = {"cadence": {"start_interval_seconds": 60},
+             "provider_route": "shared-agent-runner", "effect_class": "application"}
+    claim = tmp_path / "claim"
+    events = []
+
+    def persist_terminal(return_code, occurrence_id, stderr_tail):
+        events.append(("terminal", return_code, occurrence_id, stderr_tail))
+        return True
+
+    def release(_claim, **options):
+        events.append(("release", options))
+        return []
+
+    with (patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "ready")),
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                return_value=(claim, "acquired")),
+          patch("runtime.loop.lm_loop_run.memory_free_percent", side_effect=[50, 10]),
+          patch("runtime.loop.lm_loop_run.release_and_reserve_resource",
+                side_effect=release),
+          patch("runtime.loop.lm_loop_run._run_entrypoint_with_stderr_capture") as run):
+        assert _run_admitted(
+            ["/bin/true"], entry, "example", {}, tmp_path / "receipt",
+            on_terminal_event=persist_terminal,
+        ) == 75
+
+    assert events[0] == ("terminal", 75, None, b"")
+    assert events[1] == ("release", {"requeue": True, "reserve": False})
+    run.assert_not_called()
+
+
 def test_dispatch_reserved_kicks_only_current_loaded_idle_label(tmp_path):
     current = tmp_path / "release"
     agents = tmp_path / "agents"
