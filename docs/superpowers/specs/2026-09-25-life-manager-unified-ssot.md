@@ -26,7 +26,7 @@
 
 **不変条件:** 11 GiBは今回の容量回復受入であり、全producerの起動floorを一律11 GiBへ変える指示ではない。iOS Simulator runtime/image/device/data/dyld、memory/state、credentials、browser identity、参照release、active/dirty/unmerged/leased/locked worktree、open/unknown dataを削除しない。古い同一UID test artifactと、Git clean/main統合済み/unleased/unlocked/closedを全て証明できるworktreeだけを今回の追加回収対象とする。証明できなければ保持。effect_unknownはexact official receipt/pre-effect proofまで解除・再送しない。Codex session履歴は容量が大きいだけで削除・圧縮対象にしない。
 
-**現在cursor: S02/P0-14 reclaimed releaseの再選択拒否 → 旧未参照codeの予算付き回収 → P0-15 coverage/P0-12の11GiB回復 → 下記全社S順。** GC抑制はmain a8fe894bのimmutable currentへ反映済み。根本修復全体は未完。この節の文書保存・統合と実装/本番成果の完了は別。各atomは証拠取得後だけ `[x]` にし、失敗境界・次の安全な操作・cursorを同じ差分で更新する。
+**現在cursor: S02/P0-14旧未参照codeの予算付き回収（再選択拒否はmain/current反映済み） → P0-15 coverage/P0-12の11GiB回復 → 下記全社S順。** GC抑制はmain a8fe894bのimmutable currentへ反映済み。根本修復全体は未完。この節の文書保存・統合と実装/本番成果の完了は別。各atomは証拠取得後だけ `[x]` にし、失敗境界・次の安全な操作・cursorを同じ差分で更新する。
 
 **引き継ぎ/診断証拠:** worktree HEAD `a6e03757`の4ファイル497行差分を`ea1784b0ec`で保持してpushし、最新main `3baccdbd`を`00b5d4ff5d`でmerge/push。leaseは既存owner `codex-root`でheartbeatを更新、直列lsof再確認でworktree下open handleなし。既存temp/worktree focused testは2 PASS。agmsg統括identityは`lm/codex-resource-orchestrator-1009`、既存cleanup担当へ重複書込抑制と状態照会を送信。自然receiptの成功/失敗が交互に現れ、失敗時の正確な親errorは`host_cleanup_identity_mismatch`。`disk_cleanup.py::main`のbusy lock出力はexit75だがidentityを含まず、`central_cleanup.host_cleanup_readback`の同-occurrence検査が失敗に変換する。REDはbusy出力identity欠落と親exit1を再現し、最小修正後の関連4 testsはGREEN。修正契約は、busy出力にもimmutable manifest由来の同run identityを載せ、親はそのidentityを検証した正確なbusyだけをeffect0のexit75延期として維持し、他のidentity mismatchはexit1のまま拒否する。旧ENOSPC修復とは区別し、容量不足時の既存reserve/cursor testsも再確認する。
 
@@ -106,6 +106,11 @@ P0-14 source検証: real-Git fixtureのREDはnew release/memoryの出現を再�
 
 一回のfresh read-only safety checkで、コードを部分回収したreleaseがALLとして再選択される危険を確認。次atomはその拒否を先にsourceへ実装する。削除前に旧RELEASE.jsonを同じrootのRECLAIMED-RELEASE.jsonへatomic renameして元manifest bytesを保持し、通常GC/ALL候補/dependency donor/activation/applyが拒否することを最小fixtureで証明する。既存marker＋元RELEASE.jsonが同居しても拒否、dangling marker/不明probeも拒否する。memory/state/credentials/browser identity/unknown fileは同じpathへ保持する。rename対象はgenerated release descriptorだけで、memory/stateを移動する方式にしない。guardのsource/main/current反映後、次atomでmain Git blobと同一のknown code普通fileだけをdir_fd/no-follow/inode/byte/file/time予算で回収する。木全体rename/removeは使わない。localは小さいfixtureだけ、関連suiteはCI。reviewを追加増殖しない。
 
+
+**reclaimed拒否の反映と次atom:** guardはb8f5066ebcでpush、new5 tests/12 RED subcases→GREEN、healthy/v2/停止/fence/sparseを含むfocused15 PASS、contract/diff/bash syntax PASS。#7418 exact-head CI全PASS後、main01cf6e15ac6e547c6baa0e3a1ad18a9379b21759へ統合。自然current20261010T034432-01cf6e15のloaded sourceにrelease_is_reclaimedを確認。主のacceptance追記時に一時ENOSPCを観測し、ローカルwriteを止めてremote済みcodeのCI/統合を継続、その後Git fetch復帰を確認。原因未確定の短時間のfree変動を回収実績へ帰属しない。
+
+次の変更はloop_cleanup.pyのleaf code回収とcentral_cleanup.pyの既存ownerからのbudget呼出し、最小fixture、本節のみ。1 occurrenceでroot1件/64MiB/256 files/15秒を上限。fresh current/plist/argv/open FD/explicit protected/lease、main ancestryとGit復元性、rootとleafのUID/inode/no-follow、same Git blobを確認し、不明/不一致を保持。対象は既知source code/assetの普通fileのみで、memory/state/private/credential/browser identity/unknown/symlinkを保持。global protocol/apply owner lock内で参照を再確認し、descriptorを同じrootのRECLAIMED-RELEASE.jsonへatomic renameして元bytesを残してからunlinkする。新selector guardで次回起動/ALL/donor/通常GCから除外。途中rootは同じdescriptorから次回resumeし、完成後もprotected dataとdescriptorを同じpathへ残す。木全体rename/removeやactive source改変、live funding/order、fence解放は行わない。RED/GREENはsame-path/data/inode保持、byte/file/time予算、changed/unknown/symlinkの拒否、途中resume、参照変化でeffect前stopを小さいreal-Git fixtureで証明する。source/CI/main/current→自然cleanupで実回収量/fresh free/errors0/protected_deletions0をreadbackし、11GiB受入は別に維持する。最初の実回収候補は重複001505-4888da70、直前fresh確認で不成立なら保持する。
+
 ### P0 — ディスク回復のatomic TODO
 
 再開worktree: `/Users/anicca/Projects/life-manager-main/.worktrees/disk-watchdog-worktree-safety-20261008`。branch `fix/disk-cleanup-15d-lm-loop-20261009`、引き継ぎHEAD `a6e037571404419501c6441af8e859e137eaa40b`。既存未commitのSSOT・SKILL・source・test差分を保持し、owner/lease/live process確認前に編集しない。別のactive cleanup worktreeも触らない。
@@ -178,7 +183,7 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 
 **「24/7 forever」の契約:** 監督・待ち行列・復旧を常時動かし、要求された業務cadenceを満たすこと。単一の有限SSDへ無限のwork/dataを詰めても故障しないという保証にはしない。容量/外部quotaを超える需要は先に延期し、実測に基づくproducer抑制と許可された容量拡張/既存Cloud worker分離を行う。保護memory/stateを削除して帳尻を合わせない。改善作業は資源回復後も一件ずつ。重い並列、新しいcluster/framework、全agentへの反復reviewを今の修復へ追加しない。
 
-**実行順:** 既存のP0→P1とlane入口の順を保ち、下記S01→S18へ対応付ける。原子的詳細は既存lane節を参照し複製しない。外部gate/未来slot/収益の到来で止まるatomは、証拠と戻るcursorを記録して次の独立したsafe atomを一件だけ進める。並列実装はしない。元の全lane目標を維持し、18 agent全greenやJob Hunter entitlement/投資30自然round tripsを、独立した既存商品の販売開始gateにしない。現在cursor=S02/P0-14 reclaimed releaseの再選択拒否（新SHAのowner coverageと自然provider証拠も追跡）。
+**実行順:** 既存のP0→P1とlane入口の順を保ち、下記S01→S18へ対応付ける。原子的詳細は既存lane節を参照し複製しない。外部gate/未来slot/収益の到来で止まるatomは、証拠と戻るcursorを記録して次の独立したsafe atomを一件だけ進める。並列実装はしない。元の全lane目標を維持し、18 agent全greenやJob Hunter entitlement/投資30自然round tripsを、独立した既存商品の販売開始gateにしない。現在cursor=S02/P0-14旧未参照codeの予算付き回収（新SHAのowner coverageと自然provider証拠も追跡）。
 
 | 状態 | 順 | 次の一操作・対象 / 検証・DONE証拠 |
 |---|---|---|
