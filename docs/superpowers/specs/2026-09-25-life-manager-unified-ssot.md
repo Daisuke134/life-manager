@@ -9146,7 +9146,7 @@ This entry supersedes the prior producer-review cursor. CFO priority remains A5 
 
 確認済みの不整合: PR #7158のimporterは汎用marketing-intelカードをtopics/queueへ書く。一方、Writerのclaim_supplyはtopic_source: paid-demandと有効なdemand_cardがないカードを隔離し、demand_authority --demand-mode requiredはそのキューだけを唯一の話題権威として検査する。article-dailyがclaim後に同じ未検証カードを再投入するため、需要カードにならず、排除と再投入を繰り返す。PR #7274は既定でimporterを止めてキュー汚染を避けたが、同時にMarketing IntelをWriterから切り離した。どちらも記事制作・収益への連携ではない。
 
-現行runtime evidence: article-daily occurrence article-daily:18dcb160db0ac660-67443はexit 75、effect unknown、receipt/readbackなし。run logはmarketing-intel-48c88abc36f3.mdの再投入後に「demand topic queue contains non-paid-demand cards」と「demand authority blocked generation」を記録し、runにはpublication artifactもarticles.jsonl rowもない。lm-loop pre-effect-reconcile --dry-runはno_pre_effect_terminalでunprovableを返すため、公式readbackまではfenceを維持し再送しない。Affiliate occurrence affiliate-loop:18dcb253cf3b9cf8-41565とX repost occurrence x-repost:18dcb1c3aeb99600-88116もeffect unknown/receiptなし。writer-sales-measureの最新ledger rowはunknownで公式readbackなし。Telegramに貼られたレポートは情報受領を示すだけで、記事公開・Affiliate/X投稿・売上を示さない。
+現行runtime evidence: article-daily occurrence article-daily:18dcb160db0ac660-67443はexit 75、effect unknown、receipt/readbackなし。run logはmarketing-intel-48c88abc36f3.mdの再投入後に「demand topic queue contains non-paid-demand cards」と「demand authority blocked generation」を記録し、runにはpublication artifactもarticles.jsonl rowもない。lm-loop pre-effect-reconcile --dry-runはno_pre_effect_terminalでunprovableを返すため、公式readbackまではfenceを維持し再送しない。Affiliate occurrence affiliate-loop:18dcb253cf3b9cf8-41565とX repost occurrence x-repost:18dcb1c3aeb99600-88116もeffect unknown/receiptなし。writer-sales-measureの最新ledger rowはunknownで公式readbackなし。Telegram user-session readbackではMarketing Intel message (22:37:30Z)とWriter pending message (23:23:06Z)の到達を確認した。これは通知配信の証拠であり、記事公開・Affiliate/X投稿・売上を示さない。
 
 契約: Marketing Engineのplaybook.jsonlから、出典URL付き・testable=true・statusがnewまたはqueued・applies_toにcontentを含む戦術だけを抽出する。Writer runtimeのstrategy-context/marketing-intel.mdへ仮説として保存し、当該article-daily実行でrefreshが成功した時だけprompt末尾へ付加する。Writerは先に既存のpaid-demand topicを選択・束縛し、その記事に関係する場合だけ補助コンテキストとして使う。refresh欠落・失敗時は以前のcontextを使わず、既存Writerフローを続ける。contextは未信頼の出典データとして扱い、指示として実行しない。読者、課題、需要根拠、題材、価格、公開可否は検証済みpaid-demand cardと既存ゲートが所有する。関係しない戦術は無視し、SOURCE FAILURESは記事材料にしない。主張は出典に帰属し、実証済み効果や収益として書かない。
 
@@ -9163,11 +9163,13 @@ This entry supersedes the prior producer-review cursor. CFO priority remains A5 
 5. [x] fresh adversarial reviewはSHIP、critical/high/medium/low指摘なし。c701846へrebase後もdirect/discover regression、bash -n、diff check、loop contractがPASS。
 6. [x] 専用branchをcommit/pushし、PR #7283を作成。mainがc701846へ進んだため最新headへrebaseし、focused testとloop contractを再確認した。
 7. [x] PR #7283はmergeable/CLEAN。GitHub check_runsは0件、branch protectionはrequired approvals 0・required checksなし。Local acceptanceとfresh adversarial reviewはPASS/SHIP。
-8. **現在cursor:** PR #7283を--adminで先にmergeし、origin/mainとmerge SHAをreadbackする。
-9. main由来immutable releaseを適用し、effect_unknownを先に公式readbackで解決してからWriterの自然occurrenceを確認する。未解決fenceがある間はpublishを再試行しない。
-10. 記事の公式URL・paywall/公開状態・売上・実費を同じ記事/occurrenceに結び付け、重複公開ゼロを確認する。
+8. [x] PR #7283はmerge済み。merge commitとorigin/mainは4a60765e608ab47a9d814befa19ac831af4ba6a5。
+9. 現行article-dailyはrelease f7db4f57で、merged sourceより古い。topics/queueにはvalid paid-demand cardだけが残る。Noteの公開ページには9月29日付の「XとCTA…」と購入手続きがあり、Writer sourceの価格policyは¥500買切り。Substack feedsの最新記事は9月29日。sales ledgerのNote/Substack最新行はunknownで、売上・購入数は未確認。
+10. **現在cursor:** latest-main immutable releaseをcutし、host apply lock/owner-idleを確認してからarticle-dailyへtargeted applyする。旧occurrence `article-daily:18dcb160db0ac660-67443`はgate log上生成前に停止しているが、runtime reconcileはno_pre_effect_terminalでunprovable。provider official readbackまではeffect fenceを維持し、再送しない。
+11. Affiliate `affiliate-loop:18dcb253cf3b9cf8-41565`、X repost `x-repost:18dcb1c3aeb99600-88116`、JA repost `x-repost-ja-pass:18dcb209e2714a60-63429`はeffect unknown/receiptなし。x:diceai0のregistered endpointはunreachableで、Xのofficial readbackは取れていない。
+12. 新releaseの自然Writer occurrenceから記事URL・paywall・公式sales readback・実費・replay-zeroを確認し、収益を計上する。
 
-現在cursor: step 8 — PR #7283 mergeとmain readback。
+現在cursor: step 10 — main-derived release、owner-idle apply、既存fenceを維持したreadback準備。
 
 ### 2026-10-08 23:00 JST — PR review/CIとlive capacityの初回readback
 
@@ -10211,10 +10213,34 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **現在cursor:** A6 Google usage trace → A8 all-loop/job coverage → A9 source-period report → A6 Google cash readback → A10 seven-day natural acceptance。Money Tree/personal cashとCloud API置換・削減は対象外。
 
-### 2026-10-09 09:10 JST — L9-12 Investment paper readback and parser repair
+### 2026-10-09 09:08 JST — A6 life-call shared-usage trace fix is locally verified
 
-- Official paper GET found no orders submitted after `2026-10-04T07:31:22Z` and no open orders. A fresh GET-backed reconcile at `2026-10-08T23:16:15Z` released only `alpaca-investment-paper:18db432c694c3868-67965`; no order or cancel was sent. `admission_effect_unknown=false` afterward.
-- The paper owner remains queued and its natural attempts through `2026-10-09T00:00Z` stop at `host_admission_deferred:resource_capacity_busy`, before strategy decision/effect. Do not stop sibling revenue owners or manually wake/sell/replay. The live owner remains disabled with its separate unresolved live effect; no live funding/order is allowed before AT-24/AT-29 and fresh review.
-- Persisted paper receipts contain legacy `effect_intent` lifecycle rows (`started`, `applied`, `reconciliation_pending`) without `order` after a canonical planned intent, followed by an `accepted → filled → filled` readback for one QQQ provider order; the last row adds the strategy receipt while keeping the same order ID, quantity, and price. `paper_performance._ledger_rows` currently returns `paper_intent_invalid` for the lifecycle rows and `paper_receipt_duplicate` after the lifecycle fix. Focused regression tests specify reuse of the earlier validated intent and acceptance of only an identical repeated filled-order snapshot; orphan or conflicting updates remain fail-closed.
+このsnapshotはA6 usage-traceの実装状況を更新する。これはGoogle費用の正確な計測基盤を進める修正であり、請求額やper-loop実額を確定したものではない。
 
-**Investment subcursor:** keep AT-13 natural paper exit as the execution cursor; complete the receipt-parser repair in source, then continue natural paper observation. This does not reorder the company-wide L9 sequence or authorize live trading.
+- **Source:** latest base `origin/main=c7b1e491bd9fb6a212dd1c8a5f05ccd9ffef70f4`。branch `fix/cfo-life-call-usage-trace-20261009` のcommit `9ac6d0ff0880ba5f38f39e7c07e65d01fe404ea1` はlocalのみで、未push・PR未作成。
+- **修正内容:** `apps/life-manager/lib/usage-event.js::recordUsageEvent` は、callerが明示的な`runtimeEnv`を渡さない場合、`usageRuntimeEnv(process.env, { fallbackOwnerId: "life-call" })`を使う。`RAILWAY_SERVICE_NAME=life-call`のshared service usageに`owner_id`、run/occurrence、release SHAを付け、他serviceと明示contextの優先順位は変えない。shared serviceの費用をbusiness loopへ誤配賦しないため`loop_id`は作らず、`life-call` overheadとして識別する。
+- **検証:** regression testをREDで確認後に実装し、`usage-event.test.js`、`ask-usage.test.js`、`gemini-usage.test.js`、`travel-usage.test.js`、`travel.test.js`のfocused tests 72/72、`scripts/verify-source-boundary.sh`、`git diff --check`がPASS。fresh read-only reviewは同一source diff（rebase前後のdiff一致を確認）にCRITICAL/HIGH/MEDIUM findingなし。
+- **未検証境界:** production deployment/readbackと、修正後の自然なGoogle usage eventはまだない。過去9,042 Google-related rowsをこの変更で遡及帰属させず、invoice比率で配賦しない。settled actualも生成しない。
+- **検証上の限界:** local full `npm test`はこのdiff外の`test/daily-journey-contract.test.js`でfixtureの`observed_at`欠落により停止。別の診断実行では、同じくdiff外の`runtime/host/disk_admission.py:111`を`test/scan-legacy-paths.test.js`がnon-allowlisted pathとして指摘した。いずれも今回変更していない。PRのexact-head required checksは未実行。
+
+**順序更新と理由:** 旧cursor=`A6 usage traceのcall-path調査・最小修正・focused tests → A8 → A9 → A6 cash → A10`。新cursor=`(1) 完了: shared `life-call`のunscoped usageをowner/run/occurrence/release付きpartial traceにするsource+回帰test+独立review → (2) 現在: branchをpushしPR exact-head CI/review/merge → (3) main由来releaseへの自然adoption後、Google usage eventのproduction readback → (4) A8全loop/jobのsettled revenueとbilled cost coverage → (5) A9 source-period CFO report → (6) A6 Google cash receipt → (7) A10 7日連続natural acceptance`。理由はコード修正とsource-level証拠が揃ったため実装cursorを閉じる一方、merge/deployment/natural usageを確認するまではproduction trace完了としないため。
+
+**Remaining atomic TODO（この順）:**
+
+1. [ ] **A6 source promotion:** `fix/cfo-life-call-usage-trace-20261009`をpushし、source diff・このSSOT更新を含むPRを作る。exact-head required CIとreviewを通し、mainへmergeする。
+2. [ ] **A6 natural production readback:** main由来immutable releaseが`life-call` ownerに自然adoptされたSHAを確認し、次の自然usage eventに`owner_id=life-call`、run/occurrence/release traceがあること、shared serviceの`loop_id`がnullでper-loop配賦されていないこと、settled actualが未確認ならnullのままであることを同一event/periodでreadbackする。人工のGoogle API requestは発行しない。
+3. [ ] **A8 complete coverage:** 最新catalog/registry inventoryを取り直し、全business loopのsettled revenue/refund/feeとAPI/model/tool/infra billed costをsource receiptに結ぶ。shared/control/platform jobsも会社overheadとして含め、欠けたsourceはunknownのままにする。
+4. [ ] **A9 truthful source-period report:** JST日次・MTD・trailing・MRRを実source期間で分け、loop/platform/company別のsettled revenue、refund/fees、billed expense、cash、net、currency、freshness、coverageを表示する。推定とsettled actualを混ぜない。
+5. [ ] **A6 Google cash readback:** 同じBilling accountで認証されたCloud Billing Transactionsから2026-09請求JPY `27,889`のpayment receipt/date/statusを取得する。現在はregistered browser identityから同じaccountをreadbackできず、Gmail検索0件も不払いの証拠ではない。same-account sessionが使える状態になったら再開し、それまではcash status=`unknown`。
+6. [ ] **A10 seven-day acceptance:** 上記source/coverage/report/cash statusを含むCFO reportを7日連続のnatural occurrenceでsame-occurrence provider/runtime/B7 receipt、period/currency、freshness、coverage、duplicate resolution、replay-zeroと照合する。1日でも欠落すれば連続countをやり直す。
+
+**現在cursor:** A6 source promotion → natural production usage-trace readback → A8 full loop/job coverage → A9 source-period CFO report → A6 Google cash receipt → A10 seven-day natural acceptance。Money Tree/personal cashとCloud API置換・削減は対象外。過去actualの確定や10k MRR達成は本specのcoverage完了を意味せず、別途settlement evidenceを要する。
+
+### 2026-10-09 09:20 JST — Investment paper parser PR and runtime cursor
+
+- Official paper GET found no orders after `2026-10-04T07:31:22Z` and no open orders. A fresh GET-backed reconcile released only `alpaca-investment-paper:18db432c694c3868-67965`; no order or cancel was sent. `admission_effect_unknown=false` afterward.
+- The parser fix is on `fix/investment-paper-lifecycle-pnl-20261009`, PR #7292: reuse only matching planned paper intents for legacy orderless lifecycle rows; allow only identical repeated filled-order snapshots. Orphans and conflicting snapshots remain fail-closed. Focused regression suite passed 14/14, and fresh read-only review was SHIP with no CRITICAL/HIGH/MEDIUM findings. Latest main was merged into the PR branch to preserve the current SSOT; exact-head CI is pending again.
+- Projecting the current paper receipts now returns `unknown / paper_round_trip_missing`: the QQQ paper position has no matching sell/closed round trip. Paper realized P&L is therefore unmeasured; the last stored unrealized observation was +$0.124273 through the 2026-10-02 session and is stale. The last confirmed live-account measurement remains net -$0.15 for 2026-09-09 through 2026-09-28; it is historical, not current. Do not combine the two.
+- Natural paper attempts through `2026-10-09T00:20:07Z` still defer before strategy/effect with `host_admission_deferred:resource_capacity_busy` and `effect_status=not_applicable`. No paper or live order was placed. Live remains disabled with its separate unresolved effect; no funding/live order before AT-24/AT-29 and fresh review. The ETF-only strategy excludes PLTR.
+
+**Investment subcursor:** keep AT-13 natural paper exit as the execution cursor. Finish PR #7292 exact-head checks/review and merge, cut a main-derived immutable release, then allow the paper owner to continue on its natural schedule. Do not manually wake, sell, replay, or enable live trading. Paper P&L remains unknown until a closed round trip is recorded.
