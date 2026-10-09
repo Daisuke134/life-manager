@@ -113,6 +113,12 @@ def _state_rows(document: dict) -> dict[str, dict]:
             "retryable": diagnostic["retryable"],
             "next_action": diagnostic["next_action"],
         }
+    storage = document.get("host_storage")
+    if storage is not None:
+        # Capacity transitions are not loop failures and cannot request a
+        # provider replay. Ignore timestamps/free-byte jitter for alerts.
+        rows["__host_storage__"] = {k: storage[k] for k in
+            ("status", "execution_ok", "capacity_recovered", "reason")}
     return rows
 
 
@@ -208,6 +214,8 @@ def observe_health(document: dict, state_root: Path, *, intent_builder=None) -> 
     first_problem = previous_fingerprint is None and any(
         job["state"] in PROBLEM_STATES for job in document["jobs"]
     )
+    first_problem = first_problem or (previous_fingerprint is None
+        and (document.get("host_storage") or {}).get("status") in {"unmet", "unknown"})
     state_changed = (
         previous_fingerprint is not None and previous_fingerprint != current_fingerprint
     )

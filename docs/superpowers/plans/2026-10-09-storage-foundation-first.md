@@ -314,3 +314,5 @@
 - control socket閉鎖でrelay inputを閉じず、先頭32KiBと末尾2048bytesを保持する。
 
 実行ledger: DS01 readback/receipt identityをsource実装。4新規ケースRED→GREEN、関連175 tests + 5 subtests PASS。baselineでも失敗する旧cursorの2期待値を現行no-floor契約へ合わせ、metadata errorsは維持。本番反映はDS15まで未実施。
+
+実行ledger: DS02 exact cleanup identity/600秒freshness/数字型を検証してhost_storageを独立表示。CLI+schema+observer local capacity transitionの3ケースRED→GREEN、関連41tests/11subtests PASS。capacityだけでprovider recovery intentを生成しない。本番未適用。
