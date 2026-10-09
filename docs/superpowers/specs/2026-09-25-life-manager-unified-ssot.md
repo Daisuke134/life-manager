@@ -5,12 +5,81 @@
 > **Disk admission policy:** use the section “2026-10-08 — remove numeric disk-headroom stops from all loops” below. Earlier instructions to wait for 2 GiB, 512 MiB, or another measured free-space floor are superseded. The cleanup 2 GiB value is a receipt metric only; it does not gate producer loops.
 
 この文書は Life Manager 全体（Foundation 14ループ + Paid fulfillment）の唯一の入口。
-詳細の正本は次の2つで、この文書は両者の統合・順序・現在cursorだけを持つ。
+以下の文書は設計の参照資料。実行TODO・順序・状態・現在cursorの正本はこの文書だけとする。
 
 - Foundation/全体: `docs/superpowers/specs/2026-09-15-life-manager-agent-architecture-refinement.md`（Whole-ship handover / AGI addendum / Whole-ship remaining TODO）
 - Paid: `docs/superpowers/specs/2026-09-22-paid-fulfillment-all-platforms-design.md` + `skills/earn/gig/TODO.md`（Canonical As-Is / To-Be snapshot）
 
-所有: Claude が Foundation・Paid 両方の唯一の開発owner（2026-09-25 Dais指示）。旧2つのCodexセッションの保護境界は解除。Life Manager 自身のloopは引き続き本番stateのownerであり、Ryu room `18211957` への再送禁止と正式納品ボタン非押下は維持する。
+所有: Codex primary が全体の統括・このSSOT・受入・統合・release順を所有する。開発writerは原則primary一名。Life Manager自身のloopは本番stateと外部effectのownerを維持し、他者のdirty/leased worktreeを上書きしない。Ryu room `18211957`への再送禁止と正式納品ボタン非押下は維持する。
+
+## 統括cursor — 共有資源回復と全案件の引き継ぎ
+
+**目的:** ディスク不足と実行枠の共有障害を先に修復し、Cloud・CFO・LINE・Mobile・Gig・eBook・Job Hunter・投資の既存目標を、自然実行と公式readbackまで一件ずつ進める。各laneの売上/MRR/net目標を縮小せず、source/CI成功を本番成果と扱わない。
+
+**正本と優先範囲:** 今回の共有資源回復・統括順・cursorはこの節を正本とする。以下に残る旧snapshot/旧cursorと矛盾する共有資源順序、旧2 GiB回復完了条件、Claude専任/複数writerの記述はこの節を優先する。lane固有TODO・受入・effect境界は各既存節を参照し複製しない。
+
+**順序変更:** 旧順序は各laneを並列再開し、それぞれ容量/release/admissionを解決する方式。新順序はP0共有ディスク → P1実行枠 → 各laneの安全な先頭atom。理由は同じ容量不足が既存の正常loopとcleanup自身を止め、複数writer/releaseが共有資源を競合させるため。実行中の外部effectを中断・重複させず、独立した読み取りは進められる。
+
+**実行方式:** primaryが書き込み・SSOT更新・merge・release/applyを直列管理する。agmsg席は登録でなくfresh livenessと非重複所有範囲を確認し、必要な読み取り調査だけ委譲する。高リスク変更/金融判定にはfresh read-only reviewerを使う。全員の再始動、capの根拠なし増加、manual wake/sell/replayを復旧手段にしない。対話agentはTelegramへ進捗を送信しない。既存業務loopの配信要件は保持する。
+
+**前回観測の証拠（現在値として再利用しない）:** Data空き約4.64 GiB。watchdogのhost stateは `~/.local/state/life-manager/state`、最新unbound receiptのobserved_atは `2026-10-09T07:34:09Z`、free_after=4,995,989,504、reclaimed=0、errors=0、protected_deletions=0、現行2 GiB判定はmet。5分owner `life-manager-disk-cleanup` のoccurrence `18dccc1de9fa7148-43671` はrelease `770cbde0de01936a3ac09917cb2352debbf54330` でentrypoint_exit_1。過去stderrにENOSPCがあるが、この最新失敗の原因とは未確定。read-only admission snapshotはqueue=58、reservations=1、claimed履歴36,514件のうちeffect_unknown=36,510件/81 owner、fenceなし4件。履歴件数を実並列数と扱わない。3つのowner記録はPID存在のみ確認済みで、起動時刻一致と実仕事の進行は未確認。全ownerのstatus explain取得は長時間化して中断し、全fleet確認済みとはしない。
+
+**不変条件:** 11 GiBは今回の容量回復受入であり、全producerの起動floorを一律11 GiBへ変える指示ではない。iOS Simulator runtime/image/device/data/dyld、memory/state、credentials、browser identity、参照release、active/dirty/unmerged/leased/locked worktree、open/unknown dataを削除しない。古い同一UID test artifactと、Git clean/main統合済み/unleased/unlocked/closedを全て証明できるworktreeだけを今回の追加回収対象とする。証明できなければ保持。effect_unknownはexact official receipt/pre-effect proofまで解除・再送しない。Codex session履歴は容量が大きいだけで削除・圧縮対象にしない。
+
+**現在cursor: P0-1（未着手）。** この節の文書保存・統合と、以下の修復実装の完了は別。各atomは証拠取得後だけ `[x]` にし、失敗境界・次の安全な操作・cursorを同じ差分で更新する。
+
+### P0 — ディスク回復のatomic TODO
+
+再開worktree: `/Users/anicca/Projects/life-manager-main/.worktrees/disk-watchdog-worktree-safety-20261008`。branch `fix/disk-cleanup-15d-lm-loop-20261009`、引き継ぎHEAD `a6e037571404419501c6441af8e859e137eaa40b`。既存未commitのSSOT・SKILL・source・test差分を保持し、owner/lease/live process確認前に編集しない。別のactive cleanup worktreeも触らない。
+
+- [ ] **P0-1 所有/差分の引き継ぎ:** `git -C <worktree> status --short`、`branch --show-current`、`rev-parse HEAD`、`diff --stat`、`scripts/worktree-lease.py audit`とprocess/cwd/open handleを照合する。完了証拠: 4ファイルのdirty差分・実owner・lease・競合有無が明確で、既存変更を保持。
+- [ ] **P0-2 最新mainとの境界確定:** `git fetch origin main`、GitHub main SHA、worktree HEAD/upstreamを比較し、この節に対象ファイル/安全な再開位置を記録する。完了証拠: base差分と所有範囲を確定し、既存SSOT更新を失わない。
+- [ ] **P0-3 最新cleanup失敗の診断:** `bin/lm-loop status life-manager-disk-cleanup --explain --json`、最新occurrence summary/stdout/stderr、`runtime/loop/central_cleanup.py::main/host_cleanup_readback` → `skills/self/disk-cleanup/disk_cleanup.py`の呼び出しを照合する。完了証拠: 最初の失敗箇所/入力/例外/exitを特定し、旧ENOSPCと最新失敗を分離。
+- [ ] **P0-4 RED再現:** P0-3で特定した関数の既存関連testへ隔離fixtureを一つ追加し、最小の失敗を確認する。完了証拠: 本番の失敗境界と対応するRED出力。production破壊検証はしない。
+- [ ] **P0-5 原因修正:** P0-3のowner内の原因だけを修正して同じtestを実行する。完了証拠: GREENと、容量不足時に回復処理自身のmetadata/receipt書き込みが回収を止めないこと。
+- [ ] **P0-6 temp root/TTL:** `disk_cleanup.py::_temporary_roots`と`tests/test_disk_cleanup.py`の既存差分を完成させる。完了証拠: TMPDIR・`/private/tmp`・`/var/tmp`の古い同一UID test familyを検出し、使用中/所有不明/保護pathを保持するfocused test PASS。
+- [ ] **P0-7 symlink保護:** pytest run内のsymlinkと対応するstale `pytest-current` pointerのno-follow退役を完成させる。完了証拠: 外部target・使用中run・未知pointerを保持するfocused test PASS。
+- [ ] **P0-8 worktree保護:** 既存discovery/sweep差分のtracked/untracked/ignored、最新main統合、lease、lock、open、path identity検査を完成させる。完了証拠: 不成立/未知は保持し、全条件成立時だけ通常`git worktree remove`するtest PASS。force/unlock/pruneなし。
+- [ ] **P0-9 source acceptance:** 下記focused cleanup/watchdog tests、`./bin/lm-loop-contract`、`git diff --check`を実行する。完了証拠: 全PASS。変更しないdomainの広いsuiteは追加しない。
+- [ ] **P0-10 source統合:** fresh main差分を保持してcommit/push → PR → fresh read-only review/exact-head CI → admin mergeする。完了証拠: remote head、checks、review、merge SHA。server拒否はexact blockerを記録。
+- [ ] **P0-11 本番反映:** `bin/cut-loop-release.sh origin/main`でmain由来immutable releaseを作り、既存owner手順でcleanup対象だけに反映する。launchctlはGUI/owner preflight PASS時だけ`launchctl-safe`を使う。完了証拠: loaded script/argv/release SHA、`com.anicca.disk-watchdog` StartInterval=60。raw launchctl/targetless applyなし。
+- [ ] **P0-12 自然回復受入:** 複数の自然watchdog receiptと同時点`df -k /`、producer admission、Simulator availability、worktree登録/statusを照合する。完了証拠: fresh free_after >= 11*1024**3、errors=0、protected_deletions=0、admission安定、保護資産保持。未達ならP0-13へ進み、達成済みなら不要なproducer変更を作らずP1へ進む。
+- [ ] **P0-13 増加源の特定（P0-12未達時）:** 同一時間窓でpath別allocated bytesの差分とopen handle/PID/start identity/ownerを照合する。完了証拠: 容量を増やす具体的owner/path/量、または回収可能候補が尽きた証拠。新たなhistory/state削除へ広げない。
+- [ ] **P0-14 producer後始末（原因が実証された時）:** P0-13のowner内のtemp生成/終了処理/再生成物retentionに最小RED→GREEN修正を行い、CI/merge/対象releaseへ反映する。完了証拠: 同入力で不要物が残らず、必要な成果物とofficial receiptを保持。修正不要なら理由付きN/A。
+- [ ] **P0-15 producer起動抑制:** P0-13の呼び出し経路を`runtime/host/disk_admission.py`と`runtime/loop/lm_loop_run.py`の既存guardへ照合し、実証された抜けだけを修正する。完了証拠: 容量不足/unknownでheavy write前に延期、occurrence/queue保持。P0-12の自然受入を再実行。
+
+P0-9 command（対象worktreeで実行）:
+
+```bash
+python3 -m pytest -q skills/self/disk-cleanup/tests/test_disk_cleanup.py skills/self/disk-cleanup/tests/test_disk_watchdog_dispatcher.py
+./bin/lm-loop-contract
+git diff --check
+```
+
+### P1 — 同時実行制限のatomic TODO
+
+- [ ] **P1-1 実稼働:** `lm-loop status <owner> --explain --json`と`host-admission/resources/owners`のPID/start identity/processを照合する。完了証拠: 実稼働と停止sessionを区別し、履歴claimを稼働数にしない。
+- [ ] **P1-2 待ち境界:** `runtime/host/resource_admission.py::_limits/_capacity_available`、loaded argv/env、claim/reservation/queue ageを同一windowで確認する。完了証拠: global/class/priority/fence/legacyのどの境界が対象を延期するか特定。
+- [ ] **P1-3 正当な枠の回復:** P1-2で実証されたdead owner/expired reservationだけを既存owner reconcile経路で修復する。完了証拠: 正当な枠が回復し、effect_unknown/queue identity/receiptを保持。直接DB削除なし。
+- [ ] **P1-4 自然進行の測定:** 容量回復後の自然runで実並列数・queue age・CPU/RAM/diskを同一windowで測る。完了証拠: 残るcap saturationの有無と対象ownerの進行が明確。
+- [ ] **P1-5 必要な最小変更:** P1-4で残る制約が実証された場合だけadmission設定/sourceをRED→GREEN、review/CI、対象releaseへ反映する。完了証拠: 自然runの待ち時間改善と容量安定。変更不要なら証拠付きN/A。
+
+### 各laneの再開入口（詳細TODOは既存節を参照）
+
+P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで比較してprimaryがこの節へ記録する。表の順を根拠なしの全社優先順位と扱わない。外部gateで止まるlaneは独立した安全な次laneを進め、全目標を維持する。
+
+| lane | 最初の一操作 / 完了証拠 | 維持する境界・参照cursor |
+|---|---|---|
+| Cloud | PR #7366のhead/base/checksをfresh確認、latest-main競合解消 / exact-head CIとreview | Cloud節とweb-first-travel参照。Calendar UX、trial/$29を維持。Google既存sessionのみ、live決済なし。最終gross MRR $10K |
+| CFO | 指定cfo worktreeのdirty spec/RED test/HEAD/upstreamを照合して保持 / 差分と所有確認 | CFO A8.1→B7 join→既存順。unknownを0にしない、実装serial、金融read-only review |
+| LINE | 指定13:15 Instagram occurrenceの台帳と公式一覧を照合 / exact post_urlまたは正確なpre-effect状態 | 5.L参照。build/sell自然運用、売上>支出。共有資源回復後に工場速度変更 |
+| Mobile | PR #7369のhead/base/checksをfresh確認 / source統合状態 | Mobile節・handover参照。18対象各3/day、保存PNG、Postiz PUBLISHED、net MRR $10K。lane内no-subagent制約を維持 |
+| Gig | Remaining atomic Gig TODO item 2のCoconala案件を公式状態と照合 / 同案件provider証拠 | 既存item 2→10、SelfBuild最後。Lancers rows25–27 skip、Answers除外。settled netを確認 |
+| eBook | 古いoccurrenceと同integrationのPostiz receiptを照合 / exact照合結果とfence保持 | English eBook節参照。新slot safety、Products PR #420、配信/Letter公式settlement。自己購入なし、net MRR $10K |
+| Job Hunter | Dreamwork tier/applicationsLimit/readinessを再確認 / 公式結果 | Job Hunter節参照。Free枠0を成功にしない、購入/bypassなし。求人順位・visa条件・自然応募receiptと業務Telegram配信 |
+| 投資 | PR #7373のexact-head checks/reviewを確認 / source統合状態 | 投資AT-13と初paper round trip、30 round trips/strategy/cross-venue/AT-24/AT-29/live反対review前のfunding/order禁止。自然sellのみ、cost-complete settled net |
+
+**各atomの記録:** 状態、実施変更、検証command/result、run/owner/occurrence/release SHA、effect/readback/provider receipt、evidence参照、error_class、retryable、next_actionを残す。共有資源修復Doneと各laneの業務成果Doneを分離し、未達をpartialのまま明示する。
 
 ## 0. 原則: No human in loop
 
