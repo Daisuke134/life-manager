@@ -10555,3 +10555,18 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 8. [ ] 2/dayの自然Postiz receipt、views/clicks/orders/costを週次で計測してcreative/CTAを改善し、1,002 active Letter subscribersと費用控除後MRR $10Kを達成・readbackする。
 
 **現在cursor:** reviewer指摘を絞った変更はlocalでテスト12/12 PASS。`git diff --check` → latest `origin/main`確認 → commit/push → exact-head review/CI → main merge → immutable release/targeted owner apply → Postiz `PUBLISHED` → 2/day schedule → Letter checkout/MRR conversion. 新しいPostiz `PUBLISHED` はまだ未確認。
+
+### 2026-10-09 11:15 JST — Alpaca live account loss and paper cursor
+
+このreadbackは10:08 JSTのinvestment runtime snapshotを更新する。既存L9-12順序とAT-13〜AT-29順序は変更しない。
+
+- **Paper runtime:** release `d3b3a2792ce9dfa344f4edecf19b66244917d692`、ownerは`loaded-idle`。最後のnatural occurrence `alpaca-investment-paper:18dcb9ad4a9f6298-4140`（01:55:07Z）は`host_admission_deferred:resource_capacity_busy`、`effect_status=not_applicable`、receiptなし。公式paper GET（00:47:17Z）はQQQ `0.013493253`株、market value `$10.10901`、unrealized `+$0.11901`、open orders `0`。これは未実現値で、`performance-latest.json`はなく、閉じた往復とpaper P&Lは未確認。
+- **Live account:** fresh official Alpaca GET（02:15Z）ではequity `$66.48`、cash `$0`、`USDCUSD` `66.489696384`、market value `$66.476398`、unrealized `-$0.044155`。BTC/USDCの10 fillsと10 fee activitiesは5組の売買に対応し、公式fill/fee数量から計算したUSDC cash flowは合計`-0.266064617221 USDC`。唯一の記録済み入金`66.755761 USDC`（入金時評価`$66.75055405`）に対し、残USDCとの差は`-0.266064616 USDC`（計算差`1.221e-9 USDC`）。丸め済みaccount equityとの差は約`-$0.27`。口座全体では利益でなく損失を示すが、これをLife Manager投資ownerの確定net P&Lとは計上しない。
+- **Live attribution/fence:** 9/29のlive occurrence `alpaca-investment-live:18d9e6f979d18818-14709`はENOSPCでrecovery intent書込みに失敗し、`admission_effect_unknown=true`のまま。read-only公式照合は`orders_present:after=4,open=0`を返したが、後発4注文のclient order IDはlocal live `receipts.jsonl`と一致しない。owner/strategy attributionと全system costは未確認のためfenceを保持し、liveを再有効化・再送しない。
+
+**このinvestment runtime subcursorの残り2件（順序固定、未完）:**
+
+1. [ ] **AT-13 qualified natural exit:** paper ownerがshared agent capacityを得たnatural occurrenceを確認し、installed SHA・decision・occurrenceを結ぶ。sell reasonが`ranked_symbol_changed`または`hold_sessions_elapsed`の場合だけ完了。capacity defer、HOLD、passは完了扱いにしない。手動wake/sell/replayは禁止。
+2. [ ] **First closed round trip and truthful paper P&L:** 公式paper sell fillを既存QQQ buyとclient/effect identity・数量で照合し、provider receipt・fees・slippage・model/system costを結合して`paper_performance.py`でnet P&Lを算出し、同occurrenceのreplay-zeroを確認する。閉じた往復と費用根拠が揃うまではpaper P&L=`unknown`。
+
+**Current cursor:** AT-13 qualified natural exit → first closed round trip with cost-complete paper P&L. この2件の後にも30 round trips、AT-24/AT-29とfresh反対意見reviewのlive gatesが残る。現時点で投資利益は証明されていない。
