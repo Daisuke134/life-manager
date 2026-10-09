@@ -10141,6 +10141,8 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **確認済み状態:** PR #7227のnumeric disk-admission修正はcurrent immutable release `f7db4f577d19c582106c3c230dd97837388941f6`に含まれ、cleanupは空き約2.3 GiBを回復した。全fleet applyはまだ一部ownerが旧SHAに残るためnatural reconciliationを継続する。公式PartnerStack overviewは直近30日264 clicks / 0 signups / $0 revenue、Commission Reportは0 rows、Payoutsも0 rowsでtax informationはrequired、payment providerはselection required。既存`campaign-handoffs/elevenlabs-discovered-subtitle-translator-en-experiment-2461e9f73d94.json`は2026-10-01生成の246-word English-only稿で、日本語要約がなく、現在の要求を満たさない。
 
+旧effect fence `affiliate-loop:18d83ba82b14fb40-24990`は、同一wakeの公式Telegram body readbackと、公開先が`WAITING_FOR_PLACEMENT_LINK`であった記録を結び、telegram reconciliation receipt `resolution_state=RESOLVED`で閉じた。Xの公式profile timelineではoccurrence時間帯の新規statusを確認しなかった。Admission readbackは`admission_effect_unknown.current=false`。このfenceのpublic effectは再送していない。次の自然affiliate-loop terminalはまだ未確認。
+
 **根本原因:** `skills/affiliate/scripts/composition_owner.py::budget_retry_is_due`は前日budget-blocked runの再試行を許可するが、`inbox_priority`は同一source-setのterminal `FAILED` receiptをpriority 2、未処理bundleをpriority 1にする。wakeは1 bundleだけ処理するため、budgetが再び使えるcampaignがfresh draftの後ろに残り、Oct 9のtoken ledgerでは新規plan `213f5d2b6550`と`241a5770490f`が各32,768 tokensを予約した一方、due retry `2461e9f73d94`は未予約である。
 
 **受け入れ条件:** budgetまたはcapability retryがdueなら、そのsame-source-set `FAILED` campaignをfresh draftより先に選ぶ。日次budgetがまだ満杯ならretryを昇格せず、32,768-token pass / 131,072-token JST-day capを維持する。未公開campaignだけを再生成し、既存LIVE placementを再投稿しない。自然実行後の実artifactで、根拠が支える十分なEnglish本文、短い日本語要約、開示、CTA、出典、policy PASSを確認し、その後にのみ公開・PartnerStack readbackへ進む。
@@ -10148,11 +10150,11 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 **Remaining atomic TODO（この順）:**
 
 1. [x] RED確認済み: `test_wake_prioritizes_due_budget_retry_before_fresh_draft`はfocused command `python3 -m unittest discover -s skills/affiliate/tests -p 'test_composition_owner.py'`で失敗し、due retryではなくfresh `a-fresh-en`が選ばれた。期待値はdue retry `z-retry-en`。
-2. [ ] `skills/affiliate/scripts/composition_owner.py::inbox_priority`を最小変更し、`budget_retry_is_due`または`runner_retry_is_due`がtrueのsame-source-set `RUNNER_REJECTED`だけpriority 0へ上げる。未eligible terminalは後順位を維持する。
-3. [ ] focused unittest、`git diff --check`、`./bin/lm-loop-contract`を実行し、spec・test・実装を専用branchにpushしてexact-head CI/fresh review/mergeへ進む。
+2. [x] `skills/affiliate/scripts/composition_owner.py::inbox_priority`で、`budget_retry_is_due`または`runner_retry_is_due`がtrueのsame-source-set `RUNNER_REJECTED`をpriority 0へ上げた。未eligible terminalの順位は維持。focused unittest 9件と`./bin/lm-loop-contract`（18 loops / 188 jobs / 113 mapped / 0 errors）がPASS。
+3. [ ] implementation/spec/testをcommit-pushし、exact-head CI/fresh review/mergeへ進む。
 4. [ ] main由来immutable releaseと自然fleet applyをreadbackし、修正前SHAのmanaged ownerが修正版へ切り替わったことを確認する。Historical `disk_headroom_low`とcurrent `resource_capacity_busy`を混同しない。
 5. [ ] budgetが再び使える自然wakeのsealed compositionを確認する。記事はEnglish-firstの詳細本文と日本語要約、出典、disclosure、CTAを満たし、policy PASSを得る。既存のapproved ownerだけで公開し、PartnerStackのclick/sign-up/commission/payoutと実費を同じ期間でreadbackする。売上が0なら0のまま記録する。
 
 **順序更新と理由:** 旧cursor=`A6 Google usage trace → A8 all-loop/job coverage → A9 source-period report → A6 Google cash → A10 seven-day acceptance`。新cursor=`(1) current releaseで全managed ownerのdisk-gate反映を完了 → (2) due composition retryのstarvationを修正 → (3) natural bilingual campaignとpolicy/publication readback → (4) PartnerStack conversion/commission/payout/economics → (5) CFOのA6/A8/A9/A10を再開`。理由は、DaisがAffiliate収益loopを最優先に指定し、fresh official reportが264 clicksに対して0 signups / $0 revenueを示し、retryable campaignがfresh draftsの後ろで止まっているため。CFO TODOとunknown値は保持する。
 
-**現在cursor:** REDが確認済み。`composition_owner.py::inbox_priority`でdue retryだけをfresh draftより先にし、same-day budget capは維持する最小実装へ進む。
+**現在cursor:** implementationとfocused verificationはPASS。実装commitをpushし、exact-head CI/fresh review/mergeへ進む。
