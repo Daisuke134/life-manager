@@ -26,7 +26,7 @@
 
 **不変条件:** 11 GiBは今回の容量回復受入であり、全producerの起動floorを一律11 GiBへ変える指示ではない。iOS Simulator runtime/image/device/data/dyld、memory/state、credentials、browser identity、参照release、active/dirty/unmerged/leased/locked worktree、open/unknown dataを削除しない。古い同一UID test artifactと、Git clean/main統合済み/unleased/unlocked/closedを全て証明できるworktreeだけを今回の追加回収対象とする。証明できなければ保持。effect_unknownはexact official receipt/pre-effect proofまで解除・再送しない。Codex session履歴は容量が大きいだけで削除・圧縮対象にしない。
 
-**現在cursor: S02/P0-15 更新ownerの859df55a自然adoption確認 → P0-13/14継続とP0-12の11GiB回復 → 下記全社S順。** full producer guardは#7426/main859df55aのcurrent ALLへ反映済み、実容量checkはexit75でeffect0/readback0を確認。loaded reconcilerは旧564d9d87の自然run中で、handoff完了は未確認。自然cleanupのcode回収/errors0/protected_deletions0は確認済みだが、fresh freeは約0.39GiBで11GiB未達。根本修復全体は未完。この節の文書保存・統合と実装/本番成果の完了は別。各atomは証拠取得後だけ `[x]` にし、失敗境界・次の安全な操作・cursorを同じ差分で更新する。
+**現在cursor: S02/P0-13 残る容量占有・増加源の確定 → 実証されたP0-14/15の後始末・入場制御 → S03/P0-12の11GiB受入 → P1 → 下記全社S順。** full producer guardは#7426/main859df55aのcurrent ALLへ反映済み。cleanupと更新ownerの両方でloaded SHA859df55aと同SHAの自然exit0を確認し、稼働版の更新待ちは閉じた。fresh free376,389,632 bytes（約0.35GiB）で11GiB未達。根本修復全体は未完。各atomは証拠取得後だけ `[x]` にし、失敗境界・次の安全な操作・cursorを同じ差分で更新する。
 
 **引き継ぎ/診断証拠:** worktree HEAD `a6e03757`の4ファイル497行差分を`ea1784b0ec`で保持してpushし、最新main `3baccdbd`を`00b5d4ff5d`でmerge/push。leaseは既存owner `codex-root`でheartbeatを更新、直列lsof再確認でworktree下open handleなし。既存temp/worktree focused testは2 PASS。agmsg統括identityは`lm/codex-resource-orchestrator-1009`、既存cleanup担当へ重複書込抑制と状態照会を送信。自然receiptの成功/失敗が交互に現れ、失敗時の正確な親errorは`host_cleanup_identity_mismatch`。`disk_cleanup.py::main`のbusy lock出力はexit75だがidentityを含まず、`central_cleanup.host_cleanup_readback`の同-occurrence検査が失敗に変換する。REDはbusy出力identity欠落と親exit1を再現し、最小修正後の関連4 testsはGREEN。修正契約は、busy出力にもimmutable manifest由来の同run identityを載せ、親はそのidentityを検証した正確なbusyだけをeffect0のexit75延期として維持し、他のidentity mismatchはexit1のまま拒否する。旧ENOSPC修復とは区別し、容量不足時の既存reserve/cursor testsも再確認する。
 
@@ -205,9 +205,17 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 
 **目標と計測:** DaisがUS$10,000,000/月を確認。会社所有の継続課金を月額へ正規化したverified MRRを目標とし、割引・契約状態・期間・通貨・公式subscription/invoice根拠を保持する。返金/fees、settled revenue、billed expenses、cash paid、net利益をCFOで別に示す。単発eBook/LINE/Gig売上、投資利益、顧客自身の所得、trial/test paymentを会社MRRへ足さない。既存Cloud gross $10K、Mobile/eBook net $10K等のlane完了条件は変更しない。Stripeの設定可能なMRR定義とpaid状態をreadbackし、集計定義を固定する（一次資料: https://docs.stripe.com/billing/subscriptions/analytics）。価格変更や自分によるlive購入はしない。
 
-**このsessionで完了したこと:** cleanupのbusy/identity失敗とtemp/worktree保護を修復・main統合・自然receipt確認。releaseへの未追跡donor artifact混入をRED→GREENで修復（#7401）。GiB級Git auto-GC temporary packの増加を実PID/argv/pathで確定し、closedなGit garbageだけを限定回収、正規pack/refs/保護storeを保持。shared repo gc.auto=0/gc.autoPackLimit=0、cutter fetch --no-auto-maintenanceを修復（#7403、関連4 tests/CI PASS）。共有pre-enqueue/post-claim headroom guardを復旧（#7400）。current=/Users/anicca/loops/releases/20261009T220528-a8fe894b、main由来/ALL、cutter/runner/governorのGit hash一致とread-onlyを確認。60秒watchdogと自然cleanupのerrors0/protected_deletions0、iOS26.5 availability、named active worktrees保持を確認。自分の手動修復をLife Manager自身のT5自己修復完了と数えない。
+**このsessionで完了したこと:** cleanupのbusy/identity失敗とtemp/worktree保護を修復し、main・自然receiptまで確認した。GiB級Git auto-GC temporary packの増加源を確定し、closedなGit garbageだけを回収、無制限auto-GCを抑制した（#7403）。releaseへの未追跡artifact混入と不要なmemory複写を止めた（#7401/#7416）。未参照・main復元可能な旧codeだけを予算内で回収し、memory/stateを同じ場所に保持する処理を本番へ反映した。検証自身のFDによる自己停止と、watchdog busyが独立GCを止める結び付きを修復し、自然runで6 files/約4.8MB・errors0/protected_deletions0を確認した（#7424/#7425）。finite runner・standalone agent runner・full release builderに不足/unknownで重い書き込みを延期する共有guardを反映した（#7400/#7412/#7426）。current=/Users/anicca/loops/releases/20261010T064405-859df55aはmain由来/ALL、変更したguardのGit hash一致・readonlyを確認。cleanupと更新ownerのloaded SHA859df55a・同SHA自然exit0、watchdog StartInterval60、iOS26.5 availabilityを確認。これは資源修復の部分成果であり、11GiB受入・Life Manager自身のT5・収益目標の完了とは数えない。
 
-**As-Is:** 空きは約2GiB付近で上下し、自然free_after=2,066,309,120 bytesの観測で11GiB未達。自然browser-capacity-probe run18dcdec935d22cb0-69527/release4adef95cは13:15:08Zにhost_admission_deferred:disk_headroom_low/exit75で延期。eventのeffect_class=none/effect_status=not_applicableを確認し、存在しないeffect数を0と捏造しない。scratch71 recent/terminal99 filesの限定probeは全owner coverageではない。先行fleet receiptはchanged83/skipped26/errors3/budget exceededでpartial。cleanup plist argvはa8feへ進むが、全ownerの移行/自然成果は未完。#7366/#7369/#7373、Products #420はfresh GitHub readbackでOPEN。CFOのdirty2 files等は保持。会社verified MRRと全laneの経済完了は未確定。有限Codex runは既に--ephemeralであり変更不要。READMEは18能力とsetup_requiredを区別し、repoはpublic/MIT。全agentのguided installer、初めての利用者のend-to-end利用、MX移行、T5/T12/T14の完了は未証明。
+**As-Is:** 容量不足で重い書き込みを延期する仕組みは本番へ反映済みだが、実際の余白が不足する。fresh free376,389,632 bytes（約0.35GiB）、bound cleanup receipt22:14:52Z/run18dcfc25263cc0c0-15402/release859df55aはfree_after379,113,472/errors0/protected_deletions0、unbound watchdog receipt22:17:13Zはfree_after353,775,616/errors0/protected_deletions0。更新ownerの自然terminal22:11:05Z/run18dcfbf49ae59928-12724/release859df55aもexit0。2GiBは重いproducerの既存起動floor、11GiBは今回の回復受入であり、混同しない。ホーム234 directoryのうち223件を完了した測定で把握し、残る大領域は小さなchild単位へ分割している。timed-out/permission-denied領域を0や候補なしへ置換しない。大きなCodex履歴、browser identity、leased/locked worktree、Simulator等は保持する。全ownerのcoverageと容量増加源の同window join、全laneの経済完了、会社verified MRRは未確定。各laneのPR・provider・receiptの古い状態は再開時にfresh確認する。installer/MX/T5/T12/T14とUS$10M MRRも未完。
+
+**直近の残作業（実行契約はP0/P1の既存行を参照）:**
+
+1. P0-13: 未確定の大領域を一つずつ測り、同じ時間窓のpath別allocated増減・open FD・PID/start・ownerへ結ぶ。書込bytesだけを容量増加と扱わない。最初の操作はnative filesystem観測を8秒に限定し、書込先をbefore/afterの容量へjoinすること。
+2. P0-14/15: 1で証明したclosed/regenerable候補だけを既存ownerで回収し、実証された生成・終了処理/retention/guardの抜けだけを最小修正する。安全に回収できる量が不足する場合は、不足量と必要な容量拡張条件を記録する。保護データ削除で帳尻を合わせない。
+3. P0-12: 60秒watchdogの複数自然receiptでfree_after>=11GiB・errors0・protected_deletions0・producer admission安定・保護資産保持を確認する。ここを満たすまで「根本修復完了」にしない。
+4. P1-1〜3: 実PID/startとclaim/reservationをjoinし、止まったownerが占有する正当な枠だけを既存reconcileで回復する。unknown effectを解除したり、DBを直接削除したりしない。
+5. P1-4/5: 一件ずつ進める方式で自然runのqueue age・CPU/RAM/diskを測り、残る問題に必要な変更だけを行う。その後、下記S06〜S18を順に進める。
 
 | 対象 | To-Be / 完了を示す根拠 |
 |---|---|
@@ -220,12 +228,12 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 
 **「24/7 forever」の契約:** 監督・待ち行列・復旧を常時動かし、要求された業務cadenceを満たすこと。単一の有限SSDへ無限のwork/dataを詰めても故障しないという保証にはしない。容量/外部quotaを超える需要は先に延期し、実測に基づくproducer抑制と許可された容量拡張/既存Cloud worker分離を行う。保護memory/stateを削除して帳尻を合わせない。改善作業は資源回復後も一件ずつ。重い並列、新しいcluster/framework、全agentへの反復reviewを今の修復へ追加しない。
 
-**実行順:** 既存のP0→P1とlane入口の順を保ち、下記S01→S18へ対応付ける。原子的詳細は既存lane節を参照し複製しない。外部gate/未来slot/収益の到来で止まるatomは、証拠と戻るcursorを記録して次の独立したsafe atomを一件だけ進める。並列実装はしない。元の全lane目標を維持し、18 agent全greenやJob Hunter entitlement/投資30自然round tripsを、独立した既存商品の販売開始gateにしない。現在cursor=S02/P0-14旧未参照codeの予算付き回収（新SHAのowner coverageと自然provider証拠も追跡）。
+**実行順:** 既存のP0→P1とlane入口の順を保ち、下記S01→S18へ対応付ける。原子的詳細は既存lane節を参照し複製しない。外部gate/未来slot/収益の到来で止まるatomは、証拠と戻るcursorを記録して次の独立したsafe atomを一件だけ進める。並列実装はしない。元の全lane目標を維持し、18 agent全greenやJob Hunter entitlement/投資30自然round tripsを、独立した既存商品の販売開始gateにしない。現在cursor=S02/P0-13の容量占有・増加源join。稼働版の更新待ちは確認済みとして閉じ、資源の実回復と全owner coverageは別に追跡する。
 
 | 状態 | 順 | 次の一操作・対象 / 検証・DONE証拠 |
 |---|---|---|
 | 未完 | S01 | bin/reconcile-agent-runner-release.shとlm-loopのowner別loaded argv/SHAをcurrentへ照合し、未移行をowner別に閉じる。running/unknownを無断再bindしない。alpaca liveのbootstrap error5/service absentはlive gateを維持したまま診断し、root retryしない。DONE=全ownerの移行/保持理由と安全な自然進行が説明可能 |
-| 未完 | S02 | disk_cleanup.py/host_inventory.py、bounded_output.py、config/storage-policy.jsonでwriter/path/peakとtmp/diagnostic増加をjoinし、実証されたproducerだけ最小RED→GREEN。guard測定だけで十分な容量を獲得したと扱わない。DONE=P0-13/14の原因/retention/余白証拠 |
+| 進行中 | S02 | disk_cleanup.py/host_inventory.py、bounded_output.py、config/storage-policy.jsonでwriter/path/peakとtmp/diagnostic増加をjoinし、実証されたproducerだけ最小RED→GREEN。guard測定だけで十分な容量を獲得したと扱わない。DONE=P0-13/14の原因/retention/余白証拠 |
 | 未完 | S03 | 既存watchdogの複数自然receipt、fresh free_after>=11GiB、errors0/protected_deletions0、Simulator/active worktree保持、admission安定をP0-12へ記録。安全な候補が尽きたら容量不足量と拡張依存を記録し、保護対象を削除しない |
 | 未完 | S04 | resource_admission.py::_limits/_capacity_available、claim/reservation/queue、PID/startを同一windowで照合し、expired/deadの正当な枠だけ既存reconcileで回復。DONE=P1-1〜3の生存/待ち境界とqueue identity/fence保持 |
 | 未完 | S05 | P1-4/5でqueue age/実並列/CPU/RAM/diskを自然測定し、改善作業は一件ずつ継続する。既存業務cadenceを満たすためのcap変更は不足が実証された時だけ行う。DONE=仕事が進み、枠/容量の再悪化がない |
