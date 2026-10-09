@@ -159,6 +159,71 @@ class CompositionOwnerTests(unittest.TestCase):
             self.assertFalse(module.budget_retry_is_due(root, state, bundle, same_day))
             self.assertTrue(module.budget_retry_is_due(root, state, bundle, next_day))
 
+    def test_wake_prioritizes_due_budget_retry_before_fresh_draft(self) -> None:
+        spec = importlib.util.spec_from_file_location("affiliate_composition_owner", SCRIPT)
+        module = importlib.util.module_from_spec(spec)
+        assert spec.loader is not None
+        spec.loader.exec_module(module)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            skill = root / "skill"
+            (skill / "config").mkdir(parents=True)
+            (skill / "config" / "agent-runner.json").write_text(json.dumps({
+                "task_classes": {"marketing-agent": {"token_reservation": 32768}},
+            }), encoding="utf-8")
+            state = root / "state"
+            inbox = state / "composition-inbox"
+            inbox.mkdir(parents=True)
+            retry_bundle = {
+                "schema_version": 1, "receipt_type": "COMPOSITION_INPUT",
+                "plan_id": "z-retry-en", "locale": "en",
+                "source_set_sha256": "a" * 64, "sources": [],
+            }
+            fresh_bundle = {
+                "schema_version": 1, "receipt_type": "COMPOSITION_INPUT",
+                "plan_id": "a-fresh-en", "locale": "en",
+                "source_set_sha256": "b" * 64, "sources": [],
+            }
+            (inbox / "z-retry-en.json").write_text(json.dumps(retry_bundle), encoding="utf-8")
+            (inbox / "a-fresh-en.json").write_text(json.dumps(fresh_bundle), encoding="utf-8")
+            receipts = state / "composition-receipts"
+            receipts.mkdir()
+            (receipts / "z-retry-en.json").write_text(json.dumps({
+                "state": "FAILED", "failure_class": "RUNNER_REJECTED",
+                "source_set_sha256": "a" * 64,
+            }), encoding="utf-8")
+            run = state / "composition-runs" / f"z-retry-en-{'a' * 16}"
+            run.mkdir(parents=True)
+            (run / "summary.json").write_text(json.dumps({
+                "status": "budget_blocked",
+                "budget": {
+                    "day": "2000-01-01", "daily_consumed_tokens": 131072,
+                    "daily_limit_tokens": 131072,
+                },
+            }), encoding="utf-8")
+            selected: list[str] = []
+
+            def run_model(_skill_root, _state_root, bundle):
+                selected.append(bundle["plan_id"])
+                return {
+                    "state": "READY_FOR_POLICY", "plan_id": bundle["plan_id"],
+                    "locale": bundle["locale"],
+                    "source_set_sha256": bundle["source_set_sha256"],
+                    "result_sha256": "c" * 64,
+                }
+
+            with mock.patch.object(
+                module, "runtime_guard", return_value={"state": "CLEAR"},
+            ):
+                result = module.wake(
+                    skill, state, run_model=run_model,
+                    handoff_builder=mock.Mock(return_value="d" * 64),
+                    policy_builder=mock.Mock(return_value="e" * 64),
+                )
+
+        self.assertEqual(selected, ["z-retry-en"])
+        self.assertEqual(result["plan_id"], "z-retry-en")
+
     def test_wake_advances_only_one_due_source_set_and_dedupes_terminal_receipt(self) -> None:
         spec = importlib.util.spec_from_file_location("affiliate_composition_owner", SCRIPT)
         module = importlib.util.module_from_spec(spec)
