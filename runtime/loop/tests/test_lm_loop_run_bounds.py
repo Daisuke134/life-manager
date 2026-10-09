@@ -1270,7 +1270,10 @@ def test_control_plane_safety_loops_bypass_data_plane_admission(tmp_path):
 
 def test_cleanup_control_caller_passes_the_real_occurrence_to_receipt_writer(tmp_path):
     entry = {"cadence":{"start_interval_seconds":300}, "provider_route":"deterministic"}
-    with patch("runtime.loop.lm_loop_run._run_entrypoint_with_stderr_capture",return_value=(0,b"")) as capture:
+    with (patch("runtime.loop.lm_loop_run._run_entrypoint_with_stderr_capture",return_value=(0,b"")) as capture,
+          patch("runtime.loop.lm_loop_run.reserve_available_resource",return_value=None),
+          patch("runtime.loop.lm_loop_run._dispatch_reserved"),
+          patch("runtime.loop.lm_loop_run.clear_no_effect_unknown_resource")):
         _run_admitted(["/bin/true"],entry,"life-manager-disk-cleanup",{},tmp_path/"receipt",
                       occurrence_id="life-manager-disk-cleanup:scheduled-1")
     assert capture.call_args.kwargs["env"]["LIFE_MANAGER_OCCURRENCE_ID"] == "life-manager-disk-cleanup:scheduled-1"

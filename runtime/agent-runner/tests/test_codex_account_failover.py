@@ -184,6 +184,7 @@ class CodexProfileBoundaryTest(unittest.TestCase):
                     mock.patch.object(agent_runner, "run_provider_process", side_effect=fake_provider_process), \
                     mock.patch.object(agent_runner, "ensure_evidence_capacity", return_value={}), \
                     mock.patch.object(agent_runner, "append_usage_event"), \
+                    mock.patch.object(agent_runner, "attach_runtime_event", return_value=True), \
                     mock.patch.object(agent_runner, "read_provider_capture", return_value=("", "", None)), \
                     mock.patch.dict(os.environ, env, clear=False), \
                     mock.patch.object(sys, "argv", argv), \
