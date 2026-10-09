@@ -10353,3 +10353,27 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 - **受け入れ:** REDテストで15日interval、安定wrapper、lock競合だけの有限再試行、既存owner分離を確認する。導入失敗なら既存plist/wrapperを戻して元のloaded状態を再確認し、復元にも失敗した場合はexact backupを残す。`plutil`とfocused test後、mainへ統合し、main由来immutable releaseから `launchctl-safe` で導入する。loaded labelのinterval/program/log readbackと、natural run receiptの `errors=0` / `protected_deletions=0` / 容量結果を確認する。
 
 **現在cursor:** REDテスト → owner実装・focused検証 → commit/push/PR/merge → main由来release → safe install/readback → natural保守receiptとloop/admission再確認。
+
+### 2026-10-09 09:53 JST — Mobile投稿はslotごとに検証し、3回目まで他作業を止めない
+
+この追記はmobileの完了条件と実行順を更新する。**日次3回の達成判定には3 slotすべてのreceiptが必要だが、3回目の時刻まで作業を待たない。** 現行の18 owner/calendar publisherとPostiz API経路を使い、due slotの直後に結果をreadbackし、残りslotの自然実行中も独立して進められる仕事を続ける。
+
+- **Postiz official GET（2026-10-09 JST 00:00–24:00、09:52観測）:** responseは全28 rowで完結し、18 mobile targetに24 `PUBLISHED`、future `SCHEDULED` は0。対象別は `@anicca.affirmation` 8（00:05–00:48に集中したoff-slot burst）、`@anicca.en` 2、`@aniccaaffirmation`・`@anicca.encards`・`@anicca_slideshow`・`@anicca-ai`・`@anicca-affirmation-video`・`@anicca.he`・`@anicca.jp1`・`@anicca.jp4`・`@anicca.jp`・`@anicca.jpx`・`@anicca_buddha`・`@anicca.jp.videos`・`@honne_reveal`・`@honnevideo` は各1、`@aniccaen2` と `@ani.cca1234` は各0。日次目標54件に対して09:52時点の部分観測24/54で、3/day達成ではない。TikTokは10 target中9に1投稿、`@aniccaen2` は0。
+- **最新のpublisher/runtime readback（09:25）:** 18 ownerは全てpriority fixを含む `f7db4f57` を読み込み、`~/loops/current` は `20261009T090605-c7b1e491`。`@aniccaen2` と `@ani.cca1234` は `disk_headroom_low`、`@anicca.jp` は `resource_capacity_busy`。この時点でcurrent pointerとowner SHAが一致していない。reconcilerを止めず、ownerの通常経路で収束させる。
+- **Host容量（09:53）:** `/Users/anicca` の空きは529 MiB、使用率100%。これは容量が正常という条件を満たさず、2 ownerのdisk blockerは未解決。
+- **保存済み画像:** `/Users/anicca/.local/state/life-manager/tenants/dais-local/marketing/slide-pack-rotation/anicca-ios/image-cache` にPNG 26点・40,718,752 bytesを永続保存し、26/26が現在のfactory prompt hashに一致する。cacheはpersistent `LM_DATA_DIR` 配下でtemporary `.workspace` の外にあり、完成slideはローカル合成後にdurable content object storeへ入る。各投稿でGemini/GPT Image/FALを呼ばず、cache miss時は生成せずfail closed。旧male/sunset画像との対応と画像ごとの生成元は未確認。
+- **EN2 effect fence:** `@aniccaen2` の09:36試行は `effect_unknown`。09:52のPostiz GETに一致する投稿rowは無かったが、再送前に同一occurrenceのprovider readbackとowner fenceを照合する。曖昧なeffectを再送しない。
+
+**残りTODO順（slot 3待ちをしない）:**
+
+1. [ ] **投稿可能なhost状態を戻す:** existing disk-governor/owner保守経路で実測headroomを確保し、`@aniccaen2`・`@ani.cca1234` のdisk blockerと `@anicca.jp` のcapacity blockerを各ownerで解消する。cached PNG、Simulator、active/leased worktreeや保護stateを削除しない。529 MiBのまま「容量正常」と扱わない。
+2. [ ] **effect_unknownを安全に閉じる:** `@aniccaen2` の09:36 occurrenceをPostiz公式状態と結び、pre-effect failureが証明された場合だけ既存fenceから再開する。証拠が不完全ならそのownerだけをfencedのままにし、他ownerの作業は続ける。
+3. [ ] **既存18 ownerのrelease/dispatchをそろえる:** current immutable releaseへの自然adoption、loaded SHA、18 ownerの3 daily calendar slot、各ownerのAPI payload/asset read pathをreadbackする。R27 `distribution` priorityは既にsource/ownerへ入っている。別cronや二重schedulerは、現行ownerの不具合を実証するまで追加しない。
+4. [ ] **次にdueするslotを即時検証する:** slotの直後にPostiz official GETで対象account、`PUBLISHED` status、固有post ID、direct permalinkを確認し、Telegram reportに同じリンクが出ることを確認する。成功したslotはreceiptに記録し、失敗はその場でowner原因を修正する。**slot 2/3や20:00を待たず、readback後に次の独立作業へ進む。**
+5. [ ] **日次3回をrollingで閉じる:** 18 accountそれぞれについて異なる3 post IDの `PUBLISHED` receiptを同じJST日で集め、日次報告は54/54と各URLで判定する。configured slot、queued request、scheduled rowは公開成功の代用にしない。3件未満は不足account/slotを特定して未達とし、次のdue slot確認と独立作業を止めない。
+6. [ ] **保存済みasset/copy運用を維持する:** 既存26背景を使い、caption/hookと背景の順序だけを変えてlocal composeする。生成APIを投稿ごとに呼ばない。asset選択・hash・完成object IDを各post receiptへ残し、cache missやdisk不足時は新規生成や一時画像へのfallbackをせずowner errorとして記録する。
+7. [ ] **各postのmarketing metricsを保存する:** providerのpost ID/permalinkでviews・likes・comments・shares等をreadし、観測時刻と指標欠損を区別して保存する。Postiz側の `unknown` を0とせず、metrics取得を3/dayの終日判定完了まで保留しない。
+8. [ ] **app funnelへ結合する:** campaign/post link → ASC impression/page view/download → RevenueCat subscription MRR/settled proceeds → MixpanelまたはPostHogのactivation/onboarding/paywall/purchaseを同期間でつなぐ。MRR観測をsettled revenueと混同しない。
+9. [ ] **分配から順に反復する:** まずAnicca iOSの投稿ごとのviews/engagementとinstallを結び、勝ちhook/formatへ投稿枠を寄せる。分配の安定後にApp Store listing/ASO、その後onboarding/paywallを改善する。10,000 USDのverified net MRRは未達で、達成と報告するにはsettled source evidenceが必要。
+
+**現在mobile cursor:** owner容量・effect fenceのowner単位解消 → existing release/18 owner dispatch readback → 次due slotの即時receipt確認 → 他slot待ちの間もmetrics/funnel作業を継続 → 54/54の終日判定 → ASO/onboarding反復 → verified $10K net MRR。**日次54件の判定は終日データが必要だが、終日待機は実行cursorではない。**
