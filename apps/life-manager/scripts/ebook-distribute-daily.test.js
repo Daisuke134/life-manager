@@ -78,6 +78,10 @@ test("English Monk publishing uses the requested two daily slots", () => {
   assert.deepEqual(target.cadence_jst, PACK_EN.slots_jst);
 });
 
+test("English Monk publication does not require a native TikTok receipt", () => {
+  assert.equal(PACK_EN.stop_rules.includes("missing_native_receipt"), false);
+});
+
 test("English Monk Instagram owner stays effect-free until its Postiz account is connected", async () => {
   const ownerId = "ebook-en-instagram-daily";
   const selected = selectTarget({

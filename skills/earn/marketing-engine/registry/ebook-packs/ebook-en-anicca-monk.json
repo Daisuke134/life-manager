@@ -21,5 +21,5 @@
     {"platform": "instagram", "reason": "english_monk_instagram_not_connected"}
   ],
   "allowed_claims": ["English-language guided reflection ebook", "Digital access is sold through the owned checkout page"],
-  "stop_rules": ["missing_native_receipt", "identity_preflight_failed", "duplicate_publish_key", "unverified_render_cost", "heygen_setup_required"]
+  "stop_rules": ["identity_preflight_failed", "duplicate_publish_key", "unverified_render_cost", "heygen_setup_required"]
 }
