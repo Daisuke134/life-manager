@@ -23,6 +23,7 @@ from runtime_guard import runtime_guard
 
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 TERMINAL = {"READY_FOR_POLICY", "FAILED", "QUARANTINED"}
+REQUIRED_ELEVENLABS_CASE_STUDY_IDS = frozenset({"elevenlabs-alec", "elevenlabs-greg"})
 DISCLOSURE = "Disclosure: This article contains an affiliate link."
 EXPERIMENT_VARIABLES = {"title", "opening_hook", "article_structure", "cta"}
 
@@ -132,6 +133,29 @@ def load_bundle(path: Path) -> dict:
         return bundle
     except (OSError, TypeError, ValueError, json.JSONDecodeError):
         raise CompositionError
+
+
+def missing_elevenlabs_case_studies(bundle: dict) -> tuple[str, ...]:
+    if bundle.get("locale") != "en":
+        return ()
+    sources = bundle.get("sources")
+    if not isinstance(sources, list):
+        return ()
+    is_elevenlabs = any(
+        isinstance(source, dict)
+        and isinstance(source.get("locator"), str)
+        and source["locator"].startswith("https://elevenlabs.io/")
+        for source in sources
+    )
+    if not is_elevenlabs:
+        return ()
+    source_ids = {
+        source.get("source_id") for source in sources
+        if isinstance(source, dict)
+        and source.get("evidence_class") == "first_person_case"
+        and isinstance(source.get("source_id"), str)
+    }
+    return tuple(sorted(REQUIRED_ELEVENLABS_CASE_STUDY_IDS - source_ids))
 
 
 def atomic_write(path: Path, value: dict) -> None:
@@ -761,6 +785,7 @@ def wake(
             key=lambda path: inbox_priority(path, state_root, skill_root),
         )
         blocked_result = None
+        waiting_case_study_plan_ids = []
         for path in paths:
             try:
                 bundle = load_bundle(path)
@@ -816,6 +841,9 @@ def wake(
             except (OSError, ValueError):
                 placement_receipt = {}
             if placement_receipt.get("state") == "LIVE":
+                continue
+            if missing_elevenlabs_case_studies(bundle):
+                waiting_case_study_plan_ids.append(bundle["plan_id"])
                 continue
             budget_retry_due = (
                 previous.get("state") == "FAILED"
@@ -917,7 +945,15 @@ def wake(
                 )
             atomic_write(receipt_path, receipt)
             return receipt
-        return blocked_result or {"state": "IDLE"}
+        if blocked_result:
+            return blocked_result
+        if waiting_case_study_plan_ids:
+            return {
+                "state": "WAITING_FOR_AFFILIATE_CASE_STUDIES",
+                "next_action": "await_source_refresh_backfill",
+                "waiting_plan_count": len(waiting_case_study_plan_ids),
+            }
+        return {"state": "IDLE"}
 
 
 def main() -> int:

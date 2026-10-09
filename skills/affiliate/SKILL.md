@@ -267,7 +267,9 @@ Wilcock and Greg Preece affiliate case studies, including when its immutable
 product plan predates those sources. The source refresher reuses a valid capture
 or recaptures a missing or expired one without rewriting the plan. A bounded
 one-plan-per-wake backfill stays pending until each legacy bundle records both
-case-study source hashes. The composer
+case-study source hashes. The composition owner skips an older English bundle
+until both sources are present; it returns a retryable waiting state without
+spending a model pass or writing a public effect. The composer
 uses documented tutorial, firsthand-use, audience-fit, search, and CTA methods
 as strategy evidence only. It writes a substantive original English-first
 tutorial (target 800–1,200 words when the sources support it), adds a concise
