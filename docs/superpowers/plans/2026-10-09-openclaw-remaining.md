@@ -1886,4 +1886,3 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残233atom。旧223�
 - 変更: 全catalog business jobsの新engine管理、全finiteのOpenClaw cron、continuousの同OS/browser driver、source/main/release/session/trace/domain成果、旧harness参照0、rollbackの一時退避以外旧job authority0を照合して保存。旧harnessを残したまま全移行完了とはしない。
 - 検証/完了: 最新catalog全job coverage、全finite cron移管、continuous owner維持、未確認effect0、旧harness参照0、自然成果readback。性能改善は実測のみ。
 - 依存: F-04, F-05, F-06
-
