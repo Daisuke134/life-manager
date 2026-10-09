@@ -347,7 +347,8 @@ class LoopCleanupTest(unittest.TestCase):
             observed = {}
 
             def unknown_publish(_command, _entry, _loop_id, env, receipt, *, occurrence_id,
-                                on_claimed, on_stderr_tail=lambda _tail: None):
+                                on_claimed, on_terminal_event,
+                                on_stderr_tail=lambda _tail: None):
                 observed.update(env)
                 observed["LIFE_MANAGER_OCCURRENCE_ID"] = occurrence_id
                 on_claimed(occurrence_id)
@@ -373,6 +374,7 @@ class LoopCleanupTest(unittest.TestCase):
                 }) + "\n", encoding="utf-8")
                 Path(env["LIFE_MANAGER_EFFECT_IDENTITY_PATH"]).chmod(0o600)
                 receipt.write_text('{"status":"pass","effect":0}\n', encoding="utf-8")
+                assert on_terminal_event(1, occurrence_id, b"") is True
                 return 1
 
             with (
@@ -429,7 +431,7 @@ class LoopCleanupTest(unittest.TestCase):
                 mock.patch("runtime.loop.lm_loop_run.append_runtime_event",
                            side_effect=[None, OSError("receipt write failed")]),
             ):
-                self.assertEqual(lm_loop_run.main(["job", str(root)]), 0)
+                self.assertEqual(lm_loop_run.main(["job", str(root)]), 78)
             scratches = list((home / "state/loop-tmp/job").iterdir())
             self.assertEqual(len(scratches), 1)
             self.assertTrue((scratches[0] / ".owner.json").is_file())

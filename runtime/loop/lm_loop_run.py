@@ -1241,7 +1241,9 @@ def _dispatch_reserved(loop_ids: list[str], *, current: Path | None = None,
 def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, str],
                   receipt: Path, *, occurrence_id: str | None = None,
                   on_claimed: Callable[[str], None] = lambda _value: None,
-                  on_stderr_tail: Callable[[bytes], None] = lambda _tail: None) -> int:
+                  on_stderr_tail: Callable[[bytes], None] = lambda _tail: None,
+                  on_terminal_event: Callable[[int, str | None, bytes], bool] | None = None
+                  ) -> int:
     env = _child_environment_for_owner(loop_id, env)
     limit = _runtime_limit(entry)
     if loop_id in CONTROL_PLANE_SAFETY_LOOPS or limit is None:
@@ -1487,6 +1489,23 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
         if return_code == 75 and interrupted:
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
                                   "reason": "resource_admission_interrupted"})
+        if on_terminal_event is not None:
+            # Persist the supervisor terminal before releasing the durable
+            # claim; otherwise a successful effectful child could be
+            # dispatched again if this append fails (for example, ENOSPC).
+            try:
+                terminal_saved = on_terminal_event(
+                    return_code, claimed_occurrence_id, stderr_tail,
+                ) is True
+            except Exception as error:
+                terminal_saved = False
+                print(
+                    "lm-loop-run: terminal event persistence failed "
+                    f"({type(error).__name__})",
+                    file=sys.stderr,
+                )
+            if not terminal_saved and return_code == 0:
+                return_code = 78
         return return_code
     finally:
         heartbeat_stop.set()
@@ -1681,79 +1700,102 @@ def main(argv: list[str] | None = None) -> int:
         def record_stderr_tail(value: bytes) -> None:
             nonlocal entrypoint_stderr_tail
             entrypoint_stderr_tail = value
+        terminal_attempted = False
+        terminal_saved = False
+        terminal_error = None
+        event = None
+        host_deferred = None
+        effect_result = None
+        effect_identity_ref = None
+        effect_identity_status = None
+
+        def persist_terminal_event(child_return_code: int,
+                                   terminal_occurrence_id: str | None,
+                                   stderr_tail: bytes) -> bool:
+            nonlocal claimed_occurrence_id, entrypoint_stderr_tail
+            nonlocal terminal_attempted, terminal_saved, terminal_error, event
+            nonlocal host_deferred, effect_result
+            nonlocal effect_identity_ref, effect_identity_status
+            terminal_attempted = True
+            if terminal_occurrence_id is not None:
+                claimed_occurrence_id = terminal_occurrence_id
+            entrypoint_stderr_tail = stderr_tail
+            host_deferred = _host_admission_deferred(host_receipt, started_ns)
+            effect_result = None
+            if (child_return_code == 0
+                    and _effect_result_hint_allowed(loop_id, entry.get("entrypoint"))
+                    and claimed_occurrence_id is not None):
+                hint_path = scratch / "entrypoint-result.json"
+                if entry.get("entrypoint") in NO_EFFECT_RESULT_HINT_ENTRYPOINTS:
+                    effect_result = _verified_no_effect_result(
+                        hint_path, loop_id, claimed_occurrence_id, entry["entrypoint"])
+                if effect_result is None:
+                    effect_result = _verified_effect_result(
+                        hint_path, loop_id, claimed_occurrence_id,
+                        entrypoint=entry.get("entrypoint"))
+            effect_identity_ref = None
+            effect_identity_status = None
+            if entry.get("effect_class") != "none" and child_return_code != 0:
+                try:
+                    identity_result = _persist_effect_identity(
+                        scratch / "effect-identity.jsonl", loop_state_root, loop_id, run_id,
+                        claimed_occurrence_id,
+                    )
+                    effect_identity_status = identity_result.status
+                    effect_identity_ref = identity_result.ref
+                except (OSError, ValueError) as error:
+                    print(
+                        f"lm-loop-run: effect identity preservation deferred: {error}",
+                        file=sys.stderr,
+                    )
+            try:
+                succeeded, deferred, blocker = _terminal_outcome(
+                    child_return_code, host_deferred=host_deferred)
+                error_detail = (
+                    stderr_tail.decode("utf-8", errors="replace")
+                    if not succeeded and stderr_tail else None
+                )
+                event = build_runtime_event(
+                    loop_id=loop_id, domain=entry["domain"], run_id=run_id,
+                    release_sha=manifest["sha"], provider=entry["provider_route"],
+                    profile_alias=None, effect_class=entry["effect_class"],
+                    succeeded=succeeded, deferred=deferred, blocker=blocker,
+                    evidence_scheme="lm-loop",
+                    claimed_occurrence_id=claimed_occurrence_id,
+                    effect_identity_ref=effect_identity_ref,
+                    effect_identity_status=effect_identity_status,
+                    product_loop_id=product_loop_id, job_id=loop_id, owner_id=loop_id,
+                    wake_id=wake_id, loaded_argv_sha256=loaded_argv_sha256,
+                    loaded_env_sha256=_identity_sha256({
+                        "job_id": loop_id, "owner_id": loop_id, "run_id": run_id,
+                        "wake_id": wake_id,
+                        "occurrence_id": claimed_occurrence_id or occurrence_id,
+                        "release_sha": manifest["sha"],
+                    }),
+                    exit_code=child_return_code, error_detail=error_detail,
+                )
+                event = _apply_verified_effect_result(event, effect_result)
+                append_runtime_event(event_path, event)
+                terminal_saved = True
+            except (OSError, ValueError) as error:
+                terminal_error = error
+                print(f"lm-loop-run: terminal event failed: {error}", file=sys.stderr)
+            return terminal_saved
+
         return_code = _run_admitted(command, entry, loop_id, {
             **os.environ, "LIFE_MANAGER_RELEASE_ROOT": str(release_root),
             "LIFE_MANAGER_RUN_ID": run_id,
             "LIFE_MANAGER_EFFECT_IDENTITY_PATH": str(scratch / "effect-identity.jsonl"),
             "TMPDIR": f"{scratch}/", "NPM_CONFIG_CACHE": str(scratch / "npm-cache"),
         }, host_receipt, occurrence_id=occurrence_id, on_claimed=record_claimed,
-           on_stderr_tail=record_stderr_tail)
-        host_deferred = _host_admission_deferred(host_receipt, started_ns)
-        effect_result = None
-        if (return_code == 0
-                and _effect_result_hint_allowed(loop_id, entry.get("entrypoint"))
-                and claimed_occurrence_id is not None):
-            hint_path = scratch / "entrypoint-result.json"
-            if entry.get("entrypoint") in NO_EFFECT_RESULT_HINT_ENTRYPOINTS:
-                effect_result = _verified_no_effect_result(
-                    hint_path, loop_id, claimed_occurrence_id, entry["entrypoint"])
-            if effect_result is None:
-                effect_result = _verified_effect_result(
-                    hint_path, loop_id, claimed_occurrence_id,
-                    entrypoint=entry.get("entrypoint"))
-        effect_identity_ref = None
-        effect_identity_status = None
-        if entry.get("effect_class") != "none" and return_code != 0:
-            try:
-                identity_result = _persist_effect_identity(
-                    scratch / "effect-identity.jsonl", loop_state_root, loop_id, run_id,
-                    claimed_occurrence_id,
-                )
-                effect_identity_status = identity_result.status
-                effect_identity_ref = identity_result.ref
-            except (OSError, ValueError) as error:
-                print(f"lm-loop-run: effect identity preservation deferred: {error}", file=sys.stderr)
-        terminal_saved = False
-        event = None
-        terminal_error = None
-        try:
-            succeeded, deferred, blocker = _terminal_outcome(
-                return_code, host_deferred=host_deferred)
-            error_detail = (
-                entrypoint_stderr_tail.decode("utf-8", errors="replace")
-                if not succeeded and entrypoint_stderr_tail else None
+           on_stderr_tail=record_stderr_tail,
+           on_terminal_event=persist_terminal_event)
+        if not terminal_attempted:
+            persist_terminal_event(
+                return_code, claimed_occurrence_id, entrypoint_stderr_tail,
             )
-            event = build_runtime_event(
-                loop_id=loop_id, domain=entry["domain"], run_id=run_id,
-                release_sha=manifest["sha"], provider=entry["provider_route"],
-                profile_alias=None, effect_class=entry["effect_class"],
-                succeeded=succeeded, deferred=deferred, blocker=blocker,
-                evidence_scheme="lm-loop",
-                claimed_occurrence_id=claimed_occurrence_id,
-                effect_identity_ref=effect_identity_ref,
-                effect_identity_status=effect_identity_status,
-                product_loop_id=product_loop_id,
-                job_id=loop_id,
-                owner_id=loop_id,
-                wake_id=wake_id,
-                loaded_argv_sha256=loaded_argv_sha256,
-                loaded_env_sha256=_identity_sha256({
-                    "job_id": loop_id,
-                    "owner_id": loop_id,
-                    "run_id": run_id,
-                    "wake_id": wake_id,
-                    "occurrence_id": claimed_occurrence_id or occurrence_id,
-                    "release_sha": manifest["sha"],
-                }),
-                exit_code=return_code,
-                error_detail=error_detail,
-            )
-            event = _apply_verified_effect_result(event, effect_result)
-            append_runtime_event(event_path, event)
-            terminal_saved = True
-        except (OSError, ValueError) as error:
-            terminal_error = error
-            print(f"lm-loop-run: terminal event failed: {error}", file=sys.stderr)
+        if not terminal_saved and return_code == 0:
+            return_code = 78
         if terminal_saved and event is not None and _should_enqueue_recovery_intent(entry, event):
             try:
                 _enqueue_recovery_intent(release_root, event, scratch)
