@@ -6,7 +6,7 @@
   "job_count": 113,
   "finite_count": 95,
   "continuous_count": 18,
-  "remaining_atom_count": 215,
+  "remaining_atom_count": 233,
   "atoms": [
     {
       "target": "runtime/openclaw/gateway-client.mjs",
@@ -508,7 +508,7 @@
     {
       "id": "OC-048",
       "target": "runtime/loop/lm_loop_run.py",
-      "symbol": "_kick_reserved_owners() scheduler dispatch",
+      "symbol": "_dispatch_reserved(loop_ids, ...) scheduler dispatch",
       "change": "既存reservation/priority policyは保持。owner authorityがlegacyなら現行kick、OpenClawなら公式cron runへ同owner wakeをdispatch。controllerからmodel/publishを直実行しない。",
       "checks": "test_openclaw_scheduler_authority.py:legacy不変、reservation duplicate0、authority mismatch拒否。",
       "depends": [
@@ -986,7 +986,7 @@
       "change": "owner=hf-gig-apply-direct、entrypoint=runtime/loop/entry_dispatch.py、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-gig-coconala",
+        "E-gig-coconala",
         "OC-046"
       ],
       "boundary": "production"
@@ -998,7 +998,7 @@
       "change": "owner=hf-gig-apply-evidence-gc、entrypoint=skills/earn/gig/scripts/evidence_gc.py、cadence={\"start_interval_seconds\": 21600}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-gig-coconala",
+        "E-gig-coconala",
         "OC-046"
       ],
       "boundary": "production"
@@ -1010,7 +1010,7 @@
       "change": "owner=hf-gig-daily-report、entrypoint=skills/earn/gig/gig_daily_report.sh、cadence={\"calendar_interval\": {\"Hour\": 9, \"Minute\": 7}}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-gig-coconala",
+        "E-gig-coconala",
         "OC-046"
       ],
       "boundary": "production"
@@ -1022,7 +1022,7 @@
       "change": "owner=hf-gig-paid-direct、entrypoint=skills/earn/gig/scripts/paid-direct-owner、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-gig-coconala",
+        "E-gig-coconala",
         "OC-046"
       ],
       "boundary": "production"
@@ -1034,7 +1034,7 @@
       "change": "owner=hf-gig-reply-detector、entrypoint=skills/earn/gig/scripts/coconala-reply-owner、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-gig-coconala",
+        "E-gig-coconala",
         "OC-046"
       ],
       "boundary": "production"
@@ -1046,7 +1046,7 @@
       "change": "owner=hf-gig-storefront-direct、entrypoint=runtime/loop/entry_dispatch.py、cadence={\"start_interval_seconds\": 60}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-gig-coconala",
+        "E-gig-coconala",
         "OC-046"
       ],
       "boundary": "production"
@@ -1103,7 +1103,7 @@
       "change": "owner=lancers-revenue-application、entrypoint=skills/earn/lancers/scripts/application-owner、cadence={\"start_interval_seconds\": 60}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-gig-lancers",
+        "E-gig-lancers",
         "OC-046"
       ],
       "boundary": "production"
@@ -1115,7 +1115,7 @@
       "change": "owner=lancers-revenue-negotiate、entrypoint=skills/earn/lancers/scripts/negotiate-owner、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-gig-lancers",
+        "E-gig-lancers",
         "OC-046"
       ],
       "boundary": "production"
@@ -1127,7 +1127,7 @@
       "change": "owner=lancers-revenue-paid、entrypoint=skills/earn/lancers/scripts/paid-owner、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-gig-lancers",
+        "E-gig-lancers",
         "OC-046"
       ],
       "boundary": "production"
@@ -1139,7 +1139,7 @@
       "change": "owner=lancers-revenue-storefront、entrypoint=skills/earn/lancers/scripts/storefront-owner、cadence={\"start_interval_seconds\": 1800}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-gig-lancers",
+        "E-gig-lancers",
         "OC-046"
       ],
       "boundary": "production"
@@ -1151,7 +1151,7 @@
       "change": "owner=lancers-revenue-telegram-report、entrypoint=skills/earn/lancers/scripts/telegram-report-owner、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-gig-lancers",
+        "E-gig-lancers",
         "OC-046"
       ],
       "boundary": "production"
@@ -1163,7 +1163,7 @@
       "change": "owner=lancers-revenue-work-sync、entrypoint=skills/earn/lancers/scripts/work-sync-owner、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-gig-lancers",
+        "E-gig-lancers",
         "OC-046"
       ],
       "boundary": "production"
@@ -1220,7 +1220,7 @@
       "change": "owner=crowdworks-revenue-application、entrypoint=skills/earn/crowdworks/scripts/application-owner、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-gig-crowdworks",
+        "E-gig-crowdworks",
         "OC-046"
       ],
       "boundary": "production"
@@ -1232,7 +1232,7 @@
       "change": "owner=crowdworks-revenue-paid、entrypoint=skills/earn/crowdworks/scripts/paid-owner、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-gig-crowdworks",
+        "E-gig-crowdworks",
         "OC-046"
       ],
       "boundary": "production"
@@ -1244,7 +1244,7 @@
       "change": "owner=crowdworks-revenue-reply、entrypoint=skills/earn/crowdworks/scripts/reply-owner、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-gig-crowdworks",
+        "E-gig-crowdworks",
         "OC-046"
       ],
       "boundary": "production"
@@ -1256,7 +1256,7 @@
       "change": "owner=crowdworks-revenue-report、entrypoint=skills/earn/crowdworks/scripts/report-owner、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-gig-crowdworks",
+        "E-gig-crowdworks",
         "OC-046"
       ],
       "boundary": "production"
@@ -1311,7 +1311,7 @@
       "change": "owner=mercor-revenue-application、entrypoint=skills/earn/mercor/scripts/application-owner、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-gig-mercor",
+        "E-gig-mercor",
         "OC-046"
       ],
       "boundary": "production"
@@ -1323,7 +1323,7 @@
       "change": "owner=mercor-revenue-paid、entrypoint=skills/earn/mercor/scripts/paid-owner、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-gig-mercor",
+        "E-gig-mercor",
         "OC-046"
       ],
       "boundary": "production"
@@ -1335,7 +1335,7 @@
       "change": "owner=mercor-revenue-reply、entrypoint=skills/earn/mercor/scripts/reply-owner、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-gig-mercor",
+        "E-gig-mercor",
         "OC-046"
       ],
       "boundary": "production"
@@ -1390,7 +1390,7 @@
       "change": "owner=promptbase-loop-daily、entrypoint=skills/earn/promptbase/daily.sh、cadence={\"calendar_interval\": {\"Hour\": 4, \"Minute\": 20}}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-promptbase",
+        "E-promptbase",
         "OC-046"
       ],
       "boundary": "production"
@@ -1443,7 +1443,7 @@
       "change": "owner=writer-claim-loop、entrypoint=skills/writer-agent/scripts/claim-loop-owner、cadence={\"start_interval_seconds\": 900}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-writer",
+        "E-writer",
         "OC-046"
       ],
       "boundary": "production"
@@ -1455,7 +1455,7 @@
       "change": "owner=writer-craft-train、entrypoint=skills/writer-agent/scripts/craft-train-owner、cadence={\"calendar_interval\": {\"Hour\": 23, \"Minute\": 10}}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-writer",
+        "E-writer",
         "OC-046"
       ],
       "boundary": "production"
@@ -1467,7 +1467,7 @@
       "change": "owner=writer-money-sync、entrypoint=skills/writer-agent/scripts/money-sync-owner、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-writer",
+        "E-writer",
         "OC-046"
       ],
       "boundary": "production"
@@ -1479,7 +1479,7 @@
       "change": "owner=writer-opportunity-discovery、entrypoint=skills/writer-agent/scripts/opportunity-discovery-owner、cadence={\"start_interval_seconds\": 86400}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-writer",
+        "E-writer",
         "OC-046"
       ],
       "boundary": "production"
@@ -1491,7 +1491,7 @@
       "change": "owner=writer-opportunity-response、entrypoint=skills/writer-agent/scripts/opportunity-response-owner、cadence={\"start_interval_seconds\": 900}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-writer",
+        "E-writer",
         "OC-046"
       ],
       "boundary": "production"
@@ -1503,7 +1503,7 @@
       "change": "owner=writer-report、entrypoint=skills/writer-agent/scripts/writer-report-owner、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-writer",
+        "E-writer",
         "OC-046"
       ],
       "boundary": "production"
@@ -1515,7 +1515,7 @@
       "change": "owner=writer-sales-measure、entrypoint=skills/writer-agent/scripts/writer-sales-measure-worker.sh、cadence={\"start_interval_seconds\": 3600}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-writer",
+        "E-writer",
         "OC-046"
       ],
       "boundary": "production"
@@ -1573,7 +1573,7 @@
       "change": "owner=affiliate-composition、entrypoint=skills/affiliate/affiliate、cadence={\"start_interval_seconds\": 600}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-affiliate",
+        "E-affiliate",
         "OC-046"
       ],
       "boundary": "production"
@@ -1585,7 +1585,7 @@
       "change": "owner=affiliate-loop、entrypoint=skills/affiliate/affiliate、cadence={\"start_interval_seconds\": 600}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-affiliate",
+        "E-affiliate",
         "OC-046"
       ],
       "boundary": "production"
@@ -1597,7 +1597,7 @@
       "change": "owner=affiliate-source-refresh、entrypoint=skills/affiliate/affiliate、cadence={\"start_interval_seconds\": 600}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-affiliate",
+        "E-affiliate",
         "OC-046"
       ],
       "boundary": "production"
@@ -1651,7 +1651,7 @@
       "change": "owner=alpaca-investment-paper、entrypoint=skills/alpaca-investment/run.py、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-investment",
+        "E-investment",
         "OC-046"
       ],
       "boundary": "production"
@@ -1663,7 +1663,7 @@
       "change": "owner=alpaca-investment-live、entrypoint=skills/alpaca-investment/run.py、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-investment",
+        "E-investment",
         "OC-046"
       ],
       "boundary": "production"
@@ -1675,7 +1675,7 @@
       "change": "owner=investment-cross-venue-report、entrypoint=apps/life-manager/investment-core/cross_venue_run.py、cadence={\"start_interval_seconds\": 86400}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-investment",
+        "E-investment",
         "OC-046"
       ],
       "boundary": "production"
@@ -1687,7 +1687,7 @@
       "change": "owner=investment-strategy-validation、entrypoint=skills/alpaca-investment/validation_runner.py、cadence={\"calendar_interval\": {\"Weekday\": 2, \"Hour\": 14, \"Minute\": 30}}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-investment",
+        "E-investment",
         "OC-046"
       ],
       "boundary": "production"
@@ -1743,7 +1743,7 @@
       "change": "owner=citizen-refill、entrypoint=bin/citizen-refill-launchd、cadence={\"start_interval_seconds\": 3600}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-agent-economy",
+        "E-agent-economy",
         "OC-046"
       ],
       "boundary": "production"
@@ -1755,7 +1755,7 @@
       "change": "owner=life-manager-x402-ledger、entrypoint=apps/life-manager/scripts/x402-sale-ledger-boot.sh、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-agent-economy",
+        "E-agent-economy",
         "OC-046"
       ],
       "boundary": "production"
@@ -1767,7 +1767,7 @@
       "change": "owner=sol-funding、entrypoint=skills/earn/sol-funding-owner、cadence={\"start_interval_seconds\": 60}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-agent-economy",
+        "E-agent-economy",
         "OC-046"
       ],
       "boundary": "production"
@@ -1779,7 +1779,7 @@
       "change": "owner=x402-acquisition-controller、entrypoint=skills/earn/x402-sell/acquisition-controller-boot.sh、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-agent-economy",
+        "E-agent-economy",
         "OC-046"
       ],
       "boundary": "production"
@@ -1791,7 +1791,7 @@
       "change": "owner=x402-experiment-franklin1、entrypoint=skills/earn/x402-sell/experiment-tick.mjs、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-agent-economy",
+        "E-agent-economy",
         "OC-046"
       ],
       "boundary": "production"
@@ -1803,7 +1803,7 @@
       "change": "owner=x402-inflow-watch、entrypoint=skills/earn/x402-sell/watch-inflow.sh、cadence={\"calendar_interval\": [{\"Minute\": 5}, {\"Minute\": 35}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-agent-economy",
+        "E-agent-economy",
         "OC-046"
       ],
       "boundary": "production"
@@ -1815,7 +1815,7 @@
       "change": "owner=x402-inflow-watch-claude-p、entrypoint=skills/earn/x402-sell/watch-inflow.sh、cadence={\"calendar_interval\": [{\"Minute\": 5}, {\"Minute\": 35}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-agent-economy",
+        "E-agent-economy",
         "OC-046"
       ],
       "boundary": "production"
@@ -1827,7 +1827,7 @@
       "change": "owner=x402-inflow-watch-franklin1、entrypoint=skills/earn/x402-sell/watch-inflow.sh、cadence={\"calendar_interval\": [{\"Minute\": 5}, {\"Minute\": 35}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-agent-economy",
+        "E-agent-economy",
         "OC-046"
       ],
       "boundary": "production"
@@ -1839,7 +1839,7 @@
       "change": "owner=x402-inflow-watch-franklin2、entrypoint=skills/earn/x402-sell/watch-inflow.sh、cadence={\"calendar_interval\": [{\"Minute\": 5}, {\"Minute\": 35}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-agent-economy",
+        "E-agent-economy",
         "OC-046"
       ],
       "boundary": "production"
@@ -1851,7 +1851,7 @@
       "change": "owner=x402-sale-observer、entrypoint=skills/earn/x402-sell/sale-observer-boot.sh、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-agent-economy",
+        "E-agent-economy",
         "OC-046"
       ],
       "boundary": "production"
@@ -1863,7 +1863,7 @@
       "change": "owner=x402-settlement-recorder、entrypoint=skills/earn/x402-sell/settlement-recorder-boot.sh、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-agent-economy",
+        "E-agent-economy",
         "OC-046"
       ],
       "boundary": "production"
@@ -1925,7 +1925,7 @@
       "change": "owner=job-search-daily、entrypoint=apps/job-search-loop/scripts/run-daily.sh、cadence={\"start_interval_seconds\": 1800}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-job-hunter",
+        "E-job-hunter",
         "OC-046"
       ],
       "boundary": "production"
@@ -1937,7 +1937,7 @@
       "change": "owner=job-search-health、entrypoint=apps/job-search-loop/scripts/run-health.sh、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-job-hunter",
+        "E-job-hunter",
         "OC-046"
       ],
       "boundary": "production"
@@ -1949,7 +1949,7 @@
       "change": "owner=job-search-inbox、entrypoint=apps/job-search-loop/scripts/run-inbox.sh、cadence={\"start_interval_seconds\": 900}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-job-hunter",
+        "E-job-hunter",
         "OC-046"
       ],
       "boundary": "production"
@@ -1961,7 +1961,7 @@
       "change": "owner=job-search-learning、entrypoint=apps/job-search-loop/scripts/run-learning.sh、cadence={\"calendar_interval\": {\"Hour\": 9, \"Minute\": 15}}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-job-hunter",
+        "E-job-hunter",
         "OC-046"
       ],
       "boundary": "production"
@@ -2016,7 +2016,7 @@
       "change": "owner=fundraiser、entrypoint=skills/fundraiser-agent/runtime/run.sh、cadence={\"start_interval_seconds\": 3600}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-fundraiser",
+        "E-fundraiser",
         "OC-046"
       ],
       "boundary": "production"
@@ -2068,7 +2068,7 @@
       "change": "owner=life-manager-connector-native、entrypoint=skills/connector/run.sh、cadence={\"start_interval_seconds\": 1800}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-connector",
+        "E-connector",
         "OC-046"
       ],
       "boundary": "production"
@@ -2121,7 +2121,7 @@
       "change": "owner=life-manager-dev、entrypoint=apps/life-manager/scripts/life-manager-dev-daily.js、cadence={\"calendar_interval\": {\"Hour\": 4, \"Minute\": 10}}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-self-build",
+        "E-self-build",
         "OC-046"
       ],
       "boundary": "production"
@@ -2133,7 +2133,7 @@
       "change": "owner=life-manager-recovery-supervisor、entrypoint=runtime/loop/recovery-supervisor-cli.mjs、cadence={\"start_interval_seconds\": 60}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-self-build",
+        "E-self-build",
         "OC-046"
       ],
       "boundary": "production"
@@ -2145,7 +2145,7 @@
       "change": "owner=life-manager-selfbuild、entrypoint=skills/life-manager/self-build-daily.sh、cadence={\"calendar_interval\": {\"Hour\": 4, \"Minute\": 10}}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-self-build",
+        "E-self-build",
         "OC-046"
       ],
       "boundary": "production"
@@ -2157,7 +2157,7 @@
       "change": "owner=self-improve-evolve、entrypoint=skills/earn/marketing-engine/report/scheduled_runner.py、cadence={\"start_interval_seconds\": 21600}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-self-build",
+        "E-self-build",
         "OC-046"
       ],
       "boundary": "production"
@@ -2213,7 +2213,7 @@
       "change": "owner=life-manager-anicca-affirmation-youtube、entrypoint=apps/life-manager/scripts/mobile-app、cadence={\"calendar_interval\": [{\"Hour\": 8, \"Minute\": 15}, {\"Hour\": 14, \"Minute\": 15}, {\"Hour\": 20, \"Minute\": 15}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-mobile-apps",
+        "E-mobile-apps",
         "OC-046"
       ],
       "boundary": "production"
@@ -2225,7 +2225,7 @@
       "change": "owner=life-manager-anicca-ai-youtube、entrypoint=apps/life-manager/scripts/mobile-app、cadence={\"calendar_interval\": [{\"Hour\": 7, \"Minute\": 45}, {\"Hour\": 13, \"Minute\": 15}, {\"Hour\": 19, \"Minute\": 45}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-mobile-apps",
+        "E-mobile-apps",
         "OC-046"
       ],
       "boundary": "production"
@@ -2237,7 +2237,7 @@
       "change": "owner=life-manager-anicca-buddha-tiktok、entrypoint=apps/life-manager/scripts/mobile-app、cadence={\"calendar_interval\": [{\"Hour\": 7, \"Minute\": 0}, {\"Hour\": 13, \"Minute\": 0}, {\"Hour\": 20, \"Minute\": 0}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-mobile-apps",
+        "E-mobile-apps",
         "OC-046"
       ],
       "boundary": "production"
@@ -2249,7 +2249,7 @@
       "change": "owner=life-manager-anicca-en-affirmation-instagram、entrypoint=apps/life-manager/scripts/mobile-app、cadence={\"calendar_interval\": [{\"Hour\": 10, \"Minute\": 0}, {\"Hour\": 15, \"Minute\": 0}, {\"Hour\": 20, \"Minute\": 0}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-mobile-apps",
+        "E-mobile-apps",
         "OC-046"
       ],
       "boundary": "production"
@@ -2261,7 +2261,7 @@
       "change": "owner=life-manager-anicca-en-affirmation-tiktok、entrypoint=apps/life-manager/scripts/mobile-app、cadence={\"calendar_interval\": [{\"Hour\": 9, \"Minute\": 15}, {\"Hour\": 14, \"Minute\": 15}, {\"Hour\": 20, \"Minute\": 15}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-mobile-apps",
+        "E-mobile-apps",
         "OC-046"
       ],
       "boundary": "production"
@@ -2273,7 +2273,7 @@
       "change": "owner=life-manager-anicca-en-card-instagram、entrypoint=apps/life-manager/scripts/mobile-app、cadence={\"calendar_interval\": [{\"Hour\": 8, \"Minute\": 45}, {\"Hour\": 12, \"Minute\": 45}, {\"Hour\": 21, \"Minute\": 30}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-mobile-apps",
+        "E-mobile-apps",
         "OC-046"
       ],
       "boundary": "production"
@@ -2285,7 +2285,7 @@
       "change": "owner=life-manager-anicca-en-slideshow-tiktok、entrypoint=apps/life-manager/scripts/mobile-app、cadence={\"calendar_interval\": [{\"Hour\": 9, \"Minute\": 0}, {\"Hour\": 15, \"Minute\": 0}, {\"Hour\": 21, \"Minute\": 0}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-mobile-apps",
+        "E-mobile-apps",
         "OC-046"
       ],
       "boundary": "production"
@@ -2297,7 +2297,7 @@
       "change": "owner=life-manager-anicca-en-widget-instagram、entrypoint=apps/life-manager/scripts/mobile-app、cadence={\"calendar_interval\": [{\"Hour\": 7, \"Minute\": 30}, {\"Hour\": 9, \"Minute\": 30}, {\"Hour\": 19, \"Minute\": 0}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-mobile-apps",
+        "E-mobile-apps",
         "OC-046"
       ],
       "boundary": "production"
@@ -2309,7 +2309,7 @@
       "change": "owner=life-manager-anicca-en2-affirmation-tiktok、entrypoint=apps/life-manager/scripts/mobile-app、cadence={\"calendar_interval\": [{\"Hour\": 9, \"Minute\": 30}, {\"Hour\": 14, \"Minute\": 30}, {\"Hour\": 20, \"Minute\": 30}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-mobile-apps",
+        "E-mobile-apps",
         "OC-046"
       ],
       "boundary": "production"
@@ -2321,7 +2321,7 @@
       "change": "owner=life-manager-anicca-he、entrypoint=apps/life-manager/scripts/mobile-app、cadence={\"calendar_interval\": [{\"Hour\": 7, \"Minute\": 15}, {\"Hour\": 13, \"Minute\": 45}, {\"Hour\": 18, \"Minute\": 15}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-mobile-apps",
+        "E-mobile-apps",
         "OC-046"
       ],
       "boundary": "production"
@@ -2333,7 +2333,7 @@
       "change": "owner=life-manager-anicca-ja-widget-instagram、entrypoint=apps/life-manager/scripts/mobile-app、cadence={\"calendar_interval\": [{\"Hour\": 8, \"Minute\": 5}, {\"Hour\": 13, \"Minute\": 5}, {\"Hour\": 18, \"Minute\": 20}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-mobile-apps",
+        "E-mobile-apps",
         "OC-046"
       ],
       "boundary": "production"
@@ -2345,7 +2345,7 @@
       "change": "owner=life-manager-anicca-jp1-tiktok、entrypoint=apps/life-manager/scripts/mobile-app、cadence={\"calendar_interval\": [{\"Hour\": 6, \"Minute\": 30}, {\"Hour\": 12, \"Minute\": 0}, {\"Hour\": 18, \"Minute\": 0}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-mobile-apps",
+        "E-mobile-apps",
         "OC-046"
       ],
       "boundary": "production"
@@ -2357,7 +2357,7 @@
       "change": "owner=life-manager-anicca-jp4、entrypoint=apps/life-manager/scripts/mobile-app、cadence={\"calendar_interval\": [{\"Hour\": 9, \"Minute\": 15}, {\"Hour\": 15, \"Minute\": 15}, {\"Hour\": 20, \"Minute\": 45}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-mobile-apps",
+        "E-mobile-apps",
         "OC-046"
       ],
       "boundary": "production"
@@ -2369,7 +2369,7 @@
       "change": "owner=life-manager-anicca-larry-ja-instagram、entrypoint=apps/life-manager/scripts/mobile-app、cadence={\"calendar_interval\": [{\"Hour\": 10, \"Minute\": 30}, {\"Hour\": 16, \"Minute\": 30}, {\"Hour\": 22, \"Minute\": 30}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-mobile-apps",
+        "E-mobile-apps",
         "OC-046"
       ],
       "boundary": "production"
@@ -2381,7 +2381,7 @@
       "change": "owner=life-manager-anicca-main-instagram、entrypoint=apps/life-manager/scripts/mobile-app、cadence={\"calendar_interval\": [{\"Hour\": 8, \"Minute\": 10}, {\"Hour\": 13, \"Minute\": 10}, {\"Hour\": 19, \"Minute\": 10}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-mobile-apps",
+        "E-mobile-apps",
         "OC-046"
       ],
       "boundary": "production"
@@ -2393,7 +2393,7 @@
       "change": "owner=life-manager-anicca-main-tiktok、entrypoint=apps/life-manager/scripts/mobile-app、cadence={\"calendar_interval\": [{\"Hour\": 8, \"Minute\": 0}, {\"Hour\": 16, \"Minute\": 0}, {\"Hour\": 22, \"Minute\": 37}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-mobile-apps",
+        "E-mobile-apps",
         "OC-046"
       ],
       "boundary": "production"
@@ -2405,7 +2405,7 @@
       "change": "owner=life-manager-daily、entrypoint=skills/life-manager/life-manager-daily.sh、cadence={\"calendar_interval\": {\"Hour\": 10, \"Minute\": 15}}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-mobile-apps",
+        "E-mobile-apps",
         "OC-046"
       ],
       "boundary": "production"
@@ -2417,7 +2417,7 @@
       "change": "owner=life-manager-honne-en、entrypoint=apps/life-manager/scripts/mobile-app、cadence={\"calendar_interval\": [{\"Hour\": 7, \"Minute\": 0}, {\"Hour\": 11, \"Minute\": 0}, {\"Hour\": 20, \"Minute\": 30}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-mobile-apps",
+        "E-mobile-apps",
         "OC-046"
       ],
       "boundary": "production"
@@ -2429,7 +2429,7 @@
       "change": "owner=life-manager-honne-ja、entrypoint=apps/life-manager/scripts/mobile-app、cadence={\"calendar_interval\": [{\"Hour\": 8, \"Minute\": 30}, {\"Hour\": 12, \"Minute\": 30}, {\"Hour\": 21, \"Minute\": 30}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-mobile-apps",
+        "E-mobile-apps",
         "OC-046"
       ],
       "boundary": "production"
@@ -2441,7 +2441,7 @@
       "change": "owner=life-manager-instagram-metrics、entrypoint=apps/life-manager/scripts/instagram-metrics-production-boot.sh、cadence={\"start_interval_seconds\": 1800}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-mobile-apps",
+        "E-mobile-apps",
         "OC-046"
       ],
       "boundary": "production"
@@ -2453,7 +2453,7 @@
       "change": "owner=life-manager-tiktok-metrics、entrypoint=apps/life-manager/scripts/tiktok-metrics-production-boot.sh、cadence={\"start_interval_seconds\": 1800}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-mobile-apps",
+        "E-mobile-apps",
         "OC-046"
       ],
       "boundary": "production"
@@ -2525,7 +2525,7 @@
       "change": "owner=ebook-en-instagram-daily、entrypoint=apps/life-manager/scripts/ebook-distribute-daily.sh、cadence={\"calendar_interval\": [{\"Hour\": 8, \"Minute\": 0}, {\"Hour\": 14, \"Minute\": 0}, {\"Hour\": 21, \"Minute\": 0}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-ebook",
+        "E-ebook",
         "OC-046"
       ],
       "boundary": "production"
@@ -2537,7 +2537,7 @@
       "change": "owner=ebook-en-tiktok-daily、entrypoint=apps/life-manager/scripts/ebook-distribute-daily.sh、cadence={\"calendar_interval\": [{\"Hour\": 8, \"Minute\": 0}, {\"Hour\": 14, \"Minute\": 0}, {\"Hour\": 21, \"Minute\": 0}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-ebook",
+        "E-ebook",
         "OC-046"
       ],
       "boundary": "production"
@@ -2549,7 +2549,7 @@
       "change": "owner=ebook-ja-instagram-daily、entrypoint=apps/life-manager/scripts/ebook-distribute-daily.sh、cadence={\"calendar_interval\": [{\"Hour\": 7, \"Minute\": 0}, {\"Hour\": 12, \"Minute\": 30}, {\"Hour\": 20, \"Minute\": 0}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-ebook",
+        "E-ebook",
         "OC-046"
       ],
       "boundary": "production"
@@ -2561,7 +2561,7 @@
       "change": "owner=ebook-ja-tiktok-daily、entrypoint=apps/life-manager/scripts/ebook-distribute-daily.sh、cadence={\"calendar_interval\": [{\"Hour\": 7, \"Minute\": 0}, {\"Hour\": 12, \"Minute\": 30}, {\"Hour\": 20, \"Minute\": 0}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-ebook",
+        "E-ebook",
         "OC-046"
       ],
       "boundary": "production"
@@ -2616,7 +2616,7 @@
       "change": "owner=capafy-distribute-daily、entrypoint=skills/earn/capafy-marketing/capafy-distribute-daily.sh、cadence={\"calendar_interval\": [{\"Hour\": 1, \"Minute\": 15}, {\"Hour\": 4, \"Minute\": 15}, {\"Hour\": 7, \"Minute\": 15}, {\"Hour\": 10, \"Minute\": 15}, {\"Hour\": 13, \"Minute\": 15}, {\"Hour\": 16, \"Minute\": 15}, {\"Hour\": 19, \"Minute\": 15}, {\"Hour\": 22, \"Minute\": 15}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-capafy",
+        "E-capafy",
         "OC-046"
       ],
       "boundary": "production"
@@ -2628,7 +2628,7 @@
       "change": "owner=capafy-goal-monitor、entrypoint=skills/earn/capafy-marketing/capafy-goal-monitor.sh、cadence={\"calendar_interval\": {\"Hour\": 9, \"Minute\": 30}}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-capafy",
+        "E-capafy",
         "OC-046"
       ],
       "boundary": "production"
@@ -2640,7 +2640,7 @@
       "change": "owner=capafy-goal-monitor-daily-close、entrypoint=skills/earn/capafy-marketing/capafy-goal-monitor.sh、cadence={\"calendar_interval\": {\"Hour\": 23, \"Minute\": 50}}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-capafy",
+        "E-capafy",
         "OC-046"
       ],
       "boundary": "production"
@@ -2652,7 +2652,7 @@
       "change": "owner=capafy-goal-monitor-hourly、entrypoint=skills/earn/capafy-marketing/capafy-goal-monitor.sh、cadence={\"calendar_interval\": {\"Minute\": 7}}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-capafy",
+        "E-capafy",
         "OC-046"
       ],
       "boundary": "production"
@@ -2664,7 +2664,7 @@
       "change": "owner=capafy-ig-account-manager、entrypoint=skills/earn/capafy-marketing/capafy-ig-account-manager.sh、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-capafy",
+        "E-capafy",
         "OC-046"
       ],
       "boundary": "production"
@@ -2676,7 +2676,7 @@
       "change": "owner=capafy-ig-marketing-daily、entrypoint=skills/earn/capafy-marketing/capafy-ig-marketing-daily.sh、cadence={\"start_interval_seconds\": 3600}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-capafy",
+        "E-capafy",
         "OC-046"
       ],
       "boundary": "production"
@@ -2688,7 +2688,7 @@
       "change": "owner=capafy-loop-daily、entrypoint=skills/self/capafy-loop/capafy-loop-daily.sh、cadence={\"start_interval_seconds\": 900}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-capafy",
+        "E-capafy",
         "OC-046"
       ],
       "boundary": "production"
@@ -2700,7 +2700,7 @@
       "change": "owner=capafy-loop-healthcheck、entrypoint=skills/self/capafy-loop/capafy-loop-healthcheck.sh、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-capafy",
+        "E-capafy",
         "OC-046"
       ],
       "boundary": "production"
@@ -2712,7 +2712,7 @@
       "change": "owner=capafy-outcome-monitor、entrypoint=skills/earn/capafy-marketing/capafy-outcome-monitor.sh、cadence={\"start_interval_seconds\": 60}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-capafy",
+        "E-capafy",
         "OC-046"
       ],
       "boundary": "production"
@@ -2724,7 +2724,7 @@
       "change": "owner=life-manager-capafy-ig、entrypoint=apps/life-manager/scripts/capafy-ig-reel、cadence={\"calendar_interval\": [{\"Hour\": 9, \"Minute\": 0}, {\"Hour\": 14, \"Minute\": 0}, {\"Hour\": 20, \"Minute\": 0}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-capafy",
+        "E-capafy",
         "OC-046"
       ],
       "boundary": "production"
@@ -2788,7 +2788,7 @@
       "change": "owner=line-sticker-factory-hourly、entrypoint=skills/earn/line-sticker/line-sticker-factory.sh、cadence={\"start_interval_seconds\": 900}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-line-sticker",
+        "E-line-sticker",
         "OC-046"
       ],
       "boundary": "production"
@@ -2800,7 +2800,7 @@
       "change": "owner=line-sticker-readback-hourly、entrypoint=skills/earn/line-sticker/line-sticker-readback.sh、cadence={\"calendar_interval\": {\"Minute\": 23}}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-line-sticker",
+        "E-line-sticker",
         "OC-046"
       ],
       "boundary": "production"
@@ -2853,7 +2853,7 @@
       "change": "owner=life-manager-cfo-hourly、entrypoint=skills/cfo/run.sh、cadence={\"start_interval_seconds\": 3600}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-cfo",
+        "E-cfo",
         "OC-046"
       ],
       "boundary": "production"
@@ -2865,7 +2865,7 @@
       "change": "owner=life-manager-financial-report、entrypoint=apps/life-manager/scripts/financial-report-boot.sh、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-cfo",
+        "E-cfo",
         "OC-046"
       ],
       "boundary": "production"
@@ -2877,7 +2877,7 @@
       "change": "owner=life-manager-payout、entrypoint=apps/life-manager/scripts/payout-boot.sh、cadence={\"start_interval_seconds\": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。",
       "checks": "新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。",
       "depends": [
-        "A-cfo",
+        "E-cfo",
         "OC-046"
       ],
       "boundary": "production"
@@ -2893,6 +2893,204 @@
         "S-life-manager-cfo-hourly",
         "S-life-manager-financial-report",
         "S-life-manager-payout"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "E-gig-coconala",
+      "target": "docs/evidence/openclaw-cutover/engines/gig-coconala-natural.json",
+      "symbol": "verify_engine_natural(gig-coconala)",
+      "change": "旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。",
+      "checks": "対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。",
+      "depends": [
+        "A-gig-coconala"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "E-gig-lancers",
+      "target": "docs/evidence/openclaw-cutover/engines/gig-lancers-natural.json",
+      "symbol": "verify_engine_natural(gig-lancers)",
+      "change": "旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。",
+      "checks": "対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。",
+      "depends": [
+        "A-gig-lancers"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "E-gig-crowdworks",
+      "target": "docs/evidence/openclaw-cutover/engines/gig-crowdworks-natural.json",
+      "symbol": "verify_engine_natural(gig-crowdworks)",
+      "change": "旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。",
+      "checks": "対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。",
+      "depends": [
+        "A-gig-crowdworks"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "E-gig-mercor",
+      "target": "docs/evidence/openclaw-cutover/engines/gig-mercor-natural.json",
+      "symbol": "verify_engine_natural(gig-mercor)",
+      "change": "旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。",
+      "checks": "対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。",
+      "depends": [
+        "A-gig-mercor"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "E-promptbase",
+      "target": "docs/evidence/openclaw-cutover/engines/promptbase-natural.json",
+      "symbol": "verify_engine_natural(promptbase)",
+      "change": "旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。",
+      "checks": "対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。",
+      "depends": [
+        "A-promptbase"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "E-writer",
+      "target": "docs/evidence/openclaw-cutover/engines/writer-natural.json",
+      "symbol": "verify_engine_natural(writer)",
+      "change": "旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。",
+      "checks": "対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。",
+      "depends": [
+        "A-writer"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "E-affiliate",
+      "target": "docs/evidence/openclaw-cutover/engines/affiliate-natural.json",
+      "symbol": "verify_engine_natural(affiliate)",
+      "change": "旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。",
+      "checks": "対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。",
+      "depends": [
+        "A-affiliate"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "E-investment",
+      "target": "docs/evidence/openclaw-cutover/engines/investment-natural.json",
+      "symbol": "verify_engine_natural(investment)",
+      "change": "旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。",
+      "checks": "対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。",
+      "depends": [
+        "A-investment"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "E-agent-economy",
+      "target": "docs/evidence/openclaw-cutover/engines/agent-economy-natural.json",
+      "symbol": "verify_engine_natural(agent-economy)",
+      "change": "旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。",
+      "checks": "対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。",
+      "depends": [
+        "A-agent-economy"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "E-job-hunter",
+      "target": "docs/evidence/openclaw-cutover/engines/job-hunter-natural.json",
+      "symbol": "verify_engine_natural(job-hunter)",
+      "change": "旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。",
+      "checks": "対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。",
+      "depends": [
+        "A-job-hunter"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "E-fundraiser",
+      "target": "docs/evidence/openclaw-cutover/engines/fundraiser-natural.json",
+      "symbol": "verify_engine_natural(fundraiser)",
+      "change": "旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。",
+      "checks": "対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。",
+      "depends": [
+        "A-fundraiser"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "E-connector",
+      "target": "docs/evidence/openclaw-cutover/engines/connector-natural.json",
+      "symbol": "verify_engine_natural(connector)",
+      "change": "旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。",
+      "checks": "対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。",
+      "depends": [
+        "A-connector"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "E-self-build",
+      "target": "docs/evidence/openclaw-cutover/engines/self-build-natural.json",
+      "symbol": "verify_engine_natural(self-build)",
+      "change": "旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。",
+      "checks": "対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。",
+      "depends": [
+        "A-self-build"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "E-mobile-apps",
+      "target": "docs/evidence/openclaw-cutover/engines/mobile-apps-natural.json",
+      "symbol": "verify_engine_natural(mobile-apps)",
+      "change": "旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。",
+      "checks": "対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。",
+      "depends": [
+        "A-mobile-apps"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "E-ebook",
+      "target": "docs/evidence/openclaw-cutover/engines/ebook-natural.json",
+      "symbol": "verify_engine_natural(ebook)",
+      "change": "旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。",
+      "checks": "対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。",
+      "depends": [
+        "A-ebook"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "E-capafy",
+      "target": "docs/evidence/openclaw-cutover/engines/capafy-natural.json",
+      "symbol": "verify_engine_natural(capafy)",
+      "change": "旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。",
+      "checks": "対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。",
+      "depends": [
+        "A-capafy"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "E-line-sticker",
+      "target": "docs/evidence/openclaw-cutover/engines/line-sticker-natural.json",
+      "symbol": "verify_engine_natural(line-sticker)",
+      "change": "旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。",
+      "checks": "対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。",
+      "depends": [
+        "A-line-sticker"
+      ],
+      "boundary": "production"
+    },
+    {
+      "id": "E-cfo",
+      "target": "docs/evidence/openclaw-cutover/engines/cfo-natural.json",
+      "symbol": "verify_engine_natural(cfo)",
+      "change": "旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。",
+      "checks": "対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。",
+      "depends": [
+        "A-cfo"
       ],
       "boundary": "production"
     }

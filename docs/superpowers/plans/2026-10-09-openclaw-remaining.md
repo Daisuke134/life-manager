@@ -21,7 +21,7 @@
 
 ## 全atom
 
-baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223設計との差分は追加2jobとOC008画像/continuation follow-up。これは完了率ではない。
+baseline: 18分類 / 113jobs / finite 95 / continuous 18。残233atom。旧223設計との差分は追加2jobとOC008画像/continuation follow-up、engine自然確認をscheduler移管前の18atomへ明示。これは完了率ではない。
 
 ### OC-011 — readSession(client, {sessionKey,agentId}) -> Promise<object>
 
@@ -311,7 +311,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 検証/完了: test_schedule_transfer.py: 別owner継続、unknownはreconcileへ、effect resend0。
 - 依存: OC-046
 
-### OC-048 — _kick_reserved_owners() scheduler dispatch
+### OC-048 — _dispatch_reserved(loop_ids, ...) scheduler dispatch
 
 - 対象: `runtime/loop/lm_loop_run.py`
 - 境界: `isolated_source`
@@ -573,7 +573,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=hf-gig-apply-direct、entrypoint=runtime/loop/entry_dispatch.py、cadence={"start_interval_seconds": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-gig-coconala, OC-046
+- 依存: E-gig-coconala, OC-046
 
 ### S-hf-gig-apply-evidence-gc — commit_transfer(hf-gig-apply-evidence-gc)
 
@@ -581,7 +581,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=hf-gig-apply-evidence-gc、entrypoint=skills/earn/gig/scripts/evidence_gc.py、cadence={"start_interval_seconds": 21600}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-gig-coconala, OC-046
+- 依存: E-gig-coconala, OC-046
 
 ### S-hf-gig-daily-report — commit_transfer(hf-gig-daily-report)
 
@@ -589,7 +589,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=hf-gig-daily-report、entrypoint=skills/earn/gig/gig_daily_report.sh、cadence={"calendar_interval": {"Hour": 9, "Minute": 7}}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-gig-coconala, OC-046
+- 依存: E-gig-coconala, OC-046
 
 ### S-hf-gig-paid-direct — commit_transfer(hf-gig-paid-direct)
 
@@ -597,7 +597,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=hf-gig-paid-direct、entrypoint=skills/earn/gig/scripts/paid-direct-owner、cadence={"start_interval_seconds": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-gig-coconala, OC-046
+- 依存: E-gig-coconala, OC-046
 
 ### S-hf-gig-reply-detector — commit_transfer(hf-gig-reply-detector)
 
@@ -605,7 +605,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=hf-gig-reply-detector、entrypoint=skills/earn/gig/scripts/coconala-reply-owner、cadence={"start_interval_seconds": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-gig-coconala, OC-046
+- 依存: E-gig-coconala, OC-046
 
 ### S-hf-gig-storefront-direct — commit_transfer(hf-gig-storefront-direct)
 
@@ -613,7 +613,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=hf-gig-storefront-direct、entrypoint=runtime/loop/entry_dispatch.py、cadence={"start_interval_seconds": 60}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-gig-coconala, OC-046
+- 依存: E-gig-coconala, OC-046
 
 ### V-gig-coconala — verify_natural(gig-coconala)
 
@@ -645,7 +645,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=lancers-revenue-application、entrypoint=skills/earn/lancers/scripts/application-owner、cadence={"start_interval_seconds": 60}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-gig-lancers, OC-046
+- 依存: E-gig-lancers, OC-046
 
 ### S-lancers-revenue-negotiate — commit_transfer(lancers-revenue-negotiate)
 
@@ -653,7 +653,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=lancers-revenue-negotiate、entrypoint=skills/earn/lancers/scripts/negotiate-owner、cadence={"start_interval_seconds": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-gig-lancers, OC-046
+- 依存: E-gig-lancers, OC-046
 
 ### S-lancers-revenue-paid — commit_transfer(lancers-revenue-paid)
 
@@ -661,7 +661,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=lancers-revenue-paid、entrypoint=skills/earn/lancers/scripts/paid-owner、cadence={"start_interval_seconds": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-gig-lancers, OC-046
+- 依存: E-gig-lancers, OC-046
 
 ### S-lancers-revenue-storefront — commit_transfer(lancers-revenue-storefront)
 
@@ -669,7 +669,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=lancers-revenue-storefront、entrypoint=skills/earn/lancers/scripts/storefront-owner、cadence={"start_interval_seconds": 1800}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-gig-lancers, OC-046
+- 依存: E-gig-lancers, OC-046
 
 ### S-lancers-revenue-telegram-report — commit_transfer(lancers-revenue-telegram-report)
 
@@ -677,7 +677,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=lancers-revenue-telegram-report、entrypoint=skills/earn/lancers/scripts/telegram-report-owner、cadence={"start_interval_seconds": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-gig-lancers, OC-046
+- 依存: E-gig-lancers, OC-046
 
 ### S-lancers-revenue-work-sync — commit_transfer(lancers-revenue-work-sync)
 
@@ -685,7 +685,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=lancers-revenue-work-sync、entrypoint=skills/earn/lancers/scripts/work-sync-owner、cadence={"start_interval_seconds": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-gig-lancers, OC-046
+- 依存: E-gig-lancers, OC-046
 
 ### V-gig-lancers — verify_natural(gig-lancers)
 
@@ -717,7 +717,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=crowdworks-revenue-application、entrypoint=skills/earn/crowdworks/scripts/application-owner、cadence={"start_interval_seconds": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-gig-crowdworks, OC-046
+- 依存: E-gig-crowdworks, OC-046
 
 ### S-crowdworks-revenue-paid — commit_transfer(crowdworks-revenue-paid)
 
@@ -725,7 +725,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=crowdworks-revenue-paid、entrypoint=skills/earn/crowdworks/scripts/paid-owner、cadence={"start_interval_seconds": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-gig-crowdworks, OC-046
+- 依存: E-gig-crowdworks, OC-046
 
 ### S-crowdworks-revenue-reply — commit_transfer(crowdworks-revenue-reply)
 
@@ -733,7 +733,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=crowdworks-revenue-reply、entrypoint=skills/earn/crowdworks/scripts/reply-owner、cadence={"start_interval_seconds": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-gig-crowdworks, OC-046
+- 依存: E-gig-crowdworks, OC-046
 
 ### S-crowdworks-revenue-report — commit_transfer(crowdworks-revenue-report)
 
@@ -741,7 +741,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=crowdworks-revenue-report、entrypoint=skills/earn/crowdworks/scripts/report-owner、cadence={"start_interval_seconds": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-gig-crowdworks, OC-046
+- 依存: E-gig-crowdworks, OC-046
 
 ### V-gig-crowdworks — verify_natural(gig-crowdworks)
 
@@ -773,7 +773,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=mercor-revenue-application、entrypoint=skills/earn/mercor/scripts/application-owner、cadence={"start_interval_seconds": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-gig-mercor, OC-046
+- 依存: E-gig-mercor, OC-046
 
 ### S-mercor-revenue-paid — commit_transfer(mercor-revenue-paid)
 
@@ -781,7 +781,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=mercor-revenue-paid、entrypoint=skills/earn/mercor/scripts/paid-owner、cadence={"start_interval_seconds": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-gig-mercor, OC-046
+- 依存: E-gig-mercor, OC-046
 
 ### S-mercor-revenue-reply — commit_transfer(mercor-revenue-reply)
 
@@ -789,7 +789,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=mercor-revenue-reply、entrypoint=skills/earn/mercor/scripts/reply-owner、cadence={"start_interval_seconds": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-gig-mercor, OC-046
+- 依存: E-gig-mercor, OC-046
 
 ### V-gig-mercor — verify_natural(gig-mercor)
 
@@ -821,7 +821,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=promptbase-loop-daily、entrypoint=skills/earn/promptbase/daily.sh、cadence={"calendar_interval": {"Hour": 4, "Minute": 20}}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-promptbase, OC-046
+- 依存: E-promptbase, OC-046
 
 ### V-promptbase — verify_natural(promptbase)
 
@@ -853,7 +853,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=writer-claim-loop、entrypoint=skills/writer-agent/scripts/claim-loop-owner、cadence={"start_interval_seconds": 900}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-writer, OC-046
+- 依存: E-writer, OC-046
 
 ### S-writer-craft-train — commit_transfer(writer-craft-train)
 
@@ -861,7 +861,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=writer-craft-train、entrypoint=skills/writer-agent/scripts/craft-train-owner、cadence={"calendar_interval": {"Hour": 23, "Minute": 10}}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-writer, OC-046
+- 依存: E-writer, OC-046
 
 ### S-writer-money-sync — commit_transfer(writer-money-sync)
 
@@ -869,7 +869,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=writer-money-sync、entrypoint=skills/writer-agent/scripts/money-sync-owner、cadence={"start_interval_seconds": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-writer, OC-046
+- 依存: E-writer, OC-046
 
 ### S-writer-opportunity-discovery — commit_transfer(writer-opportunity-discovery)
 
@@ -877,7 +877,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=writer-opportunity-discovery、entrypoint=skills/writer-agent/scripts/opportunity-discovery-owner、cadence={"start_interval_seconds": 86400}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-writer, OC-046
+- 依存: E-writer, OC-046
 
 ### S-writer-opportunity-response — commit_transfer(writer-opportunity-response)
 
@@ -885,7 +885,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=writer-opportunity-response、entrypoint=skills/writer-agent/scripts/opportunity-response-owner、cadence={"start_interval_seconds": 900}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-writer, OC-046
+- 依存: E-writer, OC-046
 
 ### S-writer-report — commit_transfer(writer-report)
 
@@ -893,7 +893,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=writer-report、entrypoint=skills/writer-agent/scripts/writer-report-owner、cadence={"start_interval_seconds": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-writer, OC-046
+- 依存: E-writer, OC-046
 
 ### S-writer-sales-measure — commit_transfer(writer-sales-measure)
 
@@ -901,7 +901,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=writer-sales-measure、entrypoint=skills/writer-agent/scripts/writer-sales-measure-worker.sh、cadence={"start_interval_seconds": 3600}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-writer, OC-046
+- 依存: E-writer, OC-046
 
 ### V-writer — verify_natural(writer)
 
@@ -933,7 +933,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=affiliate-composition、entrypoint=skills/affiliate/affiliate、cadence={"start_interval_seconds": 600}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-affiliate, OC-046
+- 依存: E-affiliate, OC-046
 
 ### S-affiliate-loop — commit_transfer(affiliate-loop)
 
@@ -941,7 +941,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=affiliate-loop、entrypoint=skills/affiliate/affiliate、cadence={"start_interval_seconds": 600}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-affiliate, OC-046
+- 依存: E-affiliate, OC-046
 
 ### S-affiliate-source-refresh — commit_transfer(affiliate-source-refresh)
 
@@ -949,7 +949,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=affiliate-source-refresh、entrypoint=skills/affiliate/affiliate、cadence={"start_interval_seconds": 600}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-affiliate, OC-046
+- 依存: E-affiliate, OC-046
 
 ### V-affiliate — verify_natural(affiliate)
 
@@ -981,7 +981,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=alpaca-investment-paper、entrypoint=skills/alpaca-investment/run.py、cadence={"start_interval_seconds": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-investment, OC-046
+- 依存: E-investment, OC-046
 
 ### S-alpaca-investment-live — commit_transfer(alpaca-investment-live)
 
@@ -989,7 +989,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=alpaca-investment-live、entrypoint=skills/alpaca-investment/run.py、cadence={"start_interval_seconds": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-investment, OC-046
+- 依存: E-investment, OC-046
 
 ### S-investment-cross-venue-report — commit_transfer(investment-cross-venue-report)
 
@@ -997,7 +997,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=investment-cross-venue-report、entrypoint=apps/life-manager/investment-core/cross_venue_run.py、cadence={"start_interval_seconds": 86400}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-investment, OC-046
+- 依存: E-investment, OC-046
 
 ### S-investment-strategy-validation — commit_transfer(investment-strategy-validation)
 
@@ -1005,7 +1005,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=investment-strategy-validation、entrypoint=skills/alpaca-investment/validation_runner.py、cadence={"calendar_interval": {"Weekday": 2, "Hour": 14, "Minute": 30}}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-investment, OC-046
+- 依存: E-investment, OC-046
 
 ### V-investment — verify_natural(investment)
 
@@ -1037,7 +1037,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=citizen-refill、entrypoint=bin/citizen-refill-launchd、cadence={"start_interval_seconds": 3600}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-agent-economy, OC-046
+- 依存: E-agent-economy, OC-046
 
 ### S-life-manager-x402-ledger — commit_transfer(life-manager-x402-ledger)
 
@@ -1045,7 +1045,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=life-manager-x402-ledger、entrypoint=apps/life-manager/scripts/x402-sale-ledger-boot.sh、cadence={"start_interval_seconds": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-agent-economy, OC-046
+- 依存: E-agent-economy, OC-046
 
 ### S-sol-funding — commit_transfer(sol-funding)
 
@@ -1053,7 +1053,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=sol-funding、entrypoint=skills/earn/sol-funding-owner、cadence={"start_interval_seconds": 60}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-agent-economy, OC-046
+- 依存: E-agent-economy, OC-046
 
 ### S-x402-acquisition-controller — commit_transfer(x402-acquisition-controller)
 
@@ -1061,7 +1061,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=x402-acquisition-controller、entrypoint=skills/earn/x402-sell/acquisition-controller-boot.sh、cadence={"start_interval_seconds": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-agent-economy, OC-046
+- 依存: E-agent-economy, OC-046
 
 ### S-x402-experiment-franklin1 — commit_transfer(x402-experiment-franklin1)
 
@@ -1069,7 +1069,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=x402-experiment-franklin1、entrypoint=skills/earn/x402-sell/experiment-tick.mjs、cadence={"start_interval_seconds": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-agent-economy, OC-046
+- 依存: E-agent-economy, OC-046
 
 ### S-x402-inflow-watch — commit_transfer(x402-inflow-watch)
 
@@ -1077,7 +1077,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=x402-inflow-watch、entrypoint=skills/earn/x402-sell/watch-inflow.sh、cadence={"calendar_interval": [{"Minute": 5}, {"Minute": 35}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-agent-economy, OC-046
+- 依存: E-agent-economy, OC-046
 
 ### S-x402-inflow-watch-claude-p — commit_transfer(x402-inflow-watch-claude-p)
 
@@ -1085,7 +1085,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=x402-inflow-watch-claude-p、entrypoint=skills/earn/x402-sell/watch-inflow.sh、cadence={"calendar_interval": [{"Minute": 5}, {"Minute": 35}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-agent-economy, OC-046
+- 依存: E-agent-economy, OC-046
 
 ### S-x402-inflow-watch-franklin1 — commit_transfer(x402-inflow-watch-franklin1)
 
@@ -1093,7 +1093,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=x402-inflow-watch-franklin1、entrypoint=skills/earn/x402-sell/watch-inflow.sh、cadence={"calendar_interval": [{"Minute": 5}, {"Minute": 35}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-agent-economy, OC-046
+- 依存: E-agent-economy, OC-046
 
 ### S-x402-inflow-watch-franklin2 — commit_transfer(x402-inflow-watch-franklin2)
 
@@ -1101,7 +1101,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=x402-inflow-watch-franklin2、entrypoint=skills/earn/x402-sell/watch-inflow.sh、cadence={"calendar_interval": [{"Minute": 5}, {"Minute": 35}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-agent-economy, OC-046
+- 依存: E-agent-economy, OC-046
 
 ### S-x402-sale-observer — commit_transfer(x402-sale-observer)
 
@@ -1109,7 +1109,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=x402-sale-observer、entrypoint=skills/earn/x402-sell/sale-observer-boot.sh、cadence={"start_interval_seconds": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-agent-economy, OC-046
+- 依存: E-agent-economy, OC-046
 
 ### S-x402-settlement-recorder — commit_transfer(x402-settlement-recorder)
 
@@ -1117,7 +1117,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=x402-settlement-recorder、entrypoint=skills/earn/x402-sell/settlement-recorder-boot.sh、cadence={"start_interval_seconds": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-agent-economy, OC-046
+- 依存: E-agent-economy, OC-046
 
 ### V-agent-economy — verify_natural(agent-economy)
 
@@ -1149,7 +1149,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=job-search-daily、entrypoint=apps/job-search-loop/scripts/run-daily.sh、cadence={"start_interval_seconds": 1800}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-job-hunter, OC-046
+- 依存: E-job-hunter, OC-046
 
 ### S-job-search-health — commit_transfer(job-search-health)
 
@@ -1157,7 +1157,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=job-search-health、entrypoint=apps/job-search-loop/scripts/run-health.sh、cadence={"start_interval_seconds": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-job-hunter, OC-046
+- 依存: E-job-hunter, OC-046
 
 ### S-job-search-inbox — commit_transfer(job-search-inbox)
 
@@ -1165,7 +1165,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=job-search-inbox、entrypoint=apps/job-search-loop/scripts/run-inbox.sh、cadence={"start_interval_seconds": 900}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-job-hunter, OC-046
+- 依存: E-job-hunter, OC-046
 
 ### S-job-search-learning — commit_transfer(job-search-learning)
 
@@ -1173,7 +1173,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=job-search-learning、entrypoint=apps/job-search-loop/scripts/run-learning.sh、cadence={"calendar_interval": {"Hour": 9, "Minute": 15}}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-job-hunter, OC-046
+- 依存: E-job-hunter, OC-046
 
 ### V-job-hunter — verify_natural(job-hunter)
 
@@ -1205,7 +1205,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=fundraiser、entrypoint=skills/fundraiser-agent/runtime/run.sh、cadence={"start_interval_seconds": 3600}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-fundraiser, OC-046
+- 依存: E-fundraiser, OC-046
 
 ### V-fundraiser — verify_natural(fundraiser)
 
@@ -1237,7 +1237,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=life-manager-connector-native、entrypoint=skills/connector/run.sh、cadence={"start_interval_seconds": 1800}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-connector, OC-046
+- 依存: E-connector, OC-046
 
 ### V-connector — verify_natural(connector)
 
@@ -1269,7 +1269,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=life-manager-dev、entrypoint=apps/life-manager/scripts/life-manager-dev-daily.js、cadence={"calendar_interval": {"Hour": 4, "Minute": 10}}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-self-build, OC-046
+- 依存: E-self-build, OC-046
 
 ### S-life-manager-recovery-supervisor — commit_transfer(life-manager-recovery-supervisor)
 
@@ -1277,7 +1277,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=life-manager-recovery-supervisor、entrypoint=runtime/loop/recovery-supervisor-cli.mjs、cadence={"start_interval_seconds": 60}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-self-build, OC-046
+- 依存: E-self-build, OC-046
 
 ### S-life-manager-selfbuild — commit_transfer(life-manager-selfbuild)
 
@@ -1285,7 +1285,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=life-manager-selfbuild、entrypoint=skills/life-manager/self-build-daily.sh、cadence={"calendar_interval": {"Hour": 4, "Minute": 10}}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-self-build, OC-046
+- 依存: E-self-build, OC-046
 
 ### S-self-improve-evolve — commit_transfer(self-improve-evolve)
 
@@ -1293,7 +1293,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=self-improve-evolve、entrypoint=skills/earn/marketing-engine/report/scheduled_runner.py、cadence={"start_interval_seconds": 21600}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-self-build, OC-046
+- 依存: E-self-build, OC-046
 
 ### V-self-build — verify_natural(self-build)
 
@@ -1325,7 +1325,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=life-manager-anicca-affirmation-youtube、entrypoint=apps/life-manager/scripts/mobile-app、cadence={"calendar_interval": [{"Hour": 8, "Minute": 15}, {"Hour": 14, "Minute": 15}, {"Hour": 20, "Minute": 15}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-mobile-apps, OC-046
+- 依存: E-mobile-apps, OC-046
 
 ### S-life-manager-anicca-ai-youtube — commit_transfer(life-manager-anicca-ai-youtube)
 
@@ -1333,7 +1333,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=life-manager-anicca-ai-youtube、entrypoint=apps/life-manager/scripts/mobile-app、cadence={"calendar_interval": [{"Hour": 7, "Minute": 45}, {"Hour": 13, "Minute": 15}, {"Hour": 19, "Minute": 45}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-mobile-apps, OC-046
+- 依存: E-mobile-apps, OC-046
 
 ### S-life-manager-anicca-buddha-tiktok — commit_transfer(life-manager-anicca-buddha-tiktok)
 
@@ -1341,7 +1341,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=life-manager-anicca-buddha-tiktok、entrypoint=apps/life-manager/scripts/mobile-app、cadence={"calendar_interval": [{"Hour": 7, "Minute": 0}, {"Hour": 13, "Minute": 0}, {"Hour": 20, "Minute": 0}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-mobile-apps, OC-046
+- 依存: E-mobile-apps, OC-046
 
 ### S-life-manager-anicca-en-affirmation-instagram — commit_transfer(life-manager-anicca-en-affirmation-instagram)
 
@@ -1349,7 +1349,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=life-manager-anicca-en-affirmation-instagram、entrypoint=apps/life-manager/scripts/mobile-app、cadence={"calendar_interval": [{"Hour": 10, "Minute": 0}, {"Hour": 15, "Minute": 0}, {"Hour": 20, "Minute": 0}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-mobile-apps, OC-046
+- 依存: E-mobile-apps, OC-046
 
 ### S-life-manager-anicca-en-affirmation-tiktok — commit_transfer(life-manager-anicca-en-affirmation-tiktok)
 
@@ -1357,7 +1357,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=life-manager-anicca-en-affirmation-tiktok、entrypoint=apps/life-manager/scripts/mobile-app、cadence={"calendar_interval": [{"Hour": 9, "Minute": 15}, {"Hour": 14, "Minute": 15}, {"Hour": 20, "Minute": 15}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-mobile-apps, OC-046
+- 依存: E-mobile-apps, OC-046
 
 ### S-life-manager-anicca-en-card-instagram — commit_transfer(life-manager-anicca-en-card-instagram)
 
@@ -1365,7 +1365,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=life-manager-anicca-en-card-instagram、entrypoint=apps/life-manager/scripts/mobile-app、cadence={"calendar_interval": [{"Hour": 8, "Minute": 45}, {"Hour": 12, "Minute": 45}, {"Hour": 21, "Minute": 30}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-mobile-apps, OC-046
+- 依存: E-mobile-apps, OC-046
 
 ### S-life-manager-anicca-en-slideshow-tiktok — commit_transfer(life-manager-anicca-en-slideshow-tiktok)
 
@@ -1373,7 +1373,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=life-manager-anicca-en-slideshow-tiktok、entrypoint=apps/life-manager/scripts/mobile-app、cadence={"calendar_interval": [{"Hour": 9, "Minute": 0}, {"Hour": 15, "Minute": 0}, {"Hour": 21, "Minute": 0}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-mobile-apps, OC-046
+- 依存: E-mobile-apps, OC-046
 
 ### S-life-manager-anicca-en-widget-instagram — commit_transfer(life-manager-anicca-en-widget-instagram)
 
@@ -1381,7 +1381,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=life-manager-anicca-en-widget-instagram、entrypoint=apps/life-manager/scripts/mobile-app、cadence={"calendar_interval": [{"Hour": 7, "Minute": 30}, {"Hour": 9, "Minute": 30}, {"Hour": 19, "Minute": 0}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-mobile-apps, OC-046
+- 依存: E-mobile-apps, OC-046
 
 ### S-life-manager-anicca-en2-affirmation-tiktok — commit_transfer(life-manager-anicca-en2-affirmation-tiktok)
 
@@ -1389,7 +1389,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=life-manager-anicca-en2-affirmation-tiktok、entrypoint=apps/life-manager/scripts/mobile-app、cadence={"calendar_interval": [{"Hour": 9, "Minute": 30}, {"Hour": 14, "Minute": 30}, {"Hour": 20, "Minute": 30}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-mobile-apps, OC-046
+- 依存: E-mobile-apps, OC-046
 
 ### S-life-manager-anicca-he — commit_transfer(life-manager-anicca-he)
 
@@ -1397,7 +1397,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=life-manager-anicca-he、entrypoint=apps/life-manager/scripts/mobile-app、cadence={"calendar_interval": [{"Hour": 7, "Minute": 15}, {"Hour": 13, "Minute": 45}, {"Hour": 18, "Minute": 15}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-mobile-apps, OC-046
+- 依存: E-mobile-apps, OC-046
 
 ### S-life-manager-anicca-ja-widget-instagram — commit_transfer(life-manager-anicca-ja-widget-instagram)
 
@@ -1405,7 +1405,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=life-manager-anicca-ja-widget-instagram、entrypoint=apps/life-manager/scripts/mobile-app、cadence={"calendar_interval": [{"Hour": 8, "Minute": 5}, {"Hour": 13, "Minute": 5}, {"Hour": 18, "Minute": 20}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-mobile-apps, OC-046
+- 依存: E-mobile-apps, OC-046
 
 ### S-life-manager-anicca-jp1-tiktok — commit_transfer(life-manager-anicca-jp1-tiktok)
 
@@ -1413,7 +1413,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=life-manager-anicca-jp1-tiktok、entrypoint=apps/life-manager/scripts/mobile-app、cadence={"calendar_interval": [{"Hour": 6, "Minute": 30}, {"Hour": 12, "Minute": 0}, {"Hour": 18, "Minute": 0}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-mobile-apps, OC-046
+- 依存: E-mobile-apps, OC-046
 
 ### S-life-manager-anicca-jp4 — commit_transfer(life-manager-anicca-jp4)
 
@@ -1421,7 +1421,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=life-manager-anicca-jp4、entrypoint=apps/life-manager/scripts/mobile-app、cadence={"calendar_interval": [{"Hour": 9, "Minute": 15}, {"Hour": 15, "Minute": 15}, {"Hour": 20, "Minute": 45}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-mobile-apps, OC-046
+- 依存: E-mobile-apps, OC-046
 
 ### S-life-manager-anicca-larry-ja-instagram — commit_transfer(life-manager-anicca-larry-ja-instagram)
 
@@ -1429,7 +1429,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=life-manager-anicca-larry-ja-instagram、entrypoint=apps/life-manager/scripts/mobile-app、cadence={"calendar_interval": [{"Hour": 10, "Minute": 30}, {"Hour": 16, "Minute": 30}, {"Hour": 22, "Minute": 30}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-mobile-apps, OC-046
+- 依存: E-mobile-apps, OC-046
 
 ### S-life-manager-anicca-main-instagram — commit_transfer(life-manager-anicca-main-instagram)
 
@@ -1437,7 +1437,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=life-manager-anicca-main-instagram、entrypoint=apps/life-manager/scripts/mobile-app、cadence={"calendar_interval": [{"Hour": 8, "Minute": 10}, {"Hour": 13, "Minute": 10}, {"Hour": 19, "Minute": 10}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-mobile-apps, OC-046
+- 依存: E-mobile-apps, OC-046
 
 ### S-life-manager-anicca-main-tiktok — commit_transfer(life-manager-anicca-main-tiktok)
 
@@ -1445,7 +1445,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=life-manager-anicca-main-tiktok、entrypoint=apps/life-manager/scripts/mobile-app、cadence={"calendar_interval": [{"Hour": 8, "Minute": 0}, {"Hour": 16, "Minute": 0}, {"Hour": 22, "Minute": 37}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-mobile-apps, OC-046
+- 依存: E-mobile-apps, OC-046
 
 ### S-life-manager-daily — commit_transfer(life-manager-daily)
 
@@ -1453,7 +1453,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=life-manager-daily、entrypoint=skills/life-manager/life-manager-daily.sh、cadence={"calendar_interval": {"Hour": 10, "Minute": 15}}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-mobile-apps, OC-046
+- 依存: E-mobile-apps, OC-046
 
 ### S-life-manager-honne-en — commit_transfer(life-manager-honne-en)
 
@@ -1461,7 +1461,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=life-manager-honne-en、entrypoint=apps/life-manager/scripts/mobile-app、cadence={"calendar_interval": [{"Hour": 7, "Minute": 0}, {"Hour": 11, "Minute": 0}, {"Hour": 20, "Minute": 30}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-mobile-apps, OC-046
+- 依存: E-mobile-apps, OC-046
 
 ### S-life-manager-honne-ja — commit_transfer(life-manager-honne-ja)
 
@@ -1469,7 +1469,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=life-manager-honne-ja、entrypoint=apps/life-manager/scripts/mobile-app、cadence={"calendar_interval": [{"Hour": 8, "Minute": 30}, {"Hour": 12, "Minute": 30}, {"Hour": 21, "Minute": 30}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-mobile-apps, OC-046
+- 依存: E-mobile-apps, OC-046
 
 ### S-life-manager-instagram-metrics — commit_transfer(life-manager-instagram-metrics)
 
@@ -1477,7 +1477,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=life-manager-instagram-metrics、entrypoint=apps/life-manager/scripts/instagram-metrics-production-boot.sh、cadence={"start_interval_seconds": 1800}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-mobile-apps, OC-046
+- 依存: E-mobile-apps, OC-046
 
 ### S-life-manager-tiktok-metrics — commit_transfer(life-manager-tiktok-metrics)
 
@@ -1485,7 +1485,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=life-manager-tiktok-metrics、entrypoint=apps/life-manager/scripts/tiktok-metrics-production-boot.sh、cadence={"start_interval_seconds": 1800}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-mobile-apps, OC-046
+- 依存: E-mobile-apps, OC-046
 
 ### V-mobile-apps — verify_natural(mobile-apps)
 
@@ -1517,7 +1517,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=ebook-en-instagram-daily、entrypoint=apps/life-manager/scripts/ebook-distribute-daily.sh、cadence={"calendar_interval": [{"Hour": 8, "Minute": 0}, {"Hour": 14, "Minute": 0}, {"Hour": 21, "Minute": 0}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-ebook, OC-046
+- 依存: E-ebook, OC-046
 
 ### S-ebook-en-tiktok-daily — commit_transfer(ebook-en-tiktok-daily)
 
@@ -1525,7 +1525,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=ebook-en-tiktok-daily、entrypoint=apps/life-manager/scripts/ebook-distribute-daily.sh、cadence={"calendar_interval": [{"Hour": 8, "Minute": 0}, {"Hour": 14, "Minute": 0}, {"Hour": 21, "Minute": 0}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-ebook, OC-046
+- 依存: E-ebook, OC-046
 
 ### S-ebook-ja-instagram-daily — commit_transfer(ebook-ja-instagram-daily)
 
@@ -1533,7 +1533,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=ebook-ja-instagram-daily、entrypoint=apps/life-manager/scripts/ebook-distribute-daily.sh、cadence={"calendar_interval": [{"Hour": 7, "Minute": 0}, {"Hour": 12, "Minute": 30}, {"Hour": 20, "Minute": 0}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-ebook, OC-046
+- 依存: E-ebook, OC-046
 
 ### S-ebook-ja-tiktok-daily — commit_transfer(ebook-ja-tiktok-daily)
 
@@ -1541,7 +1541,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=ebook-ja-tiktok-daily、entrypoint=apps/life-manager/scripts/ebook-distribute-daily.sh、cadence={"calendar_interval": [{"Hour": 7, "Minute": 0}, {"Hour": 12, "Minute": 30}, {"Hour": 20, "Minute": 0}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-ebook, OC-046
+- 依存: E-ebook, OC-046
 
 ### V-ebook — verify_natural(ebook)
 
@@ -1573,7 +1573,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=capafy-distribute-daily、entrypoint=skills/earn/capafy-marketing/capafy-distribute-daily.sh、cadence={"calendar_interval": [{"Hour": 1, "Minute": 15}, {"Hour": 4, "Minute": 15}, {"Hour": 7, "Minute": 15}, {"Hour": 10, "Minute": 15}, {"Hour": 13, "Minute": 15}, {"Hour": 16, "Minute": 15}, {"Hour": 19, "Minute": 15}, {"Hour": 22, "Minute": 15}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-capafy, OC-046
+- 依存: E-capafy, OC-046
 
 ### S-capafy-goal-monitor — commit_transfer(capafy-goal-monitor)
 
@@ -1581,7 +1581,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=capafy-goal-monitor、entrypoint=skills/earn/capafy-marketing/capafy-goal-monitor.sh、cadence={"calendar_interval": {"Hour": 9, "Minute": 30}}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-capafy, OC-046
+- 依存: E-capafy, OC-046
 
 ### S-capafy-goal-monitor-daily-close — commit_transfer(capafy-goal-monitor-daily-close)
 
@@ -1589,7 +1589,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=capafy-goal-monitor-daily-close、entrypoint=skills/earn/capafy-marketing/capafy-goal-monitor.sh、cadence={"calendar_interval": {"Hour": 23, "Minute": 50}}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-capafy, OC-046
+- 依存: E-capafy, OC-046
 
 ### S-capafy-goal-monitor-hourly — commit_transfer(capafy-goal-monitor-hourly)
 
@@ -1597,7 +1597,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=capafy-goal-monitor-hourly、entrypoint=skills/earn/capafy-marketing/capafy-goal-monitor.sh、cadence={"calendar_interval": {"Minute": 7}}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-capafy, OC-046
+- 依存: E-capafy, OC-046
 
 ### S-capafy-ig-account-manager — commit_transfer(capafy-ig-account-manager)
 
@@ -1605,7 +1605,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=capafy-ig-account-manager、entrypoint=skills/earn/capafy-marketing/capafy-ig-account-manager.sh、cadence={"start_interval_seconds": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-capafy, OC-046
+- 依存: E-capafy, OC-046
 
 ### S-capafy-ig-marketing-daily — commit_transfer(capafy-ig-marketing-daily)
 
@@ -1613,7 +1613,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=capafy-ig-marketing-daily、entrypoint=skills/earn/capafy-marketing/capafy-ig-marketing-daily.sh、cadence={"start_interval_seconds": 3600}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-capafy, OC-046
+- 依存: E-capafy, OC-046
 
 ### S-capafy-loop-daily — commit_transfer(capafy-loop-daily)
 
@@ -1621,7 +1621,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=capafy-loop-daily、entrypoint=skills/self/capafy-loop/capafy-loop-daily.sh、cadence={"start_interval_seconds": 900}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-capafy, OC-046
+- 依存: E-capafy, OC-046
 
 ### S-capafy-loop-healthcheck — commit_transfer(capafy-loop-healthcheck)
 
@@ -1629,7 +1629,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=capafy-loop-healthcheck、entrypoint=skills/self/capafy-loop/capafy-loop-healthcheck.sh、cadence={"start_interval_seconds": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-capafy, OC-046
+- 依存: E-capafy, OC-046
 
 ### S-capafy-outcome-monitor — commit_transfer(capafy-outcome-monitor)
 
@@ -1637,7 +1637,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=capafy-outcome-monitor、entrypoint=skills/earn/capafy-marketing/capafy-outcome-monitor.sh、cadence={"start_interval_seconds": 60}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-capafy, OC-046
+- 依存: E-capafy, OC-046
 
 ### S-life-manager-capafy-ig — commit_transfer(life-manager-capafy-ig)
 
@@ -1645,7 +1645,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=life-manager-capafy-ig、entrypoint=apps/life-manager/scripts/capafy-ig-reel、cadence={"calendar_interval": [{"Hour": 9, "Minute": 0}, {"Hour": 14, "Minute": 0}, {"Hour": 20, "Minute": 0}]}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-capafy, OC-046
+- 依存: E-capafy, OC-046
 
 ### V-capafy — verify_natural(capafy)
 
@@ -1677,7 +1677,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=line-sticker-factory-hourly、entrypoint=skills/earn/line-sticker/line-sticker-factory.sh、cadence={"start_interval_seconds": 900}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-line-sticker, OC-046
+- 依存: E-line-sticker, OC-046
 
 ### S-line-sticker-readback-hourly — commit_transfer(line-sticker-readback-hourly)
 
@@ -1685,7 +1685,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=line-sticker-readback-hourly、entrypoint=skills/earn/line-sticker/line-sticker-readback.sh、cadence={"calendar_interval": {"Minute": 23}}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-line-sticker, OC-046
+- 依存: E-line-sticker, OC-046
 
 ### V-line-sticker — verify_natural(line-sticker)
 
@@ -1717,7 +1717,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=life-manager-cfo-hourly、entrypoint=skills/cfo/run.sh、cadence={"start_interval_seconds": 3600}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-cfo, OC-046
+- 依存: E-cfo, OC-046
 
 ### S-life-manager-financial-report — commit_transfer(life-manager-financial-report)
 
@@ -1725,7 +1725,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=life-manager-financial-report、entrypoint=apps/life-manager/scripts/financial-report-boot.sh、cadence={"start_interval_seconds": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-cfo, OC-046
+- 依存: E-cfo, OC-046
 
 ### S-life-manager-payout — commit_transfer(life-manager-payout)
 
@@ -1733,7 +1733,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 境界: `production`
 - 変更: owner=life-manager-payout、entrypoint=apps/life-manager/scripts/payout-boot.sh、cadence={"start_interval_seconds": 300}。OC045/046を使い新cron disabled作成→idle/予約/queue/未知effect解消→旧future wake停止readback→新cron enabled→唯一scheduler確認。失敗時はOC047で当該ownerだけ復元。
 - 検証/完了: 新cron1/旧future wake0、進行中run中断0、外部効果再送0、auth/ledger保持、epoch/argv/自然occurrence/rollback receipt保存。
-- 依存: A-cfo, OC-046
+- 依存: E-cfo, OC-046
 
 ### V-cfo — verify_natural(cfo)
 
@@ -1743,3 +1743,149 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残215atom。旧223�
 - 検証/完了: 全job coverage、旧成果契約維持、replay-zero、既存order/receipt/cost保持。test/モデルfinal/exit0だけではPASS不可。
 - 依存: A-cfo, S-life-manager-cfo-hourly, S-life-manager-financial-report, S-life-manager-payout
 
+### E-gig-coconala — verify_engine_natural(gig-coconala)
+
+- 対象: `docs/evidence/openclaw-cutover/engines/gig-coconala-natural.json`
+- 境界: `production`
+- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
+- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
+- 依存: A-gig-coconala
+
+### E-gig-lancers — verify_engine_natural(gig-lancers)
+
+- 対象: `docs/evidence/openclaw-cutover/engines/gig-lancers-natural.json`
+- 境界: `production`
+- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
+- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
+- 依存: A-gig-lancers
+
+### E-gig-crowdworks — verify_engine_natural(gig-crowdworks)
+
+- 対象: `docs/evidence/openclaw-cutover/engines/gig-crowdworks-natural.json`
+- 境界: `production`
+- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
+- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
+- 依存: A-gig-crowdworks
+
+### E-gig-mercor — verify_engine_natural(gig-mercor)
+
+- 対象: `docs/evidence/openclaw-cutover/engines/gig-mercor-natural.json`
+- 境界: `production`
+- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
+- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
+- 依存: A-gig-mercor
+
+### E-promptbase — verify_engine_natural(promptbase)
+
+- 対象: `docs/evidence/openclaw-cutover/engines/promptbase-natural.json`
+- 境界: `production`
+- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
+- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
+- 依存: A-promptbase
+
+### E-writer — verify_engine_natural(writer)
+
+- 対象: `docs/evidence/openclaw-cutover/engines/writer-natural.json`
+- 境界: `production`
+- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
+- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
+- 依存: A-writer
+
+### E-affiliate — verify_engine_natural(affiliate)
+
+- 対象: `docs/evidence/openclaw-cutover/engines/affiliate-natural.json`
+- 境界: `production`
+- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
+- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
+- 依存: A-affiliate
+
+### E-investment — verify_engine_natural(investment)
+
+- 対象: `docs/evidence/openclaw-cutover/engines/investment-natural.json`
+- 境界: `production`
+- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
+- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
+- 依存: A-investment
+
+### E-agent-economy — verify_engine_natural(agent-economy)
+
+- 対象: `docs/evidence/openclaw-cutover/engines/agent-economy-natural.json`
+- 境界: `production`
+- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
+- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
+- 依存: A-agent-economy
+
+### E-job-hunter — verify_engine_natural(job-hunter)
+
+- 対象: `docs/evidence/openclaw-cutover/engines/job-hunter-natural.json`
+- 境界: `production`
+- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
+- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
+- 依存: A-job-hunter
+
+### E-fundraiser — verify_engine_natural(fundraiser)
+
+- 対象: `docs/evidence/openclaw-cutover/engines/fundraiser-natural.json`
+- 境界: `production`
+- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
+- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
+- 依存: A-fundraiser
+
+### E-connector — verify_engine_natural(connector)
+
+- 対象: `docs/evidence/openclaw-cutover/engines/connector-natural.json`
+- 境界: `production`
+- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
+- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
+- 依存: A-connector
+
+### E-self-build — verify_engine_natural(self-build)
+
+- 対象: `docs/evidence/openclaw-cutover/engines/self-build-natural.json`
+- 境界: `production`
+- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
+- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
+- 依存: A-self-build
+
+### E-mobile-apps — verify_engine_natural(mobile-apps)
+
+- 対象: `docs/evidence/openclaw-cutover/engines/mobile-apps-natural.json`
+- 境界: `production`
+- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
+- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
+- 依存: A-mobile-apps
+
+### E-ebook — verify_engine_natural(ebook)
+
+- 対象: `docs/evidence/openclaw-cutover/engines/ebook-natural.json`
+- 境界: `production`
+- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
+- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
+- 依存: A-ebook
+
+### E-capafy — verify_engine_natural(capafy)
+
+- 対象: `docs/evidence/openclaw-cutover/engines/capafy-natural.json`
+- 境界: `production`
+- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
+- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
+- 依存: A-capafy
+
+### E-line-sticker — verify_engine_natural(line-sticker)
+
+- 対象: `docs/evidence/openclaw-cutover/engines/line-sticker-natural.json`
+- 境界: `production`
+- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
+- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
+- 依存: A-line-sticker
+
+### E-cfo — verify_engine_natural(cfo)
+
+- 対象: `docs/evidence/openclaw-cutover/engines/cfo-natural.json`
+- 境界: `production`
+- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
+- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
+- 依存: A-cfo
+
+
+検証前訂正: sourceのscheduler関数は現行 `_dispatch_reserved`（旧仕様 `_kick_reserved_owners` は存在しない）。全Sの前提へE-productのengine自然確認を追加し、先にscheduleを移す余地を無くす。
