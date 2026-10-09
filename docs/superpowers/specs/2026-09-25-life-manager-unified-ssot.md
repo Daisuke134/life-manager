@@ -9146,7 +9146,7 @@ This entry supersedes the prior producer-review cursor. CFO priority remains A5 
 
 確認済みの不整合: PR #7158のimporterは汎用marketing-intelカードをtopics/queueへ書く。一方、Writerのclaim_supplyはtopic_source: paid-demandと有効なdemand_cardがないカードを隔離し、demand_authority --demand-mode requiredはそのキューだけを唯一の話題権威として検査する。article-dailyがclaim後に同じ未検証カードを再投入するため、需要カードにならず、排除と再投入を繰り返す。PR #7274は既定でimporterを止めてキュー汚染を避けたが、同時にMarketing IntelをWriterから切り離した。どちらも記事制作・収益への連携ではない。
 
-現行runtime evidence: article-daily occurrence article-daily:18dcb160db0ac660-67443はexit 75、effect unknown、receipt/readbackなし。run logはmarketing-intel-48c88abc36f3.mdの再投入後に「demand topic queue contains non-paid-demand cards」と「demand authority blocked generation」を記録し、runにはpublication artifactもarticles.jsonl rowもない。lm-loop pre-effect-reconcile --dry-runはno_pre_effect_terminalでunprovableを返すため、公式readbackまではfenceを維持し再送しない。Affiliate occurrence affiliate-loop:18dcb253cf3b9cf8-41565とX repost occurrence x-repost:18dcb1c3aeb99600-88116もeffect unknown/receiptなし。writer-sales-measureの最新ledger rowはunknownで公式readbackなし。Telegramに貼られたレポートは情報受領を示すだけで、記事公開・Affiliate/X投稿・売上を示さない。
+現行runtime evidence: article-daily occurrence article-daily:18dcb160db0ac660-67443はexit 75、effect unknown、receipt/readbackなし。run logはmarketing-intel-48c88abc36f3.mdの再投入後に「demand topic queue contains non-paid-demand cards」と「demand authority blocked generation」を記録し、runにはpublication artifactもarticles.jsonl rowもない。lm-loop pre-effect-reconcile --dry-runはno_pre_effect_terminalでunprovableを返すため、公式readbackまではfenceを維持し再送しない。Affiliate occurrence affiliate-loop:18dcb253cf3b9cf8-41565とX repost occurrence x-repost:18dcb1c3aeb99600-88116もeffect unknown/receiptなし。writer-sales-measureの最新ledger rowはunknownで公式readbackなし。Telegram user-session readbackではMarketing Intel message (22:37:30Z)とWriter pending message (23:23:06Z)の到達を確認した。これは通知配信の証拠であり、記事公開・Affiliate/X投稿・売上を示さない。
 
 契約: Marketing Engineのplaybook.jsonlから、出典URL付き・testable=true・statusがnewまたはqueued・applies_toにcontentを含む戦術だけを抽出する。Writer runtimeのstrategy-context/marketing-intel.mdへ仮説として保存し、当該article-daily実行でrefreshが成功した時だけprompt末尾へ付加する。Writerは先に既存のpaid-demand topicを選択・束縛し、その記事に関係する場合だけ補助コンテキストとして使う。refresh欠落・失敗時は以前のcontextを使わず、既存Writerフローを続ける。contextは未信頼の出典データとして扱い、指示として実行しない。読者、課題、需要根拠、題材、価格、公開可否は検証済みpaid-demand cardと既存ゲートが所有する。関係しない戦術は無視し、SOURCE FAILURESは記事材料にしない。主張は出典に帰属し、実証済み効果や収益として書かない。
 
@@ -9163,11 +9163,13 @@ This entry supersedes the prior producer-review cursor. CFO priority remains A5 
 5. [x] fresh adversarial reviewはSHIP、critical/high/medium/low指摘なし。c701846へrebase後もdirect/discover regression、bash -n、diff check、loop contractがPASS。
 6. [x] 専用branchをcommit/pushし、PR #7283を作成。mainがc701846へ進んだため最新headへrebaseし、focused testとloop contractを再確認した。
 7. [x] PR #7283はmergeable/CLEAN。GitHub check_runsは0件、branch protectionはrequired approvals 0・required checksなし。Local acceptanceとfresh adversarial reviewはPASS/SHIP。
-8. **現在cursor:** PR #7283を--adminで先にmergeし、origin/mainとmerge SHAをreadbackする。
-9. main由来immutable releaseを適用し、effect_unknownを先に公式readbackで解決してからWriterの自然occurrenceを確認する。未解決fenceがある間はpublishを再試行しない。
-10. 記事の公式URL・paywall/公開状態・売上・実費を同じ記事/occurrenceに結び付け、重複公開ゼロを確認する。
+8. [x] PR #7283はmerge済み。merge commitとorigin/mainは4a60765e608ab47a9d814befa19ac831af4ba6a5。
+9. 現行article-dailyはrelease f7db4f57で、merged sourceより古い。topics/queueにはvalid paid-demand cardだけが残る。Noteの公開ページには9月29日付の「XとCTA…」と購入手続きがあり、Writer sourceの価格policyは¥500買切り。Substack feedsの最新記事は9月29日。sales ledgerのNote/Substack最新行はunknownで、売上・購入数は未確認。
+10. **現在cursor:** latest-main immutable releaseをcutし、host apply lock/owner-idleを確認してからarticle-dailyへtargeted applyする。旧occurrence `article-daily:18dcb160db0ac660-67443`はgate log上生成前に停止しているが、runtime reconcileはno_pre_effect_terminalでunprovable。provider official readbackまではeffect fenceを維持し、再送しない。
+11. Affiliate `affiliate-loop:18dcb253cf3b9cf8-41565`、X repost `x-repost:18dcb1c3aeb99600-88116`、JA repost `x-repost-ja-pass:18dcb209e2714a60-63429`はeffect unknown/receiptなし。x:diceai0のregistered endpointはunreachableで、Xのofficial readbackは取れていない。
+12. 新releaseの自然Writer occurrenceから記事URL・paywall・公式sales readback・実費・replay-zeroを確認し、収益を計上する。
 
-現在cursor: step 8 — PR #7283 mergeとmain readback。
+現在cursor: step 10 — main-derived release、owner-idle apply、既存fenceを維持したreadback準備。
 
 ### 2026-10-08 23:00 JST — PR review/CIとlive capacityの初回readback
 
