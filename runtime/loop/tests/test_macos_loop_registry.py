@@ -1187,6 +1187,17 @@ class MacosLoopRegistryTest(unittest.TestCase):
             registry["loops"]["capafy-loop-daily"]["resource_class"], "deterministic",
         )
 
+    def test_line_sticker_distribute_does_not_compete_for_the_agent_slots(self):
+        # 2026-10-09: right after its unknown-effect fence closed, the 08:15 Instagram retry was
+        # deferred resource_capacity_busy by the same agent cap (2) the factory had lost to. Its
+        # caption model call goes through agent_runner (own provider lease) and the post through
+        # the shared browser lease, so it needs no agent slot either.
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["line-sticker-distribute"]
+        self.assertEqual(row["resource_class"], "deterministic")
+        self.assertEqual(row["admission_class"], "revenue")
+        self.assertEqual(row["priority"], "revenue")
+
     def test_hf_gig_browser_declares_browser_resource_class(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         row = registry["loops"]["hf-gig-browser"]
