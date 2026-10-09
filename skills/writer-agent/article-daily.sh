@@ -937,10 +937,6 @@ if ! python3 "$DEMAND_AUTHORITY_SCRIPT" \
   exit 75
 fi
 
-# Past the gate: generation may now publish, so the pre-effect marker no longer applies. A run that
-# stopped above has had no effect and must not leave an effect_unknown fence that defers every later run.
-if [ -n "${LIFE_MANAGER_RESULT_HINT_PATH:-}" ]; then rm -f -- "$LIFE_MANAGER_RESULT_HINT_PATH"; fi
-
 PROMPT='Run ONE daily Writer Agent article pass, no daily human in the loop. This pass was triggered by a real launchd daily schedule (ai.anicca.article-daily) -- you do NOT need to register your own recurring scheduler; launchd is the only scheduler for this loop, never self-register one via any cron-creation tool. The wrapper has already loaded the Life Manager environment; never source another runtime environment.
 
 CURRENT BRAKE SNAPSHOT: the wrapper checked ARTICLE_PUBLICATION_PAUSE_FILE immediately before building this prompt and found PUBLICATION_PAUSE_SNAPSHOT_PLACEHOLDER. Treat only that current filesystem check as pause evidence. A historical "publication paused" line in article-daily.log, an older run directory, or a stale manifest is not current state; when the snapshot is absent, continue through the normal gates and publisher-native readbacks.
@@ -1198,6 +1194,9 @@ drain_generation_workers() {
 }
 run_model_pass() {
   local active_prompt_file="${1:-$PROMPT_FILE}" rc
+  # Keep the host's pre-effect result through local gates and generation initialization.
+  # Clear it only immediately before starting the foreground model pass.
+  if [ -n "${LIFE_MANAGER_RESULT_HINT_PATH:-}" ]; then rm -f -- "$LIFE_MANAGER_RESULT_HINT_PATH"; fi
   BOUNDED_EXEC_STOP_PATHS="$WRITER_DISK_CONTROL_DIR/disk-writers.stop" \
   ARTICLE_RUN_ID="$RUN_TS" ARTICLE_MODEL_LOG="$LOG" \
     python3 "$ARTICLE_ROOT/../../runtime/loop/bounded-exec.py" \
