@@ -40,7 +40,7 @@ def fixture(tmp_path):
 
 
 def reclaim(release, repo, **kw):
-    return loop_cleanup.reclaim_release_source(release, repo, can_reclaim=lambda: True, **kw)
+    return loop_cleanup.reclaim_release_source(release, repo, can_reclaim=lambda _: True, **kw)
 
 
 def test_code_reclaim_preserves_data_and_invalidates_release(tmp_path):
@@ -76,7 +76,7 @@ def test_byte_or_time_budget_does_not_mark_or_delete(tmp_path):
 def test_final_reference_change_stops_before_effect(tmp_path):
     repo, release, _ = fixture(tmp_path)
     answers = iter((True, False))
-    result = loop_cleanup.reclaim_release_source(release, repo, can_reclaim=lambda: next(answers))
+    result = loop_cleanup.reclaim_release_source(release, repo, can_reclaim=lambda _: next(answers))
     assert result["removed_files"] == 0
     assert (release / "RELEASE.json").exists()
     assert (release / "bin/one.py").exists()
@@ -102,7 +102,7 @@ def test_symlink_parent_and_leaf_are_not_followed(tmp_path):
 def test_replaced_parent_does_not_delete_new_memory_descendant(tmp_path):
     repo, release, _ = fixture(tmp_path)
     calls = 0
-    def references():
+    def references(_owned_fds):
         nonlocal calls
         calls += 1
         if calls == 2:
@@ -134,7 +134,8 @@ def test_read_only_release_restores_directory_modes(tmp_path):
         release.chmod(0o755)
 
 
-def test_owner_reclaims_one_old_snapshot_and_keeps_rollback(tmp_path, monkeypatch):
+@pytest.mark.parametrize("additional_reference", (None, "self_other_fd", "other_pid"))
+def test_owner_reclaims_one_old_snapshot_and_keeps_rollback(tmp_path, monkeypatch, additional_reference):
     from runtime.loop import central_cleanup
     from runtime.loop import lm_loop
     repo, release, _ = fixture(tmp_path)
@@ -156,7 +157,28 @@ def test_owner_reclaims_one_old_snapshot_and_keeps_rollback(tmp_path, monkeypatc
     real_run = subprocess.run
     def run(command, **kw):
         if command[0] == "lsof":
-            return subprocess.CompletedProcess(command, 0, "", "")
+            # Report actual open validation FDs, just as production lsof does.
+            lines = ["p" + str(os.getpid())]
+            resources = [release, release / "bin", release / "bin/one.py", release / "bin/two.py"]
+            opened = []
+            for p in Path("/dev/fd").iterdir():
+                try:
+                    fd = int(p.name)
+                    info = os.fstat(fd)
+                except (OSError, ValueError):
+                    continue
+                for resource in resources:
+                    if resource.exists() and (info.st_dev, info.st_ino) == (resource.stat().st_dev, resource.stat().st_ino):
+                        lines.extend(("f" + str(fd), "n" + str(resource)))
+                        opened.append(fd)
+            if opened and additional_reference:
+                if additional_reference == "other_pid":
+                    lines.append("p" + str(os.getpid() + 100000))
+                    lines.append("f" + str(opened[0]))
+                else:
+                    lines.append("f999999")
+                lines.append("n" + str(release / "unknown.py"))
+            return subprocess.CompletedProcess(command, 0, "\n".join(lines), "")
         return real_run(command, **kw)
     monkeypatch.setattr(central_cleanup.subprocess, "run", run)
     real_lock = lm_loop._apply_lock
@@ -169,9 +191,9 @@ def test_owner_reclaims_one_old_snapshot_and_keeps_rollback(tmp_path, monkeypatc
         return real_lock(*args)
     monkeypatch.setattr(lm_loop, "_apply_lock", initially_busy)
     result = central_cleanup.reclaim_unreferenced_source(release.parent, current, tmp_path / "agents", 1)
-    assert result["removed_files"] == 2
+    assert result["removed_files"] == (0 if additional_reference else 2)
     assert attempts >= 3
-    assert not (release / "RELEASE.json").exists()
+    assert (release / "RELEASE.json").exists() == bool(additional_reference)
     assert (rollback / "RELEASE.json").exists()
     assert (current_root / "RELEASE.json").exists()
 

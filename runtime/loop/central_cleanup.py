@@ -434,7 +434,7 @@ def reclaim_unreferenced_source(releases: Path, current: Path, agents: Path, kee
             raise subprocess.TimeoutExpired(args, 0)
         return subprocess.run(["git", "-C", str(source_repo), *args], check=True,
                               capture_output=True, text=True, timeout=min(3, remaining)).stdout.strip()
-    def references():
+    def references(owned_fds=()):
         held = loaded_release_roots(agents, releases) | open_release_roots(releases)
         held.add(current.resolve(strict=True))
         protected_file = Path(os.environ.get(
@@ -447,13 +447,23 @@ def reclaim_unreferenced_source(releases: Path, current: Path, agents: Path, kee
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             raise subprocess.TimeoutExpired("lsof", 0)
-        opened = subprocess.run(["lsof", "-nP", "-Fpn"], check=True,
+        opened = subprocess.run(["lsof", "-nP", "-Fpnf"], check=True,
                                 capture_output=True, text=True, timeout=min(4, remaining))
         if opened.stderr:
             raise OSError("release FD inventory has coverage gaps")
         base = releases.resolve()
+        pid = descriptor = None
         for line in opened.stdout.splitlines():
+            if line.startswith("p"):
+                pid, descriptor = line[1:], None
+                continue
+            if line.startswith("f"):
+                descriptor = line[1:]
+                continue
             if not line.startswith("n/"):
+                continue
+            if (pid == str(os.getpid()) and descriptor is not None
+                    and descriptor.isdecimal() and int(descriptor) in owned_fds):
                 continue
             try:
                 parts = Path(line[1:]).relative_to(base).parts
@@ -512,7 +522,7 @@ def reclaim_unreferenced_source(releases: Path, current: Path, agents: Path, kee
                                   capture_output=True, timeout=min(2, max(.01, deadline-time.monotonic()))).returncode:
                     continue
                 result = reclaim_release_source(path, source_repo,
-                    can_reclaim=lambda: path.resolve() not in references(), deadline=deadline)
+                    can_reclaim=lambda owned: path.resolve() not in references(owned), deadline=deadline)
                 result["release_root"] = str(path)
                 result["release_sha"] = sha
                 if release_is_reclaimed(path):

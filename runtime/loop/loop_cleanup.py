@@ -196,7 +196,7 @@ def release_is_reclaimed(path: Path) -> bool:
 
 
 def reclaim_release_source(path: Path, source_repo: Path, *,
-                           can_reclaim: Callable[[], bool],
+                           can_reclaim: Callable[[tuple[int, ...]], bool],
                            max_bytes: int = 64 * 1024**2, max_files: int = 256,
                            deadline: float | None = None) -> dict:
     """Reclaim matching Git code leaves; retain stores and unknown files in place."""
@@ -222,7 +222,7 @@ def reclaim_release_source(path: Path, source_repo: Path, *,
     def identity(info):
         return (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
     try:
-        if can_reclaim() is not True:
+        if can_reclaim(()) is not True:
             return result
         if (path / ".lm-protected").exists() or (path / ".lm-protected").is_symlink():
             return result
@@ -300,7 +300,8 @@ def reclaim_release_source(path: Path, source_repo: Path, *,
                         digest.update(chunk)
                     if digest.hexdigest() != oid or identity(os.fstat(leaf_fd)) != identity(info):
                         continue
-                    if (can_reclaim() is not True or time.monotonic() >= deadline
+                    owned_fds = (root_fd, parent_fd, leaf_fd, *(p[0] for p in parents))
+                    if (can_reclaim(owned_fds) is not True or time.monotonic() >= deadline
                             or (path.lstat().st_dev, path.lstat().st_ino) != (root.st_dev, root.st_ino)):
                         return result
                     for ancestor_fd, component, opened in parents:
