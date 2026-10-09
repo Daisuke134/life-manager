@@ -16,7 +16,7 @@
       "kind": "code",
       "id": "OC-011",
       "depends": [
-        "OC-010"
+        "OC-012"
       ],
       "conditional": false,
       "boundary": "isolated_source"
@@ -29,7 +29,11 @@
       "kind": "test",
       "id": "OC-012",
       "depends": [
-        "OC-011"
+        "OC-001",
+        "OC-007",
+        "OC-008",
+        "OC-009",
+        "OC-010"
       ],
       "conditional": false,
       "boundary": "isolated_source"
@@ -125,7 +129,8 @@
       "id": "OC-020",
       "depends": [
         "OC-019",
-        "OC-016"
+        "OC-016",
+        "OC-011"
       ],
       "conditional": false,
       "boundary": "isolated_source"
@@ -565,7 +570,7 @@
       "id": "OC-052",
       "target": "config/loop-registry.json",
       "symbol": "life-manager-openclaw-gateway service",
-      "change": "専用Gatewayのcontinuous serviceだけを既存supervisorへ登録。daemon二重所有なし、global OpenClaw upgradeなし。source build中は未install。",
+      "change": "専用Gatewayのcontinuous serviceだけを既存supervisorへ登録。daemon二重所有なし、global OpenClaw upgradeなし。source build中は未install。 source段階はdisabled/default-off契約で、release reconcilerによる暗黙startを既存registry testsで拒否する。現在のGUI/launchdへinstall/startしない。",
       "checks": "test_lm_loop_apply.py:immutable package/node/profile argv、既存110 owner cadence変更0。",
       "depends": [
         "OC-015",

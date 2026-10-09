@@ -29,7 +29,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残233atom。旧223�
 - 境界: `isolated_source`
 - 変更: exact session readは実装済み。固定版の公開lifecycle/terminal receiptへ対応し、当該runが停止し当該tool childrenがsettleしたStopProofを作る。公開rowにないactiveRunIdsを仮定しない。unknownならclaim解放0。
 - 検証/完了: foreign run/session、stale snapshot、abort ACKのみではStopProofなし。実固定Gateway fixtureで終了を確認。
-- 依存: OC-010
+- 依存: OC-012
 
 ### OC-012 — testPinnedGatewayContract()
 
@@ -37,7 +37,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残233atom。旧223�
 - 境界: `isolated_source`
 - 変更: SDKとgateway配布版のagent/agent.wait/sessions.abort/terminal payloadをprivate fake-model serverで記録し、既存fixtures/rpc-contract.jsonを作る。gateway-only instance、fake credential、model cost0、native tools disabled。
 - 検証/完了: node --test runtime/openclaw/tests/release-contract.test.mjs。handshake v4、1dispatch、1terminal、abort後active0、secret marker出力0。status shape不一致ならconsumerを直すtaskへ進まずcontract差分を確定。
-- 依存: OC-011
+- 依存: OC-001, OC-007, OC-008, OC-009, OC-010
 
 ### OC-014 — buildGatewayConfig({paths,artifactWorkspace,port,agentId,modelRoute,effectMode}) -> object
 
@@ -93,7 +93,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残233atom。旧223�
 - 境界: `isolated_source`
 - 変更: 当該upstream run terminal、当該sessionのactiveRunIdsに当該runなし、当該runのowned tool children settlementを照合して既存releaseを一度だけ呼ぶ。Gateway全体の終了を要求しない。cancel ACK/WS close/親wrapper終了だけでは解放しない。不明effectは既存fenceを保持。
 - 検証/完了: test_admission.py:run A解放後run B/Gateway生存、ACKのみrelease0、task違い拒否、effect unknown fence保持。
-- 依存: OC-019, OC-016
+- 依存: OC-019, OC-016, OC-011
 
 ### OC-021 — _run_admitted() の finally release分岐
 
@@ -347,7 +347,7 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残233atom。旧223�
 
 - 対象: `config/loop-registry.json`
 - 境界: `isolated_source`
-- 変更: 専用Gatewayのcontinuous serviceだけを既存supervisorへ登録。daemon二重所有なし、global OpenClaw upgradeなし。source build中は未install。
+- 変更: 専用Gatewayのcontinuous serviceだけを既存supervisorへ登録。daemon二重所有なし、global OpenClaw upgradeなし。source build中は未install。 source段階はdisabled/default-off契約で、release reconcilerによる暗黙startを既存registry testsで拒否する。現在のGUI/launchdへinstall/startしない。
 - 検証/完了: test_lm_loop_apply.py:immutable package/node/profile argv、既存110 owner cadence変更0。
 - 依存: OC-015, OC-051
 
@@ -1889,3 +1889,5 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残233atom。旧223�
 
 
 検証前訂正: sourceのscheduler関数は現行 `_dispatch_reserved`（旧仕様 `_kick_reserved_owners` は存在しない）。全Sの前提へE-productのengine自然確認を追加し、先にscheduleを移す余地を無くす。
+
+実行順補正: 既存text RPC境界のOC012 contract fixtureを先に完成し、その観測をOC011 StopProofへ利用する。OC020はOC011を必須依存にする。OC052 registry sourceはdefault-offとしreconciler暗黙startを拒否する。
