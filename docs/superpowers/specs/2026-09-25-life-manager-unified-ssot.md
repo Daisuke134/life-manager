@@ -51,6 +51,8 @@
 
 所有者が終了しているread-only censusのorphan groupを確認: UID501、PPID1、PGID36859、start `Fri Oct 9 18:48:46 2026`、members36859(zsh)/36860(du)/36861(sort)/36862(head)。argvはHome全体のdu/sort/head/echoだけで、provider操作/書込commandなし。次の操作は同UID/start/argv/group membershipを直前再検証し、この孤児化したread-only groupだけをSIGTERMして、重複した無期限走査を回収する。managed loop、browser、Mac/loginwindow/app-serverは停止しない。直前再検証後にSIGTERMを送信し、後続psでgroupメンバーは消失（下記確認時点）。provider/managed loopを止めず、これはread-only probeの回収であり11 GiB回復とは別の証拠とする。P0-13はwriter/path/net増加または安全候補の尽きた範囲を確定するまで未完のまま。
 
+**release producerの最小修復:** 共有backpressureはmain済みだが、旧release builderが`cp -alR`で祖先release全体を複製する境界でENOSPCとなり反映不能。tracked sourceは94,228,891 bytes/8,258 blobs、19bc→7f90差分は11 paths/3,047,701 bytes。古いreleaseの未追跡diagnostic/cacheまで新snapshotへ引き継ぐ経路を除き、既存Git archiveによるcanonical tracked sourceのexportへ一本化する。locked dependency bundleの既存再利用、main provenance/ALL/read-only、元release保持を維持する。新CLI flag/新framework/追加reviewは作らず、既存real-Git fixtureに「未追跡donor artifactが伝播しない」を加えRED→GREEN/既存cut tests/CIで検証する。順序はP0-14このproducer境界修復 → P0-15既存main guard反映 → P0-13/12容量と成長の再確認。clone ENOSPCを観測した根拠による変更であり、旧provider effectを中断/再送しない。
+
 ### P0 — ディスク回復のatomic TODO
 
 再開worktree: `/Users/anicca/Projects/life-manager-main/.worktrees/disk-watchdog-worktree-safety-20261008`。branch `fix/disk-cleanup-15d-lm-loop-20261009`、引き継ぎHEAD `a6e037571404419501c6441af8e859e137eaa40b`。既存未commitのSSOT・SKILL・source・test差分を保持し、owner/lease/live process確認前に編集しない。別のactive cleanup worktreeも触らない。
