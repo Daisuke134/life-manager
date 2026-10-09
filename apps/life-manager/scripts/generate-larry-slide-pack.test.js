@@ -90,6 +90,20 @@ test("resolveLarryJaSlot returns a typed no-due result before the first slot wit
   assert.equal(fs.existsSync(poolPath(dataDir, TENANT, EN_AFFIRMATION_LANE.productId, EN_AFFIRMATION_LANE.lane)), false);
 });
 
+test("resolveLarryJaSlot catches up the oldest unposted slot after later slots are due", { timeout: 60_000 }, async (t) => {
+  makeFixtureBackgroundOnce();
+  const dataDir = tempDataDir(t);
+  const env = { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT };
+  const result = await resolveLarryJaSlot({
+    env,
+    now: () => "2026-09-28T09:00:00.000Z", // 18:00 JST; 10:30 and 16:30 have both passed.
+    resolveBackground: fakeResolveBackground(),
+  });
+
+  assert.equal(result.slot, "2026-09-28T01:30:00.000Z"); // first unposted slot, 10:30 JST.
+  assert.ok(result.selected);
+});
+
 test("resolveLarryJaSlot stops after the lane's verified daily receipt limit", async (t) => {
   const dataDir = tempDataDir(t);
   const env = { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT };
