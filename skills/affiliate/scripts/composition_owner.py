@@ -708,8 +708,8 @@ def build_policy(
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def inbox_priority(path: Path, state_root: Path) -> tuple[int, str]:
-    """Finish an existing handoff before spending a pass on another draft."""
+def inbox_priority(path: Path, state_root: Path, skill_root: Path) -> tuple[int, str]:
+    """Finish due retries and existing handoffs before spending a pass on a new draft."""
     receipt_path = state_root / "composition-receipts" / path.name
     if not receipt_path.is_file():
         return (1, path.name)
@@ -727,6 +727,16 @@ def inbox_priority(path: Path, state_root: Path) -> tuple[int, str]:
         ):
             return (0, path.name)
         return (1, path.name)
+    if (
+        receipt.get("state") == "FAILED"
+        and receipt.get("failure_class") == "RUNNER_REJECTED"
+        and (
+            budget_retry_is_due(skill_root, state_root, bundle)
+            or runner_retry_is_due(state_root, bundle, receipt)
+        )
+    ):
+        # A due same-source retry must not sit behind fresh bundles forever.
+        return (0, path.name)
     if receipt.get("state") == "READY_FOR_POLICY" and (
         not SHA256.fullmatch(receipt.get("handoff_sha256", ""))
         or not SHA256.fullmatch(receipt.get("policy_sha256", ""))
@@ -748,7 +758,7 @@ def wake(
             return {"state": "ALREADY_RUNNING"}
         paths = sorted(
             (state_root / "composition-inbox").glob("*.json"),
-            key=lambda path: inbox_priority(path, state_root),
+            key=lambda path: inbox_priority(path, state_root, skill_root),
         )
         blocked_result = None
         for path in paths:
