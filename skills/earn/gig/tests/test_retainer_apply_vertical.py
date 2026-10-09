@@ -192,6 +192,11 @@ def test_retainer_legacy_projection_keeps_bucket_url_and_terms() -> None:
 
 def test_retainer_commit_uses_the_existing_effect_fence_and_exact_readback(tmp_path, monkeypatch) -> None:
     snapshot = _snapshot()
+    monkeypatch.setenv("LIFE_MANAGER_RUN_ID", "retainer-test-run")
+    monkeypatch.setenv(
+        "LIFE_MANAGER_OCCURRENCE_ID",
+        "hf-gig-apply-direct:retainer-test-run",
+    )
     effects = parent.FixtureEffects(snapshot, {"official_applied_ids": [ULID]})
     monkeypatch.setattr(parent.gig_disk_guard, "disk_headroom_ok", lambda: True)
 
@@ -206,6 +211,11 @@ def test_retainer_commit_uses_the_existing_effect_fence_and_exact_readback(tmp_p
 
 def test_retainer_commit_fills_and_reads_back_screening_answers(tmp_path, monkeypatch) -> None:
     snapshot = _snapshot_with_questions()
+    monkeypatch.setenv("LIFE_MANAGER_RUN_ID", "retainer-test-run")
+    monkeypatch.setenv(
+        "LIFE_MANAGER_OCCURRENCE_ID",
+        "hf-gig-apply-direct:retainer-test-run",
+    )
     decision = _decision()
     decision["decisions"][0]["screening_answers"] = [
         {"question": "自治体案件の経験はありますか？", "answer": "自治体案件の実務経験はありません。"},
@@ -230,6 +240,11 @@ def test_retainer_confirmation_failure_stays_pre_effect_and_retryable(tmp_path, 
 
     snapshot = _snapshot()
     effects = ConfirmationBlocked(snapshot, {})
+    monkeypatch.setenv("LIFE_MANAGER_RUN_ID", "retainer-test-run")
+    monkeypatch.setenv(
+        "LIFE_MANAGER_OCCURRENCE_ID",
+        "hf-gig-apply-direct:retainer-test-run",
+    )
     monkeypatch.setattr(parent.gig_disk_guard, "disk_headroom_ok", lambda: True)
 
     results = parent.commit_decisions(
