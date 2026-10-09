@@ -55,7 +55,15 @@ is the target-level replay fence, not a new owner or scheduler.
    that completes delegated real-world work and reports evidence, then invite one
    purpose per recipient: a podcast, Zoom, or in-person discussion. Say I can
    travel to meet in person if useful; do not purchase travel or tickets.
-2. Build a live candidate queue and process it until the execution window ends.
+2. Before filling, preparing, or sending any candidate, apply the eligibility
+   and evidence-backed personalization gate in `prompts/daily.md`. Confirm every
+   current mandatory condition against verified company facts: a mismatch
+   excludes the candidate; missing or conflicting evidence holds it. Optional
+   fields, queue priority, nationality, personal address, or travel intent never
+   establish legal eligibility. Preserve official sources, check dates, fact
+   provenance, and target-specific policy/research-to-product reasoning in the
+   existing `context_used` draft fields. Never invent facts to qualify.
+   Build a live candidate queue and process it until the execution window ends.
    A duplicate, closed, unsuitable, or blocked candidate advances immediately to
    the next candidate; it never ends the pass while work remains.
 3. Read each unfamiliar rendered form through fresh observations. Take one
