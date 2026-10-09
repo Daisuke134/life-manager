@@ -26,7 +26,7 @@
 
 **不変条件:** 11 GiBは今回の容量回復受入であり、全producerの起動floorを一律11 GiBへ変える指示ではない。iOS Simulator runtime/image/device/data/dyld、memory/state、credentials、browser identity、参照release、active/dirty/unmerged/leased/locked worktree、open/unknown dataを削除しない。古い同一UID test artifactと、Git clean/main統合済み/unleased/unlocked/closedを全て証明できるworktreeだけを今回の追加回収対象とする。証明できなければ保持。effect_unknownはexact official receipt/pre-effect proofまで解除・再送しない。Codex session履歴は容量が大きいだけで削除・圧縮対象にしない。
 
-**現在cursor: S02/P0-15 agent-runnerの直接provider入口 → P0-13/14の残る増加源・producer契約 → P0-12の11GiB回復 → 下記全社S順。** GC抑制はmain a8fe894bのimmutable currentへ反映済み。根本修復全体は未完。この節の文書保存・統合と実装/本番成果の完了は別。各atomは証拠取得後だけ `[x]` にし、失敗境界・次の安全な操作・cursorを同じ差分で更新する。
+**現在cursor: S02/P0-13の残る再生成物・writer実測（agent-runner入口のsource/main/current反映済み、自然provider延期証拠待ち） → P0-14/15の実証された残修正 → P0-12の11GiB回復 → 下記全社S順。** GC抑制はmain a8fe894bのimmutable currentへ反映済み。根本修復全体は未完。この節の文書保存・統合と実装/本番成果の完了は別。各atomは証拠取得後だけ `[x]` にし、失敗境界・次の安全な操作・cursorを同じ差分で更新する。
 
 **引き継ぎ/診断証拠:** worktree HEAD `a6e03757`の4ファイル497行差分を`ea1784b0ec`で保持してpushし、最新main `3baccdbd`を`00b5d4ff5d`でmerge/push。leaseは既存owner `codex-root`でheartbeatを更新、直列lsof再確認でworktree下open handleなし。既存temp/worktree focused testは2 PASS。agmsg統括identityは`lm/codex-resource-orchestrator-1009`、既存cleanup担当へ重複書込抑制と状態照会を送信。自然receiptの成功/失敗が交互に現れ、失敗時の正確な親errorは`host_cleanup_identity_mismatch`。`disk_cleanup.py::main`のbusy lock出力はexit75だがidentityを含まず、`central_cleanup.host_cleanup_readback`の同-occurrence検査が失敗に変換する。REDはbusy出力identity欠落と親exit1を再現し、最小修正後の関連4 testsはGREEN。修正契約は、busy出力にもimmutable manifest由来の同run identityを載せ、親はそのidentityを検証した正確なbusyだけをeffect0のexit75延期として維持し、他のidentity mismatchはexit1のまま拒否する。旧ENOSPC修復とは区別し、容量不足時の既存reserve/cursor testsも再確認する。
 
@@ -81,6 +81,13 @@ S02実測: acct1/acct2のcodex-runner invocationsは各199,756/109,816 KiB（合
 次の変更範囲はruntime/agent-runner/agent_runner.py::runと最小の既存形式test、本節のみ。直接起動とcontrol/continuous経由のagent inferenceでも、billable provider/新HOME/attempt書き込み前に共通disk_free_bytesと既存RECOVERY_FLOOR_BYTES（2GiB）を使い、低/unknownをexit75のdisk_headroom_low/unavailableとして延期する。cleanup/supervisorの決定的な制御処理は変更せず、実行中のproviderを止めない。新しいfloor/config/framework、古いHOME/credential/stateの削除を追加しない。REDは低/unknownでprovider0・新evidence/HOME/lease生成0、healthyは既存providerへ進むこと。focused GREEN→exact-head CI→main→既存release ownerの自然adoption/readbackまで続ける。回復容量とこの入口修復を別の未完/完了判定にする。
 
 S02 source検証: 低/unknownの3 RED subcasesは旧runnerのexit1（期待exit75）を再現。run入口へ共通free-space checkを追加（source9追加/1削除）、evidenceが未作成でも最寄りexisting parent volumeを測定し、新HOME/attempt/lease前にexit75で延期する。既存prompt/capture/retentionのfocused 15 tests + 3 subtests PASS、loop contract18 catalog/189 jobs/errors0、diff check PASS。healthyのprovider fixtureは2GiBちょうどでも起動する。host測定のmockはtest subprocessだけに置き、本番overrideは追加しない。CIのOSS境界は変更2ファイルの既存manifest digest不一致を検出したため、docs/manifests/oss-merge-1-sources.jsonの該当SHA256だけをsourceへ同期する。次は更新headのCI/mainと既存release ownerの自然adoption。
+
+
+**S02 main/本番readback:** #7412はhead33d349854fのCI全10 jobs PASS後、main6438afb3e0a78dd5210bfaad91e55e5734728f57へ統合。CodeRabbitはmanual review requiredでskipであり独立review完了とは数えない。既存reconcilerが自然作成したcurrent=/Users/anicca/loops/releases/20261010T012654-6438afb3を再利用し、追加cut/apply/restartをしない。manifestのmain ancestry/ALL、agent_runner.py/disk_admission.pyのGit blob hash一致とmode0555/0444を確認。GUI preflight PASS、cleanup loaded program/argvは6438、watchdogはstable wrapper/interval60/runs974/last exit0。新しいagent-runner入口の自然provider延期receiptはまだ取得しておらず、source/adoptionと自然provider証拠を分ける。
+
+P0-13追加観測: selected8 state rootsは全て2秒以内に測定完了（loop-tmp15,576、logs131,028、artifacts4,592、camofox cache142,924、state288,848 KiB、tmp/media/scratch0）。Xcode DerivedData/Homebrew/npm/uv/pip/選定3 Next.js cacheの8 pathsは存在しない。これを全hostの回収候補が尽きた証拠へ拡張しない。4秒lsof＋3秒同identity差分の限定probeではopenな大規模path3件のみ: Codex thread_history1 DB5,078,036,480 bytes/logs DB782,626,816 bytes、host admission DB153,702,400 bytes、いずれも差分0。read-only PRAGMAはhistoryのfree pages0/logsのunused7,655,424 bytes。state/historyを削除せず、これらを今回の増加writerと断定しない。swap used8473.44MiBは確認するが特定loopへの帰属は未確認。
+
+自然bound receipt16:24:52Zは旧aae7/run18dce90c42ae4f70-66915/free_after903,630,848、自然unbound16:32:40Zはfree_after798,998,528、共にerrors0/protected_deletions0/reclaimed0。fresh free798,216,192 bytes（約0.74GiB）で11GiBまで約10.26GiB不足。旧bound receiptを新SHAの自然run証拠に使わない。根本容量修復は未完。次の一操作はP0-13の残るProjects/release/dependency familyを各2秒・最大8 leafへ絞り、scripts/worktree-lease.py auditとlsof/PID/start、fresh main integrationをjoinして再生成物のclosed/unleased候補だけを測ること。安全な回収対象が証明されるまで削除せず、容量不足量と未測定/TCC境界を保持する。改善作業は資源回復後も一件ずつ進める。
 
 ### P0 — ディスク回復のatomic TODO
 
@@ -154,7 +161,7 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 
 **「24/7 forever」の契約:** 監督・待ち行列・復旧を常時動かし、要求された業務cadenceを満たすこと。単一の有限SSDへ無限のwork/dataを詰めても故障しないという保証にはしない。容量/外部quotaを超える需要は先に延期し、実測に基づくproducer抑制と許可された容量拡張/既存Cloud worker分離を行う。保護memory/stateを削除して帳尻を合わせない。改善作業は資源回復後も一件ずつ。重い並列、新しいcluster/framework、全agentへの反復reviewを今の修復へ追加しない。
 
-**実行順:** 既存のP0→P1とlane入口の順を保ち、下記S01→S18へ対応付ける。原子的詳細は既存lane節を参照し複製しない。外部gate/未来slot/収益の到来で止まるatomは、証拠と戻るcursorを記録して次の独立したsafe atomを一件だけ進める。並列実装はしない。元の全lane目標を維持し、18 agent全greenやJob Hunter entitlement/投資30自然round tripsを、独立した既存商品の販売開始gateにしない。現在cursor=S02/P0-15（S01の残るowner coverageは自然収束を追跡）。
+**実行順:** 既存のP0→P1とlane入口の順を保ち、下記S01→S18へ対応付ける。原子的詳細は既存lane節を参照し複製しない。外部gate/未来slot/収益の到来で止まるatomは、証拠と戻るcursorを記録して次の独立したsafe atomを一件だけ進める。並列実装はしない。元の全lane目標を維持し、18 agent全greenやJob Hunter entitlement/投資30自然round tripsを、独立した既存商品の販売開始gateにしない。現在cursor=S02/P0-13（新SHAのowner coverageと自然provider証拠を追跡）。
 
 | 状態 | 順 | 次の一操作・対象 / 検証・DONE証拠 |
 |---|---|---|
