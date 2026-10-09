@@ -322,3 +322,5 @@
 実行ledger: DS04 registered owner専用closed policy/configを実装。3cases RED→GREEN/PASS。unknown ownerはNoneで既存動作不変更、診断byte limitはfree-space admission floorではない。fixture ENOSPCを解消するため、既存同版install/open/mount無しのTapKit installerだけ回収、app/config/auth不変更。
 
 実行ledger: DS05 managed byte retentionはclosed_run_ids/closed_releasesのpositive proofでのみ回収。active/protected/unknownを除外しunrecoverableを別計上。memory/state-journal保护を既存probeでrun retentionにも適用。4cases RED→GREEN、関連64tests/5subtests PASS。measure時chmod0、本番削除0。
+
+実行ledger: DS06 finite owned stdio relayを実装。binary32MiB/parent-control close/detached writer/symlink root/ENOSPC drainの5cases、policy込み8tests PASS。macOS Unix datagramのpeer resetをreadbackで処理してfinal private receiptを読む。provider/admission leaseとsecret envを継承しない。本番未接続。
