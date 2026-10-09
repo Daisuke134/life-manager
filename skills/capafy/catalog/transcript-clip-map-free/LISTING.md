@@ -1,5 +1,5 @@
 category: ソーシャルメディア · tags: transcript, shorts, clips, repurpose, free
-Demand rank: 0
+Demand rank: 2
 Rank evidence (2026-10-09): 2026-10-08 market sweep of 854 agents sells 77.1 units per agent in the short-video/creator category vs 56.7 analysis, 33.5 finance and 0.5-6.6 for B2B decks; our own 30-day sales come from Hook Lab, TikTok Script Pro and other creator tools.
 Demand note: copies the free-download lead-magnet shape of "Free Transcript to 12 Shorts Pack"
 (2,095 sold in the 2026-10-07 market sweep of 846 agents; the #3 seller overall) and the
