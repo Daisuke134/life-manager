@@ -13,6 +13,7 @@ const UTM_LIMITS = Object.freeze({
   utm_content: 200,
   utm_term: 120,
 });
+const WEB_ATTRIBUTION_UTM_KEYS = Object.freeze(Object.keys(UTM_LIMITS));
 
 function valuesFor(query, key) {
   if (query && typeof query.getAll === "function") return query.getAll(key);
@@ -79,6 +80,7 @@ function consumeWebAttribution(cookie, secret, nowMs = Date.now()) {
 module.exports = {
   WEB_ATTRIBUTION_COOKIE,
   WEB_ATTRIBUTION_MAX_AGE_SECONDS,
+  WEB_ATTRIBUTION_UTM_KEYS,
   sanitizeWebAttribution: boundedFields,
   captureWebAttribution,
   consumeWebAttribution,

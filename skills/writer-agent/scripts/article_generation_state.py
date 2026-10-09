@@ -45,6 +45,9 @@ ALLOWED_PREPUBLICATION_FILES = {
     # receipt. It records the exact queued card before generation begins and
     # must survive a safe retry boundary without being mistaken for output.
     "gates/topic-card-resume.json",
+    # The wrapper freezes the product pick (select_article_product.py) here before the demand gate, so a
+    # resumed pass never lands on a different product.  Local, side-effect-free, not a draft.
+    "gates/product-selection.json",
 }
 
 # Wrapper-owned runtime infrastructure inside the run dir. These are never

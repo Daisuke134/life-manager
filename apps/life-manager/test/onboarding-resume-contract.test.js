@@ -63,16 +63,19 @@ test("Task 8: retired handler has no credential/provider/parser authority surfac
   assert.doesNotMatch(source, /SUPABASE|COMPOSIO|LM_UID_SECRET|client_reference_id|paid/i);
 });
 
-test("Task 8: /lm is one localized Telegram handoff and ignores query authority", () => {
+test("Task 13: /lm CTA opens the Web Calendar connection in the same tab", () => {
   const source = fs.readFileSync(LM_BODY, "utf8");
-  assert.match(source, /const TG_DEEPLINK\s*=\s*['"]https:\/\/t\.me\/LifeManagerBotbot\?start=lp['"]/);
-  assert.equal((source.match(/TG_DEEPLINK/g) || []).length, 2, "constant plus one handoff href");
-  assert.match(source, /href=\{TG_DEEPLINK\}/);
+  assert.match(source, /const WEB_APP_CTA_URL\s*=\s*['"]https:\/\/life-call-production\.up\.railway\.app\/lm\?start_calendar=1['"]/);
+  assert.match(source, /href=\{WEB_APP_CTA_URL\}/);
+  assert.match(source, /t\.primaryCta/);
+  const primaryLink = source.match(/<a\s+href=\{WEB_APP_CTA_URL\}([\s\S]*?)>/);
+  assert.ok(primaryLink, "primary Web CTA exists");
+  assert.doesNotMatch(primaryLink[1], /target="_blank"/);
+  assert.doesNotMatch(source, /TG_DEEPLINK|LifeManagerBotbot|t\.soonCta/);
   assert.match(source, /useLaunchLocale/);
   assert.match(source, /launchStrings/);
   assert.match(source, /t\.publicTitle/);
   assert.match(source, /t\.publicBody/);
-  assert.match(source, /t\.soonCta/);
   for (const forbidden of [
     /LmClient/, /useEffect/, /useState/, /window\.location/, /URLSearchParams/, /searchParams\.get\(['"]tg['"]\)/,
     /lm-onboard/, /calendar-connect/, /localStorage|sessionStorage/, /signInWithGoogle|Supabase/i,
