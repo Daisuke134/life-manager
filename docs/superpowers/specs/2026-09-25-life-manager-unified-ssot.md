@@ -80,7 +80,7 @@ S02実測: acct1/acct2のcodex-runner invocationsは各199,756/109,816 KiB（合
 
 次の変更範囲はruntime/agent-runner/agent_runner.py::runと最小の既存形式test、本節のみ。直接起動とcontrol/continuous経由のagent inferenceでも、billable provider/新HOME/attempt書き込み前に共通disk_free_bytesと既存RECOVERY_FLOOR_BYTES（2GiB）を使い、低/unknownをexit75のdisk_headroom_low/unavailableとして延期する。cleanup/supervisorの決定的な制御処理は変更せず、実行中のproviderを止めない。新しいfloor/config/framework、古いHOME/credential/stateの削除を追加しない。REDは低/unknownでprovider0・新evidence/HOME/lease生成0、healthyは既存providerへ進むこと。focused GREEN→exact-head CI→main→既存release ownerの自然adoption/readbackまで続ける。回復容量とこの入口修復を別の未完/完了判定にする。
 
-S02 source検証: 低/unknownの3 RED subcasesで旧runnerがexit1までproviderを起動したことを再現。run入口へ共通free-space checkを追加（source9追加/1削除）、evidenceが未作成でも最寄りexisting parent volumeを測定し、新HOME/attempt/lease前にexit75で延期する。既存prompt/capture/retentionのfocused 15 tests + 3 subtests PASS、loop contract18 catalog/189 jobs/errors0、diff check PASS。healthyのprovider fixtureは2GiBちょうどでも起動する。host測定のmockはtest subprocessだけに置き、本番overrideは追加しない。次はexact-head CI/mainと既存release ownerの自然adoption。
+S02 source検証: 低/unknownの3 RED subcasesは旧runnerのexit1（期待exit75）を再現。run入口へ共通free-space checkを追加（source9追加/1削除）、evidenceが未作成でも最寄りexisting parent volumeを測定し、新HOME/attempt/lease前にexit75で延期する。既存prompt/capture/retentionのfocused 15 tests + 3 subtests PASS、loop contract18 catalog/189 jobs/errors0、diff check PASS。healthyのprovider fixtureは2GiBちょうどでも起動する。host測定のmockはtest subprocessだけに置き、本番overrideは追加しない。CIのOSS境界は変更2ファイルの既存manifest digest不一致を検出したため、docs/manifests/oss-merge-1-sources.jsonの該当SHA256だけをsourceへ同期する。次は更新headのCI/mainと既存release ownerの自然adoption。
 
 ### P0 — ディスク回復のatomic TODO
 

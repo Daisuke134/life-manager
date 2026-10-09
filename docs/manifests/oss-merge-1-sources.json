@@ -99,7 +99,7 @@
         {
           "source": "skills/agent-runner/agent_runner.py",
           "target": "runtime/agent-runner/agent_runner.py",
-          "sha256": "a9ef66ad581935d6ddc521e9d309b44a4c7953b1859fa354be3fc19893485f65"
+          "sha256": "f686e090ba9d0b0b60e54ec033190ac36c0a2cba35fd18ee938250b67c2c6ede"
         },
         {
           "source": "skills/agent-runner/config.json",
@@ -119,7 +119,7 @@
         {
           "source": "skills/agent-runner/tests/test_prompt_fail_closed.py",
           "target": "runtime/agent-runner/tests/test_prompt_fail_closed.py",
-          "sha256": "175961a8f6dee55de540cbb5691b0da4746f09bebc8226d56acaf788e2811209"
+          "sha256": "3050fef73ba3093af70dd2268dffd77cbc1bae2369a951ffc097e08038ff06a8"
         },
         {
           "source": "skills/agent-runner/tests/test_usage_report.py",
