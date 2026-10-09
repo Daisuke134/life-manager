@@ -140,10 +140,18 @@ async function exec(tool, uid, args, apiKey, opts, recordOutcome, effectAwareCre
     }
     const upstreamStatus = Number(proxied && proxied.status) || 0;
     const proxyStatus = Number(response && response.status) || 0;
-    if ((upstreamStatus >= 400 && upstreamStatus < 500)
-      || (proxyStatus >= 400 && proxyStatus < 500)) {
+    const proxyError = proxied && typeof proxied.error === "string" ? proxied.error
+      : proxied && proxied.error && typeof proxied.error.message === "string" ? proxied.error.message
+        : proxied && typeof proxied.message === "string" ? proxied.message : "";
+    const proxyValidationRejected = proxyStatus === 400
+      && /invalid\s+(?:request\s+)?parameters?/i.test(proxyError);
+    if ((upstreamStatus >= 400 && upstreamStatus < 500) || proxyValidationRejected) {
       await recordOutcome("failure");
       return { effect: "no_effect", result: { successful: false } };
+    }
+    if (proxyStatus >= 400 && proxyStatus < 500) {
+      await recordOutcome("unknown");
+      return { effect: "unknown", result: { successful: false } };
     }
     const data = proxied && proxied.data && typeof proxied.data === "object" ? proxied.data : null;
     const successful = response.ok === true && (upstreamStatus === 0 || upstreamStatus >= 200 && upstreamStatus < 300)
