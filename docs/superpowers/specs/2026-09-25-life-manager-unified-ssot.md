@@ -221,7 +221,7 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 | 同期未完で保持 | `/Users/anicca/Pictures/Photos Library.photoslibrary`。写真カテゴリ1.69GB、実ディレクトリreadはTCC拒否 | Photos公式UIはiCloud写真=1・Macストレージ最適化=1・共有アルバム=1・同パスのsystem libraryをreadback。公式footerは4,999写真/737ビデオ、iCloudとの同期一時停止、ローカルストレージ不足。未uploadがないと証明できないため保持し、書類の回収を先行する。同期完了後にこのMacのコピーだけを回収し、共有アルバムも含む再蓄積経路を閉じる。ライブラリ内写真の一括削除は同期先の削除になり得るため行わない。Photos/同期writerの終了確認後、ローカルコピー回収を実施。Photosへ再同期して再蓄積しない設定まで閉じる |
 | 保持 | `/Users/anicca/Documents`333,820KiB、うち`Codex`333,764KiB。`Job Applications`、`~/Desktop/d_narita`の証明書、応募動画・Gig資料 | 書類108.21GBを消せる根拠にならない。LM関連の作業資料/応募/認証を保持。`Documents`/`Desktop`はFinderでiCloud配下に見えるため、不要項目でもremote deleteと混同せず同期状態を確認する |
 | 保持 | `/Applications/ChatGPT.app`1,649,220KiB、`Google Chrome.app`2,195,876KiB、`Xcode-26.6.0.app`3,639,464KiB。Claude/CodexBar/CuaDriver/TapKitも導入済み | 現在のagent/ブラウザ/iOS/UI基盤。実プロセスとruntime参照を確認し、容量目的で消さない。`~/Applications/ChatGPT 2.app`は24KiBの補助appで、重複名だけを理由に削除しない。未使用appは未特定。全アプリ9.61GBを削除可能量と扱わない |
-| 回収対象を確定 | `/Users/anicca/Archive/repos/openai-symphony/elixir/_build`102,348KiB、同`elixir/deps`25,896KiB | 両方UID501・通常dir・Git ignored・tracked0・confirmed-closed・既存immutable store probe=Noneを実測。source/.git/mix.lock/未追跡WORKFLOWは保持し、この2つの生成物だけをfresh再確認後に手動回収。自動化はdisk_cleanup.pyの同2パス限定cache allowlistと既存descendant保護を使い、open・credential/state/memory・symlink ancestorを保持するfocused RED/GREENで閉じる |
+| 手動回収済み・自動化未完 | `/Users/anicca/Archive/repos/openai-symphony/elixir/_build`102,348KiB、同`elixir/deps`25,896KiB | 両方UID501・通常dir・Git ignored・tracked0・repository全体confirmed-closed・保護store/実private keyなしを実測し、dir_fd/no-followで削除。source/.git/lockfile/未追跡WORKFLOWの前後hash一致をassert、2path不在を再readback。推定allocated合計131,321,856 bytes、shared volumeの物理回収量へ帰属させない。初回receipt作成はmanifestのcommit/shaキー違いで失敗し、再削除せずreadback receiptを`~/.local/state/life-manager/state/manual-unused-cache-20261010.json`へ保存。source/.git/mix.lock/未追跡WORKFLOWは保持し、手動回収は完了。自動化はdisk_cleanup.pyの同2パス限定cache allowlistと既存descendant保護を使い、open・credential/state/memory・symlink ancestorを保持するfocused RED/GREENで閉じる |
 | 診断中 | 「書類108.21GB」「システムデータ88.46GB」の実パス対応。既知大物はCodex履歴、Git、release、依存、業務作業物。Library/OS領域にTCC/timeoutの未測定あり | 既存bounded inventoryで大きい未測定branchだけを絞る。未知領域やmacOS/VMを名前・大きさで消さない。必要な正式データが増え続ける場合は保持したまま保存先/容量計画を更新し、cleanupの取りこぼしと分ける |
 
 **CLEAN-00の原子的順序:** (a) TrashはDais完了報告済み → (c) 書類カテゴリの大物を実パス・用途へ対応付け、旧Symphonyの上記2生成cacheだけ先に手動回収/自動化 → CLEAN-01のhot pass改善。(b) Photosはstorage不足で同期停止しているため保持し、同期完了readback後にlocal-only回収/再蓄積防止へ戻る。旧順序a→b→cからa→c→CLEAN-01へ変更する理由は、未uploadの消失を避けながら独立した安全な回収を進めるため。手動の新しい破壊的回収だけ一名のfresh read-only検証者で対象・保持条件を確認し、各定型passにreviewを増やさない。force quitはowner/start-time/実仕事を照合した自身の不要な残留producerだけ。Mac/loginwindow/Remote/ChatGPT substrate/他active ownerは停止しない。
@@ -234,6 +234,12 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 
 
 **書類の公式UI内訳とCLEAN-01の実障害:** StorageのFile BrowserはProjects11.04GB、loops12.51GB、gig9.38GB、anicca-project4.47GB、anicca3.5GB、Archive1.16GB、Documents341.8MBを表示。Documentsカテゴリの大物一覧にtelegram-outbox.sqlite3/wakes.jsonl等の業務stateもあり、108.21GB全量をunusedと扱わない。watchdogの自然receipt23:25:02Z/23:27:55Zは共にinventory_mode=full/gaps22/errors0/protected_deletions0。host-inventory-full.at=1791526082が古いままで、size-budget-exhaustedがfull markerを更新させないsource分岐を確認。回収後のCLEAN-01は重いinventoryの再試行が毎分hot passへ戻る境界を最小修復し、unknown coverageは保持する。
+
+**深掘りした内訳（filesystem footprint。macOSカテゴリへの帰属/全量削除可能性は未確定）:** `~/.codex-acct2`15,601,916KiB（sessions9,460,088、thread_history_1.sqlite4,977,800、logs_2.sqlite764,284）、`~/.codex`4,091,640KiB。2アカウント合計約20.2GBには必要な会話/稼働stateがあり、全量削除しない。`~/.openclaw`4,348,548KiB、`~/.blockrun`2,914,980KiB、`~/.local/share`3,710,712KiB、`~/.local/state/life-manager`は測定完了child合計6,534,912KiB（agent-economy未測定）、`~/.local/state/anicca`1,003,328KiB（job-search未測定）。parent/childを重複加算しない。Home217dirの測定合計30,512,696KiB、18dirにTCC/timeoutが残り、108.21GBを説明し切ったとは扱わない。三つの可視root約32.9GBとの差額約75GBは未分類であってunusedの証拠ではない。
+
+**次のunused候補:** `~/.codex/.tmp/marketplaces/.staging/marketplace-upgrade-*`は14dir/410,352KiB。現行plugin cloneとのGit/内容一致、dirty/ignored private store、UID/age/open handleとupdater状態を確認し、失敗した再取得可能copyだけ回収する。Codex root/state/history/cache全体の削除へ広げない。今後の自動化も同じproofを使い、単に名がtmp/stagingという理由で消さない。
+
+**CLEAN-01の最小patch計画:** `bin/disk-watchdog.sh`から既存governorへ`--inventory-fast`を渡し、`disk_cleanup.py::_parse_args/main/run_once`で毎分ownerだけfull censusを省く。削除候補・UID/open/protection/receipt/singleton/StartInterval60は維持し、5分ownerは既存full inventory経路を保持する。hour markerが古い/予算切れでも毎分passがheavy censusを再試行しないことをfocused RED/GREENとloaded wrapper/hash・自然inventory_mode=fastで確認する。未知のcoverageを0にしない。manual回収済み・Photos保持・remaining inventoryを記録し、source/自然receiptで一件ずつ進む。
 
 **cleanup改善の残TODO（CLEAN-00の後、この順。P0の実装対象を具体化する）:**
 
@@ -259,7 +265,7 @@ P1の枠回復はCLEAN-05の生存/待ち境界として扱う。既存S06〜S18
 
 **「24/7 forever」の契約:** 各agentの自己後始末と中央cleanupを通常の実行lifecycleに組み込み、不要物の増加を生成側と回収側の両方で制御する。監督・待ち行列・復旧は常時動き、各仕事は有限の予算で実行・記録・片付け・次の仕事へ進む。ディスク圧迫を早期に自己所有の修復へつなげ、短期待機後に自動再開し、全収益loopを永久待機させない。正式state/receiptの成長には既存の許可・spend cap内で容量/保存先を計画し、障害になるまで放置しない。ほかのagentと業務loopの並列稼働を維持し、本sessionの改善は一件ずつ行う。保護データ削除、新framework、反復reviewで代用しない。
 
-**実行順:** 既存のP0→P1とlane入口の順を保ち、下記S01→S18へ対応付ける。原子的詳細は既存lane節を参照し複製しない。外部gate/未来slot/収益の到来で止まるatomは、証拠と戻るcursorを記録して次の独立したsafe atomを一件だけ進める。並列実装はしない。元の全lane目標を維持し、18 agent全greenやJob Hunter entitlement/投資30自然round tripsを、独立した既存商品の販売開始gateにしない。現在cursor=S02/CLEAN-00(c)の旧Symphony生成cache手動回収/自動化。Photosは同期未完で保持。その後CLEAN-01の中央cleanup hot pass。P0-13の観測はCLEAN-01〜05の実障害境界を狭めるために使い、数字や全体censusの達成待ちにしない。
+**実行順:** 既存のP0→P1とlane入口の順を保ち、下記S01→S18へ対応付ける。原子的詳細は既存lane節を参照し複製しない。外部gate/未来slot/収益の到来で止まるatomは、証拠と戻るcursorを記録して次の独立したsafe atomを一件だけ進める。並列実装はしない。元の全lane目標を維持し、18 agent全greenやJob Hunter entitlement/投資30自然round tripsを、独立した既存商品の販売開始gateにしない。現在cursor=S02/CLEAN-01の毎分fast inventory patch。CLEAN-00の旧Symphony手動回収は完了、同生成物/stagingの自動化と残りcategory分類は未完。Photosは同期未完で保持。その後CLEAN-01の中央cleanup hot pass。P0-13の観測はCLEAN-01〜05の実障害境界を狭めるために使い、数字や全体censusの達成待ちにしない。
 
 | 状態 | 順 | 次の一操作・対象 / 検証・DONE証拠 |
 |---|---|---|
