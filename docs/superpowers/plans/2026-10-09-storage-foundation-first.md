@@ -320,3 +320,5 @@
 実行ledger: DS03 metadata growthと共有state/releaseの観測rootを追加。3ケースRED→GREEN、inventory/governor139tests PASS。全rootはnon-additive、未知size/新規root/時計逆行をnull、ownerはregistryの明示mappingだけ。削除候補へ観測rootを昇格しない。
 
 実行ledger: DS04 registered owner専用closed policy/configを実装。3cases RED→GREEN/PASS。unknown ownerはNoneで既存動作不変更、診断byte limitはfree-space admission floorではない。fixture ENOSPCを解消するため、既存同版install/open/mount無しのTapKit installerだけ回収、app/config/auth不変更。
+
+実行ledger: DS05 managed byte retentionはclosed_run_ids/closed_releasesのpositive proofでのみ回収。active/protected/unknownを除外しunrecoverableを別計上。memory/state-journal保护を既存probeでrun retentionにも適用。4cases RED→GREEN、関連64tests/5subtests PASS。measure時chmod0、本番削除0。

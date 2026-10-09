@@ -28,6 +28,61 @@ def completed(root: Path, name: str, size: int = 1) -> Path:
 
 
 class LoopCleanupTest(unittest.TestCase):
+    def test_byte_retention_reclaims_only_closed_regenerable_runs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            old = completed(root, "old", size=4096)
+            new = completed(root, "new", size=64)
+            active = completed(root, "active", size=8192)
+            protected = completed(root, "protected", size=8192)
+            (protected / ".lm-protected").write_text("keep")
+            os.utime(old, (1, 1)); os.utime(new, (2, 2))
+            result = cleanup_run_root(root, {"max_runs": 100, "max_age_days": 365},
+                {"active"}, now=3, managed_bytes=1024, closed_run_ids={"old", "new"})
+            self.assertFalse(old.exists())
+            self.assertTrue(new.exists())
+            self.assertTrue(active.exists())
+            self.assertTrue(protected.exists())
+            self.assertEqual(result["protected_deletions"], 0)
+
+    def test_byte_retention_without_closed_proof_preserves_runs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            run = completed(root, "unknown", size=4096)
+            result = cleanup_run_root(root, {"max_runs": 100, "max_age_days": 365},
+                set(), now=time.time(), managed_bytes=1)
+            self.assertTrue(run.exists())
+            self.assertGreater(result["unrecoverable_bytes"], 0)
+
+    def test_byte_retention_preserves_memory_and_state_journal(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            memory = completed(root, "memory-case", size=1024)
+            (memory / "memory").mkdir(); (memory / "memory/item.md").write_text("keep")
+            journal = completed(root, "journal-case", size=1024)
+            (journal / "state").mkdir(); (journal / "state/item.jsonl").write_text("{}\n")
+            cleanup_run_root(root, {"max_runs": 100, "max_age_days": 365}, set(),
+                managed_bytes=0, closed_run_ids={"memory-case", "journal-case"})
+            self.assertTrue((memory / "memory/item.md").exists())
+            self.assertTrue((journal / "state/item.jsonl").exists())
+
+    def test_release_byte_budget_keeps_current_and_removes_only_closed_old_release(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); releases = root / "releases"; releases.mkdir()
+            paths = []
+            for index, size in enumerate([4096, 64, 4096]):
+                path = releases / f"2026010{index+1}T000000-{index:08x}"; path.mkdir()
+                (path / "RELEASE.json").write_text(json.dumps({"sha": f"{index:040x}"}))
+                (path / "source.bin").write_bytes(b"x" * size)
+                os.utime(path, (index+1, index+1)); paths.append(path)
+            current = root / "current"; current.symlink_to(paths[2])
+            result = gc_releases(releases, current, keep=100, protected=set(),
+                managed_bytes=1024, closed_releases={p.resolve() for p in paths})
+            self.assertFalse(paths[0].exists())
+            self.assertTrue(paths[1].exists())
+            self.assertTrue(paths[2].exists())
+            self.assertEqual(result["protected_deletions"], 0)
+
     def test_cleanup_binding_uses_the_loaded_manifest(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
