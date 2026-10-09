@@ -1,0 +1,1793 @@
+{
+  "version": 1,
+  "main_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72",
+  "release": "/Users/anicca/loops/releases/20261009T134741-84c56e11",
+  "started_at": "2026-10-09T05:01:33Z",
+  "finite_owner_count": 159,
+  "initially_deferred": [
+    {
+      "owner_id": "agentmail-nudge",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "agentmail-replier",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "alpaca-investment-live",
+      "state": "disabled",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "alpaca-investment-paper",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "article-audit-7day",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "article-learn-whitelist",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "article-resume",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "boot-panic-evidence",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "browser-state-backup",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "capafy-distribute-daily",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "capafy-ig-account-manager",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "capafy-ig-marketing-daily",
+      "state": "disabled",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "capafy-outcome-monitor",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "crowdworks-revenue-application",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "crowdworks-revenue-paid",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "crowdworks-revenue-reply",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "crowdworks-revenue-report",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "daily-nl-report",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "earn-watch",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "founder-loop-cadence",
+      "state": "loaded-running",
+      "effect_unknown": false
+    },
+    {
+      "owner_id": "fundraiser",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "hf-bounty-daily",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "hf-gig-apply-direct",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "hf-gig-apply-reconcile",
+      "state": "loaded-running",
+      "effect_unknown": false
+    },
+    {
+      "owner_id": "hf-gig-reply-detector",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "hf-gig-storefront-direct",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "investment-cross-venue-report",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "job-search-daily",
+      "state": "unloaded",
+      "effect_unknown": false
+    },
+    {
+      "owner_id": "job-search-learning",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "lancers-revenue-application",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "lancers-revenue-negotiate",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "lancers-revenue-paid",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "lancers-revenue-storefront",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "lancers-revenue-telegram-report",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "life-manager-anicca-affirmation-youtube",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "life-manager-anicca-ai-youtube",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "life-manager-anicca-buddha-tiktok",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "life-manager-anicca-en-affirmation-instagram",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "life-manager-anicca-en-affirmation-tiktok",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "life-manager-anicca-en-card-instagram",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "life-manager-anicca-en-slideshow-tiktok",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "life-manager-anicca-en-widget-instagram",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "life-manager-anicca-en2-affirmation-tiktok",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "life-manager-anicca-he",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "life-manager-anicca-ja-widget-instagram",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "life-manager-anicca-jp1-tiktok",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "life-manager-anicca-jp4",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "life-manager-anicca-larry-ja-instagram",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "life-manager-anicca-main-instagram",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "life-manager-anicca-main-tiktok",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "life-manager-capafy-ig",
+      "state": "disabled",
+      "effect_unknown": false
+    },
+    {
+      "owner_id": "life-manager-daily",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "life-manager-disk-cleanup-15d",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "ebook-en-tiktok-daily",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "ebook-ja-instagram-daily",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "ebook-ja-tiktok-daily",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "life-manager-honne-en",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "life-manager-honne-ja",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "life-manager-instagram-metrics",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "life-manager-payout",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "life-manager-release-reconciler",
+      "state": "loaded-running",
+      "effect_unknown": false
+    },
+    {
+      "owner_id": "life-manager-tiktok-metrics",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "line-sticker-distribute",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "line-sticker-factory-hourly",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "marketing-mine-daily",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "marketing-owner-events",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "mercor-revenue-application",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "mercor-revenue-paid",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "mercor-revenue-reply",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "pm-live-trade",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "reinvest",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "session-vault",
+      "state": "loaded-running",
+      "effect_unknown": false
+    },
+    {
+      "owner_id": "sol-funding",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "token-daily-report",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "ubi-watcher",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "warmup-flip-daily",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "writer-opportunity-response",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "writer-report",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "x-repost-digest",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "x-repost-healthcheck",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "x-repost-ja-healthcheck",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "x-repost-ja-pass",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "x-repost",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "x-tweeter-healthcheck",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    },
+    {
+      "owner_id": "x-tweeter",
+      "state": "loaded-idle",
+      "effect_unknown": true
+    }
+  ],
+  "core_owner_ids": [
+    "life-manager-disk-cleanup",
+    "life-manager-health-observer"
+  ],
+  "results": [
+    {
+      "owner_id": "affiliate-composition",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": true,
+          "changed": true,
+          "install_event_id": "53471b1feec720e9a9cd2c29",
+          "label": "ai.anicca.affiliate-composition",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "affiliate-composition",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "affiliate-loop",
+      "returncode": 0,
+      "apply": [
+        {
+          "changed": false,
+          "install_event_id": "5937ff1a1e07bf615bceb02a",
+          "label": "ai.anicca.affiliate-loop",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "affiliate-loop",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "affiliate-source-refresh",
+      "returncode": 0,
+      "apply": [
+        {
+          "changed": false,
+          "label": "ai.anicca.affiliate-source-refresh",
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72",
+          "skipped": "pending-admission"
+        }
+      ]
+    },
+    {
+      "owner_id": "article-daily",
+      "returncode": 0,
+      "apply": [
+        {
+          "changed": false,
+          "install_event_id": "8131aa584ab1b39b62db47e4",
+          "label": "ai.anicca.article-daily",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "article-daily",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "article-healthcheck",
+      "returncode": 0,
+      "apply": [
+        {
+          "changed": false,
+          "install_event_id": "7a843cc45abc5c0a36fc02b8",
+          "label": "ai.anicca.article-healthcheck",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "article-healthcheck",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "article-repair-candidate",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": true,
+          "changed": true,
+          "install_event_id": "f294e14ded1f952e745b5627",
+          "label": "ai.anicca.article-repair-candidate",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "article-repair-candidate",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "article-self-improve",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": true,
+          "changed": true,
+          "install_event_id": "c5da98bfa3eee6dd3ae419cf",
+          "label": "ai.anicca.article-self-improve",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "article-self-improve",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "article-zenn-retry",
+      "returncode": 0,
+      "apply": [
+        {
+          "changed": false,
+          "install_event_id": "1566ed29e92958c043651283",
+          "label": "ai.anicca.article-zenn-retry",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "article-zenn-retry",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "bounty-core-healthcheck",
+      "returncode": 0,
+      "apply": [
+        {
+          "changed": false,
+          "install_event_id": "eec28dc6ad01bc150c24cdfe",
+          "label": "ai.anicca.bounty-core-healthcheck",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "bounty-core-healthcheck",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "cadence-deadline-check",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": true,
+          "changed": true,
+          "install_event_id": "25328a225b09a39da5a29d6c",
+          "label": "ai.anicca.cadence-deadline-check",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "cadence-deadline-check",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "capafy-goal-monitor",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": false,
+          "changed": true,
+          "install_event_id": "b43e2a12c007b94617b3095e",
+          "label": "ai.anicca.capafy-goal-monitor",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "capafy-goal-monitor",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "capafy-goal-monitor-daily-close",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": false,
+          "changed": true,
+          "install_event_id": "50608e56b500381ea371fdc0",
+          "label": "ai.anicca.capafy-goal-monitor-daily-close",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "capafy-goal-monitor-daily-close",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "capafy-goal-monitor-hourly",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": false,
+          "changed": true,
+          "install_event_id": "6da42bf0eb4af0d49837a2b7",
+          "label": "ai.anicca.capafy-goal-monitor-hourly",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "capafy-goal-monitor-hourly",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "capafy-loop-daily",
+      "returncode": 0,
+      "apply": [
+        {
+          "changed": false,
+          "install_event_id": "55cf4fc4a8247e6bceb3826e",
+          "label": "ai.anicca.capafy-loop-daily",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "capafy-loop-daily",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "capafy-loop-healthcheck",
+      "returncode": 0,
+      "apply": [
+        {
+          "changed": false,
+          "install_event_id": "764c451eb75debde296ecf12",
+          "label": "ai.anicca.capafy-loop-healthcheck",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "capafy-loop-healthcheck",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "ceo-runner",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": true,
+          "changed": true,
+          "install_event_id": "7be85474cd02fac8e3ade57c",
+          "label": "ai.anicca.ceo-runner",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "ceo-runner",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "citizen-refill",
+      "returncode": 0,
+      "apply": [
+        {
+          "changed": false,
+          "install_event_id": "f743aeaece6640bb169808cd",
+          "label": "ai.anicca.citizen-refill",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "citizen-refill",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "claude-projects-backup",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": true,
+          "changed": true,
+          "install_event_id": "e031ade6b94b6d2b266eacae",
+          "label": "ai.anicca.claude-projects-backup",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "claude-projects-backup",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "earning-health-allslots",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": true,
+          "changed": true,
+          "install_event_id": "6073c99d2f7c7ffcfc3fc29c",
+          "label": "ai.anicca.earning-health-allslots",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "earning-health-allslots",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "effect-watch",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": true,
+          "changed": true,
+          "install_event_id": "87f54cf5b0ba75cc06163c9a",
+          "label": "ai.anicca.effect-watch",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "effect-watch",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "f7-silence-check",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": true,
+          "changed": true,
+          "install_event_id": "314e2166b4f4d994f16094a9",
+          "label": "ai.anicca.f7-silence-check",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "f7-silence-check",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "fuel-watch",
+      "returncode": 0,
+      "apply": [
+        {
+          "changed": false,
+          "install_event_id": "8c9d89360b90b2e75aef5cd2",
+          "label": "ai.anicca.fuel-watch",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "fuel-watch",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "gig-outcome-watch",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": true,
+          "changed": true,
+          "install_event_id": "844732542cd44dbb348338d3",
+          "label": "ai.anicca.gig-outcome-watch",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "gig-outcome-watch",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "hf-gig-apply-evidence-gc",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": false,
+          "changed": true,
+          "install_event_id": "3a14fd10fd2758d3b4539565",
+          "label": "ai.anicca.hf-gig-apply-evidence-gc",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "hf-gig-apply-evidence-gc",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "hf-gig-daily-report",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": false,
+          "changed": true,
+          "install_event_id": "f1777f9db7d813f3e8fd141f",
+          "label": "ai.anicca.hf-gig-daily-report",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "hf-gig-daily-report",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "hf-gig-paid-direct",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": true,
+          "changed": true,
+          "install_event_id": "53d087f7116d485e755b775f",
+          "label": "ai.anicca.hf-gig-paid-direct",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "hf-gig-paid-direct",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "hf-reddit-loop-daily",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": true,
+          "changed": true,
+          "install_event_id": "60fdbaf62242b0f3116df53f",
+          "label": "ai.anicca.hf-reddit-loop-daily",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "hf-reddit-loop-daily",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "hf-reddit-loop-healthcheck",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": true,
+          "changed": true,
+          "install_event_id": "cacc63707e650658a9a08a78",
+          "label": "ai.anicca.hf-reddit-loop-healthcheck",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "hf-reddit-loop-healthcheck",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "investment-strategy-validation",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": false,
+          "changed": true,
+          "install_event_id": "c4a22a47c434ca93c114d18a",
+          "label": "ai.anicca.investment-strategy-validation",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "investment-strategy-validation",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "job-search-health",
+      "returncode": 0,
+      "apply": [
+        {
+          "changed": false,
+          "install_event_id": "64a4f18354221a546fb43a96",
+          "label": "ai.anicca.job-search-health",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "job-search-health",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "job-search-inbox",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": true,
+          "changed": true,
+          "install_event_id": "673a3b7b06d0d8e48952d724",
+          "label": "ai.anicca.job-search-inbox",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "job-search-inbox",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "lancers-revenue-work-sync",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": false,
+          "changed": true,
+          "install_event_id": "351b644a226e767e3771d156",
+          "label": "ai.anicca.lancers-revenue-work-sync",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "lancers-revenue-work-sync",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "lateness-heartbeat",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": true,
+          "changed": true,
+          "install_event_id": "877e1aed36f22e2a6e79fe8a",
+          "label": "ai.anicca.lateness-heartbeat",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "lateness-heartbeat",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "life-manager-browser-capacity-probe",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": false,
+          "changed": true,
+          "install_event_id": "7ce9df3fe9331980d020cd0e",
+          "label": "ai.anicca.life-manager-browser-capacity-probe",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "life-manager-browser-capacity-probe",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "life-manager-cfo-hourly",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": false,
+          "changed": true,
+          "install_event_id": "30b37c276dac5912630f71cf",
+          "label": "ai.anicca.life-manager-cfo-hourly",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "life-manager-cfo-hourly",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "life-manager-connector-native",
+      "returncode": 0,
+      "apply": [
+        {
+          "changed": false,
+          "label": "ai.anicca.life-manager-connector-native",
+          "loaded": true,
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T122537-55e8b166/bin/lm-loop-run",
+            "life-manager-connector-native",
+            "/Users/anicca/loops/releases/20261009T122537-55e8b166"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72",
+          "skipped": "loaded-running"
+        }
+      ]
+    },
+    {
+      "owner_id": "life-manager-dev",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": false,
+          "changed": true,
+          "install_event_id": "f0035173c4480c616cd9169e",
+          "label": "ai.anicca.life-manager-dev",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "life-manager-dev",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "ebook-en-instagram-daily",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": true,
+          "changed": true,
+          "install_event_id": "dffac438c355f8ba6f219093",
+          "label": "ai.anicca.life-manager-ebook-en-instagram-daily",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "ebook-en-instagram-daily",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "life-manager-financial-report",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": false,
+          "changed": true,
+          "install_event_id": "065a7711595e0069e193ee98",
+          "label": "ai.anicca.life-manager-financial-report",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "life-manager-financial-report",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "life-manager-recovery-supervisor",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": false,
+          "changed": true,
+          "install_event_id": "a32d6eddd85efdacf6d1f58c",
+          "label": "ai.anicca.life-manager-recovery-supervisor",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "life-manager-recovery-supervisor",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "aa-release-reconciler-handoff",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": false,
+          "changed": true,
+          "install_event_id": "1b14650d4cc79c46a1fbeb5e",
+          "label": "ai.anicca.life-manager-release-reconciler-handoff",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "aa-release-reconciler-handoff",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "life-manager-selfbuild",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": false,
+          "changed": true,
+          "install_event_id": "639d33b6a2cfba2e67fd67c3",
+          "label": "ai.anicca.life-manager-selfbuild",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "life-manager-selfbuild",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "life-manager-taskmarket-ledger",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": false,
+          "changed": true,
+          "install_event_id": "6062b3512141bdccb4e7dbcd",
+          "label": "ai.anicca.life-manager-taskmarket-ledger",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "life-manager-taskmarket-ledger",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "life-manager-ugig-invoice-observer",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": false,
+          "changed": true,
+          "install_event_id": "8d1a0f2524ce01482db453e1",
+          "label": "ai.anicca.life-manager-ugig-invoice-observer",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "life-manager-ugig-invoice-observer",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "life-manager-x402-ledger",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": false,
+          "changed": true,
+          "install_event_id": "768087080f1af8e218711957",
+          "label": "ai.anicca.life-manager-x402-ledger",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "life-manager-x402-ledger",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "line-sticker-readback-hourly",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": false,
+          "changed": true,
+          "install_event_id": "e3003f8a3ddc18a4168a4753",
+          "label": "ai.anicca.line-sticker-readback-hourly",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "line-sticker-readback-hourly",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "lm-fence-reconciler",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": false,
+          "changed": true,
+          "install_event_id": "66a194c9c254664a65dc3253",
+          "label": "ai.anicca.lm-fence-reconciler",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "lm-fence-reconciler",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "lm-recording-store",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": true,
+          "changed": true,
+          "install_event_id": "03ec107ab5be90e52172ae1c",
+          "label": "ai.anicca.lm-recording-store",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "lm-recording-store",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "marketing-dashboard",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": false,
+          "changed": true,
+          "install_event_id": "28cc159c09007d2c6ef4c7f2",
+          "label": "ai.anicca.marketing-dashboard",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "marketing-dashboard",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "marketing-metrics",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": false,
+          "changed": true,
+          "install_event_id": "331613c99657c67c17f339f6",
+          "label": "ai.anicca.marketing-metrics",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "marketing-metrics",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "marketing-metrics-daily",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": true,
+          "changed": true,
+          "install_event_id": "be10c1796a394512f4be4a61",
+          "label": "ai.anicca.marketing-metrics-daily",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "marketing-metrics-daily",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "marketing-score-daily",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": true,
+          "changed": true,
+          "install_event_id": "df5ad8243753bd5555975f27",
+          "label": "ai.anicca.marketing-score-daily",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "marketing-score-daily",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "marketing-weekly-review",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": true,
+          "changed": true,
+          "install_event_id": "42f10a8652ee2f360b9590a0",
+          "label": "ai.anicca.marketing-weekly-review",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "marketing-weekly-review",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "pm-decision-loop",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": true,
+          "changed": true,
+          "install_event_id": "644fbd19f216f25098368ceb",
+          "label": "ai.anicca.pm-decision-loop",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "pm-decision-loop",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "promptbase-loop-daily",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": false,
+          "changed": true,
+          "install_event_id": "58b44e73372ad9b9fa80ea2e",
+          "label": "ai.anicca.promptbase-loop-daily",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "promptbase-loop-daily",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "sbi-usdc-monitor",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": true,
+          "changed": true,
+          "install_event_id": "bb588341e69d094727c2f5e2",
+          "label": "ai.anicca.sbi-usdc-monitor",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "sbi-usdc-monitor",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "self-improve-evolve",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": true,
+          "changed": true,
+          "install_event_id": "9b255adafa65201d7f9ed5c1",
+          "label": "ai.anicca.self-improve-evolve",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "self-improve-evolve",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "stripe-revenue-poller",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": true,
+          "changed": true,
+          "install_event_id": "a3b5c0a293f1bbf56edc185a",
+          "label": "ai.anicca.stripe-revenue-poller",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "stripe-revenue-poller",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "verify-loops-audit",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": true,
+          "changed": true,
+          "install_event_id": "b73c36e5158fdaeea564e2cc",
+          "label": "ai.anicca.verify-loops-audit",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "verify-loops-audit",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "writer-claim-loop",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": true,
+          "changed": true,
+          "install_event_id": "02d641dbb11697d9c834aebb",
+          "label": "ai.anicca.writer-claim-loop",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "writer-claim-loop",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "writer-craft-train",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": false,
+          "changed": true,
+          "install_event_id": "546d2e5759368f87e35a30dc",
+          "label": "ai.anicca.writer-craft-train",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "writer-craft-train",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "writer-money-sync",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": true,
+          "changed": true,
+          "install_event_id": "94592a3738de3ead37b761bc",
+          "label": "ai.anicca.writer-money-sync",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "writer-money-sync",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "writer-opportunity-discovery",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": true,
+          "changed": true,
+          "install_event_id": "706ab45a4df17d8c71d6372d",
+          "label": "ai.anicca.writer-opportunity-discovery",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "writer-opportunity-discovery",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "writer-sales-measure",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": false,
+          "changed": true,
+          "install_event_id": "cb4f9f235667482ddc4b1cb7",
+          "label": "ai.anicca.writer-sales-measure",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "writer-sales-measure",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "x402-acquisition-controller",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": false,
+          "changed": true,
+          "install_event_id": "51fd3b7ce182779d36296da7",
+          "label": "ai.anicca.x402-acquisition-controller",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "x402-acquisition-controller",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "x402-experiment-franklin1",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": true,
+          "changed": true,
+          "install_event_id": "b5c6c687af19edb85973931a",
+          "label": "ai.anicca.x402-experiment-franklin1",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "x402-experiment-franklin1",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "x402-inflow-watch",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": false,
+          "changed": true,
+          "install_event_id": "6e4cde41433279591ba8a3d6",
+          "label": "ai.anicca.x402-inflow-watch",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "x402-inflow-watch",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "x402-inflow-watch-claude-p",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": true,
+          "changed": true,
+          "install_event_id": "3c13e0b22ac034988ab44222",
+          "label": "ai.anicca.x402-inflow-watch-claude-p",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "x402-inflow-watch-claude-p",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "x402-inflow-watch-franklin1",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": false,
+          "changed": true,
+          "install_event_id": "10b66c8ca02cd960848879de",
+          "label": "ai.anicca.x402-inflow-watch-franklin1",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "x402-inflow-watch-franklin1",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "x402-inflow-watch-franklin2",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": false,
+          "changed": true,
+          "install_event_id": "147e70fb2fefee4794948e58",
+          "label": "ai.anicca.x402-inflow-watch-franklin2",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "x402-inflow-watch-franklin2",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "x402-sale-observer",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": false,
+          "changed": true,
+          "install_event_id": "0c70bc377d9676d5106d10b7",
+          "label": "ai.anicca.x402-sale-observer",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "x402-sale-observer",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    },
+    {
+      "owner_id": "x402-settlement-recorder",
+      "returncode": 0,
+      "apply": [
+        {
+          "admission_resumed": false,
+          "changed": true,
+          "install_event_id": "6d1ad61d0f431c909c64c404",
+          "label": "ai.anicca.x402-settlement-recorder",
+          "loaded_arguments": [
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11/bin/lm-loop-run",
+            "x402-settlement-recorder",
+            "/Users/anicca/loops/releases/20261009T134741-84c56e11"
+          ],
+          "ok": true,
+          "release_sha": "84c56e1190f611c7ccd2e9d55df6513df8c31d72"
+        }
+      ]
+    }
+  ],
+  "finished_at": "2026-10-09T05:03:18Z"
+}
