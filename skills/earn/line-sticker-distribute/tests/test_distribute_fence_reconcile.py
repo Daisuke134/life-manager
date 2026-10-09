@@ -80,5 +80,16 @@ class ThreadsLane(unittest.TestCase):
         self.assertTrue(self.proof({"ok": True, "codes": {"TTT"}})["verified"])
 
 
+
+class RunsInIsolatedMode(unittest.TestCase):
+    def test_the_script_starts_under_python_dash_I(self) -> None:
+        # 2026-10-09: `import threads_publish` ran before the script dir was on sys.path, so every
+        # `python3 -I` call died with ModuleNotFoundError and no fence could be closed.
+        import subprocess
+        script = Path(__file__).resolve().parents[1] / "scripts" / "distribute_fence_reconcile.py"
+        done = subprocess.run([sys.executable, "-I", str(script), "--help"], capture_output=True, text=True)
+        self.assertEqual(done.returncode, 0, done.stderr[-400:])
+
+
 if __name__ == "__main__":
     unittest.main()
