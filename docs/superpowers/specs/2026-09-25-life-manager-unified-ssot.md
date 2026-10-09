@@ -10379,3 +10379,19 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 9. [ ] **分配から順に反復する:** まずAnicca iOSの投稿ごとのviews/engagementとinstallを結び、勝ちhook/formatへ投稿枠を寄せる。分配の安定後にApp Store listing/ASO、その後onboarding/paywallを改善する。10,000 USDのverified net MRRは未達で、達成と報告するにはsettled source evidenceが必要。
 
 **現在mobile cursor:** owner容量・effect fenceのowner単位解消 → existing release/18 owner dispatch readback → 次due slotの即時receipt確認 → 他slot待ちの間もmetrics/funnel作業を継続 → 54/54の終日判定 → ASO/onboarding反復 → verified $10K net MRR。**日次54件の判定は終日データが必要だが、終日待機は実行cursorではない。**
+
+### 2026-10-09 10:08 JST — Investment paper parser deployed; shared capacity blocks execution
+
+このsnapshotは09:20 JSTのinvestment runtime cursorを更新する。既存の全社L9-12順序とAT-13〜AT-29の順序は変更しない。
+
+- **Source/release:** PR #7292はCI 10/10、focused tests 14/14、read-only review SHIPでmainへ統合。paper ownerにはmain由来release `42bbad08c8c0d4d6af55f7c1b94cf104042cbaf8`が適用済み。適用後の自然実行も同SHAから観測した。
+- **Runtime blocker:** 00:40、00:45、00:50、00:55Zのpaper natural occurrenceはすべて `host_admission_deferred:resource_capacity_busy`、`effect_status=not_applicable`、provider receiptなしでstrategy/effect前に終了。paper ownerのqueue rowはsequence `581385`、class=`agent`、admission/priority=`revenue`。00:53Zにはagent同時実行上限2件がrevenue 1件・borrow 1件で占有されていた。global capacityや他ownerのpriorityは変更せず、手動wake/sell/replayもしない。
+- **Paper readback:** Alpaca official GET at `2026-10-09T00:47:17Z`: equity `$99,996.87`, cash `$99,986.76`, QQQ long `0.013493253` shares, market value `$10.10901`, unrealized P&L `+$0.11901`, open orders `0`. This is unrealized; the released parser projection is still `unknown / paper_round_trip_missing` because no sell/closed round trip exists. Do not infer account profit from equity alone.
+- **Live boundary:** latest saved measured live period is 2026-09-09 through 2026-09-28, net `-$0.15` (realized `-$0.10`, unrealized `-$0.05`). Fresh `lm-loop status` shows live owner `disabled` with `admission_effect_unknown=true`; no live funding/order before AT-24/AT-29 and fresh review. The paper ETF universe excludes PLTR; no PLTR order was placed.
+
+**このinvestment runtime subcursorの残り2件（順序固定）:**
+
+1. [ ] **AT-13 qualified natural exit:** 待機中のpaper ownerがshared agent capacityを得た自然occurrenceを確認する。installed SHA、decision、occurrenceを結び、sell decision reasonが`ranked_symbol_changed`または`hold_sessions_elapsed`の場合だけAT-13を閉じる。capacity defer、HOLD、passは完了扱いにしない。手動wake/sell/replayは禁止。
+2. [ ] **First closed round trip and truthful paper P&L:** 公式paper sell fillを既存QQQ buyとclient/effect identity・数量で照合し、provider receipt、fees、slippage、model/system costを結合して`paper_performance.py`でnet P&Lを算出する。同じoccurrenceでreplay-zeroを確認する。closed round tripとcost evidenceが揃うまではP&L=`unknown`のままにする。
+
+**Current cursor:** AT-13 natural qualified exit → first closed round trip with complete net-cost evidence. これは既存の30-round-trip検証、AT-24/AT-29 live gatesを置き換えない。
