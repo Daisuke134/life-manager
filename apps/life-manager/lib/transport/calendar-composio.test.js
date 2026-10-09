@@ -167,6 +167,7 @@ test("Web Travel reminder writes use Calendar proxy and verify the exact popup r
   assert.equal(calls[0].body.method, "POST");
   assert.equal(calls[0].body.connected_account_id, ACCOUNT_ID);
   assert.deepEqual(calls[0].body.body.reminders, { useDefault: false, overrides: [{ method: "popup", minutes: 0 }] });
+  assert.equal(calls[0].body.parameters[0].type, "query");
   assert.equal(calls[0].body.parameters[0].value, "none");
 });
 
