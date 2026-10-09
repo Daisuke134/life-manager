@@ -16,13 +16,22 @@ allow-listed regenerable artifact after an open-path probe confirms
   databases, credentials, cookies, source, and `state/*.jsonl` are preserved.
 - Unknown paths, active leases, symlinks, open paths, and probe errors are
   preserved and recorded.
-- Worktrees and their registrations are never automatic cleanup candidates.
-  Cleanup never runs `git worktree unlock`, `remove`, or `prune`; retirement
-  remains an owner operation under `../../../docs/runbooks/worktree-lifecycle.md`.
+- A registered worktree is a cleanup candidate only when its exact path still
+  matches Git metadata, it has no native lock, managed lease, or `.anicca-keep`
+  marker, tracked/untracked/ignored state is empty, HEAD is reachable from the
+  locally cached `origin/main`, and the global open-path probe confirms no open
+  file or working directory beneath it. Recheck those facts immediately before
+  using ordinary `git worktree remove` and confirm the path and registration
+  are gone afterward. Never unlock, force-remove, or prune; preserve on any
+  missing ref, timeout, mismatch, dirty state, lease, marker, or open path.
 - iOS Simulator runtimes, images, device data, and dyld caches remain outside
   the cleanup allow-list, including when no device is booted.
-- Generic `/private/tmp` directories, including `cfo-*`, are never candidates;
-  only exact old Capafy npm cache names are eligible there.
+- Generic `/private/tmp` directories, including `cfo-*`, remain unknown and
+  protected. Scan the active `TMPDIR` plus `/private/tmp` and `/var/tmp` for
+  same-user exact Capafy npm caches, old
+  `pytest-of-<user>/pytest-<number>` runs, and test-generated `slide-pack-*`
+  names; only paths older than one hour with a confirmed-closed path probe are
+  eligible.
 - A stale Sparkle staging blocker has one narrow recovery action: send one
   `SIGTERM` only to the same-UID updater whose executable is under an exact
   allow-listed Codex/CodexBar Sparkle `Launcher`, whose PPID is 1, whose elapsed
@@ -96,21 +105,20 @@ allow-listed regenerable artifact after an open-path probe confirms
 skills/self/disk-cleanup/install-launchd.sh
 ```
 
-The 5-minute `ai.anicca.life-manager-disk-cleanup` owner remains managed by the
-Life Manager runner. This installer only manages the 60-second
-`com.anicca.disk-watchdog` recovery label so it cannot replace the 5-minute
-owner. It installs `bin/disk-watchdog.sh` at `~/.local/bin/disk-watchdog.sh`;
+The 60-second `com.anicca.disk-watchdog` is the primary cleanup cadence. The
+5-minute `ai.anicca.life-manager-disk-cleanup` remains a managed reporting and
+full-inventory owner; both share the same cleanup lock. This installer only
+manages the 60-second recovery label so it cannot replace the managed owner.
+It installs `bin/disk-watchdog.sh` at `~/.local/bin/disk-watchdog.sh`;
 the wrapper resolves `~/loops/current` and dispatches to that immutable
 release's governor, so later release retirement cannot leave the watchdog
 pointing at a deleted release. Both owners use the governor's singleton lock
 and shared host `state_dir`.
 
-The 15-day `life-manager-disk-cleanup-15d` wake is registry-managed through
-`lm-loop`. Its entrypoint invokes only the shared `HostDiskGovernor`, so it
-shares the host cleanup lock without repeating release GC or scratch GC.
-It retries only the exact structured `cleanup_lock_busy` receipt (exit 75),
-for at most three attempts with five-second waits. Other failures return
-immediately.
+The 15-day `life-manager-disk-cleanup-15d` registry row is supplemental and is
+not the recurrence guarantee. It invokes the same `HostDiskGovernor`; it must
+not be changed to a second 60-second deletion owner while the direct watchdog
+already runs every minute.
 
 The watchdog adds no second deletion implementation. Its output goes to
 `life-manager-disk-cleanup/logs/watchdog.{out,err}.log` under the host state.

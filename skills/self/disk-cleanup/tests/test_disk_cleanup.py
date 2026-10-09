@@ -1,4 +1,5 @@
 import errno
+import hashlib
 import json
 import tempfile
 import os
@@ -134,6 +135,159 @@ def test_temporary_worktree_candidate_is_preserved(
     assert result["preserved_reasons"] == {"unknown_artifact": 1}
     assert result["errors"] == 0
     assert result["protected_deletions"] == 0
+
+
+def test_discover_stale_test_temporary_families_only(
+    tmp_path: Path, monkeypatch
+) -> None:
+    home = tmp_path / "home"
+    temporary = tmp_path / "T"
+    home.mkdir()
+    temporary.mkdir()
+    additional_temporary = tmp_path / "additional-temp"
+    additional_temporary.mkdir()
+    old_paths = [
+        temporary / "slide-pack-objects-9T7iWU",
+        temporary / "slide-pack-image-cache-cta-QZWSuL",
+        temporary / "slide-pack-workspace-mJXtWV",
+        temporary / "slide-pack-fixture-bg-12345.png",
+        temporary / f"pytest-of-{home.name}" / "pytest-42",
+        additional_temporary / "slide-pack-workspace-WV9a0B",
+        additional_temporary / f"pytest-of-{home.name}" / "pytest-44",
+    ]
+    for path in old_paths:
+        if path.suffix == ".png":
+            path.write_bytes(b"fixture")
+        else:
+            path.mkdir(parents=True)
+            (path / "payload").write_bytes(b"temporary")
+        os.utime(path, (1, 1))
+
+    recent_paths = [
+        temporary / "slide-pack-objects-recent1",
+        temporary / f"pytest-of-{home.name}" / "pytest-43",
+    ]
+    for path in recent_paths:
+        path.mkdir(parents=True)
+    unknown = temporary / "cfo-old-run"
+    unknown.mkdir()
+    symlink = temporary / "slide-pack-objects-link01"
+    symlink.symlink_to(old_paths[0], target_is_directory=True)
+
+    monkeypatch.setattr(disk_cleanup, "_readonly_temp_root", lambda: temporary)
+    monkeypatch.setattr(
+        disk_cleanup,
+        "_temporary_roots",
+        lambda _primary: (temporary, additional_temporary),
+    )
+    governor = HostDiskGovernor(
+        home=home,
+        state_dir=home / "state",
+        lsof=lambda _path: "confirmed-closed",
+        usage=lambda: (0, 1),
+    )
+
+    candidates = [
+        item for item in governor.discover_candidates()
+        if item.get("owner") == "temporary-run"
+    ]
+
+    assert {Path(item["path"]) for item in candidates} == set(old_paths)
+    assert all(item["discovery"] == "allowlisted" for item in candidates)
+
+
+def test_sweep_retires_only_registered_clean_merged_unleased_worktree(
+    tmp_path: Path,
+) -> None:
+    home = tmp_path / "home"
+    repo = home / "Projects" / "life-manager-main"
+    repo.mkdir(parents=True)
+
+    def git(cwd: Path, *args: str) -> str:
+        result = subprocess.run(
+            ["git", "-C", str(cwd), *args],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        return result.stdout.strip()
+
+    subprocess.run(
+        ["git", "init", "-b", "main", str(repo)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    git(repo, "config", "user.name", "Disk Cleanup Test")
+    git(repo, "config", "user.email", "disk-cleanup-test@example.invalid")
+    (repo / "README.md").write_text("base\n")
+    (repo / ".gitignore").write_text("ignored.bin\n")
+    git(repo, "add", "README.md", ".gitignore")
+    git(repo, "commit", "-m", "base")
+    main_head = git(repo, "rev-parse", "HEAD")
+    git(repo, "update-ref", "refs/remotes/origin/main", main_head)
+
+    worktrees = repo / ".worktrees"
+    worktrees.mkdir()
+
+    def add_detached(name: str) -> Path:
+        path = worktrees / name
+        git(repo, "worktree", "add", "--detach", str(path), main_head)
+        return path
+
+    safe = add_detached("zombie-safe")
+    dirty = add_detached("dirty")
+    (dirty / "README.md").write_text("uncommitted\n")
+    untracked = add_detached("untracked")
+    (untracked / "progress.txt").write_text("uncommitted\n")
+    ignored = add_detached("ignored")
+    (ignored / "ignored.bin").write_text("ignored progress\n")
+    locked = add_detached("locked")
+    git(repo, "worktree", "lock", "--reason", "active owner", str(locked))
+    kept = add_detached("kept")
+    (kept / ".anicca-keep").write_text("keep\n")
+    unmerged = worktrees / "unmerged"
+    git(repo, "worktree", "add", "-b", "unmerged", str(unmerged), main_head)
+    (unmerged / "new-work.txt").write_text("unmerged work\n")
+    git(unmerged, "add", "new-work.txt")
+    git(unmerged, "commit", "-m", "unmerged work")
+    leased = add_detached("leased")
+    common = Path(git(repo, "rev-parse", "--git-common-dir"))
+    if not common.is_absolute():
+        common = (repo / common).resolve()
+    lease_path = common / "worktree-leases" / (
+        hashlib.sha256(str(leased.resolve()).encode("utf-8")).hexdigest() + ".json"
+    )
+    lease_path.parent.mkdir(parents=True)
+    lease_path.write_text("{}\n")
+
+    governor = HostDiskGovernor(
+        home=home,
+        state_dir=home / "state",
+        lsof=lambda _path: "confirmed-closed",
+        usage=lambda: (0, 1),
+    )
+    candidates = [
+        item for item in governor.discover_candidates()
+        if item.get("owner") == "zombie-worktree"
+    ]
+
+    assert [Path(item["path"]) for item in candidates] == [safe]
+    governor.lsof = lambda _path: "open"
+    open_result = governor.sweep(candidates, write_receipt=False)
+    assert safe.is_dir()
+    assert open_result["preserved_reasons"] == {"open": 1}
+
+    governor.lsof = lambda _path: "confirmed-closed"
+    result = governor.sweep(candidates, write_receipt=False)
+
+    assert not safe.exists()
+    assert result["worktrees_retired"] == 1
+    assert result["errors"] == 0
+    assert result["protected_deletions"] == 0
+    listing = git(repo, "worktree", "list", "--porcelain")
+    assert str(safe) not in listing
+    assert all(path.is_dir() for path in (dirty, untracked, ignored, locked, kept, unmerged, leased))
 
 
 def test_core_simulator_assets_are_never_discovered_as_candidates(
