@@ -48,6 +48,8 @@ def _started_intent(store, request_id):
         fence._durable_replace(store.intent_path(request_id), payload)
         return store.mark_irreversible_attempt_started_locked(
             request_id, expected_cas=payload["cas"],
+            runtime_run_id="test-run",
+            runtime_occurrence_id="hf-gig-apply-direct:test-run",
         )
 
 

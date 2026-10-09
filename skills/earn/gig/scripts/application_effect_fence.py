@@ -24,7 +24,8 @@ from provider_adapter import EffectIntent
 from provider_authorization import AuthorizationDecision, AuthorizationState
 
 
-VERSION = 4
+VERSION = 5
+CURRENT_PREPARED_VERSION = 4
 PREVIOUS_RETAINER_VERSION = 3
 PREVIOUS_VERSION = 2
 LEGACY_VERSION = 1
@@ -47,13 +48,18 @@ _RETAINER_TERMS_FIELDS = frozenset({
     "work_frequency", "weekly_hours_min", "weekly_hours_max",
 })
 _FIELDS_V3 = _FIELDS_V2 | {"retainer_terms", "retainer_terms_sha256"}
-_FIELDS = _FIELDS_V3 | {"screening_answers", "screening_answers_sha256"}
+_FIELDS_V4 = _FIELDS_V3 | {"screening_answers", "screening_answers_sha256"}
+_RUNTIME_BINDING_FIELDS = frozenset({"runtime_run_id", "runtime_occurrence_id"})
+_FIELDS_V5 = _FIELDS_V4 | _RUNTIME_BINDING_FIELDS
+_FIELDS_V5_SINGLE = _FIELDS_V2 | _RUNTIME_BINDING_FIELDS
+_FIELDS = _FIELDS_V4
 _SCREENING_ANSWER_FIELDS = frozenset({"question", "answer"})
 _LEASE_FIELDS = frozenset({"task", "token", "generation"})
 _HEX_64 = re.compile(r"^[0-9a-f]{64}$")
 _HEX_32 = re.compile(r"^[0-9a-f]{32}$")
 _DATE = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
 _RETAINER_ULID = re.compile(r"^[0-7][0-9A-HJKMNP-TV-Z]{25}$")
+_RUNTIME_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 _RETAINER_FREQUENCIES = frozenset({
     "WEEK_ONE", "WEEK_TWO", "WEEK_THREE", "WEEK_FOUR", "WEEK_FIVE",
     "BIWEEKLY", "MONTH_ONE",
@@ -248,7 +254,7 @@ def intent_payload(
     if not is_retainer and screening_answers is not None:
         raise IntentFenceError("screening_answers_for_single_forbidden")
     base = {
-        "version": VERSION,
+        "version": CURRENT_PREPARED_VERSION,
         "state": state,
         "effect_phase": effect_phase,
         "request_id": request,
@@ -293,7 +299,12 @@ def validate_intent(value: object) -> list[str]:
         _LEGACY_FIELDS if version == LEGACY_VERSION
         else _FIELDS_V2 if version == PREVIOUS_VERSION
         else _FIELDS_V3 if version == PREVIOUS_RETAINER_VERSION
-        else _FIELDS
+        else _FIELDS_V4 if version == CURRENT_PREPARED_VERSION
+        else (
+            _FIELDS_V5
+            if _RETAINER_ULID.fullmatch(str(value.get("request_id") or ""))
+            else _FIELDS_V5_SINGLE
+        )
     )
     actual = set(value)
     missing = sorted(expected_fields - actual)
@@ -304,18 +315,29 @@ def validate_intent(value: object) -> list[str]:
         errors.append("intent_additional:" + ",".join(additional))
     if errors:
         return errors
-    if version not in {LEGACY_VERSION, PREVIOUS_VERSION, PREVIOUS_RETAINER_VERSION, VERSION}:
+    if version not in {
+        LEGACY_VERSION, PREVIOUS_VERSION, PREVIOUS_RETAINER_VERSION,
+        CURRENT_PREPARED_VERSION, VERSION,
+    }:
         errors.append("intent_version_invalid")
     if value["state"] not in _STATES:
         errors.append("intent_state_invalid")
-    if version in {PREVIOUS_VERSION, PREVIOUS_RETAINER_VERSION, VERSION} and value["effect_phase"] not in _EFFECT_PHASES:
+    if version in {
+        PREVIOUS_VERSION, PREVIOUS_RETAINER_VERSION, CURRENT_PREPARED_VERSION, VERSION,
+    } and value["effect_phase"] not in _EFFECT_PHASES:
         errors.append("intent_effect_phase_invalid")
+    if version == VERSION and value["effect_phase"] != IRREVERSIBLE_ATTEMPT_STARTED:
+        errors.append("runtime_bound_intent_must_be_effect_started")
     try:
         request = _request_id(value["request_id"])
         is_retainer = _RETAINER_ULID.fullmatch(request) is not None
-        if is_retainer and version not in {PREVIOUS_RETAINER_VERSION, VERSION}:
+        if is_retainer and version not in {
+            PREVIOUS_RETAINER_VERSION, CURRENT_PREPARED_VERSION, VERSION,
+        }:
             errors.append("retainer_intent_version_invalid")
-        if not is_retainer and version in {PREVIOUS_RETAINER_VERSION, VERSION}:
+        if not is_retainer and version in {
+            PREVIOUS_RETAINER_VERSION, CURRENT_PREPARED_VERSION,
+        }:
             errors.append("single_intent_version_invalid")
         snapshot = _sha256(value["snapshot_sha256"], "snapshot_sha256")
         proposal = _sha256(value["proposal_sha256"], "proposal_sha256")
@@ -324,7 +346,9 @@ def validate_intent(value: object) -> list[str]:
         _lease_fence(value["lease_fence"])
         terms_hash = None
         answers_hash = None
-        if version in {PREVIOUS_RETAINER_VERSION, VERSION}:
+        if is_retainer and version in {
+            PREVIOUS_RETAINER_VERSION, CURRENT_PREPARED_VERSION, VERSION,
+        }:
             terms = _retainer_terms(value["retainer_terms"])
             terms_hash = str(value["retainer_terms_sha256"])
             calculated_terms_hash = hashlib.sha256(
@@ -332,7 +356,9 @@ def validate_intent(value: object) -> list[str]:
             ).hexdigest()
             if terms_hash != calculated_terms_hash:
                 errors.append("retainer_terms_sha256_mismatch")
-        if version == VERSION:
+        if version == CURRENT_PREPARED_VERSION or (
+            version == VERSION and is_retainer
+        ):
             answers = _screening_answers(value["screening_answers"])
             answers_hash = str(value["screening_answers_sha256"])
             calculated_answers_hash = hashlib.sha256(
@@ -340,6 +366,14 @@ def validate_intent(value: object) -> list[str]:
             ).hexdigest()
             if answers_hash != calculated_answers_hash:
                 errors.append("screening_answers_sha256_mismatch")
+        if version == VERSION:
+            for field in ("runtime_run_id", "runtime_occurrence_id"):
+                runtime_id = value[field]
+                if (
+                    not isinstance(runtime_id, str)
+                    or not _RUNTIME_ID.fullmatch(runtime_id)
+                ):
+                    errors.append(f"{field}_invalid")
         if value["cas"] != build_cas(request, snapshot, proposal, price, date, terms_hash, answers_hash):
             errors.append("intent_cas_mismatch")
     except IntentFenceError as error:
@@ -350,7 +384,10 @@ def validate_intent(value: object) -> list[str]:
 def is_pre_effect(intent: dict[str, object]) -> bool:
     """Only versioned intents can prove that no irreversible attempt started."""
     return (
-        intent.get("version") in {PREVIOUS_VERSION, PREVIOUS_RETAINER_VERSION, VERSION}
+        intent.get("version") in {
+            PREVIOUS_VERSION, PREVIOUS_RETAINER_VERSION,
+            CURRENT_PREPARED_VERSION,
+        }
         and intent.get("state") == PREPARED
         and intent.get("effect_phase") == PRE_EFFECT
     )
@@ -486,7 +523,12 @@ class IntentStore:
         return retired
 
     def mark_irreversible_attempt_started_locked(
-        self, request_id: object, *, expected_cas: object
+        self,
+        request_id: object,
+        *,
+        expected_cas: object,
+        runtime_run_id: object,
+        runtime_occurrence_id: object,
     ) -> dict[str, object]:
         """Durably close retry permission immediately before the submit click."""
         existing = self._read_locked(request_id)
@@ -498,7 +540,19 @@ class IntentStore:
             raise IntentFenceError("effect_start_state_invalid")
         if not is_pre_effect(existing):
             raise IntentFenceError("effect_start_phase_invalid")
-        started = {**existing, "effect_phase": IRREVERSIBLE_ATTEMPT_STARTED}
+        run_id = str(runtime_run_id)
+        occurrence_id = str(runtime_occurrence_id)
+        if not _RUNTIME_ID.fullmatch(run_id):
+            raise IntentFenceError("runtime_run_id_invalid")
+        if not _RUNTIME_ID.fullmatch(occurrence_id):
+            raise IntentFenceError("runtime_occurrence_id_invalid")
+        started = {
+            **existing,
+            "version": VERSION,
+            "effect_phase": IRREVERSIBLE_ATTEMPT_STARTED,
+            "runtime_run_id": run_id,
+            "runtime_occurrence_id": occurrence_id,
+        }
         _durable_replace(self.intent_path(request_id), started)
         return started
 

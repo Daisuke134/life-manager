@@ -74,6 +74,22 @@ class ParentContractError(ValueError):
     """A deterministic boundary contract is incomplete or unsafe."""
 
 
+_RUNTIME_ID_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\Z")
+_APPLICATION_OWNER_ID = "hf-gig-apply-direct"
+
+
+def _runtime_occurrence_binding() -> tuple[str, str]:
+    run_id = os.environ.get("LIFE_MANAGER_RUN_ID", "")
+    occurrence_id = os.environ.get("LIFE_MANAGER_OCCURRENCE_ID", "")
+    if (
+        not _RUNTIME_ID_PATTERN.fullmatch(run_id)
+        or not _RUNTIME_ID_PATTERN.fullmatch(occurrence_id)
+        or not occurrence_id.startswith(f"{_APPLICATION_OWNER_ID}:")
+    ):
+        raise ParentContractError("runtime_occurrence_binding_required")
+    return run_id, occurrence_id
+
+
 class CrashInjected(RuntimeError):
     """Test-only interruption after a durable boundary checkpoint."""
 
@@ -3514,6 +3530,14 @@ def commit_decisions(
     if snapshot_errors or decision_errors:
         raise ParentContractError(";".join(snapshot_errors + decision_errors))
     assert isinstance(snapshot, dict) and isinstance(decisions, dict)
+    has_submit = any(
+        isinstance(decision, dict)
+        and decision.get("business_class") == SUBMIT_REQUIRED
+        for decision in decisions["decisions"]
+    )
+    runtime_run_id, runtime_occurrence_id = (
+        _runtime_occurrence_binding() if has_submit else ("", "")
+    )
     detail_by_id = {
         detail["request_id"]: detail for detail in snapshot["request_details"]
     }
@@ -3841,7 +3865,10 @@ def commit_decisions(
                     phase = "irreversible_attempt_marker"
                     _enter_effect_boundary()
                     intent = store.mark_irreversible_attempt_started_locked(
-                        request_id, expected_cas=intent["cas"]
+                        request_id,
+                        expected_cas=intent["cas"],
+                        runtime_run_id=runtime_run_id,
+                        runtime_occurrence_id=runtime_occurrence_id,
                     )
                     submit_started = True
                     effects.crash_if_requested("after_irreversible_attempt_marker")
@@ -5486,7 +5513,12 @@ def _durable_uncertain_intents(store: "fence.IntentStore") -> dict[str, str]:
         except (OSError, ValueError):
             continue
         if (isinstance(value, dict)
-                and value.get("version") in {2, 3, 4}
+                and value.get("version") in {
+                    fence.PREVIOUS_VERSION,
+                    fence.PREVIOUS_RETAINER_VERSION,
+                    fence.CURRENT_PREPARED_VERSION,
+                    fence.VERSION,
+                }
                 and value.get("state") == fence.PREPARED
                 and value.get("effect_phase") == fence.IRREVERSIBLE_ATTEMPT_STARTED):
             request_id = str(value.get("request_id") or "")
