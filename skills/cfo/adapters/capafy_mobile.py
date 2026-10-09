@@ -695,60 +695,77 @@ def _asc_quantity(value: Any) -> int:
     return int(value)
 
 
-def _asc_subscription_mapping(source: Any, expected_sha: Any):
-    if not isinstance(source, dict) or not isinstance(source.get("artifact_path"), str):
+def _asc_subscription_mapping(source: Any, expected_sha: Any = None) -> dict:
+    if isinstance(source, list):
+        artifacts = source
+    elif isinstance(source, dict) and isinstance(source.get("artifacts"), list):
+        artifacts = source["artifacts"]
+    elif isinstance(source, dict) and isinstance(source.get("artifact_path"), str):
+        artifacts = [source]
+    else:
         raise ValueError("missing_coverage")
-    path = Path(source["artifact_path"]).expanduser()
-    raw = path.read_bytes()
-    relationship_sha = _sha256(expected_sha)
-    if hashlib.sha256(raw).hexdigest() != relationship_sha:
-        raise ValueError("content_hash_invalid")
-    try:
-        payload = json.loads(raw)
-    except (UnicodeError, json.JSONDecodeError):
-        raise ValueError("read_failed") from None
-    self_url = (payload.get("links") or {}).get("self") if isinstance(payload, dict) else None
-    parsed = urlsplit(self_url) if isinstance(self_url, str) else None
-    match = re.fullmatch(
-        r"/v1/apps/([A-Za-z0-9-]+)/subscriptionGroups/?", parsed.path
-    ) if parsed and parsed.scheme == "https" and parsed.netloc == "api.appstoreconnect.apple.com" else None
-    if not match:
+    if not artifacts:
         raise ValueError("missing_coverage")
-    app_id = match.group(1)
-    product = next((name for name, binding in MOBILE_PRODUCT_BINDINGS.items()
-                    if binding["asc_app_id"] == app_id), None)
-    if product is None:
-        return {}, relationship_sha
-    if not isinstance(payload.get("data"), list) or not isinstance(payload.get("included"), list):
-        raise ValueError("missing_coverage")
-    groups: dict[str, list[int]] = {}
-    for group_index, group in enumerate(payload["data"], start=1):
-        if not isinstance(group, dict) or group.get("type") != "subscriptionGroups":
-            continue
-        group_id = group.get("id")
-        subscriptions = ((group.get("relationships") or {}).get("subscriptions") or {}).get("data")
-        if not isinstance(group_id, str) or not isinstance(subscriptions, list):
-            continue
-        for subscription in subscriptions:
-            if isinstance(subscription, dict) and subscription.get("type") == "subscriptions":
-                subscription_id = subscription.get("id")
-                if isinstance(subscription_id, str):
-                    groups.setdefault(subscription_id, []).append(group_index)
-    included: dict[str, list[tuple[int, str]]] = {}
-    for included_index, subscription in enumerate(payload["included"], start=1):
-        if not isinstance(subscription, dict) or subscription.get("type") != "subscriptions":
-            continue
-        subscription_id = subscription.get("id")
-        product_id = (subscription.get("attributes") or {}).get("productId")
-        if isinstance(subscription_id, str) and isinstance(product_id, str) and product_id:
-            included.setdefault(subscription_id, []).append((included_index, product_id))
+
     mapped = {}
-    for subscription_id, group_positions in groups.items():
-        details = included.get(subscription_id, [])
-        if len(group_positions) == 1 and len(details) == 1:
-            included_position, product_id = details[0]
-            mapped[subscription_id] = (product, product_id, group_positions[0], included_position)
-    return mapped, relationship_sha
+    for artifact in artifacts:
+        if not isinstance(artifact, dict) or not isinstance(artifact.get("artifact_path"), str):
+            raise ValueError("missing_coverage")
+        path = Path(artifact["artifact_path"]).expanduser()
+        raw = path.read_bytes()
+        relationship_sha = _sha256(artifact.get("artifact_sha256", expected_sha))
+        if hashlib.sha256(raw).hexdigest() != relationship_sha:
+            raise ValueError("content_hash_invalid")
+        try:
+            payload = json.loads(raw)
+        except (UnicodeError, json.JSONDecodeError):
+            raise ValueError("read_failed") from None
+        self_url = (payload.get("links") or {}).get("self") if isinstance(payload, dict) else None
+        parsed = urlsplit(self_url) if isinstance(self_url, str) else None
+        match = re.fullmatch(
+            r"/v1/apps/([A-Za-z0-9-]+)/subscriptionGroups/?", parsed.path
+        ) if parsed and parsed.scheme == "https" and parsed.netloc == "api.appstoreconnect.apple.com" else None
+        if not match:
+            raise ValueError("missing_coverage")
+        app_id = match.group(1)
+        product = next((name for name, binding in MOBILE_PRODUCT_BINDINGS.items()
+                        if binding["asc_app_id"] == app_id), None)
+        if product is None:
+            continue
+        if not isinstance(payload.get("data"), list) or not isinstance(payload.get("included"), list):
+            raise ValueError("missing_coverage")
+        groups: dict[str, list[int]] = {}
+        for group_index, group in enumerate(payload["data"], start=1):
+            if not isinstance(group, dict) or group.get("type") != "subscriptionGroups":
+                continue
+            group_id = group.get("id")
+            subscriptions = ((group.get("relationships") or {}).get("subscriptions") or {}).get("data")
+            if not isinstance(group_id, str) or not isinstance(subscriptions, list):
+                continue
+            for subscription in subscriptions:
+                if isinstance(subscription, dict) and subscription.get("type") == "subscriptions":
+                    subscription_id = subscription.get("id")
+                    if isinstance(subscription_id, str):
+                        groups.setdefault(subscription_id, []).append(group_index)
+        included: dict[str, list[tuple[int, str]]] = {}
+        for included_index, subscription in enumerate(payload["included"], start=1):
+            if not isinstance(subscription, dict) or subscription.get("type") != "subscriptions":
+                continue
+            subscription_id = subscription.get("id")
+            product_id = (subscription.get("attributes") or {}).get("productId")
+            if isinstance(subscription_id, str) and isinstance(product_id, str) and product_id:
+                included.setdefault(subscription_id, []).append((included_index, product_id))
+        for subscription_id, group_positions in groups.items():
+            details = included.get(subscription_id, [])
+            if len(group_positions) == 1 and len(details) == 1:
+                if subscription_id in mapped:
+                    raise ValueError("subscription_relationship_duplicate")
+                included_position, product_id = details[0]
+                mapped[subscription_id] = (
+                    product, product_id, relationship_sha,
+                    group_positions[0], included_position,
+                )
+    return mapped
 
 
 def adapt_mobile_financial_packet(
@@ -853,8 +870,9 @@ def adapt_mobile_financial_packet(
         relationships = payload.get("relationships")
         if not isinstance(relationships, dict):
             raise ValueError("missing_coverage")
-        mapping, relationship_sha = _asc_subscription_mapping(
-            relationships, relationships.get("artifact_sha256"),
+        mapping = _asc_subscription_mapping(
+            relationships,
+            relationships.get("artifact_sha256") if isinstance(relationships, dict) else None,
         )
         evidence_ref = (
             f"appstoreconnect://financial-packet/{financial_sha}/{detail_sha}"
@@ -865,7 +883,7 @@ def adapt_mobile_financial_packet(
             relation = mapping.get(subscription_id)
             if not relation or relation[1] != sku:
                 continue
-            product, _, group_line, included_line = relation
+            product, _, relationship_sha, group_line, included_line = relation
             transaction_date = _asc_business_date(row["Transaction Date"])
             settlement_date = _asc_business_date(row["Settlement Date"])
             sale_or_return = row["Sale or Return"]
