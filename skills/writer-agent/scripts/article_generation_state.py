@@ -675,11 +675,80 @@ def prepublication_empty(run_dir: Path, run_id: str, ledger: Path) -> tuple[bool
     return True, "prepublication-empty"
 
 
+def uninitialized_pre_topic_safe(
+    run_dir: Path, run_id: str, prompt_file: Path, ledger: Path
+) -> tuple[bool, str]:
+    """Prove an uninitialized/prepared run has not selected a topic or dispatched a model."""
+
+    try:
+        resolved = _validate_boundary(run_dir, run_id, prompt_file)
+        state_path = _state_path(resolved)
+        if state_path.is_symlink():
+            return False, "generation-state-symlink"
+        if state_path.exists():
+            state = _load(state_path)
+            if (
+                state.get("run_id") != run_id
+                or state.get("run_dir") != str(resolved)
+                or state.get("prompt_path") != str(prompt_file.resolve(strict=True))
+                or state.get("prompt_sha256") != file_sha256(prompt_file)
+                or state.get("status") != "prepared"
+                or state.get("attempts") != []
+            ):
+                return False, "generation-state-not-prepared"
+
+        gates = resolved / "gates"
+        for marker in (
+            gates / "topic-route-input.json",
+            gates / "topic-route.json",
+            gates / "claimed-card.md",
+            gates / "model-stdout.log",
+            resolved / "model-stdout.log",
+        ):
+            if marker.exists() or marker.is_symlink():
+                return False, "dispatch-marker"
+
+        broker = gates / "judge-broker"
+        if broker.is_symlink() or (broker.exists() and not broker.is_dir()):
+            return False, "judge-broker-invalid"
+        if broker.is_dir():
+            for child in broker.iterdir():
+                if child.is_symlink():
+                    return False, "judge-broker-symlink"
+                if child.name == "heartbeat" and child.is_file():
+                    continue
+                if (
+                    child.name in {"requests", "responses", "done"}
+                    and child.is_dir()
+                    and not any(child.iterdir())
+                ):
+                    continue
+                return False, "judge-broker-dispatch-marker"
+
+        if ledger.is_symlink() or not ledger.is_file():
+            return False, "ledger-invalid"
+        for line in ledger.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            row = json.loads(line)
+            if not isinstance(row, dict):
+                return False, "ledger-invalid"
+            if row.get("run_id") == run_id:
+                return False, "generation-ledger-row-exists"
+
+        safe, reason = prepublication_empty(resolved, run_id, ledger)
+        return (True, "uninitialized-pre-topic-empty") if safe else (False, reason)
+    except (OSError, TypeError, ValueError, GenerationInvariant):
+        return False, "unreadable"
+
+
 def initialize(run_dir: Path, run_id: str, prompt_file: Path, ledger: Path) -> dict[str, Any]:
     resolved = _validate_boundary(run_dir, run_id, prompt_file)
     state_path = _state_path(resolved)
     prompt_hash = file_sha256(prompt_file)
     with _lock(state_path):
+        if state_path.is_symlink():
+            raise GenerationInvariant("generation state is symlinked")
         if state_path.exists():
             state = _load(state_path)
             if (
@@ -724,7 +793,18 @@ def rebind_release(
     releases_dir = current_root.parents[2]
     if Path(*current_root.parts[-2:]) != Path("skills/writer-agent"):
         raise GenerationInvariant("current root is not a writer-agent release path")
+    if state_path.is_symlink():
+        raise GenerationInvariant("generation state is symlinked")
+    if not state_path.exists():
+        safe, reason = uninitialized_pre_topic_safe(
+            resolved, run_id, prompt_file, ledger
+        )
+        if not safe:
+            raise GenerationInvariant(reason)
+        initialize(resolved, run_id, prompt_file, ledger)
     with _lock(state_path):
+        if state_path.is_symlink():
+            raise GenerationInvariant("generation state is symlinked")
         state = _load(state_path)
         staged_resume = _adopted_staged_prepublication(
             resolved, run_id, prompt_file, ledger, state
@@ -747,8 +827,23 @@ def rebind_release(
         if adopted_resume or advisory_resume:
             allowed_statuses.add("quality-repair-ready")
             allowed_statuses.add("terminal-incomplete")
-        if state.get("run_id") != run_id or state.get("status") not in allowed_statuses:
+        prepared_resume = (
+            state.get("status") == "prepared" and state.get("attempts") == []
+        )
+        if (
+            state.get("run_id") != run_id
+            or (
+                state.get("status") not in allowed_statuses
+                and not prepared_resume
+            )
+        ):
             raise GenerationInvariant("generation state is not safely resumable")
+        if prepared_resume:
+            safe, reason = uninitialized_pre_topic_safe(
+                resolved, run_id, prompt_file, ledger
+            )
+            if not safe:
+                raise GenerationInvariant(reason)
         safe, reason = prepublication_empty(resolved, run_id, ledger)
         if adopted_resume or advisory_resume:
             safe, reason = True, "adopted-staged-prepublication"
@@ -1162,13 +1257,15 @@ def resume_decision(
     try:
         resolved = _validate_boundary(run_dir, run_id, prompt_file)
         state_path = _state_path(resolved)
+        if state_path.is_symlink():
+            return {
+                "resumable": False,
+                "reason": "generation-state-symlink",
+            }
         if not state_path.exists():
-            if _ledger_has_run(ledger, run_id):
-                return {
-                    "resumable": False,
-                    "reason": "generation-ledger-row-exists",
-                }
-            safe, reason = prepublication_empty(resolved, run_id, ledger)
+            safe, reason = uninitialized_pre_topic_safe(
+                resolved, run_id, prompt_file, ledger
+            )
             return {
                 "resumable": safe,
                 "reason": reason,
@@ -1182,6 +1279,15 @@ def resume_decision(
             or state.get("prompt_sha256") != file_sha256(prompt_file)
         ):
             return {"resumable": False, "reason": "generation-state-not-safe"}
+        if state.get("status") == "prepared" and state.get("attempts") == []:
+            safe, reason = uninitialized_pre_topic_safe(
+                resolved, run_id, prompt_file, ledger
+            )
+            return {
+                "resumable": safe,
+                "reason": reason,
+                "status": "uninitialized-safe",
+            }
         if state.get("status") == "quality-repair-ready":
             if _adopted_staged_prepublication(
                 resolved, run_id, prompt_file, ledger, state
