@@ -9,6 +9,8 @@
 
 ## 共通条件
 
+先行依存: `2026-10-09-storage-foundation-first.md` のDS01–17完了後にOC012から再開。共有storage helperをOC014/024/026/034/F01で再利用する。旧global profile/個人store変更なし。
+
 - isolated_source項目は専用worktree/private fixtureで実装・RED→GREEN。routeはdisabled。稼働runner/認証/注文/個人session/旧global OpenClawを操作しない。
 - production項目はmain-derived immutable release、owner deploy lock、active/queued/reserved/unknown無しの確認が必要。進行中仕事を止めず、別ownerを変更しない。未知effectは公式readbackまで再送0。
 - engineとschedulerは別handoff。engineの次の自然仕事を確認してから旧future wakeを停止→新cronを有効にする。schedulerは常に一つ。

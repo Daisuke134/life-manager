@@ -4100,12 +4100,38 @@ private配布物probe: baseline9cases＋retry0 override2cases。defaultdisconnec
 retry0 privateglobalinstance + projectSettingsPolicy=ignoreの追加fake2casesもPASS（disconnect1request/0retry/8.839秒、次invoke成功、survivor0）。fakeruntime合計13cases。MX-04bの配置は実測済み、native/backend/account/economicsは別unmeasured。
 
 
+## 共通storage・cleanup先行 — 現在の実行順
+
+目的: 管理下の保存量増大/実ENOSPCから仕事を欠落/重複させず復旧し、現行とOpenClawで共通利用する。範囲: 既存inventory/governor/stdio/retention/recoveryの改善。完了: source→main immutable→owner限定idle反映→翌日の自然成果と保存量の照合。本番操作・削除・実装はこの計画更新では実施しない。
+
+正確なfile/function/contract/test/commandは `docs/superpowers/plans/2026-10-09-storage-foundation-first.md`。旧順=OC012→OpenClaw残233atom。新順=DS01–17→OC012→OpenClaw残233atom。理由=live空き約0.57GiB/cleanup回復unmetとuserのstorage先行指示。現在cursor=DS01。既存の外部effectを中断/二重実行しない。
+
+- [ ] DS01: `runtime/loop/central_cleanup.py` — `host_cleanup_readback(returncode, stdout) -> tuple[bool, dict]`。cleanup実行成功と容量回復を別の値として返す。okの既存意味は維持。trusted runnerからowner/run/occurrence/releaseをreceiptへ付け、capacity_recovery.status=met|unmet|unknownを失わない。低容量だけを理由にcleanupを失敗・全producer停止にしない。
+- [ ] DS02: `runtime/loop/health.py; runtime/loop/health.schema.json; runtime/loop/health_observer.py; runtime/loop/lm_loop.py` — `project_health(rows, *, scope, storage_snapshot=None) -> dict`。host_storageを閉じた任意top-level項目としてschema生成元へ追加し、生成JSONを同期する。executionとcapacityをCLIで別表示。lm_loop.py::mainのhealth/status callerがvalidated storage_snapshotをproject_healthへ渡す。run/occurrence/release一致とsnapshot時間を確認し、古いreceiptを現在の回復証拠にしない。容量変化の通知は既存local alert経路だけ。
+- [ ] DS03: `skills/self/disk-cleanup/host_inventory.py` — `project_storage_growth(previous, current, registry_roots) -> dict`。既存collect_host_inventoryのbounded metadata snapshotから、同じrootのbytes差分・elapsed_seconds・bytes_per_second・owner/ref・coverageを出す。registry外はunattributed。content読取・lsof強制・未知path削除なし。既存full/fast budgetを再利用。
+- [ ] DS04: `config/storage-policy.json; runtime/host/storage_policy.py` — `load_storage_policy(path, owner_id) -> StoragePolicy`。operator所有のclosed policyを定義。diagnostic segment=1MiB、backup=1、chunk=4096、diagnostic total<=2MiB+40KiB。closed diagnostic retentionはowner16MiB/host512MiBの初期値でoperator変更可（business result/receiptへこの削除budgetは適用しない）。structured text result上限の初期値16MiBはownerで明示変更可能。保持対象はhostが印を付けた再生成可能診断だけ。個人session・credentials・memory・state JSONL・未知effect成果物は対象外。
+- [ ] DS05: `runtime/loop/loop_cleanup.py` — `cleanup_run_root(...); gc_releases(...)`。既存age/count retentionへmanaged_bytesを追加。host .lm-regenerable、terminal receipt、closed PID/start identityを満たす候補だけ古い順で回収。active/loaded/current/protected/unknownは必ず保持し、unrecoverable_bytesを別報告する。worktree削除は既存owner退役手順に限定。
+- [ ] DS06: `runtime/host/bounded_output.py` — `start_stderr_relay(private_root, policy, binding) -> RelayHandle; relay_stderr(read_fd, control_fd, private_root, policy, binding) -> RelayReceipt`。新しいagent frameworkや常駐daemonを作らず、有限runに属するstdio relayを作る。stdlib RotatingFileHandler、latin-1 byte roundtrip、formatter messageのみ、terminator空、segment/backup/chunkをDS04で固定。最初32KiBのheadをhost-owned .headへ一度保存し、後続rotationでも最初の診断を失わない。writerはpipeを持ち、relayは全writerのEOFまで読み続ける。自身をentrypointのkill groupへ入れない。PID/startとownerをprivate metadataに保存。ENOSPC時も読み捨てdrainを続け、bounded tailとstorage_errorをnonblocking UNIX datagram socketpairへ返す（最大4KiB/frame）。親側close/queue満杯は通知をdropするだけでinput drainを止めない。親用read_relay_snapshot(handle)でlatest frameを取得。handlerのerrorを握り潰さない。helperだけumask077。stderr captureの既存小さいbyte列はそのままroundtripする。
+- [ ] DS07: `runtime/loop/lm_loop_run.py; runtime/loop/central_cleanup.py` — `_run_entrypoint_with_stderr_capture(...); scratch_gc(...)`。DS06を有限entrypointのstderr境界へ接続。stdout/exit/timeout/cancel/業務receiptは不変更。親終了だけでrelayを殺さず、last2048 bytesを既存diagnosticへ返す。scratch GCはlive relay PID/startがあるrootを保持し、EOF後だけ回収。既存browser/daemonのFDは遡って変更しない。
+- [ ] DS08: `runtime/agent-runner/agent_runner.py` — `run_provider_process(...); extract_provider_usage(provider, stdout_text, model=None)`。stderrへDS06を適用。stdoutは構造化eventをstreamで消費してresult/usageを確定してからdiagnosticをbounded保存する。Codexの既存result_pathが正本。16MiB上限を超える単一structured recordはtyped result_oversizedにし、切れたJSONを成功にしない。model/account/route/resume/token-budget/provider lease契約は変更しない。
+- [ ] DS09: `skills/self/disk-cleanup/disk_cleanup.py; runtime/loop/central_cleanup.py` — `HostDiskGovernor.run_once(); host_cleanup_readback(...)`。既存5分pass・watchdog・15日dispatcher・singleton・candidate cursor・receipt reserveを再利用する。DS03/05をreceiptへ結合し、reclaimed/remaining/protected/unattributed/coverageを分ける。閉じたallowlist candidate以外へcleanup範囲を拡大しない。回復未達でも理由と次の処理対象を具体的に残す。
+- [ ] DS10: `runtime/host/storage_failure.py; runtime/loop/runtime_event.py; runtime/loop/lm_loop_run.py; runtime/agent-runner/agent_runner.py` — `classify_storage_failure(error, phase, binding, effect_started) -> dict`。shared runtime/host/storage_failure.pyに分類関数を一度定義し、runner二経路は同じ関数を呼ぶ。runtime_eventへclosed optional storage_failure(errno/operation/effect_started/proof_ref)を追加してvalidator/serializerを同期する。実際のENOSPC/EDQUOTだけをtyped storage errorとして境界記録する。既存terminal-unrecorded/receipt reserveの処理を再利用し、未保存を保存済みとしない。effect前はpre_effect_failure、effect後はeffect_unknownを維持。free-space数値やcleanup unmetだけでは全loopをdeferしない。
+- [ ] DS11: `runtime/loop/lm_loop_run.py; runtime/loop/recovery-intent.mjs; runtime/loop/recovery-intent-record.mjs; runtime/loop/recovery-apply-plan.mjs; runtime/loop/recovery-executor.mjs` — `_enqueue_recovery_intent(...); buildRecoveryIntent(input); buildRecoveryIntentRecord(...); buildRecoveryApplyPlan(...); executeRecoveryPlan(...)`。_enqueue_recovery_intentとbuildRecoveryIntentRecordでDS10のtrusted storage_failure/proof_refを落とさず渡す。新actionを追加せず、確定pre-effectは既存action=reconcile_owner、reason=storage_write_failed_pre_effectで既存queue/cursorに接続する。next_action=retry_after_cleanupは診断値だけ。buildRecoveryApplyPlan/executeRecoveryPlanで同owner/occurrence/release/proofとfailure後のfresh cleanupを確認し、実operationのwrite確認が通る時だけ既存reconcileを一度実行する（2GiB unmetだけを禁止理由にしない）。cleanup lock取得・readback後、同一occurrenceの次wakeを再開。effect_unknownは既存official readback reconciliationへ渡し、自動fence解除/再submitはしない。新しいqueue/cronを作らない。
+- [ ] DS12: `runtime/host/tests/test_storage_recurrence.py` — `test_same_work_survives_storage_pressure_and_recovers()`。隔離fixtureでログburst、同時writer、GC、実書込み失敗注入、次wake、detach writerを組み合わせる。host diskを埋める検証や本番processの停止は行わない。共有storage helperを新旧harnessのadapter fixture双方から呼ぶ。
+- [ ] DS13: `skills/self/disk-cleanup/SKILL.md; docs/superpowers/plans/2026-10-09-openclaw-remaining.md; docs/research/openclaw-remaining-atoms.json` — `shared storage integration contract`。共有storage契約をskill/OpenClaw計画へ接続。
+- [ ] DS14: `docs/evidence/storage-foundation/source-acceptance.json` — `source/PR/main acceptanceを記録する`。source/関連tests/review/CI/PR/mainの証拠を記録。本番release作成はしない。
+- [ ] DS15: `docs/evidence/storage-foundation/owner-apply.json` — `immutable releaseとowner限定反映を記録する`。本番promotionとして完全immutable releaseを作り、GUI preflight/owner deploy lock/loaded-idle確認後に対象限定apply。
+- [ ] DS16: `docs/evidence/storage-foundation/next-day-acceptance.json` — `自然24hの翌日継続性を記録する`。自然24hと翌日予定仕事の公式成果を確認。容量理由pendingを成功にしない。
+- [ ] DS17: `docs/evidence/storage-foundation/final.json` — `全成果を照合してDS完了を記録する`。全DS証拠と管理外不足条件を照合し、達成後にOC012を再開。
+
+旧固定free-space admission floorは復活させない。cleanup実行successと容量回復met/unmet/unknownを分離する。native個人store/credentials/browser identity/memory/state JSONL/Simulator/active release/未確認effectは不可侵。writer/rootの帰属が不明ならunknown、管理外/保持必須容量が回収可能量を超える場合は具体的不足条件を残す。
+
 ## OpenClaw source実装カーソル（本番非変更）
 
 目的: 既存agentを止めず、専用worktreeで移行接続を実装する。完了条件: 関連テスト、read-only review、commit/push、PRのsource証拠。自然仕事・公式receiptを確認するまで本番移行完了としない。
 範囲: `runtime/openclaw/` のportable paths、closed request、stable identity、排他的dispatch保存、private Gateway境界。既存runner/registry/auth/launchd/注文stateへ未接続。
 設計参照: docs/main-agents-readiness branchの `2026-10-07-main-agents-readiness.md` OC/NC/MI atoms。
-順序変更: 旧=OC001/014/NC02→Gateway。新=OC001–006→OC007–013→profile/native fence→domain/admission接続→owner移行。理由: profileを本番検証する前に、再送防止とsecret境界をsourceで成立させる。現在cursor=OC012（pinned runtime conformance未完）。
+順序変更: 旧=OC001/014/NC02→Gateway。新=OC001–006→OC007–013→profile/native fence→domain/admission接続→owner移行。理由: profileを本番検証する前に、再送防止とsecret境界をsourceで成立させる。OpenClaw内cursor=OC012（storage DS01–17完了後に再開）。
 - [x] OC001 lock: `runtime/openclaw/package.json`/lockに公開5package exact version/integrity。既存probe lock再利用、package-lock-only/ignore-scripts完了。公開runtime conformanceはOC012へ未完として分離。
 - [x] OC002: `paths.mjs::resolveHarnessPaths` 既存data root再利用。
 - [x] OC003/004: `protocol.mjs::validateRunRequest/buildRunIdentity` closed v2、同task stable key、fresh task session。
@@ -4129,7 +4155,7 @@ Independent review: 3件の実不具合（再接続readiness、digest型coercion
 
 全file/function/contract/testは `docs/superpowers/plans/2026-10-09-openclaw-remaining.md`、機械展開は `docs/research/openclaw-remaining-atoms.json`。baseline `c7b1e491bd9fb6a212dd1c8a5f05ccd9ffef70f4`、最新catalog 18分類/113job（finite 95、continuous 18）。残233atomはsource/native/caller/product binding/idle cutover/schedule自然確認/退役をすべて含む。旧111jobからebook-en-instagram-dailyとlife-manager-anicca-en2-affirmation-tiktokが追加。engine自然確認はE-productの18atomとしてS前提へ分離する。OC048は現行 `_dispatch_reserved` が対象。OC008はtext境界済みだが画像/continuation接続をfollow-up未完として明示する。
 
-順序更新: 旧=V全完了後にF installer/docs、新=F01/02/03/05/06のsource+isolated fixtureを本番移管前に完了し、A/S/V後にF04退役/F07最終。理由=現在の本番を維持したまま実装できる仕事を先に終える。既存の外部effectは中断/重複しない。現在cursor=OC012（実固定Gateway conformance）。既存loopを永久に一切変更しない条件では本番移行完了は成立しないため、進行中runを止めずidle ownerの次の仕事だけ移す。
+順序更新: 旧=V全完了後にF installer/docs、新=F01/02/03/05/06のsource+isolated fixtureを本番移管前に完了し、A/S/V後にF04退役/F07最終。理由=現在の本番を維持したまま実装できる仕事を先に終える。既存の外部effectは中断/重複しない。OpenClaw内cursor=OC012（storage DS01–17完了後に再開）。既存loopを永久に一切変更しない条件では本番移行完了は成立しないため、進行中runを止めずidle ownerの次の仕事だけ移す。
 
 ## Host disk recovery incident
 

@@ -3099,5 +3099,8 @@
       "conditional": false,
       "boundary": "production"
     }
-  ]
+  ],
+  "prerequisite_plan": "docs/superpowers/plans/2026-10-09-storage-foundation-first.md",
+  "prerequisite_completion": "DS17",
+  "execution_state_authority": "docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md"
 }
