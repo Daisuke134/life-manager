@@ -104,6 +104,15 @@ def resolve_link_in_caption(account: dict, now: datetime) -> bool:
     return bool(account["link_in_caption"])
 
 
+def seed_for(key: str, entry: dict | None) -> str:
+    """Seed for choosing the set and the clip order. The first attempt of a slot uses the slot's own
+    key; each retry of a failed slot adds the attempt count. Without it every retry re-posts the
+    same set-002 video from a brand-new account (2026-10-09: three identical attempts, a share that
+    never finished). The ledger row stays keyed by the slot."""
+    attempts = int((entry or {}).get("attempts") or 0)
+    return key if attempts == 0 else f"{key}#retry{attempts}"
+
+
 def find_due_account(accounts: list[dict], ledger_path: Path, now: datetime) -> tuple[dict, str, str] | None:
     """First (account, slot_at, key) whose slot is due now, not yet posted, and
     (if a previous attempt for this exact slot failed) past its retry cooldown."""
@@ -142,8 +151,9 @@ def run_pass(
         return {"state": "no_due_slot"}
     account, slot_at, key = due
 
+    seed = seed_for(key, ledger.load(ledger_path).get(key))
     chosen = pick_set.choose_set(
-        pick_set.load_on_sale_sets(line_sticker_state_root), seed_key=key,
+        pick_set.load_on_sale_sets(line_sticker_state_root), seed_key=seed,
     )
     if chosen is None:
         entry = {
@@ -152,7 +162,7 @@ def run_pass(
         }
         ledger.record(ledger_path, key, entry)
         return {"state": "blocked", "reason": "no_sets_on_sale", "account": account["lane_id"]}
-    clip_order = pick_set.choose_clip_order(chosen["clip_ids"], key, CLIP_COUNT)
+    clip_order = pick_set.choose_clip_order(chosen["clip_ids"], seed, CLIP_COUNT)
 
     if caption_hook_override:
         plan = {"hook": caption_hook_override, "content_type": "showcase", "beat_texts": []}
@@ -175,7 +185,7 @@ def run_pass(
         beat_texts=plan["beat_texts"] or None,
     )
 
-    seed_index = pick_set.deterministic_index(key, 6)
+    seed_index = pick_set.deterministic_index(seed, 6)
     include_link = resolve_link_in_caption(account, now)
     caption_result = caption_compose.build_caption(
         hook=plan["hook"],
@@ -249,6 +259,7 @@ def run_pass(
     ledger.record(ledger_path, key, {
         "status": "failed", "slot_at": slot_at, "set_id": chosen["set_id"], "reason": error_detail,
         "content_type": plan["content_type"], "attempted_at": now.isoformat(),
+        "attempts": int((ledger.load(ledger_path).get(key) or {}).get("attempts") or 0) + 1,
     })
     raise RuntimeError(f"{transport} publish did not reconcile: {receipt}")
 
