@@ -61,7 +61,16 @@ function validateMarketingDestinationContract(input) {
     text(row.loop_name, "loop_name");
     text(row.label, "label", /^ai\.anicca\.life-manager-[A-Za-z0-9._-]+$/);
     text(row.entrypoint, "entrypoint", /^apps\/life-manager\/scripts\/(?:mobile-app|[A-Za-z0-9._-]+\.sh)$/);
-    const expectedCadenceSlots = row.lane_id === "ebook-en-tiktok" ? 2 : 3;
+    const isEnglishMonkTikTok = row.lane_id === "ebook-en-tiktok"
+      && row.product_id === "ebook-en"
+      && row.job_product_id === "ebook-en"
+      && row.locale === "en"
+      && row.platform === "tiktok"
+      && row.postiz_profile === "@monk_anicca"
+      && row.native_handle === "@monk_anicca"
+      && row.integration_id === "cmo5rwq2p00twn10yrsdglng3"
+      && row.loop_name === "ebook-en-tiktok-daily";
+    const expectedCadenceSlots = isEnglishMonkTikTok ? 2 : 3;
     if (!Array.isArray(row.cadence_jst) || row.cadence_jst.length !== expectedCadenceSlots
       || row.cadence_jst.some((value) => typeof value !== "string" || !TIME.test(value))
       || new Set(row.cadence_jst).size !== expectedCadenceSlots) invalid("cadence_jst");

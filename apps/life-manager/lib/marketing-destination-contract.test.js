@@ -126,6 +126,13 @@ test("two-slot cadence is limited to the English eBook lane", () => {
   assert.throws(() => validateMarketingDestinationContract(value), /cadence_jst/);
 });
 
+test("English eBook two-slot exception is bound to its Monk TikTok identity", () => {
+  const value = JSON.parse(fs.readFileSync(CONTRACT, "utf8"));
+  const target = value.targets.find((row) => row.lane_id === "ebook-en-tiktok");
+  target.platform = "instagram";
+  assert.throws(() => validateMarketingDestinationContract(value), /cadence_jst/);
+});
+
 test("a target without an exact pack, form, cadence, label, or entrypoint fails closed", () => {
   const value = JSON.parse(fs.readFileSync(CONTRACT, "utf8"));
   for (const field of ["approved_pack_ref", "media_form", "cadence_jst", "label", "entrypoint"]) {
