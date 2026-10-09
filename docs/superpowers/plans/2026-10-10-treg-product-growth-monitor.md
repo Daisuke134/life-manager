@@ -30,16 +30,17 @@
 
 | File | Responsibility |
 |---|---|
-| `runtime/agent-runner/agent_runner.py` | Load the limited Treg token into child environments, expose isolated skills, and add Treg MCP to the dedicated signal task. |
+| `runtime/agent-runner/agent_runner.py` | Load the limited Treg token into child environments, expose isolated skills, and cap every Treg MCP route at `$0.003`. |
 | `runtime/agent-runner/config.json` | Add the dedicated Codex-only `treg-lead-signals-agent` class on the existing `gpt-6.1-sol` medium automation route. |
 | `skills/earn/marketing-engine/run_agent.sh` | Allow the new bounded Treg signal task class. |
 | `skills/earn/marketing-engine/intel/treg/SKILL.md` | Safe Treg catalog and call rules for Life Manager agents. |
 | `skills/earn/marketing-engine/intel/lead-signals/SKILL.md` | Product-fit qualification, baseline, and new-only signal rules. |
 | `skills/earn/marketing-engine/intel/lead-signals-products-extra.json` | Four published App Store product profiles absent from the five-row Marketing Engine registry. |
-| `skills/earn/marketing-engine/intel/lead-signals-output.schema.json` | Contract for qualified rows and Treg call receipts returned by the agent. |
+| `skills/earn/marketing-engine/intel/lead-signals-output.schema.json` | Template for qualified rows and Treg call receipts; the runner injects current product IDs. |
 | `skills/earn/marketing-engine/intel/treg_lead_signals_weekly.py` | Run the bounded agent pass, validate receipts, dedupe keys, write private state, and send only new rows. |
-| `skills/earn/marketing-engine/intel/treg_lead_signals_weekly` | Repository-relative loop entrypoint. |
+| `skills/earn/marketing-engine/intel/treg-lead-signals-weekly` | Repository-relative loop entrypoint. |
 | `skills/earn/marketing-engine/intel/treg_lead_signals_reconcile.py` | Read one occurrence's persisted Telegram receipt; never sends or retries. |
+| `runtime/loop/lm_loop_run.py` | Allow this exact owner/entrypoint to record a Telegram receipt or a verified no-message result. |
 | `config/loop-registry.json` | Register `marketing-treg-lead-signals-weekly` at Sunday 21:10 JST. |
 | `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md` | Record task state and current cursor; remains the only TODO/state SSOT. |
 
@@ -102,8 +103,13 @@
 
 **Files:**
 
+- Modify: `runtime/agent-runner/agent_runner.py`
+- Modify: `runtime/loop/lm_loop_run.py`
+- Modify: `skills/earn/marketing-engine/intel/treg/SKILL.md`
+- Modify: `skills/earn/marketing-engine/intel/lead-signals/SKILL.md`
+- Modify: `skills/earn/marketing-engine/intel/lead-signals-output.schema.json`
 - Create: `skills/earn/marketing-engine/intel/treg_lead_signals_weekly.py`
-- Create: `skills/earn/marketing-engine/intel/treg_lead_signals_weekly`
+- Create: `skills/earn/marketing-engine/intel/treg-lead-signals-weekly`
 - Create: `skills/earn/marketing-engine/intel/treg_lead_signals_reconcile.py`
 - Modify: `config/loop-registry.json`
 
@@ -111,18 +117,24 @@
 
 - `run_weekly_monitor(*, state_root: Path, evidence_root: Path, agent_runner=...) -> dict` runs one `treg-lead-signals-agent` pass and returns the Life Manager terminal result fields, `treg_call_ids`, `charged_micro`, `baseline_count`, `new_count`, and optional Telegram `provider_receipt_id`.
 - The scheduled signal pass invokes `run_agent.sh --task-class treg-lead-signals-agent`; no general shell/network capability is needed for its Treg MCP calls.
+- Per-invocation Codex MCP config applies the static `X-Treg-Route-Max-Cost: 0.003` header. The product ID enum and one-signal-per-product maximum are generated from the currently loaded profiles.
+- Validate call IDs, prices, costs, and exact source/profile URLs against the captured `mcp_tool_call` results in the agent's JSONL evidence; model-provided receipts alone are insufficient.
 - CSV key: `(product_id, person_url, signal, source_url)`.
 - `reconcile_occurrence(state_root: Path, occurrence_id: str) -> dict` returns the exact stored receipt for that occurrence or a typed `unknown`; it never sends.
+- The repository loop runner accepts only the dedicated owner ID plus entrypoint for `verified_effect` hints. A no-lead/baseline result uses a separately allowlisted `verified_no_effect` reason.
 - Registry owner: `marketing-treg-lead-signals-weekly`, Sunday 21:10 local calendar time, `effect_class=message`, `provider_route=shared-agent-runner`, separate state/log roots.
 
 - [ ] Build the prompt from the five canonical products and four supplements; search the current catalog once per platform, inspect route prices, and make at most two routes per product.
-- [ ] Check Treg balance before any paid route; stop without top-up below `$0.05`.
+- [ ] Apply the fixed `X-Treg-Route-Max-Cost: 0.003` header to every request from the dedicated remote MCP server.
+- [ ] Check Treg balance before paid routes; reserve `$0.05` from the remaining balance after each quoted route; stop without top-up if the floor would be crossed.
 - [ ] Require X/Reddit public results from the last seven days, fit/timing qualification, exact source URLs, and `X-Treg-Route-Max-Cost: 0.003` on each call.
-- [ ] Validate the agent JSON and every reported `charged_micro`; reject the run if any route exceeds `$0.003`, total exceeds `$0.054`, or there are more than 18 billed routes.
+- [ ] Generate the agent schema from the current product IDs. Validate the JSON and each receipt against captured Treg MCP results; reject if any route exceeds `$0.003`, total exceeds `$0.054`, or there are more than two billed routes per product.
+- [ ] Keep at most one strongest new signal per product in the weekly report so one digest covers every product without flooding Telegram.
 - [ ] On the first run, write a private baseline and send no old leads. On later runs, compare exact CSV keys and report only new rows.
 - [ ] Write state atomically with `0700` directory and `0600` files. Persist `signals.csv` only after the outbox/Telegram decision is durably recorded.
-- [ ] Use `skills/_shared/telegram.py`; persist the returned message IDs and receipt before reporting success. If no new rows, do not send.
-- [ ] Add a read-only occurrence reconciler that resolves only from the exact persisted provider receipt and never retries a send.
+- [ ] Use `skills/_shared/telegram.py`; persist the returned message IDs and receipt before reporting success. If no new rows, do not send and write a `verified_no_effect` hint.
+- [ ] Add an owner/entrypoint-scoped receipt-hint allowlist; for a delivered message write a `verified_effect` hint with its Telegram message ID.
+- [ ] Add a read-only occurrence reconciler that checks the exact terminal event, private outbox, and Telegram user-history message ID/body prefix/sender/time, then resolves only the matching occurrence; it never retries a send.
 - [ ] Run `python3 -m py_compile` on the three Python entrypoints and `./bin/lm-loop-contract`.
 - [ ] Commit and push the loop as its own source change.
 

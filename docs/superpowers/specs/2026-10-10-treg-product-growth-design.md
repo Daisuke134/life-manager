@@ -5,7 +5,7 @@
 
 ## 目的
 
-TregをLife Managerの製品成長エージェントから安全に使えるようにし、公開情報から製品ごとの新しい購買シグナルを週次で知らせる。Anicca iOSを先に扱い、他の現行製品も同じ監視に含める。
+TregをLife Managerの製品成長エージェントから安全に使えるようにし、公開情報から全製品の新しい購買シグナルを週次で知らせる。Anicca iOSを先に扱い、他の現行製品も同じ監視に含める。
 
 ## 確認済みの事実
 
@@ -13,13 +13,14 @@ TregをLife Managerの製品成長エージェントから安全に使えるよ�
 - Life ManagerのCodex agent-runnerは呼び出しごとに`HOME`と`CODEX_HOME`を分離するため、ユーザーのTreg設定とスキルを継承しない。
 - 既存`marketing-weekly-review`は日曜21:00にTelegramへ送るが、直近occurrenceの効果が`unknown`で、readback adapterがない。既存occurrenceは再送・変更しない。
 - Marketing Engineの製品レジストリには5製品があり、App Storeで公開中の6アプリのうち追加4アプリは2026-10-05のApp Store記録にある。
+- App StoreのAnicca listing（`https://apps.apple.com/jp/app/id6755129214`）はAniccaをAIセルフケア・コンパニオンとして説明している。監視では`anicca-ios`をこのAI companionアプリの優先profileとして扱う。
 - Treg agent tokenは日次30 call上限・`local_run_enabled=false`。2026-10-09 14:42 UTC時点のreadbackは37 calls・残高`$0.98882`・自動補充なし。最初の監視はTregの日次枠が更新した後に行う。
 
 ## 推奨構成
 
-既存`lm-loop` schedulerに専用owner `marketing-treg-lead-signals-weekly`を追加し、日曜21:10 JSTに一度だけ動かす。既存の未解決Telegram effectに触れない。Life Manager agent invocationsにはrepo所有のTreg/lead-signals skillと専用agent tokenを渡す。週次監視はCodexのper-invocation remote Treg MCPを使う専用`read-only` task class `treg-lead-signals-agent`で実行し、登録済みの`gpt-6.1-sol` medium automation routeを使う。通常のagent taskは従来のtool/network policyを維持し、Treg CLI skillが使える実行環境から利用する。Treg agent tokenは`TREG_TOKEN`環境変数として渡し、秘密値そのものはargv・設定ファイル・証拠ログに保存しない。
+既存`lm-loop` schedulerに専用owner `marketing-treg-lead-signals-weekly`を追加し、日曜21:10 JSTに一度だけ動かす。既存の未解決Telegram effectに触れない。週次monitor task classだけにrepo所有のTreg/lead-signals skillと専用agent tokenを渡す。5つのOpenClaw agent workspacesにも両skillを設定するが、gatewayは未ロードのため実行中とは扱わない。週次監視はCodexのper-invocation remote Treg MCPを使う専用`read-only` task class `treg-lead-signals-agent`で実行し、登録済みの`gpt-6.1-sol` medium automation routeを使う。通常のagent taskは従来のtool/network policyを維持し、Treg CLI skillが使える実行環境から利用する。Treg agent tokenは`TREG_TOKEN`環境変数として渡し、秘密値そのものはargv・設定ファイル・証拠ログに保存しない。
 
-CodexのMCP設定はHTTP headerを環境変数から読み込む。通常shellのnetwork accessは有効化しない。参照: [Codex MCP設定](https://developers.openai.com/codex/mcp)、[Codexのsandboxとnetwork policy](https://learn.chatgpt.com/docs/agent-approvals-security)。
+CodexのMCP設定は認証headerを環境変数から読み込み、`X-Treg-Route-Max-Cost: 0.003`を固定HTTP headerとして全Treg MCP requestに付ける。通常shellのnetwork accessは有効化しない。参照: [Codex MCP設定](https://developers.openai.com/codex/mcp)、[Codexのsandboxとnetwork policy](https://learn.chatgpt.com/docs/agent-approvals-security)。
 
 週次監視は専用の`treg-lead-signals-agent` task classを使う。これはCodex-only、shell/tool-less read-only、account 2、`gpt-6.1-sol` mediumのautomation routeとし、Treg MCPだけを操作できる。
 
@@ -39,7 +40,7 @@ CodexのMCP設定はHTTP headerを環境変数から読み込む。通常shell�
 | 8 | [STUDIO CHERIE](https://apps.apple.com/us/app/studio-cherie/id6766485903) | 手持ちの服を登録し、wardrobe-based outfit suggestionを求める成人 |
 | 9 | [Thankful - Gratitude Journal](https://apps.apple.com/us/app/thankful-gratitude-journal/id6759514159) | 日々のgratitude journaling習慣を作りたい人 |
 
-対象データは過去7日以内の公開X/Reddit投稿とする。各製品について1回ずつ検索し、投稿が製品の利用課題または明示的な利用意図に結びつくものだけを残す。9製品×2プラットフォームで最大18件、各Treg routeの最大費用は`$0.003`、週あたり上限は`$0.054`。catalog検索で現在のendpointと価格を確認してから呼ぶ。
+対象データは過去7日以内の公開X/Reddit投稿とする。各製品について1回ずつ検索し、投稿が製品の利用課題または明示的な利用意図に結びつくものだけを残す。9製品×2プラットフォームで最大18 route、週報は各製品あたり最も適合度の高い新規signalを1件まで載せる。各Treg routeの最大費用は`$0.003`、週あたり上限は`$0.054`。route前にbalanceを確認し、見積額を差し引いた後も`$0.05`を残せる範囲でだけ呼ぶ。catalog検索で現在のendpointと価格を確認してから呼ぶ。
 
 採用しない経路は、B2C製品への採用・資金調達・tech-stack監視、メール/電話番号検索、連絡先enrichment、outreach、投稿である。製品に合わないシグナルと、追加支出を避けるためである。
 
@@ -47,9 +48,12 @@ CodexのMCP設定はHTTP headerを環境変数から読み込む。通常shell�
 
 - Treg agent tokenはprivate credential SSOTからagentプロセスへ渡す。読み込み対象は`service=treg_agent:life-manager-product-growth`のみ。
 - CodexのMCP tool listは`catalog_search`、`catalog_get`、`call`、`balance`に限定する。Tregのadmin/team管理・top-up機能は追加しない。
+- 出力schemaのproduct ID enumは読み込んだ5つのcanonical profileと4つの補助profileから生成し、将来の製品追加時に古いenumで拒否しない。
 - 永続重複キーは`product_id + person_url + signal + source_url`。CSVはGit外の`~/.local/state/life-manager/marketing-treg-lead-signals/signals.csv`に保存し、directory `0700`、file `0600`を保つ。
-- 初回実行はbaselineのみを保存し、既存投稿をleadとして送らない。2回目以降は新規キーだけをTelegramへ送る。新規がない週は送らない。
+- 初回実行はbaselineのみを保存し、既存投稿をleadとして送らない。2回目以降は新規キーだけをTelegramへ送る。新規がない週は送らず、検証済みno-effect hintを記録する。
+- Telegram送信前にoccurrence別outboxを永続化し、送信receiptと決定を保存した後にだけ`signals.csv`を進める。
 - 各runのTreg call IDs/costs、baseline/new件数、Telegram provider receiptをprivate evidenceに記録する。receiptが不確かな時はeffectをunknownのまま保ち、再送しない。
+- `lm-loop-run` result hintsはこのloop IDと正確なentrypointだけを許可し、Telegram delivery receiptまたはbaseline/no-new proofのどちらかを受け入れる。`lm-fence-reconciler` adapterはoccurrence別terminal event、outbox、Telegram user-history readbackのmessage ID/body prefix/sender/timeを照合してunknownを解消する。送信はしない。
 
 ## フロー
 
@@ -69,7 +73,7 @@ flowchart LR
 
 ## 完了条件
 
-1. 全Life Manager agent invocationから、個人のTreg owner tokenではなく制限付きagent tokenでTregを使える。
+1. 5つの設定済みOpenClaw agent workspacesにはTreg/lead-signals skillが利用可能で、Life Managerでは週次成長monitorだけが制限付きagent tokenを受け取る。一般task classへtokenを配布しない。
 2. Aniccaを最優先に9製品すべてのbuyer profileが監視対象となる。
 3. 新しいweekly ownerがmain由来immutable releaseで読み込まれ、自然実行でTreg call receipts、baseline、以降のdedupe、Telegram receiptまたはno-sendが記録される。
 4. `marketing-weekly-review`の既存unknown occurrence、別loopのstate、Telegram履歴は再送・書換えしない。
