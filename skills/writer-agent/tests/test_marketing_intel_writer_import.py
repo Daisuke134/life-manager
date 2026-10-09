@@ -181,3 +181,23 @@ class ArticleDailyPreEffectMarkerTests(unittest.TestCase):
         prompt = daily.index("PROMPT='Run ONE daily Writer Agent article pass")
         self.assertLess(gate, clear)
         self.assertLess(clear, prompt)
+
+
+class ArticleDailyRetryCadenceTests(unittest.TestCase):
+    """2026-10-09: article-daily woke once a day (06:00).  When the two-slot agent class was full at that
+    minute the wake exited 75 (resource_capacity_busy) and nothing retried until tomorrow -- "worked
+    yesterday, broken today".  It now wakes hourly from 06:00 and stops once today's article has shipped."""
+
+    def test_registry_wakes_hourly_from_six_to_twenty_three(self):
+        registry = json.loads((Path(__file__).resolve().parents[3] / "config" / "loop-registry.json").read_text(encoding="utf-8"))
+        slots = registry["loops"]["article-daily"]["cadence"]["calendar_interval"]
+        self.assertEqual([slot["Hour"] for slot in slots], list(range(6, 24)))
+        self.assertTrue(all(slot["Minute"] == 0 for slot in slots))
+
+    def test_a_wake_after_todays_article_is_complete_exits_before_any_side_effect(self):
+        daily = (Path(__file__).resolve().parents[1] / "article-daily.sh").read_text(encoding="utf-8")
+        reason = daily.index('START_REASON="$(printf')
+        guard = daily.index("new-after-complete:*)")
+        self.assertLess(reason, guard)
+        self.assertLess(guard, daily.index("--demand-mode required >>"))
+        self.assertIn("exit 0", daily[guard:guard + 400])
