@@ -10573,3 +10573,31 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 2. [ ] **First closed round trip and truthful paper P&L:** 公式paper sell fillを既存QQQ buyとclient/effect identity・数量で照合し、provider receipt・fees・slippage・model/system costを結合して`paper_performance.py`でnet P&Lを算出し、同occurrenceのreplay-zeroを確認する。閉じた往復と費用根拠が揃うまではpaper P&L=`unknown`。
 
 **Current cursor:** AT-13 qualified natural exit → first closed round trip with cost-complete paper P&L. この2件の後にも30 round trips、AT-24/AT-29とfresh反対意見reviewのlive gatesが残る。現時点で投資利益は証明されていない。
+
+### 2026-10-09 11:50 JST — 三つのrevenue loopとhost capacityの最新readback
+
+このsnapshotはlocal loop/capacity系の現在cursorを更新し、先行するcapacity cursor（#7288 → terminal ENOSPC → cleanup recovery → Job Hunter/Fundraiser/Connector）を置き換える。他のproduct/cash ledgerの順序は変更しない。
+
+- **PR #7288:** worktree `loop-capacity-postmerge-20261009` をmain `a14f0679b604d156a61e626b707c2008953bc40a` 由来のhead `7972ecf2586671e074e9838e659ca6dded40bf47` へ同期済み。変更はqueue aging fairnessの`resource_admission.py`/testとSSOT。02:50Z時点で7 checks PASS、Loop control contracts・TruffleHog・gitleaksが実行中。PRは未merge。
+- **Fleet applyの別run:** `18dcbaa00b0140e0-82124` は100 owner rows後に`entrypoint_exit_1`。その後の`18dcbb60c0b13fd8-37421`は`enospc/scratch_enospc`。
+- **次のfleet apply:** `18dcbb86bef5bfb8-28794`は189 unique owner rows（184 `rc=0`、5 `rc=1`）。`fleet-apply-state.json`は02:44:10Z時点で`status=error, changed=68, skipped=118, errors=3, sha=7c20304d`。3件はLaunchAgent `Bootstrap failed: 5: Input/output error`、2件は`admission rebind refused: effect_unknown`。02:44Z時点でowner apply全体の成功を示していない。
+- **自然release handoff:** `18dcbc69f3b45ed8-18672`は02:48:43Zにreconciler自身が`pass/exit=0`で終了し、current pointerはmain由来release `20261009T114519-a14f0679`へ移った。ただし`fleet-apply-state.json`は上記の`7c20304d/error`のままで、このhandoffを189 ownerの成功適用とは扱わない。
+- **cleanup/capacity:** 02:47Zの`df -k /`はavailable `831724 KiB`、使用率93%。`cleanup-latest.json`は別release `e1638402`、`evaluated_runs=0`、`reclaimed_bytes=0`の古いreceiptで、現在のcleanup成功証拠ではない。SSOT上の2 GiBはcleanup recovery floorでありproducer admission gateではない。protected/open pathを削除しない。
+- **Connector:** user提示の`18dcb6c7a93b4a08-16451`と新しいnatural occurrence `18dcbbb0f994c6d0-16830`はいずれも`browser_open/TimeoutError`、endpoint `http://[::1]:9222`、effect `not_applicable`、次action `resolve_browser_identity`。新しいoccurrenceのouter healthは`entrypoint_exit_1/reconcile_owner`へ情報を潰して報告する。02:50Zのbrowser resolveはHTTP 200・valid WebSocket URLだが`lease_status=not_checked`。接続とowner leaseは未検証で、Luma/provider receiptもない。
+- **Job Hunter:** `job-search-daily` occurrence `18dcbae2128973e0-38208`と`job-search-inbox` occurrence `18dcbc04ebf7e670-7578`は`resource_capacity_busy`。`job-search-health` occurrence `18dcbc9a4c4b0468-31782`は`entrypoint_exit_1/reconcile_owner`。`job-search-learning` occurrence `18dcbaf52d9ddca8-85428`はapplication `effect_unknown`で安全にfence中。いずれもlast loaded SHA `7c20304d`、Workday receiptなし。
+- **Fundraiser:** occurrence `18dcbadb26513478-22487`は`resource_capacity_busy`、application effectは`not_applicable`、provider receiptなし、business outcome unknown。前のeffect-unknown target fencesも別途保持する。
+
+**TODO順の更新と理由:** 旧cursorは#7288のmain同期後CI → terminal ENOSPC fence → cleanup lock fix → 三loop個別復旧。新cursorは、共通capacity/terminalの失敗がJob HunterとFundraiserを現在も止め、ConnectorはCDP境界で失敗する証拠に基づき、依存順を維持して次の通り。
+
+1. [ ] PR #7288のhead `7972ecf2`で残り3 GitHub checksをPASSさせ、fresh review後にsource-only mergeする。
+2. [ ] `runtime/loop/tests/test_lm_loop_run_bounds.py`にeffectful child終了後のterminal append ENOSPCをRED再現し、同owner再wakeがdurable predecessor/effect fenceで止まるか確認する。失敗時だけそのfenceを最小修正する。`.terminal-unrecorded`を削除・再送許可に使わない。
+3. [ ] すべての未記録terminalをowner/occurrence単位でreconcileし、公式provider readbackとreplay-zeroを確認する。effect不明targetはreceiptなしに再送しない。
+4. [ ] `runtime/loop/central_cleanup.py`で、子receiptが厳密に`rc=75/status=deferred/reason=cleanup_lock_busy/effect=0/readback=0`のときだけ親をtyped coalesced no-opとして扱う。PR #7301の15日maintenance retryは5分parentの修正ではない。
+5. [ ] fleet applyの3 Bootstrap I/O failuresと2 effect-unknown rebind refusalをowner別に診断する。cleanupはfresh structured receiptで2 GiB recovery floor、errors=0、protected_deletions=0を確認する。df単独を成功扱いせず、open/unlinked・protected assets・Simulator・browser identity・active worktreeを消さない。
+6. [ ] Job Hunterのdaily/inbox admissionとhealth ownerの失敗を直し、learningのeffect-unknownをWorkday公式readbackで解消する。応募はreceipt・status・replay-zeroを記録し、submit unknownは再送しない。
+7. [ ] Fundraiserのcapacity blockerを解消し、VC/AI founder discoveryとcold outreachをtarget fence・Gmail Sent/provider receipt・Telegram reportまでつなぐ。既存unknown targetの再送はしない。
+8. [ ] Connectorの`interactive:dais` lease ownershipと実CDP attach timeoutを修正し、effect-free natural canary後にLuma Compassの公式application/readbackを確認する。HTTP 200だけで成功扱いしない。
+9. [ ] 実測したmemory/disk/DB/child runtimeに合わせてbounded concurrencyを決め、critical_paid/revenue/distributionのaging fairness・queue wait・admission reasonsをreadbackする。infinite capacityとは主張しない。
+10. [ ] 三loop全てで`gpt-6-luna` max/Fast route、Telegram business reporting、公式provider receipts、cost attribution、replay-zeroを自然occurrenceで確認し、収益結果まで追う。
+
+**現在cursor:** #7288 exact-head checks/review/merge → effectful terminal-ENOSPC fence test/fix → terminal reconciliation/replay-zero → central cleanup parent → Job Hunter/Workday → Fundraiser → Connector/Luma → measured bounded concurrency → three-loop receipts/revenue.
