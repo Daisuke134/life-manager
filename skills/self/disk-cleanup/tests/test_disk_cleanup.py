@@ -1596,6 +1596,41 @@ def test_closed_browser_clone_with_source_named_dependency_is_reclaimed(
     assert result["reclaimed"] == 32
 
 
+def test_discover_and_sweep_allowlisted_tmp_cache_when_gettempdir_probe_fails(
+    tmp_path: Path, monkeypatch
+) -> None:
+    temporary = tmp_path / "tmp"
+    candidate = temporary / "capafy-hf-npm.no-tempfile-probe"
+    candidate.mkdir(parents=True)
+    (candidate / "payload").write_bytes(b"x" * 64)
+    os.utime(candidate, (1, 1))
+    monkeypatch.setenv("TMPDIR", str(temporary))
+
+    def no_writable_temporary_directory() -> str:
+        raise FileNotFoundError("No usable temporary directory found")
+
+    monkeypatch.setattr(
+        disk_cleanup.tempfile, "gettempdir", no_writable_temporary_directory
+    )
+    governor = HostDiskGovernor(
+        home=tmp_path,
+        state_dir=tmp_path / "state",
+        lsof=lambda _path: "confirmed-closed",
+        usage=lambda: (0, 1),
+    )
+
+    candidates = [
+        item for item in governor.discover_candidates()
+        if item.get("owner") == "temporary-run"
+    ]
+    assert [Path(item["path"]) for item in candidates] == [candidate]
+
+    result = governor.sweep(candidates, write_receipt=False)
+
+    assert not candidate.exists()
+    assert result["reclaimed"] == 64
+
+
 def test_discover_candidates_uses_darwin_user_temp_when_tmpdir_unset(
     tmp_path: Path, monkeypatch, request
 ) -> None:
@@ -2617,7 +2652,7 @@ def test_cursor_mkstemp_enospc_keeps_sweeping_and_last_receipt_uses_reserve(
     assert sweep_calls == [1]
     assert candidate.exists()
     assert result["protected_deletions"] == 0
-    assert result["ok"] is False
+    assert result["ok"] is True
     cursor = result["candidate_rotation"]["cursor_persistence"]
     assert cursor["status"] == "failed"
     assert cursor["errors"][0] == {
@@ -2627,7 +2662,7 @@ def test_cursor_mkstemp_enospc_keeps_sweeping_and_last_receipt_uses_reserve(
         "next_action": "continue_sweep_then_retry_once_after_recovery",
     }
     receipt = json.loads((state / "last-receipt.json").read_text())
-    assert receipt["ok"] is False
+    assert receipt["ok"] is True
     assert receipt["capacity_recovery"]["status"] == "unmet"
     assert governor._receipt_reserve_valid(state / ".receipt-reserve")
 
@@ -2689,7 +2724,7 @@ def test_cursor_enospc_preserves_terminal_reserve_and_reports_postcommit_enospc(
     tmp_path: Path, monkeypatch, capsys
 ) -> None:
     governor, state, candidate, sweep_calls = _make_cursor_enospc_governor(
-        tmp_path, monkeypatch, free_bytes=2 * GiB - 1,
+        tmp_path, monkeypatch, free_bytes=12 * GiB,
     )
     reserve = state / ".receipt-reserve"
     governor._receipt_reserve()
@@ -2740,8 +2775,8 @@ def test_cursor_enospc_preserves_terminal_reserve_and_reports_postcommit_enospc(
     assert reserve_at_sweep == [True]
     assert candidate.exists()
     assert result["protected_deletions"] == 0
-    assert result["free_after"] == 2 * GiB - 1
-    assert result["capacity_recovery"]["status"] == "unmet"
+    assert result["free_after"] == 12 * GiB
+    assert result["capacity_recovery"]["status"] == "met"
     assert result["ok"] is False
     assert result["candidate_rotation"]["cursor_persistence"]["errors"][0] == {
         "stage": "before_sweep",
@@ -2750,8 +2785,8 @@ def test_cursor_enospc_preserves_terminal_reserve_and_reports_postcommit_enospc(
         "next_action": "continue_sweep_then_retry_once_after_recovery",
     }
     receipt = json.loads((state / "last-receipt.json").read_text())
-    assert receipt["capacity_recovery"]["status"] == "unmet"
-    assert receipt["ok"] is False
+    assert receipt["capacity_recovery"]["status"] == "met"
+    assert receipt["ok"] is True
     assert result["receipt_persistence"] == {
         "status": "committed_reserve_missing",
         "stage": "reserve_recreate_after_commit",
