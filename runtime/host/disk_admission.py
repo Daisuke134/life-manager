@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check producer state and explicit stops without a free-space admission floor."""
+"""Check producer state, with a read-only capacity mode for heavy release builds."""
 
 from __future__ import annotations
 
@@ -262,6 +262,19 @@ def disk_headroom_ok() -> bool:
 
 def main(argv: Sequence[str] | None = None) -> int:
     remaining = list(sys.argv[1:] if argv is None else argv)
+    if remaining[:1] == ["--check-free-space"]:
+        if len(remaining) != 2:
+            return 2
+        path = Path(remaining[1]).expanduser()
+        probe = next((p for p in (path, *path.parents) if p.exists()), None)
+        available = disk_free_bytes(probe) if probe is not None else None
+        if available is not None and available >= RECOVERY_FLOOR_BYTES:
+            return 0
+        print(json.dumps({"status": "deferred", "effect": 0, "readback": 0,
+            "reason": "disk_headroom_low" if available is not None else "disk_headroom_unknown",
+            "available_bytes": available, "required_bytes": RECOVERY_FLOOR_BYTES},
+            sort_keys=True, separators=(",", ":")))
+        return 75
     if not remaining:
         print("disk_admission: missing child argv", file=sys.stderr)
         return 2
