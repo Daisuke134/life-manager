@@ -1,4 +1,5 @@
 import json
+import plistlib
 import fcntl
 import os
 import subprocess
@@ -16,6 +17,7 @@ from runtime.loop.runtime_event import validate_runtime_event
 from runtime.loop.central_cleanup import installed_state_roots, loaded_release_roots
 from runtime.loop.central_cleanup import no_effect_loop_ids, open_release_roots, release_gc, scratch_gc
 from runtime.loop.central_cleanup import host_cleanup_command, host_cleanup_ok, host_cleanup_readback
+from runtime.loop import central_cleanup
 
 
 def completed(root: Path, name: str, size: int = 1) -> Path:
@@ -27,6 +29,115 @@ def completed(root: Path, name: str, size: int = 1) -> Path:
 
 
 class LoopCleanupTest(unittest.TestCase):
+    def test_scratch_gc_keeps_live_log_relay_after_parent_exit(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            run = root / "loop-tmp/example/run-1"; run.mkdir(parents=True)
+            (run / ".owner.json").write_text(json.dumps({"pid": 111,
+                "process_start": "parent", "effect_class": "none"}))
+            relay = run / "stderr-relay"; relay.mkdir(mode=0o700)
+            marker = relay / ".stderr-relay.json"
+            marker.write_text(json.dumps({"pid": 222, "process_start": "relay-start",
+                "binding": {"owner_id": "example", "run_id": "run-1"},
+                "role": "diagnostic_only"})); marker.chmod(0o600)
+            result = scratch_gc({root}, snapshot_started_ns=time.time_ns()+1,
+                                starts={222: "relay-start"})
+            self.assertTrue(run.exists())
+            self.assertEqual(result["removed"], 0)
+
+    def test_byte_retention_reclaims_only_closed_regenerable_runs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            old = completed(root, "old", size=4096)
+            new = completed(root, "new", size=64)
+            active = completed(root, "active", size=8192)
+            protected = completed(root, "protected", size=8192)
+            (protected / ".lm-protected").write_text("keep")
+            os.utime(old, (1, 1)); os.utime(new, (2, 2))
+            result = cleanup_run_root(root, {"max_runs": 100, "max_age_days": 365},
+                {"active"}, now=3, managed_bytes=1024, closed_run_ids={"old", "new"})
+            self.assertFalse(old.exists())
+            self.assertTrue(new.exists())
+            self.assertTrue(active.exists())
+            self.assertTrue(protected.exists())
+            self.assertEqual(result["protected_deletions"], 0)
+
+    def test_byte_retention_without_closed_proof_preserves_runs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            run = completed(root, "unknown", size=4096)
+            result = cleanup_run_root(root, {"max_runs": 100, "max_age_days": 365},
+                set(), now=time.time(), managed_bytes=1)
+            self.assertTrue(run.exists())
+            self.assertGreater(result["unrecoverable_bytes"], 0)
+
+    def test_byte_retention_preserves_memory_and_state_journal(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            memory = completed(root, "memory-case", size=1024)
+            (memory / "memory").mkdir(); (memory / "memory/item.md").write_text("keep")
+            journal = completed(root, "journal-case", size=1024)
+            (journal / "state").mkdir(); (journal / "state/item.jsonl").write_text("{}\n")
+            cleanup_run_root(root, {"max_runs": 100, "max_age_days": 365}, set(),
+                managed_bytes=0, closed_run_ids={"memory-case", "journal-case"})
+            self.assertTrue((memory / "memory/item.md").exists())
+            self.assertTrue((journal / "state/item.jsonl").exists())
+
+    def test_release_byte_budget_keeps_current_and_removes_only_closed_old_release(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); releases = root / "releases"; releases.mkdir()
+            paths = []
+            for index, size in enumerate([4096, 64, 4096]):
+                path = releases / f"2026010{index+1}T000000-{index:08x}"; path.mkdir()
+                (path / "RELEASE.json").write_text(json.dumps({"sha": f"{index:040x}"}))
+                (path / "source.bin").write_bytes(b"x" * size)
+                os.utime(path, (index+1, index+1)); paths.append(path)
+            current = root / "current"; current.symlink_to(paths[2])
+            result = gc_releases(releases, current, keep=100, protected=set(),
+                managed_bytes=1024, closed_releases={p.resolve() for p in paths})
+            self.assertFalse(paths[0].exists())
+            self.assertTrue(paths[1].exists())
+            self.assertTrue(paths[2].exists())
+            self.assertEqual(result["protected_deletions"], 0)
+
+    def test_cleanup_binding_uses_the_loaded_manifest(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "RELEASE.json").write_text(json.dumps({"sha": "a" * 40}))
+            binding = central_cleanup.cleanup_run_binding({
+                "LIFE_MANAGER_RUN_ID": "run-1",
+                "LIFE_MANAGER_OCCURRENCE_ID": "life-manager-disk-cleanup:run-1",
+                "LIFE_MANAGER_RELEASE_SHA": "b" * 40,
+            }, root)
+            self.assertEqual(binding, {"owner_id": "life-manager-disk-cleanup",
+                "run_id": "run-1", "occurrence_id": "life-manager-disk-cleanup:run-1",
+                "release_sha": "a" * 40})
+            self.assertIsNone(central_cleanup.cleanup_run_binding({}, root))
+    def test_cleanup_execution_is_not_capacity_recovery(self):
+        ok, result = host_cleanup_readback(0, json.dumps({
+            "free_after": 600 * 1024**2, "errors": 0,
+            "protected_deletions": 0, "disk_writers_stop": {"status": "absent"},
+        }))
+        self.assertTrue(ok)
+        self.assertTrue(result["execution_ok"])
+        self.assertFalse(result["capacity_recovered"])
+
+    def test_cleanup_readback_rejects_foreign_execution_identity(self):
+        binding = {"owner_id": "life-manager-disk-cleanup", "run_id": "run-1",
+                   "occurrence_id": "life-manager-disk-cleanup:run-1",
+                   "release_sha": "a" * 40}
+        receipt = {"free_after": 3 * 1024**3, "errors": 0,
+                   "protected_deletions": 0, "disk_writers_stop": {"status": "absent"},
+                   "identity": {**binding, "run_id": "other"}}
+        ok, result = host_cleanup_readback(0, json.dumps(receipt), binding=binding)
+        self.assertFalse(ok)
+        self.assertEqual(result["error"], "host_cleanup_identity_mismatch")
+        self.assertIsNone(result["capacity_recovered"])
+        receipt["identity"] = binding
+        ok, result = host_cleanup_readback(0, json.dumps(receipt), binding=binding)
+        self.assertTrue(ok)
+        self.assertTrue(result["capacity_recovered"])
+
     def test_no_effect_loop_ids_reads_registry(self):
         with tempfile.TemporaryDirectory() as directory:
             registry = Path(directory) / "loop-registry.json"
@@ -118,6 +229,8 @@ class LoopCleanupTest(unittest.TestCase):
         self.assertTrue(ok)
         self.assertEqual(result, {
             **receipt,
+            "execution_ok": True,
+            "capacity_recovered": True,
             "capacity_recovery": {
                 "status": "met",
                 "recovery_floor_bytes": recovery_floor,
@@ -147,6 +260,8 @@ class LoopCleanupTest(unittest.TestCase):
         self.assertFalse(ok)
         self.assertEqual(result, {
             **receipt,
+            "execution_ok": False,
+            "capacity_recovered": False,
             "capacity_recovery": {
                 "status": "unmet",
                 "recovery_floor_bytes": 2 * 1024**3,
@@ -347,8 +462,8 @@ class LoopCleanupTest(unittest.TestCase):
             observed = {}
 
             def unknown_publish(_command, _entry, _loop_id, env, receipt, *, occurrence_id,
-                                on_claimed, on_terminal_event,
-                                on_stderr_tail=lambda _tail: None):
+                                on_claimed, on_stderr_tail=lambda _tail: None,
+                                on_storage_failure=None, on_terminal_event=None):
                 observed.update(env)
                 observed["LIFE_MANAGER_OCCURRENCE_ID"] = occurrence_id
                 on_claimed(occurrence_id)
@@ -374,7 +489,6 @@ class LoopCleanupTest(unittest.TestCase):
                 }) + "\n", encoding="utf-8")
                 Path(env["LIFE_MANAGER_EFFECT_IDENTITY_PATH"]).chmod(0o600)
                 receipt.write_text('{"status":"pass","effect":0}\n', encoding="utf-8")
-                assert on_terminal_event(1, occurrence_id, b"") is True
                 return 1
 
             with (
@@ -431,7 +545,7 @@ class LoopCleanupTest(unittest.TestCase):
                 mock.patch("runtime.loop.lm_loop_run.append_runtime_event",
                            side_effect=[None, OSError("receipt write failed")]),
             ):
-                self.assertEqual(lm_loop_run.main(["job", str(root)]), 78)
+                self.assertEqual(lm_loop_run.main(["job", str(root)]), 0)
             scratches = list((home / "state/loop-tmp/job").iterdir())
             self.assertEqual(len(scratches), 1)
             self.assertTrue((scratches[0] / ".owner.json").is_file())

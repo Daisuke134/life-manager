@@ -68,6 +68,22 @@ def jsonl(path: Path):
 
 
 class HealthObserverTest(unittest.TestCase):
+    def test_capacity_transition_emits_local_alert_without_loop_recovery(self):
+        document = health_document(state="healthy")
+        document["host_storage"] = {"status": "unmet", "execution_ok": True,
+            "capacity_recovered": False, "free_bytes": 600 * 1024**2,
+            "observed_at": document["generated_at"], "reason": None}
+        with TemporaryDirectory() as directory:
+            first = observe_health(document, Path(directory))
+            self.assertTrue(first["alert_emitted"])
+            same = observe_health(document, Path(directory))
+            self.assertFalse(same["alert_emitted"])
+            document["host_storage"].update(status="met", capacity_recovered=True)
+            changed = observe_health(document, Path(directory))
+            self.assertTrue(changed["alert_emitted"])
+            alert = json.loads((Path(directory) / "alerts.jsonl").read_text().splitlines()[-1])
+            self.assertEqual(alert["recovery_intents"], [])
+
     def test_latest_uses_atomic_replace(self):
         with TemporaryDirectory() as directory:
             destination = Path(directory) / "latest.json"

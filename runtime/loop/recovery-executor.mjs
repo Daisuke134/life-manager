@@ -1,11 +1,25 @@
 import { execFile } from 'node:child_process';
 import { access, constants, readFile } from 'node:fs/promises';
 import path from 'node:path';
+import os from 'node:os';
 import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
 const SHA256 = /^[0-9a-f]{40}$/u;
 const RECOVERY_EXECUTOR_LOOP_ID = 'life-manager-recovery-executor';
+
+async function storageReady(plan, entry, releaseRoot) {
+  if (!plan.storage_failure) return true;
+  try {
+    const request = {state_root: entry.state_root?.replace(/^~(?=\/)/u, os.homedir()),
+      host_root: process.env.LIFE_MANAGER_HOST_STATE_DIR || path.join(os.homedir(), '.local/state/life-manager/state'),
+      binding: {owner_id: plan.owner_id, run_id: plan.run_id,
+        occurrence_id: plan.occurrence_id, release_sha: plan.release_sha}, storage_failure: plan.storage_failure};
+    const output = await execFileAsync('python3', ['-B', path.join(releaseRoot, 'runtime/host/storage_failure.py'), JSON.stringify(request)],
+      {timeout: 15000, maxBuffer: 65536});
+    return JSON.parse(output.stdout).ready === true;
+  } catch { return false; }
+}
 
 function resultBase(plan, state, ok, extra = {}) {
   return {
@@ -185,6 +199,10 @@ export async function executeRecoveryPlan({
   }
 
   const executable = path.join(releaseRoot, 'bin', 'lm-loop');
+  if (!await storageReady(plan, command.entry, releaseRoot)) {
+    return resultBase(plan, 'queued', false, {reason: 'storage_cleanup_or_write_proof_pending',
+      executed: false, budget_consumed: false, next_action: 'retry_after_cleanup'});
+  }
   try {
     await access(executable, constants.X_OK);
   } catch {

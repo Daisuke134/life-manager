@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "incident": "bound fixture runtime journal isolation leak",
+  "invalid_synthetic_event_ids": [
+    "0544d969217db00fc06ac1f9",
+    "0f922df5941ec7d2039cd9f5",
+    "0fee6ff320a7cbd1a97bd831",
+    "143b743e689e89126372e936",
+    "1c113678a32b1ecc70bfbf15",
+    "1cc10fb8b0bdb44e2f4da241",
+    "3950a872aaa3081f72bcbdc5",
+    "4a9fe6efff6ad1e55ab6cdbf",
+    "6770de8d604062ab07ec2f42",
+    "82f9dbf2616bbcd0cdf393f9",
+    "9aec02fb5db8abdef0a0c243",
+    "a572ebe88fe2aae8f3b13d8f",
+    "b3eb4dd987e8309af73ca93c",
+    "c5efe93f91620f7177b607c7",
+    "cd1ffe82f385d4be9153a015"
+  ],
+  "synthetic_release_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "journal_action": "No rows deleted or rewritten. Synthetic events are not production acceptance evidence.",
+  "repair": "Fixture journal emission is mocked; HOME, host-state and admission roots are private. Control fixture cannot reserve or dispatch production work.",
+  "admission_dispatch_observation": "The former control fixture could enter shared reservation code; actual dispatch was not observed or asserted absent. Existing work and fences are not cancelled.",
+  "required_readback": "Use natural cleanup occurrence on installed verified release; ignore synthetic release for acceptance."
+}

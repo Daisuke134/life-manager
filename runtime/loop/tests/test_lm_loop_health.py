@@ -24,6 +24,45 @@ ROOT = Path(__file__).resolve().parents[3]
 
 
 class LmLoopHealthTest(unittest.TestCase):
+    def setUp(self):
+        storage = patch.object(lm_loop, "read_storage_snapshot", return_value=None)
+        storage.start()
+        self.addCleanup(storage.stop)
+    def test_storage_recovery_matches_exact_cleanup_run_and_is_separate_from_health(self):
+        row = self.status_row("life-manager-disk-cleanup")
+        binding = {"owner_id": row["owner_id"], "run_id": row["run_id"],
+                   "occurrence_id": row["occurrence_id"], "release_sha": "a" * 40}
+        observed = health.datetime.now(health.timezone.utc).isoformat()
+        receipt = {"identity": binding, "observed_at": observed,
+                   "free_after": 600 * 1024**2, "ok": True,
+                   "capacity_recovery": {"status": "unmet", "recovery_floor_bytes": 2 * 1024**3}}
+        value = health.project_health([row], storage_snapshot=receipt)
+        self.assertEqual(value["jobs"][0]["state"], "healthy")
+        self.assertEqual(value["host_storage"]["status"], "unmet")
+        self.assertFalse(value["host_storage"]["capacity_recovered"])
+        self.assertIn("capacity=unmet", health.render_human(value))
+        Draft202012Validator(health.health_json_schema(), format_checker=FormatChecker()).validate(value)
+        for patch_value in ({"identity": {**binding, "run_id": "other"}},
+                            {"observed_at": "2026-01-01T00:00:00Z"},
+                            {"free_after": True}):
+            bad = health.project_health([row], storage_snapshot={**receipt, **patch_value})
+            self.assertEqual(bad["host_storage"]["status"], "unknown")
+            self.assertIsNone(bad["host_storage"]["capacity_recovered"])
+
+    def test_cli_health_reads_storage_snapshot(self):
+        row = self.status_row("life-manager-disk-cleanup")
+        receipt = {"identity": {"owner_id": row["owner_id"], "run_id": row["run_id"],
+                   "occurrence_id": row["occurrence_id"], "release_sha": "a" * 40},
+                   "observed_at": health.datetime.now(health.timezone.utc).isoformat(),
+                   "free_after": 600 * 1024**2, "ok": True,
+                   "capacity_recovery": {"status": "unmet", "recovery_floor_bytes": 2 * 1024**3}}
+        output = io.StringIO()
+        with patch.object(lm_loop, "snapshot", return_value=[row]), \
+             patch.object(lm_loop, "read_storage_snapshot", return_value=receipt, create=True), \
+             redirect_stdout(output):
+            lm_loop_main(["health", "--json"])
+        self.assertEqual(json.loads(output.getvalue())["host_storage"]["status"], "unmet")
+
     @staticmethod
     def status_row(loop_id="example", **overrides):
         row = {
@@ -667,6 +706,7 @@ class LmLoopHealthTest(unittest.TestCase):
         project_rows, = project.call_args.args
         self.assertEqual(project_rows, rows)
         self.assertEqual(project.call_args.kwargs, {
+            "storage_snapshot": None,
             "scope": "fleet",
             "target": None,
             "deadline_monotonic": 130.0,

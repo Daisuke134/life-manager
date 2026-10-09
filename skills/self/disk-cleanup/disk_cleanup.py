@@ -32,6 +32,10 @@ from host_inventory import FULL_INVENTORY_BUDGET_SECONDS, collect_host_inventory
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 if str(REPOSITORY_ROOT) not in sys.path:
     sys.path.insert(0, str(REPOSITORY_ROOT))
+from runtime.loop.central_cleanup import cleanup_run_binding
+from runtime.loop.health import read_storage_snapshot
+if str(REPOSITORY_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPOSITORY_ROOT))
 from runtime.loop.loop_cleanup import _release_immutable_store_probe
 
 GiB = 1024**3
@@ -1173,6 +1177,18 @@ class HostDiskGovernor:
     def _receipt(
         self, payload: dict, filename: str = "last-receipt.json"
     ) -> dict[str, object] | None:
+        binding = cleanup_run_binding(dict(os.environ), REPOSITORY_ROOT)
+        if binding is not None:
+            payload["identity"] = binding
+        elif filename == "last-receipt.json":
+            previous = read_storage_snapshot(self.state_dir)
+            identity = previous.get("identity") if isinstance(previous, dict) else None
+            if (isinstance(identity, dict) and identity.get("owner_id") == "life-manager-disk-cleanup"
+                    and isinstance(identity.get("release_sha"), str)
+                    and re.fullmatch(r"[a-f0-9]{40}", identity["release_sha"])):
+                # A watchdog observation must not erase the scheduler-owned
+                # occurrence proof. Its capacity sample remains separate.
+                filename = "last-unbound-receipt.json"
         payload.setdefault("observed_at", time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
         data = (json.dumps(payload, ensure_ascii=False, sort_keys=True) + "\n").encode("utf-8")
         if len(data) > RECEIPT_PAYLOAD_MAX_BYTES:
@@ -1193,7 +1209,7 @@ class HostDiskGovernor:
         try:
             self._receipt_reserve(recreate=True)
         except OSError as exc:
-            if filename != "last-receipt.json" or exc.errno != errno.ENOSPC:
+            if filename not in {"last-receipt.json", "last-unbound-receipt.json"} or exc.errno != errno.ENOSPC:
                 raise
             return {
                 "status": "committed_reserve_missing",
@@ -1656,6 +1672,13 @@ class HostDiskGovernor:
             result["inventory_mounts"] = int(inventory["coverage"]["mount_count"])
             result["inventory_roots"] = int(inventory["coverage"]["root_count"])
             result["inventory_gaps"] = len(inventory["coverage"]["gaps"])
+            growth = inventory.get("storage_growth")
+            if isinstance(growth, dict):
+                # Observations never expand the deletion allow-list.
+                result["storage_growth"] = {
+                    "roots": growth.get("roots", [])[:64],
+                    "non_additive": True,
+                }
         except (OSError, RuntimeError, ValueError, KeyError) as exc:
             result["inventory_error"] = type(exc).__name__
         try:
@@ -1671,6 +1694,13 @@ class HostDiskGovernor:
         # main() holds the singleton governor lock across cleanup and this exact-owner finalizer.
         result["disk_writers_stop"] = self._clear_disk_writers_stop(free_after)
         result["capacity_recovery"] = _capacity_recovery(result)
+        growing_unknown = any(
+            r.get("attribution") == "unattributed" and type(r.get("delta_bytes")) is int
+            and r["delta_bytes"] > 0 for r in (result.get("storage_growth") or {}).get("roots", []))
+        result["storage_next_action"] = (
+            "inspect_unattributed_writer" if growing_unknown
+            else "inspect_preserved_candidates" if result["capacity_recovery"]["status"] != "met"
+            else "continue_bounded_retention")
         result["ok"] = _cleanup_terminal_ok(result)
         receipt_status = self._receipt(result)
         if receipt_status is not None:

@@ -49,6 +49,46 @@ QUARANTINE = load(
 
 
 class ArticleStartPolicyTest(unittest.TestCase):
+    def test_resume_rebind_happens_before_starting_judge_broker(self):
+        source = (ROOT / "skills/writer-agent/article-daily.sh").read_text(
+            encoding="utf-8"
+        )
+        rebind = source.index('rebind-release --current-root "$ARTICLE_ROOT"')
+        broker = source.index(
+            'bash "$ARTICLE_ROOT/runtime/judge-broker.sh" "$RUN_DIR" &'
+        )
+        model_pass = source.index('"$ARTICLE_MODEL_RUNNER" agent --prompt-file')
+
+        self.assertLess(rebind, broker)
+        self.assertLess(broker, model_pass)
+
+    def test_model_pass_waits_for_a_fresh_judge_broker_heartbeat(self):
+        source = (ROOT / "skills/writer-agent/article-daily.sh").read_text(
+            encoding="utf-8"
+        )
+        broker = source.index(
+            'bash "$ARTICLE_ROOT/runtime/judge-broker.sh" "$RUN_DIR" &'
+        )
+        heartbeat_snapshot = source.find("JUDGE_BROKER_HEARTBEAT_MTIME_BEFORE=")
+        ready_loop = source.find('while [ "$BROKER_READY_ATTEMPTS" -lt 100 ]', broker)
+        model_pass = source.index('"$ARTICLE_MODEL_RUNNER" agent --prompt-file')
+
+        self.assertNotEqual(heartbeat_snapshot, -1)
+        self.assertNotEqual(ready_loop, -1)
+        self.assertLess(heartbeat_snapshot, broker)
+        self.assertLess(broker, ready_loop)
+        self.assertLess(ready_loop, model_pass)
+        readiness = source[ready_loop:model_pass]
+        self.assertIn('kill -0 "$JUDGE_BROKER_PID"', readiness)
+        self.assertIn(
+            '[ "$JUDGE_BROKER_HEARTBEAT_MTIME_NOW" != "$JUDGE_BROKER_HEARTBEAT_MTIME_BEFORE" ]',
+            readiness,
+        )
+        self.assertIn('cat "$JUDGE_BROKER_PID_FILE"', readiness)
+        self.assertIn('if [ "$BROKER_READY" -ne 1 ]', readiness)
+        self.assertIn("judge broker readiness failed", readiness)
+        self.assertIn("exit 78", readiness)
+
     def test_body_diagram_prompt_shape_is_shell_literal(self):
         source = (ROOT / "skills/writer-agent/article-daily.sh").read_text(
             encoding="utf-8"

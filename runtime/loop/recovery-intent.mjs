@@ -24,6 +24,19 @@ function stableHash(value) {
   return createHash('sha256').update(JSON.stringify(value)).digest('hex').slice(0, 32);
 }
 
+export function validateStorageFailure(value, ownerId, runId) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)
+      || Object.keys(value).sort().join(',') !== 'effect_started,errno,operation,proof_ref'
+      || ![28, 69, 122].includes(value.errno)
+      || ![true, false, null].includes(value.effect_started)
+      || typeof value.operation !== 'string' || !/^[a-z][a-z0-9_]{0,63}$/u.test(value.operation)
+      || value.proof_ref !== `lm-storage://${ownerId}/${runId}/${value.operation}`
+      || (value.effect_started === false && value.operation !== 'scratch_allocation')) {
+    throw new Error('invalid storage failure proof');
+  }
+  return Object.freeze({...value});
+}
+
 /**
  * Decide the next safe recovery boundary. This function never invokes launchd,
  * a provider, a browser, a model, or a self-fix process.
@@ -55,6 +68,8 @@ export function buildRecoveryIntent(input = {}) {
     occurrence_id: occurrenceId,
     release_sha: releaseSha, failure_layer: failureLayer, effect_class: effectClass,
     effect_status: effectStatus, blocker, evidence_refs: evidenceRefs };
+  const storage = input.storage_failure == null ? null : validateStorageFailure(input.storage_failure, ownerId, runId);
+  if (storage) base.storage_failure = storage;
 
   let action = 'reconcile_owner';
   let reason = 'bounded_owner_reconciliation';
@@ -64,7 +79,8 @@ export function buildRecoveryIntent(input = {}) {
     action = 'no_action';
     reason = 'healthy_terminal';
     retryable = false;
-  } else if (EFFECT_BEARING.has(effectClass) && effectStatus === 'unknown') {
+  } else if (EFFECT_BEARING.has(effectClass) && (effectStatus === 'unknown'
+      || (storage && storage.effect_started !== false))) {
     // A held effect-unknown owner that keeps failing every wake must still never retry or
     // replay the effect. Escalating only files a code-repair issue; the fence stays required.
     if (streak >= threshold) {
@@ -88,6 +104,8 @@ export function buildRecoveryIntent(input = {}) {
     retryable = false;
   }
 
+  if (storage?.effect_started === false && action === 'reconcile_owner') reason = 'storage_write_failed_pre_effect';
+
   const intentId = stableHash({ ...base, action, reason, streak, threshold });
   return Object.freeze({
     schema_version: 1,
@@ -106,5 +124,6 @@ export function buildRecoveryIntent(input = {}) {
     mutates_external_effect: false,
     evidence_refs: evidenceRefs,
     next_eligible_at: input.next_eligible_at == null ? null : String(input.next_eligible_at),
+    ...(storage ? {storage_failure: storage} : {}),
   });
 }

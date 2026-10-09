@@ -38,6 +38,7 @@ from runtime.loop.runtime_event import (
 )
 from runtime.loop.health import (
     HealthTimeout, health_deadline, health_exit_code, project_health,
+    read_storage_snapshot,
     render_human as render_health_human,
     render_skill as render_health_skill,
 )
@@ -2961,6 +2962,7 @@ def main(argv: list[str] | None = None) -> int:
                 )
             value = project_health(
                 rows,
+                storage_snapshot=read_storage_snapshot(),
                 scope="loop" if health_target else "fleet",
                 target=health_target,
                 deadline_monotonic=health_deadline_at,

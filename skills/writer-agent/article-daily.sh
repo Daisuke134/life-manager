@@ -1178,20 +1178,6 @@ if ! writer_capacity_preflight; then
   exit 78
 fi
 
-# Judge broker: nested judge/vision calls inside the bounded agent sandbox cannot
-# start a provider process, so this unsandboxed sidecar serves their request files
-# from the run-scoped state tree through the same model boundary.
-ARTICLE_MODEL_LOG="$LOG" bash "$ARTICLE_ROOT/runtime/judge-broker.sh" "$RUN_DIR" &
-JUDGE_BROKER_PID=$!
-cleanup_generation_exit() {
-  if [ -n "${JUDGE_BROKER_PID:-}" ]; then
-    kill -TERM "$JUDGE_BROKER_PID" 2>/dev/null || true
-    wait "$JUDGE_BROKER_PID" 2>/dev/null || true
-    JUDGE_BROKER_PID=""
-  fi
-  cleanup_article_locks
-}
-trap 'cleanup_generation_exit' EXIT
 if [ "$RESUME_GENERATION" -eq 1 ]; then
   [ -f "$PROMPT_FILE" ] || {
     echo "=== article-daily generation resume BLOCK: immutable prompt is missing ===" >>"$LOG"
@@ -1217,6 +1203,47 @@ else
     echo "=== article-daily media create-once arm failed closed ===" >>"$LOG"
     exit 1
   }
+fi
+
+# Validate/init the generation boundary before starting the judge broker. Its
+# startup writes a run-scoped pid marker that correctly blocks release rebind.
+# Starting it only after this gate prevents a resume from tripping its own guard.
+JUDGE_BROKER_HEARTBEAT="$RUN_DIR/gates/judge-broker/heartbeat"
+JUDGE_BROKER_PID_FILE="$RUN_DIR/gates/judge-broker/pid"
+JUDGE_BROKER_HEARTBEAT_MTIME_BEFORE="$(stat -f %m "$JUDGE_BROKER_HEARTBEAT" 2>/dev/null || echo 0)"
+ARTICLE_MODEL_LOG="$LOG" bash "$ARTICLE_ROOT/runtime/judge-broker.sh" "$RUN_DIR" &
+JUDGE_BROKER_PID=$!
+cleanup_generation_exit() {
+  if [ -n "${JUDGE_BROKER_PID:-}" ]; then
+    kill -TERM "$JUDGE_BROKER_PID" 2>/dev/null || true
+    wait "$JUDGE_BROKER_PID" 2>/dev/null || true
+    JUDGE_BROKER_PID=""
+  fi
+  cleanup_article_locks
+}
+trap 'cleanup_generation_exit' EXIT
+
+# Do not start the model until this broker has touched its heartbeat. A stale
+# heartbeat can survive an earlier process, so require its mtime to change.
+BROKER_READY_ATTEMPTS=0
+BROKER_READY=0
+JUDGE_BROKER_HEARTBEAT_MTIME_NOW="$JUDGE_BROKER_HEARTBEAT_MTIME_BEFORE"
+while [ "$BROKER_READY_ATTEMPTS" -lt 100 ]; do
+  if ! kill -0 "$JUDGE_BROKER_PID" 2>/dev/null; then
+    break
+  fi
+  JUDGE_BROKER_HEARTBEAT_MTIME_NOW="$(stat -f %m "$JUDGE_BROKER_HEARTBEAT" 2>/dev/null || echo 0)"
+  if [ "$JUDGE_BROKER_HEARTBEAT_MTIME_NOW" != "$JUDGE_BROKER_HEARTBEAT_MTIME_BEFORE" ] \
+    && [ "$(cat "$JUDGE_BROKER_PID_FILE" 2>/dev/null || true)" = "$JUDGE_BROKER_PID" ]; then
+    BROKER_READY=1
+    break
+  fi
+  sleep 0.1
+  BROKER_READY_ATTEMPTS=$((BROKER_READY_ATTEMPTS + 1))
+done
+if [ "$BROKER_READY" -ne 1 ] || ! kill -0 "$JUDGE_BROKER_PID" 2>/dev/null; then
+  echo "=== article-daily judge broker readiness failed: run=$RUN_TS pid=$JUDGE_BROKER_PID heartbeat_before=$JUDGE_BROKER_HEARTBEAT_MTIME_BEFORE heartbeat_now=$JUDGE_BROKER_HEARTBEAT_MTIME_NOW attempts=$BROKER_READY_ATTEMPTS error_class=broker_not_ready retryable=true next_action=natural_run ===" >>"$LOG"
+  exit 78
 fi
 
 # The foreground model owns the pass until it exits. A provider failure after agent execution
