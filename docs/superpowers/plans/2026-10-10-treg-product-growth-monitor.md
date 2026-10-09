@@ -31,7 +31,7 @@
 
 | File | Responsibility |
 |---|---|
-| `runtime/agent-runner/agent_runner.py` | Load the limited Treg token into child environments, expose isolated skills, and cap every Treg MCP route at `$0.003`. |
+| `runtime/agent-runner/agent_runner.py` | Load the limited Treg token into child environments, expose isolated skills, and keep the dedicated MCP server restricted to four tools. |
 | `runtime/agent-runner/config.json` | Add the dedicated Codex-only `treg-lead-signals-agent` class on the existing `gpt-6.1-sol` medium automation route. |
 | `skills/earn/marketing-engine/run_agent.sh` | Allow the new bounded Treg signal task class. |
 | `skills/earn/marketing-engine/intel/treg/SKILL.md` | Safe Treg catalog and call rules for Life Manager agents. |
@@ -104,7 +104,6 @@
 
 **Files:**
 
-- Modify: `runtime/agent-runner/agent_runner.py`
 - Modify: `runtime/loop/lm_loop_run.py`
 - Modify: `skills/earn/marketing-engine/intel/treg/SKILL.md`
 - Modify: `skills/earn/marketing-engine/intel/lead-signals/SKILL.md`
@@ -118,26 +117,27 @@
 
 - `run_weekly_monitor(*, state_root: Path, evidence_root: Path, agent_runner=...) -> dict` runs one `treg-lead-signals-agent` pass and returns the Life Manager terminal result fields, `treg_call_ids`, `charged_micro`, `baseline_count`, `new_count`, and optional Telegram `provider_receipt_id`.
 - The scheduled signal pass invokes `run_agent.sh --task-class treg-lead-signals-agent`; no general shell/network capability is needed for its Treg MCP calls.
-- Per-invocation Codex MCP config applies the static `X-Treg-Route-Max-Cost: 0.003` header. The product ID enum and one-signal-per-product maximum are generated from the currently loaded profiles.
+- Every billed MCP `call` includes `headers: {"X-Treg-Route-Max-Cost": "0.003"}`. Treg forwards this tool argument to its upstream route; the parent validates the captured arguments. The product ID enum and one-signal-per-product maximum are generated from the currently loaded profiles.
 - Validate call IDs, prices, costs, and exact source/profile URLs against the captured `mcp_tool_call` results in the agent's JSONL evidence; model-provided receipts alone are insufficient.
 - CSV key: `(product_id, person_url, signal, source_url)`.
+- Pass previously seen keys whose post dates remain inside the current seven-day window so the agent can choose the strongest unseen candidate; the host remains the final deduplication authority.
 - `reconcile_occurrence(state_root: Path, occurrence_id: str) -> dict` returns the exact stored receipt for that occurrence or a typed `unknown`; it never sends.
 - The repository loop runner accepts only the dedicated owner ID plus entrypoint for `verified_effect` hints. A no-lead/baseline result uses a separately allowlisted `verified_no_effect` reason.
 - Registry owner: `marketing-treg-lead-signals-weekly`, Sunday 21:10 local calendar time, `effect_class=message`, `provider_route=shared-agent-runner`, separate state/log roots.
 
-- [ ] Build the prompt from the five canonical products and four supplements; search the current catalog once per platform, inspect route prices, and make at most two routes per product.
-- [ ] If the loaded product set would require more than 18 routes for one X and one Reddit scan per product, fail before paid calls instead of silently omitting products.
-- [ ] Apply the fixed `X-Treg-Route-Max-Cost: 0.003` header to every request from the dedicated remote MCP server.
-- [ ] Check Treg balance before paid routes; reserve `$0.05` from the remaining balance after each quoted route; stop without top-up if the floor would be crossed.
-- [ ] Require X/Reddit public results from the last seven days, fit/timing qualification, exact source URLs, and `X-Treg-Route-Max-Cost: 0.003` on each call.
-- [ ] Generate the agent schema from the current product IDs. Validate the JSON and each receipt against captured Treg MCP results; reject if any route exceeds `$0.003`, total exceeds `$0.054`, or there are more than two billed routes per product.
-- [ ] Keep at most one strongest new signal per product in the weekly report so one digest covers every product without flooding Telegram.
-- [ ] On the first run, write a private baseline and send no old leads. On later runs, compare exact CSV keys and report only new rows.
-- [ ] Write state atomically with `0700` directory and `0600` files. Persist `signals.csv` only after the outbox/Telegram decision is durably recorded.
-- [ ] Use `skills/_shared/telegram.py`; persist the returned message IDs and receipt before reporting success. If no new rows, do not send and write a `verified_no_effect` hint.
-- [ ] Add an owner/entrypoint-scoped receipt-hint allowlist; for a delivered message write a `verified_effect` hint with its Telegram message ID.
-- [ ] Add a read-only occurrence reconciler that checks the exact terminal event, private outbox, and Telegram user-history message ID/body prefix/sender/time, then resolves only the matching occurrence; it never retries a send.
-- [ ] Run `python3 -m py_compile` on the three Python entrypoints and `./bin/lm-loop-contract`.
+- [x] Build the prompt from the five canonical products and four supplements; search the current catalog once per platform, inspect route prices, and make at most two routes per product.
+- [x] If the loaded product set would require more than 18 routes for one X and one Reddit scan per product, fail before paid calls instead of silently omitting products.
+- [x] Include `X-Treg-Route-Max-Cost: 0.003` in the `headers` argument of every billed `call`, and reject any captured call that omits it.
+- [x] Check Treg balance before paid routes; reserve `$0.05` from the remaining balance after each quoted route; stop without top-up if the floor would be crossed.
+- [x] Require X/Reddit public results from the last seven days, fit/timing qualification, exact source URLs, and the per-call cost header.
+- [x] Generate the agent schema from the current product IDs. Validate the JSON and each receipt against captured Treg MCP results; reject if any route exceeds `$0.003`, total exceeds `$0.054`, or there are more than two billed routes per product.
+- [x] Keep at most one strongest new signal per product in the weekly report so one digest covers every product without flooding Telegram.
+- [x] On the first run, write a private baseline and send no old leads. On later runs, pass recent exact keys to the agent, then compare exact CSV keys and report only new rows.
+- [x] Write state atomically with `0700` directory and `0600` files. Persist `signals.csv` only after the outbox/Telegram decision is durably recorded.
+- [x] Use `skills/_shared/telegram.py`; persist the returned message IDs and receipt before reporting success. If no new rows, do not send and write a `verified_no_effect` hint.
+- [x] Add an owner/entrypoint-scoped receipt-hint allowlist; for a delivered message write a `verified_effect` hint with its Telegram message ID.
+- [x] Add a read-only occurrence reconciler that checks the exact terminal event, private outbox, and Telegram user-history message ID/body prefix/sender/time, then resolves only the matching occurrence; it never retries a send.
+- [x] Run `python3 -m py_compile` on the three Python entrypoints and `./bin/lm-loop-contract`.
 - [ ] Commit and push the loop as its own source change.
 
 ### Task 4: Source acceptance and production handoff

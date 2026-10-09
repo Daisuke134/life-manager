@@ -21,7 +21,7 @@ TregをLife Managerの製品成長エージェントから安全に使えるよ�
 
 既存`lm-loop` schedulerに専用owner `marketing-treg-lead-signals-weekly`を追加し、日曜21:10 JSTに一度だけ動かす。既存の未解決Telegram effectに触れない。週次monitor task classだけにrepo所有のTreg/lead-signals skillと専用agent tokenを渡す。5つのOpenClaw agent workspacesにも両skillを設定するが、gatewayは未ロードのため実行中とは扱わない。週次監視はCodexのper-invocation remote Treg MCPを使う専用`read-only` task class `treg-lead-signals-agent`で実行し、登録済みの`gpt-6.1-sol` medium automation routeを使う。通常のagent taskは従来のtool/network policyを維持し、Treg CLI skillが使える実行環境から利用する。Treg agent tokenは`TREG_TOKEN`環境変数として渡し、秘密値そのものはargv・設定ファイル・証拠ログに保存しない。
 
-CodexのMCP設定は認証headerを環境変数から読み込み、`X-Treg-Route-Max-Cost: 0.003`を固定HTTP headerとして全Treg MCP requestに付ける。通常shellのnetwork accessは有効化しない。参照: [Codex MCP設定](https://developers.openai.com/codex/mcp)、[Codexのsandboxとnetwork policy](https://learn.chatgpt.com/docs/agent-approvals-security)。
+CodexのMCP設定は認証headerを環境変数から読み込む。route上限は各`call` tool inputの`headers`引数に`X-Treg-Route-Max-Cost: 0.003`を指定する。TregのMCP実装はtool inputのheaderをupstream `/call`へ転送し、remote MCP transport headerは転送しない。monitorはCodex JSONLに記録された実引数を検証する。通常shellのnetwork accessは有効化しない。参照: [Codex MCP設定](https://developers.openai.com/codex/mcp)、[Treg MCP call forwarding](https://github.com/superdesigndev/treg/blob/main/src/treg/mcp.py)、[Codexのsandboxとnetwork policy](https://learn.chatgpt.com/docs/agent-approvals-security)。
 
 週次監視は専用の`treg-lead-signals-agent` task classを使う。これはCodex-only、shell/tool-less read-only、account 2、`gpt-6.1-sol` mediumのautomation routeとし、Treg MCPだけを操作できる。
 
@@ -52,6 +52,7 @@ CodexのMCP設定は認証headerを環境変数から読み込み、`X-Treg-Rout
 - 出力schemaのproduct ID enumは読み込んだ5つのcanonical profileと4つの補助profileから生成し、将来の製品追加時に古いenumで拒否しない。
 - 永続重複キーは`product_id + person_url + signal + source_url`。CSVはGit外の`~/.local/state/life-manager/marketing-treg-lead-signals/signals.csv`に保存し、directory `0700`、file `0600`を保つ。
 - 初回実行はbaselineのみを保存し、既存投稿をleadとして送らない。2回目以降は新規キーだけをTelegramへ送る。新規がない週は送らず、検証済みno-effect hintを記録する。
+- 2回目以降は、直近7日内に保存済みの完全一致keyをpromptへ渡して候補から除外し、最後はhostがCSV keyで再dedupeする。
 - Telegram送信前にoccurrence別outboxを永続化し、送信receiptと決定を保存した後にだけ`signals.csv`を進める。
 - 各runのTreg call IDs/costs、baseline/new件数、Telegram provider receiptをprivate evidenceに記録する。receiptが不確かな時はeffectをunknownのまま保ち、再送しない。
 - `lm-loop-run` result hintsはこのloop IDと正確なentrypointだけを許可し、Telegram delivery receiptまたはbaseline/no-new proofのどちらかを受け入れる。`lm-fence-reconciler` adapterはoccurrence別terminal event、outbox、Telegram user-history readbackのmessage ID/body prefix/sender/timeを照合してunknownを解消する。送信はしない。

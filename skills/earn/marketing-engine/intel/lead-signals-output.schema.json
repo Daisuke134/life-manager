@@ -2,6 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "marketing.lead-signals.output.v1",
   "title": "Life Manager Treg lead signals",
+  "$comment": "The weekly owner replaces product ID enums and the signal maximum from currently loaded product profiles before invoking the agent.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -97,7 +98,7 @@
     },
     "signals": {
       "type": "array",
-      "maxItems": 90,
+      "maxItems": 9,
       "items": {
         "type": "object",
         "additionalProperties": false,

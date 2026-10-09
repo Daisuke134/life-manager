@@ -90,10 +90,12 @@ EFFECT_RESULT_HINT_ENTRYPOINTS = frozenset({
 })
 EFFECT_RESULT_HINT_LOOP_ENTRYPOINTS = {
     "life-manager-cfo-hourly": "skills/cfo/run.sh",
+    "marketing-treg-lead-signals-weekly": "skills/earn/marketing-engine/intel/treg-lead-signals-weekly",
 }
 NO_EFFECT_RESULT_HINT_ENTRYPOINTS = frozenset({
     "apps/life-manager/scripts/ebook-distribute-daily.sh",
     "apps/life-manager/scripts/mobile-app",
+    "skills/earn/marketing-engine/intel/treg-lead-signals-weekly",
 })
 # Loop IDs allowed to use the pre-effect hint when their registry entrypoint is
 # shared (e.g. runtime/loop/entry_dispatch.py dispatches several owners from one
@@ -855,7 +857,7 @@ def _read_private_result_hint(path: Path) -> dict | None:
 def _verified_effect_result(path: Path, loop_id: str,
                             occurrence_id: str, *,
                             entrypoint: str | None = None) -> tuple[str, str] | None:
-    if loop_id == "life-manager-cfo-hourly":
+    if loop_id in EFFECT_RESULT_HINT_LOOP_ENTRYPOINTS:
         if entrypoint != EFFECT_RESULT_HINT_LOOP_ENTRYPOINTS[loop_id]:
             return None
         expected_provider = "telegram"
@@ -897,9 +899,12 @@ def _verified_no_effect_result(path: Path, loop_id: str, occurrence_id: str,
                                entrypoint: str) -> tuple[str, str] | None:
     if entrypoint not in NO_EFFECT_RESULT_HINT_ENTRYPOINTS:
         return None
-    allowed_reasons = ({"setup_required", "no_due_slot", "render_not_ready"}
-                       if entrypoint == "apps/life-manager/scripts/ebook-distribute-daily.sh"
-                       else {"no_due_slot", "daily_limit_reached"})
+    if entrypoint == "apps/life-manager/scripts/ebook-distribute-daily.sh":
+        allowed_reasons = {"setup_required", "no_due_slot", "render_not_ready"}
+    elif entrypoint == "skills/earn/marketing-engine/intel/treg-lead-signals-weekly":
+        allowed_reasons = {"baseline_established", "no_new_signals", "balance_floor"}
+    else:
+        allowed_reasons = {"no_due_slot", "daily_limit_reached"}
     value = _read_private_result_hint(path)
     expected_fields = {
         "schema_version", "kind", "status", "effect", "owner_id",
