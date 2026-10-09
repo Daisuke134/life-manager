@@ -10180,3 +10180,26 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 5. [ ] **A10 seven-day acceptance:** usage trace、coverage、source-period report、Google cash statusを含むCFO reportを7日連続の自然occurrenceで検証する。同一occurrence B7/runtime/provider receipt、period/currency、coverage/freshness、duplicate proof、replay-zeroを確認し、gapが1日でもあれば原因を記録して連続countを再開する。
 
 **現在cursor:** A6 Google usage trace → A8 all-loop/job coverage → A9 source-period report → A6 Google cash readback → A10 seven-day natural acceptance。Money Tree/personal cashとCloud API置換・削減は対象外。
+
+### 2026-10-09 09:08 JST — A6 life-call shared-usage trace fix is locally verified
+
+このsnapshotはA6 usage-traceの実装状況を更新する。これはGoogle費用の正確な計測基盤を進める修正であり、請求額やper-loop実額を確定したものではない。
+
+- **Source:** latest base `origin/main=c7b1e491bd9fb6a212dd1c8a5f05ccd9ffef70f4`。branch `fix/cfo-life-call-usage-trace-20261009` のcommit `9ac6d0ff0880ba5f38f39e7c07e65d01fe404ea1` はlocalのみで、未push・PR未作成。
+- **修正内容:** `apps/life-manager/lib/usage-event.js::recordUsageEvent` は、callerが明示的な`runtimeEnv`を渡さない場合、`usageRuntimeEnv(process.env, { fallbackOwnerId: "life-call" })`を使う。`RAILWAY_SERVICE_NAME=life-call`のshared service usageに`owner_id`、run/occurrence、release SHAを付け、他serviceと明示contextの優先順位は変えない。shared serviceの費用をbusiness loopへ誤配賦しないため`loop_id`は作らず、`life-call` overheadとして識別する。
+- **検証:** regression testをREDで確認後に実装し、`usage-event.test.js`、`ask-usage.test.js`、`gemini-usage.test.js`、`travel-usage.test.js`、`travel.test.js`のfocused tests 72/72、`scripts/verify-source-boundary.sh`、`git diff --check`がPASS。fresh read-only reviewは同一source diff（rebase前後のdiff一致を確認）にCRITICAL/HIGH/MEDIUM findingなし。
+- **未検証境界:** production deployment/readbackと、修正後の自然なGoogle usage eventはまだない。過去9,042 Google-related rowsをこの変更で遡及帰属させず、invoice比率で配賦しない。settled actualも生成しない。
+- **検証上の限界:** local full `npm test`はこのdiff外の`test/daily-journey-contract.test.js`でfixtureの`observed_at`欠落により停止。別の診断実行では、同じくdiff外の`runtime/host/disk_admission.py:111`を`test/scan-legacy-paths.test.js`がnon-allowlisted pathとして指摘した。いずれも今回変更していない。PRのexact-head required checksは未実行。
+
+**順序更新と理由:** 旧cursor=`A6 usage traceのcall-path調査・最小修正・focused tests → A8 → A9 → A6 cash → A10`。新cursor=`(1) 完了: shared `life-call`のunscoped usageをowner/run/occurrence/release付きpartial traceにするsource+回帰test+独立review → (2) 現在: branchをpushしPR exact-head CI/review/merge → (3) main由来releaseへの自然adoption後、Google usage eventのproduction readback → (4) A8全loop/jobのsettled revenueとbilled cost coverage → (5) A9 source-period CFO report → (6) A6 Google cash receipt → (7) A10 7日連続natural acceptance`。理由はコード修正とsource-level証拠が揃ったため実装cursorを閉じる一方、merge/deployment/natural usageを確認するまではproduction trace完了としないため。
+
+**Remaining atomic TODO（この順）:**
+
+1. [ ] **A6 source promotion:** `fix/cfo-life-call-usage-trace-20261009`をpushし、source diff・このSSOT更新を含むPRを作る。exact-head required CIとreviewを通し、mainへmergeする。
+2. [ ] **A6 natural production readback:** main由来immutable releaseが`life-call` ownerに自然adoptされたSHAを確認し、次の自然usage eventに`owner_id=life-call`、run/occurrence/release traceがあること、shared serviceの`loop_id`がnullでper-loop配賦されていないこと、settled actualが未確認ならnullのままであることを同一event/periodでreadbackする。人工のGoogle API requestは発行しない。
+3. [ ] **A8 complete coverage:** 最新catalog/registry inventoryを取り直し、全business loopのsettled revenue/refund/feeとAPI/model/tool/infra billed costをsource receiptに結ぶ。shared/control/platform jobsも会社overheadとして含め、欠けたsourceはunknownのままにする。
+4. [ ] **A9 truthful source-period report:** JST日次・MTD・trailing・MRRを実source期間で分け、loop/platform/company別のsettled revenue、refund/fees、billed expense、cash、net、currency、freshness、coverageを表示する。推定とsettled actualを混ぜない。
+5. [ ] **A6 Google cash readback:** 同じBilling accountで認証されたCloud Billing Transactionsから2026-09請求JPY `27,889`のpayment receipt/date/statusを取得する。現在はregistered browser identityから同じaccountをreadbackできず、Gmail検索0件も不払いの証拠ではない。same-account sessionが使える状態になったら再開し、それまではcash status=`unknown`。
+6. [ ] **A10 seven-day acceptance:** 上記source/coverage/report/cash statusを含むCFO reportを7日連続のnatural occurrenceでsame-occurrence provider/runtime/B7 receipt、period/currency、freshness、coverage、duplicate resolution、replay-zeroと照合する。1日でも欠落すれば連続countをやり直す。
+
+**現在cursor:** A6 source promotion → natural production usage-trace readback → A8 full loop/job coverage → A9 source-period CFO report → A6 Google cash receipt → A10 seven-day natural acceptance。Money Tree/personal cashとCloud API置換・削減は対象外。過去actualの確定や10k MRR達成は本specのcoverage完了を意味せず、別途settlement evidenceを要する。
