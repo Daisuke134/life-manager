@@ -314,9 +314,41 @@ def _is_ebook_legacy_no_due_terminal(entry: dict, row: dict) -> bool:
     return _ebook_legacy_no_due_proof(entry, row) is not None
 
 
+def _is_mobile_pre_effect_terminal(entry: dict, row: dict) -> bool:
+    """Recognize only mobile-app failures proven before its Postiz publish call."""
+    detail = row.get("error_detail")
+    runtime_missing = detail in {
+        "mobile app loop requires node",
+        "mobile app loop requires python3",
+    }
+    object_store_copy_failed = False
+    if isinstance(detail, str) and "ENOSPC: no space left on device, copyfile " in detail:
+        source, separator, destination = detail.partition(" -> ")
+        object_store_copy_failed = (
+            bool(separator)
+            and ".workspace/.slide-listicle-" in source
+            and source.endswith(".jpg'")
+            and "/objects/sha256/" in destination
+            and ".tmp-" in destination
+        )
+    return (
+        entry.get("entrypoint") == "apps/life-manager/scripts/mobile-app"
+        and entry.get("effect_class") == "publish"
+        and row.get("status") == "fail"
+        and row.get("blocker") == "entrypoint_exit_1"
+        and row.get("error_class") == "entrypoint_exit_1"
+        and row.get("failure_layer") == "entrypoint"
+        and (runtime_missing or object_store_copy_failed)
+        and row.get("provider_receipt_id") is None
+        and row.get("official_readback_ref") is None
+    )
+
+
 def _is_pre_effect_terminal(entry: dict, row: dict) -> bool:
     if (row.get("status") == "blocked"
             and row.get("blocker") in PRE_EFFECT_ADMISSION_BLOCKERS):
+        return True
+    if _is_mobile_pre_effect_terminal(entry, row):
         return True
     if _is_ebook_pre_effect_entrypoint_terminal(entry, row):
         return True
@@ -586,7 +618,9 @@ def _pre_effect_occurrence_proof(
     elif legacy_no_due_proof is not None:
         return None, "legacy_start_missing"
     terminal_summary_ref = f"lm-loop://{loop_id}/{terminal_run_id}/summary.json"
+    mobile_pre_effect_terminal = _is_mobile_pre_effect_terminal(entry, terminal)
     if (terminal.get("blocker") not in PRE_EFFECT_TERMINAL_BLOCKERS
+            and not mobile_pre_effect_terminal
             and not _is_ebook_pre_effect_entrypoint_terminal(entry, terminal)
             and not verified_no_effect_terminal
             and legacy_no_due_proof is None

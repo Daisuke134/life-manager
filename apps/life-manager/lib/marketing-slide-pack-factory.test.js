@@ -181,3 +181,44 @@ test("generateSlidePackCandidates makes the last slide an app CTA screen with th
   assert.match(lastSlide.text, /Anicca/);
   assert.match(lastSlide.text, /プロフィールのリンクから/);
 });
+
+test("removes rendered slide scratch files when durable object import fails", { timeout: 60_000 }, async () => {
+  const workspaceDir = tempDir("slide-pack-workspace-enospc-");
+  const imageCacheDir = tempDir("slide-pack-image-cache-enospc-");
+  const { resolveBackground } = fakeResolveBackground();
+  let imports = 0;
+  const objectStore = {
+    import(file) {
+      imports += 1;
+      assert.match(path.basename(file), /^\.slide-/);
+      const error = new Error("ENOSPC: no space left on device");
+      error.code = "ENOSPC";
+      throw error;
+    },
+  };
+
+  try {
+    await assert.rejects(generateSlidePackCandidates({
+      objectStore,
+      workspaceDir,
+      imageCacheDir,
+      tenantId: "dais-local",
+      productId: JA_LANE.productId,
+      locale: JA_LANE.locale,
+      platform: JA_LANE.platform,
+      accountId: JA_LANE.accountId,
+      integrationRef: JA_LANE.integrationRef,
+      rendererId: JA_LANE.renderer,
+      packFormat: JA_LANE.packFormat,
+      form: JA_LANE.form,
+      now: () => "2026-09-28T09:00:00.000Z",
+      variantSeed: "local-enospc-slot",
+      resolveBackground,
+    }), { code: "ENOSPC" });
+    assert.equal(imports, 1);
+    assert.deepEqual(fs.readdirSync(workspaceDir), []);
+  } finally {
+    fs.rmSync(workspaceDir, { recursive: true, force: true });
+    fs.rmSync(imageCacheDir, { recursive: true, force: true });
+  }
+});
