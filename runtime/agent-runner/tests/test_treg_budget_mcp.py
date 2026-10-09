@@ -36,9 +36,12 @@ class FakeTreg:
         self.observed_reservations = []
         self.daily_ledger = None
         self.call_result_override = None
+        self.on_balance = None
 
     def __call__(self, tool, arguments):
         if tool == "balance":
+            if self.on_balance is not None:
+                self.on_balance()
             return {"structuredContent": {"balance_micro": self.balance_micro}}
         if tool == "call":
             self.paid_calls += 1
@@ -232,6 +235,45 @@ class TregBudgetGateTests(unittest.TestCase):
             today_gate.record_quote("x.search", 3_000)
             for _ in range(18):
                 today_gate.call_paid(self.arguments(), today_fake)
+            old_gate.record_quote("x.search", 3_000)
+            with self.assertRaisesRegex(gate_module.GateRejected, "route_cap"):
+                old_gate.call_paid(self.arguments(), old_fake)
+
+        ledger = json.loads(today_path.read_text(encoding="utf-8"))
+        self.assertEqual(ledger["route_count"], 18)
+        self.assertEqual(old_fake.paid_calls, 0)
+
+    def test_gate_reselects_utc_day_after_balance_readback(self):
+        gate_module = self.gate_module
+        yesterday = gate_module.dt.datetime(2026, 10, 9, 23, 59, tzinfo=gate_module.dt.timezone.utc)
+        today = gate_module.dt.datetime(2026, 10, 10, 0, 1, tzinfo=gate_module.dt.timezone.utc)
+        clock = {"now": yesterday}
+        old_path = self.root / "treg-budget-daily-2026-10-09.json"
+        today_path = self.root / "treg-budget-daily-2026-10-10.json"
+        old_gate = gate_module.TregBudgetGate(
+            daily_ledger=old_path,
+            occurrence_ledger=self.root / "old-process-occurrence.json",
+            occurrence_id="treg-monitor:balance-rollover-old",
+        )
+        today_gate = gate_module.TregBudgetGate(
+            daily_ledger=today_path,
+            occurrence_ledger=self.root / "today-process-occurrence.json",
+            occurrence_id="treg-monitor:balance-rollover-today",
+        )
+        balance_flip = lambda: clock.update(now=today)
+        today_fake = FakeTreg()
+        today_fake.daily_ledger = today_path
+        old_fake = FakeTreg()
+        old_fake.daily_ledger = today_path
+        old_fake.on_balance = balance_flip
+
+        with patch.object(gate_module, "_now", side_effect=lambda: clock["now"]):
+            old_gate.record_quote("x.search", 3_000)
+            clock["now"] = today
+            today_gate.record_quote("x.search", 3_000)
+            for _ in range(18):
+                today_gate.call_paid(self.arguments(), today_fake)
+            clock["now"] = yesterday
             old_gate.record_quote("x.search", 3_000)
             with self.assertRaisesRegex(gate_module.GateRejected, "route_cap"):
                 old_gate.call_paid(self.arguments(), old_fake)

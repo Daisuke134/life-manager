@@ -455,6 +455,16 @@ class TregBudgetGate:
                 balance = _balance_micro(forward_tool("balance", {}))
             except Exception:
                 self._block(occurrence, endpoint_id, "treg_budget_balance_readback_invalid")
+            balance_daily_path = self._current_daily_ledger()
+            if balance_daily_path != daily_path:
+                daily_path = balance_daily_path
+                daily = self._daily(daily_path)
+                if (
+                    daily["route_count"] >= MAX_ROUTES
+                    or daily["reserved_micro"] + MAX_ROUTE_MICRO > MAX_TOTAL_MICRO
+                    or daily["charged_micro"] + daily["unresolved_micro"] + MAX_ROUTE_MICRO > MAX_TOTAL_MICRO
+                ):
+                    self._block(occurrence, endpoint_id, "treg_budget_route_cap_reached")
             if balance - pending["unresolved_micro"] - MAX_ROUTE_MICRO < MIN_BALANCE_MICRO:
                 self._block(occurrence, endpoint_id, "treg_budget_balance_floor_reached")
 

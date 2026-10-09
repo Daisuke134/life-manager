@@ -169,7 +169,9 @@
 - The gate durably records the maximum `$0.003` reservation before forwarding; a missing/invalid receipt never frees the route or its uncertain cost, and prevents another paid call in that occurrence.
 - Only the shell-disabled Treg task receives MCP configuration and its credential path; shell-enabled task classes receive the repository skills but no Treg server configuration.
 - Existing shell-enabled tasks run unsandboxed under the same OS user and can technically read credential SSOT by direct filesystem access. This change does not claim an OS-level denial; those tasks receive no Treg MCP config/path, and their skills route signal requests through the shared task/monitor.
-- The gate selects the UTC-day ledger under the shared lock for each paid call, including calls from a gate process started on the previous UTC day.
+- The gate selects the UTC-day ledger under the shared lock for each paid call, then reselects and rechecks the daily cap after the fresh balance readback and before persisting the route reservation. This covers gate processes that started yesterday and balance reads that cross midnight.
+- If the balance readback crosses into a UTC day whose shared daily cap is already full, reject before writing a reservation or forwarding a paid route.
+- Existing shell-enabled tasks run unsandboxed under the same OS user and can technically read credential SSOT by direct filesystem access. This change does not claim an OS-level denial; those tasks receive no Treg MCP config/path, and their skills route signal requests through the shared task/monitor.
 - The `gpt-6.1-sol` route is explicitly restricted; the weekly owner supplies the user-authorized escalation reason, and routing tests record its `acct2` profile and Codex-only candidate list.
 - Parent validation matches every captured paid MCP call to the local gate's occurrence ledger and exact Treg receipt.
 - Existing `signals.csv` without a valid hash marker fails closed. An established empty baseline remains distinguishable from a pre-created header-only CSV.
@@ -177,8 +179,8 @@
 
 - [x] Write the baseline, route-budget, runner-config/credential-isolation, and parent-receipt regressions first; confirm each fails for its missing behavior.
 - [x] Implement the local MCP budget gate and hash-bound baseline marker with no new dependency.
-- [x] Run focused tests, declared agent-route contract, source boundary, loop contract, syntax/JSON checks, and diff check after token-isolation changes.
-- [x] Update the SSOT cursor with final evidence and push the dedicated branch.
+- [ ] Run focused tests, declared agent-route contract, source boundary, loop contract, syntax/JSON checks, and diff check after the balance-rollover correction.
+- [ ] Update the SSOT cursor with final evidence and push the dedicated branch.
 
 ### Task 5: Source acceptance and production handoff
 
