@@ -4,7 +4,7 @@
 
 **Goal:** 今日の仕事と翌日の仕事を、管理下のログ/再生成物の増大・実書込み失敗で欠落/重複させず、同じ仕組みをOpenClaw移行後も使う。
 **Architecture:** 既存host inventory、cleanup governor、5分pass、watchdog、15日dispatcher、admission/recovery/domain fenceを再利用する。管理下stdio/再生成物に保存量契約を追加し、cleanup実行成功と容量回復を分離する。agent/session/cronの新frameworkは作らない。
-**Tech Stack:** Python標準ライブラリ(logging.handlers/subprocess/os)、既存Python/Node runtime、既存OS supervisor、既存jsonschema。
+**Tech Stack:** Python標準ライブラリ(logging.handlers/subprocess/os/socket)、既存Python/Node runtime、既存OS supervisor、既存jsonschema。
 **Spec:** docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md のstorage先行section。
 
 ## 確認したbaseline
@@ -127,7 +127,7 @@
 
 - [ ] Step 1: 指名testに次のassertionを追加: 32MiBの改行なし/binary stderrでもretained<=2MiB+40KiB、RAM buffer bounded。親exit後にdetached childが書いてもEPIPE/SIGPIPE0。foreign metadata・symlink拒否、保存不能でもdrain継続。
 - [ ] Step 2: `python3 -m pytest runtime/host/tests/test_bounded_output.py` を実行し、未実装の振る舞いでREDを確認する。
-- [ ] Step 3: `runtime/host/bounded_output.py` の `start_stderr_relay(private_root, policy, binding) -> RelayHandle; relay_stderr(read_fd, control_fd, private_root, policy, binding) -> RelayReceipt` を変更: 新しいagent frameworkや常駐daemonを作らず、有限runに属するstdio relayを作る。stdlib RotatingFileHandler、latin-1 byte roundtrip、formatter messageのみ、terminator空、segment/backup/chunkをDS04で固定。最初32KiBのheadをhost-owned .headへ一度保存し、後続rotationでも最初の診断を失わない。writerはpipeを持ち、relayは全writerのEOFまで読み続ける。自身をentrypointのkill groupへ入れない。PID/startとownerをprivate metadataに保存。ENOSPC時も読み捨てdrainを続け、bounded tailとstorage_errorをnonblocking UNIX datagram socketpairへ返す（最大4KiB/frame）。親側close/queue満杯は通知をdropするだけでinput drainを止めない。親用read_relay_snapshot(handle)でlatest frameを取得。handlerのerrorを握り潰さない。helperだけumask077。stderr captureの既存小さいbyte列はそのままroundtripする。
+- [ ] Step 3: `runtime/host/bounded_output.py` の `start_stderr_relay(private_root, policy, binding) -> RelayHandle; relay_stderr(read_fd, control_fd, private_root, policy, binding) -> RelayReceipt` を変更: 新しいagent frameworkや常駐daemonを作らず、有限runに属するstdio relayを作る。stdlib RotatingFileHandler、latin-1 byte roundtrip、formatter messageのみ、terminator空、segment/backup/chunkをDS04で固定。最初32KiBのheadをhost-owned .headへ一度保存し、後続rotationでも最初の診断を失わない。writerはpipeを持ち、relayは全writerのEOFまで読み続ける。自身をentrypointのkill groupへ入れない。起動はimmutable release内の固定script/Pythonだけ。helperに渡すFDはread/controlのみ（provider/model/admission lease FDは継承しない）、envはPATH/LANG/TMPDIRだけの最小集合でprovider secretsは継承しない。PID/startとownerをprivate metadataに保存。ENOSPC時も読み捨てdrainを続け、bounded tailとstorage_errorをnonblocking UNIX datagram socketpairへ返す（最大4KiB/frame）。親側close/queue満杯は通知をdropするだけでinput drainを止めない。親用read_relay_snapshot(handle)でlatest frameを取得。handlerのerrorを握り潰さない。helperだけumask077。stderr captureの既存小さいbyte列はそのままroundtripする。
 - [ ] Step 4: 同commandでGREENと既存focused testsの互換を確認する。
 - [ ] Step 5: source境界/diffを確認し、担当filesだけcommit/push。状態は統一SSOTのDS06行で更新する。
 
