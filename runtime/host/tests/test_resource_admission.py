@@ -1348,7 +1348,7 @@ def test_existing_paid_waiter_upgrades_priority_without_resetting_queue_age(
     assert admission.release_and_reserve(running, now=201) == ["paid"]
 
 
-def test_distribution_waiter_upgrades_to_critical_paid_using_current_rank_map(
+def test_distribution_waiter_does_not_demote_to_critical_paid_using_current_rank_map(
         tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="1")
     admission.activate_durable_v2()
@@ -1363,7 +1363,7 @@ def test_distribution_waiter_upgrades_to_critical_paid_using_current_rank_map(
 
     paid = next(row for row in durable_rows(tmp_path, "priorities")
                 if row["owner_id"] == "paid")
-    assert paid["base_priority"] == "critical_paid"
+    assert paid["base_priority"] == "distribution"
     assert paid["queued_at"] == 100
 
 
@@ -2661,7 +2661,7 @@ def test_fresh_distribution_preempts_fresh_revenue(
     ]
 
 
-def test_fresh_critical_paid_preempts_fresh_distribution(
+def test_fresh_distribution_preempts_fresh_critical_paid(
         tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="1")
     admission.activate_durable_v2()
@@ -2676,7 +2676,7 @@ def test_fresh_critical_paid_preempts_fresh_distribution(
 
     assert ticket is not None
     assert admission.reserve_available(now=2002, lease_seconds=30) == [
-        "crowdworks-revenue-paid"
+        "mobile-calendar-publisher"
     ]
 
 

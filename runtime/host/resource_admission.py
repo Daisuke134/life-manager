@@ -33,7 +33,7 @@ RESERVATION_LEAK_COOLDOWN_SECONDS = 60
 # ``admission_class`` remains the mixed-release capacity fence.  These
 # explicit priorities are an ordering policy for durable waiters and are
 # evaluated from persisted queue age at claim time.
-BASE_PRIORITIES = ("critical_paid", "distribution", "revenue", "support")
+BASE_PRIORITIES = ("distribution", "critical_paid", "revenue", "support")
 PRIORITY_RANK = {name: rank for rank, name in enumerate(BASE_PRIORITIES)}
 PRIORITY_AGE_SECONDS = {
     "critical_paid": 5 * 60,
@@ -754,6 +754,9 @@ def _effective_priority(row: dict[str, object], now: float) -> int:
         if priority == "critical_paid":
             # Distribution wins fresh contention, but it must not starve paid work forever.
             return PRIORITY_RANK["distribution"] - 1
+        if priority == "revenue":
+            # Age revenue into the distribution tier; _queue_order's age key makes it win fresh ties.
+            return PRIORITY_RANK["distribution"]
         return PRIORITY_RANK["critical_paid"]
     return rank
 
