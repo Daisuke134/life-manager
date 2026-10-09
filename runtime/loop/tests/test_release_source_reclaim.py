@@ -95,3 +95,69 @@ def test_symlink_parent_and_leaf_are_not_followed(tmp_path):
     result = reclaim(release, repo)
     assert (release / "bin/one.py").is_symlink()
     assert (release / "memory/owner.md").read_bytes() == b"keep memory"
+
+
+def test_replaced_parent_does_not_delete_new_memory_descendant(tmp_path):
+    repo, release, _ = fixture(tmp_path)
+    calls = 0
+    def references():
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            (release / "bin").rename(release / "memory" / "bin")
+            (release / "bin").mkdir()
+        return True
+    result = loop_cleanup.reclaim_release_source(release, repo, can_reclaim=references)
+    assert result["removed_files"] == 0
+    assert (release / "memory/bin/one.py").exists()
+    assert (release / "memory/bin/two.py").exists()
+    assert (release / "RELEASE.json").exists()
+
+
+def test_read_only_release_restores_directory_modes(tmp_path):
+    repo, release, _ = fixture(tmp_path)
+    for path in release.rglob("*"):
+        path.chmod(0o555 if path.is_dir() else 0o444)
+    release.chmod(0o555)
+    before = (release / "memory/owner.md").stat().st_ino
+    try:
+        result = reclaim(release, repo)
+        assert result["removed_files"] == 2
+        assert release.stat().st_mode & 0o777 == 0o555
+        assert (release / "bin").stat().st_mode & 0o777 == 0o555
+        assert (release / "memory/owner.md").stat().st_ino == before
+    finally:
+        for path in release.rglob("*"):
+            if path.is_dir(): path.chmod(0o755)
+        release.chmod(0o755)
+
+
+def test_owner_reclaims_one_old_snapshot_and_keeps_rollback(tmp_path, monkeypatch):
+    from runtime.loop import central_cleanup
+    repo, release, _ = fixture(tmp_path)
+    origin = tmp_path / "origin.git"
+    subprocess.run(["git", "init", "--bare", str(origin)], check=True, capture_output=True)
+    subprocess.run(["git", "remote", "add", "origin", str(origin)], cwd=repo, check=True)
+    subprocess.run(["git", "push", "origin", "main"], cwd=repo, check=True, capture_output=True)
+    rollback = release.with_name("20260102T000000-" + release.name.split("-")[1])
+    shutil.copytree(release, rollback)
+    current_root = release.with_name("20260103T000000-" + release.name.split("-")[1])
+    shutil.copytree(release, current_root)
+    os.utime(release, (1, 1)); os.utime(rollback, (2, 2)); os.utime(current_root, (3, 3))
+    current = tmp_path / "current"
+    current.symlink_to(current_root)
+    monkeypatch.setenv("LIFE_MANAGER_SOURCE_REPO", str(repo))
+    monkeypatch.setenv("LIFE_MANAGER_PROTECTED_RELEASES", str(tmp_path / "no-protected.json"))
+    monkeypatch.setattr(central_cleanup, "loaded_release_roots", lambda *_: set())
+    monkeypatch.setattr(central_cleanup, "open_release_roots", lambda *_: set())
+    real_run = subprocess.run
+    def run(command, **kw):
+        if command[0] == "lsof":
+            return subprocess.CompletedProcess(command, 0, "", "")
+        return real_run(command, **kw)
+    monkeypatch.setattr(central_cleanup.subprocess, "run", run)
+    result = central_cleanup.reclaim_unreferenced_source(release.parent, current, tmp_path / "agents", 1)
+    assert result["removed_files"] == 2
+    assert not (release / "RELEASE.json").exists()
+    assert (rollback / "RELEASE.json").exists()
+    assert (current_root / "RELEASE.json").exists()
