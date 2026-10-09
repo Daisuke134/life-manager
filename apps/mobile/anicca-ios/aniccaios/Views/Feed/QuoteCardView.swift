@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import StoreKit
 import UIKit
 
 /// One full-screen affirmation card. NO background here — owned by `FeedRootView`.
@@ -12,6 +13,7 @@ struct QuoteCardView: View {
 
     @EnvironmentObject var themeStore: ThemeStore
     @EnvironmentObject var likedStore: LikedQuotesStore
+    @Environment(\.requestReview) private var requestReview
 
     @State private var showShareSheet = false
     @State private var copyFlashOpacity: Double = 0
@@ -66,8 +68,13 @@ struct QuoteCardView: View {
                 systemName: likedStore.isLiked(quote.id) ? "heart.fill" : "heart",
                 identifier: "quote-like"
             ) {
-                likedStore.toggle(quote.id)
+                let didFavorite = likedStore.toggle(quote.id)
                 UIImpactFeedbackGenerator(style: .soft).impactOccurred()
+                if didFavorite {
+                    ReviewPromptCoordinator.shared.requestReviewIfAppropriate {
+                        requestReview()
+                    }
+                }
             }
 
             actionButton(systemName: "doc.on.doc", identifier: "quote-copy") {
