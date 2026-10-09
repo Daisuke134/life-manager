@@ -6,6 +6,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from runtime.loop.loop_cleanup import _release_immutable_store_probe
+
 
 class CutLoopReleasePressureTest(unittest.TestCase):
     def run_cut(self, repo: Path, home: Path, paths: str, **extra_env: str):
@@ -78,6 +80,12 @@ class CutLoopReleasePressureTest(unittest.TestCase):
             (repo / "bin").mkdir()
             shutil.copy2(Path(__file__).resolve().parents[3] / "bin/cut-loop-release.sh",
                          repo / "bin/cut-loop-release.sh")
+            attributes = Path(__file__).resolve().parents[3] / ".gitattributes"
+            if attributes.is_file():
+                shutil.copy2(attributes, repo / ".gitattributes")
+            memory = repo / "memory" / "owner.md"
+            memory.parent.mkdir()
+            memory.write_text("persistent owner memory\n", encoding="utf-8")
             cleanup = repo / "runtime/loop/central_cleanup.py"
             cleanup.parent.mkdir(parents=True)
             cleanup.write_text("raise SystemExit(0)\n", encoding="utf-8")
@@ -104,6 +112,9 @@ class CutLoopReleasePressureTest(unittest.TestCase):
                 "sha": old_sha, "release_paths": "ALL",
             }) + "\n", encoding="utf-8")
             (donor / "untracked-diagnostic.log").write_text("legacy diagnostics must not propagate\n", encoding="utf-8")
+            donor_memory = donor / "memory" / "owner.md"
+            donor_memory.parent.mkdir()
+            donor_memory.write_text("existing owner memory\n", encoding="utf-8")
             subprocess.run(["chmod", "-R", "a-w", str(donor)], check=True)
             (loops / "current").symlink_to(donor)
 
@@ -121,6 +132,10 @@ class CutLoopReleasePressureTest(unittest.TestCase):
                         if candidate != donor]
             self.assertEqual(len(releases), 1)
             release = releases[0]
+            self.assertFalse((release / "memory").exists(), "source archive copied owner memory")
+            self.assertEqual(memory.read_text(), "persistent owner memory\n")
+            self.assertEqual(donor_memory.read_text(), "existing owner memory\n")
+            self.assertIsNone(_release_immutable_store_probe(release))
             self.assertFalse((release / "untracked-diagnostic.log").exists())
             self.assertEqual((donor / "untracked-diagnostic.log").read_text(), "legacy diagnostics must not propagate\n")
             self.assertFalse((release / "old.txt").exists())
