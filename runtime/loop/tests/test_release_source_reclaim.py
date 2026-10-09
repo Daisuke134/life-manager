@@ -134,6 +134,7 @@ def test_read_only_release_restores_directory_modes(tmp_path):
 
 def test_owner_reclaims_one_old_snapshot_and_keeps_rollback(tmp_path, monkeypatch):
     from runtime.loop import central_cleanup
+    from runtime.loop import lm_loop
     repo, release, _ = fixture(tmp_path)
     origin = tmp_path / "origin.git"
     subprocess.run(["git", "init", "--bare", str(origin)], check=True, capture_output=True)
@@ -156,8 +157,18 @@ def test_owner_reclaims_one_old_snapshot_and_keeps_rollback(tmp_path, monkeypatc
             return subprocess.CompletedProcess(command, 0, "", "")
         return real_run(command, **kw)
     monkeypatch.setattr(central_cleanup.subprocess, "run", run)
+    real_lock = lm_loop._apply_lock
+    attempts = 0
+    def initially_busy(*args):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise RuntimeError("production apply is already owned")
+        return real_lock(*args)
+    monkeypatch.setattr(lm_loop, "_apply_lock", initially_busy)
     result = central_cleanup.reclaim_unreferenced_source(release.parent, current, tmp_path / "agents", 1)
     assert result["removed_files"] == 2
+    assert attempts >= 3
     assert not (release / "RELEASE.json").exists()
     assert (rollback / "RELEASE.json").exists()
     assert (current_root / "RELEASE.json").exists()
