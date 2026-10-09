@@ -4,9 +4,10 @@ const fs = require("node:fs");
 const path = require("node:path");
 const crypto = require("node:crypto");
 
-// Single place for the App Store destination per product. Values verified
-// against skills/earn/marketing-engine/registry/products/*.json and the
-// campaign URL already live in honne-en-cycle.js (id6759667221).
+const PRODUCT_REGISTRY = path.resolve(
+  __dirname,
+  "../../../skills/earn/marketing-engine/registry/products",
+);
 const APP_STORE_URLS = Object.freeze({
   "anicca-ios": "https://apps.apple.com/app/id6755129214",
   "honne-ai": "https://apps.apple.com/app/id6759667221",
@@ -29,16 +30,40 @@ const CTA_COPY = Object.freeze({
   ja: {
     linked: (url) => `アプリはこちら → ${url}`,
     bio: "アプリはプロフィールのリンクから",
+    webLinked: (url) => `Google Calendarに接続 → ${url}`,
+    webBio: "Google Calendarへの接続はプロフィールのリンクから",
   },
   en: {
     linked: (url) => `Get the app → ${url}`,
     bio: "Link in bio for the app",
+    webLinked: (url) => `Connect Google Calendar → ${url}`,
+    webBio: "Connect Google Calendar through the link in bio",
   },
 });
 
 function ctaLanguage(locale) {
   const lang = String(locale || "").slice(0, 2).toLowerCase();
   return CTA_COPY[lang] ? lang : "en";
+}
+
+function webAppUrl(productId) {
+  const id = String(productId || "").trim();
+  if (id !== "life-manager-cloud") throw new Error(`marketing web destination is not configured for product ${id}`);
+  const file = path.join(PRODUCT_REGISTRY, `${id}.json`);
+  let row;
+  try {
+    row = JSON.parse(fs.readFileSync(file, "utf8"));
+  } catch {
+    throw new Error(`marketing product manifest is invalid for product ${id}`);
+  }
+  if (row.product_id !== id || row.type !== "web_app" || typeof row.destination_url !== "string") {
+    throw new Error(`marketing product manifest is invalid for product ${id}`);
+  }
+  const destination = new URL(row.destination_url);
+  if (destination.protocol !== "https:" || destination.username || destination.password) {
+    throw new Error(`marketing product destination is invalid for product ${id}`);
+  }
+  return { ...row, destination_url: destination.toString() };
 }
 
 function appStoreUrl(productId) {
@@ -56,6 +81,15 @@ function platformCaptionLimit(platform) {
 function marketingCtaLine({ productId, platform, locale }) {
   const lang = ctaLanguage(locale);
   const copy = CTA_COPY[lang];
+  if (String(productId || "") === "life-manager-cloud") {
+    const product = webAppUrl(productId);
+    if (!LINKABLE_PLATFORMS.has(String(platform || ""))) return copy.webBio;
+    const url = new URL(product.destination_url);
+    url.searchParams.set("utm_source", String(platform));
+    url.searchParams.set("utm_medium", "video-description");
+    url.searchParams.set("utm_campaign", product.product_id);
+    return copy.webLinked(url.toString());
+  }
   if (LINKABLE_PLATFORMS.has(String(platform || ""))) {
     return copy.linked(appStoreUrl(productId));
   }
