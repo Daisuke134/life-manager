@@ -188,6 +188,9 @@ matching_locked_dependencies() {
   for donor in "$RELEASES"/*; do
     [ "$donor" != "$DEST" ] || continue
     [ -f "$donor/RELEASE.json" ] || continue
+    PYTHONPATH="$SCRIPT_ROOT" python3 -c \
+      'import sys; from pathlib import Path; from runtime.loop.loop_cleanup import release_is_reclaimed; sys.exit(release_is_reclaimed(Path(sys.argv[1])))' \
+      "$donor" || continue
     donor_package="$donor$relative"
     [ -d "$donor_package/node_modules" ] || continue
     [ -f "$donor_package/node_modules/.package-lock.json" ] || continue

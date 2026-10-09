@@ -45,6 +45,28 @@ def two_loop_registry():
     return value
 
 
+@contextmanager
+def reclaimed_descriptor(root: Path, kind: str):
+    root = root.resolve()
+    marker = root / "RECLAIMED-RELEASE.json"
+    if kind == "descriptor":
+        marker.write_bytes((root / "RELEASE.json").read_bytes())
+    elif kind == "dangling":
+        marker.symlink_to(root / "missing-descriptor")
+    original_lstat = Path.lstat
+
+    def probe(path, *args, **kwargs):
+        if kind == "probe_error" and path == marker:
+            raise PermissionError("marker probe unavailable")
+        return original_lstat(path, *args, **kwargs)
+
+    try:
+        with patch.object(Path, "lstat", autospec=True, side_effect=probe):
+            yield
+    finally:
+        marker.unlink(missing_ok=True)
+
+
 def money_printer_registry(
     entrypoint="bin/example.sh",
     loop_id="money-printer-symphony-bridge",
@@ -73,6 +95,41 @@ class LmLoopApplyTest(unittest.TestCase):
         (self.root / "bin/lm-loop-run").write_text("#!/bin/sh\nexit 0\n")
         (self.root / "bin/lm-loop-run").chmod(0o755)
         (self.root / "RELEASE.json").write_text(json.dumps({"sha": SHA}))
+
+    def test_apply_rejects_reclaimed_release_before_installing(self):
+        installed = []
+        for kind in ("descriptor", "dangling", "probe_error"):
+            with self.subTest(kind=kind), reclaimed_descriptor(self.root, kind):
+                with self.assertRaisesRegex(ValueError, "reclaimed"):
+                    apply_registry(registry(), self.root, SHA, installed.append)
+                self.assertEqual(installed, [])
+        self.assertEqual(len(build_apply_plan(registry(), self.root, SHA)), 1)
+
+    def test_activate_current_rejects_reclaimed_release_without_swap(self):
+        old = self._release("old-release").resolve()
+        target = self._release("reclaimed-release").resolve()
+        current = self.root / "current"
+        current.symlink_to(old)
+        for kind in ("descriptor", "dangling", "probe_error"):
+            with self.subTest(kind=kind), reclaimed_descriptor(target, kind):
+                with self.assertRaisesRegex(ValueError, "reclaimed"):
+                    lm_loop.activate_current(current, target, self.root / "apply.lock")
+                self.assertEqual(current.resolve(), old)
+                self.assertFalse((self.root / "current.swap").exists())
+        lm_loop.activate_current(current, target, self.root / "apply.lock")
+        self.assertEqual(current.resolve(), target)
+
+    def test_reclaimed_release_cannot_apply_a_retired_label(self):
+        release = self._release("reclaimed-release")
+        value = registry()
+        value["retired_labels"] = ["ai.anicca.retired-example"]
+        (release / "config/loop-registry.json").write_text(json.dumps(value))
+        with reclaimed_descriptor(release, "descriptor"), patch.object(
+                lm_loop, "_safe_launchctl", side_effect=AssertionError("launchctl reached")):
+            with self.assertRaisesRegex(ValueError, "reclaimed"):
+                apply_live(release, self.root / "LaunchAgents", self.root / "launchctl-safe",
+                           target="ai.anicca.retired-example", current=release,
+                           protocol_reader=lambda: 1)
 
     def test_apply_requires_explicit_target_or_all(self):
         with patch.dict(os.environ, {}, clear=True), \
