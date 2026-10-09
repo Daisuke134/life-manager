@@ -142,9 +142,92 @@ class PaperPerformanceTests(unittest.TestCase):
         self.assertEqual(result["completed_round_trips"], 1)
         self.assertEqual(result["gross_strategy_pnl_usd"], "0.250")
 
+    def test_legacy_orderless_lifecycle_rows_reuse_the_planned_order(self):
+        rows = _rows()
+        client_order_id = "lm-ai-" + "a" * 24
+        rows[0]["decision_id"] = "entry-decision"
+        lifecycle = [
+            {
+                "client_order_id": client_order_id,
+                "decision_id": "entry-decision",
+                "effect_id": "entry-effect",
+                "mode": "paper",
+                "paper": True,
+                "receipt_type": "effect_intent",
+                "recorded_at": "2026-09-29T14:30:10Z",
+                "schema_version": 1,
+                "status": "started",
+            },
+            {
+                "client_order_id": client_order_id,
+                "effect_id": "entry-effect",
+                "mode": "paper",
+                "paper": True,
+                "receipt_type": "effect_intent",
+                "recorded_at": "2026-09-29T14:30:11Z",
+                "schema_version": 1,
+                "status": "applied",
+            },
+            {
+                "broker_status": "accepted",
+                "client_order_id": client_order_id,
+                "effect_id": "entry-effect",
+                "mode": "paper",
+                "paper": True,
+                "receipt_type": "effect_intent",
+                "recorded_at": "2026-09-29T14:30:12Z",
+                "schema_version": 1,
+                "status": "reconciliation_pending",
+            },
+        ]
+        rows[1:1] = lifecycle
+
+        result = build_paper_performance(rows, OBSERVATION, RISK)
+
+        self.assertEqual(result.get("measurement_status"), "partial")
+        self.assertEqual(result["completed_round_trips"], 1)
+        self.assertEqual(result["gross_strategy_pnl_usd"], "0.250")
+
+    def test_same_filled_order_readback_can_add_its_strategy_receipt(self):
+        rows = _rows()
+        accepted = copy.deepcopy(rows[1])
+        accepted["broker"] = {
+            **accepted["broker"], "status": "accepted", "filled_qty": "0",
+        }
+        accepted.pop("strategy_receipt")
+        legacy_fill = copy.deepcopy(rows[1])
+        legacy_fill.pop("strategy_receipt")
+        legacy_fill["broker_status"] = "filled"
+        legacy_fill["broker_receipt_id"] = "paper-entry-activity"
+        rows = [rows[0], accepted, legacy_fill, rows[1], *rows[2:]]
+
+        result = build_paper_performance(rows, OBSERVATION, RISK)
+
+        self.assertEqual(result.get("measurement_status"), "partial")
+        self.assertEqual(result["completed_round_trips"], 1)
+        self.assertEqual(result["gross_strategy_pnl_usd"], "0.250")
+
+    def test_orderless_lifecycle_without_a_planned_intent_stays_invalid(self):
+        orphan = {
+            "effect_id": "orphan-effect",
+            "mode": "paper",
+            "paper": True,
+            "receipt_type": "effect_intent",
+            "status": "started",
+        }
+
+        result = build_paper_performance([orphan], OBSERVATION, RISK)
+
+        self.assertEqual(result, {
+            "status": "unknown",
+            "reason": "paper_intent_invalid",
+        })
+
     def test_duplicate_outcome_for_same_effect_fails_closed(self):
         rows = _rows()
-        rows.insert(2, copy.deepcopy(rows[1]))
+        conflicting = copy.deepcopy(rows[1])
+        conflicting["broker"]["filled_avg_price"] = "401"
+        rows.insert(2, conflicting)
 
         result = build_paper_performance(rows, OBSERVATION, RISK)
 

@@ -10180,3 +10180,11 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 5. [ ] **A10 seven-day acceptance:** usage trace、coverage、source-period report、Google cash statusを含むCFO reportを7日連続の自然occurrenceで検証する。同一occurrence B7/runtime/provider receipt、period/currency、coverage/freshness、duplicate proof、replay-zeroを確認し、gapが1日でもあれば原因を記録して連続countを再開する。
 
 **現在cursor:** A6 Google usage trace → A8 all-loop/job coverage → A9 source-period report → A6 Google cash readback → A10 seven-day natural acceptance。Money Tree/personal cashとCloud API置換・削減は対象外。
+
+### 2026-10-09 09:10 JST — L9-12 Investment paper readback and parser repair
+
+- Official paper GET found no orders submitted after `2026-10-04T07:31:22Z` and no open orders. A fresh GET-backed reconcile at `2026-10-08T23:16:15Z` released only `alpaca-investment-paper:18db432c694c3868-67965`; no order or cancel was sent. `admission_effect_unknown=false` afterward.
+- The paper owner remains queued and its natural attempts through `2026-10-09T00:00Z` stop at `host_admission_deferred:resource_capacity_busy`, before strategy decision/effect. Do not stop sibling revenue owners or manually wake/sell/replay. The live owner remains disabled with its separate unresolved live effect; no live funding/order is allowed before AT-24/AT-29 and fresh review.
+- Persisted paper receipts contain legacy `effect_intent` lifecycle rows (`started`, `applied`, `reconciliation_pending`) without `order` after a canonical planned intent, followed by an `accepted → filled → filled` readback for one QQQ provider order; the last row adds the strategy receipt while keeping the same order ID, quantity, and price. `paper_performance._ledger_rows` currently returns `paper_intent_invalid` for the lifecycle rows and `paper_receipt_duplicate` after the lifecycle fix. Focused regression tests specify reuse of the earlier validated intent and acceptance of only an identical repeated filled-order snapshot; orphan or conflicting updates remain fail-closed.
+
+**Investment subcursor:** keep AT-13 natural paper exit as the execution cursor; complete the receipt-parser repair in source, then continue natural paper observation. This does not reorder the company-wide L9 sequence or authorize live trading.
