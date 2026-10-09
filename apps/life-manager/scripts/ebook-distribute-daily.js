@@ -189,7 +189,7 @@ function writeNoEffectResult(env, ownerId, reason) {
   const configuredOwner = required(env.LIFE_MANAGER_LOOP_ID, "Life Manager loop ID");
   const occurrenceId = required(env.LIFE_MANAGER_OCCURRENCE_ID, "Life Manager occurrence ID");
   if (configuredOwner !== ownerId || !occurrenceId.startsWith(`${ownerId}:`)
-      || !["setup_required", "no_due_slot"].includes(reason)) {
+      || !["setup_required", "no_due_slot", "render_not_ready"].includes(reason)) {
     throw new Error("eBook no-effect result identity is invalid");
   }
   atomicJson(file, {
@@ -513,14 +513,30 @@ async function run(argv = process.argv.slice(2), deps = {}) {
   const apiKey = required(env.LM_POSTIZ_API_KEY, "LM_POSTIZ_API_KEY");
   const stateRoot = path.join(dataDir, "marketing", "ebook");
   if (manualSlotAt) requireExistingRenderedReceipt(stateRoot, lane.productId, slotAt);
-  const input = renderInput({
-    python: required(env.LM_PYTHON, "LM_PYTHON"),
-    root,
-    stateRoot,
-    slotAt,
-    product: lane.productId,
-    ownerEnv: env,
-  });
+  let input;
+  try {
+    input = renderInput({
+      python: required(env.LM_PYTHON, "LM_PYTHON"),
+      root,
+      stateRoot,
+      slotAt,
+      product: lane.productId,
+      ownerEnv: env,
+    });
+  } catch (error) {
+    // The Postiz publish effect starts only after renderInput returns. HeyGen's
+    // separate create/download receipt remains in ebook_runner's sidecar.
+    writeNoEffectResult(env, ownerId, "render_not_ready");
+    const detail = String(error && error.message ? error.message : "");
+    const match = detail.match(/(?:render is not ready|renderer failed): ([A-Za-z][A-Za-z0-9_]*)/);
+    return {
+      state: "render_not_ready",
+      owner_id: ownerId,
+      occurrence_id: occurrenceId,
+      effect: 0,
+      render_error_class: match ? match[1] : "renderer_unavailable",
+    };
+  }
   const { receipt, script, publication_id: basePublicationId, attribution_token: token } = input;
   const publicationId = ownerScopedPublicationId(basePublicationId, ownerId);
   if (!approvedBaselineScript(script, pack)

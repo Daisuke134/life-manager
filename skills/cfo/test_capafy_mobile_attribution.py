@@ -160,37 +160,67 @@ class CapafyMobileAttributionTest(unittest.TestCase):
         self, directory, *, relation_app_id=None, include_mapping=True,
         corrupt_financial_sha=False, corrupt_detail_sha=False, duplicate_summary=False,
         detail_period_end="09/26/2026", detail_quantity="1", detail_amount="4250.00",
+        additional_receipts=(), empty_relation_app_ids=(),
     ):
         directory = Path(directory)
-        relation_app_id = relation_app_id or adapter.MOBILE_PRODUCT_BINDINGS[
-            "anicca-ios"
-        ]["asc_app_id"]
         financial_path = directory / "financial.tsv"
         detail_path = directory / "detail.tsv"
-        relationships_path = directory / "relationships.json"
-        summary = {
-            "Start Date": "08/30/2026", "End Date": "09/26/2026",
-            "UPC": "", "ISRC/ISBN": "", "Vendor Identifier": "com.fixture.app.ios.yearly.b",
-            "Quantity": "1", "Partner Share": "4250.00",
-            "Extended Partner Share": "4250.00", "Partner Share Currency": "JPY",
-            "Sales or Return": "S", "Apple Identifier": "fixture-subscription-1",
-            "Product Type Identifier": "IAY", "Country Of Sale": "JP",
-        }
+        relation_app_id = relation_app_id or "6755129214"
+        records = [{
+            "app_id": relation_app_id,
+            "subscription_id": "fixture-subscription-1",
+            "sku": "com.fixture.app.ios.yearly.b",
+            "currency": "JPY", "summary_amount": "4250.00",
+            "detail_amount": detail_amount, "summary_quantity": "1",
+            "detail_quantity": detail_quantity, "product_type": "IAY",
+            "country": "JP", "transaction_date": "09/12/2026",
+            "settlement_date": "09/12/2026",
+        }]
+        records.extend({
+            "app_id": row["app_id"],
+            "subscription_id": row["subscription_id"],
+            "sku": row["sku"], "currency": row["currency"],
+            "summary_amount": row.get("summary_amount", row["amount"]),
+            "detail_amount": row["amount"],
+            "summary_quantity": row.get("summary_quantity", "1"),
+            "detail_quantity": row.get("quantity", "1"),
+            "product_type": row.get("product_type", "IAY"),
+            "country": row.get("country", "US"),
+            "transaction_date": row.get("transaction_date", "09/12/2026"),
+            "settlement_date": row.get("settlement_date", "09/12/2026"),
+        } for row in additional_receipts)
         financial_columns = [
             "Start Date", "End Date", "UPC", "ISRC/ISBN", "Vendor Identifier",
             "Quantity", "Partner Share", "Extended Partner Share",
             "Partner Share Currency", "Sales or Return", "Apple Identifier",
             "Product Type Identifier", "Country Of Sale",
         ]
-        detail = {
-            "Transaction Date": "09/12/2026", "Settlement Date": "09/12/2026",
-            "Apple Identifier": "fixture-subscription-1", "SKU": "com.fixture.app.ios.yearly.b",
-            "Product Type Identifier": "IAY", "Country of Sale": "JP",
-            "Quantity": detail_quantity, "Partner Share": detail_amount,
-            "Extended Partner Share": detail_amount, "Partner Share Currency": "JPY",
-            "Sale or Return": "S",
-        }
-        detail_columns = list(detail)
+
+        def summary_row(record):
+            return {
+                "Start Date": "08/30/2026", "End Date": "09/26/2026",
+                "UPC": "", "ISRC/ISBN": "", "Vendor Identifier": record["sku"],
+                "Quantity": record["summary_quantity"],
+                "Partner Share": record["summary_amount"],
+                "Extended Partner Share": record["summary_amount"],
+                "Partner Share Currency": record["currency"], "Sales or Return": "S",
+                "Apple Identifier": record["subscription_id"],
+                "Product Type Identifier": record["product_type"],
+                "Country Of Sale": record["country"],
+            }
+
+        detail_rows = [{
+            "Transaction Date": record["transaction_date"],
+            "Settlement Date": record["settlement_date"],
+            "Apple Identifier": record["subscription_id"], "SKU": record["sku"],
+            "Product Type Identifier": record["product_type"],
+            "Country of Sale": record["country"],
+            "Quantity": record["detail_quantity"],
+            "Partner Share": record["detail_amount"],
+            "Extended Partner Share": record["detail_amount"],
+            "Partner Share Currency": record["currency"], "Sale or Return": "S",
+        } for record in records]
+        detail_columns = list(detail_rows[0])
 
         def write_tsv(path, columns, rows, *, preamble=(), footer=()):
             with path.open("w", encoding="utf-8", newline="") as stream:
@@ -206,7 +236,8 @@ class CapafyMobileAttributionTest(unittest.TestCase):
 
         financial_bytes = write_tsv(
             financial_path, financial_columns,
-            [summary, *([dict(summary)] if duplicate_summary else [])],
+            [*[summary_row(record) for record in records],
+             *([summary_row(records[0])] if duplicate_summary else [])],
             footer=(
                 ("Total_Rows", "1"),
                 ("Country Of Sale", "End Date", "UPC", "ISRC/ISBN", "Vendor Identifier"),
@@ -214,7 +245,7 @@ class CapafyMobileAttributionTest(unittest.TestCase):
             ),
         )
         detail_bytes = write_tsv(
-            detail_path, detail_columns, [detail],
+            detail_path, detail_columns, detail_rows,
             preamble=(
                 ("Start Date", "End Date"),
                 ("Report Date", "2026-12"),
@@ -231,28 +262,42 @@ class CapafyMobileAttributionTest(unittest.TestCase):
         detail_gzip = gzip.compress(detail_bytes, mtime=0)
         financial_gzip_path.write_bytes(financial_gzip)
         detail_gzip_path.write_bytes(detail_gzip)
-        relationships = {
-            "links": {
-                "self": (
+        app_ids = list(dict.fromkeys(
+            [record["app_id"] for record in records] + list(empty_relation_app_ids)
+        ))
+        relationship_artifacts = []
+        for app_index, app_id in enumerate(app_ids, start=1):
+            app_records = [record for record in records if record["app_id"] == app_id]
+            subscription_rows = ([{
+                "id": record["subscription_id"], "type": "subscriptions",
+            } for record in app_records] if include_mapping else [])
+            relationships = {
+                "links": {"self": (
                     "https://api.appstoreconnect.apple.com/v1/apps/"
-                    f"{relation_app_id}/subscriptionGroups?limit=200"
-                ),
-            },
-            "data": [{
-                "id": "fixture-group-1", "type": "subscriptionGroups",
-                "relationships": {"subscriptions": {"data": ([{
-                    "id": "fixture-subscription-1", "type": "subscriptions",
-                }] if include_mapping else [])}},
-            }],
-            "included": ([{
-                "id": "fixture-subscription-1", "type": "subscriptions",
-                "attributes": {"productId": "com.fixture.app.ios.yearly.b"},
-            }] if include_mapping else []),
-        }
-        relationship_bytes = json.dumps(
-            relationships, sort_keys=True, separators=(",", ":"),
-        ).encode()
-        relationships_path.write_bytes(relationship_bytes)
+                    f"{app_id}/subscriptionGroups?limit=200"
+                )},
+                "data": ([{
+                    "id": f"fixture-group-{app_index}", "type": "subscriptionGroups",
+                    "relationships": {"subscriptions": {"data": subscription_rows}},
+                }] if app_records else []),
+                "included": ([{
+                    "id": record["subscription_id"], "type": "subscriptions",
+                    "attributes": {"productId": record["sku"]},
+                } for record in app_records] if include_mapping else []),
+            }
+            relationship_bytes = json.dumps(
+                relationships, sort_keys=True, separators=(",", ":"),
+            ).encode()
+            relationships_path = directory / f"relationships-{app_index}.json"
+            relationships_path.write_bytes(relationship_bytes)
+            relationship_artifacts.append({
+                "artifact_path": str(relationships_path),
+                "artifact_sha256": hashlib.sha256(relationship_bytes).hexdigest(),
+            })
+        relationship_bundle = (
+            relationship_artifacts[0] if len(relationship_artifacts) == 1
+            else {"artifacts": relationship_artifacts}
+        )
 
         def metadata(report_type, region_code, path, payload):
             return {
@@ -284,11 +329,21 @@ class CapafyMobileAttributionTest(unittest.TestCase):
                 "artifact_sha256": detail_sha,
                 "period": {"start": "08/30/2026", "end": detail_period_end},
             },
-            "relationships": {
-                "artifact_path": str(relationships_path),
-                "artifact_sha256": hashlib.sha256(relationship_bytes).hexdigest(),
-            },
+            "relationships": relationship_bundle,
         }
+
+    @staticmethod
+    def rewrite_relationship_artifacts(packet, mutate):
+        relationships = packet["relationships"]
+        artifacts = relationships.get("artifacts", [relationships])
+        artifact = artifacts[0]
+        path = Path(artifact["artifact_path"])
+        payload = json.loads(path.read_text())
+        mutate(payload)
+        raw = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+        path.write_bytes(raw)
+        artifact["artifact_sha256"] = hashlib.sha256(raw).hexdigest()
+        return artifacts
 
     def test_mobile_financial_packet_emits_one_replay_stable_receipt_and_gap(self):
         module = self.require_adapter()
@@ -372,6 +427,95 @@ class CapafyMobileAttributionTest(unittest.TestCase):
                     and row["coverage_state"] == "gap"
                     for row in records
                 ))
+
+    def test_mobile_financial_packet_maps_multiple_app_relationship_artifacts(self):
+        module = self.require_adapter()
+        additional_receipts = ({
+            "app_id": "6759667221",
+            "subscription_id": "fixture-subscription-2",
+            "sku": "com.fixture.honne.monthly",
+            "currency": "USD",
+            "amount": "9.99",
+            "country": "US",
+        },)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            packet = self.make_mobile_financial_packet(
+                temp_dir,
+                additional_receipts=additional_receipts,
+                empty_relation_app_ids=("6760253231",),
+            )
+            records = module.adapt_mobile_financial_packet(
+                packet, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+            )
+
+        receipts = {row["currency"]: row for row in records
+                    if row["record_type"] == "receipt"}
+        self.assertEqual(set(receipts), {"JPY", "USD"})
+        self.assertEqual(receipts["JPY"]["components"], [{
+            "category": "settled_external_revenue", "amount": "4250",
+        }])
+        self.assertEqual(receipts["USD"]["components"], [{
+            "category": "settled_external_revenue", "amount": "9.99",
+        }])
+        artifacts = packet["relationships"]["artifacts"]
+        self.assertEqual(len(artifacts), 3)
+        self.assertIn(
+            f"appstoreconnect://subscription-relationships/sha256/{artifacts[0]['artifact_sha256']}#data/1",
+            receipts["JPY"]["evidence_refs"],
+        )
+        self.assertIn(
+            f"appstoreconnect://subscription-relationships/sha256/{artifacts[1]['artifact_sha256']}#data/1",
+            receipts["USD"]["evidence_refs"],
+        )
+        self.assertNotIn(
+            f"appstoreconnect://subscription-relationships/sha256/{artifacts[1]['artifact_sha256']}#data/1",
+            receipts["JPY"]["evidence_refs"],
+        )
+        self.assertTrue(all(row["product_loop_id"] == "mobile-apps"
+                            for row in receipts.values()))
+
+    def test_mobile_financial_relationship_bundle_rejects_duplicate_subscription_ids(self):
+        module = self.require_adapter()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            packet = self.make_mobile_financial_packet(
+                temp_dir,
+                additional_receipts=({
+                    "app_id": "6759667221",
+                    "subscription_id": "fixture-subscription-1",
+                    "sku": "com.fixture.app.ios.yearly.b",
+                    "currency": "USD",
+                    "amount": "9.99",
+                },),
+            )
+            with self.assertRaisesRegex(ValueError, "subscription_relationship_duplicate"):
+                module._asc_subscription_mapping(packet["relationships"]["artifacts"], None)
+
+    def test_mobile_financial_relationship_rejects_subscription_in_multiple_groups(self):
+        module = self.require_adapter()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            packet = self.make_mobile_financial_packet(temp_dir)
+            artifacts = self.rewrite_relationship_artifacts(
+                packet,
+                lambda payload: payload["data"].append({
+                    "id": "fixture-group-duplicate", "type": "subscriptionGroups",
+                    "relationships": {"subscriptions": {"data": [{
+                        "id": "fixture-subscription-1", "type": "subscriptions",
+                    }]}},
+                }),
+            )
+            with self.assertRaisesRegex(ValueError, "subscription_relationship_duplicate"):
+                module._asc_subscription_mapping(artifacts, None)
+
+    def test_mobile_financial_relationship_rejects_duplicate_included_subscription(self):
+        module = self.require_adapter()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            packet = self.make_mobile_financial_packet(temp_dir)
+            artifacts = self.rewrite_relationship_artifacts(
+                packet,
+                lambda payload: payload["included"].append(dict(payload["included"][0])),
+            )
+            with self.assertRaisesRegex(ValueError, "subscription_relationship_duplicate"):
+                module._asc_subscription_mapping(artifacts, None)
 
     def test_collect_b7_financial_packet_uses_official_receipt_without_legacy_asc_rows(self):
         module = self.require_adapter()

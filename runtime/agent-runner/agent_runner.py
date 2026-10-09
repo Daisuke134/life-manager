@@ -1866,7 +1866,11 @@ def run() -> int:
         result_fresh = result_path.is_file() and result_path.stat().st_mtime_ns >= attempt_started_ns
         schema_valid = False
         schema_errors: list[str] = []
-        if result_fresh and (rc == 0 or (provider == "codex" and timed_out)):
+        if (result_fresh and capture_context is not None
+                and result_path.stat().st_size > capture_context["policy"].structured_record_max_bytes):
+            capture_error = "result_oversized"
+            schema_errors = ["result exceeds the owner structured record limit"]
+        if result_fresh and capture_error is None and (rc == 0 or (provider == "codex" and timed_out)):
             try:
                 result = parse_contract_result(result_path.read_text(encoding="utf-8"))
                 schema_errors = validate_schema(result, schema)
@@ -1879,7 +1883,8 @@ def run() -> int:
         stdout_text = stdout_path.read_text(encoding="utf-8", errors="replace")
         stderr_text = stderr_path.read_text(encoding="utf-8", errors="replace")
         if capture_context is not None and not (codex_prelaunch_auth_missing or codex_prelaunch_home_busy):
-            stdout_text, stderr_text, capture_error = read_provider_capture(capture_context["root"])
+            stdout_text, stderr_text, stream_error = read_provider_capture(capture_context["root"])
+            capture_error = capture_error or stream_error
             storage_error = storage_error or capture_context.get("storage_failure")
         usage = extract_provider_usage(provider, stdout_text, model=effective_candidate.get("model"))
         if codex_prelaunch_auth_missing:

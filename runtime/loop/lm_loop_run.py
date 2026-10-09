@@ -896,7 +896,7 @@ def _verified_no_effect_result(path: Path, loop_id: str, occurrence_id: str,
                                entrypoint: str) -> tuple[str, str] | None:
     if entrypoint not in NO_EFFECT_RESULT_HINT_ENTRYPOINTS:
         return None
-    allowed_reasons = ({"setup_required", "no_due_slot"}
+    allowed_reasons = ({"setup_required", "no_due_slot", "render_not_ready"}
                        if entrypoint == "apps/life-manager/scripts/ebook-distribute-daily.sh"
                        else {"no_due_slot", "daily_limit_reached"})
     value = _read_private_result_hint(path)

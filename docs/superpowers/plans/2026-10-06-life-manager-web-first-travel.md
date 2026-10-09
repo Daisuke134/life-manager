@@ -39,13 +39,21 @@ Reason: after the 15 Web migrations, staging still lacked the ask ledger used by
 
 Old next order: finish Composio cost basis → accessible Google E2E → Stripe trial lifecycle → direct public CTA → Cloud marketing.
 
-New next order: direct CTA handoff through the existing Web OAuth/Calendar path → finish Composio account plan/usage attribution → Google E2E with Dais’s already-authorized existing account (no new login or account switch) → Stripe trial lifecycle → Cloud marketing.
+New next order: finish Composio account plan/flat-fee and usage attribution → real OAuth/Calendar E2E through an already-authenticated existing session only (no new login or account switch) → Stripe trial lifecycle → Cloud marketing. WB-14 is complete.
 
 Ruling: the live marketing CTA currently sends a visitor to Railway `/lm`, which presents the same “Google Calendarに接続” action again. The approved direct path is `/lm?start_calendar=1`; signed-out requests record the existing landing event and redirect to `/auth/google`, and the OAuth callback already resumes Calendar consent automatically. This is a route-only simplification using the existing exact-tenant Composio flow and first-touch UTM handling. Cost if wrong: a user may reach Google sign-in and abandon, but the direct target is the same auth route already behind the current second click; no Calendar read/write or charge occurs before consent/Checkout. Keep campaigns and recurring publication gated on successful real E2E.
 
 Account boundary readback: Dais explicitly authorizes E2E with his existing Google account and forbids another login or account switch. The two registered Google-bearing browser contexts checked on 2026-10-09 displayed Google's sign-in page; neither showed the named existing account. No login, switch, consent, or Calendar access occurred. This describes only those checked contexts, not every device/session. Continue real E2E only through an already-authenticated existing session; do not create an account or initiate sign-in.
 
-**Task 13: Direct Calendar CTA handoff** is added below the source tasks and is the current source cursor.
+Task 13 is complete. Current cursor: WB-06/07 real OAuth/Calendar E2E through a reachable already-authenticated existing session only; no login or account switch. Then WB-13 Stripe TEST lifecycle, WB-12 fixed-plan billing evidence before WB-15 marketing, and WB-16/17 revenue and profit gates. Reuse the existing Google OAuth callback, Composio Calendar connection, and shared Travel owner; do not add another connector, scheduler, or tenant system. WB-12 project-usage and funnel readbacks are recorded. The fixed plan fee remains unknown; that uncertainty does not block E2E or Stripe TEST.
+
+### Execution order update — 2026-10-09 — Project usage does not expose the fixed plan fee
+
+Old next order: resolve the exact Composio account plan/flat fee → real Web OAuth/Calendar E2E → Stripe lifecycle → Cloud marketing.
+
+New next order: real OAuth/Calendar E2E through the reachable existing session only (no login or account switch) → Stripe TEST lifecycle → resolve the Composio fixed fee from an official account billing record before marketing/profit readback.
+
+Reason: the corrected official project usage query reports 7,959 tool calls / USD 0 instant charge and is project-scoped; Railway has no organization API key across its service/environment inventory. This missing fixed-fee evidence does not prevent testing the existing Web OAuth/Calendar path or Stripe TEST lifecycle. Do not infer zero total vendor cost and do not start paid marketing or claim profitability until the fixed fee is reconciled. Continue to reuse the existing Telegram/Web Composio connector and shared Travel owner.
 
 ### Execution order update — 2026-10-08 — Source-only iMessage work while Google identity search remains open
 
@@ -302,7 +310,7 @@ Vercel Chat SDK is the OSS toolkit that most closely matches “one agent across
 - [ ] Step 2: Verify the deployed SHA and report authenticated OAuth, Calendar write, Stripe test/live evidence, provider cost, subscription count and MRR separately. Expected: no claim of authenticated production E2E from signed-out reads or synthetic tests.
 - [ ] Step 3: Update the canonical SSOT cursor and plan evidence; leave `WB-16` active until Stripe-verified $10K MRR is actually reached.
 
-### Task 13: Direct Calendar CTA handoff (WB-14)
+### Task 13: Direct Calendar CTA handoff (WB-14) — complete
 
 **Goal:** A visitor's one “Connect Google Calendar” click enters the existing verified auth-start route without a second app-page click. The signed-out `/lm?start_calendar=1` request records the app landing event and redirects to `/auth/google` with allowlisted UTM values. Authenticated Web users keep the existing automatic Calendar start. No auth provider, OAuth scope, Calendar adapter, price, trial, or billing behavior changes.
 
@@ -317,9 +325,11 @@ Vercel Chat SDK is the OSS toolkit that most closely matches “one agent across
 
 **Expected:** public primary CTA needs one click before Google consent; `landing_view` and `google_connect_start` remain attributable; no Calendar data read/write occurs before Google grants permission. The authenticated callback continues to existing Composio consent and the automatic Travel flow.
 
+**Production acceptance:** PR #7318 merged as `be290d12641dce01966fb1c3e98e7df8376e300c`; Railway production deployment succeeded and `/health` reports that SHA. A tagged cookie-less GET to `/lm?start_calendar=1` returned HTTP 302 to `/auth/google` with only allowlisted UTM values, and the redirect was not followed. PR #429 merged as `e5455fc13b58162e378032c7eb184d295e5a4573`; Netlify workflow `37870828603` passed build, deploy, and post-deploy smoke. `crwl` readback confirms the live CTA points directly to `/lm?start_calendar=1`. No login, Calendar access, or payment occurred.
+
 ### After this source plan
 
-The public `/lm` page and production retry path are live. PR #6995 deployed the OAuth tenant-isolation fix and Safari callback-download fix. The no-code callback readback proves failure recovery only; a successful Google callback and Calendar consent through a dedicated test identity are still unverified.
+The public `/lm` page and production retry path are live. PR #6995 deployed the OAuth tenant-isolation fix and Safari callback-download fix. The no-code callback readback proves failure recovery only; a successful Google callback, Calendar consent/write, and Stripe trial are still unverified. The two registered Google-bearing browser contexts checked on 2026-10-09 showed sign-in pages; no existing authenticated session was reachable there. Do not log in or switch accounts; continue only through a reachable already-authenticated session. A Playwright CDP click attempt timed out before page navigation, so the live page CTA and signed-out 302 were verified separately without following OAuth.
 
 **Telegram baseline read from source:** `/start` offers a Calendar connection link; the automatic scheduler's travel tick invokes the shared Travel owner every 30 minutes; the ask engine can ask Telegram-linked users whether an event is online/in-person or ask for a missing location. There is no user-operated scan step in that flow. The Telegram-specific home-address and optional phone/call prompts are not copied into the one-action Web entry. Telegram's `/subscribe` command opens its configured Stripe Payment Link; the Web keeps the owner-specified seven-day card-required trial and existing $29/month offer.
 

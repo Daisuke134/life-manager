@@ -98,7 +98,13 @@ class PublicationLedgerTest(unittest.TestCase):
             env = root / ".env"
             env.write_text("POSTIZ_API_KEY=test-only\n", encoding="utf-8")
             products, accounts = binding_registries(root)
-            with mock.patch.object(ledger, "fetch_postiz_posts", return_value=[value]):
+            with (
+                mock.patch.object(
+                    ledger, "utc_now",
+                    return_value=dt.datetime(2026, 8, 5, 12, tzinfo=dt.timezone.utc),
+                ),
+                mock.patch.object(ledger, "fetch_postiz_posts", return_value=[value]),
+            ):
                 result = ledger.main([
                     "--days", "8",
                     "--env-file", str(env),
@@ -132,6 +138,10 @@ class PublicationLedgerTest(unittest.TestCase):
             env.write_text("POSTIZ_API_KEY=test-only\n", encoding="utf-8")
             products, accounts = binding_registries(root)
             with (
+                mock.patch.object(
+                    ledger, "utc_now",
+                    return_value=dt.datetime(2026, 8, 5, 12, tzinfo=dt.timezone.utc),
+                ),
                 mock.patch.object(ledger, "fetch_postiz_posts", return_value=[value]),
                 mock.patch.object(
                     ledger,

@@ -1268,6 +1268,13 @@ def test_control_plane_safety_loops_bypass_data_plane_admission(tmp_path):
             "status": "pass",
         }
 
+def test_cleanup_control_caller_passes_the_real_occurrence_to_receipt_writer(tmp_path):
+    entry = {"cadence":{"start_interval_seconds":300}, "provider_route":"deterministic"}
+    with patch("runtime.loop.lm_loop_run._run_entrypoint_with_stderr_capture",return_value=(0,b"")) as capture:
+        _run_admitted(["/bin/true"],entry,"life-manager-disk-cleanup",{},tmp_path/"receipt",
+                      occurrence_id="life-manager-disk-cleanup:scheduled-1")
+    assert capture.call_args.kwargs["env"]["LIFE_MANAGER_OCCURRENCE_ID"] == "life-manager-disk-cleanup:scheduled-1"
+
 
 def test_exempt_entrypoints_receive_native_occurrence_without_inheriting_foreign_context(tmp_path):
     cases = [
@@ -2005,7 +2012,17 @@ def test_verified_no_effect_result_requires_exact_identity_and_allowed_entrypoin
         'lm-no-effect://ebook-ja-tiktok-daily/ebook-ja-tiktok-daily:run-off-slot/no_due_slot',
     )
     assert reader(hint, 'ebook-ja-tiktok-daily',
-                 'ebook-ja-tiktok-daily:run-off-slot', entrypoint) == expected
+                  'ebook-ja-tiktok-daily:run-off-slot', entrypoint) == expected
+    english_owner = 'ebook-en-tiktok-daily'
+    english_occurrence = f'{english_owner}:render-run-1'
+    _write_no_effect_result(
+        hint, owner_id=english_owner, occurrence_id=english_occurrence,
+        reason='render_not_ready',
+    )
+    assert reader(hint, english_owner, english_occurrence, entrypoint) == (
+        'not_applicable',
+        f'lm-no-effect://{english_owner}/{english_occurrence}/render_not_ready',
+    )
     _write_no_effect_result(hint, schema_version=True)
     assert reader(hint, 'ebook-ja-tiktok-daily',
                   'ebook-ja-tiktok-daily:run-off-slot', entrypoint) is None

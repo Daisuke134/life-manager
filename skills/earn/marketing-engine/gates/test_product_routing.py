@@ -4,6 +4,7 @@ import tempfile
 import unittest
 import subprocess
 
+from ebook_packs import load_ebook_packs
 from product_router import RoutingError, canonical_product_id, load_registry
 from variation import create_plan, eligible_hooks
 
@@ -77,13 +78,26 @@ class ProductRegistryTest(unittest.TestCase):
         expected_provider = {
             "instagram.anicca_en": "instagram-standalone",
             "instagram.anicca_encards": "instagram-standalone",
+            "instagram.anicca_ios": "instagram-standalone",
+            "instagram.anicca_ios_jp": "instagram-standalone",
+            "instagram.anicca_jp_videos": "instagram-standalone",
+            "instagram.ani_cca1234": "instagram-standalone",
+            "instagram.monk_anicca": None,
             "instagram.obou_anicca": "instagram-standalone",
+            "tiktok.anicca_buddha": "tiktok",
+            "tiktok.anicca_he": "tiktok",
+            "tiktok.anicca_jp1": "tiktok",
+            "tiktok.anicca_jp4": "tiktok",
+            "tiktok.anicca_slideshow": "tiktok",
             "tiktok.anicca_jp": "tiktok",
+            "tiktok.aniccaaffirmation": "tiktok",
+            "tiktok.aniccaen2": "tiktok",
             "tiktok.honne_reveal": "tiktok",
             "tiktok.honnevideo": "tiktok",
             "tiktok.monk_anicca": "tiktok",
             "tiktok.obou_anicca": "tiktok",
             "youtube.anicca_ai": "youtube",
+            "youtube.life_manager_m4p": "youtube",
         }
         self.assertEqual({key: row["publisher_provider"]
                           for key, row in registry.accounts.items()}, expected_provider)
@@ -128,6 +142,10 @@ class ProductRegistryTest(unittest.TestCase):
                 self.assertEqual(account["product_id"], "ebook-ja")
             if "heygen-avatar-iv" in formats:
                 self.assertEqual(account["product_id"], "ebook-en")
+
+    def test_english_ebook_pack_uses_two_daily_slots(self):
+        packs = load_ebook_packs(ENGINE)
+        self.assertEqual(packs["ebook-en-anicca-monk"]["slots_jst"], ["08:00", "21:00"])
 
 
 class VariationPlanTest(unittest.TestCase):

@@ -304,8 +304,10 @@ def publish(
         _cdp(["focus", tid], cdp_host=cdp_host, cdp_port=cdp_port)
         _ensure_logged_in(tid, cdp_host=cdp_host, cdp_port=cdp_port, creds=creds)
 
-        poster = POST_REEL_PY if POST_REEL_PY.is_file() else POST_REEL_PYC
-        interpreter = PY3 if poster == POST_REEL_PY else PY314
+        # post_reel_patient runs the same post_reel but holds the post-share navigation until
+        # 「シェア中」 clears; the stock poll cancels a slow upload (see its docstring).
+        poster = Path(__file__).with_name("post_reel_patient.py")
+        interpreter = PY314 if not POST_REEL_PY.is_file() else PY3
         args = [interpreter, str(poster), "--video", str(video), "--caption-file", str(caption_file),
                 "--handle", handle, "--tid", tid]
         if live:
@@ -318,7 +320,8 @@ def publish(
         # A 180s subprocess timeout killed a confirmed-live run here on 2026-10-07
         # (TimeoutExpired fired after シェア had already been clicked -- the reel
         # published on Instagram's side, but this process never saw the receipt and
-        # crashed instead of returning it). 540s covers the measured worst case with
+        # crashed instead of returning it). 720s = that 540s plus the up-to-150s post_reel_patient wait for
+        # 「シェア中」 to clear before the poll navigates away, with
         # headroom.
         stop = threading.Event()
         watcher = threading.Thread(
@@ -327,7 +330,7 @@ def publish(
         )
         watcher.start()
         try:
-            done = subprocess.run(args, capture_output=True, text=True, timeout=540, env=env)
+            done = subprocess.run(args, capture_output=True, text=True, timeout=720, env=env)
         finally:
             stop.set()
             watcher.join(timeout=5)

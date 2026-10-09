@@ -132,6 +132,9 @@ class CodexProfileBoundaryTest(unittest.TestCase):
                 if behavior == "storage_full":
                     import errno
                     raise OSError(errno.ENOSPC, "fixture storage write")
+                if behavior == "oversized_result":
+                    completion_path.write_text(json.dumps({"ok":True,"payload":"x"*256}))
+                    return 0
                 if behavior == "success":
                     if provider == "codex":
                         completion_path.write_text('{"ok":true}', encoding="utf-8")
@@ -222,6 +225,18 @@ class CodexProfileBoundaryTest(unittest.TestCase):
         self.assertEqual(len(calls), 1)
         self.assertIsNone(attempts[0]["storage_failure"]["effect_started"])
         self.assertEqual(attempts[0]["error_class"], "storage_write_failed_effect_unknown")
+
+    def test_bound_native_result_file_limit_is_checked_before_parse(self):
+        from dataclasses import replace
+        real = agent_runner.load_storage_policy
+        with mock.patch.object(agent_runner,"load_storage_policy",
+                side_effect=lambda path, owner: replace(real(path,owner), structured_record_max_bytes=64)):
+            status, calls, attempts, _ = self._run_candidate_fixture(
+                {("codex","acct1"):"oversized_result",("codex","acct2"):"success"},
+                False,return_records=True,bounded=True)
+        self.assertNotEqual(status,0)
+        self.assertEqual(len(calls),1)
+        self.assertEqual(attempts[0]["error_class"],"result_oversized")
 
     def test_escalation_route_is_codex_only(self):
         config = json.loads((ROOT / "config.json").read_text())

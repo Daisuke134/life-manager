@@ -1348,6 +1348,25 @@ def test_existing_paid_waiter_upgrades_priority_without_resetting_queue_age(
     assert admission.release_and_reserve(running, now=201) == ["paid"]
 
 
+def test_distribution_waiter_does_not_demote_to_critical_paid_using_current_rank_map(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    admission.enqueue_durable(
+        "agent", "paid", admission_class="revenue",
+        priority="distribution", now=100,
+    )
+    admission.enqueue_durable(
+        "agent", "paid", admission_class="revenue",
+        priority="critical_paid", now=200,
+    )
+
+    paid = next(row for row in durable_rows(tmp_path, "priorities")
+                if row["owner_id"] == "paid")
+    assert paid["base_priority"] == "distribution"
+    assert paid["queued_at"] == 100
+
+
 def test_running_paid_owner_upgrades_its_queued_next_wake(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="1")
     admission.activate_durable_v2()
@@ -2597,7 +2616,7 @@ def test_revenue_priority_applies_across_resource_classes(tmp_path, monkeypatch)
     ]
 
 
-def test_distribution_calendar_owner_preempts_aged_revenue_pollers(
+def test_aged_revenue_preempts_fresh_distribution_after_30m(
         tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="1")
     admission.activate_durable_v2()
@@ -2619,6 +2638,44 @@ def test_distribution_calendar_owner_preempts_aged_revenue_pollers(
 
     assert ticket is not None
     assert admission.reserve_available(now=2001, lease_seconds=30) == [
+        "lancers-revenue-application"
+    ]
+
+
+def test_fresh_distribution_preempts_fresh_revenue(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    admission.enqueue_durable(
+        "agent", "lancers-revenue-application", admission_class="revenue",
+        priority="revenue", now=1900,
+    )
+    ticket, _ = admission.enqueue_durable(
+        "agent", "mobile-calendar-publisher", admission_class="revenue",
+        priority="distribution", now=2000,
+    )
+
+    assert ticket is not None
+    assert admission.reserve_available(now=2001, lease_seconds=30) == [
+        "mobile-calendar-publisher"
+    ]
+
+
+def test_fresh_distribution_preempts_fresh_critical_paid(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    admission.enqueue_durable(
+        "agent", "mobile-calendar-publisher", admission_class="revenue",
+        priority="distribution", now=2000,
+    )
+    ticket, _ = admission.enqueue_durable(
+        "agent", "crowdworks-revenue-paid", admission_class="revenue",
+        priority="critical_paid", now=2001,
+    )
+
+    assert ticket is not None
+    assert admission.reserve_available(now=2002, lease_seconds=30) == [
         "mobile-calendar-publisher"
     ]
 
@@ -3384,6 +3441,45 @@ def test_postiz_no_dispatch_proof_is_rejected_without_an_integration_or_with_the
     assert (row["state"], row["effect_unknown"]) == ("claimed", 1)
 
 
+def test_unknown_article_daily_occurrence_can_close_with_historical_gate_stop_proof(
+        tmp_path, monkeypatch):
+    owner = "article-daily"
+    occurrence = _fenced_growth_occurrence(tmp_path, monkeypatch, owner, "writer-gate-stop")
+    proof = {
+        "owner_id": owner,
+        "occurrence_id": occurrence,
+        "verified": True,
+        "proof_type": "historical_writer_gate_stop_no_dispatch",
+        "provider": "writer",
+        "runtime_run_id": "18dcb160db0ac660-67443",
+        "evidence_ref": "writer://fence-reconciliation/article-daily-writer-gate-stop.json",
+    }
+
+    assert admission.resolve_historical_no_dispatch_occurrence(
+        owner, occurrence, no_dispatch_proof=lambda: proof) is True
+    row = next(item for item in durable_rows(tmp_path, "occurrences")
+               if item["occurrence_id"] == occurrence)
+    assert (row["state"], row["effect_unknown"]) == ("released", 0)
+
+
+def test_historical_writer_gate_stop_proof_requires_a_bound_runtime_run_id(
+        tmp_path, monkeypatch):
+    owner = "article-daily"
+    occurrence = _fenced_growth_occurrence(tmp_path, monkeypatch, owner, "writer-gate-stop-unbound")
+    proof = {
+        "owner_id": owner,
+        "occurrence_id": occurrence,
+        "verified": True,
+        "proof_type": "historical_writer_gate_stop_no_dispatch",
+        "provider": "writer",
+        "evidence_ref": "writer://fence-reconciliation/unbound.json",
+    }
+
+    assert admission.resolve_historical_no_dispatch_occurrence(
+        owner, occurrence, no_dispatch_proof=lambda: proof) is False
+    row = next(item for item in durable_rows(tmp_path, "occurrences")
+               if item["occurrence_id"] == occurrence)
+    assert (row["state"], row["effect_unknown"]) == ("claimed", 1)
 def test_critical_paid_waiting_past_its_age_limit_outranks_fresh_distribution(
         tmp_path, monkeypatch):
     """2026-10-09: distribution outranks critical_paid, and ~70 posting loops kept the two agent slots

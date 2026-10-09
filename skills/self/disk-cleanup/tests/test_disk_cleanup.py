@@ -1,5 +1,6 @@
 import errno
 import json
+import tempfile
 import os
 import signal
 import stat
@@ -1596,6 +1597,42 @@ def test_closed_browser_clone_with_source_named_dependency_is_reclaimed(
     assert result["reclaimed"] == 32
 
 
+def test_discover_and_sweep_allowlisted_tmp_cache_when_gettempdir_probe_fails(
+    tmp_path: Path, monkeypatch
+) -> None:
+    with tempfile.TemporaryDirectory(prefix="lm-readonly-temp-probe-", dir="/tmp") as directory:
+        temporary = Path(directory)
+        candidate = temporary / "capafy-hf-npm.no-tempfile-probe"
+        candidate.mkdir(parents=True)
+        (candidate / "payload").write_bytes(b"x" * 64)
+        os.utime(candidate, (1, 1))
+        monkeypatch.setenv("TMPDIR", str(temporary))
+
+        def no_writable_temporary_directory() -> str:
+            raise FileNotFoundError("No usable temporary directory found")
+
+        monkeypatch.setattr(
+            disk_cleanup.tempfile, "gettempdir", no_writable_temporary_directory
+        )
+        governor = HostDiskGovernor(
+            home=tmp_path,
+            state_dir=tmp_path / "state",
+            lsof=lambda _path: "confirmed-closed",
+            usage=lambda: (0, 1),
+        )
+
+        candidates = [
+            item for item in governor.discover_candidates()
+            if item.get("owner") == "temporary-run"
+        ]
+        assert [Path(item["path"]) for item in candidates] == [candidate]
+
+        result = governor.sweep(candidates, write_receipt=False)
+
+        assert not candidate.exists()
+        assert result["reclaimed"] == 64
+
+
 def test_discover_candidates_uses_darwin_user_temp_when_tmpdir_unset(
     tmp_path: Path, monkeypatch, request
 ) -> None:
@@ -2617,10 +2654,7 @@ def test_cursor_mkstemp_enospc_keeps_sweeping_and_last_receipt_uses_reserve(
     assert sweep_calls == [1]
     assert candidate.exists()
     assert result["protected_deletions"] == 0
-    # Cursor failure remains diagnostic; an unmet capacity metric is not a
-    # failed cleanup occurrence under the current no-floor contract.
     assert result["ok"] is True
-    assert result["capacity_recovery"]["status"] == "unmet"
     cursor = result["candidate_rotation"]["cursor_persistence"]
     assert cursor["status"] == "failed"
     assert cursor["errors"][0] == {
@@ -2692,7 +2726,7 @@ def test_cursor_enospc_preserves_terminal_reserve_and_reports_postcommit_enospc(
     tmp_path: Path, monkeypatch, capsys
 ) -> None:
     governor, state, candidate, sweep_calls = _make_cursor_enospc_governor(
-        tmp_path, monkeypatch, free_bytes=2 * GiB - 1,
+        tmp_path, monkeypatch, free_bytes=12 * GiB,
     )
     reserve = state / ".receipt-reserve"
     governor._receipt_reserve()
@@ -2736,16 +2770,16 @@ def test_cursor_enospc_preserves_terminal_reserve_and_reports_postcommit_enospc(
         "argv",
         ["disk_cleanup.py", "--home", str(tmp_path), "--state-dir", str(state)],
     )
-    assert disk_cleanup.main() == 0
+    assert disk_cleanup.main() == 1
     result = json.loads(capsys.readouterr().out)
 
     assert sweep_calls == [1]
     assert reserve_at_sweep == [True]
     assert candidate.exists()
     assert result["protected_deletions"] == 0
-    assert result["free_after"] == 2 * GiB - 1
-    assert result["capacity_recovery"]["status"] == "unmet"
-    assert result["ok"] is True
+    assert result["free_after"] == 12 * GiB
+    assert result["capacity_recovery"]["status"] == "met"
+    assert result["ok"] is False
     assert result["candidate_rotation"]["cursor_persistence"]["errors"][0] == {
         "stage": "before_sweep",
         "error_class": "OSError",
@@ -2753,7 +2787,7 @@ def test_cursor_enospc_preserves_terminal_reserve_and_reports_postcommit_enospc(
         "next_action": "continue_sweep_then_retry_once_after_recovery",
     }
     receipt = json.loads((state / "last-receipt.json").read_text())
-    assert receipt["capacity_recovery"]["status"] == "unmet"
+    assert receipt["capacity_recovery"]["status"] == "met"
     assert receipt["ok"] is True
     assert result["receipt_persistence"] == {
         "status": "committed_reserve_missing",
@@ -3369,6 +3403,11 @@ def test_receipt_carries_loaded_cleanup_identity(tmp_path, monkeypatch):
     saved = json.loads((tmp_path / "state/last-receipt.json").read_text())
     assert saved["identity"] == {"owner_id": "life-manager-disk-cleanup", "run_id": "run-1", "occurrence_id": "life-manager-disk-cleanup:run-1", "release_sha": "a" * 40}
     assert payload["identity"] == saved["identity"]
+    monkeypatch.delenv("LIFE_MANAGER_RUN_ID")
+    monkeypatch.delenv("LIFE_MANAGER_OCCURRENCE_ID")
+    governor._receipt({"free_after": 400*1024**2})
+    assert json.loads((tmp_path / "state/last-receipt.json").read_text())["identity"] == saved["identity"]
+    assert "identity" not in json.loads((tmp_path / "state/last-unbound-receipt.json").read_text())
 
 
 def test_governor_reports_growth_and_preservation_reason_without_false_recovery(tmp_path, monkeypatch):

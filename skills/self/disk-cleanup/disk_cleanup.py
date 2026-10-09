@@ -33,6 +33,7 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 if str(REPOSITORY_ROOT) not in sys.path:
     sys.path.insert(0, str(REPOSITORY_ROOT))
 from runtime.loop.central_cleanup import cleanup_run_binding
+from runtime.loop.health import read_storage_snapshot
 if str(REPOSITORY_ROOT) not in sys.path:
     sys.path.insert(0, str(REPOSITORY_ROOT))
 from runtime.loop.loop_cleanup import _release_immutable_store_probe
@@ -125,6 +126,7 @@ def _cleanup_terminal_ok(result: object) -> bool:
         and result.get("protected_deletions") == 0
         and _capacity_recovery(result)["status"] != "unknown"
         and stop_status in {"absent", "cleared"}
+        and result.get("receipt_persistence") is None
     )
 
 
@@ -311,6 +313,46 @@ def _is_code_sign_clone(path: Path) -> bool:
             "org.chromium.Chromium.code_sign_clone",
         }
     )
+
+
+def _readonly_temp_root() -> Path:
+    """Resolve a known temp root without requiring a writable probe file."""
+    try:
+        return Path(tempfile.gettempdir())
+    except OSError as original_error:
+        candidates = (
+            os.environ.get("TMPDIR"),
+            os.environ.get("TMP"),
+            os.environ.get("TEMP"),
+            "/tmp",
+            "/var/tmp",
+            "/usr/tmp",
+        )
+        allowed_roots = [Path("/tmp"), Path("/var/tmp"), Path("/usr/tmp")]
+        if sys.platform == "darwin":
+            allowed_roots.append(Path("/var/folders"))
+        resolved_roots: list[Path] = []
+        for root in allowed_roots:
+            try:
+                resolved_roots.append(root.resolve(strict=True))
+            except OSError:
+                continue
+        for value in candidates:
+            if not value:
+                continue
+            candidate = Path(value).expanduser()
+            if not candidate.is_absolute():
+                continue
+            try:
+                resolved = candidate.resolve(strict=True)
+            except OSError:
+                continue
+            if resolved.is_dir() and any(
+                resolved == root or root in resolved.parents
+                for root in resolved_roots
+            ):
+                return candidate
+        raise original_error
 
 
 @lru_cache(maxsize=1)
@@ -885,8 +927,8 @@ class HostDiskGovernor:
                 _real_directory_fingerprint(self.home, lexical),
             )
             return current == proof
-        temporary_path = Path(tempfile.gettempdir())
         try:
+            temporary_path = _readonly_temp_root()
             resolved = path.resolve()
             temporary = temporary_path.resolve()
         except OSError:
@@ -1138,6 +1180,15 @@ class HostDiskGovernor:
         binding = cleanup_run_binding(dict(os.environ), REPOSITORY_ROOT)
         if binding is not None:
             payload["identity"] = binding
+        elif filename == "last-receipt.json":
+            previous = read_storage_snapshot(self.state_dir)
+            identity = previous.get("identity") if isinstance(previous, dict) else None
+            if (isinstance(identity, dict) and identity.get("owner_id") == "life-manager-disk-cleanup"
+                    and isinstance(identity.get("release_sha"), str)
+                    and re.fullmatch(r"[a-f0-9]{40}", identity["release_sha"])):
+                # A watchdog observation must not erase the scheduler-owned
+                # occurrence proof. Its capacity sample remains separate.
+                filename = "last-unbound-receipt.json"
         payload.setdefault("observed_at", time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
         data = (json.dumps(payload, ensure_ascii=False, sort_keys=True) + "\n").encode("utf-8")
         if len(data) > RECEIPT_PAYLOAD_MAX_BYTES:
@@ -1158,7 +1209,7 @@ class HostDiskGovernor:
         try:
             self._receipt_reserve(recreate=True)
         except OSError as exc:
-            if filename != "last-receipt.json" or exc.errno != errno.ENOSPC:
+            if filename not in {"last-receipt.json", "last-unbound-receipt.json"} or exc.errno != errno.ENOSPC:
                 raise
             return {
                 "status": "committed_reserve_missing",
@@ -1447,7 +1498,7 @@ class HostDiskGovernor:
                                 ),
                             }
                         )
-        temporary = Path(tempfile.gettempdir())
+        temporary = _readonly_temp_root()
         for collection_name in (
             "com.google.Chrome.code_sign_clone",
             "org.chromium.Chromium.code_sign_clone",
@@ -1685,10 +1736,10 @@ class HostDiskGovernor:
         try:
             requested = path.expanduser()
             resolved = requested.resolve()
-            temporary = Path(tempfile.gettempdir()).resolve()
+            temporary = _readonly_temp_root().resolve()
         except OSError:
             resolved = Path(canary_path)
-            temporary = Path(tempfile.gettempdir()).resolve()
+            temporary = _readonly_temp_root().resolve()
             requested = path.expanduser()
         if (
             requested.is_symlink()
