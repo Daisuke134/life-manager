@@ -146,6 +146,37 @@ class LedgerFenceTest(unittest.TestCase):
             ledger.record(ledger_path, f"lane-a-{slot_at}", {"status": "published"})
             self.assertIsNone(distribute.find_due_account(accounts, ledger_path, now))
 
+    def test_a_retry_of_a_failed_slot_posts_different_content(self):
+        """2026-10-09: the 08:15 slot failed three times with the same set-002 and the same clip
+        order, because the set and the clips are chosen from the slot's own key. Posting the same
+        video again and again from a brand-new account is a duplicate for Instagram and a share
+        that never finishes ('シェア中') is the observed result. The seed must change per attempt
+        while the ledger key stays the slot's."""
+        with tempfile.TemporaryDirectory() as tmp:
+            ledger_path = Path(tmp) / "ledger.json"
+            accounts = [{
+                "lane_id": "lane-a", "platform": "instagram", "transport": "browser_reel",
+                "handle": "x", "browser_identity": "instagram:x",
+                "cadence_jst": ["00:00"], "timezone": "UTC",
+            }]
+            from datetime import datetime, timedelta, timezone
+            now = datetime(2026, 10, 7, 12, 0, tzinfo=timezone.utc)
+            slot_at = due_slot.due_slot_iso(now, "UTC", ["00:00"])
+            key = f"lane-a-{slot_at}"
+            first = distribute.find_due_account(accounts, ledger_path, now)
+            self.assertEqual(first[2], key)
+            self.assertEqual(distribute.seed_for(key, {}), key)  # first attempt: unchanged
+            ledger.record(ledger_path, key, {
+                "status": "failed", "attempts": 1, "attempted_at": now.isoformat(),
+            })
+            later = now + timedelta(minutes=distribute.RETRY_COOLDOWN_MINUTES + 1)
+            second = distribute.find_due_account(accounts, ledger_path, later)
+            self.assertEqual(second[2], key)  # the ledger row is still the slot's
+            entry = ledger.load(ledger_path)[key]
+            self.assertNotEqual(distribute.seed_for(key, entry), key)
+            entry2 = dict(entry, attempts=2)
+            self.assertNotEqual(distribute.seed_for(key, entry2), distribute.seed_for(key, entry))
+
     def test_find_due_account_backs_off_after_a_recent_failure(self):
         """Root cause (2026-10-07, @stardust_doubutsu 20:18 JST slot): a
         browser_reel share can hang on Instagram's side and never reconcile
