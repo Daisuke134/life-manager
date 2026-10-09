@@ -9693,7 +9693,7 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 
 **現在cursor:** merge-sync commitを記録/push → #7203 final-head CI/review → merge → reconciler failure + disk writer diagnosis → 2 GiB safe cleanup receipt → natural owner loaded-SHA readback → three loops' official results → post-recovery capacity measurement → bounded local cap or horizontal worker decision.
 
-### 2026-10-09 05:12 JST — English eBook / Monk Instagram current state
+### 2026-10-09 05:12 JST — historical English Monk Instagram readback (superseded below)
 
 - Scope is the English eBook / `@monk_anicca` Instagram route. CAPAFY remains with its separate owner. PR #7194 is merged. Do not fall back to English TikTok or `@anicca.en`.
 - Latest source main is `d0d30b906c68f31f14394ddcf393d7e47a42212a`; `~/loops/current` points to `20261009T051109-d0d30b90`. That release’s `RELEASE.json` confirms SHA `d0d30b906c68f31f14394ddcf393d7e47a42212a`, `ref=origin/main`, `cut_at=2026-10-08T20:11:34Z`. Fresh `lm-loop status ebook-en-instagram-daily` is loaded-idle on installed SHA `8d986ff49817ca7bab939efe8ff5cfe2fb6c0044`, behind the confirmed release SHA. It has no event/occurrence/provider receipt; `effect_status=unknown`, `admission_effect_unknown=false`, and diagnostic is incomplete. Do not read `last_exit=0` as a publish result or replay an unknown effect.
@@ -9706,8 +9706,38 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 
 **順序更新:** 旧cursor=`Hadrian asset/iPhone → SMS/profile → Postiz → owner apply/post → 3 daily posts → net MRR`。新順=`(1) 並行: Daisが選択中iPhoneをMacの近くでunlockしMirroring指示を完了; 別HeyGen workspaceにある場合はHadrian exact ID/MP4を共有 → (2) 通常SMS確認とnative `@monk_anicca` profile readiness → (3) そのprofileをPostizへ接続し、integration IDと`disabled=false`をGETで確認 → (4) matching hold/configだけを更新し、latest-main releaseでEnglish IG ownerだけを反映 → (5) exact Hadrian assetを1度publishし、Postiz `PUBLISHED`・native Reel URL・durable receiptを確認 → (6) 08:00/14:00/21:00 JSTの自然slotを各公式receiptで確認 → (7) paid invoices、refunds、fees、delivery costs、payout/bankを照合しnet MRRを測る。理由は、端末接続、正しいHadrian素材、Instagram連携が未解決で、current ownerにも投稿receiptがないため。
 
-**現在cursor:** iPhoneをMac近くでunlockしMirroring指示を完了すること。並行して別HeyGen workspaceにある場合のHadrian exact ID/MP4を共有すること。Instagram接続・owner反映・公開投稿は正しいprofileとassetを照合した後に行う。CAPAFYは対象外。
+**Historical cursor:** this 05:12 readback is superseded by the current eBook/TikTok cost and TODO entry below. Its iPhone/Hadrian handoff is not a current prerequisite.
 
+### 2026-10-09 09:03 JST — English eBook / Monk TikTok economics (current)
+
+- This supersedes the 05:12 cursor. Scope is the English eBook and Monk Anicca TikTok. Per Dais's instruction, Postiz `state=PUBLISHED` is the posting source of truth; do not add a second-platform readback as a publish gate. No iPhone or “Hadrian” prerequisite. Instagram `@monk.mujo` remains separate.
+- Postiz readback at `2026-10-09T00:02:37Z`: 31 integrations; Monk Anicca TikTok `@monk_anicca` (`cmo5rwq2p00twn10yrsdglng3`) is enabled. The latest matching `PUBLISHED` row is dated `2026-06-06T02:45:00Z`, release ID `p_pub_url~v2.7648107983042218000`; candidate link: `https://www.tiktok.com/@monk_anicca/video/7648107983042218000`. No new post was made in this turn.
+- `ebook-en-tiktok-daily` is `loaded-idle`, but its render fence is `effect_status=unknown` / `render_reconciliation_required`, with `identity_missing_or_invalid` and no provider receipt. Do not replay that render.
+- Stripe read at `2026-10-09T00:02:37Z`: `The Anicca Reset` is an active USD `$10.99` **one-time** price; matching paid Checkout Sessions in the prior 30 days: 0. The Stripe account is JP/JPY. This eBook produces one-time sales, not MRR.
+
+**Cost for 2 posts/day (60 × 15-second renders/month; estimates before retries):**
+
+| Option | Monthly generation cost | Fit |
+|---|---:|---|
+| HeyGen API Avatar III | `$9–$14.85` | Cheapest automated candidate; compare one sample to the current quality bar. |
+| HeyGen API Avatar IV | `$34.65–$72.45` | Current configured renderer; exact avatar billing class is unverified. |
+| HeyGen Creator Web | `$29` | 600 credits covers 15 minutes of Avatar IV (240 Photo Look / 465 Video Look credits); Web credits do not pay for API renders. |
+
+- **Recommendation:** compare one API Avatar III render against the current Avatar IV baseline; use III if it preserves the approved monk/voice and 9:16 1080p quality, otherwise keep IV. Do not buy another plan until the correct HeyGen workspace and current billing are confirmed. Rates: [HeyGen API](https://help.heygen.com/en/articles/10060327-heygen-api-pricing-explained) · [HeyGen Web credits](https://help.heygen.com/en/articles/15125761-heygen-credit-based-pricing-plans-subscriptions-explained).
+- Postiz lists `$29/5 channels`, `$39/10`, `$49/30`, `$99/100`; actual billing tier is not read. The existing plan may make this channel’s marginal Postiz cost `$0`; a new one-channel Standard plan is `$29`. Stripe JP lists 3.6% per successful card payment and +2% if currency conversion is required; there is no monthly Stripe fee. [Postiz](https://postiz.com/pricing) · [Stripe JP](https://stripe.com/jp/pricing).
+- New one-channel Postiz plus generation would total `$38–$43.85/month` with Avatar III or `$63.65–$101.45/month` with Avatar IV. If the current shared Postiz plan already covers this account, add only the generation cost. This excludes transaction fees, refunds, taxes, ads, and unallocated shared hosting/model spend.
+- Revenue scenarios are assumptions, not a forecast; 60 posts/month at `$10.99` one-time: 1,000 views/post × 0.5% click × 1% purchase = 3 sales / `$32.97`; 5,000 × 1% × 2% = 60 / `$659.40`; 20,000 × 1.5% × 3% = 540 / `$5,934.60`. The current Stripe 30-day paid count is 0 and TikTok view data is unavailable. `$10K` gross needs 910 orders/month; at 1% click and 2% checkout conversion that is about 4.55M monthly views. To reach `$10K MRR`, add a recurring offer; this one-time eBook cannot count as MRR.
+
+**Atomic TODO, in order:**
+
+1. Resolve the current HeyGen `unknown` render in the correct workspace using provider readback; keep it fenced until its video ID/cost receipt or authoritative no-create result is known. Do not replay.
+2. Confirm the active Monk Anicca TikTok handle and align it with the existing Postiz integration. Keep the old registry handle until the current account identity is verified.
+3. Compare one same-script Avatar III/IV render; record 9:16/1080p, monk/voice quality, wallet delta, and receipt. Use the cheaper model only if it passes.
+4. Update `config/marketing-destinations.json` and `skills/earn/marketing-engine/registry/ebook-packs/ebook-en-anicca-monk.json` to two slots (`08:00`/`21:00` JST). Keep the existing `/go/<token>` attribution flow; check `test_ebook_distribution_owner.py` and `render_eval/test_heygen_candidate.py`.
+5. Publish through the verified route; accept Postiz `PUBLISHED` as the posted proof. Then run two posts/day and record Postiz receipts, views/clicks, paid orders, refunds, and fees.
+6. If `$10K MRR` remains the goal, define a recurring offer separately; report one-time eBook sales as monthly gross/net sales, not MRR.
+
+**現在cursor:** Step 1 — reconcile the fenced HeyGen render; no retry or new render until its provider result is known.
 ### 2026-10-09 03:50 JST — final Job Hunter source gates pass; host is again 8/8
 
 - PR #7203 source head `a6b3f93268e68bde0f938af05c27623cf95716a3`, base `1f5f016526edea5d279668f0662518d6ab2e8c99`, has all required CI checks PASS in run `37826691755`; fresh read-only review is SHIP with no P0/P1/P2 findings. The remaining PR diff is Job Hunter validation/retry plus its tests/spec; R23/R24 production implementation remains in base main.
