@@ -4,11 +4,14 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import re
 import shutil
 import stat
+import subprocess
 import time
+from contextlib import ExitStack
 from pathlib import Path
 from typing import Callable
 
@@ -190,6 +193,161 @@ def release_is_reclaimed(path: Path) -> bool:
     except OSError:
         return True
     return True
+
+
+def reclaim_release_source(path: Path, source_repo: Path, *,
+                           can_reclaim: Callable[[], bool],
+                           max_bytes: int = 64 * 1024**2, max_files: int = 256,
+                           deadline: float | None = None) -> dict:
+    """Reclaim matching Git code leaves; retain stores and unknown files in place."""
+    result = {"removed_files": 0, "removed_source_bytes": 0, "reclaimed_bytes": 0,
+              "protected_deletions": 0, "errors": 0, "status": "preserved"}
+    deadline = time.monotonic() + 15 if deadline is None else deadline
+    if max_bytes < 1 or max_files < 1 or time.monotonic() >= deadline:
+        return result
+    directories = {"bin", "runtime", "apps", "skills", "lib", "scripts", "services",
+                   "templates", "plugins", "adapters", "integrations"}
+    suffixes = {".py", ".js", ".cjs", ".mjs", ".sh", ".ts", ".tsx", ".jsx",
+                ".css", ".html", ".svg", ".png", ".jpg", ".webp"}
+    sensitive = re.compile(r"credential|secret|cookie|passkey|recovery|auth|session|wallet|payment|receipt|ledger", re.I)
+    flags = os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_NOFOLLOW", 0)
+    root_fd = None
+    root_mode = None
+    def git(*args):
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise subprocess.TimeoutExpired(args, 0)
+        return subprocess.run(["git", "-C", str(source_repo), *args], check=True,
+                              capture_output=True, timeout=min(3, remaining)).stdout
+    def identity(info):
+        return (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
+    try:
+        if can_reclaim() is not True:
+            return result
+        if (path / ".lm-protected").exists() or (path / ".lm-protected").is_symlink():
+            return result
+        before = path.lstat()
+        if not stat.S_ISDIR(before.st_mode) or before.st_uid != os.getuid():
+            return result
+        root_fd = os.open(path, flags)
+        root = os.fstat(root_fd)
+        if (root.st_dev, root.st_ino) != (before.st_dev, before.st_ino):
+            return result
+        root_mode = stat.S_IMODE(root.st_mode)
+        descriptor = "RECLAIMED-RELEASE.json" if release_is_reclaimed(path) else "RELEASE.json"
+        desc_fd = os.open(descriptor, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0), dir_fd=root_fd)
+        try:
+            desc_info = os.fstat(desc_fd)
+            if (not stat.S_ISREG(desc_info.st_mode) or desc_info.st_uid != os.getuid()
+                    or desc_info.st_size > 65536):
+                return result
+            manifest = json.loads(os.read(desc_fd, 65537))
+        finally:
+            os.close(desc_fd)
+        sha = manifest.get("sha")
+        if not isinstance(sha, str) or not re.fullmatch(r"[a-f0-9]{40}", sha):
+            return result
+        try:
+            git("merge-base", "--is-ancestor", sha, "refs/remotes/origin/main")
+        except subprocess.CalledProcessError:
+            return result
+        entries = []
+        for entry in git("ls-tree", "-r", "-l", "-z", sha).split(b"\0"):
+            if not entry:
+                continue
+            header, relative = entry.split(b"\t", 1)
+            mode, kind, oid, size = header.split()
+            name = relative.decode("utf-8")
+            parts = Path(name).parts
+            if (mode not in (b"100644", b"100755") or kind != b"blob"
+                    or not parts or parts[0] not in directories
+                    or Path(name).suffix not in suffixes
+                    or any(p in {"memory", "state", "private", "identity", ".cloak", "node_modules", ".git"}
+                           or p.startswith(".env") or sensitive.search(p) for p in parts)):
+                continue
+            entries.append((int(size), name, oid.decode()))
+        for size, name, oid in sorted(entries, reverse=True):
+            if time.monotonic() >= deadline or result["removed_files"] >= max_files:
+                break
+            if size > max_bytes - result["removed_source_bytes"]:
+                continue
+            parts = Path(name).parts
+            with ExitStack() as stack:
+                parent_fd = root_fd
+                parents = []
+                try:
+                    for part in parts[:-1]:
+                        child = os.open(part, flags, dir_fd=parent_fd)
+                        stack.callback(os.close, child)
+                        child_info = os.fstat(child)
+                        if child_info.st_uid != os.getuid():
+                            raise PermissionError("source parent UID mismatch")
+                        parents.append((parent_fd, part, child_info))
+                        parent_fd = child
+                    leaf_fd = os.open(parts[-1], os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0), dir_fd=parent_fd)
+                    stack.callback(os.close, leaf_fd)
+                    info = os.fstat(leaf_fd)
+                    if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
+                            or info.st_size != size or info.st_nlink != 1):
+                        continue
+                    if info.st_blocks * 512 > max_bytes - result["reclaimed_bytes"]:
+                        continue
+                    git("cat-file", "-e", oid + "^{blob}")
+                    digest = hashlib.sha1(f"blob {size}\0".encode())
+                    while chunk := os.read(leaf_fd, 512 * 1024):
+                        if time.monotonic() >= deadline:
+                            return result
+                        digest.update(chunk)
+                    if digest.hexdigest() != oid or identity(os.fstat(leaf_fd)) != identity(info):
+                        continue
+                    if (can_reclaim() is not True or time.monotonic() >= deadline
+                            or (path.lstat().st_dev, path.lstat().st_ino) != (root.st_dev, root.st_ino)):
+                        return result
+                    for ancestor_fd, component, opened in parents:
+                        named = os.stat(component, dir_fd=ancestor_fd, follow_symlinks=False)
+                        if (named.st_dev, named.st_ino) != (opened.st_dev, opened.st_ino):
+                            return result
+                    if descriptor == "RELEASE.json":
+                        if identity(os.stat(descriptor, dir_fd=root_fd, follow_symlinks=False)) != identity(desc_info):
+                            return result
+                        if release_is_reclaimed(path):
+                            return result
+                        os.fchmod(root_fd, root_mode | stat.S_IWUSR)
+                        os.rename(descriptor, "RECLAIMED-RELEASE.json", src_dir_fd=root_fd, dst_dir_fd=root_fd)
+                        os.fsync(root_fd)
+                        descriptor = "RECLAIMED-RELEASE.json"
+                    now = os.stat(parts[-1], dir_fd=parent_fd, follow_symlinks=False)
+                    if identity(now) != identity(info):
+                        continue
+                    mode = stat.S_IMODE(os.fstat(parent_fd).st_mode)
+                    os.fchmod(parent_fd, mode | stat.S_IWUSR)
+                    try:
+                        for ancestor_fd, component, opened in parents:
+                            named = os.stat(component, dir_fd=ancestor_fd, follow_symlinks=False)
+                            if (named.st_dev, named.st_ino) != (opened.st_dev, opened.st_ino):
+                                return result
+                        if identity(os.stat(parts[-1], dir_fd=parent_fd, follow_symlinks=False)) != identity(info):
+                            continue
+                        os.unlink(parts[-1], dir_fd=parent_fd)
+                        result["removed_files"] += 1
+                        result["removed_source_bytes"] += size
+                        result["reclaimed_bytes"] += info.st_blocks * 512
+                        result["status"] = "reclaimed"
+                    finally:
+                        os.fchmod(parent_fd, mode)
+                except OSError:
+                    # Missing, linked, unreadable and changed leaves remain untouched.
+                    continue
+    except subprocess.TimeoutExpired:
+        result["budget_exhausted"] = True
+    except (OSError, ValueError, subprocess.SubprocessError):
+        result["errors"] += 1
+    finally:
+        if root_fd is not None:
+            if root_mode is not None:
+                os.fchmod(root_fd, root_mode)
+            os.close(root_fd)
+    return result
 
 
 def _valid_release(path: Path) -> bool:

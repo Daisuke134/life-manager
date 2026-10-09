@@ -18,7 +18,10 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from runtime.loop.loop_cleanup import gc_releases, remove_owned_tree
+from runtime.loop.loop_cleanup import (
+    gc_releases, remove_owned_tree, reclaim_release_source, release_is_reclaimed,
+    RELEASE_NAME, _release_immutable_store_probe,
+)
 from runtime.host.resource_admission import process_starts
 
 HOST_CLEANUP_RECOVERY_FLOOR_BYTES = 2 * 1024**3  # cleanup receipt target; not producer admission
@@ -391,6 +394,115 @@ def release_gc(releases: Path, current: Path, agents: Path, keep: int) -> dict:
         pass
     result = gc_releases(releases, current, keep=keep, protected=protected)
     result["protected_release_count"] = len(protected)
+    source_result = reclaim_unreferenced_source(releases, current, agents, keep)
+    result["source_reclaim"] = source_result
+    result["reclaimed_bytes"] += source_result.get("reclaimed_bytes", 0)
+    result["errors"] += source_result.get("errors", 0)
+    return result
+
+
+def reclaim_unreferenced_source(releases: Path, current: Path, agents: Path, keep: int) -> dict:
+    """Retain stores while retiring one closed main code snapshot per occurrence."""
+    result = {"removed_files": 0, "reclaimed_bytes": 0, "protected_deletions": 0,
+              "errors": 0, "status": "preserved"}
+    source_repo = Path(os.environ.get("LIFE_MANAGER_SOURCE_REPO", "~/Projects/life-manager-main")).expanduser()
+    deadline = time.monotonic() + 15
+    def git(*args):
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise subprocess.TimeoutExpired(args, 0)
+        return subprocess.run(["git", "-C", str(source_repo), *args], check=True,
+                              capture_output=True, text=True, timeout=min(3, remaining)).stdout.strip()
+    def references():
+        held = loaded_release_roots(agents, releases) | open_release_roots(releases)
+        held.add(current.resolve(strict=True))
+        protected_file = Path(os.environ.get(
+            "LIFE_MANAGER_PROTECTED_RELEASES", "~/.local/state/life-manager/protected-releases.json")).expanduser()
+        if protected_file.exists():
+            values = json.loads(protected_file.read_text())
+            if not isinstance(values, list):
+                raise ValueError("protected release inventory is invalid")
+            held.update(Path(v).expanduser().resolve() for v in values if isinstance(v, str))
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise subprocess.TimeoutExpired("lsof", 0)
+        opened = subprocess.run(["lsof", "-nP", "-Fpn"], check=True,
+                                capture_output=True, text=True, timeout=min(4, remaining))
+        if opened.stderr:
+            raise OSError("release FD inventory has coverage gaps")
+        base = releases.resolve()
+        for line in opened.stdout.splitlines():
+            if not line.startswith("n/"):
+                continue
+            try:
+                parts = Path(line[1:]).relative_to(base).parts
+                if parts:
+                    held.add(base / parts[0])
+            except ValueError:
+                pass
+        return held
+    try:
+        # This same lock excludes both per-label apply and current activation.
+        from runtime.loop.lm_loop import _apply_lock
+        with _apply_lock(current, current.parent / ".admission-protocol.lock"), _apply_lock(current, None):
+            cached_main = git("rev-parse", "refs/remotes/origin/main")
+            official = git("ls-remote", "origin", "refs/heads/main").split()
+            if not official or official[0] != cached_main:
+                return {**result, "status": "source_main_stale"}
+            common = Path(git("rev-parse", "--git-common-dir"))
+            if not common.is_absolute():
+                common = source_repo / common
+            leases = []
+            for p in (common / "worktree-leases").glob("*.json"):
+                if p.is_symlink() or p.stat().st_uid != os.getuid() or p.stat().st_size > 65536:
+                    raise ValueError("release lease inventory is unknown")
+                leases.append(json.dumps(json.loads(p.read_text())))
+            held = references()
+            candidates = []
+            rollback = []
+            for path in releases.iterdir():
+                if (not RELEASE_NAME.fullmatch(path.name) or not path.is_dir() or path.is_symlink()
+                        or path.resolve() in held):
+                    continue
+                retired = release_is_reclaimed(path)
+                descriptor = path / ("RECLAIMED-RELEASE.json" if retired else "RELEASE.json")
+                if not descriptor.is_file() or descriptor.is_symlink():
+                    continue
+                manifest = json.loads(descriptor.read_text())
+                sha = manifest.get("sha")
+                if not isinstance(sha, str) or not re.fullmatch(r"[a-f0-9]{40}", sha):
+                    continue
+                if any(str(path.resolve()) in text or sha in text for text in leases):
+                    continue
+                if not retired:
+                    rollback.append((path.stat().st_mtime, path))
+                if retired or _release_immutable_store_probe(path, deadline=deadline) == "protected_descendant":
+                    candidates.append((path.stat().st_mtime, path, sha))
+            keep_roots = {p for _, p in sorted(rollback, reverse=True)[:max(1, keep)]}
+            counts = {}
+            for _, _, sha in candidates:
+                counts[sha] = counts.get(sha, 0) + 1
+            ordered = sorted(candidates, key=lambda item: (
+                counts[item[2]] == 1 or release_is_reclaimed(item[1]),
+                -item[0] if counts[item[2]] > 1 and not release_is_reclaimed(item[1]) else item[0]))
+            for _, path, sha in ordered:
+                if time.monotonic() >= deadline or path in keep_roots:
+                    continue
+                if subprocess.run(["git", "-C", str(source_repo), "merge-base", "--is-ancestor", sha, cached_main],
+                                  capture_output=True, timeout=min(2, max(.01, deadline-time.monotonic()))).returncode:
+                    continue
+                result = reclaim_release_source(path, source_repo,
+                    can_reclaim=lambda: path.resolve() not in references(), deadline=deadline)
+                result["release_root"] = str(path)
+                result["release_sha"] = sha
+                if release_is_reclaimed(path):
+                    # Retired snapshot metadata rotates the next bounded pass.
+                    os.utime(path, None, follow_symlinks=False)
+                return result
+    except RuntimeError:
+        result["status"] = "lifecycle_lock_busy"
+    except (OSError, ValueError, subprocess.SubprocessError):
+        result["status"] = "reference_or_source_unavailable"
     return result
 
 
