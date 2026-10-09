@@ -62,6 +62,11 @@ PROVIDER_LEASE_BUSY = 75
 PROVIDER_LEASE_BUSY_LINE = "LIFE_MANAGER_PROVIDER_LEASE_BUSY"
 CODEX_INVOCATION_HOME_MARKER = "_LIFE_MANAGER_CODEX_INVOCATION_HOME"
 _OWNED_CODEX_INVOCATION_HOMES: set[Path] = set()
+TREG_AGENT_CREDENTIAL_SERVICE = "treg_agent:life-manager-product-growth"
+TREG_SIGNAL_TASK_CLASS = "treg-lead-signals-agent"
+TREG_MCP_URL = "https://treg.to/mcp/"
+TREG_MCP_TOOLS = ("catalog_search", "catalog_get", "call", "balance")
+TREG_SKILL_NAMES = ("treg", "lead-signals")
 
 # OpenAI Standard tier, short context, USD per 1M tokens: (input, cached_input, output).
 # Source: https://developers.openai.com/api/docs/pricing (fetched 2026-07-25).
@@ -72,7 +77,7 @@ CODEX_MTOK_PRICING_USD = {
 }
 TOOLLESS_TASK_CLASSES = (
     "composition-agent", "diagnostic-agent", "application-intent-planner",
-    "reply-semantic-agent", "storefront-proposal-agent",
+    "reply-semantic-agent", "storefront-proposal-agent", TREG_SIGNAL_TASK_CLASS,
 )
 TOOLLESS_CODEX_DISABLED_FEATURES = ("shell_tool", "code_mode_host", "unified_exec")
 
@@ -651,6 +656,78 @@ def _load_clipproxy_api_key(
     raise ValueError("codex model provider auth unavailable")
 
 
+def _load_treg_agent_token(credentials_path: Path | None = None) -> str | None:
+    """Return only the dedicated Life Manager Treg agent credential."""
+    path = credentials_path or (
+        Path.home() / ".local" / "share" / "anicca" / "credentials.json"
+    )
+    try:
+        file_stat = path.lstat()
+        parent_stat = path.parent.lstat()
+        if (
+            not stat.S_ISREG(file_stat.st_mode)
+            or stat.S_IMODE(file_stat.st_mode) != 0o600
+            or not stat.S_ISDIR(parent_stat.st_mode)
+            or stat.S_IMODE(parent_stat.st_mode) != 0o700
+        ):
+            raise ValueError("Treg credential SSOT permissions are invalid")
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return None
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError("Treg credential SSOT is unavailable or invalid") from error
+    credentials = data.get("credentials") if isinstance(data, dict) else None
+    if not isinstance(credentials, list):
+        raise ValueError("Treg credential SSOT has an invalid structure")
+    matches = [
+        row for row in credentials
+        if isinstance(row, dict) and row.get("service") == TREG_AGENT_CREDENTIAL_SERVICE
+    ]
+    if not matches:
+        return None
+    if len(matches) != 1:
+        raise ValueError("Treg agent credential is ambiguous")
+    token = matches[0].get("token")
+    if not isinstance(token, str) or not token.strip():
+        raise ValueError("Treg agent credential is empty")
+    return token.strip()
+
+
+def _private_directory(path: Path) -> None:
+    if path.is_symlink():
+        raise ValueError("Treg skill directory must not be a symlink")
+    try:
+        path.mkdir(mode=0o700, parents=True, exist_ok=True)
+    except FileExistsError as error:
+        raise ValueError("Treg skill path is not a directory") from error
+    if path.is_symlink() or not path.is_dir():
+        raise ValueError("Treg skill path is not a real directory")
+    path.chmod(0o700)
+
+
+def _link_treg_agent_skills(user_home: Path) -> None:
+    """Expose immutable repository skills to this isolated Codex invocation."""
+    source_root = REPO_ROOT / "skills" / "earn" / "marketing-engine" / "intel"
+    skills_home = user_home / ".agents" / "skills"
+    _private_directory(user_home / ".agents")
+    _private_directory(skills_home)
+    for name in TREG_SKILL_NAMES:
+        source = source_root / name
+        if not (source / "SKILL.md").is_file():
+            raise ValueError("repository-owned Treg skill is unavailable")
+        source = source.resolve(strict=True)
+        if not source.is_relative_to(REPO_ROOT.resolve()):
+            raise ValueError("Treg skill source escaped the immutable release")
+        target = skills_home / name
+        if target.is_symlink():
+            if target.resolve(strict=True) != source:
+                raise ValueError("Treg skill link target mismatch")
+        elif target.exists():
+            raise ValueError("Treg skill path already exists")
+        else:
+            target.symlink_to(source, target_is_directory=True)
+
+
 def provider_process_env(provider: str, provider_config: dict[str, Any],
                          environ: dict[str, str] | None = None, *,
                          task_class: str | None = None,
@@ -658,6 +735,19 @@ def provider_process_env(provider: str, provider_config: dict[str, Any],
     """Build a provider-scoped, non-interactive child environment."""
     child_env = dict(os.environ if environ is None else environ)
     child_env.pop(CODEX_INVOCATION_HOME_MARKER, None)
+    # Never pass through an owner/admin token inherited from the host. Life
+    # Manager agents receive only the dedicated, limited credential SSOT row.
+    child_env.pop("TREG_TOKEN", None)
+    try:
+        treg_agent_token = _load_treg_agent_token()
+    except ValueError:
+        if task_class == TREG_SIGNAL_TASK_CLASS:
+            raise
+        treg_agent_token = None
+    if treg_agent_token:
+        child_env["TREG_TOKEN"] = treg_agent_token
+    elif task_class == TREG_SIGNAL_TASK_CLASS:
+        raise ValueError("treg lead signal agent credential unavailable")
     if provider != "codex":
         child_env.pop("CODEX_HOME", None)
         child_env.pop("CLIPROXY_API_KEY", None)
@@ -669,6 +759,8 @@ def provider_process_env(provider: str, provider_config: dict[str, Any],
     if provider == "codex":
         automation_home_value = provider_config.get("automation_home")
         if not automation_home_value:
+            if task_class == TREG_SIGNAL_TASK_CLASS:
+                raise ValueError("treg lead signal agent requires an isolated Codex home")
             return child_env
         if invocation_id is not None and (
             not isinstance(invocation_id, str)
@@ -703,6 +795,8 @@ def provider_process_env(provider: str, provider_config: dict[str, Any],
         automation_user_home.mkdir(parents=True, exist_ok=True, mode=0o700)
         automation_user_home.chmod(0o700)
         child_env["HOME"] = str(automation_user_home)
+        if treg_agent_token:
+            _link_treg_agent_skills(automation_user_home)
 
         ssl_cert_file_value = provider_config.get("ssl_cert_file")
         if ssl_cert_file_value:
@@ -1292,6 +1386,15 @@ def command_for(provider: str, executable: str, provider_config: dict[str, Any],
                 f"limit_tokens={rollout_budget_tokens},"
                 "reminder_at_remaining_tokens=[],"
                 "sampling_token_weight=1.0,prefill_token_weight=1.0}")])
+        if args.task_class == TREG_SIGNAL_TASK_CLASS:
+            command.extend([
+                "-c", f"mcp_servers.treg.url={json.dumps(TREG_MCP_URL)}",
+                "-c", 'mcp_servers.treg.env_http_headers={"X-Treg-Token" = "TREG_TOKEN"}',
+                "-c", f"mcp_servers.treg.enabled_tools={json.dumps(list(TREG_MCP_TOOLS))}",
+                "-c", 'mcp_servers.treg.default_tools_approval_mode="approve"',
+                "-c", "mcp_servers.treg.enabled=true",
+                "-c", "mcp_servers.treg.required=true",
+            ])
         command.extend(["--ignore-user-config", "--json"])
         if schema:
             command.extend([

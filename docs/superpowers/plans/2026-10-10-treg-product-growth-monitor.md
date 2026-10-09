@@ -71,12 +71,13 @@
 - Add `treg-lead-signals-agent` to `TOOLLESS_TASK_CLASSES` and `run_agent.sh`; configure it as Codex-only with model `gpt-6.1-sol`, effort `medium`, and profile `acct2`, with no provider fallback. It uses remote MCP tools while the shell remains disabled/read-only.
 - Preserve all model/provider selection and sandbox settings; no general network access is added.
 
-- [ ] Create the two skills with triggers, public-signal-only scope, per-call/weekly cost limits, no outreach, and no top-ups.
-- [ ] Implement exact-SSOT token loading for agent child environments, restrictive directory/file modes, safe skill symlinks, and MCP config overrides only for `treg-lead-signals-agent` without writing token values.
-- [ ] Add `treg-lead-signals-agent` using the existing account-2 profile and current `gpt-6.1-sol` medium model; include it in the `run_agent.sh` allowlist and Codex read-only/tool-less task set.
-- [ ] Run `python3 -m py_compile runtime/agent-runner/agent_runner.py`.
-- [ ] Run `python3 -m json.tool runtime/agent-runner/config.json` and `bash -n skills/earn/marketing-engine/run_agent.sh`.
-- [ ] Run a no-cost isolated `treg balance` smoke using the generated child environment; print only success, not the token or raw config.
+- [x] Create the two skills with triggers, public-signal-only scope, per-call/weekly cost limits, no outreach, and no top-ups.
+- [x] Implement exact-SSOT token loading for agent child environments, restrictive directory/file modes, safe skill symlinks, and MCP config overrides only for `treg-lead-signals-agent` without writing token values.
+- [x] Add `treg-lead-signals-agent` using the existing account-2 profile and current `gpt-6.1-sol` medium model; include it in the `run_agent.sh` allowlist and Codex read-only/tool-less task set.
+- [x] Run `python3 -m py_compile runtime/agent-runner/agent_runner.py`.
+- [x] Run `python3 -m json.tool runtime/agent-runner/config.json` and `bash -n skills/earn/marketing-engine/run_agent.sh`.
+- [x] Run `codex mcp list --json` with an isolated `CODEX_HOME` and the per-run overrides; verify the `treg` server lists without making a provider call.
+- [x] Run a no-cost isolated `treg balance` smoke using the generated child environment; print only success, not the token or raw config.
 - [ ] Commit and push this task before moving to the loop implementation.
 
 ### Task 2: Define the nine product profiles and agent output contract
