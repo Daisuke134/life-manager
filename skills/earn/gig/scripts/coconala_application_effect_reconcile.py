@@ -2,8 +2,8 @@
 """Safely reconcile Coconala application fences through the registered browser.
 
 The generic fence loop has no browser identity in its environment.  This adapter
-therefore performs the durable one-to-one discovery first, without opening a
-browser.  Only an exact occurrence/request mapping starts a readback, and that
+therefore performs exact occurrence-to-request-set discovery first, without
+opening a browser. Only fully bound requests for one occurrence start a readback, and that
 readback is run through ``with-browser.sh coconala:kosuke`` so it cannot share the
 identity with another loop.  It never opens an application form or clicks submit.
 """
@@ -47,7 +47,8 @@ def _write_scan_result(result_path: Path, result: Mapping[str, object]) -> None:
 def build_browser_command(
     *,
     occurrence_id: str,
-    request_id: str,
+    runtime_run_id: str,
+    request_ids: Sequence[str],
     owner_id: str,
     intent_root: Path,
     evidence_dir: Path | None = None,
@@ -66,13 +67,15 @@ def build_browser_command(
         owner_id,
         "--occurrence-id",
         occurrence_id,
-        "--request-id",
-        request_id,
+        "--runtime-run-id",
+        runtime_run_id,
         "--intent-root",
         str(intent_root),
         "--max-pages",
         str(max_pages),
     ]
+    for request_id in request_ids:
+        command.extend(["--request-id", request_id])
     if evidence_dir is not None:
         command.extend(["--evidence-dir", str(evidence_dir)])
     if result is not None:
@@ -154,19 +157,20 @@ def main(
             _scan_result_path(args.result),
             {
                 "status": "nothing_to_reconcile",
-                "reason": "one_to_one_occurrence_intent_mapping_not_present",
+                "reason": "exact_occurrence_request_set_not_present",
                 "retryable": False,
                 "effect": 0,
                 "readback": 0,
-                "next_action": "wait for a new exact occurrence-to-intent mapping",
+                "next_action": "wait for exact run/occurrence-bound intents; do not replay",
             },
         )
         return 0
 
-    occurrence_id, request_id = target
+    occurrence_id, runtime_run_id, request_ids = target
     command = build_browser_command(
         occurrence_id=occurrence_id,
-        request_id=request_id,
+        runtime_run_id=runtime_run_id,
+        request_ids=request_ids,
         owner_id=args.owner_id,
         intent_root=args.intent_root,
         evidence_dir=args.evidence_dir,

@@ -20,10 +20,16 @@ OCCURRENCE = "hf-gig-apply-direct:18d6e6e0c10fa690-98578"
 REQUEST_ID = "5280157"
 
 
-def _intent(path: Path, *, state="prepared", phase="irreversible_attempt_started"):
+def _intent(
+    path: Path,
+    *,
+    state="prepared",
+    phase="irreversible_attempt_started",
+    request_id=REQUEST_ID,
+):
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = fence.intent_payload(
-        request_id=REQUEST_ID,
+        request_id=request_id,
         snapshot_sha256="a" * 64,
         proposal_text="提案本文です。" * 40,
         price_jpy=8000,
@@ -33,6 +39,23 @@ def _intent(path: Path, *, state="prepared", phase="irreversible_attempt_started
         effect_phase=phase,
     )
     path.write_text(json.dumps(payload), encoding="utf-8")
+
+
+def _bound_intent(intent_root, request_id, *, occurrence_id=OCCURRENCE, run_id="run-1", state="prepared"):
+    path = Path(intent_root) / f"{request_id}.json"
+    _intent(path, request_id=request_id, state="prepared", phase="pre_effect")
+    store = fence.IntentStore(intent_root)
+    current = store.read(request_id)
+    with store.locked(request_id):
+        started = store.mark_irreversible_attempt_started_locked(
+            request_id,
+            expected_cas=current["cas"],
+            runtime_run_id=run_id,
+            runtime_occurrence_id=occurrence_id,
+        )
+    if state == "confirmed":
+        return store.confirm(request_id, expected_cas=started["cas"])
+    return started
 
 
 def _readback(**overrides):
@@ -140,7 +163,7 @@ def test_build_historical_no_dispatch_proof_requires_bound_account_and_complete_
 
 def test_historical_no_dispatch_reconcile_uses_dedicated_resolver(tmp_path):
     intent_root = tmp_path / "intents"
-    _intent(intent_root / f"{REQUEST_ID}.json")
+    _bound_intent(intent_root, REQUEST_ID)
     captured = []
 
     def resolver(owner_id, occurrence_id, *, no_dispatch_proof, expected_state=None):
@@ -180,9 +203,119 @@ def test_discovery_requires_a_single_occurrence_and_single_intent():
     ) is None
 
 
+def test_effect_started_intent_persists_exact_runtime_binding(tmp_path):
+    started = _bound_intent(tmp_path, "123")
+
+    assert started["state"] == "prepared"
+    assert started["effect_phase"] == "irreversible_attempt_started"
+    assert started["runtime_run_id"] == "run-1"
+    assert started["runtime_occurrence_id"] == OCCURRENCE
+    assert fence.is_pre_effect(started) is False
+    assert fence.validate_intent(started) == []
+
+
+def test_batch_target_groups_all_intents_for_one_exact_occurrence():
+    intents = [
+        {
+            "request_id": "123",
+            "state": "prepared",
+            "effect_phase": "irreversible_attempt_started",
+            "runtime_run_id": "run-1",
+            "runtime_occurrence_id": OCCURRENCE,
+        },
+        {
+            "request_id": "456",
+            "state": "confirmed",
+            "effect_phase": "irreversible_attempt_started",
+            "runtime_run_id": "run-1",
+            "runtime_occurrence_id": OCCURRENCE,
+        },
+    ]
+
+    assert reconcile.select_batch_target(
+        unknown_occurrences=[OCCURRENCE],
+        intents=intents,
+    ) == (OCCURRENCE, "run-1", ["123", "456"])
+    assert reconcile.select_batch_target(
+        unknown_occurrences=[OCCURRENCE, "hf-gig-apply-direct:other"],
+        intents=intents,
+    ) is None
+    assert reconcile.select_batch_target(
+        unknown_occurrences=[OCCURRENCE],
+        intents=[intents[0], {**intents[1], "runtime_run_id": "other-run"}],
+    ) is None
+    assert reconcile.select_batch_target(
+        unknown_occurrences=[OCCURRENCE],
+        intents=[intents[0], {
+            **{key: value for key, value in intents[1].items()
+               if not key.startswith("runtime_")},
+            "state": "prepared",
+        }],
+    ) is None
+
+
+def test_batch_reconcile_closes_once_after_every_exact_id_is_official(tmp_path):
+    intent_root = tmp_path / "intents"
+    _bound_intent(intent_root, "123")
+    _bound_intent(intent_root, "456")
+    calls = []
+
+    def resolver(owner_id, occurrence_id, *, official_readback, expected_state=None):
+        calls.append((owner_id, occurrence_id, official_readback(), expected_state))
+        return True
+
+    result = reconcile.reconcile_batch_occurrence(
+        owner_id=OWNER,
+        occurrence_id=OCCURRENCE,
+        runtime_run_id="run-1",
+        request_ids=["123", "456"],
+        intent_root=intent_root,
+        evidence_path=tmp_path / "readback.json",
+        readback=lambda: _readback(
+            request_ids=["123", "456"],
+            expected_ids=["123", "456"],
+        ),
+        resolver=resolver,
+    )
+
+    assert result["status"] == "resolved"
+    assert result["request_ids"] == ["123", "456"]
+    assert len(calls) == 1
+    assert calls[0][0:2] == (OWNER, OCCURRENCE)
+    assert calls[0][2]["request_ids"] == ["123", "456"]
+    assert calls[0][3] == "claimed"
+    assert fence.IntentStore(intent_root).read("123")["state"] == "confirmed"
+    assert fence.IntentStore(intent_root).read("456")["state"] == "confirmed"
+
+
+def test_batch_reconcile_keeps_fence_when_any_id_is_missing(tmp_path):
+    intent_root = tmp_path / "intents"
+    _bound_intent(intent_root, "123")
+    _bound_intent(intent_root, "456")
+
+    result = reconcile.reconcile_batch_occurrence(
+        owner_id=OWNER,
+        occurrence_id=OCCURRENCE,
+        runtime_run_id="run-1",
+        request_ids=["123", "456"],
+        intent_root=intent_root,
+        evidence_path=tmp_path / "readback.json",
+        readback=lambda: _readback(
+            request_ids=["123"],
+            expected_ids=["123", "456"],
+        ),
+        resolver=lambda *args, **kwargs: pytest.fail("partial readback must not resolve"),
+    )
+
+    assert result["status"] == "unresolved"
+    assert result["reason"] == "batch_exact_ids_not_observed"
+    assert fence.IntentStore(intent_root).read("123")["state"] == "prepared"
+    assert fence.IntentStore(intent_root).read("456")["state"] == "prepared"
+
+
 def test_denied_or_incomplete_readback_never_calls_resolver(tmp_path):
     intent_root = tmp_path / "intents"
-    _intent(intent_root / f"{REQUEST_ID}.json")
+    _bound_intent(intent_root, REQUEST_ID)
     calls = []
 
     result = reconcile.reconcile_occurrence(
@@ -207,7 +340,7 @@ def test_denied_or_incomplete_readback_never_calls_resolver(tmp_path):
 
 def test_readback_exception_keeps_stable_provider_reason(tmp_path):
     intent_root = tmp_path / "intents"
-    _intent(intent_root / f"{REQUEST_ID}.json")
+    _bound_intent(intent_root, REQUEST_ID)
     result = reconcile.reconcile_occurrence(
         owner_id=OWNER,
         occurrence_id=OCCURRENCE,
@@ -225,7 +358,7 @@ def test_readback_exception_keeps_stable_provider_reason(tmp_path):
 
 def test_exact_positive_readback_resolves_matching_occurrence(tmp_path):
     intent_root = tmp_path / "intents"
-    _intent(intent_root / f"{REQUEST_ID}.json")
+    _bound_intent(intent_root, REQUEST_ID)
     captured = []
 
     def resolver(owner_id, occurrence_id, *, official_readback, expected_state=None):
@@ -251,7 +384,7 @@ def test_exact_positive_readback_resolves_matching_occurrence(tmp_path):
 def test_confirmed_intent_with_exact_provider_readback_resolves_stale_occurrence(tmp_path):
     """A successful intent may outlive the admission event that fenced it."""
     intent_root = tmp_path / "intents"
-    _intent(intent_root / f"{REQUEST_ID}.json", state="confirmed")
+    _bound_intent(intent_root, REQUEST_ID, state="confirmed")
     captured = []
 
     def resolver(owner_id, occurrence_id, *, official_readback, expected_state=None):

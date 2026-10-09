@@ -36,6 +36,7 @@ from runtime.host import resource_admission
 OWNER_ID = "hf-gig-apply-direct"
 _REQUEST_ID = re.compile(r"(?:[0-9]+|[0-7][0-9A-HJKMNP-TV-Z]{25})\Z")
 _OCCURRENCE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\Z")
+_RUNTIME_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\Z")
 
 
 class ReconcileContractError(ValueError):
@@ -56,7 +57,7 @@ def _load_intent(
     intent_root: Path,
     request_id: str,
     *,
-    expected_state: str = "prepared",
+    expected_state: str | None = "prepared",
 ) -> dict[str, object]:
     if not _REQUEST_ID.fullmatch(request_id):
         raise ReconcileContractError("request_id_invalid")
@@ -67,12 +68,20 @@ def _load_intent(
         raise ReconcileContractError("intent_unreadable") from error
     if not isinstance(value, dict):
         raise ReconcileContractError("intent_invalid")
-    if value.get("state") != expected_state or value.get("effect_phase") != "irreversible_attempt_started":
+    if (
+        (expected_state is not None and value.get("state") != expected_state)
+        or value.get("effect_phase") != "irreversible_attempt_started"
+    ):
         raise ReconcileContractError("intent_not_effect_started")
     if str(value.get("request_id") or "") != request_id:
         raise ReconcileContractError("intent_request_id_mismatch")
     if not isinstance(value.get("cas"), str) or not value["cas"].strip():
         raise ReconcileContractError("intent_cas_missing")
+    if value.get("state") not in {"prepared", "confirmed"}:
+        raise ReconcileContractError("intent_state_invalid")
+    errors = fence.validate_intent(value)
+    if errors:
+        raise ReconcileContractError("intent_invalid")
     return value
 
 
@@ -321,6 +330,277 @@ def reconcile_occurrence(
     }
 
 
+def _bound_intents_for_occurrence(
+    intent_root: Path, *, occurrence_id: str, runtime_run_id: str
+) -> list[dict[str, object]]:
+    bound: list[dict[str, object]] = []
+    for path in sorted(Path(intent_root).glob("*.json")):
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as error:
+            raise ReconcileContractError("intent_scan_unreadable") from error
+        if not isinstance(value, dict):
+            continue
+        if (
+            value.get("state") not in {"prepared", "confirmed"}
+            or value.get("effect_phase") != "irreversible_attempt_started"
+        ):
+            continue
+        if value.get("state") == "prepared" and (
+            not isinstance(value.get("runtime_run_id"), str)
+            or not isinstance(value.get("runtime_occurrence_id"), str)
+        ):
+            raise ReconcileContractError("unbound_effect_started_intent")
+        if value.get("runtime_occurrence_id") != occurrence_id:
+            continue
+        if value.get("runtime_run_id") != runtime_run_id:
+            raise ReconcileContractError("runtime_run_id_mismatch")
+        request_id = str(value.get("request_id") or "")
+        if not _REQUEST_ID.fullmatch(request_id) or request_id != path.stem:
+            raise ReconcileContractError("intent_request_id_mismatch")
+        if fence.validate_intent(value):
+            raise ReconcileContractError("intent_invalid")
+        bound.append(value)
+    request_ids = [str(value["request_id"]) for value in bound]
+    if len(request_ids) != len(set(request_ids)):
+        raise ReconcileContractError("duplicate_occurrence_intent")
+    return bound
+
+
+def _require_single_occurrence_intent(
+    intent_root: Path,
+    occurrence_id: str,
+    intent: Mapping[str, object],
+) -> None:
+    runtime_run_id = intent.get("runtime_run_id")
+    if (
+        not isinstance(runtime_run_id, str)
+        or intent.get("runtime_occurrence_id") != occurrence_id
+    ):
+        raise ReconcileContractError("intent_runtime_binding_mismatch")
+    bound = _bound_intents_for_occurrence(
+        intent_root,
+        occurrence_id=occurrence_id,
+        runtime_run_id=runtime_run_id,
+    )
+    if (
+        len(bound) != 1
+        or bound[0].get("request_id") != intent.get("request_id")
+    ):
+        raise ReconcileContractError("occurrence_has_multiple_bound_intents")
+
+
+def _batch_provider_proof(
+    *,
+    owner_id: str,
+    occurrence_id: str,
+    runtime_run_id: str,
+    request_ids: list[str],
+    readback: Mapping[str, object],
+    evidence_path: Path,
+) -> dict[str, object]:
+    if not isinstance(readback, Mapping):
+        raise ReconcileContractError("official_readback_invalid")
+    if readback.get("source") != "code_owned_cdp_readback":
+        raise ReconcileContractError("official_readback_source_invalid")
+    if (
+        readback.get("observed") is not True
+        or readback.get("not_found") is not False
+        or readback.get("access_denied") is True
+        or readback.get("truncated") is not False
+    ):
+        raise ReconcileContractError("official_readback_incomplete")
+    observed = readback.get("request_ids")
+    expected = readback.get("expected_ids")
+    if not isinstance(observed, list) or not set(request_ids).issubset(
+        {str(value) for value in observed}
+    ):
+        raise ReconcileContractError("batch_exact_ids_not_observed")
+    if not isinstance(expected, list) or {
+        str(value) for value in expected
+    } != set(request_ids):
+        raise ReconcileContractError("official_readback_expected_ids_mismatch")
+    pages_walked = readback.get("pages_walked")
+    if isinstance(pages_walked, bool) or not isinstance(pages_walked, int) or pages_walked < 1:
+        raise ReconcileContractError("official_readback_pages_missing")
+    urls = readback.get("urls")
+    if not isinstance(urls, list) or not urls or not all(
+        isinstance(url, str) and url for url in urls
+    ):
+        raise ReconcileContractError("official_readback_urls_missing")
+    return {
+        "verified": True,
+        "proof_type": "provider_official_readback_exact_request_batch",
+        "owner_id": owner_id,
+        "occurrence_id": occurrence_id,
+        "runtime_run_id": runtime_run_id,
+        "request_ids": request_ids,
+        "provider": "coconala",
+        "provider_receipt_id": (
+            "https://coconala.com/mypage/job_matching/applied/offers"
+            f"#request-ids-{','.join(request_ids)}"
+        ),
+        "evidence_ref": str(Path(evidence_path).resolve()),
+        "official_readback": dict(readback),
+    }
+
+
+def reconcile_batch_occurrence(
+    *,
+    owner_id: str,
+    occurrence_id: str,
+    runtime_run_id: str,
+    request_ids: list[str],
+    intent_root: Path,
+    evidence_path: Path,
+    readback: Callable[[], Mapping[str, object]],
+    resolver: Callable[..., bool] = resource_admission.resolve_unknown_occurrence,
+) -> dict[str, object]:
+    """Resolve one host fence only after one complete readback confirms every bound request."""
+    if owner_id != OWNER_ID:
+        raise ReconcileContractError("owner_not_allowlisted")
+    if not _OCCURRENCE_ID.fullmatch(occurrence_id):
+        raise ReconcileContractError("occurrence_id_invalid")
+    if not _RUNTIME_ID.fullmatch(runtime_run_id):
+        raise ReconcileContractError("runtime_run_id_invalid")
+    targets = sorted({str(value) for value in request_ids})
+    if (
+        not targets
+        or len(targets) != len(request_ids)
+        or any(not _REQUEST_ID.fullmatch(value) for value in targets)
+    ):
+        raise ReconcileContractError("request_ids_invalid")
+    try:
+        bound = _bound_intents_for_occurrence(
+            Path(intent_root),
+            occurrence_id=occurrence_id,
+            runtime_run_id=runtime_run_id,
+        )
+    except ReconcileContractError as error:
+        return {
+            "status": "unresolved",
+            "reason": str(error),
+            "retryable": False,
+            "request_ids": targets,
+            "occurrence_id": occurrence_id,
+            "effect": 0,
+            "readback": 0,
+        }
+    expected_targets = sorted(str(value["request_id"]) for value in bound)
+    if not bound or targets != expected_targets:
+        return {
+            "status": "unresolved",
+            "reason": "occurrence_intent_mapping_incomplete",
+            "retryable": False,
+            "request_ids": targets,
+            "occurrence_id": occurrence_id,
+            "effect": 0,
+            "readback": 0,
+        }
+    try:
+        raw_readback = readback()
+    except Exception as error:
+        detail = str(error)[:240]
+        reason = (
+            detail if re.fullmatch(r"official_readback_[a-z_]+", detail)
+            else "official_readback_failed"
+        )
+        return {
+            "status": "unresolved",
+            "reason": reason,
+            "error_class": type(error).__name__,
+            "error_detail": detail,
+            "retryable": True,
+            "request_ids": targets,
+            "occurrence_id": occurrence_id,
+            "effect": 0,
+            "readback": 0,
+        }
+    try:
+        proof = _batch_provider_proof(
+            owner_id=owner_id,
+            occurrence_id=occurrence_id,
+            runtime_run_id=runtime_run_id,
+            request_ids=targets,
+            readback=raw_readback,
+            evidence_path=evidence_path,
+        )
+    except ReconcileContractError as error:
+        return {
+            "status": "unresolved",
+            "reason": str(error),
+            "retryable": True,
+            "request_ids": targets,
+            "occurrence_id": occurrence_id,
+            "effect": 0,
+            "readback": 1,
+        }
+    store = fence.IntentStore(intent_root)
+    try:
+        for intent in bound:
+            request_id = str(intent["request_id"])
+            if intent["state"] == "prepared":
+                store.confirm(request_id, expected_cas=intent["cas"])
+    except fence.IntentFenceError as error:
+        return {
+            "status": "unresolved",
+            "reason": "intent_confirmation_failed",
+            "error_class": type(error).__name__,
+            "error_detail": str(error)[:240],
+            "retryable": True,
+            "request_ids": targets,
+            "occurrence_id": occurrence_id,
+            "provider_receipt_id": proof["provider_receipt_id"],
+            "evidence_ref": proof["evidence_ref"],
+            "effect": 1,
+            "readback": 1,
+        }
+    try:
+        closed = resolver(
+            owner_id,
+            occurrence_id,
+            official_readback=lambda: proof,
+            expected_state="claimed",
+        )
+    except Exception as error:
+        return {
+            "status": "unresolved",
+            "reason": "admission_resolver_failed",
+            "error_class": type(error).__name__,
+            "error_detail": str(error)[:240],
+            "retryable": True,
+            "request_ids": targets,
+            "occurrence_id": occurrence_id,
+            "provider_receipt_id": proof["provider_receipt_id"],
+            "evidence_ref": proof["evidence_ref"],
+            "effect": 1,
+            "readback": 1,
+        }
+    if closed is not True:
+        return {
+            "status": "unresolved",
+            "reason": "occurrence_not_current_or_already_closed",
+            "retryable": False,
+            "request_ids": targets,
+            "occurrence_id": occurrence_id,
+            "provider_receipt_id": proof["provider_receipt_id"],
+            "evidence_ref": proof["evidence_ref"],
+            "effect": 1,
+            "readback": 1,
+        }
+    return {
+        "status": "resolved",
+        "reason": "batch_exact_provider_readback_confirmed",
+        "retryable": False,
+        "request_ids": targets,
+        "occurrence_id": occurrence_id,
+        "provider_receipt_id": proof["provider_receipt_id"],
+        "evidence_ref": proof["evidence_ref"],
+        "effect": 1,
+        "readback": 1,
+    }
+
+
 def reconcile_confirmed_occurrence(
     *,
     owner_id: str,
@@ -348,6 +628,18 @@ def reconcile_confirmed_occurrence(
         intent = _load_intent(
             Path(intent_root), request_id, expected_state="confirmed"
         )
+    except ReconcileContractError as error:
+        return {
+            "status": "unresolved",
+            "reason": str(error),
+            "retryable": False,
+            "request_id": request_id,
+            "occurrence_id": occurrence_id,
+            "effect": 0,
+            "readback": 0,
+        }
+    try:
+        _require_single_occurrence_intent(intent_root, occurrence_id, intent)
     except ReconcileContractError as error:
         return {
             "status": "unresolved",
@@ -453,6 +745,18 @@ def reconcile_historical_no_dispatch_occurrence(
         raise ReconcileContractError("occurrence_id_invalid")
     try:
         intent = _load_intent(Path(intent_root), request_id)
+    except ReconcileContractError as error:
+        return {
+            "status": "unresolved",
+            "reason": str(error),
+            "retryable": False,
+            "request_id": request_id,
+            "occurrence_id": occurrence_id,
+            "effect": 0,
+            "readback": 0,
+        }
+    try:
+        _require_single_occurrence_intent(intent_root, occurrence_id, intent)
     except ReconcileContractError as error:
         return {
             "status": "unresolved",
@@ -573,7 +877,63 @@ def select_single_target(
     return occurrences[0], requests[0]
 
 
-def discover_single_target(*, owner_id: str, intent_root: Path) -> tuple[str, str] | None:
+def select_batch_target(
+    *,
+    unknown_occurrences: list[str],
+    intents: list[Mapping[str, object]],
+) -> tuple[str, str, list[str]] | None:
+    """Select one host occurrence and every durably bound request in its run."""
+    occurrences = sorted({
+        str(value) for value in unknown_occurrences
+        if _OCCURRENCE_ID.fullmatch(str(value))
+    })
+    if len(occurrences) != 1:
+        return None
+    occurrence_id = occurrences[0]
+    uncertain = [
+        intent for intent in intents
+        if intent.get("state") == "prepared"
+        and intent.get("effect_phase") == "irreversible_attempt_started"
+    ]
+    if any(
+        not isinstance(intent.get("runtime_run_id"), str)
+        or not isinstance(intent.get("runtime_occurrence_id"), str)
+        for intent in uncertain
+    ):
+        return None
+    bound = [
+        intent for intent in intents
+        if intent.get("state") in {"prepared", "confirmed"}
+        and intent.get("effect_phase") == "irreversible_attempt_started"
+        and intent.get("runtime_occurrence_id") == occurrence_id
+    ]
+    if not bound:
+        return None
+    run_ids = {
+        str(intent.get("runtime_run_id") or "")
+        for intent in bound
+        if _RUNTIME_ID.fullmatch(str(intent.get("runtime_run_id") or ""))
+    }
+    request_ids = sorted({
+        str(intent.get("request_id") or "")
+        for intent in bound
+        if _REQUEST_ID.fullmatch(str(intent.get("request_id") or ""))
+    })
+    if (
+        len(run_ids) != 1
+        or len(request_ids) != len(bound)
+        or any(
+            not _RUNTIME_ID.fullmatch(str(intent.get("runtime_occurrence_id") or ""))
+            for intent in bound
+        )
+    ):
+        return None
+    return occurrence_id, next(iter(run_ids)), request_ids
+
+
+def discover_single_target(
+    *, owner_id: str, intent_root: Path
+) -> tuple[str, str, list[str]] | None:
     """Read admission state and intent state without changing either store."""
     if owner_id != OWNER_ID:
         raise ReconcileContractError("owner_not_allowlisted")
@@ -592,33 +952,36 @@ def discover_single_target(*, owner_id: str, intent_root: Path) -> tuple[str, st
         raise ReconcileContractError("admission_occurrences_unreadable") from error
     finally:
         connection.close()
-    uncertain: list[str] = []
+    intents: list[dict[str, object]] = []
     for path in sorted(Path(intent_root).glob("*.json")):
         try:
             value = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
-            continue
+            raise ReconcileContractError("intent_scan_unreadable")
         if (
             isinstance(value, dict)
-            and value.get("state") == "prepared"
+            and value.get("state") in {"prepared", "confirmed"}
             and value.get("effect_phase") == "irreversible_attempt_started"
             and _REQUEST_ID.fullmatch(str(value.get("request_id") or ""))
         ):
-            uncertain.append(str(value["request_id"]))
-    return select_single_target(
+            if fence.validate_intent(value):
+                raise ReconcileContractError("intent_scan_invalid")
+            intents.append(value)
+    return select_batch_target(
         unknown_occurrences=[str(row[0]) for row in rows],
-        uncertain_request_ids=uncertain,
+        intents=intents,
     )
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--occurrence-id")
-    parser.add_argument("--request-id")
+    parser.add_argument("--runtime-run-id")
+    parser.add_argument("--request-id", action="append", default=[])
     parser.add_argument(
         "--discover",
         action="store_true",
-        help="select exactly one unknown occurrence and one effect-started intent; otherwise do nothing",
+        help="select one unknown occurrence and all exact run-bound effect-started intents; otherwise do nothing",
     )
     parser.add_argument("--owner-id", default=OWNER_ID)
     parser.add_argument("--intent-root", type=Path, default=Path.home() / "gig" / "application-intents")
@@ -640,15 +1003,17 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.max_pages < 1:
         parser.error("--max-pages must be positive")
-    if args.discover and (args.occurrence_id or args.request_id):
+    if args.discover and (args.occurrence_id or args.request_id or args.runtime_run_id):
         parser.error("--discover cannot be combined with explicit target arguments")
     if not args.discover and (not args.occurrence_id or not args.request_id):
-        parser.error("explicit mode requires --occurrence-id and --request-id")
+        parser.error("explicit mode requires --occurrence-id and at least one --request-id")
     if args.discover and (args.historical_proof or args.confirmed_readback):
         parser.error("--discover cannot be combined with an explicit proof")
     if args.historical_proof and args.confirmed_readback:
         parser.error("--historical-proof and --confirmed-readback are mutually exclusive")
-    if args.historical_proof and (not args.occurrence_id or not args.request_id):
+    if args.historical_proof and (
+        not args.occurrence_id or len(args.request_id) != 1
+    ):
         parser.error("--historical-proof requires explicit target arguments")
     if args.confirmed_readback and (not args.occurrence_id or not args.request_id):
         parser.error("--confirmed-readback requires explicit target arguments")
@@ -671,25 +1036,27 @@ def main(argv: list[str] | None = None) -> int:
         if target is None:
             result = {
                 "status": "nothing_to_reconcile",
-                "reason": "one_to_one_occurrence_intent_mapping_not_present",
+                "reason": "exact_occurrence_request_set_not_present",
                 "retryable": False,
                 "effect": 0,
                 "readback": 0,
-                "next_action": "wait for a new exact occurrence-to-intent mapping",
+                "next_action": "wait for exact run/occurrence-bound intents; do not replay",
             }
             result_path = args.result or Path.home() / "gig" / "apply-direct" / "evidence" / "occurrence-reconcile-scan.json"
             _atomic_json(result_path, result)
             print(json.dumps(result, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
             return 0
-        args.occurrence_id, args.request_id = target
+        args.occurrence_id, args.runtime_run_id, args.request_id = target
+    request_ids = list(args.request_id)
     if args.confirmed_readback:
         evidence_ref = str(args.confirmed_readback.resolve())
         try:
             raw_readback = json.loads(args.confirmed_readback.read_text(encoding="utf-8"))
-            result = reconcile_confirmed_occurrence(
+            result = reconcile_batch_occurrence(
                 owner_id=args.owner_id,
                 occurrence_id=args.occurrence_id,
-                request_id=args.request_id,
+                runtime_run_id=args.runtime_run_id or "",
+                request_ids=request_ids,
                 intent_root=args.intent_root,
                 evidence_path=args.confirmed_readback,
                 readback=lambda: raw_readback,
@@ -701,7 +1068,7 @@ def main(argv: list[str] | None = None) -> int:
                 "error_class": type(error).__name__,
                 "error_detail": str(error)[:240],
                 "retryable": False,
-                "request_id": args.request_id,
+                "request_ids": request_ids,
                 "occurrence_id": args.occurrence_id,
                 "evidence_ref": evidence_ref,
                 "effect": 0,
@@ -714,13 +1081,14 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(result, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
         return 0
     if args.historical_proof:
+        request_id = request_ids[0]
         evidence_ref = str(args.historical_proof.resolve())
         try:
             raw_proof = json.loads(args.historical_proof.read_text(encoding="utf-8"))
             result = reconcile_historical_no_dispatch_occurrence(
                 owner_id=args.owner_id,
                 occurrence_id=args.occurrence_id,
-                request_id=args.request_id,
+                request_id=request_id,
                 intent_root=args.intent_root,
                 readback=lambda: raw_proof,
             )
@@ -731,7 +1099,7 @@ def main(argv: list[str] | None = None) -> int:
                 "error_class": type(error).__name__,
                 "error_detail": str(error)[:240],
                 "retryable": False,
-                "request_id": args.request_id,
+                "request_id": request_id,
                 "occurrence_id": args.occurrence_id,
                 "evidence_ref": evidence_ref,
                 "effect": 0,
@@ -743,14 +1111,20 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     evidence_dir = args.evidence_dir or _default_evidence_dir(args.occurrence_id)
     evidence_dir.mkdir(parents=True, exist_ok=True)
-    evidence_path = evidence_dir / f"official-readback-{args.request_id}.json"
+    evidence_path = evidence_dir / "official-readback-request-batch.json"
     result_path = args.result or evidence_dir / "reconcile-result.json"
     task_suffix = hashlib.sha256(args.occurrence_id.encode("utf-8")).hexdigest()[:16]
     lease_task = args.lease_task or f"gig-apply-reconcile-{task_suffix}"
+    if not args.runtime_run_id:
+        parser.error("batch reconcile requires --runtime-run-id")
 
     try:
-        # Validate the durable fence before opening a browser context.
-        _load_intent(args.intent_root, args.request_id)
+        # Validate every exact intent before opening a browser context.
+        _bound_intents_for_occurrence(
+            args.intent_root,
+            occurrence_id=args.occurrence_id,
+            runtime_run_id=args.runtime_run_id,
+        )
         with parent.LeaseHandle(lease_script=args.lease_script, task=lease_task) as lease:
             effects = parent.CdpParentEffects(
                 ws_url=lease.ws_url,
@@ -762,9 +1136,13 @@ def main(argv: list[str] | None = None) -> int:
 
             def official_readback() -> Mapping[str, object]:
                 effects._official_readback(
-                    {args.request_id},
+                    set(request_ids),
                     evidence_path,
                     max_pages=args.max_pages,
+                    include_retainer_history=any(
+                        parent._is_retainer_request(request_id)
+                        for request_id in request_ids
+                    ),
                     allow_truncated=False,
                 )
                 value = json.loads(evidence_path.read_text(encoding="utf-8"))
@@ -772,10 +1150,11 @@ def main(argv: list[str] | None = None) -> int:
                     raise ReconcileContractError("official_readback_artifact_invalid")
                 return value
 
-            result = reconcile_occurrence(
+            result = reconcile_batch_occurrence(
                 owner_id=args.owner_id,
                 occurrence_id=args.occurrence_id,
-                request_id=args.request_id,
+                runtime_run_id=args.runtime_run_id,
+                request_ids=request_ids,
                 intent_root=args.intent_root,
                 evidence_path=evidence_path,
                 readback=official_readback,
@@ -785,7 +1164,7 @@ def main(argv: list[str] | None = None) -> int:
             "status": "unresolved",
             "reason": str(error),
             "retryable": False,
-            "request_id": args.request_id,
+            "request_ids": request_ids,
             "occurrence_id": args.occurrence_id,
             "effect": 0,
             "readback": 0,
