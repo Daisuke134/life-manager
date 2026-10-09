@@ -2422,10 +2422,11 @@ def test_main_records_scratch_enospc_and_allows_next_wake(tmp_path):
     assert failed["occurrence_id"] == "example-publisher:run-1"
     assert failed["effect_status"] == "not_applicable"
     assert failed["blocker"] == "scratch_enospc"
-    assert failed["error_class"] == "enospc"
+    assert failed["error_class"] == "storage_write_failed_pre_effect"
     assert failed["exit_code"] == 78
     assert failed["retryable"] is True
-    assert failed["next_action"] == "retry_after_eligibility"
+    assert failed["next_action"] == "retry_after_cleanup"
+    assert failed["storage_failure"]["effect_started"] is False
     assert failed["error_detail"] == "scratch allocation failed; errno=28"
     assert failed["evidence_refs"] == []
     assert failed["provider_receipt_id"] is None
@@ -2492,7 +2493,7 @@ def test_main_emits_structured_scratch_enospc_if_terminal_event_cannot_be_writte
     assert diagnostic["operation_errno"] == errno.ENOSPC
     assert diagnostic["writer_errno"] == errno.ENOSPC
     assert diagnostic["retryable"] is True
-    assert diagnostic["next_action"] == "retry_after_eligibility"
+    assert diagnostic["next_action"] == "retry_after_cleanup"
     run_admitted.assert_not_called()
 
 

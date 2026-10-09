@@ -29,8 +29,9 @@ REPO_ROOT = HERE.parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from runtime.host.bounded_output import start_stderr_relay, read_relay_snapshot
+from runtime.host.bounded_output import start_stderr_relay, read_relay_snapshot, prune_closed_diagnostics
 from runtime.host.storage_policy import load_storage_policy
+from runtime.host.storage_failure import classify_storage_failure
 
 from runtime.loop.macos_loop_registry import validate_registry  # noqa: E402
 from runtime.loop.runtime_event import (  # noqa: E402
@@ -119,6 +120,10 @@ def emit_runtime_event(*, loop_id: str, evidence_dir: Path,
     provider = str(last.get("provider") or "unavailable")
     blocker = None if selected else str(last.get("error_class") or "runner_failed")
     run_id = hashlib.sha256(str(evidence_dir.resolve()).encode()).hexdigest()[:24]
+    storage_failure = last.get("storage_failure")
+    if storage_failure is not None:
+        storage_failure = {**storage_failure, "proof_ref":
+            f'lm-storage://{loop_id}/{run_id}/{storage_failure["operation"]}'}
     event = build_runtime_event(
         loop_id=loop_id,
         domain=entry["domain"],
@@ -129,6 +134,7 @@ def emit_runtime_event(*, loop_id: str, evidence_dir: Path,
         effect_class=entry["effect_class"],
         succeeded=selected is not None,
         blocker=blocker,
+        storage_failure=storage_failure,
     )
     path = Path(os.path.expanduser(entry["state_root"])) / "events.jsonl"
     append_runtime_event(path, event)
@@ -284,6 +290,14 @@ def reclaim_completed_evidence(
 
 def ensure_evidence_capacity(evidence_dir: Path) -> dict[str, int]:
     """Prune completed history by its size cap without blocking on free bytes."""
+    owner = os.environ.get("LIFE_MANAGER_LOOP_ID")
+    policy_path = REPO_ROOT / "config/storage-policy.json"
+    if owner and policy_path.is_file():
+        policy = load_storage_policy(policy_path, owner)
+        if policy is not None:
+            root = evidence_root_for(evidence_dir)
+            return (prune_closed_diagnostics(root, policy, current_run=evidence_dir.resolve())
+                    if root else {"removed": 0, "reclaimed_bytes": 0, "errors": 0})
     max_bytes = int(os.environ.get("AGENT_RUNNER_EVIDENCE_MAX_BYTES", DEFAULT_EVIDENCE_MAX_BYTES))
     if max_bytes < 0:
         raise ValueError("agent-runner evidence size cap must be non-negative")
@@ -1698,7 +1712,7 @@ def run() -> int:
                 capture_context = {"policy": policy, "binding": {"owner_id": owner,
                     "run_id": run_id, "release_sha": sha,
                     "occurrence_id": os.environ.get("LIFE_MANAGER_OCCURRENCE_ID", f"{owner}:{run_id}")},
-                    "root": evidence_dir / f"attempt-{index:02d}.capture", "provider": provider}
+                    "root": evidence_dir / f"attempt-{index:02d}-{uuid.uuid4().hex}.capture", "provider": provider}
         result_path = evidence_dir / f"attempt-{index:02d}.result.json"
         completion_fallback_paths = (
             tuple(evidence_dir / name for name in ("pass-result.json", "mercor-pass-result.json"))
@@ -1727,6 +1741,7 @@ def run() -> int:
         rc = 127
         timed_out = False
         launch_error = ""
+        storage_error = None
         adapter_error = ""
         codex_prelaunch_auth_missing = False
         codex_prelaunch_home_busy = False
@@ -1817,6 +1832,9 @@ def run() -> int:
                     stderr.write((launch_error + "\n").encode())
                     rc = 75
                 except OSError as error:
+                    if capture_context is not None:
+                        storage_error = classify_storage_failure(error, "provider_process",
+                            capture_context["binding"], None)
                     launch_error = str(error)
                     stderr.write((launch_error + "\n").encode())
                     rc = 127
@@ -1853,7 +1871,7 @@ def run() -> int:
 
         stdout_text = stdout_path.read_text(encoding="utf-8", errors="replace")
         stderr_text = stderr_path.read_text(encoding="utf-8", errors="replace")
-        if capture_context is not None:
+        if capture_context is not None and not (codex_prelaunch_auth_missing or codex_prelaunch_home_busy):
             stdout_text, stderr_text, capture_error = read_provider_capture(capture_context["root"])
         usage = extract_provider_usage(provider, stdout_text, model=effective_candidate.get("model"))
         if codex_prelaunch_auth_missing:
@@ -1889,7 +1907,8 @@ def run() -> int:
             and not codex_toolhost_unavailable
         )
         error_class = None if accepted_result else (
-            capture_error if capture_error is not None
+            storage_error["error_class"] if storage_error is not None
+            else capture_error if capture_error is not None
             else "codex_prelaunch_auth_missing" if codex_prelaunch_auth_missing
             else "codex_home_busy" if codex_prelaunch_home_busy
             else classify_provider_error(
@@ -1935,6 +1954,8 @@ def run() -> int:
             "quota": provider_config.get("quota"),
             "usage": usage,
         }
+        if storage_error is not None:
+            row["storage_failure"] = storage_error["storage_failure"]
         usage_path = Path(os.environ.get("ANICCA_USAGE_LEDGER", DEFAULT_USAGE_LEDGER))
         provider_name = usage.get("upstream_provider") or {
             "codex": "openai", "claude": "anthropic",

@@ -24,7 +24,7 @@ import agent_runner  # noqa: E402
 
 class CodexProfileBoundaryTest(unittest.TestCase):
     def _run_candidate_fixture(self, plan, include_claude, *, return_records=False,
-                               return_provider_options=False, fail_fast_provider_lease=True):
+                               return_provider_options=False, fail_fast_provider_lease=True, bounded=False):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             candidates = [
@@ -129,6 +129,9 @@ class CodexProfileBoundaryTest(unittest.TestCase):
                     raise subprocess.TimeoutExpired(command, 20)
                 if behavior == "busy":
                     raise ProviderLeaseBusy("codex automation home is busy")
+                if behavior == "storage_full":
+                    import errno
+                    raise OSError(errno.ENOSPC, "fixture storage write")
                 if behavior == "success":
                     if provider == "codex":
                         completion_path.write_text('{"ok":true}', encoding="utf-8")
@@ -170,17 +173,22 @@ class CodexProfileBoundaryTest(unittest.TestCase):
                 "LIFE_MANAGER_PROVIDER_LEASE_PATH": "",
                 "LIFE_MANAGER_RELEASE_SHA": "",
             }
+            if bounded:
+                env.update(LIFE_MANAGER_LOOP_ID="life-manager-disk-cleanup",
+                           LIFE_MANAGER_RUN_ID="bound-run", LIFE_MANAGER_RELEASE_SHA="a"*40)
             with mock.patch.object(agent_runner, "resolve_provider_profiles", return_value=candidates), \
                     mock.patch.object(agent_runner, "provider_process_env", side_effect=fixture_provider_env), \
                     mock.patch.object(agent_runner, "run_provider_process", side_effect=fake_provider_process), \
                     mock.patch.object(agent_runner, "ensure_evidence_capacity", return_value={}), \
                     mock.patch.object(agent_runner, "append_usage_event"), \
+                    mock.patch.object(agent_runner, "read_provider_capture", return_value=("", "", None)), \
                     mock.patch.dict(os.environ, env, clear=False), \
                     mock.patch.object(sys, "argv", argv), \
                     redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
                 status = agent_runner.run()
             if return_provider_options:
                 return status, calls, provider_options
+
             if return_records:
                 attempts = [
                     json.loads(line) for line in (evidence_dir / "attempts.jsonl").read_text().splitlines()
@@ -191,6 +199,29 @@ class CodexProfileBoundaryTest(unittest.TestCase):
                 ] if budget_path.exists() else []
                 return status, calls, attempts, budget_events
             return status, calls
+
+    def test_bound_prelaunch_auth_failure_keeps_account_failover(self):
+        status, calls, attempts, _ = self._run_candidate_fixture(
+            {("codex", "acct1"): "auth_file_missing", ("codex", "acct2"): "success"},
+            False, return_records=True, bounded=True)
+        self.assertEqual(status, 0)
+        self.assertEqual(attempts[0]["error_class"], "codex_prelaunch_auth_missing")
+
+    def test_bound_prelaunch_busy_keeps_account_failover(self):
+        status, calls, attempts, _ = self._run_candidate_fixture(
+            {("codex", "acct1"): "busy", ("codex", "acct2"): "success"},
+            False, return_records=True, bounded=True)
+        self.assertEqual(status, 0)
+        self.assertEqual(attempts[0]["error_class"], "codex_home_busy")
+
+    def test_bound_storage_error_does_not_retry_unknown_external_effect(self):
+        status, calls, attempts, _ = self._run_candidate_fixture(
+            {("codex", "acct1"): "storage_full", ("codex", "acct2"): "success"},
+            False, return_records=True, bounded=True)
+        self.assertNotEqual(status, 0)
+        self.assertEqual(len(calls), 1)
+        self.assertIsNone(attempts[0]["storage_failure"]["effect_started"])
+        self.assertEqual(attempts[0]["error_class"], "storage_write_failed_effect_unknown")
 
     def test_escalation_route_is_codex_only(self):
         config = json.loads((ROOT / "config.json").read_text())

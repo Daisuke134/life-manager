@@ -13,6 +13,37 @@ sys.path.insert(0, str(ROOT / "runtime/agent-runner"))
 spec = importlib.util.spec_from_file_location("bounded_agent_runner", ROOT / "runtime/agent-runner/agent_runner.py")
 runner = importlib.util.module_from_spec(spec); spec.loader.exec_module(runner)
 
+def test_structured_errors_survive_bounded_diagnostic_discard(tmp_path):
+    from runtime.host.bounded_output import _SemanticStream
+    stream = _SemanticStream("codex", 16384)
+    stream.feed(b'x'*32768+b'\n')
+    stream.feed(b'{"type":"turn.failed","error":{"code":"usage_limit_reached","status":429}}\n')
+    text = stream.text()
+    error = runner.classify_provider_error(1, False, text, "", "", provider="codex")
+    assert error == "transient_quota"
+    assert runner.codex_failover_action({"provider": "codex", "account_fallback_next": True}, error, False, False) == "retry_next_account"
+
+def test_closed_diagnostic_retention_preserves_result_usage_and_live_relay(tmp_path):
+    from runtime.host.bounded_output import prune_closed_diagnostics
+    policy = replace(load_storage_policy(ROOT / "config/storage-policy.json", "life-manager-disk-cleanup"),
+                     owner_diagnostic_retained_bytes=1)
+    root = tmp_path / "agent-runner-evidence"
+    run = root / "task" / "run-1"; run.mkdir(parents=True)
+    (run / "summary.json").write_text('{"status":"success"}')
+    (run / "result.json").write_text('{"receipt":"preserve"}')
+    (run / "usage.jsonl").write_text('{"tokens":7}\n')
+    binding = {"owner_id": policy.owner_id, "run_id": "run-1", "occurrence_id": policy.owner_id+":run-1", "release_sha": "a"*40}
+    relay = run / "attempt-01-unique.capture" / "stderr"
+    handle = start_stderr_relay(relay, policy, binding)
+    os.write(handle.stdin_write_fd, b'x'*4096)
+    before = prune_closed_diagnostics(root, policy, current_run=root / "task" / "run-2", closed_probe=lambda _: False)
+    assert before["removed"] == 0 and relay.exists()
+    os.close(handle.stdin_write_fd); handle.process.wait(timeout=10)
+    read_relay_snapshot(handle); handle.control_socket.close()
+    after = prune_closed_diagnostics(root, policy, current_run=root / "task" / "run-2", closed_probe=lambda _: True)
+    assert after["removed"] == 1 and not relay.exists()
+    assert (run / "result.json").exists() and (run / "usage.jsonl").exists()
+
 
 def test_codex_usage_survives_large_raw_diagnostics(tmp_path):
     policy = load_storage_policy(ROOT / "config/storage-policy.json", "life-manager-disk-cleanup")

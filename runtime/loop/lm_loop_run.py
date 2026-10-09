@@ -37,6 +37,7 @@ from runtime.loop.runtime_event import (
 )
 from runtime.host.memory_admission import memory_free_percent
 from runtime.host.storage_policy import load_storage_policy
+from runtime.host.storage_failure import classify_storage_failure
 from runtime.host.bounded_output import start_stderr_relay, read_relay_snapshot
 from runtime.host.resource_admission import (
     OCCURRENCE_ID_PATTERN,
@@ -1686,6 +1687,9 @@ def main(argv: list[str] | None = None) -> int:
                     loop_state_root, loop_id, run_id, effect_class=entry["effect_class"])
             except OSError as error:
                 no_space = error.errno == errno.ENOSPC
+                storage = classify_storage_failure(error, "scratch_allocation", {
+                    "owner_id": loop_id, "run_id": run_id,
+                    "occurrence_id": occurrence_id, "release_sha": manifest["sha"]}, False)
                 blocker = "scratch_enospc" if no_space else "scratch_allocation_failed"
                 error_class = "enospc" if no_space else type(error).__name__.lower()
                 event = build_runtime_event(
@@ -1700,7 +1704,10 @@ def main(argv: list[str] | None = None) -> int:
                     exit_code=78, failure_layer="runtime", error_class=error_class,
                     retryable=True, next_action="retry_after_eligibility",
                     error_detail=f"scratch allocation failed; errno={error.errno}",
+                    storage_failure=storage["storage_failure"] if storage else None,
                 )
+                if storage:
+                    event.update({key: storage[key] for key in ("error_class", "retryable", "next_action")})
                 event["effect_status"] = "not_applicable"
                 event["evidence_refs"] = []
                 validate_runtime_event(event)
@@ -1830,7 +1837,10 @@ def main(argv: list[str] | None = None) -> int:
                     cleanup_operation = "unprotect_marker"
                     unprotect_loop_scratch(scratch_fd)
                     cleanup_operation = "remove_owned_tree"
-                    removed = remove_owned_tree(scratch_parent_fd, scratch_fd, run_id)
+                    from runtime.loop.central_cleanup import _diagnostic_relay_live
+                    from runtime.host.resource_admission import process_starts
+                    relay_live = _diagnostic_relay_live(scratch_fd, process_starts(), loop_id, run_id)
+                    removed = False if relay_live else remove_owned_tree(scratch_parent_fd, scratch_fd, run_id)
                     cleanup_status = "removed" if removed else "preserved"
                     cleanup_error = None
                 except Exception as error:

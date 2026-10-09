@@ -178,6 +178,8 @@
 
 **Done:** cursor budget切れでも次passへ公平に進む。候補無し/全protectedならunmetを正直に返す。busy lockで二重sweep0、15日dispatcherの既存tests PASS。
 
+DS09接続修正: testだけが生成するstate/runs markerへの経路は撤去。実際のagent-runner保存先で、host-marked relay診断だけを既存ensure_evidence_capacityから回収する。summary完了・EOF receipt・positive closed proofが必要。親result/usage/JSONLは保持する。
+
 ### Task 10: DS10 — classify_storage_failure(error, phase, binding, effect_started) -> dict
 
 **Files:** runtime/host/storage_failure.py; runtime/loop/runtime_event.py; runtime/loop/lm_loop_run.py; runtime/agent-runner/agent_runner.py  

@@ -11,6 +11,7 @@ import stat
 import subprocess
 import sys
 import time
+import shutil
 
 
 @dataclass
@@ -54,6 +55,7 @@ def start_stderr_relay(private_root, policy, binding, *, stream_kind=None):
     if stream_kind not in {None, "codex", "json"}:
         raise ValueError("invalid structured stream kind")
     _private_json(context, {"policy": asdict(policy), "binding": binding, "stream_kind": stream_kind})
+    _private_json(root / ".lm-regenerable", {"role": "diagnostic_only", "binding": binding})
     reader, writer = os.pipe()
     parent, child = socket.socketpair(socket.AF_UNIX, socket.SOCK_DGRAM)
     parent.setblocking(False)
@@ -79,6 +81,61 @@ def start_stderr_relay(private_root, policy, binding, *, stream_kind=None):
         raise
     finally:
         os.close(reader); child.close()
+
+
+def prune_closed_diagnostics(evidence_root, policy, *, current_run, closed_probe=None):
+    """Only relay-owned diagnostics; parent results, usage and journals remain."""
+    result = {"removed": 0, "reclaimed_bytes": 0, "errors": 0, "preserved_bytes": 0}
+    root = Path(evidence_root)
+    if root.name != "agent-runner-evidence" or any(p.is_symlink() for p in [root, *root.parents]):
+        return result
+    allowed = {"relay-context.json", ".stderr-relay.json", ".lm-regenerable", "relay-result.json",
+               "stderr.log", "head.bin", "semantic-stdout.json"}
+    candidates = []
+    deadline = time.monotonic() + 5
+    for relay in root.glob("*/*/attempt-*.capture/*"):
+        if time.monotonic() >= deadline: break
+        run = relay.parent.parent
+        if run == current_run or not (run / "summary.json").is_file(): continue
+        try:
+            if any(p.is_symlink() for p in [relay, relay.parent, run, run.parent]): continue
+            info = relay.stat()
+            if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o077: continue
+            files = list(relay.iterdir())
+            if any(p.is_symlink() or not p.is_file() or
+                   (p.name not in allowed and not re_log_backup(p.name)) for p in files): continue
+            marker = relay / ".lm-regenerable"
+            fd = os.open(marker, os.O_RDONLY | os.O_NOFOLLOW)
+            with os.fdopen(fd, "rb") as stream:
+                meta = os.fstat(stream.fileno())
+                if meta.st_uid != os.getuid() or meta.st_mode & 0o077 or meta.st_size > 4096 or meta.st_nlink != 1: continue
+                value = json.loads(stream.read(4097))
+            if value.get("role") != "diagnostic_only" or value["binding"]["owner_id"] != policy.owner_id: continue
+            receipt = json.loads((relay / "relay-result.json").read_bytes()[:4097])
+            if receipt.get("binding") != value["binding"]: continue
+            size = sum(p.stat().st_size for p in files)
+            if closed_probe is None:
+                check = subprocess.run(["lsof", "-nP", "+D", str(relay)], capture_output=True,
+                    timeout=min(1, max(.1, deadline-time.monotonic())))
+                closed = check.returncode == 1 and not check.stdout and not check.stderr
+            else: closed = closed_probe(relay) is True
+            if closed: candidates.append((info.st_mtime, relay, size))
+            else: result["preserved_bytes"] += size
+        except (OSError, ValueError, KeyError, TypeError, subprocess.TimeoutExpired):
+            result["errors"] += 1
+    total = sum(size for _, _, size in candidates)
+    cap = min(policy.owner_diagnostic_retained_bytes, policy.host_diagnostic_retained_bytes)
+    for _, relay, size in sorted(candidates):
+        if total <= cap: break
+        try:
+            shutil.rmtree(relay)
+            result["removed"] += 1; result["reclaimed_bytes"] += size; total -= size
+        except OSError: result["errors"] += 1
+    return result
+
+
+def re_log_backup(name):
+    return name.startswith("stderr.log.") and name.removeprefix("stderr.log.").isdigit()
 
 
 def read_relay_snapshot(handle):
@@ -132,6 +189,7 @@ class _SemanticStream:
         self.usage = None
         self.tool_started = False
         self.wrapper = None
+        self.errors = []
 
     def feed(self, chunk):
         if self.kind == "json":
@@ -159,6 +217,21 @@ class _SemanticStream:
         if not isinstance(value, dict): return
         if self.kind == "codex":
             if value.get("type") == "turn.completed": self.usage = value
+            kind = value.get("type")
+            error = None
+            if kind in {"turn.failed", "error"}:
+                error = value.get("error") if isinstance(value.get("error"), dict) else value
+            elif kind == "response.failed" and isinstance(value.get("response"), dict):
+                error = value["response"].get("error")
+            elif kind in {"item.started", "item.updated", "item.completed"}:
+                item = value.get("item")
+                if isinstance(item, dict) and item.get("type") == "error": error = item
+            if isinstance(error, dict):
+                keys = {"code", "error_code", "errorCode", "codex_error_info", "error_type",
+                        "type", "status", "status_code", "statusCode", "http_status", "message"}
+                compact = {k: (v[:1024] if isinstance(v, str) else v) for k, v in error.items()
+                           if k in keys and type(v) in {str, int}}
+                self.errors = (self.errors + [{"type": "error", "error": compact}])[-8:]
             if value.get("type") in {"item.started", "item.completed"}:
                 item = value.get("item")
                 if isinstance(item, dict) and item.get("type") not in {"agent_message", "error"}:
@@ -172,6 +245,7 @@ class _SemanticStream:
             records = []
             if self.tool_started: records.append({"type": "item.started", "item": {"type": "command_execution"}})
             if self.usage is not None: records.append(self.usage)
+            records.extend(self.errors)
             return "\n".join(json.dumps(r, ensure_ascii=False, separators=(",", ":")) for r in records)
         return json.dumps(self.wrapper, ensure_ascii=False, separators=(",", ":")) if self.wrapper is not None else ""
 

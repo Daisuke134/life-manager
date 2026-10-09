@@ -395,70 +395,6 @@ def release_gc(releases: Path, current: Path, agents: Path, keep: int) -> dict:
     return result
 
 
-def managed_run_gc(agents: Path, *, registry_path: Path = ROOT / "config/loop-registry.json",
-                   policy_path: Path = ROOT / "config/storage-policy.json", starts=None,
-                   closed_probe=None) -> dict:
-    """Byte retention never broadens ownership or the regenerable marker."""
-    result = {"removed_runs": 0, "reclaimed_bytes": 0, "errors": 0,
-              "protected_deletions": 0, "unrecoverable_bytes": 0}
-    if not policy_path.is_file(): return result
-    try: registry = json.loads(registry_path.read_text())["loops"]
-    except (OSError, ValueError, KeyError):
-        result["errors"] += 1; return result
-    identities = process_starts() if starts is None else starts
-    if identities is None: return result
-    deadline = time.monotonic() + 15
-    visited = set()
-    for plist_path in agents.glob("ai.anicca.*.plist"):
-        if time.monotonic() >= deadline: break
-        try:
-            plist = plistlib.loads(plist_path.read_bytes())
-            args = plist.get("ProgramArguments") or []
-            owner = args[1] if len(args) >= 2 else None
-            if owner not in registry: continue
-            policy = load_storage_policy(policy_path, owner)
-            raw = (plist.get("EnvironmentVariables") or {}).get("LIFE_MANAGER_STATE_ROOT")
-            if policy is None or not isinstance(raw, str): continue
-            root = Path(raw).expanduser()
-            if root in visited or not root.is_absolute() or root.is_symlink(): continue
-            visited.add(root)
-            runs = root / "runs"
-            if not runs.is_dir() or runs.is_symlink(): continue
-            closed = set(); active = set()
-            for run in runs.iterdir():
-                if time.monotonic() >= deadline: break
-                if run.is_symlink() or not run.is_dir() or not (run / ".lm-regenerable").is_file(): continue
-                try:
-                    owner_path = run / ".owner.json"
-                    owner_fd = os.open(owner_path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
-                    with os.fdopen(owner_fd, "rb") as owner_file:
-                        info = os.fstat(owner_file.fileno())
-                        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
-                                or info.st_nlink != 1 or info.st_size > 4096
-                                or info.st_mode & 0o077):
-                            continue
-                        binding = json.loads(owner_file.read(4097))
-                    pid = binding["pid"]
-                    if type(pid) is not int or pid <= 0 or not isinstance(binding["process_start"], str): continue
-                    if identities.get(pid) == binding["process_start"]:
-                        active.add(run.name); continue
-                    if closed_probe is None:
-                        probe = subprocess.run(["lsof", "-nP", "+D", str(run)],
-                            capture_output=True, text=True, timeout=min(2, max(.1, deadline-time.monotonic())))
-                        verified = probe.returncode == 1 and not probe.stdout.strip() and not probe.stderr.strip()
-                    else: verified = closed_probe(run)
-                    if verified is True: closed.add(run.name)
-                except (OSError, ValueError, KeyError, subprocess.TimeoutExpired): continue
-            active.update(r.name for r in runs.iterdir() if r.name not in closed)
-            outcome = cleanup_run_root(root, registry[owner]["cleanup"], active,
-                managed_bytes=min(policy.owner_diagnostic_retained_bytes,
-                    policy.host_diagnostic_retained_bytes // max(1, len(registry))),
-                closed_run_ids=closed)
-            for name in result: result[name] += outcome.get(name, 0)
-        except (OSError, ValueError, KeyError, TypeError, ExpatError): result["errors"] += 1
-    return result
-
-
 def main() -> int:
     home = Path.home()
     loops_root = Path(os.environ.get("LOOPS_ROOT", "~/loops")).expanduser()
@@ -501,16 +437,13 @@ def main() -> int:
     except (OSError, ValueError) as error:
         print(json.dumps({"ok": False, "error": str(error)}, sort_keys=True)); return 1
     snapshot_started_ns = time.time_ns()
-    managed_result = managed_run_gc(agents)
     scratch_result = scratch_gc(
         installed_state_roots(agents), snapshot_started_ns=snapshot_started_ns,
         starts=process_starts(),
         no_effect_loop_ids=no_effect_loop_ids(ROOT / "config/loop-registry.json"))
-    result.update({"ok": result["errors"] == 0 and host_ok and scratch_result["errors"] == 0
-                        and managed_result["errors"] == 0,
+    result.update({"ok": result["errors"] == 0 and host_ok and scratch_result["errors"] == 0,
                    "host_cleanup": host_result,
                    "scratch_cleanup": scratch_result,
-                   "managed_output_cleanup": managed_result,
                    "idle_reconcile": [],
                    "shared_cache_candidates": 0, "orphan_candidates": 0})
     print(json.dumps(result, sort_keys=True, separators=(",", ":")))
