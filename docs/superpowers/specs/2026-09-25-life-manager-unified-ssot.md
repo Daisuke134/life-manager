@@ -718,6 +718,20 @@ TODO（何を・どう直すか）
 | L26 | LINE Creators Market の「特集」企画に自動参加する（上位作者は特集に乗ってストアバナー/LINE公式での無料露出を得ている。既存は selector が `campaign_value` を常に null にして不参加固定） | DONE: 新規 `features_readback.py` が `line-creators:dais` で既存アイテムの編集ページ（`/sticker/<id>/update`）の特集ラジオ共有グループ（`value="on"`＝参加しない、実測 2026-10-08）を読み、各選択肢のタイトルを `/announce/` のお知らせ一覧とタイトル部分一致で突き合わせ、その記事本文（個数・金額・条件）を `conditions` として `~/.local/state/life-manager/line-sticker/features.json` に書く。既存の毎時 `line-sticker-readback-hourly`（`line-sticker-readback.sh`）が1行追加で呼ぶが、`features.json` の `observed_at`（JST日付）で自己ゲートし実質1日1回。`line_sticker_planner.selector` のプロンプト手順8を「不参加固定」から「open な特集一覧＋条件をモデルに渡し、今回のセットが条件を満たす特集が1つでもあればその value を選ぶ、なければ null」に変更、返ってきた `campaign_value` は決定的ガード `_guard_campaign_value`（features.json の open 一覧に無い値・期限切れは null）を通す。`line_sticker_submit._select_taste_character_campaign` は既存のまま（`campaign_value` の値を持つラジオを選択、null/未知は `"on"`=不参加）で対応済みを確認。テスト `tests/test_features_readback.py`（ラジオ labelのパース・お知らせ一致・自己ゲート）、`tests/test_line_sticker_planner.py` 追加分（guard・open_features フィルタ・プロンプトに特集が入ること）、`tests/test_line_sticker_submit_title.py` 追加分（特集 value のラジオを確実に選ぶこと）含め全 green。2026-10-08 実測の公開中特集: 799 そんな時もある！ネガティブ表現スタンプ、806 使いやすい！気づかいスタンプ（弊社の24枚動くセットはスタンプ枚数条件で過去に不採用)、811 秋を感じるスタンプ（受付〜10/19）、820 犬の日 スタンプ（受付〜11/16）、835 冬を感じるスタンプ（受付10/2〜12/4、新規キャラ限定・8〜40枚・¥190以上・冬関連8枚以上） |
 | L27 | 上位セラーを継続的に写す（新規 `market.py`。10 セット申請・4 販売中・売上¥0 のまま、planner が market 調査を一度も見ていなかった） | DONE: `skills/earn/line-sticker/market.py` が LINE STORE `top_creators`（全件+動く系 `category=2000`）・`new_creators` を login 不要の HTTP GET で毎日読み（`market.json` の `observed_at` で自己ゲート、`line-sticker-readback.sh` から `sales_readback.py` の直後に1行追加で呼ぶ）、上位 40 件を product_id 順に dedup して各商品ページの schema.org JSON-LD（title/description/price/author）とスタンプ一覧の `data-preview` type（static/animated/popup・枚数）を抽出、著者ページで著者のシリーズ本数（`author_sets`）も記録。上位 15 件だけ `agent_runner.py` にサムネイルを渡し文字有無・テーマ・画風・フレーズを分類。`line_sticker_planner._build_plan_prompt` は market 上位 15 件を見せ、`copy_target`（商品URL・テーマ・フレーズ・表現スタイル・文字有無・タイトルの型）を plan.schema.json の必須フィールドに追加（他者のキャラ・絵・文字の複製は禁止、企画パターンだけ写す）。市場が静止/文字入り中心なら `format_gap` に記録（別 TODO、今回は着手しない）。2026-10-08 実測スイープ（40件、分類なしの dry-run）: フォーマット static 24 / animated 15 / popup 1、価格帯 ¥190（静止の大半）〜¥250（動く系の大半）、上位は例外なく既存キャラの多セット展開（例: ナガノ34セット、動画工房36セット）。テスト: `tests/test_market.py`（新規、HTML fixture ベース・ネットワーク無し）+ `tests/test_line_sticker_planner.py`/`tests/test_factory.py` 追加分、全 green。`./bin/lm-loop-contract` PASS |
 
+#### 5.L 現状スナップショット（2026-10-09 09:00 JST、実測。行の追記ではなくここを書き換える）
+
+| 項目 | 値 | 根拠 |
+|---|---|---|
+| 販売中 | 9 セット（24 枚・¥250、動く 9） | 公式一覧と各 `store_public=true` |
+| 審査待ち | 7 セット（動く 2、静止 16 枚 4、**静止 40 枚 1 = set-017 / 48170812**） | 公式の状態読み取り |
+| 売上 | **¥0**（工場のセット）。別の古い商品「いりや」¥189 のみ（振込可能額 ¥0） | 公式 /stats/sticker 10/09 04 時台 |
+| 累計支出 | 約 $17.61（fal 時代の動画代）。以後の画像生成は ChatGPT で $0 | factory の cost 記録 |
+| 集客リンク | 本物の購入用URL（`line.me/S/sticker/<store id>`）のみ。10/09 まで投稿 20 回超と記事 1 本は 404 だった（#7233 で修正、記事は手で修正） | 行 14 |
+| Instagram | @stardust_doubutsu、フォロワー 0、投稿 5 件。10/09 08:15 枠は失敗（`shared-unconfirmed`、未投稿）、冷却 20 分後に自動再試行 | 行 14、台帳 |
+| 特集（受付中） | 811 秋 〜10/19、820 犬の日 〜11/16、835 冬 〜12/04。806・799 は終了済み | 行 3（#7277） |
+| 工場 | 15 分おきに起動。`resource_class=deterministic`（#7262）。40 枚計画（#7222）、超過は切り詰め（#7231）、画像段 60 分予算（#7225） | 行 11・13 |
+| 主なボトルネック | host の agent 枠（上限 2）を案件系が約 8 割使用（347 件待機）、disk 空き 0〜3 GiB の揺れ、他 session の release 反映による実行打ち切り | 行 10・11 |
+
 #### 5.L 実行順（2026-10-08 Dais「1 つずつ最後まで」。この表が LINE スタンプの cursor の正本）
 
 成功者の稼ぎ方（一次・準一次ソース）: LINE 公式 10 周年 累計 1,000 億円・上位 10 名平均 13.52 億円（9 割は月数百円）; ゲスくま（ITmedia 2015-12-28）「ランキング上位で一番使いやすいものに合わせて作る」「1 位を 10 週で月 100 万円」; urajo（本人 note）10 年量産＋シリーズ化で 2023-02 売上 37 万円・分配 22 万円、累計 1,000 万円超; ユニコブログ 猫×毎日使える言葉で初日 2.7 万円。共通点 = ①ランキングの型を写す ②1 キャラ量産・シリーズ ③絵より送りやすい言葉 ④発売直後に SNS で人を集める。静止の最低価格は 2026-07-01 から ¥190。
