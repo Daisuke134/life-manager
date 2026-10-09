@@ -2597,7 +2597,7 @@ def test_revenue_priority_applies_across_resource_classes(tmp_path, monkeypatch)
     ]
 
 
-def test_distribution_calendar_owner_preempts_aged_revenue_pollers(
+def test_aged_revenue_preempts_fresh_distribution_after_30m(
         tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="1")
     admission.activate_durable_v2()
@@ -2619,7 +2619,45 @@ def test_distribution_calendar_owner_preempts_aged_revenue_pollers(
 
     assert ticket is not None
     assert admission.reserve_available(now=2001, lease_seconds=30) == [
+        "lancers-revenue-application"
+    ]
+
+
+def test_fresh_distribution_preempts_fresh_revenue(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    admission.enqueue_durable(
+        "agent", "lancers-revenue-application", admission_class="revenue",
+        priority="revenue", now=1900,
+    )
+    ticket, _ = admission.enqueue_durable(
+        "agent", "mobile-calendar-publisher", admission_class="revenue",
+        priority="distribution", now=2000,
+    )
+
+    assert ticket is not None
+    assert admission.reserve_available(now=2001, lease_seconds=30) == [
         "mobile-calendar-publisher"
+    ]
+
+
+def test_fresh_critical_paid_preempts_fresh_distribution(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    admission.enqueue_durable(
+        "agent", "mobile-calendar-publisher", admission_class="revenue",
+        priority="distribution", now=2000,
+    )
+    ticket, _ = admission.enqueue_durable(
+        "agent", "crowdworks-revenue-paid", admission_class="revenue",
+        priority="critical_paid", now=2001,
+    )
+
+    assert ticket is not None
+    assert admission.reserve_available(now=2002, lease_seconds=30) == [
+        "crowdworks-revenue-paid"
     ]
 
 

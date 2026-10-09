@@ -33,7 +33,7 @@ RESERVATION_LEAK_COOLDOWN_SECONDS = 60
 # ``admission_class`` remains the mixed-release capacity fence.  These
 # explicit priorities are an ordering policy for durable waiters and are
 # evaluated from persisted queue age at claim time.
-BASE_PRIORITIES = ("distribution", "critical_paid", "revenue", "support")
+BASE_PRIORITIES = ("critical_paid", "distribution", "revenue", "support")
 PRIORITY_RANK = {name: rank for rank, name in enumerate(BASE_PRIORITIES)}
 PRIORITY_AGE_SECONDS = {
     "critical_paid": 5 * 60,
