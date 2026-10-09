@@ -39,12 +39,16 @@ test("the marketing destination SSOT fixes every retained route and every non-ta
     { platform: "instagram", postiz_profile: "@monk_anicca", integration_id: null,
       reason: "english_monk_instagram_not_connected", target_daily_limit: 0 },
   );
-  assert.ok(value.targets.every((row) => row.cadence_jst.length === 3));
+  assert.ok(value.targets.every((row) => [2, 3].includes(row.cadence_jst.length)));
+  assert.deepEqual(
+    value.targets.filter((row) => row.cadence_jst.length === 2).map((row) => row.lane_id),
+    ["ebook-en-tiktok"],
+  );
   const englishMonk = value.targets.find((row) => row.lane_id === "ebook-en-tiktok");
   assert.deepEqual(
     [englishMonk.native_handle, englishMonk.integration_id, englishMonk.renderer_id,
       englishMonk.cadence_jst],
-    ["@monk_anicca", "cmo5rwq2p00twn10yrsdglng3", "heygen-avatar-iv", ["08:00", "14:00", "21:00"]],
+    ["@monk_anicca", "cmo5rwq2p00twn10yrsdglng3", "heygen-avatar-iv", ["08:00", "21:00"]],
   );
   assert.equal(value.holds.some((row) => row.integration_id === "cmo5rwq2p00twn10yrsdglng3"), false);
   assert.equal(value.targets.some((row) => row.native_handle === "@obou.anicca" && row.product_id !== "ebook-ja"), false);
@@ -113,6 +117,20 @@ test("duplicate retained handles across platforms fail closed", () => {
   const value = JSON.parse(fs.readFileSync(CONTRACT, "utf8"));
   value.targets[1].native_handle = value.targets[0].native_handle;
   assert.throws(() => validateMarketingDestinationContract(value), /duplicate native handle/i);
+});
+
+test("two-slot cadence is limited to the English eBook lane", () => {
+  const value = JSON.parse(fs.readFileSync(CONTRACT, "utf8"));
+  const otherLane = value.targets.find((row) => row.lane_id !== "ebook-en-tiktok");
+  otherLane.cadence_jst = ["08:00", "21:00"];
+  assert.throws(() => validateMarketingDestinationContract(value), /cadence_jst/);
+});
+
+test("English eBook two-slot exception is bound to its Monk TikTok identity", () => {
+  const value = JSON.parse(fs.readFileSync(CONTRACT, "utf8"));
+  const target = value.targets.find((row) => row.lane_id === "ebook-en-tiktok");
+  target.platform = "instagram";
+  assert.throws(() => validateMarketingDestinationContract(value), /cadence_jst/);
 });
 
 test("a target without an exact pack, form, cadence, label, or entrypoint fails closed", () => {

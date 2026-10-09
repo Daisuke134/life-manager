@@ -10,7 +10,7 @@ from product_router import Registry, RoutingError, load_registry, require
 
 EXPECTED = {
     "ebook-ja-watercolor": ("ebook-ja", "ja", "watercolor-monk", "https://aniccaai.com/achan", ("07:00", "12:30", "20:00")),
-    "ebook-en-anicca-monk": ("ebook-en", "en", "heygen-avatar-iv", "https://aniccaai.com/monk", ("08:00", "14:00", "21:00")),
+    "ebook-en-anicca-monk": ("ebook-en", "en", "heygen-avatar-iv", "https://aniccaai.com/monk", ("08:00", "21:00")),
 }
 
 
