@@ -2704,6 +2704,15 @@ def apply_live(release_root: Path, agents_dir: Path, launchctl_safe: Path,
     preflight_rc, detail = _safe_launchctl(launchctl_safe, ["preflight"])
     if preflight_rc:
         raise RuntimeError(f"launchctl-safe preflight failed: {detail.strip()}")
+    disabled = {}
+    if plan:
+        disabled_rc, disabled_text = _safe_launchctl(
+            launchctl_safe, ["print-disabled", f"gui/{os.getuid()}"])
+        if disabled_rc or not re.fullmatch(
+                r'\s*disabled services\s*=\s*\{\s*(?:"[^"\n]+"\s*=>\s*(?:enabled|disabled)\s*)*\}\s*',
+                disabled_text):
+            raise RuntimeError("disabled state readback failed")
+        disabled = parse_disabled(disabled_text)
     results = (
         _retire_labels(registry, agents_dir, launchctl_safe, current, lock_path)
         if target is None else
@@ -2713,6 +2722,11 @@ def apply_live(release_root: Path, agents_dir: Path, launchctl_safe: Path,
         ) if retired_target else []
     )
     for item in plan:
+        if disabled.get(item["label"]):
+            results.append({"ok": True, "label": item["label"],
+                            "release_sha": release_sha, "changed": False,
+                            "skipped": "disabled"})
+            continue
         item_lock = (None if reload_running else
                      _label_apply_lock_path(current, item["label"], lock_path))
         try:
