@@ -175,6 +175,61 @@ class ReconcilerHandoffWatcherTest(unittest.TestCase):
                 f"print gui/{os.getuid()}/ai.anicca.life-manager-release-reconciler",
             ])
 
+    def test_watcher_unloads_helper_in_launchd_not_running_state(self):
+        with tempfile.TemporaryDirectory() as directory:
+            release = Path(directory) / "release"
+            bin_dir = release / "bin"
+            bin_dir.mkdir(parents=True)
+            delegation = Path(directory) / "delegation.json"
+            launchctl_log = Path(directory) / "launchctl.log"
+            runner = bin_dir / "reconcile-agent-runner-release.sh"
+            runner.write_text(
+                "#!/bin/sh\n"
+                "printf '%s|%s' \"${LIFE_MANAGER_RECONCILER_HANDOFF_ONLY:-0}\" "
+                "\"${LIFE_MANAGER_RECONCILER_FORCE_HANDOFF:-0}\" > \"$WATCHER_TEST_LOG\"\n"
+            )
+            runner.chmod(runner.stat().st_mode | stat.S_IEXEC)
+            launchctl_safe = bin_dir / "launchctl-safe"
+            launchctl_safe.write_text(
+                "#!/bin/sh\n"
+                "printf '%s\\n' \"$*\" >> \"$WATCHER_LAUNCHCTL_LOG\"\n"
+                "case \"$1:$2\" in\n"
+                "  print:*)\n"
+                "    case \"$2\" in\n"
+                "      */ai.anicca.life-manager-release-reconciler-self-handoff) "
+                "printf 'state = not running\\n' ;;\n"
+                "      */ai.anicca.life-manager-release-reconciler) "
+                "printf 'state = running\\n' ;;\n"
+                "    esac\n"
+                "    exit 0\n"
+                "    ;;\n"
+                "  bootout:*) exit 0 ;;\n"
+                "esac\n"
+                "exit 64\n"
+            )
+            launchctl_safe.chmod(launchctl_safe.stat().st_mode | stat.S_IEXEC)
+
+            result = subprocess.run(
+                ["/bin/bash", str(WATCHER)],
+                env={
+                    **os.environ,
+                    "LIFE_MANAGER_RELEASE_ROOT": str(release),
+                    "WATCHER_TEST_LOG": str(delegation),
+                    "WATCHER_LAUNCHCTL_LOG": str(launchctl_log),
+                },
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(delegation.read_text(encoding="utf-8"), "1|0")
+            self.assertEqual(launchctl_log.read_text(encoding="utf-8").splitlines(), [
+                f"print gui/{os.getuid()}/ai.anicca.life-manager-release-reconciler-self-handoff",
+                f"bootout gui/{os.getuid()}/ai.anicca.life-manager-release-reconciler-self-handoff",
+                f"print gui/{os.getuid()}/ai.anicca.life-manager-release-reconciler",
+            ])
+
 
 if __name__ == "__main__":
     unittest.main()
