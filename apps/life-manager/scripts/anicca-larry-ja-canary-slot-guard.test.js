@@ -29,6 +29,18 @@ test("production canary rejects execution time when a configured slot is already
   );
 });
 
+test("production canary accepts an earlier configured slot today for catch-up", async () => {
+  const missedSlot = "2026-10-08T00:15:00.000Z"; // 09:15 JST
+  const now = "2026-10-08T06:20:00.000Z"; // 15:20 JST; the 14:15 slot is now latest.
+  await assert.rejects(
+    runAniccaCarouselCanary(["run-en-affirmation-tiktok-production", "--slot", missedSlot], {
+      env: {},
+      now: () => now,
+    }),
+    (error) => error && error.code !== "OFF_SCHEDULE_SLOT" && /LM_DATA_DIR/.test(error.message),
+  );
+});
+
 test("direct production canary CLI requires the rotating slot and daily fences", () => {
   const script = path.join(__dirname, "anicca-larry-ja-canary.js");
   const slot = "2026-10-08T15:04:52.789Z";
