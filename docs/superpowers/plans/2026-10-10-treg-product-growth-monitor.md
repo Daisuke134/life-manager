@@ -93,9 +93,9 @@
 - `load_product_profiles(registry_dir: Path, extras_file: Path) -> list[dict]` returns the five canonical product rows plus four App Store supplements, ordered with `anicca-ios` first.
 - Agent output contains `signals[]` with `product_id`, `platform`, `person_url`, `signal`, `source_url`, `observed_at`, and `why_now`; it also contains one `treg_calls[]` receipt per billed route with `call_id` and `charged_micro`.
 
-- [ ] Record the four Apple listing IDs, exact listing URLs, and concise buyer descriptions grounded in the current Apple lookup metadata.
-- [ ] Write the JSON Schema to reject unknown products/platforms, absent source/person URLs, missing reasons, and missing Treg call receipts.
-- [ ] Run `python3 -m json.tool` on both JSON files.
+- [x] Record the four Apple listing IDs, exact listing URLs, and concise buyer descriptions grounded in the current Apple lookup metadata.
+- [x] Write the JSON Schema to reject unknown products/platforms, absent source/person URLs, missing reasons, and missing Treg call receipts.
+- [x] Run `python3 -m json.tool` on both JSON files.
 - [ ] Commit and push this task.
 
 ### Task 3: Implement the private weekly signal owner
