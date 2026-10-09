@@ -262,15 +262,17 @@ owned/X publication, and DEV/Substack receipts. Composition receives the prior
 sealed campaign as the control and may change only the Agent-selected variable;
 missing control evidence fails closed before any public effect.
 
-Each newly discovered English campaign captures the official Alec Wilcock and
-Greg Preece affiliate case studies alongside product and pricing sources. The
-composer uses their documented tutorial and audience-fit methods as strategy
-evidence, writes a substantive original English-first tutorial (target
-800–1,200 words when the sources support it), adds a concise Japanese secondary
-summary, and keeps one clearly visible disclosed CTA. It never pads or invents
-facts to reach a length target. Reported creator earnings remain attributed to
-those case studies and are never presented as Anicca's results or as guaranteed
-outcomes.
+Every ElevenLabs English composition bundle includes fresh, hash-verified official Alec
+Wilcock and Greg Preece affiliate case studies, including when its immutable
+product plan predates those sources. The source refresher reuses a valid capture
+or recaptures a missing or expired one without rewriting the plan. The composer
+uses documented tutorial, firsthand-use, audience-fit, search, and CTA methods
+as strategy evidence only. It writes a substantive original English-first
+tutorial (target 800–1,200 words when the sources support it), adds a concise
+Japanese secondary summary, and keeps one clearly visible disclosed CTA. Product
+claims stay grounded in official product and pricing sources. The campaign does
+not copy case-study wording, identify its creators, or use their reported earnings
+as proof or as a guarantee.
 
 Every future generic campaign acquires its own PartnerStack custom link before
 publication by reusing the verified ElevenLabs link adapter. The raw URL stays in

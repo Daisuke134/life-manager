@@ -42,6 +42,20 @@ EXCLUDED_MARKERS = (
     "affiliate", "application", "archived", "career", "contact", "jobs",
     "legal", "policy", "privacy", "program", "safety", "terms",
 )
+AFFILIATE_CASE_STUDY_SOURCES = (
+    {
+        "id": "elevenlabs-alec", "adapter": "crwl",
+        "url": "https://elevenlabs.io/blog/alec-wilcock-on-becoming-a-top-affiliate-for-elevenlabs",
+        "evidence_class": "first_person_case",
+        "license": "PROPRIETARY_REFERENCE_ONLY", "freshness_days": 90,
+    },
+    {
+        "id": "elevenlabs-greg", "adapter": "crwl",
+        "url": "https://elevenlabs.io/blog/greg-preece-on-youtube-monetisation-with-the-elevenlabs-affiliate-program",
+        "evidence_class": "first_person_case",
+        "license": "PROPRIETARY_REFERENCE_ONLY", "freshness_days": 90,
+    },
+)
 
 
 def plan_paths(root, state_root=None):
@@ -396,18 +410,7 @@ def discover_official_plan(root, state_root, now, opportunity_selector=select_op
                 "url": "https://elevenlabs.io/pricing", "evidence_class": "official_price",
                 "license": "PROPRIETARY_REFERENCE_ONLY", "freshness_days": 7,
             },
-            {
-                "id": "elevenlabs-alec", "adapter": "crwl",
-                "url": "https://elevenlabs.io/blog/alec-wilcock-on-becoming-a-top-affiliate-for-elevenlabs",
-                "evidence_class": "first_person_case",
-                "license": "PROPRIETARY_REFERENCE_ONLY", "freshness_days": 90,
-            },
-            {
-                "id": "elevenlabs-greg", "adapter": "crwl",
-                "url": "https://elevenlabs.io/blog/greg-preece-on-youtube-monetisation-with-the-elevenlabs-affiliate-program",
-                "evidence_class": "first_person_case",
-                "license": "PROPRIETARY_REFERENCE_ONLY", "freshness_days": 90,
-            },
+            *AFFILIATE_CASE_STUDY_SOURCES,
         ],
     }
     if experiment:
@@ -510,10 +513,70 @@ def append_unique(path, receipt):
         return True
 
 
+def _fresh_strategy_receipt(state_root, source, now):
+    directory = state_root / "sources" / source["id"]
+    receipt_path = directory / "latest.json"
+    if directory.is_symlink() or receipt_path.is_symlink():
+        return None
+    try:
+        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+        if not isinstance(receipt, dict):
+            return None
+        expires_text = receipt.get("expires_at")
+        digest = receipt.get("raw_sha256")
+        if not isinstance(expires_text, str):
+            return None
+        expires_at = datetime.fromisoformat(expires_text.replace("Z", "+00:00"))
+        if (
+            receipt.get("schema_version") != 1
+            or receipt.get("receipt_type") != "SOURCE_CAPTURE"
+            or receipt.get("source_id") != source["id"]
+            or receipt.get("adapter") != source["adapter"]
+            or receipt.get("locator") != source["url"]
+            or receipt.get("locale") != "en"
+            or receipt.get("evidence_class") != source["evidence_class"]
+            or receipt.get("license") != source["license"]
+            or receipt.get("failure_class") is not None
+            or not isinstance(digest, str)
+            or not re.fullmatch(r"[0-9a-f]{64}", digest)
+            or expires_at.tzinfo is None or expires_at <= now
+        ):
+            return None
+        artifact = directory / f"{digest}.md"
+        if artifact.is_symlink() or not artifact.is_file():
+            return None
+        if hashlib.sha256(artifact.read_bytes()).hexdigest() != digest:
+            return None
+    except (OSError, TypeError, ValueError):
+        return None
+    return {**receipt, "new_capture": False}
+
+
 def capture(plan, state_root):
     now = datetime.now(timezone.utc)
-    receipts = []
-    for source in plan["sources"]:
+    plan_sources = list(plan["sources"])
+    plan_source_ids = {source["id"] for source in plan_sources}
+    strategy_sources = (
+        AFFILIATE_CASE_STUDY_SOURCES
+        if any(
+            isinstance(source, dict)
+            and isinstance(source.get("url"), str)
+            and source["url"].startswith("https://elevenlabs.io/")
+            for source in plan_sources
+        ) else ()
+    )
+    capture_sources = list(plan_sources)
+    reusable_strategy_receipts = {}
+    for source in strategy_sources:
+        if source["id"] in plan_source_ids:
+            continue
+        reusable = _fresh_strategy_receipt(state_root, source, now)
+        if reusable is None:
+            capture_sources.append(source)
+        else:
+            reusable_strategy_receipts[source["id"]] = reusable
+    receipts_by_id = {}
+    for source in capture_sources:
         raw = run_adapter(source)
         digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()
         directory = state_root / "sources" / source["id"]
@@ -545,8 +608,14 @@ def capture(plan, state_root):
         }
         receipt["new_capture"] = append_unique(state_root / "source-captures.jsonl", receipt)
         atomic_write(directory / "latest.json", receipt)
-        receipts.append(receipt)
-    return receipts
+        receipts_by_id[source["id"]] = receipt
+    receipts_by_id.update(reusable_strategy_receipts)
+    source_order = [source["id"] for source in plan_sources]
+    source_order.extend(
+        source["id"] for source in strategy_sources
+        if source["id"] not in plan_source_ids
+    )
+    return [receipts_by_id[source_id] for source_id in source_order]
 
 
 def plan_set_sha256(root, state_root=None):

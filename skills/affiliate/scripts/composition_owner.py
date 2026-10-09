@@ -211,13 +211,13 @@ and apply this pattern only within the selected variable.
         for source in bundle.get("sources", [])
     ):
         case_study_prompt = """
-Use the included official affiliate case studies as strategy evidence. For a baseline,
-show a specific workflow tutorial for a relevant audience, keep it useful over time,
-and place the single disclosed CTA above the fold after a short intro. For an
-experiment, apply case-study methods only within the selected variable and preserve
-the control's other content choices. Create original wording; do not copy the cases
-or present their reported earnings as Anicca's results; attribute them as reported,
-not guarantees.
+Use the included official affiliate case studies only to choose transferable tactics:
+firsthand product use, audience fit, a specific workflow tutorial, evergreen search
+intent, and a clear above-the-fold affiliate-link CTA. Do not copy their wording, name
+their participants, link to their case-study pages, or use their reported earnings as
+proof in this campaign. Keep product claims grounded in the official product and pricing
+sources. For an experiment, apply these tactics only within the selected variable and
+preserve the control's other content choices.
 """
     opportunity = bundle.get("opportunity_decision")
     opportunity_prompt = ""
