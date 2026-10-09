@@ -2005,7 +2005,17 @@ def test_verified_no_effect_result_requires_exact_identity_and_allowed_entrypoin
         'lm-no-effect://ebook-ja-tiktok-daily/ebook-ja-tiktok-daily:run-off-slot/no_due_slot',
     )
     assert reader(hint, 'ebook-ja-tiktok-daily',
-                 'ebook-ja-tiktok-daily:run-off-slot', entrypoint) == expected
+                  'ebook-ja-tiktok-daily:run-off-slot', entrypoint) == expected
+    english_owner = 'ebook-en-tiktok-daily'
+    english_occurrence = f'{english_owner}:render-run-1'
+    _write_no_effect_result(
+        hint, owner_id=english_owner, occurrence_id=english_occurrence,
+        reason='render_not_ready',
+    )
+    assert reader(hint, english_owner, english_occurrence, entrypoint) == (
+        'not_applicable',
+        f'lm-no-effect://{english_owner}/{english_occurrence}/render_not_ready',
+    )
     _write_no_effect_result(hint, schema_version=True)
     assert reader(hint, 'ebook-ja-tiktok-daily',
                   'ebook-ja-tiktok-daily:run-off-slot', entrypoint) is None

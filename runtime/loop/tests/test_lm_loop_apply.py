@@ -5225,6 +5225,36 @@ class PreEffectForeignClaimTests(unittest.TestCase):
         self.assertIsNone(proof)
         self.assertEqual(reason, 'no_pre_effect_terminal')
 
+    def test_english_render_not_ready_terminal_proves_no_postiz_effect_for_exact_occurrence(self):
+        owner = 'ebook-en-tiktok-daily'
+        occurrence = f'{owner}:render-run-1'
+        run_id = 'execution-render-run-1'
+        summary_ref = f'lm-loop://{owner}/{run_id}/summary.json'
+        claim_ref = f'lm-occurrence://{owner}/render-run-1/claim'
+        no_effect_ref = f'lm-no-effect://{owner}/{occurrence}/render_not_ready'
+        entry = {
+            'effect_class': 'publish',
+            'entrypoint': 'apps/life-manager/scripts/ebook-distribute-daily.sh',
+            'state_root': '/private/state/ebook',
+        }
+        terminal = {
+            'loop_id': owner, 'run_id': run_id, 'occurrence_id': occurrence,
+            'owner_id': owner,
+            'phase': 'report', 'status': 'pass', 'effect_class': 'none',
+            'effect_status': 'not_applicable', 'blocker': None,
+            'provider_receipt_id': None, 'official_readback_ref': None,
+            'evidence_refs': [summary_ref, claim_ref, no_effect_ref],
+            'event_id': 'c' * 24, 'timestamp': '2026-10-09T00:00:00+00:00',
+        }
+
+        proof, reason = lm_loop._pre_effect_occurrence_proof(
+            owner, entry, occurrence, 'claimed', [terminal],
+        )
+
+        self.assertEqual(reason, 'ok')
+        self.assertEqual(proof['proof_type'], 'pre_effect')
+        self.assertEqual(proof['occurrence_id'], occurrence)
+
 
     def test_ebook_legacy_offslot_unknown_is_pre_effect_only_for_exact_occurrence_release_and_runs(self):
         owner = 'ebook-ja-tiktok-daily'

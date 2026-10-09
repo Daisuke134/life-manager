@@ -668,6 +668,13 @@ class MacosLoopRegistryTest(unittest.TestCase):
                 self.assertEqual(row.get("resource_class"), "agent")
                 self.assertEqual(row.get("admission_class"), "revenue")
                 self.assertEqual(row.get("priority"), "distribution")
+        ebook = registry["loops"]["ebook-en-tiktok-daily"]
+        self.assertEqual(ebook.get("resource_class"), "agent")
+        self.assertEqual(ebook.get("admission_class"), "revenue")
+        self.assertEqual(ebook.get("priority"), "distribution")
+        self.assertEqual(ebook.get("cadence"), {
+            "calendar_interval": [{"Hour": 8, "Minute": 0}, {"Hour": 21, "Minute": 0}],
+        })
         connector = registry["loops"]["life-manager-connector-native"]
         self.assertEqual(connector.get("resource_class"), "browser")
         self.assertEqual(connector.get("admission_class"), "revenue")
