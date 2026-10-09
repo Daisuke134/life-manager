@@ -61,9 +61,10 @@ function validateMarketingDestinationContract(input) {
     text(row.loop_name, "loop_name");
     text(row.label, "label", /^ai\.anicca\.life-manager-[A-Za-z0-9._-]+$/);
     text(row.entrypoint, "entrypoint", /^apps\/life-manager\/scripts\/(?:mobile-app|[A-Za-z0-9._-]+\.sh)$/);
-    if (!Array.isArray(row.cadence_jst) || row.cadence_jst.length < 2 || row.cadence_jst.length > 3
+    const expectedCadenceSlots = row.lane_id === "ebook-en-tiktok" ? 2 : 3;
+    if (!Array.isArray(row.cadence_jst) || row.cadence_jst.length !== expectedCadenceSlots
       || row.cadence_jst.some((value) => typeof value !== "string" || !TIME.test(value))
-      || new Set(row.cadence_jst).size !== row.cadence_jst.length) invalid("cadence_jst");
+      || new Set(row.cadence_jst).size !== expectedCadenceSlots) invalid("cadence_jst");
     unique(lanes, row.lane_id, "lane_id");
     unique(integrations, row.integration_id, "integration_id");
     unique(nativeHandles, row.native_handle, "native handle");

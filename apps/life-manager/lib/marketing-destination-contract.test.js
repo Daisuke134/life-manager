@@ -119,6 +119,13 @@ test("duplicate retained handles across platforms fail closed", () => {
   assert.throws(() => validateMarketingDestinationContract(value), /duplicate native handle/i);
 });
 
+test("two-slot cadence is limited to the English eBook lane", () => {
+  const value = JSON.parse(fs.readFileSync(CONTRACT, "utf8"));
+  const otherLane = value.targets.find((row) => row.lane_id !== "ebook-en-tiktok");
+  otherLane.cadence_jst = ["08:00", "21:00"];
+  assert.throws(() => validateMarketingDestinationContract(value), /cadence_jst/);
+});
+
 test("a target without an exact pack, form, cadence, label, or entrypoint fails closed", () => {
   const value = JSON.parse(fs.readFileSync(CONTRACT, "utf8"));
   for (const field of ["approved_pack_ref", "media_form", "cadence_jst", "label", "entrypoint"]) {

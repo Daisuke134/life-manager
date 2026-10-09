@@ -10394,7 +10394,7 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 1. [x] `config/loop-registry.json`のpriorityを`distribution`へ変更し、owner/destination/packのslotsを`08:00`/`21:00` JSTへそろえ、approved pack object hashとgenerated fixtureを更新した。
 2. [x] `apps/life-manager/scripts/ebook-distribute-daily.js::run`がPostizより前のrenderer failureを`render_not_ready` no-effect hintへ変換する。HeyGen child sidecarのprovider/cost stateは保持する。`lm_loop_run.py`と`lm_loop.py`はexact owner/occurrence付き`lm-no-effect://.../render_not_ready`だけ受理する。
-3. [x] `apps/life-manager/scripts/ebook-distribute-daily.test.js` (21/21)、`apps/life-manager/lib/marketing-destination-contract.test.js` (10/10)、`test_lm_loop_run_bounds.py` no-effect (2/2)、`PreEffectForeignClaimTests` (18/18)、`test_macos_loop_registry.py` (139/139)、`./bin/lm-loop-contract`、source boundary、`git diff --check`がPASS。
+3. [x] `apps/life-manager/scripts/ebook-distribute-daily.test.js` (21/21)、`apps/life-manager/lib/marketing-destination-contract.test.js` (11/11)、`test_lm_loop_run_bounds.py` no-effect (2/2)、`PreEffectForeignClaimTests` (18/18)、`test_macos_loop_registry.py` (139/139)、`./bin/lm-loop-contract`、source boundary、`git diff --check`がPASS。cadence validatorは2枠を`ebook-en-tiktok`だけに許可し、他laneは3枠のまま固定する。
 4. [ ] Branch `fix/ebook-owner-priority-render-recovery-20261009`を最新mainへ同期してcommit/pushし、exact-head CI/review後にmergeする。
 5. [ ] main由来immutable releaseをcutし、loaded-idleのEnglish eBook ownerだけをsafe applyする。owner SHA/argv adoptionと`effect_unknown=0`を確認する。
 6. [ ] admissionを再読取してownerを起動する。完成済みrenderは再利用する。完了条件は同じintegrationのPostiz `state=PUBLISHED` receiptであり、TikTok側の別確認や二重投稿はしない。
