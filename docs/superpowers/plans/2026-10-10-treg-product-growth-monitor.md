@@ -168,6 +168,7 @@
 - Unresolved maximum-cost reservations survive UTC daily-ledger rotation in a private pending ledger and are deducted from later balance preflights until an exact receipt settles them.
 - The gate durably records the maximum `$0.003` reservation before forwarding; a missing/invalid receipt never frees the route or its uncertain cost, and prevents another paid call in that occurrence.
 - Only the shell-disabled Treg task receives MCP configuration and its credential path; shell-enabled task classes receive the repository skills but no Treg server configuration.
+- Existing shell-enabled tasks run unsandboxed under the same OS user and can technically read credential SSOT by direct filesystem access. This change does not claim an OS-level denial; those tasks receive no Treg MCP config/path, and their skills route signal requests through the shared task/monitor.
 - The gate selects the UTC-day ledger under the shared lock for each paid call, including calls from a gate process started on the previous UTC day.
 - The `gpt-6.1-sol` route is explicitly restricted; the weekly owner supplies the user-authorized escalation reason, and routing tests record its `acct2` profile and Codex-only candidate list.
 - Parent validation matches every captured paid MCP call to the local gate's occurrence ledger and exact Treg receipt.
@@ -177,7 +178,7 @@
 - [x] Write the baseline, route-budget, runner-config/credential-isolation, and parent-receipt regressions first; confirm each fails for its missing behavior.
 - [x] Implement the local MCP budget gate and hash-bound baseline marker with no new dependency.
 - [x] Run focused tests, declared agent-route contract, source boundary, loop contract, syntax/JSON checks, and diff check after token-isolation changes.
-- [ ] Update the SSOT cursor with final evidence and push the dedicated branch.
+- [x] Update the SSOT cursor with final evidence and push the dedicated branch.
 
 ### Task 5: Source acceptance and production handoff
 
@@ -186,8 +187,8 @@
 - Modify: `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md`
 
 - [x] Run `bash scripts/verify-source-boundary.sh`, `./bin/lm-loop-contract`, and `git diff --check`.
-- [ ] Confirm no secrets, signal rows, or provider outputs are staged.
-- [ ] Fetch current `origin/main`, preserve unrelated work, push the dedicated branch, and open a PR.
+- [x] Confirm no secrets, signal rows, or provider outputs are staged.
+- [x] Fetch current `origin/main`, preserve unrelated work, push the dedicated branch, and open a PR.
 - [ ] Run exact-head CI and read-only review, merge through the standard repository flow, then build a main-derived immutable release.
 - [ ] Require `df -k /` free bytes `>= 2 GiB` before release apply. Apply only the new owner through the owner-safe path; do not touch the existing `marketing-weekly-review` unknown occurrence.
 - [ ] Confirm the loaded release SHA and Sunday 21:10 schedule. Do not claim production monitoring complete until the natural run records Treg receipts/cost and its baseline; the next natural run must report only unseen keys or no message.

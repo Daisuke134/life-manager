@@ -27,6 +27,8 @@ Codexはstdio型のlocal MCP serverだけを起動する。gateはTreg remote MC
 
 Tregのcredential pathはTreg task classのMCP configにだけ含める。shell-enabled Codex taskへTreg MCP configurationやcredential pathを渡さず、Treg CLI/direct HTTPを使わないようrepo-owned skillへ明記する。Treg MCP callsはlocal gateを通る。
 
+既存のshell-enabled taskは同じOS userでsandbox bypass起動するため、意図的な直接filesystem読取りに対するOS-level denyはこの変更に含めない。Live Treg MCPはshell-disabled taskに限定し、他taskは共有task/monitorへ要求を回す。従って「general taskがcredential SSOTを技術的に読めない」とは扱わない。
+
 監視対象は次の9製品。buyer descriptionはMarketing Engine registryを優先し、残る4アプリは公開製品名と既存App Store記録から作る短い作業定義とする。
 
 | 優先 | 製品 | 一文の対象購入者 |
