@@ -10192,12 +10192,12 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **Remaining atomic TODO（この順）:**
 
-1. [x] RED確認済み: `test_wake_prioritizes_due_budget_retry_before_fresh_draft`はfocused command `python3 -m unittest discover -s skills/affiliate/tests -p 'test_composition_owner.py'`で失敗し、due retryではなくfresh `a-fresh-en`が選ばれた。期待値はdue retry `z-retry-en`。
-2. [x] `skills/affiliate/scripts/composition_owner.py::inbox_priority`で、`budget_retry_is_due`または`runner_retry_is_due`がtrueのsame-source-set `RUNNER_REJECTED`をpriority 0へ上げた。未eligible terminalの順位は維持。focused unittest 9件と`./bin/lm-loop-contract`（18 loops / 188 jobs / 113 mapped / 0 errors）がPASS。
-3. [ ] implementation/spec/testをcommit-pushし、exact-head CI/fresh review/mergeへ進む。
+1. [x] RED確認済み: `test_wake_prioritizes_due_budget_retry_before_fresh_draft`と`test_wake_prioritizes_capability_retry_before_fresh_draft`は、eligible retryよりfresh `a-fresh-en`を選ぶ失敗をそれぞれ再現した。
+2. [x] `skills/affiliate/scripts/composition_owner.py::inbox_priority`で、`budget_retry_is_due`または`runner_retry_is_due`がtrueのsame-source-set `RUNNER_REJECTED`だけpriority 0へ上げた。未eligible terminalの順位は維持。focused unittest 10件と`./bin/lm-loop-contract`（18 loops / 188 jobs / 113 mapped / 0 errors）がPASS。
+3. [ ] capability-retry regressionをcommit-pushし、exact-head CI/fresh review/mergeへ進む。
 4. [ ] main由来immutable releaseと自然fleet applyをreadbackし、修正前SHAのmanaged ownerが修正版へ切り替わったことを確認する。Historical `disk_headroom_low`とcurrent `resource_capacity_busy`を混同しない。
 5. [ ] budgetが再び使える自然wakeのsealed compositionを確認する。記事はEnglish-firstの詳細本文と日本語要約、出典、disclosure、CTAを満たし、policy PASSを得る。既存のapproved ownerだけで公開し、PartnerStackのclick/sign-up/commission/payoutと実費を同じ期間でreadbackする。売上が0なら0のまま記録する。
 
 **順序更新と理由:** 旧cursor=`A6 Google usage trace → A8 all-loop/job coverage → A9 source-period report → A6 Google cash → A10 seven-day acceptance`。新cursor=`(1) current releaseで全managed ownerのdisk-gate反映を完了 → (2) due composition retryのstarvationを修正 → (3) natural bilingual campaignとpolicy/publication readback → (4) PartnerStack conversion/commission/payout/economics → (5) CFOのA6/A8/A9/A10を再開`。理由は、DaisがAffiliate収益loopを最優先に指定し、fresh official reportが264 clicksに対して0 signups / $0 revenueを示し、retryable campaignがfresh draftsの後ろで止まっているため。CFO TODOとunknown値は保持する。
 
-**現在cursor:** implementationとfocused verificationはPASS。実装commitをpushし、exact-head CI/fresh review/mergeへ進む。
+**現在cursor:** source implementationは既にpush済み。追加capability-retry regressionをcommit-pushし、exact-head CI/fresh review/mergeへ進む。
