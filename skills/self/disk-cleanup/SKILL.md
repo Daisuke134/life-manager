@@ -97,18 +97,23 @@ skills/self/disk-cleanup/install-launchd.sh
 ```
 
 The 5-minute `ai.anicca.life-manager-disk-cleanup` owner remains managed by the
-Life Manager runner. This installer manages only the 60-second
-`com.anicca.disk-watchdog` and 15-day `com.anicca.disk-cleanup-15d` launchd
-labels; it never replaces the 5-minute owner. It installs
-`bin/disk-watchdog.sh` at `~/.local/bin/disk-watchdog.sh`, which resolves
-`~/loops/current` and dispatches to that immutable release's governor. The
-15-day wrapper calls this same stable watchdog and retries only a structured
-`cleanup_lock_busy` receipt with exit 75, for at most three attempts. All owners
-use the governor's singleton lock and shared host `state_dir`.
+Life Manager runner. This installer only manages the 60-second
+`com.anicca.disk-watchdog` recovery label so it cannot replace the 5-minute
+owner. It installs `bin/disk-watchdog.sh` at `~/.local/bin/disk-watchdog.sh`;
+the wrapper resolves `~/loops/current` and dispatches to that immutable
+release's governor, so later release retirement cannot leave the watchdog
+pointing at a deleted release. Both owners use the governor's singleton lock
+and shared host `state_dir`.
 
-The launchd labels add no second deletion implementation. Their output goes to
-separate watchdog and 15-day maintenance logs under
-`life-manager-disk-cleanup/logs/` in host state.
+The 15-day `life-manager-disk-cleanup-15d` wake is registry-managed through
+`lm-loop`. Its entrypoint invokes only the shared `HostDiskGovernor`, so it
+shares the host cleanup lock without repeating release GC or scratch GC.
+It retries only the exact structured `cleanup_lock_busy` receipt (exit 75),
+for at most three attempts with five-second waits. Other failures return
+immediately.
+
+The watchdog adds no second deletion implementation. Its output goes to
+`life-manager-disk-cleanup/logs/watchdog.{out,err}.log` under the host state.
 
 Run the tests with:
 

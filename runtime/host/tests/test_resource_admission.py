@@ -3423,3 +3423,20 @@ def test_historical_writer_gate_stop_proof_requires_a_bound_runtime_run_id(
     row = next(item for item in durable_rows(tmp_path, "occurrences")
                if item["occurrence_id"] == occurrence)
     assert (row["state"], row["effect_unknown"]) == ("claimed", 1)
+def test_critical_paid_waiting_past_its_age_limit_outranks_fresh_distribution(
+        tmp_path, monkeypatch):
+    """2026-10-09: distribution outranks critical_paid, and ~70 posting loops kept the two agent slots
+    full, so article-daily (critical_paid) waited since 09:35 and never ran.  Fresh distribution still
+    wins (see the test above); a critical_paid waiter older than its age limit goes first."""
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    admission.enqueue_durable(
+        "agent", "article-daily", admission_class="revenue",
+        priority="critical_paid", now=100,
+    )
+    admission.enqueue_durable(
+        "agent", "mobile-calendar-publisher", admission_class="revenue",
+        priority="distribution", now=2000,
+    )
+
+    assert admission.reserve_available(now=2001, lease_seconds=30) == ["article-daily"]

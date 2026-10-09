@@ -630,9 +630,13 @@ def _preflight_only_run(run_dir: Path, rows: list[dict[str, Any]], run_id: str) 
         child.name for child in run_dir.iterdir()
     } != {"git-hash.txt", "gates"}:
         return False
-    return {
-        child.name for child in gates.iterdir()
-    } == {"strategy-consumption.json"}
+    # product-selection.json is the frozen, side-effect-free product pick the wrapper writes before the
+    # demand gate; a regular file only (a link or directory is progress beyond preflight).
+    names = {child.name for child in gates.iterdir()}
+    selection = gates / "product-selection.json"
+    if "product-selection.json" in names and (selection.is_symlink() or not selection.is_file()):
+        return False
+    return names - {"product-selection.json"} == {"strategy-consumption.json"}
 
 
 def _exhausted_empty_provider_failure(

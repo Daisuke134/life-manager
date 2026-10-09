@@ -16,6 +16,7 @@ _dismiss_consent_interstitial relies on, without a live browser.
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
 import sys
 import tempfile
@@ -134,6 +135,45 @@ class PublishFocusesTheTabTest(unittest.TestCase):
             calls.index("focus"), calls.index("post_reel_subprocess"),
             "focus must happen before the post_reel subprocess that clicks シェア",
         )
+
+
+class ShareWatchTest(unittest.TestCase):
+    """2026-10-09: four attempts, three different sets, every share stuck on 'シェア中'. One screenshot
+    before and after cannot say whether the page is frozen or still working, so the publisher
+    photographs the tab every few seconds while post_reel runs (observation only)."""
+
+    def test_the_tab_is_photographed_while_post_reel_runs_and_never_breaks_the_post(self):
+        shots = []
+
+        def fake_cdp(tid_cmd, *, cdp_host, cdp_port, timeout=60):
+            if tid_cmd[0] == "new":
+                return "TID123"
+            if tid_cmd[0] == "shot":
+                shots.append(tid_cmd[2])
+                raise brp.BrowserReelError("shot failed")  # an observer failure must not stop the post
+            return ""
+
+        def fake_run(args, **kwargs):
+            time.sleep(0.35)  # post_reel is "running" long enough for several photos
+            return mock.Mock(returncode=0, stdout=json.dumps({"published": True}), stderr="")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            creds_path = Path(tmp) / "ig-handle.json"
+            creds_path.write_text(json.dumps({"username": "handle", "pw": "x", "email": "a@b.com"}))
+            with mock.patch.object(brp, "_cdp", side_effect=fake_cdp), \
+                 mock.patch.object(brp, "_ensure_logged_in"), \
+                 mock.patch.object(brp, "_lease", return_value="http://fake-host:1234"), \
+                 mock.patch.object(brp, "_release"), \
+                 mock.patch.object(brp, "WATCH_INTERVAL_SECONDS", 0.05), \
+                 mock.patch.object(brp, "WATCH_DIR", Path(tmp) / "watch"), \
+                 mock.patch.object(brp.subprocess, "run", side_effect=fake_run), \
+                 mock.patch.object(Path, "expanduser", return_value=creds_path):
+                result = brp.publish(video=Path("v.mp4"), caption_file=Path("c.txt"),
+                                     handle="handle", browser_identity="instagram:x", live=True)
+        self.assertEqual(result, {"published": True})
+        self.assertGreaterEqual(len(shots), 3)
+        names = {Path(p).name for p in shots}
+        self.assertTrue(names <= {f"{i:02d}.png" for i in range(brp.WATCH_SLOTS)}, names)
 
 
 if __name__ == "__main__":

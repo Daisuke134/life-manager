@@ -559,10 +559,80 @@
     },
     "article-daily": {
       "cadence": {
-        "calendar_interval": {
-          "Hour": 6,
-          "Minute": 0
-        }
+        "calendar_interval": [
+          {
+            "Hour": 6,
+            "Minute": 0
+          },
+          {
+            "Hour": 7,
+            "Minute": 0
+          },
+          {
+            "Hour": 8,
+            "Minute": 0
+          },
+          {
+            "Hour": 9,
+            "Minute": 0
+          },
+          {
+            "Hour": 10,
+            "Minute": 0
+          },
+          {
+            "Hour": 11,
+            "Minute": 0
+          },
+          {
+            "Hour": 12,
+            "Minute": 0
+          },
+          {
+            "Hour": 13,
+            "Minute": 0
+          },
+          {
+            "Hour": 14,
+            "Minute": 0
+          },
+          {
+            "Hour": 15,
+            "Minute": 0
+          },
+          {
+            "Hour": 16,
+            "Minute": 0
+          },
+          {
+            "Hour": 17,
+            "Minute": 0
+          },
+          {
+            "Hour": 18,
+            "Minute": 0
+          },
+          {
+            "Hour": 19,
+            "Minute": 0
+          },
+          {
+            "Hour": 20,
+            "Minute": 0
+          },
+          {
+            "Hour": 21,
+            "Minute": 0
+          },
+          {
+            "Hour": 22,
+            "Minute": 0
+          },
+          {
+            "Hour": 23,
+            "Minute": 0
+          }
+        ]
       },
       "cleanup": {
         "max_age_days": 14,
@@ -2972,6 +3042,23 @@
       "log_root": "~/.local/state/life-manager/life-manager-disk-cleanup/logs",
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager/life-manager-disk-cleanup"
+    },
+    "life-manager-disk-cleanup-15d": {
+      "cadence": {
+        "start_interval_seconds": 1296000
+      },
+      "cleanup": {
+        "max_age_days": 14,
+        "max_runs": 100
+      },
+      "domain": "system",
+      "effect_class": "none",
+      "entrypoint": "skills/self/disk-cleanup/maintenance_entrypoint.py",
+      "label": "ai.anicca.life-manager-disk-cleanup-15d",
+      "system_role": "control",
+      "log_root": "~/.local/state/life-manager/life-manager-disk-cleanup-15d/logs",
+      "provider_route": "deterministic",
+      "state_root": "~/.local/state/life-manager/life-manager-disk-cleanup-15d"
     },
     "life-manager-financial-report": {
       "cadence": {
