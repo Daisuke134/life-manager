@@ -209,6 +209,42 @@ test("recordUsageEvent delegates the normalized row to the existing cost ledger"
   assert.equal(rows[0].meta.customer_usage, false);
 });
 
+test("recordUsageEvent links unscoped life-call usage to the shared service owner", async () => {
+  const envKeys = [
+    "RAILWAY_SERVICE_NAME", "RAILWAY_GIT_COMMIT_SHA",
+    "LIFE_MANAGER_LOOP_ID", "LIFE_MANAGER_OWNER_ID", "LIFE_MANAGER_RUN_ID",
+    "LIFE_MANAGER_OCCURRENCE_ID", "LIFE_MANAGER_RELEASE_SHA",
+  ];
+  const previous = Object.fromEntries(envKeys.map((key) => [key, process.env[key]]));
+  for (const key of envKeys) delete process.env[key];
+  process.env.RAILWAY_SERVICE_NAME = "life-call";
+  process.env.RAILWAY_GIT_COMMIT_SHA = "f".repeat(40);
+  try {
+    const rows = [];
+    const ok = await recordUsageEvent({
+      tenantId: "tenant-1", provider: "google_maps", feature: "ask_resolve_location",
+      outcome: "success", providerUnits: 1, providerUnit: "request", estimatedCostUsd: 0.04,
+    }, { recordCost: async (row) => { rows.push(row); return true; } });
+
+    assert.equal(ok, true);
+    assert.equal(rows.length, 1);
+    const trace = rows[0].meta.runtime_trace;
+    assert.equal(trace.status, "partial");
+    assert.equal(trace.tenant_id, "tenant-1");
+    assert.equal(trace.owner_id, "life-call");
+    assert.match(trace.run_id, /^run-[0-9a-f-]{36}$/);
+    assert.equal(trace.occurrence_id, `life-call:${trace.run_id}`);
+    assert.equal(trace.release_sha, "f".repeat(40));
+    assert.deepEqual(trace.missing_fields, ["loop_id"]);
+    assert.equal(JSON.stringify(rows[0]).includes("RAILWAY_SERVICE_NAME"), false);
+  } finally {
+    for (const key of envKeys) {
+      if (previous[key] === undefined) delete process.env[key];
+      else process.env[key] = previous[key];
+    }
+  }
+});
+
 test("provider cost rows retain validated runtime identity for loop-level joins", async () => {
   const rows = [];
   await recordUsageEvent({
