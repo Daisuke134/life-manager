@@ -756,7 +756,7 @@ def test_jp1_readback_matches_postiz_profile_separately_from_native_handle(monke
     assert readback["integration_ref"] == identity["integration_ref"]
 
 
-def _native_carousel_recovery_fixture(tmp_path, monkeypatch, *, copies=1, corrupt_media=False):
+def _native_carousel_recovery_fixture(tmp_path, monkeypatch, *, copies=1, corrupt_media=False, publish_date=None):
     owner = "life-manager-anicca-jp1-tiktok"
     slot = "2026-10-07T09:00:00.000Z"
     integration_id = "cmlrv8jq000hun60yy57eaptx"
@@ -837,7 +837,7 @@ def _native_carousel_recovery_fixture(tmp_path, monkeypatch, *, copies=1, corrup
         row = {
             "id": provider_id,
             "state": "PUBLISHED",
-            "publishDate": f"2026-10-07T09:0{index + 1}:00.000Z",
+            "publishDate": publish_date or f"2026-10-07T09:0{index + 1}:00.000Z",
             "integration": {"id": integration_id},
             "content": caption,
         }
@@ -956,9 +956,10 @@ def test_pending_owner_recovers_only_one_exact_native_carousel_receipt(tmp_path,
         apply=True,
     )
 
-    assert result["status"] == "resolved", result
+    assert result["status"] == "resolved"
     assert result["provider_receipt_id"] == fixture["provider_id"]
     assert resolved == [identity["occurrence_id"]]
+
     assert fixture["image_urls"]
     assert all("/public/posts/" not in url for url in fixture["image_urls"])
     rows = reconcile._safe_jsonl(fixture["ledger"])
@@ -987,6 +988,21 @@ def test_pending_owner_recovers_only_one_exact_native_carousel_receipt(tmp_path,
         text=True, capture_output=True, cwd=Path(reconcile.__file__).resolve().parents[3], check=False,
     )
     assert checked.returncode == 0, checked.stderr or checked.stdout
+
+
+def test_native_carousel_recovers_exact_same_day_late_catchup_post(tmp_path, monkeypatch):
+    fixture = _native_carousel_recovery_fixture(
+        tmp_path, monkeypatch, publish_date="2026-10-07T14:00:00.000Z",
+    )
+    result = reconcile.build_official_proof(
+        fixture["identity"], fixture["ledger"], "test-only",
+        identity_dir=fixture["identity_dir"],
+    )
+
+    assert result["verified"] is True, result
+    assert result["provider_receipt_id"] == fixture["provider_id"]
+    assert result["identity"] == fixture["identity"]
+    assert result["provider_readback"]["published_at"] == "2026-10-07T14:00:00.000Z"
 
 
 def test_runtime_auto_owner_resolves_current_proof_and_leaves_other_fence_for_receipt_dedup(
@@ -1449,3 +1465,16 @@ def test_historical_sweep_cli_flag_refuses_to_resolve(tmp_path, capsys):
                            "--identity-dir", str(idir), "--admission-db", str(db)])
     out = json.loads(capsys.readouterr().out)
     assert code == 1 and out["status"] == "inconclusive" and out["reason"] == "historical_window_proof_unsound"
+
+
+def test_native_carousel_late_publish_matches_only_the_same_jst_day():
+    slot = reconcile.datetime.fromisoformat("2026-10-07T09:00:00.000Z")
+    assert reconcile._native_carousel_publish_time_matches_slot(
+        slot, reconcile.datetime.fromisoformat("2026-10-07T14:00:00.000Z"),
+    )
+    assert not reconcile._native_carousel_publish_time_matches_slot(
+        slot, reconcile.datetime.fromisoformat("2026-10-07T15:01:00.000Z"),
+    )
+    assert not reconcile._native_carousel_publish_time_matches_slot(
+        slot, reconcile.datetime.fromisoformat("2026-10-07T08:44:00.000Z"),
+    )

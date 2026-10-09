@@ -7,6 +7,7 @@ const {
   HONNE_JA_SLOTS,
   honneJaDueSlot,
   zonedSlotInstant,
+  marketingVideoDueSlots,
 } = require("./honne-ja-shadow-schedule.js");
 const {
   buildMarketingVideoGenerationJob,
@@ -48,6 +49,17 @@ test("from 21:30 JST to end of local day the due slot is today's 21:30 exact UTC
   assert.equal(
     honneJaDueSlot(Date.parse("2026-07-30T14:59:00Z")),
     "2026-07-30T12:30:00.000Z",
+  );
+});
+
+test("marketingVideoDueSlots enumerates all elapsed same-day slots in schedule order", () => {
+  assert.deepEqual(
+    marketingVideoDueSlots(Date.parse("2026-07-30T06:05:00Z"), "Asia/Tokyo", ["10:00", "15:00", "20:00"]),
+    ["2026-07-30T01:00:00.000Z", "2026-07-30T06:00:00.000Z"],
+  );
+  assert.deepEqual(
+    marketingVideoDueSlots(Date.parse("2026-07-29T15:05:00Z"), "Asia/Tokyo", ["10:00", "15:00", "20:00"]),
+    [],
   );
 });
 
