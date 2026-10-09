@@ -28,7 +28,7 @@
 
 **不変条件:** iOS Simulator runtime/image/device/data/dyld、memory/state、credentials、browser identity、参照release、active/dirty/unmerged/leased/locked worktree、open/unknown dataを削除しない。各agentは自分が生成し所有する非authoritative scratchだけを片付け、中央cleanupは残ったclosed/orphaned artifactと証明済みの不要物を回収する。他agentの作業や正式receiptを消さない。effect_unknownはexact official receipt/pre-effect proofまで解除・再送しない。内部の余白・時間・byte予算は安全な制御に使い、空き容量の固定値を事業再開の条件にしない。
 
-**現在cursor: S02/CLEAN-00 未使用Mac dataの手動回収と同対象の自動化 → P0-14 中央cleanupの軽い毎分passと各agentの自己後始末を改善 → P0-15/P1の仕事別資源制御 → S03/P0-12の収益loop継続稼働確認。** 旧cursorの空き容量探索→11GiB待ちを変更する。理由はcleanupとproducerの後始末を直して業務を続けることが目的であり、容量数値だけの達成はその証明にならないため。P0-13の観測はこの具体的修正の診断に限定し、全ディスクcensusを先行gateにしない。full producer guard/current ALL859df55aとcleanup/更新ownerの同SHA自然exit0は確認済み。収益loopの継続進行と自己後始末の全owner coverageは未証明なので、根本修復全体は未完。
+**現在cursor: S02/CLEAN-01 毎分watchdogのfast inventory修復 → CLEAN-00の未使用cache/staging自動回収 → P0-14 各agentの自己後始末を改善 → P0-15/P1の仕事別資源制御 → S03/P0-12の収益loop継続稼働確認。** 旧cursorの空き容量探索→11GiB待ちを変更する。理由はcleanupとproducerの後始末を直して業務を続けることが目的であり、容量数値だけの達成はその証明にならないため。P0-13の観測はこの具体的修正の診断に限定し、全ディスクcensusを先行gateにしない。full producer guard/current ALL859df55aとcleanup/更新ownerの同SHA自然exit0は確認済み。収益loopの継続進行と自己後始末の全owner coverageは未証明なので、根本修復全体は未完。
 
 **引き継ぎ/診断証拠:** worktree HEAD `a6e03757`の4ファイル497行差分を`ea1784b0ec`で保持してpushし、最新main `3baccdbd`を`00b5d4ff5d`でmerge/push。leaseは既存owner `codex-root`でheartbeatを更新、直列lsof再確認でworktree下open handleなし。既存temp/worktree focused testは2 PASS。agmsg統括identityは`lm/codex-resource-orchestrator-1009`、既存cleanup担当へ重複書込抑制と状態照会を送信。自然receiptの成功/失敗が交互に現れ、失敗時の正確な親errorは`host_cleanup_identity_mismatch`。`disk_cleanup.py::main`のbusy lock出力はexit75だがidentityを含まず、`central_cleanup.host_cleanup_readback`の同-occurrence検査が失敗に変換する。REDはbusy出力identity欠落と親exit1を再現し、最小修正後の関連4 testsはGREEN。修正契約は、busy出力にもimmutable manifest由来の同run identityを載せ、親はそのidentityを検証した正確なbusyだけをeffect0のexit75延期として維持し、他のidentity mismatchはexit1のまま拒否する。旧ENOSPC修復とは区別し、容量不足時の既存reserve/cursor testsも再確認する。
 
@@ -239,13 +239,13 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 
 **次のunused候補:** `~/.codex/.tmp/marketplaces/.staging/marketplace-upgrade-*`は14dir/410,352KiB。現行plugin cloneとのGit/内容一致、dirty/ignored private store、UID/age/open handleとupdater状態を確認し、失敗した再取得可能copyだけ回収する。Codex root/state/history/cache全体の削除へ広げない。今後の自動化も同じproofを使い、単に名がtmp/stagingという理由で消さない。
 
-**CLEAN-01の最小patch計画:** `bin/disk-watchdog.sh`から既存governorへ`--inventory-fast`を渡し、`disk_cleanup.py::_parse_args/main/run_once`で毎分ownerだけfull censusを省く。削除候補・UID/open/protection/receipt/singleton/StartInterval60は維持し、5分ownerは既存full inventory経路を保持する。hour markerが古い/予算切れでも毎分passがheavy censusを再試行しないことをfocused RED/GREENとloaded wrapper/hash・自然inventory_mode=fastで確認する。未知のcoverageを0にしない。manual回収済み・Photos保持・remaining inventoryを記録し、source/自然receiptで一件ずつ進む。
+**CLEAN-01の最小patch計画:** `bin/disk-watchdog.sh`から既存governorへchild限定の`LIFE_MANAGER_DISK_INVENTORY_FAST=1`を渡し、`disk_cleanup.py::run_once`で毎分ownerだけfull censusを省く。削除候補・UID/open/protection/receipt/singleton/StartInterval60は維持し、5分ownerは既存full inventory経路を保持する。hour markerが古い/予算切れでも毎分passがheavy censusを再試行しないことをfocused RED/GREENとloaded wrapper/hash・自然inventory_mode=fastで確認する。未知のcoverageを0にしない。manual回収済み・Photos保持・remaining inventoryを記録し、source/自然receiptで一件ずつ進む。
 
 **cleanup改善の残TODO（CLEAN-00の後、この順。P0の実装対象を具体化する）:**
 
 | 状態 | atom | 対象・次の変更 / 完了証拠 |
 |---|---|---|
-| CLEAN-00後 | CLEAN-01 中央の毎分pass | skills/self/disk-cleanup/disk_cleanup.py::HostDiskGovernor.run_once/discover_candidates/sweep/_full_inventory_due。hot passを軽いallowlisted回収へ集中し、重い全体inventoryや予算切れの再走査がcleanupを滞らせる境界を最小probe/REDで確認・修正。既存60秒cadenceで継続して回収でき、busy/timeout後も次passが前進する自然receiptで確認 |
+| 進行中 | CLEAN-01 中央の毎分pass | skills/self/disk-cleanup/disk_cleanup.py::HostDiskGovernor.run_once/discover_candidates/sweep/_full_inventory_due。hot passを軽いallowlisted回収へ集中し、重い全体inventoryや予算切れの再走査がcleanupを滞らせる境界を最小probe/REDで確認・修正。既存60秒cadenceで継続して回収でき、busy/timeout後も次passが前進する自然receiptで確認 |
 | 未完 | CLEAN-02 各agentの自己後始末 | runtime/loop/lm_loop_run.pyの終了/finally境界、loop_cleanup.py::cleanup_run_root、bounded_output.py::prune_closed_diagnostics。成功・失敗・timeout・cancel後に、そのownerのclosedで非authoritativeなscratchを片付ける。childの終了とreceipt/state永続化を確認し、unknown effectやopen/未保存証拠を保持。既存testsで同じ安全契約を検証 |
 | 未完 | CLEAN-03 生成量を有限にする | config/storage-policy.json、runtime/host/storage_policy.pyと実producer。既存bounded stdio/retentionを再利用し、実測したscratch・生成物・診断logにowner別の有限保存契約を通す。必要成果/receiptは保持し、仕事の回数が増えても不要物が無制限増加しないことを自然runで確認 |
 | 未完 | CLEAN-04 中央が取り残しを回収 | central_cleanup.py::scratch_gc/release_gc/reclaim_unreferenced_source。既存の安全な回収を使い、終了ownerの残留・orphan・未参照regenerable codeを継続回収。lease/lock/UID/open FD/Git復元性を証明し、他agentの作業とprotected storeを保持。修復済みの自己FD/busy分岐をやり直さず、実証されたcoverageの抜けだけを直す |

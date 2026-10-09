@@ -1996,7 +1996,7 @@ class HostDiskGovernor:
         # pressure marker; producers own bounded retention for their outputs.
         pressure_file = self.state_dir / "disk-pressure.block"
         pressure_file.unlink(missing_ok=True)
-        full_inventory = (
+        full_inventory = os.environ.get("LIFE_MANAGER_DISK_INVENTORY_FAST") != "1" and (
             os.environ.get("EMERGENCY_GUARD_FULL_PASS") == "1" or self._full_inventory_due()
         )
         try:

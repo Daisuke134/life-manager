@@ -110,6 +110,10 @@ skills/self/disk-cleanup/install-launchd.sh
 ```
 
 The 60-second `com.anicca.disk-watchdog` is the primary cleanup cadence. The
+stable wrapper sets child-only `LIFE_MANAGER_DISK_INVENTORY_FAST=1`, so an
+incomplete full census cannot make every minute repeat heavy size probes.
+Deletion proof, protected paths, singleton locking and receipt coverage are
+unchanged; missing sizes remain unknown.
 5-minute `ai.anicca.life-manager-disk-cleanup` remains a managed reporting and
 full-inventory owner; both share the same cleanup lock. This installer only
 manages the 60-second recovery label so it cannot replace the managed owner.
