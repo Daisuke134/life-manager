@@ -2785,6 +2785,29 @@ def test_run_once_preserves_foreign_or_replaced_disk_writers_guard(
     )
 
 
+def test_watchdog_fast_inventory_survives_a_stale_budget_exhausted_full_marker(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setenv("LIFE_MANAGER_DISK_INVENTORY_FAST", "1")
+    modes = []
+
+    def inventory(**kwargs):
+        modes.append(kwargs["full"])
+        return {"coverage": {"mount_count": 1, "root_count": 1,
+                             "gaps": ["size-budget-exhausted:/unknown"]}}
+
+    monkeypatch.setattr(disk_cleanup, "collect_host_inventory", inventory)
+    governor = HostDiskGovernor(home=tmp_path, state_dir=tmp_path / "state",
+                                usage=lambda: (0, GiB))
+    monkeypatch.setattr(governor, "discover_candidates", lambda **_kwargs: [])
+    results = [governor.run_once(), governor.run_once()]
+
+    assert modes == [False, False]
+    assert [r["inventory_mode"] for r in results] == ["fast", "fast"]
+    assert [r["inventory_gaps"] for r in results] == [1, 1]
+    assert not governor.full_inventory_marker.exists()
+
+
 def test_run_once_global_budget_preserves_candidate_and_does_not_advance_full_marker(
     tmp_path: Path, monkeypatch
 ) -> None:

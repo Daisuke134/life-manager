@@ -54,7 +54,8 @@ def test_watchdog_dispatches_to_governor_without_touching_worktrees_or_simulator
     capture = tmp_path / "argv.txt"
     fake_python = tmp_path / "python-capture"
     fake_python.write_text(
-        '#!/bin/sh\nprintf "%s\\n" "$@" > "$CAPTURE_ARGS"\n',
+        '#!/bin/sh\nprintf "%s\\n" "$@" > "$CAPTURE_ARGS"\n'
+        'printf "%s\\n" "${LIFE_MANAGER_DISK_INVENTORY_FAST:-}" > "$CAPTURE_FAST"\n',
         encoding="utf-8",
     )
     fake_python.chmod(0o755)
@@ -62,10 +63,12 @@ def test_watchdog_dispatches_to_governor_without_touching_worktrees_or_simulator
         "HOME": str(home),
         "LIFE_MANAGER_RUNTIME_PYTHON": str(fake_python),
         "CAPTURE_ARGS": str(capture),
+        "CAPTURE_FAST": str(tmp_path / "fast.txt"),
     }
 
     subprocess.run(["/bin/sh", str(WATCHDOG)], env=env, check=True)
 
+    assert (tmp_path / "fast.txt").read_text().strip() == "1"
     assert capture.read_text(encoding="utf-8").splitlines() == [
         str(governor),
         "--home",
