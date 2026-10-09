@@ -10,6 +10,7 @@ import stat
 import subprocess
 import tempfile
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable
 
@@ -39,6 +40,8 @@ ROOT_FAMILIES = (
     ("repository-worktree", "{home}/.codex-worktrees"),
     ("gig-deliverable", "{home}/gig"),
     ("agent-runtime", "{home}/.openclaw"),
+    ("agent-runtime", "{home}/.local/state/life-manager"),
+    ("agent-runtime", "{home}/loops/releases"),
     ("agent-session", "{home}/.claude"),
     ("agent-session", "{home}/.codex"),
     ("browser-identity", "{home}/.cloak"),
@@ -377,6 +380,75 @@ def _bounded_size(
     return parsed_size, "bounded-du", None
 
 
+def project_storage_growth(previous: dict | None, current: dict,
+                           registry_roots: dict[str, list[str]]) -> dict:
+    """Metadata deltas are observations, never deletion or ownership proof."""
+    elapsed = None
+    try:
+        before = datetime.fromisoformat(previous["observed_at"].replace("Z", "+00:00"))
+        after = datetime.fromisoformat(current["observed_at"].replace("Z", "+00:00"))
+        seconds = (after - before).total_seconds()
+        if before.tzinfo is not None and after.tzinfo is not None and seconds > 0:
+            elapsed = seconds
+    except (KeyError, TypeError, ValueError, AttributeError):
+        pass
+    previous_roots = {r["path"]: r.get("size_bytes") for r in
+        (previous or {}).get("roots", []) if isinstance(r, dict) and isinstance(r.get("path"), str)}
+    roots = []
+    for record in current.get("roots", []):
+        path = record["path"]
+        size = record.get("size_bytes")
+        old_size = previous_roots.get(path)
+        measured = (elapsed is not None and type(size) is int and size >= 0
+                    and type(old_size) is int and old_size >= 0)
+        delta = size - old_size if measured else None
+        owners = sorted(set(registry_roots.get(path, [])))
+        roots.append({"path": path, "size_bytes": size, "delta_bytes": delta,
+            "elapsed_seconds": elapsed if measured else None,
+            "bytes_per_second": delta / elapsed if measured else None,
+            "owner_id": owners[0] if len(owners) == 1 else None,
+            "owner_refs": [f"lm-owner://{owner}" for owner in owners],
+            "attribution": "registered" if len(owners) == 1 else "shared" if owners else "unattributed"})
+    return {"observed_at": current.get("observed_at"), "roots": roots,
+            "coverage": current.get("coverage", {}), "non_additive": True}
+
+
+def _inventory_previous(path: Path) -> dict | None:
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+    except OSError:
+        return None
+    try:
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode) or info.st_size > 8 * 1024**2 or info.st_uid != os.getuid():
+            return None
+        with os.fdopen(fd, "r", encoding="utf-8", closefd=False) as handle:
+            value = json.load(handle)
+        return value if isinstance(value, dict) else None
+    except (OSError, ValueError, UnicodeError):
+        return None
+    finally:
+        os.close(fd)
+
+
+def _registry_storage_roots(home: Path) -> dict[str, list[str]]:
+    try:
+        registry = json.loads((Path(__file__).resolve().parents[3] /
+                               "config/loop-registry.json").read_text())["loops"]
+    except (OSError, ValueError, KeyError, TypeError):
+        return {}
+    result: dict[str, list[str]] = {}
+    for owner, row in registry.items():
+        for name in ("state_root", "log_root"):
+            raw = row.get(name)
+            if not isinstance(raw, str):
+                continue
+            path = str(home / raw[2:]) if raw.startswith("~/") else raw
+            if Path(path).is_absolute():
+                result.setdefault(path, []).append(owner)
+    return result
+
+
 def collect_host_inventory(
     *,
     home: Path,
@@ -385,6 +457,7 @@ def collect_host_inventory(
     runner: Callable[..., subprocess.CompletedProcess[str]] | None = None,
     clock: Callable[[], float] = time.monotonic,
     budget_seconds: float | None = None,
+    registry_roots: dict[str, list[str]] | None = None,
 ) -> dict[str, Any]:
     """Collect and atomically persist a read-only, bounded host census."""
 
@@ -466,6 +539,10 @@ def collect_host_inventory(
             "complete": not root_gaps,
         },
     }
+    target = state_dir / ("host-inventory-full.json" if full else "host-inventory.json")
+    payload["storage_growth"] = project_storage_growth(
+        _inventory_previous(target), payload,
+        _registry_storage_roots(home) if registry_roots is None else registry_roots)
     encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
     payload["inventory_sha256"] = hashlib.sha256(encoded).hexdigest()
     state_dir.mkdir(parents=True, exist_ok=True)
