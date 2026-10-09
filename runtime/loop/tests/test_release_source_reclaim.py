@@ -2,7 +2,9 @@ import json
 import os
 import shutil
 import subprocess
+import time
 from pathlib import Path
+import pytest
 
 from runtime.loop import loop_cleanup
 
@@ -172,3 +174,16 @@ def test_owner_reclaims_one_old_snapshot_and_keeps_rollback(tmp_path, monkeypatc
     assert not (release / "RELEASE.json").exists()
     assert (rollback / "RELEASE.json").exists()
     assert (current_root / "RELEASE.json").exists()
+
+
+def test_lifecycle_wait_deadline_keeps_lock_owned(tmp_path):
+    from runtime.loop import central_cleanup, lm_loop
+    current = tmp_path / "current"
+    protocol = current.parent / ".admission-protocol.lock"
+    with lm_loop._apply_lock(current, protocol):
+        with pytest.raises(RuntimeError):
+            with central_cleanup._source_reclaim_lock(current, time.monotonic()+.02):
+                pytest.fail("owned protocol lock acquired")
+    with pytest.raises(RuntimeError):
+        with central_cleanup._source_reclaim_lock(current, 0):
+            pytest.fail("expired deadline acquired locks")

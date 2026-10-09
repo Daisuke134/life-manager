@@ -11,6 +11,7 @@ import stat
 import subprocess
 import sys
 import time
+from contextlib import ExitStack, contextmanager
 from pathlib import Path
 from xml.parsers.expat import ExpatError
 
@@ -401,6 +402,26 @@ def release_gc(releases: Path, current: Path, agents: Path, keep: int) -> dict:
     return result
 
 
+@contextmanager
+def _source_reclaim_lock(current: Path, deadline: float):
+    from runtime.loop.lm_loop import _apply_lock
+    with ExitStack() as locks:
+        while True:
+            if time.monotonic() >= deadline:
+                raise RuntimeError("reclaim lifecycle lock deadline exceeded")
+            try:
+                locks.enter_context(_apply_lock(current, current.parent / ".admission-protocol.lock"))
+                locks.enter_context(_apply_lock(current, None))
+                break
+            except RuntimeError:
+                locks.close()
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise
+                time.sleep(min(.05, remaining))
+        yield
+
+
 def reclaim_unreferenced_source(releases: Path, current: Path, agents: Path, keep: int) -> dict:
     """Retain stores while retiring one closed main code snapshot per occurrence."""
     result = {"removed_files": 0, "reclaimed_bytes": 0, "protected_deletions": 0,
@@ -443,8 +464,7 @@ def reclaim_unreferenced_source(releases: Path, current: Path, agents: Path, kee
         return held
     try:
         # This same lock excludes both per-label apply and current activation.
-        from runtime.loop.lm_loop import _apply_lock
-        with _apply_lock(current, current.parent / ".admission-protocol.lock"), _apply_lock(current, None):
+        with _source_reclaim_lock(current, deadline):
             cached_main = git("rev-parse", "refs/remotes/origin/main")
             official = git("ls-remote", "origin", "refs/heads/main").split()
             if not official or official[0] != cached_main:

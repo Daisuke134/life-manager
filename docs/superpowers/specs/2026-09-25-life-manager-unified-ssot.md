@@ -120,6 +120,8 @@ source reclaimのlocal結果: tiny real-Git 5 RED→GREEN後、親directoryのme
 
 次atomはcentral_cleanup.pyの既存protocol/apply lock取得だけを、全体15秒deadline内の短いbounded retryへ変更し、default apply semanticsや原処理の権限は変えない。Root毎の並列、強制unlock、重複cut、資金/order/fence操作は追加しない。tiny fixtureで初回busy→release後同予算内取得/回収、deadline超過はeffect0、既存data/rollback/no-follow予算を再確認する。source/CI/main/current→自然receiptのcode回収量とfresh freeを閉じ、11GiB条件は維持する。
 
+lock retry source: 初回busy→release後取得のreal-Git ownerケースで旧即時返却のREDを確認。既存_apply_lockをExitStackで取得し、失敗時に取得済lockを閉じ、15秒の残予算内で50ms以下待って再試行する最小helperを追加。期限0/実lock保持中deadline超過は取得もeffectもなく拒否。新/既存reclaim9 tests PASS、diff/contract PASS。source/main/currentと自然回収量はまだ未完。
+
 ### P0 — ディスク回復のatomic TODO
 
 再開worktree: `/Users/anicca/Projects/life-manager-main/.worktrees/disk-watchdog-worktree-safety-20261008`。branch `fix/disk-cleanup-15d-lm-loop-20261009`、引き継ぎHEAD `a6e037571404419501c6441af8e859e137eaa40b`。既存未commitのSSOT・SKILL・source・test差分を保持し、owner/lease/live process確認前に編集しない。別のactive cleanup worktreeも触らない。
