@@ -71,6 +71,8 @@
 
 **S01 source検証:** disabled fixtureのREDはadmission guardが呼ばれることを再現。apply_liveへ14行のshared readback/skipを追加し、disabled・probe失敗・空/未知形式をmutation前に保持/拒否する最小ケースがGREEN。関連186 testsの周辺failureは新read-only probeを持たないfixture/旧call順の期待とsparse未展開の2 sourceで、fixture更新/必要ファイル展開後185 pass、残るcall期待1件も修正し該当+新ケース3 tests PASS。native disabled outputの形式一致、loop-contract18 catalog/189 jobs/errors0、diff check PASS。sourceは停止を解除せず、金融計算/資金/orderを変更しない。次はexact-head CI/main/immutable release→disabledの自然skip receiptと停止保持の公式GUI readback。容量回復11GiBは別に未完。
 
+**S01 source/mainと同SHA releaseの整合:** PR #7408はhead e036a979のCI全PASS（844 loop tests）後、main4888da7088ff1a43f486370bbfaab239d2c61526へ統合。current001505-4888da70はmain由来/ALL/runtime Git hash一致/read-only、Capafyのtarget applyはchanged=false/skipped=disabled、old plist argvを保持。3 labelsはnative disabledのまま。別の自然ownerが001412-4888da70も作成し、live PID66030がそのscriptを参照することを発見。私の手動cutが同SHAを重ねた確認漏れを記録する。両manifest/main provenance/ALLとruntime hash一致を確認し、次は既存ownerのvalidated001412へcurrentのsymlinkだけをatomicに揃え、code/state/stop flagは変更しない。新たなcut/restartは追加せず、その自然runのdisabled skipとaggregate error解消を観測する。S02以降でsame-SHA cutの冪等性が必要か実測する。空き約1GiB/11GiB未達は別に維持。
+
 ### P0 — ディスク回復のatomic TODO
 
 再開worktree: `/Users/anicca/Projects/life-manager-main/.worktrees/disk-watchdog-worktree-safety-20261008`。branch `fix/disk-cleanup-15d-lm-loop-20261009`、引き継ぎHEAD `a6e037571404419501c6441af8e859e137eaa40b`。既存未commitのSSOT・SKILL・source・test差分を保持し、owner/lease/live process確認前に編集しない。別のactive cleanup worktreeも触らない。
