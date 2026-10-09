@@ -122,6 +122,7 @@ def _cleanup_terminal_ok(result: object) -> bool:
         and result.get("protected_deletions") == 0
         and _capacity_recovery(result)["status"] != "unknown"
         and stop_status in {"absent", "cleared"}
+        and result.get("receipt_persistence") is None
     )
 
 
@@ -308,6 +309,46 @@ def _is_code_sign_clone(path: Path) -> bool:
             "org.chromium.Chromium.code_sign_clone",
         }
     )
+
+
+def _readonly_temp_root() -> Path:
+    """Resolve a known temp root without requiring a writable probe file."""
+    try:
+        return Path(tempfile.gettempdir())
+    except OSError as original_error:
+        candidates = (
+            os.environ.get("TMPDIR"),
+            os.environ.get("TMP"),
+            os.environ.get("TEMP"),
+            "/tmp",
+            "/var/tmp",
+            "/usr/tmp",
+        )
+        allowed_roots = [Path("/tmp"), Path("/var/tmp"), Path("/usr/tmp")]
+        if sys.platform == "darwin":
+            allowed_roots.append(Path("/var/folders"))
+        resolved_roots: list[Path] = []
+        for root in allowed_roots:
+            try:
+                resolved_roots.append(root.resolve(strict=True))
+            except OSError:
+                continue
+        for value in candidates:
+            if not value:
+                continue
+            candidate = Path(value).expanduser()
+            if not candidate.is_absolute():
+                continue
+            try:
+                resolved = candidate.resolve(strict=True)
+            except OSError:
+                continue
+            if resolved.is_dir() and any(
+                resolved == root or root in resolved.parents
+                for root in resolved_roots
+            ):
+                return candidate
+        raise original_error
 
 
 @lru_cache(maxsize=1)
@@ -882,8 +923,8 @@ class HostDiskGovernor:
                 _real_directory_fingerprint(self.home, lexical),
             )
             return current == proof
-        temporary_path = Path(tempfile.gettempdir())
         try:
+            temporary_path = _readonly_temp_root()
             resolved = path.resolve()
             temporary = temporary_path.resolve()
         except OSError:
@@ -1441,7 +1482,7 @@ class HostDiskGovernor:
                                 ),
                             }
                         )
-        temporary = Path(tempfile.gettempdir())
+        temporary = _readonly_temp_root()
         for collection_name in (
             "com.google.Chrome.code_sign_clone",
             "org.chromium.Chromium.code_sign_clone",
@@ -1665,10 +1706,10 @@ class HostDiskGovernor:
         try:
             requested = path.expanduser()
             resolved = requested.resolve()
-            temporary = Path(tempfile.gettempdir()).resolve()
+            temporary = _readonly_temp_root().resolve()
         except OSError:
             resolved = Path(canary_path)
-            temporary = Path(tempfile.gettempdir()).resolve()
+            temporary = _readonly_temp_root().resolve()
             requested = path.expanduser()
         if (
             requested.is_symlink()

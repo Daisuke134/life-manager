@@ -9781,16 +9781,24 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 - New one-channel Postiz plus generation would total `$38–$43.85/month` with Avatar III or `$63.65–$101.45/month` with Avatar IV. If the current shared Postiz plan already covers this account, add only the generation cost. This excludes transaction fees, refunds, taxes, ads, and unallocated shared hosting/model spend.
 - Revenue scenarios are assumptions, not a forecast; 60 posts/month at `$10.99` one-time: 1,000 views/post × 0.5% click × 1% purchase = 3 sales / `$32.97`; 5,000 × 1% × 2% = 60 / `$659.40`; 20,000 × 1.5% × 3% = 540 / `$5,934.60`. The current Stripe 30-day paid count is 0 and TikTok view data is unavailable. `$10K` gross needs 910 orders/month; at 1% click and 2% checkout conversion that is about 4.55M monthly views. To reach `$10K MRR`, add a recurring offer; this one-time eBook cannot count as MRR.
 
-**Atomic TODO, in order:**
+**順序更新:** 旧cursor=`reconcile render fence → sync/push/merge PR #7313 → release/apply → publish → funnel`。新cursor=`(1) 完了: exact HeyGen completionと対象時間帯のPostiz readbackで旧render fenceを解消（その動画は未投稿）→ (2) 完了: Monk Anicca TikTok integration `cmo5rwq2p00twn10yrsdglng3`を確認 → (3) 完了: 08:00/21:00 JST、distribution優先度、`render_not_ready` no-effect記録、Postiz `PUBLISHED` success境界をPR #7313でmainへ統合（merge `df9c6a7bdb88fe8f0b0bc85531426b712185af54`）→ (4) disk-cleanupの一時領域bootstrapを修正・merge → (5) 稼働中release reconcilerのnatural terminal後、最新main由来releaseを作ってEnglish eBook ownerだけを反映 → (6) ownerのnatural runとPostiz `PUBLISHED` URL → (7) 毎日2投稿 → (8) eBook購入/PDF/Letter月額課金をStripeへ結合 → (9) 実測転換とnet MRRを改善。理由は、source PRはmerge済みで現production releaseは古く、release reconcilerが`ENOSPC`、現行cleanupは一時dirの空き確認が失敗すると候補発見前に終わるため。稼働中reconcilerは停止・再起動しない。
 
-1. Resolve the current HeyGen `unknown` render in the correct workspace using provider readback; keep it fenced until its video ID/cost receipt or authoritative no-create result is known. Do not replay.
-2. Confirm the active Monk Anicca TikTok handle and align it with the existing Postiz integration. Keep the old registry handle until the current account identity is verified.
-3. Compare one same-script Avatar III/IV render; record 9:16/1080p, monk/voice quality, wallet delta, and receipt. Use the cheaper model only if it passes.
-4. Update `config/marketing-destinations.json` and `skills/earn/marketing-engine/registry/ebook-packs/ebook-en-anicca-monk.json` to two slots (`08:00`/`21:00` JST). Keep the existing `/go/<token>` attribution flow; check `test_ebook_distribution_owner.py` and `render_eval/test_heygen_candidate.py`.
-5. Publish through the verified route; accept Postiz `PUBLISHED` as the posted proof. Then run two posts/day and record Postiz receipts, views/clicks, paid orders, refunds, and fees.
-6. If `$10K MRR` remains the goal, define a recurring offer separately; report one-time eBook sales as monthly gross/net sales, not MRR.
+**Atomic TODO, current cursor:**
 
-**現在cursor:** Step 1 — reconcile the fenced HeyGen render; no retry or new render until its provider result is known.
+1. [x] Exact HeyGen completionと同じTikTok integration・slot windowのPostiz readbackで旧render fenceを解消した。対象時間帯にPostiz rowはなく、動画が投稿済みとは扱わない。再生成・再送はしない。
+2. [x] 対象はenabled Monk Anicca TikTok `@monk_anicca`、integration `cmo5rwq2p00twn10yrsdglng3`。新しい投稿はまだ未確認。
+3. [x] PR #7313をmerge済み。owner/destination/packは08:00/21:00 JSTとdistribution priorityへ整合し、renderer failureはPostiz前のtyped no-effect receipt、投稿成功はPostiz `state=PUBLISHED`で判定する。required CIとfresh reviewはPASS。
+4. [x] **cleanup bootstrapを修正:** `tempfile.gettempdir()`の書き込みprobeがENOSPCで失敗しても、既知の許可済み`TMPDIR`またはOS temp rootを読み取り専用で解決し、allowlist候補の発見と通常のopen/protected判定を続ける。削除対象と任意path入力は増やさない。receipt reserve再作成に失敗したcleanupはCLIで失敗を返す。
+5. [x] REDで`FileNotFoundError`を再現し、focused disk-cleanup/watchdog tests 121/121、`git diff --check`、source boundaryがPASS。
+6. [ ] 最新mainに同期し、この3ファイルだけcommit/pushする。PRのexact-head required CIとfresh read-only reviewをPASSさせてmainへmergeする。
+7. [ ] active `life-manager-release-reconciler`を自然terminalまで観測する。最新readbackはPID 41851、release `a14f0679`。停止・再起動しない。disk receiptで`errors=0`、`protected_deletions=0`と実際の空き容量を読む。2GiBはrecovery診断値でありpublisher admission gateではない。
+8. [ ] cleanup修正を含む最新main由来immutable releaseを用意し、host apply lockがfreeであることを確認してEnglish eBook ownerだけをtarget applyする。loaded SHA/argvをreadbackし、`effect_unknown=0`を確認する。
+9. [ ] ownerを自然実行し、Postizの同一integrationに`state=PUBLISHED`とURLがあれば投稿成功とする。TikTok native readbackは追加しない。未投稿なら完成済みrenderを再利用して1本だけ投稿する。
+10. [ ] 08:00/21:00 JSTの自然slotを毎日回し、Postiz receiptを保存する。Avatar III比較は品質を落とさず費用を下げられるか後で1本だけ確認し、投稿開始のgateにはしない。
+11. [ ] `$10.99` eBook purchaseとmatching PDF deliveryを確認し、`/go/<token>`から`$9.99/month` Daily Anicca Letterへ接続する。Stripeでactive paid subscriptions、refunds、feesを読み、one-time eBook saleはMRRに数えない。
+12. [ ] views/clicks/orders/retention/refunds/fees/render/delivery costを週次で改善し、1,002 active subscriptionsの`$10,009.98` gross MRRを超え、費用控除後net MRR `$10K`をStripeと実費readbackで確認する。現行記録は直近30日eBook注文0、active Letter 0で、売上予測はまだできない。
+
+**現在cursor:** item 6 — cleanup修正PRのexact-head CI/review/merge。productionは`~/loops/current=a14f0679`だが、`ebook-en-tiktok-daily`は旧SHA `7c20304d`のまま。release reconcilerはPID 41851で稼働中。直近disk receiptは`free_after=645804032` bytes、`reclaimed=6406`、`errors=0`、`protected_deletions=0`、同時点の`df`は約623MiB。Postiz `PUBLISHED` receipt、新規注文、Letter subscriberは未確認。
 ### 2026-10-09 03:50 JST — final Job Hunter source gates pass; host is again 8/8
 
 - PR #7203 source head `a6b3f93268e68bde0f938af05c27623cf95716a3`, base `1f5f016526edea5d279668f0662518d6ab2e8c99`, has all required CI checks PASS in run `37826691755`; fresh read-only review is SHIP with no P0/P1/P2 findings. The remaining PR diff is Job Hunter validation/retry plus its tests/spec; R23/R24 production implementation remains in base main.
