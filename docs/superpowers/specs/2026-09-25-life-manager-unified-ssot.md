@@ -9229,6 +9229,14 @@ This entry supersedes the prior producer-review cursor. CFO priority remains A5 
 
 現在cursor: step 22 — PR checks完了と1時間age gateを待ち、production stateを変更せずに両方の次操作を準備する。
 
+**Writer runtime update (this cursor supersedes step 22 above):** PR #7341 is merged; main-derived release `0dc40ef2b6ba9924a740a6e3e8fabfe02b4eb2e9` is current and `article-daily` is loaded on that SHA. The paid-demand card `paid-demand:ad1417881227139e500b07322b874654862baeb092df6262d677a7b523f4fb87` matches the eight content tactics in Writer's refreshed `strategy-context/marketing-intel.md`. `ARTICLE_AUTOPUBLISH=1` remains configured for the existing paid Note, paid Substack, and X Article destinations.
+
+The natural occurrence `article-daily:18dcc1857642b0a0-84656` at 13:18 JST selected the existing run `20261008-232303`, imported all eight tactic IDs, and then stopped at `article_generation_state.py rebind-release` with `judge-broker-dispatch-marker`. In `article-daily.sh`, the judge broker starts before `rebind-release`; startup writes a run-scoped `gates/judge-broker/pid`, which makes the later no-dispatch proof reject its own preflight. The generation state is `prepared` with `attempts=[]`, and no article ledger row, provider receipt, or official readback exists. Keep this occurrence unresolved and never replay it; `effect_status=unknown` is not converted to no-effect.
+
+A second natural occurrence article-daily:18dcc3ed227b5bb0-14566 at 14:02 JST on release 84c56e1190f611c7ccd2e9d55df6513df8c31d72 resumed the same run and stopped at rebind-release with judge-broker-dispatch-marker. Generation state remains prepared with attempts=[]; no JA/EN draft, model stdout, publication-state, or ledger row exists. Its outer event is pass/exit0 but effect_status=unknown, with no provider receipt. The official Note page for n495989d60bdf has canonical datePublished=2026-09-29, and Substack still lists the existing September 29 xcta4 item. Note RSS shows 14:03 on the same URL and does not establish a new item. X readback is unavailable because the existing CDP :9222 has no X tab. Keep the occurrence fenced; do not replay.
+
+**Current cursor:** PR #7360 contains the broker ordering/readiness fix; the independent source reviewer returned SHIP. The current remote base and PR head are synchronized by the server-side rebase, and exact-head CI is being rerun after this SSOT update. After it passes, merge, produce a main-derived release, wait for owner-idle, then target-apply article-daily. Occurrences 18dcc1857642b0a0-84656 and 18dcc3ed227b5bb0-14566 remain effect-unknown; Note/Substack show the existing September 29 article and X readback is unavailable. The sales ledger remains unknown. Do not replay. After the natural Writer run, verify URLs, Note ¥500, paid Substack, X Article, sales, costs, and replay-zero.
+
 ### 2026-10-08 23:00 JST — PR review/CIとlive capacityの初回readback
 
 - PR #7156のhead `7866fad47742010cd079d9cf12e662f69e63a5f7`でrequired GitHub checksは全passし、fresh read-only reviewerは`ship`。このSSOT更新はPR headを変えるため、merge前に新headでchecks/reviewを取り直す。
@@ -10746,8 +10754,7 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 3. main由来immutable releaseをarticle-dailyへ対象限定で反映し、natural Writer occurrenceで同じ有料需要カードとMarketing Intel contextの使用を確認する。
 4. Noteのlive URL・¥500 monetization API readback、X告知のofficial readback、Writer sales measureとreplay-zeroを確認するまで収益を主張しない。Affiliate/X repost loopには接続しない。
 
-**現在cursor:** PR #7341 exact-head CI/fresh review → merge → main-derived releaseでarticle-dailyをtarget apply → natural Writer occurrence → Note/X official readback → sales measurement/replay-zero。
-
+**現在cursor:** PR #7360のbroker順序/readiness fixはsource reviewerがSHIP。SSOT更新後のexact-head CIを再取得中。PASS後にmerge→main由来immutable release→owner-idle確認→article-daily対象限定apply。13:18と14:02のoccurrenceはeffect_unknownのまま、Note/Substackは9/29の既存記事、X公式readbackは未取得、sales ledgerもunknown。再送せず、公式readback後に自然Writer runを確認し、Note ¥500・公開URL・sales・cost・replay-zeroを検証する。
 ### 2026-10-09 12:17 JST — Mobile post count unchanged; latest-main source sync pending
 
 このreadbackは12:05 JST mobile snapshotを更新する。**3回目のslotや日次54/54を待たず、source/promotion/owner修復を続ける。**
