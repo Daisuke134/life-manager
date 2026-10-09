@@ -56,6 +56,28 @@ AFFILIATE_CASE_STUDY_SOURCES = (
         "license": "PROPRIETARY_REFERENCE_ONLY", "freshness_days": 90,
     },
 )
+AFFILIATE_CASE_STUDY_SOURCE_IDS = frozenset(
+    source["id"] for source in AFFILIATE_CASE_STUDY_SOURCES
+)
+
+
+def _plan_uses_elevenlabs_sources(sources):
+    return isinstance(sources, list) and any(
+        isinstance(source, dict)
+        and isinstance(source.get("url"), str)
+        and source["url"].startswith("https://elevenlabs.io/")
+        for source in sources
+    )
+
+
+def _has_affiliate_case_studies(sources):
+    if not isinstance(sources, list):
+        return False
+    source_ids = {
+        source_id for source in sources if isinstance(source, dict)
+        if isinstance((source_id := source.get("id") or source.get("source_id")), str)
+    }
+    return AFFILIATE_CASE_STUDY_SOURCE_IDS.issubset(source_ids)
 
 
 def plan_paths(root, state_root=None):
@@ -558,12 +580,7 @@ def capture(plan, state_root):
     plan_source_ids = {source["id"] for source in plan_sources}
     strategy_sources = (
         AFFILIATE_CASE_STUDY_SOURCES
-        if any(
-            isinstance(source, dict)
-            and isinstance(source.get("url"), str)
-            and source["url"].startswith("https://elevenlabs.io/")
-            for source in plan_sources
-        ) else ()
+        if _plan_uses_elevenlabs_sources(plan_sources) else ()
     )
     capture_sources = list(plan_sources)
     reusable_strategy_receipts = {}
@@ -698,6 +715,18 @@ def refresh_all(
         plan_set = plan_set_sha256(root, state_root)
         plan_hashes = {path.stem: hashlib.sha256(path.read_bytes()).hexdigest()
                        for path in paths}
+        legacy_case_study_plan_ids = set()
+        for path in paths:
+            try:
+                plan = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, UnicodeDecodeError, ValueError):
+                continue
+            plan_sources = plan.get("sources") if isinstance(plan, dict) else None
+            if (
+                _plan_uses_elevenlabs_sources(plan_sources)
+                and not _has_affiliate_case_studies(plan_sources)
+            ):
+                legacy_case_study_plan_ids.add(path.stem)
         try:
             previous = json.loads(receipt_path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
@@ -706,13 +735,27 @@ def refresh_all(
                       or (previous.get("state") == "PARTIAL"
                           and previous.get("pending_count") == 0))
         within_cooldown = (now - int(previous.get("completed_at", 0)) < cooldown_seconds)
+        previous_plans = previous.get("plans", [])
+        previous_by_plan = {
+            row["plan_id"]: row for row in previous_plans
+            if isinstance(row, dict) and isinstance(row.get("plan_id"), str)
+            and row.get("plan_sha256") == plan_hashes.get(row["plan_id"])
+        } if isinstance(previous_plans, list) else {}
+        legacy_case_study_backfill_pending = any(
+            plan_id not in previous_by_plan
+            or previous_by_plan[plan_id].get("state") != "CAPTURED"
+            or previous_by_plan[plan_id].get("case_study_sources_complete") is not True
+            for plan_id in legacy_case_study_plan_ids
+        )
         if (cycle_done and previous.get("plan_set_sha256") == plan_set
-                and within_cooldown):
+                and within_cooldown and not legacy_case_study_backfill_pending):
             return {"state": "COOLDOWN", "completed_at": previous.get("completed_at"), "plans": []}
         continuing = (previous.get("state") == "IN_PROGRESS"
                       or (cycle_done and within_cooldown))
         results = [row for row in previous.get("plans", [])
-                   if row.get("plan_sha256") == plan_hashes.get(row.get("plan_id"))]
+                   if row.get("plan_sha256") == plan_hashes.get(row.get("plan_id"))
+                   and (row.get("plan_id") not in legacy_case_study_plan_ids
+                        or row.get("case_study_sources_complete") is True)]
         if not continuing:
             results = []
         attempted = {row["plan_id"] for row in results}
@@ -726,6 +769,9 @@ def refresh_all(
                 results.append({
                     "plan_id": plan_id, "state": "CAPTURED", "source_count": len(receipts),
                     "new_count": sum(bool(row["new_capture"]) for row in receipts),
+                    "case_study_sources_complete": _has_affiliate_case_studies(
+                        bundle["sources"]
+                    ),
                     "source_set_sha256": bundle["source_set_sha256"],
                     "plan_sha256": plan_hashes[plan_id],
                 })
