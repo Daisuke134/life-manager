@@ -77,13 +77,26 @@ class ProductRegistryTest(unittest.TestCase):
         expected_provider = {
             "instagram.anicca_en": "instagram-standalone",
             "instagram.anicca_encards": "instagram-standalone",
+            "instagram.anicca_ios": "instagram-standalone",
+            "instagram.anicca_ios_jp": "instagram-standalone",
+            "instagram.anicca_jp_videos": "instagram-standalone",
+            "instagram.ani_cca1234": "instagram-standalone",
+            "instagram.monk_anicca": None,
             "instagram.obou_anicca": "instagram-standalone",
+            "tiktok.anicca_buddha": "tiktok",
+            "tiktok.anicca_he": "tiktok",
+            "tiktok.anicca_jp1": "tiktok",
+            "tiktok.anicca_jp4": "tiktok",
+            "tiktok.anicca_slideshow": "tiktok",
             "tiktok.anicca_jp": "tiktok",
+            "tiktok.aniccaaffirmation": "tiktok",
+            "tiktok.aniccaen2": "tiktok",
             "tiktok.honne_reveal": "tiktok",
             "tiktok.honnevideo": "tiktok",
             "tiktok.monk_anicca": "tiktok",
             "tiktok.obou_anicca": "tiktok",
             "youtube.anicca_ai": "youtube",
+            "youtube.life_manager_m4p": "youtube",
         }
         self.assertEqual({key: row["publisher_provider"]
                           for key, row in registry.accounts.items()}, expected_provider)

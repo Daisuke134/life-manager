@@ -215,6 +215,34 @@ class ProductBindingTest(unittest.TestCase):
         self.assertEqual(second, first)
         self.assertEqual(second_report, first_report | {"already_bound": 1})
 
+    def test_every_mobile_destination_integration_has_a_product_binding(self):
+        repo_root = Path(__file__).resolve().parents[4]
+        destinations = json.loads(
+            (repo_root / "config/marketing-destinations.json").read_text(encoding="utf-8")
+        )
+        targets = [
+            row for row in destinations["targets"]
+            if row.get("job_product_id") in {"anicca-ios", "honne-ai"}
+        ]
+        self.assertTrue(targets, "mobile destinations must be declared")
+        products = binding.load_product_ids(
+            repo_root / "skills/earn/marketing-engine/registry/products"
+        )
+        account_bindings = binding.load_account_bindings(
+            repo_root / "skills/earn/marketing-engine/registry/accounts", products
+        )
+        missing = sorted(
+            row["integration_id"] for row in targets
+            if row["integration_id"] not in account_bindings
+        )
+        self.assertEqual(missing, [])
+        for row in targets:
+            with self.subTest(integration_id=row["integration_id"]):
+                self.assertEqual(
+                    account_bindings[row["integration_id"]]["product_id"],
+                    row["job_product_id"],
+                )
+
 
 if __name__ == "__main__":
     unittest.main()
