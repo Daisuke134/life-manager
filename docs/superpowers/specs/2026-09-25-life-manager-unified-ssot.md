@@ -10758,11 +10758,11 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 **残TODO（完了まで・この順）:**
 
 1. [x] focused regressionをREDで確認し、article-dailyのpre-topic recoveryとgeneration-state rebindに最小修正を入れる。
-2. [ ] latest-mainを再確認して専用branchをcommit/pushし、exact-head CIとfresh PR review後にmergeする。
+2. [x] latest-mainを再確認して専用branchからPR #7360を作成。exact-head CI全件PASSとfresh source review SHIP後にmergeし、mainへ統合した (merge commit b0cb5b5c084d72df0e9a4539feb91de7f7bf9c48)。
 3. main由来immutable releaseをarticle-dailyへ対象限定で反映し、natural Writer occurrenceで同じ有料需要カードとMarketing Intel contextの使用を確認する。
 4. Noteのlive URL・¥500 monetization API readback、X告知のofficial readback、Writer sales measureとreplay-zeroを確認するまで収益を主張しない。Affiliate/X repost loopには接続しない。
 
-**現在cursor:** PR #7360のbroker順序/readiness fixはsource reviewerがSHIP。SSOT更新後のexact-head CIを再取得中。PASS後にmerge→main由来immutable release→owner-idle確認→article-daily対象限定apply。13:18と14:02のoccurrenceはeffect_unknownのまま、Note/Substackは9/29の既存記事、X公式readbackは未取得、sales ledgerもunknown。再送せず、公式readback後に自然Writer runを確認し、Note ¥500・公開URL・sales・cost・replay-zeroを検証する。
+**現在cursor:** PR #7360のbroker順序/readiness修正は2026-10-09 05:29Zにmerge済み (b0cb5b5c084d72df0e9a4539feb91de7f7bf9c48)。PR exact-head checksは全件PASS、fresh source reviewはSHIP。main 692d89491581f33f4f6065016ad9fe45610de384はmergeを含み、追加docs commitのSecurity Scanは再取得中。article-dailyはrelease 84c56e1190f611c7ccd2e9d55df6513df8c31d72をロード中で、修正は未反映。対象run 20261008-232303はprepared/attempts=[]、CONTENT戦術IDはprompt内にあるが記事生成・公開・売上の証拠はない。article-daily eventはeffect_unknown、ただしadmission rowはreleased/effect_unknown=0。Note/Substackは9/29の既存記事、X公式readbackなし、sales ledger unknown。再送しない。Affiliateの最新healthはeffect_unknown/entrypoint_exit_1/receiptなし、X repostはscratch_enospcでsafely_fenced、last successは10/5。marketing-weekly-reviewのTelegramレポートは調査報告で、Affiliate/repostや売上の成功receiptではない。data volume freeは122MiBで2GiB recovery floor未達。直近の有効cleanup receiptはfree_after=149086208,reclaimed=0,protected_deletions=0。後続owner runはscratch_enospc、公式governor passもlast-receipt.jsonのENOSPCで失敗し、fresh receiptなし・owner receipt reserve欠落のためcleanup結果は未確認。次: capacity回復後に公式governorでreserveとfresh receiptを復元しfree_after>=2GiBを確認→latest main scan PASS→main由来immutable release→owner-idleとfresh read-only reviewを確認してarticle-dailyだけtarget apply→自然runでpaid-demand cardとMarketing Intel context使用、Note ¥500/Substack/X Articleの公式公開readback、sales/cost/replay-zeroを検証する。公式settlementまで収益を主張しない。
 ### 2026-10-09 12:17 JST — Mobile post count unchanged; latest-main source sync pending
 
 このreadbackは12:05 JST mobile snapshotを更新する。**3回目のslotや日次54/54を待たず、source/promotion/owner修復を続ける。**
