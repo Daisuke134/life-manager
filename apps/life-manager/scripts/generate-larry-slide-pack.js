@@ -23,7 +23,7 @@ const { createContentObjectStore } = require("../lib/content-object-store.js");
 const { readCreativeMetrics } = require("../lib/marketing-creative-metrics.js");
 const { generateSlidePackCandidates } = require("../lib/marketing-slide-pack-factory.js");
 const { selectSlidePack } = require("../lib/marketing-slide-pack-rotation.js");
-const { marketingVideoDueSlot } = require("../lib/honne-ja-shadow-schedule.js");
+const { marketingVideoDueSlots } = require("../lib/honne-ja-shadow-schedule.js");
 const { JA_LANE } = require("../lib/marketing-native-carousel-publication-adapter.js");
 const { JA_LARRY_PRODUCTION_SLOTS } = require("./anicca-larry-ja-canary.js");
 
@@ -116,17 +116,21 @@ async function resolveLarryJaSlot({ env = process.env, now = () => new Date().to
   const dataDir = path.resolve(required(env.LM_DATA_DIR, "LM_DATA_DIR"));
   const tenantId = required(env.LM_RUNTIME_TENANT_ID, "LM_RUNTIME_TENANT_ID");
   const nowIso = now();
-  const dueSlot = slot || marketingVideoDueSlot(Date.parse(nowIso), "Asia/Tokyo", productionSlots);
+  const distributionLedger = distributionLedgerPath(dataDir, tenantId, lane.productId);
+  const initialPostedHistory = readPostedHistory(distributionLedger);
+  const dueSlots = marketingVideoDueSlots(Date.parse(nowIso), "Asia/Tokyo", productionSlots);
+  const slotHashFor = (candidateSlot) => crypto.createHash("sha256").update(candidateSlot).digest("hex");
+  const alreadyPublished = (history, candidateSlot) => history.find(
+    (row) => row.integrationRef === lane.integrationRef && row.slotHash === slotHashFor(candidateSlot),
+  );
+  const dueSlot = slot
+    || dueSlots.find((candidateSlot) => !alreadyPublished(initialPostedHistory, candidateSlot))
+    || dueSlots.at(-1)
+    || null;
   if (!dueSlot) {
     throw Object.assign(new Error(`${lane.name} production has no due slot yet`), { code: "NO_DUE_SLOT" });
   }
-  const distributionLedger = distributionLedgerPath(dataDir, tenantId, lane.productId);
-  const initialPostedHistory = readPostedHistory(distributionLedger);
-  const slotHash = crypto.createHash("sha256").update(dueSlot).digest("hex");
-  const alreadyPublished = (history) => history.find(
-    (row) => row.integrationRef === lane.integrationRef && row.slotHash === slotHash,
-  );
-  const initialSlotReceipt = alreadyPublished(initialPostedHistory);
+  const initialSlotReceipt = alreadyPublished(initialPostedHistory, dueSlot);
   if (initialSlotReceipt) {
     return { slot: dueSlot, selected: null, alreadyPublished: true, providerPostId: initialSlotReceipt.providerPostId };
   }
@@ -194,7 +198,7 @@ async function resolveLarryJaSlot({ env = process.env, now = () => new Date().to
   }
 
   const postedHistory = readPostedHistory(distributionLedger);
-  const slotReceipt = alreadyPublished(postedHistory);
+  const slotReceipt = alreadyPublished(postedHistory, dueSlot);
   if (slotReceipt) {
     return { slot: dueSlot, selected: null, alreadyPublished: true, providerPostId: slotReceipt.providerPostId };
   }
