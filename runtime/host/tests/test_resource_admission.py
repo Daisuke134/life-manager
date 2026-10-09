@@ -1348,6 +1348,25 @@ def test_existing_paid_waiter_upgrades_priority_without_resetting_queue_age(
     assert admission.release_and_reserve(running, now=201) == ["paid"]
 
 
+def test_distribution_waiter_upgrades_to_critical_paid_using_current_rank_map(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    admission.enqueue_durable(
+        "agent", "paid", admission_class="revenue",
+        priority="distribution", now=100,
+    )
+    admission.enqueue_durable(
+        "agent", "paid", admission_class="revenue",
+        priority="critical_paid", now=200,
+    )
+
+    paid = next(row for row in durable_rows(tmp_path, "priorities")
+                if row["owner_id"] == "paid")
+    assert paid["base_priority"] == "critical_paid"
+    assert paid["queued_at"] == 100
+
+
 def test_running_paid_owner_upgrades_its_queued_next_wake(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="1")
     admission.activate_durable_v2()
