@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>com.anicca.disk-cleanup-15d</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>__MAINTENANCE_15D_SCRIPT__</string>
+  </array>
+  <key>StartInterval</key><integer>1296000</integer>
+  <key>RunAtLoad</key><true/>
+  <key>ThrottleInterval</key><integer>60</integer>
+  <key>ProcessType</key><string>Background</string>
+  <key>StandardOutPath</key><string>__HOME__/.local/state/life-manager/life-manager-disk-cleanup/logs/maintenance-15d.out.log</string>
+  <key>StandardErrorPath</key><string>__HOME__/.local/state/life-manager/life-manager-disk-cleanup/logs/maintenance-15d.err.log</string>
+</dict></plist>
