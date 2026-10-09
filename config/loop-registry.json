@@ -559,10 +559,80 @@
     },
     "article-daily": {
       "cadence": {
-        "calendar_interval": {
-          "Hour": 6,
-          "Minute": 0
-        }
+        "calendar_interval": [
+          {
+            "Hour": 6,
+            "Minute": 0
+          },
+          {
+            "Hour": 7,
+            "Minute": 0
+          },
+          {
+            "Hour": 8,
+            "Minute": 0
+          },
+          {
+            "Hour": 9,
+            "Minute": 0
+          },
+          {
+            "Hour": 10,
+            "Minute": 0
+          },
+          {
+            "Hour": 11,
+            "Minute": 0
+          },
+          {
+            "Hour": 12,
+            "Minute": 0
+          },
+          {
+            "Hour": 13,
+            "Minute": 0
+          },
+          {
+            "Hour": 14,
+            "Minute": 0
+          },
+          {
+            "Hour": 15,
+            "Minute": 0
+          },
+          {
+            "Hour": 16,
+            "Minute": 0
+          },
+          {
+            "Hour": 17,
+            "Minute": 0
+          },
+          {
+            "Hour": 18,
+            "Minute": 0
+          },
+          {
+            "Hour": 19,
+            "Minute": 0
+          },
+          {
+            "Hour": 20,
+            "Minute": 0
+          },
+          {
+            "Hour": 21,
+            "Minute": 0
+          },
+          {
+            "Hour": 22,
+            "Minute": 0
+          },
+          {
+            "Hour": 23,
+            "Minute": 0
+          }
+        ]
       },
       "cleanup": {
         "max_age_days": 14,
