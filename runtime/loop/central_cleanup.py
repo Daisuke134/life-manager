@@ -6,6 +6,8 @@ from __future__ import annotations
 import json
 import os
 import plistlib
+import re
+import stat
 import subprocess
 import sys
 import time
@@ -85,6 +87,34 @@ def recorded_effect_classes(events_path: Path, loop_ids: set[str]) -> dict[tuple
     }
 
 
+def _diagnostic_relay_live(run_fd: int, starts: dict | None, loop_id: str, run_id: str) -> bool:
+    directory = descriptor = -1
+    try:
+        directory = os.open("stderr-relay", os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=run_fd)
+        descriptor = os.open(".stderr-relay.json", os.O_RDONLY | os.O_NOFOLLOW, dir_fd=directory)
+        info = os.fstat(descriptor)
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
+                or stat.S_IMODE(info.st_mode) != 0o600 or info.st_size > 4096):
+            return True
+        with os.fdopen(descriptor, "r", closefd=False) as handle:
+            value = json.load(handle)
+        binding = value["binding"]
+        if (type(value["pid"]) is not int or value["pid"] <= 0
+                or not isinstance(value["process_start"], str)
+                or binding.get("owner_id") != loop_id or binding.get("run_id") != run_id
+                or value.get("role") != "diagnostic_only" or starts is None):
+            return True
+        actual = starts.get(value["pid"])
+        return actual is not None and " ".join(actual.split()) == " ".join(value["process_start"].split())
+    except FileNotFoundError:
+        return False
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        return True
+    finally:
+        if descriptor >= 0: os.close(descriptor)
+        if directory >= 0: os.close(directory)
+
+
 def scratch_gc(roots: set[Path], *, snapshot_started_ns: int | None = None,
                starts: dict[int, str] | None = None,
                no_effect_loop_ids: set[str] | frozenset[str] = frozenset()
@@ -142,6 +172,10 @@ def scratch_gc(roots: set[Path], *, snapshot_started_ns: int | None = None,
                                     os.close(descriptor)
                             continue
                         result["evaluated"] += 1
+                        if _diagnostic_relay_live(run_fd, identities, loop_name, run_name):
+                            os.close(owner_fd); os.close(run_fd)
+                            result["preserved"] += 1
+                            continue
                         try:
                             try:
                                 os.stat(".terminal-unrecorded", dir_fd=run_fd,
@@ -227,6 +261,25 @@ def _host_cleanup_capacity_status(result: object) -> str:
     return "met" if free_after >= HOST_CLEANUP_RECOVERY_FLOOR_BYTES else "unmet"
 
 
+def cleanup_run_binding(env: dict, release_root: Path) -> dict | None:
+    """Read host-owned identity; an unbound standalone sweep stays unbound."""
+    run_id = env.get("LIFE_MANAGER_RUN_ID")
+    occurrence_id = env.get("LIFE_MANAGER_OCCURRENCE_ID")
+    try:
+        sha = json.loads((release_root / "RELEASE.json").read_text())["sha"]
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    if (not isinstance(run_id, str)
+            or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}", run_id)
+            or not isinstance(occurrence_id, str)
+            or not occurrence_id.startswith("life-manager-disk-cleanup:")
+            or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,255}", occurrence_id)
+            or not isinstance(sha, str) or not re.fullmatch(r"[a-f0-9]{40}", sha)):
+        return None
+    return {"owner_id": "life-manager-disk-cleanup", "run_id": run_id,
+            "occurrence_id": occurrence_id, "release_sha": sha}
+
+
 def host_cleanup_ok(returncode: int, result: object) -> bool:
     if not isinstance(result, dict):
         return False
@@ -241,7 +294,8 @@ def host_cleanup_ok(returncode: int, result: object) -> bool:
     )
 
 
-def host_cleanup_readback(returncode: int, stdout: str) -> tuple[bool, dict]:
+def host_cleanup_readback(returncode: int, stdout: str, *,
+                          binding: dict | None = None) -> tuple[bool, dict]:
     """Parse the host governor's final JSON without collapsing missing output to ``{}``."""
     if not isinstance(stdout, str) or not stdout.strip():
         return False, {
@@ -260,11 +314,20 @@ def host_cleanup_readback(returncode: int, stdout: str) -> tuple[bool, dict]:
             "error": "host_cleanup_result_invalid",
             "returncode": returncode,
         }
+    if binding is not None and result.get("identity") != binding:
+        return False, {"error": "host_cleanup_identity_mismatch",
+                       "execution_ok": False, "capacity_recovered": None,
+                       "capacity_recovery": {"status": "unknown",
+                           "recovery_floor_bytes": HOST_CLEANUP_RECOVERY_FLOOR_BYTES}}
     result["capacity_recovery"] = {
         "status": _host_cleanup_capacity_status(result),
         "recovery_floor_bytes": HOST_CLEANUP_RECOVERY_FLOOR_BYTES,
     }
-    return host_cleanup_ok(returncode, result), result
+    ok = host_cleanup_ok(returncode, result)
+    result["execution_ok"] = ok
+    status = result["capacity_recovery"]["status"]
+    result["capacity_recovered"] = None if status == "unknown" else status == "met"
+    return ok, result
 
 
 def loaded_release_roots(agents_dir: Path, releases_root: Path) -> set[Path]:
@@ -358,6 +421,7 @@ def main() -> int:
         )
         host_ok, host_result = host_cleanup_readback(
             host_process.returncode, host_process.stdout,
+            binding=cleanup_run_binding(dict(os.environ), ROOT),
         )
     except subprocess.TimeoutExpired:
         host_ok, host_result = False, {"error": "host_cleanup_timeout"}

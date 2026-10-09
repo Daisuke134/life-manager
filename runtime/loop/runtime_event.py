@@ -11,6 +11,7 @@ import re
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
+from runtime.host.storage_failure import validate_storage_failure
 
 
 REQUIRED_FIELDS = {
@@ -28,7 +29,7 @@ DIAGNOSTIC_FIELDS = {
 # (see lm_loop_run._persist_effect_identity); absent otherwise.
 # ``error_detail`` is present only for a failing run that captured entrypoint
 # stderr (see lm_loop_run._run_entrypoint's bounded tail capture).
-OPTIONAL_FIELDS = {"effect_identity_status", "error_detail"}
+OPTIONAL_FIELDS = {"effect_identity_status", "error_detail", "storage_failure"}
 FIELDS = REQUIRED_FIELDS | DIAGNOSTIC_FIELDS | OPTIONAL_FIELDS
 MAX_ERROR_DETAIL_CHARS = 4096
 EFFECT_IDENTITY_STATUSES = {"not_written", "rejected", "persisted"}
@@ -187,6 +188,11 @@ def validate_runtime_event(event: dict) -> dict:
         detail = event["error_detail"]
         if not isinstance(detail, str) or not detail or len(detail) > MAX_ERROR_DETAIL_CHARS:
             raise ValueError("invalid error_detail")
+    if "storage_failure" in event:
+        failure = validate_storage_failure(event["storage_failure"])
+        expected = f'lm-storage://{event.get("owner_id", event["loop_id"])}/{event["run_id"]}/{failure["operation"]}'
+        if failure["proof_ref"] != expected:
+            raise ValueError("foreign storage proof")
     return event
 
 
@@ -211,7 +217,8 @@ def build_runtime_event(*, loop_id: str, domain: str, run_id: str, release_sha: 
                         provider_receipt_id: str | None = None,
                         official_readback_ref: str | None = None,
                         effect_identity_status: str | None = None,
-                        error_detail: str | None = None) -> dict:
+                        error_detail: str | None = None,
+                        storage_failure: dict | None = None) -> dict:
     timestamp = datetime.now(timezone.utc).isoformat()
     if succeeded and deferred:
         raise ValueError("runtime event cannot be both succeeded and deferred")
@@ -298,6 +305,8 @@ def build_runtime_event(*, loop_id: str, domain: str, run_id: str, release_sha: 
         redacted = redact_secrets(error_detail).strip()[:MAX_ERROR_DETAIL_CHARS]
         if redacted:
             event["error_detail"] = redacted
+    if storage_failure is not None:
+        event["storage_failure"] = storage_failure
     return validate_runtime_event(event)
 
 

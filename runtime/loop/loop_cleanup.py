@@ -72,10 +72,11 @@ def remove_owned_tree(parent_fd: int, opened_fd: int, name: str) -> bool:
         os.close(trash_fd)
 
 
-def _tree_bytes(path: Path) -> int:
+def _tree_bytes(path: Path, *, prepare_delete: bool = True) -> int:
     total = 0
     for current, directories, files in os.walk(path, followlinks=False):
-        os.chmod(current, 0o700)
+        if prepare_delete:
+            os.chmod(current, 0o700)
         directories[:] = [name for name in directories
                            if not (Path(current) / name).is_symlink()]
         for name in files:
@@ -83,12 +84,15 @@ def _tree_bytes(path: Path) -> int:
             try:
                 if not item.is_symlink(): total += item.stat().st_size
             except OSError:
-                pass
+                if not prepare_delete:
+                    raise
     return total
 
 
 def _contains_protected(path: Path) -> bool:
     if (path / ".lm-protected").exists():
+        return True
+    if _release_immutable_store_probe(path) is not None:
         return True
     try:
         return any(PROTECTED_NAME.search(item.name) for item in path.rglob("*") if not item.is_symlink())
@@ -105,9 +109,12 @@ def _remove_marked(path: Path) -> int:
 
 
 def cleanup_run_root(root: Path, contract: dict, active_run_ids: set[str], *,
-                     now: float | None = None) -> dict[str, int]:
+                     now: float | None = None, managed_bytes: int | None = None,
+                     closed_run_ids: set[str] | None = None) -> dict[str, int]:
     result = {"evaluated_runs": 0, "removed_runs": 0, "reclaimed_bytes": 0,
               "preserved_runs": 0, "protected_deletions": 0, "errors": 0}
+    if managed_bytes is not None and (type(managed_bytes) is not int or managed_bytes < 0):
+        raise ValueError("invalid managed byte budget")
     runs = root.expanduser() / "runs"
     if not runs.is_dir() or runs.is_symlink():
         return result
@@ -139,6 +146,38 @@ def cleanup_run_root(root: Path, contract: dict, active_run_ids: set[str], *,
             result["removed_runs"] += 1
         except OSError:
             result["errors"] += 1
+    if managed_bytes is not None:
+        if type(managed_bytes) is not int or managed_bytes < 0:
+            raise ValueError("invalid managed byte budget")
+        retained = []
+        for path in runs.iterdir():
+            if not path.is_dir() or path.is_symlink():
+                continue
+            try:
+                size = _tree_bytes(path, prepare_delete=False)
+                retained.append((path.stat().st_mtime, path, size))
+            except OSError:
+                result["errors"] += 1
+        eligible = []
+        unavailable = 0
+        for modified, path, size in retained:
+            if (path.name in active_run_ids or path.name not in (closed_run_ids or set())
+                    or _contains_protected(path) or not (path / ".lm-regenerable").is_file()
+                    or not (path / "summary.json").is_file()):
+                unavailable += size
+                continue
+            eligible.append((modified, path, size))
+        total = sum(size for _, _, size in eligible)
+        for _, path, size in sorted(eligible):
+            if total <= managed_bytes:
+                break
+            try:
+                result["reclaimed_bytes"] += _remove_marked(path)
+                result["removed_runs"] += 1
+                total -= size
+            except OSError:
+                result["errors"] += 1
+        result["unrecoverable_bytes"] = unavailable + max(0, total - managed_bytes)
     return result
 
 
@@ -191,9 +230,12 @@ def _release_immutable_store_probe(
 
 
 def gc_releases(releases_root: Path, current: Path, *, keep: int,
-                protected: set[Path]) -> dict[str, int]:
+                protected: set[Path], managed_bytes: int | None = None,
+                closed_releases: set[Path] | None = None) -> dict[str, int]:
     result = {"evaluated_releases": 0, "removed_releases": 0, "reclaimed_bytes": 0,
               "preserved_releases": 0, "protected_deletions": 0, "errors": 0}
+    if managed_bytes is not None and (type(managed_bytes) is not int or managed_bytes < 0):
+        raise ValueError("invalid managed release byte budget")
     if not releases_root.is_dir() or releases_root.is_symlink():
         return result
     protected = {path.resolve() for path in protected}
@@ -227,4 +269,33 @@ def gc_releases(releases_root: Path, current: Path, *, keep: int,
             result["removed_releases"] += 1
         except OSError:
             result["errors"] += 1
+    if managed_bytes is not None:
+        closed = {p.resolve() for p in (closed_releases or set())}
+        retained = []
+        unavailable = 0
+        for modified, path in ordered[:max(0, keep)]:
+            if not path.exists():
+                continue
+            try:
+                size = _tree_bytes(path, prepare_delete=False)
+                if path.resolve() not in closed:
+                    unavailable += size
+                else:
+                    retained.append((modified, path, size))
+            except OSError:
+                result["errors"] += 1
+        total = sum(size for _, _, size in retained)
+        for _, path, size in sorted(retained):
+            if total <= managed_bytes:
+                break
+            if path.resolve() in protected or _release_immutable_store_probe(path) is not None:
+                unavailable += size
+                continue
+            try:
+                result["reclaimed_bytes"] += _remove_marked(path)
+                result["removed_releases"] += 1
+                total -= size
+            except OSError:
+                result["errors"] += 1
+        result["unrecoverable_bytes"] = unavailable + max(0, total - managed_bytes)
     return result

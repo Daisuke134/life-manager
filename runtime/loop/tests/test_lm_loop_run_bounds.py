@@ -1258,7 +1258,7 @@ def test_control_plane_safety_loops_bypass_data_plane_admission(tmp_path):
         run.assert_called_once()
         call_args, call_kwargs = run.call_args
         assert call_args == (["/bin/true"],)
-        assert call_kwargs["env"] == {}
+        assert call_kwargs["env"] == {"LIFE_MANAGER_LOOP_ID": loop_id}
         assert call_kwargs["timeout_seconds"] == 900
         # The capture wrapper hands _run_entrypoint a real fd, not a pipe.
         assert isinstance(call_kwargs["stderr_capture_fd"], int)
@@ -1267,6 +1267,16 @@ def test_control_plane_safety_loops_bypass_data_plane_admission(tmp_path):
             "reason": "control_plane_exempt",
             "status": "pass",
         }
+
+def test_cleanup_control_caller_passes_the_real_occurrence_to_receipt_writer(tmp_path):
+    entry = {"cadence":{"start_interval_seconds":300}, "provider_route":"deterministic"}
+    with (patch("runtime.loop.lm_loop_run._run_entrypoint_with_stderr_capture",return_value=(0,b"")) as capture,
+          patch("runtime.loop.lm_loop_run.reserve_available_resource",return_value=None),
+          patch("runtime.loop.lm_loop_run._dispatch_reserved"),
+          patch("runtime.loop.lm_loop_run.clear_no_effect_unknown_resource")):
+        _run_admitted(["/bin/true"],entry,"life-manager-disk-cleanup",{},tmp_path/"receipt",
+                      occurrence_id="life-manager-disk-cleanup:scheduled-1")
+    assert capture.call_args.kwargs["env"]["LIFE_MANAGER_OCCURRENCE_ID"] == "life-manager-disk-cleanup:scheduled-1"
 
 
 def test_exempt_entrypoints_receive_native_occurrence_without_inheriting_foreign_context(tmp_path):
@@ -2123,7 +2133,7 @@ def test_main_projects_exact_mobile_result_into_terminal_event(tmp_path):
     events = []
 
     def run_admitted(_command, _entry, loop_id, _env, receipt, *,
-                     occurrence_id, on_claimed, on_stderr_tail=lambda _tail: None):
+                     occurrence_id, on_claimed, on_stderr_tail=lambda _tail: None, on_storage_failure=None):
         on_claimed(occurrence_id)
         receipt.write_text('{"status":"pass","effect":0}\n', encoding="utf-8")
         receipt.chmod(0o600)
@@ -2166,6 +2176,22 @@ def test_main_projects_exact_mobile_result_into_terminal_event(tmp_path):
     assert len(events[-1]["loaded_argv_sha256"]) == 64
     assert len(events[-1]["loaded_env_sha256"]) == 64
     enqueue.assert_not_called()
+
+
+def test_main_preserves_live_relay_after_terminal_commit(tmp_path):
+    release = _write_prestart_lock_release(tmp_path)
+    state = tmp_path / "state"
+    with (patch.dict(os.environ, {"LIFE_MANAGER_STATE_ROOT": str(state),
+              "LIFE_MANAGER_RUN_ID": "live-relay-run", "WAKE_ID": "wake-1"}),
+          patch("runtime.loop.lm_loop_run._apply_lock", return_value=nullcontext()),
+          patch("runtime.loop.lm_loop_run.build_loop_command", return_value=["/bin/true"]),
+          patch("runtime.loop.lm_loop_run._run_admitted", return_value=0),
+          patch("runtime.loop.lm_loop_run.append_runtime_event"),
+          patch("runtime.loop.central_cleanup._diagnostic_relay_live", return_value=True),
+          patch("runtime.loop.lm_loop_run.remove_owned_tree") as remove):
+        assert lm_loop_run_main(["example-publisher", str(release)]) == 0
+    assert (state / "loop-tmp/example-publisher/live-relay-run").exists()
+    remove.assert_not_called()
 
 
 def test_main_records_false_terminal_scratch_cleanup_without_changing_business_result(tmp_path):
@@ -2432,10 +2458,11 @@ def test_main_records_scratch_enospc_and_allows_next_wake(tmp_path):
     assert failed["occurrence_id"] == "example-publisher:run-1"
     assert failed["effect_status"] == "not_applicable"
     assert failed["blocker"] == "scratch_enospc"
-    assert failed["error_class"] == "enospc"
+    assert failed["error_class"] == "storage_write_failed_pre_effect"
     assert failed["exit_code"] == 78
     assert failed["retryable"] is True
-    assert failed["next_action"] == "retry_after_eligibility"
+    assert failed["next_action"] == "retry_after_cleanup"
+    assert failed["storage_failure"]["effect_started"] is False
     assert failed["error_detail"] == "scratch allocation failed; errno=28"
     assert failed["evidence_refs"] == []
     assert failed["provider_receipt_id"] is None
@@ -2502,7 +2529,7 @@ def test_main_emits_structured_scratch_enospc_if_terminal_event_cannot_be_writte
     assert diagnostic["operation_errno"] == errno.ENOSPC
     assert diagnostic["writer_errno"] == errno.ENOSPC
     assert diagnostic["retryable"] is True
-    assert diagnostic["next_action"] == "retry_after_eligibility"
+    assert diagnostic["next_action"] == "retry_after_cleanup"
     run_admitted.assert_not_called()
 
 
@@ -3920,3 +3947,17 @@ def test_main_waits_for_a_label_apply_lock_that_frees_up(tmp_path):
     events_file = state_root / "events.jsonl"
     blockers = [json.loads(l).get("blocker") for l in events_file.read_text().splitlines()] if events_file.exists() else []
     assert "apply_lock_busy" not in blockers, "a lock that freed up must not be recorded as busy"
+
+
+def test_registered_entrypoint_stderr_uses_bounded_owned_relay(tmp_path, capfd):
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+    child = "import os; os.write(2,b'first-'+b'x'*(4*1024**2)+b'-last')"
+    env = {**os.environ, "LIFE_MANAGER_LOOP_ID": "life-manager-disk-cleanup", "LIFE_MANAGER_RUN_ID": "run-1", "LIFE_MANAGER_OCCURRENCE_ID": "life-manager-disk-cleanup:run-1", "LIFE_MANAGER_RELEASE_SHA": "a"*40}
+    rc, tail = _run_entrypoint_with_stderr_capture([sys.executable, "-c", child], scratch, env=env, timeout_seconds=10)
+    assert rc == 0 and tail.endswith(b'-last')
+    assert (scratch / "stderr-relay/relay-result.json").is_file()
+    retained = sum(p.stat().st_size for p in (scratch / "stderr-relay").iterdir() if p.is_file())
+    assert retained <= 2*1024**2 + 40*1024
+    captured = capfd.readouterr().err
+    assert captured.startswith("first-") and captured.endswith("-last")

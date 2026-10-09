@@ -596,3 +596,32 @@ def test_inventory_persists_permission_boundary_owner_receipts(tmp_path: Path, m
 
     persisted = json.loads((tmp_path / "state" / "host-inventory.json").read_text())
     assert persisted["permission_owner_receipts"] == receipts
+
+
+def test_storage_growth_tracks_exact_owner_and_keeps_unknowns():
+    previous = {"observed_at": "2026-10-09T00:00:00Z", "roots": [{"path": "/srv/lm/a", "size_bytes": 0}], "coverage": {"gaps": []}}
+    current = {"observed_at": "2026-10-09T00:01:00Z", "roots": [{"path": "/srv/lm/a", "size_bytes": 100 * 1024**2}, {"path": "/srv/lm/new", "size_bytes": None}], "coverage": {"gaps": ["partial"]}}
+    result = host_inventory.project_storage_growth(previous, current, {"/srv/lm/a": ["alpha"]})
+    assert result["roots"][0]["delta_bytes"] == 100 * 1024**2
+    assert result["roots"][0]["elapsed_seconds"] == 60
+    assert result["roots"][0]["bytes_per_second"] == (100 * 1024**2) / 60
+    assert result["roots"][0]["owner_id"] == "alpha"
+    assert result["roots"][1]["bytes_per_second"] is None
+    assert result["roots"][1]["owner_id"] is None
+    bad = host_inventory.project_storage_growth(previous, {**current, "observed_at": "2026-10-08T00:00:00Z"}, {})
+    assert bad["roots"][0]["bytes_per_second"] is None
+
+
+def test_inventory_persists_growth_without_changing_cleanup_authority(tmp_path):
+    state = tmp_path / "state"
+    first = collect_host_inventory(home=tmp_path, state_dir=state, runner=fake_runner)
+    assert first["storage_growth"]["non_additive"] is True
+    assert first["storage_growth"]["roots"]
+    written = json.loads((state / "host-inventory.json").read_text())
+    assert written["storage_growth"] == first["storage_growth"]
+
+
+def test_shared_storage_roots_are_observed_as_metadata(tmp_path):
+    paths = {r["path"] for r in collect_host_inventory(home=tmp_path, state_dir=tmp_path / "state", runner=fake_runner)["roots"]}
+    assert str(tmp_path / ".local/state/life-manager") in paths
+    assert str(tmp_path / "loops/releases") in paths

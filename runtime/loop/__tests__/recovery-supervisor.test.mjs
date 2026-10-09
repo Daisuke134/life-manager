@@ -43,6 +43,24 @@ async function journalRows(journal) {
   return (await readFile(journal, 'utf8')).trim().split('\n').filter(Boolean).map(JSON.parse);
 }
 
+test('storage pending retries after cleanup and completed recovery is replay-zero', async () => {
+  const {queue,journal} = await files([intent('storage')]);
+  let ready = false; let executions = 0;
+  const executeIntent = async () => {
+    if (!ready) return {ok:false,state:'queued',budget_consumed:false,
+      reason:'storage_cleanup_or_write_proof_pending'};
+    executions++; return {ok:true,state:'repaired'};
+  };
+  const options = {queuePath:queue,journalPath:journal,executeIntent,cooldownSeconds:1};
+  const first = await consumeRecoveryIntentQueue({...options,now:'2026-10-09T00:00:00Z'});
+  assert.equal(first.state,'queued'); assert.equal(executions,0);
+  ready = true;
+  const second = await consumeRecoveryIntentQueue({...options,now:'2026-10-09T00:00:02Z'});
+  assert.equal(second.state,'repaired'); assert.equal(executions,1);
+  await consumeRecoveryIntentQueue({...options,now:'2026-10-09T00:00:04Z'});
+  assert.equal(executions,1);
+});
+
 test('consumes exactly one owner intent and does not replay a repaired intent', async () => {
   const { queue, journal } = await files([intent('one'), intent('two', 'sibling-loop')]);
   const calls = [];

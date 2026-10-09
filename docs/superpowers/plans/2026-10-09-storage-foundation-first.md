@@ -22,7 +22,7 @@
 - terminal/event/resultは正本で、diagnostic raw logはbounded copy。schema/result/usageを確定する前にraw stdoutを捨てない。
 - readonly snapshotはmetadataのみ。private run rootは0700、file0600、nofollow/owner/start identity検証。source/fixtureはworktree、本番state/ログをコピーしない。
 - effect_unknownは公式readbackへ。capacity回復やprocess終了を外部効果の未実行証拠にしない。
-- DS01–14はsource/隔離fixture。DS15–17だけが本番promotion/自然証拠。現在の依頼は計画更新であり、本番操作はまだ実施しない。
+- DS01–14はsource/隔離fixture。DS15–17だけが本番promotion/自然証拠。現在の依頼は実装・main統合・安全な対象限定反映まで。進行中の仕事を止めず、DS15のowner/GUI境界を満たす対象だけ反映する。
 
 ## Review Focus
 
@@ -45,7 +45,7 @@
 
 ### Task 1: DS01 — host_cleanup_readback(returncode, stdout) -> tuple[bool, dict]
 
-**Files:** runtime/loop/central_cleanup.py  
+**Files:** runtime/loop/central_cleanup.py; skills/self/disk-cleanup/disk_cleanup.py
 **Test:** runtime/loop/tests/test_loop_cleanup.py  
 **Depends:** なし  
 **Interfaces:** Consumes=既存contractと上記依存の出力。Produces=`host_cleanup_readback(returncode, stdout) -> tuple[bool, dict]`。receiptへ最低限owner_id/run_id/occurrence_id/release_sha/phase/error_class/retryable/next_action/evidence_refsを保持（DS03 metadata値のみはnull許可）。
@@ -177,6 +177,8 @@
 - [ ] Step 5: source境界/diffを確認し、担当filesだけcommit/push。状態は統一SSOTのDS09行で更新する。
 
 **Done:** cursor budget切れでも次passへ公平に進む。候補無し/全protectedならunmetを正直に返す。busy lockで二重sweep0、15日dispatcherの既存tests PASS。
+
+DS09接続修正: testだけが生成するstate/runs markerへの経路は撤去。実際のagent-runner保存先で、host-marked relay診断だけを既存ensure_evidence_capacityから回収する。summary完了・EOF receipt・positive closed proofが必要。親result/usage/JSONLは保持する。
 
 ### Task 10: DS10 — classify_storage_failure(error, phase, binding, effect_started) -> dict
 
@@ -312,3 +314,19 @@
 - shared storage error分類は一箇所。recovery chainは既存reconcile_owner actionへ接続し、proof/errno/operationをrunnerから落とさない。
 - release cutは事前GCとcurrent切替を持つため、本番promotionへ分類。applyの正しいtargetは位置引数ではなくLIFE_MANAGER_APPLY_TARGET。
 - control socket閉鎖でrelay inputを閉じず、先頭32KiBと末尾2048bytesを保持する。
+
+実行ledger: DS01 readback/receipt identityをsource実装。4新規ケースRED→GREEN、関連175 tests + 5 subtests PASS。baselineでも失敗する旧cursorの2期待値を現行no-floor契約へ合わせ、metadata errorsは維持。本番反映はDS15まで未実施。
+
+実行ledger: DS02 exact cleanup identity/600秒freshness/数字型を検証してhost_storageを独立表示。CLI+schema+observer local capacity transitionの3ケースRED→GREEN、関連41tests/11subtests PASS。capacityだけでprovider recovery intentを生成しない。本番未適用。
+
+実行ledger: DS03 metadata growthと共有state/releaseの観測rootを追加。3ケースRED→GREEN、inventory/governor139tests PASS。全rootはnon-additive、未知size/新規root/時計逆行をnull、ownerはregistryの明示mappingだけ。削除候補へ観測rootを昇格しない。
+
+実行ledger: DS04 registered owner専用closed policy/configを実装。3cases RED→GREEN/PASS。unknown ownerはNoneで既存動作不変更、診断byte limitはfree-space admission floorではない。fixture ENOSPCを解消するため、既存同版install/open/mount無しのTapKit installerだけ回収、app/config/auth不変更。
+
+実行ledger: DS05 managed byte retentionはclosed_run_ids/closed_releasesのpositive proofでのみ回収。active/protected/unknownを除外しunrecoverableを別計上。memory/state-journal保护を既存probeでrun retentionにも適用。4cases RED→GREEN、関連64tests/5subtests PASS。measure時chmod0、本番削除0。
+
+実行ledger: DS06 finite owned stdio relayを実装。binary32MiB/parent-control close/detached writer/symlink root/ENOSPC drainの5cases、policy込み8tests PASS。macOS Unix datagramのpeer resetをreadbackで処理してfinal private receiptを読む。provider/admission leaseとsecret envを継承しない。本番未接続。
+
+実行ledger: DS07 registered+trusted identityのrunner stderrをrelayへ接続、small replay互換/先頭+末尾保持。live relay PID/start/owner/runがあるscratchはGC保持。legacy unbound capture不変更。新2cases RED→GREEN、関連210tests/5subtests PASS。control loop envに正しいloop_idを渡す。現在running FD/daemon不変更。
+
+実行ledger: DS08 registered bound callerのstdout/stderrをowned relayへ。JSONL usage/tool-start evidenceとJSON wrapperをraw診断破棄前にbounded semantic fileへ確定、fresh result_path維持。oversized/capture missingは成功不可。新3case、related28tests/3subtests+agent-runner全102tests/137subtests PASS。旧unbound call kwargs不変更。

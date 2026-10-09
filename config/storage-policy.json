@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "defaults": {
+    "diagnostic_segment_bytes": 1048576,
+    "diagnostic_backup_count": 1,
+    "chunk_bytes": 4096,
+    "head_bytes": 32768,
+    "metadata_max_bytes": 4096,
+    "structured_record_max_bytes": 16777216,
+    "owner_diagnostic_retained_bytes": 16777216,
+    "host_diagnostic_retained_bytes": 536870912
+  },
+  "owners": {}
+}
