@@ -2305,7 +2305,7 @@ def test_main_keeps_scratch_protected_when_terminal_event_is_not_saved(tmp_path)
           patch("runtime.loop.lm_loop_run._run_admitted", side_effect=run_admitted),
           patch("runtime.loop.lm_loop_run.append_runtime_event", side_effect=append_event),
           patch("runtime.loop.lm_loop_run.remove_owned_tree") as remove):
-        assert lm_loop_run_main(["example-publisher", str(release)]) == 0
+        assert lm_loop_run_main(["example-publisher", str(release)]) == 78
 
     diagnostic = json.loads((state_root / "scratch-cleanup-diagnostics/run-1.json").read_text())
     assert diagnostic["terminal_saved"] is False
