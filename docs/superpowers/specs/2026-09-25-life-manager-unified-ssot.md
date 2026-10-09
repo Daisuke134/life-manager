@@ -10586,6 +10586,17 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **Current cursor:** AT-13 qualified natural exit → first closed round trip with cost-complete paper P&L. この2件の後にも30 round trips、AT-24/AT-29とfresh反対意見reviewのlive gatesが残る。現時点で投資利益は証明されていない。
 
+### 2026-10-09 12:05 JST — Mobile live counts and EN2 pre-effect repair
+
+この追記は11:11 JST mobile snapshotのlive stateを更新する。3回目のslotと54/54 day-closeは投稿開始条件ではない。健康な各ownerは不足分をその場で処理し、失敗・不明effectはそのownerだけに保持する。
+
+- **Postiz official GET (12:04 JST):** 18 mobile account integrationを対象にした当日windowで30 rows、responseは500件limit未満で完結。`PUBLISHED=26/54`、`SCHEDULED=0`。account別published数: `@aniccaaffirmation` 1、`@aniccaen2` 0、`@anicca.affirmation` 8、`@anicca.encards` 1、`@anicca_slideshow` 1、`@anicca.en` 2、`@anicca-ai` 1、`@anicca-affirmation-video` 1、`@anicca.he` 1、`@anicca.jp1` 1、`@anicca.jp4` 1、`@ani.cca1234` 1、`@anicca.jp` 1、`@anicca.jpx` 2、`@anicca_buddha` 1、`@anicca.jp.videos` 1、`@honne_reveal` 1、`@honnevideo` 1。8件の`@anicca.affirmation`は当日投稿として数えるが、daily cap超過の原因調査は残る。
+- **EN2 exact window:** official Postiz GETは2026-10-08 14:00 JST–2026-10-09 11:35 JSTの43 rowsで完結し、`@aniccaen2` integrationのrowは0件。`18dc784833dba1a8-70075`の終了eventは`mobile app loop requires node`、`18dc78532d578968-91053`の最終eventはslide imageを`.workspace`から`objects/sha256`へcopyする時の`ENOSPC`。immutable release `f7db4f57`の順序は`runRotatingCarouselCanary -> resolveLarryJaSlot/generateSlidePackCandidates/objectStore.import -> canary/Postiz`なので、このcopy failureはPostiz callより前である。
+- **Confirmed scratch leak:** ENOSPC時に`mediaFiles.map(objectStore.import)`がthrowし、後続の`mediaFiles.forEach(unlink)`が実行されず、273,811-byteの`.workspace/.slide-listicle-*`が残った。exact PIDは終了しfile openなしをreadbackした後、この1 scratch fileだけ削除した。永続26 PNG cache、object final、他tenant assetsは変更していない。
+- **Source repair in progress:** branch `fix/mobile-pre-effect-startup-20261009` (base `f80d286f`)は、`runtime/loop/lm_loop.py`でexact mobile Node/Python startup errorsとexact slide-object-store ENOSPCだけをpre-effect proof対象にし、foreign `lm-effect://` referenceは引き続き拒否する。`apps/life-manager/lib/marketing-slide-pack-factory.js`はmedia/caption/pack/approval importを`finally` cleanupで包む。live journalに対するread-only proof evaluationはEN2の2 occurrencesを`pre_effect`、unprovable 0と返すが、この変更はまだPR/main/releaseに入っておらず、本番fenceは未解消。
+- **Verification:** `runtime/loop/tests` 830/830、loop adapter registry 15/15、slide-pack factory 3/3、`./bin/lm-loop-contract`、source boundary、diff-checkはPASS。`lm-loop doctor`は189 entriesでmissing/unmanaged 0。`~/loops/current`は`20261009T114519-a14f0679`、mainは`f80d286f`; 17 mobile ownersはrelease `7c20304d`、JP4は`d3b3a279`をloaded。EN2/AI YouTube/EN card/JA widgetのlast statusはentrypoint failureのままで、本番再適用・自然投稿のreadbackはまだ。
+
+**現在mobile cursor:** (1) source diffをcommit/push/PRしCI後にmainへmerge → (2) latest mainからimmutable releaseを作り、idleなmobile ownerを1件ずつapplyし、各loaded SHA/argvをreadback → (3) EN2の2 claimがproduction `pre_effect`として閉じたことを確認 → (4) Postiz countで不足を確認し、過ぎたslot分をそのownerで即catch-upする。`effect_unknown`のまま再送しない → (5) 18 ownersそれぞれ3 distinct `PUBLISHED` receipt/URLとasset/object hashを保存し、healthy ownersを次slotや54/54 day-closeで待たせない → (6) per-post metricsとTelegram permalinkを結合し、`marketing-owner-events` report failureを投稿laneと分離して修復 → (7) 3回目以後に54/54を集計 → (8) distribution→ASC/RevenueCat/in-app funnel→verified USD 10,000 net MRR。現状は26/54であり、3/day達成でもMRR達成でもない。
 
 
 ### 2026-10-09 10:56 JST — A8.2 initial single-app gap discovery (historical; see later snapshots)
@@ -10708,3 +10719,13 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 - **Production/economics:** no production apply or packet-path switch has occurred. Latest natural CFO report still has unknown company revenue, cost-complete net, and MRR; USD `20.34` is mobile-apps MRR observation only; Google Cloud September bill is JPY `27,889` with payment and loop allocation unknown.
 
 **現在cursor:** push merge commit `b753a521` to PR #7336 → rerun exact-head checks/review → merge → main-derived immutable release/owner adoption/private packet path → natural B7/CFO report readback and current-period gap → A8.3 Stripe settlement mapping → remaining A8/A6/A9/Google cash/A10. No production success is claimed from source merge or passing tests.
+
+### 2026-10-09 12:17 JST — Mobile post count unchanged; latest-main source sync pending
+
+このreadbackは12:05 JST mobile snapshotを更新する。**3回目のslotや日次54/54を待たず、source/promotion/owner修復を続ける。**
+
+- **Postiz official GET (12:16 JST):** response 30 rows、limit 500未満で完結。18 mobile accountは`PUBLISHED=26/54`、`SCHEDULED=0`。12:04から新しいmobile receiptはなく、`@anicca.affirmation=8`、`@anicca.en=2`、`@aniccaen2=0`、`@anicca.jpx=2`、残る14 accountは各1。今日の3/day達成ではない。
+- **Source status:** PR #7339 head `b38bb3ca` の全checksはPASS済み（Python/runtime、loop contract、Gitleaks、TruffleHog等）。mainはその間に`44b9fbff`（PR #7336）へ進んだため、local branchで最新main merge中。CFOのSSOT/adapter/test変更は保持し、merge結果をpushしてPR checksを再取得する。レビュー・subagentは起動しない。
+- **Runtime boundary:** `lm-loop doctor`は189 entries、missing/unmanaged 0でPASS。current pointerは`20261009T114519-a14f0679`だが、latest mainは`44b9fbff`、mobile ownersは17件が`7c20304d`、JP4が`d3b3a279`。source patchは未merge/未deploy。EN2の2 occurrenceはlocal event journalでpre-effect proof可能だが、本番statusのfenceは未解消。
+
+**現在mobile cursor:** latest main mergeをcommit/push → PR #7339 exact-head CIをPASSさせmainへmerge → latest-main immutable releaseをcutしmobile ownersを1件ずつtargeted apply → EN2のproduction pre-effect fence closureをreadback → due/missed accountをPostiz receipt countに基づき不足分だけ即dispatch → `PUBLISHED`/URL/asset hash/Telegram linkとper-post metricsを保存。1 ownerのfence・metrics失敗は他ownerを止めず、day-closeの54/54は結果判定だけにする。続けてASC/RevenueCat/in-app funnelからverified USD 10K net MRRへ進む。
