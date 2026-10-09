@@ -10907,6 +10907,24 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **Current cursor:** owner-scoped disk recovery → natural paper terminal from SHA `55e8b166` → AT-13 qualified exit → first closed round trip with cost-complete paper P&L. その後も30 round tripsとAT-24/AT-29 + fresh反対意見reviewを通過するまでlive funding/orderは行わない。現時点で検証済み投資利益はない。
 
+### 2026-10-09 13:21 JST — Investment paper/live official readback
+
+この追記は12:54 JSTの投資snapshotを更新する。L9-12とAT-13以降の順序は変更しない。
+
+- **Release/paper runtime:** `~/loops/current` とpaper ownerはmain由来SHA `0dc40ef2b6ba9924a740a6e3e8fabfe02b4eb2e9`（release `20261009T131048-0dc40ef2`）。最新natural occurrence `alpaca-investment-paper:18dcc1508b306d70-71132`（04:15:03Z）は`host_admission_deferred:resource_capacity_busy`、exit `75`、effect `not_applicable`、provider receiptなし。ownerは`loaded-idle`で、次はeligibility後の自然retry。
+- **Paper decision/account:** 最後のstrategy decision（03:50:44Z）はQQQ `HOLD / hold_period_not_elapsed`、`held_sessions=8/21`、expected cost `$0.02`。同runのeffectは`unknown`でreceiptなし。Alpaca paper official GET（04:19:55Z）はequity `$99,996.90`、cash `$99,986.76`、QQQ `0.013493253`株、market value `$10.138156`、unrealized `+$0.148156`。注文3件、QQQは09/29のbuy fill（`$740.37`）のみ、QQQ sellなし、open orders `0`。含み益であり、closed round tripも実現net P&Lも未確認。03:50 runをreplayしない。
+- **Live/PLTR:** Alpaca live official GET（04:21:21Z）はequity `$66.46`、cash `$0`、`USDCUSD` `66.489696384`、market value `$66.456452`、unrealized `-$0.064101`、open orders `0`。注文履歴10件はすべて`BTC/USDC`で、`PLTR` orderは0件。記録済みdeposit-time valuation `$66.75055405`との差は口座全体で約`-$0.29`だが、Life Manager ownerの実現net P&Lとは帰属できない。live ownerはdisabled、`alpaca-investment-live:18d9e6f979d18818-14709`の`effect_unknown` fenceとofficial receipt欠落は継続。これをGETだけで解放・再送しない。
+- **Profit conclusion:** 検証済みLife Manager投資利益はまだない。paperの`+$0.148156`は未実現、liveの約`-$0.29`は口座全体のdeposit-time markとの差であり、どちらもownerの費用込み実現net P&Lではない。
+
+**このinvestment runtime subcursorの残り2件（順序固定、未完）:**
+
+1. [ ] **AT-13 qualified natural exit:** SHA `0dc40ef2`のpaper ownerによるeligibility後の自然occurrenceを確認し、installed SHA・decision・effect/readbackを結ぶ。`ranked_symbol_changed`または21 held sessions後の`hold_sessions_elapsed`だけをqualified exitとする。04:15 capacity defer、03:50 HOLD/unknown、単なる`pass`は完了ではない。手動wake/sell/replayは禁止。
+2. [ ] **First closed round trip and truthful paper P&L:** 公式paper sell fillを既存QQQ buyとclient/effect identity・数量で照合し、provider receipt、fees、slippage、model/system costを結合して`paper_performance.py`でnet P&Lを算出し、同一occurrenceでreplay-zeroを確認する。closed round tripと全費用証拠が揃うまでP&L=`unknown`。
+
+**後続の別gate:** 30件の費用込みpaper round trips、strategy/cross-venue validation、AT-24/AT-29とfresh反対意見reviewを終えるまでlive funding/orderを行わない。この2件だけで投資loop全体を完了扱いにしない。
+
+**Current cursor:** next eligible natural terminal from SHA `0dc40ef2` → AT-13 qualified natural exit → first closed round trip with cost-complete paper P&L. 現時点でLife Manager ownerの実現投資利益は未確認。
+
 ### 2026-10-09 13:33 JST — handoff now succeeds to the prior release; CFO economics still incomplete
 
 - **Handoff:** the newest self-handoff receipt is `status=ok`, old service `not running`, target SHA `0dc40ef2b6ba9924a740a6e3e8fabfe02b4eb2e9`; launchd has the reconciler configured on that SHA and currently not running between occurrences. `~/loops/current` is also `0dc40ef2`. This closes the old-service timeout for that target, but GitHub main is already `15037dd28076ed87ddc691d54f3bc4ca76649148`; it is not yet an adoption of latest main.
