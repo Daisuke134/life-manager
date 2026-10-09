@@ -10235,3 +10235,25 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 6. [ ] **A10 seven-day acceptance:** 上記source/coverage/report/cash statusを含むCFO reportを7日連続のnatural occurrenceでsame-occurrence provider/runtime/B7 receipt、period/currency、freshness、coverage、duplicate resolution、replay-zeroと照合する。1日でも欠落すれば連続countをやり直す。
 
 **現在cursor:** A6 source promotion → natural production usage-trace readback → A8 full loop/job coverage → A9 source-period CFO report → A6 Google cash receipt → A10 seven-day natural acceptance。Money Tree/personal cashとCloud API置換・削減は対象外。過去actualの確定や10k MRR達成は本specのcoverage完了を意味せず、別途settlement evidenceを要する。
+
+### 2026-10-09 09:21 JST — A6 source merged; Railway build is running
+
+このsnapshotはPR #7291の統合後に、Railway productionと公開health endpointをread-onlyで確認した結果を記録する。
+
+- **Source/CI:** [PR #7291](https://github.com/Daisuke134/life-manager/pull/7291)は`2026-10-09T00:18:36Z`にmergeされ、main commitは`2359733a1c3d9b185b2caabe8b2d7d4d378bfe2d`。exact-head checksはrequired jobsを含めPASS。`life-call` fallbackはshared service owner traceだけを付け、`loop_id`を作らない。
+- **Railway deployment:** official CLI readbackではdeployment `9355c9a8-a630-4dd0-8efb-deb057c9d1e9`、branch `main`、commit `2359733a...`。最初は`QUEUED / Waiting for build slot`だったが、最新readbackでは`BUILDING`へ進んだ。build/deploy terminalとloaded SHAはまだ未確認。
+- **Live service:** `https://life-call-production.up.railway.app/health`はHTTP 200だが、返すbuildは旧`a23db6fb293ad47ffe2e67be4511f69019e1fc08`。サービス全停止ではなく、前releaseが応答中で、新sourceのloaded SHAと自然usage traceは未確認。
+- **Financial truth:** このpost-merge確認では新しいB7 finance snapshotを取得していない。最新記録の会社settled revenue/expense-complete net/company MRRはunknown、mobile-apps USD `20.34`はsettled proceedsでないsubscription observation。2026-09 Google invoiceはbilled JPY `27,889`、cash status unknown。September Google application estimate USD `46.48873788` / 9,042 eventsはunattributedでsettled actual null。以前のcoverage gaps `173/168/26`とinventory `18 loops/188 jobs/113 mapped`も最新確認値ではなく、A8でrefreshが必要。
+
+**Blockerと解除方法:** source/main/CIはblockerではない。Railwayのbuild-slot queueは解消してdeploymentが`BUILDING`になったが、terminal結果・new loaded SHA・自然usage eventはまだない。deploymentをread-onlyでterminalまで追い、成功なら`/health`のbuild SHAとnatural usageを再確認し、失敗ならexact build/deploy logに基づいて原因を直す。force redeploy/restart、人工のGoogle API request、他service停止はしない。別の外部blockerであるGoogle cashは、gcloud側のBilling Admin権限不足ではなく、同じbilling accountを表示するauthenticated Transactions browser contextが未取得。`https://console.cloud.google.com/billing/history`のpayment receiptを取れるsame-account sessionでreadbackし、見つからなければunknownを維持する。
+
+**Remaining atomic TODO（この順）:**
+
+1. [ ] **A6 natural deployment/readback:** Railway deployment `9355c9a8...`がterminalになるのを観測し、production `/health`が`2359733a...`由来buildを返すことを確認する。旧buildが応答中である現在のhealth 200を新sourceの適用証拠にしない。
+2. [ ] **A6 natural usage trace:** 新build採用後、自然に発生したGoogle usage eventで`owner_id=life-call`とrun/occurrence/releaseをreadbackし、`loop_id` absentをshared overheadとして分類する。settled costがない場合はestimate/unknownを保ち、Google APIを人工呼び出ししない。
+3. [ ] **A8 complete coverage:** live catalog/registryからloop/job inventoryと全coverage gapsを再取得し、各revenue streamのsettlement/refund/feeとprovider/API/model/tool/infra billed costsをreceiptで結ぶ。shared/control/platform jobsをoverheadへ含め、未取得sourceはunknownのままにする。
+4. [ ] **A9 truthful source-period CFO report:** 実source期間のJST日次/MTD/trailing/MRRをloop・platform・company別に表示し、settled revenue、refund/fees、billed expense、cash paid、net、currency、freshness、coverageを分離する。
+5. [ ] **A6 Google cash receipt:** same-account authenticated Cloud Billing Transactionsから2026-09 JPY `27,889`の支払status/date/receiptを確認し、取得できなければunknownを維持する。Gmail検索0件を不払いと解釈しない。
+6. [ ] **A10 seven-day natural acceptance:** complete/partial coverageを明示した自然reportを7日連続で同一occurrenceのB7/runtime/provider receipt、period/currency/freshness、duplicate resolution、replay-zeroと照合する。
+
+**現在cursor:** Railway build/deploy terminal → new-build health + natural usage trace → A8 refreshed revenue/cost coverage → A9 source-period report → Google cash receipt → A10 seven-day acceptance。CFO panelのauthenticated UI readbackは別途non-blocking。Money Tree/personal financeとCloud API substitution/cost-cuttingは対象外。
