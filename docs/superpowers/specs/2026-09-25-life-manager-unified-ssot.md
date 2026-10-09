@@ -10257,3 +10257,24 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 6. [ ] **A10 seven-day natural acceptance:** complete/partial coverageを明示した自然reportを7日連続で同一occurrenceのB7/runtime/provider receipt、period/currency/freshness、duplicate resolution、replay-zeroと照合する。
 
 **現在cursor:** Railway build/deploy terminal → new-build health + natural usage trace → A8 refreshed revenue/cost coverage → A9 source-period report → Google cash receipt → A10 seven-day acceptance。CFO panelのauthenticated UI readbackは別途non-blocking。Money Tree/personal financeとCloud API substitution/cost-cuttingは対象外。
+
+### 2026-10-09 09:26 JST — A6 deployment verified; natural Google usage event not yet observed
+
+このsnapshotは09:21のBUILDING readbackを置き換える。A6 sourceはproductionへ到達したが、まだ自然なGoogle usage eventはない。
+
+- **Production release:** Railway deployment `9355c9a8-a630-4dd0-8efb-deb057c9d1e9`は`SUCCESS`、branch `main`、commit `2359733a1c3d9b185b2caabe8b2d7d4d378bfe2d`。公開`/health`も同じbuild SHAを返し、A6 source promotion/deploymentは確認済み。
+- **Usage readback:** official `lm_usage_cost_period_summary`をCFO report subjectに限定し、`2026-10-09T00:18:39.083Z`–`00:25:05Z`をreadbackした。Google provider groups=0、`owner_id=life-call` groups=0、unattributed groups=0。したがって修正後の自然eventはまだ観測されておらず、owner/run/occurrence/release traceのproduction assertionは未検証。人工API呼び出しはしていない。
+- **Latest CFO delivery effect:** `life-manager-cfo-hourly` occurrence `18dcb33d4025aa50-4044`はexit 0だが、append-only terminal event `1c16057a495714b403f52d4e`の`effect_status=unknown`とreceipt nullは維持する。CFO専用read-only reconcilerは`verified=true`、`proof_type=pre_effect`、`resolution_kind=duplicate`、provider message `105604`、delivery counters `0/0/0/0`、admission `released` / `effect_unknown=false`を返した。proof ref=`telegram-outbox://event/15b83e2665a2857e68a9dce634a4f4239cfda62f19e2d2f0ceeb92fdc5036af4/bc3ca1cf9f1ec6685d0cf5a6439cf4bb4ac4ebacbb757fe0bf506a36e5fd62fa`。二重送信なし、再送なし。
+- **Financial values:** この再確認では新しいB7 snapshotを取得していない。会社settled revenue、expense-complete net、company MRRは最後のreceipt-backed B7記録どおりunknown。Google September invoice JPY `27,889`はbilledでcash unknown。September Google application estimate USD `46.48873788` / 9,042 eventsもunattributed、settled actual null。coverage/inventoryの前回値`173/168/26` gaps、18 loops/188 jobs/113 mappedはA8でrefreshする。
+
+**TODO順序更新と理由:** 旧cursor=`A6 deployment → A6 natural Google usage event → A8 → A9 → A6 cash → A10`。新cursor=`(1) 完了: main-derived deploymentとhealth SHAを確認 → (2) A8 all-loop/job revenue-cost coverage（現在） → (3) A6 natural usage eventが発生した時点でtraceをreadback → (4) A9 source-period reporting → (5) A6 Google cash receipt → (6) A10 seven-day natural acceptance`。理由はsourceがliveでもbounded windowにGoogle usageがなく、人工requestを発行しない以上、natural trace readbackはusage発生まで進められない一方、A8は独立して進められるため。A6 traceを完了扱いにはせず、A8と並行する自然観測へ移す。
+
+**Remaining atomic TODO（この順）:**
+
+1. [ ] **A8 complete coverage:** 最新catalog/registryを再取得し、全18 business loops・現在の全runtime jobsについてsettled revenue/refund/platform feeとprovider/API/model/tool/infra billed costを期間・通貨・official receiptで結ぶ。残jobはshared/control/platform overheadへ根拠付き分類し、未取得sourceはunknownとしてgapを再計算する。
+2. [ ] **A6 natural usage trace (opportunistic):** A8と並行して次の自然Google usage eventを待ち、CFO subjectの同一event/periodで`owner_id=life-call`、run/occurrence、release SHAを確認する。`loop_id` absentはshared overheadのままとし、settled actualがなければnull。人工API callや再送はしない。
+3. [ ] **A9 truthful source-period CFO report:** JST daily/MTD/trailing/MRRをsource期間で絞り、loop/platform/company別のsettled revenue、refund/fees、billed expense、cash paid、net、currency、freshness、coverageを区別する。
+4. [ ] **A6 Google cash receipt:** same-account authenticated Cloud Billing Transactionsから2026-09 invoice JPY `27,889`のpayment status/date/receiptを読む。gcloud IAMはBilling Adminだが、registered browser identityからsame-account sessionを確認できていない。receipt取得まではcash=`unknown`。
+5. [ ] **A10 seven-day natural acceptance:** coverage/report/cash状態を明示したCFO reportを7日連続のnatural occurrenceでsame-occurrence B7/runtime/provider receipt、period/currency/freshness、duplicate proof、replay-zeroと照合する。
+
+**現在cursor:** A8 refreshed full loop/job coverage → A6 natural trace readback when a Google usage event occurs → A9 source-period report → Google cash receipt → A10 seven-day acceptance。CFO panel authはnon-blocking。Money Tree/personal financeとCloud API substitution/cost-cuttingは対象外。
