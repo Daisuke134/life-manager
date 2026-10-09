@@ -19,6 +19,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from typing import Any, Callable
+from zoneinfo import ZoneInfo
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -478,6 +479,18 @@ def _native_carousel_slot_is_unique(
     return True
 
 
+def _native_carousel_publish_time_matches_slot(slot: datetime, published_at: datetime) -> bool:
+    if slot.tzinfo is None or published_at.tzinfo is None:
+        return False
+    slot_utc = slot.astimezone(timezone.utc)
+    published_utc = published_at.astimezone(timezone.utc)
+    jst = ZoneInfo("Asia/Tokyo")
+    return (
+        published_utc >= slot_utc - timedelta(minutes=15)
+        and published_utc.astimezone(jst).date() == slot_utc.astimezone(jst).date()
+    )
+
+
 def _remote_native_carousel_receipt(
     identity: dict[str, Any], ledger: Path, api_key: str,
 ) -> tuple[dict[str, Any], str] | None:
@@ -492,7 +505,10 @@ def _remote_native_carousel_receipt(
         return None
     slot_utc = slot.astimezone(timezone.utc)
     start = (slot_utc - timedelta(minutes=15)).isoformat().replace("+00:00", "Z")
-    end = (slot_utc + timedelta(minutes=15)).isoformat().replace("+00:00", "Z")
+    jst = ZoneInfo("Asia/Tokyo")
+    slot_local = slot_utc.astimezone(jst)
+    end_local = slot_local.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
+    end = end_local.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
     query = urllib.parse.urlencode({"startDate": start, "endDate": end, "limit": "100"})
     rows = _rows(_request_json(f"{POSTIZ_V1}/posts?{query}", api_key))
     if len(rows) >= 100:
@@ -511,8 +527,7 @@ def _remote_native_carousel_receipt(
             caption = _caption(row)
         except (KeyError, TypeError, ValueError):
             continue
-        if (published_at.tzinfo is None
-                or abs((published_at.astimezone(timezone.utc) - slot_utc).total_seconds()) > 15 * 60):
+        if not _native_carousel_publish_time_matches_slot(slot_utc, published_at):
             continue
         caption_sha = hashlib.sha256(caption.encode("utf-8")).hexdigest()
         allowed_caption = _native_carousel_caption_matches(caption, identity)
@@ -762,9 +777,8 @@ def _provider_readback(identity: dict[str, Any], provider_id: str, api_key: str,
             slot_at = datetime.fromisoformat(str(identity["slot"]).replace("Z", "+00:00"))
         except (KeyError, TypeError, ValueError) as exc:
             raise ValueError("Postiz native carousel publish time is invalid") from exc
-        if (published_at.tzinfo is None or slot_at.tzinfo is None
-                or abs((published_at - slot_at).total_seconds()) > 15 * 60):
-            raise ValueError("Postiz native carousel publish time does not match slot")
+        if not _native_carousel_publish_time_matches_slot(slot_at, published_at):
+            raise ValueError("Postiz native carousel publish time is outside the slot JST day")
         native_photo_details = {
             "provider_state": state["state"],
             "provider_integration_id": str(integration_id),
