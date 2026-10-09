@@ -41,6 +41,12 @@
 
 両receiptは新sourceのworktrees_retired=0、errors=0/protected_deletions=0を示すが、free_after約3.47〜3.49 GiBで11 GiB受入は未達。bound receiptは同occurrence/release e01c4032を証明。自然run PID59615/59616の終了も確認し、古いsource receiptで代用しない。iOS26.5 simctl isAvailable=true、49 registered worktreesと両active cleanup worktree保持を確認。通常cache約328MiB、標準pytest temp約68MiBでは不足。read-only censusはloop state約6.34GiB、release約4.24GiB、dependency bundles約4.89GiB（shared blocksを含むため足し上げ不可）、VM swap約7.3GiB使用、Data snapshotsなし。session history、.cloak、Gig案件、Simulator、loop receipt/stateをサイズだけで削除しない。P0-12 checkboxは未完のまま、定義済み条件分岐によりP0-13を進め、最終回復後にP0-12を再確認する。
 
+**P0-13追加観測と次の操作:** Homeの未測定194 rootsを各4秒上限/同時2 probeで測定し、その範囲は全件rc0/gaps0。既測定の通常cache/pytest/tempだけでは11 GiBに届かない。CLIのLibrary/Containers・Group Containers・Music・root Spotlight/DocumentRevisions等はTCCまたはtimeoutでunknownとして保持。Computer UseによるFinder Library情報は9,220,414,698 logical bytes / on-disk9.1GB / 165,064 itemsを返す。Storage表示のDocumentsは123.99→108.15GBへ再計算され、UIの古いサイズをfresh freeとして使わない。Data APFS used=213,276,995,584、VM used=9,704,652,800、container free=1,057,910,784のreadbackで11 GiB未達。RAM16GiB、memory free41%、swap used8,414.81MiBを確認し、VMが共有容量を消費する事実と特定loopが原因かという推論を分離する。
+
+8秒/5秒のnative physical I/O sampleではANECompilerServiceのdata write=22,859,776 bytes/5秒が目立つが、net allocation増加と実PID/出力pathのjoinは未証明。後続15秒のps観測で同processを捉えられず、サービス停止/再起動やそのcache削除はしない。system log statsはcompressed1,204,315,816 bytes/uncompressed5,331,276,098、2日弱の約41M events（ANE/CoreFoundation error多数）を示すが、1.2GBだけで不足分を説明できず、native log eraseは実行しない。deleted-open regular filesはunique111、logical合計189,281,879 bytes（physicalではない）で、これも不足分の原因とは断定しない。
+
+所有者が終了しているread-only censusのorphan groupを確認: UID501、PPID1、PGID36859、start `Fri Oct 9 18:48:46 2026`、members36859(zsh)/36860(du)/36861(sort)/36862(head)。argvはHome全体のdu/sort/head/echoだけで、provider操作/書込commandなし。次の操作は同UID/start/argv/group membershipを直前再検証し、この孤児化したread-only groupだけをSIGTERMして、重複した無期限走査を回収する。managed loop、browser、Mac/loginwindow/app-serverは停止しない。直前再検証後にSIGTERMを送信し、後続psでgroupメンバーは消失（下記確認時点）。provider/managed loopを止めず、これはread-only probeの回収であり11 GiB回復とは別の証拠とする。P0-13はwriter/path/net増加または安全候補の尽きた範囲を確定するまで未完のまま。
+
 ### P0 — ディスク回復のatomic TODO
 
 再開worktree: `/Users/anicca/Projects/life-manager-main/.worktrees/disk-watchdog-worktree-safety-20261008`。branch `fix/disk-cleanup-15d-lm-loop-20261009`、引き継ぎHEAD `a6e037571404419501c6441af8e859e137eaa40b`。既存未commitのSSOT・SKILL・source・test差分を保持し、owner/lease/live process確認前に編集しない。別のactive cleanup worktreeも触らない。
