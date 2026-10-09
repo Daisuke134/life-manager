@@ -30,12 +30,13 @@ import sys
 from pathlib import Path
 from typing import Any
 
-import threads_publish
-
 HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parents[3]
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
+for path in (REPO_ROOT, HERE):  # `python3 -I` puts neither on sys.path
+    if str(path) not in sys.path:
+        sys.path.insert(0, str(path))
+
+import threads_publish  # noqa: E402
 
 OWNER_ID = "line-sticker-distribute"
 # caption (<= 90 s) + render + browser upload/share readback; the poster gives up well inside this.
