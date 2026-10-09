@@ -2158,6 +2158,22 @@ def test_main_projects_exact_mobile_result_into_terminal_event(tmp_path):
     enqueue.assert_not_called()
 
 
+def test_main_preserves_live_relay_after_terminal_commit(tmp_path):
+    release = _write_prestart_lock_release(tmp_path)
+    state = tmp_path / "state"
+    with (patch.dict(os.environ, {"LIFE_MANAGER_STATE_ROOT": str(state),
+              "LIFE_MANAGER_RUN_ID": "live-relay-run", "WAKE_ID": "wake-1"}),
+          patch("runtime.loop.lm_loop_run._apply_lock", return_value=nullcontext()),
+          patch("runtime.loop.lm_loop_run.build_loop_command", return_value=["/bin/true"]),
+          patch("runtime.loop.lm_loop_run._run_admitted", return_value=0),
+          patch("runtime.loop.lm_loop_run.append_runtime_event"),
+          patch("runtime.loop.central_cleanup._diagnostic_relay_live", return_value=True),
+          patch("runtime.loop.lm_loop_run.remove_owned_tree") as remove):
+        assert lm_loop_run_main(["example-publisher", str(release)]) == 0
+    assert (state / "loop-tmp/example-publisher/live-relay-run").exists()
+    remove.assert_not_called()
+
+
 def test_main_records_false_terminal_scratch_cleanup_without_changing_business_result(tmp_path):
     release = _write_prestart_lock_release(tmp_path)
     state_root = tmp_path / "state"

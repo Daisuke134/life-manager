@@ -1,4 +1,5 @@
 import recoveryClass from './recovery-class.cjs';
+import { validateStorageFailure } from './recovery-intent.mjs';
 
 const { classifyRecoveryJob } = recoveryClass;
 
@@ -30,6 +31,11 @@ export function buildRecoveryApplyPlan({ intent, registry }) {
   const intentId = required(intent.intent_id, 'intent_id');
   const releaseSha = required(intent.release_sha, 'release_sha');
   const action = required(intent.action, 'action');
+  const storage = intent.storage_failure == null ? null :
+    validateStorageFailure(intent.storage_failure, ownerId, required(intent.run_id, 'run_id'));
+  if (storage && storage.effect_started !== false && action === 'reconcile_owner') {
+    throw new Error('storage effect unknown cannot reconcile');
+  }
   const entry = registry.loops[loopId];
   if (!entry || typeof entry !== 'object') throw new Error(`recovery loop not in registry: ${loopId}`);
   if (ownerId !== loopId) throw new Error('recovery owner identity mismatch');
@@ -65,6 +71,7 @@ export function buildRecoveryApplyPlan({ intent, registry }) {
     release_sha: releaseSha,
     action,
     execute: true,
+    ...(storage ? {storage_failure: storage, run_id: intent.run_id} : {}),
     commands: [{
       program: 'lm-loop',
       args: ['reconcile', providerRoute, '--loaded-idle-only', '--max-owners', '1', '--loop-id', loopId],

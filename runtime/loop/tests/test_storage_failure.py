@@ -24,3 +24,23 @@ def test_non_storage_error_is_not_capacity_failure():
 def test_invalid_effect_proof_rejected():
     with pytest.raises(ValueError):
         classify_storage_failure(OSError(errno.ENOSPC, "full"), "write", BINDING, 0)
+
+def test_recovery_requires_fresh_committed_cleanup_and_real_write(tmp_path):
+    import json
+    from datetime import datetime, timezone, timedelta
+    from runtime.host.storage_failure import storage_recovery_ready
+    now = datetime.now(timezone.utc)
+    failure = classify_storage_failure(OSError(errno.ENOSPC, "full"), "scratch_allocation", BINDING, False)
+    event = {**BINDING, "timestamp": (now-timedelta(seconds=30)).isoformat(),
+             "storage_failure": failure["storage_failure"]}
+    state = tmp_path / "state"; state.mkdir()
+    events = state / "events.jsonl"; events.write_text(json.dumps(event)+"\n"); events.chmod(0o600)
+    host = tmp_path / "host"; host.mkdir()
+    receipt = host / "last-receipt.json"
+    receipt.write_text(json.dumps({"identity":{"owner_id":"life-manager-disk-cleanup", "release_sha":"a"*40},
+        "ok":True, "observed_at": now.isoformat(), "errors":0, "protected_deletions":0,
+        "capacity_recovery":{"goal":"unmet"}})); receipt.chmod(0o600)
+    assert storage_recovery_ready(state, host, BINDING, failure["storage_failure"], now=now) is True
+    assert not list(state.glob(".lm-storage-write-probe-*"))
+    receipt.write_text('{}')
+    assert storage_recovery_ready(state, host, BINDING, failure["storage_failure"], now=now) is False

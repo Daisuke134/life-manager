@@ -325,6 +325,7 @@ def _enqueue_recovery_intent(release_root: Path, event: dict, scratch: Path) -> 
         "consecutive_failure_streak": 1,
         "threshold": 3,
         "evidence_refs": event["evidence_refs"],
+        **({"storage_failure": event["storage_failure"]} if "storage_failure" in event else {}),
     })
     result = subprocess.run(
         [_runtime_node(), str(classifier), "--input", str(input_path),
@@ -1713,6 +1714,12 @@ def main(argv: list[str] | None = None) -> int:
                 validate_runtime_event(event)
                 try:
                     append_runtime_event(event_path, event)
+                    if storage and _should_enqueue_recovery_intent(entry, event):
+                        try:
+                            with tempfile.TemporaryDirectory(prefix=".storage-recovery-", dir=loop_state_root) as recovery_scratch:
+                                _enqueue_recovery_intent(release_root, event, Path(recovery_scratch))
+                        except (OSError, RuntimeError, ValueError, subprocess.SubprocessError) as recovery_error:
+                            print(f"lm-loop-run: storage recovery proof deferred: {type(recovery_error).__name__}", file=sys.stderr)
                 except (OSError, ValueError) as write_error:
                     diagnostic = {
                         **event,
