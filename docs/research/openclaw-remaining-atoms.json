@@ -94,7 +94,7 @@
     {
       "target": "runtime/openclaw/profile.mjs",
       "symbol": "buildGatewayConfig({paths,artifactWorkspace,port,agentId,modelRoute,effectMode}) -> object",
-      "change": "buildGatewayConfigは専用instanceと全owner/task profileを初回に用意。ambient/global profileを使わない。初期cronは全disabled、channelsなし。既存Codexモデル/account routeを維持、skillsはrepoの既存methodを参照。OTelはdiagnostics-otel、content capture無効、local OTLP endpointのみ。read_onlyとbrokeredのnative tool policyを明示し、未証明native paths/非承認subagentはdisabled。 推論agentRuntime.idはcodexで固定、plugins.allowにcodex、entries.codex.enabled=true。built-in openclaw runtime/API-key fallback/Claude/Gemini textを禁止。sessionCatalog.enabled=false。appServer.homeScope=userで既存native CodexのChatGPT accountを利用し、OpenClawへrefresh tokenを複製しない。 appServer.transport=unix、urlはNC-04の同native accountの確認済endpointのみ。OpenClaw管理OAuth profileへimportしない。",
+      "change": "buildGatewayConfigは専用instanceと全owner/task profileを初回に用意。ambient/global profileを使わない。初期cronは全disabled、channelsなし。既存Codexモデル/account routeを維持、skillsはrepoの既存methodを参照。OTelはdiagnostics-otel、content capture無効、local OTLP endpointのみ。read_onlyとbrokeredのnative tool policyを明示し、未証明native paths/非承認subagentはdisabled。 推論agentRuntime.idはcodexで固定、plugins.allowにcodex、entries.codex.enabled=true。built-in openclaw runtime/API-key fallback/Claude/Gemini textを禁止。sessionCatalog.enabled=false。appServer.homeScope=userで既存native CodexのChatGPT accountを利用し、OpenClawへrefresh tokenを複製しない。 appServer.transport=unix、urlはNC-04の同native accountの確認済endpointのみ。OpenClaw管理OAuth profileへimportしない。 共通storage契約: runtime/host/storage_policy.py・bounded_output.py・storage_failure.pyを再利用。stdioはraw診断上限とstructured record上限を区別。host-marked/EOF/positive closedだけ回収し、parent result/usage/state JSONLとunknown effectは保持。実errnoだけ分類、fresh cleanup+同owner/occurrence/releaseのpersisted proof+actual writeで復旧。free-space producer floorなし。",
       "checks": "tests/profile.test.mjs:read_onlyではlm_effectなし、cronfalse、ambient account/credential valueなし。公開CLI config validateで通過。",
       "kind": "code",
       "id": "OC-014",
@@ -217,7 +217,7 @@
     {
       "target": "runtime/openclaw/tool_broker.py",
       "symbol": "invoke_read(binding: dict, tool_name: str, arguments: dict) -> dict",
-      "change": "bindingのownerが持つread-only handlerを呼ぶ。初版handlerはinventory fixture readだけ。read-only経路でpublisher/submission/moneyコードを呼ばない。",
+      "change": "bindingのownerが持つread-only handlerを呼ぶ。初版handlerはinventory fixture readだけ。read-only経路でpublisher/submission/moneyコードを呼ばない。 共通storage契約: runtime/host/storage_policy.py・bounded_output.py・storage_failure.pyを再利用。stdioはraw診断上限とstructured record上限を区別。host-marked/EOF/positive closedだけ回収し、parent result/usage/state JSONLとunknown effectは保持。実errnoだけ分類、fresh cleanup+同owner/occurrence/releaseのpersisted proof+actual writeで復旧。free-space producer floorなし。",
       "checks": "tests/test_tool_broker.py:read許可、write tool要求でprovider write0、foreign owner拒否。",
       "kind": "code",
       "id": "OC-024",
@@ -244,7 +244,7 @@
     {
       "target": "runtime/openclaw/tool_broker.py",
       "symbol": "write_artifact(binding: dict, relative_path: str, content: str) -> dict",
-      "change": "trusted binding.workspace配下のrelative pathだけへUTF-8成果物を書く。absolute/..、symlink parent、.git、credential/config/state領域を拒否。最大1MiB。temp write/fsync/replaceし{artifact_ref,sha256,bytes}を返す。canonical catalog/production sourceを直接書かない。 relative_path=caller-result.jsonの場合はbindingのcaller schemaをvalidateし、全JSONを同task private workspaceへatomic保存してSHA/owner/occurrence/task/upstream runのartifact receiptを返す。modelのreceipt文章を公式provider proofにしない。",
+      "change": "trusted binding.workspace配下のrelative pathだけへUTF-8成果物を書く。absolute/..、symlink parent、.git、credential/config/state領域を拒否。最大1MiB。temp write/fsync/replaceし{artifact_ref,sha256,bytes}を返す。canonical catalog/production sourceを直接書かない。 relative_path=caller-result.jsonの場合はbindingのcaller schemaをvalidateし、全JSONを同task private workspaceへatomic保存してSHA/owner/occurrence/task/upstream runのartifact receiptを返す。modelのreceipt文章を公式provider proofにしない。 共通storage契約: runtime/host/storage_policy.py・bounded_output.py・storage_failure.pyを再利用。stdioはraw診断上限とstructured record上限を区別。host-marked/EOF/positive closedだけ回収し、parent result/usage/state JSONLとunknown effectは保持。実errnoだけ分類、fresh cleanup+同owner/occurrence/releaseのpersisted proof+actual writeで復旧。free-space producer floorなし。",
       "checks": "tests/test_tool_broker.py:4成果物SKILL.md/LISTING.md/icon.svg/evidence/verified-demonstration.mdをprivateworkspaceに作れる。../、symlink、1MiB超過はwrite0。",
       "kind": "code",
       "id": "OC-026",
@@ -371,7 +371,7 @@
       "id": "F-01",
       "target": "install.sh",
       "symbol": "local OpenClaw package/profile setup",
-      "change": "isolated clean-homeでlocked runtimeとprivate profileを初期化するinstallerを実装。現在の端末にはapplyしない。global OpenClaw/auth/browser/stateの複製・上書き0。実install採用はowner切替時のみ。",
+      "change": "isolated clean-homeでlocked runtimeとprivate profileを初期化するinstallerを実装。現在の端末にはapplyしない。global OpenClaw/auth/browser/stateの複製・上書き0。実install採用はowner切替時のみ。 共通storage契約: runtime/host/storage_policy.py・bounded_output.py・storage_failure.pyを再利用。stdioはraw診断上限とstructured record上限を区別。host-marked/EOF/positive closedだけ回収し、parent result/usage/state JSONLとunknown effectは保持。実errnoだけ分類、fresh cleanup+同owner/occurrence/releaseのpersisted proof+actual writeで復旧。free-space producer floorなし。",
       "checks": "clean-home fixtureでsecret0、同install再実行で既存state保持。",
       "depends": [
         "OC-014",
@@ -537,7 +537,7 @@
     {
       "target": "runtime/openclaw/runner_adapter.py",
       "symbol": "run_openclaw(parsed, prompt: str, schema: dict, config: dict, budget_context: dict) -> int",
-      "change": "run_openclawは既存parsed.imageとcodex_resume_session_idをMI-01/02のapproved referenceへ変換してRunRequest v2へ渡す。usage/schema/result_path/lease/token budget契約を維持。対応が未証明の時だけsource-controlled legacyを選び、全移行完了にしない。画像やresumeを永久unsupportedのまま終わらせない。",
+      "change": "run_openclawは既存parsed.imageとcodex_resume_session_idをMI-01/02のapproved referenceへ変換してRunRequest v2へ渡す。usage/schema/result_path/lease/token budget契約を維持。対応が未証明の時だけsource-controlled legacyを選び、全移行完了にしない。画像やresumeを永久unsupportedのまま終わらせない。 共通storage契約: runtime/host/storage_policy.py・bounded_output.py・storage_failure.pyを再利用。stdioはraw診断上限とstructured record上限を区別。host-marked/EOF/positive closedだけ回収し、parent result/usage/state JSONLとunknown effectは保持。実errnoだけ分類、fresh cleanup+同owner/occurrence/releaseのpersisted proof+actual writeで復旧。free-space producer floorなし。",
       "checks": "tests/test_runner_adapter.py:summary result_path互換、pass/daily limit blockedでRPC0、same occurrence二重reserve0、usage unknownでreservation保持、未証明・不正imageでdispatch0。",
       "kind": "code",
       "id": "OC-034",

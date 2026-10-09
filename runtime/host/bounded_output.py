@@ -96,7 +96,7 @@ def prune_closed_diagnostics(evidence_root, policy, *, current_run, closed_probe
     for relay in root.glob("*/*/attempt-*.capture/*"):
         if time.monotonic() >= deadline: break
         run = relay.parent.parent
-        if run == current_run or not (run / "summary.json").is_file(): continue
+        if not (run / "summary.json").is_file(): continue
         try:
             if any(p.is_symlink() for p in [relay, relay.parent, run, run.parent]): continue
             info = relay.stat()

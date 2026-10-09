@@ -40,7 +40,7 @@ def test_closed_diagnostic_retention_preserves_result_usage_and_live_relay(tmp_p
     assert before["removed"] == 0 and relay.exists()
     os.close(handle.stdin_write_fd); handle.process.wait(timeout=10)
     read_relay_snapshot(handle); handle.control_socket.close()
-    after = prune_closed_diagnostics(root, policy, current_run=root / "task" / "run-2", closed_probe=lambda _: True)
+    after = prune_closed_diagnostics(root, policy, current_run=run, closed_probe=lambda _: True)
     assert after["removed"] == 1 and not relay.exists()
     assert (run / "result.json").exists() and (run / "usage.jsonl").exists()
 
@@ -76,6 +76,26 @@ def test_provider_process_keeps_result_and_usage_with_bounded_capture(tmp_path):
     assert error is None
     assert runner.extract_provider_usage("codex", stdout_text)["total_tokens"] == 10
     assert len(stderr_text.encode()) <= 65536 + 64
+
+def test_host_capture_errno_reaches_parent_without_pre_effect_retry(tmp_path, monkeypatch):
+    import errno
+    policy = load_storage_policy(ROOT / "config/storage-policy.json", "life-manager-disk-cleanup")
+    binding = {"owner_id":policy.owner_id,"run_id":"run-1",
+        "occurrence_id":policy.owner_id+":run-1","release_sha":"a"*40}
+    context = {"policy":policy,"binding":binding,"root":tmp_path/"capture","provider":"codex"}
+    real = runner.read_relay_snapshot
+    def injected(handle):
+        receipt = real(handle)
+        if receipt is not None: receipt["storage_error"] = OSError(errno.ENOSPC, "injected sink error").errno
+        return receipt
+    monkeypatch.setattr(runner,"read_relay_snapshot",injected)
+    with (tmp_path/"out").open("wb") as out, (tmp_path/"err").open("wb") as err:
+        assert runner.run_provider_process([sys.executable,"-c","print('done')"],stdout=out,stderr=err,
+            timeout=10,cwd=str(tmp_path),input_bytes=None,stdin=None,env=dict(os.environ),bounded_capture=context) == 0
+    failure = context["storage_failure"]
+    assert failure["storage_failure"]["errno"] == errno.ENOSPC
+    assert failure["owner_id"] == binding["owner_id"]
+    assert failure["effect_started"] is None and failure["retryable"] is False
 
 
 def test_oversized_structured_record_is_never_accepted_as_complete(tmp_path):

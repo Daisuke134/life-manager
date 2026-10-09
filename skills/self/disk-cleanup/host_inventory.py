@@ -44,6 +44,8 @@ ROOT_FAMILIES = (
     ("agent-runtime", "{home}/loops/releases"),
     ("agent-session", "{home}/.claude"),
     ("agent-session", "{home}/.codex"),
+    ("agent-session", "{home}/.codex-acct1"),
+    ("agent-session", "{home}/.codex-acct2"),
     ("browser-identity", "{home}/.cloak"),
     ("user-library", "{home}/Library"),
     ("downloads-trash", "{home}/Downloads"),

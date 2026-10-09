@@ -2113,7 +2113,7 @@ def test_main_projects_exact_mobile_result_into_terminal_event(tmp_path):
     events = []
 
     def run_admitted(_command, _entry, loop_id, _env, receipt, *,
-                     occurrence_id, on_claimed, on_stderr_tail=lambda _tail: None):
+                     occurrence_id, on_claimed, on_stderr_tail=lambda _tail: None, on_storage_failure=None):
         on_claimed(occurrence_id)
         receipt.write_text('{"status":"pass","effect":0}\n', encoding="utf-8")
         receipt.chmod(0o600)

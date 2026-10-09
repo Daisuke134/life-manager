@@ -18,9 +18,8 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from runtime.loop.loop_cleanup import gc_releases, remove_owned_tree, cleanup_run_root
+from runtime.loop.loop_cleanup import gc_releases, remove_owned_tree
 from runtime.host.resource_admission import process_starts
-from runtime.host.storage_policy import load_storage_policy
 
 HOST_CLEANUP_RECOVERY_FLOOR_BYTES = 2 * 1024**3  # cleanup receipt target; not producer admission
 

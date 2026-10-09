@@ -200,7 +200,7 @@ export async function executeRecoveryPlan({
 
   const executable = path.join(releaseRoot, 'bin', 'lm-loop');
   if (!await storageReady(plan, command.entry, releaseRoot)) {
-    return resultBase(plan, 'blocked', false, {reason: 'storage_cleanup_or_write_proof_pending',
+    return resultBase(plan, 'queued', false, {reason: 'storage_cleanup_or_write_proof_pending',
       executed: false, budget_consumed: false, next_action: 'retry_after_cleanup'});
   }
   try {

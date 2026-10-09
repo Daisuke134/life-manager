@@ -1074,20 +1074,11 @@ def _run_entrypoint_with_stderr_capture(
         timeout_seconds: float | None = None,
         termination_grace_seconds: float = 15,
         cancelled: Callable[[], bool] = lambda: False,
-        on_started: Callable[[int], None] = lambda _pid: None) -> tuple[int, bytes]:
-    """Run the entrypoint, capturing its stderr via a real file, not a pipe.
+        on_started: Callable[[int], None] = lambda _pid: None,
+        on_storage_failure=None) -> tuple[int, bytes]:
+    """Bound registered finite stdio until every detached writer closes.
 
-    A pipe's write end is inherited by any grandchild the entrypoint detaches
-    (a browser, a helper daemon) and leaves running past this run's own
-    lifetime. Once this process closes its read end, that grandchild's next
-    stderr write raises EPIPE/SIGPIPE and can kill it. A regular file has no
-    such failure mode: even after it is unlinked here, anyone still holding
-    the fd open (the detached grandchild) keeps writing to it harmlessly
-    until they close it -- exactly like inherited-stderr-to-a-log-file
-    worked before this capture existed. No thread is needed either: the
-    child's stderr fd is duped directly onto a real file, and only after the
-    run's own exit is the file read back, forwarded to this process's real
-    stderr, and deleted.
+    Unbound legacy callers retain regular-file capture.
     """
     root = Path(__file__).resolve().parents[2]
     context = env or {}
@@ -1105,7 +1096,7 @@ def _run_entrypoint_with_stderr_capture(
                 "release_sha": sha}
             if isinstance(sha, str) and re.fullmatch(r"[a-f0-9]{40}", sha):
                 return _run_entrypoint_with_bounded_stderr(command, scratch_dir,
-                    policy=policy, binding=binding, env=env,
+                    policy=policy, binding=binding, on_storage_failure=on_storage_failure, env=env,
                     timeout_seconds=timeout_seconds, termination_grace_seconds=termination_grace_seconds,
                     cancelled=cancelled, on_started=on_started)
     capture_path = scratch_dir / "entrypoint-stderr.log"
@@ -1156,7 +1147,8 @@ def _run_entrypoint_with_stderr_capture(
     return return_code, tail
 
 
-def _run_entrypoint_with_bounded_stderr(command, scratch_dir, *, policy, binding, **kwargs):
+def _run_entrypoint_with_bounded_stderr(command, scratch_dir, *, policy, binding,
+        on_storage_failure=None, **kwargs):
     diagnostic_root = scratch_dir / "stderr-relay"
     handle = start_stderr_relay(diagnostic_root, policy, binding)
     try:
@@ -1168,6 +1160,10 @@ def _run_entrypoint_with_bounded_stderr(command, scratch_dir, *, policy, binding
     except subprocess.TimeoutExpired:
         pass  # A detached writer still owns the pipe; never kill its reader.
     receipt = read_relay_snapshot(handle)
+    if receipt is not None and type(receipt.get("storage_error")) is int:
+        failure = classify_storage_failure(OSError(receipt["storage_error"], "host capture write failed"),
+            "entrypoint_capture", binding, None)
+        if failure is not None and on_storage_failure is not None: on_storage_failure(failure)
     handle.control_socket.close()
     tail = b""
     if receipt is not None:
@@ -1304,7 +1300,8 @@ def _dispatch_reserved(loop_ids: list[str], *, current: Path | None = None,
 def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, str],
                   receipt: Path, *, occurrence_id: str | None = None,
                   on_claimed: Callable[[str], None] = lambda _value: None,
-                  on_stderr_tail: Callable[[bytes], None] = lambda _tail: None) -> int:
+                  on_stderr_tail: Callable[[bytes], None] = lambda _tail: None,
+                  on_storage_failure=None) -> int:
     env = _child_environment_for_owner(loop_id, env)
     env = {**env, "LIFE_MANAGER_LOOP_ID": loop_id}
     limit = _runtime_limit(entry)
@@ -1327,7 +1324,8 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
             result = _run_entrypoint(command, env=env, timeout_seconds=None)
         else:
             result, tail = _run_entrypoint_with_stderr_capture(
-                command, receipt.parent, env=env, timeout_seconds=limit)
+                command, receipt.parent, env=env, timeout_seconds=limit,
+                **({"on_storage_failure": on_storage_failure} if on_storage_failure else {}))
             on_stderr_tail(tail)
         if result == 0 and loop_id != "capafy-loop-healthcheck":
             try:
@@ -1537,7 +1535,8 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
         return_code, stderr_tail = _run_entrypoint_with_stderr_capture(
             command, receipt.parent, env=child_env, timeout_seconds=limit,
             cancelled=lambda: interrupted or heartbeat_failed.is_set(),
-            on_started=transfer_claim)
+            on_started=transfer_claim,
+            **({"on_storage_failure": on_storage_failure} if on_storage_failure else {}))
         on_stderr_tail(stderr_tail)
         if heartbeat_failed.is_set():
             return_code = 75
@@ -1754,6 +1753,10 @@ def main(argv: list[str] | None = None) -> int:
             nonlocal claimed_occurrence_id
             claimed_occurrence_id = value
         entrypoint_stderr_tail = b""
+        entrypoint_storage_failure = None
+        def record_storage_failure(value):
+            nonlocal entrypoint_storage_failure
+            entrypoint_storage_failure = value
         def record_stderr_tail(value: bytes) -> None:
             nonlocal entrypoint_stderr_tail
             entrypoint_stderr_tail = value
@@ -1763,7 +1766,7 @@ def main(argv: list[str] | None = None) -> int:
             "LIFE_MANAGER_EFFECT_IDENTITY_PATH": str(scratch / "effect-identity.jsonl"),
             "TMPDIR": f"{scratch}/", "NPM_CONFIG_CACHE": str(scratch / "npm-cache"),
         }, host_receipt, occurrence_id=occurrence_id, on_claimed=record_claimed,
-           on_stderr_tail=record_stderr_tail)
+           on_stderr_tail=record_stderr_tail, on_storage_failure=record_storage_failure)
         host_deferred = _host_admission_deferred(host_receipt, started_ns)
         effect_result = None
         if (return_code == 0
@@ -1823,6 +1826,7 @@ def main(argv: list[str] | None = None) -> int:
                 }),
                 exit_code=return_code,
                 error_detail=error_detail,
+                storage_failure=entrypoint_storage_failure["storage_failure"] if entrypoint_storage_failure else None,
             )
             event = _apply_verified_effect_result(event, effect_result)
             append_runtime_event(event_path, event)

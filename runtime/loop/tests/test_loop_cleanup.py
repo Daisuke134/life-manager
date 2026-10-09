@@ -462,7 +462,7 @@ class LoopCleanupTest(unittest.TestCase):
             observed = {}
 
             def unknown_publish(_command, _entry, _loop_id, env, receipt, *, occurrence_id,
-                                on_claimed, on_stderr_tail=lambda _tail: None):
+                                on_claimed, on_stderr_tail=lambda _tail: None, on_storage_failure=None):
                 observed.update(env)
                 observed["LIFE_MANAGER_OCCURRENCE_ID"] = occurrence_id
                 on_claimed(occurrence_id)

@@ -42,4 +42,6 @@ def load_storage_policy(path: Path, owner_id: str) -> StoragePolicy | None:
     registry = json.loads((path.parent / "loop-registry.json").read_text())
     if owner_id not in registry["loops"]:
         return None
+    limits["owner_diagnostic_retained_bytes"] = min(limits["owner_diagnostic_retained_bytes"],
+        max(1, value["defaults"]["host_diagnostic_retained_bytes"] // max(1, len(registry["loops"]))))
     return StoragePolicy(owner_id=owner_id, **limits)

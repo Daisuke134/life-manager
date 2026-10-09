@@ -1049,7 +1049,14 @@ def run_provider_process(command: list[str], *, stdout: Any, stderr: Any,
                 os.close(handle.stdin_write_fd)
                 try: handle.process.wait(timeout=1)
                 except subprocess.TimeoutExpired: pass
-                read_relay_snapshot(handle)
+                relay_receipt = read_relay_snapshot(handle)
+                if bounded_capture is not None and relay_receipt is not None:
+                    number = relay_receipt.get("storage_error")
+                    if type(number) is int:
+                        failure = classify_storage_failure(OSError(number, "host capture write failed"),
+                            "provider_capture", bounded_capture["binding"], None)
+                        if failure is not None:
+                            bounded_capture["storage_failure"] = failure
                 handle.control_socket.close()
             try:
                 if provider_lock_fd is not None:
@@ -1873,6 +1880,7 @@ def run() -> int:
         stderr_text = stderr_path.read_text(encoding="utf-8", errors="replace")
         if capture_context is not None and not (codex_prelaunch_auth_missing or codex_prelaunch_home_busy):
             stdout_text, stderr_text, capture_error = read_provider_capture(capture_context["root"])
+            storage_error = storage_error or capture_context.get("storage_failure")
         usage = extract_provider_usage(provider, stdout_text, model=effective_candidate.get("model"))
         if codex_prelaunch_auth_missing:
             usage["measurement"] = "prelaunch_auth_missing"
