@@ -101,6 +101,7 @@ class CutLoopReleasePressureTest(unittest.TestCase):
             (donor / "RELEASE.json").write_text(json.dumps({
                 "sha": old_sha, "release_paths": "ALL",
             }) + "\n", encoding="utf-8")
+            (donor / "untracked-diagnostic.log").write_text("legacy diagnostics must not propagate\n", encoding="utf-8")
             subprocess.run(["chmod", "-R", "a-w", str(donor)], check=True)
             (loops / "current").symlink_to(donor)
 
@@ -118,6 +119,8 @@ class CutLoopReleasePressureTest(unittest.TestCase):
                         if candidate != donor]
             self.assertEqual(len(releases), 1)
             release = releases[0]
+            self.assertFalse((release / "untracked-diagnostic.log").exists())
+            self.assertEqual((donor / "untracked-diagnostic.log").read_text(), "legacy diagnostics must not propagate\n")
             self.assertFalse((release / "old.txt").exists())
             self.assertEqual((release / "new.txt").read_text(), "new\n")
             self.assertEqual((release / "node_modules/runtime-marker").read_text(), "preserved\n")

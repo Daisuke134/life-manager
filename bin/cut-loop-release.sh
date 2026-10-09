@@ -49,38 +49,6 @@ esac
 SHA="$(git -C "$REPO_ROOT" rev-parse "$REF" 2>/dev/null)" || die "cannot resolve ref '$REF'"
 SHORT="${SHA:0:8}"
 
-# A complete immutable release is an efficient source snapshot: hard links share its unchanged
-# regular files, then Git unlinks and replaces every tracked source path. This avoids allocating a
-# clonefile inode for every dependency while the host is under disk pressure.
-FULL_CLONE_DONOR=""
-FULL_CLONE_DONOR_SHA=""
-if [ -z "$RELEASE_PATHS" ] && [ -f "$CURRENT/RELEASE.json" ]; then
-  FULL_CLONE_DONOR="$(cd "$CURRENT" 2>/dev/null && pwd -P || true)"
-  RELEASES_REAL="$(cd "$RELEASES" 2>/dev/null && pwd -P || true)"
-  case "$FULL_CLONE_DONOR" in
-    "$RELEASES_REAL"/*) ;;
-    *) FULL_CLONE_DONOR="" ;;
-  esac
-  if [ -n "$FULL_CLONE_DONOR" ]; then
-    read -r FULL_CLONE_DONOR_SHA FULL_CLONE_DONOR_PATHS < <(
-      python3 - "$FULL_CLONE_DONOR/RELEASE.json" <<'PY'
-import json, sys
-try:
-    value = json.load(open(sys.argv[1], encoding="utf-8"))
-    print(value.get("sha", ""), value.get("release_paths", ""))
-except (OSError, ValueError, TypeError):
-    print("", "")
-PY
-    )
-    if [ "$FULL_CLONE_DONOR_PATHS" != "ALL" ] \
-      || ! git -C "$REPO_ROOT" cat-file -e "$FULL_CLONE_DONOR_SHA^{commit}" 2>/dev/null \
-      || ! git -C "$REPO_ROOT" merge-base --is-ancestor "$FULL_CLONE_DONOR_SHA" "$SHA" 2>/dev/null; then
-      FULL_CLONE_DONOR=""
-      FULL_CLONE_DONOR_SHA=""
-    fi
-  fi
-fi
-
 cleanup() {
   local status=$?
   trap - EXIT INT TERM HUP
@@ -202,29 +170,10 @@ if [ -n "$RELEASE_PATHS" ]; then
     ARCHIVE_PATHS+=("runtime/browser")
   fi
 fi
-if [ "${#ARCHIVE_PATHS[@]}" -eq 0 ] && [ -n "$FULL_CLONE_DONOR" ]; then
-  rmdir "$DEST" || die "new release directory is not empty"
-  cp -alR "$FULL_CLONE_DONOR" "$DEST" || die "hard-link release copy failed"
-  find "$DEST" -type d -exec chmod u+w {} + || die "cannot make cloned directories writable"
-  rm -f "$DEST/RELEASE.json" || die "cannot remove cloned release manifest"
-  while IFS= read -r -d '' tracked_path; do
-    case "/$tracked_path/" in
-      *"/../"*) die "unsafe tracked path in donor" ;;
-    esac
-    tracked_target="$DEST/$tracked_path"
-    if [ -e "$tracked_target" ] || [ -L "$tracked_target" ]; then
-      find "$tracked_target" -depth -delete || die "cannot replace cloned tracked path"
-    fi
-  done < <(git -C "$REPO_ROOT" ls-tree -rz --name-only "$FULL_CLONE_DONOR_SHA")
+if [ "${#ARCHIVE_PATHS[@]}" -eq 0 ]; then
   git -C "$REPO_ROOT" archive --format=tar "$SHA" | tar -x -C "$DEST"
   ARCHIVE_RC=$?
 else
-  FULL_CLONE_DONOR=""
-fi
-if [ "${#ARCHIVE_PATHS[@]}" -eq 0 ] && [ -z "$FULL_CLONE_DONOR" ]; then
-  git -C "$REPO_ROOT" archive --format=tar "$SHA" | tar -x -C "$DEST"
-  ARCHIVE_RC=$?
-elif [ "${#ARCHIVE_PATHS[@]}" -gt 0 ]; then
   git -C "$REPO_ROOT" archive --format=tar "$SHA" -- "${ARCHIVE_PATHS[@]}" | tar -x -C "$DEST"
   ARCHIVE_RC=$?
 fi
@@ -314,9 +263,6 @@ for relative in "${DEPENDENCY_RELATIVES[@]}"; do
   package_dir="$DEST/${relative:+$relative}"
   relative="${package_dir#"$DEST"}"
   if ! { [ -f "$package_dir/package.json" ] && [ -f "$package_dir/package-lock.json" ]; }; then
-    if [ -n "$FULL_CLONE_DONOR" ] && [ -d "$package_dir/node_modules" ]; then
-      find "$package_dir/node_modules" -depth -delete || die "cannot remove obsolete cloned dependencies"
-    fi
     continue
   fi
   link_locked_dependencies "$package_dir" || \
