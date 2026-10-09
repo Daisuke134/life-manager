@@ -45,7 +45,7 @@ Ruling: the live marketing CTA currently sends a visitor to Railway `/lm`, which
 
 Account boundary readback: Dais explicitly authorizes E2E with his existing Google account and forbids another login or account switch. The two registered Google-bearing browser contexts checked on 2026-10-09 displayed Google's sign-in page; neither showed the named existing account. No login, switch, consent, or Calendar access occurred. This describes only those checked contexts, not every device/session. Continue real E2E only through an already-authenticated existing session; do not create an account or initiate sign-in.
 
-Task 13 is complete; the current source cursor returns to WB-12 for Composio plan and usage cost attribution.
+Task 13 is complete. Current cursor: WB-12, resolving the official Composio account-plan/flat-fee evidence. The project-scoped usage readback is recorded in the canonical SSOT; it does not expose the fixed plan fee, and Railway has no COMPOSIO_ORG_API_KEY. Keep that fee unknown until an existing official account-billing receipt is available; reuse the existing Composio/Telegram Calendar connection and travel owner.
 
 ### Execution order update — 2026-10-08 — Source-only iMessage work while Google identity search remains open
 
