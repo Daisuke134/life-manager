@@ -64,3 +64,17 @@ test("appStoreUrl matches the App Store Connect app ids for both products", () =
   assert.equal(appStoreUrl("anicca-ios"), "https://apps.apple.com/app/id6755129214");
   assert.equal(appStoreUrl("honne-ai"), "https://apps.apple.com/app/id6759667221");
 });
+
+test("web product YouTube CTA uses its registered destination with channel attribution", () => {
+  assert.equal(
+    marketingCtaLine({ productId: "life-manager-cloud", platform: "youtube", locale: "ja" }),
+    "Google Calendarに接続 → https://aniccaai.com/lm?utm_source=youtube&utm_medium=video-description&utm_campaign=life-manager-cloud",
+  );
+});
+
+test("web product TikTok CTA points viewers to the profile link", () => {
+  assert.equal(
+    marketingCtaLine({ productId: "life-manager-cloud", platform: "tiktok", locale: "ja" }),
+    "Google Calendarへの接続はプロフィールのリンクから",
+  );
+});
