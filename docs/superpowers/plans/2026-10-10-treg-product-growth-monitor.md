@@ -138,7 +138,7 @@
 - [x] Add an owner/entrypoint-scoped receipt-hint allowlist; for a delivered message write a `verified_effect` hint with its Telegram message ID.
 - [x] Add a read-only occurrence reconciler that checks the exact terminal event, private outbox, and Telegram user-history message ID/body prefix/sender/time, then resolves only the matching occurrence; it never retries a send.
 - [x] Run `python3 -m py_compile` on the three Python entrypoints and `./bin/lm-loop-contract`.
-- [ ] Commit and push the loop as its own source change.
+- [x] Commit and push the loop as its own source change (`f3a39585fc`).
 
 ### Task 4: Source acceptance and production handoff
 
