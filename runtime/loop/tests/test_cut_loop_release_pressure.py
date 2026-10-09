@@ -38,11 +38,13 @@ class CutLoopReleasePressureTest(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as raw_home:
             home = Path(raw_home)
+            trace = home / "git.trace"
             result, loops = self.run_cut(
-                repo, home, "runtime/loop/runtime_event.py", LOOPS_ACTIVATE_CURRENT="0",
+                repo, home, "runtime/loop/runtime_event.py", LOOPS_ACTIVATE_CURRENT="0", GIT_TRACE=str(trace),
             )
 
             self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertNotRegex(trace.read_text(), r"run_command:.*(?:maintenance run|gc).*--auto")
             releases = list((loops / "releases").iterdir())
             self.assertEqual(len(releases), 1)
             self.assertTrue((releases[0] / "RELEASE.json").is_file())
