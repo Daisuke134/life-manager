@@ -2,7 +2,7 @@
 
 > **正本はこの文書 1 本だけ（Dais 2026-09-29）。** 以前の `2026-09-15-life-manager-agent-architecture-refinement.md`（全体設計・meta loop #10）、`2026-09-22-paid-fulfillment-all-platforms-design.md`（Paid）、`skills/earn/gig/TODO.md`（gig TODO）と、`docs/superpowers/specs/` のほかの spec はすべて参照用。TODO・順序・状態はここだけを更新し、他のファイルに新しい TODO を書かない。
 
-> **Disk admission policy:** use the section “2026-10-08 — remove numeric disk-headroom stops from all loops” below. Earlier instructions to wait for 2 GiB, 512 MiB, or another measured free-space floor are superseded. The cleanup 2 GiB value is a receipt metric only; it does not gate producer loops.
+> **共有資源方針:** →「統括cursor — 共有資源回復と全案件の引き継ぎ」。旧floor撤去方針は現在のproducer契約により置換する。
 
 この文書は Life Manager 全体（Foundation 14ループ + Paid fulfillment）の唯一の入口。
 以下の文書は設計の参照資料。実行TODO・順序・状態・現在cursorの正本はこの文書だけとする。
@@ -26,7 +26,7 @@
 
 **不変条件:** 11 GiBは今回の容量回復受入であり、全producerの起動floorを一律11 GiBへ変える指示ではない。iOS Simulator runtime/image/device/data/dyld、memory/state、credentials、browser identity、参照release、active/dirty/unmerged/leased/locked worktree、open/unknown dataを削除しない。古い同一UID test artifactと、Git clean/main統合済み/unleased/unlocked/closedを全て証明できるworktreeだけを今回の追加回収対象とする。証明できなければ保持。effect_unknownはexact official receipt/pre-effect proofまで解除・再送しない。Codex session履歴は容量が大きいだけで削除・圧縮対象にしない。
 
-**現在cursor: P0-15のowner coverage → P0-13/14の残る増加源・producer契約 → P0-12の11GiB回復 → 下記全社S順。** GC抑制はmain a8fe894bのimmutable currentへ反映済み。根本修復全体は未完。この節の文書保存・統合と実装/本番成果の完了は別。各atomは証拠取得後だけ `[x]` にし、失敗境界・次の安全な操作・cursorを同じ差分で更新する。
+**現在cursor: S02/P0-15 agent-runnerの直接provider入口 → P0-13/14の残る増加源・producer契約 → P0-12の11GiB回復 → 下記全社S順。** GC抑制はmain a8fe894bのimmutable currentへ反映済み。根本修復全体は未完。この節の文書保存・統合と実装/本番成果の完了は別。各atomは証拠取得後だけ `[x]` にし、失敗境界・次の安全な操作・cursorを同じ差分で更新する。
 
 **引き継ぎ/診断証拠:** worktree HEAD `a6e03757`の4ファイル497行差分を`ea1784b0ec`で保持してpushし、最新main `3baccdbd`を`00b5d4ff5d`でmerge/push。leaseは既存owner `codex-root`でheartbeatを更新、直列lsof再確認でworktree下open handleなし。既存temp/worktree focused testは2 PASS。agmsg統括identityは`lm/codex-resource-orchestrator-1009`、既存cleanup担当へ重複書込抑制と状態照会を送信。自然receiptの成功/失敗が交互に現れ、失敗時の正確な親errorは`host_cleanup_identity_mismatch`。`disk_cleanup.py::main`のbusy lock出力はexit75だがidentityを含まず、`central_cleanup.host_cleanup_readback`の同-occurrence検査が失敗に変換する。REDはbusy出力identity欠落と親exit1を再現し、最小修正後の関連4 testsはGREEN。修正契約は、busy出力にもimmutable manifest由来の同run identityを載せ、親はそのidentityを検証した正確なbusyだけをeffect0のexit75延期として維持し、他のidentity mismatchはexit1のまま拒否する。旧ENOSPC修復とは区別し、容量不足時の既存reserve/cursor testsも再確認する。
 
@@ -72,6 +72,15 @@
 **S01 source検証:** disabled fixtureのREDはadmission guardが呼ばれることを再現。apply_liveへ14行のshared readback/skipを追加し、disabled・probe失敗・空/未知形式をmutation前に保持/拒否する最小ケースがGREEN。関連186 testsの周辺failureは新read-only probeを持たないfixture/旧call順の期待とsparse未展開の2 sourceで、fixture更新/必要ファイル展開後185 pass、残るcall期待1件も修正し該当+新ケース3 tests PASS。native disabled outputの形式一致、loop-contract18 catalog/189 jobs/errors0、diff check PASS。sourceは停止を解除せず、金融計算/資金/orderを変更しない。次はexact-head CI/main/immutable release→disabledの自然skip receiptと停止保持の公式GUI readback。容量回復11GiBは別に未完。
 
 **S01 source/mainと同SHA releaseの整合:** PR #7408はhead e036a979のCI全PASS（844 loop tests）後、main4888da7088ff1a43f486370bbfaab239d2c61526へ統合。current001505-4888da70はmain由来/ALL/runtime Git hash一致/read-only、Capafyのtarget applyはchanged=false/skipped=disabled、old plist argvを保持。3 labelsはnative disabledのまま。別の自然ownerが001412-4888da70も作成し、live PID66030がそのscriptを参照することを発見。私の手動cutが同SHAを重ねた確認漏れを記録する。両manifest/main provenance/ALLとruntime hash一致を確認し、次は既存ownerのvalidated001412へcurrentのsymlinkだけをatomicに揃え、code/state/stop flagは変更しない。新たなcut/restartは追加せず、その自然runのdisabled skipとaggregate error解消を観測する。S02以降でsame-SHA cutの冪等性が必要か実測する。空き約1GiB/11GiB未達は別に維持。
+
+
+**S01の自然readbackとS02の次atom:** main由来currentは20261010T003335-aae7b14b（aae7b14b8499be5dce76f594ddef052e6c7fe086）。reconcilerの自然fleet receipt15:54:30Zはchanged96/skipped31/errors0でbudget partial、その次の16:05:51Zは全189 ownerをchanged41/skipped148/errors0/status=okで完了。disabledのAlpaca live/Capafy2 ownerは同SHAの自然applyでそれぞれchanged0/skipped1/rc0。停止を解除せず旧bootstrap error5の反復を閉じた。全ownerの移行完了はまだ主張しない。
+
+S02実測: acct1/acct2のcodex-runner invocationsは各199,756/109,816 KiB（合計約302 MiB）、dir count1611/88。古いHOMEにmemories SQLite/auth symlinkがあるため容量だけで削除しない。protected session historyは9,388,320 KiB、LM state全体の8秒probeはtimeout/完了したroot出力0でunknown。fresh Data free=914,173,952 bytes、11GiB受入は未達。
+
+次の変更範囲はruntime/agent-runner/agent_runner.py::runと最小の既存形式test、本節のみ。直接起動とcontrol/continuous経由のagent inferenceでも、billable provider/新HOME/attempt書き込み前に共通disk_free_bytesと既存RECOVERY_FLOOR_BYTES（2GiB）を使い、低/unknownをexit75のdisk_headroom_low/unavailableとして延期する。cleanup/supervisorの決定的な制御処理は変更せず、実行中のproviderを止めない。新しいfloor/config/framework、古いHOME/credential/stateの削除を追加しない。REDは低/unknownでprovider0・新evidence/HOME/lease生成0、healthyは既存providerへ進むこと。focused GREEN→exact-head CI→main→既存release ownerの自然adoption/readbackまで続ける。回復容量とこの入口修復を別の未完/完了判定にする。
+
+S02 source検証: 低/unknownの3 RED subcasesは旧runnerのexit1（期待exit75）を再現。run入口へ共通free-space checkを追加（source9追加/1削除）、evidenceが未作成でも最寄りexisting parent volumeを測定し、新HOME/attempt/lease前にexit75で延期する。既存prompt/capture/retentionのfocused 15 tests + 3 subtests PASS、loop contract18 catalog/189 jobs/errors0、diff check PASS。healthyのprovider fixtureは2GiBちょうどでも起動する。host測定のmockはtest subprocessだけに置き、本番overrideは追加しない。CIのOSS境界は変更2ファイルの既存manifest digest不一致を検出したため、docs/manifests/oss-merge-1-sources.jsonの該当SHA256だけをsourceへ同期する。次は更新headのCI/mainと既存release ownerの自然adoption。
 
 ### P0 — ディスク回復のatomic TODO
 
@@ -145,7 +154,7 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 
 **「24/7 forever」の契約:** 監督・待ち行列・復旧を常時動かし、要求された業務cadenceを満たすこと。単一の有限SSDへ無限のwork/dataを詰めても故障しないという保証にはしない。容量/外部quotaを超える需要は先に延期し、実測に基づくproducer抑制と許可された容量拡張/既存Cloud worker分離を行う。保護memory/stateを削除して帳尻を合わせない。改善作業は資源回復後も一件ずつ。重い並列、新しいcluster/framework、全agentへの反復reviewを今の修復へ追加しない。
 
-**実行順:** 既存のP0→P1とlane入口の順を保ち、下記S01→S18へ対応付ける。原子的詳細は既存lane節を参照し複製しない。外部gate/未来slot/収益の到来で止まるatomは、証拠と戻るcursorを記録して次の独立したsafe atomを一件だけ進める。並列実装はしない。元の全lane目標を維持し、18 agent全greenやJob Hunter entitlement/投資30自然round tripsを、独立した既存商品の販売開始gateにしない。現在cursor=S01/P0-15。
+**実行順:** 既存のP0→P1とlane入口の順を保ち、下記S01→S18へ対応付ける。原子的詳細は既存lane節を参照し複製しない。外部gate/未来slot/収益の到来で止まるatomは、証拠と戻るcursorを記録して次の独立したsafe atomを一件だけ進める。並列実装はしない。元の全lane目標を維持し、18 agent全greenやJob Hunter entitlement/投資30自然round tripsを、独立した既存商品の販売開始gateにしない。現在cursor=S02/P0-15（S01の残るowner coverageは自然収束を追跡）。
 
 | 状態 | 順 | 次の一操作・対象 / 検証・DONE証拠 |
 |---|---|---|
