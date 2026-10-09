@@ -76,4 +76,3 @@ if ! printf '%s\n' "$READBACK" | awk -v expected="$WATCHDOG_SCRIPT" '
   exit 1
 fi
 printf '%s\n' "$TARGET"
-"$ROOT/skills/self/disk-cleanup/install-launchd-15d.sh"
