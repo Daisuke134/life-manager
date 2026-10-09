@@ -23,6 +23,14 @@
 
 baseline: 18分類 / 113jobs / finite 95 / continuous 18。残233atom。旧223設計との差分は追加2jobとOC008画像/continuation follow-up、engine自然確認をscheduler移管前の18atomへ明示。これは完了率ではない。
 
+### OC-012 — testPinnedGatewayContract()
+
+- 対象: `runtime/openclaw/tests/release-contract.test.mjs`
+- 境界: `isolated_source`
+- 変更: SDKとgateway配布版のagent/agent.wait/sessions.abort/terminal payloadをprivate fake-model serverで記録し、既存fixtures/rpc-contract.jsonを作る。gateway-only instance、fake credential、model cost0、native tools disabled。
+- 検証/完了: node --test runtime/openclaw/tests/release-contract.test.mjs。handshake v4、1dispatch、1terminal、abort後active0、secret marker出力0。status shape不一致ならconsumerを直すtaskへ進まずcontract差分を確定。
+- 依存: OC-001, OC-007, OC-008, OC-009, OC-010
+
 ### OC-011 — readSession(client, {sessionKey,agentId}) -> Promise<object>
 
 - 対象: `runtime/openclaw/gateway-client.mjs`
@@ -31,13 +39,37 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残233atom。旧223�
 - 検証/完了: foreign run/session、stale snapshot、abort ACKのみではStopProofなし。実固定Gateway fixtureで終了を確認。
 - 依存: OC-012
 
-### OC-012 — testPinnedGatewayContract()
+### OC-017 — claim_model(owner_id: str, occurrence_id: str, inherited_claim: Path | None, registry_entry: dict) -> dict
 
-- 対象: `runtime/openclaw/tests/release-contract.test.mjs`
+- 対象: `runtime/openclaw/admission.py`
 - 境界: `isolated_source`
-- 変更: SDKとgateway配布版のagent/agent.wait/sessions.abort/terminal payloadをprivate fake-model serverで記録し、既存fixtures/rpc-contract.jsonを作る。gateway-only instance、fake credential、model cost0、native tools disabled。
-- 検証/完了: node --test runtime/openclaw/tests/release-contract.test.mjs。handshake v4、1dispatch、1terminal、abort後active0、secret marker出力0。status shape不一致ならconsumerを直すtaskへ進まずcontract差分を確定。
-- 依存: OC-001, OC-007, OC-008, OC-009, OC-010
+- 変更: registry_entryはimmutable registryのtrusted owner row。継承claimは同owner/occurrenceかつresource_class=agentの場合だけ再利用する。deterministic/browser claimをmodel枠として借りない。この場合はresource_owner_id=m:<sha256(JSON配列[owner_id])>としてagent専用claimをenqueue_durable/claim_durableで追加し、admission_class/priorityは元rowを保持する。parent claimは変更しない。返却ModelClaimに元owner_idとresource_owner_id/refを含める。
+- 検証/完了: tests/test_admission.py:agent継承はclaim1、deterministic/browser継承は追加agent枠1、same-owner queueの別resource衝突なし、元priority保持、foreign claim拒否、capacitybusyでmodel starts0。
+- 依存: OC-006
+
+### OC-029 — validate_result(instance: object, schema: dict) -> dict
+
+- 対象: `runtime/openclaw/schema_validate.py`
+- 境界: `isolated_source`
+- 変更: 既存jsonschema==4.26.0のvalidators.validator_for(schema)でschemaをcheck_schemaし結果をvalidate。stdinは{instance,schema}、stdoutは{valid:true}または{valid:false,error_class:schema_invalid|result_invalid}だけ。値やschema全文をstderrへ出さない。
+- 検証/完了: tests/test_schema_validate.py:additionalProperties:false拒否、required不足拒否、draft選択、fake secret markerを出力しない。
+- 依存: OC-003
+
+### NC-01 — validate_codex_only_config(config) -> Config
+
+- 対象: `runtime/openclaw/profile.mjs`
+- 境界: `isolated_source`
+- 変更: 全推論routeでagentRuntime.id=codex、fallbacks空、codex plugin enabledを検証。openclaw built-in runtime、OpenAI API-key profile、Claude/Gemini text route、API-key envのmodel利用を拒否。embedding等に別API課金を追加しない。
+- 検証/完了: profile.test.mjs:missing Codex/auth→fail closed、Codex不在でAPI request0、approved native modelだけ。
+- 依存: OC-001
+
+### NC-04 — resolveNativeCodexEndpoint(config, readback) -> EndpointPlan
+
+- 対象: `runtime/openclaw/codex-endpoint.mjs`
+- 境界: `isolated_source`
+- 変更: 既存Codex user-home Unix endpointとaccount ownerを公式機構で検出し、存在すればattach-only。無い場合だけ既存OS supervisorへLM-owned native app-server argvを渡す。native account再loginなし、既存daemon/IDE stop0。command/binary/config/canonical socket/versionは同native accountの確認値で固定、hardcoded個人pathなし。
+- 検証/完了: endpoint.test.mjs:existing endpointではspawn/stop0、不明owner拒否、LM-owned endpointのみ新規、account/key fallback変更0。
+- 依存: NC-01, OC-002
 
 ### OC-014 — buildGatewayConfig({paths,artifactWorkspace,port,agentId,modelRoute,effectMode}) -> object
 
@@ -62,14 +94,6 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残233atom。旧223�
 - 変更: 全対象sessionがdrainした時だけ専用instanceを既存OS supervisor経由で止める。個別runのtimeoutではGateway全体を止めない。他ownerのactive runがあればinstance stopをdefer。
 - 検証/完了: supervisor.test.mjs:run A timeoutでrun BとGateway保持、foreign PID signal0、instance stop前drain必須。
 - 依存: OC-015
-
-### OC-017 — claim_model(owner_id: str, occurrence_id: str, inherited_claim: Path | None, registry_entry: dict) -> dict
-
-- 対象: `runtime/openclaw/admission.py`
-- 境界: `isolated_source`
-- 変更: registry_entryはimmutable registryのtrusted owner row。継承claimは同owner/occurrenceかつresource_class=agentの場合だけ再利用する。deterministic/browser claimをmodel枠として借りない。この場合はresource_owner_id=m:<sha256(JSON配列[owner_id])>としてagent専用claimをenqueue_durable/claim_durableで追加し、admission_class/priorityは元rowを保持する。parent claimは変更しない。返却ModelClaimに元owner_idとresource_owner_id/refを含める。
-- 検証/完了: tests/test_admission.py:agent継承はclaim1、deterministic/browser継承は追加agent枠1、same-owner queueの別resource衝突なし、元priority保持、foreign claim拒否、capacitybusyでmodel starts0。
-- 依存: OC-006
 
 ### OC-018 — bind_execution(claim_ref: Path, gateway_pid: int) -> None
 
@@ -159,14 +183,6 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残233atom。旧223�
 - 検証/完了: native-boundary.test.mjs:before-model hook例外/timeout、native Codex tools、shell/browser/skills経由の迂回、subagent model startをfixtureで試す。host claimなしmodel start0、effect fence外provider mutation0。不成立routeはlegacy維持。
 - 依存: OC-025, OC-012, OC-021, OC-027
 
-### OC-029 — validate_result(instance: object, schema: dict) -> dict
-
-- 対象: `runtime/openclaw/schema_validate.py`
-- 境界: `isolated_source`
-- 変更: 既存jsonschema==4.26.0のvalidators.validator_for(schema)でschemaをcheck_schemaし結果をvalidate。stdinは{instance,schema}、stdoutは{valid:true}または{valid:false,error_class:schema_invalid|result_invalid}だけ。値やschema全文をstderrへ出さない。
-- 検証/完了: tests/test_schema_validate.py:additionalProperties:false拒否、required不足拒否、draft選択、fake secret markerを出力しない。
-- 依存: OC-003
-
 ### OC-030 — normalizeOutcome(raw, request) -> RunOutcome
 
 - 対象: `runtime/openclaw/result.mjs`
@@ -191,6 +207,62 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残233atom。旧223�
 - 検証/完了: tests/test_telemetry.py:既存validator通過、release欠落でsuccess不可、unknown effect維持。
 - 依存: OC-031
 
+### OC-042 — attach_trace_identity(envelope, binding) -> dict
+
+- 対象: `runtime/openclaw/telemetry.py`
+- 境界: `isolated_source`
+- 変更: official model/tool spansのrun/sessionをtrusted LM owner/product/occurrence/task/releaseへ結合。content/authを記録せず欠測はnull。実請求とestimateを区別。
+- 検証/完了: test_telemetry.py: foreign run拒否、missing0化なし、secret field除去、同run相関。
+- 依存: OC-031, OC-032
+
+### OC-053 — decideCandidatePromotion(input) harness contract evidence
+
+- 対象: `apps/life-manager/eval/agent-contract/gate.js`
+- 境界: `isolated_source`
+- 変更: 既存decideCandidatePromotion/decidePromotionGateが要求する同task/baseline/live evidenceにschema/trace/tool/receipt/recovery refsを加える。新judge/benchmark frameworkを作らず、Codex-onlyを同じgateで評価する。
+- 検証/完了: gate.test.js:欠測/自己申告fail、fake/real receiptの区別、旧cases PASS。
+- 依存: OC-028, OC-042
+
+### NC-02 — readNativeCodexAccount(instance) -> AccountProof
+
+- 対象: `runtime/openclaw/auth_readback.mjs`
+- 境界: `isolated_source`
+- 変更: existing ChatGPT accountを使うnative Codex Unix endpointへ公式pluginで接続。appServer.transport=unix/homeScope=user、sessionCatalog=false、owner-only LM thread。account/login/logout/importを呼ばずnative account statusを読みkind/account hashを検証。他native sessionを変更せずtokensをOpenClaw DB/configへ複製しない。既存endpointを探し、無ければNC-04でLM-owned native daemonだけを用意。existing managed Codex binary/versionを使用し、bundled/global CLIを自動upgradeしない。
+- 検証/完了: auth_readback.test.mjs:account ChatGPT確認、API-key account拒否、token export0、personal thread discovery/manage0。
+- 依存: NC-01, NC-04
+
+### F-01 — local OpenClaw package/profile setup
+
+- 対象: `install.sh`
+- 境界: `isolated_source`
+- 変更: isolated clean-homeでlocked runtimeとprivate profileを初期化するinstallerを実装。現在の端末にはapplyしない。global OpenClaw/auth/browser/stateの複製・上書き0。実install採用はowner切替時のみ。
+- 検証/完了: clean-home fixtureでsecret0、同install再実行で既存state保持。
+- 依存: OC-014, OC-015, NC-02
+
+### F-02 — OpenClaw artifact boundary
+
+- 対象: `scripts/verify-oss-self-contained.mjs`
+- 境界: `isolated_source`
+- 変更: runtime/openclawとlocked pluginのOSS notices/integrityを既存boundary検査へ接続。runtime state/secret/transcriptをrepoへ入れない。
+- 検証/完了: source-boundary、gitleaks、PII検査PASS。
+- 依存: F-01
+
+### F-03 — OpenClaw/SDK/OTel notices
+
+- 対象: `THIRD_PARTY_NOTICES.md`
+- 境界: `isolated_source`
+- 変更: 実際にbundleしたversion/license/provenanceを記録。未install依存を配布済と書かない。
+- 検証/完了: package-lockとのversion一致。
+- 依存: F-01
+
+### NC-03 — testNativeCodexRestrictedToolAuthority()
+
+- 対象: `runtime/openclaw/tests/codex-restricted-tools.test.mjs`
+- 境界: `isolated_source`
+- 変更: finite tools.allowがCodex restricted turnを作りnative Code Mode/environment/native MCP/hook relayを無効化・attestする公開機構を実体fixtureで確認。LM approved dynamic toolだけを許可。hook timeoutを安全保証としない。
+- 検証/完了: native Codex→model response→allowed toolの経路、直shell/browser/unauthorized MCP/provider mutation0、別owner/thread不変更。
+- 依存: NC-02, OC-028
+
 ### OC-033 — main(argv, stdin, deps) -> Promise<number>
 
 - 対象: `runtime/openclaw/cli.mjs`
@@ -198,6 +270,54 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残233atom。旧223�
 - 変更: request v2を読みprepare→host claim→trusted binding→RPC submit→ACK保存→wait→result/schema/domain receipt→terminal proof→release。stable sessionを使っても前task contextをeffect authorityにしない。exit0/1/2/75を現callerへ返す。
 - 検証/完了: tests/cli.test.mjs:正常fixture各呼出順、ack喪失でsent1/dispatch0追加、timeoutでunknown。 request.workdirがREPO_ROOTでもartifactWorkspaceはその外のprivate path、source write0。
 - 依存: OC-003, OC-004, OC-006, OC-008, OC-009, OC-010, OC-011, OC-020, OC-030, OC-032, OC-028, NC-02, NC-03
+
+### OC-050 — validate_subagent_policy(policy, parentBinding)
+
+- 対象: `runtime/openclaw/profile.mjs`
+- 境界: `isolated_source`
+- 変更: official subagent機能を利用する条件を固定。childも別host claim/budget、独立workspace/fresh reviewer、同じtool fence。既存hookがfail-openになる経路はenabled falseのまま。
+- 検証/完了: native-boundary.test.mjs:child model claimなしstart0、親停止時child settlementまで保持。
+- 依存: OC-028, OC-042, NC-03
+
+### OC-051 — resolve_skills_paths(releaseRoot, route)
+
+- 対象: `runtime/openclaw/profile.mjs`
+- 境界: `isolated_source`
+- 変更: 既存skillsをofficial skills loaderへ参照させる。新しいskill managerを作らない。modelが書いたskillを無審査でproductionへロードしない。
+- 検証/完了: profile.test.mjs: release内approved skillのみ、Dais profile/secret snapshot複製0。
+- 依存: OC-014, OC-050
+
+### OC-052 — life-manager-openclaw-gateway service
+
+- 対象: `config/loop-registry.json`
+- 境界: `isolated_source`
+- 変更: 専用Gatewayのcontinuous serviceだけを既存supervisorへ登録。daemon二重所有なし、global OpenClaw upgradeなし。source build中は未install。 source段階はdisabled/default-off契約で、release reconcilerによる暗黙startを既存registry testsで拒否する。現在のGUI/launchdへinstall/startしない。
+- 検証/完了: test_lm_loop_apply.py:immutable package/node/profile argv、既存110 owner cadence変更0。
+- 依存: OC-015, OC-051
+
+### OC-054 — record_canary_application() harness evidence
+
+- 対象: `skills/writer-agent/scripts/writer_learning_worker.py`
+- 境界: `isolated_source`
+- 変更: 既存candidate/eval/canary記録へnative Codex account、harness version、同task trace/evidenceを結合。OpenClaw既製skills/subagentを利用し、production skill/codeを無審査で昇格しない。self-improve-evolve等他ownerへの適用はPの実call閉包を先に確認。
+- 検証/完了: 既存writer learning/candidate gate testでmissing evidence拒否、baseline候補不変、failed candidate本番enable0。
+- 依存: OC-050, OC-051, OC-053
+
+### MI-01 — encode_owned_images(paths, binding) -> list[GatewayAttachment]
+
+- 対象: `runtime/openclaw/images.py`
+- 境界: `isolated_source`
+- 変更: 画像pathを同owner private artifact/証明済み入力rootで検証しMIME/SHAを保持。公式agent RPC attachmentsからnative Codex image inputへ渡す。Type.Unknownを無検証で渡さずpinned serverの受理schemaに合わせる。symlink/外部URL/credential fileを拒否。画像bufferはWS送信のメモリだけ、stdout/traceにはbytesを出さない。 GatewayAttachmentのwire fieldsは{type:"image",mimeType:<verified MIME>,fileName:<basename>,content:<base64 string>}。公開chat-attachments.tsのnormalizeAttachmentで受理される形に固定する。RunRequest保存時はpath/digestのみで、このwire objectはRPC送信時だけ生成。
+- 検証/完了: test_images.py＋native-image.test.mjs: candidates-sheet PNGがCodex画像inputに届く、image無し旧task不変、foreign path拒否、視覚fixtureの期待結果通過。
+- 依存: OC-003, OC-012, NC-03
+
+### MI-02 — forkOwnedContinuation(binding, legacyThreadRef) -> ResumeProof
+
+- 対象: `runtime/openclaw/resume_bridge.mjs`
+- 境界: `isolated_source`
+- 変更: 既存resume refのLM owner/occurrence・task・leaseを証明して公式codex_threads forkを使いLM OpenClaw sessionへ結ぶ。旧threadを別app-serverから同時resume/writeしない。personal thread list/import/stopなし。既存domain checkpoint/receiptを保持し、historyでeffect権限を与えない。
+- 検証/完了: resume.test.mjs:owned forkだけ、旧thread不変更、foreign ref拒否、Writer continuation context保持、同業務effect再送0。
+- 依存: OC-004, NC-02
 
 ### OC-034 — run_openclaw(parsed, prompt: str, schema: dict, config: dict, budget_context: dict) -> int
 
@@ -263,14 +383,6 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残233atom。旧223�
 - 検証/完了: test_routes.py: unknown/default/disabledがlegacy、coverage refなしenable拒否。
 - 依存: OC-035
 
-### OC-042 — attach_trace_identity(envelope, binding) -> dict
-
-- 対象: `runtime/openclaw/telemetry.py`
-- 境界: `isolated_source`
-- 変更: official model/tool spansのrun/sessionをtrusted LM owner/product/occurrence/task/releaseへ結合。content/authを記録せず欠測はnull。実請求とestimateを区別。
-- 検証/完了: test_telemetry.py: foreign run拒否、missing0化なし、secret field除去、同run相関。
-- 依存: OC-031, OC-032
-
 ### OC-043 — build_owner_inventory(registry, catalog, sources) -> dict
 
 - 対象: `runtime/openclaw/owner_inventory.py`
@@ -326,46 +438,6 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残233atom。旧223�
 - 変更: 既存CLI引数を維持。official health/session/cron状態とLM financial/effect状態を合成。stopはownerの新wake停止、run cancel/drainを対象限定。OS browser ownerは既存処理。
 - 検証/完了: test_openclaw_cli.py:同じCLI互換、stop AでB継続、process pass≠business verified。
 - 依存: OC-042, OC-048
-
-### OC-050 — validate_subagent_policy(policy, parentBinding)
-
-- 対象: `runtime/openclaw/profile.mjs`
-- 境界: `isolated_source`
-- 変更: official subagent機能を利用する条件を固定。childも別host claim/budget、独立workspace/fresh reviewer、同じtool fence。既存hookがfail-openになる経路はenabled falseのまま。
-- 検証/完了: native-boundary.test.mjs:child model claimなしstart0、親停止時child settlementまで保持。
-- 依存: OC-028, OC-042, NC-03
-
-### OC-051 — resolve_skills_paths(releaseRoot, route)
-
-- 対象: `runtime/openclaw/profile.mjs`
-- 境界: `isolated_source`
-- 変更: 既存skillsをofficial skills loaderへ参照させる。新しいskill managerを作らない。modelが書いたskillを無審査でproductionへロードしない。
-- 検証/完了: profile.test.mjs: release内approved skillのみ、Dais profile/secret snapshot複製0。
-- 依存: OC-014, OC-050
-
-### OC-052 — life-manager-openclaw-gateway service
-
-- 対象: `config/loop-registry.json`
-- 境界: `isolated_source`
-- 変更: 専用Gatewayのcontinuous serviceだけを既存supervisorへ登録。daemon二重所有なし、global OpenClaw upgradeなし。source build中は未install。 source段階はdisabled/default-off契約で、release reconcilerによる暗黙startを既存registry testsで拒否する。現在のGUI/launchdへinstall/startしない。
-- 検証/完了: test_lm_loop_apply.py:immutable package/node/profile argv、既存110 owner cadence変更0。
-- 依存: OC-015, OC-051
-
-### OC-053 — decideCandidatePromotion(input) harness contract evidence
-
-- 対象: `apps/life-manager/eval/agent-contract/gate.js`
-- 境界: `isolated_source`
-- 変更: 既存decideCandidatePromotion/decidePromotionGateが要求する同task/baseline/live evidenceにschema/trace/tool/receipt/recovery refsを加える。新judge/benchmark frameworkを作らず、Codex-onlyを同じgateで評価する。
-- 検証/完了: gate.test.js:欠測/自己申告fail、fake/real receiptの区別、旧cases PASS。
-- 依存: OC-028, OC-042
-
-### OC-054 — record_canary_application() harness evidence
-
-- 対象: `skills/writer-agent/scripts/writer_learning_worker.py`
-- 境界: `isolated_source`
-- 変更: 既存candidate/eval/canary記録へnative Codex account、harness version、同task trace/evidenceを結合。OpenClaw既製skills/subagentを利用し、production skill/codeを無審査で昇格しない。self-improve-evolve等他ownerへの適用はPの実call閉包を先に確認。
-- 検証/完了: 既存writer learning/candidate gate testでmissing evidence拒否、baseline候補不変、failed candidate本番enable0。
-- 依存: OC-050, OC-051, OC-053
 
 ### C-01 — think
 
@@ -431,38 +503,6 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残233atom。旧223�
 - 検証/完了: 当該既存focused tests＋Gateway fake adapterで同input/output/schema、foreign owner mutation0、未確定generation再送0、baseline route不変。actual provider/model/accountが不明ならsource routeを有効化しない。
 - 依存: OC-034, OC-041, OC-028
 
-### F-01 — local OpenClaw package/profile setup
-
-- 対象: `install.sh`
-- 境界: `isolated_source`
-- 変更: isolated clean-homeでlocked runtimeとprivate profileを初期化するinstallerを実装。現在の端末にはapplyしない。global OpenClaw/auth/browser/stateの複製・上書き0。実install採用はowner切替時のみ。
-- 検証/完了: clean-home fixtureでsecret0、同install再実行で既存state保持。
-- 依存: OC-014, OC-015, NC-02
-
-### F-02 — OpenClaw artifact boundary
-
-- 対象: `scripts/verify-oss-self-contained.mjs`
-- 境界: `isolated_source`
-- 変更: runtime/openclawとlocked pluginのOSS notices/integrityを既存boundary検査へ接続。runtime state/secret/transcriptをrepoへ入れない。
-- 検証/完了: source-boundary、gitleaks、PII検査PASS。
-- 依存: F-01
-
-### F-03 — OpenClaw/SDK/OTel notices
-
-- 対象: `THIRD_PARTY_NOTICES.md`
-- 境界: `isolated_source`
-- 変更: 実際にbundleしたversion/license/provenanceを記録。未install依存を配布済と書かない。
-- 検証/完了: package-lockとのversion一致。
-- 依存: F-01
-
-### F-04 — remove only unreferenced legacy routing
-
-- 対象: `runtime/agent-runner/agent_runner.py`
-- 境界: `retirement`
-- 変更: 全V自然確認後、旧model runtime dispatch/provider fallback/旧job scheduling分岐の参照を0にして削除。bin/lm-loopはOpenClaw操作への互換facadeへ変更。native Codex binary、OS browser driver、商品worker、domain budget/effect/readback/finance/dataは保持する。
-- 検証/完了: 全caller closure参照0、既存source acceptance＋natural records一致。
-- 依存: V-gig-coconala, V-gig-lancers, V-gig-crowdworks, V-gig-mercor, V-promptbase, V-writer, V-affiliate, V-investment, V-agent-economy, V-job-hunter, V-fundraiser, V-connector, V-self-build, V-mobile-apps, V-ebook, V-capafy, V-line-sticker, V-cfo, F-01, F-02, F-03
-
 ### F-05 — local install/control/architecture
 
 - 対象: `README.md`
@@ -478,62 +518,6 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残233atom。旧223�
 - 変更: 同じ導入/停止/結果確認/復旧/rollbackを日本語で記載。全商品ワンクリック済の誤記なし。
 - 検証/完了: README.mdと同じcommand/features。
 - 依存: F-05
-
-### F-07 — final product/job reconciliation
-
-- 対象: `docs/evidence/openclaw-cutover/final.json`
-- 境界: `production`
-- 変更: 全catalog business jobsの新engine管理、全finiteのOpenClaw cron、continuousの同OS/browser driver、source/main/release/session/trace/domain成果、旧harness参照0、rollbackの一時退避以外旧job authority0を照合して保存。旧harnessを残したまま全移行完了とはしない。
-- 検証/完了: 最新catalog全job coverage、全finite cron移管、continuous owner維持、未確認effect0、旧harness参照0、自然成果readback。性能改善は実測のみ。
-- 依存: F-04, F-05, F-06
-
-### NC-01 — validate_codex_only_config(config) -> Config
-
-- 対象: `runtime/openclaw/profile.mjs`
-- 境界: `isolated_source`
-- 変更: 全推論routeでagentRuntime.id=codex、fallbacks空、codex plugin enabledを検証。openclaw built-in runtime、OpenAI API-key profile、Claude/Gemini text route、API-key envのmodel利用を拒否。embedding等に別API課金を追加しない。
-- 検証/完了: profile.test.mjs:missing Codex/auth→fail closed、Codex不在でAPI request0、approved native modelだけ。
-- 依存: OC-001
-
-### NC-02 — readNativeCodexAccount(instance) -> AccountProof
-
-- 対象: `runtime/openclaw/auth_readback.mjs`
-- 境界: `isolated_source`
-- 変更: existing ChatGPT accountを使うnative Codex Unix endpointへ公式pluginで接続。appServer.transport=unix/homeScope=user、sessionCatalog=false、owner-only LM thread。account/login/logout/importを呼ばずnative account statusを読みkind/account hashを検証。他native sessionを変更せずtokensをOpenClaw DB/configへ複製しない。既存endpointを探し、無ければNC-04でLM-owned native daemonだけを用意。existing managed Codex binary/versionを使用し、bundled/global CLIを自動upgradeしない。
-- 検証/完了: auth_readback.test.mjs:account ChatGPT確認、API-key account拒否、token export0、personal thread discovery/manage0。
-- 依存: NC-01, NC-04
-
-### NC-03 — testNativeCodexRestrictedToolAuthority()
-
-- 対象: `runtime/openclaw/tests/codex-restricted-tools.test.mjs`
-- 境界: `isolated_source`
-- 変更: finite tools.allowがCodex restricted turnを作りnative Code Mode/environment/native MCP/hook relayを無効化・attestする公開機構を実体fixtureで確認。LM approved dynamic toolだけを許可。hook timeoutを安全保証としない。
-- 検証/完了: native Codex→model response→allowed toolの経路、直shell/browser/unauthorized MCP/provider mutation0、別owner/thread不変更。
-- 依存: NC-02, OC-028
-
-### NC-04 — resolveNativeCodexEndpoint(config, readback) -> EndpointPlan
-
-- 対象: `runtime/openclaw/codex-endpoint.mjs`
-- 境界: `isolated_source`
-- 変更: 既存Codex user-home Unix endpointとaccount ownerを公式機構で検出し、存在すればattach-only。無い場合だけ既存OS supervisorへLM-owned native app-server argvを渡す。native account再loginなし、既存daemon/IDE stop0。command/binary/config/canonical socket/versionは同native accountの確認値で固定、hardcoded個人pathなし。
-- 検証/完了: endpoint.test.mjs:existing endpointではspawn/stop0、不明owner拒否、LM-owned endpointのみ新規、account/key fallback変更0。
-- 依存: NC-01, OC-002
-
-### MI-01 — encode_owned_images(paths, binding) -> list[GatewayAttachment]
-
-- 対象: `runtime/openclaw/images.py`
-- 境界: `isolated_source`
-- 変更: 画像pathを同owner private artifact/証明済み入力rootで検証しMIME/SHAを保持。公式agent RPC attachmentsからnative Codex image inputへ渡す。Type.Unknownを無検証で渡さずpinned serverの受理schemaに合わせる。symlink/外部URL/credential fileを拒否。画像bufferはWS送信のメモリだけ、stdout/traceにはbytesを出さない。 GatewayAttachmentのwire fieldsは{type:"image",mimeType:<verified MIME>,fileName:<basename>,content:<base64 string>}。公開chat-attachments.tsのnormalizeAttachmentで受理される形に固定する。RunRequest保存時はpath/digestのみで、このwire objectはRPC送信時だけ生成。
-- 検証/完了: test_images.py＋native-image.test.mjs: candidates-sheet PNGがCodex画像inputに届く、image無し旧task不変、foreign path拒否、視覚fixtureの期待結果通過。
-- 依存: OC-003, OC-012, NC-03
-
-### MI-02 — forkOwnedContinuation(binding, legacyThreadRef) -> ResumeProof
-
-- 対象: `runtime/openclaw/resume_bridge.mjs`
-- 境界: `isolated_source`
-- 変更: 既存resume refのLM owner/occurrence・task・leaseを証明して公式codex_threads forkを使いLM OpenClaw sessionへ結ぶ。旧threadを別app-serverから同時resume/writeしない。personal thread list/import/stopなし。既存domain checkpoint/receiptを保持し、historyでeffect権限を与えない。
-- 検証/完了: resume.test.mjs:owned forkだけ、旧thread不変更、foreign ref拒否、Writer continuation context保持、同業務effect再送0。
-- 依存: OC-004, NC-02
 
 ### C-09 — _claude(prompt, system)
 
@@ -559,6 +543,142 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残233atom。旧223�
 - 検証/完了: binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。
 - 依存: OC-043, OC-053, C-08
 
+### P-gig-lancers — register existing product worker/tools
+
+- 対象: `runtime/openclaw/products/gig-lancers.json`
+- 境界: `isolated_source`
+- 変更: product_id=gig-lancers、job_ids=["lancers-revenue-application", "lancers-revenue-browser", "lancers-revenue-negotiate", "lancers-revenue-paid", "lancers-revenue-storefront", "lancers-revenue-telegram-report", "lancers-revenue-work-sync"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。
+- 検証/完了: binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。
+- 依存: OC-043, OC-053, C-08
+
+### P-gig-crowdworks — register existing product worker/tools
+
+- 対象: `runtime/openclaw/products/gig-crowdworks.json`
+- 境界: `isolated_source`
+- 変更: product_id=gig-crowdworks、job_ids=["crowdworks-revenue-application", "crowdworks-revenue-browser", "crowdworks-revenue-paid", "crowdworks-revenue-reply", "crowdworks-revenue-report"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。
+- 検証/完了: binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。
+- 依存: OC-043, OC-053, C-08
+
+### P-gig-mercor — register existing product worker/tools
+
+- 対象: `runtime/openclaw/products/gig-mercor.json`
+- 境界: `isolated_source`
+- 変更: product_id=gig-mercor、job_ids=["mercor-revenue-application", "mercor-revenue-paid", "mercor-revenue-reply"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。
+- 検証/完了: binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。
+- 依存: OC-043, OC-053, C-08
+
+### P-promptbase — register existing product worker/tools
+
+- 対象: `runtime/openclaw/products/promptbase.json`
+- 境界: `isolated_source`
+- 変更: product_id=promptbase、job_ids=["promptbase-loop-daily"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。
+- 検証/完了: binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。
+- 依存: OC-043, OC-053, C-08, C-09
+
+### P-writer — register existing product worker/tools
+
+- 対象: `runtime/openclaw/products/writer.json`
+- 境界: `isolated_source`
+- 変更: product_id=writer、job_ids=["writer-claim-loop", "writer-craft-train", "writer-money-sync", "writer-opportunity-discovery", "writer-opportunity-response", "writer-report", "writer-sales-measure"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。
+- 検証/完了: binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。
+- 依存: OC-043, OC-053, C-03, C-08
+
+### P-affiliate — register existing product worker/tools
+
+- 対象: `runtime/openclaw/products/affiliate.json`
+- 境界: `isolated_source`
+- 変更: product_id=affiliate、job_ids=["affiliate-browser", "affiliate-composition", "affiliate-impact-browser", "affiliate-loop", "affiliate-source-refresh", "affiliate-x-browser"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。
+- 検証/完了: binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。
+- 依存: OC-043, OC-053, C-08
+
+### P-investment — register existing product worker/tools
+
+- 対象: `runtime/openclaw/products/investment.json`
+- 境界: `isolated_source`
+- 変更: product_id=investment、job_ids=["alpaca-investment-paper", "alpaca-investment-live", "investment-cross-venue-report", "investment-strategy-validation"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。
+- 検証/完了: binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。
+- 依存: OC-043, OC-053, C-08
+
+### P-agent-economy — register existing product worker/tools
+
+- 対象: `runtime/openclaw/products/agent-economy.json`
+- 境界: `isolated_source`
+- 変更: product_id=agent-economy、job_ids=["agent-economy-loop", "citizen-refill", "life-manager-x402-ledger", "sol-funding", "the402-provider", "the402-worker", "x402-acquisition-controller", "x402-claude-p", "x402-experiment-franklin1", "x402-franklin1", "x402-franklin2", "x402-inflow-watch", "x402-inflow-watch-claude-p", "x402-inflow-watch-franklin1", "x402-inflow-watch-franklin2", "x402-research-serve", "x402-sale-observer", "x402-seller-8404", "x402-settlement-recorder"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。
+- 検証/完了: binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。
+- 依存: OC-043, OC-053, C-01, C-08
+
+### P-job-hunter — register existing product worker/tools
+
+- 対象: `runtime/openclaw/products/job-hunter.json`
+- 境界: `isolated_source`
+- 変更: product_id=job-hunter、job_ids=["job-search-daily", "job-search-health", "job-search-inbox", "job-search-learning"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。
+- 検証/完了: binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。
+- 依存: OC-043, OC-053, C-08
+
+### P-fundraiser — register existing product worker/tools
+
+- 対象: `runtime/openclaw/products/fundraiser.json`
+- 境界: `isolated_source`
+- 変更: product_id=fundraiser、job_ids=["fundraiser"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。
+- 検証/完了: binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。
+- 依存: OC-043, OC-053, C-08
+
+### P-connector — register existing product worker/tools
+
+- 対象: `runtime/openclaw/products/connector.json`
+- 境界: `isolated_source`
+- 変更: product_id=connector、job_ids=["life-manager-connector-native"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。
+- 検証/完了: binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。
+- 依存: OC-043, OC-053, C-08
+
+### P-self-build — register existing product worker/tools
+
+- 対象: `runtime/openclaw/products/self-build.json`
+- 境界: `isolated_source`
+- 変更: product_id=self-build、job_ids=["life-manager-dev", "life-manager-recovery-supervisor", "life-manager-selfbuild", "self-improve-evolve"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。
+- 検証/完了: binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。
+- 依存: OC-043, OC-053, C-02, C-08
+
+### P-mobile-apps — register existing product worker/tools
+
+- 対象: `runtime/openclaw/products/mobile-apps.json`
+- 境界: `isolated_source`
+- 変更: product_id=mobile-apps、job_ids=["life-manager-anicca-affirmation-youtube", "life-manager-anicca-ai-youtube", "life-manager-anicca-buddha-tiktok", "life-manager-anicca-en-affirmation-instagram", "life-manager-anicca-en-affirmation-tiktok", "life-manager-anicca-en-card-instagram", "life-manager-anicca-en-slideshow-tiktok", "life-manager-anicca-en-widget-instagram", "life-manager-anicca-en2-affirmation-tiktok", "life-manager-anicca-he", "life-manager-anicca-ja-widget-instagram", "life-manager-anicca-jp1-tiktok", "life-manager-anicca-jp4", "life-manager-anicca-larry-ja-instagram", "life-manager-anicca-main-instagram", "life-manager-anicca-main-tiktok", "life-manager-daily", "life-manager-daily-driver", "life-manager-honne-en", "life-manager-honne-ja", "life-manager-instagram-metrics", "life-manager-tiktok-metrics", "tiktok-browser"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。
+- 検証/完了: binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。
+- 依存: OC-043, OC-053, C-04, C-08
+
+### P-ebook — register existing product worker/tools
+
+- 対象: `runtime/openclaw/products/ebook.json`
+- 境界: `isolated_source`
+- 変更: product_id=ebook、job_ids=["ebook-en-instagram-daily", "ebook-en-tiktok-daily", "ebook-ja-instagram-daily", "ebook-ja-tiktok-daily"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。
+- 検証/完了: binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。
+- 依存: OC-043, OC-053, C-08
+
+### P-capafy — register existing product worker/tools
+
+- 対象: `runtime/openclaw/products/capafy.json`
+- 境界: `isolated_source`
+- 変更: product_id=capafy、job_ids=["capafy-browser", "capafy-distribute-daily", "capafy-goal-monitor", "capafy-goal-monitor-daily-close", "capafy-goal-monitor-hourly", "capafy-ig-account-manager", "capafy-ig-marketing-daily", "capafy-loop-daily", "capafy-loop-healthcheck", "capafy-outcome-monitor", "life-manager-capafy-ig"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。
+- 検証/完了: binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。
+- 依存: OC-043, OC-053, C-08
+
+### P-line-sticker — register existing product worker/tools
+
+- 対象: `runtime/openclaw/products/line-sticker.json`
+- 境界: `isolated_source`
+- 変更: product_id=line-sticker、job_ids=["line-creators-browser", "line-sticker-factory-hourly", "line-sticker-readback-hourly"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。
+- 検証/完了: binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。
+- 依存: OC-043, OC-053, C-05, C-06, C-07, C-08
+
+### P-cfo — register existing product worker/tools
+
+- 対象: `runtime/openclaw/products/cfo.json`
+- 境界: `isolated_source`
+- 変更: product_id=cfo、job_ids=["life-manager-cfo-hourly", "life-manager-financial-report", "life-manager-payout"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。
+- 検証/完了: binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。
+- 依存: OC-043, OC-053, C-08
+
 ### A-gig-coconala — enable_idle_owner(gig-coconala)
 
 - 対象: `config/openclaw-routes.json`
@@ -566,6 +686,150 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残233atom。旧223�
 - 変更: P-gig-coconalaと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。
 - 検証/完了: idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。
 - 依存: P-gig-coconala, OC-049, OC-052
+
+### A-gig-lancers — enable_idle_owner(gig-lancers)
+
+- 対象: `config/openclaw-routes.json`
+- 境界: `production`
+- 変更: P-gig-lancersと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。
+- 検証/完了: idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。
+- 依存: P-gig-lancers, OC-049, OC-052
+
+### A-gig-crowdworks — enable_idle_owner(gig-crowdworks)
+
+- 対象: `config/openclaw-routes.json`
+- 境界: `production`
+- 変更: P-gig-crowdworksと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。
+- 検証/完了: idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。
+- 依存: P-gig-crowdworks, OC-049, OC-052
+
+### A-gig-mercor — enable_idle_owner(gig-mercor)
+
+- 対象: `config/openclaw-routes.json`
+- 境界: `production`
+- 変更: P-gig-mercorと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。
+- 検証/完了: idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。
+- 依存: P-gig-mercor, OC-049, OC-052
+
+### A-promptbase — enable_idle_owner(promptbase)
+
+- 対象: `config/openclaw-routes.json`
+- 境界: `production`
+- 変更: P-promptbaseと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。
+- 検証/完了: idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。
+- 依存: P-promptbase, OC-049, OC-052
+
+### A-writer — enable_idle_owner(writer)
+
+- 対象: `config/openclaw-routes.json`
+- 境界: `production`
+- 変更: P-writerと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。
+- 検証/完了: idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。
+- 依存: P-writer, OC-049, OC-052
+
+### A-affiliate — enable_idle_owner(affiliate)
+
+- 対象: `config/openclaw-routes.json`
+- 境界: `production`
+- 変更: P-affiliateと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。
+- 検証/完了: idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。
+- 依存: P-affiliate, OC-049, OC-052
+
+### A-investment — enable_idle_owner(investment)
+
+- 対象: `config/openclaw-routes.json`
+- 境界: `production`
+- 変更: P-investmentと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。
+- 検証/完了: idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。
+- 依存: P-investment, OC-049, OC-052
+
+### A-agent-economy — enable_idle_owner(agent-economy)
+
+- 対象: `config/openclaw-routes.json`
+- 境界: `production`
+- 変更: P-agent-economyと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。
+- 検証/完了: idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。
+- 依存: P-agent-economy, OC-049, OC-052
+
+### A-job-hunter — enable_idle_owner(job-hunter)
+
+- 対象: `config/openclaw-routes.json`
+- 境界: `production`
+- 変更: P-job-hunterと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。
+- 検証/完了: idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。
+- 依存: P-job-hunter, OC-049, OC-052
+
+### A-fundraiser — enable_idle_owner(fundraiser)
+
+- 対象: `config/openclaw-routes.json`
+- 境界: `production`
+- 変更: P-fundraiserと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。
+- 検証/完了: idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。
+- 依存: P-fundraiser, OC-049, OC-052
+
+### A-connector — enable_idle_owner(connector)
+
+- 対象: `config/openclaw-routes.json`
+- 境界: `production`
+- 変更: P-connectorと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。
+- 検証/完了: idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。
+- 依存: P-connector, OC-049, OC-052
+
+### A-self-build — enable_idle_owner(self-build)
+
+- 対象: `config/openclaw-routes.json`
+- 境界: `production`
+- 変更: P-self-buildと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。
+- 検証/完了: idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。
+- 依存: P-self-build, OC-049, OC-052
+
+### A-mobile-apps — enable_idle_owner(mobile-apps)
+
+- 対象: `config/openclaw-routes.json`
+- 境界: `production`
+- 変更: P-mobile-appsと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。
+- 検証/完了: idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。
+- 依存: P-mobile-apps, OC-049, OC-052
+
+### A-ebook — enable_idle_owner(ebook)
+
+- 対象: `config/openclaw-routes.json`
+- 境界: `production`
+- 変更: P-ebookと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。
+- 検証/完了: idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。
+- 依存: P-ebook, OC-049, OC-052
+
+### A-capafy — enable_idle_owner(capafy)
+
+- 対象: `config/openclaw-routes.json`
+- 境界: `production`
+- 変更: P-capafyと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。
+- 検証/完了: idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。
+- 依存: P-capafy, OC-049, OC-052
+
+### A-line-sticker — enable_idle_owner(line-sticker)
+
+- 対象: `config/openclaw-routes.json`
+- 境界: `production`
+- 変更: P-line-stickerと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。
+- 検証/完了: idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。
+- 依存: P-line-sticker, OC-049, OC-052
+
+### A-cfo — enable_idle_owner(cfo)
+
+- 対象: `config/openclaw-routes.json`
+- 境界: `production`
+- 変更: P-cfoと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。
+- 検証/完了: idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。
+- 依存: P-cfo, OC-049, OC-052
+
+### E-gig-coconala — verify_engine_natural(gig-coconala)
+
+- 対象: `docs/evidence/openclaw-cutover/engines/gig-coconala-natural.json`
+- 境界: `production`
+- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
+- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
+- 依存: A-gig-coconala
 
 ### S-hf-gig-apply-direct — commit_transfer(hf-gig-apply-direct)
 
@@ -623,21 +887,13 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残233atom。旧223�
 - 検証/完了: 全job coverage、旧成果契約維持、replay-zero、既存order/receipt/cost保持。test/モデルfinal/exit0だけではPASS不可。
 - 依存: A-gig-coconala, S-hf-gig-apply-direct, S-hf-gig-apply-evidence-gc, S-hf-gig-daily-report, S-hf-gig-paid-direct, S-hf-gig-reply-detector, S-hf-gig-storefront-direct
 
-### P-gig-lancers — register existing product worker/tools
+### E-gig-lancers — verify_engine_natural(gig-lancers)
 
-- 対象: `runtime/openclaw/products/gig-lancers.json`
-- 境界: `isolated_source`
-- 変更: product_id=gig-lancers、job_ids=["lancers-revenue-application", "lancers-revenue-browser", "lancers-revenue-negotiate", "lancers-revenue-paid", "lancers-revenue-storefront", "lancers-revenue-telegram-report", "lancers-revenue-work-sync"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。
-- 検証/完了: binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。
-- 依存: OC-043, OC-053, C-08
-
-### A-gig-lancers — enable_idle_owner(gig-lancers)
-
-- 対象: `config/openclaw-routes.json`
+- 対象: `docs/evidence/openclaw-cutover/engines/gig-lancers-natural.json`
 - 境界: `production`
-- 変更: P-gig-lancersと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。
-- 検証/完了: idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。
-- 依存: P-gig-lancers, OC-049, OC-052
+- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
+- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
+- 依存: A-gig-lancers
 
 ### S-lancers-revenue-application — commit_transfer(lancers-revenue-application)
 
@@ -695,21 +951,13 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残233atom。旧223�
 - 検証/完了: 全job coverage、旧成果契約維持、replay-zero、既存order/receipt/cost保持。test/モデルfinal/exit0だけではPASS不可。
 - 依存: A-gig-lancers, S-lancers-revenue-application, S-lancers-revenue-negotiate, S-lancers-revenue-paid, S-lancers-revenue-storefront, S-lancers-revenue-telegram-report, S-lancers-revenue-work-sync
 
-### P-gig-crowdworks — register existing product worker/tools
+### E-gig-crowdworks — verify_engine_natural(gig-crowdworks)
 
-- 対象: `runtime/openclaw/products/gig-crowdworks.json`
-- 境界: `isolated_source`
-- 変更: product_id=gig-crowdworks、job_ids=["crowdworks-revenue-application", "crowdworks-revenue-browser", "crowdworks-revenue-paid", "crowdworks-revenue-reply", "crowdworks-revenue-report"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。
-- 検証/完了: binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。
-- 依存: OC-043, OC-053, C-08
-
-### A-gig-crowdworks — enable_idle_owner(gig-crowdworks)
-
-- 対象: `config/openclaw-routes.json`
+- 対象: `docs/evidence/openclaw-cutover/engines/gig-crowdworks-natural.json`
 - 境界: `production`
-- 変更: P-gig-crowdworksと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。
-- 検証/完了: idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。
-- 依存: P-gig-crowdworks, OC-049, OC-052
+- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
+- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
+- 依存: A-gig-crowdworks
 
 ### S-crowdworks-revenue-application — commit_transfer(crowdworks-revenue-application)
 
@@ -751,21 +999,13 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残233atom。旧223�
 - 検証/完了: 全job coverage、旧成果契約維持、replay-zero、既存order/receipt/cost保持。test/モデルfinal/exit0だけではPASS不可。
 - 依存: A-gig-crowdworks, S-crowdworks-revenue-application, S-crowdworks-revenue-paid, S-crowdworks-revenue-reply, S-crowdworks-revenue-report
 
-### P-gig-mercor — register existing product worker/tools
+### E-gig-mercor — verify_engine_natural(gig-mercor)
 
-- 対象: `runtime/openclaw/products/gig-mercor.json`
-- 境界: `isolated_source`
-- 変更: product_id=gig-mercor、job_ids=["mercor-revenue-application", "mercor-revenue-paid", "mercor-revenue-reply"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。
-- 検証/完了: binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。
-- 依存: OC-043, OC-053, C-08
-
-### A-gig-mercor — enable_idle_owner(gig-mercor)
-
-- 対象: `config/openclaw-routes.json`
+- 対象: `docs/evidence/openclaw-cutover/engines/gig-mercor-natural.json`
 - 境界: `production`
-- 変更: P-gig-mercorと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。
-- 検証/完了: idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。
-- 依存: P-gig-mercor, OC-049, OC-052
+- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
+- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
+- 依存: A-gig-mercor
 
 ### S-mercor-revenue-application — commit_transfer(mercor-revenue-application)
 
@@ -799,21 +1039,13 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残233atom。旧223�
 - 検証/完了: 全job coverage、旧成果契約維持、replay-zero、既存order/receipt/cost保持。test/モデルfinal/exit0だけではPASS不可。
 - 依存: A-gig-mercor, S-mercor-revenue-application, S-mercor-revenue-paid, S-mercor-revenue-reply
 
-### P-promptbase — register existing product worker/tools
+### E-promptbase — verify_engine_natural(promptbase)
 
-- 対象: `runtime/openclaw/products/promptbase.json`
-- 境界: `isolated_source`
-- 変更: product_id=promptbase、job_ids=["promptbase-loop-daily"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。
-- 検証/完了: binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。
-- 依存: OC-043, OC-053, C-08, C-09
-
-### A-promptbase — enable_idle_owner(promptbase)
-
-- 対象: `config/openclaw-routes.json`
+- 対象: `docs/evidence/openclaw-cutover/engines/promptbase-natural.json`
 - 境界: `production`
-- 変更: P-promptbaseと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。
-- 検証/完了: idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。
-- 依存: P-promptbase, OC-049, OC-052
+- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
+- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
+- 依存: A-promptbase
 
 ### S-promptbase-loop-daily — commit_transfer(promptbase-loop-daily)
 
@@ -831,21 +1063,13 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残233atom。旧223�
 - 検証/完了: 全job coverage、旧成果契約維持、replay-zero、既存order/receipt/cost保持。test/モデルfinal/exit0だけではPASS不可。
 - 依存: A-promptbase, S-promptbase-loop-daily
 
-### P-writer — register existing product worker/tools
+### E-writer — verify_engine_natural(writer)
 
-- 対象: `runtime/openclaw/products/writer.json`
-- 境界: `isolated_source`
-- 変更: product_id=writer、job_ids=["writer-claim-loop", "writer-craft-train", "writer-money-sync", "writer-opportunity-discovery", "writer-opportunity-response", "writer-report", "writer-sales-measure"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。
-- 検証/完了: binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。
-- 依存: OC-043, OC-053, C-03, C-08
-
-### A-writer — enable_idle_owner(writer)
-
-- 対象: `config/openclaw-routes.json`
+- 対象: `docs/evidence/openclaw-cutover/engines/writer-natural.json`
 - 境界: `production`
-- 変更: P-writerと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。
-- 検証/完了: idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。
-- 依存: P-writer, OC-049, OC-052
+- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
+- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
+- 依存: A-writer
 
 ### S-writer-claim-loop — commit_transfer(writer-claim-loop)
 
@@ -911,21 +1135,13 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残233atom。旧223�
 - 検証/完了: 全job coverage、旧成果契約維持、replay-zero、既存order/receipt/cost保持。test/モデルfinal/exit0だけではPASS不可。
 - 依存: A-writer, S-writer-claim-loop, S-writer-craft-train, S-writer-money-sync, S-writer-opportunity-discovery, S-writer-opportunity-response, S-writer-report, S-writer-sales-measure
 
-### P-affiliate — register existing product worker/tools
+### E-affiliate — verify_engine_natural(affiliate)
 
-- 対象: `runtime/openclaw/products/affiliate.json`
-- 境界: `isolated_source`
-- 変更: product_id=affiliate、job_ids=["affiliate-browser", "affiliate-composition", "affiliate-impact-browser", "affiliate-loop", "affiliate-source-refresh", "affiliate-x-browser"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。
-- 検証/完了: binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。
-- 依存: OC-043, OC-053, C-08
-
-### A-affiliate — enable_idle_owner(affiliate)
-
-- 対象: `config/openclaw-routes.json`
+- 対象: `docs/evidence/openclaw-cutover/engines/affiliate-natural.json`
 - 境界: `production`
-- 変更: P-affiliateと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。
-- 検証/完了: idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。
-- 依存: P-affiliate, OC-049, OC-052
+- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
+- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
+- 依存: A-affiliate
 
 ### S-affiliate-composition — commit_transfer(affiliate-composition)
 
@@ -959,21 +1175,13 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残233atom。旧223�
 - 検証/完了: 全job coverage、旧成果契約維持、replay-zero、既存order/receipt/cost保持。test/モデルfinal/exit0だけではPASS不可。
 - 依存: A-affiliate, S-affiliate-composition, S-affiliate-loop, S-affiliate-source-refresh
 
-### P-investment — register existing product worker/tools
+### E-investment — verify_engine_natural(investment)
 
-- 対象: `runtime/openclaw/products/investment.json`
-- 境界: `isolated_source`
-- 変更: product_id=investment、job_ids=["alpaca-investment-paper", "alpaca-investment-live", "investment-cross-venue-report", "investment-strategy-validation"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。
-- 検証/完了: binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。
-- 依存: OC-043, OC-053, C-08
-
-### A-investment — enable_idle_owner(investment)
-
-- 対象: `config/openclaw-routes.json`
+- 対象: `docs/evidence/openclaw-cutover/engines/investment-natural.json`
 - 境界: `production`
-- 変更: P-investmentと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。
-- 検証/完了: idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。
-- 依存: P-investment, OC-049, OC-052
+- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
+- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
+- 依存: A-investment
 
 ### S-alpaca-investment-paper — commit_transfer(alpaca-investment-paper)
 
@@ -1015,21 +1223,13 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残233atom。旧223�
 - 検証/完了: 全job coverage、旧成果契約維持、replay-zero、既存order/receipt/cost保持。test/モデルfinal/exit0だけではPASS不可。
 - 依存: A-investment, S-alpaca-investment-paper, S-alpaca-investment-live, S-investment-cross-venue-report, S-investment-strategy-validation
 
-### P-agent-economy — register existing product worker/tools
+### E-agent-economy — verify_engine_natural(agent-economy)
 
-- 対象: `runtime/openclaw/products/agent-economy.json`
-- 境界: `isolated_source`
-- 変更: product_id=agent-economy、job_ids=["agent-economy-loop", "citizen-refill", "life-manager-x402-ledger", "sol-funding", "the402-provider", "the402-worker", "x402-acquisition-controller", "x402-claude-p", "x402-experiment-franklin1", "x402-franklin1", "x402-franklin2", "x402-inflow-watch", "x402-inflow-watch-claude-p", "x402-inflow-watch-franklin1", "x402-inflow-watch-franklin2", "x402-research-serve", "x402-sale-observer", "x402-seller-8404", "x402-settlement-recorder"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。
-- 検証/完了: binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。
-- 依存: OC-043, OC-053, C-01, C-08
-
-### A-agent-economy — enable_idle_owner(agent-economy)
-
-- 対象: `config/openclaw-routes.json`
+- 対象: `docs/evidence/openclaw-cutover/engines/agent-economy-natural.json`
 - 境界: `production`
-- 変更: P-agent-economyと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。
-- 検証/完了: idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。
-- 依存: P-agent-economy, OC-049, OC-052
+- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
+- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
+- 依存: A-agent-economy
 
 ### S-citizen-refill — commit_transfer(citizen-refill)
 
@@ -1127,21 +1327,13 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残233atom。旧223�
 - 検証/完了: 全job coverage、旧成果契約維持、replay-zero、既存order/receipt/cost保持。test/モデルfinal/exit0だけではPASS不可。
 - 依存: A-agent-economy, S-citizen-refill, S-life-manager-x402-ledger, S-sol-funding, S-x402-acquisition-controller, S-x402-experiment-franklin1, S-x402-inflow-watch, S-x402-inflow-watch-claude-p, S-x402-inflow-watch-franklin1, S-x402-inflow-watch-franklin2, S-x402-sale-observer, S-x402-settlement-recorder
 
-### P-job-hunter — register existing product worker/tools
+### E-job-hunter — verify_engine_natural(job-hunter)
 
-- 対象: `runtime/openclaw/products/job-hunter.json`
-- 境界: `isolated_source`
-- 変更: product_id=job-hunter、job_ids=["job-search-daily", "job-search-health", "job-search-inbox", "job-search-learning"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。
-- 検証/完了: binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。
-- 依存: OC-043, OC-053, C-08
-
-### A-job-hunter — enable_idle_owner(job-hunter)
-
-- 対象: `config/openclaw-routes.json`
+- 対象: `docs/evidence/openclaw-cutover/engines/job-hunter-natural.json`
 - 境界: `production`
-- 変更: P-job-hunterと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。
-- 検証/完了: idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。
-- 依存: P-job-hunter, OC-049, OC-052
+- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
+- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
+- 依存: A-job-hunter
 
 ### S-job-search-daily — commit_transfer(job-search-daily)
 
@@ -1183,21 +1375,13 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残233atom。旧223�
 - 検証/完了: 全job coverage、旧成果契約維持、replay-zero、既存order/receipt/cost保持。test/モデルfinal/exit0だけではPASS不可。
 - 依存: A-job-hunter, S-job-search-daily, S-job-search-health, S-job-search-inbox, S-job-search-learning
 
-### P-fundraiser — register existing product worker/tools
+### E-fundraiser — verify_engine_natural(fundraiser)
 
-- 対象: `runtime/openclaw/products/fundraiser.json`
-- 境界: `isolated_source`
-- 変更: product_id=fundraiser、job_ids=["fundraiser"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。
-- 検証/完了: binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。
-- 依存: OC-043, OC-053, C-08
-
-### A-fundraiser — enable_idle_owner(fundraiser)
-
-- 対象: `config/openclaw-routes.json`
+- 対象: `docs/evidence/openclaw-cutover/engines/fundraiser-natural.json`
 - 境界: `production`
-- 変更: P-fundraiserと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。
-- 検証/完了: idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。
-- 依存: P-fundraiser, OC-049, OC-052
+- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
+- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
+- 依存: A-fundraiser
 
 ### S-fundraiser — commit_transfer(fundraiser)
 
@@ -1215,21 +1399,13 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残233atom。旧223�
 - 検証/完了: 全job coverage、旧成果契約維持、replay-zero、既存order/receipt/cost保持。test/モデルfinal/exit0だけではPASS不可。
 - 依存: A-fundraiser, S-fundraiser
 
-### P-connector — register existing product worker/tools
+### E-connector — verify_engine_natural(connector)
 
-- 対象: `runtime/openclaw/products/connector.json`
-- 境界: `isolated_source`
-- 変更: product_id=connector、job_ids=["life-manager-connector-native"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。
-- 検証/完了: binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。
-- 依存: OC-043, OC-053, C-08
-
-### A-connector — enable_idle_owner(connector)
-
-- 対象: `config/openclaw-routes.json`
+- 対象: `docs/evidence/openclaw-cutover/engines/connector-natural.json`
 - 境界: `production`
-- 変更: P-connectorと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。
-- 検証/完了: idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。
-- 依存: P-connector, OC-049, OC-052
+- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
+- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
+- 依存: A-connector
 
 ### S-life-manager-connector-native — commit_transfer(life-manager-connector-native)
 
@@ -1247,21 +1423,13 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残233atom。旧223�
 - 検証/完了: 全job coverage、旧成果契約維持、replay-zero、既存order/receipt/cost保持。test/モデルfinal/exit0だけではPASS不可。
 - 依存: A-connector, S-life-manager-connector-native
 
-### P-self-build — register existing product worker/tools
+### E-self-build — verify_engine_natural(self-build)
 
-- 対象: `runtime/openclaw/products/self-build.json`
-- 境界: `isolated_source`
-- 変更: product_id=self-build、job_ids=["life-manager-dev", "life-manager-recovery-supervisor", "life-manager-selfbuild", "self-improve-evolve"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。
-- 検証/完了: binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。
-- 依存: OC-043, OC-053, C-02, C-08
-
-### A-self-build — enable_idle_owner(self-build)
-
-- 対象: `config/openclaw-routes.json`
+- 対象: `docs/evidence/openclaw-cutover/engines/self-build-natural.json`
 - 境界: `production`
-- 変更: P-self-buildと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。
-- 検証/完了: idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。
-- 依存: P-self-build, OC-049, OC-052
+- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
+- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
+- 依存: A-self-build
 
 ### S-life-manager-dev — commit_transfer(life-manager-dev)
 
@@ -1303,21 +1471,13 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残233atom。旧223�
 - 検証/完了: 全job coverage、旧成果契約維持、replay-zero、既存order/receipt/cost保持。test/モデルfinal/exit0だけではPASS不可。
 - 依存: A-self-build, S-life-manager-dev, S-life-manager-recovery-supervisor, S-life-manager-selfbuild, S-self-improve-evolve
 
-### P-mobile-apps — register existing product worker/tools
+### E-mobile-apps — verify_engine_natural(mobile-apps)
 
-- 対象: `runtime/openclaw/products/mobile-apps.json`
-- 境界: `isolated_source`
-- 変更: product_id=mobile-apps、job_ids=["life-manager-anicca-affirmation-youtube", "life-manager-anicca-ai-youtube", "life-manager-anicca-buddha-tiktok", "life-manager-anicca-en-affirmation-instagram", "life-manager-anicca-en-affirmation-tiktok", "life-manager-anicca-en-card-instagram", "life-manager-anicca-en-slideshow-tiktok", "life-manager-anicca-en-widget-instagram", "life-manager-anicca-en2-affirmation-tiktok", "life-manager-anicca-he", "life-manager-anicca-ja-widget-instagram", "life-manager-anicca-jp1-tiktok", "life-manager-anicca-jp4", "life-manager-anicca-larry-ja-instagram", "life-manager-anicca-main-instagram", "life-manager-anicca-main-tiktok", "life-manager-daily", "life-manager-daily-driver", "life-manager-honne-en", "life-manager-honne-ja", "life-manager-instagram-metrics", "life-manager-tiktok-metrics", "tiktok-browser"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。
-- 検証/完了: binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。
-- 依存: OC-043, OC-053, C-04, C-08
-
-### A-mobile-apps — enable_idle_owner(mobile-apps)
-
-- 対象: `config/openclaw-routes.json`
+- 対象: `docs/evidence/openclaw-cutover/engines/mobile-apps-natural.json`
 - 境界: `production`
-- 変更: P-mobile-appsと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。
-- 検証/完了: idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。
-- 依存: P-mobile-apps, OC-049, OC-052
+- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
+- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
+- 依存: A-mobile-apps
 
 ### S-life-manager-anicca-affirmation-youtube — commit_transfer(life-manager-anicca-affirmation-youtube)
 
@@ -1495,21 +1655,13 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残233atom。旧223�
 - 検証/完了: 全job coverage、旧成果契約維持、replay-zero、既存order/receipt/cost保持。test/モデルfinal/exit0だけではPASS不可。
 - 依存: A-mobile-apps, S-life-manager-anicca-affirmation-youtube, S-life-manager-anicca-ai-youtube, S-life-manager-anicca-buddha-tiktok, S-life-manager-anicca-en-affirmation-instagram, S-life-manager-anicca-en-affirmation-tiktok, S-life-manager-anicca-en-card-instagram, S-life-manager-anicca-en-slideshow-tiktok, S-life-manager-anicca-en-widget-instagram, S-life-manager-anicca-en2-affirmation-tiktok, S-life-manager-anicca-he, S-life-manager-anicca-ja-widget-instagram, S-life-manager-anicca-jp1-tiktok, S-life-manager-anicca-jp4, S-life-manager-anicca-larry-ja-instagram, S-life-manager-anicca-main-instagram, S-life-manager-anicca-main-tiktok, S-life-manager-daily, S-life-manager-honne-en, S-life-manager-honne-ja, S-life-manager-instagram-metrics, S-life-manager-tiktok-metrics
 
-### P-ebook — register existing product worker/tools
+### E-ebook — verify_engine_natural(ebook)
 
-- 対象: `runtime/openclaw/products/ebook.json`
-- 境界: `isolated_source`
-- 変更: product_id=ebook、job_ids=["ebook-en-instagram-daily", "ebook-en-tiktok-daily", "ebook-ja-instagram-daily", "ebook-ja-tiktok-daily"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。
-- 検証/完了: binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。
-- 依存: OC-043, OC-053, C-08
-
-### A-ebook — enable_idle_owner(ebook)
-
-- 対象: `config/openclaw-routes.json`
+- 対象: `docs/evidence/openclaw-cutover/engines/ebook-natural.json`
 - 境界: `production`
-- 変更: P-ebookと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。
-- 検証/完了: idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。
-- 依存: P-ebook, OC-049, OC-052
+- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
+- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
+- 依存: A-ebook
 
 ### S-ebook-en-instagram-daily — commit_transfer(ebook-en-instagram-daily)
 
@@ -1551,21 +1703,13 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残233atom。旧223�
 - 検証/完了: 全job coverage、旧成果契約維持、replay-zero、既存order/receipt/cost保持。test/モデルfinal/exit0だけではPASS不可。
 - 依存: A-ebook, S-ebook-en-instagram-daily, S-ebook-en-tiktok-daily, S-ebook-ja-instagram-daily, S-ebook-ja-tiktok-daily
 
-### P-capafy — register existing product worker/tools
+### E-capafy — verify_engine_natural(capafy)
 
-- 対象: `runtime/openclaw/products/capafy.json`
-- 境界: `isolated_source`
-- 変更: product_id=capafy、job_ids=["capafy-browser", "capafy-distribute-daily", "capafy-goal-monitor", "capafy-goal-monitor-daily-close", "capafy-goal-monitor-hourly", "capafy-ig-account-manager", "capafy-ig-marketing-daily", "capafy-loop-daily", "capafy-loop-healthcheck", "capafy-outcome-monitor", "life-manager-capafy-ig"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。
-- 検証/完了: binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。
-- 依存: OC-043, OC-053, C-08
-
-### A-capafy — enable_idle_owner(capafy)
-
-- 対象: `config/openclaw-routes.json`
+- 対象: `docs/evidence/openclaw-cutover/engines/capafy-natural.json`
 - 境界: `production`
-- 変更: P-capafyと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。
-- 検証/完了: idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。
-- 依存: P-capafy, OC-049, OC-052
+- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
+- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
+- 依存: A-capafy
 
 ### S-capafy-distribute-daily — commit_transfer(capafy-distribute-daily)
 
@@ -1655,21 +1799,13 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残233atom。旧223�
 - 検証/完了: 全job coverage、旧成果契約維持、replay-zero、既存order/receipt/cost保持。test/モデルfinal/exit0だけではPASS不可。
 - 依存: A-capafy, S-capafy-distribute-daily, S-capafy-goal-monitor, S-capafy-goal-monitor-daily-close, S-capafy-goal-monitor-hourly, S-capafy-ig-account-manager, S-capafy-ig-marketing-daily, S-capafy-loop-daily, S-capafy-loop-healthcheck, S-capafy-outcome-monitor, S-life-manager-capafy-ig
 
-### P-line-sticker — register existing product worker/tools
+### E-line-sticker — verify_engine_natural(line-sticker)
 
-- 対象: `runtime/openclaw/products/line-sticker.json`
-- 境界: `isolated_source`
-- 変更: product_id=line-sticker、job_ids=["line-creators-browser", "line-sticker-factory-hourly", "line-sticker-readback-hourly"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。
-- 検証/完了: binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。
-- 依存: OC-043, OC-053, C-05, C-06, C-07, C-08
-
-### A-line-sticker — enable_idle_owner(line-sticker)
-
-- 対象: `config/openclaw-routes.json`
+- 対象: `docs/evidence/openclaw-cutover/engines/line-sticker-natural.json`
 - 境界: `production`
-- 変更: P-line-stickerと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。
-- 検証/完了: idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。
-- 依存: P-line-sticker, OC-049, OC-052
+- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
+- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
+- 依存: A-line-sticker
 
 ### S-line-sticker-factory-hourly — commit_transfer(line-sticker-factory-hourly)
 
@@ -1695,21 +1831,13 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残233atom。旧223�
 - 検証/完了: 全job coverage、旧成果契約維持、replay-zero、既存order/receipt/cost保持。test/モデルfinal/exit0だけではPASS不可。
 - 依存: A-line-sticker, S-line-sticker-factory-hourly, S-line-sticker-readback-hourly
 
-### P-cfo — register existing product worker/tools
+### E-cfo — verify_engine_natural(cfo)
 
-- 対象: `runtime/openclaw/products/cfo.json`
-- 境界: `isolated_source`
-- 変更: product_id=cfo、job_ids=["life-manager-cfo-hourly", "life-manager-financial-report", "life-manager-payout"]。registry固定entrypoint/cadence/effect/schema/既存domain guard/readbackをbindingへ登録。既存業務body/auth/商品dataは保持。
-- 検証/完了: binding schema closed、job集合がcatalog一致、旧workerと同input/output、同account/model/task、domain effect/readbackが同じ、native tool迂回0。失敗時は修正してGREENにし、旧経路を最終構成として完了にしない。
-- 依存: OC-043, OC-053, C-08
-
-### A-cfo — enable_idle_owner(cfo)
-
-- 対象: `config/openclaw-routes.json`
+- 対象: `docs/evidence/openclaw-cutover/engines/cfo-natural.json`
 - 境界: `production`
-- 変更: P-cfoと共通/native/tool acceptance PASS後、当該productの各model callerをowner deploy lock下で一件ずつ移管。active/queued/reserved/unknownがあればdefer。旧cadence維持、旧仕事は終了まで旧route、次の仕事だけ新route。deterministic jobにmodel追加0、continuous driver停止0。
-- 検証/完了: idle対象のみ反映、同task再送0、他owner変更0、RPC開始後fallback0、main immutable releaseのloaded argv確認。
-- 依存: P-cfo, OC-049, OC-052
+- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
+- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
+- 依存: A-cfo
 
 ### S-life-manager-cfo-hourly — commit_transfer(life-manager-cfo-hourly)
 
@@ -1743,151 +1871,19 @@ baseline: 18分類 / 113jobs / finite 95 / continuous 18。残233atom。旧223�
 - 検証/完了: 全job coverage、旧成果契約維持、replay-zero、既存order/receipt/cost保持。test/モデルfinal/exit0だけではPASS不可。
 - 依存: A-cfo, S-life-manager-cfo-hourly, S-life-manager-financial-report, S-life-manager-payout
 
-### E-gig-coconala — verify_engine_natural(gig-coconala)
+### F-04 — remove only unreferenced legacy routing
 
-- 対象: `docs/evidence/openclaw-cutover/engines/gig-coconala-natural.json`
+- 対象: `runtime/agent-runner/agent_runner.py`
+- 境界: `retirement`
+- 変更: 全V自然確認後、旧model runtime dispatch/provider fallback/旧job scheduling分岐の参照を0にして削除。bin/lm-loopはOpenClaw操作への互換facadeへ変更。native Codex binary、OS browser driver、商品worker、domain budget/effect/readback/finance/dataは保持する。
+- 検証/完了: 全caller closure参照0、既存source acceptance＋natural records一致。
+- 依存: V-gig-coconala, V-gig-lancers, V-gig-crowdworks, V-gig-mercor, V-promptbase, V-writer, V-affiliate, V-investment, V-agent-economy, V-job-hunter, V-fundraiser, V-connector, V-self-build, V-mobile-apps, V-ebook, V-capafy, V-line-sticker, V-cfo, F-01, F-02, F-03
+
+### F-07 — final product/job reconciliation
+
+- 対象: `docs/evidence/openclaw-cutover/final.json`
 - 境界: `production`
-- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
-- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
-- 依存: A-gig-coconala
+- 変更: 全catalog business jobsの新engine管理、全finiteのOpenClaw cron、continuousの同OS/browser driver、source/main/release/session/trace/domain成果、旧harness参照0、rollbackの一時退避以外旧job authority0を照合して保存。旧harnessを残したまま全移行完了とはしない。
+- 検証/完了: 最新catalog全job coverage、全finite cron移管、continuous owner維持、未確認effect0、旧harness参照0、自然成果readback。性能改善は実測のみ。
+- 依存: F-04, F-05, F-06
 
-### E-gig-lancers — verify_engine_natural(gig-lancers)
-
-- 対象: `docs/evidence/openclaw-cutover/engines/gig-lancers-natural.json`
-- 境界: `production`
-- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
-- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
-- 依存: A-gig-lancers
-
-### E-gig-crowdworks — verify_engine_natural(gig-crowdworks)
-
-- 対象: `docs/evidence/openclaw-cutover/engines/gig-crowdworks-natural.json`
-- 境界: `production`
-- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
-- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
-- 依存: A-gig-crowdworks
-
-### E-gig-mercor — verify_engine_natural(gig-mercor)
-
-- 対象: `docs/evidence/openclaw-cutover/engines/gig-mercor-natural.json`
-- 境界: `production`
-- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
-- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
-- 依存: A-gig-mercor
-
-### E-promptbase — verify_engine_natural(promptbase)
-
-- 対象: `docs/evidence/openclaw-cutover/engines/promptbase-natural.json`
-- 境界: `production`
-- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
-- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
-- 依存: A-promptbase
-
-### E-writer — verify_engine_natural(writer)
-
-- 対象: `docs/evidence/openclaw-cutover/engines/writer-natural.json`
-- 境界: `production`
-- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
-- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
-- 依存: A-writer
-
-### E-affiliate — verify_engine_natural(affiliate)
-
-- 対象: `docs/evidence/openclaw-cutover/engines/affiliate-natural.json`
-- 境界: `production`
-- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
-- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
-- 依存: A-affiliate
-
-### E-investment — verify_engine_natural(investment)
-
-- 対象: `docs/evidence/openclaw-cutover/engines/investment-natural.json`
-- 境界: `production`
-- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
-- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
-- 依存: A-investment
-
-### E-agent-economy — verify_engine_natural(agent-economy)
-
-- 対象: `docs/evidence/openclaw-cutover/engines/agent-economy-natural.json`
-- 境界: `production`
-- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
-- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
-- 依存: A-agent-economy
-
-### E-job-hunter — verify_engine_natural(job-hunter)
-
-- 対象: `docs/evidence/openclaw-cutover/engines/job-hunter-natural.json`
-- 境界: `production`
-- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
-- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
-- 依存: A-job-hunter
-
-### E-fundraiser — verify_engine_natural(fundraiser)
-
-- 対象: `docs/evidence/openclaw-cutover/engines/fundraiser-natural.json`
-- 境界: `production`
-- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
-- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
-- 依存: A-fundraiser
-
-### E-connector — verify_engine_natural(connector)
-
-- 対象: `docs/evidence/openclaw-cutover/engines/connector-natural.json`
-- 境界: `production`
-- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
-- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
-- 依存: A-connector
-
-### E-self-build — verify_engine_natural(self-build)
-
-- 対象: `docs/evidence/openclaw-cutover/engines/self-build-natural.json`
-- 境界: `production`
-- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
-- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
-- 依存: A-self-build
-
-### E-mobile-apps — verify_engine_natural(mobile-apps)
-
-- 対象: `docs/evidence/openclaw-cutover/engines/mobile-apps-natural.json`
-- 境界: `production`
-- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
-- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
-- 依存: A-mobile-apps
-
-### E-ebook — verify_engine_natural(ebook)
-
-- 対象: `docs/evidence/openclaw-cutover/engines/ebook-natural.json`
-- 境界: `production`
-- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
-- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
-- 依存: A-ebook
-
-### E-capafy — verify_engine_natural(capafy)
-
-- 対象: `docs/evidence/openclaw-cutover/engines/capafy-natural.json`
-- 境界: `production`
-- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
-- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
-- 依存: A-capafy
-
-### E-line-sticker — verify_engine_natural(line-sticker)
-
-- 対象: `docs/evidence/openclaw-cutover/engines/line-sticker-natural.json`
-- 境界: `production`
-- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
-- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
-- 依存: A-line-sticker
-
-### E-cfo — verify_engine_natural(cfo)
-
-- 対象: `docs/evidence/openclaw-cutover/engines/cfo-natural.json`
-- 境界: `production`
-- 変更: 旧cadenceのまま、新engineで当該ownerの次の自然仕事を確認する。release/owner/occurrence/task/session/traceを元の業務contract/公式receiptとjoin。確認前にschedulerを移さない。
-- 検証/完了: 対象model経路native Codexのみ、同業務receipt、replay-zero、未知effectなら未完。running ownerの中断/再送0。
-- 依存: A-cfo
-
-
-検証前訂正: sourceのscheduler関数は現行 `_dispatch_reserved`（旧仕様 `_kick_reserved_owners` は存在しない）。全Sの前提へE-productのengine自然確認を追加し、先にscheduleを移す余地を無くす。
-
-実行順補正: 既存text RPC境界のOC012 contract fixtureを先に完成し、その観測をOC011 StopProofへ利用する。OC020はOC011を必須依存にする。OC052 registry sourceはdefault-offとしreconciler暗黙startを拒否する。
