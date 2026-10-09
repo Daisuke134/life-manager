@@ -18,6 +18,7 @@ from runtime.loop.central_cleanup import installed_state_roots, loaded_release_r
 from runtime.loop.central_cleanup import no_effect_loop_ids, open_release_roots, release_gc, scratch_gc
 from runtime.loop.central_cleanup import host_cleanup_command, host_cleanup_ok, host_cleanup_readback
 from runtime.loop import central_cleanup
+from runtime.loop import loop_cleanup
 
 
 def completed(root: Path, name: str, size: int = 1) -> Path:
@@ -29,6 +30,45 @@ def completed(root: Path, name: str, size: int = 1) -> Path:
 
 
 class LoopCleanupTest(unittest.TestCase):
+    def test_reclaimed_release_is_not_selected_or_collected(self):
+        for marker_kind in ("descriptor", "dangling", "probe_error"):
+            with self.subTest(marker_kind=marker_kind), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                release = root / "releases/20260101T000000-aaaaaaaa"
+                release.mkdir(parents=True)
+                descriptor = json.dumps({"sha": "a" * 40, "release_paths": "ALL"}).encode()
+                (release / "RELEASE.json").write_bytes(descriptor)
+                self.assertTrue(loop_cleanup._valid_release(release))
+                retained = {}
+                for relative in ("memory/owner.md", "state/owner.jsonl", "unknown.bin"):
+                    item = release / relative
+                    item.parent.mkdir(exist_ok=True)
+                    item.write_bytes(b"preserve at this path\n")
+                    retained[item] = (item.read_bytes(), item.stat().st_ino)
+                marker = release / "RECLAIMED-RELEASE.json"
+                if marker_kind == "descriptor":
+                    marker.write_bytes(descriptor)
+                elif marker_kind == "dangling":
+                    marker.symlink_to(release / "missing-descriptor")
+                original_lstat = Path.lstat
+
+                def probe(path, *args, **kwargs):
+                    if marker_kind == "probe_error" and path == marker:
+                        raise PermissionError("marker probe unavailable")
+                    return original_lstat(path, *args, **kwargs)
+
+                with mock.patch.object(Path, "lstat", autospec=True, side_effect=probe):
+                    self.assertFalse(loop_cleanup._valid_release(release))
+                    result = gc_releases(root / "releases", root / "current", keep=0,
+                                         protected=set(), managed_bytes=0,
+                                         closed_releases={release})
+                self.assertEqual(result["evaluated_releases"], 0)
+                self.assertEqual(result["removed_releases"], 0)
+                self.assertEqual(result["protected_deletions"], 0)
+                self.assertEqual((release / "RELEASE.json").read_bytes(), descriptor)
+                for item, expected in retained.items():
+                    self.assertEqual((item.read_bytes(), item.stat().st_ino), expected)
+
     def test_scratch_gc_keeps_live_log_relay_after_parent_exit(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

@@ -18,6 +18,49 @@ DEPENDENCY_ROOTS = (
 
 
 class CutLoopReleaseTest(unittest.TestCase):
+    def test_matching_locked_dependencies_rejects_reclaimed_donor(self):
+        source = (ROOT / "bin/cut-loop-release.sh").read_text()
+        start = source.index("matching_locked_dependencies() {")
+        function = source[start:source.index("\nlink_locked_dependencies()", start)]
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            target = root / "target"
+            donor = root / "releases/donor"
+            target.mkdir()
+            (donor / "node_modules").mkdir(parents=True)
+            for filename in ("package.json", "package-lock.json"):
+                (target / filename).write_text("{}\n")
+                (donor / filename).write_text("{}\n")
+            (donor / "node_modules/.package-lock.json").write_text("{}\n")
+            descriptor = json.dumps({"sha": "a" * 40, "release_paths": "ALL"}).encode()
+            (donor / "RELEASE.json").write_bytes(descriptor)
+            marker = donor / "RECLAIMED-RELEASE.json"
+            for kind in ("absent", "descriptor", "dangling", "probe_error"):
+                with self.subTest(kind=kind):
+                    if kind == "descriptor":
+                        marker.write_bytes(descriptor)
+                    elif kind == "dangling":
+                        marker.symlink_to(donor / "missing-descriptor")
+                    elif kind == "probe_error":
+                        donor.chmod(0)
+                    try:
+                        result = subprocess.run(
+                            ["bash"], input=function + '\nmatching_locked_dependencies "$DEST"\n',
+                            env={**os.environ, "SCRIPT_ROOT": str(ROOT),
+                                 "DEST": str(target), "RELEASES": str(root / "releases")},
+                            capture_output=True, text=True, check=False,
+                        )
+                    finally:
+                        donor.chmod(0o755)
+                        marker.unlink(missing_ok=True)
+                    if kind == "absent":
+                        self.assertEqual(result.returncode, 0, result.stderr)
+                        self.assertEqual(result.stdout.strip(), str((donor / "node_modules").resolve()))
+                    else:
+                        self.assertEqual(result.returncode, 1, result.stderr)
+                        self.assertEqual(result.stdout, "")
+                    self.assertEqual((donor / "RELEASE.json").read_bytes(), descriptor)
+
     def _pushed_branch_fixture(self, root):
         repo, origin = root / "repo", root / "origin.git"
         repo.mkdir()

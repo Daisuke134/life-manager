@@ -181,8 +181,20 @@ def cleanup_run_root(root: Path, contract: dict, active_run_ids: set[str], *,
     return result
 
 
+def release_is_reclaimed(path: Path) -> bool:
+    """Reject selection unless the reclaimed descriptor is definitely absent."""
+    try:
+        (path / "RECLAIMED-RELEASE.json").lstat()
+    except FileNotFoundError:
+        return False
+    except OSError:
+        return True
+    return True
+
+
 def _valid_release(path: Path) -> bool:
-    if not RELEASE_NAME.fullmatch(path.name) or not path.is_dir() or path.is_symlink():
+    if (not RELEASE_NAME.fullmatch(path.name) or not path.is_dir() or path.is_symlink()
+            or release_is_reclaimed(path)):
         return False
     try:
         value = json.loads((path / "RELEASE.json").read_text())
