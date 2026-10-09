@@ -258,7 +258,7 @@ function makeComposioCalendar(opts = {}) {
         const request = reminderEvent ? {
           endpoint: GOOGLE_CALENDAR_EVENTS_ENDPOINT,
           method: "POST",
-          parameters: [{ name: "sendUpdates", value: String(args.send_updates || "none"), in: "query" }],
+          parameters: [{ name: "sendUpdates", value: String(args.send_updates || "none"), type: "query" }],
           body: reminderEvent,
         } : args;
         return withCreateEffect(await execute(tool, uid, request,
