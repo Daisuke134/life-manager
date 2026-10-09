@@ -11160,3 +11160,9 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 10. Postiz views/clicks、checkout/conversion、settled subscription revenue、refund/fees、HeyGen/render/email costを週次で照合し、勝ちcreative/CTAを反復してverified net MRR $10,000を達成する。1,002 subscriptionsはgross mathでありnet達成証拠ではない。
 
 **次セッションの現在cursor:** Todo 1のhost容量回復と隔離worktree作成。remote spec branchはfix/ebook-handover-20261009、branch上の現行spec commitを最初に再取得・検証してから編集する。Life Manager共有checkoutと、PR #420のdirty legacy worktreeには手を入れない。
+
+### 2026-10-09 18:00 JST — Capafy submit order follows market category demand
+
+- **Fact:** every ready catalog candidate self-declared `Demand rank: 1`, so ties fell back to alphabetical order and the next free review slot would go to `annual-report-risk-change-brief` (B2B). Market sweep 2026-10-08 (854 agents): sales per agent 77.1 short-video/creator, 56.7 analysis (one football seller = 3,093), 33.5 finance, 0.5-6.6 B2B decks. Our 30-day paid orders come from Hook Lab, TikTok Script Pro, Marketing Strategist, YouTube Script Writer, Slide Maker.
+- **Change:** `transcript-clip-map-free`, `podcast-clip-hook-lab`, `srt-subtitle-readability-fixer` set to `Demand rank: 0` with the evidence line. Review cap is 5 (all occupied by B2B evidence editors submitted 10/08-10/09); these three take the next slots.
+- **Next:** the catalog generator must stop producing B2B evidence/deck candidates and copy category-5 sellers; ranks must come from the market sweep, not the author.
