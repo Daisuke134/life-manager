@@ -3369,3 +3369,16 @@ def test_receipt_carries_loaded_cleanup_identity(tmp_path, monkeypatch):
     saved = json.loads((tmp_path / "state/last-receipt.json").read_text())
     assert saved["identity"] == {"owner_id": "life-manager-disk-cleanup", "run_id": "run-1", "occurrence_id": "life-manager-disk-cleanup:run-1", "release_sha": "a" * 40}
     assert payload["identity"] == saved["identity"]
+
+
+def test_governor_reports_growth_and_preservation_reason_without_false_recovery(tmp_path, monkeypatch):
+    governor = HostDiskGovernor(home=tmp_path, state_dir=tmp_path / "state", usage=lambda: (600*1024**2,100*GiB), lsof=lambda _p: "confirmed-closed")
+    monkeypatch.setattr(governor, "discover_candidates", lambda: [])
+    monkeypatch.setattr(disk_cleanup, "collect_host_inventory", lambda **_k: {"coverage": {"mount_count":1,"root_count":1,"gaps":[]},"storage_growth":{"roots":[{"path":"/srv/lm/unknown","delta_bytes":1048576,"attribution":"unattributed"}],"non_additive":True}})
+    assert governor.acquire_lock()
+    try: result = governor.run_once()
+    finally: governor.release_lock()
+    assert result["storage_growth"]["roots"][0]["delta_bytes"] == 1048576
+    assert result["capacity_recovery"]["status"] == "unmet"
+    assert result["storage_next_action"] == "inspect_unattributed_writer"
+    assert result["protected_deletions"] == 0

@@ -1,4 +1,5 @@
 import json
+import plistlib
 import fcntl
 import os
 import subprocess
@@ -28,6 +29,26 @@ def completed(root: Path, name: str, size: int = 1) -> Path:
 
 
 class LoopCleanupTest(unittest.TestCase):
+    def test_managed_gc_uses_installed_owner_and_positive_closed_probe(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            config = base / "config"; config.mkdir()
+            registry = {"loops": {"alpha": {"cleanup": {"max_runs": 100, "max_age_days": 365}}}}
+            (config / "loop-registry.json").write_text(json.dumps(registry))
+            policy = json.loads((Path(__file__).resolve().parents[3] / "config/storage-policy.json").read_text())
+            policy["owners"] = {"alpha": {"owner_diagnostic_retained_bytes": 1024}}
+            (config / "storage-policy.json").write_text(json.dumps(policy))
+            state = base / "state"; run = completed(state, "old", 4096)
+            (run / ".owner.json").write_text(json.dumps({"pid": 111, "process_start": "parent"}))
+            (run / ".owner.json").chmod(0o600)
+            agents = base / "agents"; agents.mkdir()
+            (agents / "ai.anicca.alpha.plist").write_bytes(plistlib.dumps({
+                "ProgramArguments": ["/release/bin/lm-loop-run", "alpha", "/release"],
+                "EnvironmentVariables": {"LIFE_MANAGER_STATE_ROOT": str(state)}}))
+            result = central_cleanup.managed_run_gc(agents, registry_path=config / "loop-registry.json",
+                policy_path=config / "storage-policy.json", starts={}, closed_probe=lambda _p: True)
+            self.assertFalse(run.exists())
+            self.assertEqual(result["removed_runs"], 1)
     def test_scratch_gc_keeps_live_log_relay_after_parent_exit(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

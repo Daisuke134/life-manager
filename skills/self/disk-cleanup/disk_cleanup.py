@@ -1621,6 +1621,13 @@ class HostDiskGovernor:
             result["inventory_mounts"] = int(inventory["coverage"]["mount_count"])
             result["inventory_roots"] = int(inventory["coverage"]["root_count"])
             result["inventory_gaps"] = len(inventory["coverage"]["gaps"])
+            growth = inventory.get("storage_growth")
+            if isinstance(growth, dict):
+                # Observations never expand the deletion allow-list.
+                result["storage_growth"] = {
+                    "roots": growth.get("roots", [])[:64],
+                    "non_additive": True,
+                }
         except (OSError, RuntimeError, ValueError, KeyError) as exc:
             result["inventory_error"] = type(exc).__name__
         try:
@@ -1636,6 +1643,13 @@ class HostDiskGovernor:
         # main() holds the singleton governor lock across cleanup and this exact-owner finalizer.
         result["disk_writers_stop"] = self._clear_disk_writers_stop(free_after)
         result["capacity_recovery"] = _capacity_recovery(result)
+        growing_unknown = any(
+            r.get("attribution") == "unattributed" and type(r.get("delta_bytes")) is int
+            and r["delta_bytes"] > 0 for r in (result.get("storage_growth") or {}).get("roots", []))
+        result["storage_next_action"] = (
+            "inspect_unattributed_writer" if growing_unknown
+            else "inspect_preserved_candidates" if result["capacity_recovery"]["status"] != "met"
+            else "continue_bounded_retention")
         result["ok"] = _cleanup_terminal_ok(result)
         receipt_status = self._receipt(result)
         if receipt_status is not None:
