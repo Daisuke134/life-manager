@@ -20,6 +20,7 @@ export function buildRecoveryIntentRecord({
   consecutiveFailureStreak = 1,
   threshold = 3,
   blocker = null,
+  storageFailure = null,
 } = {}) {
   if (typeof loopId !== 'string' || !loopId.trim()
     || typeof ownerId !== 'string' || !ownerId.trim()
@@ -40,6 +41,7 @@ export function buildRecoveryIntentRecord({
       consecutive_failure_streak: consecutiveFailureStreak,
       threshold,
       blocker,
+      ...(storageFailure ? {storage_failure: storageFailure} : {}),
       evidence_refs: [`lm-loop://${loopId}/${wakeId}/failure`],
     });
   } catch {

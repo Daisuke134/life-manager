@@ -66,6 +66,19 @@ async function releaseRoot(sha = SHA) {
   return root;
 }
 
+test('storage cleanup pending stays queued without executing or consuming retry budget', async () => {
+  const root = await releaseRoot();
+  const plan = buildRecoveryApplyPlan({intent: intent({run_id:'run-1',
+    storage_failure:{errno:28, operation:'scratch_allocation', effect_started:false,
+      proof_ref:'lm-storage://example-loop/run-1/scratch_allocation'}}), registry});
+  let calls = 0;
+  const result = await executeRecoveryPlan({plan, registry, releaseRoot:root,
+    runCommand:async () => { calls++; return {code:0}; }});
+  assert.equal(result.state, 'queued');
+  assert.equal(result.budget_consumed, false);
+  assert.equal(calls, 0);
+});
+
 test('executes exactly one owner-scoped reconcile on the intended release', async () => {
   const root = await releaseRoot();
   const plan = buildRecoveryApplyPlan({ intent: intent(), registry });

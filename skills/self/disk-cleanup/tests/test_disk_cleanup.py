@@ -1,5 +1,6 @@
 import errno
 import json
+import tempfile
 import os
 import signal
 import stat
@@ -1599,36 +1600,37 @@ def test_closed_browser_clone_with_source_named_dependency_is_reclaimed(
 def test_discover_and_sweep_allowlisted_tmp_cache_when_gettempdir_probe_fails(
     tmp_path: Path, monkeypatch
 ) -> None:
-    temporary = tmp_path / "tmp"
-    candidate = temporary / "capafy-hf-npm.no-tempfile-probe"
-    candidate.mkdir(parents=True)
-    (candidate / "payload").write_bytes(b"x" * 64)
-    os.utime(candidate, (1, 1))
-    monkeypatch.setenv("TMPDIR", str(temporary))
+    with tempfile.TemporaryDirectory(prefix="lm-readonly-temp-probe-", dir="/tmp") as directory:
+        temporary = Path(directory)
+        candidate = temporary / "capafy-hf-npm.no-tempfile-probe"
+        candidate.mkdir(parents=True)
+        (candidate / "payload").write_bytes(b"x" * 64)
+        os.utime(candidate, (1, 1))
+        monkeypatch.setenv("TMPDIR", str(temporary))
 
-    def no_writable_temporary_directory() -> str:
-        raise FileNotFoundError("No usable temporary directory found")
+        def no_writable_temporary_directory() -> str:
+            raise FileNotFoundError("No usable temporary directory found")
 
-    monkeypatch.setattr(
-        disk_cleanup.tempfile, "gettempdir", no_writable_temporary_directory
-    )
-    governor = HostDiskGovernor(
-        home=tmp_path,
-        state_dir=tmp_path / "state",
-        lsof=lambda _path: "confirmed-closed",
-        usage=lambda: (0, 1),
-    )
+        monkeypatch.setattr(
+            disk_cleanup.tempfile, "gettempdir", no_writable_temporary_directory
+        )
+        governor = HostDiskGovernor(
+            home=tmp_path,
+            state_dir=tmp_path / "state",
+            lsof=lambda _path: "confirmed-closed",
+            usage=lambda: (0, 1),
+        )
 
-    candidates = [
-        item for item in governor.discover_candidates()
-        if item.get("owner") == "temporary-run"
-    ]
-    assert [Path(item["path"]) for item in candidates] == [candidate]
+        candidates = [
+            item for item in governor.discover_candidates()
+            if item.get("owner") == "temporary-run"
+        ]
+        assert [Path(item["path"]) for item in candidates] == [candidate]
 
-    result = governor.sweep(candidates, write_receipt=False)
+        result = governor.sweep(candidates, write_receipt=False)
 
-    assert not candidate.exists()
-    assert result["reclaimed"] == 64
+        assert not candidate.exists()
+        assert result["reclaimed"] == 64
 
 
 def test_discover_candidates_uses_darwin_user_temp_when_tmpdir_unset(
@@ -3386,3 +3388,36 @@ def test_receipt_replace_fd_reuse_does_not_close_unrelated_fd(
         os.fstat(retained_fd)
     finally:
         os.close(retained_fd)
+
+
+def test_receipt_carries_loaded_cleanup_identity(tmp_path, monkeypatch):
+    root = tmp_path / "release"
+    root.mkdir()
+    (root / "RELEASE.json").write_text(json.dumps({"sha": "a" * 40}))
+    monkeypatch.setattr(disk_cleanup, "REPOSITORY_ROOT", root)
+    monkeypatch.setenv("LIFE_MANAGER_RUN_ID", "run-1")
+    monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", "life-manager-disk-cleanup:run-1")
+    governor = HostDiskGovernor(home=tmp_path, state_dir=tmp_path / "state")
+    payload = {"free_after": 600 * 1024**2, "errors": 0, "protected_deletions": 0}
+    governor._receipt(payload)
+    saved = json.loads((tmp_path / "state/last-receipt.json").read_text())
+    assert saved["identity"] == {"owner_id": "life-manager-disk-cleanup", "run_id": "run-1", "occurrence_id": "life-manager-disk-cleanup:run-1", "release_sha": "a" * 40}
+    assert payload["identity"] == saved["identity"]
+    monkeypatch.delenv("LIFE_MANAGER_RUN_ID")
+    monkeypatch.delenv("LIFE_MANAGER_OCCURRENCE_ID")
+    governor._receipt({"free_after": 400*1024**2})
+    assert json.loads((tmp_path / "state/last-receipt.json").read_text())["identity"] == saved["identity"]
+    assert "identity" not in json.loads((tmp_path / "state/last-unbound-receipt.json").read_text())
+
+
+def test_governor_reports_growth_and_preservation_reason_without_false_recovery(tmp_path, monkeypatch):
+    governor = HostDiskGovernor(home=tmp_path, state_dir=tmp_path / "state", usage=lambda: (600*1024**2,100*GiB), lsof=lambda _p: "confirmed-closed")
+    monkeypatch.setattr(governor, "discover_candidates", lambda: [])
+    monkeypatch.setattr(disk_cleanup, "collect_host_inventory", lambda **_k: {"coverage": {"mount_count":1,"root_count":1,"gaps":[]},"storage_growth":{"roots":[{"path":"/srv/lm/unknown","delta_bytes":1048576,"attribution":"unattributed"}],"non_additive":True}})
+    assert governor.acquire_lock()
+    try: result = governor.run_once()
+    finally: governor.release_lock()
+    assert result["storage_growth"]["roots"][0]["delta_bytes"] == 1048576
+    assert result["capacity_recovery"]["status"] == "unmet"
+    assert result["storage_next_action"] == "inspect_unattributed_writer"
+    assert result["protected_deletions"] == 0

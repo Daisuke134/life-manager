@@ -36,6 +36,9 @@ from runtime.loop.runtime_event import (
     validate_runtime_event,
 )
 from runtime.host.memory_admission import memory_free_percent
+from runtime.host.storage_policy import load_storage_policy
+from runtime.host.storage_failure import classify_storage_failure
+from runtime.host.bounded_output import start_stderr_relay, read_relay_snapshot
 from runtime.host.resource_admission import (
     OCCURRENCE_ID_PATTERN,
     cancel_durable as cancel_durable_resource,
@@ -322,6 +325,7 @@ def _enqueue_recovery_intent(release_root: Path, event: dict, scratch: Path) -> 
         "consecutive_failure_streak": 1,
         "threshold": 3,
         "evidence_refs": event["evidence_refs"],
+        **({"storage_failure": event["storage_failure"]} if "storage_failure" in event else {}),
     })
     result = subprocess.run(
         [_runtime_node(), str(classifier), "--input", str(input_path),
@@ -1070,21 +1074,31 @@ def _run_entrypoint_with_stderr_capture(
         timeout_seconds: float | None = None,
         termination_grace_seconds: float = 15,
         cancelled: Callable[[], bool] = lambda: False,
-        on_started: Callable[[int], None] = lambda _pid: None) -> tuple[int, bytes]:
-    """Run the entrypoint, capturing its stderr via a real file, not a pipe.
+        on_started: Callable[[int], None] = lambda _pid: None,
+        on_storage_failure=None) -> tuple[int, bytes]:
+    """Bound registered finite stdio until every detached writer closes.
 
-    A pipe's write end is inherited by any grandchild the entrypoint detaches
-    (a browser, a helper daemon) and leaves running past this run's own
-    lifetime. Once this process closes its read end, that grandchild's next
-    stderr write raises EPIPE/SIGPIPE and can kill it. A regular file has no
-    such failure mode: even after it is unlinked here, anyone still holding
-    the fd open (the detached grandchild) keeps writing to it harmlessly
-    until they close it -- exactly like inherited-stderr-to-a-log-file
-    worked before this capture existed. No thread is needed either: the
-    child's stderr fd is duped directly onto a real file, and only after the
-    run's own exit is the file read back, forwarded to this process's real
-    stderr, and deleted.
+    Unbound legacy callers retain regular-file capture.
     """
+    root = Path(__file__).resolve().parents[2]
+    context = env or {}
+    owner = context.get("LIFE_MANAGER_LOOP_ID")
+    if owner and (root / "config/storage-policy.json").is_file():
+        policy = load_storage_policy(root / "config/storage-policy.json", owner)
+        if policy is not None and context.get("LIFE_MANAGER_RUN_ID"):
+            sha = context.get("LIFE_MANAGER_RELEASE_SHA")
+            try:
+                sha = json.loads((root / "RELEASE.json").read_text())["sha"]
+            except (OSError, ValueError, KeyError):
+                pass
+            binding = {"owner_id": owner, "run_id": context["LIFE_MANAGER_RUN_ID"],
+                "occurrence_id": context.get("LIFE_MANAGER_OCCURRENCE_ID", f"{owner}:{context['LIFE_MANAGER_RUN_ID']}"),
+                "release_sha": sha}
+            if isinstance(sha, str) and re.fullmatch(r"[a-f0-9]{40}", sha):
+                return _run_entrypoint_with_bounded_stderr(command, scratch_dir,
+                    policy=policy, binding=binding, on_storage_failure=on_storage_failure, env=env,
+                    timeout_seconds=timeout_seconds, termination_grace_seconds=termination_grace_seconds,
+                    cancelled=cancelled, on_started=on_started)
     capture_path = scratch_dir / "entrypoint-stderr.log"
     descriptor = os.open(
         capture_path, os.O_WRONLY | os.O_CREAT | os.O_APPEND | os.O_NOFOLLOW, 0o600)
@@ -1130,6 +1144,51 @@ def _run_entrypoint_with_stderr_capture(
             sys.stderr.buffer.flush()
         except (OSError, ValueError):
             pass
+    return return_code, tail
+
+
+def _run_entrypoint_with_bounded_stderr(command, scratch_dir, *, policy, binding,
+        on_storage_failure=None, **kwargs):
+    diagnostic_root = scratch_dir / "stderr-relay"
+    handle = start_stderr_relay(diagnostic_root, policy, binding)
+    try:
+        return_code = _run_entrypoint(command, stderr_capture_fd=handle.stdin_write_fd, **kwargs)
+    finally:
+        os.close(handle.stdin_write_fd)
+    try:
+        handle.process.wait(timeout=1)
+    except subprocess.TimeoutExpired:
+        pass  # A detached writer still owns the pipe; never kill its reader.
+    receipt = read_relay_snapshot(handle)
+    if receipt is not None and type(receipt.get("storage_error")) is int:
+        failure = classify_storage_failure(OSError(receipt["storage_error"], "host capture write failed"),
+            "entrypoint_capture", binding, None)
+        if failure is not None and on_storage_failure is not None: on_storage_failure(failure)
+    handle.control_socket.close()
+    tail = b""
+    if receipt is not None:
+        import base64
+        tail = base64.b64decode(receipt["tail_b64"])
+    try:
+        head = (diagnostic_root / "head.bin").read_bytes()[:ENTRYPOINT_STDERR_REPLAY_EDGE_BYTES]
+        ending = b""
+        for path in (diagnostic_root / "stderr.log.1", diagnostic_root / "stderr.log"):
+            if path.is_file():
+                with path.open("rb") as stream:
+                    stream.seek(0, os.SEEK_END)
+                    size = stream.tell()
+                    stream.seek(max(0, size - ENTRYPOINT_STDERR_REPLAY_EDGE_BYTES))
+                    ending = (ending + stream.read(ENTRYPOINT_STDERR_REPLAY_EDGE_BYTES))[-ENTRYPOINT_STDERR_REPLAY_EDGE_BYTES:]
+        written = receipt.get("written_bytes", 0) if receipt else 0
+        if written > ENTRYPOINT_STDERR_REPLAY_MAX_BYTES:
+            replay = head + ENTRYPOINT_STDERR_TRUNCATION_MARKER + ending
+        else:
+            with (diagnostic_root / "stderr.log").open("rb") as stream:
+                replay = stream.read(ENTRYPOINT_STDERR_REPLAY_MAX_BYTES)
+        if replay:
+            sys.stderr.buffer.write(replay); sys.stderr.buffer.flush()
+    except (OSError, ValueError):
+        pass
     return return_code, tail
 
 
@@ -1241,8 +1300,10 @@ def _dispatch_reserved(loop_ids: list[str], *, current: Path | None = None,
 def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, str],
                   receipt: Path, *, occurrence_id: str | None = None,
                   on_claimed: Callable[[str], None] = lambda _value: None,
-                  on_stderr_tail: Callable[[bytes], None] = lambda _tail: None) -> int:
+                  on_stderr_tail: Callable[[bytes], None] = lambda _tail: None,
+                  on_storage_failure=None) -> int:
     env = _child_environment_for_owner(loop_id, env)
+    env = {**env, "LIFE_MANAGER_LOOP_ID": loop_id}
     limit = _runtime_limit(entry)
     if loop_id in CONTROL_PLANE_SAFETY_LOOPS or limit is None:
         # Exempt owners have a native wake identity, but no durable claim.
@@ -1263,7 +1324,8 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
             result = _run_entrypoint(command, env=env, timeout_seconds=None)
         else:
             result, tail = _run_entrypoint_with_stderr_capture(
-                command, receipt.parent, env=env, timeout_seconds=limit)
+                command, receipt.parent, env=env, timeout_seconds=limit,
+                **({"on_storage_failure": on_storage_failure} if on_storage_failure else {}))
             on_stderr_tail(tail)
         if result == 0 and loop_id != "capafy-loop-healthcheck":
             try:
@@ -1473,7 +1535,8 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
         return_code, stderr_tail = _run_entrypoint_with_stderr_capture(
             command, receipt.parent, env=child_env, timeout_seconds=limit,
             cancelled=lambda: interrupted or heartbeat_failed.is_set(),
-            on_started=transfer_claim)
+            on_started=transfer_claim,
+            **({"on_storage_failure": on_storage_failure} if on_storage_failure else {}))
         on_stderr_tail(stderr_tail)
         if heartbeat_failed.is_set():
             return_code = 75
@@ -1624,6 +1687,9 @@ def main(argv: list[str] | None = None) -> int:
                     loop_state_root, loop_id, run_id, effect_class=entry["effect_class"])
             except OSError as error:
                 no_space = error.errno == errno.ENOSPC
+                storage = classify_storage_failure(error, "scratch_allocation", {
+                    "owner_id": loop_id, "run_id": run_id,
+                    "occurrence_id": occurrence_id, "release_sha": manifest["sha"]}, False)
                 blocker = "scratch_enospc" if no_space else "scratch_allocation_failed"
                 error_class = "enospc" if no_space else type(error).__name__.lower()
                 event = build_runtime_event(
@@ -1638,12 +1704,21 @@ def main(argv: list[str] | None = None) -> int:
                     exit_code=78, failure_layer="runtime", error_class=error_class,
                     retryable=True, next_action="retry_after_eligibility",
                     error_detail=f"scratch allocation failed; errno={error.errno}",
+                    storage_failure=storage["storage_failure"] if storage else None,
                 )
+                if storage:
+                    event.update({key: storage[key] for key in ("error_class", "retryable", "next_action")})
                 event["effect_status"] = "not_applicable"
                 event["evidence_refs"] = []
                 validate_runtime_event(event)
                 try:
                     append_runtime_event(event_path, event)
+                    if storage and _should_enqueue_recovery_intent(entry, event):
+                        try:
+                            with tempfile.TemporaryDirectory(prefix=".storage-recovery-", dir=loop_state_root) as recovery_scratch:
+                                _enqueue_recovery_intent(release_root, event, Path(recovery_scratch))
+                        except (OSError, RuntimeError, ValueError, subprocess.SubprocessError) as recovery_error:
+                            print(f"lm-loop-run: storage recovery proof deferred: {type(recovery_error).__name__}", file=sys.stderr)
                 except (OSError, ValueError) as write_error:
                     diagnostic = {
                         **event,
@@ -1678,6 +1753,10 @@ def main(argv: list[str] | None = None) -> int:
             nonlocal claimed_occurrence_id
             claimed_occurrence_id = value
         entrypoint_stderr_tail = b""
+        entrypoint_storage_failure = None
+        def record_storage_failure(value):
+            nonlocal entrypoint_storage_failure
+            entrypoint_storage_failure = value
         def record_stderr_tail(value: bytes) -> None:
             nonlocal entrypoint_stderr_tail
             entrypoint_stderr_tail = value
@@ -1687,7 +1766,7 @@ def main(argv: list[str] | None = None) -> int:
             "LIFE_MANAGER_EFFECT_IDENTITY_PATH": str(scratch / "effect-identity.jsonl"),
             "TMPDIR": f"{scratch}/", "NPM_CONFIG_CACHE": str(scratch / "npm-cache"),
         }, host_receipt, occurrence_id=occurrence_id, on_claimed=record_claimed,
-           on_stderr_tail=record_stderr_tail)
+           on_stderr_tail=record_stderr_tail, on_storage_failure=record_storage_failure)
         host_deferred = _host_admission_deferred(host_receipt, started_ns)
         effect_result = None
         if (return_code == 0
@@ -1747,6 +1826,7 @@ def main(argv: list[str] | None = None) -> int:
                 }),
                 exit_code=return_code,
                 error_detail=error_detail,
+                storage_failure=entrypoint_storage_failure["storage_failure"] if entrypoint_storage_failure else None,
             )
             event = _apply_verified_effect_result(event, effect_result)
             append_runtime_event(event_path, event)
@@ -1768,7 +1848,10 @@ def main(argv: list[str] | None = None) -> int:
                     cleanup_operation = "unprotect_marker"
                     unprotect_loop_scratch(scratch_fd)
                     cleanup_operation = "remove_owned_tree"
-                    removed = remove_owned_tree(scratch_parent_fd, scratch_fd, run_id)
+                    from runtime.loop.central_cleanup import _diagnostic_relay_live
+                    from runtime.host.resource_admission import process_starts
+                    relay_live = _diagnostic_relay_live(scratch_fd, process_starts(), loop_id, run_id)
+                    removed = False if relay_live else remove_owned_tree(scratch_parent_fd, scratch_fd, run_id)
                     cleanup_status = "removed" if removed else "preserved"
                     cleanup_error = None
                 except Exception as error:

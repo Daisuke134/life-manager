@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "source_commit": "4d46f7fd0f53c4d517c264186f6e67a296a32084",
+  "branch": "fix/storage-foundation-20261009",
+  "local_validation": {
+    "related_suite": {
+      "passed": 542,
+      "subtests_passed": 155,
+      "scope": "before final review corrections"
+    },
+    "final_changed_callers": {
+      "passed": 250,
+      "subtests_passed": 31
+    },
+    "storage_inventory_policy": {
+      "passed": 27
+    },
+    "recovery_node": {
+      "passed": 25
+    },
+    "loop_contract": "PASS",
+    "source_boundary": "PASS",
+    "oss_self_contained": "PASS",
+    "diff_check": "PASS",
+    "independent_static_review": "PASS"
+  },
+  "ci": "pending",
+  "main_sha": null,
+  "production_applied": false,
+  "remaining": [
+    "DS14 exact-head CI/main",
+    "DS15 idle-owner rollout",
+    "DS16 next-day natural evidence",
+    "DS17 final verdict"
+  ],
+  "limits": [
+    "Host ENOSPC recurs during fixture creation and git fetch; tests above are actual completed passes, subsequent environment failures are not source PASS.",
+    "Protected native Codex account stores are observed only. Managed diagnostic bounds cannot cap arbitrary external writers."
+  ]
+}

@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import signal
+import stat
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from time import monotonic
+from pathlib import Path
 
 
 SCHEMA_VERSION = "lm-loop.health.v1"
@@ -77,6 +80,18 @@ def health_json_schema() -> dict:
         "type": "object",
         "required": ["schema_version", "generated_at", "scope", "summary", "jobs"],
         "properties": {
+            "host_storage": {
+                "type": "object", "additionalProperties": False,
+                "required": ["status", "execution_ok", "capacity_recovered", "free_bytes", "observed_at", "reason"],
+                "properties": {
+                    "status": {"enum": ["met", "unmet", "unknown"]},
+                    "execution_ok": {"type": ["boolean", "null"]},
+                    "capacity_recovered": {"type": ["boolean", "null"]},
+                    "free_bytes": {"type": ["integer", "null"], "minimum": 0},
+                    "observed_at": nullable_string,
+                    "reason": nullable_string,
+                },
+            },
             "schema_version": {"const": SCHEMA_VERSION},
             "generated_at": {
                 "type": "string",
@@ -290,10 +305,63 @@ def _facets(row: dict, state: str) -> dict[str, dict[str, str | None]]:
     }
 
 
+def read_storage_snapshot(state_dir: Path | None = None) -> dict | None:
+    root = state_dir or Path(os.environ.get("LIFE_MANAGER_HOST_STATE_DIR",
+        str(Path.home() / ".local/state/life-manager/state"))).expanduser()
+    try:
+        fd = os.open(root / "last-receipt.json", os.O_RDONLY | os.O_NOFOLLOW)
+    except OSError:
+        return None
+    try:
+        info = os.fstat(fd)
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
+                or stat.S_IMODE(info.st_mode) != 0o600 or info.st_nlink != 1
+                or info.st_size > 65536):
+            return None
+        with os.fdopen(fd, "r", encoding="utf-8", closefd=False) as stream:
+            value = json.load(stream)
+        return value if isinstance(value, dict) else None
+    except (OSError, ValueError, UnicodeError):
+        return None
+    finally:
+        os.close(fd)
+
+
+def _project_storage(snapshot: dict, jobs: list[dict], now: datetime) -> dict:
+    unknown = {"status": "unknown", "execution_ok": None,
+               "capacity_recovered": None, "free_bytes": None,
+               "observed_at": None, "reason": "storage_receipt_unverified"}
+    try:
+        identity = snapshot["identity"]
+        job = next(j for j in jobs if j["job_id"] == "life-manager-disk-cleanup")
+        expected = {k: job["diagnostic"][k] for k in
+                    ("owner_id", "run_id", "occurrence_id", "release_sha")}
+        if identity != expected or any(not isinstance(v, str) or not v for v in expected.values()):
+            return unknown
+        observed = datetime.fromisoformat(snapshot["observed_at"].replace("Z", "+00:00"))
+        age = (now - observed).total_seconds()
+        if observed.tzinfo is None or not 0 <= age <= 600:
+            return unknown
+        free = snapshot["free_after"]
+        recovery = snapshot["capacity_recovery"]
+        goal = recovery["recovery_floor_bytes"]
+        if type(free) is not int or free < 0 or type(goal) is not int or goal <= 0:
+            return unknown
+        status = "met" if free >= goal else "unmet"
+        if recovery["status"] != status or type(snapshot.get("ok")) is not bool:
+            return unknown
+        return {"status": status, "execution_ok": snapshot["ok"],
+                "capacity_recovered": status == "met", "free_bytes": free,
+                "observed_at": snapshot["observed_at"], "reason": None}
+    except (KeyError, TypeError, ValueError, StopIteration, AttributeError):
+        return unknown
+
+
 def project_health(rows: list[dict], *, scope: str = "fleet",
                    target: str | None = None, adapter=None,
                    adapter_timeout_seconds: float = 0.25,
-                   deadline_monotonic: float | None = None) -> dict:
+                   deadline_monotonic: float | None = None,
+                   storage_snapshot: dict | None = None) -> dict:
     jobs = []
     adapted_rows = []
     for original in rows:
@@ -402,14 +470,27 @@ def project_health(rows: list[dict], *, scope: str = "fleet",
         "summary": summary,
         "jobs": jobs,
     }
+    if storage_snapshot is not None:
+        value["host_storage"] = _project_storage(storage_snapshot, jobs, datetime.now(timezone.utc))
     return validate_health_document(value)
 
 
 def validate_health_document(value: dict) -> dict:
-    if not isinstance(value, dict) or set(value) != {
-        "schema_version", "generated_at", "scope", "summary", "jobs",
-    }:
+    required = {"schema_version", "generated_at", "scope", "summary", "jobs"}
+    if not isinstance(value, dict) or not required <= set(value) or set(value) - required - {"host_storage"}:
         raise ValueError("health document must contain only v1 top-level fields")
+    if "host_storage" in value:
+        storage = value["host_storage"]
+        if (not isinstance(storage, dict) or set(storage) != {
+                "status", "execution_ok", "capacity_recovered", "free_bytes", "observed_at", "reason"}
+                or storage["status"] not in {"met", "unmet", "unknown"}
+                or any(v is not None and type(v) is not bool for v in
+                       (storage["execution_ok"], storage["capacity_recovered"]))
+                or (storage["free_bytes"] is not None and
+                    (type(storage["free_bytes"]) is not int or storage["free_bytes"] < 0))
+                or any(v is not None and not isinstance(v, str) for v in
+                       (storage["observed_at"], storage["reason"]))):
+            raise ValueError("invalid host storage projection")
     if value["schema_version"] != SCHEMA_VERSION:
         raise ValueError("invalid health schema_version")
     generated_at_text = value["generated_at"]
@@ -509,7 +590,11 @@ def render_human(value: dict) -> str:
         f"{job['job_id']}: {job['state']} next={job['diagnostic']['next_action'] or 'none'}"
         for job in value["jobs"] if job["state"] != "healthy"
     ]
-    return "\n".join([line, *problems])
+    storage = value.get("host_storage")
+    storage_lines = [] if storage is None else [
+        f"storage cleanup_execution={storage['execution_ok']} capacity={storage['status']} free_bytes={storage['free_bytes']}"
+    ]
+    return "\n".join([line, *storage_lines, *problems])
 
 
 def render_skill(value: dict) -> str:
