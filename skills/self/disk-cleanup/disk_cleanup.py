@@ -958,6 +958,7 @@ class HostDiskGovernor:
         *,
         deadline: float | None = None,
         allow_generated_symlinks: bool = False,
+        allow_worktree_sources: bool = False,
     ) -> str | None:
         errors: list[OSError] = []
         for root, directories, files in os.walk(
@@ -977,6 +978,12 @@ class HostDiskGovernor:
                         if allow_generated_symlinks:
                             continue
                         return "protected_descendant"
+                    if allow_worktree_sources and (
+                        (descendant.parent == path and descendant.name == ".git" and descendant.is_file())
+                        or descendant.suffix.lower() in SOURCE_SUFFIXES
+                        or descendant.name in {"source", "src"}
+                    ):
+                        continue
                     if self._protected(descendant):
                         return "protected_descendant"
                 except OSError:
@@ -1083,6 +1090,13 @@ class HostDiskGovernor:
         if status is None or status.stdout:
             return None
         if _release_immutable_store_probe(path, deadline=deadline, clock=self.clock) is not None:
+            return None
+        if self._protected_descendant(path, deadline=deadline, allow_worktree_sources=True) is not None:
+            return None
+        fresh_main = _run_git(repository, "ls-remote", "--exit-code", "origin", "refs/heads/main")
+        if fresh_main is None or fresh_main.stdout.split() != [remote_head, "refs/heads/main"]:
+            return None
+        if deadline is not None and self.clock() >= deadline:
             return None
         return (
             repository_fingerprint,
@@ -1515,6 +1529,8 @@ class HostDiskGovernor:
             if deadline is not None and self.clock() + LSOF_TIMEOUT_SECONDS + POST_SWEEP_RESERVE_SECONDS >= deadline:
                 preserve("probe-budget-exhausted")
                 continue
+            if self.lsof is _default_lsof:
+                _open_paths.cache_clear()
             state = self.lsof(path)
             if deadline is not None and self.clock() >= deadline:
                 preserve("probe-budget-exhausted")
@@ -1586,6 +1602,8 @@ class HostDiskGovernor:
             if deadline is not None and self.clock() + LSOF_TIMEOUT_SECONDS + POST_SWEEP_RESERVE_SECONDS >= deadline:
                 preserve("probe-budget-exhausted")
                 continue
+            if self.lsof is _default_lsof:
+                _open_paths.cache_clear()
             state = self.lsof(path)
             if deadline is not None and self.clock() >= deadline:
                 preserve("probe-budget-exhausted")
@@ -1622,12 +1640,23 @@ class HostDiskGovernor:
                         result["errors"] += state == "probe-error"
                         preserve(state)
                         continue
+                    if deadline is not None and self.clock() + POST_SWEEP_RESERVE_SECONDS >= deadline:
+                        preserve("probe-budget-exhausted")
+                        continue
+                    if self._worktree_identity(path, deadline=deadline) != identity:
+                        preserve("path_identity_changed")
+                        continue
+                    if deadline is not None and self.clock() + POST_SWEEP_RESERVE_SECONDS >= deadline:
+                        preserve("probe-budget-exhausted")
+                        continue
                     repository = self.home / WORKTREE_REPOSITORY_RELATIVE
                     removed = subprocess.run(
                         ["git", "-C", str(repository), "worktree", "remove", str(path)],
                         capture_output=True,
                         text=True,
                         check=False,
+                        timeout=min(15.0, deadline - self.clock() - POST_SWEEP_RESERVE_SECONDS)
+                            if deadline is not None else 15.0,
                     )
                     if removed.returncode != 0 or removed.stderr.strip():
                         raise OSError(errno.EIO, "ordinary git worktree remove failed")
@@ -1635,9 +1664,10 @@ class HostDiskGovernor:
                     self._remove_tree(path)
                 else:
                     path.unlink()
-            except OSError:
+            except (OSError, subprocess.SubprocessError) as error:
                 result["errors"] += 1
-                preserve("remove_failed")
+                preserve("worktree_remove_timeout" if isinstance(error, subprocess.TimeoutExpired)
+                         else "remove_failed")
                 continue
             if path.exists() or path.is_symlink():
                 result["errors"] += 1

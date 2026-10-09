@@ -197,7 +197,7 @@ def test_discover_stale_test_temporary_families_only(
 
 
 def test_sweep_retires_only_registered_clean_merged_unleased_worktree(
-    tmp_path: Path,
+    tmp_path: Path, monkeypatch,
 ) -> None:
     home = tmp_path / "home"
     repo = home / "Projects" / "life-manager-main"
@@ -226,6 +226,7 @@ def test_sweep_retires_only_registered_clean_merged_unleased_worktree(
     git(repo, "commit", "-m", "base")
     main_head = git(repo, "rev-parse", "HEAD")
     git(repo, "update-ref", "refs/remotes/origin/main", main_head)
+    git(repo, "remote", "add", "origin", str(repo))
 
     worktrees = repo / ".worktrees"
     worktrees.mkdir()
@@ -269,6 +270,17 @@ def test_sweep_retires_only_registered_clean_merged_unleased_worktree(
     git(protected_store, "commit", "-m", "protected store")
     protected_head = git(protected_store, "rev-parse", "HEAD")
     git(repo, "update-ref", "refs/remotes/origin/main", protected_head)
+    git(repo, "update-ref", "refs/heads/main", protected_head)
+    credentials = worktrees / "credentials"
+    git(repo, "worktree", "add", "-b", "credentials", str(credentials), main_head)
+    (credentials / "credentials.json").write_text("fixture credential must remain")
+    git(credentials, "add", "credentials.json")
+    git(credentials, "commit", "-m", "fixture credentials")
+    credential_head = git(credentials, "rev-parse", "HEAD")
+    git(repo, "reset", "--hard", protected_head)
+    git(repo, "merge", "--no-edit", "credentials")
+    # Merge the two fixture branches as the authoritative local origin main.
+    git(repo, "update-ref", "refs/remotes/origin/main", git(repo, "rev-parse", "HEAD"))
 
     governor = HostDiskGovernor(
         home=home,
@@ -282,6 +294,51 @@ def test_sweep_retires_only_registered_clean_merged_unleased_worktree(
     ]
 
     assert [Path(item["path"]) for item in candidates] == [safe]
+    current_main = git(repo, "rev-parse", "refs/remotes/origin/main")
+    git(repo, "update-ref", "refs/remotes/origin/main", main_head)
+    assert governor._worktree_identity(safe) is None
+    git(repo, "update-ref", "refs/remotes/origin/main", current_main)
+    probe_calls = [0]
+    def write_ignored_state_on_final_probe(_path):
+        probe_calls[0] += 1
+        if probe_calls[0] == 3:
+            (safe / "state").mkdir()
+            (safe / "state" / "events.jsonl").write_text("must remain")
+        return "confirmed-closed"
+    git(repo, "config", "core.excludesFile", str(repo / "fixture-ignore"))
+    (repo / "fixture-ignore").write_text("state/\nfixture-ignore\n")
+    governor.lsof = write_ignored_state_on_final_probe
+    state_result = governor.sweep(candidates, write_receipt=False)
+    assert safe.is_dir()
+    assert (safe / "state" / "events.jsonl").read_text() == "must remain"
+    (safe / "state" / "events.jsonl").unlink()
+    (safe / "state").rmdir()
+    clock = [0.0]
+    governor.clock = lambda: clock[0]
+    probe_calls[0] = 0
+    def expire_on_final_probe(_path):
+        probe_calls[0] += 1
+        if probe_calls[0] == 3:
+            clock[0] = 91.0
+        return "confirmed-closed"
+    governor.lsof = expire_on_final_probe
+    expired = governor.sweep(candidates, write_receipt=False, deadline=90.0)
+    assert safe.is_dir()
+    assert expired["preserved_reasons"] == {"probe-budget-exhausted": 1}
+    clock[0] = 0.0
+    original_run = subprocess.run
+    def timeout_remove(argv, **kwargs):
+        if "worktree" in argv and "remove" in argv:
+            assert 0 < kwargs["timeout"] <= 15
+            raise subprocess.TimeoutExpired(argv, kwargs["timeout"])
+        return original_run(argv, **kwargs)
+    governor.lsof = lambda _path: "confirmed-closed"
+    with monkeypatch.context() as scoped:
+        scoped.setattr(subprocess, "run", timeout_remove)
+        timed_out = governor.sweep(candidates, write_receipt=False, deadline=90.0)
+    assert safe.is_dir()
+    assert timed_out["errors"] == 1
+    assert timed_out["preserved_reasons"] == {"worktree_remove_timeout": 1}
     governor.lsof = lambda _path: "open"
     open_result = governor.sweep(candidates, write_receipt=False)
     assert safe.is_dir()
@@ -296,7 +353,7 @@ def test_sweep_retires_only_registered_clean_merged_unleased_worktree(
     assert result["protected_deletions"] == 0
     listing = git(repo, "worktree", "list", "--porcelain")
     assert str(safe) not in listing
-    assert all(path.is_dir() for path in (dirty, untracked, ignored, locked, kept, unmerged, leased, protected_store))
+    assert all(path.is_dir() for path in (dirty, untracked, ignored, locked, kept, unmerged, leased, protected_store, credentials))
 
 
 @pytest.mark.parametrize("current_points_to_run", [True, False])
@@ -333,6 +390,43 @@ def test_stale_pytest_symlinks_are_unlinked_without_following_targets(tmp_path: 
     assert other.is_dir()
     assert pointer.is_symlink() is (not current_points_to_run)
     assert result["protected_deletions"] == 0
+
+
+def test_stale_pytest_final_open_probe_is_fresh(tmp_path: Path, monkeypatch) -> None:
+    home = tmp_path / "home"
+    home.mkdir()
+    temporary = tmp_path / "T"
+    run = temporary / f"pytest-of-{home.name}" / "pytest-42"
+    run.mkdir(parents=True)
+    payload = run / "payload.bin"
+    payload.write_bytes(b"active fixture")
+    os.utime(run, (1, 1))
+    monkeypatch.setattr(disk_cleanup, "_readonly_temp_root", lambda: temporary)
+    monkeypatch.setattr(disk_cleanup, "_temporary_roots", lambda _primary: (temporary,))
+    opened = [False]
+    calls = []
+    def snapshot():
+        calls.append(opened[0])
+        return frozenset({str(payload)}) if opened[0] else frozenset()
+    cached_snapshot = disk_cleanup.lru_cache(maxsize=1)(snapshot)
+    monkeypatch.setattr(disk_cleanup, "_open_paths", cached_snapshot)
+    original_bytes = disk_cleanup._bytes
+    handle = []
+    def open_during_size_probe(path, **kwargs):
+        handle.append(payload.open("rb"))
+        opened[0] = True
+        return original_bytes(path, **kwargs)
+    monkeypatch.setattr(disk_cleanup, "_bytes", open_during_size_probe)
+    governor = HostDiskGovernor(home=home, state_dir=home / "state", usage=lambda: (0, 1))
+    candidates = [item for item in governor.discover_candidates() if item.get("owner") == "temporary-run"]
+    try:
+        result = governor.sweep(candidates, write_receipt=False)
+        assert run.is_dir()
+        assert result["preserved_reasons"] == {"open": 1}
+        assert calls == [False, True]
+    finally:
+        for stream in handle: stream.close()
+        cached_snapshot.cache_clear()
 
 
 def test_core_simulator_assets_are_never_discovered_as_candidates(

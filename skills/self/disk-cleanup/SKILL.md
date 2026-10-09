@@ -139,3 +139,11 @@ python3 -m pytest -q skills/self/disk-cleanup/tests/test_disk_cleanup.py \
 管理下stdioは `runtime/host/bounded_output.py` の有限relayで保存する。raw診断は1MiB segment/backup1、structured recordは別の16MiB上限。`storage-policy.json` はowner上限と登録owner数で分割するhost上限を持つ。agent-runnerの既存次wake preflightが、summary完了・host marker・EOF receipt・positive closed proofを満たすrelay診断だけを回収する。親result・usage・JSONLは保持する。terminal保存後も生存relayのscratchは保持し、終了後の既存GCに委ねる。
 
 cleanup実行成功と容量回復は別。receipt identityを現在のcleanup owner/run/occurrence/releaseと照合してCLIへ表示する。inventoryの増加量は観測値であり削除許可ではない。実ENOSPC/EDQUOTだけをtyped failureにし、外部処理前と証明できたscratch allocationだけ既存reconcileへ接続する。fresh cleanup・persisted failure identity・actual writeが必要で、空き容量の数値floorはproducer停止条件にしない。unknown effectは公式readbackまで再送しない。
+
+## 削除直前の証拠
+
+- worktreeはfresh remote mainとcached origin/mainが一致しなければ保持する。
+- canonical sourceとGit registration pointerは再生成可能だが、trackedでも
+  credentials、memory/state、browser identityは保持する。
+- 最後のopen-path probeはfresh snapshotを使い、その後identity/status/leaseと
+  時間budgetを再検査する。再検査不成立/期限切れは削除しない。

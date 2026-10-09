@@ -26,11 +26,13 @@
 
 **不変条件:** 11 GiBは今回の容量回復受入であり、全producerの起動floorを一律11 GiBへ変える指示ではない。iOS Simulator runtime/image/device/data/dyld、memory/state、credentials、browser identity、参照release、active/dirty/unmerged/leased/locked worktree、open/unknown dataを削除しない。古い同一UID test artifactと、Git clean/main統合済み/unleased/unlocked/closedを全て証明できるworktreeだけを今回の追加回収対象とする。証明できなければ保持。effect_unknownはexact official receipt/pre-effect proofまで解除・再送しない。Codex session履歴は容量が大きいだけで削除・圧縮対象にしない。
 
-**現在cursor: P0-10（exact-head CIとfresh read-only safety review）。** この節の文書保存・統合と、以下の修復実装の完了は別。各atomは証拠取得後だけ `[x]` にし、失敗境界・次の安全な操作・cursorを同じ差分で更新する。
+**現在cursor: P0-10（保護反例修正後のfresh review/exact-head CI）。** この節の文書保存・統合と、以下の修復実装の完了は別。各atomは証拠取得後だけ `[x]` にし、失敗境界・次の安全な操作・cursorを同じ差分で更新する。
 
 **引き継ぎ/診断証拠:** worktree HEAD `a6e03757`の4ファイル497行差分を`ea1784b0ec`で保持してpushし、最新main `3baccdbd`を`00b5d4ff5d`でmerge/push。leaseは既存owner `codex-root`でheartbeatを更新、直列lsof再確認でworktree下open handleなし。既存temp/worktree focused testは2 PASS。agmsg統括identityは`lm/codex-resource-orchestrator-1009`、既存cleanup担当へ重複書込抑制と状態照会を送信。自然receiptの成功/失敗が交互に現れ、失敗時の正確な親errorは`host_cleanup_identity_mismatch`。`disk_cleanup.py::main`のbusy lock出力はexit75だがidentityを含まず、`central_cleanup.host_cleanup_readback`の同-occurrence検査が失敗に変換する。REDはbusy出力identity欠落と親exit1を再現し、最小修正後の関連4 testsはGREEN。修正契約は、busy出力にもimmutable manifest由来の同run identityを載せ、親はそのidentityを検証した正確なbusyだけをeffect0のexit75延期として維持し、他のidentity mismatchはexit1のまま拒否する。旧ENOSPC修復とは区別し、容量不足時の既存reserve/cursor testsも再確認する。
 
 **temp/worktree修復:** 新test familyの1時間TTLと標準temp rootsを追加し、既存Capafyのclosed-canary契約は保持。pytest内部symlinkはno-follow unlink、外部memory/file targetを保持、削除runだけを指すstale pytest-currentを退役し、他run pointerは保持。worktreeのclean/統合/lease/lock/open/identityに加え、tracked memory/state保護を既存immutable-store probeで検証。symlink先のbytesを回収量へ誤計上しないようlstatを使う。関連suiteの途中実行では20 failures（legacy canary TTL適用とtest doubleの新deadline引数不一致）を確認し、原因修正後4 failures（非存在repoへの不要Git probeとmacOS /tmp alias期待差）まで狭めた。最終focused cleanup/watchdog/central acceptanceは194 PASS + 5 subtests、loop contractは18 catalog/189 jobs/errors0、diff check PASS。P0-9 source acceptanceは達成し、本番容量/自然receiptは未達のまま。
+
+**独立review HOLD:** `disk_cleanup_safety_review`の隔離fixtureで、最終lsof中に追加されたignored state JSONL、tracked credentials.json、deadline超過、temp open-path cacheによる古いclosed判定の4反例を確認。既存194 tests PASSだけではこれらの安全性を証明しないためP0-8/P0-9を再開し、main統合/本番反映はしない。修正契約は、credentials/private storeも保持するworktree descendant検査、final fresh open snapshot後のidentity/status/leaseとbudget再確認、cached origin/mainとfresh remote mainの一致確認。反例をreal Git/open FD fixtureへ残し、credentials/private store保護、fresh remote main一致、最終fresh open後のstatus/identity/lease/budget再確認、通常Git removeの最大15秒timeoutを追加。修正後の関連195 tests+5 subtestsとdiff check PASS。任意の非協調writerとの完全排他を達成したとは主張せず、fresh reviewを再度行う。
 
 ### P0 — ディスク回復のatomic TODO
 
