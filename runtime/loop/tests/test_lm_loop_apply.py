@@ -5073,6 +5073,89 @@ class PreEffectForeignClaimTests(unittest.TestCase):
         }]
         return base + list(extra)
 
+    def _mobile_startup_failure_claim(self, error_detail="mobile app loop requires node",
+                                      entrypoint="apps/life-manager/scripts/mobile-app"):
+        owner = "life-manager-anicca-en2-affirmation-tiktok"
+        occurrence = f"{owner}:startup-test-20261009"
+        run_id = "startup-test-20261009"
+        summary_ref = f"lm-loop://{owner}/{run_id}/summary.json"
+        claim_ref = f"lm-occurrence://{owner}/{run_id}/claim"
+        entry = {"effect_class": "publish", "entrypoint": entrypoint}
+        rows = [{
+            "loop_id": owner, "run_id": run_id, "occurrence_id": occurrence,
+            "phase": "report", "status": "fail", "effect_class": "publish",
+            "effect_status": "unknown", "blocker": "entrypoint_exit_1",
+            "error_class": "entrypoint_exit_1", "failure_layer": "entrypoint",
+            "error_detail": error_detail, "provider_receipt_id": None,
+            "official_readback_ref": None,
+            "release_sha": "f" * 40, "evidence_refs": [summary_ref, claim_ref],
+            "event_id": "c" * 24, "timestamp": "2026-10-09T02:35:00+00:00",
+        }]
+        return owner, occurrence, entry, rows
+
+    def test_mobile_app_missing_managed_runtime_is_exact_pre_effect_failure(self):
+        for detail in (
+            "mobile app loop requires node",
+            "mobile app loop requires python3",
+        ):
+            with self.subTest(detail=detail):
+                owner, occurrence, entry, rows = self._mobile_startup_failure_claim(detail)
+                proof, reason = lm_loop._pre_effect_occurrence_proof(
+                    owner, entry, occurrence, "claimed", rows,
+                )
+                self.assertEqual(reason, "ok")
+                self.assertEqual(proof["proof_type"], "pre_effect")
+                self.assertEqual(proof["occurrence_id"], occurrence)
+
+    def test_mobile_app_pre_effect_requires_exact_wrapper_error(self):
+        owner, occurrence, entry, rows = self._mobile_startup_failure_claim(
+            "child process failed after provider dispatch",
+        )
+        proof, reason = lm_loop._pre_effect_occurrence_proof(
+            owner, entry, occurrence, "claimed", rows,
+        )
+        self.assertIsNone(proof)
+        self.assertEqual(reason, "no_pre_effect_terminal")
+
+        owner, occurrence, entry, rows = self._mobile_startup_failure_claim(
+            entrypoint="apps/life-manager/scripts/other-publisher",
+        )
+        proof, reason = lm_loop._pre_effect_occurrence_proof(
+            owner, entry, occurrence, "claimed", rows,
+        )
+        self.assertIsNone(proof)
+        self.assertEqual(reason, "no_pre_effect_terminal")
+
+    def test_mobile_slide_object_store_enospc_is_pre_effect_only_for_exact_import(self):
+        detail = (
+            "ENOSPC: no space left on device, copyfile "
+            "'[redacted]/.workspace/.slide-listicle-1-1-test.jpg' -> "
+            "'[redacted]/objects/sha256/" + "a" * 64 + ".tmp-49337-test'"
+        )
+        owner, occurrence, entry, rows = self._mobile_startup_failure_claim(detail)
+        proof, reason = lm_loop._pre_effect_occurrence_proof(
+            owner, entry, occurrence, "claimed", rows,
+        )
+        self.assertEqual(reason, "ok")
+        self.assertEqual(proof["proof_type"], "pre_effect")
+
+        owner, occurrence, entry, rows = self._mobile_startup_failure_claim(
+            "ENOSPC: no space left on device, write '/tmp/runtime.log'",
+        )
+        proof, reason = lm_loop._pre_effect_occurrence_proof(
+            owner, entry, occurrence, "claimed", rows,
+        )
+        self.assertIsNone(proof)
+        self.assertEqual(reason, "no_pre_effect_terminal")
+
+        owner, occurrence, entry, rows = self._mobile_startup_failure_claim(detail)
+        rows[0]["evidence_refs"].append("lm-effect://postiz/posts/unknown")
+        proof, reason = lm_loop._pre_effect_occurrence_proof(
+            owner, entry, occurrence, "claimed", rows,
+        )
+        self.assertIsNone(proof)
+        self.assertEqual(reason, "effect_ref_present")
+
     def _ebook_pre_effect_claim(self, error_detail="LM_DATA_DIR is required",
                                 owner="ebook-ja-tiktok-daily"):
         occurrence = f"{owner}:slot-20261006-2000"

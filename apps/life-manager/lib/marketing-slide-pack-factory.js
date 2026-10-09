@@ -151,6 +151,16 @@ function renderSlideImage(bgFile, text, outFile, { python = "python3" } = {}) {
   }
 }
 
+function importScratchObjects(objectStore, files) {
+  try {
+    return files.map((file) => objectStore.import(file).ref);
+  } finally {
+    for (const file of files) {
+      if (fs.existsSync(file)) fs.unlinkSync(file);
+    }
+  }
+}
+
 // Generates one fresh-text candidate per configured background set (one per
 // family/topic), reusing the fixed approved backgrounds, imports pack/
 // caption/media into the content object store, runs the automated gate, and
@@ -220,8 +230,7 @@ async function generateSlidePackCandidates({
         imageChecks.push({ present: fs.existsSync(outFile), contrastOk: Boolean(renderResult.text_contrast_ok) });
       }
 
-      const mediaRefs = mediaFiles.map((file) => objectStore.import(file).ref);
-      mediaFiles.forEach((file) => fs.unlinkSync(file));
+      const mediaRefs = importScratchObjects(objectStore, mediaFiles);
 
       // Mirrors the adapter's own assertPack default exactly (see
       // marketing-native-carousel-publication-adapter.js) so a freshly
@@ -239,8 +248,7 @@ async function generateSlidePackCandidates({
       const caption = buildMarketingCtaCaption(baseCaption, { productId, platform, locale });
       const captionFile = path.join(workspaceDir, `.caption-${id}-${process.pid}-${crypto.randomUUID()}.txt`);
       fs.writeFileSync(captionFile, caption, { mode: 0o600, flag: "wx" });
-      const captionRef = objectStore.import(captionFile).ref;
-      fs.unlinkSync(captionFile);
+      const [captionRef] = importScratchObjects(objectStore, [captionFile]);
 
       const pack = {
         schema_version: 1,
@@ -266,8 +274,7 @@ async function generateSlidePackCandidates({
 
       const packFile = path.join(workspaceDir, `.pack-${id}-${process.pid}-${crypto.randomUUID()}.json`);
       fs.writeFileSync(packFile, JSON.stringify(pack), { mode: 0o600, flag: "wx" });
-      const packRef = objectStore.import(packFile).ref;
-      fs.unlinkSync(packFile);
+      const [packRef] = importScratchObjects(objectStore, [packFile]);
 
       const approval = {
         schema_version: 1,
@@ -290,8 +297,7 @@ async function generateSlidePackCandidates({
       };
       const approvalFile = path.join(workspaceDir, `.approval-${id}-${process.pid}-${crypto.randomUUID()}.json`);
       fs.writeFileSync(approvalFile, JSON.stringify(approval), { mode: 0o600, flag: "wx" });
-      const approvalRef = objectStore.import(approvalFile).ref;
-      fs.unlinkSync(approvalFile);
+      const [approvalRef] = importScratchObjects(objectStore, [approvalFile]);
 
       approved.push({
         packRef,
