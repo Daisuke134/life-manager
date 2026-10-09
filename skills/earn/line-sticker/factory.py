@@ -321,7 +321,12 @@ def run_images(set_dir: Path, state_root: Path, deps: Deps) -> str:
     _atomic_write_json(set_dir / "listing.json", listing)
     tags_by_number = {f"{number:02d}": sticker.get("tags", []) for number, sticker in enumerate(plan["stickers"], 1)}
     _atomic_write_json(set_dir / "tags.json", tags_by_number)
-    _atomic_write_json(set_dir / "select.json", {"order": ids, "main": listing["main"], "tab": listing["tab"]})
+    # Same character as its series, so the same store categories; submit skips a missing one (未設定).
+    series = _read_json(set_dir.parent / str(plan_draft.get("series_of") or "") / "select.json") or {}
+    _atomic_write_json(set_dir / "select.json", {
+        "order": ids, "main": listing["main"], "tab": listing["tab"],
+        "taste_id": series.get("taste_id") or "1", "character_category_id": series.get("character_category_id") or "16",
+    })
     return "package"
 
 
