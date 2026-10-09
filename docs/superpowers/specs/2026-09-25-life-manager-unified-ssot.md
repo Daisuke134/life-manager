@@ -26,7 +26,7 @@
 
 **不変条件:** 11 GiBは今回の容量回復受入であり、全producerの起動floorを一律11 GiBへ変える指示ではない。iOS Simulator runtime/image/device/data/dyld、memory/state、credentials、browser identity、参照release、active/dirty/unmerged/leased/locked worktree、open/unknown dataを削除しない。古い同一UID test artifactと、Git clean/main統合済み/unleased/unlocked/closedを全て証明できるworktreeだけを今回の追加回収対象とする。証明できなければ保持。effect_unknownはexact official receipt/pre-effect proofまで解除・再送しない。Codex session履歴は容量が大きいだけで削除・圧縮対象にしない。
 
-**現在cursor: S02/P0-13の残る再生成物・writer実測（agent-runner入口のsource/main/current反映済み、自然provider延期証拠待ち） → P0-14/15の実証された残修正 → P0-12の11GiB回復 → 下記全社S順。** GC抑制はmain a8fe894bのimmutable currentへ反映済み。根本修復全体は未完。この節の文書保存・統合と実装/本番成果の完了は別。各atomは証拠取得後だけ `[x]` にし、失敗境界・次の安全な操作・cursorを同じ差分で更新する。
+**現在cursor: S02/P0-14のowner memory複写停止（P0-13でmemoryによるGC保持を実証） → 残る安全な容量回収/P0-15 coverage → P0-12の11GiB回復 → 下記全社S順。** GC抑制はmain a8fe894bのimmutable currentへ反映済み。根本修復全体は未完。この節の文書保存・統合と実装/本番成果の完了は別。各atomは証拠取得後だけ `[x]` にし、失敗境界・次の安全な操作・cursorを同じ差分で更新する。
 
 **引き継ぎ/診断証拠:** worktree HEAD `a6e03757`の4ファイル497行差分を`ea1784b0ec`で保持してpushし、最新main `3baccdbd`を`00b5d4ff5d`でmerge/push。leaseは既存owner `codex-root`でheartbeatを更新、直列lsof再確認でworktree下open handleなし。既存temp/worktree focused testは2 PASS。agmsg統括identityは`lm/codex-resource-orchestrator-1009`、既存cleanup担当へ重複書込抑制と状態照会を送信。自然receiptの成功/失敗が交互に現れ、失敗時の正確な親errorは`host_cleanup_identity_mismatch`。`disk_cleanup.py::main`のbusy lock出力はexit75だがidentityを含まず、`central_cleanup.host_cleanup_readback`の同-occurrence検査が失敗に変換する。REDはbusy出力identity欠落と親exit1を再現し、最小修正後の関連4 testsはGREEN。修正契約は、busy出力にもimmutable manifest由来の同run identityを載せ、親はそのidentityを検証した正確なbusyだけをeffect0のexit75延期として維持し、他のidentity mismatchはexit1のまま拒否する。旧ENOSPC修復とは区別し、容量不足時の既存reserve/cursor testsも再確認する。
 
@@ -88,6 +88,13 @@ S02 source検証: 低/unknownの3 RED subcasesは旧runnerのexit1（期待exit7
 P0-13追加観測: selected8 state rootsは全て2秒以内に測定完了（loop-tmp15,576、logs131,028、artifacts4,592、camofox cache142,924、state288,848 KiB、tmp/media/scratch0）。Xcode DerivedData/Homebrew/npm/uv/pip/選定3 Next.js cacheの8 pathsは存在しない。これを全hostの回収候補が尽きた証拠へ拡張しない。4秒lsof＋3秒同identity差分の限定probeではopenな大規模path3件のみ: Codex thread_history1 DB5,078,036,480 bytes/logs DB782,626,816 bytes、host admission DB153,702,400 bytes、いずれも差分0。read-only PRAGMAはhistoryのfree pages0/logsのunused7,655,424 bytes。state/historyを削除せず、これらを今回の増加writerと断定しない。swap used8473.44MiBは確認するが特定loopへの帰属は未確認。
 
 自然bound receipt16:24:52Zは旧aae7/run18dce90c42ae4f70-66915/free_after903,630,848、自然unbound16:32:40Zはfree_after798,998,528、共にerrors0/protected_deletions0/reclaimed0。fresh free798,216,192 bytes（約0.74GiB）で11GiBまで約10.26GiB不足。旧bound receiptを新SHAの自然run証拠に使わない。根本容量修復は未完。次の一操作はP0-13の残るProjects/release/dependency familyを各2秒・最大8 leafへ絞り、scripts/worktree-lease.py auditとlsof/PID/start、fresh main integrationをjoinして再生成物のclosed/unleased候補だけを測ること。安全な回収対象が証明されるまで削除せず、容量不足量と未測定/TCC境界を保持する。改善作業は資源回復後も一件ずつ進める。
+
+
+**P0-13の実証されたrelease保持原因とP0-14の次atom:** readonly inventoryはvalid releases53、plist refs23、process argv refs6、explicit protected refs23、open FD refs11。これらとcurrentを除いたcandidate18の先頭8件は全てprotected_descendantで保持された。旧releaseとcurrentの最初の保護pathはroot memory/2026-09-02.md。現mainのGit treeでmemory/state JSONL保護に該当するpathはこの1件のみで、bin/runtime/apps/config/skillsの実行コードからこのroot memoryへの参照は見つからない。既存Git archiveがowner memoryを各immutable source snapshotへ複写し、gc_releases::_release_immutable_store_probeがrelease全体を保持するため、正常GCでも新generationを回収できない。memoryの保護を弱める修正は行わない。
+
+次の変更はroot .gitattributesの/memory/ export-ignore一行、既存test_cut_loop_release_pressure.pyのreal-Git fixture、必要なsource manifest digest、本節のみ。Git標準属性をtarget commitへ含め、既存cutterでも新mainの最初のexportからmemoryを新releaseへ複写しない。ALLは実行sourceを完備し、owner storeをreleaseへ複写する条件にしない。source repo・既存release・donorのmemoryは削除/移動/書換えしない。REDはnew releaseにmemoryが現れること、GREENは不在・既存memory同一bytes・code/dependency/ALL保持・新releaseのprotected-store probeがNoneであること。source/CI/main→既存release ownerの自然cut→実path不在とcutter/argv/hash readbackまで続ける。既存protected releaseの容量回収と11GiB受入は別の残atomであり、新export修正を根本容量回復Doneへ置換しない。
+
+P0-14 source検証: real-Git fixtureのREDはnew release/memoryの出現を再現。.gitattributesの一行をfixtureへ含めたGREENはsource/donor memory同一bytes、新releaseのmemory不在とimmutable-store probe=None、code/locked dependency/ALL保持を確認。pressure focused4 tests PASS、loop contract18/189/errors0、diff check PASS。広い既存cut suiteは11 pass/9 failureで、主な境界は実TMPDIRのENOSPCとsparse未展開のpackage-lockであり、ローカル全PASSと報告しない。fixture残骸の限定probeは0件、fresh freeはその後1,781,010,432 bytesへ変動（11GiB未達、帰属未確定）。以後large exportを伴う関連suiteはCIで実行し、ローカルの同失敗を再実行しない。対象test/新属性に既存source manifest mappingは無くdigest追加不要。次はexact-head CI/main→既存ownerの自然export不在readback。
 
 ### P0 — ディスク回復のatomic TODO
 
@@ -161,7 +168,7 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 
 **「24/7 forever」の契約:** 監督・待ち行列・復旧を常時動かし、要求された業務cadenceを満たすこと。単一の有限SSDへ無限のwork/dataを詰めても故障しないという保証にはしない。容量/外部quotaを超える需要は先に延期し、実測に基づくproducer抑制と許可された容量拡張/既存Cloud worker分離を行う。保護memory/stateを削除して帳尻を合わせない。改善作業は資源回復後も一件ずつ。重い並列、新しいcluster/framework、全agentへの反復reviewを今の修復へ追加しない。
 
-**実行順:** 既存のP0→P1とlane入口の順を保ち、下記S01→S18へ対応付ける。原子的詳細は既存lane節を参照し複製しない。外部gate/未来slot/収益の到来で止まるatomは、証拠と戻るcursorを記録して次の独立したsafe atomを一件だけ進める。並列実装はしない。元の全lane目標を維持し、18 agent全greenやJob Hunter entitlement/投資30自然round tripsを、独立した既存商品の販売開始gateにしない。現在cursor=S02/P0-13（新SHAのowner coverageと自然provider証拠を追跡）。
+**実行順:** 既存のP0→P1とlane入口の順を保ち、下記S01→S18へ対応付ける。原子的詳細は既存lane節を参照し複製しない。外部gate/未来slot/収益の到来で止まるatomは、証拠と戻るcursorを記録して次の独立したsafe atomを一件だけ進める。並列実装はしない。元の全lane目標を維持し、18 agent全greenやJob Hunter entitlement/投資30自然round tripsを、独立した既存商品の販売開始gateにしない。現在cursor=S02/P0-14 owner memoryの新release複写停止（新SHAのowner coverageと自然provider証拠も追跡）。
 
 | 状態 | 順 | 次の一操作・対象 / 検証・DONE証拠 |
 |---|---|---|
