@@ -663,20 +663,22 @@ def _normalize_priority(priority: str | None, admission_class: str) -> str:
 def _promote_queued_priority(connection: sqlite3.Connection, owner_id: str,
                              priority: str, queued_at: float) -> None:
     """Raise a retained owner's priority without losing its first queue age."""
+    existing = connection.execute(
+        "SELECT base_priority FROM priorities WHERE owner_id=?", (owner_id,)
+    ).fetchone()
+    base_priority = existing[0] if existing else None
+    current_rank = PRIORITY_RANK.get(base_priority, len(PRIORITY_RANK))
+    promoted_priority = (
+        priority if base_priority is None or current_rank > PRIORITY_RANK[priority]
+        else base_priority
+    )
     connection.execute(
         """UPDATE priorities
               SET admission_policy=?,
-                  base_priority=CASE
-                      WHEN base_priority IS NULL OR
-                           (CASE base_priority
-                                WHEN 'distribution' THEN 0
-                                WHEN 'critical_paid' THEN 1
-                                WHEN 'revenue' THEN 2
-                                ELSE 3 END) > ?
-                      THEN ? ELSE base_priority END,
+                  base_priority=?,
                   queued_at=COALESCE(queued_at,?)
             WHERE owner_id=?""",
-        (ADMISSION_POLICY, PRIORITY_RANK[priority], priority, queued_at, owner_id),
+        (ADMISSION_POLICY, promoted_priority, queued_at, owner_id),
     )
 
 
@@ -752,6 +754,9 @@ def _effective_priority(row: dict[str, object], now: float) -> int:
         if priority == "critical_paid":
             # Distribution wins fresh contention, but it must not starve paid work forever.
             return PRIORITY_RANK["distribution"] - 1
+        if priority == "revenue":
+            # Age revenue into the distribution tier; _queue_order's age key makes it win fresh ties.
+            return PRIORITY_RANK["distribution"]
         return PRIORITY_RANK["critical_paid"]
     return rank
 
