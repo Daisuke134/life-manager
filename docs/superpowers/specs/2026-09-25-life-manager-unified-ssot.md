@@ -9217,9 +9217,10 @@ This entry supersedes the prior producer-review cursor. CFO priority remains A5 
 18. 10:32 JSTの自然`article-daily` occurrence `article-daily:18dcb869e78c3c38-58827` はrelease `d3b3a2792ce9dfa344f4edecf19b66244917d692`で開始し、Marketing Intel 8 tactic IDsと既存paid-demand cardをpromptへ載せた後、`article_generation_state.py init`が`gates/product-selection.json`を許可しないためexit 1。PR #7319/R36はorigin/mainにmerge済みだがloaded releaseはd3b3のまま。
 19. occurrenceのevent rowsは`unknown`/receiptなしだが、fresh read-only adversarial verificationは、このreleaseの順序上`init`失敗はforeground model-runnerより前、brokerのprovider callにはrun-scoped requestが必要、対象runのrequests/responses/doneが空と確認し、対象occurrence限定のpre-effect reconciliationをSHIPと判定。絶対的なprovider通信ゼロとは主張しない。
 20. 原因の別側面: `article-daily.sh`は`LIFE_MANAGER_RESULT_HINT_PATH`をgeneration `init`より前に消すため、pre-effect markerが失われてfenceがunknown化した。markerをprovider dispatch直前まで保持する最小修正と回帰テストを追加する。
-21. **現在cursor:** 最新mainへの統合 → result-hint境界の失敗テスト/最小修正 → 今回occurrenceのexact evidence proofを追加し既存の旧occurrence proofを維持 → focused tests/fresh review/CI/merge → main-derived immutable release/apply → age gate通過後に今回occurrenceだけをproof付きでreconcile → 次の自然Writer runでpaid-demand記事生成/Note ¥500公開 → 公式販売readback・cost・replay-zero。
+21. 11:14 JST: origin/main `7c20304d`をtask branchへ統合し、commit `87a23344`をpush、PR #7330をdraftで作成。fresh reviewerはSHIP、focused test 58件とloop contractはPASS、CIはpending。read-only proof candidateはPASSだが、production occurrence `queued_at=2026-10-09T01:26:48Z` はまだ3600秒未満。SQLite/receipt/retry/publicationは未変更。
+22. **現在cursor:** PR #7330 required checks → source review → merge → main-derived immutable release → age gate通過後に対象occurrenceだけをproof付きでresolve → article-daily targeted apply/readback → 次の自然Writer runでexisting paid-demand topicを¥500 Note記事とX配信素材へ変換 → Note公式販売readback・cost・replay-zero。
 
-現在cursor: step 21 — Writer marker境界の回帰修正と今回occurrenceのexact proofを、既存worktreeの作業を保ちながらlatest mainへ統合する。
+現在cursor: step 22 — PR checks完了と1時間age gateを待ち、production stateを変更せずに両方の次操作を準備する。
 
 ### 2026-10-08 23:00 JST — PR review/CIとlive capacityの初回readback
 
