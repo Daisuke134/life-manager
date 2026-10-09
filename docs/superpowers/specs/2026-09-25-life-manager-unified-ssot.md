@@ -26,7 +26,7 @@
 
 **不変条件:** 11 GiBは今回の容量回復受入であり、全producerの起動floorを一律11 GiBへ変える指示ではない。iOS Simulator runtime/image/device/data/dyld、memory/state、credentials、browser identity、参照release、active/dirty/unmerged/leased/locked worktree、open/unknown dataを削除しない。古い同一UID test artifactと、Git clean/main統合済み/unleased/unlocked/closedを全て証明できるworktreeだけを今回の追加回収対象とする。証明できなければ保持。effect_unknownはexact official receipt/pre-effect proofまで解除・再送しない。Codex session履歴は容量が大きいだけで削除・圧縮対象にしない。
 
-**現在cursor: S02/P0-14自然lock競合の予算内retry（回収sourceはmain/current反映済み、実回収0） → 自然code回収/P0-15 coverage/P0-12の11GiB回復 → 下記全社S順。** GC抑制はmain a8fe894bのimmutable currentへ反映済み。根本修復全体は未完。この節の文書保存・統合と実装/本番成果の完了は別。各atomは証拠取得後だけ `[x]` にし、失敗境界・次の安全な操作・cursorを同じ差分で更新する。
+**現在cursor: S02/P0-14 回収自身の検証FDを使用中と誤認する境界の修復 → 自然code回収/P0-15 coverage/P0-12の11GiB回復 → 下記全社S順。** lock retryは#7423/main694e566597へ統合済みだが、ALL exportはENOSPCで未反映。GC抑制はmain a8fe894bのimmutable currentへ反映済み。根本修復全体は未完。この節の文書保存・統合と実装/本番成果の完了は別。各atomは証拠取得後だけ `[x]` にし、失敗境界・次の安全な操作・cursorを同じ差分で更新する。
 
 **引き継ぎ/診断証拠:** worktree HEAD `a6e03757`の4ファイル497行差分を`ea1784b0ec`で保持してpushし、最新main `3baccdbd`を`00b5d4ff5d`でmerge/push。leaseは既存owner `codex-root`でheartbeatを更新、直列lsof再確認でworktree下open handleなし。既存temp/worktree focused testは2 PASS。agmsg統括identityは`lm/codex-resource-orchestrator-1009`、既存cleanup担当へ重複書込抑制と状態照会を送信。自然receiptの成功/失敗が交互に現れ、失敗時の正確な親errorは`host_cleanup_identity_mismatch`。`disk_cleanup.py::main`のbusy lock出力はexit75だがidentityを含まず、`central_cleanup.host_cleanup_readback`の同-occurrence検査が失敗に変換する。REDはbusy出力identity欠落と親exit1を再現し、最小修正後の関連4 testsはGREEN。修正契約は、busy出力にもimmutable manifest由来の同run identityを載せ、親はそのidentityを検証した正確なbusyだけをeffect0のexit75延期として維持し、他のidentity mismatchはexit1のまま拒否する。旧ENOSPC修復とは区別し、容量不足時の既存reserve/cursor testsも再確認する。
 
@@ -121,6 +121,12 @@ source reclaimのlocal結果: tiny real-Git 5 RED→GREEN後、親directoryのme
 次atomはcentral_cleanup.pyの既存protocol/apply lock取得だけを、全体15秒deadline内の短いbounded retryへ変更し、default apply semanticsや原処理の権限は変えない。Root毎の並列、強制unlock、重複cut、資金/order/fence操作は追加しない。tiny fixtureで初回busy→release後同予算内取得/回収、deadline超過はeffect0、既存data/rollback/no-follow予算を再確認する。source/CI/main/current→自然receiptのcode回収量とfresh freeを閉じ、11GiB条件は維持する。
 
 lock retry source: 初回busy→release後取得のreal-Git ownerケースで旧即時返却のREDを確認。既存_apply_lockをExitStackで取得し、失敗時に取得済lockを閉じ、15秒の残予算内で50ms以下待って再試行する最小helperを追加。期限0/実lock保持中deadline超過は取得もeffectもなく拒否。新/既存reclaim9 tests PASS、diff/contract PASS。source/main/currentと自然回収量はまだ未完。
+
+**P0-14 検証FDの自己参照と反映容量:** #7423/headbb36686857のCI全10項目PASS後、main694e566597c589c6ccfb8393091002faffcd919aへ統合。自然cleanupの20:19:53Z/run18dcf5df3582c328-79559は旧db2e sourceで候補001505-4888da70を選定したがremoved_files0/status=preserved。候補はroot/descriptor UID501、.lm-protectedなし、plists/argv/open FDの外部参照なし、選定80 code filesは全てnlink1。read-only probeで、自分が開いたroot FD3/leaf FD4を同PIDのlsof -Fpnfが候補参照として返すことを確認。最後のcan_reclaimが検証自身のroot/parent/leaf FDを使用中と判定するため、effect前に停止する。最小修正は検証時に保有する正確なFD番号をcallbackへ渡し、FD inventoryでは同PIDかつその番号だけを除外する。他PID、同PIDの別FD、未知/malformed FD、argv/plist/current/lease参照は保持する。tiny real-Git owner fixtureで自己検証FDだけなら回収、別FD/他PIDはeffect0をRED→GREENで証明する。manifest無効化/no-follow/UID/inode/blob/予算は維持し、追加review/frameworkは増やさない。
+
+反映は既存cutter/owner手順を使う。fresh free約0.22GiBでALL exportを試しENOSPC、cutterは途中rootを後始末し旧currentdb2eを維持した。この失敗をcapacity回復やproduction反映と扱わず、同じALL exportを再試行しない。source統合後、既存の非current・owner限定sparse immutable releaseの契約でcleanupだけを反映できるか、必要path/依存と物理生成予算を先に確認する。不成立ならclosed/regenerable候補の容量回復を先に行う。根拠なくfloorを緩めたり保護storeを削除したりしない。11GiBの自然受入と全社順は変更しない。
+
+自己検証FDのsource検証: actual open FDを反映するtiny real-Git owner fixtureのREDは期待2 filesに対し0。callbackへroot/parent/leafの検証FD tupleを渡し、同PIDかつその番号のFDだけをfresh inventoryから除外したGREENで自己検証のみは2 files、同PID別FDと他PID同番号はeffect0。既存no-follow/data/inode/rollback/deadline/resumeを含む11 tests PASS、contract18 catalog/190 jobs/errors0、diff check PASS。削除allowlistや保持境界を広げず、source/CI/本番readbackを区別する。
 
 ### P0 — ディスク回復のatomic TODO
 
