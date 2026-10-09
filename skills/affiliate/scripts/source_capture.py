@@ -42,6 +42,42 @@ EXCLUDED_MARKERS = (
     "affiliate", "application", "archived", "career", "contact", "jobs",
     "legal", "policy", "privacy", "program", "safety", "terms",
 )
+AFFILIATE_CASE_STUDY_SOURCES = (
+    {
+        "id": "elevenlabs-alec", "adapter": "crwl",
+        "url": "https://elevenlabs.io/blog/alec-wilcock-on-becoming-a-top-affiliate-for-elevenlabs",
+        "evidence_class": "first_person_case",
+        "license": "PROPRIETARY_REFERENCE_ONLY", "freshness_days": 90,
+    },
+    {
+        "id": "elevenlabs-greg", "adapter": "crwl",
+        "url": "https://elevenlabs.io/blog/greg-preece-on-youtube-monetisation-with-the-elevenlabs-affiliate-program",
+        "evidence_class": "first_person_case",
+        "license": "PROPRIETARY_REFERENCE_ONLY", "freshness_days": 90,
+    },
+)
+AFFILIATE_CASE_STUDY_SOURCE_IDS = frozenset(
+    source["id"] for source in AFFILIATE_CASE_STUDY_SOURCES
+)
+
+
+def _plan_uses_elevenlabs_sources(sources):
+    return isinstance(sources, list) and any(
+        isinstance(source, dict)
+        and isinstance(source.get("url"), str)
+        and source["url"].startswith("https://elevenlabs.io/")
+        for source in sources
+    )
+
+
+def _has_affiliate_case_studies(sources):
+    if not isinstance(sources, list):
+        return False
+    source_ids = {
+        source_id for source in sources if isinstance(source, dict)
+        if isinstance((source_id := source.get("id") or source.get("source_id")), str)
+    }
+    return AFFILIATE_CASE_STUDY_SOURCE_IDS.issubset(source_ids)
 
 
 def plan_paths(root, state_root=None):
@@ -396,18 +432,7 @@ def discover_official_plan(root, state_root, now, opportunity_selector=select_op
                 "url": "https://elevenlabs.io/pricing", "evidence_class": "official_price",
                 "license": "PROPRIETARY_REFERENCE_ONLY", "freshness_days": 7,
             },
-            {
-                "id": "elevenlabs-alec", "adapter": "crwl",
-                "url": "https://elevenlabs.io/blog/alec-wilcock-on-becoming-a-top-affiliate-for-elevenlabs",
-                "evidence_class": "first_person_case",
-                "license": "PROPRIETARY_REFERENCE_ONLY", "freshness_days": 90,
-            },
-            {
-                "id": "elevenlabs-greg", "adapter": "crwl",
-                "url": "https://elevenlabs.io/blog/greg-preece-on-youtube-monetisation-with-the-elevenlabs-affiliate-program",
-                "evidence_class": "first_person_case",
-                "license": "PROPRIETARY_REFERENCE_ONLY", "freshness_days": 90,
-            },
+            *AFFILIATE_CASE_STUDY_SOURCES,
         ],
     }
     if experiment:
@@ -510,10 +535,65 @@ def append_unique(path, receipt):
         return True
 
 
+def _fresh_strategy_receipt(state_root, source, now):
+    directory = state_root / "sources" / source["id"]
+    receipt_path = directory / "latest.json"
+    if directory.is_symlink() or receipt_path.is_symlink():
+        return None
+    try:
+        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+        if not isinstance(receipt, dict):
+            return None
+        expires_text = receipt.get("expires_at")
+        digest = receipt.get("raw_sha256")
+        if not isinstance(expires_text, str):
+            return None
+        expires_at = datetime.fromisoformat(expires_text.replace("Z", "+00:00"))
+        if (
+            receipt.get("schema_version") != 1
+            or receipt.get("receipt_type") != "SOURCE_CAPTURE"
+            or receipt.get("source_id") != source["id"]
+            or receipt.get("adapter") != source["adapter"]
+            or receipt.get("locator") != source["url"]
+            or receipt.get("locale") != "en"
+            or receipt.get("evidence_class") != source["evidence_class"]
+            or receipt.get("license") != source["license"]
+            or receipt.get("failure_class") is not None
+            or not isinstance(digest, str)
+            or not re.fullmatch(r"[0-9a-f]{64}", digest)
+            or expires_at.tzinfo is None or expires_at <= now
+        ):
+            return None
+        artifact = directory / f"{digest}.md"
+        if artifact.is_symlink() or not artifact.is_file():
+            return None
+        if hashlib.sha256(artifact.read_bytes()).hexdigest() != digest:
+            return None
+    except (OSError, TypeError, ValueError):
+        return None
+    return {**receipt, "new_capture": False}
+
+
 def capture(plan, state_root):
     now = datetime.now(timezone.utc)
-    receipts = []
-    for source in plan["sources"]:
+    plan_sources = list(plan["sources"])
+    plan_source_ids = {source["id"] for source in plan_sources}
+    strategy_sources = (
+        AFFILIATE_CASE_STUDY_SOURCES
+        if _plan_uses_elevenlabs_sources(plan_sources) else ()
+    )
+    capture_sources = list(plan_sources)
+    reusable_strategy_receipts = {}
+    for source in strategy_sources:
+        if source["id"] in plan_source_ids:
+            continue
+        reusable = _fresh_strategy_receipt(state_root, source, now)
+        if reusable is None:
+            capture_sources.append(source)
+        else:
+            reusable_strategy_receipts[source["id"]] = reusable
+    receipts_by_id = {}
+    for source in capture_sources:
         raw = run_adapter(source)
         digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()
         directory = state_root / "sources" / source["id"]
@@ -545,8 +625,14 @@ def capture(plan, state_root):
         }
         receipt["new_capture"] = append_unique(state_root / "source-captures.jsonl", receipt)
         atomic_write(directory / "latest.json", receipt)
-        receipts.append(receipt)
-    return receipts
+        receipts_by_id[source["id"]] = receipt
+    receipts_by_id.update(reusable_strategy_receipts)
+    source_order = [source["id"] for source in plan_sources]
+    source_order.extend(
+        source["id"] for source in strategy_sources
+        if source["id"] not in plan_source_ids
+    )
+    return [receipts_by_id[source_id] for source_id in source_order]
 
 
 def plan_set_sha256(root, state_root=None):
@@ -554,6 +640,45 @@ def plan_set_sha256(root, state_root=None):
     for path in plan_paths(root, state_root):
         digest.update(path.name.encode("utf-8") + b"\0" + path.read_bytes() + b"\0")
     return digest.hexdigest()
+
+
+def _active_unconverted_plan_id(state_root):
+    try:
+        funnel = json.loads(
+            (state_root / "money-funnel" / "latest.json").read_text(encoding="utf-8")
+        )
+        ledger = json.loads(
+            (state_root / "placement-ledger.json").read_text(encoding="utf-8")
+        )
+    except (OSError, TypeError, ValueError, json.JSONDecodeError):
+        return None
+    impressions = funnel.get("impressions") if isinstance(funnel, dict) else None
+    clicks = funnel.get("provider_clicks") if isinstance(funnel, dict) else None
+    transactions = funnel.get("transactions") if isinstance(funnel, dict) else None
+    placement_id = funnel.get("placement_id") if isinstance(funnel, dict) else None
+    if (
+        not isinstance(placement_id, str)
+        or not isinstance(impressions, dict)
+        or impressions.get("state") != "EXACT"
+        or type(impressions.get("count")) is not int or impressions["count"] <= 0
+        or not isinstance(clicks, dict)
+        or type(clicks.get("cumulative_unique_count")) is not int
+        or clicks["cumulative_unique_count"] <= 0
+        or not isinstance(transactions, dict)
+        or transactions.get("state") != "OBSERVED"
+        or type(transactions.get("count")) is not int or transactions["count"] != 0
+    ):
+        return None
+    placements = ledger.get("placements") if isinstance(ledger, dict) else None
+    if not isinstance(placements, list):
+        return None
+    matches = [
+        row for row in placements
+        if isinstance(row, dict) and row.get("placement_id") == placement_id
+    ]
+    if len(matches) != 1 or not isinstance(matches[0].get("plan_id"), str):
+        return None
+    return matches[0]["plan_id"]
 
 
 def write_composition_bundle(state_root, plan, receipts):
@@ -629,6 +754,18 @@ def refresh_all(
         plan_set = plan_set_sha256(root, state_root)
         plan_hashes = {path.stem: hashlib.sha256(path.read_bytes()).hexdigest()
                        for path in paths}
+        legacy_case_study_plan_ids = set()
+        for path in paths:
+            try:
+                plan = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, UnicodeDecodeError, ValueError):
+                continue
+            plan_sources = plan.get("sources") if isinstance(plan, dict) else None
+            if (
+                _plan_uses_elevenlabs_sources(plan_sources)
+                and not _has_affiliate_case_studies(plan_sources)
+            ):
+                legacy_case_study_plan_ids.add(path.stem)
         try:
             previous = json.loads(receipt_path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
@@ -637,17 +774,33 @@ def refresh_all(
                       or (previous.get("state") == "PARTIAL"
                           and previous.get("pending_count") == 0))
         within_cooldown = (now - int(previous.get("completed_at", 0)) < cooldown_seconds)
+        previous_plans = previous.get("plans", [])
+        previous_by_plan = {
+            row["plan_id"]: row for row in previous_plans
+            if isinstance(row, dict) and isinstance(row.get("plan_id"), str)
+            and row.get("plan_sha256") == plan_hashes.get(row["plan_id"])
+        } if isinstance(previous_plans, list) else {}
+        legacy_case_study_backfill_pending = any(
+            plan_id not in previous_by_plan
+            or previous_by_plan[plan_id].get("state") != "CAPTURED"
+            or previous_by_plan[plan_id].get("case_study_sources_complete") is not True
+            for plan_id in legacy_case_study_plan_ids
+        )
         if (cycle_done and previous.get("plan_set_sha256") == plan_set
-                and within_cooldown):
+                and within_cooldown and not legacy_case_study_backfill_pending):
             return {"state": "COOLDOWN", "completed_at": previous.get("completed_at"), "plans": []}
         continuing = (previous.get("state") == "IN_PROGRESS"
                       or (cycle_done and within_cooldown))
         results = [row for row in previous.get("plans", [])
-                   if row.get("plan_sha256") == plan_hashes.get(row.get("plan_id"))]
+                   if row.get("plan_sha256") == plan_hashes.get(row.get("plan_id"))
+                   and (row.get("plan_id") not in legacy_case_study_plan_ids
+                        or row.get("case_study_sources_complete") is True)]
         if not continuing:
             results = []
         attempted = {row["plan_id"] for row in results}
         remaining = [path for path in paths if path.stem not in attempted]
+        active_plan_id = _active_unconverted_plan_id(state_root)
+        remaining.sort(key=lambda path: (path.stem != active_plan_id, path.name))
         for path in remaining[:1]:
             plan_id = path.stem
             try:
@@ -657,6 +810,9 @@ def refresh_all(
                 results.append({
                     "plan_id": plan_id, "state": "CAPTURED", "source_count": len(receipts),
                     "new_count": sum(bool(row["new_capture"]) for row in receipts),
+                    "case_study_sources_complete": _has_affiliate_case_studies(
+                        bundle["sources"]
+                    ),
                     "source_set_sha256": bundle["source_set_sha256"],
                     "plan_sha256": plan_hashes[plan_id],
                 })
