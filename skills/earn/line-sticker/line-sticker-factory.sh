@@ -19,6 +19,8 @@ if [ -f "$ENV_FILE" ]; then
   . "$ENV_FILE"
   set +a
 fi
+# LaunchAgents do not source ~/.zshenv; give browser children the idle default explicitly.
+export AGENT_BROWSER_IDLE_TIMEOUT_MS="${AGENT_BROWSER_IDLE_TIMEOUT_MS:-900000}"
 if [ -z "${FAL_KEY:-}" ] || [ -z "${GEMINI_API_KEY:-}" ]; then
   echo "FAL_KEY and GEMINI_API_KEY are required (checked $ENV_FILE)" >&2
   exit 2
