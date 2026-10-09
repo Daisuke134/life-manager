@@ -4,8 +4,10 @@ const { createHash, createHmac } = require("node:crypto");
 const {
   WEB_ATTRIBUTION_COOKIE,
   WEB_ATTRIBUTION_MAX_AGE_SECONDS,
+  WEB_ATTRIBUTION_UTM_KEYS,
   captureWebAttribution,
   consumeWebAttribution,
+  sanitizeWebAttribution,
 } = require("./web-attribution.js");
 const { recordWebFunnelEvent } = require("./web-funnel-events.js");
 
@@ -363,6 +365,17 @@ function requestQuery(req) {
   catch { return new URLSearchParams(); }
 }
 
+function signedOutCalendarHandoffLocation(req) {
+  if (String(req && req.method || "GET").toUpperCase() !== "GET" || requestPath(req) !== "/lm") return null;
+  const query = requestQuery(req);
+  const startFlags = query.getAll("start_calendar");
+  if (startFlags.length !== 1 || startFlags[0] !== "1") return null;
+  if (WEB_ATTRIBUTION_UTM_KEYS.some((key) => query.getAll(key).length > 1)) return null;
+  const attribution = sanitizeWebAttribution(query);
+  const search = new URLSearchParams(attribution).toString();
+  return search ? `/auth/google?${search}` : "/auth/google";
+}
+
 function requestCookies(req, opts = {}) {
   const ssr = ssrFor(opts);
   if (typeof ssr.parseCookieHeader !== "function") throw new Error("Supabase SSR cookie parser unavailable");
@@ -588,5 +601,6 @@ module.exports = {
   ensureWebUser,
   handleWebAuthRequest,
   resolveWebUser,
+  signedOutCalendarHandoffLocation,
   separateWebUidForSubject,
 };

@@ -306,7 +306,7 @@ Vercel Chat SDK is the OSS toolkit that most closely matches “one agent across
 
 **Goal:** A visitor's one “Connect Google Calendar” click enters the existing verified auth-start route without a second app-page click. The signed-out `/lm?start_calendar=1` request records the app landing event and redirects to `/auth/google` with allowlisted UTM values. Authenticated Web users keep the existing automatic Calendar start. No auth provider, OAuth scope, Calendar adapter, price, trial, or billing behavior changes.
 
-**Files:** Life Manager `apps/life-manager/lib/web-auth.js`, `apps/life-manager/server.js`, `apps/life-manager/lib/web-auth.test.js`, `apps/landing/app/lm/LmBody.tsx`, `apps/life-manager/test/onboarding-resume-contract.test.js`; production landing source in `anicca-products/apps/landing/lib/writer-cta-url.js`, `apps/landing/netlify/functions/_lib/writer-cta.js`, and their existing tests.
+**Files:** Life Manager `apps/life-manager/lib/web-attribution.js`, `apps/life-manager/lib/web-auth.js`, `apps/life-manager/server.js`, `apps/life-manager/lib/web-auth.test.js`, `apps/landing/app/lm/LmBody.tsx`, `apps/life-manager/test/onboarding-resume-contract.test.js`; production landing source in `anicca-products/apps/landing/lib/writer-cta-url.js`, `apps/landing/netlify/functions/_lib/writer-cta.js`, and their existing tests.
 
 **Tests, in order:**
 1. RED: add a unit test for signed-out `/lm?start_calendar=1` generating only `/auth/google` plus unique allowlisted UTM values; verify no flag/no wrong path/duplicate UTM returns no handoff.

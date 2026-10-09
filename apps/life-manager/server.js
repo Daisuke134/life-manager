@@ -53,7 +53,7 @@ const {
   handleLateApprovalCallback,
 } = require("./lib/late-approval.js");
 const { sendPanelLink, handlePanelRequest, handleMoneyPrinterGuestRequest, panelDeviceCodeFromCommand, confirmPanelDeviceCode, cookieValue, sessionScope, panelScopeCookie, claimTelegramWebhookActor } = require("./lib/panel-auth.js");
-const { handleWebAuthRequest, resolveWebUser } = require("./lib/web-auth.js");
+const { handleWebAuthRequest, resolveWebUser, signedOutCalendarHandoffLocation } = require("./lib/web-auth.js");
 const { handleWebCalendarRequest } = require("./lib/web-calendar.js");
 const { handleWebTravelRequest, buildTodaySnapshot } = require("./lib/web-travel.js");
 const { handleWebBillingRequest, trialEndFor } = require("./lib/web-billing.js");
@@ -565,6 +565,14 @@ const server = http.createServer(async (req, res) => {
     let user = null;
     let snapshot = null;
     try { user = await resolveWebUser(req, res, { publicOrigin: LM_PANEL_BASE }); } catch {}
+    if (!user) {
+      const authStart = signedOutCalendarHandoffLocation(req);
+      if (authStart) {
+        res.writeHead(302, { location: authStart, "cache-control": "no-store", "content-length": "0" });
+        res.end();
+        return;
+      }
+    }
     if (user) {
       try {
         snapshot = await buildTodaySnapshot(user.uid, {
