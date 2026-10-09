@@ -708,6 +708,8 @@ def _asc_subscription_mapping(source: Any, expected_sha: Any = None) -> dict:
         raise ValueError("missing_coverage")
 
     mapped = {}
+    seen_group_subscription_ids = set()
+    seen_included_subscription_ids = set()
     for artifact in artifacts:
         if not isinstance(artifact, dict) or not isinstance(artifact.get("artifact_path"), str):
             raise ValueError("missing_coverage")
@@ -746,6 +748,9 @@ def _asc_subscription_mapping(source: Any, expected_sha: Any = None) -> dict:
                 if isinstance(subscription, dict) and subscription.get("type") == "subscriptions":
                     subscription_id = subscription.get("id")
                     if isinstance(subscription_id, str):
+                        if subscription_id in seen_group_subscription_ids:
+                            raise ValueError("subscription_relationship_duplicate")
+                        seen_group_subscription_ids.add(subscription_id)
                         groups.setdefault(subscription_id, []).append(group_index)
         included: dict[str, list[tuple[int, str]]] = {}
         for included_index, subscription in enumerate(payload["included"], start=1):
@@ -753,8 +758,12 @@ def _asc_subscription_mapping(source: Any, expected_sha: Any = None) -> dict:
                 continue
             subscription_id = subscription.get("id")
             product_id = (subscription.get("attributes") or {}).get("productId")
-            if isinstance(subscription_id, str) and isinstance(product_id, str) and product_id:
-                included.setdefault(subscription_id, []).append((included_index, product_id))
+            if isinstance(subscription_id, str):
+                if subscription_id in seen_included_subscription_ids:
+                    raise ValueError("subscription_relationship_duplicate")
+                seen_included_subscription_ids.add(subscription_id)
+                if isinstance(product_id, str) and product_id:
+                    included.setdefault(subscription_id, []).append((included_index, product_id))
         for subscription_id, group_positions in groups.items():
             details = included.get(subscription_id, [])
             if len(group_positions) == 1 and len(details) == 1:

@@ -332,6 +332,19 @@ class CapafyMobileAttributionTest(unittest.TestCase):
             "relationships": relationship_bundle,
         }
 
+    @staticmethod
+    def rewrite_relationship_artifacts(packet, mutate):
+        relationships = packet["relationships"]
+        artifacts = relationships.get("artifacts", [relationships])
+        artifact = artifacts[0]
+        path = Path(artifact["artifact_path"])
+        payload = json.loads(path.read_text())
+        mutate(payload)
+        raw = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+        path.write_bytes(raw)
+        artifact["artifact_sha256"] = hashlib.sha256(raw).hexdigest()
+        return artifacts
+
     def test_mobile_financial_packet_emits_one_replay_stable_receipt_and_gap(self):
         module = self.require_adapter()
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -476,6 +489,33 @@ class CapafyMobileAttributionTest(unittest.TestCase):
             )
             with self.assertRaisesRegex(ValueError, "subscription_relationship_duplicate"):
                 module._asc_subscription_mapping(packet["relationships"]["artifacts"], None)
+
+    def test_mobile_financial_relationship_rejects_subscription_in_multiple_groups(self):
+        module = self.require_adapter()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            packet = self.make_mobile_financial_packet(temp_dir)
+            artifacts = self.rewrite_relationship_artifacts(
+                packet,
+                lambda payload: payload["data"].append({
+                    "id": "fixture-group-duplicate", "type": "subscriptionGroups",
+                    "relationships": {"subscriptions": {"data": [{
+                        "id": "fixture-subscription-1", "type": "subscriptions",
+                    }]}},
+                }),
+            )
+            with self.assertRaisesRegex(ValueError, "subscription_relationship_duplicate"):
+                module._asc_subscription_mapping(artifacts, None)
+
+    def test_mobile_financial_relationship_rejects_duplicate_included_subscription(self):
+        module = self.require_adapter()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            packet = self.make_mobile_financial_packet(temp_dir)
+            artifacts = self.rewrite_relationship_artifacts(
+                packet,
+                lambda payload: payload["included"].append(dict(payload["included"][0])),
+            )
+            with self.assertRaisesRegex(ValueError, "subscription_relationship_duplicate"):
+                module._asc_subscription_mapping(artifacts, None)
 
     def test_collect_b7_financial_packet_uses_official_receipt_without_legacy_asc_rows(self):
         module = self.require_adapter()
