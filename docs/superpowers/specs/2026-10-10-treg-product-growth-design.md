@@ -23,6 +23,8 @@ CodexのMCP設定はHTTP headerを環境変数から読み込む。通常shell�
 
 週次監視は専用の`treg-lead-signals-agent` task classを使う。これはCodex-only、shell/tool-less read-only、account 2、`gpt-6.1-sol` mediumのautomation routeとし、Treg MCPだけを操作できる。
 
+このtask classだけTreg MCPの`catalog_search`、`catalog_get`、`call`、`balance`を無人実行できるようapproveする。一般agentのapprovalとshell sandboxは変更しない。
+
 監視対象は次の9製品。buyer descriptionはMarketing Engine registryを優先し、残る4アプリは公開製品名と既存App Store記録から作る短い作業定義とする。
 
 | 優先 | 製品 | 一文の対象購入者 |

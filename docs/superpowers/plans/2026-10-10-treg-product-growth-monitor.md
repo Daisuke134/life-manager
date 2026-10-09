@@ -16,6 +16,7 @@
 
 - Read only `service=treg_agent:life-manager-product-growth` from `~/.local/share/anicca/credentials.json`; never persist the token in Git, argv, config files, logs, or chat.
 - Codex MCP uses `https://treg.to/mcp/`, `env_http_headers = { "X-Treg-Token" = "TREG_TOKEN" }`, and only `catalog_search`, `catalog_get`, `call`, and `balance` tools.
+- Only `treg-lead-signals-agent` receives unattended approval for those MCP tools; all other agent approval/sandbox policies stay as configured.
 - Do not enable general shell network access for Codex.
 - Monitor nine products, Anicca first; query public X and Reddit posts from the last seven days only.
 - Limit each weekly monitor to 18 billed routes, at `$0.003` maximum per route and `$0.054` total; stop when balance is below `$0.05`. Do not enable auto-top-up.
