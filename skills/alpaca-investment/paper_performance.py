@@ -11,6 +11,8 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
+from effect_store import UNRESOLVED_INTENT_STATUSES
+
 
 OWNER_ID = "alpaca-investment-paper"
 STRATEGY_ID = "alpaca-etf-126d-momentum-v1"
@@ -110,6 +112,7 @@ def _ledger_rows(rows: Any) -> tuple[list[dict[str, Any]], dict[str, dict[str, A
     if not isinstance(rows, Sequence) or isinstance(rows, (str, bytes)):
         raise ValueError("paper_ledger_invalid")
     intents: dict[str, dict[str, Any]] = {}
+    ignored_intents: dict[str, dict[str, Any]] = {}
     outcomes: dict[str, dict[str, Any]] = {}
     for row in rows:
         if not isinstance(row, Mapping):
@@ -117,9 +120,24 @@ def _ledger_rows(rows: Any) -> tuple[list[dict[str, Any]], dict[str, dict[str, A
         if row.get("receipt_type") == "effect_intent":
             effect_id = row.get("effect_id")
             order = row.get("order")
-            if not isinstance(effect_id, str) or not effect_id or not isinstance(order, Mapping):
+            if not isinstance(effect_id, str) or not effect_id:
                 raise ValueError("paper_intent_invalid")
+            if not isinstance(order, Mapping):
+                previous = intents.get(effect_id) or ignored_intents.get(effect_id)
+                identity_fields = (
+                    "client_order_id", "decision_id", "owner_id", "strategy_id",
+                    "decision_session", "source_receipt_ids",
+                )
+                if (previous is None
+                        or row.get("status") not in UNRESOLVED_INTENT_STATUSES
+                        or row.get("mode") != previous.get("mode")
+                        or row.get("paper") is not previous.get("paper")
+                        or any(key in row and row.get(key) != previous.get(key)
+                               for key in identity_fields)):
+                    raise ValueError("paper_intent_invalid")
+                continue
             if order.get("asset_class") != "us_equity":
+                ignored_intents[effect_id] = dict(row)
                 continue
             if (row.get("mode") != "paper" or row.get("paper") is not True
                     or row.get("owner_id") != OWNER_ID or row.get("strategy_id") != STRATEGY_ID):
@@ -145,9 +163,25 @@ def _ledger_rows(rows: Any) -> tuple[list[dict[str, Any]], dict[str, dict[str, A
                     if isinstance(previous_broker, Mapping) else None
                 current_status = current_broker.get("status") \
                     if isinstance(current_broker, Mapping) else None
+                same_filled_order = (
+                    previous_status == current_status == "filled"
+                    and isinstance(previous_broker, Mapping)
+                    and isinstance(current_broker, Mapping)
+                    and isinstance(previous_broker.get("id"), str)
+                    and bool(previous_broker.get("id"))
+                    and previous_broker.get("id") == current_broker.get("id")
+                    and isinstance(previous_broker.get("client_order_id"), str)
+                    and bool(previous_broker.get("client_order_id"))
+                    and previous_broker.get("client_order_id")
+                    == current_broker.get("client_order_id")
+                    and all(previous_broker.get(key) == current_broker.get(key)
+                            and previous_broker.get(key) not in (None, "")
+                            for key in ("symbol", "side", "filled_qty", "filled_avg_price"))
+                )
                 if (previous_status not in BROKER_NONTERMINAL_STATUSES
                         or current_status not in ({"filled"} | BROKER_TERMINAL_FAILURE_STATUSES)):
-                    raise ValueError("paper_receipt_duplicate")
+                    if not same_filled_order:
+                        raise ValueError("paper_receipt_duplicate")
             outcomes[effect_id] = dict(row)
     provider_ids: set[str] = set()
     for row in outcomes.values():
