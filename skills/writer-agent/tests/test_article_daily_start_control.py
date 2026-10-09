@@ -1200,3 +1200,33 @@ class ArticleStartPolicyTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class GateStoppedRunDoesNotBlockTheDayTest(unittest.TestCase):
+    """2026-10-09: article-daily writes gates/product-selection.json before the demand gate, so a run
+    stopped by the gate was no longer 'preflight only' and blocked every later wake that day
+    (`same-jst-day-unclassified-run`)."""
+
+    def _run(self, root: Path, extra: dict):
+        run_id = "20261008-232303"
+        gates = root / "runs" / run_id / "gates"
+        gates.mkdir(parents=True)
+        (root / "runs" / run_id / "git-hash.txt").write_text("abc\n")
+        (gates / "strategy-consumption.json").write_text(
+            json.dumps({"run_id": run_id, "status": "baseline", "versions": []})
+        )
+        for name, text in extra.items():
+            (gates / name).write_text(text)
+        (root / "articles.jsonl").write_text("")
+        return START.decide(root, "2026-10-09")
+
+    def test_a_gate_stopped_run_with_a_product_selection_receipt_is_reused(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            decision = self._run(Path(tmp), {"product-selection.json": '{"product_id": "anicca"}'})
+        self.assertEqual(decision["action"], "new")
+        self.assertEqual(decision["reason"], "same-jst-day-preflight-only-run")
+
+    def test_any_other_gate_file_still_fails_closed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            decision = self._run(Path(tmp), {"product-selection.json": "{}", "topic-route.json": "{}"})
+        self.assertEqual(decision["action"], "block-incomplete")
