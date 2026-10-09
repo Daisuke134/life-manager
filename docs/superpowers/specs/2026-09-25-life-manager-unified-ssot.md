@@ -10729,3 +10729,18 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 - **Runtime boundary:** `lm-loop doctor`は189 entries、missing/unmanaged 0でPASS。current pointerは`20261009T114519-a14f0679`だが、latest mainは`44b9fbff`、mobile ownersは17件が`7c20304d`、JP4が`d3b3a279`。source patchは未merge/未deploy。EN2の2 occurrenceはlocal event journalでpre-effect proof可能だが、本番statusのfenceは未解消。
 
 **現在mobile cursor:** latest main mergeをcommit/push → PR #7339 exact-head CIをPASSさせmainへmerge → latest-main immutable releaseをcutしmobile ownersを1件ずつtargeted apply → EN2のproduction pre-effect fence closureをreadback → due/missed accountをPostiz receipt countに基づき不足分だけ即dispatch → `PUBLISHED`/URL/asset hash/Telegram linkとper-post metricsを保存。1 ownerのfence・metrics失敗は他ownerを止めず、day-closeの54/54は結果判定だけにする。続けてASC/RevenueCat/in-app funnelからverified USD 10K net MRRへ進む。
+
+### 2026-10-09 12:30 JST — Investment paper HOLD and release adoption cursor
+
+この追記で投資runtime snapshotを更新する。既存のL9-12/AT-13〜AT-29の順序、30-round-trip gate、live gateは変更しない。
+
+- **Release/admission:** `~/loops/current` はmain由来release `20261009T122537-55e8b166`（SHA `55e8b166a7c9d718eb2f2a5e58213bc108f550d1`）。12:30 JSTのpaper owner readbackではinstalled SHA `3e7ca9e7`、最新terminal `alpaca-investment-paper:18dcbedcd9e8fbb0-72324`（03:30:14Z、同SHA）が`host_admission_deferred:resource_capacity_busy`、`effect_status=not_applicable`、receiptなし。ownerはcurrent release SHA `55e8b166`へ未収束。手動wake/sell/replayはしない。
+- **Paper decision/account:** 12:17:55 JSTの自然occurrence `alpaca-investment-paper:18dcbe2cc211be60-88992` はQQQの`HOLD / hold_period_not_elapsed`、`held_sessions=8`、expected cost `$0.02`。current policyは`HOLD_SESSIONS=21`で、qualified exitは`ranked_symbol_changed`または`hold_sessions_elapsed`。Alpaca official GET（12:20:05 JST）はequity `$99,996.88`、cash `$99,986.76`、QQQ `0.013493253`株、market value `$10.122503`、unrealized `+$0.132503`、open orders `0`、QQQ sellなし。これは含み益で、閉じたround tripも実現net P&Lも確認できない。HOLD occurrenceは`effect_status=unknown`/receiptなしで、公式GETは現在open orderとQQQ sellを示さないが、同occurrenceのno-POST記録は未確証。effectを再送しない。
+- **Live/PLTR:** live ownerはdisabledのまま、`alpaca-investment-live:18d9e6f979d18818-14709`の`admission_effect_unknown` fenceが残る。前回公式account readback（02:15Z）の約`-$0.27`は口座全体の入金差で、Life Manager ownerへ帰属するrealized net P&Lではない。ETF universeにPLTRはなく、Palantir注文は未発生。
+
+**このinvestment runtime subcursorの残り2件（順序固定、未完）:**
+
+1. [ ] **AT-13 qualified natural exit:** main current SHA `55e8b166`のpaper owner adoption後、自然occurrenceのinstalled SHA・decision・effect/readbackを結ぶ。`ranked_symbol_changed`または21 held sessions後の`hold_sessions_elapsed`だけをqualified exitとする。8/21のHOLD、capacity defer、単なる`pass`は完了ではない。
+2. [ ] **First closed round trip and truthful paper P&L:** 公式paper sell fillを既存QQQ buyとclient/effect identity・数量で照合し、provider receipt、fees、slippage、model/system costを結合して`paper_performance.py`でnet P&Lを算出し、同一occurrenceでreplay-zeroを確認する。closed round tripと全費用証拠が揃うまでP&L=`unknown`。
+
+**Current cursor:** natural adoption of main SHA `55e8b166` → AT-13 qualified natural exit → first closed round trip with cost-complete paper P&L. その後も30 round tripsとAT-24/AT-29 + fresh反対意見reviewを通過するまでlive funding/orderは行わない。現時点で検証済みの投資利益はない。
