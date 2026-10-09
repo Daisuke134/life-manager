@@ -1058,3 +1058,5 @@ f3af5177d37815397631de6ce45a886f1d4e3a66:skills/connector/test/wake-report-outbo
 603d6810256510ac3d8e9f6c309cc70126e3d863:apps/mobile/anicca-ios/aniccaios/Models/DeepDiveQuestionsData.swift:generic-api-key:245
 # Generated runtime occurrence identifier, independently adjudicated in the security baseline below.
 d5ce0d1302e206a5df3744ed998901d069d610f9:docs/evidence/main-agents/health.json:generic-api-key:7757
+# Historical prose false positive documented in the security baseline addendum.
+68e8bc2888ff119b59c6f65c67ef63759af20af9:docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md:generic-api-key:3848
