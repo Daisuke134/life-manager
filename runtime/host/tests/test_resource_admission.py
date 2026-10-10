@@ -28,7 +28,8 @@ def durable_rows(root, table):
         return [dict(zip(columns, row)) for row in connection.execute(f"SELECT * FROM {table}")]
 
 
-def test_recording_getter_can_claim_while_the_model_slot_is_full(tmp_path, monkeypatch):
+@pytest.mark.parametrize("getter_owner", ("lm-recording-store", "writer-sales-measure"))
+def test_recording_getter_can_claim_while_the_model_slot_is_full(tmp_path, monkeypatch, getter_owner):
     from runtime.loop.lm_loop import _admission_rebind_guard
     from runtime.loop.lm_loop_run import _resource_class
 
@@ -49,22 +50,22 @@ def test_recording_getter_can_claim_while_the_model_slot_is_full(tmp_path, monke
         assert overflow is None and reason == "capacity_busy", reason
 
         admission.enqueue_durable(
-            "agent", "lm-recording-store",
-            occurrence_id="lm-recording-store:queued-before-class-fix",
+            "agent", getter_owner,
+            occurrence_id=f"{getter_owner}:queued-before-class-fix",
         )
         before = next(row for row in durable_rows(tmp_path, "occurrences")
-                      if row["owner_id"] == "lm-recording-store")
-        recording_class = _resource_class(registry["lm-recording-store"])
+                      if row["owner_id"] == getter_owner)
+        recording_class = _resource_class(registry[getter_owner])
         with _admission_rebind_guard(
-                "lm-recording-store", True,
-                entry=registry["lm-recording-store"]) as blocked:
+                getter_owner, True,
+                entry=registry[getter_owner]) as blocked:
             assert blocked is None
-        admission.enqueue_durable(recording_class, "lm-recording-store")
-        recording_claim, reason = admission.claim_durable(recording_class, "lm-recording-store")
+        admission.enqueue_durable(recording_class, getter_owner)
+        recording_claim, reason = admission.claim_durable(recording_class, getter_owner)
         assert recording_claim is not None and reason == "acquired", reason
         claims.append(recording_claim)
         after = next(row for row in durable_rows(tmp_path, "occurrences")
-                     if row["owner_id"] == "lm-recording-store")
+                     if row["owner_id"] == getter_owner)
         assert (after["occurrence_id"], after["queued_at"], after["sequence"]) == (
             before["occurrence_id"], before["queued_at"], before["sequence"],
         )

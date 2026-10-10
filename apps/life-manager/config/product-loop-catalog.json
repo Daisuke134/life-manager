@@ -80,7 +80,7 @@
       "job_ids": ["writer-claim-loop", "writer-craft-train", "writer-money-sync", "writer-opportunity-discovery", "writer-opportunity-response", "writer-report", "writer-sales-measure"],
       "name": "Writer",
       "description": "Find paid writing work, respond, and record publisher and payment receipts.",
-      "recovery_classes": ["external_effect_owner", "model"],
+      "recovery_classes": ["browser", "external_effect_owner", "model"],
       "economic": {"role":"customer_revenue","revenue_classes":["one_time","retainer","subscription"],"sources":{"funnel":{"adapter":"writer-demand-receipt","implementation":"implemented"},"financial":{"adapter":"writer-money-sync","implementation":"partial"},"cost":{"adapter":"writer-money-sync","implementation":"partial"}}},
       "requirements": ["publisher_account", "provider_credentials", "public_guided_installer"],
       "hosts": {
