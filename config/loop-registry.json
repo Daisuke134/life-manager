@@ -2301,7 +2301,7 @@
     },
     "life-manager-anicca-en-affirmation-instagram": {
       "priority": "distribution",
-      "resource_class": "agent",
+      "resource_class": "deterministic",
       "admission_class": "revenue",
       "cadence": {
         "calendar_interval": [
@@ -2381,7 +2381,7 @@
     },
     "life-manager-anicca-en-slideshow-tiktok": {
       "priority": "distribution",
-      "resource_class": "agent",
+      "resource_class": "deterministic",
       "admission_class": "revenue",
       "cadence": {
         "calendar_interval": [
@@ -2603,7 +2603,7 @@
     },
     "life-manager-anicca-en-affirmation-tiktok": {
       "priority": "distribution",
-      "resource_class": "agent",
+      "resource_class": "deterministic",
       "admission_class": "revenue",
       "cadence": {
         "calendar_interval": [
@@ -2631,7 +2631,7 @@
     },
     "life-manager-anicca-en2-affirmation-tiktok": {
       "priority": "distribution",
-      "resource_class": "agent",
+      "resource_class": "deterministic",
       "admission_class": "revenue",
       "cadence": {
         "calendar_interval": [
@@ -2659,7 +2659,7 @@
     },
     "life-manager-anicca-jp1-tiktok": {
       "priority": "distribution",
-      "resource_class": "agent",
+      "resource_class": "deterministic",
       "admission_class": "revenue",
       "cadence": {
         "calendar_interval": [
@@ -2730,7 +2730,7 @@
     },
     "life-manager-anicca-larry-ja-instagram": {
       "priority": "distribution",
-      "resource_class": "agent",
+      "resource_class": "deterministic",
       "admission_class": "revenue",
       "cadence": {
         "calendar_interval": [
@@ -2810,7 +2810,7 @@
     },
     "life-manager-anicca-buddha-tiktok": {
       "priority": "distribution",
-      "resource_class": "agent",
+      "resource_class": "deterministic",
       "admission_class": "revenue",
       "cadence": {
         "calendar_interval": [
@@ -2841,7 +2841,7 @@
     },
     "life-manager-anicca-main-tiktok": {
       "priority": "distribution",
-      "resource_class": "agent",
+      "resource_class": "deterministic",
       "admission_class": "revenue",
       "cadence": {
         "calendar_interval": [

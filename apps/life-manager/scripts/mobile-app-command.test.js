@@ -49,6 +49,32 @@ test("all mobile publication loops share one command and one manifest", () => {
   }
 });
 
+test("shared native-carousel publishers use deterministic revenue capacity", () => {
+  const expected = [
+    "life-manager-anicca-buddha-tiktok",
+    "life-manager-anicca-en-affirmation-instagram",
+    "life-manager-anicca-en-affirmation-tiktok",
+    "life-manager-anicca-en-slideshow-tiktok",
+    "life-manager-anicca-en2-affirmation-tiktok",
+    "life-manager-anicca-jp1-tiktok",
+    "life-manager-anicca-larry-ja-instagram",
+    "life-manager-anicca-main-tiktok",
+  ];
+  const actual = Object.entries(manifest.loops)
+    .filter(([, item]) => item.runner === "anicca-larry-ja-rotating.js")
+    .map(([loopId]) => loopId)
+    .sort();
+
+  assert.deepEqual(actual, expected.sort());
+  for (const loopId of actual) {
+    const owner = registry.loops[loopId];
+    assert.equal(owner.resource_class, "deterministic", loopId);
+    assert.equal(owner.admission_class, "revenue", loopId);
+    assert.equal(owner.priority, "distribution", loopId);
+    assert.equal(owner.provider_route, "deterministic", loopId);
+  }
+});
+
 test("the EN2 TikTok account resolves to the shared Anicca iOS carousel runner", () => {
   const resolved = resolveMobileAppLoop("life-manager-anicca-en2-affirmation-tiktok");
   assert.equal(resolved.productId, "anicca-ios");
