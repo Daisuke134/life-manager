@@ -39,7 +39,7 @@ from runtime.host.disk_admission import RECOVERY_FLOOR_BYTES, disk_free_bytes
 from runtime.host.memory_admission import memory_free_percent
 from runtime.host.storage_policy import load_storage_policy
 from runtime.host.storage_failure import classify_storage_failure
-from runtime.host.bounded_output import start_stderr_relay, read_relay_snapshot
+from runtime.host.bounded_output import start_stderr_relay, read_relay_snapshot, bounded_launchd_output
 from runtime.host.resource_admission import (
     OCCURRENCE_ID_PATTERN,
     cancel_durable as cancel_durable_resource,
@@ -1641,7 +1641,7 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
             _dispatch_reserved(dispatch_after_release)
 
 
-def main(argv: list[str] | None = None) -> int:
+def _main(argv: list[str] | None = None) -> int:
     args = argv or sys.argv[1:]
     if len(args) != 2:
         print("usage: lm-loop-run <loop-id> <release-root>", file=sys.stderr); return 64
@@ -1980,6 +1980,24 @@ def main(argv: list[str] | None = None) -> int:
     except (OSError, RuntimeError, ValueError, json.JSONDecodeError) as error:
         print(f"lm-loop-run: {error}", file=sys.stderr); return 78
     return return_code
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = argv or sys.argv[1:]
+    log_root = os.environ.get("LIFE_MANAGER_LOG_ROOT")
+    if len(args) == 2 and log_root:
+        with ExitStack() as stack:
+            try:
+                policy = load_storage_policy(Path(args[1]) / "config/storage-policy.json", args[0])
+                if policy is not None:
+                    stack.enter_context(bounded_launchd_output(log_root, policy))
+            except (OSError, ValueError) as error:
+                print(f"lm-loop-run: diagnostic capture unavailable: {type(error).__name__}", file=sys.stderr)
+                if args[0] in CONTROL_PLANE_SAFETY_LOOPS:
+                    return _main(args)  # Recovery must still run when logs cannot allocate.
+                return 78
+            return _main(args)
+    return _main(args)
 
 
 if __name__ == "__main__":

@@ -2216,6 +2216,76 @@ def test_main_preserves_live_relay_after_terminal_commit(tmp_path):
     remove.assert_not_called()
 
 
+@pytest.mark.parametrize("mode", ["finite", "continuous"])
+def test_main_bounds_repeated_stdio_and_preserves_legacy_logs_and_terminals(tmp_path, mode):
+    release = _write_prestart_lock_release(tmp_path)
+    policy = json.loads((Path(__file__).resolve().parents[3] / "config/storage-policy.json").read_text())
+    policy["defaults"]["diagnostic_segment_bytes"] = 65536
+    (release / "config/storage-policy.json").write_text(json.dumps(policy))
+    logs = tmp_path / "logs"
+    logs.mkdir(mode=0o700)
+    logs.chmod(0o755)  # Existing launchd roots can be readable without being private.
+    old_out, old_err = logs / "launchd.out.log", logs / "launchd.err.log"
+    for path in (old_out, old_err):
+        path.write_bytes(b"existing shared diagnostic\n")
+    state = tmp_path / "state"
+    helper = tmp_path / "owner.py"
+    helper.write_text(
+        "import os,sys\nfrom pathlib import Path\nfrom contextlib import nullcontext\n"
+        "from unittest.mock import patch\n"
+        "from runtime.loop import lm_loop_run as runner\n"
+        "command=[sys.executable,'-c','import os; os.write(1,b\"o\"*(3*1024*1024)); os.write(2,b\"e\"*(3*1024*1024)); raise SystemExit(7)']\n"
+        "def run(command,entry,owner,env,receipt,**kwargs):\n"
+        " if sys.argv[2]=='continuous': return runner._run_entrypoint(command,env=env)\n"
+        " return runner._run_entrypoint_with_stderr_capture(command,receipt.parent,env=env)[0]\n"
+        "with patch.object(runner,'_apply_lock',return_value=nullcontext()),patch.object(runner,'build_loop_command',return_value=command),patch.object(runner,'_run_admitted',side_effect=run),patch.object(runner,'_should_enqueue_recovery_intent',return_value=False):\n"
+        " for i in range(3):\n"
+        "  os.environ['LIFE_MANAGER_RUN_ID']=f'run-{i}'\n"
+        "  assert runner.main(['example-publisher',sys.argv[1]])==7\n"
+    )
+    env = {**os.environ, "PYTHONPATH": str(Path(__file__).resolve().parents[3]),
+           "LIFE_MANAGER_LOG_ROOT": str(logs), "LIFE_MANAGER_STATE_ROOT": str(state)}
+    with old_out.open("ab") as out, old_err.open("ab") as err:
+        subprocess.run([sys.executable, "-B", str(helper), str(release), mode],
+                       env=env, stdout=out, stderr=err, check=True, timeout=30)
+    assert old_out.read_bytes() == b"existing shared diagnostic\n"
+    assert old_err.read_bytes() == b"existing shared diagnostic\n"
+    for stream in ("out", "err"):
+        files = list((logs / "bounded").glob(f"launchd-example-publisher.{stream}.log*"))
+        assert files
+        assert sum(path.stat().st_size for path in files) <= 131072
+    events = [json.loads(line) for line in (state / "events.jsonl").read_text().splitlines()]
+    terminal = [row for row in events if row.get("exit_code") is not None]
+    assert len(terminal) == 3
+    assert all(row["exit_code"] == 7 and row["status"] == "fail" for row in terminal)
+    assert logs.stat().st_mode & 0o777 == 0o755
+    assert (logs / "bounded").stat().st_mode & 0o777 == 0o700
+
+
+def test_cleanup_safety_owner_runs_when_bounded_log_startup_has_enospc(tmp_path):
+    owner = "life-manager-disk-cleanup"
+    release = _write_prestart_lock_release(tmp_path)
+    registry_path = release / "config/loop-registry.json"
+    registry = json.loads(registry_path.read_text())
+    entry = registry["loops"].pop("example-publisher")
+    entry.update(label=f"ai.anicca.{owner}", effect_class="none", provider_route="deterministic")
+    registry["loops"][owner] = entry
+    registry_path.write_text(json.dumps(registry))
+    policy = Path(__file__).resolve().parents[3] / "config/storage-policy.json"
+    (release / "config/storage-policy.json").write_bytes(policy.read_bytes())
+    state = tmp_path / "state"
+    with (patch.dict(os.environ, {"LIFE_MANAGER_STATE_ROOT": str(state),
+              "LIFE_MANAGER_LOG_ROOT": str(tmp_path / "logs"), "LIFE_MANAGER_RUN_ID": "cleanup-1"}),
+          patch.object(loop_runner, "_apply_lock", return_value=nullcontext()),
+          patch.object(loop_runner, "build_loop_command", return_value=["/bin/true"]),
+          patch.object(loop_runner, "_run_admitted", return_value=0),
+          patch.object(loop_runner, "bounded_launchd_output", side_effect=OSError(errno.ENOSPC, "fixture"))):
+        assert lm_loop_run_main([owner, str(release)]) == 0
+    events = [json.loads(line) for line in (state / "events.jsonl").read_text().splitlines()]
+    assert events[-1]["owner_id"] == owner
+    assert events[-1]["status"] == "pass"
+
+
 @pytest.mark.parametrize("identity_outcome", ["rejected", "save_exception", "persisted", "not_written"])
 def test_failed_run_cleans_scratch_only_after_effect_identity_is_safe(tmp_path, identity_outcome):
     release = _write_prestart_lock_release(tmp_path)
