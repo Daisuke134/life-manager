@@ -816,4 +816,164 @@ def adapt(payload: dict, *, snapshot_at: str, trailing_start: str) -> list[dict]
     return [*receipt_rows, *coverage_rows]
 
 
-__all__ = ["adapt"]
+def billed_expenses(payload: dict | None, *, snapshot_at: str,
+                    trailing_start: str) -> dict:
+    """Project official invoice totals separately; never add billed-only rows to B0."""
+    end, start = _window_inputs(snapshot_at, trailing_start)
+    if payload is None:
+        return {"status": "unavailable", "reason": "source_unconnected", "invoices": []}
+    if not isinstance(payload, dict):
+        return {"status": "unverified", "reason": "read_failed", "invoices": []}
+
+    digest = _digest(payload)
+    observed_at, projection_reasons = _readback_state(payload, end=end, start=start)
+    sources, source_failures = _source_rows(payload)
+    documents, document_shape_failure = _document_rows(payload)
+    deduped, document_conflicts, document_failures = _document_rows_deduped(documents)
+    global_reasons = set(source_failures) | document_failures
+    for source in sources.values():
+        if source.get("conflict"):
+            global_reasons.add("unverified_receipt")
+        if source.get("status") != "available":
+            global_reasons.add(source.get("reason") or "missing_coverage")
+    if document_shape_failure:
+        global_reasons.add(document_shape_failure)
+    global_reasons.update(projection_reasons.values())
+    if document_conflicts:
+        global_reasons.add("unverified_receipt")
+
+    invoices: list[dict] = []
+    for row in deduped:
+        identity = _document_identity(row)
+        if identity is None or identity[1] != "invoice":
+            continue
+        provider, _document_type, document_id = identity
+        source = sources.get(provider)
+        reasons = set(projection_reasons.values())
+        if (provider, document_id) in document_conflicts:
+            reasons.add("unverified_receipt")
+        if source is None:
+            reasons.add("missing_coverage")
+        else:
+            if source.get("conflict"):
+                reasons.add("unverified_receipt")
+            if source.get("status") != "available":
+                reasons.add(source.get("reason") or "missing_coverage")
+
+        status = row.get("status")
+        valid_status = isinstance(status, str) and status in {"billed", "paid", "settled"}
+        if (row.get("official") is not True
+                or row.get("source_type") != OFFICIAL_SOURCE_TYPES["invoice"]
+                or not valid_status):
+            reasons.add("unverified_receipt")
+        currency = _currency(row.get("currency"))
+        if currency is None:
+            reasons.add("unsupported_currency")
+        period_start = _instant(row.get("billing_period_start"))
+        period_end = _instant(row.get("billing_period_end"))
+        paid_at = _instant(row.get("paid_at"))
+        if (period_start is None or period_end is None or period_start >= period_end
+                or period_end > end or (paid_at is not None and paid_at > end)):
+            reasons.add("unverified_receipt")
+
+        raw_lines = row.get("line_items")
+        if not isinstance(raw_lines, list) or not raw_lines:
+            reasons.add("missing_coverage")
+            raw_lines = []
+        unique_lines: dict[str, tuple[str, dict]] = {}
+        line_conflicts: set[str] = set()
+        for line in raw_lines:
+            if (not isinstance(line, dict)
+                    or not isinstance(line.get("line_item_id"), str)
+                    or not contract.IDENTITY.fullmatch(line.get("line_item_id"))):
+                reasons.add("unverified_receipt")
+                continue
+            line_id = line["line_item_id"]
+            try:
+                line_digest = _canonical(line)
+            except (TypeError, ValueError):
+                reasons.add("unverified_receipt")
+                continue
+            prior = unique_lines.get(line_id)
+            if prior is None:
+                unique_lines[line_id] = (line_digest, line)
+            elif prior[0] != line_digest:
+                line_conflicts.add(line_id)
+        if line_conflicts:
+            reasons.add("unverified_receipt")
+
+        amounts: list[str] = []
+        for line_id, (_line_digest, line) in unique_lines.items():
+            if line_id in line_conflicts:
+                continue
+            amount = _amount(line.get("amount"))
+            occurred_at = _instant(line.get("occurred_at"))
+            basis = line.get("basis")
+            if (amount is None or occurred_at is None or period_start is None
+                    or period_end is None or occurred_at < period_start
+                    or occurred_at >= period_end or not isinstance(basis, str)
+                    or basis not in ACTUAL_BASES):
+                reasons.add("unverified_receipt")
+                continue
+            amounts.append(amount)
+
+        billed_total: str | None = None
+        if amounts:
+            try:
+                with localcontext() as context:
+                    context.prec = max(
+                        MAX_B0_AMOUNT_SIGNIFICANT_DIGITS,
+                        max(len(value.replace(".", "")) for value in amounts)
+                        + len(str(len(amounts))) + 1,
+                    )
+                    total = sum((Decimal(value) for value in amounts), Decimal(0))
+                billed_total = _canonical_decimal_text(total)
+            except (DecimalException, ArithmeticError):
+                reasons.add("unverified_receipt")
+        else:
+            reasons.add("missing_coverage")
+
+        for header_field in ("billed_total", "amount"):
+            header_total = row.get(header_field)
+            if header_total is not None:
+                normalized_header_total = _amount(header_total)
+                if normalized_header_total is None or normalized_header_total != billed_total:
+                    reasons.add("unverified_receipt")
+
+        invoice_status = "unverified" if reasons else "verified"
+        if invoice_status != "verified":
+            billed_total = None
+        invoices.append({
+            "status": invoice_status,
+            "provider": provider,
+            "invoice_period": period_start[:7] if period_start is not None else None,
+            "currency": currency,
+            "billed_total": billed_total,
+            "cash_paid_status": (
+                "paid" if valid_status and status in {"paid", "settled"}
+                and paid_at is not None else "unknown"
+            ),
+            "allocation_status": "unattributed",
+            "source_ref": _evidence(provider, digest),
+            "reason": _choose_reason(reasons) if reasons else None,
+        })
+
+    if not invoices:
+        reason = _choose_reason(global_reasons, "missing_coverage")
+        result_status = "unverified" if global_reasons else "unavailable"
+    else:
+        invoice_reasons = {
+            invoice["reason"] for invoice in invoices if invoice["reason"] is not None
+        }
+        all_reasons = global_reasons | invoice_reasons
+        result_status = "verified" if not all_reasons else "unverified"
+        reason = _choose_reason(all_reasons) if all_reasons else None
+    return {
+        "status": result_status,
+        "reason": reason,
+        "observed_at": observed_at,
+        "invoices": invoices,
+    }
+
+
+__all__ = ["adapt", "billed_expenses"]
