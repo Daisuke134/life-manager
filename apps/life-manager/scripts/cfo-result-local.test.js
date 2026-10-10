@@ -71,6 +71,23 @@ function writePrivateJson(file, value) {
   return body;
 }
 
+function writeRelationshipArtifacts(options, count) {
+  const directory = path.join(options.stateDir, "asc-input", "relationships");
+  fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
+  return Array.from({ length: count }, (_, index) => {
+    const ordinal = index + 1;
+    const artifactPath = path.join(directory, "artifact-" + ordinal + ".json");
+    const artifactText = writePrivateJson(artifactPath, {
+      data: [{ id: "private-group-" + ordinal }],
+      included: [{ id: "private-subscription-" + ordinal }],
+    });
+    return {
+      artifact_path: artifactPath,
+      artifact_sha256: crypto.createHash("sha256").update(artifactText).digest("hex"),
+    };
+  });
+}
+
 test("new occurrence persists the normalized B7 source bound to its delivered report receipt", async t => {
   const { options, messages } = setup(t);
   const table = b7Table("2026-09-30");
@@ -142,7 +159,11 @@ test("default email adapter persists a sent report with the required delivery co
 function writeMobileProvenanceFixture(options, { mutatePacket, mutateMobile } = {}) {
   const financialSha = "f".repeat(64);
   const detailSha = "d".repeat(64);
-  const relationshipsSha = "b".repeat(64);
+  const relationshipsPath = path.join(options.stateDir, "asc-input", "relationships.json");
+  const relationshipsText = writePrivateJson(relationshipsPath, {
+    data: [{ id: "private-group" }], included: [{ id: "private-subscription" }],
+  });
+  const relationshipsSha = crypto.createHash("sha256").update(relationshipsText).digest("hex");
   const packet = {
     schema_version: 1,
     observed_at: "2026-09-30T11:59:00.000Z",
@@ -160,7 +181,7 @@ function writeMobileProvenanceFixture(options, { mutatePacket, mutateMobile } = 
       artifact_path: "/private/detail.tsv", artifact_sha256: detailSha,
       period: { start: "08/30/2026", end: "09/26/2026" },
     },
-    relationships: { artifact_path: "/private/relationships.json", artifact_sha256: relationshipsSha },
+    relationships: { artifact_path: relationshipsPath, artifact_sha256: relationshipsSha },
   };
   const packetPath = path.join(options.stateDir, "asc-input", "asc-financial-packet.json");
   const receiptId = `app-store-connect-financial:normalized:${detailSha}:12`;
@@ -278,17 +299,16 @@ test("B7 snapshot joins the official ASC packet and same-occurrence RevenueCat r
 test("B7 provenance accepts a six-artifact ASC relationship bundle", async t => {
   const { options } = setup(t);
   options.collect = async () => b7Table("2026-09-30");
-  const relationshipHashes = ["a", "b", "c", "d", "e", "f"].map(value => value.repeat(64));
+  const relationshipArtifacts = writeRelationshipArtifacts(options, 6);
+  const relationshipHashes = relationshipArtifacts.map(artifact => artifact.artifact_sha256).sort();
   writeMobileProvenanceFixture(options, {
-    mutatePacket: packet => {
-      packet.relationships = { artifacts: relationshipHashes.map((artifactSha256, index) => ({
-        artifact_path: `/private/relationships/${index + 1}.json`, artifact_sha256: artifactSha256,
-      })) };
-    },
+    mutatePacket: packet => { packet.relationships = { artifacts: relationshipArtifacts }; },
     mutateMobile: mobile => {
       const receipt = mobile.mobile_records.find(row => row.provider === "app-store-connect-financial");
-      receipt.evidence_refs[2] = `appstoreconnect://subscription-relationships/sha256/${relationshipHashes[1]}#data/1`;
-      receipt.evidence_refs[3] = `appstoreconnect://subscription-relationships/sha256/${relationshipHashes[1]}#included/1`;
+      receipt.evidence_refs[2] = "appstoreconnect://subscription-relationships/sha256/"
+        + relationshipArtifacts[1].artifact_sha256 + "#data/1";
+      receipt.evidence_refs[3] = "appstoreconnect://subscription-relationships/sha256/"
+        + relationshipArtifacts[1].artifact_sha256 + "#included/1";
     },
   });
 
@@ -297,27 +317,52 @@ test("B7 provenance accepts a six-artifact ASC relationship bundle", async t => 
   const snapshot = JSON.parse(fs.readFileSync(readbackFile(options.stateDir, options.occurrenceId), "utf8"));
   assert.equal(snapshot.sourceProvenance.status, "verified");
   assert.equal(snapshot.sourceProvenance.asc.relationshipsSha256,
-    "1a141a77e5da256ec7828216e93eacb33223ff29911e494efb495013bef9e6a7");
+    "7365b54db73497f073a74255a027d7be383f1cb98ee17c973ad5f6687b761af5");
   assert.deepEqual(snapshot.sourceProvenance.asc.relationshipArtifactSha256s, relationshipHashes);
   assert.equal(snapshot.sourceProvenance.asc.receipts.length, 1);
   assert.doesNotMatch(fs.readFileSync(readbackFile(options.stateDir, options.occurrenceId), "utf8"),
     /\/private\/relationships\//);
 });
 
+test("B7 provenance rejects a bundle artifact whose bytes differ from its declared SHA-256", async t => {
+  const { options } = setup(t);
+  options.collect = async () => b7Table("2026-09-30");
+  const relationshipArtifacts = writeRelationshipArtifacts(options, 6);
+  const actualHash = relationshipArtifacts[5].artifact_sha256;
+  relationshipArtifacts[5].artifact_sha256 = "0".repeat(64);
+  assert.notEqual(actualHash, relationshipArtifacts[5].artifact_sha256);
+  writeMobileProvenanceFixture(options, {
+    mutatePacket: packet => { packet.relationships = { artifacts: relationshipArtifacts }; },
+    mutateMobile: mobile => {
+      const receipt = mobile.mobile_records.find(row => row.provider === "app-store-connect-financial");
+      receipt.evidence_refs[2] = "appstoreconnect://subscription-relationships/sha256/"
+        + relationshipArtifacts[0].artifact_sha256 + "#data/1";
+      receipt.evidence_refs[3] = "appstoreconnect://subscription-relationships/sha256/"
+        + relationshipArtifacts[0].artifact_sha256 + "#included/1";
+    },
+  });
+
+  await runResultCfo({ ...options, now: "2026-09-30T12:00:00Z" });
+
+  const stored = fs.readFileSync(readbackFile(options.stateDir, options.occurrenceId), "utf8");
+  const snapshot = JSON.parse(stored);
+  assert.equal(snapshot.sourceProvenance.status, "unavailable");
+  assert.equal(snapshot.sourceProvenance.reason, "asc_packet_invalid");
+  assert.doesNotMatch(stored, /private-group-|private-subscription-|\/relationships\//);
+});
+
 test("B7 provenance rejects relationship data and included refs from different bundle artifacts", async t => {
   const { options } = setup(t);
   options.collect = async () => b7Table("2026-09-30");
-  const relationshipHashes = ["a", "b", "c", "d", "e", "f"].map(value => value.repeat(64));
+  const relationshipArtifacts = writeRelationshipArtifacts(options, 6);
   writeMobileProvenanceFixture(options, {
-    mutatePacket: packet => {
-      packet.relationships = { artifacts: relationshipHashes.map((artifactSha256, index) => ({
-        artifact_path: `/private/relationships/${index + 1}.json`, artifact_sha256: artifactSha256,
-      })) };
-    },
+    mutatePacket: packet => { packet.relationships = { artifacts: relationshipArtifacts }; },
     mutateMobile: mobile => {
       const receipt = mobile.mobile_records.find(row => row.provider === "app-store-connect-financial");
-      receipt.evidence_refs[2] = `appstoreconnect://subscription-relationships/sha256/${relationshipHashes[1]}#data/1`;
-      receipt.evidence_refs[3] = `appstoreconnect://subscription-relationships/sha256/${relationshipHashes[2]}#included/1`;
+      receipt.evidence_refs[2] = "appstoreconnect://subscription-relationships/sha256/"
+        + relationshipArtifacts[1].artifact_sha256 + "#data/1";
+      receipt.evidence_refs[3] = "appstoreconnect://subscription-relationships/sha256/"
+        + relationshipArtifacts[2].artifact_sha256 + "#included/1";
     },
   });
 

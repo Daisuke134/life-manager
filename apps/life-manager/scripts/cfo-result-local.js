@@ -199,6 +199,9 @@ function ascRelationshipBundle(source) {
       || typeof artifact.artifact_sha256 !== "string" || !SHA256.test(artifact.artifact_sha256)) {
       throw new Error("cfo_asc_packet_invalid");
     }
+    if (readPrivateJson(artifact.artifact_path).sha256 !== artifact.artifact_sha256) {
+      throw new Error("cfo_asc_packet_invalid");
+    }
     return artifact.artifact_sha256;
   });
   const artifactSha256s = [...new Set(hashes)].sort();
