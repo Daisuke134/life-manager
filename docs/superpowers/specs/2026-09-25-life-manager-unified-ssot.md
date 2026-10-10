@@ -12015,3 +12015,11 @@ flowchart LR
 **TODO順更新:** 旧順=`old unknownの長時間no-post待ち→解除→owner再起動→投稿→checkout`。新順=`(1) PR #7478をlatest mainへ同期しexact-head review/CI後にmerge → (2) current Postiz `monk_anicca` と指定`@monk.mujo`のaccount mappingを修正し、EN08/21・JA07/20の2/dayへsource cadenceを合わせる。旧4 fenceは保持し、意図した全ownerでdistinct occurrenceだけ通る契約を確認 → (3) host admissionが既存floorを通りrelease reconcilerが自然終端した後、main由来immutable releaseを対象ownerだけへ反映 → (4) 新しいslotを1回publishしPostiz `PUBLISHED`/permalinkを確認、以降各有効accountの2/day自然投稿を読む → (5) PR #420をcurrent product mainへ安全にsyncし、production webhook migration/schema/ACL/PDF receiptをreadback → (6) $9.99 Letter subscription/cancel・Stripe settlement/refund/feesとrender/Postiz costsを同一campaignに結び、verified net MRRへ改善する。理由は現account mappingと依頼handleが違い、4 ownerにunknown fence、capacity floor直下、release reconciler実行中だから。
 
 **現在cursor:** PR #7478のlatest-main同期済みworktreeで、このSSOT差分をcommit/push→fresh read-only review→exact-head CI→merge。merge後の最初のsource atomはPostiz targetを`@monk.mujo`へ一致させ、2/dayのcadenceを英日ownerへ揃えること。production apply/postはcapacity gate・reconciler・target mapping解消後。
+
+#### 18:56 JST incremental readback
+
+- `origin/main`は`27448b05a3660d12a980d6ea358d8dc9723b17c9`（#7475）へ進んだ。task branchはこのmainをmerge済みでlocal HEAD `f16b7bd86e8593c851013029bcbd5068ef5d0e15`、未pushのahead 2。PR #7478 remote head `ffe599cbe6a5ac1a7560dd7958bf6936da5e4823`のCIは進行中だが、新local headのcheckではない。
+- 09:56 UTCの`df -Pk /`は`3,044,452 KiB` availableで2 GiB floor `2,097,152 KiB`を`947,300 KiB`上回る。ただし単一readbackで安定回復とは言わない。`~/loops/current`は依然`20261010T183530-c182cec0`。release reconcilerはPID `37675`でloaded-running、4 eBook ownersはloaded-idleのまま旧SHA `ef35fa3b`。apply/restartは未実施。
+- HeyGen walletは再readbackでも`$11.27`、auto-reload `$10`/threshold `$5`で変化なし。
+
+**更新後cursor:** local branch `f16b7bd` のこの追記をcommit/pushし、fresh reviewとexact-head CI後にPR #7478をmerge → current Postiz target mappingを`@monk.mujo`へ一致 → 2/day cadenceと対象ownerのoccurrence contractを更新 → reconciler自然終端後にmain由来releaseを対象限定apply。
