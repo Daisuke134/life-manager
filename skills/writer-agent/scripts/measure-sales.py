@@ -3,8 +3,8 @@
 Substack by driving the CloakBrowser daily-driver over CDP. Same convention as
 scripts/_shared/measure-funnel.py's measure_x: playwright.sync_api run via the
 Life Manager managed Python as a subprocess, connect_over_cdp to the
-ALREADY-LOGGED-IN daily-driver profile. A fresh new tab is opened for the measurement and ALWAYS
-closed afterward -- the shared daily-driver's other existing tabs are never touched, same
+ALREADY-LOGGED-IN daily-driver profile. The parent leases a seeded context and its exact tab
+for each measurement, then releases that context even if the child times out -- the shared daily-driver's other existing tabs are never touched, same
 discipline as render-verify-draft.sh ("never leave a stray tab on the shared daily-driver").
 NEVER estimate or fabricate a number: if a metric cannot be safely parsed from the real screen
 text today, emit null + a reason string, exactly like measure-funnel.py does. DOM reading uses
@@ -48,6 +48,7 @@ stdout: one JSON line summary {"date": "...", "measured": N, "results": [...]}
 from __future__ import annotations
 
 import argparse
+import secrets
 import base64
 import hashlib
 import importlib.util
@@ -81,10 +82,64 @@ NOTE_STATS_URL = "https://note.com/sitesettings/stats"
 JST = timezone(timedelta(hours=9))
 
 
-def run_browser_script(script: str, timeout: int = 90) -> subprocess.CompletedProcess:
+def _load_context_lease():
+    spec = importlib.util.spec_from_file_location("writer_context_lease",
+        Path(__file__).resolve().parents[3] / "skills/browser/scripts/cdp_context_lease.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def run_browser_script(script: str, timeout: int = 90, *, cdp_port: int = 9222) -> subprocess.CompletedProcess:
     if not os.path.exists(VENV_CLOAK_PYTHON):
         raise FileNotFoundError(f"Writer browser Python not found at {VENV_CLOAK_PYTHON}")
-    return subprocess.run([VENV_CLOAK_PYTHON, "-c", script], capture_output=True, text=True, timeout=timeout)
+    contexts = _load_context_lease()
+    owner = "writer-measure-" + secrets.token_hex(12)
+    url = "about:blank#" + owner
+    values = {"CLOAK_CDP_BASE_URL": os.environ.get("WRITER_CDP_ENDPOINT", f"http://localhost:{cdp_port}"),
+              "AI_BROWSER_HOLDER_PID": str(os.getpid()),
+              "CLOAK_CONTEXT_COOKIE_DOMAINS": "note.com,substack.com"}
+    previous = {key: os.environ.get(key) for key in values}
+    lease = None
+    os.environ.update(values)
+    try:
+        lease = contexts.acquire(owner, url=url)
+        if not lease.get("ok") or not all(lease.get(key) for key in ("context_id", "target_id", "token", "generation")):
+            reason = lease.get("reason", "invalid_lease_identity")
+            lease = None
+            raise RuntimeError(f"measurement context admission failed: {reason}")
+        child_env = {**os.environ, "WRITER_LEASED_CONTEXT_ID": lease["context_id"],
+                     "WRITER_LEASED_TARGET_ID": lease["target_id"], "WRITER_LEASED_TARGET_URL": url}
+        return subprocess.run([VENV_CLOAK_PYTHON, "-c", script], capture_output=True,
+                              text=True, timeout=timeout, env=child_env)
+    finally:
+        try:
+            if lease is not None:
+                result = contexts.release(owner, token=lease["token"], generation=lease["generation"])
+                if not result.get("ok") or result.get("cleanup_pending"):
+                    raise RuntimeError("measurement context cleanup remains pending")
+        finally:
+            for key, value in previous.items():
+                if value is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = value
+
+
+LEASED_PAGE_SCRIPT = """
+pg = next((page for context in b.contexts for page in context.pages
+           if page.url == os.environ["WRITER_LEASED_TARGET_URL"]), None)
+if pg is None:
+    raise RuntimeError("measurement leased target unavailable")
+session = pg.context.new_cdp_session(pg)
+try:
+    info = session.send("Target.getTargetInfo")["targetInfo"]
+finally:
+    session.detach()
+if (info["targetId"] != os.environ["WRITER_LEASED_TARGET_ID"]
+        or info.get("browserContextId") != os.environ["WRITER_LEASED_CONTEXT_ID"]):
+    raise RuntimeError("measurement leased target identity mismatch")
+"""
 
 
 def extract_payload(proc: subprocess.CompletedProcess) -> dict:
@@ -124,8 +179,7 @@ try:
     b = p.chromium.connect_over_cdp(os.environ.get("WRITER_CDP_ENDPOINT", "http://localhost:{cdp_port}"))
 except Exception as e:
     print("CDP_UNREACHABLE:" + str(e)); sys.exit(1)
-ctx = b.contexts[0]
-pg = ctx.new_page()
+{LEASED_PAGE_SCRIPT}
 
 def login_if_shown():
     if pg.locator('input[name="login"]').count() == 0:
@@ -211,8 +265,8 @@ finally:
     pg.close()
 """
     try:
-        proc = run_browser_script(script)
-    except (subprocess.TimeoutExpired, FileNotFoundError) as e:
+        proc = run_browser_script(script, cdp_port=cdp_port)
+    except (subprocess.TimeoutExpired, FileNotFoundError, RuntimeError) as e:
         return {"error": f"note browser driver failed to run: {e}"}
     return extract_payload(proc)
 
@@ -234,7 +288,7 @@ try:
     b = p.chromium.connect_over_cdp(os.environ.get("WRITER_CDP_ENDPOINT", "http://localhost:{cdp_port}"))
 except Exception as e:
     print("CDP_UNREACHABLE:" + str(e)); sys.exit(1)
-ctx = b.new_context()
+{LEASED_PAGE_SCRIPT}
 raw_cookie = (os.environ.get("SUBSTACK_SESSION_COOKIE_JA") or
               os.environ.get("SUBSTACK_SESSION_COOKIE", "")).strip()
 cookies = []
@@ -244,10 +298,13 @@ for item in raw_cookie.split(";"):
         cookies.append({{"name": name, "value": value, "domain": ".substack.com", "path": "/"}})
 if not cookies:
     print("SUBSTACK_COOKIE_MISSING")
-    ctx.close()
     sys.exit(1)
-ctx.add_cookies(cookies)
-pg = ctx.new_page()
+browser_session = b.new_browser_cdp_session()
+try:
+    browser_session.send("Storage.setCookies", {{"cookies": cookies,
+        "browserContextId": os.environ["WRITER_LEASED_CONTEXT_ID"]}})
+finally:
+    browser_session.detach()
 try:
     pg.goto({home_url!r}, wait_until="domcontentloaded", timeout=40000)
     time.sleep(4)
@@ -266,11 +323,10 @@ try:
     print("PAYLOAD_B64:" + base64.b64encode(json.dumps(payload).encode("utf-8")).decode("ascii"))
 finally:
     pg.close()
-    ctx.close()
 """
     try:
-        proc = run_browser_script(script)
-    except (subprocess.TimeoutExpired, FileNotFoundError) as e:
+        proc = run_browser_script(script, cdp_port=cdp_port)
+    except (subprocess.TimeoutExpired, FileNotFoundError, RuntimeError) as e:
         return {"error": f"substack browser driver failed to run: {e}"}
     return extract_payload(proc)
 
