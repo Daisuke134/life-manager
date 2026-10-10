@@ -28,7 +28,7 @@
 
 **不変条件:** iOS Simulator runtime/image/device/data/dyld、memory/state、credentials、browser identity、参照release、active/dirty/unmerged/leased/locked worktree、open/unknown dataを削除しない。各agentは自分が生成し所有する非authoritative scratchだけを片付け、中央cleanupは残ったclosed/orphaned artifactと証明済みの不要物を回収する。他agentの作業や正式receiptを消さない。effect_unknownはexact official receipt/pre-effect proofまで解除・再送しない。内部の余白・時間・byte予算は安全な制御に使い、空き容量の固定値を事業再開の条件にしない。
 
-**現在cursor: S02/CLEAN-00のGB級不要物回収 → CLEAN-02の閉鎖Gig自己cleanup本番adoption → CLEAN-03/04の保存上限と取り残し → CLEAN-05/06の自動再開・収益進行。** CLEAN-01は#7432/main8f56f511の毎分fast passを反映し、複数の自然receiptでerrors0/protected_deletions0を確認済み。CLEAN-00は旧Symphony、旧Franklin2、不要global SDK、閉鎖Gig旧出力、Chrome旧frameworkを手動回収済み。fsearchの名前/サイズindexで追加の大物を調べる。閉鎖Gig自己cleanupは#7434/mainf1bfcc19へ統合済みだが、Paid ownerはまだ8f56f511 loaded-idle/entrypoint_exit_1であり、対象ownerのadoptionと自然janitor readbackが次の未完。容量数値だけを合格・再開gateにせず、全ownerの自己後始末と公式業務receiptの継続進行まで根本修復は未完。
+**現在cursor: S02/CLEAN-00のGB級不要物回収 → CLEAN-02の閉鎖Gig自己cleanup本番adoption → CLEAN-03/04の保存上限と取り残し → CLEAN-05/06の自動再開・収益進行。** CLEAN-01は#7432/main8f56f511の毎分fast passを反映し、複数の自然receiptでerrors0/protected_deletions0を確認済み。CLEAN-00は旧Symphony、旧Franklin2、不要global SDK、閉鎖Gig旧出力、Chrome旧frameworkを手動回収済み。fsearchの名前/サイズindexで追加の大物を調べる。閉鎖Gig自己cleanupは#7434/mainf1bfcc19へ統合済みだが、Paid ownerもf1bfcc19へ対象限定adoption済み。自然occurrence18dd06c9d1e98260-8238はresource_capacity_busyでqueueに保持され、次の未完は自然janitor readbackと業務継続。容量数値だけを合格・再開gateにせず、全ownerの自己後始末と公式業務receiptの継続進行まで根本修復は未完。
 
 **引き継ぎ/診断証拠:** worktree HEAD `a6e03757`の4ファイル497行差分を`ea1784b0ec`で保持してpushし、最新main `3baccdbd`を`00b5d4ff5d`でmerge/push。leaseは既存owner `codex-root`でheartbeatを更新、直列lsof再確認でworktree下open handleなし。既存temp/worktree focused testは2 PASS。agmsg統括identityは`lm/codex-resource-orchestrator-1009`、既存cleanup担当へ重複書込抑制と状態照会を送信。自然receiptの成功/失敗が交互に現れ、失敗時の正確な親errorは`host_cleanup_identity_mismatch`。`disk_cleanup.py::main`のbusy lock出力はexit75だがidentityを含まず、`central_cleanup.host_cleanup_readback`の同-occurrence検査が失敗に変換する。REDはbusy出力identity欠落と親exit1を再現し、最小修正後の関連4 testsはGREEN。修正契約は、busy出力にもimmutable manifest由来の同run identityを載せ、親はそのidentityを検証した正確なbusyだけをeffect0のexit75延期として維持し、他のidentity mismatchはexit1のまま拒否する。旧ENOSPC修復とは区別し、容量不足時の既存reserve/cursor testsも再確認する。
 
@@ -209,7 +209,7 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 
 **このsessionで完了したこと:** cleanupのbusy/identity失敗とtemp/worktree保護を修復し、main・自然receiptまで確認した。GiB級Git auto-GC temporary packの増加源を確定し、closedなGit garbageだけを回収、無制限auto-GCを抑制した（#7403）。releaseへの未追跡artifact混入と不要なmemory複写を止めた（#7401/#7416）。未参照・main復元可能な旧codeだけを予算内で回収し、memory/stateを同じ場所に保持する処理を本番へ反映した。検証自身のFDによる自己停止と、watchdog busyが独立GCを止める結び付きを修復し、自然runで6 files/約4.8MB・errors0/protected_deletions0を確認した（#7424/#7425）。finite runner・standalone agent runner・full release builderに不足/unknownで重い書き込みを延期する共有guardを反映した（#7400/#7412/#7426）。current=/Users/anicca/loops/releases/20261010T064405-859df55aはmain由来/ALL、変更したguardのGit hash一致・readonlyを確認。cleanupと更新ownerのloaded SHA859df55a・同SHA自然exit0、watchdog StartInterval60、iOS26.5 availabilityを確認。これは資源修復の部分成果であり、収益loopの継続稼働受入・Life Manager自身のT5・収益目標の完了とは数えない。
 
-**As-Is:** 中央watchdogはStartInterval60でloaded、毎分fast inventoryの自然receiptを複数確認（errors0/protected_deletions0）。current immutable releaseはmainf1bfcc19由来の`/Users/anicca/loops/releases/20261010T101346-f1bfcc19`。閉鎖Gigの自己cleanup sourceはmain/currentに入ったが、Paid ownerのloaded SHAは8f56f511で未adoption。未使用物を手動回収し、現在のData availableは8,177,778,688 bytes（約8.18GB/7.62GiB、共有volume診断値）。各ownerの終了時後始末のcoverage、生成量の有限化、容量待ちからの自然再開と公式収益進行は未証明。したがって根本修復は未完。過去の11GiB達成待ちは撤回し、数値だけでDoneにしない。
+**As-Is:** 中央watchdogはStartInterval60でloaded、毎分fast inventoryの自然receiptを複数確認（errors0/protected_deletions0）。current immutable releaseはmainf1bfcc19由来の`/Users/anicca/loops/releases/20261010T101346-f1bfcc19`。閉鎖Gigの自己cleanup sourceはmain/current/Paid ownerへadoption済み（loaded SHA f1bfcc19）。自然janitor readbackは共有agent枠待ち。未使用物を手動回収し、現在のData availableは8,177,778,688 bytes（約8.18GB/7.62GiB、共有volume診断値）。各ownerの終了時後始末のcoverage、生成量の有限化、容量待ちからの自然再開と公式収益進行は未証明。したがって根本修復は未完。過去の11GiB達成待ちは撤回し、数値だけでDoneにしない。
 
 **Mac全体の不要物回収（CLEAN-00、手動回収→同じ対象の自動化）:**
 
@@ -230,7 +230,7 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 
 **並列再開の条件と順序:** 軽いread-only調査、既存担当範囲の小さい修正は今も進められる。8〜10 Codexを一斉に新規worktree・依存導入・build/releaseへ走らせる状態は未受入。まずCLEAN-00/01の回収と次passの前進、CLEAN-02の実作業後始末、CLEAN-05の枠取得/待機/自動再開を実ownerで確認する。次にprimaryと独立writer一名で、一往復の修正→focused check→後始末→次作業を検証し、仕事種別のpeakとCLEAN-06の業務進行を見て一名ずつ増やす。build/依存導入/full releaseは既存共有枠で直列化する。全体cleanup完了まで全businessを停止させるgateや、固定GiB KPIは作らない。agent数だけ増やして無制限書込を許可しない。
 
-**順序更新:** 旧cursor=CLEAN-01 hot pass改善→小cache/staging。新cursor=CLEAN-00のGB級手動回収→CLEAN-02閉鎖Gig owner自己cleanup adoption→CLEAN-03/04保存上限/取り残し→CLEAN-05/06自動再開/業務進行。理由はDaisの大物優先指示と、毎分fast passの自然受入が完了し、自己cleanup sourceの本番owner未adoptionが次の具体的な抜けだから。進行中の外部effectと他者leaseを中断しない。S06〜S18・会社US$10M MRRの成果条件を維持する。
+**順序更新:** 旧cursor=CLEAN-01 hot pass改善→小cache/staging。新cursor=CLEAN-00のGB級手動回収→CLEAN-02閉鎖Gig owner自己cleanup adoption→CLEAN-03/04保存上限/取り残し→CLEAN-05/06自動再開/業務進行。理由はDaisの大物優先指示と、毎分fast passの自然受入が完了し、自己cleanup sourceの本番owner adoptionが完了し、自然janitor readbackと自動再開が次の具体的な未完だから。進行中の外部effectと他者leaseを中断しない。S06〜S18・会社US$10M MRRの成果条件を維持する。
 
 
 **書類の公式UI内訳とCLEAN-01の実障害:** StorageのFile BrowserはProjects11.04GB、loops12.51GB、gig9.38GB、anicca-project4.47GB、anicca3.5GB、Archive1.16GB、Documents341.8MBを表示。Documentsカテゴリの大物一覧にtelegram-outbox.sqlite3/wakes.jsonl等の業務stateもあり、108.21GB全量をunusedと扱わない。watchdogの自然receipt23:25:02Z/23:27:55Zは共にinventory_mode=full/gaps22/errors0/protected_deletions0。host-inventory-full.at=1791526082が古いままで、size-budget-exhaustedがfull markerを更新させないsource分岐を確認。回収後のCLEAN-01は重いinventoryの再試行が毎分hot passへ戻る境界を最小修復し、unknown coverageは保持する。
@@ -249,6 +249,9 @@ metadata footprintの追加大物は.cloak11.85GB/.local13.15GB/.codex-acct2約1
 
 **fsearch自身の後始末:** `~/.local/bin/fsearch-name-index`/`fsearch-size-report`も有限run binaryとして導入し、不要になったtoolの`target` build生成物179,712,000 bytesを回収。今回のbuildで新規導入されたRust stable-aarch64-apple-darwin toolchainもrustupでuninstall済み。既存SDKは事前に無く、fsearch binaryは保持。永続indexは一つ約189MBで、content/credential indexやlogin daemonを増やさない。名前indexはsnapshotなので、削除直前に実pathをfresh stat/open readbackする。Rust/Cargoのversion probeでSDKを再導入しない。
 
+**Gig自己cleanupの本番adoption:** #7434の閉鎖output回収を含むmainf1bfcc19 immutable releaseへ、fresh launchctl-safe preflight（UID501/Directory Services/Aqua/manager/gui PASS）後、`lm-loop reconcile deterministic --loaded-idle-only --max-owners 1 --loop-id hf-gig-paid-direct`で一担当だけ更新。applied1/failed0/changed=true、loaded argvとSHA f1bfcc19をreadback。provider fence解除/旧effect replay/全owner restartは行わない。自然occurrence18dd06c9d1e98260-8238はhost_admission_deferred:resource_capacity_busy、same occurrence queued/effect_unknown0をreadback。Job HunterとCrowdWorks Replyの二つのagent PID/start identityとfresh heartbeatを確認し、既存agent上限2の実稼働であるため、終了済み枠として強制解放しない。自然janitor receipt・自己後始末・次の業務進行のjoinは未完。
+
+
 **実行済みreadback（primary）:** 閉鎖Gigは共有paid-direct.lockを取得した上で旧納品版/不要作業物188件を回収、estimated allocated2,127,745,024 bytes、kept primary state/terminal/retained package53件の前後SHA一致、errors0/protected_deletions0。receipt=`~/.local/state/life-manager/state/manual-closed-gig-cleanup-20261010.json`。receipt/vault/lock等が混在するdeliveryはzipのみ、最新保持指定packageとJSON/JSONL/CSVは残す。fresh read-only確認済み。
 
 旧run18dcd2f8b2be9e70-19891はevent terminal75/resource_heartbeat_unavailableなのにpaid_direct.py PID20125がPPID1でlockを保持。UID501/start18:38:45/旧release argv/child0を再確認し、SIGTERM不応後に同PIDだけSIGKILL、old scratch/effect evidenceを保持。新しいmain由来Paid ownerの自然再開を観測し、その稼働中のglobal lockへ無断介入せず、終了後の空きwindowで上記回収を実施。
@@ -263,7 +266,7 @@ DaisのiCloud未使用/停止指示を受け、Photos公式UIの『このMacか�
 
 手動対象=26件の取引完了/キャンセル・state hash一致案件で、closed project内のartifacts/delivery/deliverables/work。root/source/evidence/context/台帳・最終receiptを保持し、対象subtree内の保護store/credentialやopen handleがあれば保持する。receipt等が混在するdelivery3dir（18211957/18169985/5239257）はdir全体を保持し、closed state/hashを再確認したregular .zip旧納品版だけ回収する（receipt/ledger/auth/cookie/vault/lock/recovery/credentials名を除外、JSON/JSONL/CSV・一次evidenceを保持）。並びは大きいものから。未closedの18169583/5238397と、他者のactive source/worktreeは回収しない。18211957はofficial『取引完了』とstate hash一致を確認したが、保存証拠/正式納品再送禁止を維持する。
 
-5項目の状態: 1) 部分完了（Git auto-GC/旧source copies/harness footprint、VM swap増加を観測。全writer join未完）。2) 部分完了（旧Symphony2dir、旧Franklin2依存/重複asset907681792 bytes、global franklin/clawrouter476 package削除。自己後始末の全coverage未完）。3) 未完（11GiB条件は撤回。自然cleanup/protected0と収益業務の継続進行で判定）。4) 未完（Job Hunterは最新disk_headroom_low defer。枠解除を全件未実施、unknownを解除しない）。5) 未完（official業務receiptへjoinした継続進行を未証明）。現freeを100GBと主張しない。APFS fresh readbackのVMは12.9GB、swap used11.3GBで、Dataだけの掃除後も共有容量へ影響する。VMやSimulatorの削除/restartはしない。
+5項目の状態: 1) 部分完了（Git auto-GC/旧source copies/harness footprint、VM swap増加を観測。全writer join未完）。2) 部分完了（旧Symphony2dir、旧Franklin2依存/重複asset907681792 bytes、global franklin/clawrouter476 package削除。自己後始末の全coverage未完）。3) 未完（11GiB条件は撤回。自然cleanup/protected0と収益業務の継続進行で判定）。4) 部分完了（終了済みGig orphan PID20125の占有lockを回収、新Paid owner f1bfcc19へadoption。Job Hunter/CrowdWorks Replyの二つの実agentが上限2を使用中で、Paidは同occurrence queued。使用中枠/unknownを強制解放しない）。5) 未完（official業務receiptへjoinした継続進行を未証明）。現freeを100GBと主張しない。APFS fresh readbackのVMは12.9GB、swap used11.3GBで、Dataだけの掃除後も共有容量へ影響する。VMやSimulatorの削除/restartはしない。
 
 毎分fast inventory修正#7432はmain8f56f511でcurrent ALLへ自然export済み、wrapperのmain Git blob hash一致。stable installed wrapperはcurrent immutable releaseの既存installerから60秒labelだけ更新済みで、複数の自然fast receiptを確認。他loop/app-serverを再起動しない。
 
@@ -299,7 +302,7 @@ P1の枠回復はCLEAN-05の生存/待ち境界として扱う。既存S06〜S18
 
 **「24/7 forever」の契約:** 各agentの自己後始末と中央cleanupを通常の実行lifecycleに組み込み、不要物の増加を生成側と回収側の両方で制御する。監督・待ち行列・復旧は常時動き、各仕事は有限の予算で実行・記録・片付け・次の仕事へ進む。ディスク圧迫を早期に自己所有の修復へつなげ、短期待機後に自動再開し、全収益loopを永久待機させない。正式state/receiptの成長には既存の許可・spend cap内で容量/保存先を計画し、障害になるまで放置しない。ほかのagentと業務loopの並列稼働を維持し、本sessionの改善は一件ずつ行う。保護データ削除、新framework、反復reviewで代用しない。
 
-**実行順:** 既存のP0→P1とlane入口の順を保ち、下記S01→S18へ対応付ける。原子的詳細は既存lane節を参照し複製しない。外部gate/未来slot/収益の到来で止まるatomは、証拠と戻るcursorを記録して次の独立したsafe atomを一件だけ進める。並列実装はしない。元の全lane目標を維持し、18 agent全greenやJob Hunter entitlement/投資30自然round tripsを、独立した既存商品の販売開始gateにしない。現在cursor=S02/CLEAN-00のGB級unused依存/重複inputの手動回収。CLEAN-00の旧Symphony手動回収は完了、同生成物/stagingの自動化と残りcategory分類は未完。PhotosのこのMacコピー回収/同期停止とCLEAN-01の毎分fast pass自然受入は完了。次は閉鎖Gig自己cleanup sourceのPaid owner adoption/自然readback。P0-13の観測はCLEAN-01〜05の実障害境界を狭めるために使い、数字や全体censusの達成待ちにしない。
+**実行順:** 既存のP0→P1とlane入口の順を保ち、下記S01→S18へ対応付ける。原子的詳細は既存lane節を参照し複製しない。外部gate/未来slot/収益の到来で止まるatomは、証拠と戻るcursorを記録して次の独立したsafe atomを一件だけ進める。並列実装はしない。元の全lane目標を維持し、18 agent全greenやJob Hunter entitlement/投資30自然round tripsを、独立した既存商品の販売開始gateにしない。現在cursor=S02/CLEAN-00のGB級unused依存/重複inputの手動回収。CLEAN-00の旧Symphony手動回収は完了、同生成物/stagingの自動化と残りcategory分類は未完。PhotosのこのMacコピー回収/同期停止とCLEAN-01の毎分fast pass自然受入は完了。閉鎖Gig自己cleanup sourceのPaid owner adoptionも完了、次は共有枠が自然に空いた後のjanitor readbackと自動再開/業務進行。P0-13の観測はCLEAN-01〜05の実障害境界を狭めるために使い、数字や全体censusの達成待ちにしない。
 
 | 状態 | 順 | 次の一操作・対象 / 検証・DONE証拠 |
 |---|---|---|
