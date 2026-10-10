@@ -122,7 +122,8 @@ def test_closed_project_reclaims_old_outputs_and_preserves_records(
         (target / "old.zip").write_bytes(b"x" * 64)
         for name in (
             "state.json", "events.jsonl", "sales.csv", ".env", "tls.key",
-            "credentials.zip", "provider-receipt.zip", "ledger.zip", "auth.zip",
+            "credentials.zip", "key.zip", "token.zip", "password.zip", "passkey.zip",
+            "provider-receipt.zip", "ledger.zip", "auth.zip",
             "cookies.zip", "vault.zip", "owner.lock", "recovery.zip",
             "source/buyer.zip", "evidence/screenshot.png", "context/brief.pdf",
             "memory/keep.zip", "state/history.jsonl",

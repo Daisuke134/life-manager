@@ -43,6 +43,7 @@ PROTECTED_DIRS = frozenset((
 PROTECTED_TOKENS = (
     "auth", "cookie", "credential", "receipt", "ledger", "vault", "lock", "lease",
     "recovery", "secret", "session", "wallet", "payment", "evidence", "readback",
+    "key", "token", "password",
 )
 
 
