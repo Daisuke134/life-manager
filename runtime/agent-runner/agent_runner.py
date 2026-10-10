@@ -32,6 +32,7 @@ if str(REPO_ROOT) not in sys.path:
 from runtime.host.bounded_output import start_stderr_relay, read_relay_snapshot, prune_closed_diagnostics
 from runtime.host.storage_policy import load_storage_policy
 from runtime.host.storage_failure import classify_storage_failure
+from runtime.host.disk_admission import disk_free_bytes, RECOVERY_FLOOR_BYTES
 
 from runtime.loop.macos_loop_registry import validate_registry  # noqa: E402
 from runtime.loop.runtime_event import (  # noqa: E402
@@ -40,6 +41,7 @@ from runtime.loop.runtime_event import (  # noqa: E402
     rotate_jsonl_locked,
 )
 from token_budget import TokenBudgetLedger, budget_day_for  # noqa: E402
+from treg_credentials import load_treg_agent_token as _load_treg_agent_token  # noqa: E402
 # Every effort above medium costs the same order of money as Sol does, so all of them take the
 # explicit escalation route. Naming only "high" here let "xhigh" and "max" past the gate.
 RESTRICTED_EFFORTS = frozenset(("high", "xhigh", "max"))
@@ -62,6 +64,9 @@ PROVIDER_LEASE_BUSY = 75
 PROVIDER_LEASE_BUSY_LINE = "LIFE_MANAGER_PROVIDER_LEASE_BUSY"
 CODEX_INVOCATION_HOME_MARKER = "_LIFE_MANAGER_CODEX_INVOCATION_HOME"
 _OWNED_CODEX_INVOCATION_HOMES: set[Path] = set()
+TREG_SIGNAL_TASK_CLASS = "treg-lead-signals-agent"
+TREG_MCP_TOOLS = ("catalog_search", "catalog_get", "call", "balance")
+TREG_SKILL_NAMES = ("treg", "lead-signals")
 
 # OpenAI Standard tier, short context, USD per 1M tokens: (input, cached_input, output).
 # Source: https://developers.openai.com/api/docs/pricing (fetched 2026-07-25).
@@ -72,7 +77,7 @@ CODEX_MTOK_PRICING_USD = {
 }
 TOOLLESS_TASK_CLASSES = (
     "composition-agent", "diagnostic-agent", "application-intent-planner",
-    "reply-semantic-agent", "storefront-proposal-agent",
+    "reply-semantic-agent", "storefront-proposal-agent", TREG_SIGNAL_TASK_CLASS,
 )
 TOOLLESS_CODEX_DISABLED_FEATURES = ("shell_tool", "code_mode_host", "unified_exec")
 
@@ -184,20 +189,30 @@ def atomic_json(path: Path, value: Any) -> None:
         raise
 
 
-def evidence_root_for(evidence_dir: Path) -> Path | None:
+def evidence_root_for(evidence_dir: Path, *, state_root: str | None = None) -> Path | None:
     """Return the managed evidence root for a task/run evidence directory.
 
     The runner is also used by callers that supply arbitrary paths.  Retention
-    must never recursively delete outside the explicitly named
-    ``agent-runner-evidence/<task>/<run>`` layout.
+    keeps the named ``agent-runner-evidence/<task>/<run>`` layout. Registered
+    callers may also supply their exact ``state_root/evidence/<run>`` layout,
+    or the named root's flat ``<run>`` layout with an explicit state root.
+    Legacy whole-run GC does not supply that additional root.
     """
     resolved = evidence_dir.resolve()
     parts = resolved.parts
     try:
         marker = parts.index("agent-runner-evidence")
     except ValueError:
+        if state_root:
+            root = Path(state_root).expanduser() / "evidence"
+            if (root.is_absolute() and resolved.parent == root
+                    and not any(p.is_symlink() for p in [evidence_dir, root, *root.parents])):
+                return root
         return None
     if len(parts) < marker + 3:
+        if (state_root and len(parts) == marker + 2
+                and not any(p.is_symlink() for p in [evidence_dir, *evidence_dir.parents])):
+            return Path(*parts[:marker + 1])
         return None
     return Path(*parts[:marker + 1])
 
@@ -295,13 +310,38 @@ def ensure_evidence_capacity(evidence_dir: Path) -> dict[str, int]:
     if owner and policy_path.is_file():
         policy = load_storage_policy(policy_path, owner)
         if policy is not None:
-            root = evidence_root_for(evidence_dir)
-            return (prune_closed_diagnostics(root, policy, current_run=evidence_dir.resolve())
+            state_root = os.environ.get("LIFE_MANAGER_STATE_ROOT")
+            root = evidence_root_for(evidence_dir, state_root=state_root)
+            return (prune_closed_diagnostics(root, policy, current_run=evidence_dir.resolve(), state_root=state_root)
                     if root else {"removed": 0, "reclaimed_bytes": 0, "errors": 0})
     max_bytes = int(os.environ.get("AGENT_RUNNER_EVIDENCE_MAX_BYTES", DEFAULT_EVIDENCE_MAX_BYTES))
     if max_bytes < 0:
         raise ValueError("agent-runner evidence size cap must be non-negative")
     return reclaim_completed_evidence(evidence_dir, max_evidence_bytes=max_bytes)
+
+
+def finish_evidence_run(evidence_dir: Path, summary: dict) -> dict:
+    """Persist primary results before pruning closed, owner-bound diagnostics."""
+    summary_path = evidence_dir / "summary.json"
+    atomic_json(summary_path, summary)
+    owner = os.environ.get("LIFE_MANAGER_LOOP_ID")
+    policy_path = REPO_ROOT / "config/storage-policy.json"
+    if owner and policy_path.is_file():
+        try:
+            policy = load_storage_policy(policy_path, owner)
+            state_root = os.environ.get("LIFE_MANAGER_STATE_ROOT")
+            root = evidence_root_for(evidence_dir, state_root=state_root)
+            if policy is not None and root is not None:
+                reclamation = prune_closed_diagnostics(root, policy, current_run=evidence_dir.resolve(), state_root=state_root)
+                summary = {**summary, "postrun_evidence_reclamation": reclamation}
+                atomic_json(summary_path, summary)
+        except (OSError, ValueError) as error:
+            print(json.dumps({
+                "event": "postrun_evidence_cleanup_failed", "owner_id": owner,
+                "run_id": os.environ.get("LIFE_MANAGER_RUN_ID"),
+                "error_class": type(error).__name__, "errno": getattr(error, "errno", None),
+            }, separators=(",", ":")), file=sys.stderr)
+    return summary
 
 
 def sha256_file(path: Path) -> str:
@@ -651,6 +691,41 @@ def _load_clipproxy_api_key(
     raise ValueError("codex model provider auth unavailable")
 
 
+def _private_directory(path: Path) -> None:
+    if path.is_symlink():
+        raise ValueError("Treg skill directory must not be a symlink")
+    try:
+        path.mkdir(mode=0o700, parents=True, exist_ok=True)
+    except FileExistsError as error:
+        raise ValueError("Treg skill path is not a directory") from error
+    if path.is_symlink() or not path.is_dir():
+        raise ValueError("Treg skill path is not a real directory")
+    path.chmod(0o700)
+
+
+def _link_treg_agent_skills(user_home: Path) -> None:
+    """Expose immutable repository skills to this isolated Codex invocation."""
+    source_root = REPO_ROOT / "skills" / "earn" / "marketing-engine" / "intel"
+    skills_home = user_home / ".agents" / "skills"
+    _private_directory(user_home / ".agents")
+    _private_directory(skills_home)
+    for name in TREG_SKILL_NAMES:
+        source = source_root / name
+        if not (source / "SKILL.md").is_file():
+            raise ValueError("repository-owned Treg skill is unavailable")
+        source = source.resolve(strict=True)
+        if not source.is_relative_to(REPO_ROOT.resolve()):
+            raise ValueError("Treg skill source escaped the immutable release")
+        target = skills_home / name
+        if target.is_symlink():
+            if target.resolve(strict=True) != source:
+                raise ValueError("Treg skill link target mismatch")
+        elif target.exists():
+            raise ValueError("Treg skill path already exists")
+        else:
+            target.symlink_to(source, target_is_directory=True)
+
+
 def provider_process_env(provider: str, provider_config: dict[str, Any],
                          environ: dict[str, str] | None = None, *,
                          task_class: str | None = None,
@@ -658,6 +733,19 @@ def provider_process_env(provider: str, provider_config: dict[str, Any],
     """Build a provider-scoped, non-interactive child environment."""
     child_env = dict(os.environ if environ is None else environ)
     child_env.pop(CODEX_INVOCATION_HOME_MARKER, None)
+    # Never pass the dedicated Treg credential to a model or shell environment.
+    # The local MCP gate reads the scoped row directly from credential SSOT.
+    child_env.pop("TREG_TOKEN", None)
+    if provider == "codex":
+        if task_class == TREG_SIGNAL_TASK_CLASS:
+            try:
+                has_treg_agent_token = bool(_load_treg_agent_token())
+            except ValueError:
+                raise
+            if not has_treg_agent_token:
+                raise ValueError("treg lead signal agent credential unavailable")
+    elif task_class == TREG_SIGNAL_TASK_CLASS:
+        raise ValueError("treg lead signal agent requires Codex")
     if provider != "codex":
         child_env.pop("CODEX_HOME", None)
         child_env.pop("CLIPROXY_API_KEY", None)
@@ -669,6 +757,8 @@ def provider_process_env(provider: str, provider_config: dict[str, Any],
     if provider == "codex":
         automation_home_value = provider_config.get("automation_home")
         if not automation_home_value:
+            if task_class == TREG_SIGNAL_TASK_CLASS:
+                raise ValueError("treg lead signal agent requires an isolated Codex home")
             return child_env
         if invocation_id is not None and (
             not isinstance(invocation_id, str)
@@ -703,6 +793,7 @@ def provider_process_env(provider: str, provider_config: dict[str, Any],
         automation_user_home.mkdir(parents=True, exist_ok=True, mode=0o700)
         automation_user_home.chmod(0o700)
         child_env["HOME"] = str(automation_user_home)
+        _link_treg_agent_skills(automation_user_home)
 
         ssl_cert_file_value = provider_config.get("ssl_cert_file")
         if ssl_cert_file_value:
@@ -1292,6 +1383,57 @@ def command_for(provider: str, executable: str, provider_config: dict[str, Any],
                 f"limit_tokens={rollout_budget_tokens},"
                 "reminder_at_remaining_tokens=[],"
                 "sampling_token_weight=1.0,prefill_token_weight=1.0}")])
+        treg_enabled = args.task_class == TREG_SIGNAL_TASK_CLASS
+        if treg_enabled:
+            evidence_dir = Path(args.evidence_dir).expanduser()
+            occurrence_id = os.environ.get("LIFE_MANAGER_OCCURRENCE_ID", "")
+            budget_root = Path.home() / ".local" / "state" / "life-manager" / "treg-budget"
+            if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,255}", occurrence_id):
+                if args.task_class == TREG_SIGNAL_TASK_CLASS:
+                    raise ValueError("treg budget gate state is unavailable")
+                occurrence_id = f"agent:{uuid.uuid4().hex}"
+            if (
+                not evidence_dir.is_absolute()
+                or evidence_dir.is_symlink()
+                or not evidence_dir.is_dir()
+                or stat.S_IMODE(evidence_dir.stat().st_mode) != 0o700
+                or evidence_dir.stat().st_uid != os.getuid()
+                or not budget_root.is_absolute()
+            ):
+                raise ValueError("treg budget gate state is unavailable")
+            resolved_budget_root = budget_root.resolve()
+            try:
+                resolved_budget_root.relative_to(REPO_ROOT.resolve())
+            except ValueError:
+                pass
+            else:
+                raise ValueError("treg budget gate state is unavailable")
+            gate_script = HERE / "treg_budget_mcp.py"
+            if not gate_script.is_file():
+                raise ValueError("treg budget gate entrypoint is unavailable")
+            daily_ledger = resolved_budget_root / (
+                f"treg-budget-daily-{datetime.now(timezone.utc).date().isoformat()}.json"
+            )
+            occurrence_ledger = evidence_dir / "treg-budget-occurrence.json"
+            gate_args = [
+                str(gate_script.resolve()),
+                "--daily-ledger", str(daily_ledger),
+                "--occurrence-ledger", str(occurrence_ledger),
+                "--occurrence-id", occurrence_id,
+                "--credentials-path", str(
+                    Path.home() / ".local" / "share" / "anicca" / "credentials.json"
+                ),
+            ]
+            command.extend([
+                "-c", f"mcp_servers.treg.command={json.dumps(sys.executable)}",
+                "-c", f"mcp_servers.treg.args={json.dumps(gate_args)}",
+                "-c", f"mcp_servers.treg.enabled_tools={json.dumps(list(TREG_MCP_TOOLS))}",
+                "-c", 'mcp_servers.treg.default_tools_approval_mode="approve"',
+                "-c", "mcp_servers.treg.startup_timeout_sec=20",
+                "-c", "mcp_servers.treg.tool_timeout_sec=200",
+                "-c", "mcp_servers.treg.enabled=true",
+                "-c", f"mcp_servers.treg.required={str(args.task_class == TREG_SIGNAL_TASK_CLASS).lower()}",
+            ])
         command.extend(["--ignore-user-config", "--json"])
         if schema:
             command.extend([
@@ -1649,6 +1791,14 @@ def run() -> int:
         print("agent-runner: deterministic tasks have no model candidate", file=sys.stderr)
         return 2
 
+    evidence_dir = parsed.evidence_dir.resolve()
+    probe_root = next(path for path in (evidence_dir, *evidence_dir.parents) if path.exists())
+    available = disk_free_bytes(probe_root)
+    if available is None or available < RECOVERY_FLOOR_BYTES:
+        reason = "disk_headroom_unavailable" if available is None else "disk_headroom_low"
+        print(f"agent-runner: provider deferred: {reason}", file=sys.stderr)
+        return PROVIDER_LEASE_BUSY
+
     try:
         lease_fd = acquire_provider_lease(
             os.environ.get("LIFE_MANAGER_PROVIDER_LEASE_PATH", "").strip()
@@ -1660,7 +1810,6 @@ def run() -> int:
         print(f"agent-runner: provider lease failed: {error}", file=sys.stderr)
         return 2
 
-    evidence_dir = parsed.evidence_dir.resolve()
     # Do this before creating/writing attempt files or launching a billable
     # provider.  A full volume used to make Codex panic while writing its own
     # evidence, leaving Capafy drafts stranded despite an otherwise healthy
@@ -2080,7 +2229,7 @@ def run() -> int:
             registry_path=runtime_registry_path(),
             release_sha=release_sha,
         )
-    atomic_json(summary_path, summary)
+    summary = finish_evidence_run(evidence_dir, summary)
     print(json.dumps(summary, ensure_ascii=False, separators=(",", ":")))
     if lease_fd is not None:
         os.close(lease_fd)

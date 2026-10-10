@@ -30,6 +30,7 @@ const GEOCODE_NEGATIVE_TTL_MS = 30 * 60_000;
 const GEOCODE_TRANSIENT_TTL_MS = 2 * 60_000;
 const ROUTING_POLICY_VERSION = "travel-routing-policy-v1";
 const OPAQUE_EVENT_VERSION = /^[a-f0-9]{64}$/;
+const LIFE_MANAGER_TRAVEL_DESCRIPTION = "Auto-inserted by Life Manager — adjust if the route is wrong.";
 
 function eventVersionMeta(usage) {
   const eventVersion = usage && usage.eventVersion;
@@ -119,6 +120,12 @@ function isTravel(summary) {
   return s.startsWith("[Travel]") || s.includes("🚆 移動");
 }
 
+function hasDeparturePopupReminder(event) {
+  return Boolean(event && event.reminders && event.reminders.useDefault === false
+    && Array.isArray(event.reminders.overrides)
+    && event.reminders.overrides.some((reminder) => reminder && reminder.method === "popup" && reminder.minutes === 0));
+}
+
 // PURE travel decision — geometry only (origin selection + home→home guard). It does NOT judge whether
 // an event is "online": that is the AGENT's call (agentResolveLocation, ask.js), made via prompt+tools,
 // never a hardcoded keyword regex (Dais 2026-06-23: ~/.claude/rules/building-effective-ai-agents.md —
@@ -155,6 +162,8 @@ async function listEvents7d(uid, apiKey, nowMs, calendar, gmailAccountId, { stri
     id: e.id || "",                                   // C-H1: stable per-event key for the atomic claim ledger
     summary: e.summary || "",
     location: e.location || "",
+    ...(isTravel(e.summary) && e.description === LIFE_MANAGER_TRAVEL_DESCRIPTION
+      ? { lifeManagerGeneratedTravel: true } : {}),
     startIso: (e.start || {}).dateTime || "",
     timezone: (e.start || {}).timeZone || e.timeZone || e.timezone || "",
     reminders: e.reminders && typeof e.reminders === "object" ? {
@@ -697,7 +706,7 @@ async function createTravelBlock(uid, apiKey, leaveMs, arriveMs, fromName, toNam
     event_duration_hour: hours, event_duration_minutes: Math.min(59, minutes),
     calendar_id: "primary", timezone: "UTC", location: dstAddr,
     send_updates: "none", exclude_organizer: true, create_meeting_room: false,
-    description: "Auto-inserted by Life Manager — adjust if the route is wrong.",
+    description: LIFE_MANAGER_TRAVEL_DESCRIPTION,
     ...(expectedCalendarAccountId ? {
       reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 0 }] },
     } : {}),
@@ -830,6 +839,37 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
     // Single source of truth for the skip/insert decision (home→home, no-origin, online, etc.).
     // Use if/else (NOT continue) so the RETURN LEG below always runs regardless of outbound fate.
     // FIND-005: the outbound continue statements must NEVER skip the return-leg evaluation.
+    // An exact existing block already has the route, so repair its reminder before origin resolution.
+    const duplicateBlocks = events.filter((e) => isTravel(e.summary) && e.endMs
+      && e.endMs >= ev.startMs - 2 * 60000 && e.endMs <= ev.startMs + 60000
+      && String(e.location || "").replace(/\s+/g, "").toLowerCase()
+        === String(ev.location || "").replace(/\s+/g, "").toLowerCase());
+    const existingDuplicate = duplicateBlocks.length === 1 ? duplicateBlocks[0] : null;
+    if (expectedCalendarAccountId && existingDuplicate && existingDuplicate.id
+      && existingDuplicate.lifeManagerGeneratedTravel === true
+      && !hasDeparturePopupReminder(existingDuplicate) && typeof cal.patchEvent === "function") {
+      try {
+        await cal.patchEvent(uid, {
+          calendar_id: "primary",
+          event_id: existingDuplicate.id,
+          reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 0 }] },
+          send_updates: "none",
+        }, { expectedCalendarAccountId, allowWebInitialScan: allowWebInitialScan === true });
+      } catch { /* exact Calendar readback below decides whether the idempotent patch took effect */ }
+      try {
+        const reread = await listEvents7d(uid, apiKey, nowMs, cal, gmailAccountId, {
+          strict: Boolean(expectedCalendarAccountId), expectedCalendarAccountId,
+        });
+        const verifiedMatches = reread.filter((event) => event.id === existingDuplicate.id && isTravel(event.summary)
+          && Number.isFinite(event.endMs)
+          && event.endMs >= ev.startMs - 2 * 60000 && event.endMs <= ev.startMs + 60000
+          && String(event.location || "").replace(/\s+/g, "").toLowerCase()
+            === String(ev.location || "").replace(/\s+/g, "").toLowerCase()
+          && hasDeparturePopupReminder(event));
+        if (verifiedMatches.length === 1) verified++;
+      } catch { /* do not create a duplicate when strict readback is unavailable */ }
+    }
+
     const decision = travelDecision(ev, events[i - 1], home);
     let outboundInserted = false;
     let resolvedDest = ev.location; // tracks the agent-resolved venue for the return leg
@@ -838,12 +878,7 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
       skipped++;
     } else {
       const origin = decision.origin;
-      // Dedup: a [Travel] block already sitting in the gap right before this event?
-      const dup = events.some((e) => isTravel(e.summary) && e.endMs
-        && e.endMs >= ev.startMs - 2 * 60000 && e.endMs <= ev.startMs + 60000
-        && String(e.location || "").replace(/\s+/g, "").toLowerCase()
-          === String(ev.location || "").replace(/\s+/g, "").toLowerCase());
-      if (dup) {
+      if (duplicateBlocks.length) {
         skipped++;
         // outbound block already exists — fall through to return-leg so it can backfill a missing return block
       } else {
@@ -1065,6 +1100,7 @@ function returnDecision(ev, next, home) {
 
 module.exports = {
   fillTravel, directionsRoute, directionsMinutes, listEvents7d, isTravel, travelDecision, returnDecision, claimTravel, unclaimTravel,
+  hasDeparturePopupReminder,
   recordTravelTelegramReceipt,
   // #71 pure helpers (unit-tested)
   parseDurationSeconds, minutesFromSeconds, buildDriveBody, clampDepartIso, acceptRouteResults,

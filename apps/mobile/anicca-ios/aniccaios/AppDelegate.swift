@@ -77,6 +77,10 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     }
 
     func applicationDidBecomeActive(_ application: UIApplication) {
+        // Distinct open days for post-value App Store review prompts.
+        Task { @MainActor in
+            ReviewPromptCoordinator.shared.recordAppOpen()
+        }
         // Best-effort: recover APNs token registration if it was delayed on first run.
         Task { await registerForRemoteIfAuthorized() }
     }

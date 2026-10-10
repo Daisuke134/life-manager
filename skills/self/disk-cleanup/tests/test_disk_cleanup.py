@@ -1,8 +1,10 @@
 import errno
+import hashlib
 import json
 import tempfile
 import os
 import signal
+import shutil
 import stat
 import subprocess
 import sys
@@ -98,6 +100,58 @@ def test_closed_package_download_caches_are_discovered_and_reclaimed(
     assert result["protected_deletions"] == 0
 
 
+@pytest.mark.parametrize("condition", ["closed", "open", "compiler", "changed"])
+def test_darwin_clang_cache_reclaims_only_closed_generated_ast(
+    tmp_path: Path, monkeypatch, request, condition: str,
+) -> None:
+    request.addfinalizer(lambda: shutil.rmtree(tmp_path, ignore_errors=True))
+    home = tmp_path / "home"
+    home.mkdir()
+    cache = tmp_path / "C/clang/ModuleCache"
+    modules = cache / "1J5J8FJPCELQN"
+    modules.mkdir(parents=True)
+    ast = b"\xcf\xfa\xed\xfe" + b"\0" * 8 + b"\x01\0\0\0" + b"\0" * 16 + b"__clangast\0"
+    pcm = modules / "Foundation-3VW5DIPSHA0Z3.pcm"
+    pcm.write_bytes(ast)
+    retained = {
+        modules / "Foundation.swiftmodule": b"compiled Swift module",
+        modules / "modules.timestamp": b"metadata",
+        modules / "unknown.pcm": b"unclassified original",
+        modules / "shared.pcm": ast,
+    }
+    for path, content in retained.items():
+        path.write_bytes(content)
+    os.link(modules / "shared.pcm", tmp_path / "shared-original.pcm")
+    (modules / "linked.pcm").symlink_to(pcm)
+    monkeypatch.setattr(disk_cleanup, "_darwin_clang_cache", lambda _home: cache, raising=False)
+    monkeypatch.setattr(disk_cleanup, "_clang_compiler_active", lambda: condition == "compiler", raising=False)
+
+    def closed_probe(path):
+        if path == pcm and condition == "changed":
+            replacement = modules / "replacement.pcm"
+            replacement.write_bytes(ast + b"new generation")
+            replacement.replace(pcm)
+        return "open" if path == pcm and condition == "open" else "confirmed-closed"
+
+    governor = HostDiskGovernor(
+        home=home, state_dir=home / "cleanup-state", lsof=closed_probe,
+        usage=lambda: (0, 1),
+    )
+    candidates = [item for item in governor.discover_candidates()
+                  if item.get("owner") == "clang-module-cache"]
+    assert [item["path"] for item in candidates] == ([] if condition == "compiler" else [pcm])
+    result = governor.sweep(candidates, write_receipt=False)
+    assert pcm.exists() is (condition != "closed"), json.dumps(result)
+    assert result["protected_deletions"] == 0
+    assert all(path.read_bytes() == content for path, content in retained.items())
+    assert modules.is_dir() and (modules / "linked.pcm").is_symlink()
+    assert result["reclaimed"] > 0 if condition == "closed" else result["reclaimed"] == 0
+    replay = governor.sweep([item for item in governor.discover_candidates()
+                            if item.get("owner") == "clang-module-cache"], write_receipt=False)
+    if condition == "closed":
+        assert replay["reclaimed"] == 0
+
+
 @pytest.mark.parametrize("git_marker_type", ["file", "directory"])
 def test_temporary_worktree_candidate_is_preserved(
     tmp_path: Path, monkeypatch, git_marker_type: str
@@ -134,6 +188,299 @@ def test_temporary_worktree_candidate_is_preserved(
     assert result["preserved_reasons"] == {"unknown_artifact": 1}
     assert result["errors"] == 0
     assert result["protected_deletions"] == 0
+
+
+def test_discover_stale_test_temporary_families_only(
+    tmp_path: Path, monkeypatch
+) -> None:
+    home = tmp_path / "home"
+    temporary = tmp_path / "T"
+    home.mkdir()
+    temporary.mkdir()
+    additional_temporary = tmp_path / "additional-temp"
+    additional_temporary.mkdir()
+    old_paths = [
+        temporary / "slide-pack-objects-9T7iWU",
+        temporary / "slide-pack-image-cache-cta-QZWSuL",
+        temporary / "slide-pack-workspace-mJXtWV",
+        temporary / "slide-pack-fixture-bg-12345.png",
+        temporary / f"pytest-of-{home.name}" / "pytest-42",
+        additional_temporary / "slide-pack-workspace-WV9a0B",
+        additional_temporary / f"pytest-of-{home.name}" / "pytest-44",
+    ]
+    for path in old_paths:
+        if path.suffix == ".png":
+            path.write_bytes(b"fixture")
+        else:
+            path.mkdir(parents=True)
+            (path / "payload").write_bytes(b"temporary")
+        os.utime(path, (1, 1))
+
+    recent_paths = [
+        temporary / "slide-pack-objects-recent1",
+        temporary / f"pytest-of-{home.name}" / "pytest-43",
+    ]
+    for path in recent_paths:
+        path.mkdir(parents=True)
+    unknown = temporary / "cfo-old-run"
+    unknown.mkdir()
+    symlink = temporary / "slide-pack-objects-link01"
+    symlink.symlink_to(old_paths[0], target_is_directory=True)
+
+    monkeypatch.setattr(disk_cleanup, "_readonly_temp_root", lambda: temporary)
+    monkeypatch.setattr(
+        disk_cleanup,
+        "_temporary_roots",
+        lambda _primary: (temporary, additional_temporary),
+    )
+    governor = HostDiskGovernor(
+        home=home,
+        state_dir=home / "state",
+        lsof=lambda _path: "confirmed-closed",
+        usage=lambda: (0, 1),
+    )
+
+    candidates = [
+        item for item in governor.discover_candidates()
+        if item.get("owner") == "temporary-run"
+    ]
+
+    assert {Path(item["path"]) for item in candidates} == set(old_paths)
+    assert all(item["discovery"] == "allowlisted" for item in candidates)
+
+
+@pytest.mark.parametrize("protected_filename", ["credentials.json", ".env.sh"])
+def test_sweep_retires_only_registered_clean_merged_unleased_worktree(
+    tmp_path: Path, monkeypatch, protected_filename: str,
+) -> None:
+    home = tmp_path / "home"
+    repo = home / "Projects" / "life-manager-main"
+    repo.mkdir(parents=True)
+
+    def git(cwd: Path, *args: str) -> str:
+        result = subprocess.run(
+            ["git", "-C", str(cwd), *args],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        return result.stdout.strip()
+
+    subprocess.run(
+        ["git", "init", "-b", "main", str(repo)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    git(repo, "config", "user.name", "Disk Cleanup Test")
+    git(repo, "config", "user.email", "disk-cleanup-test@example.invalid")
+    (repo / "README.md").write_text("base\n")
+    (repo / ".gitignore").write_text("ignored.bin\n")
+    git(repo, "add", "README.md", ".gitignore")
+    git(repo, "commit", "-m", "base")
+    main_head = git(repo, "rev-parse", "HEAD")
+    git(repo, "update-ref", "refs/remotes/origin/main", main_head)
+    git(repo, "remote", "add", "origin", str(repo))
+
+    worktrees = repo / ".worktrees"
+    worktrees.mkdir()
+
+    def add_detached(name: str) -> Path:
+        path = worktrees / name
+        git(repo, "worktree", "add", "--detach", str(path), main_head)
+        return path
+
+    safe = add_detached("zombie-safe")
+    dirty = add_detached("dirty")
+    (dirty / "README.md").write_text("uncommitted\n")
+    untracked = add_detached("untracked")
+    (untracked / "progress.txt").write_text("uncommitted\n")
+    ignored = add_detached("ignored")
+    (ignored / "ignored.bin").write_text("ignored progress\n")
+    locked = add_detached("locked")
+    git(repo, "worktree", "lock", "--reason", "active owner", str(locked))
+    kept = add_detached("kept")
+    (kept / ".anicca-keep").write_text("keep\n")
+    unmerged = worktrees / "unmerged"
+    git(repo, "worktree", "add", "-b", "unmerged", str(unmerged), main_head)
+    (unmerged / "new-work.txt").write_text("unmerged work\n")
+    git(unmerged, "add", "new-work.txt")
+    git(unmerged, "commit", "-m", "unmerged work")
+    leased = add_detached("leased")
+    common = Path(git(repo, "rev-parse", "--git-common-dir"))
+    if not common.is_absolute():
+        common = (repo / common).resolve()
+    lease_path = common / "worktree-leases" / (
+        hashlib.sha256(str(leased.resolve()).encode("utf-8")).hexdigest() + ".json"
+    )
+    lease_path.parent.mkdir(parents=True)
+    lease_path.write_text("{}\n")
+
+    protected_store = worktrees / "protected-store"
+    git(repo, "worktree", "add", "-b", "protected-store", str(protected_store), main_head)
+    (protected_store / "memory").mkdir()
+    (protected_store / "memory" / "fact").write_text("keep")
+    git(protected_store, "add", "memory/fact")
+    git(protected_store, "commit", "-m", "protected store")
+    protected_head = git(protected_store, "rev-parse", "HEAD")
+    git(repo, "update-ref", "refs/remotes/origin/main", protected_head)
+    git(repo, "update-ref", "refs/heads/main", protected_head)
+    credentials = worktrees / "credentials"
+    git(repo, "worktree", "add", "-b", "credentials", str(credentials), main_head)
+    (credentials / protected_filename).write_text("fixture credential must remain")
+    git(credentials, "add", protected_filename)
+    git(credentials, "commit", "-m", "fixture credentials")
+    credential_head = git(credentials, "rev-parse", "HEAD")
+    git(repo, "reset", "--hard", protected_head)
+    git(repo, "merge", "--no-edit", "credentials")
+    # Merge the two fixture branches as the authoritative local origin main.
+    git(repo, "update-ref", "refs/remotes/origin/main", git(repo, "rev-parse", "HEAD"))
+
+    governor = HostDiskGovernor(
+        home=home,
+        state_dir=home / "state",
+        lsof=lambda _path: "confirmed-closed",
+        usage=lambda: (0, 1),
+    )
+    candidates = [
+        item for item in governor.discover_candidates()
+        if item.get("owner") == "zombie-worktree"
+    ]
+
+    assert [Path(item["path"]) for item in candidates] == [safe]
+    current_main = git(repo, "rev-parse", "refs/remotes/origin/main")
+    git(repo, "update-ref", "refs/remotes/origin/main", main_head)
+    assert governor._worktree_identity(safe) is None
+    git(repo, "update-ref", "refs/remotes/origin/main", current_main)
+    probe_calls = [0]
+    def write_ignored_state_on_final_probe(_path):
+        probe_calls[0] += 1
+        if probe_calls[0] == 3:
+            (safe / "state").mkdir()
+            (safe / "state" / "events.jsonl").write_text("must remain")
+        return "confirmed-closed"
+    git(repo, "config", "core.excludesFile", str(repo / "fixture-ignore"))
+    (repo / "fixture-ignore").write_text("state/\nfixture-ignore\n")
+    governor.lsof = write_ignored_state_on_final_probe
+    state_result = governor.sweep(candidates, write_receipt=False)
+    assert safe.is_dir()
+    assert (safe / "state" / "events.jsonl").read_text() == "must remain"
+    (safe / "state" / "events.jsonl").unlink()
+    (safe / "state").rmdir()
+    clock = [0.0]
+    governor.clock = lambda: clock[0]
+    probe_calls[0] = 0
+    def expire_on_final_probe(_path):
+        probe_calls[0] += 1
+        if probe_calls[0] == 3:
+            clock[0] = 91.0
+        return "confirmed-closed"
+    governor.lsof = expire_on_final_probe
+    expired = governor.sweep(candidates, write_receipt=False, deadline=90.0)
+    assert safe.is_dir()
+    assert expired["preserved_reasons"] == {"probe-budget-exhausted": 1}
+    clock[0] = 0.0
+    original_run = subprocess.run
+    def timeout_remove(argv, **kwargs):
+        if "worktree" in argv and "remove" in argv:
+            assert 0 < kwargs["timeout"] <= 15
+            raise subprocess.TimeoutExpired(argv, kwargs["timeout"])
+        return original_run(argv, **kwargs)
+    governor.lsof = lambda _path: "confirmed-closed"
+    with monkeypatch.context() as scoped:
+        scoped.setattr(subprocess, "run", timeout_remove)
+        timed_out = governor.sweep(candidates, write_receipt=False, deadline=90.0)
+    assert safe.is_dir()
+    assert timed_out["errors"] == 1
+    assert timed_out["preserved_reasons"] == {"worktree_remove_timeout": 1}
+    governor.lsof = lambda _path: "open"
+    open_result = governor.sweep(candidates, write_receipt=False)
+    assert safe.is_dir()
+    assert open_result["preserved_reasons"] == {"open": 1}
+
+    governor.lsof = lambda _path: "confirmed-closed"
+    result = governor.sweep(candidates, write_receipt=False)
+
+    assert not safe.exists()
+    assert result["worktrees_retired"] == 1
+    assert result["errors"] == 0
+    assert result["protected_deletions"] == 0
+    listing = git(repo, "worktree", "list", "--porcelain")
+    assert str(safe) not in listing
+    assert all(path.is_dir() for path in (dirty, untracked, ignored, locked, kept, unmerged, leased, protected_store, credentials))
+
+
+@pytest.mark.parametrize("current_points_to_run", [True, False])
+def test_stale_pytest_symlinks_are_unlinked_without_following_targets(tmp_path: Path, monkeypatch, current_points_to_run: bool) -> None:
+    home = tmp_path / "home"
+    home.mkdir()
+    temporary = tmp_path / "T"
+    run = temporary / f"pytest-of-{home.name}" / "pytest-42"
+    run.mkdir(parents=True)
+    outside = home / "memory"
+    outside.mkdir()
+    sentinel = outside / "fact"
+    sentinel.write_text("must remain")
+    large_file = outside / "large"
+    large_file.write_bytes(b"x" * 4096)
+    file_link = run / "file-link"
+    file_link.symlink_to(large_file)
+    link_bytes = file_link.lstat().st_size
+    (run / "fixture-link").symlink_to(outside, target_is_directory=True)
+    os.utime(run, (1, 1))
+    other = run.parent / "pytest-43"
+    other.mkdir()
+    pointer = run.parent / "pytest-current"
+    pointer.symlink_to(run.name if current_points_to_run else other.name, target_is_directory=True)
+    monkeypatch.setattr(disk_cleanup, "_readonly_temp_root", lambda: temporary)
+    monkeypatch.setattr(disk_cleanup, "_temporary_roots", lambda _primary: (temporary,))
+    governor = HostDiskGovernor(home=home, state_dir=home / "state", lsof=lambda _path: "confirmed-closed", usage=lambda: (0, 1))
+    candidates = [item for item in governor.discover_candidates() if item.get("owner") == "temporary-run"]
+    result = governor.sweep(candidates, write_receipt=False)
+    assert not run.exists()
+    assert sentinel.read_text() == "must remain"
+    assert large_file.stat().st_size == 4096
+    assert result["reclaimed"] == link_bytes
+    assert other.is_dir()
+    assert pointer.is_symlink() is (not current_points_to_run)
+    assert result["protected_deletions"] == 0
+
+
+def test_stale_pytest_final_open_probe_is_fresh(tmp_path: Path, monkeypatch) -> None:
+    home = tmp_path / "home"
+    home.mkdir()
+    temporary = tmp_path / "T"
+    run = temporary / f"pytest-of-{home.name}" / "pytest-42"
+    run.mkdir(parents=True)
+    payload = run / "payload.bin"
+    payload.write_bytes(b"active fixture")
+    os.utime(run, (1, 1))
+    monkeypatch.setattr(disk_cleanup, "_readonly_temp_root", lambda: temporary)
+    monkeypatch.setattr(disk_cleanup, "_temporary_roots", lambda _primary: (temporary,))
+    opened = [False]
+    calls = []
+    def snapshot():
+        calls.append(opened[0])
+        return frozenset({str(payload)}) if opened[0] else frozenset()
+    cached_snapshot = disk_cleanup.lru_cache(maxsize=1)(snapshot)
+    monkeypatch.setattr(disk_cleanup, "_open_paths", cached_snapshot)
+    original_bytes = disk_cleanup._bytes
+    handle = []
+    def open_during_size_probe(path, **kwargs):
+        handle.append(payload.open("rb"))
+        opened[0] = True
+        return original_bytes(path, **kwargs)
+    monkeypatch.setattr(disk_cleanup, "_bytes", open_during_size_probe)
+    governor = HostDiskGovernor(home=home, state_dir=home / "state", usage=lambda: (0, 1))
+    candidates = [item for item in governor.discover_candidates() if item.get("owner") == "temporary-run"]
+    try:
+        result = governor.sweep(candidates, write_receipt=False)
+        assert run.is_dir()
+        assert result["preserved_reasons"] == {"open": 1}
+        assert calls == [False, True]
+    finally:
+        for stream in handle: stream.close()
+        cached_snapshot.cache_clear()
 
 
 def test_core_simulator_assets_are_never_discovered_as_candidates(
@@ -1625,7 +1972,7 @@ def test_discover_and_sweep_allowlisted_tmp_cache_when_gettempdir_probe_fails(
             item for item in governor.discover_candidates()
             if item.get("owner") == "temporary-run"
         ]
-        assert [Path(item["path"]) for item in candidates] == [candidate]
+        assert [Path(item["path"]).resolve() for item in candidates] == [candidate.resolve()]
 
         result = governor.sweep(candidates, write_receipt=False)
 
@@ -2078,6 +2425,29 @@ def test_cli_reports_busy_lock_without_running_a_cleanup(tmp_path: Path, monkeyp
     assert not (tmp_path / "state" / "last-receipt.json").exists()
 
 
+def test_cli_busy_lock_preserves_managed_occurrence_identity(tmp_path: Path, monkeypatch, capsys) -> None:
+    release = tmp_path / "release"
+    release.mkdir()
+    (release / "RELEASE.json").write_text(json.dumps({"sha": "a" * 40}))
+    binding = {"owner_id": "life-manager-disk-cleanup", "run_id": "busy-1",
+               "occurrence_id": "life-manager-disk-cleanup:busy-1", "release_sha": "a" * 40}
+    monkeypatch.setattr(disk_cleanup, "REPOSITORY_ROOT", release)
+    monkeypatch.setenv("LIFE_MANAGER_RUN_ID", binding["run_id"])
+    monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", binding["occurrence_id"])
+    state = tmp_path / "state"
+    holder = HostDiskGovernor(home=tmp_path, state_dir=state)
+    assert holder.acquire_lock()
+    monkeypatch.setattr(disk_cleanup.sys, "argv", ["disk_cleanup.py", "--home", str(tmp_path), "--state-dir", str(state)])
+    try:
+        assert disk_cleanup.main() == 75
+        output = json.loads(capsys.readouterr().out)
+        assert output.get("identity") == binding
+        assert output["reason"] == "cleanup_lock_busy"
+        assert not (state / "last-receipt.json").exists()
+    finally:
+        holder.release_lock()
+
+
 def test_lock_is_atomic(tmp_path: Path) -> None:
     first = HostDiskGovernor(home=tmp_path, state_dir=tmp_path / "state")
     second = HostDiskGovernor(home=tmp_path, state_dir=tmp_path / "state")
@@ -2468,6 +2838,29 @@ def test_run_once_preserves_foreign_or_replaced_disk_writers_guard(
     )
 
 
+def test_watchdog_fast_inventory_survives_a_stale_budget_exhausted_full_marker(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setenv("LIFE_MANAGER_DISK_INVENTORY_FAST", "1")
+    modes = []
+
+    def inventory(**kwargs):
+        modes.append(kwargs["full"])
+        return {"coverage": {"mount_count": 1, "root_count": 1,
+                             "gaps": ["size-budget-exhausted:/unknown"]}}
+
+    monkeypatch.setattr(disk_cleanup, "collect_host_inventory", inventory)
+    governor = HostDiskGovernor(home=tmp_path, state_dir=tmp_path / "state",
+                                usage=lambda: (0, GiB))
+    monkeypatch.setattr(governor, "discover_candidates", lambda **_kwargs: [])
+    results = [governor.run_once(), governor.run_once()]
+
+    assert modes == [False, False]
+    assert [r["inventory_mode"] for r in results] == ["fast", "fast"]
+    assert [r["inventory_gaps"] for r in results] == [1, 1]
+    assert not governor.full_inventory_marker.exists()
+
+
 def test_run_once_global_budget_preserves_candidate_and_does_not_advance_full_marker(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -2476,7 +2869,7 @@ def test_run_once_global_budget_preserves_candidate_and_does_not_advance_full_ma
     candidate.mkdir(parents=True)
     monkeypatch.setattr(disk_cleanup.tempfile, "gettempdir", lambda: str(candidate.parent))
 
-    def discover_candidates() -> list[dict]:
+    def discover_candidates(*, deadline=None) -> list[dict]:
         clock[0] = 105.0
         return [
             {
@@ -2559,7 +2952,7 @@ def test_run_once_rotates_candidate_start_after_budget_exhaustion(
             usage=lambda: (12 * GiB, 100 * GiB),
             clock=lambda: clock[0],
         )
-        monkeypatch.setattr(governor, "discover_candidates", lambda: candidates)
+        monkeypatch.setattr(governor, "discover_candidates", lambda **_kwargs: candidates)
         result = governor.run_once()
         assert result["preserved_reasons"] == {"probe-budget-exhausted": 4}
         rotations.append(result.get("candidate_rotation"))
@@ -2616,7 +3009,7 @@ def _make_cursor_enospc_governor(tmp_path: Path, monkeypatch, free_bytes: int):
         lsof=lambda _path: "open",
         usage=lambda: (free_bytes, 100 * GiB),
     )
-    monkeypatch.setattr(governor, "discover_candidates", lambda: candidates)
+    monkeypatch.setattr(governor, "discover_candidates", lambda **_kwargs: candidates)
     sweep_calls = []
     real_sweep = governor.sweep
 
@@ -2825,7 +3218,7 @@ def test_run_once_rechecks_budget_after_lsof_before_reclaim(tmp_path: Path, monk
     monkeypatch.setattr(
         governor,
         "discover_candidates",
-        lambda: [
+        lambda **_kwargs: [
             {
                 "path": candidate,
                 "class": "ephemeral",
@@ -2884,7 +3277,7 @@ def test_gui_bootstrap_health_failure_is_observation_only(
     monkeypatch.setattr(
         governor,
         "discover_candidates",
-        lambda: (_ for _ in ()).throw(AssertionError("discovery must not run")),
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("discovery must not run")),
     )
 
     result = governor.run_once()
@@ -3412,7 +3805,7 @@ def test_receipt_carries_loaded_cleanup_identity(tmp_path, monkeypatch):
 
 def test_governor_reports_growth_and_preservation_reason_without_false_recovery(tmp_path, monkeypatch):
     governor = HostDiskGovernor(home=tmp_path, state_dir=tmp_path / "state", usage=lambda: (600*1024**2,100*GiB), lsof=lambda _p: "confirmed-closed")
-    monkeypatch.setattr(governor, "discover_candidates", lambda: [])
+    monkeypatch.setattr(governor, "discover_candidates", lambda **_kwargs: [])
     monkeypatch.setattr(disk_cleanup, "collect_host_inventory", lambda **_k: {"coverage": {"mount_count":1,"root_count":1,"gaps":[]},"storage_growth":{"roots":[{"path":"/srv/lm/unknown","delta_bytes":1048576,"attribution":"unattributed"}],"non_additive":True}})
     assert governor.acquire_lock()
     try: result = governor.run_once()

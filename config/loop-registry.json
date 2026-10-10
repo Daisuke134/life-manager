@@ -1583,6 +1583,7 @@
       "priority": "distribution",
       "resource_class": "agent",
       "admission_class": "revenue",
+      "admission_effect_scope": "occurrence",
       "cadence": {"calendar_interval":[{"Hour":8,"Minute":0},{"Hour":21,"Minute":0}]},
       "cleanup": {"max_age_days":14,"max_runs":100},
       "domain": "growth",
@@ -2300,7 +2301,7 @@
     },
     "life-manager-anicca-en-affirmation-instagram": {
       "priority": "distribution",
-      "resource_class": "agent",
+      "resource_class": "deterministic",
       "admission_class": "revenue",
       "cadence": {
         "calendar_interval": [
@@ -2380,7 +2381,7 @@
     },
     "life-manager-anicca-en-slideshow-tiktok": {
       "priority": "distribution",
-      "resource_class": "agent",
+      "resource_class": "deterministic",
       "admission_class": "revenue",
       "cadence": {
         "calendar_interval": [
@@ -2602,7 +2603,7 @@
     },
     "life-manager-anicca-en-affirmation-tiktok": {
       "priority": "distribution",
-      "resource_class": "agent",
+      "resource_class": "deterministic",
       "admission_class": "revenue",
       "cadence": {
         "calendar_interval": [
@@ -2630,7 +2631,7 @@
     },
     "life-manager-anicca-en2-affirmation-tiktok": {
       "priority": "distribution",
-      "resource_class": "agent",
+      "resource_class": "deterministic",
       "admission_class": "revenue",
       "cadence": {
         "calendar_interval": [
@@ -2658,7 +2659,7 @@
     },
     "life-manager-anicca-jp1-tiktok": {
       "priority": "distribution",
-      "resource_class": "agent",
+      "resource_class": "deterministic",
       "admission_class": "revenue",
       "cadence": {
         "calendar_interval": [
@@ -2729,7 +2730,7 @@
     },
     "life-manager-anicca-larry-ja-instagram": {
       "priority": "distribution",
-      "resource_class": "agent",
+      "resource_class": "deterministic",
       "admission_class": "revenue",
       "cadence": {
         "calendar_interval": [
@@ -2809,7 +2810,7 @@
     },
     "life-manager-anicca-buddha-tiktok": {
       "priority": "distribution",
-      "resource_class": "agent",
+      "resource_class": "deterministic",
       "admission_class": "revenue",
       "cadence": {
         "calendar_interval": [
@@ -2840,7 +2841,7 @@
     },
     "life-manager-anicca-main-tiktok": {
       "priority": "distribution",
-      "resource_class": "agent",
+      "resource_class": "deterministic",
       "admission_class": "revenue",
       "cadence": {
         "calendar_interval": [
@@ -3384,7 +3385,9 @@
       "state_root": "~/.local/state/life-manager/x402-sell"
     },
     "lm-recording-store": {
+      "admission_class": "borrow",
       "adapter": "exec",
+      "resource_class": "deterministic",
       "cadence": {
         "start_interval_seconds": 1800
       },
@@ -3399,6 +3402,7 @@
       "label": "ai.anicca.lm-recording-store",
       "system_role": "platform",
       "log_root": "~/.local/state/life-manager/lm-recording-store/logs",
+      "priority": "support",
       "provider_route": "shared-agent-runner",
       "state_root": "~/.local/state/life-manager/lm-recording-store"
     },
@@ -3550,6 +3554,41 @@
         "score"
       ],
       "state_root": "~/.local/state/life-manager/marketing-score-daily"
+    },
+    "marketing-treg-lead-signals-weekly": {
+      "adapter": "exec",
+      "cadence": {
+        "calendar_interval": {
+          "Hour": 21,
+          "Minute": 10,
+          "Weekday": 0
+        }
+      },
+      "cleanup": {
+        "max_age_days": 14,
+        "max_runs": 100
+      },
+      "domain": "growth",
+      "effect_class": "message",
+      "command": [],
+      "entrypoint": "skills/earn/marketing-engine/intel/treg-lead-signals-weekly",
+      "effect_reconcile": {
+        "argv": [
+          "skills/earn/marketing-engine/intel/treg_lead_signals_reconcile.py",
+          "--state-root",
+          "~/.local/state/life-manager/marketing-treg-lead-signals"
+        ],
+        "occurrence_flag": "--occurrence",
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 120
+      },
+      "label": "ai.anicca.marketing-treg-lead-signals-weekly",
+      "system_role": "shared",
+      "log_root": "~/.local/state/life-manager/marketing-treg-lead-signals/logs",
+      "priority": "support",
+      "provider_route": "shared-agent-runner",
+      "resource_class": "agent",
+      "state_root": "~/.local/state/life-manager/marketing-treg-lead-signals"
     },
     "marketing-weekly-review": {
       "adapter": "exec",

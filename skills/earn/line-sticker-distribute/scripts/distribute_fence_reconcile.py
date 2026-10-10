@@ -12,6 +12,8 @@ identity the poster uses:
   - Any Reel missing from the ledger may be this run's post: stays fenced (closing would let the
     slot post again).
   - Any readback failure, an incomplete listing, or too recent: stays fenced.
+  - When the loop also posts to Threads (a browser_threads account), the Threads profile is read
+    the same way and every post on it must be in the ledger too.
 
 Usage:
     python3 distribute_fence_reconcile.py --occurrence line-sticker-distribute:<run_id> [--resolve]
@@ -30,8 +32,11 @@ from typing import Any
 
 HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parents[3]
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
+for path in (REPO_ROOT, HERE):  # `python3 -I` puts neither on sys.path
+    if str(path) not in sys.path:
+        sys.path.insert(0, str(path))
+
+import threads_publish  # noqa: E402
 
 OWNER_ID = "line-sticker-distribute"
 # caption (<= 90 s) + render + browser upload/share readback; the poster gives up well inside this.
@@ -40,7 +45,7 @@ NO_EFFECT_MIN_AGE_SECONDS = MAX_RUN_SECONDS + 900
 STATE_ROOT = Path.home() / ".local/state/life-manager/line-sticker-distribute"
 ACCOUNTS = REPO_ROOT / "config/line-sticker-distribute-accounts.json"
 GUARD = REPO_ROOT / "skills/browser/browser-guard.sh"
-CODE_RE = re.compile(r"/reel/([A-Za-z0-9_-]+)")
+CODE_RE = re.compile(r"/(?:reel|post)/([A-Za-z0-9_-]+)")
 POST_COUNT_RE = re.compile(r"投稿\s*([\d,]+)\s*件|([\d,]+)\s*件の投稿|([\d,]+)\s*posts")
 
 
@@ -101,7 +106,8 @@ def read_reels(handle: str, identity: str, known: set[str] = frozenset()) -> dic
 
 
 def build_proof(occurrence_id: str, queued_at: dt.datetime, *, now: dt.datetime,
-                reels: dict[str, Any], ledger_codes: set[str]) -> dict[str, Any]:
+                reels: dict[str, Any], ledger_codes: set[str],
+                threads: dict[str, Any] | None = None) -> dict[str, Any]:
     proof: dict[str, Any] = {"owner_id": OWNER_ID, "occurrence_id": occurrence_id,
                              "verified": False, "queued_at": queued_at.isoformat()}
     if not reels.get("ok"):
@@ -119,6 +125,14 @@ def build_proof(occurrence_id: str, queued_at: dt.datetime, *, now: dt.datetime,
     if unledgered:
         proof["reason"] = "unledgered_reel:" + ",".join(unledgered)
         return proof
+    if threads is not None:  # the loop also posts to Threads: that listing must be all ledgered too
+        if not threads.get("ok"):
+            proof["reason"] = f"threads:{threads.get('reason')}"
+            return proof
+        unledgered_threads = sorted(threads["codes"] - ledger_codes)
+        if unledgered_threads:
+            proof["reason"] = "unledgered_threads_post:" + ",".join(unledgered_threads)
+            return proof
     if len(reels["codes"]) < reels["post_count"]:
         proof["reason"] = f"incomplete_listing:{len(reels['codes'])}<{reels['post_count']}"
         return proof
@@ -136,12 +150,17 @@ def build_proof(occurrence_id: str, queued_at: dt.datetime, *, now: dt.datetime,
 def reconcile(occurrence_id: str, *, resolve: bool = False) -> dict[str, Any]:
     now = dt.datetime.now(dt.timezone.utc)
     state, queued_at = fenced_row(OWNER_ID, occurrence_id)
-    account = next(a for a in json.loads(ACCOUNTS.read_text())["accounts"] if a.get("transport") == "browser_reel")
+    accounts = json.loads(ACCOUNTS.read_text())["accounts"]
+    account = next(a for a in accounts if a.get("transport") == "browser_reel")
+    threads_account = next((a for a in accounts if a.get("transport") == "browser_threads"), None)
     ledger_path = STATE_ROOT / "ledger.json"
     rows = json.loads(ledger_path.read_text()) if ledger_path.exists() else {}
     proof = build_proof(occurrence_id, queued_at, now=now,
                         reels=read_reels(account["handle"], account["browser_identity"], ledger_codes(rows)),
-                        ledger_codes=ledger_codes(rows))
+                        ledger_codes=ledger_codes(rows),
+                        threads=(threads_publish.read_post_codes(threads_account["handle"],
+                                                                 threads_account["browser_identity"])
+                                 if threads_account else None))
     result = {**proof, "admission_state": state}
     if not proof.get("verified") or not resolve:
         return result

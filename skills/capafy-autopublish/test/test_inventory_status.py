@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import shutil
 from types import SimpleNamespace
 from pathlib import Path
 
@@ -730,7 +731,11 @@ def test_unfinished_draft_is_finished_before_a_new_skill_is_created() -> None:
 def test_a_draft_is_attempted_at_most_three_times_then_new_skills_proceed(monkeypatch, tmp_path, capsys) -> None:
     module = load_module()
     monkeypatch.setattr(module, "FEATURES", str(tmp_path / "no-legacy"))
-    monkeypatch.setattr(module, "CATALOG", str(Path(__file__).parents[2] / "capafy/catalog"))
+    # Draft-attempt behavior only: the real catalog's Dais-approved UPDATE.json files must not decide here.
+    catalog_copy = tmp_path / "catalog"
+    shutil.copytree(Path(__file__).parents[2] / "capafy/catalog", catalog_copy,
+                    ignore=shutil.ignore_patterns("UPDATE.json"))
+    monkeypatch.setattr(module, "CATALOG", str(catalog_copy))
     monkeypatch.setattr(module, "RETIRED", str(tmp_path / "no-retired.json"))
     stub_name = "Earnings Call Brief — Pasted Results to Questions" + module.PLACEHOLDER_SUFFIX
     monkeypatch.setattr(module, "server_agents", lambda: [agent("4973250899", "draft", name=stub_name)])
@@ -947,7 +952,11 @@ def test_only_the_deciding_call_counts_a_draft_attempt(monkeypatch, tmp_path, ca
     call burned a draft's three attempts inside one pass (10/08: 3257394572 showed 3 after one pass)."""
     module = load_module()
     monkeypatch.setattr(module, "FEATURES", str(tmp_path / "no-legacy"))
-    monkeypatch.setattr(module, "CATALOG", str(Path(__file__).parents[2] / "capafy/catalog"))
+    # Draft-attempt behavior only: the real catalog's Dais-approved UPDATE.json files must not decide here.
+    catalog_copy = tmp_path / "catalog"
+    shutil.copytree(Path(__file__).parents[2] / "capafy/catalog", catalog_copy,
+                    ignore=shutil.ignore_patterns("UPDATE.json"))
+    monkeypatch.setattr(module, "CATALOG", str(catalog_copy))
     monkeypatch.setattr(module, "RETIRED", str(tmp_path / "no-retired.json"))
     stub_name = "Earnings Call Brief — Pasted Results to Questions" + module.PLACEHOLDER_SUFFIX
     monkeypatch.setattr(module, "server_agents", lambda: [agent("4973250899", "draft", name=stub_name)])

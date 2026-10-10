@@ -4042,9 +4042,11 @@ def main() -> int:
 
         if mode == "selected-talkroom-only":
             talkroom_url = f"https://coconala.com/talkrooms/{talkroom_id}"
+            talkroom_screenshot = screenshot(
+                args.evidence_dir / f"talkroom-{safe_name(talkroom_id)}.png",
+            )
             raw_talkroom, history = inspect_selected_talkroom_with_history_retry(
-                args.cdp_helper, talkroom_url,
-                screenshot(args.evidence_dir / f"talkroom-{safe_name(talkroom_id)}.png"),
+                args.cdp_helper, talkroom_url, talkroom_screenshot,
                 project_id, args.projects_root, talkroom_id, observed_at,
             )
             source_dom = raw_talkroom
@@ -4054,6 +4056,8 @@ def main() -> int:
             talkroom_path = args.evidence_dir / f"talkroom-{safe_name(talkroom_id)}.json"
             talkroom = minimize_talkroom_dom(complete_talkroom, talkroom_id, observed_at)
             talkroom["evidence_file"] = str(talkroom_path)
+            if talkroom_screenshot is not None and talkroom_screenshot.is_file():
+                talkroom["screenshot_sha256"] = sha256_file(talkroom_screenshot)
             atomic_json(talkroom_path, talkroom)
             talkroom["evidence_sha256"] = sha256_file(talkroom_path)
             atomic_json(args.evidence_dir / f"talkroom-preflight-{safe_name(talkroom_id)}.json", history)
@@ -4103,6 +4107,7 @@ def main() -> int:
                 "selected-talkroom-only", ["selected_talkroom"], talkroom_id=talkroom_id,
                 talkroom=talkroom, orders=[merged_order], source_receipt=receipt,
             )
+            snapshot["captured_at"] = talkroom["observed_at"]
             atomic_json(args.output, snapshot)
             print(json.dumps({
                 "status": "success", "collector_mode": mode, "talkroom_id": talkroom_id,

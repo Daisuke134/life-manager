@@ -4,15 +4,7 @@ RENEWAL GATE
 R1 recurring input : Each new deck has new source content, audience, and occasion.
 R2 staleness       : A deck built from the previous content cannot be reused as the record for the next one.
 day-8 answer       : The buyer has a new report/notes/topic, so the previous deck is stale.
-demand evidence    : This is the existing Capafy Agent `8828622062`; this revision is a same-Agent update —
-DeepSeek V4.1 Flash model swap only (cost < revenue even on Sonnet: $0 cost_30d_actual vs $19.98 revenue_30d,
-but "spend less" policy still applies the cheaper model going forward).
-
-## 2026-09-29 repriced: charge more/spend less policy. Price is UNCHANGED — this agent is already at the
-## B2B/analyst-tool ceiling ($19.99-24.99/mo per references/pricing.md, matches the closest proven marketplace
-## competitor "Slide Maker" 22-sales structure $9.99/week + $24.99/month recorded in
-## specs/29-CAPAFY-10K-MRR-CLOSED-LOOP.md). Only the hosted model changes (Sonnet -> DeepSeek V4.1 Flash);
-## same copy, same prices as live v1.0.1.
+demand evidence    : Existing Capafy Agent `8828622062`. Hosted model: Claude Sonnet 5 (the Agent Card and credential configuration both list Claude Sonnet 5). Copy and prices are unchanged from the live version.
 | cycle | price | cap | trial |
 |---|---:|---:|---|
 | week | $9.99 | 15 | No Free Trial |

@@ -45,6 +45,28 @@ def two_loop_registry():
     return value
 
 
+@contextmanager
+def reclaimed_descriptor(root: Path, kind: str):
+    root = root.resolve()
+    marker = root / "RECLAIMED-RELEASE.json"
+    if kind == "descriptor":
+        marker.write_bytes((root / "RELEASE.json").read_bytes())
+    elif kind == "dangling":
+        marker.symlink_to(root / "missing-descriptor")
+    original_lstat = Path.lstat
+
+    def probe(path, *args, **kwargs):
+        if kind == "probe_error" and path == marker:
+            raise PermissionError("marker probe unavailable")
+        return original_lstat(path, *args, **kwargs)
+
+    try:
+        with patch.object(Path, "lstat", autospec=True, side_effect=probe):
+            yield
+    finally:
+        marker.unlink(missing_ok=True)
+
+
 def money_printer_registry(
     entrypoint="bin/example.sh",
     loop_id="money-printer-symphony-bridge",
@@ -74,12 +96,90 @@ class LmLoopApplyTest(unittest.TestCase):
         (self.root / "bin/lm-loop-run").chmod(0o755)
         (self.root / "RELEASE.json").write_text(json.dumps({"sha": SHA}))
 
+    def test_apply_rejects_reclaimed_release_before_installing(self):
+        installed = []
+        for kind in ("descriptor", "dangling", "probe_error"):
+            with self.subTest(kind=kind), reclaimed_descriptor(self.root, kind):
+                with self.assertRaisesRegex(ValueError, "reclaimed"):
+                    apply_registry(registry(), self.root, SHA, installed.append)
+                self.assertEqual(installed, [])
+        self.assertEqual(len(build_apply_plan(registry(), self.root, SHA)), 1)
+
+    def test_activate_current_rejects_reclaimed_release_without_swap(self):
+        old = self._release("old-release").resolve()
+        target = self._release("reclaimed-release").resolve()
+        current = self.root / "current"
+        current.symlink_to(old)
+        for kind in ("descriptor", "dangling", "probe_error"):
+            with self.subTest(kind=kind), reclaimed_descriptor(target, kind):
+                with self.assertRaisesRegex(ValueError, "reclaimed"):
+                    lm_loop.activate_current(current, target, self.root / "apply.lock")
+                self.assertEqual(current.resolve(), old)
+                self.assertFalse((self.root / "current.swap").exists())
+        lm_loop.activate_current(current, target, self.root / "apply.lock")
+        self.assertEqual(current.resolve(), target)
+
+    def test_reclaimed_release_cannot_apply_a_retired_label(self):
+        release = self._release("reclaimed-release")
+        value = registry()
+        value["retired_labels"] = ["ai.anicca.retired-example"]
+        (release / "config/loop-registry.json").write_text(json.dumps(value))
+        with reclaimed_descriptor(release, "descriptor"), patch.object(
+                lm_loop, "_safe_launchctl", side_effect=AssertionError("launchctl reached")):
+            with self.assertRaisesRegex(ValueError, "reclaimed"):
+                apply_live(release, self.root / "LaunchAgents", self.root / "launchctl-safe",
+                           target="ai.anicca.retired-example", current=release,
+                           protocol_reader=lambda: 1)
+
     def test_apply_requires_explicit_target_or_all(self):
         with patch.dict(os.environ, {}, clear=True), \
                 patch.object(lm_loop, "apply_live", side_effect=AssertionError("apply called")), \
                 redirect_stdout(io.StringIO()) as output:
             self.assertEqual(lm_loop.main(["apply"]), 2)
         self.assertIn("LIFE_MANAGER_APPLY_TARGET", json.loads(output.getvalue())["error"])
+
+    def test_apply_preserves_disabled_owner_before_admission_or_plist_mutation(self):
+        release = self._release("disabled-release")
+        current = self.root / "current"
+        current.symlink_to(release)
+        values = self._apply_kwargs(current, self.root / "apply.lock")
+        target = values["agents_dir"] / "ai.anicca.example.plist"
+        previous = plistlib.dumps({"Label": "ai.anicca.example", "ProgramArguments": ["/old/run"]})
+        target.write_bytes(previous)
+        calls = []
+
+        def safe(_executable, args):
+            calls.append(args)
+            if args == ["preflight"]:
+                return 0, "pass"
+            if args == ["print-disabled", f"gui/{os.getuid()}"]:
+                return 0, 'disabled services = {\n "ai.anicca.example" => disabled\n}'
+            raise AssertionError(f"unexpected launchctl operation: {args}")
+
+        with patch.object(lm_loop, "_safe_launchctl", side_effect=safe), patch.object(
+                lm_loop, "_admission_rebind_guard", side_effect=AssertionError("admission mutated")):
+            result = apply_live(release, values["agents_dir"], values["launchctl_safe"],
+                                target="example", current=current,
+                                protocol_reader=lambda: 1)
+        self.assertEqual(result[0]["skipped"], "disabled")
+        self.assertFalse(result[0]["changed"])
+        self.assertEqual(target.read_bytes(), previous)
+        self.assertEqual(calls, [["preflight"], ["print-disabled", f"gui/{os.getuid()}"]])
+
+    def test_apply_refuses_unknown_disabled_readback_before_mutation(self):
+        release = self._release("probe-release")
+        current = self.root / "current"
+        current.symlink_to(release)
+        values = self._apply_kwargs(current, self.root / "apply.lock")
+        for rc, text in ((5, "probe failed"), (0, ""),
+                         (0, 'disabled services = { "ai.anicca.example" => unknown }')):
+            with self.subTest(rc=rc, text=text), patch.object(
+                    lm_loop, "_safe_launchctl", side_effect=[(0, "pass"), (rc, text)]), patch.object(
+                    lm_loop, "_admission_rebind_guard", side_effect=AssertionError("admission mutated")):
+                with self.assertRaisesRegex(RuntimeError, "disabled state readback failed"):
+                    apply_live(release, values["agents_dir"], values["launchctl_safe"],
+                               target="example", current=current, protocol_reader=lambda: 1)
+        self.assertEqual(list(values["agents_dir"].iterdir()), [])
 
     def test_apply_require_current_environment_reaches_live_apply(self):
         with patch.dict(os.environ, {
@@ -1251,6 +1351,21 @@ class LmLoopApplyTest(unittest.TestCase):
             priority="revenue", effect_scope="occurrence",
         )
 
+    def test_admission_rebind_guard_uses_ebook_occurrence_scope(self):
+        owner = "ebook-en-tiktok-daily"
+        registry = json.loads((Path(__file__).parents[3] / "config/loop-registry.json").read_text())
+        entry = registry["loops"][owner]
+        with (
+            patch.object(lm_loop, "_owner_has_pending_admission", return_value=True),
+            patch.object(lm_loop, "rebind_queued_owner", return_value="rebound") as rebind,
+            lm_loop._admission_rebind_guard(owner, True, entry=entry) as decision,
+        ):
+            self.assertIsNone(decision)
+        rebind.assert_called_once_with(
+            owner, resource_class="agent", admission_class="revenue",
+            priority="distribution", effect_scope="occurrence",
+        )
+
     def test_admission_rebind_guard_uses_explicit_marketplace_occurrence_scope(self):
         entry = {
             "resource_class": "agent",
@@ -1321,6 +1436,8 @@ class LmLoopApplyTest(unittest.TestCase):
         script = (
             "#!/bin/sh\n"
             f"printf '%s\\n' \"$*\" >> {shlex.quote(str(calls))}\n"
+            'if [ "$1" = print-disabled ]; then\n'
+            "printf '%s\\n' 'disabled services = {}'\nexit 0\nfi\n"
         )
         if expected_arguments is not None:
             domain = f"gui/{os.getuid()}"
@@ -2680,7 +2797,7 @@ class LmLoopApplyTest(unittest.TestCase):
                 )
 
         self.assertEqual(list(values["agents_dir"].iterdir()), [])
-        self.assertEqual(values["calls"].read_text().splitlines(), ["preflight"])
+        self.assertEqual(values["calls"].read_text().splitlines(), ["preflight", f"print-disabled gui/{os.getuid()}"])
 
     def test_apply_pins_requested_immutable_release_when_current_moves(self):
         release_a = self._release("release-a")
@@ -3913,7 +4030,9 @@ class LmLoopApplyTest(unittest.TestCase):
                     values["launchctl_safe"].write_text(
                         "#!/bin/sh\n"
                         f"printf '%s\\n' \"$*\" >> {shlex.quote(str(values['calls']))}\n"
-                        "if [ \"$1\" = print ]; then\n"
+                        "if [ \"$1\" = print-disabled ]; then\n"
+            "  printf '%s\\n' 'disabled services = {}'\nexit 0\nfi\n"
+            "if [ \"$1\" = print ]; then\n"
                         + ("  printf '%s\\n' 'pid = 123'\n" if mode == "running" else "  exit 1\n")
                         + "fi\nexit 0\n")
                     values["launchctl_safe"].chmod(0o755)
@@ -3946,7 +4065,7 @@ class LmLoopApplyTest(unittest.TestCase):
                     self.assertEqual(result["skipped"], expected)
                     self.assertEqual(target.read_bytes(), old_bytes)
                     self.assertEqual(events, [])
-                    self.assertTrue(all(c.startswith(("preflight", "print ")) for c in calls), calls)
+                    self.assertTrue(all(c.startswith(("preflight", "print-disabled ", "print ")) for c in calls), calls)
 
     def test_loaded_idle_reconcile_skips_prelock_running_owner_without_mutation(self):
         release = self._release("release-a").resolve()
@@ -3963,6 +4082,8 @@ class LmLoopApplyTest(unittest.TestCase):
         values["launchctl_safe"].write_text(
             "#!/bin/sh\n"
             f"printf '%s\\n' \"$*\" >> {shlex.quote(str(values['calls']))}\n"
+            "if [ \"$1\" = print-disabled ]; then\n"
+            "  printf '%s\\n' 'disabled services = {}'\nexit 0\nfi\n"
             "if [ \"$1\" = print ]; then\n"
             "  printf '%s\\n' 'pid = 123'\n"
             "fi\n"
@@ -3997,7 +4118,7 @@ class LmLoopApplyTest(unittest.TestCase):
         self.assertEqual(events, [])
         self.assertEqual(
             values["calls"].read_text().splitlines(),
-            ["preflight", f"print gui/{os.getuid()}/ai.anicca.example"],
+            ["preflight", f"print-disabled gui/{os.getuid()}", f"print gui/{os.getuid()}/ai.anicca.example"],
         )
 
     def test_loaded_idle_reconcile_skips_unloaded_after_lock_without_mutation(self):
@@ -4015,6 +4136,8 @@ class LmLoopApplyTest(unittest.TestCase):
         values["launchctl_safe"].write_text(
             "#!/bin/sh\n"
             f"printf '%s\\n' \"$*\" >> {shlex.quote(str(values['calls']))}\n"
+            "if [ \"$1\" = print-disabled ]; then\n"
+            "  printf '%s\\n' 'disabled services = {}'\nexit 0\nfi\n"
             "if [ \"$1\" = print ]; then\n"
             "  exit 1\n"
             "fi\n"
@@ -4046,7 +4169,7 @@ class LmLoopApplyTest(unittest.TestCase):
         self.assertEqual(events, [])
         self.assertEqual(
             values["calls"].read_text().splitlines(),
-            ["preflight", f"print gui/{os.getuid()}/ai.anicca.example"],
+            ["preflight", f"print-disabled gui/{os.getuid()}", f"print gui/{os.getuid()}/ai.anicca.example"],
         )
 
     def test_apply_current_release_records_real_launchctl_calls(self):
@@ -4077,6 +4200,7 @@ class LmLoopApplyTest(unittest.TestCase):
         self.assertEqual(calls[0], "preflight")
         self.assertEqual(calls, [
             "preflight",
+            f"print-disabled gui/{os.getuid()}",
             f"print gui/{os.getuid()}/ai.anicca.example",
             f"bootout gui/{os.getuid()}/ai.anicca.example",
             f"bootstrap gui/{os.getuid()} {values['agents_dir'] / 'ai.anicca.example.plist'}",
@@ -4108,6 +4232,8 @@ class LmLoopApplyTest(unittest.TestCase):
             calls.append(args)
             if args == ["preflight"]:
                 return 0, "ok"
+            if args == ["print-disabled", f"gui/{os.getuid()}"]:
+                return 0, "disabled services = {}"
             if args[:1] == ["print"]:
                 if args[1] not in loaded:
                     return 1, "absent"
@@ -4132,8 +4258,8 @@ class LmLoopApplyTest(unittest.TestCase):
         retired = next(row for row in results if row.get("retired"))
         self.assertEqual(retired["label"], "ai.anicca.retired-example")
         self.assertFalse(retired_plist.exists())
-        self.assertEqual(calls[:4], [
-            ["preflight"], ["print", service], ["bootout", service], ["print", service],
+        self.assertEqual(calls[:5], [
+            ["preflight"], ["print-disabled", f"gui/{os.getuid()}"], ["print", service], ["bootout", service], ["print", service],
         ])
 
     def test_retirement_waits_for_asynchronous_bootout_absence(self):
@@ -4157,6 +4283,8 @@ class LmLoopApplyTest(unittest.TestCase):
             calls.append(args)
             if args == ["preflight"]:
                 return 0, "ok"
+            if args == ["print-disabled", f"gui/{os.getuid()}"]:
+                return 0, "disabled services = {}"
             if args == ["print", service]:
                 if ["bootout", service] not in calls:
                     return 0, "state = running"
@@ -4198,7 +4326,7 @@ class LmLoopApplyTest(unittest.TestCase):
         retired_plist.write_text("old")
         with (
             patch.object(lm_loop, "_safe_launchctl", side_effect=[
-                (0, "ok"), (78, "invalid Aqua bootstrap"),
+                (0, "ok"), (0, "disabled services = {}"), (78, "invalid Aqua bootstrap"),
             ]),
             self.assertRaisesRegex(RuntimeError, "presence readback failed"),
         ):
@@ -4312,6 +4440,7 @@ class LmLoopApplyTest(unittest.TestCase):
         self.assertFalse(second[0]["changed"])
         self.assertEqual(values["calls"].read_text().splitlines(), [
             "preflight",
+            f"print-disabled gui/{os.getuid()}",
             f"print gui/{os.getuid()}/ai.anicca.example",
         ])
         installed = plistlib.loads(target.read_bytes())

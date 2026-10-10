@@ -1,9 +1,7 @@
 {
   "why": "Dais 2026-10-08: never change an Agent that sells. The factory refuses to prepare or submit these Agents for any reason (scripts/frozen_guard.sh in publish_prepare.sh and publish_finish.sh); there is no exception path. Only Dais changes them by hand.",
   "agent_ids": [
-    "2844813315",
-    "7686597754",
-    "8123079349",
     "8828622062"
-  ]
+  ],
+  "released_2026_10_10": "Dais 2026-10-10 ordered the September prices back for Hook Lab, TikTok Script Pro and YouTube Script Writer; they leave this list for that one price-only update (UPDATE.json carries dais_approved_exception). Slide Maker stays frozen."
 }

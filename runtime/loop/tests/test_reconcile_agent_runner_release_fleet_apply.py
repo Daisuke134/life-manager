@@ -233,11 +233,16 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
         admission_root = root / "admission"
         (admission_root).mkdir(parents=True, exist_ok=True)
         (admission_root / "protocol.json").write_text("{}")
+        probe = root / "healthy-capacity-probe"
+        probe.mkdir(exist_ok=True)
+        (probe / "sitecustomize.py").write_text(
+            "import shutil,types\nshutil.disk_usage=lambda p: types.SimpleNamespace(free=16*1024**3)\n")
         return {
             **os.environ,
             "SOURCE_REPO": str(repo),
             "LIFE_MANAGER_SOURCE_REPO": str(repo),
             "LOOPS_ROOT": str(root / "loops"),
+            "PYTHONPATH": str(probe),
             "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(admission_root),
             "LIFE_MANAGER_RECOVERY_INTENTS_PATH": str(root / "no-intents.jsonl"),
             "LIFE_MANAGER_RELEASE_RECONCILER_STATE_ROOT": str(root / "reconciler-state"),
@@ -650,6 +655,30 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
         cutter = release_dir / "bin" / "cut-loop-release.sh"
         cutter.write_text(f"#!/bin/sh\necho cut >> {marker}\nexit 0\n")
         cutter.chmod(cutter.stat().st_mode | stat.S_IEXEC)
+
+    def test_low_capacity_defers_before_full_cut_and_owner_apply(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha = self._make_repo(root)
+            release = self._make_release(root, sha)
+            self._activate(root, release)
+            marker = root / "cut.marker"
+            self._stub_cutter(release, marker)
+            self._advance_repo(repo)
+            calls = root / "calls.log"
+            env = self._base_env(root, repo, calls_log=calls)
+            env["LIFE_MANAGER_RELEASE_CUT_MIN_INTERVAL_SECONDS"] = "0"
+            probe = root / "capacity-probe"
+            probe.mkdir()
+            (probe / "sitecustomize.py").write_text(
+                "import shutil,types\nshutil.disk_usage=lambda p: types.SimpleNamespace(free=0)\n")
+            env["PYTHONPATH"] = str(probe)
+            result = self._run(env)
+            self.assertFalse(marker.exists(), "full cut started while capacity was low")
+            self.assertEqual(result.returncode, 75, result.stderr)
+            self.assertEqual(json.loads(result.stdout.strip())["reason"], "disk_headroom_low")
+            self.assertEqual(self._apply_call_count(calls), 0)
+            self.assertEqual((root / "loops/current").resolve(), release.resolve())
 
     def test_main_advance_within_cut_min_interval_does_not_cut_a_new_release(self):
         # Every release the labels pin costs ~100 MB and GC protects all of them; cutting on each

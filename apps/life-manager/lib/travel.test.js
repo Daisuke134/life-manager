@@ -126,6 +126,20 @@ test("shared event reader carries the expected account into its Calendar operati
   assert.equal(bounds.expectedCalendarAccountId, "ca-expected");
 });
 
+test("shared event reader exposes only an ownership flag for Life Manager Travel blocks", async () => {
+  const events = await listEvents7d("uid-web", "unused", Date.parse("2030-01-01T08:00:00+09:00"), {
+    async listEventsRaw() { return [{
+      id: "travel-owned", summary: "[Travel] 🚆 Home→Venue", location: "Venue",
+      description: "Auto-inserted by Life Manager — adjust if the route is wrong.",
+      start: { dateTime: "2030-01-01T09:35:00+09:00", timeZone: "Asia/Tokyo" },
+      end: { dateTime: "2030-01-01T10:00:00+09:00", timeZone: "Asia/Tokyo" },
+      reminders: { useDefault: true, overrides: [] },
+    }]; },
+  });
+  assert.equal(events[0].lifeManagerGeneratedTravel, true);
+  assert.equal(Object.hasOwn(events[0], "description"), false);
+});
+
 test("Travel event uses one five-minute buffer and safe attendee/meeting defaults", async () => {
   const startsAt = Date.parse("2030-01-01T10:00:00+09:00");
   const nowMs = Date.parse("2030-01-01T08:00:00+09:00");
@@ -245,6 +259,153 @@ const GO_TRAVEL_OPTIONS = {
   expectedCalendarAccountId: "ca-expected", supaUrl: "https://db.example", supaKey: "fixture",
   _directionsMinutes: async (_from, _to, _key, _anchor, _now, isReturn) => isReturn ? null : 20,
 };
+
+test("Web initial scan repairs one Life Manager Travel duplicate's missing departure popup without creating another block", async () => {
+  const eventRows = [
+    { id: "travel-existing", summary: "[Travel] 🚆 Origin→Venue", location: "Venue",
+      description: "Auto-inserted by Life Manager — adjust if the route is wrong.",
+      start: { dateTime: "2030-01-01T09:35:00+09:00" },
+      end: { dateTime: "2030-01-01T10:00:00+09:00" },
+      reminders: { useDefault: true, overrides: [] } },
+    { id: "event-next", summary: "Meeting", location: "Venue",
+      start: { dateTime: "2030-01-01T10:00:00+09:00" },
+      end: { dateTime: "2030-01-01T11:00:00+09:00" } },
+  ];
+  const patches = [];
+  const creates = [];
+  let reads = 0;
+  const calendar = {
+    async listEventsRaw() { reads++; return eventRows; },
+    async patchEvent(uid, args, options) {
+      patches.push({ uid, args, options });
+      const existing = eventRows.find((event) => event.id === args.event_id);
+      existing.reminders = args.reminders;
+      return { successful: true, effect: "updated" };
+    },
+    async createEvent(_uid, args) { creates.push(args); return { successful: true }; },
+  };
+
+  const result = await fillTravel("tenant-web-reminder", {
+    ...GO_TRAVEL_OPTIONS, calendar, allowWebInitialScan: true,
+  });
+
+  assert.equal(patches.length, 1);
+  assert.equal(patches[0].uid, "tenant-web-reminder");
+  assert.deepEqual(patches[0].args, {
+    calendar_id: "primary", event_id: "travel-existing",
+    reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 0 }] },
+    send_updates: "none",
+  });
+  assert.deepEqual(patches[0].options, { expectedCalendarAccountId: "ca-expected", allowWebInitialScan: true });
+  assert.equal(reads, 2);
+  assert.equal(result.inserted, 0);
+  assert.equal(result.verified, 1);
+  assert.equal(creates.length, 0);
+});
+
+test("Web initial scan repairs an exact generated duplicate reminder without a saved origin", async () => {
+  const eventRows = [
+    { id: "travel-existing-no-home", summary: "[Travel] 🚆 Origin→Venue", location: "Venue",
+      description: "Auto-inserted by Life Manager — adjust if the route is wrong.",
+      start: { dateTime: "2030-01-01T09:35:00+09:00" },
+      end: { dateTime: "2030-01-01T10:00:00+09:00" },
+      reminders: { useDefault: true, overrides: [] } },
+    { id: "event-next-no-home", summary: "Meeting", location: "Venue",
+      start: { dateTime: "2030-01-01T10:00:00+09:00" },
+      end: { dateTime: "2030-01-01T11:00:00+09:00" } },
+  ];
+  const patches = [];
+  const creates = [];
+  let reads = 0;
+  const calendar = {
+    async listEventsRaw() { reads++; return eventRows; },
+    async patchEvent(uid, args, options) {
+      patches.push({ uid, args, options });
+      const existing = eventRows.find((event) => event.id === args.event_id);
+      existing.reminders = args.reminders;
+      return { successful: true, effect: "updated" };
+    },
+    async createEvent(_uid, args) { creates.push(args); return { successful: true }; },
+  };
+
+  const result = await fillTravel("tenant-web-reminder-without-home", {
+    ...GO_TRAVEL_OPTIONS, home: "", calendar, allowWebInitialScan: true,
+  });
+
+  assert.equal(patches.length, 1);
+  assert.equal(patches[0].uid, "tenant-web-reminder-without-home");
+  assert.deepEqual(patches[0].args, {
+    calendar_id: "primary", event_id: "travel-existing-no-home",
+    reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 0 }] },
+    send_updates: "none",
+  });
+  assert.deepEqual(patches[0].options, { expectedCalendarAccountId: "ca-expected", allowWebInitialScan: true });
+  assert.equal(reads, 2);
+  assert.equal(result.inserted, 0);
+  assert.equal(result.verified, 1);
+  assert.equal(creates.length, 0);
+});
+
+test("Web initial scan does not patch an unowned or ambiguous Travel duplicate", async () => {
+  for (const scenario of [
+    { name: "unowned", blocks: [{ id: "manual-travel", description: "Personal travel note" }] },
+    { name: "ambiguous", blocks: [
+      { id: "travel-one", description: "Auto-inserted by Life Manager — adjust if the route is wrong." },
+      { id: "travel-two", description: "Auto-inserted by Life Manager — adjust if the route is wrong." },
+    ] },
+  ]) {
+    const eventRows = [
+      ...scenario.blocks.map((block, i) => ({ ...block,
+        id: block.id, summary: `[Travel] 🚆 Origin→Venue`, location: "Venue",
+        start: { dateTime: i ? "2030-01-01T09:34:00+09:00" : "2030-01-01T09:35:00+09:00" },
+        end: { dateTime: i ? "2030-01-01T09:59:00+09:00" : "2030-01-01T10:00:00+09:00" },
+        reminders: { useDefault: true, overrides: [] },
+      })),
+      { id: "event-next", summary: "Meeting", location: "Venue",
+        start: { dateTime: "2030-01-01T10:00:00+09:00" },
+        end: { dateTime: "2030-01-01T11:00:00+09:00" } },
+    ];
+    const patches = [];
+    const creates = [];
+    const calendar = {
+      async listEventsRaw() { return eventRows; },
+      async patchEvent(_uid, args) { patches.push(args); return { successful: true }; },
+      async createEvent(_uid, args) { creates.push(args); return { successful: true }; },
+    };
+    const result = await fillTravel(`tenant-web-${scenario.name}`, {
+      ...GO_TRAVEL_OPTIONS, calendar, allowWebInitialScan: true,
+    });
+    assert.equal(patches.length, 0, scenario.name);
+    assert.equal(creates.length, 0, scenario.name);
+    assert.equal(result.verified, 0, scenario.name);
+  }
+});
+
+test("legacy Telegram tenant never patches an existing Life Manager Travel reminder", async () => {
+  const eventRows = [
+    { id: "telegram-travel", summary: "[Travel] 🚆 Origin→Venue", location: "Venue",
+      description: "Auto-inserted by Life Manager — adjust if the route is wrong.",
+      start: { dateTime: "2030-01-01T09:35:00+09:00" },
+      end: { dateTime: "2030-01-01T10:00:00+09:00" },
+      reminders: { useDefault: true, overrides: [] } },
+    { id: "event-telegram", summary: "Meeting", location: "Venue",
+      start: { dateTime: "2030-01-01T10:00:00+09:00" },
+      end: { dateTime: "2030-01-01T11:00:00+09:00" } },
+  ];
+  const patches = [];
+  const { expectedCalendarAccountId: _ignoredAccount, ...legacyOptions } = GO_TRAVEL_OPTIONS;
+  const calendar = {
+    async listEventsRaw() { return eventRows; },
+    async patchEvent(_uid, args) { patches.push(args); return { successful: true }; },
+    async createEvent() { assert.fail("an existing Telegram Travel block must prevent a duplicate"); },
+  };
+
+  const result = await fillTravel("telegram-tenant", { ...legacyOptions, calendar });
+
+  assert.equal(patches.length, 0);
+  assert.equal(result.inserted, 0);
+  assert.equal(result.verified, 0);
+});
 
 test("unroutable venue fallback passes the exact tenant and usage writer to the location agent", async () => {
   await withTravelClaimStore(async () => {

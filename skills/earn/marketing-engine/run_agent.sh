@@ -31,7 +31,7 @@ case "$TASK_CLASS" in
   # Keep this in sync with runtime/agent-runner/config.json.  Capafy's CP1/CP2/CP3
   # browser flow deliberately uses application-lane-agent (3600s); rejecting it
   # here made the bounded drainer fail before the provider could start.
-  repeatable-agent|tool-agent|browser-lane-agent|application-lane-agent|application-intent-planner|connector-agent|job-hunter-agent|fundraiser-agent|marketing-agent|high-value-agent|self-heal-code-agent|self-fix-code-agent) ;;
+  repeatable-agent|tool-agent|browser-lane-agent|application-lane-agent|application-intent-planner|connector-agent|job-hunter-agent|fundraiser-agent|marketing-agent|treg-lead-signals-agent|high-value-agent|self-heal-code-agent|self-fix-code-agent) ;;
   *) echo "run_agent.sh: invalid or missing --task-class" >&2; exit 2 ;;
 esac
 [ -n "$EVIDENCE_DIR" ] || { echo "run_agent.sh: missing --evidence-dir" >&2; exit 2; }
@@ -93,7 +93,8 @@ SILENT_STOPPED=0
 while kill -0 "$RUNNER_PID" 2>/dev/null; do
   sleep "$SILENT_POLL"
   SILENT_WAITED=$((SILENT_WAITED + SILENT_POLL))
-  if [ -n "$(find "$EVIDENCE_DIR" -maxdepth 1 -name 'attempt-*.std*.log' -size +0c 2>/dev/null)" ]; then
+  # agent_runner relays provider output into attempt-*.capture/*/ (since #7445); count it too.
+  if [ -n "$(find "$EVIDENCE_DIR" -maxdepth 3 \( -name 'attempt-*.std*.log' -o -path '*/attempt-*.capture/*' \) -name '*.log' -size +0c 2>/dev/null)" ]; then
     break  # the provider has produced output: leave it to the outer timeout
   fi
   if [ "$SILENT_WAITED" -ge "$SILENT_LIMIT" ]; then

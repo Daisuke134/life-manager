@@ -57,14 +57,21 @@ class PromptFailClosedTest(unittest.TestCase):
             "timeout_seconds": 5,
         }), encoding="utf-8")
 
-    def run_runner(self, prompt_text, use_stdin=False):
+    def run_runner(self, prompt_text, use_stdin=False, free_bytes=2 * 1024**3):
         evidence = self.root / "evidence"
         env = os.environ.copy()
         env["PATH"] = f"{self.bin}:{env['PATH']}"
         env["AGENT_RUNNER_CONFIG"] = str(self.config)
         env["ANICCA_USAGE_LEDGER"] = str(self.root / "usage.jsonl")
+        env["LIFE_MANAGER_PROVIDER_LEASE_PATH"] = str(self.root / "provider.lock")
+        # Fixture-only measurement keeps this test independent of host pressure.
+        fixture_runner = (
+            f"import sys; sys.path.insert(0, {str(ROOT)!r}); import agent_runner; "
+            f"agent_runner.disk_free_bytes = lambda path: {free_bytes!r}; "
+            "raise SystemExit(agent_runner.run())"
+        )
         command = [
-            "python3", str(RUNNER), "--task-class", "tool-agent",
+            "python3", "-c", fixture_runner, "--task-class", "tool-agent",
             "--schema", str(self.schema), "--evidence-dir", str(evidence),
             "--task-label", "x23", "--loop", "x23", "--workdir", str(self.root),
         ]
@@ -110,6 +117,19 @@ class PromptFailClosedTest(unittest.TestCase):
             self.marker.exists(),
             f"regression: real prompt never launched provider. stderr={proc.stderr}",
         )
+
+    def test_low_or_unknown_disk_defers_before_provider_home_evidence_or_lease(self):
+        for free_bytes in (0, 2 * 1024**3 - 1, None):
+            with self.subTest(free_bytes=free_bytes):
+                proc, evidence = self.run_runner(
+                    "Return the bounded contract JSON only.\n", free_bytes=free_bytes,
+                )
+                self.assertEqual(proc.returncode, 75, proc.stderr)
+                reason = "disk_headroom_unavailable" if free_bytes is None else "disk_headroom_low"
+                self.assertIn(reason, proc.stderr)
+                self.assertFalse(self.marker.exists(), "low disk launched a provider")
+                self.assertFalse(evidence.exists(), "low disk wrote attempt evidence")
+                self.assertFalse((self.root / "provider.lock").exists(), "low disk created a lease")
 
 
 if __name__ == "__main__":

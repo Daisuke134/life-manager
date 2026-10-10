@@ -417,7 +417,7 @@ async function claimAsk(uid, eventId, supaUrl, supaKey, replyToken, metadata = {
   }).catch(() => null);
   return !!r && r.status === 201; // 201 inserted (claimed) | 409 duplicate (already asked)
 }
-// Release a claim when the ask SEND failed, so a later tick retries (claim→send→unclaim-on-failure).
+// Release only after a confirmed no-effect send failure; ambiguous sends retain the claim.
 async function unclaimAsk(uid, eventId, supaUrl, supaKey) {
   if (!supaUrl || !supaKey) return;
   await fetch(`${supaUrl}/rest/v1/lm_ask_log?uid=eq.${encodeURIComponent(uid)}&event_id=eq.${encodeURIComponent(eventId)}`, {
@@ -533,6 +533,7 @@ async function askTick(uid, opts) {
         : { text: `場所はどこですか？住所か、お店・会社の名前を送ってください。`, extra: undefined };
       const r = await tgSend(opts.telegramToken, opts.telegramChatId, message.text, message.extra);
       sent = !!(r && r.ok);
+      sendOutcomeUnknown = Boolean(r && r.delivery_unknown === true);
     } else if (opts.imessageSenderId) {
       if (typeof opts.imessageSend === "function") {
         const text = questionType === "calendar_online"
@@ -559,10 +560,10 @@ async function askTick(uid, opts) {
       if (opts.imessageSenderId) break;
     }
     else if (sendOutcomeUnknown) {
-      console.error(`[ask] iMessage send outcome unknown; claim retained uid=${String(uid).slice(0, 12)} event=${String(event.id || "").slice(0, 100)}`);
+      console.error(`[ask] message send outcome unknown; claim retained uid=${String(uid).slice(0, 12)} event=${String(event.id || "").slice(0, 100)}`);
       break;
     }
-    else await unclaimAsk(uid, event.id, supaUrl, supaKey); // send failed → release so next tick retries
+    else await unclaimAsk(uid, event.id, supaUrl, supaKey); // only a confirmed no-effect reaches this path
   }
 
   // Replies arrive through Telegram's webhook, the linked Spectrum stream, or our inbound-email route.

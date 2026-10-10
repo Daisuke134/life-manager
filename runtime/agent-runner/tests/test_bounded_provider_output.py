@@ -3,6 +3,7 @@ import json
 import os
 from pathlib import Path
 import sys
+import subprocess
 from dataclasses import replace
 
 from runtime.host.bounded_output import start_stderr_relay, read_relay_snapshot
@@ -43,6 +44,42 @@ def test_closed_diagnostic_retention_preserves_result_usage_and_live_relay(tmp_p
     after = prune_closed_diagnostics(root, policy, current_run=run, closed_probe=lambda _: True)
     assert after["removed"] == 1 and not relay.exists()
     assert (run / "result.json").exists() and (run / "usage.jsonl").exists()
+
+
+def test_under_cap_diagnostics_do_not_spend_closure_budget(tmp_path, monkeypatch):
+    from runtime.host import bounded_output
+    policy = load_storage_policy(ROOT / "config/storage-policy.json", "job-search-daily")
+    state = tmp_path / "state"
+    root = state / "evidence"
+    relays = []
+    for number in range(32):
+        run = root / f"daily-{number}"
+        relay = run / "attempt-01.capture/stdout"
+        relay.mkdir(parents=True, mode=0o700)
+        binding = {"owner_id": policy.owner_id, "run_id": run.name,
+            "occurrence_id": f"{policy.owner_id}:{run.name}", "release_sha": "a" * 40}
+        marker = relay / ".lm-regenerable"
+        marker.write_text(json.dumps({"role": "diagnostic_only", "binding": binding}))
+        marker.chmod(0o600)
+        (relay / "relay-result.json").write_text(json.dumps({"binding": binding, "eof": True}))
+        (relay / "stderr.log").write_bytes(b"x" * 100)
+        (run / "summary.json").write_text('{"status":"failed"}')
+        (run / "attempts.jsonl").write_text('{"usage":"preserve"}\n')
+        relays.append(relay)
+    probes = []
+    def unavailable(command, **kwargs):
+        probes.append(command)
+        raise subprocess.TimeoutExpired(command, kwargs["timeout"])
+    monkeypatch.setattr(bounded_output.subprocess, "run", unavailable)
+
+    result = bounded_output.prune_closed_diagnostics(root, policy,
+        current_run=relays[-1].parent.parent, state_root=state)
+
+    assert result["errors"] == 0 and result["removed"] == 0
+    assert probes == [], "under-cap diagnostics need no open-handle census"
+    for relay in relays:
+        assert (relay / "stderr.log").read_bytes() == b"x" * 100
+        assert (relay.parent.parent / "attempts.jsonl").read_text() == '{"usage":"preserve"}\n'
 
 
 def test_codex_usage_survives_large_raw_diagnostics(tmp_path):

@@ -47,7 +47,7 @@ function extractLine(text, marker) {
 const PORT_SNIPPET = extractBetween(
   source,
   'INSTANCE="${ANICCA_INSTANCE:-clawrouter}"',
-  'LOGDIR="$ANICCA_HOME/logs"',
+  'BRAIN_PID=""',
 );
 
 function runPortSnippet(env) {
@@ -120,8 +120,17 @@ test('ARCH-11: daemon owns and reaps only the repository proxy process it starte
   assert.doesNotMatch(source, /exec node "\$REPO\/runtime\/loop\/index\.mjs"/);
 });
 
-test('ARCH-11: a naturally exiting loop reaps the daemon-owned proxy process', () => {
+for (const instance of ['clawrouter', 'franklin2']) {
+test(`ARCH-11: a naturally exiting ${instance} loop reaps owned diagnostics and proxy`, (t) => {
   const root = fs.mkdtempSync(path.join(process.env.TMPDIR || '/tmp', 'lm-daemon-reap-'));
+  let result;
+  t.after(() => {
+    if (result?.pid) {
+      try { process.kill(-result.pid, 'SIGKILL'); }
+      catch (error) { if (error.code !== 'ESRCH') throw error; }
+    }
+    fs.rmSync(root, { recursive: true, force: true });
+  });
   const repo = path.join(root, 'repo');
   const bin = path.join(root, 'bin');
   const home = path.join(root, 'home');
@@ -132,9 +141,14 @@ test('ARCH-11: a naturally exiting loop reaps the daemon-owned proxy process', (
   fs.mkdirSync(path.join(repo, 'runtime', 'loop'), { recursive: true });
   fs.mkdirSync(path.join(repo, 'skills'), { recursive: true });
   fs.mkdirSync(bin, { recursive: true });
+  const legacyLogs = path.join(home, '.anicca', 'logs');
+  fs.mkdirSync(legacyLogs, { recursive: true });
+  fs.writeFileSync(path.join(legacyLogs, 'compute-proxy.log'), 'retained proxy evidence\n');
+  fs.writeFileSync(path.join(legacyLogs, 'poster.log'), 'retained poster evidence\n');
   fs.copyFileSync(DAEMON_PATH, path.join(repo, 'runtime', 'anicca-daemon.sh'));
   fs.writeFileSync(path.join(repo, 'runtime', 'compute-proxy', 'start-local.sh'), `#!/bin/sh
 touch "$READY_FILE"
+echo proxy-diagnostic
 trap 'touch "$STOPPED_FILE"; exit 0' TERM INT
 while :; do sleep 1; done
 `);
@@ -143,6 +157,8 @@ while :; do sleep 1; done
   fs.writeFileSync(path.join(bin, 'node'), `#!/bin/sh
 case "$1" in
   */runtime/loop/index.mjs) sleep 0.2; exit 0 ;;
+  */runtime/dashboard/telemetry-poster.mjs) echo poster-diagnostic; exit 0 ;;
+  */runtime/dashboard/telemetry-post-franklin.mjs) echo poster-diagnostic; exit 0 ;;
   *) exit 0 ;;
 esac
 `);
@@ -152,19 +168,27 @@ esac
     path.join(bin, 'curl'), path.join(bin, 'pkill'), path.join(bin, 'node'),
   ]) fs.chmodSync(file, 0o755);
 
-  const result = spawnSync('/bin/bash', [path.join(repo, 'runtime', 'anicca-daemon.sh')], {
+  result = spawnSync('/bin/bash', [path.join(repo, 'runtime', 'anicca-daemon.sh')], {
     env: {
       HOME: home,
       ANICCA_HOME: path.join(home, '.anicca'),
       ANICCA_REPO: repo,
+      ANICCA_INSTANCE: instance,
       READY_FILE: ready,
       STOPPED_FILE: stopped,
       PATH: `${bin}:/usr/bin:/bin`,
     },
     encoding: 'utf8',
+    detached: true,
     timeout: 5000,
   });
+  assert.equal(result.error, undefined, 'owned diagnostics must close with the main loop');
   assert.equal(result.status, 0, result.stderr);
   assert.ok(fs.existsSync(ready));
   assert.ok(fs.existsSync(stopped));
+  assert.match(result.stderr, /proxy-diagnostic/);
+  assert.match(result.stderr, /poster-diagnostic/);
+  assert.equal(fs.readFileSync(path.join(legacyLogs, 'compute-proxy.log'), 'utf8'), 'retained proxy evidence\n');
+  assert.equal(fs.readFileSync(path.join(legacyLogs, 'poster.log'), 'utf8'), 'retained poster evidence\n');
 });
+}

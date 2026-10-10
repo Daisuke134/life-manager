@@ -1,19 +1,20 @@
-# ANICCA iOS v7 onboarding + soft-paywall E2E
+# ANICCA iOS v8 onboarding + soft-paywall E2E
 # Flow: welcome → goal → pain points → frequency → nudge time → processing
-#       → plan reveal → comparison → rating prompt → notifications → paywall → feed
+#       → plan reveal → comparison → notifications → paywall → feed
+# (App Store review prompt is post-value, not in onboarding.)
 
 appId: ai.anicca.app.ios
-name: ANICCA v7 Onboarding and Soft Paywall
+name: ANICCA v8 Onboarding and Soft Paywall
 tags:
   - onboarding
   - paywall
-  - v7
+  - v8
 
 ---
 # Preconditions: freshly erased dedicated simulator with the Staging app installed.
 # clearState reinstalls iOS apps; this avoids a second WebRTC app-bundle copy.
 - startRecording:
-    path: "anicca-onboarding-v7"
+    path: "anicca-onboarding-v8"
 - launchApp:
     arguments:
       UITESTING: "true"
@@ -88,33 +89,24 @@ tags:
 - tapOn:
     text: "続ける"
 
-# === Step 9: Rating prompt (Maestro advances without opening StoreKit review UI) ===
-- extendedWaitUntil:
-    visible:
-      text: "アニッチャを評価"
-    timeout: 15000
-- takeScreenshot: "v7-09-rating-prompt"
-- tapOn:
-    text: "アニッチャを評価"
-
-# === Step 10: Notifications ===
+# === Step 9: Notifications (rating prompt removed from onboarding) ===
 - extendedWaitUntil:
     visible:
       id: "onboarding-notifications-allow"
     timeout: 15000
-- takeScreenshot: "v7-10-notifications"
+- takeScreenshot: "v8-09-notifications"
 - tapOn:
     id: "onboarding-notifications-allow"
 - tapOn:
     text: "許可しない|Don't Allow|Don’t Allow"
     optional: true
 
-# === Step 11: Soft paywall ===
+# === Step 10: Soft paywall ===
 - extendedWaitUntil:
     visible:
       id: "paywall-primer-cta"
     timeout: 30000
-- takeScreenshot: "v7-11-paywall-primer"
+- takeScreenshot: "v8-10-paywall-primer"
 - assertVisible:
     id: "paywall-close-button"
 - tapOn:

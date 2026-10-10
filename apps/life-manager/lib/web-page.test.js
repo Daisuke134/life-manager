@@ -297,6 +297,22 @@ test("pending initial processing renders the paywall immediately without scan UI
   assert.doesNotMatch(html, /spinner|予定を確認しています|再スキャン/i);
 });
 
+test("connected trial-eligible state keeps the offer visible when Calendar processing is pending", () => {
+  const html = visibleHtml(renderWebPage({
+    user,
+    snapshot: snapshot({
+      setupState: "sync_pending", calendarState: "connected",
+      firstTravelAt: null, confirmedTravelBlockCount: 0,
+      checkoutAvailable: true, scanState: "pending",
+    }),
+    trialOffer: { firstChargeAt: "2030-01-08T00:00:00.000Z", timezone: "Asia/Tokyo" },
+  }));
+  assert.match(html, /Google Calendarに接続しました/);
+  assert.match(html, /7日間の無料トライアルを始める/);
+  assert.match(html, /data-action="checkout"/);
+  assert.doesNotMatch(html, /Calendarの状態を確認しています|spinner|scan result|再スキャン/i);
+});
+
 test("trial-active state confirms automation without rendering a daily dashboard", () => {
   const html = visibleHtml(renderWebPage({
     user,

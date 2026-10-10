@@ -38,7 +38,12 @@ ICON="$(cd "$(dirname "$ICON")" 2>/dev/null && pwd)/$(basename "$ICON")"
 AUTO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PUB="$AUTO/vendor/capafy-publisher"
 LIFE_MANAGER_STATE_HOME="${LIFE_MANAGER_STATE_HOME:-$HOME/.local/state/life-manager}"
-VENV="${CAPAFY_BROWSER_PYTHON:-python3}"
+# launchd's bare PATH resolves python3 to /usr/bin/python3 (3.9) without websocket-client, so the
+# CP2 raw-CDP driver failed silently and every draft stopped unconfirmed (2026-10-10). Default to
+# the managed venv that carries the browser dependencies.
+MANAGED_PYTHON="${LIFE_MANAGER_PYTHON:-$HOME/.local/share/life-manager/venv/bin/python}"
+[ -x "$MANAGED_PYTHON" ] || MANAGED_PYTHON=python3
+VENV="${CAPAFY_BROWSER_PYTHON:-$MANAGED_PYTHON}"
 # OpenClaw resolves provider config from the isolated publisher HOME's
 # .openclaw/openclaw.json, not from runtime_dir. Give the publisher an isolated HOME so it cannot package the
 # operator's live OpenClaw providers. Canonical skill source remains in this repo.

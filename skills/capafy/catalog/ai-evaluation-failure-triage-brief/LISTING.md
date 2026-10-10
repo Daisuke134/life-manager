@@ -28,7 +28,7 @@ platform submission; neither is asserted by this source candidate.
 | cycle | price | cap | trial |
 |---|---:|---:|---|
 | week | $9.99 | 7 | No Free Trial |
-| month | $10.00 | 20 | No Free Trial |
+| month | $19.99 | 20 | No Free Trial |
 | year | $149.99 | 192 | No Free Trial |
 
 ## Verified demonstration

@@ -32,6 +32,11 @@ function fixture(controlState) {
     }
     if (parsed.hostname === "backend.composio.dev") {
       providerCalls.push({ path: parsed.pathname, method, body: init.body && JSON.parse(init.body) });
+      if (parsed.pathname.endsWith("/tools/execute/proxy")) {
+        return { ok: true, status: 200, json: async () => ({ status: 200, data: {
+          id: "travel-existing", reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 0 }] },
+        } }) };
+      }
       const items = parsed.pathname.endsWith("GOOGLECALENDAR_EVENTS_LIST") ? [{ id: "event-1" }] : [];
       return { ok: true, status: 200, json: async () => ({ successful: true, data: { items } }) };
     }
@@ -113,6 +118,38 @@ test("Web first Travel write reaches the exact account only with persisted one-s
   assert.equal(disconnecting.providerCalls.length, 0);
 });
 
+test("Web initial scan can patch a Travel reminder only for its exact persisted one-shot account", async () => {
+  const allowed = fixture({ dailyAutomationEnabled: false, disconnectPending: false,
+    enablePending: false, initialScanAllowed: true });
+  const result = await allowed.calendar.patchEvent(UID, {
+    calendar_id: "primary", event_id: "travel-existing",
+    reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 0 }] },
+    send_updates: "none",
+  }, { expectedCalendarAccountId: ACCOUNT_ID, allowWebInitialScan: true });
+
+  assert.equal(result.successful, true);
+  assert.equal(result.effect, "updated");
+  assert.equal(allowed.providerCalls.length, 1);
+  assert.equal(allowed.providerCalls[0].path, "/api/v3.1/tools/execute/proxy");
+  assert.equal(allowed.providerCalls[0].body.endpoint,
+    "https://www.googleapis.com/calendar/v3/calendars/primary/events/travel-existing");
+  assert.equal(allowed.providerCalls[0].body.method, "PATCH");
+  assert.equal(allowed.providerCalls[0].body.connected_account_id, ACCOUNT_ID);
+  assert.deepEqual(allowed.providerCalls[0].body.parameters,
+    [{ name: "sendUpdates", value: "none", type: "query" }]);
+  assert.deepEqual(allowed.providerCalls[0].body.body,
+    { reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 0 }] } });
+
+  const blocked = fixture({ dailyAutomationEnabled: false, disconnectPending: false,
+    enablePending: false, initialScanAllowed: false });
+  const rejected = await blocked.calendar.patchEvent(UID, {
+    calendar_id: "primary", event_id: "travel-existing",
+    reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 0 }] },
+  }, { expectedCalendarAccountId: ACCOUNT_ID, allowWebInitialScan: true });
+  assert.equal(rejected.successful, false);
+  assert.equal(blocked.providerCalls.length, 0);
+});
+
 test("Web Calendar write is blocked when latest persisted billing entitlement ended", async () => {
   const f = fixture({ dailyAutomationEnabled: true, billingEntitled: false,
     disconnectPending: false, enablePending: false });
@@ -125,6 +162,7 @@ test("Web Calendar write is blocked when latest persisted billing entitlement en
 
 test("Web Travel reminder writes use Calendar proxy and verify the exact popup reminder", async () => {
   const calls = [];
+  let proxyResponseStatus = "success";
   const calendar = makeComposioCalendar({
     apiKey: "provider-key",
     supaUrl: "https://supabase.example",
@@ -142,6 +180,12 @@ test("Web Travel reminder writes use Calendar proxy and verify the exact popup r
       }
       calls.push({ url: parsed.toString(), body: JSON.parse(init.body || "{}") });
       assert.match(parsed.pathname, /\/api\/v3\.1\/tools\/execute\/proxy$/);
+      if (proxyResponseStatus === "rejected") {
+        return { ok: false, status: 400, json: async () => ({ error: "invalid parameters" }) };
+      }
+      if (proxyResponseStatus === "ambiguous") {
+        return { ok: false, status: 429, json: async () => ({ error: "rate limited" }) };
+      }
       return { ok: true, status: 200, json: async () => ({
         status: 200,
         data: { id: "gcal-event-1", reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 0 }] } },
@@ -167,7 +211,36 @@ test("Web Travel reminder writes use Calendar proxy and verify the exact popup r
   assert.equal(calls[0].body.method, "POST");
   assert.equal(calls[0].body.connected_account_id, ACCOUNT_ID);
   assert.deepEqual(calls[0].body.body.reminders, { useDefault: false, overrides: [{ method: "popup", minutes: 0 }] });
+  assert.equal(calls[0].body.parameters[0].type, "query");
   assert.equal(calls[0].body.parameters[0].value, "none");
+
+  proxyResponseStatus = "rejected";
+  const rejected = await calendar.createEvent(UID, {
+    summary: "[Travel] Home→Office",
+    start_datetime: "2030-01-01T00:00:00",
+    event_duration_minutes: 25,
+    location: "Office",
+    description: "Auto travel block",
+    reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 0 }] },
+    send_updates: "none",
+  }, { expectedCalendarAccountId: ACCOUNT_ID });
+  assert.equal(rejected.effect, "no_effect");
+  assert.equal(rejected.successful, false);
+  assert.equal(calls.length, 2);
+
+  proxyResponseStatus = "ambiguous";
+  const ambiguous = await calendar.createEvent(UID, {
+    summary: "[Travel] Home→Office",
+    start_datetime: "2030-01-01T00:00:00",
+    event_duration_minutes: 25,
+    location: "Office",
+    description: "Auto travel block",
+    reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 0 }] },
+    send_updates: "none",
+  }, { expectedCalendarAccountId: ACCOUNT_ID });
+  assert.equal(ambiguous.effect, "unknown");
+  assert.equal(ambiguous.successful, false);
+  assert.equal(calls.length, 3);
 });
 
 test("Composio calls with no verified unit rate are stored as unknown, not free", async () => {

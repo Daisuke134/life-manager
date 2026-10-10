@@ -68,7 +68,8 @@ function pageState(snapshot, model = {}) {
   }
 
   if (snapshot.setupState === "trial_offer"
-    || snapshot.checkoutAvailable === true && ["needs_initial_scan", "no_eligible_events"].includes(snapshot.setupState)) {
+    || snapshot.checkoutAvailable === true && snapshot.calendarState === "connected"
+      && ["needs_initial_scan", "no_eligible_events", "sync_pending"].includes(snapshot.setupState)) {
     if (model.checkoutPending === true) return checkoutPendingMarkup();
     const offer = model.trialOffer || {};
     const chargeDate = firstChargeDate(offer);

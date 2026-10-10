@@ -33,6 +33,7 @@ from runtime.loop.lm_loop_apply import (
     install_one,
 )
 from runtime.loop.lm_loop_lifecycle import lifecycle, lifecycle_one
+from runtime.loop.loop_cleanup import release_is_reclaimed
 from runtime.loop.runtime_event import (
     DIAGNOSTIC_FIELDS, append_runtime_event, build_install_event, validate_runtime_event,
 )
@@ -2600,6 +2601,8 @@ def activate_current(current: Path, release_root: Path,
             release_root = release_root.resolve(strict=True)
             if not release_root.is_dir():
                 raise ValueError("release root is not a directory")
+            if release_is_reclaimed(release_root):
+                raise ValueError("release is reclaimed or its descriptor probe failed")
             if (protocol_reader() == 2
                     and not _supports_durable_admission_v2(release_root)):
                 raise RuntimeError("target release does not support durable admission v2")
@@ -2690,6 +2693,8 @@ def apply_live(release_root: Path, agents_dir: Path, launchctl_safe: Path,
                 _protocol_guarded=True,
             )
     release_root = release_root.resolve()
+    if release_is_reclaimed(release_root):
+        raise ValueError("release is reclaimed or its descriptor probe failed")
     if require_current and current.resolve(strict=True) != release_root:
         raise RuntimeError("release is no longer current")
     if (protocol_reader() == 2
@@ -2704,6 +2709,15 @@ def apply_live(release_root: Path, agents_dir: Path, launchctl_safe: Path,
     preflight_rc, detail = _safe_launchctl(launchctl_safe, ["preflight"])
     if preflight_rc:
         raise RuntimeError(f"launchctl-safe preflight failed: {detail.strip()}")
+    disabled = {}
+    if plan:
+        disabled_rc, disabled_text = _safe_launchctl(
+            launchctl_safe, ["print-disabled", f"gui/{os.getuid()}"])
+        if disabled_rc or not re.fullmatch(
+                r'\s*disabled services\s*=\s*\{\s*(?:"[^"\n]+"\s*=>\s*(?:enabled|disabled)\s*)*\}\s*',
+                disabled_text):
+            raise RuntimeError("disabled state readback failed")
+        disabled = parse_disabled(disabled_text)
     results = (
         _retire_labels(registry, agents_dir, launchctl_safe, current, lock_path)
         if target is None else
@@ -2713,6 +2727,11 @@ def apply_live(release_root: Path, agents_dir: Path, launchctl_safe: Path,
         ) if retired_target else []
     )
     for item in plan:
+        if disabled.get(item["label"]):
+            results.append({"ok": True, "label": item["label"],
+                            "release_sha": release_sha, "changed": False,
+                            "skipped": "disabled"})
+            continue
         item_lock = (None if reload_running else
                      _label_apply_lock_path(current, item["label"], lock_path))
         try:

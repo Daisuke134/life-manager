@@ -16,13 +16,22 @@ allow-listed regenerable artifact after an open-path probe confirms
   databases, credentials, cookies, source, and `state/*.jsonl` are preserved.
 - Unknown paths, active leases, symlinks, open paths, and probe errors are
   preserved and recorded.
-- Worktrees and their registrations are never automatic cleanup candidates.
-  Cleanup never runs `git worktree unlock`, `remove`, or `prune`; retirement
-  remains an owner operation under `../../../docs/runbooks/worktree-lifecycle.md`.
+- A registered worktree is a cleanup candidate only when its exact path still
+  matches Git metadata, it has no native lock, managed lease, or `.anicca-keep`
+  marker, tracked/untracked/ignored state is empty, HEAD is reachable from the
+  locally cached `origin/main`, and the global open-path probe confirms no open
+  file or working directory beneath it. Recheck those facts immediately before
+  using ordinary `git worktree remove` and confirm the path and registration
+  are gone afterward. Never unlock, force-remove, or prune; preserve on any
+  missing ref, timeout, mismatch, dirty state, lease, marker, or open path.
 - iOS Simulator runtimes, images, device data, and dyld caches remain outside
   the cleanup allow-list, including when no device is booted.
-- Generic `/private/tmp` directories, including `cfo-*`, are never candidates;
-  only exact old Capafy npm cache names are eligible there.
+- Generic `/private/tmp` directories, including `cfo-*`, remain unknown and
+  protected. Scan the active `TMPDIR` plus `/private/tmp` and `/var/tmp` for
+  same-user exact Capafy npm caches, old
+  `pytest-of-<user>/pytest-<number>` runs, and test-generated `slide-pack-*`
+  names; only paths older than one hour with a confirmed-closed path probe are
+  eligible.
 - A stale Sparkle staging blocker has one narrow recovery action: send one
   `SIGTERM` only to the same-UID updater whose executable is under an exact
   allow-listed Codex/CodexBar Sparkle `Launcher`, whose PPID is 1, whose elapsed
@@ -44,7 +53,8 @@ allow-listed regenerable artifact after an open-path probe confirms
   are reclaimed only after the same confirmed-closed check.
 - The 5-minute pass has one atomic lock and no LLM deletion authority.
 - The 2 GiB recovery value is a cleanup diagnostic only; it does not determine
-  cleanup pass/fail and does not pause producer or release loops.
+  cleanup pass/fail and does not pause producers. The release cutter retains its
+  existing pre-export physical-capacity guard.
   `disk-pressure.block` is advisory. Producer loops ignore only the exact
   cleanup-owned `host-disk-recovery` / `disk_headroom_low` signal in
   `disk-writers.stop`; other operator-authored stop records remain hard stops.
@@ -58,7 +68,11 @@ allow-listed regenerable artifact after an open-path probe confirms
   nonzero for unknown capacity, deletion errors, protected deletions, or a
   preserved or invalid `disk-writers.stop` readback; it exits zero for a clean pass whose
   measured recovery is `unmet`. A busy singleton lock reports
-  `cleanup_lock_busy` with unknown capacity and exits 75 without running cleanup.
+  `cleanup_lock_busy` with unknown capacity and exits 75 without running cleanup. When invoked by the
+  managed owner it includes that occurrence identity from the immutable manifest;
+  central cleanup validates it and preserves the exact lock-busy deferral as exit
+  75, without running shared release/scratch cleanup. Missing/foreign identity is
+  still a failure, never a successful pass.
 - Candidate order rotates through `state_dir/candidate-cursor.json`. The cursor
   advances atomically under the governor's singleton lock; if disk exhaustion
   prevents that metadata write, the in-memory rotation still sweeps and retries
@@ -93,27 +107,36 @@ allow-listed regenerable artifact after an open-path probe confirms
 ## Local installation
 
 ```sh
-skills/self/disk-cleanup/install-launchd.sh
+"$HOME/loops/current/skills/self/disk-cleanup/install-launchd.sh"
 ```
 
-The 5-minute `ai.anicca.life-manager-disk-cleanup` owner remains managed by the
-Life Manager runner. This installer only manages the 60-second
-`com.anicca.disk-watchdog` recovery label so it cannot replace the 5-minute
-owner. It installs `bin/disk-watchdog.sh` at `~/.local/bin/disk-watchdog.sh`;
-the wrapper resolves `~/loops/current` and dispatches to that immutable
-release's governor, so later release retirement cannot leave the watchdog
-pointing at a deleted release. Both owners use the governor's singleton lock
-and shared host `state_dir`.
+The 60-second `com.anicca.disk-watchdog` is the primary cleanup cadence. The
+stable wrapper sets child-only `LIFE_MANAGER_DISK_INVENTORY_FAST=1`, so an
+incomplete full census cannot make every minute repeat heavy size probes.
+Deletion proof, protected paths, singleton locking and receipt coverage are
+unchanged; missing sizes remain unknown.
+5-minute `ai.anicca.life-manager-disk-cleanup` remains a managed reporting and
+full-inventory owner; both share the same cleanup lock. This installer only
+manages the 60-second recovery label so it cannot replace the managed owner.
+Run the installer from a complete main-derived immutable release. It pins
+that release's `bin/disk-watchdog.sh` in launchd; the wrapper resolves its own
+release and dispatches to that governor. The loaded plist retains its release,
+and a later `current` change does not change the loaded watchdog's code.
+Both owners use the governor's singleton lock and shared host `state_dir`.
 
-The 15-day `life-manager-disk-cleanup-15d` wake is registry-managed through
-`lm-loop`. Its entrypoint invokes only the shared `HostDiskGovernor`, so it
-shares the host cleanup lock without repeating release GC or scratch GC.
-It retries only the exact structured `cleanup_lock_busy` receipt (exit 75),
-for at most three attempts with five-second waits. Other failures return
-immediately.
+The 15-day `life-manager-disk-cleanup-15d` registry row is supplemental and is
+not the recurrence guarantee. It invokes the same `HostDiskGovernor`; it must
+not be changed to a second 60-second deletion owner while the direct watchdog
+already runs every minute.
 
-The watchdog adds no second deletion implementation. Its output goes to
-`life-manager-disk-cleanup/logs/watchdog.{out,err}.log` under the host state.
+The watchdog adds no second deletion implementation. Both streams use the
+existing `bounded_launchd_output` with the managed `life-manager-disk-cleanup`
+policy and log root, including its concurrent writer lock. Native launchd
+fallback streams go to `/dev/null`; legacy `watchdog.{out,err}.log` are retained.
+The Python dispatcher uses -c without a temporary script. Capture startup or
+import failure does not block recovery or change the governor's exit code.
+The installer prepares and lints its plist before bootout, so preparation
+failure retains the loaded cleanup job. RunAtLoad and the 60-second cadence trigger runs without a manual wake.
 
 Run the tests with:
 
@@ -127,3 +150,11 @@ python3 -m pytest -q skills/self/disk-cleanup/tests/test_disk_cleanup.py \
 管理下stdioは `runtime/host/bounded_output.py` の有限relayで保存する。raw診断は1MiB segment/backup1、structured recordは別の16MiB上限。`storage-policy.json` はowner上限と登録owner数で分割するhost上限を持つ。agent-runnerの既存次wake preflightが、summary完了・host marker・EOF receipt・positive closed proofを満たすrelay診断だけを回収する。親result・usage・JSONLは保持する。terminal保存後も生存relayのscratchは保持し、終了後の既存GCに委ねる。
 
 cleanup実行成功と容量回復は別。receipt identityを現在のcleanup owner/run/occurrence/releaseと照合してCLIへ表示する。inventoryの増加量は観測値であり削除許可ではない。実ENOSPC/EDQUOTだけをtyped failureにし、外部処理前と証明できたscratch allocationだけ既存reconcileへ接続する。fresh cleanup・persisted failure identity・actual writeが必要で、空き容量の数値floorはproducer停止条件にしない。unknown effectは公式readbackまで再送しない。
+
+## 削除直前の証拠
+
+- worktreeはfresh remote mainとcached origin/mainが一致しなければ保持する。
+- canonical sourceとGit registration pointerは再生成可能だが、trackedでも
+  credentials、memory/state、browser identityは保持する。
+- 最後のopen-path probeはfresh snapshotを使い、その後identity/status/leaseと
+  時間budgetを再検査する。再検査不成立/期限切れは削除しない。

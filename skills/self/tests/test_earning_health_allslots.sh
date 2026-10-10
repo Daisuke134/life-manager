@@ -12,6 +12,17 @@ SCRIPT="$SELF_DIR/earning-health-allslots.sh"
 a(){ echo "$2" | grep -qF "$3" && { echo "  ok $1"; P=$((P+1)); } || { echo "  FAIL $1 want:[$3] got:[$2]"; F=$((F+1)); }; }
 na(){ echo "$2" | grep -qF "$3" && { echo "  FAIL $1 (unexpectedly found:[$3])"; F=$((F+1)); } || { echo "  ok $1"; P=$((P+1)); }; }
 
+echo "(stdio) diagnostics use the bounded runner stream without growing a direct log"
+STDIO_DIR="$(mktemp -d)"
+printf 'retained diagnostic\n' > "$STDIO_DIR/legacy.log"
+EARNHC_REGISTRY="$STDIO_DIR/missing-registry.json" EARNHC_STATE_DIR="$STDIO_DIR/state" \
+  EARNHC_LOG="$STDIO_DIR/legacy.log" bash "$SCRIPT" >"$STDIO_DIR/stdout" 2>"$STDIO_DIR/stderr"
+STDIO_RC=$?
+a "diagnostic content reaches stderr" "$(cat "$STDIO_DIR/stderr")" "no registry at"
+na "direct legacy log is not appended" "$(cat "$STDIO_DIR/legacy.log")" "no registry at"
+[ "$STDIO_RC" -eq 0 ] && { echo "  ok no-work exit remains 0"; P=$((P+1)); } \
+  || { echo "  FAIL no-work exit remains 0 (got $STDIO_RC)"; F=$((F+1)); }
+
 REASON_A="identity-mismatch (own=none cli=none); slot-a"
 REASON_E="earn-guard: cumulative net breach -- HALT (fail-closed); slot-e"
 
@@ -75,9 +86,9 @@ chmod +x "$STUB"
 
 echo "(A) full registry pass: barren/healthy/missing-trace/not-instrumented/2nd-barren all in ONE run"
 OUT="$(EARNHC_REGISTRY="$REGISTRY" EARNHC_EARN_STATE_DIR="$EARN_STATE" \
-       EARNHC_STATE_DIR="$D/state" EARNHC_LOG="$D/hc.log" \
+       EARNHC_STATE_DIR="$D/state" \
        CAPTURE_FILE="$CAPTURE" EARNHC_SELF_FIX_SCRIPT="$STUB" \
-       bash "$SCRIPT" 2>&1; cat "$D/hc.log" 2>/dev/null)"
+       bash "$SCRIPT" 2>&1)"
 a "slot-a BARREN detected"            "$OUT" "earn/slot-a BARREN"
 a "slot-a self-fix fired"             "$(cat "$CAPTURE" 2>/dev/null)" "STUBFIX_LOOP=slot-a"
 a "slot-a escalation marker written"  "$(ls -a "$D/state" 2>/dev/null)" ".earning-health-allslots-earn_slot_a-escalated"
@@ -105,8 +116,8 @@ a  "slot-e's self-fix call carries slot-e's own reason"        "$E_BLOCK" "slot-
 na "slot-e's self-fix call does NOT carry slot-a's target/reason (no cross-fire)" "$E_BLOCK" "slot-a"
 
 echo "(B) second pass within escalation window -> slot-a/slot-e do NOT spam a second self-fix call"
-OUT2="$(EARNHC_REGISTRY="$REGISTRY" EARNHC_EARN_STATE_DIR="$EARN_STATE" EARNHC_STATE_DIR="$D/state" EARNHC_LOG="$D/hc2.log" \
-        SELF_FIX_DRYRUN=1 bash "$SCRIPT" 2>&1; cat "$D/hc2.log" 2>/dev/null)"
+OUT2="$(EARNHC_REGISTRY="$REGISTRY" EARNHC_EARN_STATE_DIR="$EARN_STATE" EARNHC_STATE_DIR="$D/state" \
+        SELF_FIX_DRYRUN=1 bash "$SCRIPT" 2>&1)"
 a "slot-a second run logs already escalated" "$OUT2" "already escalated"
 na "slot-a second run did NOT re-invoke self-fix" "$OUT2" "LOOP=slot-a-loop"
 a "slot-e second run logs already escalated" "$OUT2" "already escalated"
@@ -114,7 +125,7 @@ na "slot-e second run did NOT re-invoke self-fix" "$OUT2" "LOOP=slot-e-loop"
 
 echo "(C) missing registry file -> no-op, never crashes"
 D2="$(mktemp -d)"
-OUT3="$(EARNHC_REGISTRY="$D2/missing-registry.json" EARNHC_STATE_DIR="$D2/state" EARNHC_LOG="$D2/hc.log" bash "$SCRIPT" 2>&1; echo "rc=$?"; cat "$D2/hc.log" 2>/dev/null)"
+OUT3="$(EARNHC_REGISTRY="$D2/missing-registry.json" EARNHC_STATE_DIR="$D2/state" bash "$SCRIPT" 2>&1; echo "rc=$?")"
 a "missing registry logs and exits cleanly" "$OUT3" "no registry at"
 a "missing registry exits 0" "$OUT3" "rc=0"
 
@@ -122,7 +133,7 @@ echo "(C2) FIND-003: registry file PRESENT and valid but slots: [] -> loop body 
 D3="$(mktemp -d)"
 EMPTY_REGISTRY="$D3/empty-registry.json"
 printf '{"slots": []}\n' > "$EMPTY_REGISTRY"
-OUT4="$(EARNHC_REGISTRY="$EMPTY_REGISTRY" EARNHC_STATE_DIR="$D3/state" EARNHC_LOG="$D3/hc.log" bash "$SCRIPT" 2>&1; echo "rc=$?"; cat "$D3/hc.log" 2>/dev/null)"
+OUT4="$(EARNHC_REGISTRY="$EMPTY_REGISTRY" EARNHC_STATE_DIR="$D3/state" bash "$SCRIPT" 2>&1; echo "rc=$?")"
 a "empty slots:[] registry exits 0" "$OUT4" "rc=0"
 na "empty slots:[] registry never logs a NOT-INSTRUMENTED/OK/BARREN line (zero slots -> zero rows)" "$OUT4" "OK"
 na "empty slots:[] registry never crashes (no registry-parse-error either)" "$OUT4" "PARSE_ERROR"
@@ -145,9 +156,9 @@ cat > "$REGISTRY4" <<JSON
 JSON
 CAPTURE4="$D4/self-fix-capture.log"
 OUT5="$(EARNHC_REGISTRY="$REGISTRY4" EARNHC_EARN_STATE_DIR="$EARN_STATE4" \
-        EARNHC_STATE_DIR="$D4/state" EARNHC_LOG="$D4/hc.log" \
+        EARNHC_STATE_DIR="$D4/state" \
         CAPTURE_FILE="$CAPTURE4" EARNHC_SELF_FIX_SCRIPT="$STUB" \
-        bash "$SCRIPT" 2>&1; cat "$D4/hc.log" 2>/dev/null)"
+        bash "$SCRIPT" 2>&1)"
 a "malicious-reason slot detected BARREN"  "$OUT5" "earn/slot-m BARREN"
 a "malicious-reason slot self-fix fired"   "$(cat "$CAPTURE4" 2>/dev/null)" "STUBFIX_LOOP=slot-m"
 CAPTURED4="$(cat "$CAPTURE4" 2>/dev/null)"
@@ -174,9 +185,9 @@ cat > "$REGISTRY5" <<JSON
 JSON
 CAPTURE5="$D5/self-fix-capture.log"
 OUT6="$(EARNHC_REGISTRY="$REGISTRY5" EARNHC_EARN_STATE_DIR="$EARN_STATE5" \
-        EARNHC_STATE_DIR="$D5/state" EARNHC_LOG="$D5/hc.log" \
+        EARNHC_STATE_DIR="$D5/state" \
         CAPTURE_FILE="$CAPTURE5" EARNHC_SELF_FIX_SCRIPT="$STUB" \
-        bash "$SCRIPT" 2>&1; cat "$D5/hc.log" 2>/dev/null)"
+        bash "$SCRIPT" 2>&1)"
 a "empty-after-sanitize slot still detected BARREN (raw reason is non-empty)" "$OUT6" "earn/slot-empty-reason BARREN"
 a "empty-after-sanitize slot still escalates to self-fix (no silent drop)" "$(cat "$CAPTURE5" 2>/dev/null)" "STUBFIX_LOOP=slot-empty-reason"
 CAPTURED5="$(cat "$CAPTURE5" 2>/dev/null)"
@@ -205,8 +216,8 @@ cat > "$REGISTRY6" <<JSON
 }
 JSON
 OUT7="$(EARNHC_REGISTRY="$REGISTRY6" EARNHC_RUNTIME_ROOT="$D6/runtime" \
-        EARNHC_STATE_DIR="$D6/state" EARNHC_LOG="$D6/hc.log" \
-        bash "$SCRIPT" 2>&1; cat "$D6/hc.log" 2>/dev/null)"
+        EARNHC_STATE_DIR="$D6/state" \
+        bash "$SCRIPT" 2>&1)"
 a "v2 slot state logged" "$OUT7" "SLOT token_launch NOT-LIVE reason=not_enabled"
 a "v2 portfolio state logged" "$OUT7" "PORTFOLIO CAPITAL NOT-LIVE reason=all_members_not_live"
 na "v2 registry contains no NOT-INSTRUMENTED result" "$OUT7" "NOT-INSTRUMENTED"
