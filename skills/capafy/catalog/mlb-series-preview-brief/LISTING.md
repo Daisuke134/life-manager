@@ -1,6 +1,6 @@
 Primary Model: Claude Sonnet 5.5 · category: 分析 · tags: mlb, baseball, series preview, pitching matchup, bullpen
 
-Demand rank: 1
+Demand rank: 0
 Demand note: sports analysis is the highest-volume Capafy family: Ocup Football Analysis (agent 2553639947) has salesVolume 3090, and the baseball listings in the 2026-10-07 market file also sell — MLB Baseball Analysts (agent 5315711748) salesVolume 37 at week $9.99 / month $24.99 / year $149.99, and Otata Baseball Analysis (agent 7401753226) salesVolume 29 at week $14.99 / month $39.99 / year $159.99. Both baseball listings are single-category "Sports" style agents; this candidate uses the proven weekly recurring-input shape but a different output: a three-to-four game series read centred on probable starters, bullpen usage and lineup notes, not a match-by-match or one-night slate read like the catalog's football-match-analyst and nba-slate-analyst. Rank is a market-evidence rank, not a sales claim for this candidate.
 
 ## Renewal reason

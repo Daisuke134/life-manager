@@ -52,5 +52,44 @@ class BuildProof(unittest.TestCase):
         self.assertEqual(MODULE.ledger_codes(rows), {"AAA", "BBB"})
 
 
+
+class ThreadsLane(unittest.TestCase):
+    """A Threads post is the same loop's effect: a fence closes only when Threads is all ledgered too."""
+
+    REELS = {"ok": True, "codes": {"AAA", "BBB"}, "post_count": 2}
+
+    def proof(self, threads, ledger=frozenset({"AAA", "BBB", "TTT"})):
+        return MODULE.build_proof("line-sticker-distribute:x", Q, now=LATE, reels=self.REELS,
+                                  ledger_codes=set(ledger), threads=threads)
+
+    def test_ledger_codes_include_threads_post_urls(self) -> None:
+        rows = {"s1": {"post_url": "https://www.threads.com/@stardust_doubutsu/post/TTT"}}
+        self.assertEqual(MODULE.ledger_codes(rows), {"TTT"})
+
+    def test_an_unledgered_threads_post_never_closes_the_fence(self) -> None:
+        p = self.proof({"ok": True, "codes": {"TTT", "NEW"}})
+        self.assertFalse(p["verified"])
+        self.assertEqual(p["reason"], "unledgered_threads_post:NEW")
+
+    def test_unreadable_threads_profile_stays_fenced(self) -> None:
+        p = self.proof({"ok": False, "reason": "browser_unavailable"})
+        self.assertFalse(p["verified"])
+        self.assertEqual(p["reason"], "threads:browser_unavailable")
+
+    def test_all_ledgered_threads_posts_allow_the_close(self) -> None:
+        self.assertTrue(self.proof({"ok": True, "codes": {"TTT"}})["verified"])
+
+
+
+class RunsInIsolatedMode(unittest.TestCase):
+    def test_the_script_starts_under_python_dash_I(self) -> None:
+        # 2026-10-09: `import threads_publish` ran before the script dir was on sys.path, so every
+        # `python3 -I` call died with ModuleNotFoundError and no fence could be closed.
+        import subprocess
+        script = Path(__file__).resolve().parents[1] / "scripts" / "distribute_fence_reconcile.py"
+        done = subprocess.run([sys.executable, "-I", str(script), "--help"], capture_output=True, text=True)
+        self.assertEqual(done.returncode, 0, done.stderr[-400:])
+
+
 if __name__ == "__main__":
     unittest.main()

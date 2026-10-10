@@ -1,6 +1,7 @@
 Primary Model: Claude Sonnet 5.5 · category: ソーシャルメディア · tags: srt, subtitles, captions, readability, video editing
 
-Demand rank: 3
+Demand rank: 0
+Rank evidence (2026-10-09): 2026-10-08 market sweep of 854 agents sells 77.1 units per agent in the short-video/creator category vs 56.7 analysis, 33.5 finance and 0.5-6.6 for B2B decks; our own 30-day sales come from Hook Lab, TikTok Script Pro and other creator tools.
 Demand note: copies the subtitle-tool demand in the 2026-10-07 market sweep of 846 agents: "SRT Bilingual Line Swapper" sold 218 (free download, #10 overall), and the video caption and hook tools around it are the top of the market ("Free Transcript to 12 Shorts Pack" 2,095, "Video Hook Forensics" 938). The Swapper is a one-shot free tool, so the repeat-use gap is paid, recurring caption cleanup for creators who publish every week. Priced at the Serenity and Alpha Consensus ladder. Scoped to text only: it reflows pasted SRT text and does not touch audio, video, or timing it cannot verify.
 
 Renewal reason: each new video has a new SRT, so a creator who publishes weekly needs a new readability pass each time.

@@ -81,8 +81,7 @@ class CapafyHealthcheckQuotaBackoffTest(unittest.TestCase):
             )
             recorded = calls.read_text(encoding="utf-8").splitlines() if calls.exists() else []
             lifecycle = lifecycle_calls.read_text(encoding="utf-8").splitlines() if lifecycle_calls.exists() else []
-            log_path = state_home / "logs" / "capafy-loop-healthcheck.log"
-            log = log_path.read_text(encoding="utf-8") if log_path.exists() else ""
+            log = result.stderr
             return result, recorded, lifecycle, log
 
     def run_healthcheck(self, error_class, incomplete_name, expected_return=0,

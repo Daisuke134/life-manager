@@ -28,7 +28,7 @@ plan is explicitly `No Free Trial`.
 | cycle | price | cap | trial |
 |---|---:|---:|---|
 | week | $9.99 | 20 | No Free Trial |
-| month | $10.00 | 60 | No Free Trial |
+| month | $19.99 | 60 | No Free Trial |
 | year | $149.99 | 720 | No Free Trial |
 
 ## Title

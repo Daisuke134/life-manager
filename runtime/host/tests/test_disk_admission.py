@@ -22,6 +22,28 @@ def load_guard():
     return module
 
 
+@pytest.mark.parametrize("available", (0, None, 2 * 1024**3 - 1, 2 * 1024**3))
+def test_capacity_check_defers_before_child_or_metadata(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys, available,
+):
+    guard = load_guard()
+    probes, children = [], []
+    monkeypatch.setattr(guard, "disk_free_bytes", lambda p: probes.append(p) or available)
+    monkeypatch.setattr(guard.os, "execvpe", lambda program, args, env: children.append((program, args)))
+    target = tmp_path / "future" / "releases"
+    result = guard.main(["--check-free-space", str(target)])
+    assert result == (0 if available == guard.RECOVERY_FLOOR_BYTES else 75)
+    assert children == []
+    assert probes == [tmp_path]
+    assert not target.parent.exists()
+    if result == 75:
+        receipt = json.loads(capsys.readouterr().out.strip())
+        assert receipt["status"] == "deferred"
+        assert receipt["available_bytes"] == available
+        assert receipt["required_bytes"] == guard.RECOVERY_FLOOR_BYTES
+        assert receipt["effect"] == receipt["readback"] == 0
+
+
 def _write_cleanup_recovery_signal(path: Path) -> None:
     path.write_text(json.dumps({
         "owner_id": "host-disk-recovery",

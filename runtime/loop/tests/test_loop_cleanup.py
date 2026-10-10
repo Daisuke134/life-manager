@@ -18,6 +18,7 @@ from runtime.loop.central_cleanup import installed_state_roots, loaded_release_r
 from runtime.loop.central_cleanup import no_effect_loop_ids, open_release_roots, release_gc, scratch_gc
 from runtime.loop.central_cleanup import host_cleanup_command, host_cleanup_ok, host_cleanup_readback
 from runtime.loop import central_cleanup
+from runtime.loop import loop_cleanup
 
 
 def completed(root: Path, name: str, size: int = 1) -> Path:
@@ -29,6 +30,45 @@ def completed(root: Path, name: str, size: int = 1) -> Path:
 
 
 class LoopCleanupTest(unittest.TestCase):
+    def test_reclaimed_release_is_not_selected_or_collected(self):
+        for marker_kind in ("descriptor", "dangling", "probe_error"):
+            with self.subTest(marker_kind=marker_kind), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                release = root / "releases/20260101T000000-aaaaaaaa"
+                release.mkdir(parents=True)
+                descriptor = json.dumps({"sha": "a" * 40, "release_paths": "ALL"}).encode()
+                (release / "RELEASE.json").write_bytes(descriptor)
+                self.assertTrue(loop_cleanup._valid_release(release))
+                retained = {}
+                for relative in ("memory/owner.md", "state/owner.jsonl", "unknown.bin"):
+                    item = release / relative
+                    item.parent.mkdir(exist_ok=True)
+                    item.write_bytes(b"preserve at this path\n")
+                    retained[item] = (item.read_bytes(), item.stat().st_ino)
+                marker = release / "RECLAIMED-RELEASE.json"
+                if marker_kind == "descriptor":
+                    marker.write_bytes(descriptor)
+                elif marker_kind == "dangling":
+                    marker.symlink_to(release / "missing-descriptor")
+                original_lstat = Path.lstat
+
+                def probe(path, *args, **kwargs):
+                    if marker_kind == "probe_error" and path == marker:
+                        raise PermissionError("marker probe unavailable")
+                    return original_lstat(path, *args, **kwargs)
+
+                with mock.patch.object(Path, "lstat", autospec=True, side_effect=probe):
+                    self.assertFalse(loop_cleanup._valid_release(release))
+                    result = gc_releases(root / "releases", root / "current", keep=0,
+                                         protected=set(), managed_bytes=0,
+                                         closed_releases={release})
+                self.assertEqual(result["evaluated_releases"], 0)
+                self.assertEqual(result["removed_releases"], 0)
+                self.assertEqual(result["protected_deletions"], 0)
+                self.assertEqual((release / "RELEASE.json").read_bytes(), descriptor)
+                for item, expected in retained.items():
+                    self.assertEqual((item.read_bytes(), item.stat().st_ino), expected)
+
     def test_scratch_gc_keeps_live_log_relay_after_parent_exit(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -137,6 +177,37 @@ class LoopCleanupTest(unittest.TestCase):
         ok, result = host_cleanup_readback(0, json.dumps(receipt), binding=binding)
         self.assertTrue(ok)
         self.assertTrue(result["capacity_recovered"])
+
+    def test_central_cleanup_preserves_bound_lock_busy_deferral(self):
+        binding = {"owner_id": "life-manager-disk-cleanup", "run_id": "busy-1",
+                   "occurrence_id": "life-manager-disk-cleanup:busy-1", "release_sha": "a" * 40}
+        receipt = {"ok": False, "status": "deferred", "reason": "cleanup_lock_busy",
+                   "effect": 0, "readback": 0, "identity": binding}
+        process = subprocess.CompletedProcess([], 75, json.dumps(receipt), "")
+        cases = (({"errors": 0, "source_reclaim": {"removed_files": 2,
+                  "protected_deletions": 0}}, 75), ({"errors": 1}, 1), (OSError("GC unavailable"), 1))
+        for gc_result, expected_exit in cases:
+            with self.subTest(gc_result=gc_result), \
+                 mock.patch.object(central_cleanup.subprocess, "run", return_value=process), \
+                 mock.patch.object(central_cleanup, "cleanup_run_binding", return_value=binding), \
+                 mock.patch.object(central_cleanup, "release_gc", return_value=gc_result,
+                     side_effect=gc_result if isinstance(gc_result, Exception) else None) as gc, \
+                 mock.patch.object(central_cleanup, "scratch_gc", return_value={"errors": 0}) as scratch, \
+                 mock.patch.object(sys, "argv", ["central_cleanup.py"]), \
+                 mock.patch("builtins.print") as output:
+                self.assertEqual(central_cleanup.main(), expected_exit)
+                gc.assert_called_once()
+                scratch.assert_not_called()
+                result = json.loads(output.call_args.args[0])
+                self.assertEqual(result["reason"], "cleanup_lock_busy")
+                self.assertEqual(result["identity"], binding)
+                self.assertFalse(result["ok"])
+                self.assertIsNone(result["capacity_recovered"])
+                if expected_exit == 75:
+                    self.assertEqual(result["source_reclaim"]["removed_files"], 2)
+                    self.assertEqual(result["errors"], 0)
+                else:
+                    self.assertEqual(result["errors"], 1)
 
     def test_no_effect_loop_ids_reads_registry(self):
         with tempfile.TemporaryDirectory() as directory:
