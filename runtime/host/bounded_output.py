@@ -88,20 +88,29 @@ def start_stderr_relay(private_root, policy, binding, *, stream_kind=None):
         os.close(reader); child.close()
 
 
-def prune_closed_diagnostics(evidence_root, policy, *, current_run, closed_probe=None):
+def prune_closed_diagnostics(evidence_root, policy, *, current_run, closed_probe=None, state_root=None):
     """Only relay-owned diagnostics; parent results, usage and journals remain."""
     result = {"removed": 0, "reclaimed_bytes": 0, "errors": 0, "preserved_bytes": 0}
     root = Path(evidence_root)
-    if root.name != "agent-runner-evidence" or any(p.is_symlink() for p in [root, *root.parents]):
+    if any(p.is_symlink() for p in [root, *root.parents]):
+        return result
+    if root.name == "agent-runner-evidence":
+        capture_pattern = "*/*/attempt-*.capture/*"
+    elif (state_root and root == Path(state_root).expanduser() / "evidence"
+            and Path(current_run).parent == root):
+        capture_pattern = "*/attempt-*.capture/*"
+    else:
         return result
     allowed = {"relay-context.json", ".stderr-relay.json", ".lm-regenerable", "relay-result.json",
                "stderr.log", "head.bin", "semantic-stdout.json"}
     candidates = []
     deadline = time.monotonic() + 5
-    for relay in root.glob("*/*/attempt-*.capture/*"):
+    for relay in root.glob(capture_pattern):
         if time.monotonic() >= deadline: break
         run = relay.parent.parent
         if not (run / "summary.json").is_file(): continue
+        seal = run / "evidence-seal.json"
+        if seal.exists() or seal.is_symlink(): continue
         try:
             if any(p.is_symlink() for p in [relay, relay.parent, run, run.parent]): continue
             info = relay.stat()

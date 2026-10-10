@@ -16,6 +16,55 @@ import agent_runner as runner
 
 
 class EvidenceRetentionTest(unittest.TestCase):
+    def test_registered_state_evidence_prunes_only_unsealed_diagnostics(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary).resolve()
+            state = base / "state"
+            config = base / "repo/config"
+            config.mkdir(parents=True)
+            owner = "job-search-daily"
+            policy = json.loads((runner.REPO_ROOT / "config/storage-policy.json").read_text())
+            policy["defaults"]["owner_diagnostic_retained_bytes"] = 64
+            policy["defaults"]["host_diagnostic_retained_bytes"] = 64
+            (config / "storage-policy.json").write_text(json.dumps(policy))
+            (config / "loop-registry.json").write_text(json.dumps({"loops": {owner: {"state_root": str(state)}}}))
+            primaries = ("result.json", "usage.json", "attempts.jsonl")
+            captures = {}
+            for kind, run in (("current", state / "evidence/daily-1"),
+                              ("sealed", state / "evidence/daily-0"),
+                              ("foreign", base / "foreign/evidence/daily-2")):
+                relay = run / "attempt-01.capture/stdout"
+                relay.mkdir(parents=True, mode=0o700)
+                binding = {"owner_id": owner, "run_id": run.name,
+                    "occurrence_id": f"{owner}:{run.name}", "release_sha": "a" * 40}
+                marker = relay / ".lm-regenerable"
+                marker.write_text(json.dumps({"role": "diagnostic_only", "binding": binding}))
+                marker.chmod(0o600)
+                (relay / "relay-result.json").write_text(json.dumps({"binding": binding, "eof": True}))
+                (relay / "stderr.log").write_bytes(b"x" * 256)
+                for name in (*primaries, "summary.json"):
+                    (run / name).write_bytes(b"authoritative")
+                if kind == "sealed":
+                    (run / "evidence-seal.json").write_bytes(b'{"files":["attempt-01.capture/stdout/stderr.log"]}')
+                captures[kind] = relay
+            run = captures["current"].parent.parent
+            with (patch.dict(os.environ, {"LIFE_MANAGER_LOOP_ID": owner,
+                                          "LIFE_MANAGER_STATE_ROOT": str(state)}),
+                  patch.object(runner, "REPO_ROOT", config.parent),
+                  patch.object(runner, "reclaim_completed_evidence") as legacy):
+                result = runner.finish_evidence_run(run, {"status": "success"})
+                runner.finish_evidence_run(captures["foreign"].parent.parent, {"status": "success"})
+            self.assertFalse(captures["current"].exists())
+            self.assertEqual(result["postrun_evidence_reclamation"]["removed"], 1)
+            self.assertEqual(result["status"], "success")
+            for name in primaries:
+                self.assertEqual((run / name).read_bytes(), b"authoritative")
+            self.assertEqual((captures["sealed"] / "stderr.log").read_bytes(), b"x" * 256)
+            self.assertEqual((captures["sealed"].parent.parent / "evidence-seal.json").read_bytes(),
+                             b'{"files":["attempt-01.capture/stdout/stderr.log"]}')
+            self.assertTrue(captures["foreign"].exists())
+            legacy.assert_not_called()
+
     def test_finished_run_prunes_diagnostics_without_waiting_for_another_run(self):
         with tempfile.TemporaryDirectory() as temporary:
             base = Path(temporary)
