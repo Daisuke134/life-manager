@@ -371,6 +371,9 @@ CLEAN-05 追加観測: writer-sales-measureはsequence597423の予約から、�
 
 CLEAN-04 Fundraiser照合scope更新: fresh admissionは15件fenced。main由来currentの既存fundraiser_fence_reconcile.pyをresolve=Falseで読んだ結果、13件はexact occurrenceの同UID600 durable marker pre_effect/effect0によるpositive proof、DeepScale 18d9b0b6311a2018-87933とFoundersEdge 18dc7f3bc472c260-76084の2件はunknown/post_effectで保持する。旧canonical pre-effect dry-runのno_pre_effect_terminal13を公式照合必須13と説明したのは不正確で、専用adapterのmarker境界を先に使う。readonly独立検証後、positive proofを再取得し既存adapter --resolveだけで該当13件を閉じる。2件はprovider公式readback無しに解放/再送しない。FoundersEdgeにはlocal submitted_verified/record/PNGがあるがfresh provider proofではない。Gmail公開組織名Sent検索0件はno-effect証明に使わず、account/target一致も未確認。Fundraiser disabled維持、他owner停止/応募/メール/Telegram送信0。この業務fenceは独立したCLEAN-05/06の観測を止めるgateへ広げない。旧順序=13件公式照合→採用→05→06、新順序=既存adapterで13pre-effectを閉じる→2件公式照合/安全採用を保持しながら04生成回収と05/06を直列に進める。理由=既存durable境界がpositive proofを持ち、確認可能な前effect失敗を不明provider行為と混ぜていたため。現在cursor=13件proofの独立検証と既存resolver、全体未完。
 
+CLEAN-04 Fundraiser13件resolver結果と再発修復scope: 独立read-only検証は対象13件のみSHIP（11歴史SHAの送信前claim契約、same recorder、同UID600/単一リンクmarker、自然start一致、矛盾attempted/submitted無し、現boot後）。既存adapter resolve一回/各occurrenceで13件を閉じ、exact DB全13 released/effect_unknown0、残DeepScale/FoundersEdge2件保持、Fundraiser disabled/PID無し、送信/再送0を確認。receipt=~/.local/state/life-manager/state/cleanup-fundraiser-pre-effect-resolved-20261011.json。既存自動lm-fence-reconcilerログのFundraiser最新5callは全て同じDeepScale HELDで、runtime/loop/fence_reconcile.pyはowner間しかrotateせずowner内queueを毎wake先頭へ戻すため、capに達すると後続positive proofが永久に選ばれない。既存reconcile-calls.jsonlのbounded tail（256KiB）からownerごとの最後の対象を読み、既存round-robin queueを次occurrenceへrotateする最小差分で直す。新state/scheduler/queue/依存なし、financial priority/cap/budget/公式proof契約は不変。既存test_fence_reconcile.pyに複数wakeで古いHELDを保持し後続exact positive proofが閉じるREDを追加→最小実装→focused/source CI/main→immutable→generic owner loaded-idleで採用→自然callで異なるoccurrenceを確認。現在cursor=この再発修復。業務2件のofficial gateで独立CLEAN-05/06を止めない。
+
+
 
 
 
