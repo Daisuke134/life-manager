@@ -12054,3 +12054,10 @@ flowchart LR
 - 10:05 UTCの`df -Pk /`は`1,707,576 KiB` availableで既存2 GiB floorより`389,576 KiB`少ない。`~/loops/current`はrelease `20261010T185728-69368d8f`、release reconcilerはloaded-running PID `58683`。4 eBook ownersは引き続きloaded-idle / SHA `ef35fa3b`。EN 2 ownerはdisk defer、JA 2 ownerはresource_effect_unknown defer。4つの旧fenceとreceiptなしは前項のまま。
 
 **このreadback時点のcursor:** latest-main統合・SSOT conflict解決済みbranchをpush→fresh reviewer/CI→PR #7478 merge。以降は既存release reconcilerの自然終端、現行Postiz account handle一致、host admission、4旧fenceを保持した新slot契約を順に閉じる。production apply/postは未実施。
+
+### 2026-10-10 19:09 JST — latest-main source synchronization
+
+- `origin/main`は`d573483e4a03159e513e1571365aa53621fe5850`（#7483）まで進み、eBook task branchへmerge済み。main由来のCapafy変更は上流の取り込みのみで、このworktree内でCapafyを編集していない。`git diff --check origin/main...HEAD` PASS。
+- PR #7478のremote headはまだ`bbd71ee4`（base `fa1f013`）で、latest-main同期後のlocal mergeは未push。旧head `31dd839` のCIはPASSだがcurrent merge treeを検証していない。
+
+**現在cursor:** latest-main同期済みbranchをPR #7478へpush → fresh read-only review/exact-head CI → merge。投稿・release applyの前にaccount mapping、capacity、reconciler、旧fenceの4条件を解決する。
