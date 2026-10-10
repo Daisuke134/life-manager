@@ -12681,3 +12681,11 @@ flowchart LR
 
 **ASC/RevenueCat cursor:** recheck the four new ongoing requests for their first daily Downloads Standard and Discovery instances; then collect each app with freshness and no zero-fill. Keep restore separate from first-time downloads, counts separate from unique counts, and ASC impressions separate from social views. Continue Anicca distribution first; only use settled Apple recurring proceeds net of refund/fee to claim progress against USD 10K.
 
+### 2026-10-10 23:52 JST — Fresh Postiz daily distribution readback
+
+- Official GET used the existing Postiz readback helper against the configured 18 mobile integrations for the JST day window 2026-10-10 00:00–23:52. All 18 target integrations are present and enabled. The provider returned 36 `PUBLISHED` rows across all integrations; 32 belong to the 18 mobile targets and 4 are outside this target set. No queued/scheduled row was counted. All 32 target rows have a direct per-post URL.
+- Mobile target total remains 32/54; 22 posts short of the requested 3/day/account. Per account: 3/3 — `@anicca.affirmation`, `@anicca_slideshow`, `@anicca.jp`, `@anicca_buddha`; 2/3 — `@aniccaaffirmation`, `@anicca.en`, `@anicca-ai`, `@anicca.he`, `@anicca.jp4`, `@ani.cca1234`, `@anicca.jpx`; 1/3 — `@anicca.encards`, `@anicca-affirmation-video`, `@anicca.jp1`, `@anicca.jp.videos`, `@honne_reveal`, `@honnevideo`; 0/3 — `@aniccaen2`.
+- Platform totals: Instagram 10, TikTok 19, YouTube 3. This confirms the prior 22:23 snapshot was unchanged through 23:52, but does not prove future uninterrupted cadence. No post was sent by this readback.
+
+**Current distribution cursor:** preserve the 3/day target for all 18; resume admitted catch-up after main-derived release and loaded-SHA verification. Do not direct-post around owner/admission or replay unknown occurrences. Recheck provider counts before each batch; keep scheduled/queued separate from `PUBLISHED`.
+
