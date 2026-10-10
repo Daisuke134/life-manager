@@ -247,6 +247,16 @@ printf '%s\n' "$PROMPT" | timeout "${CAPAFY_CP1_AGENT_TIMEOUT_SECONDS:-1800}" en
   --loop capafy \
   --workdir "$LIFE_MANAGER_REPO" >> "$LOG" 2>&1
 RC=$?
+# rc 75 = agent_runner never reached the provider (disk/lease/budget deferral, silent-start stop).
+# Refund the draft attempt the deciding inventory call charged, or deferred passes exhaust
+# MAX_DRAFT_ATTEMPTS and drop the draft for good (2026-10-11 Hook Lab/TikTok price restores).
+if [ "$RC" -eq 75 ]; then
+  ATTEMPT_ID="$(printf '%s' "$INV" | tail -1 | python3 -c 'import json,sys
+d=json.load(sys.stdin)
+if d.get("action") in ("resume_draft", "retry_existing"): print((d.get("item") or {}).get("agent_id") or "")' 2>>"$LOG")"
+  [ -n "$ATTEMPT_ID" ] && python3 "$AUTO/scripts/inventory_status.py" --refund-draft-attempt "$ATTEMPT_ID" 2>>"$LOG" \
+    && echo "$TS agent deferred (rc=75): refunded draft attempt for $ATTEMPT_ID" >> "$LOG"
+fi
 if [ -n "$PREPARED" ]; then
   F_SKILL="$(basename "$F_SKILL_DIR")"
   if bash "$AUTO/scripts/publish_finish.sh" "$F_ID" "$F_SKILL" "$F_LISTING" "$F_VERSION" >> "$LOG" 2>&1; then
