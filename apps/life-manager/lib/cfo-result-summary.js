@@ -169,6 +169,52 @@ function googleBilledExpenseLines(value) {
   if (value.status !== "verified") lines.push("Google Cloud 請求書照合: 一部未確認");
   return lines;
 }
+function providerBilledExpenseLines(value, googleBilledExpenses) {
+  if (!value || typeof value !== "object") return [];
+  if (!Array.isArray(value.invoices) || !value.invoices.length) {
+    return ["Provider billed expense: 未確認"];
+  }
+  const googleCloudPeriods = new Set(
+    (Array.isArray(googleBilledExpenses?.invoices) ? googleBilledExpenses.invoices : [])
+      .filter(invoice => invoice?.status === "verified" && invoice.currency === "JPY"
+        && typeof invoice.invoice_period === "string" && /^\d{4}-\d{2}$/.test(invoice.invoice_period))
+      .map(invoice => invoice.invoice_period),
+  );
+  const lines = [];
+  let googleOverlapUnresolved = false;
+  for (const invoice of value.invoices) {
+    const provider = typeof invoice?.provider === "string"
+      && /^[a-z0-9][a-z0-9_-]{0,63}$/.test(invoice.provider) ? invoice.provider : null;
+    const period = typeof invoice?.invoice_period === "string"
+      && /^\d{4}-\d{2}$/.test(invoice.invoice_period) ? invoice.invoice_period : null;
+    const currency = typeof invoice?.currency === "string"
+      && /^[A-Z]{3}$/.test(invoice.currency) ? invoice.currency : null;
+    // A verified Google Cost Table owns the Google Cloud invoice display for that JPY period.
+    if ((provider === "google_cloud" || provider === "google-cloud")
+      && currency === "JPY" && googleCloudPeriods.has(period)) {
+      googleOverlapUnresolved = true;
+      lines.push(`Provider billed expense (${provider}, ${period}): Google Cloud請求表と期間重複、請求同一性未確認`);
+      continue;
+    }
+    let billedTotal;
+    try { billedTotal = decimalText(decimalUnits(invoice?.billed_total)); }
+    catch { billedTotal = null; }
+    if (invoice?.status !== "verified" || !provider || !period || !currency || billedTotal === null) {
+      const label = [provider, period].filter(Boolean).join(", ");
+      lines.push(`Provider billed expense${label ? ` (${label})` : ""}: 未確認`);
+      continue;
+    }
+    lines.push(`Provider billed expense (${provider}, ${period}): ${currency} ${billedTotal}`);
+    const cash = invoice.cash_paid_status === "paid" ? "支払済み（provider確認）" : "未確認";
+    const allocation = invoice.allocation_status === "attributed" ? "配賦済み"
+      : invoice.allocation_status === "unattributed" ? "未帰属" : "未確認";
+    lines.push(`  支払状況: ${cash} | loop配賦: ${allocation} | 請求表示はB0 netに二重加算しない`);
+  }
+  if (value.status !== "verified" || googleOverlapUnresolved) {
+    lines.push("Provider billed expense source: 一部未確認");
+  }
+  return lines;
+}
 function renderEconomicSummary(table, projection) {
   if (!projection || !projection.historical || !projection.trailing || !projection.mrr || !projection.runway) {
     throw new Error("cfo_result_table_invalid");
@@ -213,6 +259,11 @@ function renderEconomicSummary(table, projection) {
   ];
   if (Object.hasOwn(table, "google_billed_expenses")) {
     lines.push(...googleBilledExpenseLines(table.google_billed_expenses));
+  }
+  if (Object.hasOwn(table, "actual_billed_expenses")) {
+    lines.push(...providerBilledExpenseLines(
+      table.actual_billed_expenses, table.google_billed_expenses,
+    ));
   }
   for (const window of ["historical", "trailing"]) {
     for (const [loopId, scope] of Object.entries(economicLoops(projection, window))) {

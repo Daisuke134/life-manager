@@ -234,6 +234,82 @@ class ActualCostAttributionTest(unittest.TestCase):
         self.assertTrue(all(row["coverage_state"] == "gap" for row in blockrun_gaps))
         self.assertTrue(all(row["reason"] == "unverified_receipt" for row in blockrun_gaps))
 
+    def test_billed_invoice_without_paid_at_is_visible_outside_b0(self):
+        payload = fixture("actual-cost-official.json")
+        invoice = next(row for row in payload["documents"] if row["provider"] == "openai")
+        invoice["status"] = "billed"
+        invoice.pop("paid_at")
+        for line in invoice["line_items"]:
+            line.pop("allocations")
+
+        projection = actual_cost.billed_expenses(
+            payload, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        self.assertEqual(projection["status"], "verified")
+        billed = next(row for row in projection["invoices"] if row["provider"] == "openai")
+        self.assertEqual(billed["billed_total"], "14.34")
+        self.assertEqual(billed["currency"], "USD")
+        self.assertEqual(billed["cash_paid_status"], "unknown")
+        self.assertEqual(billed["allocation_status"], "unattributed")
+        self.assertTrue(billed["source_ref"].startswith("lm-actual-cost://openai/readback/"))
+
+        rows = adapt(payload)
+        self.assertFalse(any(row["provider"] == "openai" for row in receipts(rows)))
+
+    def test_stale_billed_invoice_does_not_publish_a_verified_amount(self):
+        payload = fixture("actual-cost-official.json")
+        invoice = next(row for row in payload["documents"] if row["provider"] == "openai")
+        invoice["status"] = "billed"
+        invoice.pop("paid_at")
+        payload["readback"]["observed_at"] = "2026-09-30T23:59:59Z"
+
+        projection = actual_cost.billed_expenses(
+            payload, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        self.assertEqual(projection["status"], "unverified")
+        billed = next(row for row in projection["invoices"] if row["provider"] == "openai")
+        self.assertIsNone(billed["billed_total"])
+        self.assertEqual(billed["reason"], "stale_readback")
+
+    def test_billed_invoice_header_total_must_match_line_items(self):
+        payload = fixture("actual-cost-official.json")
+        invoice = next(row for row in payload["documents"] if row["provider"] == "openai")
+        invoice["status"] = "billed"
+        invoice.pop("paid_at")
+        invoice["amount"] = "15.34"
+        for line in invoice["line_items"]:
+            line.pop("allocations")
+
+        projection = actual_cost.billed_expenses(
+            payload, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+
+        self.assertEqual(projection["status"], "unverified")
+        billed = next(row for row in projection["invoices"] if row["provider"] == "openai")
+        self.assertIsNone(billed["billed_total"])
+        self.assertEqual(billed["reason"], "unverified_receipt")
+
+    def test_billed_invoice_without_provider_source_is_not_verified(self):
+        payload = fixture("actual-cost-official.json")
+        invoice = next(row for row in payload["documents"] if row["provider"] == "openai")
+        invoice["status"] = "billed"
+        invoice.pop("paid_at")
+        for line in invoice["line_items"]:
+            line.pop("allocations")
+        payload["sources"] = [
+            source for source in payload["sources"] if source["provider"] != "openai"
+        ]
+
+        projection = actual_cost.billed_expenses(
+            payload, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+
+        self.assertEqual(projection["status"], "unverified")
+        billed = next(row for row in projection["invoices"] if row["provider"] == "openai")
+        self.assertEqual(billed["status"], "unverified")
+        self.assertIsNone(billed["billed_total"])
+        self.assertEqual(billed["reason"], "missing_coverage")
+
     def test_mixed_valid_and_unallocated_lines_keep_receipt_but_gap_coverage(self):
         payload = fixture("actual-cost-official.json")
         openai_invoice = next(
