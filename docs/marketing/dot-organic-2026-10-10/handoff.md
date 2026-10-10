@@ -54,3 +54,7 @@ Report after publication: article URL + deployed commit + actual publication tim
 - Read-only public HEAD checks: /affirmation-app, /affirmation-app/ja, /honne, /honne/ja each HTTP 200; all four proposed /blog slugs HTTP 404 (unused at check time, not a reservation).
 - Python standard-library check passed: four distinct slugs; four correct product/locale CTA paths; all query fields match the isolated dot_owned campaign; no missing product/locale mapping.
 - verify-source-boundary.sh PASS; git diff --check PASS. No dependencies installed, build, paid model call, deployment, or external submission.
+
+## Copy-review follow-up
+
+2026-10-10: independent review identified two Honne wording issues. Corrected Japanese copy to describe the iPhone app, not a web demo. Both languages now link to https://aniccaai.com/honne/privacy, accurately state explicit consent before sending entered text to OpenAI, recommend fictional/anonymized examples, and exclude confidential third-party conversations. Privacy page and both App Store listings were re-read; minimum iOS remains Anicca 16.6 / Honne 18.0. No blanket Data Not Collected guarantee is used. Four article slugs and four campaign CTA URLs are unchanged.

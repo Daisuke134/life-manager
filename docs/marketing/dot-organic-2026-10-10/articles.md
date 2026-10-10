@@ -78,7 +78,7 @@ These are fictional examples. Adjust them to your relationship and the situation
 
 [Honne](https://aniccaai.com/honne?utm_source=dot_owned&utm_medium=organic_editorial&utm_campaign=mobile_work_moments_20261010&utm_content=honne_en) is an iPhone app that analyzes pasted chat text and suggests replies. Treat its interpretation as another possibility to consider, not access to someone else's private thoughts. The current product page offers three free analyses per day, with optional premium subscriptions; iOS 18 or later is required.
 
-You can use the three-part exercise without an app. If you choose to paste a message into any AI tool, remove names and sensitive details that are not needed for the question.
+You can use the three-part exercise without an app. To try Honne, start with a fictional or anonymized example. Its [privacy policy](https://aniccaai.com/honne/privacy) says entered text is sent to OpenAI for analysis after your explicit consent. Do not paste confidential third-party conversations.
 
 Disclosure: Honne is made by the publisher of this article.
 
@@ -108,8 +108,8 @@ Description: 短い返信に迷ったら、実際の言葉・自分の解釈・�
 
 いずれも架空の例文です。関係や状況に合わせて調整してください。距離を置きたいと言われている場合は、反応を確かめるために連絡を重ねず、その希望を尊重しましょう。
 
-[Honneの紹介](https://aniccaai.com/honne/ja?utm_source=dot_owned&utm_medium=organic_editorial&utm_campaign=mobile_work_moments_20261010&utm_content=honne_ja)では、貼り付けたチャットの分析と返信案を確認できます。AIの解釈は、相手の本音が判明したという証拠ではありません。製品ページでは1日3回の無料分析と任意の有料サブスクリプションを案内しています。対応はiOS 18以降です。
+[Honne](https://aniccaai.com/honne/ja?utm_source=dot_owned&utm_medium=organic_editorial&utm_campaign=mobile_work_moments_20261010&utm_content=honne_ja)は、貼り付けたチャットの分析と返信案を表示するiPhoneアプリです。AIの解釈は、相手の本音が判明したという証拠ではありません。製品ページでは1日3回の無料分析と任意の有料サブスクリプションを案内しています。対応はiOS 18以降です。
 
-三つに分ける方法は、アプリなしでも使えます。AIに文面を入力する場合は、質問に不要な名前や機密情報を除いてください。
+三つに分ける方法は、アプリなしでも使えます。Honneを試すときは、架空の例文か匿名化した文面から始めてください。[プライバシーポリシー](https://aniccaai.com/honne/privacy)によると、入力した文面は、明示的な同意後に分析のためOpenAIへ送信されます。第三者との機密の会話は入力しないでください。
 
 運営者からのお知らせ：この記事の発行者はHonneの開発者です。
