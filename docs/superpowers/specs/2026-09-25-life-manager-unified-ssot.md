@@ -543,6 +543,8 @@ flowchart LR
 
 **順序変更（2026-10-10）:** 旧順序=S01→S14を番号順に直列実行し、Gig S10の前にS06〜S09完了を要求。新順序=共通P0/P1 → このprimaryはGig S10/T7 item 2から再開し、別ownerの独立laneは並行継続 → 全S01〜S14受入後にS15→S16→S17→S18。理由=DaisはGig/storefrontをこの担当の次の収益laneに指定し、CFOは別ownerが担当している。CFOの実装は重ねず、公式receiptが届くまではnet/evalの断定だけ保留する。現在cursor=P0/P1共有資源節（CLEAN-03の詳細cursor）→Gig item 2。effect_unknownは維持し、確認前に再送しない。
 
+**順序変更（2026-10-10 18:33 JST、source-prepのみ）:** 旧source順=P0/P1完了後にT7のコード修正を開始。新source順=P0/P1 ownerはそのまま継続しつつ、独立worktreeではT7のreadback/paid-wait防止をTDD・CIまで並行準備する。production release/apply/provider effectは引き続きP0/P1受入後まで行わない。理由=complete official targeted readbackでは3件とも正式納品済み・feedback pendingなしだが、同じ実snapshotを`paid_direct._classify_targeted`と`_reported_paid_row`へread-onlyで通すと、1件は`work_required`になりreport-only wait guardにも一致しなかった。owner自体は直近readbackでdisk-admission前に延期され、effectは発生していない。次のsource fixは、(1) selected-talkroom snapshot envelopeとtalkroomに同じcaptured timestampを使い、coverage-complete時だけpreliminary readback blockerを消す、(2) formal delivery後にsellerが最新buyer feedbackへ回答済みでfeedback/artifact pendingがない時はbuyer acceptance waitとしてPaid effectを止める、(3)この実snapshot形のregression tests。現在のruntime cursorは引き続き共有P0/P1で、source-prepは安全な並行workstream。
+
 履歴: この時点のT7 cursorは **7-0（Lancers 5605912）と 5-11 / 5-12 の並行**だった。これは過去のsnapshotであり現行Gig cursorではない。最新のGig cursorは本書末尾「2026-10-08 JST — Gig atomic cursor」を参照する。
 
 T5 の途中経過（2026-09-25 19:00 JST）:
