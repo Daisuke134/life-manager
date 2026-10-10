@@ -161,13 +161,13 @@ def static_planner(set_dir: Path, prior_facts: list[dict], market_items: list[di
     return plan
 
 
-def mark_text_listing(listing: dict) -> dict:
+def mark_text_listing(listing: dict, marks: dict = TEXT_MARK) -> dict:
     """Title says it is the 文字入り version (market pattern), clamped so the mark survives
     line_sticker_submit._fit_listing's width-counted limit. Idempotent."""
     from line_sticker_submit import TITLE_MAX, _clean, _fit, _title_units  # lazy: submit imports playwright
     titles = {}
     for lang, title in listing["title"].items():
-        mark = TEXT_MARK.get(lang, TEXT_MARK["en"])
+        mark = marks.get(lang, marks["en"])
         base = _clean(title)
         if base.endswith(mark.strip()):
             titles[lang] = title
@@ -220,10 +220,11 @@ def _font(size: int):
 
 
 def _draw_text(canvas, text: str) -> None:
-    """Dark rounded-gothic lettering with a thick white outline, centred in the bottom band."""
+    """Dark rounded-gothic lettering with a thick white outline, centred in the bottom band (also
+    drawn onto animated frames for the "(文字あり)" twin, so it sizes off the canvas it is given)."""
     from PIL import ImageDraw
     draw = ImageDraw.Draw(canvas)
-    max_width = CANVAS[0] - 2 * MARGIN_PX
+    max_width = canvas.width - 2 * MARGIN_PX
     size = TEXT_BAND_PX - 2 * TEXT_STROKE_PX
     while True:
         font = _font(size)
@@ -231,8 +232,8 @@ def _draw_text(canvas, text: str) -> None:
         if right - left <= max_width or size <= 12:
             break
         size -= 2
-    band_top = CANVAS[1] - MARGIN_PX - TEXT_BAND_PX
-    x = (CANVAS[0] - (right - left)) // 2 - left
+    band_top = canvas.height - MARGIN_PX - TEXT_BAND_PX
+    x = (canvas.width - (right - left)) // 2 - left
     y = band_top + (TEXT_BAND_PX - (bottom - top)) // 2 - top
     draw.text((x, y), text, font=font, fill=(60, 40, 40, 255), stroke_width=TEXT_STROKE_PX,
               stroke_fill=(255, 255, 255, 255))
