@@ -12521,3 +12521,14 @@ flowchart LR
 - Source PR #7505はhead 5375f825314a7ae026dafce321239ff78ce1ae6bでchecks再実行中。ローカルfocused Node/Python/admission testsはpass。空き容量は21:51 JSTに289,916 KiB、production release/applyには不足。
 
 **現在cursor:** PR #7505のexact-head checks/reviewを通してmainへmerge → Postiz channel-capの解決方法と現契約tierを確認（購入・削除しない） → fresh capacity/owner lock/loaded SHAを確認後、JA ownerへtargeted release/apply → new distinct occurrenceのPostiz PUBLISHEDを確認、以降有効accountごと2/day → checkoutから正しいPDFまでの購入readback → Stripe settlement/refund/feesと生成/配信costを照合してverified net MRR $10Kへ進む。
+
+### 2026-10-10 21:52 JST — Postiz tier and upgrade cost
+
+Postiz account statusを21:44 JST official sessionで補足する。
+
+- GET /user/selfは200、reported tier=PRO、totalChannels=30。integrations/listは31 rowsを返すため、totalChannelsのusage/cap解釈は別途請求表示で照合が必要だが、add-channel endpointはchannel上限を理由に402を返した。
+- 公式pricing https://postiz.com/pricing: Standard $29/5 channels、Team $39/10、Pro $49/30、Ultimate $99/100。年払い表示はそれぞれ$23/$31/$39/$79 per month。現在の請求周期・prorationは未確認。
+- @monk.mujoは未接続。Postiz上限を超えて追加する場合はUltimate等へのupgradeが必要な可能性が高いが、購入はしていない。ユーザーの既存plan承認はHeyGen向けで、Postiz upgradeの承認ではない。
+- 既存の英語TikTok Monk Aniccaと日本語Instagram/TikTokはdisabled=falseでlistに存在する。English Instagramはholdのまま。2/day source changesは既存接続laneで進められるため、upgradeをsource/CI/postingのgateにしない。
+
+**現在cursor:** PR #7505のhead checks → source/spec merge → existing connected lanesのfresh capacity/owner readbackとtargeted apply。@monk.mujo Instagramをdistribution targetに追加する判断は別の未完itemとして保持し、追加購入・既存channel削除は行わない。
