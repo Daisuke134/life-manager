@@ -153,7 +153,8 @@ class MacosLoopRegistryTest(unittest.TestCase):
         ):
             with self.subTest(loop_id=loop_id):
                 row = registry["loops"][loop_id]
-                self.assertEqual(row.get("resource_class"), "agent")
+                self.assertEqual(row.get("resource_class"),
+                                 "browser" if loop_id == "writer-sales-measure" else "agent")
                 self.assertEqual(row.get("admission_class"), "borrow")
                 self.assertEqual(row.get("priority"), "support")
                 self.assertTrue(row.get("coalesce_reserved_wakes"))

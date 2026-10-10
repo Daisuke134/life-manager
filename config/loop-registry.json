@@ -4279,7 +4279,7 @@
       "log_root": "~/.local/state/life-manager/writer/logs",
       "priority": "support",
       "provider_route": "shared-agent-runner",
-      "resource_class": "agent",
+      "resource_class": "browser",
       "state_root": "~/.local/state/life-manager/writer"
     },
     "x-repost": {
