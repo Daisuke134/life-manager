@@ -331,6 +331,12 @@ CLEAN-04現在自然証拠: reconcile直前fresh statusはlife-manager-release-r
 
 CLEAN-05の追加自然branch証拠（CLEAN-04完了扱いなし）: x402-sale-observer18dd3b3561c83e40-48051は17:28:47Z start→17:28:50Z terminal pass0、同f78/argv e9a49668/env fa432334一致。canonical admission-v2のexact occurrenceはreleased/effect_unknown0。続くdeterministic lancers-revenue-work-sync18dd3b391f232cb8-48556は17:29:03Z自然execute/claim→17:29:23Z terminal fail1、同f78/argv15ca1eac/env27a6e7af一致→exact DB released/effect_unknown0。枠返却と次claim/通常失敗時の返却は確認済み、Lancers業務成功/納品/売上へ置換しない。Lancers skipの業務境界は変更せずread-only運用観測のみ。使用中/unknownの解放やmanualwake無し。現在cursorはCLEAN-04の生成・回収収支とreconciler self-handoffを維持する。
 
+CLEAN-04厳密native反映の現在証拠: #7542 exactafc08e794266c963c4dc5325328e960e6d3b1009/CI38072487811全10SUCCESS→admin squash main e884121ef9715b46777ab59131422a2f7d482256。正規ALL cutter exit0/native clonefile success8329/current20261011T024502-e884121e、main由来/read-only/ALLを確認。cutter SHA b3ceb96e・reconciler7257eedbは同main blob一致。private receipt cleanup-native-clonefile-runtime-20261011.json。freshfree2,247,544,832 bytesを記録するがclone共有blockのst_blocks合計から物理削減を捏造しない。旧cp8327は再利用処理成功件数であり厳密API成功証明と区別する。
+
+reconcilerの既存self-handoffでloaded f78→522が自然に進む。old run18dd3aeab513dac8-36404は17:45:30Z fail1、fleet changed65/errors1/current superseded by e884で全fleet成功ではない。次自然run18dd3c2e48d94470-84544は17:46:36Z/loaded522で開始、reconciler本体はcurrent e884と同SHA、cutterはcurrent e884から取得する契約。root apply/stop/restart0、active ownerは保持。自然terminalはpending。
+
+未解消の圧迫源候補: 17:35:31Z free2,290,036,736→17:37:13Z738,779,136、fresh571,015,168まで低下。同時間のVM total10240MiBは増加無し、巨大open file probeは稼働中primary DBとold binaryだけで1.5GB増加を帰属できない。新規 ~/.cache/codex-runtimes/codex-primary-runtime はdu1,638,056KiB級を観測し、node dependenciesが別の実PID69803（UID501/PPID1）がopenした状態で減少、後に43,376KiB/free2,215,292,928/PID absentを確認。root削除/停止0。writer種別・生成/回収経路は未確定、protected/unknownをgarbageへ拡張しない。次cursorはこのruntime peakのowner/契約診断と実producer→保存→自己/中央回収の同期間収支、自然self-handoff追跡→CLEAN-05残coverage→CLEAN-06反復受入。GiB固定値・単一exit0・clone件数だけで根本修復Doneとしない。
+
 **cleanup現在readback（source/main/release/loaded/naturalを区別）:**
 
 | atom | 確認済み | 実際に残る一操作 |
