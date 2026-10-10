@@ -1086,6 +1086,50 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
                 "earn/revenue owners must run before growth owners",
             )
 
+    def test_mobile_distribution_publishers_precede_bounded_fleet_budget(self):
+        """Mobile distribution owners must not sit behind unrelated work in a bounded pass."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha = self._make_repo(root)
+            release_dir = self._make_release(
+                root,
+                sha,
+                loop_ids=("aaa-growth", "mobile-publisher", "zzz-contract"),
+                entry_overrides={
+                    "aaa-growth": {
+                        "domain": "growth", "admission_class": "revenue",
+                        "priority": "revenue",
+                    },
+                    "mobile-publisher": {
+                        "domain": "growth", "admission_class": "revenue",
+                        "priority": "distribution",
+                        "entrypoint": "apps/life-manager/scripts/mobile-app",
+                    },
+                    "zzz-contract": {
+                        "domain": "earn", "admission_class": "revenue",
+                        "priority": "critical_paid",
+                    },
+                },
+            )
+            self._activate(root, release_dir)
+            calls_log = root / "calls.log"
+            env = self._base_env(root, repo, calls_log=calls_log)
+
+            result = self._run(env)
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            calls_text = calls_log.read_text()
+            self.assertLess(
+                calls_text.index("target=mobile-publisher"),
+                calls_text.index("target=zzz-contract"),
+                "mobile distribution must enter the bounded apply budget first",
+            )
+            self.assertLess(
+                calls_text.index("target=zzz-contract"),
+                calls_text.index("target=aaa-growth"),
+                "earn contracts remain ahead of unrelated growth owners",
+            )
+
     def test_owner_is_not_started_when_remaining_budget_is_less_than_per_owner_timeout(self):
         """A bounded fleet budget must not be overrun by starting another full owner timeout."""
         with tempfile.TemporaryDirectory() as directory:

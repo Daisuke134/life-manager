@@ -385,8 +385,14 @@ prev_failed = {
 
 def apply_order(loop_id):
     entry = loops[loop_id] if isinstance(loops.get(loop_id), dict) else {}
-    # Revenue/contract owners must not starve behind slow growth publishers when the bounded
-    # fleet budget is exhausted. Keep deterministic ordering inside each class.
+    # Mobile publishing owns the user's current acquisition goal; keep its scheduled lanes
+    # inside the bounded fleet budget before unrelated owner work.
+    mobile_distribution_rank = 0 if (
+        entry.get("priority") == "distribution"
+        and entry.get("entrypoint") == "apps/life-manager/scripts/mobile-app"
+    ) else 1
+    # Revenue/contract owners remain ahead of ordinary growth publishers. Keep deterministic
+    # ordering inside each class.
     domain_rank = {"earn": 0, "financial": 1, "growth": 2, "system": 3}.get(
         entry.get("domain"), 4
     )
@@ -394,7 +400,7 @@ def apply_order(loop_id):
         entry.get("priority"), 3
     )
     admission_rank = {"revenue": 0, "borrow": 1}.get(entry.get("admission_class"), 2)
-    return domain_rank, priority_rank, admission_rank, loop_id
+    return mobile_distribution_rank, domain_rank, priority_rank, admission_rank, loop_id
 
 skip_current, clean, failed_last = [], [], []
 for loop_id in sorted(loops.keys(), key=apply_order):
