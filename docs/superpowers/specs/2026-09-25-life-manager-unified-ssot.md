@@ -309,6 +309,9 @@ CLEAN-05 browser wait自然の現在地: 33fd自然run18dd4741121a20d0-59457は2
 
 CLEAN-04 Git重複の実回収と次atom: native git prune-packed -nがpacked duplicate2577個/logical268,137,071/allocated275,361,792 bytesを証明、全て同UID regular。git prune-packed exit0後prune-packable0、HEAD/origin-main object存在とworktree cleanを確認。commit/branch/未追跡/作業変更/正式receipt/保護store削除0。dfの変化を物理回収byteへ帰属しない。receipt=~/.local/state/life-manager/state/git-packed-duplicate-reclaim-20261011.json。この実例は毎分cleanupの対象から漏れていた。残りの先頭atom=既存中央cleanup内へGit標準のpacked duplicate回収を限定的に接続し、refs/primary Git objectを保つこと・重複のみ/replay-zeroを確認する。新schedulerやgit gc/repack/pruneの拡大はしない。最新自然毎分receipt22:32:58Z/中央22:39:58Zはerrors0/protected0/cursor/inventory error無し、容量数字をDone条件にしない。
 
+CLEAN-04 Git重複の自動化source受入: central_cleanup.pyの通常自然run（host cleanup lock-busy分岐も含む）で、明示source repoのGit標準count-objects→prune-packed→count-objectsを呼ぶ最小差分。Git標準packed duplicateだけを扱い、gc/repack/prune・scheduler・refs/primary/作業変更削除を追加しない。各native command15秒上限、repo無しはnot_applicable、失敗/timeoutはerrors1・after=Noneでunknownを保持。実Gitの隔離repoでpacked/loose重複、dirty state receipt、untracked memory、HEAD/branchを用意して新helper未存在のRED→回収後duplicate0/保持一致/replay0のGREEN、既存lock-busy経路からの呼出しも確認。関連cleanup71tests PASS、diff PASS。source/main/immutable/自然git_cleanup receiptは未反映。共有stateのprimary削除0で手動free差分を物理回収byteへ帰属しない。
+
+
 
 
 
