@@ -241,6 +241,16 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 
 **CLEAN-01の最小patch計画:** `bin/disk-watchdog.sh`から既存governorへchild限定の`LIFE_MANAGER_DISK_INVENTORY_FAST=1`を渡し、`disk_cleanup.py::run_once`で毎分ownerだけfull censusを省く。削除候補・UID/open/protection/receipt/singleton/StartInterval60は維持し、5分ownerは既存full inventory経路を保持する。hour markerが古い/予算切れでも毎分passがheavy censusを再試行しないことをfocused RED/GREENとloaded wrapper/hash・自然inventory_mode=fastで確認する。未知のcoverageを0にしない。manual回収済み・Photos保持・remaining inventoryを記録し、source/自然receiptで一件ずつ進む。
 
+**実行済みreadback（primary）:** 閉鎖Gigは共有paid-direct.lockを取得した上で旧納品版/不要作業物188件を回収、estimated allocated2,127,745,024 bytes、kept primary state/terminal/retained package53件の前後SHA一致、errors0/protected_deletions0。receipt=`~/.local/state/life-manager/state/manual-closed-gig-cleanup-20261010.json`。receipt/vault/lock等が混在するdeliveryはzipのみ、最新保持指定packageとJSON/JSONL/CSVは残す。fresh read-only確認済み。
+
+旧run18dcd2f8b2be9e70-19891はevent terminal75/resource_heartbeat_unavailableなのにpaid_direct.py PID20125がPPID1でlockを保持。UID501/start18:38:45/旧release argv/child0を再確認し、SIGTERM不応後に同PIDだけSIGKILL、old scratch/effect evidenceを保持。新しいmain由来Paid ownerの自然再開を観測し、その稼働中のglobal lockへ無断介入せず、終了後の空きwindowで上記回収を実施。
+
+watchdogはcurrent8f56f511 immutable sourceのcanonical installerから60秒labelのみ更新。installed fast flagとmain blob hash一致、自然unbound receipt00:15:47Z/00:19:01Z/00:26:17Z/00:28:08Z/00:33:31Z/00:34:58Zはfast/errors0/protected_deletions0。kickstart/busy75を自然成功の代用にしない。cleanup本体の回復はこの範囲で証明済み、全owner自己cleanup/継続収益進行のcoverageは未完。
+
+DaisのiCloud未使用/停止指示を受け、Photos公式UIの『このMacから5,752低解像度項目を削除、フル解像度はiCloudに残る』経路を実行。iCloud写真=0/共有アルバム=0をreadback。新しい原本ダウンロード/クラウド側一括削除は行わない。iCloud DriveはSystem SettingsのiCloud paneが2回timeoutで未変更、Photosの停止をDrive停止と扱わない。
+
+実free readbackは00:35時点free_after6,340,141,056 bytes（約5.9GiB）。『70〜100GBの空き』は未確認。以前のvisible3root約32.9GBはLM全量ではない。harness/金融state/toolchain等を含む実path footprintとmacOS分類を混同せず、余剰70GBが存在する前提で削除しない。数字は状態の説明、完了KPIではない。
+
 **手動→自己cleanup→中央cleanupの現在契約（最新指示）:** 完了/キャンセル済みGigは、official provider readback由来・現在state SHA一致のproject-terminal.jsonで閉鎖を確認して、不要な作業物/納品版を回収する。旧janitorのartifacts/delivery/source全てを永久保持する既定を、Daisが不要と指定した閉鎖案件へそのまま適用しない。一次state.json/project-terminal.json/events.jsonl、evidence、wallet/credentials、memory/state JSONL、active/lease/lock/open/未知effectの必要証拠は保持する。まず手動の一括回収を実施し、その同じ閉鎖・保護判定を既存project_janitor/owner終了処理へ追加する。primaryはsourceを追加するより既存共通終了処理とjanitorを再利用する。
 
 手動対象=26件の取引完了/キャンセル・state hash一致案件で、closed project内のartifacts/delivery/deliverables/work。root/source/evidence/context/台帳・最終receiptを保持し、対象subtree内の保護store/credentialやopen handleがあれば保持する。receipt等が混在するdelivery3dir（18211957/18169985/5239257）はdir全体を保持し、closed state/hashを再確認したregular .zip旧納品版だけ回収する（receipt/ledger/auth/cookie/vault/lock/recovery/credentials名を除外、JSON/JSONL/CSV・一次evidenceを保持）。並びは大きいものから。未closedの18169583/5238397と、他者のactive source/worktreeは回収しない。18211957はofficial『取引完了』とstate hash一致を確認したが、保存証拠/正式納品再送禁止を維持する。
