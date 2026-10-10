@@ -143,6 +143,10 @@ async function createWebCheckoutSession(uid, user, opts = {}) {
     cancel_url: `${origin}/lm?checkout=cancelled`,
   };
   if (row.stripe_customer_id) params.customer = row.stripe_customer_id;
+  else {
+    const customerEmail = typeof user.email === "string" ? user.email.trim() : "";
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail)) params.customer_email = customerEmail;
+  }
   const digest = crypto.createHash("sha256").update(`${uid}:${row.calendar_connected_account_id}:${priceId}:${trialEligible ? "trial" : "paid"}:${row.stripe_subscription_id || ""}`).digest("hex").slice(0, 40);
   let session;
   try { session = await stripe.checkout.sessions.create(params, { idempotencyKey: `lm-web-trial-${digest}` }); }

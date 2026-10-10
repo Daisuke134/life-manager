@@ -106,6 +106,17 @@ test("Web Checkout uses the existing $29 monthly price and never resumes automat
   }]);
 });
 
+test("Web Checkout pre-fills the authenticated Google email for a new Stripe customer", async () => {
+  assert.ok(webBilling, "web-billing behavior must be implemented");
+  const f = fixture();
+  const email = "web-trial@example.test";
+  await createCheckout(UID, { uid: UID, email }, f.opts);
+  const params = f.calls.checkouts[0].params;
+
+  assert.equal(params.customer_email, email);
+  assert.equal(Object.hasOwn(params, "customer"), false);
+});
+
 test("Web Checkout offers the seven-day card trial before the first scan or Travel block", async () => {
   assert.ok(webBilling, "web-billing behavior must be implemented");
   const f = fixture({ web_initial_scan_completed_at: null, web_first_travel_at: null });
@@ -145,10 +156,11 @@ test("previous legacy trial starts a paid Checkout without granting a second tri
 test("canceled Stripe customer can restart at $29 without another free trial", async () => {
   assert.ok(webBilling, "web-billing behavior must be implemented");
   const f = fixture({ stripe_customer_id: "cus_old", stripe_subscription_id: "sub_cancelled", plan_status: "canceled" });
-  const result = await createCheckout(UID, { uid: UID }, f.opts);
+  const result = await createCheckout(UID, { uid: UID, email: "web-trial@example.test" }, f.opts);
   const request = f.calls.checkouts[0];
   assert.equal(result.trialEligible, false);
   assert.equal(request.params.customer, "cus_old");
+  assert.equal(Object.hasOwn(request.params, "customer_email"), false);
   assert.equal(Object.hasOwn(request.params.subscription_data, "trial_period_days"), false);
 });
 

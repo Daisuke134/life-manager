@@ -16,6 +16,7 @@
 - The page has no dashboard, chat thread, home-address question, Life Manager password, Gmail access, or browser location request.
 - The first CTA says Google Calendarに接続; Google account verification and Calendar permission remain required.
 - Preserve the existing $29/month price. Show the seven-day, card-required trial offer immediately after Calendar is ACTIVE, regardless of scan status or Travel-block count; the trial starts only after explicit Checkout consent and Stripe webhook confirmation.
+- For a new Stripe Customer, prefill Checkout with the authenticated Google identity email as `customer_email`; for an existing Stripe Customer, pass only its customer ID. If no usable identity email exists, let Stripe collect one. This is billing data only; do not read Gmail or send a Life Manager trial reminder.
 - Start the initial automatic Travel pass after Calendar is ACTIVE without exposing a scan control or waiting screen. Periodic scans start only after Stripe confirms the trial/subscription and payment method.
 - The Stripe webhook remains the sole writer of lm_users.paid. Web cancel/payment failure pauses future Calendar reads/writes and preserves existing Travel blocks. Preserve existing Telegram billing behavior.
 - Reuse the shared travel owner, exact ACTIVE Calendar account, event-level effect fences, route cache, and duplicate prevention. Never guess an unknown origin or destination.
@@ -311,11 +312,13 @@ Vercel Chat SDK is the OSS toolkit that most closely matches “one agent across
 
 **Interfaces:**
 - Existing price is USD $29/month. First eligible user gets one seven-day card-required trial; Stripe webhook is the only paid/trial entitlement writer.
+- When creating a new Stripe Customer, Checkout uses the authenticated Web user's email as `customer_email` if present; an existing Stripe customer ID takes precedence and is never combined with `customer_email`.
 - The funnel must join landing/UTM, Calendar ACTIVE, first Travel block, Checkout, card-backed trial, paid invoice, renewal, cancellation, refund, cost and D7/D30 retention without counting internal E2E as customers.
 
-- [ ] Step 1: Verify existing test price/webhook and the staging identity. Expected: test mode only, seven-day trial and payment-method collection, with no live Stripe resource mutation.
-- [ ] Step 2: Complete one staging Checkout and verify the trial webhook, first invoice, portal, cancellation, expiry and payment-failure pause. Expected: recurring Travel stays off until verified trial/paid state and stops on cancel/failure.
-- [ ] Step 3: Read back the Web funnel report and source attribution. Expected: synthetic/test activity is labeled and excluded from customer MRR/CAC.
+- [x] Step 1: Existing Stripe TEST $29/month price and enabled staging webhook read back correctly. The existing Google OAuth client was extended with only the staging Supabase callback while its prior redirect remained unchanged; a staging-only `LM_WEB_CSRF_SECRET` was saved in credential SSOT/Railway, fixing the callback session loop. One Google-auth Web tenant and exact ACTIVE Calendar binding were confirmed. No live Stripe resource changed.
+- [x] Step 2: One staging Checkout created a card-backed seven-day trial at the existing $29/month price. Stripe API readback confirmed `livemode=false`, `trial_end-created=7 days`, and one paid $0 trial invoice. The Portal cancellation-at-trial-end/resume path was read back. A Stripe TEST `trial_end=now` with the designated failure test card produced one `invoice.payment_failed`; Supabase moved to `past_due`/`paid=false`, and the final Stripe TEST subscription readback is `canceled`. No live charge occurred. The automatic initial scan completed with zero confirmed Travel blocks because there were no eligible upcoming events; no synthetic Calendar event was added.
+- [x] Step 3: The 30-day production Web funnel report was read from the production Supabase/live-Stripe service. It showed 43 landing requests, 23 connect starts, one Google-auth/Calendar/first-Travel cohort tagged `internal-e2e`, and zero Checkout sessions, trials, paid invoices, active paid users, or gross MRR. The staging user and Stripe TEST subscription are isolated from that live report. Marketing spend and CAC remain unknown (`marketingUsd`/`netContributionUsd` are null); they are not reported as zero.
+- [ ] Step 4: The hosted Checkout readback exposed an empty billing-email field despite a verified Google identity. Add a failing unit test for `customer_email` prefill on a new Stripe Customer and customer-ID precedence for an existing customer; implement the minimum change and pass the focused/full source acceptance. Expected: no second email entry for a user with a Google email; no Gmail access, price or trial changes.
 
 ### Task 11: Production signed-out readback and task close (WB-15d.7)
 
