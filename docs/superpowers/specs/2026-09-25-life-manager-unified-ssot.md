@@ -13336,3 +13336,24 @@ flowchart LR
 9. Reconcile same-period Apple settled proceeds, refunds, fees, and attributable actual costs. Report USD 10,000 only when Anicca's official settled net recurring MRR proves it, then scale the measured path to the other live apps.
 
 **Current cursor:** item 1, branch synchronization and exact-head CI. Local main merge `efe0b2b2` is not yet pushed; PR #7572 has not merged. Both runtime owners are active, but nothing requires waiting for a future posting slot.
+
+### 2026-10-11 07:39 JST — Branch synced; latest source and report-link tests pushed
+
+- **Git / PR:** branch `fix/mobile-owner-recovery-20261011` now includes current `origin/main=ff7e89673c2f31aafaf26b0fd2e226ca7a66639d` via merge `efe0b2b2cd859d4ae682006ecabdf83ed8362d37`. PR #7572 is open with base `ff7e8967` and exact head `453b1f41b31ab85ee428cd0bedfc671905a67741`; GitHub reports `UNSTABLE` while checks start/run. No review request or subagent. Main still has no mobile source change.
+- **Source:** PR #7572 contains the future-slot fix, native-carousel receipt discovery/retry, and exact Postiz `releaseURL` join for carousel metric Telegram reports. It accepts only a unique exact `PUBLISHED` row matching the stored integration ID and Postiz post ID, and only a direct TikTok `/photo/<id>` or `/video/<id>` URL. Profile-only Postiz URLs remain unavailable and are now visibly reported as `投稿リンク未取得`.
+- **Official marketing read (07:31 JST):** Postiz returned 7 `PUBLISHED` rows in today's JST window: JP1 3, Buddha 3, Honne EN 1. All three JP1 rows have direct photo permalinks under provider alias `@anicca.jpx`. Buddha and Honne's `releaseURL` fields contain only their profile paths, with no other direct post URL field; those must remain unavailable. The other 15 target lanes had no rows in that window, but their individual slots were not all due. The 3/3 bursts around the first slot still do not satisfy three separated slots/account.
+- **Verification:** TikTok due and permalink tests 8/8, marketing liveness tests 9/9, native metric-source tests 2/2, cadence tests 5/5, rotating-runner tests 9/9, and the 18-loop/190-job `lm-loop-contract` pass. `git diff --check` passes. The latest source changes are pushed in `bf07380f43` and the exact-head SSOT checkpoint is `453b1f41`; production remains unchanged.
+- **Runtime / capacity:** `/Users/anicca/loops/current` remains `20261011T060811-33fd6adf`. At 07:39, release reconciler PID 76935 and disk-cleanup owner PID 77179 are both running; do not overlap either. `df -kP` shows 548,180 KiB available. The dynamic capacity measure for exact branch candidate `453b1f41` is 347,115,520 bytes (Node v25.6.1 / npm 11.9.0), so headroom is above this candidate's release requirement. Still wait for both owners' natural terminals and clear locks, then recompute for the exact merged main SHA before release cut.
+
+**Updated remaining TODO — this order remains active:**
+
+1. Wait for required GitHub checks on PR #7572's exact head `453b1f41`; if green, merge to main without requesting a manual review. If a check fails, repair only the failing boundary and rerun checks on the new exact head.
+2. Read the reconciler and cleanup owners' natural terminals and exact locks. Do not start a parallel apply or cleanup. Refresh Postiz and all 18 owner SHAs after those runs.
+3. Recompute release capacity for the exact merged main SHA. Cut its immutable release only when the release-cut lock is free and measured free bytes exceed that dynamic requirement.
+4. Apply through standard owner admission; verify all 18 publisher loaded SHAs/argv/natural terminals. Keep JP1's 3,480 historical effect-unknown claims fenced unless exact occurrence-bound evidence resolves them.
+5. Verify three distinct account-mapped `PUBLISHED` receipts in each configured slot, replay-zero, and 54/54 per JST day for seven consecutive days. Catch up only elapsed slots; never post a future slot early. Continue all independent work between slots.
+6. Measure every TikTok, Instagram, and YouTube post; put a direct verified post permalink in the Telegram metric message whenever Postiz provides one. Keep unsupported links and empty metrics as unavailable, and visibly identify them for follow-up.
+7. Refresh six-app ASC, RevenueCat, and in-app funnels; establish Anicca 100 ASC first-time downloads/day on a trailing 7-day average, then fix paywall plan-load and notification-to-same-quote defects and run one listing/onboarding change at a time.
+8. Reconcile same-period settled Apple proceeds, refunds, fees, and attributable actual costs. Confirm Anicca USD 10,000 net MRR only from official evidence, then replicate the measured path across the other live apps.
+
+**Current cursor:** item 1, exact-head PR checks. Main source, release, and all-account three-slot delivery remain incomplete; the active runtime owners are not a reason to idle on non-slot source or measurement work.
