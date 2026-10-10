@@ -321,6 +321,8 @@ CLEAN-04収支診断と次source scope: 新f78 releaseでshared lockの有限rec
 
 CLEAN-04 native clone source受入: Git archive後のexport正本と完全一致するsameUID/nlink1/regular/read-only/非symlink donorだけを/bin/cp -cで独立inodeへ複製し、複製後も正本と一致した時だけcandidate leafを置換する。native失敗/不一致/不在はGit export保持。実行bitがGit側だけ変わるREDを確認し、候補tempにGit export modeを付け直してGREEN。既存real-Git release fixtureを共用し、clone実呼出・独立inode・mode・changed canonical source・donor不変・memory/unknown非伝播・native失敗fallback、低容量guard/候補/binclosureを含む関連6tests PASS、bash syntax/diff PASS。初回sparseの.gitattributes欠落はHEADの同file復元で解消。正式recordsやdonorは削除せず、new service/cache/schema/model追加0。sourceのみで、本番の物理増加量低減・main/loaded/自然収支は未確認。
 
+CLEAN-04完全release反映: fresh available3,450,400,768 bytesへの自然回復後、自分のread-only du probeだけを終了（PID22068）、最新main522cfb1から正規ALL cutter一回exit0、source clones8327/current20261011T022135-522cfb1fを確認。manifest ancestor-of-origin-main/ALL、cutter SHA c3ba353c・reconciler7257eedb・central15683e2cはmain blob一致/read-only。freshfree2,325,463,040、GUI UID501/DS/Aqua/manager501-PID1/receipt PASS。単一free値の差をclone効果へ帰属せず、本番source再利用の実行証拠とする。次scopeはfresh loaded-idle/unknown=falseの時だけlife-manager-release-reconciler一担当をcanonical reconcile deterministic/loaded-idle/maxowners1で新releaseへ採用し、自然実行/loaded argv/主台帳保持を確認。active owner/current競合があればskipし、新cut/全fleet apply/強制wake/unknown解除はしない。生成と回収の同期間収支・CLEAN-05→06は未完。
+
 **cleanup現在readback（source/main/release/loaded/naturalを区別）:**
 
 | atom | 確認済み | 実際に残る一操作 |
