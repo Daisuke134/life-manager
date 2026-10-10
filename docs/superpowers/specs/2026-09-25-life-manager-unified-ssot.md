@@ -341,6 +341,8 @@ CLEAN-04 cache回収経路のfresh診断: codex-runtime-cacheはEXACT_CACHE_ROOT
 
 CLEAN-04内訳receiptの反映scope: #7545 exact973298742e2337db4471ebe2a79c2310fd1994ff/CI38074121202全10SUCCESS→main d687b29b1953e364cf990d1e2756d6bd62a389c1へadmin merge。正規ALL cutter exit0/native success8329/current20261011T030854-d687b29b、governor SHA4c705d7aはmain blob一致/read-only。fresh safe GUI PASS/nativewatchdog loaded067ac/interval60/idleを確認した時だけ、同main immutableの既存install-launchd.shでcom.anicca.disk-watchdog一件をpinする。直前loaded-runningなら延期、active user/browser/model/sourceは止めない。周期60/RunAtLoad/Throttle60/主記録は維持し、自然reclaimed candidate receiptをreadbackしてこのatomを閉じる。
 
+CLEAN-04中央owner復旧scope: 内訳fieldの自然18:11:45ZはPID40399/errors0/protected0、github-cache6411/pip-cache25230/未参照067ac release（logical unknown/null）のpathを記録。次18:13:23Z PID42911はerrors0/protected0/reclaimed0/details空/省略0で正常なreplay分離を確認。一方fresh lm-loop statusはlife-manager-disk-cleanupがunloaded/unknown=false/installedf78、fresh safe GUIはservice absent、plist存在、state_root内stop/pause記録なし、registryはscheduled300。原因は未確定で、旧fleetのreason=current skipが現在loadedを証明しない。cleanup常時運用の委任scopeとして、fresh preflight/unknown/共有lockを確認後にLIFE_MANAGER_APPLY_TARGET=life-manager-disk-cleanupで既存canonical apply --loaded-idle-only一件を行い最新d687へ復旧する。全fleet reload・他owner stop・manual provider effect/unknown解除0。復旧後loaded argv/自然terminalを確認し原因は診断cursorへ保持する。
+
 **cleanup現在readback（source/main/release/loaded/naturalを区別）:**
 
 | atom | 確認済み | 実際に残る一操作 |
