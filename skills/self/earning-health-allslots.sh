@@ -26,7 +26,6 @@ SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REGISTRY="${EARNHC_REGISTRY:-$SELF_DIR/earning-health-registry.json}"
 EARN_STATE_DIR="${EARNHC_EARN_STATE_DIR:-$SELF_DIR/../earn/state}"
 STATE_DIR="${EARNHC_STATE_DIR:-$HOME/.local/state/life-manager/state}"; mkdir -p "$STATE_DIR" 2>/dev/null || true
-LOG="${EARNHC_LOG:-$HOME/.local/state/life-manager/logs/earning-health-allslots.log}"; mkdir -p "$(dirname "$LOG")" 2>/dev/null || true
 # FIND-005 test seam (mirrors self-fix.sh's own SELF_FIX_DRYRUN seam): lets a test point the
 # self-fix invocation at a stub script that records its raw args, so the sanitization boundary can
 # be proven end-to-end without needing self-fix.sh itself to echo its BLOCKER (which it doesn't,
@@ -34,7 +33,7 @@ LOG="${EARNHC_LOG:-$HOME/.local/state/life-manager/logs/earning-health-allslots.
 SELF_FIX_SCRIPT="${EARNHC_SELF_FIX_SCRIPT:-$SELF_DIR/self-fix.sh}"
 
 if [ ! -f "$REGISTRY" ]; then
-  echo "$(date '+%F %T') no registry at $REGISTRY -- nothing to check" >> "$LOG"
+  echo "$(date '+%F %T') no registry at $REGISTRY -- nothing to check" >&2
   exit 0
 fi
 
@@ -63,7 +62,7 @@ for s in reg.get("slots", []) or []:
 ' "$REGISTRY")"
 
 if printf '%s' "$ROWS" | grep -q '^__REGISTRY_PARSE_ERROR__'; then
-  echo "$(date '+%F %T') registry at $REGISTRY is not valid JSON -- nothing to check" >> "$LOG"
+  echo "$(date '+%F %T') registry at $REGISTRY is not valid JSON -- nothing to check" >&2
   exit 0
 fi
 
@@ -82,10 +81,10 @@ for row in report.get("slots", []):
 for row in report.get("portfolios", []):
     print("PORTFOLIO {} {} reason={}".format(row.get("id"), str(row.get("state", "degraded")).upper(), row.get("reason", "probe_unavailable")))
 ' | while IFS= read -r health_line; do
-      echo "$(date '+%F %T') $health_line" >> "$LOG"
+      echo "$(date '+%F %T') $health_line" >&2
     done
   else
-    echo "$(date '+%F %T') RAIL-HEALTH DEGRADED reason=report_failed" >> "$LOG"
+    echo "$(date '+%F %T') RAIL-HEALTH DEGRADED reason=report_failed" >&2
   fi
 fi
 
@@ -94,7 +93,7 @@ while IFS=$'\x1f' read -r ID INSTR TRACEFILE MINRUN TARGET ESC_HRS GAPNOTE; do
 
   # REQ-AS-004: a non-instrumented slot is a DOCUMENTED gap, never a fabricated OK/BARREN verdict.
   if [ "$INSTR" != "1" ]; then
-    echo "$(date '+%F %T') NOT-INSTRUMENTED $ID -- ${GAPNOTE:-no gapNote recorded}" >> "$LOG"
+    echo "$(date '+%F %T') NOT-INSTRUMENTED $ID -- ${GAPNOTE:-no gapNote recorded}" >&2
     continue
   fi
 
@@ -103,7 +102,7 @@ while IFS=$'\x1f' read -r ID INSTR TRACEFILE MINRUN TARGET ESC_HRS GAPNOTE; do
   [ -z "$TRACEFILE" ] && continue
   TRACE="$EARN_STATE_DIR/$TRACEFILE"
   if [ ! -f "$TRACE" ]; then
-    echo "$(date '+%F %T') $ID: no trace file at $TRACE -- nothing to check (not deployed/run here yet)" >> "$LOG"
+    echo "$(date '+%F %T') $ID: no trace file at $TRACE -- nothing to check (not deployed/run here yet)" >&2
     continue
   fi
 
@@ -142,7 +141,7 @@ except Exception:
     # guard and SOL-1 (2026-07-17: sol-trade frozen after 850 passes / 0 swaps / $0 realized).
     # Escalating an intentional freeze every ESC_HRS wastes a full self-fix agent spawn forever.
     if [ "$RAW_REASON" = "kill-switch" ]; then
-      echo "$(date '+%F %T') $ID FROZEN (intentional KILL file present, reason=kill-switch) -- not a bug, no escalation" >> "$LOG"
+      echo "$(date '+%F %T') $ID FROZEN (intentional KILL file present, reason=kill-switch) -- not a bug, no escalation" >&2
       continue
     fi
     now=$(date +%s)
@@ -153,13 +152,13 @@ except Exception:
     [ -f "$MK" ] && age_hrs=$(( (now - $(stat -f %m "$MK" 2>/dev/null || echo 0)) / 3600 ))
     if [ "$age_hrs" -ge "$ESC_HRS" ]; then
       touch "$MK"
-      echo "$(date '+%F %T') $ID BARREN: last $MINRUN trace lines are all skip/error, cause '$REASON' -> self-fix escalated" >> "$LOG"
-      bash "$SELF_FIX_SCRIPT" "$TARGET" "$SAFE_ID trace is fresh (a new line every wake) but the last $MINRUN wakes are ALL a mechanism-failure action (skip or error) with the identical cause '$REASON' -- the loop is alive but a deterministic guard or a code/env error (identity-mismatch / kill-switch / earn-guard / missing AGENT_HOME / a crashing sub-process) is rejecting or breaking every wake before the agent ever gets to trade. Diagnose why (identity resolution, ANICCA_HOME/ANICCA_REPO path, env) and fix it so the agent actually gets to run its pass." >> "$LOG" 2>&1 \
-        || echo "$(date '+%F %T') $ID: self-fix launch failed" >> "$LOG"
+      echo "$(date '+%F %T') $ID BARREN: last $MINRUN trace lines are all skip/error, cause '$REASON' -> self-fix escalated" >&2
+      bash "$SELF_FIX_SCRIPT" "$TARGET" "$SAFE_ID trace is fresh (a new line every wake) but the last $MINRUN wakes are ALL a mechanism-failure action (skip or error) with the identical cause '$REASON' -- the loop is alive but a deterministic guard or a code/env error (identity-mismatch / kill-switch / earn-guard / missing AGENT_HOME / a crashing sub-process) is rejecting or breaking every wake before the agent ever gets to trade. Diagnose why (identity resolution, ANICCA_HOME/ANICCA_REPO path, env) and fix it so the agent actually gets to run its pass." >&2 \
+        || echo "$(date '+%F %T') $ID: self-fix launch failed" >&2
     else
-      echo "$(date '+%F %T') $ID BARREN but already escalated ${age_hrs}h ago (<${ESC_HRS}h) -- skip (no repeat spam)" >> "$LOG"
+      echo "$(date '+%F %T') $ID BARREN but already escalated ${age_hrs}h ago (<${ESC_HRS}h) -- skip (no repeat spam)" >&2
     fi
   else
-    echo "$(date '+%F %T') $ID OK (last $MINRUN trace entries are not all-same-cause skip/error)" >> "$LOG"
+    echo "$(date '+%F %T') $ID OK (last $MINRUN trace entries are not all-same-cause skip/error)" >&2
   fi
 done <<< "$ROWS"

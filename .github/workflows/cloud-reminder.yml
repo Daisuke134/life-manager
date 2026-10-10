@@ -37,7 +37,7 @@ jobs:
       - name: Detailed travel and online notification regressions
         run: node --test lib/travel-reminder-detail.test.js
       - name: Shared Calendar, Telegram, and call timing contract
-        run: node --test lib/travel-timing.test.js lib/wake-filter.test.js lib/travel-return.test.js test/wake-levels.test.js test/wake-loop-isolation.test.js
+        run: node --test lib/transport/calendar-composio.test.js lib/travel-timing.test.js lib/wake-filter.test.js lib/travel-return.test.js test/wake-levels.test.js test/wake-loop-isolation.test.js
       - name: Package exact tracked Cloud source for offline verification
         working-directory: .
         run: |

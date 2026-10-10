@@ -468,12 +468,12 @@ def test_a_run_that_stopped_at_the_gate_closes_as_pre_effect(tmp_path):
     assert proof["owner_id"] == OWNER and proof["occurrence_id"] == GATE_OCC and proof["evidence_ref"]
 
 
-def test_a_run_that_reached_generation_or_has_no_run_never_closes_as_pre_effect(tmp_path):
+def test_a_run_that_reached_publication_or_has_no_run_never_closes_as_pre_effect(tmp_path):
     m = _load()
     for n, (files, rows, reason) in enumerate((
-        (["git-hash.txt", "article-daily-prompt.txt"], [], "run_reached_generation"),
-        (["git-hash.txt", "model-stdout.log"], [], "run_reached_generation"),
-        (["git-hash.txt"], [{"run_id": "20261008-232303"}], "run_reached_generation"),
+        (["git-hash.txt", "article-daily-prompt.txt", "gates/publication-state.json"], [], "run_reached_publication"),
+        (["git-hash.txt", "model-stdout.log", "gates/publication-state.json"], [], "run_reached_publication"),
+        (["git-hash.txt"], [{"run_id": "20261008-232303"}], "run_reached_publication"),
         (None, [], "no_run_paired_with_this_fence"),
     )):
         runs = tmp_path / f"runs{n}"
@@ -490,3 +490,30 @@ def test_pre_effect_without_resolve_writes_nothing(tmp_path):
     _run_dir(runs, "20261008-232303", ["git-hash.txt"])
     result, closed = _pre(m, tmp_path, runs, resolve=False)
     assert result["status"] == "pre_effect" and result["closed"] is False and closed == []
+
+
+def test_a_generated_run_without_publication_state_closes_as_pre_effect(tmp_path):
+    # Every managed publish adapter refuses without gates/publication-state.json
+    # (publication-guard register-intent precedes the first live side effect).
+    m = _load()
+    runs = tmp_path / "runs"
+    _run_dir(runs, "20261008-232303", ["git-hash.txt", "article-daily-prompt.txt", "article-ja.md"])
+    result, closed = _pre(m, tmp_path, runs)
+    assert result["status"] == "pre_effect" and result["closed"] is True
+    assert "no-publication-state" in closed[0][1]["evidence_ref"]
+
+
+def test_a_resumed_run_pairs_through_its_attempt_start(tmp_path):
+    # 2026-10-09 15:19 JST: occurrence 18dcc8165ae08ca0-96619 resumed run 20261008-232303
+    # (created 08:23 JST), generated the article, then died on ENOSPC before publication.
+    m = _load()
+    runs = tmp_path / "runs"
+    d = _run_dir(runs, "20261008-120000", ["git-hash.txt", "article-daily-prompt.txt", "article-ja.md"])
+    attempt = datetime.fromtimestamp(GATE_QUEUED, timezone.utc) + timedelta(minutes=4)
+    (d / "gates" / "generation-state.json").write_text(json.dumps(
+        {"attempts": [{"attempt": 1, "started_at": attempt.isoformat().replace("+00:00", "Z")}]}))
+    result, closed = _pre(m, tmp_path, runs)
+    assert result["status"] == "pre_effect" and result["closed"] is True
+    (d / "gates" / "publication-state.json").write_text("{}")
+    result, closed = _pre(m, tmp_path, runs)
+    assert result["status"] == "inconclusive" and result["reason"] == "run_reached_publication" and closed == []

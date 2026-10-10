@@ -7,7 +7,7 @@ due cadence_jst slot and whether that slot has not already posted (per-slot
 ledger fence). Picks the first due+unposted account, renders one short
 vertical video from an on-sale sticker set's clips, composes a caption
 (hook via agent_runner, everything else deterministic), and publishes it
-through one of two transports selected per account ("transport" field,
+through one of three transports selected per account ("transport" field,
 default "postiz"):
   - "postiz": the shared skills/video/lm-distribution/postiz_video.py
     client (create -> poll -> PUBLISHED readback, official receipt).
@@ -16,6 +16,9 @@ default "postiz"):
     account whose Postiz channel slot is unavailable (workspace channel
     limit, 2026-10-07) -- readback is the Reel URL post_reel.py confirms on
     the profile.
+  - "browser_threads": threads_publish.py posts the same video to the Threads
+    profile made from that Instagram session (clickable purchase link in the
+    caption); readback is the new post code on the Threads profile.
 An empty accounts list is a no-op, not an error -- Dais adds a dedicated
 target here once one exists; see AGENTS.md rule 9 and the 2026-10-07 course
 correction: NEVER a shared Anicca/Honne/eBook brand integration.
@@ -41,6 +44,7 @@ import due_slot  # noqa: E402
 import line_sticker_distribute_ledger as ledger  # noqa: E402
 import pick_set  # noqa: E402
 import render_video  # noqa: E402
+import threads_publish  # noqa: E402
 
 POSTIZ_VIDEO = REPO_ROOT / "skills/video/lm-distribution/postiz_video.py"
 DEFAULT_ACCOUNTS_CONFIG = REPO_ROOT / "config/line-sticker-distribute-accounts.json"
@@ -76,12 +80,12 @@ def load_accounts(config_path: Path) -> list[dict]:
         if transport == "postiz":
             if not isinstance(account.get("integration_id"), str) or not account["integration_id"]:
                 raise RuntimeError(f"account {account['lane_id']} (postiz) needs integration_id")
-        elif transport == "browser_reel":
+        elif transport in ("browser_reel", "browser_threads"):
             if not all(
                 isinstance(account.get(field), str) and account[field]
                 for field in ("handle", "browser_identity")
             ):
-                raise RuntimeError(f"account {account['lane_id']} (browser_reel) needs handle, browser_identity")
+                raise RuntimeError(f"account {account['lane_id']} ({transport}) needs handle, browser_identity")
         else:
             raise RuntimeError(f"account {account['lane_id']} has an unknown transport: {transport}")
         if not isinstance(account.get("cadence_jst"), list) or not account["cadence_jst"]:
@@ -238,6 +242,14 @@ def run_pass(
         post_url = receipt.get("post_url")
     elif transport == "browser_reel":
         receipt = browser_reel_publish.publish(
+            video=video_path, caption_file=caption_path, handle=account["handle"],
+            browser_identity=account["browser_identity"], live=True,
+        )
+        error_detail = receipt.get("error")
+        published = receipt.get("outcome") == "published" and bool(receipt.get("post_url"))
+        post_url = receipt.get("post_url")
+    elif transport == "browser_threads":
+        receipt = threads_publish.publish(
             video=video_path, caption_file=caption_path, handle=account["handle"],
             browser_identity=account["browser_identity"], live=True,
         )

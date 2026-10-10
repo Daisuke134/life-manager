@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import StoreKit
 import UIKit
 
 /// Anicca app root: full-bleed vertical paging feed.
@@ -11,9 +12,13 @@ struct FeedRootView: View {
     @ObservedObject private var appState = AppState.shared
     @StateObject private var quoteNavigation = QuoteNavigationCoordinator.shared
     @Environment(\.openURL) private var openURL
+    @Environment(\.requestReview) private var requestReview
     @State private var quotes: [Quote] = []
     @State private var currentIndex: Int = 0
     @State private var showSettings = false
+    /// Unique affirmations seen this launch — used as a lightweight "session finished" signal.
+    @State private var viewedQuoteIDsThisSession: Set<String> = []
+    @State private var didRequestReviewForSession = false
 
     /// Apple のお支払い更新ページ。RevenueCat の managementURL があればそれを優先。
     private var managePaymentURL: URL {
@@ -72,12 +77,16 @@ struct FeedRootView: View {
                 quotes = QuoteProvider.shared.all()
             }
             applyPendingQuoteNavigation()
+            recordViewedQuoteIfNeeded()
         }
         .onChange(of: quoteNavigation.pendingRequest) { _ in
             applyPendingQuoteNavigation()
         }
         .onChange(of: quotes) { _ in
             applyPendingQuoteNavigation()
+        }
+        .onChange(of: currentIndex) { _ in
+            recordViewedQuoteIfNeeded()
         }
         .sheet(isPresented: $showSettings) {
             if #available(iOS 16.0, *) {
@@ -109,6 +118,17 @@ struct FeedRootView: View {
             index = quotes.count - 1
         }
         withAnimation { currentIndex = index }
+    }
+
+    /// After reading several affirmations in one launch, treat that as a finished session.
+    private func recordViewedQuoteIfNeeded() {
+        guard quotes.indices.contains(currentIndex) else { return }
+        viewedQuoteIDsThisSession.insert(quotes[currentIndex].id)
+        guard !didRequestReviewForSession, viewedQuoteIDsThisSession.count >= 3 else { return }
+        didRequestReviewForSession = true
+        ReviewPromptCoordinator.shared.requestReviewIfAppropriate {
+            requestReview()
+        }
     }
 
     private var billingIssueBanner: some View {

@@ -34,8 +34,7 @@ MIN_AGE_SECONDS = 3600            # never touch a fence whose run may still be g
 ADMISSION_DB = Path.home() / ".local/state/life-manager/host-admission/resources/admission-v2.sqlite3"
 ARTICLES = Path.home() / ".local/state/life-manager/writer/articles.jsonl"
 RUNS_ROOT = Path.home() / ".local/state/life-manager/writer/runs"
-# article-daily.sh writes these only after the paid-demand gate, right before / after the provider call.
-GENERATION_MARKERS = ("article-daily-prompt.txt", "model-stdout.log")
+PUBLICATION_STATE = "gates/publication-state.json"   # publication-guard writes it before any live effect
 WRITER_STATE_ROOT = Path.home() / ".local/state/life-manager/writer"
 SOURCE_REPO = Path.home() / "Projects/life-manager-main"
 HISTORICAL_GATE_STOP_PROOFS = {
@@ -103,6 +102,18 @@ def _run_start_epoch(run_id: str) -> float | None:
         return datetime.strptime(run_id[:15], "%Y%m%d-%H%M%S").replace(tzinfo=timezone.utc).timestamp()
     except ValueError:
         return None
+
+
+def _run_starts(run_dir: Path) -> list[float]:
+    """The run's creation time plus every generation attempt start (a run can be resumed later)."""
+    starts = [t for t in [_run_start_epoch(run_dir.name)] if t is not None]
+    try:
+        state = json.loads((run_dir / "gates/generation-state.json").read_text(encoding="utf-8"))
+        for attempt in state.get("attempts") or []:
+            starts.append(datetime.fromisoformat(str(attempt["started_at"]).replace("Z", "+00:00")).timestamp())
+    except (OSError, ValueError, TypeError, KeyError, AttributeError):
+        pass
+    return starts
 
 
 def _jsonl_lines(path: Path) -> list[str] | None:
@@ -316,24 +327,25 @@ def _inconclusive(occurrence_id: str, reason: str) -> dict:
 
 def _pre_effect(occurrence_id: str, queued_at: float, state: str, rows: list, runs_root: Path,
                 resolver: Callable[..., bool] | None, resolve: bool) -> dict:
-    """Close a fence whose paired run stopped before the provider was ever invoked.
+    """Close a fence whose paired run stopped before any publication intent was registered.
 
-    Positive evidence only: at least one run dir started in the pairing window, and none of the paired
-    runs has a generation marker or a ledger row.  No paired run -> the fence stays (absence of a run
-    is not proof).
+    Positive evidence only: at least one run dir (or a resumed attempt of one) started in the pairing
+    window, and none of the paired runs has a publication state or a ledger row.  Every managed
+    publish adapter refuses without gates/publication-state.json, which publication-guard writes
+    before the first live side effect.  No paired run -> the fence stays (absence of a run is not proof).
     """
     try:
         paired = sorted(d for d in runs_root.iterdir()
-                        if d.is_dir() and (started := _run_start_epoch(d.name)) is not None
-                        and 0 <= started - queued_at <= PAIR_WINDOW_SECONDS)
+                        if d.is_dir() and any(0 <= started - queued_at <= PAIR_WINDOW_SECONDS
+                                              for started in _run_starts(d)))
     except OSError:
         return _inconclusive(occurrence_id, "runs_root_unreadable")
     if not paired:
         return _inconclusive(occurrence_id, "no_run_paired_with_this_fence")
     ledger_runs = {str(row.get("run_id", "")) for row in rows}
-    if any(d.name in ledger_runs or any((d / m).exists() for m in GENERATION_MARKERS) for d in paired):
-        return _inconclusive(occurrence_id, "run_reached_generation")
-    evidence = "writer-run-no-generation-marker:" + ",".join(d.name for d in paired)
+    if any(d.name in ledger_runs or (d / PUBLICATION_STATE).exists() for d in paired):
+        return _inconclusive(occurrence_id, "run_reached_publication")
+    evidence = "writer-run-no-publication-state:" + ",".join(d.name for d in paired)
     result = {"status": "pre_effect", "occurrence_id": occurrence_id, "closed": False, "evidence_ref": evidence}
     if not resolve:
         return result

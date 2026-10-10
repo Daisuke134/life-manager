@@ -1,6 +1,7 @@
 Primary Model: Claude Sonnet 5.5 · category: ソーシャルメディア · tags: podcast clips, hook writing, short-form, captions, creator workflow
 
-Demand rank: 1
+Demand rank: 0
+Rank evidence (2026-10-09): 2026-10-08 market sweep of 854 agents sells 77.1 units per agent in the short-video/creator category vs 56.7 analysis, 33.5 finance and 0.5-6.6 for B2B decks; our own 30-day sales come from Hook Lab, TikTok Script Pro and other creator tools.
 Demand note: of 3 eligible proven-winner families for this catalog pass. The release-owned `sales_selector.py` output identifies `Hook Lab — Win the First 3 Seconds` as the top real-profit 30-day winner (+$19.57) and `TikTok Script Pro — Hook-First Short Videos` as another profitable short-form winner. Podcast Clip Hook Lab stays in that proven Hook Lab family while addressing an uncovered customer job: a text-first treatment for a pasted podcast excerpt. This is a family-priority and catalog-gap rank, not a sales claim for this candidate.
 
 ## Offline selection notes

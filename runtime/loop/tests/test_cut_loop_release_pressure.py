@@ -6,8 +6,41 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from runtime.loop.loop_cleanup import _release_immutable_store_probe
+
 
 class CutLoopReleasePressureTest(unittest.TestCase):
+    def test_full_release_capacity_defers_before_export(self):
+        source = Path(__file__).resolve().parents[3]
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            repo = home / "repo"
+            repo.mkdir()
+            subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True)
+            for key, value in (("user.email", "test@example.invalid"), ("user.name", "Test")):
+                subprocess.run(["git", "config", key, value], cwd=repo, check=True)
+            for relative in ("bin/cut-loop-release.sh", "runtime/host/disk_admission.py"):
+                target = repo / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(source / relative, target)
+            cleanup = repo / "runtime/loop/central_cleanup.py"
+            cleanup.parent.mkdir(parents=True)
+            cleanup.write_text("raise SystemExit(0)\n")
+            subprocess.run(["git", "add", "."], cwd=repo, check=True)
+            subprocess.run(["git", "commit", "-m", "fixture"], cwd=repo, check=True, capture_output=True)
+            subprocess.run(["git", "update-ref", "refs/remotes/origin/main", "HEAD"], cwd=repo, check=True)
+            probe = home / "capacity-probe"
+            probe.mkdir()
+            (probe / "sitecustomize.py").write_text(
+                "import shutil,types\nshutil.disk_usage=lambda p: types.SimpleNamespace(free=0)\n")
+            for paths in ("", "\t "):
+                with self.subTest(paths=paths):
+                    result, loops = self.run_cut(repo, home, paths, LOOPS_ACTIVATE_CURRENT="0", PYTHONPATH=str(probe))
+                    self.assertEqual(result.returncode, 75, result.stderr)
+                    self.assertEqual(json.loads(result.stdout.strip())["reason"], "disk_headroom_low")
+                    self.assertFalse((loops / "releases").exists())
+                    self.assertFalse((loops / ".release-cut.lock").exists())
+
     def run_cut(self, repo: Path, home: Path, paths: str, **extra_env: str):
         pressure = home / ".local" / "state" / "life-manager" / "state" / "disk-pressure.block"
         pressure.parent.mkdir(parents=True, exist_ok=True)
@@ -38,11 +71,13 @@ class CutLoopReleasePressureTest(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as raw_home:
             home = Path(raw_home)
+            trace = home / "git.trace"
             result, loops = self.run_cut(
-                repo, home, "runtime/loop/runtime_event.py", LOOPS_ACTIVATE_CURRENT="0",
+                repo, home, "runtime/loop/runtime_event.py", LOOPS_ACTIVATE_CURRENT="0", GIT_TRACE=str(trace),
             )
 
             self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertNotRegex(trace.read_text(), r"run_command:.*(?:maintenance run|gc).*--auto")
             releases = list((loops / "releases").iterdir())
             self.assertEqual(len(releases), 1)
             self.assertTrue((releases[0] / "RELEASE.json").is_file())
@@ -76,9 +111,20 @@ class CutLoopReleasePressureTest(unittest.TestCase):
             (repo / "bin").mkdir()
             shutil.copy2(Path(__file__).resolve().parents[3] / "bin/cut-loop-release.sh",
                          repo / "bin/cut-loop-release.sh")
+            attributes = Path(__file__).resolve().parents[3] / ".gitattributes"
+            if attributes.is_file():
+                shutil.copy2(attributes, repo / ".gitattributes")
+            memory = repo / "memory" / "owner.md"
+            memory.parent.mkdir()
+            memory.write_text("persistent owner memory\n", encoding="utf-8")
             cleanup = repo / "runtime/loop/central_cleanup.py"
             cleanup.parent.mkdir(parents=True)
             cleanup.write_text("raise SystemExit(0)\n", encoding="utf-8")
+            shutil.copy2(Path(__file__).resolve().parents[3] / "runtime/loop/loop_cleanup.py",
+                         cleanup.with_name("loop_cleanup.py"))
+            guard = repo / "runtime/host/disk_admission.py"
+            guard.parent.mkdir(parents=True)
+            shutil.copy2(Path(__file__).resolve().parents[3] / "runtime/host/disk_admission.py", guard)
             (repo / "old.txt").write_text("old\n", encoding="utf-8")
             (repo / "package.json").write_text('{"name":"release-test","version":"1.0.0"}\n', encoding="utf-8")
             package_lock = '{"name":"release-test","version":"1.0.0","lockfileVersion":3,"packages":{}}\n'
@@ -101,6 +147,10 @@ class CutLoopReleasePressureTest(unittest.TestCase):
             (donor / "RELEASE.json").write_text(json.dumps({
                 "sha": old_sha, "release_paths": "ALL",
             }) + "\n", encoding="utf-8")
+            (donor / "untracked-diagnostic.log").write_text("legacy diagnostics must not propagate\n", encoding="utf-8")
+            donor_memory = donor / "memory" / "owner.md"
+            donor_memory.parent.mkdir()
+            donor_memory.write_text("existing owner memory\n", encoding="utf-8")
             subprocess.run(["chmod", "-R", "a-w", str(donor)], check=True)
             (loops / "current").symlink_to(donor)
 
@@ -109,8 +159,13 @@ class CutLoopReleasePressureTest(unittest.TestCase):
             subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
             subprocess.run(["git", "commit", "-m", "new"], cwd=repo, check=True, capture_output=True)
             subprocess.run(["git", "push", "origin", "main"], cwd=repo, check=True, capture_output=True)
+            probe = home / "capacity-probe"
+            probe.mkdir()
+            (probe / "sitecustomize.py").write_text(
+                "import shutil,types\nshutil.disk_usage=lambda p: types.SimpleNamespace(free=16*1024**3)\n")
             result, _ = self.run_cut(
                 repo, home, "", LOOPS_ACTIVATE_CURRENT="0", LOOPS_KEEP_RELEASES="2",
+                PYTHONPATH=str(probe),
             )
 
             self.assertEqual(result.returncode, 0, result.stderr)
@@ -118,6 +173,12 @@ class CutLoopReleasePressureTest(unittest.TestCase):
                         if candidate != donor]
             self.assertEqual(len(releases), 1)
             release = releases[0]
+            self.assertFalse((release / "memory").exists(), "source archive copied owner memory")
+            self.assertEqual(memory.read_text(), "persistent owner memory\n")
+            self.assertEqual(donor_memory.read_text(), "existing owner memory\n")
+            self.assertIsNone(_release_immutable_store_probe(release))
+            self.assertFalse((release / "untracked-diagnostic.log").exists())
+            self.assertEqual((donor / "untracked-diagnostic.log").read_text(), "legacy diagnostics must not propagate\n")
             self.assertFalse((release / "old.txt").exists())
             self.assertEqual((release / "new.txt").read_text(), "new\n")
             self.assertEqual((release / "node_modules/runtime-marker").read_text(), "preserved\n")

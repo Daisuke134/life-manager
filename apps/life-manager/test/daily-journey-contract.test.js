@@ -195,6 +195,7 @@ test("CORE 8e drives the production DAILY journey with provider-ordered reportin
   const location = {
     latitude: 35.0,
     longitude: 139.0,
+    observed_at: "2026-07-23T13:09:00+09:00",
     expires_at: "2026-07-23T16:00:00+09:00",
   };
   let routeMinutes = 20;

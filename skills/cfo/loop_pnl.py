@@ -1333,6 +1333,17 @@ def _b7_table(day: date, projection: dict, *, snapshot_at: str, trailing_start: 
     billing_directory = Path(billing_directory_value) if billing_directory_value else (
         STATE / "life-manager-cfo-hourly" / "evidence" / "google-cloud-billing"
     )
+    actual_cost_path = (
+        os.environ.get("LM_CFO_ACTUAL_COST_READBACK")
+        or os.environ.get("LM_CFO_ACTUAL_COST")
+    )
+    if actual_cost_path:
+        try:
+            actual_cost_payload = _read_b7_payload(actual_cost_path)
+        except (OSError, UnicodeError, json.JSONDecodeError, TypeError, ValueError, KeyError):
+            actual_cost_payload = {}
+    else:
+        actual_cost_payload = None
     return {
         "reporting_date": day.isoformat(),
         "timezone": "Asia/Tokyo",
@@ -1340,6 +1351,9 @@ def _b7_table(day: date, projection: dict, *, snapshot_at: str, trailing_start: 
         "trailing_start": projection["trailing_start"],
         "economic_attribution": projection,
         "google_billed_expenses": google_cost_table.load_directory(billing_directory),
+        "actual_billed_expenses": actual_cost.billed_expenses(
+            actual_cost_payload, snapshot_at=snapshot_at, trailing_start=trailing_start,
+        ),
     }
 
 

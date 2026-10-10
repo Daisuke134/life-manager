@@ -1,0 +1,161 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "marketing.lead-signals.output.v1",
+  "title": "Life Manager Treg lead signals",
+  "$comment": "The weekly owner replaces product ID enums and the signal maximum from currently loaded product profiles before invoking the agent.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "balance_before_usd",
+    "route_checks",
+    "treg_calls",
+    "signals"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "life-manager.treg-lead-signals.v1"
+    },
+    "balance_before_usd": {
+      "type": "number",
+      "minimum": 0
+    },
+    "route_checks": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["platform", "endpoint_id", "price_usd"],
+        "properties": {
+          "platform": {
+            "type": "string",
+            "enum": ["x", "reddit"]
+          },
+          "endpoint_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "price_usd": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 0.003
+          },
+          "hit_rate": {
+            "type": ["number", "null"],
+            "minimum": 0,
+            "maximum": 1
+          }
+        }
+      }
+    },
+    "treg_calls": {
+      "type": "array",
+      "maxItems": 18,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "product_id",
+          "platform",
+          "endpoint_id",
+          "call_id",
+          "charged_micro",
+          "result_status"
+        ],
+        "properties": {
+          "product_id": {
+            "type": "string",
+            "enum": [
+              "anicca-ios", "honne-ai", "ebook-en", "ebook-ja", "life-manager-cloud",
+              "dhamma-quotes", "sleep-reset", "studio-cherie", "thankful"
+            ]
+          },
+          "platform": {
+            "type": "string",
+            "enum": ["x", "reddit"]
+          },
+          "endpoint_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "call_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "charged_micro": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3000
+          },
+          "result_status": {
+            "type": "string",
+            "enum": ["success", "empty", "failed"]
+          }
+        }
+      }
+    },
+    "signals": {
+      "type": "array",
+      "maxItems": 9,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "product_id",
+          "platform",
+          "person_url",
+          "signal",
+          "source_url",
+          "observed_at",
+          "why_now",
+          "call_id"
+        ],
+        "properties": {
+          "product_id": {
+            "type": "string",
+            "enum": [
+              "anicca-ios", "honne-ai", "ebook-en", "ebook-ja", "life-manager-cloud",
+              "dhamma-quotes", "sleep-reset", "studio-cherie", "thankful"
+            ]
+          },
+          "platform": {
+            "type": "string",
+            "enum": ["x", "reddit"]
+          },
+          "person_url": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 2048,
+            "pattern": "^https://"
+          },
+          "signal": {
+            "type": "string",
+            "enum": ["pain", "explicit_intent", "competitor_complaint"]
+          },
+          "source_url": {
+            "type": "string",
+            "minLength": 12,
+            "maxLength": 2048,
+            "pattern": "^https://"
+          },
+          "observed_at": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 40
+          },
+          "why_now": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          },
+          "call_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}

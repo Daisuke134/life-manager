@@ -16,10 +16,18 @@ final class LikedQuotesStore: ObservableObject {
 
     func isLiked(_ id: String) -> Bool { likedIds.contains(id) }
 
-    func toggle(_ id: String) {
-        if likedIds.contains(id) { likedIds.remove(id) }
-        else { likedIds.insert(id) }
-        persist()
+    /// Toggles like state. Returns `true` when the quote was newly favorited.
+    @discardableResult
+    func toggle(_ id: String) -> Bool {
+        if likedIds.contains(id) {
+            likedIds.remove(id)
+            persist()
+            return false
+        } else {
+            likedIds.insert(id)
+            persist()
+            return true
+        }
     }
 
     private func persist() {
