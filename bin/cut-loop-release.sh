@@ -193,15 +193,18 @@ fi
 # Git defines the new tree; native clones only reuse identical exported bytes.
 if [ "$(uname -s)" = "Darwin" ] && [ -f "$CURRENT/RELEASE.json" ]; then
   "$RUNTIME_PYTHON" -B - "$CURRENT" "$DEST" <<'PY' || die "source clone verification failed"
+import ctypes
 import filecmp
 import os
 from pathlib import Path
 import stat
-import subprocess
 import sys
 import uuid
 
 donor, destination = map(lambda value: Path(value).resolve(), sys.argv[1:])
+clonefile = ctypes.CDLL(None).clonefile
+clonefile.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_int]
+clonefile.restype = ctypes.c_int
 cloned = 0
 for directory, folders, names in os.walk(destination, followlinks=False):
     folders[:] = [name for name in folders if not (Path(directory) / name).is_symlink()]
@@ -216,9 +219,8 @@ for directory, folders, names in os.walk(destination, followlinks=False):
                     or target.is_symlink() or source.resolve() != source
                     or not filecmp.cmp(source, target, shallow=False)):
                 continue
-            result = subprocess.run(["/bin/cp", "-c", str(source), str(temporary)],
-                                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            if result.returncode == 0 and filecmp.cmp(temporary, target, shallow=False):
+            result = clonefile(os.fsencode(source), os.fsencode(temporary), 0)
+            if result == 0 and filecmp.cmp(temporary, target, shallow=False):
                 os.chmod(temporary, stat.S_IMODE(target.stat().st_mode))
                 os.replace(temporary, target)
                 cloned += 1
