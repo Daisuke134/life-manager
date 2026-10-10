@@ -50,6 +50,28 @@ class BuildProof(unittest.TestCase):
             _set(root, "set-001", "submitted", item)
             self.assertTrue(self.proof(root)["verified"])
 
+    def test_a_completed_submission_confirmed_by_readback_closes_as_effected(self) -> None:
+        # 2026-10-10: set-018 (48172824) was submitted by the fenced run itself and readback saw it
+        # 審査待ち on Creators Market; the fence still held forever because only no-effect could close.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _set(root, "set-018", "submitted", {
+                "product_id": "48172824", "state": "review_requested", "state_observed": "審査待ち",
+                "created_at": _iso(Q + dt.timedelta(minutes=18)),
+                "review_requested_at": _iso(Q + dt.timedelta(minutes=35))})
+            p = self.proof(root)
+            self.assertTrue(p["verified"])
+            self.assertTrue(p["effected"])
+            self.assertIn("48172824", p["provider_receipt_id"])
+
+    def test_a_completed_submission_without_an_official_status_stays_fenced(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _set(root, "set-018", "submitted", {
+                "product_id": "48172824", "state": "review_requested", "state_observed": None,
+                "review_requested_at": _iso(Q + dt.timedelta(minutes=35))})
+            self.assertFalse(self.proof(root)["verified"])
+
     def test_created_or_review_requested_after_run_start_stays_fenced(self) -> None:
         for field, z in (("created_at", False), ("created_at", True),
                          ("review_requested_at", False), ("review_requested_at", True)):

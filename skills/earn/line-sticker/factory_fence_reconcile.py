@@ -16,7 +16,9 @@ images, set tags, request review). ``factory._submit`` records those steps in th
     by readback and are never evidence.
 
   - No hit and enough time has passed: close as no-effect.
-  - Any hit stays fenced: only the item's own status readback can say.
+  - Every hit a finished submission (state review_requested, a product_id) that readback has seen on
+    Creators Market (state_observed is an official status): close as effected, citing those.
+  - Any other hit stays fenced: only the item's own status readback can say.
 
 Usage:
     python3 factory_fence_reconcile.py --occurrence line-sticker-factory-hourly:<run_id> [--resolve]
@@ -44,6 +46,8 @@ NO_EFFECT_MIN_AGE_SECONDS = 300
 STATE_ROOT = Path.home() / ".local/state/life-manager/line-sticker"
 MID_SUBMISSION_STATES = frozenset({"metadata_saved", "images_uploaded", "tagged"})
 FACTORY_TIME_FIELDS = ("created_at", "review_requested_at")
+# Statuses only the readback loop writes, read off the item's own Creators Market page.
+OFFICIAL_STATUSES = frozenset({"審査待ち", "審査中", "承認", "販売中", "リジェクト", "販売停止"})
 
 
 def fenced_row(owner_id: str, occurrence_id: str) -> tuple[str, dt.datetime]:
@@ -93,12 +97,32 @@ def touched_since(state_root: Path, since: dt.datetime) -> list[str]:
     return hits
 
 
+def confirmed_submission(path: Path) -> str | None:
+    """'<product_id>:<status>' when the run's effect is a finished submission that Creators Market
+    itself shows (readback's state_observed); None when it is mid-flight, unread or unreadable."""
+    try:
+        item = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if (isinstance(item, dict) and item.get("state") == "review_requested" and item.get("product_id")
+            and item.get("state_observed") in OFFICIAL_STATUSES):
+        return f"{item['product_id']}:{item['state_observed']}"
+    return None
+
+
 def build_proof(occurrence_id: str, queued_at: dt.datetime, *, now: dt.datetime,
                 state_root: Path) -> dict[str, Any]:
     proof: dict[str, Any] = {"owner_id": OWNER_ID, "occurrence_id": occurrence_id,
                              "verified": False, "queued_at": queued_at.isoformat()}
     hits = touched_since(state_root, queued_at)
     if hits:
+        confirmed = [confirmed_submission(state_root / label) for label in hits]
+        if all(confirmed):  # the effect happened, finished, and LINE shows it: close as effected
+            proof.update(verified=True, effected=True,
+                         provider_receipt_id="creators-market-readback:" + ",".join(confirmed),
+                         proof_kind="factory_submission_confirmed_by_creators_readback",
+                         checked_at=now.isoformat(timespec="seconds"))
+            return proof
         proof["reason"] = "state_touched_after_run_start:" + ",".join(hits)
         return proof
     age = (now - queued_at).total_seconds()
