@@ -89,12 +89,12 @@ async function selectedAccountId(uid, apiKey, opts = {}) {
   return active[0].id;
 }
 
-async function exec(tool, uid, args, apiKey, opts, recordOutcome, effectAwareCreate = false) {
+async function exec(tool, uid, args, apiKey, opts, recordOutcome, effectAwareWrite = false) {
   const proxyCreate = tool === WEB_REMINDER_CREATE_TOOL;
   let connectedAccountId;
   try { connectedAccountId = await selectedAccountId(uid, apiKey, opts); }
   catch (error) {
-    if (effectAwareCreate) return { effect: "no_effect", result: { successful: false } };
+    if (effectAwareWrite) return { effect: "no_effect", result: { successful: false } };
     throw error;
   }
   if (tool !== "GOOGLECALENDAR_EVENTS_LIST" && opts.expectedCalendarAccountId != null
@@ -105,13 +105,13 @@ async function exec(tool, uid, args, apiKey, opts, recordOutcome, effectAwareCre
       state = await readState(uid, { supaUrl: opts.supaUrl, supaKey: opts.supaKey,
         fetchImpl: opts.fetchImpl, expectedCalendarAccountId: opts.expectedCalendarAccountId, nowMs: opts.nowMs });
     } catch { /* unknown Web controls fail closed before provider mutation */ }
-    const oneShotInitialScan = effectAwareCreate && opts.allowWebInitialScan === true
+    const oneShotInitialScan = effectAwareWrite && opts.allowWebInitialScan === true
       && state && state.initialScanAllowed === true && state.dailyAutomationEnabled === false;
     const automatedBillingIsActive = state && state.dailyAutomationEnabled === true
       && state.billingEntitled === true;
     if (!state || (!automatedBillingIsActive && !oneShotInitialScan)
       || state.disconnectPending !== false || state.enablePending !== false) {
-      if (effectAwareCreate) return { effect: "no_effect", result: { successful: false } };
+      if (effectAwareWrite) return { effect: "no_effect", result: { successful: false } };
       throw new Error("web calendar automation is paused or pending");
     }
   }
@@ -128,7 +128,7 @@ async function exec(tool, uid, args, apiKey, opts, recordOutcome, effectAwareCre
     });
   } catch (error) {
     await recordOutcome("unknown");
-    if (effectAwareCreate) return { effect: "unknown", result: { successful: false } };
+    if (effectAwareWrite) return { effect: "unknown", result: { successful: false } };
     throw error;
   }
   if (proxyCreate) {
@@ -160,23 +160,25 @@ async function exec(tool, uid, args, apiKey, opts, recordOutcome, effectAwareCre
     return { effect: successful ? "created" : "unknown", result: { successful, data } };
   }
   const status = Number.isInteger(response?.status) ? response.status : null;
-  if (effectAwareCreate && status !== null && status >= 400 && status < 500) {
+  if (effectAwareWrite && status !== null && status >= 400 && status < 500) {
     await recordOutcome("failure");
     return { effect: "no_effect", result: { successful: false } };
   }
-  if (effectAwareCreate && status !== null && (status < 200 || status >= 300)) {
+  if (effectAwareWrite && status !== null && (status < 200 || status >= 300)) {
     await recordOutcome("unknown");
     return { effect: "unknown", result: { successful: false } };
   }
   try { result = await response.json(); }
   catch (error) {
     await recordOutcome("unknown");
-    if (effectAwareCreate) return { effect: "unknown", result: { successful: false } };
+    if (effectAwareWrite) return { effect: "unknown", result: { successful: false } };
     throw error;
   }
-  if (effectAwareCreate) {
-    const effect = result && result.successful === true ? "created" : "unknown";
-    await recordOutcome(effect === "created" ? "success" : "unknown");
+  if (effectAwareWrite) {
+    const effect = result && result.successful === true
+      ? tool === "GOOGLECALENDAR_PATCH_EVENT" ? "updated" : "created"
+      : "unknown";
+    await recordOutcome(effect === "created" || effect === "updated" ? "success" : "unknown");
     return { effect, result };
   }
   await recordOutcome(result && result.successful === true ? "success"
@@ -196,7 +198,7 @@ function makeComposioCalendar(opts = {}) {
     });
   });
   const execute = async (tool, uid, args, expectedCalendarAccountId = opts.expectedCalendarAccountId,
-    effectAwareCreate = false, extraOpts = {}) => {
+    effectAwareWrite = false, extraOpts = {}) => {
     const operationOpts = { ...opts, ...extraOpts,
       ...(expectedCalendarAccountId == null ? {} : { expectedCalendarAccountId }) };
     const runtimeEnv = usageRuntimeEnv(opts.runtimeEnv || process.env, { fallbackOwnerId: "life-call-calendar" });
@@ -204,7 +206,7 @@ function makeComposioCalendar(opts = {}) {
     const recordOutcome = async (outcome) => {
       try { await ledger(uid, tool, { outcome, runtimeTrace: trace }); } catch { /* observability must not break calendar calls */ }
     };
-    return exec(tool, uid, args, key, operationOpts, recordOutcome, effectAwareCreate);
+    return exec(tool, uid, args, key, operationOpts, recordOutcome, effectAwareWrite);
   };
   const withCreateEffect = ({ effect, result }) => {
     const value = result && typeof result === "object" ? result : { successful: false };
@@ -278,7 +280,14 @@ function makeComposioCalendar(opts = {}) {
     },
     async patchEvent(uid, args, operationOpts = {}) {
       if (!key) return { successful: false };
-      try { return await execute("GOOGLECALENDAR_PATCH_EVENT", uid, args, operationOpts.expectedCalendarAccountId); } catch { return { successful: false }; }
+      const expectedCalendarAccountId = operationOpts.expectedCalendarAccountId;
+      const effectAwareWrite = expectedCalendarAccountId != null;
+      try {
+        const result = await execute("GOOGLECALENDAR_PATCH_EVENT", uid, args, expectedCalendarAccountId,
+          effectAwareWrite, { allowWebInitialScan: operationOpts.allowWebInitialScan === true });
+        if (!result || !result.effect) return result;
+        return { ...(result.result || {}), effect: result.effect, successful: result.effect === "updated" };
+      } catch { return { successful: false, ...(effectAwareWrite ? { effect: "unknown" } : {}) }; }
     },
   };
 }
