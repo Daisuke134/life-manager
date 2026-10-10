@@ -12625,3 +12625,18 @@ flowchart LR
 
 **現在cursor:** ownerのPID・lease・open pathとstorage growthを読み取りで帰属させる。自分が所有しないChrome/profileを止めたり、worktree・protected stateを削除したりしない。容量が足りない間もPostiz/ASC/RevenueCat/Mixpanelの独立readbackを継続し、production apply成功とは報告しない。
 
+### 2026-10-10 23:03 JST — Native Postiz metrics readback and TikTok identity gap
+
+この節は前節のcapacity snapshotに、投稿metricsの新しい公式GET readbackを足す。投稿・Telegram送信は行っていない。
+
+- **Collector run:** immutable releaseの既存`native_metrics.py collect`を2026-10-10 22:59:30 JSTに一度実行。Postiz analyticsのGETのみで、外部effect・投稿・Telegram送信は行っていない。output: 182 `measured` checkpoints、errors 0。evidence rowsは`/Users/anicca/.local/state/life-manager/state/post-metrics-provider-responses.jsonl`に182行、metricsは正本state `/Users/anicca/.local/state/life-manager/state/post-metrics.jsonl`に追加され、累計352行。
+- **Coverage:** publication identity ledger 187行中、`PUBLISHED` 186・`ERROR` 1。resolved 88、unresolved 98。read-only planはeligible 88、due checkpoints 182、unresolved除外98、error除外1、missed 0。今回の88 unique postsはInstagram 64、YouTube 24、TikTok 0。88件すべてnative URL付き。37件は`anicca-ios`、51件はproduct binding unknown。Honneのmetricsは今回の取得では確認できない。
+- **168h checkpoint totals:** Anicca Instagram 25 posts — views 16,588、likes 32、comments 0、shares 2、reach 12,168、saves 26。Anicca YouTube 12 posts — views 8、likes 3、comments 0、reach/shares/saves unavailable。Product unknown Instagram 39 posts — views 4,242、likes 19、comments 0、shares 1、reach 3,435、saves 3。Product unknown YouTube 12 posts — views/likes/comments 0。Unknown-product totalsはAnicca/Honne売上や獲得へ帰属させない。各数値は当該platform/168h checkpointの観測値。
+- **Field coverage:** views/likes/comments 182/182、reach/shares/saves 132/182、impressions 0/182。欠測はゼロで補わない。日次の全Postiz account数・TikTok公開数はこのcollectorでは更新していない。最後のdaily countは前節の22:23 JST snapshot 32/54。
+- **TikTok gap:** ledgerの98 `tiktok` rowsは全てidentity `unresolved`でmetrics collectorから除外。Postiz post IDとrelease URLは98/98ある一方、native post IDとpermalinkは0/98。32行はaccount-manifest integrationを持つが、66行はintegration unmapで、product binding unknownは118行。`legacy_uninstrumented` experiment identityも98/98に付く。TikTok view/engagementをclaimed coverageへ含める前に、公式integration→account/product→post identityのmappingを直す。
+- **Scheduled metrics owners:** TikTok/Instagram metrics loopsはいずれもloaded-idle、old releaseで`resource_effect_unknown`によるexit75。TikTokの古いoccurrenceはjournal rowなし・readback adapterなし。今回の手動GET collectionは計測データを更新したが、scheduled ownerとTelegram reportingのE2E復旧ではない。fenceを解除せず、loopを再起動しない。
+
+**TODO順の継続:** (1) latest capacity cursorは依然`inspect_unattributed_writer`; 2 GiB headroomを得るためopen Chrome/profile・別owner・protected worktree/stateを停止/削除しない。 (2) capacity/readinessが戻ったらmain由来immutable releaseを作り、8 carousel ownerだけをapplyしてloaded SHAを確認。 (3) `@anicca.jp` exact unknown occurrenceはofficial receiptが一致する時だけresolveする。 (4) 18 accountの不足投稿を保存済みassetsでadmitted owner経由でcatch-upし、distinct `PUBLISHED`/URL/ replay-zeroを確認する。 (5) 98 TikTok identity unresolvedと66 unmapped integrationsを正規manifest/receiptから解決し、unknown productは推測bindしない。 (6) effect-unknown metrics ownerを公式readbackで解決後、定期metrics collection/Telegram linksを復旧。`engagementScore`のPostiz numeric-string対応をテストして修正し、欠測はunknownに保つ。 (7) per-app ASC/RevenueCat/Mixpanelをfreshに揃え、Anicca 100 first-time downloads/dayの7-day averageへdistributionを改善。 (8) store listing/ASO、onboarding/paywall、通知→同一quoteの順で一実験ずつ改善。 (9) Apple official settled net MRRがUSD 10Kに達した時だけ達成と記録し、承認済み残りappへ再現する。
+
+**現在cursor:** capacity owner/sourceを安全に帰属させる作業が続く。metricsはInstagram/YouTubeの88 resolved postだけ更新済み。TikTok 98件とscheduled Telegram reportingは未解決であり、全post coverageやdistribution goal達成とは報告しない。
+
