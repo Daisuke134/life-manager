@@ -839,6 +839,37 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
     // Single source of truth for the skip/insert decision (home→home, no-origin, online, etc.).
     // Use if/else (NOT continue) so the RETURN LEG below always runs regardless of outbound fate.
     // FIND-005: the outbound continue statements must NEVER skip the return-leg evaluation.
+    // An exact existing block already has the route, so repair its reminder before origin resolution.
+    const duplicateBlocks = events.filter((e) => isTravel(e.summary) && e.endMs
+      && e.endMs >= ev.startMs - 2 * 60000 && e.endMs <= ev.startMs + 60000
+      && String(e.location || "").replace(/\s+/g, "").toLowerCase()
+        === String(ev.location || "").replace(/\s+/g, "").toLowerCase());
+    const existingDuplicate = duplicateBlocks.length === 1 ? duplicateBlocks[0] : null;
+    if (expectedCalendarAccountId && existingDuplicate && existingDuplicate.id
+      && existingDuplicate.lifeManagerGeneratedTravel === true
+      && !hasDeparturePopupReminder(existingDuplicate) && typeof cal.patchEvent === "function") {
+      try {
+        await cal.patchEvent(uid, {
+          calendar_id: "primary",
+          event_id: existingDuplicate.id,
+          reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 0 }] },
+          send_updates: "none",
+        }, { expectedCalendarAccountId, allowWebInitialScan: allowWebInitialScan === true });
+      } catch { /* exact Calendar readback below decides whether the idempotent patch took effect */ }
+      try {
+        const reread = await listEvents7d(uid, apiKey, nowMs, cal, gmailAccountId, {
+          strict: Boolean(expectedCalendarAccountId), expectedCalendarAccountId,
+        });
+        const verifiedMatches = reread.filter((event) => event.id === existingDuplicate.id && isTravel(event.summary)
+          && Number.isFinite(event.endMs)
+          && event.endMs >= ev.startMs - 2 * 60000 && event.endMs <= ev.startMs + 60000
+          && String(event.location || "").replace(/\s+/g, "").toLowerCase()
+            === String(ev.location || "").replace(/\s+/g, "").toLowerCase()
+          && hasDeparturePopupReminder(event));
+        if (verifiedMatches.length === 1) verified++;
+      } catch { /* do not create a duplicate when strict readback is unavailable */ }
+    }
+
     const decision = travelDecision(ev, events[i - 1], home);
     let outboundInserted = false;
     let resolvedDest = ev.location; // tracks the agent-resolved venue for the return leg
@@ -847,37 +878,7 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
       skipped++;
     } else {
       const origin = decision.origin;
-      // Dedup: a [Travel] block already sitting in the gap right before this event?
-      const duplicateBlocks = events.filter((e) => isTravel(e.summary) && e.endMs
-        && e.endMs >= ev.startMs - 2 * 60000 && e.endMs <= ev.startMs + 60000
-        && String(e.location || "").replace(/\s+/g, "").toLowerCase()
-          === String(ev.location || "").replace(/\s+/g, "").toLowerCase());
       if (duplicateBlocks.length) {
-        const existing = duplicateBlocks.length === 1 ? duplicateBlocks[0] : null;
-        if (expectedCalendarAccountId && existing && existing.id
-          && existing.lifeManagerGeneratedTravel === true
-          && !hasDeparturePopupReminder(existing) && typeof cal.patchEvent === "function") {
-          try {
-            await cal.patchEvent(uid, {
-              calendar_id: "primary",
-              event_id: existing.id,
-              reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 0 }] },
-              send_updates: "none",
-            }, { expectedCalendarAccountId, allowWebInitialScan: allowWebInitialScan === true });
-          } catch { /* exact Calendar readback below decides whether the idempotent patch took effect */ }
-          try {
-            const reread = await listEvents7d(uid, apiKey, nowMs, cal, gmailAccountId, {
-              strict: Boolean(expectedCalendarAccountId), expectedCalendarAccountId,
-            });
-            const verifiedMatches = reread.filter((event) => event.id === existing.id && isTravel(event.summary)
-              && Number.isFinite(event.endMs)
-              && event.endMs >= ev.startMs - 2 * 60000 && event.endMs <= ev.startMs + 60000
-              && String(event.location || "").replace(/\s+/g, "").toLowerCase()
-                === String(ev.location || "").replace(/\s+/g, "").toLowerCase()
-              && hasDeparturePopupReminder(event));
-            if (verifiedMatches.length === 1) verified++;
-          } catch { /* do not create a duplicate when strict readback is unavailable */ }
-        }
         skipped++;
         // outbound block already exists — fall through to return-leg so it can backfill a missing return block
       } else {
