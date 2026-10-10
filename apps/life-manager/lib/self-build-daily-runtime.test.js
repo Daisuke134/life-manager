@@ -319,8 +319,10 @@ function tmp() {
 }
 
 
-test("a missing Telegram target does not stop the deterministic self-build pass", () => {
+for (const logTarget of ["explicit", "default"]) {
+test(`a missing Telegram target does not stop the deterministic self-build pass (${logTarget} log)`, (t) => {
   const root = tmp();
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const repo = path.join(root, "repo");
   const app = path.join(repo, "apps/life-manager");
   fs.mkdirSync(path.join(repo, "runtime/host"), { recursive: true });
@@ -359,7 +361,7 @@ test("a missing Telegram target does not stop the deterministic self-build pass"
       LM_SELFBUILD_REPO: repo,
       LIFE_MANAGER_STATE_HOME: state,
       LM_SELFBUILD_LEDGER: path.join(state, "days.jsonl"),
-      LM_SELFBUILD_LOG: path.join(state, "selfbuild.log"),
+      LM_SELFBUILD_LOG: logTarget === "explicit" ? path.join(state, "selfbuild.log") : "",
       LM_SELFBUILD_DRY_RUN: "1",
       LM_SELFBUILD_TELEGRAM_TARGET: "",
       TELEGRAM_ALERT_CHAT_ID: "",
@@ -367,10 +369,17 @@ test("a missing Telegram target does not stop the deterministic self-build pass"
   });
 
   assert.equal(result.status, 0, result.stderr);
-  const log = fs.readFileSync(path.join(state, "selfbuild.log"), "utf8");
+  const log = logTarget === "explicit"
+    ? fs.readFileSync(path.join(state, "selfbuild.log"), "utf8")
+    : result.stderr;
   assert.match(log, /Telegram report skipped/);
   assert.match(log, /self-build done rc=0/);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(state, "days.jsonl"), "utf8")).verdict, "no_op");
+  if (logTarget === "default") {
+    assert.equal(fs.existsSync(path.join(state, "logs/life-manager-self-build.log")), false);
+  }
 });
+}
 
 
 // ---------------------------------------------------------------------------------------------
