@@ -27,18 +27,24 @@ This skill runs one repository-owned CFO pass and exits. It is the operator-faci
 
 `LM_CFO_MOBILE_APPS_ASC_FINANCIAL_PACKET` may point to one private JSON packet with
 `schema_version: 1`, the original `observed_at`, FINANCIAL/ZZ and FINANCE_DETAIL/Z1 report
-metadata plus their decompressed TSV paths and SHA-256 values, the detail period, and the
-App Store Connect subscription-relationship path and SHA-256. Its top-level keys are
-`schema_version`, `observed_at`, `financial`, `detail`, and `relationships`; each report has
-`metadata`, `artifact_path`, `artifact_sha256`, and `period`, while `relationships` has
-`artifact_path` and `artifact_sha256`. The adapter verifies both gzip
-streams, raw TSV hashes, matching period/SKU/currency/quantity/amount, and the subscription to
-app relationship. It creates a normalized receipt identity from the detail artifact SHA-256 and
-physical row number; it does not create an App Store Connect native report ID. Partial packet
-evidence always leaves historical and trailing coverage as gaps. If the packet and legacy
-`app_store_financial` input both produce verified ASC receipts, CFO reports `unverified_receipt`
-coverage and emits neither source's receipts until the inputs are reconciled. RevenueCat Revenue
-charts remain observations; they do not become settled revenue receipts.
+metadata plus their decompressed TSV paths and SHA-256 values, the detail period, and App Store
+Connect subscription-relationship evidence. Its top-level keys are `schema_version`,
+`observed_at`, `financial`, `detail`, and `relationships`; each report has `metadata`,
+`artifact_path`, `artifact_sha256`, and `period`. Relationships may use the legacy singleton
+`{artifact_path, artifact_sha256}` shape or a bundle `{artifacts:[{artifact_path,artifact_sha256}]}`.
+Every relationship artifact must be a private JSON object under a mode-0700 parent with mode-0600
+file permissions. B7 re-reads each artifact through the private-file reader and compares the
+SHA-256 of its exact raw bytes with the packet declaration before accepting provenance. Each
+receipt's `data/<n>` and `included/<n>` evidence refs must both match that same artifact hash.
+Only artifact hashes/aggregate and normalized receipt fields are persisted; private paths and raw
+relationship identifiers are not. The adapter verifies both gzip streams, raw TSV hashes,
+matching period/SKU/currency/quantity/amount, and the subscription-to-app relationship. It creates
+a normalized receipt identity from the detail artifact SHA-256 and physical row number; it does
+not create an App Store Connect native report ID. Partial packet evidence always leaves historical
+and trailing coverage as gaps. If the packet and legacy `app_store_financial` input both produce
+verified ASC receipts, CFO reports `unverified_receipt` coverage and emits neither source's
+receipts until the inputs are reconciled. RevenueCat Revenue charts remain observations; they do
+not become settled revenue receipts.
 
 The pass is single-writer: do not run another CFO, `cfo-daily`, or financial-report loop against the
 same snapshot/delivery tables.

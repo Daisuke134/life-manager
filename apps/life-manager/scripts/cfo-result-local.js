@@ -189,6 +189,27 @@ function ascReportTuple(report, reportType, regionCode) {
   };
 }
 
+function ascRelationshipBundle(source) {
+  const artifacts = Array.isArray(source?.artifacts) ? source.artifacts
+    : source && typeof source === "object" && !Array.isArray(source) ? [source] : null;
+  if (!artifacts || artifacts.length === 0) throw new Error("cfo_asc_packet_invalid");
+  const hashes = artifacts.map(artifact => {
+    if (!artifact || typeof artifact !== "object" || Array.isArray(artifact)
+      || typeof artifact.artifact_path !== "string" || !artifact.artifact_path.trim()
+      || typeof artifact.artifact_sha256 !== "string" || !SHA256.test(artifact.artifact_sha256)) {
+      throw new Error("cfo_asc_packet_invalid");
+    }
+    if (readPrivateJson(artifact.artifact_path).sha256 !== artifact.artifact_sha256) {
+      throw new Error("cfo_asc_packet_invalid");
+    }
+    return artifact.artifact_sha256;
+  });
+  const artifactSha256s = [...new Set(hashes)].sort();
+  const relationshipsSha256 = artifactSha256s.length === 1 ? artifactSha256s[0]
+    : crypto.createHash("sha256").update(canonicalJson(artifactSha256s), "utf8").digest("hex");
+  return { artifactSha256s, relationshipsSha256 };
+}
+
 function unavailableSourceProvenance(identity, reportingPeriod, reason) {
   return {
     schemaVersion: 1, status: "unavailable", reason,
@@ -209,10 +230,10 @@ function mobileSourceProvenance(stateDir, identity, reportingPeriod, env) {
   let asc;
   try {
     const packet = packetFile.value;
-    if (packet.schema_version !== 1 || !sourceInstant(packet.observed_at)
-      || !packet.relationships || !SHA256.test(String(packet.relationships.artifact_sha256 || ""))) {
+    if (packet.schema_version !== 1 || !sourceInstant(packet.observed_at)) {
       throw new Error("cfo_asc_packet_invalid");
     }
+    const relationshipBundle = ascRelationshipBundle(packet.relationships);
     const financial = ascReportTuple(packet.financial, "FINANCIAL", "ZZ");
     const detail = ascReportTuple(packet.detail, "FINANCE_DETAIL", "Z1");
     if (financial.reportDate !== detail.reportDate
@@ -222,7 +243,8 @@ function mobileSourceProvenance(stateDir, identity, reportingPeriod, env) {
     }
     asc = {
       packetSha256: packetFile.sha256, observedAt: packet.observed_at,
-      financial, detail, relationshipsSha256: packet.relationships.artifact_sha256,
+      financial, detail, relationshipsSha256: relationshipBundle.relationshipsSha256,
+      relationshipArtifactSha256s: relationshipBundle.artifactSha256s,
     };
   } catch {
     return unavailableSourceProvenance(identity, reportingPeriod, "asc_packet_invalid");
@@ -283,13 +305,18 @@ function mobileSourceProvenance(stateDir, identity, reportingPeriod, env) {
     const financialRefs = refs.filter(ref => ref.startsWith(financialRefPrefix)
       && /^\d+(,\d+)*$/.test(ref.slice(financialRefPrefix.length)));
     const detailRef = `appstoreconnect://finance-detail/sha256/${asc.detail.artifactSha256}#row/${detailRow}`;
-    const relationshipPrefix = `appstoreconnect://subscription-relationships/sha256/${asc.relationshipsSha256}#`;
-    const relationshipDataRefs = refs.filter(ref => ref.startsWith(`${relationshipPrefix}data/`)
-      && /^\d+$/.test(ref.slice(`${relationshipPrefix}data/`.length)));
-    const relationshipIncludedRefs = refs.filter(ref => ref.startsWith(`${relationshipPrefix}included/`)
-      && /^\d+$/.test(ref.slice(`${relationshipPrefix}included/`.length)));
+    const relationshipPairMatches = asc.relationshipArtifactSha256s.some(sha => {
+      const relationshipPrefix = `appstoreconnect://subscription-relationships/sha256/${sha}#`;
+      const dataPrefix = `${relationshipPrefix}data/`;
+      const includedPrefix = `${relationshipPrefix}included/`;
+      const dataRefs = refs.filter(ref => ref.startsWith(dataPrefix)
+        && /^\d+$/.test(ref.slice(dataPrefix.length)));
+      const includedRefs = refs.filter(ref => ref.startsWith(includedPrefix)
+        && /^\d+$/.test(ref.slice(includedPrefix.length)));
+      return dataRefs.length === 1 && includedRefs.length === 1;
+    });
     return financialRefs.length === 1 && refs.filter(ref => ref === detailRef).length === 1
-      && relationshipDataRefs.length === 1 && relationshipIncludedRefs.length === 1
+      && relationshipPairMatches
       && Array.isArray(row.components) && row.components.length === 1
       && typeof row.components[0].category === "string";
   });
