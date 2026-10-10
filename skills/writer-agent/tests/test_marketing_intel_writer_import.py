@@ -228,3 +228,20 @@ class ProductSelectionReceiptIsAllowedPrePublicationTests(unittest.TestCase):
         self.assertTrue(module._is_allowed_prepublication("gates/product-selection.json"))
         self.assertFalse(module._is_allowed_prepublication("gates/product-selection.json.bak"))
         self.assertFalse(module._is_allowed_prepublication("article-ja.md"))
+
+
+class SeoKeywordReceiptIsAllowedPrePublicationTests(unittest.TestCase):
+    """2026-10-10: article-daily freezes the OpenSEO target keyword in gates/seo-keyword.json before
+    generation for capafy-skills runs.  Resume treated it as an unexpected artifact
+    (generated-or-staged-artifacts:gates/seo-keyword.json) and blocked the day
+    (same-jst-day-unclassified-run) -- the third miss of this allowlist after R35/R36."""
+
+    def test_the_receipt_is_a_recognised_prepublication_file(self):
+        import importlib.util
+
+        path = Path(__file__).resolve().parents[1] / "scripts" / "article_generation_state.py"
+        spec = importlib.util.spec_from_file_location("article_generation_state_seo_under_test", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        self.assertTrue(module._is_allowed_prepublication("gates/seo-keyword.json"))
+        self.assertFalse(module._is_allowed_prepublication("gates/seo-keyword.json.bak"))
