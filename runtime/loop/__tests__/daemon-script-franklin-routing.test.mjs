@@ -120,9 +120,17 @@ test('ARCH-11: daemon owns and reaps only the repository proxy process it starte
   assert.doesNotMatch(source, /exec node "\$REPO\/runtime\/loop\/index\.mjs"/);
 });
 
-test('ARCH-11: a naturally exiting loop reaps the daemon-owned proxy process', (t) => {
+for (const instance of ['clawrouter', 'franklin2']) {
+test(`ARCH-11: a naturally exiting ${instance} loop reaps owned diagnostics and proxy`, (t) => {
   const root = fs.mkdtempSync(path.join(process.env.TMPDIR || '/tmp', 'lm-daemon-reap-'));
-  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  let result;
+  t.after(() => {
+    if (result?.pid) {
+      try { process.kill(-result.pid, 'SIGKILL'); }
+      catch (error) { if (error.code !== 'ESRCH') throw error; }
+    }
+    fs.rmSync(root, { recursive: true, force: true });
+  });
   const repo = path.join(root, 'repo');
   const bin = path.join(root, 'bin');
   const home = path.join(root, 'home');
@@ -150,6 +158,7 @@ while :; do sleep 1; done
 case "$1" in
   */runtime/loop/index.mjs) sleep 0.2; exit 0 ;;
   */runtime/dashboard/telemetry-poster.mjs) echo poster-diagnostic; exit 0 ;;
+  */runtime/dashboard/telemetry-post-franklin.mjs) echo poster-diagnostic; exit 0 ;;
   *) exit 0 ;;
 esac
 `);
@@ -159,18 +168,21 @@ esac
     path.join(bin, 'curl'), path.join(bin, 'pkill'), path.join(bin, 'node'),
   ]) fs.chmodSync(file, 0o755);
 
-  const result = spawnSync('/bin/bash', [path.join(repo, 'runtime', 'anicca-daemon.sh')], {
+  result = spawnSync('/bin/bash', [path.join(repo, 'runtime', 'anicca-daemon.sh')], {
     env: {
       HOME: home,
       ANICCA_HOME: path.join(home, '.anicca'),
       ANICCA_REPO: repo,
+      ANICCA_INSTANCE: instance,
       READY_FILE: ready,
       STOPPED_FILE: stopped,
       PATH: `${bin}:/usr/bin:/bin`,
     },
     encoding: 'utf8',
+    detached: true,
     timeout: 5000,
   });
+  assert.equal(result.error, undefined, 'owned diagnostics must close with the main loop');
   assert.equal(result.status, 0, result.stderr);
   assert.ok(fs.existsSync(ready));
   assert.ok(fs.existsSync(stopped));
@@ -179,3 +191,4 @@ esac
   assert.equal(fs.readFileSync(path.join(legacyLogs, 'compute-proxy.log'), 'utf8'), 'retained proxy evidence\n');
   assert.equal(fs.readFileSync(path.join(legacyLogs, 'poster.log'), 'utf8'), 'retained poster evidence\n');
 });
+}
