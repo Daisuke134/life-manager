@@ -10,21 +10,19 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RELEASE_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 LIFE_MANAGER_STATE_HOME="${LIFE_MANAGER_STATE_HOME:-$HOME/.local/state/life-manager}"
 MARK="$LIFE_MANAGER_STATE_HOME/state/capafy-autopublish/.capafy-healthy-pass"
-LOG="$LIFE_MANAGER_STATE_HOME/logs/capafy-loop-healthcheck.log"
 EVIDENCE_ROOT="$LIFE_MANAGER_STATE_HOME/state/agent-runner-evidence/capafy-marketplace"
 OFFLINE_EVIDENCE_ROOT="$LIFE_MANAGER_STATE_HOME/state/agent-runner-evidence/capafy-offline-build"
 BACKOFF="$LIFE_MANAGER_STATE_HOME/state/capafy-provider-backoff.json"
 EVENTS="$LIFE_MANAGER_STATE_HOME/events.jsonl"
 STALE_SECONDS=$((30 * 60 * 60))
 ATTEMPT_GRACE_SECONDS=$((2 * 60 * 60))
-mkdir -p "$(dirname "$LOG")"
 
 # Provider admission is checked on every five-minute wake, independently of
 # scheduler freshness. The gate performs a bounded per-key limit repair and
 # verifies it with a live request; provider failure must not restart the owner.
 KEY_GATE="$RELEASE_ROOT/skills/capafy-autopublish/scripts/key_health_gate.sh"
 if ! KEY_HEALTH="$(bash "$KEY_GATE" 2>&1)"; then
-  echo "$(date '+%F %T') provider admission unhealthy; no owner restart; $KEY_HEALTH" >>"$LOG"
+  echo "$(date '+%F %T') provider admission unhealthy; no owner restart; $KEY_HEALTH" >&2
   python3 - "$LIFE_MANAGER_STATE_HOME/state/capafy-healthcheck-blocked.json" <<'PY'
 import datetime, json, os, sys, tempfile
 path = sys.argv[1]
@@ -44,7 +42,7 @@ PY
   exit 1
 fi
 case "$KEY_HEALTH" in
-  *KEY_SELF_HEAL=OK*) echo "$(date '+%F %T') provider admission self-healed; $KEY_HEALTH" >>"$LOG" ;;
+  *KEY_SELF_HEAL=OK*) echo "$(date '+%F %T') provider admission self-healed; $KEY_HEALTH" >&2 ;;
 esac
 
 # A crashed no-write wake may leave a released effect_unknown fence behind. Clear
@@ -59,10 +57,10 @@ if [ -f "$RECONCILER" ]; then
     --events "$EVENTS" \
     --terminals "$LIFE_MANAGER_STATE_HOME/state/capafy-daily-terminals.jsonl" \
     --release-root "$RELEASE_ROOT" 2>&1)" || {
-      echo "$(date '+%F %T') effect reconcile deferred: $RECONCILE_OUTPUT" >>"$LOG"
+      echo "$(date '+%F %T') effect reconcile deferred: $RECONCILE_OUTPUT" >&2
       RECONCILE_OUTPUT=""
     }
-  [ -z "$RECONCILE_OUTPUT" ] || echo "$(date '+%F %T') $RECONCILE_OUTPUT" >>"$LOG"
+  [ -z "$RECONCILE_OUTPUT" ] || echo "$(date '+%F %T') $RECONCILE_OUTPUT" >&2
 fi
 
 OWNER_STATUS="$(launchctl print "$DOMAIN/$LABEL" 2>/dev/null)" || OWNER_STATUS=""
@@ -159,7 +157,7 @@ finally:
     if os.path.exists(temporary):
         os.unlink(temporary)
 PY
-  echo "$(date '+%F %T') provider quota; hourly owner backoff until epoch $next_eligible; no kickstart" >>"$LOG"
+  echo "$(date '+%F %T') provider quota; hourly owner backoff until epoch $next_eligible; no kickstart" >&2
   exit 0
 fi
 
@@ -167,9 +165,9 @@ fi
 # Delegate lifecycle mutation to the release-local control plane; never spawn a
 # parallel executor or mutate launchd directly here.
 if "$RELEASE_ROOT/bin/lm-loop" restart "$LOOP_ID"; then
-  echo "$(date '+%F %T') stale healthy-pass (${age}s); restarted $LABEL" >>"$LOG"
+  echo "$(date '+%F %T') stale healthy-pass (${age}s); restarted $LABEL" >&2
   exit 0
 fi
 
-echo "$(date '+%F %T') failed to restart $LABEL" >>"$LOG"
+echo "$(date '+%F %T') failed to restart $LABEL" >&2
 exit 1
