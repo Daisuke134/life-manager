@@ -161,6 +161,55 @@ def _init_repo(path: Path) -> None:
     subprocess.run(["git", "commit", "-q", "-m", "init"], cwd=path, check=True)
 
 
+def test_managed_landing_checkout_is_bounded_without_removing_primary_data(tmp_path, monkeypatch):
+    module = soa()
+    state = tmp_path / "writer"
+    landing = state / "checkouts/self-owned-landing"
+    monkeypatch.setenv("WRITER_STATE_DIR", str(state))
+    _init_repo(landing)
+    files = {"apps/landing/private/writer-articles/old.json": "{}",
+             "apps/other/build-input.txt": "regenerable code",
+             ".cursor/copied-code.bin": "unused code",
+             "nested/memory/kept.md": "retained memory",
+             "skills/earn/state/earn-ledger.jsonl": "retained ledger",
+             "other/credentials.json": "retained account settings",
+             "docs/receipt.json": "retained receipt"}
+    for name, value in files.items():
+        p = landing / name
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(value)
+    subprocess.run(["git", "add", "."], cwd=landing, check=True)
+    subprocess.run(["git", "commit", "-qm", "fixture"], cwd=landing, check=True)
+    head = module._git(landing, "rev-parse", "HEAD")
+    assert module.bound_landing_checkout(landing) is True
+    assert not (landing / "apps/other/build-input.txt").exists()
+    assert not (landing / ".cursor/copied-code.bin").exists()
+    for name in files:
+        if name not in {"apps/other/build-input.txt", ".cursor/copied-code.bin"}:
+            assert (landing / name).read_text() == files[name]
+    assert module._git(landing, "rev-parse", "HEAD") == head
+    assert module._git(landing, "status", "--porcelain") == ""
+    assert module.bound_landing_checkout(landing) is True
+
+
+@pytest.mark.parametrize("kind", ("dirty", "untracked", "ignored"))
+def test_managed_landing_checkout_refuses_unknown_work_before_sparsifying(tmp_path, monkeypatch, kind):
+    module = soa()
+    state = tmp_path / "writer"
+    landing = state / "checkouts/self-owned-landing"
+    monkeypatch.setenv("WRITER_STATE_DIR", str(state))
+    _init_repo(landing)
+    if kind == "dirty":
+        (landing / "README.md").write_text("active work")
+    else:
+        if kind == "ignored":
+            (landing / ".git/info/exclude").write_text("active.bin\n")
+        (landing / "active.bin").write_text("unknown work")
+    assert module.bound_landing_checkout(landing) is False
+    assert not (landing / ".git/info/sparse-checkout").exists()
+    assert (landing / ("README.md" if kind == "dirty" else "active.bin")).read_text() in {"active work", "unknown work"}
+
+
 def test_stage_and_commit_contracts_writes_immutable_files(tmp_path):
     module = soa()
     remote = tmp_path / "remote.git"
