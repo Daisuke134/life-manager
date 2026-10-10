@@ -3,7 +3,7 @@
 - Repository: `/Users/anicca/Projects/life-manager-main`
 - Worktree: `/Users/anicca/Projects/life-manager-main/.worktrees/mobile-growth-release-gc-20261011`
 - Branch / upstream: `fix/mobile-owner-recovery-20261011` / `origin/fix/mobile-owner-recovery-20261011`
-- Base commit before this documentation update: `7be6aef95211804d9687ee988c5feffd99f5ca95` (fetched `origin/main` and branch matched). SSOT checkpoint commit `dd5d4d498feac7a2f1d85d35dd97e105b081f014` is pushed to the branch. The handover file is being committed immediately after it; the final branch tip is reported in chat and can be read with `git rev-parse origin/fix/mobile-owner-recovery-20261011`.
+- Base commit before this documentation update: `7be6aef95211804d9687ee988c5feffd99f5ca95` (fetched `origin/main` and branch matched). SSOT checkpoint commit `dd5d4d498feac7a2f1d85d35dd97e105b081f014` is pushed to the branch. This handover follows that commit; read its exact current commit with `git rev-parse origin/fix/mobile-owner-recovery-20261011`.
 - Canonical TODO / order: `/Users/anicca/Projects/life-manager-main/.worktrees/mobile-growth-release-gc-20261011/docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md`, latest section `2026-10-11 07:20 JST` (included in `dd5d4d498feac7a2f1d85d35dd97e105b081f014`). This unified SSOT is the only execution-order authority.
 - Separate plan: none. Do not create a duplicate TODO/plan; resume from the SSOT above.
 - Shared checkout `/Users/anicca/Projects/life-manager-main` is dirty and must not be used.
