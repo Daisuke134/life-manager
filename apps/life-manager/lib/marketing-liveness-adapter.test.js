@@ -99,6 +99,7 @@ test("published TikTok photo carousel reports exact Postiz and local-asset proof
   assert.equal(result.receipt.message_id, 77);
   assert.match(sent[0], /photo carousel was published/);
   assert.match(sent[0], /Postiz API status: PUBLISHED/);
+  assert.match(sent[0], /投稿リンク未取得/);
   assert.doesNotMatch(sent[0], /Public URL/);
   assert.throws(() => buildMarketingLivenessJob({ tenantId: "dais-local", telegramTokenRef: "secret://telegram/bot-token", telegramChatRef: "telegram-chat://owner", payload: { ...payload, publication_evidence: "wrong" } }), /invalid/i);
 });

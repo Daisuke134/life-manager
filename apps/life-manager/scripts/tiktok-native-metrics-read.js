@@ -28,6 +28,38 @@ async function postizAnalytics(input, env = process.env) {
   return { account, post };
 }
 
+async function postizPhotoPermalink(input, env = process.env, observedAt = new Date().toISOString()) {
+  const publishedMs = Date.parse(String(input.publishedAt || ""));
+  const observedMs = Date.parse(String(observedAt || ""));
+  if (!env.LM_POSTIZ_API_KEY || !Number.isFinite(publishedMs) || !Number.isFinite(observedMs)) return "unavailable";
+  const query = new URLSearchParams({
+    startDate: new Date(publishedMs - 15 * 60_000).toISOString(),
+    endDate: new Date(observedMs).toISOString(),
+    limit: "100",
+  });
+  try {
+    const response = await fetch(`https://api.postiz.com/public/v1/posts?${query}`, {
+      headers: { Authorization: env.LM_POSTIZ_API_KEY },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!response.ok) return "unavailable";
+    const payload = await response.json();
+    const rows = Array.isArray(payload) ? payload
+      : [payload?.posts, payload?.rows, payload?.data].find(Array.isArray) || [];
+    if (rows.length >= 100) return "unavailable";
+    const matches = rows.filter((row) => row?.state === "PUBLISHED"
+      && row.id === input.providerPostId
+      && (row.integration?.id || row.integrationId) === input.integrationId);
+    if (matches.length !== 1) return "unavailable";
+    const url = matches[0].releaseURL;
+    return /^https:\/\/www\.tiktok\.com\/@[A-Za-z0-9._-]+\/(?:photo|video)\/\d+\/?$/.test(String(url || ""))
+      ? url
+      : "unavailable";
+  } catch {
+    return "unavailable";
+  }
+}
+
 async function collectTikTokWindow(input, env = process.env, observedAt = new Date().toISOString()) {
   // The endpoint comes from the browser-guard lease (with-browser.sh tiktok-anicca-jp), never a fixed
   // port: the old default was the operator's own Chrome, which loops must not touch (2026-09-30).
@@ -62,7 +94,11 @@ async function collectTikTokWindow(input, env = process.env, observedAt = new Da
 async function collectPostizPhotoWindow(input, env = process.env, observedAt = new Date().toISOString()) {
   const provider = await postizAnalytics(input, env);
   if (!provider) throw new Error("Postiz photo metrics are unavailable");
-  const result = persistPostizPhotoSnapshot({ ...input, dataDir: resolveDataRoot(env), observedAt, postizAccountAnalytics: provider.account, postizPostAnalytics: provider.post });
+  if (Array.isArray(provider.post) && provider.post.length === 0) {
+    return { created: false, deferred: true, reason: "postiz_post_analytics_empty" };
+  }
+  const publicUrl = await postizPhotoPermalink(input, env, observedAt);
+  const result = persistPostizPhotoSnapshot({ ...input, publicUrl, dataDir: resolveDataRoot(env), observedAt, postizAccountAnalytics: provider.account, postizPostAnalytics: provider.post });
   return { created: result.created, file: result.file, snapshot: result.snapshot, post: result.snapshot.post, account: result.snapshot.account_metrics };
 }
 
@@ -70,4 +106,4 @@ if (require.main === module) collectTikTokWindow(JSON.parse(fs.readFileSync(proc
   process.stderr.write(`${error.message}\n`);
   process.exitCode = 1;
 });
-module.exports = { collectPostizPhotoWindow, collectTikTokWindow, postizAnalytics };
+module.exports = { collectPostizPhotoWindow, collectTikTokWindow, postizAnalytics, postizPhotoPermalink };
