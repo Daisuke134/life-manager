@@ -281,7 +281,7 @@ DaisのiCloud未使用/停止指示を受け、Photos公式UIの『このMacか�
 |---|---|---|
 | 確認済み | CLEAN-02 共通自己後始末 | 共通runner190のterminal_saved/finallyとstandard nested/state-evidence/flatをsource契約＋Gig/Job/Writer自然branchで確認済み。対象外callerは下の具体mappingに残し、実producer/relayが確認できた時だけ再発cursorへ戻す。新たな全190自然run gateを作らない |
 | source/loaded修復済・自然追跡 | CLEAN-03 未確認producerの保存上限 | `config/storage-policy.json`と`runtime/host/storage_policy.py`の既存上限が実際の生成物・scratch・診断logへ通るか確認し、未適用経路だけ直す。不要物が仕事の回数に比例して無制限に増えず、正式state/receiptを保持することを示す |
-| 残1・現在cursor | CLEAN-04 中央の取り残し回収 | `runtime/loop/central_cleanup.py`のscratch_gc/release_gc/reclaim_unreferenced_sourceで、終了ownerの残留と未参照の再生成可能codeを確認。既存UID/lease/lock/open FD/復元性の保護を使い、未回収の実例だけ閉じる。毎分fast passや修復済みbusy/自己FD分岐をやり直さない |
+| 残1・現在cursor | CLEAN-04 修復済みcleanupの継続と取り残し | 毎分/中央cleanup復旧とsource-only full release容量修復は本番確認済み。Fundraiser旧コードはdisabledで封じ込め、13件の不明effectを既存公式照合経路で扱ってから修正版ownerへ採用・復帰する。終了ownerの実残留と同期間の生成/回収収支だけを追跡し、済んだ調査・手動回収・release作成へ戻らない |
 | 残2 | CLEAN-05 未確認担当の自動再開 | `resource_admission.py`/`disk_admission.py`/`lm_loop_run.py`で、残る担当の終了→枠返却→待機仕事の自然eligible/claim/実行を確認。Gigの自然再開は済んだ例として使い、同じ再起動を繰り返さない。使用中枠/unknown effectを強制解放しない |
 | 残3 | CLEAN-06 反復稼働の受入 | 実ownerの仕事→receipt/readback保存→自己cleanup→中央cleanup→次の自然仕事を同じ期間でjoinし、ENOSPC/記録破損/人手の繰返し掃除がないことを確認。外部effectを伴う仕事は公式readbackに結び、cleanup exit0/CI/空き容量の数字だけで完了としない |
 
@@ -362,6 +362,13 @@ CLEAN-04 release容量契約修復scope: 完全releaseの一律2GiB guardが、�
 CLEAN-04 release容量source受入: default2GiBを保持した測定budget引数と、main由来immutable ALL donor/同一7manifest/content-addressed bundle/Python tagの資格確認を既存cutter/disk_admissionへ追加。全Git tarをstream計測しsource/一時copyの2倍、target runtime in-memory compile/marshalとatomic bytecodeの2倍、entry block、64MiB記録余裕を算入する。実機origin/main計測346,726,400 bytes。依存変更/完成bundle消失は2GiBへfallbackしexport前75、測定経路ではbundleが後から消えても依存生成せず失敗する。RED4fail→focused32PASS/2subtests、既存bundle再利用/未参照だけprune/symlink donor/bytecode5PASS、syntax/diff PASS。広い試行の7failはsparse checkout欠落(.gitattributes/timeout/manifests)と実ホスト空き2GiB未達fixtureで、必要pathをGit HEADから復旧し対象検証を再実行した。最後の小変更後にfixtureを同秒同SHAで2回cutして既存destination衝突を再現したため、2回目を実source変更の別SHAにして待機を入れず修正し、32PASS/2subtestsを再確認。production/自然Fundraiser復帰/全体Doneは未確認。現在cursor=source push/CI/main→ALL cut→target Fundraiserのfence保持apply/readback→CLEAN-05→06。
 
 CLEAN-04追加readback: 単発stop後、reconcilerが旧Fundraiserをd687へ再ロードし18:48に中央cleanup bootout/exit143が再発。fresh Fundraiser idle/Aqua PASS後、同owner一件のlaunchctl-safe disable→lm-loop stopを実施しdisabled/PID無し/unknown保持をreadback。中央cleanupを既存applyで復帰し自然18dd4018220b09f8-9619が19:00:44Z pass0。既存canonical pre-effect dry-runでは13件no_pre_effect_terminalが残り、provider未知を解除しない。#7550初回CIは855/856PASS、new fixtureのsys.executableとcutter PATH既定Pythonが異なりsafe fallback2GiBで1fail。fixtureのLOOPS_RUNTIME_PYTHONを明示して安全判定を変えず修正する。source容量契約の本番反映はまだ未確認。
+
+CLEAN-04 本番release容量修復完了: #7550 exact6f29656758222bb141d8681505a1593cad0c401e/CI38078252725全10SUCCESS→admin merge mainf6c444cf0b214f668b2ee292a719c72e4e7a5519。正規complete cutter一回exit0、native clone8324、current=/Users/anicca/loops/releases/20261011T040942-f6c444cf。manifest ALL/ancestor-of-origin-main/runtime Python/cache tag、capacity_required_bytes346,783,744をreadback。cutter93124071f22ac9cb73f4d899c61189cdc00ec13bee756ffaae2e7c050e9cb02a、disk_admission4d51c42a3ea9c06e6c845b68a1ccd55c6d8da6b3759e3859979b1c68c58a2ce5、Fundraiser run.sh ac2abc16f5f64196277c721708785683a69074cd10515aa2d56efb5daaf47a67は全てmain blob一致/read-only。freshfree1,265,590,272は状況値で完了KPIではなく、前後差全量をcloneへ帰属しない。毎分自然receipt errors0/protected0、中央cleanup復旧後の自然18dd4018220b09f8-9619はpass0。単発stopではreconcilerが復帰させるためFundraiser一件は既存safe disable/stopで保護し、古い13件の公式照合前にenable/startしない。source fixes/current採用と、未確認のFundraiser owner採用/全体反復受入を区別する。正式runtime readback=~/.local/state/life-manager/state/cleanup-measured-release-runtime-20261011.json。
+
+CLEAN-05 追加観測: writer-sales-measureはsequence597423の予約から、新しい自然occurrence writer-sales-measure:18dd4062baa6c630-17481へclaimed/effect_unknown0。loaded PID17481/start04:03:38JST/argv同owner/d687 main由来immutable一致。最新terminal表示は前occurrenceのblocked75で、現在の自然仕事は実行中。manualwake/使用中枠強制解放/unknown解除0。業務成功/売上/完了とはまだ数えず、terminal保存→released→次自然claimを追跡する。
+
+残TODOの現在順序: 残1=CLEAN-04 Fundraiserの13件公式照合と修正版owner採用/復帰、具体的残留と生成/回収収支。残2=CLEAN-05 未確認担当の自然terminal/枠返却/待機仕事再開。残3=CLEAN-06 同期間の仕事→正式receipt→自己cleanup→中央cleanup→次仕事をjoinしてENOSPC・記録破損・反復手動掃除がないことを確認。CLEAN-03の修復済みproducerの将来slot追跡は並行観測とし独立TODOを停止させない。完了済み調査/大物手動回収/共通自己cleanup/Gig再開/毎分cleanup/source-only full release修復はTODOへ戻さない。基盤全体未完、会社US$10,000,000/month MRRは目標で収益達成未確認。
+
 
 
 
