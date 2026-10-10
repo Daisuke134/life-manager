@@ -190,6 +190,46 @@ if [ "$ARCHIVE_RC" -ne 0 ]; then
   die "export of $SHORT failed"
 fi
 
+# Git defines the new tree; native clones only reuse identical exported bytes.
+if [ "$(uname -s)" = "Darwin" ] && [ -f "$CURRENT/RELEASE.json" ]; then
+  "$RUNTIME_PYTHON" -B - "$CURRENT" "$DEST" <<'PY' || die "source clone verification failed"
+import filecmp
+import os
+from pathlib import Path
+import stat
+import subprocess
+import sys
+import uuid
+
+donor, destination = map(lambda value: Path(value).resolve(), sys.argv[1:])
+cloned = 0
+for directory, folders, names in os.walk(destination, followlinks=False):
+    folders[:] = [name for name in folders if not (Path(directory) / name).is_symlink()]
+    for name in names:
+        target = Path(directory) / name
+        source = donor / target.relative_to(destination)
+        temporary = target.with_name(".source-clone-" + uuid.uuid4().hex)
+        try:
+            info = source.lstat()
+            if (not stat.S_ISREG(info.st_mode) or info.st_mode & 0o222
+                    or info.st_uid != os.getuid() or info.st_nlink != 1
+                    or target.is_symlink() or source.resolve() != source
+                    or not filecmp.cmp(source, target, shallow=False)):
+                continue
+            result = subprocess.run(["/bin/cp", "-c", str(source), str(temporary)],
+                                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            if result.returncode == 0 and filecmp.cmp(temporary, target, shallow=False):
+                os.chmod(temporary, stat.S_IMODE(target.stat().st_mode))
+                os.replace(temporary, target)
+                cloned += 1
+        except OSError:
+            pass  # The committed Git export remains the fallback.
+        finally:
+            temporary.unlink(missing_ok=True)
+print(f"source clones: {cloned}")
+PY
+fi
+
 matching_locked_dependencies() {
   local package_dir="$1" relative donor donor_package
   relative="${package_dir#"$DEST"}"
