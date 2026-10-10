@@ -25,7 +25,7 @@ class CutLoopReleasePressureTest(unittest.TestCase):
                 shutil.copy2(source / relative, target)
             cleanup = repo / "runtime/loop/central_cleanup.py"
             cleanup.parent.mkdir(parents=True)
-            cleanup.write_text("raise SystemExit(0)\n")
+            cleanup.write_text("import os,pathlib\npathlib.Path(os.environ[\"LOOPS_ROOT\"]).parent.joinpath(\"cleanup-ran\").write_text(\"1\")\n")
             subprocess.run(["git", "add", "."], cwd=repo, check=True)
             subprocess.run(["git", "commit", "-m", "fixture"], cwd=repo, check=True, capture_output=True)
             subprocess.run(["git", "update-ref", "refs/remotes/origin/main", "HEAD"], cwd=repo, check=True)
@@ -38,7 +38,8 @@ class CutLoopReleasePressureTest(unittest.TestCase):
                     result, loops = self.run_cut(repo, home, paths, LOOPS_ACTIVATE_CURRENT="0", PYTHONPATH=str(probe))
                     self.assertEqual(result.returncode, 75, result.stderr)
                     self.assertEqual(json.loads(result.stdout.strip())["reason"], "disk_headroom_low")
-                    self.assertFalse((loops / "releases").exists())
+                    self.assertTrue((home / "cleanup-ran").is_file())
+                    self.assertEqual(list((loops / "releases").iterdir()), [])
                     self.assertFalse((loops / ".release-cut.lock").exists())
 
     def run_cut(self, repo: Path, home: Path, paths: str, **extra_env: str):
