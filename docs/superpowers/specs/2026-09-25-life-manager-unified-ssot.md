@@ -241,6 +241,32 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 
 **CLEAN-01の最小patch計画:** `bin/disk-watchdog.sh`から既存governorへchild限定の`LIFE_MANAGER_DISK_INVENTORY_FAST=1`を渡し、`disk_cleanup.py::run_once`で毎分ownerだけfull censusを省く。削除候補・UID/open/protection/receipt/singleton/StartInterval60は維持し、5分ownerは既存full inventory経路を保持する。hour markerが古い/予算切れでも毎分passがheavy censusを再試行しないことをfocused RED/GREENとloaded wrapper/hash・自然inventory_mode=fastで確認する。未知のcoverageを0にしない。manual回収済み・Photos保持・remaining inventoryを記録し、source/自然receiptで一件ずつ進む。
 
+**実行済みreadback（primary）:** 閉鎖Gigは共有paid-direct.lockを取得した上で旧納品版/不要作業物188件を回収、estimated allocated2,127,745,024 bytes、kept primary state/terminal/retained package53件の前後SHA一致、errors0/protected_deletions0。receipt=`~/.local/state/life-manager/state/manual-closed-gig-cleanup-20261010.json`。receipt/vault/lock等が混在するdeliveryはzipのみ、最新保持指定packageとJSON/JSONL/CSVは残す。fresh read-only確認済み。
+
+旧run18dcd2f8b2be9e70-19891はevent terminal75/resource_heartbeat_unavailableなのにpaid_direct.py PID20125がPPID1でlockを保持。UID501/start18:38:45/旧release argv/child0を再確認し、SIGTERM不応後に同PIDだけSIGKILL、old scratch/effect evidenceを保持。新しいmain由来Paid ownerの自然再開を観測し、その稼働中のglobal lockへ無断介入せず、終了後の空きwindowで上記回収を実施。
+
+watchdogはcurrent8f56f511 immutable sourceのcanonical installerから60秒labelのみ更新。installed fast flagとmain blob hash一致、自然unbound receipt00:15:47Z/00:19:01Z/00:26:17Z/00:28:08Z/00:33:31Z/00:34:58Zはfast/errors0/protected_deletions0。kickstart/busy75を自然成功の代用にしない。cleanup本体の回復はこの範囲で証明済み、全owner自己cleanup/継続収益進行のcoverageは未完。
+
+DaisのiCloud未使用/停止指示を受け、Photos公式UIの『このMacから5,752低解像度項目を削除、フル解像度はiCloudに残る』経路を実行。iCloud写真=0/共有アルバム=0をreadback。新しい原本ダウンロード/クラウド側一括削除は行わない。iCloud DriveはSystem SettingsのiCloud paneが2回timeoutで未変更、Photosの停止をDrive停止と扱わない。
+
+実free readbackは00:35時点free_after6,340,141,056 bytes（約5.9GiB）。『70〜100GBの空き』は未確認。以前のvisible3root約32.9GBはLM全量ではない。harness/金融state/toolchain等を含む実path footprintとmacOS分類を混同せず、余剰70GBが存在する前提で削除しない。数字は状態の説明、完了KPIではない。
+
+**手動→自己cleanup→中央cleanupの現在契約（最新指示）:** 完了/キャンセル済みGigは、official provider readback由来・現在state SHA一致のproject-terminal.jsonで閉鎖を確認して、不要な作業物/納品版を回収する。旧janitorのartifacts/delivery/source全てを永久保持する既定を、Daisが不要と指定した閉鎖案件へそのまま適用しない。一次state.json/project-terminal.json/events.jsonl、evidence、wallet/credentials、memory/state JSONL、active/lease/lock/open/未知effectの必要証拠は保持する。まず手動の一括回収を実施し、その同じ閉鎖・保護判定を既存project_janitor/owner終了処理へ追加する。primaryはsourceを追加するより既存共通終了処理とjanitorを再利用する。
+
+手動対象=26件の取引完了/キャンセル・state hash一致案件で、closed project内のartifacts/delivery/deliverables/work。root/source/evidence/context/台帳・最終receiptを保持し、対象subtree内の保護store/credentialやopen handleがあれば保持する。receipt等が混在するdelivery3dir（18211957/18169985/5239257）はdir全体を保持し、closed state/hashを再確認したregular .zip旧納品版だけ回収する（receipt/ledger/auth/cookie/vault/lock/recovery/credentials名を除外、JSON/JSONL/CSV・一次evidenceを保持）。並びは大きいものから。未closedの18169583/5238397と、他者のactive source/worktreeは回収しない。18211957はofficial『取引完了』とstate hash一致を確認したが、保存証拠/正式納品再送禁止を維持する。
+
+5項目の状態: 1) 部分完了（Git auto-GC/旧source copies/harness footprint、VM swap増加を観測。全writer join未完）。2) 部分完了（旧Symphony2dir、旧Franklin2依存/重複asset907681792 bytes、global franklin/clawrouter476 package削除。自己後始末の全coverage未完）。3) 未完（11GiB条件は撤回。自然cleanup/protected0と収益業務の継続進行で判定）。4) 未完（Job Hunterは最新disk_headroom_low defer。枠解除を全件未実施、unknownを解除しない）。5) 未完（official業務receiptへjoinした継続進行を未証明）。現freeを100GBと主張しない。APFS fresh readbackのVMは12.9GB、swap used11.3GBで、Dataだけの掃除後も共有容量へ影響する。VMやSimulatorの削除/restartはしない。
+
+毎分fast inventory修正#7432はmain8f56f511でcurrent ALLへ自然export済み、wrapperのmain Git blob hash一致。stable installed wrapperは旧版のため、current immutable releaseの既存installerから60秒labelだけ更新し、次の自然fast receiptで確認する。他loop/app-serverを再起動しない。
+
+**現在の手動回収cursor（Daisの最新指示を優先）:** 自動化/CI待ちを先頭にせず、GB級のunused local生成物を先に回収する。旧順序=fast inventory patch→staging/小cache→各owner。新順序=旧BlockRunの不要な依存/重複input→より大きいunused branch→既存cleanupへの同proof自動化。DaisはBlockRun旧package未使用・現行Agent Economy利用を明示した。namespaceの名だけで全部必要と扱わず、旧source mirrorと現在のstate/identityを分ける。primaryは候補の発見より、実際に回収したパスと結果を報告する。
+
+手動回収済みは `/Users/anicca/.franklin2-home/.blockrun/skills/earn/x402-sell/node_modules`653,892KiB（current daemonはimmutable releaseのskillsを使用、既存lsof=confirmed-closed、immutable store probe=None）と、同homeの`skills/faceless-money-factory/assets`232,516KiBの重複input。後者は`/Users/anicca/.blockrun/skills/faceless-money-factory/assets`との全regular file SHA256一致、no-follow/UID/closed/保護storeなしを再確認して片方のみ回収する。lockfile・一次asset copy・wallet・state・credentials・receiptsは保持する。read-only explorerはcurrent859df55aの実call graphでglobal franklin/clawrouterへのimport/CLI/絶対パス参照と稼働processが無いことを確認。次に`npm uninstall -g @blockrun/franklin @blockrun/clawrouter --ignore-scripts`で計650,012KiBの不要SDKを回収し、現行sol-tradeが呼ぶfranklin-tradingとcurrentのbundled@blockrun/llmは保持する。
+
+**手動回収readback:** 旧Franklin2のnode_modules/重複assetsはdir_fd/no-followで削除済み、推定907,681,792 bytes、2path不在・primary assets4file保持・lockfile hash一致・errors0。receipt=`~/.local/state/life-manager/state/manual-large-unused-cleanup-20261010.json`。free_before1,398,136,832/free_after2,349,572,096はshared volumeの観測であり、回収量/KPIへ帰属させない。global franklin3.29.0/clawrouter0.12.211はnpm uninstall --ignore-scriptsで476 package削除済み、2 package dir不在とfranklin-trading/現行bundled@blockrun/llm保持をreadback。wallet/現行dependencyは変更しない。
+
+1,891,024KiBの`~/.blockrun/state/.ledger-publish-repo`はworking tree cleanだがledger-franklinのofficial current headとlocal headが違い、compare404でsource adoptionが未証明。publisherはenabled、一次ledgerを保持し、これは全量rm対象へ昇格しない。より大きいcached Git object部分/再生成可能workspaceとして診断を続ける。fast inventoryは#7432のsource/mainまで完了、131 related tests PASS。本番wrapper/current adoption/自然fast receiptは未完で、手動回収を止める理由にしない。
+
 **cleanup改善の残TODO（CLEAN-00の後、この順。P0の実装対象を具体化する）:**
 
 | 状態 | atom | 対象・次の変更 / 完了証拠 |
@@ -265,7 +291,7 @@ P1の枠回復はCLEAN-05の生存/待ち境界として扱う。既存S06〜S18
 
 **「24/7 forever」の契約:** 各agentの自己後始末と中央cleanupを通常の実行lifecycleに組み込み、不要物の増加を生成側と回収側の両方で制御する。監督・待ち行列・復旧は常時動き、各仕事は有限の予算で実行・記録・片付け・次の仕事へ進む。ディスク圧迫を早期に自己所有の修復へつなげ、短期待機後に自動再開し、全収益loopを永久待機させない。正式state/receiptの成長には既存の許可・spend cap内で容量/保存先を計画し、障害になるまで放置しない。ほかのagentと業務loopの並列稼働を維持し、本sessionの改善は一件ずつ行う。保護データ削除、新framework、反復reviewで代用しない。
 
-**実行順:** 既存のP0→P1とlane入口の順を保ち、下記S01→S18へ対応付ける。原子的詳細は既存lane節を参照し複製しない。外部gate/未来slot/収益の到来で止まるatomは、証拠と戻るcursorを記録して次の独立したsafe atomを一件だけ進める。並列実装はしない。元の全lane目標を維持し、18 agent全greenやJob Hunter entitlement/投資30自然round tripsを、独立した既存商品の販売開始gateにしない。現在cursor=S02/CLEAN-01の毎分fast inventory patch。CLEAN-00の旧Symphony手動回収は完了、同生成物/stagingの自動化と残りcategory分類は未完。Photosは同期未完で保持。その後CLEAN-01の中央cleanup hot pass。P0-13の観測はCLEAN-01〜05の実障害境界を狭めるために使い、数字や全体censusの達成待ちにしない。
+**実行順:** 既存のP0→P1とlane入口の順を保ち、下記S01→S18へ対応付ける。原子的詳細は既存lane節を参照し複製しない。外部gate/未来slot/収益の到来で止まるatomは、証拠と戻るcursorを記録して次の独立したsafe atomを一件だけ進める。並列実装はしない。元の全lane目標を維持し、18 agent全greenやJob Hunter entitlement/投資30自然round tripsを、独立した既存商品の販売開始gateにしない。現在cursor=S02/CLEAN-00のGB級unused依存/重複inputの手動回収。CLEAN-00の旧Symphony手動回収は完了、同生成物/stagingの自動化と残りcategory分類は未完。Photosは同期未完で保持。その後CLEAN-01の中央cleanup hot pass。P0-13の観測はCLEAN-01〜05の実障害境界を狭めるために使い、数字や全体censusの達成待ちにしない。
 
 | 状態 | 順 | 次の一操作・対象 / 検証・DONE証拠 |
 |---|---|---|
