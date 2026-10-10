@@ -1,6 +1,6 @@
 # Life Manager 統合SSOT — As-Is / To-Be / TODO
 
-> **最新Manager方針 2026-10-08:** 収益agentの延長を前提にせず、先行研究から独立coreを設計する。[最新調査・実装計画](#manager-20261008) を参照。
+> **最新Manager方針 2026-10-10:** 構造改善と4トラック評価を中核に、cloud/local中立で独立coreを設計する。Life Managerは短期収益系統として並行し、基盤は必要な部分だけ共有。[最新更新と実行順](#manager-20261010) を参照。10/8のD0–D7は本書内の継続するcode task。
 
 > **2026-10-02の新規方針:** Daisは、個人用Life Managerから、受益者にアプリ・アカウント・個人認証を要求せず環境を改善する **Manager** への構想変更、一次資料調査、仕様とgame plan、Aniccaai.comの全面更新を依頼した。新規作業の順序・状態はこの文書末尾の [Manager更新](#manager-20261002) に置く。旧loopのruntime履歴・運用境界は削除しない。新構想の実証や本番サイト更新は未完了。
 
@@ -2890,7 +2890,7 @@ Spec: [独立architecture](2026-10-08-manager-greenfield-design.md)、[英日web
 
 Architecture: `apps/manager/` independent Python3.12 package。旧registry/runtimeを必須にしない。数値環境とresponse modelを分離し、policy探索→実行→readback→outcomeを結ぶ。旧Life Managerは別の運用・資金系統。
 
-Constraints: 最初のcoreはstdlibでoffline実行。秘密・個人state・paid model API・Zepを必須にしない。sourceはcanonical repo専用worktree。TODOは本節のみ。新live作用は権限・readback・比較計画が揃ってから。simulationの成果を人々の富・健康へ言い換えない。
+Constraints（10/10更新）: coreはcloud/local中立。APIなしのstdlib referenceは再現性の入口で、local deploymentを必須にしない。provider、container、cloud workerを差し替え可能にする。秘密・個人state・paid model API・Zepをreferenceの必須にしない。sourceはcanonical repo専用worktree。TODOは本節のみ。新live作用は権限・readback・比較計画が揃ってから。simulationの成果を人々の富・健康へ言い換えない。
 
 Review focus: ①simulation/live混同(D0/D5)、②LLMが資源を生成(D1)、③情報漏洩・不公平なbaseline(D3)、④unknownから再送(D4)、⑤平均改善で集団悪化を隠す(D3/D5)。各taskは該当negative testsを含む。
 
@@ -2964,7 +2964,7 @@ Create/modify canonical `apps/landing/app/en/page.tsx`, `app/ja/page.tsx`, root/
 - [x] 8名の研究接点・公式contact・個別質問、英語原稿6通を作成。
 - [x] Levin/Bernstein/Krakauer/LeiboのGmail未送信draftを作成し、一覧で宛先・件名・DRAFTラベルをreadback。送信は未実施。Park/Aaruは直接メールを推測しない。
 - [ ] 公開する1ページarchitectureと、結果があれば再現リンクを添え、feedback/研究対話の目的で個別outreach。録音は本人同意後。返答・面談は実receiptで記録。
-- [ ] Simile Evaluations、Primitive Intern等を自分の実経歴と照合し、応募材料を個別化。Woven/Aaru senior経験条件を小型demoで満たしたと書かない。
+- [x] 10/10: 実履歴書と修論に基づきSimile/Andon/Sakana/Apolloの4版をprivate PDF/DOCXへ個別化。25追加組織と職種別条件を調査。Primitive等の個別提出回答は未作成。Woven/Aaru senior経験条件を小型demoで満たしたと書かない。
 - [ ] 就労地域・就労資格・副業/IP条件を各roleで確認。応募フォーム提出は現経歴とrole-specific回答が揃ってから。今回応募は未提出。
 - [ ] 最初の公開記事はsynthetic behaviorとreal predictionの違い、次は構造変更のtyped state、次はbenchmark failure分析。Podcastは研究質問とartifactを中心にし、先にcofounderを求めない。
 
@@ -2987,3 +2987,56 @@ Speedrun [apply](https://speedrun.a16z.com/apply) はSR008 early2027、優先期
 ### 今回の証拠・handoff
 
 Documentsのみをcanonical専用worktreeへ変更。外部6repoの固定版コードと企業/求人/paperを読んだ。依存install、paid API、外部repo tests、Manager実装、live環境介入、Netlify公開、Mac runtime操作は未実施。Gmailは4未送信draftのみ作成し、送信していない。応募していない。Astra Advisorは現harnessに無く、Superpowersによる調査・設計を使用。
+
+<a id="manager-20261010"></a>
+## Manager 2026-10-10 マクロ環境と評価事業の更新
+
+ユーザー指定: 個人助言より共有環境の構造、身体/精神/経済の健康、全生命の苦しみを減らす長期mission、透明な証拠。local縛りなし。Life Managerの短期収益系統とManagerの長期開発を並行し、同一会社として基盤共有ができる設計。求人は本人の例より広く、実履歴書の個別化、論文を踏まえたmail、未来events、英日発信を具体化。
+
+設計契約: [macro/evaluation仕様](2026-10-10-manager-macro-evaluation-design.md)。[10/8 core仕様](2026-10-08-manager-greenfield-design.md)とD0–D7を継続する。新しい別TODO正本は作らない。World Engineeringはbrand説明で、確立した学術名としない。One entityはstable objective/ledger/learningを意味し、cloud worker複数でよい。全世界state常時既知、万能、decentralizationを達成済みとはしない。
+
+### 調査と原稿の現在状態
+
+- [x] 追加25組織を調査し、18 named募集/3 portal/2 research接点/2募集なしを分類。[求人と職種条件](../../research/manager/2026-10-10-broad-jobs.md)。元6組織の10/8 reportと日付を区別。
+- [x] 未来12eventを公式/Luma単体pageで確認し、うち10が11/2前。日時、料金、承認、online/view-only/waitlistを分類。[event report](../../research/manager/2026-10-10-events.md)。登録・購入は未実施。
+- [x] AndonのYC W24、VB late2024開始/2025公開、Vendへの移行を一次資料で確認。eval→YCという因果を訂正。[eval report](../../research/manager/2026-10-10-andon-and-evals.md)。5隣接OSSの署名とライセンスを確認。
+- [x] 本人の元履歴書/修論を読み取り、4職種のprivate PDF/DOCX/Markdownを作成。場所 `/workspace/artifacts/manager-careers/`。原資料は変更せず、個人情報と修論はGitへ追加しない。学位正式名/修了日/各手法の担当範囲は提出時の確認点。
+- [x] [paper別mail6通](../../research/manager/2026-10-10-paper-specific-mails.md)を作成。Levin/Bernstein/Krakauer/Leiboの既存4Gmail draftを更新し、宛先・件名・本文・DRAFTをreadback確認。未送信。Park/Andonの未確認個人emailは補完しない。
+- [x] 英日各2articleと英日video scriptを作成。[World Engineering EN](../../research/manager/articles/2026-10-10-world-engineering-en.md)、[JA](../../research/manager/articles/2026-10-10-world-engineering-ja.md)、[Andon EN](../../research/manager/articles/2026-10-10-benchmark-first-en.md)、[JA](../../research/manager/articles/2026-10-10-benchmark-first-ja.md)、[video script](../../research/manager/articles/2026-10-10-video-scripts.md)。未公開、動画未生成。
+- [x] [website原稿](2026-10-08-manager-website-copy.md)を身体/精神/経済の健康、transparent receipts、4track評価の構成へ更新。site実装・Netlify公開は未実施。
+
+### コードの次の実行順
+
+1. **D0→D1**: typed contractsと数値world。資源保存、予算、単位、sim/field、scope/sourceのnegative tests。動く機構と公平な採点の根を作る。
+2. **D2→D3**: 2scenario、有限policy集合、paired shocks、no-change/固定baseline、scenario/network/response-model holdout。agentが望む結論をworldに埋めない。
+3. **D4→D5**: crash/restart、checkpoint、receipt/readback、独立evaluator、4track scorecardのうちsimで測れる範囲。Predictionの実測校正とOutcomeのfieldは未測定とする。
+4. **E0（下記）**: Inspect adapter、cloud worker、費用/失敗分析、公開artifact。採用向けに実際に動いた能力と不足が見える状態にする。
+5. **D6/D7**: サイト更新と公開境界確認、実データ較正、operatorとのshadow→対照つき実証。最初のlive領域はデータ・権限・測定が揃うものから選び、使命をenergy-cost改善へ固定しない。
+
+### E0 — benchmark-firstの実行拡張
+
+- [ ] Create `apps/manager/src/manager/benchmarks/protocol.py`, `tracks.py`。TrackResultのtrack/mode/baseline/uncertainty/cost/subgroup/spillover/statusを型に追加。実測なしをunknown/not_runとし、平均改善で最低群悪化を隠さないテストをD5へ追加。
+- [ ] Create `benchmarks/inspect_adapter.py`, `tests/test_inspect_adapter.py`。D0–D5をdataset/solver/scorerへ接続し、agent toolsとhidden gradingを分離。初期runnerにInspect必須を追加せずextra dependencyで版固定。rubric改変、future-state参照、同一subject/eventのsplit漏洩を失敗させる。
+- [ ] Create `deployment/Dockerfile`, `deployment/README.md`, `runner.py`のartifact出力。one finite episodeのcontainerをクラウドjobまたはVMで実行可能にする。reference runはAPI無し、providerはruntime注入。traceに秘密が入らずrestart後run_id・checkpointを保つことを確認。実cloud receiptがなければcloud deployedとは書かない。
+- [ ] Create `benchmarks/costs.py`, `tests/test_costs.py`。tokens/API実費/compute/wall time/human effort/施策予算を別記録。キャッシュ/重複run/partial failureの費用欠損をunknown。100→1000等のscaleは実測後に報告し、GPU/分散経験に外挿しない。
+- [ ] heldout reportを `artifacts/manager/<run_id>/` のmanifest/trace/scorecard/model cardへ生成。READMEに再現command、失敗3件、既存baseline、claim scopeを添える。これはrun実施後にcheckboxを更新。
+
+### N2 — 応募と関係づくり
+
+- [ ] まずSakana/Apollo/Epoch/Andonを現経歴と照合し、実例1件・研究1件・Managerのstageを含むrole-specific cover回答へ。METR/Mechanize/DeepMind/OpenAIはhard task/grader/debug artifactで接続する。初回8職種のURLとrequirementsは求人report参照。
+- [ ] 原履歴書の学位/修了/勤務期間/研究担当を確認し、提出する4版のclaimsを固定。求人のsponsorshipとremote-country条件を個別に確認。3年/博士/国籍等の条件は制作物で置き換えない。
+- [ ] 公開paperをユーザー自身が読んで質問を説明できる状態にし、mailごとにone-page experimentを添える。送信・返信・面談の状態は実receiptで更新。Podcastは同意のある対話から始める。
+- [ ] 東京10/13・10/14、Stanford online10/16、SBP-BRiMS online10/12–14等から開発日程と両立する参加を選ぶ。申請/承認/購入/参加を別記録し、登壇研究者との面会を保証しない。
+- [ ] 記事は事実・論文版・stageを最終校正し公開laneを確認。進捗videoはsimulation表示と実際のrunだけを使う。3番目の記事は実装後のfailure analysisにする。
+
+### 期限と収益の具体化
+
+10/10基準でYC通常期限まで23日。既存A節の公式期限は11/2 20:00 PT（JST11/3 13:00）。10/31内部目標を継続。10/10–11はD0/D1、10/12–18はD2–D4、10/19–25はD5/E0の再現report、10/26–30はdemoと申請原稿を目安とし、実装開始と結果で再見積り。research/events/applicationsでbenchmark完成時間を使い切らない。
+
+- [ ] Life Manager短期資金を説明する場合、現在のverified net receiptsと期間・費用・主体を確認。今期の新Manager売上/tractionとは分ける。
+- [ ] eval購入候補への提案は固定環境/モデル比較/failure report/shadow studyの納品物を1枚にし、budget owner・価格・購入意思・権利を検証。大量ログ販売・frontierlab購入を既定の売上にしない。
+- [ ] YC/Speedrun申請では現在のstage、再現code、実測結果、短期資金と長期事業仮説を区別。内定/採択/decacornは保証しない。submission receipt取得前は未提出。
+
+今回の変更は調査・設計・原稿・private履歴書・未送信mail draft。code実装、paid API、live環境作用、サイト公開、求人応募、イベント登録、既存Mac runtime変更は未実施。検証記録は下記handoffへ追記する。
+
+10/10検証: canonical source-boundary PASS、変更16 Markdownのlocal links/Manager anchors検査、TODO正本が本書だけであること、新たな履歴書個人contactをGitへ追加していないことを確認。既存SSOTの2 historical missing linkはHEADにも存在し今回変更せず。private履歴書4 PDFは各1頁、全文抽出とDOCX読み取りを確認し、embedded fontのApollo最終renderを目視。Gmail4 draftは更新後messageを読み取り宛先/件名/本文/DRAFTを確認。Sakana/Apollo/HAI/YCの主要一次pageを最終再取得。新code testsやsite buildは対象変更がないため実行していない。

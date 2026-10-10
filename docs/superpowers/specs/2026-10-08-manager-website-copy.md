@@ -1,6 +1,6 @@
 # Aniccaai.com — Managerのgreenfield rebrand
 
-2026-10-08。掲載原稿とsource差分の設計。サイト実装・公開は未実施。旧body/mind/money agentの紹介を、Managerのmission・仕組み・証拠へ置き換える。順序と状態は [統合SSOT](2026-09-25-life-manager-unified-ssot.md#manager-20261008)。
+2026-10-08。掲載原稿とsource差分の設計。サイト実装・公開は未実施。旧body/mind/money agentの紹介を、Managerのmission・仕組み・証拠へ置き換える。順序と状態は [統合SSOT](2026-09-25-life-manager-unified-ssot.md#manager-20261010)。
 
 ## 英語の掲載原稿
 
@@ -12,7 +12,7 @@
 
 We are building an ambient AI entity that models the world, discovers high-leverage changes to its environment, acts on them, and learns from what happens next.
 
-The goal: improve the conditions of life so people and other living beings can thrive—without anyone having to use an app.
+The goal: improve the conditions of life—physical health, mental wellbeing, and financial security—so people and other living beings can thrive without having to use an app.
 
 Links: **Read the architecture** / **See the evaluation plan** / **Explore the research**
 
@@ -26,9 +26,9 @@ Supply, prices, access, shared resources, and the networks around us affect heal
 
 Build a partial model from evidence. Compare structural changes against a baseline. Apply a change through an authorized connection to the environment. Verify what changed. Measure outcomes and update the model.
 
-### Show the evidence.
+### Transparent action. Measurable outcomes.
 
-We will publish reproducible simulations, assumptions, costs, failures, and measured outcomes as they become available. Predicted effects, applied changes, and verified improvements will be reported separately.
+Every claimed improvement should be traceable: what Manager predicted, what it changed, what was measured, and who benefited or was harmed. We will publish reproducible simulations, assumptions, costs, failures, and measured outcomes as they become available. Predicted effects, applied changes, and verified improvements will be reported separately.
 
 ### Research foundations.
 
@@ -46,7 +46,7 @@ Footer: **Manager by Anicca** / Architecture / Research / Benchmarks / Contact /
 
 世界のモデルを作り、環境への効果の大きい変更を見つけ、実行し、結果として起きた現実から学ぶ。そんな一つのAI主体を、私たちは開発しています。
 
-目指すのは、人々や他の生命が、アプリを使わなくても豊かに生きられる環境です。
+目指すのは、身体・精神・経済の健康を支え、人々や他の生命が、アプリを使わなくても豊かに生きられる環境です。
 
 リンク: **仕組みを読む** / **評価計画を見る** / **研究を読む**
 
@@ -85,3 +85,11 @@ Footer: **Manager by Anicca** / Architecture / Research / Benchmarks / Contact /
 Netlify management identityは現在のcloudには未設定。公開元site/domain/SHA/build設定の公式readbackが未実施。本番公開したという主張はしない。既存hostingを保持し、previewの別domainで更新完了にしない。
 
 metadata英語: `Manager — One entity, blessing for all.`。日本語: `Manager — ひとつの存在、すべてに恩恵を。`。Aniccaは発行主体として残し、legal identityをManagerへ書き換えない。英日canonical/hreflang、OG、JSON-LD、sitemapも同じ説明へ。
+
+## 2026-10-10の公開構成更新
+
+ブランドはManager、説明はAI for world engineering。Godは創業者の比喩にとどめ、heroで全知・万能を性能として宣伝しない。ページはmission→構造変更の例→閉ループarchitecture→4評価track→evidence→研究記事とfounder背景の順。受益者signup導線は設けない。研究/企業contactと公開evidenceは残す。
+
+/benchmarksではprediction/policy/execution/outcomeの別カード、not_run状態、protocol、manifest、baseline、uncertainty、費用、群別影響を掲載。/researchでは研究記事の出典と実装stage。/aboutでは確認できた研究/実務経歴だけを掲載し、ICLR参加をaccepted paperと書かない。新Managerの顧客・売上・健康改善を創作しない。Life Manager収益は確認できた場合に別scopeで説明する。
+
+この更新は原稿・構成の変更。本番Aniccaai.comの更新ではない。source/build/deploymentの残作業は統合SSOT D6。

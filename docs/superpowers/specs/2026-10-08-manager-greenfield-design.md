@@ -1,10 +1,10 @@
 # Manager — World Engineering / greenfield design
 
-2026-10-08 UTC。状態: 調査を踏まえた設計提案。新Managerコア、simulation benchmark、実環境介入、サイト公開は未実施。
+2026-10-08 UTC。2026-10-10にmacro/クラウド/評価事業の[更新仕様](2026-10-10-manager-macro-evaluation-design.md)を追加。状態: 調査を踏まえた設計提案。新Managerコア、simulation benchmark、実環境介入、サイト公開は未実施。
 
 ユーザーの最新指示: 現Life Managerという収益agentの延長から考えず、目的と先行研究からManagerを独立設計する。2026-10-02のruntime必須継承・loops/managerへの配置を前提にした案を置き換える。既存事業・運用は別系統で維持し、変更しない。repo保管場所と製品architectureは別問題。
 
-実行TODO・順序・状態は [統合SSOT](2026-09-25-life-manager-unified-ssot.md#manager-20261008) のみ。ここはarchitectureの設計契約。
+実行TODO・順序・状態は [統合SSOT](2026-09-25-life-manager-unified-ssot.md#manager-20261010) のみ。ここはarchitectureの設計契約。
 
 ## 1. 基本からの定義
 
@@ -51,7 +51,7 @@ apps/manager/
   tests/
 ```
 
-Stack提案: core Python 3.12、stdlib dataclasses/json/sqlite3、unittest。graphは明示nodes/edges。統計・最適化libraryは必要な箇所だけ版固定で追加。FastAPI・Ray・graph DB・vector DBは最初の必須依存にしない。LLM providerはresponse/proposal boundaryから注入し、数値referenceはAPI・個人credentials無しで走る。全6 OSSを同じvenvに混ぜない。公開結果は既存Next.js siteの静的artifact。内部CLIや研究用可視化は受益者の操作UIではない。
+配置はcloud/local中立で、クラウドを通常の実行先に選べる。APIなしのreference実行は再現性検査であり、ローカル必須ではない。Stack提案: core Python 3.12、stdlib dataclasses/json/sqlite3、unittest。graphは明示nodes/edges。統計・最適化libraryは必要な箇所だけ版固定で追加。FastAPI・Ray・graph DB・vector DBは最初の必須依存にしない。LLM providerはresponse/proposal boundaryから注入し、数値referenceはAPI・個人credentials無しで走る。全6 OSSを同じvenvに混ぜない。公開結果は既存Next.js siteの静的artifact。内部CLIや研究用可視化は受益者の操作UIではない。
 
 ## 4. データ契約
 

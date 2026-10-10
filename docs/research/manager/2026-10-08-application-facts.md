@@ -16,4 +16,6 @@
 
 ## 証拠とsource境界
 
-公開原HTML/TXTはworkspace scratchの `manager-research/oct08/` へ保存。締切のtimezone換算はPython zoneinfo America/Los_Angeles / Asia/Tokyoで検証。正本の作業順は [統合SSOT](../../superpowers/specs/2026-09-25-life-manager-unified-ssot.md#manager-20261008)。この文書は確認済み事実であり、別task trackerではない。
+公開原HTML/TXTはworkspace scratchの `manager-research/oct08/` へ保存。締切のtimezone換算はPython zoneinfo America/Los_Angeles / Asia/Tokyoで検証。正本の作業順は [統合SSOT](../../superpowers/specs/2026-09-25-life-manager-unified-ssot.md#manager-20261010)。この文書は確認済み事実であり、別task trackerではない。
+
+2026-10-10: YC apply本文を再取得し、Winter 2027、11/2 8pm PT、12/11 decisionを再確認。Speedrunの本書情報は10/8取得のまま。最新実行順は統合SSOTの10/10節。
