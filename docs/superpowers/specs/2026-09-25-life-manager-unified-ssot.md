@@ -369,6 +369,9 @@ CLEAN-05 追加観測: writer-sales-measureはsequence597423の予約から、�
 
 残TODOの現在順序: 残1=CLEAN-04 Fundraiserの13件公式照合と修正版owner採用/復帰、具体的残留と生成/回収収支。残2=CLEAN-05 未確認担当の自然terminal/枠返却/待機仕事再開。残3=CLEAN-06 同期間の仕事→正式receipt→自己cleanup→中央cleanup→次仕事をjoinしてENOSPC・記録破損・反復手動掃除がないことを確認。CLEAN-03の修復済みproducerの将来slot追跡は並行観測とし独立TODOを停止させない。完了済み調査/大物手動回収/共通自己cleanup/Gig再開/毎分cleanup/source-only full release修復はTODOへ戻さない。基盤全体未完、会社US$10,000,000/month MRRは目標で収益達成未確認。
 
+CLEAN-04 Fundraiser照合scope更新: fresh admissionは15件fenced。main由来currentの既存fundraiser_fence_reconcile.pyをresolve=Falseで読んだ結果、13件はexact occurrenceの同UID600 durable marker pre_effect/effect0によるpositive proof、DeepScale 18d9b0b6311a2018-87933とFoundersEdge 18dc7f3bc472c260-76084の2件はunknown/post_effectで保持する。旧canonical pre-effect dry-runのno_pre_effect_terminal13を公式照合必須13と説明したのは不正確で、専用adapterのmarker境界を先に使う。readonly独立検証後、positive proofを再取得し既存adapter --resolveだけで該当13件を閉じる。2件はprovider公式readback無しに解放/再送しない。FoundersEdgeにはlocal submitted_verified/record/PNGがあるがfresh provider proofではない。Gmail公開組織名Sent検索0件はno-effect証明に使わず、account/target一致も未確認。Fundraiser disabled維持、他owner停止/応募/メール/Telegram送信0。この業務fenceは独立したCLEAN-05/06の観測を止めるgateへ広げない。旧順序=13件公式照合→採用→05→06、新順序=既存adapterで13pre-effectを閉じる→2件公式照合/安全採用を保持しながら04生成回収と05/06を直列に進める。理由=既存durable境界がpositive proofを持ち、確認可能な前effect失敗を不明provider行為と混ぜていたため。現在cursor=13件proofの独立検証と既存resolver、全体未完。
+
+
 
 
 
