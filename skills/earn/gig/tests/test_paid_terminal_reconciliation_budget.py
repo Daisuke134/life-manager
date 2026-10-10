@@ -1,5 +1,6 @@
 import hashlib
 import json
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -318,6 +319,59 @@ def test_projects_root_symlink_never_grants_cleanup_outside_it(tmp_path):
     link.symlink_to(root.parent, target_is_directory=True)
 
     result = paid.project_janitor.scan(link, ledger, dry_run=False)
+
+    assert result["bytes_freed"] == 0
+    assert package.read_bytes() == b"keep"
+
+
+def test_closed_workspace_under_owner_git_repo_can_reclaim_output(tmp_path):
+    root, ledger = _closed_project(tmp_path / "gig")
+    (root.parent.parent / ".git").mkdir()
+    package = root / "delivery" / "old.zip"
+    package.parent.mkdir()
+    package.write_bytes(b"x" * 64)
+
+    result = paid.project_janitor.scan(root.parent, ledger, dry_run=False)
+
+    assert result["errors"] == 0
+    assert result["bytes_freed"] == 64
+    assert not package.exists()
+    assert (root.parent.parent / ".git").is_dir()
+
+
+def test_projects_root_with_symlink_ancestor_never_grants_cleanup(tmp_path):
+    root, ledger = _closed_project(tmp_path / "real" / "gig")
+    package = root / "delivery" / "old.zip"
+    package.parent.mkdir()
+    package.write_bytes(b"keep")
+    link = tmp_path / "alias"
+    link.symlink_to(tmp_path / "real", target_is_directory=True)
+
+    result = paid.project_janitor.scan(link / "gig" / "projects", ledger, dry_run=False)
+
+    assert result["bytes_freed"] == 0
+    assert package.read_bytes() == b"keep"
+
+
+@pytest.mark.parametrize("dirname, filename", [("delivery", "old.zip"), ("work", "scratch.bin")])
+def test_closed_cleanup_keeps_regular_leaf_owned_by_another_uid(
+    tmp_path, monkeypatch, dirname, filename,
+):
+    root, ledger = _closed_project(tmp_path)
+    package = root / dirname / filename
+    package.parent.mkdir()
+    package.write_bytes(b"keep")
+    original_lstat = Path.lstat
+
+    def foreign_leaf(path, *args, **kwargs):
+        info = original_lstat(path, *args, **kwargs)
+        if path == package:
+            return SimpleNamespace(st_mode=info.st_mode, st_nlink=info.st_nlink,
+                                   st_size=info.st_size, st_uid=os.getuid() + 1)
+        return info
+
+    monkeypatch.setattr(Path, "lstat", foreign_leaf)
+    result = paid.project_janitor.scan(root.parent, ledger, dry_run=False)
 
     assert result["bytes_freed"] == 0
     assert package.read_bytes() == b"keep"

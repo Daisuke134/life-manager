@@ -54,6 +54,11 @@ def _protected(path: Path) -> bool:
             or any(token in name for token in PROTECTED_TOKENS))
 
 
+def _has_symlink_ancestor(path: Path) -> bool:
+    absolute = path.absolute()
+    return any(part.is_symlink() for part in (absolute, *absolute.parents))
+
+
 def _probe_error(error: OSError) -> None:
     raise error
 
@@ -105,6 +110,8 @@ def _dir_bytes(path: Path) -> int:
 def _remove_dir(path: Path) -> int:
     """Rename-then-delete so a kill mid-removal leaves reapable trash, not a
     half-deleted dir that looks intact."""
+    if _has_symlink_ancestor(path):
+        raise OSError("cleanup_path_symlink")
     size = _dir_bytes(path)
     trash = path.with_name(f"{path.name}.janitor-trash.{os.getpid()}")
     os.rename(path, trash)
@@ -183,7 +190,7 @@ def _prune_closed_outputs(project_dir: Path, *, dry_run: bool) -> dict:
 
     for dirname in RECLAIM_DIRS + ARTIFACT_DIRS:
         root = project_dir / dirname
-        if root.is_symlink() or not root.is_dir():
+        if _has_symlink_ancestor(root) or not root.is_dir():
             continue
         for current, dirs, files in os.walk(root, followlinks=False, onerror=_probe_error):
             if set(dirs + files).intersection({".git", ".lease", ".lm-protected", ".anicca-keep"}):
@@ -196,7 +203,8 @@ def _prune_closed_outputs(project_dir: Path, *, dry_run: bool) -> dict:
                 info = candidate.lstat()
                 if (candidate.resolve() == retained or _protected(candidate)
                         or candidate.suffix.lower() not in OUTPUT_SUFFIXES
-                        or not stat.S_ISREG(info.st_mode) or info.st_nlink != 1):
+                        or not stat.S_ISREG(info.st_mode) or info.st_nlink != 1
+                        or info.st_uid != os.getuid() or _has_symlink_ancestor(candidate)):
                     continue
                 if not dry_run:
                     candidate.unlink()
@@ -206,7 +214,7 @@ def _prune_closed_outputs(project_dir: Path, *, dry_run: bool) -> dict:
 
 
 def _immutable_root_reason(projects_root: Path) -> str | None:
-    if projects_root.is_symlink():
+    if _has_symlink_ancestor(projects_root):
         return "projects_root_symlink"
     try:
         resolved = projects_root.resolve()
@@ -217,12 +225,14 @@ def _immutable_root_reason(projects_root: Path) -> str | None:
         for part in resolved.parts
     ):
         return "immutable_store_root"
-    if any((parent / ".git").exists() for parent in (resolved, *resolved.parents)):
+    if (resolved / ".git").exists():
         return "worktree_root"
     return None
 
 
 def _contains_shared_reference(path: Path) -> bool:
+    if _has_symlink_ancestor(path):
+        return True
     try:
         for current, dirs, files in os.walk(path, followlinks=False, onerror=_probe_error):
             if any(_protected(Path(current) / name) for name in dirs + files):
@@ -232,7 +242,9 @@ def _contains_shared_reference(path: Path) -> bool:
                     return True
             for name in files:
                 candidate = Path(current) / name
-                if candidate.is_symlink() or candidate.lstat().st_nlink > 1:
+                info = candidate.lstat()
+                if (candidate.is_symlink() or info.st_nlink > 1
+                        or info.st_uid != os.getuid()):
                     return True
     except OSError:
         return True
