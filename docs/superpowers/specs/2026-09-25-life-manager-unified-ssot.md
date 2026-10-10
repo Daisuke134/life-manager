@@ -12066,6 +12066,18 @@ flowchart LR
 
 **このreadback時点のcursor:** latest-main統合・SSOT conflict解決済みbranchをpush→fresh reviewer/CI→PR #7478 merge。以降は既存release reconcilerの自然終端、現行Postiz account handle一致、host admission、4旧fenceを保持した新slot契約を順に閉じる。production apply/postは未実施。
 
+### 2026-10-10 19:07 JST — Life Manager Cloud Calendar E2E完了
+
+- PR #7481は `fa1f013163b0ed4dadc18e82895be0f647fcaeb8` でmainへmerge済み。`life-call`のRailway deploymentはSUCCESSで、`/health`も同じSHAを返す。
+- Calendar修正の本番E2Eは、記録済みsynthetic target/blockの2 IDだけを対象にした。最初のfillでpatch 1回、Googleの同じblock IDにpopup 0分、Travel block create 0回、target予定不変を確認。二度目のfillではpatch 0回・create 0回（replay-zero）。
+- 既存routeable pairのTravel blockは一意でpopup 0分。既存generated block 4件はID・時刻・場所が変わらず、書き込みなし。これら4件は今回のreadbackでは対応する元予定が見つからず、default reminderのまま残るため変更していない。
+- synthetic fixture 4件とアプリ作成Travel block 1件を削除し、Google provider readbackで全件不在を確認。setup再実行、`web_first_travel_at`/billing reset、Checkout、Telegram/iMessage送信はいずれも未実施。
+- PR #7481のexact-head required checksは全件PASS。新しいtransport regressionはREDを確認後GREEN。transport/Travel/Routes/return 75/75、Web-first 266/266とPostgreSQL integration 2件、Life Manager全体`npm test`もexit 0（core 1,045件）。
+
+**TODO順更新:** 旧順序=`reminder transport merge/deploy → fixture-scoped Calendar patch/readback/replay-zero/cleanup → Telegram self ask → Stripe TEST → Composio固定費readback → Cloud marketing → Photon → $10K MRR`。新順序=`(1) Telegram self tenant/bot/dialogのbindingを再確認し、既存ask経路からsynthetic質問を1件だけ送信。provider/user receipt・no-email・replay-zeroを確認 → (2) 既存Stripe TEST trial lifecycleを完了 → (3) Composioの固定費/usage basisをofficial readback → (4) 集客前にproduction /lmのsigned-out CTAとofferをreadback → (5) 既存Cloud marketing ownerを起動しUTM-to-paid funnelを計測 → (6) Photon Free Japan pairing/reply/line-fit pilot → (7) Stripe公式active paid invoiceでgross MRR $10Kを確認`。理由: Calendarの本番挙動とcleanupが証明できた。広告流入を始める前に公開入口を確認し、その後は決済・計測・会話チャネルの既存gateを順に閉じる。
+
+**現在cursor:** read-onlyでself Telegram tenantとbot/dialogのtarget bindingを再確認 → 既存ask loopからsynthetic質問を1件 → provider/user receipt・no-email・replay-zero。本人以外のTelegram利用者には送らない。
+
 ### 2026-10-10 19:09 JST — latest-main source synchronization
 
 - `origin/main`は`d573483e4a03159e513e1571365aa53621fe5850`（#7483）まで進み、eBook task branchへmerge済み。main由来のCapafy変更は上流の取り込みのみで、このworktree内でCapafyを編集していない。`git diff --check origin/main...HEAD` PASS。
