@@ -357,6 +357,9 @@ CLEAN-04根本caller修復の封じ込めscope: #7547 exact89a746d7e05a61a6bbd00
 
 CLEAN-04封じ込め実施結果: fresh Fundraiser loaded-idle/PID無し確認後の既存lm-loop stop fundraiserはbootout0/return0。fresh statusはunloaded/installed522/historical unknowntrue保持、中央cleanupはrunning/PID72197を確認。他owner停止0/active応募中断0/unknown解除0/再送0。新版1181を含むimmutableがまだ容量guardで未作成のため、paused old ownerを勝手にstartしない。current d687は毎分/中央cleanupを継続し、自然18:38:06Zはcodex-runtime-cacheの確認済みpath（logical0の空tree）とgithub-cache6409/errors0/protected0を記録。この復旧・封じ込めをsource完了だけで全体Doneとしない。現在cursor=安全回収による完全release書込復旧→Fundraiser source採用/fence保持→元cadence復帰→低容量自然branchでcleanup不停止→CLEAN-05→06。
 
+CLEAN-04 release容量契約修復scope: 完全releaseの一律2GiB guardが、依存再生成の無い約100MiB更新を停止させる実例を修復する。currentがmain由来ALL・未reclaim・immutableで、7 package/lockとruntime/Python/cache tagとcontent-addressed npm bundleが一致する更新だけ、Git全archiveのblock切上げ・clone一時領域・bytecode一時領域・64MiBの記録余裕から必要bytesを算出する。測定不明/資格不一致は既存2GiB guardへ戻す。低容量でbundleが消失/不一致ならnpm installせず失敗する。complete/current/owner lock、保護store、unknown fenceは変更しない。対象はbin/cut-loop-release.sh、runtime/host/disk_admission.pyと既存focused tests。最小RED→GREEN、CI/main→ALL immutable→対象owner loaded/natural確認の順で進める。現在cursorはこのsource容量契約修復、続いてFundraiser採用/安全復帰→CLEAN-05→CLEAN-06。基盤全体は未完。
+
+
 **cleanup現在readback（source/main/release/loaded/naturalを区別）:**
 
 | atom | 確認済み | 実際に残る一操作 |
