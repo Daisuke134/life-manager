@@ -53,10 +53,6 @@ ARCHIVE_PATHS=()
 if [ -n "$RELEASE_PATHS" ]; then
   read -r -a ARCHIVE_PATHS <<<"$RELEASE_PATHS"
 fi
-if [ -z "${ARCHIVE_PATHS[*]:-}" ]; then
-  "$RUNTIME_PYTHON" "$SCRIPT_ROOT/runtime/host/disk_admission.py" \
-    --check-free-space "$LOOPS_ROOT" || exit "$?"
-fi
 
 cleanup() {
   local status=$?
@@ -145,6 +141,11 @@ DEST="$RELEASES/$(date +%Y%m%dT%H%M%S)-$SHORT"
 PRE_KEEP=$((KEEP > 1 ? KEEP - 1 : 1))
 prune_releases_after "$PRE_KEEP"
 prune_dependency_bundles || die "safe dependency bundle pruning failed"
+# Recovery must run before export admission, including while capacity is low.
+if [ -z "${ARCHIVE_PATHS[*]:-}" ]; then
+  "$RUNTIME_PYTHON" "$SCRIPT_ROOT/runtime/host/disk_admission.py" \
+    --check-free-space "$LOOPS_ROOT" || exit "$?"
+fi
 # Only the release dir: each loop's state dir belongs to that loop's job, and creating a shared
 # empty one here would advertise a location nothing actually writes to.
 mkdir -p "$DEST" || die "cannot create $DEST"

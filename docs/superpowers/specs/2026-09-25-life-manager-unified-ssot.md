@@ -305,6 +305,8 @@ CLEAN-04の終了owner残留scope: LINE factory18dd30a3f4e2e370-98723は15:13:26
 
 CLEAN-04 closed-owner回収結果: exact89430 KILL→92507 TERM後も旧92507/775が残るためstart/UID再確認後この2PIDだけKILL、fresh3PID absent。ファイル削除0/fence変更0、private receipt cleanup-line-imagegen-terminal-20261011.json。idle timeoutだけをteardown成功と扱わない。次の共有修復scopeはbin/cut-loop-release.shの完全cutが既存pruneより先にcapacity gate75で終了する順序。既存pruneを同lock/provenance/保護下で先に実行してから同じ2GiB guardを判定し、exportはguard PASS後だけとする。閾値低下・partial current・active release直接patch・新serviceは作らない。既存test_cut_loop_release_pressureにlow-space時のcleanup先行とexport無しのRED→GREENを加える。
 
+CLEAN-04 cutter source受入: 低容量でcleanup-ranが存在しないRED2 subcases→既存pruneの後へ同capacity判定blockを移動してGREEN。閾値/完全export/ancestry/lock/trap/dependencies/current契約は保持。関連test_cut_loop_release_pressure5件PASS、bash syntax/diff PASS。初回ancestor fixtureはsparse checkoutで.gitattributes欠落によるmemory archive assertion失敗を観測し、HEADの同fileだけ復元後全5PASS。新source branch=fix/cleanup-before-release-admission-20261011。本番回収・完全release・loaded/自然受入は未完。
+
 **cleanup現在readback（source/main/release/loaded/naturalを区別）:**
 
 | atom | 確認済み | 実際に残る一操作 |
