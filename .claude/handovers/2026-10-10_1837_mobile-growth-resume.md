@@ -57,3 +57,10 @@ slot catch-upの4 focused test filesはmain同期前に55/55。read-only dry-run
 - The 55/55 catch-up focused test result predates the latest two main merges; rerun it before committing source. The disk admission tests are edited but not run; no `lm_loop_run.py` implementation change exists. USD 20.34 remains the earlier subscription-MRR observation, not settled net; ASC/in-app metrics were not refreshed.
 
 First safe resume action: fetch and verify `origin/main`, feature upstream, HEAD, dirty state, and lease; confirm the latest section in the SSOT and this update. Then rerun the four catch-up test files and continue the exact TODO order in that SSOT. Keep the shared main checkout and other leased worktrees untouched. Do not wait for a posting time to work on independent source/tests, but do not post/apply while the active self-handoff or cleanup owner is unresolved.
+
+## 18:43 JST durability/readiness update
+
+- The SSOT and this handover were pushed to `origin/fix/mobile-distribution-e2e-20261010`. Post-push fetch verified remote HEAD `0e34de5f4b0939e656e29e263f17d79bb8768a17`; both remote file blobs were read back. No PR is open for this branch.
+- The local implementation diff remains the same nine dirty source/test files and is not on that remote ref. Preserve it on this same worktree and recheck its exact diff before editing. Latest `origin/main` at the last read is `98f674e9523b72fad5f041d89ec1c86b9b771f91`, already merged into the feature branch.
+- The next cursor is the SSOT's 18:43 atomic list: fresh git/lease/runtime/provider readback, rerun the catch-up focused tests, then verify the disk gate tests RED. Do not start runtime publication while the reconciler self-handoff or cleanup owner is active.
+- The chat-ready `/goal` was validated by the goal-setter length checker at 1,771 characters; the final user-paste version should name the exact branch HEAD containing this addendum.
