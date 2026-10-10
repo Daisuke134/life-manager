@@ -293,6 +293,12 @@ CLEAN-04 inventory source受入: 1秒budget/3root/複数pass fixtureで旧実装
 
 CLEAN-04 inventory main/current/loaded: #7563 exact5bf2f15a169868380e73019dff8b83bb18d58b71/CI38084343790全10SUCCESS→maincebf29f912aea7b64b10f8bcdb73801af49613dd。正規ALL cutter exit0/nativeclone8330/current20261011T054243-cebf29f9/main ancestor/runtime tag/実budget346,947,584をreadback。host_inventory.py SHA761db8d8bc86334ec1c44e2a1d5b5109d179a2d06a1cc83d928be5d36c810d5b/main byte一致/read-only。watchdogはfresh GUI/idle/PID無しから既存install-launchd.shで同release argvへ採用、StartInterval60を維持。中央ownerは初回active95482をskip、psで同runの生存を確認して終了を待ち、旧自然20:44:52Z full receipt/errors0/protected0保存→PID無し/idle後のcanonical target reconcileでapplied1/failed0/loaded argvcebf/install event3a16a9d0111835f18a945ed9。manualwake/他owner停止/削除allowlist変更0。採用前baseline full20:40:01Zは実測3root/gaps23。次=新mainの複数自然full snapshotで後方rootへの実測進行とlast sample時間付きgrowthを確認し、具体的増加/回収へ結ぶ。receipt=~/.local/state/life-manager/state/inventory-root-progress-runtime-20261011.json。source/main/current/loadedのみではCLEAN-04/全体Doneとはしない。
 
+CLEAN-05 Writer profile競合の再発修復scope: 次自然18dd46a0d0f75ff0-31280（20:58:03→20:58:09Z）もentrypoint75/guard BUSY rc9、holderPID24631/start05:55:17JST、その後psではPID無し。モデル枠分類は解決済みだが、workerが正当なbrowser占有で計測を終了するためbusy→解放まで同じ計測を続行できない。既存owned sales lockを保持し、既存browser-guard.acquireのrc9だけ5秒後に再試行する小差分で直す。親のfinite runtime bound3600秒を維持し、他のguard失敗は元どおり75、foreign leaseをreleaseせず、自分がacquireできた時だけmeasure→money_sync→自分のlease release。新queue/profile/identity/timeout設定/上限/金融計算/送信追加なし。既存browser-lease testをbusy一回→successでRED→GREENにし、unknown error即停止とmeasurement失敗時の自分のreleaseを確認。source/main/immutable→fresh loaded-idleでWriterだけ採用→次の自然計測/readback/自己cleanupへ。CLEAN-04 inventory自然進行は並行観測、完了済み分類修復をTODOへ戻さない。
+
+CLEAN-05 browser wait source受入: 既存fixtureをbusy一回→successへ変更し、旧workerの即75をREDで確認。guard rc9だけsleep5後に同じacquireを再試行し、success後だけ自分のleaseをreleaseする最小whileでGREEN。worker4tests PASS（foreign release無し/正しいendpoint/unknown rc7即75/計測失敗23でown lease release）、既存sales-measure lock contract PASS（stale reclaim/legacy live保持/token付きbusy保持）、bash syntax/diff PASS。親runtime_timeout default3600は変更なし、新retry設定/queue/profile/priority/cap0。次=CI/main→immutable→idle対象採用→自然busy→解放後のofficial計測/terminal保存/自己cleanup。
+
+
+
 
 
 

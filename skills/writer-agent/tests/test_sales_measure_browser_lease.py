@@ -6,7 +6,7 @@ ROOT = Path(__file__).resolve().parents[3]
 WORKER = ROOT / "skills/writer-agent/scripts/writer-sales-measure-worker.sh"
 
 
-def fixture(tmp_path, acquire_rc=0, measure_rc=0):
+def fixture(tmp_path, acquire_rc=0, measure_rc=0, busy_once=False):
     scripts = tmp_path / "scripts"
     scripts.mkdir()
     (tmp_path / "state").mkdir()
@@ -18,6 +18,7 @@ def fixture(tmp_path, acquire_rc=0, measure_rc=0):
     guard.write_text(f'''#!/usr/bin/env bash
 printf '%s %s\\n' "$1" "$2" >>"{tmp_path}/events"
 if [ "$1" = acquire ]; then
+  if [ "{busy_once}" = True ] && [ ! -e "{tmp_path}/busy-seen" ]; then touch "{tmp_path}/busy-seen"; exit 9; fi
   [ "{acquire_rc}" = 0 ] || exit {acquire_rc}
   printf 'http://[::1]:9222\\n'
 fi
@@ -29,9 +30,14 @@ printf 'measure %s\\n' "${{WRITER_CDP_ENDPOINT:-missing}}" >>"{tmp_path}/events"
 exit {measure_rc}
 ''')
     python.chmod(0o755)
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    (fake_bin / "sleep").write_text(f"#!/bin/sh\nprintf 'wait\\n' >> '{tmp_path}/events'\n")
+    (fake_bin / "sleep").chmod(0o755)
     (scripts / "writer-runtime-env.sh").write_text(f'''STATE_DIR="{tmp_path}/state"
 LIFE_MANAGER_REPO="{tmp_path}"
 WRITER_BROWSER_PYTHON="{python}"
+export PATH="{tmp_path}/bin:$PATH"
 ''')
     (scripts / "money_sync.py").write_text(f'from pathlib import Path\np=Path({str(tmp_path / "events")!r})\np.write_text(p.read_text()+"sync\\n")\n')
     shutil.copy(WORKER, scripts / WORKER.name)
@@ -48,9 +54,20 @@ def test_worker_holds_registered_browser_lease_through_measurement(tmp_path):
     assert not (tmp_path / "state/.sales-measure.lock").exists()
 
 
-def test_busy_browser_skips_provider_and_releases_only_worker_lock(tmp_path):
-    worker = fixture(tmp_path, acquire_rc=9)
-    result = subprocess.run(["bash", str(worker)], capture_output=True, text=True)
+def test_busy_browser_waits_then_measures_without_releasing_foreign_lease(tmp_path):
+    worker = fixture(tmp_path, busy_once=True)
+    result = subprocess.run(["bash", str(worker)], capture_output=True, text=True, timeout=10)
+    assert result.returncode == 0, result.stderr
+    assert (tmp_path / "events").read_text().splitlines() == [
+        "acquire interactive:dais", "wait", "acquire interactive:dais",
+        "measure http://[::1]:9222", "sync", "release interactive:dais"
+    ]
+    assert not (tmp_path / "state/.sales-measure.lock").exists()
+
+
+def test_unknown_browser_error_skips_provider_and_releases_only_worker_lock(tmp_path):
+    worker = fixture(tmp_path, acquire_rc=7)
+    result = subprocess.run(["bash", str(worker)], capture_output=True, text=True, timeout=10)
     assert result.returncode == 75
     assert (tmp_path / "events").read_text().splitlines() == ["acquire interactive:dais"]
     assert not (tmp_path / "state/.sales-measure.lock").exists()
