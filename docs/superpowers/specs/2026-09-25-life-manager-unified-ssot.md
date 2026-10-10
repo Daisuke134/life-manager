@@ -291,6 +291,8 @@ DaisのiCloud未使用/停止指示を受け、Photos公式UIの『このMacか�
 
 毎分cleanupの最新自然receiptは2026-10-10T16:01:52Zへ更新し、evaluated32/reclaimed0/errors0/protected_deletions0、open3/protected_descendant29を保持。ただしcandidate cursor保存はerrno28、inventory_error=OSError、free_after137,723,904 bytesで、トップレベルok/errors0だけを根本修復成功とはしない。前のpreflight receipt書込失敗とnative agent thread-store lock ENOSPCも未解消。現在cursorはCLEAN-04の実回収を継続し、この自然receiptのcursor/inventory書込失敗を既存回収経路で解消すること。CLEAN-05の残owner枠返却とCLEAN-06の同期間反復稼働は続く。空きGiBの固定値・全190自然run・追加reviewを完了gateにしない。5 codersの作業は止めず共有cleanup/releaseはprimary一人で所有し、全coder無制限同時起動や基盤停止を解決策としない。
 
+CLEAN-04の次source修復scope: existing reclaim_unreferenced_sourceの実計測は15.010秒/8filesで、references11回の累積11.758秒、対象外を含むPath.relative_to214,618回が累積7.758秒。既存lsofを毎leaf再確認する保護契約は保持し、release root＋区切り文字で無関係な絶対pathだけを先に除外してPath解析を限定する最小差分を選ぶ。文字列prefixが似た別root・dot/dotdot・current/open/同PID owned FDの境界は既存fixtureへ追加してRED→GREENを確認。lease/lifecycle locks、unknown保持、Git blob/identity再確認、deadlineは変更せず、新cache/queue/rotator/reviewerは追加しない。source専用branch=fix/cleanup-release-reference-filter-20261011予定。同worktreeのgit restoreはindex.lock errno28で未実行、既存dirty scopeは保持されている。通常fetchだけは成功。追加serial回収はd3b3a279の24files/2,109,440 bytes、e01c4032の23files/2,428,928 bytes、計測pass19bc76c0の8files/1,052,672 bytesで各errors0/protected_deletions0。根本修復の完了証拠とはしない。
+
 **cleanup現在readback（source/main/release/loaded/naturalを区別）:**
 
 | atom | 確認済み | 実際に残る一操作 |
