@@ -5,8 +5,8 @@
 - Repository: `/Users/anicca/Projects/life-manager-main`
 - Spec worktree: `/Users/anicca/Projects/life-manager-main/.worktrees/docs-mobile-distribution-postmerge-20261010`
 - Spec branch/upstream/push: `docs/mobile-distribution-postmerge-20261010` / `origin/docs/mobile-distribution-postmerge-20261010`
-- Spec: `/Users/anicca/Projects/life-manager-main/.worktrees/docs-mobile-distribution-postmerge-20261010/docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md`; latest mobile status and the entire ordered cursor are in its final `2026-10-10 17:13 JST — Mobile distribution handover refreshed` section.
-- Spec checkpoint commit: `3d81376b16b57cdfcafada8e4051ed5ff9c4dea9`; handover files were first committed at `2a430af93995b2209063cabc07c7ab7b49ec1d22`, with the runtime refresh at `1cbfbdbf6b1a3f9fa17d49a0ca14ad89411a31ef`. PR #7462 is open/clean; no exact-head workflow checks are attached to the latest head yet. `git diff --check` and the goal-setter validator pass.
+- Spec: `/Users/anicca/Projects/life-manager-main/.worktrees/docs-mobile-distribution-postmerge-20261010/docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md`; current ordered mobile TODOs are at the end of the file, with the 17:20 runtime read and 17:24 main-sync checkpoint directly above them.
+- Spec checkpoint commit: `3d81376b16b57cdfcafada8e4051ed5ff9c4dea9`; handover files were first committed at `2a430af93995b2209063cabc07c7ab7b49ec1d22`, with runtime refresh at `1cbfbdbf6b1a3f9fa17d49a0ca14ad89411a31ef`. Latest verified branch head is `3e752845ceb2fe6d4e6ee032252e0c5f10061336`; PR #7462 is open/clean on current main, with no exact-head workflow checks attached. `git diff --check` and the goal-setter validator pass.
 - Latest fetched main: `d3eedfb78ec65006d98d75da511748fdde0632b5`. The last verified current release was `20261010T171451-0c4fcf42` (`0c4fcf4234541b4fabc3dcd2cd6471246944f2fa`) at 17:20 JST, before main advanced; re-read the pointer before runtime work.
 
 ## State to preserve
