@@ -373,10 +373,18 @@ def delivery_decision(item: dict[str, Any]) -> dict[str, Any]:
     if (
         item.get("formal_delivery_observed") is True
         and item.get("talkroom_state") == "納品確認待ち"
-        and item.get("buyer_feedback_pending_artifact") is not True
-        and item.get("buyer_reply_after_artifact_observed") is not True
+        and item.get("buyer_visible_artifact_observed") is True
+        and item.get("buyer_feedback_pending_artifact") is False
+        and (
+            item.get("buyer_reply_after_artifact_observed") is False
+            or (
+                item.get("buyer_reply_after_artifact_observed") is True
+                and item.get("buyer_feedback_answered_by_seller") is True
+            )
+        )
     ):
-        # "We delivered and the buyer has not replied, so there is nothing to do."
+        # "We delivered and the buyer has not replied, or we answered their only
+        # post-artifact feedback, so there is nothing to do."
         # Exactly right when what we delivered was the work. Order 91000002 is what
         # it looks like when it was not: a 1879-byte list of things we still needed
         # to confirm went out as a formal delivery, the order left the queue, and

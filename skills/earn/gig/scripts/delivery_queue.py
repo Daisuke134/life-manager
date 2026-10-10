@@ -184,6 +184,22 @@ def is_active_paid_order(order: dict[str, Any]) -> bool:
         )
         or order.get("room_contract_kind") == "subscription"
     )
+    # A formally delivered, buyer-visible artifact with explicit no-pending
+    # feedback is still an active paid order while buyer acceptance is due.
+    # Keep it visible to the reporting path without treating it as work to send.
+    buyer_acceptance_wait = (
+        order.get("talkroom_state") == "納品確認待ち"
+        and order.get("formal_delivery_observed") is True
+        and order.get("buyer_visible_artifact_observed") is True
+        and order.get("buyer_feedback_pending_artifact") is False
+        and (
+            order.get("buyer_reply_after_artifact_observed") is False
+            or (
+                order.get("buyer_reply_after_artifact_observed") is True
+                and order.get("buyer_feedback_answered_by_seller") is True
+            )
+        )
+    )
     # A buyer can explicitly hold formal delivery after the marketplace has already
     # rendered the room as completed.  That terminal-looking card is not proof that
     # the paid work is settled when the same live capture carries newer actionable
@@ -203,7 +219,7 @@ def is_active_paid_order(order: dict[str, Any]) -> bool:
         and bool(order.get("contract_id"))
         and bool(order.get("talkroom_id"))
         and (live_paid_state or held_feedback_reopened)
-        and live_revision
+        and (live_revision or buyer_acceptance_wait)
     )
 
 
