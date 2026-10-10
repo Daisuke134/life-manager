@@ -1,6 +1,7 @@
 "use strict";
 
 const crypto = require("node:crypto");
+const { z } = require("zod");
 const { resolveWebUser } = require("./web-auth.js");
 const { webTrialEligible, webPaidCheckoutEligible } = require("./billing.js");
 const { recordWebFunnelEvent } = require("./web-funnel-events.js");
@@ -9,6 +10,8 @@ const WEB_UID_RE = /^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]
 const CHECKOUT_PATH = "/api/lm-web/checkout";
 const PORTAL_PATH = "/api/lm-web/billing/portal";
 const TRIAL_SECONDS = 7 * 24 * 60 * 60;
+const CHECKOUT_EMAIL_SCHEMA = z.string().email();
+const EMAIL_DOMAIN_LABEL_RE = /^[a-z\d](?:[a-z\d-]*[a-z\d])?$/i;
 const BILLING_FIELDS = [
   "uid", "telegram_chat_id", "calendar_provider", "calendar_connected_account_id",
   "calendar_enable_pending",
@@ -145,7 +148,9 @@ async function createWebCheckoutSession(uid, user, opts = {}) {
   if (row.stripe_customer_id) params.customer = row.stripe_customer_id;
   else {
     const customerEmail = typeof user.email === "string" ? user.email.trim() : "";
-    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail)) params.customer_email = customerEmail;
+    const domain = customerEmail.slice(customerEmail.lastIndexOf("@") + 1);
+    const validDomain = domain.split(".").every((label) => label.length <= 63 && EMAIL_DOMAIN_LABEL_RE.test(label));
+    if (CHECKOUT_EMAIL_SCHEMA.safeParse(customerEmail).success && validDomain) params.customer_email = customerEmail;
   }
   const digest = crypto.createHash("sha256").update(`${uid}:${row.calendar_connected_account_id}:${priceId}:${trialEligible ? "trial" : "paid"}:${row.stripe_subscription_id || ""}`).digest("hex").slice(0, 40);
   let session;

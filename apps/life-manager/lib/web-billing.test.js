@@ -119,7 +119,7 @@ test("Web Checkout pre-fills the authenticated Google email for a new Stripe cus
 
 test("Web Checkout lets Stripe collect email when the authenticated Google email is missing or invalid", async () => {
   assert.ok(webBilling, "web-billing behavior must be implemented");
-  for (const email of [undefined, "  ", "not-an-email"]) {
+  for (const email of [undefined, "  ", "not-an-email", "user@a..b", "user@-host.example", "user@host-.example"]) {
     const f = fixture();
     await createCheckout(UID, { uid: UID, email }, f.opts);
     const params = f.calls.checkouts[0].params;
