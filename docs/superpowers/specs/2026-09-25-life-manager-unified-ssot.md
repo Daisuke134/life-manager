@@ -28,7 +28,7 @@
 
 **不変条件:** iOS Simulator runtime/image/device/data/dyld、memory/state、credentials、browser identity、参照release、active/dirty/unmerged/leased/locked worktree、open/unknown dataを削除しない。各agentは自分が生成し所有する非authoritative scratchだけを片付け、中央cleanupは残ったclosed/orphaned artifactと証明済みの不要物を回収する。他agentの作業や正式receiptを消さない。effect_unknownはexact official receipt/pre-effect proofまで解除・再送しない。内部の余白・時間・byte予算は安全な制御に使い、空き容量の固定値を事業再開の条件にしない。
 
-**現在cursor: S02/CLEAN-00のGB級不要物回収 → CLEAN-02の閉鎖Gig自己cleanup本番adoption → CLEAN-03/04の保存上限と取り残し → CLEAN-05/06の自動再開・収益進行。** CLEAN-01は#7432/main8f56f511の毎分fast passを反映し、複数の自然receiptでerrors0/protected_deletions0を確認済み。CLEAN-00は旧Symphony、旧Franklin2、不要global SDK、閉鎖Gig旧出力、Chrome旧frameworkを手動回収済み。fsearchの名前/サイズindexで追加の大物を調べる。閉鎖Gig自己cleanupは#7434/mainf1bfcc19へ統合済みだが、Paid ownerもf1bfcc19へ対象限定adoption済み。自然occurrence18dd06c9d1e98260-8238はresource_capacity_busyでqueueに保持され、次の未完は自然janitor readbackと業務継続。容量数値だけを合格・再開gateにせず、全ownerの自己後始末と公式業務receiptの継続進行まで根本修復は未完。
+**現在cursor:** →「1〜5の完了判定と残TODO」。1の短時間writer/path増加joinから、一件ずつ未証明の境界を進める。GB級手動回収、毎分fast passの自然受入、閉鎖Gig janitorのmain/current/Paid owner adoptionは確認済みで、やり直さない。全owner自己後始末、有限保存、自動再開、公式業務receiptの継続は未完。容量数字だけで根本修復をDoneにしない。
 
 **引き継ぎ/診断証拠:** worktree HEAD `a6e03757`の4ファイル497行差分を`ea1784b0ec`で保持してpushし、最新main `3baccdbd`を`00b5d4ff5d`でmerge/push。leaseは既存owner `codex-root`でheartbeatを更新、直列lsof再確認でworktree下open handleなし。既存temp/worktree focused testは2 PASS。agmsg統括identityは`lm/codex-resource-orchestrator-1009`、既存cleanup担当へ重複書込抑制と状態照会を送信。自然receiptの成功/失敗が交互に現れ、失敗時の正確な親errorは`host_cleanup_identity_mismatch`。`disk_cleanup.py::main`のbusy lock出力はexit75だがidentityを含まず、`central_cleanup.host_cleanup_readback`の同-occurrence検査が失敗に変換する。REDはbusy出力identity欠落と親exit1を再現し、最小修正後の関連4 testsはGREEN。修正契約は、busy出力にもimmutable manifest由来の同run identityを載せ、親はそのidentityを検証した正確なbusyだけをeffect0のexit75延期として維持し、他のidentity mismatchはexit1のまま拒否する。旧ENOSPC修復とは区別し、容量不足時の既存reserve/cursor testsも再確認する。
 
@@ -266,7 +266,18 @@ DaisのiCloud未使用/停止指示を受け、Photos公式UIの『このMacか�
 
 手動対象=26件の取引完了/キャンセル・state hash一致案件で、closed project内のartifacts/delivery/deliverables/work。root/source/evidence/context/台帳・最終receiptを保持し、対象subtree内の保護store/credentialやopen handleがあれば保持する。receipt等が混在するdelivery3dir（18211957/18169985/5239257）はdir全体を保持し、closed state/hashを再確認したregular .zip旧納品版だけ回収する（receipt/ledger/auth/cookie/vault/lock/recovery/credentials名を除外、JSON/JSONL/CSV・一次evidenceを保持）。並びは大きいものから。未closedの18169583/5238397と、他者のactive source/worktreeは回収しない。18211957はofficial『取引完了』とstate hash一致を確認したが、保存証拠/正式納品再送禁止を維持する。
 
-5項目の状態: 1) 部分完了（Git auto-GC/旧source copies/harness footprint、VM swap増加を観測。全writer join未完）。2) 部分完了（旧Symphony2dir、旧Franklin2依存/重複asset907681792 bytes、global franklin/clawrouter476 package削除。自己後始末の全coverage未完）。3) 未完（11GiB条件は撤回。自然cleanup/protected0と収益業務の継続進行で判定）。4) 部分完了（終了済みGig orphan PID20125の占有lockを回収、新Paid owner f1bfcc19へadoption。Job Hunter/CrowdWorks Replyの二つの実agentが上限2を使用中で、Paidは同occurrence queued。使用中枠/unknownを強制解放しない）。5) 未完（official業務receiptへjoinした継続進行を未証明）。現freeを100GBと主張しない。APFS fresh readbackのVMは12.9GB、swap used11.3GBで、Dataだけの掃除後も共有容量へ影響する。VMやSimulatorの削除/restartはしない。
+**1〜5の完了判定と残TODO（この順で一件ずつ）:** 全体は未完。統括作業はこの根本修復に集中する。既存の安全な自然業務は後始末/再開を確認する実測対象として扱い、容量数字だけを合格gateにしない。
+
+| 順 | 現在 | できたこと | 残る一操作・完了の証拠 |
+|---|---|---|---|
+| 1 増加源を確定 | 部分完了 | Git auto-GC、旧release/code、Codex履歴/業務stateのfootprint、VM swap増加を区別。fsearchで可視3root以外の大物も確認 | 大きく増える実pathを同じ短い時間窓で二回statし、fresh open FDのPID/start/ownerと結ぶ。全ディスクcensusをgateにせず、増加を止める対象と保持する正式dataを特定 |
+| 2 回収と再発防止 | 部分完了 | GB級の不要依存/重複asset/閉鎖Gig旧出力/Chrome旧versionを回収。中央fast passと閉鎖Gig janitorをmain/current/Paid ownerへ反映 | 閉鎖Gig janitorの自然receiptを確認し、その後に残るproducerの自己後始末/有限保存契約の抜けだけ修復。成功/失敗/timeout後のclosed scratchを回収し、primary receipt/state/open dataを保持 |
+| 3 cleanupの継続稼働 | 部分完了 | 60秒watchdog、複数の自然fast receiptでerrors0/protected_deletions0を確認 | 実agentの生成→後始末→次のcleanup passを同じ期間で確認。人手の繰返し掃除を要さず、不要物が積み上がらないことを受入。11GiB条件は撤回 |
+| 4 実行枠と自動再開 | 部分完了 | 終了済みGig orphan PID20125の占有lockを回収。上限2の実agent PID/start/heartbeatとPaid queued/effect_unknown0をreadback | 実仕事の終了後に枠が自然に返り、待っていた同occurrenceがeligible/claim/実行へ進むことを確認。使用中枠やeffect_unknownを強制解放しない |
+| 5 実際の仕事の継続 | 未完 | main由来ownerの自然attemptを観測 | 一件の業務を公式receipt/readbackへjoinし、自己cleanup後の次の自然仕事まで前進を確認。cleanup exit0/source CI/安全な延期だけで完了としない |
+
+APFS VM/swapは共有容量へ影響する正式な稼働領域であり、VM/Simulatorを削除したりMacをrestartしたりしない。現freeを100GBと主張しない。現在cursor=1の短時間writer/path増加join、その後2→3→4→5。手動回収とsource受入をやり直さず、未証明の境界だけ進める。
+
 
 毎分fast inventory修正#7432はmain8f56f511でcurrent ALLへ自然export済み、wrapperのmain Git blob hash一致。stable installed wrapperはcurrent immutable releaseの既存installerから60秒labelだけ更新済みで、複数の自然fast receiptを確認。他loop/app-serverを再起動しない。
 
@@ -302,7 +313,7 @@ P1の枠回復はCLEAN-05の生存/待ち境界として扱う。既存S06〜S18
 
 **「24/7 forever」の契約:** 各agentの自己後始末と中央cleanupを通常の実行lifecycleに組み込み、不要物の増加を生成側と回収側の両方で制御する。監督・待ち行列・復旧は常時動き、各仕事は有限の予算で実行・記録・片付け・次の仕事へ進む。ディスク圧迫を早期に自己所有の修復へつなげ、短期待機後に自動再開し、全収益loopを永久待機させない。正式state/receiptの成長には既存の許可・spend cap内で容量/保存先を計画し、障害になるまで放置しない。ほかのagentと業務loopの並列稼働を維持し、本sessionの改善は一件ずつ行う。保護データ削除、新framework、反復reviewで代用しない。
 
-**実行順:** 既存のP0→P1とlane入口の順を保ち、下記S01→S18へ対応付ける。原子的詳細は既存lane節を参照し複製しない。外部gate/未来slot/収益の到来で止まるatomは、証拠と戻るcursorを記録して次の独立したsafe atomを一件だけ進める。並列実装はしない。元の全lane目標を維持し、18 agent全greenやJob Hunter entitlement/投資30自然round tripsを、独立した既存商品の販売開始gateにしない。現在cursor=S02/CLEAN-00のGB級unused依存/重複inputの手動回収。CLEAN-00の旧Symphony手動回収は完了、同生成物/stagingの自動化と残りcategory分類は未完。PhotosのこのMacコピー回収/同期停止とCLEAN-01の毎分fast pass自然受入は完了。閉鎖Gig自己cleanup sourceのPaid owner adoptionも完了、次は共有枠が自然に空いた後のjanitor readbackと自動再開/業務進行。P0-13の観測はCLEAN-01〜05の実障害境界を狭めるために使い、数字や全体censusの達成待ちにしない。
+**実行順:** 既存のP0→P1とlane入口の順を保ち、下記S01→S18へ対応付ける。原子的詳細は既存lane節を参照し複製しない。外部gate/未来slot/収益の到来で止まるatomは、証拠と戻るcursorを記録して次の独立したsafe atomを一件だけ進める。並列実装はしない。元の全lane目標を維持し、18 agent全greenやJob Hunter entitlement/投資30自然round tripsを、独立した既存商品の販売開始gateにしない。現在cursorは「1〜5の完了判定と残TODO」を参照。CLEAN-00の旧Symphony手動回収は完了、同生成物/stagingの自動化と残りcategory分類は未完。PhotosのこのMacコピー回収/同期停止とCLEAN-01の毎分fast pass自然受入は完了。閉鎖Gig自己cleanup sourceのPaid owner adoptionも完了、次は共有枠が自然に空いた後のjanitor readbackと自動再開/業務進行。P0-13の観測はCLEAN-01〜05の実障害境界を狭めるために使い、数字や全体censusの達成待ちにしない。
 
 | 状態 | 順 | 次の一操作・対象 / 検証・DONE証拠 |
 |---|---|---|
