@@ -233,10 +233,15 @@ def test_repo_update_request_targets_existing_online_version(monkeypatch, tmp_pa
             agent("other", "under_review")]
     monkeypatch.setattr(module, "server_agents", lambda: rows)
 
+    analytics = tmp_path / "analytics.json"
+    analytics.write_text(json.dumps({"per_skill_rows": []}))
+    monkeypatch.setattr(module, "ANALYTICS_PATH", str(analytics))
     module.main()
     decision = json.loads(capsys.readouterr().out.splitlines()[-1])
-    # Dais 2026-10-08: no update of an accepted Agent is ever selected.
-    assert decision.get("action") != "update_existing"
+    # Dais 2026-10-08: no update of an accepted Agent is selected -- except an UPDATE.json carrying
+    # dais_approved_exception (Dais 2026-10-10 price restore), which this fixture does.
+    assert decision.get("action") == "update_existing", decision
+    assert decision["item"]["agent_id"] == "9999999999"
 
     monkeypatch.setattr(module, "server_agents", lambda: [agent("other", "under_review")])
     module.main()
@@ -982,3 +987,31 @@ def test_unlisted_cap_defaults_to_the_servers_five_and_is_overridable():
     finally:
         os.environ.pop("CAPAFY_UNLISTED_CAP", None)
         importlib.reload(inventory_status)
+
+
+def test_dais_approved_update_ships_even_when_review_slots_are_full(monkeypatch, tmp_path, capsys) -> None:
+    """2026-10-10: main() passed updates=[] unconditionally, so the Dais-approved price restore
+    UPDATE.json files for Hook Lab / TikTok Script Pro / YouTube Script Writer never shipped and
+    the factory kept answering CAP_FULL. Only updates carrying dais_approved_exception may pass."""
+    module = load_module()
+    catalog = tmp_path / "catalog" / "hook-lab"
+    catalog.mkdir(parents=True)
+    (catalog / "LISTING.md").write_text("## Title\nHook Lab\n", encoding="utf-8")
+    (catalog / "SKILL.md").write_text("skill\n", encoding="utf-8")
+    (catalog / "icon.png").write_bytes(b"png")
+    (catalog / "UPDATE.json").write_text(json.dumps({
+        "agent_id": "8123079349", "from_version_id": "111", "target_model_id": "anthropic/claude-sonnet-5",
+        "dais_approved_exception": "Dais 2026-10-10: restore the September prices"}), encoding="utf-8")
+    analytics = tmp_path / "analytics.json"
+    analytics.write_text(json.dumps({"per_skill_rows": []}), encoding="utf-8")
+    monkeypatch.setattr(module, "FEATURES", str(tmp_path / "no-legacy"))
+    monkeypatch.setattr(module, "CATALOG", str(tmp_path / "catalog"))
+    monkeypatch.setattr(module, "RETIRED", str(tmp_path / "no-retired.json"))
+    monkeypatch.setattr(module, "ANALYTICS_PATH", str(analytics))
+    full = [agent(str(i), "under_review") for i in range(5)]
+    hook_lab = agent("8123079349", "online", name="Hook Lab", latestAgentVersionId="111")
+    monkeypatch.setattr(module, "server_agents", lambda: full + [hook_lab])
+    module.main()
+    decision = json.loads(capsys.readouterr().out.splitlines()[-1])
+    assert decision["action"] == "update_existing", decision
+    assert decision["item"]["agent_id"] == "8123079349"

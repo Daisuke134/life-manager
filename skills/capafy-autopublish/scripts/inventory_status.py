@@ -809,12 +809,15 @@ def main():
     # Dais 2026-10-08: the factory ships NEW Agents only. Agents already submitted --
     # selling or not, rejected or delisted -- are never updated, retried or recovered.
     # Kept: fresh creates, never-submitted drafts, and approved-but-not-yet-online publishes.
+    # The one exception is an UPDATE.json carrying dais_approved_exception (an explicit Dais
+    # request, e.g. 2026-10-10 restore the September prices); drop_profitable_updates keeps only those.
     attempts = load_draft_attempts()
     resumable_drafts = [d for d in resumable_drafts if attempts.get(str(d["agent_id"]), 0) < MAX_DRAFT_ATTEMPTS]
     stub_retry_items = [d for d in stub_retry_items if attempts.get(str(d["agent_id"]), 0) < MAX_DRAFT_ATTEMPTS]
     v = allocate_action(
         normalized, [], fresh_items, resumable_drafts, [], ready_publish_items,
-        updates=[], stub_retries=stub_retry_items, revenue_by_agent=load_revenue_by_agent(),
+        updates=drop_profitable_updates(update_items), stub_retries=stub_retry_items,
+        revenue_by_agent=load_revenue_by_agent(),
     )
     # A pass calls this script three times (pre-check, decision, post-verdict); only the deciding
     # call in daily_loop.sh sets CAPAFY_COUNT_DRAFT_ATTEMPT, so one pass is one attempt.
