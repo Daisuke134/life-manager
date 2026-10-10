@@ -194,8 +194,9 @@ def evidence_root_for(evidence_dir: Path, *, state_root: str | None = None) -> P
 
     The runner is also used by callers that supply arbitrary paths.  Retention
     keeps the named ``agent-runner-evidence/<task>/<run>`` layout. Registered
-    callers may also supply their exact ``state_root/evidence/<run>`` layout;
-    legacy whole-run GC does not supply that additional root.
+    callers may also supply their exact ``state_root/evidence/<run>`` layout,
+    or the named root's flat ``<run>`` layout with an explicit state root.
+    Legacy whole-run GC does not supply that additional root.
     """
     resolved = evidence_dir.resolve()
     parts = resolved.parts
@@ -209,6 +210,9 @@ def evidence_root_for(evidence_dir: Path, *, state_root: str | None = None) -> P
                 return root
         return None
     if len(parts) < marker + 3:
+        if (state_root and len(parts) == marker + 2
+                and not any(p.is_symlink() for p in [evidence_dir, *evidence_dir.parents])):
+            return Path(*parts[:marker + 1])
         return None
     return Path(*parts[:marker + 1])
 

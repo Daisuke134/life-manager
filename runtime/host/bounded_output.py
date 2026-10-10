@@ -95,7 +95,8 @@ def prune_closed_diagnostics(evidence_root, policy, *, current_run, closed_probe
     if any(p.is_symlink() for p in [root, *root.parents]):
         return result
     if root.name == "agent-runner-evidence":
-        capture_pattern = "*/*/attempt-*.capture/*"
+        capture_pattern = ("*/attempt-*.capture/*"
+            if state_root and Path(current_run).parent == root else "*/*/attempt-*.capture/*")
     elif (state_root and root == Path(state_root).expanduser() / "evidence"
             and Path(current_run).parent == root):
         capture_pattern = "*/attempt-*.capture/*"
