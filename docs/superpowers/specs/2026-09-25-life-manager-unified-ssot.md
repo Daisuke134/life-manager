@@ -12294,6 +12294,19 @@ flowchart LR
 
 **現在cursor:** このSSOT更新のmerge後、最初の作業はexact `@monk.mujo` Postiz integration mappingと、確認済み日本語2/day cadenceのsource実装を切り分けること。account未接続や未知effectを成功扱いせず、外部投稿はownerの新しいdistinct occurrenceと公式Postiz `PUBLISHED` + permalinkで確認する。成功の証拠がない間もcheckout/PDFとsettled revenueの調査は継続する。
 
+### 2026-10-10 20:09 JST — eBook post-slot live readback
+
+このreadbackは19:43のeBook snapshotを更新する。読み取りだけを行い、投稿・設定変更・owner apply・決済操作はしていない。
+
+- **Main/release/host (11:09 UTC):** `origin/main=95da8dd1cb43fca97d29b6dcee0d016341077d2b`（PR #7492）。`~/loops/current`は`20261010T195449-2bacf1f4`でmainより古い。release reconcilerはPID `33289`でloaded-running、SHA `2bacf1f49dcd6d1a45f2544b8a1158bb8478fa32`。4 eBook ownersは全てloaded-idle / 旧SHA `d573483e4a03159e513e1571365aa53621fe5850`で、mainへのadoptionなし。`df -Pk /`は`2,012,640 KiB` available、既存2 GiB floorを`84,512 KiB`下回る。reconcilerの自然終端とadmission再読込前にapply/restartしない。
+- **Latest owner attempts:** EN Instagram `18dcfeb564843768-61844`とEN TikTok `18dcfeb56559a808-61839`は最後のreadbackで`disk_headroom_low`、provider前、receiptなし。JA Instagram `18dd25ffd93809b0-34003`とJA TikTok `18dd25ffd3c27858-34013`は11:00 UTCに`resource_effect_unknown`、receiptなし。4つの元fence (`18dcc929a20914a8-33411`, `18dcc075be3903e8-48633`, `18dc64be2b4087e0-5330`, `18dc5e822e430b80-45345`)に加え、この最新の日本語2 occurrencesも解決済みと扱わない。再送・一括解除しない。
+- **Postiz official GET (11:09 UTC):** 31 integrations。`monk_anicca` TikTokはenabled、指定`@monk.mujo`とEnglish Instagram integrationは不在。`obou.anicca` Instagramと`obou_anicca` TikTokはenabled。10月10日JST 00:00–20:09の`PUBLISHED`はこの3 integrationsで0件。20:00枠の公開receiptもない。投稿成功の判定はPostiz `PUBLISHED` + permalink。
+- **Stripe:** 11:09 UTC official GETのactive subscriptionsは0件。subscription gross MRRはこのStripe accountで`$0`、verified net MRRは未達。PR #420は引き続きOPEN / DIRTY、product main `856ed9b84131524b80a153d34550a1ce857666a3`、その作業checkoutはdirtyなので保持する。
+
+**更新後TODO順:** (1) Postizで指定`@monk.mujo`のexact integration/accountを確認・接続する。enabledな`monk_anicca`を同一accountと推測して使わず、English Instagramは接続まで除外。(2) 英語08:00/21:00、日本語07:00/20:00 JSTの2/dayへsource/packをそろえ、必要ownerだけdistinct-slot occurrence admissionを確認する。(3) 旧4 fencesと最新日本語2 unknown occurrencesを、exact account・integration・time window・occurrence identityに結び付く公式readbackで解決する。証拠が曖昧なら保持。(4) capacityがadmission条件を通る自然readbackとrelease reconcilerの自然終端を待ち、main由来releaseを対象ownerへ反映。(5) owner経由の新しいdistinct slotを1回実行し、Postiz `PUBLISHED` + permalinkを確認。以降、有効accountごと2/dayの自然receiptを記録。(6) PR #420のdirty変更を保護し最新product mainへ同期、checkout・webhook・matching PDF deliveryを公式readback。(7) active subscription、settlement、refund、fee、HeyGen/Watercolor/Postiz費用を同期間で結び、verified `$10K net MRR`へ改善。
+
+**現在cursor:** 投稿のない20:00 slotと未知の日本語occurrencesを踏まえ、exact Postiz account mappingとsource cadenceを先に進める。production ownerは旧releaseでidle、reconciler実行中、diskはfloor未満なので投稿・applyはしない。ユーザー側で必要な作業はこのreadbackでは確認されていない。
+
 ### 2026-10-10 20:06 JST — Mobile official Postiz readback and current continuation cursor
 
 - **Git/PR:** latest fetched `origin/main` is `baa09cbd4adcbfb7be092525e8107fe3bb6f57f8`. Source PR #7485 is merged at `0615b8ff4668c73cd6d4f5fda8563a1ac2f76a95`; its disk-gate and same-day catch-up changes are in main. The existing docs PR #7493 is open on remote head `7c167b948021ed1f558b2b2d5074251d6eb90ede`; its branch had not yet received this main sync or this update at the read. This worktree is `/Users/anicca/Projects/life-manager-main/.worktrees/mobile-distribution-e2e-20261010`, branch `docs/mobile-growth-postmerge-20261010`, local HEAD `02e98f7b98259df463e5ce8ec7a8470feb95efcc` (latest-main sync, before this entry), tracking/push target `origin/docs/mobile-growth-postmerge-20261010`. Shared checkout remains untouched.
