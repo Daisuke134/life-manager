@@ -158,3 +158,84 @@ test("Postiz-only carousel metrics stay pending when the API has not populated p
     global.fetch = originalFetch;
   }
 });
+
+test("Postiz carousel metrics use the exact published permalink in the snapshot and Telegram report", async (t) => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-tiktok-photo-permalink-"));
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  const photoUrl = "https://www.tiktok.com/@anicca.jpx/photo/7695154487559851270";
+  const expected = {
+    ...EXPECTED,
+    account_id: "@anicca.jp1",
+    native_owner: "anicca.jp1",
+    integration_id: "cmlrv8jq000hun60yy57eaptx",
+    provider_post_id: "cmv2wroi617qzmq0yrxabocjm",
+    shortcode: "cmv2wroi617qzmq0yrxabocjm",
+    video_id: "cmv2wroi617qzmq0yrxabocjm",
+    public_url: "unavailable",
+    published_at: "2026-10-10T21:30:00.000Z",
+    postiz_photo_only: true,
+  };
+  const accountRows = [
+    ["Followers", 10], ["Following", 5], ["Total Likes", 20], ["Videos", 12],
+    ["Views", 100], ["Recent Likes", 4], ["Recent Comments", 1], ["Recent Shares", 2],
+  ].map(([label, total]) => ({ label, data: [{ total }] }));
+  const postRows = [{ label: "Views", data: [{ total: 45 }] }, { label: "Likes", data: [{ total: 3 }] }];
+  let listedPosts = [
+    { id: "different-post", state: "PUBLISHED", integration: { id: expected.integration_id }, releaseURL: "https://www.tiktok.com/@anicca.jpx/photo/1" },
+    { id: expected.provider_post_id, state: "PUBLISHED", integration: { id: "wrong-integration" }, releaseURL: "https://www.tiktok.com/@wrong/photo/2" },
+    { id: expected.provider_post_id, state: "QUEUED", integration: { id: expected.integration_id }, releaseURL: "https://www.tiktok.com/@anicca.jpx/photo/3" },
+    { id: expected.provider_post_id, state: "PUBLISHED", integration: { id: expected.integration_id }, releaseURL: photoUrl },
+  ];
+  const originalFetch = global.fetch;
+  let telegramText = "";
+  global.fetch = async (url, init = {}) => {
+    const address = String(url);
+    if (address.includes("/analytics/post/")) return { ok: true, json: async () => postRows };
+    if (address.includes("/analytics/")) return { ok: true, json: async () => accountRows };
+    if (address.includes("/posts?")) return { ok: true, json: async () => listedPosts };
+    if (address.includes("api.telegram.org") && address.includes("/sendMessage")) {
+      telegramText = JSON.parse(init.body).text;
+      return { ok: true, json: async () => ({ ok: true, result: { message_id: 2 } }) };
+    }
+    throw new Error(`unexpected request: ${address}`);
+  };
+  try {
+    const now = Date.parse("2026-10-10T23:45:00.000Z");
+    const result = await runDue(now, {
+      LM_DATA_DIR: dataDir,
+      LM_POSTIZ_API_KEY: "test-only",
+      LM_TELEGRAM_BOT_TOKEN: "fake",
+      LM_TELEGRAM_ALERT_CHAT_ID: "fake",
+    }, [expected]);
+    const twoHour = result.find((row) => row.window === "2h");
+    assert.equal(twoHour.state, "measured");
+    const snapshot = JSON.parse(fs.readFileSync(path.join(dataDir, "tenants", expected.tenant_id, "marketing", "metrics", expected.native_owner, expected.shortcode, "2h.combined.json"), "utf8"));
+    assert.equal(snapshot.public_url, photoUrl);
+    assert.match(telegramText, new RegExp(photoUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+
+    const profileOnlyURL = "https://www.tiktok.com/@anicca_buddha";
+    const profileExpected = {
+      ...expected,
+      account_id: "@anicca_buddha",
+      native_owner: "anicca_buddha",
+      integration_id: "cmp9txjdp01c8oh0yb6dhlarr",
+      provider_post_id: "cmv2xvo4717ywqz0ynar3tp1r",
+      shortcode: "cmv2xvo4717ywqz0ynar3tp1r",
+      video_id: "cmv2xvo4717ywqz0ynar3tp1r",
+    };
+    listedPosts = [{ id: profileExpected.provider_post_id, state: "PUBLISHED", integration: { id: profileExpected.integration_id }, releaseURL: profileOnlyURL }];
+    telegramText = "";
+    await runDue(now, {
+      LM_DATA_DIR: dataDir,
+      LM_POSTIZ_API_KEY: "test-only",
+      LM_TELEGRAM_BOT_TOKEN: "fake",
+      LM_TELEGRAM_ALERT_CHAT_ID: "fake",
+    }, [profileExpected]);
+    const profileSnapshot = JSON.parse(fs.readFileSync(path.join(dataDir, "tenants", profileExpected.tenant_id, "marketing", "metrics", profileExpected.native_owner, profileExpected.shortcode, "2h.combined.json"), "utf8"));
+    assert.equal(profileSnapshot.public_url, "unavailable");
+    assert.match(telegramText, /投稿リンク未取得/);
+    assert.equal(telegramText.includes(profileOnlyURL), false);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});

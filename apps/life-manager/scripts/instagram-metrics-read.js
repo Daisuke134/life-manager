@@ -139,7 +139,7 @@ async function sendMetricSnapshot(result, env, dataDir) {
     tenantId: expected.tenant_id, telegramTokenRef: "secret://telegram/bot-token", telegramChatRef: "telegram-chat://owner",
     payload: { lane, product: expected.product_id, locale: expected.locale, platform, account: expected.account_id,
       status: "observed", window: result.snapshot.window, observed_at: result.snapshot.observed_at, public_url: expected.public_url, snapshot_ref: snapshotRef,
-      ...(expected.public_url === "unavailable" ? { publication_evidence: "postiz_published_exact_assets" } : {}),
+      ...(result.snapshot.kind === "tiktok_postiz_photo_metric_snapshot" ? { publication_evidence: "postiz_published_exact_assets" } : {}),
       ...(String(result.snapshot.kind || "").endsWith("_correction") ? { correction: true } : {}) },
   });
   const store = createMarketingLocalLedger({ dataDir });

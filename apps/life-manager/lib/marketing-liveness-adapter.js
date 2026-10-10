@@ -22,6 +22,7 @@ const CHAT_REF = /^telegram-chat:\/\/[a-z0-9][a-z0-9._-]*$/i;
 const LIVENESS_REF = /^marketing-liveness:\/\/(.+)$/;
 const SNAPSHOT_REF = /^object:\/\/sha256\/[0-9a-f]{64}$/;
 const METRIC_WINDOWS = new Set(["2h", "24h", "72h", "7d", "daily"]);
+const POSTIZ_TIKTOK_POST_URL = /^https:\/\/www\.tiktok\.com\/@[A-Za-z0-9._-]+\/(?:photo|video)\/\d+\/?$/;
 
 function required(value, label) {
   const text = String(value == null ? "" : value).trim();
@@ -154,7 +155,9 @@ function parsePayloadRef(ref) {
   }
   if (!Object.hasOwn(payload, "public_url")) throw new Error("marketing liveness ref is invalid");
   if (payload.status === "observed") {
-    const postizPhotoMetric = payload.platform === "tiktok" && payload.public_url === "unavailable" && payload.publication_evidence === "postiz_published_exact_assets";
+    const postizPhotoMetric = payload.platform === "tiktok"
+      && payload.publication_evidence === "postiz_published_exact_assets"
+      && (payload.public_url === "unavailable" || POSTIZ_TIKTOK_POST_URL.test(String(payload.public_url || "")));
     if (
       !IDENTIFIER.test(payload.lane) || !IDENTIFIER.test(payload.product) || !LOCALE.test(payload.locale)
       || !["instagram", "tiktok"].includes(payload.platform) || !ACCOUNT.test(String(payload.account || ""))
@@ -171,7 +174,7 @@ function parsePayloadRef(ref) {
   exactInstant(payload.slot, "marketing liveness slot");
   const postizPhotoProof = payload.platform === "tiktok"
     && payload.status === "published"
-    && payload.public_url === "unavailable"
+    && (payload.public_url === "unavailable" || POSTIZ_TIKTOK_POST_URL.test(String(payload.public_url || "")))
     && payload.publication_evidence === "postiz_published_exact_assets";
   if (
     !IDENTIFIER.test(payload.lane)
@@ -248,7 +251,9 @@ function renderMessage(payload) {
       else measured.push(`${label(key)} ${metric.percent != null ? `${metric.percent}%` : metric.value}`);
     }
     const windows = Array.isArray(payload.window_summary) ? ` Window status: ${payload.window_summary.join("、")}。` : "";
-    const identity = payload.publication_evidence === "postiz_published_exact_assets" ? "Postiz PUBLISHED photo receipt" : `直接URL: ${payload.public_url}`;
+    const identity = payload.publication_evidence === "postiz_published_exact_assets"
+      ? `Postiz PUBLISHED photo receipt${payload.public_url === "unavailable" ? "、投稿リンク未取得" : `、投稿リンク: ${payload.public_url}`}`
+      : `直接URL: ${payload.public_url}`;
     return `Life Manager::: ${payload.product}の${payload.platform} ${payload.account}、${payload.window}${payload.correction ? "訂正版" : ""}メトリクスです。${measured.join("、")}。取得不可: ${unavailable.length ? unavailable.join("、") : "なし"}。${windows}${identity}。Snapshot: ${payload.snapshot_ref}。`;
   }
   const accountPattern = payload.platform === "tiktok"
@@ -267,7 +272,8 @@ function renderMessage(payload) {
     || payload.platform;
   if (payload.status === "published") {
     if (payload.publication_evidence === "postiz_published_exact_assets") {
-      return `Life Manager::: ${product}'s ${locale} photo carousel was published on ${platform} for ${account} in the ${payload.slot} slot. Postiz API status: PUBLISHED. The exact locally stored approved assets and caption matched. Retry: ${payload.retry_state}.`;
+      const postLink = payload.public_url === "unavailable" ? "投稿リンク未取得。" : `投稿リンク: ${payload.public_url}。`;
+      return `Life Manager::: ${product}'s ${locale} photo carousel was published on ${platform} for ${account} in the ${payload.slot} slot. Postiz API status: PUBLISHED. The exact locally stored approved assets and caption matched. ${postLink}Retry: ${payload.retry_state}.`;
     }
     return `Life Manager::: ${product}'s ${locale} post was published on ${platform} for ${account} in the ${payload.slot} slot. Status: published. Public URL: ${payload.public_url}. Retry: ${payload.retry_state}.`;
   }
