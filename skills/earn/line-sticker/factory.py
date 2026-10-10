@@ -8,6 +8,7 @@ LINE_STICKER_MAX_SETS_PER_DAY sets were started today (JST).
 Stages (animated line): plan -> character -> clips -> apng -> select -> package -> submit -> submitted
 Stages (static line, chosen by deps.type_decider): plan -> character -> images -> package -> submit
 -> submitted (see line_sticker_static.py; no clips/apng/select, one Gemini image call per sticker).
+Text variant ("(文字あり)" twin of an on-sale animated set, $0): created at package -> submit -> submitted.
 
 ``submit`` is fenced by ``creators-item.json``: once an item exists on LINE Creators Market
 its product_id/url are durable there, and a later wake resumes from that item (reads the
@@ -54,6 +55,9 @@ DEFAULT_MAX_UNRECOVERED_USD = Decimal(os.environ.get("LINE_STICKER_MAX_UNRECOVER
 JPY_PER_USD = Decimal("150")
 JST = datetime.timezone(datetime.timedelta(hours=9))
 EVENTS_LOG_NAME = "factory-events.jsonl"
+# Top indie creators sell the same art twice, e.g. "もちわさ日3(文字あり)" next to the text-less one.
+TEXT_VARIANT_MARK = {"ja": "(文字あり)", "en": " (with text)"}
+TEXT_VARIANT_DESCRIPTION_JA = "文字ありのスタンプです。"
 
 
 def now_utc() -> datetime.datetime:
@@ -378,6 +382,9 @@ def run_package(set_dir: Path, deps: Deps) -> str:
     if plan_draft.get("type") == "static":
         deps.static_packager(set_dir, selection["order"], selection["main"], selection["tab"])
         result = deps.static_validator(set_dir / "package")
+    elif plan_draft.get("variant_of"):
+        # Built from the source set's package when the variant was created (its candidates/clips are gone).
+        result = deps.validator(set_dir / "package")
     else:
         plan_path = set_dir / "plan.json"
         deps.packager(set_dir, plan_path, selection["order"], selection["main"], selection["tab"])
@@ -429,6 +436,51 @@ STAGE_RUNNERS = {
 # Wake entry point
 # --------------------------------------------------------------------------------------
 
+def text_variant_source(state_root: Path) -> Path | None:
+    """Oldest on-sale animated set that has no "(文字あり)" twin yet and still holds every file the
+    twin is built from; None when there is none."""
+    drafts = {set_dir: _read_json(set_dir / "plan-draft.json") for set_dir in list_set_dirs(state_root)}
+    twinned = {(draft or {}).get("variant_of") for draft in drafts.values()}
+    package_names = [f"{n:02d}.png" for n in range(1, 25)] + ["main.png", "tab.png", "provenance.json"]
+    for set_dir, draft in drafts.items():
+        if (draft is None or draft.get("type", "animated") == "static" or draft.get("variant_of")
+                or set_dir.name in twinned or read_stage(set_dir) != "submitted"
+                or (_read_json(set_dir / "creators-item.json") or {}).get("state_observed") != "販売中"):
+            continue
+        needed = [set_dir / name for name in ("listing.json", "select.json", "tags.json")]
+        if all(path.is_file() for path in needed + [set_dir / "package" / name for name in package_names]):
+            return set_dir
+    return None
+
+
+def make_text_variant(source: Path, set_dir: Path) -> None:
+    """Write the "(文字あり)" twin of ``source`` into ``set_dir``, ready for the package stage: same
+    art and categories, each sticker's first tag drawn on as its phrase, $0."""
+    import line_sticker_static  # noqa: E402 (lazy: pulls the planner module only when a twin is made)
+    try:
+        set_dir.mkdir(parents=True)
+        _atomic_write_json(set_dir / "plan-draft.json", {
+            "type": "animated", "variant_of": source.name, "text_mode": "with_text",
+            "character_id": (_read_json(source / "plan-draft.json") or {}).get("character_id"),
+        })
+        for name in ("select.json", "tags.json"):
+            shutil.copy2(source / name, set_dir / name)
+        listing = _read_json(source / "listing.json")
+        # Pair with the title actually on the store (the submit step may have retitled a duplicate).
+        filed_ja = (_read_json(source / "creators-item.json") or {}).get("title_ja")
+        listing = line_sticker_static.mark_text_listing(
+            dict(listing, title={**listing["title"], "ja": filed_ja or listing["title"]["ja"]}), TEXT_VARIANT_MARK)
+        description = listing.get("description", {})
+        listing["description"] = {**description, "ja": TEXT_VARIANT_DESCRIPTION_JA + description.get("ja", "")}
+        _atomic_write_json(set_dir / "listing.json", listing)
+        phrases = {number: tags[0] for number, tags in _read_json(source / "tags.json").items()}
+        seedance_set.text_variant_package(source / "package", set_dir / "package", phrases, set_dir.name)
+    except BaseException:
+        # A half-made twin would be picked up by the plan stage next wake; leave nothing behind.
+        shutil.rmtree(set_dir, ignore_errors=True)
+        raise
+
+
 def unrecovered_spend_usd(state_root: Path) -> Decimal:
     """All set spend minus known LINE sales (sales.json); unknown sales count as nothing."""
     spend = sum((Decimal(str((_read_json(p) or {}).get("cost_usd") or "0"))
@@ -446,6 +498,16 @@ def wake(state_root: Path, deps: Deps) -> dict:
         started = sets_started_today(state_root)
         if started >= deps.max_sets_per_day:
             return {"action": "skip", "reason": "daily_cap_reached", "started_today": started}
+        source = text_variant_source(state_root)
+        if source is not None:
+            # $0 (no new art), so the unrecovered-spend cap below does not hold it back.
+            set_dir = state_root / f"set-{next_set_number(state_root):03d}"
+            make_text_variant(source, set_dir)
+            write_stage(set_dir, "package")
+            append_event(state_root, {"set": set_dir.name, "stage": "package", "status": "text_variant_started",
+                                      "variant_of": source.name})
+            return {"action": "advanced", "set": set_dir.name, "stage": "plan", "next_stage": "package",
+                    "variant_of": source.name}
         unrecovered = unrecovered_spend_usd(state_root)
         if unrecovered > deps.max_unrecovered_usd:
             append_event(state_root, {"status": "unrecovered_spend_cap", "unrecovered_usd": str(unrecovered)})

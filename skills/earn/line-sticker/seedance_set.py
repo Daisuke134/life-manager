@@ -145,13 +145,14 @@ def _fill_pinholes(image: Image.Image) -> Image.Image:
 
 
 def _hole_seeds(path: Path) -> list[dict[str, int]]:
-    image, seeds = Image.open(path), []
-    for index in range(getattr(image, "n_frames", 1)):
-        image.seek(index)
-        holes, _ = _enclosed_holes(np.array(image.convert("RGBA"))[..., 3])
-        for label in np.unique(holes[holes > 0]):
-            y, x = np.argwhere(holes == label)[0]
-            seeds.append({"x": int(x), "y": int(y)})
+    seeds = []
+    with Image.open(path) as image:
+        for index in range(getattr(image, "n_frames", 1)):
+            image.seek(index)
+            holes, _ = _enclosed_holes(np.array(image.convert("RGBA"))[..., 3])
+            for label in np.unique(holes[holes > 0]):
+                y, x = np.argwhere(holes == label)[0]
+                seeds.append({"x": int(x), "y": int(y)})
     return seeds
 
 
@@ -161,7 +162,8 @@ def loop_seconds(frame_count: int) -> int:
     return max(1, -(-frame_count // FPS))
 
 
-def _write_apng(images: list[Image.Image], path: Path, plays: int) -> None:
+def _write_apng(images: list[Image.Image], path: Path, plays: int,
+                delays: list[tuple[int, int]] | None = None) -> None:
     # LINE requires every frame at full canvas size; PIL and ffmpeg both crop frames to the changed
     # region, so assemble full-size frames directly from each frame's own PNG encoding.
     out = [b"\x89PNG\r\n\x1a\n"]
@@ -179,8 +181,8 @@ def _write_apng(images: list[Image.Image], path: Path, plays: int) -> None:
             out.append(_chunk(b"IHDR", dict(chunks)[b"IHDR"]))
             out.append(_chunk(b"acTL", struct.pack(">II", len(images), plays)))
         width, height = image.size
-        out.append(_chunk(b"fcTL", struct.pack(">IIIIIHHBB", sequence, width, height, 0, 0,
-                                                   loop_seconds(len(images)), len(images), 0, 0)))
+        delay = delays[index] if delays else (loop_seconds(len(images)), len(images))
+        out.append(_chunk(b"fcTL", struct.pack(">IIIIIHHBB", sequence, width, height, 0, 0, *delay, 0, 0)))
         sequence += 1
         for kind, data in chunks:
             if kind != b"IDAT":
@@ -192,6 +194,56 @@ def _write_apng(images: list[Image.Image], path: Path, plays: int) -> None:
                 sequence += 1
     out.append(_chunk(b"IEND", b""))
     path.write_bytes(b"".join(out))
+
+
+def _apng_timing(path: Path) -> tuple[int, list[tuple[int, int]]]:
+    """(plays, per-frame (delay_num, delay_den)) straight from acTL/fcTL: PIL only exposes float
+    milliseconds, and a rounded 1/6 s frame would break the whole-second loop LINE requires."""
+    raw, offset, plays, delays = path.read_bytes(), 8, 1, []
+    while offset < len(raw):
+        length, kind = struct.unpack(">I4s", raw[offset:offset + 8])
+        data = raw[offset + 8:offset + 8 + length]
+        if kind == b"acTL":
+            plays = struct.unpack(">II", data)[1]
+        elif kind == b"fcTL":
+            delays.append(struct.unpack(">HH", data[20:24]))
+        offset += 12 + length
+    return plays, delays
+
+
+def text_apng(src: Path, dst: Path, text: str) -> None:
+    """Redraw one APNG with ``text`` lettered onto every frame, keeping its size, frame timing and
+    loop count."""
+    from line_sticker_static import _draw_text  # lazy: line_sticker_static imports this module
+    plays, delays, frames = *_apng_timing(src), []
+    with Image.open(src) as source:
+        for index in range(getattr(source, "n_frames", 1)):
+            source.seek(index)
+            frame = source.convert("RGBA")
+            _draw_text(frame, text)
+            frames.append(frame)
+    _write_apng(frames, dst, plays, delays)
+
+
+def text_variant_package(source: Path, out: Path, phrases: dict[str, str], set_id: str) -> None:
+    """Package the "(文字あり)" twin of an on-sale set from its validated package: sticker NN gets
+    phrases["NN"] drawn on, main/tab are copied unchanged, and the source provenance (same art,
+    same generation receipts) is re-sealed for the new files."""
+    out.mkdir(parents=True, exist_ok=True)
+    numbered = [f"{n:02d}.png" for n in range(1, 25)]
+    for name in numbered:
+        text_apng(source / name, out / name, phrases[name[:2]])
+    for name in ("main.png", "tab.png"):
+        (out / name).write_bytes((source / name).read_bytes())
+    names = sorted(numbered + ["main.png", "tab.png"])
+    provenance = json.loads((source / "provenance.json").read_text())
+    provenance["set_id"] = set_id
+    provenance["assets"] = {name: {"sha256": _sha256_file(out / name), "intentional_alpha_holes": _hole_seeds(out / name)}
+                            for name in names}
+    (out / "provenance.json").write_text(json.dumps(provenance, sort_keys=True, indent=2) + "\n")
+    with zipfile.ZipFile(out / "submission.zip", "w", zipfile.ZIP_DEFLATED) as archive:
+        for name in names:
+            archive.write(out / name, name)
 
 
 def assemble_candidate(frames: list[np.ndarray]) -> list[Image.Image]:
