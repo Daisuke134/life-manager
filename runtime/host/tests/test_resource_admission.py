@@ -28,6 +28,49 @@ def durable_rows(root, table):
         return [dict(zip(columns, row)) for row in connection.execute(f"SELECT * FROM {table}")]
 
 
+def test_recording_getter_can_claim_while_the_model_slot_is_full(tmp_path, monkeypatch):
+    from runtime.loop.lm_loop_run import _resource_class
+
+    isolated(tmp_path, monkeypatch, total="2")
+    monkeypatch.setenv("LIFE_MANAGER_HOST_MAX_AGENT_RUNS", "1")
+    monkeypatch.setenv("LIFE_MANAGER_HOST_MAX_DETERMINISTIC_RUNS", "1")
+    admission.activate_durable_v2()
+    registry = json.loads((Path(__file__).resolve().parents[3]
+                           / "config/loop-registry.json").read_text())["loops"]
+    model_class = _resource_class(registry["writer-opportunity-discovery"])
+    admission.enqueue_durable(model_class, "model-worker")
+    model_claim, reason = admission.claim_durable(model_class, "model-worker")
+    assert model_claim is not None and reason == "acquired", reason
+    claims = [model_claim]
+    try:
+        admission.enqueue_durable(model_class, "other-model-worker")
+        overflow, reason = admission.claim_durable(model_class, "other-model-worker")
+        assert overflow is None and reason == "capacity_busy", reason
+
+        admission.enqueue_durable(
+            "agent", "lm-recording-store",
+            occurrence_id="lm-recording-store:queued-before-class-fix",
+        )
+        before = next(row for row in durable_rows(tmp_path, "occurrences")
+                      if row["owner_id"] == "lm-recording-store")
+        recording_class = _resource_class(registry["lm-recording-store"])
+        assert admission.rebind_queued_owner(
+            "lm-recording-store", resource_class=recording_class,
+            admission_class="borrow",
+        ) in {"rebound", "unchanged"}
+        recording_claim, reason = admission.claim_durable(recording_class, "lm-recording-store")
+        assert recording_claim is not None and reason == "acquired", reason
+        claims.append(recording_claim)
+        after = next(row for row in durable_rows(tmp_path, "occurrences")
+                     if row["owner_id"] == "lm-recording-store")
+        assert (after["occurrence_id"], after["queued_at"], after["sequence"]) == (
+            before["occurrence_id"], before["queued_at"], before["sequence"],
+        )
+    finally:
+        for claim in claims:
+            admission.release_and_reserve(claim, reserve=False)
+
+
 def test_unconfigured_deterministic_revenue_capacity_admits_five_workers(
         tmp_path, monkeypatch):
     capacity_env = (
