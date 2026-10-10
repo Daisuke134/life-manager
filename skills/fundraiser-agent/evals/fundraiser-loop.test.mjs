@@ -288,8 +288,7 @@ test("production contract runs hourly and maximizes real applications", () => {
   assert.match(runtimeScript, /PRESSURE_FREE_KIB=\$\(\(2 \* 1024 \* 1024\)\)/);
   assert.match(runtimeScript, /required_kib=\$PRESSURE_FREE_KIB/);
   assert.doesNotMatch(runtimeScript, /\.openclaw/);
-  assert.match(runtimeScript, /disk-cleanup/);
-  assert.match(runtimeScript, /"\$LOOP_CLI" restart life-manager-disk-cleanup/);
+  assert.doesNotMatch(runtimeScript, /restart life-manager-disk-cleanup/);
   assert.match(runtimeScript, /exit 75/);
   assert.match(runtimeScript, /BROWSER_GUARD=.*browser-guard\.sh/);
   assert.match(runtimeScript, /"\$BROWSER_GUARD" acquire "\$BROWSER_IDENTITY"/);
