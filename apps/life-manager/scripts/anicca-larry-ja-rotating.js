@@ -76,7 +76,12 @@ async function runRotatingCarouselCanary(argv = [], { action, lane, productionSl
     [lane.captionEnv]: selected.captionRef,
     [lane.approvalEnv]: selected.approvalRef,
   };
-  return run([action, "--slot", slot], { ...deps, env: rotatedEnv, now });
+  return run([action, "--slot", slot], {
+    ...deps,
+    env: rotatedEnv,
+    now,
+    allowEarlyCatchUp: resolution.catchUp === true,
+  });
 }
 
 async function runAniccaLarryJaRotatingCanary(argv = [], deps = {}) {

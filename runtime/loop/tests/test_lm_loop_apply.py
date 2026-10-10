@@ -1351,6 +1351,21 @@ class LmLoopApplyTest(unittest.TestCase):
             priority="revenue", effect_scope="occurrence",
         )
 
+    def test_admission_rebind_guard_uses_ebook_occurrence_scope(self):
+        owner = "ebook-en-tiktok-daily"
+        registry = json.loads((Path(__file__).parents[3] / "config/loop-registry.json").read_text())
+        entry = registry["loops"][owner]
+        with (
+            patch.object(lm_loop, "_owner_has_pending_admission", return_value=True),
+            patch.object(lm_loop, "rebind_queued_owner", return_value="rebound") as rebind,
+            lm_loop._admission_rebind_guard(owner, True, entry=entry) as decision,
+        ):
+            self.assertIsNone(decision)
+        rebind.assert_called_once_with(
+            owner, resource_class="agent", admission_class="revenue",
+            priority="distribution", effect_scope="occurrence",
+        )
+
     def test_admission_rebind_guard_uses_explicit_marketplace_occurrence_scope(self):
         entry = {
             "resource_class": "agent",

@@ -6,6 +6,7 @@ const test = require("node:test");
 const {
   HONNE_JA_SLOTS,
   honneJaDueSlot,
+  marketingVideoDaySlots,
   zonedSlotInstant,
   marketingVideoDueSlots,
 } = require("./honne-ja-shadow-schedule.js");
@@ -60,6 +61,13 @@ test("marketingVideoDueSlots enumerates all elapsed same-day slots in schedule o
   assert.deepEqual(
     marketingVideoDueSlots(Date.parse("2026-07-29T15:05:00Z"), "Asia/Tokyo", ["10:00", "15:00", "20:00"]),
     [],
+  );
+});
+
+test("marketingVideoDaySlots enumerates configured future slots on the same JST day", () => {
+  assert.deepEqual(
+    marketingVideoDaySlots(Date.parse("2026-10-10T08:55:00.000Z"), "Asia/Tokyo", ["08:00", "16:00", "22:37"]),
+    ["2026-10-09T23:00:00.000Z", "2026-10-10T07:00:00.000Z", "2026-10-10T13:37:00.000Z"],
   );
 });
 
