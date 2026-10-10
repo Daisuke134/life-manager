@@ -303,6 +303,8 @@ CLEAN-04 source/main進捗: release参照scanの3行修復はPR #7530 exact15232
 
 CLEAN-04の終了owner残留scope: LINE factory18dd30a3f4e2e370-98723は15:13:26Z terminal75、次factoryは16:30:08Z resource_effect_unknownでblocked。旧run由来imagegen89430（Oct10 23:56:30/UID501/PPID1）・Chrome92507（23:57:53/parent89430）・GPU775（23:58:16/parent92507）がfresh生存。Chromeは同runのgc-trash.27052下GPUCache0byteだけをopen、CDP TCP CLOSED、renderer/network無し。exact PID/start/UID/profile再照合後にこの3processを終了し、共通imagegen session filesを別新ownerが使用していないことを確認。provider unknown/fence/正式recordsは保持しno-effectへ置換しない。既存producerの終了処理に漏れがあれば同scopeで最小修復する。旧=完全release反映容量待ち、新=実閉鎖producer残留の回収→完全release反映→CLEAN-05→06、理由=source速度修復はmain済みで、先に実残留メモリを解放できるため。
 
+CLEAN-04 closed-owner回収結果: exact89430 KILL→92507 TERM後も旧92507/775が残るためstart/UID再確認後この2PIDだけKILL、fresh3PID absent。ファイル削除0/fence変更0、private receipt cleanup-line-imagegen-terminal-20261011.json。idle timeoutだけをteardown成功と扱わない。次の共有修復scopeはbin/cut-loop-release.shの完全cutが既存pruneより先にcapacity gate75で終了する順序。既存pruneを同lock/provenance/保護下で先に実行してから同じ2GiB guardを判定し、exportはguard PASS後だけとする。閾値低下・partial current・active release直接patch・新serviceは作らない。既存test_cut_loop_release_pressureにlow-space時のcleanup先行とexport無しのRED→GREENを加える。
+
 **cleanup現在readback（source/main/release/loaded/naturalを区別）:**
 
 | atom | 確認済み | 実際に残る一操作 |
