@@ -303,6 +303,49 @@ test("Web initial scan repairs one Life Manager Travel duplicate's missing depar
   assert.equal(creates.length, 0);
 });
 
+test("Web initial scan repairs an exact generated duplicate reminder without a saved origin", async () => {
+  const eventRows = [
+    { id: "travel-existing-no-home", summary: "[Travel] 🚆 Origin→Venue", location: "Venue",
+      description: "Auto-inserted by Life Manager — adjust if the route is wrong.",
+      start: { dateTime: "2030-01-01T09:35:00+09:00" },
+      end: { dateTime: "2030-01-01T10:00:00+09:00" },
+      reminders: { useDefault: true, overrides: [] } },
+    { id: "event-next-no-home", summary: "Meeting", location: "Venue",
+      start: { dateTime: "2030-01-01T10:00:00+09:00" },
+      end: { dateTime: "2030-01-01T11:00:00+09:00" } },
+  ];
+  const patches = [];
+  const creates = [];
+  let reads = 0;
+  const calendar = {
+    async listEventsRaw() { reads++; return eventRows; },
+    async patchEvent(uid, args, options) {
+      patches.push({ uid, args, options });
+      const existing = eventRows.find((event) => event.id === args.event_id);
+      existing.reminders = args.reminders;
+      return { successful: true, effect: "updated" };
+    },
+    async createEvent(_uid, args) { creates.push(args); return { successful: true }; },
+  };
+
+  const result = await fillTravel("tenant-web-reminder-without-home", {
+    ...GO_TRAVEL_OPTIONS, home: "", calendar, allowWebInitialScan: true,
+  });
+
+  assert.equal(patches.length, 1);
+  assert.equal(patches[0].uid, "tenant-web-reminder-without-home");
+  assert.deepEqual(patches[0].args, {
+    calendar_id: "primary", event_id: "travel-existing-no-home",
+    reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 0 }] },
+    send_updates: "none",
+  });
+  assert.deepEqual(patches[0].options, { expectedCalendarAccountId: "ca-expected", allowWebInitialScan: true });
+  assert.equal(reads, 2);
+  assert.equal(result.inserted, 0);
+  assert.equal(result.verified, 1);
+  assert.equal(creates.length, 0);
+});
+
 test("Web initial scan does not patch an unowned or ambiguous Travel duplicate", async () => {
   for (const scenario of [
     { name: "unowned", blocks: [{ id: "manual-travel", description: "Personal travel note" }] },
