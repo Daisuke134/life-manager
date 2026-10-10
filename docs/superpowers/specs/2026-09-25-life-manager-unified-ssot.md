@@ -13381,3 +13381,23 @@ flowchart LR
 9. Reconcile same-period Apple settled proceeds, refunds, fees, and actual costs. Require official evidence for Anicca USD 10,000 net MRR before scaling to the other apps.
 
 **Current cursor:** item 1. The HE first-slot miss is confirmed as a pre-effect storage failure; its elapsed slot can be recovered after the active reconciler/handoff releases its lock. The current PR checks and runtime-owner transitions are active, so neither is being bypassed.
+
+### 2026-10-11 07:48 JST — Second live slot read; release handoff still active
+
+- **Postiz official GET (07:48 JST):** the JST-day window now has 9 `PUBLISHED` rows: JP1 3, Buddha 3, Honne EN 1, Anicca EN Instagram 1, and Anicca AI YouTube 1. Of the six accounts whose first configured slots are due by 07:48, HE TikTok still has zero rows. JP1 and Buddha's three-row totals remain first-slot bursts, not 3 distinct slots. The other 12 target accounts have not reached their first configured slots yet.
+- **HE failure evidence:** the exact 07:15 run `18dd4ad5bced6750-44143` ended at 07:15:08 with `scratch_enospc`, `storage_write_failed_pre_effect`, exit 78, `effect_status=not_applicable`, and no provider receipt. It is not in the 20 current HE admission-fence details. Postiz's 07:48 read confirms no HE post today. The normal owner must catch up this elapsed slot after global reconciler locks clear; do not direct-post or clear historical fences.
+- **Main/PR:** `origin/main` is now `d8a4dbc59d96adbeb8bf32c09e88c94bf5da22a0` from PR #7574. Local branch `fix/mobile-owner-recovery-20261011` has merged it at `aa64a63c1a973820b2d39861d9b8398edb9b59ed`; this merge is not pushed yet. PR #7572's remote head is `3ba5ad9f...` and its base is still `ff7e8967`; current checks are running on that older head. Push the local merge and rerun required CI before merging.
+- **Current runtime:** `/Users/anicca/loops/current` points to `20261011T074104-d8a4dbc5`. The prior release-reconciler process remains loaded from `ff7e8967` (PID 88772) while a self-handoff helper targets `d8a4dbc5`; its current run lock is active. Do not start another apply, kill/restart, or catch up HE until that transition is terminal. Disk-cleanup PID 98324 is also running. At 07:48, free space is 474,076 KiB (~463 MiB), above the current-main release descriptor's 347,041,792-byte requirement, but neither owner has reached terminal yet.
+
+**Updated remaining TODO — preserve order:**
+
+1. Push local latest-main merge `aa64a63c` and the current SSOT update; verify PR #7572 base/head are current and all required checks pass on its exact head.
+2. Merge PR #7572 to main. Then compute release capacity for the exact merged SHA and wait for the current release-reconciler/self-handoff and cleanup owner to reach natural terminal with locks free.
+3. Cut the immutable release from merged main, verify self-handoff/loaded release, and confirm each mobile publisher's loaded SHA/argv and natural terminal. Preserve all effect-unknown fences.
+4. After locks clear, use the normal `life-manager-anicca-he` owner to catch up the confirmed elapsed 07:15 pre-effect miss. Never post it directly or clear unrelated unknown occurrences.
+5. Verify 3 distinct configured-slot `PUBLISHED` receipts per account and replay-zero; progress toward 54/54 daily for seven consecutive JST days, continuing work between slots.
+6. Confirm every post's views/engagement and direct Telegram link when Postiz supplies a post permalink; keep profile-only Postiz URLs visibly unavailable.
+7. Refresh the six-app ASC/RevenueCat/in-app funnel and acquisition baseline; then repair Anicca paywall loading and notification-to-same-quote behavior, with one measured conversion experiment at a time.
+8. Reconcile official Apple settlement, refunds, fees, and attributable costs. Require USD 10,000 verified Anicca net MRR before scaling the factory process.
+
+**Current cursor:** item 1, local latest-main merge and SSOT must be pushed. All-account distribution and production release are incomplete; the 07:15 HE miss has an exact pre-effect diagnosis and a normal-owner recovery path after the active transition.
