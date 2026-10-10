@@ -911,7 +911,18 @@ def _durable_capacity(connection: sqlite3.Connection, owners: Path, resource_cla
         if excluded_claim is not None and path == excluded_claim:
             continue
         row = _row(path) or {}
-        if _live(path, starts, snapshot_started_ns):
+        child_live = _live(path, starts, snapshot_started_ns)
+        # Keep the bounded terminal handoff until its live controller persists and releases.
+        controller_pid = row.get("controller_pid")
+        controller_start = row.get("controller_process_start")
+        terminal_handoff = (
+            not child_live and row.get("version") == 2 and row.get("phase") == "running"
+            and isinstance(controller_pid, int) and not isinstance(controller_pid, bool)
+            and isinstance(controller_start, str) and bool(controller_start)
+            and not _heartbeat_expired(row, now)
+            and process_start(controller_pid) == controller_start
+        )
+        if child_live or terminal_handoff:
             live.append(row)
             if isinstance(row.get("occurrence_id"), str):
                 live_occurrences.add(row["occurrence_id"])
