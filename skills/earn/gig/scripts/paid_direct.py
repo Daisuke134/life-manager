@@ -3246,7 +3246,7 @@ def _stage_isolated_agent_runtime(
     schema_dir.mkdir(parents=True, exist_ok=True)
     isolated_runner = runner_dir / runner_source.name
     shutil.copyfile(runner_source, isolated_runner)
-    for sibling in ("token_budget.py", "config.json"):
+    for sibling in ("token_budget.py", "treg_credentials.py", "config.json"):
         source = runner_source.parent / sibling
         if source.is_file():
             shutil.copyfile(source, runner_dir / sibling)
@@ -3254,6 +3254,12 @@ def _stage_isolated_agent_runtime(
     for source in loop_source.glob("*.py"):
         if source.is_file() and not source.is_symlink():
             shutil.copyfile(source, loop_dir / source.name)
+    host_source = runner_source.parent.parent / "host"
+    host_dir = runtime_root / "host"
+    host_dir.mkdir(parents=True, exist_ok=True)
+    for source in host_source.glob("*.py"):
+        if source.is_file() and not source.is_symlink() and not source.name.startswith("test_"):
+            shutil.copyfile(source, host_dir / source.name)
     isolated_schema = schema_dir / schema_source.name
     shutil.copyfile(schema_source, isolated_schema)
     return isolated_runner, isolated_schema
