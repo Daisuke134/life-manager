@@ -56,7 +56,7 @@ class EvidenceRetentionTest(unittest.TestCase):
             run = Path(temporary) / "agent-runner-evidence/task/run-1"
             summary = {"status": "success", "result_path": "result.json"}
             with (patch.dict(os.environ, {"LIFE_MANAGER_LOOP_ID": "life-manager-disk-cleanup"}),
-                  patch.object(runner, "ensure_evidence_capacity", side_effect=PermissionError(13, "private"))):
+                  patch.object(runner, "prune_closed_diagnostics", side_effect=PermissionError(13, "private"))):
                 result = runner.finish_evidence_run(run, summary)
             self.assertEqual(result["status"], "success")
             self.assertEqual(json.loads((run / "summary.json").read_text())["status"], "success")

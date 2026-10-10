@@ -314,10 +314,15 @@ def finish_evidence_run(evidence_dir: Path, summary: dict) -> dict:
     summary_path = evidence_dir / "summary.json"
     atomic_json(summary_path, summary)
     owner = os.environ.get("LIFE_MANAGER_LOOP_ID")
-    if owner and (REPO_ROOT / "config/storage-policy.json").is_file():
+    policy_path = REPO_ROOT / "config/storage-policy.json"
+    if owner and policy_path.is_file():
         try:
-            summary = {**summary, "postrun_evidence_reclamation": ensure_evidence_capacity(evidence_dir)}
-            atomic_json(summary_path, summary)
+            policy = load_storage_policy(policy_path, owner)
+            root = evidence_root_for(evidence_dir)
+            if policy is not None and root is not None:
+                reclamation = prune_closed_diagnostics(root, policy, current_run=evidence_dir.resolve())
+                summary = {**summary, "postrun_evidence_reclamation": reclamation}
+                atomic_json(summary_path, summary)
         except (OSError, ValueError) as error:
             print(json.dumps({
                 "event": "postrun_evidence_cleanup_failed", "owner_id": owner,
