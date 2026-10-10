@@ -12859,3 +12859,10 @@ flowchart LR
 11. Apple公式settlementから売上・refund・fee・payoutを同一期間で照合し、全provider/cloud/marketing costを差し引いたAnicca net recurring MRR USD 10,000を確認する。達成後、同じ計測・投稿・収益手順を他の承認済みappへ展開し、factory化する。推定・subscription MRRだけで達成と報告しない。
 
 **現在cursor:** 02:09時点でPID 73647のrelease-reconciler自然terminalと標準lockを取り直す。並行して独立read-only計測を進める。次にmain由来完全release/headroom、receipt可能な標準preflight、owner SHA、occurrence fence、54/day配信へ進む。投稿・owner apply・release cutはこのspec更新では行っていない。
+
+### 2026-10-11 02:19 JST — Latest-main native clone adoption
+
+- **Fresh main:** 02:16 JSTにPR #7538が`522cfb1f3e997a09f25a44d0bad710c6c830fd99`へmerge。`bin/cut-loop-release.sh`は、owner/mode/link-count条件とbyte comparisonを満たす同一read-only source fileについてmacOS `/bin/cp -c` cloneを試し、clone後もbyte compareし、失敗時はGit exportを残す。関連testとSSOTもmainに存在する。PR #7537のcaller precheck除去と合わせてsource pathは改善済みだが、runtimeへの採用やheadroom回復はまだ未証明。
+- **Runtime recheck:** `~/loops/current`は引き続き旧release `20261011T013322-f78a2399` / SHA `f78a23995df5f50724131b51ade652b27fa7fc13`。release-reconcilerはPID 73647でloaded-runningのまま、last successful terminal `2026-10-10T17:01:50Z`から更新されていない。`df -kP` 02:19 JSTは989,500 KiB available、100% usageで2 GiB未達。clone optimizationがこの状態を直したとは扱わない。
+- **Branch/PR:** 専用worktreeはfresh `origin/main=522cfb1…` をmerge済み。spec/handover branch `fix/mobile-release-retention-20261011`の先行commit `e61c4f5…`はremoteにpush済み、PR #7539はopen。今回のmain追従とこのaddendumは次commitとしてまだpush前。PR CIでは一部checksがpendingだったため、push後に最新headの状態を再確認する。review/subagentは使わない。
+- **Cursor correction:** 前節TODO 1のPID 73647が自然terminalへ到達するかfresh確認する。走行中は競合cutter/restart/applyを実行せず、独立read-only metricsは進める。terminal後、#7537/#7538を含むmain由来標準reconciler/cutterにrelease作成を委ね、clone数・free-before/after・complete `RELEASE.json`・current SHAを記録する。2 GiB gateが未達なら証拠からsafe owner/capacity blockerを特定し、clone source fixだけで完了扱いにしない。前節TODO 3–11は未完のまま順序維持。
