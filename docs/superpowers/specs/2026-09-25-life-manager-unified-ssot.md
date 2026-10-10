@@ -343,6 +343,10 @@ CLEAN-04内訳receiptの反映scope: #7545 exact973298742e2337db4471ebe2a79c2310
 
 CLEAN-04中央owner復旧scope: 内訳fieldの自然18:11:45ZはPID40399/errors0/protected0、github-cache6411/pip-cache25230/未参照067ac release（logical unknown/null）のpathを記録。次18:13:23Z PID42911はerrors0/protected0/reclaimed0/details空/省略0で正常なreplay分離を確認。一方fresh lm-loop statusはlife-manager-disk-cleanupがunloaded/unknown=false/installedf78、fresh safe GUIはservice absent、plist存在、state_root内stop/pause記録なし、registryはscheduled300。原因は未確定で、旧fleetのreason=current skipが現在loadedを証明しない。cleanup常時運用の委任scopeとして、fresh preflight/unknown/共有lockを確認後にLIFE_MANAGER_APPLY_TARGET=life-manager-disk-cleanupで既存canonical apply --loaded-idle-only一件を行い最新d687へ復旧する。全fleet reload・他owner stop・manual provider effect/unknown解除0。復旧後loaded argv/自然terminalを確認し原因は診断cursorへ保持する。 初回loaded-idle-onlyはskipped=unloaded/changedfalseでmutation無し。unloaded復旧には同flagを使わず、fresh safe GUIのservice absentをもう一度確認した時だけ同target/require-currentの通常applyを使う。サービスが存在/稼働に変化したら発行しない。
 
+CLEAN-04回収内訳atomは本番確認済み: #7545/main d687→ALL current030854-d687/cutter exit0/native clone8329/governorSHA4c705d7a/main一致/read-only。native watchdog fresh idle後の既存installer exit0、loaded/installed argv d687/bin/disk-watchdog.sh、scriptSHA3393892f、StartInterval60/RunAtLoadtrue/Throttle60を確認。自然18:11:45Z/PID40399はerrors0/protected0、省略0でgithub-cache6411/pip-cache25230/未参照067ac release（logical null）の確認済みpathを記録。18:13:23Z/PID42911と18:19:51Z/PID49690はerrors0/protected0/details空、再度回収済みcacheを作って測らず正常no-opとして確認。新削除範囲0/primary変更0。
+
+中央ownerはfresh GUI service absent/unknown=false/stop記録無しから、canonical target限定通常applyで復旧済み。changedtrue/loaded d687/install event912ad07b3103e2de1c4a3951/admission_resumedfalseを確認。boot run18dd3de4d174dc60-48138は18:18:16Z exit75で、同stdoutはcleanup_lock_busy、強制再実行0。保持した実cadenceはStartCalendarInterval Minute3,8,13,18,23,28,33,38,43,48,53,58（5分間隔）/RunAtLoadtrue/Disabled無し、registry300と運用cadenceを混同しない。次自然18:23Zを追跡し、unload原因は未確定として残す。CLEAN-04の既存大物回収/内訳readbackは前進、全体Doneではなく残cursorは中央自然復旧→生成/回収収支→CLEAN-05→06。
+
 **cleanup現在readback（source/main/release/loaded/naturalを区別）:**
 
 | atom | 確認済み | 実際に残る一操作 |
