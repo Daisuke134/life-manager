@@ -520,6 +520,50 @@ test("production TikTok runner records Postiz-only evidence and does not resend 
   assert.equal(telegramCalls.length, 1);
 });
 
+test("production TikTok accepts the next exact configured slot for same-day catch-up and keeps replay zero", async () => {
+  const value = enTikTokFixture();
+  const providerCallsMade = [];
+  const telegramCalls = [];
+  const options = {
+    env: value.env,
+    objectStore: value.objectStore,
+    now: () => "2026-10-10T08:55:00.000Z", // 17:55 JST; 20:15 is the next configured slot.
+    allowEarlyCatchUp: true,
+    runDistribution: async (input) => {
+      providerCallsMade.push(input);
+      return {
+        state: "PUBLISHED",
+        reconciled: true,
+        post_id: "postiz-catch-up-1",
+        post_url: null,
+        integration_id: EN_AFFIRMATION_TIKTOK_LANE.integrationId,
+        content_sha256: sha256(fs.readFileSync(input.captionPath)),
+        title: input.title,
+        posting_method: "DIRECT_POST",
+        release_id: "p_pub_url~v2.124",
+      };
+    },
+    sendTelegram: async (...args) => {
+      telegramCalls.push(args);
+      return { ok: true, result: { message_id: 88 } };
+    },
+  };
+  const action = "run-en-affirmation-tiktok-production";
+  const futureSlot = "2026-10-10T11:15:00.000Z";
+  await assert.rejects(
+    runAniccaCarouselCanary([action, "--slot", "2026-10-10T11:16:00.000Z"], options),
+    /configured|schedule|slot/i,
+  );
+
+  const first = await runAniccaCarouselCanary([action, "--slot", futureSlot], options);
+  const replay = await runAniccaCarouselCanary([action, "--slot", futureSlot], options);
+  assert.equal(first.slot, futureSlot);
+  assert.equal(first.publication.created, true);
+  assert.equal(replay.publication.created, false);
+  assert.equal(providerCallsMade.length, 1);
+  assert.equal(telegramCalls.length, 1);
+});
+
 test("JA main TikTok production command selects the recovered Larry sunset lane", () => {
   assert.deepEqual(parseArgs(["run-ja-main-tiktok", "--slot", SLOT]), { command: "run-ja-main-tiktok", slot: SLOT });
   assert.deepEqual(parseArgs(["run-ja-main-tiktok-production"]), { command: "run-ja-main-tiktok-production", slot: null });

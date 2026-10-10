@@ -29,7 +29,7 @@ const {
 } = require("../lib/marketing-liveness-adapter.js");
 const { executeCapabilityJob } = require("./runtime-up.js");
 const { armControls, restoreControls } = require("./anicca-en-widget-canary.js");
-const { marketingVideoDueSlots } = require("../lib/honne-ja-shadow-schedule.js");
+const { marketingVideoDaySlots, marketingVideoDueSlots } = require("../lib/honne-ja-shadow-schedule.js");
 
 const TENANT = "dais-local";
 const PRODUCT = "anicca-ios";
@@ -258,15 +258,21 @@ async function runAniccaCarouselCanary(argv = [], deps = {}) {
   const now = deps.now || (() => new Date().toISOString());
   const trustedNow = exactInstant(now(), `${lane.name} canary clock`);
   if (production) {
-    const dueSlots = marketingVideoDueSlots(Date.parse(trustedNow), "Asia/Tokyo", PRODUCTION_SLOTS[parsed.command]);
+    const nowMs = Date.parse(trustedNow);
+    const daySlots = marketingVideoDaySlots(nowMs, "Asia/Tokyo", PRODUCTION_SLOTS[parsed.command]);
+    const dueSlots = marketingVideoDueSlots(nowMs, "Asia/Tokyo", PRODUCTION_SLOTS[parsed.command]);
     const latestDueSlot = dueSlots.at(-1);
     if (!latestDueSlot) {
       const error = new Error(`${lane.name} production has no due slot yet`);
       error.code = parsed.slot ? "OFF_SCHEDULE_SLOT" : "NO_DUE_SLOT";
       throw error;
     }
-    if (parsed.slot && !dueSlots.includes(parsed.slot)) {
+    if (parsed.slot && !daySlots.includes(parsed.slot)) {
       throw Object.assign(new Error(`${lane.name} production slot is not a due slot today`), { code: "OFF_SCHEDULE_SLOT" });
+    }
+    if (parsed.slot && !dueSlots.includes(parsed.slot)
+        && deps.allowEarlyCatchUp !== true) {
+      throw Object.assign(new Error(`${lane.name} production slot is not due without catch-up`), { code: "OFF_SCHEDULE_SLOT" });
     }
     parsed = { ...parsed, slot: parsed.slot || latestDueSlot };
   }
