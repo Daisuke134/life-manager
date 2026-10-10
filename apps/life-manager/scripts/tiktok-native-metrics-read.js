@@ -62,6 +62,9 @@ async function collectTikTokWindow(input, env = process.env, observedAt = new Da
 async function collectPostizPhotoWindow(input, env = process.env, observedAt = new Date().toISOString()) {
   const provider = await postizAnalytics(input, env);
   if (!provider) throw new Error("Postiz photo metrics are unavailable");
+  if (Array.isArray(provider.post) && provider.post.length === 0) {
+    return { created: false, deferred: true, reason: "postiz_post_analytics_empty" };
+  }
   const result = persistPostizPhotoSnapshot({ ...input, dataDir: resolveDataRoot(env), observedAt, postizAccountAnalytics: provider.account, postizPostAnalytics: provider.post });
   return { created: result.created, file: result.file, snapshot: result.snapshot, post: result.snapshot.post, account: result.snapshot.account_metrics };
 }

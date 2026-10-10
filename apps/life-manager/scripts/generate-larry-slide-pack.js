@@ -119,7 +119,6 @@ async function resolveLarryJaSlot({ env = process.env, now = () => new Date().to
   const distributionLedger = distributionLedgerPath(dataDir, tenantId, lane.productId);
   const initialPostedHistory = readPostedHistory(distributionLedger);
   const nowMs = Date.parse(nowIso);
-  const daySlots = marketingVideoDaySlots(nowMs, "Asia/Tokyo", productionSlots);
   const dueSlots = marketingVideoDueSlots(nowMs, "Asia/Tokyo", productionSlots);
   const slotHashFor = (candidateSlot) => crypto.createHash("sha256").update(candidateSlot).digest("hex");
   const alreadyPublished = (history, candidateSlot) => history.find(
@@ -142,18 +141,16 @@ async function resolveLarryJaSlot({ env = process.env, now = () => new Date().to
   }
 
   const unpostedDueSlot = dueSlots.find((candidateSlot) => !alreadyPublished(initialPostedHistory, candidateSlot));
-  const unpostedCatchUpSlot = dueSlots.length
-    ? daySlots.find((candidateSlot) => !dueSlots.includes(candidateSlot)
-      && !alreadyPublished(initialPostedHistory, candidateSlot))
-    : null;
-  const dueSlot = slot || unpostedDueSlot || unpostedCatchUpSlot || dueSlots.at(-1) || null;
+  const dueSlot = slot || unpostedDueSlot || null;
   if (!dueSlot) {
     throw Object.assign(new Error(`${lane.name} production has no due slot yet`), { code: "NO_DUE_SLOT" });
   }
-  const catchUp = !dueSlots.includes(dueSlot);
   const initialSlotReceipt = alreadyPublished(initialPostedHistory, dueSlot);
   if (initialSlotReceipt) {
     return { slot: dueSlot, selected: null, alreadyPublished: true, providerPostId: initialSlotReceipt.providerPostId };
+  }
+  if (!dueSlots.includes(dueSlot)) {
+    throw Object.assign(new Error(`${lane.name} production has no due slot yet`), { code: "NO_DUE_SLOT" });
   }
 
   const objectStore = createContentObjectStore({ objectDir: path.join(dataDir, "objects") });
@@ -220,7 +217,7 @@ async function resolveLarryJaSlot({ env = process.env, now = () => new Date().to
   if (!selected) {
     throw new Error(`${lane.name} slide pack rotation has no unposted candidate available for this slot`);
   }
-  return { slot: dueSlot, selected, ...(catchUp ? { catchUp: true } : {}) };
+  return { slot: dueSlot, selected };
 }
 
 if (require.main === module) {
