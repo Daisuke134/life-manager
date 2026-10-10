@@ -225,7 +225,8 @@ def _immutable_root_reason(projects_root: Path) -> str | None:
         for part in resolved.parts
     ):
         return "immutable_store_root"
-    if (resolved / ".git").exists():
+    # The owner may version its projects container; individual worktrees stay protected.
+    if resolved.name != "projects" and (resolved / ".git").exists():
         return "worktree_root"
     return None
 

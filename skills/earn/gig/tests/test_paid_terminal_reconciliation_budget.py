@@ -327,6 +327,7 @@ def test_projects_root_symlink_never_grants_cleanup_outside_it(tmp_path):
 def test_closed_workspace_under_owner_git_repo_can_reclaim_output(tmp_path):
     root, ledger = _closed_project(tmp_path / "gig")
     (root.parent.parent / ".git").mkdir()
+    (root.parent / ".git").mkdir()
     package = root / "delivery" / "old.zip"
     package.parent.mkdir()
     package.write_bytes(b"x" * 64)
@@ -337,6 +338,28 @@ def test_closed_workspace_under_owner_git_repo_can_reclaim_output(tmp_path):
     assert result["bytes_freed"] == 64
     assert not package.exists()
     assert (root.parent.parent / ".git").is_dir()
+    assert (root.parent / ".git").is_dir()
+
+
+@pytest.mark.parametrize("root_kind", ["source", "worktree"])
+def test_closed_cleanup_preserves_git_source_or_worktree_root(tmp_path, root_kind):
+    base = tmp_path / ("source" if root_kind == "source" else ".worktrees/task")
+    root, ledger = _closed_project(base)
+    projects = root.parent
+    if root_kind == "source":
+        checkout = base / "checkout"
+        projects.rename(checkout)
+        projects = checkout
+    (projects / ".git").mkdir()
+    package = projects / "100" / "delivery" / "old.zip"
+    package.parent.mkdir()
+    package.write_bytes(b"keep")
+
+    result = paid.project_janitor.scan(projects, ledger, dry_run=False)
+
+    assert result["bytes_freed"] == 0
+    assert package.read_bytes() == b"keep"
+    assert (projects / ".git").is_dir()
 
 
 def test_projects_root_with_symlink_ancestor_never_grants_cleanup(tmp_path):
