@@ -297,6 +297,8 @@ CLEAN-04の緊急回収scope: native macOS diagnostic storeの実duは/private/v
 
 CLEAN-04の回収/readback結果: native log eraseはexit0/Deleted selected logs、diagnostics887016→14992KiB（減892,952,576 bytes）、uuidtext323860KiBは公式経路でも保持。fresh free1,075,781,632 bytes、GUI preflight receipt PASS。native watchdogはloaded067ac/interval60/runs80/last exit0、restartせず保持する。正しい保存先 ~/.local/state/life-manager/state/last-receipt.json の自然16:19:51Zはrun18dd375ad3486da8-27045/release067ac、errors0/protected_deletions0/cursor persisted/空errors/inventory_error無しを確認。別のowner-local last-receipt16:01は古いままで、fresh自然失敗と混同しない。これは一回の自然保存回復で、反復稼働・全owner成果・手動掃除不要をDoneにしない。
 
+CLEAN-04 source/main進捗: release参照scanの3行修復はPR #7530 exact15232b437eedf77558c9cfcfc8678c5eecb0b2e1、CI38067101432全10SUCCESS（CodeRabbitはmanual required skip）後admin squash main44d4694db672714642ede939502f7070d1143fa5へ統合。既存完全release cutter一回はexit75/available1,069,174,784/required2,147,483,648 bytes/disk_headroom_low、effect0/readback0でpre-effect延期。未統合worktreeを本番実行せず、partial release/guard変更/active release直接patchはしない。source acceptance済み・loaded/自然速度改善未証明を区別する。次操作は既存回収による完全cut書込条件の復旧→main immutable release→central cleanup一担当adoption/自然回収→CLEAN-05→06。current imagegen89430/Chrome92507/GPU775はfresh01:24JSTも存在し、last commandtime未知のため15分idle終了成功や失敗と断定しない。
+
 **cleanup現在readback（source/main/release/loaded/naturalを区別）:**
 
 | atom | 確認済み | 実際に残る一操作 |
