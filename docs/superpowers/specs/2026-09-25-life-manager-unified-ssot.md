@@ -393,6 +393,9 @@ CLEAN-05分類CI補正: #7560初回CIは857test中855PASS/2FAIL。旧writer全jo
 
 CLEAN-05 Writer実資源分類 main/current/自然claim: #7560 exact1fbe40777d35515432144a05e844c5fdebf9a9f4/CI38082614568全10SUCCESS→main9b80c7e67e26b7a71baa09c745cbe1ded549530a。正規ALL cutter exit0/nativeclone8329/current20261011T051455-9b80c7e6/main ancestor/runtime tagを確認。fresh loaded-idle/unknownfalse/Aqua PASS後、existing targeted reconcile shared-agent-runner/loaded-idle/maxowners1でapplied1/failed0/admission_resumedtrue、loaded argv/SHA9b80/install event18c2c71f3f9795b2c5daeb68。旧queued76577は採用直後browser/queued/unknown0、occurrence/queued_at/sequence保持を確認し、その後既存coalescingでcancelled0→自然18dd4455a0f0d0b8-48843がbrowser/claimed0/actual claim PID48948-start05:16:03JST。両行のqueued_at1791661289.183164/sequence597817が同じで、待機仕事のage/順番を引き継いだ。manualwake/新queue/上限変更/LLM追加/応募投稿trade0。登録noneのpassive計測だけを対象にしFundraiser unknown2は保持。receipt=~/.local/state/life-manager/state/writer-browser-class-rebind-runtime-20261011.json。source/main/current/loaded/自然claimは済み、自然terminal/公式計測readback/枠返却/自己cleanupは実行中のため追跡、全体Doneは未確認。
 
+CLEAN-05自然claim後の具体境界: new48843は20:16:01Z execute→20:16:15Z entrypoint_exit75、browser identity interactive:daisのholderPID7009/start04:55:13JST/guard BUSY rc9。モデル枠ではなく正当な既存identity lease占有を観測。exact新行はreleased/effect_unknown0、primary保存/scratch不在/生claim不在で、自分の枠は返却済み。holder PID7009は追加psでmissingとなったが他identity/stateを強制解除しない。既存recovery intent3320ccba9efde3272fbfdabc77266ac5はreconcile_owner/bounded_owner_reconciliationを発行し、supervisor journalはrelease_sha_mismatch、supervisor loaded d687/activeを確認。最新main adopterの既存targeted reconcileを使い、fresh supervisor idle/Aqua/unknownfalse時だけ現9b80へ一担当採用する。activeならskip。guard/intent/journal/unknown書換えや手動provider再送0。次自然の復旧は観測し、Source source分類成功とbrowser業務結果を混ぜない。
+
+
 
 
 
