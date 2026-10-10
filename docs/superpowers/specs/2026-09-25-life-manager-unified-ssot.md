@@ -380,7 +380,7 @@ P1の枠回復はCLEAN-05の生存/待ち境界として扱う。既存S06〜S18
 | 未完 | S08 | LINE §5.Lのsell slot/公式post_url、審査、/stats/sticker salesを先に閉じ、資源回復後にstatic_images速度とストア検索の勝ち型を改善。DONE=build/sellの自然継続と費用控除後黒字。LINE単発売上はMRRにしない |
 | 未完 | S09 | Mobile既存cursor: #7369更新/CI/main→main release→18 ownerとPostizをexact occurrenceで照合→不足のみ保存PNGで配信→各3/day PUBLISHED/permalink→native metrics/ASC/RC/funnel→内容/onboarding改善。solo境界維持。DONE=公式refund/fees控除を含む既存net $10K MRR |
 | 未完 | S10 | Gig Remaining atomic TODO item2→10をCoconalaの既存案件・実納品・Storefront order/settlementから進め、1つのdeliverable offerの黒字証拠後にFreelancer→Upwork→許可済platformへ拡大。Lancers25–27/Answers境界維持。P0/P1通過後に再開し、unknown effectは公式readbackで閉じるまで再送しない。item11 SelfBuildは全S01〜S14の収益lane完了後、S15で実施する |
-| 未完 | S11 | English eBook既存cursor: 古いfence保持/新slot安全→Products #420のproduction migration/table/RPC/ACL readback→webhook/PDF/Letter lifecycle→TikTok08/21の自然PUBLISHED→cost/fees/refund/settlement。自己購入/HeyGen Web plan/TikTok追加QAなし。DONE=既存net $10K MRR、単発Reset売上は別 |
+| 未完 | S11 | eBook cursor: PR #7478 merged `8db0c5d0` (EN TikTok occurrence scope only, not deployed)→依頼handle `@monk.mujo` へ現Postiz/code target `@monk_anicca` を一致→各active account 2/day→4旧unknown fenceを保持しdistinct slotのみ通す→容量/reconciler自然回復→immutable release→Postiz PUBLISHED/permalink→Products #420 webhook/PDF/Letter lifecycle→cost/fees/refund/settlement。英語生成はHeyGen CLI/API。DONE=$10K verified net MRR、単発Resetは別 |
 | 未完 | S12 | Job Hunter既存順でcapacity→MCP/readiness→Workday official effect照合→Dreamwork cutover、entitlementが許可するfit-qualified応募だけ実行。Free applicationsLimit0なら購入/bypassせず次のsafe atomへ。DONE=Tokyo/日本Remote/SF/visa条件を満たす公式応募receiptと業務Telegram readback |
 | 未完 | S13 | 投資#7373 checks/必要review/main→AT-13 fresh official no-order契約→自然qualified sell→初paper round tripのcost-complete P&L/replay-zero→30 round trips/strategy/cross-venue/AT-24/29/反対review。達成前live funding/orderなし。DONE=元のownerへsettled正net利益のAlpaca/銀行/CFO同period証明 |
 | 未完 | S14 | README残catalogのCapafy/Writer/PromptBase/Affiliate/Agent Economy/Connector/Fundraiser等をregistryへjoinし、既存§5.2と各lane cursorのsafe先頭atomを一件ずつ進める。DONE=自然owner/公式effect/費用/settlement/CFO coverage。登録やlistingだけを売上にしない |
@@ -11593,6 +11593,17 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **現在cursor:** read-only diagnosis of terminal failure `18dd203c2d702bd0-38666` while PID `88394` runs untouched → its natural terminal/readback → CFO `disk_headroom_low` evidence and normal retry → duplicate exact reconciliation without replay → A8.2 → A8.3–A8.18 → A8.1 → A8.19 → A6 → A9 → Google cash → A10.
 
+### 2026-10-10 18:56 JST — reconciler passed on current pointer; CFO remains admission-deferred
+
+- **Main / pointer / owners:** `origin/main=27448b05a3660d12a980d6ea358d8dc9723b17c9`. `~/loops/current` points to immutable release `20261010T183530-c182cec0` / SHA `c182cec05a585505e55987cdf821a3b542029ac0`. Both CFO and release reconciler are loaded on `c182cec0`, matching the pointer. Current-main adoption beyond `c182cec0` is not yet read back; do not manually apply/restart.
+- **CFO report:** latest natural occurrence is now `18dd22527f84a6e0-24470`, timestamp `2026-10-10T09:52:44.512750Z`, blocked at `host_admission_deferred:disk_headroom_low` / exit 75 / `effect_status=not_applicable`, no provider receipt/readback. Last verified B7 remains occurrence `18dd1e7de2cb6438-15645` / message `106271` / `telegram://messages/106271` at 08:43:02.901Z. This new attempt is not a delivered report.
+- **Reconciler:** the previously active PID `88394` is no longer current. Latest natural occurrence `18dd226398557328-30002` passed at `2026-10-10T09:55:20.133863Z`, effect not applicable; owner is now loaded-idle on `c182cec0`. This supersedes the 18:39 `entrypoint_exit_1` / active-process cursor; no active reconciler blocker remains in this readback.
+- **Financial truth remains incomplete:** company totals/net/MRR remain unknown; coverage gaps remain historical/trailing/MRR `173/168/26`; ASC `unavailable / asc_packet_invalid`; actual-cost source `source_unconnected`. Google Cloud 2026-09 is JPY `27,889` billed / cash unknown / allocation unattributed. RevenueCat USD `20.34` is MRR observation, not settled proceeds. Duplicate `18dd1f493c451b28-81380` is still not closed by a same-occurrence receipt; do not replay.
+
+**TODO順更新:** 旧cursor=`reconcile PID 88394 natural terminal → CFO admission diagnosis → duplicate → A8.2`。新cursor=`(1) allow the existing reconciler path to adopt latest main only when its normal owner logic does so, then read back pointer and both owner SHAs; current main is `27448b05`, current pointer/owners are `c182cec0`, no manual apply/restart → (2) diagnose CFO natural defer `18dd22527f84a6e0-24470` using existing admission/capacity evidence; permit only normal eligibility/retry, add no fixed cap, delete no protected data/swap, and do not manually trigger the report → (3) exact-join duplicate `18dd1f493c451b28-81380` to official message `106271` or obtain exact no-effect proof; never replay → (4) A8.2 diagnose `asc_packet_invalid`, retain six hash-valid ASC relationship artifacts and explicit period gap; advance if no newer fiscal period exists → (5) A8.3 Stripe → A8.4 Capafy → A8.5 affiliate → A8.6 writer → A8.7 Coconala → A8.8 Lancers → A8.9 CrowdWorks → A8.10 investment → A8.11 gig-mercor → A8.12 PromptBase → A8.13 Agent Economy → A8.14 Job Hunter → A8.15 Fundraiser → A8.16 Connector → A8.17 Ebook → A8.18 LINE sticker → (6) A8.1 official provider-cost source or preserve `source_unconnected`/unknown expense/net → A8.19 classify current 190 registry jobs / 113 mapped jobs → A6 natural Google trace → A9 period report → same-account Google cash receipt → A10 seven consecutive natural B7 receipts and replay-zero. Continue independent source coverage while the natural release/admission paths run.
+
+**現在cursor:** normal latest-main reconciliation/readback (`27448b05` → pointer/owner SHAs) without manual apply → CFO latest `disk_headroom_low` evidence/normal retry → duplicate exact receipt/no-effect without replay → A8.2 → A8.3–A8.18 → A8.1 → A8.19 → A6 → A9 → Google cash → A10.
+
 
 ### Affiliate runtime: source-backed affiliate strategy
 
@@ -11912,6 +11923,18 @@ TODO order/cursor (supersedes 16:17): (1) let current life-manager-release-recon
 
 **TODO order update:** old order=`after PR #7454 deployment, run a Calendar rescan and synthetic route E2E → Telegram ask receipt → Stripe TEST → Cloud marketing funnel → Photon pilot → $10K MRR`. New order=`(1) run exact-head source CI and read-only review, then merge/deploy this no-home fix → (2) run one controlled Calendar E2E with Asia/Tokyo fixtures, strict provider readback, replay-zero, and exact fixture cleanup → (3) verify one existing Telegram test tenant and ask receipt → (4) Stripe TEST lifecycle → (5) activate existing Cloud marketing assets through one owner and measure the UTM funnel → (6) Photon Japan pilot → (7) Stripe-verified $10K gross MRR`. Reason: production evidence exposed the no-home source gap; the prior UTC fixture is cleaned and its negative route cache must not be reused. **Current cursor:** verify all required checks on PR #7471's current exact head alongside its SHIP source review; merge only after checks pass, then verify the Railway deployment before the next Calendar E2E.
 
+
+### 2026-10-10 18:30 JST — English eBook occurrence-scope fix and production cursor
+
+- **Main/base:** latest remote main is c182cec05a585505e55987cdf821a3b542029ac0. The branch retains the intervening main updates and the eBook scope change; source commit is 8ed7c7fa1a57bbf06b9d9769611654bb82025bec. PR has not been opened yet.
+- **Scope change:** the branch sets admission_effect_scope=occurrence only for ebook-en-tiktok-daily and adds apps/life-manager/scripts/ebook-distribute-daily.sh to the validated occurrence-scope allowlist. Other eBook owners stay owner-scoped. The slotScopedEffect job key keeps distinct scheduled slots separate; the old unknown occurrence is still fenced and is never replayed.
+- **Verification:** the two new registry/runner tests were observed RED before the change. Afterward, 4 focused occurrence/admission/rebind tests pass; the related Python suite passes 640 tests and 254 subtests; the English eBook plus publication-adapter Node suite passes 41/41; loop-adapter registry Node suite passes 15/15; loop contract passes 18 loops/190 jobs/113 mapped/0 errors; git diff --check passes.
+- **External state:** the English owner remains loaded-idle on efc7917116694dea36cd5445f6e6b27159bfc59f. Its Oct 10 08:00 JST occurrence 18dcfeb56559a808-61839 exited 75 at disk_headroom_low before provider dispatch. Old occurrence 18dcc075be3903e8-48633 remains effect_unknown with identity_missing_or_invalid. Postiz official GET at 09:24 UTC returned 51 rows overall and 0 for cmo5rwq2p00twn10yrsdglng3; the 30-hour window ends at 09:59:23 UTC and is incomplete. No new PUBLISHED receipt is confirmed.
+- **Capacity/apply:** at 09:22 UTC, df reported 1,923,460 KiB free, below the current 2 GiB floor. Cleanup's latest owner event is exit 75 / entrypoint_exit_75, and its persisted receipt is stale. At 09:25 UTC, life-manager-release-reconciler was loaded-running on ef35fa3bb890619418650c2fb2d07c7988338670, PID 38666. Do not cut/apply while capacity is below 2 GiB or the host apply owner is active. The prior 11 GiB wording is superseded by the source-backed 2 GiB floor.
+- **Revenue:** PR #430 Letter CTA is deployed to production; paid Letter conversion remains unverified. PR #420 remains OPEN at fe25f03569ce357fbce305563b3cad64f0ad8e38 on product main 6e9d502c0cefbb2adb77c67e02494c57b669cef1; production webhook migration/readback remains pending. $10K net MRR is still the goal, not achieved.
+
+**現在cursor:** resolve this spec merge while preserving latest main; run final diff/status checks; commit and push the synced task branch; fresh read-only review; exact-head CI; open/merge the source PR. Then wait for a fresh capacity reading at least 2 GiB and the live release-reconciler/apply lock to clear; cut a main-derived immutable release and apply only ebook-en-tiktok-daily. Verify loaded SHA/argv and admission policy, start one distinct new slot, and require Postiz PUBLISHED plus permalink. After 09:59:23 UTC, resolve the old occurrence only if a complete exact-integration GET is empty; otherwise keep its fence. Continue the 08:00/21:00 JST cadence, checkout/PDF/Letter verification, and net-MRR work.
+
 ### 2026-10-10 18:47 JST — Life Manager Cloud production reminder transport mismatch
 
 - **Release:** PR #7471 is merged as c182cec05a585505e55987cdf821a3b542029ac0; Railway deployment 17d1b5c9-3062-416a-a19d-6672870c2b92 is SUCCESS on main commit c182cec05a585505e55987cdf821a3b542029ac0; /health returns the same build SHA.
@@ -11977,6 +12000,55 @@ TODO order/cursor (supersedes 16:17): (1) let current life-manager-release-recon
 
 **現在cursor:** reconciler PID38666 natural terminal → safe preflight → Workday `job-search-daily` targeted stop/unloaded proof → credential incident remediation → remaining ordered TODO in the preceding 18:23 section.
 
+### 2026-10-10 18:49 JST — eBook bilingual current state and handover cursor
+
+この節をS11の最新snapshotとし、古いeBook履歴は当時の記録として保持する。投稿・本番apply・課金設定変更はこの更新では行わない。
+
+#### 理想の通過経路
+
+```mermaid
+flowchart LR
+  A[承認済script + JST slot] --> B{言語}
+  B -->|English| C[HeyGen CLI / Avatar IV API]
+  B -->|日本語| D[Watercolor Monk Factory asset + local renderer]
+  C --> E[MP4 + video ID + cost/effect receipt]
+  D --> E
+  E --> F[対象owner → Postiz]
+  F --> G[Postiz PUBLISHED + permalink]
+  G --> H{locale-specific CTA}
+  H -->|English| I[/monk]
+  H -->|日本語| J[/achan]
+  I --> K[Stripe locale checkout]
+  J --> K
+  K --> L[PDF delivery + subscription lifecycle]
+  L --> M[fees + refunds + render/post costs + settlement]
+  M --> N[verified net MRR]
+```
+
+#### 確認事実
+
+- **Source/PR:** latest `origin/main` は `69368d8fd4426b0ae1b46ce7fceeee9a8a67b67d`。PR #7478は `ebook-en-tiktok-daily` だけをoccurrence-scopedにし、既存unknown occurrenceを保持したまま別slotを通す変更。旧head `1e090d091c473ba805b0e35bbb53fab190d9ffb4` の全10 checksはPASSだが、base `c182cec05a585505e55987cdf821a3b542029ac0` よりmainが進んだため、latest-main同期後のexact-head checksが必要。
+- **Live eBook owners:** EN TikTok / EN Instagram / JA Instagram / JA TikTokの4 ownerは全て`loaded-idle`、loaded SHA `ef35fa3bb890619418650c2fb2d07c7988338670`。最新EN TikTok `18dcfeb56559a808-61839` とEN Instagram `18dcfeb564843768-61844` は`disk_headroom_low`でexit 75、provider呼出し前、receiptなし。最新JA Instagram `18dd0d711c16a4c8-31963` とJA TikTok `18dd0d7111b33c30-31955` は`resource_effect_unknown`でexit 75、provider receiptなし。旧fenceはそれぞれ `18dcc075be3903e8-48633`, `18dcc929a20914a8-33411`, `18dc64be2b4087e0-5330`, `18dc5e822e430b80-45345`。どれも再送・一括解除しない。
+- **Capacity/apply:** fresh `df -Pk /` は `2,093,484 KiB` available。2 GiB floor `2,097,152 KiB` を `3,668 KiB` 下回る。`~/loops/current` はrelease `20261010T183530-c182cec0`、release reconcilerはloaded-running PID `11401`。自然終端前にapply/restart/競合操作をしない。
+- **Postiz/account:** 公式integration GETは31件。EN TikTok integration `cmo5rwq2p00twn10yrsdglng3` は `Monk Anicca / monk_anicca` で有効。ユーザー指定の現在handle `@monk.mujo` は返却されたeBook関連integrationにない。JAの`obou.anicca` Instagramと`obou_anicca` TikTokは有効。English Instagram integrationは見つからない。新しいPostiz `PUBLISHED` receiptはowner statusで未確認。投稿成功条件はDaisの指示どおりPostiz `PUBLISHED` + permalinkで、TikTok-native追加確認はしない。
+- **Cadence:** EN TikTokは08:00/21:00 JSTの2枠。JA Instagram/TikTokは07:00/12:30/20:00の3枠。最新依頼の目標は有効accountごと2投稿/日なので、実装cursorでJAの中間枠を外す。English InstagramはPostiz接続確認まで投稿数に含めない。
+- **Video API / cost:** production sourceは英語を`ebook_runner.py`→`heygen_candidate.py`→HeyGen CLI/APIで生成し、wallet前後差・video ID・output SHAをreceiptに記録する。日本語はWatercolor asset packをlocal rendererで使う。credential SSOTのAPI keyで公式GETが成功し、現在walletは`$11.27`、自動補充は残高`$5`以下で`$10`。既存完了Avatar IV runの実測は13.44秒で`$0.52`。同じ長さ・単価で60本/月（2/day）なら`$31.20/月`が基準試算。30秒平均なら単価が比例する前提で約`$69.64/月`。どちらも試算で、Postiz費・他費用は含めず、実費は長さ/モデル別receiptで更新する。HeyGen Creator Webは公式`$29/月・600 credits`だが、60本を覆うcredit burnは未確認で、production ownerの経路もCLI/APIなので切替えない。**推奨は既存API/CLI。** 公式資料: [HeyGen plans](https://www.heygen.com/pricing), [API agent guide](https://developers.heygen.com/docs/for-ai-agents)。無料枠は月3本なので60本/月には不足。LivePortrait/MuseTalkは候補だが品質・GPU・全weightsの商用条件未完。特に[LivePortrait license](https://github.com/KlingAIResearch/LivePortrait/blob/main/LICENSE)はInsightFace detection modelsを非商用扱いとしているため、即時切替えない。
+- **Hadrian/phone:** `Hadrian`は旧handover由来の未検証ラベルで、provider/model・対象動画は未特定。既知の完了動画ID `db2dab0924e19b88c14e03a6a7849069` は公式GETでcompletedだがHadrianと結ぶ証拠はない。現行sourceはHeyGen CLI/APIで、API認証も公式GET成功済みのため、電話手順は不要。
+- **Checkout/revenue:** PR #430はmerged/deployedで`/monk`にDaily Anicca Letter CTAがあるが、新規paid conversionは未確認。PR #420はOPEN、head `fe25f03569ce357fbce305563b3cad64f0ad8e38`、current product main `856ed9b84131524b80a153d34550a1ce857666a3` に対して`DIRTY`、Landing CI PASS。対応worktreeはdirtyなので上書きしない。Production DDL/table/RPC/ACLとwebhook/PDF delivery readbackは未確認。最新記録のStripeにはpaid `$10.99` one-time checkout sessionが1件あるがsettlement/refund/fees/payoutへのjoinは未確認。Letterは`$9.99/month`、active countの最後のzero readはstale、net MRRはunknown。
+- **MRR:** 1,002 active subscriptions × `$9.99` = `$10,009.98` gross MRR。これはfees/refunds/operating costs前で、目標は`$10K net MRR`。単発`$10.99` eBook salesはMRRではない。click/conversion baselineがないため売上到達時期は予測しない。
+
+**TODO順更新:** 旧順=`old unknownの長時間no-post待ち→解除→owner再起動→投稿→checkout`。新順=`(1) PR #7478をlatest mainへ同期しexact-head review/CI後にmerge → (2) current Postiz `monk_anicca` と指定`@monk.mujo`のaccount mappingを修正し、EN08/21・JA07/20の2/dayへsource cadenceを合わせる。旧4 fenceは保持し、意図した全ownerでdistinct occurrenceだけ通る契約を確認 → (3) host admissionが既存floorを通りrelease reconcilerが自然終端した後、main由来immutable releaseを対象ownerだけへ反映 → (4) 新しいslotを1回publishしPostiz `PUBLISHED`/permalinkを確認、以降各有効accountの2/day自然投稿を読む → (5) PR #420をcurrent product mainへ安全にsyncし、production webhook migration/schema/ACL/PDF receiptをreadback → (6) $9.99 Letter subscription/cancel・Stripe settlement/refund/feesとrender/Postiz costsを同一campaignに結び、verified net MRRへ改善する。理由は現account mappingと依頼handleが違い、4 ownerにunknown fence、capacity floor直下、release reconciler実行中だから。
+
+**現在cursor:** PR #7478のlatest-main同期済みworktreeで、このSSOT差分をcommit/push→fresh read-only review→exact-head CI→merge。merge後の最初のsource atomはPostiz targetを`@monk.mujo`へ一致させ、2/dayのcadenceを英日ownerへ揃えること。production apply/postはcapacity gate・reconciler・target mapping解消後。
+
+#### 18:56 JST incremental readback
+
+- `origin/main`は`27448b05a3660d12a980d6ea358d8dc9723b17c9`（#7475）へ進んだ。task branchはこのmainをmerge済みでlocal HEAD `f16b7bd86e8593c851013029bcbd5068ef5d0e15`、未pushのahead 2。PR #7478 remote head `ffe599cbe6a5ac1a7560dd7958bf6936da5e4823`のCIは進行中だが、新local headのcheckではない。
+- 09:56 UTCの`df -Pk /`は`3,044,452 KiB` availableで2 GiB floor `2,097,152 KiB`を`947,300 KiB`上回る。ただし単一readbackで安定回復とは言わない。`~/loops/current`は依然`20261010T183530-c182cec0`。release reconcilerはPID `37675`でloaded-running、4 eBook ownersはloaded-idleのまま旧SHA `ef35fa3b`。apply/restartは未実施。
+- HeyGen walletは再readbackでも`$11.27`、auto-reload `$10`/threshold `$5`で変化なし。
+
+**更新後cursor:** local branch `f16b7bd` のこの追記をcommit/pushし、fresh reviewとexact-head CI後にPR #7478をmerge → current Postiz target mappingを`@monk.mujo`へ一致 → 2/day cadenceと対象ownerのoccurrence contractを更新 → reconciler自然終端後にmain由来releaseを対象限定apply。
+
 ### 2026-10-10 18:53 JST — Life Manager Cloud reminder transport fix in source
 
 - **Source base/branch:** latest source base is origin/main 27448b05a3660d12a980d6ea358d8dc9723b17c9; the new branch is fix/lm-cloud-reminder-proxy-patch-20261010. The prior no-home ordering fix remains merged and deployed at c182cec05a585505e55987cdf821a3b542029ac0.
@@ -11986,3 +12058,28 @@ TODO order/cursor (supersedes 16:17): (1) let current life-manager-release-recon
 - **External state:** four synthetic Calendar fixtures and the app-created route block remain in the exact Web account under the private mode-600 E2E state file; do not delete or re-seed until the corrected transport is deployed and verified. Four pre-existing generated blocks remain untouched. The first-travel state is already complete, so never reset it or replay initial setup. Telegram self-identity is verified; no Telegram message or Checkout has occurred.
 
 **TODO order update:** old order=PR #7471 deployed → full Calendar E2E → Telegram ask → Stripe TEST → Cloud marketing → Photon → $10K MRR. New order=(1) verify this transport diff, source boundary, fresh review, exact-head CI; merge and deploy → (2) use only the existing synthetic reminder fixture and exact Web account with a fixture-ID-filtered fillTravel test invocation and test-scoped one-shot control seam; verify direct Google reminder update on the same ID, route block remains unique, and replay-zero; remove only exact synthetic IDs plus the app-created block and read back absent → (3) one synthetic ask in the verified owner self Telegram chat, official receipt/no-email/replay-zero → (4) Stripe TEST lifecycle → (5) Composio fixed-fee readback → (6) activate one Cloud marketing owner from existing product assets/adapters and measure UTM-to-paid funnel → (7) Photon Free Japan pairing/reply/line-fit → (8) Stripe-verified $10K gross MRR. Reason: the Web scan and route creation worked, but the existing high-level patch action did not change Google reminders despite a success result; the proxy transport fix is required before the E2E can pass. **Current cursor:** run diff-check and source-boundary, request fresh read-only review, then commit/push and exact-head CI.
+
+#### 19:05 JST incremental readback
+
+- latest `origin/main` は `fa1f013163b0ed4dadc18e82895be0f647fcaeb8`（PR #7481）。PR #7478 remote head `31dd839f86ab57d513f59f75aaafac7883d94068` はbase `27448b0`に対するCI全件PASSだが、main進行後にGitHubが`CONFLICTING`を返した。task branchには`fa1f013`をmergeし、SSOTの両追記を保持してconflictを解決済み。新headのpush後にfresh exact-head CI/reviewが必要。
+- 10:05 UTCの`df -Pk /`は`1,707,576 KiB` availableで既存2 GiB floorより`389,576 KiB`少ない。`~/loops/current`はrelease `20261010T185728-69368d8f`、release reconcilerはloaded-running PID `58683`。4 eBook ownersは引き続きloaded-idle / SHA `ef35fa3b`。EN 2 ownerはdisk defer、JA 2 ownerはresource_effect_unknown defer。4つの旧fenceとreceiptなしは前項のまま。
+
+**このreadback時点のcursor:** latest-main統合・SSOT conflict解決済みbranchをpush→fresh reviewer/CI→PR #7478 merge。以降は既存release reconcilerの自然終端、現行Postiz account handle一致、host admission、4旧fenceを保持した新slot契約を順に閉じる。production apply/postは未実施。
+
+### 2026-10-10 19:09 JST — latest-main source synchronization
+
+- `origin/main`は`d573483e4a03159e513e1571365aa53621fe5850`（#7483）まで進み、eBook task branchへmerge済み。main由来のCapafy変更は上流の取り込みのみで、このworktree内でCapafyを編集していない。`git diff --check origin/main...HEAD` PASS。
+- PR #7478のremote headはまだ`bbd71ee4`（base `fa1f013`）で、latest-main同期後のlocal mergeは未push。旧head `31dd839` のCIはPASSだがcurrent merge treeを検証していない。
+
+**現在cursor:** latest-main同期済みbranchをPR #7478へpush → fresh read-only review/exact-head CI → merge。投稿・release applyの前にaccount mapping、capacity、reconciler、旧fenceの4条件を解決する。
+
+### 2026-10-10 19:17 JST — PR #7478 merged; eBook next cursor
+
+- **Source/main:** PR #7478 merged at `8db0c5d005b438a8537ed8a407a77848647320f1`; this enables occurrence-scoped admission only for `ebook-en-tiktok-daily` and adds the shared eBook entrypoint to the validated allowlist. It preserves old unknown occurrences and does not change any live owner or publish a post. Current `origin/main` is the merge SHA.
+- **Fresh runtime:** 10:17 UTC `lm-loop status` still shows all four eBook owners loaded-idle on old SHA `ef35fa3bb890619418650c2fb2d07c7988338670`; the two EN owners end at pre-provider `disk_headroom_low`, the two JA owners remain `resource_effect_unknown`, all four provider receipts are null, and all four old fences listed in the prior snapshot remain. No new `PUBLISHED` is confirmed.
+- **Current host:** 10:17 UTC `df -Pk /` shows `945,644 KiB` free, below the existing `2,097,152 KiB` floor by `1,151,508 KiB`. `~/loops/current` is `20261010T190908-d573483e`; release reconciler PID `83755` is loaded-running on SHA `69368d8f`. Do not apply/restart while it is active.
+- **Current destination:** latest Postiz official GET still lists active TikTok `Monk Anicca / monk_anicca` (id `cmo5rwq2p00twn10yrsdglng3`) and no `monk.mujo` integration. JA `obou.anicca` Instagram and `obou_anicca` TikTok are active. EN Instagram remains unregistered.
+
+**TODO順更新:** 旧cursor=`PR #7478 exact-head CI/merge`。新cursor=`(1) update the English Monk destination to the user-requested @monk.mujo only after that exact integration is present in Postiz and source; keep EN Instagram outside the active target set until an integration exists → (2) set active EN/JA routes to two daily slots (EN 08:00/21:00; JA 07:00/20:00) → (3) retain the four old effect_unknown fences and prove distinct-slot occurrence admission for each intended owner → (4) let the host capacity gate and release reconciler become eligible naturally → (5) cut a main-derived release, apply only intended owners, and require Postiz PUBLISHED/permalink → (6) close PR #420 migration/webhook/PDF delivery and Letter lifecycle readbacks → (7) attribute settled net revenue and measured costs toward $10K net MRR`. No phone step is needed; HeyGen CLI/API auth works. Current HeyGen budget basis remains the measured `$0.52` for one 13.44s clip, or `$31.20/month` at 60 clips of the same length.
+
+**現在cursor:** account mapping and 2/day source configuration, before production release. The old fences, current disk admission, and loaded reconciler remain open gates; this update does not perform those actions.
