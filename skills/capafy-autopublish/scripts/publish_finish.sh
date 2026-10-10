@@ -31,7 +31,12 @@ export CAPAFY_BROWSER_IDENTITY
 LIFE_MANAGER_STATE_HOME="${LIFE_MANAGER_STATE_HOME:-$HOME/.local/state/life-manager}"
 CAPAFY_PUBLISH_HOME_BASE="${CAPAFY_PUBLISH_HOME:-$LIFE_MANAGER_STATE_HOME/runtime/capafy-publisher-home}"
 CAPAFY_PUBLISHER_STATE_HOME="${CAPAFY_PUBLISHER_STATE_HOME:-$LIFE_MANAGER_STATE_HOME/runtime/capafy-publisher}"
-VENV="${CAPAFY_BROWSER_PYTHON:-python3}"
+# launchd's bare PATH resolves python3 to /usr/bin/python3 (3.9) without websocket-client, so the
+# CP2 raw-CDP driver failed silently and every draft stopped unconfirmed (2026-10-10). Default to
+# the managed venv that carries the browser dependencies.
+MANAGED_PYTHON="${LIFE_MANAGER_PYTHON:-$HOME/.local/share/life-manager/venv/bin/python}"
+[ -x "$MANAGED_PYTHON" ] || MANAGED_PYTHON=python3
+VENV="${CAPAFY_BROWSER_PYTHON:-$MANAGED_PYTHON}"
 export CAPAFY_PUBLISHER_STATE_HOME
 if [ "${CAPAFY_PUBLISH_LOCK_HELD:-}" != "1" ]; then
   exec python3 "$AUTO/scripts/with_publish_lock.py" "$0" "$@"
@@ -310,7 +315,7 @@ except Exception: print('')")"
   CP2_RC=0
   CP2_OUT="$(timeout 150 env HOME="$OPERATOR_HOME" bash "$BROWSER_SKILL/with-browser.sh" "$CAPAFY_BROWSER_IDENTITY" -- env HOME="$HOME" \
     "$VENV" "$AUTO/scripts/drive_checkpoint2.py" "$CP2" 2>&1)" || CP2_RC=$?
-  printf '%s\n' "$CP2_OUT" | { grep -vE "Deprecation|warnings.warn" || true; } | tail -4
+  printf '%s\n' "$CP2_OUT" | { grep -vE "Deprecation|warnings.warn" || true; } | tail -15
   echo "CP2 driver exit=$CP2_RC (124=timeout; lease/driver errors print above)"
   # AUTHORITATIVE gate = server is_confirmed_config_keys, POLLED. drive_checkpoint2 can
   # exit just before the server registers the hosted key -> a one-shot read false-dies.
