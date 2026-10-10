@@ -359,7 +359,7 @@ P1の枠回復はCLEAN-05の生存/待ち境界として扱う。既存S06〜S18
 
 **「24/7 forever」の契約:** 各agentの自己後始末と中央cleanupを通常の実行lifecycleに組み込み、不要物の増加を生成側と回収側の両方で制御する。監督・待ち行列・復旧は常時動き、各仕事は有限の予算で実行・記録・片付け・次の仕事へ進む。ディスク圧迫を早期に自己所有の修復へつなげ、短期待機後に自動再開し、全収益loopを永久待機させない。正式state/receiptの成長には既存の許可・spend cap内で容量/保存先を計画し、障害になるまで放置しない。ほかのagentと業務loopの並列稼働を維持し、本sessionの改善は一件ずつ行う。保護データ削除、新framework、反復reviewで代用しない。
 
-**実行順:** 既存のP0→P1とlane入口の順を保ち、下記S01→S18へ対応付ける。原子的詳細は既存lane節を参照し複製しない。外部gate/未来slot/収益の到来で止まるatomは、証拠と戻るcursorを記録して次の独立したsafe atomを一件だけ進める。並列実装はしない。元の全lane目標を維持し、18 agent全greenやJob Hunter entitlement/投資30自然round tripsを、独立した既存商品の販売開始gateにしない。cleanupの現在cursor・順序・完了済みは →「cleanupの残TODO — 完了済みを除いた実行順」。
+**実行順:** P0→P1を全lane共通の先行条件にする。その後、別ownerの独立laneはshared state/worktree/effectが重ならない範囲で並行して進め、各lane内では既存cursor順を守る。S01〜S14は収益laneの一覧であり、全laneを番号順に直列化しない。このprimaryのGig担当はP0/P1後にS10/T7 item 2から再開し、別ownerのS06〜S09完了を待たない。CFO S07はCFO ownerの範囲として重複実装せず、公式receiptはGigのsettled net/evalに使う。全S01〜S14の受入後にS15自己修復→S16評価→S17自己改善→S18 OSSへ進む。外部gate/未来slotで止まるatomは証拠と戻るcursorを記録して、別の独立safe atomだけを進める。18 agent全greenやJob Hunter entitlement/投資30自然round tripsを、独立した既存商品の販売開始gateにしない。cleanupの現在cursor・順序・完了済みは →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 | 状態 | 順 | 次の一操作・対象 / 検証・DONE証拠 |
 |---|---|---|
@@ -372,7 +372,7 @@ P1の枠回復はCLEAN-05の生存/待ち境界として扱う。既存S06〜S18
 | 未完 | S07 | skills/cfo/run.shと指定CFO worktreeのA8.1→B7→A8.2–19→A6→A9→A10を既存atomic順でserial実装。継続課金のsource/period/ownership/MRR baselineを確定し、unknownを0にしない。自然B7と元の全source完了条件を満たす |
 | 未完 | S08 | LINE §5.Lのsell slot/公式post_url、審査、/stats/sticker salesを先に閉じ、資源回復後にstatic_images速度とストア検索の勝ち型を改善。DONE=build/sellの自然継続と費用控除後黒字。LINE単発売上はMRRにしない |
 | 未完 | S09 | Mobile既存cursor: #7369更新/CI/main→main release→18 ownerとPostizをexact occurrenceで照合→不足のみ保存PNGで配信→各3/day PUBLISHED/permalink→native metrics/ASC/RC/funnel→内容/onboarding改善。solo境界維持。DONE=公式refund/fees控除を含む既存net $10K MRR |
-| 未完 | S10 | Gig Remaining atomic TODO item2→10をCoconalaの既存案件・実納品・Storefront order/settlementから進め、1つのdeliverable offerの黒字証拠後にFreelancer→Upwork→許可済platformへ拡大。Lancers25–27/Answers境界維持、item11 SelfBuildはこのlaneの最後。P0/P1通過後に再開し、unknown effectは公式readbackで閉じるまで再送しない |
+| 未完 | S10 | Gig Remaining atomic TODO item2→10をCoconalaの既存案件・実納品・Storefront order/settlementから進め、1つのdeliverable offerの黒字証拠後にFreelancer→Upwork→許可済platformへ拡大。Lancers25–27/Answers境界維持。P0/P1通過後に再開し、unknown effectは公式readbackで閉じるまで再送しない。item11 SelfBuildは全S01〜S14の収益lane完了後、S15で実施する |
 | 未完 | S11 | English eBook既存cursor: 古いfence保持/新slot安全→Products #420のproduction migration/table/RPC/ACL readback→webhook/PDF/Letter lifecycle→TikTok08/21の自然PUBLISHED→cost/fees/refund/settlement。自己購入/HeyGen Web plan/TikTok追加QAなし。DONE=既存net $10K MRR、単発Reset売上は別 |
 | 未完 | S12 | Job Hunter既存順でcapacity→MCP/readiness→Workday official effect照合→Dreamwork cutover、entitlementが許可するfit-qualified応募だけ実行。Free applicationsLimit0なら購入/bypassせず次のsafe atomへ。DONE=Tokyo/日本Remote/SF/visa条件を満たす公式応募receiptと業務Telegram readback |
 | 未完 | S13 | 投資#7373 checks/必要review/main→AT-13 fresh official no-order契約→自然qualified sell→初paper round tripのcost-complete P&L/replay-zero→30 round trips/strategy/cross-venue/AT-24/29/反対review。達成前live funding/orderなし。DONE=元のownerへsettled正net利益のAlpaca/銀行/CFO同period証明 |
@@ -520,9 +520,11 @@ flowchart LR
 
 ## 5. TODO（実行順・正本）
 
-**現行の実行順は一つだけ:** P0/P1の各atomic表 → 下記S01→S18。後続節のT5/T7/T12/T14等は能力・laneへの参照ID、日付付き順序は履歴であり、別の実行queueではない。P0/P1の未完項目が残る間はS01以降を全体cursorにしない。2026-10-10 17:39 JSTのspec状態ではP0-12〜15とP1-1〜5が未完で、共有資源節のcursorを優先する。
+**現行の実行順は一つだけ:** 共有P0/P1 → 各ownerのlane cursor。S01〜S14は独立した収益laneの一覧で全体直列順ではない。このprimaryの実行順はP0/P1 → Gig S10/T7 item 2で、別owner laneは同時進行できる。全S01〜S14完了後のみS15自己修復→S16評価→S17自己改善→S18 OSSへ進む。後続節のT5/T7/T12/T14等は能力・laneへの参照ID、日付付き順序は履歴であり、別の実行queueではない。2026-10-10 17:39 JSTのspec状態ではP0-12〜15とP1-1〜5が未完で、共有資源節のcursorを優先する。
 
 順序変更の記録: 旧順序（Foundation spec:7092-7137）では、収益の帰属（旧9）が capsule（旧6）・cloud（旧7）・LM-EAB（旧8）の後だった。新順序では、ループごとの利益計測（新8）を capsule/cloud/LM-EAB より前に置く。理由は、利益が見えないと、どのループに資源を寄せるか・何を改善するかを判断できないため。Paid cursor は旧5の中身を新7として独立させた。
+
+**順序変更（2026-10-10）:** 旧順序=S01→S14を番号順に直列実行し、Gig S10の前にS06〜S09完了を要求。新順序=共通P0/P1 → このprimaryはGig S10/T7 item 2から再開し、別ownerの独立laneは並行継続 → 全S01〜S14受入後にS15→S16→S17→S18。理由=DaisはGig/storefrontをこの担当の次の収益laneに指定し、CFOは別ownerが担当している。CFOの実装は重ねず、公式receiptが届くまではnet/evalの断定だけ保留する。現在cursor=P0/P1共有資源節（CLEAN-03の詳細cursor）→Gig item 2。effect_unknownは維持し、確認前に再送しない。
 
 履歴: この時点のT7 cursorは **7-0（Lancers 5605912）と 5-11 / 5-12 の並行**だった。これは過去のsnapshotであり現行Gig cursorではない。最新のGig cursorは本書末尾「2026-10-08 JST — Gig atomic cursor」を参照する。
 
@@ -579,7 +581,7 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
   - `job-search-inbox`: `inbox.py:398`。model の申告件数と thread ID の数が食い違った時に安全側で止まる、意図された fail-closed。二重返信を防ぐための仕組みで、test でも固定されているので変更しない。
   - Instagram en-card / obou: `LM_DATA_DIR is required` と ledger の job id 衝突。obou の Instagram は `marketing-destinations.json` で `ebook_account_out_of_mobile_scope`（上限 0）なので、直すより退役させる候補。state root が共有 events.jsonl のため、run 単位の切り分けは未完。
   - `life-manager-honne-ja`: 昼の ENOSPC（空きが 0.56GB だった時点）による。publish は fence で止まっていた。
-| T7 | Gig収益: item 1 complete → cursor item 2 latest-main release/reconcilerとApply/Storefront/Paid ownerの自然readback → 3 Coconala order 18180857の納品物・検収・精算を公式確認 → 4 exact Apply/Storefront fence照合 → 5 SKU 4244556の現行metrics → 6 実際に納品できるpositive-net offer定義 → 7 Coconala native listingをunique paid orderとsettlementで検証 → 8 Freelancer Services、Upwork Project Catalog、適格なnative storefrontへ展開 → 9 安全なReply/Apply/Negotiation/Paid laneを継続（Lancers skip、Answers除外） → 10 platform別settled net → 11 SelfBuild last | official listing・unique paid order・settlement/fee/cost/net・replay-zero |
+| T7 | Gig収益順: 1A完了 → #7169/#7182 source merge済み → **現在cursor: main-derived release/owner自然収束とCoconala Storefront/Apply effect fenceの公式照合** → 既存有償義務の正確な確認 → Storefrontを拡張の主軸にし、実証済みfactoryから1つ固定範囲の商品を作る → Coconalaで計測・検証 → Freelancer Services / Upwork Project Catalog / 公式確認済みの他native catalogへ同じ商品をplatform別に展開。Reply/Apply/Negotiation/Paidの安全な既存laneはStorefrontと並行継続 → platform別settled netと反復性 → SelfBuildは全S01〜S14収益lane完了後のS15で実行。Lancers rows25–27はskip、Answers対象外 | official listing・unique paid order・settlement/fee/cost/net・replay-zero |
 | T8 | CFO: ループごとの settled revenue と cost の join（ループ別P&L）を毎日出す | P&L 行ごとに receipt id がある |
 | T9 | Mobile funnel と `/en` `/lm` `/income` の整合（install→activation→課金） | attribution receipt |
 | T10 | one-shot capability capsule | 目標・承認の質問なしで初回の実行が通る |
