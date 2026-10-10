@@ -2861,6 +2861,8 @@ def resolve_managed_verifier(project_root: Path, feedback: str, digest: str) -> 
 def _classify_targeted(args, item, snapshot: Path, room: str) -> dict[str, Any]:
     snapshot_value = _load(snapshot)
     observed = {**item, **_row(snapshot_value, room)}
+    if getattr(args, "projects_root", None) is not None:
+        observed["project_root"] = str(_paid_project_root(args, observed))
     classified = delivery_queue.build(
         {"captured_at": snapshot_value.get("captured_at"),
          "source": snapshot_value.get("source"),
@@ -3246,7 +3248,7 @@ def _stage_isolated_agent_runtime(
     schema_dir.mkdir(parents=True, exist_ok=True)
     isolated_runner = runner_dir / runner_source.name
     shutil.copyfile(runner_source, isolated_runner)
-    for sibling in ("token_budget.py", "config.json"):
+    for sibling in ("token_budget.py", "treg_credentials.py", "config.json"):
         source = runner_source.parent / sibling
         if source.is_file():
             shutil.copyfile(source, runner_dir / sibling)
@@ -3254,6 +3256,12 @@ def _stage_isolated_agent_runtime(
     for source in loop_source.glob("*.py"):
         if source.is_file() and not source.is_symlink():
             shutil.copyfile(source, loop_dir / source.name)
+    host_source = runner_source.parent.parent / "host"
+    host_dir = runtime_root / "host"
+    host_dir.mkdir(parents=True, exist_ok=True)
+    for source in host_source.glob("*.py"):
+        if source.is_file() and not source.is_symlink() and not source.name.startswith("test_"):
+            shutil.copyfile(source, host_dir / source.name)
     isolated_schema = schema_dir / schema_source.name
     shutil.copyfile(schema_source, isolated_schema)
     return isolated_runner, isolated_schema
@@ -7117,16 +7125,40 @@ def _official_buyer_feedback_answer_wait(item: dict[str, Any]) -> bool:
     ``buyer_reply_after_artifact_observed`` is historical: it stays true after
     any buyer message following an older artifact.  It cannot decide whether a
     new send is needed.  The collector's ordered official history supplies the
-    missing edge, ``buyer_feedback_answered_by_seller``.  Only a live in-progress
-    room with no formal delivery and no fresh artifact feedback may use it.
+    missing edge, ``buyer_feedback_answered_by_seller``. A formal acceptance wait
+    also needs the exact fresh targeted readback, visible artifact, aligned
+    timestamps, and the delivery cadence's no-work decision.
     """
-    return (
-        item.get("buyer_feedback_stage") == "revision"
+    state = _text(item.get("talkroom_state", item.get("transaction_state")))
+    formal = item.get("formal_delivery_observed", item.get("formal_delivery_confirmed"))
+    formal_acceptance_wait = (
+        state == "納品確認待ち"
+        and formal is True
+        and item.get("buyer_visible_artifact_observed") is True
+        and item.get("buyer_feedback_pending_artifact") is False
+        and item.get("targeted_readback_required") is False
+        and item.get("delivery_action") == "none"
+        and _text(item.get("talkroom_observed_at"))
+        == _text(item.get("snapshot_captured_at"))
+        and bool(re.fullmatch(r"[0-9a-f]{64}", _text(item.get("talkroom_evidence_sha256"))))
+        and bool(re.fullmatch(r"[0-9a-f]{64}", _text(item.get("talkroom_screenshot_sha256"))))
+        and (
+            item.get("buyer_reply_after_artifact_observed") is False
+            or (
+                item.get("buyer_reply_after_artifact_observed") is True
+                and item.get("buyer_feedback_stage") == "revision"
+                and item.get("buyer_feedback_answered_by_seller") is True
+            )
+        )
+    )
+    in_progress_feedback_wait = (
+        state == "取引中"
+        and formal is not True
+        and item.get("buyer_feedback_stage") == "revision"
         and item.get("buyer_feedback_answered_by_seller") is True
         and item.get("buyer_feedback_pending_artifact") is not True
-        and item.get("formal_delivery_observed", item.get("formal_delivery_confirmed")) is not True
-        and _text(item.get("talkroom_state", item.get("transaction_state"))) == "取引中"
     )
+    return formal_acceptance_wait or in_progress_feedback_wait
 
 
 def _reported_paid_row(args, item: dict[str, Any]) -> dict[str, Any] | None:
@@ -7160,7 +7192,9 @@ def _reported_paid_row(args, item: dict[str, Any]) -> dict[str, Any] | None:
     if _official_buyer_feedback_answer_wait(item):
         return {"talkroom_id": room, "status": "awaiting_buyer",
                 "send_performed": False, "deduplicated": True,
-                "formal_delivery_checkbox": False,
+                "formal_delivery_checkbox": item.get(
+                    "formal_delivery_observed", item.get("formal_delivery_confirmed"),
+                ) is True,
                 "evidence_paths": {"official_readback": _text(item.get("talkroom_evidence_file"))}}
     if _reported_handled_feedback_cycle(args, item) is not None:
         return {"talkroom_id": room, "status": "awaiting_buyer",
