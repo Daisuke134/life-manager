@@ -1,0 +1,7 @@
+{
+  "agent_id": "7686597754",
+  "from_version_id": "2107780786485612544",
+  "target_model_id": "anthropic/claude-sonnet-5",
+  "reason": "restore_the_price_that_sold_2026_09",
+  "dais_approved_exception": "Dais 2026-10-10: week $9.99 / month $19.99 is too much; go back to the profitable prices that sold in September (day $1.99 / week $4.99 / month $9.99), Sonnet 5, copy unchanged."
+}

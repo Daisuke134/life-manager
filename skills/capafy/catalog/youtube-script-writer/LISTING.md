@@ -16,9 +16,9 @@ V4.1 Flash model swap + reprice.
 ## live) has not been submitted yet, so the table is safe to extend.
 | cycle | price | cap | trial |
 |---|---:|---:|---|
-| week | $9.99 | 25 | No Free Trial |
-| month | $9.99 | 60 | No Free Trial |
-| year | $99.99 | 720 | No Free Trial |
+| day | $1.99 | 10 | No Free Trial |
+| week | $4.99 | 30 | No Free Trial |
+| month | $9.99 | 50 | No Free Trial |
 
 ## Title
 YouTube Script Writer — Keep Viewers Watching
