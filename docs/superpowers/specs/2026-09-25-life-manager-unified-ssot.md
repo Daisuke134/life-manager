@@ -28,7 +28,7 @@
 
 **不変条件:** iOS Simulator runtime/image/device/data/dyld、memory/state、credentials、browser identity、参照release、active/dirty/unmerged/leased/locked worktree、open/unknown dataを削除しない。各agentは自分が生成し所有する非authoritative scratchだけを片付け、中央cleanupは残ったclosed/orphaned artifactと証明済みの不要物を回収する。他agentの作業や正式receiptを消さない。effect_unknownはexact official receipt/pre-effect proofまで解除・再送しない。内部の余白・時間・byte予算は安全な制御に使い、空き容量の固定値を事業再開の条件にしない。
 
-**現在cursor: S02/CLEAN-01 毎分watchdogのfast inventory修復 → CLEAN-00の未使用cache/staging自動回収 → P0-14 各agentの自己後始末を改善 → P0-15/P1の仕事別資源制御 → S03/P0-12の収益loop継続稼働確認。** 旧cursorの空き容量探索→11GiB待ちを変更する。理由はcleanupとproducerの後始末を直して業務を続けることが目的であり、容量数値だけの達成はその証明にならないため。P0-13の観測はこの具体的修正の診断に限定し、全ディスクcensusを先行gateにしない。full producer guard/current ALL859df55aとcleanup/更新ownerの同SHA自然exit0は確認済み。収益loopの継続進行と自己後始末の全owner coverageは未証明なので、根本修復全体は未完。
+**現在cursor: S02/CLEAN-00のGB級不要物回収 → CLEAN-02の閉鎖Gig自己cleanup本番adoption → CLEAN-03/04の保存上限と取り残し → CLEAN-05/06の自動再開・収益進行。** CLEAN-01は#7432/main8f56f511の毎分fast passを反映し、複数の自然receiptでerrors0/protected_deletions0を確認済み。CLEAN-00は旧Symphony、旧Franklin2、不要global SDK、閉鎖Gig旧出力、Chrome旧frameworkを手動回収済み。fsearchの名前/サイズindexで追加の大物を調べる。閉鎖Gig自己cleanupは#7434/mainf1bfcc19へ統合済みだが、Paid ownerはまだ8f56f511 loaded-idle/entrypoint_exit_1であり、対象ownerのadoptionと自然janitor readbackが次の未完。容量数値だけを合格・再開gateにせず、全ownerの自己後始末と公式業務receiptの継続進行まで根本修復は未完。
 
 **引き継ぎ/診断証拠:** worktree HEAD `a6e03757`の4ファイル497行差分を`ea1784b0ec`で保持してpushし、最新main `3baccdbd`を`00b5d4ff5d`でmerge/push。leaseは既存owner `codex-root`でheartbeatを更新、直列lsof再確認でworktree下open handleなし。既存temp/worktree focused testは2 PASS。agmsg統括identityは`lm/codex-resource-orchestrator-1009`、既存cleanup担当へ重複書込抑制と状態照会を送信。自然receiptの成功/失敗が交互に現れ、失敗時の正確な親errorは`host_cleanup_identity_mismatch`。`disk_cleanup.py::main`のbusy lock出力はexit75だがidentityを含まず、`central_cleanup.host_cleanup_readback`の同-occurrence検査が失敗に変換する。REDはbusy出力identity欠落と親exit1を再現し、最小修正後の関連4 testsはGREEN。修正契約は、busy出力にもimmutable manifest由来の同run identityを載せ、親はそのidentityを検証した正確なbusyだけをeffect0のexit75延期として維持し、他のidentity mismatchはexit1のまま拒否する。旧ENOSPC修復とは区別し、容量不足時の既存reserve/cursor testsも再確認する。
 
@@ -209,7 +209,7 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 
 **このsessionで完了したこと:** cleanupのbusy/identity失敗とtemp/worktree保護を修復し、main・自然receiptまで確認した。GiB級Git auto-GC temporary packの増加源を確定し、closedなGit garbageだけを回収、無制限auto-GCを抑制した（#7403）。releaseへの未追跡artifact混入と不要なmemory複写を止めた（#7401/#7416）。未参照・main復元可能な旧codeだけを予算内で回収し、memory/stateを同じ場所に保持する処理を本番へ反映した。検証自身のFDによる自己停止と、watchdog busyが独立GCを止める結び付きを修復し、自然runで6 files/約4.8MB・errors0/protected_deletions0を確認した（#7424/#7425）。finite runner・standalone agent runner・full release builderに不足/unknownで重い書き込みを延期する共有guardを反映した（#7400/#7412/#7426）。current=/Users/anicca/loops/releases/20261010T064405-859df55aはmain由来/ALL、変更したguardのGit hash一致・readonlyを確認。cleanupと更新ownerのloaded SHA859df55a・同SHA自然exit0、watchdog StartInterval60、iOS26.5 availabilityを確認。これは資源修復の部分成果であり、収益loopの継続稼働受入・Life Manager自身のT5・収益目標の完了とは数えない。
 
-**As-Is:** 中央watchdogはStartInterval60でloaded、cleanupと更新ownerはmain由来859df55aで自然exit0を確認済み。安全な旧code回収とheavy producerの延期guardは動く。一方、各agentの終了時に自己生成scratchを確実に片付けるcoverage、中央の軽い毎分passが重いinventoryやbusyで滞らないこと、容量待ちから収益loopが自動で再開し継続することは未証明。したがって根本修復は未完。free/reclaimed bytesは診断値として記録するが、合否や事業再開KPIにしない。過去の11GiB達成待ちは撤回する。
+**As-Is:** 中央watchdogはStartInterval60でloaded、毎分fast inventoryの自然receiptを複数確認（errors0/protected_deletions0）。current immutable releaseはmainf1bfcc19由来の`/Users/anicca/loops/releases/20261010T101346-f1bfcc19`。閉鎖Gigの自己cleanup sourceはmain/currentに入ったが、Paid ownerのloaded SHAは8f56f511で未adoption。未使用物を手動回収し、現在のData availableは8,177,778,688 bytes（約8.18GB/7.62GiB、共有volume診断値）。各ownerの終了時後始末のcoverage、生成量の有限化、容量待ちからの自然再開と公式収益進行は未証明。したがって根本修復は未完。過去の11GiB達成待ちは撤回し、数値だけでDoneにしない。
 
 **Mac全体の不要物回収（CLEAN-00、手動回収→同じ対象の自動化）:**
 
@@ -218,19 +218,19 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 | 状態 | 対象パス・実測 | 次の操作と保持条件 |
 |---|---|---|
 | Daisが完了報告 | `/Users/anicca/.Trash`。スクリーンショット1.87GB。Finderで44,658項目の削除進行を観測。terminalからの内容readはTCCで拒否 | Daisが手動回収の完了を報告しており、重ねて操作しない。処理中のfilesystem空き増加を観測。primaryが全項目の削除内容を検証したとは扱わない。表示にあった`_npx`・`lm-uv-cache-20261002`等の生成cacheは今後Trashへ移すだけでcleanup完了と扱わず、元producerの後始末へ接続する。Dais操作をprimaryのprotected-deletion=0証明として扱わない |
-| 同期未完で保持 | `/Users/anicca/Pictures/Photos Library.photoslibrary`。写真カテゴリ1.69GB、実ディレクトリreadはTCC拒否 | Photos公式UIはiCloud写真=1・Macストレージ最適化=1・共有アルバム=1・同パスのsystem libraryをreadback。公式footerは4,999写真/737ビデオ、iCloudとの同期一時停止、ローカルストレージ不足。未uploadがないと証明できないため保持し、書類の回収を先行する。同期完了後にこのMacのコピーだけを回収し、共有アルバムも含む再蓄積経路を閉じる。ライブラリ内写真の一括削除は同期先の削除になり得るため行わない。Photos/同期writerの終了確認後、ローカルコピー回収を実施。Photosへ再同期して再蓄積しない設定まで閉じる |
+| このMacのコピー回収・同期停止済み | `/Users/anicca/Pictures/Photos Library.photoslibrary` | Daisの明示指示に従い、Photos公式UIの「このMacから5,752低解像度項目を削除、フル解像度はiCloudに残る」経路を実行。iCloud写真=0/共有アルバム=0をreadback。原本の追加downloadやiCloud側一括削除を行わない。iCloud DriveはSystem Settings pane timeoutで未変更。Photos停止をDrive停止と扱わない |
 | 保持 | `/Users/anicca/Documents`333,820KiB、うち`Codex`333,764KiB。`Job Applications`、`~/Desktop/d_narita`の証明書、応募動画・Gig資料 | 書類108.21GBを消せる根拠にならない。LM関連の作業資料/応募/認証を保持。`Documents`/`Desktop`はFinderでiCloud配下に見えるため、不要項目でもremote deleteと混同せず同期状態を確認する |
 | 保持 | `/Applications/ChatGPT.app`1,649,220KiB、`Google Chrome.app`2,195,876KiB、`Xcode-26.6.0.app`3,639,464KiB。Claude/CodexBar/CuaDriver/TapKitも導入済み | 現在のagent/ブラウザ/iOS/UI基盤。実プロセスとruntime参照を確認し、容量目的で消さない。`~/Applications/ChatGPT 2.app`は24KiBの補助appで、重複名だけを理由に削除しない。未使用appは未特定。全アプリ9.61GBを削除可能量と扱わない |
 | 手動回収済み・自動化未完 | `/Users/anicca/Archive/repos/openai-symphony/elixir/_build`102,348KiB、同`elixir/deps`25,896KiB | 両方UID501・通常dir・Git ignored・tracked0・repository全体confirmed-closed・保護store/実private keyなしを実測し、dir_fd/no-followで削除。source/.git/lockfile/未追跡WORKFLOWの前後hash一致をassert、2path不在を再readback。推定allocated合計131,321,856 bytes、shared volumeの物理回収量へ帰属させない。初回receipt作成はmanifestのcommit/shaキー違いで失敗し、再削除せずreadback receiptを`~/.local/state/life-manager/state/manual-unused-cache-20261010.json`へ保存。source/.git/mix.lock/未追跡WORKFLOWは保持し、手動回収は完了。自動化はdisk_cleanup.pyの同2パス限定cache allowlistと既存descendant保護を使い、open・credential/state/memory・symlink ancestorを保持するfocused RED/GREENで閉じる |
 | 診断中 | 「書類108.21GB」「システムデータ88.46GB」の実パス対応。既知大物はCodex履歴、Git、release、依存、業務作業物。Library/OS領域にTCC/timeoutの未測定あり | 既存bounded inventoryで大きい未測定branchだけを絞る。未知領域やmacOS/VMを名前・大きさで消さない。必要な正式データが増え続ける場合は保持したまま保存先/容量計画を更新し、cleanupの取りこぼしと分ける |
 
-**CLEAN-00の原子的順序:** (a) TrashはDais完了報告済み → (c) 書類カテゴリの大物を実パス・用途へ対応付け、旧Symphonyの上記2生成cacheだけ先に手動回収/自動化 → CLEAN-01のhot pass改善。(b) Photosはstorage不足で同期停止しているため保持し、同期完了readback後にlocal-only回収/再蓄積防止へ戻る。旧順序a→b→cからa→c→CLEAN-01へ変更する理由は、未uploadの消失を避けながら独立した安全な回収を進めるため。手動の新しい破壊的回収だけ一名のfresh read-only検証者で対象・保持条件を確認し、各定型passにreviewを増やさない。force quitはowner/start-time/実仕事を照合した自身の不要な残留producerだけ。Mac/loginwindow/Remote/ChatGPT substrate/他active ownerは停止しない。
+**CLEAN-00の原子的順序:** TrashはDais完了報告済み、PhotosのこのMacコピー回収/同期停止はprimary完了。旧Symphony・旧Franklin2・不要SDK・閉鎖Gig旧出力・旧Chrome2versionも手動回収済み。次はfsearchで大きい不要生成物を絞り、current stat/用途/UID/closed/保持条件を確認して回収する。indexのサイズやmacOSカテゴリは削除可能量ではない。確認済み対象の自動化は既存cleanup/owner janitorを再利用し、全アプリ/全書類を無条件に消す規則を作らない。force quitはowner/start-time/実仕事を照合した自身の不要な残留producerだけ。Mac/loginwindow/Remote/ChatGPT substrate/他active ownerは停止しない。
 
 **自動化する差分:** `skills/self/disk-cleanup/disk_cleanup.py::discover_candidates/sweep`へ、確認済みローカル不要物の限定allowlistを追加し、既存UID・no-follow・open-path・保護descendant・時間/byte予算を再利用する。PhotosとApplicationsを毎回全削除するルールは作らない。`skills/self/disk-cleanup/launchd/com.anicca.disk-watchdog.plist`とそのcanonical lifecycleで、Trash変更時のイベント起動を検討する。既存StartInterval=60はfallbackとして保持し、新しいdaemon/poll loopは追加しない。先にそのloaded interpreterのTrash read/delete権限を確認し、TCC拒否を成功/空フォルダと扱わず、権限が必要ならその具体的不足を記録する。1〜5秒はイベントから安全な回収着手までの検証対象であり、全量削除完了や永久無障害の保証値ではない。open/コピー中/保護データは即時削除しない。
 
 **並列再開の条件と順序:** 軽いread-only調査、既存担当範囲の小さい修正は今も進められる。8〜10 Codexを一斉に新規worktree・依存導入・build/releaseへ走らせる状態は未受入。まずCLEAN-00/01の回収と次passの前進、CLEAN-02の実作業後始末、CLEAN-05の枠取得/待機/自動再開を実ownerで確認する。次にprimaryと独立writer一名で、一往復の修正→focused check→後始末→次作業を検証し、仕事種別のpeakとCLEAN-06の業務進行を見て一名ずつ増やす。build/依存導入/full releaseは既存共有枠で直列化する。全体cleanup完了まで全businessを停止させるgateや、固定GiB KPIは作らない。agent数だけ増やして無制限書込を許可しない。
 
-**順序更新:** 旧cursor=CLEAN-01のhot pass改善。新cursor=CLEAN-00(a)Trash readback→(b)Photos→(c)unused local data→CLEAN-01以下。理由はDaisがMac全体の未使用dataの手動回収と同対象の自動化を先に指定し、root-only worktree掃除では対象外の蓄積が残るため。既存外部effectや他者leaseを中断しない。CLEAN-02〜06・S06〜S18・会社US$10M MRRの順序/成果条件は維持する。
+**順序更新:** 旧cursor=CLEAN-01 hot pass改善→小cache/staging。新cursor=CLEAN-00のGB級手動回収→CLEAN-02閉鎖Gig owner自己cleanup adoption→CLEAN-03/04保存上限/取り残し→CLEAN-05/06自動再開/業務進行。理由はDaisの大物優先指示と、毎分fast passの自然受入が完了し、自己cleanup sourceの本番owner未adoptionが次の具体的な抜けだから。進行中の外部effectと他者leaseを中断しない。S06〜S18・会社US$10M MRRの成果条件を維持する。
 
 
 **書類の公式UI内訳とCLEAN-01の実障害:** StorageのFile BrowserはProjects11.04GB、loops12.51GB、gig9.38GB、anicca-project4.47GB、anicca3.5GB、Archive1.16GB、Documents341.8MBを表示。Documentsカテゴリの大物一覧にtelegram-outbox.sqlite3/wakes.jsonl等の業務stateもあり、108.21GB全量をunusedと扱わない。watchdogの自然receipt23:25:02Z/23:27:55Zは共にinventory_mode=full/gaps22/errors0/protected_deletions0。host-inventory-full.at=1791526082が古いままで、size-budget-exhaustedがfull markerを更新させないsource分岐を確認。回収後のCLEAN-01は重いinventoryの再試行が毎分hot passへ戻る境界を最小修復し、unknown coverageは保持する。
@@ -245,7 +245,9 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 
 metadata footprintの追加大物は.cloak11.85GB/.local13.15GB/.codex-acct2約16GB/.codex4.15GB。これでvisible3rootだけに基づく『余剰70GB』推定を撤回し、実パス別に判定する。name index sizeはlogical footprintで物理回収量ではない。.cloakは不可侵、credentials/state/historyは回収へ昇格しない。
 
-次の明確な不要code copyはChrome framework旧Versions154.0.8037.93（730500KiB）と153.0.8010.52（729080KiB）。Current symlinkとapp KSVersionは154.0.8037.97、現行はopen、旧2dirはconfirmed-closed/UID501。outer CodeResourcesに旧2versionのsealed refsなし。既存Chromeプロセス/identity/現行versionを保持し、fresh FD/UID/path identity/Current readback後に旧2dirだけ回収する。browser全体やprofileを削除しない。候補発見だけを完了と扱わず、実削除とreadbackを記録する。
+**Chrome旧codeの実回収:** `Google Chrome Framework.framework/Versions/154.0.8037.93`748,032,000 bytesと`153.0.8010.52`746,577,920 bytesを削除済み。合計estimated allocated1,494,609,920 bytes。Current/KSVersion154.0.8037.97、fresh closed/UID/path identity、outer signature refsを確認して旧2dirだけ回収し、現行Info/signatureの前後SHA一致・2dir不在・errors0をreadback。browser process/profile/現行versionは保持。receipt=`~/.local/state/life-manager/state/manual-old-chrome-cleanup-20261010.json`。free_before6,085,353,472/free_after7,579,664,384は共有volume観測で、物理回収量への単独帰属ではない。
+
+**fsearch自身の後始末:** `~/.local/bin/fsearch-name-index`/`fsearch-size-report`も有限run binaryとして導入し、不要になったtoolの`target` build生成物179,712,000 bytesを回収。今回のbuildで新規導入されたRust stable-aarch64-apple-darwin toolchainもrustupでuninstall済み。既存SDKは事前に無く、fsearch binaryは保持。永続indexは一つ約189MBで、content/credential indexやlogin daemonを増やさない。名前indexはsnapshotなので、削除直前に実pathをfresh stat/open readbackする。Rust/Cargoのversion probeでSDKを再導入しない。
 
 **実行済みreadback（primary）:** 閉鎖Gigは共有paid-direct.lockを取得した上で旧納品版/不要作業物188件を回収、estimated allocated2,127,745,024 bytes、kept primary state/terminal/retained package53件の前後SHA一致、errors0/protected_deletions0。receipt=`~/.local/state/life-manager/state/manual-closed-gig-cleanup-20261010.json`。receipt/vault/lock等が混在するdeliveryはzipのみ、最新保持指定packageとJSON/JSONL/CSVは残す。fresh read-only確認済み。
 
@@ -255,7 +257,7 @@ watchdogはcurrent8f56f511 immutable sourceのcanonical installerから60秒labe
 
 DaisのiCloud未使用/停止指示を受け、Photos公式UIの『このMacから5,752低解像度項目を削除、フル解像度はiCloudに残る』経路を実行。iCloud写真=0/共有アルバム=0をreadback。新しい原本ダウンロード/クラウド側一括削除は行わない。iCloud DriveはSystem SettingsのiCloud paneが2回timeoutで未変更、Photosの停止をDrive停止と扱わない。
 
-実free readbackは00:35時点free_after6,340,141,056 bytes（約5.9GiB）。『70〜100GBの空き』は未確認。以前のvisible3root約32.9GBはLM全量ではない。harness/金融state/toolchain等を含む実path footprintとmacOS分類を混同せず、余剰70GBが存在する前提で削除しない。数字は状態の説明、完了KPIではない。
+実free readbackはChrome/build後始末後のData available8,177,778,688 bytes（約8.18GB/7.62GiB）。以前のGig回収直後free_after6,340,141,056 bytesはその時点の履歴。『70〜100GBの空き』は未確認。以前のvisible3root約32.9GBはLM全量ではない。harness/金融state/toolchain等を含む実path footprintとmacOS分類を混同せず、余剰70GBが存在する前提で削除しない。数字は状態の説明、完了KPIではない。
 
 **手動→自己cleanup→中央cleanupの現在契約（最新指示）:** 完了/キャンセル済みGigは、official provider readback由来・現在state SHA一致のproject-terminal.jsonで閉鎖を確認して、不要な作業物/納品版を回収する。旧janitorのartifacts/delivery/source全てを永久保持する既定を、Daisが不要と指定した閉鎖案件へそのまま適用しない。一次state.json/project-terminal.json/events.jsonl、evidence、wallet/credentials、memory/state JSONL、active/lease/lock/open/未知effectの必要証拠は保持する。まず手動の一括回収を実施し、その同じ閉鎖・保護判定を既存project_janitor/owner終了処理へ追加する。primaryはsourceを追加するより既存共通終了処理とjanitorを再利用する。
 
@@ -263,7 +265,7 @@ DaisのiCloud未使用/停止指示を受け、Photos公式UIの『このMacか�
 
 5項目の状態: 1) 部分完了（Git auto-GC/旧source copies/harness footprint、VM swap増加を観測。全writer join未完）。2) 部分完了（旧Symphony2dir、旧Franklin2依存/重複asset907681792 bytes、global franklin/clawrouter476 package削除。自己後始末の全coverage未完）。3) 未完（11GiB条件は撤回。自然cleanup/protected0と収益業務の継続進行で判定）。4) 未完（Job Hunterは最新disk_headroom_low defer。枠解除を全件未実施、unknownを解除しない）。5) 未完（official業務receiptへjoinした継続進行を未証明）。現freeを100GBと主張しない。APFS fresh readbackのVMは12.9GB、swap used11.3GBで、Dataだけの掃除後も共有容量へ影響する。VMやSimulatorの削除/restartはしない。
 
-毎分fast inventory修正#7432はmain8f56f511でcurrent ALLへ自然export済み、wrapperのmain Git blob hash一致。stable installed wrapperは旧版のため、current immutable releaseの既存installerから60秒labelだけ更新し、次の自然fast receiptで確認する。他loop/app-serverを再起動しない。
+毎分fast inventory修正#7432はmain8f56f511でcurrent ALLへ自然export済み、wrapperのmain Git blob hash一致。stable installed wrapperはcurrent immutable releaseの既存installerから60秒labelだけ更新済みで、複数の自然fast receiptを確認。他loop/app-serverを再起動しない。
 
 **現在の手動回収cursor（Daisの最新指示を優先）:** 自動化/CI待ちを先頭にせず、GB級のunused local生成物を先に回収する。旧順序=fast inventory patch→staging/小cache→各owner。新順序=旧BlockRunの不要な依存/重複input→より大きいunused branch→既存cleanupへの同proof自動化。DaisはBlockRun旧package未使用・現行Agent Economy利用を明示した。namespaceの名だけで全部必要と扱わず、旧source mirrorと現在のstate/identityを分ける。primaryは候補の発見より、実際に回収したパスと結果を報告する。
 
@@ -271,13 +273,13 @@ DaisのiCloud未使用/停止指示を受け、Photos公式UIの『このMacか�
 
 **手動回収readback:** 旧Franklin2のnode_modules/重複assetsはdir_fd/no-followで削除済み、推定907,681,792 bytes、2path不在・primary assets4file保持・lockfile hash一致・errors0。receipt=`~/.local/state/life-manager/state/manual-large-unused-cleanup-20261010.json`。free_before1,398,136,832/free_after2,349,572,096はshared volumeの観測であり、回収量/KPIへ帰属させない。global franklin3.29.0/clawrouter0.12.211はnpm uninstall --ignore-scriptsで476 package削除済み、2 package dir不在とfranklin-trading/現行bundled@blockrun/llm保持をreadback。wallet/現行dependencyは変更しない。
 
-1,891,024KiBの`~/.blockrun/state/.ledger-publish-repo`はworking tree cleanだがledger-franklinのofficial current headとlocal headが違い、compare404でsource adoptionが未証明。publisherはenabled、一次ledgerを保持し、これは全量rm対象へ昇格しない。より大きいcached Git object部分/再生成可能workspaceとして診断を続ける。fast inventoryは#7432のsource/mainまで完了、131 related tests PASS。本番wrapper/current adoption/自然fast receiptは未完で、手動回収を止める理由にしない。
+1,891,024KiBの`~/.blockrun/state/.ledger-publish-repo`はworking tree cleanだがledger-franklinのofficial current headとlocal headが違い、compare404でsource adoptionが未証明。publisherはenabled、一次ledgerを保持し、これは全量rm対象へ昇格しない。より大きいcached Git object部分/再生成可能workspaceとして診断を続ける。fast inventoryは#7432のsource/mainまで完了、131 related tests PASS。本番wrapper/current adoption/複数自然fast receiptも確認済み。全owner自己cleanup/業務継続は未完。
 
 **cleanup改善の残TODO（CLEAN-00の後、この順。P0の実装対象を具体化する）:**
 
 | 状態 | atom | 対象・次の変更 / 完了証拠 |
 |---|---|---|
-| 進行中 | CLEAN-01 中央の毎分pass | skills/self/disk-cleanup/disk_cleanup.py::HostDiskGovernor.run_once/discover_candidates/sweep/_full_inventory_due。hot passを軽いallowlisted回収へ集中し、重い全体inventoryや予算切れの再走査がcleanupを滞らせる境界を最小probe/REDで確認・修正。既存60秒cadenceで継続して回収でき、busy/timeout後も次passが前進する自然receiptで確認 |
+| この障害は自然受入済み | CLEAN-01 中央の毎分pass | skills/self/disk-cleanup/disk_cleanup.py::HostDiskGovernor.run_once/discover_candidates/sweep/_full_inventory_due。毎分ownerにLIFE_MANAGER_DISK_INVENTORY_FAST=1を渡し、5分ownerにfull inventoryを残す#7432を反映済み。複数の自然fast receiptでerrors0/protected_deletions0を確認。新しい実障害が出た場合だけ再開 |
 | 未完 | CLEAN-02 各agentの自己後始末 | runtime/loop/lm_loop_run.pyの終了/finally境界、loop_cleanup.py::cleanup_run_root、bounded_output.py::prune_closed_diagnostics。成功・失敗・timeout・cancel後に、そのownerのclosedで非authoritativeなscratchを片付ける。childの終了とreceipt/state永続化を確認し、unknown effectやopen/未保存証拠を保持。既存testsで同じ安全契約を検証 |
 | 未完 | CLEAN-03 生成量を有限にする | config/storage-policy.json、runtime/host/storage_policy.pyと実producer。既存bounded stdio/retentionを再利用し、実測したscratch・生成物・診断logにowner別の有限保存契約を通す。必要成果/receiptは保持し、仕事の回数が増えても不要物が無制限増加しないことを自然runで確認 |
 | 未完 | CLEAN-04 中央が取り残しを回収 | central_cleanup.py::scratch_gc/release_gc/reclaim_unreferenced_source。既存の安全な回収を使い、終了ownerの残留・orphan・未参照regenerable codeを継続回収。lease/lock/UID/open FD/Git復元性を証明し、他agentの作業とprotected storeを保持。修復済みの自己FD/busy分岐をやり直さず、実証されたcoverageの抜けだけを直す |
@@ -297,7 +299,7 @@ P1の枠回復はCLEAN-05の生存/待ち境界として扱う。既存S06〜S18
 
 **「24/7 forever」の契約:** 各agentの自己後始末と中央cleanupを通常の実行lifecycleに組み込み、不要物の増加を生成側と回収側の両方で制御する。監督・待ち行列・復旧は常時動き、各仕事は有限の予算で実行・記録・片付け・次の仕事へ進む。ディスク圧迫を早期に自己所有の修復へつなげ、短期待機後に自動再開し、全収益loopを永久待機させない。正式state/receiptの成長には既存の許可・spend cap内で容量/保存先を計画し、障害になるまで放置しない。ほかのagentと業務loopの並列稼働を維持し、本sessionの改善は一件ずつ行う。保護データ削除、新framework、反復reviewで代用しない。
 
-**実行順:** 既存のP0→P1とlane入口の順を保ち、下記S01→S18へ対応付ける。原子的詳細は既存lane節を参照し複製しない。外部gate/未来slot/収益の到来で止まるatomは、証拠と戻るcursorを記録して次の独立したsafe atomを一件だけ進める。並列実装はしない。元の全lane目標を維持し、18 agent全greenやJob Hunter entitlement/投資30自然round tripsを、独立した既存商品の販売開始gateにしない。現在cursor=S02/CLEAN-00のGB級unused依存/重複inputの手動回収。CLEAN-00の旧Symphony手動回収は完了、同生成物/stagingの自動化と残りcategory分類は未完。Photosは同期未完で保持。その後CLEAN-01の中央cleanup hot pass。P0-13の観測はCLEAN-01〜05の実障害境界を狭めるために使い、数字や全体censusの達成待ちにしない。
+**実行順:** 既存のP0→P1とlane入口の順を保ち、下記S01→S18へ対応付ける。原子的詳細は既存lane節を参照し複製しない。外部gate/未来slot/収益の到来で止まるatomは、証拠と戻るcursorを記録して次の独立したsafe atomを一件だけ進める。並列実装はしない。元の全lane目標を維持し、18 agent全greenやJob Hunter entitlement/投資30自然round tripsを、独立した既存商品の販売開始gateにしない。現在cursor=S02/CLEAN-00のGB級unused依存/重複inputの手動回収。CLEAN-00の旧Symphony手動回収は完了、同生成物/stagingの自動化と残りcategory分類は未完。PhotosのこのMacコピー回収/同期停止とCLEAN-01の毎分fast pass自然受入は完了。次は閉鎖Gig自己cleanup sourceのPaid owner adoption/自然readback。P0-13の観測はCLEAN-01〜05の実障害境界を狭めるために使い、数字や全体censusの達成待ちにしない。
 
 | 状態 | 順 | 次の一操作・対象 / 検証・DONE証拠 |
 |---|---|---|
