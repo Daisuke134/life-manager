@@ -241,6 +241,12 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 
 **CLEAN-01の最小patch計画:** `bin/disk-watchdog.sh`から既存governorへchild限定の`LIFE_MANAGER_DISK_INVENTORY_FAST=1`を渡し、`disk_cleanup.py::run_once`で毎分ownerだけfull censusを省く。削除候補・UID/open/protection/receipt/singleton/StartInterval60は維持し、5分ownerは既存full inventory経路を保持する。hour markerが古い/予算切れでも毎分passがheavy censusを再試行しないことをfocused RED/GREENとloaded wrapper/hash・自然inventory_mode=fastで確認する。未知のcoverageを0にしない。manual回収済み・Photos保持・remaining inventoryを記録し、source/自然receiptで一件ずつ進む。
 
+**fsearch導入・次の手動回収:** Dais指定https://github.com/noahdunnagan/fsearchをmain76d612f5b23802eb24926b47e9c4f4ef26884014から取得し、locked release build→`~/.local/bin/fsearch`へ導入。upstream installのraw launchctlは呼ばずlogin itemを追加しない。crateのwalk/Index APIでmetadataのみ5668814 entries/189277376-byte indexを作り、benchのkind:file/size filterを実行（検索中央値約2〜3ms）。file content/credential indexは作らない。補助index/report binaryは同toolのpublic APIを利用した有限runであり、Rootのbuild生成物は検索後に回収する。
+
+metadata footprintの追加大物は.cloak11.85GB/.local13.15GB/.codex-acct2約16GB/.codex4.15GB。これでvisible3rootだけに基づく『余剰70GB』推定を撤回し、実パス別に判定する。name index sizeはlogical footprintで物理回収量ではない。.cloakは不可侵、credentials/state/historyは回収へ昇格しない。
+
+次の明確な不要code copyはChrome framework旧Versions154.0.8037.93（730500KiB）と153.0.8010.52（729080KiB）。Current symlinkとapp KSVersionは154.0.8037.97、現行はopen、旧2dirはconfirmed-closed/UID501。outer CodeResourcesに旧2versionのsealed refsなし。既存Chromeプロセス/identity/現行versionを保持し、fresh FD/UID/path identity/Current readback後に旧2dirだけ回収する。browser全体やprofileを削除しない。候補発見だけを完了と扱わず、実削除とreadbackを記録する。
+
 **実行済みreadback（primary）:** 閉鎖Gigは共有paid-direct.lockを取得した上で旧納品版/不要作業物188件を回収、estimated allocated2,127,745,024 bytes、kept primary state/terminal/retained package53件の前後SHA一致、errors0/protected_deletions0。receipt=`~/.local/state/life-manager/state/manual-closed-gig-cleanup-20261010.json`。receipt/vault/lock等が混在するdeliveryはzipのみ、最新保持指定packageとJSON/JSONL/CSVは残す。fresh read-only確認済み。
 
 旧run18dcd2f8b2be9e70-19891はevent terminal75/resource_heartbeat_unavailableなのにpaid_direct.py PID20125がPPID1でlockを保持。UID501/start18:38:45/旧release argv/child0を再確認し、SIGTERM不応後に同PIDだけSIGKILL、old scratch/effect evidenceを保持。新しいmain由来Paid ownerの自然再開を観測し、その稼働中のglobal lockへ無断介入せず、終了後の空きwindowで上記回収を実施。
