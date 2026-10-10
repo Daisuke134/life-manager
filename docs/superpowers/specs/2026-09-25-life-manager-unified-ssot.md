@@ -411,11 +411,13 @@ flowchart LR
 
 **現在の評価証拠（2026-10-10 17:39 JST）:** `npm run test:economic-autonomy`はPASSし、生成したrunは4つのfixture caseを評価した。これは内部fixture/testのPASSであり、production outcomeではない。`runtime/loop/self-eval.mjs`は欠測netを0へ変換する実装（line 33）が残る。`node --test runtime/loop/__tests__/self-eval.test.mjs`は5/5 PASSだが、欠測netを経済判断に使わないことをまだ保証しない。S16の最初のatomは欠測値を`unknown`のまま保持する修正と回帰条件追加。
 
-**Gig runtime readback（2026-10-10 18:03 JST、`bin/lm-loop status all`）:** `hf-gig-apply-direct`は`disk_headroom_low`で延期され、historical fence `18dadcd76d9c61b0-37711`を保持。`hf-gig-storefront-direct`も`disk_headroom_low`で延期され、historical fence `18d8d288748508e8-23902`を保持。`hf-gig-apply-reconcile`、`hf-gig-paid-direct`、`hf-gig-reply-detector`もdisk待ち。Browser ownerはPID13685でrunning/current release `d3eedfb7`。cleanupはPID98089でrunning中、release-reconcilerはPID95649でrunning/current loaded release `ef35fa3b`。Data volume availableは1,785,324 KiB。P0/P1 gateは未完で、これらの最新status runはprovider receiptを持たない。
+**Gig runtime readback（2026-10-10 18:32 JST、`bin/lm-loop status all`）:** `hf-gig-apply-direct`は`disk_headroom_low`で延期され、historical fence `18dadcd76d9c61b0-37711`を保持。`hf-gig-storefront-direct`も`disk_headroom_low`で延期され、historical fence `18d8d288748508e8-23902`を保持。`hf-gig-paid-direct`もdisk待ち。Reply detectorは旧release `cecffc9b`でdisk待ちしhistorical fence `18dbf6546032eca0-25901`を保持。Browser ownerはPID64053でrunning/current release `ef35fa3b`。cleanup ownerはloaded-idleで最新terminal `entrypoint_exit_75`、release-reconcilerはPID38666でrunning/current release `ef35fa3b`。Data volume availableは2,240,916 KiB（約2.14 GiB、診断値）。P0-12〜15/P1-1〜5は未完で、Gig ownerの最新deferred runはprovider receiptを持たない。
 
 **Storefront official readback（2026-10-10 18:00 JST）:** authenticated `listing_inventory.py collect --out -`は20件を返し、SKU `4244556`は`公開中`・¥5,000・AI業務効率化カテゴリ。公式[サービスページ](https://coconala.com/services/4244556)は販売実績5件・お願い中0人を表示する。これは現在の掲載状態とページ表示の累計実績であり、対象期間のsettlement、refund/fee、cost、netやMRRの証拠ではない。
 
 **旧Storefront fenceの照合結果:** `storefront_pre_effect_reconcile.py --dry-run`はoccurrence `18d8d288748508e8-23902`を`HELD / stdout_runtime_binding_invalid`で拒否。該当run `18d8d2b3f46565c8-28218`にはstart/reportの2 runtime eventsがあるが、stdoutの単一pass rowは`runtime_run_id`/`runtime_occurrence_id`を欠く。`bin/lm-loop pre-effect-reconcile ... --dry-run`も`no_pre_effect_terminal`を返した。SKU `4244556`の現行掲載はこの旧occurrenceへの結び付きを証明しないため、Storefront/Apply fenceは維持し、再送・解除しない。次はownerを止めずにfresh official listing/history readbackと同じSKUの公式metricを取得し、occurrenceへ結べる証拠だけでreconcileする。
+
+**Apply occurrence reconcile（2026-10-10 09:33 UTC）:** `application_occurrence_reconcile.py --discover --owner-id hf-gig-apply-direct`は`nothing_to_reconcile / exact_occurrence_request_set_not_present`、`effect=0 / readback=0`で終了した。正確なrun/occurrence-bound intent集合が見つからず、ブラウザ/official provider readbackは開始していない。historical Apply fence `18dadcd76d9c61b0-37711`は未解決のまま。新規effect markerと同時にruntime run/occurrence identityをintentへ保存し、複数requestの一括runを同じoccurrenceの一意なID集合としてreconcileするsource修正後、fresh official applied-history readbackで再開する。時刻相関・部分一致・再応募で旧fenceを閉じない。
 
 **Coconala paid obligations（2026-10-10 18:12–18:13 JST）:** coverage-complete `orders-only` readbackはopen row 3件を返し、全件の表示納期は過去。3件すべてのselected-talkroom official readbackは`納品確認待ち`、`formal_delivery_observed=true`、`buyer_visible_artifact_observed=true`、`buyer_feedback_pending_artifact=false`。1件はartifact後のbuyer replyもseller回答済み。現状、こちらから返信・再納品する根拠はなく、3件はbuyer acceptance待ちで残る。acceptance/payoutは未確認で、売上settledとは扱わない。
 
@@ -528,7 +530,7 @@ flowchart LR
 
 ## 5. TODO（実行順・正本）
 
-**現行の実行順は一つだけ:** 共有P0/P1 → 各ownerのlane cursor。S01〜S14は独立した収益laneの一覧で全体直列順ではない。このprimaryの実行順はP0/P1 → Gig S10/T7 item 2で、別owner laneは同時進行できる。全S01〜S14完了後のみS15自己修復→S16評価→S17自己改善→S18 OSSへ進む。後続節のT5/T7/T12/T14等は能力・laneへの参照ID、日付付き順序は履歴であり、別の実行queueではない。2026-10-10 18:03 JSTのspec状態ではP0-12〜15とP1-1〜5が未完で、共有資源節のcursorを優先する。
+**現行の実行順は一つだけ:** 共有P0/P1 → 各ownerのlane cursor。S01〜S14は独立した収益laneの一覧で全体直列順ではない。このprimaryの実行順はP0/P1 → Gig S10/T7 item 2で、別owner laneは同時進行できる。全S01〜S14完了後のみS15自己修復→S16評価→S17自己改善→S18 OSSへ進む。後続節のT5/T7/T12/T14等は能力・laneへの参照ID、日付付き順序は履歴であり、別の実行queueではない。2026-10-10 18:32 JSTのspec状態ではP0-12〜15とP1-1〜5が未完で、共有資源節のcursorを優先する。
 
 順序変更の記録: 旧順序（Foundation spec:7092-7137）では、収益の帰属（旧9）が capsule（旧6）・cloud（旧7）・LM-EAB（旧8）の後だった。新順序では、ループごとの利益計測（新8）を capsule/cloud/LM-EAB より前に置く。理由は、利益が見えないと、どのループに資源を寄せるか・何を改善するかを判断できないため。Paid cursor は旧5の中身を新7として独立させた。
 
