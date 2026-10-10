@@ -391,6 +391,9 @@ CLEAN-05 Writer分類source受入: 実registryを使う既存getter testのwrite
 
 CLEAN-05分類CI補正: #7560初回CIは857test中855PASS/2FAIL。旧writer全jobをagentと固定したregistry assertionとbyte-stable macos-loop-jobs fixtureだけが変更分類に未追従。計測ownerだけbrowser、他Writerはagentの期待値へ更新し、既存render_job_modelsからfixtureを再生成して変更model1件だけを確認。対象registry2tests PASS/contracterrors0。既存getter/rebind17PASSと合わせ、実際のgetter動作、queued identity保持、registry/生成モデル契約を検証する。current採用前なのでlive resource上限変更/送信/再送0。
 
+CLEAN-05 Writer実資源分類 main/current/自然claim: #7560 exact1fbe40777d35515432144a05e844c5fdebf9a9f4/CI38082614568全10SUCCESS→main9b80c7e67e26b7a71baa09c745cbe1ded549530a。正規ALL cutter exit0/nativeclone8329/current20261011T051455-9b80c7e6/main ancestor/runtime tagを確認。fresh loaded-idle/unknownfalse/Aqua PASS後、existing targeted reconcile shared-agent-runner/loaded-idle/maxowners1でapplied1/failed0/admission_resumedtrue、loaded argv/SHA9b80/install event18c2c71f3f9795b2c5daeb68。旧queued76577は採用直後browser/queued/unknown0、occurrence/queued_at/sequence保持を確認し、その後既存coalescingでcancelled0→自然18dd4455a0f0d0b8-48843がbrowser/claimed0/actual claim PID48948-start05:16:03JST。両行のqueued_at1791661289.183164/sequence597817が同じで、待機仕事のage/順番を引き継いだ。manualwake/新queue/上限変更/LLM追加/応募投稿trade0。登録noneのpassive計測だけを対象にしFundraiser unknown2は保持。receipt=~/.local/state/life-manager/state/writer-browser-class-rebind-runtime-20261011.json。source/main/current/loaded/自然claimは済み、自然terminal/公式計測readback/枠返却/自己cleanupは実行中のため追跡、全体Doneは未確認。
+
+
 
 
 
