@@ -151,6 +151,32 @@ class ReconcileTest(unittest.TestCase):
             "checked": 1, "closed": 1, "still_fenced": 0, "deferred_calls": 0, "needs_readback_adapter": [],
         })
 
+    def test_held_first_occurrence_does_not_starve_later_proof(self):
+        state = {"owner-a": ["owner-a:held", "owner-a:ready"]}
+        calls = []
+        def read_fenced():
+            return {key: tuple(value) for key,value in state.items()}
+        def call(argv, **kwargs):
+            occurrence = argv[argv.index("--occurrence") + 1]
+            calls.append(occurrence)
+            if occurrence == "owner-a:ready":
+                state["owner-a"].remove(occurrence)
+                return 0, "verified exact proof"
+            return 1, "HELD official readback required"
+        loops = {"owner-a": {"effect_reconcile": {"argv": ["reconcile.py"],
+                "occurrence_flag": "--occurrence", "resolve_flag": "--resolve"}}}
+        with tempfile.TemporaryDirectory() as directory:
+            ledger = Path(directory) / "calls.jsonl"
+            ledger.write_bytes(b"old malformed diagnostic" * 20000 + b"\n")
+            first = reconcile(registry=_registry(loops),root=Path("/release"),cap=1,
+                run_call=call,read_fenced=read_fenced,log_path=ledger,wake_epoch=0)
+            second = reconcile(registry=_registry(loops),root=Path("/release"),cap=1,
+                run_call=call,read_fenced=read_fenced,log_path=ledger,wake_epoch=600)
+        self.assertEqual(calls,["owner-a:held","owner-a:ready"])
+        self.assertEqual(first["closed"],0)
+        self.assertEqual(second["closed"],1)
+        self.assertEqual(state["owner-a"],["owner-a:held"])
+
     def test_owner_script_nonzero_exit_leaves_it_fenced_and_is_never_retried(self):
         state = {"owner-b": ["owner-b:1"]}
         calls = []
@@ -201,10 +227,13 @@ class ReconcileTest(unittest.TestCase):
         loops = {"owner-d": {"effect_reconcile": {
             "argv": ["skills/x/self_enumerate.py"], "occurrence_flag": None,
             "resolve_flag": "--resolve"}}}
-        summary = reconcile(
-            registry=_registry(loops), root=Path("/release"),
-            run_call=run_call, read_fenced=read_fenced, log_path=None,
-        )
+        with tempfile.TemporaryDirectory() as directory:
+            ledger = Path(directory) / "calls.jsonl"
+            ledger.write_text("{}\n")
+            summary = reconcile(
+                registry=_registry(loops), root=Path("/release"),
+                run_call=run_call, read_fenced=read_fenced, log_path=ledger,
+            )
         self.assertEqual(len(calls), 1)
         self.assertEqual(summary["closed"], 2)
         self.assertEqual(summary["still_fenced"], 0)

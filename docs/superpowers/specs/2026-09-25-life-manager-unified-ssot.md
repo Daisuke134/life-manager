@@ -373,6 +373,9 @@ CLEAN-04 Fundraiser照合scope更新: fresh admissionは15件fenced。main由来
 
 CLEAN-04 Fundraiser13件resolver結果と再発修復scope: 独立read-only検証は対象13件のみSHIP（11歴史SHAの送信前claim契約、same recorder、同UID600/単一リンクmarker、自然start一致、矛盾attempted/submitted無し、現boot後）。既存adapter resolve一回/各occurrenceで13件を閉じ、exact DB全13 released/effect_unknown0、残DeepScale/FoundersEdge2件保持、Fundraiser disabled/PID無し、送信/再送0を確認。receipt=~/.local/state/life-manager/state/cleanup-fundraiser-pre-effect-resolved-20261011.json。既存自動lm-fence-reconcilerログのFundraiser最新5callは全て同じDeepScale HELDで、runtime/loop/fence_reconcile.pyはowner間しかrotateせずowner内queueを毎wake先頭へ戻すため、capに達すると後続positive proofが永久に選ばれない。既存reconcile-calls.jsonlのbounded tail（256KiB）からownerごとの最後の対象を読み、既存round-robin queueを次occurrenceへrotateする最小差分で直す。新state/scheduler/queue/依存なし、financial priority/cap/budget/公式proof契約は不変。既存test_fence_reconcile.pyに複数wakeで古いHELDを保持し後続exact positive proofが閉じるREDを追加→最小実装→focused/source CI/main→immutable→generic owner loaded-idleで採用→自然callで異なるoccurrenceを確認。現在cursor=この再発修復。業務2件のofficial gateで独立CLEAN-05/06を止めない。
 
+CLEAN-04 occurrence公平性source受入: 同ownerの古いHELDを保持し、次wakeで後続exact positive proofを閉じる最小fixtureが旧実装で同じheld2回のRED、新実装でGREEN。既存28tests/3subtests PASS（financial priority/owner間fairness/cap/budget/timeout/DB lock保持）。self-enumerating/null targetとmalformed/256KiB切断された古いlogも既存fixtureで確認。実155,456,005-byte ledgerのtailをread-onlyで使うと次対象はFoundersEdge occurrenceへ進み、provider call0。sourceはruntime/loop/fence_reconcile.pyと既存testのみ、新state/依存0、公式proof/送信境界変更0。current loaded generic ownerはf78/activeでroot applyしない。source push/CI/main→ALL release→自然terminal後のtargeted loaded-idle採用→自然callを次に確認する。全体Doneではない。
+
+
 
 
 
