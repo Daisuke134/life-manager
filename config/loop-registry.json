@@ -1583,6 +1583,7 @@
       "priority": "distribution",
       "resource_class": "agent",
       "admission_class": "revenue",
+      "admission_effect_scope": "occurrence",
       "cadence": {"calendar_interval":[{"Hour":8,"Minute":0},{"Hour":21,"Minute":0}]},
       "cleanup": {"max_age_days":14,"max_runs":100},
       "domain": "growth",

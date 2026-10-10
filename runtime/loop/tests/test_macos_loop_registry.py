@@ -119,6 +119,13 @@ class MacosLoopRegistryTest(unittest.TestCase):
         self.assertTrue(row["coalesce_reserved_wakes"])
         self.assertTrue(row["coalesce_queued_wakes"])
 
+    def test_english_ebook_tiktok_uses_occurrence_scoped_admission(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        validated = validate_registry(registry)
+        row = validated["loops"]["ebook-en-tiktok-daily"]
+        self.assertEqual(row["entrypoint"], "apps/life-manager/scripts/ebook-distribute-daily.sh")
+        self.assertEqual(row.get("admission_effect_scope"), "occurrence")
+
     def test_ebook_postiz_reconcilers_use_owner_identity_dir(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         identity_dir = "~/.local/state/life-manager/ebook/effect-identities"
