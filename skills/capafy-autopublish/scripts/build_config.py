@@ -24,7 +24,10 @@ NO_FREE_TRIAL = re.compile(r"no[\s_-]+free[\s_-]+trial", re.I)
 FREE_TRIAL = re.compile(r"free[\s_-]+trial\s+(\d+)\s*h\s*/\s*(\d+)\s*requests?", re.I)
 MODEL_IDS = {
     "Claude Sonnet 4.6": "anthropic/claude-sonnet-4.6",
-    "Claude Sonnet 5.5": "anthropic/claude-sonnet-5.5",
+    # Capafy never confirms the hosted key for anthropic/claude-sonnet-5.5 (2026-10-10:
+    # is_confirmed_config_keys stayed 0 on every 5.5 draft), so 5.5 listings host on the
+    # Sonnet 5 id the live Hook Lab runs on; the card already displays "Claude Sonnet 5".
+    "Claude Sonnet 5.5": "anthropic/claude-sonnet-5",
     "Claude Sonnet 5": "anthropic/claude-sonnet-5",
     "DeepSeek V4.1 Flash": "deepseek/deepseek-v4.1-flash",
 }

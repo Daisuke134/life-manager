@@ -53,7 +53,10 @@ def _build(tmp_path: Path, listing_text: str) -> dict:
 
 def test_sonnet_5_5_runs_on_real_id_but_displays_sonnet_5_preset(tmp_path: Path) -> None:
     cfg = _build(tmp_path, LISTING_SONNET_5_5)
-    assert cfg["model_id"] == "anthropic/claude-sonnet-5.5"
+    # 2026-10-10: Capafy never confirms the hosted key for anthropic/claude-sonnet-5.5
+    # (is_confirmed_config_keys stayed 0 on every 5.5 draft; the same draft confirmed
+    # with the live Hook Lab id). Host on anthropic/claude-sonnet-5 so card and runtime match.
+    assert cfg["model_id"] == "anthropic/claude-sonnet-5"
     assert cfg["model"] == "Claude Sonnet 5"
 
 
