@@ -452,6 +452,7 @@ def reclaim_unreferenced_source(releases: Path, current: Path, agents: Path, kee
         if opened.stderr:
             raise OSError("release FD inventory has coverage gaps")
         base = releases.resolve()
+        release_prefix = str(base) + os.sep
         pid = descriptor = None
         for line in opened.stdout.splitlines():
             if line.startswith("p"):
@@ -464,6 +465,8 @@ def reclaim_unreferenced_source(releases: Path, current: Path, agents: Path, kee
                 continue
             if (pid == str(os.getpid()) and descriptor is not None
                     and descriptor.isdecimal() and int(descriptor) in owned_fds):
+                continue
+            if not line[1:].startswith(release_prefix):
                 continue
             try:
                 parts = Path(line[1:]).relative_to(base).parts

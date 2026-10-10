@@ -30,6 +30,39 @@ def completed(root: Path, name: str, size: int = 1) -> Path:
 
 
 class LoopCleanupTest(unittest.TestCase):
+    def test_source_reference_scan_skips_unrelated_paths_and_keeps_open_roots(self):
+        import ast
+        import inspect
+        import types
+        tree = ast.parse(inspect.getsource(central_cleanup.reclaim_unreferenced_source))
+        function = next(node for node in tree.body[0].body
+                        if isinstance(node, ast.FunctionDef) and node.name == "references")
+        module = ast.fix_missing_locations(ast.Module(body=[function], type_ignores=[]))
+        base = Path("/fixture/releases")
+        output = "p999999\nf8\n" + "\n".join([
+            "n/unrelated/file", "n/fixture/releases-other/code",
+            "n/fixture/releases/../sibling/code", "n/fixture/releases/./open/code",
+            "n/fixture/releases/held/code"]) + f"\np{os.getpid()}\nf42\nn/fixture/releases/self/code\n"
+        parsed = []
+        def path(value):
+            parsed.append(value)
+            return Path(value)
+        namespace = {**vars(central_cleanup), "Path": path, "releases": base,
+                     "agents": base / "agents", "current": Path("/"),
+                     "deadline": time.monotonic() + 15}
+        with mock.patch.object(central_cleanup, "loaded_release_roots", return_value=set()), \
+             mock.patch.object(central_cleanup, "open_release_roots", return_value=set()), \
+             mock.patch.object(central_cleanup.subprocess, "run", return_value=types.SimpleNamespace(
+                 stdout=output, stderr="")), \
+             mock.patch.dict(os.environ, {"LIFE_MANAGER_PROTECTED_RELEASES": "/fixture/no-protected-file"}):
+            namespace.update(loaded_release_roots=central_cleanup.loaded_release_roots,
+                             open_release_roots=central_cleanup.open_release_roots)
+            exec(compile(module, "references", "exec"), namespace)
+            held = namespace["references"]((42,))
+        self.assertEqual(held, {Path("/"), base / "..", base / "open", base / "held"})
+        self.assertNotIn("/unrelated/file", parsed)
+        self.assertNotIn("/fixture/releases-other/code", parsed)
+
     def test_reclaimed_release_is_not_selected_or_collected(self):
         for marker_kind in ("descriptor", "dangling", "probe_error"):
             with self.subTest(marker_kind=marker_kind), tempfile.TemporaryDirectory() as directory:
