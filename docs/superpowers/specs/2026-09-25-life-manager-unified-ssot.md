@@ -12390,3 +12390,15 @@ flowchart LR
 **TODO順更新:** 旧順=`@monk.mujo` mapping → cadence/source → release/post`。新順=`(1) JA Watercolorを07:00/20:00 JSTの2/dayにsourceで合わせ、両JA ownerにdistinct-occurrence admissionを設定。既存4 unknown fenceは保持し、pack immutable refも更新 → (2) Postizの402 reasonと正しい`@monk.mujo` integrationを調査。旧handle流用・電話認証・根拠のない購入をしない → (3) 旧fenceをoccurrence identityに結び付く公式readbackで個別照合。receipt不足なら保持 → (4) disk-cleanup/release reconcilerを自然終端まで観測し、capacity・lock・loaded SHAを再確認。条件通過後だけmain由来releaseを対象ownerへ反映 → (5) 接続済みの正しいaccountでowner経由の新規occurrenceを一件発行し、Postizが`PUBLISHED`となったことを確認し、permalinkは取得できれば添える。その後、次の安全なcatch-upから有効accountごと2/dayを継続 → (6) PR #420のdirty変更を保護して最新product mainへ進め、checkout/webhook/PDF deliveryを実経路で確認 → (7) sales、active recurring subscriptions、settlement、refund、fees、HeyGen/Watercolor/Postiz costを同一期間で照合し、verified `$10K net MRR`へ改善する。**理由:** JA cadence修正はPostiz連携に依存せず進められ、現在Postiz追加経路は402、diskはfloor未満、reconciler稼働中。先にできるsource atomを進めても既存unknown fenceや外部effectに触れない。
 
 **現在cursor:** このspec/handoverのmerge後、最新main由来の専用worktreeでJA 2/day + occurrence scopeの失敗テストを追加しRED確認、その最小実装へ進む。必要ファイルは`config/loop-registry.json`、`config/marketing-destinations.json`、`skills/earn/marketing-engine/registry/ebook-packs/ebook-ja-watercolor.json`、pack gate/route contractと既存focused tests。pack refは更新後JSONのSHA-256へ合わせる。旧4 fence・dirty product worktree・他ownerの変更は保持する。
+
+
+### 2026-10-10 21:32 JST — latest-main fetch and allowlist cleanup readback
+
+この追記は21:04 snapshotからGit/capacity/cleanupだけを更新する。Postiz/Stripeの最後のofficial GETは20:59 JSTで、このrunでは再照合していない。
+
+- GitHub `origin/main`は`02ea97730e9f0aab021d83ca7b0fd89135bb14e0`。21:32 JSTにmain限定fetchが成功し、docs branch `docs/ebook-capacity-state-20261010`をこのmainから作成した。
+- `df -Pk /`は21:32:43 JSTに`534,456 KiB` available。2 GiB diagnostic targetより`1,562,696 KiB`不足。
+- 12:32:27Zのallowlist governor unbound receiptは`ok=true`、`free_before=137,605,120` bytes、`free_after=560,488,448` bytes、`reclaimed=0`、`evaluated=32`、`preserved=32`、`errors=0`、`protected_deletions=0`、capacity `unmet`。Full inventoryには19 gapsがある。candidate cursor writeは`OSError/ENOSPC`で失敗したがsweepとreceiptは完了し、`storage_next_action=inspect_preserved_candidates`。
+- preserve内訳は`open=3` / `protected_descendant=29`。read-only候補検出では古いrelease、3 cache roots、expired pytest runsが見つかった。3 cache rootsはopenで、protected descendantsを手動削除しない。cleanupは候補32件を全保持し、削除effectは0。
+
+**現在cursor:** current mainからこのcapacity snapshotをPR経由で統合する。次にsource worktree/branchを最新mainから用意し、JA Watercolorを07:00/20:00 JSTの2/day + occurrence scopeへ進める。外部公開/applyは新しいcapacity・lock・loaded SHAを確認してから行う。
