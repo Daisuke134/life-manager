@@ -4,6 +4,11 @@
 from __future__ import annotations
 
 import json
+import hashlib
+import marshal
+import platform
+import subprocess
+import tarfile
 import os
 import pwd
 import shutil
@@ -260,19 +265,89 @@ def disk_headroom_ok() -> bool:
     return True
 
 
+def release_capacity_bytes(repo: Path, sha: str, loops: Path, node: str, npm: str) -> int:
+    """Measure a complete source export only when all dependency bundles are reusable."""
+    donor = (loops / "current").resolve()
+    descriptor = json.loads((donor / "RELEASE.json").read_text())
+    if (descriptor.get("release_paths") != "ALL"
+            or descriptor.get("provenance") != "ancestor-of-origin-main"
+            or descriptor.get("runtime_python") != str(Path(sys.executable).resolve())
+            or descriptor.get("runtime_python_cache_tag") != sys.implementation.cache_tag
+            or donor.stat().st_mode & 0o222
+            or os.path.lexists(donor / "RECLAIMED-RELEASE.json")):
+        raise ValueError("donor is not a complete immutable runtime")
+    subprocess.run(["git","-C",str(repo),"merge-base","--is-ancestor",descriptor["sha"],"origin/main"],check=True,capture_output=True)
+    roots = ("", "runtime/compute-proxy", "runtime/agentmail", "apps/life-manager",
+             "skills/earn/taskmarket", "skills/earn/x402-sell", "services/x402-endpoint")
+    for relative in roots:
+        prefix = relative + "/" if relative else ""
+        manifests = []
+        for name in ("package.json", "package-lock.json"):
+            result = subprocess.run(["git","-C",str(repo),"show",f"{sha}:{prefix}{name}"],capture_output=True)
+            manifests.append(result.stdout if result.returncode == 0 else None)
+        if None in manifests:
+            continue
+        directory = donor / relative
+        if any((directory / name).read_bytes() != payload for name,payload in zip(("package.json","package-lock.json"),manifests)):
+            raise ValueError("dependency manifests changed")
+        header = "\0".join(("command","npm-ci --omit=dev --ignore-scripts","os",platform.system(),"arch",platform.machine(),"node",node,"npm",npm)) + "\0"
+        key_data = header.encode()
+        for label,payload in zip(("package-json","package-lock"),manifests):
+            key_data += label.encode() + b"\0" + (hashlib.sha256(payload).hexdigest() + "  -\n").encode()
+        key = hashlib.sha256(key_data).hexdigest()
+        bundle = loops / "dependency-bundles" / ("npm-" + key)
+        if (not (directory / "node_modules").is_symlink()
+                or (directory / "node_modules").resolve() != (bundle / "node_modules").resolve()
+                or bundle.stat().st_mode & 0o222
+                or (bundle / ".complete").read_text().strip() != key
+                or not (bundle / "node_modules/.package-lock.json").is_file()):
+            raise ValueError("dependency bundle unavailable")
+    block = os.statvfs(loops).f_frsize
+    if block <= 0:
+        raise ValueError("filesystem allocation unknown")
+    rounded = lambda size: ((size + block - 1) // block) * block
+    # No clone savings assumed: source plus temporary copies, bytecode plus atomic writes.
+    budget = 64 * 1024**2
+    with subprocess.Popen(["git","-C",str(repo),"archive","--format=tar",sha],stdout=subprocess.PIPE) as archive:
+        with tarfile.open(fileobj=archive.stdout,mode="r|") as entries:
+            for entry in entries:
+                budget += block + 2 * rounded(entry.size)
+                if entry.isfile() and entry.name.startswith("runtime/") and entry.name.endswith(".py"):
+                    code = compile(entries.extractfile(entry).read(),entry.name,"exec")
+                    budget += 2 * (block + rounded(16 + len(marshal.dumps(code))))
+        if archive.wait() != 0:
+            raise ValueError("Git export measurement failed")
+    return budget
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     remaining = list(sys.argv[1:] if argv is None else argv)
+    if remaining[:1] == ["--release-capacity"]:
+        if len(remaining) != 6:
+            return 2
+        try:
+            required = release_capacity_bytes(Path(remaining[1]),remaining[2],Path(remaining[3]),remaining[4],remaining[5])
+        except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError, tarfile.TarError, SyntaxError):
+            required = RECOVERY_FLOOR_BYTES
+        print(required)
+        return 0
     if remaining[:1] == ["--check-free-space"]:
-        if len(remaining) != 2:
+        if len(remaining) not in (2,3):
+            return 2
+        try:
+            required = int(remaining[2]) if len(remaining) == 3 else RECOVERY_FLOOR_BYTES
+        except ValueError:
+            return 2
+        if required <= 0:
             return 2
         path = Path(remaining[1]).expanduser()
         probe = next((p for p in (path, *path.parents) if p.exists()), None)
         available = disk_free_bytes(probe) if probe is not None else None
-        if available is not None and available >= RECOVERY_FLOOR_BYTES:
+        if available is not None and available >= required:
             return 0
         print(json.dumps({"status": "deferred", "effect": 0, "readback": 0,
             "reason": "disk_headroom_low" if available is not None else "disk_headroom_unknown",
-            "available_bytes": available, "required_bytes": RECOVERY_FLOOR_BYTES},
+            "available_bytes": available, "required_bytes": required},
             sort_keys=True, separators=(",", ":")))
         return 75
     if not remaining:

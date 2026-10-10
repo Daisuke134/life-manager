@@ -199,3 +199,13 @@ def test_pressure_marker_is_advisory(monkeypatch: pytest.MonkeyPatch):
 def test_cli_requires_child_command():
     guard = load_guard()
     assert guard.main([]) == 2
+
+@pytest.mark.parametrize("available,required,expected", [(1024,1024,0),(1023,1024,75),(None,1024,75),(1024,0,2),(1024,-1,2)])
+def test_measured_capacity_check(monkeypatch, tmp_path, capsys, available, required, expected):
+    guard = load_guard()
+    monkeypatch.setattr(guard, "disk_free_bytes", lambda p: available)
+    assert guard.main(["--check-free-space", str(tmp_path), str(required)]) == expected
+    if expected == 75:
+        receipt = json.loads(capsys.readouterr().out)
+        assert receipt["required_bytes"] == required
+        assert receipt["effect"] == receipt["readback"] == 0

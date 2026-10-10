@@ -143,8 +143,17 @@ prune_releases_after "$PRE_KEEP"
 prune_dependency_bundles || die "safe dependency bundle pruning failed"
 # Recovery must run before export admission, including while capacity is low.
 if [ -z "${ARCHIVE_PATHS[*]:-}" ]; then
+  if [ -n "$NPM_NODE_BIN" ]; then
+    CAPACITY_NODE="${NPM_NODE_VERSION:-$("$NPM_NODE_BIN" --version 2>/dev/null)}"
+    CAPACITY_NPM="${NPM_VERSION:-$("$NPM_NODE_BIN" "$NPM_BIN" --version 2>/dev/null)}"
+  else
+    CAPACITY_NODE="${NPM_NODE_VERSION:-$(node --version 2>/dev/null)}"
+    CAPACITY_NPM="${NPM_VERSION:-$("$NPM_BIN" --version 2>/dev/null)}"
+  fi
+  RELEASE_REQUIRED_BYTES="$("$RUNTIME_PYTHON" -B "$SCRIPT_ROOT/runtime/host/disk_admission.py" \
+    --release-capacity "$REPO_ROOT" "$SHA" "$LOOPS_ROOT" "$CAPACITY_NODE" "$CAPACITY_NPM")" || die "release capacity measurement failed"
   "$RUNTIME_PYTHON" "$SCRIPT_ROOT/runtime/host/disk_admission.py" \
-    --check-free-space "$LOOPS_ROOT" || exit "$?"
+    --check-free-space "$LOOPS_ROOT" "$RELEASE_REQUIRED_BYTES" || exit "$?"
 fi
 # Only the release dir: each loop's state dir belongs to that loop's job, and creating a shared
 # empty one here would advertise a location nothing actually writes to.
@@ -277,7 +286,10 @@ link_locked_dependencies() {
     printf 'package-lock\0'; shasum -a 256 <"$package_dir/package-lock.json"
   } | shasum -a 256 | awk '{print $1}')" || return 1
   bundle="$DEPENDENCY_BUNDLES/npm-$key"
-  if [ ! -f "$bundle/.complete" ] || [ ! -f "$bundle/node_modules/.package-lock.json" ]; then
+  if [ ! -f "$bundle/.complete" ] || [ "$(cat "$bundle/.complete" 2>/dev/null)" != "$key" ] || [ ! -f "$bundle/node_modules/.package-lock.json" ]; then
+    if [ "${RELEASE_REQUIRED_BYTES:-2147483648}" != 2147483648 ]; then
+      return 1 # Measured source-only admission never permits dependency generation.
+    fi
     if [ -e "$bundle" ]; then
       find "$bundle" -type d -exec chmod u+w {} + 2>/dev/null || return 1
       find "$bundle" -depth -delete || return 1
@@ -340,6 +352,7 @@ cat >"$DEST/RELEASE.json" <<EOF
   "cut_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "repo": "$(git -C "$REPO_ROOT" remote get-url origin 2>/dev/null)",
   "state_root": "${LOOPS_STATE_ROOT:-set per loop by its launchd job, not by this release}",
+  "capacity_required_bytes": ${RELEASE_REQUIRED_BYTES:-null},
   "runtime_python": "$RUNTIME_PYTHON",
   "runtime_python_cache_tag": "$RUNTIME_PYTHON_CACHE_TAG",
   "release_paths": "${ARCHIVE_PATHS[*]:-ALL}"

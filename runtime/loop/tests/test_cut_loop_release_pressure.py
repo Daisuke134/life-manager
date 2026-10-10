@@ -43,6 +43,76 @@ class CutLoopReleasePressureTest(unittest.TestCase):
                     self.assertEqual(list((loops / "releases").iterdir()), [])
                     self.assertFalse((loops / ".release-cut.lock").exists())
 
+    def test_unchanged_complete_release_uses_measured_budget(self):
+        source = Path(__file__).resolve().parents[3]
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            repo = home / "repo"
+            repo.mkdir()
+            subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True)
+            for key, value in (("user.email", "test@example.invalid"), ("user.name", "Test")):
+                subprocess.run(["git", "config", key, value], cwd=repo, check=True)
+            for relative in ("bin/cut-loop-release.sh", "runtime/host/disk_admission.py"):
+                target = repo / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(source / relative, target)
+            cleanup = repo / "runtime/loop/central_cleanup.py"
+            cleanup.parent.mkdir(parents=True)
+            cleanup.write_text("raise SystemExit(0)\n")
+            (repo / "package.json").write_text("{}\n")
+            (repo / "package-lock.json").write_text("{}\n")
+            subprocess.run(["git", "add", "."], cwd=repo, check=True)
+            subprocess.run(["git", "commit", "-m", "fixture"], cwd=repo, check=True, capture_output=True)
+            subprocess.run(["git", "update-ref", "refs/remotes/origin/main", "HEAD"], cwd=repo, check=True)
+            probe = home / "capacity-probe"
+            probe.mkdir()
+            (probe / "sitecustomize.py").write_text("import shutil,types\nshutil.disk_usage=lambda p: types.SimpleNamespace(free=1024**3)\n")
+            loops = home / "loops"
+            donor = loops / "releases/donor"
+            subprocess.run(["git", "clone", "--local", str(repo), str(donor)], check=True, capture_output=True)
+            shutil.rmtree(donor / ".git")
+            import hashlib, platform
+            header = "\0".join(("command","npm-ci --omit=dev --ignore-scripts","os",platform.system(),"arch",platform.machine(),"node","v-test","npm","test")) + "\0"
+            key_data = header.encode()
+            for label in ("package-json","package-lock"):
+                key_data += label.encode() + b"\0" + (hashlib.sha256(b"{}\n").hexdigest() + "  -\n").encode()
+            key = hashlib.sha256(key_data).hexdigest()
+            bundle = loops / "dependency-bundles" / ("npm-" + key)
+            (bundle / "node_modules").mkdir(parents=True)
+            (bundle / "node_modules/.package-lock.json").write_text("{}\n")
+            (bundle / ".complete").write_text(key + "\n")
+            (donor / "node_modules").symlink_to(bundle / "node_modules")
+            subprocess.run(["chmod","-R","a-w",str(bundle)],check=True)
+            descriptor = {"sha": subprocess.check_output(["git","rev-parse","HEAD"],cwd=repo,text=True).strip(), "release_paths":"ALL", "provenance":"ancestor-of-origin-main", "runtime_python":str(Path(sys.executable).resolve()), "runtime_python_cache_tag":sys.implementation.cache_tag}
+            (donor / "RELEASE.json").write_text(json.dumps(descriptor))
+            subprocess.run(["chmod","-R","a-w",str(donor)],check=True)
+            (loops / "current").symlink_to(donor)
+            result, _ = self.run_cut(repo, home, "", LOOPS_ACTIVATE_CURRENT="0", PYTHONPATH=str(probe), NPM_NODE_VERSION="v-test", NPM_VERSION="test", LOOPS_RUNTIME_PYTHON=sys.executable)
+            self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+            self.assertEqual((donor / "RELEASE.json").read_text(), json.dumps(descriptor))
+            self.assertEqual((loops / "current").resolve(), donor.resolve())
+            (repo / "payload.txt").write_text("new source\n")
+            subprocess.run(["git","add","."],cwd=repo,check=True)
+            subprocess.run(["git","commit","-m","source change"],cwd=repo,check=True,capture_output=True)
+            subprocess.run(["git","update-ref","refs/remotes/origin/main","HEAD"],cwd=repo,check=True)
+            bundle.chmod(0o755)
+            (bundle / ".complete").unlink()
+            result, _ = self.run_cut(repo, home, "", LOOPS_ACTIVATE_CURRENT="0", PYTHONPATH=str(probe), NPM_NODE_VERSION="v-test", NPM_VERSION="test", LOOPS_RUNTIME_PYTHON=sys.executable)
+            self.assertEqual(result.returncode,75,result.stderr + result.stdout)
+            self.assertEqual(len(list((loops / "releases").iterdir())),2)
+            (bundle / ".complete").write_text(key + "\n")
+            (bundle / ".complete").chmod(0o444)
+            bundle.chmod(0o555)
+            # Dependency changes require the ordinary budget before extraction.
+            (repo / "package.json").write_text("{}")
+            (repo / "package-lock.json").write_text("{}")
+            subprocess.run(["git","add","."],cwd=repo,check=True)
+            subprocess.run(["git","commit","-m","dependency change"],cwd=repo,check=True,capture_output=True)
+            subprocess.run(["git","update-ref","refs/remotes/origin/main","HEAD"],cwd=repo,check=True)
+            result, _ = self.run_cut(repo, home, "", LOOPS_ACTIVATE_CURRENT="0", PYTHONPATH=str(probe), NPM_NODE_VERSION="v-test", NPM_VERSION="test", LOOPS_RUNTIME_PYTHON=sys.executable)
+            self.assertEqual(result.returncode,75,result.stderr + result.stdout)
+            self.assertEqual(len(list((loops / "releases").iterdir())),2)
+
     def run_cut(self, repo: Path, home: Path, paths: str, **extra_env: str):
         pressure = home / ".local" / "state" / "life-manager" / "state" / "disk-pressure.block"
         pressure.parent.mkdir(parents=True, exist_ok=True)
