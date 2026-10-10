@@ -147,6 +147,10 @@ class ProductRegistryTest(unittest.TestCase):
         packs = load_ebook_packs(ENGINE)
         self.assertEqual(packs["ebook-en-anicca-monk"]["slots_jst"], ["08:00", "21:00"])
 
+    def test_japanese_watercolor_pack_uses_two_daily_slots(self):
+        packs = load_ebook_packs(ENGINE)
+        self.assertEqual(packs["ebook-ja-watercolor"]["slots_jst"], ["07:00", "20:00"])
+
 
 class VariationPlanTest(unittest.TestCase):
     def setUp(self):

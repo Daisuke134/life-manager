@@ -403,9 +403,13 @@ def test_fifo_wait_blocker_is_only_emitted_before_any_child_start(tmp_path):
     assert blocker in PRE_EFFECT_ADMISSION_BLOCKERS
 
 
-def test_ebook_entrypoint_forwards_registry_occurrence_scope_to_admission(tmp_path):
+@pytest.mark.parametrize("owner", [
+    "ebook-en-tiktok-daily",
+    "ebook-ja-instagram-daily",
+    "ebook-ja-tiktok-daily",
+])
+def test_ebook_entrypoint_forwards_registry_occurrence_scope_to_admission(tmp_path, owner):
     repo_root = Path(__file__).parents[3]
-    owner = "ebook-en-tiktok-daily"
     entry = json.loads((repo_root / "config/loop-registry.json").read_text())["loops"][owner]
     occurrence_id = f"{owner}:new-slot"
     with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
@@ -422,7 +426,7 @@ def test_ebook_entrypoint_forwards_registry_occurrence_scope_to_admission(tmp_pa
         ) == 75
 
     enqueue.assert_called_once_with(
-        "agent", owner, admission_class="revenue", priority="distribution",
+        "agent", owner, admission_class=entry["admission_class"], priority=entry["priority"],
         occurrence_id=occurrence_id, effect_scope="occurrence",
     )
     claim.assert_called_once_with(

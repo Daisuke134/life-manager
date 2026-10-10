@@ -12497,3 +12497,15 @@ flowchart LR
 - preserve内訳は`open=3` / `protected_descendant=29`。read-only候補検出では古いrelease、3 cache roots、expired pytest runsが見つかった。3 cache rootsはopenで、protected descendantsを手動削除しない。cleanupは候補32件を全保持し、削除effectは0。
 
 **現在cursor:** current mainからこのcapacity snapshotをPR経由で統合する。次にsource worktree/branchを最新mainから用意し、JA Watercolorを07:00/20:00 JSTの2/day + occurrence scopeへ進める。外部公開/applyは新しいcapacity・lock・loaded SHAを確認してから行う。
+
+### 2026-10-10 21:42 JST — Japanese eBook two-slot source change
+
+この追記はsource状態を更新する。変更はlocal worktree上で、まだcommit/PR/main/deployされていない。production apply、Postiz投稿、Stripe読戻しは行っていない。
+
+- Repo worktree: /Users/anicca/Projects/life-manager-main/.worktrees/ebook-occurrence-scope-20261010; branch fix/ebook-ja-two-daily-20261010; base/current main 6bc25916cbc866c01af5cc7f19ae3732b9eb1425.
+- JA Watercolor packとdestination cadenceを07:00/20:00 JSTに変更。JA Instagram/TikTok ownerへadmission_effect_scope=occurrenceを追加。EN TikTokの08:00/21:00 identity exceptionと全既存scheduleは維持。exact JA integration/profile identity以外に2-slot exceptionは許さない。pack SHA-256はc4396c16443921f3f6d0d1ac5a76fb244cec1a842ac7528a8fb95b369965b6d3でdestination refsと一致。
+- Focused tests: Node 4 pass; Python pack/registry/runner selection 5 pass (2 subtests); occurrence fence tests 2 pass. REDではJA cadence/scopeが未設定のため期待どおりfailし、実装後GREEN。変更後git diff --checkもpass。
+- Old four effect_unknown occurrence fencesは触っていない。これらをclear/resendせず、新しいdistinct occurrenceのみ通す設定。
+- Capacityは21:42 JSTに141,176 KiB。最後に確認したfull cleanup receipt (21:32) は32件全保持、削除0、capacity unmet。Runtime owner/loaded SHA、Postiz、Stripeはこのsource edit後に再照合していない。最後のPostiz/Stripe official GETは20:59 JST時点で、今日のPUBLISHEDは0件、Stripe active subscription 0件。
+
+**現在cursor:** source branchのgit diff --checkとpack referenceを再確認 → commit/push → current mainへ同期しexact-head CI/review → merge。次に最新capacity/lock/loaded SHAが安全条件を満たした場合だけmain由来immutable releaseを対象JA ownersへ反映し、fresh distinct occurrenceを発行。Postiz PUBLISHEDなら成功、permalinkは取得できれば共有。その後、日本語2/dayを継続し、Postizの@monk.mujo mapping、checkout/PDF、verified net MRR $10Kへ進む。
