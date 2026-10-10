@@ -1,0 +1,32 @@
+# Local loops handover — 2026-10-11 00:10 JST
+
+## 正本と作業場所
+
+- Repo: `/Users/anicca/Projects/life-manager-main`、push remote: `origin` (`https://github.com/Daisuke134/life-manager.git`)。
+- 残TODOの正本: [`docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md`](/Users/anicca/Projects/life-manager-main/.worktrees/docs-local-loops-runtime-20261011/docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md)、`2026-10-11 00:10 JST — Local loops status refreshed; Job Hunter targets Dreamwork` 節。
+- Spec worktree: `/Users/anicca/Projects/life-manager-main/.worktrees/docs-local-loops-runtime-20261011`、branch `docs/local-loops-runtime-20261011`、push target `origin/docs/local-loops-runtime-20261011`。spec commit `06dc8e0edd` はpush済み。handoverファイルはその後のdocs-only commitとして追加する。
+- Implementation worktreeは未作成。再開時にfresh fetch後 `/Users/anicca/Projects/life-manager-main/.worktrees/local-loops-runtime-impl-20261011`、branch `fix/local-loops-runtime-20261011`、push target `origin/fix/local-loops-runtime-20261011` をその時点の `origin/main` から作る。handover時のmain SHAは `72bdd45884a6c88f929c3e5767d63dd33f42cc93`。
+- 共有checkout `/Users/anicca/Projects/life-manager-main` はdirty branch `capafy/annual-report-risk-change-20261009`。編集・branch switchをしない。locked worktreeもowner状態をfresh readbackせず触らない。reviewerは実装commitのtemporary detached snapshotをread-onlyで使う。
+
+## 確認済みの状態と限界
+
+- 2026-10-11 00:10 JSTの `lm-loop status --explain` snapshotではConnector loaded-idle / PIDなし / release `142ef661928ef1d44a186fcb2fed6a850dea024c`、latest `18dd3334ad51ce48-52758` はexit 1 `entrypoint_exit_1` / effect not_applicable / receiptなし。現根因は未確定。このsnapshotはhandover commit時や再開時のlive stateを保証しない。
+- `job-search-daily` はunloaded / last installed SHA `067ac10c05271865aefbb5b671542fd65715f015`。latest `18dd314a05ebbdd0-28147` はexit 2 / effect not_applicable / receiptなし。main sourceはまだWorkday-only。Workdayは再ロードしない。
+- Fundraiserは00:10 JSTにloaded-idle / PIDなし / release `067ac10c05271865aefbb5b671542fd65715f015`。latest `18dd3380bb674458-14832` はexit 75 `entrypoint_exit_75` / effect unknown、receipt/readbackなし。14件のunknown fenceが残り、`18dd2e7d7c52f698-23430`はclaimed/running。Gmail official Sent readback前に再送・fence解除しない。
+- `life-manager-release-reconciler` PID `51988` / release `067ac10c05271865aefbb5b671542fd65715f015` はrunning。latest `18dd3323222a7c18-46053` はexit 75、next action `reconcile_owner`。自然terminal前に停止・再起動・競合applyしない。
+- `df -Pk /` は00:10 JST時点でavailable `173,996 KiB` / 99% used（00:02 JSTのreadbackから低下）。PR #7485 source fixはmainにmerge済み (`0615b8ff4668c73cd6d4f5fda8563a1ac2f76a95`)、現在release symlinkはmain SHA `72bdd45884a6c88f929c3e5767d63dd33f42cc93`。finite producerの数値2 GiB gateは既に除かれているが、物理空き容量/write readinessは未回復。capacityは再開時に再測定する。
+- Dreamworkの最後の公式readbackは10月10日08:50Z、credential incident前のFree / `applicationsLimit=0` / readiness false / matches 10件すべて`applied=false`。現状は未照会。実応募は未確認。
+- 以前の調査でprivate `credentials.json`全体がtool outputへ出た。全ての露出secret/token/passwordの安全なinventory、rotation/revocation、SSOT更新、新規session readbackは未確認。値を再表示・再利用せず、provider認証前に対処する。
+- 今回はspec/handoverだけを編集。loop操作、provider認証、応募、cold mail、Telegram送信は行っていない。
+
+## 最初の安全な再開手順
+
+1. handoverとspecの最新節を読み、fresh fetch・HEAD/upstream/dirty state、各owner status/PID/lease/effect fence、`df -Pk /`を読み直す。loop source変更前に`skills/loop-development/SKILL.md`を読み、spec/registry/entrypoint/state/loaded argv/latest terminal/provider receiptを確認する。00:10 JSTの値は履歴として扱い、active ownerを止めない。
+2. credential incidentを全file output exposureとして扱う。値を再表示せず露出したsecret全体をsafe inventoryし、active credentialを失効・再発行してprivate SSOTを更新、新規sessionをreadbackする。Google/Gmail認証前に`google-login` skillを読む。
+3. 以降はspecの順番で容量、Dreamwork切替、Connector、Fundraiser、自然run/公式receipt/Telegram/replay-zero、same-window capacity測定を進める。
+
+## 再開用 `/goal`
+
+```text
+/goal ConnectorはLuma Compassのイベントを処理し、Job HunterはWorkdayを使わずDreamwork経由で東京と日本から働けるRemoteを同順位、SFを次点、New York除外・他の米国はvisa sponsorship必須としてDaisへの都度確認なしでproviderが許す自動提出経路から適格求人に実応募し、Fundraiserは新規VCとAI/AGI lab founderへ「assistantではなくmanager」の説明とpodcast/Zoom提案をcold mailする。各loopはgpt-6-luna/max/fastを使い、同一occurrenceの自然実行、loaded SHA/argv、公式receipt/readback、loop自身のTelegram報告、replay-zeroで証明する。最初に`/Users/anicca/Projects/life-manager-main/.worktrees/docs-local-loops-runtime-20261011/.claude/handovers/2026-10-11_0010_local-loops-dreamwork.md`とSSOT最新節を読み、fresh fetch/HEAD/upstream/dirty/runtime/effect readbackをして事実とTODOを更新する。loop source変更前に`skills/loop-development/SKILL.md`を読み、registry/entrypoint/state/loaded argv/latest terminal/provider receiptを確認する。credential SSOT全体がtool outputへ露出したため、値を再表示せず露出secret全体をsafe inventoryし、active credentialを失効・再発行してprivate SSOTを更新するまでprovider認証を行わない。Dreamwork最後のreadbackはFree/applicationsLimit=0で古いためusage/readinessを再取得し、0なら迂回・購入せず、実応募未達を明示しながら他の独立作業を続ける。Workday sourceはmainに残るがdaily ownerはunloaded。過去Workday effectを確認し、unknownはofficial readbackまで保持して再送・clearしない。Connector/Fundraiser/release reconcilerのactive occurrenceはfresh terminal/lease evidenceまで停止・再起動・競合applyしない。mainのPR #7485でfinite producerの数値2 GiB gateは除去済みなので重複実装せず、現disk 173,996 KiBを作るwriterと実write readinessをowner-safeに解決しprotected dataを削除しない。source default total10とaggregate agent2をeffective runtime capacityと混同せず、同一windowのclaims/queue/resource/CPU/RAM/swap/diskと実処理数で測定する。すべてのloopをmain-derived immutable releaseから対象限定で自然実行し、実際のprovider receipt/readback・Telegram・replay-zeroが揃うまで成功としない。`effect_unknown`は保持し、適格性/entitlement/本人手続きなしに応募や送信を偽装しない。source変更または不可逆な外部effect前に`spawn_agent`でfresh-context read-only adversarial reviewを使い、秘密は共有しない。worktree routing: repo `/Users/anicca/Projects/life-manager-main`; spec worktree `/Users/anicca/Projects/life-manager-main/.worktrees/docs-local-loops-runtime-20261011`, branch `docs/local-loops-runtime-20261011`, push `origin/docs/local-loops-runtime-20261011`, spec commit `06dc8e0edd` (handover file is layered after it; re-fetch and verify actual branch HEAD); implementation worktree `/Users/anicca/Projects/life-manager-main/.worktrees/local-loops-runtime-impl-20261011`, branch `fix/local-loops-runtime-20261011`, push `origin/fix/local-loops-runtime-20261011`, create from freshly fetched origin/main (handover base `72bdd45884a6c88f929c3e5767d63dd33f42cc93`); reviewer uses temporary detached read-only snapshot of exact implementation commit. Do not edit/switch the shared dirty root checkout on branch `capafy/annual-report-risk-change-20261009` or locked worktrees. Continue until all three real loop outcomes are evidenced; if provider quota or external capability prevents one, keep it incomplete, report the exact blocker, and continue only independent work.
+```
