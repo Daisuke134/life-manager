@@ -301,6 +301,8 @@ CLEAN-04の回収/readback結果: native log eraseはexit0/Deleted selected logs
 
 CLEAN-04 source/main進捗: release参照scanの3行修復はPR #7530 exact15232b437eedf77558c9cfcfc8678c5eecb0b2e1、CI38067101432全10SUCCESS（CodeRabbitはmanual required skip）後admin squash main44d4694db672714642ede939502f7070d1143fa5へ統合。既存完全release cutter一回はexit75/available1,069,174,784/required2,147,483,648 bytes/disk_headroom_low、effect0/readback0でpre-effect延期。未統合worktreeを本番実行せず、partial release/guard変更/active release直接patchはしない。source acceptance済み・loaded/自然速度改善未証明を区別する。次操作は既存回収による完全cut書込条件の復旧→main immutable release→central cleanup一担当adoption/自然回収→CLEAN-05→06。current imagegen89430/Chrome92507/GPU775はfresh01:24JSTも存在し、last commandtime未知のため15分idle終了成功や失敗と断定しない。
 
+CLEAN-04の終了owner残留scope: LINE factory18dd30a3f4e2e370-98723は15:13:26Z terminal75、次factoryは16:30:08Z resource_effect_unknownでblocked。旧run由来imagegen89430（Oct10 23:56:30/UID501/PPID1）・Chrome92507（23:57:53/parent89430）・GPU775（23:58:16/parent92507）がfresh生存。Chromeは同runのgc-trash.27052下GPUCache0byteだけをopen、CDP TCP CLOSED、renderer/network無し。exact PID/start/UID/profile再照合後にこの3processを終了し、共通imagegen session filesを別新ownerが使用していないことを確認。provider unknown/fence/正式recordsは保持しno-effectへ置換しない。既存producerの終了処理に漏れがあれば同scopeで最小修復する。旧=完全release反映容量待ち、新=実閉鎖producer残留の回収→完全release反映→CLEAN-05→06、理由=source速度修復はmain済みで、先に実残留メモリを解放できるため。
+
 **cleanup現在readback（source/main/release/loaded/naturalを区別）:**
 
 | atom | 確認済み | 実際に残る一操作 |
