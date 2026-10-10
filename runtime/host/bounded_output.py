@@ -2,13 +2,16 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+from contextlib import contextmanager
 import base64
+import fcntl
 import json
 import logging
 from logging.handlers import RotatingFileHandler
 import os
 from pathlib import Path
 import socket
+import selectors
 import stat
 import subprocess
 import sys
@@ -180,6 +183,84 @@ class _PrivateRotatingHandler(RotatingFileHandler):
         raise sys.exc_info()[1]
 
 
+@contextmanager
+def bounded_launchd_output(log_root, policy):
+    """Route the runner and inherited child stdio to owner-specific bounded logs."""
+    root = _private_root(Path(log_root) / "bounded")
+    segment = min(policy.diagnostic_segment_bytes,
+        max(1, policy.owner_diagnostic_retained_bytes // (2 * (policy.diagnostic_backup_count + 1))))
+    pipes = [os.pipe(), os.pipe()]
+    ready_reader, ready_writer = os.pipe()
+    saved = [os.dup(1), os.dup(2)]
+    owned = {fd for pipe in pipes for fd in pipe} | {ready_reader, ready_writer, *saved}
+    process = None
+    try:
+        process = subprocess.Popen(
+            [sys.executable, "-B", str(Path(__file__).resolve()), "--launchd-relay",
+             str(root), policy.owner_id, str(segment),
+             str(policy.diagnostic_backup_count), str(min(policy.chunk_bytes, segment)),
+             *(str(reader) for reader, _ in pipes), str(ready_writer)],
+            pass_fds=tuple(reader for reader, _ in pipes) + (ready_writer,), start_new_session=True,
+            stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        for fd in [*(reader for reader, _ in pipes), ready_writer]:
+            os.close(fd); owned.remove(fd)
+        with selectors.DefaultSelector() as ready:
+            ready.register(ready_reader, selectors.EVENT_READ)
+            if not ready.select(5) or os.read(ready_reader, 1) != b"G":
+                raise ValueError("launchd relay initialization failed")
+        os.close(ready_reader); owned.remove(ready_reader)
+        sys.stdout.flush(); sys.stderr.flush()
+        for target, (_, writer) in zip((1, 2), pipes):
+            os.dup2(writer, target)
+        yield
+    finally:
+        sys.stdout.flush(); sys.stderr.flush()
+        for target, original in zip((1, 2), saved):
+            os.dup2(original, target)
+        for fd in owned: os.close(fd)
+        if process is not None:
+            try: process.wait(timeout=1)
+            except subprocess.TimeoutExpired:
+                pass  # A detached writer still owns the pipe; keep its drain alive.
+
+
+def _relay_launchd_output(root, owner, segment, backups, chunk_size, readers, ready_fd):
+    root = _private_root(root)
+    lock = os.open(root / f".launchd-{owner}.lock", os.O_WRONLY | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+    info = os.fstat(lock)
+    if info.st_uid != os.getuid() or not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
+        os.close(lock); raise ValueError("unsafe launchd log lock")
+    with selectors.DefaultSelector() as selector:
+        handlers = []
+        try:
+            for reader, stream in zip(readers, ("out", "err")):
+                handler = _PrivateRotatingHandler(root / f"launchd-{owner}.{stream}.log",
+                    maxBytes=segment, backupCount=backups, encoding="latin-1")
+                handler.setFormatter(logging.Formatter("%(message)s"))
+                handler.close()
+                handlers.append(handler); selector.register(reader, selectors.EVENT_READ, handler)
+            os.write(ready_fd, b"G"); os.close(ready_fd)
+            while selector.get_map():
+                for key, _ in selector.select():
+                    chunk = os.read(key.fd, chunk_size)
+                    if not chunk:
+                        selector.unregister(key.fd); os.close(key.fd); continue
+                    fcntl.flock(lock, fcntl.LOCK_EX)
+                    try:
+                        handler = key.data
+                        handler.emit(logging.LogRecord("launchd", logging.INFO, "", 0,
+                            chunk.decode("latin-1"), (), None))
+                    except (OSError, ValueError):
+                        pass  # Sink failure must not break the producer's pipe.
+                    finally:
+                        try: key.data.close()  # Reopen after a concurrent writer's rotation.
+                        except OSError: pass
+                        fcntl.flock(lock, fcntl.LOCK_UN)
+        finally:
+            for handler in handlers: handler.close()
+            os.close(lock)
+
+
 class _SemanticStream:
     """Retain contract events before dropping raw diagnostic bytes."""
     def __init__(self, kind, limit):
@@ -324,6 +405,10 @@ def relay_stderr(read_fd, control_fd, private_root, policy, binding, stream_kind
 
 
 if __name__ == "__main__":
+    if len(sys.argv) == 10 and sys.argv[1] == "--launchd-relay":
+        _relay_launchd_output(Path(sys.argv[2]), sys.argv[3],
+            *(int(value) for value in sys.argv[4:7]), [int(value) for value in sys.argv[7:9]], int(sys.argv[9]))
+        raise SystemExit(0)
     if len(sys.argv) != 5 or sys.argv[1] != "--relay":
         raise SystemExit(64)
     context_path = Path(sys.argv[2])

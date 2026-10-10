@@ -83,6 +83,32 @@ def test_relay_rejects_symlink_root(tmp_path):
         start(root)
 
 
+def test_launchd_relay_startup_failure_is_finite_and_precedes_producer(tmp_path):
+    logs = tmp_path / "logs"
+    root = logs / "bounded"
+    root.mkdir(mode=0o700, parents=True)
+    (root / ".launchd-life-manager-disk-cleanup.lock").mkdir()
+    marker = tmp_path / "producer-started"
+    helper = (
+        "import os,sys\nfrom pathlib import Path\n"
+        "from runtime.host.bounded_output import bounded_launchd_output\n"
+        "from runtime.host.storage_policy import load_storage_policy\n"
+        f"policy=load_storage_policy({str(ROOT / 'config/storage-policy.json')!r},'life-manager-disk-cleanup')\n"
+        "try:\n"
+        f" with bounded_launchd_output({str(logs)!r},policy):\n"
+        f"  Path({str(marker)!r}).touch()\n"
+        "  os.write(1,b'x'*(8*1024*1024))\n"
+        "except (OSError,ValueError): raise SystemExit(78)\n"
+    )
+    try:
+        result = subprocess.run([sys.executable, "-B", "-c", helper],
+            cwd=ROOT, capture_output=True, timeout=10)
+    except subprocess.TimeoutExpired:
+        pytest.fail("failed relay left a parent reader holding the producer pipe open")
+    assert result.returncode == 78
+    assert not marker.exists()
+
+
 def test_sink_enospc_does_not_close_writer_pipe(tmp_path, monkeypatch):
     policy = load_storage_policy(ROOT / "config/storage-policy.json", "life-manager-disk-cleanup")
     binding = {"owner_id": policy.owner_id, "run_id": "run-1",
