@@ -4,6 +4,7 @@ import json
 import tempfile
 import os
 import signal
+import shutil
 import stat
 import subprocess
 import sys
@@ -97,6 +98,58 @@ def test_closed_package_download_caches_are_discovered_and_reclaimed(
     assert result["reclaimed"] > 0
     assert result["errors"] == 0
     assert result["protected_deletions"] == 0
+
+
+@pytest.mark.parametrize("condition", ["closed", "open", "compiler", "changed"])
+def test_darwin_clang_cache_reclaims_only_closed_generated_ast(
+    tmp_path: Path, monkeypatch, request, condition: str,
+) -> None:
+    request.addfinalizer(lambda: shutil.rmtree(tmp_path, ignore_errors=True))
+    home = tmp_path / "home"
+    home.mkdir()
+    cache = tmp_path / "C/clang/ModuleCache"
+    modules = cache / "1J5J8FJPCELQN"
+    modules.mkdir(parents=True)
+    ast = b"\xcf\xfa\xed\xfe" + b"\0" * 8 + b"\x01\0\0\0" + b"\0" * 16 + b"__clangast\0"
+    pcm = modules / "Foundation-3VW5DIPSHA0Z3.pcm"
+    pcm.write_bytes(ast)
+    retained = {
+        modules / "Foundation.swiftmodule": b"compiled Swift module",
+        modules / "modules.timestamp": b"metadata",
+        modules / "unknown.pcm": b"unclassified original",
+        modules / "shared.pcm": ast,
+    }
+    for path, content in retained.items():
+        path.write_bytes(content)
+    os.link(modules / "shared.pcm", tmp_path / "shared-original.pcm")
+    (modules / "linked.pcm").symlink_to(pcm)
+    monkeypatch.setattr(disk_cleanup, "_darwin_clang_cache", lambda _home: cache, raising=False)
+    monkeypatch.setattr(disk_cleanup, "_clang_compiler_active", lambda: condition == "compiler", raising=False)
+
+    def closed_probe(path):
+        if path == pcm and condition == "changed":
+            replacement = modules / "replacement.pcm"
+            replacement.write_bytes(ast + b"new generation")
+            replacement.replace(pcm)
+        return "open" if path == pcm and condition == "open" else "confirmed-closed"
+
+    governor = HostDiskGovernor(
+        home=home, state_dir=home / "cleanup-state", lsof=closed_probe,
+        usage=lambda: (0, 1),
+    )
+    candidates = [item for item in governor.discover_candidates()
+                  if item.get("owner") == "clang-module-cache"]
+    assert [item["path"] for item in candidates] == ([] if condition == "compiler" else [pcm])
+    result = governor.sweep(candidates, write_receipt=False)
+    assert pcm.exists() is (condition != "closed"), json.dumps(result)
+    assert result["protected_deletions"] == 0
+    assert all(path.read_bytes() == content for path, content in retained.items())
+    assert modules.is_dir() and (modules / "linked.pcm").is_symlink()
+    assert result["reclaimed"] > 0 if condition == "closed" else result["reclaimed"] == 0
+    replay = governor.sweep([item for item in governor.discover_candidates()
+                            if item.get("owner") == "clang-module-cache"], write_receipt=False)
+    if condition == "closed":
+        assert replay["reclaimed"] == 0
 
 
 @pytest.mark.parametrize("git_marker_type", ["file", "directory"])
