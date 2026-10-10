@@ -297,6 +297,11 @@ CLEAN-05 Writer profile競合の再発修復scope: 次自然18dd46a0d0f75ff0-312
 
 CLEAN-05 browser wait source受入: 既存fixtureをbusy一回→successへ変更し、旧workerの即75をREDで確認。guard rc9だけsleep5後に同じacquireを再試行し、success後だけ自分のleaseをreleaseする最小whileでGREEN。worker4tests PASS（foreign release無し/正しいendpoint/unknown rc7即75/計測失敗23でown lease release）、既存sales-measure lock contract PASS（stale reclaim/legacy live保持/token付きbusy保持）、bash syntax/diff PASS。親runtime_timeout default3600は変更なし、新retry設定/queue/profile/priority/cap0。次=CI/main→immutable→idle対象採用→自然busy→解放後のofficial計測/terminal保存/自己cleanup。
 
+CLEAN-05 browser wait main/current/loaded: #7566 exact1fb4f434e9b8fe07293839965715eaa6acdd208b/CI38086027329全10SUCCESS→main33fd6adf48e3b4c1352cc7a8c8bfde9014f222be。正規ALL cutter exit0/nativeclone8330/current20261011T060811-33fd6adf/main ancestor/runtime tag/実budget346,980,352。worker SHA95ed4c22fcd4e5052eec8a1af8ae989a0a496bd035cff520b7fcf0d01771825e/main byte一致/read-only。fresh writer idle/PID無し/unknownfalse/Aqua PASS後、canonical target shared-agent-runner reconcile/loaded-idle/maxowners1でapplied1/failed0/loaded argv33fd/install eventfe4128de195a98c645246e4d。自然18dd4741121a20d0-59457は21:09:31Z execute/browser claimed/unknown0を確認、manualwake0。実行中のため業務成功/売上/Doneとは数えずterminal/公式計測/枠返却/selfcleanupを次に確認する。
+
+CLEAN-04 inventory自然現在地: newcebf natural18dd4683a61353b0-26296は20:55:58Z execute→20:58:27Z pass0、bound20:57:38Z full/errors0/protected0。旧欠測/private/tmpを247,054,336 bounded-du-partialで測り、古いsampleを含む5rootを保持、freshの未測定を0にしない。次21:03 run45410は75でsnapshot更新無し、競合waitを成功と混ぜない。独立read-only診断probe45秒は/private/tmp247,050,240 partial、/private/var/folders684,081,152 partial、/opt/homebrew13,499,006,976などを測り、deletion0（自然受入とは別）。標準brew cleanup dry-runは削除対象0なので13.5GBを不要物と断定しない。残=次自然fullでstate/releases/sessionへ進むactual sample+time付きgrowth/具体的取り残し、Writer自然terminal、仕事→保存→掃除→次仕事の同期間join。現在の全体基盤Doneは未確認。
+
+
 
 
 
