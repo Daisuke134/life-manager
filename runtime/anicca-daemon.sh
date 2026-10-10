@@ -49,7 +49,6 @@ if is_franklin_instance "$INSTANCE"; then
 else
   PORT="${COMPUTE_PROXY_PORT:-18402}"
 fi
-LOGDIR="$ANICCA_HOME/logs"; mkdir -p "$LOGDIR"
 BRAIN_PID=""
 LOOP_PID=""
 
@@ -87,7 +86,7 @@ ensure_brain() {
     env -u ANICCA_EVM_PRIVATE_KEY -u BLOCKRUN_WALLET_KEY -u PKVAR -u BASE_CHAIN_WALLET_KEY \
       ANICCA_HOME="$ANICCA_HOME" COMPUTE_PROXY_PORT="$PORT" \
       "$REPO/runtime/compute-proxy/start-local.sh" --proxy-only \
-      >>"$LOGDIR/compute-proxy.log" 2>&1 &
+      >&2 &
     BRAIN_PID="$!"
     for _ in $(seq 1 30); do curl -sf "http://127.0.0.1:$PORT/v1/models" >/dev/null 2>&1 && break; sleep 0.5; done
     if ! curl -sf "http://127.0.0.1:$PORT/v1/models" >/dev/null 2>&1; then
@@ -134,11 +133,11 @@ if is_franklin_instance "$INSTANCE"; then
   # migration of any still-running pre-29023a55 legacy poster LOOP is now a documented, ONE-TIME
   # OPERATOR step performed once per instance at deploy — see behavioral-spec.md REQ-002(b)
   # "Deployment / migration runbook".
-  ( export FRANKLIN_TELEMETRY_LOOP=1; while true; do node "$REPO/runtime/dashboard/telemetry-post-franklin.mjs" --home "$ANICCA_HOME" >>"$LOGDIR/poster.log" 2>&1; sleep 120; done ) &
+  ( export FRANKLIN_TELEMETRY_LOOP=1; while true; do node "$REPO/runtime/dashboard/telemetry-post-franklin.mjs" --home "$ANICCA_HOME" >&2; sleep 120; done ) &
 else
   pkill -f "dashboard/telemetry-poster.mjs" 2>/dev/null || true
   sleep 1
-  node "$REPO/runtime/dashboard/telemetry-poster.mjs" >>"$LOGDIR/poster.log" 2>&1 &
+  node "$REPO/runtime/dashboard/telemetry-poster.mjs" >&2 &
 fi
 
 # 4. brain endpoint + model the loop should use -------------------------------------------------
