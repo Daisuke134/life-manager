@@ -167,6 +167,35 @@ def _read_with_retry(read_fenced: Callable[[], dict[str, tuple[str, ...]]],
     raise AssertionError("unreachable")
 
 
+def _rotate_occurrences_from_log(targets: dict[str, list[str | None]], log_path: Path | None) -> None:
+    """Advance within each owner using the existing call ledger, without new state."""
+    if log_path is None:
+        return
+    last = {}
+    try:
+        with log_path.open("rb") as handle:
+            offset = max(0, os.fstat(handle.fileno()).st_size - 256 * 1024)
+            handle.seek(offset)
+            lines = handle.read(256 * 1024).splitlines()
+        for line in lines[1:] if offset else lines:
+            try:
+                row = json.loads(line)
+            except (ValueError, UnicodeError):
+                continue
+            if not isinstance(row, dict):
+                continue
+            owner, occurrence = row.get("owner_id"), row.get("occurrence_id")
+            if isinstance(owner, str) and isinstance(occurrence, str):
+                last[owner] = occurrence
+    except OSError:
+        return
+    for owner, values in targets.items():
+        previous = last.get(owner)
+        if previous is not None and previous in values:
+            index = values.index(previous) + 1
+            targets[owner] = values[index:] + values[:index]
+
+
 def reconcile(
     *,
     registry: Mapping[str, object],
@@ -185,6 +214,7 @@ def reconcile(
     fenced = _read_with_retry(read_fenced, sleep)
     checked = sum(len(occurrences) for occurrences in fenced.values())
     targets, needs_adapter = plan_targets(fenced, loops)
+    _rotate_occurrences_from_log(targets, log_path)
     priority_owners = frozenset(
         owner_id for owner_id in targets
         if isinstance(loops.get(owner_id), Mapping)
