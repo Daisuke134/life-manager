@@ -51,13 +51,18 @@ else
 fi
 BRAIN_PID=""
 LOOP_PID=""
+POSTER_PID=""
 
 log() { echo "[$(date -u +%FT%TZ)] anicca-daemon: $*" >&2; }
 
 stop_owned_processes() {
   [ -n "$LOOP_PID" ] && kill -TERM "$LOOP_PID" 2>/dev/null || true
+  if [ -n "$POSTER_PID" ] && jobs -pr | grep -qx "$POSTER_PID"; then
+    kill -TERM "$POSTER_PID" 2>/dev/null || true
+  fi
   [ -n "$BRAIN_PID" ] && kill -TERM "$BRAIN_PID" 2>/dev/null || true
   [ -n "$LOOP_PID" ] && wait "$LOOP_PID" 2>/dev/null || true
+  [ -n "$POSTER_PID" ] && wait "$POSTER_PID" 2>/dev/null || true
   [ -n "$BRAIN_PID" ] && wait "$BRAIN_PID" 2>/dev/null || true
 }
 trap 'stop_owned_processes; exit 143' TERM INT
@@ -133,12 +138,28 @@ if is_franklin_instance "$INSTANCE"; then
   # migration of any still-running pre-29023a55 legacy poster LOOP is now a documented, ONE-TIME
   # OPERATOR step performed once per instance at deploy — see behavioral-spec.md REQ-002(b)
   # "Deployment / migration runbook".
-  ( export FRANKLIN_TELEMETRY_LOOP=1; while true; do node "$REPO/runtime/dashboard/telemetry-post-franklin.mjs" --home "$ANICCA_HOME" >&2; sleep 120; done ) &
+  (
+    trap - EXIT TERM INT
+    POST_CHILD_PID=""
+    trap 'if [ -n "$POST_CHILD_PID" ] && jobs -pr | grep -qx "$POST_CHILD_PID"; then kill -TERM "$POST_CHILD_PID" 2>/dev/null || true; fi; [ -z "$POST_CHILD_PID" ] || wait "$POST_CHILD_PID" 2>/dev/null; exit 143' TERM INT
+    export FRANKLIN_TELEMETRY_LOOP=1
+    while true; do
+      node "$REPO/runtime/dashboard/telemetry-post-franklin.mjs" --home "$ANICCA_HOME" >&2 &
+      POST_CHILD_PID="$!"
+      wait "$POST_CHILD_PID"
+      POST_CHILD_PID=""
+      sleep 120 &
+      POST_CHILD_PID="$!"
+      wait "$POST_CHILD_PID"
+      POST_CHILD_PID=""
+    done
+  ) &
 else
   pkill -f "dashboard/telemetry-poster.mjs" 2>/dev/null || true
   sleep 1
   node "$REPO/runtime/dashboard/telemetry-poster.mjs" >&2 &
 fi
+POSTER_PID="$!"
 
 # 4. brain endpoint + model the loop should use -------------------------------------------------
 export OPENAI_BASE_URL="http://127.0.0.1:$PORT/v1"
