@@ -327,6 +327,8 @@ CLEAN-04完全release反映: fresh available3,450,400,768 bytesへの自然回�
 
 CLEAN-04現在自然証拠: reconcile直前fresh statusはlife-manager-release-reconcilerがPID36404/f78でloaded-runningへ変化したためroot applyを発行しない。既存self-handoffを追跡する。native watchdogはloaded067ac/interval60/runs124/last exit0をfresh safe GUIで確認。正式bounded stdoutの自然17:17:48/17:19:22/17:21:07/17:22:55/17:24:45Zは全てerrors0/protected_deletions0/cursor persisted/empty errors。free_after1,050,955,776→1,015,984,128→3,463,135,232→2,318,041,088→2,315,501,568。VM total11520→10240MiB、swapfile11不在を確認するが各free変動全量を帰属しない。新旧releaseのst_blocks sumは約118MBずつでclone共有blockの非加算値、本番物理削減をこの合計から主張しない。native reuse8327/実source一致は確認済み、正式receipt=cleanup-clone-runtime-20261011.json。次cursor=active reconcilerの自然terminal/self-handoff→実producerと回収の同期間収支→CLEAN-05→06。根本修復未完を維持する。
 
+CLEAN-05の追加自然branch証拠（CLEAN-04完了扱いなし）: x402-sale-observer18dd3b3561c83e40-48051は17:28:47Z start→17:28:50Z terminal pass0、同f78/argv e9a49668/env fa432334一致。canonical admission-v2のexact occurrenceはreleased/effect_unknown0。続くdeterministic lancers-revenue-work-sync18dd3b391f232cb8-48556は17:29:03Z自然execute/claim→17:29:23Z terminal fail1、同f78/argv15ca1eac/env27a6e7af一致→exact DB released/effect_unknown0。枠返却と次claim/通常失敗時の返却は確認済み、Lancers業務成功/納品/売上へ置換しない。Lancers skipの業務境界は変更せずread-only運用観測のみ。使用中/unknownの解放やmanualwake無し。現在cursorはCLEAN-04の生成・回収収支とreconciler self-handoffを維持する。
+
 **cleanup現在readback（source/main/release/loaded/naturalを区別）:**
 
 | atom | 確認済み | 実際に残る一操作 |
