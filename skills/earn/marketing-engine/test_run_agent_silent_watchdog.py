@@ -58,3 +58,26 @@ def test_provider_that_has_started_writing_is_left_alone(tmp_path):
     proc, evidence, elapsed = _run(tmp_path, CHATTY_RUNNER, silent_seconds=2)
     assert proc.returncode == 0, proc.stderr
     assert not (evidence / "silent-start-diagnosis.txt").exists()
+
+
+# Since #7445 (2026-10-10) agent_runner relays provider output into
+# attempt-NN-<id>.capture/{stdout,stderr}/stderr.log and leaves attempt-NN.std*.log empty.
+# The watchdog only looked at the top-level logs, so it killed a working Capafy CP1 agent
+# at 420s on every pass (12:47, 13:35, 14:03 JST).
+CAPTURE_RUNNER = """
+import argparse, pathlib, time
+a = argparse.ArgumentParser(); a.add_argument('--evidence-dir')
+args, _ = a.parse_known_args()
+d = pathlib.Path(args.evidence_dir); d.mkdir(parents=True, exist_ok=True)
+(d / 'attempt-01.stdout.log').write_text('')
+cap = d / 'attempt-01-abc.capture' / 'stdout'; cap.mkdir(parents=True)
+(cap / 'stderr.log').write_text('working\\n')
+time.sleep(4)
+print('{"status":"ok","evidence":["done"]}')
+"""
+
+
+def test_provider_writing_only_into_capture_dir_is_left_alone(tmp_path):
+    proc, evidence, elapsed = _run(tmp_path, CAPTURE_RUNNER, silent_seconds=2)
+    assert proc.returncode == 0, proc.stderr
+    assert not (evidence / "silent-start-diagnosis.txt").exists()
