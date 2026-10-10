@@ -265,6 +265,73 @@ def _real_directory_fingerprint(root: Path, path: Path) -> tuple[int, int, int] 
     return fingerprint if state == "real" else None
 
 
+@lru_cache(maxsize=1)
+def _darwin_clang_cache(home: Path) -> Path | None:
+    """Use the UID's native cache path, never another user's home or temp root."""
+    if sys.platform != "darwin" or home.resolve() != Path.home().resolve():
+        return None
+    try:
+        probe = subprocess.run(
+            ["/usr/bin/getconf", "DARWIN_USER_CACHE_DIR"], capture_output=True,
+            text=True, timeout=3, check=False,
+        )
+        if probe.returncode != 0 or probe.stderr.strip():
+            return None
+        native = Path(probe.stdout.strip())
+        if not native.is_absolute():
+            return None
+        native = native.resolve(strict=True)
+        native.relative_to("/private/var/folders")
+        cache = native / "clang/ModuleCache"
+        return cache if native.name == "C" and cache.lstat().st_uid == os.getuid() else None
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return None
+
+
+def _clang_compiler_active() -> bool:
+    try:
+        probe = subprocess.run(
+            ["/bin/ps", "-axo", "comm="], capture_output=True,
+            text=True, timeout=3, check=False,
+        )
+        if probe.returncode != 0 or probe.stderr.strip():
+            return True
+        return any(
+            Path(line.strip()).name in {"cc", "c++"}
+            or Path(line.strip()).name.startswith(("clang", "swiftc", "swift-frontend", "gcc", "g++", "cc1"))
+            for line in probe.stdout.splitlines()
+        )
+    except (OSError, subprocess.SubprocessError):
+        return True
+
+
+def _clang_module_identity(cache: Path, path: Path) -> tuple | None:
+    """Only private, single-link generated Mach-O AST files in this cache."""
+    try:
+        relative = path.relative_to(cache)
+        if path.suffix != ".pcm" or len(relative.parts) not in {1, 2}:
+            return None
+        directories = tuple(_real_directory_fingerprint(Path("/"), p)
+                            for p in (cache, path.parent))
+        if any(proof is None for proof in directories):
+            return None
+        descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+        try:
+            info = os.fstat(descriptor)
+            if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_nlink != 1:
+                return None
+            header = os.read(descriptor, 4096)
+        finally:
+            os.close(descriptor)
+        if (header[:4] != b"\xcf\xfa\xed\xfe" or header[12:16] != b"\x01\0\0\0"
+                or b"__clangast\0" not in header):
+            return None
+        return (*directories, (info.st_dev, info.st_ino, info.st_mode, info.st_uid,
+                               info.st_nlink, info.st_size, info.st_mtime_ns, info.st_ctime_ns))
+    except (OSError, ValueError):
+        return None
+
+
 def _bytes(
     path: Path,
     *,
@@ -1117,6 +1184,12 @@ class HostDiskGovernor:
         """Require discovery proof and an exact regenerable path family."""
         if item.get("discovery") != "allowlisted":
             return False
+        if item.get("class") == "regenerable_output" and item.get("owner") == "clang-module-cache":
+            cache = _darwin_clang_cache(self.home)
+            proof = item.get("clang_identity")
+            return (cache is not None and isinstance(proof, tuple)
+                    and not _clang_compiler_active()
+                    and _clang_module_identity(cache, path) == proof)
         if item.get("class") == "regenerable_output" and item.get("owner") == "zombie-worktree":
             proof = item.get("worktree_identity")
             return (
@@ -1264,9 +1337,9 @@ class HostDiskGovernor:
                 pass
         shutil.rmtree(path)
 
-    def _open_real_directory(self, path: Path) -> int:
-        """Open a directory from home one no-follow component at a time."""
-        root = Path(os.path.abspath(self.home))
+    def _open_real_directory(self, path: Path, *, root: Path | None = None) -> int:
+        """Open a directory one no-follow component at a time."""
+        root = Path(os.path.abspath(self.home if root is None else root))
         target = Path(os.path.abspath(path))
         relative = target.relative_to(root)
         if not hasattr(os, "O_NOFOLLOW"):
@@ -1546,19 +1619,21 @@ class HostDiskGovernor:
                 preserve(state)
                 continue
             if (
-                item.get("owner") == "codex-app-updater"
+                item.get("owner") in {"codex-app-updater", "clang-module-cache"}
                 and not self._allowlisted_candidate(path, item)
             ):
                 result["errors"] += 1
                 preserve("path_identity_changed")
                 continue
-            # Classes where the whole tree is the unit of proof. A release is an
+            # Classes where the artifact itself is the unit of proof. Clang
+            # candidates are proven regular AST files, so have no descendants.
+            # A release is an
             # export of the repository, so it always contains source and scanning
             # inside would preserve every generation forever; what makes an old one
             # safe to drop is that nothing references it, checked during discovery.
             whole_tree_is_the_unit = item.get("owner") in {
                 "browser", "codex-app-updater", "codex-runtime-cache", "whisper-model-cache",
-                "release-retention", "zombie-worktree",
+                "release-retention", "zombie-worktree", "clang-module-cache",
             } | set(EXACT_CACHE_ROOTS)
             descendant_state = None if whole_tree_is_the_unit else self._protected_descendant(
                 path, deadline=deadline,
@@ -1587,7 +1662,7 @@ class HostDiskGovernor:
                     preserve("probe-budget-exhausted")
                     continue
                 if (
-                    item.get("owner") == "codex-app-updater"
+                    item.get("owner") in {"codex-app-updater", "clang-module-cache"}
                     and not self._allowlisted_candidate(path, item)
                 ):
                     result["errors"] += 1
@@ -1622,7 +1697,7 @@ class HostDiskGovernor:
                 preserve("active_lease")
                 continue
             if (
-                item.get("owner") == "codex-app-updater"
+                item.get("owner") in {"codex-app-updater", "clang-module-cache"}
                 and not self._allowlisted_candidate(path, item)
             ):
                 result["errors"] += 1
@@ -1631,6 +1706,19 @@ class HostDiskGovernor:
             try:
                 if item.get("owner") == "codex-app-updater":
                     self._remove_sparkle_tree(path, item)
+                elif item.get("owner") == "clang-module-cache":
+                    descriptor = self._open_real_directory(path.parent, root=Path("/"))
+                    try:
+                        parent = os.fstat(descriptor)
+                        leaf = os.stat(path.name, dir_fd=descriptor, follow_symlinks=False)
+                        proof = item["clang_identity"]
+                        if ((parent.st_dev, parent.st_ino, parent.st_mode) != proof[1]
+                                or (leaf.st_dev, leaf.st_ino, leaf.st_mode, leaf.st_uid,
+                                    leaf.st_nlink, leaf.st_size, leaf.st_mtime_ns, leaf.st_ctime_ns) != proof[2]):
+                            raise OSError(errno.ESTALE, "clang candidate identity changed")
+                        os.unlink(path.name, dir_fd=descriptor)
+                    finally:
+                        os.close(descriptor)
                 elif item.get("owner") == "zombie-worktree":
                     identity = item.get("worktree_identity")
                     if not isinstance(identity, tuple) or self._worktree_identity(
@@ -1719,6 +1807,15 @@ class HostDiskGovernor:
         a deletion candidate merely because it is large.
         """
         candidates: list[dict] = []
+        cache = _darwin_clang_cache(self.home)
+        if cache is not None and not _clang_compiler_active():
+            for pattern in ("*.pcm", "*/*.pcm"):
+                for path in cache.glob(pattern):
+                    proof = _clang_module_identity(cache, path)
+                    if proof is not None:
+                        candidates.append({"path": path, "class": "regenerable_output",
+                                           "owner": "clang-module-cache", "discovery": "allowlisted",
+                                           "clang_identity": proof})
         for owner, relative in EXACT_CACHE_ROOTS.items():
             cache = self.home / relative
             if cache.is_dir() and not cache.is_symlink():
