@@ -13411,6 +13411,30 @@ flowchart LR
 
 **Current cursor:** item 1. The HE miss is diagnosed and linked to a pre-effect ENOSPC terminal. Current main merge, source changes, and the spec delta remain local until this exact checkpoint is pushed; the production handoff remains active.
 
+### 2026-10-11 08:02 JST — PR includes latest main; slot miss remains catch-up target
+
+- **Git / main:** `origin/main=48c720419977923a7269e7e0b197c67c0b9e2b97` (PR #7576 cleanup-native Git reclaim). Local branch `fix/mobile-owner-recovery-20261011` has merged it at `9455dd99edd179c764e9cc00cee192c84c5c475c`; the local worktree is clean before this SSOT update. Remote PR #7572 is still head `4c53c4cb...` / base `e29ca11f...`; the local main merge and current spec delta must be pushed to make the PR current.
+- **PR checks on prior head:** Travel/notification, agent instruction, OpenClaw, startup context, OSS boundary, Python/unit tests, shell, PII, TruffleHog, and gitleaks passed. `Loop control contracts` is still in progress and must be rechecked on the next exact head. CodeRabbit reports review skipped; no manual reviewer is requested.
+- **Source changes in PR:** future TikTok slots cannot be consumed early; elapsed missed slots remain catch-up eligible. Native-carousel receipts are discovered for existing Postiz metrics. The exact published Postiz row's direct photo URL is recorded in metric snapshots and Telegram reports, including delayed-metric reports. A Postiz profile URL is never presented as an individual post link; unavailable links are explicit.
+- **Tests:** TikTok due/permalink/delayed-metric tests 9/9; marketing-liveness tests 9/9; native metric-source tests 2/2; cadence/catch-up tests 5/5; rotating runner 9/9; `lm-loop-contract` 18 loops / 190 jobs; resource-admission main tests 161 pass; central cleanup main tests 71 pass + 11 subtests. Diff check passes.
+- **Latest official Postiz read (08:01 JST):** 10 current-day `PUBLISHED` rows: JP1 3, Buddha 3, Honne EN 1, Anicca EN Instagram 1, Anicca AI YouTube 1, Anicca main TikTok 1. Seven lanes had a first configured slot due; HE TikTok was the only due lane with 0 posts. JP1/Buddha remain first-slot bursts, so the slot-level 3/day objective is still unmet. Direct post URLs were available for JP1's photo rows, Anicca EN Instagram, and Anicca AI YouTube; Buddha, Honne, and Anicca main TikTok showed profile-only URLs.
+- **HE occurrence:** `life-manager-anicca-he:18dd4ad5bced6750-44143` remains a precise 07:15 pre-effect failure (`scratch_enospc`, exit 78, `effect_status=not_applicable`, no provider receipt). The 08:01 official account window still has no HE publication. This failed occurrence is not among the 20 historic admission fences. Catch up through the normal HE owner only after active release and owner locks clear.
+- **Runtime / capacity:** current pointer is immutable release `20261011T075735-48c72041`, but the loaded release reconciler is still on `d8a4dbc5`; self-handoff and disk-cleanup owners are active. Do not overlap, stop, or restart them. `df -kP` at 08:02 shows 411,448 KiB free. Exact capacity calculation for local candidate `9455dd99` is 347,189,248 bytes with installed Node/npm; headroom is above that candidate, but cut only from final merged main after all owner locks are free and the exact SHA is measured.
+
+**Updated remaining TODO — continue in this order:**
+
+1. Push local main merge `9455dd99` and this SSOT update; verify PR #7572 base/head point to latest main and run required checks on the exact new head.
+2. Merge PR #7572 to main after checks pass, without requesting manual review. Record the merged SHA and calculate capacity for that exact commit.
+3. Read the release-reconciler self-handoff and disk-cleanup natural terminals/locks. Do not overlap their current runs. Cut the merged main SHA only when its measured capacity guard is satisfied and all release locks are free.
+4. Verify main-derived release load and all 18 publisher owner SHAs/argv/terminals. Keep historical effect-unknown fences closed absent exact occurrence evidence.
+5. After lock release, use the normal HE publisher owner to catch up the confirmed 07:15 pre-effect miss; verify its exact Postiz `PUBLISHED` receipt and do not manually post.
+6. Reach 3 distinct configured-slot posts per lane and 54/54 daily for 7 consecutive JST days. Future slots stay pending until due; continue independent work between them.
+7. Complete post-level metrics, direct URL joins, and Telegram delivery across every TikTok/Instagram/YouTube lane. Empty metrics and profile-only post URLs remain visible as unavailable.
+8. Refresh ASC/RevenueCat/in-app funnels, reach Anicca's 100 first-time ASC downloads/day trailing-7-day average, then fix paywall loading and same-quote notification navigation, one conversion experiment at a time.
+9. Verify same-period Apple settled revenue/refunds/fees and attributable actual costs. Require official evidence for USD 10,000 Anicca net MRR before scaling the repeatable process.
+
+**Current cursor:** item 1. Branch is locally synchronized with main `48c720` but not yet pushed; PR #7572's prior-head Loop control check remains in progress. Production remains on an incomplete self-handoff to `48c720`; all-account publishing, metrics, acquisition, and USD 10,000 net MRR remain unverified.
+
 ### 2026-10-11 07:48 JST — Second live slot read; release handoff still active
 
 - **Postiz official GET (07:48 JST):** the JST-day window now has 9 `PUBLISHED` rows: JP1 3, Buddha 3, Honne EN 1, Anicca EN Instagram 1, and Anicca AI YouTube 1. Of the six accounts whose first configured slots are due by 07:48, HE TikTok still has zero rows. JP1 and Buddha's three-row totals remain first-slot bursts, not 3 distinct slots. The other 12 target accounts have not reached their first configured slots yet.
