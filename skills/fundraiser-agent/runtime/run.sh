@@ -25,7 +25,6 @@ PROMPT="$REPO_ROOT/skills/fundraiser-agent/prompts/daily.md"
 SCHEMA="$REPO_ROOT/skills/fundraiser-agent/runtime/pass-result.schema.json"
 SENDER="$REPO_ROOT/skills/_shared/send-telegram.sh"
 PHOTO_SENDER="$REPO_ROOT/skills/_shared/send-telegram-photo.sh"
-LOOP_CLI="${LIFE_MANAGER_LOOP_CLI:-$REPO_ROOT/bin/lm-loop}"
 MIN_FREE_KIB=$((1536 * 1024))
 PRESSURE_FREE_KIB=$((2 * 1024 * 1024))
 # Use the registered daily-driver identity and a task-owned browser context.
@@ -85,15 +84,13 @@ release_browser() {
 
 # An application browser pass temporarily needs close to 1 GiB. Starting below this floor
 # repeatedly ended with ENOSPC before the runner could persist its summary or proof.
-# Keep launchd enabled, ask the existing disk owner to reclaim only classified
-# regenerable artifacts, and let the next scheduled wake retry naturally.
+# Leave the shared cleanup owner running; the next scheduled wake retries naturally.
 FREE_KIB="$(available_kib)"
 if [ -z "$FREE_KIB" ] || ! [[ "$FREE_KIB" =~ ^[0-9]+$ ]]; then
   echo "fundraiser: disk preflight unavailable" >&2
   exit 2
 fi
 if [ "$FREE_KIB" -lt "$PRESSURE_FREE_KIB" ]; then
-  "$LOOP_CLI" restart life-manager-disk-cleanup >/dev/null 2>&1 || true
   echo "fundraiser: deferred disk policy available_kib=$FREE_KIB required_kib=$PRESSURE_FREE_KIB" >>"$LOG"
   exit 75
 fi

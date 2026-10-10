@@ -78,13 +78,13 @@ def _run(tmp_path, free_kib: int, guard_script: str, foundation_script: str = "#
     return result, calls
 
 
-def test_low_disk_requests_cleanup_through_lm_loop(tmp_path):
+def test_low_disk_preserves_shared_cleanup(tmp_path):
     result, calls = _run(
         tmp_path, free_kib=1,
         guard_script="#!/bin/sh\necho http://localhost:9222\nexit 0\n",
     )
     assert result.returncode == 75
-    assert calls.read_text().strip() == "restart life-manager-disk-cleanup"
+    assert not calls.exists(), "low-space deferral must not mutate shared cleanup"
     markers = list((tmp_path / "home" / ".local" / "state" / "life-manager" / "fundraiser" / "effect-markers").glob("*.json"))
     assert len(markers) == 1
     marker = json.loads(markers[0].read_text())
