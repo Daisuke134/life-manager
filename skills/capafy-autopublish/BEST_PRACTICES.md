@@ -80,7 +80,7 @@ Honest reframes that PASS: "from your input + model knowledge", "outputs self-co
 
 ## 8. LISTING FILE SHAPE (so build_config.py can parse it)
 `$LIFE_MANAGER_STATE_HOME/features/capafy-<name>/LISTING.md`:
-- header line: `Primary Model: Claude Sonnet 5.5 · category: <JP> ... tags: a, b, c` (new skills default to Claude Sonnet 5.5 since 2026-10-08 — runs on OpenRouter `anthropic/claude-sonnet-5.5`, same $2/$10 per M price as 5; Capafy's "LLM モデル" combobox has no 5.5 preset, so build_config.py maps the display field to the "Claude Sonnet 5" preset while the hosted model_id stays 5.5; keep caps low: week <= 25, month <= 40, year <= 480)
+- header line: `Primary Model: Claude Sonnet 5.5 · category: <JP> ... tags: a, b, c` (new skills default to Claude Sonnet 5.5 since 2026-10-08 — is hosted on OpenRouter `anthropic/claude-sonnet-5` (Capafy never confirms the hosted key for the 5.5 id, measured 2026-10-10), same $2/$10 per M price as 5; Capafy's "LLM モデル" combobox has no 5.5 preset, so build_config.py maps the display field to the "Claude Sonnet 5" preset while the hosted model_id stays 5.5; keep caps low: week <= 25, month <= 40, year <= 480)
 - a pricing table: `| cycle | price | cap | trial |` rows (trial = `No Free Trial` or
   `Free Trial <hours>h / <N> requests`; see §3 for the new-skill default)
 - `## Title` / `## shortDescription` / `## welcomeMessage` / `## detailedDescription`
