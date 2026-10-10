@@ -1861,6 +1861,7 @@ def main(argv: list[str] | None = None) -> int:
                     effect_identity_status = identity_result.status
                     effect_identity_ref = identity_result.ref
                 except (OSError, ValueError) as error:
+                    effect_identity_status = "rejected"
                     print(
                         f"lm-loop-run: effect identity preservation deferred: {error}",
                         file=sys.stderr,
@@ -1925,7 +1926,10 @@ def main(argv: list[str] | None = None) -> int:
             cleanup_status = "held_terminal_unrecorded"
             cleanup_operation = "terminal_not_saved"
             cleanup_error = terminal_error
-            if terminal_saved:
+            if terminal_saved and effect_identity_status == "rejected":
+                cleanup_status = "held_effect_identity_unrecorded"
+                cleanup_operation = "persist_effect_identity"
+            elif terminal_saved:
                 try:
                     cleanup_operation = "unprotect_marker"
                     unprotect_loop_scratch(scratch_fd)

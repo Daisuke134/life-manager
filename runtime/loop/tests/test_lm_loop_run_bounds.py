@@ -10,6 +10,7 @@ import subprocess
 import sys
 import threading
 import time
+import pytest
 from contextlib import nullcontext
 from pathlib import Path
 from types import SimpleNamespace
@@ -2213,6 +2214,65 @@ def test_main_preserves_live_relay_after_terminal_commit(tmp_path):
         assert lm_loop_run_main(["example-publisher", str(release)]) == 0
     assert (state / "loop-tmp/example-publisher/live-relay-run").exists()
     remove.assert_not_called()
+
+
+@pytest.mark.parametrize("identity_outcome", ["rejected", "save_exception", "persisted", "not_written"])
+def test_failed_run_cleans_scratch_only_after_effect_identity_is_safe(tmp_path, identity_outcome):
+    release = _write_prestart_lock_release(tmp_path)
+    state = tmp_path / "state"
+    scratch = state / "loop-tmp/example-publisher/run-1"
+    sidecar = scratch / "effect-identity.jsonl"
+    value = {
+        "schema_version": 1, "kind": "life_manager_effect_identity",
+        "runtime_run_id": "run-1", "occurrence_id": "example-publisher:run-1",
+        "loop_id": "example-publisher", "job_id": "example-publisher",
+        "effect_key": "marketing:video:honne-ai:tiktok:creative:" + "a" * 64 + ":" + "b" * 64,
+        "product_id": "honne-ai", "format_id": "reelclaw",
+        "form": "relationship-confession", "locale": "ja", "platform": "tiktok",
+        "creative_id": "creative", "slot": "2026-07-30T12:30:00.000Z",
+        "integration_ref": "integration://postiz/tiktok/honne-ai-ja",
+        "account_id": "@honnevideo",
+        "video_sha256": "a" * 64, "caption_sha256": "b" * 64,
+    }
+    raw = json.dumps({"unverified": "preserve original"} if identity_outcome == "rejected" else value) + "\n"
+
+    def run_admitted(_command, _entry, _loop_id, _env, receipt, *, on_claimed, occurrence_id, **_kwargs):
+        on_claimed(occurrence_id)
+        receipt.write_text('{"status":"pass","effect":0}\n')
+        receipt.chmod(0o600)
+        if identity_outcome != "not_written":
+            sidecar.write_text(raw)
+            sidecar.chmod(0o600)
+        return 1
+
+    identity_patch = (patch("runtime.loop.lm_loop_run._persist_effect_identity",
+                            side_effect=ValueError("identity unavailable"))
+                      if identity_outcome == "save_exception" else nullcontext())
+    events = []
+    with (patch.dict(os.environ, {"LIFE_MANAGER_STATE_ROOT": str(state), "LIFE_MANAGER_RUN_ID": "run-1"}),
+          patch("runtime.loop.lm_loop_run._apply_lock", return_value=nullcontext()),
+          patch("runtime.loop.lm_loop_run.build_loop_command", return_value=["/bin/true"]),
+          patch("runtime.loop.lm_loop_run._run_admitted", side_effect=run_admitted),
+          patch("runtime.loop.lm_loop_run.append_runtime_event", side_effect=lambda _p, e: events.append(e)),
+          patch("runtime.loop.lm_loop_run._enqueue_recovery_intent"), identity_patch):
+        assert lm_loop_run_main(["example-publisher", str(release)]) == 1
+
+    assert events[-1]["status"] == "fail"
+    if identity_outcome in {"rejected", "save_exception"}:
+        assert sidecar.is_file(), "failed identity persistence must retain the only original"
+        assert sidecar.read_text() == raw
+        assert (scratch / ".terminal-unrecorded").is_file()
+        diagnostic = json.loads((state / "scratch-cleanup-diagnostics/run-1.json").read_text())
+        assert diagnostic["terminal_saved"] is True
+        assert diagnostic["cleanup_status"] == "held_effect_identity_unrecorded"
+        assert diagnostic["cleanup_operation"] == "persist_effect_identity"
+        from runtime.loop.central_cleanup import scratch_gc
+        assert scratch_gc({state}, starts={})["removed"] == 0
+        assert sidecar.read_text() == raw
+    else:
+        assert not scratch.exists(), "safe completed runs must still clean their own scratch"
+        if identity_outcome == "persisted":
+            assert (state / "effect-identities/run-1.jsonl").read_text() == raw
 
 
 def test_main_records_false_terminal_scratch_cleanup_without_changing_business_result(tmp_path):
