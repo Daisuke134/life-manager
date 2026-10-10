@@ -287,7 +287,8 @@ DaisのiCloud未使用/停止指示を受け、Photos公式UIの『このMacか�
 
 現在cursor=残1/CLEAN-02。前進の証拠が出たatomだけ状態を更新し、完了済みは残TODOから外す。APFS VM/swap、Simulator、正式履歴、memory/state、credential、active/unknown dataは保持する。全体の根本修復完了とはまだ主張しない。
 
-**CLEAN-02の最初の修正:** installed finite 160 ownerのProgramArgumentsは全件`bin/lm-loop-run`に結び付く。`lm_loop_run.py`は失敗runのeffect-identity保存がrejectedでも、terminal_savedだけで`.terminal-unrecorded`を外してscratchを削除する。共通終了処理の同分岐を先に修復する。対象は`runtime/loop/lm_loop_run.py`、既存`runtime/loop/tests/test_lm_loop_run_bounds.py`、本節のみ。失敗sidecarがrejected/保存例外の場合はmarker/元dataを保持し、既存typed cleanup diagnosticでpersist_effect_identity待ちを記録。sidecarが正しくdurable保存された場合と、sidecarが元々書かれていない通常runのcleanupは維持する。business terminal/exit code、admission fence、provider再送は変更しない。隔離fixtureで拒否保存時の証拠保持をREDにし、正常保存後と通常失敗の回収が継続するGREENを確認する。source acceptance→main immutable release→対象owner loaded SHA→自然terminal/cleanup診断を確認し、その後にstandalone/個別producerの残coverageへ進む。
+**CLEAN-02の最初の修正:** installed finite 160 ownerのProgramArgumentsは全件`bin/lm-loop-run`に結び付く。`lm_loop_run.py`は失敗runのeffect-identity保存がrejectedでも、terminal_savedだけで`.terminal-unrecorded`を外してscratchを削除する。共通終了処理の同分岐を先に修復する。対象は`runtime/loop/lm_loop_run.py`、既存`runtime/loop/tests/test_lm_loop_run_bounds.py`、本節のみ。失敗sidecarがrejected/保存例外の場合はmarker/元dataを保持し、既存typed cleanup diagnosticでpersist_effect_identity待ちを記録。sidecarが正しくdurable保存された場合と、sidecarが元々書かれていない通常runのcleanupは維持する。business terminal/exit code、admission fence、provider再送は変更しない。隔離fixtureで拒否保存時の証拠保持をREDにし、正常保存後と通常失敗の回収が継続するGREENを確認する。source acceptance→main immutable release→対象owner loaded SHA→自然terminal/cleanup診断を確認し、その後にstandalone/個別producerの残coverageへ進む。 source REDは保存rejected/保存例外の2件で元sidecar消失を再現し、persisted/not_writtenはPASS。最小の6行差分でrejected時だけ既存markerを保持する。4ケースGREEN、関連bounds/loop cleanup214 tests+11 subtests PASS、markerを中央GCも保持する31 focused tests+4 subtests PASS、contract catalog18/registry190/mapped113/errors0、diff check PASS。現時点はsource受入であり、本番反映・CLEAN-02全体の完了ではない。
+
 
 
 

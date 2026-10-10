@@ -2266,6 +2266,9 @@ def test_failed_run_cleans_scratch_only_after_effect_identity_is_safe(tmp_path, 
         assert diagnostic["terminal_saved"] is True
         assert diagnostic["cleanup_status"] == "held_effect_identity_unrecorded"
         assert diagnostic["cleanup_operation"] == "persist_effect_identity"
+        from runtime.loop.central_cleanup import scratch_gc
+        assert scratch_gc({state}, starts={})["removed"] == 0
+        assert sidecar.read_text() == raw
     else:
         assert not scratch.exists(), "safe completed runs must still clean their own scratch"
         if identity_outcome == "persisted":
