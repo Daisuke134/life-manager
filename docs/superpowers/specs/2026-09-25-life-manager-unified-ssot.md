@@ -295,6 +295,9 @@ CLEAN-04 inventory main/current/loaded: #7563 exact5bf2f15a169868380e73019dff8b8
 
 CLEAN-05 Writer profile競合の再発修復scope: 次自然18dd46a0d0f75ff0-31280（20:58:03→20:58:09Z）もentrypoint75/guard BUSY rc9、holderPID24631/start05:55:17JST、その後psではPID無し。モデル枠分類は解決済みだが、workerが正当なbrowser占有で計測を終了するためbusy→解放まで同じ計測を続行できない。既存owned sales lockを保持し、既存browser-guard.acquireのrc9だけ5秒後に再試行する小差分で直す。親のfinite runtime bound3600秒を維持し、他のguard失敗は元どおり75、foreign leaseをreleaseせず、自分がacquireできた時だけmeasure→money_sync→自分のlease release。新queue/profile/identity/timeout設定/上限/金融計算/送信追加なし。既存browser-lease testをbusy一回→successでRED→GREENにし、unknown error即停止とmeasurement失敗時の自分のreleaseを確認。source/main/immutable→fresh loaded-idleでWriterだけ採用→次の自然計測/readback/自己cleanupへ。CLEAN-04 inventory自然進行は並行観測、完了済み分類修復をTODOへ戻さない。
 
+CLEAN-05 browser wait source受入: 既存fixtureをbusy一回→successへ変更し、旧workerの即75をREDで確認。guard rc9だけsleep5後に同じacquireを再試行し、success後だけ自分のleaseをreleaseする最小whileでGREEN。worker4tests PASS（foreign release無し/正しいendpoint/unknown rc7即75/計測失敗23でown lease release）、既存sales-measure lock contract PASS（stale reclaim/legacy live保持/token付きbusy保持）、bash syntax/diff PASS。親runtime_timeout default3600は変更なし、新retry設定/queue/profile/priority/cap0。次=CI/main→immutable→idle対象採用→自然busy→解放後のofficial計測/terminal保存/自己cleanup。
+
+
 
 
 
