@@ -12509,3 +12509,15 @@ flowchart LR
 - Capacityは21:42 JSTに141,176 KiB。最後に確認したfull cleanup receipt (21:32) は32件全保持、削除0、capacity unmet。Runtime owner/loaded SHA、Postiz、Stripeはこのsource edit後に再照合していない。最後のPostiz/Stripe official GETは20:59 JST時点で、今日のPUBLISHEDは0件、Stripe active subscription 0件。
 
 **現在cursor:** source branchのgit diff --checkとpack referenceを再確認 → commit/push → current mainへ同期しexact-head CI/review → merge。次に最新capacity/lock/loaded SHAが安全条件を満たした場合だけmain由来immutable releaseを対象JA ownersへ反映し、fresh distinct occurrenceを発行。Postiz PUBLISHEDなら成功、permalinkは取得できれば共有。その後、日本語2/dayを継続し、Postizの@monk.mujo mapping、checkout/PDF、verified net MRR $10Kへ進む。
+
+### 2026-10-10 21:51 JST — Postiz channel cap and current publication readback
+
+この追記はPostiz状態を21:44 JSTのofficial GETで更新する。投稿・channel接続・subscription変更はしていない。
+
+- Postiz browser sessionとAPIは200。integrations listは31件。Monk Anicca TikTok integration cmo5rwq2p00twn10yrsdglng3、obou.anicca Instagram cmooplxmu04tpmd0y4h3cpk33、obou_anicca TikTok cmo5s4edx00vgn10ygnu34a0nはいずれもdisabled=false。指定@monk.mujoはlistにない。公開Instagram profileはMonk Mujoとして確認できる。TikTok公開HTMLはgeneric titleのままで、@monk.mujo accountの存在は未確認。
+- GET /integrations/social/instagram-standaloneはHTTP 402。API message: "You have reached the maximum number of channels for your subscription. Please upgrade your subscription to add more channels."
+- 公式pricing page https://postiz.com/pricing の月払いはStandard $29/5 channels、Team $39/10、Pro $49/30、Ultimate $99/100。現在accountのtier名・追加請求額は確認できていない。Postiz upgrade購入・既存channel削除はしていない。ユーザーの既存plan承認はHeyGen向けで、Postiz upgradeは未承認。
+- Postiz GET /postsは200で週間219 rows。正確にjoinできたJA IG/TTの10/10 JST PUBLISHEDは0件。Monk TikTokはこのresponseでintegrationへのjoinを確認できず、新規PUBLISHED/linkも未確認。投稿成功はユーザー指示どおりPostiz PUBLISHEDで判定し、linkはあれば共有。
+- Source PR #7505はhead 5375f825314a7ae026dafce321239ff78ce1ae6bでchecks再実行中。ローカルfocused Node/Python/admission testsはpass。空き容量は21:51 JSTに289,916 KiB、production release/applyには不足。
+
+**現在cursor:** PR #7505のexact-head checks/reviewを通してmainへmerge → Postiz channel-capの解決方法と現契約tierを確認（購入・削除しない） → fresh capacity/owner lock/loaded SHAを確認後、JA ownerへtargeted release/apply → new distinct occurrenceのPostiz PUBLISHEDを確認、以降有効accountごと2/day → checkoutから正しいPDFまでの購入readback → Stripe settlement/refund/feesと生成/配信costを照合してverified net MRR $10Kへ進む。
