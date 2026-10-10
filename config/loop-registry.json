@@ -3385,6 +3385,7 @@
     },
     "lm-recording-store": {
       "adapter": "exec",
+      "resource_class": "deterministic",
       "cadence": {
         "start_interval_seconds": 1800
       },

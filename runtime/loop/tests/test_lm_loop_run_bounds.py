@@ -438,6 +438,70 @@ def test_mobile_publish_entrypoint_uses_occurrence_scoped_admission(tmp_path):
     run.assert_not_called()
 
 
+
+def test_mobile_wrapper_continues_new_occurrence_after_ownerwide_reconcile_miss(tmp_path):
+    repo_root = Path(__file__).parents[3]
+    owner = "life-manager-honne-ja"
+
+    def invoke(name, occurrence):
+        root = tmp_path / name
+        root.mkdir()
+        marker = root / "runner-called"
+        calls = root / "calls.txt"
+        fake_python = root / "python"
+        fake_node = root / "node"
+        env_file = root / "marketing.env"
+        fake_python.write_text(
+            "#!/bin/sh\n"
+            "printf \"%s\\n\" \"$1\" >> \"$LM_TEST_CALLS\"\n"
+            "case \"$1\" in\n"
+            "  *mobile-postiz-provider-reconcile.py) exit 1 ;;\n"
+            "  *run-with-timeout.py) touch \"$LM_TEST_RUNNER_CALLED\"; exit 0 ;;\n"
+            "  *) exit 0 ;;\n"
+            "esac\n",
+            encoding="utf-8",
+        )
+        fake_node.write_text(
+            "#!/bin/sh\nprintf \"%s\\t%s\\t%s\\t%s\\t%s\\n\" fake-runner run anicca-ios https://anicca.app mobile-products/anicca-ios\n",
+            encoding="utf-8",
+        )
+        fake_python.chmod(0o700)
+        fake_node.chmod(0o700)
+        env_file.write_text(
+            "LM_POSTIZ_API_KEY=test-token\nLM_DATA_DIR="+str(root/"data")+"\nLM_RUNTIME_TENANT_ID=dais-local\n",
+            encoding="utf-8",
+        )
+        env_file.chmod(0o600)
+        env = {key:value for key,value in os.environ.items()
+               if key not in {"LIFE_MANAGER_RELEASE_SHA", "LIFE_MANAGER_OCCURRENCE_ID"}}
+        env.update({
+            "LIFE_MANAGER_MARKETING_ENV_FILE": str(env_file),
+            "LIFE_MANAGER_NODE": str(fake_node),
+            "LIFE_MANAGER_PYTHON": str(fake_python),
+            "LIFE_MANAGER_LOOP_ID": owner,
+            "LIFE_MANAGER_OCCURRENCE_ID": occurrence or "",
+            "LM_TEST_CALLS": str(calls),
+            "LM_TEST_RUNNER_CALLED": str(marker),
+            "TMPDIR": str(root),
+        })
+        result = subprocess.run(
+            [str(repo_root/"apps/life-manager/scripts/mobile-app"), owner],
+            cwd=repo_root, env=env, capture_output=True, text=True,
+        )
+        return result, marker, calls
+
+    current = owner + ":new-slot"
+    allowed, allowed_marker, allowed_calls = invoke("allowed", current)
+    assert allowed.returncode == 0, allowed.stderr
+    assert allowed_marker.exists()
+    assert len(allowed_calls.read_text(encoding="utf-8").splitlines()) == 2
+
+    missing, missing_marker, missing_calls = invoke("missing", None)
+    assert missing.returncode == 75, missing.stderr
+    assert not missing_marker.exists()
+    assert len(missing_calls.read_text(encoding="utf-8").splitlines()) == 1
+
+
 def test_explicit_marketplace_occurrence_scope_is_forwarded_to_admission(tmp_path):
     entry = {
         "cadence": {"start_interval_seconds": 300},
