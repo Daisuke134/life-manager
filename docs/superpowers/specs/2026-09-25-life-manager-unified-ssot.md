@@ -389,6 +389,9 @@ CLEAN-05 passive Writerの実資源分類修復scope: queued76577の同期間act
 
 CLEAN-05 Writer分類source受入: 実registryを使う既存getter testのwriter parameterはagent classでcapacity_busyのRED、resource_class browserとWriter recovery_classes browser宣言の最小差分後GREEN。recording getter＋writer2cases、browser/rebind関連17tests PASS（queued occurrence/queued_at/sequence保持）。部分checkoutに不足したcontract script/product-onboarding/catalogだけをGit HEADから復元し、linked recovery_class mismatchを実態どおり直してlm-loop-contract18loops/190jobs/113mapped/errors0。capacity上限/borrow/support/金融計算/provider effect/cadenceは変更なし。次=commit/push/exact-head CI/main→ALL immutable→queued writerをfresh idleで既存rebind→自然claim/primary保存/自己cleanup。sourceだけで仕事成功や基盤Doneとはしない。
 
+CLEAN-05分類CI補正: #7560初回CIは857test中855PASS/2FAIL。旧writer全jobをagentと固定したregistry assertionとbyte-stable macos-loop-jobs fixtureだけが変更分類に未追従。計測ownerだけbrowser、他Writerはagentの期待値へ更新し、既存render_job_modelsからfixtureを再生成して変更model1件だけを確認。対象registry2tests PASS/contracterrors0。既存getter/rebind17PASSと合わせ、実際のgetter動作、queued identity保持、registry/生成モデル契約を検証する。current採用前なのでlive resource上限変更/送信/再送0。
+
+
 
 
 
