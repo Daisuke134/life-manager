@@ -295,6 +295,8 @@ CLEAN-04の次source修復scope: existing reclaim_unreferenced_sourceの実計�
 
 CLEAN-04の緊急回収scope: native macOS diagnostic storeの実duは/private/var/db/diagnostics887016KiBとuuidtext323860KiB（合計1,239,937,024 bytes）。前のSSOTと同じoperator-owned診断logだけを公式sudo -n /usr/bin/log erase --allで回収し、業務receipt/履歴/state/profileを保持する。log stats --overviewの実handle46048/PID29519はread-onlyで遅いため終了させ、既存本番sourceは改変しない。これはrelease反映の書込復旧の一手で、繰返し手動掃除不要の完了証拠ではない。
 
+CLEAN-04の回収/readback結果: native log eraseはexit0/Deleted selected logs、diagnostics887016→14992KiB（減892,952,576 bytes）、uuidtext323860KiBは公式経路でも保持。fresh free1,075,781,632 bytes、GUI preflight receipt PASS。native watchdogはloaded067ac/interval60/runs80/last exit0、restartせず保持する。正しい保存先 ~/.local/state/life-manager/state/last-receipt.json の自然16:19:51Zはrun18dd375ad3486da8-27045/release067ac、errors0/protected_deletions0/cursor persisted/空errors/inventory_error無しを確認。別のowner-local last-receipt16:01は古いままで、fresh自然失敗と混同しない。これは一回の自然保存回復で、反復稼働・全owner成果・手動掃除不要をDoneにしない。
+
 **cleanup現在readback（source/main/release/loaded/naturalを区別）:**
 
 | atom | 確認済み | 実際に残る一操作 |
