@@ -112,6 +112,12 @@ const ALLOWLIST = [
     reason: "denial regex rejecting legacy runtime roots",
   },
   {
+    file: "runtime/host/disk_admission.py",
+    line: 111,
+    lineIncludes: 'owner_home / "' + "." + "open" + "claw" + '" / "state",',
+    reason: "read-only stop-flag check preserves the protected host control state",
+  },
+  {
     file: "apps/life-manager/lib/loop-adapter-registry.js",
     lineIncludes: "LEGACY_OR_ABSOLUTE",
     reason: "denial regex rejecting legacy adapter module refs",

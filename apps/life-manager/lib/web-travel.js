@@ -6,7 +6,7 @@ const { webTravelEntitled, webTrialEligible, webPaidCheckoutEligible } = require
 const { assertWebUserUnbound } = require("./web-calendar.js");
 const { readWebTravelControlState } = require("./runtime-preferences.js");
 const { recordWebFunnelEvent } = require("./web-funnel-events.js");
-const { isTravel, listEvents7d, travelDecision } = require("./travel.js");
+const { hasDeparturePopupReminder, isTravel, listEvents7d, travelDecision } = require("./travel.js");
 
 const SETUP_PATH = "/api/lm-web/setup";
 const TODAY_PATH = "/api/lm-web/today";
@@ -266,12 +266,6 @@ function matchingTravelBlocks(events, event) {
     && candidate.endMs >= event.startMs - 2 * 60_000
     && candidate.endMs <= event.startMs + 60_000
     && String(candidate.location || "").replace(/\s+/g, "").toLowerCase() === location);
-}
-
-function hasDeparturePopupReminder(event) {
-  return Boolean(event && event.reminders && event.reminders.useDefault === false
-    && Array.isArray(event.reminders.overrides)
-    && event.reminders.overrides.some((reminder) => reminder && reminder.method === "popup" && reminder.minutes === 0));
 }
 
 function confirmedTravelBlockCount(events, nowMs) {
