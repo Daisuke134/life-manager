@@ -13357,3 +13357,25 @@ flowchart LR
 8. Reconcile same-period settled Apple proceeds, refunds, fees, and attributable actual costs. Confirm Anicca USD 10,000 net MRR only from official evidence, then replicate the measured path across the other live apps.
 
 **Current cursor:** item 1, exact-head PR checks. Main source, release, and all-account three-slot delivery remain incomplete; the active runtime owners are not a reason to idle on non-slot source or measurement work.
+
+### 2026-10-11 07:42 JST — Official slot read identifies HE's exact pre-effect miss
+
+- **Postiz official GET:** the current JST-day window contains 8 `PUBLISHED` rows across four integrations: `@anicca.jp1` 3, `@anicca_buddha` 3, `@honne_reveal` 1, and `@anicca.en` 1. Configured first-slot times at 07:42 show five lanes due: JP1 06:30, Buddha 07:00, Honne EN 07:00, HE TikTok 07:15, and Anicca EN Instagram 07:30. The other 13 lanes' first slots are later. JP1 and Buddha's three receipts are concentrated within seven minutes of their first slots; that does not prove three separated slots. JP1 has direct photo permalinks; Buddha/Honne still expose only profile URLs.
+- **Exact missed owner run:** `life-manager-anicca-he`'s 07:15 JST occurrence `18dd4ad5bced6750-44143` ended with exit 78, `scratch_enospc`, `storage_write_failed_pre_effect`, `effect=not_applicable`, and no Postiz receipt. The official 07:42 Postiz read shows no HE post today. That failed occurrence is not among the 20 currently reported admission fences; retain all existing fences and do not send through a direct API path.
+- **Owner/launch state:** the installed HE plist is scheduled at 07:15/13:45/18:15 JST. `lm-loop status --explain` shows it loaded-idle on `33fd`, last recorded provider success yesterday at 23:17 JST, runtime `last_exit=78`, and unresolved historical effect-unknown claims. The exact 07:15 failure is pre-effect; catch it up through the normal HE owner only after the active reconciler/apply lock is naturally free.
+- **PR / source:** PR #7572 is open against main `ff7e89673c2f31aafaf26b0fd2e226ca7a66639d`, branch head `2a9e5e04d4358ddffb7031c3f9fe41ed39f23321`. Python, Shell, PII, OSS-boundary, Startup-context, and Cloud-reminder checks pass; Loop control contracts, gitleaks, and TruffleHog remain in progress. CodeRabbit indicates review skipped; no manual review or subagent is requested. The post-link code is pushed in the branch; source is not merged or deployed.
+- **Capacity / live owners:** `current` points to immutable release `20261011T073808-ff7e8967`; the old reconciler process (PID 76935) still holds its apply lock while the handoff helper runs. Disk cleanup PID 77179 is also active. At 07:41, `df -kP` showed 523,296 KiB available. The exact current branch head `2a9e5e0` measures a 347,123,712-byte release requirement with installed Node/npm, so capacity is above that candidate; wait for both owners' natural terminals/locks and recompute for the final merged SHA before release cut.
+
+**Updated remaining TODO — continue in this order, without waiting for another slot:**
+
+1. Finish required checks for PR #7572's exact head `2a9e5e0`; merge it to main after they pass. If a check fails, fix only that failure and rerun on the new head.
+2. Read the active reconciler and cleanup-owner terminal receipts and lock state. Do not overlap either run or trigger an owner while its release handoff is active.
+3. Recompute release capacity on the exact merged main SHA; cut a main-derived immutable release when the cut lock is free and free bytes meet that SHA's requirement. Verify the self-handoff and current release.
+4. Apply normally and verify each of the 18 publisher owners' loaded SHA, argv, terminal, and admission state. Keep JP1's 3,480 historic fences closed without exact occurrence proof.
+5. Catch up HE's elapsed 07:15 slot through its normal owner after locks clear, using occurrence `18dd4ad5bced6750-44143`'s pre-effect result as evidence; do not manually post or resolve unrelated fences. Then verify distinct slot receipts for all due lanes.
+6. Continue until all 18 lanes have three distinct configured-slot `PUBLISHED` receipts daily for seven consecutive JST days (54/54 each day). Keep future slots pending until due and continue work between slots.
+7. Finish per-post metrics coverage for TikTok, Instagram, and YouTube. Put exact Postiz direct URLs in Telegram where present; keep profile-only URLs and empty metrics visibly unavailable.
+8. Refresh six-app ASC/RevenueCat/in-app funnels; reach Anicca's 100 ASC first-time downloads/day trailing 7-day average, then fix the measured paywall and notification-to-same-quote issues and run one conversion experiment at a time.
+9. Reconcile same-period Apple settled proceeds, refunds, fees, and actual costs. Require official evidence for Anicca USD 10,000 net MRR before scaling to the other apps.
+
+**Current cursor:** item 1. The HE first-slot miss is confirmed as a pre-effect storage failure; its elapsed slot can be recovered after the active reconciler/handoff releases its lock. The current PR checks and runtime-owner transitions are active, so neither is being bypassed.
