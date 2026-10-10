@@ -58,3 +58,15 @@ Report after publication: article URL + deployed commit + actual publication tim
 ## Copy-review follow-up
 
 2026-10-10: independent review identified two Honne wording issues. Corrected Japanese copy to describe the iPhone app, not a web demo. Both languages now link to https://aniccaai.com/honne/privacy, accurately state explicit consent before sending entered text to OpenAI, recommend fictional/anonymized examples, and exclude confidential third-party conversations. Privacy page and both App Store listings were re-read; minimum iOS remains Anicca 16.6 / Honne 18.0. No blanket Data Not Collected guarantee is used. Four article slugs and four campaign CTA URLs are unchanged.
+
+## Lightweight readiness check (follow-up)
+
+- Exact head acb4a79d808ab6553609aac985341296956f1397 was open/draft, 10 CI checks successful, no submitted GitHub reviews. This is evidence for that head, not subsequent commits.
+- Markdown open_in_codex remained queued; attempting the existing GitHub rendered Markdown URL timed out. Neither is a completed visual preview. No server/dependency/build/deployment was created to work around it.
+- Four body sections, titles, descriptions and distinct slugs checked. The four campaign query sets retain exactly source=dot_owned, medium=organic_editorial, campaign=mobile_work_moments_20261010 and the correct locale-specific content value.
+- Live CTA HTTP reads returned 200 and HTML contained the correct App Store product IDs (Anicca 6755129214, Honne 6759667221). These are HTML/link checks, not a user click, analytics receipt, install or paid conversion. Existing outbound URLs do not establish preservation of the incoming UTM tags.
+- short-posts.md adds four short drafts for the existing articles, with affiliation disclosure and the same proposed article destinations. No new article, social destination, publication registration or scheduler is introduced.
+
+Remaining before publication: completed website-template/mobile rendering preview; selected article scope and exact publication authorization; website owner implementation/deployment through its normal path; verified click instrumentation and supported App Store attribution; actual published-body/readback. Short posts also need an exact account/channel, applicable destination rules and separate action scope. Do not treat CI, queued UI, drafts or HTTP 200 on existing landing pages as publication or attribution.
+
+Outbound URL detail: Anicca EN/JA link directly to the correct App Store app without a campaign query. Honne EN/JA include existing pt=93486075, ct=site_honne, mt=8. That shared site campaign is not article/locale attribution; no provider token was added or changed here.
