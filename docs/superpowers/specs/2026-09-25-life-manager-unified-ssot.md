@@ -309,6 +309,10 @@ CLEAN-04 cutter source受入: 低容量でcleanup-ranが存在しないRED2 subc
 
 CLEAN-04反映の新readback: 別ownerが作成したcurrent20261011T013322-f78a2399/sha f78a23995df5f50724131b51ade652b27fa7fc13はancestor-of-origin-main/ALL/read-only、central_cleanup本体SHA15683e2cはmain44d4694db6と一致。追加cut不要で再利用。first release-gc-onlyはexit0/errors0/protected_deletions0/source lifecycle_lock_busy/回収0。fresh safe GUI receipt PASSとlife-manager-disk-cleanup loaded-idle/unknown=false/installed067acを確認。共有lock競合が解消しfresh idleの時だけcanonical reconcile deterministic --loaded-idle-only --max-owners 1 --loop-id life-manager-disk-cleanupでf78へ一担当反映し、loaded argv/SHAと自然回収を確認する。currentポインタは変更しない。
 
+CLEAN-04最新反映/自然readback: currentf78a23995df5f50724131b51ade652b27fa7fc13/ALL/main由来/read-onlyを再利用し、fresh safe GUI PASS・loaded-idle・effect unknown=falseの一件だけcanonical reconcile deterministic/loaded-idle/maxowners1で反映。event2aa8cdb2ce1fd4c14329f3c8、applied1/failed0/changedtrue/admission_resumedfalse、loaded argv=f78を確認。自然run18dd3861f0b6a410-53016は16:37:00Z start→16:39:39Z terminal pass0、同release f78。host receipt16:38:53Zはerrors0/protected_deletions0/reclaimed0/inventory保存成功だがcursor before_sweep errno28あり、全体Doneではない。central stdoutのsource reclaimはlifecycle_lock_busy/回収0。共有apply50277→56237→60772→63738の実lock保持を確認、停止や強制解放0。AGMSG lm-leadへ回収窓の調整を依頼済み。GCの空いた回はpreserved0で、原因は未確定。
+
+cutter順序修復はPR #7534 exact3c4fbed5b2a83c59dbda2def4769335cd8d70005/CI38068347966全10SUCCESS後admin main ec309dd19b2f0efd36eaeb5e8e97b91472e75d4bへ統合。main由来専用worktreeから正規cutter一回は既存prune先行後available1,344,253,952/required2,147,483,648/disk_headroom_low75でexport前延期、partial/current変更0。この修復はsource/main済み、完全release反映未完。次cursor=CLEAN-04の共有lockが空く自然窓でsource reclaimのpreserved判定を診断・実回収→修復済みmainの完全release→CLEAN-05枠返却/自動再開→CLEAN-06同期間反復。旧cursorへ戻さず全体未完を維持。
+
 **cleanup現在readback（source/main/release/loaded/naturalを区別）:**
 
 | atom | 確認済み | 実際に残る一操作 |
