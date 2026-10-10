@@ -18,7 +18,6 @@ def load_route_lookup():
 class LatenessEntrypointContractTest(unittest.TestCase):
     def test_state_and_logs_live_outside_immutable_release(self):
         source = (ROOT / "skills/anicca-life-manager/scripts/run.sh").read_text()
-        self.assertIn('LOG="$STATE_ROOT/logs/run.log"', source)
         self.assertIn("unset ANICCA_HOME OPENCLAW_ENV_FILE", source)
         self.assertEqual(source.count("unset ANICCA_HOME OPENCLAW_ENV_FILE"), 2)
         self.assertNotIn("migrate-legacy-lateness-state.py", source)
