@@ -3226,6 +3226,52 @@ def test_transfer_claim_tracks_child_while_controller_can_release(tmp_path, monk
     assert not claim.exists()
 
 
+@pytest.mark.parametrize("controller_state,expired", (
+    ("live", False), ("dead", False), ("reused", False), ("live", True),
+))
+def test_peer_sweep_preserves_only_live_terminal_controller(
+        tmp_path, monkeypatch, controller_state, expired):
+    isolated(tmp_path, monkeypatch)
+    admission.enqueue_durable("agent", "first", occurrence_id="first:terminal", now=100)
+    claim, reason = admission.claim_durable("agent", "first", now=100)
+    assert claim is not None and reason == "acquired"
+    parent_pid = os.getpid()
+    parent_start = admission.process_start(parent_pid)
+    with patch.object(admission, "process_start", side_effect=lambda pid:
+                      "child-start" if pid == 4242 else parent_start):
+        admission.transfer_durable(claim, 4242)
+    row = json.loads(claim.read_text())
+    row.update(controller_pid=9999, heartbeat_at=100, heartbeat_timeout_seconds=30)
+    admission.atomic_json(claim, row)
+    now = 131 if expired else 101
+
+    def identity(pid):
+        if pid == 4242 or (pid == 9999 and controller_state == "dead"):
+            return None
+        return "reused-start" if pid == 9999 and controller_state == "reused" else parent_start
+
+    with patch.object(admission, "process_start", side_effect=identity), \
+         patch.object(admission, "_pid_exists", side_effect=lambda pid:
+                      pid == parent_pid or (pid == 9999 and controller_state != "dead")):
+        admission.enqueue_durable("agent", "peer", occurrence_id="peer:next", now=now)
+        peer, reason = admission.claim_durable("agent", "peer", now=now)
+    keep = controller_state == "live" and not expired
+    assert claim.exists() == keep
+    first = next(r for r in durable_rows(tmp_path, "occurrences")
+                 if r["occurrence_id"] == "first:terminal")
+    assert first["effect_unknown"] == (0 if keep else 1)
+    if keep:
+        assert peer is None and reason == "capacity_busy"
+        admission.atomic_json(claim, {**row, "controller_pid": parent_pid})
+        admission.release_and_reserve(claim, reserve=False, now=now)
+        first = next(r for r in durable_rows(tmp_path, "occurrences")
+                     if r["occurrence_id"] == "first:terminal")
+        assert first["state"] == "released" and first["effect_unknown"] == 0
+    else:
+        assert peer is not None and reason == "acquired"
+        admission.release_and_reserve(peer, reserve=False, now=now)
+
+
 def test_transfer_lock_contention_fails_closed_without_waiting(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch)
     admission.enqueue_durable("agent", "first")
