@@ -94,6 +94,16 @@ def main():
         )
         if not re.search(r"\|\s*cycle\s*\|\s*price\s*\|", md, re.I):
             fails.append("no pricing table (| cycle | price | cap | trial |) found")
+        # A month plan priced like a week plan gives every buyer a month for a week's money
+        # (2026-10-10: 8 live agents had week $9.99 / month $10.00).
+        prices = {
+            c.lower(): float(v)
+            for c, v in re.findall(r"\|\s*(day|week|month|year)\s*\|\s*\$?([0-9.]+)\s*\|", md, re.I)
+        }
+        if "week" in prices and "month" in prices and prices["month"] < 1.5 * prices["week"]:
+            fails.append(
+                f"month price ${prices['month']:.2f} must be at least 1.5x the week price ${prices['week']:.2f}"
+            )
         for cycle, trial in pricing_rows:
             trial = trial.strip()
             if not (NO_FREE_TRIAL.fullmatch(trial) or FREE_TRIAL.fullmatch(trial)):
