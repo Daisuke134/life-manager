@@ -127,10 +127,14 @@ or temporary failure never creates a replacement owner and never closes the proj
 Coconala seller readback, and buyer acceptance or official transaction completion when the
 contract requires it. `CLOSED_CANCELLED` requires the official Coconala cancellation state,
 not a cancellation request or support conversation. Both require a later observe-only wake
-with effect zero. Closing releases execution capacity and the active browser target; it does
-not delete customer context, artifacts, state, effect keys, or receipts. Those records become
-an immutable tombstone that makes every replay a no-op. A new marketplace order receives a
-new owner identity; a pre-terminal revision resumes the existing owner.
+with effect zero. Closing releases execution capacity and the active browser target.
+The Paid owner's existing janitor reclaims regenerable work and obsolete regular output
+only after a hash-bound official `project-terminal.json`. It preserves customer source,
+context, evidence, memory, state, effect keys, receipts, ledgers, credentials, and the
+owner's retained latest package. Mixed directories retain their records; symlinks,
+worktrees, leases, and open files are preserved. The durable tombstone makes every replay
+a no-op. A new marketplace order receives a new owner identity; a pre-terminal revision
+resumes the existing owner.
 
 The lifecycle copies three proven OSS patterns without adding their runtimes as dependencies:
 

@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Reclaim regenerable work after an official gig terminal receipt, never before.
+"""Reclaim closed gig work and obsolete output after an official terminal receipt.
 
 WHY: buyer source can be unique and is never cleanup material. Regenerable
 `work/` may be reclaimed only when an official provider readback wrote a
-hash-bound `project-terminal.json`. `artifacts/`, `evidence/`, `delivery/`,
-`source/`, `state.json`, and `events.jsonl` remain durable records.
+hash-bound `project-terminal.json`. Closed delivery/artifact directories lose
+only regular output files; source, evidence, context, state, receipts, secrets,
+and the owner's retained latest package remain durable records.
 
 SAFETY (fail-closed): state fields, age, and workflow flags never grant deletion
 authority. A missing, symlinked, malformed, stale, or non-official terminal
@@ -18,6 +19,8 @@ import hashlib
 import json
 import os
 import shutil
+import stat
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -29,6 +32,37 @@ RECLAIM_DIRS = ("work",)
 ARTIFACT_DIRS = ("artifacts", "delivery", "deliverables")
 IMMUTABLE_ROOT_PARTS = frozenset((".cloak", ".openclaw"))
 IMMUTABLE_ROOT_NAMES = frozenset(("memory", "state"))
+OUTPUT_SUFFIXES = frozenset((
+    ".zip", ".7z", ".tar", ".gz", ".mp4", ".mov", ".webm", ".png", ".jpg",
+    ".jpeg", ".webp", ".pdf", ".docx", ".pptx", ".xlsx",
+))
+PROTECTED_DIRS = frozenset((
+    "source", "src", "evidence", "context", "state", "memory", ".git", ".worktrees",
+    ".cloak", ".openclaw", ".lm-protected", ".anicca-keep", ".lease",
+))
+PROTECTED_TOKENS = (
+    "auth", "cookie", "credential", "receipt", "ledger", "vault", "lock", "lease",
+    "recovery", "secret", "session", "wallet", "payment", "evidence", "readback",
+)
+
+
+def _protected(path: Path) -> bool:
+    name = path.name.lower()
+    return (name in PROTECTED_DIRS or name == ".env" or name.startswith(".env.")
+            or path.suffix.lower() in {".json", ".jsonl", ".csv", ".key", ".pem", ".p12", ".pfx", ".db", ".sqlite"}
+            or any(token in name for token in PROTECTED_TOKENS))
+
+
+def _probe_error(error: OSError) -> None:
+    raise error
+
+
+def _open_paths() -> set[str]:
+    result = subprocess.run(["/usr/sbin/lsof", "-nP", "-Fn"], capture_output=True,
+                            text=True, timeout=15, check=False)
+    if result.returncode not in (0, 1) or result.stderr.strip():
+        raise OSError("open_file_probe_failed")
+    return {line[1:] for line in result.stdout.splitlines() if line.startswith("n/")}
 
 
 def _project_receipts_already_cleaned(ledger_path: Path) -> set[tuple[str, str]]:
@@ -57,7 +91,7 @@ def _project_receipts_already_cleaned(ledger_path: Path) -> set[tuple[str, str]]
 
 def _dir_bytes(path: Path) -> int:
     total = 0
-    for current, dirs, files in os.walk(path, onerror=lambda _e: None):
+    for current, dirs, files in os.walk(path, onerror=_probe_error):
         dirs[:] = [d for d in dirs if not os.path.islink(os.path.join(current, d))]
         for name in files:
             try:
@@ -72,11 +106,13 @@ def _remove_dir(path: Path) -> int:
     half-deleted dir that looks intact."""
     size = _dir_bytes(path)
     trash = path.with_name(f"{path.name}.janitor-trash.{os.getpid()}")
+    os.rename(path, trash)
     try:
-        os.rename(path, trash)
+        shutil.rmtree(trash)
     except OSError:
-        return 0
-    shutil.rmtree(trash, ignore_errors=True)
+        if trash.exists() and not path.exists():
+            os.rename(trash, path)
+        raise
     return size
 
 
@@ -131,69 +167,65 @@ def _terminal_receipt(project_dir: Path, state_path: Path) -> tuple[dict | None,
     return receipt, ""
 
 
-def _prune_authorized_duplicates(project_dir: Path, *, dry_run: bool) -> dict:
-    """Remove only byte-identical old packages named by an owner receipt."""
+def _prune_closed_outputs(project_dir: Path, *, dry_run: bool) -> dict:
+    """Remove regular closed output, preserving protected subtrees and latest package."""
     receipt_path = project_dir / "context" / "owner-authorized-cleanup.json"
     result = {"deleted": [], "bytes_freed": 0}
-    if not receipt_path.is_file():
-        return result
-    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
-    if (
-        receipt.get("version") != 1
-        or receipt.get("authority") != "account_owner_instruction"
-        or receipt.get("disposition") != "retain_latest_package_remove_old_work_and_video"
-        or receipt.get("remove_old_versions") is not True
-    ):
-        return result
-    project_root = project_dir.resolve()
-    retained = Path(str(receipt.get("retained_path", ""))).resolve()
-    if project_root not in retained.parents or retained.is_symlink() or not retained.is_file():
-        return result
-    retained_bytes = receipt.get("retained_bytes")
-    retained_sha = str(receipt.get("retained_sha256", "")).lower()
-    if retained.stat().st_size != retained_bytes or len(retained_sha) != 64:
-        return result
-    if _sha256(retained) != retained_sha:
-        return result
+    retained = None
+    if receipt_path.is_symlink() or receipt_path.parent.is_symlink():
+        raise OSError("owner_cleanup_receipt_symlink")
+    if receipt_path.is_file():
+        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+        if receipt.get("retained_path"):
+            retained = Path(str(receipt["retained_path"])).resolve()
+            result["retained_path"] = str(retained)
 
-    candidates = []
-    for dirname in ARTIFACT_DIRS:
+    for dirname in RECLAIM_DIRS + ARTIFACT_DIRS:
         root = project_dir / dirname
-        if not root.is_dir():
+        if root.is_symlink() or not root.is_dir():
             continue
-        for candidate in root.rglob("*"):
-            if (
-                candidate == retained
-                or candidate.is_symlink()
-                or not candidate.is_file()
-                or candidate.suffix != retained.suffix
-            ):
+        for current, dirs, files in os.walk(root, followlinks=False, onerror=_probe_error):
+            if set(dirs + files).intersection({".git", ".lease", ".lm-protected", ".anicca-keep"}):
+                dirs.clear()
                 continue
-            if candidate.stat().st_size == retained_bytes and _sha256(candidate) == retained_sha:
-                candidates.append(candidate)
-    for candidate in candidates:
-        result["deleted"].append(str(candidate.relative_to(project_dir)))
-        result["bytes_freed"] += candidate.stat().st_size
-        if not dry_run:
-            candidate.unlink()
+            dirs[:] = [name for name in dirs if not (Path(current) / name).is_symlink()
+                       and not _protected(Path(current) / name)]
+            for name in files:
+                candidate = Path(current) / name
+                info = candidate.lstat()
+                if (candidate.resolve() == retained or _protected(candidate)
+                        or candidate.suffix.lower() not in OUTPUT_SUFFIXES
+                        or not stat.S_ISREG(info.st_mode) or info.st_nlink != 1):
+                    continue
+                if not dry_run:
+                    candidate.unlink()
+                result["deleted"].append(str(candidate.relative_to(project_dir)))
+                result["bytes_freed"] += info.st_size
     return result
 
 
 def _immutable_root_reason(projects_root: Path) -> str | None:
+    if projects_root.is_symlink():
+        return "projects_root_symlink"
     try:
         resolved = projects_root.resolve()
     except OSError:
         return "projects_root_unresolvable"
     if resolved.name in IMMUTABLE_ROOT_NAMES or any(
-        part in IMMUTABLE_ROOT_PARTS for part in resolved.parts
+        part in IMMUTABLE_ROOT_PARTS | {"memory", ".worktrees", "anicca-rtdash", "anicca-monk-factory"}
+        for part in resolved.parts
     ):
         return "immutable_store_root"
+    if any((parent / ".git").exists() for parent in (resolved, *resolved.parents)):
+        return "worktree_root"
     return None
 
 
 def _contains_shared_reference(path: Path) -> bool:
     try:
-        for current, dirs, files in os.walk(path, followlinks=False):
+        for current, dirs, files in os.walk(path, followlinks=False, onerror=_probe_error):
+            if any(_protected(Path(current) / name) for name in dirs + files):
+                return True
             for name in dirs:
                 if (Path(current) / name).is_symlink():
                     return True
@@ -226,12 +258,18 @@ def scan(projects_root: Path, ledger_path: Path, *, dry_run: bool) -> dict:
         summary["errors"] = 1
         print(f"project_janitor: refusing {projects_root}: {immutable_reason}", file=sys.stderr)
         return summary
+    try:
+        opened = _open_paths()
+    except (OSError, subprocess.TimeoutExpired):
+        summary["errors"] = 1
+        print("project_janitor: open_file_probe_failed", file=sys.stderr)
+        return summary
 
     for project_dir in sorted(projects_root.iterdir()):
-        if not project_dir.is_dir():
+        if project_dir.is_symlink() or not project_dir.is_dir():
             continue
         state_path = project_dir / "state.json"
-        if not state_path.is_file():
+        if state_path.is_symlink() or not state_path.is_file():
             continue
         summary["scanned"] += 1
         project_id = project_dir.name
@@ -241,17 +279,27 @@ def scan(projects_root: Path, ledger_path: Path, *, dry_run: bool) -> dict:
             if terminal is None:
                 summary["skipped"] += 1
                 continue
+            prefix = str(project_dir.resolve())
+            if (any(path == prefix or path.startswith(prefix + "/") for path in opened)
+                    or (project_dir / ".git").exists() or (project_dir / ".lease").exists()):
+                summary["skipped"] += 1
+                continue
 
-            artifact_result = _prune_authorized_duplicates(project_dir, dry_run=dry_run)
+            artifact_result = _prune_closed_outputs(project_dir, dry_run=dry_run)
             if artifact_result["deleted"]:
                 summary["artifacts_cleaned"] += 1
                 summary["artifact_bytes_freed"] += artifact_result["bytes_freed"]
                 summary["bytes_freed"] += artifact_result["bytes_freed"]
-                if not dry_run:
+                if dry_run:
+                    summary["would_clean"].append({"project_id": project_id,
+                                                  "deleted": artifact_result["deleted"],
+                                                  "bytes_freed": artifact_result["bytes_freed"]})
+                else:
                     artifact_ledger = ledger_path.with_name("artifact-janitor.jsonl")
                     artifact_record = {
                         "ts": int(time.time()),
                         "project_id": project_id,
+                        "terminal_state_sha256": terminal["state_sha256"],
                         **artifact_result,
                     }
                     artifact_ledger.parent.mkdir(parents=True, exist_ok=True)
@@ -265,11 +313,13 @@ def scan(projects_root: Path, ledger_path: Path, *, dry_run: bool) -> dict:
             targets = [
                 project_dir / name
                 for name in RECLAIM_DIRS
-                if (project_dir / name).exists()
+                if (project_dir / name).is_dir() and not (project_dir / name).is_symlink()
             ]
             if not targets:
                 continue  # already clean (e.g. cleaned manually) -- no ledger row
-            if any(_contains_shared_reference(target) for target in targets):
+            retained = artifact_result.get("retained_path")
+            if any(_contains_shared_reference(target) or (retained and target.resolve() in Path(retained).parents)
+                   for target in targets):
                 summary["skipped"] += 1
                 continue
 
