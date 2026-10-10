@@ -11928,3 +11928,10 @@ TODO order/cursor (supersedes 16:17): (1) let current life-manager-release-recon
 **TODO順の再更新:** 旧cursor=`credential incident remediation → class-aware disk admission source/tests → Workday effect fences → Dreamwork cutover`。新cursor=`(1) active release reconciler PID38666の自然terminalを待つ → (2) fresh launchctl-safe preflight PASS後、以前のユーザー指示どおりWorkday dailyをlm-loop stopでunloadしstatus readback → (3) credential incident remediation → (4) class-aware disk admission修正とcapacity recovery → (5) Workday unknown readback → (6) Dreamwork source/entitlement → (7) Connector → (8) Fundraiser → (9) three natural receipts/Telegram → (10) same-window capacity measurement`。理由は、停止済みWorkday dailyがrelease reconcileでWorkday sourceのまま再ロードされ、現在の共通reconcilerがloaded-runningだから、競合させずに停止状態を復元する必要がある。
 
 **現在cursor:** wait for `life-manager-release-reconciler` PID38666 natural terminal → rerun safe preflight → stop `job-search-daily` and verify unloaded → credential remediation → remaining TODO in prior section.
+### 2026-10-10 18:31 JST — Workday dailyはloadedのまま、reconciler終端待ち
+
+- 09:31:12Zのread-only `ps` はrelease reconciler PID `38666`（PPID 1、elapsed 16:45、state S）を確認。停止せず自然terminalを待つ。
+- 09:31:16Zの `launchctl-safe list` は `- 75 ai.anicca.job-search-daily` を返した。PIDなし/exit75はunloadedの証明ではなく、Workday dailyはloaded状態。最後に成功したowner statusは09:25Zのloaded-idle / SHA ef35 / disk defer。18:29Zの別context status再取得は60秒以内に終わらず、そこで新しいowner statusは得ていない。
+- `launchctl-safe list` はwrapper経由のpreflight後に取得。Job Hunter dailyをunloadする時は、reconcilerの自然終端をfresh readbackした後、preflightを再実行し、PASS時だけ `lm-loop stop job-search-daily` を行ってunloadedを照合する。raw `launchctl`、active reconciler中の競合stop/reconcileは禁止。
+
+**現在cursor:** reconciler PID38666 natural terminal → safe preflight → Workday `job-search-daily` targeted stop/unloaded proof → credential incident remediation → remaining ordered TODO in the preceding 18:23 section.
