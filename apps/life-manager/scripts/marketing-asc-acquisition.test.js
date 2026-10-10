@@ -8,6 +8,23 @@ const test = require("node:test");
 const { importContentObject } = require("../lib/content-object-store.js");
 const { PRODUCTS, pending, persistAscAcquisition, rows, summarize } = require("./marketing-asc-acquisition.js");
 
+test("ASC acquisition covers six mobile app bindings and keeps pending reports unavailable", () => {
+  assert.deepEqual(PRODUCTS.map(({ product_id, app_id, request_id }) => [product_id, app_id, request_id]), [
+    ["anicca-ios", "6755129214", "04c74879-547f-4e35-b231-1fafd485801d"],
+    ["honne-ai", "6759667221", "c7c05836-181e-49cc-ae71-b57b7a0b466e"],
+    ["breath-reset", "6760253231", "9e3cdeeb-1b36-4ad8-b84e-b6a1ab58a443"],
+    ["sleep-ritual", "6759916261", "d48b40a7-fd84-4ec7-a448-317c376457e0"],
+    ["desk-stretch-timer", "6760048397", "0ffe9de3-7072-4dbc-9d49-afe1a70534b3"],
+    ["micro-mood", "6759877003", "4e9b2fc8-6abb-4c6a-b58d-878f7a55e7e7"],
+  ]);
+  for (const product of PRODUCTS.slice(2)) {
+    const value = pending(product);
+    assert.equal(value.source_status, "unavailable");
+    assert.equal(value.metrics.first_time_downloads.value, null);
+    assert.equal(value.metrics.first_time_downloads.reason, "report_pending");
+  }
+});
+
 test("ASC product totals remain unattributed and unavailable stays null on replay", async () => {
   const parsed = rows("Date\tApp Name\tApp Apple Identifier\tDownload Type\tCounts\n2026-08-20\tDaily Affirmations - Anicca\t6755129214\tFirst-time download\t1\n");
   const anicca = summarize(PRODUCTS[0], parsed, [{ Date: "2026-08-19", "App Name": PRODUCTS[0].app_name, "App Apple Identifier": PRODUCTS[0].app_id, Event: "Impression", "Page Type": "No page", Counts: "9", "Unique Counts": "5" }], []);

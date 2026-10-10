@@ -13154,3 +13154,44 @@ flowchart LR
 6. Fix and verify the paywall plan-load and notification-to-same-quote defects, run one measured listing/onboarding experiment at a time, reconcile settled net, and reach Anicca USD 10,000 verified net MRR before scaling the process into the app factory.
 
 **Current cursor:** item 1. The code fix is locally tested, not yet pushed or merged; no production behavior has changed.
+
+### 2026-10-11 05:56 JST — Priority source merged; first adoption and metric coverage gaps
+
+- **Source/main:** PR #7562 (`fix: prioritize mobile distribution release apply`) merged with all required checks passing at main commit `9693df216f40242d04f7f17e1ecb7e1e165bf2a1`. The immutable release `20261011T054243-cebf29f9` contains `mobile_distribution_rank`, so the source change is packaged.
+- **Self-handoff/runtime:** `life-manager-release-reconciler` is still running from the previous `9b80c7e6` release (PID 98436 at 05:55). The standard self-handoff receipt reports `old_service_active_timeout`; helper retries are active. Do not kill/restart the reconciler or claim the new ordering is loaded until the handoff reaches terminal and loaded argv/SHA verifies.
+- **Mobile state:** 18 target owners remain 14 f78, 3 f6c, 1 d687; terminals remain 11 pass, 5 disk-headroom deferred, and 2 ENOSPC failures (JP4, Honne EN). Available disk is about 0.9 GiB. The latest cleanup log still shows 31 candidates, 4 open caches, 26 protected descendants, only ~1.6 KiB reclaimed, and the 2 GiB recovery diagnostic unmet. Do not delete open caches, release/memory/state, assets, browser profiles, credentials, or snapshots.
+- **RevenueCat live read (2026-10-10 20:43 UTC):** latest complete chart period is 2026-10-09. Anicca subscription MRR is USD 20.34; Honne, Breath Reset, Sleep Ritual, Desk Stretch Timer, and Micro-Mood each show USD 0.00. These are app-scoped RevenueCat MRR observations, not settled Apple net revenue.
+- **ASC live report read (2026-10-10 20:47 UTC):** latest report dates are 2026-10-07 through 2026-10-09. Anicca has 2 first-time downloads, 15 impressions, 0 product-page views; Honne has 4 first-time downloads, 246 impressions, 0 product-page views. The other four app reports are `report_pending` (null), not zero. All six app IDs already have active ASC Ongoing requests, but `marketing-asc-acquisition.js` currently collects only Anicca/Honne. Do not open new requests or relabel pending reports as zero.
+- **Postiz:** latest official account-window read remains 04:27 JST: 18 enabled target integrations, 10/10 at 32/54 published, and 10/11 at 0/54 before the 06:30 earliest slot. This is not proof of current-slot failure. Postiz CLI is unauthenticated; use the existing repository-owned adapter if a fresh read is needed, never `agent-media` or per-post image generation.
+
+**Updated remaining TODO — preserve this order:**
+
+1. Let the standard self-handoff finish; verify the installed `life-manager-release-reconciler` argv/SHA is the `cebf29f9` release and confirm the new mobile-first apply order is active.
+2. Reconcile the 18 mobile owners through the new bounded priority order. Inspect each exact install/admission/terminal receipt. Keep the closed manifest-owned effect fence and all occurrence fences intact.
+3. Diagnose host capacity using the refreshed bounded inventory source and existing allowlist. Recover only confirmed-closed regenerable bytes; 0.9 GiB still does not satisfy the owner gate, and old release memory/state stay protected.
+4. Verify each account's next admitted/natural Postiz post with distinct `PUBLISHED` receipt, URL, and replay-zero; reach 18 accounts × 3 posts/day for seven consecutive JST days. The prior complete day remains 32/54.
+5. Expand the existing ASC acquisition collector from 2 to the 6 already-bound mobile apps using their existing Ongoing request IDs. Persist missing reports as `report_pending`/null. Then link post/campaign IDs and URLs to native metrics and ASC impressions, page views, and first-time downloads.
+6. Keep Anicca's 100 first-time downloads/day over a trailing 7-day average as the acquisition gate. Complete all-app RevenueCat and existing Mixpanel funnels, then fix the Anicca paywall plan-load and notification-to-same-quote defects.
+7. After distribution and measurement baselines are reliable, run one store-page/ASO or onboarding variable at a time. Reconcile Apple settlements/refunds/fees and actual costs; require USD 10,000 verified net MRR before scaling the repeatable process into the app factory.
+
+**Current cursor:** item 1. Priority code is in main and packaged but not yet loaded by the long-running release reconciler; the 18 target owners have not adopted it and posting is not yet proven fixed.
+
+### 2026-10-11 05:58 JST — Six-app acquisition coverage verified, collector patch in worktree
+
+- **Source/release:** PR #7562 merged the mobile-first fleet ordering at `9693df216f40242d04f7f17e1ecb7e1e165bf2a1`; later docs/cleanup-inventory PRs move main to `ed98363e4fc23145acf2c491bd411992096a8c5f`. Current immutable release `20261011T054243-cebf29f9` contains the priority fix. It is not loaded by the running `life-manager-release-reconciler`, still on `9b80c7e6`; the self-handoff helper is retrying and its last receipt says `old_service_active_timeout` while PID 98436 remains active. Do not force-stop it.
+- **Owner/disk status (05:58 JST):** all 18 mobile owners remain 14 f78, 3 f6c, 1 d687; terminal counts remain 11 pass, 5 disk-headroom defer, 2 ENOSPC failures. Free space is 861,960 KiB. Cleanup still sees four open cache candidates and 26 protected release descendants; it reclaimed about 1.6 KiB on its latest recorded pass. No target owner reports the priority release yet.
+- **Fresh RevenueCat read (20:43 UTC):** the official app-scoped MRR chart is complete through 2026-10-09: Anicca USD 20.34; Honne, Breath Reset, Sleep Ritual, Desk Stretch Timer, and Micro-Mood USD 0.00 each. These are subscription MRR observations, not settled proceeds or net revenue.
+- **Fresh ASC read (20:47 UTC):** Anicca and Honne report rows span 2026-10-07 through 2026-10-09: Anicca 2 first-time downloads total, 15 impressions, 0 product-page views; Honne 4 first-time downloads total, 246 impressions, 0 product-page views. Do not describe the multi-day totals as a daily or 7-day average. ASC has an active Ongoing request for each of the six bound app IDs. Current readbacks for Breath Reset, Sleep Ritual, Desk Stretch Timer, and Micro-Mood are `report_pending`, with null metrics.
+- **Collector coverage:** source `marketing-asc-acquisition.js` includes only Anicca/Honne, so the four pending apps are not represented in daily acquisition snapshots. PR #7565 adds the four existing ASC app/request bindings and a regression assertion that pending reports stay null. Focused Node tests are 3/3 pass; PR #7565 is open at head `c6e7cb6b8131c726e0cbb3117840127f6ff0a581` with GitHub checks pending. The new coverage is not yet in main or a release; no report requests were created.
+- **Postiz boundary:** the last official 18-account read remains 04:27 JST (0/54 before the 06:30 first slot; previous 10/10 was 32/54). The generic `postiz` CLI has no authenticated session; use the deployed repository-owned Postiz adapter for fresh official reads, never manual duplicate posts or image-generation tools.
+
+**Updated remaining TODO — preserve this order:**
+
+1. Let the existing release reconciler occurrence finish; confirm self-handoff to `cebf29f9` by loaded argv/SHA and natural terminal. Do not restart or overlap it.
+2. Confirm the newly loaded mobile-first runner, then reconcile the 18 publishers and resolve host-admission/ENOSPC failures from exact receipts. Recover only allowlisted confirmed-closed cache data; retain all protected release/state/assets.
+3. Verify each due/admitted post as distinct Postiz `PUBLISHED` plus URL and replay-zero. Reach 18 accounts × 3 posts/day for seven consecutive JST days; installations, queues, and enabled integrations are not posts.
+4. Finish and merge the local six-app ASC collector extension using existing Ongoing requests. Persist pending metrics as null, join each creative/post/campaign to native views and ASC data, and verify URL-bearing Telegram delivery receipts.
+5. Reach Anicca 100 ASC first-time downloads/day over a trailing 7-day average, complete app-scoped RevenueCat and Mixpanel funnels, then fix the paywall plan-load and notification-to-same-quote defects.
+6. After reliable distribution/conversion baselines, run one measured store-page/ASO or onboarding variable at a time. Reconcile Apple settlements, refunds, fees, and actual costs; reach USD 10,000 verified net MRR before scaling to the other apps and factory.
+
+**Current cursor:** item 1, with the six-app ASC collector coverage fix already in test-passing local source and awaiting its own exact-head PR.
