@@ -411,7 +411,11 @@ flowchart LR
 
 **現在の評価証拠（2026-10-10 17:39 JST）:** `npm run test:economic-autonomy`はPASSし、生成したrunは4つのfixture caseを評価した。これは内部fixture/testのPASSであり、production outcomeではない。`runtime/loop/self-eval.mjs`は欠測netを0へ変換する実装（line 33）が残る。`node --test runtime/loop/__tests__/self-eval.test.mjs`は5/5 PASSだが、欠測netを経済判断に使わないことをまだ保証しない。S16の最初のatomは欠測値を`unknown`のまま保持する修正と回帰条件追加。
 
-**Gigのfresh readback（2026-10-10 17:39 JST、`bin/lm-loop status all`）:** `hf-gig-apply-direct`は`resource_effect_unknown`（occurrence `18dd1e4e5404fd88-9706`）、`hf-gig-storefront-direct`も`resource_effect_unknown`（`18dd1e4848aa6e88-9257`）で、どちらもprovider receiptなし。`hf-gig-paid-direct`は`resource_capacity_busy`、`hf-gig-apply-reconcile`と`hf-gig-reply-detector`は`disk_headroom_low`。`hf-gig-browser`は旧release `b3ceeef9`でrunning。これらは成功や売上の証拠ではない。P0/P1を先に進め、effect_unknownは公式readbackで閉じるまで再送せず、S10/T7の次atomはowner/release状態を再読出ししてから続ける。
+**Gig runtime readback（2026-10-10 18:03 JST、`bin/lm-loop status all`）:** `hf-gig-apply-direct`は`disk_headroom_low`で延期され、historical fence `18dadcd76d9c61b0-37711`を保持。`hf-gig-storefront-direct`も`disk_headroom_low`で延期され、historical fence `18d8d288748508e8-23902`を保持。`hf-gig-apply-reconcile`、`hf-gig-paid-direct`、`hf-gig-reply-detector`もdisk待ち。Browser ownerはPID13685でrunning/current release `d3eedfb7`。cleanupはPID98089でrunning中、release-reconcilerはPID95649でrunning/current loaded release `ef35fa3b`。Data volume availableは1,785,324 KiB。P0/P1 gateは未完で、これらの最新status runはprovider receiptを持たない。
+
+**Storefront official readback（2026-10-10 18:00 JST）:** authenticated `listing_inventory.py collect --out -`は20件を返し、SKU `4244556`は`公開中`・¥5,000・AI業務効率化カテゴリ。公式[サービスページ](https://coconala.com/services/4244556)は販売実績5件・お願い中0人を表示する。これは現在の掲載状態とページ表示の累計実績であり、対象期間のsettlement、refund/fee、cost、netやMRRの証拠ではない。
+
+**旧Storefront fenceの照合結果:** `storefront_pre_effect_reconcile.py --dry-run`はoccurrence `18d8d288748508e8-23902`を`HELD / stdout_runtime_binding_invalid`で拒否。該当run `18d8d2b3f46565c8-28218`にはstart/reportの2 runtime eventsがあるが、stdoutの単一pass rowは`runtime_run_id`/`runtime_occurrence_id`を欠く。`bin/lm-loop pre-effect-reconcile ... --dry-run`も`no_pre_effect_terminal`を返した。SKU `4244556`の現行掲載はこの旧occurrenceへの結び付きを証明しないため、Storefront/Apply fenceは維持し、再送・解除しない。次はownerを止めずにfresh official listing/history readbackと同じSKUの公式metricを取得し、occurrenceへ結べる証拠だけでreconcileする。
 
 **参考資料（設計の根拠。新依存ではない）:** [Anthropic: agent evals](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents)、[OpenAI: evals guide](https://developers.openai.com/api/docs/guides/evals)、[UK AISI Inspect AI](https://inspect.aisi.org.uk/)。共通点は、実タスク・trial・grader・trace/outcomeを対応させ、agent/harnessをまたいで再現可能にすること。Life Managerでは公式receiptとCFOを金銭/effectの正解ラベルにし、主観judgeは較正対象に限定する。
 
@@ -520,7 +524,7 @@ flowchart LR
 
 ## 5. TODO（実行順・正本）
 
-**現行の実行順は一つだけ:** 共有P0/P1 → 各ownerのlane cursor。S01〜S14は独立した収益laneの一覧で全体直列順ではない。このprimaryの実行順はP0/P1 → Gig S10/T7 item 2で、別owner laneは同時進行できる。全S01〜S14完了後のみS15自己修復→S16評価→S17自己改善→S18 OSSへ進む。後続節のT5/T7/T12/T14等は能力・laneへの参照ID、日付付き順序は履歴であり、別の実行queueではない。2026-10-10 17:39 JSTのspec状態ではP0-12〜15とP1-1〜5が未完で、共有資源節のcursorを優先する。
+**現行の実行順は一つだけ:** 共有P0/P1 → 各ownerのlane cursor。S01〜S14は独立した収益laneの一覧で全体直列順ではない。このprimaryの実行順はP0/P1 → Gig S10/T7 item 2で、別owner laneは同時進行できる。全S01〜S14完了後のみS15自己修復→S16評価→S17自己改善→S18 OSSへ進む。後続節のT5/T7/T12/T14等は能力・laneへの参照ID、日付付き順序は履歴であり、別の実行queueではない。2026-10-10 18:03 JSTのspec状態ではP0-12〜15とP1-1〜5が未完で、共有資源節のcursorを優先する。
 
 順序変更の記録: 旧順序（Foundation spec:7092-7137）では、収益の帰属（旧9）が capsule（旧6）・cloud（旧7）・LM-EAB（旧8）の後だった。新順序では、ループごとの利益計測（新8）を capsule/cloud/LM-EAB より前に置く。理由は、利益が見えないと、どのループに資源を寄せるか・何を改善するかを判断できないため。Paid cursor は旧5の中身を新7として独立させた。
 
@@ -11837,7 +11841,7 @@ TODO order/cursor (supersedes 16:17): (1) let current life-manager-release-recon
 
 **確認済み状態**
 
-- `origin/main=e034334e3cbc3bfba2d62bcfaa27ccb1771e77e0`。`~/loops/current` はmain祖先のrelease `20261010T175612-ef35fa3b`（SHA `ef35fa3bb890619418650c2fb2d07c7988338670`）。release reconcilerは09:13:27Zに同SHAでexit 0 / loaded-idle。target ownerのloaded SHAは揃っていない。
+- 3 loopのruntime readbackは `origin/main=e034334e3cbc3bfba2d62bcfaa27ccb1771e77e0` 時点。最新mainはPR #7472後の `8711bd4643c56731de4b1bcc5cb19fc255a56f70`（同じSSOT内の別節6行更新のみで、runtime source差分なし）。`~/loops/current` はmain祖先のrelease `20261010T175612-ef35fa3b`（SHA `ef35fa3bb890619418650c2fb2d07c7988338670`）。release reconcilerは09:13:27Zに同SHAでexit 0 / loaded-idle。target ownerのloaded SHAは揃っていない。
 - Disk gate: `runtime/host/disk_admission.py` は `RECOVERY_FLOOR_BYTES=2 GiB`。`runtime/loop/lm_loop_run.py::disk_deferred` はresource classを判定する前のpre-enqueueとpost-claim双方でこの床を一律適用する。09:08Zの `df` availableは1,989,788 KiB、bound receipt（09:05:50Z）はfree_after 1,857,908,736 bytes、unbound receipt（09:08:27Z）は1,864,835,072 bytes。両方2 GiB未満でrecovery unmet、errors 0 / protected_deletions 0。従って現在の `disk_headroom_low` は再現した共通admission blockerであり、同時実行capが詰まった証拠ではない。
 - Capacity sourceはfinite-run全体のdefaultを10、revenue classをagent=total、browser=1、deterministic=5に設定する。target plistは `LIFE_MANAGER_HOST_MIN_REVENUE_RUNS=3` のみでMAX overrideなし。以前の「global cap 8」は古いsource snapshotで、現mainには一致しない。launchd全体のruntime override・実active count・queue ageは未readbackなので、実効capと有効並列数は未確定。
 - Job Hunter acquisitionは未切替でWorkday sourceのまま。`job-search-daily` はunloaded、SHA `70759a48`。最後のoccurrence `18dd1dea0d0d65a0-99289` は08:40Zにentrypoint exit 2（session vault snapshot failed、runpy warning）、effectはnot_applicable、provider receiptなし。一方、statusのadmission fenceは `no_pre_effect_terminal` でcurrent=true、next action `reconcile_owner`。申請済みとは言えず、Workday loopは再ロードしない。
