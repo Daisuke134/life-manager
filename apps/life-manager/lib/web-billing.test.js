@@ -117,6 +117,18 @@ test("Web Checkout pre-fills the authenticated Google email for a new Stripe cus
   assert.equal(Object.hasOwn(params, "customer"), false);
 });
 
+test("Web Checkout lets Stripe collect email when the authenticated Google email is missing or invalid", async () => {
+  assert.ok(webBilling, "web-billing behavior must be implemented");
+  for (const email of [undefined, "  ", "not-an-email"]) {
+    const f = fixture();
+    await createCheckout(UID, { uid: UID, email }, f.opts);
+    const params = f.calls.checkouts[0].params;
+
+    assert.equal(Object.hasOwn(params, "customer_email"), false);
+    assert.equal(Object.hasOwn(params, "customer"), false);
+  }
+});
+
 test("Web Checkout offers the seven-day card trial before the first scan or Travel block", async () => {
   assert.ok(webBilling, "web-billing behavior must be implemented");
   const f = fixture({ web_initial_scan_completed_at: null, web_first_travel_at: null });
