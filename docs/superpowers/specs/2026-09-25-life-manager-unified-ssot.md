@@ -12497,3 +12497,53 @@ flowchart LR
 - preserve内訳は`open=3` / `protected_descendant=29`。read-only候補検出では古いrelease、3 cache roots、expired pytest runsが見つかった。3 cache rootsはopenで、protected descendantsを手動削除しない。cleanupは候補32件を全保持し、削除effectは0。
 
 **現在cursor:** current mainからこのcapacity snapshotをPR経由で統合する。次にsource worktree/branchを最新mainから用意し、JA Watercolorを07:00/20:00 JSTの2/day + occurrence scopeへ進める。外部公開/applyは新しいcapacity・lock・loaded SHAを確認してから行う。
+
+### 2026-10-10 21:42 JST — Japanese eBook two-slot source change
+
+この追記はsource状態を更新する。変更はlocal worktree上で、まだcommit/PR/main/deployされていない。production apply、Postiz投稿、Stripe読戻しは行っていない。
+
+- Repo worktree: /Users/anicca/Projects/life-manager-main/.worktrees/ebook-occurrence-scope-20261010; branch fix/ebook-ja-two-daily-20261010; base/current main 6bc25916cbc866c01af5cc7f19ae3732b9eb1425.
+- JA Watercolor packとdestination cadenceを07:00/20:00 JSTに変更。JA Instagram/TikTok ownerへadmission_effect_scope=occurrenceを追加。EN TikTokの08:00/21:00 identity exceptionと全既存scheduleは維持。exact JA integration/profile identity以外に2-slot exceptionは許さない。pack SHA-256はc4396c16443921f3f6d0d1ac5a76fb244cec1a842ac7528a8fb95b369965b6d3でdestination refsと一致。
+- Focused tests: Node 4 pass; Python pack/registry/runner selection 5 pass (2 subtests); occurrence fence tests 2 pass. REDではJA cadence/scopeが未設定のため期待どおりfailし、実装後GREEN。変更後git diff --checkもpass。
+- Old four effect_unknown occurrence fencesは触っていない。これらをclear/resendせず、新しいdistinct occurrenceのみ通す設定。
+- Capacityは21:42 JSTに141,176 KiB。最後に確認したfull cleanup receipt (21:32) は32件全保持、削除0、capacity unmet。Runtime owner/loaded SHA、Postiz、Stripeはこのsource edit後に再照合していない。最後のPostiz/Stripe official GETは20:59 JST時点で、今日のPUBLISHEDは0件、Stripe active subscription 0件。
+
+**現在cursor:** source branchのgit diff --checkとpack referenceを再確認 → commit/push → current mainへ同期しexact-head CI/review → merge。次に最新capacity/lock/loaded SHAが安全条件を満たした場合だけmain由来immutable releaseを対象JA ownersへ反映し、fresh distinct occurrenceを発行。Postiz PUBLISHEDなら成功、permalinkは取得できれば共有。その後、日本語2/dayを継続し、Postizの@monk.mujo mapping、checkout/PDF、verified net MRR $10Kへ進む。
+
+### 2026-10-10 21:51 JST — Postiz channel cap and current publication readback
+
+この追記はPostiz状態を21:44 JSTのofficial GETで更新する。投稿・channel接続・subscription変更はしていない。
+
+- Postiz browser sessionとAPIは200。integrations listは31件。Monk Anicca TikTok integration cmo5rwq2p00twn10yrsdglng3、obou.anicca Instagram cmooplxmu04tpmd0y4h3cpk33、obou_anicca TikTok cmo5s4edx00vgn10ygnu34a0nはいずれもdisabled=false。指定@monk.mujoはlistにない。公開Instagram profileはMonk Mujoとして確認できる。TikTok公開HTMLはgeneric titleのままで、@monk.mujo accountの存在は未確認。
+- GET /integrations/social/instagram-standaloneはHTTP 402。API message: "You have reached the maximum number of channels for your subscription. Please upgrade your subscription to add more channels."
+- 公式pricing page https://postiz.com/pricing の月払いはStandard $29/5 channels、Team $39/10、Pro $49/30、Ultimate $99/100。現在accountのtier名・追加請求額は確認できていない。Postiz upgrade購入・既存channel削除はしていない。ユーザーの既存plan承認はHeyGen向けで、Postiz upgradeは未承認。
+- Postiz GET /postsは200で週間219 rows。正確にjoinできたJA IG/TTの10/10 JST PUBLISHEDは0件。Monk TikTokはこのresponseでintegrationへのjoinを確認できず、新規PUBLISHED/linkも未確認。投稿成功はユーザー指示どおりPostiz PUBLISHEDで判定し、linkはあれば共有。
+- Source PR #7505はhead 5375f825314a7ae026dafce321239ff78ce1ae6bでchecks再実行中。ローカルfocused Node/Python/admission testsはpass。空き容量は21:51 JSTに289,916 KiB、production release/applyには不足。
+
+**現在cursor:** PR #7505のexact-head checks/reviewを通してmainへmerge → Postiz channel-capの解決方法と現契約tierを確認（購入・削除しない） → fresh capacity/owner lock/loaded SHAを確認後、JA ownerへtargeted release/apply → new distinct occurrenceのPostiz PUBLISHEDを確認、以降有効accountごと2/day → checkoutから正しいPDFまでの購入readback → Stripe settlement/refund/feesと生成/配信costを照合してverified net MRR $10Kへ進む。
+
+### 2026-10-10 21:52 JST — Postiz tier and upgrade cost
+
+Postiz account statusを21:44 JST official sessionで補足する。
+
+- GET /user/selfは200、reported tier=PRO、totalChannels=30。integrations/listは31 rowsを返すため、totalChannelsのusage/cap解釈は別途請求表示で照合が必要だが、add-channel endpointはchannel上限を理由に402を返した。
+- 公式pricing https://postiz.com/pricing: Standard $29/5 channels、Team $39/10、Pro $49/30、Ultimate $99/100。年払い表示はそれぞれ$23/$31/$39/$79 per month。現在の請求周期・prorationは未確認。
+- @monk.mujoは未接続。Postiz上限を超えて追加する場合はUltimate等へのupgradeが必要な可能性が高いが、購入はしていない。ユーザーの既存plan承認はHeyGen向けで、Postiz upgradeの承認ではない。
+- 既存の英語TikTok Monk Aniccaと日本語Instagram/TikTokはdisabled=falseでlistに存在する。English Instagramはholdのまま。2/day source changesは既存接続laneで進められるため、upgradeをsource/CI/postingのgateにしない。
+
+**現在cursor:** PR #7505のhead checks → source/spec merge → existing connected lanesのfresh capacity/owner readbackとtargeted apply。@monk.mujo Instagramをdistribution targetに追加する判断は別の未完itemとして保持し、追加購入・既存channel削除は行わない。
+
+### 2026-10-10 22:02 JST — eBook factory latest readback and resume cursor
+
+この節がeBook工場の最新snapshot。確認は読み取りのみ。投稿・integration変更・owner apply/restart・Stripe決済・プラン購入は行っていない。
+
+- **Git/source:** 最新`main`は`0f1a4a69dfca9333752bb904ed4e62475f80fc03`（PR #7506）。JA cadence/source PR #7505のbranch `fix/ebook-ja-two-daily-20261010` はこのmainへrebase済み。JA Watercolor 07:00/20:00 JST + occurrence scopeのsource変更は維持され、独立レビューは元のsource diffに対して`SHIP`。PR #7505はOPENで未merge。rebase後のheadでexact-head CI/reviewが必要。
+- **Runtime/capacity (21:55–22:00 JST):** `~/loops/current`は`20261010T202649-142ef661`を指す。`df -kP /`は301,468 KiB available（約294 MiB）。process listではrelease reconcilerの別PIDを確認できず、launchd owner state・4 ownerのloaded SHA・lockは最新readback未取得。`disk-cleanup/last-receipt.json`の`observed_at`は`2026-10-09T04:48:49Z`で古く、21:32の過去receiptは直近のowner receiptとして再確認できていない。低空き容量だけで業務TODOを止めず、apply前にはowner経由のfresh capacity/lock/loaded-SHA readbackを取る。protected/open pathsは削除しない。
+- **Postiz official GET (22:00 JST):** `/user/self` 200、tier `PRO`、`totalChannels=30`; integrations 31 rows。`cmo5rwq2p00twn10yrsdglng3` (Monk Anicca TikTok)、`cmooplxmu04tpmd0y4h3cpk33` (obou Instagram)、`cmo5s4edx00vgn10ygnu34a0n` (obou TikTok) は`disabled=false`。10/10 JSTのweekly `/posts` GETは219 rowsで、対象3 integrationの同日投稿は0件。`@monk.mujo`と明示されたintegrationはlistにない。既存Monk Anicca TikTokがhandle変更後の同じaccountかは未確認。Instagram追加endpointはHTTP 402でchannel上限理由を返す。追加購入・既存channel削除なし。Postiz `PUBLISHED`が投稿成功条件。permalinkは取れれば共有。
+- **Effect fences:** `host-admission/resources/admission-v2.sqlite3`を読み取り、5件すべて`state=claimed,effect_unknown=1`を確認。EN IG `18dcc929a20914a8-33411`、EN TikTok `18dcc075be3903e8-48633` / `18dcc097b6741798-36825`、JA IG `18dc64be2b4087e0-5330`、JA TikTok `18dc5e822e430b80-45345`。`18dcc097...`の後続`render_not_ready` evidenceは別occurrence `18dcc01a94162a10-35757`を指すため、このfenceの解除根拠にならない。JA TikTokの過去Postiz receiptもexact occurrence identityが一致しない。いずれも再送・解除しない。新しいdistinct occurrenceの投稿はこの監査と別cursorで進める。
+- **Checkout/product:** PR #420はOPEN/DIRTY。remote head `fe25f03569ce357fbce305563b3cad64f0ad8e38`、base `6e9d502c0cefbb2adb77c67e02494c57b669cef1`。別worktree `/Users/anicca/Projects/anicca-products-worktrees/ebook-pr-420-legacy-20261008`の変更中ファイル（webhook test、receipt migration、`webhook.js`、plan）は保持し、上書きしない。`checkout.js`は`ebook`を既定`mode=payment`で作成し、webhookも`payment + ebook`を一回払いとして処理する。継続課金の分岐は`subscription + letter`。したがって一回売りeBookの売上はMRRではなく、既存`letter`の実価格・継続課金・納品と、eBookからの継続購入導線は未確認。Stripe official GETの最新証拠は20:59 JSTでactive subscription 0件 / gross subscription MRR `$0`; このsnapshotでは再取得していない。
+- **Economics:** `$9.99/月`は実設定確認前の試算。1,002人ならgross `$10,009.98`だが、fees/refunds/fulfillment/render/distribution cost控除後のnet MRRは未確認で、到達時期は予測できない。HeyGen APIの実測は13.44秒動画あたり`$0.52`、同等動画を60本/月なら`$31.20`。Web Creatorの記録価格`$29/月・600 credits`は同一品質で何本出せるか未検証。自動化にはAPI/CLIを推奨するが、最安は未確定。WatercolorとPostizの実費・請求周期も未集計。HeyGen planは必要時の購入承認あり、未購入。Postiz planの購入承認はない。
+
+**TODO順更新:** 旧cursor=`PR #7505 checks/merge → runtime apply/post → checkout/PDF → revenue`。新cursor=`(1) latest-mainにrebase済みのPR #7505をpushし、exact-head CI/reviewを通してsource/specをmerge → (2) dirty PR #420の変更を保護したまま最新product mainへ同期し、checkout/webhookを統合。実際の購入から正しいPDF納品までを確認し、継続課金商品と一回売りeBookを区別 → (3) `@monk.mujo`と有効なMonk Anicca TikTok integrationのprovider identityを確認。新規Instagram channelが必要なら402の解決が必要だが、Postiz upgradeは購入しない → (4) 最新capacity receipt、release pointer、reconciler/owner lock、loaded SHAを確認し、条件がそろった時だけmain由来releaseを既存のtargeted pathで反映 → (5) 正しい接続済みaccountへowner経由でfresh distinct occurrenceを投稿し、Postiz `PUBLISHED`を確認。対象accountごとに2投稿/日を継続。別accountの投稿0件は投稿失敗の根拠にせず、5つの旧fenceは保持 → (6) 5 fenceをoccurrence identityに一致するPostiz official readbackで個別照合し、証拠がなければunknownのまま維持 → (7) post attribution→landing→recurring checkout→fulfillment→renewal/cancellationを同一期間で計測。Stripeのactive recurring revenue、settlement、refund、feesと生成/配信費を照合し、verified net MRR `$10K`へ改善する。**順序理由:** 一回購入のPDF納品だけではMRRにならず、継続課金導線を確認してから定常投稿を拡大する。source/CI、dirty checkout保護、既存account identity、runtime readinessを依存順に置き、古いfenceは新規occurrenceの完了gateにしない。
+
+**現在cursor:** PR #7505のrebase済みexact headをpushし、そのheadのCI/reviewとmergeを完了する。作業repo `/Users/anicca/Projects/life-manager-main`、worktree `/Users/anicca/Projects/life-manager-main/.worktrees/ebook-occurrence-scope-20261010`、branch `fix/ebook-ja-two-daily-20261010`。正本specは`docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md`。PR #420側のdirty worktreeを触らない。

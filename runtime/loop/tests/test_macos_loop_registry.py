@@ -126,6 +126,19 @@ class MacosLoopRegistryTest(unittest.TestCase):
         self.assertEqual(row["entrypoint"], "apps/life-manager/scripts/ebook-distribute-daily.sh")
         self.assertEqual(row.get("admission_effect_scope"), "occurrence")
 
+    def test_japanese_ebook_owners_use_occurrence_scoped_admission_and_two_slots(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        validated = validate_registry(registry)
+        expected = [
+            {"Hour": 7, "Minute": 0},
+            {"Hour": 20, "Minute": 0},
+        ]
+        for loop_id in ("ebook-ja-instagram-daily", "ebook-ja-tiktok-daily"):
+            with self.subTest(loop_id=loop_id):
+                row = validated["loops"][loop_id]
+                self.assertEqual(row.get("admission_effect_scope"), "occurrence")
+                self.assertEqual(row["cadence"]["calendar_interval"], expected)
+
     def test_ebook_postiz_reconcilers_use_owner_identity_dir(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         identity_dir = "~/.local/state/life-manager/ebook/effect-identities"

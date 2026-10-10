@@ -6,7 +6,7 @@
   "renderer_id": "watercolor-monk",
   "destination_url": "https://aniccaai.com/achan",
   "price": {"amount": 1580, "currency": "JPY"},
-  "slots_jst": ["07:00", "12:30", "20:00"],
+  "slots_jst": ["07:00", "20:00"],
   "accounts": [
     {"account_id": "tiktok.obou_anicca", "integration_id": "cmo5s4edx00vgn10ygnu34a0n"},
     {"account_id": "instagram.obou_anicca", "integration_id": "cmooplxmu04tpmd0y4h3cpk33"}

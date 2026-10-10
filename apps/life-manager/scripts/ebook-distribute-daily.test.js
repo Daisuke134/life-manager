@@ -78,6 +78,16 @@ test("English Monk publishing uses the requested two daily slots", () => {
   assert.deepEqual(target.cadence_jst, PACK_EN.slots_jst);
 });
 
+test("Japanese Watercolor publishing uses the requested two daily slots", () => {
+  const slots = ["07:00", "20:00"];
+  assert.deepEqual(PACK.slots_jst, slots);
+  for (const loopName of ["ebook-ja-instagram-daily", "ebook-ja-tiktok-daily"]) {
+    const target = MARKETING_DESTINATIONS.targets.find((item) => item.loop_name === loopName);
+    assert.ok(target);
+    assert.deepEqual(target.cadence_jst, slots);
+  }
+});
+
 test("English Monk publication does not require a native TikTok receipt", () => {
   assert.equal(PACK_EN.stop_rules.includes("missing_native_receipt"), false);
 });

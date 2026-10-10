@@ -70,7 +70,28 @@ function validateMarketingDestinationContract(input) {
       && row.native_handle === "@monk_anicca"
       && row.integration_id === "cmo5rwq2p00twn10yrsdglng3"
       && row.loop_name === "ebook-en-tiktok-daily";
-    const expectedCadenceSlots = isEnglishMonkTikTok ? 2 : 3;
+    const isJapaneseWatercolorInstagram = row.lane_id === "ebook-ja-instagram"
+      && row.product_id === "ebook-ja"
+      && row.job_product_id === "ebook-ja"
+      && row.locale === "ja"
+      && row.platform === "instagram"
+      && row.postiz_profile === "@obou.anicca"
+      && row.native_handle === "@obou.anicca"
+      && row.integration_id === "cmooplxmu04tpmd0y4h3cpk33"
+      && row.loop_name === "ebook-ja-instagram-daily";
+    const isJapaneseWatercolorTikTok = row.lane_id === "ebook-ja-tiktok"
+      && row.product_id === "ebook-ja"
+      && row.job_product_id === "ebook-ja"
+      && row.locale === "ja"
+      && row.platform === "tiktok"
+      && row.postiz_profile === "@obou_anicca"
+      && row.native_handle === "@obou_anicca"
+      && row.integration_id === "cmo5s4edx00vgn10ygnu34a0n"
+      && row.loop_name === "ebook-ja-tiktok-daily";
+    const isTwoSlotEbookLane = isEnglishMonkTikTok
+      || isJapaneseWatercolorInstagram
+      || isJapaneseWatercolorTikTok;
+    const expectedCadenceSlots = isTwoSlotEbookLane ? 2 : 3;
     if (!Array.isArray(row.cadence_jst) || row.cadence_jst.length !== expectedCadenceSlots
       || row.cadence_jst.some((value) => typeof value !== "string" || !TIME.test(value))
       || new Set(row.cadence_jst).size !== expectedCadenceSlots) invalid("cadence_jst");

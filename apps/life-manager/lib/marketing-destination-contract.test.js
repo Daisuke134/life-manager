@@ -119,10 +119,23 @@ test("duplicate retained handles across platforms fail closed", () => {
   assert.throws(() => validateMarketingDestinationContract(value), /duplicate native handle/i);
 });
 
-test("two-slot cadence is limited to the English eBook lane", () => {
+test("two-slot cadence is limited to the approved eBook lanes", () => {
+  const cases = new Map([
+    ["ebook-en-tiktok", ["08:00", "21:00"]],
+    ["ebook-ja-instagram", ["07:00", "20:00"]],
+    ["ebook-ja-tiktok", ["07:00", "20:00"]],
+  ]);
+  for (const [laneId, cadence] of cases) {
+    const value = JSON.parse(fs.readFileSync(CONTRACT, "utf8"));
+    const target = value.targets.find((row) => row.lane_id === laneId);
+    assert.ok(target);
+    target.cadence_jst = cadence;
+    assert.doesNotThrow(() => validateMarketingDestinationContract(value));
+  }
+
   const value = JSON.parse(fs.readFileSync(CONTRACT, "utf8"));
-  const otherLane = value.targets.find((row) => row.lane_id !== "ebook-en-tiktok");
-  otherLane.cadence_jst = ["08:00", "21:00"];
+  const otherLane = value.targets.find((row) => !cases.has(row.lane_id));
+  otherLane.cadence_jst = ["07:00", "20:00"];
   assert.throws(() => validateMarketingDestinationContract(value), /cadence_jst/);
 });
 
@@ -131,6 +144,16 @@ test("English eBook two-slot exception is bound to its Monk TikTok identity", ()
   const target = value.targets.find((row) => row.lane_id === "ebook-en-tiktok");
   target.platform = "instagram";
   assert.throws(() => validateMarketingDestinationContract(value), /cadence_jst/);
+});
+
+test("Japanese eBook two-slot exceptions are bound to exact Watercolor integrations", () => {
+  for (const laneId of ["ebook-ja-instagram", "ebook-ja-tiktok"]) {
+    const value = JSON.parse(fs.readFileSync(CONTRACT, "utf8"));
+    const target = value.targets.find((row) => row.lane_id === laneId);
+    target.cadence_jst = ["07:00", "20:00"];
+    target.integration_id = "unexpected-watercolor-integration";
+    assert.throws(() => validateMarketingDestinationContract(value), /cadence_jst/);
+  }
 });
 
 test("a target without an exact pack, form, cadence, label, or entrypoint fails closed", () => {
