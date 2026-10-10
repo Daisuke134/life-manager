@@ -161,11 +161,17 @@ class ProviderLeaseTest(unittest.TestCase):
     @unittest.skipUnless(os.name == "posix", "owned process groups require POSIX sessions")
     def test_owned_process_group_is_reaped_after_leader_exits(self):
         late_write = self.root / "late-write"
+        runner_returned = self.root / "runner-returned"
         provider = self.root / "provider.py"
+        child_code = (
+            "import time\nfrom pathlib import Path\n"
+            f"ready = Path({str(runner_returned)!r})\n"
+            "while not ready.exists(): time.sleep(0.01)\n"
+            f"Path({str(late_write)!r}).write_text('late')\n"
+        )
         provider.write_text(
             "import subprocess, sys\n"
-            "subprocess.Popen([sys.executable, '-c', "
-            f"\"import time; from pathlib import Path; time.sleep(0.35); Path({str(late_write)!r}).write_text('late')\"])\n"
+            f"subprocess.Popen([sys.executable, '-c', {child_code!r}])\n"
             "raise SystemExit(23)\n",
             encoding="utf-8",
         )
@@ -189,6 +195,7 @@ class ProviderLeaseTest(unittest.TestCase):
             )
             self.assertEqual(result, 23, "group cleanup changed the provider leader return code")
             self.assertIsNone(foreign.poll(), "cleanup signalled a process outside the owned group")
+            runner_returned.touch()
             time.sleep(0.5)
             self.assertFalse(late_write.exists(), "same-group child wrote after runner returned")
         finally:

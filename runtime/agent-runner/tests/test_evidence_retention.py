@@ -1,4 +1,5 @@
 import os
+import json
 import sys
 import tempfile
 import time
@@ -11,9 +12,77 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from agent_runner import ensure_evidence_capacity, reclaim_completed_evidence
+import agent_runner as runner
 
 
 class EvidenceRetentionTest(unittest.TestCase):
+    def test_finished_run_prunes_diagnostics_without_waiting_for_another_run(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            config = base / "repo/config"
+            config.mkdir(parents=True)
+            policy = json.loads((runner.REPO_ROOT / "config/storage-policy.json").read_text())
+            policy["defaults"]["owner_diagnostic_retained_bytes"] = 64
+            policy["defaults"]["host_diagnostic_retained_bytes"] = 64
+            (config / "storage-policy.json").write_text(json.dumps(policy))
+            owner = "life-manager-disk-cleanup"
+            (config / "loop-registry.json").write_text(json.dumps({"loops": {owner: {}}}))
+            run = base / "agent-runner-evidence/task/run-1"
+            relay = run / "attempt-01.capture/stderr-relay"
+            relay.mkdir(parents=True, mode=0o700)
+            binding = {"owner_id": owner, "run_id": "run-1"}
+            marker = relay / ".lm-regenerable"
+            marker.write_text(json.dumps({"role": "diagnostic_only", "binding": binding}))
+            marker.chmod(0o600)
+            (relay / "relay-result.json").write_text(json.dumps({"binding": binding}))
+            (relay / "stderr.log").write_bytes(b"x" * 256)
+            primary = {name: b"authoritative" for name in ("result.json", "usage.json", "attempts.jsonl")}
+            for name, payload in primary.items():
+                (run / name).write_bytes(payload)
+            summary = {"status": "failed", "attempt_count": 1}
+
+            with patch.dict(os.environ, {"LIFE_MANAGER_LOOP_ID": owner}), patch.object(runner, "REPO_ROOT", config.parent):
+                result = runner.finish_evidence_run(run, summary)
+
+            self.assertFalse(relay.exists(), "a completed run must prune its own excess diagnostics")
+            self.assertEqual(result["status"], "failed")
+            self.assertEqual(result["postrun_evidence_reclamation"]["removed"], 1)
+            self.assertEqual(json.loads((run / "summary.json").read_text())["status"], "failed")
+            for name, payload in primary.items():
+                self.assertEqual((run / name).read_bytes(), payload)
+
+    def test_finished_run_preserves_summary_and_business_status_on_cleanup_failure(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            run = Path(temporary) / "agent-runner-evidence/task/run-1"
+            summary = {"status": "success", "result_path": "result.json"}
+            with (patch.dict(os.environ, {"LIFE_MANAGER_LOOP_ID": "life-manager-disk-cleanup"}),
+                  patch.object(runner, "prune_closed_diagnostics", side_effect=PermissionError(13, "private"))):
+                result = runner.finish_evidence_run(run, summary)
+            self.assertEqual(result["status"], "success")
+            self.assertEqual(json.loads((run / "summary.json").read_text())["status"], "success")
+
+    def test_finished_unmanaged_run_does_not_use_legacy_whole_run_gc(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            run = Path(temporary) / "agent-runner-evidence/task/run-1"
+            with patch.dict(os.environ, {}, clear=True), patch.object(runner, "reclaim_completed_evidence") as legacy:
+                runner.finish_evidence_run(run, {"status": "success"})
+            legacy.assert_not_called()
+            self.assertTrue((run / "summary.json").is_file())
+
+    def test_finished_unregistered_owner_preserves_other_runs_primary_evidence(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "agent-runner-evidence"
+            previous = self.completed_run(root, "other-owner", "previous", b"diagnostic")
+            primary = ("summary.json", "result.json", "usage.json", "attempts.jsonl")
+            for name in primary:
+                (previous / name).write_text("authoritative")
+            current = root / "unknown-owner/current"
+            with patch.dict(os.environ, {"LIFE_MANAGER_LOOP_ID": "unregistered-test-owner",
+                                         "AGENT_RUNNER_EVIDENCE_MAX_BYTES": "0"}):
+                runner.finish_evidence_run(current, {"status": "success"})
+            for name in primary:
+                self.assertEqual((previous / name).read_text(), "authoritative")
+
     def completed_run(self, root: Path, task: str, name: str, payload: bytes) -> Path:
         run = root / task / name
         run.mkdir(parents=True)

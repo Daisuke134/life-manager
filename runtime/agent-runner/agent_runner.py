@@ -309,6 +309,29 @@ def ensure_evidence_capacity(evidence_dir: Path) -> dict[str, int]:
     return reclaim_completed_evidence(evidence_dir, max_evidence_bytes=max_bytes)
 
 
+def finish_evidence_run(evidence_dir: Path, summary: dict) -> dict:
+    """Persist primary results before pruning closed, owner-bound diagnostics."""
+    summary_path = evidence_dir / "summary.json"
+    atomic_json(summary_path, summary)
+    owner = os.environ.get("LIFE_MANAGER_LOOP_ID")
+    policy_path = REPO_ROOT / "config/storage-policy.json"
+    if owner and policy_path.is_file():
+        try:
+            policy = load_storage_policy(policy_path, owner)
+            root = evidence_root_for(evidence_dir)
+            if policy is not None and root is not None:
+                reclamation = prune_closed_diagnostics(root, policy, current_run=evidence_dir.resolve())
+                summary = {**summary, "postrun_evidence_reclamation": reclamation}
+                atomic_json(summary_path, summary)
+        except (OSError, ValueError) as error:
+            print(json.dumps({
+                "event": "postrun_evidence_cleanup_failed", "owner_id": owner,
+                "run_id": os.environ.get("LIFE_MANAGER_RUN_ID"),
+                "error_class": type(error).__name__, "errno": getattr(error, "errno", None),
+            }, separators=(",", ":")), file=sys.stderr)
+    return summary
+
+
 def sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -2194,7 +2217,7 @@ def run() -> int:
             registry_path=runtime_registry_path(),
             release_sha=release_sha,
         )
-    atomic_json(summary_path, summary)
+    summary = finish_evidence_run(evidence_dir, summary)
     print(json.dumps(summary, ensure_ascii=False, separators=(",", ":")))
     if lease_fd is not None:
         os.close(lease_fd)
