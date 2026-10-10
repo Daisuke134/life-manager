@@ -372,15 +372,48 @@ P1の枠回復はCLEAN-05の生存/待ち境界として扱う。既存S06〜S18
 | 未完 | S07 | skills/cfo/run.shと指定CFO worktreeのA8.1→B7→A8.2–19→A6→A9→A10を既存atomic順でserial実装。継続課金のsource/period/ownership/MRR baselineを確定し、unknownを0にしない。自然B7と元の全source完了条件を満たす |
 | 未完 | S08 | LINE §5.Lのsell slot/公式post_url、審査、/stats/sticker salesを先に閉じ、資源回復後にstatic_images速度とストア検索の勝ち型を改善。DONE=build/sellの自然継続と費用控除後黒字。LINE単発売上はMRRにしない |
 | 未完 | S09 | Mobile既存cursor: #7369更新/CI/main→main release→18 ownerとPostizをexact occurrenceで照合→不足のみ保存PNGで配信→各3/day PUBLISHED/permalink→native metrics/ASC/RC/funnel→内容/onboarding改善。solo境界維持。DONE=公式refund/fees控除を含む既存net $10K MRR |
-| 未完 | S10 | Gig Remaining atomic TODO item2→10をCoconalaの既存案件・実納品・Storefront order/settlementから進め、1つのdeliverable offerの黒字証拠後にFreelancer→Upwork→許可済platformへ拡大。Lancers25–27/Answers境界維持、item11 SelfBuildはこのlaneの最後 |
+| 未完 | S10 | Gig Remaining atomic TODO item2→10をCoconalaの既存案件・実納品・Storefront order/settlementから進め、1つのdeliverable offerの黒字証拠後にFreelancer→Upwork→許可済platformへ拡大。Lancers25–27/Answers境界維持、item11 SelfBuildはこのlaneの最後。P0/P1通過後に再開し、unknown effectは公式readbackで閉じるまで再送しない |
 | 未完 | S11 | English eBook既存cursor: 古いfence保持/新slot安全→Products #420のproduction migration/table/RPC/ACL readback→webhook/PDF/Letter lifecycle→TikTok08/21の自然PUBLISHED→cost/fees/refund/settlement。自己購入/HeyGen Web plan/TikTok追加QAなし。DONE=既存net $10K MRR、単発Reset売上は別 |
 | 未完 | S12 | Job Hunter既存順でcapacity→MCP/readiness→Workday official effect照合→Dreamwork cutover、entitlementが許可するfit-qualified応募だけ実行。Free applicationsLimit0なら購入/bypassせず次のsafe atomへ。DONE=Tokyo/日本Remote/SF/visa条件を満たす公式応募receiptと業務Telegram readback |
 | 未完 | S13 | 投資#7373 checks/必要review/main→AT-13 fresh official no-order契約→自然qualified sell→初paper round tripのcost-complete P&L/replay-zero→30 round trips/strategy/cross-venue/AT-24/29/反対review。達成前live funding/orderなし。DONE=元のownerへsettled正net利益のAlpaca/銀行/CFO同period証明 |
 | 未完 | S14 | README残catalogのCapafy/Writer/PromptBase/Affiliate/Agent Economy/Connector/Fundraiser等をregistryへjoinし、既存§5.2と各lane cursorのsafe先頭atomを一件ずつ進める。DONE=自然owner/公式effect/費用/settlement/CFO coverage。登録やlistingだけを売上にしない |
-| 未完 | S15 | recovery-intent/supervisor/bridge→life-manager-devの既存経路で自然に起きた自己所有障害1件を修復する（§5.1 T5）。run/intent/issue/PR/release/次自然run/公式readback/replay-zeroをjoin。既存の軽いowner recoveryはS01から使い、独立完走の証明をここで閉じる。production障害をわざと作らない |
-| 未完 | S16 | T14の既存evalを実際のENOSPC/duplicate/unknown recoveryケースから小さく始める。recovery-classes fixtureと関連testsを再利用、public/dev/held-outとsecret除去を分ける。self-eval.mjs::selfEvalの欠測net→0を経済選択へ使わない契約を最小RED→GREENで閉じる（node --test runtime/loop/__tests__/self-eval.test.mjs）。DONE=再現可能なbase/candidate結果、cost basis、汚染/漏洩なし |
-| 未完 | S17 | §5.1 T12のevaluator/rollbackを使い、公式CFO/funnel成果を根拠に1改善ずつ昇格。候補は評価器/権限/fence/spend capを変更しない。benchmarkだけで販売成功とせず自然成果へjoin。選定済OpenClaw+native CodexのMX-01〜12は既存計画の最小waveを一件ずつ進め、framework比較を再開しない |
+| 未完 | S15 | S01〜S14のloop/platform課題を進めた後、recovery-intent/supervisor/bridge→life-manager-devの既存経路で自然に起きた自己所有障害1件を修復する（§5.1 T5）。run/intent/issue/PR/release/次自然run/公式readback/replay-zeroをjoinする。外部coding agentの修正やsupervisorの単独PASSは自己修復の証拠にしない。production障害をわざと作らない |
+| 未完 | S16 | T14 LM-EAB。まず現行`selfEval`の欠測net→0をfail-closedへ直す。次に既存recovery/economic evalを自然障害・CFO公式receiptへ接続し、最後に公開benchmarkのtask、split、adapter、grader、再現性を閉じる。public/dev/held-out/challengeとsecret除去・汚染監査を分ける。新frameworkを先行導入しない |
+| 未完 | S17 | S16でversion固定したevaluatorを使い、prompt/tool/routing/offer等の候補を一度に一変更だけ評価する。事前定義した品質・安全・settled net条件を通したcanaryだけ昇格し、悪化時は自動rollback。候補はgrader/dataset/policy/identity/権限/fence/spend capを書き換えない。benchmark scoreだけで販売成功とせず自然run・公式receiptへjoinする。選定済OpenClaw+native CodexのMX-01〜12は既存計画の最小waveを一件ずつ進め、framework比較を再開しない |
 | 未完 | S18 | README/LICENSE/install.sh/catalogのpublic・MIT現状を保ち、未完成guided installer/tenant adapterを1 agentずつ完成。隔離した新利用者環境でinstall.sh plan→doctor→setup_required/選択ownerを確認し、個人path/credential/private app依存を除く。既存価格の継続商品で下記MRR段階を実測し、US$10Mと全lane成果の両方を公式CFOで確認するまで継続 |
+
+**評価・自己修復・自己改善を分ける（S15→S17の完了条件）:**
+
+- **自己修復（S15）**は壊れた既存動作を安全に元へ戻す。**自己改善（S17）**は望ましい動作や経済成果を変える。前者は正しい復旧・effect integrity、後者は凍結した評価器に対する事前定義済みの比較改善で判定し、同じ成功条件に混ぜない。
+- **Recovery eval:** 既知の失敗を正しく検出・分類し、正しいownerの安全な修復を選び、effect_unknownを保持し、二重実行を起こさないか測る。隔離fixtureを使い、本番へ意図的に障害を入れない。
+- **Economic eval:** 顧客の公式settlementからrefund/feeと同期間の実測costを引いたnet contributionを測る。応募、表示、fixtureの売上、未settled額、欠損を0にした値は利益扱いしない。
+- **Public benchmark:** まず「agentがstorefrontを作る→適格案件を処理する→納品/settlement/費用を照合する→unknownや再実行を安全に扱う」というagentic economic autonomyを対象にする。他のagent/harnessでも同じversioned taskを実行でき、独立した相手が結果を再現できるかを測る。自然runからはPII・credential・顧客秘密を除いたtaskだけを作る。現在のLM-EABは4件のsynthetic case（tuning 2 / held-out 2）で、内部契約の足場にすぎず、現実の収益性能や業界採用を示さない。
+- **Production gate:** 公開benchmark scoreとは別に、候補releaseをfrozen evaluator・安全制約・小さなcanary・自然run・公式provider/CFO readbackで判定する。held-out問題を候補調整に流用しない。
+- 各runはtask/case-set、release、model、toolchain、graderのversion/hash、trial数、trace、実測outcomeを保存する。決定可能なeffect/金銭は公式receiptを採点し、主観的品質だけを人手基準と照合・較正したjudgeで採点する。確率的taskは複数trialを行い、件数と不確かさを併記する。品質、安全性、effect integrity、cost、latencyは別々に表示し、単一の不透明scoreへ潰さない。
+- 公開v1はprotocol/data schema、実行adapter、固定grader、公開/dev/held-out/challenge分離、secret/PII redaction、contamination監査、再実行可能なreportを揃える。公開後に複数の独立teamが同じcaseを走らせ、結果と差異を公開できたら「外部再現」を達成とする。「leading benchmark」やlab採用は別の長期目標で、独立した利用・引用・再現の証拠が出るまで達成と主張しない。
+- 既存のNode LM-EAB runnerを最小の正本として使う。Inspect AI等はtask/solver/scorerと外部agent接続の参考にし、現行runnerで外部再現できない具体的な障害が出た場合だけ薄いadapterを追加する。新しいbenchmark framework、scheduler、CLIを先回りして増やさない。
+
+**meta loop:**
+
+```mermaid
+flowchart LR
+  A[自然run・公式readback・CFO実費] --> B[失敗/収益機会を一件選ぶ]
+  B --> C[原因仮説と基準値を固定]
+  C --> D[隔離candidateを一変更]
+  D --> E[凍結evalで品質・安全・net・costを比較]
+  E -->|基準通過| F[小さくcanary]
+  E -->|不通過| G[破棄または修正]
+  F --> H[自然run・公式receipt・replay-zero]
+  H -->|改善| I[昇格し、伏せ字化した失敗例をevalへ追加]
+  H -->|悪化/unknown| J[rollbackし、fenceを維持]
+  I --> B
+```
+
+**現在の評価証拠（2026-10-10 17:39 JST）:** `npm run test:economic-autonomy`はPASSし、生成したrunは4つのfixture caseを評価した。これは内部fixture/testのPASSであり、production outcomeではない。`runtime/loop/self-eval.mjs`は欠測netを0へ変換する実装（line 33）が残る。`node --test runtime/loop/__tests__/self-eval.test.mjs`は5/5 PASSだが、欠測netを経済判断に使わないことをまだ保証しない。S16の最初のatomは欠測値を`unknown`のまま保持する修正と回帰条件追加。
+
+**Gigのfresh readback（2026-10-10 17:39 JST、`bin/lm-loop status all`）:** `hf-gig-apply-direct`は`resource_effect_unknown`（occurrence `18dd1e4e5404fd88-9706`）、`hf-gig-storefront-direct`も`resource_effect_unknown`（`18dd1e4848aa6e88-9257`）で、どちらもprovider receiptなし。`hf-gig-paid-direct`は`resource_capacity_busy`、`hf-gig-apply-reconcile`と`hf-gig-reply-detector`は`disk_headroom_low`。`hf-gig-browser`は旧release `b3ceeef9`でrunning。これらは成功や売上の証拠ではない。P0/P1を先に進め、effect_unknownは公式readbackで閉じるまで再送せず、S10/T7の次atomはowner/release状態を再読出ししてから続ける。
+
+**参考資料（設計の根拠。新依存ではない）:** [Anthropic: agent evals](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents)、[OpenAI: evals guide](https://developers.openai.com/api/docs/guides/evals)、[UK AISI Inspect AI](https://inspect.aisi.org.uk/)。共通点は、実タスク・trial・grader・trace/outcomeを対応させ、agent/harnessをまたいで再現可能にすること。Life Managerでは公式receiptとCFOを金銭/effectの正解ラベルにし、主観judgeは較正対象に限定する。
 
 **収益の進め方（期限予測ではなく検証milestone）:** 最初の実購入/継続利用/費用をproductとcampaignへjoin → 既存lane $10K目標 → 会社verified MRR $100K → $1M → $10M。各段階で実測のconversion/churn/retention、refund/fees、単位利益、cash runwayとprovider/worker容量を確認し、黒字で継続利用される商品・配信経路へ既存spend cap内の資源を配分する。OSS導入/投稿数はcustomer acquisitionの観測であり、会社MRRは有料継続契約の公式根拠から集計する。既存$29/月のCloudだけでgross $10Mを満たす単純算数は344,828 paid subscriptions（割引/返金/fees/費用は別）。agentを増やすだけで達成するという予測や保証にはしない。
 
@@ -486,6 +519,8 @@ flowchart LR
 - **経済目標:** 検証済み net MRR USD 10K → 自己資金化 → YC W27 用の証拠 → AGI/UBI 研究。証拠なしに達成を主張しない。
 
 ## 5. TODO（実行順・正本）
+
+**現行の実行順は一つだけ:** P0/P1の各atomic表 → 下記S01→S18。後続節のT5/T7/T12/T14等は能力・laneへの参照ID、日付付き順序は履歴であり、別の実行queueではない。P0/P1の未完項目が残る間はS01以降を全体cursorにしない。2026-10-10 17:39 JSTのspec状態ではP0-12〜15とP1-1〜5が未完で、共有資源節のcursorを優先する。
 
 順序変更の記録: 旧順序（Foundation spec:7092-7137）では、収益の帰属（旧9）が capsule（旧6）・cloud（旧7）・LM-EAB（旧8）の後だった。新順序では、ループごとの利益計測（新8）を capsule/cloud/LM-EAB より前に置く。理由は、利益が見えないと、どのループに資源を寄せるか・何を改善するかを判断できないため。Paid cursor は旧5の中身を新7として独立させた。
 
