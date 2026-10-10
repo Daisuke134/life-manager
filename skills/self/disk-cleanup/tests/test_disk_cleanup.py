@@ -64,6 +64,16 @@ def test_closed_regenerable_artifact_is_reclaimed(tmp_path: Path, monkeypatch) -
     assert not candidate.exists()
     receipt = json.loads((state / "last-receipt.json").read_text())
     assert receipt["protected_deletions"] == 0
+    assert receipt["cleanup_pid"] == os.getpid()
+    assert receipt["reclaimed_candidates"] == [{
+        "owner": "temporary-run", "path": str(candidate), "logical_bytes": 64,
+    }]
+    replay = governor.sweep([{
+        "path": candidate, "class": "ephemeral", "owner": "temporary-run",
+        "discovery": "allowlisted",
+    }])
+    assert replay["reclaimed_candidates"] == []
+    assert replay["reclaimed_candidates_omitted"] == 0
 
 
 def test_closed_package_download_caches_are_discovered_and_reclaimed(
@@ -73,6 +83,12 @@ def test_closed_package_download_caches_are_discovered_and_reclaimed(
         "homebrew-cache": "Library/Caches/Homebrew",
         "pip-cache": "Library/Caches/pip",
         "uv-cache": ".cache/uv",
+        "bun-cache": "Library/Caches/bun",
+        "burrito-cache": "Library/Caches/burrito_file_cache",
+        "codex-runtime-cache": ".cache/codex-runtimes",
+        "ffmpeg-cache": "Library/Caches/ffmpeg-static-nodejs",
+        "npm-cache": ".npm/_cacache",
+        "google-cache": "Library/Caches/Google",
     }
     paths = {}
     for owner, relative in relative_roots.items():
@@ -98,6 +114,8 @@ def test_closed_package_download_caches_are_discovered_and_reclaimed(
     assert result["reclaimed"] > 0
     assert result["errors"] == 0
     assert result["protected_deletions"] == 0
+    assert len(result["reclaimed_candidates"]) == 8
+    assert result["reclaimed_candidates_omitted"] == 1
 
 
 @pytest.mark.parametrize("condition", ["closed", "open", "compiler", "changed"])
