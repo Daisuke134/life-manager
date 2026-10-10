@@ -16,7 +16,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
-const { execFileSync } = require("node:child_process");
+const { execFileSync, spawnSync } = require("node:child_process");
 
 const SCRIPT_PATH = path.join(__dirname, "life-manager-dev-d0.sh");
 const SCRIPT_TEXT = fs.readFileSync(SCRIPT_PATH, "utf8");
@@ -28,6 +28,36 @@ const RECOVERY_CLASS_SRC = path.join(__dirname, "../../../runtime/loop/recovery-
 // be granted a scope in these tests.
 const ENTRY_DISPATCH_STUB = "def command_for(loop_id, root, home):\n    fixed = {\n    }\n"
   + "    if loop_id not in fixed:\n        raise ValueError(loop_id)\n    return fixed[loop_id]\n";
+
+test("d0 inherits agent stderr while retaining last stdout and the agent exit code", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-d0-stderr-"));
+  try {
+    const legacy = path.join(dir, "life-manager-dev.err.log");
+    const fakeAgent = path.join(dir, "fake-agent.sh");
+    fs.writeFileSync(legacy, "existing diagnostic sentinel\n");
+    fs.writeFileSync(fakeAgent,
+      "#!/bin/bash\ncat >/dev/null\nprintf 'fixture stdout\\n'\nprintf 'fixture stderr\\n' >&2\nexit 23\n",
+      { mode: 0o700 });
+    const match = SCRIPT_TEXT.match(/^AGENT_OUT=[\s\S]*?^AGENT_RC=\$\?$/m);
+    assert.ok(match, "the real agent invocation block must be present");
+    const result = spawnSync("bash", ["-c",
+      `set -uo pipefail\n${match[0]}\nprintf 'AGENT_RC=%s\\n' "$AGENT_RC"\n`,
+    ], {
+      encoding: "utf8",
+      timeout: 5000,
+      env: { ...process.env, LOG_DIR: dir, RUN_AGENT: fakeAgent, NUM: "42", WT: dir,
+        PROMPT: "isolated diagnostic fixture" },
+    });
+    assert.equal(result.status, 0);
+    assert.equal(result.stdout, "AGENT_RC=23\n");
+    assert.equal(fs.readFileSync(path.join(dir, "life-manager-dev-agent-last.out"), "utf8"),
+      "fixture stdout\n");
+    assert.equal(result.stderr, "fixture stderr\n");
+    assert.equal(fs.readFileSync(legacy, "utf8"), "existing diagnostic sentinel\n");
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
 
 function extractHeredoc(scriptText, marker) {
   const re = new RegExp(`<<'${marker}'\\n([\\s\\S]*?)\\n${marker}\\n`);

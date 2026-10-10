@@ -225,7 +225,7 @@ printf '%s\n' "$PROMPT" | "$RUN_AGENT" \
   --task-label "life-manager-dev-$NUM" \
   --loop "life-manager-dev" \
   --workdir "$WT" \
-  > "$AGENT_OUT" 2>> "$LOG_DIR/life-manager-dev.err.log"
+  > "$AGENT_OUT"
 AGENT_RC=$?
 log "fresh agent exit=$AGENT_RC"
 if [ "$AGENT_RC" -ne 0 ]; then
