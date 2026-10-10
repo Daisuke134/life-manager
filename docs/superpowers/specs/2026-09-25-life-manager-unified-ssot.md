@@ -321,6 +321,8 @@ CLEAN-04収支診断と次source scope: 新f78 releaseでshared lockの有限rec
 
 CLEAN-04 native clone source受入: Git archive後のexport正本と完全一致するsameUID/nlink1/regular/read-only/非symlink donorだけを/bin/cp -cで独立inodeへ複製し、複製後も正本と一致した時だけcandidate leafを置換する。native失敗/不一致/不在はGit export保持。実行bitがGit側だけ変わるREDを確認し、候補tempにGit export modeを付け直してGREEN。既存real-Git release fixtureを共用し、clone実呼出・独立inode・mode・changed canonical source・donor不変・memory/unknown非伝播・native失敗fallback、低容量guard/候補/binclosureを含む関連6tests PASS、bash syntax/diff PASS。初回sparseの.gitattributes欠落はHEADの同file復元で解消。正式recordsやdonorは削除せず、new service/cache/schema/model追加0。sourceのみで、本番の物理増加量低減・main/loaded/自然収支は未確認。
 
+CLEAN-04 native clone main/反映結果: #7538 exact6e7b12f6e16049355265f470fa7f88f6451f8b91/CI38070655694全10SUCCESS後admin squash main522cfb1f3e997a09f25a44d0bad710c6c830fd99へ統合。正規cutterを同mainから一回実行し既存回収先行、available1,063,088,128/required2,147,483,648 bytes/disk_headroom_low75でexport前延期。新release/current変更0、source cloneの本番物理効果未確認。現在cursor=完全cutに必要な実書込余裕の復旧→同一コードのnative再利用を含むmain immutable反映→生成量/自然回収量/正式保存の同期間収支→CLEAN-05→06。回収snapshot cacheの保護低下は採用しない。空きGiBを完了KPIへ戻さず、source/main成功と本番安定を区別する。
+
 **cleanup現在readback（source/main/release/loaded/naturalを区別）:**
 
 | atom | 確認済み | 実際に残る一操作 |
