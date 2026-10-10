@@ -91,6 +91,13 @@ async function selectedAccountId(uid, apiKey, opts = {}) {
 
 async function exec(tool, uid, args, apiKey, opts, recordOutcome, effectAwareWrite = false) {
   const proxyCreate = tool === WEB_REMINDER_CREATE_TOOL;
+  const proxyReminderPatch = tool === "GOOGLECALENDAR_PATCH_EVENT"
+    && opts.expectedCalendarAccountId != null
+    && args && args.calendar_id === "primary"
+    && typeof args.event_id === "string" && args.event_id.length > 0
+    && args.reminders && typeof args.reminders === "object" && !Array.isArray(args.reminders)
+    && Object.keys(args).every((field) => ["calendar_id", "event_id", "reminders", "send_updates"].includes(field));
+  const proxyOperation = proxyCreate || proxyReminderPatch;
   let connectedAccountId;
   try { connectedAccountId = await selectedAccountId(uid, apiKey, opts); }
   catch (error) {
@@ -120,8 +127,15 @@ async function exec(tool, uid, args, apiKey, opts, recordOutcome, effectAwareWri
   try {
     const requestBody = proxyCreate
       ? { ...args, ...(connectedAccountId ? { connected_account_id: connectedAccountId } : {}) }
-      : { user_id: uid, ...(connectedAccountId ? { connected_account_id: connectedAccountId } : {}), arguments: args };
-    response = await (opts.fetchImpl || fetch)(proxyCreate ? COMPOSIO_PROXY_EXEC : `${COMPOSIO_EXEC}/${tool}`, {
+      : proxyReminderPatch ? {
+        endpoint: `${GOOGLE_CALENDAR_EVENTS_ENDPOINT}/${encodeURIComponent(args.event_id)}`,
+        method: "PATCH",
+        parameters: [{ name: "sendUpdates", value: "none", type: "query" }],
+        body: { reminders: args.reminders },
+        ...(connectedAccountId ? { connected_account_id: connectedAccountId } : {}),
+      }
+        : { user_id: uid, ...(connectedAccountId ? { connected_account_id: connectedAccountId } : {}), arguments: args };
+    response = await (opts.fetchImpl || fetch)(proxyOperation ? COMPOSIO_PROXY_EXEC : `${COMPOSIO_EXEC}/${tool}`, {
       method: "POST",
       headers: { "x-api-key": apiKey, "Content-Type": "application/json" },
       body: JSON.stringify(requestBody),
@@ -131,7 +145,7 @@ async function exec(tool, uid, args, apiKey, opts, recordOutcome, effectAwareWri
     if (effectAwareWrite) return { effect: "unknown", result: { successful: false } };
     throw error;
   }
-  if (proxyCreate) {
+  if (proxyOperation) {
     let proxied;
     try { proxied = await response.json(); }
     catch {
@@ -153,11 +167,16 @@ async function exec(tool, uid, args, apiKey, opts, recordOutcome, effectAwareWri
       await recordOutcome("unknown");
       return { effect: "unknown", result: { successful: false } };
     }
-    const data = proxied && proxied.data && typeof proxied.data === "object" ? proxied.data : null;
+    const rawData = proxied && proxied.data && typeof proxied.data === "object" ? proxied.data : null;
+    const data = rawData && rawData.response_data && typeof rawData.response_data === "object"
+      ? rawData.response_data : rawData;
+    const eventIdMatches = proxyReminderPatch
+      ? Boolean(data && String(data.id || "") === args.event_id) : Boolean(data && data.id);
     const successful = response.ok === true && (upstreamStatus === 0 || upstreamStatus >= 200 && upstreamStatus < 300)
-      && Boolean(data && data.id);
+      && eventIdMatches;
     await recordOutcome(successful ? "success" : "unknown");
-    return { effect: successful ? "created" : "unknown", result: { successful, data } };
+    const effect = successful ? proxyReminderPatch ? "updated" : "created" : "unknown";
+    return { effect, result: { successful, data } };
   }
   const status = Number.isInteger(response?.status) ? response.status : null;
   if (effectAwareWrite && status !== null && status >= 400 && status < 500) {
