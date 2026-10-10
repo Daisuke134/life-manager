@@ -10,9 +10,9 @@ SKILL="$LIFE_MANAGER_REPO/skills/anicca-life-manager"
 PYTHON_BIN="${LIFE_MANAGER_PYTHON:-python3}"
 LIFE_MANAGER_HOME="${LIFE_MANAGER_HOME:-$HOME/.local/state/life-manager}"
 STATE_ROOT="${LIFE_MANAGER_STATE_ROOT:-$LIFE_MANAGER_HOME/lateness-heartbeat}"
-LOG="$STATE_ROOT/logs/run.log"
-mkdir -p "$(dirname "$LOG")"
-chmod 700 "$STATE_ROOT" "$(dirname "$LOG")"
+LOG=/dev/stderr
+mkdir -p "$STATE_ROOT"
+chmod 700 "$STATE_ROOT"
 unset ANICCA_HOME OPENCLAW_ENV_FILE
 export LIFE_MANAGER_HOME
 export LIFE_MANAGER_ENV_FILE="${LIFE_MANAGER_ENV_FILE:-$LIFE_MANAGER_HOME/.env}"
