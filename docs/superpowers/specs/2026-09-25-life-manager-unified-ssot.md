@@ -347,6 +347,10 @@ CLEAN-04回収内訳atomは本番確認済み: #7545/main d687→ALL current0308
 
 中央ownerはfresh GUI service absent/unknown=false/stop記録無しから、canonical target限定通常applyで復旧済み。changedtrue/loaded d687/install event912ad07b3103e2de1c4a3951/admission_resumedfalseを確認。boot run18dd3de4d174dc60-48138は18:18:16Z exit75で、同stdoutはcleanup_lock_busy、強制再実行0。保持した実cadenceはStartCalendarInterval Minute3,8,13,18,23,28,33,38,43,48,53,58（5分間隔）/RunAtLoadtrue/Disabled無し、registry300と運用cadenceを混同しない。次自然18:23Zを追跡し、unload原因は未確定として残す。CLEAN-04の既存大物回収/内訳readbackは前進、全体Doneではなく残cursorは中央自然復旧→生成/回収収支→CLEAN-05→06。
 
+CLEAN-04中央自然復旧の最新結果: restored d687の予定slot18:23Zはrun18dd3e2be58f73a8-53767/18:23:05Z execute→18:25:53Z terminal pass0/error_class null。same owner/occurrence/release d687のhost receipt18:25:01Z/PID53863はerrors0/protected0/内訳空で保存済み。PID53767 absentを確認し手動再実行無し。admission-v2 exact rowは無く、このdeterministic control runをDB released/枠返却へ推測で結ばない。
+
+完了atomは、native source再利用の本番成功、毎分watchdogのloaded main由来argv/StartInterval60、既存大物cacheの自然回収、候補内訳の複数自然readback、中央scheduled ownerの復旧と自然pass。これらを未着手へ戻さない。CLEAN-04の残りは元のunload原因と同期間生成/回収収支、次にCLEAN-05残ownerの実枠返却/自動再開、CLEAN-06業務primary/公式receipt→自己/中央cleanup→次仕事の反復受入。物理ENOSPCの再発なし・全loopの仕事進行はまだ全範囲未証明で根本修復全体Doneとはしない。
+
 **cleanup現在readback（source/main/release/loaded/naturalを区別）:**
 
 | atom | 確認済み | 実際に残る一操作 |
