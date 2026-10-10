@@ -3384,6 +3384,7 @@
       "state_root": "~/.local/state/life-manager/x402-sell"
     },
     "lm-recording-store": {
+      "admission_class": "borrow",
       "adapter": "exec",
       "resource_class": "deterministic",
       "cadence": {
@@ -3400,6 +3401,7 @@
       "label": "ai.anicca.lm-recording-store",
       "system_role": "platform",
       "log_root": "~/.local/state/life-manager/lm-recording-store/logs",
+      "priority": "support",
       "provider_route": "shared-agent-runner",
       "state_root": "~/.local/state/life-manager/lm-recording-store"
     },
