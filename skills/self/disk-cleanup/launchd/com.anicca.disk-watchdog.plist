@@ -10,6 +10,6 @@
   <key>RunAtLoad</key><true/>
   <key>ThrottleInterval</key><integer>60</integer>
   <key>ProcessType</key><string>Background</string>
-  <key>StandardOutPath</key><string>__HOME__/.local/state/life-manager/life-manager-disk-cleanup/logs/watchdog.out.log</string>
-  <key>StandardErrorPath</key><string>__HOME__/.local/state/life-manager/life-manager-disk-cleanup/logs/watchdog.err.log</string>
+  <key>StandardOutPath</key><string>/dev/null</string>
+  <key>StandardErrorPath</key><string>/dev/null</string>
 </dict></plist>

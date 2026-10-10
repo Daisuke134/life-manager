@@ -1,13 +1,12 @@
 #!/bin/sh
 set -eu
 
-ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/../../.." && pwd)
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/../../.." && pwd -P)
 HOME_DIR=${HOME:?HOME is required}
 LABEL=com.anicca.disk-watchdog
 TARGET="$HOME_DIR/Library/LaunchAgents/$LABEL.plist"
 TEMPLATE="$ROOT/skills/self/disk-cleanup/launchd/$LABEL.plist"
-WATCHDOG_SOURCE="$ROOT/bin/disk-watchdog.sh"
-WATCHDOG_SCRIPT="$HOME_DIR/.local/bin/disk-watchdog.sh"
+WATCHDOG_SCRIPT="$ROOT/bin/disk-watchdog.sh"
 LAUNCHCTL_SAFE="$ROOT/bin/launchctl-safe"
 DOMAIN="gui/$(id -u)"
 
@@ -29,25 +28,19 @@ if ! printf '%s\n' "$LOADED_JOBS" | awk '
   printf '%s\n' "launchd job list has an invalid format" >&2
   exit 1
 fi
+mkdir -p "$HOME_DIR/Library/LaunchAgents" \
+  "$HOME_DIR/.local/state/life-manager/life-manager-disk-cleanup/logs"
+PLIST_TMP="$TARGET.tmp.$$"
+sed -e "s#__WATCHDOG_SCRIPT__#$WATCHDOG_SCRIPT#g" \
+  -e "s#__HOME__#$HOME_DIR#g" "$TEMPLATE" > "$PLIST_TMP"
+plutil -lint "$PLIST_TMP" >/dev/null
 if printf '%s\n' "$LOADED_JOBS" | awk -v label="$LABEL" \
     '$NF == label { found = 1 } END { exit !found }'; then
   "$LAUNCHCTL_SAFE" bootout "$DOMAIN/$LABEL"
 fi
-
-mkdir -p "$HOME_DIR/Library/LaunchAgents" "$HOME_DIR/.local/bin" \
-  "$HOME_DIR/.local/state/life-manager/life-manager-disk-cleanup/logs"
-WATCHDOG_TMP="$WATCHDOG_SCRIPT.tmp.$$"
-PLIST_TMP="$TARGET.tmp.$$"
-cp "$WATCHDOG_SOURCE" "$WATCHDOG_TMP"
-chmod 755 "$WATCHDOG_TMP"
-mv -f "$WATCHDOG_TMP" "$WATCHDOG_SCRIPT"
-sed -e "s#__WATCHDOG_SCRIPT__#$WATCHDOG_SCRIPT#g" \
-  -e "s#__HOME__#$HOME_DIR#g" "$TEMPLATE" > "$PLIST_TMP"
-plutil -lint "$PLIST_TMP" >/dev/null
 mv -f "$PLIST_TMP" "$TARGET"
 
 "$LAUNCHCTL_SAFE" bootstrap "$DOMAIN" "$TARGET"
-"$LAUNCHCTL_SAFE" kickstart "$DOMAIN/$LABEL"
 READBACK=$("$LAUNCHCTL_SAFE" print "$DOMAIN/$LABEL") || {
   printf '%s\n' "watchdog launchd readback failed" >&2
   exit 1

@@ -40,11 +40,13 @@ def test_watchdog_dispatches_to_governor_without_touching_worktrees_or_simulator
         assert forbidden not in source
 
     home = tmp_path / "home"
-    release = home / "loops/current"
+    release = home / "loops/releases/fixture-main"
     governor = release / "skills/self/disk-cleanup/disk_cleanup.py"
     worktree_marker = home / ".cache/anicca-worktrees/active/progress.txt"
     simulator_marker = home / "Library/Developer/CoreSimulator/Devices/device/data.txt"
     governor.parent.mkdir(parents=True)
+    (release / "bin").mkdir()
+    shutil.copy2(WATCHDOG, release / "bin/disk-watchdog.sh")
     worktree_marker.parent.mkdir(parents=True)
     simulator_marker.parent.mkdir(parents=True)
     governor.write_text("# fake governor\n", encoding="utf-8")
@@ -66,23 +68,23 @@ def test_watchdog_dispatches_to_governor_without_touching_worktrees_or_simulator
         "CAPTURE_FAST": str(tmp_path / "fast.txt"),
     }
 
-    subprocess.run(["/bin/sh", str(WATCHDOG)], env=env, check=True)
+    subprocess.run(["/bin/sh", str(release / "bin/disk-watchdog.sh")], env=env, check=True)
 
     assert (tmp_path / "fast.txt").read_text().strip() == "1"
-    assert capture.read_text(encoding="utf-8").splitlines() == [
-        str(governor),
-        "--home",
+    captured = capture.read_text(encoding="utf-8").splitlines()
+    assert captured[:2] == ["-B", "-c"]
+    assert captured[-3:] == [
+        str(release),
         str(home),
-        "--state-dir",
         str(home / ".local/state/life-manager/state"),
     ]
     assert worktree_marker.read_text(encoding="utf-8") == "active work\n"
     assert simulator_marker.read_text(encoding="utf-8") == "shipping device data\n"
 
 
-@pytest.mark.parametrize("capture_unavailable", [False, True])
+@pytest.mark.parametrize("capture_failure", [None, "relay", "import"])
 def test_watchdog_pins_release_and_bounds_stdio_without_blocking_recovery(
-    tmp_path: Path, capture_unavailable: bool
+    tmp_path: Path, capture_failure: str | None
 ) -> None:
     home = tmp_path.resolve() / "home"
     release = home / "loops/releases/fixture-main"
@@ -92,7 +94,11 @@ def test_watchdog_pins_release_and_bounds_stdio_without_blocking_recovery(
     (release / "bin").mkdir()
     shutil.copy2(WATCHDOG, release / "bin/disk-watchdog.sh")
     (release / "runtime/host").mkdir(parents=True)
+    (release / "runtime/__init__.py").touch()
+    (release / "runtime/host/__init__.py").touch()
     for module in ("bounded_output.py", "storage_policy.py"):
+        if capture_failure == "import" and module == "bounded_output.py":
+            continue
         shutil.copy2(ROOT / "runtime/host" / module, release / "runtime/host" / module)
     (release / "config").mkdir()
     policy = json.loads((ROOT / "config/storage-policy.json").read_text())
@@ -123,7 +129,7 @@ def test_watchdog_pins_release_and_bounds_stdio_without_blocking_recovery(
     logs.mkdir(parents=True)
     for stream in ("out", "err"):
         (logs / f"watchdog.{stream}.log").write_text(f"legacy-{stream}\n")
-    if capture_unavailable:
+    if capture_failure == "relay":
         (logs / "bounded").mkdir(mode=0o700)
         (logs / "bounded/.launchd-life-manager-disk-cleanup.lock").mkdir()
     result = subprocess.run(
@@ -133,7 +139,7 @@ def test_watchdog_pins_release_and_bounds_stdio_without_blocking_recovery(
         timeout=10,
     )
     assert result.returncode == 23
-    if not capture_unavailable:
+    if not capture_failure:
         assert result.stdout == result.stderr == b""
     assert json.loads(marker.read_text()) == {
         "release": str(release),
@@ -142,7 +148,7 @@ def test_watchdog_pins_release_and_bounds_stdio_without_blocking_recovery(
     }
     for stream in ("out", "err"):
         assert (logs / f"watchdog.{stream}.log").read_text() == f"legacy-{stream}\n"
-    if capture_unavailable:
+    if capture_failure:
         assert b"out-tail" in result.stdout and b"err-tail" in result.stderr
         return
     retained = list((logs / "bounded").glob("launchd-life-manager-disk-cleanup.*.log*"))
@@ -292,8 +298,9 @@ def test_installer_updates_only_stable_watchdog_label(tmp_path: Path) -> None:
     shutil.copy2(WATCHDOG, fake_root / "bin/disk-watchdog.sh")
     (fake_root / "bin/disk-watchdog.sh").chmod(0o555)
     (fake_root / "RELEASE.json").write_text(json.dumps({
-        "provenance": "ancestor-of-origin-main", "sha": "a" * 40,
+        "provenance": "ancestor-of-origin-main", "sha": "a" * 40, "release_paths": "ALL",
     }))
+    (fake_home / "loops/current").symlink_to(fake_root, target_is_directory=True)
     shutil.copy2(WATCHDOG_PLIST, fake_root / "skills/self/disk-cleanup/launchd/com.anicca.disk-watchdog.plist")
 
     safe_calls = tmp_path / "launchctl-safe-calls.txt"
@@ -331,7 +338,7 @@ def test_installer_updates_only_stable_watchdog_label(tmp_path: Path) -> None:
     }
 
     subprocess.run(
-        ["/bin/sh", str(fake_root / "skills/self/disk-cleanup/install-launchd.sh")],
+        ["/bin/sh", str(fake_home / "loops/current/skills/self/disk-cleanup/install-launchd.sh")],
         env=env,
         check=True,
         capture_output=True,
@@ -360,6 +367,19 @@ def test_installer_updates_only_stable_watchdog_label(tmp_path: Path) -> None:
     old_plist = b"old installed plist\n"
     wrapper.write_bytes(old_wrapper)
     installed_plist.write_bytes(old_plist)
+    (fake_root / "skills/self/disk-cleanup/launchd/com.anicca.disk-watchdog.plist").write_text("invalid plist")
+    prepare_calls = tmp_path / "launchctl-safe-prepare-calls.txt"
+    failed_prepare = subprocess.run(
+        ["/bin/sh", str(fake_root / "skills/self/disk-cleanup/install-launchd.sh")],
+        env=env | {"SAFE_CALLS": str(prepare_calls)},
+        capture_output=True,
+        text=True,
+    )
+    assert failed_prepare.returncode != 0
+    assert prepare_calls.read_text().splitlines() == ["preflight", "list"]
+    assert wrapper.read_bytes() == old_wrapper
+    assert installed_plist.read_bytes() == old_plist
+    shutil.copy2(WATCHDOG_PLIST, fake_root / "skills/self/disk-cleanup/launchd/com.anicca.disk-watchdog.plist")
     failure_calls = tmp_path / "launchctl-safe-failure-calls.txt"
     failure = subprocess.run(
         ["/bin/sh", str(fake_root / "skills/self/disk-cleanup/install-launchd.sh")],
