@@ -29,6 +29,7 @@ def durable_rows(root, table):
 
 
 def test_recording_getter_can_claim_while_the_model_slot_is_full(tmp_path, monkeypatch):
+    from runtime.loop.lm_loop import _admission_rebind_guard
     from runtime.loop.lm_loop_run import _resource_class
 
     isolated(tmp_path, monkeypatch, total="2")
@@ -54,10 +55,11 @@ def test_recording_getter_can_claim_while_the_model_slot_is_full(tmp_path, monke
         before = next(row for row in durable_rows(tmp_path, "occurrences")
                       if row["owner_id"] == "lm-recording-store")
         recording_class = _resource_class(registry["lm-recording-store"])
-        assert admission.rebind_queued_owner(
-            "lm-recording-store", resource_class=recording_class,
-            admission_class="borrow",
-        ) in {"rebound", "unchanged"}
+        with _admission_rebind_guard(
+                "lm-recording-store", True,
+                entry=registry["lm-recording-store"]) as blocked:
+            assert blocked is None
+        admission.enqueue_durable(recording_class, "lm-recording-store")
         recording_claim, reason = admission.claim_durable(recording_class, "lm-recording-store")
         assert recording_claim is not None and reason == "acquired", reason
         claims.append(recording_claim)
