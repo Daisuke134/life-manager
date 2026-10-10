@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Progress bar for onboarding. Formula: 0.2 + 0.6 * (rawValue / 10).
-/// Screen 1 (welcome) = 20%, Screen 11 (notifications) = 80%. Paywall hides the bar.
+/// Progress bar for onboarding. Formula: 0.2 + 0.6 * (rawValue / (n-1)).
+/// Screen 1 (welcome) = 20%, last pre-paywall screen (notifications) = 80%. Paywall hides the bar.
 struct OnboardingProgressBar: View {
     let step: OnboardingStep
 
@@ -25,7 +25,7 @@ struct OnboardingProgressBar: View {
     }
 
     static func progress(for step: OnboardingStep) -> Double {
-        let totalSteps = 10.0
+        let totalSteps = Double(OnboardingStep.allCases.count)
         let currentIndex = Double(step.rawValue)
         return 0.2 + 0.6 * (currentIndex / (totalSteps - 1))
     }

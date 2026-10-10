@@ -157,6 +157,102 @@ test("summary renders unreconciled Google invoice as unknown rather than zero", 
   assert.doesNotMatch(text, /JPY 0/);
 });
 
+test("summary displays provider billed expense without claiming cash paid or changing B0 net", () => {
+  const unknown = { status: "unknown", currencies: {}, coverage_gaps: [], excluded: [] };
+  const projection = {
+    snapshot_at: "2026-10-10T00:00:00Z", trailing_start: "2026-09-10T00:00:00Z",
+    duplicate_receipts: [],
+    historical: { loops: {}, company: unknown },
+    trailing: { loops: {}, company: unknown },
+    mrr: { company: unknown, loops: {} },
+    runway: { status: "unknown", currencies: {}, reasons: [] },
+  };
+  const text = renderResultSummary({
+    reporting_date: "2026-10-10", timezone: "Asia/Tokyo", economic_attribution: projection,
+    actual_billed_expenses: {
+      status: "verified", reason: null,
+      invoices: [{
+        status: "verified", provider: "openai", invoice_period: "2026-09", currency: "USD",
+        billed_total: "14.34", cash_paid_status: "unknown",
+        allocation_status: "unattributed", source_ref: `lm-actual-cost://openai/readback/${"a".repeat(64)}`,
+        invoice_id: "must-not-be-rendered",
+      }],
+    },
+  });
+
+  assert.match(text, /Provider billed expense \(openai, 2026-09\): USD 14\.34/);
+  assert.match(text, /支払状況: 未確認/);
+  assert.match(text, /loop配賦: 未帰属/);
+  assert.match(text, /B0 netに二重加算しない/);
+  assert.match(text, /trailing cost-complete net: 未確認/);
+  assert.doesNotMatch(text, /must-not-be-rendered/);
+});
+
+test("verified Google Cost Table owns its period and suppresses duplicate provider-bill display", () => {
+  const unknown = { status: "unknown", currencies: {}, coverage_gaps: [], excluded: [] };
+  const projection = {
+    snapshot_at: "2026-10-10T00:00:00Z", trailing_start: "2026-09-10T00:00:00Z",
+    duplicate_receipts: [],
+    historical: { loops: {}, company: unknown },
+    trailing: { loops: {}, company: unknown },
+    mrr: { company: unknown, loops: {} },
+    runway: { status: "unknown", currencies: {}, reasons: [] },
+  };
+  const text = renderResultSummary({
+    reporting_date: "2026-10-10", timezone: "Asia/Tokyo", economic_attribution: projection,
+    google_billed_expenses: {
+      status: "verified", reason: null,
+      invoices: [{
+        status: "verified", invoice_period: "2026-09", currency: "JPY",
+        billed_total_jpy: "27889", cash_paid_status: "unknown",
+        allocation_status: "unattributed", adjustments: {
+          usage_gross_jpy: "25354", credits_jpy: "0", tax_jpy: "2535", rounding_jpy: "0",
+        },
+        service_sku: [{
+          service: "Places API", sku: "Places Text Search", net_billed_jpy: "25354",
+        }],
+      }],
+    },
+    actual_billed_expenses: {
+      status: "verified", reason: null,
+      invoices: [{
+        status: "verified", provider: "google-cloud", invoice_period: "2026-09",
+        currency: "JPY", billed_total: "27889", cash_paid_status: "unknown",
+        allocation_status: "unattributed",
+      }],
+    },
+  });
+
+  assert.match(text, /Google Cloud 請求済み費用 \(2026-09\): JPY 27889/);
+  assert.doesNotMatch(text, /Provider billed expense \(google-cloud, 2026-09\): JPY 27889/);
+  assert.match(text, /Provider billed expense \(google-cloud, 2026-09\): Google Cloud請求表と期間重複、請求同一性未確認/);
+});
+
+test("provider billing summary renders a safe underscore provider identifier", () => {
+  const unknown = { status: "unknown", currencies: {}, coverage_gaps: [], excluded: [] };
+  const projection = {
+    snapshot_at: "2026-10-10T00:00:00Z", trailing_start: "2026-09-10T00:00:00Z",
+    duplicate_receipts: [],
+    historical: { loops: {}, company: unknown },
+    trailing: { loops: {}, company: unknown },
+    mrr: { company: unknown, loops: {} },
+    runway: { status: "unknown", currencies: {}, reasons: [] },
+  };
+  const text = renderResultSummary({
+    reporting_date: "2026-10-10", timezone: "Asia/Tokyo", economic_attribution: projection,
+    actual_billed_expenses: {
+      status: "verified", reason: null,
+      invoices: [{
+        status: "verified", provider: "google_cloud", invoice_period: "2026-09",
+        currency: "JPY", billed_total: "31425", cash_paid_status: "unknown",
+        allocation_status: "unattributed",
+      }],
+    },
+  });
+
+  assert.match(text, /Provider billed expense \(google_cloud, 2026-09\): JPY 31425/);
+});
+
 test("verified loop MRR stays visible while company and unknown loop MRR stay unknown", () => {
   const unknown = { status: "unknown", currencies: {}, reasons: ["mrr_coverage_unknown"], coverage_gaps: [] };
   const projection = {

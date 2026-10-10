@@ -335,6 +335,21 @@
         }
       ]
     },
+    "treg-lead-signals-agent": {
+      "route": "treg-lead-signals-sol-medium",
+      "requires_explicit_escalation": true,
+      "token_reservation": 49152,
+      "timeout_seconds": 1800,
+      "candidates": [
+        {
+          "provider": "codex",
+          "model": "gpt-6.1-sol",
+          "effort": "medium",
+          "profile_alias": "acct2",
+          "fail_fast_provider_lease": true
+        }
+      ]
+    },
     "high-value-agent": {
       "route": "terra-medium-decision",
       "token_reservation": 65536,

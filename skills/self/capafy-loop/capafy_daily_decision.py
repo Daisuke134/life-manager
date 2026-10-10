@@ -39,6 +39,7 @@ DECISIONS_DIR = STATE_HOME / "state/capafy-daily-decisions"
 OPPORTUNITIES_PATH = STATE_HOME / "state/capafy-candidate-opportunities.json"
 # Same path capafy_market_sweep.WINNERS_PATH writes -- literal, not imported, matching
 # the existing PRICE_BANDS_PATH pattern (sibling state file, no cross-module coupling).
+OWN_DEVELOPER = "Anicca"
 MARKET_WINNERS_PATH = STATE_HOME / "state/capafy-market-winners-latest.json"
 # Capafy categoryId -> public name, read from https://capafy.ai/ category filter links (2026-10-04).
 CATEGORY_NAMES = {
@@ -359,9 +360,15 @@ def rank_shelves(market_winners, own_rows):
     like decide_actions -- own_rows must already carry a "category" key (see main() for
     how it's joined in from server agent data)."""
     market_sold_total: dict = {}
+    top_winners: dict = {}
     for winner in market_winners or []:
         cat = winner.get("category")
-        market_sold_total[cat] = market_sold_total.get(cat, 0.0) + (_num(winner.get("sold")) or 0.0)
+        sold = _num(winner.get("sold")) or 0.0
+        market_sold_total[cat] = market_sold_total.get(cat, 0.0) + sold
+        # What actually sells on the shelf, so a candidate copies it instead of guessing from
+        # the category label (our own listings are not a model to copy).
+        if winner.get("developer") != OWN_DEVELOPER:
+            top_winners.setdefault(cat, []).append({"name": winner.get("name"), "sold": sold})
 
     our_listings: dict = {}
     our_sales_30d: dict = {}
@@ -382,6 +389,7 @@ def rank_shelves(market_winners, own_rows):
             "our_listings": listings,
             "our_sales_30d": our_sales_30d.get(cat, 0.0),
             "score": sold_total / (1 + listings),
+            "top_winners": sorted(top_winners.get(cat, []), key=lambda w: w["sold"], reverse=True)[:3],
         })
     shelves.sort(key=lambda s: s["score"], reverse=True)
     return shelves

@@ -84,20 +84,7 @@ appId: ai.anicca.app.ios
 - tapOn:
     text: "続ける|Continue"
 
-# Step 9: Rating pre-prompt — SKStoreReview システムダイアログは optional 却下
-- extendedWaitUntil:
-    visible:
-      text: "アニッチャを評価|Rate Anicca"
-    timeout: 15000
-
-- tapOn:
-    text: "アニッチャを評価|Rate Anicca"
-
-- tapOn:
-    text: "今はしない|Not Now"
-    optional: true
-
-# Step 10: Notifications
+# Step 9: Notifications (rating prompt removed — review is requested after value moments)
 - extendedWaitUntil:
     visible:
       id: "onboarding-notifications-allow"

@@ -98,6 +98,29 @@ class StaticStageRouting(unittest.TestCase):
             self.assertEqual(listing["count"], 16)
             self.assertEqual(listing["price_jpy"], 190)
 
+    def test_static_selection_inherits_the_series_store_categories(self) -> None:
+        # 2026-10-09: six static items reached review with taste/character category 未設定 because the
+        # static select.json carried only order/main/tab; the submit step skips a missing category.
+        with tempfile.TemporaryDirectory() as tmp:
+            state_root = Path(tmp)
+            (state_root / "set-000").mkdir()
+            (state_root / "set-000" / "select.json").write_text('{"taste_id": "9", "character_category_id": "13"}')
+            (state_root / "set-000" / "stage.json").write_text('{"stage": "submitted"}')
+            deps = _fake_static_deps()
+            for _ in range(3):
+                MODULE.wake(state_root, deps)  # plan, character, images
+            selection = MODULE._read_json(state_root / "set-001" / "select.json")
+            self.assertEqual((selection["taste_id"], selection["character_category_id"]), ("9", "13"))
+
+    def test_static_selection_defaults_categories_when_the_series_has_none(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_root = Path(tmp)
+            deps = _fake_static_deps()
+            for _ in range(3):
+                MODULE.wake(state_root, deps)
+            selection = MODULE._read_json(state_root / "set-001" / "select.json")
+            self.assertEqual((selection["taste_id"], selection["character_category_id"]), ("1", "16"))
+
     def test_incomplete_images_retries_the_images_stage(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             state_root = Path(tmp)

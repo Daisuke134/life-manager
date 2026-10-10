@@ -48,6 +48,9 @@ ALLOWED_PREPUBLICATION_FILES = {
     # The wrapper freezes the product pick (select_article_product.py) here before the demand gate, so a
     # resumed pass never lands on a different product.  Local, side-effect-free, not a draft.
     "gates/product-selection.json",
+    # capafy-skills runs freeze the OpenSEO target keyword here before generation so a resumed pass
+    # targets the same keyword.  Local, side-effect-free, not a draft.
+    "gates/seo-keyword.json",
 }
 
 # Wrapper-owned runtime infrastructure inside the run dir. These are never
