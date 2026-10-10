@@ -12397,6 +12397,6 @@ flowchart LR
 8. app別baselineを確立し、測定したpost結果を使ってhook/copy/slide順を一度に一つずつ改善する。まずAnicca iOSでASC first-time downloadを7日平均100件/日/appへ伸ばす。
 9. distributionの計測が整ってからstore pageのcopy/screenshot/ASO、その後に証拠のあるonboarding/paywall不具合とnotification-to-same-quote遷移を直す。native codeが必要な場合だけ新しいiOS buildを提出する。
 10. managed postingが安定した後、Postiz実請求とself-hostの全費用を比較する。hosting/maintenance実測なしにself-hostを無料と呼ばない。
-11. Apple公式のsettled recurring proceedsからrefund/feeを引いた証拠がある場合だけ`$10K MRR`と報告する。Aniccaで検証できた後、既存の承認済みappへdistribution→measurement→conversion手順を再現し、最後にfactory化する。
+11. Apple公式のsettled recurring proceedsからrefund/feeを引いた証拠がある場合だけ`$10K MRR`と報告する。Aniccaで検証できた後、既存の承認済みappそれぞれで独自のverified net MRR $10Kを目指してdistribution→measurement→conversion手順を再現し、最後にfactory化する。
 
 **Current cursor:** TODO 1. This update made no source edit, production change, release/apply, or new post; the 21:07 official Postiz snapshot is the current evidence baseline. Resume from the existing branch after a fresh fetch/HEAD/upstream/dirty-state check; do not wait for a future slot, and do not call an unverified local receipt a published post.
