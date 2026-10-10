@@ -353,6 +353,8 @@ CLEAN-04中央自然復旧の最新結果: restored d687の予定slot18:23Zはru
 
 完了atomは、native source再利用の本番成功、毎分watchdogのloaded main由来argv/StartInterval60、既存大物cacheの自然回収、候補内訳の複数自然readback、中央scheduled ownerの復旧と自然pass。これらを未着手へ戻さない。CLEAN-04の残りはFundraiserのsibling restart除去の本番反映と同期間生成/回収収支、次にCLEAN-05残ownerの実枠返却/自動再開、CLEAN-06業務primary/公式receipt→自己/中央cleanup→次仕事の反復受入。物理ENOSPCの再発なし・全loopの仕事進行はまだ全範囲未証明で根本修復全体Doneとはしない。
 
+CLEAN-04根本caller修復の封じ込めscope: #7547 exact89a746d7e05a61a6bbd002ca0693ef2ea5d22277/CI38076187180全10SUCCESS→main1181e0663d0948a8321333416528e734e377aafa。正規cutter一回は既存回収後available1,424,932,864/required2,147,483,648/disk_headroom_low75で新release無し。旧Fundraiser loaded522のrun34591は18:37:20Zに自然terminal75/PID absent/idle、historical unknown13件は保持。source修復を含むrelease採用まで旧低容量branchがcleanupを再bootoutする危険が具体的に残るため、fresh safe GUI/loaded-idle確認後にFundraiser一件だけを既存lm-loop stopで一時封じ込める。activeならstopしない。他owner停止0、unknown解除/再送/応募0。新main immutable採用後に同ownerの元cadence/state/fenceを保持して復帰し自然preflightでcleanup保持を証明する。これは容量だけを理由とする全loop停止ではなく、確認済みsibling mutationの封じ込め。
+
 **cleanup現在readback（source/main/release/loaded/naturalを区別）:**
 
 | atom | 確認済み | 実際に残る一操作 |
