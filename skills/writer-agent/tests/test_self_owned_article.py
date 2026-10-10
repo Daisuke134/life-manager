@@ -210,6 +210,18 @@ def test_managed_landing_checkout_refuses_unknown_work_before_sparsifying(tmp_pa
     assert (landing / ("README.md" if kind == "dirty" else "active.bin")).read_text() in {"active work", "unknown work"}
 
 
+def test_managed_landing_checkout_never_sparsifies_a_symlinked_shared_repo(tmp_path, monkeypatch):
+    module = soa()
+    shared = tmp_path / "shared"
+    _init_repo(shared)
+    state = tmp_path / "writer"
+    (state / "checkouts").mkdir(parents=True)
+    (state / "checkouts/self-owned-landing").symlink_to(shared, target_is_directory=True)
+    monkeypatch.setenv("WRITER_STATE_DIR", str(state))
+    assert module.bound_landing_checkout(shared) is False
+    assert not (shared / ".git/info/sparse-checkout").exists()
+
+
 def test_stage_and_commit_contracts_writes_immutable_files(tmp_path):
     module = soa()
     remote = tmp_path / "remote.git"

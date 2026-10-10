@@ -155,7 +155,8 @@ def _git(root: Path, *args: str) -> str:
 
 def bound_landing_checkout(root: Path) -> bool:
     state = Path(os.environ.get("WRITER_STATE_DIR", "~/.local/state/life-manager/writer")).expanduser()
-    if root.resolve() != (state / "checkouts/self-owned-landing").resolve():
+    managed = state / "checkouts/self-owned-landing"
+    if managed.is_symlink() or managed.parent.is_symlink() or root.resolve() != managed.resolve():
         return False
     if _git(root, "rev-parse", "--show-toplevel") != str(root.resolve()):
         raise SelfOwnedInvariant("landing root is not the exact git worktree")
