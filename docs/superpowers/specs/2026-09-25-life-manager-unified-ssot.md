@@ -307,6 +307,8 @@ CLEAN-04 closed-owner回収結果: exact89430 KILL→92507 TERM後も旧92507/77
 
 CLEAN-04 cutter source受入: 低容量でcleanup-ranが存在しないRED2 subcases→既存pruneの後へ同capacity判定blockを移動してGREEN。閾値/完全export/ancestry/lock/trap/dependencies/current契約は保持。関連test_cut_loop_release_pressure5件PASS、bash syntax/diff PASS。初回ancestor fixtureはsparse checkoutで.gitattributes欠落によるmemory archive assertion失敗を観測し、HEADの同fileだけ復元後全5PASS。新source branch=fix/cleanup-before-release-admission-20261011。本番回収・完全release・loaded/自然受入は未完。
 
+CLEAN-04反映の新readback: 別ownerが作成したcurrent20261011T013322-f78a2399/sha f78a23995df5f50724131b51ade652b27fa7fc13はancestor-of-origin-main/ALL/read-only、central_cleanup本体SHA15683e2cはmain44d4694db6と一致。追加cut不要で再利用。first release-gc-onlyはexit0/errors0/protected_deletions0/source lifecycle_lock_busy/回収0。fresh safe GUI receipt PASSとlife-manager-disk-cleanup loaded-idle/unknown=false/installed067acを確認。共有lock競合が解消しfresh idleの時だけcanonical reconcile deterministic --loaded-idle-only --max-owners 1 --loop-id life-manager-disk-cleanupでf78へ一担当反映し、loaded argv/SHAと自然回収を確認する。currentポインタは変更しない。
+
 **cleanup現在readback（source/main/release/loaded/naturalを区別）:**
 
 | atom | 確認済み | 実際に残る一操作 |
