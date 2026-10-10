@@ -179,10 +179,11 @@ class CutLoopReleasePressureTest(unittest.TestCase):
                 "import shutil,types\nshutil.disk_usage=lambda p: types.SimpleNamespace(free=16*1024**3)\n")
             if clone_failure:
                 with (probe / "sitecustomize.py").open("a") as handle:
-                    handle.write("import subprocess\noriginal_run=subprocess.run\n"
-                                 "def run(args,*a,**kw):\n"
-                                 " if args[:2]==['/bin/cp','-c']: return subprocess.CompletedProcess(args,1)\n"
-                                 " return original_run(args,*a,**kw)\nsubprocess.run=run\n")
+                    handle.write("import ctypes\noriginal_cdll=ctypes.CDLL\n"
+                                 "def cdll(*a,**kw):\n"
+                                 " lib=original_cdll(*a,**kw)\n"
+                                 " lib.clonefile=lambda *args: -1\n"
+                                 " return lib\nctypes.CDLL=cdll\n")
             result, _ = self.run_cut(
                 repo, home, "", LOOPS_ACTIVATE_CURRENT="0", LOOPS_KEEP_RELEASES="2",
                 PYTHONPATH=str(probe),

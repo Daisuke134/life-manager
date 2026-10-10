@@ -323,6 +323,8 @@ CLEAN-04 native clone source受入: Git archive後のexport正本と完全一致
 
 CLEAN-04 native clone main/反映結果: #7538 exact6e7b12f6e16049355265f470fa7f88f6451f8b91/CI38070655694全10SUCCESS後admin squash main522cfb1f3e997a09f25a44d0bad710c6c830fd99へ統合。正規cutterを同mainから一回実行し既存回収先行、available1,063,088,128/required2,147,483,648 bytes/disk_headroom_low75でexport前延期。新release/current変更0、source cloneの本番物理効果未確認。現在cursor=完全cutに必要な実書込余裕の復旧→同一コードのnative再利用を含むmain immutable反映→生成量/自然回収量/正式保存の同期間収支→CLEAN-05→06。回収snapshot cacheの保護低下は採用しない。空きGiBを完了KPIへ戻さず、source/main成功と本番安定を区別する。
 
+CLEAN-04 native再利用readback修復scope: Apple一次実装 cp/utils.c はclonefileatがEXDEV/ENOTSUPなら通常copyへfallbackするため、cp -c exit0の8327件だけを厳密なclone成功/物理削減と扱わない。https://github.com/apple-oss-distributions/file_cmds/blob/main/cp/utils.c の285–294行を確認。既存cutter内の同じ候補・正本比較・mode維持・fallback契約のまま、標準ctypesからmacOS clonefile APIを直接呼び、return0だけをclone成功件数にする。1processのnative呼出へ置換してfileごとの外部cp起動も除く。非Darwinは既存Git export、native不対応/失敗はGit export保持、donor/primaryの変更0。既存clone failure fixtureをnative失敗へ合わせ、実native return0・独立inode・canonical mode/changed source・donor保持・fallbackのRED→GREENを確認。新controller/SDK/保存service/閾値/別reviewを追加しない。根本修復/物理収支は未完。 source受入: native失敗を注入した旧cp経路がsource clones3と報告するRED→direct clonefile後0/Git export保持のGREEN。real native成功・inode別・Git mode・changed source/donor保持・memory/unknown非伝播・低容量/closureを含む関連6tests PASS、bash syntax/diff PASS。本体は既存helper10行差分で外部process per-file起動を除く。main/immutable/自然/実収支は反映後に確認する。
+
 **cleanup現在readback（source/main/release/loaded/naturalを区別）:**
 
 | atom | 確認済み | 実際に残る一操作 |
