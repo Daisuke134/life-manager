@@ -1560,9 +1560,9 @@ class HostDiskGovernor:
         *,
         write_receipt: bool = True,
         deadline: float | None = None,
-    ) -> dict[str, int | str]:
+    ) -> dict[str, object]:
         free_before, _ = self.usage()
-        result: dict[str, int | str] = {
+        result: dict[str, object] = {
             "tier": classify_tier(free_before),
             "evaluated": len(candidates),
             "reclaimed": 0,
@@ -1570,6 +1570,9 @@ class HostDiskGovernor:
             "preserved": 0,
             "errors": 0,
             "protected_deletions": 0,
+            "cleanup_pid": os.getpid(),
+            "reclaimed_candidates": [],
+            "reclaimed_candidates_omitted": 0,
         }
         reasons: dict[str, int] = {}
 
@@ -1791,6 +1794,14 @@ class HostDiskGovernor:
                 except OSError:
                     result["errors"] += 1
             result["reclaimed"] += before
+            if len(result["reclaimed_candidates"]) < 8:
+                result["reclaimed_candidates"].append({
+                    "owner": item.get("owner"), "path": str(path),
+                    "logical_bytes": None if item.get("owner") in {
+                        "release-retention", "zombie-worktree"} else before,
+                })
+            else:
+                result["reclaimed_candidates_omitted"] += 1
         free_after, _ = self.usage()
         result["free_before"] = free_before
         result["free_after"] = free_after

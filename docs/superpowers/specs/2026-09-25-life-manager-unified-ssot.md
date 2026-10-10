@@ -337,6 +337,8 @@ reconcilerの既存self-handoffでloaded f78→522が自然に進む。old run18
 
 未解消の圧迫源候補: 17:35:31Z free2,290,036,736→17:37:13Z738,779,136、fresh571,015,168まで低下。同時間のVM total10240MiBは増加無し、巨大open file probeは稼働中primary DBとold binaryだけで1.5GB増加を帰属できない。新規 ~/.cache/codex-runtimes/codex-primary-runtime はdu1,638,056KiB級を観測し、node dependenciesが別の実PID69803（UID501/PPID1）がopenした状態で減少、後に43,376KiB/free2,215,292,928/PID absentを確認。root削除/停止0。writer種別・生成/回収経路は未確定、protected/unknownをgarbageへ拡張しない。次cursorはこのruntime peakのowner/契約診断と実producer→保存→自己/中央回収の同期間収支、自然self-handoff追跡→CLEAN-05残coverage→CLEAN-06反復受入。GiB固定値・単一exit0・clone件数だけで根本修復Doneとしない。
 
+CLEAN-04 cache回収経路のfresh診断: codex-runtime-cacheはEXACT_CACHE_ROOTSの既存allowlistであり新対象を足す必要無し。自然watchdog stdout17:42:07Zはevaluated35/preserved34/reclaimed1,609,041,608/errors0/protected_deletions0、free564,359,168→2,262,200,320/cursor persistedを確認。直前に観測した1.56GiB runtime cacheの減少と時間・規模は整合するが、receiptには候補path/PID内訳が無く、PID69803をwriterまたは別cleanup ownerと断定しない。既存sweepの確認済み削除だけを、cleanup_pidと最大8件のowner/path/logical_bytes（shared releaseはunknown/null）・省略件数として同receiptへ追加し、次の自然回収を実pathへ結び付ける。新janitor/別inventory/削除対象/保護/周期/モデル/価格の変更無し。既存fixtureでclosed回収内訳・open/protected保持・replay-zero・receiptのboundednessを検証する。現在cursorはこの既存回収readbackの抜け→自然の同期間収支→CLEAN-05→06。 source受入: cleanup_pid欠落のRED→確認済み削除後だけ記録するGREEN。既存9 cache fixtureで内訳8/省略1、replay0、open/protected/active lease/再チェック/64KiB receipt capを含む関連8tests PASS、syntax/diff PASS。logical_bytesは既存_bytesのst_size集計でphysical解放量と扱わず、shared releaseはnullを維持する。削除範囲・順序・安全probe・budgetは変更しない。
+
 **cleanup現在readback（source/main/release/loaded/naturalを区別）:**
 
 | atom | 確認済み | 実際に残る一操作 |
