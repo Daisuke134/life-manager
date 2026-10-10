@@ -403,6 +403,34 @@ def test_fifo_wait_blocker_is_only_emitted_before_any_child_start(tmp_path):
     assert blocker in PRE_EFFECT_ADMISSION_BLOCKERS
 
 
+def test_ebook_entrypoint_forwards_registry_occurrence_scope_to_admission(tmp_path):
+    repo_root = Path(__file__).parents[3]
+    owner = "ebook-en-tiktok-daily"
+    entry = json.loads((repo_root / "config/loop-registry.json").read_text())["loops"][owner]
+    occurrence_id = f"{owner}:new-slot"
+    with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "ready")) as enqueue,
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                return_value=(None, "effect_unknown")) as claim,
+          patch("runtime.loop.lm_loop_run.reserve_available_resource", return_value=[]),
+          patch("runtime.loop.lm_loop_run._dispatch_reserved"),
+          patch("runtime.loop.lm_loop_run._run_entrypoint") as run):
+        assert _run_admitted(
+            ["/bin/true"], entry, owner, {}, tmp_path / "ebook-receipt",
+            occurrence_id=occurrence_id,
+        ) == 75
+
+    enqueue.assert_called_once_with(
+        "agent", owner, admission_class="revenue", priority="distribution",
+        occurrence_id=occurrence_id, effect_scope="occurrence",
+    )
+    claim.assert_called_once_with(
+        "agent", owner, admission_class="revenue", effect_scope="occurrence",
+    )
+    run.assert_not_called()
+
+
 def test_mobile_publish_entrypoint_uses_occurrence_scoped_admission(tmp_path):
     entry = {
         "cadence": {"calendar_interval": [{"Hour": 8, "Minute": 0}]},
