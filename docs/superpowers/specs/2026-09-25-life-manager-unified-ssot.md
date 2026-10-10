@@ -12605,3 +12605,17 @@ flowchart LR
 
 **現在cursor:** disk headroomがrelease cutを妨げている。まず容量とlockをread-onlyで更新し、保護データに触れずにheadroomを回復する。独立測定は継続できるが、production apply/postingの成功は報告しない。
 
+### 2026-10-10 22:50 JST — Disk cleanup pass complete; scratch ENOSPC remains
+
+この節は22:30のmobile growth cursorへ容量・実行状態だけを追加する。PR #7507 source fixはmain済みだがproduction未反映。外部投稿・release/apply・別owner操作はしていない。
+
+- **main/worktree:** verified main `3cca82bb6a1a63828a16ca28252f1d8c01c4c9aa`。共有checkoutとmanaged-lease済みmobile worktreeは変更しない。空き不足のため新しいlocal worktree/fetchは未実施。
+- **Official allowlist cleanup:** immutable release `20261010T202649-142ef661`の`disk_cleanup.py`を、owner登録と同じstate-dir `/Users/anicca/.local/state/life-manager/life-manager-disk-cleanup`で一度実行。2026-10-10 22:44:14 JSTに`ok=true`、`errors=0`、`protected_deletions=0`、候補29件を評価し全件保持（open 3、protected descendant 26）、`reclaimed=0`。2 GiB floorは`unmet`、`storage_next_action=inspect_unattributed_writer`、inventory gaps=19。free_before=144,633,856 bytes、free_after=218,902,528 bytes。
+- **Latest capacity/run:** 22:48 JSTの`df -kP`は134,464 KiB free、volume 100%。次のowner occurrence `18dd2f2cbe33b278-36114`は`storage_write_failed_pre_effect` / `scratch_allocation` / `errno=28` / exit 78 / `retry_after_cleanup`。effectは開始していない。`life-manager-disk-cleanup`はloaded-idle、release SHA `142ef661928ef1d44a186fcb2fed6a850dea024c`。
+- **Unattributed open files:** read-only `lsof` observation of Chrome for Testing PID 99764 found 656 open-unlinked file handles totaling 959,959,412 bytes; largest single handle was 228,497,920 bytes under `~/.agent-browser`. The remaining handles span user and system locations; this does not establish that all bytes are safely reclaimable or tie them to the mobile task. Do not terminate Chrome, delete profile files, or treat it as the `line-sticker-factory-hourly` owner. That separate owner is loaded-idle with `resource_effect_unknown`; preserve its state and fence.
+- **Inventory limits:** latest full scan has 19 gaps, including timeouts for `~/Projects`, the repository, `~/loops/releases`, `~/.local/state/life-manager`, and `~/Library`; `/private/var/folders` and `/private/tmp` are partial. `/opt/homebrew` measured 13.50 GB and was decreasing over the prior observation interval; do not delete installed Homebrew content. Existing Postiz/MRR readbacks from 22:23/22:27 remain the latest; no new provider measurement was done in this capacity pass.
+
+**TODO順の更新:** 旧cursorは「安全に2 GiB headroomまで回復」。1回の正規allowlist passはcleanだが何も回収できず、次回owner runもscratch allocationで失敗したため、再試行だけでは進まない。新cursorは (1) current `inspect_unattributed_writer`に従いopen-unlinked writerとinventory gapsをread-onlyでownerへ帰属させる。Chrome/profile・別owner・unknown effectを止めず、owner自身の自然終端または安全なowner-owned cleanupを待つ一方、独立測定を続ける → (2) fresh capacity/readback後にだけallowlist cleanupを再実行し、2 GiB floorとinventory/write readinessを確認する → (3) 最新main由来worktree/releaseを用意し、8 carousel ownerだけを通常経路でapply、loaded SHAを確認する → (4) `18dd29d74c9a8560-42964`はexact provider evidenceが得られた場合だけ照合し、それ以外はfence保持 → (5) 18 profileの不足post、metrics/Telegram links、Postiz/self-host total-cost comparisonを順に閉じる → (6) ASC/RevenueCat/Mixpanel baseline、Anicca 100 first-time downloads/day、ASO→onboarding/paywall→notification-to-same-quoteを一実験ずつ進める → (7) Apple settled net MRR USD 10Kを一次receiptで確認してから他app/factoryへ展開する。
+
+**現在cursor:** ownerのPID・lease・open pathとstorage growthを読み取りで帰属させる。自分が所有しないChrome/profileを止めたり、worktree・protected stateを削除したりしない。容量が足りない間もPostiz/ASC/RevenueCat/Mixpanelの独立readbackを継続し、production apply成功とは報告しない。
+
