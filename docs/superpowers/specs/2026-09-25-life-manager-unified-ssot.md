@@ -12728,3 +12728,10 @@ flowchart LR
 
 **Current cursor:** recover enough capacity to make the owner preflight receipt writable and reach the 2 GiB release floor, then re-read current main/release/locks and retry only the single owner-scoped reconcile through `lm-loop`. Preserve open Chrome/profile state, worktrees, other owners, and all unknown-effect fences. Once the owner is on the main-derived release, begin admitted off-slot catch-up and require receipt+permalink+replay-zero before reporting a post complete.
 
+### 2026-10-11 00:30 JST — Copy reuse in top Anicca Instagram posts
+
+- **Official Postiz post GET:** the top five Anicca Instagram posts by the recorded 168h views were 2,229, 2,021, 2,008, 1,976, and 1,733 views; all five have post URLs. Four use the identical caption hook “Your lockscreen can / rewire your self-talk”; the other uses “Turn screen time into / self-belief”. A 333-view comparison post uses “Since you are always on your phone / Put affirmations on your lockscreen”, while another 309-view post repeats the first hook.
+- This is a caption-level observation; Postiz metadata does not expose the carousel slide text here. The same hook appears with both high and low views, so these observations do not prove a causal hook effect. The 168h collector shows 25 Anicca Instagram posts at 16,588 views, 32 likes, 2 shares, 12,168 reach, and 26 saves.
+
+**Copy experiment cursor:** keep the stored background and approved media; vary only the hook/caption text in the next admitted content batch, assign a distinct creative identity, and compare the same-platform 6/24/72/168h metrics. Do not regenerate or replace images. Until account-level mapping and the scheduled metrics owner are restored, treat this as a candidate experiment, not an active production test.
+
