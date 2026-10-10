@@ -359,7 +359,7 @@ P1の枠回復はCLEAN-05の生存/待ち境界として扱う。既存S06〜S18
 
 **「24/7 forever」の契約:** 各agentの自己後始末と中央cleanupを通常の実行lifecycleに組み込み、不要物の増加を生成側と回収側の両方で制御する。監督・待ち行列・復旧は常時動き、各仕事は有限の予算で実行・記録・片付け・次の仕事へ進む。ディスク圧迫を早期に自己所有の修復へつなげ、短期待機後に自動再開し、全収益loopを永久待機させない。正式state/receiptの成長には既存の許可・spend cap内で容量/保存先を計画し、障害になるまで放置しない。ほかのagentと業務loopの並列稼働を維持し、本sessionの改善は一件ずつ行う。保護データ削除、新framework、反復reviewで代用しない。
 
-**実行順:** 既存のP0→P1とlane入口の順を保ち、下記S01→S18へ対応付ける。原子的詳細は既存lane節を参照し複製しない。外部gate/未来slot/収益の到来で止まるatomは、証拠と戻るcursorを記録して次の独立したsafe atomを一件だけ進める。並列実装はしない。元の全lane目標を維持し、18 agent全greenやJob Hunter entitlement/投資30自然round tripsを、独立した既存商品の販売開始gateにしない。cleanupの現在cursor・順序・完了済みは →「cleanupの残TODO — 完了済みを除いた実行順」。
+**実行順:** P0→P1を全lane共通の先行条件にする。その後、別ownerの独立laneはshared state/worktree/effectが重ならない範囲で並行して進め、各lane内では既存cursor順を守る。S01〜S14は収益laneの一覧であり、全laneを番号順に直列化しない。このprimaryのGig担当はP0/P1後にS10/T7 item 2から再開し、別ownerのS06〜S09完了を待たない。CFO S07はCFO ownerの範囲として重複実装せず、公式receiptはGigのsettled net/evalに使う。全S01〜S14の受入後にS15自己修復→S16評価→S17自己改善→S18 OSSへ進む。外部gate/未来slotで止まるatomは証拠と戻るcursorを記録して、別の独立safe atomだけを進める。18 agent全greenやJob Hunter entitlement/投資30自然round tripsを、独立した既存商品の販売開始gateにしない。cleanupの現在cursor・順序・完了済みは →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 | 状態 | 順 | 次の一操作・対象 / 検証・DONE証拠 |
 |---|---|---|
@@ -372,15 +372,48 @@ P1の枠回復はCLEAN-05の生存/待ち境界として扱う。既存S06〜S18
 | 未完 | S07 | skills/cfo/run.shと指定CFO worktreeのA8.1→B7→A8.2–19→A6→A9→A10を既存atomic順でserial実装。継続課金のsource/period/ownership/MRR baselineを確定し、unknownを0にしない。自然B7と元の全source完了条件を満たす |
 | 未完 | S08 | LINE §5.Lのsell slot/公式post_url、審査、/stats/sticker salesを先に閉じ、資源回復後にstatic_images速度とストア検索の勝ち型を改善。DONE=build/sellの自然継続と費用控除後黒字。LINE単発売上はMRRにしない |
 | 未完 | S09 | Mobile既存cursor: #7369更新/CI/main→main release→18 ownerとPostizをexact occurrenceで照合→不足のみ保存PNGで配信→各3/day PUBLISHED/permalink→native metrics/ASC/RC/funnel→内容/onboarding改善。solo境界維持。DONE=公式refund/fees控除を含む既存net $10K MRR |
-| 未完 | S10 | Gig Remaining atomic TODO item2→10をCoconalaの既存案件・実納品・Storefront order/settlementから進め、1つのdeliverable offerの黒字証拠後にFreelancer→Upwork→許可済platformへ拡大。Lancers25–27/Answers境界維持、item11 SelfBuildはこのlaneの最後 |
+| 未完 | S10 | Gig Remaining atomic TODO item2→10をCoconalaの既存案件・実納品・Storefront order/settlementから進め、1つのdeliverable offerの黒字証拠後にFreelancer→Upwork→許可済platformへ拡大。Lancers25–27/Answers境界維持。P0/P1通過後に再開し、unknown effectは公式readbackで閉じるまで再送しない。item11 SelfBuildは全S01〜S14の収益lane完了後、S15で実施する |
 | 未完 | S11 | English eBook既存cursor: 古いfence保持/新slot安全→Products #420のproduction migration/table/RPC/ACL readback→webhook/PDF/Letter lifecycle→TikTok08/21の自然PUBLISHED→cost/fees/refund/settlement。自己購入/HeyGen Web plan/TikTok追加QAなし。DONE=既存net $10K MRR、単発Reset売上は別 |
 | 未完 | S12 | Job Hunter既存順でcapacity→MCP/readiness→Workday official effect照合→Dreamwork cutover、entitlementが許可するfit-qualified応募だけ実行。Free applicationsLimit0なら購入/bypassせず次のsafe atomへ。DONE=Tokyo/日本Remote/SF/visa条件を満たす公式応募receiptと業務Telegram readback |
 | 未完 | S13 | 投資#7373 checks/必要review/main→AT-13 fresh official no-order契約→自然qualified sell→初paper round tripのcost-complete P&L/replay-zero→30 round trips/strategy/cross-venue/AT-24/29/反対review。達成前live funding/orderなし。DONE=元のownerへsettled正net利益のAlpaca/銀行/CFO同period証明 |
 | 未完 | S14 | README残catalogのCapafy/Writer/PromptBase/Affiliate/Agent Economy/Connector/Fundraiser等をregistryへjoinし、既存§5.2と各lane cursorのsafe先頭atomを一件ずつ進める。DONE=自然owner/公式effect/費用/settlement/CFO coverage。登録やlistingだけを売上にしない |
-| 未完 | S15 | recovery-intent/supervisor/bridge→life-manager-devの既存経路で自然に起きた自己所有障害1件を修復する（§5.1 T5）。run/intent/issue/PR/release/次自然run/公式readback/replay-zeroをjoin。既存の軽いowner recoveryはS01から使い、独立完走の証明をここで閉じる。production障害をわざと作らない |
-| 未完 | S16 | T14の既存evalを実際のENOSPC/duplicate/unknown recoveryケースから小さく始める。recovery-classes fixtureと関連testsを再利用、public/dev/held-outとsecret除去を分ける。self-eval.mjs::selfEvalの欠測net→0を経済選択へ使わない契約を最小RED→GREENで閉じる（node --test runtime/loop/__tests__/self-eval.test.mjs）。DONE=再現可能なbase/candidate結果、cost basis、汚染/漏洩なし |
-| 未完 | S17 | §5.1 T12のevaluator/rollbackを使い、公式CFO/funnel成果を根拠に1改善ずつ昇格。候補は評価器/権限/fence/spend capを変更しない。benchmarkだけで販売成功とせず自然成果へjoin。選定済OpenClaw+native CodexのMX-01〜12は既存計画の最小waveを一件ずつ進め、framework比較を再開しない |
+| 未完 | S15 | S01〜S14のloop/platform課題を進めた後、recovery-intent/supervisor/bridge→life-manager-devの既存経路で自然に起きた自己所有障害1件を修復する（§5.1 T5）。run/intent/issue/PR/release/次自然run/公式readback/replay-zeroをjoinする。外部coding agentの修正やsupervisorの単独PASSは自己修復の証拠にしない。production障害をわざと作らない |
+| 未完 | S16 | T14 LM-EAB。まず現行`selfEval`の欠測net→0をfail-closedへ直す。次に既存recovery/economic evalを自然障害・CFO公式receiptへ接続し、最後に公開benchmarkのtask、split、adapter、grader、再現性を閉じる。public/dev/held-out/challengeとsecret除去・汚染監査を分ける。新frameworkを先行導入しない |
+| 未完 | S17 | S16でversion固定したevaluatorを使い、prompt/tool/routing/offer等の候補を一度に一変更だけ評価する。事前定義した品質・安全・settled net条件を通したcanaryだけ昇格し、悪化時は自動rollback。候補はgrader/dataset/policy/identity/権限/fence/spend capを書き換えない。benchmark scoreだけで販売成功とせず自然run・公式receiptへjoinする。選定済OpenClaw+native CodexのMX-01〜12は既存計画の最小waveを一件ずつ進め、framework比較を再開しない |
 | 未完 | S18 | README/LICENSE/install.sh/catalogのpublic・MIT現状を保ち、未完成guided installer/tenant adapterを1 agentずつ完成。隔離した新利用者環境でinstall.sh plan→doctor→setup_required/選択ownerを確認し、個人path/credential/private app依存を除く。既存価格の継続商品で下記MRR段階を実測し、US$10Mと全lane成果の両方を公式CFOで確認するまで継続 |
+
+**評価・自己修復・自己改善を分ける（S15→S17の完了条件）:**
+
+- **自己修復（S15）**は壊れた既存動作を安全に元へ戻す。**自己改善（S17）**は望ましい動作や経済成果を変える。前者は正しい復旧・effect integrity、後者は凍結した評価器に対する事前定義済みの比較改善で判定し、同じ成功条件に混ぜない。
+- **Recovery eval:** 既知の失敗を正しく検出・分類し、正しいownerの安全な修復を選び、effect_unknownを保持し、二重実行を起こさないか測る。隔離fixtureを使い、本番へ意図的に障害を入れない。
+- **Economic eval:** 顧客の公式settlementからrefund/feeと同期間の実測costを引いたnet contributionを測る。応募、表示、fixtureの売上、未settled額、欠損を0にした値は利益扱いしない。
+- **Public benchmark:** まず「agentがstorefrontを作る→適格案件を処理する→納品/settlement/費用を照合する→unknownや再実行を安全に扱う」というagentic economic autonomyを対象にする。他のagent/harnessでも同じversioned taskを実行でき、独立した相手が結果を再現できるかを測る。自然runからはPII・credential・顧客秘密を除いたtaskだけを作る。現在のLM-EABは4件のsynthetic case（tuning 2 / held-out 2）で、内部契約の足場にすぎず、現実の収益性能や業界採用を示さない。
+- **Production gate:** 公開benchmark scoreとは別に、候補releaseをfrozen evaluator・安全制約・小さなcanary・自然run・公式provider/CFO readbackで判定する。held-out問題を候補調整に流用しない。
+- 各runはtask/case-set、release、model、toolchain、graderのversion/hash、trial数、trace、実測outcomeを保存する。決定可能なeffect/金銭は公式receiptを採点し、主観的品質だけを人手基準と照合・較正したjudgeで採点する。確率的taskは複数trialを行い、件数と不確かさを併記する。品質、安全性、effect integrity、cost、latencyは別々に表示し、単一の不透明scoreへ潰さない。
+- 公開v1はprotocol/data schema、実行adapter、固定grader、公開/dev/held-out/challenge分離、secret/PII redaction、contamination監査、再実行可能なreportを揃える。公開後に複数の独立teamが同じcaseを走らせ、結果と差異を公開できたら「外部再現」を達成とする。「leading benchmark」やlab採用は別の長期目標で、独立した利用・引用・再現の証拠が出るまで達成と主張しない。
+- 既存のNode LM-EAB runnerを最小の正本として使う。Inspect AI等はtask/solver/scorerと外部agent接続の参考にし、現行runnerで外部再現できない具体的な障害が出た場合だけ薄いadapterを追加する。新しいbenchmark framework、scheduler、CLIを先回りして増やさない。
+
+**meta loop:**
+
+```mermaid
+flowchart LR
+  A[自然run・公式readback・CFO実費] --> B[失敗/収益機会を一件選ぶ]
+  B --> C[原因仮説と基準値を固定]
+  C --> D[隔離candidateを一変更]
+  D --> E[凍結evalで品質・安全・net・costを比較]
+  E -->|基準通過| F[小さくcanary]
+  E -->|不通過| G[破棄または修正]
+  F --> H[自然run・公式receipt・replay-zero]
+  H -->|改善| I[昇格し、伏せ字化した失敗例をevalへ追加]
+  H -->|悪化/unknown| J[rollbackし、fenceを維持]
+  I --> B
+```
+
+**現在の評価証拠（2026-10-10 17:39 JST）:** `npm run test:economic-autonomy`はPASSし、生成したrunは4つのfixture caseを評価した。これは内部fixture/testのPASSであり、production outcomeではない。`runtime/loop/self-eval.mjs`は欠測netを0へ変換する実装（line 33）が残る。`node --test runtime/loop/__tests__/self-eval.test.mjs`は5/5 PASSだが、欠測netを経済判断に使わないことをまだ保証しない。S16の最初のatomは欠測値を`unknown`のまま保持する修正と回帰条件追加。
+
+**Gigのfresh readback（2026-10-10 17:39 JST、`bin/lm-loop status all`）:** `hf-gig-apply-direct`は`resource_effect_unknown`（occurrence `18dd1e4e5404fd88-9706`）、`hf-gig-storefront-direct`も`resource_effect_unknown`（`18dd1e4848aa6e88-9257`）で、どちらもprovider receiptなし。`hf-gig-paid-direct`は`resource_capacity_busy`、`hf-gig-apply-reconcile`と`hf-gig-reply-detector`は`disk_headroom_low`。`hf-gig-browser`は旧release `b3ceeef9`でrunning。これらは成功や売上の証拠ではない。P0/P1を先に進め、effect_unknownは公式readbackで閉じるまで再送せず、S10/T7の次atomはowner/release状態を再読出ししてから続ける。
+
+**参考資料（設計の根拠。新依存ではない）:** [Anthropic: agent evals](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents)、[OpenAI: evals guide](https://developers.openai.com/api/docs/guides/evals)、[UK AISI Inspect AI](https://inspect.aisi.org.uk/)。共通点は、実タスク・trial・grader・trace/outcomeを対応させ、agent/harnessをまたいで再現可能にすること。Life Managerでは公式receiptとCFOを金銭/effectの正解ラベルにし、主観judgeは較正対象に限定する。
 
 **収益の進め方（期限予測ではなく検証milestone）:** 最初の実購入/継続利用/費用をproductとcampaignへjoin → 既存lane $10K目標 → 会社verified MRR $100K → $1M → $10M。各段階で実測のconversion/churn/retention、refund/fees、単位利益、cash runwayとprovider/worker容量を確認し、黒字で継続利用される商品・配信経路へ既存spend cap内の資源を配分する。OSS導入/投稿数はcustomer acquisitionの観測であり、会社MRRは有料継続契約の公式根拠から集計する。既存$29/月のCloudだけでgross $10Mを満たす単純算数は344,828 paid subscriptions（割引/返金/fees/費用は別）。agentを増やすだけで達成するという予測や保証にはしない。
 
@@ -487,7 +520,11 @@ flowchart LR
 
 ## 5. TODO（実行順・正本）
 
+**現行の実行順は一つだけ:** 共有P0/P1 → 各ownerのlane cursor。S01〜S14は独立した収益laneの一覧で全体直列順ではない。このprimaryの実行順はP0/P1 → Gig S10/T7 item 2で、別owner laneは同時進行できる。全S01〜S14完了後のみS15自己修復→S16評価→S17自己改善→S18 OSSへ進む。後続節のT5/T7/T12/T14等は能力・laneへの参照ID、日付付き順序は履歴であり、別の実行queueではない。2026-10-10 17:39 JSTのspec状態ではP0-12〜15とP1-1〜5が未完で、共有資源節のcursorを優先する。
+
 順序変更の記録: 旧順序（Foundation spec:7092-7137）では、収益の帰属（旧9）が capsule（旧6）・cloud（旧7）・LM-EAB（旧8）の後だった。新順序では、ループごとの利益計測（新8）を capsule/cloud/LM-EAB より前に置く。理由は、利益が見えないと、どのループに資源を寄せるか・何を改善するかを判断できないため。Paid cursor は旧5の中身を新7として独立させた。
+
+**順序変更（2026-10-10）:** 旧順序=S01→S14を番号順に直列実行し、Gig S10の前にS06〜S09完了を要求。新順序=共通P0/P1 → このprimaryはGig S10/T7 item 2から再開し、別ownerの独立laneは並行継続 → 全S01〜S14受入後にS15→S16→S17→S18。理由=DaisはGig/storefrontをこの担当の次の収益laneに指定し、CFOは別ownerが担当している。CFOの実装は重ねず、公式receiptが届くまではnet/evalの断定だけ保留する。現在cursor=P0/P1共有資源節（CLEAN-03の詳細cursor）→Gig item 2。effect_unknownは維持し、確認前に再送しない。
 
 履歴: この時点のT7 cursorは **7-0（Lancers 5605912）と 5-11 / 5-12 の並行**だった。これは過去のsnapshotであり現行Gig cursorではない。最新のGig cursorは本書末尾「2026-10-08 JST — Gig atomic cursor」を参照する。
 
@@ -544,7 +581,7 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
   - `job-search-inbox`: `inbox.py:398`。model の申告件数と thread ID の数が食い違った時に安全側で止まる、意図された fail-closed。二重返信を防ぐための仕組みで、test でも固定されているので変更しない。
   - Instagram en-card / obou: `LM_DATA_DIR is required` と ledger の job id 衝突。obou の Instagram は `marketing-destinations.json` で `ebook_account_out_of_mobile_scope`（上限 0）なので、直すより退役させる候補。state root が共有 events.jsonl のため、run 単位の切り分けは未完。
   - `life-manager-honne-ja`: 昼の ENOSPC（空きが 0.56GB だった時点）による。publish は fence で止まっていた。
-| T7 | Gig収益順: 1A完了 → #7169/#7182 source merge済み → **現在cursor: main-derived release/owner自然収束とCoconala Storefront/Apply effect fenceの公式照合** → 既存有償義務の正確な確認 → Storefrontを拡張の主軸にし、実証済みfactoryから1つ固定範囲の商品を作る → Coconalaで計測・検証 → Freelancer Services / Upwork Project Catalog / 公式確認済みの他native catalogへ同じ商品をplatform別に展開。Reply/Apply/Negotiation/Paidの安全な既存laneはStorefrontと並行継続 → platform別settled netと反復性 → SelfBuild last。Lancers rows25–27はskip、Answers対象外 | official listing・unique paid order・settlement/fee/cost/net・replay-zero |
+| T7 | Gig収益順: 1A完了 → #7169/#7182 source merge済み → **現在cursor: main-derived release/owner自然収束とCoconala Storefront/Apply effect fenceの公式照合** → 既存有償義務の正確な確認 → Storefrontを拡張の主軸にし、実証済みfactoryから1つ固定範囲の商品を作る → Coconalaで計測・検証 → Freelancer Services / Upwork Project Catalog / 公式確認済みの他native catalogへ同じ商品をplatform別に展開。Reply/Apply/Negotiation/Paidの安全な既存laneはStorefrontと並行継続 → platform別settled netと反復性 → SelfBuildは全S01〜S14収益lane完了後のS15で実行。Lancers rows25–27はskip、Answers対象外 | official listing・unique paid order・settlement/fee/cost/net・replay-zero |
 | T8 | CFO: ループごとの settled revenue と cost の join（ループ別P&L）を毎日出す | P&L 行ごとに receipt id がある |
 | T9 | Mobile funnel と `/en` `/lm` `/income` の整合（install→activation→課金） | attribution receipt |
 | T10 | one-shot capability capsule | 目標・承認の質問なしで初回の実行が通る |
@@ -5349,9 +5386,9 @@ OSS/Cloudの形は、OSS側に実用可能なself-hosted core、利用者が保�
 **残TODO（完了まで、この順）:**
 
 1. [x] **Storefront exposure preflightをmainへ反映:** PR #7182 merge commit `0caac71854d8c214bccb9412753f0fe7bcbede90`（2026-10-08 19:40:59Z）。これはsource修正であり、production sales/settlementの証拠ではない。
-2. **現在cursor — main-derived release/owner自然収束:** 2026-10-09 01:44Z（10:44 JST）readback: `origin/main=0ae416cf5c193a1b617860b83fe5ce4095036952`、`~/loops/current/RELEASE.json`はancestor SHA `d3b3a2792ce9dfa344f4edecf19b66244917d692`（cut `01:26:37Z`）。Storefront/Applyはd3b3でloaded、Paidだけはまだ`42bbad08c8c0d4d6af55f7c1b94cf104042cbaf8`。release reconcilerはd3b3をloadedし、既知terminal `18dcb85a02e07e28-20809`はpassだがstatusの`drift=true`が残る。handoffは42bb上で`18dcb90d07071990-22273`（01:43:38Z）pass。Paidのoccurrence `798461c1a4ebdc8d0db12669`（01:43:14Z）はeffect noneだがownerはloaded-running。既存natural reconciler/handoff後にPaid ownerのloaded SHA・terminal・admissionをreadbackする。手動apply/restartや他ownerのcleanup修正は重ねない。
+2. **現在cursor — latest-main releaseとgig ownerの自然収束:** 2026-10-09 06:47Z runtime readback: origin/main=770cbde0de01936a3ac09917cb2352debbf54330。06:52Zのorigin/mainは5c584af9dddf7b32e2d39feadacfcece9b1e2637へ進み、PR #7375はJob Hunter SSOTのみを更新。最新mainはこのdocs branchへmerge済み。~/loops/current/RELEASE.json=a6e037571404419501c6441af8e859e137eaa40b（cut 06:14Z、main ancestor）。life-manager-release-reconcilerはSHA 84c56e11 / PID 46959、occurrence 18dcc975cbd037c0-45325がscratch_enospc / exit 120。aa-release-reconciler-handoffは84c上でpassだがlatest-main adoptionは未完了。hf-gig-apply-directはa6eでloaded-running、occurrence 18dcc9b90362fb30-62895がhost_admission_deferred:resource_effect_unknown / provider receiptなし。hf-gig-storefront-directもa6eでloaded-running、occurrence 18dcc9b352c1e2f0-62502が同じfenceでreceiptなし。旧Apply fence 18dadcd76d9c61b0-37711とStorefront fence 18d8d288748508e8-23902は未解決。Paidはoccurrence 18dcc98077fedcb8-46111がresource_capacity_busy / exit 75。hf-gig-browserは旧SHA 0dc40ef2 / PID 85003でrunning中。自然readback後にowner SHAとterminalを照合し、Storefront/Applyのunknown fenceは公式履歴が結び付くまでheldのまま。手動apply/restart、再送・再応募・再掲載はしない。order 18180857のreadbackはbrowser owner/lease解放後にitem 3で行う。
 3. **Coconalaの既存有償義務を確定:** order `18180857`のowner terminalとproject lock解放後、公式order/talkroomを再readbackする。買い手が待っていると推測せず、未納品scopeが公式に残る場合だけ必要な成果物を納品し、受領・精算receiptを結ぶ。完了済みなら公式証拠で閉じる。
-4. **Coconala Storefront/Applyのeffect fenceを正確に照合:** Storefront旧fence `18d8d288748508e8-23902`は引き続きcurrent unknownで、最新occurrence `18dcb919e4bb2630-51943`（01:44:32Z）もadmissionの`resource_effect_unknown`でexit 75 / provider receiptなし。Apply旧fence `18dadcd76d9c61b0-37711`に対する最新occurrence `18dcb9130de04ad8-37186`（01:44:03Z）も同じadmission holdでexit 75 / receiptなし。`lm-loop pre-effect-reconcile ... --dry-run`は両方`resolved=[] / no_pre_effect_terminal`。さらに公式Application reconcile CLIは`nothing_to_reconcile / one_to_one_occurrence_intent_mapping_not_present`、`effect=0 / readback=0`で終了し、browser readbackを開始しなかった。これは応募が無かった証明ではない。Applyは正確なoccurrence→request intent対応を復元してから公式「応募済み一覧」を確認し、Storefrontは旧occurrenceを公式listing/order historyへ結ぶ。receiptがあれば既存effectへjoinし、厳密なpre-effect proofがあればowner経路で閉じる。未証明はheldのままにし、再送・再応募・fence解除をしない。再発原因とsource acceptance: lm_loop_run.pyはrun/occurrence identityをentrypointへ注入するが、application_parent.pyはirreversible marker前にそれをintentへ保存しない。reconcilerは1 occurrence:1 requestしか選べず、一回のmulti-request応募を扱えない。新規runは各effect-start intentにexact runtime_run_idとruntime_occurrence_idをmarkerと同時に永続保存し、複数requestを1 occurrence単位でまとめ、全request IDを同一の公式applied-history readbackで確認した時だけparent fenceを一回閉じる。欠損ID・部分history・旧unbound intentはunknownのまま。時刻相関による過去intent補完、再応募、部分一致での解除はしない。Paidの直近occurrence `798461c1a4ebdc8d0db12669`はeffect noneだが、売上receiptではない。
+4. **Coconala Storefront/Applyのeffect fenceを正確に照合:** Storefront旧fence 18d8d288748508e8-23902は未解決。最新status occurrence 18dcc9b352c1e2f0-62502（06:47Z）はresource_effect_unknown / exit 75 / provider receiptなし。Apply旧fence 18dadcd76d9c61b0-37711も未解決。最新status occurrence 18dcc9b90362fb30-62895（06:47Z）はresource_effect_unknown / exit 120 / provider receiptなし。以前の`lm-loop pre-effect-reconcile ... --dry-run`は両方`resolved=[] / no_pre_effect_terminal`。さらに公式Application reconcile CLIは`nothing_to_reconcile / one_to_one_occurrence_intent_mapping_not_present`、`effect=0 / readback=0`で終了し、browser readbackを開始しなかった。これは応募が無かった証明ではない。Applyは正確なoccurrence→request intent対応を復元してから公式「応募済み一覧」を確認し、Storefrontは旧occurrenceを公式listing/order historyへ結ぶ。receiptがあれば既存effectへjoinし、厳密なpre-effect proofがあればowner経路で閉じる。未証明はheldのままにし、再送・再応募・fence解除をしない。再発原因とsource acceptance: lm_loop_run.pyはrun/occurrence identityをentrypointへ注入するが、application_parent.pyはirreversible marker前にそれをintentへ保存しない。reconcilerは1 occurrence:1 requestしか選べず、一回のmulti-request応募を扱えない。新規runは各effect-start intentにexact runtime_run_idとruntime_occurrence_idをmarkerと同時に永続保存し、複数requestを1 occurrence単位でまとめ、全request IDを同一の公式applied-history readbackで確認した時だけparent fenceを一回閉じる。欠損ID・部分history・旧unbound intentはunknownのまま。時刻相関による過去intent補完、再応募、部分一致での解除はしない。Paidの直近occurrence `798461c1a4ebdc8d0db12669`はeffect noneだが、売上receiptではない。
 5. **Coconala Storefrontの現状を測る:** provider公式CLIでSKU `4244556`の現在listing、同一windowのimpressions/views/inquiries/unique orders/refunds/fees/payout/fulfillment cost/timeをreadbackする。最後の記録は2026-08-27〜09-25の15 views / 0 purchase / 0 favoritesで、現在転換率・gross・netの証拠ではない。competitorは商品別販売数と納品範囲/価格構造を公式ページで更新し、seller累計・評価・お気に入りを売上扱いしない。
 6. **再利用可能な最初の商品を1つ定義する:** 現行`catalog.json`、Mobile App Factory、Web App Factoryの実装と受入条件を読み、今日実際に納品できるscopeだけから、課題・完成結果・固定範囲・成果物・package/add-on・価格・納期・入力・作例・FAQ・対象外を定義する。Web App Factoryは§WBで未実装とされているため、完全なweb/mobile app生成が実証できない間は広告で約束せず、そのfactory gateを先に閉じるか、既存実証済みの範囲にofferを限定する。価格は成功商品の市場帯を参考にし、文面/画像/実績は自社オリジナルにする。まずはdraftと一件あたりnet計算まで行い、fence・能力・費用条件が閉じる前に掲載を変更しない。
 7. **Coconalaで一つのStorefront商品を検証:** item 4のfence解消・item 5の現行測定・item 6の能力/positive unit-net確認後、既存の公式ownerを使って一つのnative listingだけを出し、provider page ID・scope・price・自然owner readback・unique paid order・settlementを照合する。出品ボタン表示や掲載成功を売上とは扱わない。
@@ -5360,7 +5397,9 @@ OSS/Cloudの形は、OSS側に実用可能なself-hosted core、利用者が保�
 10. **platform別の再現可能な経済性を閉じる:** unique paid orderごとにsettlement、refund、platform fee、実費、実測納品時間、netを同期間で結ぶ。価格は反復納品と正のsettled unit netを確認した後に上げる。各platform月間USD 10,000は目標値として追跡し、未達/unknownをゼロや達成扱いにしない。one-time salesをMRRへ加えない。
 11. **最後 — SelfBuild:** 上記のcontract-work/storefront収益laneと証拠が揃った後に、SelfBuildの復旧・self-healingを再開する。
 
-**現在cursor:** item 2（latest-main releaseとgig ownerの自然収束）。2026-10-09 05:02Z readback: remote `origin/main=f5bb1d66`、`~/loops/current/RELEASE.json=84c56e11`（cut 04:48:07Z）。release reconciler occurrence `18dcc3c447689b78-17780`は05:02:02Z PASS、loaded/event SHA `84c56e11`、drift=false。disk cleanup occurrence `18dcc3e2eb7ef4f0-89677`は05:02:48Z PASSだが、現空きは188 MiBで2 GiB recovery floor未達。Apply/Storefrontは引き続き`0dc40ef2`で、旧fence `18dadcd76d9c61b0-37711` / `18d8d288748508e8-23902`はcurrent `effect_unknown`。最新Apply `18dcc3b7a4422e98-89170` / Storefront `18dcc3e02cd8d040-83084`はいずれもexit 75 / `resource_effect_unknown` / provider receiptなし。Paid ownerは`84c56e11`をloadedしたが、occurrence `18dcc3e147556338-85638`はresource capacity busy / exit 75 / receiptなし。`hf-gig-browser`は`0dc40ef2`のPID `85003`でrunning中のため、order `18180857` readbackは未開始。Apply reconcile occurrence `18dcc3a57fbeb6c0-46633`はexit 75 / `entrypoint_exit_75` / `reconcile_owner`で終了。正順はitem 2 → item 3 → item 4 → Storefront計測・商品定義・Coconala paid validation → platform展開/収益join → SelfBuild last。
+**現在cursor:** item 2 — existing reconciler/handoffの自然実行でorigin/main由来releaseを稼働ownerへ収束し、Apply / Storefront / Paidのloaded SHA・terminal・effect fenceを再readbackする。current unknown fenceに対する再送・再応募・再掲載はしない。その後item 3のCoconala order 18180857公式確認へ進み、順序はitem 4 → 5 → 6 → 7 → 8 → 9 → 10、SelfBuildはitem 11まで最後に置く。
+
+**容量・ENOSPC readback（2026-10-09 06:53Z）:** latest dfは3,431,124 KiB available（単発readbackでは2 GiB floor超過）。06:47–06:49Zは845,340–856,780 KiB、06:43Zのpack除去直後は2,991,228 KiBであり、値が大きく変動するためstable recoveryとは判定しない。.git/objects/pack/tmp_pack_*は現在0件。更新60秒超・open handleなし・Git pack processなしを確認した未完了Git pack 7個（合計約2.92 GB）だけを除去し、06:43Zには一時2,991,228 KiBまで戻った後、06:47Zに845,340 KiBへ低下、06:49Zも約0.82 GiBだった。増加元は特定できていない。06:42Zのreadbackではagent-browser profile 8個が合計1,841,328 KiBで稼働Chromeにopen、hf-gig-browserは06:47Zも旧releaseでrunning。PR #7349のidle-timeout修正はrelease a6e03757に含まれるが、既存sessionを閉じる証拠ではないためprofile/Chromeは削除・終了していない。life-manager-disk-cleanupの06:47Z statusはPID 63044、scratch_enospc / exit 78 / evidence_refsなし。先行occurrence 18dcc92dcd5e0cb8-34113ではsweep receipt ok=true・errors/protected deletions 0でもterminal eventはentrypoint_exit_1。cleanup実装の別担当leaseがactiveのため、source修正は重複しない。
 item 4 source修正はPR #7352としてmain commit 4068f637に統合済み。effect-start intentにruntime run/occurrenceを保存し、完全なrequest setをlease前とprovider readback後の両方で照合する。Application/retainer suite 130/130、loop contract 18/189/113/0、source-boundary PASS。fresh read-only reviewerのP2は閉じ、残った診断directoryの生成はprovider/browser effectなし。fresh production discoveryはno_exact_bound_batch_targetで、過去Apply/Storefront fenceはまだheld。source mergeやtest passをproduction adoption・応募・掲載・売上と混同しない。
 
 ### 2026-10-09 00:28 JST — Storefront収益cursorとexposure review修正

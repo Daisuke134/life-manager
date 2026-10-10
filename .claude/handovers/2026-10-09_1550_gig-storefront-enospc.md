@@ -1,0 +1,21 @@
+# Gig / Storefront 引継ぎ
+
+## 正本と再開位置
+- TODO順の正本: /Users/anicca/Projects/life-manager-main/.worktrees/gig-tiktok-pre-send-guard-20261008/docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md の「Remaining atomic Gig TODO」。
+- 現在cursorはitem 2。item 1のみ完了。SelfBuildはitem 11で最後。
+- このhandover/spec更新前の検証済みHEAD: 988f1a4c423678a7f54f27cf78294285c68b61c6。このhandover/spec更新は同じbranchの後続commit。再開時にremoteからactual HEADをfetch/readbackする。
+- Repo /Users/anicca/Projects/life-manager-main、worktree /Users/anicca/Projects/life-manager-main/.worktrees/gig-tiktok-pre-send-guard-20261008、branch docs/gig-t7-runtime-cursor-20261009、upstream/push origin/docs/gig-t7-runtime-cursor-20261009。このworktreeはdocs専用。
+- base観測 origin/main=5c584af9dddf7b32e2d39feadacfcece9b1e2637。共有checkout /Users/anicca/Projects/life-manager-main は別branch capafy/annual-report-risk-change-brief-20261009でdirty。変更しない。
+- Source変更が必要な場合の新規routeは /Users/anicca/Projects/life-manager-main/.worktrees/gig-storefront-resume-20261009 / fix/gig-storefront-resume-20261009 / origin/fix/gig-storefront-resume-20261009。このbranch/worktreeは未作成。fresh main・lease・path/branchを確認してから作る。
+- 別担当lease: disk-cleanup-tempdir-bootstrap-20261009とaffiliate-agent-money-20261009がactive。該当sourceを重複編集しない。
+
+## 最新の観測と最初の安全な一手
+- origin/main=770cbde0、~/loops/current/RELEASE.json=a6e03757。life-manager-release-reconcilerは84c / PID 46959で18dcc975cbd037c0-45325 scratch_enospc exit120。handoff ownerは84c上でpassだが、最新mainへの収束は未確認。
+- Apply/Storefrontはa6e上でloaded-runningだが最新statusは両方resource_effect_unknown、receiptなし。旧fence Apply 18dadcd76d9c61b0-37711、Storefront 18d8d288748508e8-23902はheld。Paidはresource_capacity_busy。browser ownerは旧SHA 0dc40ef2 / PID85003でrunningし、Coconala order 18180857の公式readbackは未実施。
+- 最新06:53Zの空き容量は3,431,124 KiB。06:47–06:49Zは約0.82GiB、orphan tmp_pack除去直後の06:43Zは約2.85GiBで、短時間に大きく変動しており安定回復とは判定しない。Git tmp_pack orphan 7個（約2.92GB）をno-open/no-Git-process確認後に除去した。最新観測ではtmp_packは0件で、容量増減の原因は未特定。06:42Zにactive Chrome profile 8個（約1.84GiB）を確認。idle-timeout fixはa6eに含まれるが既存sessionは稼働中。profile/processは削除・終了しない。
+- cleanup loopはlatest status scratch_enospc exit78。先行sweep receiptはok=trueでも同occurrence terminalはentrypoint_exit_1。capacity復旧完了とは扱わない。別担当のcleanup実装と衝突させない。
+- 次の一手: fresh fetch後、現行release/reconcilerとgig ownersの自然実行/readbackを確認し、latest mainへのloaded SHA収束を進める。手動restart/applyやunknown effectの再試行はしない。その後、browser owner/lease終了を確認してorder 18180857を公式ページで照合し、SSOTのitem 3→10を既定順に続ける。Lancers再開なし、Answers対象外、SelfBuild最後。
+
+## 次セッションで送る /goal
+
+/goal Life ManagerのGig laneの既存Reply/Apply/Negotiation/Paidとnative Storefrontを、実ownerの自然実行・provider公式readback・unique paid orderのsettlement/refund/fee/実費に結び、反復可能な正のnet収益へ進める。まずCoconalaの既存案件とStorefrontを証拠で閉じ、実際に納品できる一つのofferをCoconalaで検証してからFreelancer Services→Upwork Project Catalog→規約・権限・payoutを確認した他platformへ展開する。platformごとの月USD 10Kは目標として追跡し、gross・settled net・MRRを混同しない。最初にこのhandoverとSSOTの「Remaining atomic Gig TODO」を読み、fresh fetch後にHEAD/upstream/dirty state/lease/runtimeを照合し、既定順item 2→10を進め、SelfBuildはitem 11で最後にする。Lancers rows25–27はskip、Answersは対象外。effect_unknownは正確な公式readbackなしに再送・再応募・再掲載・fence解除しない。mockやtestを売上・settlementと扱わない。未知の外部gateが残っても独立して安全に進められる次itemを続け、specを都度更新する。 文書route: repo /Users/anicca/Projects/life-manager-main; spec worktree /Users/anicca/Projects/life-manager-main/.worktrees/gig-tiktok-pre-send-guard-20261008; branch docs/gig-t7-runtime-cursor-20261009; push target origin/docs/gig-t7-runtime-cursor-20261009; verified pre-edit commit 988f1a4c423678a7f54f27cf78294285c68b61c6 (handover/spec update follows this checkpoint; fetch and verify actual current tip). Source変更が必要ならdoc branchを使わず、新規worktree /Users/anicca/Projects/life-manager-main/.worktrees/gig-storefront-resume-20261009 / branch fix/gig-storefront-resume-20261009 / push target origin/fix/gig-storefront-resume-20261009をfresh origin/mainから作成する（snapshot SHA 5c584af9dddf7b32e2d39feadacfcece9b1e2637）。共有checkout /Users/anicca/Projects/life-manager-mainとactive cleanup worktree /Users/anicca/Projects/life-manager-main/.worktrees/disk-cleanup-tempdir-bootstrap-20261009、active affiliate worktree /Users/anicca/Projects/life-manager-main/.worktrees/affiliate-agent-money-20261009は編集しない。Doneは残TODO item 2–10の証拠と、実案件/Storefront orderのsettlement後netが確認できること。
