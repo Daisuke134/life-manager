@@ -375,6 +375,11 @@ CLEAN-04 Fundraiser13件resolver結果と再発修復scope: 独立read-only検�
 
 CLEAN-04 occurrence公平性source受入: 同ownerの古いHELDを保持し、次wakeで後続exact positive proofを閉じる最小fixtureが旧実装で同じheld2回のRED、新実装でGREEN。既存28tests/3subtests PASS（financial priority/owner間fairness/cap/budget/timeout/DB lock保持）。self-enumerating/null targetとmalformed/256KiB切断された古いlogも既存fixtureで確認。実155,456,005-byte ledgerのtailをread-onlyで使うと次対象はFoundersEdge occurrenceへ進み、provider call0。sourceはruntime/loop/fence_reconcile.pyと既存testのみ、新state/依存0、公式proof/送信境界変更0。current loaded generic ownerはf78/activeでroot applyしない。source push/CI/main→ALL release→自然terminal後のtargeted loaded-idle採用→自然callを次に確認する。全体Doneではない。
 
+CLEAN-04 occurrence公平性 main/loaded結果: #7553 exactcd9c33fc839ea70b8a9afd2a820244f4eb318609/CI38080020209全10SUCCESS→main d51678093bf4dd3d8e92b3d963c450784fe9a954。初回cutはfresh available136,744,960/required346,808,320でexport前75、current変更0。追加観測でevery-minute自然19:37:57Z receiptはfree593,915,904→1,012,510,720/errors0/protected0、再生成可能closed npx-cache124,959,262 bytes+gh8074を回収。全free変動を回収へ帰属せずVM/正式履歴/active processesは削除しない。再cut一回exit0/nativeclone8330/current20261011T043813-d5167809/ALL/main ancestor/runtime tag/実budget346,808,320。fence_reconcile.py SHA4e49f44350c63d2e0d5507bceeecf6f942544bbbbb6c23a790c173e7b647263c/main blob一致/read-only。generic ownerが自然terminal/pass0→idle後、fresh safe Aqua PASSで既存reconcile deterministic/loaded-idle/maxowners1/target lm-fence-reconcilerを採用しapplied1/failed0、loaded argvとd516 SHAをreadback。次の自然callによる後続対象の選択は追跡中、manualwake0。Fundraiser2件HOLD/disabledは維持。source/current/loadedと自然proof/全体Doneを分ける。
+
+CLEAN-05 Writer計測owner再開scope: writer-sales-measureの自然18dd4062baa6c630-17481は19:03:39Z execute→19:07:03Z report pass0/primary event保持/scratch不在/稼働用owner claim file無し。DB occurrenceはclaimed/effect_unknown1を保持する一方registryとeventはeffect_class none/not_applicable。旧f6とcurrent d516のworker/measure-sales.py/money_sync.pyの同一bytesを確認し、送信/購入/投稿のない計測contractとfresh loaded-idleが揃う場合だけ、既存canonical reconcileが持つno-effect owner recoveryで一担当を現mainへ採用する。application/publish/trade ownerのunknownをこの経路へ混ぜない。newsource/DB手編集/手動wake/金融値の判定を追加しない。generic次slot待ちでこの独立atomを止めない。現在cursor=Writer passive計測の既存復旧、CLEAN-04自然fairnessは並行観測。
+
+
 
 
 
