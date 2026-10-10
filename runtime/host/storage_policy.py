@@ -1,4 +1,5 @@
 """Operator-authored diagnostic limits. No free-space admission thresholds."""
+from __future__ import annotations
 from dataclasses import dataclass, fields
 import json
 from pathlib import Path
