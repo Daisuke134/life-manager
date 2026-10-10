@@ -1,4 +1,6 @@
 """Owned, finite stdio drain. A parent exiting must not break detached writers."""
+from __future__ import annotations
+
 from dataclasses import asdict, dataclass
 import base64
 import json
