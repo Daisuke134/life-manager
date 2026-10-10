@@ -319,6 +319,8 @@ CLEAN-04 caller source受入: sparse環境のportable timeout欠落をHEAD file�
 
 CLEAN-04収支診断と次source scope: 新f78 releaseでshared lockの有限reconciler終了後、実reclaimは15.005秒/42files/2,707,456 bytes/errors0/protected_deletions0。lsof45回9.106秒、Git cat-file43回0.891秒で使用中root再確認が支配的。旧3e7ca9e7の残るeligible Git codeは4,129files/42,881,024 allocated bytes、最大57,344 bytes。1名read-only確認でFD snapshot batch cache/exact leafのみ検査は同release内の別FD/cwd追加を見落とすため不採用。小さいGit起動最適化だけを根本解決としない。既存release生成側の同一tracked bytes複製をDarwin標準clonefile/cp -cで再利用する最小方案を次に検証する。隔離1MiB native cp -c probeはexit0/初期content一致/inode別/copy変更後donor不変、fixtureはfinally回収済み。保護/current/loaded/未追跡を複製しない既存Git archive契約は維持し、Git archiveのcanonical bytesと一致するdonor codeだけをclone候補にする。fallbackは同じGit exportを保持、別platformは既存方式、dependency/primary/guard/価格/モデル不変更。先に既存release fixtureへsource一致・donor未変更・unknown未伝播・clone失敗fallbackを入れてRED→GREEN、focused/CI/main/完全immutable反映→実割当増加と自然回収収支を確認する。まだ実装前でclone probeを本番効果と扱わない。現在branch=fix/cleanup-release-apfs-clone-20261011、残順序=CLEAN-04生成と回収収支→CLEAN-05→06。caller修復#7537は全10CI PASS→main62a8075a031bd09e486c4f590de23693559ad9c3、loaded f78は未含有。
 
+CLEAN-04 native clone source受入: Git archive後のexport正本と完全一致するsameUID/nlink1/regular/read-only/非symlink donorだけを/bin/cp -cで独立inodeへ複製し、複製後も正本と一致した時だけcandidate leafを置換する。native失敗/不一致/不在はGit export保持。実行bitがGit側だけ変わるREDを確認し、候補tempにGit export modeを付け直してGREEN。既存real-Git release fixtureを共用し、clone実呼出・独立inode・mode・changed canonical source・donor不変・memory/unknown非伝播・native失敗fallback、低容量guard/候補/binclosureを含む関連6tests PASS、bash syntax/diff PASS。初回sparseの.gitattributes欠落はHEADの同file復元で解消。正式recordsやdonorは削除せず、new service/cache/schema/model追加0。sourceのみで、本番の物理増加量低減・main/loaded/自然収支は未確認。
+
 **cleanup現在readback（source/main/release/loaded/naturalを区別）:**
 
 | atom | 確認済み | 実際に残る一操作 |

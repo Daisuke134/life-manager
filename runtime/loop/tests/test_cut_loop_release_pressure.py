@@ -1,6 +1,7 @@
 import os
 import json
 import shutil
+import sys
 import subprocess
 import tempfile
 import unittest
@@ -99,6 +100,12 @@ class CutLoopReleasePressureTest(unittest.TestCase):
             self.assertTrue((release / "RELEASE.json").is_file())
 
     def test_complete_release_reuses_verified_ancestor(self) -> None:
+        self._check_complete_release_reuse(clone_failure=False)
+
+    def test_native_clone_failure_keeps_committed_export(self) -> None:
+        self._check_complete_release_reuse(clone_failure=True)
+
+    def _check_complete_release_reuse(self, *, clone_failure):
         with tempfile.TemporaryDirectory() as raw_home:
             home = Path(raw_home)
             repo = home / "repo"
@@ -127,6 +134,8 @@ class CutLoopReleasePressureTest(unittest.TestCase):
             guard.parent.mkdir(parents=True)
             shutil.copy2(Path(__file__).resolve().parents[3] / "runtime/host/disk_admission.py", guard)
             (repo / "old.txt").write_text("old\n", encoding="utf-8")
+            (repo / "same.py").write_text("print('same')\n")
+            (repo / "changed.py").write_text("print('old')\n")
             (repo / "package.json").write_text('{"name":"release-test","version":"1.0.0"}\n', encoding="utf-8")
             package_lock = '{"name":"release-test","version":"1.0.0","lockfileVersion":3,"packages":{}}\n'
             (repo / "package-lock.json").write_text(package_lock, encoding="utf-8")
@@ -139,6 +148,8 @@ class CutLoopReleasePressureTest(unittest.TestCase):
             donor = loops / "releases/donor"
             donor.mkdir(parents=True)
             (donor / "old.txt").write_text("old\n", encoding="utf-8")
+            shutil.copy2(repo / "same.py", donor / "same.py")
+            shutil.copy2(repo / "changed.py", donor / "changed.py")
             dependency = donor / "node_modules/runtime-marker"
             dependency.parent.mkdir()
             dependency.write_text("preserved\n", encoding="utf-8")
@@ -157,6 +168,8 @@ class CutLoopReleasePressureTest(unittest.TestCase):
 
             (repo / "old.txt").unlink()
             (repo / "new.txt").write_text("new\n", encoding="utf-8")
+            (repo / "changed.py").write_text("print('new')\n")
+            (repo / "same.py").chmod(0o755)
             subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
             subprocess.run(["git", "commit", "-m", "new"], cwd=repo, check=True, capture_output=True)
             subprocess.run(["git", "push", "origin", "main"], cwd=repo, check=True, capture_output=True)
@@ -164,16 +177,33 @@ class CutLoopReleasePressureTest(unittest.TestCase):
             probe.mkdir()
             (probe / "sitecustomize.py").write_text(
                 "import shutil,types\nshutil.disk_usage=lambda p: types.SimpleNamespace(free=16*1024**3)\n")
+            if clone_failure:
+                with (probe / "sitecustomize.py").open("a") as handle:
+                    handle.write("import subprocess\noriginal_run=subprocess.run\n"
+                                 "def run(args,*a,**kw):\n"
+                                 " if args[:2]==['/bin/cp','-c']: return subprocess.CompletedProcess(args,1)\n"
+                                 " return original_run(args,*a,**kw)\nsubprocess.run=run\n")
             result, _ = self.run_cut(
                 repo, home, "", LOOPS_ACTIVATE_CURRENT="0", LOOPS_KEEP_RELEASES="2",
                 PYTHONPATH=str(probe),
             )
 
             self.assertEqual(result.returncode, 0, result.stderr)
+            if sys.platform == "darwin":
+                if clone_failure:
+                    self.assertIn("source clones: 0", result.stdout)
+                else:
+                    self.assertRegex(result.stdout, r"source clones: [1-9][0-9]*")
             releases = [candidate for candidate in (loops / "releases").iterdir()
                         if candidate != donor]
             self.assertEqual(len(releases), 1)
             release = releases[0]
+            self.assertEqual((release / "same.py").read_text(), "print('same')\n")
+            self.assertEqual((release / "same.py").stat().st_mode & 0o777, 0o555)
+            self.assertNotEqual((release / "same.py").stat().st_ino,
+                                (donor / "same.py").stat().st_ino)
+            self.assertEqual((release / "changed.py").read_text(), "print('new')\n")
+            self.assertEqual((donor / "changed.py").read_text(), "print('old')\n")
             self.assertFalse((release / "memory").exists(), "source archive copied owner memory")
             self.assertEqual(memory.read_text(), "persistent owner memory\n")
             self.assertEqual(donor_memory.read_text(), "existing owner memory\n")
