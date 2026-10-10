@@ -16,6 +16,62 @@ import agent_runner as runner
 
 
 class EvidenceRetentionTest(unittest.TestCase):
+    def test_registered_flat_evidence_prunes_only_closed_unsealed_diagnostics(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary).resolve()
+            state = base / "state"
+            root = base / "writer/agent-runner-evidence"
+            config = base / "repo/config"
+            config.mkdir(parents=True)
+            owner = "capafy-distribute-daily"
+            policy = json.loads((runner.REPO_ROOT / "config/storage-policy.json").read_text())
+            policy["defaults"]["owner_diagnostic_retained_bytes"] = 64
+            policy["defaults"]["host_diagnostic_retained_bytes"] = 64
+            (config / "storage-policy.json").write_text(json.dumps(policy))
+            (config / "loop-registry.json").write_text(json.dumps({"loops": {owner: {"state_root": str(state)}}}))
+            primaries = ("result.json", "usage.json", "attempts.jsonl")
+            captures = {}
+            for kind in ("current", "sealed", "dangling-seal", "foreign-owner", "receipt-mismatch", "active"):
+                run = root / f"agent-{kind}"
+                relay = run / "attempt-01.capture/stdout"
+                relay.mkdir(parents=True, mode=0o700)
+                binding = {"owner_id": owner if kind != "foreign-owner" else "other-owner",
+                    "run_id": run.name, "occurrence_id": f"{owner}:{run.name}", "release_sha": "a" * 40}
+                marker = relay / ".lm-regenerable"
+                marker.write_text(json.dumps({"role": "diagnostic_only", "binding": binding}))
+                marker.chmod(0o600)
+                receipt_binding = binding if kind != "receipt-mismatch" else {**binding, "run_id": "other-run"}
+                (relay / "relay-result.json").write_text(json.dumps({"binding": receipt_binding, "eof": True}))
+                (relay / "stderr.log").write_bytes(b"x" * 256)
+                for name in (*primaries, "summary.json"):
+                    (run / name).write_bytes(b"authoritative")
+                if kind == "active":
+                    (run / "summary.json").unlink()
+                elif kind == "sealed":
+                    (run / "evidence-seal.json").write_text('{"files":["attempt-01.capture/stdout/stderr.log"]}')
+                elif kind == "dangling-seal":
+                    (run / "evidence-seal.json").symlink_to("missing-seal")
+                captures[kind] = relay
+            run = captures["current"].parent.parent
+            self.assertEqual(runner.reclaim_completed_evidence(run, max_evidence_bytes=0),
+                             {"reclaimed_bytes": 0, "reclaimed_runs": 0})
+            self.assertIsNone(runner.evidence_root_for(run))
+            with (patch.dict(os.environ, {"LIFE_MANAGER_LOOP_ID": owner,
+                                          "LIFE_MANAGER_STATE_ROOT": str(state)}),
+                  patch.object(runner, "REPO_ROOT", config.parent)):
+                result = runner.finish_evidence_run(run, {"status": "failed"})
+                runner.finish_evidence_run(base / "unmanaged/run", {"status": "success"})
+            self.assertFalse(captures["current"].exists())
+            self.assertEqual(result["postrun_evidence_reclamation"]["removed"], 1)
+            self.assertEqual(result["postrun_evidence_reclamation"]["errors"], 0)
+            self.assertEqual(result["status"], "failed")
+            for relay in captures.values():
+                for name in primaries:
+                    self.assertEqual((relay.parent.parent / name).read_bytes(), b"authoritative")
+            for kind, relay in captures.items():
+                if kind != "current":
+                    self.assertEqual((relay / "stderr.log").read_bytes(), b"x" * 256)
+
     def test_registered_state_evidence_prunes_only_unsealed_diagnostics(self):
         with tempfile.TemporaryDirectory() as temporary:
             base = Path(temporary).resolve()
