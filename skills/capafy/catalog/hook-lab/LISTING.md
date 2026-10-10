@@ -8,10 +8,10 @@ WHY: 2026-09-28 OpenRouter activity (management key, 28d): claude-sonnet-4.6 $42
 
 ## Pricing
 | cycle | price | cap | trial |
-|---|---|---|---|
-| day | $3.99 | 10 | No Free Trial |
-| week | $9.99 | 30 | No Free Trial |
-| month | $19.99 | 80 | No Free Trial |
+|---|---:|---:|---|
+| day | $1.99 | 10 | No Free Trial |
+| week | $4.99 | 30 | No Free Trial |
+| month | $9.99 | 50 | No Free Trial |
 
 ## Title
 Hook Lab — Win the First 3 Seconds
