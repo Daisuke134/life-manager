@@ -287,6 +287,10 @@ DaisのiCloud未使用/停止指示を受け、Photos公式UIの『このMacか�
 
 現在cursor → CLEAN-04の具体的取り残し（下の最新反映結果と残TODO表）。CLEAN-02は共通runner190のsource契約とstandard nested/state-evidence/flatの自然branch proofで確認済み。現時点で新たな未回収diagnostic relayの実漏れは未確認で、具体的な対象外callerは下のmappingへ残す。全190自然runや新suiteは追加gateにしない。前進の証拠が出たatomだけ状態を更新し、完了済みは残TODOから外す。APFS VM/swap、Simulator、正式履歴、memory/state、credential、active/unknown dataは保持する。全体の根本修復完了とはまだ主張しない。
 
+**CLEAN-04 最新実行結果:** 閉鎖済みのClaude Remote Control診断ローテート `~/Library/Logs/claude-remote-control.out.log.1` を、既存preflight.shの10MiB rotation経路・同UID501/regular/nlink1・lsof closed・同inode/mtime/size確認後にdir_fd unlinkで回収。allocated38,412,288 bytes、現行log/daemon/正式sessionは保持、primary削除0。専用worktreeのmkstemp→write→fsyncと通常git fetchが成功し、cached origin/mainとGitHub公式mainが5be56359beeea64ae6350ae2dc5cc5a3c439400eで一致、source_main_staleを解消した。既存current72bdd458の `python3 -B -m runtime.loop.central_cleanup --release-gc-only` 一回はexit0/ok=true/errors0/protected_deletions0、42 releases中37 protectedを保持し、未参照6438afb3 releaseのGit復元可能コード24files/3,624,960 allocated bytesだけ回収。removed_releases=0で、正式記録・参照releaseの全削除ではない。
+
+毎分cleanupの最新自然receiptは2026-10-10T16:01:52Zへ更新し、evaluated32/reclaimed0/errors0/protected_deletions0、open3/protected_descendant29を保持。ただしcandidate cursor保存はerrno28、inventory_error=OSError、free_after137,723,904 bytesで、トップレベルok/errors0だけを根本修復成功とはしない。前のpreflight receipt書込失敗とnative agent thread-store lock ENOSPCも未解消。現在cursorはCLEAN-04の実回収を継続し、この自然receiptのcursor/inventory書込失敗を既存回収経路で解消すること。CLEAN-05の残owner枠返却とCLEAN-06の同期間反復稼働は続く。空きGiBの固定値・全190自然run・追加reviewを完了gateにしない。5 codersの作業は止めず共有cleanup/releaseはprimary一人で所有し、全coder無制限同時起動や基盤停止を解決策としない。
+
 **cleanup現在readback（source/main/release/loaded/naturalを区別）:**
 
 | atom | 確認済み | 実際に残る一操作 |
