@@ -35,7 +35,7 @@ from runtime.loop.runtime_event import (
     build_runtime_start_event,
     validate_runtime_event,
 )
-from runtime.host.disk_admission import RECOVERY_FLOOR_BYTES, disk_free_bytes
+from runtime.host.disk_admission import _producer_gate
 from runtime.host.memory_admission import memory_free_percent
 from runtime.host.storage_policy import load_storage_policy
 from runtime.host.storage_failure import classify_storage_failure
@@ -1399,17 +1399,17 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
         return child_return_code
 
     def disk_deferred(phase: str) -> bool:
-        available = disk_free_bytes(receipt.parent)
-        if available is not None and available >= RECOVERY_FLOOR_BYTES:
+        gate = _producer_gate()
+        if gate is None:
             return False
+        reason, flag = gate
         if durable and phase == "pre_enqueue":
             try:
                 defer_durable_resource(loop_id)
             except (OSError, RuntimeError, sqlite3.Error):
                 pass
         _atomic_json(receipt, {"status": "deferred", "effect": 0, "phase": phase,
-                     "reason": "disk_headroom_unavailable" if available is None else "disk_headroom_low",
-                     "available_bytes": available, "required_bytes": RECOVERY_FLOOR_BYTES})
+                     "reason": reason, "flag_path": str(flag)})
         return True
 
     def interrupt_wait(_signum, _frame):

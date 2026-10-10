@@ -9,9 +9,10 @@ const { spawnSync } = require("node:child_process");
 const test = require("node:test");
 
 const { importContentObject } = require("../lib/content-object-store.js");
-const { JA_LANE, EN_AFFIRMATION_LANE, EN_SLIDESHOW_TIKTOK_LANE, JA_BUDDHA_TIKTOK_LANE } = require("../lib/marketing-native-carousel-publication-adapter.js");
+const { JA_LANE, JA_MAIN_TIKTOK_LANE, EN_AFFIRMATION_LANE, EN_SLIDESHOW_TIKTOK_LANE, JA_BUDDHA_TIKTOK_LANE } = require("../lib/marketing-native-carousel-publication-adapter.js");
 const {
   MIN_DAYS_BETWEEN_REPEAT,
+  MIN_POOL_SIZE,
   poolPath,
   readPostedHistory,
   resolveLarryJaSlot,
@@ -59,6 +60,38 @@ function writeDistributionLedger(dataDir, rows) {
   fs.writeFileSync(file, rows.map((r) => `${JSON.stringify(r)}\n`).join(""));
 }
 
+function seedPersistedSlidePool(dataDir, lane) {
+  const objectDir = path.join(dataDir, "objects");
+  const importText = (name, value) => {
+    const source = path.join(dataDir, name);
+    fs.writeFileSync(source, value);
+    return importContentObject(source, { objectDir }).ref;
+  };
+  const mediaRefs = Array.from({ length: 6 }, (_, index) => importText(
+    `catchup-media-${index}.jpg`, Buffer.from([0xff, 0xd8, 0xff, index + 1, 0xff, 0xd9]),
+  ));
+  const candidates = Array.from({ length: MIN_POOL_SIZE }, (_, index) => {
+    const slides = mediaRefs.map((media_ref, position) => ({
+      position: position + 1,
+      role: position === 0 ? "hook" : (position === 5 ? "cta" : "body"),
+      text: `stored catch-up text ${index}-${position}`,
+      media_ref,
+    }));
+    return {
+      packRef: importText(`catchup-pack-${index}.json`, JSON.stringify({ slides })),
+      mediaRefs,
+      captionRef: importText(`catchup-caption-${index}.txt`, `stored caption ${index}`),
+      approvalRef: importText(`catchup-approval-${index}.json`, JSON.stringify({ status: "approved" })),
+      familyId: `stored-family-${index}`,
+      createdAt: "2026-10-01T00:00:00.000Z",
+    };
+  });
+  const pool = poolPath(dataDir, TENANT, lane.productId, lane.lane);
+  fs.mkdirSync(path.dirname(pool), { recursive: true });
+  fs.writeFileSync(pool, candidates.map((row) => `${JSON.stringify(row)}\n`).join(""));
+  return candidates;
+}
+
 test("resolveLarryJaSlot generates a pool from empty and returns a candidate", { timeout: 60_000 }, async (t) => {
   makeFixtureBackgroundOnce();
   const dataDir = tempDataDir(t);
@@ -102,6 +135,50 @@ test("resolveLarryJaSlot catches up the oldest unposted slot after later slots a
 
   assert.equal(result.slot, "2026-09-28T01:30:00.000Z"); // first unposted slot, 10:30 JST.
   assert.ok(result.selected);
+});
+
+test("resolveLarryJaSlot advances to the next configured future slot when today's due slots are already published", async (t) => {
+  const dataDir = tempDataDir(t);
+  const env = { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT };
+  const lane = JA_MAIN_TIKTOK_LANE;
+  const slots = ["08:00", "16:00", "22:37"];
+  const slot08 = "2026-10-09T23:00:00.000Z";
+  const slot16 = "2026-10-10T07:00:00.000Z";
+  const slot22 = "2026-10-10T13:37:00.000Z";
+  const slotReceipt = (slot, suffix, postedAt) => ({
+    effect_key: `marketing:carousel:${lane.productId}:creative:${"a".repeat(64)}:${"b".repeat(64)}:${"c".repeat(64)}:${crypto.createHash("sha256").update(slot).digest("hex")}`,
+    job_id: `published-${suffix}`,
+    receipt: {
+      kind: "marketing_native_carousel_distribution",
+      status: "published",
+      integration_ref: lane.integrationRef,
+      pack_sha256: suffix.repeat(64),
+      published_at: postedAt,
+      provider_post_id: `postiz-${suffix}`,
+      provider_reconciled: true,
+    },
+  });
+  writeDistributionLedger(dataDir, [
+    slotReceipt(slot08, "d", "2026-10-10T00:06:09.055Z"),
+    slotReceipt(slot16, "e", "2026-10-10T08:50:15.021Z"),
+  ]);
+  const stored = seedPersistedSlidePool(dataDir, lane);
+  let generateCalls = 0;
+  const result = await resolveLarryJaSlot({
+    env,
+    now: () => "2026-10-10T08:55:00.000Z", // 17:55 JST: third configured slot is still ahead.
+    lane,
+    productionSlots: slots,
+    generateCandidates: async () => {
+      generateCalls += 1;
+      throw new Error("catch-up must reuse the durable pack pool");
+    },
+  });
+
+  assert.equal(result.slot, slot22);
+  assert.equal(result.catchUp, true);
+  assert.ok(stored.some((candidate) => candidate.packRef === result.selected.packRef));
+  assert.equal(generateCalls, 0);
 });
 
 test("resolveLarryJaSlot stops after the lane's verified daily receipt limit", async (t) => {
@@ -192,6 +269,7 @@ test("resolveLarryJaSlot skips content rotation when this integration already pu
   const result = await resolveLarryJaSlot({
     env,
     now: () => "2026-09-28T01:05:00.000Z",
+    slot,
     lane: EN_AFFIRMATION_LANE,
     productionSlots: ["10:00", "15:00", "20:00"],
     generateCandidates: async () => {
