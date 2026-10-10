@@ -539,6 +539,32 @@ def reclaim_unreferenced_source(releases: Path, current: Path, agents: Path, kee
     return result
 
 
+def git_duplicate_cleanup(source_repo: Path) -> dict:
+    result = {"errors": 0, "prune_packable_before": None, "prune_packable_after": None}
+    if not (source_repo / ".git").exists():
+        return {**result, "status": "not_applicable"}
+    try:
+        if source_repo.stat().st_uid != os.getuid():
+            raise ValueError("source repository owner mismatch")
+        def git(*args):
+            return subprocess.run(["git", "-C", str(source_repo), *args],
+                capture_output=True, text=True, timeout=15, check=True).stdout
+        def count():
+            return int(next(line.partition(":")[2] for line in git("count-objects", "-v").splitlines()
+                            if line.startswith("prune-packable:")))
+        result["prune_packable_before"] = count()
+        # Native Git removes only loose copies already present in a pack, preserving all refs.
+        if result["prune_packable_before"]:
+            git("prune-packed")
+            result["prune_packable_after"] = count()
+        else:
+            result["prune_packable_after"] = 0
+        result["status"] = "pass"
+    except (OSError, ValueError, StopIteration, subprocess.SubprocessError) as error:
+        result.update(errors=1, status="failed", error_class=type(error).__name__)
+    return result
+
+
 def main() -> int:
     home = Path.home()
     loops_root = Path(os.environ.get("LOOPS_ROOT", "~/loops")).expanduser()
@@ -555,6 +581,8 @@ def main() -> int:
         result["ok"] = result["errors"] == 0
         print(json.dumps(result, sort_keys=True, separators=(",", ":")))
         return 0 if result["ok"] else 1
+    git_result = git_duplicate_cleanup(Path(os.environ.get(
+        "LIFE_MANAGER_SOURCE_REPO", "~/Projects/life-manager-main")).expanduser())
     try:
         cleanup_state = Path(os.environ.get(
             "LIFE_MANAGER_HOST_STATE_DIR",
@@ -581,9 +609,10 @@ def main() -> int:
                 gc_result = {"errors": 1, "error": "release_cleanup_invocation_failed",
                              "error_class": type(error).__name__}
             print(json.dumps({**gc_result, **host_result,
-                "errors": gc_result["errors"], "host_cleanup": host_result},
+                "errors": gc_result["errors"] + git_result["errors"],
+                "host_cleanup": host_result, "git_cleanup": git_result},
                 sort_keys=True, separators=(",", ":")))
-            return 75 if gc_result["errors"] == 0 else 1
+            return 75 if gc_result["errors"] == 0 and git_result["errors"] == 0 else 1
     except subprocess.TimeoutExpired:
         host_ok, host_result = False, {"error": "host_cleanup_timeout"}
     except OSError as error:
@@ -596,12 +625,14 @@ def main() -> int:
                             keep=int(os.environ.get("LIFE_MANAGER_RELEASE_KEEP", "1")))
     except (OSError, ValueError) as error:
         print(json.dumps({"ok": False, "error": str(error)}, sort_keys=True)); return 1
+    result["errors"] += git_result["errors"]
     snapshot_started_ns = time.time_ns()
     scratch_result = scratch_gc(
         installed_state_roots(agents), snapshot_started_ns=snapshot_started_ns,
         starts=process_starts(),
         no_effect_loop_ids=no_effect_loop_ids(ROOT / "config/loop-registry.json"))
     result.update({"ok": result["errors"] == 0 and host_ok and scratch_result["errors"] == 0,
+                   "git_cleanup": git_result,
                    "host_cleanup": host_result,
                    "scratch_cleanup": scratch_result,
                    "idle_reconcile": [],
