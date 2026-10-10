@@ -117,19 +117,23 @@ unchanged; missing sizes remain unknown.
 5-minute `ai.anicca.life-manager-disk-cleanup` remains a managed reporting and
 full-inventory owner; both share the same cleanup lock. This installer only
 manages the 60-second recovery label so it cannot replace the managed owner.
-It installs `bin/disk-watchdog.sh` at `~/.local/bin/disk-watchdog.sh`;
-the wrapper resolves `~/loops/current` and dispatches to that immutable
-release's governor, so later release retirement cannot leave the watchdog
-pointing at a deleted release. Both owners use the governor's singleton lock
-and shared host `state_dir`.
+Run the installer from a complete main-derived immutable release. It pins
+that release's `bin/disk-watchdog.sh` in launchd; the wrapper resolves its own
+release and dispatches to that governor. The loaded plist retains its release,
+and a later `current` change does not change the loaded watchdog's code.
+Both owners use the governor's singleton lock and shared host `state_dir`.
 
 The 15-day `life-manager-disk-cleanup-15d` registry row is supplemental and is
 not the recurrence guarantee. It invokes the same `HostDiskGovernor`; it must
 not be changed to a second 60-second deletion owner while the direct watchdog
 already runs every minute.
 
-The watchdog adds no second deletion implementation. Its output goes to
-`life-manager-disk-cleanup/logs/watchdog.{out,err}.log` under the host state.
+The watchdog adds no second deletion implementation. Both streams use the
+existing `bounded_launchd_output` with the managed `life-manager-disk-cleanup`
+policy and log root, including its concurrent writer lock. Native launchd
+fallback streams go to `/dev/null`; legacy `watchdog.{out,err}.log` are retained.
+Capture startup failure does not block recovery or change the governor's exit
+code. RunAtLoad and the 60-second cadence trigger runs without a manual wake.
 
 Run the tests with:
 

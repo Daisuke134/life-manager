@@ -80,6 +80,78 @@ def test_watchdog_dispatches_to_governor_without_touching_worktrees_or_simulator
     assert simulator_marker.read_text(encoding="utf-8") == "shipping device data\n"
 
 
+@pytest.mark.parametrize("capture_unavailable", [False, True])
+def test_watchdog_pins_release_and_bounds_stdio_without_blocking_recovery(
+    tmp_path: Path, capture_unavailable: bool
+) -> None:
+    home = tmp_path.resolve() / "home"
+    release = home / "loops/releases/fixture-main"
+    other = home / "loops/releases/other-main"
+    governor = release / "skills/self/disk-cleanup/disk_cleanup.py"
+    governor.parent.mkdir(parents=True)
+    (release / "bin").mkdir()
+    shutil.copy2(WATCHDOG, release / "bin/disk-watchdog.sh")
+    (release / "runtime/host").mkdir(parents=True)
+    for module in ("bounded_output.py", "storage_policy.py"):
+        shutil.copy2(ROOT / "runtime/host" / module, release / "runtime/host" / module)
+    (release / "config").mkdir()
+    policy = json.loads((ROOT / "config/storage-policy.json").read_text())
+    policy["defaults"].update(
+        diagnostic_segment_bytes=4096,
+        chunk_bytes=512,
+        owner_diagnostic_retained_bytes=16384,
+        host_diagnostic_retained_bytes=16384,
+    )
+    (release / "config/storage-policy.json").write_text(json.dumps(policy))
+    (release / "config/loop-registry.json").write_text(
+        json.dumps({"loops": {"life-manager-disk-cleanup": {}}})
+    )
+    marker = home / "primary.json"
+    governor.write_text(
+        "import json,os,sys\nfrom pathlib import Path\n"
+        f"Path({str(marker)!r}).write_text(json.dumps({{'release':str(Path(__file__).parents[3]),"
+        "'args':sys.argv[1:],'fast':os.environ.get('LIFE_MANAGER_DISK_INVENTORY_FAST')}))\n"
+        "os.write(1,b'x'*32768+b'out-tail\\n')\n"
+        "os.write(2,b'e'*32768+b'err-tail\\n')\n"
+        "raise SystemExit(23)\n"
+    )
+    other_governor = other / "skills/self/disk-cleanup/disk_cleanup.py"
+    other_governor.parent.mkdir(parents=True)
+    shutil.copy2(governor, other_governor)
+    (home / "loops/current").symlink_to(other, target_is_directory=True)
+    logs = home / ".local/state/life-manager/life-manager-disk-cleanup/logs"
+    logs.mkdir(parents=True)
+    for stream in ("out", "err"):
+        (logs / f"watchdog.{stream}.log").write_text(f"legacy-{stream}\n")
+    if capture_unavailable:
+        (logs / "bounded").mkdir(mode=0o700)
+        (logs / "bounded/.launchd-life-manager-disk-cleanup.lock").mkdir()
+    result = subprocess.run(
+        ["/bin/sh", str(release / "bin/disk-watchdog.sh")],
+        env=os.environ | {"HOME": str(home), "LIFE_MANAGER_RUNTIME_PYTHON": sys.executable},
+        capture_output=True,
+        timeout=10,
+    )
+    assert result.returncode == 23
+    if not capture_unavailable:
+        assert result.stdout == result.stderr == b""
+    assert json.loads(marker.read_text()) == {
+        "release": str(release),
+        "args": ["--home", str(home), "--state-dir", str(home / ".local/state/life-manager/state")],
+        "fast": "1",
+    }
+    for stream in ("out", "err"):
+        assert (logs / f"watchdog.{stream}.log").read_text() == f"legacy-{stream}\n"
+    if capture_unavailable:
+        assert b"out-tail" in result.stdout and b"err-tail" in result.stderr
+        return
+    retained = list((logs / "bounded").glob("launchd-life-manager-disk-cleanup.*.log*"))
+    assert sum(p.stat().st_size for p in retained) <= 16384
+    assert all(p.stat().st_mode & 0o777 == 0o600 for p in retained)
+    assert b"out-tail" in (logs / "bounded/launchd-life-manager-disk-cleanup.out.log").read_bytes()
+    assert b"err-tail" in (logs / "bounded/launchd-life-manager-disk-cleanup.err.log").read_bytes()
+
+
 def test_15d_disk_maintenance_is_a_registry_managed_control_owner() -> None:
     registry = json.loads(REGISTRY.read_text(encoding="utf-8"))
     owner = registry["loops"].get("life-manager-disk-cleanup-15d")
@@ -212,12 +284,16 @@ def test_installer_updates_only_stable_watchdog_label(tmp_path: Path) -> None:
     if sys.platform != "darwin" or not Path("/usr/bin/plutil").is_file():
         pytest.skip("launchd installer integration runs on macOS")
 
-    fake_root = tmp_path / "repo"
     fake_home = tmp_path / "home"
+    fake_root = fake_home / "loops/releases/fixture-main"
     (fake_root / "bin").mkdir(parents=True)
     (fake_root / "skills/self/disk-cleanup/launchd").mkdir(parents=True)
     shutil.copy2(INSTALLER, fake_root / "skills/self/disk-cleanup/install-launchd.sh")
     shutil.copy2(WATCHDOG, fake_root / "bin/disk-watchdog.sh")
+    (fake_root / "bin/disk-watchdog.sh").chmod(0o555)
+    (fake_root / "RELEASE.json").write_text(json.dumps({
+        "provenance": "ancestor-of-origin-main", "sha": "a" * 40,
+    }))
     shutil.copy2(WATCHDOG_PLIST, fake_root / "skills/self/disk-cleanup/launchd/com.anicca.disk-watchdog.plist")
 
     safe_calls = tmp_path / "launchctl-safe-calls.txt"
@@ -243,7 +319,11 @@ def test_installer_updates_only_stable_watchdog_label(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     safe.chmod(0o755)
-    watchdog_script = fake_home / ".local/bin/disk-watchdog.sh"
+    watchdog_script = fake_root / "bin/disk-watchdog.sh"
+    wrapper = fake_home / ".local/bin/disk-watchdog.sh"
+    wrapper.parent.mkdir(parents=True)
+    old_wrapper = b"#!/bin/sh\n# old installed wrapper\n"
+    wrapper.write_bytes(old_wrapper)
     env = os.environ | {
         "HOME": str(fake_home),
         "SAFE_CALLS": str(safe_calls),
@@ -258,13 +338,15 @@ def test_installer_updates_only_stable_watchdog_label(tmp_path: Path) -> None:
         text=True,
     )
 
-    wrapper = fake_home / ".local/bin/disk-watchdog.sh"
     installed_plist = fake_home / "Library/LaunchAgents/com.anicca.disk-watchdog.plist"
     with installed_plist.open("rb") as source:
         plist = plistlib.load(source)
-    assert wrapper.read_bytes() == WATCHDOG.read_bytes()
+    assert wrapper.read_bytes() == old_wrapper
     assert plist["Label"] == "com.anicca.disk-watchdog"
-    assert plist["ProgramArguments"] == [str(wrapper)]
+    assert plist["ProgramArguments"] == [str(watchdog_script)]
+    assert plist["StartInterval"] == plist["ThrottleInterval"] == 60
+    assert plist["RunAtLoad"] is True
+    assert plist["StandardOutPath"] == plist["StandardErrorPath"] == "/dev/null"
     calls = safe_calls.read_text(encoding="utf-8").splitlines()
     domain = f"gui/{os.getuid()}"
     assert calls == [
@@ -272,11 +354,9 @@ def test_installer_updates_only_stable_watchdog_label(tmp_path: Path) -> None:
         "list",
         f"bootout {domain}/com.anicca.disk-watchdog",
         f"bootstrap {domain} {installed_plist}",
-        f"kickstart {domain}/com.anicca.disk-watchdog",
         f"print {domain}/com.anicca.disk-watchdog",
     ]
 
-    old_wrapper = b"#!/bin/sh\n# old installed wrapper\n"
     old_plist = b"old installed plist\n"
     wrapper.write_bytes(old_wrapper)
     installed_plist.write_bytes(old_plist)
