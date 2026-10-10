@@ -669,10 +669,23 @@ class MacosLoopRegistryTest(unittest.TestCase):
             if row["entrypoint"] == "apps/life-manager/scripts/mobile-app"
         ]
         assert len(mobile_ids) == 18  # 17 existing mobile owners plus the EN2 TikTok owner
+        deterministic_carousel_ids = {
+            "life-manager-anicca-buddha-tiktok",
+            "life-manager-anicca-en-affirmation-instagram",
+            "life-manager-anicca-en-affirmation-tiktok",
+            "life-manager-anicca-en-slideshow-tiktok",
+            "life-manager-anicca-en2-affirmation-tiktok",
+            "life-manager-anicca-jp1-tiktok",
+            "life-manager-anicca-larry-ja-instagram",
+            "life-manager-anicca-main-tiktok",
+        }
         for loop_id in mobile_ids:
             with self.subTest(loop_id=loop_id):
                 row = registry["loops"][loop_id]
-                self.assertEqual(row.get("resource_class"), "agent")
+                expected_resource_class = (
+                    "deterministic" if loop_id in deterministic_carousel_ids else "agent"
+                )
+                self.assertEqual(row.get("resource_class"), expected_resource_class)
                 self.assertEqual(row.get("admission_class"), "revenue")
                 self.assertEqual(row.get("priority"), "distribution")
         ebook = registry["loops"]["ebook-en-tiktok-daily"]
