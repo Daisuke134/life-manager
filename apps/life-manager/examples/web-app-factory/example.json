@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "product": {
+    "product_id": "sample-pdf",
+    "display_name": "Sample PDF",
+    "url": "https://example.com/pdf",
+    "source": { "git_remote": "https://example.com/sample.git", "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "access": "public" },
+    "source_owner": "unknown"
+  },
+  "assignment": {
+    "owner": "sample-owner", "worktree": "/isolated/sample", "paths": ["src/pdf"], "resource_ids": [],
+    "lease": null, "inventory_complete": false, "claims": []
+  },
+  "period": { "start": "2026-10-01T00:00:00Z", "end": "2026-10-08T00:00:00Z", "currency": "USD" },
+  "demand": [], "qa": [], "marketing_claims": [], "distribution": [],
+  "metrics": {}, "financial_records": [], "unit_economics": null, "additional_spend_minor": 0
+}
