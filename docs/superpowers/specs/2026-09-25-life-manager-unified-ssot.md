@@ -5714,6 +5714,13 @@ item 4 source修正はPR #7352としてmain commit 4068f637に統合済み。eff
 - **No external listing, publish, reply, delivery, or replay effect occurred in these readbacks.** No current unique paid order, payout arrival, or positive SKU unit net for `4244556` is established. The received ¥39,000 is one other Coconala settled sale and must not be attributed to the storefront SKU.
 - **Current cursor remains:** shared P0/P1 capacity and latest-main release convergence → Gig item 2 exact owner/effect readback → existing order 18180857 check → held Storefront/Apply fence reconciliation → current SKU analytics and one positive-unit-net offer → one native Storefront test → Freelancer → Upwork → platform-level settled economics → SelfBuild last. Do not publish or retry the unknown occurrence.
 
+### 2026-10-10 22:03 JST — Gig runtime and shared P0/P1 refresh
+
+- **Fresh main/capacity:** fetched `origin/main` and GitHub both report `0f1a4a69dfca9333752bb904ed4e62475f80fc03`. `df -kP /Users/anicca` at 13:02:39Z reports 248,784 KiB available with capacity at 100%; earlier samples in this same readback window ranged from 151,960 to 395,580 KiB. This is unstable capacity, not recovered P0/P1.
+- **Gig owners:** all three owners report loaded-idle on release SHA `142ef661928ef1d44a186fcb2fed6a850dea024c`. Apply latest occurrence `18dd2c7decab5ce8-46448` (12:59:07Z) and Storefront `18dd2caa80aafb48-73812` (13:02:17Z) still report `effect=unknown`, no provider receipt, no official readback, and `retry_after_eligibility`. Their historical fences `18dadcd76d9c61b0-37711` and `18d8d288748508e8-23902` remain claimed. Paid occurrence `18dd2c9a4783bc98-71709` passed at 13:01:54Z with `effect=not_applicable`; it is not a sale or payment receipt.
+- **Shared resource owners:** disk-cleanup occurrence `18dd2c710a4e8ca0-45047` ended exit 75 / `reconcile_owner`; release-reconciler `18dd2ca9fc78e128-73733` ended exit 75 / `reconcile_owner`; handoff watcher `18dd2ca4bab744c8-72598` ended exit 69 / `reconcile_owner`. Their effect class is none. Bounded release-reconciler logs contain earlier `scratch_enospc` / errno 28 failures while writing recovery evidence; the exact cause for the latest generic exit 75 is still absent from the terminal event. The CLEAN-03 owner has an active lease and an unmerged SSOT edit, so this Gig work does not edit that worktree or duplicate its cleanup source work.
+- **Cursor:** P0/P1 remains incomplete; Gig item 2 is still the next Gig atom after that gate. Keep both unknown fences, do not replay, and re-read latest-main release/owner state before advancing to Coconala order 18180857.
+
 ### 2026-10-08 08:35 JST — Mobile post-merge runtime cursor
 
 この追記は上記08:23のPR #6993/owner/capacity/TestFlight状態をmerge後readbackで置き換える。全社§84-Aの順序は変更しない。
