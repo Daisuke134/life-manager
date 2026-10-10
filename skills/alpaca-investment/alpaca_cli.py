@@ -10,7 +10,7 @@ import stat
 import subprocess
 from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal, InvalidOperation
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -106,6 +106,12 @@ def _context(credentials_path: Path, cli_path: Path, mode: str | None = None) ->
     return env
 
 
+def _money(value: Decimal) -> str:
+    if value == 0:
+        return "0.00"
+    return format(value.normalize(), "f")
+
+
 def _run(cli: Path, args: list[str], env: dict[str, str]) -> Any:
     operation = "_".join(args[:2])
     if operation not in CLI_OPERATIONS:
@@ -179,6 +185,120 @@ def observe(*, credentials_path: Path, cli_path: Path, symbol: str = "SPY") -> d
         "paper": mode == "paper",
         "positions": positions,
         "trade": trade,
+    }
+
+
+def read_paper_stock_costs(
+    *, credentials_path: Path, cli_path: Path, client_order_ids: Sequence[str],
+) -> dict[str, Any]:
+    """Read filled paper equity orders and their official CFEE activities."""
+    if (isinstance(client_order_ids, (str, bytes)) or len(client_order_ids) < 2
+            or any(not isinstance(value, str)
+                   or not re.fullmatch(r"lm-ai-[0-9a-f]{24}", value)
+                   for value in client_order_ids)
+            or len(set(client_order_ids)) != len(client_order_ids)):
+        raise ValueError("paper_cost_order_ids_invalid")
+    env = _context(credentials_path, cli_path, mode="paper")
+    clients = json.dumps(list(client_order_ids))
+    orders = _run(cli_path, [
+        "order", "list", "--quiet", "--status", "all", "--limit", "500", "--jq",
+        f"[.[]|select(.client_order_id as $id|{clients}|index($id))|"
+        "{id,client_order_id,status,symbol,side,filled_qty,filled_avg_price}]",
+    ], env)
+    if not isinstance(orders, list):
+        raise ValueError("paper_cost_orders_invalid")
+    by_client: dict[str, Mapping[str, Any]] = {}
+    for row in orders:
+        if not isinstance(row, Mapping):
+            raise ValueError("paper_cost_orders_invalid")
+        client = row.get("client_order_id")
+        if isinstance(client, str):
+            if client in by_client:
+                raise ValueError("paper_cost_orders_invalid")
+            by_client[client] = row
+    if any(client not in by_client for client in client_order_ids):
+        return {"status": "pending", "reason": "paper_order_missing"}
+    selected = [by_client[client] for client in client_order_ids]
+    if (any(row.get("status") != "filled" for row in selected)
+            or any(not isinstance(row.get("id"), str) or not row.get("id")
+                   for row in selected)):
+        return {"status": "pending", "reason": "paper_order_not_filled"}
+    order_ids = json.dumps([row.get("id") for row in selected])
+    fills = _run(cli_path, [
+        "account", "activity", "list", "--activity-types", "FILL", "--page-size", "100",
+        "--direction", "asc", "--quiet", "--jq",
+        f"[.[]|select(.order_id as $id|{order_ids}|index($id))|"
+        "{id,activity_type,order_id,symbol,side,qty,price,transaction_time}]",
+    ], env)
+    if not isinstance(fills, list):
+        raise ValueError("paper_cost_fills_invalid")
+    fees = _run(cli_path, [
+        "account", "activity", "list", "--activity-types", "CFEE", "--page-size", "100",
+        "--direction", "asc", "--quiet", "--jq",
+        f"[.[]|select(.order_id as $id|{order_ids}|index($id))|"
+        "{id,activity_type,order_id,qty,price,net_amount,date}]",
+    ], env)
+    if not isinstance(fees, list):
+        raise ValueError("paper_cost_fees_invalid")
+    order_by_id = {row.get("id"): row for row in selected}
+    fill_qty_by_order: dict[str, Decimal] = {order_id: Decimal("0") for order_id in order_by_id}
+    seen_fills: set[str] = set()
+    for fill in fills:
+        if not isinstance(fill, Mapping) or fill.get("activity_type") != "FILL":
+            raise ValueError("paper_cost_fills_invalid")
+        fill_id, order_id = fill.get("id"), fill.get("order_id")
+        if (not isinstance(fill_id, str) or not fill_id or fill_id in seen_fills
+                or order_id not in order_by_id):
+            raise ValueError("paper_cost_fills_invalid")
+        order = order_by_id[order_id]
+        if (fill.get("symbol") != order.get("symbol")
+                or fill.get("side") != order.get("side")):
+            raise ValueError("paper_cost_fills_invalid")
+        try:
+            quantity = abs(Decimal(str(fill["qty"])))
+            price = Decimal(str(fill["price"]))
+        except (InvalidOperation, KeyError, TypeError, ValueError) as error:
+            raise ValueError("paper_cost_fills_invalid") from error
+        if not quantity.is_finite() or quantity <= 0 or not price.is_finite() or price <= 0:
+            raise ValueError("paper_cost_fills_invalid")
+        seen_fills.add(fill_id)
+        fill_qty_by_order[order_id] += quantity
+    for order in selected:
+        order_id = order["id"]
+        try:
+            expected_qty = Decimal(str(order["filled_qty"]))
+        except (InvalidOperation, KeyError, TypeError, ValueError) as error:
+            raise ValueError("paper_cost_orders_invalid") from error
+        if (not expected_qty.is_finite() or expected_qty <= 0
+                or fill_qty_by_order[order_id] != expected_qty):
+            raise ValueError("paper_cost_fills_invalid")
+    totals = {client: Decimal("0") for client in client_order_ids}
+    source_ids = [f"alpaca-order:{row['id']}" for row in selected]
+    source_ids.extend(f"alpaca-fill:{fill_id}" for fill_id in sorted(seen_fills))
+    seen_fees: set[str] = set()
+    for fee in fees:
+        if not isinstance(fee, Mapping) or fee.get("activity_type") != "CFEE":
+            raise ValueError("paper_cost_fees_invalid")
+        fee_id, order_id = fee.get("id"), fee.get("order_id")
+        if (not isinstance(fee_id, str) or not fee_id or fee_id in seen_fees
+                or order_id not in order_by_id):
+            raise ValueError("paper_cost_fees_invalid")
+        seen_fees.add(fee_id)
+        try:
+            if fee.get("net_amount") is not None:
+                amount = abs(Decimal(str(fee["net_amount"])))
+            else:
+                amount = abs(Decimal(str(fee["qty"])) * Decimal(str(fee["price"])))
+        except (InvalidOperation, KeyError, TypeError, ValueError) as error:
+            raise ValueError("paper_cost_fees_invalid") from error
+        if not amount.is_finite():
+            raise ValueError("paper_cost_fees_invalid")
+        totals[order_by_id[order_id]["client_order_id"]] += amount
+        source_ids.append(f"alpaca-fee:{fee_id}")
+    return {
+        "status": "complete",
+        "fees_by_client_order_id": {key: _money(value) for key, value in totals.items()},
+        "source_receipt_ids": source_ids,
     }
 
 
