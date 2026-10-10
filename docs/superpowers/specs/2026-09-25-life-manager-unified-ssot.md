@@ -12671,3 +12671,13 @@ flowchart LR
 
 **Current cursor:** disk capacity still blocks a new main-derived implementation worktree and release. Continue independent official readbacks; keep the local app checkout and unrelated dirty paths untouched until a safe main-derived worktree is available.
 
+### 2026-10-10 23:42 JST — Fresh ASC acquisition and RevenueCat readback
+
+- **ASC readback:** official `asc` read-only API and existing ONGOING analytics requests. Latest available processingDate is 2026-10-09 with report data through 2026-10-08. Segment files are preserved outside Git under `~/.local/state/life-manager/state/asc-mobile-*`.
+- **Anicca iOS (`6755129214`), Oct 6–8:** Downloads Standard reports one `First-time download` on Oct 8 and two `Restore` downloads; count the first-time download separately. Discovery and Engagement reports 70 `Impression`, 6 `Page view / Product page`, 3 `Page view / Store sheet`, 2 `Tap / Get`, 1 `Tap / Open`, 1 `Tap / Re-download` counts.
+- **Honne (`6759667221`), Oct 6–8:** three first-time downloads (two Oct 7, one Oct 8). Discovery counts: 273 impressions, 11 product-page views, 1 store-sheet view, 4 Get taps, 3 Open taps, 1 Share tap. Counts are aggregated report events, not user cohorts or campaign attribution.
+- **Six-app ASC request coverage:** Anicca/Honne already have active ONGOING requests. This pass created and GET-verified active ONGOING requests for the other four bound app IDs: Breath Reset `6760253231`, Sleep Ritual `6759916261`, Desk Stretch Timer `6760048397`, and Micro-Mood `6759877003`. Immediate readback shows no report instances for Oct 8 or Oct 9 yet; keep those values unknown until Apple publishes them.
+- **RevenueCat:** fresh official MRR chart read at 2026-10-10 23:11 JST, period 2026-10-09: Anicca iOS USD 20.34; Honne, Breath Reset, Sleep Ritual, Desk Stretch Timer, and Micro-Mood USD 0.00. All six chart points are complete. This remains subscription MRR, not Apple-settled net revenue. Refunds/fees/payout/net are unverified; USD 10K net MRR is not achieved.
+
+**ASC/RevenueCat cursor:** recheck the four new ongoing requests for their first daily Downloads Standard and Discovery instances; then collect each app with freshness and no zero-fill. Keep restore separate from first-time downloads, counts separate from unique counts, and ASC impressions separate from social views. Continue Anicca distribution first; only use settled Apple recurring proceeds net of refund/fee to claim progress against USD 10K.
+
