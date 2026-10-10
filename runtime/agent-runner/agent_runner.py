@@ -189,18 +189,24 @@ def atomic_json(path: Path, value: Any) -> None:
         raise
 
 
-def evidence_root_for(evidence_dir: Path) -> Path | None:
+def evidence_root_for(evidence_dir: Path, *, state_root: str | None = None) -> Path | None:
     """Return the managed evidence root for a task/run evidence directory.
 
     The runner is also used by callers that supply arbitrary paths.  Retention
-    must never recursively delete outside the explicitly named
-    ``agent-runner-evidence/<task>/<run>`` layout.
+    keeps the named ``agent-runner-evidence/<task>/<run>`` layout. Registered
+    callers may also supply their exact ``state_root/evidence/<run>`` layout;
+    legacy whole-run GC does not supply that additional root.
     """
     resolved = evidence_dir.resolve()
     parts = resolved.parts
     try:
         marker = parts.index("agent-runner-evidence")
     except ValueError:
+        if state_root:
+            root = Path(state_root).expanduser() / "evidence"
+            if (root.is_absolute() and resolved.parent == root
+                    and not any(p.is_symlink() for p in [evidence_dir, root, *root.parents])):
+                return root
         return None
     if len(parts) < marker + 3:
         return None
@@ -300,8 +306,9 @@ def ensure_evidence_capacity(evidence_dir: Path) -> dict[str, int]:
     if owner and policy_path.is_file():
         policy = load_storage_policy(policy_path, owner)
         if policy is not None:
-            root = evidence_root_for(evidence_dir)
-            return (prune_closed_diagnostics(root, policy, current_run=evidence_dir.resolve())
+            state_root = os.environ.get("LIFE_MANAGER_STATE_ROOT")
+            root = evidence_root_for(evidence_dir, state_root=state_root)
+            return (prune_closed_diagnostics(root, policy, current_run=evidence_dir.resolve(), state_root=state_root)
                     if root else {"removed": 0, "reclaimed_bytes": 0, "errors": 0})
     max_bytes = int(os.environ.get("AGENT_RUNNER_EVIDENCE_MAX_BYTES", DEFAULT_EVIDENCE_MAX_BYTES))
     if max_bytes < 0:
@@ -318,9 +325,10 @@ def finish_evidence_run(evidence_dir: Path, summary: dict) -> dict:
     if owner and policy_path.is_file():
         try:
             policy = load_storage_policy(policy_path, owner)
-            root = evidence_root_for(evidence_dir)
+            state_root = os.environ.get("LIFE_MANAGER_STATE_ROOT")
+            root = evidence_root_for(evidence_dir, state_root=state_root)
             if policy is not None and root is not None:
-                reclamation = prune_closed_diagnostics(root, policy, current_run=evidence_dir.resolve())
+                reclamation = prune_closed_diagnostics(root, policy, current_run=evidence_dir.resolve(), state_root=state_root)
                 summary = {**summary, "postrun_evidence_reclamation": reclamation}
                 atomic_json(summary_path, summary)
         except (OSError, ValueError) as error:
