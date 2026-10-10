@@ -91,25 +91,31 @@ function zonedSlotInstant(clock, slot, timeZone) {
 // in schedule order. Keeping these instants lets a delayed owner consume the
 // oldest unposted slot instead of collapsing several queued wakes onto only
 // the latest due slot.
+function marketingVideoDaySlots(nowMs, timeZone = "Asia/Tokyo", slots = HONNE_JA_SLOTS) {
+  if (typeof nowMs !== "number" || !Number.isFinite(nowMs)) {
+    throw new Error("honne JA schedule time is invalid");
+  }
+  const local = wallClock(timeZone, new Date(nowMs));
+  return slots.map((slot) => {
+    if (!SLOT_PATTERN.test(slot)) throw new Error("marketing video schedule slot is invalid");
+    return zonedSlotInstant(
+      { year: local.year, month: local.month, day: local.day },
+      slot,
+      timeZone,
+    );
+  });
+}
+
 function marketingVideoDueSlots(nowMs, timeZone = "Asia/Tokyo", slots = HONNE_JA_SLOTS) {
   if (typeof nowMs !== "number" || !Number.isFinite(nowMs)) {
     throw new Error("honne JA schedule time is invalid");
   }
   const local = wallClock(timeZone, new Date(nowMs));
   const nowMinutes = local.hour * 60 + local.minute;
-  const due = [];
-  for (const slot of slots) {
-    if (!SLOT_PATTERN.test(slot)) throw new Error("marketing video schedule slot is invalid");
-    const [hour, minute] = slot.split(":").map(Number);
-    if (nowMinutes >= hour * 60 + minute) {
-      due.push(zonedSlotInstant(
-        { year: local.year, month: local.month, day: local.day },
-        slot,
-        timeZone,
-      ));
-    }
-  }
-  return due;
+  return marketingVideoDaySlots(nowMs, timeZone, slots).filter((_, index) => {
+    const [hour, minute] = slots[index].split(":").map(Number);
+    return nowMinutes >= hour * 60 + minute;
+  });
 }
 
 // Legacy caller: return the latest passed slot, preserving its old contract.
@@ -124,6 +130,7 @@ function honneJaDueSlot(nowMs, timeZone = "Asia/Tokyo") {
 module.exports = {
   HONNE_JA_SLOTS,
   honneJaDueSlot,
+  marketingVideoDaySlots,
   marketingVideoDueSlot,
   marketingVideoDueSlots,
   zonedSlotInstant,

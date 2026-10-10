@@ -12,7 +12,7 @@ import threading
 import time
 import zipfile
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -1974,6 +1974,186 @@ def test_reported_paid_row_waits_after_official_seller_answer(tmp_path, monkeypa
     assert paid._official_buyer_feedback_answer_wait(item) is False
 
 
+def test_formal_delivery_with_answered_feedback_is_an_acceptance_wait(tmp_path):
+    paid = load("paid_direct")
+    queue = load("delivery_queue")
+    room = "777"
+    projects = tmp_path / "projects"
+    root = projects / room
+    root.mkdir(parents=True)
+    write_json(root / "state.json", {
+        "request_id": room, "talkroom_id": room, "adapter": "coconala",
+        "next_action": "WORK_REQUIRED", "formal_delivery_confirmed": False,
+    })
+
+    order = {
+        "talkroom_id": room,
+        "contract_id": f"talkroom:{room}",
+        "marketplace_url": f"https://coconala.com/talkrooms/{room}",
+        "status": "unknown",
+        "price_jpy": 5000,
+        "price_source": "structured_received_orders_card",
+        "delivery_date": "2026-09-30",
+    }
+    observed_at = "2026-10-10T10:00:00.000000+00:00"
+    orders_snapshot = {
+        "source": "authenticated_coconala_hidden_default_context_dom",
+        "read_only": True,
+        "collector_mode": "orders-only",
+        "observed_sources": ["orders"],
+        "open_orders_list_observed": True,
+        "captured_at": observed_at,
+        "source_receipt": {
+            "source": "orders",
+            "requested_route": queue.OPEN_ORDERS_ROUTE,
+            "final_route": queue.OPEN_ORDERS_ROUTE,
+            "login_redirect": False,
+            "coverage_complete": True,
+            "cards_count": 1,
+            "empty_state_present": False,
+        },
+        "orders": [order],
+    }
+    preliminary = queue.build_preliminary(orders_snapshot, date(2026, 10, 10))
+    selected = {
+        **order,
+        "selection_stage": "targeted",
+        "targeted_readback_required": False,
+        "talkroom_state": "納品確認待ち",
+        "transaction_state": "納品確認待ち",
+        "formal_delivery_observed": True,
+        "buyer_visible_artifact_observed": True,
+        "buyer_feedback_stage": "revision",
+        "buyer_feedback_sha256": "a" * 64,
+        "buyer_feedback_pending_artifact": False,
+        "buyer_feedback_answered_by_seller": True,
+        "buyer_reply_after_artifact_observed": True,
+        "talkroom_observed_at": observed_at,
+        "talkroom_evidence_sha256": "b" * 64,
+        "talkroom_screenshot_sha256": "c" * 64,
+        "talkroom_evidence_file": str(tmp_path / "selected-talkroom.json"),
+        "seller_sent_messages": [{"text": "Answered the current feedback.", "attachments": []}],
+    }
+    selected_path = tmp_path / "selected-talkroom-snapshot.json"
+    write_json(selected_path, {
+        "source": "authenticated_coconala_default_context_dom",
+        "read_only": True,
+        "collector_mode": "selected-talkroom-only",
+        "captured_at": observed_at,
+        "talkroom": {"talkroom_id": room},
+        "orders": [selected],
+    })
+    args = SimpleNamespace(
+        evidence_dir=tmp_path / "evidence",
+        delivery_evidence_dir=tmp_path / "delivery-evidence",
+        projects_root=projects,
+        today="2026-10-10",
+    )
+
+    classified = paid._classify_targeted(args, preliminary["items"][0], selected_path, room)
+
+    assert classified["project_root"] == str(root)
+    assert queue.delivery_decision({**selected, "project_root": str(root)})["mode"] == "none"
+    assert classified["delivery_action"] == "none"
+    assert "formal_delivery_not_confirmed" not in classified["blockers"]
+    reported = paid._reported_paid_row(args, classified)
+    assert reported["status"] == "awaiting_buyer"
+    assert reported["send_performed"] is False
+    assert reported["deduplicated"] is True
+    assert reported["formal_delivery_checkbox"] is True
+
+    awaiting_buyer_without_reply = {
+        **selected,
+        "buyer_feedback_stage": None,
+        "buyer_feedback_pending_artifact": False,
+        "buyer_feedback_answered_by_seller": False,
+        "buyer_reply_after_artifact_observed": False,
+    }
+    assert queue.is_active_paid_order(awaiting_buyer_without_reply) is True
+    write_json(selected_path, {
+        "source": "authenticated_coconala_default_context_dom",
+        "read_only": True,
+        "collector_mode": "selected-talkroom-only",
+        "captured_at": observed_at,
+        "talkroom": {"talkroom_id": room},
+        "orders": [awaiting_buyer_without_reply],
+    })
+    no_reply_classification = paid._classify_targeted(
+        args, preliminary["items"][0], selected_path, room,
+    )
+    assert no_reply_classification["targeted_readback_required"] is False
+    assert no_reply_classification["delivery_action"] == "none"
+    no_reply_report = paid._reported_paid_row(args, no_reply_classification)
+    assert no_reply_report["status"] == "awaiting_buyer"
+    assert no_reply_report["send_performed"] is False
+    assert no_reply_report["formal_delivery_checkbox"] is True
+
+    unanswered = {**selected, "buyer_feedback_pending_artifact": True,
+                  "buyer_feedback_answered_by_seller": False}
+    write_json(selected_path, {
+        "source": "authenticated_coconala_default_context_dom",
+        "read_only": True,
+        "collector_mode": "selected-talkroom-only",
+        "captured_at": observed_at,
+        "talkroom": {"talkroom_id": room},
+        "orders": [unanswered],
+    })
+    still_actionable = paid._classify_targeted(args, preliminary["items"][0], selected_path, room)
+    assert still_actionable["delivery_action"] == "work_required"
+    assert paid._reported_paid_row(args, still_actionable) is None
+
+    unknown_feedback = {
+        **selected,
+        "buyer_feedback_pending_artifact": None,
+        "buyer_feedback_answered_by_seller": False,
+        "buyer_reply_after_artifact_observed": False,
+    }
+    write_json(selected_path, {
+        "source": "authenticated_coconala_default_context_dom",
+        "read_only": True,
+        "collector_mode": "selected-talkroom-only",
+        "captured_at": observed_at,
+        "talkroom": {"talkroom_id": room},
+        "orders": [unknown_feedback],
+    })
+    unknown_classification = paid._classify_targeted(
+        args, preliminary["items"][0], selected_path, room,
+    )
+    assert queue.delivery_decision({**unknown_feedback, "project_root": str(root)})["mode"] == "work_required"
+    assert unknown_classification["delivery_action"] == "work_required"
+    assert paid._reported_paid_row(args, unknown_classification) is None
+
+    unknown_reply = {
+        **selected,
+        "buyer_feedback_pending_artifact": False,
+        "buyer_feedback_answered_by_seller": False,
+        "buyer_reply_after_artifact_observed": None,
+    }
+    assert queue.delivery_decision({**unknown_reply, "project_root": str(root)})["mode"] == "work_required"
+
+    missing_visible_artifact = {
+        **selected,
+        "buyer_visible_artifact_observed": False,
+        "buyer_feedback_pending_artifact": False,
+        "buyer_feedback_answered_by_seller": False,
+        "buyer_reply_after_artifact_observed": False,
+    }
+    write_json(selected_path, {
+        "source": "authenticated_coconala_default_context_dom",
+        "read_only": True,
+        "collector_mode": "selected-talkroom-only",
+        "captured_at": observed_at,
+        "talkroom": {"talkroom_id": room},
+        "orders": [missing_visible_artifact],
+    })
+    invisible_classification = paid._classify_targeted(
+        args, preliminary["items"][0], selected_path, room,
+    )
+    assert queue.delivery_decision({**missing_visible_artifact, "project_root": str(root)})["mode"] == "work_required"
+    assert invisible_classification["delivery_action"] == "work_required"
+    assert paid._reported_paid_row(args, invisible_classification) is None
+
+
 def test_reported_feedback_answer_observation_is_persisted_without_effect_slot(
         tmp_path, monkeypatch):
     paid = load("paid_direct")
@@ -3775,6 +3955,61 @@ def test_selected_talkroom_readback_uses_visible_transport_for_attachments(tmp_p
 
     assert snapshot.main() == 1
     assert seen == [False]
+
+
+def test_selected_talkroom_snapshot_binds_timestamp_and_screenshot_digest(tmp_path, monkeypatch):
+    snapshot = load("coconala_queue_snapshot")
+    room = "777"
+    screenshot_bytes = b"official selected talkroom screenshot"
+    selected_path = tmp_path / "selected-order.json"
+    write_json(selected_path, {"talkroom_id": room, "status": "unknown"})
+    args = SimpleNamespace(
+        mode="selected-talkroom-only",
+        talkroom_id=room,
+        project_id=room,
+        selected_order_input=selected_path,
+        hidden_no_screenshot=False,
+        evidence_dir=tmp_path / "evidence",
+        output=tmp_path / "snapshot.json",
+        projects_root=tmp_path / "projects",
+        cdp_helper=tmp_path / "cdp.py",
+    )
+    monkeypatch.setattr(
+        snapshot, "argument_parser",
+        lambda: SimpleNamespace(parse_args=lambda: args),
+    )
+    monkeypatch.setattr(snapshot, "load_connector_manifest", lambda: None)
+
+    def capture_selected(_helper, _url, screenshot_path, *_args):
+        screenshot_path.write_bytes(screenshot_bytes)
+        return {
+            "url": f"https://coconala.com/talkrooms/{room}",
+            "transaction_state": "納品確認待ち",
+            "history_complete": True,
+            "messages": [],
+        }, {"coverage_complete": True}
+
+    monkeypatch.setattr(snapshot, "inspect_selected_talkroom_with_history_retry", capture_selected)
+    monkeypatch.setattr(snapshot, "talkroom_with_persisted_history", lambda talkroom, *_args: talkroom)
+    monkeypatch.setattr(snapshot, "install_project_posting", lambda *_args: None)
+    monkeypatch.setattr(snapshot, "persist_latest_paid_buyer_reply", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(snapshot, "persist_purchased_offer_brief", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        snapshot,
+        "source_receipt",
+        lambda **kwargs: {
+            "source": kwargs["source"], "requested_route": kwargs["requested_url"],
+            "observed_at": kwargs["observed_at"], "coverage_complete": True,
+        },
+    )
+
+    assert snapshot.main() == 0
+    result = json.loads(args.output.read_text(encoding="utf-8"))
+    row = result["orders"][0]
+
+    assert row["talkroom_screenshot_sha256"] == hashlib.sha256(screenshot_bytes).hexdigest()
+    assert row["talkroom_observed_at"] == result["captured_at"]
+    assert row["targeted_readback_required"] is False
 
 
 def test_current_remote_wait_never_suppresses_next_wake(tmp_path):

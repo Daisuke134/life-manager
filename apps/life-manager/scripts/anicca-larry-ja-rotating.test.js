@@ -6,6 +6,7 @@ const test = require("node:test");
 const {
   RUNNERS_BY_ACTION,
   runAniccaLarryJaRotatingCanary,
+  runAniccaMainTikTokRotatingCanary,
   runAniccaEnAffirmationTikTokRotatingCanary,
   runAniccaBuddhaTikTokRotatingCanary,
 } = require("./anicca-larry-ja-rotating.js");
@@ -43,6 +44,18 @@ test("runAniccaLarryJaRotatingCanary resolves the slot's pack and feeds it into 
   assert.equal(runCall.deps.env.LM_ANICCA_LARRY_JA_MEDIA_REFS, JSON.stringify(SELECTED.mediaRefs));
   assert.equal(runCall.deps.env.LM_ANICCA_LARRY_JA_CAPTION_REF, SELECTED.captionRef);
   assert.equal(runCall.deps.env.LM_ANICCA_LARRY_JA_APPROVAL_REF, SELECTED.approvalRef);
+});
+
+test("runAniccaLarryJaRotatingCanary forwards explicit early catch-up provenance to the canary", async () => {
+  let runCall = null;
+  const futureSlot = "2026-10-10T13:37:00.000Z";
+  await runAniccaMainTikTokRotatingCanary(["run-ja-main-tiktok-production"], {
+    env: { LM_DATA_DIR: "/tmp/x", LM_RUNTIME_TENANT_ID: "dais-local" },
+    resolveLarryJaSlot: () => ({ slot: futureSlot, selected: SELECTED, catchUp: true }),
+    runAniccaCarouselCanary: (argv, deps) => { runCall = { argv, deps }; return Promise.resolve({ ok: true }); },
+  });
+  assert.deepEqual(runCall.argv, ["run-ja-main-tiktok-production", "--slot", futureSlot]);
+  assert.equal(runCall.deps.allowEarlyCatchUp, true);
 });
 
 test("runAniccaLarryJaRotatingCanary propagates a rotation resolution failure instead of posting anything", async () => {
