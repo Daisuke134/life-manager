@@ -355,6 +355,8 @@ CLEAN-04中央自然復旧の最新結果: restored d687の予定slot18:23Zはru
 
 CLEAN-04根本caller修復の封じ込めscope: #7547 exact89a746d7e05a61a6bbd002ca0693ef2ea5d22277/CI38076187180全10SUCCESS→main1181e0663d0948a8321333416528e734e377aafa。正規cutter一回は既存回収後available1,424,932,864/required2,147,483,648/disk_headroom_low75で新release無し。旧Fundraiser loaded522のrun34591は18:37:20Zに自然terminal75/PID absent/idle、historical unknown13件は保持。source修復を含むrelease採用まで旧低容量branchがcleanupを再bootoutする危険が具体的に残るため、fresh safe GUI/loaded-idle確認後にFundraiser一件だけを既存lm-loop stopで一時封じ込める。activeならstopしない。他owner停止0、unknown解除/再送/応募0。新main immutable採用後に同ownerの元cadence/state/fenceを保持して復帰し自然preflightでcleanup保持を証明する。これは容量だけを理由とする全loop停止ではなく、確認済みsibling mutationの封じ込め。
 
+CLEAN-04封じ込め実施結果: fresh Fundraiser loaded-idle/PID無し確認後の既存lm-loop stop fundraiserはbootout0/return0。fresh statusはunloaded/installed522/historical unknowntrue保持、中央cleanupはrunning/PID72197を確認。他owner停止0/active応募中断0/unknown解除0/再送0。新版1181を含むimmutableがまだ容量guardで未作成のため、paused old ownerを勝手にstartしない。current d687は毎分/中央cleanupを継続し、自然18:38:06Zはcodex-runtime-cacheの確認済みpath（logical0の空tree）とgithub-cache6409/errors0/protected0を記録。この復旧・封じ込めをsource完了だけで全体Doneとしない。現在cursor=安全回収による完全release書込復旧→Fundraiser source採用/fence保持→元cadence復帰→低容量自然branchでcleanup不停止→CLEAN-05→06。
+
 **cleanup現在readback（source/main/release/loaded/naturalを区別）:**
 
 | atom | 確認済み | 実際に残る一操作 |
