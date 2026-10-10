@@ -883,8 +883,7 @@ if [ "$current_complete" -eq 1 ] && [ "$release_sha_target" != "$current_sha" ];
 fi
 
 if [ "$release_sha_target" != "$current_sha" ] || [ "$current_complete" -ne 1 ]; then
-  "$runtime_python" "$SCRIPT_ROOT/runtime/host/disk_admission.py" \
-    --check-free-space "$LOOPS_ROOT"
+  # The cutter reclaims first, then guards the complete export.
   cutter="$CURRENT/bin/cut-loop-release.sh"
   [ -x "$cutter" ] || cutter="$SOURCE_REPO/bin/cut-loop-release.sh"
   LIFE_MANAGER_SOURCE_REPO="$SOURCE_REPO" LOOPS_ROOT="$LOOPS_ROOT" LOOPS_RELEASE_PATHS= \

@@ -313,6 +313,10 @@ CLEAN-04最新反映/自然readback: currentf78a23995df5f50724131b51ade652b27fa7
 
 cutter順序修復はPR #7534 exact3c4fbed5b2a83c59dbda2def4769335cd8d70005/CI38068347966全10SUCCESS後admin main ec309dd19b2f0efd36eaeb5e8e97b91472e75d4bへ統合。main由来専用worktreeから正規cutter一回は既存prune先行後available1,344,253,952/required2,147,483,648/disk_headroom_low75でexport前延期、partial/current変更0。この修復はsource/main済み、完全release反映未完。次cursor=CLEAN-04の共有lockが空く自然窓でsource reclaimのpreserved判定を診断・実回収→修復済みmainの完全release→CLEAN-05枠返却/自動再開→CLEAN-06同期間反復。旧cursorへ戻さず全体未完を維持。
 
+CLEAN-04 caller修復scope: 新f78回収の計測は15.005秒/42files/2,707,456 bytes、lsof45回9.106秒で保護再確認が支配的。lease/FD保護を削らず保持する。reconcilerの有限run46173/46235は自然16:53:59Z terminal、fleet changed82/errors20/budget exceededで全反映成功ではない。bin/reconcile-agent-runner-release.shにcutter前の重複capacity checkが残り、main ec309のcleanup先行guardへ到達しない実caller抜けを確認。重複2行だけ除き、既存cutterへ回収→同2GiB guard→完全exportを委ねる。既存低容量fixtureをguard付きcutterにして、回収呼出到達かつexport/owner apply無しのRED→GREENを証明する。新threshold/partial current/保護削除/別rotator無し。現在cursorはこのcaller修復→main immutable adoption→実回収の収支→CLEAN-05→06。
+
+CLEAN-04 caller source受入: sparse環境のportable timeout欠落をHEAD file復元で解消し、旧sourceでdisk_headroom_low75・cutter marker無しの実RED→重複capacity2行除去でGREENを確認。関連4tests（低容量回収到達/owner apply無し/current保持、正常反映/同版skip、promotion hold、nonactivated candidate拒否）PASS、bash syntax/diff PASS。producer threshold/guard/lease/lock/モデル/外部effectは変更しない。本番採用とsource GCの速度/収支は未完。
+
 **cleanup現在readback（source/main/release/loaded/naturalを区別）:**
 
 | atom | 確認済み | 実際に残る一操作 |
