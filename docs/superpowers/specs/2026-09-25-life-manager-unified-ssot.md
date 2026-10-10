@@ -361,6 +361,9 @@ CLEAN-04 release容量契約修復scope: 完全releaseの一律2GiB guardが、�
 
 CLEAN-04 release容量source受入: default2GiBを保持した測定budget引数と、main由来immutable ALL donor/同一7manifest/content-addressed bundle/Python tagの資格確認を既存cutter/disk_admissionへ追加。全Git tarをstream計測しsource/一時copyの2倍、target runtime in-memory compile/marshalとatomic bytecodeの2倍、entry block、64MiB記録余裕を算入する。実機origin/main計測346,726,400 bytes。依存変更/完成bundle消失は2GiBへfallbackしexport前75、測定経路ではbundleが後から消えても依存生成せず失敗する。RED4fail→focused32PASS/2subtests、既存bundle再利用/未参照だけprune/symlink donor/bytecode5PASS、syntax/diff PASS。広い試行の7failはsparse checkout欠落(.gitattributes/timeout/manifests)と実ホスト空き2GiB未達fixtureで、必要pathをGit HEADから復旧し対象検証を再実行した。最後の小変更後にfixtureを同秒同SHAで2回cutして既存destination衝突を再現したため、2回目を実source変更の別SHAにして待機を入れず修正し、32PASS/2subtestsを再確認。production/自然Fundraiser復帰/全体Doneは未確認。現在cursor=source push/CI/main→ALL cut→target Fundraiserのfence保持apply/readback→CLEAN-05→06。
 
+CLEAN-04追加readback: 単発stop後、reconcilerが旧Fundraiserをd687へ再ロードし18:48に中央cleanup bootout/exit143が再発。fresh Fundraiser idle/Aqua PASS後、同owner一件のlaunchctl-safe disable→lm-loop stopを実施しdisabled/PID無し/unknown保持をreadback。中央cleanupを既存applyで復帰し自然18dd4018220b09f8-9619が19:00:44Z pass0。既存canonical pre-effect dry-runでは13件no_pre_effect_terminalが残り、provider未知を解除しない。#7550初回CIは855/856PASS、new fixtureのsys.executableとcutter PATH既定Pythonが異なりsafe fallback2GiBで1fail。fixtureのLOOPS_RUNTIME_PYTHONを明示して安全判定を変えず修正する。source容量契約の本番反映はまだ未確認。
+
+
 
 
 **cleanup現在readback（source/main/release/loaded/naturalを区別）:**
