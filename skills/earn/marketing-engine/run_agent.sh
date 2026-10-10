@@ -93,7 +93,8 @@ SILENT_STOPPED=0
 while kill -0 "$RUNNER_PID" 2>/dev/null; do
   sleep "$SILENT_POLL"
   SILENT_WAITED=$((SILENT_WAITED + SILENT_POLL))
-  if [ -n "$(find "$EVIDENCE_DIR" -maxdepth 1 -name 'attempt-*.std*.log' -size +0c 2>/dev/null)" ]; then
+  # agent_runner relays provider output into attempt-*.capture/*/ (since #7445); count it too.
+  if [ -n "$(find "$EVIDENCE_DIR" -maxdepth 3 \( -name 'attempt-*.std*.log' -o -path '*/attempt-*.capture/*' \) -name '*.log' -size +0c 2>/dev/null)" ]; then
     break  # the provider has produced output: leave it to the outer timeout
   fi
   if [ "$SILENT_WAITED" -ge "$SILENT_LIMIT" ]; then
