@@ -293,6 +293,8 @@ DaisのiCloud未使用/停止指示を受け、Photos公式UIの『このMacか�
 
 CLEAN-04の次source修復scope: existing reclaim_unreferenced_sourceの実計測は15.010秒/8filesで、references11回の累積11.758秒、対象外を含むPath.relative_to214,618回が累積7.758秒。既存lsofを毎leaf再確認する保護契約は保持し、release root＋区切り文字で無関係な絶対pathだけを先に除外してPath解析を限定する最小差分を選ぶ。文字列prefixが似た別root・dot/dotdot・current/open/同PID owned FDの境界は既存fixtureへ追加してRED→GREENを確認。lease/lifecycle locks、unknown保持、Git blob/identity再確認、deadlineは変更せず、新cache/queue/rotator/reviewerは追加しない。source専用branch=fix/cleanup-release-reference-filter-20261011予定。同worktreeのgit restoreはindex.lock errno28で未実行、既存dirty scopeは保持されている。通常fetchだけは成功。追加serial回収はd3b3a279の24files/2,109,440 bytes、e01c4032の23files/2,428,928 bytes、計測pass19bc76c0の8files/1,052,672 bytesで各errors0/protected_deletions0。根本修復の完了証拠とはしない。
 
+CLEAN-04の緊急回収scope: native macOS diagnostic storeの実duは/private/var/db/diagnostics887016KiBとuuidtext323860KiB（合計1,239,937,024 bytes）。前のSSOTと同じoperator-owned診断logだけを公式sudo -n /usr/bin/log erase --allで回収し、業務receipt/履歴/state/profileを保持する。log stats --overviewの実handle46048/PID29519はread-onlyで遅いため終了させ、既存本番sourceは改変しない。これはrelease反映の書込復旧の一手で、繰返し手動掃除不要の完了証拠ではない。
+
 **cleanup現在readback（source/main/release/loaded/naturalを区別）:**
 
 | atom | 確認済み | 実際に残る一操作 |
