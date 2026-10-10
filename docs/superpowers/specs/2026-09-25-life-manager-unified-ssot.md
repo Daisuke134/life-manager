@@ -301,6 +301,11 @@ CLEAN-05 browser wait main/current/loaded: #7566 exact1fb4f434e9b8fe072938399657
 
 CLEAN-04 inventory自然現在地: newcebf natural18dd4683a61353b0-26296は20:55:58Z execute→20:58:27Z pass0、bound20:57:38Z full/errors0/protected0。旧欠測/private/tmpを247,054,336 bounded-du-partialで測り、古いsampleを含む5rootを保持、freshの未測定を0にしない。次21:03 run45410は75でsnapshot更新無し、競合waitを成功と混ぜない。独立read-only診断probe45秒は/private/tmp247,050,240 partial、/private/var/folders684,081,152 partial、/opt/homebrew13,499,006,976などを測り、deletion0（自然受入とは別）。標準brew cleanup dry-runは削除対象0なので13.5GBを不要物と断定しない。残=次自然fullでstate/releases/sessionへ進むactual sample+time付きgrowth/具体的取り残し、Writer自然terminal、仕事→保存→掃除→次仕事の同期間join。現在の全体基盤Doneは未確認。
 
+CLEAN-04 inventory自然進行追加: newcebf自然18dd477337e10798-65077のbound21:14:48Z full/errors0/protected0で、前passの最後のprobe/gigの次へ進み、agent-session .claude1,121,726,464/.codex4,195,414,016/.codex-acct2 17,100,054,528 bytesをbounded-duで初測定。oldmetadata-only session群を実自然runで測り、retained size_sample5→8、現在未測定の旧sampleをfresh/0にしないことを確認。receipt=~/.local/state/life-manager/state/inventory-root-progress-runtime-20261011.json。容量を回収可能量とは扱わず、正式履歴/active store/credentialの削除0。これで測定順序の取り残し修復はsource/main/current/loaded＋複数自然passまで確認済み。残CLEAN-04はこの実測/時間付きgrowthから具体的不要物・生成側の保存上限を閉じること。22gapsや全190自然runを新gateにしない。
+
+CLEAN-05 browser wait自然の現在地: installed33fd/PID59457/worker59532は自然executeから継続し、worker子process sleepを確認。これは既存guard rc9の5秒待機で、provider計測開始/成功の証明ではない。以前の即entrypoint75を避けて同じ仕事を保持していることは本番で確認、自分のleaseをまだacquireしていない状態でforeign lease release0。receipt=~/.local/state/life-manager/state/writer-busy-browser-wait-runtime-20261011.json。次は同じrunのlease解放後の公式計測/terminal/枠返却/selfcleanup、pending resourceを成功に置換しない。現在cursor=CLEAN-04実測に基づく具体的回収/保存上限、CLEAN-05同run追跡、CLEAN-06同期間反復join。全体基盤/各事業収益goalは未完。
+
+
 
 
 
