@@ -13073,3 +13073,14 @@ flowchart LR
 9. Once distribution and conversion baselines are reliable, test one store-page/ASO or onboarding/paywall variable at a time. Reconcile Apple settled proceeds, refunds, fees, and attributable actual costs for the same period; report USD 10,000 only when verified net recurring MRR supports it, then replicate the measured process across the other apps and factory.
 
 **Current cursor:** item 1. Current evidence does not show that TikTok posting is fixed or that today's three-post target is met. Today's 0/54 is a pre-slot snapshot; the active owner/admission/publication gates still need resolution.
+
+### 2026-10-11 04:48 JST — d516 release adoption in progress
+
+- **Git/release:** after PR #7557, current `origin/main` and the continuation branch were verified at `6c2de0689c0b06c6940926bf44a162c7e5cd74b7`. `~/loops/current` now points to immutable release `20261011T043813-d5167809` (`d51678093bf4dd3d8e92b3d963c450784fe9a954`), which contains main PR #7553's occurrence-fairness code. Docs-only main changes after d516 do not change that code release.
+- **Apply status (04:48 JST):** release reconciler PID 73390 is active on its f6c runner; child PID 90184 is currently executing `lm-loop apply` from the d516 release. Disk cleanup PID 91015 is also running. Do not overlap those owners. Wait for a durable terminal and read the owner ledger before another targeted apply.
+- **Owner readback (04:48 JST):** still 18 target owners: 14 loaded on f78, 3 on f6c, 1 on d687; none yet reports d516. Terminal counts remain 11 pass, 5 `host_admission_deferred:disk_headroom_low`, and 2 `entrypoint_exit_1` (JP4 and Honne EN). A successful d516 apply process is not yet proof that target owners adopted it.
+- **Capacity:** `df -kP` reports 1,022,052 KiB available. The existing disk-cleanup run remains active; use its durable receipt and normal admission path. Do not delete protected state or use a manual capacity bypass.
+- **Provider readback:** latest official Postiz observation remains 04:27 JST: 18/18 target integrations enabled and 0/54 current-day `PUBLISHED` before the first 06:30 slot. The completed 10/10 day remains 32/54. This does not prove a post failure before its slot, and it does not prove the daily goal.
+- **Still unresolved:** the 04:30 manifest read found the global publication fence closed; EN2 had 44 occurrence-bound unknowns. Do not clear these from missing local evidence. The 13/32 missing Oct 10 native metrics rows, incomplete Telegram URL proof, low ASC acquisition, paywall plan-load error, same-quote notification bug, and settled-net MRR gap remain open as recorded above.
+
+**Current cursor:** read the terminal of PID 90184's d516 apply and reconcile actual target-owner SHAs/locks. If still blocked, diagnose the exact host-admission/publication gate and continue safe independent work. Do not claim current TikTok recovery until Postiz `PUBLISHED` receipts, URLs, and replay-zero prove it.
