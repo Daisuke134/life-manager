@@ -106,4 +106,4 @@ if (require.main === module) collectTikTokWindow(JSON.parse(fs.readFileSync(proc
   process.stderr.write(`${error.message}\n`);
   process.exitCode = 1;
 });
-module.exports = { collectPostizPhotoWindow, collectTikTokWindow, postizAnalytics };
+module.exports = { collectPostizPhotoWindow, collectTikTokWindow, postizAnalytics, postizPhotoPermalink };

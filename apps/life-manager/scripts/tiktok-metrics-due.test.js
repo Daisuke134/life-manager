@@ -239,3 +239,53 @@ test("Postiz carousel metrics use the exact published permalink in the snapshot 
     global.fetch = originalFetch;
   }
 });
+
+test("delayed Postiz photo metrics still report an exact available permalink", async (t) => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-tiktok-photo-delayed-link-"));
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  const photoUrl = "https://www.tiktok.com/@anicca.jpx/photo/7695154487559851270";
+  const expected = {
+    ...EXPECTED,
+    account_id: "@anicca.jp1",
+    native_owner: "anicca.jp1",
+    integration_id: "cmlrv8jq000hun60yy57eaptx",
+    provider_post_id: "cmv2wroi617qzmq0yrxabocjm",
+    shortcode: "cmv2wroi617qzmq0yrxabocjm",
+    video_id: "cmv2wroi617qzmq0yrxabocjm",
+    public_url: "unavailable",
+    published_at: "2026-10-10T21:30:00.000Z",
+    postiz_photo_only: true,
+  };
+  const originalFetch = global.fetch;
+  let telegramText = "";
+  global.fetch = async (url, init = {}) => {
+    const address = String(url);
+    if (address.includes("/posts?")) return { ok: true, json: async () => [{
+      id: expected.provider_post_id,
+      state: "PUBLISHED",
+      integration: { id: expected.integration_id },
+      releaseURL: photoUrl,
+    }] };
+    if (address.includes("api.telegram.org") && address.includes("/sendMessage")) {
+      telegramText = JSON.parse(init.body).text;
+      return { ok: true, json: async () => ({ ok: true, result: { message_id: 3 } }) };
+    }
+    throw new Error(`unexpected request: ${address}`);
+  };
+  try {
+    const result = await runDue(Date.parse("2026-10-11T01:05:00.000Z"), {
+      LM_DATA_DIR: dataDir,
+      LM_POSTIZ_API_KEY: "test-only",
+      LM_TELEGRAM_BOT_TOKEN: "fake",
+      LM_TELEGRAM_ALERT_CHAT_ID: "fake",
+    }, [expected]);
+    const twoHour = result.find((row) => row.window === "2h");
+    assert.equal(twoHour.state, "source_delayed");
+    const snapshot = JSON.parse(fs.readFileSync(path.join(dataDir, "tenants", expected.tenant_id, "marketing", "metrics", expected.native_owner, expected.shortcode, "2h.combined.json"), "utf8"));
+    assert.equal(snapshot.public_url, photoUrl);
+    assert.equal(snapshot.post.views.status, "unavailable");
+    assert.ok(telegramText.includes(photoUrl));
+  } finally {
+    global.fetch = originalFetch;
+  }
+});

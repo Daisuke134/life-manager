@@ -7,7 +7,7 @@ const path = require("node:path");
 const { resolveDataRoot } = require("../lib/runtime-paths.js");
 const { verifyMarketingNativeCarouselPublicationReceipt } = require("../lib/marketing-native-carousel-publication-adapter.js");
 const { persistDailyDigest, sendMetricSnapshot } = require("./instagram-metrics-read.js");
-const { collectPostizPhotoWindow, collectTikTokWindow } = require("./tiktok-native-metrics-read.js");
+const { collectPostizPhotoWindow, collectTikTokWindow, postizPhotoPermalink } = require("./tiktok-native-metrics-read.js");
 const { persistAniccaDaily, persistAttributionCoverage, persistHonneDaily, persistWeeklyReview, sendSummary } = require("./marketing-product-summary.js");
 const { persistAscAcquisition } = require("./marketing-asc-acquisition.js");
 const { persistRevenueCatSubscriptions } = require("./marketing-revenuecat-subscriptions.js");
@@ -117,7 +117,7 @@ function snapshotFile(dataDir, expected, window) { return path.join(dataDir, "te
 function delayed(dataDir, expected, window, observedAt) {
   const unavailable = { status: "unavailable", value: null, reason: "source_delayed" };
   const post = Object.fromEntries(["views", "likes", "comments", "shares", "saves", "reach", "watch_time", "completion", "engagement"].map((key) => [key, { ...unavailable }]));
-  const snapshot = { schema_version: 1, kind: "tiktok_combined_metric_snapshot", ...expected, window, observed_at: observedAt,
+  const snapshot = { schema_version: 1, kind: expected.postiz_photo_only ? "tiktok_postiz_photo_metric_snapshot" : "tiktok_combined_metric_snapshot", ...expected, window, observed_at: observedAt,
     caption_sha256: crypto.createHash("sha256").update(expected.caption).digest("hex"), sources: { tiktok_native: { status: "unavailable", reason: "source_delayed", identity_verified: true }, postiz_post: { status: "unavailable", reason: "source_delayed" }, postiz_account: { status: "unavailable", reason: "source_delayed" } }, post, account_metrics: { status: "unavailable", reason: "source_delayed" } };
   const file = snapshotFile(dataDir, expected, window); fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
   if (fs.existsSync(file)) return { created: false, file, snapshot: JSON.parse(fs.readFileSync(file, "utf8")) };
@@ -135,7 +135,16 @@ async function runDue(nowMs = Date.now(), env = process.env, provided = null) {
       if (fs.existsSync(existingFile)) { const snapshot = JSON.parse(fs.readFileSync(existingFile, "utf8")); results.push({ video_id: expected.video_id, window, state: "complete", telegram: await sendMetricSnapshot({ created: true, file: existingFile, snapshot }, env, dataDir) }); continue; }
       const dueMs = Date.parse(expected.published_at) + delay;
       if (nowMs < dueMs) { results.push({ video_id: expected.video_id, window, state: "pending", due_at: new Date(dueMs).toISOString() }); continue; }
-      if (nowMs > dueMs + GRACE_MS) { const snapshot = delayed(dataDir, expected, window, new Date(nowMs).toISOString()); results.push({ video_id: expected.video_id, window, state: "source_delayed", telegram: await sendMetricSnapshot(snapshot, env, dataDir) }); continue; }
+      if (nowMs > dueMs + GRACE_MS) {
+        const observedAt = new Date(nowMs).toISOString();
+        const delayedExpected = expected.postiz_photo_only ? {
+          ...expected,
+          public_url: await postizPhotoPermalink({ integrationId: expected.integration_id, providerPostId: expected.provider_post_id, publishedAt: expected.published_at }, env, observedAt),
+        } : expected;
+        const snapshot = delayed(dataDir, delayedExpected, window, observedAt);
+        results.push({ video_id: expected.video_id, window, state: "source_delayed", telegram: await sendMetricSnapshot(snapshot, env, dataDir) });
+        continue;
+      }
       const input = { tenantId: expected.tenant_id, productId: expected.product_id, locale: expected.locale, account: expected.account_id, integrationId: expected.integration_id, providerPostId: expected.provider_post_id, videoId: expected.video_id, publicUrl: expected.public_url, caption: expected.caption, window, publishedAt: expected.published_at };
       // One deleted/unavailable post ("item doesn't exist", live 2026-09-30) used to throw and stop every other
       // account's metrics since 9/27. Record it like the source_delayed branch above and keep going.

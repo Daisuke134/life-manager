@@ -13385,6 +13385,29 @@ flowchart LR
 
 **Current cursor:** item 1. The HE first-slot miss is confirmed as a pre-effect storage failure; its elapsed slot can be recovered after the active reconciler/handoff releases its lock. The current PR checks and runtime-owner transitions are active, so neither is being bypassed.
 
+### 2026-10-11 07:54 JST — Latest main merge staged; delayed metric links covered
+
+- **Git / PR:** `origin/main=d8a4dbc59d96adbeb8bf32c09e88c94bf5da22a0`. Local branch `fix/mobile-owner-recovery-20261011` has merged that main commit at `add61e1a92dc3ad90430ce019b8da413b434abad`; the merge and current source changes are still local. PR #7572's remote head remains `0615b119...` / base `d8a4dbc5`; on that head all checks pass except `Loop control contracts`, which is still running. No manual review or subagent is requested.
+- **Additional source fix:** when Postiz analytics stays empty past its grace window, the delayed metrics snapshot now performs the same exact-row permalink lookup and reports the direct URL if available. It keeps metrics `unavailable`, never zero, and makes profile-only URLs visibly unavailable. This closes the previous delayed-path failure where photo snapshots lacked the proof field required by the Telegram adapter.
+- **Tests:** TikTok metric tests 9/9, marketing liveness tests 9/9, native metric-source tests 2/2, cadence tests 5/5, rotating runner tests 9/9, and main's `resource_admission` tests 161/161 pass. `lm-loop-contract` passes 18 catalog loops / 190 registry jobs; `git diff --check` passes. The next push contains the main merge, this source fix, and this SSOT update, so CI must be read again on that exact head.
+- **Marketing read:** the latest official Postiz GET at 07:48 JST returned 9 rows: JP1 3, Buddha 3, Honne EN 1, Anicca EN Instagram 1, Anicca AI YouTube 1. Six account first slots were due; HE had zero posts. JP1 and Buddha remain first-slot bursts. JP1 has direct `releaseURL` photo links; Buddha/Honne rows remain profile-only.
+- **HE miss:** occurrence `life-manager-anicca-he:18dd4ad5bced6750-44143` at 07:15:08 failed before provider effect with `scratch_enospc`, exit 78, no provider receipt, and `effect_status=not_applicable`. It is not one of the 20 historical admission fences. The 07:48 Postiz read confirms no HE post today. Normal owner catch-up remains the safe recovery after the current global handoff/apply locks clear.
+- **Production:** `/Users/anicca/loops/current` is `20261011T074104-d8a4dbc5`, while reconciler PID 88772 remains loaded on `ff7e8967`; the self-handoff for `d8a4` and cleanup owner are still active. `df -kP` at 07:54 shows 450,160 KiB available, above `d8a4`'s recorded 347,041,792-byte cut requirement, but no release cut or manual owner start is allowed while those owners are active.
+
+**Updated remaining TODO:**
+
+1. Commit/push the local main merge `add61e1a`, delayed-photo-link fix, and SSOT update as the new PR #7572 head. Recheck all required CI on that exact head.
+2. Merge PR #7572 after required checks pass; refresh `origin/main` and measure capacity for the exact merged SHA.
+3. Read the active release-reconciler/self-handoff and cleanup-owner terminals and locks. Wait only for those live owners, not for future content slots.
+4. Cut and apply the main-derived release through the standard path; verify the reconciler handoff, all 18 loaded SHAs/argv/natural terminals, and each account's effect fences. Keep JP1's 3,480 older unknown claims fenced.
+5. Recover the confirmed HE 07:15 `scratch_enospc` miss by starting `life-manager-anicca-he` through its normal owner path after locks clear. Verify one exact Postiz `PUBLISHED` receipt and do not resend via direct API.
+6. Continue until 18 lanes each show three distinct configured-slot receipts/day and 54/54 for seven consecutive JST days; future slots remain pending until due.
+7. Join exact post metrics, creative, direct permalink where available, and Telegram delivery receipt across TikTok/Instagram/YouTube; keep unsupported links and missing metrics visible.
+8. Refresh the six-app ASC/RevenueCat/in-app funnels, reach Anicca 100 ASC first-time downloads/day on a trailing 7-day average, then fix the paywall and same-quote notification defects and run one conversion experiment at a time.
+9. Reconcile same-period settled Apple proceeds/refunds/fees/actual costs and require official USD 10,000 Anicca net MRR before scaling the factory.
+
+**Current cursor:** item 1. The HE miss is diagnosed and linked to a pre-effect ENOSPC terminal. Current main merge, source changes, and the spec delta remain local until this exact checkpoint is pushed; the production handoff remains active.
+
 ### 2026-10-11 07:48 JST — Second live slot read; release handoff still active
 
 - **Postiz official GET (07:48 JST):** the JST-day window now has 9 `PUBLISHED` rows: JP1 3, Buddha 3, Honne EN 1, Anicca EN Instagram 1, and Anicca AI YouTube 1. Of the six accounts whose first configured slots are due by 07:48, HE TikTok still has zero rows. JP1 and Buddha's three-row totals remain first-slot bursts, not 3 distinct slots. The other 12 target accounts have not reached their first configured slots yet.
