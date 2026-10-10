@@ -831,6 +831,11 @@ def billed_expenses(payload: dict | None, *, snapshot_at: str,
     documents, document_shape_failure = _document_rows(payload)
     deduped, document_conflicts, document_failures = _document_rows_deduped(documents)
     global_reasons = set(source_failures) | document_failures
+    for source in sources.values():
+        if source.get("conflict"):
+            global_reasons.add("unverified_receipt")
+        if source.get("status") != "available":
+            global_reasons.add(source.get("reason") or "missing_coverage")
     if document_shape_failure:
         global_reasons.add(document_shape_failure)
     global_reasons.update(projection_reasons.values())
@@ -856,9 +861,10 @@ def billed_expenses(payload: dict | None, *, snapshot_at: str,
                 reasons.add(source.get("reason") or "missing_coverage")
 
         status = row.get("status")
+        valid_status = isinstance(status, str) and status in {"billed", "paid", "settled"}
         if (row.get("official") is not True
                 or row.get("source_type") != OFFICIAL_SOURCE_TYPES["invoice"]
-                or status not in {"billed", "paid", "settled"}):
+                or not valid_status):
             reasons.add("unverified_receipt")
         currency = _currency(row.get("currency"))
         if currency is None:
@@ -905,7 +911,8 @@ def billed_expenses(payload: dict | None, *, snapshot_at: str,
             basis = line.get("basis")
             if (amount is None or occurred_at is None or period_start is None
                     or period_end is None or occurred_at < period_start
-                    or occurred_at >= period_end or basis not in ACTUAL_BASES):
+                    or occurred_at >= period_end or not isinstance(basis, str)
+                    or basis not in ACTUAL_BASES):
                 reasons.add("unverified_receipt")
                 continue
             amounts.append(amount)
@@ -943,7 +950,8 @@ def billed_expenses(payload: dict | None, *, snapshot_at: str,
             "currency": currency,
             "billed_total": billed_total,
             "cash_paid_status": (
-                "paid" if status in {"paid", "settled"} and paid_at is not None else "unknown"
+                "paid" if valid_status and status in {"paid", "settled"}
+                and paid_at is not None else "unknown"
             ),
             "allocation_status": "unattributed",
             "source_ref": _evidence(provider, digest),

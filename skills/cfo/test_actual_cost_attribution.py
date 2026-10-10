@@ -310,6 +310,58 @@ class ActualCostAttributionTest(unittest.TestCase):
         self.assertIsNone(billed["billed_total"])
         self.assertEqual(billed["reason"], "missing_coverage")
 
+    def test_malformed_invoice_status_fails_closed_without_raising(self):
+        payload = fixture("actual-cost-official.json")
+        invoice = next(row for row in payload["documents"] if row["provider"] == "openai")
+        invoice["status"] = []
+
+        projection = actual_cost.billed_expenses(
+            payload, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+
+        self.assertEqual(projection["status"], "unverified")
+        billed = next(row for row in projection["invoices"] if row["provider"] == "openai")
+        self.assertEqual(billed["status"], "unverified")
+        self.assertIsNone(billed["billed_total"])
+        self.assertEqual(billed["reason"], "unverified_receipt")
+
+    def test_malformed_invoice_line_basis_fails_closed_without_raising(self):
+        payload = fixture("actual-cost-official.json")
+        invoice = next(row for row in payload["documents"] if row["provider"] == "openai")
+        invoice["status"] = "billed"
+        invoice.pop("paid_at")
+        for line in invoice["line_items"]:
+            line.pop("allocations")
+        invoice["line_items"][0]["basis"] = {}
+
+        projection = actual_cost.billed_expenses(
+            payload, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+
+        self.assertEqual(projection["status"], "unverified")
+        billed = next(row for row in projection["invoices"] if row["provider"] == "openai")
+        self.assertEqual(billed["status"], "unverified")
+        self.assertIsNone(billed["billed_total"])
+        self.assertEqual(billed["reason"], "unverified_receipt")
+
+    def test_failed_source_without_invoice_marks_projection_incomplete(self):
+        payload = fixture("actual-cost-official.json")
+        payload["sources"].append({
+            "provider": "unread-provider",
+            "status": "read_failed",
+            "product_loop_ids": ["cfo"],
+        })
+
+        projection = actual_cost.billed_expenses(
+            payload, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+
+        self.assertEqual(projection["status"], "unverified")
+        self.assertEqual(projection["reason"], "read_failed")
+        openai = next(row for row in projection["invoices"] if row["provider"] == "openai")
+        self.assertEqual(openai["status"], "verified")
+        self.assertEqual(openai["billed_total"], "14.34")
+
     def test_mixed_valid_and_unallocated_lines_keep_receipt_but_gap_coverage(self):
         payload = fixture("actual-cost-official.json")
         openai_invoice = next(
