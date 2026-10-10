@@ -11886,3 +11886,56 @@ TODO order/cursor (supersedes 16:17): (1) let current life-manager-release-recon
 - **Telegram boundary (17:51 JST readback):** no test-named recipient was found; the known E2E UID belongs to a paid tenant and is not safe to message as a test. No test message was sent. Step 4 remains open until the intended recipient is proven.
 
 **TODO order update:** old order=`after PR #7454 deployment, run a Calendar rescan and synthetic route E2E → Telegram ask receipt → Stripe TEST → Cloud marketing funnel → Photon pilot → $10K MRR`. New order=`(1) run exact-head source CI and read-only review, then merge/deploy this no-home fix → (2) run one controlled Calendar E2E with Asia/Tokyo fixtures, strict provider readback, replay-zero, and exact fixture cleanup → (3) verify one existing Telegram test tenant and ask receipt → (4) Stripe TEST lifecycle → (5) activate existing Cloud marketing assets through one owner and measure the UTM funnel → (6) Photon Japan pilot → (7) Stripe-verified $10K gross MRR`. Reason: production evidence exposed the no-home source gap; the prior UTC fixture is cleaned and its negative route cache must not be reused. **Current cursor:** verify all required checks on PR #7471's current exact head alongside its SHIP source review; merge only after checks pass, then verify the Railway deployment before the next Calendar E2E.
+
+### 2026-10-10 18:13 JST — Connector / Job Hunter / Fundraiserの現況と再開cursor
+
+本節を3 loopの最新status・TODO正本とし、2026-10-09のJob Hunter / capacity cursorをこの範囲で置き換える。
+
+**確認済み状態**
+
+- 3 loopのruntime readbackは `origin/main=e034334e3cbc3bfba2d62bcfaa27ccb1771e77e0` 時点。最新mainはPR #7471後の `c182cec05a585505e55987cdf821a3b542029ac0`。#7471はTravel source/testと関連specの更新で、local-loop runtime filesに差分はない。`~/loops/current` はmain祖先のrelease `20261010T175612-ef35fa3b`（SHA `ef35fa3bb890619418650c2fb2d07c7988338670`）。release reconcilerは09:13:27Zに同SHAでexit 0 / loaded-idle。target ownerのloaded SHAは揃っていない。
+- Disk gate: `runtime/host/disk_admission.py` は `RECOVERY_FLOOR_BYTES=2 GiB`。`runtime/loop/lm_loop_run.py::disk_deferred` はresource classを判定する前のpre-enqueueとpost-claim双方でこの床を一律適用する。09:08Zの `df` availableは1,989,788 KiB、bound receipt（09:05:50Z）はfree_after 1,857,908,736 bytes、unbound receipt（09:08:27Z）は1,864,835,072 bytes。両方2 GiB未満でrecovery unmet、errors 0 / protected_deletions 0。従って現在の `disk_headroom_low` は再現した共通admission blockerであり、同時実行capが詰まった証拠ではない。
+- Capacity sourceはfinite-run全体のdefaultを10、revenue per-classをagent=total、browser=1、deterministic=5に設定する。ただし `_capacity_available` は別に全agent occupancyを `LIFE_MANAGER_HOST_MAX_AGENT_TOTAL_RUNS` default 2で制限するため、agent revenueを10並列とは数えない。target plistは `LIFE_MANAGER_HOST_MIN_REVENUE_RUNS=3` のみでMAX overrideなし。以前の「global cap 8」は古いsource snapshotで、現mainには一致しない。launchd全体のruntime override・実active count・queue ageは未readbackなので、実効capと有効並列数は未確定。
+- Job Hunter acquisitionは未切替でWorkday sourceのまま。`job-search-daily` はunloaded、SHA `70759a48`。最後のoccurrence `18dd1dea0d0d65a0-99289` は08:40Zにentrypoint exit 2（session vault snapshot failed、runpy warning）、effectはnot_applicable、provider receiptなし。一方、statusのadmission fenceは `no_pre_effect_terminal` でcurrent=true、next action `reconcile_owner`。申請済みとは言えず、Workday loopは再ロードしない。
+- `job-search-learning` はSHA `ef35fa3b` / loaded-idle、09:09Zにdisk headroomでexit 75。旧unknown `18d6ff42778e8868-14131` のofficial readbackは未取得。`job-search-inbox` も同SHA / loaded-idle、09:08Zにexit 75。08:53Zの成功は履歴であり、現行admission回復を証明しない。
+- ConnectorはSHA `d3eedfb7` / loaded-idle、09:02Zにdisk headroomでexit 75、provider receiptなし。前のbrowser_open timeout `http://[::1]:9222` / `wake_boundary_failed` のbrowser identity/lease readbackは未完了。Luma eventの応募成功は未確認。
+- FundraiserはSHA `d3eedfb7` / loaded-idle、09:03Zにdisk headroomでexit 75。08:50Z occurrence `fundraiser:18dd1e7c90be9ad0-15245` など13件にeffect_unknownが残り、Gmail/provider receiptなし。PR #7429はdraft/open、head `ad50793f5bbe6ddae85fabc82e7d2a55b4708d16`、表示されたCIは全て成功。対応worktreeはlockedで、このbranchから変更しない。
+- Mainの3 routeは `gpt-6-luna / max / fast` を指定済み。設定済みであることと各ownerへのloaded適用は別証拠。
+- Dreamworkの最後の公式readback（08:50Z、credential incident前）はFree、`applicationsLimit=0`、readiness=false / tier、10件全て `applied=false`。実応募なし。MCP packageはlocal npm cacheにあるがLife Managerの本番source cutoverは未実施。有料upgradeやentitlement回避はしない。
+- このspec/handover作業中、credential SSOT形式を調べる誤ったjq式がファイル全体をtool outputへ出した。credential valueはこのrepo artifactへ複製していないが、その出力に含まれた値は漏えい扱いとする。以後のprovider認証前に対象credentialを失効・再発行しprivate SSOTへ安全に反映する。出力中の値を再使用・再掲しない。incident後のprovider readbackは未実施。
+
+**残TODO（この順）**
+
+1. credential incidentを閉じる。値を表示しない方法で対象service名だけを特定し、出力に含まれたsecret/token/passwordを失効・再発行、`~/.local/share/anicca/credentials.json`をmode 600で更新し、新sessionで必要な認証をreadbackする。repo/log/chatには秘密を置かない。
+2. 容量・admissionの共通根因を修正する。unconditional 2 GiB pre-enqueue/post-claim gateが既存resource-class floorを上書きする経路に対し、先にclassifyしてclass別上限とterminal/evidence書込みreserveを適用する最小修正をtest-firstで実装する。cleanup recovery floorは維持し、protected data削除や単純なfloor引下げで解決扱いしない。writer量とnatural cleanup receiptをreadbackし、対象loopが必要なwriteを完了できることを確認する。
+3. Job HunterをDreamworkへ切り替えるmain source変更を行う前に、Workday由来unknown fenceをATS/Gmail等のofficial readbackまたは厳格なpre-effect proofでoccurrenceごとに照合する。receiptなしのsubmit_unknown/effect_unknownは保持し、再送しない。Workday dailyはDreamwork sourceがreleaseに載るまでunloadedのままにする。
+4. credential更新後にDreamworkのusage/readiness/preferencesをofficial readbackし、Tokyoと日本から就労可能なRemoteを同順位、SFを次点、New York除外・その他USはvisa sponsorship必須を維持する。Dreamwork route/MCPをJob Hunterへ統合し、fit-qualified求人だけをapplyする。no-human-loopは保つが、free entitlementが応募を拒む間は応募成功を主張せず、購入もしない。
+5. Connectorのregistered CloakBrowser identity/leaseとCDP endpointをowner-safeに解決してから、Luma Compassの適格イベントを実際に処理する。provider側の応募状態・receipt・replay-zeroをoccurrence単位で確認する。
+6. Fundraiser PR #7429のowner/merge状況をread-onlyで追い、locked worktreeは触らない。13件のunknown outreachをGmail Sent/provider official readbackで個別照合し、確認なしに再送しない。その後、適格VCおよびAI/AGI founderへmanager-not-assistantの説明とpodcast/meeting依頼を送り、Sent receiptとTelegram結果を結ぶ。
+7. 各source変更を専用latest-main branchでreview/CI/mergeし、main由来immutable releaseをowner単位で反映する。loaded SHA/argv、natural occurrence、公式provider receipt/readback、Telegram報告、replay-zeroをConnector / Job Hunter / Fundraiserごとに確認する。settled cash evidenceなしにfundraising/job outcomeを収益として計上しない。
+8. 同じ安定capacity windowでglobal/per-class effective limits、active claims/reservations、queue age、browser/model wait、CPU/RAM/swap/disk、実処理数を測る。source default total10、browser revenue1 / deterministic revenue5 / agent revenue per-class totalに加えaggregate agent default2とruntime overrideを照合し、実測上限だけをboundedに調整する。無限同時実行を前提にしない。
+
+**順序更新:** 旧順序=`cleanup receipt → Dreamwork install/readiness → Workday fence → source cutover → apply → Fundraiser → Connector`。新順序=`(1) credential incident remediation → (2) unconditional disk gateと実capacity blockerを修正 → (3) Workday unknownのreadback → (4) Dreamwork route/readiness/応募 → (5) Connector browser/Luma → (6) Fundraiser owner PR/fence/outreach → (7) immutable release・自然run・公式receipt・Telegram → (8) 同一windowで実capacityを計測`。理由は、credential出力事故がprovider authの前提を変え、現mainの2 GiB gateはresource class判定前に全有限ownerを止め、直近statusでも4 targetがdisk admissionで止まっているため。
+
+**現在cursor:** credential incident remediation → class-aware disk admission source/tests + safe capacity receipt → Workday effect fences → Dreamwork entitlement/source cutover → Connector browser/Luma → Fundraiser PR/fences/outreach → three owners natural receipts/Telegram/replay-zero → same-window capacity decision.
+### 2026-10-10 18:23 JST — owner reloadと容量・reconcilerのfresh readback
+
+この節は18:13 JST snapshotのcurrent stateと最初の再開cursorだけを更新する。前節の履歴・provider未確認は維持する。
+
+- 09:21–09:23Zのfresh `lm-loop status --explain` では、`job-search-daily` がunloadedではなくSHA `ef35fa3b` / loaded-idle。Workday entrypoint/sourceのままであり、occurrence `18dd2080df5a2ca8-56716` は09:19Zに`host_admission_deferred:disk_headroom_low` / exit75 / effect not_applicable / receiptなし。古い `18dd1dea0d0d65a0-99289` は `no_pre_effect_terminal` admission fenceとして残る。Workdayへの再応募・新規submitは確認されていない。
+- 同じstatus readbackでjob-search-learning / inbox / Connector / Fundraiserのcurrent installed SHAは `ef35fa3b`、すべてloaded-idle。latest outcomeは各 `disk_headroom_low` defer。Connectorのlatest recorded event `18dd1f8f5579bf40-96095` は旧event SHA `d3eedfb7`、現在のinstalled SHAはef35。Fundraiser latest `18dd2076edb19f20-51698` は09:18:42Z、effect not_applicable、receiptなし。
+- Fundraiserのcurrent `admission_effect_unknown` listは13件から12件に変わった。現在残る12 IDは `18dd0c1ae80754b8-67176`, `18dd09d308329e90-82360`, `18dd08068e770848-38013`, `18dd063822b92278-93451`, `18dcdfdd1b4b50f0-96162`, `18dcdeff93c89a58-75585`, `18dcddaab94e1600-39455`, `18dcd2ae7e3f8000-15540`, `18dccf6d56256d08-66219`, `18dccb662225eba0-23875`, `18dc7f3bc472c260-76084`, `18d9b0b6311a2018-87933`。前回一覧の `18dd1e7c90be9ad0-15245` は今回listに無いが、消えた理由・official readbackは未確認。これを成功/解決とは数えず、次回auditで理由を確かめる。
+- `life-manager-release-reconciler` はPID `38666` でloaded-running。statusの最後のterminal record `18dd2015688b0220-10290` / 09:13:27Z / exit0は過去記録で、processの現在終端を意味しない。`ps`でも親PID38666と子processを観測。reconcilerが自然終端するまでstop/restart/競合applyをしない。
+- Capacity: `df -Pk /` at 09:21:20Z available `1,923,192 KiB`。bound receipt 09:18:37Z free_after `1,988,448,256`, errors 1, protected_deletions 0, recovery unmet。unbound receipt 09:20:58Z free_after `1,972,408,320`, errors 0, protected_deletions 0, recovery unmet。どれも2 GiB未満。
+- `launchctl-safe preflight` は直近readbackでPASS（uid/Directory Services/Aqua manager/GUI domain一致）。ただし次のmutation直前に再度通し、そのpreflightと同じowner sessionでのみ対象限定stopする。
+
+**TODO順の再更新:** 旧cursor=`credential incident remediation → class-aware disk admission source/tests → Workday effect fences → Dreamwork cutover`。新cursor=`(1) active release reconciler PID38666の自然terminalを待つ → (2) fresh launchctl-safe preflight PASS後、以前のユーザー指示どおりWorkday dailyをlm-loop stopでunloadしstatus readback → (3) credential incident remediation → (4) class-aware disk admission修正とcapacity recovery → (5) Workday unknown readback → (6) Dreamwork source/entitlement → (7) Connector → (8) Fundraiser → (9) three natural receipts/Telegram → (10) same-window capacity measurement`。理由は、停止済みWorkday dailyがrelease reconcileでWorkday sourceのまま再ロードされ、現在の共通reconcilerがloaded-runningだから、競合させずに停止状態を復元する必要がある。
+
+**現在cursor:** wait for `life-manager-release-reconciler` PID38666 natural terminal → rerun safe preflight → stop `job-search-daily` and verify unloaded → credential remediation → remaining TODO in prior section.
+### 2026-10-10 18:31 JST — Workday dailyはloadedのまま、reconciler終端待ち
+
+- 09:31:12Zのread-only `ps` はrelease reconciler PID `38666`（PPID 1、elapsed 16:45、state S）を確認。停止せず自然terminalを待つ。
+- 09:31:16Zの `launchctl-safe list` は `- 75 ai.anicca.job-search-daily` を返した。PIDなし/exit75はunloadedの証明ではなく、Workday dailyはloaded状態。最後に成功したowner statusは09:25Zのloaded-idle / SHA ef35 / disk defer。18:29Zの別context status再取得は60秒以内に終わらず、そこで新しいowner statusは得ていない。
+- `launchctl-safe list` はwrapper経由のpreflight後に取得。Job Hunter dailyをunloadする時は、reconcilerの自然終端をfresh readbackした後、preflightを再実行し、PASS時だけ `lm-loop stop job-search-daily` を行ってunloadedを照合する。raw `launchctl`、active reconciler中の競合stop/reconcileは禁止。
+
+**現在cursor:** reconciler PID38666 natural terminal → safe preflight → Workday `job-search-daily` targeted stop/unloaded proof → credential incident remediation → remaining ordered TODO in the preceding 18:23 section.
