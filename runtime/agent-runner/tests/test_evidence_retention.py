@@ -69,6 +69,20 @@ class EvidenceRetentionTest(unittest.TestCase):
             legacy.assert_not_called()
             self.assertTrue((run / "summary.json").is_file())
 
+    def test_finished_unregistered_owner_preserves_other_runs_primary_evidence(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "agent-runner-evidence"
+            previous = self.completed_run(root, "other-owner", "previous", b"diagnostic")
+            primary = ("summary.json", "result.json", "usage.json", "attempts.jsonl")
+            for name in primary:
+                (previous / name).write_text("authoritative")
+            current = root / "unknown-owner/current"
+            with patch.dict(os.environ, {"LIFE_MANAGER_LOOP_ID": "unregistered-test-owner",
+                                         "AGENT_RUNNER_EVIDENCE_MAX_BYTES": "0"}):
+                runner.finish_evidence_run(current, {"status": "success"})
+            for name in primary:
+                self.assertEqual((previous / name).read_text(), "authoritative")
+
     def completed_run(self, root: Path, task: str, name: str, payload: bytes) -> Path:
         run = root / task / name
         run.mkdir(parents=True)
