@@ -28,7 +28,7 @@
 
 **不変条件:** iOS Simulator runtime/image/device/data/dyld、memory/state、credentials、browser identity、参照release、active/dirty/unmerged/leased/locked worktree、open/unknown dataを削除しない。各agentは自分が生成し所有する非authoritative scratchだけを片付け、中央cleanupは残ったclosed/orphaned artifactと証明済みの不要物を回収する。他agentの作業や正式receiptを消さない。effect_unknownはexact official receipt/pre-effect proofまで解除・再送しない。内部の余白・時間・byte予算は安全な制御に使い、空き容量の固定値を事業再開の条件にしない。
 
-**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。次はCLEAN-02の未確認agentの自己後始末。既知原因の大物調査・手動回収、毎分fast pass、閉鎖Gigの自然自己cleanup/再開は完了済みとして再実行しない。全writer網羅は未証明であり、残るproducerの実経路確認と新しい増加の診断に含める。全体は未完、容量数字だけでDoneにしない。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 **引き継ぎ/診断証拠:** worktree HEAD `a6e03757`の4ファイル497行差分を`ea1784b0ec`で保持してpushし、最新main `3baccdbd`を`00b5d4ff5d`でmerge/push。leaseは既存owner `codex-root`でheartbeatを更新、直列lsof再確認でworktree下open handleなし。既存temp/worktree focused testは2 PASS。agmsg統括identityは`lm/codex-resource-orchestrator-1009`、既存cleanup担当へ重複書込抑制と状態照会を送信。自然receiptの成功/失敗が交互に現れ、失敗時の正確な親errorは`host_cleanup_identity_mismatch`。`disk_cleanup.py::main`のbusy lock出力はexit75だがidentityを含まず、`central_cleanup.host_cleanup_readback`の同-occurrence検査が失敗に変換する。REDはbusy出力identity欠落と親exit1を再現し、最小修正後の関連4 testsはGREEN。修正契約は、busy出力にもimmutable manifest由来の同run identityを載せ、親はそのidentityを検証した正確なbusyだけをeffect0のexit75延期として維持し、他のidentity mismatchはexit1のまま拒否する。旧ENOSPC修復とは区別し、容量不足時の既存reserve/cursor testsも再確認する。
 
@@ -355,7 +355,7 @@ P1の枠回復はCLEAN-05の生存/待ち境界として扱う。既存S06〜S18
 
 **「24/7 forever」の契約:** 各agentの自己後始末と中央cleanupを通常の実行lifecycleに組み込み、不要物の増加を生成側と回収側の両方で制御する。監督・待ち行列・復旧は常時動き、各仕事は有限の予算で実行・記録・片付け・次の仕事へ進む。ディスク圧迫を早期に自己所有の修復へつなげ、短期待機後に自動再開し、全収益loopを永久待機させない。正式state/receiptの成長には既存の許可・spend cap内で容量/保存先を計画し、障害になるまで放置しない。ほかのagentと業務loopの並列稼働を維持し、本sessionの改善は一件ずつ行う。保護データ削除、新framework、反復reviewで代用しない。
 
-**実行順:** 既存のP0→P1とlane入口の順を保ち、下記S01→S18へ対応付ける。原子的詳細は既存lane節を参照し複製しない。外部gate/未来slot/収益の到来で止まるatomは、証拠と戻るcursorを記録して次の独立したsafe atomを一件だけ進める。並列実装はしない。元の全lane目標を維持し、18 agent全greenやJob Hunter entitlement/投資30自然round tripsを、独立した既存商品の販売開始gateにしない。現在cursorは「cleanupの残TODO — 完了済みを除いた実行順」を参照。CLEAN-00の旧Symphony手動回収は完了、同生成物/stagingの自動化と残りcategory分類は未完。PhotosのこのMacコピー回収/同期停止とCLEAN-01の毎分fast pass自然受入は完了。閉鎖Gig自己cleanupのPaid owner adoption・自然janitor回収・自然再開も完了。次は残1/CLEAN-02の未確認agentの自己後始末。P0-13の観測はCLEAN-01〜05の実障害境界を狭めるために使い、数字や全体censusの達成待ちにしない。
+**実行順:** 既存のP0→P1とlane入口の順を保ち、下記S01→S18へ対応付ける。原子的詳細は既存lane節を参照し複製しない。外部gate/未来slot/収益の到来で止まるatomは、証拠と戻るcursorを記録して次の独立したsafe atomを一件だけ進める。並列実装はしない。元の全lane目標を維持し、18 agent全greenやJob Hunter entitlement/投資30自然round tripsを、独立した既存商品の販売開始gateにしない。cleanupの現在cursor・順序・完了済みは →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 | 状態 | 順 | 次の一操作・対象 / 検証・DONE証拠 |
 |---|---|---|
@@ -5356,7 +5356,7 @@ OSS/Cloudの形は、OSS側に実用可能なself-hosted core、利用者が保�
 10. **platform別の再現可能な経済性を閉じる:** unique paid orderごとにsettlement、refund、platform fee、実費、実測納品時間、netを同期間で結ぶ。価格は反復納品と正のsettled unit netを確認した後に上げる。各platform月間USD 10,000は目標値として追跡し、未達/unknownをゼロや達成扱いにしない。one-time salesをMRRへ加えない。
 11. **最後 — SelfBuild:** 上記のcontract-work/storefront収益laneと証拠が揃った後に、SelfBuildの復旧・self-healingを再開する。
 
-**現在cursor:** item 2（latest-main releaseとgig ownerの自然収束）。2026-10-09 05:02Z readback: remote `origin/main=f5bb1d66`、`~/loops/current/RELEASE.json=84c56e11`（cut 04:48:07Z）。release reconciler occurrence `18dcc3c447689b78-17780`は05:02:02Z PASS、loaded/event SHA `84c56e11`、drift=false。disk cleanup occurrence `18dcc3e2eb7ef4f0-89677`は05:02:48Z PASSだが、現空きは188 MiBで2 GiB recovery floor未達。Apply/Storefrontは引き続き`0dc40ef2`で、旧fence `18dadcd76d9c61b0-37711` / `18d8d288748508e8-23902`はcurrent `effect_unknown`。最新Apply `18dcc3b7a4422e98-89170` / Storefront `18dcc3e02cd8d040-83084`はいずれもexit 75 / `resource_effect_unknown` / provider receiptなし。Paid ownerは`84c56e11`をloadedしたが、occurrence `18dcc3e147556338-85638`はresource capacity busy / exit 75 / receiptなし。`hf-gig-browser`は`0dc40ef2`のPID `85003`でrunning中のため、order `18180857` readbackは未開始。Apply reconcile occurrence `18dcc3a57fbeb6c0-46633`はexit 75 / `entrypoint_exit_75` / `reconcile_owner`で終了。正順はitem 2 → item 3 → item 4 → Storefront計測・商品定義・Coconala paid validation → platform展開/収益join → SelfBuild last。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 item 4 source修正はPR #7352としてmain commit 4068f637に統合済み。effect-start intentにruntime run/occurrenceを保存し、完全なrequest setをlease前とprovider readback後の両方で照合する。Application/retainer suite 130/130、loop contract 18/189/113/0、source-boundary PASS。fresh read-only reviewerのP2は閉じ、残った診断directoryの生成はprovider/browser effectなし。fresh production discoveryはno_exact_bound_batch_targetで、過去Apply/Storefront fenceはまだheld。source mergeやtest passをproduction adoption・応募・掲載・売上と混同しない。
 
 ### 2026-10-09 00:28 JST — Storefront収益cursorとexposure review修正
@@ -5365,7 +5365,7 @@ item 4 source修正はPR #7352としてmain commit 4068f637に統合済み。eff
 - mainは`9abbdb9d1cfacd2797b5b02cae5095923be40826`まで進み、branchへ通常mergeした。fresh read-only reviewはPR #7182にfix-firstを返し、`_measurement_feasible`が公式性、完全window、source/snapshot identity、freshnessを検証しないと指摘。古い/非公式な`known`行を数値ゲートに使えてしまうため、まずこの契約をテストで固定する。
 - production readback at 00:28 JST: `df` available 995,108 KiB、current release `1fe7db3b`、Storefront installed `3981bca3`。occurrence `18dc975a3e06d608-77411`はreadback時点でrunning、terminal/provider receiptなし。直前 `18dc972fd44a9328-67254` は`disk_headroom_low`。old fence `18d8d288748508e8-23902`はcurrent unknown。release-reconcilerは旧SHA `e1b061f1` / PID `93880`でrunning、last occurrence `18dc973ea65a6fb0-14256` exit 1。doctor unmanaged labelでnot ok。外部runtime stateは別ownerのままにする。
 
-**現在cursor:** `_measurement_feasible`向けのstale/nonofficial/incomplete/wrong-identity回帰と、同一内容を再読込したfresh current snapshotのhistory-dedupe回帰をRED確認 → `_collect_analytics` current snapshotを渡すofficial fresh complete contractを最小実装 → focused suite・loop contract・source boundary → commit/push → exact-head fresh review/CI → PR #7182 merge → immutable releaseとStorefront自然occurrence/official readback → current fenceを一件ずつ照合 → product storefront economicsとFreelancer/Upworkの許可済み投影へ進む。収益を確認したとはまだ言えない。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 00:40 JST — exposure guard local acceptance
 
@@ -5374,28 +5374,28 @@ item 4 source修正はPR #7352としてmain commit 4068f637に統合済み。eff
 - production readback: `df` available 1,585,240 KiB、current release `1fe7db3b`、Storefront installed SHA `3981bca3`。15:34Z occurrence `18dc97af171c4370-86787`はdisk admission defer、receiptなし。old effect fence `18d8d288748508e8-23902`はunknown。release-reconciler旧SHA `e1b061f1` / PID `33109`はrunningで、15:35Z occurrence `18dc97c7aa1d0750-49084` exit 1。doctorはunmanaged labelで`ok=false`。provider stateは変更していない。
 - source/test/SSOTはcommit `83eb3a39d3`でpush済み。PR #7182 base=`9abbdb9d1c`、head=`83eb3a39d3bd49cca826e8aa60b077199e56e9dd`。現時点でreview結果もrequired CI結果も未着。storefront publicationとsettled revenueは未確認。
 
-**現在cursor:** exact-head fresh review/required CI → PR #7182 merge → immutable release/natural readback。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 00:42 JST — reviewerが初回候補選定経路の欠落を検出
 
 - Fresh read-only reviewはFIX-FIRST。`run_once`の初回`_prepare_next_hypothesis`呼び出しがcurrent run snapshotsを渡さず、引数既定値`None`によりdiscretionary candidateが`measurement_exposure_unknown`で止まる。後続のreselection callは渡すが、primary callの欠落を補わない。
 - `test_every_run_once_hypothesis_selection_receives_current_snapshots`を追加して修正前REDを確認。run_once内の3箇所すべてが`analytics.get("_fresh_snapshots")`を渡す契約を固定する。
 
-**現在cursor:** 初回selectorへfresh snapshotsを1引数追加 → 三call-site回帰GREEN → focused suite/contract/source-boundary → commit/push → exact-head fresh review/required CI → PR #7182 merge。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 00:45 JST — 初回selector call-site修正
 
 - `_prepare_next_hypothesis`の通常初回呼び出しにも`analytics.get("_fresh_snapshots")`を渡した。追加のAST経路テストは修正前にFAIL、修正後PASSし、3つのrun_once selector callがすべてcurrent snapshotsを渡す。
 - focused Storefront suite 103/103 PASS。`lm-loop-contract`（18 loops / 187 jobs / 0 errors）、source-boundary、`py_compile`、`git diff --check`もPASS。修正はまだ未commit/未push。
 
-**現在cursor:** source/testと本SSOTをcommit/push → exact-head fresh review/required CI → PR #7182 merge → immutable release/natural readback。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 00:46 JST — selector fix pushed for final acceptance
 
 - Primary `run_once` selection now passes `_fresh_snapshots`; the AST regression failed before and passed after the one-argument fix. The focused suite is 103/103 PASS; loop contract, source boundary, Python compile, and diff check are also PASS.
 - Commit `b2b1502f3be293b6a1ee0abee38f5f42c5cb607b` is verified on the remote branch and PR #7182. Base remains `9abbdb9d1cfacd2797b5b02cae5095923be40826`. Exact-head Security Scan run `37803437757` is pending, and a fresh read-only reviewer is checking the final head. No merge or production/provider mutation has occurred.
 
-**現在cursor:** wait for exact-head review/required CI → merge #7182 only after PASS → immutable release and natural storefront readback.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 00:55 JST — GitHub OSS gate traces to current main
 
@@ -5403,7 +5403,7 @@ item 4 source修正はPR #7352としてmain commit 4068f637に統合済み。eff
 - The failed job's merge ref parent is current main `0b9d0f10cea3381af3ffdeef4a36875e489097b0`, despite PR API `baseRefOid=9abbdb9d1cfacd2797b5b02cae5095923be40826`. Main includes Capafy PR #7183 / commit `7eda261900`, which changed one file under the declared 245-file absorbed root without updating `docs/manifests/oss-merge-1-sources.json`: declared digest `d211d4e2…`, computed current-main digest `6622435b…`. The same OSS verifier passes on the Gig branch alone. No Capafy files have been edited in this lane.
 - Production remains outside the source lane: disk available 1,379,456 KiB; Storefront installed `3981bca3`, occurrence `18dc98c45455a248-93881` deferred for `disk_headroom_low`, receipt absent; current old fence `18d8d288748508e8-23902` is `effect_unknown`. Release reconciler SHA `e1b061f1` / PID `33109` has `entrypoint_exit_1`; doctor is not ok due the unmanaged label.
 
-**現在cursor:** resolve the main-side OSS manifest mismatch with its owner → sync latest main → rerun required checks on the final PR head → merge #7182 only on PASS.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 00:58 JST — latest main synchronized; external CI gate remains
 
@@ -5411,14 +5411,14 @@ item 4 source修正はPR #7352としてmain commit 4068f637に統合済み。eff
 - On the merged tree, focused Storefront tests are 103/103 PASS; `lm-loop-contract` is 18 catalog loops / 188 registry jobs / 0 errors; `verify-source-boundary.sh` and Python compile PASS. The full OSS checker reproduces only `manifest_inventory_mismatch skills/capafy-autopublish`. This matches GitHub Security Scan #37803526342: 8/9 jobs PASS, with OSS boundary as the only failure.
 - `origin/main` keeps Capafy PR #7183 commit `7eda261900` but its manifest root digest is stale (`d211d4e2…` declared; `6622435b…` measured over 245 files). No Capafy source or manifest file is modified by Gig work.
 
-**現在cursor:** finish current exact-head run readback → push latest-main merge with the updated SSOT → wait for the main manifest correction → sync its commit and rerun required CI → merge only when every required check passes.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 01:02 JST — latest-head CI still blocked by main manifest
 
 - PR #7182 currently points to `847eee104dfdacc9f8fe0fdd15196454754ca790` with base `d7d3cbaeaf989b1678efc0e572a7c3b9aece6d76`. Security Scan run `37805283468` has already failed its OSS boundary step; exact error detail is being read after run completion. The earlier run #37803526342 recorded `manifest_inventory_mismatch skills/capafy-autopublish`; local OSS check after merging current main returns the same one violation. Focused tests remain 103/103, and loop contract is 18/188/0.
 - Latest-main merge commit `5bdcdf0cb339e21676506c225921d72dd6de29c0` is local and unpushed. It contains current main changes without Gig source overlap. The Capafy correction remains an external owner action; no Capafy source or manifest edit is in this lane.
 
-**現在cursor:** finish current exact-head run readback → push latest-main merge + updated SSOT → await the Capafy manifest correction → sync corrected main → exact-head CI/review → merge #7182 only after PASS.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 01:05 JST — latest-main branch and CI status
 
@@ -5426,7 +5426,7 @@ item 4 source修正はPR #7352としてmain commit 4068f637に統合済み。eff
 - After latest-main merge, local focused Storefront suite is 103/103 PASS, `lm-loop-contract` is 18/188/0, source-boundary and Python compile PASS. The local OSS checker returns only the Capafy inventory mismatch; GitHub source review remains SHIP for the unchanged Gig code head `b2b1502f3b`.
 - No Capafy files or production/provider state were edited. Storefront remains on SHA `3981bca3` with the old effect fence and disk admission defer; no settled storefront sale is confirmed.
 
-**現在cursor:** wait for main-side Capafy manifest correction → sync its main commit → final exact-head CI/review → merge #7182 only after all required gates PASS.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 01:06 JST — Gig最新main同期済み、外部CI gateが残る
 
@@ -5434,7 +5434,7 @@ item 4 source修正はPR #7352としてmain commit 4068f637に統合済み。eff
 - 変更のないGig code head `b2b1502f3b`はfresh reviewでSHIP。latest-main同期後のfocused testsは103/103 PASS、loop contractは18/188/0、source-boundaryとcompileもPASS。local OSS checkerはCapafy root digest mismatchだけを返す。
 - Capafy source/manifestとprovider stateは変更していない。Storefrontは旧SHA `3981bca3`でdisk admission defer、過去effect fenceはunknown、settled salesは未確認。
 
-**現在cursor:** Capafyのmain-side manifest修正 → そのcommitを同期 → exact-head CI/review → 全PASS後にPR #7182をmerge。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 
 ### 2026-10-09 01:10 JST — main manifest correction merged
@@ -5443,7 +5443,7 @@ item 4 source修正はPR #7352としてmain commit 4068f637に統合済み。eff
 - This Gig worktree merged latest main as `4fbac0ff9d613e3a251da556a6ca88b00c46531f`. On that tree, `node scripts/verify-oss-self-contained.mjs --json` returns `ok=true`; focused Storefront suite is 103/103, loop contract 18/188/0, source-boundary and compile pass. No Capafy source was changed.
 - PR #7182 still needs the latest-main merge and this SSOT state pushed, then final exact-head review/required CI. Production Storefront remains installed at `3981bca3` with disk admission defer and an unresolved historical effect fence; no settled storefront sale is confirmed.
 
-**現在cursor:** push `4fbac0ff9d` + this SSOT → exact-head read-only review/required CI → merge #7182 on PASS → main-derived release/natural Storefront readback.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 
 
@@ -5452,7 +5452,7 @@ item 4 source修正はPR #7352としてmain commit 4068f637に統合済み。eff
 - fresh contextのread-only reviewerはGig code head `8d685fe8c3fe3d15e8b8ad70bfc45936b0d652a2`をSHIPと判定。`run_once`の3つの`_prepare_next_hypothesis`と`_close_outcome`はすべて同run snapshotsを受け取り、unknown/stale/nonofficial analyticsはfail-closed。effect fenceの実装変更なし。review担当はテスト/provider/browserを実行していない。
 - latest-main merge後のlocal focused suiteは103/103 PASS、loop contractは18/188/0、main `1136b703c4`上のOSS checker・source-boundary・compileもPASS。PR #7182のfinal-head Security Scan run `37806800815`はpending。PR #7185の修正でbase側のmanifest mismatchは解消した。
 
-**現在cursor:** PR final-headのrequired CIを確認 → PASS後に#7182をmerge → main由来releaseとStorefrontの自然readback。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 
 ### 2026-10-09 01:20 JST — 最終CI中のproduction再readback
@@ -5461,14 +5461,14 @@ item 4 source修正はPR #7352としてmain commit 4068f637に統合済み。eff
 - `life-manager-release-reconciler`は旧SHA `e1b061f1`、PID `20087`で稼働中。最新occurrence `18dc9a2588c0f7f0-36473`はexit 1。`lm-loop doctor --json`はunmanaged label `ai.anicca.life-manager-release-reconciler-self-handoff`のためnot ok。production/provider stateは変更していない。
 - local Gig focused suiteは103/103、contract/source checksもPASS。source head `8d685fe8c3`のfresh reviewはSHIP。PR head `62821ca878`のSecurity Scan run `37807003724`は8 checksがgreenで、`Loop control contracts`だけ実行中。このSSOT更新でPR headが変わるため、new exact-head CIもPASSが必要。
 
-**現在cursor:** local main merge `d3dc02ce67` + T7 SSOTをpush → current PR exact-head CI/review PASS → #7182 merge → immutable release/natural Storefront readback。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 01:26 JST — exact-head Security Scan passed
 
 - PR #7182のhead `62821ca878`はmain `1136b703c4`をbaseとする。Security Scan run `37807003724`はLoop control contracts、OSS boundary、Python/unittest、secret scanを含む9 jobsすべてSUCCESS。fresh read-only reviewerはGig code head `8d685fe8c3`をSHIPと判定。
 - このT7状況更新でPR headが変わるため、merge前に新headのrequired CIをもう一度PASSさせる。source acceptanceは完了しているが、production Storefrontは旧SHA/effect fenceのままで、settled sale receiptはない。
 
-**現在cursor:** このSSOT状況更新をpush → 新headのrequired CIをPASS → #7182をmerge → production releaseと自然readback。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 
 ### 2026-10-09 01:34 JST — exact-head acceptance complete
@@ -5477,7 +5477,7 @@ item 4 source修正はPR #7352としてmain commit 4068f637に統合済み。eff
 - local focused Storefront suiteは103/103 PASS。local loop contract 18/188/0、source-boundary、main `1136b703c4`上のOSS checker、compileもPASS。次はPRを通常mergeし、main由来releaseと自然readbackを確認する。
 - production readbackはsource acceptanceと別：最新release `d7d3cbaeaf`、Storefront loaded SHA `3981bca3`、disk admission deferと古い`effect_unknown` fenceが継続。Storefrontの精算済み売上は確認できていない。
 
-**現在cursor:** PR #7182をmerge → main由来immutable releaseとStorefront自然occurrenceを確認 → 古いfenceを再送なしで一件ずつ照合 → Coconala economics完了後にFreelancer/Upwork storefrontへ進む。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 
 ### 2026-10-09 01:40 JST — agent-runner manifest修正はPR #7192で進行中（当時）
@@ -5486,7 +5486,7 @@ item 4 source修正はPR #7352としてmain commit 4068f637に統合済み。eff
 - owner PR #7192（branch `docs/lm-marketing-runtime-audit-20261009`、head `afdb5a37d9d30b6cbfa149621ced49fa23ad267e`）がmanifest digestを`501cfcef…`へ更新し、OSS checkはPASS。Loop control contractsとTruffleHogはreadback時点で進行中。Gig worktreeではagent-runner/manifestを編集していない。
 - production Storefrontはloaded SHA `3981bca3`。16:20Zの空きは1,073,248 KiB、latest occurrence `18dc9a1b08446f80-11742`は`disk_headroom_low`、旧effect fence `18d8d288748508e8-23902`はunknown。release reconciler SHA `e1b061f1`はexit 1、doctor not ok。精算済み販売receiptは未確認。
 
-**現在cursor:** local main merge `d3dc02ce67` + T7 SSOTをpush → current PR exact-head CI/review PASS → #7182 merge → immutable release/natural Storefront readback。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 
 ### 2026-10-09 01:46 JST — agent-runner manifest修正がmainへmerge
@@ -5494,7 +5494,7 @@ item 4 source修正はPR #7352としてmain commit 4068f637に統合済み。eff
 - PR #7192は16:44:46Zにmain commit `ba39c13aeb11131b30ec32f2ddaad4f0945b5025`としてmergeされた。`docs/manifests/oss-merge-1-sources.json`のagent-runner digestを`runtime/agent-runner/config.json`に合わせ、OSS boundaryとLoop control contractsを含むrequired Security ScanがすべてPASS。
 - Gig worktreeは`8f0d7dc5dd2da58797c0458234021ea9e4d314ee`時点でba39未同期、本SSOT更新が未commitだった。Gig laneではagent-runner/manifestを編集していない。修正ownerが既にmerge済みのためAGMSG送信は行っていない。
 
-**現在cursor:** このSSOT更新をcommit/push → main `ba39c13aeb`を同期 → local checksとexact-head CI/review → PASS後にPR #7182をmerge。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 
 ### 2026-10-09 01:48 JST — agent-runner manifest修正をlocal同期
@@ -5503,7 +5503,7 @@ item 4 source修正はPR #7352としてmain commit 4068f637に統合済み。eff
 - merge後のfocused Storefront suiteは103/103 PASS、`lm-loop-contract`は18 loops / 188 registry jobs / 0 errors、source-boundaryとcompileもPASS。source reviewは変更のないGig codeに対してSHIPのまま。
 - Remote PR #7182は旧head `1798649720`、古いbase view `1b0f7d95`のまま。latest-main mergeとSSOTをpushして最終head/baseを揃えた後、exact-head CIをPASSさせてmergeする。
 
-**現在cursor:** `d3dc02ce` + T7 SSOTをpush → exact-head CI/review → PASS後にPR #7182をmerge → main由来releaseとStorefront自然readback。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 
 ### 2026-10-09 03:02 JST — storefront, latest-main fixture, and runtime state
@@ -5516,7 +5516,7 @@ item 4 source修正はPR #7352としてmain commit 4068f637に統合済み。eff
 
 **順序更新:** 旧cursor=PR #7182 head b5e CI/review PASS → merge。最新main ee25ではCIがbyte-stable fixture不一致で失敗したため、新cursor=fixture correction + latest-main SSOT/source integration → push → exact-head required CI + fresh review → merge #7182 → owner-idle/lock-free/effect-safeなmain-derived release readback → Coconala Paid official order/talkroom readback → Coconala old effect fenceのexact official reconciliation → current SKU same-window metrics/exposure → Freelancer Services → Upwork policy gate → Reply/Apply/Negotiation/Paid → settled listing net → SelfBuild last。R22/Postiz no-dispatch proofをCoconalaへ流用しない。
 
-**現在cursor:** fixture correctionとこのSSOT更新をpushし、新head CI/reviewをPASSさせる。その後PR #7182をmergeし、release ee25がowner-loadedになるのを確認してから、Coconala Paid/Storefrontのofficial readbackを進める。old effect fenceはofficial bindingまで保持する。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 
 ### 2026-10-09 03:15 JST — Gig latest-main acceptance and live owner readback
@@ -5686,7 +5686,7 @@ item 4 source修正はPR #7352としてmain commit 4068f637に統合済み。eff
 - `hf-gig-paid-direct`は23:58Z時点で`loaded-running`・project lock保持中。latest terminalは23:41Zの`disk_headroom_low` / `effect=not_applicable` / provider receiptなしで、capacity回復後のnew terminalはまだない。自然終端とlock解放を待ち、同じbuyer project/Sheet/inboxを重ねて触らない。
 - CrowdWorks Applicationはowner runが`effect=unknown`・provider receiptなし。CrowdWorks source修正worktreeもactive lease中。Mercor Applicationも`resource_effect_unknown`・receiptなし。双方とも新たな応募・返信を再試行しない。
 
-**現在cursor:** L9-07 Coconala Paid owner natural terminal / project lock release / exact official readback。floor回復だけではPaid結果やinbox receiptの成功を意味しない。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 — Dais要求: Connector / Job Hunter / Fundraiser restoration
 
@@ -5793,7 +5793,7 @@ Source / cursor follow-up (2026-10-08 12:52 JST): docs PR #7048はmerge commit `
 7. Mixpanel/PostHogの実イベントを監査し、install→onboarding→paywall→trial/purchaseのcohort計測を補完する。基準値が取れてからcontentまたはonboardingの仮説を一つずつ試し、勝ちvariantを残す。
 8. Anicca iOSでASC first-time downloadsを100件/日（trailing 7-day平均）まで伸ばし、実証したplaybookを他の既公開appsへ順次展開する。その後、cohort根拠に基づきonboarding/paywallを改善する。ASOはstore-page conversionが詰まりとASC evidenceで確認できた場合に行う。USD 10,000 verified net MRRは、settled receipt/refund/fee/actual costで確認するまで未達目標。
 
-**現在cursor:** item 1。PR #7003のsource acceptanceはPASS、最新headのGitHub checksは実行中（Startup context driftはbase mainでも再現する別lane failure）。TikTok productionはdisk floor未達で停止中。最新のPostiz実績は10/07が21/48、10/08は09:53まで1件のみでAnicca iOS 0件。画像2 profileのnative-carousel ledgerは09-28で止まっている。slideshow形式とviews/engagementはPostiz GETだけでは確認できない。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 10:05 JST — TikTok post-merge delivery cursor
 
@@ -5822,7 +5822,7 @@ Source / cursor follow-up (2026-10-08 12:52 JST): docs PR #7048はmerge commit `
 8. TikTok views/engagementはnative/APIが返すper-post fieldsを固定checkpointで保存し、account/copy/CTA/store link/campaignへ結ぶ。続いてASC impressions/product-page views/first-time downloads、RevenueCat trial/paid/refund/MRR、Mixpanel/PostHog onboarding funnelを同campaign/cohortに結合する。unsupportedはunknownのまま。
 9. 計測baseline後にcontent variantを一つずつ改良し、Anicca iOSをASC first-time downloads 100/dayのtrailing 7-day平均へ伸ばす。その後onboarding/paywallを一仮説ずつ改善し、$10,000 verified net MRRをsettled receipts/refunds/fees/actual costsで証明する。
 
-**現在cursor:** item 1、release reconciler natural terminal / lock release。TikTokはまだproductionで復旧しておらず、10/08 JSTのAnicca iOS Postiz receiptは0件。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 10:06 JST — TikTok owner rollout follow-up
 
@@ -5846,7 +5846,7 @@ Source / cursor follow-up (2026-10-08 12:52 JST): docs PR #7048はmerge commit `
 7. TikTok per-post views/engagement、ASC impressions/product-page views/first-time downloads、RevenueCat trial/paid/refund/MRR、Mixpanel/PostHog onboarding funnelを同一campaign/cohortに結ぶ。Postizのlist/detailはmedia形式を出さないためnative/platform fieldsを別途計測し、unsupportedはunknownのまま。
 8. Anicca iOSを100 first-time downloads/dayのtrailing 7-day平均へ伸ばし、distribution/content variantのbaselineができてからonboarding/paywallを一仮説ずつ改善する。$10k verified net MRRはsettled revenue/refund/fee/actual-costの期間一致証拠が揃うまで未達。
 
-**現在cursor:** item 1、release reconciler natural terminal。source fixはmainにあるが、現行TikTok投稿と容量回復は未確認で、配信復旧完了とは報告しない。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 10:30 JST — TikTok exact-readback blocker and live rollout
 
@@ -5871,7 +5871,7 @@ Source / cursor follow-up (2026-10-08 12:52 JST): docs PR #7048はmerge commit `
 6. TikTok view/engagement、ASC impressions/product-page views/downloads、RevenueCat trial/paid/refund/MRR、Mixpanel/PostHog onboarding funnelを同campaign/cohortへ結ぶ。unsupported metricを0扱いしない。
 7. Anicca iOSを100 first-time downloads/dayのtrailing 7-day平均へ伸ばし、計測baseline後にcontent/onboardingを一仮説ずつ改善する。$10k verified net MRRは同期間settled revenue/refund/fee/actual costの証拠が揃うまで未達。
 
-**現在cursor:** item 1、release reconcilerのbounded natural terminalと6a9b target progress readback。capacity floor metでもAnicca iOSの今日のPostiz receiptは0件で、配信復旧は未完了。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 10:08 JST — Gig status refresh after PR #7004
 
@@ -5917,7 +5917,7 @@ Source / cursor follow-up (2026-10-08 12:52 JST): docs PR #7048はmerge commit `
 
 **今回はblockerではない項目:** A7 Personal Moneytreeはユーザー指示どおり対象外。A4.1–A4.3のfree geocoding/Cloud savingsとA3.4もCFO完了後へ延期し、現在のCFO cursorを止める理由にしない。A5 owner leaseとPR #7011のpending checkはそれぞれ所有者境界・CI上の実blockerであり、lease解放後のA5再開とpending checkの完了で解消する。
 
-**現在cursor:** A5。A5 leaseが有効な間は当該worktreeを編集せず、既に開いている独立A6 PRのcheck/請求照合準備を続ける。lease解放readback後にA5を先頭で再開する。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 11:20 JST — CFO A6 merge readback and live cursor correction
 
@@ -5939,7 +5939,7 @@ Source / cursor follow-up (2026-10-08 12:52 JST): docs PR #7048はmerge commit `
 4. **A9 daily CFO report:** Asia/Tokyoの日次・MTD・trailing実期間でreceiptをfilterし、agent/loop/platform別と全社のrevenue・refund/fee・billed/cash-paid expense・net・MRR・freshness/coverageを出す。`loop_pnl.py --date`のlabel-only挙動を修正する。
 5. **A10受入:** main由来immutable releaseで7日連続の自然runを読み、18/18 loops・186/186 jobs、official readback、delivery receipt、unknown owner/action、期間一致、重複/再送ゼロを確認する。これ以前は全社CFO完了や$10k verified MRRを主張しない。
 
-**現在cursor:** A5。A5 worktree leaseとproduction reconcilerは別の所有境界として維持する。reconciler/CFO ownerの自然runを重ねて起動せず、A5 lease解放後にA5へ戻る。A7 MoneytreeとA4/A3 Cloud savingsは引き続き対象外・後順位。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 11:29 JST — CFO release-retry diagnosis
 
@@ -5962,7 +5962,7 @@ Source / cursor follow-up (2026-10-08 12:52 JST): docs PR #7048はmerge commit `
 4. **A9:** Asia/Tokyo日次/MTD/trailing receipt filteringを行うCFO reportでagent/loop/platform別と全社revenue・expense・net・MRR・coverage/freshnessを表示する。`loop_pnl.py --date`のlabel-onlyを修正する。
 5. **A10:** main由来releaseで7日連続の自然run、全18 loops/186 jobs、official readback、delivery receipt、unknown owner/action、重複ゼロを確認する。完了前にCFO completeや$10k verified MRRを主張しない。
 
-**現在cursor:** A5。A6のコードはmain由来releaseまで到達したが、CFO owner/readbackと全社financial coverageは未完了。A5 lease、fleet retry、CFO hourly wakeは個別ownerの自然境界で進め、手動restart/apply/retryを重ねない。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 11:35 JST — CFO reconciler remains active after retry epoch
 
@@ -5970,7 +5970,7 @@ Source / cursor follow-up (2026-10-08 12:52 JST): docs PR #7048はmerge commit `
 - CFO ownerは引き続きrelease `3d88f9eb`、last occurrence `18dc6c21758dc280-19514`の`apply_lock_busy`のまま。provider receipt、official readback、自然report成功は未確認。
 - 現在の安全な次手は、active release reconcilerの自然terminalを待ち、fleet owner rows・`current` SHA・CFO loaded SHA/statusを再readbackすること。PIDを止めたり、新しいapply/retryを重ねない。
 
-**現在cursor:** A5。A5 lease期限`2026-10-08T03:18:04Z`まで所有境界を維持しつつ、reconciler自然終端を待つ。両者を同じblocker扱いせず、独立のowner/actionとして進める。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 11:46 JST — A6 verified September Cost Table detail
 
@@ -5979,7 +5979,7 @@ Source / cursor follow-up (2026-10-08 12:52 JST): docs PR #7048はmerge commit `
 - 請求調整: usage gross ¥25,354.504771、credits -¥0.053520、tax ¥2,535、rounding -¥0.451251。これらを合算したinvoice totalが¥27,889。service totalsにはtaxを含めない。
 - このCost Tableはbilled amountの根拠だが、各SKUのAPI request count・agent/loop owner・cash settlementは示さない。対象local evidence inventoryから同期間Google Monitoring estimateはまだ確認できていない。請求額をOctober spendへ外挿せず、Google API replacementやbudget cutoffもこのatomでは行わない。
 
-**現在cursor:** A5。A6はinvoice detailを把握済みだが、Monitoring estimate照合・owner attribution・cash settlement・本番report readbackは未完了。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 11:52 JST — A6 source loaded, natural report still pending
 
@@ -5988,7 +5988,7 @@ Source / cursor follow-up (2026-10-08 12:52 JST): docs PR #7048はmerge commit `
 - 02:52Zのreadbackではrelease reconcilerもまだ`loaded-running`。CFO ownerの個別SHA反映とfleet全体のreconcile完了は別に扱う。A5 leaseは引き続き`codex-cfo-a5`所有で`03:18:04Z`までactive。
 - A6 Cost Tableのservice detailは上記11:46節に記録済み。cash settlement、同期間Monitoring dollar estimate、SKU→provider operation→agent/loop joinは未確認のまま。
 
-**現在cursor:** A5。A6 sourceはロード済みだが、A5 attribution、CFO natural report、A6 settlement/reconciliation、A8–A10 acceptanceは未完了。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 12:08 JST — A5 CFO FIFO priority diagnosis
 
@@ -5997,7 +5997,7 @@ Source / cursor follow-up (2026-10-08 12:52 JST): docs PR #7048はmerge commit `
 - **Ruling:** after owner lease `codex-cfo-a5` is released, change only `life-manager-cfo-hourly.priority` from `support` to `revenue`; retain `admission_class=borrow` and `resource_class=deterministic`. This puts CFO ahead of support backlog but still after true revenue-class work. Cost if wrong: one short CFO report may delay a support task by one slot; no revenue slot is reserved or core provider feature stopped.
 - Acceptance: first make the existing CFO registry test expect `priority=revenue` while keeping `admission_class=borrow` (observe RED), then change the registry row (GREEN); run the focused loop-registry test and `./bin/lm-loop-contract`. After merge/release, verify a natural CFO occurrence reaches report phase; a separate `resource_capacity_busy` must remain accurately reported if the host is actually full.
 
-**現在cursor:** A5. Lease `codex-cfo-a5` remains active until `2026-10-08T03:18:04Z`; implement this one-field change only after fresh lease readback and acquisition of the existing A5 worktree.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 12:10 JST — A6 historical Monitoring comparison boundary
 
@@ -6012,7 +6012,7 @@ Source / cursor follow-up (2026-10-08 12:52 JST): docs PR #7048はmerge commit `
 - Release reconciler on main-derived SHA `a7899e37` has a retryable `entrypoint_exit_1` / `reconcile_owner` event. Do not restart it or manually replay CFO; wait for its natural terminal and inspect the next owner apply receipt.
 - The A5 lease remains active through `2026-10-08T03:18:04Z`. After release, update only the CFO registry priority to `revenue` while keeping `admission_class=borrow` and `resource_class=deterministic`, then test the priority contract and confirm a natural report. This does not reserve a revenue slot or add a cap.
 
-**現在cursor:** A5。CFO cost attribution and wake priority remain the next source task; A6 source is loaded but the new-release report and A6 settlement/Monitoring reconciliation are still unverified.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 12:12 JST — A5 CFO queue priority decision
 
@@ -6021,7 +6021,7 @@ Source / cursor follow-up (2026-10-08 12:52 JST): docs PR #7048はmerge commit `
 - **Ruling:** after the active A5 lease is released, change only CFO `priority` from `support` to `revenue`, keeping `resource_class=deterministic` and `admission_class=borrow`. This moves the short CFO report ahead of the support backlog but behind actual revenue-class work. Cost if wrong: one CFO report may delay one support owner; it does not cut off core work or reserve revenue capacity. A separate `resource_capacity_busy` remains distinct and is not fixed by this priority change.
 - **Verification:** update the existing `test_life_manager_cfo_hourly_declares_effect_rebind_contract` assertion first and confirm RED, then change the registry field and confirm GREEN. Run the focused registry test and `./bin/lm-loop-contract`; after main-derived release/apply, confirm a natural CFO wake reaches report phase. Do not edit the active A5 worktree before lease release.
 
-**現在cursor:** A5; owner lease `codex-cfo-a5` remains active until `2026-10-08T03:18:04Z`.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 ## 現行容量基盤を先行する
 
 Daisが現行基盤を先に実装し、安定後にOpenClawへ進む順を指定。旧順序=OC-001以降、新順序=FD-01 bounded stderr replay→FD-02 disk producer budget/retention→FD-03 phase slot→FD-04 readback容量→FD-05自然成果→FD-06 OpenClaw移行。現在cursor=FD-01、source実装着手。根拠はlarge child stderrの全量read/replayとwhole job slot占有。既存workflow/account/claim/scheduleを同時変更しない。[scope](2026-10-08-local-foundation-first.md)。
@@ -6077,13 +6077,13 @@ Daisが現行基盤を先に実装し、安定後にOpenClawへ進む順を指�
 7. 3 accounts各3 unique `PUBLISHED` receipts/day（計9）とreplay-zeroを自然実測し、click attribution→locale Checkout→settled Stripe→一致PDF納品へ結ぶ。Letter/Tegamiのsettled recurring net contributionで14日cohortを測り、USD 10,000 net MRRはreceipt証明まで目標のままにする。
 8. 初回paid eBook orderと一致PDF receiptの後にCapafy IG D5へ進み、既存identity/route/ownerをreadbackして1 canary/24hを行う。
 
-**現在cursor:** item 1（source PR）。同時にitem 2のPID 80014はnatural terminal待ち。Daisに必要な再接続・手動投稿はない。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 11:49 JST — eBook PR CI inventory repair
 
 PR #7030の初回CIで`OSS self-contained boundary`だけがfailした。原因はbase main PR #7028が`skills/capafy-autopublish/CP1_AGENTIC.md`を更新し、`docs/manifests/oss-merge-1-sources.json`のderived inventory digestが古いままになっていたこと。eBook diffはCapafy sourceに触れていない。manifestのCapafy rootは243 filesのまま、verifierと同じGit index/path sortでdigestだけ`2b9e744435d78e144fa0f7bad5c20a57f3117858284dfbdf560ccde3f042140b`へ更新し、ローカルの`node scripts/verify-oss-self-contained.mjs --json`は`ok=true, violations=[]`。
 
-**現在cursor:** このbaseline更新をPR #7030へpushし、required CI全件を再実行する。source修正、provider fence、production容量/label gateの状態は変わらない。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 11:53 JST — eBook readback after latest English occurrence
 
@@ -6154,25 +6154,25 @@ PR #7030の初回CIで`OSS self-contained boundary`だけがfailした。原因�
 6. English unknown effectのvideo IDまたはitemized billing evidenceを調べ続ける。安全に閉じた後だけ、旧08:00と別の英語slotでHeyGen/Postiz receiptを同一occurrenceへ結ぶ。
 7. 3 accounts×3 unique posts/day、replay-zero、click→Checkout→settled Stripe→matching PDF、Letter/Tegami 14日settled net MRR cohortを確認する。first paid eBook+matching PDF後だけCapafy Instagram D5へ進み、1 canary/24hとする。
 
-**現在cursor:** item 1（PR CI）。日本語receiptはあるが2 admission claimsがclaimedのため、12:30枠前にreconciler terminal後のowner readbackを確認する。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 12:05 JST — eBook PR base moved after green CI
 
 PR #7030 head `3f194c8e`のrequired checksは12:04 JSTまでに全件PASSした。その後mainはPR #7033で`a7899e37f8dfd266be263ec4c891f80b1427b0ff`へ進み、`skills/capafy-autopublish` inventoryと本SSOTが更新された。eBook source変更はないが、PRのbaseはまだ`bcfc32c2`であり、green checksは新baseを含まない。
 
-**現在cursor:** 最新mainをmerge commitでPR branchへ同期し、OSS self-contained verifierのinventory digestを検証する。base更新後にrequired CIを再実行してmergeする。PR branchのsource修正、provider fence、capacity/owner状態は変わらない。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 12:06 JST — eBook PR inventory resync after main #7033
 
 PR #7030はlatest main `a7899e37f8dfd266be263ec4c891f80b1427b0ff`をmerge commit経由でbranchへ取り込んだ。main PR #7033は`skills/capafy-autopublish`内の既存ファイルを更新し、self-contained verifierで再び`manifest_inventory_mismatch`になった。Capafy実装diffはmain由来のみ。243-file inventoryのhashだけを最新index順で`3b83b77a69097619902bf06c8d9f1af96eed884ef7d68f1a8ca55c1d10cd8c33`に更新し、`node scripts/verify-oss-self-contained.mjs --json`は`ok=true, violations=[]`。
 
-**現在cursor:** このmanifest/spec追記をpushし、latest mainを含むPR headでrequired CIをPASSさせてからmergeする。旧headのgreen CIはbase a789を含まない。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 12:12 JST — eBook PR resynced to main #7037
 
 PR #7030の全required checksはhead `99648f4f` / base `a7899e37`でPASSした。merge直前にmain #7037が`skills/capafy-autopublish`を再更新したため、PR branchに最新mainをmerge commitで取り込み、243-file rootのderived hashを`64b3b8d037c8dea56e4f57f976ae4310b364eeac028ce475e8790b53a6ed6a7a`へ更新した。`node scripts/verify-oss-self-contained.mjs --json`は`ok=true, violations=[]`。
 
-**現在cursor:** 新しいmerge/hash commitをpushし、main `ca7d58b6`を含むheadでrequired CIを再実行する。前のgreen CIはこのbase changeを含まないため、PR mergeはまだ行わない。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### CFO current cursor
 
@@ -6204,7 +6204,7 @@ PR #7030の全required checksはhead `99648f4f` / base `a7899e37`でPASSした�
 8. A9でAsia/Tokyo daily/MTD/trailingをsource期間に揃え、agent/loop/platform別と全社revenue・expense・net・MRR・freshness・coverageを既存CLI/panelへ表示する。
 9. A10で7日連続natural report、official readback、全loop coverage、period一致、duplicate/replay zeroを確認する。それまでは全社CFO完了やverified $10k MRRを主張しない。
 
-**現在cursor:** PR #6827のfresh whole-branch reviewとproduction reconciler run `18dc79e943223940-84853`のnatural terminal readback。branch `feat/cfo-a5-cost-visibility-20261007` remote head `e57aa44e`、latest main `64db1c2e`はmerge済み。PR checksはPASS、draftのまま。Moneytree/A3/A4は明示どおり後順位で、このCFO cursorのblockerにしない。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 **Blockerと解消方法:**
 
@@ -6267,7 +6267,7 @@ main `fd3f5e490794acb5b1b7692e6ff1c38e9b45803e`にはPR #7024の`mobile-postiz-p
 6. 英語fenceの後に次の別slotを1回実行し、HeyGen ID/status/output SHA/costとPostiz `PUBLISHED` receiptを同一occurrenceへ結ぶ。その後3 accounts各3件/日、9 unique receipts/dayとreplay-zeroを自然確認する。
 7. click→locale Checkout→settled Stripe→matching PDF→Letter/Tegami settled subscription net MRRを14日cohortで測る。初回paid eBook order+matching PDF後にだけCapafy IG D5を1 canary/24hで始める。
 
-**現在cursor:** item 1。providerへの新しいpostを手動送信しない。次の日本語枠は12:30 JSTで、自然run receiptを確認する。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 12:23 JST — Gig parallelism and open-source capacity finding
 
@@ -6302,7 +6302,7 @@ mainはPR #7039/#7040/#7044を含む`53d49879d79e5095f7cd4767cdedb95444ad1138`�
 6. admission解放後、3 accountsそれぞれ3 unique `PUBLISHED` receipts/day（9 total）とreplay-zeroを自然確認し、attribution→Checkout→settled Stripe→matching locale PDF→Letter/Tegami recurring net MRRへ接続する。
 7. 初回paid eBook orderとmatching PDF receipt後だけCapafy IG D5へ進む（1 canary/24h）。$10,000 net MRRはsettled net subscription evidenceまで目標。
 
-**現在cursor:** item 1（PR #7041 latest-main CI）。production投稿を手動送信しない。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 12:31 JST — Gig source PR baseline CI blocker
 
@@ -6335,7 +6335,7 @@ PR #7030はmainにmerge済み、main #7024のexact-occurrence provider reconcile
 5. English旧effectはvideo IDかitemized billing recordが得られるまで再送しない。source fixのload後、過去claimとは別に次の英語slotを処理する。
 6. 3 accounts×3 unique `PUBLISHED` receipts/day（9 total）とreplay-zeroを確認し、click→locale Checkout→settled Stripe→matching PDF→Letter/Tegami net recurring MRRへ結ぶ。first paid order+PDF後にCapafy IG 1 canary/24hへ進む。
 
-**現在cursor:** item 1（PR #7041 latest-main merge/CI）。12:30 owner attemptsは投稿0件、既存実績は2/9。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 12:55 JST — post-merge source/spec; production identity recovery remains
 
@@ -6757,7 +6757,7 @@ This snapshot supersedes the 13:59–14:04 source/release status. PR #7055 backo
 
 **次の実行順:** 1) Paid/release reconciler natural terminalとlock readback。2) #7072 follow-upのfocused Fundraiser context regression/minimal fix/CI/review/merge。3) retired-label ownerがowner-safe cleanup後、`lm-loop doctor`を再readback。4) follow-upを含むlatest main由来immutable releaseを作り、shared apply lockが空いてから対象ownerを個別反映。5) Connector / Job Hunter / Fundraiserのloaded SHA・natural run・provider readback/replay-zeroを確認。6) 同windowのcapacity/queue/loadを比較し、安定した余力が確認できた場合のみcap調整。7) Gig laneは上記`Remaining atomic Gig TODO`順を続け、SelfBuildは最後。
 
-**現在cursor:** PR #7072のsource merge/CIは完了、production readbackは未完。既存reconcilerとPaid ownerのnatural terminal、退役labelに対する別ownerのsafe lifecycle処理が次のshared rollout gate。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 16:11 JST — admission full again; owner run status
 
@@ -6768,7 +6768,7 @@ This snapshot supersedes the 13:59–14:04 source/release status. PR #7055 backo
 - **production owner readback:** `~/loops/current`は依然`20261008T155630-6cc0c56b`でmerge `a02c457d`を含まない。`life-manager-release-reconciler`はPID19290 / SHA6cc0でloaded-running、最新occurrence `18dc7b67a05f8020-39546`はexit75 / `reconcile_owner`。`hf-gig-paid-direct`はPID62589 / current SHA6cc0でloaded-running、直近wakeはexit0/passでもeffect none・provider receiptなし。FundraiserはPID79351 / SHA71a5でloaded-runningだが、直近`18dc7be7ae944060-45433`はresource-capacity-busy/exit75、provider receiptなし、過去unknown fences 2件がcurrent。Job Hunter dailyはSHA71a5 loaded-idle、ConnectorはSHA8f342d8 loaded-idleで、latest local passにprovider receipt/official readbackはない。
 - **shared gate:** `lm-loop doctor`はretired installed label `ai.anicca.provision-browser.capafy.kosuke`により`ok=false`。別owner stateを変更しない。PR #7072のFundraiser MEDIUM review findingは`codex-money-printer`へ送信済みで、follow-up修正がまだ入っていないためFundraiserへのapplyを保留する。
 
-**現在cursor:** 1) release reconciler/Paid/Fundraiserをnatural terminalとloaded-stateまでreadbackし、stop/restart/重複applyしない。2) PR #7072 follow-upでFundraiser close-last-tab→new-context regressionと最小修正をownerが閉じる。3) retired label owner-safe解決後`lm-loop doctor`をpassさせる。4) follow-upを含むmain-derived releaseをowner単位で載せ、official readback/replay-zeroを確認する。5) その後だけ同window capacity/load測定に沿って並列数を調整する。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 ### 2026-10-08 16:17 JST — CFO current status and remaining order
 
 この更新はCFO laneだけを進め、他laneのcursorは変更しない。Moneytree（A7）とCloud/geocoding削減（A3/A4）はDaisの指示どおり後順位であり、このCFO完了の前提にしない。
@@ -6792,7 +6792,7 @@ This snapshot supersedes the 13:59–14:04 source/release status. PR #7055 backo
 8. A9でAsia/Tokyoのdaily/MTD/trailingを実source期間でfilterし、agent/loop/platform別と全社revenue・expense・net・MRR・freshness・coverageを既存CLI/reportへ出す。`loop_pnl.py --date`のlabel-only挙動を直す。
 9. A10でmain由来immutable releaseによる7日連続natural report、18/18 loops・186/186 jobs coverage、official readback、receipt、期間一致、重複/replay zeroを受け入れる。それまでは全社CFO完了やverified $10k MRRを主張しない。
 
-**現在cursor:** item 1 — local branchは最新main `c61f2c89`を含むが、PR remote head `79091677`は未更新。**実blocker:** production CFOの直近runはcapacityでdeferされ、last recorded admission snapshotは満杯、reconcilerは`entrypoint_exit_75`後も稼働中で新main releaseへの反映がない。解消は最新headのPR/CIを閉じた後、既存reconcilerが自然に終端・再収束し、容量とdisk/lockが空いたowner slotでCFOを載せること。現時点でDaisの手動作業は不要。CFO設計順はA5→A6→A8→A9→A10のまま。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 16:23 JST — CFO PR CI blocker and revised cursor
 
@@ -6814,7 +6814,7 @@ This snapshot supersedes the 13:59–14:04 source/release status. PR #7055 backo
 8. A9でAsia/Tokyo daily/MTD/trailingをreceiptの実期間で集計し、agent/loop/platform別・全社revenue/expense/net/MRR/freshness/coverageを既存CLI/reportへ表示する。`loop_pnl.py --date`のlabel-only挙動を直す。
 9. A10でmain-derived immutable releaseの7日連続natural report、18/18 loops・186/186 jobs coverage、official readback、期間一致、duplicate/replay zeroを受け入れる。それまでは全社CFO完了やverified $10k MRRを主張しない。
 
-**現在cursor:** item 1 — latest-mainの`skills/capafy-autopublish` inventory mismatchがPR CI blocker。解消方法は変更済みrootのcanonical inventory hashをmanifestへ反映して正確なverifierを通すこと。並行してproduction側では、CFO capacity deferと未収束reconcilerが残っている（直近status snapshotは16:17節参照）。A7 MoneytreeとA3/A4は引き続き後順位。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 16:31 JST — A5 manifest gate fixed locally
 
@@ -6824,7 +6824,7 @@ This snapshot supersedes the 13:59–14:04 source/release status. PR #7055 backo
 - **main regression:** `python3 -m pytest -q runtime/host/tests/test_resource_admission.py`は137 passed。
 - **Git境界:** このreadback時点のA5 branch/PR headは`16af3053`で、上記manifest修正はlocal only。`origin/main`=`85f17537`はc61以降のdocs-only commitで、A5 branchには未統合。PR #6827の`16af3053` head checksではmanifest修正前のOSS checkがFAILし、他のcheckはPASS。新しいheadでのCI証拠はまだない。
 
-**現在cursor:** manifestのlocal再現・修正・focused verifierは完了。次は最新main `85f17537`をmergeし、A5 focused/privacy/registry/loop-contract/runtimeを再検証してからpushする。その後のsame-head CI/fresh review/mergeが完了するまでPR #6827はdraftのまま。A5 production migration/release/readbackとA6→A8→A9→A10は続く。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 16:33 JST — latest-main A5 local acceptance
 
@@ -6833,7 +6833,7 @@ This snapshot supersedes the 13:59–14:04 source/release status. PR #7055 backo
 - A5 branch `feat/cfo-a5-cost-visibility-20261007` HEAD `e9fab969085d06e641ba596d3e6166037bdd0c53` は`origin/main=85f175379e4de97143a82f62afd389acb8133f1a`を含み、working tree clean。現在のPR #6827 remote headは`16af3053`、baseRefOidは`c61f2c89`、OPEN/DRAFTであり、この同期headは未push。PRの既存OSS FAILはmanifest修正前のheadに対する結果で、新headにはまだCIがない。
 - 同期後ローカルacceptance: A5 SQL/API/UI `112/112`; panel privacy `api=177/browser=63/recipes=19/channels=9`; focused registry `136 passed / 197 subtests`; admission `137 passed`; Node registry adapter `15/15`; `./bin/lm-loop-contract` `ok=true`（18 catalog loops / 187 registry jobs / 112 mapped）; OSS verifier `ok=true`、self-contained test `12/12`、`git diff --check` PASS。
 
-**現在cursor:** source/ローカルacceptanceは最新main `85f17537`まで完了。次にこのbranchをpushし、pushed SHA上でfull runtime suite（release-cut pressure tests含む）、required CI、fresh read-only whole-branch reviewを確認する。これらが同一headで通るまではPRをdraftのままにする。その後にmain merge、production natural reconcile/owner readback、A5 migration/report、A6→A8→A9→A10を順に進める。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 16:47 JST — A5 review finding fixed; production remains separate
 
@@ -6844,7 +6844,7 @@ This snapshot supersedes the 13:59–14:04 source/release status. PR #7055 backo
 - **Acceptance after fix:** A5 SQL/API/UI tests `113/113`; panel privacy `api=177/browser=63/recipes=19/channels=9` PASS. Full Python runtime suite previously passed `793/793` on pushed head `5e676794`; it does not cover this JS projection change.
 - **Branch state:** latest main is now `3c87f64f` (#7090); this A5 branch includes main through `963b047c` only. PR #6827 is still open/draft at head `5e676794` / base `85f17537`; code fix and regression are local and need main sync, push, and same-head CI.
 
-**現在cursor:** integrate latest main `3c87f64f`, rerun A5 focused/privacy checks, push the one-line projection fix and regression test, then verify same-head CI before marking PR ready/merge. The review finding is resolved by the test; avoid a duplicate review pass. After source merge, continue natural production reconciliation, occurrence receipt join, A5 migration/panel readback, then A6→A8→A9→A10.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 16:52 JST — latest A5 source and production cursors
 
@@ -6853,7 +6853,7 @@ This snapshot supersedes the 13:59–14:04 source/release status. PR #7055 backo
 - **Source:** local A5 branch HEAD `44eb14fc4217ff499081049940fc1e48d7fd7d25` includes latest `origin/main=07aa3fb3` (including PR #7091 reconciler self-handoff change). The panel zero-estimate fix is commit `e73fcb97`; A5 suite is 113/113, panel privacy `api=177/browser=63/recipes=19/channels=9`, OSS verifier/12 tests PASS, registry 136/197 subtests, Node adapter 15/15, loop contract `ok=true`. PR #6827 remains OPEN/DRAFT at remote head `5e676794` / base `85f17537`; current source head is unpushed and has no same-head CI. The previous Python runtime suite was 793/793 on `5e676794`, before the #7091 merge.
 - **Production:** `/Users/anicca/loops/current` is still release `20261008T164623-3c87f64f`; latest main `07aa3fb3` is not installed. The reconciler remains loaded-running PID `35373` on `3c87f64f`; last reported terminal occurrence `18dc7e43b76b4158-26121` is `entrypoint_exit_143`, effect `not_applicable`, no receipt/readback; last success is 07:26:12Z. Status still shows a loaded-running PID, so do not stop/restart it. CFO owner is loaded-idle on `c61f2c89`; latest occurrence `18dc7dd434648360-50277` at 07:38:22Z is `apply_lock_busy` / exit78, effect `not_applicable`, no receipt/readback; last successful report is 06:00:53Z. Disk readback is 5.2 GiB free / 98% used.
 
-**現在cursor:** merge latest main `864513c9` into the A5 branch, rerun A5 focused/privacy/OSS checks on that tree, then push. On the pushed SHA, require the full Python runtime suite and same-head CI before marking PR #6827 ready/merge. After source merge, let the self-handoff reconciler converge naturally to a main-derived release; then verify CFO owner load, admission/lock, occurrence receipt, A5 migration/RPC/panel, and continue A6→A8→A9→A10. A7 Moneytree and A3/A4 cost savings remain deferred.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 17:05 JST — latest-main A5 acceptance and production gate
 
@@ -6863,7 +6863,7 @@ This snapshot supersedes the 13:59–14:04 source/release status. PR #7055 backo
 - **PR #6827:** remote is still head `bed30b56` / base `07aa3fb3`, OPEN/DRAFT, mergeable, and all required checks pass on that old head. Its loop-control job ran 801 Python tests in 188.168s and passed. Local head `04ea1b97` is not yet pushed, so it has no same-head CI/runtime evidence.
 - **Production readback (17:01 JST):** current symlink/release is `20261008T170048-864513c9`. Release reconciler remains loaded-running PID `58583` on old SHA `3c87f64f`; its last natural report `18dc7e6b8cbaf958-35373` passed at 07:52:05Z with no provider receipt, but it has not yet loaded the current SHA. CFO owner is loaded-idle on `c61f2c89`; latest occurrence `18dc7eda6ff41808-17315` at 07:57:14Z was `host_admission_deferred:resource_fifo_wait` / exit75, `effect_status=not_applicable`, receipt/readback null; `last_effect` is recorded at 07:57:08Z, so delivery is not asserted either way. Last successful CFO report remains 06:00:53Z. Disk is 3.9 GiB free / 99% used and host load is 13.91/13.65/13.22 on 10 CPUs.
 
-**現在cursor:** push local A5 head `04ea1b97`, then require full Python runtime suite and same-head CI before ready/merge. Keep PR draft until those gates pass. After merge, preserve the running reconciler and wait for natural handoff to `864513c9`; then verify CFO owner loaded SHA, free admission slot, and report receipt before A5 migration/RPC/panel readback and A6→A8→A9→A10.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 17:01 JST — A5 acceptance and live production convergence
 
@@ -6873,7 +6873,7 @@ This snapshot supersedes the 13:59–14:04 source/release status. PR #7055 backo
 - **PR #6827:** remote head `bed30b56` / base `07aa3fb3`, OPEN/DRAFT, mergeable; same-head required checks all SUCCESS. The `Loop control contracts` job ran `python3 -m unittest discover -s runtime/loop/tests -p 'test_*.py'`: 801 tests in 188.168s, OK. This suite ran on `bed30b56`; the newer local `864513c9` sync still needs to be pushed and checked.
 - **Production:** `/Users/anicca/loops/current` now points to main-derived release `20261008T170048-864513c9`. `life-manager-release-reconciler` remains loaded-running PID58583 on old SHA `3c87f64f`; last natural terminal was PASS (`18dc7e6b8cbaf958-35373`, 07:52:05Z), no provider receipt. It has not yet read back a current-main handoff. CFO owner remains loaded-idle on SHA `c61f2c89`; latest occurrence `18dc7eda6ff41808-17315` (07:57:14Z) was `host_admission_deferred:resource_fifo_wait` / exit75, effect `not_applicable`, receipt/readback null. `last_effect` is still recorded at 07:57:08Z, so absence of delivery is not asserted. Last successful CFO report remains 06:00:53Z; latest disk readback was 3.9 GiB available / 99% used, host load 13.91/13.65/13.22 on 10 CPUs.
 
-**現在cursor:** merge latest main `864513c9` into the A5 branch, rerun A5 acceptance, push and verify same-head CI (the full runtime suite is required because #7094 adds loop source/tests). Then mark PR ready and merge. In production, preserve reconciler PID58583 and wait for its natural terminal/current-main handoff; only after that confirm CFO owner load and admission. A5 migration/RPC/panel production readback and A6→A8→A9→A10 follow; A7 Moneytree and A3/A4 savings stay deferred.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 ### 2026-10-08 16:19 JST — Local revenue loop post-merge production cursor
 
 この追記は14:09 JSTの旧TODOと15:52 JSTのowner snapshotを更新する。source修正はmain統合済みだが、production完了とは分けて記録する。
@@ -7009,7 +7009,7 @@ Fresh read-only review rejected the idle-readback-only patch: a new StartInterva
 - `~/loops/current`は`20261008T162236-c61f2c89`。PID `19290`は16:26 JSTに自然terminal PASS (`18dc7d0e3868a110-36723`)。新しいrelease reconciler PID `43455`は同SHAでloaded-runningのため、次owner applyは待機。self-handoff receiptはまだtarget `6cc0c56b`の過去readbackで、c61/current runのhandoff receiptではない。
 - 16:28 JST owner readback: eBook EN/JA TikTok/JA InstagramはSHA `71a5f878` / loaded-idleだが3件とも`host_admission_deferred:resource_effect_unknown`; exact fenced occurrences are EN `18dc6de8dcf3a0e8-75262`, JP TikTok `18dc5e822e430b80-45345`, JP Instagram `18dc648de93a3c68-68679`, each `runtime_occurrence_missing_or_invalid`. `lm-fence-reconciler`はSHA `8f342d8d` / loaded-idle / pass。Capafy old/new ownersはSHA `2e87d30d` / disabled、old direct laneは`18db7caff1178a88-68028` `active_ig_handle_unresolvable` fenceを保持する。
 
-**現在cursor:** `fresh read-only review of latest-main-based source diff → source/SSOT commit+push → PR CI → merge → PID 43455 natural terminal + current handoff receipt → eBook/fence owner convergence and occurrence recovery → 9 unique PUBLISHED/day → paid order+PDF → paid active Letter/Tegami MRR → Capafy one-canary/24h after paid+PDF gate`。Postiz 16:21 readbackは引き続きeBook 2/9、Capafy 2 `PUBLISHED`; no new posting slot has occurred since that GET.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 16:36 JST — latest terminal changed while the next run is active
 
@@ -7019,7 +7019,7 @@ Fresh read-only review rejected the idle-readback-only patch: a new StartInterva
 - 16:34 JST readback: current release remains `20261008T162236-c61f2c89`, PID `31693` is loaded-running. Its previous terminal `18dc7d69aaf47f78-70945` ended 16:33 JST with `entrypoint_exit_1` / `reconcile_owner`; event detail records `agent-runner fleet-apply: ... coalesced` (min interval 1800s). The same source function returns 0 on coalesce, so this log tail alone does not identify the failing earlier reconcile phase. Do not stop/restart PID `31693`; inspect its next natural terminal/phase receipts before any apply.
 - eBook API readback is still 2/9 (EN0, JP TikTok1, JP Instagram1); Capafy 2 `PUBLISHED`. eBook owners remain old SHA `71a5f878` with unknown occurrence fences; Capafy owners remain disabled on `2e87d30d`. No new posting slot has occurred since the 16:21 Postiz GET.
 
-**現在cursor:** `commit/push source + SSOT → open PR and pass required CI → merge → current PID 31693 natural terminal and exact phase diagnosis → current-main handoff receipt/owner convergence → existing eBook occurrence reconciliation → next safe natural post slot → paid order+PDF → subscription net MRR → gated Capafy canary`. No Dais action is required now.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 16:42 JST — PR checks and active production process
 
@@ -7027,7 +7027,7 @@ Fresh read-only review rejected the idle-readback-only patch: a new StartInterva
 - Current release is `20261008T162236-c61f2c89`; release reconciler PID `96926` remains loaded-running. Latest terminal event `18dc7da1bdc4d1b0-31693` ended 16:38 JST `entrypoint_exit_1` / `reconcile_owner`; event detail ends with the fleet-apply coalesce message. Current source returns success from that coalesce branch, so the event tail does not identify which earlier reconcile phase set the overall failure. Preserve PID and wait for its next natural terminal/phase evidence; no apply/restart.
 - `life-manager-disk-cleanup` naturally passed at 16:40 JST. `df -k /tmp` at 16:41 JST shows 5,671,864 KiB available. Earlier ENOSPC lines under the 71a5 release are historical evidence, not yet proven as the cause of the c61 occurrence.
 
-**現在cursor:** `PR #7091 remaining required CI PASS → main merge → PID 96926 natural terminal and exact phase evidence → current-main handoff receipt → eBook/fence owner convergence and exact occurrence readback → 9 unique PUBLISHED/day → paid order+PDF → paid active subscription MRR → gated Capafy canary/order readback`。Production sources/owners/posting remain unmodified by this task.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### Mobile distribution cursor
 
@@ -7051,7 +7051,7 @@ Fresh read-only review rejected the idle-readback-only patch: a new StartInterva
 - PR #7089 `fix: use managed runtimes in mobile publishing loop` はmerge commit `d79fcc55751651c1ea0ddc005a4bdd322476f63d`でmainへ統合。`apps/life-manager/scripts/mobile-app`はmanaged runtime Node/Pythonをfallbackとして使う。required CI `37746205876`は全件PASS。production release/natural runは未確認。
 - Duplicate-selector TDDは修正前RED。`resolveLarryJaSlot` regression、slide-pack rotation、canary、rotating-runnerのfocused testsは修正後23/23、17/17、8/8 PASS。Production-state read-only selectionはBuddhaの13:00 slotで既存unique pack `66e87786f92e…`を選択し、新material generation 0。
 
-**現在cursor:** distribution item 1。PR #7089/#7097/#7111/#7116はmainへmerge済みだが、current immutable release `20261008T185307-88dfdaf4`とposting/report/metrics ownersは未収束。次にretired Capafy labelとself-handoff labelを所有owner経由で解消してdoctor PASS後、main由来releaseでtarget ownersを個別更新する。EN2/Buddhaのnatural runでPostiz receipt・URL・replay-zeroを確認し、全enabled TikTok accountを3 unique PUBLISHED/dayへ揃える。19:12 JST時点で11/48のため未達。TikTok per-post collectorのPostiz API routeとCloud report routeをownerへloadし、natural checkpoint/Telegram receiptを確認する。全platformのCloud宛post URL付きレポートと6/24/72/168h metrics coverageが成立するまで「分析が届いている」としない。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 19:36 JST — TikTok account classification and Telegram message contents
 
@@ -7187,7 +7187,7 @@ This readback supersedes the 00:37 JST post count and advances the source cursor
 - eBook EN/JA TikTok/JA Instagram remain loaded-idle on SHA `71a5f878` with three `resource_effect_unknown` occurrences. `lm-fence-reconciler` remains loaded-idle on SHA `8f342d8d`. Capafy direct and Postiz automation owners remain disabled on `2e87d30d`; the old direct lane retains `active_ig_handle_unresolvable`.
 - Latest Postiz GET remains the 16:21 JST snapshot: eBook 2/9 (EN 0, JP TikTok 1, JP Instagram 1), Capafy 2 `PUBLISHED`; no later scheduled post slot has elapsed. HeyGen readback at 16:29 JST shows 0 `Anicca` videos across two pages and wallet USD 11.78; this does not resolve the older render fence. Product PR #420 is still `OPEN`.
 
-**現在cursor:** `PID 35373 natural terminal → verify new-main immutable release and self-handoff receipt → exact eBook occurrence reconciliation and target-owner SHA convergence → safe next eBook post slot → paid Checkout+matching PDF (PR #420 durable receipt gate) → paid active subscription MRR → gated Capafy canary/order readback`。Daisの手作業は現在不要。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 17:11 JST — A5 latest-main sync and current admission blocker
 
@@ -7197,7 +7197,7 @@ This readback supersedes the 00:37 JST post count and advances the source cursor
 - **Same-head evidence:** the previous pushed head `bed30b56` had all required checks SUCCESS and its loop-control job passed 801 tests. This is not evidence for current local head `01a10fa`; new CI must run after push.
 - **Production (17:10 JST readback):** current release is `20261008T170048-864513c9`. `life-manager-release-reconciler` remains loaded-running PID `58583` on `3c87f64f`; last report `18dc7e6b8cbaf958-35373` passed at 07:52:05Z but has no provider receipt and has not loaded current SHA. CFO owner is loaded-idle on `07aa3fb3`; latest occurrence `18dc7f9265f7e380-83653` at 08:10:19Z is `host_admission_deferred:resource_capacity_busy` / exit75, effect `not_applicable`, no receipt/readback. `last_effect` at 08:10:18Z is not an official delivery receipt. The earlier FIFO wait is no longer the latest failure class; actual capacity remains unavailable. Disk free is 3.7 GiB, volume 99% used, host load 23.18/18.57/15.38 on 10 CPUs.
 
-**現在cursor:** push local head `01a10fa` and this status update, then require same-head full Python runtime suite and CI before marking PR #6827 ready/merge. Production continues separately: preserve PID `58583`, wait for the reconciler's natural handoff to current main `dc907164`, then verify CFO loaded SHA and a naturally eligible capacity slot. Do not restart, replay, or increase caps. After source merge, verify CFO receipt, apply A5 migration/RPC/panel through the canonical production route, then continue A6→A8→A9→A10.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 17:21 JST — A5 same-head CI passed; production handoff remains incomplete
 
@@ -7220,7 +7220,7 @@ This readback supersedes the 00:37 JST post count and advances the source cursor
 7. A9: Asia/Tokyo daily/MTD/trailingの実source期間をfilterし、agent/loop/platform別・全社 revenue/expense/net/MRR/freshness/coverageを既存CLI/reportへ表示し、`loop_pnl.py --date`を修正する。
 8. A10: main-derived immutable releaseで7日連続のnatural report、18/18 loops・186/186 jobs coverage、official receipt/readback、期間一致、重複/replay zeroを受け入れる。それまでは全社CFO完了・verified $10k MRRを主張しない。
 
-**現在cursor:** spec/planのstatus commit → updated-head CI → PR #6827 ready/merge。production側は並行してactive reconcilerを保持し、natural handoff・CFO SHA/admission・receiptをreadbackする。再起動やcap引上げは解決策にしない。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 17:31 JST — A5 CI green; current release handoff parser root cause
 
@@ -7241,7 +7241,7 @@ This readback supersedes the 00:37 JST post count and advances the source cursor
 6. A6 Google 2026-09 billed usage・credits・tax・rounding reconciliation。A8は18 product loops / 186 jobsのsettled revenue/refund/feesとactual costsをreceipt単位で結合。A9はdaily/MTD/trailingを既存CLI/reportでagent/loop/platform別に表示し`loop_pnl.py --date`を直す。
 7. A10はmain-derived immutable releaseによる7日連続natural report、18/18 loops・186/186 jobs coverage、official receipt/readback、期間一致、duplicate/replay zeroを受け入れる。未達の間はverified全社net/MRRや$10k MRRを主張しない。
 
-**現在cursor:** PR #6827 ready/merge → state parser修正ownerとSSOT appendを調整 → natural release handoff → CFO SHA/admission/report receipt → A5 production migration/RPC/panel。A6→A8→A9→A10を続ける。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 17:33 JST — main advanced; handoff receipt PR is now open
 
@@ -7251,7 +7251,7 @@ This readback supersedes the 00:37 JST post count and advances the source cursor
 - **Handoff PR:** PR #7098 `fix(reconciler): preserve Launchd state in handoff receipt` がOPEN / non-draft、head `f33254ec`, base `dc907164`。CIは開始中、reviewDecisionはまだ空。差分は`state = ...`全体をreceiptへ残すdiagnostic修正で、未知値をfail-closedする挙動は維持する。したがってproductionが観測した`not running`をquiescentとしてhandoff可能にする修正はまだ完了していない。PR ownerが最新stateをreceiptで確定した後、`not running` + PIDなしを同じlock下の複数readbackで確認する回帰修正を統合し、その後に自然handoffを待つ。
 - **Production:** current releaseは引き続き`20261008T171655-dc907164`。CFO ownerは`07aa3fb3` / loaded-idle、17:10の`resource_capacity_busy`が最後の試行でreceiptなし。release reconcilerはloaded旧SHA `3c87f64f`。handoff receiptはtarget `dc907164`で`old_service_state_unknown`。17:26 safe readbackは`not running`/PIDなし、17:31は`running`/PID58131へ遷移しているため、active processを停止せず自然なstate変化と公式receiptを待つ。
 
-**現在cursor:** A5 branchへmain `54c9b175`を同期 → spec/plan correctionをpush → same-head CI → PR #6827 ready/merge。PR #7098はownerのCI/review/mergeを別PRで追い、state-readback behavioral fixと自然handoffを確認してからA5 production migration/reportへ進む。Moneytree A7とA3/A4は引き続き後順位。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 17:39 JST — latest-main acceptance, manifest repaired, production still fenced
 
@@ -7271,7 +7271,7 @@ This readback supersedes the 00:37 JST post count and advances the source cursor
 6. Apply A5 additive migration/RPC/permissions via the canonical production route; read back tenant/period bounds, provider/SKU/operation/unit and loop/owner/trace attribution, daily/MTD panel, unknown-vs-zero, estimate-vs-settled, and same-occurrence report receipt.
 7. Continue A6 Google billed-usage/credits/tax/rounding reconciliation → A8 settled revenue/refunds/fees plus actual costs for 18 loops/186 jobs → A9 existing CLI/report daily/MTD/trailing → A10 seven consecutive natural reports with full coverage/official receipts/replay-zero.
 
-**現在cursor:** manifest/main sync and focused A5 acceptance are complete locally; push this head, prove full same-head CI, then ready/merge PR #6827. Production remains gated by current disk pressure and the still-running old release reconciler; PR #7098 is a separate diagnostic follow-up, not yet a complete handoff fix. A6→A8→A9→A10 follow, with A7 and A3/A4 deferred.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 17:48 JST — A5 latest-main acceptance and current production gates
 
@@ -7293,7 +7293,7 @@ This readback supersedes the 00:37 JST post count and advances the source cursor
 6. Apply A5 additive migration/RPC/permissions through the canonical production route and read back tenant/period scope, cost attribution/trace, daily/MTD panel and same-occurrence report receipt.
 7. Continue A6 Google billed/credits/tax/rounding → A8 settled revenue/cost coverage for 18 loops/186 jobs → A9 existing CLI/report daily/MTD/trailing → A10 seven-day natural report/coverage/official receipts/replay-zero.
 
-**現在cursor:** push `7273530a` → same-head CI → PR #6827 ready/merge. In production, the disk floor is now receipt-confirmed; the active old reconciler and CFO's next eligible natural run remain unresolved. PR #7098 must be rebased/reviewed separately. Do not restart, replay, delete by hand, or raise caps.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 18:09 JST — A5 source merged; provider receipt and runtime event disagree
 
@@ -7312,7 +7312,7 @@ This readback supersedes the 00:37 JST post count and advances the source cursor
 5. Apply A5 additive migration/RPC/permissions through the canonical route; read back tenant/period bounds, cost attribution/trace and daily/MTD panel.
 6. Continue A6 Google billed/credits/tax/rounding → A8 settled revenue/refund/fees plus actual cost coverage for 18 loops/186 jobs → A9 existing CLI/report daily/MTD/trailing → A10 seven-day natural report with full coverage/official receipts/replay-zero.
 
-**現在cursor:** receipt branch merge resolution/test → same-head CI/PR → reconcile 17:50 delivery evidence without resend → PR #7098 handoff fix/rebase → natural `f9d94048` owner handoff → CFO receipt/A5 production readback. A6→A8→A9→A10 remain after A5; Moneytree A7 and cloud savings A3/A4 remain deferred.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 18:09 JST — A5 source merged; receipt hint follow-up is in progress
 
@@ -7332,7 +7332,7 @@ This readback supersedes the 00:37 JST post count and advances the source cursor
 5. Apply A5 additive migration/RPC/permissions via the canonical production route; read back tenant/period isolation, provider/SKU/unit/loop/owner/trace, daily/MTD panel and same-occurrence receipt.
 6. Continue A6 Google billed/credits/tax/rounding → A8 18-loop/186-job settled revenue/cost coverage → A9 existing CLI/report daily/MTD/trailing → A10 seven consecutive natural reports with full coverage, official receipts and replay-zero. Do not claim verified company net or $10k MRR before A10.
 
-**現在cursor:** receipt branch merge resolution/test → same-head CI/PR → reconcile 17:50 delivery evidence without resend → PR #7098 handoff fix/rebase → natural f9d owner handoff → CFO receipt/A5 production readback → A6→A8→A9→A10.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 18:17 JST — CFO cursor refresh; source is ahead of production
 
@@ -7429,7 +7429,7 @@ This readback supersedes the 00:37 JST post count and advances the source cursor
 - A self-handoff helper from release `dc907164` is loaded/running PID `4595`. Its latest receipt reports `old_service_state_unknown`, `old_service_state=null`, `run_lock.status=acquired`, target SHA `dc907164`, and no old-service bootout. The old service remains running; this is fail-closed behavior.
 - Source tracing found the receipt parser accepts only one-token state values. A fake `launchctl-safe print` response `state = not running` reproduces the missing receipt state (`null`); production's exact state string is still unobserved. The follow-up test changes the observation boundary only and keeps unknown states fail-closed.
 
-**現在cursor:** `run the new state-text receipt test RED → parse and record the full state line → focused acceptance + fresh review → PR source/CI/main merge → allow PID 94732 to terminate naturally → confirm receipt with exact state and new release SHA/argv → eBook owner/occurrence reconciliation → 9 unique PUBLISHED/day → paid order+PDF → paid subscription MRR → gated Capafy canary`. Do not manually restart or replay provider effects.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 17:28 JST — state-text receipt fix reviewed; runtime remains old
 
@@ -7456,7 +7456,7 @@ The next cursor is item 1 commit/push. No Dais manual action is currently requir
 
 - Commit `d4c106b37b` is pushed on `fix/reconciler-handoff-state-readback-20261008`; PR #7098 is OPEN and MERGEABLE. The six completed CI checks pass. Loop control contracts, TruffleHog, and gitleaks are still running; CodeRabbit is skipped by the repository's manual-review policy. The fresh independent source review passed.
 
-**現在cursor:** `PR #7098 required CI PASS → merge main → PID 22671 natural terminal → next handoff receipt exact-state + target SHA/argv → canonical eBook owner mapping and effect reconciliation → natural 9 unique PUBLISHED/day → paid checkout+PDF → paid subscription MRR → gated Capafy canary/order/banked-net`. Do not replay unknown publishing effects or manually restart the reconciler.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 17:40 JST — latest-main CI blocker traced
 
@@ -7465,7 +7465,7 @@ The next cursor is item 1 commit/push. No Dais manual action is currently requir
 - Local reproduction on the merged latest-main tree returns exactly that one violation. The source manifest `docs/manifests/oss-merge-1-sources.json` expects SHA-256 `abcac21a91b794054f03b01bbd7a88ff62e9dcd5868c08d077e81fc8003fddac` for the absorbed target; PR #7099 changed the file, whose current digest is `3bd2508d5b96834f5c446bdf91f2a6e06874a1ec5dbe368c6614ef3e0de2676a`. The same boundary check is red on #7099. The reconciler change does not touch this manifest or agent-runner config.
 - The mismatch belongs to the agent-runner manifest update for #7099, outside this eBook/Capafy task. Keep #7098 open; do not bypass the failing check or modify the unrelated manifest in this task branch.
 
-**現在cursor:** `sync latest-main branch to remote → agent-runner manifest owner updates the classified digest → rerun #7098 required CI → merge #7098 → PID 22671 natural terminal + exact handoff receipt → canonical eBook owner mapping/effect reconciliation → 9 unique PUBLISHED/day → paid order+PDF → paid Letter/Tegami MRR → gated Capafy canary/order/banked-net`. The last production owner readback remains 17:27 JST; no newer provider or owner receipt is claimed.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 17:44 JST — remote sync and fresh runtime cursor
 
@@ -7474,7 +7474,7 @@ The next cursor is item 1 commit/push. No Dais manual action is currently requir
 - Fresh owner readback at 17:41 JST: `~/loops/current=20261008T173341-7bb8ce08`. `life-manager-release-reconciler` is loaded-idle with no PID on old SHA `3c87f64f`; latest occurrence `18dc8127ba686048-84361` ended `entrypoint_exit_1` at 17:41:38 JST. The handoff receipt still has `old_service_state=null`, target SHA `7bb8ce08`, and run-lock `acquired`; the state-text fix is not yet in the installed release.
 - Capafy `capafy-ig-marketing-daily` remains disabled on SHA `2e87d30d`, and occurrence `18db7caff1178a88-68028` remains effect-unknown with `official_readback_required`. The last Postiz API GET is still the 16:21 JST snapshot (eBook 2/9, Capafy 2 PUBLISHED); no later provider GET or new scheduled slot is claimed. CAPTCHA is not the current blocker.
 
-**現在cursor:** `agent-runner manifest owner corrects #7099 classified digest → refresh #7098 branch/checks against origin/main a8a10c67 → green source acceptance and merge → natural reconciler handoff + exact state/target SHA/argv readback → map the three canonical eBook publisher owners → resolve each old effect fence by official receipt/no-effect proof → produce 9 unique PUBLISHED/day → paid eBook order+matching PDF → paid Letter/Tegami MRR → after the paid+PDF gate, Capafy owner/profile+pack repair → one canary/24h → official order and banked net`. No manual replay, stop, or restart.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 17:49 JST — synced Capafy factory main changes; source blocker unchanged
 
@@ -7483,7 +7483,7 @@ The next cursor is item 1 commit/push. No Dais manual action is currently requir
 - PR #7098 remains OPEN. The last CI run on prior head `a16011a4` failed only the OSS boundary among completed checks; the loop-control contract was still running at the latest read. This sync triggers a fresh required-check run. The manifest mismatch remains outside this task branch.
 - Latest production evidence remains the 17:41 JST readback: release `20261008T173341-7bb8ce08`; old reconciler loaded-idle on `3c87f64f`; occurrence `18dc8127ba686048-84361` ended `entrypoint_exit_1`; handoff receipt still has null state and target SHA `7bb8ce08`. Capafy owner is disabled with its effect-unknown occurrence held.
 
-**現在cursor:** `push the latest-main sync and verify its fresh PR checks → have the agent-runner manifest owner correct the #7099 classified digest → rerun #7098 checks and merge → natural reconciler handoff + exact receipt → canonical eBook owner mapping and per-occurrence receipt reconciliation → 9 unique PUBLISHED/day → paid order+PDF → paid Letter/Tegami MRR → gated Capafy canary and banked-net readback`.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 18:17 JST — eBook-only scope and current video evidence
 
@@ -7597,7 +7597,7 @@ The next cursor is item 1 commit/push. No Dais manual action is currently requir
 12. A9で実source期間によるdaily/MTD/trailing/MRR report、通貨・freshness・coverage・receiptを実装/確認し、unknownをzeroにしない。
 13. A10で7日連続natural reportの完全coverage、source/runtime/provider receipt結合、期間一致、重複/replay zeroを確認する。これ以前に全社netや$10k MRRをverifiedと報告しない。
 
-**現在cursor:** no-resend reconcileの3 failing testsを修正 → focused suite PASS → latest-main source/spec pushとsame-head CI/review → no-replay proof → safe natural handoff・host capacity recovery → natural CFO report receipt → A5 production readback → A6 → A8 → A9 → A10。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 19:38 JST — CFO natural report proof ready; runtime fence and watchdog remain
 
@@ -7661,7 +7661,7 @@ The next cursor is item 1 commit/push. No Dais manual action is currently requir
 
 **Order rationale:** the earlier cursor asked which English Monk channel to use. Dais has now explicitly selected Instagram, so the destination question is removed and the Instagram account/connection readback is now the required route gate. The unknown HeyGen effect and source handoff gate remain earlier because they determine whether a safe unique video can be published.
 
-**現在cursor:** `push latest-main sync plus current SSOT update to PR #7115 → required CI on the new head → merge --admin first → verify natural handoff receipt and loaded SHA/argv → reconcile the exact English video and its prior-post status → connect the correct English Monk Instagram account → publish once and verify official receipt → restore 3/day cadence → verify paid order+PDF and active paid Letter MRR`. No Capafy action, manual replay, stop, or restart.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 19:32 JST — source merged; live handoff still owns the production cursor
 
@@ -7680,7 +7680,7 @@ The next cursor is item 1 commit/push. No Dais manual action is currently requir
 5. Restore three daily English Monk Instagram slots through the canonical owner; verify each natural post.
 6. Add the existing Stripe Letter price to the product/attribution registry and connect the eBook audience to its recurring offer; verify paid Stripe orders ↔ delivered PDFs separately from active Letter subscriptions. `$10K MRR` remains a target, not a verified result.
 
-**現在cursor:** `natural terminal of 18dc8612b9964870-7017 → exact successful handoff receipt + loaded SHA/argv → reconcile the English video and unknown effect → bind the exact Instagram account → publish once/read back → restore 3/day → map the existing $9.99 Letter subscription into the marketing funnel → verify paid order+PDF and active subscription MRR`. No Capafy action, forced restart, or replay.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 20:07 JST — CFO source GREEN; historical receipts proven; next wake deferred
 
@@ -7706,7 +7706,7 @@ The next cursor is item 1 commit/push. No Dais manual action is currently requir
 8. A9で実source期間によるdaily/MTD/trailing/MRRを分離し、`--date`のsource filter、通貨、freshness、coverage、receiptを実装・検証する。
 9. A10で7日連続natural reportを観測し、期間一致・全source coverage・runtime/provider receipt結合・重複/replay zeroを確認する。この前に全社netや$10K MRRをverifiedと報告しない。
 
-**現在cursor:** `PR #7106へlocal-green source/schema/test/specをpush → 新head CI/review/merge → immutable release/loaded-idle反映 → 次のnatural CFO receipt/runtime-link readback → A5 → A6 → A8 → A9 → A10`。11 GiB disk復旧は既存host-disk ownerの並行・非ゲートcursor。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 20:14 JST — CFO source pushed; upstream OSS gate blocks merge
 
@@ -7733,7 +7733,7 @@ The next cursor is item 1 commit/push. No Dais manual action is currently requir
 - PR #7106旧head run `37768531965`: OSS FAIL、Python/gitleaks/agent instruction/PII/shell/startup checks PASS、loop controlとTruffleHogはpending。CodeRabbitはdraft skip。main-syncをpush後、新headで必須checkとreviewを取り直す。
 - CFO productionの最新terminal/receipt/capacity stateは20:07 entryから変化なし。新しい自然successful reportは未観測。古い3件はread-only receipt verifiedだが元runtime terminal linkはnull。
 
-**現在cursor:** `latest-main sync + current SSOTをPR #7106へpush → Capafy owner manifest refresh後のOSS PASS → 新head required checks + fresh review → merge → immutable CFO release / loaded-idle反映 → natural report receipt/runtime-link/replay-zero → A5 → A6 → A8 → A9 → A10`. host-disk watchdogの11 GiB回復は別ownerの並行・非ゲートcursor。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 20:17 JST — latest natural CFO report proven; runtime link and capacity remain
 
@@ -7770,7 +7770,7 @@ The next cursor is item 1 commit/push. No Dais manual action is currently requir
 - **CFO production:** installed SHA `8b75fa53a282324da54a09fb07a97cee12e1ea2e`; latest occurrence `18dc89dc705c37c8-91793` at `2026-10-08T11:20:58Z` exit75 / `host_admission_deferred:disk_headroom_low`; last successful report `18dc890cf6d3b810-28491` at `11:04:33Z`, provider ID `105378`, read-only verified, admission released/0. Its runtime terminal still has null receipt/ref. New hint-writer source is not loaded in CFO's 8b75 release.
 - **Disk cleanup:** latest receipt `2026-10-08T11:41:48Z` has `free_after=1,352,364,032`, errors0, protected_deletions0, below 2 GiB. It evaluated 6 candidates; 5 were preserved (3 open, 2 protected descendants), reclaimed only 240,797 bytes. Latest cleanup occurrence `18dc8b16c58afb40-45114` exits1 because recovery floor remains unmet. Watchdog plist still points to missing release `20261007T190835-8eb1585e`. Latest release-reconciler owner is loaded-running (do not overlap its apply); the next natural CFO attempt is not currently eligible.
 
-**現在cursor:** active Capafy ownerのmain-current manifest fix → local CFO branchに最新main/specをcommit/push → new-head OSS + required CI/fresh review → PR #7106 merge → immutable CFO releaseをowner loaded-idle時に反映 → natural sent reportのruntime receipt/ref/replay-zeroを確認 → A5 production readback → A6 → A8 → A9 → A10。Disk cleanup/watchdogはexisting host-disk owner laneで進め、別owner worktree/plistを編集しない。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 20:51 JST — shared registry fixture regression isolated and fixed locally
 
@@ -7781,7 +7781,7 @@ The next cursor is item 1 commit/push. No Dais manual action is currently requir
 - **Production CFO:** current installed owner SHA`804effc5`, latest natural occurrence `life-manager-cfo-hourly:18dc8b67cad08f88-85711` at 11:49Z deferred `host_admission_deferred:disk_headroom_low`; last successful Telegram receipt remains `105378` with runtime terminal link absent. Host receipt at 11:51Z is about 1.17 GiB, errors0, protected deletions0; successive natural disk-cleanup passes still miss the 2 GiB floor. No process was stopped or manually replayed.
 - **Source ownership:** future exact Telegram receipt hint writer is in the CFO PR branch, not the currently loaded main release. It requires the PR's merge/release, then a natural eligible send to prove runtime linkage.
 
-**現在cursor:** `push generated registry fixture + latest-main sync → current-head Loop control CI + fresh review; resolve Capafy manifest mismatch through its active owner → merge PR #7106 → immutable CFO release / loaded-idle apply → eligible natural report with runtime receipt/ref and replay-zero → A5 → A6 → A8 → A9 → A10`. Disk recovery remains the separate host-disk owner lane; do not broaden cleanup or kill writers.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 20:58 JST — CFO PR manifest and production blocker refreshed
 
@@ -7804,7 +7804,7 @@ The next cursor is item 1 commit/push. No Dais manual action is currently requir
 7. A9で既存`loop_pnl.py --date`のsource-row期間filterを実装・検証し、daily/MTD/trailing/MRRにcurrency・freshness・coverage・receiptを表示する。
 8. A10で7日連続natural reportの全source coverage、settlement/cost join、runtime/provider receipt、期間一致、replay-zeroを確認する。
 
-**現在cursor:** `PR #7106 updated-head CI/review/merge → capacity >=2 GiB and owner loaded-idle → immutable CFO release/readback → next natural receipt/runtime-link/replay-zero → A5 → A6 → A8 → A9 → A10`。host recovery/watchdogはexisting host-disk ownerの並行作業で、CFO branchから触らない。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 ### 2026-10-08 — Life Manager Cloud UX, iMessage toolkit, and marketing readiness
 
 This note is specific to the Web Cloud travel product; it does not change the eBook or mobile-app marketing lanes.
@@ -7849,7 +7849,7 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 
 **完了条件:** 3 loopのmain-derived installed SHA/argvが確認済みで、各loopに少なくとも1回のnatural occurrenceがあり、該当するofficial provider receipt/readback・Telegram outcome・Luna/max/fast routeが一致する。今回対象のeffect unknownはすべてreceiptまたはstrict no-effect proofで閉じ、重複実行0。capacity上限は同時間窓の実測値として報告する。実収益は入金/settlement証拠が出るまで主張しない。
 
-**現在cursor:** Fundraiser source差分の最終review/acceptance → PR #7115のCI/review/merge → Fundraiser PRをlatest mainでmerge → 1つのmain-derived releaseでhandoff/doctor → exact fences → owner別apply → Connector/Workday/Fundraiser natural receipts → same-window capacity/economic readback。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 19:20 JST — Fundraiser fence closure rejected until provider-owned readback
 
@@ -7871,7 +7871,7 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 6. **Exact fences / owner promotion:** FoundersEdgeはprovider readbackが取れた場合だけ同一occurrenceでclose。DeepScale `18d9b0b6311a2018-87933`、LAUNCH `18dc7222f6b5ec78-20440`、Workday Learning `18d6ff42778e8868-14131` / Danaher `R1316263`は各official statusまたはstrict pre-effect proofでcloseし、replay-zeroを確認する。その後Connector、Job Hunterの各owner、Fundraiserをidle/admission eligibleの順に1件ずつapply/readbackする。
 7. **End-to-end runs and capacity:** Luma Compassのregistration、Workday application、VC/AI-founder cold outreachをそれぞれnatural occurrenceで実行し、provider receipt・Telegram・`gpt-6-luna/max/fast`を同一runで照合する。並行時間窓のclaims/reservations/queue/CPU/RAM/diskを測って実同時実行数を報告し、容量不足が再発した場合だけadmission architectureを変更する。応募・送信・面談・資金調達・settled cashは別指標とし、現金は入金receiptとcost確認後だけ計上する。
 
-**現在cursor:** branchのlocal-only closure撤去をpush → 並行してFoundersEdge official readbackの有無/receipt IDとPR #7115 CI/reviewを確定 → 可能な場合だけprovider adapterを実装しfresh review/CI → 両sourceをlatest mainへ統合 → immutable release/handoff/doctor → occurrence fence closure → owner別apply → 3 loop natural receipts → same-window capacity/economic readback。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 19:21 JST — fail-closed correction pushed
 
@@ -7879,7 +7879,7 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 - Corrected reconciler suite: 8/8; `git diff --check`, source-boundary, `lm-loop-contract` (`18/187/112`), and OSS self-contained verifier pass. The correction intentionally keeps FoundersEdge occurrence `18dc7f3bc472c260-76084` fenced because provider-owned application ID/status readback is still absent.
 - Last PR readback for #7115: OPEN, head `bba4ea5`, base `bdafa9ac30`, while fetched main is `91066e3368`; CI/review remained incomplete. Keep its active owner on that sync/review path.
 
-**現在cursor:** FoundersEdge official readback feasibility + PR #7115 latest-main CI/review in parallel. Only a provider-owned exact application ID/status can unlock the adapter task; if the provider offers no such readback, leave this occurrence fenced and continue independent Connector/Job Hunter source and capacity work without replaying it.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 19:31 JST — PR #7115 merged; current capacity and provider-route evidence
 
@@ -7899,7 +7899,7 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 6. **Owner apply / natural runs:** apply Connector, Job Hunter owners, and Fundraiser one at a time when idle and admission-eligible. Verify Luma registration, Workday application, Fundraiser cold mail to new VCs/AI founders, Telegram outcome, and `gpt-6-luna/max/fast` from each natural run.
 7. **Concurrency / economics:** after the DB lock is released and all three loops run naturally, collect claims, reservations, queued age, per-class contention, CPU/RAM/disk in one time window. If capacity remains blocked, identify the exact admission owner/function before changing caps or architecture. Report applications, replies/meetings, and settled cash separately; count cash only with official receipt and costs.
 
-**現在cursor:** commit/push latest-main sync and this status → fresh review/CI for the safe Fundraiser branch → FoundersEdge readback feasibility → immutable release/handoff/doctor → exact effect closure → owner-specific applications → same-window concurrency and economic readback.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 **Architecture sources checked:** OpenClaw `https://docs.openclaw.ai/tools/subagents/operations`, `https://docs.openclaw.ai/gateway/config-agents/entries-and-multi-agent`, upstream source `https://github.com/openclaw/openclaw/blob/main/docs/tools/subagents/operations.md`; Temporal `https://docs.temporal.io/task-queue` and `https://docs.temporal.io/activities`; FoundersEdge `https://www.foundersedge.com/apply/` and `https://www.foundersedge.com/frequently-asked-questions/`.
 
@@ -7909,7 +7909,7 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 - PR #7121 is OPEN at head `ad52406c`. Last required-check read: run `37764459463`; Loop control, Python/unittest, PII, TruffleHog, and gitleaks were pending; shell syntax, source-independent instruction checks, OSS, and startup drift passed. This SSOT update changes the PR head, so required CI must pass again on the new head before merge.
 - Production has not changed from the 19:31 readback: release `88dfdaf4`, old reconciler PID `7017`, doctor false, FoundersEdge and Workday Learning fences remain. Do not treat source review or PR CI as provider or production evidence.
 
-**現在cursor:** commit/push this SSOT status → wait for PR #7121 required checks on the new head → merge after independent review/CI → obtain FoundersEdge provider ID/status or keep its fence → cut one main-derived immutable release → natural handoff/doctor → exact fence reconciliation → owner apply and 3 natural business receipts → same-window capacity/economic readback.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 19:45 JST — main advanced to 91c0; live handoff/capacity still open
 
@@ -7930,7 +7930,7 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 6. Apply eligible idle owners one at a time; confirm Luma Compass registration, Workday application, and new VC/AI-founder outreach using exact provider receipts, Telegram outcomes, and natural-run `gpt-6-luna/max/fast` selection.
 7. After all three owners run naturally on the new release, capture claims/reservations/queue age/admission reasons/CPU/RAM/disk in one interval. If SQLite remains locked, trace the exact writer using `runtime/host/resource_admission.py::_database` and callers before changing caps. Current total available concurrency is unmeasured; OpenClaw's 8-per-session and 5-active-child limits do not answer it. Keep OpenClaw and Life Manager admission authority; only revisit architecture if this measured bottleneck remains after #7125 and owner repair.
 
-**現在cursor:** finish/push merge to main `91c0e48b75` → PR #7121 same-head CI/review/merge → immutable release/handoff/doctor → exact provider fences → owner apply/natural receipts → same-window capacity/economics.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 19:50 JST — PR #7121 OSS inventory blocker traced
 
@@ -7938,7 +7938,7 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 - Updated only `docs/manifests/oss-merge-1-sources.json` to the canonical tracked-file inventory SHA-256 `7dd9b49c0297df410753c412fb0d38182df3662962a8b283b56b448bd39f16ec`. Local `node scripts/verify-oss-self-contained.mjs --json` now returns `ok=true`, `violations=[]`; `git diff --check` passes. Capafy source remains untouched.
 - The latest PR #7121 required-check run was on the previous head and had OSS red, with Loop control and secret scans still pending. This manifest/spec update changes the head; rerun every required check and refresh the independent review on the exact pushed SHA.
 
-**現在cursor:** push manifest digest + this SSOT correction → fresh read-only review and required CI for PR #7121's new head → merge after all checks pass → FoundersEdge readback or keep exact fence → latest-main immutable release/handoff/doctor → eligible owner applies → three natural provider receipts → same-window concurrency/economics.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 
 ### 2026-10-08 19:58 JST — latest-main inventory refresh
@@ -7969,7 +7969,7 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 
 **完了条件:** 三loopがmain由来immutable releaseからloaded argv/SHA一致で自然terminalし、Luma登録・Workday応募・新規VC/AI-founder送信にofficial/providerまたはsent-mail evidenceがあり、各自然runのgpt-6-luna/max/fastとTelegram報告を確認する。全effect unknownはexact target単位でprovider照合またはfence維持し、replay-zeroを保つ。実同時実行数は同一窓のclaim/queue/resource readbackから算出し、8という設定値やOpenClaw上限を実稼働数として扱わない。収益は応募・返信・面談と分け、settled cashと費用で評価する。
 
-**現在cursor:** このSSOT修正をpush → PR #7121新HEADのrequired CI/review → merge → immutable release → natural handoff/doctor → exact target fences → owner別natural run → same-window capacity/returns.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 
 ### 2026-10-08 20:07 JST — latest-main sync and current completion cursor
@@ -7995,7 +7995,7 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 
 **完了条件:** 三loopがmain-derived immutable releaseからloaded SHA/argv一致で少なくとも一回ずつ自然terminalし、Luma登録・Workday応募・新規VC/AI-founder cold mailのofficial/providerまたはsent-mail evidence、各natural runのgpt-6-luna/max/fast、Telegram報告が揃う。unknown effectはtargetごとにofficial readbackまたはfence維持、replay-zero。実同時実行数は同一窓のclaim/queue/resource readbackから算出し、cap 8やOpenClaw subagent limitsを稼働数と混同しない。面談・資金調達・settled cash・costは別々に報告する。
 
-**現在cursor:** push latest-main merge + manifest digest + SSOT → PR #7121 new-head CI/review → merge → immutable release → natural handoff/doctor → exact fences → owner natural runs → capacity/economic readback.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 
 ### 2026-10-08 20:10 JST — latest-main spec push complete; acceptance is next
@@ -8014,7 +8014,7 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 7. Confirm natural provider outcomes: Luma Compass event registration; Workday applications; novel VC and AI/AGI-founder cold mail. Read gpt-6-luna/max/fast from each natural-run event and send each result through its existing Telegram report path. For positive fundraiser replies, arrange a podcast or Zoom; after an in-person invitation, record the visit and actual cost.
 8. In the same time window, read active claims/reservations/queue age/admission reasons/per-class contention/CPU/RAM/disk and report actual simultaneous loops. Report applications, responses, meetings, funding, settled cash, and cost separately. Reconsider scheduler architecture only if a measured scheduler-specific bottleneck remains after owner fixes; keep configured cap 8 distinct from live capacity.
 
-**現在cursor:** latest-head CI/fresh review → merge → immutable release → natural handoff/doctor → exact effect readback → owner-by-owner natural outcomes → same-window capacity and economic readback.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 
 ### 2026-10-08 20:36 JST — latest-main PR sync and verified disk-pressure cursor
@@ -8131,7 +8131,7 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 
 **完了条件:** 三loopがmain由来immutable releaseで自然terminalし、Luma registration、Workday application、VC/AI-founder outreachの公式結果、各runの`gpt-6-luna/max/fast`、Telegram報告が同じoccurrenceへ結び付く。未解決effectはtarget単位でfenced、replay-zero。disk receiptとadmission回復が確認され、同じ時間窓の観測で実同時実行数・queue待ち・資源上限を報告する。収益は公式settlementと費用を確認した分だけ計上する。
 
-**現在cursor:** cursor correctionをpush → new-head CI/fresh review → merge → cleanup自然receiptとadmission pass → immutable release/natural handoff/doctor → exact effect readback → owner別natural runs → same-window capacity/economics。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 
 ### 2026-10-08 20:59 JST — exact-head cursor and launchd cleanup diagnosis
@@ -8155,7 +8155,7 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 
 **完了条件:** 三loopがmain由来immutable releaseから自然terminalし、各Luma registration、Workday application、VC/AI-founder outreachのofficial result、`gpt-6-luna/max/fast` event、Telegram receiptが同じoccurrenceへ結び付く。unknown targetはofficial readbackまたはstrict pre-effect proofまでfenced、replay-zero。cleanup receiptを記録するがfree-space値でloop admissionを止めず、同一窓の実稼働数・queue・resource measurementsとsettled cash/costを公式証跡で確認する。
 
-**現在cursor:** current SSOT/plan commit push完了 → current-head CI/fresh review → PR #7121 merge → isolated disk-discovery test/fix PR → cleanup owner diagnostics (no numeric producer gate) → immutable release/doctor → target effect readback → owner natural outcomes → same-window capacity/economics。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 21:11 JST — CFO latest-main sync and capacity receipt
 
@@ -8177,7 +8177,7 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 8. A9で`loop_pnl.py --date`をsource-row期間に結び付け、daily/MTD/trailing/MRRのcurrency/freshness/coverage/receiptを検証する。
 9. A10で7日連続natural reportの全source coverage、settlement/cost join、runtime/provider receipt、期間一致、replay-zeroを確認する。
 
-**現在cursor:** `latest-main mergeをcommit/push → PR #7106 new-head CI/fresh review/merge → reconciler idle + immutable CFO release/readback → next natural CFO receipt/runtime-link/replay-zero → A5 → A6 → A8 → A9 → A10`。capacity floorはfresh receiptでPASSしたが、次の自然CFO reportはまだ未実行。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 21:17 JST — runtime receipt counter regression proof
 
@@ -8188,7 +8188,7 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 - **Head status:** run `37775414552` on head `44c1e8ec` completed 9/9 checks PASS, but it predates this regression test. The test+SSOT update must be pushed and checked/reviewed on its resulting exact head. PR #7106 remains draft/open and unmerged.
 - **Live CFO/capacity:** CFO remains loaded-idle on `804effc5`; last natural occurrence `18dc8bf27219e548-41754` at 11:59:07Z deferred before effect with `disk_headroom_low`. Host cleanup receipt at 12:06:53Z proved `free_after=2,525,483,008`, 2 GiB floor met, errors 0, protected deletions 0; next scheduled CFO occurrence remains the required natural report proof. Release reconciler process PID `85343` is still loaded-running with child `85581`; its latest terminal reported `entrypoint_exit_1`, so do not overlap its current owner run or infer release apply.
 
-**現在cursor:** `test+SSOT commit/push → current-head CI + fresh review → PR #7106 merge → reconciler natural terminal/idle → immutable CFO release/readback → next natural report receipt/runtime-link/replay-zero → A5 → A6 → A8 → A9 → A10`。host capacity admission is recovered by a fresh receipt; the natural CFO report and release handoff remain unverified.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 21:10 JST — #7121 merged; disk discovery fix locally accepted
 
@@ -8212,7 +8212,7 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 
 **完了条件:** cleanup receiptとerror/protected-deletion結果を記録し、2 GiB未達をproducer admissionに使わない。三loopは同一immutable releaseから自然terminalし、official result、`gpt-6-luna/max/fast`、Telegram reportを同一occurrenceに照合する。unknownはtarget別fence/replay-zero、capacityは同一窓の実測、収益はofficial settlementと費用で確かめる。
 
-**現在cursor:** disk source/spec commit-push → exact-head CI/fresh review → PR merge → immutable release/natural reconciler → cleanup receipt diagnostic → retired-label doctor/fence readback → owner natural outcomes without numeric free-space gate → same-window capacity/economics。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 
 ### 2026-10-08 21:16 JST — disk sweep allowlist boundary corrected
@@ -8236,7 +8236,7 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 
 **完了条件:** cleanup receiptとerror/protected-deletion結果を記録し、recovery floorをproducer gateにしない。三loopが同一releaseから自然terminalし、official result、model、Telegram reportを同一occurrenceへ結び付ける。unknownはtarget別fence/replay-zero、capacityは同一窓の実測、収益はofficial settlement/costで確認する。
 
-**現在cursor:** updated disk PR commit/push → new-head CI/fresh review → PR #7139 merge → immutable release/natural handoff → cleanup receipt diagnostic → retired-label doctor/effect fences → owner natural outcomes → same-window capacity/economics。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 
 ### 2026-10-08 21:17 JST — sweep allowlist regression and final-head cursor
@@ -8261,7 +8261,7 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 
 **完了条件:** fixed-source immutable releaseからcleanup receiptを記録し、error/protected-deletion結果を確認する。2 GiB未達はloop admissionを止めない。三loopの自然terminal、target別official result、fence/replay-zero、同一窓capacity、official settlement/costを確認する。
 
-**現在cursor:** PR #7139 latest-head CI/fresh review → merge → immutable release/natural reconciler → cleanup receipt diagnostic → retired-label doctor/target fences → owner natural outcomes without numeric free-space gate → same-window capacity/economics。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 21:33 JST — CFO effect fence root cause and fail-closed source fix
 
@@ -8282,7 +8282,7 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 5. On the next natural CFO report after the fixed code is loaded, verify the same occurrence's runtime terminal provider receipt/ref, B7/outbox/provider ID/hash, `admission_effect_unknown=false`, and replay-zero.
 6. Complete A5 production migration/RPC/permission/panel readback → A6 Google billed/Monitoring/cash/operation attribution → A8 all 18 loops/187 jobs revenue-cost classification → A9 true source-period daily/MTD/trailing/MRR → A10 seven consecutive natural reports with full coverage and replay-zero.
 
-**現在cursor:** `commit/push tested a7dd sync + CFO fail-closed fix → exact-head CI/fresh review/merge → uncoalesced release-reconciler apply + retired-label doctor + >=2 GiB receipt → natural CFO receipt/runtime-link/replay-zero → A5 → A6 → A8 → A9 → A10`。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 21:30 JST — retired provision-browser guard identity corrected
 
@@ -8306,7 +8306,7 @@ This note is specific to the Web Cloud travel product; it does not change the eB
 
 **完了条件:** disk修正とguarded retirementを含むimmutable releaseでcleanup receiptとerror/protected-deletion結果を記録し、doctor全gateを確認する。2 GiB未達はloopを待機させない。三loopの自然terminal、official result、target別fence/replay-zero、同一窓capacity、official settlement/costを確認する。
 
-**現在cursor:** guard PR exact-head CI/fresh review → merge → immutable release/natural handoff → cleanup receipt diagnostic → guarded Capafy retirement/doctor → target effects → owner natural outcomes without numeric free-space gate → same-window capacity/economics。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 
 ### Active contract — remove disk-headroom stops from all loops
@@ -8332,7 +8332,7 @@ This contract supersedes every earlier or later historical cursor and TODO step 
 
 **完了条件:** 実行可能なloopはfree-space数値の低さ・計測不能・cleanup-owned `disk_headroom_low` markerだけではdefer/exitしない。明示operator stopは保持する。共有runnerのscratch `ENOSPC` はretryable eventとして記録し、次回wakeで進む。他の実write failureはowner固有のerror pathに限定して扱い、全producerで同じstructured `ENOSPC`分類があるとは仮定しない。unsafe control stateとeffect-unknownは厳密に保持する。Affiliate収益はprovider公式commission/settlementと実費で判定する。
 
-**現在cursor:** 数値free-space gatesとcleanup-owned low-space markerによるproducer blockを除去済み（operator stopは維持） → focused acceptance/CI + fresh review → merge/release → Affiliate old-ownerのnatural apply/readback → X effect reconcile → 英語記事+日本語要約を自然生成 → PartnerStack公式commission/payout readback。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 22:23 JST — CFO delivery-counter reconciliation and current blockers
 
@@ -8354,7 +8354,7 @@ This contract supersedes every earlier or later historical cursor and TODO step 
 5. 固定CFO SHAの次のnatural eligible occurrenceで同一occurrenceのruntime terminal receipt/ref、B7/outbox counter tuple、provider ID/hash、admission状態とreplay-zeroを照合する。不正/legacy counterはunknownのまま保持し、再送しない。
 6. A5 production migration/RPC/permission/panel readback → A6 Google invoice/Monitoring/cash/operation attribution → A8 全18 loopsのsettled revenue/refund/fees/actual costsと全187 runtime jobs分類 → A9 source-period daily/MTD/trailing/MRR → A10 7日連続natural reports・完全coverage・replay-zero。
 
-**現在cursor:** `release-reconciler full-suite fixture owner fix + PR #7106 exact-head CI/fresh review → sync any new main → merge → natural immutable release/doctor → cleanup structured receipt + admission pass → fixed-CFO natural report receipt/readback/replay-zero → A5 → A6 → A8 → A9 → A10`。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 22:26 JST — latest-main sync and CFO capacity readback
 
@@ -8373,7 +8373,7 @@ This contract supersedes every earlier or later historical cursor and TODO step 
 4. PR #7106の最新headで全required CIとfresh same-SHA read-only reviewを得るまでmergeしない。
 5. merge後、自然immutable release/doctor → 次のeligible CFO natural report receipt/runtime link/B7 counters/provider readback/replay-zero → A5 → A6 → A8 → A9 → A10。
 
-**現在cursor:** `push latest-main merge + SSOT → structured host cleanup receipt/admission pass → local full runtime rerun → PR exact-head CI/review → merge/promotion → fixed-CFO natural occurrence/readback → A5 → A6 → A8 → A9 → A10`。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### CFO producer counter invariant and current cursor
 
@@ -8412,7 +8412,7 @@ This entry supersedes the prior local-review cursor. The business CFO order rema
 4. 固定CFO sourceの次のeligible natural reportでruntime/provider receipt/ref、B7 counters/ID/hash、admissionとreplay-zeroを同一occurrenceで照合する。
 5. A5 production migration/RPC/permissions/panel readback → A6 invoice/cash/operation attribution → A8 18-loop revenue/cost + 187-job classification → A9 source-period daily/MTD/trailing/MRR → A10 7日連続natural reports/full coverage/replay-zero。
 
-**現在cursor:** `commit/push this SSOT status delta → new-head CI + fresh review (CFO source unchanged from 98d59061) → structured cleanup receipt/admission → local full runtime at recovered headroom → merge/promotion → natural CFO receipt/replay-zero → A5 → A6 → A8 → A9 → A10`。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### CFO producer counter guard — implementation status
 
@@ -8667,7 +8667,7 @@ This entry supersedes the prior producer-review cursor. CFO priority remains A5 
 11. [ ] A9: CLI/reportでJST daily、MTD、trailing、MRRを別期間として表示し、`loop_pnl.py --date`がsource rowsを選択日で絞ること、loop別・会社合計がsource rowsに一致することを確認する。
 12. [ ] A10: 7日連続のnatural reportを観測し、全loop・全jobの収益/費用coverage、freshness、receipt、period/currency整合、company total、replay-zeroを確認する。完了まで未確認値を0にしない。
 
-**現在cursor:** latest-main 0d74d4a4とspecをPR #7106 branchへpush → exact-head CI + fresh review → merge → R24/R23 release-reconciler + doctor readback → CFO deterministic queue natural terminal → CFO loaded SHA/readback → natural CFO receipt/replay-zero → A5 → A6 → A8 → A9 → A10。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 **追加readback (2026-10-09 03:48 JST):** CFOはloaded-idleの`ee25a794`、直近 terminal `18dca05580433fd0-26537`は18:10Zのpre-effect `resource_capacity_busy`。次occurrence `18dc9c4ccb645ab0-72084`はeffect_unknown=0でqueued (FIFO sequence `578998`)。18:48Zのadmission snapshotではdeterministic reservationは`x402-settlement-recorder` 1件、active deterministic process claimは0件で、単純な満杯状態ではない。R23はcurrent pointer `6c7b83ee`にあるがCFO label/R24 reconcilerは旧SHAのため、queue starvation/FIFO pathを修正済みとは数えない。release reconcilerはloaded `e1b061f1`、18:44Zにpassした一方`doctor`はunmanaged self-handoff label 1件のため`ok=false`。空き容量594,900 KiB (~0.57 GiB)はreadback値で、numeric admission gateではない。latest-main/spec sync後のremote PR checksは旧headのもので、新headで再取得する。
 
 ### 2026-10-09 03:58 JST — CFO live readback and superseding cursor
@@ -9506,7 +9506,7 @@ This entry supersedes the prior producer-review cursor. CFO priority remains A5 
 5. loaded-idle、lock-free、effect fence解消後にtarget別effectをreplayせず照合し、各自然occurrenceのLuma/Workday/VC mail receipt、model、Telegram reportを結び付ける。free-spaceの数値はadmission条件にしない。
 6. 同時間窓のlive claims/reservations/queue/class contention/CPU/RAM/diskを測る。実測でdiskや外部writerではなくglobal/per-class capの飽和が証明された場合だけcapを変更する。
 
-**現在cursor:** commit/push latest-main branch → exact-head PR CI/review/merge → immutable release/natural fleet continuation → cleanup receipt diagnostic → target effect readback → owner-idle natural outcomes → same-window capacity/economics。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 
 ### 2026-10-08 22:31 JST — reviewで通常errorの再試行間隔短縮を検出
@@ -9547,7 +9547,7 @@ This entry supersedes the prior producer-review cursor. CFO priority remains A5 
 6. target別effect fenceをofficial provider readbackで解決する。`effect_unknown`は再送しない。loaded-idle、lock-freeでeffect fenceの条件を満たすownerを通常手順で実行し、Luma/Workday/VC・AI founderのresult、receipt、model、Telegram reportを同一occurrenceへ結ぶ。Numeric free-spaceはadmission条件にしない。
 7. 三loopの自然runと同一時間窓でclaims、reservations、eligible queue age、admission reason、class contention、CPU/RAM/disk、実同時稼働loop数を測定する。configured global cap 8と実測容量を区別し、disk/owner repair後もcap saturationでrevenue ownerが待つ証拠がある場合だけ、最小のclass/global変更を判断する。応募、返信、面談、funding、settled cash、costsを別々に記録する。
 
-**現在cursor:** commit/push latest-main branch → exact-head PR CI/fresh ship review/merge → natural immutable release/readback → cleanup receipt diagnostic and actual writer attribution → target effect readbacks → owner natural outcomes without numeric capacity wait → same-window capacity/economics。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 
 ### 2026-10-08 22:47 JST — latest main merge後の確認
@@ -9643,7 +9643,7 @@ A second natural occurrence article-daily:18dcc3ed227b5bb0-14566 at 14:02 JST on
 6. loaded-idle、lock-free、effect fence解消後に各ownerを通常自然実行させ、Luma registration、Workday application、VC/AI-founder outreachの同-occurrence provider result、`gpt-6-luna/max/fast`、Telegram reportを確かめる。numeric free-space admissionは使わない。
 7. disk/writer修正後にclaims、reservations、eligible queue age、class contention、CPU/RAM/diskと実際の有限job数を同一windowで測る。global cap 8とresident process数を区別し、class/global cap saturationが実証された場合だけ最小変更を行う。結果と経済数値を別集計する。
 
-**現在cursor:** push SSOT-only PR update → exact-head CI/fresh ship review/merge → natural immutable release and readback → exact disk writer/cleanup diagnostics → Fundraiser official effect reconciliation → owner-idle natural outcomes without numeric capacity wait → same-window capacity/economics.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 
 ### 2026-10-08 23:02 JST — PR cursorとlatest-main競合を更新
@@ -9664,7 +9664,7 @@ A second natural occurrence article-daily:18dcc3ed227b5bb0-14566 at 14:02 JST on
 6. disk/admission回復とeffect fence解決後にConnector/Luma、Job Hunter/Workday、Fundraiser/VC・AI founderの自然occurrenceを確認し、official result、`gpt-6-luna/max/fast`、Telegram reportを同一occurrenceに結び付ける。
 7. disk回復後の同一windowでactive claims/reservations/eligible queue age/class contention/CPU/RAM/diskと有限jobの実並列数を測る。configured cap 8を実測と区別し、cap saturationが実証された時だけ最小変更を行う。
 
-**現在cursor:** exact-head PR #7156 CI/fresh ship review on the current pushed head → PR merge → immutable release/natural readback → disk writer recovery/admission → Fundraiser official reconciliation → target natural outcomes → post-recovery capacity/economics.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 
 ### 2026-10-08 23:24 JST — R18 partial fixes and watchdog recovery
@@ -9687,7 +9687,7 @@ A second natural occurrence article-daily:18dcc3ed227b5bb0-14566 at 14:02 JST on
 6. loaded-idle、lock-free、fence解消後のConnector/Luma、Job Hunter/Workday、Fundraiser/VC・AI-founder natural runでofficial result、`gpt-6-luna/max/fast`、Telegram reportを同一occurrenceに結ぶ。free-spaceの数値はadmission条件にしない。
 7. immutable releaseとowner natural outcomesの後に同一windowのactive claim/reservation、eligible queue age、class contention、CPU/RAM/disk/swap、有限job数を測る。global cap 8は実測飽和が確認できた場合だけ変更する。heavy factory移設はlocal capacity measurement後にcost/benefitが成立する場合だけ扱う。
 
-**現在cursor:** merge/release PR #7179 → natural owner runs without numeric free-space floor → exact effect readback/fence reconciliation → same-window capacity and swap measurement → revenue/economics.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 23:25 JST — latest-main sync and implementation plan
 
@@ -9705,7 +9705,7 @@ A second natural occurrence article-daily:18dcc3ed227b5bb0-14566 at 14:02 JST on
 6. Resolve Fundraiser's four `effect_unknown` occurrences through official provider readback without replay, then observe Connector/Luma, Job Hunter/Workday, and Fundraiser/VC-AI-founder natural outcomes.
 7. Measure claims/reservations/queue age/class contention/CPU/RAM/disk/swap and actual finite-job parallelism in one window after recovery. Change the cap only if observed saturation proves it is the remaining limit.
 
-**現在cursor:** commit latest-main merge → commit SSOT and revenue-floor plan → push → exact-head PR #7156 CI/review/merge → follow-up revenue-floor PR → immutable release/watchdog recovery → target readbacks and natural outcomes → same-window capacity measurement.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-08 23:29 JST — watchdog natural run and follow-up plan (historical; floor proposal superseded by PR #7179)
 
@@ -9724,7 +9724,7 @@ A second natural occurrence article-daily:18dcc3ed227b5bb0-14566 at 14:02 JST on
 - Local verification passed: fleet-apply tests 33/33, `bash -n bin/reconcile-agent-runner-release.sh`, `bash scripts/verify-source-boundary.sh`, and `git diff --check`.
 - PR #7156 head `dce72599` has CI run `37793247368`; those results do not cover this test/SSOT update and are not a gate for the next head.
 
-**現在cursor:** commit/push this test and SSOT correction → exact-head CI/fresh read-only `ship` review → merge #7156 → main-derived release/watchdog readback → revenue-floor follow-up PR → target outcomes and post-recovery capacity.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 
 ### 2026-10-08 23:40 JST — test/review correction and latest-main sync
@@ -9734,7 +9734,7 @@ A second natural occurrence article-daily:18dcc3ed227b5bb0-14566 at 14:02 JST on
 - The stable watchdog remains loaded through `/Users/anicca/.local/bin/disk-watchdog.sh`; readback at 23:39 shows 14 runs. Its natural receipt at `2026-10-08T14:39:42Z` is `free_after=275,648,512`, `reclaimed=6,409`, `errors=0`, `protected_deletions=0`, recovery=`unmet`; `df -k /` at 23:40:54 is `287,516 KiB`. `watchdog.err.log` has not changed since 23:22:18. The stable recovery path works; the remaining exact writer/cleanup candidate is still unknown.
 - Latest main is `bd5ff9441f` (#7171), including #7169's assignment of `priority=critical_paid` to the paid Coconala storefront. This confirms that `critical_paid` is reserved for paid customer work; Connector, Job Hunter, and Fundraiser remain `priority=revenue` and should not be reclassified to get the lower floor.
 
-**現在cursor:** finish merge with latest main `bd5ff9441f` and current test/spec fixes → push → new-head CI/fresh `ship` review → merge #7156 → revenue-floor follow-up PR → immutable release/watchdog and target readbacks.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 
 ### 2026-10-08 23:45 JST — main #7172 sync and cursor correction
@@ -9794,7 +9794,7 @@ A second natural occurrence article-daily:18dcc3ed227b5bb0-14566 at 14:02 JST on
 
 **順序更新:** 旧順序は「PR #7156 merge → revenue-floor follow-up PR → disk/admission recovery」。新順序は「(1) #7177 floor + #7156 retry fixを含むbranchを最新main上でexact-head CI/review → (2) #7156 merge → (3) immutable release/natural admission readback → (4) cleanup receipt/free-spaceを見て三loopのeligible状態を確認 → (5) Fundraiserのunresolved effectをofficial readbackで解決、replay-zero → (6) Connector/Job Hunter/Fundraiserのnatural provider結果をoccurrence別に確認 → (7) 同一windowでqueue age、claims、reservations、実同時実行数、CPU/RAM/diskを測り、cap 8が実際の制約か判定」。理由は#7177がsource merge済みで、二重にfloor実装する必要がなく、natural release/readbackが未実施だから。
 
-**現在cursor:** commit/push latest-main merge `e530f1988e`, closed-out floor plan, and this order update → exact-head PR #7156 required CI/fresh read-only review → merge #7156 → immutable release/natural admission readback → disk/target receipts → unresolved effect reconciliation → natural outcomes → post-recovery capacity measurement.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 
 ### 2026-10-09 00:06 JST — review found and corrected stale cursor
@@ -9802,7 +9802,7 @@ A second natural occurrence article-daily:18dcc3ed227b5bb0-14566 at 14:02 JST on
 - Fresh review of PR #7156 head `306c419530425e1ba425ef3dfe7ead1f583a7d03` returned `fix-first` only because the prior cursor still asked to commit/push the merge and floor-plan update, already completed at that head. The source fix, regression test, main ancestry, and plan status were otherwise accepted. This entry supersedes that cursor.
 - At 00:06 JST, PR #7156 remote head is `306c4195...`, base is `1fe7db3b...`; exact-head CI run `37797802933` has passed Shell syntax, Agent instruction, OSS boundary, PII, and Startup context, while Loop control contracts, Python, TruffleHog, and gitleaks remain pending.
 
-**現在cursor:** run exact-head required CI and fresh read-only review on the current pushed PR #7156 head → merge #7156 → immutable release and natural admission readback → disk/target receipts → unresolved-effect reconciliation → natural outcomes → post-recovery capacity measurement.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 — Life Manager Web identity guard and E2E revalidation
 
@@ -9840,7 +9840,7 @@ A second natural occurrence article-daily:18dcc3ed227b5bb0-14566 at 14:02 JST on
 
 **順序更新:** 旧cursorは「release readback → owner outcomes → capacity measurement」だった。新順序は「(1) `lm-loop reconcile`のexact `effect_unknown`拒否をfailedではなくfenced-skipとして返す回帰テストとsource修正（fenceは解除しない）→ (2) exact-head CI/review/merge → (3) release cut interval到達後の自然main releaseとloaded-SHA readback → (4) cleanup/ENOSPC writerをowner receiptで診断・復旧 → (5) Fundraiserの4 occurrenceをofficial readbackしreplay-zero → (6) 三targetのnatural provider outcomes → (7) disk/swapが安定した同一windowでclaims/reservations/queue age/class cap/RAMを測り、global cap 8が持続的制約か判定」。理由は、release reconcile自体が既知のeffect fenceをfailとして扱っており、制御planeの失敗を先に除かないと最新releaseとowner結果を正しく評価できないため。
 
-**現在cursor:** add a failing regression for exact effect_unknown reconcile refusal while preserving the fence → make only that refusal a safe fenced-skip; keep all other reconcile failures non-zero → exact-head CI/fresh review/merge → natural release/readbacks → disk and effect recovery → post-recovery capacity decision. Do not raise concurrency to unbounded.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 
 ### 2026-10-09 00:39 JST — effect-fence reconcile regression fixed locally
@@ -9849,7 +9849,7 @@ A second natural occurrence article-daily:18dcc3ed227b5bb0-14566 at 14:02 JST on
 - The red test initially returned 1 and marked the fenced owner failed. `runtime/loop/lm_loop.py` now classifies only that exact refusal as a safe fenced skip; the four Fundraiser unknown occurrences and other owner fences remain untouched. `lm-loop reconcile` stays non-zero for other errors.
 - Verification: reconcile tests 36/36 PASS; the full `test_lm_loop_apply.py` suite 178/178 PASS; source-boundary and diff checks PASS. The worktree branch is based on main `1739d3f3`; latest origin/main advanced to `7eda2619` (#7183, Capafy server cap) during the change. That update is unrelated to Life Manager admission code and must be merged before exact-head CI.
 
-**現在cursor:** commit/push this source fix, regression, and cursor → merge latest main `7eda2619` → exact-head required CI and fresh read-only review → merge → natural release/readback → cleanup/effect recovery → same-window capacity decision. No global cap increase is made before stable disk/swap measurements.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 ### 2026-10-09 00:15 JST — 英語Instagramのowner-target applyを確認
 
 - 当時の`df -k /`は空き`2,781,104 KiB`（約2.65 GiB）。その時点のreleaseには512 MiB runner floorがあった。PR #7179がこの数値floorを削除するため、cleanup容量はInstagram ownerの実行前提ではない。
@@ -9884,7 +9884,7 @@ A second natural occurrence article-daily:18dcc3ed227b5bb0-14566 at 14:02 JST on
 - The effect-fence reconciliation fix is on branch `fix/loop-reconcile-effect-fence-20261009` at `b97622ef3012517c619e0476597447ce465df1ad` and is now combined locally with #7183. The RED regression reproduced exit 1; the fix returns an explicit fenced skip for the exact `effect_unknown` refusal, continues independent owners, and keeps unrelated errors non-zero. Reconcile-focused tests pass 36/36, `test_lm_loop_apply.py` passes 178/178, source-boundary and diff checks pass.
 - Production remains separate: current release is `1fe7db3b`, main is `7eda2619`, and the release reconciler is still on `e1b061f1`. It repeatedly reports `entrypoint_exit_1` while reconcile results include exact effect-unknown fences; the new code is not yet in an immutable release. Host samples show transient cap saturation (8/8 reservations+claims, then 6/8) and a retained queue; disk/swap are unstable, so no global cap increase is made yet.
 
-**現在cursor:** create/update PR for `fix/loop-reconcile-effect-fence-20261009` at its latest-main head → exact-head required CI and fresh read-only review → merge → natural main release/readback → diagnose actual disk errors and reconcile exact effect fences (no numeric producer free-space gate) → same-window capacity decision. Keep host cap 8 bounded; Capafy service cap 5 is a separate provider constraint.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 
 ### 2026-10-09 00:42 JST — reconcile-fence PR cursor
@@ -9893,7 +9893,7 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 
 - PR #7185 is open, base `7eda261900f89ccdbb85f647ab1577d7325ac87a`, head `8eca80f169cb983aac3e7dd8157a9d34a6fe7084`; latest main is an ancestor. Its initial CI run is `37802872310`; review and required checks have not completed. This cursor update will create a new PR head, so that run is not acceptance evidence for the resulting head.
 
-**現在cursor:** push this cursor correction, then run required CI and a fresh read-only review on the resulting PR #7185 head → merge #7185 → wait for the main-derived natural release/readback → diagnose actual disk errors and reconcile exact effect fences (no numeric producer free-space gate) → decide host-cap changes from a stable capacity window.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 
 ### 2026-10-09 00:43 JST — fresh source review and cursor correction
@@ -9901,7 +9901,7 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 - Fresh read-only review of PR #7185 head `a28cf316b195e7482f0e8031ed94fe9528c09cb7` returned `fix-first` solely because the preceding cursor still asked to push a correction already present on that head. The source change was accepted: only the exact effect-unknown refusal is fenced-skip, independent owners continue, other errors remain non-zero, and no external-effect fence is cleared.
 - PR #7185 still has base `7eda2619`; check run `37802950202` had not started its jobs at this snapshot. This cursor correction creates a new head, so the next checks and review must use the resulting pushed head.
 
-**現在cursor:** exact-head required CI and fresh read-only review on the current pushed PR #7185 head → merge #7185 → natural main release/readback → diagnose actual disk errors and reconcile exact effect fences (no numeric producer free-space gate) → stable same-window capacity decision. Keep host cap 8 bounded; do not equate it with Capafy’s separate service cap 5.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 
 ### 2026-10-09 00:49 JST — OSS boundary manifest aligned after main update
@@ -9910,7 +9910,7 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 - Updated only `docs/manifests/oss-merge-1-sources.json` for the same 245-file root to digest `e8c476780e9b4292a6b427767847b08a1f3c56f6c66c0e3a216aad799f3c7569`. Local `node scripts/verify-oss-self-contained.mjs` and `git diff --check` pass.
 - The old head's CI is not acceptance evidence for this manifest correction. All required checks must run on the next pushed PR #7185 head.
 
-**現在cursor:** exact-head required CI and fresh read-only review on the current pushed PR #7185 head → merge #7185 → natural main release/readback → disk/effect recovery → stable same-window capacity decision. Keep host cap 8 bounded; the Capafy service limit is separate.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 
 ### 2026-10-09 00:50 JST — #7184 sync and manifest-check recovery
@@ -9918,14 +9918,14 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 - Main advanced from `7eda2619` to `0b9d0f10` via #7184 (authentication readback docs) while PR #7185 CI ran. Merged that main update locally as `54a61254`; no source conflict. The OSS manifest correction from the #7183 inventory change passes `node scripts/verify-oss-self-contained.mjs` locally.
 - The prior CI failure `manifest_inventory_mismatch skills/capafy-autopublish` is corrected in the local PR diff; run `37803106325` is from the earlier head and does not validate this correction. The remote PR head remains `b69a6679` until this latest-main merge and note are pushed.
 
-**現在cursor:** run exact-head required CI and a fresh read-only review on the current pushed PR #7185 head → merge #7185 → natural main release/readback → disk/effect recovery → stable same-window capacity decision. Keep Life Manager host cap 8 bounded; Capafy service cap 5 is separate.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 
 ### 2026-10-09 00:59 JST — #7176 latest-main sync
 
 - Before main moved, PR #7185 head `47ba3513` had all required checks PASS and a fresh source review of ship. Main then advanced from `0b9d0f10` to `d7d3cbae` through #7176 (Mobile distribution/off-slot readback docs only); merged locally as `69f17a3a`, with no source conflict. Prior-head CI/review do not cover this merged base.
 
-**現在cursor:** exact-head required CI and fresh read-only review on the current pushed PR #7185 head → merge #7185 → natural main release/readback → disk/effect recovery → stable capacity decision. Host cap remains bounded at 8; Capafy’s service cap 5 is separate.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 
 ### 2026-10-09 01:08 JST — PR #7185 merged; production remains behind main
@@ -9938,7 +9938,7 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 
 **順序更新:** 旧cursorは「merge #7185 → natural release → capacity decision」。新順序は「(1) current release reconcilerの自然terminalを待ち、最短cut時刻後にcurrent SHAを確認 → (2) merged main `1136b703` がimmutable releaseに載り、reconciler/target ownersのloaded SHAとfenced skipsをreadback → (3) disk cleanup/ENOSPC rootをowner receiptで直し、512 MiB revenue floorを安定させる → (4) Fundraiserの4 unresolved occurrenceをofficial provider readbackで個別解決し、replay-zero → (5) Connector/Job Hunter/Fundraiserのnatural provider outcomesとTelegram receiptsを同一occurrenceへ照合 → (6) disk/swap安定後の同一windowでclaims/reservations/queue age/class limits/RAMを測り、必要な最小cap変更を行う」。理由はmain統合済みでもcurrent releaseが一世代遅れ、現時点ではdisk/swapと8枠occupancyの両方が変動しているため。
 
-**現在cursor:** at or after 16:29:08 UTC, read the natural release pointer and reconciler receipt for main `1136b703`; then follow the ordered production and capacity evidence above. Do not manually cut/restart an active reconciler, replay unresolved Fundraiser effects, or remove the finite-run bound.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 
 ### 2026-10-09 01:32 JST — release did not advance; shared admission backlog measured
@@ -9952,7 +9952,7 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 
 **順序更新:** 旧cursor=`at or after 16:29:08 read release pointer → disk/effect recovery → target outcomes → capacity measurement`。新順=`(1) observe the active natural reconciler occurrence through terminal and record the post-16:29 release/readback without restart → (2) reproduce the shared SQLite lock failure with a focused regression and fix its cause, preserving every fence → (3) merge on latest main and wait for a natural immutable release/fleet reconciliation; this must let owner plists move off old pinned releases → (4) require a fresh cleanup receipt with `free_after >= 2 GiB`, zero errors/protected deletions, and subsequent admission pass → (5) deploy the #7187 no-effect guard, then resolve existing Fundraiser/mobile unknowns only by exact provider readback or strict pre-effect proof → (6) run Connector/Luma, Job Hunter/Workday, and Fundraiser/VC/AI-founder loops naturally with `gpt-6-luna/max/fast`, receipts, and Telegram reports → (7) drain eligible revenue backlog and measure queue age, claims/reservations, class contention, CPU/RAM/disk in the same window; change bounded class/global caps only if they remain the proven bottleneck`。理由は、releaseが進まず古いgenerationがpinされたままで、DB lockがfleet reconciliationを失敗させ、cleanup receiptも2 GiB floorに届かないため。
 
-**現在cursor:** poll the active release-reconciler occurrence to terminal → read the next natural post-16:29 release attempt → write the SQLite lock RED regression and source fix → latest-main PR/CI/review/merge → immutable release and natural fleet readback → safe owner reconciliation/release GC and 2 GiB cleanup/admission → official effect fences → three-loop natural outcomes → eligible queue drain and same-window bounded capacity decision. Never replay `effect_unknown` or stop/restart the active reconciler.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 ### 2026-10-09 01:26 JST — English Monk Hadrian asset and net-revenue status
 
 - PR `#7173` is merged; `ebook-en-instagram-daily` is in main. The production pointer still reads `20261009T000957-1fe7db3b`, and `lm-loop health --loop ebook-en-instagram-daily` returns `unknown health loop`. The 00:57 JST disk sample had `1,340,980 KiB` free, above the owner’s 512 MiB floor. Do not use a fleet-wide apply or stop/restart the shared reconciler.
@@ -9965,7 +9965,7 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 
 **順序更新:** 旧cursor=`source merge → 予定時刻を待つ → 完了済みMP4を投稿 → 1,002人を$10K MRR扱い`。新cursor=`(並行) Hadrianの正確な動画ID/ファイルを特定 + 通常の電話確認 → 7日warmupと正確なInstagramのPostiz接続 → 必要なら旧動画用のdurable Postiz receipt経路を追加 → main-derived releaseとEnglish Instagram ownerだけをapply → eligibleになったらHadrianを即時投稿 → English Instagramの3 receipt/日を確認（4 owner全体では12 scheduled/日）→ settled order/refund/measured cost/payoutを照合 → portfolio-wide net MRRをCFO readback`。理由は既存投稿ログがTikTok宛で、Instagram identityが未確認・未接続、canonical ownerも旧MP4を受け付けず、one-time eBook saleはMRRではないため。CAPAFYは対象外。
 
-**現在cursor:** Daisの入力が必要な具体物は、Hadrian動画のIDまたはファイルと、選択中iPhoneの再接続。これと並行して仕様PRのCI/mergeを完了する。本人確認後はwarmup、Postiz接続、target-only release applyへ進み、Hadrianの公式PUBLISHED receiptを得た後、English Monk Instagramの3投稿/日を確認する。12投稿/日は4 ownerの登録schedule目標で、自然occurrenceの全receiptは未確認。$10K判定はsettled revenue、refund、measured cost、payout/bank readbackを含むportfolio-wide net MRRで行う。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 
 ### 2026-10-09 01:46 JST — Anicca mobile native-carousel rollout
@@ -9980,7 +9980,7 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 
 **順序更新:** 旧cursor=`PR #7187 merge → release candidate → EN/JP1 target apply`。新cursor=`(1) active release-reconciler runをstop/restartせずterminalまで観測し、current releaseとowner別fleet結果をreadback → (2) cleanup ownerの実ENOSPC原因・writerを既存owner内で診断し、receiptの容量値はdiagnosticとして記録（2 GiB到達を待たない） → (3) 残るTikTok ownerを一つずつ、owner loaded-idle・apply lock-free・effect-fence許可時に最新main releaseへ適用し、loaded SHA/state pathを確認 → (4) Instagram/YouTube/Honne ownerを同じ安全条件で適用し、running/unloaded ownerはidle/有効状態を確認してから進める → (5) Postiz公式readbackで各実アカウントの3件/日・native URL・重複なしを自然slotで確認 → (6) Postiz/TikTok/Instagram/YouTubeのview・impression・engagementをpost ID単位で取得し、欠測/API制約を記録 → (7) ASC impression/product-page view/download、RevenueCatのsettled revenue/refund/fee、MixpanelまたはPostHogのinstall→onboarding→paywall→purchaseを同期間で結ぶ → (8) 一度に一層ずつdistribution/content→store conversion→onboardingを改善し、settled net MRRで$10Kを検証する`。理由は、sourceはmainにあるが18 publisher全体の自然receipt、実アカウントmapping、同期間のconversion evidenceはまだ揃わず、古いowner releaseのdisk deferとactive reconcilerのapply lockが観測されていたため。
 
-**現在cursor:** `release-reconciler` run `18dc9b69fa9d4cf8-82334` のterminal readback。これが終わるまでは追加owner applyを行わない。次にcapacity/cleanupの正確な境界を解消し、TikTok ownerから最新main releaseへ一つずつ適用して、自然Postiz receiptとviewsを確認する。$10K net MRRは未達/未検証として扱う。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 01:48 JST — immutable release advanced; admission compatibility repair in progress
 
@@ -9993,7 +9993,7 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 
 **順序更新:** 旧cursor=`SQLite lock fix → immutable release/fleet readback → 2 GiB cleanup → effect fences → target outcomes`。新順=`(1) latest-main compatibility PR: 30-second bounded busy wait + no journal-mode downgrade, with RED regression → (2) exact-head review/CI/merge → (3) natural release, then verify every legacy owner process/plist has migrated before a separate WAL-enable release → (4) bounded fleet rebind/GC and fresh cleanup/admission receipt → (5) resolve Fundraiser/mobile effect fences only by exact official readback or strict pre-effect proof → (6) natural Connector/Luma, Job Hunter/Workday, and Fundraiser/VC/AI-founder results with configured model and Telegram receipts → (7) drain eligible revenue backlog and measure same-window class capacity; keep the finite cap and disk floors until saturation and safe headroom are proven`。理由は、#7192のmanifest修正でCI blockerは解消できる一方、自然releaseはcutできてもowner applyがENOSPCで部分適用され、旧releaseが共有DBへjournal modeを書き戻す可能性が残るため。
 
-**現在cursor:** 完了: latest `origin/main=9449e1c7` をPRブランチへ統合し、main側の英語Monk・モバイル・R21記録を保持。`test_resource_admission.py` + `test_lm_loop_apply.py` + `test_macos_loop_registry.py`: 454 passed / 239 subtests passed。次: merge commitをpush → exact-head CIとfresh read-only `ship` review → PR merge → natural immutable release/fleet migration → legacy consumer消失確認 → WAL-enable follow-up → safe release GCと2 GiB cleanup/admission → official effect fences → Connector/Job Hunter/Fundraiser自然結果とqueue/capacity readback。稼働中reconcilerは自然完了を待ち、`effect_unknown`を再送せず、#7179を現状のままmergeしない。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 02:11 JST — host capと3対象loopのlive readback
 
@@ -10004,7 +10004,7 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 
 **順序更新:** 旧cursor=`latest-main sync → exact-head CI/review → source merge → natural release`。新順=`(1) PR branchをlatest main `4346b61c`へ同期し、R21/容量specを統合 → (2) final-head CIとfresh read-only reviewを確認 → (3) PR #7189をmerge → (4) active reconcilerを止めずnatural immutable releaseとowner SHAをreadback → (5) 新sourceで数値disk floorがadmissionを止めないことを確認し、実ENOSPCがあればwriter/operationを診断（cleanupの2 GiB到達はproducerの前提にしない） → (6) Job Hunterのinner `transport_failed` がouter successになる経路を失敗テストで固定・修正し、unknown submitは再送しない → (7) Fundraiser/mobile effect fenceを公式readbackまたは厳密なpre-effect証明だけで処理 → (8) Connector/Luma、Job Hunter/Workday、Fundraiserの自然実行・provider receipt・Telegram報告を確認 → (9) 同一窓のqueue age/claims/reservations/resource class/CPU/RAM/diskを測り、8枠が実測bottleneckの場合だけbounded capを調整する`。理由は、旧installed releaseでは3対象が `disk_headroom_low` と報告する一方、最新mainはその数値gateを撤去済みで、まず自然release後の動作差を測る必要があるため。
 
-**現在cursor:** latest main `4346b61c` をPR branchへ同期してこのlive readbackとpolicy correctionを保持 → commit/push → final-head CI + fresh read-only review → merge → natural immutable release/owner readback → disk admissionと実ENOSPCを再測定 → Job Hunter false-success repair → official effect fences → 3 loopのreceipt付き自然結果 → 同一窓capacity測定と有限cap判定。cleanupの2 GiB receipt目標はadmission gateにせず、現行reconcilerは自然完了を待ち、`effect_unknown`を再送しない。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 02:14 JST — latest-main integration and focused verification
 
@@ -10014,7 +10014,7 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 
 **順序更新:** 旧cursor=`latest mainを同期 → 統合test → current PR head`。新順=`(1) test correctionとこの記録をcommit/push → (2) final PR headのfresh read-only review + required CI → (3) PR #7189 merge → (4) active reconcilerを止めずnatural immutable releaseと対象owner SHA readback → (5) #7179 policy下で3 loopを再観測し、numeric floor解除後のadmissionと実ENOSPCを区別 → (6) Job Hunter false-success経路を回帰修正し、unknown submitは再送しない → (7) Fundraiser/mobile fenceは公式readbackまたは厳密なpre-effect証明だけで処理 → (8) Connector/Luma、Job Hunter/Workday、Fundraiserのprovider receipt付き自然結果とTelegram報告 → (9) 同一窓のqueue age/claims/reservations/resource class/CPU/RAM/diskを測り、8枠が実測bottleneckならbounded capを判断する`。理由は、最新sourceは統合済みでもproduction pointerは旧releaseのままで、live gate解除も3対象の成功も未確認だから。
 
-**現在cursor:** test correction + verification記録をcommit/push → final-head review/CI → PR merge → natural release/owner SHA readback → 3 loopの新admission結果/実ENOSPC/official effect receipts → Job Hunter false-success repair → target loopsの自然結果とTelegram → 同一窓capacity測定。旧releaseのdisk blockが消えたと推定せず、`effect_unknown`を再送しない。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 02:29 JST — fleet applyがobsolete release SHAを継続
 
@@ -10025,7 +10025,7 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 
 **順序更新:** 旧cursor=`PR #7189 merge → natural release/owner SHA readback → 3 target loop status`。新順=`(1) 完了: owner間pointer swapとpre-apply raceを回帰テストで固定 → (2) 完了: fleet applyのcurrent再確認 + CLI `require_current`をprotocol lock下で適用し、exact stale refusalをsuperseded/short retryとして記録 → (3) source/spec/testをcommit/pushし、fresh read-only reviewとexact-head CI → (4) latest mainへPR merge → (5) 現行e1b061 reconcilerには触れず、natural releaseで最新SHAへowner単位reconcile → (6) 3対象の新SHA/admission/公式receiptを再観測 → (7) Job Hunterのbrowser `transport_failed` がouter passになる修正 → (8) unresolved effect fenceを公式readbackまたはstrict pre-effect proofだけで扱う → (9) Connector/Luma、Job Hunter/Workday、Fundraiserのreceipt付きnatural result/Telegram → (10) 同一窓のqueue age、claims/reservations、resource classes、CPU/RAM/diskを測定し、host cap8が実bottleneckの場合だけbounded調整`。理由は、現runがcurrentより前のSHAで180 owner rowsを処理し、pointer advance後も古いSHAを使い続けた実ログがあるため。
 
-**現在cursor:** 完了: 2種類のpointer raceを回帰テストでRED→GREEN、fleet suite 36 passed / 14 subtests、lock/CLI 3 passed、shell syntaxとdiff check。次: source/spec/testをcommit/push → fresh read-only final-head review + exact-head CI → PR merge → old reconcilerを止めずnatural release/owner SHA readback → 3対象の実admission/receipt → Job Hunter false-success修正とofficial effect reconciliation → 同一窓queue/capacity判定。stop/restart、手動apply、`effect_unknown` replayをしない。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 02:45 JST — Anicca iOS画像の再利用と生成費
 
@@ -10044,7 +10044,7 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 
 **順序更新:** 旧cursor=`PR #7199 review/CI → merge → natural release → Job Hunter false-pass repair`。新順=`(1) final stale-SHA headをcommit/pushし、fresh review + exact-head CI → (2) PR #7199をmerge → (3) 現行reconcilerを止めずnatural release/handoffとowner SHAをreadback → (4) Job Hunterの`validate_pass_result` terminal-failure false-passをtest-firstで修正し、同じWorkday rowを自然wakeで再開（submit_unknownが0である証拠を維持） → (5) Fundraiserのeffect fenceは公式readbackかstrict pre-effect proofだけで解決 → (6) Connector/Luma、Job Hunter/Workday、Fundraiserそれぞれのprovider receiptとTelegram報告を確認 → (7) same-window queue age/claims/reservations/resource classes/CPU/RAM/diskを測り、実測bottleneckに基づいてhost cap8をbounded調整する`。理由は、最新readbackでJob Hunterが「pass」でもWorkday attemptは明示的transport failureで、実応募0とtelegramsのfailed報告が揃い、成功判定コードの具体的な根拠が得られたため。
 
-**現在cursor:** stale-SHA raceをprotocol shared/exclusive lockで閉じたcode+test+specをcommit/push → fresh review/CI → merge → natural new release + owner readback → Job Hunter false-pass fix → provider receipt付き自然結果 → bounded capacity measurement。現行reconcilerをstop/restartせず、unknown external effectを再送しない。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 02:48 JST — final main sync before stale-SHA acceptance
 
@@ -10053,7 +10053,7 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 
 **順序更新:** 旧cursor=`protocol-lock fix → test → final review/CI`。新順=`(1) latest-main sync完了 → (2) `test_reconcile_agent_runner_release_fleet_apply.py`と`test_lm_loop_apply.py`をsync後に再実行、shell syntax/diff check → (3) merge commitをpush → (4) exact-head fresh review + required CI → (5) PR #7199 merge → (6) current `4346b61c`からのnatural release/handoffを観測し、owner SHAとfenceをreadback → (7) Job Hunter false-passを`validate_pass_result`の回帰テストで修正 → (8) 3対象の公式receipt/Telegram result → (9) 同一窓queue/capacityを測り、host cap8を実測で判断する`。理由は、最新mainが受け入れ前にさらに進んだため、完成PRをそのmain上で検証する必要があるため。
 
-**現在cursor:** 完了: latest main `ee25a794` をmergeし、sync後にfleet suite 36 passed / 14 subtests、apply suite 179 passed / 42 subtests、`bash -n`と`git diff --check`がPASS。次: merge/spec updateをpush → exact-head fresh review + CI → PR #7199 merge → natural release/owner readback → Job Hunter false-pass fix → 3 loopsのreceipt付きnatural result → capacity measurement。live reconcilerは動作中のまま保持し、`effect_unknown`を再送しない。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 02:54 JST — Job Hunter false-pass repair moves alongside fleet guard
 
@@ -10064,7 +10064,7 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 
 **順序更新:** 旧cursor=`PR #7199 review/CI → merge → natural release/owner readback → Job Hunter false-pass fix`。新順=`(parallel source work) (1) PR #7199 exact-head review/CI continues → (2) separate latest-main branch adds a RED single-terminal-command regression and minimal validator fix → (3) merge both source fixes before the next eligible natural release so one immutable generation carries them → (4) natural owner SHA/readback, leaving `effect_unknown` fenced → (5) Job Hunter retries the same queued row only after confirming `submit_unknown=[]`, then requires provider receipt/Telegram result → (6) resolve Fundraiser/mobile fences only by official readback or strict pre-effect proof → (7) verify Connector/Luma and all three target loops → (8) same-window bounded capacity measurement. 理由は、Job Hunter source/testはfleet reconciliation変更と独立し、既にouter passとinner transport failureの同一occurrence証拠があり、両修正を1回のnatural releaseへまとめられるため。'
 
-**現在cursor:** 完了: latest-main `ee25a794` branch、single terminal nonzero runtime RED→GREEN、`invoke_runner` integration、27 passed / 11 subtests。次: spec/source/testをcommit/push → fresh read-only review + exact-head CI → mainへmerge（PR #7199と別PR） → 両source fixを含むnatural release → Workday同一queued rowをnatural wakeで再開し、official receipt/Telegram resultを確認。`submitted`または`submit_unknown`が非空ならsemantic retryしない。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 03:01 JST — PR #7200 のmain由来fixture差分
 
@@ -10080,7 +10080,7 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 
 **順序更新:** 旧cursor=`merge source PRs → natural release → measure capacity → decide cap`。新順=`(1) PR #7199 stale-SHA CI/review/merge + PR #7203 false-pass CI/review/merge → (2) one natural release/handoff carrying both fixes; verify owner loaded SHA and preserve `effect_unknown` → (3) Job Hunter same-row retry only with `submit_unknown=[]`, then provider receipt/Telegram; Fundraiser fence only via official readback or strict pre-effect proof → (4) remeasure queue/live claims/reservations/per-class caps and same-window CPU/RAM/swap/disk after reconciliation → (5) with safe headroom, raise only the proven saturated class by one bounded step and observe; without headroom, evaluate additional worker hosts/shared broker/fence reconciliation. Do not set infinite concurrency. 理由は、18:03Z snapshotで8/8・deterministic3/3とqueue backlogを実測した一方、swap/disk/CPU headroomが既に詰まっているため。
 
-**現在cursor:** PR #7199と#7203のexact-head CI/review/merge → natural release/owner SHA + official receipt readback → effect-fence-safe Job Hunter/Fundraiser recovery → post-reconciliation same-window capacity measurement → bounded class-cap or horizontal-capacity decision. Neither `effect_unknown` nor Workday `submit_unknown` is retried.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 03:05 JST — latest-main registry fixture correction
 
@@ -10089,7 +10089,7 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 
 **順序更新:** 旧cursor=`PR #7199 exact-head CI/review → merge`。新順=`(1) latest-main fixture correctionを含めcommit/push → (2) exact-head CIとfresh reviewを取り直す → (3) merge → (4) current=ee25 release / owner readbackと3 loop receipt → (5) Job Hunter false-pass PR #7203をmerge/releaseと合わせ、Workday same-row safe retry → (6) Fundraiser unknown fenceとConnector receiptを解決 → (7) saturation/host headroomを同一窓で再測定`。理由は、CIの唯一の失敗がmain統合で更新されたregistryとfixtureの不一致と判明したため。
 
-**現在cursor:** fixture correction + 03:04 capacity snapshotは未commit。`git diff --check`とtargeted registry test pass。次: commit/push → PR #7199 fresh review/CI → merge後natural owner reconciliation。旧reconcilerには触れず、unknown effectを再送しない。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 03:09 JST — submit_unknown no-retry boundary in Job Hunter
 
@@ -10099,7 +10099,7 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 
 **順序更新:** 旧cursor=`Job Hunter terminal failure fix → retry unknown no-effect row → report`。新順=`(1) complete RED→GREEN for single failure and ambiguous submission cases → (2) exact-head fresh review + CI for PR #7203 → (3) merge PR #7199 and #7203, then one natural release/handoff → (4) read loaded SHAs, preserve Fundraiser `effect_unknown`, and resume only Workday rows with `submit_unknown=[]` → (5) official provider receipt + Telegram report → (6) run Connector/Luma and Fundraiser only after their gates/effects reconcile → (7) observe same-window cap/class/headroom before changing bounded concurrency`. 理由は、reviewでsubmit_unknownの別再試行経路が具体的に確認され、同じdiffでno-retry条件を固定できたため。
 
-**現在cursor:** 2つのworktreeでPR #7199のprotocol-locked stale-SHA guardとPR #7203のJob Hunter failure/no-retry修正を保持。次: branchをmainへ追従→final-head tests/review/CI→merge→natural release/owner/effect/provider readback。Workday/VCへの実submit、`effect_unknown` replay、capacity引上げは現時点では実行しない。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 03:28 JST — fleet guard merged, Job Hunter source gates pass
 
@@ -10110,7 +10110,7 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 
 **順序更新:** 旧cursor=`latest-main sync → exact-head CI/review → merge both fixes → natural release → target receipts → capacity decision`。新順=`(1) 完了: #7199 latest-main CI/review PASS/SHIP and main merge → (2) 完了: #7203 sync to merge SHA `edf35670`, exact-head CI PASS and review found no source finding → (3) merge #7203 → (4) wait for natural immutable release and verify pointer plus owner loaded SHAs; do not restart the active reconciler → (5) let Connector/Luma, Workday, and Fundraiser run naturally; require Workday `submit_unknown=[]` before same-row retry, official provider receipts, and loop-owned Telegram reports → (6) reconcile Fundraiser `effect_unknown` only by official readback or strict pre-effect proof, never replay ambiguous effects → (7) remeasure queue age, claims, reservations, class caps, CPU/RAM/swap/disk in one window → (8) with recovered headroom, raise only the proven saturated class by one bounded step; otherwise evaluate horizontal workers with shared durable admission/effect-fence state. Do not set infinite concurrency. 理由は、source-level CI/reviewが通ってもcurrent releaseはmerge前SHAで、capacity saturationは確認済みだがhost headroomが苦しかったため。
 
-**現在cursor:** PR #7203 merge → both source fixes in natural immutable release → owner SHA readback → three loop natural runs and provider/Telegram receipts → safe effect reconciliation → same-window capacity and headroom measurement → bounded class cap or horizontal worker decision. 旧releaseの実行状態を推測せず、`effect_unknown` / `submit_unknown`を再送しない。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 03:33 JST — #7199 included in natural release; owner readback pending
 
@@ -10120,7 +10120,7 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 
 **順序更新:** 旧cursor=`PR #7203 final-head checks → merge → one natural release with both fixes → owner and provider receipts`。新順=`(1) latest-main `f3e019f9` + naturally-created release `f3e019f9` readback is done; per-owner loaded SHA readback remains open → (2) complete exact-head CI/review on the latest-main-synced #7203 head → (3) merge #7203 → (4) wait for next natural immutable release and verify owner loaded SHAs → (5) let Job Hunter run naturally; only resume the same queued row when `submit_unknown=[]`, then require official Workday receipt and loop-owned Telegram report → (6) verify Connector/Luma receipt and reconcile Fundraiser `effect_unknown` only by official readback or strict pre-effect proof → (7) remeasure queue, claims, reservations, per-class limits, CPU/RAM/swap/disk in one window → (8) raise a proven saturated class by one bounded step only with recovered host headroom; otherwise evaluate horizontal workers with shared durable admission/effect-fence state. Never set infinite concurrency. 理由は、#7199のrelease pointerは自然に進んだ一方でowner反映は未証明、Job Hunter fixは未mergeで、queue-capacityの直近測定もsource release後にはないため。
 
-**現在cursor:** owner別installed SHA readback for `f3e019f9` → #7203 final-head CI/review → merge → next natural release and owner readback → Workday/Connector/Fundraiser official results and safe fence reconciliation → post-release capacity/headroom measurement → bounded local concurrency or horizontal worker decision.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 03:42 JST — exact-head CI exposed a clock-dependent fairness test; ENOSPC remains
 
@@ -10130,7 +10130,7 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 
 **順序更新:** 旧cursor=`#7203 final-head CI/review → merge → natural release/owner receipts → capacity measurement`。新順=`(1) 完了: #7214由来のround-robin testを固定wake時刻で決定化 → (2) #7203の新headでrequired CIとfresh reviewを通す → (3) merge #7203 → (4) allow-listed cleanupを自然実行させ、同時にENOSPCを起こすwriterを読み取り専用で特定し、capacity receiptで2 GiB以上・errors=0・protected_deletions=0を確認 → (5) active reconcilerをstop/restartせず、`f3e019f9` owner別loaded SHAへ自然reconcileしたreadbackを得る → (6) Job Hunter/Connector/Fundraiserの自然runとprovider receipt/Telegram報告を確認し、Fundraiser/Workday unknown effectを再送しない → (7) disk回復後にqueue/claims/reservations/classes/CPU/RAM/swap/diskを同一windowで測定 → (8) headroomが戻った場合だけ実証済みclass capを1段階上げ、戻らなければshared durable admission/fenceを持つhorizontal workerを評価する。無限並列にはしない。理由は、最新CIにmain由来の時刻依存テスト失敗があり、productionはpointerだけ進んでtarget ownersが旧SHAのまま、現在の空き642,912,256 bytesでは実ENOSPCが発生したため。
 
-**現在cursor:** wake固定のtest変更を含む#7203 new head → exact-head CI/review → merge → writer attributionと2 GiB cleanup receipt → natural `f3e019f9` owner reconciliation → three loop official results → post-recovery capacity measurement → bounded concurrency or horizontal worker decision.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 03:44 JST — latest main R24 synced; release and owners still diverge
 
@@ -10141,7 +10141,7 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 
 **順序更新:** 旧cursor=`latest-main CI/review → #7203 merge → release/owners → provider receipts → capacity decision`。新順=`(1) 完了: latest main `1f5f0165` をbranchへ統合し、R24と固定wake testを両立 → (2) exact-head required CIとfresh reviewを再取得 → (3) merge #7203 → (4) `life-manager-release-reconciler` の `entrypoint_exit_1` を新しい occurrence/evidenceで診断し、ENOSPC writerを読み取り専用で特定 → (5) allow-listed disk cleanup receiptで `free_after>=2 GiB`, `errors=0`, `protected_deletions=0` を確認し、reconcilerはstop/restartせず自然reconcileを待つ → (6) `bin/lm-loop status` でConnector/Job Hunter/Fundraiserのloaded SHAを `6c7b83ee`以降へ確認 → (7) 3 loopの自然provider receiptとloop-owned Telegram報告、Fundraiser/Workday unknown-effect fenceの安全なreadbackを確認 → (8) disk回復後の同一windowでclaims/queue/classes/CPU/RAM/swap/diskを測定 → (9) headroomが戻れば実測で飽和したclassだけboundedに増やし、戻らなければshared durable admission/effect-fenceを持つhorizontal workerを評価する。無限並列にはしない。理由は、最新sourceはmainへ追従できたがproduction ownersは旧SHAのまま、回復receiptは未達でENOSPCが続いているため。
 
-**現在cursor:** merge-sync commitを記録/push → #7203 final-head CI/review → merge → reconciler failure + disk writer diagnosis → 2 GiB safe cleanup receipt → natural owner loaded-SHA readback → three loops' official results → post-recovery capacity measurement → bounded local cap or horizontal worker decision.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 05:12 JST — historical English Monk Instagram readback (superseded below)
 
@@ -10195,7 +10195,7 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 11. [ ] `$10.99` eBook purchaseとmatching PDF deliveryを確認し、`/go/<token>`から`$9.99/month` Daily Anicca Letterへ接続する。Stripeでactive paid subscriptions、refunds、feesを読み、one-time eBook saleはMRRに数えない。
 12. [ ] views/clicks/orders/retention/refunds/fees/render/delivery costを週次で改善し、1,002 active subscriptionsの`$10,009.98` gross MRRを超え、費用控除後net MRR `$10K`をStripeと実費readbackで確認する。現行記録は直近30日eBook注文0、active Letter 0で、売上予測はまだできない。
 
-**現在cursor:** item 6 — cleanup修正PRのexact-head CI/review/merge。productionは`~/loops/current=a14f0679`だが、`ebook-en-tiktok-daily`は旧SHA `7c20304d`のまま。release reconcilerはPID 41851で稼働中。直近disk receiptは`free_after=645804032` bytes、`reclaimed=6406`、`errors=0`、`protected_deletions=0`、同時点の`df`は約623MiB。Postiz `PUBLISHED` receipt、新規注文、Letter subscriberは未確認。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 ### 2026-10-09 03:50 JST — final Job Hunter source gates pass; host is again 8/8
 
 - PR #7203 source head `a6b3f93268e68bde0f938af05c27623cf95716a3`, base `1f5f016526edea5d279668f0662518d6ab2e8c99`, has all required CI checks PASS in run `37826691755`; fresh read-only review is SHIP with no P0/P1/P2 findings. The remaining PR diff is Job Hunter validation/retry plus its tests/spec; R23/R24 production implementation remains in base main.
@@ -10205,7 +10205,7 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 
 **順序更新:** 旧cursor=`merge latest-source fixes → natural release/owner receipts → capacity decision`。新順=`(1) 完了: #7203 exact-head CI PASS and fresh review SHIP → (2) update this current-state SSOT and rerun checks on its final head → (3) merge #7203 → (4) diagnose `entrypoint_exit_1`/ENOSPC from the active reconciler occurrence and identify the disk writer read-only → (5) let allow-listed cleanup run and require `free_after>=2 GiB`, errors=0, protected_deletions=0 → (6) let the active reconciler naturally continue; read back all three owner SHAs before claiming rollout → (7) verify Connector/Luma, Workday, and Fundraiser natural results with official provider receipts/loop-owned Telegram reports; do not replay `effect_unknown` or `submit_unknown` → (8) after storage recovers, remeasure queue, claims, reservations, classes, CPU/RAM/swap/disk together → (9) only then consider a one-step bounded class increase; if local disk/compute remains the ceiling, evaluate horizontal workers with shared durable admission and effect-fence state. 理由は、source修正はgreenでもproduction未反映で、同じ時点の8/8 occupancyと405,596 KiBの空き、実ENOSPCが観測されたため。
 
-**現在cursor:** append/push this 03:50 evidence → final-head required CI + review → merge #7203 → writer attribution + 2 GiB safe-cleanup receipt → natural `6c7b83ee` owner reconciliation/readback → three loop official results → post-recovery capacity decision. `8/8`は現在の有限run admission snapshotであり、登録loop数やresident supervisor数ではない。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 03:52 JST — R25 release pointer, 8/8 admission, and sub-0.4-GiB disk
 
@@ -10216,7 +10216,7 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 
 **順序更新:** 旧cursor=`#7203 exact-head CI/review PASS → merge → disk and owner readback`。新順=`(1) 完了: 18:50Z occupancy and 18:51Z disk/owner evidence readback → (2) sync PR #7203 with latest main `e75c7f7a` and preserve the no-retry/test fix → (3) exact-final-head required CI + fresh review → (4) merge #7203 → (5) diagnose the active reconciler run `18dca23e164e6010-11997` and ENOSPC writer without stopping/restarting the loop → (6) let allow-listed cleanup run until `free_after>=2 GiB`, errors=0, protected_deletions=0 → (7) read back owner loaded SHAs after natural reconciliation → (8) verify three natural loop results with official provider receipts and loop-owned Telegram reports → (9) after disk recovery, repeat same-window claims/queue/class/CPU/RAM/swap/disk measurement → (10) only if the host has safe headroom, adjust the proven saturated class one bounded step; otherwise evaluate horizontal workers with shared durable admission/effect-fence state. Do not increase concurrency or claim success while ENOSPC persists. 理由は、cap8がこのwindowで8/8と実測される一方、空き402 MBとENOSPCが同時にあり、target ownersもrelease pointerより古いSHAのため。
 
-**現在cursor:** merge latest-main sync and this state update → exact-head CI/review → merge PR #7203 → ENOSPC writer diagnosis + 2 GiB cleanup receipt → natural owner reconciliation/readback → three loops' official results → post-recovery capacity decision.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 03:54 JST — R25 sync complete; clear stale current cursor
 
@@ -10225,7 +10225,7 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 
 **順序更新:** 旧cursor=`sync R25 → exact-head CI/review → merge #7203 → disk and owner readback`。新順=`(1) 完了: PR base/head include R25 (`e75c7f7a`/`f4f688d4`) → (2) commit/push corrected current cursor and complete exact-final-head CI + fresh review → (3) merge #7203 → (4) diagnose active reconciler ENOSPC/writer from structured evidence, without stop/restart → (5) allow-listed cleanup to a `free_after>=2 GiB` receipt with zero errors/protected deletions → (6) natural owner SHA reconciliation/readback → (7) three loop official results/receipts → (8) post-recovery same-window admission and host-capacity measurement → (9) bounded class adjustment only with safe headroom, otherwise horizontal-worker evaluation. 理由は、R25同期が既に履歴/baseに含まれているため、その完了済み作業をcurrent cursorから除き、次の実ゲートへ進めるため。
 
-**現在cursor:** push corrected SSOT cursor → exact-final-head CI + review → merge PR #7203 → ENOSPC diagnosis and safe capacity recovery → natural owner reconciliation → provider receipts → post-recovery capacity decision.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 04:03 JST — R26 fixture synced; all three target owners blocked
 
@@ -10235,7 +10235,7 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 
 **順序更新:** 旧cursor=`R25 sync → exact CI/review → merge → owner/readback → capacity`。新順=`(1) 完了: #7218 latest-main sync + canonical fixture regeneration → (2) commit/push the resolved R26 merge and current SSOT → (3) exact-final-head required CI + fresh review → (4) merge #7203 → (5) diagnose the active reconciler/ENOSPC writer from structured evidence, without stop/restart → (6) use only allow-listed cleanup; require `free_after>=2 GiB`, zero errors, zero protected deletions → (7) natural release-reconciler owner SHA readback → (8) each target loop must produce an official provider receipt and its own Telegram report; keep unknown effects fenced → (9) after disk recovery, remeasure admission and host resources together → (10) only then choose a bounded per-class increase or horizontal workers with shared durable queue/fence state. 理由は、最新のowner readbackで3対象すべてが`resource_capacity_busy`、DBが8/8、disk freeが280,484 KiBでENOSPCが続くため。
 
-**現在cursor:** R26 merge/fixture/spec commit push → exact-head CI/review → merge #7203 → reconcile disk writer and 2 GiB recovery → natural owner SHA readback → target provider receipts → post-recovery capacity decision.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 04:14 JST — PR #7203 merged; production handoff and receipts pending
 
@@ -10247,7 +10247,7 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 
 **順序更新:** 旧cursor=`merge #7203 → natural production release → owner receipts → capacity decision`。新順=`(1) 完了: PR #7203 source merge `5600dc57` and final-head CI/review → (2) wait for natural immutable release and verify pointer plus each target owner's loaded SHA; do not stop/restart the active reconciler → (3) attribute the reconciler's `entrypoint_exit_1`/ENOSPC through its run receipt/log and identify the disk writer read-only; continue allow-listed cleanup in parallel, but do not make its 2 GiB metric a producer-run gate → (4) allow Connector/Luma, Workday, and Fundraiser to run naturally when admission grants; require official provider receipts and loop-owned Telegram reports; retry a Workday row only when `submit_unknown=[]`, and keep `effect_unknown` fenced pending official readback/pre-effect proof → (5) after any actual ENOSPC failure, resume only through its owner-safe natural path; use cleanup receipts for capacity reporting → (6) repeat same-window queue/claims/reservations/per-class/CPU/RAM/swap/disk measurement → (7) increase only a proven saturated class by one bounded step with safe headroom; otherwise evaluate horizontal workers using shared durable admission/effect-fence state. 理由は、numeric disk floors no longer gate producers, while real ENOSPC and current owner/admission failures remain observed per-occurrence failures.
 
-**現在cursor:** natural release pointer/owner-SHA readback → ENOSPC writer attribution and allow-listed cleanup in parallel → three target official results/receipts → same-window capacity readback → bounded capacity increase only after safe headroom, or horizontal worker decision.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 04:28 JST — mobile distribution readback after latest main
 
@@ -10366,7 +10366,7 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 
 **TODO順序更新と理由:** 旧cursor=Admission reader source merge → handoff source merge → natural release/apply → cleanup lock fix。新順序=(1) PR #7288 latest-main exact-head CI/review/merge (source-only); avoid git fetch while the 60-second reconciler owner is active → (2) RED-test effectful child completion followed by terminal append ENOSPC; verify durable effect_unknown/predecessor fencing blocks same-owner re-entry until authoritative reconciliation; keep the scratch marker, and make only the minimal source repair if the fence currently fails. Use runtime/loop/tests/test_lm_loop_run_bounds.py → (3) reconcile unrecorded runs and prove no replay/duplicate effect → (4) central_cleanup.py parent coalesces only rc75/status deferred/reason cleanup_lock_busy/effect0/readback0; main PR #7301 retries a separate 15-day maintenance owner but does not change this parent → (5) diagnose open-file/disk-pressure recurrence and browser idle profiles → (6) Job Hunter capacity/marker and Workday receipt → (7) Fundraiser unknown fences, no-2-GiB gate, dedicated identity, VC/AI-founder receipts → (8) Connector identity/Playwright/Luma → (9) measured bounded capacity → (10) model/Telegram/provider receipts/replay-zero/queue drain. 理由: last terminal event was lost to ENOSPC; run-local markers protect scratch but do not themselves stop a new wake, so effect fence behavior must be proved before queue tuning.
 
-**現在cursor:** PR #7288 latest-main sync/exact-head CI/review/merge → verify terminal ENOSPC predecessor fence and add only a failing contract fix → reconcile unrecorded runs/replay-zero → central cleanup lock-busy no-op → Job Hunter/Workday → Fundraiser fences/identity/outreach → Connector identity/Luma → measured bounded capacity → three-lane model/Telegram/provider receipts.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 **並行subcursor:** 旧順序はitem 18 terminal-integrity → item 19 cleanup-lock repair → item 20–25。item 18–19は既存のactive worktreeが引き続き所有し、item 23のline-sticker idle-timeout handoffだけを専用worktreeで並行する。理由はLaunchAgent子processでtimeout欠落を直接確認し、変更がline-sticker wrapper/testに限られて外部effectやitem 18–19のsource ownerと競合しないため。main cursorはitem 18–19のまま。parallel cursor=`source/testはlocal GREEN → latest-main sync → exact-head CI/review/PR merge → immutable releaseとowner apply (effect fenceを解放せず) → natural idle-session readback after the effect gate resolves`。
 
@@ -10456,7 +10456,7 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 7. [ ] A9 CLI/reportで各agent・loop・platformと全社の日次/MTD/trailing/MRRについてrevenue・expense・net・coverage/freshness/sourceを一貫表示する。
 8. [ ] A10を7日連続のnatural reportで検証する。各日のsource receipt、settlement、cost coverage、partial/unknown表示をreadbackし、推定値をactualへ昇格しない。
 
-**現在cursor:** natural fleet apply after coalescing deadline → CFO owner SHA + queue rebind → natural receipt-backed CFO report → A5 → A6 → A8 → A9 → A10。Money Tree/A7とGoogle API置換・Cloud費削減はこのcursor完了後。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 07:04 JST — Anicca画像cache検証とJP1遅延投稿
 
@@ -10492,7 +10492,7 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 4. [ ] **A9:** report/CLI/panelでloop別・全社のsettled revenue、refund/fees、billed expense、cash paid、net contribution、MRRを通貨別に出す。`loop_pnl.py --date`はreporting labelだけでdaily filterではないため、daily値には実source-period windowを実装する。推定、請求、決済、settled売上を混ぜない。
 5. [ ] **A10:** 7日連続のnatural reportで、各日のprovider/runtime/B7 receipt・source freshness/coverage・period/currency・cost disposition・replay-zeroを照合する。部分coverageは明示し、全社actual totalsや10k MRRをunknownから作らない。
 
-**現在cursor:** A5 production readback → A6 billed/cash/operation attribution → A8 complete business + runtime-job coverage → A9 source-period report → A10 seven-day natural acceptance。A7/Money Treeは対象外。Cloud API置換・コスト削減はA10後。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 07:21 JST — A5 migration/RPC applied; panel auth remains unavailable
 
@@ -10515,7 +10515,7 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 4. [ ] **A9:** expose source-bounded daily/MTD/trailing/MRR separately by loop/platform/company, with currency, actual-vs-estimate, freshness and coverage. `loop_pnl.py --date` is a reporting label only; daily P&L needs an actual daily source window.
 5. [ ] **A10:** verify seven consecutive natural reports with same-occurrence B7/runtime/provider receipts, complete-or-owner-visible coverage gaps, accurate period/currency and replay-zero. Do not report company totals as zero while any source is missing.
 
-**現在cursor:** A6 billed/cash/operation attribution → A8 complete loop/job coverage → A9 source-period report → A10 seven-day natural acceptance. A5 RPC is active; only its authenticated panel readback remains pending. A7/Money Tree and Cloud API substitution remain outside this lane.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 07:31 JST — September Google bill and app usage are not loop-reconciled
 
@@ -10535,7 +10535,7 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 3. [ ] **A9:** provide truthful source-bounded JST daily/MTD/trailing/MRR per loop/platform/company, with estimates, billed actuals, settled cash/revenue, unknown counts and freshness kept distinct.
 4. [ ] **A10:** verify seven consecutive natural reports against same-occurrence provider/runtime/B7 receipts, period/currency, cost coverage and replay-zero; partial values stay partial.
 
-**現在cursor:** A6 billed/usage/cash/trace reconciliation → A8 all-loop/job coverage → A9 source-period CFO report → A10 seven-day natural acceptance. A5 panel auth remains separately deferred; it does not stop this A6 read-only reconciliation.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 07:47 JST — current release is main-derived; CFO owner apply is still pending
 
@@ -10545,7 +10545,7 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 - **Owner adoption:** the latest recorded fleet apply is a partial attempt at `2026-10-08T22:28:07Z` targeting `131ef4cd` (`77 changed / 60 skipped / 4 errors`). Subsequent reconciler output coalesced target `6708b97f` against the 1,800-second interval from that attempt (earliest ordinary retry about 22:58Z); the CFO owner has not yet been observed on `6708b97f`. Let the existing reconciler adopt it naturally; do not force-apply or restart.
 - **Reconciler diagnostics:** occurrences at 22:40Z and 22:43Z recorded `entrypoint_exit_1`; the 22:46Z natural occurrence passed and a 22:47Z occurrence was running at the latest check. The failed occurrences' summary artifacts were absent from `loop-tmp`, and the exact-run stderr was empty/unavailable. Older launchd output contains ENOSPC, but it is not tied to these exact failures and is not asserted as their cause. Read the active occurrence to terminal and capture its own output before classifying or fixing the shared owner.
 
-**現在cursor:** A6 invoice/usage/cash/trace reconciliation → A8 full loop/job coverage → A9 source-period CFO report → A10 seven-day natural acceptance; in parallel, observe the normal owner apply to `6708b97f`. The release-adoption lag does not invalidate the CFO result already produced on `131ef4cd`.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 07:55 JST — latest CFO owner report is receipt-backed but still partial
 
@@ -10558,7 +10558,7 @@ This is a separate PR for effect-fence reconciliation and host-cap measurement. 
 
 **TODO順序と現在cursor:** 旧cursor=`A6 billed/usage/cash/trace reconciliation → A8 → A9 → A10`, with CFO owner adoption pending. 新cursor=`(1) 完了: ownerを`6708b97f`へ自然adopt → (2) 完了: same-occurrence provider receipt/readback → (3) 現在: A6 invoice/usage/cash/trace reconciliation → (4) A8 all-loop/job coverage → (5) A9 source-period report → (6) A10 seven-day natural acceptance`。理由は、receipt-backed natural reportは回復したが、全社のsettled totalsとper-loop actualsはcoverage gapsによりunknownだから。
 
-**現在cursor:** A6 invoice/usage/cash/trace reconciliation → A8 full loop/job coverage → A9 source-period CFO report → A10 seven-day natural acceptance. A5 panel auth remains separately deferred; Money Tree/A7 and Cloud cost optimization remain outside this lane.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 07:48 JST — R27 priority decision and mobile funnel readback
 
@@ -10630,7 +10630,7 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 5. [ ] **A9 truthful source-period report:** `skills/cfo/loop_pnl.py::main`で`--date YYYY-MM-DD`の日別集計をJST `[00:00, 次日00:00)`へ限定し、既存`collect(day, loops)`/`build_table()`を活用する。`skills/cfo/test_loop_pnl.py`へ日付境界（当日23:59 JSTは含む、翌日00:00 JSTは除外）とCLI出力の回帰テストを追加し、`python3 -m unittest skills.cfo.test_loop_pnl`で確認する。daily/MTD/trailing/MRRをsource windowごとに分け、loop別・全社のsettled revenue、refund/fees、billed expense、cash paid、net、currency、freshness、coverage、unknownを同じreport/CLIで区別する。
 6. [ ] **A10 seven-day acceptance:** 修正後の自然なCFO reportを7日連続で、同じoccurrenceのB7/runtime/provider receipt・period/currency・coverage/freshness・duplicate resolution・replay-zeroと突合する。7日間のうち1日でもreceipt/period/coverageに欠落があればその日の原因を記録して連続countをやり直す。全社actualやUSD `10K` MRRはsource coverageが閉じるまで未確認として報告する。
 
-**現在cursor:** duplicate occurrence receipt trace → A6 Google cash/usage attribution → A8 all-loop/job actual coverage → A9 source-period reporting → A10 seven-day natural acceptance。**非blocking:** CFO ownerの新release自然adoptionとauthenticated panel表示。**対象外:** Money Tree/personal cash、Cloud API置換・削減。CFO基盤の完成は正確な計測・報告であり、USD `10K` MRR達成自体はその後の各revenue agentの成長作業。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 08:28 JST — duplicate report receipt proof verified; cursor advances to Google cash/usage
 
@@ -10650,7 +10650,7 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 4. [ ] **A9 truthful source-period report:** `skills/cfo/loop_pnl.py::main`で`--date YYYY-MM-DD`の日別集計をJST `[00:00, 次日00:00)`へ限定し、既存`collect(day, loops)`/`build_table()`を活用する。`skills/cfo/test_loop_pnl.py`に当日23:59 JSTは含む・翌日00:00 JSTは除外する境界とCLI出力の回帰testを追加し、`python3 -m unittest skills.cfo.test_loop_pnl`で確認する。daily/MTD/trailing/MRRと、loop別/全社のsettled revenue、refund/fees、billed expense、cash paid、net、currency、freshness、coverage、unknownを区別する。
 5. [ ] **A10 seven-day acceptance:** 自然なCFO reportを7日連続で、same-occurrence B7/runtime/provider receipt、period/currency、coverage/freshness、duplicate reconciliation proof、replay-zeroと突合する。1日でも欠落した場合はその日の原因を記録して連続countをやり直す。全社actualやUSD `10K` MRRはcoverageが閉じるまで未確認として報告する。
 
-**現在cursor:** A6 Google cash readback → A6 usage trace → A8 all-loop/job actual coverage → A9 source-period reporting → A10 seven-day natural acceptance。Money Tree/personal cashとCloud API置換・削減は対象外。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 08:44 JST — Google cash route verified; park payment readback and advance to usage trace
 
@@ -10672,7 +10672,7 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 4. [ ] **A6 Google cash readback:** active gcloud accountに対応するregistered Cloud Billing browser sessionで`https://console.cloud.google.com/billing/history`を開き、Transactionsの2026-09 invoice/payment行とPayment receiptをreadbackしてJPY `27,889`のcash-paid status/date/receipt IDを記録する。現状はsession identityが未確認のため保留。証拠が得られなければcashは`unknown`のままにし、login/recoveryや別account browserへの迂回はしない。
 5. [ ] **A10 seven-day acceptance:** usage trace、coverage、source-period report、Google cash statusを含むCFO reportを7日連続の自然occurrenceで検証する。同一occurrence B7/runtime/provider receipt、period/currency、coverage/freshness、duplicate proof、replay-zeroを確認し、gapが1日でもあれば原因を記録して連続countを再開する。
 
-**現在cursor:** A6 Google usage trace → A8 all-loop/job coverage → A9 source-period report → A6 Google cash readback → A10 seven-day natural acceptance。Money Tree/personal cashとCloud API置換・削減は対象外。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 09:08 JST — A6 life-call shared-usage trace fix is locally verified
 
@@ -10695,7 +10695,7 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 5. [ ] **A6 Google cash readback:** 同じBilling accountで認証されたCloud Billing Transactionsから2026-09請求JPY `27,889`のpayment receipt/date/statusを取得する。現在はregistered browser identityから同じaccountをreadbackできず、Gmail検索0件も不払いの証拠ではない。same-account sessionが使える状態になったら再開し、それまではcash status=`unknown`。
 6. [ ] **A10 seven-day acceptance:** 上記source/coverage/report/cash statusを含むCFO reportを7日連続のnatural occurrenceでsame-occurrence provider/runtime/B7 receipt、period/currency、freshness、coverage、duplicate resolution、replay-zeroと照合する。1日でも欠落すれば連続countをやり直す。
 
-**現在cursor:** A6 source promotion → natural production usage-trace readback → A8 full loop/job coverage → A9 source-period CFO report → A6 Google cash receipt → A10 seven-day natural acceptance。Money Tree/personal cashとCloud API置換・削減は対象外。過去actualの確定や10k MRR達成は本specのcoverage完了を意味せず、別途settlement evidenceを要する。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 09:21 JST — A6 source merged; Railway build is running
 
@@ -10717,7 +10717,7 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 5. [ ] **A6 Google cash receipt:** same-account authenticated Cloud Billing Transactionsから2026-09 JPY `27,889`の支払status/date/receiptを確認し、取得できなければunknownを維持する。Gmail検索0件を不払いと解釈しない。
 6. [ ] **A10 seven-day natural acceptance:** complete/partial coverageを明示した自然reportを7日連続で同一occurrenceのB7/runtime/provider receipt、period/currency/freshness、duplicate resolution、replay-zeroと照合する。
 
-**現在cursor:** Railway build/deploy terminal → new-build health + natural usage trace → A8 refreshed revenue/cost coverage → A9 source-period report → Google cash receipt → A10 seven-day acceptance。CFO panelのauthenticated UI readbackは別途non-blocking。Money Tree/personal financeとCloud API substitution/cost-cuttingは対象外。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 09:26 JST — A6 deployment verified; natural Google usage event not yet observed
 
@@ -10738,7 +10738,7 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 4. [ ] **A6 Google cash receipt:** same-account authenticated Cloud Billing Transactionsから2026-09 invoice JPY `27,889`のpayment status/date/receiptを読む。gcloud IAMはBilling Adminだが、registered browser identityからsame-account sessionを確認できていない。receipt取得まではcash=`unknown`。
 5. [ ] **A10 seven-day natural acceptance:** coverage/report/cash状態を明示したCFO reportを7日連続のnatural occurrenceでsame-occurrence B7/runtime/provider receipt、period/currency/freshness、duplicate proof、replay-zeroと照合する。
 
-**現在cursor:** A8 refreshed full loop/job coverage → A6 natural trace readback when a Google usage event occurs → A9 source-period report → Google cash receipt → A10 seven-day acceptance。CFO panel authはnon-blocking。Money Tree/personal financeとCloud API substitution/cost-cuttingは対象外。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 09:35 JST — receipt-backed CFO report refreshed; A8 gaps decomposed
 
@@ -10756,7 +10756,7 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **TODO順序更新と理由:** 旧cursor=`A8 full coverage（source mapping未分解）→ A6 opportunistic trace → A9 → A6 cash → A10`。新cursor=`(1) 完了: latest B7 receipt/snapshot readbackと18/188/113 inventoryを確認 → (2) 現在: A8 provider/source atoms 1–9を上記順で閉じる → (3) A6 natural usage traceはusage event発生時に並行readback → (4) A9 source-period report → (5) Google cash receipt → (6) A10 7-day acceptance`。理由は最新B7 snapshotでgapの理由とowner sourceが特定され、最も高い情報価値のあるmobile/Stripe/Capafy revenue receiptsから順に正せるため。Money TreeとCloud API置換・削減はこのlane外。
 
-**現在cursor:** A8.1 `mobile-apps` ASC settlement evidence → A8.2 Stripe → A8.3 Capafy → A8.4 affiliate/writer freshness → A8.5 marketplace sources → A8.6 Alpaca → A8.7 company provider-cost receipts → A8.8 unreported loops/classification → A8.9 shared/control/platform costs → A6 natural trace (when event occurs) → A9 → Google cash → A10.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 09:40 JST — CFO receipt and B7 baseline verified; company totals remain unknown
 
@@ -10795,7 +10795,7 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 22. [ ] **A6 Google cash:** obtain the same-account Cloud Billing Transactions receipt for JPY `27,889`; otherwise retain `cash_paid=unknown`. The gcloud IAM role is present; the exact remaining item is an authenticated browser context bound to that billing account.
 23. [ ] **A10 acceptance:** after the coverage/report/cash sources are reconciled, verify seven consecutive natural reports against same-occurrence provider/runtime/B7 receipts, periods, currencies, coverage and replay-zero.
 
-**現在cursor:** A8.1 company cost source → A8.2 mobile apps → A8.3 Stripe → A8.4 Capafy → A8.5 affiliate → A8.6 writer → A8.7–9 marketplaces → A8.10 investment → A8.11–18 remaining loop-source classifications → A8.19 shared jobs → A6 natural trace when an event occurs → A9 → Google cash → A10. Main/release adoption continues via the existing fleet cursor; Money Tree and Cloud API cost-cutting remain out of scope.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 09:20 JST — Investment paper parser PR and runtime cursor
 
@@ -10828,7 +10828,7 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **順序更新と理由:** 旧cursor=`(1) fleetで全旧ownerをadopt → (2) Affiliate retry PR #7289をmerge → (3) natural campaign/revenue`。新cursor=`(1) 完了: disk numeric gate除去をmain/current releaseへ反映 → (2) 現在: PR #7289のlatest-main exact-head CI/merge → (3) 次のmain由来releaseでAffiliate retry fixとdisk fixを同梱 → (4) natural fleet applyで旧ownerを安全にadoptしeffect fence/I/O blockerをowner別に解決 → (5) natural bilingual campaign/publication → (6) PartnerStack conversion/commission/payout/economics → (7) CFO A6/A8/A9/A10`。理由は、185 ownerのうち164がすでにno-floor release上にあり、残る21はfleet cooldown・busy・effect fence・launchd I/O errorにより即時に安全適用できない。#7289はchecks/reviewを通過しており、mergeを待たせてもこの旧ownerのblockerは解消しない。次のreleaseへ同梱してaffiliate revenue workを先へ進める。CFO TODOとunknown値は保持する。
 
-**現在cursor:** latest main `1ee30425` を含むbranchのexact-head CI → PR #7289 merge → next immutable release/natural fleet retry → 21 old-owner adoption and effect readback → natural Affiliate composition/publication/revenue readback → CFO A6/A8/A9/A10。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 — 毎分のホストcleanupを一次の容量回復経路にする
 
@@ -10840,7 +10840,7 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 - **現時点の検証:** temp family / ignored stateを含む2 focused testは変更途中に2 passed。ただし追加temp-root assertionと直近のsymlink-descendant source変更は未実行。full cleanup suite、`./bin/lm-loop-contract`、CI、review、release、apply/readbackは未完。`xcrun simctl list devices booted` はbooted deviceなしを返し、iOS 26.5 runtimeは別APFS containerに残る。現在のworktreeは`fix/disk-cleanup-15d-lm-loop-20261009` / HEAD `a6e037571404419501c6441af8e859e137eaa40b`で、変更は未commit。
 - **受け入れ:** 60秒watchdogの自然経路を維持し、RED/GREENで全標準temp root・generated-temp TTL・pytest内部symlinkのno-follow削除・worktree保護条件と安全なzombie撤去を検証する。source acceptance・CI・review後にmain由来immutable releaseを作り、60秒watchdogだけをowner経由で反映する。loaded script/argv/SHA/StartInterval=60 readback、連続natural receipt、11 GiB以上のfresh capacity、iOS Simulator availability、worktree registration/status readbackを確認する。
 
-**現在cursor:** ① `_temporary_roots` の追加をfocused testで検証し、期限切れpytest run内のsymlinkをfollowせず消す条件と、対応するstale `pytest-current` pointerの安全な退役方法を確定する → ② worktree discovery/sweepのignored・lease・open・unmerged・path identity条件をfocused testで確認する（実機の退役候補は0件） → ③ `python3 -m pytest -q skills/self/disk-cleanup/tests/test_disk_cleanup.py skills/self/disk-cleanup/tests/test_disk_watchdog_dispatcher.py`、`./bin/lm-loop-contract`、`git diff --check` → ④ latest-main差分更新、commit/push、PRのsource acceptance/review/CI、merge → ⑤ immutable release後、owner経由で60秒watchdogだけをapplyしてloaded argv/SHA/intervalをreadback → ⑥ 連続natural receiptでfresh free_after 11 GiB以上とproducer admission安定、Simulator availability、worktree保持を確認する。cleanup receiptが小さくても候補が尽きた場合、state/history/open dataを広げて消さず、その容量を増やすownerを特定してretention/rotationを修正する。15日ownerは毎分経路の代用にせず、exact local receiptに基づくowner-specific reconcile後に重複分をretireする。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 09:53 JST — Mobile投稿はslotごとに検証し、3回目まで他作業を止めない
 
@@ -10921,7 +10921,7 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 6. [ ] 18 account×3 distinct `PUBLISHED` receipts=54/54を同日で判定する。slot2/3や20:00を待ってから他作業を始めない。
 7. [ ] Anicca iOSでdistribution、ASO/listing、onboarding/paywallの順に改善し、settled evidenceを伴うUSD 10,000 net MRRへ到達する。現時点の$20.34 MRRはsubscription observationでありsettled netではない。
 
-**現在cursor:** source registry/tests GREEN (branch only) → main integration → main-derived release/natural publication-ledger rebind → Telegram checkpoint delivery_unknown recovery → per-post metrics/funnel → rolling 54/54 daily acceptance → $10K verified net MRR。**54/54日次判定は残りslotが自然に到来する間の作業を止めない。**
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 11:11 JST — Mobile cursor更新: ownerごとに即投稿し、54/54待ちをgateにしない
 
@@ -10943,7 +10943,7 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 8. [ ] **同日3回の結果判定:** 18 accountそれぞれで同一JST日のdistinct `PUBLISHED` receipt 3件、合計54/54をその日の3回目以後に集計し、URL付きで報告する。不足があればaccount・slot・owner原因を特定する。このdaily closeは結果報告のみで、次の投稿・metrics・修復のgateにしない。
 9. [ ] **10K MRR成長loop:** marketing post→ASC impression/product-page/download、RevenueCat subscription/settled proceeds、Mixpanel/PostHog activation/onboarding/paywall/purchaseを同期間で結ぶ。まずdistributionとcontentの勝ちhook/formatを反復し、次にlisting/ASO、その後onboarding/paywallを改善する。USD 10,000はrefund/fees/costを差し引いたverified net MRRで判定し、未達を達成と呼ばない。
 
-**現在cursor:** ownerごとに`API/write preflight → PASSなら不足分を即dispatch / FAILならそのownerだけ修復`を独立実行。他の健全ownerは並行して投稿 → receipt/link/asset hashを即保存 → production rebind・metrics・fence修復も投稿と並行 → 3回目以後に54/54日次集計 → ASC/RevenueCat/in-app funnel → distribution反復からverified $10K net MRR。**20:00や54/54を待つだけの停止状態は作らない。**
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 ### 2026-10-09 — English eBook/TikTok runtime cursor and 2/day contract
 
 - **Target:** English eBook owner `ebook-en-tiktok-daily` publishes only to the enabled Monk Anicca TikTok integration `cmo5rwq2p00twn10yrsdglng3`. Per Dais, Postiz `state=PUBLISHED` is the publish-success source of truth; no native TikTok readback is an extra gate.
@@ -10969,7 +10969,7 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 7. [ ] `The Anicca Reset`のStripe purchaseとmatching PDF delivery、`Daily Anicca Letter` subscriptionを`/go/<token>` funnelへ結び、active paid subscriber/refund/feeをofficial Stripe readbackする。
 8. [ ] 2/dayの自然Postiz receipt、views/clicks/orders/costを週次で計測してcreative/CTAを改善し、1,002 active Letter subscribersと費用控除後MRR $10Kを達成・readbackする。
 
-**現在cursor:** reviewer指摘を絞った変更はlocalでテスト12/12 PASS。`git diff --check` → latest `origin/main`確認 → commit/push → exact-head review/CI → main merge → immutable release/targeted owner apply → Postiz `PUBLISHED` → 2/day schedule → Letter checkout/MRR conversion. 新しいPostiz `PUBLISHED` はまだ未確認。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 
 ### 2026-10-09 11:15 JST — Alpaca live account loss and paper cursor
@@ -11016,7 +11016,7 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 - **Code verification:** TDD RED confirmed both new regressions; `python3 -m unittest skills.cfo.test_capafy_mobile_attribution` passes 52/52. CFO suite passes 305/305 with private `TMPDIR` after host disk allowed fixture writes. `./bin/lm-loop-contract` passes (18 loops / 189 jobs / 113 mapped / 0 errors); `git diff --check` passes.
 - The active CFO `.env` still points to the old single-app packet, and the loaded production CFO owner still runs old SHA `42bbad08`; no production apply or report writer was run. The new packet is not effective until the branch is merged, an immutable release is cut/applied through the owner gate, and the private packet path is updated. Current host free space remains below the safe release/recovery floor; the existing governor has not recovered sufficient capacity, and no protected path was deleted.
 
-**現在cursor:** merge A8.2 adapter/tests → wait for safe host capacity → main-derived immutable release and targeted idle-owner apply → switch the private CFO packet path → natural B7/CFO report readback and replay-zero → A8.2 close for the latest available Apple period (retain Oct current-window gap) → A8.3 Stripe.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 11:22 JST — latest CFO receipt verified; A8.2 source remains local
 
@@ -11027,7 +11027,7 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **TODO順序と理由:** 旧cursor=`A8.2 persist private packet → B7 validate → A8.2 close → A8.3 Stripe`。新cursor=`(1) 完了: six-app packet persisted and direct B7 adapter readback verified → (2) 現在: A8.2 source branchを最新mainへ統合・PR/CI/merge（main側の同一SSOT追記を保持） → (3) A8.3 Stripeのread-only payment-intent→Checkout Session mapping調査を並行して進める → (4) A8.2 main由来immutable release/owner adoption後にpacket pathを反映し、自然B7 receiptで再検証 → (5) A8.2 latest-available-period gapを明記して閉じる → (6) A8.4 Capafy → A8.5 affiliate → A8.6 writer → A8.7–9 marketplace → A8.10 investment → A8.11–18 remaining source/classification → A8.1 company actual-cost source → A8.19 shared/control/platform jobs → A6 natural Google trace → A9 source-period report → Google cash receipt → A10 seven-day natural acceptance`。理由はproduction releaseの現行adapterが旧single-artifact形式のままな一方、A8.3のStripe GET-only mappingは独立して調査でき、ディスクを理由にCFO source work全体を止めないため。順序変更はA8.2の受け入れ条件を省略せず、production verificationをStripeの後に残す。
 
-**現在cursor:** A8.2 latest-main統合 → A8.3 Stripe read-only mapping → A8.2 release/packet-path/natural B7 adoption → A8.2 period-gap closure → A8.4–A8.19 source coverage → A6 trace → A9 → Google cash → A10。Money Tree/personal-finance と Cloud API substitution/cost-cutting はこのCFO laneの対象外。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 11:29 JST — ENOSPC now blocks local verification and Git staging
 
@@ -11038,7 +11038,7 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **Blockerと修正手順:** blockerはprovider loginやCFO loopではなく、hostの実write failure。まず既存disk-cleanup ownerが使える一時領域とwriteable blocksを復旧し、governor receiptで`errors=0`・`protected_deletions=0`・回収後のwrite成功を確認する。その後、現worktreeの3ファイルだけをstage/commitし、最新mainへrebaseしてSSOTの双方の追記を保持し、remote CI/review/mergeへ進む。今の環境では安全に消せる具体候補が確認できず、手動削除で回避しない。独立して進むA8.3 Stripe GET-only source mappingはこの間も進める。
 
-**現在cursor:** A8.3 Stripe read-only payment-intent→Checkout Session mapping → disk owner復旧後にA8.2 stage/commit/rebase/PR → A8.2 release/packet-path/natural B7 adoption → A8.2 latest-period gap → A8.4–A8.19 source coverage → A6 natural Google trace → A9 source-period report → Google cash receipt → A10 seven-day acceptance。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 11:34 JST — Stripe Checkout identity joined; only eBook product is loop-mapped
 
@@ -11049,7 +11049,7 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **TODO順序更新と理由:** 旧cursor=`A8.3 Stripe read-only identity join → A8.2 local branch stage/commit/rebase → A8.2 release/adoption`。新cursor=`(1) 完了: official GET-only join confirms 18/19 sessions and product metadata → (2) 現在: A8.3 add per-product/per-loop mapping for the source-identified eBook product, with no guess for Anicca Pro/Focus Score/unmatched charge → (3) A8.3 reconcile mapped charge to available balance transaction, refunds/fees and tests → (4) after disk write recovery, stage/commit/rebase A8.2 branch, preserving latest main SSOT additions → (5) A8.2 main release/owner adoption/private packet path/natural B7 readback → (6) A8.2 latest-period coverage gap → (7) A8.4 Capafy → A8.5 affiliate → A8.6 writer → A8.7–9 marketplace → A8.10 investment → A8.11–18 remaining source/classification → A8.1 company actual-cost receipt → A8.19 shared/control/platform jobs → A6 natural Google trace → A9 source-period report → Google cash receipt → A10 seven-day acceptance`。A8.3のofficial identity evidenceを取得できたため、disk writeに依存するA8.2 source promotionを待つ間も、CFO収益帰属を独立して進める。
 
-**現在cursor:** A8.3 Checkout/line-item→loop adapter + settlement/refund reconciliation → disk復旧後A8.2 source promotion → A8.2 natural production evidence → A8.4–A8.19 full source coverage → A6/A9/Google cash → A10。A8.3のUSD `10.99`は価格表示でありsettled revenue額ではない。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 11:41 JST — ASC duplicate-ID review finding closed; CFO suite green
 
@@ -11067,7 +11067,7 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 - **Production boundary:** no production code/config was changed. The latest checked release still uses single-artifact ASC relationship mapping; the six-app packet's direct projection is not a natural B7/CFO production report. The latest CFO report remains the 11:22 JST run: verified delivery receipt `105659`, but company historical/trailing revenue, cost-complete net, and MRR are unknown; mobile-apps USD `20.34` is only an MRR observation; Google Cloud 2026-09 billed JPY `27,889`, payment and loop attribution unknown.
 - **Capacity:** host Data volume has been reported at 100%; at the latest successful test check, about 299 MiB was available. The last watchdog attempt returned `cleanup_lock_busy` and removed nothing. This no longer blocks local tests/staging, but production release preflight remains untested; do not claim the capacity condition is fully resolved.
 
-**現在cursor:** push A8.2 branch → create PR linked to #7335 → exact-head CI/review → merge → main-derived immutable release/targeted owner adoption/private packet path → natural B7 receipt + replay-zero and current-period coverage → continue A8.3 Stripe mapping/settlement → remaining A8/A6/A9/Google cash/A10 atoms. A8.3 can proceed independently while A8.2 awaits production adoption.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 11:44 JST — A8.2 PR open; exact-head CI pending
 
@@ -11075,7 +11075,7 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 - Latest PR check readback: 10 jobs queued/in progress, no failures yet; `Startup context drift` is in progress. Gitleaks, TruffleHog, PII, Python syntax/unittest, shell syntax, loop contract, and repository boundary jobs remain pending on GitHub.
 - Source boundary remains A8.2 only: six-app relationship mapping, duplicate-ID rejection, tests, and this CFO SSOT update. The private packet is not production-active. Last CFO report readback is still occurrence `18dcbb24a77c49e0-93854`, receipt `105659`; company totals remain unknown and Google billed JPY `27,889` has payment status and loop attribution unknown.
 
-**現在cursor:** exact-head PR #7336 checks/review → resolve any failure → merge → main-derived immutable CFO release/owner adoption/private packet path → natural B7/CFO readback and coverage → A8.3 Stripe settlement mapping → remaining source coverage/A6/A9/Google cash/A10. Do not report the local 307-test pass as production adoption.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 11:50 JST — 三つのrevenue loopとhost capacityの最新readback
 
@@ -11103,7 +11103,7 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 9. [ ] 実測したmemory/disk/DB/child runtimeに合わせてbounded concurrencyを決め、critical_paid/revenue/distributionのaging fairness・queue wait・admission reasonsをreadbackする。infinite capacityとは主張しない。
 10. [ ] 三loop全てで`gpt-6-luna` max/Fast route、Telegram business reporting、公式provider receipts、cost attribution、replay-zeroを自然occurrenceで確認し、収益結果まで追う。
 
-**現在cursor:** #7288 exact-head checks/review/merge → effectful terminal-ENOSPC fence test/fix → terminal reconciliation/replay-zero → central cleanup parent → Job Hunter/Workday → Fundraiser → Connector/Luma → measured bounded concurrency → three-loop receipts/revenue.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 12:06 JST — A8.2 latest-main merge conflict resolved; CI security gate now green
 
@@ -11111,7 +11111,7 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 - **Main synchronization:** GitHub initially rejected merge because `main` had advanced. Latest `origin/main` is `f80d286f9446a82a0492db655b2942a869f3df93`. It is merged into the local PR branch; the unified SSOT conflict is resolved with main and CFO additions preserved. Post-merge checks pass: CFO suite 307/307, `./bin/lm-loop-contract` 18 loops / 189 jobs / 113 mapped / 0 errors, and `git diff --check`.
 - **Current PR/production boundary:** PR #7336 is still open at remote head `3fb68757`; the local latest-main merge result has not yet been committed/pushed. No source release, owner apply, packet path switch, or natural B7 run occurred. Latest CFO values remain as of 11:22 JST: company revenue/cost-complete net/MRR unknown; mobile-apps USD `20.34` is an MRR observation; Google September bill JPY `27,889`, payment and loop attribution unknown.
 
-**現在cursor:** commit/push the resolved merge → exact-head PR #7336 checks/review → merge → main-derived immutable CFO release/owner adoption/private packet path → natural B7/readback/replay-zero and Apple period coverage → A8.3 Stripe product-to-loop + settlement/refund mapping → remaining A8 sources → A6/A9/Google cash/A10. Source/CI is no longer the current blocker; the next unfinished gate is publishing the already tested merge commit, followed by the separate production-adoption proof.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 12:08 JST — Gitleaks baseline merged; latest-main PR sync ready to push
 
@@ -11119,7 +11119,7 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 - **Branch state:** PR #7336's remote head is still `3fb68757`, but the local branch now has merge commit `b753a52115a643ea3de2bd357043743c334bb64a` including latest main. `git diff origin/main...HEAD` remains limited to this CFO spec, `skills/cfo/adapters/capafy_mobile.py`, and `skills/cfo/test_capafy_mobile_attribution.py`. The latest-main merge result passed the 307-test CFO suite, loop contract, and `git diff --check` before this docs-only status line.
 - **Production/economics:** no production apply or packet-path switch has occurred. Latest natural CFO report still has unknown company revenue, cost-complete net, and MRR; USD `20.34` is mobile-apps MRR observation only; Google Cloud September bill is JPY `27,889` with payment and loop allocation unknown.
 
-**現在cursor:** push merge commit `b753a521` to PR #7336 → rerun exact-head checks/review → merge → main-derived immutable release/owner adoption/private packet path → natural B7/CFO report readback and current-period gap → A8.3 Stripe settlement mapping → remaining A8/A6/A9/Google cash/A10. No production success is claimed from source merge or passing tests.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 
 
@@ -11140,7 +11140,7 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 3. main由来immutable releaseをarticle-dailyへ対象限定で反映し、natural Writer occurrenceで同じ有料需要カードとMarketing Intel contextの使用を確認する。
 4. Noteのlive URL・¥500 monetization API readback、X告知のofficial readback、Writer sales measureとreplay-zeroを確認するまで収益を主張しない。Affiliate/X repost loopには接続しない。
 
-**現在cursor:** PR #7360のbroker順序/readiness修正は2026-10-09 05:29Zにmerge済み (b0cb5b5c084d72df0e9a4539feb91de7f7bf9c48)。PR exact-head checksは全件PASS、fresh source reviewはSHIP。main 692d89491581f33f4f6065016ad9fe45610de384はmergeを含み、Security Scanも全件PASS。installed article-dailyはrelease 84c56e1190f611c7ccd2e9d55df6513df8c31d72のままで、修正は未反映。run 20261008-232303はprepared/attempts=[]で、CONTENT戦術IDはprompt内にあるが記事生成・公開・売上の証拠なし。terminal eventはeffect_unknown、Admission rowはreleased/effect_unknown=0。Note/Substackは9/29の既存記事、X公式readbackなし、sales ledger unknown。Affiliate最新healthはeffect_unknown/entrypoint_exit_1/receiptなし。X repostはscratch_enospcでsafely_fenced、last successは10/5。Telegramのmarketing-weekly-reviewは調査報告であり、Affiliate/repost/売上のreceiptではない。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 共有host stateは~/.local/state/life-manager/state。最新のunbound governor receiptは2026-10-09 05:35Z: free_before=143712256, free_after=156368896, reclaimed=73446, preserved=11 (open=3, protected_descendant=8), errors=0, protected_deletions=0、recovery floor未達。5分ownerの05:37Z occurrenceはscratch_enospcで失敗。bound last-receiptは05:02Zのまま。共有stateの.receipt-reserveは欠落。05:56Zのdirect governorもreserve書込でENOSPCとなりfresh receiptを作れず、現freeは122MiB。先行するdirect invocationはloop state pathを使っており、正規host cleanup readbackではない。掃除結果は未確定なので再実行しない。
 次: shared host headroomを2GiB以上へ回復し、公式governorのfresh receipt (errors=0, protected_deletions=0) を得る→latest main由来immutable release→owner-idleとfresh read-only reviewを確認してarticle-dailyのみtarget apply→自然runでpaid-demand cardとMarketing Intel context使用、Note ¥500/Substack/X Articleの公式readback、sales/cost/replay-zeroを確認する。settlementまで収益を主張しない。
 ### 2026-10-09 12:17 JST — Mobile post count unchanged; latest-main source sync pending
@@ -11163,7 +11163,7 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **残TODO順:** (1) let the current release-reconciler occurrence reach a terminal receipt and read its exact owner result; do not start a duplicate while it is running → (2) once a main-derived release containing `44b9fbff` is current and the CFO owner is safely idle, use the supported owner-targeted adoption path → (3) point the private packet setting at the six-app bundle, then verify a natural B7/CFO report with same-occurrence receipt, replay-zero, JPY `4,250` only for the source period and the current-period gap still explicit → (4) close A8.2 for the latest available Apple period → (5) continue A8.3 Stripe Session/product-to-loop and balance/refund settlement mapping → (6) A8.4 Capafy → A8.5 affiliate → A8.6 writer → A8.7–9 marketplace → A8.10 investment → A8.11–18 remaining source/classification → A8.1 company actual-cost receipts → A8.19 shared/control/platform costs → A6 natural Google trace → A9 period-truthful report → Google cash receipt → A10 seven-day natural acceptance.
 
-**現在cursor:** reconcile the already-running release owner → adopt main `44b9fbff` through the supported release path → activate the private six-app packet → natural B7/CFO readback/replay-zero → remaining per-loop revenue/cost coverage. CFO runtime delivery is currently healthy, but company P&L is not complete.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 12:30 JST — production target release contains A8.2; owner handoff not complete
 
@@ -11175,7 +11175,7 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **残TODO順:** (1) allow the already-running release self-handoff to reach terminal; if it fails, inspect its exact terminal and owner-level errors, with no duplicate apply → (2) read back `~/loops/current` and `life-manager-cfo-hourly` until the owner is loaded on a main-derived SHA containing `44b9fbff`; only if natural adoption does not happen, use the supported targeted `lm-loop apply` after the CFO owner is idle and its deploy lock is free → (3) switch the private packet setting to the six-app bundle only after the loaded adapter supports it → (4) obtain a natural B7/CFO receipt with same-occurrence evidence and replay-zero; preserve the Apple period-end `2026-09-26` gap and keep RevenueCat MRR separate → (5) close A8.2 for the latest available fiscal period → (6) A8.3 Stripe product/loop adapter and charge/balance/refund/payout reconciliation → (7) A8.4–A8.19 remaining per-loop revenue/cost sources → (8) A6 Google usage trace → A9 daily/MTD/trailing/MRR semantics → Google cash receipt → A10 seven-day natural acceptance.
 
-**現在cursor:** release self-handoff terminal → CFO owner SHA adoption → six-app packet activation → natural B7/report/replay-zero → remaining source coverage. Do not treat a release pointer, passing CI, current `3b77`/`55e8` package, or direct adapter projection as production CFO completion.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 12:31 JST — main release contains A8.2; fleet handoff remains active
 
@@ -11196,7 +11196,7 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **TODO順の更新:** 旧cursor=`release/packet adoption → A8.3 Stripe → A8.1 company actual cost → remaining sources`。新cursor=`(1) let the existing storage owner restore writeable capacity → (2) sync latest main and publish this SSOT checkpoint → (3) implement A8.1 billed-cost-without-paid-status support in the existing B0/actual-cost contract and connect official provider invoice receipts to the company-cost bucket → (4) after capacity recovery, require a natural CFO/B7 report using the configured ASC packet, same-occurrence provider receipt, replay-zero, JPY 4,250 scoped only to the ASC period, and explicit current-period gap → (5) A6 trace Google project/SKU to natural owner usage; no artificial calls or ratio allocation → (6) A8.3 Stripe product-to-loop mapping and balance/refund/fee settlement → (7) A8.4 Capafy → A8.5 affiliate → A8.6 writer → A8.7–9 marketplaces → A8.10 investment → A8.11–18 remaining loop sources/classification → A8.19 shared/control/platform cost coverage → A9 period-truthful report → Google cash readback → A10 seven-day natural acceptance. The order changed because the official Google bill is already verified in the report but the actual-cost B7 source cannot represent billed/unpaid amounts, which blocks reliable expense and net reporting; the ASC runtime packet is configured and can be verified in the same natural CFO run after storage recovery. Money Tree and Cloud API cost-cutting remain out of scope.
 
-**現在cursor:** storage recovery → latest-main spec sync → A8.1 billed-cost/cash separation and company-cost source → natural CFO report for the configured ASC packet → A6 Google loop attribution → Stripe and remaining per-loop revenues/costs → period report/cash → seven-day acceptance. No manual CFO message or replay has been sent.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 13:14 JST — B7 projection has no settled-revenue entries; ASC evidence is separate
 
@@ -11205,7 +11205,7 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 - **Storage owner:** self-handoff receipt now says `status=ok`, and launchd readback verifies release reconciler SHA `55e8b166`; its natural process PID `38499` is currently running. This is not yet successful fleet/CFO reporting. Host free space is about 303 MiB against a 2 GiB recovery floor; shared storage PR #7348 has pending checks and no merge yet.
 - **Company cost vs per-loop cost:** the prior projection already reports Google September billed JPY `27,889` in the separate `google_billed_expenses` section, with `cash_paid_status=unknown` and `allocation_status=unattributed`. B7 actual-cost remains disconnected, and its current paid/settled-only contract cannot encode a billed invoice with cash unknown. The remaining A8.1 work is the billed-cost/cash separation and provider-to-company-cost receipt wiring, not another import of the already-visible Google invoice.
 
-**現在cursor:** wait for the natural storage/reconciler process and storage PR checks → sync latest main and publish this SSOT → implement A8.1 billed-but-unsettled company cost records without guessed loop attribution → natural CFO/B7 receipt for the configured ASC packet → A6 owner/project trace → A8.3 Stripe and the remaining per-loop sources → period-true report, cash, and seven-day acceptance.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 13:22 JST — current CFO, release, and capacity readback; corrected revenue scope
 
@@ -11218,7 +11218,7 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **TODO順とcursor更新:** 旧cursor=`capacity/reconciler → latest-main SSOT publication → A8.1 billed/cash separation → natural CFO/ASC report → A6 Google trace → remaining revenue sources/reporting → cash → A10`. 新cursor=`(1) restore safe host capacity to the existing 2 GiB recovery floor via eligible cleanup and the existing storage repair path; preserve protected data → (2) after capacity recovery, let the active handoff reach terminal and read back the release reconciler/CFO owners; target the latest-main SHA, not stale 0dc40ef2 → (3) merge current main SHA 4068f637 into the CFO docs branch, resolve/push PR #7344, then merge when its base and checks are current → (4) implement A8.1 billed-vs-cash support in `skills/cfo/adapters/actual_cost.py` and the B0/actual-cost tests, connecting the existing official Google invoice once to company overhead without guessed loop allocation → (5) obtain a natural CFO/B7 occurrence with the configured ASC packet and provider receipt, replay-zero, JPY 4,250 restricted to its source period, and current-period coverage gap explicit → (6) A6 trace billed Google project/SKU to natural owner usage → (7) A8.3 Stripe product/loop settlement mapping → A8.4 Capafy → A8.5 affiliate → A8.6 writer → A8.7–9 marketplaces → A8.10 investment → A8.11–18 remaining source/classification → A8.19 shared/control/platform job cost coverage → (8) A9 truthful per-loop/company daily, MTD, trailing, and MRR totals → (9) obtain Google cash-payment evidence → (10) A10 seven consecutive natural CFO acceptances. The order remains cost-first because missing expense semantics prevent a trustworthy company net; the release/storage failures are prerequisites to a new natural report. Money Tree and Life Manager Cloud/API-cost reduction remain outside this CFO cursor.
 
-**現在cursor:** safe disk recovery → existing release handoff and CFO owner readback on latest main → publish this spec on current main → A8.1 billed/cash separation → natural CFO report including separate ASC period evidence → A6 Google trace → per-loop revenue/cost coverage → truthful company report and Google cash → seven-day natural acceptance.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 13:26 JST — CFO docs are synced to latest main; exact-head checks and storage repair remain
 
@@ -11229,7 +11229,7 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **TODO順とcursor更新:** 旧cursor=`safe capacity recovery → active handoff → latest-main spec publication → A8.1 → natural CFO report → A6 → remaining source/report/cash → A10`. 新cursor=`(1) finish PR #7344 exact-head checks and required review, then merge the already-synced CFO spec → (2) resolve PR #7348's missing-pytest CI failure, rebase it onto `4068f637`, pass exact-head checks, and merge the existing storage repair → (3) recover host disk to at least the existing 2 GiB floor through eligible cleanup, preserving protected data → (4) allow the running handoff to terminate safely, target a release built from latest main, and confirm both release-reconciler and CFO owner loaded SHA → (5) implement A8.1 billed-vs-cash support in the existing actual-cost adapter/B0 contract and tests, wiring the September Google invoice once to company overhead without guessed loop attribution → (6) obtain a natural CFO/B7 report with the configured ASC packet, provider receipt, replay-zero, JPY 4,250 limited to its source period, and the current-period gap explicit → (7) A6 Google project/SKU-to-owner trace → (8) A8.3 Stripe mapping, then A8.4–A8.19 per-loop revenue/cost coverage in the existing order → (9) A9 truthful per-loop/company daily, MTD, trailing, and MRR totals → (10) Google cash-payment readback → (11) A10 seven consecutive natural CFO acceptances. Ordering change: the docs branch is now current-main and pushed, so its exact-head checks/review can finish independently before the capacity PR; the CFO contract/source order is unchanged. Money Tree and Cloud API cost reduction remain out of this CFO cursor.
 
-**現在cursor:** merge CFO spec PR after exact-head checks/review → repair/rebase storage PR → safe disk recovery → natural latest-main owner handoff → A8.1 billed/cash split → natural CFO/ASC report → A6 and per-loop coverage → truthful company totals/cash → seven-day acceptance.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 13:27 JST — new CFO report delivered; economic coverage remains unknown
 
@@ -11238,7 +11238,7 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 - **Google:** the report continues to show the verified September invoice JPY `27,889`; cash-paid status is `unknown`, allocation is `unattributed`. The source CSV SHA and service arithmetic are recorded above; this is billed expense visibility, not proof of payment or per-loop attribution.
 - **Owner state:** launchd currently shows the CFO one-shot owner `not running` after completion, last exit `0`, loaded SHA `0dc40ef2`. The current pointer and this owner remain behind GitHub main `4068f637`; the release reconciler is still the separate active/stuck owner on SHA `55e8b166`, with handoff failing `old_service_active_timeout` and disk floor unmet.
 
-**現在cursor:** finish PR #7344 exact-head checks/review and merge → fix/rebase PR #7348 and pass its checks → recover safe disk capacity to the existing 2 GiB floor → reconcile the active release owner to a current-main release → implement A8.1 billed/cash separation → refresh the ASC source and obtain a natural B7 report that includes its period-bound receipt → A6 Google usage trace → remaining per-loop revenue/cost sources → complete period-aware company totals and Google cash → A10 seven-day natural acceptance.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 13:30 JST — latest main is synced; capacity handoff remains the live runtime blocker
 
@@ -11247,7 +11247,7 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 - **Capacity/handoff:** at `2026-10-09T04:30:28Z`, `df -Pk /` shows `216,032 KiB` available. The newest aggregate receipt at `04:29:14Z` reports `238,325,760` free bytes, `2 GiB` floor `unmet`, `errors=0`, `protected_deletions=0`, `preserved=10`. `~/loops/current` remains release `0dc40ef2`, while main is `15037dd2`. Reconciler PID `38499` still runs from loaded SHA `55e8b166`; the latest handoff readback is `failed / old_service_active_timeout` for target `0dc40ef2`. No owner kill/restart or protected deletion is permitted; the fix remains safe capacity recovery followed by natural handoff/readback to a release built from latest main.
 - **CFO result remains incomplete despite successful delivery:** the latest natural B7 receipt is still `105687` / occurrence `18dcc1bdd0cc1088-12390` on release `0dc40ef2`. It has 18 loop records, all `unknown`, zero settled-revenue entries, and `mobile-apps=stale_readback`; September Google is billed JPY `27,889`, payment unknown and unattributed. Delivery succeeded; company revenue/net/MRR and loop economics are not yet established.
 
-**現在cursor:** complete the independent review and integrate docs PR #7344 → repair/rebase storage PR #7348 and pass its pending contract test → recover safe host capacity to `2 GiB` → natural release handoff to SHA `15037dd2` or its immutable descendant and read back both reconciler/CFO owners → implement A8.1 billed-versus-cash support → refresh ASC readback and obtain a natural B7 receipt with period-bound settlement → A6 Google project/SKU/owner trace → complete per-loop revenue/cost coverage → truthful company totals and cash evidence → A10 seven-day acceptance.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 12:30 JST — Investment paper HOLD and release adoption cursor
 
@@ -11274,7 +11274,7 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **順序更新:** 旧cursor=`各投稿時刻と54/54 day-closeを待ってから次へ進む`。新順序=`(1) 完了: official Postiz countで26 published・33 account-level不足・5超過を分離 → (2) 既存publisherのmissed-slot拒否を修正し、準備完了accountは次slotを待たずcatch-upする。当日3件上限、公式count、occurrence identity、replay-zeroを守り、effect_unknownはexact readback前に再送しない。26 PNGを再利用し画像生成APIを呼ばない → (3) 既存disk-cleanup ownerのENOSPC/receipt失敗を診断・修復し、2 GiB floorを回復。open/protected/unknown dataは保持 → (4) 6 unknown ownerを照合し、EN2 controlを既存manifest writerでlimit 3へ設定。2 capacity-busy ownerをaccountごとに再dispatch → (5) ready accountから`max(0, 3 - published_count)`だけ即投稿し、Postiz `PUBLISHED` receipt/permalinkとTelegram URLをreadback。既に3件以上なら追加しない → (6) per-post metricsを取得時刻/source付きで保存・分析 → (7) 54/54 day-closeは結果指標だけで後続gateにしない。配信を先に反復し、ASC・RevenueCat・in-app funnelから検証済みUSD 10K net MRRを目指す。54/54とUSD 10K MRRは未達成のまま。`
 
-**現在cursor:** receipt-reserve ENOSPCとcapacity recovery → missed-slot catch-up source修正 → unknown fence/EN2 controlの公式readback → ready targetを当日不足分だけ即投稿 → PUBLISHED URL/Telegram URL → metrics → ASC/RevenueCat/in-app funnel。次slotや54/54 day-closeを待たない。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 14:07 JST — Mobile: 日次3枠を次TODOのgateにしない
 
@@ -11286,7 +11286,7 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **順序更新:** 旧順序=`2 GiB floor回復 → missed-slot source修正 → 全fence解決 → 3 slot全receipt / 54件day-close → 次TODO`。新順序=`(1) 最新Postiz countとownerごとのadmission/fence/書込可否をreadback → (2) ready ownerは経過済みslotの不足を既存APIで即投稿し、exact receipt/permalinkを保存。unknownと実書込失敗はそのownerだけ照合・修復 → (3) そのownerの最初のPUBLISHEDで配信経路を確認したら、3枠目やday-closeを待たず独立TODOへ進む。各ownerの残りslotはschedule通り継続しreceiptを順次回収 → (4) 各targetの日次3件receipt/URLを別途集計し未達は未達と表示 → (5) 全postのviews/engagementとTelegram URLを保存し、contentを反復 → (6) ASC/RevenueCat/in-app onboardingを接続し、検証済み$10K net MRRを追う。video-cycle catch-upは残るsource atom。native-carouselのcatch-upはPR #7359でmain済み。`
 
-**現在cursor:** 13:59 Postiz countと各owner状態は現時点の最新readbackだが、再確認が必要。まずready targetのfresh statusを読み、経過済みslotを既存owner/APIから即catch-upし、公式`PUBLISHED` + permalinkを保存する。そのownerの最初の成功後は次の独立TODOへ進み、未来slotや54/54 day-closeは待たない。残りの3/day receiptはschedule上で引き続き回収する。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 14:44 JST — Mobile full-day Postiz readback and owner-wide fences
 
@@ -11297,7 +11297,7 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **順序更新:** 旧順序=`owner-wide effect fenceを解決できるまで各publisherを止める → 3 slot全receipt/day-close → 次TODO`。新順序=`(1) loop admissionをoccurrence scopeにし、同一occurrenceはfenceを保持したまま別slotの新occurrenceを許可する。`mobile-app`はfresh owner-wide reconcileを試すが、古いclaimがunprovableでも新しいoccurrenceをexit 75で止めない。 (2) slotを含む決定的job/effect keyと既存ledgerのreceiptで同じslot再送を防ぎ、oldest due unpublished slotを選ぶ。 (3) latest-main immutable releaseにこの変更を反映し、ownerを1件ずつapplyし、経過済みslotだけ即dispatchしてPostiz `PUBLISHED` + permalinkをreadbackする。 (4) 3件/target/dayは達成指標として後続slotで続け、全target 54/54を次作業のgateにしない。 (5) 投稿URL付きper-post metricsを保存・分析し、既存PNGを使ったcopy/slide順を反復する。 (6) ASC/RevenueCat/in-app funnelを接続し、settled net MRRで$10K目標を検証する。理由は18/18 ownerがowner-wide fenceを持ち、現在0 scheduled rowsのため。`
 
-**現在cursor:** まずoccurrence-scoped mobile admissionと`mobile-app`のold-claim nonblocking挙動を既存resource-admission contractへ結び付けるfailing testを追加し、CI REDを確認する。次にregistry/wrapper/testを最小変更してGREENにし、mainへmergeする。その後、immutable main releaseを作り、最初のready targetを1件applyして14:15 missed slotを即dispatchし、Postizのreceipt/permalinkと重複なしを確認する。later slots/day-closeは待たない。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 
 
@@ -11352,7 +11352,7 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 - **CFO economics:** the natural B7 receipt on release `0dc40ef2` records provider message ID `105687` and `status=sent`; this is the local delivery/B7 record, not an independent provider-side GET. The projection has 18 loops, all `unknown`, and zero settled-revenue entries. `mobile-apps` is `stale_readback`; the previously observed direct ASC projection is not in this B7 occurrence. Google September is billed JPY `27,889`, while paid status is `unknown` and allocation is `unattributed`.
 - **Open PRs:** before this checkpoint commit, #7344 is based on main `15037dd2`, head `c7582ca2`, `MERGEABLE/UNSTABLE`; Loop control contracts is queued, Gitleaks and TruffleHog are in progress, and GitHub `reviews` is empty (CodeRabbit says manual review is required). This checkpoint changes its head, so re-read the new exact-head checks before merging. #7348 remains based on `16f2fe98`, head `0e8c410c`; Loop control contracts failed because `test_storage_failure.py` imports `pytest` while the job invokes `unittest` without pytest installed. Fix the test/dependency in that PR, rebase it on current main, and rerun its exact-head checks; do not edit that owner's files in this CFO branch.
 
-**現在cursor:** pass post-push exact-head checks and required review for CFO docs PR #7344, then merge → fix/rebase storage PR #7348 and pass its checks → safe disk recovery to the existing 2 GiB floor → reconcile the now-idle release owner from prior SHA `0dc40ef2` to latest-main release `15037dd2` or descendant and read back the reconciler/CFO loaded SHA → implement A8.1 billed-vs-cash company-cost support → refresh the ASC packet/readback and obtain a natural B7 occurrence that includes its period-bound receipt → A6 Google project/SKU/owner trace → remaining per-loop revenue/cost coverage → truthful company revenue/net/MRR and cash evidence → A10 seven-day natural acceptance.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 \n\**Cursor 15:42 JST:** `npx -y @dreamworkhq/mcp` failed ENOSPC; df=166,472 KiB. Cleanup `18dcc92dcd5e0cb8-34113`=`entrypoint_exit_1`; Job Hunter `18dcc8621be1b9d8-9287`=`resource_capacity_busy`/75. Next: capacity→MCP/readiness→Dreamwork route→official application receipt/replay-zero/Telegram. Latest provider readback: Free limit 0; no application verified.\nelevenlabs-discovered-voiceover-studio-en` plan and its October 9 composition bundle contain only official product and pricing sources. The source store already has fresh first-person affiliate cases for Alec Wilcock and Greg Preece, but legacy plans do not attach them; `composition_owner.py` already has a strategy-only prompt for these cases.
 - **Contract:** every ElevenLabs composition bundle reuses the current, hash-verified official case-study receipts when its plan lacks them, without changing the immutable plan. Expired or invalid receipts are recaptured through the existing source adapter. The bounded source-refresh cycle records `case_study_sources_complete` per legacy plan and stays open until all are refreshed; composition skips old bundles without both cases and retries on the next wake without consuming a model pass or public effect. Product claims continue to use official product/pricing sources. Case studies inform audience fit, firsthand workflow tutorials, evergreen search intent, and clear affiliate-link CTAs; their wording and reported earnings are never copied or attributed to Anicca. English remains primary with a concise Japanese summary at the end.
 - **TODO:** [x] add hash-verified case-study reuse, bounded legacy-plan backfill, revenue-priority ordering, and the composition waiting boundary for ElevenLabs; [ ] push this source change through exact-head review/CI and merge; [ ] cut an immutable release and apply source-refresh/composition only when idle; [ ] confirm a natural four-source composition bundle, then use official placement/click/transaction/cost readbacks and replay-zero.
@@ -11391,7 +11391,7 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **TODO順更新と理由:** 旧Job Hunter atom=`daily/inbox admission + health repair → Workday learning effect-unknown readback → Workday receipt/apply`。新atom=`(1) 完了: Workday daily ownerをstopし、再ロードをreadback後に再stop → (2) 完了: private profileへTokyo/Remote同順位、sponsored US、New York exclusionを反映 → (3) 完了: Free API keyをcredential SSOTへ最小scopeで保存し、official `get_usage`/`get_application_readiness`でapplicationsLimit=0を確認 → (4) 完了: Dreamwork `update_preferences`へlocation/sponsorship条件を反映 → (5) terminal-ENOSPC fence修正をlatest mainへcommit・push・review・CI・mergeし、current ownerをmain releaseへreconcile → (6) Workday `effect_unknown`対象をofficial readbackで照合しduplicate fenceを保つ → (7) Dreamwork Free entitlementではapplyしない。無許可の有料upgradeをせず、Freeで応募可能なplanになるかprovider readbackで再確認 → (8) providerが応募を許可する時だけsame-owner MCP統合し、fit-qualified求人のofficial `submitted` status/receipt・replay-zero・Telegram outboxを確認する`。先行する共通terminal/capacity修正は維持する。理由は、ユーザーがWorkdayを明示的に置き換え、Tokyo/Remoteとsponsored USの検索、実応募、無偽装readbackを要求した一方、公式APIがFree応募数を0と返したため。
 
-**現在cursor:** release reconciler/cleanupの`ENOSPC`終了とstorage recovery → terminal-ENOSPC source diffとspecをlatest mainへrebase・commit・push → PR/CI/merge → Workday registry cutoverをmain由来releaseへ反映し再ロード0をreadback → Workday unknown対象を照合 → Dreamwork Free applicationsLimit=0を保持し、応募済みと報告せず有料購入もしない → Job Hunterの同owner MCP/source cutoverをentitlementが変わった時だけ有効化 → Fundraiser → Connector/Luma → measured capacity and revenue.
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 14:45 JST — latest-main restoration and terminal-write CI corrections
  
@@ -11426,7 +11426,7 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **TODO順更新と理由:** 旧順序=`owner-safe cleanup bootstrap → Dreamwork MCP/provider readback → PR #7358 review/CI/merge → Job Hunter source cutover → official application receipt`。新順序=`(1) cleanup ownerが開始記録を永続化できる状態へ戻し、natural receiptと2 GiB以上の安定した空き容量を確認 → (2) Dreamwork MCPをinstallし、Tokyo/日本就労可能Remote/SF/visa sponsorship条件とusage/readinessを公式readback → (3) Workday由来のeffect_unknownを照合した上で、Dreamwork routeをmain由来releaseへ反映しJob Hunter ownerを対象限定で切替 → (4) entitlementが応募を許可した場合のみfit-qualified求人を提出し、公式applied receipt/readback・replay-zero・Telegram報告を確認。Free枠0のまま購入・応募成功を主張しない`。理由はPR #7358がmerge済みとなり次の実測blockerが容量由来のowner停止で、さらにDreamworkの現行Free entitlementが応募数0だから。
 
-**現在cursor:** owner-safe capacity recoveryとfresh natural receipt → Dreamwork MCP install / provider preference・entitlement readback → Workday effect fence照合 → Dreamwork source cutoverとmain-derived releaseのowner readback → entitlementが許可する場合の実応募・公式receipt・replay-zero・Telegram report。実応募は未確認。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 15:45 JST — Dreamwork MCP再試行はENOSPC、capacityとowner状態が不一致
 
@@ -11437,7 +11437,7 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **TODO順更新と理由:** 旧順序は「capacity recovery → Dreamwork MCP/readiness → Workday effect reconciliation → Dreamwork source cutover → official application」。新順序は、(1) cleanup ownerの`entrypoint_exit_1` / exit 78をreconcileし、natural success receiptと安定したwrite capacityを確認、(2) `npx -y @dreamworkhq/mcp`を再試行し、provider preference / usage / readinessを公式readback、(3) Workday由来effect_unknownを照合し、Dreamwork routeをmain由来releaseへ反映、(4) entitlementが応募を許可した場合だけfit-qualified求人を提出し、official receipt/readback・replay-zero・Telegram報告。理由は単回の空き容量readbackが2 GiBを越えてもcleanup ownerがexit 78で、Job Hunterがresource-capacity blockだから。
 
-**現在cursor:** cleanup owner reconcile + stable capacity receipt → Dreamwork MCP install/readiness → Workday effect fence照合 → Dreamwork source cutover → entitlementが許可する場合の実応募receipt・replay-zero・Telegram report。応募実績は未確認。
+**現在cursor:** →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 ### 2026-10-09 15:52 JST — English eBook factory: verified state and handover cursor
 
