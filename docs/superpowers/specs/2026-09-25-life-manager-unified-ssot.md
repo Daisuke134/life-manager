@@ -12833,3 +12833,38 @@ flowchart LR
 10. **10K net MRRとfactory:** AniccaのASC first-time downloads trailing 7-day average 100/dayを目指し、measurementがstore-page bottleneckを示す場合だけASO、次にonboarding/paywallを一仮説ずつ改善する。Apple settled proceedsからrefund/fees/costを差し引いたverified net recurring MRR USD 10Kを一次receiptで確認してから残app/factoryへ展開する。
 
 **現在cursor:** protected memory/stateを一切触らずにrelease-retention/capacity blockerを安全に解ける最小手段を特定する。投稿・source変更・release/applyは未完。
+
+### 2026-10-11 02:09 JST — Mobile growth continuation readback
+
+本snapshotは02:09 JSTまでに再確認できた証拠だけを更新する。distributionを第一優先にし、日次slot時刻を待つ間も独立readback・診断を止めない。未知の投稿結果は未投稿/成功のどちらにも決めつけず、既存owner/admissionと公式receiptで判定する。
+
+- **Git/source:** fresh fetchとGitHub APIのmain readbackは`62a8075a031bd09e486c4f590de23693559ad9c3`（2026-10-11 02:04 JST）。PR #7537は`bin/reconcile-agent-runner-release.sh`の重複disk precheckを除き、既存cutterのcleanup→完全release admissionへ委ねる変更。これはsource/main済みでproduction loaded SHAには未反映。shared checkout `/Users/anicca/Projects/life-manager-main` はdirtyな`capafy/annual-report-risk-change-brief-20261009` / `e2010e5b81cd4139fb097a89a4a9a60d5ccf464f`のため不変更。専用worktree `/Users/anicca/Projects/life-manager-main/.worktrees/mobile-growth-release-gc-20261011` はmainへfast-forwardし、branch `fix/mobile-release-retention-20261011`、base/verified HEAD `62a8075a031bd09e486c4f590de23693559ad9c3`、編集前clean。push upstreamはまだ未設定。
+- **Runtime/capacity:** `~/loops/current`はrelease `20261011T013322-f78a2399` / SHA `f78a23995df5f50724131b51ade652b27fa7fc13`。disk-cleanupはloaded-running/PID 4009で最終自然pass 17:05:40Z（02:05 JST）、release-reconcilerはloaded-running/PID 73647で別の有限runを実行中。重複cutterやrestartをしない。`df -kP` 02:09 JSTは1,045,768 KiB available、volume 100%、2 GiB floor未達。自然cleanup passはこのheadroom blockerを解消した証拠ではない。
+- **TikTok owner/fences:** `life-manager-anicca-main-tiktok`はloaded-idle/PIDなし、旧SHA `142ef661928ef1d44a186fcb2fed6a850dea024c`。readbackに`admission_effect_unknown=true`、4,319 occurrence refs（20 detail表示、truncated）。最後に記録されたterminalは10/10 22:38 JST相当で、`daily_limit_reached`のno-effect receiptを参照する。個別official readbackなしにfenceを一括解除・再送しない。
+- **Postiz distribution:** 今回の最新official GETは01:16 JST（このturnでは再GETしていない）。その時点で31 integrations/30 enabled、対象18/18 enabled、10/11 JST分は0/54 `PUBLISHED`・0 target `QUEUE`、10/10 complete dayは32/54で22不足。従って02:09時点の正確な当日countは未確認。owner readbackの次scheduled runは08:00 JST。予定slot待ちを作業停止理由にせず、off-slotは通常admissionでeligibleな場合のみ実行する。
+- **Post metrics/content:** 10/10 22:59 JSTのnative collectorは182 checkpoint/errors 0、88 unique resolved（Instagram 64、YouTube 24、TikTok 0）。TikTok 98 identity rowsはunresolved、66 integration-unmapped。URL/permalink・native metricとTelegram per-post linkの実receipt確認は未完。PR #7507のmain sourceは保存済みmediaと決定的copyを使い、投稿毎のGemini/GPT Image生成呼出しはない。ただしTikTok ownerが旧SHAのため、production loaded codeがこのsourceを使うことは未確認。
+- **Acquisition/revenue/in-app:** 最終official ASC readbackは01:11 JST前後、processingDate 10/10でAnicca/HonneのsegmentはOct 8–9まで確認。Oct 10以降・残り4 appのreport instanceは未確認（0扱いしない）。最終RevenueCat complete period Oct 9はAnicca subscription MRR USD 20.34、他5 app USD 0.00。これはsettled revenue/netではなく、refund/fee/payout/company net未照合。Mixpanel live funnel未確認。Paywall screenshotのplan-load errorとnotification→同一quote遷移はscope/root cause未確定。
+- **成果条件:** 10K USD verified net MRRは未達。100 ASC first-time downloads/day/appは目標であり現状の実績ではない。18 accounts × 3 distinct posts = 54 `PUBLISHED`/JST dayは運用目標で、queue・views・MRR観測値を売上/settlementと混同しない。Postizの$49/月はユーザー申告額、invoiceとself-host total costは未照合。
+
+**残TODO（atomic、distributionから順に完了まで）:**
+
+1. release-reconciler PID/occurrenceのfresh statusを取り、自然terminalと標準lock解放をreadbackする。稼働中に別cutter/apply/restartを重ねない。その待ち時間にPostiz/ASC/RC/metrics等の独立read-only項目を進める。
+2. current main `62a8075…` を含むimmutable releaseを既存release-reconciler/cutterで生成する。PR #7537の既存cleanup-before-admission経路を使い、完全releaseと同じ2 GiB guardを要求する。成功時はfree-after、release SHA、`~/loops/current`を記録。未達なら所有者を特定できるallowlisted recoveryだけを行い、`memory/`, `state/`, credentials, browser/profile, active worktree/releaseを削除・停止しない。
+3. `launchctl-safe preflight`がreceiptを永続化し`mutation_allowed=true`になることを確認し、`lm-loop`標準経路でownerを1つずつ反映する。18 target ownersとcurrent pointerのloaded SHAを照合する。raw `launchctl`、preflight迂回、bulk restartは禁止。
+4. 18 target ownerのeffect fenceをoccurrence ID単位でPostiz official receipt/no-effectに照合し、4,319 refsを分類する。unknownのままなら保持し、同一effect再送・bulk clearをしない。
+5. 既存保存assetを再利用し、18 target accountsに各3 distinct posts/JST day（54/54）を投稿する。Postiz `PUBLISHED`・account・permalink/receiptを確認し、queueを成功に数えない。admitted off-slot catch-upを優先し、slot待ち中も独立作業を進める。7日連続自然日で投稿とreceipt/replay-zeroを観測する。
+6. post単位のviews/reach/likes/comments/shares/clicks等を各platform official sourceへ結ぶ。98 TikTok identitiesと66 unmapped integrationsを解消し、`engagementScore` numeric-string問題をfocused testで修正する。Telegram報告は各post URLとmetric/unknownを含む実配信receiptで確認する。
+7. 既存ASC collectorで6 appのimpressions、product-page views、first-time downloads、redownload/restores、processing dateを日次で揃え、campaign/post→click/store visit→downloadの既存attributionを確認する。Aniccaでfirst-time downloads trailing 7-day average 100/dayを目指す。
+8. 既存RevenueCatとMixpanelのread pathを更新し、paid/trial/MRRとonboarding/paywall funnelを別々に測る。RevenueCat MRRをApple settled proceedsと扱わない。Mixpanel event/query名をsource実装に合わせ、欠測・古い期間はunknownにする。
+9. Screenshotのpaywall plan-load errorをfresh install・既購読・restoreで再現し、原因を修正する。通知tap後に同一`quoteId`が表示されることを検証する。source changeが必要な場合だけTestFlight/App Store版を提出し、build/審査/配信状態をASCで確認する。
+10. post/hook・ASC acquisition・RevenueCat/Mixpanel conversionを一つずつ比較し、bottleneckが見えた場合に限りstore listing/ASO、続いてonboarding/paywall/UXを改善する。投稿時は保存assetを変えずcopy/text/orderだけを変え、画像生成APIを毎回呼ばない。
+11. Apple公式settlementから売上・refund・fee・payoutを同一期間で照合し、全provider/cloud/marketing costを差し引いたAnicca net recurring MRR USD 10,000を確認する。達成後、同じ計測・投稿・収益手順を他の承認済みappへ展開し、factory化する。推定・subscription MRRだけで達成と報告しない。
+
+**現在cursor:** 02:09時点でPID 73647のrelease-reconciler自然terminalと標準lockを取り直す。並行して独立read-only計測を進める。次にmain由来完全release/headroom、receipt可能な標準preflight、owner SHA、occurrence fence、54/day配信へ進む。投稿・owner apply・release cutはこのspec更新では行っていない。
+
+### 2026-10-11 02:19 JST — Latest-main native clone adoption
+
+- **Fresh main:** 02:16 JSTにPR #7538が`522cfb1f3e997a09f25a44d0bad710c6c830fd99`へmerge。`bin/cut-loop-release.sh`は、owner/mode/link-count条件とbyte comparisonを満たす同一read-only source fileについてmacOS `/bin/cp -c` cloneを試し、clone後もbyte compareし、失敗時はGit exportを残す。関連testとSSOTもmainに存在する。PR #7537のcaller precheck除去と合わせてsource pathは改善済みだが、runtimeへの採用やheadroom回復はまだ未証明。
+- **Runtime recheck:** `~/loops/current`は引き続き旧release `20261011T013322-f78a2399` / SHA `f78a23995df5f50724131b51ade652b27fa7fc13`。release-reconcilerはPID 73647でloaded-runningのまま、last successful terminal `2026-10-10T17:01:50Z`から更新されていない。`df -kP` 02:19 JSTは989,500 KiB available、100% usageで2 GiB未達。clone optimizationがこの状態を直したとは扱わない。
+- **Branch/PR:** 専用worktreeはfresh `origin/main=522cfb1…` をmerge済み。spec/handover branch `fix/mobile-release-retention-20261011`のhandover初回commit `e61c4f5…`とmain追従addendum commit `761c1712c6ad0c6011a9baeaccae40e516b163da`はremoteにpush・照合済み。PR #7539はopen、base `522cfb1…`、head `761c1712…`。このheadではCI checksがまだ報告されていない。review/subagentは使わない。
+- **Cursor correction:** 前節TODO 1のPID 73647が自然terminalへ到達するかfresh確認する。走行中は競合cutter/restart/applyを実行せず、独立read-only metricsは進める。terminal後、#7537/#7538を含むmain由来標準reconciler/cutterにrelease作成を委ね、clone数・free-before/after・complete `RELEASE.json`・current SHAを記録する。2 GiB gateが未達なら証拠からsafe owner/capacity blockerを特定し、clone source fixだけで完了扱いにしない。前節TODO 3–11は未完のまま順序維持。
