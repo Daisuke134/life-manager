@@ -66,6 +66,7 @@ PERMISSION_OWNER_BOUNDARIES = (
 REQUIRED_OWNER_FAMILIES = tuple(sorted({family for family, _ in ROOT_FAMILIES}))
 
 SIZE_PROBE_FAMILIES = {
+    "agent-session",
     "repository-worktree",
     "gig-deliverable",
     "agent-runtime",
@@ -382,25 +383,34 @@ def _bounded_size(
     return parsed_size, "bounded-du", None
 
 
+def _size_sample(record: dict, observed_at: str | None) -> dict | None:
+    sample = record.get("size_sample")
+    if isinstance(sample, dict) and type(sample.get("size_bytes")) is int:
+        return sample
+    size = record.get("size_bytes")
+    return {"size_bytes": size, "observed_at": observed_at} if type(size) is int else None
+
+
 def project_storage_growth(previous: dict | None, current: dict,
                            registry_roots: dict[str, list[str]]) -> dict:
     """Metadata deltas are observations, never deletion or ownership proof."""
-    elapsed = None
-    try:
-        before = datetime.fromisoformat(previous["observed_at"].replace("Z", "+00:00"))
-        after = datetime.fromisoformat(current["observed_at"].replace("Z", "+00:00"))
-        seconds = (after - before).total_seconds()
-        if before.tzinfo is not None and after.tzinfo is not None and seconds > 0:
-            elapsed = seconds
-    except (KeyError, TypeError, ValueError, AttributeError):
-        pass
-    previous_roots = {r["path"]: r.get("size_bytes") for r in
-        (previous or {}).get("roots", []) if isinstance(r, dict) and isinstance(r.get("path"), str)}
+    previous_roots = {r["path"]: r for r in (previous or {}).get("roots", [])
+                      if isinstance(r, dict) and isinstance(r.get("path"), str)}
     roots = []
     for record in current.get("roots", []):
-        path = record["path"]
-        size = record.get("size_bytes")
-        old_size = previous_roots.get(path)
+        path, size = record["path"], record.get("size_bytes")
+        old = _size_sample(previous_roots.get(path, {}), (previous or {}).get("observed_at"))
+        fresh = _size_sample(record, current.get("observed_at"))
+        elapsed = None
+        try:
+            before = datetime.fromisoformat(old["observed_at"].replace("Z", "+00:00"))
+            after = datetime.fromisoformat(fresh["observed_at"].replace("Z", "+00:00"))
+            seconds = (after - before).total_seconds()
+            if before.tzinfo is not None and after.tzinfo is not None and seconds > 0:
+                elapsed = seconds
+        except (KeyError, TypeError, ValueError, AttributeError):
+            pass
+        old_size = old.get("size_bytes") if old else None
         measured = (elapsed is not None and type(size) is int and size >= 0
                     and type(old_size) is int and old_size >= 0)
         delta = size - old_size if measured else None
@@ -491,16 +501,33 @@ def collect_host_inventory(
         missing_local_writable_mounts = sorted(
             mount for mount in local_writable_mounts if mount not in df_mount_paths
         )
+    target = state_dir / ("host-inventory-full.json" if full else "host-inventory.json")
+    previous = _inventory_previous(target)
+    previous_roots = {r["path"]: r for r in (previous or {}).get("roots", [])
+                      if isinstance(r, dict) and isinstance(r.get("path"), str)}
+    families = list(ROOT_FAMILIES)
+    if full:
+        attempted = [r for r in (previous or {}).get("roots", []) if isinstance(r, dict)
+                     and r.get("measurement") in {"bounded-du", "bounded-du-partial", "timeout", "error"}]
+        if attempted:
+            for index, (_, template) in enumerate(families):
+                if str(Path(template.format(home=home))) == attempted[-1].get("path"):
+                    families = families[index + 1:] + families[:index + 1]
+                    break
     roots: list[dict[str, Any]] = []
     root_gaps = list(gaps)
-    for family, template in ROOT_FAMILIES:
+    for family, template in families:
         path = Path(template.format(home=home))
         record, record_gaps = _children(path)
         record["owner_family"] = family
+        if full:
+            record["size_sample"] = _size_sample(previous_roots.get(str(path), {}), (previous or {}).get("observed_at"))
         if full and family in SIZE_PROBE_FAMILIES and record["exists"] and not record["symlink"]:
             size, measurement, size_gap = _bounded_size(path, run, deadline=deadline, clock=clock)
             record["size_bytes"] = size
             record["measurement"] = measurement
+            if type(size) is int:
+                record["size_sample"] = {"size_bytes": size, "observed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
             if size_gap:
                 record_gaps.append(f"{size_gap}:{path}")
         else:
@@ -543,7 +570,7 @@ def collect_host_inventory(
     }
     target = state_dir / ("host-inventory-full.json" if full else "host-inventory.json")
     payload["storage_growth"] = project_storage_growth(
-        _inventory_previous(target), payload,
+        previous, payload,
         _registry_storage_roots(home) if registry_roots is None else registry_roots)
     encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
     payload["inventory_sha256"] = hashlib.sha256(encoded).hexdigest()

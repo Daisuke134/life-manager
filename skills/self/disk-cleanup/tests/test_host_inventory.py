@@ -625,3 +625,48 @@ def test_shared_storage_roots_are_observed_as_metadata(tmp_path):
     paths = {r["path"] for r in collect_host_inventory(home=tmp_path, state_dir=tmp_path / "state", runner=fake_runner)["roots"]}
     assert str(tmp_path / ".local/state/life-manager") in paths
     assert str(tmp_path / "loops/releases") in paths
+
+
+@pytest.mark.parametrize("first_timeout", (False, True))
+def test_full_inventory_advances_past_budget_to_session_root(tmp_path, monkeypatch, first_timeout):
+    families = (("repository-worktree", "{home}/Projects"),
+                ("agent-runtime", "{home}/loops"),
+                ("agent-session", "{home}/.codex-acct2"))
+    monkeypatch.setattr(host_inventory, "ROOT_FAMILIES", families)
+    for _, template in families:
+        Path(template.format(home=tmp_path)).mkdir()
+    clock, calls = [0.0], []
+    def runner(argv, *, timeout):
+        if argv[0].endswith("/du"):
+            calls.append(argv[-1])
+            clock[0] += timeout
+            if first_timeout and Path(argv[-1]).name == "Projects":
+                raise subprocess.TimeoutExpired(argv, timeout)
+        return fake_runner(argv, timeout=timeout)
+    payloads = []
+    for _ in range(3):
+        clock[0] = 0.0
+        payloads.append(collect_host_inventory(home=tmp_path,state_dir=tmp_path/"state",
+            full=True,runner=runner,clock=lambda:clock[0],budget_seconds=1))
+    expected = [str(Path(template.format(home=tmp_path))) for _,template in families]
+    assert calls == expected
+    first_again = next(r for r in payloads[1]["roots"] if r["path"] == expected[0])
+    assert first_again["size_bytes"] is None
+    if first_timeout:
+        assert first_again["size_sample"] is None
+    else:
+        assert first_again["size_sample"]["size_bytes"] == 8192
+    delta = next(r for r in payloads[1]["storage_growth"]["roots"] if r["path"] == expected[0])
+    assert delta["delta_bytes"] is None
+
+
+def test_growth_uses_last_real_sample_time_after_unmeasured_pass():
+    path = "/srv/lm/large"
+    previous = {"observed_at":"2026-10-09T00:09:00Z", "roots":[{"path":path,"size_bytes":None,
+        "size_sample":{"size_bytes":100,"observed_at":"2026-10-09T00:00:00Z"}}]}
+    current = {"observed_at":"2026-10-09T00:10:00Z", "roots":[{"path":path,"size_bytes":700,
+        "size_sample":{"size_bytes":700,"observed_at":"2026-10-09T00:10:00Z"}}]}
+    result = host_inventory.project_storage_growth(previous,current,{})["roots"][0]
+    assert result["delta_bytes"] == 600
+    assert result["elapsed_seconds"] == 600
+    assert result["bytes_per_second"] == 1
