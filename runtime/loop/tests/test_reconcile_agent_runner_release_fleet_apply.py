@@ -664,6 +664,9 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             self._activate(root, release)
             marker = root / "cut.marker"
             self._stub_cutter(release, marker)
+            cutter = release / "bin/cut-loop-release.sh"
+            cutter.write_text("#!/bin/sh\n" + f"echo cleanup >> {marker}\n"
+                              + f"exec python3 {ROOT}/runtime/host/disk_admission.py --check-free-space \"$LOOPS_ROOT\"\n")
             self._advance_repo(repo)
             calls = root / "calls.log"
             env = self._base_env(root, repo, calls_log=calls)
@@ -674,7 +677,9 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
                 "import shutil,types\nshutil.disk_usage=lambda p: types.SimpleNamespace(free=0)\n")
             env["PYTHONPATH"] = str(probe)
             result = self._run(env)
-            self.assertFalse(marker.exists(), "full cut started while capacity was low")
+            self.assertTrue(marker.exists(), result.stderr or result.stdout)
+            self.assertEqual(marker.read_text(), "cleanup\n",
+                             "cutter recovery was skipped while capacity was low")
             self.assertEqual(result.returncode, 75, result.stderr)
             self.assertEqual(json.loads(result.stdout.strip())["reason"], "disk_headroom_low")
             self.assertEqual(self._apply_call_count(calls), 0)
