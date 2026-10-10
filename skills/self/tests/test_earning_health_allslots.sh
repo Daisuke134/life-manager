@@ -12,6 +12,17 @@ SCRIPT="$SELF_DIR/earning-health-allslots.sh"
 a(){ echo "$2" | grep -qF "$3" && { echo "  ok $1"; P=$((P+1)); } || { echo "  FAIL $1 want:[$3] got:[$2]"; F=$((F+1)); }; }
 na(){ echo "$2" | grep -qF "$3" && { echo "  FAIL $1 (unexpectedly found:[$3])"; F=$((F+1)); } || { echo "  ok $1"; P=$((P+1)); }; }
 
+echo "(stdio) diagnostics use the bounded runner stream without growing a direct log"
+STDIO_DIR="$(mktemp -d)"
+printf 'retained diagnostic\n' > "$STDIO_DIR/legacy.log"
+EARNHC_REGISTRY="$STDIO_DIR/missing-registry.json" EARNHC_STATE_DIR="$STDIO_DIR/state" \
+  EARNHC_LOG="$STDIO_DIR/legacy.log" bash "$SCRIPT" >"$STDIO_DIR/stdout" 2>"$STDIO_DIR/stderr"
+STDIO_RC=$?
+a "diagnostic content reaches stderr" "$(cat "$STDIO_DIR/stderr")" "no registry at"
+na "direct legacy log is not appended" "$(cat "$STDIO_DIR/legacy.log")" "no registry at"
+[ "$STDIO_RC" -eq 0 ] && { echo "  ok no-work exit remains 0"; P=$((P+1)); } \
+  || { echo "  FAIL no-work exit remains 0 (got $STDIO_RC)"; F=$((F+1)); }
+
 REASON_A="identity-mismatch (own=none cli=none); slot-a"
 REASON_E="earn-guard: cumulative net breach -- HALT (fail-closed); slot-e"
 
