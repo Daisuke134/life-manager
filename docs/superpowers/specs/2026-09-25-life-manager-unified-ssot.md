@@ -323,6 +323,8 @@ CLEAN-04 native clone source受入: Git archive後のexport正本と完全一致
 
 CLEAN-04完全release反映: fresh available3,450,400,768 bytesへの自然回復後、自分のread-only du probeだけを終了（PID22068）、最新main522cfb1から正規ALL cutter一回exit0、source clones8327/current20261011T022135-522cfb1fを確認。manifest ancestor-of-origin-main/ALL、cutter SHA c3ba353c・reconciler7257eedb・central15683e2cはmain blob一致/read-only。freshfree2,325,463,040、GUI UID501/DS/Aqua/manager501-PID1/receipt PASS。単一free値の差をclone効果へ帰属せず、本番source再利用の実行証拠とする。次scopeはfresh loaded-idle/unknown=falseの時だけlife-manager-release-reconciler一担当をcanonical reconcile deterministic/loaded-idle/maxowners1で新releaseへ採用し、自然実行/loaded argv/主台帳保持を確認。active owner/current競合があればskipし、新cut/全fleet apply/強制wake/unknown解除はしない。生成と回収の同期間収支・CLEAN-05→06は未完。
 
+CLEAN-04現在自然証拠: reconcile直前fresh statusはlife-manager-release-reconcilerがPID36404/f78でloaded-runningへ変化したためroot applyを発行しない。既存self-handoffを追跡する。native watchdogはloaded067ac/interval60/runs124/last exit0をfresh safe GUIで確認。正式bounded stdoutの自然17:17:48/17:19:22/17:21:07/17:22:55/17:24:45Zは全てerrors0/protected_deletions0/cursor persisted/empty errors。free_after1,050,955,776→1,015,984,128→3,463,135,232→2,318,041,088→2,315,501,568。VM total11520→10240MiB、swapfile11不在を確認するが各free変動全量を帰属しない。新旧releaseのst_blocks sumは約118MBずつでclone共有blockの非加算値、本番物理削減をこの合計から主張しない。native reuse8327/実source一致は確認済み、正式receipt=cleanup-clone-runtime-20261011.json。次cursor=active reconcilerの自然terminal/self-handoff→実producerと回収の同期間収支→CLEAN-05→06。根本修復未完を維持する。
+
 **cleanup現在readback（source/main/release/loaded/naturalを区別）:**
 
 | atom | 確認済み | 実際に残る一操作 |
