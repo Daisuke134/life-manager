@@ -6,7 +6,7 @@
 - Spec worktree: `/Users/anicca/Projects/life-manager-main/.worktrees/docs-mobile-distribution-postmerge-20261010`
 - Spec branch/upstream/push: `docs/mobile-distribution-postmerge-20261010` / `origin/docs/mobile-distribution-postmerge-20261010`
 - Spec: `/Users/anicca/Projects/life-manager-main/.worktrees/docs-mobile-distribution-postmerge-20261010/docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md`; latest mobile status and the entire ordered cursor are in its final `2026-10-10 17:13 JST — Mobile distribution handover refreshed` section.
-- Spec checkpoint commit: `3d81376b16b57cdfcafada8e4051ed5ff9c4dea9`; handover files are committed at branch head `2a430af93995b2209063cabc07c7ab7b49ec1d22`. PR #7462 is open; exact-head Security Scan is in progress.
+- Spec checkpoint commit: `3d81376b16b57cdfcafada8e4051ed5ff9c4dea9`; handover files were first committed at `2a430af93995b2209063cabc07c7ab7b49ec1d22`, with the runtime refresh at `1cbfbdbf6b1a3f9fa17d49a0ca14ad89411a31ef`. PR #7462 is open/clean; no exact-head workflow checks are attached to the latest head yet. `git diff --check` and the goal-setter validator pass.
 - Latest fetched main and current immutable release: `0c4fcf4234541b4fabc3dcd2cd6471246944f2fa` / `20261010T171451-0c4fcf42`.
 
 ## State to preserve
