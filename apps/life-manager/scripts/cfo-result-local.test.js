@@ -275,6 +275,60 @@ test("B7 snapshot joins the official ASC packet and same-occurrence RevenueCat r
   assert.doesNotMatch(stored, /private-vendor|private-subscription|product-[1-6]|\/private\//);
 });
 
+test("B7 provenance accepts a six-artifact ASC relationship bundle", async t => {
+  const { options } = setup(t);
+  options.collect = async () => b7Table("2026-09-30");
+  const relationshipHashes = ["a", "b", "c", "d", "e", "f"].map(value => value.repeat(64));
+  writeMobileProvenanceFixture(options, {
+    mutatePacket: packet => {
+      packet.relationships = { artifacts: relationshipHashes.map((artifactSha256, index) => ({
+        artifact_path: `/private/relationships/${index + 1}.json`, artifact_sha256: artifactSha256,
+      })) };
+    },
+    mutateMobile: mobile => {
+      const receipt = mobile.mobile_records.find(row => row.provider === "app-store-connect-financial");
+      receipt.evidence_refs[2] = `appstoreconnect://subscription-relationships/sha256/${relationshipHashes[1]}#data/1`;
+      receipt.evidence_refs[3] = `appstoreconnect://subscription-relationships/sha256/${relationshipHashes[1]}#included/1`;
+    },
+  });
+
+  await runResultCfo({ ...options, now: "2026-09-30T12:00:00Z" });
+
+  const snapshot = JSON.parse(fs.readFileSync(readbackFile(options.stateDir, options.occurrenceId), "utf8"));
+  assert.equal(snapshot.sourceProvenance.status, "verified");
+  assert.equal(snapshot.sourceProvenance.asc.relationshipsSha256,
+    "1a141a77e5da256ec7828216e93eacb33223ff29911e494efb495013bef9e6a7");
+  assert.deepEqual(snapshot.sourceProvenance.asc.relationshipArtifactSha256s, relationshipHashes);
+  assert.equal(snapshot.sourceProvenance.asc.receipts.length, 1);
+  assert.doesNotMatch(fs.readFileSync(readbackFile(options.stateDir, options.occurrenceId), "utf8"),
+    /\/private\/relationships\//);
+});
+
+test("B7 provenance rejects relationship data and included refs from different bundle artifacts", async t => {
+  const { options } = setup(t);
+  options.collect = async () => b7Table("2026-09-30");
+  const relationshipHashes = ["a", "b", "c", "d", "e", "f"].map(value => value.repeat(64));
+  writeMobileProvenanceFixture(options, {
+    mutatePacket: packet => {
+      packet.relationships = { artifacts: relationshipHashes.map((artifactSha256, index) => ({
+        artifact_path: `/private/relationships/${index + 1}.json`, artifact_sha256: artifactSha256,
+      })) };
+    },
+    mutateMobile: mobile => {
+      const receipt = mobile.mobile_records.find(row => row.provider === "app-store-connect-financial");
+      receipt.evidence_refs[2] = `appstoreconnect://subscription-relationships/sha256/${relationshipHashes[1]}#data/1`;
+      receipt.evidence_refs[3] = `appstoreconnect://subscription-relationships/sha256/${relationshipHashes[2]}#included/1`;
+    },
+  });
+
+  await runResultCfo({ ...options, now: "2026-09-30T12:00:00Z" });
+
+  const snapshot = JSON.parse(fs.readFileSync(readbackFile(options.stateDir, options.occurrenceId), "utf8"));
+  assert.equal(snapshot.sourceProvenance.status, "partial");
+  assert.equal(snapshot.sourceProvenance.reason, "asc_receipt_evidence_mismatch");
+  assert.deepEqual(snapshot.sourceProvenance.asc.receipts, []);
+});
+
 test("ASC packet in a non-private parent directory cannot be marked verified", async t => {
   const { options } = setup(t);
   options.collect = async () => b7Table("2026-09-30");
