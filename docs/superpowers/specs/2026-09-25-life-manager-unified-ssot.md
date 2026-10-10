@@ -12579,3 +12579,29 @@ flowchart LR
 - `lm-loop doctor --json` reports `ok=false` because of one pre-existing `retired_installed_labels` item, `ai.anicca.provision-browser.capafy.kosuke`; `missing_entrypoints=[]` and `unmanaged_labels=[]`. This is outside the mobile source diff; do not unload or mutate it as part of this change. Recheck before production promotion.
 
 **現在cursor:** add the failing regression for the 8 shared carousel lanes, implement the tested `deterministic` resource-class assignment, update the generated registry fixture, then verify with the focused suites and exact-head CI. Main has already been merged into this task branch; no production apply or new post has been made.
+
+### 2026-10-10 22:30 JST — Mobile growth latest readback and resume order
+
+この節がモバイル成長の最新状態。PR #7507のsource fixはmainへmerge済みだが、本番release/apply・投稿catch-up・全appの計測接続は未完了。ここに記す外部値はそれぞれのreadback時刻のスナップショットであり、後続のrunでは必ず再取得する。
+
+- **Git/source:** PR #7507「Free agent capacity for mobile carousel publishers」は2026-10-10 22:05 JSTにmerge済み。確認したmainは`7f0c734f87c7a279b65d1384cfd31b4bb4dbd513`（22:20 JST）。共有carousel factoryを使う8 ownerの`resource_class`を`agent`から`deterministic`へ変更し、`admission_class=revenue`、`priority=distribution`、`provider_route=deterministic`は維持。focused testsとPR必須CIはPASS。既存背景画像・保存済みpack・ローカル決定的copyを使い、投稿ごとのGemini/GPT Image呼び出しはない。
+- **Production:** `~/loops/current`は`20261010T202649-142ef661`、mobile main TikTok ownerは旧immutable SHA `142ef661928ef1d44a186fcb2fed6a850dea024c`。mainのfixは未反映。空き容量は約132 MiBで、release admissionに必要な2 GiBを下回る。local `git fetch`は`ENOSPC`。allowlist cleanup後も回収可能容量が不足し、別owner `line-sticker-factory-hourly` が所有するopen Chrome/profileと `resource_effect_unknown` を勝手に終了・削除しない。`lm-loop doctor`にはmobile外の既存retired label `ai.anicca.provision-browser.capafy.kosuke` があり、反映前に再確認する。
+- **Postiz distribution (official GET, 2026-10-10 22:23 JST):** 18/18 integration enabled。今日の目標54件中32件が`PUBLISHED`、22件不足。3/3: `@anicca.affirmation`, `@anicca.jp`, `@anicca_buddha`, `@anicca_slideshow`; 2/3: `@aniccaaffirmation`, `@anicca.en`, `@anicca-ai`, `@anicca.he`, `@anicca.jp4`, `@ani.cca1234`, `@anicca.jpx`; 1/3: `@anicca.encards`, `@anicca-affirmation-video`, `@anicca.jp1`, `@anicca.jp.videos`, `@honne_reveal`, `@honnevideo`; 0/3: `@aniccaen2`. Platform breakdown: Instagram 10, TikTok 19, YouTube 3. Queued/scheduledはpublishedに数えない。各Postiz rowのper-post URLは32/32取得済み。
+- **Per-post measurement (official Postiz analytics, 22:23 JST, 7-day window):** views 32/32 (total 4,619; zero 8), likes 32/32 (26; zero 18), comments 32/32 (0), shares 29/32 (1), reach 10/32 (1,876), saves 10/32 (2)。未対応platformの欠測は0扱いしない。既存`record-creative-metrics.js::engagementScore`はnumeric値だけを再帰集計する一方、Postiz absolute totalsはstringで返るため、percentage値でcreative順位付けされうる計測bugを次のmetrics TODOに置く。Telegramに各post permalinkが載るE2Eは未確認。
+- **Acquisition (stored ASC snapshot, report day 2026-10-10):** Anicca iOS window 2026-10-07–08はfirst-time downloads 1、impressions 15、product-page views 0。Honne window 2026-10-06–08はfirst-time downloads 3、impressions 197（unique 182）、product-page views 0。snapshotの`observed_at`がないため、連続取得・campaign attribution・current-day rateは未確定。MixpanelのAnicca/Honne local product analytics snapshotsは見当たらず、event配信・funnel coverageは未確認。
+- **Revenue:** RevenueCat official MRR chart readback 2026-10-10 22:27 JST、period 2026-10-09は`anicca-ios` USD 20.34、Honne/他4 app USD 0.00。これはsubscription MRR観測でsettled Apple proceedsではない。refund、Apple fee、payout、会社net、$10K verified net MRRは未確認。ユーザー申告のPostiz費用$49/月はinvoice未照合で、self-hostingのtotal costも未計測。
+- **Unresolved effect fence:** Postizは`@anicca.jp`の投稿を`PUBLISHED`としているが、occurrence `18dd29d74c9a8560-42964`との結合はreconcile `no_match`。fenceは保持し、同じeffectを再送しない。paywallのplan-load error screenshotとnotification tap後に同じquoteが表示されない問題は、現行buildで再現・解決を確認していない。
+
+**更新後のatomic TODO順:**
+1. diskを既存allowlist範囲だけで安全に回復し、2 GiB以上のrelease headroomを確保する。open/protected path、別owner Chrome/profile、unknown-effect evidenceを削除・停止しない。空きが戻ったら最新mainをfresh fetchし、branch/worktree状態を確認する。
+2. main由来immutable releaseをcutし、変更対象8 ownerを既存apply経路で反映する。lock、queue migration/FIFO、旧effect-unknown fence保持を確認し、loaded SHAをmain由来releaseへ一致させる。
+3. `18dd29d74c9a8560-42964`を新しいexact provider/occurrence証拠だけでreadbackする。依然`no_match`なら未解決のまま保持し、他の安全なownerのcatch-upを止めない。
+4. 最新Postiz day-countを読み直し、22件の不足分を保存済みassetsと通常のadmitted occurrenceで補う。18 account各3件のdistinct official `PUBLISHED` receipt・permalinkを達成し、同一slot replay-zeroを確認する。未来slot待ちや直接API投稿はせず、失敗を成功扱いしない。
+5. 既存Postiz metricsのstring totalsを数値として正しく取り込み、per-post URL/account/creative/UTCまたはJST observation timeと結び、欠測をunknownとしてTelegram reportにpermalink付きで出す。各投稿のviews/engagementを記録し、hook/textの一要素ずつを変えて結果で次案を選ぶ。背景assetsは保存・再利用する。
+6. 既存ASC/RevenueCat/Mixpanel連携をapp別に読み直し、freshness・impressions→first-time download・trial/active subscription/MRR/refund/fee/settlement・onboarding step coverageを同期間に並べる。campaign attributionとMixpanel event gapsを埋める。新しいanalytics vendorを並列導入しない。
+7. まずAniccaのdistributionを伸ばし、成功creativeを記録して反復する。目標はASC first-time downloadsのtrailing 7-day averageで100/day/app。達成前にASO/onboardingの複数実験を同時に始めない。
+8. 実測baseline後にstore listing/ASOを一要素ずつ試し、続いてMixpanelでonboarding/paywallのplan-load→offer view→checkout→subscribeを追う。plan-load screenshotをclean/new user条件で再現し、根本修正とTestFlight/ASC提出が必要な時だけ新buildを出す。通知tapから元quoteまでのrouteも同様に再現・検証する。
+9. Anicca iOSでApple official settlementからrefund/feeを控除したverified recurring net MRRがUSD 10Kに達した時だけ達成と記録する。実価格・net subscriber value・conversion baselineが確定するまで加入者数や到達時期は推測しない。その後、確認済みの分配・計測・改善手順を承認済み残りappへ順に再現し、最後にfactory化する。
+
+**現在cursor:** disk headroomがrelease cutを妨げている。まず容量とlockをread-onlyで更新し、保護データに触れずにheadroomを回復する。独立測定は継続できるが、production apply/postingの成功は報告しない。
+
