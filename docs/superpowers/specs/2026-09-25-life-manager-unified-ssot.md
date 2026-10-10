@@ -11415,6 +11415,14 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **現在cursor:** fresh read-only review → commit/push/PR exact A8.1 diff → merge and latest-main natural B7 → find/refresh official actual-cost input and join its invoice/account identity → A8.2–A8.19 → A6 → A9 → Google cash → A10.
 
+### 2026-10-10 15:17 JST — Latest main integrated; A8.1 is committed locally and awaiting review
+
+- **Source commits:** A8.1 implementation/tests/spec are in local commit `2e71b8a046d091b44d72957522044e8d2f695c7c`; latest main `ed8c9180bb5df84d7c9a5d8b1965a85abf1c5467` is integrated at merge commit `6d47d2e9a70074abca95f98586e7df3e35dd3d3b`. The latest main change is unrelated travel-reminder repair. The feature remote still points at `d5bae6285f331bfe51a5af8b444171e8e6cfeb55`; these source commits have not been pushed and no PR exists.
+- **Source acceptance:** `skills/cfo` Python tests passed `313/313`; CFO summary Node tests passed `18/18`; `./bin/lm-loop-contract` passed with 18 catalog loops, 190 registry jobs, 113 mapped jobs, and 0 errors; diff check passed. A8.1 reviewer findings have RED→GREEN tests, but the fresh read-only whole-diff review is still pending.
+- **Production remains unchanged:** `LM_CFO_ACTUAL_COST_READBACK` and `LM_CFO_ACTUAL_COST` are absent; latest unique B7 provider receipt remains `106121` on release `1f96eeec`. CFO owner remains loaded on `e812512f`; the later `quiet` occurrence has no provider receipt/readback. No current company-expense total is proven.
+
+**現在cursor:** fresh read-only review of `origin/main ed8c9180..HEAD 6d47d2e9` → fix any Critical/Important finding by RED→GREEN → push/open PR and pass exact-head CI/review → merge and verify latest-main natural B7 → connect official current actual-cost input → A8.2–A8.19 (190-job census) → A6 → A9 → Google cash → A10.
+
 ### Affiliate runtime: source-backed affiliate strategy
 
 - **Observed:** the 2026-10-09T04:30Z 30-day funnel row has 1,372 exact impressions, 25 unique provider clicks, zero observed transactions, and unknown costs for placement `elevenlabs-discovered-voice-cloning-en-1`. Its placement ledger maps to plan `elevenlabs-discovered-voice-cloning-en`. The persisted `elevenlabs-discovered-voiceover-studio-en` plan and its October 9 composition bundle contain only official product and pricing sources. The source store already has fresh first-person affiliate cases for Alec Wilcock and Greg Preece, but legacy plans do not attach them; `composition_owner.py` already has a strategy-only prompt for these cases.
