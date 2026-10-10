@@ -32,6 +32,11 @@ function fixture(controlState) {
     }
     if (parsed.hostname === "backend.composio.dev") {
       providerCalls.push({ path: parsed.pathname, method, body: init.body && JSON.parse(init.body) });
+      if (parsed.pathname.endsWith("/tools/execute/proxy")) {
+        return { ok: true, status: 200, json: async () => ({ status: 200, data: {
+          id: "travel-existing", reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 0 }] },
+        } }) };
+      }
       const items = parsed.pathname.endsWith("GOOGLECALENDAR_EVENTS_LIST") ? [{ id: "event-1" }] : [];
       return { ok: true, status: 200, json: async () => ({ successful: true, data: { items } }) };
     }
@@ -125,11 +130,15 @@ test("Web initial scan can patch a Travel reminder only for its exact persisted 
   assert.equal(result.successful, true);
   assert.equal(result.effect, "updated");
   assert.equal(allowed.providerCalls.length, 1);
-  assert.match(allowed.providerCalls[0].path, /GOOGLECALENDAR_PATCH_EVENT/);
-  assert.equal(allowed.providerCalls[0].body.user_id, UID);
+  assert.equal(allowed.providerCalls[0].path, "/api/v3.1/tools/execute/proxy");
+  assert.equal(allowed.providerCalls[0].body.endpoint,
+    "https://www.googleapis.com/calendar/v3/calendars/primary/events/travel-existing");
+  assert.equal(allowed.providerCalls[0].body.method, "PATCH");
   assert.equal(allowed.providerCalls[0].body.connected_account_id, ACCOUNT_ID);
-  assert.deepEqual(allowed.providerCalls[0].body.arguments.reminders,
-    { useDefault: false, overrides: [{ method: "popup", minutes: 0 }] });
+  assert.deepEqual(allowed.providerCalls[0].body.parameters,
+    [{ name: "sendUpdates", value: "none", type: "query" }]);
+  assert.deepEqual(allowed.providerCalls[0].body.body,
+    { reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 0 }] } });
 
   const blocked = fixture({ dailyAutomationEnabled: false, disconnectPending: false,
     enablePending: false, initialScanAllowed: false });
