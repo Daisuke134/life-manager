@@ -251,6 +251,11 @@ metadata footprintの追加大物は.cloak11.85GB/.local13.15GB/.codex-acct2約1
 
 **Gig自己cleanupの本番adoption:** #7434の閉鎖output回収を含むmainf1bfcc19 immutable releaseへ、fresh launchctl-safe preflight（UID501/Directory Services/Aqua/manager/gui PASS）後、`lm-loop reconcile deterministic --loaded-idle-only --max-owners 1 --loop-id hf-gig-paid-direct`で一担当だけ更新。applied1/failed0/changed=true、loaded argvとSHA f1bfcc19をreadback。provider fence解除/旧effect replay/全owner restartは行わない。自然occurrence18dd06c9d1e98260-8238はhost_admission_deferred:resource_capacity_busy、same occurrence queued/effect_unknown0をreadback。Job HunterとCrowdWorks Replyの二つのagent PID/start identityとfresh heartbeatを確認し、既存agent上限2の実稼働であるため、終了済み枠として強制解放しない。自然janitor receipt・自己後始末・次の業務進行のjoinは未完。
 
+**閉鎖Gig自己cleanupの自然受入:** mainf1bfcc19の自然run18dd071d3c75c2d0-14879（開始01:34:08Z/terminal01:39:45Z）で、担当が共有枠待ちから手動wakeなしに実行を再開。project-janitor.jsonは01:39:42Z、scanned37/errors0/artifacts_cleaned3/artifact_bytes_freed313,370,689。artifact-janitor.jsonlの同時間の3rowは18169985（870,888 bytes/5items）、18211957（305,717,556 bytes/585items）、5239257（6,782,245 bytes/14items）で、各terminal_state_sha256を記録。cleanupのsource/main/owner adoptionと自然出力回収はこの範囲で完了し、繰返し手動掃除へ戻さない。Paid業務本体はpaid_work_decisionでfail/exit1、effect0/readback2なので、売上/納品成功や⑤の継続業務受入には数えない。rootはproviderの再送やfence解除をしない。これらの原本は`~/gig/evidence/paid-direct-live/project-janitor.json`、`~/gig/artifact-janitor.jsonl`、`~/.local/state/life-manager/coconala/paid/events.jsonl`。自然再開のclaim/PID/start観測は`~/.local/state/life-manager/state/gig-natural-capacity-resume-20261010.json`。
+
+**増加源joinの現在地:** fsearch由来の大物DB/当日log/stateを12path/20秒で二回stat。観測窓ではevents.jsonlが2,177 logical bytes増加、allocated delta0。他11pathの増加は観測せず、open FDが得られない対象をwriter確定としない。継続中の本session logは前日のpathであり、fresh lsofがCodex app-server PID63234/start Tue Oct6 12:13:54/FD50を同pathへ結び、toolの親PIDも同じ。正式なsession履歴は保持する。VM/swapは自然に増減し、単一dfの差をgarbage/特定producerの回収量へ帰属させない。原本=`~/.local/state/life-manager/state/writer-growth-window-20261010.json`。①全体は未完。
+
+
 
 **実行済みreadback（primary）:** 閉鎖Gigは共有paid-direct.lockを取得した上で旧納品版/不要作業物188件を回収、estimated allocated2,127,745,024 bytes、kept primary state/terminal/retained package53件の前後SHA一致、errors0/protected_deletions0。receipt=`~/.local/state/life-manager/state/manual-closed-gig-cleanup-20261010.json`。receipt/vault/lock等が混在するdeliveryはzipのみ、最新保持指定packageとJSON/JSONL/CSVは残す。fresh read-only確認済み。
 
@@ -271,9 +276,9 @@ DaisのiCloud未使用/停止指示を受け、Photos公式UIの『このMacか�
 | 順 | 現在 | できたこと | 残る一操作・完了の証拠 |
 |---|---|---|---|
 | 1 増加源を確定 | 部分完了 | Git auto-GC、旧release/code、Codex履歴/業務stateのfootprint、VM swap増加を区別。fsearchで可視3root以外の大物も確認 | 大きく増える実pathを同じ短い時間窓で二回statし、fresh open FDのPID/start/ownerと結ぶ。全ディスクcensusをgateにせず、増加を止める対象と保持する正式dataを特定 |
-| 2 回収と再発防止 | 部分完了 | GB級の不要依存/重複asset/閉鎖Gig旧出力/Chrome旧versionを回収。中央fast passと閉鎖Gig janitorをmain/current/Paid ownerへ反映 | 閉鎖Gig janitorの自然receiptを確認し、その後に残るproducerの自己後始末/有限保存契約の抜けだけ修復。成功/失敗/timeout後のclosed scratchを回収し、primary receipt/state/open dataを保持 |
+| 2 回収と再発防止 | 部分完了 | GB級の不要依存/重複asset/閉鎖Gig旧出力/Chrome旧versionを回収。中央fast passと閉鎖Gig janitorをmain/current/Paid ownerへ反映 | 閉鎖Gig janitorの自然受入は下記receiptで完了。残るproducerの自己後始末/有限保存契約の抜けだけ修復。成功/失敗/timeout後のclosed scratchを回収し、primary receipt/state/open dataを保持 |
 | 3 cleanupの継続稼働 | 部分完了 | 60秒watchdog、複数の自然fast receiptでerrors0/protected_deletions0を確認 | 実agentの生成→後始末→次のcleanup passを同じ期間で確認。人手の繰返し掃除を要さず、不要物が積み上がらないことを受入。11GiB条件は撤回 |
-| 4 実行枠と自動再開 | 部分完了 | 終了済みGig orphan PID20125の占有lockを回収。上限2の実agent PID/start/heartbeatとPaid queued/effect_unknown0をreadback | 実仕事の終了後に枠が自然に返り、待っていた同occurrenceがeligible/claim/実行へ進むことを確認。使用中枠やeffect_unknownを強制解放しない |
+| 4 実行枠と自動再開 | 部分完了 | 終了済みGig orphan PID20125の占有lockを回収。上限2の実agent PID/start/heartbeatとPaid queued/effect_unknown0をreadback | Gig担当の自然再開は下記runで確認。他の実仕事の終了後も枠が自然に返り、待っていた仕事がeligible/claim/実行へ進むことを確認。occurrenceを保持すべきeffect契約を維持。使用中枠やeffect_unknownを強制解放しない |
 | 5 実際の仕事の継続 | 未完 | main由来ownerの自然attemptを観測 | 一件の業務を公式receipt/readbackへjoinし、自己cleanup後の次の自然仕事まで前進を確認。cleanup exit0/source CI/安全な延期だけで完了としない |
 
 APFS VM/swapは共有容量へ影響する正式な稼働領域であり、VM/Simulatorを削除したりMacをrestartしたりしない。現freeを100GBと主張しない。現在cursor=1の短時間writer/path増加join、その後2→3→4→5。手動回収とsource受入をやり直さず、未証明の境界だけ進める。
