@@ -287,7 +287,7 @@ DaisのiCloud未使用/停止指示を受け、Photos公式UIの『このMacか�
 
 現在cursor → CLEAN-04の具体的取り残し（下の最新反映結果と残TODO表）。CLEAN-02は共通runner190のsource契約とstandard nested/state-evidence/flatの自然branch proofで確認済み。現時点で新たな未回収diagnostic relayの実漏れは未確認で、具体的な対象外callerは下のmappingへ残す。全190自然runや新suiteは追加gateにしない。前進の証拠が出たatomだけ状態を更新し、完了済みは残TODOから外す。APFS VM/swap、Simulator、正式履歴、memory/state、credential、active/unknown dataは保持する。全体の根本修復完了とはまだ主張しない。
 
-CLEAN-04 source修復: 実計測15.010秒のうちreferences累積11.758秒、Path.relative_to214,618回/7.758秒を確認。runtime/loop/central_cleanup.pyの既存lsof再確認を保持し、release root＋区切り文字で対象外pathを先に除外する。related testで無関係root・似たprefix・dot/dotdot・open/current/owned FDを保持するRED→GREENを確認。lease/lock/Git復元確認/deadlineを変更しない。branch=fix/cleanup-release-reference-filter-20261011。専用worktreeの部分checkoutをHEADへ復旧し対象pathだけに絞る。
+CLEAN-04 source修復: 実計測15.010秒のうちreferences累積11.758秒、Path.relative_to214,618回/7.758秒を確認。runtime/loop/central_cleanup.pyの既存lsof再確認を保持し、release root＋区切り文字で対象外pathを先に除外する。related testで無関係root・似たprefix・dot/dotdot・open/current/owned FDを保持するRED→GREENを確認。lease/lock/Git復元確認/deadlineを変更しない。branch=fix/cleanup-release-reference-filter-20261011。専用worktreeの部分checkoutをHEADへ復旧し対象pathだけに絞る。 source受入: 対象外Path解析のREDを確認、3行のprefix filter後に関連68tests PASS。隔離20万行fixtureは旧1.000283秒→新0.029070秒、保護root集合一致。syntax/diff PASS、source head56aacc1eee/PR #7530をpush済み。本番速度・自然回収・根本修復はmain/immutable反映後の確認待ち。
 
 **cleanup現在readback（source/main/release/loaded/naturalを区別）:**
 
