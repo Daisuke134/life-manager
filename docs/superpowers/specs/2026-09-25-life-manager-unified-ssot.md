@@ -379,6 +379,9 @@ CLEAN-04 occurrence公平性 main/loaded結果: #7553 exactcd9c33fc839ea70b8a9af
 
 CLEAN-05 Writer計測owner再開scope: writer-sales-measureの自然18dd4062baa6c630-17481は19:03:39Z execute→19:07:03Z report pass0/primary event保持/scratch不在/稼働用owner claim file無し。DB occurrenceはclaimed/effect_unknown1を保持する一方registryとeventはeffect_class none/not_applicable。旧f6とcurrent d516のworker/measure-sales.py/money_sync.pyの同一bytesを確認し、送信/購入/投稿のない計測contractとfresh loaded-idleが揃う場合だけ、既存canonical reconcileが持つno-effect owner recoveryで一担当を現mainへ採用する。application/publish/trade ownerのunknownをこの経路へ混ぜない。newsource/DB手編集/手動wake/金融値の判定を追加しない。generic次slot待ちでこの独立atomを止めない。現在cursor=Writer passive計測の既存復旧、CLEAN-04自然fairnessは並行観測。
 
+CLEAN-05 Writer passive owner採用結果: fresh旧loaded d687/idle/PID無し、registry borrow/support/agent/effect noneと3worker filesのcurrent d516 byte一致を確認。fresh Aqua/DS/UID PASS後、既存reconcile shared-agent-runner/loaded-idle/maxowners1/target writer-sales-measureがapplied1/failed0、loaded argv/d516/install event7ed20e3c8d4b20050e5ce79aを返す。DB手編集/手動wake/応募投稿tradeのunknown解放0。前自然19:03→19:07 pass0/primary event保存/scratch不在/実owner枠返却と組み合わせ、同ownerの旧releaseで残ったno-effect recoveryを進めた。Fundraiserのprovider unknown2件は保持する。新版での次自然仕事は未確認なのでCLEAN-05全体をDoneとはしない。generic fairness自然callと、仕事→保存→自己cleanup→中央cleanupの同期間joinを継続する。
+
+
 
 
 
