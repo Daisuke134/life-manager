@@ -47,7 +47,7 @@ function extractLine(text, marker) {
 const PORT_SNIPPET = extractBetween(
   source,
   'INSTANCE="${ANICCA_INSTANCE:-clawrouter}"',
-  'LOGDIR="$ANICCA_HOME/logs"',
+  'BRAIN_PID=""',
 );
 
 function runPortSnippet(env) {
