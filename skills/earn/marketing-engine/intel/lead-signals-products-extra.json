@@ -1,0 +1,41 @@
+{
+  "schema_version": "marketing.lead-signal-products-extra.v1",
+  "products": [
+    {
+      "product_id": "dhamma-quotes",
+      "display_name": "Daily Dhamma (Dhamma Quotes)",
+      "type": "ios_app",
+      "live_status": "app_store_live",
+      "audience": "People seeking authentic Dhammapada teachings and mindfulness reminders throughout the day.",
+      "app_store_id": "6757726663",
+      "app_store_url": "https://apps.apple.com/us/app/daily-dhamma/id6757726663?uo=4"
+    },
+    {
+      "product_id": "sleep-reset",
+      "display_name": "For Better Sleep - Sleep Reset",
+      "type": "ios_app",
+      "live_status": "app_store_live",
+      "audience": "People recovering from a disrupted sleep schedule who want a personalized bedtime plan and guided breathwork.",
+      "app_store_id": "6762143790",
+      "app_store_url": "https://apps.apple.com/us/app/for-better-sleep-sleep-reset/id6762143790?uo=4"
+    },
+    {
+      "product_id": "studio-cherie",
+      "display_name": "STUDIO CHERIE",
+      "type": "ios_app",
+      "live_status": "app_store_live",
+      "audience": "Adults who want personal styling and outfit suggestions based on the clothes in their own wardrobe.",
+      "app_store_id": "6766485903",
+      "app_store_url": "https://apps.apple.com/us/app/studio-cherie/id6766485903?uo=4"
+    },
+    {
+      "product_id": "thankful",
+      "display_name": "Thankful - Gratitude Journal",
+      "type": "ios_app",
+      "live_status": "app_store_live",
+      "audience": "People building a daily gratitude journaling practice.",
+      "app_store_id": "6759514159",
+      "app_store_url": "https://apps.apple.com/us/app/thankful-gratitude-journal/id6759514159?uo=4"
+    }
+  ]
+}

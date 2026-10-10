@@ -154,7 +154,9 @@ class ShareWatchTest(unittest.TestCase):
             return ""
 
         def fake_run(args, **kwargs):
-            time.sleep(0.35)  # post_reel is "running" long enough for several photos
+            deadline = time.monotonic() + 5  # post_reel "runs" until several photos exist (bounded)
+            while len(shots) < 3 and time.monotonic() < deadline:
+                time.sleep(0.02)
             return mock.Mock(returncode=0, stdout=json.dumps({"published": True}), stderr="")
 
         with tempfile.TemporaryDirectory() as tmp:

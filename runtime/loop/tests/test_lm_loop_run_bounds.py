@@ -10,6 +10,7 @@ import subprocess
 import sys
 import threading
 import time
+import pytest
 from contextlib import nullcontext
 from pathlib import Path
 from types import SimpleNamespace
@@ -39,18 +40,22 @@ from runtime.loop.runtime_event import build_runtime_event
 
 
 _PROTOCOL_PATCHER = None
+_DISK_PATCHER = None
 
 
 def setup_module():
-    global _PROTOCOL_PATCHER
+    global _PROTOCOL_PATCHER, _DISK_PATCHER
     _PROTOCOL_PATCHER = patch(
         "runtime.loop.lm_loop_run.durable_protocol_version", return_value=2,
     )
     _PROTOCOL_PATCHER.start()
+    _DISK_PATCHER = patch("runtime.loop.lm_loop_run.disk_free_bytes", return_value=3*1024**3)
+    _DISK_PATCHER.start()
 
 
 def teardown_module():
     _PROTOCOL_PATCHER.stop()
+    _DISK_PATCHER.stop()
 
 
 def test_scheduled_wakes_have_a_finite_one_hour_safety_limit():
@@ -1752,7 +1757,7 @@ def test_mobile_child_receives_effect_result_hint_path(tmp_path):
         tmp_path / "entrypoint-result.json")
 
 
-def test_cfo_effect_result_hint_requires_exact_loop_and_entrypoint(tmp_path):
+def test_owner_effect_result_hint_requires_exact_loop_and_entrypoint(tmp_path):
     def observed_env(loop_id, entrypoint, run_id):
         claim = tmp_path / f"claim-{run_id}"
         claim.write_text(json.dumps({"occurrence_id": f"{loop_id}:{run_id}"}))
@@ -1788,13 +1793,29 @@ def test_cfo_effect_result_hint_requires_exact_loop_and_entrypoint(tmp_path):
         tmp_path / "entrypoint-result.json")
     assert EFFECT_RESULT_HINT_LOOP_ENTRYPOINTS == {
         "life-manager-cfo-hourly": "skills/cfo/run.sh",
+        "marketing-treg-lead-signals-weekly": "skills/earn/marketing-engine/intel/treg-lead-signals-weekly",
     }
+
+    treg = observed_env(
+        "marketing-treg-lead-signals-weekly",
+        "skills/earn/marketing-engine/intel/treg-lead-signals-weekly",
+        "treg-run-1",
+    )
+    assert treg["LIFE_MANAGER_LOOP_ID"] == "marketing-treg-lead-signals-weekly"
+    assert treg["LIFE_MANAGER_RESULT_HINT_PATH"] == str(
+        tmp_path / "entrypoint-result.json")
 
     sibling = observed_env("other-loop", "skills/cfo/run.sh", "sibling-run")
     assert "LIFE_MANAGER_RESULT_HINT_PATH" not in sibling
     wrong_entrypoint = observed_env(
         "life-manager-cfo-hourly", "skills/cfo/other.sh", "wrong-entrypoint")
     assert "LIFE_MANAGER_RESULT_HINT_PATH" not in wrong_entrypoint
+    wrong_treg_entrypoint = observed_env(
+        "marketing-treg-lead-signals-weekly",
+        "skills/earn/marketing-engine/intel/treg/wrong-entrypoint",
+        "wrong-treg-entrypoint",
+    )
+    assert "LIFE_MANAGER_RESULT_HINT_PATH" not in wrong_treg_entrypoint
 
 
 def test_cfo_nonzero_telegram_result_keeps_message_effect_unknown(tmp_path):
@@ -2193,6 +2214,65 @@ def test_main_preserves_live_relay_after_terminal_commit(tmp_path):
         assert lm_loop_run_main(["example-publisher", str(release)]) == 0
     assert (state / "loop-tmp/example-publisher/live-relay-run").exists()
     remove.assert_not_called()
+
+
+@pytest.mark.parametrize("identity_outcome", ["rejected", "save_exception", "persisted", "not_written"])
+def test_failed_run_cleans_scratch_only_after_effect_identity_is_safe(tmp_path, identity_outcome):
+    release = _write_prestart_lock_release(tmp_path)
+    state = tmp_path / "state"
+    scratch = state / "loop-tmp/example-publisher/run-1"
+    sidecar = scratch / "effect-identity.jsonl"
+    value = {
+        "schema_version": 1, "kind": "life_manager_effect_identity",
+        "runtime_run_id": "run-1", "occurrence_id": "example-publisher:run-1",
+        "loop_id": "example-publisher", "job_id": "example-publisher",
+        "effect_key": "marketing:video:honne-ai:tiktok:creative:" + "a" * 64 + ":" + "b" * 64,
+        "product_id": "honne-ai", "format_id": "reelclaw",
+        "form": "relationship-confession", "locale": "ja", "platform": "tiktok",
+        "creative_id": "creative", "slot": "2026-07-30T12:30:00.000Z",
+        "integration_ref": "integration://postiz/tiktok/honne-ai-ja",
+        "account_id": "@honnevideo",
+        "video_sha256": "a" * 64, "caption_sha256": "b" * 64,
+    }
+    raw = json.dumps({"unverified": "preserve original"} if identity_outcome == "rejected" else value) + "\n"
+
+    def run_admitted(_command, _entry, _loop_id, _env, receipt, *, on_claimed, occurrence_id, **_kwargs):
+        on_claimed(occurrence_id)
+        receipt.write_text('{"status":"pass","effect":0}\n')
+        receipt.chmod(0o600)
+        if identity_outcome != "not_written":
+            sidecar.write_text(raw)
+            sidecar.chmod(0o600)
+        return 1
+
+    identity_patch = (patch("runtime.loop.lm_loop_run._persist_effect_identity",
+                            side_effect=ValueError("identity unavailable"))
+                      if identity_outcome == "save_exception" else nullcontext())
+    events = []
+    with (patch.dict(os.environ, {"LIFE_MANAGER_STATE_ROOT": str(state), "LIFE_MANAGER_RUN_ID": "run-1"}),
+          patch("runtime.loop.lm_loop_run._apply_lock", return_value=nullcontext()),
+          patch("runtime.loop.lm_loop_run.build_loop_command", return_value=["/bin/true"]),
+          patch("runtime.loop.lm_loop_run._run_admitted", side_effect=run_admitted),
+          patch("runtime.loop.lm_loop_run.append_runtime_event", side_effect=lambda _p, e: events.append(e)),
+          patch("runtime.loop.lm_loop_run._enqueue_recovery_intent"), identity_patch):
+        assert lm_loop_run_main(["example-publisher", str(release)]) == 1
+
+    assert events[-1]["status"] == "fail"
+    if identity_outcome in {"rejected", "save_exception"}:
+        assert sidecar.is_file(), "failed identity persistence must retain the only original"
+        assert sidecar.read_text() == raw
+        assert (scratch / ".terminal-unrecorded").is_file()
+        diagnostic = json.loads((state / "scratch-cleanup-diagnostics/run-1.json").read_text())
+        assert diagnostic["terminal_saved"] is True
+        assert diagnostic["cleanup_status"] == "held_effect_identity_unrecorded"
+        assert diagnostic["cleanup_operation"] == "persist_effect_identity"
+        from runtime.loop.central_cleanup import scratch_gc
+        assert scratch_gc({state}, starts={})["removed"] == 0
+        assert sidecar.read_text() == raw
+    else:
+        assert not scratch.exists(), "safe completed runs must still clean their own scratch"
+        if identity_outcome == "persisted":
+            assert (state / "effect-identities/run-1.jsonl").read_text() == raw
 
 
 def test_main_records_false_terminal_scratch_cleanup_without_changing_business_result(tmp_path):
@@ -3206,102 +3286,59 @@ def test_memory_deferral_preserves_queue_and_releases_reservation(tmp_path):
     assert json.loads(receipt.read_text())["reason"] == "memory_headroom_unavailable"
 
 
-def test_low_disk_headroom_does_not_defer_before_queue_or_provider_child(tmp_path):
+def test_low_or_unknown_disk_defers_before_queue_and_provider_child(tmp_path):
+    entry = {"cadence": {"start_interval_seconds": 60},
+             "provider_route": "shared-agent-runner", "effect_class": "application"}
+    for available in [0, None]:
+        receipt = tmp_path / "host-admission.json"
+        with (patch("runtime.loop.lm_loop_run.disk_free_bytes", return_value=available),
+              patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+              patch("runtime.loop.lm_loop_run.enqueue_durable_resource", return_value=(tmp_path / "ticket", "ready")) as enqueue,
+              patch("runtime.loop.lm_loop_run.claim_durable_resource", return_value=(tmp_path / "claim", "acquired")) as claim,
+              patch("runtime.loop.lm_loop_run.defer_durable_resource") as defer,
+              patch("runtime.loop.lm_loop_run._run_entrypoint_with_stderr_capture", return_value=(0,b"")) as child):
+            assert _run_admitted(["/bin/true"], entry, "example", {}, receipt) == 75
+        enqueue.assert_not_called(); claim.assert_not_called(); child.assert_not_called()
+        defer.assert_called_once_with("example")
+        result = json.loads(receipt.read_text())
+        assert result["status"] == "deferred" and result["effect"] == 0
+        assert result["reason"] == ("disk_headroom_unavailable" if available is None else "disk_headroom_low")
+        assert result["phase"] == "pre_enqueue"
+        assert result["required_bytes"] == 2 * 1024**3
+
+
+def test_healthy_disk_boundary_keeps_finite_dispatch(tmp_path):
     entry = {"cadence": {"start_interval_seconds": 60},
              "provider_route": "shared-agent-runner", "effect_class": "application"}
     receipt = tmp_path / "host-admission.json"
-    with (patch("runtime.host.disk_admission.shutil.disk_usage",
-                return_value=SimpleNamespace(total=1, used=1, free=0)) as disk,
+    with (patch("runtime.loop.lm_loop_run.disk_free_bytes", return_value=2*1024**3) as disk,
           patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
-          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
-                return_value=(tmp_path / "ticket", "ready")) as enqueue,
-          patch("runtime.loop.lm_loop_run.claim_durable_resource",
-                return_value=(tmp_path / "claim", "acquired")) as claim,
-          patch("runtime.loop.lm_loop_run.defer_durable_resource") as defer,
-          patch("runtime.loop.lm_loop_run.release_and_reserve_resource", return_value=[]),
-          patch("runtime.loop.lm_loop_run._run_entrypoint_with_stderr_capture",
-                return_value=(0, b"")) as run_child):
-        assert _run_admitted(["/bin/true"], entry, "example", {}, receipt) == 0
-
-    disk.assert_not_called()
-    enqueue.assert_called_once(); claim.assert_called_once(); run_child.assert_called_once()
-    defer.assert_not_called()
-    assert json.loads(receipt.read_text())["status"] == "pass"
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource", return_value=(tmp_path / "ticket","ready")),
+          patch("runtime.loop.lm_loop_run.claim_durable_resource", return_value=(tmp_path / "claim","acquired")),
+          patch("runtime.loop.lm_loop_run.release_and_reserve_resource",return_value=[]),
+          patch("runtime.loop.lm_loop_run._run_entrypoint_with_stderr_capture",return_value=(0,b"")) as child):
+        assert _run_admitted(["/bin/true"],entry,"example",{},receipt)==0
+    child.assert_called_once()
+    assert disk.call_args_list == [call(receipt.parent),call(receipt.parent)]
 
 
-def test_unavailable_disk_measurement_does_not_defer_before_queue(tmp_path):
-    entry = {"cadence": {"start_interval_seconds": 60},
-             "provider_route": "shared-agent-runner", "effect_class": "application"}
-    receipt = tmp_path / "host-admission.json"
-    with (patch("runtime.host.disk_admission.shutil.disk_usage",
-                side_effect=OSError("measurement unavailable")) as disk,
-          patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
-          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
-                return_value=(tmp_path / "ticket", "ready")) as enqueue,
-          patch("runtime.loop.lm_loop_run.claim_durable_resource",
-                return_value=(tmp_path / "claim", "acquired")) as claim,
-          patch("runtime.loop.lm_loop_run.defer_durable_resource") as defer,
-          patch("runtime.loop.lm_loop_run.release_and_reserve_resource", return_value=[]),
-          patch("runtime.loop.lm_loop_run._run_entrypoint_with_stderr_capture",
-                return_value=(0, b"")) as run_child):
-        assert _run_admitted(["/bin/true"], entry, "example", {}, receipt) == 0
-
-    disk.assert_not_called()
-    enqueue.assert_called_once(); claim.assert_called_once(); run_child.assert_called_once()
-    defer.assert_not_called()
-    assert json.loads(receipt.read_text())["status"] == "pass"
-
-
-def test_low_disk_headroom_keeps_finite_provider_dispatch(tmp_path):
+def test_disk_drop_after_claim_requeues_without_provider_dispatch(tmp_path):
     entry = {"cadence": {"start_interval_seconds": 60},
              "provider_route": "shared-agent-runner", "effect_class": "application"}
     receipt = tmp_path / "host-admission.json"
     claim = tmp_path / "claim"
-    with (patch("runtime.host.disk_admission.shutil.disk_usage",
-                return_value=SimpleNamespace(total=1, used=1, free=0)) as disk,
+    with (patch("runtime.loop.lm_loop_run.disk_free_bytes", side_effect=[3*1024**3,0]),
           patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
-          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
-                return_value=(tmp_path / "ticket", "ready")) as enqueue,
-          patch("runtime.loop.lm_loop_run.claim_durable_resource",
-                return_value=(claim, "acquired")) as acquire,
-          patch("runtime.loop.lm_loop_run.release_and_reserve_resource", return_value=[]),
-          patch("runtime.loop.lm_loop_run._run_entrypoint_with_stderr_capture",
-                return_value=(0, b"")) as run_child):
-        assert _run_admitted(["/bin/true"], entry, "example", {}, receipt) == 0
-
-    disk.assert_not_called()
-    enqueue.assert_called_once(); acquire.assert_called_once(); run_child.assert_called_once()
-
-
-def test_disk_drop_after_claim_does_not_requeue_or_block_provider_dispatch(tmp_path):
-    entry = {"cadence": {"start_interval_seconds": 60},
-             "provider_route": "shared-agent-runner", "effect_class": "application"}
-    receipt = tmp_path / "host-admission.json"
-    claim = tmp_path / "claim"
-    def start_child(*_args, **kwargs):
-        kwargs["on_started"](1234)
-        return 0, b""
-
-    with (patch("runtime.host.disk_admission.shutil.disk_usage",
-                side_effect=[SimpleNamespace(total=2, used=1, free=1),
-                             SimpleNamespace(total=2, used=2, free=0)]) as disk,
-          patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
-          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
-                return_value=(tmp_path / "ticket", "ready")),
-          patch("runtime.loop.lm_loop_run.claim_durable_resource",
-                return_value=(claim, "acquired")),
-          patch("runtime.loop.lm_loop_run.transfer_durable_resource"),
-          patch("runtime.loop.lm_loop_run.release_and_reserve_resource",
-                return_value=[]) as release,
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource", return_value=(tmp_path / "ticket", "ready")),
+          patch("runtime.loop.lm_loop_run.claim_durable_resource", return_value=(claim, "acquired")),
+          patch("runtime.loop.lm_loop_run.release_and_reserve_resource", return_value=[]) as release,
           patch("runtime.loop.lm_loop_run._dispatch_reserved") as dispatch,
-          patch("runtime.loop.lm_loop_run._run_entrypoint_with_stderr_capture",
-                side_effect=start_child) as run_child):
-        assert _run_admitted(["/bin/true"], entry, "example", {}, receipt) == 0
-
-    disk.assert_not_called()
-    release.assert_called_once_with(claim, requeue=False, reserve=True)
-    dispatch.assert_not_called(); run_child.assert_called_once()
-    assert json.loads(receipt.read_text())["status"] == "pass"
+          patch("runtime.loop.lm_loop_run._run_entrypoint_with_stderr_capture", return_value=(0,b"")) as child):
+        assert _run_admitted(["/bin/true"], entry, "example", {}, receipt) == 75
+    child.assert_not_called(); dispatch.assert_not_called()
+    release.assert_called_once_with(claim, requeue=True, reserve=False)
+    result=json.loads(receipt.read_text())
+    assert result["reason"] == "disk_headroom_low" and result["phase"] == "post_claim"
 
 
 def test_control_and_continuous_owner_bypass_disk_preflight(tmp_path):
@@ -3854,6 +3891,7 @@ def test_wrapper_sigkill_keeps_effect_child_claim_live(tmp_path, monkeypatch):
         "import os,pathlib,sys; "
         "from runtime.loop import lm_loop_run; "
         "from runtime.loop.lm_loop_run import _run_admitted; "
+        "lm_loop_run.disk_free_bytes=lambda _path: 3*1024**3; "
         f"entry={entry!r}; command=[sys.executable,'-c',{child!r}]; "
         f"sys.exit(_run_admitted(command,entry,'example',os.environ.copy(),"
         f"pathlib.Path({str(receipt)!r})))"

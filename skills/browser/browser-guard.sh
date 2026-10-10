@@ -152,8 +152,12 @@ def pid_alive(p, h):
 
 def claim():
     fd = os.open(lease, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
-    with os.fdopen(fd, "w") as fh:
-        fh.write(payload + "\n")
+    try:
+        with os.fdopen(fd, "w") as fh:
+            fh.write(payload + "\n")
+    except OSError:
+        os.unlink(lease)                 # a full disk must not leave an empty lease behind
+        raise
 
 try:
     claim()
@@ -164,8 +168,12 @@ except FileExistsError:
 try:
     held = json.loads(open(lease, encoding="utf-8").read().strip().splitlines()[-1])
 except Exception:
-    print("invalid live lease", file=sys.stderr)
-    raise SystemExit(1)
+    # Unreadable (e.g. 0 bytes after a write failed on a full disk, 2026-10-09). A claim's write
+    # follows its create within milliseconds, so one older than the stale window has no writer.
+    if time.time() - os.path.getmtime(lease) < stale:
+        print("invalid live lease", file=sys.stderr)
+        raise SystemExit(1)
+    held = None
 
 if held:
     age = time.time() - float(held.get("acquired_at") or 0)

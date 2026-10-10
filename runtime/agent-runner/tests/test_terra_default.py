@@ -95,6 +95,12 @@ class TerraDefaultTest(unittest.TestCase):
                          "effort": "medium", "profile_alias": "acct1",
                          "fail_fast_provider_lease": True},
                     ]
+                if name == "treg-lead-signals-agent":
+                    expected = [
+                        {"provider": "codex", "model": "gpt-6.1-sol",
+                         "effort": "medium", "profile_alias": "acct2",
+                         "fail_fast_provider_lease": True},
+                    ]
                 if name in {"connector-agent", "job-hunter-agent", "fundraiser-agent"}:
                     expected = [{
                         "provider": "codex", "model": "gpt-6-luna",
@@ -116,6 +122,7 @@ class TerraDefaultTest(unittest.TestCase):
                 fallback = {"provider": "claude-direct", "model": "claude-sonnet-5"}
                 if name not in {
                     "paid-owner-agent", "paid-decision-agent", "escalation-agent", "codex-brain-agent",
+                    "treg-lead-signals-agent",
                     "affiliate-marketing-agent", "affiliate-escalation-agent",
                     "self-heal-code-agent", "self-fix-code-agent",
                     "connector-agent", "job-hunter-agent", "fundraiser-agent",
@@ -214,7 +221,7 @@ class TerraDefaultTest(unittest.TestCase):
                         expected = (
                             "acct2" if name in {
                                 "affiliate-marketing-agent", "affiliate-escalation-agent",
-                                "self-fix-code-agent",
+                                "self-fix-code-agent", "treg-lead-signals-agent",
                             } else "acct1"
                         )
                         self.assertEqual(candidate.get("profile_alias"), expected)
