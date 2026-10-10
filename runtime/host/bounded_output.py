@@ -128,23 +128,26 @@ def prune_closed_diagnostics(evidence_root, policy, *, current_run, closed_probe
             receipt = json.loads((relay / "relay-result.json").read_bytes()[:4097])
             if receipt.get("binding") != value["binding"]: continue
             size = sum(p.stat().st_size for p in files)
+            candidates.append((info.st_mtime, relay, size))
+        except (OSError, ValueError, KeyError, TypeError):
+            result["errors"] += 1
+    total = sum(size for _, _, size in candidates)
+    cap = min(policy.owner_diagnostic_retained_bytes, policy.host_diagnostic_retained_bytes)
+    for _, relay, size in sorted(candidates):
+        if total <= cap or time.monotonic() >= deadline: break
+        try:
             if closed_probe is None:
                 check = subprocess.run(["lsof", "-nP", "+D", str(relay)], capture_output=True,
                     timeout=min(1, max(.1, deadline-time.monotonic())))
                 closed = check.returncode == 1 and not check.stdout and not check.stderr
             else: closed = closed_probe(relay) is True
-            if closed: candidates.append((info.st_mtime, relay, size))
-            else: result["preserved_bytes"] += size
-        except (OSError, ValueError, KeyError, TypeError, subprocess.TimeoutExpired):
-            result["errors"] += 1
-    total = sum(size for _, _, size in candidates)
-    cap = min(policy.owner_diagnostic_retained_bytes, policy.host_diagnostic_retained_bytes)
-    for _, relay, size in sorted(candidates):
-        if total <= cap: break
-        try:
+            if not closed:
+                result["preserved_bytes"] += size
+                continue
             shutil.rmtree(relay)
             result["removed"] += 1; result["reclaimed_bytes"] += size; total -= size
-        except OSError: result["errors"] += 1
+        except (OSError, ValueError, KeyError, TypeError, subprocess.TimeoutExpired):
+            result["errors"] += 1
     return result
 
 
