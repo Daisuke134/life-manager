@@ -19,7 +19,7 @@ from ..ats import detect_provider
 from ..ledger import Ledger
 from ..resume_routing import select_resume, load_resume_manifest
 from ..tailored_resume import compose, load_artifact, render_pdf, store_artifact
-from ..state import provider_recovery_url
+from ..state import InvalidTransition, provider_recovery_url
 from ..workday_credentials import tenant_key
 from .actions import ActionExecutor
 from .candidate_memory import CandidateMemoryView
@@ -999,21 +999,39 @@ async def checkpoint(reason: str) -> dict[str, Any]:
 
 
 async def ineligible(reason: str) -> dict[str, Any]:
-    """Terminally reject one visibly unavailable/ineligible row and continue."""
+    """Reject only when the ledger allows it; preserve active submission claims."""
     row, session, _checkpoints, _evidence, cursor, builder = await _context()
     observation = await builder.build(cursor.handle)
     ledger = Ledger(_path_env("JOB_SEARCH_STATE_ROOT") / "ledger.sqlite3")
+    blocked_state = None
     try:
-        ledger.transition(
-            row["application_id"],
-            "rejected",
-            {
-                "reason": reason,
-                "observation_sha256": observation.content_sha256,
-            },
-        )
+        application_state = ledger.current_state(row["application_id"])
+        try:
+            ledger.transition(
+                row["application_id"],
+                "rejected",
+                {
+                    "reason": reason,
+                    "observation_sha256": observation.content_sha256,
+                },
+            )
+        except InvalidTransition:
+            blocked_state = application_state
     finally:
         ledger.close()
+    if blocked_state is not None:
+        # A claimed/submitted row must retain its effect fence; skip it only for
+        # this wake so the queue can continue with independent applications.
+        _mark_wake_completed(row["application_id"])
+        await session.close_owned(cursor.handle)
+        return {
+            "status": "action_rejected",
+            "reason": "application_state_prevents_rejection",
+            "application_id": row["application_id"],
+            "application_state": blocked_state,
+            "observation_sha256": observation.content_sha256,
+            "instruction": "preserve the existing submission intent; do not submit or mark this row ineligible; continue with another row",
+        }
     wake_id = _path_env("JOB_SEARCH_BROWSER_OWNER_EVIDENCE").parent.name
     report_receipt = send_hourly_outcomes(
         database=_path_env("JOB_SEARCH_STATE_ROOT") / "telegram-outbox.sqlite3",

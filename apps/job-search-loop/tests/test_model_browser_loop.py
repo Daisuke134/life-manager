@@ -722,6 +722,29 @@ class ModelBrowserLoopContractTests(unittest.TestCase):
         self.assertIn("job_search_loop.browser_agent.browser_agent.runtime", prompt)
         self.assertIn("replace it with the canonical module", prompt)
 
+    def test_daily_prompt_does_not_report_ineligible_rows_twice(self):
+        prompt = (APP_ROOT / "prompts" / "daily-pass.md").read_text(encoding="utf-8")
+        normalized = " ".join(prompt.split())
+
+        self.assertIn(
+            "`runtime ineligible` already reports the exact current row itself and returns `report_message_id`",
+            normalized,
+        )
+        self.assertIn("never call `runtime report` after it", normalized)
+        self.assertIn(
+            "`runtime checkpoint` only saves a checkpoint; call `runtime report --status checkpointed`",
+            normalized,
+        )
+        self.assertNotIn(
+            "`runtime ineligible --reason hard_ineligible`, report it", normalized
+        )
+        self.assertNotIn(
+            "ineligible or checkpointed row, call `runtime report`", normalized
+        )
+        self.assertNotIn(
+            "`ineligible` and then `report --status not_submitted`", normalized
+        )
+
     def assertValid(self, value: dict[str, object]) -> None:
         errors = sorted(self.validator.iter_errors(value), key=lambda item: list(item.path))
         self.assertEqual([], [error.message for error in errors])

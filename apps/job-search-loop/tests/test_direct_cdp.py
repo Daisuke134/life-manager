@@ -1,3 +1,5 @@
+import hashlib
+import io
 import unittest
 import inspect
 import json
@@ -5,6 +7,7 @@ import tempfile
 import fcntl
 import os
 import time
+from contextlib import redirect_stdout
 from pathlib import Path
 from unittest.mock import AsyncMock, Mock, patch
 
@@ -14,6 +17,7 @@ from job_search_loop.browser_agent.actions import ActionExecutor
 from job_search_loop.browser_agent.contracts import ActionTargetV1, VisibleActionV1
 from job_search_loop.browser_agent.runtime import main as browser_runtime_main
 from job_search_loop.browser_agent.runtime import auth, type_candidate, type_text
+from job_search_loop.ledger import Ledger
 from job_search_loop.runtime import main as compatibility_runtime_main
 
 
@@ -652,6 +656,117 @@ class DirectCDPTypeTests(unittest.IsolatedAsyncioTestCase):
             [call.args for call in page.call.await_args_list if call.args[0] == "Input.insertText"],
             [("Input.insertText", {"text": "Developer"})],
         )
+
+    def test_ineligible_preserves_a_claimed_submission_without_terminal_failure(self):
+        from job_search_loop.browser_agent import runtime
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            state_root = root / "state"
+            scratch = root / "scratch"
+            state_root.mkdir()
+            scratch.mkdir()
+            url = "https://jobs.ashbyhq.com/example/role"
+            ledger = Ledger(state_root / "ledger.sqlite3")
+            application_id = ledger.add_application("Example", "AI Engineer", url)
+            ledger.transition(application_id, "qualified")
+            ledger.transition(application_id, "materials_ready")
+            resume = root / "resume.pdf"
+            resume.write_bytes(b"%PDF-1.4\nresume\n")
+            resume_sha256 = hashlib.sha256(resume.read_bytes()).hexdigest()
+            snapshot = root / "ats-snapshot.json"
+            snapshot.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "url": url,
+                        "navigation_committed": True,
+                        "frames": [
+                            {
+                                "url": url,
+                                "controls": [
+                                    {"tag": "input", "type": "email"},
+                                    {"tag": "input", "type": "file"},
+                                    {
+                                        "tag": "button",
+                                        "type": "submit",
+                                        "text": "Submit Application",
+                                    },
+                                ],
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            intent = ledger.claim_submission(
+                application_id,
+                "2026-10-11",
+                "payload",
+                resume_path=resume,
+                resume_sha256=resume_sha256,
+                ats_snapshot_path=snapshot,
+                ats_snapshot_sha256=hashlib.sha256(snapshot.read_bytes()).hexdigest(),
+            )
+            ledger.close()
+
+            row = {
+                "application_id": application_id,
+                "company": "Example",
+                "title": "AI Engineer",
+                "canonical_url": url,
+            }
+            session = Mock(close_owned=AsyncMock())
+            cursor = Mock(checkpoint=None)
+            cursor.handle = Mock()
+            observation = Mock(content_sha256="a" * 64)
+            builder = Mock(build=AsyncMock(return_value=observation))
+            context = (row, session, Mock(), Mock(), cursor, builder)
+            owner_evidence = root / "evidence" / "browser-owner.json"
+            paths = {
+                "JOB_SEARCH_BROWSER_SCRATCH": scratch,
+                "JOB_SEARCH_STATE_ROOT": state_root,
+                "JOB_SEARCH_BROWSER_OWNER_EVIDENCE": owner_evidence,
+            }
+            completed = Mock()
+            sender = Mock()
+
+            with patch.object(
+                runtime, "_context", new=AsyncMock(return_value=context)
+            ), patch.object(
+                runtime, "_path_env", side_effect=lambda name: paths[name]
+            ), patch.object(
+                runtime, "_mark_wake_completed", completed
+            ), patch.object(
+                runtime, "send_hourly_outcomes", sender
+            ), redirect_stdout(io.StringIO()):
+                self.assertEqual(
+                    runtime.main(["ineligible", "--reason", "hard_ineligible"]), 0
+                )
+
+            ledger = Ledger(state_root / "ledger.sqlite3")
+            try:
+                self.assertEqual(ledger.current_state(application_id), "submit_claimed")
+                self.assertEqual(
+                    ledger.connection.execute(
+                        "SELECT status FROM submit_intents WHERE application_id = ?",
+                        (application_id,),
+                    ).fetchone()[0],
+                    "submit_claimed",
+                )
+                self.assertEqual(
+                    ledger.connection.execute(
+                        "SELECT COUNT(*) FROM submission_click_phases WHERE intent_id = ? AND fence = ?",
+                        (intent.intent_id, intent.fence),
+                    ).fetchone()[0],
+                    0,
+                )
+            finally:
+                ledger.close()
+            self.assertFalse((scratch / "terminal-failure.json").exists())
+            completed.assert_called_once_with(application_id)
+            session.close_owned.assert_awaited_once_with(cursor.handle)
+            sender.assert_not_called()
 
 
 if __name__ == "__main__":

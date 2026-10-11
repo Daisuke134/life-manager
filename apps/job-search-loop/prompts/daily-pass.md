@@ -9,8 +9,8 @@ Process every eligible ATS row returned by the runtime. Workday and Ashby use th
 
 - reach final Review, submit exactly once through `runtime finalize`, and report the
   evidence-gated result; or
-- record an explicit provider/unavailable/ineligible outcome, report it, and continue
-  the queue.
+- record an explicit provider/unavailable/ineligible outcome exactly once according
+  to the runtime command's reporting contract, and continue the queue.
 
 Never reopen `submitted` or `submit_unknown`. Never bypass a visible CAPTCHA or
 provider application limit. Employer exclusions come only from the private candidate
@@ -170,7 +170,15 @@ filling the form, and compare mandatory skills, dated experience and location to
 permitted, and foreign onsite roles only where employer sponsorship is supported.
 A generic experience attestation does not establish years, a degree or industry
 experience absent from dated evidence. When a mandatory mismatch is proven, use
-`runtime ineligible --reason hard_ineligible`, report it, and continue the queue.
+`runtime ineligible --reason hard_ineligible`. On `status: ineligible`, that command
+already sends the outcome and returns `report_message_id`; do not call `runtime report`
+again. Continue the queue with the next `observe`.
+If that command returns `action_rejected` with reason
+`application_state_prevents_rejection`, the row already has a submission intent.
+Do not finalize or retry that row, do not label it submitted or ineligible, and
+preserve its intent for exact provider/receipt reconciliation. Add it to `blocked`,
+do not call `runtime report`, and continue with the next row; the runtime skips it
+for this wake.
 An unknown requirement calls for reading the posting, not inventing an answer.
 Use the same company-tailoring, upload, final-review and exactly-once submission
 commands as Workday. No separate Ashby script or approval is needed.
@@ -220,12 +228,15 @@ wrapper such as `Drop file here or Select file` and a separate enabled `Select f
 control, call `runtime upload` with the exact `Select file` control. Never target the
 drop-zone wrapper when the real file-selection control is visible.
 
-If the job page explicitly says the role is unavailable, call `ineligible` and then
-`report --status not_submitted`. If a visible CAPTCHA or explicit provider outage is
-present, call the matching `checkpoint`, then `report --status checkpointed`, and
-continue with the next row. A transient spinner, unfamiliar question, missing
-selector, or validation message is not a blocker: observe, reason, correct, and
-continue.
+If the job page explicitly says the role is unavailable, call `ineligible`. When it
+returns `status: ineligible`, it already reports the current row and returns
+`report_message_id`; do not call `report --status not_submitted` or `runtime report`
+again. If it returns `action_rejected` because a submission intent exists, preserve
+the intent, do not report or retry, and continue with the next row. If a visible
+CAPTCHA or explicit provider outage is present, call the matching `checkpoint`, then
+`report --status checkpointed` for that same row and require its `message_id` before
+continuing. A transient spinner, unfamiliar question, missing selector, or validation
+message is not a blocker: observe, reason, correct, and continue.
 
 ## Final action and verification
 
@@ -249,10 +260,14 @@ not upgrade it in prose.
 ## Queue and Telegram
 
 `runtime finalize` sends the exact company/role outcome itself and returns its real
-`report_message_id`; do not call `runtime report` again for that row. For an
-ineligible or checkpointed row, call `runtime report` and require its real
-`message_id`. Then call `observe` again so the same launchd wake continues the next
-Workday row. A row-local failure never ends the queue. When `observe` returns `queue_complete`, return the
+`report_message_id`; do not call `runtime report` again for that row. A successful
+`runtime ineligible` already reports the exact current row itself and returns
+`report_message_id`; never call `runtime report` after it. If it returns
+`action_rejected` with reason `application_state_prevents_rejection`, preserve the
+intent, do not report or retry that row, and continue with the next `observe`.
+`runtime checkpoint` only saves a checkpoint; call `runtime report --status checkpointed`
+before the next `observe` and confirm its `application_id` is the same checkpointed
+row. A row-local failure never ends the queue. When `observe` returns `queue_complete`, return the
 accumulated outcomes and latest real Telegram message ID as JSON matching the supplied
 schema.
 
