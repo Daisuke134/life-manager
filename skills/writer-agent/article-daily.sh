@@ -447,7 +447,10 @@ case "$START_ACTION" in
     if command -v telegram_notify >/dev/null 2>&1; then
       telegram_notify "article-daily stopped because the saved run is ambiguous or not safely resumable: $START_DECISION" >>"$LOG" 2>&1 || true
     fi
-    exit 0
+    # Exit 75, not 0: nothing ran past start control, so the host's pre-effect marker is still in
+    # place, and the host reads it only for a non-zero exit. Exit 0 left an effect_unknown fence that
+    # deferred every later wake (2026-10-10 12:00, article-daily:18dd0bf091a5d3d0-57499).
+    exit 75
     ;;
 esac
 
