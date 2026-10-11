@@ -215,6 +215,153 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 
 **各atomの記録:** 状態、実施変更、検証command/result、run/owner/occurrence/release SHA、effect/readback/provider receipt、evidence参照、error_class、retryable、next_actionを残す。共有資源修復Doneと各laneの業務成果Doneを分離し、未達をpartialのまま明示する。
 
+### 全体のatomic展開と作業時間枠（大分類3件と全体完了を区別する）
+
+この表はS01〜S18/README18capability/各laneの既存cursorを展開した現時点の工程表で、別SSOTではない。**全体の残件は基盤の3大分類だけではない。** 既完・N/A・現担当が受入済みの工程はfresh証拠で除外し、未知の原因と将来の反復改善が出れば同じ表へ追加する。下記件数を故障数・全将来作業の確定数・AGI認証と扱わない。CFO A8.2–19のsource名は現registryへ紐付けてから実行し、推測のproviderを割り当てない。Lancers既存skip/Answers除外、Google既存session、no live自己決済、投資live gate、CFO serial/Mobile solo等の原scopeを維持する。
+
+**時間の意味:** 分は各工程の初回作業枠/見積もりであり、完了保証ではない。修正の難度・既存実装量・外部条件は診断後に更新する。CLI読取りとsource修正を完了、本番成果・受注・入金・MRR達成と混同しない。CIは直近実測の5〜10分程度/回、release作成は約1〜2分、自然run/cadenceは別待ち。これらを2秒の修正に含めて省略しない。
+
+**最初の9時間（540分）の実行管理:** T+10分までにこの工程表/health baselineを保存・pushする。T+60分で18capabilityの症状/共有blocker/責任範囲を報告する。T+180/T+360/T+540分に実際に閉じたatom・source/main/loaded/natural/official evidence・外部待ち・残見積もりの差を報告する。これらは実績報告期限であり、全18/自己修復/全MRRを9時間でDoneとする保証ではない。作業中は30分以下の間隔で実績/残を更新し、同じ大分類だけを再掲しない。初回診断10分、source修復30分などの枠を超えたら原因と再見積もりを記録し、承認質問で止めず必要な修正/独立safe atomへ進む。
+
+**現health baseline:** 11:33:13Zの既存CLI lm-loop.health.v1=190job、healthy26/running25/failed44/safely_fenced87/effect_unknown7/telemetry_gap1。safe fenceは全てbugではなく、healthyも売上/settlement成功ではない。private evidence=~/.local/state/life-manager/state/company-timebox-health-20261011.json と company-timebox-agent-status-20261011.json。全18job familyへjoin済み、provider成果の未確認は残す。
+
+**wall-clockの未確定部分:** CFO A10は既存7日自然観測、投資は自然30round trips、審査/顧客応答/購入/settlement/成長は外部条件で、minutesの保証をしない。会社US$10M/月は反復する事業成果であり、CLI修復完了と同じ締切へ縮小しない。既存独立ownerを再利用し、必要な技術修復を並行できても、金銭・共有state・同effectの安全条件は維持する。
+
+**現時点の展開行数: 130工程。**
+
+| ID | 範囲 | 一つの完了対象 | 初回作業枠（分） | 外部/自然待ち・境界 |
+|---|---|---|---|---|
+| F01 | 共有基盤 | 既存healthの190jobを18capabilityへjoinし、失敗/保護待ち/実行中を保存 | 5–10 | なし |
+| F02 | 共有基盤 | 優先停止ownerのloaded SHA/argv・最新terminal・実PID/startを照合 | 10–20 | なし |
+| F03 | 共有基盤 | resource_effect_unknownのexact occurrence→実claim run→provider/pre-effect証拠を照合 | 20–60 | 公式証拠取得が必要な場合あり |
+| F04 | 共有基盤 | 同時間窓のRAM/CPU/disk増加を実producerへ帰属する | 15–30 | 自然負荷の観測 |
+| F05 | 共有基盤 | 実証された保存上限/自己cleanup/中央回収の漏れを最小修復する | 30–90 | 原因別に再見積もり |
+| F06 | 共有基盤 | stale owner/予約と実cap saturationを区別し、必要な配分/復旧だけ修復する | 30–90 | 不明effectは解除しない |
+| F07 | 共有基盤 | 共通修正のfocused検証→exact CI→main→immutable→idle対象採用を閉じる | 15–30 | CI/稼働中ownerの終了は別 |
+| F08 | 共有基盤 | 自然仕事→receipt→自己/中央cleanup→次仕事を同期間でjoinする | 15–30 | cadence/自然run待ちは別 |
+| W01 | Cloud商品経路 | 既存Calendar PRを最新mainへ統合しsource acceptanceを閉じる | 30–90 | CI |
+| W02 | Cloud商品経路 | Railway本番deploy/healthと現在のreleaseを照合する | 10–20 | deploy |
+| W03 | Cloud商品経路 | Travel blockのsynthetic Calendar経路を確認し実不具合を直す | 20–60 | 既存Google sessionのみ |
+| W04 | Cloud商品経路 | popup reminderと同event重複防止を確認する | 20–60 | 自然timingは別 |
+| W05 | Cloud商品経路 | Stripe TEST subscription/trial/cancel/refund経路を閉じる | 20–60 | live自己購入なし |
+| W06 | Cloud商品経路 | 既存marketing/funnelと許可済iPhone Spectrumのpairing/replyを各既存cursorで閉じる | 30–90 | 本人device/既存session依存 |
+| CO01 | Gig/Coconala | 現在の許可済案件/offerと公式provider状態を照合する | 10–30 | 認証/eligible案件 |
+| CO02 | Gig/Coconala | 既存Apply/Replyのexact effect fenceと公式receiptを照合する | 20–60 | provider readback |
+| CO03 | Gig/Coconala | 契約条件と納品義務を同caseで確定する | 20–60 | 相手の応答/契約 |
+| CO04 | Gig/Coconala | 実納品可能な成果物を作成し、公式delivery receiptを取得する | 30–120 | 成果物規模で再見積もり |
+| CO05 | Gig/Coconala | unique paid orderのsettlement/refund/fee/実費/netをjoinする | 15–30 | 購入/settlement待ちは別 |
+| LA01 | Gig/Lancers | 現在の許可済案件/offerと公式provider状態を照合する | 10–30 | 認証/eligible案件 |
+| LA02 | Gig/Lancers | 既存Apply/Replyのexact effect fenceと公式receiptを照合する | 20–60 | provider readback |
+| LA03 | Gig/Lancers | 契約条件と納品義務を同caseで確定する | 20–60 | 相手の応答/契約 |
+| LA04 | Gig/Lancers | 実納品可能な成果物を作成し、公式delivery receiptを取得する | 30–120 | 成果物規模で再見積もり |
+| LA05 | Gig/Lancers | unique paid orderのsettlement/refund/fee/実費/netをjoinする | 15–30 | 購入/settlement待ちは別 |
+| CW01 | Gig/CrowdWorks | 現在の許可済案件/offerと公式provider状態を照合する | 10–30 | 認証/eligible案件 |
+| CW02 | Gig/CrowdWorks | 既存Apply/Replyのexact effect fenceと公式receiptを照合する | 20–60 | provider readback |
+| CW03 | Gig/CrowdWorks | 契約条件と納品義務を同caseで確定する | 20–60 | 相手の応答/契約 |
+| CW04 | Gig/CrowdWorks | 実納品可能な成果物を作成し、公式delivery receiptを取得する | 30–120 | 成果物規模で再見積もり |
+| CW05 | Gig/CrowdWorks | unique paid orderのsettlement/refund/fee/実費/netをjoinする | 15–30 | 購入/settlement待ちは別 |
+| ME01 | Gig/Mercor | 現在の許可済案件/offerと公式provider状態を照合する | 10–30 | 認証/eligible案件 |
+| ME02 | Gig/Mercor | 既存Apply/Replyのexact effect fenceと公式receiptを照合する | 20–60 | provider readback |
+| ME03 | Gig/Mercor | 契約条件と納品義務を同caseで確定する | 20–60 | 相手の応答/契約 |
+| ME04 | Gig/Mercor | 実納品可能な成果物を作成し、公式delivery receiptを取得する | 30–120 | 成果物規模で再見積もり |
+| ME05 | Gig/Mercor | unique paid orderのsettlement/refund/fee/実費/netをjoinする | 15–30 | 購入/settlement待ちは別 |
+| PB01 | PromptBase | 既存listing/exampleと審査状態を公式readbackする | 10–30 | 審査 |
+| PB02 | PromptBase | 実source/自然build・submitの最初の阻害原因を閉じる | 30–90 | CI/自然run |
+| PB03 | PromptBase | sale/refund/fee/cost/settlementとreplay-zeroをjoinする | 15–30 | 販売/settlement |
+| WR01 | Writer | opportunity/discovery ownerの現在input・receiptを照合する | 10–30 | なし |
+| WR02 | Writer | qualified reply/記事生成の最初の阻害原因を閉じる | 30–90 | 相手/自然run |
+| WR03 | Writer | 有料記事/納品の公開・配信receiptを取得する | 20–60 | publication |
+| WR04 | Writer | 実売上・費用・payoutと同opportunityをjoinする | 15–30 | 購入/payout |
+| AF01 | Affiliate | 許可済program・attribution・現在marketing inputを照合する | 10–30 | program権限 |
+| AF02 | Affiliate | source refresh→記事/投稿の最初の阻害原因を閉じる | 30–90 | CI/自然run |
+| AF03 | Affiliate | 公開page/postと計測されたfunnelをjoinする | 15–45 | 自然公開 |
+| AF04 | Affiliate | 公式approved/paid commission・実費・payoutをjoinする | 15–30 | 成果承認/payout |
+| IN01 | Investment | 既存paper PR/validationを最新mainへ統合する | 30–90 | CI |
+| IN02 | Investment | AT-13 fresh official no-order proof契約を閉じる | 30–90 | exact official readback |
+| IN03 | Investment | 自然qualified sell→初paper round trip fillをjoinする | 15–30 | 自然sell、手動sell禁止 |
+| IN04 | Investment | fees/slippage/model/system cost込みP&Lとreplay-zeroを閉じる | 30–60 | fresh金融read-only review |
+| IN05 | Investment | 30自然paper round tripsを公式recordへjoinする | 15–30 | 自然30回、分単位で保証しない |
+| IN06 | Investment | strategy/cross-venue validationとAT-24/29を閉じる | 30–90 | inputs/market条件 |
+| IN07 | Investment | fresh反対review/live gate後のみ、許可済範囲のowner settled netを照合する | 30–60 | 達成前live funding/order禁止 |
+| AE01 | Agent Economy | TaskMarket/x402等の現provider権限・実runtimeを照合する | 15–30 | provider eligibility |
+| AE02 | Agent Economy | 既存packaging/dispatchの最初の不具合を閉じる | 30–90 | CI/自然run |
+| AE03 | Agent Economy | 実paid job/delivery/provider receiptを取得する | 20–60 | 顧客/案件 |
+| AE04 | Agent Economy | treasury/spend-cap内の費用・settled surplusをCFOへjoinする | 20–60 | 決済/settlement |
+| JH01 | Job Hunter | MCP/readiness/entitlementをfresh公式readbackする | 10–30 | Free枠0は購入/bypassしない |
+| JH02 | Job Hunter | Workday過去effectと公式応募statusを照合する | 20–60 | provider/mail receipt |
+| JH03 | Job Hunter | Dreamwork cutoverと許可済fit-qualified応募経路を閉じる | 30–90 | 応募entitlement |
+| JH04 | Job Hunter | 自然応募receipt・replay-zero・業務Telegram配信をjoinする | 15–30 | 求人/自然run |
+| FR01 | Fundraiser | eligibleな助成/acceleratorと応募inputを照合する | 15–30 | eligibility |
+| FR02 | Fundraiser | 応募/提出の最初の阻害原因と公式receiptを閉じる | 30–90 | 募集/本人要件 |
+| FR03 | Fundraiser | status/実inflow/costをCFOへjoinする | 15–30 | 審査/採択/入金 |
+| CN01 | Connector | 候補・既存auth・owner/releaseを照合する | 10–30 | 既存session |
+| CN02 | Connector | provider登録のexact receipt/confirmationを閉じる | 20–60 | eligibleイベント |
+| CN03 | Connector | Calendar/業務通知/重複防止を同receiptへjoinする | 15–45 | 自然登録 |
+| SB01 | Self-Build | verified feedbackと修正owner/許可scopeを確定する | 15–30 | なし |
+| SB02 | Self-Build | 既存dev loopでcandidate→test→PR/mainを閉じる | 30–90 | CI |
+| SB03 | Self-Build | immutable採用→自然成果→必要ならrollbackを照合する | 15–45 | 自然run |
+| MO01 | Mobile Apps | current-day Postizと18投稿ownerのexact fence/deficitを照合する | 20–45 | 公式Postiz |
+| MO02 | Mobile Apps | main-derived採用とeligible deficitの公開阻害原因を閉じる | 30–90 | 自然slot/認証 |
+| MO03 | Mobile Apps | 各account 3 distinct PUBLISHED/day/permalink/native metricsを照合する | 20–45 | 自然公開/day close |
+| MO04 | Mobile Apps | ASC/RevenueCat/既存onboarding-paywall funnelをjoinする | 30–90 | 公式metrics反映 |
+| MO05 | Mobile Apps | 既存順でcontent→ASO→onboarding/paywall改善とnet MRRを測る | 30–90 | growth/購読/fees、反復 |
+| EB01 | eBook | target account/コード/receipt identityを一致させる | 15–30 | 既存認証 |
+| EB02 | eBook | 旧fenceを保持してdistinct eligible slotの公開経路を閉じる | 30–90 | Postiz/自然slot |
+| EB03 | eBook | 一回払いReset PDFの既存webhook/配信経路を閉じる | 30–90 | 実顧客購入、自己購入なし |
+| EB04 | eBook | Letter subscription/cancel/refund/fees/settlementをjoinする | 20–60 | subscription/payout |
+| EB05 | eBook | 生成費・funnel・retention・verified net MRRを反復改善する | 20–60 | growth/継続課金 |
+| CA01 | Capafy | 既存Claude ownerとruntime/fence/対象listingを照合する | 10–30 | 他者stateを上書きしない |
+| CA02 | Capafy | build/submitの最初の阻害原因を既存ownerが閉じる | 30–90 | CI/自然run/審査 |
+| CA03 | Capafy | distribution公開とsale/cost公式readbackを閉じる | 20–60 | 公開/顧客購入 |
+| CA04 | Capafy | skill別model cost/refund/settlement/netをCFOへjoinする | 20–45 | settlement |
+| LS01 | LINE Sticker | 既存factory/審査/ストア状態を公式readbackする | 10–30 | LINE審査 |
+| LS02 | LINE Sticker | sell各経路のexact fence/post URLと計測を閉じる | 20–60 | 公開/認証 |
+| LS03 | LINE Sticker | 資源実測後の工場速度と売れる型への修正を閉じる | 30–90 | 自然factory |
+| LS04 | LINE Sticker | 公式sales/生成費・配信費/netをjoinする | 15–30 | 日次sales/購入 |
+| CF01 | CFO | 専用worktree/最新cursorとregistry全sourceをfresh照合する | 10–30 | CFO serial owner保持 |
+| CF02 | CFO | A8.1 billed-vs-cashとB7 joinの現acceptanceを閉じる | 30–90 | 公式billing/cash |
+| CF-A8.2-01 | CFO source個別 | A8.2の既存source契約・公式receipt/hash/period/currency/coverageを一sourceずつ閉じる | 30–90 | 既存registryのsource名・権限を先に確認、既完は除外 |
+| CF-A8.3-01 | CFO source個別 | A8.3の既存source契約・公式receipt/hash/period/currency/coverageを一sourceずつ閉じる | 30–90 | 既存registryのsource名・権限を先に確認、既完は除外 |
+| CF-A8.4-01 | CFO source個別 | A8.4の既存source契約・公式receipt/hash/period/currency/coverageを一sourceずつ閉じる | 30–90 | 既存registryのsource名・権限を先に確認、既完は除外 |
+| CF-A8.5-01 | CFO source個別 | A8.5の既存source契約・公式receipt/hash/period/currency/coverageを一sourceずつ閉じる | 30–90 | 既存registryのsource名・権限を先に確認、既完は除外 |
+| CF-A8.6-01 | CFO source個別 | A8.6の既存source契約・公式receipt/hash/period/currency/coverageを一sourceずつ閉じる | 30–90 | 既存registryのsource名・権限を先に確認、既完は除外 |
+| CF-A8.7-01 | CFO source個別 | A8.7の既存source契約・公式receipt/hash/period/currency/coverageを一sourceずつ閉じる | 30–90 | 既存registryのsource名・権限を先に確認、既完は除外 |
+| CF-A8.8-01 | CFO source個別 | A8.8の既存source契約・公式receipt/hash/period/currency/coverageを一sourceずつ閉じる | 30–90 | 既存registryのsource名・権限を先に確認、既完は除外 |
+| CF-A8.9-01 | CFO source個別 | A8.9の既存source契約・公式receipt/hash/period/currency/coverageを一sourceずつ閉じる | 30–90 | 既存registryのsource名・権限を先に確認、既完は除外 |
+| CF-A8.10-01 | CFO source個別 | A8.10の既存source契約・公式receipt/hash/period/currency/coverageを一sourceずつ閉じる | 30–90 | 既存registryのsource名・権限を先に確認、既完は除外 |
+| CF-A8.11-01 | CFO source個別 | A8.11の既存source契約・公式receipt/hash/period/currency/coverageを一sourceずつ閉じる | 30–90 | 既存registryのsource名・権限を先に確認、既完は除外 |
+| CF-A8.12-01 | CFO source個別 | A8.12の既存source契約・公式receipt/hash/period/currency/coverageを一sourceずつ閉じる | 30–90 | 既存registryのsource名・権限を先に確認、既完は除外 |
+| CF-A8.13-01 | CFO source個別 | A8.13の既存source契約・公式receipt/hash/period/currency/coverageを一sourceずつ閉じる | 30–90 | 既存registryのsource名・権限を先に確認、既完は除外 |
+| CF-A8.14-01 | CFO source個別 | A8.14の既存source契約・公式receipt/hash/period/currency/coverageを一sourceずつ閉じる | 30–90 | 既存registryのsource名・権限を先に確認、既完は除外 |
+| CF-A8.15-01 | CFO source個別 | A8.15の既存source契約・公式receipt/hash/period/currency/coverageを一sourceずつ閉じる | 30–90 | 既存registryのsource名・権限を先に確認、既完は除外 |
+| CF-A8.16-01 | CFO source個別 | A8.16の既存source契約・公式receipt/hash/period/currency/coverageを一sourceずつ閉じる | 30–90 | 既存registryのsource名・権限を先に確認、既完は除外 |
+| CF-A8.17-01 | CFO source個別 | A8.17の既存source契約・公式receipt/hash/period/currency/coverageを一sourceずつ閉じる | 30–90 | 既存registryのsource名・権限を先に確認、既完は除外 |
+| CF-A8.18-01 | CFO source個別 | A8.18の既存source契約・公式receipt/hash/period/currency/coverageを一sourceずつ閉じる | 30–90 | 既存registryのsource名・権限を先に確認、既完は除外 |
+| CF-A8.19-01 | CFO source個別 | A8.19の既存source契約・公式receipt/hash/period/currency/coverageを一sourceずつ閉じる | 30–90 | 既存registryのsource名・権限を先に確認、既完は除外 |
+| CFX01 | CFO | A6 usage/billing/cashの差と未帰属を照合する | 30–90 | 公式費用/銀行、Moneytree対象外境界保持 |
+| CFX02 | CFO | A9 period/company reportとMRR定義を閉じる | 30–90 | source-backed値のみ |
+| CFX03 | CFO | A10七日自然B7/receipt join/replay-zeroを受け入れる | 20–45 | 既存7日自然観測、7日以上 |
+| SH01 | 全社自己修復 | 実障害→typed intent→正しいownerへの修復scopeをjoinする | 20–45 | 自然障害、人工障害なし |
+| SH02 | 全社自己修復 | 既存dev/promoterの最小修復→main/release経路を閉じる | 30–90 | CI/必要review |
+| SH03 | 全社自己修復 | 次自然run/公式receipt/replay-zeroで自己修復一件を実証する | 15–45 | 自然run |
+| EV01 | 既存評価基盤 | selfEvalの欠測net→0をfail-closedへ直す | 30–60 | 既存テスト |
+| EV02 | 既存評価基盤 | recovery/economic evalを自然障害・公式CFOへ接続する | 30–90 | 実receipt |
+| EV03 | 既存評価基盤 | 既存benchmark比較とtask taxonomyを固定する | 30–60 | 既存runner再利用 |
+| EV04 | 既存評価基盤 | public/dev/held-out/challengeのcase protocolを分離する | 30–90 | dataset境界 |
+| EV05 | 既存評価基盤 | grader較正・反復試行・不確かさ・contaminationを確認する | 30–90 | 必要な標本 |
+| EV06 | 既存評価基盤 | 既存runnerでadapterと独立再現を閉じる | 30–90 | 再現環境 |
+| EV07 | 既存評価基盤 | reportとauthoring guideを公開する | 20–45 | 公開用データのみ |
+| IM01 | 自己改善 | 凍結したevaluatorで一つのcandidateを比較する | 30–90 | grader/policy自分書換禁止 |
+| IM02 | 自己改善 | 品質/安全/費用/net条件でcanary昇格又は棄却する | 20–60 | 自然outcome |
+| IM03 | 自己改善 | 悪化rollbackと既存MX waveの成果をjoinする | 20–60 | 自然rollback/改善 |
+| OS01 | OSS/portable運用 | README/LICENSE/catalogと個人依存の差を確認する | 15–30 | 既存MIT維持 |
+| OS02 | OSS/portable運用 | guided installer/tenant adapterを一agentずつ閉じる | 30–90 | 選択provider設定 |
+| OS03 | OSS/portable運用 | 隔離新利用者のplan→doctor→setup_required/ownerを確認する | 20–60 | 本人account/認証 |
+| OS04 | OSS/portable運用 | Local/Cloud同じbusiness/effect/receipt契約を確認する | 30–90 | 既存cloud計画、Mac廃止は証拠後 |
+| MR01 | 全社収益目標 | 公式subscription/invoice/refund/fee/costによるMRR baselineを固定する | 20–60 | 売上と利益を区別 |
+| MR02 | 全社収益目標 | 黒字unitの獲得/継続利用/価格不変の改善を反復する | 30–90 | 顧客/market、反復回数未確定 |
+| MR03 | 全社収益目標 | 既存lane $10K目標と会社US$10M/月を公式CFOで確認する | 20–60 | 成長/課金/settlement、所要時間未確定 |
+
 ### 全社To-Beと残TODO — US$10M MRRまでの統括正本
 
 **目標と計測:** DaisがUS$10,000,000/月を確認。会社所有の継続課金を月額へ正規化したverified MRRを目標とし、割引・契約状態・期間・通貨・公式subscription/invoice根拠を保持する。返金/fees、settled revenue、billed expenses、cash paid、net利益をCFOで別に示す。単発eBook/LINE/Gig売上、投資利益、顧客自身の所得、trial/test paymentを会社MRRへ足さない。既存Cloud gross $10K、Mobile/eBook net $10K等のlane完了条件は変更しない。Stripeの設定可能なMRR定義とpaid状態をreadbackし、集計定義を固定する（一次資料: https://docs.stripe.com/billing/subscriptions/analytics）。価格変更や自分によるlive購入はしない。
