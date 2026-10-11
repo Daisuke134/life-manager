@@ -55,6 +55,7 @@ PY
 cat >"$FAKE_ROOT/runtime/model-runner.sh" <<SH
 #!/usr/bin/env bash
 touch "$TMP/model-was-called"
+cp "\$3" "$TMP/captured-resume-prompt.txt"
 exit 91
 SH
 chmod +x "$FAKE_ROOT/runtime/model-runner.sh"
@@ -126,6 +127,18 @@ missing_rc=$?
 set -e
 test "$missing_rc" -eq 91
 test -e "$TMP/model-was-called"
+python3 - "$TMP/captured-resume-prompt.txt" <<'PYPROMPT'
+from pathlib import Path
+import json
+import re
+import sys
+text = Path(sys.argv[1]).read_text()
+assert json.loads(re.search(r"Current active pairs: (\[[^\n]+?\])", text)[1]) == ["note/ja", "substack/ja", "substack/en"]
+assert json.loads(re.search(r"Current dormant pairs: (\[[^\n]+?\])", text)[1]) == ["zenn-article/ja", "devto/en", "x-article/en", "x-post/ja", "x-article/ja"]
+assert "all four active valid stable intents" not in text
+assert "alongside the four active target registrations" not in text
+assert "do not publish any pair in this initialization tick" in text
+PYPROMPT
 test "$(wc -l <"$TMP/calls" | tr -d ' ')" = "1"
 python3 - "$RUN_DIR/gates/publication-state.json" <<'PYCASE'
 import json, sys
