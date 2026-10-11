@@ -16,6 +16,12 @@
 
 **目的:** ディスク不足と実行枠の共有障害を先に修復し、READMEの18 agentとCloud・CFO・LINE・Mobile・Gig・eBook・Job Hunter・投資の既存目標を、自然実行と公式readbackまで一件ずつ進める。24時間の監督・自己修復・評価付き自己改善・利用可能なOSSを成立させ、会社全体のUS$10,000,000 MRRまで継続する。各laneの元の売上/MRR/net目標を縮小せず、source/CI成功を本番成果と扱わない。
 
+**基盤の完成度と開発agent再開の判断:** 既存architectureはdurable state/receipt、独立owner、有限worker、監督/復旧、自己/中央cleanupという妥当な土台を持つが、全体の継続稼働は未完成。残件は美容的な小修正ではなく、共通の資源配分・保存/回収・復旧/効果照合の穴を閉じる根本修復である。自己掃除は使用後の資源を戻し、同時実行中のRAM peakを消さない。headlessはbrowserlessではなく、headless化だけを無限並列/無故障の根拠にしない。開始時刻分散は補助とする。
+
+原則を一次資料で照合済み: Chrome headlessは通常Chromeと機能を共有（https://developer.chrome.com/docs/automation-and-testing/headless）、Playwright BrowserContextは互換なbrowser内で隔離再利用可能（https://playwright.dev/docs/browser-contexts）、Temporalは負荷別分離・実資源に合わせたworker調整/scaleを推奨（https://docs.temporal.io/best-practices/worker）。これを既存Life Managerへ適用し、Temporal/Kubernetes等の新基盤導入を現在の追加gateにしない。全実装がbest practiceに完全一致したという認証や、有限hardware/外部providerを含む永久ゼロ故障は主張しない。
+
+primaryは開発者Codex/Claudeと本番18業務agentを区別する。現役の独立修正担当は止めず、agmsg roster・実liveness・lease・成果物を確認して再利用する。新しい10/20/30開発sessionの一斉起動は現時点では実施しない。再開/増員は、対象仕事のRAM/disk peakと保存先、自然な終了→receipt→自己/中央cleanup→次仕事、予約/lock返却の実測から余裕と進行を確認できた時、primaryが重複しない責任範囲で段階的に行う。全18の修正済みを開発再開の前提にせず、未知effectの安全境界を持つ独立したsource修正/照合作業は基盤修復中も進める。Codex一時subagentの環境2枠を業務agentの数と混同しない。「1分で18全部完了」や20session起動自体を成果へ置換せず、各laneの公式成果条件で閉じる。
+
 **全体architectureの判断とAs-Is/To-Be:** 18 agentは18業務capabilityであり、190の小さいjobがそれぞれのcadenceで実装する。最善の進め方は既存のdurable state/effect/receiptと、常時監督＋有限worker＋優先度/経過時間を扱うadmissionを土台に、実資源・業務進行から配分を調整することである。FIFOは同優先度の順序補助として使え、先頭の不適合/古い予約が全業務を止めるgateにしない。固定2/5/10は現設定であり、達成目標や永久の適正値ではない。開始時刻/時差/周期の分散はburstを減らすが、仕事の長期化/再試行/保存先共有があるため衝突や容量問題が無い証明にならない。
 
 As-Isはmain由来immutable release＋Mac launchd/private state、毎分中央補助とowner自己掃除、既存queue/予約/unknown fence/自然再開を持つ。一部の自然仕事→記録→掃除→次仕事は確認済みだが、全18の継続成果は未証明。fresh sampled ubi-watcher/life-manager-daily/marketing-mine-dailyは単純なcapacity待ちでなく、古いloaded releaseとresource_effect_unknownでbody未開始。各unknownはclaimed_by_other_runでpre-effect dry-run未解決、後続claim/terminalとの正確な公式照合が必要で、slots増加やstate削除では直さない。fresh systemは16GiB RAM/memory free51%/swap used7399.44MiB、watchdog11:16:26Z errors0/protected0/free7908937728bytes。一時点の余裕やcleanup成功を全体Doneへ置換しない。
