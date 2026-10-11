@@ -7,9 +7,5 @@ export AGENTMAIL_STATE_ROOT="${AGENTMAIL_STATE_ROOT:-${HOME}/.local/state/life-m
 NODE="${NODE_BIN:-$(command -v node 2>/dev/null || true)}"
 [ -n "$NODE" ] && [ -x "$NODE" ] || { echo '{"status":"setup_required","missing":"node"}' >&2; exit 2; }
 cd "$(dirname "$0")" || exit 1
-LOG="${AGENTMAIL_STATE_ROOT}/logs/agentmail-nudge.log"
-mkdir -p "$(dirname "$LOG")"
-{
-  echo "=== $(date -u +%FT%TZ) nudge sweep ==="
-  "$NODE" nudge.ts
-} >> "$LOG" 2>&1
+echo "=== $(date -u +%FT%TZ) nudge sweep ==="
+"$NODE" nudge.ts
