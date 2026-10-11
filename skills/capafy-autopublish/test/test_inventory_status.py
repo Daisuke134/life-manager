@@ -1025,8 +1025,70 @@ def test_a_deferred_cp1_agent_does_not_spend_a_draft_attempt(monkeypatch, tmp_pa
     monkeypatch.setenv("CAPAFY_DRAFT_ATTEMPTS_PATH", str(tmp_path / "attempts.json"))
     module.record_draft_attempt("7686597754", module.load_draft_attempts())
     module.record_draft_attempt("7686597754", module.load_draft_attempts())
-    module.refund_draft_attempt("7686597754")
-    assert module.load_draft_attempts() == {"7686597754": 1}
-    module.refund_draft_attempt("7686597754")
-    module.refund_draft_attempt("7686597754")
+    for index in range(3):
+        evidence = tmp_path / f"deferred-{index}"
+        evidence.mkdir()
+        (evidence / "summary.json").write_text(json.dumps({
+            "version": 1, "status": "provider_deferred", "attempt_count": 0,
+            "provider_started": False, "loop": "capafy", "task_label": "capafy-drainer",
+            "evidence_dir": str(evidence.resolve()),
+        }))
+        module.refund_draft_attempt("7686597754", evidence)
+        assert module.load_draft_attempts() == ({"7686597754": 1} if index == 0 else {})
+
+
+def test_refund_requires_explicit_current_deferral_and_is_replay_zero(tmp_path):
+    module = load_module()
+    agent_id = "test-draft"
+    module.record_draft_attempt(agent_id, {})
+    evidence = tmp_path / "deferral"
+    evidence.mkdir()
+    proof = {"version": 1, "status": "provider_deferred", "attempt_count": 0,
+             "provider_started": False, "loop": "capafy", "task_label": "capafy-drainer",
+             "evidence_dir": str(evidence.resolve())}
+    summary = evidence / "summary.json"
+    for payload in ({}, {**proof, "attempt_count": 1}, {**proof, "provider_started": None},
+                    {**proof, "evidence_dir": str(tmp_path / "old-run")},
+                    {**proof, "status": "budget_blocked", "attempt_count": 1, "provider_started": None}):
+        summary.write_text(json.dumps(payload))
+        assert module.refund_draft_attempt(agent_id, evidence) is False
+        assert module.load_draft_attempts()[agent_id] == 1
+    summary.write_text(json.dumps(proof))
+    assert module.refund_draft_attempt(agent_id, evidence) is True
+    assert agent_id not in module.load_draft_attempts()
+    module.record_draft_attempt(agent_id, {})
+    assert module.refund_draft_attempt(agent_id, evidence) is False
+    assert module.load_draft_attempts()[agent_id] == 1
+
+
+def test_refund_write_failure_keeps_counter_and_blocks_replay(monkeypatch, tmp_path):
+    module = load_module()
+    module.record_draft_attempt("draft", {})
+    evidence = tmp_path / "deferral"
+    evidence.mkdir()
+    (evidence / "summary.json").write_text(json.dumps({
+        "version": 1, "status": "provider_deferred", "attempt_count": 0,
+        "provider_started": False, "loop": "capafy", "task_label": "capafy-drainer",
+        "evidence_dir": str(evidence.resolve()),
+    }))
+    monkeypatch.setattr(module, "_write_draft_attempts", lambda attempts: False)
+    assert module.refund_draft_attempt("draft", evidence) is False
+    assert module.load_draft_attempts() == {"draft": 1}
+    claim = json.loads((evidence / "draft-attempt-refund.jsonl").read_text().splitlines()[-1])
+    assert claim["status"] == "write_failed"
+    assert module.refund_draft_attempt("draft", evidence) is False
+
+
+def test_prelaunch_busy_probes_then_budget_block_refunds_once(tmp_path):
+    module = load_module()
+    module.record_draft_attempt("draft", {})
+    evidence = tmp_path / "prelaunch-probes"
+    evidence.mkdir()
+    (evidence / "summary.json").write_text(json.dumps({
+        "version": 1, "status": "budget_blocked", "attempt_count": 2,
+        "provider_started": False, "loop": "capafy", "task_label": "capafy-drainer",
+        "evidence_dir": str(evidence.resolve()),
+    }))
+    assert module.refund_draft_attempt("draft", evidence) is True
     assert module.load_draft_attempts() == {}
+    assert module.refund_draft_attempt("draft", evidence) is False

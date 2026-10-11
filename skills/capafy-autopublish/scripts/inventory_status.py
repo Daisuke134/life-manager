@@ -285,20 +285,56 @@ def _write_draft_attempts(attempts):
         with open(tmp, "w", encoding="utf-8") as handle:
             json.dump(attempts, handle, sort_keys=True)
         os.replace(tmp, path)
+        return True
     except OSError:
-        pass
+        return False
 
 
-def refund_draft_attempt(agent_id):
-    """Give back the attempt a pass counted when its CP1 agent never ran (runner deferred, rc 75):
-    an infrastructure deferral is not a failed try of the draft (2026-10-11)."""
-    attempts = load_draft_attempts()
-    agent_id = str(agent_id or "")
-    if attempts.get(agent_id, 0) <= 1:
-        attempts.pop(agent_id, None)
-    else:
-        attempts[agent_id] -= 1
-    _write_draft_attempts(attempts)
+def refund_draft_attempt(agent_id, evidence_dir=None):
+    """Refund once only with this fresh run's explicit model-provider deferral proof."""
+    if evidence_dir is None:
+        return False
+    evidence = Path(evidence_dir).resolve()
+    summary = evidence / "summary.json"
+    try:
+        if summary.is_symlink() or summary.stat().st_size > 64 * 1024:
+            return False
+        proof = json.loads(summary.read_text())
+        if not (isinstance(proof, dict) and proof.get("version") == 1
+                and type(proof.get("attempt_count")) is int and proof["attempt_count"] >= 0
+                and (proof.get("status") in {"budget_blocked", "failed"}
+                     or proof.get("status") == "provider_deferred" and proof["attempt_count"] == 0)
+                and proof.get("provider_started") is False
+                and proof.get("loop") == "capafy" and proof.get("task_label") == "capafy-drainer"
+                and proof.get("evidence_dir") == str(evidence)):
+            return False
+        attempts = load_draft_attempts()
+        agent_id = str(agent_id or "")
+        before = attempts.get(agent_id, 0)
+        if before <= 0:
+            return False
+        # Exclusive claim makes a repeated proof unable to refund a later attempt.
+        claim = evidence / "draft-attempt-refund.jsonl"
+        record = {"version": 1, "agent_id": agent_id, "before": before,
+                  "after": before - 1, "status": "claimed"}
+        fd = os.open(claim, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+        with os.fdopen(fd, "w") as handle:
+            handle.write(json.dumps(record) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        if before == 1:
+            attempts.pop(agent_id)
+        else:
+            attempts[agent_id] = before - 1
+        applied = _write_draft_attempts(attempts)
+        record["status"] = "applied" if applied else "write_failed"
+        with claim.open("a") as handle:
+            handle.write(json.dumps(record) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        return applied
+    except (OSError, ValueError, TypeError):
+        return False
 
 
 def drop_profitable_updates(updates, path=None, frozen_path=None):
@@ -686,9 +722,10 @@ def _not_near_duplicate(item):
 
 
 def main():
-    if len(sys.argv) == 3 and sys.argv[1] == "--refund-draft-attempt":
-        refund_draft_attempt(sys.argv[2])
-        return 0
+    if len(sys.argv) > 1 and sys.argv[1] == "--refund-draft-attempt":
+        if len(sys.argv) != 4:
+            return 2
+        return 0 if refund_draft_attempt(sys.argv[2], sys.argv[3]) else 1
     agents = server_agents()
     if agents is None:
         verdict = {"verdict": "SERVER_UNREADABLE"}

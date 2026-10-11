@@ -237,6 +237,8 @@ Do only step 5b: complete all three CP1 tabs using CP1_AGENTIC.md and the exact 
   fi
 fi
 EVIDENCE_DIR="$LIFE_MANAGER_STATE_HOME/state/agent-runner-evidence/capafy-drainer/$(date +%s)-$$"
+FRESH_EVIDENCE=0
+[ ! -e "$EVIDENCE_DIR" ] && FRESH_EVIDENCE=1
 # 1200s was too short for the CP1 price tab driven by screenshots (2026-10-08 18:55: 76 UI steps, rc=124,
 # and the timeout leaves an effect_unknown fence that costs the next slot). 1800s keeps the whole pass
 # (prepare + agent + CP2/CP3) inside the 3600s loop limit. Stopgap until prices are set by a verified CLI verb.
@@ -247,16 +249,15 @@ printf '%s\n' "$PROMPT" | timeout "${CAPAFY_CP1_AGENT_TIMEOUT_SECONDS:-1800}" en
   --loop capafy \
   --workdir "$LIFE_MANAGER_REPO" >> "$LOG" 2>&1
 RC=$?
-# rc 75 = the agent runner deferred the CP1 agent (disk headroom, busy lease) before it ran; give
-# back the draft attempt this pass counted so infrastructure deferrals cannot exhaust a draft.
-if [ "$RC" -eq 75 ]; then
+# A 75 exit can follow real attempts. Refund only a fresh, explicit pre-provider proof.
+if [ "$RC" -eq 75 ] && [ "$FRESH_EVIDENCE" -eq 1 ]; then
   DEFERRED_ID="$(printf '%s' "$INV" | tail -1 | python3 -c 'import json,sys
 try:
     d=json.loads(sys.stdin.read())
     print((d.get("item") or {}).get("agent_id","") if d.get("action") in ("resume_draft","retry_existing") else "")
 except Exception: print("")' 2>/dev/null)"
-  if [ -n "$DEFERRED_ID" ]; then
-    python3 "$AUTO/scripts/inventory_status.py" --refund-draft-attempt "$DEFERRED_ID" 2>>"$LOG" || true
+  if [ -n "$DEFERRED_ID" ] && python3 "$AUTO/scripts/inventory_status.py" \
+      --refund-draft-attempt "$DEFERRED_ID" "$EVIDENCE_DIR" 2>>"$LOG"; then
     echo "$TS CP1 agent deferred (rc 75): draft attempt refunded for $DEFERRED_ID" >> "$LOG"
   fi
 fi

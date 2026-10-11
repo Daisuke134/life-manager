@@ -1320,6 +1320,20 @@ def candidate_capabilities(provider_config: dict[str, Any], candidate: dict[str,
     return required, available
 
 
+def record_pre_provider_deferral(evidence_dir: Path, args: argparse.Namespace, reason: str) -> None:
+    """Record only a fresh run's model-provider deferral, never a business no-effect claim."""
+    try:
+        evidence_dir.mkdir(parents=True, exist_ok=False, mode=0o700)
+        atomic_json(evidence_dir / "summary.json", {
+            "version": 1, "status": "provider_deferred", "reason": reason,
+            "attempt_count": 0, "provider_started": False,
+            "loop": args.loop, "task_label": args.task_label, "task_class": args.task_class,
+            "evidence_dir": str(evidence_dir), "finished_at": utc_now(),
+        })
+    except OSError as error:
+        print(f"agent-runner: deferral receipt unavailable ({type(error).__name__})", file=sys.stderr)
+
+
 def command_for(provider: str, executable: str, provider_config: dict[str, Any],
                 candidate: dict[str, Any], args: argparse.Namespace, prompt: str,
                 schema: dict[str, Any], result_path: Path,
@@ -1797,6 +1811,7 @@ def run() -> int:
     if available is None or available < RECOVERY_FLOOR_BYTES:
         reason = "disk_headroom_unavailable" if available is None else "disk_headroom_low"
         print(f"agent-runner: provider deferred: {reason}", file=sys.stderr)
+        record_pre_provider_deferral(evidence_dir, parsed, reason)
         return PROVIDER_LEASE_BUSY
 
     try:
@@ -1805,6 +1820,7 @@ def run() -> int:
         )
     except ProviderLeaseBusy:
         print(PROVIDER_LEASE_BUSY_LINE, file=sys.stderr)
+        record_pre_provider_deferral(evidence_dir, parsed, "provider_lease_busy")
         return PROVIDER_LEASE_BUSY
     except (OSError, ValueError) as error:
         print(f"agent-runner: provider lease failed: {error}", file=sys.stderr)
@@ -2109,6 +2125,7 @@ def run() -> int:
             "schema_valid": schema_valid,
             "schema_errors": schema_errors,
             "launch_error": launch_error or None,
+            "provider_started": False if codex_prelaunch_home_busy else None,
             "adapter_error": adapter_error or None,
             "error_class": error_class,
             "capabilities": provider_config.get("capabilities", {}),
@@ -2213,7 +2230,9 @@ def run() -> int:
         "selected_profile_alias": selected["profile_alias"] if selected else None,
         "selected_model": selected["model"] if selected else None,
         "selected_effort": selected["effort"] if selected else None,
+        "evidence_dir": str(evidence_dir),
         "attempt_count": len(attempts),
+        "provider_started": False if all(row.get("provider_started") is False for row in attempts) else None,
         "attempts_path": str(attempts_path),
         "result_path": selected["result_path"] if selected else None,
         "evidence_reclamation": retention,

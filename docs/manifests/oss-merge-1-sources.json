@@ -99,7 +99,7 @@
         {
           "source": "skills/agent-runner/agent_runner.py",
           "target": "runtime/agent-runner/agent_runner.py",
-          "sha256": "d55125ce81b9a5eaa0eef94d1380cdb6c9652e54a337f3247486e35b2e971c3d"
+          "sha256": "bcc7bff234d95a088d8624a5d95b9e18a8022bcef3d16bae11a5f6441eda2e6f"
         },
         {
           "source": "skills/agent-runner/config.json",
@@ -119,7 +119,7 @@
         {
           "source": "skills/agent-runner/tests/test_prompt_fail_closed.py",
           "target": "runtime/agent-runner/tests/test_prompt_fail_closed.py",
-          "sha256": "3050fef73ba3093af70dd2268dffd77cbc1bae2369a951ffc097e08038ff06a8"
+          "sha256": "92fc5f5809864e7777b1b4b9b20078ae0cc5376efa284855446ae5e969a9f865"
         },
         {
           "source": "skills/agent-runner/tests/test_usage_report.py",
@@ -146,7 +146,7 @@
           "source": "skills/capafy-autopublish",
           "target": "skills/capafy-autopublish",
           "files": 246,
-          "inventory_sha256": "6f2b12480d8ddc330e3a807e914c923090fa20db0d0c69f4f3f65188701878b7"
+          "inventory_sha256": "72fb2dc490de6fbdf105b49023a425796c7a8542d5af51d90a13fbe04bf36a93"
         },
         {
           "source": "skills/_shared",
