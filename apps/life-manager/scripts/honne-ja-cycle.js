@@ -145,6 +145,33 @@ function services(env, dataDir, tenantId, lane) {
   };
 }
 
+async function reusePriorYouTubePublication(store, job) {
+  const prior = await store.readPriorPublicationForSlot(job);
+  if (!prior) return null;
+  const receipt = prior.receipt;
+  const refs = job.input_refs;
+  const priorRefs = prior.job.input_refs || {};
+  if (verifyMarketingVideoPublicationReceipt(receipt) && receipt.provider_reconciled === true
+    && receipt.platform === "youtube" && refs.platform_ref === "platform://youtube"
+    && refs.product_ref === `product://${receipt.product_id}`
+    && refs.format_ref === `format://${receipt.format_id}`
+    && refs.locale_ref === `locale://${receipt.locale}`
+    && refs.slot_ref === `schedule-slot://${receipt.slot}`
+    && priorRefs.product_ref === `product://${receipt.product_id}`
+    && priorRefs.format_ref === `format://${receipt.format_id}`
+    && priorRefs.form_ref === `form://${receipt.form}`
+    && priorRefs.locale_ref === `locale://${receipt.locale}`
+    && priorRefs.platform_ref === `platform://${receipt.platform}`
+    && priorRefs.slot_ref === `schedule-slot://${receipt.slot}`
+    && priorRefs.creative_ref === `creative://${receipt.product_id}/${receipt.creative_id}`
+    && priorRefs.video_ref === `object://sha256/${receipt.video_sha256}`
+    && priorRefs.caption_ref === `object://sha256/${receipt.caption_sha256}`) {
+    return { created: false, reused_prior_slot: true, public_url: receipt.public_url, provider_post_id: receipt.provider_post_id };
+  }
+  return { created: false, held: true, reason: "prior_slot_publication_unresolved",
+    prior_job_id: prior.job.job_id, public_url: null, provider_post_id: null };
+}
+
 async function runHonneJaCycle(argv, deps = {}) {
   const parsed = parseArgs(argv);
   const env = deps.env || process.env;
@@ -210,7 +237,18 @@ async function runHonneJaCycle(argv, deps = {}) {
       locale: lane.locale,
     });
   const publicationJob = buildMarketingVideoPublicationJob({ tenantId, productId: lane.product, formatId: lane.format, form: artifact.form, locale: lane.locale, slot, creativeId: publicationCreativeId, platform: lane.platform, videoRef: artifact.video_ref, captionRef, approvalRef, instagramProfileRef: lane.platform === "instagram" ? lane.instagramProfileRef : "profile://instagram/unassigned", postizTokenRef: "secret://postiz/api-key", ...(lane.platform === "instagram" ? { instagramIntegrationRef: lane.integrationRef } : lane.platform === "youtube" ? { youtubeIntegrationRef: lane.integrationRef } : { tiktokIntegrationRef: lane.integrationRef }) });
+  const priorPublication = lane.platform === "youtube" ? await reusePriorYouTubePublication(store, publicationJob) : null;
+  if (priorPublication) {
+    return { slot, generation: { created: generationQueued.created, creative_id: artifact.creative_id },
+      publication: priorPublication, telegram: { created: false, held: true, message_id: null } };
+  }
   const publicationQueued = await store.enqueueJob({ jobId: publicationJob.job_id, tenantId, loopId: publicationJob.loop_id, capability: publicationJob.capability, effectClass: publicationJob.effect_class, effectKey: publicationJob.effect_key, inputRefs: publicationJob.input_refs, maxAttempts: publicationJob.max_attempts, availableAt: new Date(nowMs).toISOString() });
+  if (publicationQueued.prior_slot_publication) {
+    const prior = await reusePriorYouTubePublication(store, publicationJob);
+    if (!prior) throw new Error("YouTube prior slot publication is unavailable after enqueue refusal");
+    return { slot, generation: { created: generationQueued.created, creative_id: artifact.creative_id },
+      publication: prior, telegram: { created: false, held: true, message_id: null } };
+  }
   const runtime = services(env, dataDir, tenantId, lane);
   const publication = await executeJob(store, publicationJob, "honne-ja-cycle", (job) => runtime.publication.execute(job));
   const direct = lane.platform === "instagram"
@@ -233,4 +271,4 @@ async function runHonneJaCycle(argv, deps = {}) {
 
 if (require.main === module) runHonneJaCycle(process.argv.slice(2)).then((result) => process.stdout.write(`${JSON.stringify(result)}\n`)).catch((error) => { if (error && error.code === "NO_DUE_SLOT") { process.stdout.write(`${JSON.stringify({ status: "no_due_slot", reason: error.message })}\n`); return; } process.stderr.write(`${error.message}\n`); process.exitCode = 1; });
 
-module.exports = { ANICCA_AFFIRMATION_YOUTUBE_SLOTS, ANICCA_AI_YOUTUBE_SLOTS, ANICCA_EN_CARD_INSTAGRAM_SLOTS, ANICCA_EN_WIDGET_INSTAGRAM_SLOTS, ANICCA_HE_SLOTS, ANICCA_JA_WIDGET_INSTAGRAM_SLOTS, ANICCA_JP4_SLOTS, ANICCA_MAIN_INSTAGRAM_SLOTS, ANICCA_MAIN_SLOTS, CAPAFY_IG_SLOTS, PRODUCTION_SLOTS, parseArgs, runHonneJaCycle, runSlot, telegramNativeUrlVerified };
+module.exports = { ANICCA_AFFIRMATION_YOUTUBE_SLOTS, ANICCA_AI_YOUTUBE_SLOTS, ANICCA_EN_CARD_INSTAGRAM_SLOTS, ANICCA_EN_WIDGET_INSTAGRAM_SLOTS, ANICCA_HE_SLOTS, ANICCA_JA_WIDGET_INSTAGRAM_SLOTS, ANICCA_JP4_SLOTS, ANICCA_MAIN_INSTAGRAM_SLOTS, ANICCA_MAIN_SLOTS, CAPAFY_IG_SLOTS, PRODUCTION_SLOTS, parseArgs, reusePriorYouTubePublication, runHonneJaCycle, runSlot, telegramNativeUrlVerified };
