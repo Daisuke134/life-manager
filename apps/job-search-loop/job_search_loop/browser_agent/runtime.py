@@ -17,7 +17,7 @@ from zoneinfo import ZoneInfo
 
 from ..ats import detect_provider
 from ..ledger import Ledger
-from ..resume_routing import select_resume
+from ..resume_routing import select_resume, load_resume_manifest
 from ..tailored_resume import compose, load_artifact, render_pdf, store_artifact
 from ..state import provider_recovery_url
 from ..workday_credentials import tenant_key
@@ -280,13 +280,15 @@ def _routed_resume(row: dict[str, Any], posting_text: str) -> dict[str, str]:
     finally:
         ledger.close()
     legacy = assignment["capture_status"] == "legacy_unavailable"
-    routed = select_resume(
-        posting_text=posting_text,
-        role_family=(
-            _role_family(str(row["title"])) if legacy else assignment["role_family"]
-        ),
-        materials_root=_materials_root(),
-    )
+    if legacy:
+        routed = select_resume(posting_text=posting_text,
+            role_family=_role_family(str(row["title"])), materials_root=_materials_root())
+    else:
+        variant = assignment['material_variant']
+        path = load_resume_manifest(_materials_root())[variant]
+        routed = {'resume_path': str(path), 'resume_variant': variant,
+                  'resume_sha256': hashlib.sha256(path.read_bytes()).hexdigest(),
+                  'posting_language': 'ja' if variant == 'japanese' else 'en'}
     if not legacy and routed["resume_sha256"] != assignment["material_sha256"]:
         raise RuntimeError("routed resume differs from the immutable assignment")
     memory = CandidateMemoryView.load(_path_env("JOB_SEARCH_CANDIDATE_MEMORY"))
@@ -299,6 +301,21 @@ def _routed_resume(row: dict[str, Any], posting_text: str) -> dict[str, str]:
 
 
 def _safe_observation(observation, checkpoint, remaining_steps: int) -> dict[str, Any]:
+    private_values = []
+    memory_path = os.environ.get('JOB_SEARCH_CANDIDATE_MEMORY')
+    if memory_path:
+        memory = CandidateMemoryView.load(Path(memory_path))
+        for item in memory.value['concepts']:
+            concept, value = str(item['concept']), item['value']
+            if (concept.startswith('candidate.') and isinstance(value, str) and len(value) >= 2
+                    and re.search(r'name|email|phone|date_of_birth|address_line|street|postal|locality|password|secret|token', concept)):
+                private_values.append(value)
+
+    def safe_text(value):
+        for private in sorted(private_values, key=len, reverse=True):
+            value = value.replace(private, '[private candidate value]')
+        return _redact(value)
+
     controls: list[dict[str, Any]] = []
     for control in observation.controls:
         if not (control.label or control.stable_id):
@@ -307,7 +324,7 @@ def _safe_observation(observation, checkpoint, remaining_steps: int) -> dict[str
             continue
         value: dict[str, Any] = {
             "role": control.role,
-            "label": _redact(control.label),
+            "label": safe_text(control.label),
             "stable_id": control.stable_id,
         }
         if control.control_type:
@@ -321,13 +338,14 @@ def _safe_observation(observation, checkpoint, remaining_steps: int) -> dict[str
         if control.checked is not None:
             value["checked"] = control.checked
         if control.options:
-            value["options"] = [_redact(option) for option in control.options]
+            value["options"] = [safe_text(option) for option in control.options]
         controls.append(value)
     return {
         "url": observation.url,
-        "title": _redact(observation.title),
+        "title": safe_text(observation.title),
+        "visible_text": safe_text(observation.visible_text),
         "content_sha256": observation.content_sha256,
-        "validation": [_redact(value) for value in observation.validation_text],
+        "validation": [safe_text(value) for value in observation.validation_text],
         "challenges": list(observation.visible_challenges),
         "remaining_steps": remaining_steps,
         "controls": controls,

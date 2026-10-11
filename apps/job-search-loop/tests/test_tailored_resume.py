@@ -1,4 +1,5 @@
 import importlib
+import hashlib
 import json
 import tempfile
 import unittest
@@ -65,3 +66,26 @@ class TailoredResumeTests(unittest.TestCase):
             Path(routed['resume_path']).write_bytes(b'changed PDF')
             with self.assertRaisesRegex(ValueError, 'resume_hash_mismatch'):
                 tailoring.load_artifact(root, row, self.memory())
+
+
+class CapturedResumeRoutingTests(unittest.TestCase):
+    def test_english_form_cannot_change_the_captured_japanese_variant(self):
+        from unittest.mock import Mock, patch
+        from job_search_loop.browser_agent import runtime
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            values = {name: name + '.pdf' for name in ('engineering', 'technical_business', 'japanese')}
+            for name, filename in values.items():
+                (root / filename).write_bytes(('%PDF-1.4 ' + name).encode())
+            (root / 'manifest.v1.json').write_text(json.dumps({'version': 1, 'resumes': values}))
+            expected = hashlib.sha256((root / 'japanese.pdf').read_bytes()).hexdigest()
+            ledger = Mock()
+            ledger.strategy_assignment.return_value = {'capture_status': 'captured', 'material_variant': 'japanese',
+                'material_sha256': expected, 'role_family': 'applied_ai'}
+            memory = CandidateMemoryView({'schema_version': 1, 'concepts': []})
+            row = {'application_id': 'fixture-id', 'company': 'Fixture', 'title': 'AI Engineer',
+                'canonical_url': 'https://jobs.ashbyhq.com/fixture/job'}
+            with patch.object(runtime, 'Ledger', return_value=ledger), patch.object(runtime, '_path_env', return_value=root), patch.object(runtime, '_materials_root', return_value=root), patch.object(runtime.CandidateMemoryView, 'load', return_value=memory):
+                result = runtime._routed_resume(row, 'Application Name Email Resume Submit Application')
+            self.assertEqual(result['resume_sha256'], expected)
+            self.assertEqual(result['resume_variant'], 'japanese')

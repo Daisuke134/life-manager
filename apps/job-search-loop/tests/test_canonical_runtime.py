@@ -48,7 +48,7 @@ class CanonicalRuntimeTests(unittest.TestCase):
         executable.chmod(0o700)
         return executable
 
-    def _run_daily_with_fake_python(self, root: Path, slot_count: int, runner_rc: int, *, workday_fails=False):
+    def _run_daily_with_fake_python(self, root: Path, slot_count: int, runner_rc: int, *, workday_fails=False, cache_present=True, excluded_company=None):
         fake_python = root / "fake-python"
         fake_openclaw = root / "fake-openclaw"
         calls = root / "python-calls.jsonl"
@@ -127,7 +127,18 @@ raise SystemExit(0)
             "TEST_WORKDAY_FAILS": '1' if workday_fails else '0',
         }
         (root / "state").mkdir(exist_ok=True)
-        (root / "state" / "official-ats-board-cache.v1.json").write_text('{"jobs": []}')
+        profile = root / "config" / "anicca" / "job-search" / "profile.json"
+        profile.parent.mkdir(parents=True, exist_ok=True)
+        profile.write_text(json.dumps({'candidate': {'employer_exclusions': [excluded_company] if excluded_company else []}}))
+        if excluded_company:
+            from job_search_loop.ledger import Ledger
+            ledger = Ledger(root / 'state' / 'ledger.sqlite3')
+            identity = ledger.add_application(excluded_company, 'AI Role', 'https://jobs.ashbyhq.com/fixture/job')
+            ledger.transition(identity, 'qualified')
+            ledger.transition(identity, 'materials_ready')
+            ledger.close()
+        if cache_present:
+            (root / "state" / "official-ats-board-cache.v1.json").write_text('{"jobs": []}')
         result = subprocess.run(
             ["/bin/zsh", str(APP_ROOT / "scripts" / "run-daily.sh")],
             check=False,
@@ -158,6 +169,18 @@ raise SystemExit(0)
             result, calls = self._run_daily_with_fake_python(Path(tmp), 0, 99, workday_fails=True)
         self.assertEqual(result.returncode, 99, result.stderr)
         self.assertIn("job_search_loop.ashby_discovery", json.dumps(calls))
+
+    def test_private_exclusion_is_applied_when_both_discoveries_are_unavailable(self):
+        from job_search_loop.ledger import Ledger
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            result, calls = self._run_daily_with_fake_python(root, 0, 99,
+                workday_fails=True, cache_present=False, excluded_company='SyntheticExcluded')
+            self.assertEqual(result.returncode, 99, result.stderr)
+            ledger = Ledger(root / 'state' / 'ledger.sqlite3')
+            state = ledger.connection.execute('select current_state from applications').fetchone()[0]
+            ledger.close()
+            self.assertEqual(state, 'rejected')
 
     def test_daily_runs_even_when_prior_slots_exist(self):
         with tempfile.TemporaryDirectory() as tmp:

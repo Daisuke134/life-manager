@@ -216,7 +216,18 @@ fi
 APPLICATION_LIMIT=$("$JOB_SEARCH_PYTHON" - <<'BUDGET_PY'
 import os
 from pathlib import Path
+import json
+from job_search_loop.ledger import Ledger
 from job_search_loop.workday_search_loop import rolling_submission_metrics
+profile = json.loads(Path(os.environ['JOB_SEARCH_PROFILE']).read_text())
+exclusions = profile['candidate'].get('employer_exclusions', [])
+if not isinstance(exclusions, list) or any(not isinstance(value, str) for value in exclusions):
+    raise ValueError('invalid_private_employer_exclusions')
+ledger = Ledger(Path(os.environ['JOB_SEARCH_STATE_ROOT']) / 'ledger.sqlite3')
+try:
+    ledger.reject_excluded_employers(frozenset(exclusions))
+finally:
+    ledger.close()
 print(rolling_submission_metrics(Path(os.environ['JOB_SEARCH_STATE_ROOT']) / 'ledger.sqlite3')['deficit'])
 BUDGET_PY
 )
