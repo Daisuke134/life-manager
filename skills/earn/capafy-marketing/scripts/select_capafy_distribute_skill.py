@@ -105,7 +105,7 @@ def select_for_date(
         ranked = [slug for other in earners[1:] for slug in (earners[0], other)]
     if not ranked:
         raise ValueError("no capafy-skills or listings configured to rotate")
-    # 8 three-hour slots per day; each slot promotes the next skill in the ranking.
+    # One slot per wake (48 half-hour slots/day); each slot promotes the next skill in the ranking.
     slug = ranked[(date.toordinal() * 8 + slot) % len(ranked)]
     skill = extra.get(slug) or products_cfg["products"]["capafy-skills"]["skills"][slug]
     return {
@@ -128,7 +128,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--products", required=True)
     parser.add_argument("--analytics", help="capafy-skill-analytics.json path (optional)")
     parser.add_argument("--channel", default="capafy-distribute")
-    parser.add_argument("--slot", type=int, default=0, help="3-hour JST slot 0-7")
+    parser.add_argument("--slot", type=int, default=0, help="JST half-hour slot 0-47")
     args = parser.parse_args(argv)
 
     products_cfg = json.loads(Path(args.products).read_text(encoding="utf-8"))
