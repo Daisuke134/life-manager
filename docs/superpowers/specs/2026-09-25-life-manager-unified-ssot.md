@@ -337,6 +337,9 @@ CLEAN-04 dependency main/current/loaded: #7585 exactbd732695810014f870b53f293a83
 
 CLEAN-04 残cursor（完了済み除外）: 2件の手動dependency回収、限定自動回収source/CI/main/immutable/両cleanup loaded採用は済み。中央の自然延期→次full receipt/pass0/自己後始末は確認済み。watchdogも01:16:23/17:59/19:38Zの自然errors0/protected0を確認。worktrees実測6,222,008→5,411,824KiB（APFS物理回収量とは別）、同期間最新inventoryで/private/tmp +8,192 bytes/1,041秒、anicca-project delta0/839秒、未測定rootの増加はunknownを保持。次=生成/回収収支の残る実増加だけ診断・修復し、次中央自然で同じ対象の二重回収がないことを確認する。その後CLEAN-05の未確認担当の自然終了→枠返却→次仕事、最後CLEAN-06の反復joinへ進む。空き数字だけで合格せず、全体基盤Done/全coder増員安全をまだ主張しない。既に開始した5coderは停止せずsource/lease/共有release ownershipを分ける。
 
+CLEAN-04 Codex保存増加の診断scope: 最新full01:22:10Zで.codex-acct2全体+9,531,392 bytes/1,295秒。thread_history_1.sqliteは5,349,474,304 bytes/page_count1,306,072/freelist0/auto_vacuum2、logs_2.sqliteは809,811,968 bytes/freelist46、state_5.sqliteは31,002,624 bytes/freelist9。同3DBはCodex app-server PID63234がopen（root全体増加を単一DBへ帰属しない）。履歴/一次state/credentialを削除・移動せずapp-serverを停止しない。既存Codex CLIにmigrate-rolloutsのread-only inspection（--apply無し）とthroughput制御が存在するため、ローカルhelp/設定・公式config/source・sanitizeしたinspectionで旧JSONLとpaginated historyの保存契約/closed判定/重複保存を調べる。先頭atom=既存標準機能の安全な診断で原因と適用範囲を確定、history.max_bytes等のinput-history capをsession/DB capと誤認せず、独自DB purge/未知session delete/新schedulerを作らない。migration mutationは内容保持と稼働owner安全が既存実装で証明されるまで実行しない。
+
+
 
 
 
