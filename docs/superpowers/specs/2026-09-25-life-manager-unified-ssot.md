@@ -279,6 +279,10 @@ loaded-idle-onlyには既存自動unknown照合があり、明示keep_alive指�
 
 **BF11 exact-head CI診断:** #7673/616590daのOSS検査はPASS。共通signal testは、SIGTERM後にchild waitが先に終了すると0、controllerの既存中断枝へ進むと75になるため、return0だけのassertでCIが失敗した。runtimeの既存意味を変えず、実childがSIGTERM受取markerを書いたことを直接assertし、wrapperの既存0/75両経路を許容する。子へsignalが届かない75ではmarkerが無いためPASSしない。seller/protected profileの破壊的検証は行わない。
 
+**BF11本番反映と最後のcursor:** #7673/head f6d87b52のexact-head CI全PASS→main b48224e4。main由来current 20261012T002058-8bf0dff2（sha8bf0dff26692389a93e1f65424dfc33b21d93902）へsourceが含まれることを確認し、x402-experiment-franklin1/install36bebed7309055d76c6bb1e6へ対象限定採用。store-activate SHA256567bfe1ce86b42164c111bb4fc8359f0c0a1e6fe6dfb651a4f19c6a0978ab91c、loaded argvをread back、unknown0/claimed0/pre_effect_reconciledなし。自然wake18dd82e215b5fae8-78059/18dd82ed24dada60-80349は同sourceでcapacity_busy/exit75、商品activation/再登録成功とは扱わない。seller自体は手動再起動しない。BF11-experiment-canonical-source-adoption/BF11-experiment-loaded-natural-readback-20261012.json参照。
+
+BF11の残りはsession-vaultのsource採用。旧holder PID64787が消え、既存stale期間経過をread-onlyで確認したが、反映直前の再確認で別の新しい生存中holderが現れたため保持。profile/vault/credentialを操作せず、guard lockも手動解除しない。BF11-session-vault-adoption-20261012.jsonはpreserved=true、owner unknown0/claimed0/loaded-idleのまま。源コードの採用と認証成功を分離し、共有profileのlogin復旧/leaseと競合しない機会を既存ownership経路で確認してから採用する。BF11未完、次BF14の順序は維持する。
+
 ### 全体のatomic展開と作業時間枠（大分類3件と全体完了を区別する）
 
 この表はS01〜S18/README18capability/各laneの既存cursorを展開した現時点の工程表で、別SSOTではない。**全体の残件は基盤の3大分類だけではない。** 既完・N/A・現担当が受入済みの工程はfresh証拠で除外し、未知の原因と将来の反復改善が出れば同じ表へ追加する。下記件数を故障数・全将来作業の確定数・AGI認証と扱わない。CFO A8.2–19のsource名は現registryへ紐付けてから実行し、推測のproviderを割り当てない。Lancers既存skip/Answers除外、Google既存session、no live自己決済、投資live gate、CFO serial/Mobile solo等の原scopeを維持する。
