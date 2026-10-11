@@ -38,6 +38,28 @@ PUBLICATION_STATE = "gates/publication-state.json"   # publication-guard writes 
 WRITER_STATE_ROOT = Path.home() / ".local/state/life-manager/writer"
 SOURCE_REPO = Path.home() / "Projects/life-manager-main"
 HISTORICAL_GATE_STOP_PROOFS = {
+    # 2026-10-10 12:02 JST: start control blocked on unclassified same-day run 20261010-001933
+    # and exited 0 before generation (pre-#7602 BLOCK branch); no run dir was created.
+    "article-daily:18dd0bf091a5d3d0-57499": {
+        "stop_kind": "start_control_block",
+        "runtime_run_id": "18dd0bf091a5d3d0-57499",
+        "writer_run_id": "20261010-001933",
+        "release_sha": "1be8bb91b6d45010defb8790310b3c214d740555",
+        "entrypoint": "skills/writer-agent/article-daily.sh",
+        "entrypoint_sha256": "1e11eedb8038959bf9fcea21e24b78c9e38cc53bd7f8e9a2d84518875c3f4e96",
+        "start_event_id": "65685224a361d2cd5d2c7723",
+        "terminal_event_id": "9ee47bc4cfbd45fadd360281",
+        "event_hashes": {
+            "65685224a361d2cd5d2c7723": "62e96e9885b01762ead2cd31f4b12f34596d1cd0d1b099ff3b073d6ca5c29e20",
+            "9ee47bc4cfbd45fadd360281": "feb7c20d8a32a0819d0ec7b10343f4f5c8a6519cf017abf0f46b4033a960fe21",
+        },
+        "log_header": "=== article-daily run 2026-10-10 12:02:35 JST ===",
+        "article_log_segment_sha256": "7debc6b8776875b6c77166e94f00652cf2aecba497464d05ce19d79b0a1e7008",
+        "queued_at": 1791601208.371748,
+        "gate_error": "block-incomplete",
+        "gate_terminal": "article-daily start control BLOCK",
+        "evidence_ref": "writer://fence-reconciliation/article-daily-18dd0bf091a5d3d0-57499.json",
+    },
     "article-daily:18dcb160db0ac660-67443": {
         "runtime_run_id": "18dcb160db0ac660-67443",
         "writer_run_id": "20261008-232303",
@@ -193,7 +215,12 @@ def _historical_gate_stop_proof(
 
     run_dir = writer_root / "runs" / expected["writer_run_id"]
     run_tree = None
-    if "run_tree" in expected:
+    start_block = expected.get("stop_kind") == "start_control_block"
+    if start_block:
+        # Start control stopped before creating a run dir (2026-10-10 block-incomplete):
+        # the log segment below is the only run evidence and is pinned by hash.
+        run_artifacts = {}
+    elif "run_tree" in expected:
         run_tree = _run_tree_manifest(run_dir)
         if run_tree is None or run_tree != expected["run_tree"]:
             return None
@@ -237,16 +264,21 @@ def _historical_gate_stop_proof(
         log_lines = log_path.read_text(encoding="utf-8").splitlines()
     except (OSError, UnicodeError):
         return None
-    anchors = [
-        index for index, line in enumerate(log_lines)
-        if f"completed prior run released a new run={expected['writer_run_id']} " in line
-    ]
+    if start_block:
+        anchors = [index for index, line in enumerate(log_lines) if line == expected["log_header"]]
+        end_marker = "=== article-daily run "
+    else:
+        anchors = [
+            index for index, line in enumerate(log_lines)
+            if f"completed prior run released a new run={expected['writer_run_id']} " in line
+        ]
+        end_marker = "article-daily start control:"
     if len(anchors) != 1:
         return None
     start_index = anchors[0]
     end_index = next(
         (index for index in range(start_index + 1, len(log_lines))
-         if "article-daily start control:" in log_lines[index]),
+         if end_marker in log_lines[index]),
         len(log_lines),
     )
     run_log = log_lines[start_index:end_index]
