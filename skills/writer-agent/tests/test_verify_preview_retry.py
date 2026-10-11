@@ -20,7 +20,7 @@ def load_module():
 
 class VerifyPreviewTests(unittest.TestCase):
     def test_owned_preview_and_cleanup_on_pass_or_image_failure(self):
-        for sizes, expected in [([[728, 440]], 0), ([[728, 1000]], 1), ([], 1)]:
+        for sizes, expected, visible in [([[728, 440]], 0, True), ([[728, 1000]], 1, True), ([], 1, True), ([[728, 440]], 0, False)]:
             with self.subTest(sizes=sizes), tempfile.TemporaryDirectory() as temp:
                 module = load_module()
                 calls = []
@@ -29,13 +29,18 @@ class VerifyPreviewTests(unittest.TestCase):
                     if 'document.body.innerText' in expression:
                         return 'article text ' * 40
                     if "querySelectorAll('img')" in expression:
+                        if 'preview-iframe' in expression:
+                            return {'ok': visible, 'sizes': sizes}
                         return sizes
+                    if 'getBoundingClientRect' in expression:
+                        return {'x': 10, 'y': 20}
                     return True
                 cdp = SimpleNamespace(
                     new_target=mock.Mock(return_value='owned-tab'),
                     close_target=mock.Mock(),
                     evaluate=evaluate,
                     navigate=mock.Mock(),
+                    click=mock.Mock(),
                     screenshot=mock.Mock(),
                     _browser_call=lambda method, params: calls.append((method, params)),
                     _page=mock.Mock(return_value=SimpleNamespace(close=mock.Mock())),
@@ -52,7 +57,10 @@ class VerifyPreviewTests(unittest.TestCase):
                     mock.patch.object(module.time, 'sleep'),
                     mock.patch.object(module, 'sync_playwright', create=True, side_effect=AssertionError('browser-wide attachment forbidden')),
                 ):
-                    if sizes:
+                    if not visible:
+                        with self.assertRaisesRegex(RuntimeError, 'preview unavailable'):
+                            module.verify_once('123', 950)
+                    elif sizes:
                         self.assertEqual(module.verify_once('123', 950), expected)
                     else:
                         with self.assertRaisesRegex(RuntimeError, 'images were not measured'):

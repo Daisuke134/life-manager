@@ -58,9 +58,25 @@ def verify_once(post_id: str, max_h: int) -> int:
         if opened is not True:
             raise RuntimeError("Substack preview could not be opened")
         time.sleep(6)
-        cdp.evaluate(target, """(()=>{const b=[...document.querySelectorAll('button,span,div,a')].find(x=>['デスクトップ','Desktop'].includes((x.textContent||'').trim()));if(b)b.click();})()""")
-        time.sleep(4)
-        sizes = cdp.evaluate(target, """(()=>{const r=[];document.querySelectorAll('img').forEach(im=>{const b=im.getBoundingClientRect();if(b.height>60)r.push([Math.round(b.width),Math.round(b.height)]);});return r;})()""")
+        cdp.evaluate(target, """(()=>{const m=document.querySelector('[data-testid=preview-modal]');const b=m&&[...m.querySelectorAll('button')].find(x=>['デスクトップ','Desktop'].includes(x.innerText.trim()));if(b&&!b.disabled)b.click();})()""")
+        time.sleep(3)
+        point = cdp.evaluate(target, """(()=>{const b=document.querySelector('[data-testid=preview-modal] [data-testid=preview-sub-free]');if(!b||b.disabled)return null;const r=b.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()""")
+        if point:
+            cdp.click(target, point['x'], point['y'])
+            time.sleep(1)
+            point = cdp.evaluate(target, """(()=>{const b=[...document.querySelectorAll('[role=menuitem]')].find(e=>/有料登録者|paid subscriber/i.test(e.innerText));if(!b)return null;const r=b.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()""")
+            if not point:
+                raise RuntimeError("paid Substack preview unavailable")
+            cdp.click(target, point['x'], point['y'])
+        layout = None
+        for _ in range(10):
+            time.sleep(1)
+            layout = cdp.evaluate(target, """(()=>{const m=document.querySelector('[data-testid=preview-modal]');const f=m?.querySelector('[data-testid=preview-iframe]');const d=f?.contentDocument;const desktop=m&&[...m.querySelectorAll('button')].find(e=>['Desktop','デスクトップ'].includes(e.innerText.trim()));if(!m||m.getBoundingClientRect().height<=0||!f||f.getBoundingClientRect().width<700||desktop?.dataset.state!=='active'||!m.querySelector('[data-testid=preview-sub-paid]')||!d||d.readyState!=='complete'||f.contentWindow.location.origin!==location.origin)return {ok:false};const imgs=[...d.querySelectorAll('img')];imgs.forEach(e=>e.loading='eager');if(imgs.some(e=>!e.complete||e.naturalWidth===0))return {ok:false};return {ok:true,sizes:imgs.map(e=>{const b=e.getBoundingClientRect();return [Math.round(b.width),Math.round(b.height)]}).filter(b=>b[1]>60)}})()""")
+            if isinstance(layout, dict) and layout.get('ok') is True and layout.get('sizes'):
+                break
+        if not isinstance(layout, dict) or layout.get('ok') is not True:
+            raise RuntimeError("paid desktop Substack preview unavailable")
+        sizes = layout.get('sizes')
         if not isinstance(sizes, list) or not sizes:
             raise RuntimeError("Substack preview images were not measured")
         tall = [(width, height) for width, height in sizes if height > max_h]
