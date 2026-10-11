@@ -9,10 +9,11 @@ const {
   EN_AFFIRMATION_LANE,
   verifyMarketingNativeCarouselPublicationReceipt,
 } = require("../lib/marketing-native-carousel-publication-adapter.js");
-const { EXPECTED, collectWindow, currentSnapshotFile, persistDailyDigest, persistDelayedSnapshot, sendMetricSnapshot } = require("./instagram-metrics-read.js");
+const { EXPECTED, collectWindow, currentSnapshotFile, persistDailyDigest, persistDelayedSnapshot } = require("./instagram-metrics-read.js");
 
 const WINDOWS = Object.freeze({ "2h": 2 * 3600_000, "24h": 24 * 3600_000, "72h": 72 * 3600_000, "7d": 7 * 86400_000 });
 const GRACE_MS = 90 * 60_000;
+const MAX_POST_AGE_MS = 30 * 86400_000;
 const VIDEO_LANES = Object.freeze([
   Object.freeze({ format_id: "reelclaw-card", form: "nudge-card", locale: "ja", account_id: "@anicca.jp1", native_owner: "anicca.ios.jp", integration_id: "cmn8ycvtn02djqx0ytuisn9mw" }),
   Object.freeze({ format_id: "reelclaw-card", form: "nudge-card", locale: "en", account_id: "@anicca.encards", native_owner: "anicca.encards", integration_id: "cmpc3gx4001nklg0y27a8o66q" }),
@@ -70,9 +71,12 @@ function discoverExpected(dataDir) {
 async function runDue(nowMs = Date.now(), env = process.env, provided = null, deps = {}) {
   const dataDir = resolveDataRoot(env); const results = [];
   if (!Number.isFinite(nowMs)) throw new Error("Instagram metrics due clock invalid");
-  const expecteds = provided || discoverExpected(dataDir);
+  const expecteds = (provided || discoverExpected(dataDir)).filter((expected) => {
+    const publishedMs = Date.parse(expected.published_at);
+    return Number.isFinite(publishedMs) && nowMs >= publishedMs && nowMs - publishedMs <= MAX_POST_AGE_MS;
+  });
   const collect = deps.collectWindow || collectWindow;
-  const currentEligible = expecteds.filter((expected) => nowMs >= Date.parse(expected.published_at) && nowMs - Date.parse(expected.published_at) <= 30 * 86400_000);
+  const currentEligible = expecteds.filter((expected) => nowMs >= Date.parse(expected.published_at) && nowMs - Date.parse(expected.published_at) <= MAX_POST_AGE_MS);
   const currentStart = currentEligible.length ? (Math.floor(nowMs / 1800_000) * 8) % currentEligible.length : 0;
   const currentTargets = new Set(Array.from({ length: Math.min(8, currentEligible.length) }, (_, i) => currentEligible[(currentStart + i) % currentEligible.length]));
   let currentReads = 0;
@@ -88,8 +92,7 @@ async function runDue(nowMs = Date.now(), env = process.env, provided = null, de
       if (nowMs < dueMs) { results.push({ shortcode: expected.shortcode, window, state: "pending", due_at: new Date(dueMs).toISOString() }); continue; }
       if (nowMs > dueMs + GRACE_MS) {
         const snapshot = persistDelayedSnapshot({ dataDir, window, observedAt: new Date(nowMs).toISOString(), expected });
-        const telegram = await sendMetricSnapshot(snapshot, env, dataDir);
-        results.push({ shortcode: expected.shortcode, window, state: "checkpoint_missed", telegram }); continue;
+        results.push({ shortcode: expected.shortcode, window, state: "checkpoint_missed", created: snapshot.created }); continue;
       }
       const observation = await collect(window, env, new Date(nowMs).toISOString(), expected);
       results.push({ shortcode: expected.shortcode, window, state: "measured", telegram: observation.telegram });
@@ -114,8 +117,7 @@ async function runDue(nowMs = Date.now(), env = process.env, provided = null, de
     }
     if (Number(parts.hour) > 17 || (Number(parts.hour) === 17 && Number(parts.minute) >= 30)) {
       const digest = persistDailyDigest({ dataDir, reportDay, observedAt: new Date(nowMs).toISOString(), expected });
-      const telegram = await sendMetricSnapshot(digest, env, dataDir);
-      results.push({ shortcode: expected.shortcode, window: "daily", state: digest.created ? "reported" : "complete", telegram });
+      results.push({ shortcode: expected.shortcode, window: "daily", state: digest.created ? "persisted" : "complete" });
     } else results.push({ shortcode: expected.shortcode, window: "daily", state: "pending", due_at: `${reportDay}T17:30:00+09:00` });
   }
   return results;

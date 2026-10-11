@@ -53,7 +53,7 @@ test("failed current sources cannot permanently starve posts beyond the eight-re
   assert.equal(next.find((row) => row.window === "current" && row.shortcode === healthy.shortcode).state, "measured");
 });
 
-test("due planner records missed 2h as unavailable and leaves later windows pending", async () => {
+test("due planner persists missed checkpoints and daily metrics without per-post Telegram sends", async () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-instagram-due-")); let sends = 0;
   const env = { LM_DATA_DIR: dataDir, LM_TELEGRAM_BOT_TOKEN: "fake", LM_TELEGRAM_ALERT_CHAT_ID: "fake" };
   const originalFetch = global.fetch; global.fetch = async () => ({ ok: true, json: async () => ({ ok: true, result: { message_id: ++sends } }) });
@@ -61,11 +61,26 @@ test("due planner records missed 2h as unavailable and leaves later windows pend
     const result = await runDue(Date.parse(EXPECTED.published_at) + 23 * 3600_000, env, [EXPECTED]);
     assert.equal(result.find((row) => row.window === "2h").state, "checkpoint_missed");
     assert.equal(result.find((row) => row.window === "24h").state, "pending");
-    assert.equal(result.find((row) => row.window === "daily").state, "reported");
-    assert.equal(sends, 2);
+    assert.equal(result.find((row) => row.window === "daily").state, "persisted");
+    assert.equal(fs.existsSync(path.join(dataDir, "tenants", EXPECTED.tenant_id, "marketing", "metrics", EXPECTED.native_owner, EXPECTED.shortcode, "daily", "2026-08-22.json")), true);
+    assert.equal(sends, 0);
     const replay = await runDue(Date.parse(EXPECTED.published_at) + 23 * 3600_000, env, [EXPECTED]);
     assert.equal(replay.find((row) => row.window === "2h").state, "checkpoint_missed");
-    assert.equal(replay.find((row) => row.window === "daily").state, "complete"); assert.equal(sends, 2);
+    assert.equal(replay.find((row) => row.window === "daily").state, "complete"); assert.equal(sends, 0);
+  } finally { global.fetch = originalFetch; }
+});
+
+test("posts older than the 30-day metric window produce no checkpoint or daily work", async () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-instagram-metrics-expired-")); let sends = 0;
+  const nowMs = Date.parse("2026-10-11T14:00:00.000Z");
+  const expected = { ...EXPECTED, shortcode: "ExpiredPost", public_url: "https://www.instagram.com/reel/ExpiredPost/", published_at: "2026-09-10T10:00:00.000Z" };
+  const env = { LM_DATA_DIR: dataDir, LM_TELEGRAM_BOT_TOKEN: "fake", LM_TELEGRAM_ALERT_CHAT_ID: "fake" };
+  const originalFetch = global.fetch; global.fetch = async () => ({ ok: true, json: async () => ({ ok: true, result: { message_id: ++sends } }) });
+  try {
+    const result = await runDue(nowMs, env, [expected]);
+    assert.deepEqual(result, []);
+    assert.equal(sends, 0);
+    assert.equal(fs.existsSync(path.join(dataDir, "tenants", expected.tenant_id, "marketing", "metrics", expected.native_owner, expected.shortcode)), false);
   } finally { global.fetch = originalFetch; }
 });
 

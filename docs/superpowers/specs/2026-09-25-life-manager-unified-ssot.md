@@ -14052,6 +14052,23 @@ Known damage to repair: drafts 2576591785 / 5356015232 (under_review) and 983649
 - **Marketing:** `select_capafy_distribute_skill.py` keeps sellers whose new version is under review, and the top earner (Hook Lab) takes every other distribution slot.
 - **Runtime:** YouTube draft-attempts set to 3 at 17:07 so the factory stops resuming its price-restore draft (backup `draft-attempts.json.bak-20261011-1707`).
 
+### 2026-10-11 — Anicca Instagram metric report timeout and @anicca.en coverage
+
+**目的・範囲:** 無料配信の判断に使うInstagram指標を、投稿ごとの通知洪水や300秒timeoutなしで日次レポートへ載せる。対象は`@anicca.en`を含むAnicca iOSのInstagram計測経路。既存Postiz/Telegramと既存日次サマリーを使い、新しいscheduler/vendor/spendを追加しない。7日checkpointの欠測を後日の現在値で埋めない。
+
+**実測root cause:** main `8bc75b90`由来のcurrent releaseは`20261011T182837-8bc75b90`だが、Instagram metrics ownerは旧release `20261011T150235-a53d4696`をloaded。`launchctl-safe preflight` PASS後のowner readbackはloaded program `/Users/anicca/loops/releases/20261011T150235-a53d4696/bin/lm-loop-run`、argvは`life-manager-instagram-metrics`と同release root、StartCalendarIntervalは毎時13/43分。起動scriptは`run-with-timeout 300`。`discoverExpected`は279件を返し、そのうち172件が30日以内、107件が30日超。30日以内に期限超過した未取得checkpointは各2h/24h/72h/7dで81件。`runDue`は全rowを順次走査し、missed checkpointと日次digestを投稿単位でTelegramへ送っていた。
+
+2026-10-11 04:20–09:30ZのTelegram公式readは関連202件。local liveness receiptからrenderした193本文が公式履歴と一致し、9件はreceipt本文に対応しないため未対応effectをunknownのまま保持する。対象Snapshot `object://sha256/34be99ea35114dafa44d79520db445ac9a44e5ec4439afafb4e7ee90e933885a`は、receipt `message_id=106692` / `sent_at=2026-10-11T05:13:25.292Z`、公式履歴message `110303` / `2026-10-11T05:13:25Z`と同時刻に一致する。通知本文はViews/Reach/Saves/Likes/Comments/Shares/Impressions/Watch time/Average watch time/Completion/Engagement/Account totalsをすべて取得不可と報告。12回のowner occurrenceは`exit 124`、effect unknown。最新は`2026-10-11T09:13:01.669564Z`から`09:18:04.336554Z`まで302.67秒で終了し、300秒上限と投稿ごとの直列通知に整合する。これらのunknown fenceは解放・再送しない。
+
+**レポート経路の欠落:** 既存Anicca daily summaryは`@anicca.jp`/`@anicca.jp1`/`@anicca.jp4`/`@anicca.he`を対象にし、`@anicca.en`を含まない。Instagram `account_metrics`はPostiz row array。loaded旧releaseのliveness formatterはarray長を`Account totals`としていたが、current mainのadapterはrow値へ展開する。Anicca daily summaryはまだobject形式しか読まず、ReachやAPI非提供fieldも表示していない。current observationは7日checkpoint値ではなく取得時点の累計値として明示し、Impressions/Watch time/Average watch time/Completion等は`API未提供`と分ける。
+
+**TODO順の変更:** 旧cursorはCTA/profile readback→metrics coverage。新cursorはmetric report fan-out root cause→`@anicca.en`とaccount metric normalization→source acceptance/main/release→unknown occurrenceの公式readbackと自然日次report。理由はDais指定の計測障害が再現し、302.67秒timeoutと201超のTelegram履歴が distribution の計測・報告を実際に妨げているため。残るprofile bio linkとASO作業はこの修正後も継続する。旧/new順と理由をこの差分に記録する。
+
+**修正acceptance:** missed checkpointと投稿別daily digestは欠測/日次snapshotとして保存し、個別Telegram送信をしない。既存Anicca product summaryは1日1回の統合レポートを維持する。全windowを30日以内に限定し、古い投稿を追跡し続けない。日次summaryは欠落/不正な`published_at`をfresh扱いしない。summaryにoptional `@anicca.en`を加え、post/accountで提供される値、latest source date、current observation、API非提供を正しく表示する。最低RED→GREENで、missed/daily送信なし・30日外を処理しない・@anicca.en summaryが全requested metric labelsを扱うことを確認する。過去7日時点の値や新規費用を作らない。
+
+**Source acceptance (worktree):** expired/daily fanoutと30日外postの回帰testを実装前に追加してREDを確認。修正後、Instagram reader/due、marketing product summary、marketing liveness adapterのfocused node suiteは32/32 PASS。`lm-loop-contract`は18 catalog / 190 registry / 113 mapped / errors 0、`verify-source-boundary.sh` PASS、`loop-adapter-registry.test.js` 15/15 PASS。全`runtime/loop/tests`も実行したが216件中80 failure/73 error。sparse worktreeに`runtime/host`、root `bin`/`lib`、多数の`skills`参照が無く、全suiteの環境受入は未証明。`lm-loop doctor`はmissing=0/unmanaged=0だが既存retired installed label `ai.anicca.provision-browser.capafy.kosuke`が1件ありexit 1。今回の変更でその別ownerを変更しない。
++
++**現在cursor:** source/test/specを専用branchへcommit/pushし、fresh read-only reviewとexact-head CIを通す。次にPR/main統合、通常RRCによるowner loaded SHA更新、自然run、Anicca daily summaryの公式Telegram readback、replay-zeroを確認する。owner旧release `a53d4696`・12 unknown occurrenceを公式readbackなしにclear/resendしない。doctorの既存retired labelとsparse full-suite coverageはrelease/verificationの明示的な未解決状態として保持する。
 ## Capafy status 2026-10-11 18:55 JST (claude-capafy)
 
 - **New Agents submitted (official `PUBLISHED + VERIFIED`, status 1):** Annual Report Risk Change Brief 3795748683 (18:11), Earnings Call Brief 9836498533 (18:40). Both had stalled at CP2 on 10/10 with exhausted attempts; attempts reset to 1 and PR #7637 (rerun CP2 driver once) released `47ae82ec`.

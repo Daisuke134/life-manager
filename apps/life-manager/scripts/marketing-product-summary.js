@@ -10,20 +10,47 @@ const { buildMarketingLivenessJob, executeMarketingLivenessJob } = require("../l
 const { executeCapabilityJob } = require("./runtime-up.js");
 
 const HONNE = Object.freeze({ product_id: "honne-ai", label: "Honne AI", targets: [{ owner: "honne_reveal", account: "@honne_reveal", locale: "en", platform: "TikTok", required: true }, { owner: "honnevideo", account: "@honnevideo", locale: "ja", platform: "TikTok", required: true }] });
-const ANICCA = Object.freeze({ product_id: "anicca-ios", label: "Anicca iOS", targets: [{ owner: "anicca.jp", account: "@anicca.jp", locale: "ja", platform: "TikTok", required: true }, { owner: "anicca.ios.jp", account: "@anicca.jp1", locale: "ja", platform: "Instagram", required: true }, { owner: "anicca.jp4", account: "@anicca.jp4", locale: "ja", platform: "TikTok", required: false }, { owner: "anicca.he", account: "@anicca.he", locale: "ja", platform: "TikTok", required: false, public_url: "https://www.tiktok.com/@anicca.he/video/7676500512308481296" }] });
+const ANICCA = Object.freeze({ product_id: "anicca-ios", label: "Anicca iOS", targets: [{ owner: "anicca.jp", account: "@anicca.jp", locale: "ja", platform: "TikTok", required: true }, { owner: "anicca.ios.jp", account: "@anicca.jp1", locale: "ja", platform: "Instagram", required: true }, { owner: "anicca.en", account: "@anicca.en", locale: "en", platform: "Instagram", required: false }, { owner: "anicca.jp4", account: "@anicca.jp4", locale: "ja", platform: "TikTok", required: false }, { owner: "anicca.he", account: "@anicca.he", locale: "ja", platform: "TikTok", required: false, public_url: "https://www.tiktok.com/@anicca.he/video/7676500512308481296" }] });
 const SUMMARY_ROUTES = Object.freeze({ "honne-ai": Object.freeze({ lane: "marketing-product-summary-honne", locale: "en" }), "anicca-ios": Object.freeze({ lane: "marketing-product-summary-anicca", locale: "ja" }), "mobile-marketing": Object.freeze({ lane: "marketing-product-summary-weekly", locale: "ja" }) });
 
 function latestDaily(dataDir, owner, reportDay) {
   const root = path.join(dataDir, "tenants/dais-local/marketing/metrics", owner); if (!fs.existsSync(root)) return null;
-  return fs.readdirSync(root).flatMap((id) => { const daily = path.join(root, id, "daily"); if (!fs.existsSync(daily)) return []; const file = [`${reportDay}.current.correction.json`, `${reportDay}.correction.json`, `${reportDay}.json`].map((name) => path.join(daily, name)).find((candidate) => fs.existsSync(candidate)); return file ? [file] : []; }).map((file) => ({ file, snapshot: JSON.parse(fs.readFileSync(file, "utf8")) })).sort((a, b) => Date.parse(b.snapshot.observed_at) - Date.parse(a.snapshot.observed_at))[0] || null;
+  const reportEnd = Date.parse(`${reportDay}T23:59:59.999+09:00`); const cutoff = reportEnd - 30 * 86400_000; const candidates = [];
+  for (const id of fs.readdirSync(root)) {
+    const daily = path.join(root, id, "daily"); if (!fs.existsSync(daily)) continue;
+    const file = [`${reportDay}.current.correction.json`, `${reportDay}.correction.json`, `${reportDay}.json`].map((name) => path.join(daily, name)).find((candidate) => fs.existsSync(candidate)); if (!file) continue;
+    const snapshot = JSON.parse(fs.readFileSync(file, "utf8")); const publishedAt = Date.parse(snapshot.published_at || "");
+    if (!Number.isFinite(publishedAt) || publishedAt > reportEnd || publishedAt < cutoff) continue;
+    candidates.push({ file, snapshot });
+  }
+  return candidates.sort((a, b) => Date.parse(b.snapshot.observed_at) - Date.parse(a.snapshot.observed_at))[0] || null;
 }
 
 function metricText(snapshot) {
   if (!snapshot) return "全social/account metrics取得不可（daily snapshot未接続）";
-  const labels = { views: "Views", likes: "Likes", comments: "Comments", shares: "Shares", saves: "Saves", engagement: "Engagement" }; const measured = []; const unavailable = [];
-  for (const key of Object.keys(labels)) { const metric = snapshot.post?.[key]; if (!metric || metric.status === "unavailable") unavailable.push(labels[key]); else measured.push(`${labels[key]} ${metric.percent != null ? `${metric.percent}%` : metric.value}`); }
-  for (const [key, label] of [["followers", "Followers"], ["following", "Following"], ["total_likes", "Account likes"], ["videos", "Videos"]]) { const metric = snapshot.account_metrics?.[key]; if (!metric || metric.status === "unavailable") unavailable.push(label); else measured.push(`${label} ${metric.value}`); }
-  return `${measured.join("、")}。取得不可: ${unavailable.length ? unavailable.join("、") : "なし"}`;
+  const labels = { views: "Views", reach: "Reach", saves: "Saves", likes: "Likes", comments: "Comments", shares: "Shares", impressions: "Impressions", watch_time: "Watch time", average_watch_time: "Average watch time", completion: "Completion", engagement: "Engagement" };
+  const measured = []; const unavailable = []; const unsupported = [];
+  const addMetric = (label, metric) => {
+    if (!metric || metric.status === "unavailable") { (metric?.reason === "metric_not_supported" ? unsupported : unavailable).push(label); return; }
+    measured.push(`${label} ${metric.percent != null ? `${metric.percent}%` : metric.value}${metric.source_date ? `（${metric.source_date}）` : ""}`);
+  };
+  for (const [key, label] of Object.entries(labels)) addMetric(label, snapshot.post?.[key]);
+  const accountMetrics = snapshot.account_metrics;
+  if (Array.isArray(accountMetrics)) {
+    if (!accountMetrics.length) unavailable.push("Account totals");
+    for (const row of accountMetrics) {
+      const key = String(row?.label || "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+      const point = Array.isArray(row?.data) ? row.data.at(-1) : null; const value = point?.total == null || String(point.total).trim() === "" ? NaN : Number(point.total);
+      addMetric(`Account ${labels[key] || row?.label || "metric"}`, Number.isFinite(value) && value >= 0 ? { status: "measured", value, source_date: point.date } : { status: "unavailable", reason: "metric_missing" });
+    }
+  } else if (!accountMetrics || accountMetrics.status === "unavailable") unavailable.push("Account totals");
+  else {
+    const legacyLabels = { followers: "Followers", following: "Following", total_likes: "Account likes", videos: "Videos", recent_views: "Latest 20 videos views", recent_likes: "Latest 20 videos likes", recent_comments: "Latest 20 videos comments", recent_shares: "Latest 20 videos shares" };
+    for (const [key, metric] of Object.entries(accountMetrics)) if (key !== "status" && key !== "reason" && key !== "value") addMetric(legacyLabels[key] || `Account ${key}`, metric);
+  }
+  const current = snapshot.historical_checkpoint === false ? `現在値（取得: ${snapshot.source_observed_at || snapshot.observed_at}、過去のチェックポイント値ではありません）。` : "";
+  const unsupportedText = unsupported.length ? `。API未提供: ${unsupported.join("、")}` : "";
+  return `${current}${measured.join("、")}。取得不可: ${unavailable.length ? unavailable.join("、") : "なし"}${unsupportedText}`;
 }
 
 const FUNNEL_PRODUCTS = Object.freeze([["anicca-ios", "Anicca iOS"], ["honne-ai", "Honne AI"]]);
