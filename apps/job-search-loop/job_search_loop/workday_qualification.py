@@ -89,9 +89,9 @@ def _http_failure_receipt(row: dict[str, Any], error: Exception) -> dict[str, An
     }
 
 
-def fetch_official_description(
+def fetch_official_posting(
     url: str, sources: tuple[dict[str, str], ...]
-) -> str:
+) -> dict[str, Any]:
     parsed = urlsplit(url)
     host = (parsed.hostname or "").casefold()
     source = next(
@@ -119,7 +119,11 @@ def fetch_official_description(
     description = info.get("jobDescription") if isinstance(info, dict) else None
     if not isinstance(description, str) or not description.strip():
         raise ValueError("official Workday description is missing")
-    return description[:80_000]
+    return payload
+
+
+def fetch_official_description(url: str, sources: tuple[dict[str, str], ...]) -> str:
+    return fetch_official_posting(url, sources)['jobPostingInfo']['jobDescription'][:80_000]
 
 
 def _validate(result: dict[str, Any]) -> None:

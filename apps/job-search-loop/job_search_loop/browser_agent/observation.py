@@ -107,6 +107,8 @@ class ObservationBuilder:
                 }));
               const validation = Array.from(document.querySelectorAll('[role="alert"],[aria-invalid="true"],.error'))
                 .filter(visible).map(el => (el.innerText || el.getAttribute('aria-label') || '').trim()).filter(Boolean);
+              const blockingValidation = Array.from(document.querySelectorAll('[aria-invalid="true"]'))
+                .filter(visible).map(label).filter(Boolean);
               const challengeProvider = el => {
                 const haystack = `${el.getAttribute('src') || ''} ${el.getAttribute('title') || ''} ${el.getAttribute('name') || ''} ${el.className || ''}`.toLowerCase();
                 if (haystack.includes('hcaptcha')) return 'hcaptcha';
@@ -118,7 +120,7 @@ class ObservationBuilder:
                 .filter(visible)
                 .filter(el => !el.closest('.grecaptcha-badge'))
                 .map(challengeProvider).filter(Boolean);
-              return { visible_text: document.body ? document.body.innerText : '', controls, validation,
+              return { visible_text: document.body ? document.body.innerText : '', controls, validation, blockingValidation,
                 challenges: Array.from(new Set(challenges)) };
             }"""
         )
@@ -138,6 +140,7 @@ class ObservationBuilder:
             "visible_text": snapshot["visible_text"],
             "controls": [asdict(value) for value in controls],
             "validation_text": snapshot["validation"],
+            "blocking_validation_text": snapshot.get("blockingValidation", []),
             "visible_challenges": snapshot["challenges"],
             "tabs": tabs,
             "screenshot_sha256": screenshot_sha,
@@ -149,4 +152,5 @@ class ObservationBuilder:
             1, canonical["url"], canonical["title"], canonical["visible_text"],
             controls, tuple(canonical["validation_text"]), tabs, screenshot_path,
             screenshot_sha, content_sha, tuple(canonical["visible_challenges"]),
+            tuple(canonical["blocking_validation_text"]),
         )

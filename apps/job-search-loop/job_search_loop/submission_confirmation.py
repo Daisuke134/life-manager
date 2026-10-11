@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import html
 import json
 import os
 import re
@@ -158,11 +159,43 @@ def _confirmation_matches_without_title(
     )
 
 
+def _workday_hiring_receipt_matches(message, candidate, expected_recipient, loader):
+    if loader is None or expected_recipient is None or 'workday' not in urlsplit(candidate['canonical_url']).hostname:
+        return False
+    if not _sender_matches(message['sender'], candidate['canonical_url']):
+        return False
+    if parseaddr(message['recipient'])[1].casefold() != expected_recipient.casefold():
+        return False
+    body = ' '.join(unicodedata.normalize('NFKC', message['body']).split())
+    title = ' '.join(unicodedata.normalize('NFKC', candidate['title']).split())
+    receipt = re.search(r'(?:^|,\s*)([^,]+?)\s*の\s*' + re.escape(title)
+                        + r'\s*の職務にご応募いただき', body)
+    if not receipt:
+        return False
+    brand = receipt.group(1).strip()
+    if not brand or len(brand) > 200:
+        return False
+    posting = loader(candidate)
+    info = posting.get('jobPostingInfo', {})
+    if _fold(str(info.get('title') or '')) != _fold(candidate['title']):
+        return False
+    official_text = html.unescape(str(info.get('jobDescription') or ''))
+    official_text = re.sub(r'<[^>]+>', ' ', official_text)
+    organization = posting.get('hiringOrganization', {}).get('name', '')
+    if _fold(brand) not in _fold(str(organization) + ' ' + official_text):
+        return False
+    candidate['official_posting_sha256'] = hashlib.sha256(json.dumps(posting, sort_keys=True).encode()).hexdigest()
+    candidate['official_hiring_brand'] = brand
+    return True
+
+
 def _looks_like_confirmation_summary(thread: dict[str, Any]) -> bool:
     summary_text = _fold(
         f"{thread.get('subject', '')}\n{thread.get('snippet', '')}"
     )
-    return any(term in summary_text for term in _CONFIRMATION_TERMS)
+    sender = parseaddr(str(thread.get('from') or ''))[1].casefold().rsplit('@', 1)[-1]
+    official_workday = sender in {'myworkday.com', 'myworkdayjobs.com'} or sender.endswith(('.myworkday.com', '.myworkdayjobs.com'))
+    return official_workday or any(term in summary_text for term in _CONFIRMATION_TERMS)
 
 
 def _uncertain_candidates(ledger: Ledger) -> list[dict[str, str]]:
@@ -173,12 +206,14 @@ def _uncertain_candidates(ledger: Ledger) -> list[dict[str, str]]:
           applications.company,
           applications.title,
           applications.canonical_url,
-          submit_intents.intent_id
+          submit_intents.intent_id,
+          submit_intents.created_at
         FROM applications
         JOIN submit_intents
           ON submit_intents.application_id = applications.id
-        WHERE applications.current_state = 'submit_unknown'
-          AND submit_intents.status = 'submit_unknown'
+        WHERE (applications.current_state = 'submit_unknown' AND submit_intents.status = 'submit_unknown')
+           OR (applications.current_state = 'not_submitted' AND submit_intents.status = 'not_submitted'
+               AND submit_intents.outcome_evidence_class = 'rendered_validation_rejection')
         ORDER BY applications.created_at, applications.id
         """
     ).fetchall()
@@ -196,6 +231,8 @@ def _evidence_sha256(
             "message": message,
             "application_id": candidate["application_id"],
             "intent_id": candidate["intent_id"],
+            **({key: candidate[key] for key in ('official_posting_sha256', 'official_hiring_brand')}
+               if 'official_posting_sha256' in candidate else {}),
         },
         ensure_ascii=False,
         sort_keys=True,
@@ -211,6 +248,7 @@ def reconcile_confirmation_threads(
     thread_loader: Callable[[str], dict[str, Any]],
     seen_state: Path,
     expected_recipient: str | None = None,
+    official_posting_loader: Callable[[dict[str, str]], dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     ledger = Ledger(ledger_path)
     reconciled: list[dict[str, str]] = []
@@ -254,7 +292,9 @@ def reconcile_confirmation_threads(
                 candidates = [
                     candidate
                     for candidate in uncertain
-                    if _confirmation_matches(message, candidate, expected_recipient)
+                    if datetime.fromisoformat(message['received_at']) >= datetime.fromisoformat(candidate['created_at'])
+                    and (_confirmation_matches(message, candidate, expected_recipient)
+                         or _workday_hiring_receipt_matches(message, candidate, expected_recipient, official_posting_loader))
                 ]
                 if not candidates:
                     candidates = [
@@ -390,6 +430,17 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    from .workday_qualification import fetch_official_posting
+    sources_path = args.ledger.parent / 'workday-sources.v1.json'
+    sources = tuple(json.loads(sources_path.read_text()).get('sources', [])) if sources_path.exists() else ()
+    posting_cache = {}
+
+    def official_posting(candidate):
+        url = candidate['canonical_url']
+        if url not in posting_cache:
+            posting_cache[url] = fetch_official_posting(url, sources)
+        return posting_cache[url]
+
     result = reconcile_confirmation_threads(
         ledger_path=args.ledger,
         threads=_gmail_confirmation_threads(args.account, args.gog),
@@ -398,6 +449,7 @@ def main() -> None:
         ),
         seen_state=args.seen,
         expected_recipient=args.account,
+        official_posting_loader=official_posting,
     )
     args.output.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     args.output.write_text(
