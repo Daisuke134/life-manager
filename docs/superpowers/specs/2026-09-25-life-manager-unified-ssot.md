@@ -207,9 +207,36 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 
 **目標と計測:** DaisがUS$10,000,000/月を確認。会社所有の継続課金を月額へ正規化したverified MRRを目標とし、割引・契約状態・期間・通貨・公式subscription/invoice根拠を保持する。返金/fees、settled revenue、billed expenses、cash paid、net利益をCFOで別に示す。単発eBook/LINE/Gig売上、投資利益、顧客自身の所得、trial/test paymentを会社MRRへ足さない。既存Cloud gross $10K、Mobile/eBook net $10K等のlane完了条件は変更しない。Stripeの設定可能なMRR定義とpaid状態をreadbackし、集計定義を固定する（一次資料: https://docs.stripe.com/billing/subscriptions/analytics）。価格変更や自分によるlive購入はしない。
 
-**このsessionで完了したこと:** cleanupのbusy/identity失敗とtemp/worktree保護を修復し、main・自然receiptまで確認した。GiB級Git auto-GC temporary packの増加源を確定し、closedなGit garbageだけを回収、無制限auto-GCを抑制した（#7403）。releaseへの未追跡artifact混入と不要なmemory複写を止めた（#7401/#7416）。未参照・main復元可能な旧codeだけを予算内で回収し、memory/stateを同じ場所に保持する処理を本番へ反映した。検証自身のFDによる自己停止と、watchdog busyが独立GCを止める結び付きを修復し、自然runで6 files/約4.8MB・errors0/protected_deletions0を確認した（#7424/#7425）。finite runner・standalone agent runner・full release builderに不足/unknownで重い書き込みを延期する共有guardを反映した（#7400/#7412/#7426）。current=/Users/anicca/loops/releases/20261010T064405-859df55aはmain由来/ALL、変更したguardのGit hash一致・readonlyを確認。cleanupと更新ownerのloaded SHA859df55a・同SHA自然exit0、watchdog StartInterval60、iOS26.5 availabilityを確認。これは資源修復の部分成果であり、収益loopの継続稼働受入・Life Manager自身のT5・収益目標の完了とは数えない。
+**確認済み成果の正本:** →「cleanupの残TODO — 完了済みを除いた実行順」と同節のsource/main/current/loaded/自然receipt。完了済みの調査・回収・共通自己cleanup・Gig再開を残TODOへ戻さない。
 
-**As-Is:** 中央watchdogはStartInterval60でloaded、毎分fast inventoryの自然receiptを複数確認（errors0/protected_deletions0）。current immutable releaseはmainf1bfcc19由来の`/Users/anicca/loops/releases/20261010T101346-f1bfcc19`。閉鎖Gigの自己cleanup sourceはmain/current/Paid ownerへadoption済み（loaded SHA f1bfcc19）。自然janitor readbackは共有agent枠待ち。未使用物を手動回収し、現在のData availableは8,177,778,688 bytes（約8.18GB/7.62GiB、共有volume診断値）。各ownerの終了時後始末のcoverage、生成量の有限化、容量待ちからの自然再開と公式収益進行は未証明。したがって根本修復は未完。過去の11GiB達成待ちは撤回し、数値だけでDoneにしない。
+**As-Is:** 毎分watchdogのStartInterval60と中央cleanupがmain由来immutable release `20261011T101349-98f93e27`で稼働し、複数の自然errors0/protected_deletions0、中央pass0/終了後scratch不在を確認する。共通runner190の自己後始末契約と代表的な自然branchは確認済み。閉じたworktreeの依存cache2件を回収してcache外25,066ファイルのSHAを保持し、同じ回収を本番へ接続する。Codex cold履歴105件は既存native圧縮で約1.12GBを回収し、全展開SHA/bytes/UID/mode/mtimeとnative読込を保持する。定期接続sourceは73tests/19subtests PASS、PR #7589はexact-head CI/main/immutable/自然採用を確認中であり、まだ本番定期接続完了とは数えない。各ownerの再開・生成/回収収支・反復業務の全体受入は未完。会社US$10M MRRは目標で、達成を証明するfresh公式集計はない。空き容量は変動する診断値であり、11GiB等の数字を完了KPIへ戻さない。
+
+**全部終わった後のTo-Be:**
+
+| 対象 | 成立する動作 / 判定 |
+|---|---|
+| 資源 | 各ownerが終了時に自分の不要物を片付け、ログ・一時生成物を有限に保つ。中央cleanupがclosed/unleased/unlockedの取り残しを回収し、必要な履歴は内容を保持してnative保存機能で管理する。使用中・認証・memory/state・未知effect証拠を保持する |
+| 24時間運用 | 仕事→正式記録→自己掃除→中央掃除→次の自然仕事を繰り返す。混雑は既存admissionで待機し、終了後に枠を返して自動再開する。ENOSPCや反復手動掃除で業務が止まらない運用を実証する |
+| 収益 | buildとsellが継続し、公式の購入・配信・納品・settlementをCFOへjoinする。継続契約のMRRと、単発売上・fees/refund・実費・net利益を分けて追跡する |
+| 自己修復 | Life Manager自身が自然障害を診断し、正しいownerに限定した修正をmain/releaseへ反映し、次の自然runまで確認する。未知effectは公式照合まで保持し、再送しない |
+| 自己改善 | 固定したbenchmarkで一変更ずつ評価し、品質・安全・実測netが改善した候補だけを昇格する。悪化はrollbackする。新しい評価器やframeworkを先行して増やさない |
+| OSS | 既存README/install.sh/catalogを、他の利用者が自分の認証・保存先で導入できる状態へ仕上げる。Daisの個人path/credential/private appを必要条件にしない |
+
+```mermaid
+flowchart LR
+    A[作る・売る・納品する] --> B[公式結果と費用を保存]
+    B --> C[ownerの自己掃除]
+    C --> D[中央cleanup]
+    D --> A
+    B --> E[CFOで収益を確認]
+    E --> F[評価を通した改善]
+    F --> A
+    A --> G[障害を検知]
+    G --> H[担当を限定して復旧]
+    H --> A
+```
+
+**残る実行順の読み方:** 現在cursorはcleanup正本のCLEAN-04で、①Codex native定期圧縮の本番反映/自然receipt ②残る保存増加と生成/回収収支 ③CLEAN-05未確認ownerの枠返却/再開 ④CLEAN-06反復稼働を一件ずつ進める。基盤受入後は既存S06→S18の順（Cloud→CFO→LINE→Mobile→Gig→eBook→Job Hunter→投資→残catalog→LM自身の自己修復→benchmark→自己改善→OSSと収益scale）を維持する。各laneのatomic cursor・外部gate・元のDone条件は各節を参照し、この要約に複製しない。収益milestoneは最初の継続購入→lane $10K→会社$100K→$1M→$10M MRR。必要な顧客獲得・継続率・単位利益・実運用容量を各段階で実測し、agent増員やコード修復だけで売上達成を保証しない。
 
 **Mac全体の不要物回収（CLEAN-00、手動回収→同じ対象の自動化）:**
 
@@ -336,6 +363,18 @@ CLEAN-04 dependency自動回収source受入: whole-worktreeがignored一次証�
 CLEAN-04 dependency main/current/loaded: #7585 exactbd732695810014f870b53f293a83cdc3374790d7/CI38100745157全10SUCCESS→main98f93e272489db9a17f6e0d9df897bb5e2beb853。正規ALL cutter exit0/nativeclones8335/current20261011T101349-98f93e27/required236,134,400を確認。disk_cleanup.py SHA b2bd4d2884d794be3dee714ccb8563ce371304ab57f649d344371887521a6440/main byte一致/read-only。中央ownerはfresh loaded-idleからcanonical deterministic/loaded-idle/maxowners1/target-onlyでapplied1/failed0/install14077c76259fbc8f4748af02/loaded argv98f93を確認。watchdog旧active65280は保持→自然終了後のidleから既存install-launchd.shで98f93 argvへ採用、StartInterval60/scriptSHA3393892f0bb48c8b1120120d21911cf85448df243038b4c130c64a8dfed87fdfをreadback。中央初回18dd54accb039090-66103はhost cleanup_lock_busy/75/deferred/errors0/protected0（毎分ownerの占有を強制解除しない）、Git prune-packed24→0/errors0。次の自然18dd54f2b4d41470-76150は01:22:10Z full receipt/同release98f93/errors0/protected0/free505,266,176/GitHub cache6,413 logical bytes回収→01:22:50.548599Z terminal pass0/idle/PID無し/scratch不在、公式admission DBのowner reservations/deferred/queue0を確認。採用後watchdogの01:16:23Z自然receipt/errors0/protected0/free533,798,912、次active69106のloaded98f93も確認。manualwake/foreign停止/unknown解除0、runtime proof=~/.local/state/life-manager/state/closed-worktree-dependency-cache-runtime-20261011.json。
 
 CLEAN-04 残cursor（完了済み除外）: 2件の手動dependency回収、限定自動回収source/CI/main/immutable/両cleanup loaded採用は済み。中央の自然延期→次full receipt/pass0/自己後始末は確認済み。watchdogも01:16:23/17:59/19:38Zの自然errors0/protected0を確認。worktrees実測6,222,008→5,411,824KiB（APFS物理回収量とは別）、同期間最新inventoryで/private/tmp +8,192 bytes/1,041秒、anicca-project delta0/839秒、未測定rootの増加はunknownを保持。次=生成/回収収支の残る実増加だけ診断・修復し、次中央自然で同じ対象の二重回収がないことを確認する。その後CLEAN-05の未確認担当の自然終了→枠返却→次仕事、最後CLEAN-06の反復joinへ進む。空き数字だけで合格せず、全体基盤Done/全coder増員安全をまだ主張しない。既に開始した5coderは停止せずsource/lease/共有release ownershipを分ける。
+
+CLEAN-04 Codex保存増加の診断scope: 最新full01:22:10Zで.codex-acct2全体+9,531,392 bytes/1,295秒。thread_history_1.sqliteは5,349,474,304 bytes/page_count1,306,072/freelist0/auto_vacuum2、logs_2.sqliteは809,811,968 bytes/freelist46、state_5.sqliteは31,002,624 bytes/freelist9。同3DBはCodex app-server PID63234がopen（root全体増加を単一DBへ帰属しない）。履歴/一次state/credentialを削除・移動せずapp-serverを停止しない。既存Codex CLIにmigrate-rolloutsのread-only inspection（--apply無し）とthroughput制御が存在するため、ローカルhelp/設定・公式config/source・sanitizeしたinspectionで旧JSONLとpaginated historyの保存契約/closed判定/重複保存を調べる。先頭atom=既存標準機能の安全な診断で原因と適用範囲を確定、history.max_bytes等のinput-history capをsession/DB capと誤認せず、独自DB purge/未知session delete/新schedulerを作らない。migration mutationは内容保持と稼働owner安全が既存実装で証明されるまで実行しない。
+
+CLEAN-04 Codex既存機能のfresh診断: 同installed CLIのmigrate-rollouts --json（--apply無し）exit0、1097件すべてalready_paginated/eligible0、報告raw rollout allocated9,287,155,712 bytes。再migration mutationは不要。公式openai/codex cc7ba336のrollout/compressはnative maintenance/writer publication lock、7日mtime、source state再照合、zstd lossless/検証/metadata維持/透過再読込でcold historyを回収する既存API。実cold7dは105件/allocated1,287,520,256/maxlogical472,863,314 bytes、compression marker無し。次atom=書込無しの圧縮サイズ計測とinstalled protocol schema照合、内容保持・active安全をfresh read-only reviewer1名で確認し、既存RPCを一度だけ起動してreadbackする。大容量のformal履歴は任意削除しない。不可侵memory/state JSONL/credentials/browser identityとcurrent threadを対象にせず、新DB purge/別compressor/追加scheduler/他thread送信/app-server再起動0。
+
+CLEAN-04 native圧縮の実回収/自動化scope: 同UIDの既存daemon0.160.0/home.codex-acct2/同loaded binaryをnative version・WebSocket initialize・thread/readで確認。cold105件の原文SHA/UID/mode/mtimeとreadonly zstd出力を事前測定し、estimated171,967,459/最大2件peak111,182,467/free501,121,024、open probe closed/old tmp0。fresh read-only reviewer1名の条件付きPASSを満たして既存rollout/compressを1回起動。native公式ログscanned1098/compressed105/skipped993/failed0、圧縮後105件の全展開SHA・bytes・UID/mode/mtime一致、allocated1,287,520,256→166,146,048/free1,620,586,496を確認（free差分は他writerを含む）。private proof=state/codex-native-compression-verified-20261011.json。次=既存runtime/loop/central_cleanup.pyから同native APIを呼ぶ最小adapterを接続する。既存native .tmp/rollout-compression.lockの6h判定を読み、recent/非cold/daemon不在/未知version・home/old tmp混在/作業容量不足は安全にdefer、7d cold/SDK writer lockを迂回しない。temp/保護dataを自作でdeleteしない。予測最大2件の保守的raw staging budget＋64MiBを満たす時だけ依頼し、API受付を圧縮完了と扱わず自然readbackへ結ぶ。既存installed websockets/runtime Pythonを再利用、新codec/DB purge/credential/model設定変更/別scheduler0。source所有=runtime/loop/central_cleanup.pyと既存runtime/loop/tests/test_loop_cleanup.py、specはprimaryのみ。focused RED→最小実装→CI/main/immutable→中央ownerの自然recent-maintenance/次のperiodic maintenanceを確認し、長期待ちを独立TODOの停止gateにしない。
+
+CLEAN-04 native定期接続のsource受入: 新規codecではなくcentral_cleanup.pyの99行接続でvendor-owned rollout/compressへ委任。binding済み中央ownerだけが呼び、standalone/release-gc-onlyは対象外、通常host sweepはnative unavailableでも継続。native .tmp/rollout-compression.lockのfresh6hで即skip、非cold/unknown tmp/保護entry/symlink/hardlink/UID/socket/home/version/保守的staging不足をdefer。source version互換は稼働initialize0.160.0/home一致で検証、SDKのwriter publication lock/7d/2jobsを迂回しない。初回stdin直JSON probeはtimeout/effect0で、公式Unix transportのWebSocket handshakeを確認して既存websocketsで訂正。最大cold threadのnative read前後同ID/読込成功も確認。最小fixtureはadapter無しAttributeErrorのRED→既存test_loop_cleanup全73PASS/19subtests（新2tests/8subtests）、diff/source-boundary PASS。JSONRPCはinitialize→initialized→rollout/compressのみ、API {}受付はcompletion unknown、原文ファイルの自作削除0、新config/dependency/daemon0。次=source exact CI/main/immutable→中央owner自然採用→recent native maintenance receipt/既存host掃除が継続することを確認する。
+
+
+
+
 
 
 

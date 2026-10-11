@@ -29,6 +29,66 @@ def completed(root: Path, name: str, size: int = 1) -> Path:
     return run
 
 
+class NativeCodexCompressionTest(unittest.TestCase):
+    def fixture(self, home):
+        import socket
+        root = home / ".codex-acct2"
+        sessions = root / "sessions/2026/01/01"
+        sessions.mkdir(parents=True)
+        history = sessions / "rollout-fixture.jsonl"
+        history.write_text("retained original history\n")
+        os.utime(history, (1, 1))
+        control = root / "app-server-control"
+        control.mkdir()
+        sock = socket.socket(socket.AF_UNIX)
+        sock.bind(str(control / "app-server-control.sock"))
+        os.chmod(control / "app-server-control.sock", 0o600)
+        self.addCleanup(sock.close)
+        return root, history
+
+    def fake_connection(self, root, sent, **changes):
+        class Connection:
+            async def __aenter__(self): return self
+            async def __aexit__(self, *_): return False
+            async def send(self, text): sent.append(json.loads(text))
+            async def recv(self):
+                request = next(v for v in reversed(sent) if "id" in v)
+                result = {"codexHome": str(root), "userAgent": "Codex Desktop/0.160.0 test"}
+                result.update(changes)
+                return json.dumps({"id": request["id"], "result": result if request["id"] == 1 else {}})
+        return lambda *_args, **_kwargs: Connection()
+
+    def test_native_compression_delegates_without_rewriting_history(self):
+        with tempfile.TemporaryDirectory(dir="/tmp") as directory:
+            home = Path(directory); root, history = self.fixture(home); sent = []
+            result = central_cleanup.codex_history_cleanup(home, connect=self.fake_connection(root, sent))
+            self.assertEqual(result["status"], "requested")
+            self.assertEqual([v["method"] for v in sent], ["initialize", "initialized", "rollout/compress"])
+            self.assertIsNone(sent[-1]["params"])
+            self.assertEqual(history.read_text(), "retained original history\n")
+            self.assertNotIn("reclaimed_bytes", result)
+
+    def test_native_compression_keeps_unsafe_and_recent_data(self):
+        for condition in ["recent", "warm", "temporary", "memory", "outside_link", "capacity", "version", "home"]:
+            with self.subTest(condition=condition), tempfile.TemporaryDirectory(dir="/tmp") as directory:
+                home = Path(directory); root, history = self.fixture(home); sent = []; changes = {}
+                if condition == "recent":
+                    (root / ".tmp").mkdir(); (root / ".tmp/rollout-compression.lock").write_text("native marker")
+                elif condition == "warm": os.utime(history, None)
+                elif condition == "temporary": (history.parent / "unknown.tmp").write_text("keep")
+                elif condition == "memory":
+                    (history.parent / "memory").mkdir(); (history.parent / "memory/primary.jsonl").write_text("keep")
+                elif condition == "outside_link": (history.parent / "foreign.jsonl").symlink_to(history)
+                elif condition == "version": changes["userAgent"] = "Codex Desktop/0.999.0"
+                elif condition == "home": changes["codexHome"] = str(home / "other")
+                connection = self.fake_connection(root, sent, **changes)
+                with mock.patch("shutil.disk_usage", return_value=mock.Mock(free=1 if condition == "capacity" else 4 * 1024**3)):
+                    result = central_cleanup.codex_history_cleanup(home, connect=connection)
+                self.assertNotEqual(result["status"], "requested")
+                self.assertTrue(history.exists())
+                self.assertNotIn("rollout/compress", [v["method"] for v in sent])
+
+
 class LoopCleanupTest(unittest.TestCase):
     def test_native_git_duplicate_cleanup_preserves_primary_data_and_replays_zero(self):
         with tempfile.TemporaryDirectory() as directory:
