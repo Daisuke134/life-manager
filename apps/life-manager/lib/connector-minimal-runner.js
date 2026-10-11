@@ -11,6 +11,12 @@ const SAFE_BROWSER_ENDPOINT = /^https?:\/\/(?:127\.0\.0\.1|localhost|\[::1\]):[1
 // Bounded, non-sensitive: a JS class/constructor name only, never a message,
 // stack, URL, or env value.
 const ERROR_CLASS = /^[A-Za-z][A-Za-z0-9]{0,63}$/;
+// Only locally assigned, fixed stages may enter the strict diagnostic envelope.
+const BROWSER_OPEN_STAGES = new Set([
+  "browser_open_cdp_connect", "browser_open_controller", "browser_open_ownership",
+  "browser_open_reap", "browser_open_target_create", "browser_open_claim",
+  "browser_open_probe", "browser_open_heartbeat",
+]);
 const FALLBACK_COMPLETION_RESERVE_MS = 160_000;
 const CONNPASS_CANDIDATES_PER_WAKE = 12;
 
@@ -275,7 +281,8 @@ async function runMinimalConnectorWake(input = {}, injected = {}) {
           retryable: true,
           run_id: settings.trace.runId,
           safe_reason: operationSafeReason(context, "browser_open_failed"),
-          stage: method,
+          stage: BROWSER_OPEN_STAGES.has(error && error.connectorBrowserOpenStage)
+            ? error.connectorBrowserOpenStage : method,
         });
       }
       try {

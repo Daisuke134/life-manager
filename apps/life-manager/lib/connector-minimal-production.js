@@ -909,6 +909,18 @@ function createMinimalProductionDependencies(options = {}) {
   });
 }
 
+// Preserve the original exception and cleanup behavior; never copy provider text.
+async function openStage(stage, operation) {
+  try {
+    return await operation();
+  } catch (error) {
+    try {
+      Object.defineProperty(error, "connectorBrowserOpenStage", { value: stage });
+    } catch {} // Non-extensible/non-object exceptions retain the generic stage.
+    throw error;
+  }
+}
+
 function createProductionBrowserRail(options = {}) {
   const stateDir = absoluteDirectory(options.stateDir);
   const connectOverCDP = options.connectOverCDP || ((endpoint) => {
@@ -940,36 +952,44 @@ function createProductionBrowserRail(options = {}) {
   return Object.freeze({
     async open(input = {}) {
       const exactOwnerToken = ownerToken(input.ownerToken);
-      const browser = await connectOverCDP(
+      const browser = await openStage("browser_open_cdp_connect", () => connectOverCDP(
         CONNECTOR_CDP_ENDPOINT,
         { timeout: CONNECTOR_CDP_CONNECT_TIMEOUT_MS },
-      );
-      const controller = createTargetController({ browser, endpoint: CONNECTOR_CDP_ENDPOINT });
-      if (!controller || typeof controller.create !== "function" || typeof controller.close !== "function") invalid();
+      ));
+      const controller = await openStage("browser_open_controller", () => {
+        const value = createTargetController({ browser, endpoint: CONNECTOR_CDP_ENDPOINT });
+        if (!value || typeof value.create !== "function" || typeof value.close !== "function") invalid();
+        return value;
+      });
       let ownership = null;
       let receipt = null;
       let target = null;
       try {
-        ownership = createTargetOwnership({
-          controller,
-          ownerToken: exactOwnerToken,
-          stateDir,
+        ownership = await openStage("browser_open_ownership", () => {
+          const value = createTargetOwnership({
+            controller,
+            ownerToken: exactOwnerToken,
+            stateDir,
+          });
+          if (
+            !value || typeof value.claimExact !== "function"
+            || typeof value.probe !== "function" || typeof value.heartbeat !== "function"
+            || typeof value.release !== "function" || typeof value.reapStale !== "function"
+          ) invalid();
+          return value;
         });
-        if (
-          !ownership || typeof ownership.claimExact !== "function"
-          || typeof ownership.probe !== "function" || typeof ownership.heartbeat !== "function"
-          || typeof ownership.release !== "function" || typeof ownership.reapStale !== "function"
-        ) invalid();
-        await ownership.reapStale({ maxIdleMs: STALE_TARGET_MAX_IDLE_MS });
-        target = await controller.create();
-        receipt = await ownership.claimExact({
+        await openStage("browser_open_reap", () => ownership.reapStale({ maxIdleMs: STALE_TARGET_MAX_IDLE_MS }));
+        target = await openStage("browser_open_target_create", () => controller.create());
+        receipt = await openStage("browser_open_claim", () => ownership.claimExact({
           canonicalUrl: LUMA_DISCOVERY_URL,
           targetId: target.target_id,
           pageWebsocket: target.page_websocket,
           receiptPath: path.join(stateDir, "evidence", "tab-owner.json"),
+        }));
+        await openStage("browser_open_probe", async () => {
+          if (await ownership.probe(receipt) !== true) invalid();
         });
-        if (await ownership.probe(receipt) !== true) invalid();
-        await ownership.heartbeat(receipt);
+        await openStage("browser_open_heartbeat", () => ownership.heartbeat(receipt));
         const sessionId = String(makeSessionId());
         if (!/^[A-Za-z0-9._-]{3,128}$/.test(sessionId)) invalid();
         return Object.freeze({
