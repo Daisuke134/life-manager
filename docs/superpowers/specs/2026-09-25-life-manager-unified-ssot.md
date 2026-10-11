@@ -13640,3 +13640,50 @@ This checkpoint supersedes the 08:47 snapshot. The latest release cleanup remain
 9. Apple settled proceeds/refund/feeと実費を同期間で照合し、AniccaのUSD 10,000 net recurring MRRを証明してから他アプリへ拡大する。
 
 **現在cursor:** source修正はlocalでPASS、次はsource・tests・specをcommit/pushしてPR/main統合する。productionに反映されたとはまだ言えない。
+
+### 2026-10-11 10:20 JST — future-slot burstを特定、最新releaseのpublisher rollout途中
+
+この記録で09:38 cursorを更新する。Postiz数値は10:07 JSTの公式GETであり、日末合計や永続collector成功ではない。
+
+- **Main / source:** PR #7584のPostiz total parser修正はmain `341aa289`へ統合済み。PR #7585後のlatest mainは`98f93e272489db9a17f6e0d9df897bb5e2beb853`。current immutable releaseも`20261011T101349-98f93e27` / 同SHAを指す。release manifest `capacity_required_bytes=236,134,400`。このsourceには`engagementScore`のstring `data[].total`読み取り、`percentageChange`除外、空応答pending修正とfuture slotを選ばないdue-only resolverが含まれる。
+- **Release / owners:** reconcilerは旧release `341aa`で実行中。self-handoff receiptはtarget `98f93e27`に対し`old_service_active_timeout`（old PID 66224 running）で、18 publisher ownerは1/18が98f、3/18が341、10/18が49af、3/18が48c、1/18がd8a。最新のfleet applyは旧341 runで`release superseded by current sha 98f`、effectは未開始。手動applyや再起動を重ねず、通常ownerの自然terminalを読む。
+- **Fresh Postiz GET (10:07 JST):** manifest上のAnicca/Honne 18 targetに27件`PUBLISHED`、27/27 direct permalink、27/27 Postiz per-post analytics responseにmetric data。今回のone-time snapshotでViews 1,183、Likes 9。永続metric ledger・Telegram delivery receiptは未確認。18 targetのうち10件のaccountは1 post、`@anicca.en`は2、5 accountは3 burst、2 accountは0。既にdueのslotは18件中17件成功。`@anicca.he`の07:15 slotは0件でmiss、`@ani.cca1234`は10:30 slot前で未due。27/54は日末総数ではない。
+- **Burst root cause evidence:** local job ledgerで5 accountすべての別job/attempt 1を確認した。`@anicca_slideshow`は09:00:37に09:00 slot、09:03:51に15:00 slot、09:07:55に21:00 slot。`@aniccaaffirmation`は09:15:14に09:15 slot、09:18:44に14:15 slot、09:21:20に20:15 slot。動画laneの`@anicca.jp`は08:00:14/08:03:08/08:06:43に08:00/16:00/22:37 slot、`@anicca.jpx`は06:30:07/06:32:50/06:36:18に06:30/12:00/18:00 slot、`@anicca_buddha`は07:00:51/07:04:27/07:07:52に07:00/13:00/20:00 slotを割り当てていた。これは同一slotのretryではなく、未到来slotを数分間隔で先行publishした実績。旧release `48c72041`の`generate-larry-slide-pack.js::resolveLarryJaSlot`には`unpostedCatchUpSlot`があり、当日の`daySlots`から未来slotを選んで`allowEarlyCatchUp`へ渡していた。`49af`以降のdue-only実装はこの分岐を削除し、current release `98f93e27`にも入っている。10:20時点で3 publisherはまだ48c、1つはd8、14は49af/341/98fに分散していたため、全targetが修正版を実行した実績は未確認。
+- **Regression tests:** current immutable releaseの`generate-larry-slide-pack.test.js`ではfuture-slot拒否testがPASSする一方、2件の既存fixtureがconfigured slot時刻前の`now`を使い`NO_DUE_SLOT`でFAIL。worktreeはlatest main `98f93e27`へfast-forward済み。fixtureをslot到来後に合わせ、English lane testへ共有`EN_SLIDESHOW_PRODUCTION_SLOTS`を渡したところ、`generate-larry-slide-pack.test.js`と`anicca-larry-ja-rotating.test.js`が27/27 PASS、diff check PASS。差分はtest fixtureのみで未commit/未push。
+- **Revenue baseline:** ASC/RevenueCatは10/9までの古い値のまま。Anicca ASC first-time downloads 2、Honne 4、他4アプリpending。RevenueCat Anicca USD 20.34はsubscription MRRでsettled netではない。Mixpanel cohort、Apple settlement/refund/fee、同期間actual cost、USD 10,000 net MRRはいずれも未確認。
+
+**残TODO（順序）:**
+
+1. future-slot test fixtureとこのspecを専用branchでcommit/pushし、focused CIを通してmainへ統合する。独立review/subagentはユーザー指示どおり起動しない。
+2. `341aa` release reconcilerのself-handoffが98fで自然terminalになるのを確認し、18 publisher全ownerを98fへ通常owner admissionで載せ、loaded SHA/argv/terminalをreadbackする。現状の4 stale ownerを残さない。
+3. slot-scoped provider/effect evidenceで今日のdue missを確認する。`@anicca.he`の07:15 occurrenceがexact no-effectのときだけ通常owner経路でcatch-upし、unknown fenceは保持する。
+4. future-slot regressionが全native-carousel/video laneで発生しないことをnatural owner receiptsで確認する。slot時刻を待つのは将来実績の証明だけにし、未完slotがある間もmetrics/ASC/RevenueCat/Mixpanel作業を続ける。
+5. 18 targetの各3 configured slot、54/54 PUBLISHED、direct permalink、replay-zeroを7 JST日連続で確認し、各Postiz metricを永続化してTelegram link receiptへ結ぶ。10:07の27/27 GETはこのDoneの代替ではない。
+6. 6アプリのASC acquisition、RevenueCat subscription/MRR、Mixpanel onboarding/paywallをfresh cohort/periodで揃え、AniccaのASC first-time downloadsを7日平均100/日へ。次にApp Store表示/ASO、onboarding/paywallを一変数ずつ最適化し、native codeが変わる時だけ新versionを提出する。
+7. Apple settled proceeds/refunds/feesと実費を同期間で照合し、Anicca USD 10,000 net recurring MRRを公式証拠で確認してから他アプリ・factoryへ拡大する。
+
+**現在cursor:** item 1。current release 98fへの全18 publisher rolloutは未完了。distributionは27/54で、future-slot burstの旧release root causeは確定したが、最新releaseによる7日間の安定実績はまだない。
+
+### 2026-10-11 10:28 JST — metrics owner fenceと現行release rolloutを再確認
+
+このcheckpointは10:20を更新する。Postizとowner stateはread-onlyで再取得した。
+
+- **Current main/release:** PR #7587はtest fixture＋SSOTのみでOPEN。`origin/main=98f93e272489db9a17f6e0d9df897bb5e2beb853`、`current=20261011T101349-98f93e27` / same SHA、release paths ALL。space available 491,432 KiB。Postiz score parserとdue-only slot resolverはimmutable releaseに含まれる。
+- **Publisher rollout:** latest status read: 16/18 target owners are on 98f, one on old48c (`@aniccaaffirmation`), one on49af (`@anicca.en`, loaded-running). Reconciler is still the old341 process (PID66224); its latest fleet attempt was superseded by98f, and self-handoff receipt still reads `old_service_active_timeout`. Do not manually apply or restart; continue only from natural owner/run receipts.
+- **Official Postiz daily read (10:07 JST):** 27/54 target posts were `PUBLISHED`; 27/27 had direct URLs and nonempty per-post analytics. One-day totals were 1,183 Views and 9 Likes. Of 18 targets, 17/18 already-due slots were filled; `@anicca.he` missed its 07:15 first slot, while `@ani.cca1234`'s first slot was not due until 10:30. The 5 three-post accounts were `@anicca.jp`, `@anicca.jpx`, `@anicca_buddha`, `@anicca_slideshow`, and `@aniccaaffirmation`; all three posts were clustered near the first slot. This is an in-day snapshot, not 54/54 or seven-day proof.
+- **Durable metrics gap:** an exact join of today's 27 provider post IDs against `tenants/dais-local/marketing/metrics/**/*.json` found 0 durable snapshots. The metrics tree contains 3,594 JSON snapshots, but its latest `observed_at` is 2026-09-30 10:20 JST. The 10:07 provider analytics GET is transient evidence only; it was not persisted or linked to Telegram delivery.
+- **Metrics owner fence:** `life-manager-instagram-metrics` remains blocked by `effect_unknown` occurrence `18d9127d765110d8-47098`; diagnosis is `history_incomplete`, no journal row, `provider_state=no_adapter`, next action `official_readback_required:no_journal_row`. `life-manager-tiktok-metrics` has the same class on `18d9f8ffb829e890-94915`. The configured Telegram destination resolves to Dais Narita; its readable history has only 18 messages from Oct 5–10, after both unknown occurrence dates (Sep 27 and Sep 30). This readback cannot prove whether either older report was sent. Do not clear either fence or rerun the report before exact effect readback. The direct Postiz GET above does not prove whether the prior Telegram report was sent.
+- **Slot-burst proof:** today's durable jobs tie each burst to an explicitly future `schedule-slot` and show `attempt=1`: Slideshow posts at 09:00/09:03/09:07 JST carry 09:00/15:00/21:00 slots; Affirmation TikTok at 09:15/09:18/09:21 carry 09:15/14:15/20:15; main TikTok at 08:00/08:03/08:06 carry 08:00/16:00/22:37; JP1 at 06:30/06:32/06:36 carry 06:30/12:00/18:00; Buddha at 07:00/07:04/07:07 carry 07:00/13:00/20:00. The 48c source selected from all `daySlots`, which admitted future slots. Main's due-only code removes that path. Two pre-existing fixtures still used not-yet-due `now` values; after aligning them with their lane's configured schedule, the focused suite passes 27/27. That one-file test correction and this SSOT update are the current PR #7587 delta.
+
+**残TODO（順序）:**
+
+1. Finish PR #7587's exact-head checks and merge its fixture/spec update to main; do not request independent review or spawn a subagent.
+2. Let the release reconciler's current owner/handoff reach a natural terminal, then load 98f across all 18 publisher owners through standard owner admission and read back loaded SHA/argv/terminal for each.
+3. Reconcile the two metrics-owner effect fences using their exact historical occurrences and official Telegram/provider readback. Add only the missing owner-specific reconciliation evidence; preserve unknown until proven. Resume normal collectors only after the fence is resolved.
+4. Inspect `@anicca.he`'s missed 07:15 occurrence and recover through its normal owner only if exact official readback proves no prior post; do not resend an ambiguous occurrence. `@ani.cca1234` was not due at the 10:07 snapshot.
+5. Confirm that the due-only code is loaded before later slots and that no job receives a future slot. Prove 18 targets × 3 distinct configured slots = 54/54 PUBLISHED with permalink and replay-zero for seven consecutive JST days. Work on source and metrics while future slots accrue.
+6. Persist per-post Postiz metrics and join each direct URL/metric to Telegram report receipts; close coverage across all 18 target lanes without treating missing data as zero.
+7. Refresh six-app ASC acquisition, RevenueCat subscription/MRR and Mixpanel onboarding using fresh periods/cohorts; reach Anicca 100 ASC first-time downloads/day on a trailing seven-day average, then refine store conversion and onboarding/paywall one variable at a time.
+8. Reconcile Apple settled proceeds/refunds/fees and actual costs for the same period; verify Anicca USD 10,000 net recurring MRR before scaling to the other apps and factory.
+
+**現在cursor:** PR #7587 CI/merge. Distribution is 27/54 at 10:07 and metrics are not durable; publisher rollout is 16/18 on98f with two owners still on older releases. No 10K net MRR proof exists.

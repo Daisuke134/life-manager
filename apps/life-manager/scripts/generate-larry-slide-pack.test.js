@@ -10,6 +10,7 @@ const test = require("node:test");
 
 const { importContentObject } = require("../lib/content-object-store.js");
 const { JA_LANE, JA_MAIN_TIKTOK_LANE, EN_AFFIRMATION_LANE, EN_SLIDESHOW_TIKTOK_LANE, JA_BUDDHA_TIKTOK_LANE } = require("../lib/marketing-native-carousel-publication-adapter.js");
+const { EN_SLIDESHOW_PRODUCTION_SLOTS } = require("./anicca-larry-ja-canary.js");
 const {
   MIN_DAYS_BETWEEN_REPEAT,
   MIN_POOL_SIZE,
@@ -232,7 +233,7 @@ test("resolveLarryJaSlot does not regenerate once the pool already has enough ca
   await resolveLarryJaSlot({ env, now: () => NOW, slot: "2026-09-28T01:30:00.000Z", resolveBackground: fakeResolveBackground() });
   const pool = poolPath(dataDir, TENANT, JA_LANE.productId, JA_LANE.lane);
   const before = fs.readFileSync(pool, "utf8");
-  await resolveLarryJaSlot({ env, now: () => NOW, slot: "2026-09-28T07:30:00.000Z", resolveBackground: fakeResolveBackground() });
+  await resolveLarryJaSlot({ env, now: () => "2026-09-28T07:30:00.000Z", slot: "2026-09-28T07:30:00.000Z", resolveBackground: fakeResolveBackground() });
   const after = fs.readFileSync(pool, "utf8");
   assert.equal(before, after, "pool should not grow once above MIN_POOL_SIZE");
 });
@@ -397,8 +398,9 @@ test("resolveLarryJaSlot generates a fresh, English, TikTok-shaped pool for a no
   const dataDir = tempDataDir(t);
   const env = { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT };
   const { slot, selected } = await resolveLarryJaSlot({
-    env, now: () => NOW, slot: "2026-09-28T00:00:00.000Z",
+    env, now: () => "2026-09-28T00:05:00.000Z", slot: "2026-09-28T00:00:00.000Z",
     lane: EN_SLIDESHOW_TIKTOK_LANE,
+    productionSlots: EN_SLIDESHOW_PRODUCTION_SLOTS,
     resolveBackground: fakeResolveBackground(),
   });
   assert.equal(slot, "2026-09-28T00:00:00.000Z");
