@@ -76,7 +76,6 @@ EXACT_CACHE_ROOTS = {
     "bun-cache": "Library/Caches/bun",
     "burrito-cache": "Library/Caches/burrito_file_cache",
     "codex-cache": "Library/Caches/Codex",
-    "codex-runtime-cache": ".cache/codex-runtimes",
     # Camoufox's downloaded SDK (not a profile) lives at platformdirs.user_cache_dir("camoufox").
     "camoufox-sdk-cache": "Library/Caches/camoufox",
     # Camofox is an optional, checksum-pinned fallback fetched by
@@ -989,6 +988,8 @@ class HostDiskGovernor:
         protected_roots = {
             ".claude", ".codex", ".config/ai", ".openclaw/state", ".openclaw/identity",
             ".openclaw/workspace", ".cloak", "anicca-rtdash", "anicca-monk-factory",
+            # Codex installs executable runtimes and plugin dependencies here.
+            ".cache/codex-runtimes",
         }
         text = "/".join(parts)
         if any(text == root or text.startswith(root + "/") for root in protected_roots):
@@ -1744,7 +1745,7 @@ class HostDiskGovernor:
             # inside would preserve every generation forever; what makes an old one
             # safe to drop is that nothing references it, checked during discovery.
             whole_tree_is_the_unit = item.get("owner") in {
-                "browser", "codex-app-updater", "codex-runtime-cache", "whisper-model-cache",
+                "browser", "codex-app-updater", "whisper-model-cache",
                 "release-retention", "zombie-worktree", "clang-module-cache", "worktree-dependencies",
             } | set(EXACT_CACHE_ROOTS)
             descendant_state = None if whole_tree_is_the_unit else self._protected_descendant(
