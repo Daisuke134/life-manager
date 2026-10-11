@@ -3169,6 +3169,7 @@
       "priority": "revenue",
       "resource_class": "deterministic",
       "admission_class": "revenue",
+      "admission_effect_scope": "occurrence",
       "coalesce_reserved_wakes": true,
       "coalesce_queued_wakes": true,
       "cadence": {
@@ -3320,6 +3321,7 @@
       "priority": "revenue",
       "resource_class": "deterministic",
       "admission_class": "revenue",
+      "admission_effect_scope": "occurrence",
       "coalesce_reserved_wakes": true,
       "coalesce_queued_wakes": true,
       "cadence": {

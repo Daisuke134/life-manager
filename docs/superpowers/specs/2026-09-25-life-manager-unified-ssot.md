@@ -13687,3 +13687,25 @@ This checkpoint supersedes the 08:47 snapshot. The latest release cleanup remain
 8. Reconcile Apple settled proceeds/refunds/fees and actual costs for the same period; verify Anicca USD 10,000 net recurring MRR before scaling to the other apps and factory.
 
 **現在cursor:** PR #7587 CI/merge. Distribution is 27/54 at 10:07 and metrics are not durable; publisher rollout is 16/18 on98f with two owners still on older releases. No 10K net MRR proof exists.
+
+### 2026-10-11 10:46 JST — metrics owner occurrence scope修正をlocal検証
+
+このcheckpointは10:28を更新する。PR #7587はmain `899ddafe`へmerge済み。
+
+- **Metrics fence root cause:** Instagram/TikTok metrics ownersはold occurrence `effect_unknown`でhost admissionがblocked、理由は`history_incomplete`/`no_journal_row`かつ`provider_state=no_adapter`。送信先のTelegram user readbackはDais Narita DM、保持履歴は10/5–10/10の18件だけで、対象不明effectの日（9/27、9/30）は範囲外。旧送信を未送信と断定できないため両fenceは保持する。
+- **Bounded recovery source change (local only):** `life-manager-instagram-metrics`と`life-manager-tiktok-metrics`を`admission_effect_scope=occurrence`にし、対応する2 production boot entrypointだけをruntime allowlistへ追加。これは新しいoccurrenceを古いunknownから分離し、同一occurrenceの再実行と古いfence解除は引き続き拒否する。metric Telegram job IDはsnapshot payload/refのhash、同じsnapshotの再送はlocal ledgerがdedupeする。過去のunknownはこの変更で解決しない。
+- **Validation / worktree state:** 3ファイルのoccurrence-scope差分はreadback時点でworktreeに未commitで存在していたため、そのまま保持して検証した。metrics owner scope registry test 1件PASS、古いunknown保持＋新occurrence claim＋同occurrence replay拒否のruntime tests 2件PASS、`lm-loop-contract`は18 catalog / 190 registry / 113 mapped / errors 0、`git diff --check` PASS。差分はまだcommit/push/main未統合で、production未反映。RED結果はこのreadbackでは確認していない。
+- **Current release/publishers:** current remains immutable `98f93e27` / full SHA `98f93e272489db9a17f6e0d9df897bb5e2beb853`; free space at last read 1,559,368 KiB. 18 target publishersは17が98f、`@anicca.en`だけ49af。release reconcilerは98fでloaded-running。Metrics ownersは旧SHA `9a76dcc8` (Instagram) と`d687b29b` (TikTok)でblocked、daily snapshot coverageはまだ9/30以後0。
+- **Latest distribution read:** Postiz 10:37 JST GETは28/54 target posts `PUBLISHED`、18/18 due first slotsのうち17成功、`@anicca.he`が0。`@ani.cca1234`は10:30 first slotを1件publish。5アカウントは過去の3件burst。10:38の新post metrics GETはViews/Reach/Saves/Likes/Comments/Sharesすべて0のfresh-post snapshot。per-post metricsの累積や永続保存の証拠ではない。9/27–30の各Telegram効果も未確認のまま。
+
+**残TODO（順序）:**
+
+1. このmetrics scope/config/test/spec差分を専用branchでcommit/pushし、focused acceptanceとCIを通してmainへ統合する。独立review/subagentは起動しない。
+2. latest mainからstandard immutable releaseを作り、通常owner admission後に2 metrics ownersがoccurrence-scopedな新runを実行することを確認する。既存unknownは保持し、同じsnapshot/job keyのreplay-zeroをreadbackする。
+3. runのPostiz snapshots・Telegram message IDsをofficial receiptsで確認し、現行18 target postsのdurable metrics coverageを測る。old Telegram unknownは履歴不足のままなので別途unresolvedとして残す。
+4. current 98f publisher rolloutの最後の`@anicca.en`を通常ownerで最新mainへ載せ、18/18 loaded SHA・argv・natural terminalを確認する。due-slot fixはすでに98fにあるため未来slotを選ぶ古いownerを残さない。
+5. 最新Postiz GETのdue missをexact owner/admission evidenceで照合し、no-effectと確定したslotだけ通常ownerで回復する。18 accountごとの3 distinct slots/day、54/54 PUBLISHED、permalink、replay-zeroを7 JST日連続で確認する。
+6. 6アプリのASC/RevenueCat/Mixpanelをfresh cohort/periodで計測し、AniccaのASC first-time downloadsを7日平均100/日にする。次にASOとonboarding/paywallを一度に1変数ずつ改善する。
+7. Apple settlement/refunds/feesとactual costsを同期間で照合し、Anicca USD 10,000 net MRRを証明してからfactoryへ展開する。
+
+**現在cursor:** metrics-owner occurrence-scope差分のcommit/PR。new occurrenceが通っても旧Telegram effect_unknownは解決済みと扱わない。
