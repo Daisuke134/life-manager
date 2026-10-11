@@ -45,10 +45,10 @@ python3 "$SCRIPT_DIR/scripts/engagement_daily.py" \
   --accounts-config "$ACCOUNTS_CONFIG" --state-root "$STATE_ROOT" "$@" >>"$LOG" 2>&1 || true
 python3 "$SCRIPT_DIR/scripts/bio_link_setup.py" \
   --accounts-config "$ACCOUNTS_CONFIG" --state-root "$STATE_ROOT" "$@" >>"$LOG" 2>&1 || true
-# One free Japanese article a day on aniccaai.com (the site for everything Life Manager ships,
+# Free Japanese articles on aniccaai.com (the site for everything Life Manager ships,
 # Dais 2026-10-08), published through the Writer's landing checkout exactly like
-# capafy-distribute-daily. JST 12:00 hour only; best-effort, never blocks the reel pass.
-if [ "$(TZ=Asia/Tokyo date +%H)" = "12" ]; then
+# capafy-distribute-daily. article_daily.py owns its slot hours; best-effort, never blocks the reel pass.
+if true; then
   (
     ARTICLE_ROOT="$REPO_ROOT/skills/writer-agent"
     # shellcheck source=../../writer-agent/scripts/writer-runtime-env.sh
