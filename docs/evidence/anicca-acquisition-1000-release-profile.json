@@ -265,5 +265,23 @@
     "new_caption_verified_in_public_youtube": true,
     "manual_send_or_clear_performed": false,
     "prevention_verified": false
+  },
+  "same_slot_prevention_source": {
+    "focused_tests_passed": 52,
+    "contract_errors": 0,
+    "review": "ship; blocking findings resolved",
+    "atomic_enqueue_scope_guard": true,
+    "prior_artifact_receipt_binding": true,
+    "production_readonly_probe": {
+      "job_id": "marketing-video-publication:965740ed15c014e8d4370c55e8657394797352beaea89f87835a89f9b7dc75e9",
+      "result": {
+        "created": false,
+        "reused_prior_slot": true,
+        "public_url": "https://www.youtube.com/watch?v=iEDdaIWdwY4",
+        "provider_post_id": "cmv3dgrib1el6mq0yu0rxm1oh"
+      },
+      "probe": "read-only; no enqueue/claim/provider/state mutation"
+    },
+    "deployed_prevention_verified": false
   }
 }

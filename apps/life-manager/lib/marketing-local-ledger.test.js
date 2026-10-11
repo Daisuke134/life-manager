@@ -40,6 +40,56 @@ function tempDataDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), "lm-marketing-ledger-"));
 }
 
+test("YouTube prior-slot lookup survives caption changes but isolates destination and future slots", async () => {
+  const ledger = createMarketingLocalLedger({ dataDir: tempDataDir() });
+  const input = job({ input_refs: {
+    product_ref: "product://anicca-ios", format_ref: "format://reelclaw-card",
+    locale_ref: "locale://en", platform_ref: "platform://youtube",
+    slot_ref: "schedule-slot://2026-10-11T05:15:00.000Z",
+    youtube_integration_ref: "integration://postiz/youtube/cmn8ymq6c02oio70y5ea1trv8",
+    caption_ref: `object://sha256/${"a".repeat(64)}`,
+  } });
+  await ledger.enqueueJob(input);
+  const changed = { ...input, job_id: "changed-caption-job", effect_key: "changed-caption",
+    input_refs: { ...input.input_refs, caption_ref: `object://sha256/${"b".repeat(64)}` } };
+  const prior = await ledger.readPriorPublicationForSlot(changed);
+  assert.equal(prior.job.job_id, input.job_id);
+  assert.equal(prior.receipt, null); // queued is unresolved, not proof of no effect
+  assert.equal(await ledger.readPriorPublicationForSlot(input), null);
+  for (const [key, value] of [
+    ["slot_ref", "schedule-slot://2026-10-11T11:15:00.000Z"],
+    ["youtube_integration_ref", "integration://postiz/youtube/another-channel"],
+    ["format_ref", "format://reelclaw-widget"],
+    ["locale_ref", "locale://ja"],
+    ["product_ref", "product://another-app"],
+  ]) {
+    assert.equal(await ledger.readPriorPublicationForSlot({ ...changed,
+      input_refs: { ...changed.input_refs, [key]: value } }), null, key);
+  }
+  assert.equal(await ledger.readPriorPublicationForSlot({ ...changed, tenant_id: "another-tenant" }), null);
+});
+
+test("YouTube enqueue atomically refuses a second caption job after both prior reads missed", async () => {
+  const dataDir = tempDataDir();
+  const first = createMarketingLocalLedger({ dataDir });
+  const second = createMarketingLocalLedger({ dataDir });
+  const refs = { product_ref: "product://anicca-ios", format_ref: "format://reelclaw-card",
+    locale_ref: "locale://en", platform_ref: "platform://youtube",
+    slot_ref: "schedule-slot://2026-10-11T05:15:00.000Z",
+    youtube_integration_ref: "integration://postiz/youtube/cmn8ymq6c02oio70y5ea1trv8" };
+  const a = job({ input_refs: refs });
+  const b = job({ job_id: "second-caption", effect_key: "second-caption-effect", input_refs: refs });
+  assert.equal(await first.readPriorPublicationForSlot(a), null);
+  assert.equal(await second.readPriorPublicationForSlot(b), null);
+  assert.equal((await first.enqueueJob(a)).created, true);
+  const refused = await second.enqueueJob(b);
+  assert.equal(refused.created, false);
+  assert.equal(refused.prior_slot_publication, true);
+  assert.equal(refused.job.job_id, a.job_id);
+  assert.equal(await second.readJob({ tenantId: b.tenant_id, jobId: b.job_id }), null);
+  assert.equal((await second.enqueueJob(a)).created, false);
+});
+
 function writeLanePolicy(dataDir, laneState) {
   const lane = {
     id: "cmoig11ew001zlv0yk6vqo1us",
