@@ -40,7 +40,7 @@ To-Beは各agentがobserve→decide→act→official verify→persist→自分�
 
 **不変条件:** iOS Simulator runtime/image/device/data/dyld、memory/state、credentials、browser identity、参照release、active/dirty/unmerged/leased/locked worktree、open/unknown dataを削除しない。各agentは自分が生成し所有する非authoritative scratchだけを片付け、中央cleanupは残ったclosed/orphaned artifactと証明済みの不要物を回収する。他agentの作業や正式receiptを消さない。effect_unknownはexact official receipt/pre-effect proofまで解除・再送しない。内部の余白・時間・byte予算は安全な制御に使い、空き容量の固定値を事業再開の条件にしない。
 
-**現在cursor:** →「基盤だけのatomic TODO」のBF14。旧cleanup残3大分類は親分類として参照し、実行/報告はBF-ID単位で進める。
+**現在cursor:** →基盤15atomは完了。次はCloudの現在cursorとproduction readbackを再照合する。旧cleanup残3大分類は親分類として参照し、実行/報告はBF-ID単位で進める。
 
 **引き継ぎ/診断証拠:** worktree HEAD `a6e03757`の4ファイル497行差分を`ea1784b0ec`で保持してpushし、最新main `3baccdbd`を`00b5d4ff5d`でmerge/push。leaseは既存owner `codex-root`でheartbeatを更新、直列lsof再確認でworktree下open handleなし。既存temp/worktree focused testは2 PASS。agmsg統括identityは`lm/codex-resource-orchestrator-1009`、既存cleanup担当へ重複書込抑制と状態照会を送信。自然receiptの成功/失敗が交互に現れ、失敗時の正確な親errorは`host_cleanup_identity_mismatch`。`disk_cleanup.py::main`のbusy lock出力はexit75だがidentityを含まず、`central_cleanup.host_cleanup_readback`の同-occurrence検査が失敗に変換する。REDはbusy出力identity欠落と親exit1を再現し、最小修正後の関連4 testsはGREEN。修正契約は、busy出力にもimmutable manifest由来の同run identityを載せ、親はそのidentityを検証した正確なbusyだけをeffect0のexit75延期として維持し、他のidentity mismatchはexit1のまま拒否する。旧ENOSPC修復とは区別し、容量不足時の既存reserve/cursor testsも再確認する。
 
@@ -219,9 +219,9 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 
 当面の対象はこの表だけ。下の全社130工程は将来の参照ロードマップであり、いま全社工程へ拡大しない。既存の「cleanup残3大分類」は本表の親分類で、進捗報告はBF-ID単位で完了証拠を示す。毎分watchdog、共通bounded出力/代表自己cleanup、Gig閉鎖物回収/再開、予約expiry順序、scratch通常file誤判定、backup失敗伝播と自然保存/対象claim返却は確認済みで、残項目へ戻さない。
 
-15個の受入atom中BF01/02/03/04/05/05b/06/07/08/09/10/11/12/13は完了、残り1。残件は故障確定数ではない。診断で既適用/修正不要と証明した項目はN/Aで閉じ、新しい根本原因は別IDで追加し、黙って同じ大分類へ戻さない。BF09は未知effectのblind解除ではなく照合/復旧routeの稼働確認。個別商品の認証/外部審査/売上目標は基盤完了と分ける。
+15個の受入atom中BF01/02/03/04/05/05b/06/07/08/09/10/11/12/13/14は完了、基盤表の残り0。残件は故障確定数ではない。診断で既適用/修正不要と証明した項目はN/Aで閉じ、新しい根本原因は別IDで追加し、黙って同じ大分類へ戻さない。BF09は未知effectのblind解除ではなく照合/復旧routeの稼働確認。個別商品の認証/外部審査/売上目標は基盤完了と分ける。
 
-残りはBF14。必要なCI/自然run待ちは作業枠と分ける。作業枠は所要時間保証ではなく、上限までに結果/残る理由/次手を報告する管理値。初回着手で時間枠を超える時は再見積もりを記録し、必要な安全作業を継続する。9時間で全外部条件/全18成果を保証しない。各IDに開始/終了時刻・実測分・証拠・残差を追記し、30分以下の節目で閉じたIDを報告する。現在cursor=BF14。
+基盤表の残りは0。必要なCI/自然run待ちは作業枠と分ける。作業枠は所要時間保証ではなく、上限までに結果/残る理由/次手を報告する管理値。初回着手で時間枠を超える時は再見積もりを記録し、必要な安全作業を継続する。9時間で全外部条件/全18成果を保証しない。各IDに開始/終了時刻・実測分・証拠・残差を追記し、30分以下の節目で閉じたIDを報告する。現在cursor=基盤表完了、次Cloud production readback。
 
 | ID | 状態 | 一つの完了対象 | 初回作業枠（分） | 完了を示す証拠 |
 |---|---|---|---|---|
@@ -239,7 +239,7 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 | BF11 | 完了（必要source採用と保持理由の照合） | 必要な共通修正をまとめてCI/main/immutable/idle対象採用へ反映する | exact-head CI＋immutable/readback | #7673/main b48224e4→8bf0dff2のcanonical activationを対象採用。session-vaultは3profileが解放された時に3fb71eae/install78c00690cc43d4a622b55876を採用しloaded argv一致。190担当のaccepted共通bundle一致132＋writer証明追加のみ10、旧unknown保持31/active13/Capafy3/未ロード1、remaining idle diff0。BF11-final-accepted-source-dispositions-20261012.json。業務成果/待ち時間ゼロとは分離 |
 | BF12 | 完了（通常producerとcontrolを分けて照合） | 修正対象一件の自然仕事→receipt→自己cleanup→枠返却をjoinする | fresh readback | backup自然run18dd7af5a6d62268-30018/12:57:06Z、修正済みbb5cd283。stdout ok true/398をdest maxdepth2実数398と照合。実claim18dbbb1b85038e50-10698/seq490383はreleased/unknown0、own scratch不在。BF12-backup-fresh-cycle-20261011.json。深いmemoryを含む670件と混同しない |
 | BF13 | 完了（代表的な自然反復の照合） | 次の自然仕事と中央cleanupをjoinし、反復で再悪化しないことを確認する | 自然3 cycles＋複数cleanup receipt | marketing計測14:20のrun18dd7f687a6a0808-6020、YouTube14:19/14:20のrun18dd7f767d342010-8980/18dd7f8538e1cae8-11297は同じoccurrenceのreleased/unknown0・own scratch不在。中央14:15/14:20・watchdog複数receiptはerrors0/protected_deletions0。BF13-ordinary-repeat-claim-cleanup-20261011.json。投稿/売上/全190成功/永久無事故は証明しない |
-| BF14 | 未完 | 開発担当の再利用/増員可否を、対象仕事の実負荷と独立scopeで決める | 5–10 | 既存liveness/leaseとsafe workload。全18業務完了や任意のfree GiBを前提にしない |
+| BF14 | 完了（1席の実応答と独立scope確認） | 開発担当の再利用/増員可否を、対象仕事の実負荷と独立scopeで決める | actual process/READY/read-only結果 | AGMSG lm-cloud-readiness-1012は専用worktree/lease、tmux%1、Codex CLI actas/thread記録後のREADYとCloud5行監査をrootへ返した。通常Terminalのplacement失敗を成功と扱わず、root起動readonly CLIだけを終了してtmuxへ変更。hookは信頼せず続行。host memory_pressure free48%、active業務/別席保持、最初は1席readonly。全18業務Doneや無制限増員/永久無事故は主張しない |
 
 **BF04/05の実測とBF06の対象:** `line-sticker-factory-hourly`のentrypoint→`factory.py`→`line_sticker_static.py`→`chatgpt_image_backend.py`→既存ChatGPT CLIを追跡済み。state_rootは`~/.local/state/life-manager/line-sticker`、run scratchは`loop-tmp/line-sticker-factory-hourly/18dd758339884190-32509`。画像生成のprofile snapshotが4個から5個へ増加し、各約244 MiBのfile allocationを持つ。APFS共有ブロックがあり得るので、directory allocationを独立した物理消費と扱わず、同windowのvolume freeと分ける。新規`set-031/candidates`画像・cost記録が増え、runは仕事を進めている。診断stdout/stderrはloaded releaseの`storage_policy.py`/`bounded_output.py`に既存上限が適用される。BF05では診断経路の既適用を確認済み。BF06は既存terminal保存→own scratch削除と試行中profile snapshotの残存を確認する。active profile、原本browser identity、商品素材、cost/receipt JSONLを削除しない。BF04は全host writerの帰属/全run最大/メモリ問題解消を証明しない。
 
@@ -259,7 +259,7 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 - [x] safety setへ当該IDを1行追加。control/registry関連149 tests/203 subtestsと、queued履歴保持/reserved・unknown拒否の既存2 testsがPASS。
 - [x] #7662 exact head 2c2e6d98のCI全PASS→main afb4680c→immutable 20261011T220802-afb4680c→install event b10d9a410036dd52dd408b9a。13:10:08Z run18dd7bac473c7fc0-54957、13:15:16Z run18dd7bf289274258-62851が自然pass/exit0、scratch不在。native controlは業務claimを取得しない。旧queued observationは既存cancel_effect_free_queued_ownerによりunclaimed/unreserved/unknownなしの場合だけcancelled履歴を保持して回収し、業務work・claimed/unknown/foreignは保持する。元sequenceを消して成功と扱うのではなく、業務queueから独立したprobeへ移行したことを明記する。
 
-**現在の残り順:** BF14。BF11の必要source採用は完了。BF13は継続中の自然仕事の反復と枠返却/掃除を照合して完了。実装順変更や手動wakeはない。BF09は既存復旧の保存証拠を独立にread-only照合して完了した。新たな解除・再送や実装順変更はない。BF12は既存通常producerの修正済み自然証拠をfreshに照合し、完了へ更新した。BF11の今回target採用は完了だが、既存共通修正の残るeligible旧sourceとactive/unknown保持理由の確認を残す。BF12/13はcontrolだけで全業務の枠返却/全host安定を主張せず、既存ordinary producer証拠と中央watchdogも照合する。primary watchdog/中央ownerは両receipt streamを区別して照合する。bound13:40:49Z/13:45:39Z、unbound13:42:09Z/13:52:52Zの自然receiptはerrors0/protected_deletions0。中央singleton busyのexit75は実stdoutのdeferred/cleanup_lock_busyとjoin済みで、全host停止とは扱わない。BF13-natural-recurrence-observations-20261011.jsonに複数観測を保存し、BF13は後続の自然3 cyclesを追加照合し、代表的反復の受入範囲で完了とする。BF11の反映残差は保持する。
+**現在の残り順:** 基盤表は残り0。次はCloudの既完sourceと本番readbackの照合。BF11の必要source採用は完了。BF13は継続中の自然仕事の反復と枠返却/掃除を照合して完了。実装順変更や手動wakeはない。BF09は既存復旧の保存証拠を独立にread-only照合して完了した。新たな解除・再送や実装順変更はない。BF12は既存通常producerの修正済み自然証拠をfreshに照合し、完了へ更新した。BF11の今回target採用は完了だが、既存共通修正の残るeligible旧sourceとactive/unknown保持理由の確認を残す。BF12/13はcontrolだけで全業務の枠返却/全host安定を主張せず、既存ordinary producer証拠と中央watchdogも照合する。primary watchdog/中央ownerは両receipt streamを区別して照合する。bound13:40:49Z/13:45:39Z、unbound13:42:09Z/13:52:52Zの自然receiptはerrors0/protected_deletions0。中央singleton busyのexit75は実stdoutのdeferred/cleanup_lock_busyとjoin済みで、全host停止とは扱わない。BF13-natural-recurrence-observations-20261011.jsonに複数観測を保存し、BF13は後続の自然3 cyclesを追加照合し、代表的反復の受入範囲で完了とする。BF11の反映残差は保持する。
 
 **BF11採用の追加実績/安全境界:** health observerのinstall78d880122da21ccab8f20eccに続き、recovery supervisor/install142b89ee40237c63bb617b3b、lm-fence-reconciler/db49abca01e5439ce4cfb0b1、handoff/8ed10b85ab4f4f13bc3aaad0をafb4680cへ採用。observer/recovery/fenceの自然passを確認。handoffは一度exit69のため、actual helperと本体のlive PIDをsafe printで確認し、停止/強制再実行はしない。自然過程でcurrentは別ownerのmain由来604ffbafへ進んだ。
 
@@ -285,9 +285,13 @@ BF11のsource採用で最後に保持した対象はsession-vault。旧holder PI
 
 **BF11完了readbackとBF14 cursor:** session-vaultは最終再確認でinteractive:dais/coconala:kosuke/line-creators:daisのholderがすべて無い機会に採用（owner unknown0/claimed0、loaded-idle）。LIFE_MANAGER profile/port/vaultは変更せず、sourceだけがmain由来3fb71eaeへ進み、loaded argv一致。manual vault operations0。BF11-session-vault-free-profile-adoption/BF11-session-vault-loaded-readback-20261012.json参照。根本修正bundleの比較基準は受入済み6c0b1d24の共通11filesとし、後続writer専用no-dispatch証明追加を他ownerの再起動理由にしない。132同一/10互換追加/31旧unknown保持/13旧active保持/3Capafy委譲/1未ロード、eligible旧source取り残し0。全190を無理に同SHAへ揃える完了gateは作らない。
 
-残るBF14は、対話型Codex/Claudeの実livenessとscope/lease、現在host負荷をread-onlyで確認し、既存担当を再利用して個別18業務の修正を再開する判断。AGMSGの登録だけで稼働と判断せず、unknown data・source未反映を業務成功にしない。会社MRR目標や各laneのprovider/billing/entitlement/自然枠待ちは基盤15atomのDoneと別に残す。基盤全体の最終DoneはBF14まで未判定。
+残るBF14は、対話型Codex/Claudeの実livenessとscope/lease、現在host負荷をread-onlyで確認し、既存担当を再利用して個別18業務の修正を再開する判断。AGMSGの登録だけで稼働と判断せず、unknown data・source未反映を業務成功にしない。会社MRR目標や各laneのprovider/billing/entitlement/自然枠待ちは基盤15atomのDoneと別に残す。BF14は後述のactual READY/readonly結果で受入済み。基盤表の受入完了を会社収益・全18業務Doneと混同しない。
 
 **共有CIのsource asset整合:** #7679のdoc CIは先行main #7677のmlb-lineup-matchup-brief/icon.pngでgenerated_artifactとなる。既存正本skills/capafy/catalog-icons.jsonと同じ方式で、mainにある当該PNGの正確なhashだけを登録する。共通OSS baselineへの追加は取り消し、正本を二重化しない。画像/製品source/Capafy runtimeは変更・削除せず、全generated asset許可へ広げない。これを今回doc反映の共有CI修復として同差分に含める。
+
+**BF14完了と業務修正の再開:** 正本のremainingは基盤0。独立席lm-cloud-readiness-1012は /Users/anicca/Projects/life-manager-main/.worktrees/cloud-readiness-audit-20261012 / docs/cloud-readiness-audit-20261012 / HEAD3fb71eae / lease owner同名、sparse readonlyで開始。通常Terminal spawnはowner start timeが不正でplacementを得られず、残ったroot起動CLIを確認して終了。対応済みtmux driverで再起動し、既存hookを信頼せず進めた後、16:24:44Z READY（actas/thread記録exit0、tmux%1）と16:25:17Z audit結果をAGMSGで受信。source/spec/state/production/provider書込0。source_root/raw credentialsを会話へ出さない。登録/PIDだけで稼働と判断しない。decisionは独立なreadonlyの1席から再開し、writerは現在leaseと責務を照合して別worktreeで1件ずつ渡す。8/20席の一斉起動やMac/App Server restartは行わない。
+
+**Cloud再開の次atom:** readonly席は現specの#7517 commit/push/CI cursorに対し、fresh ghで#7517 MERGED/merge867600ff11bd288c1efd2fdc55a226323c6b775c・全checks SUCCESSを確認。rootがその既完証拠をproduction health SHA・signed-out /lmの既存readbackへjoinし、Cloud cursorを更新する。Checkout sourceを再修正しない。既存Google sessionのみ、card-required 7日trial/$29月額、dashboard/Web chat追加なし、自己live決済なしを維持。slot/resource_capacity_busy・外部entitlement/auth/unknown・未検証収益は基盤15atom完了の後も観測・診断cursorとして扱い、成功へ置換しない。
 
 ### 全体のatomic展開と作業時間枠（大分類3件と全体完了を区別する）
 
