@@ -25,6 +25,9 @@ class ProtectedBackupProducerTest(unittest.TestCase):
                 for day in range(2, 17):
                     (home / f".cloak/state-backups/2001-01-{day:02}/claude-projects").mkdir(parents=True)
                 (home / ".cloak/profiles").mkdir(parents=True)
+                local_state = home / ".cloak/profiles/fixture/Local State"
+                local_state.parent.mkdir()
+                local_state.write_text('{"fixture": "original"}')
                 env = {**os.environ, "HOME": str(home)}
                 script = ROOT / f"skills/_shared/{name}.sh"
                 result = subprocess.run(["bash", str(script)], env=env,
@@ -35,7 +38,15 @@ class ProtectedBackupProducerTest(unittest.TestCase):
                 self.assertEqual(old.read_text(), "historical memory")
                 self.assertIn(name, result.stderr)
                 self.assertFalse((home / f".local/state/life-manager/logs/{name}.log").exists())
-                if name == "claude-projects-backup":
+                if name == "browser-state-backup":
+                    local_state.write_text('{"fixture": "updated"}')
+                    restore = subprocess.run(["bash", str(script), "--restore", json.loads(result.stdout)["date"], "fixture"],
+                                             env=env, capture_output=True, text=True, timeout=15)
+                    self.assertEqual(restore.returncode, 0, restore.stderr)
+                    self.assertTrue(json.loads(restore.stdout)["ok"])
+                    self.assertEqual(local_state.read_text(), '{"fixture": "original"}')
+                    self.assertEqual(old.read_text(), "historical memory")
+                else:
                     backup = Path(json.loads(result.stdout)["dest"]) / "example/memory/sentinel.md"
                     self.assertEqual(backup.read_text(), "original memory")
                     self.assertNotEqual(backup.stat().st_ino, source.stat().st_ino)
