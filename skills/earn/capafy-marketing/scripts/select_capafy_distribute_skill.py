@@ -77,7 +77,9 @@ def _is_online_earner(products_cfg: dict, analytics: dict | None, slug: str) -> 
             profit = _decimal_or_none(row.get("profit_30d_actual_usd"))
             if profit is None:
                 profit = _decimal_or_none(row.get("profit_30d_usd"))
-            return row.get("status") == "online" and profit is not None and profit > 0
+            # A seller whose new version is under review stays buyable (2026-10-11).
+            return (row.get("status") in ("online", "under_review")
+                    and profit is not None and profit > 0)
     return False
 
 
@@ -97,6 +99,10 @@ def select_for_date(
     # With no earner at all, keep the full rotation so the loop still publishes.
     earners = [slug for slug in ranked if _is_online_earner(products_cfg, analytics, slug)]
     ranked = earners if earners else ranked + sorted(extra)
+    # Dais 2026-10-11: all in on the sellers, the best one (Hook Lab) first -- the
+    # top earner takes every other slot, the rest share the remaining half.
+    if len(earners) > 1:
+        ranked = [slug for other in earners[1:] for slug in (earners[0], other)]
     if not ranked:
         raise ValueError("no capafy-skills or listings configured to rotate")
     # 8 three-hour slots per day; each slot promotes the next skill in the ranking.
@@ -111,7 +117,7 @@ def select_for_date(
         "buyer_problem": skill.get("buyer_problem", ""),
         "seo_seed": skill.get("seo_seed", ""),
         "ct": f"{channel}-{slug}",
-        "rank": ranked.index(slug) + 1,
+        "rank": (earners or ranked).index(slug) + 1 if slug in (earners or ranked) else ranked.index(slug) + 1,
         "ranked_slugs": ranked,
     }
 
