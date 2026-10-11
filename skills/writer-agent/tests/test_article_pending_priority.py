@@ -124,3 +124,32 @@ def test_open_note_circuit_removes_recovery_and_allows_sibling(monkeypatch, tmp_
     )
     assert rearmed["status"] == "READY"
     assert "note/ja" in rearmed["eligible_pairs"]
+
+
+def test_open_circuit_rechecks_current_release_content_without_path_only_rearm(monkeypatch, tmp_path: Path) -> None:
+    import resume_failure_circuit
+
+    old_code = tmp_path / 'old' / 'skills/writer-agent/scripts/publisher.py'
+    current_scripts = tmp_path / 'current' / 'skills/writer-agent/scripts'
+    old_code.parent.mkdir(parents=True)
+    current_scripts.mkdir(parents=True)
+    current_code = current_scripts / 'publisher.py'
+    old_code.write_text('publisher-v1')
+    current_code.write_text('publisher-v1')
+    run_dir = tmp_path / 'run'
+    (run_dir / 'gates').mkdir(parents=True)
+    state_path = run_dir / 'gates/publication-state.json'
+    state = {'run_dir': str(run_dir), 'state_path': str(state_path), 'pairs': {'substack/ja': {'target': '123', 'status': 'intent'}}}
+    state_path.write_text(json.dumps(state))
+    context = resume_failure_circuit.context(state_path, [old_code], 'substack/ja')
+    circuit = run_dir / 'gates/resume-failure-circuit.json'
+    circuit.write_text(json.dumps({'version': 1, 'pairs': {'substack/ja': {**context, 'open': True, 'code_files': [str(old_code)]}}}))
+    saved_circuit = circuit.read_text()
+    monkeypatch.setattr(article_pending, 'SCRIPT_DIR', current_scripts)
+    # A new immutable path with identical code does not unfreeze a failure.
+    assert article_pending._open_resume_circuit_pairs(state) == ({'substack/ja'}, False)
+    current_code.write_text('publisher-v2')
+    assert article_pending._open_resume_circuit_pairs(state) == (set(), False)
+    old_code.unlink()
+    assert article_pending._open_resume_circuit_pairs(state) == (set(), False)
+    assert circuit.read_text() == saved_circuit

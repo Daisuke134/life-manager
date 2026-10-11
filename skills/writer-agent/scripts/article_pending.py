@@ -205,9 +205,16 @@ def _current_circuit_context(
         digest = hashlib.sha256()
         for raw_path in code_files:
             path = Path(raw_path)
+            current_path = path
+            marker = "/skills/writer-agent/"
+            if marker in str(path):
+                current_path = SCRIPT_DIR.parent / str(path).split(marker, 1)[1]
+                if not current_path.resolve().is_relative_to(SCRIPT_DIR.parent.resolve()):
+                    return None
+            # Keep the stored label: path-only promotion must not reopen a failure.
             digest.update(str(path).encode())
             digest.update(b"\0")
-            digest.update(path.read_bytes())
+            digest.update(current_path.read_bytes())
             digest.update(b"\0")
         state_path = Path(str(state.get("state_path", "")))
         from resume_failure_circuit import state_identity_sha256
