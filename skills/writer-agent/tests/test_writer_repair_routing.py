@@ -964,3 +964,63 @@ def test_resume_loop_future_or_unknown_backlog_still_suppresses_new_daily(
         )
         assert result.returncode == 0, result.stderr
         assert not marker.exists()
+
+
+def test_resume_loop_publishes_older_backlog_before_the_daily_schedule(
+    tmp_path: Path,
+) -> None:
+    """2026-10-12 01:54 JST: run 20261011-134916 was written and ready, but every
+    pre-06:00 tick logged 'daily schedule not due' and exited, so a finished article
+    waited hours. Before the schedule hour there is no today's article to protect."""
+    fake_root = tmp_path / "writer-agent"
+    state_dir = tmp_path / "state"
+    scripts = fake_root / "scripts"
+    (state_dir / "runs").mkdir(parents=True)
+    scripts.mkdir(parents=True)
+    _copy_resume_runtime(scripts)
+    marker = tmp_path / "daily-started"
+    (fake_root / "article-daily.sh").write_text(
+        f"#!/usr/bin/env bash\nprintf '%s\\n' daily > {str(marker)!r}\n"
+    )
+    (fake_root / "article-daily.sh").chmod(0o755)
+    (scripts / "article_daily_start_control.py").write_text(
+        "print('{\"action\":\"new\",\"reason\":\"no-same-jst-day-run\"}')\n"
+    )
+    counter = tmp_path / "planner-calls"
+    (scripts / "article_pending.py").write_text(
+        "import json, pathlib\n"
+        f"counter = pathlib.Path({str(counter)!r})\n"
+        "n = int(counter.read_text()) if counter.exists() else 0\n"
+        "counter.write_text(str(n + 1))\n"
+        "print(json.dumps({'status':'READY','run_id':'20261011-134916',"
+        "'eligible_pairs':['substack/ja'],'initialization_pairs':[],"
+        "'recovery_pairs':[]}) if n == 0 else "
+        "json.dumps({'status':'BLOCKED','reason':'test'}))\n"
+    )
+    log = tmp_path / "resume.log"
+    result = subprocess.run(
+        ["bash", str(scripts / "article-resume-pending.sh")],
+        env={
+            **os.environ,
+            "ARTICLE_ROOT": str(fake_root),
+            "ARTICLE_STATE_DIR": str(state_dir),
+            "LIFE_MANAGER_REPO": str(ROOT.parents[1]),
+            "LIFE_MANAGER_ENV_FILE": str(tmp_path / "missing.env"),
+            "ARTICLE_OWNER_FENCE_ACTIVE": "1",
+            "ARTICLE_LOCAL_DATE": "2026-10-12",
+            "ARTICLE_LOCAL_HOUR": "01",
+            "ARTICLE_DAILY_SCHEDULE_HOUR": "6",
+            "ARTICLE_RESUME_MIN_FREE_BYTES": "536870912",
+            "BASH_ENV": _fake_df_env(tmp_path),
+            "ARTICLE_RESUME_LOG": str(log),
+        },
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    text = log.read_text()
+    assert result.returncode == 0, result.stderr
+    assert not marker.exists()
+    assert "daily schedule not due" not in text
+    assert "publishing older backlog before the daily schedule" in text
+    assert int(counter.read_text()) >= 2

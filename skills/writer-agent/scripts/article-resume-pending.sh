@@ -485,15 +485,21 @@ LOCAL_HOUR_VALUE="${LOCAL_HOUR#0}"
 if [ "$PRE_START_ACTION" = "new" ] \
   && [ "$PRE_START_REASON" = "no-same-jst-day-run" ] \
   && [ "$PRIORITY_PUBLICATION_READY" -ne 1 ]; then
-  if [ "$LOCAL_HOUR_VALUE" -lt "$DAILY_SCHEDULE_HOUR" ]; then
+  if [ "$LOCAL_HOUR_VALUE" -lt "$DAILY_SCHEDULE_HOUR" ] && [ "${PRIORITY_OLDER_RUN:-0}" -eq 1 ]; then
+    # Before the schedule hour there is no today's article to protect, so a finished
+    # prior-day article publishes now instead of waiting for 06:00 (2026-10-12).
+    echo "article-resume: publishing older backlog before the daily schedule run=$PRIORITY_RUN_ID hour=$LOCAL_HOUR" >>"$LOG"
+    PRIORITY_PUBLICATION_READY=1
+  elif [ "$LOCAL_HOUR_VALUE" -lt "$DAILY_SCHEDULE_HOUR" ]; then
     echo "article-resume: daily schedule not due date=$LOCAL_DATE hour=$LOCAL_HOUR" >>"$LOG"
     exit 0
+  else
+    echo "article-resume: missed daily schedule catch-up date=$LOCAL_DATE hour=$LOCAL_HOUR" >>"$LOG"
+    export ARTICLE_EXPECTED_NEW_DAILY_DATE="$LOCAL_DATE"
+    trap - EXIT
+    release_publication_lock || exit 1
+    exec bash "$ARTICLE_ROOT/article-daily.sh"
   fi
-  echo "article-resume: missed daily schedule catch-up date=$LOCAL_DATE hour=$LOCAL_HOUR" >>"$LOG"
-  export ARTICLE_EXPECTED_NEW_DAILY_DATE="$LOCAL_DATE"
-  trap - EXIT
-  release_publication_lock || exit 1
-  exec bash "$ARTICLE_ROOT/article-daily.sh"
 fi
 
 GENERATION_RUN_ID="$(printf '%s' "$PRE_START_DECISION" | jq -r '.run_id // empty')"
