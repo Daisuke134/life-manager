@@ -247,6 +247,19 @@ printf '%s\n' "$PROMPT" | timeout "${CAPAFY_CP1_AGENT_TIMEOUT_SECONDS:-1800}" en
   --loop capafy \
   --workdir "$LIFE_MANAGER_REPO" >> "$LOG" 2>&1
 RC=$?
+# rc 75 = the agent runner deferred the CP1 agent (disk headroom, busy lease) before it ran; give
+# back the draft attempt this pass counted so infrastructure deferrals cannot exhaust a draft.
+if [ "$RC" -eq 75 ]; then
+  DEFERRED_ID="$(printf '%s' "$INV" | tail -1 | python3 -c 'import json,sys
+try:
+    d=json.loads(sys.stdin.read())
+    print((d.get("item") or {}).get("agent_id","") if d.get("action") in ("resume_draft","retry_existing") else "")
+except Exception: print("")' 2>/dev/null)"
+  if [ -n "$DEFERRED_ID" ]; then
+    python3 "$AUTO/scripts/inventory_status.py" --refund-draft-attempt "$DEFERRED_ID" 2>>"$LOG" || true
+    echo "$TS CP1 agent deferred (rc 75): draft attempt refunded for $DEFERRED_ID" >> "$LOG"
+  fi
+fi
 if [ -n "$PREPARED" ]; then
   F_SKILL="$(basename "$F_SKILL_DIR")"
   if bash "$AUTO/scripts/publish_finish.sh" "$F_ID" "$F_SKILL" "$F_LISTING" "$F_VERSION" >> "$LOG" 2>&1; then

@@ -13791,3 +13791,37 @@ This checkpoint supersedes the 08:47 snapshot. The latest release cleanup remain
 7. Apple settlement/refunds/feesとactual costsを同期間で照合し、Anicca USD 10,000 verified net MRRを確認してから既存app群とfactoryへ広げる。
 
 **現在cursor:** fixture修正と完全ローカルacceptanceはPASS。次はfixture+specをpushし、exact-head CIをPASSさせてPR #7588をmainへ統合する。production変更は未実施。
+
+### 2026-10-11 11:06 JST — Money status: Capafy / Writer / PromptBase (official readbacks)
+
+| Loop | Shipping 24/7? | Money | Exact blocker (measured) | Fix state |
+|---|---|---|---|---|
+| Capafy | Partly. 2 new agents reached under_review on 10/10 (Resume-to-Job 2576591785, Transcript Key Points 5356015232); 6 drafts open | $0 for 9/30-10/11 (Capafy sales trend, 0 orders) | (1) every 10/08+ draft stopped at CP2 because the factory hosted Sonnet 5.5 (Capafy never confirms that id) -> PR #7483; (2) Dais-approved price restores never shipped because main() passed updates=[] -> PR #7522; (3) 3 update drafts burned their 3 attempts while the CP1 agent was deferred for disk (rc 75) -> PR #7591 (open) + attempts reset for 8123079349/2844813315/7686597754 on 10/11 11:0x | #7483, #7522 merged + applied; #7591 pending CI |
+| Writer | No. Last publish 2026-09-29 (articles.jsonl 435 rows) | $0 | article-daily blocked: 10/10 12:00 start-control BLOCK left an effect_unknown fence (`lm-loop pre-effect-reconcile` = no_pre_effect_terminal); blocked starts carry no pre-effect proof | Needs runtime: BLOCK exit must write a verified no-effect hint (not started) |
+| PromptBase | No. Daily publish fails `could_not_reach_step1:unknown:selects=0` since 10/02 | $0 (Sales tab readback 10/08) | Loop drives Dais's Chrome (`interactive:dais`); /sell wizard not reachable; automation may not inspect Dais's Chrome | Needs own browser identity + banked PromptBase session, or Dais checks /sell |
+
+Root cause of the Capafy drop (traffic-sources v2, weekly): Capafy search impressions fell 11,000 -> 3,400 in the week of 9/19 (before the 9/29 DeepSeek switch and the 10/04 price raise); paid orders 5-8/week until 10/03, 0 after. "direct/other" visits are uniform (~70/agent/30d, incl. delisted agents) = our own automation/crawlers, not buyers. Price is already at HookAce's band; differences are ratings (0 vs 4.3), featured examples (0 vs 1), and free-download volume.
+
+Known damage to repair: drafts 2576591785 / 5356015232 (under_review) and 9836498533 / 3795748683 (draft) host deepseek/deepseek-v4.1-flash while the card shows Claude Sonnet 5 (caused by manual CP2 runs without CAPAFY_HOSTED_MODEL_ID on 10/10) -> scan-warning risk.
+
+**Cursor:** #7591 CI -> merge -> release -> apply capafy-loop-daily; confirm the TikTok/YouTube/Hook Lab price-restore versions reach under_review and live billing reads day $1.99 / week $4.99 / month $9.99; then Writer no-effect hint; then PromptBase browser identity.
+
+### 2026-10-11 11:19 JST — latest main conflict readback; PR #7588 CI PASS
+
+このcheckpointは11:06までのmobile記録とlatest mainのoperating stateを統合する。mainの最新finance記録を維持し、mobile側の10:46/10:54/11:06 checkpointも失わず、時系列順に残す。
+
+- **PR #7588 CI:** run `38104177926`、head `9c00da5f02940c8e48d1791d2fd2945aea88c7bd`でLoop control contracts、Python syntax/unittest、gitleaks、TruffleHog、shell、PII、OSS boundary等すべてPASS。CIはbranch update前の9c00 headに対するもの。
+- **最新main / conflict:** `origin/main=d42536c41ac19755e3dc4bd7dae3b37e9dc88284`、PR base readbackは`55e3e7138d2fcf4afe2e0cee9f250e3cbbf1a11f`でmainに遅れている。GitHubはPRを`CONFLICTING`と返した。`git merge origin/main`でconflictになったのはSSOTのみ。別のCapafy/registry/cleanup変更は自動統合され、ここではSSOTの両側の記録を保持している。
+- **Current source state:** merge conflict resolutionはlocal worktreeのみで未commit。まだpush・main統合なし。productionは未変更。merge後のnew branch headに対してrequired CIを再実行してからPRを統合する。
+
+**残TODO（順序）:**
+
+1. このSSOT conflict resolutionがmainのCapafy/Writer/PromptBase記録と全mobile checkpointを保持することをdiffで確認し、`git diff --check`とfixture testを通す。merge commitを作成して専用branchへpushする。
+2. merge済みlatest mainを含むnew exact-head PR checksをPASSさせる。manual review/subagentは起動しない。
+3. PR #7588を`--admin --merge`し、merged commitと`origin/main`をreadbackする。
+4. main由来immutable releaseを通常経路で作成し、metrics owners 2件と18 publisher lanesをreadbackする。effect_unknownは公式証拠なしに解除・再送しない。
+5. Postizの18 lane×3 distinct slots、permalink、durable per-post metrics、Telegram receipt、replay-zeroを確認し、54/54を7 JST日連続で積む。slot時刻を待たず独立作業を続ける。
+6. fresh ASC/RevenueCat/Mixpanel cohortsとpost attributionを揃え、Anicca 100 first-time downloads/day（trailing 7-day average）を目指す。paywall plan-loadとnotification→same-quoteを直し、以降は一変数ずつ改善する。
+7. Apple settled proceeds/refunds/feesとactual costsを同期間で照合し、USD 10,000 verified net MRRを確認後にfactoryへ展開する。
+
+**現在cursor:** merge conflictのSSOT解消はworktree上で行ったが未commit。確認・commit/push後、new exact-head CIを通してmainへmergeする。
