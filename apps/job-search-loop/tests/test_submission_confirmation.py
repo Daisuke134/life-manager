@@ -250,6 +250,33 @@ class SubmissionConfirmationTests(unittest.TestCase):
             finally:
                 ledger.close()
 
+    def test_summary_rejects_confirmation_sidecar_bound_to_another_thread(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger, _, intent_id = self._unknown_submission(
+                root, outcome="not_submitted"
+            )
+            received_at = (
+                datetime.now(timezone.utc) + timedelta(minutes=1)
+            ).isoformat()
+            try:
+                ledger.reconcile_submission_confirmation(
+                    intent_id=intent_id,
+                    message_id="gmail-altered-sidecar-message",
+                    thread_id="gmail-original-thread",
+                    evidence_sha256="c" * 64,
+                    received_at=received_at,
+                )
+                ledger.connection.execute(
+                    "UPDATE submission_confirmations SET thread_id = ? WHERE intent_id = ?",
+                    ("gmail-altered-thread", intent_id),
+                )
+
+                with self.assertRaises(FenceError):
+                    ledger.event_summary_rows()
+            finally:
+                ledger.close()
+
     def test_workday_tenant_receipt_uses_exact_official_brand_readback(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
