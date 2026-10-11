@@ -254,6 +254,11 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 - [x] resource/providerをdeterministicへ変更。未使用runner宣言、直接log append、不要な共有tmp mkdir lockを削除。fixture再生成、関連147 tests/203 subtests、shell syntax PASS。source acceptanceのみで、本番Doneではない。
 - [ ] focused tests、fixture再生成、CI/mainを通し、main由来releaseから当該loaded-idle ownerのみ採用する。既存queue順番/unknown保持をread backし、自然runとclaim返却を確認する。
 
+**BF10本番で見つかった残差と最小修正:** #7661/main `9b08d5a6`のimmutable release `20261011T214559-9b08d5a6`を当該ownerへ採用し、loaded argv/script SHA/mode0555を確認した。queue sequence606870を保持してagent→deterministicへ移行したが、自然run `18dd7a94dfd9ecb8-15498` は12:50:08Zにcapacity_busy/exit75となった。従って分類だけではBF10未完。計測では両業務poolが満杯でも必要な単純heartbeat probeが待っている。既存`CONTROL_PLANE_SAFETY_LOOPS`のCapafy healthcheckと同じ経路へ、この実証済みの純粋なファイル確認ownerだけを追加する。新scheduler/slot増加/全control ownerの自動免除はしない。
+- [ ] 既存control-plane admissionテストへReddit ownerを追加し、両poolの取得不可でも実行/有限timeout/stdio保持となるREDを確認する。
+- [ ] safety setの当該IDを追加し、関連testとfixture整合を確認する。
+- [ ] CI/main/release/対象採用後、自然runがcapacity待ちを通らず記録/掃除することを確認する。旧queued observationは既存cancel_effect_free_queued_ownerによりunclaimed/unreserved/unknownなしの場合だけcancelled履歴を保持して回収し、業務work・claimed/unknown/foreignは保持する。元sequenceを消して成功と扱うのではなく、業務queueから独立したprobeへ移行したことを明記する。
+
 ### 全体のatomic展開と作業時間枠（大分類3件と全体完了を区別する）
 
 この表はS01〜S18/README18capability/各laneの既存cursorを展開した現時点の工程表で、別SSOTではない。**全体の残件は基盤の3大分類だけではない。** 既完・N/A・現担当が受入済みの工程はfresh証拠で除外し、未知の原因と将来の反復改善が出れば同じ表へ追加する。下記件数を故障数・全将来作業の確定数・AGI認証と扱わない。CFO A8.2–19のsource名は現registryへ紐付けてから実行し、推測のproviderを割り当てない。Lancers既存skip/Answers除外、Google既存session、no live自己決済、投資live gate、CFO serial/Mobile solo等の原scopeを維持する。
