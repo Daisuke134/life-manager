@@ -250,8 +250,8 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 **実測に基づく順序更新と現在patch:** 旧順BF08→BF09→BF10→BF11、新順BF08→BF10/BF05b→BF11→BF09→BF12→BF13→BF14。軽量healthcheckがagent枠で約122分待ち、自然に進んでも次wakeで再びcapacity_busyになる実例がある。claim/予約の破損はないためcapの一括増加やFIFO撤去は行わず、実際の仕事に合う既存poolへ分類を直す。旧unknownはそのまま保護し、patchと採用を先に進めてからBF09の照合routeを確認する。
 
 **BF10/BF05b inline plan（別spec/planは作らない）:** 目的は`hf-reddit-loop-healthcheck`の純粋なheartbeatファイル確認が重いagent枠を消費せず、診断が既存の有限stdioに保存されること。対象は`config/loop-registry.json`の当該owner、`skills/reddit/reddit-loop-healthcheck.sh`と既存test/生成fixtureだけ。実装は既存Capafy healthcheckのdeterministic分類を再利用し、borrow/support・cadence・effect-none・coalesce・queued release採用は保持する。モデル判断/投稿/credential/browser/stateは変更しない。
-- [ ] 既存registry testにdeterministic分類のREDを追加し、既存healthcheck testでstdout/stderrとheartbeat保持・独自log不作成をRED確認する。
-- [ ] 当該registryのresource/providerをdeterministicへ変更し、未使用runner宣言、直接log append、不要な共有tmp mkdir lockを削る。純粋な読取なので他の報告を排他しない。
+- [x] registry分類とstale診断のRED 2件を確認。fresh heartbeat/marker保持/独自log不作成/probeも隔離fixtureでPASS。
+- [x] resource/providerをdeterministicへ変更。未使用runner宣言、直接log append、不要な共有tmp mkdir lockを削除。fixture再生成、関連147 tests/203 subtests、shell syntax PASS。source acceptanceのみで、本番Doneではない。
 - [ ] focused tests、fixture再生成、CI/mainを通し、main由来releaseから当該loaded-idle ownerのみ採用する。既存queue順番/unknown保持をread backし、自然runとclaim返却を確認する。
 
 ### 全体のatomic展開と作業時間枠（大分類3件と全体完了を区別する）

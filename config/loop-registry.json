@@ -1906,8 +1906,8 @@
       "coalesce_reserved_wakes": true,
       "reconcile_queued_release": true,
       "priority": "support",
-      "provider_route": "shared-agent-runner",
-      "resource_class": "agent",
+      "provider_route": "deterministic",
+      "resource_class": "deterministic",
       "state_root": "~/.local/state/life-manager/reddit"
     },
     "image-claude-p": {
