@@ -880,14 +880,24 @@ case "$PUBLICATION_CONTRACT" in
     X_POST_COMMAND_INSTRUCTION="The canonical X Post command is python3 $ARTICLE_ROOT/scripts/x-post/publish.py go; it owns the durable pre-effect timeline fence and must not be replaced with an ad-hoc browser click."
     ;;
   active-four)
-    DORMANT_ROUTING_INSTRUCTION="Current active-four: zenn-article/ja, devto/en, x-article/en, and x-post/ja receive explicit durable dormant-destination skip receipts and never receive publication intents."
-    DORMANT_ELIGIBILITY_INSTRUCTION="Dormant zenn-article/ja, devto/en, x-article/en, x-post/ja are never eligible. Never publish, repair, or stage zenn-article/ja or devto/en."
-    REQUIRED_INTENTS_INSTRUCTION="Require publication-guard.py plan to report all four active valid stable intents plus four durable dormant skip receipts."
-    INITIALIZATION_CONTRACT_INSTRUCTION="Active-four initialization must register every missing_dormant_skip_pairs entry through publication-guard.py register-dormant-skip before or alongside the four active target registrations; register only note/ja, substack/ja, substack/en, and x-article/ja, and do not publish any pair in this initialization tick."
-    DORMANT_RECEIPT_INSTRUCTION="The four dormant skip receipts have slo=not-applicable, never breach an SLO, and never enter pending, recovery, or publication work."
+    CONTRACT_PAIRS="$(python3 - "$ARTICLE_ROOT/scripts" <<'PYCONTRACT' 2>>"$LOG"
+import json
+import sys
+sys.path.insert(0, sys.argv[1])
+from publication_contract import ACTIVE_PAIRS, DORMANT_PAIRS
+print(json.dumps({"active": ACTIVE_PAIRS, "dormant": DORMANT_PAIRS}))
+PYCONTRACT
+)" || { echo "article-resume: destination contract read failed closed" >>"$LOG"; exit 1; }
+    ACTIVE_PAIR_LIST="$(printf '%s' "$CONTRACT_PAIRS" | jq -c '.active')"
+    DORMANT_PAIR_LIST="$(printf '%s' "$CONTRACT_PAIRS" | jq -c '.dormant')"
+    DORMANT_ROUTING_INSTRUCTION="Current active pairs: $ACTIVE_PAIR_LIST. Current dormant pairs: $DORMANT_PAIR_LIST. These installed lists override historical destination lists in the original prompt; dormant pairs receive durable skip receipts and never publication intents."
+    DORMANT_ELIGIBILITY_INSTRUCTION="Never publish, repair, or stage any current dormant pair in $DORMANT_PAIR_LIST."
+    REQUIRED_INTENTS_INSTRUCTION="Require publication-guard.py plan to report valid stable intents for every current active pair in $ACTIVE_PAIR_LIST and durable skip receipts for every current dormant pair in $DORMANT_PAIR_LIST."
+    INITIALIZATION_CONTRACT_INSTRUCTION="Initialization must register every missing_dormant_skip_pairs entry through publication-guard.py register-dormant-skip before or alongside current active target registrations; register only current active pairs in $ACTIVE_PAIR_LIST, and do not publish any pair in this initialization tick."
+    DORMANT_RECEIPT_INSTRUCTION="Current dormant skip receipts have slo=not-applicable, never breach an SLO, and never enter pending, recovery, or publication work."
     COMPLETION_CONTRACT_INSTRUCTION="Do not select or claim a topic; research, write, revise, regenerate, restage, create a run, replace a target, change an artifact, or send a success receipt unless article-run-complete.py proves the persisted active-four contract."
     RECOVERY_SCOPE_INSTRUCTION="If any identity, hash, safety, remote state, or slot is ambiguous outside the active-four recovery_pairs contract above, stop without a public create action."
-    REPAIR_SCOPE_INSTRUCTION="An eligible pair whose persisted status is repair-required is NEVER a create. Use only its fixed same-ID command: note/ja = python3 $ARTICLE_ROOT/scripts/note-publish/note_inplace_repair.py; substack/ja or substack/en = python3 $ARTICLE_ROOT/scripts/substack-publish/substack_inplace_repair.py --pair PAIR; x-article/ja = python3 $ARTICLE_ROOT/scripts/x-publish/x_inplace_repair.py --pair x-article/ja. Refuse every repair-required zenn-article/ja or devto/en and every pair not covered by this list."
+    REPAIR_SCOPE_INSTRUCTION="An eligible pair whose persisted status is repair-required is NEVER a create. Use only its fixed same-ID command: note/ja = python3 $ARTICLE_ROOT/scripts/note-publish/note_inplace_repair.py; substack/ja or substack/en = python3 $ARTICLE_ROOT/scripts/substack-publish/substack_inplace_repair.py --pair PAIR. Refuse every repair-required current dormant pair and every pair not covered by this list."
     X_POST_COMMAND_INSTRUCTION="Never publish, repair, or stage dormant x-post/ja; its explicit skip receipt is not an eligible command."
     ;;
   *)
