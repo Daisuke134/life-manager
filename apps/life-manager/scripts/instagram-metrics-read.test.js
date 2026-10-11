@@ -4,10 +4,51 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const test = require("node:test");
-const { EXPECTED, metricPlatform, persistDailyDigest, persistSnapshot } = require("./instagram-metrics-read.js");
+const { EXPECTED, metricPlatform, persistDailyDigest, persistDelayedSnapshot, persistSnapshot, postMetrics } = require("./instagram-metrics-read.js");
 
 const html = `<link rel="canonical" href="${EXPECTED.public_url}" /><meta property="og:description" content="0 likes - ${EXPECTED.native_owner}: &quot;強い人の口癖、5つだけ #anicca #セルフケア #習慣 #AI&quot;" />`;
 const postRows = [["Views", 32], ["Reach", 31], ["Saves", 0], ["Likes", 0], ["Comments", 0], ["Shares", 0]].map(([label, total]) => ({ label, data: [{ total: String(total) }] }));
+
+test("current Instagram observation recovers live values without rewriting missed historical checkpoints", () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-instagram-current-"));
+  const historical = persistDelayedSnapshot({ dataDir, window: "7d", observedAt: "2026-10-11T05:13:08.332Z" });
+  const priorBytes = fs.readFileSync(historical.file);
+  const input = { dataDir, window: "current", observedAt: "2026-10-11T07:53:00.000Z", html, accountRows: [], postRows };
+  const current = persistSnapshot(input);
+  assert.equal(current.created, true);
+  assert.equal(current.snapshot.post.views.value, 32);
+  assert.equal(current.snapshot.historical_checkpoint, false);
+  assert.match(current.file, /current\/2026-10-11\.combined\.json$/);
+  assert.deepEqual(fs.readFileSync(historical.file), priorBytes);
+  assert.equal(persistSnapshot({ ...input, observedAt: "2026-10-11T08:00:00.000Z" }).created, false);
+  const digest = persistDailyDigest({ dataDir, reportDay: "2026-10-11", observedAt: input.observedAt });
+  assert.equal(digest.snapshot.post.views.value, 32);
+  assert.equal(digest.snapshot.historical_checkpoint, false);
+});
+
+test("missing Instagram metrics are never coerced to zero or used as an engagement numerator", () => {
+  const partial = postMetrics([{ label: "Views", data: [{ total: "2229" }] }, { label: "Likes", data: [{ total: null }] }]);
+  assert.equal(partial.likes.value, null);
+  assert.equal(partial.likes.status, "unavailable");
+  assert.equal(partial.engagement.status, "unavailable");
+  assert.equal(partial.engagement.reason, "engagement_input_missing");
+});
+
+test("a historical measured daily report can receive exactly one current-value correction", () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-instagram-measured-correction-"));
+  persistSnapshot({ dataDir, window: "2h", observedAt: "2026-10-11T07:00:00.000Z", html, accountRows: [], postRows });
+  const first = persistDailyDigest({ dataDir, reportDay: "2026-10-11", observedAt: "2026-10-11T08:30:00.000Z" });
+  const bytes = fs.readFileSync(first.file);
+  const freshRows = postRows.map((row) => row.label === "Views" ? { label: "Views", data: [{ total: "2229" }] } : row);
+  persistSnapshot({ dataDir, window: "current", observedAt: "2026-10-11T09:00:00.000Z", html, accountRows: [], postRows: freshRows });
+  const correction = persistDailyDigest({ dataDir, reportDay: "2026-10-11", observedAt: "2026-10-11T09:00:00.000Z" });
+  assert.equal(correction.created, true);
+  assert.match(correction.file, /\.correction\.json$/);
+  assert.equal(correction.snapshot.post.views.value, 2229);
+  assert.equal(correction.snapshot.source_observed_at, "2026-10-11T09:00:00.000Z");
+  assert.deepEqual(fs.readFileSync(first.file), bytes);
+  assert.equal(persistDailyDigest({ dataDir, reportDay: "2026-10-11", observedAt: "2026-10-11T10:00:00.000Z" }).created, false);
+});
 
 test("URL-free Postiz photo snapshots remain TikTok metrics", () => {
   assert.equal(metricPlatform({ kind: "tiktok_postiz_photo_metric_snapshot", public_url: "unavailable" }), "tiktok");
