@@ -1075,7 +1075,13 @@ async def finalize() -> dict[str, Any]:
     """Fence one final click and classify only its fresh rendered result."""
     row, session, checkpoints, evidence, cursor, builder = await _context()
     before = await builder.build(cursor.handle)
-    routed = _routed_resume(row, f"{row['title']}\n{before.visible_text}")
+    try:
+        routed = _routed_resume(row, f"{row['title']}\n{before.visible_text}")
+    except ValueError as error:
+        if str(error) != "company_tailored_resume_required":
+            raise
+        return {"status": "action_rejected", "reason": "company_tailored_resume_required",
+                "instruction": "tailor and upload the current artifact before final Review"}
     resume_path = Path(routed["resume_path"])
     resume = await ResumeVerifier(session).verify(
         cursor.handle, before, resume_path, {}
@@ -1097,6 +1103,7 @@ async def finalize() -> dict[str, Any]:
             "company or role is absent from final review",
             "final review URL does not match the application",
             "final review requires exactly one visible Submit control",
+            "routed resume filename is absent from final review",
         }:
             raise
         return {

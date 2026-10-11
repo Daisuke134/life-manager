@@ -24,6 +24,20 @@ class TailoredResumeTests(unittest.TestCase):
         self.assertIsNotNone(tailoring, 'company-specific resume connection is missing')
 
     @unittest.skipIf(tailoring is None, 'tool is absent')
+    def test_parent_symlink_cannot_redirect_a_private_resume(self):
+        row = {'application_id': 'job-a', 'company': 'Example', 'title': 'Engineer', 'canonical_url': 'https://example.test/jobs/a'}
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / 'materials'
+            outside = Path(directory) / 'outside'
+            root.mkdir()
+            outside.mkdir()
+            (root / 'tailored').symlink_to(outside, target_is_directory=True)
+            material = tailoring.compose(row, self.memory(), {'Experience': ['fact.role']})
+            with self.assertRaisesRegex(ValueError, 'unsafe_resume_directory'):
+                tailoring.store_artifact(root, row, material, b'%PDF-1.4 fixture')
+            self.assertEqual(list(outside.iterdir()), [])
+
+    @unittest.skipIf(tailoring is None, 'tool is absent')
     def test_only_existing_facts_can_enter_company_resume(self):
         row = {'application_id': 'job-a', 'company': 'Example <AI>', 'title': 'Engineer', 'canonical_url': 'https://example.test/jobs/a'}
         result = tailoring.compose(row, self.memory(), {'Experience': ['fact.role'], 'Projects': ['fact.project']})

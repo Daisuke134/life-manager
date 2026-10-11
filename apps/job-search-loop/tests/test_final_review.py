@@ -42,6 +42,12 @@ class FinalReviewTests(unittest.TestCase):
 
         self.assertTrue(receipt.role_visible)
 
+    def test_review_rejects_a_local_pdf_that_is_not_the_visible_attachment(self):
+        observation = ObservationV1(1, url="https://jobs.ashbyhq.com/example/role/application", title="Engineer @ Example", visible_text="Review Submit", controls=(), validation_text=(), tabs=(), screenshot_path=Path("review.png"), screenshot_sha256="a"*64, content_sha256="b"*64)
+        resume = ResumeVerificationV1(1, observation_sha256=observation.content_sha256, resume_sha256="c"*64, filename_visible=False, checked_labels=(), mismatched_labels=(), receipt_sha256="d"*64)
+        with self.assertRaisesRegex(RuntimeError, "routed resume filename"):
+            verify_final_review(row_run_id="row", application_id="application", company="Example", role="Engineer", expected_url="https://jobs.ashbyhq.com/example/role", expected_resume_sha256="c"*64, observation=observation, resume=resume)
+
     def test_single_page_ats_binds_company_and_role_from_document_title(self):
         observation = ObservationV1(
             1,

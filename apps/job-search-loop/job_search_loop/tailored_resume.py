@@ -27,7 +27,11 @@ def _target(row: dict) -> dict:
 
 
 def _directory(root: Path, row: dict) -> Path:
-    return root / 'tailored' / hashlib.sha256(str(row['application_id']).encode()).hexdigest()
+    root = Path(root).expanduser()
+    directory = root / 'tailored' / hashlib.sha256(str(row['application_id']).encode()).hexdigest()
+    if root.is_symlink() or (root / 'tailored').is_symlink() or directory.is_symlink():
+        raise ValueError('unsafe_resume_directory')
+    return directory
 
 
 def compose(row: dict, memory: CandidateMemoryView, sections: dict) -> dict:
@@ -115,8 +119,12 @@ def store_artifact(root: Path, row: dict, material: dict, pdf: bytes) -> dict:
         raise ValueError('invalid_resume_pdf')
     directory = _directory(root, row)
     directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+    directory.chmod(0o700)
+    directory.parent.chmod(0o700)
     digest = hashlib.sha256(pdf).hexdigest()
     path = directory / (digest + '.pdf')
+    if path.is_symlink():
+        raise ValueError('unsafe_resume_path')
     if path.exists() and path.read_bytes() != pdf:
         raise ValueError('immutable_resume_collision')
     if not path.exists():
@@ -134,7 +142,7 @@ def load_artifact(root: Path, row: dict, memory: CandidateMemoryView) -> dict | 
     manifest = directory / 'manifest.json'
     if not manifest.exists():
         return None
-    if manifest.is_symlink():
+    if manifest.is_symlink() or manifest.stat().st_mode & 0o077:
         raise ValueError('unsafe_resume_manifest')
     result = json.loads(manifest.read_text())
     if result['target'] != _target(row):
