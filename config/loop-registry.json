@@ -1287,6 +1287,9 @@
       "state_root": "~/.local/state/life-manager/agent-economy/instance"
     },
     "claude-projects-backup": {
+      "admission_class": "borrow",
+      "priority": "support",
+      "resource_class": "deterministic",
       "cadence": {
         "start_interval_seconds": 86400
       },
