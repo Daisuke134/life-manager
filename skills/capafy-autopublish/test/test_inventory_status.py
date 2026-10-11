@@ -1015,3 +1015,18 @@ def test_dais_approved_update_ships_even_when_review_slots_are_full(monkeypatch,
     decision = json.loads(capsys.readouterr().out.splitlines()[-1])
     assert decision["action"] == "update_existing", decision
     assert decision["item"]["agent_id"] == "8123079349"
+
+
+def test_a_deferred_cp1_agent_does_not_spend_a_draft_attempt(monkeypatch, tmp_path) -> None:
+    """2026-10-11: the agent runner deferred every CP1 run for disk headroom (rc 75), yet each
+    pass still counted one of the three attempts, so the Dais-approved price restores for Hook
+    Lab / TikTok Script Pro / YouTube Script Writer were dropped and the factory idled at CAP_FULL."""
+    module = load_module()
+    monkeypatch.setenv("CAPAFY_DRAFT_ATTEMPTS_PATH", str(tmp_path / "attempts.json"))
+    module.record_draft_attempt("7686597754", module.load_draft_attempts())
+    module.record_draft_attempt("7686597754", module.load_draft_attempts())
+    module.refund_draft_attempt("7686597754")
+    assert module.load_draft_attempts() == {"7686597754": 1}
+    module.refund_draft_attempt("7686597754")
+    module.refund_draft_attempt("7686597754")
+    assert module.load_draft_attempts() == {}
