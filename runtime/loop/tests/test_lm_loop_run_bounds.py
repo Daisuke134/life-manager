@@ -298,6 +298,13 @@ def test_ebook_owner_passes_ssot_postiz_key_to_child_entrypoint(tmp_path):
     assert base["LM_POSTIZ_API_KEY"] == "untrusted-inherited-key"
 
 
+def test_native_backup_registry_routes_do_not_consume_model_capacity():
+    root = Path(__file__).resolve().parents[3]
+    registry = json.loads((root / "config/loop-registry.json").read_text())["loops"]
+    for owner in ("browser-state-backup", "claude-projects-backup"):
+        assert _resource_class(registry[owner]) == "deterministic", owner
+
+
 def test_resource_class_is_explicit_or_provider_default():
     assert _resource_class({"provider_route": "shared-agent-runner"}) == "agent"
     assert _resource_class({"provider_route": "deterministic"}) == "deterministic"

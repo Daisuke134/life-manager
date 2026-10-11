@@ -1300,7 +1300,7 @@
       "label": "ai.anicca.claude-projects-backup",
       "system_role": "platform",
       "log_root": "~/.local/state/life-manager/claude-projects-backup/logs",
-      "provider_route": "shared-agent-runner",
+      "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager/claude-projects-backup"
     },
     "daily-nl-report": {
