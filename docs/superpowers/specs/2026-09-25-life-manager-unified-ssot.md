@@ -382,6 +382,9 @@ CLEAN-04 browser実回収/既存再発経路: shipped cdp_context_lease.gc(idle_
 
 CLEAN-05 Capafy自然返却/次仕事のfresh join: 18dd5799ea1b1e40-63187は02:09:05Z execute→02:19:19.960067Z pass0/main899ddafe由来。次18dd586c10fd0ca8-5713はmanualwake無しで02:24:07.972059Z execute→02:32:50.768643Z pass0/maind42536c4由来。現owner metadata行0/reservations0/queue0/deferred0、registry正本state_root=~/.local/state/life-managerから両loop-tmp不在を確認（誤ったowner名derived rootを根拠にしない）。これでdeterministic producerの終了→自己後始末→枠返却→次の自然仕事を追加確認する。business effect_statusは両方unknownのまま、掲載/売上/settlement成功へ置換0、外部再送0。private proof=~/.local/state/life-manager/state/capafy-natural-slot-return-20261011.json。既存Gig/Job/Writerの代表branch proofと併せ、未確認の実producer/ownerだけを次の自然terminalへjoinし、歴史claimed行数をactive枠数と誤認しない。
 
+CLEAN-05 Writer反復のfresh join: prior18dd562c3629faa0-14325は01:42:54.660702Z execute→01:46:13.222114Z pass0、next18dd570069ca0c18-9182は01:58:06.066064Z execute→02:28:35.963692Z pass0、両release98f93e27/effect_status not_applicable。registry state_root=~/.local/state/life-manager/writerの両loop-tmp不在、current owner metadata0/reservations0/queue0/deferred0、Writer managed context0を確認。manualwake/foreign lease解放0。費用や売上の公式readback成功とは扱わず、measurement pipelineの自然終了/後始末/枠返却/次仕事の証拠として保存する。private proof=~/.local/state/life-manager/state/writer-natural-repeat-cleanup-20261011.json。現在の未確認再開は具体的なowner/旧loaded SHA/実blockerに絞り、古いdisk_headroom表示を現在のENOSPCや使用中枠と混同せずfresh source/runtime/readbackを比較する。
+
+
 
 
 
