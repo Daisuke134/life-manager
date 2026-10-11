@@ -254,3 +254,8 @@ postings enter the queue. Private company exclusions and prior-effect fences sta
 in force. The browser model evaluates the live mandatory requirements and location
 against approved facts before submitting. The preferred provider alternates on the
 existing 30-minute cadence; both use the same company-bound PDF and final review.
+
+This Ashby connection is source-verified; production completed-submission receipts
+remain pending. Typed observations include redacted visible posting text so the
+model can assess actual mandatory requirements. Captured baseline resume variants
+retain their original hash across application form languages.
