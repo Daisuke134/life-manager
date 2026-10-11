@@ -38,6 +38,8 @@ class BrowserSession:
 
     async def _lease_command(self, *arguments: str) -> dict[str, Any]:
         env = os.environ.copy()
+        if env.get("CLOAK_LEASE_HOLDER_PID"):
+            env["AI_BROWSER_HOLDER_PID"] = env["CLOAK_LEASE_HOLDER_PID"]
         env["CLOAK_CDP_BASE_URL"] = "http://localhost:9222"
         env["CLOAK_SESSION_VAULT_FILE"] = str(
             Path.home() / ".cloak/vault/job-search-daily/auth-state.json"

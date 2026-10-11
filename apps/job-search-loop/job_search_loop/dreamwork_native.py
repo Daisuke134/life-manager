@@ -157,11 +157,11 @@ def main() -> int:
     if candidate.get('application_autonomy', {}).get('authorized') is not True:
         result = {'status': 'not_configured', 'reason': 'application_autonomy_not_delegated'}
         _write_private_json(args.output, result)
-        return 69
+        return 75 if (args.state_root / 'dreamwork-actions.json').exists() else 69
     key = load_key(Path.home() / '.local/share/anicca/credentials.json')
     if key is None:
         _write_private_json(args.output, {'status': 'not_configured', 'reason': 'credential_rotation_required'})
-        return 69
+        return 75
     args.state_root.mkdir(parents=True, exist_ok=True, mode=0o700)
     lock_path = args.state_root / 'dreamwork-owner.lock'
     with lock_path.open('a') as lock:

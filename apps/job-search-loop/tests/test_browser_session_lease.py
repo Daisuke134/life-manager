@@ -1,4 +1,10 @@
 import unittest
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
 from unittest.mock import AsyncMock, patch
 
 from job_search_loop.browser_agent.contracts import SessionHandleV1
@@ -37,6 +43,21 @@ class _Page:
 
 
 class BrowserSessionLeaseTests(unittest.IsolatedAsyncioTestCase):
+    async def test_transient_commands_keep_the_durable_driver_as_lease_holder(self):
+        root = Path(__file__).resolve().parents[3]
+        actual_lease = root / "skills/browser/scripts/cdp_context_lease.py"
+        with tempfile.TemporaryDirectory() as directory:
+            helper = Path(directory) / "lease_probe.py"
+            helper.write_text("import runpy,json\nmodule=runpy.run_path(" + repr(str(actual_lease)) + ",run_name='lease_probe')\nprint(json.dumps({'ok':True,'holder':module['_holder_pid']()}))\n")
+            env = os.environ.copy()
+            env.pop("AI_BROWSER_HOLDER_PID", None)
+            env.update(CLOAK_LEASE_HOLDER_PID=str(os.getpid()),
+                       JOB_SEARCH_CDP_LEASE_SCRIPT=str(helper),
+                       PYTHONPATH=str(root / "apps/job-search-loop"))
+            command = "import asyncio,json;from job_search_loop.browser_agent.session import BrowserSession;print(json.dumps(asyncio.run(BrowserSession()._lease_command('acquire','job-search-daily'))))"
+            holders = [json.loads(subprocess.check_output([sys.executable, '-c', command], env=env, text=True))['holder'] for _ in range(2)]
+            self.assertEqual(holders, [os.getpid(), os.getpid()])
+
     async def test_close_returns_the_exact_context_fence(self):
         session = BrowserSession()
         session._lease_command = AsyncMock(return_value=LEASE.copy())
