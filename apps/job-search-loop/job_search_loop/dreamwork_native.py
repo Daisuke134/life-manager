@@ -62,12 +62,37 @@ def confirmed_submissions(rows: list[dict]) -> list[dict]:
             and row['submission'].get('submittedAt')]
 
 
+def unavailable_fallback_is_verified(result: dict, pipeline: dict) -> bool:
+    """Use the official complete empty account view, never absent local rows."""
+    return (result.get('status') == 'unavailable' and result.get('native_managed_on') is False
+            and result.get('readiness', {}).get('entitlement', {}).get('autoApply') is False
+            and result.get('readiness', {}).get('entitlement', {}).get('reason') == 'tier'
+            and result.get('usage', {}).get('applicationsLimit') == 0
+            and result.get('autopilot', {}).get('state') == 'unavailable'
+            and result.get('autopilot', {}).get('sentToday') == 0
+            and result.get('autopilot', {}).get('sentThisMonth') == 0
+            and pipeline.get('hasMore') is False and pipeline.get('jobs') == []
+            and all(type(pipeline.get(k)) is int and pipeline[k] == 0
+                    for k in ('count', 'total', 'activeTotal', 'closedTotal')))
+
+
 def ensure_autopilot(client, state_path: Path, preferences_patch: dict) -> dict:
     state = json.loads(state_path.read_text()) if state_path.exists() else {'actions': {}}
     actions = state['actions']
     usage = read_action(client, 'get_usage')
     readiness = read_action(client, 'get_application_readiness')
     status = read_action(client, 'get_autopilot_status')
+    if not (readiness.get('autopilotReady') is True and readiness.get('autopilotAvailable') is True
+            and readiness.get('entitlement', {}).get('autoApply') is True):
+        if any(record['status'] == 'effect_unknown' for record in actions.values()):
+            return {'status': 'effect_unknown', 'autopilot': status, 'usage': usage}
+        managed_on = any(record['action'] == 'set_autopilot' and record['args'].get('state') == 'on'
+                         for record in actions.values())
+        return {'status': 'unavailable', 'readiness': readiness, 'usage': usage, 'autopilot': status,
+                'native_managed_on': managed_on,
+                'fallback_safe': not managed_on and status.get('state') == 'off'
+                and status.get('inFlightCount') == 0 and status.get('sentToday') == 0
+                and status.get('sentThisMonth') == 0}
     settings = read_action(client, 'get_autopilot_settings')
     preferences = read_action(client, 'get_preferences')['preferences']
     observed = {'update_preferences': preferences, 'update_autopilot_settings': settings, 'set_autopilot': status}
@@ -80,11 +105,6 @@ def ensure_autopilot(client, state_path: Path, preferences_patch: dict) -> dict:
                 _write_private_json(state_path, state)
             else:
                 return {'status': 'effect_unknown', 'action': record['action'], 'autopilot': status, 'usage': usage}
-    if not (readiness.get('autopilotReady') is True and readiness.get('autopilotAvailable') is True
-            and readiness.get('entitlement', {}).get('autoApply') is True):
-        return {'status': 'unavailable', 'readiness': readiness, 'usage': usage, 'autopilot': status,
-                'fallback_safe': status.get('state') in {'off', 'unavailable'} and status.get('inFlightCount') == 0
-                and status.get('sentToday') == 0 and status.get('sentThisMonth') == 0}
 
     desired = [('update_preferences', {'patch': preferences_patch}),
                ('update_autopilot_settings', {'resumeVariant': 'tailored', 'scoreFloor': 70}),
@@ -186,6 +206,8 @@ def main() -> int:
         pipeline = client.request('/pipeline?limit=500')
         if not isinstance(pipeline.get('jobs'), list):
             raise DreamworkError('malformed_pipeline')
+        if unavailable_fallback_is_verified(result, pipeline):
+            result['fallback_safe'] = True
         proof = []
         for row in confirmed_submissions(pipeline['jobs']):
             readback = client.action('get_application_status', {'applicationId': row['applicationId']})

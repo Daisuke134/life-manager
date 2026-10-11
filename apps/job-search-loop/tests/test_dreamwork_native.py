@@ -51,6 +51,27 @@ class DreamworkNativeTests(unittest.TestCase):
         self.assertIsNotNone(native, 'native Dreamwork application owner is missing')
 
     @unittest.skipIf(native is None, 'owner is absent')
+    def test_complete_official_tier_zero_view_allows_only_unmanaged_fallback(self):
+        result = {'status': 'unavailable', 'native_managed_on': False, 'readiness': {'entitlement': {'autoApply': False, 'reason': 'tier'}}, 'usage': {'applicationsLimit': 0}, 'autopilot': {'state': 'unavailable', 'sentToday': 0, 'sentThisMonth': 0}}
+        pipeline = {'jobs': [], 'count': 0, 'total': 0, 'activeTotal': 0, 'closedTotal': 0, 'hasMore': False}
+        self.assertTrue(native.unavailable_fallback_is_verified(result, pipeline))
+        self.assertFalse(native.unavailable_fallback_is_verified(result, {**pipeline, 'hasMore': True}))
+        self.assertFalse(native.unavailable_fallback_is_verified({**result, 'native_managed_on': True}, pipeline))
+        self.assertFalse(native.unavailable_fallback_is_verified({**result, 'status': 'effect_unknown'}, pipeline))
+
+    @unittest.skipIf(native is None, 'owner is absent')
+    def test_free_account_does_not_call_gated_settings(self):
+        class FreeProvider(Provider):
+            def action(self, name, args, confirmation_token=None):
+                if name == 'get_application_readiness':
+                    return {'status': 'completed', 'output': {'ready': False, 'autopilotReady': False, 'autopilotAvailable': True, 'entitlement': {'autoApply': False, 'reason': 'tier'}}}
+                if name == 'get_autopilot_settings':
+                    raise AssertionError('settings are tier-gated')
+                return super().action(name, args, confirmation_token)
+        with tempfile.TemporaryDirectory() as root:
+            self.assertEqual(native.ensure_autopilot(FreeProvider(), Path(root) / 'state.json', {})['status'], 'unavailable')
+
+    @unittest.skipIf(native is None, 'owner is absent')
     def test_authorized_tailored_autopilot_needs_no_recurring_human_confirmation(self):
         with tempfile.TemporaryDirectory() as root:
             provider = Provider()
