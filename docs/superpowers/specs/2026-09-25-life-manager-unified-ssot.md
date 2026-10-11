@@ -13914,10 +13914,12 @@ Known damage to repair: drafts 2576591785 / 5356015232 (under_review) and 983649
 
 **導入TODO（この順序）:**
 
-1. [ ] 専用worktreeの本specをcommit/pushして範囲を固定する。
-2. [ ] consulting-pptx-skillとprogrammatic-seoをactive Codex skill storeへ導入し、参照ファイルとローカル生成/checkを確認する。
-3. [ ] iPhone-useの公式install scriptと依存を確認し、plugin/MCPを導入する。匿名analyticsは無効化する。環境診断とUSB実端末のready状態を分けて記録する。
+1. [x] 専用worktreeの本specをcommit/pushして範囲を固定する。remote commit `b5613f6675de581eb2984309d19a52d976c423ac`をreadback済み。
+2. [x] consulting-pptx-skillとprogrammatic-seoをactive Codex skill storeへ導入し、参照ファイルとローカル生成/checkを確認する。HTML/PPTX checkerはtemplate modeでFAIL 0、3ページPDFのrenderと3スライドPPTX変換を確認。PPTXには編集可能text shapesが30個ある。生成物はbundled templateのsmoke testであり、顧客提出版ではない。SEOの2 reference filesと12 playbooksを確認。
+3. [x] iPhone-useの公式install scriptと依存を確認し、plugin/MCPを導入する。version `0.3.10`、MCP initialize成功、17 model toolsを確認。`IPHONE_USE_ANALYTICS=0`を登録し、model settingsが不変であることを確認。pinned WDA sourceのfetchとUSB forwarding依存128 packagesのinstall、既存Anicca main targetのDebug signing teamを使った専用runner設定を完了。doctorはhost dependencies/configuration/selected device/pairing/developer mode/pinned sourceをPASSするが、device connectionはunavailable、service READYはfalse。
 4. [ ] 登録済みdaily-driverをleaseしてViewTrackの無料account/onboarding、無料枠、MCP条件を確認する。既存accountを優先し、課金・card-required trialは開始しない。
 5. [ ] 実測結果・残条件・AniccaとLife Manager全体への使用方法を本specに記録し、commit/push・main統合後に報告する。
 
-**現在cursor:** item 1。source専用worktreeは`/Users/anicca/Projects/life-manager-main/.worktrees/free-growth-toolkit-20261011`、branchは`ops/free-growth-toolkit-20261011`、ownerは`codex-free-growth-toolkit`。Xcode 26.6を確認。USB iPhoneはdevice inventoryに存在するがavailable=falseで、実端末の操作成功は未確認。ブラウザの先行lease holderはprocess probeで存在しないため、次に通常guard経由で取得する。
+**現在cursor:** item 4。source専用worktreeは`/Users/anicca/Projects/life-manager-main/.worktrees/free-growth-toolkit-20261011`、branchは`ops/free-growth-toolkit-20261011`、ownerは`codex-free-growth-toolkit`。ブラウザの先行lease holder PIDは存在しないが、guardのfresh lease規則がBUSYを返すため奪わない。通常guardで取得後にViewTrackを確認する。iPhone 15はpaired・Developer Mode enabledだがconnection unavailableのため、USB接続・ロック解除をユーザーへasyncで依頼済み。実回答まで実端末のREADYを主張しない。
+
+**ローカル導入receipt:** `/Users/anicca/.local/share/anicca/toolkit-verification/install-receipt.json`。active skillsは`/Users/anicca/.codex-acct2/skills/consulting-pptx-skill`と`/Users/anicca/.codex-acct2/skills/programmatic-seo`。iPhone pluginは`/Users/anicca/.codex-acct2/plugins/cache/iphone-use-local/iphone-use/0.3.10`、runtimeは`/Users/anicca/.local/share/iphone-use`。次turnまたはchat reconnectで新skill/pluginがhostへ読み込まれる。これはinteractive toolの導入でありLife Manager production loopの変更ではない。追加支出はUSD 0。
