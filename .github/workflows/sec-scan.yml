@@ -34,6 +34,8 @@ jobs:
         run: python3 -m pip install --disable-pip-version-check jsonschema==4.26.0 pytest==9.0.3
       - name: Verify registry, releases, apply fencing, and clean install
         run: python3 -m unittest discover -s runtime/loop/tests -p 'test_*.py'
+      - name: Verify installed browser paths stay protected
+        run: python3 -B skills/self/disk-cleanup/tests/test_browser_installation_protection.py
       - name: Verify bounded storage, real syscall failures, and recurrence
         run: >-
           python3 -m pytest -q
