@@ -384,6 +384,9 @@ CLEAN-05 Capafy自然返却/次仕事のfresh join: 18dd5799ea1b1e40-63187は02:
 
 CLEAN-05 Writer反復のfresh join: prior18dd562c3629faa0-14325は01:42:54.660702Z execute→01:46:13.222114Z pass0、next18dd570069ca0c18-9182は01:58:06.066064Z execute→02:28:35.963692Z pass0、両release98f93e27/effect_status not_applicable。registry state_root=~/.local/state/life-manager/writerの両loop-tmp不在、current owner metadata0/reservations0/queue0/deferred0、Writer managed context0を確認。manualwake/foreign lease解放0。費用や売上の公式readback成功とは扱わず、measurement pipelineの自然終了/後始末/枠返却/次仕事の証拠として保存する。private proof=~/.local/state/life-manager/state/writer-natural-repeat-cleanup-20261011.json。現在の未確認再開は具体的なowner/旧loaded SHA/実blockerに絞り、古いdisk_headroom表示を現在のENOSPCや使用中枠と混同せずfresh source/runtime/readbackを比較する。
 
+CLEAN-04/05 旧guard採用漏れscope: fresh verify-loops-auditはloaded-idle/PID無し/unknownfalse、旧release859df55a、最新02:39:45Z admission disk_headroom_lowで停止する。source修復済みcurrentのadmissionが未採用の実例として、既存canonical deterministic/loaded-idle/maxowners1/target-onlyでこのeffect-none control ownerのみcurrentへ反映し、loaded argv/SHAと次自然admission/terminalを確認する。token-daily-reportのunknowntrue、hf-gig-reply-detectorのmessage effect、使用中ownerは保持し、枠/unknownを強制解放しない。価格/資金/外部送信/本人identity変更0、fresh GUI preflight無しに操作しない。旧free11GiB gateを戻さず、実際のproducer write-budgetと自然再開を受入に使う。
+
+
 
 
 
