@@ -72,6 +72,26 @@ class BuildProof(unittest.TestCase):
                 "review_requested_at": _iso(Q + dt.timedelta(minutes=35))})
             self.assertFalse(self.proof(root)["verified"])
 
+    def test_a_mid_flight_item_that_creators_market_shows_closes_as_effected(self) -> None:
+        # 2026-10-11: set-020 (48219727) stopped at images_uploaded, LINE shows it 編集中; submit
+        # resumes from the recorded item, so the fence can close and the next wake finishes it.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _set(root, "set-020", "submit", {
+                "product_id": "48219727", "state": "images_uploaded", "state_observed": "編集中",
+                "created_at": _iso(Q + dt.timedelta(minutes=10))})
+            p = self.proof(root)
+            self.assertTrue(p["verified"])
+            self.assertTrue(p["effected"])
+            self.assertIn("48219727:編集中", p["provider_receipt_id"])
+
+    def test_a_mid_flight_item_not_yet_seen_by_readback_stays_fenced(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _set(root, "set-020", "submit", {"product_id": "48219727", "state": "images_uploaded",
+                                             "created_at": _iso(Q + dt.timedelta(minutes=10))})
+            self.assertFalse(self.proof(root)["verified"])
+
     def test_created_or_review_requested_after_run_start_stays_fenced(self) -> None:
         for field, z in (("created_at", False), ("created_at", True),
                          ("review_requested_at", False), ("review_requested_at", True)):
