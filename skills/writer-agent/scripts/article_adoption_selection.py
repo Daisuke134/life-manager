@@ -111,22 +111,10 @@ def select(state_root: Path, ledger: Path, decision: dict) -> str | None:
         run_id
         for run_id in ledger_ids
         if _status(runs, run_id) in ALLOWED_STATUSES
-        and not _publication_complete(runs, run_id)
-        and (
-            not completed_publication_exists
-            or (runs / run_id / "gates/publication-state.json").is_file()
-        )
+        and not (runs / run_id / "gates/publication-state.json").exists()
+        and not completed_publication_exists
     )
     if len(candidates) > 1:
-        publication_candidates = [
-            run_id
-            for run_id in candidates
-            if (runs / run_id / "gates/publication-state.json").is_file()
-        ]
-        if len(publication_candidates) == 1:
-            return publication_candidates[0]
-        if len(publication_candidates) > 1:
-            raise ValueError("multiple ledger-backed publication adoption candidates")
         # Generation-only quality markers have no publication target. Leave
         # them to their quality owner and keep the publication queue moving.
         return None
