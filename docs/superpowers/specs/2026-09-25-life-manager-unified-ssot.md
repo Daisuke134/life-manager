@@ -339,6 +339,9 @@ CLEAN-04 残cursor（完了済み除外）: 2件の手動dependency回収、限�
 
 CLEAN-04 Codex保存増加の診断scope: 最新full01:22:10Zで.codex-acct2全体+9,531,392 bytes/1,295秒。thread_history_1.sqliteは5,349,474,304 bytes/page_count1,306,072/freelist0/auto_vacuum2、logs_2.sqliteは809,811,968 bytes/freelist46、state_5.sqliteは31,002,624 bytes/freelist9。同3DBはCodex app-server PID63234がopen（root全体増加を単一DBへ帰属しない）。履歴/一次state/credentialを削除・移動せずapp-serverを停止しない。既存Codex CLIにmigrate-rolloutsのread-only inspection（--apply無し）とthroughput制御が存在するため、ローカルhelp/設定・公式config/source・sanitizeしたinspectionで旧JSONLとpaginated historyの保存契約/closed判定/重複保存を調べる。先頭atom=既存標準機能の安全な診断で原因と適用範囲を確定、history.max_bytes等のinput-history capをsession/DB capと誤認せず、独自DB purge/未知session delete/新schedulerを作らない。migration mutationは内容保持と稼働owner安全が既存実装で証明されるまで実行しない。
 
+CLEAN-04 Codex既存機能のfresh診断: 同installed CLIのmigrate-rollouts --json（--apply無し）exit0、1097件すべてalready_paginated/eligible0、報告raw rollout allocated9,287,155,712 bytes。再migration mutationは不要。公式openai/codex cc7ba336のrollout/compressはnative maintenance/writer publication lock、7日mtime、source state再照合、zstd lossless/検証/metadata維持/透過再読込でcold historyを回収する既存API。実cold7dは105件/allocated1,287,520,256/maxlogical472,863,314 bytes、compression marker無し。次atom=書込無しの圧縮サイズ計測とinstalled protocol schema照合、内容保持・active安全をfresh read-only reviewer1名で確認し、既存RPCを一度だけ起動してreadbackする。大容量のformal履歴は任意削除しない。不可侵memory/state JSONL/credentials/browser identityとcurrent threadを対象にせず、新DB purge/別compressor/追加scheduler/他thread送信/app-server再起動0。
+
+
 
 
 
