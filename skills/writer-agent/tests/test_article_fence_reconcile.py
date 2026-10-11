@@ -517,3 +517,83 @@ def test_a_resumed_run_pairs_through_its_attempt_start(tmp_path):
     (d / "gates" / "publication-state.json").write_text("{}")
     result, closed = _pre(m, tmp_path, runs)
     assert result["status"] == "inconclusive" and result["reason"] == "run_reached_publication" and closed == []
+
+
+START_BLOCK_OCCURRENCE = "article-daily:18dd0bf091a5d3d0-57499"
+START_BLOCK_QUEUED_AT = 1791601208.371748
+
+
+def _start_block_fixture(tmp_path, monkeypatch, m, *, extra_log_line=""):
+    """2026-10-10 12:02 JST: start control blocked on an unclassified same-day run and exited
+    before any generation; no new Writer run dir exists, so the proof binds the log segment."""
+    writer_root = tmp_path / "writer"
+    (writer_root / "logs").mkdir(parents=True)
+    source = ('#!/bin/bash\nif [ "$BLOCK" = 1 ]; then\n'
+              '  echo "=== article-daily start control BLOCK: $START_DECISION ===" >>"$LOG"\n  exit 0\nfi\n')
+    source_repo = tmp_path / "source"
+    entrypoint = source_repo / "skills" / "writer-agent" / "article-daily.sh"
+    entrypoint.parent.mkdir(parents=True)
+    entrypoint.write_text(source, encoding="utf-8")
+    for args in (["init", "-q"], ["config", "user.name", "T"], ["config", "user.email", "t@e.invalid"],
+                 ["add", "skills/writer-agent/article-daily.sh"], ["commit", "-qm", "f"]):
+        subprocess.run(["git", "-C", str(source_repo), *args] if args[0] != "init" else ["git", "init", "-q", str(source_repo)],
+                       check=True, capture_output=True)
+    sha = subprocess.check_output(["git", "-C", str(source_repo), "rev-parse", "HEAD"], text=True).strip()
+    subprocess.run(["git", "-C", str(source_repo), "update-ref", "refs/remotes/origin/main", sha], check=True)
+    lines = [json.dumps({"event_id": "s1", "occurrence_id": START_BLOCK_OCCURRENCE, "phase": "execute", "release_sha": sha}),
+             json.dumps({"event_id": "t1", "occurrence_id": START_BLOCK_OCCURRENCE, "phase": "report", "exit_code": 0, "release_sha": sha})]
+    (writer_root / "events.jsonl").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    (writer_root / "articles.jsonl").write_text("", encoding="utf-8")
+    segment = ["=== article-daily run 2026-10-10 12:02:35 JST ===", '{"status": "clear"}']
+    if extra_log_line:
+        segment.append(extra_log_line)
+    segment.append('=== article-daily start control BLOCK: {"action":"block-incomplete"} ===')
+    (writer_root / "logs" / "article-daily.log").write_text(
+        "=== article-daily run 2026-10-10 10:02:40 JST ===\nold\n" + "\n".join(segment) + "\n", encoding="utf-8")
+    pinned = {
+        "stop_kind": "start_control_block",
+        "runtime_run_id": "18dd0bf091a5d3d0-57499",
+        "writer_run_id": "20261010-001933",
+        "release_sha": sha,
+        "entrypoint": "skills/writer-agent/article-daily.sh",
+        "entrypoint_sha256": hashlib.sha256(source.encode()).hexdigest(),
+        "start_event_id": "s1", "terminal_event_id": "t1",
+        "event_hashes": {"s1": hashlib.sha256(lines[0].encode()).hexdigest(),
+                         "t1": hashlib.sha256(lines[1].encode()).hexdigest()},
+        "log_header": "=== article-daily run 2026-10-10 12:02:35 JST ===",
+        "article_log_segment_sha256": hashlib.sha256("\n".join(
+            [s for s in segment if s != extra_log_line]).encode()).hexdigest(),
+        "queued_at": START_BLOCK_QUEUED_AT,
+        "gate_error": "block-incomplete",
+        "gate_terminal": "article-daily start control BLOCK",
+        "evidence_ref": "writer://fence-reconciliation/article-daily-18dd0bf091a5d3d0-57499.json",
+    }
+    monkeypatch.setitem(m.HISTORICAL_GATE_STOP_PROOFS, START_BLOCK_OCCURRENCE, pinned)
+    return writer_root, source_repo
+
+
+def test_start_control_block_closes_without_a_run_dir(tmp_path, monkeypatch):
+    m = _load()
+    writer_root, source_repo = _start_block_fixture(tmp_path, monkeypatch, m)
+    calls = []
+    result = m.reconcile(START_BLOCK_OCCURRENCE, queued_at=START_BLOCK_QUEUED_AT, state="claimed",
+                         articles_path=writer_root / "articles.jsonl", fetch_status=lambda _u: 0,
+                         resolver=lambda *a, **k: calls.append(k["no_dispatch_proof"]()) or True,
+                         resolve=True, now=START_BLOCK_QUEUED_AT + 3600,
+                         writer_root=writer_root, source_repo=source_repo)
+    assert result["status"] == "no_dispatch_proven" and result["closed"] is True
+    assert calls[0]["runtime_run_id"] == "18dd0bf091a5d3d0-57499"
+    assert calls[0]["proof_type"] == "historical_writer_gate_stop_no_dispatch"
+
+
+def test_start_control_block_rejects_a_segment_that_began_generation(tmp_path, monkeypatch):
+    m = _load()
+    writer_root, source_repo = _start_block_fixture(
+        tmp_path, monkeypatch, m, extra_log_line="=== article-daily generation begin ===")
+    called = []
+    result = m.reconcile(START_BLOCK_OCCURRENCE, queued_at=START_BLOCK_QUEUED_AT, state="claimed",
+                         articles_path=writer_root / "articles.jsonl", fetch_status=lambda _u: 0,
+                         resolver=lambda *a, **k: called.append(True) or True,
+                         resolve=True, now=START_BLOCK_QUEUED_AT + 3600,
+                         writer_root=writer_root, source_repo=source_repo)
+    assert result["status"] == "inconclusive" and called == []
