@@ -312,14 +312,20 @@ except Exception: print('')")"
   fi
   [ -n "$PUBLISH_REVIEW_URL" ] || die "no final review URL available for CP2/workspace-field fix"
   CP2="$PUBLISH_REVIEW_URL"
-  CP2_RC=0
-  CP2_OUT="$(timeout 150 env HOME="$OPERATOR_HOME" bash "$BROWSER_SKILL/with-browser.sh" "$CAPAFY_BROWSER_IDENTITY" -- env HOME="$HOME" \
-    "$VENV" "$AUTO/scripts/drive_checkpoint2.py" "$CP2" 2>&1)" || CP2_RC=$?
-  printf '%s\n' "$CP2_OUT" | { grep -vE "Deprecation|warnings.warn" || true; } | tail -15
-  echo "CP2 driver exit=$CP2_RC (124=timeout; lease/driver errors print above)"
-  # AUTHORITATIVE gate = server is_confirmed_config_keys, POLLED. drive_checkpoint2 can
-  # exit just before the server registers the hosted key -> a one-shot read false-dies.
-  poll is_confirmed_config_keys 1 12 5 || die "CP2 key host NOT confirmed (is_confirmed_config_keys!=1) — drive CP2 agentically (PUBLISHING_RUNBOOK.md)"
+  # A slow-hydrating review page makes one driver pass give up (display-model combobox
+  # count 0); a plain rerun verified at once (8822853032, 2026-10-11). Two passes, then die.
+  CP2_CONFIRMED=0
+  for CP2_ATTEMPT in 1 2; do
+    CP2_RC=0
+    CP2_OUT="$(timeout 150 env HOME="$OPERATOR_HOME" bash "$BROWSER_SKILL/with-browser.sh" "$CAPAFY_BROWSER_IDENTITY" -- env HOME="$HOME" \
+      "$VENV" "$AUTO/scripts/drive_checkpoint2.py" "$CP2" 2>&1)" || CP2_RC=$?
+    printf '%s\n' "$CP2_OUT" | { grep -vE "Deprecation|warnings.warn" || true; } | tail -15
+    echo "CP2 driver attempt $CP2_ATTEMPT exit=$CP2_RC (124=timeout; lease/driver errors print above)"
+    # AUTHORITATIVE gate = server is_confirmed_config_keys, POLLED. drive_checkpoint2 can
+    # exit just before the server registers the hosted key -> a one-shot read false-dies.
+    if poll is_confirmed_config_keys 1 12 5; then CP2_CONFIRMED=1; break; fi
+  done
+  [ "$CP2_CONFIRMED" = 1 ] || die "CP2 key host NOT confirmed (is_confirmed_config_keys!=1) — drive CP2 agentically (PUBLISHING_RUNBOOK.md)"
   echo "is_confirmed_config_keys=1 ✓"
   fi
 fi
