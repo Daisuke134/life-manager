@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import html
 import json
 import os
 import re
@@ -179,10 +178,16 @@ def _workday_hiring_receipt_matches(message, candidate, expected_recipient, load
     info = posting.get('jobPostingInfo', {})
     if _fold(str(info.get('title') or '')) != _fold(candidate['title']):
         return False
-    official_text = html.unescape(str(info.get('jobDescription') or ''))
-    official_text = re.sub(r'<[^>]+>', ' ', official_text)
-    organization = posting.get('hiringOrganization', {}).get('name', '')
-    if _fold(brand) not in _fold(str(organization) + ' ' + official_text):
+    organization = posting.get('hiringOrganization') or {}
+    logo = info.get('logoImage') or {}
+    organization_name = organization.get('name', '') if isinstance(organization, dict) else ''
+    logo_alt = str(logo.get('alt') or '') if isinstance(logo, dict) else ''
+    names = {_fold(str(organization_name))}
+    # This is the provider's structured employer branding field, not a mention
+    # of a customer, vendor or product in a description.
+    if logo_alt.casefold().endswith(' logo'):
+        names.add(_fold(logo_alt[:-5]))
+    if _fold(brand) not in names:
         return False
     candidate['official_posting_sha256'] = hashlib.sha256(json.dumps(posting, sort_keys=True).encode()).hexdigest()
     candidate['official_hiring_brand'] = brand
@@ -207,7 +212,8 @@ def _uncertain_candidates(ledger: Ledger) -> list[dict[str, str]]:
           applications.title,
           applications.canonical_url,
           submit_intents.intent_id,
-          submit_intents.created_at
+          submit_intents.created_at,
+          applications.current_state
         FROM applications
         JOIN submit_intents
           ON submit_intents.application_id = applications.id
@@ -289,18 +295,30 @@ def reconcile_confirmation_threads(
                 ):
                     continue
                 uncertain = _uncertain_candidates(ledger)
-                candidates = [
-                    candidate
-                    for candidate in uncertain
-                    if datetime.fromisoformat(message['received_at']) >= datetime.fromisoformat(candidate['created_at'])
-                    and (_confirmation_matches(message, candidate, expected_recipient)
-                         or _workday_hiring_receipt_matches(message, candidate, expected_recipient, official_posting_loader))
-                ]
+                candidates = []
+                readback_failed = False
+                for candidate in uncertain:
+                    if datetime.fromisoformat(message['received_at']) < datetime.fromisoformat(candidate['created_at']):
+                        continue
+                    matched = _confirmation_matches(message, candidate, expected_recipient)
+                    if not matched:
+                        try:
+                            matched = _workday_hiring_receipt_matches(message, candidate, expected_recipient, official_posting_loader)
+                        except (OSError, ValueError, KeyError, TypeError) as error:
+                            readback_failed = True
+                            blocked.append({'message_id': message['message_id'], 'thread_id': thread_id,
+                                'application_id': candidate['application_id'], 'status': 'official_posting_readback_unavailable',
+                                'error_class': type(error).__name__})
+                    if matched:
+                        candidates.append(candidate)
+                if readback_failed:
+                    continue
                 if not candidates:
                     candidates = [
                         candidate
                         for candidate in uncertain
-                        if _confirmation_matches_without_title(
+                        if candidate['current_state'] == 'submit_unknown'
+                        and _confirmation_matches_without_title(
                             message, candidate, expected_recipient
                         )
                     ]
