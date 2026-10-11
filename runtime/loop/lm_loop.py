@@ -3228,6 +3228,14 @@ def main(argv: list[str] | None = None) -> int:
                  or row["loop_id"] in explicitly_reloadable
                  or row.get("event_release_sha") == effective_installed_sha(row))
         )]
+        if automatic_release_reconciler:
+            # Repair queued control adoption before ordinary refreshes consume this bounded wave.
+            eligible.sort(key=lambda row: not (
+                row["loop_id"] in pending_release_rebinds
+                and registry["loops"][row["loop_id"]].get("system_role") == "control"
+                and registry["loops"][row["loop_id"]].get("effect_class") == "none"
+                and row.get("admission_effect_unknown") is False
+            ))
         if max_owners is not None:
             extra = [row for row in eligible if auto_disk_cleanup
                      and row["loop_id"] == "life-manager-disk-cleanup"]
