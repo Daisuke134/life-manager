@@ -40,7 +40,7 @@ To-Beは各agentがobserve→decide→act→official verify→persist→自分�
 
 **不変条件:** iOS Simulator runtime/image/device/data/dyld、memory/state、credentials、browser identity、参照release、active/dirty/unmerged/leased/locked worktree、open/unknown dataを削除しない。各agentは自分が生成し所有する非authoritative scratchだけを片付け、中央cleanupは残ったclosed/orphaned artifactと証明済みの不要物を回収する。他agentの作業や正式receiptを消さない。effect_unknownはexact official receipt/pre-effect proofまで解除・再送しない。内部の余白・時間・byte予算は安全な制御に使い、空き容量の固定値を事業再開の条件にしない。
 
-**現在cursor:** →「基盤だけのatomic TODO」のBF06。旧cleanup残3大分類は親分類として参照し、実行/報告はBF-ID単位で進める。
+**現在cursor:** →「基盤だけのatomic TODO」のBF08。旧cleanup残3大分類は親分類として参照し、実行/報告はBF-ID単位で進める。
 
 **引き継ぎ/診断証拠:** worktree HEAD `a6e03757`の4ファイル497行差分を`ea1784b0ec`で保持してpushし、最新main `3baccdbd`を`00b5d4ff5d`でmerge/push。leaseは既存owner `codex-root`でheartbeatを更新、直列lsof再確認でworktree下open handleなし。既存temp/worktree focused testは2 PASS。agmsg統括identityは`lm/codex-resource-orchestrator-1009`、既存cleanup担当へ重複書込抑制と状態照会を送信。自然receiptの成功/失敗が交互に現れ、失敗時の正確な親errorは`host_cleanup_identity_mismatch`。`disk_cleanup.py::main`のbusy lock出力はexit75だがidentityを含まず、`central_cleanup.host_cleanup_readback`の同-occurrence検査が失敗に変換する。REDはbusy出力identity欠落と親exit1を再現し、最小修正後の関連4 testsはGREEN。修正契約は、busy出力にもimmutable manifest由来の同run identityを載せ、親はそのidentityを検証した正確なbusyだけをeffect0のexit75延期として維持し、他のidentity mismatchはexit1のまま拒否する。旧ENOSPC修復とは区別し、容量不足時の既存reserve/cursor testsも再確認する。
 
@@ -219,9 +219,9 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 
 当面の対象はこの表だけ。下の全社130工程は将来の参照ロードマップであり、いま全社工程へ拡大しない。既存の「cleanup残3大分類」は本表の親分類で、進捗報告はBF-ID単位で完了証拠を示す。毎分watchdog、共通bounded出力/代表自己cleanup、Gig閉鎖物回収/再開、予約expiry順序、scratch通常file誤判定、backup失敗伝播と自然保存/対象claim返却は確認済みで、残項目へ戻さない。
 
-14個の受入atom中BF01/02/03/04/05は完了、残り9。残件は故障確定数ではない。診断で既適用/修正不要と証明した項目はN/Aで閉じ、新しい根本原因は別IDで追加し、黙って同じ大分類へ戻さない。BF09は未知effectのblind解除ではなく照合/復旧routeの稼働確認。個別商品の認証/外部審査/売上目標は基盤完了と分ける。
+14個の受入atom中BF01/02/03/04/05/06/07は完了、残り7。残件は故障確定数ではない。診断で既適用/修正不要と証明した項目はN/Aで閉じ、新しい根本原因は別IDで追加し、黙って同じ大分類へ戻さない。BF09は未知effectのblind解除ではなく照合/復旧routeの稼働確認。個別商品の認証/外部審査/売上目標は基盤完了と分ける。
 
-残り初回作業枠合計165–410分＋必要なCI/自然run/公式照合待ち。作業枠は所要時間保証ではなく、上限までに結果/残る理由/次手を報告する管理値。初回着手で時間枠を超える時は再見積もりを記録し、必要な安全作業を継続する。9時間で全外部条件/全18成果を保証しない。各IDに開始/終了時刻・実測分・証拠・残差を追記し、30分以下の節目で閉じたIDを報告する。現在cursor=BF06。
+残り初回作業枠合計165–410分＋必要なCI/自然run/公式照合待ち。作業枠は所要時間保証ではなく、上限までに結果/残る理由/次手を報告する管理値。初回着手で時間枠を超える時は再見積もりを記録し、必要な安全作業を継続する。9時間で全外部条件/全18成果を保証しない。各IDに開始/終了時刻・実測分・証拠・残差を追記し、30分以下の節目で閉じたIDを報告する。現在cursor=BF08。
 
 | ID | 状態 | 一つの完了対象 | 初回作業枠（分） | 完了を示す証拠 |
 |---|---|---|---|---|
@@ -230,9 +230,9 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 | BF03 | 完了 | 18 familyの旧releaseと共通修正未採用を、停止/保留理由付き一覧にする | 実測約5分 | 190jobのloaded argv＋共通11filesをread-only比較。一致31/idle差分候補38/読取時running35/unknown個別判断81/absent5。証拠BF03-release-adoption-matrix-20261011.json |
 | BF04 | 完了 | 実際に動く一producerの実行中RAM・disk増加・書込先を同windowでjoinする | 実測約10分 | LINE自然run 18dd758339884190-32509/start 11:17:12Z/loaded e8d30a84。同windowの連続process-tree RSS・file allocation・free bytes・変更pathをBF04-producer-window-20261011.jsonへ保存。最大は観測window内のみ、全run peakではない |
 | BF05 | 完了（診断経路は既適用） | BF04の診断stdout/stderrの保存上限経路を閉じる | 既存5 tests 0.45秒＋loaded source確認 | 32 MiB burstの有限保存・ENOSPC sinkでもwriter pipe保持・policy 3 tests PASS。BF05-diagnostic-retention-20261011.json。生成物/scratch lifecycleはBF06で継続、商品保存全体の無期限保証は含まない |
-| BF06 | 現在cursor | BF04の終了後に残る不要scratchを、一生成経路ずつ閉じる | 15–45 | receipt保持/自分のscratch不在、又は修正不要の根拠 |
-| BF07 | 未完 | 中央cleanupの具体的取り残し一件を、安全な既存条件で閉じる | 15–45 | closed/UID/open/lease/保護判定と自然回収。保護dataを候補にしない |
-| BF08 | 未完 | 実pending owner一件の停止境界をclaim/予約/clockとjoinし、正当なstaleを既存経路で回復する | 20–45 | 同ownerの再eligible/返却、foreign/unknown保持 |
+| BF06 | 完了（既存自己掃除が自然稼働） | BF04の終了後に残る不要scratchを、一生成経路ずつ閉じる | 12:12–12:21Z、同run自然終了を確認 | 18dd758339884190-32509が12:20:27Z pass/exit0、own scratch全体不在、生成画像/正式記録保持。sequence605668はreleased/effect_unknown0、予約/queue0。BF06-observed-run-cleanup/BF06-post-terminal-admission-20261011.json。外部effect_status unknownは成功へ置換しない |
+| BF07 | 完了（既存経路の自然回収） | 中央cleanupの具体的取り残し一件を、安全な既存条件で閉じる | fresh receipt確認 | 自然run 18dd7887be449c38-54441/loaded bb5cd283でgithub-cacheを6415 logical bytes回収。UID501・symlinkなし・allowlist、errors=0/protected_deletions=0。BF07-central-current-readback-20261011.json。小量回収で全容量問題解消を主張しない |
+| BF08 | 現在cursor | 実pending owner一件の停止境界をclaim/予約/clockとjoinし、正当なstaleを既存経路で回復する | 20–45 | 同ownerの再eligible/返却、foreign/unknown保持 |
 | BF09 | 未完 | 止まるowner一件の効果照合/復旧routeを特定し、照合仕事が進むことを確認する | 15–45 | exact occurrence→実claiming run→既存公式readback/typed next_action。domainの全fence閉鎖は含めない |
 | BF10 | 未完 | 資源に余裕があるのに実仕事が止まる配分/fairnessの漏れを一件閉じる | 15–45 | 待ち/処理時間/実RAM/diskのbefore/after。不足未実証なら変更せずN/A |
 | BF11 | 未完 | 必要な共通修正をまとめてCI/main/immutable/idle対象採用へ反映する | 15–30 | exact head/loaded SHA、active/unknownの保持理由。各sourceの既完は再修正しない |
@@ -242,7 +242,9 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 
 **BF04/05の実測とBF06の対象:** `line-sticker-factory-hourly`のentrypoint→`factory.py`→`line_sticker_static.py`→`chatgpt_image_backend.py`→既存ChatGPT CLIを追跡済み。state_rootは`~/.local/state/life-manager/line-sticker`、run scratchは`loop-tmp/line-sticker-factory-hourly/18dd758339884190-32509`。画像生成のprofile snapshotが4個から5個へ増加し、各約244 MiBのfile allocationを持つ。APFS共有ブロックがあり得るので、directory allocationを独立した物理消費と扱わず、同windowのvolume freeと分ける。新規`set-031/candidates`画像・cost記録が増え、runは仕事を進めている。診断stdout/stderrはloaded releaseの`storage_policy.py`/`bounded_output.py`に既存上限が適用される。BF05では診断経路の既適用を確認済み。BF06は既存terminal保存→own scratch削除と試行中profile snapshotの残存を確認する。active profile、原本browser identity、商品素材、cost/receipt JSONLを削除しない。BF04は全host writerの帰属/全run最大/メモリ問題解消を証明しない。
 
-**BF06のfresh境界:** 直近の同LINE factory自然run `18dd7221d8458b68-78549` / `18dd73c2d05e63f0-63663` / `18dd74949cda6a38-87908` は同loaded e8d30a84のterminal exit 0が残り、各scratchは不在。現在計測したrunはまだ実行中のため、その終了後回収を完了と扱わない。6個の旧scratchには`.terminal-unrecorded`が残る（合計約8 KiBのlogical payload）。中央GCはこのmarkerを正しく保護している。うち5個はentrypoint_exit_75・effect_status=unknown、1個はterminal未記録であり、marker/claim/効果を同一runへ照合せず解除しない。BF06は現runのterminal/own cleanup、BF07は旧holdの具体的理由/回収可能性を調べる。
+**BF06のfresh境界:** 直近の同LINE factory自然run `18dd7221d8458b68-78549` / `18dd73c2d05e63f0-63663` / `18dd74949cda6a38-87908` は同loaded e8d30a84のterminal exit 0が残り、各scratchは不在。計測したrunは12:20:27Zに自然終了し、12:21:18Zにown scratch不在・台帳released・素材/記録保持を確認した。6個の旧scratchには`.terminal-unrecorded`が残る（合計約8 KiBのlogical payload）。中央GCはこのmarkerを正しく保護している。うち5個はentrypoint_exit_75・effect_status=unknown、1個はterminal未記録であり、marker/claim/効果を同一runへ照合せず解除しない。BF06の現run terminal/own cleanupは確認済み。旧holdは実claim/公式effectの照合へ残し、BF09で照合routeを追跡する。
+
+**BF07の自然実行による独立確認:** BF06のrun終了を待つ間に既存中央cleanupが自然に行った回収をread-onlyで確認した。順序の変更/新しいcleanupの手動起動はない。`~/.cache/gh`は既存`github-cache` allowlistで、原本credential storeではない。自然receiptでopen/protected対象を保持し、errors=0/protected_deletions=0のまま回収した。旧LINE scratchは別扱いで保持する。5個の元occurrenceはcancelled/unknown=0だが、元IDだけで実claim/効果の有無を確定しない。inventory_gaps=23は全host棚卸し完了とは扱わない。
 
 ### 全体のatomic展開と作業時間枠（大分類3件と全体完了を区別する）
 
