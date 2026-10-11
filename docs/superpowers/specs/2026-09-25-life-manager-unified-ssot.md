@@ -13903,3 +13903,21 @@ Known damage to repair: drafts 2576591785 / 5356015232 (under_review) and 983649
 5. 18 lane×3 distinct daily slots、permalink、durable metrics、Telegram receipt、replay-zeroを確認して54/54を7 JST日連続で積む。slot時刻を待たず独立作業を続ける。
 6. fresh ASC/RevenueCat/Mixpanel cohortsとpost attributionを揃え、Anicca 100 first-time downloads/day（trailing 7-day average）とpaywall/notification問題を測定・改善する。ASO/onboardingは一変数ずつ。
 7. Apple settled proceeds/refunds/feesとactual costsを同期間で照合し、Anicca USD 10,000 verified net MRRを確認してからfactoryへ展開する。
+
+### 無料集客ツールの導入 — 現在の依頼
+
+**目的と範囲:** Daisが提示したViewTrack、Programmatic SEO、Jinba consulting-pptx-skill、iPhone-useを追加支出ゼロで導入し、実際に使える機能と未完条件を確認する。今回は導入・動作確認・利用計画の更新を行う。投稿、アプリ配布、広告、有料契約、既存production loopの変更はこの導入作業に含めない。長期mobile growth goalはDaisの計画見直しで一時停止中。
+
+**完了条件:** ローカルskill/plugin/MCPの登録とreadback、PPTXのローカル生成・機械チェック、SEO skillの参照ファイル整合、ViewTrackの無料プランとMCP接続可否、iPhone-useの環境診断を実測する。接続端末・本人操作・サービス側機能が不足する場合は具体的な不足物を残し、導入と実利用を分ける。追加課金を発生させない。
+
+**既存資産と境界:** 既存SNS計測、Writer、Webサイト、ASC/RevenueCatを再利用する。Programmatic SEOはサービス名でなく手法なので、無料の公開skill `coreyhaines31/marketingskills/skills/programmatic-seo`を導入する。OpenSEOの有料データAPIを無料扱いしない。iPhone-useは実端末確認・実演素材の能力として導入し、対話型Codex pluginの登録をLife Manager runtimeへの統合と混同しない。モデル設定は変更しない。credentialはprivate SSOTだけに保存する。
+
+**導入TODO（この順序）:**
+
+1. [ ] 専用worktreeの本specをcommit/pushして範囲を固定する。
+2. [ ] consulting-pptx-skillとprogrammatic-seoをactive Codex skill storeへ導入し、参照ファイルとローカル生成/checkを確認する。
+3. [ ] iPhone-useの公式install scriptと依存を確認し、plugin/MCPを導入する。匿名analyticsは無効化する。環境診断とUSB実端末のready状態を分けて記録する。
+4. [ ] 登録済みdaily-driverをleaseしてViewTrackの無料account/onboarding、無料枠、MCP条件を確認する。既存accountを優先し、課金・card-required trialは開始しない。
+5. [ ] 実測結果・残条件・AniccaとLife Manager全体への使用方法を本specに記録し、commit/push・main統合後に報告する。
+
+**現在cursor:** item 1。source専用worktreeは`/Users/anicca/Projects/life-manager-main/.worktrees/free-growth-toolkit-20261011`、branchは`ops/free-growth-toolkit-20261011`、ownerは`codex-free-growth-toolkit`。Xcode 26.6を確認。USB iPhoneはdevice inventoryに存在するがavailable=falseで、実端末の操作成功は未確認。ブラウザの先行lease holderはprocess probeで存在しないため、次に通常guard経由で取得する。
