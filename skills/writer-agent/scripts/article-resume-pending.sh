@@ -973,8 +973,10 @@ fi
 # persisted its exact argv/env in the preflighted dispatch manifest. Execute
 # supported deterministic rows once and require a durable target before
 # exiting the publication-free initialization tick.
+# Missing dispatch evidence falls through to the existing same-run recovery agent.
 if [ "$INITIALIZATION_COUNT" -gt 0 ] \
   && [ "$ELIGIBLE_COUNT" -eq 0 ] \
+  && [ -s "$RUN_DIR/gates/platform-dispatch.jsonl" ] \
   && { [ "$FIRST_INITIALIZATION" = "note/ja" ] \
     || { [ "$PUBLICATION_CONTRACT" = "legacy-exact8" ] \
       && [ "$FIRST_INITIALIZATION" = "devto/en" ]; }; }; then

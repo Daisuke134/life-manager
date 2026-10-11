@@ -104,4 +104,32 @@ assert p["status"] == "intent"
 assert p["target"] == "n-test-key"
 PY
 
-echo "PASS: note initialization is one deterministic managed staging call"
+# An interrupted generation can persist publication state before its dispatch
+# manifest. The existing bounded initializer must own recovery in that case.
+python3 - "$RUN_DIR/gates/publication-state.json" <<'PYCASE'
+import json, sys
+p = sys.argv[1]
+s = json.load(open(p))
+s["pairs"].pop("note/ja", None)
+json.dump(s, open(p, "w"))
+PYCASE
+rm "$RUN_DIR/gates/platform-dispatch.jsonl"
+set +e
+ARTICLE_ROOT="$FAKE_ROOT" \
+ARTICLE_STATE_DIR="$STATE_DIR" \
+ARTICLE_LOCAL_DATE="2026-07-29" \
+ARTICLE_OWNER_FENCE_ACTIVE=1 \
+ARTICLE_RESUME_LOG="$TMP/resume.log" \
+ARTICLE_MODEL_RUNNER="$FAKE_ROOT/runtime/model-runner.sh" \
+bash "$FAKE_ROOT/scripts/article-resume-pending.sh"
+missing_rc=$?
+set -e
+test "$missing_rc" -eq 91
+test -e "$TMP/model-was-called"
+test "$(wc -l <"$TMP/calls" | tr -d ' ')" = "1"
+python3 - "$RUN_DIR/gates/publication-state.json" <<'PYCASE'
+import json, sys
+assert "note/ja" not in json.load(open(sys.argv[1]))["pairs"]
+PYCASE
+
+echo "PASS: saved dispatch uses deterministic staging; missing dispatch uses bounded recovery"
