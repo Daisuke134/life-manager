@@ -376,6 +376,9 @@ CLEAN-04 native定期接続のmain/current/自然受入: #7589 exactc847887910ca
 
 CLEAN-04 最新残TODO: 定期圧縮の本番接続は確認済みとして残TODOから外す。現在cursor=残る実増加の生成/回収収支と、native eligibility後の自然回収追跡。6h待ちや新cold発生待ちだけで独立TODOを止めず、具体的な未回収producer/old source adoptionが見つかった場合だけ修復する。次CLEAN-05=未確認ownerの自然terminal/枠返却/次仕事、最後CLEAN-06=同期間の仕事/公式記録/自己掃除/中央掃除/次仕事の反復join。全190追加自然run/新benchmark/固定free KPI/故意のproduction故障を受入gateへ追加しない。全体基盤Doneはまだ未証明。
 
+CLEAN-04/05 browser残留のfresh scope: shared default CDP auditはcontext5/lease4/unknown-owner1。job-search-dailyだけnonparked/holderPID55102不存在/Target about:blank1、他3leaseはparkedで保持。物理contextの空き回収は既存repo-owned cdp_context_lease.gc(idle_min=None,max_reaps=1,priority_task=job-search-daily)のledger lock/snapshot/CAS/dispose単一化を使い、confirmed-deadだけを対象にする。ageだけでaliveを閉じず、default profile/unknown context/parked contexts/vault/credentials/実応募証拠/全effect fencesを保持する。まずこの空contextを回収し、既存context GCの定期callerを確認して、終了後の物理作業空間が残る漏れだけ中央ownerへ接続する。新ブラウザ/別identity/ログイン/SDKserver restart/未知ownerclose/送信・応募0。AgentMail旧occurrence18d6295a6e7b03f0-66172は別claiming run18d62d60b728c2b8-72914のpass unknownがあり、canonical pre-effect dryrun claimed_by_other_runを保持し、枠回収対象としない。現在のresources owner5件は各PID/start一致でactive、強制返却0。
+
+
 
 
 
