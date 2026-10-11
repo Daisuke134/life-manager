@@ -1880,9 +1880,10 @@ def test_article_daily_declares_its_live_url_fence_reconcile():
     import json
     from pathlib import Path
     registry = json.loads((Path(__file__).resolve().parents[3] / "config/loop-registry.json").read_text())
-    rec = registry["loops"]["article-daily"].get("effect_reconcile") or {}
-    assert rec.get("argv") == ["skills/writer-agent/scripts/article_fence_reconcile.py"]
-    assert rec.get("occurrence_flag") == "--occurrence" and rec.get("resolve_flag") == "--resolve"
+    for owner in ("article-daily", "article-resume"):  # article-resume: 2026-09-29 fence, 2026-10-12
+        rec = registry["loops"][owner].get("effect_reconcile") or {}
+        assert rec.get("argv") == ["skills/writer-agent/scripts/article_fence_reconcile.py"]
+        assert rec.get("occurrence_flag") == "--occurrence" and rec.get("resolve_flag") == "--resolve"
 
 
 def test_interval_revenue_agent_loops_that_pile_up_queued_wakes_declare_coalescing():
