@@ -46,9 +46,12 @@ async function recordSlidePackMetrics({
       .map((row) => row.provider_post_id),
   );
   const recorded = [];
+  const pending = [];
   for (const { receipt } of publications) {
     if (alreadyRecorded.has(receipt.provider_post_id)) continue;
     const analytics = await fetchAnalytics(receipt.provider_post_id, env);
+    const score = engagementScore(analytics);
+    if (score === null) { pending.push(receipt.provider_post_id); continue; }
     const row = recordCreativeMetric(dataDir, {
       tenantId,
       productId,
@@ -56,12 +59,12 @@ async function recordSlidePackMetrics({
       locale,
       hookId: receipt.pack_sha256,
       providerPostId: receipt.provider_post_id,
-      score: engagementScore(analytics),
+      score,
       observedAt: now(),
     });
     recorded.push(row);
   }
-  return { recorded };
+  return { recorded, pending };
 }
 
 if (require.main === module) {

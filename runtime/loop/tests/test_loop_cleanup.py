@@ -30,6 +30,63 @@ def completed(root: Path, name: str, size: int = 1) -> Path:
 
 
 class LoopCleanupTest(unittest.TestCase):
+    def test_native_git_duplicate_cleanup_preserves_primary_data_and_replays_zero(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            def git(*args):
+                return subprocess.run(["git", "-C", str(repo), *args],
+                    check=True, capture_output=True, text=True).stdout.strip()
+            git("init", "-q")
+            primary = repo / "state" / "receipt.jsonl"
+            primary.parent.mkdir()
+            primary.write_text("retained primary record\n")
+            git("add", "state/receipt.jsonl")
+            git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid",
+                "commit", "-qm", "primary record")
+            head = git("rev-parse", "HEAD")
+            branch = git("symbolic-ref", "HEAD")
+            git("pack-objects", "--all", str(repo / ".git/objects/pack/pack"))
+            primary.write_text("retained primary record\nactive uncommitted update\n")
+            untracked = repo / "memory"
+            untracked.mkdir()
+            (untracked / "kept.txt").write_text("retained memory\n")
+            dirty = git("status", "--porcelain")
+
+            result = central_cleanup.git_duplicate_cleanup(repo)
+            self.assertEqual(result["errors"], 0)
+            self.assertGreater(result["prune_packable_before"], 0)
+            self.assertEqual(result["prune_packable_after"], 0)
+            self.assertEqual(git("rev-parse", "HEAD"), head)
+            self.assertEqual(git("symbolic-ref", "HEAD"), branch)
+            self.assertEqual(git("show", "HEAD:state/receipt.jsonl"), "retained primary record")
+            self.assertEqual(git("status", "--porcelain"), dirty)
+            self.assertTrue(primary.read_text().endswith("active uncommitted update\n"))
+            self.assertEqual((untracked / "kept.txt").read_text(), "retained memory\n")
+            replay = central_cleanup.git_duplicate_cleanup(repo)
+            self.assertEqual(replay["prune_packable_before"], 0)
+            self.assertEqual(replay["prune_packable_after"], 0)
+
+    def test_native_git_duplicate_cleanup_skips_absent_source_checkout(self):
+        with tempfile.TemporaryDirectory() as directory, \
+             mock.patch.object(central_cleanup.subprocess, "run") as run:
+            result = central_cleanup.git_duplicate_cleanup(Path(directory))
+            self.assertEqual(result["status"], "not_applicable")
+            self.assertEqual(result["errors"], 0)
+            run.assert_not_called()
+
+    def test_native_git_duplicate_cleanup_preserves_unknown_after_timeout(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            (repo / ".git").mkdir()
+            count = subprocess.CompletedProcess([], 0, "prune-packable: 3\n", "")
+            with mock.patch.object(central_cleanup.subprocess, "run", side_effect=(
+                    count, subprocess.TimeoutExpired("git prune-packed", 15))):
+                result = central_cleanup.git_duplicate_cleanup(repo)
+            self.assertEqual(result["errors"], 1)
+            self.assertEqual(result["status"], "failed")
+            self.assertEqual(result["prune_packable_before"], 3)
+            self.assertIsNone(result["prune_packable_after"])
+
     def test_source_reference_scan_skips_unrelated_paths_and_keeps_open_roots(self):
         import ast
         import inspect
@@ -223,6 +280,8 @@ class LoopCleanupTest(unittest.TestCase):
             with self.subTest(gc_result=gc_result), \
                  mock.patch.object(central_cleanup.subprocess, "run", return_value=process), \
                  mock.patch.object(central_cleanup, "cleanup_run_binding", return_value=binding), \
+                 mock.patch.object(central_cleanup, "git_duplicate_cleanup",
+                     return_value={"errors": 0, "status": "not_applicable"}) as git_cleanup, \
                  mock.patch.object(central_cleanup, "release_gc", return_value=gc_result,
                      side_effect=gc_result if isinstance(gc_result, Exception) else None) as gc, \
                  mock.patch.object(central_cleanup, "scratch_gc", return_value={"errors": 0}) as scratch, \
@@ -230,6 +289,7 @@ class LoopCleanupTest(unittest.TestCase):
                  mock.patch("builtins.print") as output:
                 self.assertEqual(central_cleanup.main(), expected_exit)
                 gc.assert_called_once()
+                git_cleanup.assert_called_once()
                 scratch.assert_not_called()
                 result = json.loads(output.call_args.args[0])
                 self.assertEqual(result["reason"], "cleanup_lock_busy")

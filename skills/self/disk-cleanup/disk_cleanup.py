@@ -37,7 +37,7 @@ from runtime.loop.central_cleanup import cleanup_run_binding
 from runtime.loop.health import read_storage_snapshot
 if str(REPOSITORY_ROOT) not in sys.path:
     sys.path.insert(0, str(REPOSITORY_ROOT))
-from runtime.loop.loop_cleanup import _release_immutable_store_probe
+from runtime.loop.loop_cleanup import _release_immutable_store_probe, remove_owned_tree
 
 GiB = 1024**3
 FULL_INVENTORY_INTERVAL_SECONDS = 3600
@@ -1026,6 +1026,7 @@ class HostDiskGovernor:
         deadline: float | None = None,
         allow_generated_symlinks: bool = False,
         allow_worktree_sources: bool = False,
+        dependency_packages: frozenset[Path] | None = None,
     ) -> str | None:
         errors: list[OSError] = []
         for root, directories, files in os.walk(
@@ -1041,10 +1042,37 @@ class HostDiskGovernor:
                     return "probe-budget-exhausted"
                 descendant = Path(root) / name
                 try:
+                    if dependency_packages is not None:
+                        parts = tuple(part.lower() for part in descendant.parts)
+                        if (descendant.lstat().st_uid != os.getuid()
+                                or set(parts).intersection({".git", ".claude", ".codex", ".cloak", "memory", "anicca-rtdash", "anicca-monk-factory", ".anicca-keep", ".lm-protected"})
+                                or any(parts[index:index + 2] in {(".config", "ai"), (".openclaw", "identity"), (".openclaw", "state"), (".openclaw", "workspace")} for index in range(len(parts) - 1))
+                                or (descendant.parent.name == "state" and descendant.suffix == ".jsonl")):
+                            return "protected_descendant"
                     if descendant.is_symlink():
                         if allow_generated_symlinks:
+                            if dependency_packages is not None:
+                                if descendant.parent != path / ".bin":
+                                    return "protected_descendant"
+                                try:
+                                    target = descendant.resolve(strict=True)
+                                    target.relative_to(path)
+                                    if not target.is_file() or not any(target.is_relative_to(package) for package in dependency_packages):
+                                        return "protected_descendant"
+                                except (OSError, ValueError, RuntimeError):
+                                    return "protected_descendant"
                             continue
                         return "protected_descendant"
+                    if dependency_packages is not None:
+                        if descendant.name == ".env" or descendant.name.startswith(".env."):
+                            return "protected_descendant"
+                        if descendant in dependency_packages or descendant.suffix.lower() in SOURCE_SUFFIXES:
+                            continue
+                        if (any(token in descendant.name.lower() for token in ("wallet", "effect_unknown"))
+                                or (descendant.is_file() and "identity" in descendant.name.lower())):
+                            return "protected_descendant"
+                        if descendant.is_dir() and "auth" in descendant.name.lower():
+                            continue
                     if allow_worktree_sources and (
                         descendant.name == ".env" or descendant.name.startswith(".env.")
                         or any(token in descendant.name.lower()
@@ -1069,6 +1097,7 @@ class HostDiskGovernor:
         *,
         records: list[dict[str, str | bool]] | None = None,
         deadline: float | None = None,
+        dependency_cache: bool = False,
     ) -> tuple[object, ...] | None:
         """Prove one clean, unleased checkout is a redundant registered worktree."""
         if deadline is not None and self.clock() >= deadline:
@@ -1158,14 +1187,15 @@ class HostDiskGovernor:
             "status",
             "--porcelain=v1",
             "--untracked-files=all",
-            "--ignored=matching",
+            "--ignored=no" if dependency_cache else "--ignored=matching",
         )
         if status is None or status.stdout:
             return None
-        if _release_immutable_store_probe(path, deadline=deadline, clock=self.clock) is not None:
-            return None
-        if self._protected_descendant(path, deadline=deadline, allow_worktree_sources=True) is not None:
-            return None
+        if not dependency_cache:
+            if _release_immutable_store_probe(path, deadline=deadline, clock=self.clock) is not None:
+                return None
+            if self._protected_descendant(path, deadline=deadline, allow_worktree_sources=True) is not None:
+                return None
         fresh_main = _run_git(repository, "ls-remote", "--exit-code", "origin", "refs/heads/main")
         if fresh_main is None or fresh_main.stdout.split() != [remote_head, "refs/heads/main"]:
             return None
@@ -1180,10 +1210,88 @@ class HostDiskGovernor:
             remote_head,
         )
 
+    def _worktree_dependency_identity(
+        self, path: Path, *, records: list[dict[str, str | bool]] | None = None,
+        deadline: float | None = None,
+    ) -> tuple[object, ...] | None:
+        """Prove only one old npm-ci cache, preserving ignored checkout evidence."""
+        try:
+            relative = path.relative_to(self.home / WORKTREE_REPOSITORY_RELATIVE / ".worktrees")
+        except ValueError:
+            return None
+        if len(relative.parts) != 4 or relative.parts[1:] != ("apps", "life-manager", "node_modules"):
+            return None
+        worktree = path.parents[2]
+        parent_identity = _real_directory_fingerprint(self.home, path.parent)
+        cache_identity = _real_directory_fingerprint(self.home, path)
+        if (parent_identity is None or cache_identity is None
+                or not _old_real_temporary_path(worktree) or not _old_real_temporary_path(path)):
+            return None
+        checkout = self._worktree_identity(
+            worktree, records=records, deadline=deadline, dependency_cache=True,
+        )
+        committed = _run_git(worktree, "show", "HEAD:apps/life-manager/package-lock.json")
+        if checkout is None or committed is None:
+            return None
+        locks = []
+        identities = []
+        def lock_identity(info: os.stat_result) -> tuple[int, ...]:
+            return (info.st_dev, info.st_ino, info.st_mode, info.st_uid,
+                    info.st_nlink, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
+        try:
+            for lock in (path.parent / "package-lock.json", path / ".package-lock.json"):
+                info = lock.lstat()
+                if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
+                        or info.st_nlink != 1 or info.st_size > 2 * 1024 * 1024):
+                    return None
+                data = lock.read_bytes()
+                if lock_identity(lock.lstat()) != lock_identity(info):
+                    return None
+                locks.append(json.loads(data))
+                identities.append((lock_identity(info), hashlib.sha256(data).hexdigest()))
+            if locks[0] != json.loads(committed.stdout):
+                return None
+            if any(not isinstance(lock, dict) or lock.get("lockfileVersion") != 3 for lock in locks):
+                return None
+            expected = locks[0].get("packages")
+            installed = locks[1].get("packages")
+            if not isinstance(expected, dict) or not isinstance(installed, dict) or not installed:
+                return None
+            if set(expected) - {""} != set(installed):
+                return None
+            package_paths = set()
+            for name, package in installed.items():
+                if (not isinstance(name, str) or not name.startswith("node_modules/")
+                        or any(part in {".", ".."} for part in name.split("/"))
+                        or not isinstance(package, dict) or not isinstance(expected[name], dict)):
+                    return None
+                for field in ("version", "resolved", "integrity"):
+                    if not isinstance(package.get(field), str) or not package[field] or package[field] != expected[name].get(field):
+                        return None
+                package_path = path / name.removeprefix("node_modules/")
+                if _real_directory_fingerprint(path, package_path) is None:
+                    return None
+                package_paths.add(package_path)
+        except (OSError, ValueError, TypeError):
+            return None
+        if _release_immutable_store_probe(path, deadline=deadline, clock=self.clock) is not None:
+            return None
+        if self._protected_descendant(
+            path, deadline=deadline, allow_generated_symlinks=True,
+            allow_worktree_sources=True, dependency_packages=frozenset(package_paths),
+        ) is not None:
+            return None
+        if deadline is not None and self.clock() >= deadline:
+            return None
+        return checkout, parent_identity, cache_identity, tuple(identities)
+
     def _allowlisted_candidate(self, path: Path, item: dict) -> bool:
         """Require discovery proof and an exact regenerable path family."""
         if item.get("discovery") != "allowlisted":
             return False
+        if item.get("class") == "regenerable_output" and item.get("owner") == "worktree-dependencies":
+            proof = item.get("dependency_identity")
+            return isinstance(proof, tuple) and self._worktree_dependency_identity(path) == proof
         if item.get("class") == "regenerable_output" and item.get("owner") == "clang-module-cache":
             cache = _darwin_clang_cache(self.home)
             proof = item.get("clang_identity")
@@ -1636,7 +1744,7 @@ class HostDiskGovernor:
             # safe to drop is that nothing references it, checked during discovery.
             whole_tree_is_the_unit = item.get("owner") in {
                 "browser", "codex-app-updater", "codex-runtime-cache", "whisper-model-cache",
-                "release-retention", "zombie-worktree", "clang-module-cache",
+                "release-retention", "zombie-worktree", "clang-module-cache", "worktree-dependencies",
             } | set(EXACT_CACHE_ROOTS)
             descendant_state = None if whole_tree_is_the_unit else self._protected_descendant(
                 path, deadline=deadline,
@@ -1757,6 +1865,39 @@ class HostDiskGovernor:
                     )
                     if removed.returncode != 0 or removed.stderr.strip():
                         raise OSError(errno.EIO, "ordinary git worktree remove failed")
+                elif item.get("owner") == "worktree-dependencies":
+                    identity = item["dependency_identity"]
+                    if self._worktree_dependency_identity(path, deadline=deadline) != identity:
+                        preserve("path_identity_changed")
+                        continue
+                    if self.lsof is _default_lsof:
+                        _open_paths.cache_clear()
+                    states = (self.lsof(path.parents[2]), self.lsof(path))
+                    if any(state != "confirmed-closed" for state in states):
+                        state = next(state for state in states if state != "confirmed-closed")
+                        result["errors"] += state == "probe-error"
+                        preserve(state)
+                        continue
+                    if self._worktree_dependency_identity(path, deadline=deadline) != identity:
+                        preserve("path_identity_changed")
+                        continue
+                    if deadline is not None and self.clock() + POST_SWEEP_RESERVE_SECONDS >= deadline:
+                        preserve("probe-budget-exhausted")
+                        continue
+                    parent_fd = self._open_real_directory(path.parent)
+                    try:
+                        cache_fd = self._open_real_directory(path)
+                        try:
+                            parent = os.fstat(parent_fd)
+                            cache = os.fstat(cache_fd)
+                            if ((parent.st_dev, parent.st_ino, parent.st_mode) != identity[1]
+                                    or (cache.st_dev, cache.st_ino, cache.st_mode) != identity[2]
+                                    or not remove_owned_tree(parent_fd, cache_fd, path.name)):
+                                raise OSError(errno.ESTALE, "dependency candidate identity changed")
+                        finally:
+                            os.close(cache_fd)
+                    finally:
+                        os.close(parent_fd)
                 elif path.is_dir():
                     self._remove_tree(path)
                 else:
@@ -1936,6 +2077,17 @@ class HostDiskGovernor:
                         "discovery": "allowlisted",
                         "worktree_identity": proof,
                     })
+                else:
+                    dependencies = path / "apps/life-manager/node_modules"
+                    dependency_proof = self._worktree_dependency_identity(
+                        dependencies, records=records, deadline=deadline,
+                    )
+                    if dependency_proof is not None:
+                        candidates.append({
+                            "path": dependencies, "class": "regenerable_output",
+                            "owner": "worktree-dependencies", "discovery": "allowlisted",
+                            "dependency_identity": dependency_proof,
+                        })
         for collection_name in (
             "com.google.Chrome.code_sign_clone",
             "org.chromium.Chromium.code_sign_clone",

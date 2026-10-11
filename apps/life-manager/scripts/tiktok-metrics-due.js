@@ -5,8 +5,9 @@ const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 const { resolveDataRoot } = require("../lib/runtime-paths.js");
+const { verifyMarketingNativeCarouselPublicationReceipt } = require("../lib/marketing-native-carousel-publication-adapter.js");
 const { persistDailyDigest, sendMetricSnapshot } = require("./instagram-metrics-read.js");
-const { collectPostizPhotoWindow, collectTikTokWindow } = require("./tiktok-native-metrics-read.js");
+const { collectPostizPhotoWindow, collectTikTokWindow, postizPhotoPermalink } = require("./tiktok-native-metrics-read.js");
 const { persistAniccaDaily, persistAttributionCoverage, persistHonneDaily, persistWeeklyReview, sendSummary } = require("./marketing-product-summary.js");
 const { persistAscAcquisition } = require("./marketing-asc-acquisition.js");
 const { persistRevenueCatSubscriptions } = require("./marketing-revenuecat-subscriptions.js");
@@ -52,15 +53,71 @@ function discoverTarget(dataDir, target) {
   });
 }
 
+function discoverNativeCarouselTargets(dataDir, nowMs = null) {
+  const file = path.join(dataDir, "tenants", "dais-local", "marketing", "native-carousel-publication", "anicca-ios", "distribution.jsonl");
+  if (!fs.existsSync(file)) return [];
+  return fs.readFileSync(file, "utf8").split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line))
+    .flatMap((row) => {
+      const receipt = row && row.receipt;
+      if (!receipt || receipt.kind !== "marketing_native_carousel_distribution" || receipt.platform !== "tiktok") return [];
+      const publishedMs = Date.parse(String(receipt.published_at || ""));
+      const retainedWindowMs = WINDOWS["7d"] + GRACE_MS;
+      if (Number.isFinite(nowMs) && Number.isFinite(publishedMs) && nowMs - publishedMs > retainedWindowMs) return [];
+      if (!verifyMarketingNativeCarouselPublicationReceipt(receipt)) throw new Error("TikTok native carousel receipt invalid");
+      const integration = /^integration:\/\/postiz\/tiktok\/([A-Za-z0-9._:-]+)$/.exec(String(receipt.integration_ref || ""));
+      if (!integration) throw new Error("TikTok native carousel integration identity invalid");
+      const captionPath = path.join(dataDir, "objects", "sha256", receipt.caption_sha256);
+      const captionStat = fs.lstatSync(captionPath, { throwIfNoEntry: false });
+      if (!captionStat?.isFile() || (captionStat.mode & 0o077) !== 0) throw new Error("TikTok native carousel caption object invalid");
+      const captionBytes = fs.readFileSync(captionPath);
+      if (crypto.createHash("sha256").update(captionBytes).digest("hex") !== receipt.caption_sha256) throw new Error("TikTok native carousel caption object integrity mismatch");
+      const photoOnly = receipt.public_url == null;
+      const direct = /^https:\/\/www\.tiktok\.com\/@([^/]+)\/video\/(\d+)\/?$/.exec(String(receipt.public_url || ""));
+      if (!photoOnly && (!direct || `@${direct[1]}` !== receipt.account_id)) throw new Error("TikTok native carousel public URL identity invalid");
+      const providerPostId = receipt.provider_post_id;
+      return [Object.freeze({
+        tenant_id: "dais-local",
+        product_id: receipt.product_id,
+        locale: receipt.locale,
+        account_id: receipt.account_id,
+        native_owner: receipt.account_id.replace(/^@/, ""),
+        integration_id: integration[1],
+        provider_post_id: providerPostId,
+        shortcode: photoOnly ? providerPostId : direct[2],
+        video_id: photoOnly ? providerPostId : direct[2],
+        public_url: photoOnly ? "unavailable" : receipt.public_url,
+        caption: captionBytes.toString("utf8"),
+        published_at: receipt.published_at,
+        ...(photoOnly ? { postiz_photo_only: true } : {}),
+      })];
+    });
+}
+
 function discoverJp4(dataDir) { return discoverTarget(dataDir, TARGETS[0]); }
-function discoverTargets(dataDir) { return TARGETS.flatMap((target) => discoverTarget(dataDir, target)); }
+function discoverTargets(dataDir, nowMs = null) {
+  const candidates = TARGETS.flatMap((target) => discoverTarget(dataDir, target))
+    .concat(discoverNativeCarouselTargets(dataDir, nowMs));
+  const discovered = new Map();
+  for (const row of candidates) {
+    const key = `${row.integration_id}:${row.provider_post_id}`;
+    const existing = discovered.get(key);
+    if (!existing) {
+      discovered.set(key, row);
+      continue;
+    }
+    for (const field of ["product_id", "locale", "account_id", "native_owner", "public_url", "published_at", "caption"]) {
+      if (existing[field] !== row[field]) throw new Error("TikTok metric publication identity conflict");
+    }
+  }
+  return [...discovered.values()];
+}
 
 function snapshotFile(dataDir, expected, window) { return path.join(dataDir, "tenants", expected.tenant_id, "marketing", "metrics", expected.native_owner, expected.shortcode, `${window}.combined.json`); }
 
 function delayed(dataDir, expected, window, observedAt) {
   const unavailable = { status: "unavailable", value: null, reason: "source_delayed" };
   const post = Object.fromEntries(["views", "likes", "comments", "shares", "saves", "reach", "watch_time", "completion", "engagement"].map((key) => [key, { ...unavailable }]));
-  const snapshot = { schema_version: 1, kind: "tiktok_combined_metric_snapshot", ...expected, window, observed_at: observedAt,
+  const snapshot = { schema_version: 1, kind: expected.postiz_photo_only ? "tiktok_postiz_photo_metric_snapshot" : "tiktok_combined_metric_snapshot", ...expected, window, observed_at: observedAt,
     caption_sha256: crypto.createHash("sha256").update(expected.caption).digest("hex"), sources: { tiktok_native: { status: "unavailable", reason: "source_delayed", identity_verified: true }, postiz_post: { status: "unavailable", reason: "source_delayed" }, postiz_account: { status: "unavailable", reason: "source_delayed" } }, post, account_metrics: { status: "unavailable", reason: "source_delayed" } };
   const file = snapshotFile(dataDir, expected, window); fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
   if (fs.existsSync(file)) return { created: false, file, snapshot: JSON.parse(fs.readFileSync(file, "utf8")) };
@@ -69,7 +126,7 @@ function delayed(dataDir, expected, window, observedAt) {
 }
 
 async function runDue(nowMs = Date.now(), env = process.env, provided = null) {
-  const dataDir = resolveDataRoot(env); const results = []; const expecteds = provided || discoverTargets(dataDir);
+  const dataDir = resolveDataRoot(env); const results = []; const expecteds = provided || discoverTargets(dataDir, nowMs);
   const reportParts = Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date(nowMs)).map(({ type, value }) => [type, value])); const reportDay = `${reportParts.year}-${reportParts.month}-${reportParts.day}`;
   if (Number(reportParts.hour) >= 22 && !provided) { const asc = await persistAscAcquisition(dataDir, reportDay); results.push({ product_id: "mobile-marketing", window: "asc-daily", state: asc.created ? "measured" : "complete", snapshot_ref: asc.snapshot_ref }); const revenuecat = persistRevenueCatSubscriptions(dataDir, reportDay, new Date(nowMs).toISOString()); results.push({ product_id: "mobile-marketing", window: "revenuecat-daily", state: revenuecat.created ? "observed" : "complete", snapshot_ref: revenuecat.snapshot_ref }); const coverage = persistAttributionCoverage(dataDir, reportDay, new Date(nowMs).toISOString()); results.push({ product_id: "mobile-marketing", window: "attribution-daily", state: coverage.created ? "reported" : "complete", telegram: await sendSummary(coverage, env, dataDir), snapshot_ref: coverage.snapshot.snapshot_ref }); const weekly = persistWeeklyReview(dataDir, reportDay, new Date(nowMs).toISOString()); results.push({ product_id: "mobile-marketing", window: "weekly-product", state: weekly.created ? "reported" : "complete", telegram: await sendSummary(weekly, env, dataDir) }); }
   for (const expected of expecteds) {
@@ -78,13 +135,26 @@ async function runDue(nowMs = Date.now(), env = process.env, provided = null) {
       if (fs.existsSync(existingFile)) { const snapshot = JSON.parse(fs.readFileSync(existingFile, "utf8")); results.push({ video_id: expected.video_id, window, state: "complete", telegram: await sendMetricSnapshot({ created: true, file: existingFile, snapshot }, env, dataDir) }); continue; }
       const dueMs = Date.parse(expected.published_at) + delay;
       if (nowMs < dueMs) { results.push({ video_id: expected.video_id, window, state: "pending", due_at: new Date(dueMs).toISOString() }); continue; }
-      if (nowMs > dueMs + GRACE_MS) { const snapshot = delayed(dataDir, expected, window, new Date(nowMs).toISOString()); results.push({ video_id: expected.video_id, window, state: "source_delayed", telegram: await sendMetricSnapshot(snapshot, env, dataDir) }); continue; }
+      if (nowMs > dueMs + GRACE_MS) {
+        const observedAt = new Date(nowMs).toISOString();
+        const delayedExpected = expected.postiz_photo_only ? {
+          ...expected,
+          public_url: await postizPhotoPermalink({ integrationId: expected.integration_id, providerPostId: expected.provider_post_id, publishedAt: expected.published_at }, env, observedAt),
+        } : expected;
+        const snapshot = delayed(dataDir, delayedExpected, window, observedAt);
+        results.push({ video_id: expected.video_id, window, state: "source_delayed", telegram: await sendMetricSnapshot(snapshot, env, dataDir) });
+        continue;
+      }
       const input = { tenantId: expected.tenant_id, productId: expected.product_id, locale: expected.locale, account: expected.account_id, integrationId: expected.integration_id, providerPostId: expected.provider_post_id, videoId: expected.video_id, publicUrl: expected.public_url, caption: expected.caption, window, publishedAt: expected.published_at };
       // One deleted/unavailable post ("item doesn't exist", live 2026-09-30) used to throw and stop every other
       // account's metrics since 9/27. Record it like the source_delayed branch above and keep going.
       let observation;
       try { observation = await (expected.postiz_photo_only ? collectPostizPhotoWindow : collectTikTokWindow)(input, env, new Date(nowMs).toISOString()); }
       catch (error) { results.push({ video_id: expected.video_id, window, state: "source_unavailable", error: String(error.message || error).slice(0, 200) }); continue; }
+      if (observation?.deferred === true) {
+        results.push({ video_id: expected.video_id, window, state: "pending", reason: observation.reason || "source_delayed" });
+        continue;
+      }
       results.push({ video_id: expected.video_id, window, state: "measured", telegram: await sendMetricSnapshot(observation, env, dataDir) });
     }
     const parts = Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date(nowMs)).map(({ type, value }) => [type, value])); const reportDay = `${parts.year}-${parts.month}-${parts.day}`;
@@ -98,4 +168,4 @@ async function runDue(nowMs = Date.now(), env = process.env, provided = null) {
 }
 
 if (require.main === module) runDue().then((result) => process.stdout.write(`${JSON.stringify(result)}\n`)).catch((error) => { process.stderr.write(`${error.message}\n`); process.exitCode = 1; });
-module.exports = { GRACE_MS, TARGETS, WINDOWS, delayed, discoverJp4, discoverTarget, discoverTargets, runDue, snapshotFile };
+module.exports = { GRACE_MS, TARGETS, WINDOWS, delayed, discoverJp4, discoverNativeCarouselTargets, discoverTarget, discoverTargets, runDue, snapshotFile };

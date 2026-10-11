@@ -10,6 +10,7 @@ const test = require("node:test");
 
 const { importContentObject } = require("../lib/content-object-store.js");
 const { JA_LANE, JA_MAIN_TIKTOK_LANE, EN_AFFIRMATION_LANE, EN_SLIDESHOW_TIKTOK_LANE, JA_BUDDHA_TIKTOK_LANE } = require("../lib/marketing-native-carousel-publication-adapter.js");
+const { EN_SLIDESHOW_PRODUCTION_SLOTS } = require("./anicca-larry-ja-canary.js");
 const {
   MIN_DAYS_BETWEEN_REPEAT,
   MIN_POOL_SIZE,
@@ -137,7 +138,7 @@ test("resolveLarryJaSlot catches up the oldest unposted slot after later slots a
   assert.ok(result.selected);
 });
 
-test("resolveLarryJaSlot advances to the next configured future slot when today's due slots are already published", async (t) => {
+test("resolveLarryJaSlot does not consume future daily slots before their configured times", async (t) => {
   const dataDir = tempDataDir(t);
   const env = { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT };
   const lane = JA_MAIN_TIKTOK_LANE;
@@ -164,19 +165,29 @@ test("resolveLarryJaSlot advances to the next configured future slot when today'
   ]);
   const stored = seedPersistedSlidePool(dataDir, lane);
   let generateCalls = 0;
-  const result = await resolveLarryJaSlot({
+  await assert.rejects(resolveLarryJaSlot({
     env,
     now: () => "2026-10-10T08:55:00.000Z", // 17:55 JST: third configured slot is still ahead.
     lane,
     productionSlots: slots,
     generateCandidates: async () => {
       generateCalls += 1;
-      throw new Error("catch-up must reuse the durable pack pool");
+      throw new Error("future slot must not be published early");
+    },
+  }), (error) => error && error.code === "NO_DUE_SLOT");
+  assert.equal(generateCalls, 0);
+  const result = await resolveLarryJaSlot({
+    env,
+    now: () => "2026-10-10T13:37:00.000Z", // 22:37 JST: the last configured slot is now due.
+    lane,
+    productionSlots: slots,
+    generateCandidates: async () => {
+      generateCalls += 1;
+      throw new Error("due slot should reuse the durable pack pool");
     },
   });
-
   assert.equal(result.slot, slot22);
-  assert.equal(result.catchUp, true);
+  assert.equal(result.catchUp, undefined);
   assert.ok(stored.some((candidate) => candidate.packRef === result.selected.packRef));
   assert.equal(generateCalls, 0);
 });
@@ -222,7 +233,7 @@ test("resolveLarryJaSlot does not regenerate once the pool already has enough ca
   await resolveLarryJaSlot({ env, now: () => NOW, slot: "2026-09-28T01:30:00.000Z", resolveBackground: fakeResolveBackground() });
   const pool = poolPath(dataDir, TENANT, JA_LANE.productId, JA_LANE.lane);
   const before = fs.readFileSync(pool, "utf8");
-  await resolveLarryJaSlot({ env, now: () => NOW, slot: "2026-09-28T07:30:00.000Z", resolveBackground: fakeResolveBackground() });
+  await resolveLarryJaSlot({ env, now: () => "2026-09-28T07:30:00.000Z", slot: "2026-09-28T07:30:00.000Z", resolveBackground: fakeResolveBackground() });
   const after = fs.readFileSync(pool, "utf8");
   assert.equal(before, after, "pool should not grow once above MIN_POOL_SIZE");
 });
@@ -290,8 +301,8 @@ test("resolveLarryJaSlot skips content rotation when this integration already pu
 test("resolveLarryJaSlot rechecks the slot after generation finishes", async (t) => {
   const dataDir = tempDataDir(t);
   const env = { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT };
-  const slot = "2026-09-28T01:30:00.000Z";
-  const slotHash = "604a92d13641f0953e91b185a3b3a72c2c8dad510877a892a99b6b09b03d3611";
+  const slot = "2026-09-28T00:00:00.000Z";
+  const slotHash = crypto.createHash("sha256").update(slot).digest("hex");
   const generated = { packRef: `object://sha256/${"e".repeat(64)}`, familyId: "fresh" };
   const result = await resolveLarryJaSlot({
     env,
@@ -387,11 +398,12 @@ test("resolveLarryJaSlot generates a fresh, English, TikTok-shaped pool for a no
   const dataDir = tempDataDir(t);
   const env = { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT };
   const { slot, selected } = await resolveLarryJaSlot({
-    env, now: () => NOW, slot: "2026-09-28T09:00:00.000Z",
+    env, now: () => "2026-09-28T00:05:00.000Z", slot: "2026-09-28T00:00:00.000Z",
     lane: EN_SLIDESHOW_TIKTOK_LANE,
+    productionSlots: EN_SLIDESHOW_PRODUCTION_SLOTS,
     resolveBackground: fakeResolveBackground(),
   });
-  assert.equal(slot, "2026-09-28T09:00:00.000Z");
+  assert.equal(slot, "2026-09-28T00:00:00.000Z");
   assert.match(selected.packRef, /^object:\/\/sha256\/[0-9a-f]{64}$/);
 
   const jaPool = poolPath(dataDir, TENANT, JA_LANE.productId, JA_LANE.lane);

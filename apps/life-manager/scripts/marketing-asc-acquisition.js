@@ -16,6 +16,10 @@ const PRODUCTS = Object.freeze([
     Object.freeze({ report_id: "r15-04c74879-547f-4e35-b231-1fafd485801d", report_name: "App Store Discovery and Engagement Detailed", instance_id: "f6ea9447-20e5-4910-9378-eb18c9ba4ec3", processing_date: "2026-08-21", segments: Object.freeze(["da95c273-a951-46d4-ae13-3bd2b32efe06"]) }),
   ]) }),
   Object.freeze({ product_id: "honne-ai", app_id: "6759667221", app_name: "Honne", request_id: "c7c05836-181e-49cc-ae71-b57b7a0b466e", bootstrap_day: "2026-08-23", campaign_token: "honne_en_base_20260823" }),
+  Object.freeze({ product_id: "breath-reset", app_id: "6760253231", app_name: "BreathCalm Test", request_id: "9e3cdeeb-1b36-4ad8-b84e-b6a1ab58a443" }),
+  Object.freeze({ product_id: "sleep-ritual", app_id: "6759916261", app_name: "SleepRitual", request_id: "d48b40a7-fd84-4ec7-a448-317c376457e0" }),
+  Object.freeze({ product_id: "desk-stretch-timer", app_id: "6760048397", app_name: "Desk Stretch Timer", request_id: "0ffe9de3-7072-4dbc-9d49-afe1a70534b3" }),
+  Object.freeze({ product_id: "micro-mood", app_id: "6759877003", app_name: "Micro-Mood", request_id: "4e9b2fc8-6abb-4c6a-b58d-878f7a55e7e7" }),
 ]);
 const ASC_ENV = Object.freeze({ ...process.env, ASC_BYPASS_KEYCHAIN: "true", ASC_TIMEOUT: "90s" });
 

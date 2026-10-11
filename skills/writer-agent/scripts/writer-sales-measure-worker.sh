@@ -44,12 +44,21 @@ trap release_lock EXIT
   exit 75
 }
 
-if BROWSER_ENDPOINT="$(AI_BROWSER_HOLDER_PID=$$ bash "$BROWSER_GUARD" acquire "$BROWSER_IDENTITY")"; then
-  BROWSER_LEASED=1
-else
-  printf 'sales measurement browser lease unavailable: rc=%s\n' "$?" >&2
-  exit 75
-fi
+# The canonical runner bounds this wait; retain this measurement while a peer owns the profile.
+while true; do
+  if BROWSER_ENDPOINT="$(AI_BROWSER_HOLDER_PID=$$ bash "$BROWSER_GUARD" acquire "$BROWSER_IDENTITY")"; then
+    BROWSER_LEASED=1
+    break
+  else
+    browser_rc=$?
+    if [ "$browser_rc" -ne 9 ]; then
+      printf 'sales measurement browser lease unavailable: rc=%s\n' "$browser_rc" >&2
+      exit 75
+    fi
+    printf 'sales measurement waiting for registered browser lease\n' >&2
+    sleep 5
+  fi
+done
 
 WRITER_CDP_ENDPOINT="$BROWSER_ENDPOINT" "$CLOAK_PYTHON" "$SCRIPT_DIR/measure-sales.py" \
   --out "$STATE_DIR/sales-ledger.jsonl"

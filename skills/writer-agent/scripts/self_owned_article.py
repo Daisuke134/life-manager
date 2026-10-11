@@ -153,6 +153,26 @@ def _git(root: Path, *args: str) -> str:
     return result.stdout.rstrip()
 
 
+def bound_landing_checkout(root: Path) -> bool:
+    state = Path(os.environ.get("WRITER_STATE_DIR", "~/.local/state/life-manager/writer")).expanduser()
+    managed = state / "checkouts/self-owned-landing"
+    if managed.is_symlink() or managed.parent.is_symlink() or root.resolve() != managed.resolve():
+        return False
+    if _git(root, "rev-parse", "--show-toplevel") != str(root.resolve()):
+        raise SelfOwnedInvariant("landing root is not the exact git worktree")
+    # Ignored files can be removed by sparse checkout, so unknown local work must defer.
+    if _git(root, "status", "--porcelain", "--ignored", "--untracked-files=all"):
+        return False
+    patterns = ("/*", "!/*/", "/apps/", "!/apps/*/", "/apps/landing/",
+                "/docs/", "/specs/", "/data/", "/assets/", "/images/",
+                "**/memory", "**/memory/**", "**/state", "**/state/**",
+                "**/evidence", "**/evidence/**", "**/credentials*", "**/wallet*",
+                "**/.cloak", "**/.cloak/**", "**/.config/ai/**",
+                "**/*receipt*", "**/*ledger*", "**/*fence*", "**/*auth*", "**/*secret*", "**/*token*")
+    _git(root, "sparse-checkout", "set", "--no-cone", *patterns)
+    return True
+
+
 def stage_contract(landing_root: Path, contract: dict) -> dict:
     return stage_contracts(landing_root, [contract])[0]
 
@@ -206,6 +226,7 @@ def stage_contracts(landing_root: Path, contracts: list[dict]) -> list[dict]:
     status = _git(root, "status", "--porcelain", "--untracked-files=all")
     if status:
         raise SelfOwnedInvariant("landing worktree is dirty")
+    bound_landing_checkout(root)
     if not contracts:
         raise SelfOwnedInvariant("at least one contract is required")
     prepared = [_contract_target(root, contract) for contract in contracts]
