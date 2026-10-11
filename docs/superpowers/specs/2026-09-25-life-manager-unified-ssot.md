@@ -207,9 +207,36 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 
 **目標と計測:** DaisがUS$10,000,000/月を確認。会社所有の継続課金を月額へ正規化したverified MRRを目標とし、割引・契約状態・期間・通貨・公式subscription/invoice根拠を保持する。返金/fees、settled revenue、billed expenses、cash paid、net利益をCFOで別に示す。単発eBook/LINE/Gig売上、投資利益、顧客自身の所得、trial/test paymentを会社MRRへ足さない。既存Cloud gross $10K、Mobile/eBook net $10K等のlane完了条件は変更しない。Stripeの設定可能なMRR定義とpaid状態をreadbackし、集計定義を固定する（一次資料: https://docs.stripe.com/billing/subscriptions/analytics）。価格変更や自分によるlive購入はしない。
 
-**このsessionで完了したこと:** cleanupのbusy/identity失敗とtemp/worktree保護を修復し、main・自然receiptまで確認した。GiB級Git auto-GC temporary packの増加源を確定し、closedなGit garbageだけを回収、無制限auto-GCを抑制した（#7403）。releaseへの未追跡artifact混入と不要なmemory複写を止めた（#7401/#7416）。未参照・main復元可能な旧codeだけを予算内で回収し、memory/stateを同じ場所に保持する処理を本番へ反映した。検証自身のFDによる自己停止と、watchdog busyが独立GCを止める結び付きを修復し、自然runで6 files/約4.8MB・errors0/protected_deletions0を確認した（#7424/#7425）。finite runner・standalone agent runner・full release builderに不足/unknownで重い書き込みを延期する共有guardを反映した（#7400/#7412/#7426）。current=/Users/anicca/loops/releases/20261010T064405-859df55aはmain由来/ALL、変更したguardのGit hash一致・readonlyを確認。cleanupと更新ownerのloaded SHA859df55a・同SHA自然exit0、watchdog StartInterval60、iOS26.5 availabilityを確認。これは資源修復の部分成果であり、収益loopの継続稼働受入・Life Manager自身のT5・収益目標の完了とは数えない。
+**確認済み成果の正本:** →「cleanupの残TODO — 完了済みを除いた実行順」と同節のsource/main/current/loaded/自然receipt。完了済みの調査・回収・共通自己cleanup・Gig再開を残TODOへ戻さない。
 
-**As-Is:** 中央watchdogはStartInterval60でloaded、毎分fast inventoryの自然receiptを複数確認（errors0/protected_deletions0）。current immutable releaseはmainf1bfcc19由来の`/Users/anicca/loops/releases/20261010T101346-f1bfcc19`。閉鎖Gigの自己cleanup sourceはmain/current/Paid ownerへadoption済み（loaded SHA f1bfcc19）。自然janitor readbackは共有agent枠待ち。未使用物を手動回収し、現在のData availableは8,177,778,688 bytes（約8.18GB/7.62GiB、共有volume診断値）。各ownerの終了時後始末のcoverage、生成量の有限化、容量待ちからの自然再開と公式収益進行は未証明。したがって根本修復は未完。過去の11GiB達成待ちは撤回し、数値だけでDoneにしない。
+**As-Is:** 毎分watchdogのStartInterval60と中央cleanupがmain由来immutable release `20261011T101349-98f93e27`で稼働し、複数の自然errors0/protected_deletions0、中央pass0/終了後scratch不在を確認する。共通runner190の自己後始末契約と代表的な自然branchは確認済み。閉じたworktreeの依存cache2件を回収してcache外25,066ファイルのSHAを保持し、同じ回収を本番へ接続する。Codex cold履歴105件は既存native圧縮で約1.12GBを回収し、全展開SHA/bytes/UID/mode/mtimeとnative読込を保持する。定期接続sourceは73tests/19subtests PASS、PR #7589はexact-head CI/main/immutable/自然採用を確認中であり、まだ本番定期接続完了とは数えない。各ownerの再開・生成/回収収支・反復業務の全体受入は未完。会社US$10M MRRは目標で、達成を証明するfresh公式集計はない。空き容量は変動する診断値であり、11GiB等の数字を完了KPIへ戻さない。
+
+**全部終わった後のTo-Be:**
+
+| 対象 | 成立する動作 / 判定 |
+|---|---|
+| 資源 | 各ownerが終了時に自分の不要物を片付け、ログ・一時生成物を有限に保つ。中央cleanupがclosed/unleased/unlockedの取り残しを回収し、必要な履歴は内容を保持してnative保存機能で管理する。使用中・認証・memory/state・未知effect証拠を保持する |
+| 24時間運用 | 仕事→正式記録→自己掃除→中央掃除→次の自然仕事を繰り返す。混雑は既存admissionで待機し、終了後に枠を返して自動再開する。ENOSPCや反復手動掃除で業務が止まらない運用を実証する |
+| 収益 | buildとsellが継続し、公式の購入・配信・納品・settlementをCFOへjoinする。継続契約のMRRと、単発売上・fees/refund・実費・net利益を分けて追跡する |
+| 自己修復 | Life Manager自身が自然障害を診断し、正しいownerに限定した修正をmain/releaseへ反映し、次の自然runまで確認する。未知effectは公式照合まで保持し、再送しない |
+| 自己改善 | 固定したbenchmarkで一変更ずつ評価し、品質・安全・実測netが改善した候補だけを昇格する。悪化はrollbackする。新しい評価器やframeworkを先行して増やさない |
+| OSS | 既存README/install.sh/catalogを、他の利用者が自分の認証・保存先で導入できる状態へ仕上げる。Daisの個人path/credential/private appを必要条件にしない |
+
+```mermaid
+flowchart LR
+    A[作る・売る・納品する] --> B[公式結果と費用を保存]
+    B --> C[ownerの自己掃除]
+    C --> D[中央cleanup]
+    D --> A
+    B --> E[CFOで収益を確認]
+    E --> F[評価を通した改善]
+    F --> A
+    A --> G[障害を検知]
+    G --> H[担当を限定して復旧]
+    H --> A
+```
+
+**残る実行順の読み方:** 現在cursorはcleanup正本のCLEAN-04で、①Codex native定期圧縮の本番反映/自然receipt ②残る保存増加と生成/回収収支 ③CLEAN-05未確認ownerの枠返却/再開 ④CLEAN-06反復稼働を一件ずつ進める。基盤受入後は既存S06→S18の順（Cloud→CFO→LINE→Mobile→Gig→eBook→Job Hunter→投資→残catalog→LM自身の自己修復→benchmark→自己改善→OSSと収益scale）を維持する。各laneのatomic cursor・外部gate・元のDone条件は各節を参照し、この要約に複製しない。収益milestoneは最初の継続購入→lane $10K→会社$100K→$1M→$10M MRR。必要な顧客獲得・継続率・単位利益・実運用容量を各段階で実測し、agent増員やコード修復だけで売上達成を保証しない。
 
 **Mac全体の不要物回収（CLEAN-00、手動回収→同じ対象の自動化）:**
 
