@@ -12,10 +12,12 @@ const APP_STORE_URLS = Object.freeze({
   "anicca-ios": "https://apps.apple.com/app/id6755129214",
   "honne-ai": "https://apps.apple.com/app/id6759667221",
 });
+// Existing Honne campaign token, verified against the same ASC account as Anicca.
+const APP_STORE_PROVIDER_TOKEN = "93486075";
 
-// Platforms whose UI renders a caption/description link as clickable.
-// TikTok and Instagram captions do not linkify URLs, so they get a
-// "link in bio" CTA instead of the raw URL.
+// Keep a description URL for YouTube, but Shorts do not linkify it:
+// their CTA directs viewers to the clickable channel profile link.
+// TikTok and Instagram captions instead direct viewers to the profile bio.
 const LINKABLE_PLATFORMS = new Set(["youtube"]);
 
 // Conservative caption/description ceilings per platform (native ranges are
@@ -28,13 +30,13 @@ const PLATFORM_CAPTION_LIMITS = Object.freeze({
 
 const CTA_COPY = Object.freeze({
   ja: {
-    linked: (url) => `アプリはこちら → ${url}`,
+    linked: (url) => `アプリはチャンネルのリンクから\n${url}`,
     bio: "アプリはプロフィールのリンクから",
     webLinked: (url) => `Google Calendarに接続 → ${url}`,
     webBio: "Google Calendarへの接続はプロフィールのリンクから",
   },
   en: {
-    linked: (url) => `Get the app → ${url}`,
+    linked: (url) => `Get the app from the link on our channel\n${url}`,
     bio: "Link in bio for the app",
     webLinked: (url) => `Connect Google Calendar → ${url}`,
     webBio: "Connect Google Calendar through the link in bio",
@@ -91,7 +93,11 @@ function marketingCtaLine({ productId, platform, locale }) {
     return copy.webLinked(url.toString());
   }
   if (LINKABLE_PLATFORMS.has(String(platform || ""))) {
-    return copy.linked(appStoreUrl(productId));
+    const url = new URL(appStoreUrl(productId));
+    url.searchParams.set("pt", APP_STORE_PROVIDER_TOKEN);
+    url.searchParams.set("ct", `${productId}_${platform}_${lang}`);
+    url.searchParams.set("mt", "8");
+    return copy.linked(url.toString());
   }
   return copy.bio;
 }

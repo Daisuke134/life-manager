@@ -13956,12 +13956,14 @@ Known damage to repair: drafts 2576591785 / 5356015232 (under_review) and 983649
 **現在atomの所有:** worktree `/Users/anicca/Projects/life-manager-main/.worktrees/anicca-acquisition-1000-20261011`、branch `feat/anicca-acquisition-1000-20261011`、owner `codex-anicca-acquisition`。共通CTA helper/test、上記2 specとsanitized read-only evidenceを所有する。別ownerの投稿/metrics/Paywall/Spanish PRとstate/browser/fenceは変更しない。iOS修正は既存PR #7605/#7615の公式stateを参照する。
 
 **残TODO（この順）:**
-1. [ ] 同じASC identityでAnicca/Honne app inventoryを確認し、既存provider tokenのreuse根拠を記録する。source spec/evidenceをcommit/pushする。
-2. [ ] 共通YouTube CTAのcampaign欠落を最小RED testで再現し、既存URL validation/caption limit/object hashingを保った最小修正でGREENにする。TikTok/Instagramのcaptionをclickable linkと扱わない。
+1. [x] 同じASC identityでAnicca/Honne app inventoryを確認し、既存provider tokenのreuse根拠を記録する。source spec/evidenceをcommit/pushする。
+2. [x] 共通YouTube CTAのcampaign欠落を最小RED testで再現し、既存URL validation/caption limit/object hashingを保った最小修正でGREENにする。TikTok/Instagramのcaptionをclickable linkと扱わない。
 3. [ ] focused tests、必要なcontract/checks、fresh read-only reviewを通し、push/PR/main統合する。main由来releaseの自然反映、2 YouTube ownerのloaded SHA/新しいdistinct slotと公式caption/readbackを確認する。未知slotのcatch-upや手動投稿はしない。
 4. [ ] 公開プロフィールのbio linkを実readbackし、Instagram/TikTokのapp destinationを媒体・言語ごとのcampaignへ結ぶ。
 5. [ ] 既存ASC/RevenueCat/in-app metricsを同期間で更新し、英語の成功creativeを分解して1変数ずつ試す。SEOは既存サイトへ、ASOは観測したstore bottleneckに応じて進める。
 6. [ ] paywall/notification修正の実配布・同quote・購入/restore、EN/JA/ESの端から端までの言語対応を並行して確認する。
 7. [ ] Anicca 1,000初回DL/日と$10K MRRを実測し、勝った獲得・課金・継続の仕組みをHonne/他appへ展開する。
 
-**現在cursor:** item 1。YouTube campaign欠落の呼び出し経路と公式post evidenceは確認済み。実装・本番反映・追加DL/売上はまだ未確認。
+**現在cursor:** item 3。CTA欠落を2件のREDで再現し、native URLSearchParamsによる最小修正とShortsのchannel link誘導後にCTA/callerの22 tests PASS、lm-loop-contract 18 catalog / 190 registry / 113 mapped / errors 0、diff check PASS。独立read-only reviewerはno blocking findings。caption hashがeffect identityに含まれるため既存/過去slotを新CTAで再送せず、未使用の将来distinct slotの自然実行だけで反映する。本番反映・公開caption・Apple campaign集計・追加DL/売上はまだ未確認。
+
+**Shortsのconversion境界:** YouTube公式 `https://support.google.com/youtube/answer/13748639?hl=en` はShortsのdescription/comment URLがnon-clickable、channel profile linksがclickableと説明する。従ってYouTube app CTAはchannel profile linkへ誘導し、descriptionにcampaign URLも保持する。公開profileのリンク先がAniccaであることを確認するまでfunnel完成としない。Apple campaign linkの設定を実install attributionや追加売上の証拠としない。
