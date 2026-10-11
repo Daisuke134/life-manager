@@ -48,7 +48,11 @@ test("recordSlidePackMetrics records one row per newly published pack, keyed by 
     productId: PRODUCT,
     formatId: FORMAT,
     locale: LOCALE,
-    fetchAnalytics: async () => ({ views: 100, likes: 10, saves: 5 }),
+    fetchAnalytics: async () => [
+      { label: "Views", percentageChange: 250, data: [{ total: "100", date: "2026-09-28" }] },
+      { label: "Likes", percentageChange: 900, data: [{ total: "10", date: "2026-09-28" }] },
+      { label: "Saves", percentageChange: 15, data: [{ total: "5", date: "2026-09-28" }] },
+    ],
     now: () => NOW,
   });
 
@@ -84,4 +88,25 @@ test("recordSlidePackMetrics skips receipts for a different product/format/local
 
   const result = await recordSlidePackMetrics({ dataDir, tenantId: TENANT, productId: PRODUCT, formatId: FORMAT, locale: LOCALE, fetchAnalytics: async () => ({ views: 1 }), now: () => NOW });
   assert.equal(result.recorded.length, 0);
+});
+
+test("recordSlidePackMetrics leaves empty Postiz analytics pending instead of recording zero", async () => {
+  const dataDir = tempDataDir();
+  const file = distributionLedgerPath(dataDir, TENANT, PRODUCT);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, `${JSON.stringify(distributionRow())}\n`);
+
+  const result = await recordSlidePackMetrics({
+    dataDir,
+    tenantId: TENANT,
+    productId: PRODUCT,
+    formatId: FORMAT,
+    locale: LOCALE,
+    fetchAnalytics: async () => [],
+    now: () => NOW,
+  });
+
+  assert.deepEqual(result.pending, ["post-1"]);
+  assert.equal(result.recorded.length, 0);
+  assert.equal(readCreativeMetrics(dataDir).length, 0);
 });

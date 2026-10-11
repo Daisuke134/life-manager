@@ -13603,3 +13603,26 @@ This checkpoint supersedes the 08:47 snapshot. The latest release cleanup remain
 10. Appleのsettlement/refund/feeと実費を同期間で照合し、AniccaのUSD 10,000 net recurring MRRを公式証拠で確認してから、勝ち筋を他アプリ・factoryへ展開する。
 
 **現在cursor:** 1。未commit test差分の失敗結果はまだない。並行してproductionの49af self-handoffは稼働中、旧reconcilerも残存し、容量もmanifest基準未満。production操作を重ねず、次sessionはtestのreadbackから始める。独立review/subagentは起動しない。
+
+### 2026-10-11 09:38 JST — Postiz score修正はfocused tests通過、main統合前
+
+この記録で09:28 cursorを更新する。投稿providerの新しい取得はなく、投稿・指標snapshotは09:03 JSTのまま。
+
+- **Git/source:** branch `docs/mobile-growth-postmerge-20261011`はlatest `origin/main=8f85b99146bc456216af67b1f14be92f19f664e2`をmerge済み（local HEAD `3bf0b2f443a11e93703b102d03c975fcc57ad170`）。REDでは4 testsが失敗し、Postiz totals 115がpercentage change込みで1175/1165となり、空応答がpendingでなく保存経路へ進むことを確認。`engagementScore`はPostizの`data[].total`を数値化し、`percentageChange`を除き、空・欠落値にnullを返すよう修正。両callerはnullをscore=0として保存せず`pending`へ返す。main統合後のfocused testsは10/10 PASS、`git diff --check`もPASS。変更はworktreeだけで、未commit・未push・main未統合・production未反映。
+- **Runtime/release:** `/Users/anicca/loops/current`は`20261011T091434-49af4f6a` / SHA `49af4f6ad2ca01810677df50bdc0e151f3329764`。09:38時点のreconcilerはPID 10209でこのreleaseから実行中。最新のself-handoff receiptは`status=ok`、target SHAは49af、old-service PIDなし。これはreconcilerの引継ぎだけを証明し、全18 publisher ownerのloaded SHAや投稿成功は証明しない。空き容量231,632 KiB、49af manifest基準230,512 KiBに対し1,120 KiBの余裕、volume表示100%。source修正をmainへ統合した後の正確なSHA用release容量は未計測。
+- **Distribution:** 最後の公式Postiz readは09:03 JSTで18件`PUBLISHED`/54目標slot、18 permalink、795 Views/7 Likes。3アカウントの投稿が同一初回slotに集中し、`@anicca.he`はその時点で0。以降の投稿provider readbackは未実施なので、現在の3回/日や全TikTok accountの正常性は未確認。
+- **Acquisition/revenue:** ASC/RevenueCatの最後の値は10/9までで古い。AniccaのASC初回DL 2、Honne 4、他4アプリは未取得。RevenueCat USD 20.34はAniccaのsubscription MRR観測でありsettled netではない。Mixpanel onboarding cohort、Apple settlement/refund/fee、同期間の実費は未照合。USD 10,000 net MRRは未達・未確認。
+
+**残TODO（順序）:**
+
+1. 今回のsource・2 testファイル・このspecを専用branchでcommit/pushする。未commitのtest差分を落とさない。
+2. このexact branch headに対するCIを通し、PRからmainへ統合する。ユーザー指示により独立review/subagentは起動しない。
+3. main統合後のexact SHAでrelease容量を再計測する。既存cleanup/reconciler ownerとapply lockを確認し、登録owner経路だけで容量を整える。open/protected pathを削除しない。
+4. main由来immutable releaseを標準経路で作り、通常owner admission後に全18 publisherのloaded SHA・argv・自然terminalを確認する。既存の49af reconciler引継ぎ完了を全publisher反映と取り違えない。
+5. occurrence fenceを保持し、公式readbackで未送信と判定したslotだけ通常owner経路で回復する。コード作業・既存post指標取得は将来slot時刻まで遅らせない。
+6. 18 targetそれぞれで別slot3件/日、54/54 PUBLISHED、permalink、replay-zeroを7 JST日連続で証明する。投稿slotの時刻待ちは自然実績の証明に限り、実装着手の停止条件にしない。
+7. Postiz公式per-post metricsを永続化し、各指標とURLがTelegram報告receiptまで結び付くことを確認する。新analytics vendorは追加しない。
+8. 6アプリのASC獲得指標、RevenueCat課金/MRR、Mixpanel install後funnelをfresh readbackし、AniccaのASC初回DLを7日平均100/日にする。その後、観測したstore conversionに基づくASOとonboarding/paywallを一変数ずつ改善する。
+9. Apple settled proceeds/refund/feeと実費を同期間で照合し、AniccaのUSD 10,000 net recurring MRRを証明してから他アプリへ拡大する。
+
+**現在cursor:** source修正はlocalでPASS、次はsource・tests・specをcommit/pushしてPR/main統合する。productionに反映されたとはまだ言えない。
