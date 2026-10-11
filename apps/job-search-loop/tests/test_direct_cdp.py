@@ -477,6 +477,24 @@ class DirectCDPTypeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["observation"]["url"], observation.url)
         ledger.assert_not_called()
 
+    async def test_arbitrary_upload_cannot_bypass_the_routed_resume(self):
+        from job_search_loop.browser_agent import runtime
+        row = {"application_id": "row", "title": "Role"}
+        builder = unittest.mock.Mock()
+        builder.build = AsyncMock(return_value=unittest.mock.Mock(visible_text="Form", content_sha256="a" * 64))
+        context = (row, None, None, None, unittest.mock.Mock(), builder)
+        executor = unittest.mock.Mock()
+        executor.execute = AsyncMock(side_effect=AssertionError("wrong resume reached provider"))
+        with patch.object(runtime, "_context", new=AsyncMock(return_value=context)), patch.object(
+            runtime, "_private_action", return_value={"kind": "upload", "file_path": "/tmp/other.pdf", "target": {"role": "button", "label": "Resume"}}
+        ), patch.object(runtime, "_routed_resume", return_value={"resume_path": "/tmp/company-tailored.pdf"}), patch.object(
+            runtime, "ActionExecutor", return_value=executor
+        ), patch.object(runtime, "_reject_repeated_decision", return_value="signature"), patch.object(runtime, "_wake_budget", return_value=8):
+            result = await runtime._act_locked(Path("unused-action.json"))
+        self.assertEqual(result["status"], "action_rejected")
+        self.assertEqual(result["reason"], "upload_must_use_routed_resume")
+        executor.execute.assert_not_awaited()
+
     async def test_upload_rejects_file_textbox_before_file_chooser(self):
         from job_search_loop.browser_agent import runtime
 

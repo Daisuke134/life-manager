@@ -469,6 +469,15 @@ async def _act_locked(action_path: Path) -> dict[str, Any]:
     before = await builder.build(cursor.handle)
     action_value = _private_action(action_path)
     action = _action(action_value)
+    if action.kind == "upload":
+        try:
+            routed = _routed_resume(row, f"{row['title']}\n{before.visible_text}")
+        except ValueError as error:
+            if str(error) != "company_tailored_resume_required":
+                raise
+            return {"status": "action_rejected", "reason": "company_tailored_resume_required"}
+        if action.file_path is None or action.file_path.resolve() != Path(routed["resume_path"]).resolve():
+            return {"status": "action_rejected", "reason": "upload_must_use_routed_resume"}
     action_bytes = json.dumps(
         action_value, ensure_ascii=False, sort_keys=True
     ).encode("utf-8")
