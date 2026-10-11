@@ -72,9 +72,11 @@ fi
 SELF_DIR="$SCRIPT_DIR/scripts"
 LEDGER="$CAPAFY_DISTRIBUTE_STATE_DIR/ledger.json"
 JST_DATE="$(TZ=Asia/Tokyo date +%F)"
-# One article per 3-hour JST slot (8/day); SLOT is the idempotency key.
-SLOT_NUM=$(( 10#$(TZ=Asia/Tokyo date +%H) / 3 ))
-SLOT="${JST_DATE}-h$(printf '%02d' $((SLOT_NUM * 3)))"
+# One article per wake: the loop wakes every 30 min (Dais 2026-10-11: never wait for a
+# 3-hour slot). SLOT is the idempotency key, one per JST half hour (48/day).
+JST_HOUR=$(( 10#$(TZ=Asia/Tokyo date +%H) )); JST_HALF=$(( 10#$(TZ=Asia/Tokyo date +%M) / 30 ))
+SLOT_NUM=$(( JST_HOUR * 2 + JST_HALF ))
+SLOT="${JST_DATE}-h$(printf '%02d' "$JST_HOUR")m$(printf '%02d' $((JST_HALF * 30)))"
 CHANNEL="${CAPAFY_DISTRIBUTE_CHANNEL:-capafy-distribute}"
 
 # --- idempotent per JST-date: never publish twice for the same day ---------
