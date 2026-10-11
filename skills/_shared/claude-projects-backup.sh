@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 # claude-projects-backup.sh — ~/.claude/projects (Claude Code session transcripts)
-# の日次世代バックアップ。copy+tweak元: browser-state-backup.sh（同じ
-# ~/.cloak/state-backups/<YYYY-MM-DD>/ 世代保持パターンを踏襲、他backupと
-# 同じ date ディレクトリを共有するのでプルーニングは自分のサブディレクトリ
-# 「claude-projects」だけを対象にする＝他backupの世代を巻き込んで消さない）。
+# の日次世代バックアップ。browser-state-backup.sh と同じ
+# ~/.cloak/state-backups/<YYYY-MM-DD>/ に保存し、保護された過去世代は削除しない。
+# 新しいmacOS世代はnative copyでデータブロックを共有し、原本と更新を分離する。
 #
 # なぜ要るか(2026-07-16 incident): Claude Code は起動の度に settings.json の
 # cleanupPeriodDays より古い session transcript(*.jsonl) を自前で削除する
@@ -20,39 +19,27 @@ set -uo pipefail
 
 SRC="$HOME/.claude/projects"
 BACKUP_ROOT="$HOME/.cloak/state-backups"
-LOG="$HOME/.local/state/life-manager/logs/claude-projects-backup.log"
-KEEP_GENERATIONS=14
-mkdir -p "$BACKUP_ROOT" "$(dirname "$LOG")"
+mkdir -p "$BACKUP_ROOT"
 
-_log() { echo "$(date '+%F %T') claude-projects-backup: $*" >>"$LOG"; }
+_log() { echo "$(date '+%F %T') claude-projects-backup: $*" >&2; }
 
 date_tag="$(date '+%F')"
 dest="$BACKUP_ROOT/$date_tag/claude-projects"
+new_generation=0
+[ -d "$dest" ] || new_generation=1
 mkdir -p "$dest"
 
-rsync -a --update "$SRC/" "$dest/" 2>>"$LOG"
+if [ "$new_generation" -eq 1 ] && [ "$(uname -s)" = Darwin ]; then
+  # Native copies have separate inodes; later writes/chmod cannot change old snapshots.
+  /bin/cp -cRpP "$SRC/." "$dest/"
+else
+  rsync -a --update "$SRC/" "$dest/"
+fi
 rc=$?
 
 count=$(find "$dest" -maxdepth 2 -name '*.jsonl' 2>/dev/null | wc -l | tr -d ' ')
 
-# prune generations beyond KEEP_GENERATIONS. 自分のサブディレクトリ(claude-projects)
-# だけを消す。$BACKUP_ROOT/<date>/ 全体は browser-state-backup.sh も共有しているので
-# rm -rf してはいけない。
-all_dates=""
-for d in "$BACKUP_ROOT"/*/; do
-  dtag="$(basename "$d")"
-  [[ "$dtag" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || continue
-  [ -d "$d/claude-projects" ] || continue
-  all_dates="$all_dates$dtag"$'\n'
-done
-all_dates="$(printf '%s' "$all_dates" | grep -v '^$' | sort)"
-total="$(printf '%s\n' "$all_dates" | grep -c . || true)"
-if [ "$total" -gt "$KEEP_GENERATIONS" ]; then
-  to_remove=$((total - KEEP_GENERATIONS))
-  printf '%s\n' "$all_dates" | head -n "$to_remove" | while read -r old; do
-    [ -n "$old" ] && rm -rf "${BACKUP_ROOT:?}/${old}/claude-projects" && _log "pruned old generation: $old"
-  done
-fi
+# Protected generations are preserved; cleanup never deletes ~/.cloak or memory.
 
 if [ "$rc" -eq 0 ]; then
   _log "ok: date=$date_tag jsonl_in_backup=$count dest=$dest"
