@@ -3304,6 +3304,42 @@ class LmLoopApplyTest(unittest.TestCase):
         self.assertEqual(receipt["eligible"], 1)
         self.assertEqual(receipt["skipped_pending"], ["paid-sibling"])
 
+    def test_automatic_reconcile_prioritizes_queued_effect_free_control(self):
+        release = self._release("release-queued-control-priority").resolve()
+        value = registry()
+        value["loops"]["z-control"] = {
+            **value["loops"]["example"], "label": "ai.anicca.z-control",
+            "system_role": "control", "resource_class": "deterministic",
+            "admission_class": "borrow", "priority": "support",
+            "reconcile_queued_release": True,
+        }
+        value["loops"]["life-manager-disk-cleanup"] = {
+            **value["loops"]["example"], "label": "ai.anicca.life-manager-disk-cleanup",
+        }
+        (release / "config/loop-registry.json").write_text(json.dumps(value))
+        rows = [{
+            "classification": "managed", "provider_route": "deterministic",
+            "launchd_state": "loaded-idle", "installed_release_sha": "b" * 40,
+            "event_release_sha": "b" * 40, "loop_id": loop_id,
+            "admission_effect_unknown": False,
+        } for loop_id in ("example", "z-control")]
+        applied = []
+        with (
+            patch.object(lm_loop, "ROOT", release),
+            patch.object(lm_loop, "snapshot", return_value=rows),
+            patch.object(lm_loop, "_pending_admission_owners", return_value={"z-control"}),
+            patch.object(lm_loop, "_pending_admission_policy_mismatches", return_value=set()),
+            patch.object(lm_loop, "_loaded_sha_is_ancestor", return_value=True),
+            patch.object(lm_loop, "apply_live", side_effect=lambda *a, **kw: applied.append(kw) or [{"ok": True}]),
+            patch.dict(os.environ, {"LIFE_MANAGER_RELEASE_ROOT": str(release),
+                                    "LIFE_MANAGER_LOOP_ID": "life-manager-release-reconciler"}),
+            redirect_stdout(io.StringIO()),
+        ):
+            self.assertEqual(lm_loop.main(["reconcile", "deterministic", "--loaded-idle-only", "--max-owners", "1"]), 0)
+        self.assertEqual([row["target"] for row in applied], ["z-control"])
+        self.assertTrue(applied[0]["allow_reserved_release_rebind"])
+        self.assertFalse(applied[0]["replace_reserved_policy_drift"])
+
     def test_targeted_snapshot_never_lists_fleet(self):
         value = registry()
         value["loops"]["example"]["provider_route"] = "deterministic"
