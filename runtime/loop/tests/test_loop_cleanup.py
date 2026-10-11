@@ -59,7 +59,7 @@ class NativeCodexCompressionTest(unittest.TestCase):
         return lambda *_args, **_kwargs: Connection()
 
     def test_native_compression_delegates_without_rewriting_history(self):
-        with tempfile.TemporaryDirectory() as directory:
+        with tempfile.TemporaryDirectory(dir="/tmp") as directory:
             home = Path(directory); root, history = self.fixture(home); sent = []
             result = central_cleanup.codex_history_cleanup(home, connect=self.fake_connection(root, sent))
             self.assertEqual(result["status"], "requested")
@@ -70,7 +70,7 @@ class NativeCodexCompressionTest(unittest.TestCase):
 
     def test_native_compression_keeps_unsafe_and_recent_data(self):
         for condition in ["recent", "warm", "temporary", "memory", "outside_link", "capacity", "version", "home"]:
-            with self.subTest(condition=condition), tempfile.TemporaryDirectory() as directory:
+            with self.subTest(condition=condition), tempfile.TemporaryDirectory(dir="/tmp") as directory:
                 home = Path(directory); root, history = self.fixture(home); sent = []; changes = {}
                 if condition == "recent":
                     (root / ".tmp").mkdir(); (root / ".tmp/rollout-compression.lock").write_text("native marker")
@@ -82,7 +82,7 @@ class NativeCodexCompressionTest(unittest.TestCase):
                 elif condition == "version": changes["userAgent"] = "Codex Desktop/0.999.0"
                 elif condition == "home": changes["codexHome"] = str(home / "other")
                 connection = self.fake_connection(root, sent, **changes)
-                with mock.patch.object(central_cleanup.shutil, "disk_usage", return_value=mock.Mock(free=1 if condition == "capacity" else 4 * 1024**3)):
+                with mock.patch("shutil.disk_usage", return_value=mock.Mock(free=1 if condition == "capacity" else 4 * 1024**3)):
                     result = central_cleanup.codex_history_cleanup(home, connect=connection)
                 self.assertNotEqual(result["status"], "requested")
                 self.assertTrue(history.exists())
