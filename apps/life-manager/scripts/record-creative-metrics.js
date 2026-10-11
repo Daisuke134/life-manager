@@ -16,18 +16,45 @@ function readWrappedReceipts(dataDir, kind) {
     .filter((row) => row && row.kind === kind && row.receipt && typeof row.receipt === "object");
 }
 
-// Postiz's per-post analytics shape differs by platform (TikTok vs Instagram vs YouTube), so
-// instead of hardcoding one platform's field names this sums every numeric value found
-// anywhere in the response (views, likes, comments, shares, saves, plays, ...).
+// Postiz returns metric rows with string totals and numeric percentage changes. Sum only the
+// totals for that shape; keep the legacy numeric-object form for existing callers.
 function engagementScore(analytics) {
+  if (Array.isArray(analytics) && analytics.length === 0) return null;
+
+  const postizRows = Array.isArray(analytics)
+    ? analytics.filter((row) => row && typeof row === "object"
+      && ("label" in row || "percentageChange" in row || Array.isArray(row.data)))
+    : [];
+  if (postizRows.length) {
+    let total = 0;
+    let found = false;
+    for (const row of postizRows) {
+      for (const metric of Array.isArray(row.data) ? row.data : []) {
+        const value = metric?.total;
+        const numeric = typeof value === "number" ? value
+          : typeof value === "string" && value.trim() ? Number(value)
+            : Number.NaN;
+        if (!Number.isFinite(numeric)) continue;
+        total += numeric;
+        found = true;
+      }
+    }
+    return found ? total : null;
+  }
+
   let total = 0;
+  let found = false;
   const walk = (value) => {
-    if (typeof value === "number" && Number.isFinite(value)) { total += value; return; }
+    if (typeof value === "number" && Number.isFinite(value)) { total += value; found = true; return; }
     if (Array.isArray(value)) { value.forEach(walk); return; }
-    if (value && typeof value === "object") { Object.values(value).forEach(walk); }
+    if (value && typeof value === "object") {
+      for (const [key, nested] of Object.entries(value)) {
+        if (key !== "percentageChange") walk(nested);
+      }
+    }
   };
   walk(analytics);
-  return total;
+  return found ? total : null;
 }
 
 async function fetchPostizPostAnalytics(providerPostId, env = process.env) {
@@ -84,6 +111,7 @@ async function recordCreativeMetrics(options = {}) {
   );
   const recorded = [];
   const skipped = [];
+  const pending = [];
   for (const publication of publications) {
     const providerPostId = publication.receipt.provider_post_id;
     if (alreadyRecorded.has(providerPostId)) continue;
@@ -92,6 +120,8 @@ async function recordCreativeMetrics(options = {}) {
     ));
     if (!generation) { skipped.push(providerPostId); continue; }
     const analytics = await fetchAnalytics(providerPostId, env);
+    const score = engagementScore(analytics);
+    if (score === null) { pending.push(providerPostId); continue; }
     const row = recordCreativeMetric(dataDir, {
       tenantId,
       productId,
@@ -99,12 +129,12 @@ async function recordCreativeMetrics(options = {}) {
       locale,
       hookId: generation.receipt.hook_id,
       providerPostId,
-      score: engagementScore(analytics),
+      score,
       observedAt: now(),
     });
     recorded.push(row);
   }
-  return { recorded, skipped };
+  return { recorded, skipped, pending };
 }
 
 if (require.main === module) {
