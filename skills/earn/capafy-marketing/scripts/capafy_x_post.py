@@ -64,6 +64,20 @@ def build_payload(*, integration_id: str, caption: str, scheduled_at: str) -> di
     }
 
 
+def agent_name(slug: str) -> str:
+    return " ".join("TikTok" if w == "tiktok" else w.capitalize() for w in slug.split("-"))
+
+
+def search_caption(caption: str, name: str) -> str:
+    """Postiz strips every link from X posts (2026-10-11), so point buyers at Capafy search."""
+    import re
+
+    text = re.sub(r"(https?://)?[\w.-]+\.(com|ai|io|net|org)/\S*", "", caption)
+    lines = [line.rstrip(" :\u2014-") for line in text.splitlines()]
+    body = "\n".join(line for line in lines if line.strip()).strip()
+    return f'{body}\n\nSearch "{name}" on Capafy.'
+
+
 def extract_post_id(create_response) -> str:
     first = create_response[0] if isinstance(create_response, list) and create_response else create_response
     if not isinstance(first, dict):
@@ -90,10 +104,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--readback-attempts", type=int, default=40)  # Postiz QUEUE -> PUBLISHED took ~1 min live (2026-09-29)
     parser.add_argument("--readback-interval-seconds", type=float, default=15.0)
     parser.add_argument("--dry-run", action="store_true", help="build and print the payload, no HTTP call")
+    parser.add_argument("--search-slug", default=None, help="Capafy skill slug; replaces links with a search CTA")
     args = parser.parse_args(argv)
 
     scheduled_at = args.scheduled_at or dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
-    payload = build_payload(integration_id=args.integration_id, caption=args.caption, scheduled_at=scheduled_at)
+    caption = search_caption(args.caption, agent_name(args.search_slug)) if args.search_slug else args.caption
+    payload = build_payload(integration_id=args.integration_id, caption=caption, scheduled_at=scheduled_at)
 
     if args.dry_run:
         print(json.dumps({"dry_run": True, "payload": payload}, ensure_ascii=False))
