@@ -287,7 +287,7 @@ BF11のsource採用で最後に保持した対象はsession-vault。旧holder PI
 
 残るBF14は、対話型Codex/Claudeの実livenessとscope/lease、現在host負荷をread-onlyで確認し、既存担当を再利用して個別18業務の修正を再開する判断。AGMSGの登録だけで稼働と判断せず、unknown data・source未反映を業務成功にしない。会社MRR目標や各laneのprovider/billing/entitlement/自然枠待ちは基盤15atomのDoneと別に残す。基盤全体の最終DoneはBF14まで未判定。
 
-**共有CIのsource asset整合:** #7679のdoc CIは先行main #7677のmlb-lineup-matchup-brief/icon.pngでgenerated_artifactとなる。既存catalog iconのevidence_sha256 baselineと同じ方式で、mainにある当該PNGの正確なhashだけを登録する。画像/製品source/Capafy runtimeは変更・削除せず、全generated asset許可へ広げない。これを今回doc反映の共有CI修復として同差分に含める。
+**共有CIのsource asset整合:** #7679のdoc CIは先行main #7677のmlb-lineup-matchup-brief/icon.pngでgenerated_artifactとなる。既存正本skills/capafy/catalog-icons.jsonと同じ方式で、mainにある当該PNGの正確なhashだけを登録する。共通OSS baselineへの追加は取り消し、正本を二重化しない。画像/製品source/Capafy runtimeは変更・削除せず、全generated asset許可へ広げない。これを今回doc反映の共有CI修復として同差分に含める。
 
 ### 全体のatomic展開と作業時間枠（大分類3件と全体完了を区別する）
 
