@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 from job_search_loop.inbox import message_is_seen
-from job_search_loop.ledger import Ledger
+from job_search_loop.ledger import FenceError, Ledger
 from job_search_loop.state import InvalidTransition
 from job_search_loop.submission_confirmation import (
     _bounded_official_posting_loader,
@@ -192,6 +192,63 @@ class SubmissionConfirmationTests(unittest.TestCase):
                 },
             )
             ledger.close()
+
+    def test_summary_replays_exact_gmail_receipt_after_validation_rejection(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger, application_id, intent_id = self._unknown_submission(
+                root, outcome="not_submitted"
+            )
+            received_at = (
+                datetime.now(timezone.utc) + timedelta(minutes=1)
+            ).isoformat()
+            try:
+                self.assertEqual(
+                    ledger.reconcile_submission_confirmation(
+                        intent_id=intent_id,
+                        message_id="gmail-correction-message",
+                        thread_id="gmail-correction-thread",
+                        evidence_sha256="a" * 64,
+                        received_at=received_at,
+                    ),
+                    "reconciled",
+                )
+
+                rows = ledger.event_summary_rows()
+
+                self.assertEqual(len(rows), 1)
+                self.assertEqual(rows[0]["application_id"], application_id)
+                self.assertEqual(rows[0]["current_state"], "submitted")
+                self.assertTrue(rows[0]["ever_submitted"])
+            finally:
+                ledger.close()
+
+    def test_summary_requires_confirmation_sidecar_for_validation_correction(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger, _, intent_id = self._unknown_submission(
+                root, outcome="not_submitted"
+            )
+            received_at = (
+                datetime.now(timezone.utc) + timedelta(minutes=1)
+            ).isoformat()
+            try:
+                ledger.reconcile_submission_confirmation(
+                    intent_id=intent_id,
+                    message_id="gmail-unbound-message",
+                    thread_id="gmail-unbound-thread",
+                    evidence_sha256="b" * 64,
+                    received_at=received_at,
+                )
+                ledger.connection.execute(
+                    "DELETE FROM submission_confirmations WHERE intent_id = ?",
+                    (intent_id,),
+                )
+
+                with self.assertRaises(FenceError):
+                    ledger.event_summary_rows()
+            finally:
+                ledger.close()
 
     def test_workday_tenant_receipt_uses_exact_official_brand_readback(self):
         with tempfile.TemporaryDirectory() as directory:

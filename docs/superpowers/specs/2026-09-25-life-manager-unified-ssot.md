@@ -14298,3 +14298,19 @@ Known damage to repair: drafts 2576591785 / 5356015232 (under_review) and 983649
 - **Host memory root cause:** the 4-day-old playwright driver of `ai.anicca.provision-browser.instagram.capafy-provision` held 1.7 GB; one `launchctl-safe kickstart -k` took swap from 13.2 to 7.8 GB and free disk from 1.9 to 6.8 GiB, so CP1 is no longer disk-deferred. 23 orphan agent-browser daemons from line-sticker runs before release `e8d30a84` were killed. The IG account in that profile (`stardust_doubutsu`) is suspended.
 - **Fence pattern:** disk-deferred CP1 ends rc 75, which leaves a `resource_effect_unknown` fence. `capafy_factory_fence_reconcile.py` proves no effect (PROOF_READY) and `lm-fence-reconciler` closes it, but only with round-robin latency (20 calls per 10 min across ~37k fences). Two were resolved by hand today through the official adapter.
 - **Marketing:** 4 new Hook Lab reels (real Hook Lab outputs: real estate, dinner, bar exam, dog training) are scheduled via Postiz for 10/16-10/19 22:00 JST, so the IG queue runs through 10/19 (Postiz GET readback: QUEUE).
+
+### 2026-10-11 21:55 JST — Job Hunter: free OSS path and receipt-summary failure
+
+**目的・範囲:** Life Manager所有のオープンソースJob Hunterをend-to-endで動かす。求人発見、適合判断、求人別tailored resume、ATSへの実応募、公式receipt/readback、重複0を1本の無料経路でつなぐ。Dreamworkは既存の良い機能を検証し、追加費用なしで本当に優れる部分だけ使う。Dreamworkへの課金・応募枠購入・entitlement回避はしない。
+
+**現在の根拠:** Life Manager repoはpublic MIT。ローカルJob Hunterには、candidate memoryのfact IDだけで会社・職種・URLへ束縛したPDFを作り、同じhashを最終Reviewで照合するtailoring pathがあり、専用test 5件がPASS。Dreamwork公式Free readbackは`applicationsLimit=0`、`packsLimit=3/day`、候補3件。無料tailoringは利用可能だがDreamwork経由の応募送信枠はない。現行Workday/Ashbyループを置き換えず、Dreamworkの無料packがローカルより優れるかを後続の1件比較で判断する。
+
+**実測root cause:** loaded release `bb5cd283`の`job-search-daily`は2026-10-11 12:37Zにagent result `transport_failed`（submitted=0、submit_unknown=0）を返し、その後のsummary生成で`InvalidTransition: not_submitted -> submitted`によりexit 1。Danaher / Business Account Managerのeventは正確なGmail receiptのmessage/thread/evidenceを保持し、`submission_confirmations` rowと`submit_intents(status=submitted)`へ一致する。直前の`not_submitted` eventには`rendered_validation_rejection`とその証拠hashが残り、receipt eventも双方をbindしている。応募の再送やeffect fence解除ではなく、正当なlate receipt correctionを`event_summary_rows()`だけがreplayできない不具合。
+
+**TODO順更新:** 旧cursor=`Dreamwork source/readiness cutover → Dreamwork/Workday実応募 → owner natural receipts`。新cursor=`(1) exact Gmail receiptによる`not_submitted → submitted`のproof-gated event replayをRED→GREENで修正 → (2) source acceptance、PR/main統合、immutable releaseとloaded SHA → (3) natural Workday/Ashby runで求人別resume hash、実応募、official receipt、replay-zeroを確認 → (4) candidateに適合する現行求人を1件だけ選び、追加費用0のDreamwork packとlocal artifactを比較し、より良く安全な方法だけを採用 → (5) runner transport failureをoccurrence evidenceで診断し、複数ATSの無料end-to-end throughputを伸ばす`。理由はDreamwork Freeの応募上限0が確認され、ユーザーが自前OSSを主成果とし、有効なGmail receiptを含む現行ledgerをsummaryが壊してdaily runを失敗させることを新たに特定したため。
+
+**修正acceptance:** 正確な`submission_confirmations`と`submit_intents`が一致し、直前not-submitted UI evidenceともbindされたlate Gmail receiptだけをsummary replayが通す。receipt field/sidecar欠落や汎用`ledger.transition(..., submitted)`は引き続き拒否する。production DBを書き換えず、Danaherへの再応募・Dreamwork pack生成・メール送信なしでsource acceptanceを通す。
+
+**Source acceptance:** 追加した2件は実装前に`InvalidTransition: not_submitted -> submitted`とmissing-sidecar拒否の未実装でRED。最小修正後は2件PASS、`test_submission_confirmation.py` 22件、`test_ledger.py` 18件、Job Search全suite 583件がPASSし、`git diff --check`もPASS。別occurrenceのagent `transport_failed`は未修正で、0 submitted / 0 submit_unknownのno-effect resultとして切り分けを継続する。
+
+**現在cursor:** source/spec/testのdiffを最終確認し、専用branchへcommit/pushしてPRを作る。exact-head CIとread-only review後にmainへ統合し、通常のimmutable release/adoptionの後、自然な`job-search-daily` runでsummary成功・応募・公式receipt・replay-zeroを確認する。Dreamwork比較は追加費用0で適合求人と正規ATS送信経路が揃った場合だけ行う。

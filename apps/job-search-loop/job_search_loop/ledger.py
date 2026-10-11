@@ -1332,6 +1332,62 @@ class Ledger:
                         or route_verified
                     ):
                         raise FenceError("late confirmation event lacks evidence")
+                elif previous == "not_submitted" and to_state == "submitted":
+                    receipt_fields = (
+                        "intent_id",
+                        "message_id",
+                        "thread_id",
+                        "evidence_sha256",
+                        "received_at",
+                        "prior_ui_evidence_sha256",
+                    )
+                    prior_ui_verified = (
+                        payload.get("intent_id") == previous_payload.get("intent_id")
+                        and payload.get("prior_ui_evidence_class")
+                        == previous_payload.get("evidence_class")
+                        == "rendered_validation_rejection"
+                        and payload.get("prior_ui_evidence_sha256")
+                        == previous_payload.get("evidence_sha256")
+                    )
+                    confirmation = self.connection.execute(
+                        """
+                        SELECT 1
+                        FROM submission_confirmations AS confirmations
+                        JOIN submit_intents AS intents
+                          ON intents.intent_id = confirmations.intent_id
+                        WHERE confirmations.intent_id = ?
+                          AND confirmations.message_id = ?
+                          AND confirmations.thread_id = ?
+                          AND confirmations.evidence_sha256 = ?
+                          AND confirmations.received_at = ?
+                          AND intents.application_id = ?
+                          AND intents.status = 'submitted'
+                        """,
+                        (
+                            payload.get("intent_id"),
+                            payload.get("message_id"),
+                            payload.get("thread_id"),
+                            payload.get("evidence_sha256"),
+                            payload.get("received_at"),
+                            application["id"],
+                        ),
+                    ).fetchone()
+                    if not (
+                        all(
+                            isinstance(payload.get(key), str)
+                            and payload[key]
+                            for key in receipt_fields
+                        )
+                        and re.fullmatch(
+                            r"[a-f0-9]{64}", payload["evidence_sha256"]
+                        )
+                        and re.fullmatch(
+                            r"[a-f0-9]{64}", payload["prior_ui_evidence_sha256"]
+                        )
+                        and prior_ui_verified
+                        and confirmation is not None
+                    ):
+                        raise FenceError("late confirmation event lacks evidence")
                 elif previous == "submitted" and to_state == "submit_unknown":
                     route_id = payload.get("route_id")
                     provider_id = payload.get("provider_id")
