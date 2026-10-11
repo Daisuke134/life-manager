@@ -392,6 +392,9 @@ CLEAN-05 audit queued-release source受入: registry admission contract無しを
 
 CLEAN-05 audit CI回帰修復: exactec27c565 CI38106494751はloop-contractの既存production byte-stable fixtureだけ失敗。render_job_models標準rendererでmacos-loop-jobs.jsonを更新し、全190rowを前後比較してverify-loops-auditの4metadata fieldだけ変更、他owner差分0をassert。fixtureを含む関連13tests/10subtests PASS、source/body/cadence/未知effect guardの変更0。次=新exact-head CIを再確認して統合する。
 
+CLEAN-05 audit queued-release main/current readback: #7600 exact40a5a7128ab85723244a888a8e71cbc995ed36cc/CI38106880898全10SUCCESS→main41b32fb504a4f19e404dab9f89b21a274ecb0686。正規ALL cutter exit0/nativeclones8341/current20261011T120555-41b32fb5/required236,367,872、registryの4fieldをreadback。release reconciler旧72444は自然終了しinstalledd7ac9d57/idleを一度確認したが、target canonical apply前に新PID12266が自然起動したためchangedfalse/loaded-runningで保持。新serviceと子12328/下位childの進行を確認し、偽装LIFE_MANAGER_LOOP_ID/強制再起動/予約消去0。shipped reconcile-agent-runner-release.shは実稼働のままcurrentを読みrun_reconcileでcurrent release rootを渡すため、actual automatic ownerによるaudit opt-in採用を次に観測する。auditはまだ旧859df55a/idle/pending queue600750/reservation0/disk_headroom_lowなので、source/main/currentだけで再開Doneとはしない。private proof=~/.local/state/life-manager/state/audit-queued-release-runtime-20261011.json。現在cursor=この特定ownerの自然adoption→旧gate停止からの次自然admission/terminal。別Actor business unknown/使用中owner/VM・swap・memory・identityは保持する。
+
+
 
 
 
