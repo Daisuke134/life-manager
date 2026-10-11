@@ -115,6 +115,17 @@ def _message_from_payload(value: dict[str, Any]) -> dict[str, Any] | None:
     }
 
 
+def _exact_receipt_role(message: dict[str, str], title: str) -> bool:
+    normalize = lambda value: ' '.join(unicodedata.normalize('NFKC', value).casefold().split())
+    body = normalize(message['body'])
+    roles = []
+    for pattern in (r'\bapplication for (.+?)(?:\.(?:\s|$)|$)',
+                    r'\bapplying (?:to|for) (.+?) at ',
+                    r'\sの\s+(.+?)\s+の職務にご応募いただき'):
+        roles.extend(match.group(1).strip() for match in re.finditer(pattern, body))
+    return set(roles) == {normalize(title)}
+
+
 def _confirmation_matches(
     message: dict[str, str],
     candidate: dict[str, str],
@@ -301,6 +312,8 @@ def reconcile_confirmation_threads(
                     if datetime.fromisoformat(message['received_at']) < datetime.fromisoformat(candidate['created_at']):
                         continue
                     matched = _confirmation_matches(message, candidate, expected_recipient)
+                    if candidate['current_state'] == 'not_submitted':
+                        matched = matched and _exact_receipt_role(message, candidate['title'])
                     if not matched:
                         try:
                             matched = _workday_hiring_receipt_matches(message, candidate, expected_recipient, official_posting_loader)

@@ -70,6 +70,12 @@ class WorkdayReceiptCorrectionTests(unittest.TestCase):
             self.assertEqual(len(result['reconciled']),1)
 
     def test_wrong_role_cannot_correct_a_false_negative(self):
+        self._wrong_role_receipt('Warehouse Manager')
+
+    def test_senior_variant_cannot_correct_the_base_role(self):
+        self._wrong_role_receipt('Senior Agent Product Engineer')
+
+    def _wrong_role_receipt(self, received_role):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp)
             ledger,app,intent=fixtures.SubmissionConfirmationTests()._unknown_submission(root,
@@ -79,7 +85,7 @@ class WorkdayReceiptCorrectionTests(unittest.TestCase):
             payload={'thread':{'id':'thread-wrong','messages':[{'id':'message-wrong','threadId':'thread-wrong',
                 'internalDate':int(received.timestamp()*1000), 'headers':{'from':'notifications@myworkday.com',
                     'to':'candidate@example.test','subject':'Application received'},
-                'body':'Thank you for applying to Warehouse Manager at Fixture Company.'}]}}
+                'body':'Fixture Company has received your application for '+received_role+'.'}]}}
             result=reconcile_confirmation_threads(ledger_path=root/'ledger.sqlite3',
                 threads=[{'id':'thread-wrong','from':'notifications@myworkday.com','subject':'Application received'}],
                 thread_loader=lambda _id:payload, seen_state=root/'seen.json', expected_recipient='candidate@example.test')
