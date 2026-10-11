@@ -3337,6 +3337,36 @@ class LmLoopApplyTest(unittest.TestCase):
         self.assertEqual(receipt["eligible"], 1)
         self.assertEqual(receipt["skipped_pending"], ["paid-sibling"])
 
+    def test_real_backup_registry_allows_automatic_queued_release_adoption(self):
+        release = self._release("release-real-backup-queued-adoption").resolve()
+        actual = json.loads((ROOT / "config/loop-registry.json").read_text())["loops"]["claude-projects-backup"]
+        value = registry()
+        value["loops"]["claude-projects-backup"] = actual
+        value["loops"]["life-manager-disk-cleanup"] = json.loads((ROOT / "config/loop-registry.json").read_text())["loops"]["life-manager-disk-cleanup"]
+        (release / "config/loop-registry.json").write_text(json.dumps(value))
+        row = {
+            "classification": "managed", "provider_route": "deterministic",
+            "launchd_state": "loaded-idle", "installed_release_sha": "b" * 40,
+            "event_release_sha": "b" * 40, "loop_id": "claude-projects-backup",
+        }
+        applied = []
+        with (
+            patch.object(lm_loop, "ROOT", release),
+            patch.object(lm_loop, "snapshot", return_value=[row]),
+            patch.object(lm_loop, "_pending_admission_owners", return_value={"claude-projects-backup"}),
+            patch.object(lm_loop, "_pending_admission_policy_mismatches", return_value=set()),
+            patch.object(lm_loop, "_loaded_sha_is_ancestor", return_value=True),
+            patch.object(lm_loop, "apply_live", side_effect=lambda *args, **kwargs: applied.append(kwargs) or [{"ok": True}]),
+            patch.dict(os.environ, {"LIFE_MANAGER_RELEASE_ROOT": str(release),
+                "LIFE_MANAGER_LOOP_ID": "life-manager-release-reconciler"}),
+            redirect_stdout(io.StringIO()) as output,
+        ):
+            self.assertEqual(lm_loop.main(["reconcile", "deterministic", "--loaded-idle-only"]), 0)
+        self.assertEqual([call["target"] for call in applied], ["claude-projects-backup"])
+        self.assertTrue(applied[0]["preserve_pending_admission"])
+        self.assertTrue(applied[0]["allow_reserved_release_rebind"])
+        self.assertFalse(applied[0]["replace_reserved_policy_drift"])
+
     def test_automatic_reconcile_prioritizes_queued_effect_free_control(self):
         release = self._release("release-queued-control-priority").resolve()
         value = registry()

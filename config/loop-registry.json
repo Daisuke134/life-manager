@@ -1304,6 +1304,7 @@
       "system_role": "platform",
       "log_root": "~/.local/state/life-manager/claude-projects-backup/logs",
       "provider_route": "deterministic",
+      "reconcile_queued_release": true,
       "state_root": "~/.local/state/life-manager/claude-projects-backup"
     },
     "daily-nl-report": {
