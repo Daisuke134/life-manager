@@ -44,13 +44,14 @@ _ADAPTER_MODULE_NAME = "_anicca_lancers_adapter_status_v1"
 class LancersProviderError(RuntimeError):
     """Stable provider failure with no URL, body, or credential detail."""
 
-    def __init__(self, code: str):
+    def __init__(self, code: str, *, http_status: Optional[int] = None):
         self.code = code
+        self.http_status = http_status if type(http_status) is int and 100 <= http_status <= 599 else None
         super().__init__(code)
 
 
-def _fail(code: str) -> None:
-    raise LancersProviderError(code) from None
+def _fail(code: str, *, http_status: Optional[int] = None) -> None:
+    raise LancersProviderError(code, http_status=http_status) from None
 
 
 def _clean_text(value: str) -> str:
@@ -453,18 +454,19 @@ def fetch_public_html(*, query: Optional[str], limit: int, timeout: float, categ
     )
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
+            observed_status = getattr(response, "status", None)
             status = getattr(response, "status", 200)
             final_url = getattr(response, "geturl", lambda: url)()
             if isinstance(final_url, str) and "/user/login" in final_url:
-                _fail("lancers_provider_blocked")
+                _fail("lancers_provider_blocked", http_status=observed_status)
             if _detail_url is not None and _canonical_detail_url(final_url) != _detail_url:
-                _fail("lancers_http_error")
+                _fail("lancers_http_error", http_status=observed_status)
             if client_url is not None and final_url != client_url:
-                _fail("lancers_http_error")
+                _fail("lancers_http_error", http_status=observed_status)
             if status in {401, 403, 429}:
-                _fail("lancers_provider_blocked")
+                _fail("lancers_provider_blocked", http_status=observed_status)
             if not isinstance(status, int) or status < 200 or status >= 300:
-                _fail("lancers_http_error")
+                _fail("lancers_http_error", http_status=observed_status)
             chunks: List[bytes] = []
             total = 0
             while total <= _MAX_BODY_BYTES:
@@ -480,8 +482,8 @@ def fetch_public_html(*, query: Optional[str], limit: int, timeout: float, categ
         raise
     except urllib.error.HTTPError as error:
         if error.code in {401, 403, 429}:
-            _fail("lancers_provider_blocked")
-        _fail("lancers_http_error")
+            _fail("lancers_provider_blocked", http_status=error.code)
+        _fail("lancers_http_error", http_status=error.code)
     except (urllib.error.URLError, TimeoutError, OSError):
         _fail("lancers_network_error")
     try:
@@ -594,12 +596,15 @@ def run_discovery(
             payload["error"] = "no_normalized_opportunities"
         return payload
     except LancersProviderError as error:
-        return {
+        result = {
             "ok": False,
             "platform": "lancers",
             "source": "public_html",
             "error": error.code if error.code.startswith("lancers_") else "lancers_internal_error",
         }
+        if error.code in {"lancers_http_error", "lancers_provider_blocked"} and error.http_status is not None:
+            result["http_status"] = error.http_status
+        return result
     except Exception:
         return {
             "ok": False,

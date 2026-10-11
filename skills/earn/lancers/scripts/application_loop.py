@@ -226,6 +226,7 @@ class ApplicationLoopResult:
     planner_expected_count: Optional[int] = None
     planner_returned_count: Optional[int] = None
     decision_reports: Optional[tuple[Mapping[str, object], ...]] = None
+    http_status: Optional[int] = None
 
     def to_dict(self) -> dict[str, object]:
         result: dict[str, object] = {"ok": bool(self.ok), "platform": PLATFORM, "submitted": bool(self.submitted), "application_verified": bool(self.application_verified)}
@@ -241,6 +242,8 @@ class ApplicationLoopResult:
         for key in ("verified_project_ids", "verified_provider_proposal_ids", "provider_terminal_blocked_project_ids"):
             value = getattr(self, key)
             if value: result[key] = list(value)
+        if self.error in {"lancers_http_error", "lancers_provider_blocked"} and type(self.http_status) is int and 100 <= self.http_status <= 599:
+            result["http_status"] = self.http_status
         if self.decision_reports: result["decision_reports"] = [dict(value) for value in self.decision_reports]
         if self.unresolved_project_id is not None: result["unresolved_project_id"] = self.unresolved_project_id
         return result
@@ -1111,7 +1114,7 @@ def run_loop(*, exhaustive: bool = False, state_path: Path = DEFAULT_STATE_PATH,
                     error, opportunities = observed.get("error"), observed.get("opportunities", [])
                     if observed.get("ok") is not True and not (error == "no_normalized_opportunities" and "opportunities" in observed and not opportunities):
                         clean_error = error if isinstance(error, str) and re.fullmatch(r"[A-Za-z0-9._:-]{1,256}", error or "") else "discovery_failed"
-                        result = ApplicationLoopResult(False, error=clean_error)
+                        result = ApplicationLoopResult(False, error=clean_error, http_status=observed.get("http_status"))
                     elif error is not None and error != "no_normalized_opportunities":
                         result = ApplicationLoopResult(False, error=error if isinstance(error, str) and re.fullmatch(r"[A-Za-z0-9._:-]{1,256}", error) else "discovery_failed")
                     elif isinstance(opportunities, (str, bytes, bytearray)) or not isinstance(opportunities, Sequence): result = ApplicationLoopResult(False, error="discovery_failed")
