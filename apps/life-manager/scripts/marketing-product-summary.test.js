@@ -49,3 +49,54 @@ test("Anicca summary consumes current corrections ahead of retained historical r
   const summary = persistAniccaDaily(dataDir, day, `${day}T09:30:00.000Z`);
   assert.match(summary.snapshot.message, /@anicca\.jp1 Instagram: Views 2229/);
 });
+
+test("Anicca daily summary includes @anicca.en current metrics and ignores stale posts", () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-anicca-en-summary-")); const day = "2026-10-11";
+  const writeDaily = (owner, shortcode, filename, snapshot) => {
+    const directory = path.join(dataDir, "tenants/dais-local/marketing/metrics", owner, shortcode, "daily");
+    fs.mkdirSync(directory, { recursive: true }); fs.writeFileSync(path.join(directory, filename), JSON.stringify(snapshot));
+  };
+  writeDaily("anicca.jp", "TikTok1", `${day}.json`, { observed_at: `${day}T08:00:00.000Z`, published_at: `${day}T07:00:00.000Z`,
+    locale: "ja", account_id: "@anicca.jp", public_url: "https://www.tiktok.com/@anicca.jp/video/1",
+    post: { views: { status: "measured", value: 100 } }, account_metrics: { status: "unavailable", reason: "source_delayed" } });
+  writeDaily("anicca.ios.jp", "Instagram1", `${day}.json`, { observed_at: `${day}T08:01:00.000Z`, published_at: `${day}T07:00:00.000Z`,
+    locale: "ja", account_id: "@anicca.jp1", public_url: "https://www.instagram.com/reel/ABC123/",
+    post: { views: { status: "measured", value: 101 } }, account_metrics: { status: "unavailable", reason: "source_delayed" } });
+  writeDaily("anicca.en", "OldReel", `${day}.json`, { observed_at: `${day}T10:00:00.000Z`, published_at: "2026-09-01T10:00:00.000Z",
+    locale: "en", account_id: "@anicca.en", public_url: "https://www.instagram.com/reel/OldReel/",
+    post: { views: { status: "measured", value: 999999 } }, account_metrics: { status: "unavailable", reason: "source_delayed" } });
+  writeDaily("anicca.en", "DdvxhT1jm8F", `${day}.current.correction.json`, {
+    observed_at: "2026-10-11T08:18:53.023Z", source_observed_at: "2026-10-11T08:18:53.023Z", published_at: "2026-09-26T10:02:41.890Z",
+    historical_checkpoint: false, locale: "en", account_id: "@anicca.en", public_url: "https://www.instagram.com/reel/DdvxhT1jm8F/",
+    post: {
+      views: { status: "measured", value: 2229 }, reach: { status: "measured", value: 1610 }, saves: { status: "measured", value: 3 },
+      likes: { status: "measured", value: 1 }, comments: { status: "measured", value: 0 }, shares: { status: "measured", value: 0 },
+      impressions: { status: "unavailable", value: null, reason: "metric_not_supported" },
+      watch_time: { status: "unavailable", value: null, reason: "metric_not_supported" },
+      average_watch_time: { status: "unavailable", value: null, reason: "metric_not_supported" },
+      completion: { status: "unavailable", value: null, reason: "metric_not_supported" },
+      engagement: { status: "derived", percent: 0.18 },
+    },
+    account_metrics: [
+      { label: "Views", data: [{ total: 17481, date: "2026-10-11" }] },
+      { label: "Reach", data: [{ total: 1703, date: "2026-10-05" }, { total: 2937, date: "2026-10-10" }] },
+      { label: "Likes", data: [{ total: 31, date: "2026-10-11" }] },
+      { label: "Comments", data: [{ total: 0, date: "2026-10-11" }] },
+      { label: "Shares", data: [{ total: 6, date: "2026-10-11" }] },
+      { label: "Saves", data: [{ total: 25, date: "2026-10-11" }] },
+      { label: "Replies", data: [{ total: 0, date: "2026-10-11" }] },
+    ],
+  });
+
+  const summary = persistAniccaDaily(dataDir, day, "2026-10-11T13:00:00.000Z");
+  assert.equal(summary.snapshot.source_refs.length, 3);
+  assert.match(summary.snapshot.message, /@anicca\.en Instagram: 現在値/);
+  assert.match(summary.snapshot.message, /過去のチェックポイント値ではありません/);
+  assert.match(summary.snapshot.message, /Views 2229.*Reach 1610.*Saves 3.*Likes 1.*Comments 0.*Shares 0.*Engagement 0\.18%/);
+  assert.match(summary.snapshot.message, /API未提供: Impressions、Watch time、Average watch time、Completion/);
+  assert.match(summary.snapshot.message, /Account Views 17481.*2026-10-11/);
+  assert.match(summary.snapshot.message, /Account Reach 2937.*2026-10-10/);
+  assert.match(summary.snapshot.message, /Account Likes 31.*Account Comments 0.*Account Shares 6.*Account Saves 25.*Account Replies 0/);
+  assert.match(summary.snapshot.message, /https:\/\/www\.instagram\.com\/reel\/DdvxhT1jm8F/);
+  assert.doesNotMatch(summary.snapshot.message, /999999|Account totals 7/);
+});
