@@ -23,6 +23,8 @@ This repository is the source authority for Life Manager. The canonical remote i
    | Writer (paid articles) | `article-daily` (06:00 JST; the article itself is the product) | the article + its X post | writer money ledger |
    | Mobile apps | app factory (not yet re-verified) | `life-manager-anicca-*` / `life-manager-honne-*` posting lanes via Postiz | App Store Connect + RevenueCat in `business-outcomes.jsonl` |
 
+10. **Never touch a seller; ship new; market the sellers (Dais 2026-10-11).** Every version update to an Agent that sold (Hook Lab 9/29 DeepSeek switch, 10/06, 10/10 price restore) preceded its sales stopping, and a seller update under review also fills one of Capafy's five new-Agent slots, so it blocks new Agents too. Sellers live in `skills/capafy/FROZEN.json` and no exception field reaches them. Factory order: finish/create NEW Agents first; iterate (price, description) only non-selling Agents, and only when no new Agent can ship. Marketing goes all in on the sellers: the top earner (Hook Lab) takes half of all distribution slots.
+
 ## Before any development action
 
 - Confirm the Git root, current branch, common Git directory and `origin` before reading or editing source. If the root or remote is not Life Manager, stop and report the mismatch.
