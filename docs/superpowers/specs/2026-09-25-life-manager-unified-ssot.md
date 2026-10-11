@@ -1,6 +1,6 @@
 # Life Manager 統合SSOT — As-Is / To-Be / TODO
 
-> **最新Manager方針 2026-10-10:** 構造改善と4トラック評価を中核に、cloud/local中立で独立coreを設計する。Life Managerは短期収益系統として並行し、基盤は必要な部分だけ共有。[最新更新と実行順](#manager-20261010) を参照。10/8のD0–D7は本書内の継続するcode task。
+> **最新Manager方針 2026-10-11:** Aaru/Simile/AI Economistの精読を反映し、今月はManager Environment Labのclosed-loop benchmarkを制作する設計。採用は人間/人口simulationの直接職種を優先。Life Managerの事業構築/収益をexecution tractionとして説明し、環境レベル成果とscopeを区別。[最新の制作順と状態](#manager-20261011)を参照。
 
 > **2026-10-02の新規方針:** Daisは、個人用Life Managerから、受益者にアプリ・アカウント・個人認証を要求せず環境を改善する **Manager** への構想変更、一次資料調査、仕様とgame plan、Aniccaai.comの全面更新を依頼した。新規作業の順序・状態はこの文書末尾の [Manager更新](#manager-20261002) に置く。旧loopのruntime履歴・運用境界は削除しない。新構想の実証や本番サイト更新は未完了。
 
@@ -3023,7 +3023,7 @@ Documentsのみをcanonical専用worktreeへ変更。外部6repoの固定版コ�
 
 ### N2 — 応募と関係づくり
 
-- [ ] まずSakana/Apollo/Epoch/Andonを現経歴と照合し、実例1件・研究1件・Managerのstageを含むrole-specific cover回答へ。METR/Mechanize/DeepMind/OpenAIはhard task/grader/debug artifactで接続する。初回8職種のURLとrequirementsは求人report参照。
+- [ ] 10/11追記: 直接simulation職を優先する最新N3に置き換える。以前のSakana/Apollo/Epoch/Andonを現経歴と照合する案は隣接候補として保持し、実例1件・研究1件・Managerのstageを含むrole-specific cover回答へ。METR/Mechanize/DeepMind/OpenAIはhard task/grader/debug artifactで接続する。初回8職種のURLとrequirementsは求人report参照。
 - [ ] 原履歴書の学位/修了/勤務期間/研究担当を確認し、提出する4版のclaimsを固定。求人のsponsorshipとremote-country条件を個別に確認。3年/博士/国籍等の条件は制作物で置き換えない。
 - [ ] 公開paperをユーザー自身が読んで質問を説明できる状態にし、mailごとにone-page experimentを添える。送信・返信・面談の状態は実receiptで更新。Podcastは同意のある対話から始める。
 - [ ] 東京10/13・10/14、Stanford online10/16、SBP-BRiMS online10/12–14等から開発日程と両立する参加を選ぶ。申請/承認/購入/参加を別記録し、登壇研究者との面会を保証しない。
@@ -3040,3 +3040,47 @@ Documentsのみをcanonical専用worktreeへ変更。外部6repoの固定版コ�
 今回の変更は調査・設計・原稿・private履歴書・未送信mail draft。code実装、paid API、live環境作用、サイト公開、求人応募、イベント登録、既存Mac runtime変更は未実施。検証記録は下記handoffへ追記する。
 
 10/10検証: canonical source-boundary PASS、変更16 Markdownのlocal links/Manager anchors検査、TODO正本が本書だけであること、新たな履歴書個人contactをGitへ追加していないことを確認。既存SSOTの2 historical missing linkはHEADにも存在し今回変更せず。private履歴書4 PDFは各1頁、全文抽出とDOCX読み取りを確認し、embedded fontのApollo最終renderを目視。Gmail4 draftは更新後messageを読み取り宛先/件名/本文/DRAFTを確認。Sakana/Apollo/HAI/YCの主要一次pageを最終再取得。新code testsやsite buildは対象変更がないため実行していない。
+
+<a id="manager-20261011"></a>
+## Manager 2026-10-11 資料精読とEnvironment Lab
+
+ユーザーの最新依頼: Aaru publications、Simile blog/papers、AI Economistを最深部まで理解し、各者の解説記事と研究室向け発表を作る。Fei-Fei/World LabsとLeCunのworld modelsとの違いを理解。求人/eventは一般AI隣接でなくManagerに直接つながる分野を優先。今月の制作とYC、Life Managerの実売上をprogressとして説明する。
+
+設計契約は[Environment Lab仕様](2026-10-11-manager-environment-lab-design.md)。D0–D7/E0は引き続き本書のcode task。以下は対象と受入順の更新であり別TODO正本を作らない。product implementationは未着手、field成果なし、記事/発表の公開なし。
+
+### 調査と制作済みの資料
+
+- [x] [Aaru](../../research/manager/2026-10-11-aaru-publications.md): Sept24一研究のsummary/methods、population pipeline、公開結果、関連papersを精読。中核非LLM、joint構造の公開説明、univariate/購買順位の検証と因果効果の未検証を区別。
+- [x] [Simile](../../research/manager/2026-10-11-simile-blog-papers.md): blog7本、現行individual v3、Socrates、confidence methodsとCVS白書。現行fine-tuned productと2023memory architectureを分離。normalized83%/High95%/26.3%を正しい指標として説明。
+- [x] [AI Economist](../../research/manager/2026-10-11-ai-economist.md): 2020/2021 paperと固定code、two-level PPO、報酬、税期、action mask、市場/escrow、限定human transfer。Science Advances最終出版、archived repoを確認。旧公式blogは403未読。
+- [x] [World-model比較](../../research/manager/2026-10-11-world-models-comparison.md): Atlas/R2S2R、JEPA世代、latent/action/planning。LeCun2022原稿は取得制限と明記。World Labsを静的3D、LeCunをロボットのみと説明しない。
+- [x] [直接求人/event](../../research/manager/2026-10-11-direct-jobs-events.md): Simile3/Aaru3/Primitive2の8職種をfresh確認。Aaru sponsorship/relocation明記を訂正。直接eventはSBP-BRiMS10/12–14 hybridを確認。未来Simile/Aaru company eventは未確認。CSSSA告知は詳細406で日付未検証。
+- [x] 三者のexplainer各英日計6原稿: [Aaru EN](../../research/manager/articles/2026-10-11-aaru-en.md)/[JA](../../research/manager/articles/2026-10-11-aaru-ja.md)、[Simile EN](../../research/manager/articles/2026-10-11-simile-en.md)/[JA](../../research/manager/articles/2026-10-11-simile-ja.md)、[AI Economist EN](../../research/manager/articles/2026-10-11-ai-economist-en.md)/[JA](../../research/manager/articles/2026-10-11-ai-economist-ja.md)。未公開。
+- [x] [発表sourceと日本語notes](../../research/manager/presentations/2026-10-11-human-simulation-talk.md)、同名JSONとrender_talk.py。main18＋appendix2枚、約20分。editablePPTX/vectorPDF/日本語notesDOCXは `/workspace/artifacts/manager-talk/`。現実成果の発表とせず研究提案のstageを表示。
+
+### 今月の順序と受入条件
+
+- [ ] **10/11–17: D0/D1/D2**。population/response/transition/evaluationを別に保つ。service-accessとshared-resource/economic allocationの2worldを同一typed契約へ。財、容量、予算、時間、scopeをcodeで制約。合成人口には仮定とtrait margins/joint根拠を付ける。
+- [ ] **10/18–24: D3/D4/D5**。no-change/fixed/heuristic/searchを同予算で比較し、policy適応とspillover、未見network/rule/response-familyを測る。bounded simulation executorのapply→readback→evaluation→model updateまでfinite episodeをつなぐ。
+- [ ] **10/25–28: E0の必要部分/D7の予測検証**。再現manifest/trace/scorecard/費用を生成、public許諾datasetの予測sliceをheldout評価。cloud containerは実run receiptが出た範囲だけdeployedとする。confidence learnerはground truth不足なら保留し、残差/coverage/model disagreementを表示。
+- [ ] **10/29–31: D6/A**。動いた能力のdemo、失敗、stage、研究資料をweb/申請へ整合。YC通常締切11/2 20:00 PTを守る内部目標10/31。実装開始と結果で工数再評価し、予定を完成claimにしない。
+- [ ] **Field上位目標: D7**。一つのoperator、変更権限、観測source、対照と期間が揃った場合にshadow→authorized比較。健康/精神/富は実際の指標で測定。field未実施ならnot_run、simulationのみの数値は条件付き成果とする。地域やbuilding-energyを製品全体の固定領域にしない。
+- [ ] **二層RLの追加判断**。固定候補探索に対し、住民適応の有無/response-familyでpolicy順位が変わるかを先に検査。必要ならinner adaptation、その後outer RL。旧1Bsample stackを先に移植しない。
+
+### N3 — 直接職種・研究室発表・関係づくり
+
+- [ ] まずSimile Evaluations/Aaru Evaluationを実経歴と照合。人口分布、calibration、causal threats、empirical measurementの作品を添える。Aaru Simulation Engineeringは3+年条件、PopulationはPhD相当depth、Simile ResearchはGPU学習を別判定。
+- [ ] Primitive Research/Founding/Internは人間journey/decision/memoryの直接接点として個別化。Sakana/Apollo等は隣接候補に降格し、直接社会simulationをしているとは書かない。
+- [ ] 研究室への発表依頼は実際の窓口/日程/発表枠を確認してから。talkの主題はHuman Simulation, Social World Models, and Environment Design、feedbackはmeasurement/adaptation/wellbeingへ。出演/面談/cofounder成立を想定実績にしない。
+- [ ] SBP-BRiMSの参加条件を選ぶ。CSSSA Nigel Gilbert webinar/CSS2026は日付/登録を追加確認できれば候補へ昇格。未来Simile/Aaru eventの空欄をgeneric codingmeetupで埋めない。登録/購入は未実施。
+- [ ] 論文と記事の版・指標・個票/集計/介入のscopeを最終校正して公開laneへ。現在の研究を理解してから具体質問で関係を作る。副業/競業/IP条件は実契約を確認する。
+
+### A2 — 収益の説明
+
+- [ ] ユーザーは10/11にLife Manager売上があると述べた。現在額/期間/通貨/購入者/費用/人的作業を確認する。旧snapshotから今もゼロと推定しない。個別のprovider receiptを二重計上せず、現在の実売上をexecution tractionとして使う。
+- [ ] gross sales/refund/fees/model/hosting/net contribution/settled cashと、自社売上/顧客の利益/Manager売上を別記録。recurringでない金額をMRRとしない。資金移動や予測はrevenueにしない。
+- [ ] YCは一つの会社の方向として説明: Life Manager builds/operates businesses to create wealth; Manager adds shared-environment prediction, intervention, and measured outcomes. 実績を具体化し、旧製品売上を新Managerの社会impactへ転用しない。申請は未提出。
+
+このturnは一次資料研究、記事、talk artifact、仕様更新。paid API/学習、product code、live介入、Mac runtime変更、記事公開、mail送信、求人応募、event登録は未実施。最後にartifactとdiff/リンクを検証しlocal commitする。
+
+10/11検証: source-boundary PASS。変更17 Markdownのlocal links/Manager anchors50参照、唯一のTODO正本、新規private contact非追加を確認。旧SSOT2 missing linksはHEADから継承で変更せず。PPTX20枚のfull title、JA notes、sourceURL、shape bounds、PDF20頁と主要数値、notes DOCXをreadback。全pageのPDFcontact sheetを目視しclippingなし。Rendererはcard内のfitも検査。新しいManager product code/モデル学習の試験結果とは区別する。

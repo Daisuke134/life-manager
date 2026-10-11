@@ -1,6 +1,6 @@
 # Aniccaai.com — Managerのgreenfield rebrand
 
-2026-10-08。掲載原稿とsource差分の設計。サイト実装・公開は未実施。旧body/mind/money agentの紹介を、Managerのmission・仕組み・証拠へ置き換える。順序と状態は [統合SSOT](2026-09-25-life-manager-unified-ssot.md#manager-20261010)。
+2026-10-08。掲載原稿とsource差分の設計。サイト実装・公開は未実施。旧body/mind/money agentの紹介を、Managerのmission・仕組み・証拠へ置き換える。順序と状態は [統合SSOT](2026-09-25-life-manager-unified-ssot.md#manager-20261011)。
 
 ## 英語の掲載原稿
 
@@ -93,3 +93,9 @@ metadata英語: `Manager — One entity, blessing for all.`。日本語: `Manage
 /benchmarksではprediction/policy/execution/outcomeの別カード、not_run状態、protocol、manifest、baseline、uncertainty、費用、群別影響を掲載。/researchでは研究記事の出典と実装stage。/aboutでは確認できた研究/実務経歴だけを掲載し、ICLR参加をaccepted paperと書かない。新Managerの顧客・売上・健康改善を創作しない。Life Manager収益は確認できた場合に別scopeで説明する。
 
 この更新は原稿・構成の変更。本番Aniccaai.comの更新ではない。source/build/deploymentの残作業は統合SSOT D6。
+
+## 2026-10-11の研究と会社ストーリー
+
+研究sectionは三者を同じLLM人格simulationと扱わず、Aaruのjoint population/非LLM中核、Simileのhuman-grounded trained behavior/confidence、AI Economistの制度plannerと住民適応を説明する。記事6原稿とtalkの公開先はD6/N3で決め、未公開routeをliveリンクにしない。
+
+会社の説明案: **Life Manager builds and operates businesses to create wealth. Manager extends this work to the shared conditions of life: modeling behavior, redesigning environments, and measuring outcomes for people who never use an app.** これは方向性の説明。現在の売上は確認された期間/主体/数値、Manager benchmarkは実run後の範囲だけ載せる。受益者にログイン不要、作用と根拠は公開できる形にする。

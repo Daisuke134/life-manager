@@ -98,3 +98,5 @@ Woven Cityは裾野市のphysical test course、Tokyoは会社本社/求人勤�
 ## 知財・副業・競業について
 
 上記求人の公開本文だけでは、個人Manager repoの持込み、就業後のside project継続、競合simulation事業、既存IPの除外、公開許可を保証できない。必要なのはoffer/契約時の発明譲渡・守秘・競業/副業条項、既存成果物の明示的schedule、使用機器/勤務時間/データの扱い、公開条件の書面確認。企業の技術領域とManagerが近いほど、独立した個人研究を許容するという推測はしない。この調査では雇用契約を見ていないため各社の許容度は**不明**。
+
+2026-10-11追記: Aaru Population/Simulation/Evaluationの3職種を再取得し、visa sponsorship and relocation supportの明記を確認。最新の直接職種と優先順位は[10/11 report](2026-10-11-direct-jobs-events.md)。本書の職種情報は10/8時点の履歴。
