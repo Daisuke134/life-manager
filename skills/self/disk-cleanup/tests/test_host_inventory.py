@@ -663,10 +663,124 @@ def test_full_inventory_advances_past_budget_to_session_root(tmp_path, monkeypat
 def test_growth_uses_last_real_sample_time_after_unmeasured_pass():
     path = "/srv/lm/large"
     previous = {"observed_at":"2026-10-09T00:09:00Z", "roots":[{"path":path,"size_bytes":None,
-        "size_sample":{"size_bytes":100,"observed_at":"2026-10-09T00:00:00Z"}}]}
-    current = {"observed_at":"2026-10-09T00:10:00Z", "roots":[{"path":path,"size_bytes":700,
-        "size_sample":{"size_bytes":700,"observed_at":"2026-10-09T00:10:00Z"}}]}
+        "size_sample":{"size_bytes":100,"observed_at":"2026-10-09T00:00:00Z","measurement":"bounded-du"}}]}
+    current = {"observed_at":"2026-10-09T00:10:00Z", "roots":[{"path":path,"size_bytes":700,"measurement":"bounded-du",
+        "size_sample":{"size_bytes":700,"observed_at":"2026-10-09T00:10:00Z","measurement":"bounded-du"}}]}
     result = host_inventory.project_storage_growth(previous,current,{})["roots"][0]
     assert result["delta_bytes"] == 600
     assert result["elapsed_seconds"] == 600
     assert result["bytes_per_second"] == 1
+
+
+@pytest.mark.parametrize("returncodes", [(0, 1), (1, 0), (0, 0)])
+def test_storage_growth_requires_two_complete_snapshots(tmp_path, monkeypatch, returncodes):
+    root = tmp_path / "Projects"
+    root.mkdir()
+    monkeypatch.setattr(host_inventory, "ROOT_FAMILIES", (("repository-worktree", "{home}/Projects"),))
+    snapshots = []
+    for index, returncode in enumerate(returncodes):
+        observed_at = f"2026-10-09T00:0{index}:00Z"
+        monkeypatch.setattr(host_inventory.time, "strftime", lambda *_args: observed_at)
+
+        def runner(argv, *, timeout):
+            if argv[0].endswith("/du"):
+                return subprocess.CompletedProcess(argv, returncode, f"{100 * (index + 1)}\t{root}\n", "Permission denied" if returncode else "")
+            return fake_runner(argv, timeout=timeout)
+
+        snapshots.append(collect_host_inventory(home=tmp_path, state_dir=tmp_path / "state", full=True, runner=runner))
+
+    growth = snapshots[1]["storage_growth"]["roots"][0]
+    assert growth["size_bytes"] == 200 * 1024
+    if 1 in returncodes:
+        assert growth["delta_bytes"] is None
+        assert growth["elapsed_seconds"] is None
+        assert growth["bytes_per_second"] is None
+        partial = snapshots[returncodes.index(1)]["roots"][0]
+        assert partial["measurement"] == "bounded-du-partial"
+        assert partial["size_sample"] == (snapshots[0]["roots"][0]["size_sample"] if returncodes[0] == 0 else None)
+    else:
+        assert growth["delta_bytes"] == 100 * 1024
+        assert growth["elapsed_seconds"] == 60
+        assert growth["bytes_per_second"] == (100 * 1024) / 60
+
+
+@pytest.mark.parametrize("unmeasured_pass", [False, True])
+def test_storage_growth_preserves_complete_baseline_across_partial_snapshot(tmp_path, monkeypatch, unmeasured_pass):
+    root = tmp_path / "Projects"
+    root.mkdir()
+    monkeypatch.setattr(host_inventory, "ROOT_FAMILIES", (("repository-worktree", "{home}/Projects"),))
+    snapshots = []
+    probes = [(100, 0), (20, 1)] + ([(None, None)] if unmeasured_pass else []) + [(300, 0)]
+    for index, (size_kib, returncode) in enumerate(probes):
+        observed_at = f"2026-10-09T00:0{index}:00Z"
+        monkeypatch.setattr(host_inventory.time, "strftime", lambda *_args: observed_at)
+
+        def runner(argv, *, timeout):
+            if argv[0].endswith("/du"):
+                return subprocess.CompletedProcess(argv, returncode, f"{size_kib}\t{root}\n", "Permission denied" if returncode else "")
+            return fake_runner(argv, timeout=timeout)
+
+        snapshots.append(collect_host_inventory(home=tmp_path, state_dir=tmp_path / "state", full=True,
+            runner=runner, budget_seconds=0 if size_kib is None else None))
+
+    assert snapshots[1]["roots"][0]["size_sample"] == snapshots[0]["roots"][0]["size_sample"]
+    assert snapshots[1]["storage_growth"]["roots"][0]["bytes_per_second"] is None
+    if unmeasured_pass:
+        assert snapshots[2]["roots"][0]["size_bytes"] is None
+        assert snapshots[2]["roots"][0]["size_sample"] == snapshots[0]["roots"][0]["size_sample"]
+        assert snapshots[2]["storage_growth"]["roots"][0]["bytes_per_second"] is None
+    growth = snapshots[-1]["storage_growth"]["roots"][0]
+    assert growth["delta_bytes"] == 200 * 1024
+    assert growth["elapsed_seconds"] == 60 * (len(probes) - 1)
+    assert growth["bytes_per_second"] == (200 * 1024) / (60 * (len(probes) - 1))
+
+
+@pytest.mark.parametrize("measurement", ["bounded-du-partial", "budget-exhausted", "metadata-only", "timeout", None])
+def test_storage_growth_rejects_legacy_cached_samples_without_complete_proof(measurement):
+    path = "/srv/lm/a"
+    previous = {"observed_at": "2026-10-09T00:01:00Z", "roots": [{
+        "path": path, "measurement": measurement,
+        "size_bytes": 100 if measurement == "bounded-du-partial" else None,
+        "size_sample": {"size_bytes": 100, "observed_at": "2026-10-09T00:00:00Z"},
+    }]}
+    current = {"observed_at": "2026-10-09T00:02:00Z", "roots": [{
+        "path": path, "measurement": "bounded-du", "size_bytes": 200,
+    }]}
+
+    growth = host_inventory.project_storage_growth(previous, current, {})["roots"][0]
+    assert growth["delta_bytes"] is None
+    assert growth["elapsed_seconds"] is None
+    assert growth["bytes_per_second"] is None
+
+
+def test_storage_growth_accepts_legacy_sample_backed_by_complete_record():
+    path = "/srv/lm/a"
+    previous = {"observed_at": "2026-10-09T00:01:00Z", "roots": [{
+        "path": path, "measurement": "bounded-du", "size_bytes": 100,
+        "size_sample": {"size_bytes": 100, "observed_at": "2026-10-09T00:00:00Z"},
+    }]}
+    current = {"observed_at": "2026-10-09T00:02:00Z", "roots": [{
+        "path": path, "measurement": "bounded-du", "size_bytes": 220,
+    }]}
+
+    growth = host_inventory.project_storage_growth(previous, current, {})["roots"][0]
+    assert growth["delta_bytes"] == 120
+    assert growth["elapsed_seconds"] == 120
+    assert growth["bytes_per_second"] == 1
+
+
+def test_storage_growth_never_uses_current_partial_total_with_complete_cache():
+    path = "/srv/lm/a"
+    previous = {"observed_at": "2026-10-09T00:00:00Z", "roots": [{
+        "path": path, "measurement": "bounded-du", "size_bytes": 100,
+    }]}
+    current = {"observed_at": "2026-10-09T00:02:00Z", "roots": [{
+        "path": path, "measurement": "bounded-du-partial", "size_bytes": 300,
+        "size_sample": {"size_bytes": 200, "observed_at": "2026-10-09T00:01:00Z", "measurement": "bounded-du"},
+    }]}
+
+    growth = host_inventory.project_storage_growth(previous, current, {})["roots"][0]
+    assert growth["size_bytes"] == 300
+    assert growth["delta_bytes"] is None
+    assert growth["elapsed_seconds"] is None
+    assert growth["bytes_per_second"] is None
