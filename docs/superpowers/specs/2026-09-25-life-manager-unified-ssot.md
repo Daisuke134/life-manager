@@ -40,7 +40,7 @@ To-Beは各agentがobserve→decide→act→official verify→persist→自分�
 
 **不変条件:** iOS Simulator runtime/image/device/data/dyld、memory/state、credentials、browser identity、参照release、active/dirty/unmerged/leased/locked worktree、open/unknown dataを削除しない。各agentは自分が生成し所有する非authoritative scratchだけを片付け、中央cleanupは残ったclosed/orphaned artifactと証明済みの不要物を回収する。他agentの作業や正式receiptを消さない。effect_unknownはexact official receipt/pre-effect proofまで解除・再送しない。内部の余白・時間・byte予算は安全な制御に使い、空き容量の固定値を事業再開の条件にしない。
 
-**現在cursor:** →「基盤だけのatomic TODO」のBF11。旧cleanup残3大分類は親分類として参照し、実行/報告はBF-ID単位で進める。
+**現在cursor:** →「基盤だけのatomic TODO」のBF14。旧cleanup残3大分類は親分類として参照し、実行/報告はBF-ID単位で進める。
 
 **引き継ぎ/診断証拠:** worktree HEAD `a6e03757`の4ファイル497行差分を`ea1784b0ec`で保持してpushし、最新main `3baccdbd`を`00b5d4ff5d`でmerge/push。leaseは既存owner `codex-root`でheartbeatを更新、直列lsof再確認でworktree下open handleなし。既存temp/worktree focused testは2 PASS。agmsg統括identityは`lm/codex-resource-orchestrator-1009`、既存cleanup担当へ重複書込抑制と状態照会を送信。自然receiptの成功/失敗が交互に現れ、失敗時の正確な親errorは`host_cleanup_identity_mismatch`。`disk_cleanup.py::main`のbusy lock出力はexit75だがidentityを含まず、`central_cleanup.host_cleanup_readback`の同-occurrence検査が失敗に変換する。REDはbusy出力identity欠落と親exit1を再現し、最小修正後の関連4 testsはGREEN。修正契約は、busy出力にもimmutable manifest由来の同run identityを載せ、親はそのidentityを検証した正確なbusyだけをeffect0のexit75延期として維持し、他のidentity mismatchはexit1のまま拒否する。旧ENOSPC修復とは区別し、容量不足時の既存reserve/cursor testsも再確認する。
 
@@ -219,9 +219,9 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 
 当面の対象はこの表だけ。下の全社130工程は将来の参照ロードマップであり、いま全社工程へ拡大しない。既存の「cleanup残3大分類」は本表の親分類で、進捗報告はBF-ID単位で完了証拠を示す。毎分watchdog、共通bounded出力/代表自己cleanup、Gig閉鎖物回収/再開、予約expiry順序、scratch通常file誤判定、backup失敗伝播と自然保存/対象claim返却は確認済みで、残項目へ戻さない。
 
-15個の受入atom中BF01/02/03/04/05/05b/06/07/08/09/10/12/13は完了、残り2。残件は故障確定数ではない。診断で既適用/修正不要と証明した項目はN/Aで閉じ、新しい根本原因は別IDで追加し、黙って同じ大分類へ戻さない。BF09は未知effectのblind解除ではなく照合/復旧routeの稼働確認。個別商品の認証/外部審査/売上目標は基盤完了と分ける。
+15個の受入atom中BF01/02/03/04/05/05b/06/07/08/09/10/11/12/13は完了、残り1。残件は故障確定数ではない。診断で既適用/修正不要と証明した項目はN/Aで閉じ、新しい根本原因は別IDで追加し、黙って同じ大分類へ戻さない。BF09は未知effectのblind解除ではなく照合/復旧routeの稼働確認。個別商品の認証/外部審査/売上目標は基盤完了と分ける。
 
-残りはBF11・BF14。必要なCI/自然run待ちは作業枠と分ける。作業枠は所要時間保証ではなく、上限までに結果/残る理由/次手を報告する管理値。初回着手で時間枠を超える時は再見積もりを記録し、必要な安全作業を継続する。9時間で全外部条件/全18成果を保証しない。各IDに開始/終了時刻・実測分・証拠・残差を追記し、30分以下の節目で閉じたIDを報告する。現在cursor=BF11。
+残りはBF14。必要なCI/自然run待ちは作業枠と分ける。作業枠は所要時間保証ではなく、上限までに結果/残る理由/次手を報告する管理値。初回着手で時間枠を超える時は再見積もりを記録し、必要な安全作業を継続する。9時間で全外部条件/全18成果を保証しない。各IDに開始/終了時刻・実測分・証拠・残差を追記し、30分以下の節目で閉じたIDを報告する。現在cursor=BF14。
 
 | ID | 状態 | 一つの完了対象 | 初回作業枠（分） | 完了を示す証拠 |
 |---|---|---|---|---|
@@ -236,7 +236,7 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 | BF08 | 完了（既存自然復旧、stale手動解除不要） | 実pending owner一件の停止境界をclaim/予約/clockとjoinし、正当なstaleを既存経路で回復する | fresh before/after | hf-reddit-loop-healthcheckのsequence605126が約122分待ちから自然run 18dd791592be3ae0-68857へ継承され、12:22:41Z pass/exit0/released/effect_unknown0。BF08-natural-queue-return-20261011.json。次wakeのcapacity waitはBF10へ |
 | BF09 | 完了（typed pre-effectの既存復旧） | 止まるowner一件の効果照合/復旧routeを特定し、照合仕事が進むことを確認する | read-only証拠join | Lancers occurrence18dc28c0af78dba0-93258の保存marker completed/effect0→既存finder verified/pre_effect→同一実claimrun/旧terminal exit1→reconciler closed/exit0→seq544206 released/unknown0を照合。BF09-typed-pre-effect-route-proof-20261011.json。provider再送/手動解除なし、売上や全fence閉鎖の証明ではない |
 | BF10 | 完了（軽量制御処理の分離） | 資源に余裕があるのに実仕事が止まる配分/fairnessの漏れを一件閉じる | 観測→RED→source→自然確認 | #7661のpool分類だけでは自然capacity_busyが残り、#7662/main afb4680cで既存control経路へ分離。13:10/13:15の同release自然runがpass/exit0、own scratch不在。業務pool/FIFO/cap/他ownerは保持 |
-| BF11 | 現在cursor | 必要な共通修正をまとめてCI/main/immutable/idle対象採用へ反映する | 15–30 | exact head/loaded SHA、active/unknownの保持理由。各sourceの既完は再修正しない |
+| BF11 | 完了（必要source採用と保持理由の照合） | 必要な共通修正をまとめてCI/main/immutable/idle対象採用へ反映する | exact-head CI＋immutable/readback | #7673/main b48224e4→8bf0dff2のcanonical activationを対象採用。session-vaultは3profileが解放された時に3fb71eae/install78c00690cc43d4a622b55876を採用しloaded argv一致。190担当のaccepted共通bundle一致132＋writer証明追加のみ10、旧unknown保持31/active13/Capafy3/未ロード1、remaining idle diff0。BF11-final-accepted-source-dispositions-20261012.json。業務成果/待ち時間ゼロとは分離 |
 | BF12 | 完了（通常producerとcontrolを分けて照合） | 修正対象一件の自然仕事→receipt→自己cleanup→枠返却をjoinする | fresh readback | backup自然run18dd7af5a6d62268-30018/12:57:06Z、修正済みbb5cd283。stdout ok true/398をdest maxdepth2実数398と照合。実claim18dbbb1b85038e50-10698/seq490383はreleased/unknown0、own scratch不在。BF12-backup-fresh-cycle-20261011.json。深いmemoryを含む670件と混同しない |
 | BF13 | 完了（代表的な自然反復の照合） | 次の自然仕事と中央cleanupをjoinし、反復で再悪化しないことを確認する | 自然3 cycles＋複数cleanup receipt | marketing計測14:20のrun18dd7f687a6a0808-6020、YouTube14:19/14:20のrun18dd7f767d342010-8980/18dd7f8538e1cae8-11297は同じoccurrenceのreleased/unknown0・own scratch不在。中央14:15/14:20・watchdog複数receiptはerrors0/protected_deletions0。BF13-ordinary-repeat-claim-cleanup-20261011.json。投稿/売上/全190成功/永久無事故は証明しない |
 | BF14 | 未完 | 開発担当の再利用/増員可否を、対象仕事の実負荷と独立scopeで決める | 5–10 | 既存liveness/leaseとsafe workload。全18業務完了や任意のfree GiBを前提にしない |
@@ -259,7 +259,7 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 - [x] safety setへ当該IDを1行追加。control/registry関連149 tests/203 subtestsと、queued履歴保持/reserved・unknown拒否の既存2 testsがPASS。
 - [x] #7662 exact head 2c2e6d98のCI全PASS→main afb4680c→immutable 20261011T220802-afb4680c→install event b10d9a410036dd52dd408b9a。13:10:08Z run18dd7bac473c7fc0-54957、13:15:16Z run18dd7bf289274258-62851が自然pass/exit0、scratch不在。native controlは業務claimを取得しない。旧queued observationは既存cancel_effect_free_queued_ownerによりunclaimed/unreserved/unknownなしの場合だけcancelled履歴を保持して回収し、業務work・claimed/unknown/foreignは保持する。元sequenceを消して成功と扱うのではなく、業務queueから独立したprobeへ移行したことを明記する。
 
-**現在の残り順:** BF11→BF14。BF13は継続中の自然仕事の反復と枠返却/掃除を照合して完了。実装順変更や手動wakeはない。BF09は既存復旧の保存証拠を独立にread-only照合して完了した。新たな解除・再送や実装順変更はない。BF12は既存通常producerの修正済み自然証拠をfreshに照合し、完了へ更新した。BF11の今回target採用は完了だが、既存共通修正の残るeligible旧sourceとactive/unknown保持理由の確認を残す。BF12/13はcontrolだけで全業務の枠返却/全host安定を主張せず、既存ordinary producer証拠と中央watchdogも照合する。primary watchdog/中央ownerは両receipt streamを区別して照合する。bound13:40:49Z/13:45:39Z、unbound13:42:09Z/13:52:52Zの自然receiptはerrors0/protected_deletions0。中央singleton busyのexit75は実stdoutのdeferred/cleanup_lock_busyとjoin済みで、全host停止とは扱わない。BF13-natural-recurrence-observations-20261011.jsonに複数観測を保存し、BF13は後続の自然3 cyclesを追加照合し、代表的反復の受入範囲で完了とする。BF11の反映残差は保持する。
+**現在の残り順:** BF14。BF11の必要source採用は完了。BF13は継続中の自然仕事の反復と枠返却/掃除を照合して完了。実装順変更や手動wakeはない。BF09は既存復旧の保存証拠を独立にread-only照合して完了した。新たな解除・再送や実装順変更はない。BF12は既存通常producerの修正済み自然証拠をfreshに照合し、完了へ更新した。BF11の今回target採用は完了だが、既存共通修正の残るeligible旧sourceとactive/unknown保持理由の確認を残す。BF12/13はcontrolだけで全業務の枠返却/全host安定を主張せず、既存ordinary producer証拠と中央watchdogも照合する。primary watchdog/中央ownerは両receipt streamを区別して照合する。bound13:40:49Z/13:45:39Z、unbound13:42:09Z/13:52:52Zの自然receiptはerrors0/protected_deletions0。中央singleton busyのexit75は実stdoutのdeferred/cleanup_lock_busyとjoin済みで、全host停止とは扱わない。BF13-natural-recurrence-observations-20261011.jsonに複数観測を保存し、BF13は後続の自然3 cyclesを追加照合し、代表的反復の受入範囲で完了とする。BF11の反映残差は保持する。
 
 **BF11採用の追加実績/安全境界:** health observerのinstall78d880122da21ccab8f20eccに続き、recovery supervisor/install142b89ee40237c63bb617b3b、lm-fence-reconciler/db49abca01e5439ce4cfb0b1、handoff/8ed10b85ab4f4f13bc3aaad0をafb4680cへ採用。observer/recovery/fenceの自然passを確認。handoffは一度exit69のため、actual helperと本体のlive PIDをsafe printで確認し、停止/強制再実行はしない。自然過程でcurrentは別ownerのmain由来604ffbafへ進んだ。
 
@@ -282,6 +282,10 @@ loaded-idle-onlyには既存自動unknown照合があり、明示keep_alive指�
 **BF11本番反映と最後のcursor:** #7673/head f6d87b52のexact-head CI全PASS→main b48224e4。main由来current 20261012T002058-8bf0dff2（sha8bf0dff26692389a93e1f65424dfc33b21d93902）へsourceが含まれることを確認し、x402-experiment-franklin1/install36bebed7309055d76c6bb1e6へ対象限定採用。store-activate SHA256567bfe1ce86b42164c111bb4fc8359f0c0a1e6fe6dfb651a4f19c6a0978ab91c、loaded argvをread back、unknown0/claimed0/pre_effect_reconciledなし。自然wake18dd82e215b5fae8-78059/18dd82ed24dada60-80349は同sourceでcapacity_busy/exit75、商品activation/再登録成功とは扱わない。seller自体は手動再起動しない。BF11-experiment-canonical-source-adoption/BF11-experiment-loaded-natural-readback-20261012.json参照。
 
 BF11の残りはsession-vaultのsource採用。旧holder PID64787が消え、既存stale期間経過をread-onlyで確認したが、反映直前の再確認で別の新しい生存中holderが現れたため保持。profile/vault/credentialを操作せず、guard lockも手動解除しない。BF11-session-vault-adoption-20261012.jsonはpreserved=true、owner unknown0/claimed0/loaded-idleのまま。源コードの採用と認証成功を分離し、共有profileのlogin復旧/leaseと競合しない機会を既存ownership経路で確認してから採用する。BF11未完、次BF14の順序は維持する。
+
+**BF11完了readbackとBF14 cursor:** session-vaultは最終再確認でinteractive:dais/coconala:kosuke/line-creators:daisのholderがすべて無い機会に採用（owner unknown0/claimed0、loaded-idle）。LIFE_MANAGER profile/port/vaultは変更せず、sourceだけがmain由来3fb71eaeへ進み、loaded argv一致。manual vault operations0。BF11-session-vault-free-profile-adoption/BF11-session-vault-loaded-readback-20261012.json参照。根本修正bundleの比較基準は受入済み6c0b1d24の共通11filesとし、後続writer専用no-dispatch証明追加を他ownerの再起動理由にしない。132同一/10互換追加/31旧unknown保持/13旧active保持/3Capafy委譲/1未ロード、eligible旧source取り残し0。全190を無理に同SHAへ揃える完了gateは作らない。
+
+残るBF14は、対話型Codex/Claudeの実livenessとscope/lease、現在host負荷をread-onlyで確認し、既存担当を再利用して個別18業務の修正を再開する判断。AGMSGの登録だけで稼働と判断せず、unknown data・source未反映を業務成功にしない。会社MRR目標や各laneのprovider/billing/entitlement/自然枠待ちは基盤15atomのDoneと別に残す。基盤全体の最終DoneはBF14まで未判定。
 
 ### 全体のatomic展開と作業時間枠（大分類3件と全体完了を区別する）
 
