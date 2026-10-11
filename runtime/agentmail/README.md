@@ -55,6 +55,10 @@ Adding inboxes uses the same `inboxes.ts` provisioner and environment contract; 
 
 Secrets live in `~/.local/state/life-manager/.env` (chmod 600). Runtime data lives under
 `~/.local/state/life-manager/agentmail/`; override with `AGENTMAIL_STATE_ROOT` when needed.
+The nudge/replier wrappers inherit stdout/stderr. Registry-managed runs use the shared
+`lm-loop-run` bounded diagnostic capture and storage policy; they do not append separate
+per-tick log files. Queue, SQLite and effect receipts remain in the existing state store.
+
 Before the first registry-managed release, run `migrate-legacy-state.sh` once with the
 legacy installation root supplied explicitly. It copies legacy queue, SQLite, adapter,
 semantic evidence, and logs without deleting the source:
