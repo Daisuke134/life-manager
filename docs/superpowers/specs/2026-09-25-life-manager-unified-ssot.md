@@ -14049,3 +14049,12 @@ Known damage to repair: drafts 2576591785 / 5356015232 (under_review) and 983649
 - **Factory order:** in-progress update draft → new drafts → stubs → create_fresh → non-seller updates (only when nothing new can ship).
 - **Marketing:** `select_capafy_distribute_skill.py` keeps sellers whose new version is under review, and the top earner (Hook Lab) takes every other distribution slot.
 - **Runtime:** YouTube draft-attempts set to 3 at 17:07 so the factory stops resuming its price-restore draft (backup `draft-attempts.json.bak-20261011-1707`).
+
+## Capafy status 2026-10-11 18:55 JST (claude-capafy)
+
+- **New Agents submitted (official `PUBLISHED + VERIFIED`, status 1):** Annual Report Risk Change Brief 3795748683 (18:11), Earnings Call Brief 9836498533 (18:40). Both had stalled at CP2 on 10/10 with exhausted attempts; attempts reset to 1 and PR #7637 (rerun CP2 driver once) released `47ae82ec`.
+- **Inventory 18:50:** CAP_FULL, occupied 10 = 8 under_review (Hook Lab v1.0.8, TikTok v1.0.5, AI Evaluation, Customer Escalation, Annual Report, Earnings Call, Transcript Key Points, Resume-to-Job) + 2 frozen drafts (YouTube, Slide Maker). New Agents wait for Capafy review.
+- **Live Hook Lab billing (search API, v1.0.7):** day $3.99/10, week $9.99/30; v1.0.8 under review restores $1.99/$4.99/$9.99. Hook Lab salesVolume 12, rating 0.
+- **Host memory root cause:** the 4-day-old playwright driver of `ai.anicca.provision-browser.instagram.capafy-provision` held 1.7 GB; one `launchctl-safe kickstart -k` took swap from 13.2 to 7.8 GB and free disk from 1.9 to 6.8 GiB, so CP1 is no longer disk-deferred. 23 orphan agent-browser daemons from line-sticker runs before release `e8d30a84` were killed. The IG account in that profile (`stardust_doubutsu`) is suspended.
+- **Fence pattern:** disk-deferred CP1 ends rc 75, which leaves a `resource_effect_unknown` fence. `capafy_factory_fence_reconcile.py` proves no effect (PROOF_READY) and `lm-fence-reconciler` closes it, but only with round-robin latency (20 calls per 10 min across ~37k fences). Two were resolved by hand today through the official adapter.
+- **Marketing:** 4 new Hook Lab reels (real Hook Lab outputs: real estate, dinner, bar exam, dog training) are scheduled via Postiz for 10/16-10/19 22:00 JST, so the IG queue runs through 10/19 (Postiz GET readback: QUEUE).
