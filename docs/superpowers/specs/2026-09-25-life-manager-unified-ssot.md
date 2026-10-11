@@ -13971,3 +13971,10 @@ Known damage to repair: drafts 2576591785 / 5356015232 (under_review) and 983649
 **現在cursor:** item 3。CTA欠落を2件のREDで再現し、native URLSearchParamsによる最小修正とShortsのchannel link誘導後にCTA/callerの22 tests PASS、lm-loop-contract 18 catalog / 190 registry / 113 mapped / errors 0、diff check PASS。独立read-only reviewerはno blocking findings。caption hashがeffect identityに含まれるため既存/過去slotを新CTAで再送せず、未使用の将来distinct slotの自然実行だけで反映する。本番反映・公開caption・Apple campaign集計・追加DL/売上はまだ未確認。
 
 **Shortsのconversion境界:** YouTube公式 `https://support.google.com/youtube/answer/13748639?hl=en` はShortsのdescription/comment URLがnon-clickable、channel profile linksがclickableと説明する。従ってYouTube app CTAはchannel profile linkへ誘導し、descriptionにcampaign URLも保持する。公開profileのリンク先がAniccaであることを確認するまでfunnel完成としない。Apple campaign linkの設定を実install attributionや追加売上の証拠としない。
+
+## Capafy status 2026-10-11 16:15 JST (claude-capafy)
+
+- **Official status (`publish-remote-status`):** Hook Lab 8123079349 v1.0.8 price-restore (day $1.99/10, week $4.99/30, month $9.99/50, Sonnet 5) = under_review (status 1). AI Evaluation 4243672453 v1.0.2 = under_review. TikTok 2844813315, YouTube 7686597754, customer-escalation 8822853032 = draft (queued updates). ad/shorts/reels Hook Lab = still online on old version, update pending.
+- **YouTube CP1 blocker fixed:** CP1 agent stopped on `PRICES_MISMATCH day: missing` because `CP1_AGENTIC.md` said "no Daily". PR #7619 makes the LISTING table authoritative for plan periods. Merged 9d73b7f2, release `20261011T160421-9d73b7f2`, applied to `capafy-loop-daily` (loaded-idle).
+- **Known minor drift:** AI Evaluation yearly request cap saved 2304 vs LISTING 192 (price matches; DeepSeek cost negligible). Fix on next update of that agent.
+- **Throughput blocker:** agent_runner disk floor 2 GiB. Free disk swings 0.36–2.1 GiB with swap (11.6/12.8 GB used; 14 Chromium owners ≈ 5.2 GB RSS). Non-protected HTTP caches cleared (capafy/lancers/crowdworks, ~0.5 GB). The remaining ~7 GB of browser cache lives in `~/.cloak` (protected store, not touched). `codex-resource-orchestrator-1009` is unreachable via agmsg (`reach=cannot`).
