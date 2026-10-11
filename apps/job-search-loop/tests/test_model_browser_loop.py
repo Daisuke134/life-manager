@@ -1074,19 +1074,19 @@ class ModelBrowserLoopContractTests(unittest.TestCase):
         prompt = (APP_ROOT / "prompts" / "daily-pass.md").read_text(encoding="utf-8")
         normalized_prompt = " ".join(prompt.split())
 
-        self.assertNotIn("-m job_search_loop.ashby_discovery", daily)
+        self.assertIn("-m job_search_loop.ashby_discovery", daily)
         self.assertNotIn("-m job_search_loop.greenhouse_discovery", daily)
         self.assertNotIn("-m job_search_loop.lever_discovery", daily)
         self.assertIn('"status": "model_owned"', daily)
         self.assertIn('"reason": "mandatory_browser_lane"', daily)
-        self.assertIn("--active-provider workday", daily)
+        self.assertIn("--active-provider all", daily)
         self.assertNotIn("Never open Ashby", prompt)
         self.assertIn("Process every eligible ATS row", prompt)
         self.assertIn("Workday and Ashby use this same agent loop", prompt)
 
     def test_daily_exports_the_validated_rolling_deficit_to_queue(self):
         daily = (APP_ROOT / "scripts" / "run-daily.sh").read_text(encoding="utf-8")
-        self.assertIn(".deficit", daily)
+        self.assertIn("rolling_submission_metrics", daily)
         self.assertIn("JOB_SEARCH_APPLICATION_LIMIT", daily)
 
 

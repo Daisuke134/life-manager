@@ -11,7 +11,7 @@ class GreenhouseDiscoveryTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
 
         self.assertNotIn("-m job_search_loop.greenhouse_discovery", script)
-        self.assertIn("--active-provider workday", script)
+        self.assertIn("--active-provider all", script)
 
     def test_live_board_jobs_normalizes_only_official_https_rows(self):
         rows = live_board_jobs(

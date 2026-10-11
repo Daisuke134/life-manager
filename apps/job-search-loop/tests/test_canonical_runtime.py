@@ -48,7 +48,7 @@ class CanonicalRuntimeTests(unittest.TestCase):
         executable.chmod(0o700)
         return executable
 
-    def _run_daily_with_fake_python(self, root: Path, slot_count: int, runner_rc: int):
+    def _run_daily_with_fake_python(self, root: Path, slot_count: int, runner_rc: int, *, workday_fails=False, cache_present=True, excluded_company=None):
         fake_python = root / "fake-python"
         fake_openclaw = root / "fake-openclaw"
         calls = root / "python-calls.jsonl"
@@ -57,6 +57,7 @@ class CanonicalRuntimeTests(unittest.TestCase):
 import json
 import pathlib
 import sys
+import os
 
 calls = pathlib.Path(__file__).with_name("python-calls.jsonl")
 with calls.open("a", encoding="utf-8") as handle:
@@ -78,6 +79,8 @@ if sys.argv[1:3] and sys.argv[1] == "-m" and "--output" in sys.argv:
         output.write_text(json.dumps({"status": "not_configured"}) + "\\n", encoding="utf-8")
         raise SystemExit(69)
     if module == "job_search_loop.workday_search_loop":
+        if os.environ.get('TEST_WORKDAY_FAILS') == '1':
+            raise SystemExit(1)
         value = {"status": "no_work", "deficit": 48, "queued_application_ids": []}
     elif module == "job_search_loop.ashby_fast_path":
         value = {"status": "no_work", "processed": [], "excluded": []}
@@ -121,7 +124,21 @@ raise SystemExit(0)
             "JOB_SEARCH_OPENCLAW": str(fake_openclaw),
             "JOB_SEARCH_TELEGRAM_MEDIA": str(root / "media"),
             "JOB_SEARCH_DISK_GUARD": str(fake_disk_guard),
+            "TEST_WORKDAY_FAILS": '1' if workday_fails else '0',
         }
+        (root / "state").mkdir(exist_ok=True)
+        profile = root / "config" / "anicca" / "job-search" / "profile.json"
+        profile.parent.mkdir(parents=True, exist_ok=True)
+        profile.write_text(json.dumps({'candidate': {'employer_exclusions': [excluded_company] if excluded_company else []}}))
+        if excluded_company:
+            from job_search_loop.ledger import Ledger
+            ledger = Ledger(root / 'state' / 'ledger.sqlite3')
+            identity = ledger.add_application(excluded_company, 'AI Role', 'https://jobs.ashbyhq.com/fixture/job')
+            ledger.transition(identity, 'qualified')
+            ledger.transition(identity, 'materials_ready')
+            ledger.close()
+        if cache_present:
+            (root / "state" / "official-ats-board-cache.v1.json").write_text('{"jobs": []}')
         result = subprocess.run(
             ["/bin/zsh", str(APP_ROOT / "scripts" / "run-daily.sh")],
             check=False,
@@ -134,6 +151,36 @@ raise SystemExit(0)
             for line in calls.read_text(encoding="utf-8").splitlines()
         ]
         return result, recorded
+
+    def test_daily_discovers_live_ashby_before_one_shared_application_owner(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result, calls = self._run_daily_with_fake_python(Path(tmp), 0, 99)
+        self.assertEqual(result.returncode, 99, result.stderr)
+        discovery = [i for i, call in enumerate(calls) if call[:2] == ["-m", "job_search_loop.ashby_discovery"]]
+        owner = [i for i, call in enumerate(calls) if call[:2] == ["-m", "job_search_loop.browser_agent.orchestrator"]]
+        self.assertEqual(len(discovery), 1)
+        self.assertEqual(len(owner), 1)
+        self.assertLess(discovery[0], owner[0])
+        self.assertEqual(calls[owner[0]][-2:], ["--active-provider", "all"])
+        self.assertNotIn("job_search_loop.ashby_fast_path", json.dumps(calls))
+
+    def test_failed_workday_discovery_does_not_close_the_ashby_lane(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result, calls = self._run_daily_with_fake_python(Path(tmp), 0, 99, workday_fails=True)
+        self.assertEqual(result.returncode, 99, result.stderr)
+        self.assertIn("job_search_loop.ashby_discovery", json.dumps(calls))
+
+    def test_private_exclusion_is_applied_when_both_discoveries_are_unavailable(self):
+        from job_search_loop.ledger import Ledger
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            result, calls = self._run_daily_with_fake_python(root, 0, 99,
+                workday_fails=True, cache_present=False, excluded_company='SyntheticExcluded')
+            self.assertEqual(result.returncode, 99, result.stderr)
+            ledger = Ledger(root / 'state' / 'ledger.sqlite3')
+            state = ledger.connection.execute('select current_state from applications').fetchone()[0]
+            ledger.close()
+            self.assertEqual(state, 'rejected')
 
     def test_daily_runs_even_when_prior_slots_exist(self):
         with tempfile.TemporaryDirectory() as tmp:

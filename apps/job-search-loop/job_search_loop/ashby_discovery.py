@@ -1,9 +1,8 @@
 """Bounded, deterministic Ashby discovery from the official ATS cache.
 
-The model lane is not the source of truth for a new URL.  This command selects one
-currently cached Tokyo/Japan Ashby posting, applies the existing exclusion and
-dedupe fences, and creates the immutable attributed Ledger row.  Browser fast path
-execution remains a separate step and is the only code allowed to claim/submit.
+The cache seeds board identities; only fresh official posting API rows enter the
+queue. The existing browser model decides candidate eligibility from the live
+posting and grounded facts before the shared, fenced submission path.
 """
 
 from __future__ import annotations
@@ -88,8 +87,6 @@ def _candidate_jobs(
             or url.casefold() in seen
             or _board_slug(url).casefold() in limited_boards
         ):
-            continue
-        if not (JAPAN_RE.search(location) or job.get("is_remote") is True):
             continue
         if not ROLE_RE.search(title):
             continue
@@ -259,7 +256,11 @@ def discover_one(
         live_jobs, refresh_errors, board_count, queried_boards = _fresh_jobs(
             cached_jobs, refresh_state, board_batch
         )
-        jobs = _candidate_jobs([*live_jobs, *cached_jobs], seen, limited_boards)
+        private_exclusions = frozenset(str(value) for value in exclusions) if isinstance(exclusions, list) else frozenset()
+        jobs = _candidate_jobs(
+            [job for job in live_jobs if not is_excluded_employer(str(job.get("company") or ""), private_exclusions)],
+            seen, limited_boards,
+        )
         baseline = json.loads(
             (Path(__file__).resolve().parents[1] / "config" / "strategy.default.json").read_text()
         )
@@ -269,7 +270,7 @@ def discover_one(
         driver = LearningDriver(ledger, baseline_strategy=baseline, replay_cases=replay)
         prompt_sha256 = hashlib.sha256(prompt_path.read_bytes()).hexdigest()
         discovered: list[dict[str, Any]] = []
-        for job in jobs[: max(1, max_jobs)]:
+        for job in jobs[: max(0, max_jobs)]:
             posting = str(job.get("description") or job.get("descriptionPlain") or "")
             role_family = _role_family(str(job["title"]))
             routed = select_resume(

@@ -208,25 +208,71 @@ os.chmod(path, 0o600)
 PY
 export JOB_SEARCH_WORKDAY_FAST_PATH_RESULT="$WORKDAY_FAST_PATH_RESULT"
 APPLICATION_ID=""
-APPLICATION_LIMIT=""
 if [[ -f "$WORKDAY_DISCOVERY_RESULT" ]]; then
-  APPLICATION_ID=$("$JOB_SEARCH_JQ" -r '.queued_application_ids[0] // empty' "$WORKDAY_DISCOVERY_RESULT")
-  if ! APPLICATION_LIMIT=$("$JOB_SEARCH_JQ" -er '
-    if (.deficit | type) == "number"
-       and (.deficit >= 0)
-       and ((.deficit | floor) == .deficit)
-    then (.deficit | tostring)
-    else error("invalid deficit")
-    end
-  ' "$WORKDAY_DISCOVERY_RESULT"); then
-    print -u2 "job-search daily: malformed rolling deficit; queue closed"
-    APPLICATION_LIMIT=0
-  fi
-else
-  print -u2 "job-search daily: missing rolling deficit; queue closed"
-  APPLICATION_LIMIT=0
+  APPLICATION_ID=$("$JOB_SEARCH_JQ" -r '.queued_application_ids[0] // empty' "$WORKDAY_DISCOVERY_RESULT" 2>/dev/null) || APPLICATION_ID=""
 fi
+# Provider discovery failure cannot close the other provider's application lane.
+# The common rolling budget comes from actual confirmations in the shared ledger.
+APPLICATION_LIMIT=$("$JOB_SEARCH_PYTHON" - <<'BUDGET_PY'
+import os
+from pathlib import Path
+import json
+from job_search_loop.ledger import Ledger
+from job_search_loop.workday_search_loop import rolling_submission_metrics
+profile = json.loads(Path(os.environ['JOB_SEARCH_PROFILE']).read_text())
+exclusions = profile['candidate'].get('employer_exclusions', [])
+if not isinstance(exclusions, list) or any(not isinstance(value, str) for value in exclusions):
+    raise ValueError('invalid_private_employer_exclusions')
+ledger = Ledger(Path(os.environ['JOB_SEARCH_STATE_ROOT']) / 'ledger.sqlite3')
+try:
+    ledger.reject_excluded_employers(frozenset(exclusions))
+finally:
+    ledger.close()
+print(rolling_submission_metrics(Path(os.environ['JOB_SEARCH_STATE_ROOT']) / 'ledger.sqlite3')['deficit'])
+BUDGET_PY
+)
 export JOB_SEARCH_APPLICATION_LIMIT="$APPLICATION_LIMIT"
+# Refresh official Ashby boards inside this same acquisition owner. The cache is
+# only a board seed; discovery never falls back to cached applications.
+ASHBY_DISCOVERY_RESULT="$EVIDENCE/ashby-discovery.json"
+ASHBY_BOARD_CACHE="$JOB_SEARCH_STATE_ROOT/official-ats-board-cache.v1.json"
+if [[ "$APPLICATION_LIMIT" != 0 && -f "$ASHBY_BOARD_CACHE" ]]; then
+  set +e
+  "$JOB_SEARCH_PYTHON" -m job_search_loop.ashby_discovery \
+    --cache "$ASHBY_BOARD_CACHE" \
+    --ledger "$JOB_SEARCH_STATE_ROOT/ledger.sqlite3" \
+    --profile "$JOB_SEARCH_PROFILE" \
+    --materials-root "$MATERIALS_ROOT" \
+    --prompt "$JOB_SEARCH_APP_ROOT/prompts/daily-pass.md" \
+    --board-batch 3 --max-jobs 4 \
+    --output "$ASHBY_DISCOVERY_RESULT"
+  ASHBY_DISCOVERY_RC=$?
+  set -e
+  if [[ "$ASHBY_DISCOVERY_RC" -ne 0 ]]; then
+    print -u2 "job-search daily: Ashby discovery failed; existing qualified queue remains available"
+  fi
+fi
+# Rotate the first row on the existing cadence; one provider's backlog must not
+# hide the other. The remaining queue still uses exactly one browser model.
+if (( NOW_EPOCH / 1800 % 2 == 1 )); then
+  ASHBY_APPLICATION_ID=$("$JOB_SEARCH_PYTHON" - <<'ASHBY_QUEUE_PY'
+import os
+from pathlib import Path
+from job_search_loop.ledger import Ledger
+from job_search_loop.browser_agent.queue import RowQueueSupervisor
+ledger = Ledger(Path(os.environ['JOB_SEARCH_STATE_ROOT']) / 'ledger.sqlite3')
+try:
+    rows = RowQueueSupervisor.collect(ledger, active_provider='ashby')
+    print(rows[0]['application_id'] if rows else '')
+finally:
+    ledger.close()
+ASHBY_QUEUE_PY
+  )
+  if [[ -n "$ASHBY_APPLICATION_ID" ]]; then
+    APPLICATION_ID="$ASHBY_APPLICATION_ID"
+  fi
+fi
+
 if [[ -n "$APPLICATION_ID" ]]; then
   export JOB_SEARCH_PREFERRED_APPLICATION_ID="$APPLICATION_ID"
   set +e
@@ -252,7 +298,7 @@ set +e
   --evidence-dir "$EVIDENCE" \
   --workdir "$JOB_SEARCH_REPO_ROOT" \
   --python "$JOB_SEARCH_PYTHON" \
-  --active-provider workday
+  --active-provider all
 RUNNER_RC=$?
 set -e
 set +e
