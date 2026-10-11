@@ -281,11 +281,13 @@ loaded-idle-onlyには既存自動unknown照合があり、明示keep_alive指�
 
 **BF11本番反映と最後のcursor:** #7673/head f6d87b52のexact-head CI全PASS→main b48224e4。main由来current 20261012T002058-8bf0dff2（sha8bf0dff26692389a93e1f65424dfc33b21d93902）へsourceが含まれることを確認し、x402-experiment-franklin1/install36bebed7309055d76c6bb1e6へ対象限定採用。store-activate SHA256567bfe1ce86b42164c111bb4fc8359f0c0a1e6fe6dfb651a4f19c6a0978ab91c、loaded argvをread back、unknown0/claimed0/pre_effect_reconciledなし。自然wake18dd82e215b5fae8-78059/18dd82ed24dada60-80349は同sourceでcapacity_busy/exit75、商品activation/再登録成功とは扱わない。seller自体は手動再起動しない。BF11-experiment-canonical-source-adoption/BF11-experiment-loaded-natural-readback-20261012.json参照。
 
-BF11の残りはsession-vaultのsource採用。旧holder PID64787が消え、既存stale期間経過をread-onlyで確認したが、反映直前の再確認で別の新しい生存中holderが現れたため保持。profile/vault/credentialを操作せず、guard lockも手動解除しない。BF11-session-vault-adoption-20261012.jsonはpreserved=true、owner unknown0/claimed0/loaded-idleのまま。源コードの採用と認証成功を分離し、共有profileのlogin復旧/leaseと競合しない機会を既存ownership経路で確認してから採用する。BF11未完、次BF14の順序は維持する。
+BF11のsource採用で最後に保持した対象はsession-vault。旧holder PID64787が消え、既存stale期間経過をread-onlyで確認したが、反映直前の再確認で別の新しい生存中holderが現れたため保持。profile/vault/credentialを操作せず、guard lockも手動解除しない。BF11-session-vault-adoption-20261012.jsonはpreserved=true、owner unknown0/claimed0/loaded-idleのまま。源コードの採用と認証成功を分離し、共有profileのlogin復旧/leaseと競合しない機会を既存ownership経路で確認し、後続の解放機会で採用済み。現在cursorは後述のBF14へ進む。
 
 **BF11完了readbackとBF14 cursor:** session-vaultは最終再確認でinteractive:dais/coconala:kosuke/line-creators:daisのholderがすべて無い機会に採用（owner unknown0/claimed0、loaded-idle）。LIFE_MANAGER profile/port/vaultは変更せず、sourceだけがmain由来3fb71eaeへ進み、loaded argv一致。manual vault operations0。BF11-session-vault-free-profile-adoption/BF11-session-vault-loaded-readback-20261012.json参照。根本修正bundleの比較基準は受入済み6c0b1d24の共通11filesとし、後続writer専用no-dispatch証明追加を他ownerの再起動理由にしない。132同一/10互換追加/31旧unknown保持/13旧active保持/3Capafy委譲/1未ロード、eligible旧source取り残し0。全190を無理に同SHAへ揃える完了gateは作らない。
 
 残るBF14は、対話型Codex/Claudeの実livenessとscope/lease、現在host負荷をread-onlyで確認し、既存担当を再利用して個別18業務の修正を再開する判断。AGMSGの登録だけで稼働と判断せず、unknown data・source未反映を業務成功にしない。会社MRR目標や各laneのprovider/billing/entitlement/自然枠待ちは基盤15atomのDoneと別に残す。基盤全体の最終DoneはBF14まで未判定。
+
+**共有CIのsource asset整合:** #7679のdoc CIは先行main #7677のmlb-lineup-matchup-brief/icon.pngでgenerated_artifactとなる。既存catalog iconのevidence_sha256 baselineと同じ方式で、mainにある当該PNGの正確なhashだけを登録する。画像/製品source/Capafy runtimeは変更・削除せず、全generated asset許可へ広げない。これを今回doc反映の共有CI修復として同差分に含める。
 
 ### 全体のatomic展開と作業時間枠（大分類3件と全体完了を区別する）
 
