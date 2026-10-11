@@ -404,6 +404,8 @@ CLEAN-05 infrastructure延期後の試行回数回復scope: fresh main #7591/d42
 
 CLEAN-05 audit自然再開の受入: actual installed/main由来6b160のverify-loops-auditは自然18dd5dd4e0283dc8-30169で04:03:15Z execute→04:06:49Z report/pass/exit0、effect not_applicable/error nullを確認。正規occurrence18da4a0e12f76450-10820のclaim joinを保持し、旧859のdisk_headroom_low停止からの再開を実証した。manual wake/identity偽装/unknown解除なし。これは監査ownerの採用・自然実行を閉じる証拠で、未確認ownerやhost全体の反復稼働Doneへ拡張しない。新しい次の特定修復は上のCapafy試行枠回復契約で、残るproducer生成/回収収支とCLEAN-06は継続する。
 
+CLEAN-06 shared journal短いwriteの修復scope: runtime/loop/runtime_event.py::append_runtime_eventはflock下でos.write(fd,data)を一回呼ぶが、返却byte数を確認しない。容量不足の途中writeが正の短いbyte数を返すと、不完全なJSONLをfsyncして成功扱いする。目的=全managed owner共通の記録破損経路を閉じる。旧=Capafy実runの自然terminal待ち、新=同PIDの追跡を保持しつつ独立したshared journal境界を先に修復、理由=将来slotやprovider処理待ちで、既知の記録破損修復を止めないため。既存lock/validation/rotation/event_id replay/primary履歴を保持し、短いwriteは残りを完了させる。書込途中のOSError/zero-writeは今回の未commit部分だけを元のsizeへ戻して失敗を報告し、過去の記録やfull-write後fsync失敗の完全recordを削除しない。新framework/新daemon/全journalの移行/削除を行わず、同既存testへshort-write成功とpartial+ENOSPC/zero-writeを追加しRED→最小shared修正→関連GREEN→main/immutable/対象control自然を確認する。scope=runtime_event.py、既存test_runtime_event.py、SSOTと必要なsource digest、primary一人。
+
 
 
 
