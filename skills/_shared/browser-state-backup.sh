@@ -37,12 +37,10 @@ set -uo pipefail
 CLOAK_DIR="$HOME/.cloak"
 PROFILES_DIR="$CLOAK_DIR/profiles"
 BACKUP_ROOT="$CLOAK_DIR/state-backups"
-LOG="$HOME/.local/state/life-manager/logs/browser-state-backup.log"
-KEEP_GENERATIONS=7
-mkdir -p "$BACKUP_ROOT" "$(dirname "$LOG")"
+mkdir -p "$BACKUP_ROOT"
 chmod 700 "$BACKUP_ROOT" 2>/dev/null || true
 
-_log() { echo "$(date '+%F %T') browser-state-backup: $*" >>"$LOG"; }
+_log() { echo "$(date '+%F %T') browser-state-backup: $*" >&2; }
 
 _profile_running() {
   # true if some chromium process currently has --user-data-dir=<profile_dir>
@@ -56,22 +54,22 @@ _backup_profile() {
   mkdir -p "$out"
 
   if [ -f "$profile_dir/Default/Cookies" ]; then
-    if command -v sqlite3 >/dev/null 2>&1 && sqlite3 "$profile_dir/Default/Cookies" ".backup '$out/Cookies'" 2>>"$LOG"; then
+    if command -v sqlite3 >/dev/null 2>&1 && sqlite3 "$profile_dir/Default/Cookies" ".backup '$out/Cookies'"; then
       _log "cookies backed up (sqlite3 .backup): $name"
     else
-      cp "$profile_dir/Default/Cookies" "$out/Cookies" 2>>"$LOG" \
+      cp "$profile_dir/Default/Cookies" "$out/Cookies" \
         && _log "cookies backed up (cp fallback): $name" \
         || _log "WARN: cookie backup FAILED for $name"
     fi
   fi
   if [ -f "$profile_dir/Default/Login Data" ]; then
-    if command -v sqlite3 >/dev/null 2>&1 && sqlite3 "$profile_dir/Default/Login Data" ".backup '$out/Login Data'" 2>>"$LOG"; then
+    if command -v sqlite3 >/dev/null 2>&1 && sqlite3 "$profile_dir/Default/Login Data" ".backup '$out/Login Data'"; then
       :
     else
-      cp "$profile_dir/Default/Login Data" "$out/Login Data" 2>>"$LOG" || true
+      cp "$profile_dir/Default/Login Data" "$out/Login Data" || true
     fi
   fi
-  [ -f "$profile_dir/Local State" ] && cp "$profile_dir/Local State" "$out/Local State" 2>>"$LOG"
+  [ -f "$profile_dir/Local State" ] && cp "$profile_dir/Local State" "$out/Local State"
 }
 
 do_dump() {
@@ -88,24 +86,14 @@ do_dump() {
 
   if [ -d "$CLOAK_DIR/vault" ]; then
     mkdir -p "$dest/vault"
-    rsync -a "$CLOAK_DIR/vault/" "$dest/vault/" 2>>"$LOG" || true
+    rsync -a "$CLOAK_DIR/vault/" "$dest/vault/" || true
   fi
 
   mkdir -p "$dest/creds"
-  find "$CLOAK_DIR" -maxdepth 1 -name "*.json" -exec rsync -a {} "$dest/creds/" \; 2>>"$LOG"
+  find "$CLOAK_DIR" -maxdepth 1 -name "*.json" -exec rsync -a {} "$dest/creds/" \;
   chmod -R go-rwx "$dest" 2>/dev/null || true
 
-  # prune generations beyond KEEP_GENERATIONS (oldest first, dirs are named YYYY-MM-DD so lexical
-  # sort == chronological sort)
-  local all_dates total
-  all_dates=$(ls -1 "$BACKUP_ROOT" 2>/dev/null | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' | sort)
-  total=$(echo "$all_dates" | grep -c . || true)
-  if [ "$total" -gt "$KEEP_GENERATIONS" ]; then
-    local to_remove=$((total - KEEP_GENERATIONS))
-    echo "$all_dates" | head -n "$to_remove" | while read -r old; do
-      [ -n "$old" ] && rm -rf "${BACKUP_ROOT:?}/${old}" && _log "pruned old generation: $old"
-    done
-  fi
+  # Protected generations are preserved; cleanup never deletes ~/.cloak or memory.
 
   _log "dump complete: date=$date_tag profiles=$count dest=$dest"
   echo "{\"ok\": true, \"date\": \"$date_tag\", \"profiles_backed_up\": $count, \"dest\": \"$dest\"}"
@@ -135,8 +123,8 @@ do_restore() {
     [ -f "$p/Local State" ] && cp "$p/Local State" "$live/Local State"
     restored=$((restored + 1))
   done
-  if [ -d "$src/vault" ]; then rsync -a "$src/vault/" "$CLOAK_DIR/vault/" 2>>"$LOG" || true; fi
-  if [ -d "$src/creds" ]; then rsync -a "$src/creds/" "$CLOAK_DIR/" 2>>"$LOG" || true; fi
+  if [ -d "$src/vault" ]; then rsync -a "$src/vault/" "$CLOAK_DIR/vault/" || true; fi
+  if [ -d "$src/creds" ]; then rsync -a "$src/creds/" "$CLOAK_DIR/" || true; fi
   _log "restore complete: date=$date_tag profiles_restored=$restored profiles_skipped_running=$skipped"
   echo "{\"ok\": true, \"date\": \"$date_tag\", \"profiles_restored\": $restored, \"profiles_skipped_running\": $skipped}"
 }
