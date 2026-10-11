@@ -175,7 +175,7 @@ def main() -> int:
         from .ledger import Ledger
         ledger = Ledger(args.state_root / 'ledger.sqlite3')
         try:
-            fenced = [row[0] for row in ledger.connection.execute("SELECT DISTINCT company FROM applications WHERE current_state IN ('submitted','submit_unknown','submit_claimed')")]
+            fenced = [row[0] for row in ledger.connection.execute("SELECT DISTINCT company FROM applications WHERE current_state IN ('submitted','submit_unknown','submit_claimed') AND NOT EXISTS (SELECT 1 FROM events e WHERE e.application_id=applications.id AND e.from_state IS NULL AND json_extract(e.payload_json, '$.source')='dreamwork')")]
         finally:
             ledger.close()
         prior = read_action(client, 'get_preferences')['preferences']
