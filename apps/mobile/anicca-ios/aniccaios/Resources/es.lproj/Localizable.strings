@@ -1336,6 +1336,8 @@
 "paywall_b_load_failed" = "No se pudieron cargar los planes. Revisa tu conexión e inténtalo de nuevo.";
 "paywall_b_lifetime_badge" = "PAGO ÚNICO";
 "paywall_b_per_lifetime" = " · pago único";
+"paywall_b_plan_yearly" = "Plan anual";
+"paywall_b_plan_monthly" = "Plan mensual";
 "paywall_b_plan_lifetime" = "De por vida";
 // MARK: - Paywall Primer (1.8.3)
 "paywall_primer_title" = "Tu plan personalizado\nestá listo";
