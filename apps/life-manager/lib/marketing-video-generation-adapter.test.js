@@ -496,3 +496,50 @@ test("adapter's execute() queries metricsProvider and lets a recorded score chan
   }]);
   assert.equal(result.receipt.hook_id, "HJA-002");
 });
+
+test("asset-bound prerecorded hooks retain matching caption/title despite a fresh text generator", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-video-bound-copy-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const objects = path.join(root, "objects");
+  // Synthetic bytes: this test proves declared lineage, not real video/audio content.
+  const hooks = [
+    { id: "A-SCALE", text: "The scale does not measure your worth", bytes: "0000ftyp-scale-story" },
+    { id: "B-REST", text: "Rest is part of moving forward", bytes: "0000ftyp-rest-story" },
+  ].map(({ id, text, bytes }) => {
+    const source = path.join(root, `${id}.mp4`);
+    fs.writeFileSync(source, bytes);
+    return { id, text, status: "active", prior_used_at: null,
+      media_ref: importContentObject(source, { objectDir: objects }).ref };
+  });
+  const packPath = path.join(root, "pack.json");
+  fs.writeFileSync(packPath, JSON.stringify({ schema_version: 1,
+    product_id: "anicca-ios", format_id: "reelclaw-card", form: "nudge-card",
+    locale: "en", title: "Anicca", hashtags: ["anicca"], hooks }));
+  const pack = importContentObject(packPath, { objectDir: objects });
+  const history = [];
+  let generatorCalls = 0;
+  const adapter = createMarketingVideoGenerationLoopAdapter({
+    dataDir: root,
+    historyProvider: { list: async () => history },
+    textGenerator: async () => { generatorCalls += 1; return { hook: "Is rest really falling behind?", costUsd: 0 }; },
+    now: () => "2026-10-11T05:15:01.000Z",
+  });
+  for (const [index, hook] of hooks.entries()) {
+    const result = await adapter.execute(buildMarketingVideoGenerationJob({
+      tenantId: "tenant-a", productId: "anicca-ios", formatId: "reelclaw-card", locale: "en",
+      slot: `2026-10-11T0${index + 5}:15:00.000Z`, packRef: pack.ref,
+      mediaRefs: hooks.map((item) => item.media_ref),
+    }));
+    const receipt = result.receipt;
+    const copy = fs.readFileSync(path.join(objects, "sha256", receipt.copy_sha256), "utf8");
+    assert.equal(receipt.hook_id, hook.id);
+    assert.equal(receipt.video_ref, hook.media_ref);
+    assert.equal(copy, `${hook.text}\n\n#anicca\n`);
+    // YouTube derives its default title from the first nonempty caption line.
+    assert.equal(copy.split(/\n/).find((line) => line.trim()), hook.text);
+    assert.equal(receipt.hook_sha256, crypto.createHash("sha256").update(hook.text).digest("hex"));
+    assert.equal(verifyMarketingVideoGenerationReceipt(receipt), true);
+    history.push(receipt);
+  }
+  assert.equal(generatorCalls, 0);
+});
