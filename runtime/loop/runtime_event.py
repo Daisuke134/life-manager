@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import errno
 import fcntl
 import gzip
 import hashlib
@@ -399,6 +400,15 @@ def _contains_event_id(fd: int, event_id: str) -> bool:
     return False
 
 
+def _write_complete(fd: int, data: bytes) -> None:
+    remaining = memoryview(data)
+    while remaining:
+        written = os.write(fd, remaining)
+        if written <= 0:
+            raise OSError(errno.EIO, "runtime journal write made no progress")
+        remaining = remaining[written:]
+
+
 def append_runtime_event(path: Path, event: dict) -> None:
     validate_runtime_event(event)
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -407,15 +417,23 @@ def append_runtime_event(path: Path, event: dict) -> None:
     try:
         os.fchmod(fd, 0o600)
         fcntl.flock(fd, fcntl.LOCK_EX)
-        rotate_jsonl_locked(fd, path)
         if _contains_event_id(fd, event["event_id"]):
+            os.fsync(fd)
             return
+        rotate_jsonl_locked(fd, path)
         size = os.fstat(fd).st_size
-        if size:
-            os.lseek(fd, -1, os.SEEK_END)
-            if os.read(fd, 1) != b"\n":
-                os.write(fd, b"\n")
-        os.write(fd, data)
+        try:
+            if size:
+                os.lseek(fd, -1, os.SEEK_END)
+                if os.read(fd, 1) != b"\n":
+                    _write_complete(fd, b"\n")
+            _write_complete(fd, data)
+        except OSError:
+            # The existing writer lock excludes siblings; only this incomplete append is undone.
+            os.ftruncate(fd, size)
+            os.fsync(fd)
+            raise
+        # A complete record remains available if durability confirmation fails.
         os.fsync(fd)
     finally:
         os.close(fd)

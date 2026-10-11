@@ -93,6 +93,9 @@ class RuntimeEventTest(unittest.TestCase):
             with mock.patch.object(runtime_event.os, "fsync", side_effect=OSError(errno.EIO, "fixture sync failure")):
                 with self.assertRaises(OSError):
                     append_runtime_event(path, BASE)
+                # A duplicate retry must not acknowledge durability while fsync still fails.
+                with self.assertRaises(OSError):
+                    append_runtime_event(path, BASE)
             self.assertEqual(json.loads(path.read_text()), BASE)
 
     def test_same_event_id_is_idempotent(self):
@@ -101,6 +104,18 @@ class RuntimeEventTest(unittest.TestCase):
             append_runtime_event(path, BASE)
             append_runtime_event(path, BASE)
             self.assertEqual(len(path.read_text().splitlines()), 1)
+
+    def test_same_event_replay_does_not_rotate_an_oversized_active_journal(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "events.jsonl"
+            append_runtime_event(path, BASE)
+            before = path.read_bytes()
+            real_rotate = runtime_event.rotate_jsonl_locked
+            with mock.patch.object(runtime_event, "rotate_jsonl_locked",
+                                   side_effect=lambda fd, p: real_rotate(fd, p, max_bytes=1)):
+                append_runtime_event(path, BASE)
+            self.assertEqual(path.read_bytes(), before)
+            self.assertEqual(list(path.parent.glob("events-*.jsonl.gz")), [])
 
     def test_duplicate_scan_parses_only_matching_candidate_rows(self):
         with tempfile.TemporaryDirectory() as directory:
