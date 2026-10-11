@@ -16,8 +16,9 @@ images, set tags, request review). ``factory._submit`` records those steps in th
     by readback and are never evidence.
 
   - No hit and enough time has passed: close as no-effect.
-  - Every hit a finished submission (state review_requested, a product_id) that readback has seen on
-    Creators Market (state_observed is an official status): close as effected, citing those.
+  - Every hit an item with a product_id that readback has seen on Creators Market: a finished
+    submission (review_requested, official status) or one stopped mid-flight that LINE lists as 編集中
+    (submit resumes from the recorded item): close as effected, citing those.
   - Any other hit stays fenced: only the item's own status readback can say.
 
 Usage:
@@ -48,6 +49,8 @@ MID_SUBMISSION_STATES = frozenset({"metadata_saved", "images_uploaded", "tagged"
 FACTORY_TIME_FIELDS = ("created_at", "review_requested_at")
 # Statuses only the readback loop writes, read off the item's own Creators Market page.
 OFFICIAL_STATUSES = frozenset({"審査待ち", "審査中", "承認", "販売中", "リジェクト", "販売停止"})
+# An item created but not yet sent to review; submit resumes from it (creators-item.json sub-state).
+DRAFT_STATUS = "編集中"
 
 
 def fenced_row(owner_id: str, occurrence_id: str) -> tuple[str, dt.datetime]:
@@ -98,14 +101,19 @@ def touched_since(state_root: Path, since: dt.datetime) -> list[str]:
 
 
 def confirmed_submission(path: Path) -> str | None:
-    """'<product_id>:<status>' when the run's effect is a finished submission that Creators Market
-    itself shows (readback's state_observed); None when it is mid-flight, unread or unreadable."""
+    """'<product_id>:<status>' when the run's effect is an item Creators Market itself shows
+    (readback's state_observed): a finished submission, or one stopped mid-flight that LINE lists as
+    編集中 (submit resumes from the recorded item, so nothing is created twice). None when unread,
+    unreadable or without a product_id."""
     try:
         item = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
-    if (isinstance(item, dict) and item.get("state") == "review_requested" and item.get("product_id")
-            and item.get("state_observed") in OFFICIAL_STATUSES):
+    if not (isinstance(item, dict) and item.get("product_id")):
+        return None
+    finished = item.get("state") == "review_requested" and item.get("state_observed") in OFFICIAL_STATUSES
+    resumable = item.get("state") in MID_SUBMISSION_STATES and item.get("state_observed") == DRAFT_STATUS
+    if finished or resumable:
         return f"{item['product_id']}:{item['state_observed']}"
     return None
 

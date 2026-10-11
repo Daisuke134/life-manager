@@ -3,11 +3,13 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import plistlib
 import re
 import stat
+import shutil
 import subprocess
 import sys
 import time
@@ -565,6 +567,98 @@ def git_duplicate_cleanup(source_repo: Path) -> dict:
     return result
 
 
+
+def codex_history_cleanup(home: Path, *, connect=None) -> dict:
+    """Request vendor-owned lossless maintenance; never rewrite a rollout ourselves."""
+    root = home / ".codex-acct2"
+    result = {"status": "deferred", "completion": "unknown"}
+    if not root.exists():
+        return {"status": "not_applicable"}
+    try:
+        if root.is_symlink() or root.stat().st_uid != os.getuid():
+            return {**result, "reason": "untrusted_home"}
+        marker = root / ".tmp/rollout-compression.lock"
+        if marker.parent.is_symlink() or marker.is_symlink():
+            return {**result, "reason": "untrusted_marker"}
+        if marker.exists():
+            info = marker.stat()
+            if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid():
+                return {**result, "reason": "untrusted_marker"}
+            if time.time() - info.st_mtime < 6 * 3600:
+                return {"status": "recent_native_maintenance", "completion": "unknown"}
+        sizes = []; cold = 0; deadline = time.monotonic() + 5
+        for folder in (root / "sessions", root / "archived_sessions"):
+            if not folder.exists():
+                continue
+            if folder.is_symlink() or folder.stat().st_uid != os.getuid():
+                return {**result, "reason": "untrusted_history_root"}
+            for path in folder.rglob("*"):
+                if time.monotonic() >= deadline:
+                    return {**result, "reason": "scan_budget"}
+                parts = {part.lower() for part in path.relative_to(folder).parts}
+                if (path.is_symlink() or parts.intersection({"memory", ".cloak", ".config", ".codex", ".claude"})
+                        or (path.parent.name == "state" and path.suffix == ".jsonl")
+                        or path.suffix == ".tmp"
+                        or any(token in path.name.lower() for token in ("credential", "wallet", "receipt", "ledger", "effect_unknown"))):
+                    return {**result, "reason": "protected_or_unknown_history_entry"}
+                info = path.stat()
+                if info.st_uid != os.getuid():
+                    return {**result, "reason": "history_owner_mismatch"}
+                if not stat.S_ISREG(info.st_mode) or path.suffix != ".jsonl":
+                    continue
+                if info.st_nlink != 1:
+                    return {**result, "reason": "history_hardlink"}
+                age = time.time() - info.st_mtime
+                cold += age >= 7 * 86400
+                # Include files that can become cold during the vendor's five-hour bound.
+                if age >= 7 * 86400 - 5 * 3600:
+                    sizes.append(info.st_size)
+        if not cold:
+            return {"status": "no_cold_rollouts"}
+        required = sum(sorted(sizes, reverse=True)[:2]) * 102 // 100 + 64 * 1024**2
+        if shutil.disk_usage(root).free < required:
+            return {**result, "reason": "native_staging_capacity", "required_bytes": required}
+        socket_path = root / "app-server-control/app-server-control.sock"
+        info = socket_path.stat()
+        if (not stat.S_ISSOCK(info.st_mode) or info.st_uid != os.getuid()
+                or stat.S_IMODE(info.st_mode) != 0o600):
+            return {**result, "reason": "untrusted_control_socket"}
+
+        async def request():
+            connector = connect
+            if connector is None:
+                from websockets.asyncio.client import unix_connect
+                connector = unix_connect
+            async with connector(str(socket_path), uri="ws://localhost/", open_timeout=5,
+                                 max_size=2 * 1024**2) as websocket:
+                async def call(identifier, method, params):
+                    await websocket.send(json.dumps({"jsonrpc": "2.0", "id": identifier,
+                                                     "method": method, "params": params}))
+                    while True:
+                        response = json.loads(await websocket.recv())
+                        if response.get("id") == identifier:
+                            if "error" in response or "result" not in response:
+                                raise ValueError("native_request_rejected")
+                            return response["result"]
+                initialized = await call(1, "initialize", {
+                    "clientInfo": {"name": "life-manager-storage-maintenance", "version": "1"},
+                    "capabilities": {"experimentalApi": True}})
+                if (Path(initialized.get("codexHome", "")).resolve() != root.resolve()
+                        or re.search(r"/0\.160\.0(?:[ (;]|$)", initialized.get("userAgent", "")) is None):
+                    raise ValueError("unsupported_native_identity")
+                await websocket.send(json.dumps({"jsonrpc": "2.0", "method": "initialized"}))
+                await call(2, "rollout/compress", None)
+            return {"status": "requested", "completion": "unknown", "cold_files": cold,
+                    "required_bytes": required}
+        async def bounded_request():
+            return await asyncio.wait_for(request(), timeout=10)
+        return asyncio.run(bounded_request())
+    except Exception as error:
+        # Optional vendor maintenance must not suppress the existing host sweep.
+        return {**result, "reason": "native_maintenance_unavailable",
+                "error_class": type(error).__name__}
+
+
 def main() -> int:
     home = Path.home()
     loops_root = Path(os.environ.get("LOOPS_ROOT", "~/loops")).expanduser()
@@ -583,6 +677,9 @@ def main() -> int:
         return 0 if result["ok"] else 1
     git_result = git_duplicate_cleanup(Path(os.environ.get(
         "LIFE_MANAGER_SOURCE_REPO", "~/Projects/life-manager-main")).expanduser())
+    binding = cleanup_run_binding(dict(os.environ), ROOT)
+    codex_result = (codex_history_cleanup(home) if binding and
+        binding.get("owner_id") == "life-manager-disk-cleanup" else {"status": "unbound_owner"})
     try:
         cleanup_state = Path(os.environ.get(
             "LIFE_MANAGER_HOST_STATE_DIR",
@@ -610,7 +707,7 @@ def main() -> int:
                              "error_class": type(error).__name__}
             print(json.dumps({**gc_result, **host_result,
                 "errors": gc_result["errors"] + git_result["errors"],
-                "host_cleanup": host_result, "git_cleanup": git_result},
+                "host_cleanup": host_result, "git_cleanup": git_result, "codex_storage": codex_result},
                 sort_keys=True, separators=(",", ":")))
             return 75 if gc_result["errors"] == 0 and git_result["errors"] == 0 else 1
     except subprocess.TimeoutExpired:
@@ -633,6 +730,7 @@ def main() -> int:
         no_effect_loop_ids=no_effect_loop_ids(ROOT / "config/loop-registry.json"))
     result.update({"ok": result["errors"] == 0 and host_ok and scratch_result["errors"] == 0,
                    "git_cleanup": git_result,
+                   "codex_storage": codex_result,
                    "host_cleanup": host_result,
                    "scratch_cleanup": scratch_result,
                    "idle_reconcile": [],
