@@ -277,6 +277,8 @@ loaded-idle-onlyには既存自動unknown照合があり、明示keep_alive指�
 
 **BF11残差の最小patch:** x402-experiment-franklin1のstore-activateは商品反映後に別sellerへraw kickstart -kを呼ぶ。既存sellerLabelForによる対象限定とactivateExperimentのrestart注入境界を保持し、default呼出だけをimmutable releaseのbin/lm-loop restartへ渡す。GUI preflight・既存lifecycle・readbackを再利用し、新scheduler/hot-reload server/永久no-opは作らない。対象sourceはskills/earn/x402-sell/store-activate.mjsと既存test。これはraw GUI制御の撤去であり、HTTP requestのdrainや全業務効果の保護を新しく証明する変更ではない。session-vaultのprofile/lease整合は別の先頭残差として保持する。
 
+**BF11 exact-head CI診断:** #7673/616590daのOSS検査はPASS。共通signal testは、SIGTERM後にchild waitが先に終了すると0、controllerの既存中断枝へ進むと75になるため、return0だけのassertでCIが失敗した。runtimeの既存意味を変えず、実childがSIGTERM受取markerを書いたことを直接assertし、wrapperの既存0/75両経路を許容する。子へsignalが届かない75ではmarkerが無いためPASSしない。seller/protected profileの破壊的検証は行わない。
+
 ### 全体のatomic展開と作業時間枠（大分類3件と全体完了を区別する）
 
 この表はS01〜S18/README18capability/各laneの既存cursorを展開した現時点の工程表で、別SSOTではない。**全体の残件は基盤の3大分類だけではない。** 既完・N/A・現担当が受入済みの工程はfresh証拠で除外し、未知の原因と将来の反復改善が出れば同じ表へ追加する。下記件数を故障数・全将来作業の確定数・AGI認証と扱わない。CFO A8.2–19のsource名は現registryへ紐付けてから実行し、推測のproviderを割り当てない。Lancers既存skip/Answers除外、Google既存session、no live自己決済、投資live gate、CFO serial/Mobile solo等の原scopeを維持する。
