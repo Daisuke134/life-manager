@@ -48,7 +48,7 @@ class CanonicalRuntimeTests(unittest.TestCase):
         executable.chmod(0o700)
         return executable
 
-    def _run_daily_with_fake_python(self, root: Path, slot_count: int, runner_rc: int):
+    def _run_daily_with_fake_python(self, root: Path, slot_count: int, runner_rc: int, *, workday_fails=False):
         fake_python = root / "fake-python"
         fake_openclaw = root / "fake-openclaw"
         calls = root / "python-calls.jsonl"
@@ -57,6 +57,7 @@ class CanonicalRuntimeTests(unittest.TestCase):
 import json
 import pathlib
 import sys
+import os
 
 calls = pathlib.Path(__file__).with_name("python-calls.jsonl")
 with calls.open("a", encoding="utf-8") as handle:
@@ -78,6 +79,8 @@ if sys.argv[1:3] and sys.argv[1] == "-m" and "--output" in sys.argv:
         output.write_text(json.dumps({"status": "not_configured"}) + "\\n", encoding="utf-8")
         raise SystemExit(69)
     if module == "job_search_loop.workday_search_loop":
+        if os.environ.get('TEST_WORKDAY_FAILS') == '1':
+            raise SystemExit(1)
         value = {"status": "no_work", "deficit": 48, "queued_application_ids": []}
     elif module == "job_search_loop.ashby_fast_path":
         value = {"status": "no_work", "processed": [], "excluded": []}
@@ -121,6 +124,7 @@ raise SystemExit(0)
             "JOB_SEARCH_OPENCLAW": str(fake_openclaw),
             "JOB_SEARCH_TELEGRAM_MEDIA": str(root / "media"),
             "JOB_SEARCH_DISK_GUARD": str(fake_disk_guard),
+            "TEST_WORKDAY_FAILS": '1' if workday_fails else '0',
         }
         (root / "state").mkdir(exist_ok=True)
         (root / "state" / "official-ats-board-cache.v1.json").write_text('{"jobs": []}')
@@ -148,6 +152,12 @@ raise SystemExit(0)
         self.assertLess(discovery[0], owner[0])
         self.assertEqual(calls[owner[0]][-2:], ["--active-provider", "all"])
         self.assertNotIn("job_search_loop.ashby_fast_path", json.dumps(calls))
+
+    def test_failed_workday_discovery_does_not_close_the_ashby_lane(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result, calls = self._run_daily_with_fake_python(Path(tmp), 0, 99, workday_fails=True)
+        self.assertEqual(result.returncode, 99, result.stderr)
+        self.assertIn("job_search_loop.ashby_discovery", json.dumps(calls))
 
     def test_daily_runs_even_when_prior_slots_exist(self):
         with tempfile.TemporaryDirectory() as tmp:

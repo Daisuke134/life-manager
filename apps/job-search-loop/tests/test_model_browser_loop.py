@@ -1086,7 +1086,7 @@ class ModelBrowserLoopContractTests(unittest.TestCase):
 
     def test_daily_exports_the_validated_rolling_deficit_to_queue(self):
         daily = (APP_ROOT / "scripts" / "run-daily.sh").read_text(encoding="utf-8")
-        self.assertIn(".deficit", daily)
+        self.assertIn("rolling_submission_metrics", daily)
         self.assertIn("JOB_SEARCH_APPLICATION_LIMIT", daily)
 
 
