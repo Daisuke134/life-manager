@@ -6,6 +6,7 @@ import json
 import os
 import re
 import subprocess
+import tempfile
 import unicodedata
 from datetime import datetime, timezone
 from email.utils import parseaddr
@@ -43,6 +44,28 @@ _CONFIRMATION_TERMS = (
     "エントリーが完了",
     "応募受付",
 )
+_CONFIRMATION_SEARCH_QUERY = (
+    'newer_than:30d ("application received" OR '
+    '"received your application" OR "thank you for applying" OR '
+    '"thanks for applying" OR "thank you for your online submission" OR '
+    '"thank you for your interest" OR "has been received" OR '
+    '"got your application" OR "応募が完了" OR "応募を受け付け" OR '
+    '"ご応募いただ" OR "ご応募ありがとう" OR from:myworkday.com OR '
+    'from:myworkdayjobs.com)'
+)
+# Inbox invokes receipt reconciliation before and after the candidate pass.
+# Child-call timeouts total at most 220 seconds: 3 searches, 10 threads, 4 postings.
+_CONFIRMATION_SEARCH_PAGE_SIZE = 5
+_CONFIRMATION_SEARCH_TIMEOUT_SECONDS = 20
+_CONFIRMATION_THREAD_TIMEOUT_SECONDS = 8
+_WORKDAY_POSTING_READBACK_LIMIT = 4
+_RETRYABLE_CONFIRMATION_READBACK_FAILURES = frozenset(
+    {"gmail_thread_readback_failed", "official_posting_readback_unavailable"}
+)
+
+
+class _OfficialPostingReadbackBudgetExceeded(ValueError):
+    pass
 
 
 def _unwrap(value: Any) -> str:
@@ -284,7 +307,17 @@ def reconcile_confirmation_threads(
             ):
                 continue
             checked_threads += 1
-            payload = thread_loader(thread_id)
+            try:
+                payload = thread_loader(thread_id)
+            except (OSError, ValueError, subprocess.SubprocessError) as error:
+                blocked.append(
+                    {
+                        "thread_id": thread_id,
+                        "status": "gmail_thread_readback_failed",
+                        "error_class": type(error).__name__,
+                    }
+                )
+                continue
             messages = (
                 payload.get("thread", {}).get("messages", [])
                 if isinstance(payload, dict)
@@ -322,8 +355,13 @@ def reconcile_confirmation_threads(
                             matched = _workday_hiring_receipt_matches(message, candidate, expected_recipient, official_posting_loader)
                         except (OSError, ValueError, KeyError, TypeError) as error:
                             readback_failed = True
+                            status = (
+                                "official_posting_readback_budget_exhausted"
+                                if isinstance(error, _OfficialPostingReadbackBudgetExceeded)
+                                else "official_posting_readback_unavailable"
+                            )
                             blocked.append({'message_id': message['message_id'], 'thread_id': thread_id,
-                                'application_id': candidate['application_id'], 'status': 'official_posting_readback_unavailable',
+                                'application_id': candidate['application_id'], 'status': status,
                                 'error_class': type(error).__name__})
                     if matched:
                         candidates.append(candidate)
@@ -391,37 +429,150 @@ def reconcile_confirmation_threads(
     }
 
 
-def _gmail_confirmation_threads(account: str, executable: str) -> list[dict[str, Any]]:
-    completed = subprocess.run(
-        [
-            executable,
-            "gmail",
-            "search",
-            "--account",
-            account,
-            "--json",
-            "--limit",
-            "100",
-            (
-                'newer_than:30d ("application received" OR '
-                '"received your application" OR '
-                '"thank you for applying" OR "thanks for applying" OR '
-                '"thank you for your online submission" OR '
-                '"thank you for your interest" OR "has been received" OR '
-                '"got your application" OR '
-                '"応募が完了" OR "応募を受け付け" OR "ご応募いただ" OR '
-                '"ご応募ありがとう" OR from:myworkday.com OR '
-                'from:myworkdayjobs.com)'
-            ),
-        ],
-        check=True,
-        capture_output=True,
-        text=True,
-        timeout=60,
+def _confirmation_search_cursor_path(seen_state: Path) -> Path:
+    return Path(seen_state).with_name("submission-confirmation-page.json")
+
+
+def _confirmation_search_query_sha256() -> str:
+    return hashlib.sha256(_CONFIRMATION_SEARCH_QUERY.encode("utf-8")).hexdigest()
+
+
+def _next_confirmation_page_token(
+    *,
+    fetched_page_token: str | None,
+    next_page_token: str | None,
+    newest_next_page_token: str | None,
+    result: dict[str, Any] | None,
+) -> str | None:
+    blocked = result.get("blocked", []) if isinstance(result, dict) else []
+    if fetched_page_token and any(
+        isinstance(item, dict)
+        and item.get("status") in _RETRYABLE_CONFIRMATION_READBACK_FAILURES
+        for item in blocked
+    ):
+        return fetched_page_token
+    return next_page_token or newest_next_page_token
+
+
+def _read_search_page_token(path: Path, query_sha256: str) -> str | None:
+    path = Path(path)
+    if path.is_symlink():
+        raise ValueError("unsafe_confirmation_search_cursor")
+    try:
+        if path.stat().st_mode & 0o077:
+            raise ValueError("unsafe_confirmation_search_cursor")
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return None
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(value, dict) or value.get("version") != 1:
+        return None
+    if value.get("query_sha256") != query_sha256:
+        return None
+    token = value.get("next_page_token")
+    if (
+        not isinstance(token, str)
+        or not token
+        or len(token) > 4096
+        or not token.isprintable()
+    ):
+        return None
+    return token
+
+
+def _write_search_page_token(
+    path: Path, query_sha256: str, next_page_token: str | None
+) -> None:
+    path = Path(path)
+    if path.is_symlink():
+        raise ValueError("unsafe_confirmation_search_cursor")
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    path.parent.chmod(0o700)
+    if next_page_token is not None and (
+        not isinstance(next_page_token, str)
+        or not next_page_token
+        or len(next_page_token) > 4096
+        or not next_page_token.isprintable()
+    ):
+        raise ValueError("invalid_confirmation_search_cursor")
+    descriptor, temporary = tempfile.mkstemp(
+        prefix=".submission-confirmation-page.", dir=path.parent
     )
+    try:
+        os.fchmod(descriptor, 0o600)
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            json.dump(
+                {
+                    "version": 1,
+                    "query_sha256": query_sha256,
+                    "next_page_token": next_page_token,
+                },
+                handle,
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+        path.chmod(0o600)
+    finally:
+        Path(temporary).unlink(missing_ok=True)
+
+
+def _gmail_confirmation_threads(
+    account: str, executable: str, *, page_token: str | None = None
+) -> tuple[list[dict[str, Any]], str | None, str | None]:
+    base_args = [
+        executable,
+        "gmail",
+        "search",
+        "--account",
+        account,
+        "--json",
+        "--max",
+        str(_CONFIRMATION_SEARCH_PAGE_SIZE),
+    ]
+
+    def run_search(token: str | None) -> subprocess.CompletedProcess[str]:
+        command = list(base_args)
+        if token:
+            command.append(f"--page={token}")
+        command.append(_CONFIRMATION_SEARCH_QUERY)
+        return subprocess.run(
+            command,
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=_CONFIRMATION_SEARCH_TIMEOUT_SECONDS,
+        )
+
+    try:
+        completed = run_search(page_token)
+        fetched_page_token = page_token
+    except subprocess.CalledProcessError:
+        if not page_token:
+            raise
+        # Gmail page tokens can expire as the rolling 30-day result set changes.
+        # Restart at the newest page; receipt writes remain message-ID idempotent.
+        completed = run_search(None)
+        fetched_page_token = None
     value = json.loads(completed.stdout)
     threads = value.get("threads", [])
-    return [row for row in threads if isinstance(row, dict)]
+    next_page_token = value.get("nextPageToken")
+    if (
+        not isinstance(next_page_token, str)
+        or not next_page_token
+        or len(next_page_token) > 4096
+        or not next_page_token.isprintable()
+    ):
+        next_page_token = None
+    return (
+        [row for row in threads if isinstance(row, dict)],
+        next_page_token,
+        fetched_page_token,
+    )
 
 
 def _gmail_thread(
@@ -444,12 +595,31 @@ def _gmail_thread(
         check=True,
         capture_output=True,
         text=True,
-        timeout=60,
+        timeout=_CONFIRMATION_THREAD_TIMEOUT_SECONDS,
     )
     value = json.loads(completed.stdout)
     if not isinstance(value, dict):
         raise ValueError("gog Gmail thread result must be an object")
     return value
+
+
+def _bounded_official_posting_loader(sources, fetcher, *, readback_limit: int):
+    cache = {}
+    attempts = 0
+
+    def load(candidate):
+        nonlocal attempts
+        url = candidate["canonical_url"]
+        if url not in cache:
+            if attempts >= readback_limit:
+                raise _OfficialPostingReadbackBudgetExceeded(
+                    "workday_posting_readback_budget_exhausted"
+                )
+            attempts += 1
+            cache[url] = fetcher(url, sources)
+        return cache[url]
+
+    return load
 
 
 def main() -> None:
@@ -468,30 +638,90 @@ def main() -> None:
     from .workday_qualification import fetch_official_posting
     sources_path = args.ledger.parent / 'workday-sources.v1.json'
     sources = tuple(json.loads(sources_path.read_text()).get('sources', [])) if sources_path.exists() else ()
-    posting_cache = {}
-
-    def official_posting(candidate):
-        url = candidate['canonical_url']
-        if url not in posting_cache:
-            posting_cache[url] = fetch_official_posting(url, sources)
-        return posting_cache[url]
-
-    result = reconcile_confirmation_threads(
-        ledger_path=args.ledger,
-        threads=_gmail_confirmation_threads(args.account, args.gog),
-        thread_loader=lambda thread_id: _gmail_thread(
-            args.account, thread_id, args.gog
-        ),
-        seen_state=args.seen,
-        expected_recipient=args.account,
-        official_posting_loader=official_posting,
+    official_posting = _bounded_official_posting_loader(
+        sources,
+        fetch_official_posting,
+        readback_limit=_WORKDAY_POSTING_READBACK_LIMIT,
     )
+    cursor_path = _confirmation_search_cursor_path(args.seen)
+    query_sha256 = _confirmation_search_query_sha256()
+    stored_page_token = _read_search_page_token(cursor_path, query_sha256)
+    recent_threads, recent_next_page, _ = _gmail_confirmation_threads(
+        args.account, args.gog
+    )
+    page_batches = [recent_threads]
+    backlog_token = stored_page_token or recent_next_page
+    next_page_token = recent_next_page
+    backlog_threads: list[dict[str, Any]] = []
+    backlog_next_page: str | None = None
+    backlog_page_token_used: str | None = None
+    if backlog_token:
+        (
+            backlog_threads,
+            backlog_next_page,
+            backlog_page_token_used,
+        ) = _gmail_confirmation_threads(
+            args.account, args.gog, page_token=backlog_token
+        )
+        page_batches.append(backlog_threads)
+
+    recent_result = (
+        reconcile_confirmation_threads(
+            ledger_path=args.ledger,
+            threads=recent_threads,
+            thread_loader=lambda thread_id: _gmail_thread(
+                args.account, thread_id, args.gog
+            ),
+            seen_state=args.seen,
+            expected_recipient=args.account,
+            official_posting_loader=official_posting,
+        )
+        if recent_threads
+        else None
+    )
+    backlog_result = (
+        reconcile_confirmation_threads(
+            ledger_path=args.ledger,
+            threads=backlog_threads,
+            thread_loader=lambda thread_id: _gmail_thread(
+                args.account, thread_id, args.gog
+            ),
+            seen_state=args.seen,
+            expected_recipient=args.account,
+            official_posting_loader=official_posting,
+        )
+        if backlog_threads
+        else None
+    )
+    next_page_token = _next_confirmation_page_token(
+        fetched_page_token=backlog_page_token_used,
+        next_page_token=backlog_next_page,
+        newest_next_page_token=recent_next_page,
+        result=backlog_result,
+    )
+    page_results = [
+        result for result in (recent_result, backlog_result) if result is not None
+    ]
+    result = {
+        "version": 1,
+        "checked_threads": sum(page["checked_threads"] for page in page_results),
+        "reconciled": [
+            row for page in page_results for row in page["reconciled"]
+        ],
+        "blocked": [row for page in page_results for row in page["blocked"]],
+        "pagination": {
+            "page_size": _CONFIRMATION_SEARCH_PAGE_SIZE,
+            "pages_scanned": len(page_batches),
+            "has_more": next_page_token is not None,
+        },
+    }
     args.output.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     args.output.write_text(
         json.dumps(result, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
     os.chmod(args.output, 0o600)
+    _write_search_page_token(cursor_path, query_sha256, next_page_token)
 
 
 if __name__ == "__main__":
