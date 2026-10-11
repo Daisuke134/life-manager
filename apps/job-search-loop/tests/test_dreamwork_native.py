@@ -52,9 +52,10 @@ class DreamworkNativeTests(unittest.TestCase):
 
     @unittest.skipIf(native is None, 'owner is absent')
     def test_complete_official_tier_zero_view_allows_only_unmanaged_fallback(self):
-        result = {'status': 'unavailable', 'native_managed_on': False, 'readiness': {'entitlement': {'autoApply': False, 'reason': 'tier'}}, 'usage': {'applicationsLimit': 0}, 'autopilot': {'state': 'unavailable', 'sentToday': 0, 'sentThisMonth': 0}}
+        result = {'status': 'unavailable', 'native_managed_on': False, 'readiness': {'entitlement': {'autoApply': False, 'reason': 'tier'}}, 'usage': {'applicationsLimit': 0}, 'autopilot': {'state': 'unavailable', 'sentToday': 0, 'sentThisMonth': 0, 'inFlightCount': None}}
         pipeline = {'jobs': [], 'count': 0, 'total': 0, 'activeTotal': 0, 'closedTotal': 0, 'hasMore': False}
         self.assertTrue(native.unavailable_fallback_is_verified(result, pipeline))
+        self.assertFalse(native.unavailable_fallback_is_verified({**result, 'autopilot': {**result['autopilot'], 'inFlightCount': 1}}, pipeline))
         self.assertFalse(native.unavailable_fallback_is_verified(result, {**pipeline, 'hasMore': True}))
         self.assertFalse(native.unavailable_fallback_is_verified({**result, 'native_managed_on': True}, pipeline))
         self.assertFalse(native.unavailable_fallback_is_verified({**result, 'status': 'effect_unknown'}, pipeline))

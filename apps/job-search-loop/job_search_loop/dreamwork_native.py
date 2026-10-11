@@ -69,6 +69,9 @@ def unavailable_fallback_is_verified(result: dict, pipeline: dict) -> bool:
             and result.get('readiness', {}).get('entitlement', {}).get('reason') == 'tier'
             and result.get('usage', {}).get('applicationsLimit') == 0
             and result.get('autopilot', {}).get('state') == 'unavailable'
+            and 'inFlightCount' in result.get('autopilot', {})
+            and (result['autopilot']['inFlightCount'] is None
+                 or type(result['autopilot']['inFlightCount']) is int and result['autopilot']['inFlightCount'] == 0)
             and result.get('autopilot', {}).get('sentToday') == 0
             and result.get('autopilot', {}).get('sentThisMonth') == 0
             and pipeline.get('hasMore') is False and pipeline.get('jobs') == []
@@ -259,5 +262,6 @@ if __name__ == '__main__':
     try:
         raise SystemExit(main())
     except (DreamworkError, OSError, ValueError, KeyError) as error:
-        print(json.dumps({'status': 'failed', 'error_class': type(error).__name__}))
+        print(json.dumps({'status': 'failed', 'error_class': type(error).__name__,
+                          'reason': str(error) if isinstance(error, DreamworkError) else type(error).__name__}))
         raise SystemExit(75)
