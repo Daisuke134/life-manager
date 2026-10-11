@@ -71,6 +71,16 @@ class MacosLoopRegistryTest(unittest.TestCase):
                 "schema_version": 2, "loops": {"example": missing_contract},
             })
 
+    def test_audit_opts_into_existing_queued_release_reconcile(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["verify-loops-audit"]
+        self.assertEqual(row.get("resource_class"), "deterministic")
+        self.assertEqual(row.get("admission_class"), "borrow")
+        self.assertEqual(row.get("priority"), "support")
+        self.assertIs(row.get("reconcile_queued_release"), True)
+        self.assertEqual(row["effect_class"], "none")
+        self.assertEqual(row["cadence"], {"start_interval_seconds": 21600})
+
     def test_x_repost_opts_into_queued_release_reconcile(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         row = registry["loops"]["x-repost"]

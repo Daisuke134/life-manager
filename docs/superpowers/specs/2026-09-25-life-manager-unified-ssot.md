@@ -386,6 +386,9 @@ CLEAN-05 Writer反復のfresh join: prior18dd562c3629faa0-14325は01:42:54.66070
 
 CLEAN-04/05 旧guard採用漏れscope: fresh verify-loops-auditはloaded-idle/PID無し/unknownfalse、旧release859df55a、最新02:39:45Z admission disk_headroom_lowで停止する。source修復済みcurrentのadmissionが未採用の実例として、既存canonical deterministic/loaded-idle/maxowners1/target-onlyでこのeffect-none control ownerのみcurrentへ反映し、loaded argv/SHAと次自然admission/terminalを確認する。token-daily-reportのunknowntrue、hf-gig-reply-detectorのmessage effect、使用中ownerは保持し、枠/unknownを強制解放しない。価格/資金/外部送信/本人identity変更0、fresh GUI preflight無しに操作しない。旧free11GiB gateを戻さず、実際のproducer write-budgetと自然再開を受入に使う。
 
+CLEAN-05 audit queued-release最小修復scope: target reconcileは旧queued reservationのためskipped_pending。現行CLIはautomatic release reconcilerだけがregistry reconcile_queued_release opt-inを使い、loaded-idle/同owner FIFO/未知effect拒否/使用中拒否を維持して更新できる。verify-loops-auditのlegacy queue policyはdeterministic/borrow/supportである一方、registryに同admission contractとopt-inが欠ける。既存aa-release-reconciler-handoffのshapeを使い、この1rowへresource_class=deterministic/admission_class=borrow/priority=support/reconcile_queued_release=trueを明記する。新coalescing/CLIflag/queue削除/lease解放/他owner変更0。既存test_macos_loop_registryで1rowのcontractをRED→4field最小差分→既存queued migration tests→CI/main/immutable→実automatic ownerの自然adoptionを確認する。manual callerをautomatic ownerへ偽装しない。
+
+
 
 
 
