@@ -1341,13 +1341,14 @@ def test_control_plane_safety_loops_bypass_data_plane_admission(tmp_path):
              "provider_route": "deterministic", "runtime_timeout_seconds": 900}
     for loop_id in ("life-manager-release-reconciler", "life-manager-recovery-supervisor",
                     "life-manager-disk-cleanup", "life-manager-health-observer",
-                    "capafy-loop-healthcheck",
+                    "capafy-loop-healthcheck", "hf-reddit-loop-healthcheck",
                     "lm-fence-reconciler"):
         receipt = tmp_path / f"receipt-{loop_id}"
-        with (patch("runtime.loop.lm_loop_run.memory_free_percent") as memory,
+        with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=100) as memory,
               patch("runtime.loop.lm_loop_run.durable_protocol_version",
                     return_value=1) as protocol,
-              patch("runtime.loop.lm_loop_run.try_acquire_resource") as acquire,
+              patch("runtime.loop.lm_loop_run.try_acquire_resource", return_value=(None, "capacity_busy")) as acquire,
+              patch("runtime.loop.lm_loop_run._producer_gate", return_value=None),
               patch("runtime.loop.lm_loop_run._run_entrypoint", return_value=0) as run):
             assert _run_admitted(
                 ["/bin/true"], entry, loop_id, {}, receipt,
