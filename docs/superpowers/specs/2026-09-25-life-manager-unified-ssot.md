@@ -390,6 +390,9 @@ CLEAN-05 audit queued-release最小修復scope: target reconcileは旧queued res
 
 CLEAN-05 audit queued-release source受入: registry admission contract無しを1test REDで確認し、verify-loops-auditのresource_class/admission_class/priority/reconcile_queued_releaseの4fieldだけ追加。legacy実policy deterministic/borrow/supportと一致し、cadence21600/effectnone/entrypointを保持する。既存registry/automatic queued migration/reserved guard関連12tests/10subtests PASS、lm-loop-contract PASS（registry190/errors0）、diff/source-boundary PASS。最初の関連testはsparseでmobile-app-loops.json欠落のfixture error1だったためHEAD blobを復元し、source変更せずGREENを確認。新code/CLIflag/予約削除/unknown解除/新coalescing0。次=exact CI/main/immutable→既存automatic release ownerの自然target採用→旧disk gate停止からの自然admission/terminalを確認する。
 
+CLEAN-05 audit CI回帰修復: exactec27c565 CI38106494751はloop-contractの既存production byte-stable fixtureだけ失敗。render_job_models標準rendererでmacos-loop-jobs.jsonを更新し、全190rowを前後比較してverify-loops-auditの4metadata fieldだけ変更、他owner差分0をassert。fixtureを含む関連13tests/10subtests PASS、source/body/cadence/未知effect guardの変更0。次=新exact-head CIを再確認して統合する。
+
+
 
 
 
