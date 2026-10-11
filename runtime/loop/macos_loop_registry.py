@@ -37,6 +37,8 @@ CONTROL_PLANE_SAFETY_LOOPS = frozenset({
 })
 OCCURRENCE_SCOPED_ENTRYPOINTS = {
     "apps/life-manager/scripts/mobile-app",
+    "apps/life-manager/scripts/instagram-metrics-production-boot.sh",
+    "apps/life-manager/scripts/tiktok-metrics-production-boot.sh",
     "apps/life-manager/scripts/ebook-distribute-daily.sh",
     "skills/fundraiser-agent/runtime/run.sh",
     "skills/earn/crowdworks/scripts/application-owner",

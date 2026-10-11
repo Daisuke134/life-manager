@@ -10,6 +10,8 @@ from pathlib import Path
 
 from runtime.loop.macos_loop_registry import (
     CONTROL_PLANE_SAFETY_LOOPS,
+    OCCURRENCE_SCOPED_ENTRYPOINTS,
+    admission_effect_scope,
     loop_json_schema,
     render_job_models,
     render_loop_json_schema,
@@ -125,6 +127,21 @@ class MacosLoopRegistryTest(unittest.TestCase):
         row = validated["loops"]["ebook-en-tiktok-daily"]
         self.assertEqual(row["entrypoint"], "apps/life-manager/scripts/ebook-distribute-daily.sh")
         self.assertEqual(row.get("admission_effect_scope"), "occurrence")
+
+    def test_mobile_metrics_collectors_use_occurrence_scoped_admission(self):
+        registry = validate_registry(json.loads((ROOT / "config/loop-registry.json").read_text()))
+        expected = {
+            "life-manager-instagram-metrics": "apps/life-manager/scripts/instagram-metrics-production-boot.sh",
+            "life-manager-tiktok-metrics": "apps/life-manager/scripts/tiktok-metrics-production-boot.sh",
+        }
+        for loop_id, entrypoint in expected.items():
+            with self.subTest(loop_id=loop_id):
+                row = registry["loops"][loop_id]
+                self.assertEqual(row["effect_class"], "publish")
+                self.assertEqual(row["entrypoint"], entrypoint)
+                self.assertEqual(row.get("admission_effect_scope"), "occurrence")
+                self.assertEqual(admission_effect_scope(row), "occurrence")
+                self.assertIn(entrypoint, OCCURRENCE_SCOPED_ENTRYPOINTS)
 
     def test_ebook_postiz_reconcilers_use_owner_identity_dir(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())

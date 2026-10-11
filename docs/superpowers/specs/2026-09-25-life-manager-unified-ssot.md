@@ -13733,6 +13733,71 @@ This checkpoint supersedes the 08:47 snapshot. The latest release cleanup remain
 
 **現在cursor:** PR #7587 CI/merge. Distribution is 27/54 at 10:07 and metrics are not durable; publisher rollout is 16/18 on98f with two owners still on older releases. No 10K net MRR proof exists.
 
+### 2026-10-11 10:46 JST — metrics owner occurrence scope修正をlocal検証
+
+このcheckpointは10:28を更新する。PR #7587はmain `899ddafe`へmerge済み。
+
+- **Metrics fence root cause:** Instagram/TikTok metrics ownersはold occurrence `effect_unknown`でhost admissionがblocked、理由は`history_incomplete`/`no_journal_row`かつ`provider_state=no_adapter`。送信先のTelegram user readbackはDais Narita DM、保持履歴は10/5–10/10の18件だけで、対象不明effectの日（9/27、9/30）は範囲外。旧送信を未送信と断定できないため両fenceは保持する。
+- **Bounded recovery source change (local only):** `life-manager-instagram-metrics`と`life-manager-tiktok-metrics`を`admission_effect_scope=occurrence`にし、対応する2 production boot entrypointだけをruntime allowlistへ追加。これは新しいoccurrenceを古いunknownから分離し、同一occurrenceの再実行と古いfence解除は引き続き拒否する。metric Telegram job IDはsnapshot payload/refのhash、同じsnapshotの再送はlocal ledgerがdedupeする。過去のunknownはこの変更で解決しない。
+- **Validation / worktree state:** 3ファイルのoccurrence-scope差分はreadback時点でworktreeに未commitで存在していたため、そのまま保持して検証した。metrics owner scope registry test 1件PASS、古いunknown保持＋新occurrence claim＋同occurrence replay拒否のruntime tests 2件PASS、`lm-loop-contract`は18 catalog / 190 registry / 113 mapped / errors 0、`git diff --check` PASS。差分はまだcommit/push/main未統合で、production未反映。RED結果はこのreadbackでは確認していない。
+- **Current release/publishers:** current remains immutable `98f93e27` / full SHA `98f93e272489db9a17f6e0d9df897bb5e2beb853`; free space at last read 1,559,368 KiB. 18 target publishersは17が98f、`@anicca.en`だけ49af。release reconcilerは98fでloaded-running。Metrics ownersは旧SHA `9a76dcc8` (Instagram) と`d687b29b` (TikTok)でblocked、daily snapshot coverageはまだ9/30以後0。
+- **Latest distribution read:** Postiz 10:37 JST GETは28/54 target posts `PUBLISHED`、18/18 due first slotsのうち17成功、`@anicca.he`が0。`@ani.cca1234`は10:30 first slotを1件publish。5アカウントは過去の3件burst。10:38の新post metrics GETはViews/Reach/Saves/Likes/Comments/Sharesすべて0のfresh-post snapshot。per-post metricsの累積や永続保存の証拠ではない。9/27–30の各Telegram効果も未確認のまま。
+
+**残TODO（順序）:**
+
+1. このmetrics scope/config/test/spec差分を専用branchでcommit/pushし、focused acceptanceとCIを通してmainへ統合する。独立review/subagentは起動しない。
+2. latest mainからstandard immutable releaseを作り、通常owner admission後に2 metrics ownersがoccurrence-scopedな新runを実行することを確認する。既存unknownは保持し、同じsnapshot/job keyのreplay-zeroをreadbackする。
+3. runのPostiz snapshots・Telegram message IDsをofficial receiptsで確認し、現行18 target postsのdurable metrics coverageを測る。old Telegram unknownは履歴不足のままなので別途unresolvedとして残す。
+4. current 98f publisher rolloutの最後の`@anicca.en`を通常ownerで最新mainへ載せ、18/18 loaded SHA・argv・natural terminalを確認する。due-slot fixはすでに98fにあるため未来slotを選ぶ古いownerを残さない。
+5. 最新Postiz GETのdue missをexact owner/admission evidenceで照合し、no-effectと確定したslotだけ通常ownerで回復する。18 accountごとの3 distinct slots/day、54/54 PUBLISHED、permalink、replay-zeroを7 JST日連続で確認する。
+6. 6アプリのASC/RevenueCat/Mixpanelをfresh cohort/periodで計測し、AniccaのASC first-time downloadsを7日平均100/日にする。次にASOとonboarding/paywallを一度に1変数ずつ改善する。
+7. Apple settlement/refunds/feesとactual costsを同期間で照合し、Anicca USD 10,000 net MRRを証明してからfactoryへ展開する。
+
+**現在cursor:** metrics-owner occurrence-scope差分のcommit/PR。new occurrenceが通っても旧Telegram effect_unknownは解決済みと扱わない。
+
+### 2026-10-11 10:54 JST — PR #7588のCI失敗と現行runtimeを再readback
+
+このcheckpointは10:46の記録を更新する。`git fetch origin`、PR check、loaded owner、release pathを再取得した。投稿数とapp指標はそれぞれ最後に取得できた時刻を明記し、今回未再取得の値を現在値とは扱わない。
+
+- **Git / CI:** `origin/main=899ddafe2191e6e0558b73b8803f0a0992eeb346`。branch `docs/mobile-growth-postmerge-20261011`、HEADとupstreamは`f76c39b3b65cc688f8c30ecf80380b7707527514`。PR #7588はOPEN、未merge。`Loop control contracts`が862件中1件failureで、`runtime/loop/tests/test_macos_loop_registry.py::test_production_render_matches_byte_stable_fixture`が`runtime/loop/tests/fixtures/macos-loop-jobs.json`とのbyte比較に失敗した。実際のrenderer出力には2 metrics loopの`admission_effect_scope: occurrence`があり、fixtureには無い。これはfixture未更新との診断で、次の修正はfixtureと生成出力を揃えること。Python syntax/unittest、shell、security・PII等の他checkはPASS。CodeRabbitはmanual review必須としてskip。独立review/subagentはユーザー指示どおり起動していない。PR sourceはmain/productionに未反映。
+- **Production release / distribution owners (10:53 JST):** `/Users/anicca/loops/current`はimmutable release `20261011T101349-98f93e27`、SHA `98f93e272489db9a17f6e0d9df897bb5e2beb853`。disk availableは4,864,864 KiB、volume 98%。18 publisher lanes中17が98f、`life-manager-anicca-en-widget-instagram`だけ旧49af。`life-manager-anicca-ja-widget-instagram`と`life-manager-anicca-main-instagram`は98fでloaded-idleだが、直近terminalが`entrypoint_exit_1`、`effect_status=unknown`、`next_action=official_readback_required`。他のlaneのloaded SHAが最新であることだけでは当日投稿の成功を証明しない。手動restart/applyはしない。
+- **Metrics owners (10:53 JST):** `life-manager-instagram-metrics`は旧SHA `9a76dcc87dfe2e24958ef19f6a69f871df4dbef1`、`life-manager-tiktok-metrics`は98f。両方とも`host_admission_deferred:resource_effect_unknown`でloaded-idle。Sep 27/30の古いTelegram送信effectは未確定のまま保持する。新しいoccurrence-scope sourceはPR #7588にあり、このreadbackでは未反映。
+- **Postiz (last official GET 10:37 JST; not refreshed at 10:54):** 28/54 configured daily slots were `PUBLISHED`, each with a direct URL。18 first slots中17が成功し、`@anicca.he`は0。5アカウントの3投稿burstも観測された。10:38の新規post metrics応答は全項目0だったが、長期累積値ではない。28件を当日durable metrics snapshotへ結ぶcoverageは0、snapshot treeの最新`observed_at`は9/30 10:20 JST。従って3回/日達成、当日metrics保存、Telegram receipt配信の証明は未完了。
+- **Acquisition / revenue / app UX (last source snapshot 10/11 02:27 JST; not refreshed here):** RevenueCatの最新complete period 10/9でAnicca subscription MRRはUSD 20.34。他5アプリのchart値はUSD 0.00だがsettled netではない。ASC processingDate 10/10はOct 8–9まででAnicca first-time downloads 2、Honne 4、他4アプリは`no_instances`。Mixpanel/AniccaのOct 10値は`app_opened=6`、`onboarding_started=1`、`onboarding_step_advanced=1`、`paywall_primer_viewed=5`のevent数であり、人数・conversion率ではない。他5アプリのfunnelは未確認。USD 10,000 net MRRは未達・未確認。Paywallのplan-load errorとnotification tap後に同じquoteが出ない問題も未解決。
+
+**残TODO（この順序）:**
+
+1. PR #7588のfixture failureを修正対象として引き継ぐ。`macos-loop-jobs.json`を現在のrenderer出力に合わせ、失敗test単体→`python3 -m unittest discover -s runtime/loop/tests -p 'test_*.py'`を実行する。PR exact-head CIをPASSさせてからmainへmergeする。
+2. main由来のimmutable releaseを標準経路で作り、通常reconciler/owner admissionだけで2 metrics ownerと18 publisher laneを適用する。古い49af laneと2件のInstagram `entrypoint_exit_1`はowner/providerの公式readbackで個別解決し、no-effectを確認できたoccurrenceだけ通常ownerで回復する。
+3. 新releaseからmetrics ownerの新occurrenceを実行し、既存Sep 27/30 `effect_unknown`を保持する。同一Postiz post IDのsnapshot、direct URL、Telegram `message_id` receiptを結び、同じsnapshotの再送が0件であることを確認する。
+4. Postiz公式readbackを更新し、18 laneそれぞれがJST日ごとに3つの異なるconfigured slotを`PUBLISHED`とpermalinkで満たす。保存済みbackground/image assetsを再利用し、生成APIは投稿ごとに呼ばない。実装や分析をslot時刻待ちで止めず、natural evidenceは到来とともに積む。完了証拠は54/54・replay-zeroを7 JST日連続。
+5. 6アプリのASC（impressions/product-page views/first-time downloads）、RevenueCat（trial/subscriber/subscription MRR）、Mixpanel（install→onboarding→paywall）をfresh period/cohortで取得し、欠測を0にしない。post/campaign→click/store visit→first-time downloadの既存attributionも結ぶ。まずAniccaでASC first-time downloadsを7日平均100/日にし、その後承認済み他appへ展開する。
+6. Aniccaのpaywall plan-loadとnotification→same-quoteを実端末状態で再現・修正し、source changeがある場合だけ新iOS versionを出す。測定後にASO/store display、onboarding/paywall/UXを一変数ずつ改善する。
+7. Apple settled proceeds/refunds/feesとactual costsを同期間で照合し、Anicca USD 10,000 verified net recurring MRRを確認してから他app/mobile factoryへ広げる。
+
+**現在cursor:** PR #7588のbyte-stable fixture failure。直す対象はfixtureで、現在のscope実装はmainにもproductionにも入っていない。投稿の最新公式readbackは10:37、app/source metricsの最新記録は02:27 JSTで、いずれもこのcheckpoint時点のfresh値ではない。
+
+### 2026-10-11 11:06 JST — renderer fixture同期、ローカルacceptance PASS
+
+このcheckpointは10:54のCI failure記録を更新する。root causeはmetrics owner 2件に設定した`admission_effect_scope=occurrence`がrenderer出力へ含まれた一方、byte-stable fixtureが古かったこと。
+
+- **変更:** `runtime/loop/tests/fixtures/macos-loop-jobs.json`を正本`render_job_models(config/loop-registry.json)`から再生成。diffは1行置換で、実データ差分は`life-manager-instagram-metrics`と`life-manager-tiktok-metrics`の2行に上記fieldが追加されたものだけ。
+- **検証:** 変更前の`test_production_render_matches_byte_stable_fixture`は期待したfixture mismatchでFAIL、再生成後PASS。`python3 -m unittest runtime.loop.tests.test_macos_loop_registry`は141/141 PASS、完全checkoutでの`python3 -m unittest discover -s runtime/loop/tests -p 'test_*.py'`は862/862 PASS、adapter registry testは15/15 PASS、`lm-loop-contract`は18 catalog / 190 registry / 113 mapped / errors 0、`git diff --check` PASS。最初のsparse worktreeでのsuite失敗は複数tracked path未展開によるものだったため、この専用worktreeだけsparseを解除して再実行した。source差分はfixture以外ない。
+- **別のruntime診断:** `lm-loop doctor`は`ok=false`で、`missing_entrypoints=0`、`unmanaged_labels=[]`、retired installed label `ai.anicca.provision-browser.capafy.kosuke`を1件報告。これは本fixture変更外の既存runtime状態であり、このPRのコードを原因とする根拠はないため変更していない。
+- **Git / PR:** current `origin/main=899ddafe2191e6e0558b73b8803f0a0992eeb346`。branchは`docs/mobile-growth-postmerge-20261011`、fixture変更前HEADは`dbc77aabffb983ae1ab69b5e25fd243b97f585a3`。PR #7588はOPEN。local acceptance後のfixture+spec commit/pushとそのexact-head CIはこれから。
+
+**残TODO（順序）:**
+
+1. fixtureと本checkpointを同じ専用branchにcommit/pushし、新exact-headの全required PR checksを確認する。失敗時はそのcheckだけを診断・修正する。
+2. required checks PASS後、PR #7588をmainへ統合し、merged commitをreadbackする。独立review/subagentは起動しない。
+3. 最新main由来immutable releaseを通常経路で作成・適用し、metrics owner 2件と18 publisher laneのloaded SHA・自然terminal・公式provider receiptを確認する。古いeffect_unknownは証拠なしに解除・再送しない。
+4. 公式Postiz readbackを更新し、18 publisher lane × 3 distinct daily slots、permalink、durable post metrics、Telegram message receipt、replay-zeroを確認する。54/54を7 JST日連続で証明し、自然なslot時刻を待つ間も他の観測・実装を進める。
+5. 6アプリのASC acquisition、RevenueCat subscription/MRR、Mixpanel onboardingをfresh cohort/periodで計測し、post/campaign→click/store→first-time downloadを結ぶ。まずAniccaのfirst-time downloadsを7日平均100/日へ。
+6. Anicca paywall plan-loadとnotification→same-quoteを再現・修正し、測定結果に応じてASO/store display、onboarding/paywallを一変数ずつ改善する。source変更時だけ新iOS版を配布する。
+7. Apple settlement/refunds/feesとactual costsを同期間で照合し、Anicca USD 10,000 verified net MRRを確認してから既存app群とfactoryへ広げる。
+
+**現在cursor:** fixture修正と完全ローカルacceptanceはPASS。次はfixture+specをpushし、exact-head CIをPASSさせてPR #7588をmainへ統合する。production変更は未実施。
+
 ### 2026-10-11 11:06 JST — Money status: Capafy / Writer / PromptBase (official readbacks)
 
 | Loop | Shipping 24/7? | Money | Exact blocker (measured) | Fix state |
@@ -13746,3 +13811,60 @@ Root cause of the Capafy drop (traffic-sources v2, weekly): Capafy search impres
 Known damage to repair: drafts 2576591785 / 5356015232 (under_review) and 9836498533 / 3795748683 (draft) host deepseek/deepseek-v4.1-flash while the card shows Claude Sonnet 5 (caused by manual CP2 runs without CAPAFY_HOSTED_MODEL_ID on 10/10) -> scan-warning risk.
 
 **Cursor:** #7591 CI -> merge -> release -> apply capafy-loop-daily; confirm the TikTok/YouTube/Hook Lab price-restore versions reach under_review and live billing reads day $1.99 / week $4.99 / month $9.99; then Writer no-effect hint; then PromptBase browser identity.
+
+### 2026-10-11 11:19 JST — latest main conflict readback; PR #7588 CI PASS
+
+このcheckpointは11:06までのmobile記録とlatest mainのoperating stateを統合する。mainの最新finance記録を維持し、mobile側の10:46/10:54/11:06 checkpointも失わず、時系列順に残す。
+
+- **PR #7588 CI:** run `38104177926`、head `9c00da5f02940c8e48d1791d2fd2945aea88c7bd`でLoop control contracts、Python syntax/unittest、gitleaks、TruffleHog、shell、PII、OSS boundary等すべてPASS。CIはbranch update前の9c00 headに対するもの。
+- **最新main / conflict:** `origin/main=d42536c41ac19755e3dc4bd7dae3b37e9dc88284`、PR base readbackは`55e3e7138d2fcf4afe2e0cee9f250e3cbbf1a11f`でmainに遅れている。GitHubはPRを`CONFLICTING`と返した。`git merge origin/main`でconflictになったのはSSOTのみ。別のCapafy/registry/cleanup変更は自動統合され、ここではSSOTの両側の記録を保持している。
+- **Current source state:** merge conflict resolutionはlocal worktreeのみで未commit。まだpush・main統合なし。productionは未変更。merge後のnew branch headに対してrequired CIを再実行してからPRを統合する。
+
+**残TODO（順序）:**
+
+1. このSSOT conflict resolutionがmainのCapafy/Writer/PromptBase記録と全mobile checkpointを保持することをdiffで確認し、`git diff --check`とfixture testを通す。merge commitを作成して専用branchへpushする。
+2. merge済みlatest mainを含むnew exact-head PR checksをPASSさせる。manual review/subagentは起動しない。
+3. PR #7588を`--admin --merge`し、merged commitと`origin/main`をreadbackする。
+4. main由来immutable releaseを通常経路で作成し、metrics owners 2件と18 publisher lanesをreadbackする。effect_unknownは公式証拠なしに解除・再送しない。
+5. Postizの18 lane×3 distinct slots、permalink、durable per-post metrics、Telegram receipt、replay-zeroを確認し、54/54を7 JST日連続で積む。slot時刻を待たず独立作業を続ける。
+6. fresh ASC/RevenueCat/Mixpanel cohortsとpost attributionを揃え、Anicca 100 first-time downloads/day（trailing 7-day average）を目指す。paywall plan-loadとnotification→same-quoteを直し、以降は一変数ずつ改善する。
+7. Apple settled proceeds/refunds/feesとactual costsを同期間で照合し、USD 10,000 verified net MRRを確認後にfactoryへ展開する。
+
+**現在cursor:** merge conflictのSSOT解消はworktree上で行ったが未commit。確認・commit/push後、new exact-head CIを通してmainへmergeする。
+
+### 2026-10-11 11:28 JST — release export testを再現、latest main追従
+
+このcheckpointは11:19を更新する。PR #7588のCI run `38104861977`はLoop control contractsのみFAIL。他のrequired checksはPASS。
+
+- **失敗test:** `test_cut_loop_release.CutLoopReleaseTest.test_release_can_be_built_without_changing_current`が`cut-loop-release: export of 4a7ac9ea failed`でFAIL。CI logはtest assertionまでしか`stderr`を保持せず、`git archive`と`tar`のどちらが落ちたかは未確認。
+- **再現probe:** `origin/main=4a7ac9ea29ab2856be83cdb9b57c7095e2c764d6`を参照する同じtestをcurrent worktreeで再実行しPASS。fixture testもPASS。failureは現時点でlocal再現できていないためflakyと断定せず、CI evidence gapとして扱う。
+- **Latest main:** PR #7594後の`origin/main=4a7ac9ea`はSSOT 1ファイルのみをd425から変更。このmainをbranchへmergeし、conflictなし、SSOT historical mobile/finance checkpoints維持。local branch HEADは`23aae07d526b0e94fc19eddc1042868d08e23528`、remote branchは`7ce08d7667565793966e81f70aff76c1135ff750`で、latest-main mergeとこの記録がまだ未push。productionは未変更。
+
+**残TODO（順序）:**
+
+1. 本記録とlatest-main merge commitをpushし、PR #7588を最新main baseへ同期する。
+2. exact new-head CIを確認する。Loop control contractsが同じrelease-export failureを出したら、`git archive`と`tar`を分けて原因を特定する最小診断を加えてから再実行し、失敗を隠す緩和はしない。
+3. required checksが全てPASSしたらPR #7588を`--admin --merge`し、merged commitをreadbackする。
+4. main由来immutable releaseを通常経路で適用し、metrics owners 2件と18 publisher lanesのloaded SHA・natural terminal・official receiptsを確認する。古いeffect_unknownを解除・再送しない。
+5. 18 lane×3 distinct daily slots、permalink、durable metrics、Telegram receipt、replay-zeroを確認し、54/54を7 JST日連続で積む。slot時刻を待たず独立作業を進める。
+6. ASC/RevenueCat/Mixpanelとpost attributionをfresh cohort/periodで揃え、Anicca 100 first-time downloads/day（trailing 7-day average）、paywall plan-load、notification→same-quoteを測って改善する。ASO/onboardingは一変数ずつ。
+7. Apple settled proceeds/refunds/feesとactual costsを同期間で照合し、USD 10,000 verified net MRRを証明後にfactoryへ広げる。
+
+**現在cursor:** latest main merge commitはlocal only。push後のexact-head CIでrelease-export failureが再現するか確認し、PASS前にmainへmergeしない。
+
+### 2026-10-11 11:29 JST — latest main 1eb84c83を統合、CI failureのlocal probe PASS
+
+- **latest main / branch:** `origin/main=1eb84c8315f8445769feb60be1d00ac72c43ae93`（PR #7596）。この追加はSSOT 1ファイルで、branchへconflictなく統合した。local HEADは`f8fd0dd51cb34334443625a5c23a2f6334c580d1`、remote branchは前headのまま。productionは未変更。
+- **CI failure:** run `38104861977` / head `7ce08d7667565793966e81f70aff76c1135ff750`は864 tests中1 failure。`test_release_can_be_built_without_changing_current`が`cut-loop-release: export of 4a7ac9ea failed`で落ち、他required checkはPASS。testはstderrをcaptureするが、このfailureにはgeneric export error以外のgit/tar詳細が出ず、原因componentは未特定。
+- **same-target probe:** `origin/main=4a7ac9ea`を参照する同一testはlocalで2回PASS。fixture testもPASS。後続main `1eb84c83`はSSOTのみの追加。failureは未再現であり、flaky/CI bugと断定しない。
+- **Cursor:** exact failed headはbranch remoteで置換済みではない。latest-main mergeとこの記録をpushし、new exact-head CIを確認する。同じrelease-export failureが再発した場合、git archiveとtarのboundaryを診断する。required checksがPASSするまでmergeしない。
+
+**残TODO（順序）:**
+
+1. latest-main mergeとこのspec noteをbranchへcommit/pushし、PR baseを`1eb84c83`へ揃える。
+2. new exact-head CIの全required checksをPASSさせる。failureが再発した場合だけexport boundaryの証拠を増やして修正する。
+3. PASS後PR #7588を`--admin --merge`し、merged commitと`origin/main`をreadbackする。
+4. main由来immutable releaseを通常owner経路で適用し、metrics owner 2件と18 publisher laneのloaded SHA・natural terminal・official receiptsを確認。effect_unknownは証拠なしに解除・再送しない。
+5. 18 lane×3 distinct daily slots、permalink、durable metrics、Telegram receipt、replay-zeroを確認して54/54を7 JST日連続で積む。slot時刻を待たず独立作業を続ける。
+6. fresh ASC/RevenueCat/Mixpanel cohortsとpost attributionを揃え、Anicca 100 first-time downloads/day（trailing 7-day average）とpaywall/notification問題を測定・改善する。ASO/onboardingは一変数ずつ。
+7. Apple settled proceeds/refunds/feesとactual costsを同期間で照合し、Anicca USD 10,000 verified net MRRを確認してからfactoryへ展開する。
