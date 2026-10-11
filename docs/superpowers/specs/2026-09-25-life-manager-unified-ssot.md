@@ -388,6 +388,9 @@ CLEAN-04/05 旧guard採用漏れscope: fresh verify-loops-auditはloaded-idle/PI
 
 CLEAN-05 audit queued-release最小修復scope: target reconcileは旧queued reservationのためskipped_pending。現行CLIはautomatic release reconcilerだけがregistry reconcile_queued_release opt-inを使い、loaded-idle/同owner FIFO/未知effect拒否/使用中拒否を維持して更新できる。verify-loops-auditのlegacy queue policyはdeterministic/borrow/supportである一方、registryに同admission contractとopt-inが欠ける。既存aa-release-reconciler-handoffのshapeを使い、この1rowへresource_class=deterministic/admission_class=borrow/priority=support/reconcile_queued_release=trueを明記する。新coalescing/CLIflag/queue削除/lease解放/他owner変更0。既存test_macos_loop_registryで1rowのcontractをRED→4field最小差分→既存queued migration tests→CI/main/immutable→実automatic ownerの自然adoptionを確認する。manual callerをautomatic ownerへ偽装しない。
 
+CLEAN-05 audit queued-release source受入: registry admission contract無しを1test REDで確認し、verify-loops-auditのresource_class/admission_class/priority/reconcile_queued_releaseの4fieldだけ追加。legacy実policy deterministic/borrow/supportと一致し、cadence21600/effectnone/entrypointを保持する。既存registry/automatic queued migration/reserved guard関連12tests/10subtests PASS、lm-loop-contract PASS（registry190/errors0）、diff/source-boundary PASS。最初の関連testはsparseでmobile-app-loops.json欠落のfixture error1だったためHEAD blobを復元し、source変更せずGREENを確認。新code/CLIflag/予約削除/unknown解除/新coalescing0。次=exact CI/main/immutable→既存automatic release ownerの自然target採用→旧disk gate停止からの自然admission/terminalを確認する。
+
+
 
 
 
