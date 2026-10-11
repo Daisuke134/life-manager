@@ -1,0 +1,74 @@
+name: Combined protection validation
+
+on:
+  push:
+    branches:
+      - verify/codex-browser-exact-heads-20261012
+
+permissions:
+  contents: read
+
+concurrency:
+  group: combined-protection-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  loop-control:
+    name: Exact combined loop-control tests
+    if: github.repository == 'Daisuke134/life-manager' && github.ref == 'refs/heads/verify/codex-browser-exact-heads-20261012'
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify exact combined source and available capacity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          git merge-base --is-ancestor 32bdde85c7ed269f64c30cedf92dfb2bfad9ba26 HEAD
+          git diff --exit-code 32bdde85c7ed269f64c30cedf92dfb2bfad9ba26 HEAD -- . ':(exclude).github/workflows/protection-combined-validation.yml'
+          git show -s --format='tested_commit=%H%nparents=%P%ntree=%T' HEAD
+          available_bytes=$(/bin/df -k "$GITHUB_WORKSPACE" | awk 'NR==2 {printf "%.0f", $4 * 1024}')
+          printf 'available_bytes=%s\n' "$available_bytes"
+          test "$available_bytes" -ge 2147483648
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Record isolated runner interpreters
+        run: |
+          command -v python3
+          python3 --version
+          node --version
+      - name: Install exact loop contract test dependency
+        run: python3 -m pip install --disable-pip-version-check jsonschema==4.26.0 pytest==9.0.3
+      - name: Verify registry, releases, apply fencing, and clean install
+        run: python3 -m unittest discover -s runtime/loop/tests -p 'test_*.py'
+      - name: Verify installed browser paths stay protected
+        run: python3 -B skills/self/disk-cleanup/tests/test_browser_installation_protection.py
+      - name: Verify bounded storage, real syscall failures, and recurrence
+        run: >-
+          python3 -m pytest -q
+          runtime/loop/tests/test_lm_loop_run_bounds.py
+          runtime/loop/tests/test_storage_failure.py
+          runtime/loop/tests/test_release_source_reclaim.py
+          runtime/host/tests/test_storage_policy.py
+          runtime/host/tests/test_bounded_output.py
+          runtime/host/tests/test_storage_recurrence.py
+          runtime/agent-runner/tests
+          skills/self/disk-cleanup/tests/test_host_inventory.py
+          skills/self/disk-cleanup/tests/test_disk_cleanup.py
+          skills/self/disk-cleanup/tests/test_disk_watchdog_dispatcher.py
+      - name: Verify storage recovery waits and replay fencing
+        run: >-
+          node --test
+          runtime/loop/__tests__/storage-recovery.test.mjs
+          runtime/loop/__tests__/recovery-intent.test.mjs
+          runtime/loop/__tests__/recovery-intent-record.test.mjs
+          runtime/loop/__tests__/recovery-apply-plan.test.mjs
+          runtime/loop/__tests__/recovery-executor.test.mjs
+          runtime/loop/__tests__/recovery-supervisor.test.mjs
+      - name: Verify Codex executable installations stay protected
+        run: python3 -B skills/self/disk-cleanup/tests/test_codex_runtime_installation_protection.py
