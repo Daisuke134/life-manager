@@ -183,46 +183,55 @@ class SubmissionConfirmationTests(unittest.TestCase):
             )
             ledger.close()
 
-    def test_hpe_online_submission_confirmation_reconciles_once(self):
+    def test_workday_tenant_receipt_uses_exact_official_brand_readback(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             ledger, application_id, _ = self._unknown_submission(
                 root,
-                company="Hewlett Packard Enterprise",
-                title="Service Engineer",
+                company="Northstar Group",
+                title="Business Account Manager",
                 url=(
-                    "https://hpe.wd1.myworkdayjobs.com/External/job/"
-                    "Service_Engineer"
+                    "https://northstar.wd5.myworkdayjobs.com/External/job/"
+                    "Business_Account_Manager"
                 ),
             )
             ledger.close()
             received = datetime.now(timezone.utc) + timedelta(minutes=1)
+            posting_readbacks = []
             payload = {
                 "thread": {
-                    "id": "gmail-hpe-thread",
+                    "id": "gmail-workday-brand-thread",
                     "messages": [
                         {
-                            "id": "gmail-hpe-message",
-                            "threadId": "gmail-hpe-thread",
+                            "id": "gmail-workday-brand-message",
+                            "threadId": "gmail-workday-brand-thread",
                             "internalDate": int(received.timestamp() * 1000),
                             "headers": {
-                                "from": "Hewlett Packard Enterprise <hpe@myworkday.com>",
+                                "from": "Workday Notifications <notifications@myworkday.com>",
                                 "to": "candidate@example.com",
-                                "subject": "Thank you for your online submission",
+                                "subject": "Workday application status update",
                             },
                             "body": (
-                                "Hewlett Packard Enterprise has received your "
-                                "application for Service Engineer."
+                                "Northstar Analytics K.K. の Business Account Manager "
+                                "の職務にご応募いただきありがとうございます。"
                             ),
                         }
                     ],
                 }
             }
             thread = {
-                "id": "gmail-hpe-thread",
-                "subject": "Thank you for your online submission",
-                "snippet": "Hewlett Packard Enterprise Service Engineer",
+                "id": "gmail-workday-brand-thread",
+                "from": "Workday Notifications <notifications@myworkday.com>",
+                "subject": "Workday application status update",
+                "snippet": "Northstar Analytics K.K. Business Account Manager",
             }
+
+            def load_posting(candidate):
+                posting_readbacks.append(candidate["company"])
+                return {
+                    "jobPostingInfo": {"title": "Business Account Manager"},
+                    "hiringOrganization": {"name": "Northstar Analytics K.K."},
+                }
 
             first = reconcile_confirmation_threads(
                 ledger_path=root / "ledger.sqlite3",
@@ -230,15 +239,17 @@ class SubmissionConfirmationTests(unittest.TestCase):
                 thread_loader=lambda _thread_id: payload,
                 seen_state=root / "inbox-seen.json",
                 expected_recipient="candidate@example.com",
+                official_posting_loader=load_posting,
             )
 
+            self.assertEqual(posting_readbacks, ["Northstar Group"])
             self.assertEqual(
                 first["reconciled"],
                 [
                     {
                         "application_id": application_id,
-                        "message_id": "gmail-hpe-message",
-                        "thread_id": "gmail-hpe-thread",
+                        "message_id": "gmail-workday-brand-message",
+                        "thread_id": "gmail-workday-brand-thread",
                         "status": "reconciled",
                     }
                 ],
@@ -277,6 +288,74 @@ class SubmissionConfirmationTests(unittest.TestCase):
             )
             reopened.close()
 
+    def test_unrelated_workday_mail_with_generic_subject_does_not_promote(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger, application_id, _ = self._unknown_submission(
+                root,
+                company="Hewlett Packard Enterprise",
+                title="Service Engineer",
+                url=(
+                    "https://hpe.wd1.myworkdayjobs.com/External/job/"
+                    "Service_Engineer"
+                ),
+            )
+            ledger.close()
+            received = datetime.now(timezone.utc) + timedelta(minutes=1)
+            payload = {
+                "thread": {
+                    "id": "gmail-hpe-unrelated-thread",
+                    "messages": [
+                        {
+                            "id": "gmail-hpe-unrelated-message",
+                            "threadId": "gmail-hpe-unrelated-thread",
+                            "internalDate": int(received.timestamp() * 1000),
+                            "headers": {
+                                "from": "Hewlett Packard Enterprise <hpe@myworkday.com>",
+                                "to": "candidate@example.com",
+                                "subject": "Workday application status update",
+                            },
+                            "body": (
+                                "Thank you for your interest in "
+                                "Hewlett Packard Enterprise."
+                            ),
+                        }
+                    ],
+                }
+            }
+            result = reconcile_confirmation_threads(
+                ledger_path=root / "ledger.sqlite3",
+                threads=[{
+                    "id": "gmail-hpe-unrelated-thread",
+                    "from": "Hewlett Packard Enterprise <hpe@myworkday.com>",
+                    "subject": "Workday application status update",
+                    "snippet": (
+                        "Thank you for your interest in "
+                        "Hewlett Packard Enterprise."
+                    ),
+                }],
+                thread_loader=lambda _thread_id: payload,
+                seen_state=root / "inbox-seen.json",
+                expected_recipient="candidate@example.com",
+            )
+
+            self.assertEqual(result["reconciled"], [])
+            reopened = Ledger(root / "ledger.sqlite3")
+            self.assertEqual(
+                reopened.connection.execute(
+                    "SELECT current_state FROM applications WHERE id = ?",
+                    (application_id,),
+                ).fetchone()[0],
+                "submit_unknown",
+            )
+            self.assertEqual(
+                reopened.connection.execute(
+                    "SELECT COUNT(*) FROM submission_confirmations"
+                ).fetchone()[0],
+                0,
+            )
+            reopened.close()
+
     def test_gmail_confirmation_search_includes_online_submission_phrase(self):
         completed = Mock(stdout=json.dumps({"threads": []}))
         with patch(
@@ -289,6 +368,8 @@ class SubmissionConfirmationTests(unittest.TestCase):
 
         query = run.call_args.args[0][-1]
         self.assertIn('"thank you for your online submission"', query)
+        self.assertIn("from:myworkday.com", query)
+        self.assertIn("from:myworkdayjobs.com", query)
 
     def test_generic_transition_cannot_bypass_confirmation_receipt(self):
         with tempfile.TemporaryDirectory() as directory:
