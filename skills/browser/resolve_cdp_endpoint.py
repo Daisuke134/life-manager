@@ -206,33 +206,42 @@ def resolve_identity(
         raise ValueError("profile_port_unavailable")
     candidates = []
     saw_live_endpoint = False
-    for host in ("127.0.0.1", "::1"):
-        live = fetch(endpoint(host, port))
-        if not live:
-            continue
-        saw_live_endpoint = True
-        pids = listeners(host, port)
-        owner = _profile_owned(profile, pids, command)
-        ownership_source = "process_command"
-        if owner is None:
-            owner = _profile_receipt_owned(profile, pids, port, str(live["uuid"]))
-            ownership_source = "browser_port_owner_receipt"
-        if owner is None:
-            continue
-        pid, _ = owner
-        candidates.append({
-            "identity": identity,
-            "profile": profile,
-            "host": host,
-            "port": port,
-            "endpoint": endpoint(host, port),
-            "uuid": str(live["uuid"]),
-            "pid": pid,
-            "ownership_source": ownership_source,
-            "reachable": True,
-            "http_status": 200,
-            "websocket_url_valid": True,
-        })
+    # DevToolsActivePort can outlive the browser that wrote it: a restart on the declared port
+    # leaves the previous dynamic port in the file (2026-10-11, capafy:kosuke). Try the file port
+    # first and fall back to the declared port only when the file port yields no owned endpoint;
+    # the profile-ownership check below still applies to every port.
+    declared = row.get("declared_port")
+    ports = [port] + ([declared] if isinstance(declared, int) and declared != port else [])
+    for port in ports:
+        for host in ("127.0.0.1", "::1"):
+            live = fetch(endpoint(host, port))
+            if not live:
+                continue
+            saw_live_endpoint = True
+            pids = listeners(host, port)
+            owner = _profile_owned(profile, pids, command)
+            ownership_source = "process_command"
+            if owner is None:
+                owner = _profile_receipt_owned(profile, pids, port, str(live["uuid"]))
+                ownership_source = "browser_port_owner_receipt"
+            if owner is None:
+                continue
+            pid, _ = owner
+            candidates.append({
+                "identity": identity,
+                "profile": profile,
+                "host": host,
+                "port": port,
+                "endpoint": endpoint(host, port),
+                "uuid": str(live["uuid"]),
+                "pid": pid,
+                "ownership_source": ownership_source,
+                "reachable": True,
+                "http_status": 200,
+                "websocket_url_valid": True,
+            })
+        if candidates:
+            break
     if len(candidates) != 1:
         raise ValueError("endpoint_ambiguous" if candidates else (
             "endpoint_not_profile_owned" if saw_live_endpoint else "endpoint_unavailable"
