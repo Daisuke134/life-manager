@@ -194,9 +194,8 @@ def main() -> int:
                 record = {'pipeline': row, 'official_status': status}
                 proof.append(record)
                 digest = hashlib.sha256(json.dumps(record, sort_keys=True).encode()).hexdigest()
-                receipt_path = args.state_root / 'evidence' / 'dreamwork' / (row['applicationId'] + '.json')
                 # Provider IDs are data, not filesystem paths.
-                receipt_path = receipt_path.with_name(hashlib.sha256(row['applicationId'].encode()).hexdigest() + '.json')
+                receipt_path = args.state_root / 'evidence' / 'dreamwork' / (hashlib.sha256(row['applicationId'].encode()).hexdigest() + '.json')
                 _write_private_json(receipt_path, record)
                 if row.get('sourceUrl'):
                     ledger = Ledger(args.state_root / 'ledger.sqlite3')
@@ -214,6 +213,16 @@ def main() -> int:
                 else:
                     record['ledger_status'] = 'source_url_missing'
 
+        from .telegram import send_once
+        for record in proof:
+            row = record['pipeline']
+            confirmation = record['official_status']['truth']['employerConfirmed']
+            message = (f"Dreamworkで応募完了を公式確認しました。\n会社: {row['company']}\n職種: {row['title']}"
+                       f"\n雇用主からの確認: {'あり' if confirmation else '未確認'}"
+                       f"\n{row.get('sourceUrl', 'Dreamwork Applicationsで確認できます。')}")
+            report = send_once(database=args.state_root / 'telegram-outbox.sqlite3',
+                               event_key='dreamwork-submitted:' + row['applicationId'], message=message)
+            record['report_message_id'] = report.get('message_id')
         result.update(confirmed_submissions=proof, pipeline_complete=pipeline.get('hasMore') is False,
                       provider='dreamwork', official_readback_ref=str(args.output))
         _write_private_json(args.output, result)
