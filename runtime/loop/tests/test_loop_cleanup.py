@@ -786,8 +786,12 @@ class LoopCleanupTest(unittest.TestCase):
                 {"pid": 10, "process_start": "live-start"}))
             (stale / ".owner.json").write_text(json.dumps(
                 {"pid": 11, "process_start": "old-start"}))
+            helper = live.parent / "helper.py"
+            helper.write_text("keep")
             result = scratch_gc({root}, snapshot_started_ns=time.time_ns() + 1,
                                 starts={10: "live-start"})
+            self.assertEqual(result["errors"], 0)
+            self.assertEqual(helper.read_text(), "keep")
             self.assertTrue(live.is_dir())
             self.assertFalse(stale.exists())
             self.assertEqual((result["removed"], result["preserved"]), (1, 1))
