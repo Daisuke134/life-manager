@@ -58,7 +58,7 @@ class PromptFailClosedTest(unittest.TestCase):
         }), encoding="utf-8")
 
     def run_runner(self, prompt_text, use_stdin=False, free_bytes=2 * 1024**3):
-        evidence = self.root / "evidence"
+        evidence = self.root / f"evidence-{free_bytes}"
         env = os.environ.copy()
         env["PATH"] = f"{self.bin}:{env['PATH']}"
         env["AGENT_RUNNER_CONFIG"] = str(self.config)
@@ -129,7 +129,18 @@ class PromptFailClosedTest(unittest.TestCase):
         self.assertEqual(proof["evidence_dir"], str(evidence.resolve()))
         self.assertFalse((evidence / "attempts.jsonl").exists())
 
-    def test_low_or_unknown_disk_defers_before_provider_home_evidence_or_lease(self):
+    def test_deferral_receipt_failure_does_not_launch_provider(self):
+        evidence = self.root / "evidence-0"
+        evidence.mkdir()
+        primary = evidence / "summary.json"
+        primary.write_text('{"existing": "preserve"}')
+        proc, _ = self.run_runner("Return the bounded contract JSON only.\n", free_bytes=0)
+        self.assertEqual(proc.returncode, 75)
+        self.assertFalse(self.marker.exists())
+        self.assertIn("deferral receipt unavailable", proc.stderr)
+        self.assertEqual(primary.read_text(), '{"existing": "preserve"}')
+
+    def test_low_or_unknown_disk_defers_before_provider_attempt_or_lease(self):
         for free_bytes in (0, 2 * 1024**3 - 1, None):
             with self.subTest(free_bytes=free_bytes):
                 proc, evidence = self.run_runner(
@@ -139,7 +150,7 @@ class PromptFailClosedTest(unittest.TestCase):
                 reason = "disk_headroom_unavailable" if free_bytes is None else "disk_headroom_low"
                 self.assertIn(reason, proc.stderr)
                 self.assertFalse(self.marker.exists(), "low disk launched a provider")
-                self.assertFalse(evidence.exists(), "low disk wrote attempt evidence")
+                self.assertFalse((evidence / "attempts.jsonl").exists(), "low disk wrote attempt evidence")
                 self.assertFalse((self.root / "provider.lock").exists(), "low disk created a lease")
 
 
