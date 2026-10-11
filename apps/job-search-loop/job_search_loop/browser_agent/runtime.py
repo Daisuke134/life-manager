@@ -1212,10 +1212,16 @@ async def finalize() -> dict[str, Any]:
             cursor.handle.generation,
             after.content_sha256,
             (*prior, action_receipt.receipt_sha256),
-            0,
+            _wake_budget() if completion.outcome == 'not_submitted' else 0,
             after.url,
         )
     )
+    if completion.outcome == 'not_submitted':
+        return {'status': 'action_rejected', 'reason': 'provider_field_validation_rejection',
+                'application_id': row['application_id'], 'evidence_class': completion.evidence_class,
+                'evidence_sha256': completion.evidence_sha256,
+                'observation': _safe_observation(after, cursor.checkpoint, _wake_budget()),
+                'instruction': 'correct the fresh provider validation fields, then finalize; this row remains active'}
     await session.close_owned(cursor.handle)
     report_status = (
         "post_submit_verification"

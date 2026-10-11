@@ -25,6 +25,7 @@ class SubmissionConfirmationTests(unittest.TestCase):
             "https://jobs.ashbyhq.com/dream/"
             "agent-product-engineer/application"
         ),
+        outcome: str = "submit_unknown",
     ) -> tuple[Ledger, str, str]:
         ledger = Ledger(root / "ledger.sqlite3")
         application_id = ledger.add_application(
@@ -76,9 +77,9 @@ class SubmissionConfirmationTests(unittest.TestCase):
         ledger.complete_submission_verified(
             intent.intent_id,
             intent.fence,
-            outcome="submit_unknown",
+            outcome=outcome,
             evidence_sha256="e" * 64,
-            evidence_class="no_authoritative_completion_ui",
+            evidence_class="rendered_validation_rejection" if outcome == "not_submitted" else "no_authoritative_completion_ui",
         )
         return ledger, application_id, intent.intent_id
 
