@@ -47,7 +47,7 @@ test("Anicca summary consumes current corrections ahead of retained historical r
       post: { views: { status: "measured", value: 2229 } } }));
   }
   const summary = persistAniccaDaily(dataDir, day, `${day}T09:30:00.000Z`);
-  assert.match(summary.snapshot.message, /@anicca\.jp1 Instagram: Views 2229/);
+  assert.match(summary.snapshot.message, /@anicca\.jp1 Instagram: 現在値.*Views 2229/);
 });
 
 test("Anicca daily summary includes @anicca.en current metrics and ignores stale posts", () => {
