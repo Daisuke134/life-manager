@@ -76,13 +76,6 @@ EXACT_CACHE_ROOTS = {
     "bun-cache": "Library/Caches/bun",
     "burrito-cache": "Library/Caches/burrito_file_cache",
     "codex-cache": "Library/Caches/Codex",
-    # Camoufox's downloaded SDK (not a profile) lives at platformdirs.user_cache_dir("camoufox").
-    "camoufox-sdk-cache": "Library/Caches/camoufox",
-    # Camofox is an optional, checksum-pinned fallback fetched by
-    # skills/camofox-browser/fetch.sh.  The complete tree is disposable:
-    # fetch.sh recreates it before use and the runtime never stores provider
-    # session state inside this cache.
-    "camofox-browser-cache": ".cache/life-manager/camofox-browser",
     "daily-driver-cache": ".cache/life-manager-daily-driver",
     "ffmpeg-cache": "Library/Caches/ffmpeg-static-nodejs",
     "google-cache": "Library/Caches/Google",
@@ -990,6 +983,8 @@ class HostDiskGovernor:
             ".openclaw/workspace", ".cloak", "anicca-rtdash", "anicca-monk-factory",
             # Codex installs executable runtimes and plugin dependencies here.
             ".cache/codex-runtimes",
+            # Installed browser executables/dependencies must survive between runs.
+            "Library/Caches/camoufox", ".cache/life-manager/camofox-browser",
         }
         text = "/".join(parts)
         if any(text == root or text.startswith(root + "/") for root in protected_roots):
