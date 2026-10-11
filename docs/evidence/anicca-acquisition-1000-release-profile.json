@@ -100,5 +100,26 @@
       "trackViewUrl": "https://apps.apple.com/es/app/afirmaciones-diarias-anicca/id6755129214?uo=4",
       "description_present": true
     }
-  ]
+  ],
+  "english_store_experiment": {
+    "observed_at": "2026-10-11T07:32:59.870624+00:00",
+    "method": "official ASC update followed by independent official localizations list",
+    "app_id": "6755129214",
+    "version": "1.9.4",
+    "changed_fields": [
+      {
+        "locale": "en-US",
+        "field": "promotionalText",
+        "before": null,
+        "after": "A kinder pause in your day. Daily affirmations for self-love and confidence, with gentle reminders and calming themes. Find words that feel like you."
+      }
+    ],
+    "paid_spend": 0,
+    "additional_downloads_verified": false,
+    "public_page_readback_verified": false,
+    "public_checks": {
+      "crwl_markdown_new_text_observed": false,
+      "scrapy_raw_html_new_text_observed": false
+    }
+  }
 }
