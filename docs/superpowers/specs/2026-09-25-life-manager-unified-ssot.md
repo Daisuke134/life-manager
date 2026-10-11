@@ -219,7 +219,7 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 
 当面の対象はこの表だけ。下の全社130工程は将来の参照ロードマップであり、いま全社工程へ拡大しない。既存の「cleanup残3大分類」は本表の親分類で、進捗報告はBF-ID単位で完了証拠を示す。毎分watchdog、共通bounded出力/代表自己cleanup、Gig閉鎖物回収/再開、予約expiry順序、scratch通常file誤判定、backup失敗伝播と自然保存/対象claim返却は確認済みで、残項目へ戻さない。
 
-15個の受入atom中BF01/02/03/04/05/05b/06/07/08/10は完了、残り5。残件は故障確定数ではない。診断で既適用/修正不要と証明した項目はN/Aで閉じ、新しい根本原因は別IDで追加し、黙って同じ大分類へ戻さない。BF09は未知effectのblind解除ではなく照合/復旧routeの稼働確認。個別商品の認証/外部審査/売上目標は基盤完了と分ける。
+15個の受入atom中BF01/02/03/04/05/05b/06/07/08/10/12は完了、残り4。残件は故障確定数ではない。診断で既適用/修正不要と証明した項目はN/Aで閉じ、新しい根本原因は別IDで追加し、黙って同じ大分類へ戻さない。BF09は未知effectのblind解除ではなく照合/復旧routeの稼働確認。個別商品の認証/外部審査/売上目標は基盤完了と分ける。
 
 残り初回作業枠合計165–410分＋必要なCI/自然run/公式照合待ち。作業枠は所要時間保証ではなく、上限までに結果/残る理由/次手を報告する管理値。初回着手で時間枠を超える時は再見積もりを記録し、必要な安全作業を継続する。9時間で全外部条件/全18成果を保証しない。各IDに開始/終了時刻・実測分・証拠・残差を追記し、30分以下の節目で閉じたIDを報告する。現在cursor=BF11。
 
@@ -237,7 +237,7 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 | BF09 | 未完 | 止まるowner一件の効果照合/復旧routeを特定し、照合仕事が進むことを確認する | 15–45 | exact occurrence→実claiming run→既存公式readback/typed next_action。domainの全fence閉鎖は含めない |
 | BF10 | 完了（軽量制御処理の分離） | 資源に余裕があるのに実仕事が止まる配分/fairnessの漏れを一件閉じる | 観測→RED→source→自然確認 | #7661のpool分類だけでは自然capacity_busyが残り、#7662/main afb4680cで既存control経路へ分離。13:10/13:15の同release自然runがpass/exit0、own scratch不在。業務pool/FIFO/cap/他ownerは保持 |
 | BF11 | 現在cursor | 必要な共通修正をまとめてCI/main/immutable/idle対象採用へ反映する | 15–30 | exact head/loaded SHA、active/unknownの保持理由。各sourceの既完は再修正しない |
-| BF12 | 未完 | 修正対象一件の自然仕事→receipt→自己cleanup→枠返却をjoinする | 10–20 | 同run/occurrenceの正式記録と所有scratch/claim返却 |
+| BF12 | 完了（通常producerとcontrolを分けて照合） | 修正対象一件の自然仕事→receipt→自己cleanup→枠返却をjoinする | fresh readback | backup自然run18dd7af5a6d62268-30018/12:57:06Z、修正済みbb5cd283。stdout ok true/398をdest maxdepth2実数398と照合。実claim18dbbb1b85038e50-10698/seq490383はreleased/unknown0、own scratch不在。BF12-backup-fresh-cycle-20261011.json。深いmemoryを含む670件と混同しない |
 | BF13 | 未完 | 次の自然仕事と中央cleanupをjoinし、反復で再悪化しないことを確認する | 15–30 | 複数自然cycle、ENOSPC/記録破損/反復手動掃除なし。全190自然runを新gateにしない |
 | BF14 | 未完 | 開発担当の再利用/増員可否を、対象仕事の実負荷と独立scopeで決める | 5–10 | 既存liveness/leaseとsafe workload。全18業務完了や任意のfree GiBを前提にしない |
 
@@ -259,7 +259,11 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 - [x] safety setへ当該IDを1行追加。control/registry関連149 tests/203 subtestsと、queued履歴保持/reserved・unknown拒否の既存2 testsがPASS。
 - [x] #7662 exact head 2c2e6d98のCI全PASS→main afb4680c→immutable 20261011T220802-afb4680c→install event b10d9a410036dd52dd408b9a。13:10:08Z run18dd7bac473c7fc0-54957、13:15:16Z run18dd7bf289274258-62851が自然pass/exit0、scratch不在。native controlは業務claimを取得しない。旧queued observationは既存cancel_effect_free_queued_ownerによりunclaimed/unreserved/unknownなしの場合だけcancelled履歴を保持して回収し、業務work・claimed/unknown/foreignは保持する。元sequenceを消して成功と扱うのではなく、業務queueから独立したprobeへ移行したことを明記する。
 
-**現在の残り順:** BF11→BF09→BF12→BF13→BF14。BF11の今回target採用は完了だが、既存共通修正の残るeligible旧sourceとactive/unknown保持理由の確認を残す。BF12/13はcontrolだけで全業務の枠返却/全host安定を主張せず、既存ordinary producer証拠と中央watchdogも照合する。13:19:45Zのprimary watchdog `last-unbound-receipt.json`はerrors=0/protected_deletions=0。bound中央cleanupのlast receiptは12:49:51Zで、managed中央ownerはentrypoint_exit75となる。sourceにはsingleton lock busyをdeferredとしてreturn75する既存経路があるため、実terminal/出力とprimary watchdogを照合してから判定する。root state pathを推測して未取得を「記録なし」と扱わない。
+**現在の残り順:** BF11→BF09→BF13→BF14。BF12は既存通常producerの修正済み自然証拠をfreshに照合し、完了へ更新した。BF11の今回target採用は完了だが、既存共通修正の残るeligible旧sourceとactive/unknown保持理由の確認を残す。BF12/13はcontrolだけで全業務の枠返却/全host安定を主張せず、既存ordinary producer証拠と中央watchdogも照合する。13:19:45Zのprimary watchdog `last-unbound-receipt.json`はerrors=0/protected_deletions=0。bound中央cleanupのlast receiptは12:49:51Zで、managed中央ownerはentrypoint_exit75となる。sourceにはsingleton lock busyをdeferredとしてreturn75する既存経路があるため、実terminal/出力とprimary watchdogを照合してから判定する。root state pathを推測して未取得を「記録なし」と扱わない。
+
+**BF11採用の追加実績/安全境界:** health observerのinstall78d880122da21ccab8f20eccに続き、recovery supervisor/install142b89ee40237c63bb617b3b、lm-fence-reconciler/db49abca01e5439ce4cfb0b1、handoff/8ed10b85ab4f4f13bc3aaad0をafb4680cへ採用。observer/recovery/fenceの自然passを確認。handoffは一度exit69のため、actual helperと本体のlive PIDをsafe printで確認し、停止/強制再実行はしない。自然過程でcurrentは別ownerのmain由来604ffbafへ進んだ。
+
+loaded-idle-onlyには既存自動unknown照合があり、明示keep_alive指定はrunningの例外を持つ。従ってsource adoptionだけを行う先行waveはoccurrences/priorities unknown両方0・claimed0・no keep_alive・fresh loaded-idleで選ぶ。readonly探索で実entrypointを確認後、browser-state-backup/effect-watch/marketing-score-daily/x402-inflow-watch＋franklin1/2の6件を604ffbafへ採用（failed0）。wallet/tagとcommand digest保持、quarantine保持。active sale observer、unknown boot observer、invoice POSTを持つugig、award handoffを持つtaskmarket、profile操作のあるsession-vault、Capafy担当、新coder/資金/order領域は先行waveから除外する。BF11-safe-wave-eligibility/BF11-safe-wave-readback/BF11-adoption-dispositions-20261011.jsonを根拠とし、116旧source全体の採用完了を主張しない。
 
 ### 全体のatomic展開と作業時間枠（大分類3件と全体完了を区別する）
 
