@@ -13635,3 +13635,26 @@ This checkpoint supersedes the 08:47 snapshot. The latest release cleanup remain
 9. Apple settled proceeds/refund/feeと実費を同期間で照合し、AniccaのUSD 10,000 net recurring MRRを証明してから他アプリへ拡大する。
 
 **現在cursor:** source修正はlocalでPASS、次はsource・tests・specをcommit/pushしてPR/main統合する。productionに反映されたとはまだ言えない。
+
+### 2026-10-11 10:20 JST — future-slot burstを特定、最新releaseのpublisher rollout途中
+
+この記録で09:38 cursorを更新する。Postiz数値は10:07 JSTの公式GETであり、日末合計や永続collector成功ではない。
+
+- **Main / source:** PR #7584のPostiz total parser修正はmain `341aa289`へ統合済み。PR #7585後のlatest mainは`98f93e272489db9a17f6e0d9df897bb5e2beb853`。current immutable releaseも`20261011T101349-98f93e27` / 同SHAを指す。release manifest `capacity_required_bytes=236,134,400`。このsourceには`engagementScore`のstring `data[].total`読み取り、`percentageChange`除外、空応答pending修正とfuture slotを選ばないdue-only resolverが含まれる。
+- **Release / owners:** reconcilerは旧release `341aa`で実行中。self-handoff receiptはtarget `98f93e27`に対し`old_service_active_timeout`（old PID 66224 running）で、18 publisher ownerは1/18が98f、3/18が341、10/18が49af、3/18が48c、1/18がd8a。最新のfleet applyは旧341 runで`release superseded by current sha 98f`、effectは未開始。手動applyや再起動を重ねず、通常ownerの自然terminalを読む。
+- **Fresh Postiz GET (10:07 JST):** manifest上のAnicca/Honne 18 targetに27件`PUBLISHED`、27/27 direct permalink、27/27 Postiz per-post analytics responseにmetric data。今回のone-time snapshotでViews 1,183、Likes 9。永続metric ledger・Telegram delivery receiptは未確認。18 targetのうち10件のaccountは1 post、`@anicca.en`は2、5 accountは3 burst、2 accountは0。既にdueのslotは18件中17件成功。`@anicca.he`の07:15 slotは0件でmiss、`@ani.cca1234`は10:30 slot前で未due。27/54は日末総数ではない。
+- **Burst root cause evidence:** local native-carousel job ledgerでは`@anicca_slideshow`の09:00:37 postが09:00 slot、09:03:51 postが15:00 slot、09:07:55 postが21:00 slotを持つ。`@aniccaaffirmation`も09:15:14 postのslotが09:15、09:18:44 postのslotが14:15、09:21:20 postのslotが20:15。各postは別job/attempt 1であり、同slotのprovider retryではなくfuture slotの先行publish。旧release `48c72041`の`generate-larry-slide-pack.js`にある`unpostedCatchUpSlot`が`daySlots`から未投稿slotを選び、future slotまで`allowEarlyCatchUp`を通していた。`49af`以降はこの分岐を削除し、`dueSlots`だけを選ぶ。残る3 burst (`@anicca.jp`, `@anicca.jpx`, `@anicca_buddha`)はlocal slot-refと当時のloaded SHAをまだjoinしていない。
+- **Regression tests:** current immutable releaseの`generate-larry-slide-pack.test.js`ではfuture-slot拒否testがPASSする一方、2件の既存fixtureがconfigured slot時刻前の`now`を使い`NO_DUE_SLOT`でFAIL。worktreeはlatest main `98f93e27`へfast-forward済み。fixtureをslot到来後に合わせ、English lane testへ共有`EN_SLIDESHOW_PRODUCTION_SLOTS`を渡したところ、`generate-larry-slide-pack.test.js`と`anicca-larry-ja-rotating.test.js`が27/27 PASS、diff check PASS。差分はtest fixtureのみで未commit/未push。
+- **Revenue baseline:** ASC/RevenueCatは10/9までの古い値のまま。Anicca ASC first-time downloads 2、Honne 4、他4アプリpending。RevenueCat Anicca USD 20.34はsubscription MRRでsettled netではない。Mixpanel cohort、Apple settlement/refund/fee、同期間actual cost、USD 10,000 net MRRはいずれも未確認。
+
+**残TODO（順序）:**
+
+1. future-slot test fixtureとこのspecを専用branchでcommit/pushし、focused CIを通してmainへ統合する。独立review/subagentはユーザー指示どおり起動しない。
+2. `341aa` release reconcilerのself-handoffが98fで自然terminalになるのを確認し、18 publisher全ownerを98fへ通常owner admissionで載せ、loaded SHA/argv/terminalをreadbackする。現状の4 stale ownerを残さない。
+3. slot-scoped provider/effect evidenceで今日のdue missを確認する。`@anicca.he`の07:15 occurrenceがexact no-effectのときだけ通常owner経路でcatch-upし、unknown fenceは保持する。
+4. future-slot regressionが全native-carousel/video laneで発生しないことをnatural owner receiptsで確認する。slot時刻を待つのは将来実績の証明だけにし、未完slotがある間もmetrics/ASC/RevenueCat/Mixpanel作業を続ける。
+5. 18 targetの各3 configured slot、54/54 PUBLISHED、direct permalink、replay-zeroを7 JST日連続で確認し、各Postiz metricを永続化してTelegram link receiptへ結ぶ。10:07の27/27 GETはこのDoneの代替ではない。
+6. 6アプリのASC acquisition、RevenueCat subscription/MRR、Mixpanel onboarding/paywallをfresh cohort/periodで揃え、AniccaのASC first-time downloadsを7日平均100/日へ。次にApp Store表示/ASO、onboarding/paywallを一変数ずつ最適化し、native codeが変わる時だけ新versionを提出する。
+7. Apple settled proceeds/refunds/feesと実費を同期間で照合し、Anicca USD 10,000 net recurring MRRを公式証拠で確認してから他アプリ・factoryへ拡大する。
+
+**現在cursor:** item 1。current release 98fへの全18 publisher rolloutは未完了。distributionは27/54で、future-slot burstの旧release root causeは確定したが、最新releaseによる7日間の安定実績はまだない。
