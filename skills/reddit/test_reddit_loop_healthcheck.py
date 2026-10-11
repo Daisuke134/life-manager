@@ -26,7 +26,13 @@ def test_stale_heartbeat_is_reported_without_launchd_or_nohup_recovery(tmp_path)
     marker = tmp_path / "mutation"
     function = f'() {{ printf x >> "{marker}"; return 1; }}'
     result = subprocess.run(
-        ["/bin/bash", str(SCRIPT)],
+        # A regression to the legacy lock must never touch the production /tmp lock.
+        ["/bin/bash", "-c", """
+mkdir() { if [ "$*" = "/tmp/.reddit-loop-healthcheck.lock" ]; then return 0; fi; command mkdir "$@"; }
+rmdir() { if [ "$*" = "/tmp/.reddit-loop-healthcheck.lock" ]; then return 0; fi; command rmdir "$@"; }
+export -f mkdir rmdir
+exec /bin/bash "$1"
+""", "healthcheck-test", str(SCRIPT)],
         env={
             **os.environ,
             "HOME": str(home),
@@ -41,6 +47,5 @@ def test_stale_heartbeat_is_reported_without_launchd_or_nohup_recovery(tmp_path)
 
     assert result.returncode != 0
     assert not marker.exists()
-    assert "stale/missing" in (
-        home / ".local/state/life-manager/reddit/logs/reddit-loop-healthcheck.log"
-    ).read_text()
+    assert "stale/missing" in result.stderr
+    assert not (home / ".local/state/life-manager/reddit/logs/reddit-loop-healthcheck.log").exists()

@@ -771,6 +771,14 @@ class MacosLoopRegistryTest(unittest.TestCase):
             with self.subTest(loop_id=loop_id):
                 self.assertIsNone(registry["loops"][loop_id].get("admission_effect_scope"))
 
+    def test_reddit_heartbeat_probe_uses_deterministic_capacity(self):
+        row = json.loads((ROOT / "config/loop-registry.json").read_text())["loops"]["hf-reddit-loop-healthcheck"]
+        self.assertEqual(row["resource_class"], "deterministic")
+        self.assertEqual(row["provider_route"], "deterministic")
+        self.assertEqual(row["effect_class"], "none")
+        self.assertEqual(row["admission_class"], "borrow")
+        self.assertTrue(row["reconcile_queued_release"])
+
     def test_lancers_report_declares_observed_deterministic_borrow_contract(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         row = registry["loops"]["lancers-revenue-telegram-report"]
