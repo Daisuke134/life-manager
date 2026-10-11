@@ -13134,6 +13134,8 @@ flowchart LR
 
 **Cloud source acceptance:** collectorは既存reportのbounded subprocess（120秒、shellなし）を再利用。Cloud regressionは変更前3件errorで入口欠落を確認し、変更後business-outcomes31件と既存scheduler10件PASS。sparse欠落entrypointのみ復元し再実行PASS。実production credentialのread-only source probeもavailable、activeTrials/activePaidUsers/grossMrrUsd=0、actual/hosting/marketing/net=nullを維持（`cloud-business-collector-source-probe-20261012.json`）。これは未merge sourceのprobeで、daily production owner採用・自然snapshotは未完。
 
+**費用/CTA/ownerの追加観測:** Composio固定費は未確認。private credential SSOTにはComposio名のentryがなく、既存資料のorganization key不在を費用$0へ置換しない。登録済みinteractive:daisにComposio tabはなく、標準browser guardはBUSY/exit9、holder PID5045とprocess birthが一致するlive bashのためleaseを保持し、画面遷移/loginは行わない。次の安全な操作はlease解放後の既存sessionによる公式billing readback。独立HTTP確認ではpublic CTA hrefはRailway `/lm?start_calendar=1`、target=`_self`、diagnostic UTM付きアクセスは302で`/auth/google`へ同じUTMを保持（`cloud-public-cta-readback-20261012.json`）。実desktop/mobile表示はまだ未確認。marketing-metricsの自然run `18dd888096c53b28-78383`はrelease `2249fd01`でpass0/loaded-idle/unknown=false。これはobserveの稼働確認で、Cloud集客投稿・顧客獲得・本番funnelのscheduled ingestionの証明ではない（`cloud-marketing-metrics-owner-readback-20261012.json`）。費用待ちの間、既存marketing-engineのCloud asset/adapters/callerを照合して独立作業を進める。
+
 **残るatomic順:** (1) Composioの公式fixed-feeと期間帰属を確認し、usage $0を総費用$0と扱わない → (2) 既存public CTAの同一tab/auth-start handoffを対象限定で確認し、desktop/mobileの未確認範囲を閉じる → (3) 既存Cloud marketing owner/adapterでUTM付き集客とfunnelを継続運用 → (4) Photon Japan pairing/reply/line-fitの既存TODO → (5) Stripe公式paid subscription/invoiceでCloud $10K gross MRRを確認。全社$10M/月はその先の会社目標であり、このreadbackでは未達。価格・7日カード必須trial・既存Google sessionのみ・live自己決済禁止を維持する。
 
 ### 2026-10-10 21:04 JST — eBook factory verified state and handover cursor
