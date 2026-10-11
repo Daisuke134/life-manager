@@ -13944,3 +13944,24 @@ Known damage to repair: drafts 2576591785 / 5356015232 (under_review) and 983649
 **実際に学んだ使用順:** 無料のAnicca獲得には既存SNS metricsとSEOのExamples/Templatesを使い、成功した型を日本語・スペイン語へ展開する。PPTXは既存商品の提案・事例・納品に使う。iPhone-useは接続後にPaywall/notification/localization確認と実演素材へ使う。ViewTrackは現accountで無料trackingが使えないため既存metricsを置き換えない。production runtimeへの自動統合・投稿・SEOページ公開は今回の導入では実施していない。
 
 **ローカル導入receipt:** `/Users/anicca/.local/share/anicca/toolkit-verification/install-receipt.json`。active skillsは`/Users/anicca/.codex-acct2/skills/consulting-pptx-skill`と`/Users/anicca/.codex-acct2/skills/programmatic-seo`。iPhone pluginは`/Users/anicca/.codex-acct2/plugins/cache/iphone-use-local/iphone-use/0.3.10`、runtimeは`/Users/anicca/.local/share/iphone-use`。次turnまたはchat reconnectで新skill/pluginがhostへ読み込まれる。これはinteractive toolの導入でありLife Manager production loopの変更ではない。追加支出はUSD 0。
+
+### Anicca無料集客の現在目標と実行順
+
+**目的:** Aniccaを先頭に無料のSNS・SEO・ASOで新規獲得を増やし、ASC初回ダウンロードを7日平均1,000件/日へ伸ばす。Anicca USD 10,000 MRR、続いてHonneと既存iOS app群の各USD 10,000 MRR、全社USD 10,000,000 MRRを維持する。MRRと手数料/返金/実費控除後の利益を別に確認し、未達を完了扱いしない。広告、新規有料tool、投稿ごとの生成APIへの追加支出を0にする。既存server/model/販売手数料はCFOから消さない。
+
+**順序変更:** 旧順序は各app 100 ASC初回DL/日、全6 app達成後にonboarding/ASO、paywall incident解消前のdistribution volume拡大停止。新順序はAniccaの導線・計測→英語SNS/SEO/ASOで獲得→1,000初回DL/日→購読/継続を改善し$10K MRR→Honne/他appへ横展開。paywall、notification same-quote、EN/JA/ES localizationは並行する。理由はDaisの明示したAnicca集中・distribution first・追加支出0と、少数獲得のままUX全体を先に仕上げない方針。54/54投稿や7日間のcadence観測は運用指標であり、独立した導線/実装/分析を始めるgateにしない。全社の他laneの既存owner順序は変更しない。既存unknown effectを中断・解放・再送しない。
+
+**現在の証拠:** `docs/evidence/anicca-acquisition-1000-postiz.json`の公式Postiz GETでは、AniccaのYouTube 2 lane合計31 PUBLISHED/7日があり、caption中のApple campaign linksは0/31。`marketing-app-store-cta.js`はYouTubeにbare App Store URLを返しており、`honne-ja-cycle.js`のAnicca 2 laneがこの共通helperを使う。Honneの既存provider tokenは同じ公式GETで確認する。Apple公式campaign docsはprovider tokenがdeveloper account単位で共通と説明する。低流入時のprivacy thresholdを考慮し、最初はapp×platform×localeの安定tokenで計測する。
+
+**現在atomの所有:** worktree `/Users/anicca/Projects/life-manager-main/.worktrees/anicca-acquisition-1000-20261011`、branch `feat/anicca-acquisition-1000-20261011`、owner `codex-anicca-acquisition`。共通CTA helper/test、上記2 specとsanitized read-only evidenceを所有する。別ownerの投稿/metrics/Paywall/Spanish PRとstate/browser/fenceは変更しない。iOS修正は既存PR #7605/#7615の公式stateを参照する。
+
+**残TODO（この順）:**
+1. [ ] 同じASC identityでAnicca/Honne app inventoryを確認し、既存provider tokenのreuse根拠を記録する。source spec/evidenceをcommit/pushする。
+2. [ ] 共通YouTube CTAのcampaign欠落を最小RED testで再現し、既存URL validation/caption limit/object hashingを保った最小修正でGREENにする。TikTok/Instagramのcaptionをclickable linkと扱わない。
+3. [ ] focused tests、必要なcontract/checks、fresh read-only reviewを通し、push/PR/main統合する。main由来releaseの自然反映、2 YouTube ownerのloaded SHA/新しいdistinct slotと公式caption/readbackを確認する。未知slotのcatch-upや手動投稿はしない。
+4. [ ] 公開プロフィールのbio linkを実readbackし、Instagram/TikTokのapp destinationを媒体・言語ごとのcampaignへ結ぶ。
+5. [ ] 既存ASC/RevenueCat/in-app metricsを同期間で更新し、英語の成功creativeを分解して1変数ずつ試す。SEOは既存サイトへ、ASOは観測したstore bottleneckに応じて進める。
+6. [ ] paywall/notification修正の実配布・同quote・購入/restore、EN/JA/ESの端から端までの言語対応を並行して確認する。
+7. [ ] Anicca 1,000初回DL/日と$10K MRRを実測し、勝った獲得・課金・継続の仕組みをHonne/他appへ展開する。
+
+**現在cursor:** item 1。YouTube campaign欠落の呼び出し経路と公式post evidenceは確認済み。実装・本番反映・追加DL/売上はまだ未確認。

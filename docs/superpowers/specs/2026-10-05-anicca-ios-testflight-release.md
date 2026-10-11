@@ -2,7 +2,7 @@
 
 ## Goal
 
-Grow Anicca first through distribution, then repeat the measured playbook across the six currently published iOS apps. The intermediate acquisition target is 100 ASC first-time downloads per day per app on a trailing seven-day average; ramp Anicca first, then the other five. At target this is 600 first-time downloads/day across the portfolio, not a forecast. Anicca's business target is USD 10,000 verified net MRR; it is not achieved and must not be reported as achieved. The TestFlight release remains a separate, non-blocking lane for marketing distribution.
+Current growth goal and execution order: → `2026-09-25-life-manager-unified-ssot.md`, “Anicca無料集客の現在目標と実行順”. Anicca leads organic acquisition at 1,000 ASC first-time downloads/day on a trailing seven-day average, with no additional advertising/tool/generation spend; the USD 10,000 app MRR and USD 10,000,000 company MRR goals remain unachieved. The earlier 100/day and six-app prerequisite gates in the saved snapshots below are historical and do not override that canonical section. The TestFlight release remains an independent lane; paywall/notification reliability work proceeds alongside distribution.
 
 This lane uses App Store Connect CLI/API and TestFlight. TapKit is not a dependency.
 
