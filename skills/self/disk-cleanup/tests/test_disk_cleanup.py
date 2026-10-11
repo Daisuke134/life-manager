@@ -428,6 +428,151 @@ def test_sweep_retires_only_registered_clean_merged_unleased_worktree(
     assert all(path.is_dir() for path in (dirty, untracked, ignored, locked, kept, unmerged, leased, protected_store, credentials))
 
 
+@pytest.fixture
+def dependency_worktree(tmp_path: Path):
+    home = tmp_path / "home"
+    repo = home / "Projects/life-manager-main"
+    repo.mkdir(parents=True)
+
+    def git(cwd: Path, *args: str) -> str:
+        return subprocess.run(
+            ["git", "-C", str(cwd), *args], check=True,
+            capture_output=True, text=True,
+        ).stdout.strip()
+
+    subprocess.run(["git", "init", "-b", "main", str(repo)], check=True, capture_output=True)
+    git(repo, "config", "user.name", "Disk Cleanup Test")
+    git(repo, "config", "user.email", "disk-cleanup-test@example.invalid")
+    application = repo / "apps/life-manager"
+    application.mkdir(parents=True)
+    package = {"version": "1.0.0", "resolved": "https://example.invalid/package.tgz", "integrity": "sha512-fixture"}
+    lock = {"lockfileVersion": 3, "packages": {"": {"name": "fixture"}, "node_modules/google-auth-library": package}}
+    (application / "package-lock.json").write_text(json.dumps(lock))
+    (repo / ".gitignore").write_text("node_modules/\nevidence/\n")
+    git(repo, "add", ".gitignore", "apps/life-manager/package-lock.json")
+    git(repo, "commit", "-m", "base")
+    head = git(repo, "rev-parse", "HEAD")
+    git(repo, "update-ref", "refs/remotes/origin/main", head)
+    git(repo, "remote", "add", "origin", str(repo))
+    worktree = repo / ".worktrees/closed"
+    git(repo, "worktree", "add", "--detach", str(worktree), head)
+    cache = worktree / "apps/life-manager/node_modules"
+    source = cache / "google-auth-library/index.js"
+    source.parent.mkdir(parents=True)
+    source.write_text("module.exports = {};\n")
+    (cache / ".package-lock.json").write_text(json.dumps({"lockfileVersion": 3, "packages": {"node_modules/google-auth-library": package}}))
+    (cache / ".bin").mkdir()
+    (cache / ".bin/auth-library").symlink_to("../google-auth-library/index.js")
+    evidence = worktree / "evidence/calendar-auth-test.jsonl"
+    evidence.parent.mkdir()
+    evidence.write_text("keep original evidence\n")
+    os.utime(cache, (1, 1))
+    os.utime(worktree, (1, 1))
+    governor = HostDiskGovernor(home=home, state_dir=home / "state", lsof=lambda _path: "confirmed-closed", usage=lambda: (0, 1))
+    try:
+        yield governor, repo, worktree, cache, evidence, git
+    finally:
+        shutil.rmtree(tmp_path)
+
+
+def test_closed_worktree_dependency_cache_is_reclaimed_without_ignored_evidence(dependency_worktree) -> None:
+    governor, repo, worktree, cache, evidence, git = dependency_worktree
+    assert governor._worktree_identity(worktree) is None
+    installed_lock = cache / ".package-lock.json"
+    os.utime(installed_lock, (1, installed_lock.stat().st_mtime))
+    candidates = [item for item in governor.discover_candidates() if Path(item["path"]) == cache]
+    assert len(candidates) == 1
+
+    result = governor.sweep(candidates, write_receipt=False)
+
+    assert not cache.exists()
+    assert result["reclaimed"] > 0
+    assert result["errors"] == result["protected_deletions"] == result["worktrees_retired"] == 0
+    assert evidence.read_text() == "keep original evidence\n"
+    assert (worktree / "apps/life-manager/package-lock.json").exists()
+    assert str(worktree) in git(repo, "worktree", "list", "--porcelain")
+    assert governor.sweep(candidates, write_receipt=False)["reclaimed"] == 0
+
+
+@pytest.mark.parametrize("unsafe", [
+    "worktree-open", "cache-open", "probe-error", "dirty", "untracked", "unmerged",
+    "lease", "lock", "keep", "young-worktree", "young-cache", "unknown-lock",
+    "changed-lock", "outside-scope", "short-path", "replaced-cache", "external-link", "final-lease",
+])
+def test_worktree_dependency_cache_rechecks_unsafe_state(dependency_worktree, unsafe: str) -> None:
+    governor, repo, worktree, cache, evidence, git = dependency_worktree
+    candidates = [item for item in governor.discover_candidates() if Path(item["path"]) == cache]
+    assert len(candidates) == 1
+    if unsafe in {"worktree-open", "cache-open", "probe-error"}:
+        opened = cache if unsafe == "cache-open" else worktree
+        governor.lsof = lambda path: ("probe-error" if unsafe == "probe-error" else "open") if path == opened else "confirmed-closed"
+    elif unsafe == "dirty":
+        (worktree / ".gitignore").write_text("changed\n")
+    elif unsafe == "untracked":
+        (worktree / "progress.txt").write_text("keep untracked work\n")
+    elif unsafe == "unmerged":
+        (worktree / "progress.txt").write_text("keep unmerged work\n")
+        git(worktree, "add", "progress.txt")
+        git(worktree, "commit", "-m", "unmerged")
+    elif unsafe in {"lease", "final-lease"}:
+        lease = repo / ".git/worktree-leases" / (hashlib.sha256(str(worktree).encode()).hexdigest() + ".json")
+        lease.parent.mkdir()
+        if unsafe == "lease":
+            lease.write_text('{"expires_at": 0}')
+        else:
+            def lease_on_final_probe(path):
+                if path == worktree:
+                    lease.write_text('{"expires_at": 0}')
+                return "confirmed-closed"
+            governor.lsof = lease_on_final_probe
+    elif unsafe == "lock":
+        git(repo, "worktree", "lock", str(worktree))
+    elif unsafe == "keep":
+        (worktree / ".anicca-keep").write_text("keep\n")
+    elif unsafe in {"young-worktree", "young-cache"}:
+        os.utime(worktree if unsafe == "young-worktree" else cache, None)
+    elif unsafe == "unknown-lock":
+        (cache / ".package-lock.json").unlink()
+    elif unsafe == "changed-lock":
+        lock = json.loads((cache / ".package-lock.json").read_text())
+        lock["packages"]["node_modules/google-auth-library"]["integrity"] = "sha512-other"
+        (cache / ".package-lock.json").write_text(json.dumps(lock))
+    elif unsafe == "outside-scope":
+        candidates[0] = {**candidates[0], "path": evidence.parent}
+    elif unsafe == "short-path":
+        candidates[0] = {**candidates[0], "path": Path("/node_modules")}
+    elif unsafe == "replaced-cache":
+        previous = evidence.parent / "old-dependencies"
+        cache.rename(previous)
+        shutil.copytree(previous, cache, symlinks=True)
+    elif unsafe == "external-link":
+        (cache / ".bin/auth-library").unlink()
+        (cache / ".bin/auth-library").symlink_to(evidence)
+
+    result = governor.sweep(candidates, write_receipt=False)
+
+    assert cache.is_dir()
+    assert evidence.read_text() == "keep original evidence\n"
+    assert result["reclaimed"] == result["worktrees_retired"] == result["protected_deletions"] == 0
+    assert result["preserved"] == 1
+
+
+@pytest.mark.parametrize("relative", ["memory/fact", "memory/fact.py", "state/events.jsonl", "credentials.json", "wallet.json", "identity.json", "effect_unknown.json", ".env.sh", ".cloak/profile/fact", ".config/ai/fact.py", ".openclaw/identity/fact.js", ".anicca-keep", ".lm-protected"])
+def test_worktree_dependency_cache_preserves_protected_descendants(dependency_worktree, relative: str) -> None:
+    governor, _repo, _worktree, cache, _evidence, _git = dependency_worktree
+    candidates = [item for item in governor.discover_candidates() if Path(item["path"]) == cache]
+    assert len(candidates) == 1
+    protected = cache / "google-auth-library" / relative
+    protected.parent.mkdir(parents=True, exist_ok=True)
+    protected.write_text("must remain\n")
+
+    result = governor.sweep(candidates, write_receipt=False)
+
+    assert protected.read_text() == "must remain\n"
+    assert result["reclaimed"] == result["protected_deletions"] == 0
+    assert result["preserved"] == 1
+
+
 @pytest.mark.parametrize("current_points_to_run", [True, False])
 def test_stale_pytest_symlinks_are_unlinked_without_following_targets(tmp_path: Path, monkeypatch, current_points_to_run: bool) -> None:
     home = tmp_path / "home"
