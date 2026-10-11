@@ -29,8 +29,14 @@ create a second executor in this skill.
 
 `skills/job-hunter/job-hunter-cli.sh` is the user-facing dispatcher and
 `loops/job-hunter/registry.yaml` plus `config/loop-registry.json` are the provider and scheduler
-declarations. Workday-only acquisition runs every 30 minutes and continues through the
-bounded candidate budget until it finds a fit-qualified job or exhausts that wake; the
+declarations. Acquisition runs every 30 minutes. With a rotated key and the candidate's
+explicit autonomous-application delegation, Dreamwork native Autopilot owns real
+submissions with a tailored resume; the local owner reconciles official proof-backed
+receipts. Its confirmation-token exchange is handled within that existing delegation,
+without asking again for each application. Missing credentials or uncertain native
+state hold the owner; Workday fallback requires official absence of native work.
+The Workday lane continues through the bounded candidate budget until it finds a
+fit-qualified job or exhausts that wake; the
 recruiter inbox and interview-prep lane runs every 15 minutes. Both
 declarations delegate to the existing `apps/job-search-loop/scripts/` drivers, which
 remain the sole owner of browser, application, ledger, evidence, and Telegram-outbox
