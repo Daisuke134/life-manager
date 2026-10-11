@@ -13955,9 +13955,9 @@ Known damage to repair: drafts 2576591785 / 5356015232 (under_review) and 983649
 
 **順序変更:** 旧順序は各app 100 ASC初回DL/日、全6 app達成後にonboarding/ASO、paywall incident解消前のdistribution volume拡大停止。新順序はAniccaの導線・計測→英語SNS/SEO/ASOで獲得→1,000初回DL/日→購読/継続を改善し$10K MRR→Honne/他appへ横展開。paywall、notification same-quote、EN/JA/ES localizationは並行する。理由はDaisの明示したAnicca集中・distribution first・追加支出0と、少数獲得のままUX全体を先に仕上げない方針。54/54投稿や7日間のcadence観測は運用指標であり、独立した導線/実装/分析を始めるgateにしない。全社の他laneの既存owner順序は変更しない。既存unknown effectを中断・解放・再送しない。
 
-**現在の証拠:** `docs/evidence/anicca-acquisition-1000-postiz.json`の公式Postiz GETでは、AniccaのYouTube 2 lane合計31 PUBLISHED/7日があり、caption中のApple campaign linksは0/31。`marketing-app-store-cta.js`はYouTubeにbare App Store URLを返しており、`honne-ja-cycle.js`のAnicca 2 laneがこの共通helperを使う。Honneの既存provider tokenは同じ公式GETで確認する。Apple公式campaign docsはprovider tokenがdeveloper account単位で共通と説明する。低流入時のprivacy thresholdを考慮し、最初はapp×platform×localeの安定tokenで計測する。
+**現在の証拠:** `docs/evidence/anicca-acquisition-1000-postiz.json`の公式Postiz GETでは、AniccaのYouTube 2 lane合計31 PUBLISHED/7日があり、caption中のApple campaign linksは0/31。修正前の`marketing-app-store-cta.js`はYouTubeにbare App Store URLを返していた。PR #7621でcampaign URLとchannel link誘導へ変更し、`honne-ja-cycle.js`のAnicca 2 laneがこの共通helperを使う。Honneの既存provider tokenは同じ公式GETで確認する。Apple公式campaign docsはprovider tokenがdeveloper account単位で共通と説明する。低流入時のprivacy thresholdを考慮し、最初はapp×platform×localeの安定tokenで計測する。
 
-**現在atomの所有:** worktree `/Users/anicca/Projects/life-manager-main/.worktrees/anicca-acquisition-1000-20261011`、branch `feat/anicca-acquisition-1000-20261011`、owner `codex-anicca-acquisition`。共通CTA helper/test、上記2 specとsanitized read-only evidenceを所有する。別ownerの投稿/metrics/Paywall/Spanish PRとstate/browser/fenceは変更しない。iOS修正は既存PR #7605/#7615の公式stateを参照する。
+**現在atomの所有:** worktree `/Users/anicca/Projects/life-manager-main/.worktrees/anicca-acquisition-1000-20261011`、branch `ops/anicca-acquisition-readback-20261011`（source PR #7621統合済み）、owner `codex-anicca-acquisition`。共通CTA helper/test、上記2 specとsanitized read-only evidenceを所有する。別ownerの投稿/metrics/Paywall/Spanish PRとstate/browser/fenceは変更しない。iOS修正は既存PR #7605/#7615の公式stateを参照する。
 
 **残TODO（この順）:**
 1. [x] 同じASC identityでAnicca/Honne app inventoryを確認し、既存provider tokenのreuse根拠を記録する。source spec/evidenceをcommit/pushする。
@@ -13968,7 +13968,7 @@ Known damage to repair: drafts 2576591785 / 5356015232 (under_review) and 983649
 6. [ ] paywall/notification修正の実配布・同quote・購入/restore、EN/JA/ESの端から端までの言語対応を並行して確認する。
 7. [ ] Anicca 1,000初回DL/日と$10K MRRを実測し、勝った獲得・課金・継続の仕組みをHonne/他appへ展開する。
 
-**現在cursor:** item 3。CTA欠落を2件のREDで再現し、native URLSearchParamsによる最小修正とShortsのchannel link誘導後にCTA/callerの22 tests PASS、lm-loop-contract 18 catalog / 190 registry / 113 mapped / errors 0、diff check PASS。独立read-only reviewerはno blocking findings。caption hashがeffect identityに含まれるため既存/過去slotを新CTAで再送せず、未使用の将来distinct slotの自然実行だけで反映する。本番反映・公開caption・Apple campaign集計・追加DL/売上はまだ未確認。
+**現在cursor:** item 3。CTA欠落を2件のREDで再現し、native URLSearchParamsによる最小修正とShortsのchannel link誘導後にCTA/callerの22 tests PASS、lm-loop-contract 18 catalog / 190 registry / 113 mapped / errors 0、diff check PASS。独立read-only reviewerはno blocking findings。caption hashがeffect identityに含まれるため既存/過去slotを新CTAで再送せず、未使用の将来distinct slotの自然実行だけで反映する。PR #7621はmain `b61fdda5ec187885aa55f522aeb75baca64248df`へ統合済み。main由来release `20261011T161746-f8d3f9ff`のhelper出力と2 YouTube ownerのloaded SHA `f8d3f9ffb44ad9826599f41b011f120226386829`を確認。両fleet apply行はchanged=1/skipped=0/rc=0。公開caption・Apple campaign集計・追加DL/売上は未確認。プロフィール修正はshared browserのlive leaseを尊重して待機し、独立したASO/metrics確認を継続する。
 
 **Shortsのconversion境界:** YouTube公式 `https://support.google.com/youtube/answer/13748639?hl=en` はShortsのdescription/comment URLがnon-clickable、channel profile linksがclickableと説明する。従ってYouTube app CTAはchannel profile linkへ誘導し、descriptionにcampaign URLも保持する。公開profileのリンク先がAniccaであることを確認するまでfunnel完成としない。Apple campaign linkの設定を実install attributionや追加売上の証拠としない。
 
@@ -13978,3 +13978,5 @@ Known damage to repair: drafts 2576591785 / 5356015232 (under_review) and 983649
 - **YouTube CP1 blocker fixed:** CP1 agent stopped on `PRICES_MISMATCH day: missing` because `CP1_AGENTIC.md` said "no Daily". PR #7619 makes the LISTING table authoritative for plan periods. Merged 9d73b7f2, release `20261011T160421-9d73b7f2`, applied to `capafy-loop-daily` (loaded-idle).
 - **Known minor drift:** AI Evaluation yearly request cap saved 2304 vs LISTING 192 (price matches; DeepSeek cost negligible). Fix on next update of that agent.
 - **Throughput blocker:** agent_runner disk floor 2 GiB. Free disk swings 0.36–2.1 GiB with swap (11.6/12.8 GB used; 14 Chromium owners ≈ 5.2 GB RSS). Non-protected HTTP caches cleared (capafy/lancers/crowdworks, ~0.5 GB). The remaining ~7 GB of browser cache lives in `~/.cloak` (protected store, not touched). `codex-resource-orchestrator-1009` is unreachable via agmsg (`reach=cannot`).
+
+**現行公開導線・storeの確認:** → `docs/evidence/anicca-acquisition-1000-release-profile.json`。@anicca-aiは`/app`から正しいAniccaへredirectするがcampaign未設定。@life-manager-m4pの公開profileには外部linkがなく、descriptionはCloudへ向く。公開App StoreはUS/JP/ESともv1.9.4、release日は2026-06-24。EN/JA/ESのstore説明は存在するがin-app全体翻訳の証明ではない。paywall PR #7605とSpanish PR #7615はOPEN/Draftでnative検証未実施、実配布済みとしない。

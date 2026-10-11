@@ -1,0 +1,104 @@
+{
+  "source": "YouTube public ytInitialData About model + Next redirect payload; read-only",
+  "channels": [
+    {
+      "handle": "@anicca-ai",
+      "channel_id": "UCFGkrtiSTni-AZ9DUY6Q5EA",
+      "profile_links": [
+        {
+          "title": "App Link",
+          "url": "https://aniccaai.com/app"
+        }
+      ],
+      "observed_app_redirect": "https://apps.apple.com/us/app/mindful-self-care-anicca/id6755129214",
+      "campaign_parameters_observed": false
+    },
+    {
+      "handle": "@life-manager-m4p",
+      "channel_id": "UCqCLudkgpJZp4Pvi6ELGalw",
+      "profile_links": [],
+      "description_destination": "aniccaai.com/life-manager",
+      "destination_product": "life-manager-cloud",
+      "anicca_profile_link_observed": false
+    }
+  ],
+  "profile_mutation_performed": false,
+  "observed_at": "2026-10-11T07:30:39.273966+00:00",
+  "source_pr": 7621,
+  "source_merge_sha": "b61fdda5ec187885aa55f522aeb75baca64248df",
+  "release_sha": "f8d3f9ffb44ad9826599f41b011f120226386829",
+  "loaded_owners": [
+    {
+      "loop_id": "life-manager-anicca-ai-youtube",
+      "sha": "f8d3f9ffb44ad9826599f41b011f120226386829",
+      "fleet_changed": 1,
+      "fleet_skipped": 0,
+      "fleet_rc": 0,
+      "loaded_state": "not running"
+    },
+    {
+      "loop_id": "life-manager-anicca-affirmation-youtube",
+      "sha": "f8d3f9ffb44ad9826599f41b011f120226386829",
+      "fleet_changed": 1,
+      "fleet_skipped": 0,
+      "fleet_rc": 0,
+      "loaded_state": "not running"
+    }
+  ],
+  "new_public_caption_verified": false,
+  "additional_downloads_verified": false,
+  "mrr_verified": false,
+  "app_store_public": [
+    {
+      "country": "us",
+      "trackName": "Daily Affirmations - Anicca",
+      "version": "1.9.4",
+      "currentVersionReleaseDate": "2026-06-24T15:13:12Z",
+      "languageCodesISO2A": [
+        "EN",
+        "FR",
+        "DE",
+        "JA",
+        "PT",
+        "ES"
+      ],
+      "userRatingCount": 1,
+      "trackViewUrl": "https://apps.apple.com/us/app/daily-affirmations-anicca/id6755129214?uo=4",
+      "description_present": true
+    },
+    {
+      "country": "jp",
+      "trackName": "毎日のアファメーション - アニッチャ",
+      "version": "1.9.4",
+      "currentVersionReleaseDate": "2026-06-24T15:13:12Z",
+      "languageCodesISO2A": [
+        "EN",
+        "FR",
+        "DE",
+        "JA",
+        "PT",
+        "ES"
+      ],
+      "userRatingCount": 47,
+      "trackViewUrl": "https://apps.apple.com/jp/app/%E6%AF%8E%E6%97%A5%E3%81%AE%E3%82%A2%E3%83%95%E3%82%A1%E3%83%A1%E3%83%BC%E3%82%B7%E3%83%A7%E3%83%B3-%E3%82%A2%E3%83%8B%E3%83%83%E3%83%81%E3%83%A3/id6755129214?uo=4",
+      "description_present": true
+    },
+    {
+      "country": "es",
+      "trackName": "Afirmaciones Diarias - Anicca",
+      "version": "1.9.4",
+      "currentVersionReleaseDate": "2026-06-24T15:13:12Z",
+      "languageCodesISO2A": [
+        "EN",
+        "FR",
+        "DE",
+        "JA",
+        "PT",
+        "ES"
+      ],
+      "userRatingCount": 0,
+      "trackViewUrl": "https://apps.apple.com/es/app/afirmaciones-diarias-anicca/id6755129214?uo=4",
+      "description_present": true
+    }
+  ]
+}
