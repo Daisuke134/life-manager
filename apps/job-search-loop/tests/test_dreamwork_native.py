@@ -3,6 +3,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from job_search_loop.ledger import Ledger, FenceError
 
 try:
     native = importlib.import_module('job_search_loop.dreamwork_native')
@@ -83,3 +84,29 @@ class DreamworkNativeTests(unittest.TestCase):
             {'applicationId': 'C', 'submission': {'disposition': 'submitted', 'proof': 'ats_receipt', 'submittedAt': '2026-10-11T00:00:00Z'}},
         ]
         self.assertEqual([row['applicationId'] for row in native.confirmed_submissions(rows)], ['C'])
+
+
+class ProviderReceiptImportTests(unittest.TestCase):
+    def test_imported_receipt_has_one_append_only_origin(self):
+        with tempfile.TemporaryDirectory() as root:
+            ledger = Ledger(Path(root) / 'ledger.sqlite3')
+            try:
+                first = ledger.import_provider_submission(company='Example', title='AI Engineer', url='https://example.com/jobs/1', provider='dreamwork', provider_application_id='native-1', applied_at='2026-10-11T00:00:00Z', evidence_sha256='a' * 64)
+                second = ledger.import_provider_submission(company='Example', title='AI Engineer', url='https://example.com/jobs/1', provider='dreamwork', provider_application_id='native-1', applied_at='2026-10-11T00:00:00Z', evidence_sha256='a' * 64)
+                self.assertEqual(first, second)
+                self.assertEqual(len(ledger.events(first)), 1)
+                self.assertEqual(ledger.events(first)[0]['to_state'], 'submitted')
+                ledger.event_summary_rows()
+            finally:
+                ledger.close()
+
+    def test_provider_receipt_does_not_clear_an_unbound_legacy_occurrence(self):
+        with tempfile.TemporaryDirectory() as root:
+            ledger = Ledger(Path(root) / 'ledger.sqlite3')
+            try:
+                application = ledger.add_application('Example', 'AI Engineer', 'https://example.com/jobs/1')
+                with self.assertRaises(FenceError):
+                    ledger.import_provider_submission(company='Example', title='AI Engineer', url='https://example.com/jobs/1', provider='dreamwork', provider_application_id='native-1', applied_at='2026-10-11T00:00:00Z', evidence_sha256='a' * 64)
+                self.assertEqual(ledger.events(application)[-1]['to_state'], 'discovered')
+            finally:
+                ledger.close()

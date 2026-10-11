@@ -588,6 +588,45 @@ class Ledger:
             )
         return application_id
 
+    def import_provider_submission(self, *, company: str, title: str, url: str,
+                                   provider: str, provider_application_id: str,
+                                   applied_at: str, evidence_sha256: str) -> str:
+        """Import a proven external origin without reopening a local effect fence."""
+        from urllib.parse import urlsplit
+        if (provider != "dreamwork" or not provider_application_id
+                or not company.strip() or not title.strip()
+                or urlsplit(url).scheme != "https" or not urlsplit(url).hostname
+                or len(evidence_sha256) != 64
+                or any(char not in "0123456789abcdef" for char in evidence_sha256)
+                or datetime.fromisoformat(applied_at.replace("Z", "+00:00")).tzinfo is None):
+            raise FenceError("invalid provider submission receipt")
+        identity = canonical_job_id(company, title, url)
+        source_id = f"{provider}:{provider_application_id}"
+        with self._transaction():
+            row = self.connection.execute(
+                "SELECT id FROM applications WHERE id=? OR canonical_url=?",
+                (identity, canonical_url(url)),
+            ).fetchone()
+            if row is not None:
+                origin = self.connection.execute(
+                    "SELECT payload_json FROM events WHERE application_id=? ORDER BY rowid LIMIT 1",
+                    (row["id"],),
+                ).fetchone()
+                payload = json.loads(origin[0]) if origin else {}
+                if payload.get("source_message_id") == source_id:
+                    return str(row["id"])
+                raise FenceError("provider receipt is unbound to the existing occurrence")
+            self.connection.execute(
+                "INSERT INTO applications (id,company,title,canonical_url,current_state,created_at) VALUES (?,?,?,?,'submitted',?)",
+                (identity, company.strip(), title.strip(), canonical_url(url), _now()),
+            )
+            self._append_event(identity, None, "submitted", {
+                "external_import": True, "applied_at": applied_at,
+                "source": provider, "source_message_id": source_id,
+                "evidence_sha256": evidence_sha256,
+            })
+        return identity
+
     def add_attributed_application(
         self,
         company: str,

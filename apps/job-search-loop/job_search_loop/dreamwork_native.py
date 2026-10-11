@@ -191,7 +191,29 @@ def main() -> int:
             readback = client.action('get_application_status', {'applicationId': row['applicationId']})
             status = readback.get('output', {})
             if readback.get('status') == 'completed' and status.get('applicationId') == row['applicationId'] and status.get('truth', {}).get('submitted') is True:
-                proof.append({'pipeline': row, 'official_status': status})
+                record = {'pipeline': row, 'official_status': status}
+                proof.append(record)
+                digest = hashlib.sha256(json.dumps(record, sort_keys=True).encode()).hexdigest()
+                receipt_path = args.state_root / 'evidence' / 'dreamwork' / (row['applicationId'] + '.json')
+                # Provider IDs are data, not filesystem paths.
+                receipt_path = receipt_path.with_name(hashlib.sha256(row['applicationId'].encode()).hexdigest() + '.json')
+                _write_private_json(receipt_path, record)
+                if row.get('sourceUrl'):
+                    ledger = Ledger(args.state_root / 'ledger.sqlite3')
+                    try:
+                        ledger.import_provider_submission(company=row['company'], title=row['title'], url=row['sourceUrl'],
+                            provider='dreamwork', provider_application_id=row['applicationId'],
+                            applied_at=row['submission']['submittedAt'], evidence_sha256=digest)
+                    except Exception as error:
+                        from .ledger import FenceError
+                        if not isinstance(error, FenceError):
+                            raise
+                        record['ledger_status'] = 'unbound_legacy_occurrence'
+                    finally:
+                        ledger.close()
+                else:
+                    record['ledger_status'] = 'source_url_missing'
+
         result.update(confirmed_submissions=proof, pipeline_complete=pipeline.get('hasMore') is False,
                       provider='dreamwork', official_readback_ref=str(args.output))
         _write_private_json(args.output, result)
