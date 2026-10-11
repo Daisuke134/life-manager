@@ -143,6 +143,24 @@ discovered from its official ATS posting, the truthful broad source category is
 `Website` when that option is visible; do not keep typing `Job board` into a picker
 that does not expose that option.
 
+## Company-specific resume
+
+Before uploading a resume, use the complete observed job context and returned
+`grounding_facts` to choose the most relevant existing facts, ordered by relevance
+and recency. Call the typed tool, for example:
+
+`runtime tailor --sections-json '{"Experience":["fact.<returned-id>"],"Projects":["fact.<another-returned-id>"]}'`
+
+Allowed sections are Summary, Experience, Projects, Education, Skills. Select only
+returned fact concepts and use each at most once. The runtime preserves their exact
+claims and private contact fields, creates a company/role-bound single-page PDF, and
+returns only its hash and fact IDs. It opens no extra model and never edits the
+provider page. If the page budget is exceeded, choose fewer facts; do not invent or
+strengthen text. A cached artifact is reused. Then use `runtime upload` normally;
+final Review must verify that same PDF hash. The exact PDF is retained privately and
+reported by the existing submission owner after completion. No resume approval is
+requested again for this already-delegated fact-preserving tailoring.
+
 ## Workday account/session
 
 Preserve an existing signed-in session. A stored machine credential is credential

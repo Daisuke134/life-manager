@@ -18,6 +18,7 @@ from zoneinfo import ZoneInfo
 from ..ats import detect_provider
 from ..ledger import Ledger
 from ..resume_routing import select_resume
+from ..tailored_resume import compose, load_artifact, render_pdf, store_artifact
 from ..state import provider_recovery_url
 from ..workday_credentials import tenant_key
 from .actions import ActionExecutor
@@ -288,6 +289,12 @@ def _routed_resume(row: dict[str, Any], posting_text: str) -> dict[str, str]:
     )
     if not legacy and routed["resume_sha256"] != assignment["material_sha256"]:
         raise RuntimeError("routed resume differs from the immutable assignment")
+    memory = CandidateMemoryView.load(_path_env("JOB_SEARCH_CANDIDATE_MEMORY"))
+    tailored = load_artifact(_materials_root(), row, memory)
+    if tailored is not None:
+        return tailored
+    if os.environ.get("JOB_SEARCH_REQUIRE_TAILORED_RESUME") == "1":
+        raise ValueError("company_tailored_resume_required")
     return routed
 
 
@@ -841,6 +848,33 @@ async def type_candidate(
         return result
 
 
+async def tailor_resume(sections_json: str) -> dict[str, Any]:
+    """The existing browser model selects facts; this tool adds no candidate claims."""
+    row = _row()
+    memory = CandidateMemoryView.load(_path_env("JOB_SEARCH_CANDIDATE_MEMORY"))
+    existing = load_artifact(_materials_root(), row, memory)
+    if existing is not None:
+        return {"status": "resume_ready", "resume_sha256": existing["resume_sha256"],
+                "fact_ids": existing["fact_ids"], "cached": True}
+    try:
+        material = compose(row, memory, json.loads(sections_json))
+    except (ValueError, TypeError, KeyError):
+        return {"status": "action_rejected", "reason": "resume_fact_selection_invalid",
+                "instruction": "select only returned fact concepts in Summary, Experience, Projects, Education, Skills"}
+    _wake_budget(consume=True)
+    destination = _path_env("JOB_SEARCH_BROWSER_SCRATCH") / "tailored-resume-draft.pdf"
+    try:
+        pdf = await render_pdf(material["html"], material["claims"], destination)
+    except Exception as error:
+        return {"status": "action_rejected", "phase": "resume_render",
+                "reason": str(error) if isinstance(error, ValueError) else "resume_render_failed",
+                "error_class": type(error).__name__,
+                "instruction": "if the page budget is exceeded select fewer relevant facts; do not invent or shorten claims"}
+    artifact = store_artifact(_materials_root(), row, material, pdf)
+    return {"status": "resume_ready", "resume_sha256": artifact["resume_sha256"],
+            "fact_ids": artifact["fact_ids"], "cached": False}
+
+
 async def upload_resume(*, label: str, role: str, stable_id: str) -> dict[str, Any]:
     """Upload the row's immutable assigned resume without exposing its path."""
     if role != "button":
@@ -850,7 +884,13 @@ async def upload_resume(*, label: str, role: str, stable_id: str) -> dict[str, A
         return result
     row, _session, _checkpoints, _evidence, cursor, builder = await _context()
     observation = await builder.build(cursor.handle)
-    routed = _routed_resume(row, f"{row['title']}\n{observation.visible_text}")
+    try:
+        routed = _routed_resume(row, f"{row['title']}\n{observation.visible_text}")
+    except ValueError as error:
+        if str(error) != "company_tailored_resume_required":
+            raise
+        return {"status": "action_rejected", "reason": "company_tailored_resume_required",
+                "instruction": "call runtime tailor with grounded fact concepts, then retry this upload"}
     path = _path_env("JOB_SEARCH_BROWSER_SCRATCH") / "runtime-upload.json"
     path.write_text(
         json.dumps(
@@ -1217,6 +1257,8 @@ def _run_main(argv: list[str] | None = None) -> int:
     type_text_parser.add_argument("--role", default="")
     type_text_parser.add_argument("--stable-id", default="")
     type_text_parser.add_argument("--text", required=True)
+    tailor_parser = subparsers.add_parser("tailor")
+    tailor_parser.add_argument("--sections-json", required=True)
     upload_parser = subparsers.add_parser("upload")
     upload_parser.add_argument("--label", required=True)
     upload_parser.add_argument("--role", default="")
@@ -1282,6 +1324,8 @@ def _run_main(argv: list[str] | None = None) -> int:
             stable_id=args.stable_id,
             text=args.text,
         )
+    elif args.command == "tailor":
+        operation = lambda: tailor_resume(args.sections_json)
     elif args.command == "upload":
         operation = lambda: upload_resume(
             label=args.label, role=args.role, stable_id=args.stable_id
