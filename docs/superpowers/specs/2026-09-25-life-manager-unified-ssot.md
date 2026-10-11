@@ -13978,3 +13978,14 @@ Known damage to repair: drafts 2576591785 / 5356015232 (under_review) and 983649
 - **YouTube CP1 blocker fixed:** CP1 agent stopped on `PRICES_MISMATCH day: missing` because `CP1_AGENTIC.md` said "no Daily". PR #7619 makes the LISTING table authoritative for plan periods. Merged 9d73b7f2, release `20261011T160421-9d73b7f2`, applied to `capafy-loop-daily` (loaded-idle).
 - **Known minor drift:** AI Evaluation yearly request cap saved 2304 vs LISTING 192 (price matches; DeepSeek cost negligible). Fix on next update of that agent.
 - **Throughput blocker:** agent_runner disk floor 2 GiB. Free disk swings 0.36–2.1 GiB with swap (11.6/12.8 GB used; 14 Chromium owners ≈ 5.2 GB RSS). Non-protected HTTP caches cleared (capafy/lancers/crowdworks, ~0.5 GB). The remaining ~7 GB of browser cache lives in `~/.cloak` (protected store, not touched). `codex-resource-orchestrator-1009` is unreachable via agmsg (`reach=cannot`).
+
+
+### Job Hunter: autonomous verified applications restoration
+
+Purpose: continuously submit truthful, company-tailored applications without recurring candidate approval, using Dreamwork first and the existing Workday/Ashby owner when available. Outcome target: 30-40 distinct qualified submissions/day; count only official completed/submitted receipts, never drafts or starts. Prefer remote; include Tokyo, SF and NYC on-site where candidate eligibility is satisfied. Six-figure USD compensation is a target, not a guaranteed placement. Candidate-owned Aaru and Simily applications are excluded from automation.
+
+Scope: disk recovery first; Dreamwork entitlement/readiness and approval policy; existing Job Hunter discovery/submission/reconciliation; tailored materials from established candidate facts; existing inbox/interview follow-through. Preserve unknown submission fences and candidate privacy. Do not purchase an application tier without a task spend cap.
+
+Order update: prior cursor is the broad fleet capacity/release/fence work. New task-local order is (1) closed regenerable disk cleanup and measured capacity, (2) Dreamwork official readback and source/runtime diagnosis, (3) smallest source/config correction plus focused acceptance and review, (4) main-derived immutable release and owner-safe apply, (5) natural application completion with official receipt and duplicate-zero readback, (6) Workday/Ashby additional lanes and inbox follow-through. Reason: user's explicit disk-first and Dreamwork-first priority; external unknown occurrences remain fenced.
+
+Current cursor: (1). Dedicated branch fix/job-hunter-dreamwork-submit-20261011, base 919dcf4cb61019c627c91af6b1129d1ba5523323. Current observation: disk approximately 2.3 GiB; installed daily plist references a53d4696, the previous source still delegates Workday. Dreamwork readiness and this task's new application receipts are unverified.
