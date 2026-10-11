@@ -14,8 +14,9 @@ export function sellerLabelFor(env = process.env) {
 
 function restartLaunchd(label) {
   return new Promise((resolve, reject) => {
-    const target = `gui/${process.getuid()}/${label}`;
-    execFile('launchctl', ['kickstart', '-k', target], { timeout: 15_000 }, (error) => {
+    const operator = fileURLToPath(new URL('../../../bin/lm-loop', import.meta.url));
+    const owner = label.slice('ai.anicca.'.length);
+    execFile(operator, ['restart', owner], { timeout: 15_000 }, (error) => {
       if (error) reject(error);
       else resolve();
     });
