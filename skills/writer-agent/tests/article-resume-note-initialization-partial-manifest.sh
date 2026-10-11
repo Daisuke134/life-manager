@@ -84,6 +84,12 @@ cat >"$RUN_DIR/gates/publication-state.json" <<JSON
 {"version":1,"publication_contract":"active-six","run_id":"daily-2026-07-29","pairs":{"x-article/en":{"status":"skipped","skip_receipt":{"type":"dormant-destination","pair":"x-article/en","reason":"dormant-destination","slo":"not-applicable","recorded_at":"2026-08-05T00:00:00Z"}},"x-post/ja":{"status":"skipped","skip_receipt":{"type":"dormant-destination","pair":"x-post/ja","reason":"dormant-destination","slo":"not-applicable","recorded_at":"2026-08-05T00:00:00Z"}}}}
 JSON
 : >"$STATE_DIR/articles.jsonl"
+# STEP 5 was killed after persisting only a sibling row: the manifest is
+# non-empty but carries no note/ja row to replay.
+cat >"$RUN_DIR/gates/platform-dispatch.jsonl" <<JSONL
+{"platform":"substack","lang":"ja","argv":["false"],"env":{"ARTICLE_RUN_DIR":"$RUN_DIR","ARTICLE_PUBLICATION_STATE":"$RUN_DIR/gates/publication-state.json","ARTICLE_LEDGER":"$STATE_DIR/articles.jsonl"}}
+JSONL
+MANIFEST_SHA="$(shasum -a 256 "$RUN_DIR/gates/platform-dispatch.jsonl")"
 
 if ! ARTICLE_ROOT="$FAKE_ROOT" \
 ARTICLE_STATE_DIR="$STATE_DIR" \
@@ -96,17 +102,17 @@ bash "$FAKE_ROOT/scripts/article-resume-pending.sh"; then
   exit 1
 fi
 
-# The missing staging row is typed, not a traceback, and the same-run model
-# staging path owns the missing target instead of rc=1 every tick (2026-10-12).
+# The missing staging row is typed, not "expected one row, got 0" rc=1 every
+# tick, and the same-run model staging path owns the missing target (2026-10-12).
 ! grep -q Traceback "$TMP/resume.log"
 grep -q "dispatch-row-missing" "$TMP/resume.log"
 test -e "$TMP/model-was-called"
 grep -q "initialization_pairs" "$TMP/model-prompt.txt"
 grep -q "STEP 5 staging path for that missing pair" "$TMP/model-prompt.txt"
-test ! -e "$RUN_DIR/gates/platform-dispatch.jsonl"
+test "$(shasum -a 256 "$RUN_DIR/gates/platform-dispatch.jsonl")" = "$MANIFEST_SHA"
 python3 - "$RUN_DIR/gates/publication-state.json" <<'PY2'
 import json, sys
 assert "note/ja" not in json.load(open(sys.argv[1]))["pairs"]
 PY2
 
-echo "PASS: missing note dispatch row routes to same-run model staging"
+echo "PASS: partial dispatch manifest without note/ja routes to same-run model staging"
