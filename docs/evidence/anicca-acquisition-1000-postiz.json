@@ -1,0 +1,139 @@
+{
+  "observed_at": "2026-10-11T06:55:01.592656+00:00",
+  "window_start": "2026-10-04T06:55:01.592656+00:00",
+  "post_rows": 263,
+  "anicca_lanes": [
+    {
+      "lane": "anicca-ios-en-affirmation-tiktok",
+      "platform": "tiktok",
+      "locale": "en",
+      "published_7d": 9,
+      "apple_campaign_links_in_caption": 0,
+      "latest_publish_date": "2026-10-11T00:22:00.000Z"
+    },
+    {
+      "lane": "anicca-ios-en2-affirmation-tiktok",
+      "platform": "tiktok",
+      "locale": "en",
+      "published_7d": 2,
+      "apple_campaign_links_in_caption": 0,
+      "latest_publish_date": "2026-10-11T05:30:00.000Z"
+    },
+    {
+      "lane": "anicca-ios-en-affirmation-instagram",
+      "platform": "instagram",
+      "locale": "en",
+      "published_7d": 18,
+      "apple_campaign_links_in_caption": 0,
+      "latest_publish_date": "2026-10-11T01:00:00.000Z"
+    },
+    {
+      "lane": "anicca-ios-en-card-instagram",
+      "platform": "instagram",
+      "locale": "en",
+      "published_7d": 12,
+      "apple_campaign_links_in_caption": 0,
+      "latest_publish_date": "2026-10-11T03:46:00.000Z"
+    },
+    {
+      "lane": "anicca-ios-en-slideshow-tiktok",
+      "platform": "tiktok",
+      "locale": "en",
+      "published_7d": 13,
+      "apple_campaign_links_in_caption": 0,
+      "latest_publish_date": "2026-10-11T00:08:00.000Z"
+    },
+    {
+      "lane": "anicca-ios-en-widget-instagram",
+      "platform": "instagram",
+      "locale": "en",
+      "published_7d": 14,
+      "apple_campaign_links_in_caption": 0,
+      "latest_publish_date": "2026-10-11T00:36:00.000Z"
+    },
+    {
+      "lane": "anicca-ios-en-widget-youtube",
+      "platform": "youtube",
+      "locale": "en",
+      "published_7d": 18,
+      "apple_campaign_links_in_caption": 0,
+      "latest_publish_date": "2026-10-11T04:18:00.000Z"
+    },
+    {
+      "lane": "anicca-ios-en-card-youtube",
+      "platform": "youtube",
+      "locale": "en",
+      "published_7d": 13,
+      "apple_campaign_links_in_caption": 0,
+      "latest_publish_date": "2026-10-11T05:17:00.000Z"
+    },
+    {
+      "lane": "anicca-ios-ja-he",
+      "platform": "tiktok",
+      "locale": "ja",
+      "published_7d": 13,
+      "apple_campaign_links_in_caption": 0,
+      "latest_publish_date": "2026-10-10T09:17:00.000Z"
+    },
+    {
+      "lane": "anicca-ios-ja-instagram",
+      "platform": "instagram",
+      "locale": "ja",
+      "published_7d": 14,
+      "apple_campaign_links_in_caption": 0,
+      "latest_publish_date": "2026-10-11T04:15:00.000Z"
+    },
+    {
+      "lane": "anicca-ios-ja-jp4",
+      "platform": "tiktok",
+      "locale": "ja",
+      "published_7d": 12,
+      "apple_campaign_links_in_caption": 0,
+      "latest_publish_date": "2026-10-11T06:18:00.000Z"
+    },
+    {
+      "lane": "anicca-ios-ja-larry-instagram",
+      "platform": "instagram",
+      "locale": "ja",
+      "published_7d": 6,
+      "apple_campaign_links_in_caption": 0,
+      "latest_publish_date": "2026-10-11T01:30:00.000Z"
+    },
+    {
+      "lane": "anicca-ios-ja-tiktok",
+      "platform": "tiktok",
+      "locale": "ja",
+      "published_7d": 9,
+      "apple_campaign_links_in_caption": 0,
+      "latest_publish_date": "2026-10-10T23:06:00.000Z"
+    },
+    {
+      "lane": "anicca-ios-ja-jp1-tiktok",
+      "platform": "tiktok",
+      "locale": "ja",
+      "published_7d": 10,
+      "apple_campaign_links_in_caption": 0,
+      "latest_publish_date": "2026-10-10T21:37:00.000Z"
+    },
+    {
+      "lane": "anicca-ios-ja-buddha-tiktok",
+      "platform": "tiktok",
+      "locale": "ja",
+      "published_7d": 17,
+      "apple_campaign_links_in_caption": 0,
+      "latest_publish_date": "2026-10-10T22:08:00.000Z"
+    },
+    {
+      "lane": "anicca-ios-ja-widget-instagram",
+      "platform": "instagram",
+      "locale": "ja",
+      "published_7d": 14,
+      "apple_campaign_links_in_caption": 0,
+      "latest_publish_date": "2026-10-11T04:13:00.000Z"
+    }
+  ],
+  "honne_existing_provider_tokens": [
+    "93486075"
+  ],
+  "method": "official_postiz_GET; exact config integration_id joins; job_product_id namespace"
+}

@@ -15,10 +15,10 @@ const {
   platformCaptionLimit,
 } = require("./marketing-app-store-cta.js");
 
-test("YouTube gets the exact App Store URL, localized ja/en", () => {
-  assert.equal(marketingCtaLine({ productId: "anicca-ios", platform: "youtube", locale: "en" }), "Get the app → https://apps.apple.com/app/id6755129214");
-  assert.equal(marketingCtaLine({ productId: "anicca-ios", platform: "youtube", locale: "ja" }), "アプリはこちら → https://apps.apple.com/app/id6755129214");
-  assert.equal(marketingCtaLine({ productId: "honne-ai", platform: "youtube", locale: "en" }), "Get the app → https://apps.apple.com/app/id6759667221");
+test("YouTube App Store links identify the developer, app, channel and language", () => {
+  assert.equal(marketingCtaLine({ productId: "anicca-ios", platform: "youtube", locale: "en" }), "Get the app from the link on our channel\nhttps://apps.apple.com/app/id6755129214?pt=93486075&ct=anicca-ios_youtube_en&mt=8");
+  assert.equal(marketingCtaLine({ productId: "anicca-ios", platform: "youtube", locale: "ja" }), "アプリはチャンネルのリンクから\nhttps://apps.apple.com/app/id6755129214?pt=93486075&ct=anicca-ios_youtube_ja&mt=8");
+  assert.equal(marketingCtaLine({ productId: "honne-ai", platform: "youtube", locale: "en" }), "Get the app from the link on our channel\nhttps://apps.apple.com/app/id6759667221?pt=93486075&ct=honne-ai_youtube_en&mt=8");
 });
 
 test("TikTok and Instagram get a link-in-bio CTA, not a raw URL", () => {
@@ -56,7 +56,7 @@ test("buildMarketingCtaCaptionRef writes a new content object distinct from the 
   });
   assert.notEqual(result, baseCaptionRef);
   const caption = fs.readFileSync(objectStore.resolve(result), "utf8");
-  assert.equal(caption, "affirmation hook\n\n#anicca\n\nGet the app → https://apps.apple.com/app/id6755129214");
+  assert.equal(caption, "affirmation hook\n\n#anicca\n\nGet the app from the link on our channel\nhttps://apps.apple.com/app/id6755129214?pt=93486075&ct=anicca-ios_youtube_en&mt=8");
   assert.equal(caption.endsWith("\n"), false);
 });
 
@@ -77,4 +77,12 @@ test("web product TikTok CTA points viewers to the profile link", () => {
     marketingCtaLine({ productId: "life-manager-cloud", platform: "tiktok", locale: "ja" }),
     "Google Calendarへの接続はプロフィールのリンクから",
   );
+});
+
+// Shorts descriptions cannot linkify external URLs: direct viewers to the channel.
+test("YouTube keeps the channel instruction and complete campaign URL under its caption limit", () => {
+  const caption = buildMarketingCtaCaption("x".repeat(5000), { productId: "anicca-ios", platform: "youtube", locale: "en" });
+  assert.ok(caption.length <= 5000);
+  assert.ok(caption.includes("Get the app from the link on our channel\n"));
+  assert.ok(caption.endsWith("https://apps.apple.com/app/id6755129214?pt=93486075&ct=anicca-ios_youtube_en&mt=8\n"));
 });
