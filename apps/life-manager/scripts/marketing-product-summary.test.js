@@ -16,13 +16,13 @@ test("attribution coverage joins product totals while keeping activation and ret
 
 test("Honne daily summary binds EN and JA immutable daily sources and replays", () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-honne-summary-")); const day = "2026-08-22";
-  for (const target of [{ owner: "honne_reveal", account: "@honne_reveal", locale: "en", video: "1", views: 208 }, { owner: "honnevideo", account: "@honnevideo", locale: "ja", video: "2", views: 1035 }]) { const directory = path.join(dataDir, "tenants/dais-local/marketing/metrics", target.owner, target.video, "daily"); fs.mkdirSync(directory, { recursive: true }); fs.writeFileSync(path.join(directory, `${day}.json`), JSON.stringify({ kind: "tiktok_daily_metric_digest", window: "daily", observed_at: `2026-08-22T${target.locale === "en" ? "10" : "11"}:00:00.000Z`, account_id: target.account, locale: target.locale, public_url: `https://www.tiktok.com/${target.account}/video/${target.video}`, post: { views: { status: "measured", value: target.views }, likes: { status: "measured", value: 1 }, comments: { status: "measured", value: 0 }, shares: { status: "measured", value: 0 }, saves: { status: "unavailable" }, engagement: { status: "derived", percent: 1 } }, account_metrics: { followers: { status: "measured", value: 5 }, following: { status: "measured", value: 1 }, total_likes: { status: "measured", value: 10 }, videos: { status: "measured", value: 2 } } })); }
+  for (const target of [{ owner: "honne_reveal", account: "@honne_reveal", locale: "en", video: "1", views: 208 }, { owner: "honnevideo", account: "@honnevideo", locale: "ja", video: "2", views: 1035 }]) { const directory = path.join(dataDir, "tenants/dais-local/marketing/metrics", target.owner, target.video, "daily"); fs.mkdirSync(directory, { recursive: true }); fs.writeFileSync(path.join(directory, `${day}.json`), JSON.stringify({ kind: "tiktok_daily_metric_digest", window: "daily", observed_at: `2026-08-22T${target.locale === "en" ? "10" : "11"}:00:00.000Z`, published_at: "2026-08-21T10:00:00.000Z", account_id: target.account, locale: target.locale, public_url: `https://www.tiktok.com/${target.account}/video/${target.video}`, post: { views: { status: "measured", value: target.views }, likes: { status: "measured", value: 1 }, comments: { status: "measured", value: 0 }, shares: { status: "measured", value: 0 }, saves: { status: "unavailable" }, engagement: { status: "derived", percent: 1 } }, account_metrics: { followers: { status: "measured", value: 5 }, following: { status: "measured", value: 1 }, total_likes: { status: "measured", value: 10 }, videos: { status: "measured", value: 2 } } })); }
   const first = persistHonneDaily(dataDir, day, "2026-08-22T13:00:00.000Z"); const replay = persistHonneDaily(dataDir, day, "2026-08-22T14:00:00.000Z"); assert.equal(first.created, true); assert.equal(replay.created, false); assert.equal(first.snapshot.source_refs.length, 2); assert.match(first.snapshot.message, /@honne_reveal TikTok: Views 208/); assert.match(first.snapshot.message, /@honnevideo TikTok: Views 1035/); assert.match(first.snapshot.message, /Funnel: Install 取得不可、Activation 取得不可/); assert.equal(fs.statSync(first.file).mode & 0o777, 0o600);
 });
 
 test("Anicca daily summary binds main sources and keeps JP4 and HE unavailable", () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-anicca-summary-")); const day = "2026-08-22"; const rows = [{ owner: "anicca.jp", account: "@anicca.jp", platform: "tiktok", url: "https://www.tiktok.com/@anicca.jp/video/1" }, { owner: "anicca.ios.jp", account: "@anicca.jp1", platform: "instagram", url: "https://www.instagram.com/reel/ABC123/" }];
-  for (const [index, target] of rows.entries()) { const directory = path.join(dataDir, "tenants/dais-local/marketing/metrics", target.owner, String(index + 1), "daily"); fs.mkdirSync(directory, { recursive: true }); fs.writeFileSync(path.join(directory, `${day}.json`), JSON.stringify({ kind: `${target.platform}_daily_metric_digest`, window: "daily", observed_at: `2026-08-22T1${index}:00:00.000Z`, account_id: target.account, locale: "ja", public_url: target.url, post: { views: { status: "measured", value: 100 + index }, likes: { status: "measured", value: 1 }, comments: { status: "measured", value: 0 }, shares: { status: "measured", value: 0 }, saves: { status: "unavailable" }, engagement: { status: "derived", percent: 1 } }, account_metrics: { status: "unavailable" } })); }
+  for (const [index, target] of rows.entries()) { const directory = path.join(dataDir, "tenants/dais-local/marketing/metrics", target.owner, String(index + 1), "daily"); fs.mkdirSync(directory, { recursive: true }); fs.writeFileSync(path.join(directory, `${day}.json`), JSON.stringify({ kind: `${target.platform}_daily_metric_digest`, window: "daily", observed_at: `2026-08-22T1${index}:00:00.000Z`, published_at: "2026-08-21T10:00:00.000Z", account_id: target.account, locale: "ja", public_url: target.url, post: { views: { status: "measured", value: 100 + index }, likes: { status: "measured", value: 1 }, comments: { status: "measured", value: 0 }, shares: { status: "measured", value: 0 }, saves: { status: "unavailable" }, engagement: { status: "derived", percent: 1 } }, account_metrics: { status: "unavailable" } })); }
   const result = persistAniccaDaily(dataDir, day, "2026-08-22T13:00:00.000Z"); assert.equal(result.created, true); assert.equal(result.snapshot.source_refs.length, 2); assert.match(result.snapshot.message, /@anicca\.jp TikTok: Views 100/); assert.match(result.snapshot.message, /@anicca\.jp1 Instagram: Views 101/); assert.match(result.snapshot.message, /@anicca\.jp4 TikTok: 全social\/account metrics取得不可/); assert.match(result.snapshot.message, /@anicca\.he TikTok: 全social\/account metrics取得不可/); assert.match(result.snapshot.message, /7676500512308481296/);
 });
 
@@ -38,7 +38,7 @@ test("Anicca summary consumes current corrections ahead of retained historical r
   for (const owner of ["anicca.jp", "anicca.ios.jp"]) {
     const directory = path.join(dataDir, "tenants/dais-local/marketing/metrics", owner, "post1", "daily");
     fs.mkdirSync(directory, { recursive: true });
-    const snapshot = { observed_at: `${day}T08:30:00.000Z`, locale: "ja", account_id: owner === "anicca.jp" ? "@anicca.jp" : "@anicca.jp1",
+    const snapshot = { observed_at: `${day}T08:30:00.000Z`, published_at: `${day}T07:00:00.000Z`, locale: "ja", account_id: owner === "anicca.jp" ? "@anicca.jp" : "@anicca.jp1",
       public_url: owner === "anicca.jp" ? "https://www.tiktok.com/@anicca.jp/video/1" : "https://www.instagram.com/reel/DdvxhT1jm8F/",
       post: { views: { status: "measured", value: 32 } }, account_metrics: { status: "unavailable" } };
     fs.writeFileSync(path.join(directory, `${day}.json`), JSON.stringify(snapshot));
@@ -87,6 +87,10 @@ test("Anicca daily summary includes @anicca.en current metrics and ignores stale
       { label: "Replies", data: [{ total: 0, date: "2026-10-11" }] },
     ],
   });
+  writeDaily("anicca.en", "MissingDate", `${day}.json`, { observed_at: `${day}T10:30:00.000Z`, locale: "en", account_id: "@anicca.en",
+    public_url: "https://www.instagram.com/reel/MissingDate/", post: { views: { status: "measured", value: 888888 } } });
+  writeDaily("anicca.en", "InvalidDate", `${day}.json`, { observed_at: `${day}T10:40:00.000Z`, published_at: "not-a-date", locale: "en", account_id: "@anicca.en",
+    public_url: "https://www.instagram.com/reel/InvalidDate/", post: { views: { status: "measured", value: 777777 } } });
 
   const summary = persistAniccaDaily(dataDir, day, "2026-10-11T13:00:00.000Z");
   assert.equal(summary.snapshot.source_refs.length, 3);
@@ -98,5 +102,5 @@ test("Anicca daily summary includes @anicca.en current metrics and ignores stale
   assert.match(summary.snapshot.message, /Account Reach 2937.*2026-10-10/);
   assert.match(summary.snapshot.message, /Account Likes 31.*Account Comments 0.*Account Shares 6.*Account Saves 25.*Account Replies 0/);
   assert.match(summary.snapshot.message, /https:\/\/www\.instagram\.com\/reel\/DdvxhT1jm8F/);
-  assert.doesNotMatch(summary.snapshot.message, /999999|Account totals 7/);
+  assert.doesNotMatch(summary.snapshot.message, /999999|888888|777777|Account totals 7/);
 });

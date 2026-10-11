@@ -20,7 +20,7 @@ function latestDaily(dataDir, owner, reportDay) {
     const daily = path.join(root, id, "daily"); if (!fs.existsSync(daily)) continue;
     const file = [`${reportDay}.current.correction.json`, `${reportDay}.correction.json`, `${reportDay}.json`].map((name) => path.join(daily, name)).find((candidate) => fs.existsSync(candidate)); if (!file) continue;
     const snapshot = JSON.parse(fs.readFileSync(file, "utf8")); const publishedAt = Date.parse(snapshot.published_at || "");
-    if (Number.isFinite(publishedAt) && (publishedAt > reportEnd || publishedAt < cutoff)) continue;
+    if (!Number.isFinite(publishedAt) || publishedAt > reportEnd || publishedAt < cutoff) continue;
     candidates.push({ file, snapshot });
   }
   return candidates.sort((a, b) => Date.parse(b.snapshot.observed_at) - Date.parse(a.snapshot.observed_at))[0] || null;
