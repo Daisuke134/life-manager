@@ -1,0 +1,9 @@
+{
+  "observed_at": "2026-10-11T06:56:26.928145+00:00",
+  "source": "single authenticated asc apps list request",
+  "app_ids": [
+    "6759667221",
+    "6755129214"
+  ],
+  "both_apps_visible_under_same_asc_identity": true
+}
