@@ -13830,3 +13830,23 @@ Known damage to repair: drafts 2576591785 / 5356015232 (under_review) and 983649
 7. Apple settled proceeds/refunds/feesとactual costsを同期間で照合し、USD 10,000 verified net MRRを確認後にfactoryへ展開する。
 
 **現在cursor:** merge conflictのSSOT解消はworktree上で行ったが未commit。確認・commit/push後、new exact-head CIを通してmainへmergeする。
+
+### 2026-10-11 11:28 JST — release export testを再現、latest main追従
+
+このcheckpointは11:19を更新する。PR #7588のCI run `38104861977`はLoop control contractsのみFAIL。他のrequired checksはPASS。
+
+- **失敗test:** `test_cut_loop_release.CutLoopReleaseTest.test_release_can_be_built_without_changing_current`が`cut-loop-release: export of 4a7ac9ea failed`でFAIL。CI logはtest assertionまでしか`stderr`を保持せず、`git archive`と`tar`のどちらが落ちたかは未確認。
+- **再現probe:** `origin/main=4a7ac9ea29ab2856be83cdb9b57c7095e2c764d6`を参照する同じtestをcurrent worktreeで再実行しPASS。fixture testもPASS。failureは現時点でlocal再現できていないためflakyと断定せず、CI evidence gapとして扱う。
+- **Latest main:** PR #7594後の`origin/main=4a7ac9ea`はSSOT 1ファイルのみをd425から変更。このmainをbranchへmergeし、conflictなし、SSOT historical mobile/finance checkpoints維持。local branch HEADは`23aae07d526b0e94fc19eddc1042868d08e23528`、remote branchは`7ce08d7667565793966e81f70aff76c1135ff750`で、latest-main mergeとこの記録がまだ未push。productionは未変更。
+
+**残TODO（順序）:**
+
+1. 本記録とlatest-main merge commitをpushし、PR #7588を最新main baseへ同期する。
+2. exact new-head CIを確認する。Loop control contractsが同じrelease-export failureを出したら、`git archive`と`tar`を分けて原因を特定する最小診断を加えてから再実行し、失敗を隠す緩和はしない。
+3. required checksが全てPASSしたらPR #7588を`--admin --merge`し、merged commitをreadbackする。
+4. main由来immutable releaseを通常経路で適用し、metrics owners 2件と18 publisher lanesのloaded SHA・natural terminal・official receiptsを確認する。古いeffect_unknownを解除・再送しない。
+5. 18 lane×3 distinct daily slots、permalink、durable metrics、Telegram receipt、replay-zeroを確認し、54/54を7 JST日連続で積む。slot時刻を待たず独立作業を進める。
+6. ASC/RevenueCat/Mixpanelとpost attributionをfresh cohort/periodで揃え、Anicca 100 first-time downloads/day（trailing 7-day average）、paywall plan-load、notification→same-quoteを測って改善する。ASO/onboardingは一変数ずつ。
+7. Apple settled proceeds/refunds/feesとactual costsを同期間で照合し、USD 10,000 verified net MRRを証明後にfactoryへ広げる。
+
+**現在cursor:** latest main merge commitはlocal only。push後のexact-head CIでrelease-export failureが再現するか確認し、PASS前にmainへmergeしない。
