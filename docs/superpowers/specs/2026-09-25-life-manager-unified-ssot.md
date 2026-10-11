@@ -306,14 +306,13 @@ DaisのiCloud未使用/停止指示を受け、Photos公式UIの『このMacか�
 
 | 順 | 残るatom | 次の一操作・対象 / 完了証拠 |
 |---|---|---|
-| 確認済み | CLEAN-02 共通自己後始末 | 共通runner190のsource契約とGig/Job/Writerの自然branchを確認済み。具体的な漏れが見つかった経路だけ残2で修復し、全190自然run gateを新設しない |
-| 残1・現在cursor | CLEAN-05/06 記録保護の本番確認 | main統合済み#7611のwrapper延期証拠と#7610の共通journal保護はcurrent73d4に含まれる。中央owner/watchdog loaded採用済み。実行中Capafy52176を保持し、自然終了後にidle限定採用→自然summary/同run返却claim/terminal/自己cleanupを確認する。延期を人工的に起こさず、発生待ちは残2の独立調査を止めない |
-| 残2 | CLEAN-03/04 実producerの生成・保存・回収漏れ | 既存storage-policy/有限stdio/自己cleanup/中央cleanupへ実際の出力経路を照合する。増加・取り残しが実証された未適用経路だけ最小修復し、閉鎖済み再生成物を既存回収経路へ接続する。正式履歴/receipt/state/unknownを削除しない |
-| 残3 | CLEAN-05 残担当の枠返却・自然再開 | 実owner終了→同occurrence枠返却→待機仕事のeligible/claim/実行をjoinする。Gig/Job/Writer/auditの確認済み項目は繰り返さず、使用中枠/unknownを強制解放しない |
-| 残4 | CLEAN-06 反復稼働の受入 | 仕事→primary/receipt保存→自己cleanup→中央cleanup→次の自然仕事を同期間でjoinする。ENOSPC/記録破損/人手の繰返し掃除がないことを確認し、CI・exit0・空き容量数字だけで基盤Doneとしない |
-| 基盤受入後 | 各業務agentの元TODO | primaryは上の基盤修復へ集中し、業務別修正・収益拡大は基盤受入後に進める。既に動く別担当の独立source修正は中断せず、共有release/state ownershipだけ調整する |
+| 確認済み | 共通自己後始末・保存上限・中央cleanup修復 | 共通runner190のsource契約とGig/Job/Writer自然後始末、有限stdio、journal保護を確認済み。#7626はmain由来e8d30a84へ反映し、毎分自然07:53:49ZでPCM二件回収/errors0/protected0、次07:55:21Zもerrors0/protected0/回収0。確認済みの実漏れを残TODOへ戻さない |
+| 残1・現在cursor | CLEAN-03/04 残る実容量増加・保存・回収漏れ | 大きい保存先を実測し、実際に増える出力を生成process/owner/同時間窓へ結び、既存storage-policy・自己cleanup・中央cleanupへの未適用経路だけ修復する。閉鎖済み再生成物だけ回収し、primary・memory/state・credentials・Simulator・active/unknownは保持する。Library/var folders/Projects/gig/local share/Codexをbounded read-onlyで測定し、観測結果から最初の実対象を選ぶ。診断だけで完了にせず、変更した実経路の自然回収/生成側の後始末を確認する |
+| 残2 | CLEAN-05/06 自然再開・枠返却・記録 | backupの分類/queued identityはmain2ad32d8/loadedへ修復済み、sequence/queued_at/borrow/support/unknown0保持。自然18dd6969d5b3c380-57669はresource_capacity_busy/75でbody未完。通常の自然再開→完了→枠返却を確認する。Capafyのtyped pre-provider summary/同occurrence一回返却も実際の延期が生じた時に確認し、手動reset・人工延期・unknown解除は行わない。Gig/Job/Writer/audit/Honne→JP4の確認済み引渡しを繰り返さない |
+| 残3 | CLEAN-06 反復稼働の受入 | 実仕事→正式記録→自己cleanup→中央cleanup→次の自然仕事を同期間でjoinする。ENOSPC・記録破損・反復手動掃除が無いことを確認する。空き容量数字・CI・一つのcleanup exit0だけで基盤Doneとせず、新しい全190自然run gateを追加しない |
+| 基盤受入後 | 各業務agentの元TODO | primaryは上の基盤修復へ集中する。既存担当の独立業務修正を中断せず、共有release/state/SSOT統合はprimaryが調整する |
 
-現在cursor → CLEAN-05のwrapper延期証拠と共通journal保護を同じmain由来releaseへ反映し、自然runを確認する。その後CLEAN-04の実生成/回収収支→CLEAN-05の残owner→CLEAN-06の反復joinへ進む。順序変更の理由は、自然run30683のsummary欠落と共通journalの途中書込を先に修復し、業務記録を確実に残すため。CLEAN-02は共通runner190のsource契約とstandard nested/state-evidence/flatの自然branch proofで確認済み。現時点で新たな未回収diagnostic relayの実漏れは未確認で、具体的な対象外callerは下のmappingへ残す。全190自然runや新suiteは追加gateにしない。前進の証拠が出たatomだけ状態を更新し、完了済みは残TODOから外す。APFS VM/swap、Simulator、正式履歴、memory/state、credential、active/unknown dataは保持する。全体の根本修復完了とはまだ主張しない。
+現在cursor → 残1の実容量増加・保存・回収漏れ。旧順=記録保護本番確認→producer漏れ→枠返却→反復受入、新順=producer漏れ→自然再開/記録→反復受入。理由=共通journal/summaryは既にsource/main/loaded採用済み、自然延期や日次backup待ちだけで実際の増加/回収修復を止めないため。未確認の自然証拠は残2へ明記して保持し、完了へ置換しない。APFS VM/swap、Simulator、正式履歴、memory/state、credentials、active/unknown dataは保持する。全体の根本修復は未完で、永久無故障を証明したとは主張しない。
 
 CLEAN-05 terminal引渡し競合scope: natural Writer18dd49e7abb84a20-23423はreport pass0/effect_class none、scratch不在でもclaimed/unknown1。共通stderrにresource claim ownership mismatchがある。transfer_durableでclaim PIDを子へ移した後、子終了から親のterminal保存/releaseまでに並行_durable_capacityが子死亡だけでclaimをunlinkできる経路を隔離testで再現する。終了引渡し中は既存controller PID/start一致かつ未期限切れheartbeatのclaimだけを短く保持し、親死亡・PID再利用・heartbeat失効は従来のunknown fenceへ回す。新queue/timeout設定/上限/foreign release/unknown解放なし。既存test_resource_admissionでRED→最小共通差分→focused test/CI/main/immutable→自然枠返却を確認し、provider unknownを成功へ置換しない。 source受入: 子死亡/親live/fresh heartbeatで旧sweepがclaimを消すREDを確認。共通13行修正後、親死亡・PID再利用・heartbeat失効の3ケースは従来unknown保持、live/freshだけ親の枠返却まで保持するGREEN。既存resource-admission161tests PASS、diff PASS。自然採用後の枠返却は未確認。
 
