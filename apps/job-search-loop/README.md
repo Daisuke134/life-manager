@@ -30,6 +30,16 @@ Runtime dependency ordering follows
 [`rules/runtime-ordering.md`](rules/runtime-ordering.md): deterministic recovery,
 quota, and policy gates run before browser/model initialization.
 
+## Company-bound local resumes
+
+The same browser agent selects exact approved fact concepts into standard resume
+sections through `runtime tailor`. The existing registered browser renders an
+isolated, cookie-free single-page PDF without opening another model. A private
+manifest binds the company, role, canonical URL, candidate-memory revision and PDF
+SHA-256; upload and final Review use that same artifact. Claims are retained exactly
+in their source language. Invalid or unknown facts are rejected; no recurring user
+approval is requested for this already-delegated refinement.
+
 ## Dreamwork native application owner
 
 The 30-minute acquisition owner first checks the private Dreamwork credential and
