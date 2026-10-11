@@ -40,7 +40,7 @@ To-Beは各agentがobserve→decide→act→official verify→persist→自分�
 
 **不変条件:** iOS Simulator runtime/image/device/data/dyld、memory/state、credentials、browser identity、参照release、active/dirty/unmerged/leased/locked worktree、open/unknown dataを削除しない。各agentは自分が生成し所有する非authoritative scratchだけを片付け、中央cleanupは残ったclosed/orphaned artifactと証明済みの不要物を回収する。他agentの作業や正式receiptを消さない。effect_unknownはexact official receipt/pre-effect proofまで解除・再送しない。内部の余白・時間・byte予算は安全な制御に使い、空き容量の固定値を事業再開の条件にしない。
 
-**現在cursor:** →「基盤だけのatomic TODO」のBF03。旧cleanup残3大分類は親分類として参照し、実行/報告はBF-ID単位で進める。
+**現在cursor:** →「基盤だけのatomic TODO」のBF04。旧cleanup残3大分類は親分類として参照し、実行/報告はBF-ID単位で進める。
 
 **引き継ぎ/診断証拠:** worktree HEAD `a6e03757`の4ファイル497行差分を`ea1784b0ec`で保持してpushし、最新main `3baccdbd`を`00b5d4ff5d`でmerge/push。leaseは既存owner `codex-root`でheartbeatを更新、直列lsof再確認でworktree下open handleなし。既存temp/worktree focused testは2 PASS。agmsg統括identityは`lm/codex-resource-orchestrator-1009`、既存cleanup担当へ重複書込抑制と状態照会を送信。自然receiptの成功/失敗が交互に現れ、失敗時の正確な親errorは`host_cleanup_identity_mismatch`。`disk_cleanup.py::main`のbusy lock出力はexit75だがidentityを含まず、`central_cleanup.host_cleanup_readback`の同-occurrence検査が失敗に変換する。REDはbusy出力identity欠落と親exit1を再現し、最小修正後の関連4 testsはGREEN。修正契約は、busy出力にもimmutable manifest由来の同run identityを載せ、親はそのidentityを検証した正確なbusyだけをeffect0のexit75延期として維持し、他のidentity mismatchはexit1のまま拒否する。旧ENOSPC修復とは区別し、容量不足時の既存reserve/cursor testsも再確認する。
 
@@ -219,16 +219,16 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 
 当面の対象はこの表だけ。下の全社130工程は将来の参照ロードマップであり、いま全社工程へ拡大しない。既存の「cleanup残3大分類」は本表の親分類で、進捗報告はBF-ID単位で完了証拠を示す。毎分watchdog、共通bounded出力/代表自己cleanup、Gig閉鎖物回収/再開、予約expiry順序、scratch通常file誤判定、backup失敗伝播と自然保存/対象claim返却は確認済みで、残項目へ戻さない。
 
-14個の受入atom中BF01/02は完了、残り12。これは12個の故障が確定したという意味ではない。診断で既適用/修正不要と証明した項目はN/Aで閉じ、新しい根本原因は別IDで追加し、黙って同じ大分類へ戻さない。BF09は未知effectのblind解除ではなく照合/復旧routeの稼働確認。個別商品の認証/外部審査/売上目標は基盤完了と分ける。
+14個の受入atom中BF01/02/03は完了、残り11。これは12個の故障が確定したという意味ではない。診断で既適用/修正不要と証明した項目はN/Aで閉じ、新しい根本原因は別IDで追加し、黙って同じ大分類へ戻さない。BF09は未知effectのblind解除ではなく照合/復旧routeの稼働確認。個別商品の認証/外部審査/売上目標は基盤完了と分ける。
 
-残り初回作業枠合計165–410分＋必要なCI/自然run/公式照合待ち。作業枠は所要時間保証ではなく、上限までに結果/残る理由/次手を報告する管理値。初回着手で時間枠を超える時は再見積もりを記録し、必要な安全作業を継続する。9時間で全外部条件/全18成果を保証しない。各IDに開始/終了時刻・実測分・証拠・残差を追記し、30分以下の節目で閉じたIDを報告する。現在cursor=BF03。
+残り初回作業枠合計165–410分＋必要なCI/自然run/公式照合待ち。作業枠は所要時間保証ではなく、上限までに結果/残る理由/次手を報告する管理値。初回着手で時間枠を超える時は再見積もりを記録し、必要な安全作業を継続する。9時間で全外部条件/全18成果を保証しない。各IDに開始/終了時刻・実測分・証拠・残差を追記し、30分以下の節目で閉じたIDを報告する。現在cursor=BF04。
 
 | ID | 状態 | 一つの完了対象 | 初回作業枠（分） | 完了を示す証拠 |
 |---|---|---|---|---|
 | BF01 | 完了 | 既存healthを190job→18業務capabilityへjoinする | 5–10 | 11:33:13Z CLI/18 family一覧を保存済み |
 | BF02 | 完了 | 長期停止の代表3ownerをloaded release/terminal/claimへ照合する | 10–20 | ubi/daily/mineはresource_effect_unknown、後続claimあり。単なる枠不足と区別済み |
-| BF03 | 現在cursor | 18 familyの旧releaseと共通修正未採用を、停止/保留理由付き一覧にする | 10–20 | loaded SHA/argvと採用可能/active/unknownを区別した表 |
-| BF04 | 未完 | 実際に動く一producerの実行中RAM・disk peak・書込先を同windowでjoinする | 15–30 | process/start/出力pathとpeakの証拠。snapshotだけで済ませない |
+| BF03 | 完了 | 18 familyの旧releaseと共通修正未採用を、停止/保留理由付き一覧にする | 実測約5分 | 190jobのloaded argv＋共通11filesをread-only比較。一致31/idle差分候補38/読取時running35/unknown個別判断81/absent5。証拠BF03-release-adoption-matrix-20261011.json |
+| BF04 | 現在cursor | 実際に動く一producerの実行中RAM・disk peak・書込先を同windowでjoinする | 15–30 | process/start/出力pathとpeakの証拠。snapshotだけで済ませない |
 | BF05 | 未完 | BF04の生成物/診断logで、未適用の保存上限を一経路ずつ閉じる | 15–45 | 有限化のfocused証拠、又は既適用/N/Aの根拠 |
 | BF06 | 未完 | BF04の終了後に残る不要scratchを、一生成経路ずつ閉じる | 15–45 | receipt保持/自分のscratch不在、又は修正不要の根拠 |
 | BF07 | 未完 | 中央cleanupの具体的取り残し一件を、安全な既存条件で閉じる | 15–45 | closed/UID/open/lease/保護判定と自然回収。保護dataを候補にしない |
