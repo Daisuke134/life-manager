@@ -40,3 +40,22 @@ def test_dry_run_cli_makes_no_network_call() -> None:
     payload = json.loads(result.stdout)
     assert payload["dry_run"] is True
     assert payload["payload"]["posts"][0]["integration"]["id"] == "int-1"
+
+
+def test_search_caption_replaces_links_postiz_strips_from_x() -> None:
+    """2026-10-11: Postiz drops every URL (with or without https://) from X posts, so the
+    live h18 Hook Lab tweet ended at "Hook Lab:" with no link. Buyers can still reach
+    the Agent by searching its name on Capafy, where Hook Lab ranks first."""
+    module = load_module()
+    caption = ("Build an opening that earns the next second: https://aniccaai.com/blog/x\n"
+               "Hook Lab: capafy.ai/agent/8123079349?ct=hooklab_x")
+    out = module.search_caption(caption, "Hook Lab")
+    assert "http" not in out and "capafy.ai/" not in out
+    assert out.endswith('Search "Hook Lab" on Capafy.')
+    assert "Build an opening that earns the next second" in out
+
+
+def test_agent_name_from_slug() -> None:
+    module = load_module()
+    assert module.agent_name("hook-lab") == "Hook Lab"
+    assert module.agent_name("tiktok-script-pro") == "TikTok Script Pro"

@@ -279,8 +279,11 @@ if ok and not (os.path.exists(cap) and os.path.getsize(cap)):
 PY
 fi
 if [ -s "$CAPTION_FILE" ] && [ -n "${POSTIZ_X_INTEGRATION_ID:-}" ]; then
+  # Postiz strips links from X posts (2026-10-11), so the caption ends with a Capafy search CTA.
   X_OUT="$(python3 "$SELF_DIR/capafy_x_post.py" --caption "$(cat "$CAPTION_FILE")" \
-    --integration-id "$POSTIZ_X_INTEGRATION_ID" 2>>"$LOG" | tail -1)" || true
+    --integration-id "$POSTIZ_X_INTEGRATION_ID" \
+    --search-slug "$CAPAFY_SKILL_SLUG" \
+    2>>"$LOG" | tail -1)" || true
   echo "capafy-distribute-daily: x post: ${X_OUT:0:300}" >>"$LOG"
   X_OUT="$X_OUT" LEDGER="$LEDGER" SLOT="$SLOT" LEDGER_TOOL="$SELF_DIR/capafy_distribute_ledger.py" python3 - <<'PY' >>"$LOG" 2>&1 || true
 import json, os, subprocess, sys
