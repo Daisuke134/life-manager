@@ -245,16 +245,18 @@ function renderMessage(payload) {
   if (payload.status === "summary") return payload.message;
   if (payload.status === "observed") {
     const label = (key) => ({ views: "Views", reach: "Reach", impressions: "Impressions", likes: "Likes", comments: "Comments", shares: "Shares", saves: "Saves", watch_time: "Watch time", average_watch_time: "Average watch time", completion: "Completion", engagement: "Engagement", account_totals: "Account totals", account_followers: "Followers", account_following: "Following", account_total_likes: "Account total likes", account_videos: "Videos", account_recent_views: "Latest 20 videos views", account_recent_likes: "Latest 20 videos likes", account_recent_comments: "Latest 20 videos comments", account_recent_shares: "Latest 20 videos shares" }[key] || key);
-    const measured = []; const unavailable = [];
+    const measured = []; const unavailable = []; const unsupported = [];
     for (const [key, metric] of Object.entries(payload.metrics)) {
-      if (metric.status === "unavailable") unavailable.push(label(key));
-      else measured.push(`${label(key)} ${metric.percent != null ? `${metric.percent}%` : metric.value}`);
+      if (metric.status === "unavailable") (metric.reason === "metric_not_supported" ? unsupported : unavailable).push(label(key));
+      else measured.push(`${key.startsWith("account_") && key !== "account_totals" && metric.source_date ? `Account ${key.slice(8)}` : label(key)} ${metric.percent != null ? `${metric.percent}%` : metric.value}${metric.source_date ? `（${metric.source_date}）` : ""}`);
     }
     const windows = Array.isArray(payload.window_summary) ? ` Window status: ${payload.window_summary.join("、")}。` : "";
     const identity = payload.publication_evidence === "postiz_published_exact_assets"
       ? `Postiz PUBLISHED photo receipt${payload.public_url === "unavailable" ? "、投稿リンク未取得" : `、投稿リンク: ${payload.public_url}`}`
       : `直接URL: ${payload.public_url}`;
-    return `Life Manager::: ${payload.product}の${payload.platform} ${payload.account}、${payload.window}${payload.correction ? "訂正版" : ""}メトリクスです。${measured.join("、")}。取得不可: ${unavailable.length ? unavailable.join("、") : "なし"}。${windows}${identity}。Snapshot: ${payload.snapshot_ref}。`;
+    const current = payload.current_observation ? `現在値（取得: ${payload.metric_observed_at}、過去のチェックポイント値ではありません）。` : "";
+    const capability = unsupported.length ? `API未提供: ${unsupported.join("、")}。` : "";
+    return `Life Manager::: ${payload.product}の${payload.platform} ${payload.account}、${payload.window}${payload.correction ? "訂正版" : ""}メトリクスです。${current}${measured.join("、")}。取得不可: ${unavailable.length ? unavailable.join("、") : "なし"}。${capability}${windows}${identity}。Snapshot: ${payload.snapshot_ref}。`;
   }
   const accountPattern = payload.platform === "tiktok"
     ? /^https:\/\/www\.tiktok\.com\/@([^/]+)\/video\//
@@ -312,7 +314,7 @@ async function executeMarketingLivenessJob(job, deps = {}) {
     const snapshot = await deps.snapshotProvider.get(job.tenant_id, payload.snapshot_ref);
     if (!snapshot || snapshot.public_url !== payload.public_url || snapshot.window !== payload.window || !snapshot.post) throw new Error("marketing metric snapshot mismatch");
     const compact = Object.fromEntries(Object.entries(snapshot.post).map(([key, metric]) => [key,
-      metric.status === "unavailable" ? { status: "unavailable" }
+      metric.status === "unavailable" ? { status: "unavailable", reason: metric.reason }
         : metric.status === "derived" ? { status: "derived", percent: metric.percent }
           : { status: "measured", value: metric.value }]));
     if (snapshot.sources?.postiz_account?.status === "unavailable") compact.account_totals = { status: "unavailable" };
@@ -323,8 +325,18 @@ async function executeMarketingLivenessJob(job, deps = {}) {
           : metric.status === "derived" ? { status: "derived", percent: metric.percent }
             : { status: "measured", value: metric.value };
       }
-    } else compact.account_totals = { status: "measured", value: Array.isArray(snapshot.account_metrics) ? snapshot.account_metrics.length : 0 };
-    renderedPayload = { ...payload, metrics: compact, ...(Array.isArray(snapshot.observation_windows) ? { window_summary: snapshot.observation_windows.map((row) => `${row.window} ${row.status}`) } : {}) };
+    } else if (Array.isArray(snapshot.account_metrics)) {
+      for (const row of snapshot.account_metrics) {
+        const key = String(row.label || "").toLowerCase().replace(/[^a-z0-9]+/g, "_");
+        const point = row.data?.at(-1);
+        const value = point?.total == null || String(point.total).trim() === "" ? NaN : Number(point.total);
+        if (!key || !Number.isFinite(value) || value < 0) continue;
+        compact[`account_${key}`] = { status: "measured", value, source_date: point.date };
+      }
+    } else compact.account_totals = { status: "unavailable" };
+    renderedPayload = { ...payload, metrics: compact,
+      ...(snapshot.historical_checkpoint === false ? { current_observation: true, metric_observed_at: snapshot.source_observed_at || snapshot.observed_at } : {}),
+      ...(Array.isArray(snapshot.observation_windows) ? { window_summary: snapshot.observation_windows.map((row) => `${row.window} ${row.status}`) } : {}) };
   }
   let providerResult;
   try {

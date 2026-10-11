@@ -15,7 +15,7 @@ const SUMMARY_ROUTES = Object.freeze({ "honne-ai": Object.freeze({ lane: "market
 
 function latestDaily(dataDir, owner, reportDay) {
   const root = path.join(dataDir, "tenants/dais-local/marketing/metrics", owner); if (!fs.existsSync(root)) return null;
-  return fs.readdirSync(root).flatMap((id) => { const daily = path.join(root, id, "daily"); if (!fs.existsSync(daily)) return []; const correction = path.join(daily, `${reportDay}.correction.json`); const base = path.join(daily, `${reportDay}.json`); return fs.existsSync(correction) ? [correction] : fs.existsSync(base) ? [base] : []; }).map((file) => ({ file, snapshot: JSON.parse(fs.readFileSync(file, "utf8")) })).sort((a, b) => Date.parse(b.snapshot.observed_at) - Date.parse(a.snapshot.observed_at))[0] || null;
+  return fs.readdirSync(root).flatMap((id) => { const daily = path.join(root, id, "daily"); if (!fs.existsSync(daily)) return []; const file = [`${reportDay}.current.correction.json`, `${reportDay}.correction.json`, `${reportDay}.json`].map((name) => path.join(daily, name)).find((candidate) => fs.existsSync(candidate)); return file ? [file] : []; }).map((file) => ({ file, snapshot: JSON.parse(fs.readFileSync(file, "utf8")) })).sort((a, b) => Date.parse(b.snapshot.observed_at) - Date.parse(a.snapshot.observed_at))[0] || null;
 }
 
 function metricText(snapshot) {

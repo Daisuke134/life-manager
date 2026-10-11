@@ -4,8 +4,54 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const test = require("node:test");
-const { EXPECTED } = require("./instagram-metrics-read.js");
+const { EXPECTED, persistDelayedSnapshot, persistSnapshot } = require("./instagram-metrics-read.js");
 const { discoverExpected, runDue } = require("./instagram-metrics-due.js");
+
+test("missed Instagram checkpoints stay missed while one dated current observation is collected and replayed", async () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-instagram-current-due-"));
+  const nowMs = Date.parse("2026-10-11T07:53:00.000Z");
+  const env = { LM_DATA_DIR: dataDir };
+  const expected = { ...EXPECTED, published_at: "2026-09-26T10:02:41.890Z" };
+  for (const window of ["2h", "24h", "72h", "7d"]) persistDelayedSnapshot({ dataDir, window, observedAt: new Date(nowMs).toISOString(), expected });
+  let gets = 0;
+  const deps = { collectWindow: async (window, _env, observedAt, target) => {
+    gets += 1; assert.equal(window, "current");
+    const html = `<link rel="canonical" href="${target.public_url}" /><meta property="og:description" content="${target.native_owner}: ${target.caption.replace(/\n/g, " ")}" />`;
+    const result = persistSnapshot({ dataDir, window, observedAt, expected: target, html, accountRows: [], postRows: [{ label: "Views", data: [{ total: "2229" }] }] });
+    return { ...result, telegram: { created: false } };
+  } };
+  const first = await runDue(nowMs, env, [expected], deps);
+  assert.equal(first.find((row) => row.window === "7d").state, "checkpoint_missed");
+  assert.equal(first.find((row) => row.window === "current").state, "measured");
+  const replay = await runDue(nowMs + 60_000, env, [expected], deps);
+  assert.equal(replay.find((row) => row.window === "current").state, "complete");
+  assert.equal(gets, 1);
+});
+
+test("failed current sources cannot permanently starve posts beyond the eight-read budget", async () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-instagram-current-rotation-"));
+  const nowMs = Date.parse("2026-10-11T07:53:00.000Z");
+  const targets = Array.from({ length: 9 }, (_, i) => ({ ...EXPECTED, shortcode: `Source${i}`,
+    public_url: `https://www.instagram.com/reel/Source${i}/`, published_at: new Date(nowMs - 8 * 86400_000).toISOString() }));
+  for (const expected of targets) for (const window of ["2h", "24h", "72h", "7d"]) {
+    persistDelayedSnapshot({ dataDir, window, observedAt: new Date(nowMs).toISOString(), expected });
+  }
+  const initialStart = (Math.floor(nowMs / 1800_000) * 8) % targets.length;
+  const healthy = targets[(initialStart + 8) % targets.length];
+  let calls = 0;
+  const deps = { collectWindow: async (_window, _env, observedAt, expected) => {
+    calls += 1;
+    if (expected.shortcode !== healthy.shortcode) throw new Error("provider unavailable");
+    const html = `<link rel="canonical" href="${expected.public_url}" /><meta property="og:description" content="${expected.native_owner}: ${expected.caption.replace(/\n/g, " ")}" />`;
+    return { ...persistSnapshot({ dataDir, window: "current", observedAt, expected, html, accountRows: [], postRows: [{ label: "Views", data: [{ total: "2229" }] }] }), telegram: { created: false } };
+  } };
+  const first = await runDue(nowMs, { LM_DATA_DIR: dataDir }, targets, deps);
+  assert.equal(calls, 8);
+  assert.equal(first.find((row) => row.window === "current" && row.shortcode === healthy.shortcode).state, "pending");
+  const next = await runDue(nowMs + 1800_000, { LM_DATA_DIR: dataDir }, targets, deps);
+  assert.equal(calls, 16);
+  assert.equal(next.find((row) => row.window === "current" && row.shortcode === healthy.shortcode).state, "measured");
+});
 
 test("due planner records missed 2h as unavailable and leaves later windows pending", async () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-instagram-due-")); let sends = 0;
@@ -13,12 +59,12 @@ test("due planner records missed 2h as unavailable and leaves later windows pend
   const originalFetch = global.fetch; global.fetch = async () => ({ ok: true, json: async () => ({ ok: true, result: { message_id: ++sends } }) });
   try {
     const result = await runDue(Date.parse(EXPECTED.published_at) + 23 * 3600_000, env, [EXPECTED]);
-    assert.equal(result.find((row) => row.window === "2h").state, "source_delayed");
+    assert.equal(result.find((row) => row.window === "2h").state, "checkpoint_missed");
     assert.equal(result.find((row) => row.window === "24h").state, "pending");
     assert.equal(result.find((row) => row.window === "daily").state, "reported");
     assert.equal(sends, 2);
     const replay = await runDue(Date.parse(EXPECTED.published_at) + 23 * 3600_000, env, [EXPECTED]);
-    assert.equal(replay.find((row) => row.window === "2h").state, "complete");
+    assert.equal(replay.find((row) => row.window === "2h").state, "checkpoint_missed");
     assert.equal(replay.find((row) => row.window === "daily").state, "complete"); assert.equal(sends, 2);
   } finally { global.fetch = originalFetch; }
 });

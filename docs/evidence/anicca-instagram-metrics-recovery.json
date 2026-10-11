@@ -177,5 +177,25 @@
     }
   ],
   "historical_checkpoint_recovered": false,
-  "production_fixed": false
+  "production_fixed": false,
+  "source_acceptance": {
+    "focused_tests_passed": 30,
+    "review": "ship; correction and starvation findings resolved",
+    "contract_errors": 0,
+    "native_html_identity_verified": true,
+    "historical_checkpoint_unchanged": true,
+    "dated_current_observation": true,
+    "current_observation_direct_notification": false,
+    "max_current_reads_per_run": 8,
+    "rotation_cadence_seconds": 1800,
+    "daily_current_correction_preferred_by_summary": true,
+    "actual_response_is_current_not_old_7d": true
+  },
+  "youtube_profile_readback": {
+    "handle": "@anicca-ai",
+    "public_profile_app_links": [
+      "https://apps.apple.com/app/id6755129214?pt=93486075&ct=anicca-ios_youtube_en&mt=8"
+    ],
+    "campaign_string_in_public_html": true
+  }
 }

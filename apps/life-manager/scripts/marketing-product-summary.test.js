@@ -31,3 +31,21 @@ test("weekly review binds both products without cross-product winner transfer", 
   for (const [product, label] of [["honne-ai", "Honne AI"], ["anicca-ios", "Anicca iOS"]]) { const directory = path.join(dataDir, "tenants/dais-local/marketing/metrics/summaries", product, "daily"); fs.mkdirSync(directory, { recursive: true }); fs.writeFileSync(path.join(directory, `${day}.json`), JSON.stringify({ schema_version: 1, kind: "marketing_product_metric_summary", period: "daily", report_key: day, observed_at: "2026-08-22T13:00:00.000Z", product_id: product, source_refs: [], message: `Life Manager::: ${label} source values` })); }
   const first = persistWeeklyReview(dataDir, day, "2026-08-22T14:00:00.000Z"); const replay = persistWeeklyReview(dataDir, day, "2026-08-22T15:00:00.000Z"); assert.equal(first.created, true); assert.equal(replay.created, false); assert.equal(first.snapshot.period, "weekly"); assert.equal(first.snapshot.report_key, "2026-W34"); assert.equal(first.snapshot.source_refs.length, 2); assert.match(first.snapshot.message, /Honne AI source values/); assert.match(first.snapshot.message, /Anicca iOS source values/); assert.match(first.snapshot.message, /Cross-product winner: 判定しない/); assert.match(first.snapshot.message, /Attribution coverage: 取得不可/); assert.equal(fs.statSync(first.file).mode & 0o777, 0o600);
 });
+
+test("Anicca summary consumes current corrections ahead of retained historical reports", () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-summary-current-correction-"));
+  const day = "2026-10-11";
+  for (const owner of ["anicca.jp", "anicca.ios.jp"]) {
+    const directory = path.join(dataDir, "tenants/dais-local/marketing/metrics", owner, "post1", "daily");
+    fs.mkdirSync(directory, { recursive: true });
+    const snapshot = { observed_at: `${day}T08:30:00.000Z`, locale: "ja", account_id: owner === "anicca.jp" ? "@anicca.jp" : "@anicca.jp1",
+      public_url: owner === "anicca.jp" ? "https://www.tiktok.com/@anicca.jp/video/1" : "https://www.instagram.com/reel/DdvxhT1jm8F/",
+      post: { views: { status: "measured", value: 32 } }, account_metrics: { status: "unavailable" } };
+    fs.writeFileSync(path.join(directory, `${day}.json`), JSON.stringify(snapshot));
+    fs.writeFileSync(path.join(directory, `${day}.correction.json`), JSON.stringify({ ...snapshot, post: { views: { status: "measured", value: 64 } } }));
+    fs.writeFileSync(path.join(directory, `${day}.current.correction.json`), JSON.stringify({ ...snapshot, observed_at: `${day}T09:00:00.000Z`, historical_checkpoint: false,
+      post: { views: { status: "measured", value: 2229 } } }));
+  }
+  const summary = persistAniccaDaily(dataDir, day, `${day}T09:30:00.000Z`);
+  assert.match(summary.snapshot.message, /@anicca\.jp1 Instagram: Views 2229/);
+});

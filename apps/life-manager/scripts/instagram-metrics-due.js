@@ -9,7 +9,7 @@ const {
   EN_AFFIRMATION_LANE,
   verifyMarketingNativeCarouselPublicationReceipt,
 } = require("../lib/marketing-native-carousel-publication-adapter.js");
-const { EXPECTED, collectWindow, persistDailyDigest, persistDelayedSnapshot, sendMetricSnapshot } = require("./instagram-metrics-read.js");
+const { EXPECTED, collectWindow, currentSnapshotFile, persistDailyDigest, persistDelayedSnapshot, sendMetricSnapshot } = require("./instagram-metrics-read.js");
 
 const WINDOWS = Object.freeze({ "2h": 2 * 3600_000, "24h": 24 * 3600_000, "72h": 72 * 3600_000, "7d": 7 * 86400_000 });
 const GRACE_MS = 90 * 60_000;
@@ -67,26 +67,51 @@ function discoverExpected(dataDir) {
   return found.sort((left, right) => left.published_at.localeCompare(right.published_at));
 }
 
-async function runDue(nowMs = Date.now(), env = process.env, provided = null) {
+async function runDue(nowMs = Date.now(), env = process.env, provided = null, deps = {}) {
   const dataDir = resolveDataRoot(env); const results = [];
   if (!Number.isFinite(nowMs)) throw new Error("Instagram metrics due clock invalid");
   const expecteds = provided || discoverExpected(dataDir);
+  const collect = deps.collectWindow || collectWindow;
+  const currentEligible = expecteds.filter((expected) => nowMs >= Date.parse(expected.published_at) && nowMs - Date.parse(expected.published_at) <= 30 * 86400_000);
+  const currentStart = currentEligible.length ? (Math.floor(nowMs / 1800_000) * 8) % currentEligible.length : 0;
+  const currentTargets = new Set(Array.from({ length: Math.min(8, currentEligible.length) }, (_, i) => currentEligible[(currentStart + i) % currentEligible.length]));
+  let currentReads = 0;
   for (const expected of expecteds) {
     const publishedMs = Date.parse(expected.published_at);
     for (const [window, delay] of Object.entries(WINDOWS)) {
-      if (fs.existsSync(snapshotFile(dataDir, window, expected))) { results.push({ shortcode: expected.shortcode, window, state: "complete" }); continue; }
+      if (fs.existsSync(snapshotFile(dataDir, window, expected))) {
+        const snapshot = JSON.parse(fs.readFileSync(snapshotFile(dataDir, window, expected), "utf8"));
+        const missed = snapshot.sources?.postiz_post?.reason === "source_delayed";
+        results.push({ shortcode: expected.shortcode, window, state: missed ? "checkpoint_missed" : "complete" }); continue;
+      }
       const dueMs = publishedMs + delay;
       if (nowMs < dueMs) { results.push({ shortcode: expected.shortcode, window, state: "pending", due_at: new Date(dueMs).toISOString() }); continue; }
       if (nowMs > dueMs + GRACE_MS) {
         const snapshot = persistDelayedSnapshot({ dataDir, window, observedAt: new Date(nowMs).toISOString(), expected });
         const telegram = await sendMetricSnapshot(snapshot, env, dataDir);
-        results.push({ shortcode: expected.shortcode, window, state: "source_delayed", telegram }); continue;
+        results.push({ shortcode: expected.shortcode, window, state: "checkpoint_missed", telegram }); continue;
       }
-      const observation = await collectWindow(window, env, new Date(nowMs).toISOString(), expected);
+      const observation = await collect(window, env, new Date(nowMs).toISOString(), expected);
       results.push({ shortcode: expected.shortcode, window, state: "measured", telegram: observation.telegram });
     }
     const parts = Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date(nowMs)).map(({ type, value }) => [type, value]));
     const reportDay = `${parts.year}-${parts.month}-${parts.day}`;
+    // Keep missed checkpoints immutable; recover current values separately.
+    // Bound each run and stop tracking old posts rather than growing work forever.
+    if (nowMs >= publishedMs && nowMs - publishedMs <= 30 * 86400_000) {
+      if (fs.existsSync(currentSnapshotFile(dataDir, reportDay, expected))) {
+        results.push({ shortcode: expected.shortcode, window: "current", state: "complete" });
+      } else if (currentReads < 8 && currentTargets.has(expected)) {
+        currentReads += 1;
+        try {
+          const observation = await collect("current", env, new Date(nowMs).toISOString(), expected);
+          results.push({ shortcode: expected.shortcode, window: "current", state: "measured", telegram: observation.telegram });
+        } catch (error) {
+          results.push({ shortcode: expected.shortcode, window: "current", state: "failed", error_class: error.name,
+            reason: String(error.message).slice(0, 160), retryable: true, next_action: "retry_current_observation_next_run" });
+        }
+      } else results.push({ shortcode: expected.shortcode, window: "current", state: "pending", reason: "current_observation_run_budget" });
+    }
     if (Number(parts.hour) > 17 || (Number(parts.hour) === 17 && Number(parts.minute) >= 30)) {
       const digest = persistDailyDigest({ dataDir, reportDay, observedAt: new Date(nowMs).toISOString(), expected });
       const telegram = await sendMetricSnapshot(digest, env, dataDir);
