@@ -16,6 +16,12 @@
 
 **目的:** ディスク不足と実行枠の共有障害を先に修復し、READMEの18 agentとCloud・CFO・LINE・Mobile・Gig・eBook・Job Hunter・投資の既存目標を、自然実行と公式readbackまで一件ずつ進める。24時間の監督・自己修復・評価付き自己改善・利用可能なOSSを成立させ、会社全体のUS$10,000,000 MRRまで継続する。各laneの元の売上/MRR/net目標を縮小せず、source/CI成功を本番成果と扱わない。
 
+**全体architectureの判断とAs-Is/To-Be:** 18 agentは18業務capabilityであり、190の小さいjobがそれぞれのcadenceで実装する。最善の進め方は既存のdurable state/effect/receiptと、常時監督＋有限worker＋優先度/経過時間を扱うadmissionを土台に、実資源・業務進行から配分を調整することである。FIFOは同優先度の順序補助として使え、先頭の不適合/古い予約が全業務を止めるgateにしない。固定2/5/10は現設定であり、達成目標や永久の適正値ではない。開始時刻/時差/周期の分散はburstを減らすが、仕事の長期化/再試行/保存先共有があるため衝突や容量問題が無い証明にならない。
+
+As-Isはmain由来immutable release＋Mac launchd/private state、毎分中央補助とowner自己掃除、既存queue/予約/unknown fence/自然再開を持つ。一部の自然仕事→記録→掃除→次仕事は確認済みだが、全18の継続成果は未証明。fresh sampled ubi-watcher/life-manager-daily/marketing-mine-dailyは単純なcapacity待ちでなく、古いloaded releaseとresource_effect_unknownでbody未開始。各unknownはclaimed_by_other_runでpre-effect dry-run未解決、後続claim/terminalとの正確な公式照合が必要で、slots増加やstate削除では直さない。fresh systemは16GiB RAM/memory free51%/swap used7399.44MiB、watchdog11:16:26Z errors0/protected0/free7908937728bytes。一時点の余裕やcleanup成功を全体Doneへ置換しない。
+
+To-Beは各agentがobserve→decide→act→official verify→persist→自分の不要物cleanup→次の仕事を、必要なcadence/期限で継続すること。独立する業務は並列に進み、同じidentity/投稿/決済/注文はlockとidempotencyで保護する。不明な効果は照合の仕事を継続し、独立する観測・他仕事まで無理由に永久停止させない。監督・中央cleanup・復旧は収益workerの混雑に巻き込まれず、stale owner/予約、実資源不足、provider制約を別々に診断し、自己所有修復→自然再開まで行う。正式state/receiptの成長は内容を保持した既存native管理と容量/保存先計画で扱う。最終のcloud/control plane・disposable computeは既存cloud節に従い、現時点で導入済みとはしない。外部審査/quota/障害を含む有限systemに永久ゼロ待機・ゼロ故障を保証せず、仕事の継続・障害の封じ込め・自動回復・公式収益で受け入れる。全面作り直し、FIFO一律撤去、任意の100枠化は現在の先頭taskにしない。
+
 **正本と優先範囲:** 共有資源の目的・完了条件・統括順・cursorはこの節を正本とする。旧snapshot/旧cursorの11GiB到達条件、空き容量を資源修復KPIにする記述、数値達成まで事業TODOを止める記述は撤回する。過去の容量数値は診断履歴として残し、現在の完了gateにしない。lane固有の収益目標・effect境界は変更しない。
 
 **資源修復の目的・完了契約:** 各agentが収益活動を継続しても、ディスク由来のENOSPC・証拠書込失敗・永久的なheadroom待ちで業務が停止せず、作業後の後始末と中央cleanupが自動で回り続ける状態を作る。空きbytes、回収bytes、内部thresholdは診断・制御値でありKPI/完了条件ではない。安全な延期、cleanup exit0、guard実装だけではDoneにしない。自然な生成・販売・記録・後始末の反復で実際の業務進捗とofficial receiptが継続し、保護データを保持し、人手による繰返し掃除を要しないことを確認する。他agentの並列作業も共有資源契約の対象とする。
