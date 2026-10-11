@@ -227,6 +227,8 @@ class ApplicationLoopResult:
     planner_returned_count: Optional[int] = None
     decision_reports: Optional[tuple[Mapping[str, object], ...]] = None
     http_status: Optional[int] = None
+    http_method: Optional[str] = None
+    endpoint_category: Optional[str] = None
 
     def to_dict(self) -> dict[str, object]:
         result: dict[str, object] = {"ok": bool(self.ok), "platform": PLATFORM, "submitted": bool(self.submitted), "application_verified": bool(self.application_verified)}
@@ -244,6 +246,10 @@ class ApplicationLoopResult:
             if value: result[key] = list(value)
         if self.error in {"lancers_http_error", "lancers_provider_blocked"} and type(self.http_status) is int and 100 <= self.http_status <= 599:
             result["http_status"] = self.http_status
+            if self.http_method == "GET":
+                result["http_method"] = self.http_method
+            if self.endpoint_category in ("public_search", "public_category_search", "public_project_detail", "public_client"):
+                result["endpoint_category"] = self.endpoint_category
         if self.decision_reports: result["decision_reports"] = [dict(value) for value in self.decision_reports]
         if self.unresolved_project_id is not None: result["unresolved_project_id"] = self.unresolved_project_id
         return result
@@ -1114,7 +1120,7 @@ def run_loop(*, exhaustive: bool = False, state_path: Path = DEFAULT_STATE_PATH,
                     error, opportunities = observed.get("error"), observed.get("opportunities", [])
                     if observed.get("ok") is not True and not (error == "no_normalized_opportunities" and "opportunities" in observed and not opportunities):
                         clean_error = error if isinstance(error, str) and re.fullmatch(r"[A-Za-z0-9._:-]{1,256}", error or "") else "discovery_failed"
-                        result = ApplicationLoopResult(False, error=clean_error, http_status=observed.get("http_status"))
+                        result = ApplicationLoopResult(False, error=clean_error, http_status=observed.get("http_status"), http_method=observed.get("http_method"), endpoint_category=observed.get("endpoint_category"))
                     elif error is not None and error != "no_normalized_opportunities":
                         result = ApplicationLoopResult(False, error=error if isinstance(error, str) and re.fullmatch(r"[A-Za-z0-9._:-]{1,256}", error) else "discovery_failed")
                     elif isinstance(opportunities, (str, bytes, bytearray)) or not isinstance(opportunities, Sequence): result = ApplicationLoopResult(False, error="discovery_failed")
