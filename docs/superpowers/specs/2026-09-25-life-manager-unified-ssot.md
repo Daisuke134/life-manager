@@ -13726,3 +13726,17 @@ This checkpoint supersedes the 08:47 snapshot. The latest release cleanup remain
 8. Reconcile Apple settled proceeds/refunds/fees and actual costs for the same period; verify Anicca USD 10,000 net recurring MRR before scaling to the other apps and factory.
 
 **現在cursor:** PR #7587 CI/merge. Distribution is 27/54 at 10:07 and metrics are not durable; publisher rollout is 16/18 on98f with two owners still on older releases. No 10K net MRR proof exists.
+
+### 2026-10-11 11:06 JST — Money status: Capafy / Writer / PromptBase (official readbacks)
+
+| Loop | Shipping 24/7? | Money | Exact blocker (measured) | Fix state |
+|---|---|---|---|---|
+| Capafy | Partly. 2 new agents reached under_review on 10/10 (Resume-to-Job 2576591785, Transcript Key Points 5356015232); 6 drafts open | $0 for 9/30-10/11 (Capafy sales trend, 0 orders) | (1) every 10/08+ draft stopped at CP2 because the factory hosted Sonnet 5.5 (Capafy never confirms that id) -> PR #7483; (2) Dais-approved price restores never shipped because main() passed updates=[] -> PR #7522; (3) 3 update drafts burned their 3 attempts while the CP1 agent was deferred for disk (rc 75) -> PR #7591 (open) + attempts reset for 8123079349/2844813315/7686597754 on 10/11 11:0x | #7483, #7522 merged + applied; #7591 pending CI |
+| Writer | No. Last publish 2026-09-29 (articles.jsonl 435 rows) | $0 | article-daily blocked: 10/10 12:00 start-control BLOCK left an effect_unknown fence (`lm-loop pre-effect-reconcile` = no_pre_effect_terminal); blocked starts carry no pre-effect proof | Needs runtime: BLOCK exit must write a verified no-effect hint (not started) |
+| PromptBase | No. Daily publish fails `could_not_reach_step1:unknown:selects=0` since 10/02 | $0 (Sales tab readback 10/08) | Loop drives Dais's Chrome (`interactive:dais`); /sell wizard not reachable; automation may not inspect Dais's Chrome | Needs own browser identity + banked PromptBase session, or Dais checks /sell |
+
+Root cause of the Capafy drop (traffic-sources v2, weekly): Capafy search impressions fell 11,000 -> 3,400 in the week of 9/19 (before the 9/29 DeepSeek switch and the 10/04 price raise); paid orders 5-8/week until 10/03, 0 after. "direct/other" visits are uniform (~70/agent/30d, incl. delisted agents) = our own automation/crawlers, not buyers. Price is already at HookAce's band; differences are ratings (0 vs 4.3), featured examples (0 vs 1), and free-download volume.
+
+Known damage to repair: drafts 2576591785 / 5356015232 (under_review) and 9836498533 / 3795748683 (draft) host deepseek/deepseek-v4.1-flash while the card shows Claude Sonnet 5 (caused by manual CP2 runs without CAPAFY_HOSTED_MODEL_ID on 10/10) -> scan-warning risk.
+
+**Cursor:** #7591 CI -> merge -> release -> apply capafy-loop-daily; confirm the TikTok/YouTube/Hook Lab price-restore versions reach under_review and live billing reads day $1.99 / week $4.99 / month $9.99; then Writer no-effect hint; then PromptBase browser identity.
