@@ -13851,3 +13851,20 @@ Known damage to repair: drafts 2576591785 / 5356015232 (under_review) and 983649
 7. Apple settled proceeds/refunds/feesとactual costsを同期間で照合し、USD 10,000 verified net MRRを証明後にfactoryへ広げる。
 
 **現在cursor:** latest main merge commitはlocal only。push後のexact-head CIでrelease-export failureが再現するか確認し、PASS前にmainへmergeしない。
+
+### 2026-10-11 11:29 JST — latest main 1eb84c83を統合、CI failureのlocal probe PASS
+
+- **latest main / branch:** `origin/main=1eb84c8315f8445769feb60be1d00ac72c43ae93`（PR #7596）。この追加はSSOT 1ファイルで、branchへconflictなく統合した。local HEADは`f8fd0dd51cb34334443625a5c23a2f6334c580d1`、remote branchは前headのまま。productionは未変更。
+- **CI failure:** run `38104861977` / head `7ce08d7667565793966e81f70aff76c1135ff750`は864 tests中1 failure。`test_release_can_be_built_without_changing_current`が`cut-loop-release: export of 4a7ac9ea failed`で落ち、他required checkはPASS。testはstderrをcaptureするが、このfailureにはgeneric export error以外のgit/tar詳細が出ず、原因componentは未特定。
+- **same-target probe:** `origin/main=4a7ac9ea`を参照する同一testはlocalで2回PASS。fixture testもPASS。後続main `1eb84c83`はSSOTのみの追加。failureは未再現であり、flaky/CI bugと断定しない。
+- **Cursor:** exact failed headはbranch remoteで置換済みではない。latest-main mergeとこの記録をpushし、new exact-head CIを確認する。同じrelease-export failureが再発した場合、git archiveとtarのboundaryを診断する。required checksがPASSするまでmergeしない。
+
+**残TODO（順序）:**
+
+1. latest-main mergeとこのspec noteをbranchへcommit/pushし、PR baseを`1eb84c83`へ揃える。
+2. new exact-head CIの全required checksをPASSさせる。failureが再発した場合だけexport boundaryの証拠を増やして修正する。
+3. PASS後PR #7588を`--admin --merge`し、merged commitと`origin/main`をreadbackする。
+4. main由来immutable releaseを通常owner経路で適用し、metrics owner 2件と18 publisher laneのloaded SHA・natural terminal・official receiptsを確認。effect_unknownは証拠なしに解除・再送しない。
+5. 18 lane×3 distinct daily slots、permalink、durable metrics、Telegram receipt、replay-zeroを確認して54/54を7 JST日連続で積む。slot時刻を待たず独立作業を続ける。
+6. fresh ASC/RevenueCat/Mixpanel cohortsとpost attributionを揃え、Anicca 100 first-time downloads/day（trailing 7-day average）とpaywall/notification問題を測定・改善する。ASO/onboardingは一変数ずつ。
+7. Apple settled proceeds/refunds/feesとactual costsを同期間で照合し、Anicca USD 10,000 verified net MRRを確認してからfactoryへ展開する。
