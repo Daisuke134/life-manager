@@ -129,6 +129,19 @@ class PromptFailClosedTest(unittest.TestCase):
         self.assertEqual(proof["evidence_dir"], str(evidence.resolve()))
         self.assertFalse((evidence / "attempts.jsonl").exists())
 
+    def test_wrapper_created_directory_accepts_a_new_deferral_receipt(self):
+        evidence = self.root / "evidence-0"
+        evidence.mkdir()
+        stdout = evidence / "runner.stdout.log"
+        stdout.write_text("wrapper-owned stream\n")
+        proc, _ = self.run_runner("Return the bounded contract JSON only.\n", free_bytes=0)
+        self.assertEqual(proc.returncode, 75)
+        proof = json.loads((evidence / "summary.json").read_text())
+        self.assertIs(proof["provider_started"], False)
+        self.assertEqual(proof["attempt_count"], 0)
+        self.assertEqual(stdout.read_text(), "wrapper-owned stream\n")
+        self.assertFalse(self.marker.exists())
+
     def test_deferral_receipt_failure_does_not_launch_provider(self):
         evidence = self.root / "evidence-0"
         evidence.mkdir()

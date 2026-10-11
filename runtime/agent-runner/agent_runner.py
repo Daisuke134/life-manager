@@ -173,14 +173,21 @@ def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def atomic_json(path: Path, value: Any) -> None:
+def atomic_json(path: Path, value: Any, *, exclusive: bool = False) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
             json.dump(value, handle, ensure_ascii=False, indent=2)
             handle.write("\n")
-        os.replace(name, path)
+            if exclusive:
+                handle.flush()
+                os.fsync(handle.fileno())
+        if exclusive:
+            os.link(name, path)
+            os.unlink(name)
+        else:
+            os.replace(name, path)
     except BaseException:
         try:
             os.unlink(name)
@@ -1323,13 +1330,13 @@ def candidate_capabilities(provider_config: dict[str, Any], candidate: dict[str,
 def record_pre_provider_deferral(evidence_dir: Path, args: argparse.Namespace, reason: str) -> None:
     """Record only a fresh run's model-provider deferral, never a business no-effect claim."""
     try:
-        evidence_dir.mkdir(parents=True, exist_ok=False, mode=0o700)
+        evidence_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
         atomic_json(evidence_dir / "summary.json", {
             "version": 1, "status": "provider_deferred", "reason": reason,
             "attempt_count": 0, "provider_started": False,
             "loop": args.loop, "task_label": args.task_label, "task_class": args.task_class,
             "evidence_dir": str(evidence_dir), "finished_at": utc_now(),
-        })
+        }, exclusive=True)
     except OSError as error:
         print(f"agent-runner: deferral receipt unavailable ({type(error).__name__})", file=sys.stderr)
 
