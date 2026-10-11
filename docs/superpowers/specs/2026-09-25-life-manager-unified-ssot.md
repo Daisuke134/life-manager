@@ -380,6 +380,9 @@ CLEAN-04/05 browser残留のfresh scope: shared default CDP auditはcontext5/lea
 
 CLEAN-04 browser実回収/既存再発経路: shipped cdp_context_lease.gc(idle_min=None,max_reaps=1,priority_task=job-search-daily)でconfirmed-dead/空about:blankの1contextだけ回収。実操作前4→後3（先のaudit5とは別の同時刻snapshot）、job lease不在、parked他3rowの全内容一致、unknown-owner IDs一致、default identity/credential/vault/全effect fence保持を確認。private proof=~/.local/state/life-manager/state/dead-job-browser-context-recovery-20261011.json。git caller readbackでは既存ensure_browser.shのALIVE pathとrecovery path、cdp_context_lease.acquireのpreflightがGCを呼ぶため、別central collector/daemon/frameworkを追加しない。manual清掃を既存guarded GCへ委任する経路は存在し、次の自然browser wakeで同対象の再回収0とactive lease保持を追跡する。AgentMailは別claiming runのlegacy pass unknownを持つ業務HOLDとして公式照合を残し、このrootのcleanup回収成果や容量不足と混同しない。source change0/追加review0/外部送信0。
 
+CLEAN-05 Capafy自然返却/次仕事のfresh join: 18dd5799ea1b1e40-63187は02:09:05Z execute→02:19:19.960067Z pass0/main899ddafe由来。次18dd586c10fd0ca8-5713はmanualwake無しで02:24:07.972059Z execute→02:32:50.768643Z pass0/maind42536c4由来。現owner metadata行0/reservations0/queue0/deferred0、registry正本state_root=~/.local/state/life-managerから両loop-tmp不在を確認（誤ったowner名derived rootを根拠にしない）。これでdeterministic producerの終了→自己後始末→枠返却→次の自然仕事を追加確認する。business effect_statusは両方unknownのまま、掲載/売上/settlement成功へ置換0、外部再送0。private proof=~/.local/state/life-manager/state/capafy-natural-slot-return-20261011.json。既存Gig/Job/Writerの代表branch proofと併せ、未確認の実producer/ownerだけを次の自然terminalへjoinし、歴史claimed行数をactive枠数と誤認しない。
+
+
 
 
 
