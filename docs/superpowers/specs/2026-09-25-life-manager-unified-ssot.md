@@ -13128,7 +13128,9 @@ flowchart LR
 
 **Current atomic cursor:** PR #7517はMERGED（merge `867600ff11bd288c1efd2fdc55a226323c6b775c`）。本番healthはHTTP 200/ok=true/build `e6f3052b051942f8730df6004c9acd1694a7c3b8`、そのbuildがCheckout mergeを含むことをGit ancestryで確認。signed-out Railway `/lm`とpublic `aniccaai.com/lm`もHTTP 200、public本文にはCalendar CTA・$29・7日trialが存在する。根拠はprivate operational receipt `cloud-production-entry-readback-20261012.json`（2026-10-11T17:02Z、cookieなし、internal-e2e diagnostic UTM）。これはHTML/HTTP確認で、desktop/mobile操作・同一tab handoffの追加確認を完了扱いしない。Calendar E2E/Stripe TEST/Checkout sourceの既完項目は再実行しない。
 
-**残るatomic順:** (1) 既存Task10 reportを現在のproduction Supabase/live Stripe公式readbackで更新し、diagnostic cohortを分離、契約・invoice・MRR・unknown costを確認 → (2) Composioの公式fixed-feeと期間帰属を確認し、usage $0を総費用$0と扱わない → (3) 既存public CTAの同一tab/auth-start handoffを対象限定で確認し、desktop/mobileの未確認範囲を閉じる → (4) 既存Cloud marketing owner/adapterでUTM付き集客とfunnelを継続運用 → (5) Photon Japan pairing/reply/line-fitの既存TODO → (6) Stripe公式paid subscription/invoiceでCloud $10K gross MRRを確認。全社$10M/月はその先の会社目標であり、このreadbackでは未達。価格・7日カード必須trial・既存Google sessionのみ・live自己決済禁止を維持する。
+**Task10 fresh report readback完了:** 既存main由来reportをRailway production life-callの変数で読み取り実行、exit0。期間は2026-09-11T17:05:31Z–2026-10-11T17:05:31Zの30日。総requestはlanding50/connect25、認証/Calendar/Travel各1はinternal-e2e cohortであり顧客獲得成果へ含めない。writer article cohortはlanding7/connect6/認証0、attributionなしはlanding37/connect13/認証0。Checkout/trial/positive invoice/active paid各0、Stripe-linked gross MRR $0。provider estimate既知$0.12639・unknown1行、actual/hosting/marketing/netはnull。根拠 `cloud-production-funnel-readback-20261012.json`。集計読み取りは完了、費用照合/有料顧客獲得は未完。
+
+**残るatomic順:** (1) Composioの公式fixed-feeと期間帰属を確認し、usage $0を総費用$0と扱わない → (2) 既存public CTAの同一tab/auth-start handoffを対象限定で確認し、desktop/mobileの未確認範囲を閉じる → (3) 既存Cloud marketing owner/adapterでUTM付き集客とfunnelを継続運用 → (4) Photon Japan pairing/reply/line-fitの既存TODO → (5) Stripe公式paid subscription/invoiceでCloud $10K gross MRRを確認。全社$10M/月はその先の会社目標であり、このreadbackでは未達。価格・7日カード必須trial・既存Google sessionのみ・live自己決済禁止を維持する。
 
 ### 2026-10-10 21:04 JST — eBook factory verified state and handover cursor
 
