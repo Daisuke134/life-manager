@@ -237,9 +237,19 @@ PRICE_CARDS_JS = r"""
     const s = getComputedStyle(e);
     return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none';
   };
-  const cards = [...document.querySelectorAll('*')].filter((e) =>
-    e.querySelector('button.pricingConfigDropdownButton') && (e.textContent || '').includes('無料トライアル'));
-  const topCards = cards.filter((e) => !cards.some((o) => o !== e && e.contains(o)));
+  // One card per Period button: walk up to the smallest ancestor that holds only this
+  // button and the trial text; a Daily card has no 無料トライアル section (2026-10-11),
+  // so fall back to the smallest single-button ancestor with price+cap inputs.
+  const buttons = [...document.querySelectorAll('button.pricingConfigDropdownButton')];
+  const single = (e) => e.querySelectorAll('button.pricingConfigDropdownButton').length === 1;
+  const topCards = buttons.map((btn) => {
+    let withInputs = null;
+    for (let e = btn.parentElement; e && single(e); e = e.parentElement) {
+      if ((e.textContent || '').includes('無料トライアル')) return e;
+      if (!withInputs && [...e.querySelectorAll('input')].filter(vis).length >= 2) withInputs = e;
+    }
+    return withInputs;
+  }).filter(Boolean);
   return topCards.map((card) => {
     const btn = card.querySelector('button.pricingConfigDropdownButton');
     const period = (btn ? btn.textContent : '').trim();
