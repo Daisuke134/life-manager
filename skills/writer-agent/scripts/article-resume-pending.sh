@@ -371,6 +371,7 @@ import sys
 state_root = Path(sys.argv[1]).resolve()
 ledger = Path(sys.argv[2]).resolve()
 control_path = Path(sys.argv[3]).resolve()
+sys.path.insert(0, str(control_path.parent))
 spec = importlib.util.spec_from_file_location("quality_feedback_recovery_scan", control_path)
 control = importlib.util.module_from_spec(spec)
 assert spec.loader is not None
