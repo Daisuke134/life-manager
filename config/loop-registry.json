@@ -3463,6 +3463,10 @@
     },
     "marketing-metrics-daily": {
       "adapter": "python",
+      "resource_class": "deterministic",
+      "admission_class": "borrow",
+      "priority": "support",
+      "reconcile_queued_release": true,
       "cadence": {
         "calendar_interval": {
           "Hour": 7,
