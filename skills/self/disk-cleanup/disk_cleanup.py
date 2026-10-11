@@ -519,7 +519,8 @@ def _browser_clone_roots(temporary: Path) -> tuple[Path, ...]:
 
 def _default_lsof(path: Path) -> str:
     if (
-        RELEASE_NAME_PATTERN.fullmatch(path.name)
+        path.is_file()  # lsof +D only accepts directories, including for generated ASTs.
+        or RELEASE_NAME_PATTERN.fullmatch(path.name)
         or _is_code_sign_clone(path)
         or path.name in GLOBAL_OPEN_PROBE_NAMES
         or ".worktrees" in path.parts

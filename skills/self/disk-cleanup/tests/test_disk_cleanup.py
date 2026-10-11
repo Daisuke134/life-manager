@@ -2320,6 +2320,27 @@ def test_exact_cache_probe_fails_closed_when_global_lsof_reports_stderr(tmp_path
     disk_cleanup._open_paths.cache_clear()
 
 
+@pytest.mark.parametrize("opened, expected", [(False, "confirmed-closed"), (True, "open"), (None, "probe-error")])
+def test_regular_artifact_probe_uses_global_open_paths(tmp_path: Path, monkeypatch, opened, expected) -> None:
+    artifact = tmp_path / "SwiftShims.pcm"
+    artifact.write_bytes(b"generated AST")
+    calls = []
+    def probe(argv, **kwargs):
+        calls.append(argv)
+        if "+D" in argv:
+            return subprocess.CompletedProcess(argv, 1, "", "not a directory")
+        return subprocess.CompletedProcess(argv, 0 if opened is not None else 1,
+            f"n{artifact}\n" if opened else "n/tmp/unrelated\n",
+            "permission denied" if opened is None else "")
+    monkeypatch.setattr(disk_cleanup.subprocess, "run", probe)
+    disk_cleanup._open_paths.cache_clear()
+    try:
+        assert disk_cleanup._default_lsof(artifact) == expected
+        assert calls == [["/usr/sbin/lsof", "-nP", "-Fn"]]
+    finally:
+        disk_cleanup._open_paths.cache_clear()
+
+
 def test_release_retention_keeps_referenced_and_current_generation(tmp_path: Path) -> None:
     releases = tmp_path / "loops" / "releases"
     releases.mkdir(parents=True)
