@@ -277,6 +277,30 @@ def record_draft_attempt(agent_id, attempts):
         pass
 
 
+def _write_draft_attempts(attempts):
+    path = _draft_attempts_path()
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as handle:
+            json.dump(attempts, handle, sort_keys=True)
+        os.replace(tmp, path)
+    except OSError:
+        pass
+
+
+def refund_draft_attempt(agent_id):
+    """Give back the attempt a pass counted when its CP1 agent never ran (runner deferred, rc 75):
+    an infrastructure deferral is not a failed try of the draft (2026-10-11)."""
+    attempts = load_draft_attempts()
+    agent_id = str(agent_id or "")
+    if attempts.get(agent_id, 0) <= 1:
+        attempts.pop(agent_id, None)
+    else:
+        attempts[agent_id] -= 1
+    _write_draft_attempts(attempts)
+
+
 def drop_profitable_updates(updates, path=None, frozen_path=None):
     """Dais 2026-10-07: never ship a new version of an Agent that is selling at a
     profit (30d orders > 0 and actual 30d profit > 0). The 9/29 and 10/06 version
@@ -662,6 +686,9 @@ def _not_near_duplicate(item):
 
 
 def main():
+    if len(sys.argv) == 3 and sys.argv[1] == "--refund-draft-attempt":
+        refund_draft_attempt(sys.argv[2])
+        return 0
     agents = server_agents()
     if agents is None:
         verdict = {"verdict": "SERVER_UNREADABLE"}
