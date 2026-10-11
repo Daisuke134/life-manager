@@ -13731,3 +13731,24 @@ This checkpoint supersedes the 08:47 snapshot. The latest release cleanup remain
 7. Apple settled proceeds/refunds/feesとactual costsを同期間で照合し、Anicca USD 10,000 verified net recurring MRRを確認してから他app/mobile factoryへ広げる。
 
 **現在cursor:** PR #7588のbyte-stable fixture failure。直す対象はfixtureで、現在のscope実装はmainにもproductionにも入っていない。投稿の最新公式readbackは10:37、app/source metricsの最新記録は02:27 JSTで、いずれもこのcheckpoint時点のfresh値ではない。
+
+### 2026-10-11 11:06 JST — renderer fixture同期、ローカルacceptance PASS
+
+このcheckpointは10:54のCI failure記録を更新する。root causeはmetrics owner 2件に設定した`admission_effect_scope=occurrence`がrenderer出力へ含まれた一方、byte-stable fixtureが古かったこと。
+
+- **変更:** `runtime/loop/tests/fixtures/macos-loop-jobs.json`を正本`render_job_models(config/loop-registry.json)`から再生成。diffは1行置換で、実データ差分は`life-manager-instagram-metrics`と`life-manager-tiktok-metrics`の2行に上記fieldが追加されたものだけ。
+- **検証:** 変更前の`test_production_render_matches_byte_stable_fixture`は期待したfixture mismatchでFAIL、再生成後PASS。`python3 -m unittest runtime.loop.tests.test_macos_loop_registry`は141/141 PASS、完全checkoutでの`python3 -m unittest discover -s runtime/loop/tests -p 'test_*.py'`は862/862 PASS、adapter registry testは15/15 PASS、`lm-loop-contract`は18 catalog / 190 registry / 113 mapped / errors 0、`git diff --check` PASS。最初のsparse worktreeでのsuite失敗は複数tracked path未展開によるものだったため、この専用worktreeだけsparseを解除して再実行した。source差分はfixture以外ない。
+- **別のruntime診断:** `lm-loop doctor`は`ok=false`で、`missing_entrypoints=0`、`unmanaged_labels=[]`、retired installed label `ai.anicca.provision-browser.capafy.kosuke`を1件報告。これは本fixture変更外の既存runtime状態であり、このPRのコードを原因とする根拠はないため変更していない。
+- **Git / PR:** current `origin/main=899ddafe2191e6e0558b73b8803f0a0992eeb346`。branchは`docs/mobile-growth-postmerge-20261011`、fixture変更前HEADは`dbc77aabffb983ae1ab69b5e25fd243b97f585a3`。PR #7588はOPEN。local acceptance後のfixture+spec commit/pushとそのexact-head CIはこれから。
+
+**残TODO（順序）:**
+
+1. fixtureと本checkpointを同じ専用branchにcommit/pushし、新exact-headの全required PR checksを確認する。失敗時はそのcheckだけを診断・修正する。
+2. required checks PASS後、PR #7588をmainへ統合し、merged commitをreadbackする。独立review/subagentは起動しない。
+3. 最新main由来immutable releaseを通常経路で作成・適用し、metrics owner 2件と18 publisher laneのloaded SHA・自然terminal・公式provider receiptを確認する。古いeffect_unknownは証拠なしに解除・再送しない。
+4. 公式Postiz readbackを更新し、18 publisher lane × 3 distinct daily slots、permalink、durable post metrics、Telegram message receipt、replay-zeroを確認する。54/54を7 JST日連続で証明し、自然なslot時刻を待つ間も他の観測・実装を進める。
+5. 6アプリのASC acquisition、RevenueCat subscription/MRR、Mixpanel onboardingをfresh cohort/periodで計測し、post/campaign→click/store→first-time downloadを結ぶ。まずAniccaのfirst-time downloadsを7日平均100/日へ。
+6. Anicca paywall plan-loadとnotification→same-quoteを再現・修正し、測定結果に応じてASO/store display、onboarding/paywallを一変数ずつ改善する。source変更時だけ新iOS版を配布する。
+7. Apple settlement/refunds/feesとactual costsを同期間で照合し、Anicca USD 10,000 verified net MRRを確認してから既存app群とfactoryへ広げる。
+
+**現在cursor:** fixture修正と完全ローカルacceptanceはPASS。次はfixture+specをpushし、exact-head CIをPASSさせてPR #7588をmainへ統合する。production変更は未実施。
