@@ -171,6 +171,11 @@ permitted, and foreign onsite roles only where employer sponsorship is supported
 A generic experience attestation does not establish years, a degree or industry
 experience absent from dated evidence. When a mandatory mismatch is proven, use
 `runtime ineligible --reason hard_ineligible`, report it, and continue the queue.
+If that command returns `action_rejected` with reason
+`application_state_prevents_rejection`, the row already has a submission intent.
+Do not finalize or retry that row, do not label it submitted or ineligible, and
+preserve its intent for exact provider/receipt reconciliation. Add it to `blocked`
+and continue with the next row; the runtime skips it for this wake.
 An unknown requirement calls for reading the posting, not inventing an answer.
 Use the same company-tailoring, upload, final-review and exactly-once submission
 commands as Workday. No separate Ashby script or approval is needed.
