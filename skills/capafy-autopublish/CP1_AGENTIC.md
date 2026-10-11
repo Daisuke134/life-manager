@@ -138,9 +138,9 @@ needed first) and can still be fixed because the card is still editable.
    `PRICING_MISMATCH` re-open the edit URL (`publish_prepare.sh` re-issues it) and
    re-enter the prices with `typeinto`.
    The card has exactly three plan cards and no "Add Plan" button (2026-10-05). Use each
-   card's Period dropdown to make the three cards match the LISTING table — normally
-   Weekly / Monthly / Yearly (the top Capafy subscription sellers use exactly these three,
-   no Daily). Re-check every card's Period, Price and Request-Limit after switching, since
+   card's Period dropdown to make the three cards match the LISTING table exactly. The
+   LISTING table is authoritative: if it lists Daily, switch a card's Period to Daily
+   (price-restore updates use Daily / Weekly / Monthly). Re-check every card's Period, Price and Request-Limit after switching, since
    cards can re-sort when a period changes.
 5. Each plan needs a trial choice (required). Read the TARGET line printed by
    `publish_prepare.sh` for that plan's `trial=` value:
