@@ -48,3 +48,4 @@ else
 fi
 if [ "$rc" -eq 0 ]; then ok=true; else ok=false; fi
 echo "{\"ok\": $ok, \"date\": \"$date_tag\", \"jsonl_count\": $count, \"dest\": \"$dest\"}"
+exit "$rc"

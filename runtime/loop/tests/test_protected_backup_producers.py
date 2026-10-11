@@ -12,6 +12,21 @@ ROOT = Path(__file__).resolve().parents[3]
 
 @unittest.skipUnless(shutil.which("rsync"), "rsync is required by existing backup scripts")
 class ProtectedBackupProducerTest(unittest.TestCase):
+    def test_missing_source_copy_failure_is_not_reported_as_process_success(self):
+        for existing_generation in (False, True):
+            with self.subTest(existing_generation=existing_generation), tempfile.TemporaryDirectory() as tmp:
+                home = Path(tmp)
+                if existing_generation:
+                    import datetime
+                    day = datetime.date.today().isoformat()
+                    (home / f".cloak/state-backups/{day}/claude-projects").mkdir(parents=True)
+                result = subprocess.run(
+                    ["bash", str(ROOT / "skills/_shared/claude-projects-backup.sh")],
+                    env={**os.environ, "HOME": str(home)}, capture_output=True,
+                    text=True, timeout=15)
+                self.assertFalse(json.loads(result.stdout)["ok"])
+                self.assertNotEqual(result.returncode, 0, result.stderr)
+
     def test_generations_are_preserved_and_diagnostics_use_inherited_stderr(self):
         for name in ("browser-state-backup", "claude-projects-backup"):
             with self.subTest(producer=name), tempfile.TemporaryDirectory() as tmp:
