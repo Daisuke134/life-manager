@@ -121,5 +121,138 @@
       "crwl_markdown_new_text_observed": false,
       "scrapy_raw_html_new_text_observed": false
     }
+  },
+  "revenuecat_mrr": [
+    {
+      "schema_version": 1,
+      "snapshot_id": "anicca-ios:2026-10-10:cfo-revenuecat-mrr",
+      "business_date": "2026-10-10",
+      "observed_at": "2026-10-11T07:35:01.496637Z",
+      "product_id": "anicca-ios",
+      "sources": {
+        "revenuecat": {
+          "status": "available",
+          "reason": null,
+          "data": {
+            "app_id": "app511ef26659",
+            "currency": "USD",
+            "revenue_definition": {
+              "metric": "mrr",
+              "scope": "active_paid_subscriptions",
+              "normalization": "monthly"
+            },
+            "charts": {
+              "mrr": {
+                "latest_complete": {
+                  "MRR": {
+                    "value": 20.34,
+                    "period": "2026-10-10",
+                    "period_index": 1791590400,
+                    "incomplete": false
+                  }
+                },
+                "resolution": "day",
+                "start_date": 1789344000,
+                "end_date": 1791676800,
+                "evidence_sha256": "b0c6b365492ddc0ce6fee29a99d6cdbb8a029a3a7549fe2095ca675fa29fdade"
+              }
+            },
+            "readback": {
+              "provider": "revenuecat",
+              "chart": "mrr",
+              "observed_at": "2026-10-11T07:35:01.496637Z",
+              "query": {
+                "project_id": "projbb7b9d1b",
+                "chart": "mrr",
+                "endpoint": "options",
+                "start_date": "2026-09-14",
+                "end_date": "2026-10-11",
+                "resolution": "0",
+                "app_id": "app511ef26659",
+                "filters": [
+                  {
+                    "name": "app_id",
+                    "values": [
+                      "app511ef26659"
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          "evidence_sha256": "6ebc3e2ec473ee3582c6d1132a7aa915054bd3b47dcc5218c921132fce86ab69"
+        }
+      }
+    },
+    {
+      "schema_version": 1,
+      "snapshot_id": "honne-ai:2026-10-10:cfo-revenuecat-mrr",
+      "business_date": "2026-10-10",
+      "observed_at": "2026-10-11T07:35:02.022745Z",
+      "product_id": "honne-ai",
+      "sources": {
+        "revenuecat": {
+          "status": "available",
+          "reason": null,
+          "data": {
+            "app_id": "app3bbd298d22",
+            "currency": "USD",
+            "revenue_definition": {
+              "metric": "mrr",
+              "scope": "active_paid_subscriptions",
+              "normalization": "monthly"
+            },
+            "charts": {
+              "mrr": {
+                "latest_complete": {
+                  "MRR": {
+                    "value": 0.0,
+                    "period": "2026-10-10",
+                    "period_index": 1791590400,
+                    "incomplete": false
+                  }
+                },
+                "resolution": "day",
+                "start_date": 1789344000,
+                "end_date": 1791676800,
+                "evidence_sha256": "50e7ef23fde3fe7de641feaf49a9421d66f79b68241ffa8a55d9e5c71cead2d0"
+              }
+            },
+            "readback": {
+              "provider": "revenuecat",
+              "chart": "mrr",
+              "observed_at": "2026-10-11T07:35:02.022745Z",
+              "query": {
+                "project_id": "projbb7b9d1b",
+                "chart": "mrr",
+                "endpoint": "options",
+                "start_date": "2026-09-14",
+                "end_date": "2026-10-11",
+                "resolution": "0",
+                "app_id": "app3bbd298d22",
+                "filters": [
+                  {
+                    "name": "app_id",
+                    "values": [
+                      "app3bbd298d22"
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          "evidence_sha256": "155609951c25836879c0db7cfe631fcbeef442a671ea3f85b2059f43c428b155"
+        }
+      }
+    }
+  ],
+  "revenuecat_mrr_truth": "provider subscription run rate; not Apple proceeds, bank settlement or net profit",
+  "paywall_native_selection": {
+    "head": "a95a9be77d2f478143f5e34690dd30cc25794560",
+    "compile_exit": 0,
+    "test_exit": 0,
+    "test_output": "PASS testDelayedLoadSelectsAnnualWithoutAnotherAppearance\nPASS testMonthlyOnlyLoadSelectsMonthly\nPASS testUserMonthlyChoiceSurvivesRefreshAndRebindsToCurrentInstance\nPASS testAnnualReplacementRebindsToCurrentInstance\nPASS testExplicitLifetimeChoiceSurvivesRefresh\nPASS testRemovedSelectionFallsBackToAnnualThenMonthly\nPASS testEmptyRefreshClearsSelectionAndRetryChoosesAvailableDefault\nPASS testNoAnnualOrMonthlyDoesNotInventADefault\nPASS testRepeatedRefreshKeepsUserSelection\n9 native selection regressions passed\n",
+    "ios_integration_verified": false,
+    "purchase_verified": false
   }
 }
