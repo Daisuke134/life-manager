@@ -30,6 +30,25 @@ Runtime dependency ordering follows
 [`rules/runtime-ordering.md`](rules/runtime-ordering.md): deterministic recovery,
 quota, and policy gates run before browser/model initialization.
 
+## Dreamwork native application owner
+
+The 30-minute acquisition owner first checks the private Dreamwork credential and
+explicit application-autonomy delegation. With a verified rotated key and an
+application-ready account, it configures native Autopilot with a tailored resume,
+preserves candidate preferences and exclusions, and completes the provider's
+exact-argument confirmation-token exchange without recurring user approval.
+Dreamwork then owns employer submission; the local wake only reconciles official
+status. It does not send a competing manual application. Plan allowances remain
+provider-controlled and no plan purchase occurs.
+
+Existing submitted and ambiguous Workday companies are excluded from native
+Autopilot until occurrence-bound official reconciliation permits another route.
+Only proof-backed pipeline submission facts count as completed applications.
+Queued actions, prepared materials, and board labels do not count. Unknown
+configuration effects are persisted before confirmation and never blindly retried.
+If native Autopilot is unavailable and officially has no in-flight work, the
+existing Workday lane may continue under the same local owner. Otherwise it holds.
+
 ## Runtime
 
 | Component | Schedule | Route |
