@@ -1,0 +1,7 @@
+{
+  "agent_id": "9466718786",
+  "from_version_id": "2104455607758909440",
+  "target_model_id": "deepseek/deepseek-v4.1-flash",
+  "reason": "zero_sales_fix_price_and_trial_2026_10_11",
+  "dais_approved_exception": "Dais 2026-10-10/11: iterate agents that have not made money (price, description); live billing sells the month plan at the week price ($10/$10) with free trials. Ship the catalog listing (week $9.99 / month $19.99 / year, No Free Trial), model unchanged."
+}
