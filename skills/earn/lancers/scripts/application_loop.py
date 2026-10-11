@@ -182,7 +182,7 @@ ID_RE = re.compile(r"^[0-9]+$")
 KANA_RE = re.compile(r"[ぁ-ゖァ-ヺ]")
 FORBIDDEN_TERMS = ("receipt", "gate", "agent", "model", "browser", "token", "prompt", "internal id", "レシート", "ゲート", "エージェント", "モデル", "ブラウザ", "トークン", "プロンプト", "内部ID")
 FORBIDDEN_RE = re.compile("|".join(re.escape(term).replace(r"\ ", r"[ _]") for term in FORBIDDEN_TERMS), re.IGNORECASE)
-RETAIN_EVIDENCE_ERRORS = frozenset({"planner_runner_failed", "planner_contract_invalid", "safety_check_failed"})
+RETAIN_EVIDENCE_ERRORS = frozenset({"evidence_initialization_failed", "planner_runner_failed", "planner_contract_invalid", "safety_check_failed"})
 PENDING_CONTINUE_ERRORS = frozenset({
     "submission_uncertain", "browser_unavailable", "account_unavailable", "account_lock_busy",
 })
@@ -1090,7 +1090,7 @@ def run_loop(*, exhaustive: bool = False, state_path: Path = DEFAULT_STATE_PATH,
         result = ApplicationLoopResult(True, reason=capacity_reason, unresolved_project_id=quarantined_project_id)
         if output_stream is not None: _emit(result, output_stream)
         return result.to_dict()
-    root = Path(evidence_root if evidence_root is not None else evidence_dir or DEFAULT_EVIDENCE_ROOT); result = ApplicationLoopResult(False, error="planner_runner_failed"); cleanup_failed = False; evidence: Optional[Path] = None
+    root = Path(evidence_root if evidence_root is not None else evidence_dir or DEFAULT_EVIDENCE_ROOT); result = ApplicationLoopResult(False, error="evidence_initialization_failed"); cleanup_failed = False; evidence: Optional[Path] = None
     try:
         try:
             _reset(root); evidence = root / f"run-{uuid.uuid4().hex}"; evidence.mkdir(mode=0o700, exist_ok=False); os.chmod(evidence, 0o700)

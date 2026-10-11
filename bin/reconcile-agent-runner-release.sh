@@ -304,7 +304,7 @@ PY
     return 0
   fi
 
-  local apply_timeout_seconds="${LIFE_MANAGER_FLEET_APPLY_TIMEOUT_SECONDS:-1200}"
+  local apply_timeout_seconds="${LIFE_MANAGER_FLEET_APPLY_TIMEOUT_SECONDS:-300}"
   local per_owner_timeout_seconds="${LIFE_MANAGER_FLEET_APPLY_PER_OWNER_TIMEOUT_SECONDS:-120}"
   local backoff_seconds="${LIFE_MANAGER_FLEET_APPLY_BACKOFF_SECONDS:-1800}"
   # Write to files, not $(...): a descendant that inherits a pipe keeps command substitution
@@ -645,14 +645,16 @@ PY
     release_superseded_continue=1
     next_retry_epoch="$(date -u +%s)"
   fi
-  # A pass that only ran out of budget (no hung owner) after applying owners is progress, not a
-  # failure: continue on the same sha soon so the fleet converges before the next release.
+  # Continue healthy owners on the same SHA after bounded progress. Failed owners remain
+  # recorded and ordered last; only an error-free pass may accelerate a different SHA.
   local budget_progress_continue=0
   if [ "$status" = "partial" ] && [ "$release_superseded" -eq 0 ] \
     && [ "$budget_exceeded" -eq 1 ] && [ -z "$timed_out_owners" ] \
-    && [ "$changed" -gt 0 ] && [ "$errors" -eq 0 ]; then
-    budget_progress_continue=1
+    && [ "$changed" -gt 0 ]; then
     next_retry_epoch=$((now_epoch + ${LIFE_MANAGER_FLEET_APPLY_CONTINUE_SECONDS:-300}))
+    if [ "$errors" -eq 0 ]; then
+      budget_progress_continue=1
+    fi
   fi
   local new_last_ok_epoch="${last_ok_epoch:-0}"
   [ "$status" = "ok" ] && new_last_ok_epoch="$now_epoch"
