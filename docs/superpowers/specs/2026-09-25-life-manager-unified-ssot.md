@@ -13907,3 +13907,27 @@ Known damage to repair: drafts 2576591785 / 5356015232 (under_review) and 983649
 5. 18 lane×3 distinct daily slots、permalink、durable metrics、Telegram receipt、replay-zeroを確認して54/54を7 JST日連続で積む。slot時刻を待たず独立作業を続ける。
 6. fresh ASC/RevenueCat/Mixpanel cohortsとpost attributionを揃え、Anicca 100 first-time downloads/day（trailing 7-day average）とpaywall/notification問題を測定・改善する。ASO/onboardingは一変数ずつ。
 7. Apple settled proceeds/refunds/feesとactual costsを同期間で照合し、Anicca USD 10,000 verified net MRRを確認してからfactoryへ展開する。
+
+### 無料集客ツールの導入 — 現在の依頼
+
+**目的と範囲:** Daisが提示したViewTrack、Programmatic SEO、Jinba consulting-pptx-skill、iPhone-useを追加支出ゼロで導入し、実際に使える機能と未完条件を確認する。今回は導入・動作確認・利用計画の更新を行う。投稿、アプリ配布、広告、有料契約、既存production loopの変更はこの導入作業に含めない。長期mobile growth goalはDaisの計画見直しで一時停止中。
+
+**完了条件:** ローカルskill/plugin/MCPの登録とreadback、PPTXのローカル生成・機械チェック、SEO skillの参照ファイル整合、ViewTrackの無料プランとMCP接続可否、iPhone-useの環境診断を実測する。接続端末・本人操作・サービス側機能が不足する場合は具体的な不足物を残し、導入と実利用を分ける。追加課金を発生させない。
+
+**既存資産と境界:** 既存SNS計測、Writer、Webサイト、ASC/RevenueCatを再利用する。Programmatic SEOはサービス名でなく手法なので、無料の公開skill `coreyhaines31/marketingskills/skills/programmatic-seo`を導入する。OpenSEOの有料データAPIを無料扱いしない。iPhone-useは実端末確認・実演素材の能力として導入し、対話型Codex pluginの登録をLife Manager runtimeへの統合と混同しない。モデル設定は変更しない。credentialはprivate SSOTだけに保存する。
+
+**導入TODO（この順序）:**
+
+1. [x] 専用worktreeの本specをcommit/pushして範囲を固定する。remote commit `b5613f6675de581eb2984309d19a52d976c423ac`をreadback済み。
+2. [x] consulting-pptx-skillとprogrammatic-seoをactive Codex skill storeへ導入し、参照ファイルとローカル生成/checkを確認する。HTML/PPTX checkerはtemplate modeでFAIL 0、3ページPDFのrenderと3スライドPPTX変換を確認。PPTXには編集可能text shapesが30個ある。生成物はbundled templateのsmoke testであり、顧客提出版ではない。SEOの2 reference filesと12 playbooksを確認。
+3. [x] iPhone-useの公式install scriptと依存を確認し、plugin/MCPを導入する。version `0.3.10`、MCP initialize成功、17 model toolsを確認。`IPHONE_USE_ANALYTICS=0`を登録し、model settingsが不変であることを確認。pinned WDA sourceのfetchとUSB forwarding依存128 packagesのinstall、既存Anicca main targetのDebug signing teamを使った専用runner設定を完了。doctorはhost dependencies/configuration/selected device/pairing/developer mode/pinned sourceをPASSするが、device connectionはunavailable、service READYはfalse。
+4. [x] 登録済みdaily-driverをleaseしてViewTrackのaccount/onboarding、無料枠、MCP条件を確認する。email OTPでaccount/workspaceを作成し、private SSOTに保存したidentityでlogout後の新規sign-inを確認。live UIは「Choose a plan to get started」とBasic USD 24.99/month・Pro・Ultraのみを提示し、free continuation buttonはない。card・subscription・trialは開始していない。公式clientにはFree 50 accounts/50 videos/refreshesPerDay=0の定義があるが、別bannerに25 refreshes/dayとの記述があるためeffective free allowanceを断定しない。実accountのtrackingはpaid-plan gateで利用不可。
+5. [ ] 実測結果・残条件・AniccaとLife Manager全体への使用方法を本specに記録し、commit/push・main統合後に報告する。ローカル導入は完了、実端末READYとViewTrackの無料trackingは未完・利用不可として残す。
+
+**現在cursor:** item 5（PR #7606の最終証拠更新・main統合）。source専用worktreeは`/Users/anicca/Projects/life-manager-main/.worktrees/free-growth-toolkit-20261011`、branchは`ops/free-growth-toolkit-20261011`、ownerは`codex-free-growth-toolkit`。iPhone 15はpaired・Developer Mode enabledだがconnection unavailableのため、USB接続・ロック解除をユーザーへasyncで依頼済み。実回答まで実端末READYを主張しない。ブラウザleaseは通常guardで取得・解放済み。IPv4の9222は別のdefault Chrome、登録済みCloakBrowserはIPv6の9222であるため、実接続は登録UUIDと一致するendpointを検証して使う。どちらのbrowserも再起動していない。
+
+**ViewTrack MCP:** 公式frontendのAPI_BASEとMCP pageから`https://api-production-263b.up.railway.app/mcp`を確認し、active Codexに`viewtrack` / Streamable HTTPとして登録・readback済み。未認証initializeはHTTP 401 / OAuth resource metadataを返す。CLI登録が自動起動したOAuth flowは、scopeとcredential保存先の確認前に自身のprocessだけ中断しており、MCP authenticationは未完。実accountのpaid-plan gateを無料で迂回しない。MCP登録を利用可能と同一視しない。
+
+**実際に学んだ使用順:** 無料のAnicca獲得には既存SNS metricsとSEOのExamples/Templatesを使い、成功した型を日本語・スペイン語へ展開する。PPTXは既存商品の提案・事例・納品に使う。iPhone-useは接続後にPaywall/notification/localization確認と実演素材へ使う。ViewTrackは現accountで無料trackingが使えないため既存metricsを置き換えない。production runtimeへの自動統合・投稿・SEOページ公開は今回の導入では実施していない。
+
+**ローカル導入receipt:** `/Users/anicca/.local/share/anicca/toolkit-verification/install-receipt.json`。active skillsは`/Users/anicca/.codex-acct2/skills/consulting-pptx-skill`と`/Users/anicca/.codex-acct2/skills/programmatic-seo`。iPhone pluginは`/Users/anicca/.codex-acct2/plugins/cache/iphone-use-local/iphone-use/0.3.10`、runtimeは`/Users/anicca/.local/share/iphone-use`。次turnまたはchat reconnectで新skill/pluginがhostへ読み込まれる。これはinteractive toolの導入でありLife Manager production loopの変更ではない。追加支出はUSD 0。
