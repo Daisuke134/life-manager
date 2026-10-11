@@ -219,9 +219,9 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 
 当面の対象はこの表だけ。下の全社130工程は将来の参照ロードマップであり、いま全社工程へ拡大しない。既存の「cleanup残3大分類」は本表の親分類で、進捗報告はBF-ID単位で完了証拠を示す。毎分watchdog、共通bounded出力/代表自己cleanup、Gig閉鎖物回収/再開、予約expiry順序、scratch通常file誤判定、backup失敗伝播と自然保存/対象claim返却は確認済みで、残項目へ戻さない。
 
-15個の受入atom中BF01/02/03/04/05/05b/06/07/08/09/10/12は完了、残り3。残件は故障確定数ではない。診断で既適用/修正不要と証明した項目はN/Aで閉じ、新しい根本原因は別IDで追加し、黙って同じ大分類へ戻さない。BF09は未知effectのblind解除ではなく照合/復旧routeの稼働確認。個別商品の認証/外部審査/売上目標は基盤完了と分ける。
+15個の受入atom中BF01/02/03/04/05/05b/06/07/08/09/10/12/13は完了、残り2。残件は故障確定数ではない。診断で既適用/修正不要と証明した項目はN/Aで閉じ、新しい根本原因は別IDで追加し、黙って同じ大分類へ戻さない。BF09は未知effectのblind解除ではなく照合/復旧routeの稼働確認。個別商品の認証/外部審査/売上目標は基盤完了と分ける。
 
-残りはBF11・BF13・BF14。必要なCI/自然run待ちは作業枠と分ける。作業枠は所要時間保証ではなく、上限までに結果/残る理由/次手を報告する管理値。初回着手で時間枠を超える時は再見積もりを記録し、必要な安全作業を継続する。9時間で全外部条件/全18成果を保証しない。各IDに開始/終了時刻・実測分・証拠・残差を追記し、30分以下の節目で閉じたIDを報告する。現在cursor=BF11。
+残りはBF11・BF14。必要なCI/自然run待ちは作業枠と分ける。作業枠は所要時間保証ではなく、上限までに結果/残る理由/次手を報告する管理値。初回着手で時間枠を超える時は再見積もりを記録し、必要な安全作業を継続する。9時間で全外部条件/全18成果を保証しない。各IDに開始/終了時刻・実測分・証拠・残差を追記し、30分以下の節目で閉じたIDを報告する。現在cursor=BF11。
 
 | ID | 状態 | 一つの完了対象 | 初回作業枠（分） | 完了を示す証拠 |
 |---|---|---|---|---|
@@ -238,7 +238,7 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 | BF10 | 完了（軽量制御処理の分離） | 資源に余裕があるのに実仕事が止まる配分/fairnessの漏れを一件閉じる | 観測→RED→source→自然確認 | #7661のpool分類だけでは自然capacity_busyが残り、#7662/main afb4680cで既存control経路へ分離。13:10/13:15の同release自然runがpass/exit0、own scratch不在。業務pool/FIFO/cap/他ownerは保持 |
 | BF11 | 現在cursor | 必要な共通修正をまとめてCI/main/immutable/idle対象採用へ反映する | 15–30 | exact head/loaded SHA、active/unknownの保持理由。各sourceの既完は再修正しない |
 | BF12 | 完了（通常producerとcontrolを分けて照合） | 修正対象一件の自然仕事→receipt→自己cleanup→枠返却をjoinする | fresh readback | backup自然run18dd7af5a6d62268-30018/12:57:06Z、修正済みbb5cd283。stdout ok true/398をdest maxdepth2実数398と照合。実claim18dbbb1b85038e50-10698/seq490383はreleased/unknown0、own scratch不在。BF12-backup-fresh-cycle-20261011.json。深いmemoryを含む670件と混同しない |
-| BF13 | 未完 | 次の自然仕事と中央cleanupをjoinし、反復で再悪化しないことを確認する | 15–30 | 複数自然cycle、ENOSPC/記録破損/反復手動掃除なし。全190自然runを新gateにしない |
+| BF13 | 完了（代表的な自然反復の照合） | 次の自然仕事と中央cleanupをjoinし、反復で再悪化しないことを確認する | 自然3 cycles＋複数cleanup receipt | marketing計測14:20のrun18dd7f687a6a0808-6020、YouTube14:19/14:20のrun18dd7f767d342010-8980/18dd7f8538e1cae8-11297は同じoccurrenceのreleased/unknown0・own scratch不在。中央14:15/14:20・watchdog複数receiptはerrors0/protected_deletions0。BF13-ordinary-repeat-claim-cleanup-20261011.json。投稿/売上/全190成功/永久無事故は証明しない |
 | BF14 | 未完 | 開発担当の再利用/増員可否を、対象仕事の実負荷と独立scopeで決める | 5–10 | 既存liveness/leaseとsafe workload。全18業務完了や任意のfree GiBを前提にしない |
 
 **BF04/05の実測とBF06の対象:** `line-sticker-factory-hourly`のentrypoint→`factory.py`→`line_sticker_static.py`→`chatgpt_image_backend.py`→既存ChatGPT CLIを追跡済み。state_rootは`~/.local/state/life-manager/line-sticker`、run scratchは`loop-tmp/line-sticker-factory-hourly/18dd758339884190-32509`。画像生成のprofile snapshotが4個から5個へ増加し、各約244 MiBのfile allocationを持つ。APFS共有ブロックがあり得るので、directory allocationを独立した物理消費と扱わず、同windowのvolume freeと分ける。新規`set-031/candidates`画像・cost記録が増え、runは仕事を進めている。診断stdout/stderrはloaded releaseの`storage_policy.py`/`bounded_output.py`に既存上限が適用される。BF05では診断経路の既適用を確認済み。BF06は既存terminal保存→own scratch削除と試行中profile snapshotの残存を確認する。active profile、原本browser identity、商品素材、cost/receipt JSONLを削除しない。BF04は全host writerの帰属/全run最大/メモリ問題解消を証明しない。
@@ -259,7 +259,7 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 - [x] safety setへ当該IDを1行追加。control/registry関連149 tests/203 subtestsと、queued履歴保持/reserved・unknown拒否の既存2 testsがPASS。
 - [x] #7662 exact head 2c2e6d98のCI全PASS→main afb4680c→immutable 20261011T220802-afb4680c→install event b10d9a410036dd52dd408b9a。13:10:08Z run18dd7bac473c7fc0-54957、13:15:16Z run18dd7bf289274258-62851が自然pass/exit0、scratch不在。native controlは業務claimを取得しない。旧queued observationは既存cancel_effect_free_queued_ownerによりunclaimed/unreserved/unknownなしの場合だけcancelled履歴を保持して回収し、業務work・claimed/unknown/foreignは保持する。元sequenceを消して成功と扱うのではなく、業務queueから独立したprobeへ移行したことを明記する。
 
-**現在の残り順:** BF11→BF13→BF14。BF09は既存復旧の保存証拠を独立にread-only照合して完了した。新たな解除・再送や実装順変更はない。BF12は既存通常producerの修正済み自然証拠をfreshに照合し、完了へ更新した。BF11の今回target採用は完了だが、既存共通修正の残るeligible旧sourceとactive/unknown保持理由の確認を残す。BF12/13はcontrolだけで全業務の枠返却/全host安定を主張せず、既存ordinary producer証拠と中央watchdogも照合する。primary watchdog/中央ownerは両receipt streamを区別して照合する。bound13:40:49Z/13:45:39Z、unbound13:42:09Z/13:52:52Zの自然receiptはerrors0/protected_deletions0。中央singleton busyのexit75は実stdoutのdeferred/cleanup_lock_busyとjoin済みで、全host停止とは扱わない。BF13-natural-recurrence-observations-20261011.jsonに複数観測を保存し、BF13は反映残差を保ったまま未完とする。
+**現在の残り順:** BF11→BF14。BF13は継続中の自然仕事の反復と枠返却/掃除を照合して完了。実装順変更や手動wakeはない。BF09は既存復旧の保存証拠を独立にread-only照合して完了した。新たな解除・再送や実装順変更はない。BF12は既存通常producerの修正済み自然証拠をfreshに照合し、完了へ更新した。BF11の今回target採用は完了だが、既存共通修正の残るeligible旧sourceとactive/unknown保持理由の確認を残す。BF12/13はcontrolだけで全業務の枠返却/全host安定を主張せず、既存ordinary producer証拠と中央watchdogも照合する。primary watchdog/中央ownerは両receipt streamを区別して照合する。bound13:40:49Z/13:45:39Z、unbound13:42:09Z/13:52:52Zの自然receiptはerrors0/protected_deletions0。中央singleton busyのexit75は実stdoutのdeferred/cleanup_lock_busyとjoin済みで、全host停止とは扱わない。BF13-natural-recurrence-observations-20261011.jsonに複数観測を保存し、BF13は後続の自然3 cyclesを追加照合し、代表的反復の受入範囲で完了とする。BF11の反映残差は保持する。
 
 **BF11採用の追加実績/安全境界:** health observerのinstall78d880122da21ccab8f20eccに続き、recovery supervisor/install142b89ee40237c63bb617b3b、lm-fence-reconciler/db49abca01e5439ce4cfb0b1、handoff/8ed10b85ab4f4f13bc3aaad0をafb4680cへ採用。observer/recovery/fenceの自然passを確認。handoffは一度exit69のため、actual helperと本体のlive PIDをsafe printで確認し、停止/強制再実行はしない。自然過程でcurrentは別ownerのmain由来604ffbafへ進んだ。
 
@@ -270,6 +270,10 @@ loaded-idle-onlyには既存自動unknown照合があり、明示keep_alive指�
 **BF09保存証拠の範囲:** marker filenameは内容hashではなくoccurrence文字列のSHA256で、完全一致を確認。既存reconcile_paid_no_effect.pyをresolveなしで実行しtyped proofを復元した。実claimrunは圧縮event archiveのterminalと当時のbindingに照合。LINEの別closeは末尾300文字しか保存されず完全proof joinに不足するため、この完了証拠に流用しない。金融効果の成功/settlementとpre-effect復旧を混同しない。
 
 **BF13の追加自然観測:** 採用後のx402-inflow-watch自然run18dd7df0ed083ac0-12394/604ffbafが13:51:42Z pass0、実occurrence同ID/seq605538 released/unknown0、own scratch不在。Reddit13:45/50/55も自然pass。backupの後続wakeにはcapacity_busyが残るため、これを全job待ち時間ゼロや容量問題の永久解消と扱わない。BF13-next-adopted-owner-cycle-20261011.json参照。
+
+**BF11継続と自然BF13の新証拠:** currentは他の既存ownerのmain由来eea5a355→75d2f4f9へ進む。eea5a355の共通11filesは検証済み604ffbafとbyte一致。self-improve-evolve/install8c4d339f86f1ccf05b2a4431と停止へ戻ったsale observer/aac5169944b0f38513534c61をeea5a355へ採用、quarantine保持。Affiliate composition/4b0ab429c6f6fa3b6347d962とsource refresh/9306cecbdc5f74f67260e9b2はcanonical applyが75d2f4f9を選び採用した（failed0/pre_effect_reconciledなし）。loaded resultの実SHAを正本にし、事前pointerだけを採用SHAと扱わない。前段のf7/ledger/recordingも各loaded argvを保存済み。B11-resume状況では190担当中共通一致111、active保持24、unknown保持36、無関係差分2、delegate2、unloaded1、idle実差分14。後段の採用済みを差し引き、残りをfreshに絞る。BF11-resume-common-content-dispositions-20261011.json参照。
+
+**BF13の完了範囲と残る事実:** 実ownerファイルのPID/heartbeatを読み、実プロセスをpsで確認。その後marketing計測とYouTube2 cyclesが自然終了し、実claimされたoccurrence/seq580769・606166・606178がreleased/unknown0、各own scratch不在をread-onlyで確認。自然cleanupの14:20:40Z receiptはmain由来75d2f4f9、errors0/protected_deletions0でopen/保護descendantを保持する。診断windowで新たなENOSPC・記録破損・反復手動掃除は観測されない。Instagram metricsの別runはexit124、backup/Affiliateのwakeにはcapacity_busyが残る。これを成功へ置換せず、BF11のsource反映/各owner業務診断へ残す。基盤全体Done・投稿成果・全資源待ちゼロ・全18業務Doneを主張しない。
 
 ### 全体のatomic展開と作業時間枠（大分類3件と全体完了を区別する）
 
