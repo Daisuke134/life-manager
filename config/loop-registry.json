@@ -4085,6 +4085,10 @@
       "state_root": "~/.local/state/life-manager/token-daily-report"
     },
     "verify-loops-audit": {
+      "resource_class": "deterministic",
+      "admission_class": "borrow",
+      "priority": "support",
+      "reconcile_queued_release": true,
       "cadence": {
         "start_interval_seconds": 21600
       },
