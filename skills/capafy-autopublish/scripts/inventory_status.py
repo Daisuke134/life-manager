@@ -261,11 +261,11 @@ def load_draft_attempts():
     return {str(k): int(v) for k, v in data.items() if isinstance(v, int)} if isinstance(data, dict) else {}
 
 
-def record_draft_attempt(agent_id, attempts):
+def record_draft_attempt(agent_id, attempts, delta=1):
     """Count one selection of an unfinished draft; after MAX_DRAFT_ATTEMPTS it is left alone."""
     if not agent_id:
         return
-    attempts[agent_id] = attempts.get(agent_id, 0) + 1
+    attempts[agent_id] = max(0, attempts.get(agent_id, 0) + delta)
     path = _draft_attempts_path()
     try:
         os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -275,6 +275,12 @@ def record_draft_attempt(agent_id, attempts):
         os.replace(tmp, path)
     except OSError:
         pass
+
+
+def refund_draft_attempt(agent_id):
+    """Undo one count when the pass never reached the agent (agent_runner rc 75: disk/lease/budget
+    deferral). 2026-10-11: deferred passes exhausted Hook Lab and TikTok's price-restore drafts."""
+    record_draft_attempt(agent_id, load_draft_attempts(), delta=-1)
 
 
 def drop_profitable_updates(updates, path=None, frozen_path=None):
@@ -838,4 +844,7 @@ def main():
 
 
 if __name__ == "__main__":
+    if len(sys.argv) == 3 and sys.argv[1] == "--refund-draft-attempt":
+        refund_draft_attempt(sys.argv[2])
+        sys.exit(0)
     sys.exit(main())

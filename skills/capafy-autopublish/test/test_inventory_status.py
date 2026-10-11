@@ -1015,3 +1015,27 @@ def test_dais_approved_update_ships_even_when_review_slots_are_full(monkeypatch,
     decision = json.loads(capsys.readouterr().out.splitlines()[-1])
     assert decision["action"] == "update_existing", decision
     assert decision["item"]["agent_id"] == "8123079349"
+
+
+def test_refund_draft_attempt_undoes_one_count_and_never_goes_negative(monkeypatch, tmp_path) -> None:
+    """2026-10-11: the CP1 agent was deferred (disk_headroom_low, rc 75) on every pass, yet each pass
+    still charged a draft attempt. Hook Lab and TikTok's Dais-approved price-restore drafts hit
+    MAX_DRAFT_ATTEMPTS without the agent ever running and were dropped from the resume queue."""
+    module = load_module()
+    module.record_draft_attempt("8123079349", module.load_draft_attempts())
+    module.record_draft_attempt("8123079349", module.load_draft_attempts())
+    module.refund_draft_attempt("8123079349")
+    assert module.load_draft_attempts() == {"8123079349": 1}
+    module.refund_draft_attempt("8123079349")
+    module.refund_draft_attempt("8123079349")
+    assert module.load_draft_attempts().get("8123079349", 0) == 0
+
+
+def test_refund_cli_entry(monkeypatch, tmp_path) -> None:
+    import subprocess, sys as _sys
+    module = load_module()
+    module.record_draft_attempt("2844813315", module.load_draft_attempts())
+    proc = subprocess.run([_sys.executable, str(SCRIPT), "--refund-draft-attempt", "2844813315"],
+                          capture_output=True, text=True, timeout=30)
+    assert proc.returncode == 0, proc.stderr
+    assert module.load_draft_attempts().get("2844813315", 0) == 0
