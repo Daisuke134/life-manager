@@ -1821,6 +1821,7 @@ _HISTORICAL_NO_DISPATCH_PROOFS = {
     ("historical_account_bound_no_dispatch", "coconala"): "historical_account_id",
     ("historical_integration_bound_no_dispatch", "postiz"): "historical_integration_id",
     ("historical_writer_gate_stop_no_dispatch", "writer"): "runtime_run_id",
+    ("historical_writer_resume_no_dispatch", "writer"): "runtime_run_id",
 }
 
 

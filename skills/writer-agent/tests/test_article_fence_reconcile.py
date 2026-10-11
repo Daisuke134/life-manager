@@ -597,3 +597,108 @@ def test_start_control_block_rejects_a_segment_that_began_generation(tmp_path, m
                          resolve=True, now=START_BLOCK_QUEUED_AT + 3600,
                          writer_root=writer_root, source_repo=source_repo)
     assert result["status"] == "inconclusive" and called == []
+
+
+# --- article-resume: historical no-dispatch from official readbacks (2026-10-12) ---
+# One claimed+effect_unknown row from 2026-09-29 16:55 UTC deferred every article-resume wake and blocked
+# Writer run 20261011-134916.  Close only when every official destination's newest post and the ledger's
+# newest row predate the fence, at least 7 days later (measured publish lag 25 min-30 h).
+
+RESUME_OCC = "article-resume:18d9d90239bcb040-18058"
+RESUME_QUEUED = datetime(2026, 9, 29, 16, 55, 20, tzinfo=timezone.utc).timestamp()
+RESUME_NOW = RESUME_QUEUED + 13 * 86400
+NOTE_URL = "https://note.com/api/v2/creators/anicca123/contents?kind=note&page=1"
+BUDDHA_URL = "https://aniccabuddha.substack.com/api/v1/posts?limit=3"
+AI2026_URL = "https://aniccaai2026.substack.com/api/v1/posts?limit=3"
+
+
+def _readbacks(note="2026-09-29T11:44:21+09:00", buddha="2026-09-29T02:50:56.362Z",
+               ai2026="2026-09-29T02:57:45.886Z"):
+    payloads = {
+        NOTE_URL: {"data": {"contents": [{"publishAt": "2026-08-08T16:31:34+09:00"},
+                                         {"publishAt": note}]}},
+        BUDDHA_URL: [{"post_date": buddha}, {"post_date": "2026-09-28T13:56:28.205Z"}],
+        AI2026_URL: [{"post_date": ai2026}],
+    }
+    return lambda url: payloads[url]
+
+
+def _resume_ledger(tmp_path, last_ts="2026-09-29T02:57:52.292141Z"):
+    return _articles(tmp_path, [
+        {"run_id": "daily-2026-08-08", "platform": "note", "published": False},   # undated draft row
+        _row("20260929-010128", "2026-09-29T02:44:15.431815Z", "https://note.com/x/n/1"),
+        _row("20260929-010128", last_ts, "https://x.substack.com/p/a", "substack"),
+    ])
+
+
+def _resume(m, tmp_path, *, fetch_json=None, ledger=None, now=RESUME_NOW, resolve=True):
+    calls = []
+
+    def resolver(owner, occurrence, *, no_dispatch_proof, expected_state):
+        calls.append((owner, occurrence, no_dispatch_proof(), expected_state))
+        return True
+
+    result = m.reconcile(RESUME_OCC, queued_at=RESUME_QUEUED, state="claimed",
+                         articles_path=ledger or _resume_ledger(tmp_path),
+                         fetch_json=fetch_json or _readbacks(), resolver=resolver,
+                         resolve=resolve, now=now, writer_root=tmp_path / "writer")
+    return result, calls
+
+
+def test_resume_fence_closes_when_every_readback_and_the_ledger_predate_it(tmp_path):
+    m = _load()
+    result, calls = _resume(m, tmp_path)
+    assert result["status"] == "no_dispatch_proven" and result["closed"] is True
+    owner, occurrence, proof, state = calls[0]
+    assert (owner, occurrence, state) == ("article-resume", RESUME_OCC, "claimed")
+    assert proof["proof_type"] == "historical_writer_resume_no_dispatch"
+    assert proof["provider"] == "writer" and proof["verified"] is True
+    assert proof["runtime_run_id"] == "18d9d90239bcb040-18058"
+    assert proof["readback_newest_post_at"]["note:anicca123"] == "2026-09-29T02:44:21+00:00"
+    receipt = tmp_path / "writer" / "fence-reconciliation" / "article-resume-18d9d90239bcb040-18058.json"
+    assert json.loads(receipt.read_text(encoding="utf-8")) == proof
+
+
+def test_resume_fence_stays_when_any_destination_published_after_it(tmp_path):
+    m = _load()
+    after = "2026-09-30T01:00:00Z"
+    for fetch in (_readbacks(note="2026-09-30T10:00:00+09:00"), _readbacks(buddha=after),
+                  _readbacks(ai2026=after)):
+        result, calls = _resume(m, tmp_path, fetch_json=fetch)
+        assert result["status"] == "inconclusive" and result["closed"] is False and calls == []
+        assert result["reason"].startswith("publication_after_fence:")
+
+
+def test_resume_fence_stays_when_a_readback_fails_or_is_empty(tmp_path):
+    m = _load()
+    good = _readbacks()
+    for broken in (None, [], {"data": {"contents": []}}, [{"post_date": None}], "<html>"):
+        fetch = lambda url, broken=broken: broken if url == AI2026_URL else good(url)
+        result, calls = _resume(m, tmp_path, fetch_json=fetch)
+        assert result["status"] == "inconclusive" and calls == []
+        assert result["reason"] == "readback_failed:substack:aniccaai2026"
+
+
+def test_resume_fence_stays_when_the_ledger_has_a_row_after_it_or_an_undated_tail(tmp_path):
+    m = _load()
+    newer = _resume_ledger(tmp_path, last_ts="2026-09-30T00:00:00Z")
+    result, calls = _resume(m, tmp_path, ledger=newer)
+    assert result["reason"] == "writer_ledger_row_after_fence" and calls == []
+    undated_tail = tmp_path / "tail.jsonl"
+    undated_tail.write_text(newer.read_text().replace("2026-09-30T00:00:00Z", "2026-09-29T00:00:00Z")
+                            + json.dumps({"run_id": "x", "published": False}) + "\n")
+    result, calls = _resume(m, tmp_path, ledger=undated_tail)
+    assert result["status"] == "inconclusive" and calls == []
+
+
+def test_resume_fence_younger_than_seven_days_is_left_alone(tmp_path):
+    m = _load()
+    result, calls = _resume(m, tmp_path, now=RESUME_QUEUED + 6 * 86400)
+    assert result["reason"] == "fence_too_young" and calls == []
+
+
+def test_resume_without_resolve_writes_nothing(tmp_path):
+    m = _load()
+    result, calls = _resume(m, tmp_path, resolve=False)
+    assert result["status"] == "no_dispatch_proven" and result["closed"] is False and calls == []
+    assert not (tmp_path / "writer").exists()

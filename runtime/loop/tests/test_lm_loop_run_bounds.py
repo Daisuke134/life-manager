@@ -4047,9 +4047,10 @@ def test_dispatch_reserved_defers_owner_with_missing_plist(tmp_path):
 
 def test_real_child_receives_sigterm_after_atomic_handoff(tmp_path):
     ready = tmp_path / "ready"
+    terminated = tmp_path / "terminated"
     child = (
         "import pathlib,signal,time,sys; "
-        "signal.signal(signal.SIGTERM, lambda *_: sys.exit(0)); "
+        f"signal.signal(signal.SIGTERM, lambda *_: (pathlib.Path({str(terminated)!r}).write_text('SIGTERM'), sys.exit(0))); "
         f"pathlib.Path({str(ready)!r}).write_text('ready'); time.sleep(60)"
     )
     runner = (
@@ -4064,7 +4065,10 @@ def test_real_child_receives_sigterm_after_atomic_handoff(tmp_path):
         time.sleep(.01)
     assert ready.exists()
     os.kill(process.pid, signal.SIGTERM)
-    assert process.wait(timeout=5) == 0
+    # Child wait can finish first (0) or the controller can defer (75).
+    # The marker proves forwarding, not merely that the wrapper exited.
+    assert process.wait(timeout=5) in (0, 75)
+    assert terminated.read_text() == "SIGTERM"
 
 
 def test_wrapper_sigkill_keeps_effect_child_claim_live(tmp_path, monkeypatch):

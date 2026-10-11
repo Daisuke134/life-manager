@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="MLB Lineup Matchup Brief icon">
+  <rect width="512" height="512" rx="96" fill="#102a43"/>
+  <path d="M256 80 432 256 256 432 80 256Z" fill="none" stroke="#d9e2ec" stroke-width="16" stroke-linejoin="round"/>
+  <path d="M166 169h180M166 256h180M166 343h180" stroke="#f6ad55" stroke-width="18" stroke-linecap="round"/>
+  <circle cx="128" cy="169" r="18" fill="#d9e2ec"/>
+  <circle cx="384" cy="256" r="18" fill="#d9e2ec"/>
+  <circle cx="128" cy="343" r="18" fill="#d9e2ec"/>
+  <circle cx="256" cy="256" r="30" fill="#f6ad55" stroke="#102a43" stroke-width="10"/>
+</svg>
