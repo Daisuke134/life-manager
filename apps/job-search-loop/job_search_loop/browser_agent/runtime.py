@@ -310,10 +310,15 @@ def _safe_observation(observation, checkpoint, remaining_steps: int) -> dict[str
             if (concept.startswith('candidate.') and isinstance(value, str) and len(value) >= 2
                     and re.search(r'name|email|phone|date_of_birth|address_line|street|postal|locality|password|secret|token', concept)):
                 private_values.append(value)
+                if concept == 'candidate.date_of_birth':
+                    born = datetime.fromisoformat(value)
+                    private_values.extend((born.strftime('%m/%d/%Y'), born.strftime('%d/%m/%Y'),
+                        f'{born.month}/{born.day}/{born.year}', f'{born.day}/{born.month}/{born.year}',
+                        born.strftime('%B %d, %Y'), born.strftime('%d %B %Y')))
 
     def safe_text(value):
-        for private in sorted(private_values, key=len, reverse=True):
-            value = value.replace(private, '[private candidate value]')
+        for private in sorted(set(private_values), key=len, reverse=True):
+            value = re.sub(re.escape(private), '[private candidate value]', value, flags=re.IGNORECASE)
         return _redact(value)
 
     controls: list[dict[str, Any]] = []

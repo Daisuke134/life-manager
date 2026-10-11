@@ -21,13 +21,15 @@ class LiveJobObservationTests(unittest.TestCase):
             path.write_text(json.dumps({'schema_version': 1, 'concepts': [
                 {'concept': k, 'value': v} for k, v in private.items()]}))
             observation = Mock(url='https://jobs.ashbyhq.com/fixture/job', title='Fixture role',
-                visible_text='Mandatory: 10 years of experience. US residency required. No sponsorship.\n' + '\n'.join(private.values()),
+                visible_text='Mandatory: 10 years of experience. US residency required. No sponsorship.\n' + '\n'.join(private.values()) + '\nFIXTURE PERSON 04/03/1995',
                 controls=(), validation_text=(), visible_challenges=(), content_sha256='abc')
             with patch.dict(os.environ, {'JOB_SEARCH_CANDIDATE_MEMORY': str(path)}):
                 result = runtime._safe_observation(observation, None, 99)
         text = result.get('visible_text', '')
         self.assertIn('10 years of experience', text)
         self.assertIn('No sponsorship', text)
+        self.assertNotIn('FIXTURE PERSON', text)
+        self.assertNotIn('04/03/1995', text)
         for value in private.values():
             self.assertNotIn(value, text)
 
