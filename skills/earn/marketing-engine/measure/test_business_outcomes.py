@@ -19,6 +19,47 @@ sys.modules[SPEC.name] = outcomes
 SPEC.loader.exec_module(outcomes)
 
 
+class CloudFunnelContractTest(unittest.TestCase):
+    def test_cloud_snapshot_reuses_web_report_and_preserves_unknown_cost(self):
+        report = {"period": {"days": 30}, "subscription": {"grossMrrUsd": 0},
+                  "costs": {"providerActualUsd": None, "netContributionUsd": None}}
+        with mock.patch.object(outcomes, "collect_cloud_funnel", return_value=report) as collect:
+            row = outcomes.collect_snapshot({}, "life-manager-cloud", "2026-10-11")
+        collect.assert_called_once_with({})
+        self.assertEqual(row["sources"]["web_funnel"]["data"], report)
+        self.assertEqual(row["sources"]["web_funnel"]["status"], "available")
+        self.assertNotIn("kdp", row["sources"])
+
+    def test_cloud_report_failure_is_unavailable_not_zero_or_secret(self):
+        with mock.patch.object(outcomes, "collect_cloud_funnel", side_effect=RuntimeError("secret")):
+            row = outcomes.collect_snapshot({}, "life-manager-cloud", "2026-10-11")
+        source = row["sources"]["web_funnel"]
+        self.assertEqual(source["status"], "unavailable")
+        self.assertIsNone(source["data"])
+        self.assertNotIn("secret", json.dumps(row))
+
+    def test_cloud_report_uses_existing_script_with_bounded_subprocess(self):
+        report = {"period": {"days": 30}, "subscription": {"grossMrrUsd": 0}}
+        with mock.patch.object(outcomes.subprocess, "run", return_value=mock.Mock(stdout=json.dumps(report))) as run:
+            self.assertEqual(outcomes.collect_cloud_funnel({"STRIPE_SECRET_KEY": "test-value"}), report)
+        args, kwargs = run.call_args
+        self.assertEqual(args[0][0], "node")
+        self.assertEqual(Path(args[0][1]), outcomes.ROOT.parents[2] / "apps/life-manager/scripts/lm-web-funnel-report.js")
+        self.assertEqual(kwargs["timeout"], 120)
+        self.assertTrue(kwargs["check"])
+        self.assertNotIn("test-value", " ".join(args[0]))
+
+    def test_gate_rejects_missing_cloud_readback(self):
+        with mock.patch.object(outcomes, "PRODUCTS", {"life-manager-cloud": {"web_funnel": True}}):
+            with self.assertRaisesRegex(ValueError, "Web funnel unavailable"):
+                outcomes.verify_gate5_snapshots([{
+                    "schema_version": 1, "snapshot_id": "life-manager-cloud:2026-10-11",
+                    "product_id": "life-manager-cloud", "business_date": "2026-10-11",
+                    "sources": {"web_funnel": outcomes.unavailable_source("provider_query_failed")},
+                }], "2026-10-11")
+
+
+
 class RevenueCatContractTest(unittest.TestCase):
     def test_managed_loop_storage_is_outside_the_immutable_release(self):
         state, evidence = outcomes.default_storage_paths({
@@ -487,7 +528,12 @@ class AnalyticsAndSnapshotContractTest(unittest.TestCase):
         rows = []
         for product in outcomes.PRODUCTS:
             sources = {}
-            if "revenuecat_app_id" in outcomes.PRODUCTS[product]:
+            if outcomes.PRODUCTS[product].get("web_funnel"):
+                sources = {"web_funnel": outcomes.available_source({
+                    "period": {"days": 30},
+                    "subscription": {"activeTrials": 0, "activePaidUsers": 0, "grossMrrUsd": 0},
+                })}
+            elif "revenuecat_app_id" in outcomes.PRODUCTS[product]:
                 config = outcomes.PRODUCTS[product]
                 sources = {
                     "revenuecat": outcomes.available_source({
@@ -524,7 +570,7 @@ class AnalyticsAndSnapshotContractTest(unittest.TestCase):
         self.assertTrue(report["gate_pass"])
         self.assertEqual(report["products_verified"], len(outcomes.PRODUCTS))
 
-        rows[0]["sources"]["app_store_connect"]["data"]["reports"]["downloads"]["data"]["installs"] = 9
+        next(row for row in rows if row["product_id"] == "anicca-ios")["sources"]["app_store_connect"]["data"]["reports"]["downloads"]["data"]["installs"] = 9
         with self.assertRaisesRegex(ValueError, "ambiguous installs"):
             outcomes.verify_gate5_snapshots(rows, "2026-07-30")
 

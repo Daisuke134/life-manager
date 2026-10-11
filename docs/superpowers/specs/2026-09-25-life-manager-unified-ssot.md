@@ -13130,6 +13130,10 @@ flowchart LR
 
 **Task10 fresh report readback完了:** 既存main由来reportをRailway production life-callの変数で読み取り実行、exit0。期間は2026-09-11T17:05:31Z–2026-10-11T17:05:31Zの30日。総requestはlanding50/connect25、認証/Calendar/Travel各1はinternal-e2e cohortであり顧客獲得成果へ含めない。writer article cohortはlanding7/connect6/認証0、attributionなしはlanding37/connect13/認証0。Checkout/trial/positive invoice/active paid各0、Stripe-linked gross MRR $0。provider estimate既知$0.12639・unknown1行、actual/hosting/marketing/netはnull。根拠 `cloud-production-funnel-readback-20261012.json`。集計読み取りは完了、費用照合/有料顧客獲得は未完。
 
+**Cloud定期計測のsource修復atom:** 実際のdaily `scheduled_runner metrics → measure/business_outcomes.py`は8 mobile/eBook productsのみでCloudを取得しない。Cloud product manifestだけで定期計測済みとは扱わない。修復範囲は既存collectorにlife-manager-cloudを追加し、既存Node `apps/life-manager/scripts/lm-web-funnel-report.js`をread-only subprocessで再利用、daily runnerのproduct_idsへ追加。Supabase/Stripe keyは値を出さずproduction life-callとの一致を確認済み。独自金融計算/API adapter/新ownerを作らない。取得失敗はunavailable/null、reportのperiod/attribution/cost unknownを保持する。最小RED→GREEN→CI/main→既存daily ownerのmain release採用→自然snapshotのCloud sourceを確認する。Gate5のproduct scope検証もCloud reportへ対応し、eBook/mobileの検証を弱めない。Composio browser BUSY待ちの間に実行する独立source修復で、固定費確認や収益Doneの代替ではない。
+
+**Cloud source acceptance:** collectorは既存reportのbounded subprocess（120秒、shellなし）を再利用。Cloud regressionは変更前3件errorで入口欠落を確認し、変更後business-outcomes31件と既存scheduler10件PASS。sparse欠落entrypointのみ復元し再実行PASS。実production credentialのread-only source probeもavailable、activeTrials/activePaidUsers/grossMrrUsd=0、actual/hosting/marketing/net=nullを維持（`cloud-business-collector-source-probe-20261012.json`）。これは未merge sourceのprobeで、daily production owner採用・自然snapshotは未完。
+
 **残るatomic順:** (1) Composioの公式fixed-feeと期間帰属を確認し、usage $0を総費用$0と扱わない → (2) 既存public CTAの同一tab/auth-start handoffを対象限定で確認し、desktop/mobileの未確認範囲を閉じる → (3) 既存Cloud marketing owner/adapterでUTM付き集客とfunnelを継続運用 → (4) Photon Japan pairing/reply/line-fitの既存TODO → (5) Stripe公式paid subscription/invoiceでCloud $10K gross MRRを確認。全社$10M/月はその先の会社目標であり、このreadbackでは未達。価格・7日カード必須trial・既存Google sessionのみ・live自己決済禁止を維持する。
 
 ### 2026-10-10 21:04 JST — eBook factory verified state and handover cursor
