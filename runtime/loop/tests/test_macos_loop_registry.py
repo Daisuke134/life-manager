@@ -1114,6 +1114,9 @@ class MacosLoopRegistryTest(unittest.TestCase):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         row = registry["loops"]["marketing-metrics-daily"]
         self.assertEqual(row.get("resource_class"), "deterministic")
+        self.assertEqual(row.get("admission_class"), "borrow")
+        self.assertEqual(row.get("priority"), "support")
+        self.assertIs(row.get("reconcile_queued_release"), True)
         self.assertEqual(row["adapter"], "python")
         self.assertEqual(row["command"], ["metrics"])
         self.assertEqual(
