@@ -14011,8 +14011,3 @@ Known damage to repair: drafts 2576591785 / 5356015232 (under_review) and 983649
 **実測replayの修復atom（item 3優先）:** 「将来distinct slotのみ」の運用判断だけでは自然catch-upを防げなかった。カードYouTubeのslot `2026-10-11T05:15:00.000Z`、同creative/video shaに対し旧captionで`iEDdaIWdwY4`、新captionで`saFt6goOs_g`が公式Postiz/公開YouTube/配布ledgerに存在する。手動再送/clearは0だが自然実行で実duplicateが発生。現在cursorをprofile編集待ち→同slot再送防止の最小source修正→main/release/自然readback→profileへ変更する（理由: CTA更新による投稿重複の実害）。既存marketing ledgerのjob input refsでtenant/product/format/locale/platform/slot/正確なintegrationを照合し、別captionの既存jobがあれば新jobをenqueueしない。公式reconciled receiptなら既存public URLを再利用、未解決jobならholdしfence/receipt/stateを変更しない。同一jobの通常再試行、別account、将来slotを維持する。captionをeffect identityから除く互換変更は行わない。所有へmarketing-local-ledger.js/testとhonne-ja-cycle.js/testを追加する。最小RED→GREEN、fresh read-only review、contract/CI/main/release採用を確認し、duplicateを黙って削除しない。
 
 **同slot replay修正のsource受入:** 先行確認だけのraceとprior receipt artifact不一致を追加2 REDで確認し、enqueueの既存lock内でも同scope別jobをappendせず返す最小修正、prior jobのform/creative/video/caption全refs照合を追加。関連52 tests PASS、contract190/errors0、source-boundary/diff check PASS、独立read-only再レビューship。実本番job/receiptへのread-only probeは`created=false/reused_prior_slot=true`と元URL`iEDdaIWdwY4`を返した（enqueue/claim/provider/state mutation=0）。sourceの防止確認でありloaded/自然再発防止は未確認。本番duplicateは削除せず保持。source PR #7625のscopeを実害の防止とreceipt更新へ統一する。
-
-
-
-
-
