@@ -1,3 +1,4 @@
+import errno
 import gzip
 import json
 import os
@@ -50,12 +51,71 @@ class RuntimeEventTest(unittest.TestCase):
             self.assertEqual(path.stat().st_mode & 0o777, 0o600)
             self.assertEqual(len(path.read_text().splitlines()), 1)
 
+    def test_short_writes_complete_one_valid_event_and_replay_zero(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "events.jsonl"
+            real_write = os.write
+            with mock.patch.object(runtime_event.os, "write", side_effect=lambda fd, data: real_write(fd, data[:7])):
+                append_runtime_event(path, BASE)
+            self.assertEqual(json.loads(path.read_text()), BASE)
+            before = path.read_bytes()
+            append_runtime_event(path, BASE)
+            self.assertEqual(path.read_bytes(), before)
+
+    def test_partial_write_failure_preserves_previous_rows_and_allows_retry(self):
+        for failure in ("enospc", "zero"):
+            with self.subTest(failure=failure), tempfile.TemporaryDirectory() as directory:
+                path = Path(directory) / "events.jsonl"
+                append_runtime_event(path, BASE)
+                before = path.read_bytes()
+                event = {**BASE, "event_id": "c" * 24}
+                real_write = os.write
+                calls = 0
+                def failing_write(fd, data):
+                    nonlocal calls
+                    calls += 1
+                    if calls == 1:
+                        return real_write(fd, data[:7])
+                    if failure == "enospc":
+                        raise OSError(errno.ENOSPC, "fixture full")
+                    return 0
+                with mock.patch.object(runtime_event.os, "write", side_effect=failing_write):
+                    with self.assertRaises(OSError):
+                        append_runtime_event(path, event)
+                self.assertEqual(path.read_bytes(), before)
+                append_runtime_event(path, event)
+                self.assertEqual([json.loads(x)["event_id"] for x in path.read_text().splitlines()],
+                                 [BASE["event_id"], event["event_id"]])
+
+    def test_fsync_failure_keeps_the_complete_record_for_reconciliation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "events.jsonl"
+            with mock.patch.object(runtime_event.os, "fsync", side_effect=OSError(errno.EIO, "fixture sync failure")):
+                with self.assertRaises(OSError):
+                    append_runtime_event(path, BASE)
+                # A duplicate retry must not acknowledge durability while fsync still fails.
+                with self.assertRaises(OSError):
+                    append_runtime_event(path, BASE)
+            self.assertEqual(json.loads(path.read_text()), BASE)
+
     def test_same_event_id_is_idempotent(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "events.jsonl"
             append_runtime_event(path, BASE)
             append_runtime_event(path, BASE)
             self.assertEqual(len(path.read_text().splitlines()), 1)
+
+    def test_same_event_replay_does_not_rotate_an_oversized_active_journal(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "events.jsonl"
+            append_runtime_event(path, BASE)
+            before = path.read_bytes()
+            real_rotate = runtime_event.rotate_jsonl_locked
+            with mock.patch.object(runtime_event, "rotate_jsonl_locked",
+                                   side_effect=lambda fd, p: real_rotate(fd, p, max_bytes=1)):
+                append_runtime_event(path, BASE)
+            self.assertEqual(path.read_bytes(), before)
+            self.assertEqual(list(path.parent.glob("events-*.jsonl.gz")), [])
 
     def test_duplicate_scan_parses_only_matching_candidate_rows(self):
         with tempfile.TemporaryDirectory() as directory:
