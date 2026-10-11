@@ -13709,3 +13709,25 @@ This checkpoint supersedes the 08:47 snapshot. The latest release cleanup remain
 7. Apple settlement/refunds/feesとactual costsを同期間で照合し、Anicca USD 10,000 net MRRを証明してからfactoryへ展開する。
 
 **現在cursor:** metrics-owner occurrence-scope差分のcommit/PR。new occurrenceが通っても旧Telegram effect_unknownは解決済みと扱わない。
+
+### 2026-10-11 10:54 JST — PR #7588のCI失敗と現行runtimeを再readback
+
+このcheckpointは10:46の記録を更新する。`git fetch origin`、PR check、loaded owner、release pathを再取得した。投稿数とapp指標はそれぞれ最後に取得できた時刻を明記し、今回未再取得の値を現在値とは扱わない。
+
+- **Git / CI:** `origin/main=899ddafe2191e6e0558b73b8803f0a0992eeb346`。branch `docs/mobile-growth-postmerge-20261011`、HEADとupstreamは`f76c39b3b65cc688f8c30ecf80380b7707527514`。PR #7588はOPEN、未merge。`Loop control contracts`が862件中1件failureで、`runtime/loop/tests/test_macos_loop_registry.py::test_production_render_matches_byte_stable_fixture`が`runtime/loop/tests/fixtures/macos-loop-jobs.json`とのbyte比較に失敗した。実際のrenderer出力には2 metrics loopの`admission_effect_scope: occurrence`があり、fixtureには無い。これはfixture未更新との診断で、次の修正はfixtureと生成出力を揃えること。Python syntax/unittest、shell、security・PII等の他checkはPASS。CodeRabbitはmanual review必須としてskip。独立review/subagentはユーザー指示どおり起動していない。PR sourceはmain/productionに未反映。
+- **Production release / distribution owners (10:53 JST):** `/Users/anicca/loops/current`はimmutable release `20261011T101349-98f93e27`、SHA `98f93e272489db9a17f6e0d9df897bb5e2beb853`。disk availableは4,864,864 KiB、volume 98%。18 publisher lanes中17が98f、`life-manager-anicca-en-widget-instagram`だけ旧49af。`life-manager-anicca-ja-widget-instagram`と`life-manager-anicca-main-instagram`は98fでloaded-idleだが、直近terminalが`entrypoint_exit_1`、`effect_status=unknown`、`next_action=official_readback_required`。他のlaneのloaded SHAが最新であることだけでは当日投稿の成功を証明しない。手動restart/applyはしない。
+- **Metrics owners (10:53 JST):** `life-manager-instagram-metrics`は旧SHA `9a76dcc87dfe2e24958ef19f6a69f871df4dbef1`、`life-manager-tiktok-metrics`は98f。両方とも`host_admission_deferred:resource_effect_unknown`でloaded-idle。Sep 27/30の古いTelegram送信effectは未確定のまま保持する。新しいoccurrence-scope sourceはPR #7588にあり、このreadbackでは未反映。
+- **Postiz (last official GET 10:37 JST; not refreshed at 10:54):** 28/54 configured daily slots were `PUBLISHED`, each with a direct URL。18 first slots中17が成功し、`@anicca.he`は0。5アカウントの3投稿burstも観測された。10:38の新規post metrics応答は全項目0だったが、長期累積値ではない。28件を当日durable metrics snapshotへ結ぶcoverageは0、snapshot treeの最新`observed_at`は9/30 10:20 JST。従って3回/日達成、当日metrics保存、Telegram receipt配信の証明は未完了。
+- **Acquisition / revenue / app UX (last source snapshot 10/11 02:27 JST; not refreshed here):** RevenueCatの最新complete period 10/9でAnicca subscription MRRはUSD 20.34。他5アプリのchart値はUSD 0.00だがsettled netではない。ASC processingDate 10/10はOct 8–9まででAnicca first-time downloads 2、Honne 4、他4アプリは`no_instances`。Mixpanel/AniccaのOct 10値は`app_opened=6`、`onboarding_started=1`、`onboarding_step_advanced=1`、`paywall_primer_viewed=5`のevent数であり、人数・conversion率ではない。他5アプリのfunnelは未確認。USD 10,000 net MRRは未達・未確認。Paywallのplan-load errorとnotification tap後に同じquoteが出ない問題も未解決。
+
+**残TODO（この順序）:**
+
+1. PR #7588のfixture failureを修正対象として引き継ぐ。`macos-loop-jobs.json`を現在のrenderer出力に合わせ、失敗test単体→`python3 -m unittest discover -s runtime/loop/tests -p 'test_*.py'`を実行する。PR exact-head CIをPASSさせてからmainへmergeする。
+2. main由来のimmutable releaseを標準経路で作り、通常reconciler/owner admissionだけで2 metrics ownerと18 publisher laneを適用する。古い49af laneと2件のInstagram `entrypoint_exit_1`はowner/providerの公式readbackで個別解決し、no-effectを確認できたoccurrenceだけ通常ownerで回復する。
+3. 新releaseからmetrics ownerの新occurrenceを実行し、既存Sep 27/30 `effect_unknown`を保持する。同一Postiz post IDのsnapshot、direct URL、Telegram `message_id` receiptを結び、同じsnapshotの再送が0件であることを確認する。
+4. Postiz公式readbackを更新し、18 laneそれぞれがJST日ごとに3つの異なるconfigured slotを`PUBLISHED`とpermalinkで満たす。保存済みbackground/image assetsを再利用し、生成APIは投稿ごとに呼ばない。実装や分析をslot時刻待ちで止めず、natural evidenceは到来とともに積む。完了証拠は54/54・replay-zeroを7 JST日連続。
+5. 6アプリのASC（impressions/product-page views/first-time downloads）、RevenueCat（trial/subscriber/subscription MRR）、Mixpanel（install→onboarding→paywall）をfresh period/cohortで取得し、欠測を0にしない。post/campaign→click/store visit→first-time downloadの既存attributionも結ぶ。まずAniccaでASC first-time downloadsを7日平均100/日にし、その後承認済み他appへ展開する。
+6. Aniccaのpaywall plan-loadとnotification→same-quoteを実端末状態で再現・修正し、source changeがある場合だけ新iOS versionを出す。測定後にASO/store display、onboarding/paywall/UXを一変数ずつ改善する。
+7. Apple settled proceeds/refunds/feesとactual costsを同期間で照合し、Anicca USD 10,000 verified net recurring MRRを確認してから他app/mobile factoryへ広げる。
+
+**現在cursor:** PR #7588のbyte-stable fixture failure。直す対象はfixtureで、現在のscope実装はmainにもproductionにも入っていない。投稿の最新公式readbackは10:37、app/source metricsの最新記録は02:27 JSTで、いずれもこのcheckpoint時点のfresh値ではない。
