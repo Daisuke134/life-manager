@@ -118,6 +118,17 @@ class PromptFailClosedTest(unittest.TestCase):
             f"regression: real prompt never launched provider. stderr={proc.stderr}",
         )
 
+    def test_disk_deferral_records_explicit_no_provider_proof(self):
+        proc, evidence = self.run_runner("Return the bounded contract JSON only.\n", free_bytes=0)
+        self.assertEqual(proc.returncode, 75)
+        self.assertFalse(self.marker.exists())
+        proof = json.loads((evidence / "summary.json").read_text())
+        self.assertEqual(proof["status"], "provider_deferred")
+        self.assertEqual(proof["attempt_count"], 0)
+        self.assertIs(proof["provider_started"], False)
+        self.assertEqual(proof["evidence_dir"], str(evidence.resolve()))
+        self.assertFalse((evidence / "attempts.jsonl").exists())
+
     def test_low_or_unknown_disk_defers_before_provider_home_evidence_or_lease(self):
         for free_bytes in (0, 2 * 1024**3 - 1, None):
             with self.subTest(free_bytes=free_bytes):

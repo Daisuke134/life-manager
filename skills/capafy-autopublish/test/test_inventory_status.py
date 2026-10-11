@@ -1030,3 +1030,27 @@ def test_a_deferred_cp1_agent_does_not_spend_a_draft_attempt(monkeypatch, tmp_pa
     module.refund_draft_attempt("7686597754")
     module.refund_draft_attempt("7686597754")
     assert module.load_draft_attempts() == {}
+
+
+def test_refund_requires_explicit_current_deferral_and_is_replay_zero(tmp_path):
+    module = load_module()
+    agent_id = "test-draft"
+    module.record_draft_attempt(agent_id, {})
+    evidence = tmp_path / "deferral"
+    evidence.mkdir()
+    proof = {"version": 1, "status": "provider_deferred", "attempt_count": 0,
+             "provider_started": False, "loop": "capafy", "task_label": "capafy-drainer",
+             "evidence_dir": str(evidence.resolve())}
+    summary = evidence / "summary.json"
+    for payload in ({}, {**proof, "attempt_count": 1}, {**proof, "provider_started": None},
+                    {**proof, "evidence_dir": str(tmp_path / "old-run")},
+                    {**proof, "status": "budget_blocked"}):
+        summary.write_text(json.dumps(payload))
+        assert module.refund_draft_attempt(agent_id, evidence) is False
+        assert module.load_draft_attempts()[agent_id] == 1
+    summary.write_text(json.dumps(proof))
+    assert module.refund_draft_attempt(agent_id, evidence) is True
+    assert agent_id not in module.load_draft_attempts()
+    module.record_draft_attempt(agent_id, {})
+    assert module.refund_draft_attempt(agent_id, evidence) is False
+    assert module.load_draft_attempts()[agent_id] == 1
