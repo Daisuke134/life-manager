@@ -25,7 +25,7 @@ from .state import canonical_url, is_excluded_employer
 
 
 ROLE_RE = re.compile(
-    r"ai|agent|machine learning|\bml\b|solutions|technical|customer success|"
+    r"ai|agent|machine learning|\bml\b|simulation|solutions|technical|customer success|"
     r"product|partnership|sales engineer|professional services|ecosystem sales|forward deployed",
     re.IGNORECASE,
 )

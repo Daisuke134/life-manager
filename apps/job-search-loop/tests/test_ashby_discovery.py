@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from job_search_loop.ashby_discovery import discover_one
+from job_search_loop.ashby_discovery import _board_slugs, _candidate_jobs, discover_one
 
 
 class AshbyDiscoveryTests(unittest.TestCase):
@@ -30,6 +30,23 @@ class AshbyDiscoveryTests(unittest.TestCase):
         return {'ats': 'ashby', 'company': company, 'title': 'Solutions Engineer',
                 'url': f'https://jobs.ashbyhq.com/{company}/{identity}', 'location': location,
                 'description': 'Official current posting', 'isListed': True}
+
+    def test_simulation_role_titles_seed_and_enter_live_candidate_shortlist(self):
+        simulation_company = self.job('SimulationCo', 'simulation-role', 'New York City')
+        simulation_company['title'] = 'Software Engineer, Simulation'
+        simulation_company['url'] = 'https://jobs.ashbyhq.com/simulationco/simulation-role'
+        research_company = self.job('ResearchCo', 'population-simulation', 'San Francisco')
+        research_company['title'] = 'Researcher, Population Simulation'
+        research_company['url'] = 'https://jobs.ashbyhq.com/researchco/population-simulation'
+
+        self.assertEqual(
+            _board_slugs([simulation_company, research_company]),
+            [('researchco', 'ResearchCo'), ('simulationco', 'SimulationCo')],
+        )
+        self.assertEqual(
+            [row['company'] for row in _candidate_jobs([simulation_company, research_company], set(), set())],
+            ['SimulationCo', 'ResearchCo'],
+        )
 
     def test_failed_live_board_never_admits_cached_posting(self):
         with tempfile.TemporaryDirectory() as tmp:
