@@ -306,18 +306,22 @@ def release_capacity_bytes(repo: Path, sha: str, loops: Path, node: str, npm: st
     if block <= 0:
         raise ValueError("filesystem allocation unknown")
     rounded = lambda size: ((size + block - 1) // block) * block
-    # No clone savings assumed: source plus temporary copies, bytecode plus atomic writes.
+    # No clone savings assumed: one full export and one serial file temporary.
+    # Bytecode retains its conservative allocation plus atomic-write budget.
     budget = 64 * 1024**2
+    largest_temporary = 0
     with subprocess.Popen(["git","-C",str(repo),"archive","--format=tar",sha],stdout=subprocess.PIPE) as archive:
         with tarfile.open(fileobj=archive.stdout,mode="r|") as entries:
             for entry in entries:
-                budget += block + 2 * rounded(entry.size)
+                allocation = rounded(entry.size)
+                budget += block + allocation
+                largest_temporary = max(largest_temporary, allocation)
                 if entry.isfile() and entry.name.startswith("runtime/") and entry.name.endswith(".py"):
                     code = compile(entries.extractfile(entry).read(),entry.name,"exec")
                     budget += 2 * (block + rounded(16 + len(marshal.dumps(code))))
         if archive.wait() != 0:
             raise ValueError("Git export measurement failed")
-    return budget
+    return budget + largest_temporary
 
 
 def main(argv: Sequence[str] | None = None) -> int:
