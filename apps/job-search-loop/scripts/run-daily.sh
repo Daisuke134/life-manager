@@ -41,6 +41,21 @@ chmod 700 \
   "$BROWSER_SCRATCH" \
   "$JOB_SEARCH_STATE_ROOT/logs"
 export PYTHONPATH="$JOB_SEARCH_APP_ROOT"
+# Dreamwork native Autopilot owns submissions when it is application-ready.
+# The same scheduled owner falls back only when native work is provably absent.
+set +e
+"$JOB_SEARCH_PYTHON" -m job_search_loop.dreamwork_native \
+  --profile "$JOB_SEARCH_PROFILE" \
+  --state-root "$JOB_SEARCH_STATE_ROOT" \
+  --output "$EVIDENCE/dreamwork-readback.json"
+DREAMWORK_RC=$?
+set -e
+if [[ "$DREAMWORK_RC" -eq 0 ]]; then
+  exit 0
+fi
+if [[ "$DREAMWORK_RC" -ne 69 ]]; then
+  exit "$DREAMWORK_RC"
+fi
 export JOB_SEARCH_BROWSER_OWNER_EVIDENCE="$EVIDENCE/browser-owner.json"
 export JOB_SEARCH_BROWSER_STATE_ROOT="$BROWSER_STATE"
 export JOB_SEARCH_BROWSER_SCRATCH="$BROWSER_SCRATCH"
