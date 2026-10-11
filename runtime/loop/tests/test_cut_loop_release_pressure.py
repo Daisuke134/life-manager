@@ -103,6 +103,23 @@ class CutLoopReleasePressureTest(unittest.TestCase):
             (bundle / ".complete").write_text(key + "\n")
             (bundle / ".complete").chmod(0o444)
             bundle.chmod(0o555)
+            # Only one clone temporary exists at a time; the full export is never copied twice.
+            for index in range(5):
+                (repo / f"serial-{index}.bin").write_bytes(b"x" * (4 * 1024**2))
+            subprocess.run(["git", "add", "."], cwd=repo, check=True)
+            subprocess.run(["git", "commit", "-m", "serial source fixture"], cwd=repo,
+                           check=True, capture_output=True)
+            subprocess.run(["git", "update-ref", "refs/remotes/origin/main", "HEAD"], cwd=repo, check=True)
+            (probe / "sitecustomize.py").write_text(
+                "import shutil,types\nshutil.disk_usage=lambda p: types.SimpleNamespace(free=96*1024**2)\n")
+            result, _ = self.run_cut(repo, home, "", LOOPS_ACTIVATE_CURRENT="0", PYTHONPATH=str(probe),
+                NPM_NODE_VERSION="v-test", NPM_VERSION="test", LOOPS_RUNTIME_PYTHON=sys.executable)
+            self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+            newest = next(p for p in (loops / "releases").iterdir()
+                          if (p / "serial-4.bin").is_file())
+            self.assertEqual((newest / "serial-4.bin").stat().st_size, 4 * 1024**2)
+            self.assertLess(json.loads((newest / "RELEASE.json").read_text())["capacity_required_bytes"],
+                            96 * 1024**2)
             # Dependency changes require the ordinary budget before extraction.
             (repo / "package.json").write_text("{}")
             (repo / "package-lock.json").write_text("{}")
@@ -111,7 +128,7 @@ class CutLoopReleasePressureTest(unittest.TestCase):
             subprocess.run(["git","update-ref","refs/remotes/origin/main","HEAD"],cwd=repo,check=True)
             result, _ = self.run_cut(repo, home, "", LOOPS_ACTIVATE_CURRENT="0", PYTHONPATH=str(probe), NPM_NODE_VERSION="v-test", NPM_VERSION="test", LOOPS_RUNTIME_PYTHON=sys.executable)
             self.assertEqual(result.returncode,75,result.stderr + result.stdout)
-            self.assertEqual(len(list((loops / "releases").iterdir())),2)
+            self.assertEqual(len(list((loops / "releases").iterdir())),3)
 
     def run_cut(self, repo: Path, home: Path, paths: str, **extra_env: str):
         pressure = home / ".local" / "state" / "life-manager" / "state" / "disk-pressure.block"
