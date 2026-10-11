@@ -58,6 +58,7 @@ if [[ "$DREAMWORK_RC" -ne 69 ]]; then
 fi
 export JOB_SEARCH_BROWSER_OWNER_EVIDENCE="$EVIDENCE/browser-owner.json"
 export JOB_SEARCH_BROWSER_STATE_ROOT="$BROWSER_STATE"
+export JOB_SEARCH_REQUIRE_TAILORED_RESUME=1
 export JOB_SEARCH_BROWSER_SCRATCH="$BROWSER_SCRATCH"
 "$JOB_SEARCH_PYTHON" -m job_search_loop.application_reporting deliver \
   --ledger "$JOB_SEARCH_STATE_ROOT/ledger.sqlite3" \

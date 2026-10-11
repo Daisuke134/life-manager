@@ -74,7 +74,12 @@ if sys.argv[1:3] and sys.argv[1] == "-m" and "--output" in sys.argv:
     output = pathlib.Path(sys.argv[sys.argv.index("--output") + 1])
     output.parent.mkdir(parents=True, exist_ok=True)
     value = {}
-    if module == "job_search_loop.ashby_fast_path":
+    if module == "job_search_loop.dreamwork_native":
+        output.write_text(json.dumps({"status": "not_configured"}) + "\\n", encoding="utf-8")
+        raise SystemExit(69)
+    if module == "job_search_loop.workday_search_loop":
+        value = {"status": "no_work", "deficit": 48, "queued_application_ids": []}
+    elif module == "job_search_loop.ashby_fast_path":
         value = {"status": "no_work", "processed": [], "excluded": []}
     elif module == "job_search_loop.ashby_discovery":
         value = {"status": "completed", "discovered": []}

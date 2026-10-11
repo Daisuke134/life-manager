@@ -30,6 +30,8 @@ def verify_final_review(
         raise RuntimeError("final review URL does not match the application")
     if resume.resume_sha256 != expected_resume_sha256:
         raise RuntimeError("final review resume does not match routed material")
+    if resume.filename_visible is not True:
+        raise RuntimeError("routed resume filename is absent from final review")
     if resume.mismatched_labels:
         raise RuntimeError("parsed fields still differ at final review")
     identity_surface = f"{observation.title}\n{observation.visible_text}"
