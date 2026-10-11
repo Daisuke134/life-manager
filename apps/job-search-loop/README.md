@@ -247,3 +247,10 @@ and hashed private logs. Submission follows
 | Promotion gate | Baseline stays active until both arms have at least 10 resolved applications and the candidate Wilson 95% lower bound exceeds the baseline upper bound; safety violations or three consecutive candidate failures roll back immediately |
 | Self-healing | launchd restarts, browser ownership evidence, multi-provider discovery, fenced side effects, bounded recovery and content-addressed report correction |
 | Not yet complete | Guardian remediation, lifecycle closure, real confirmed Ashby/Workday and learning-conversion samples, `summary.v2`, and Life Manager Career UI |
+
+Ashby discovery shares the scheduled acquisition owner and browser model with
+Workday. The existing ATS cache seeds official board identities; only fresh API
+postings enter the queue. Private company exclusions and prior-effect fences stay
+in force. The browser model evaluates the live mandatory requirements and location
+against approved facts before submitting. The preferred provider alternates on the
+existing 30-minute cadence; both use the same company-bound PDF and final review.

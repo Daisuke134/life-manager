@@ -122,6 +122,8 @@ raise SystemExit(0)
             "JOB_SEARCH_TELEGRAM_MEDIA": str(root / "media"),
             "JOB_SEARCH_DISK_GUARD": str(fake_disk_guard),
         }
+        (root / "state").mkdir(exist_ok=True)
+        (root / "state" / "official-ats-board-cache.v1.json").write_text('{"jobs": []}')
         result = subprocess.run(
             ["/bin/zsh", str(APP_ROOT / "scripts" / "run-daily.sh")],
             check=False,
@@ -134,6 +136,18 @@ raise SystemExit(0)
             for line in calls.read_text(encoding="utf-8").splitlines()
         ]
         return result, recorded
+
+    def test_daily_discovers_live_ashby_before_one_shared_application_owner(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result, calls = self._run_daily_with_fake_python(Path(tmp), 0, 99)
+        self.assertEqual(result.returncode, 99, result.stderr)
+        discovery = [i for i, call in enumerate(calls) if call[:2] == ["-m", "job_search_loop.ashby_discovery"]]
+        owner = [i for i, call in enumerate(calls) if call[:2] == ["-m", "job_search_loop.browser_agent.orchestrator"]]
+        self.assertEqual(len(discovery), 1)
+        self.assertEqual(len(owner), 1)
+        self.assertLess(discovery[0], owner[0])
+        self.assertEqual(calls[owner[0]][-2:], ["--active-provider", "all"])
+        self.assertNotIn("job_search_loop.ashby_fast_path", json.dumps(calls))
 
     def test_daily_runs_even_when_prior_slots_exist(self):
         with tempfile.TemporaryDirectory() as tmp:

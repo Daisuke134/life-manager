@@ -59,7 +59,7 @@ class LeverDiscoveryTests(unittest.TestCase):
     def test_daily_owner_discovers_lever_before_shared_model_lane(self):
         script = (Path(__file__).resolve().parents[1] / "scripts/run-daily.sh").read_text()
         self.assertNotIn("-m job_search_loop.lever_discovery", script)
-        self.assertIn("--active-provider workday", script)
+        self.assertIn("--active-provider all", script)
 
 
 if __name__ == "__main__":
