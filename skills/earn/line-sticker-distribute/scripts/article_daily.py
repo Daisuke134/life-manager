@@ -6,9 +6,10 @@ sell loop publishes there through the same free-article publisher capafy-distrib
 new set with a short post of the character, the everyday scenes it fits and the store link; the
 model writes that copy, code owns the slug, the single store link, the PII gate and the ledger.
 
-Date-gated and best-effort like engagement_daily.py: runs in the JST 12:00 hour only (between the
-11:15 and 13:15 reel slots and Capafy's 10:15/13:15 article slots on the same landing checkout),
-at most MAX_ATTEMPTS per day, and never blocks the reel pass that follows it.
+Slot-gated and best-effort like engagement_daily.py: one article per PUBLISH_HOURS slot (JST; not
+10/13, when Capafy publishes to the same landing checkout), at most MAX_ATTEMPTS per slot, never
+blocking the reel pass that follows it. Sets that have no article yet are written first (Dais
+2026-10-11: distribute beyond Instagram/Threads; each on-sale set gets its own searchable page).
 """
 from __future__ import annotations
 
@@ -33,15 +34,25 @@ SCHEMA = HERE.parent / "schemas" / "sticker_article.schema.json"
 PUBLISHER = REPO_ROOT / "skills/earn/capafy-marketing/scripts/capafy_free_article.py"
 PII_GATE = REPO_ROOT / "skills/writer-agent/scripts/pii-gate.py"
 JST = ZoneInfo("Asia/Tokyo")
-PUBLISH_HOUR = 12
+PUBLISH_HOURS = (9, 12, 15, 18, 21)
 MAX_ATTEMPTS = 2
 
 
-def due(now: dt.datetime, ledger: dict) -> bool:
+def slot_key(now: dt.datetime) -> str:
     local = now.astimezone(JST)
-    entry = ledger.get(local.date().isoformat(), {})
-    return local.hour == PUBLISH_HOUR and entry.get("status") != "published" \
+    return f"{local.date().isoformat()}@{local.hour:02d}"
+
+
+def due(now: dt.datetime, ledger: dict) -> bool:
+    entry = ledger.get(slot_key(now), {})
+    return now.astimezone(JST).hour in PUBLISH_HOURS and entry.get("status") != "published" \
         and entry.get("attempts", 0) < MAX_ATTEMPTS
+
+
+def pick(sets: list[dict], ledger: dict, seed_key: str) -> dict | None:
+    """An on-sale set without a published article first; once all have one, keep rotating."""
+    covered = {e.get("set_id") for e in ledger.values() if isinstance(e, dict) and e.get("status") == "published"}
+    return choose_set([s for s in sets if s["set_id"] not in covered] or sets, seed_key)
 
 
 def build_markdown(title: str, body: str, store_url: str) -> str:
@@ -93,23 +104,24 @@ def run(now: dt.datetime, sticker_root: Path, state_root: Path) -> dict:
     if not due(now, ledger):
         return {"state": "not_due"}
     date = now.astimezone(JST).date().isoformat()
-    chosen = choose_set(load_on_sale_sets(sticker_root), f"article:{date}")
+    key = slot_key(now)
+    chosen = pick(load_on_sale_sets(sticker_root), ledger, f"article:{key}")
     if chosen is None:
         return {"state": "no_on_sale_set"}
-    entry = {"attempts": ledger.get(date, {}).get("attempts", 0) + 1, "set_id": chosen["set_id"]}
-    ledger[date] = entry
+    entry = {"attempts": ledger.get(key, {}).get("attempts", 0) + 1, "set_id": chosen["set_id"]}
+    ledger[key] = entry
     ledger_path.write_text(json.dumps(ledger, ensure_ascii=False, indent=1))
-    run_dir = state_root / "articles" / date
+    run_dir = state_root / "articles" / key.replace("@", "-")
     run_dir.mkdir(parents=True, exist_ok=True)
     try:
-        article = compose(chosen, state_root, f"line-sticker-article-{date}")
+        article = compose(chosen, state_root, f"line-sticker-article-{key.replace('@', '-')}")
         draft = run_dir / "article-ja.md"
         draft.write_text(build_markdown(article["title"], article["body"], chosen["store_url"]))
         gate = subprocess.run([sys.executable, str(PII_GATE), str(draft)], capture_output=True, text=True)
         if gate.returncode != 0:
             raise RuntimeError(f"pii_gate_blocked: {gate.stdout[-200:]}{gate.stderr[-200:]}")
         result = _publisher().publish(
-            draft_path=draft, slug=f"line-sticker-{chosen['set_id']}-{date}", cta_url=chosen["store_url"],
+            draft_path=draft, slug=f"line-sticker-{chosen['set_id']}-{key.replace('@', '-')}", cta_url=chosen["store_url"],
             landing_root=Path(os.environ["ARTICLE_SELF_OWNED_LANDING_ROOT"]),
             remote=os.environ.get("ARTICLE_SELF_OWNED_REMOTE", "origin"),
             branch=os.environ.get("ARTICLE_SELF_OWNED_BRANCH", "main"),
