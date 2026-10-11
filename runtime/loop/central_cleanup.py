@@ -165,7 +165,7 @@ def scratch_gc(roots: set[Path], *, snapshot_started_ns: int | None = None,
                             run_fd = os.open(run_name, flags, dir_fd=loop_fd)
                             owner_fd = os.open(
                                 ".owner.json", os.O_RDONLY | nofollow, dir_fd=run_fd)
-                        except FileNotFoundError:
+                        except (FileNotFoundError, NotADirectoryError):
                             for descriptor in (owner_fd, run_fd):
                                 if descriptor >= 0:
                                     os.close(descriptor)
