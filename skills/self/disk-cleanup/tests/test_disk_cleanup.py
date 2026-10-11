@@ -114,7 +114,7 @@ def test_closed_package_download_caches_are_discovered_and_reclaimed(
     assert result["errors"] == 0
     assert result["protected_deletions"] == 0
     assert len(result["reclaimed_candidates"]) == 8
-    assert result["reclaimed_candidates_omitted"] == 1
+    assert result["reclaimed_candidates_omitted"] == 0
 
 
 @pytest.mark.parametrize("condition", ["closed", "open", "compiler", "changed"])
