@@ -378,6 +378,9 @@ CLEAN-04 最新残TODO: 定期圧縮の本番接続は確認済みとして残TO
 
 CLEAN-04/05 browser残留のfresh scope: shared default CDP auditはcontext5/lease4/unknown-owner1。job-search-dailyだけnonparked/holderPID55102不存在/Target about:blank1、他3leaseはparkedで保持。物理contextの空き回収は既存repo-owned cdp_context_lease.gc(idle_min=None,max_reaps=1,priority_task=job-search-daily)のledger lock/snapshot/CAS/dispose単一化を使い、confirmed-deadだけを対象にする。ageだけでaliveを閉じず、default profile/unknown context/parked contexts/vault/credentials/実応募証拠/全effect fencesを保持する。まずこの空contextを回収し、既存context GCの定期callerを確認して、終了後の物理作業空間が残る漏れだけ中央ownerへ接続する。新ブラウザ/別identity/ログイン/SDKserver restart/未知ownerclose/送信・応募0。AgentMail旧occurrence18d6295a6e7b03f0-66172は別claiming run18d62d60b728c2b8-72914のpass unknownがあり、canonical pre-effect dryrun claimed_by_other_runを保持し、枠回収対象としない。現在のresources owner5件は各PID/start一致でactive、強制返却0。
 
+CLEAN-04 browser実回収/既存再発経路: shipped cdp_context_lease.gc(idle_min=None,max_reaps=1,priority_task=job-search-daily)でconfirmed-dead/空about:blankの1contextだけ回収。実操作前4→後3（先のaudit5とは別の同時刻snapshot）、job lease不在、parked他3rowの全内容一致、unknown-owner IDs一致、default identity/credential/vault/全effect fence保持を確認。private proof=~/.local/state/life-manager/state/dead-job-browser-context-recovery-20261011.json。git caller readbackでは既存ensure_browser.shのALIVE pathとrecovery path、cdp_context_lease.acquireのpreflightがGCを呼ぶため、別central collector/daemon/frameworkを追加しない。manual清掃を既存guarded GCへ委任する経路は存在し、次の自然browser wakeで同対象の再回収0とactive lease保持を追跡する。AgentMailは別claiming runのlegacy pass unknownを持つ業務HOLDとして公式照合を残し、このrootのcleanup回収成果や容量不足と混同しない。source change0/追加review0/外部送信0。
+
+
 
 
 
