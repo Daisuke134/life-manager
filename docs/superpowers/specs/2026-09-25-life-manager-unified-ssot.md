@@ -13573,3 +13573,28 @@ This checkpoint supersedes the 08:47 snapshot. The latest release cleanup remain
 **Updated remaining TODO:** (1) TDD the shared Postiz creative-score bug: parse string `data[].total`, exclude `percentageChange`, and keep empty/missing analytics pending (not zero) in both `recordCreativeMetrics` and `recordSlidePackMetrics`; run their focused tests; (2) push the source/spec change, pass checks on the exact head, and merge it to main; (3) allow the registered cleanup/cut owners to finish and use only confirmed-closed allowlisted paths; remeasure exact latest-main capacity before another cut; (4) once the guard and locks permit, cut the immutable release, standard-apply it, and read back all 18 publisher owners; (5) keep fences and recover only confirmed pre-effect misses through the normal owner; (6) prove three distinct configured-slot posts per target/day, replay-zero, and 54/54 for seven consecutive JST days; (7) persist and deliver exact per-post metrics/permalinks/Telegram receipts; (8) refresh ASC/RevenueCat/Mixpanel, reach Anicca 100 first-time ASC downloads/day on a trailing 7-day average, then change one measured conversion variable at a time; (9) reconcile Apple settlement/refunds/fees/actual costs and verify USD 10,000 net recurring MRR before scaling.
 
 **Current cursor:** the analytics shape bug is proven by official Postiz responses and source inspection; start with failing tests before production code. In parallel, leave the active cleanup/release owners to their standard cadence and do not delete open caches or claim the release is deployed.
+
+### 2026-10-11 09:28 JST — 再開位置を更新、投稿と計測は未完了
+
+この記録で09:03のcursorを更新する。これはspec/worktree/runtimeのreadbackであり、新しいPostiz投稿API・ASC・RevenueCat・Mixpanelの取得は行っていない。過去の値を現在値として扱わない。
+
+- **Git / 作業状態:** 作業worktreeは`/Users/anicca/Projects/life-manager-main/.worktrees/mobile-growth-release-gc-20261011`、branchは`docs/mobile-growth-postmerge-20261011`。readback時のHEADは`15735fec23fdfd816e2d41f2c43df96a5220e80a`で、`origin/main=49af4f6ad2ca01810677df50bdc0e151f3329764`を含む。`record-creative-metrics.test.js`と`record-slide-pack-metrics.test.js`に未commit差分がある。両テストはPostizの文字列`data[].total`、`percentageChange`除外、空応答をpendingにする期待を追加しているが、今回テストは実行しておらず、REDは未確認。実装ファイルは変更されていない。この2つの差分を消さず、引き継いだ次sessionで先に状態を確認する。
+- **release / 容量:** `/Users/anicca/loops/current`は`20261011T091434-49af4f6a`を指し、`RELEASE.json`のSHAは`49af4f6ad2ca01810677df50bdc0e151f3329764`、`capacity_required_bytes=236,044,288`。09:27 JSTの`df`空きは`202,076 KiB`（volume表示100%）で、そのmanifest量より`28,436 KiB`少ない。旧release上のreconciler PID `67082`とself-handoff helper PID `88311`（lock helper `88334`）が稼働中。最新の保存receiptは`old_service_active_timeout`で成功readbackなしだが、helperはその後も稼働している。全18 publisher ownerが49afをloaded済みとは確認できていない。停止・再起動・手動applyをしない。cleanupは登録ownerに限定し、open/protected pathを削除しない。
+- **Postizの最後の公式観測:** 09:03 JSTのreadでは18件が`PUBLISHED`、12アカウントに投稿があり、18件すべてに直接URLがあった。これは54個の別slot成功ではない。`@anicca.jp`、`@anicca.jp1`、`@anicca_buddha`は各3件が同じ最初のslotに集中し、`@anicca.he`はその時点で0件。18投稿の1日analytics snapshotは795 Views、7 Likesで、comments/sharesは0。現在値ではなく09:03時点の観測であり、投稿ごとのTelegram配信receiptも未確認。したがってTikTokを含む全accountの現在の投稿正常性、3回/日、三回の時刻分散は未達・未確認として扱う。
+- **アプリ指標 / 売上:** 最後のASC・RevenueCat観測は10/9までで古い。AniccaはASC first-time downloads 2、Honneは4、残り4アプリのASC値は未取得。RevenueCatのAnicca USD 20.34はsubscription MRRの観測で、Apple settled net revenueではない。Mixpanelの新規cohort別onboarding funnel、Apple settlement/refund/fee、事業コストを同期間で結ぶ証拠は未取得。USD 10,000の検証済みnet MRRは未達・未確認。
+- **計測scoreの原因:** 既存`engagementScore`はPostizの文字列`data[].total`を足さず、数値の`percentageChange`をscoreに混ぜ、空応答を0として保存し得る。共有helperを使うcreative/slide-pack両方が影響対象。既存Postiz snapshot readerは別経路で文字列totalを数値化できているので、analytics vendorや新readerを追加しない。
+
+**残TODO（順序）:**
+
+1. このworktreeの未commit 2 test差分を保持したまま、対象node:testを実行して失敗境界を確認する。将来slot時刻を待たずに着手できる。
+2. 共有`engagementScore`で実測totalだけを数値化し、`percentageChange`を除外する。空/欠落analyticsは0点として記録せずpendingにし、2つのcallerのfocused testを通す。
+3. source・test・specを同じ専用branchでcommit/pushし、必要なacceptanceを通してmainへ統合する。実装を加えずテストだけの状態で完了扱いしない。
+4. 現行のreconciler/self-handoff/cleanup ownerを重ねず、自然terminalとrun-bound receiptを追う。release容量は新しい正確なmain SHAごとに再計測し、登録cleanup ownerの証拠なしにファイルを削除しない。最新main由来immutable releaseを通常経路で作り、通常owner admissionで全18 publisherのloaded SHA・argv・自然terminalを確認する。
+5. ownerが保持するoccurrence fenceを維持し、公式provider readbackで未送信と確定したslotだけ通常owner経路で回復する。投稿コードの修正・既存投稿のmetrics取得を将来の投稿時刻まで遅らせない。
+6. 18個の有効targetそれぞれで1日3つの別slot、計54/54の`PUBLISHED` receipt、直接URL、replay-zeroを確認し、7日連続のJST日次実績を積む。slot時刻を待つ必要があるのは自然実績の証明だけで、実装着手の条件ではない。
+7. 各postのViews/likes/comments/shares等をPostiz公式analyticsから取得・永続化し、同じpostのURLと指標をTelegram報告receiptまで結ぶ。新analytics vendorは追加しない。既存背景assetを再利用し、postごとの画像生成API呼び出しをしない。
+8. 6アプリのASC（impressions/product-page views/first-time downloads）、RevenueCat（trial/subscriber/subscription MRR）、Mixpanel（install後のactivation/onboarding/paywall）を同期間・同cohortで更新する。distributionの基礎が動いた後、まずAniccaでfirst-time ASC downloadsを7日平均100/日へ、続いて他の承認済みアプリへ展開する。表示・閲覧・DLを課金者数やsettled revenueと混同しない。
+9. funnel計測に基づいてApp Store表示/ASO、次にonboarding/paywallを一度に1変数ずつ改善する。アプリ変更が必要な実験だけ新versionをTestFlight/App Storeへ送り、ASCで配信状態を確認する。
+10. Appleのsettlement/refund/feeと実費を同期間で照合し、AniccaのUSD 10,000 net recurring MRRを公式証拠で確認してから、勝ち筋を他アプリ・factoryへ展開する。
+
+**現在cursor:** 1。未commit test差分の失敗結果はまだない。並行してproductionの49af self-handoffは稼働中、旧reconcilerも残存し、容量もmanifest基準未満。production操作を重ねず、次sessionはtestのreadbackから始める。独立review/subagentは起動しない。
