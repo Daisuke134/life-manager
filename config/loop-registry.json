@@ -3463,6 +3463,7 @@
     },
     "marketing-metrics-daily": {
       "adapter": "python",
+      "resource_class": "deterministic",
       "cadence": {
         "calendar_interval": {
           "Hour": 7,

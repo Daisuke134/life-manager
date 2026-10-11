@@ -1113,6 +1113,7 @@ class MacosLoopRegistryTest(unittest.TestCase):
     def test_marketing_metrics_daily_uses_direct_python_adapter(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         row = registry["loops"]["marketing-metrics-daily"]
+        self.assertEqual(row.get("resource_class"), "deterministic")
         self.assertEqual(row["adapter"], "python")
         self.assertEqual(row["command"], ["metrics"])
         self.assertEqual(
