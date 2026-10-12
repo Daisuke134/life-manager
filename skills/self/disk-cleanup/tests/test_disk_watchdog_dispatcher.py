@@ -8,7 +8,6 @@ import plistlib
 import shutil
 import subprocess
 import sys
-import time
 
 import pytest
 
@@ -57,7 +56,8 @@ def test_watchdog_dispatches_to_governor_without_touching_worktrees_or_simulator
     fake_python = tmp_path / "python-capture"
     fake_python.write_text(
         '#!/bin/sh\nprintf "%s\\n" "$@" > "$CAPTURE_ARGS"\n'
-        'printf "%s\\n" "${LIFE_MANAGER_DISK_INVENTORY_FAST:-}" > "$CAPTURE_FAST"\n',
+        'printf "%s\\n" "${LIFE_MANAGER_DISK_INVENTORY_FAST:-}" > "$CAPTURE_FAST"\n'
+        'printf "%s\\n" "${LIFE_MANAGER_DISK_WATCHDOG:-}" > "$CAPTURE_WATCHDOG"\n',
         encoding="utf-8",
     )
     fake_python.chmod(0o755)
@@ -66,11 +66,14 @@ def test_watchdog_dispatches_to_governor_without_touching_worktrees_or_simulator
         "LIFE_MANAGER_RUNTIME_PYTHON": str(fake_python),
         "CAPTURE_ARGS": str(capture),
         "CAPTURE_FAST": str(tmp_path / "fast.txt"),
+        "CAPTURE_WATCHDOG": str(tmp_path / "watchdog.txt"),
     }
+    env.pop("LIFE_MANAGER_DISK_INVENTORY_FAST", None)
 
     subprocess.run(["/bin/sh", str(release / "bin/disk-watchdog.sh")], env=env, check=True)
 
-    assert (tmp_path / "fast.txt").read_text().strip() == "1"
+    assert (tmp_path / "fast.txt").read_text().strip() == ""
+    assert (tmp_path / "watchdog.txt").read_text().strip() == "1"
     captured = capture.read_text(encoding="utf-8").splitlines()
     assert captured[:2] == ["-B", "-c"]
     assert captured[-3:] == [
@@ -116,7 +119,8 @@ def test_watchdog_pins_release_and_bounds_stdio_without_blocking_recovery(
     governor.write_text(
         "import json,os,sys\nfrom pathlib import Path\n"
         f"Path({str(marker)!r}).write_text(json.dumps({{'release':str(Path(__file__).parents[3]),"
-        "'args':sys.argv[1:],'fast':os.environ.get('LIFE_MANAGER_DISK_INVENTORY_FAST')}))\n"
+        "'args':sys.argv[1:],'fast':os.environ.get('LIFE_MANAGER_DISK_INVENTORY_FAST'),"
+        "'watchdog':os.environ.get('LIFE_MANAGER_DISK_WATCHDOG')}))\n"
         "os.write(1,b'x'*32768+b'out-tail\\n')\n"
         "os.write(2,b'e'*32768+b'err-tail\\n')\n"
         "raise SystemExit(23)\n"
@@ -144,7 +148,8 @@ def test_watchdog_pins_release_and_bounds_stdio_without_blocking_recovery(
     assert json.loads(marker.read_text()) == {
         "release": str(release),
         "args": ["--home", str(home), "--state-dir", str(home / ".local/state/life-manager/state")],
-        "fast": "1",
+        "fast": None,
+        "watchdog": "1",
     }
     for stream in ("out", "err"):
         assert (logs / f"watchdog.{stream}.log").read_text() == f"legacy-{stream}\n"
@@ -174,8 +179,7 @@ def test_15d_disk_maintenance_is_a_registry_managed_control_owner() -> None:
     assert owner["state_root"] != registry["loops"]["life-manager-disk-cleanup"]["state_root"]
 
 
-def test_15d_entrypoint_uses_shared_governor_and_host_state(tmp_path: Path, monkeypatch) -> None:
-    assert MAINTENANCE_ENTRYPOINT.is_file(), "the registry-owned maintenance entrypoint is missing"
+def test_15d_entrypoint_delegates_host_sweep_to_minute_watchdog(tmp_path: Path, monkeypatch, capsys) -> None:
     sys.path.insert(0, str(MAINTENANCE_ENTRYPOINT.parent))
     try:
         spec = importlib.util.spec_from_file_location("disk_cleanup_maintenance_entrypoint", MAINTENANCE_ENTRYPOINT)
@@ -185,104 +189,12 @@ def test_15d_entrypoint_uses_shared_governor_and_host_state(tmp_path: Path, monk
     finally:
         sys.path.pop(0)
 
-    home = tmp_path / "home"
-    home.mkdir()
-    state_dir = tmp_path / "host-state"
-    observed: dict[str, list[str]] = {}
     monkeypatch.setattr(sys, "argv", [str(MAINTENANCE_ENTRYPOINT)])
-    monkeypatch.setenv("HOME", str(home))
-    monkeypatch.setenv("LIFE_MANAGER_HOST_STATE_DIR", str(state_dir))
-
-    def fake_main() -> int:
-        observed["argv"] = sys.argv[1:]
-        return 73
-
-    monkeypatch.setattr(module.disk_cleanup, "main", fake_main)
-
-    assert module.main() == 73
-    assert observed["argv"] == ["--home", str(home), "--state-dir", str(state_dir)]
-
-
-def test_15d_entrypoint_retries_only_structured_lock_busy(tmp_path: Path, monkeypatch, capsys) -> None:
-    sys.path.insert(0, str(MAINTENANCE_ENTRYPOINT.parent))
-    try:
-        spec = importlib.util.spec_from_file_location("disk_cleanup_maintenance_retry", MAINTENANCE_ENTRYPOINT)
-        assert spec is not None and spec.loader is not None
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-    finally:
-        sys.path.pop(0)
-
-    home = tmp_path / "home"
-    home.mkdir()
-    monkeypatch.setattr(sys, "argv", [str(MAINTENANCE_ENTRYPOINT)])
-    monkeypatch.setenv("HOME", str(home))
-    calls = []
-    waits = []
-
-    def fake_main() -> int:
-        calls.append(None)
-        if len(calls) < 3:
-            print(json.dumps({
-                "ok": False,
-                "status": "deferred",
-                "reason": "cleanup_lock_busy",
-                "effect": 0,
-                "readback": 0,
-            }))
-            return 75
-        print(json.dumps({"ok": True, "free_after": 123}))
-        return 0
-
-    monkeypatch.setattr(module.disk_cleanup, "main", fake_main)
-    monkeypatch.setattr(time, "sleep", waits.append)
-
     assert module.main() == 0
-    assert len(calls) == 3
-    assert waits == [5, 5]
-    assert capsys.readouterr().out.strip() == '{"ok": true, "free_after": 123}'
-
-
-def test_15d_entrypoint_does_not_retry_other_exit_75_receipts(tmp_path: Path, monkeypatch, capsys) -> None:
-    sys.path.insert(0, str(MAINTENANCE_ENTRYPOINT.parent))
-    try:
-        spec = importlib.util.spec_from_file_location("disk_cleanup_maintenance_no_retry", MAINTENANCE_ENTRYPOINT)
-        assert spec is not None and spec.loader is not None
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-    finally:
-        sys.path.pop(0)
-
-    home = tmp_path / "home"
-    home.mkdir()
-    monkeypatch.setattr(sys, "argv", [str(MAINTENANCE_ENTRYPOINT)])
-    monkeypatch.setenv("HOME", str(home))
-    calls = []
-    waits = []
-
-    def fake_main() -> int:
-        calls.append(None)
-        print(json.dumps({
-            "ok": False,
-            "status": "deferred",
-            "reason": "different_lock_or_capacity_failure",
-            "effect": 0,
-            "readback": 0,
-        }))
-        return 75
-
-    monkeypatch.setattr(module.disk_cleanup, "main", fake_main)
-    monkeypatch.setattr(time, "sleep", waits.append)
-
-    assert module.main() == 75
-    assert len(calls) == 1
-    assert waits == []
     assert json.loads(capsys.readouterr().out) == {
-        "ok": False,
-        "status": "deferred",
-        "reason": "different_lock_or_capacity_failure",
-        "effect": 0,
-        "readback": 0,
+        "ok": True,
+        "status": "delegated",
+        "owner_id": "com.anicca.disk-watchdog",
     }
 
 

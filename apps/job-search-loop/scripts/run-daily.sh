@@ -43,6 +43,7 @@ chmod 700 \
 export PYTHONPATH="$JOB_SEARCH_APP_ROOT"
 export JOB_SEARCH_BROWSER_OWNER_EVIDENCE="$EVIDENCE/browser-owner.json"
 export JOB_SEARCH_BROWSER_STATE_ROOT="$BROWSER_STATE"
+export JOB_SEARCH_REQUIRE_TAILORED_RESUME=1
 export JOB_SEARCH_BROWSER_SCRATCH="$BROWSER_SCRATCH"
 "$JOB_SEARCH_PYTHON" -m job_search_loop.application_reporting deliver \
   --ledger "$JOB_SEARCH_STATE_ROOT/ledger.sqlite3" \
@@ -192,24 +193,29 @@ os.chmod(path, 0o600)
 PY
 export JOB_SEARCH_WORKDAY_FAST_PATH_RESULT="$WORKDAY_FAST_PATH_RESULT"
 APPLICATION_ID=""
-APPLICATION_LIMIT=""
 if [[ -f "$WORKDAY_DISCOVERY_RESULT" ]]; then
-  APPLICATION_ID=$("$JOB_SEARCH_JQ" -r '.queued_application_ids[0] // empty' "$WORKDAY_DISCOVERY_RESULT")
-  if ! APPLICATION_LIMIT=$("$JOB_SEARCH_JQ" -er '
-    if (.deficit | type) == "number"
-       and (.deficit >= 0)
-       and ((.deficit | floor) == .deficit)
-    then (.deficit | tostring)
-    else error("invalid deficit")
-    end
-  ' "$WORKDAY_DISCOVERY_RESULT"); then
-    print -u2 "job-search daily: malformed rolling deficit; queue closed"
-    APPLICATION_LIMIT=0
-  fi
-else
-  print -u2 "job-search daily: missing rolling deficit; queue closed"
-  APPLICATION_LIMIT=0
+  APPLICATION_ID=$("$JOB_SEARCH_JQ" -r '.queued_application_ids[0] // empty' "$WORKDAY_DISCOVERY_RESULT" 2>/dev/null) || APPLICATION_ID=""
 fi
+# Workday discovery failure cannot close the existing qualified Workday queue.
+# The common rolling budget comes from actual confirmations in the shared ledger.
+APPLICATION_LIMIT=$("$JOB_SEARCH_PYTHON" - <<'BUDGET_PY'
+import os
+from pathlib import Path
+import json
+from job_search_loop.ledger import Ledger
+from job_search_loop.workday_search_loop import rolling_submission_metrics
+profile = json.loads(Path(os.environ['JOB_SEARCH_PROFILE']).read_text())
+exclusions = profile['candidate'].get('employer_exclusions', [])
+if not isinstance(exclusions, list) or any(not isinstance(value, str) for value in exclusions):
+    raise ValueError('invalid_private_employer_exclusions')
+ledger = Ledger(Path(os.environ['JOB_SEARCH_STATE_ROOT']) / 'ledger.sqlite3')
+try:
+    ledger.reject_excluded_employers(frozenset(exclusions))
+finally:
+    ledger.close()
+print(rolling_submission_metrics(Path(os.environ['JOB_SEARCH_STATE_ROOT']) / 'ledger.sqlite3')['deficit'])
+BUDGET_PY
+)
 export JOB_SEARCH_APPLICATION_LIMIT="$APPLICATION_LIMIT"
 if [[ -n "$APPLICATION_ID" ]]; then
   export JOB_SEARCH_PREFERRED_APPLICATION_ID="$APPLICATION_ID"

@@ -25,14 +25,10 @@ PROMPT="$REPO_ROOT/skills/fundraiser-agent/prompts/daily.md"
 SCHEMA="$REPO_ROOT/skills/fundraiser-agent/runtime/pass-result.schema.json"
 SENDER="$REPO_ROOT/skills/_shared/send-telegram.sh"
 PHOTO_SENDER="$REPO_ROOT/skills/_shared/send-telegram-photo.sh"
-MIN_FREE_KIB=$((1536 * 1024))
-PRESSURE_FREE_KIB=$((2 * 1024 * 1024))
-# Use the registered daily-driver identity and a task-owned browser context.
-# The profile guard protects endpoint recovery when available; a held profile
-# is resolved read-only so another owner can keep working in its own context.
+# Use an explicitly permitted registered identity and a task-owned context.
+# Browser recovery belongs to its registry owner, not this application pass.
 BROWSER_GUARD="${LIFE_MANAGER_BROWSER_GUARD:-$REPO_ROOT/skills/browser/browser-guard.sh}"
-BROWSER_FOUNDATION="${LIFE_MANAGER_BROWSER_FOUNDATION:-$REPO_ROOT/skills/browser/ensure_browser.sh}"
-BROWSER_IDENTITY="${LIFE_MANAGER_BROWSER_IDENTITY:-interactive:dais}"
+BROWSER_IDENTITY="${LIFE_MANAGER_BROWSER_IDENTITY:-}"
 BROWSER_CONTEXT_LEASE="${LIFE_MANAGER_BROWSER_CONTEXT_LEASE:-$REPO_ROOT/skills/browser/scripts/cdp_context_lease.py}"
 BROWSER_CONTEXT_HELPER="${LIFE_MANAGER_BROWSER_CONTEXT_HELPER:-$REPO_ROOT/skills/browser/browser-context-lease.sh}"
 BROWSER_RESOLVER="${LIFE_MANAGER_BROWSER_RESOLVER:-$REPO_ROOT/skills/browser/resolve_cdp_endpoint.py}"
@@ -67,10 +63,6 @@ write_boundary_marker pre_effect 0 || {
   exit 75
 }
 
-available_kib() {
-  df -Pk "$STATE_ROOT" 2>/dev/null | awk 'NR==2 {print $4}'
-}
-
 BROWSER_LEASED=0
 BROWSER_ENDPOINT=""
 
@@ -82,16 +74,15 @@ release_browser() {
   fi
 }
 
-# An application browser pass temporarily needs close to 1 GiB. Starting below this floor
-# repeatedly ended with ENOSPC before the runner could persist its summary or proof.
-# Leave the shared cleanup owner running; the next scheduled wake retries naturally.
-FREE_KIB="$(available_kib)"
-if [ -z "$FREE_KIB" ] || ! [[ "$FREE_KIB" =~ ^[0-9]+$ ]]; then
-  echo "fundraiser: disk preflight unavailable" >&2
-  exit 2
+# Honor shared producer stops and state safety; real writes enforce storage failures.
+if ! LIFE_MANAGER_PRODUCER_STATE_DIR="$STATE_ROOT" python3 -B \
+    "$REPO_ROOT/runtime/host/disk_admission.py" /usr/bin/true >>"$LOG" 2>&1; then
+  echo "fundraiser: deferred shared disk policy" >>"$LOG"
+  exit 75
 fi
-if [ "$FREE_KIB" -lt "$PRESSURE_FREE_KIB" ]; then
-  echo "fundraiser: deferred disk policy available_kib=$FREE_KIB required_kib=$PRESSURE_FREE_KIB" >>"$LOG"
+
+if [ -z "$BROWSER_IDENTITY" ] || [ "$BROWSER_IDENTITY" = "interactive:dais" ]; then
+  echo "fundraiser: deferred permitted browser identity unavailable" >>"$LOG"
   exit 75
 fi
 
@@ -109,33 +100,6 @@ else
       echo "fundraiser: deferred registered browser unavailable while another owner holds profile" >>"$LOG"
       exit 75
     }
-  elif [ "$BROWSER_RC" -eq 10 ] && [ -x "$BROWSER_FOUNDATION" ]; then
-    # Identity mismatch or unreachable: ask the registered owner to recover the
-    # daily-driver profile (same recovery path life-manager-connector-native
-    # uses), then take one more lease attempt before giving up this wake.
-    BROWSER_STATUS="$(CLOAK_BROWSER_OWNER="$CLOAK_BROWSER_OWNER" bash "$BROWSER_FOUNDATION" 2>&1 | tail -n 1)" || BROWSER_STATUS="FAILED"
-    case "$BROWSER_STATUS" in
-      ALIVE|RECOVERED) ;;
-      *)
-        echo "fundraiser: deferred browser foundation unavailable: ${BROWSER_STATUS:-EMPTY}" >>"$LOG"
-        exit 75
-        ;;
-    esac
-    if BROWSER_ENDPOINT="$(AI_BROWSER_HOLDER_PID=$$ "$BROWSER_GUARD" acquire "$BROWSER_IDENTITY" 2>&1)"; then
-      BROWSER_LEASED=1
-    else
-      BROWSER_RC=$?
-      if [ "$BROWSER_RC" -eq 9 ]; then
-        BROWSER_ENDPOINT="$(browser_context_resolve_registered_endpoint \
-          "$BROWSER_IDENTITY" "$BROWSER_RESOLVER" "$BROWSER_REGISTRY")" || {
-          echo "fundraiser: deferred registered browser unavailable after recovery" >>"$LOG"
-          exit 75
-        }
-      else
-        echo "fundraiser: deferred browser lease unavailable after recovery" >>"$LOG"
-        exit 75
-      fi
-    fi
   else
     # Unknown guard failures do not justify attaching to or recovering a browser.
     echo "fundraiser: deferred browser lease unavailable rc=$BROWSER_RC: $BROWSER_ENDPOINT" >>"$LOG"
@@ -188,7 +152,7 @@ export FUNDRAISER_CURSOR="$STATE_ROOT/cursor.json"
 export CLOAK_CDP_BASE_URL="$BROWSER_ENDPOINT"
 # Raw nav/eval and owned-tab helpers must share the leased browser endpoint.
 export CDP="$BROWSER_ENDPOINT"
-# Recovery belongs to the next owner preflight, never an effectful pass helper.
+# Recovery belongs to the registered browser owner, never this application pass.
 export CLOAK_BROWSER_RECOVERY_SCRIPT=/dev/null
 export LIFE_MANAGER_DISK_CLEANUP_SCRIPT=/dev/null
 export FUNDRAISER_CDP_ENDPOINT="$BROWSER_ENDPOINT"
@@ -242,7 +206,7 @@ RUNTIME_PROMPT="$EVIDENCE_DIR/runtime-prompt.md"
 - Work in \`$REPO_ROOT\`; use the registered CDP endpoint \`$FUNDRAISER_CDP_ENDPOINT\` and this run's seeded context \`$CLOAK_BROWSER_CONTEXT_ID\`. The existing CDP helper restricts page targets to that context. Never attach to another context or Dais's personal Chrome.
 - Search both the live Web and rendered authenticated X UI. X is discovery only; verify on the official program website before applying.
 - Use existing browser helpers under \`skills/browser/\`; do not launch or kill a browser.
-- If the leased browser transport fails during this pass, do not acquire another lease, restart the browser, or continue provider actions. Preserve all existing receipts and return a non-success result with the transport observation. If any Submit or outbound request may have started, record submit_unknown and retain its exact identity fence; otherwise record the observation failure without claiming a provider effect. The next natural wake owns browser foundation recovery and fresh endpoint binding before dispatch.
+- If the leased browser transport fails during this pass, do not acquire another lease, restart the browser, or continue provider actions. Preserve all existing receipts and return a non-success result with the transport observation. If any Submit or outbound request may have started, record submit_unknown and retain its exact identity fence; otherwise record the observation failure without claiming a provider effect. The registered browser owner owns recovery; a later natural Fundraiser wake must verify its permitted identity and fresh endpoint before dispatch.
 - Read private founder values only from \`~/.config/anicca/job-search/profile.json\` and \`~/.local/share/anicca/credentials.json\`; never print or report their values.
 - The only attachable pitch deck is the deterministic preflight-verified file \`$FUNDRAISER_VERIFIED_DECK\`; never attach another deck path.
 - For draft preparation, the immediate effect claim, terminal status, and final receipt, use the target-intent recorder sequence above. Never write receipt rows directly.

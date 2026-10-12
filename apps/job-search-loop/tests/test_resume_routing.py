@@ -56,6 +56,14 @@ class ResumeRoutingTests(unittest.TestCase):
                 "japanese.pdf",
             )
 
+    def test_runtime_business_alias_uses_approved_business_resume(self):
+        routing = importlib.import_module("job_search_loop.resume_routing")
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._resume_tree(root)
+            result = routing.select_resume(posting_text="Help enterprise customers.", role_family="technical_business", materials_root=root)
+            self.assertEqual(result["resume_variant"], "technical_business")
+
     def test_english_posting_keeps_english_role_variant(self):
         self.assertIsNotNone(
             importlib.util.find_spec("job_search_loop.resume_routing")

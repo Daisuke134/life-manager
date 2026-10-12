@@ -18,6 +18,7 @@ import json
 import os
 from pathlib import Path
 import sys
+import subprocess
 import time
 from decimal import Decimal, InvalidOperation
 import urllib.error
@@ -44,6 +45,7 @@ def default_storage_paths(environment: dict[str, str] | None = None) -> tuple[Pa
 DEFAULT_STATE, DEFAULT_EVIDENCE = default_storage_paths()
 
 PRODUCTS = {
+    "life-manager-cloud": {"web_funnel": True},
     "anicca-ios": {
         "asc_app_id": "6755129214",
         "revenuecat_app_id": "app511ef26659",
@@ -459,7 +461,18 @@ def verify_gate5_snapshots(rows: list[dict[str, Any]], business_date: str) -> di
                     "source": source_name,
                     "reason": source.get("reason") or "unspecified",
                 })
-        if "revenuecat_app_id" in config:
+        if config.get("web_funnel"):
+            source = sources.get("web_funnel")
+            if not source or source["status"] != "available":
+                raise ValueError(f"{product_id} Web funnel unavailable")
+            data = source["data"]
+            if not isinstance(data.get("period"), dict) or not isinstance(data.get("subscription"), dict):
+                raise ValueError(f"{product_id} Web funnel scope missing")
+            for field in ("activeTrials", "activePaidUsers", "grossMrrUsd"):
+                value = data["subscription"].get(field)
+                if isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0:
+                    raise ValueError(f"{product_id} missing Web subscription field: {field}")
+        elif "revenuecat_app_id" in config:
             revenuecat = sources.get("revenuecat")
             asc = sources.get("app_store_connect")
             if not revenuecat or revenuecat["status"] != "available":
@@ -851,6 +864,18 @@ def collect_mixpanel(
     return {"event_counts": summarize_mixpanel_export(lines), "rows": len(lines)}
 
 
+def collect_cloud_funnel(env: dict[str, str]) -> dict[str, Any]:
+    script = ROOT.parents[2] / "apps/life-manager/scripts/lm-web-funnel-report.js"
+    result = subprocess.run(
+        ["node", str(script)], env={**os.environ, **env},
+        capture_output=True, text=True, check=True, timeout=120,
+    )
+    report = json.loads(result.stdout)
+    if not isinstance(report, dict) or "period" not in report or "subscription" not in report:
+        raise ValueError("Cloud funnel report shape invalid")
+    return report
+
+
 def collect_snapshot(
     env: dict[str, str],
     product_id: str,
@@ -858,7 +883,13 @@ def collect_snapshot(
 ) -> dict[str, Any]:
     config = PRODUCTS[product_id]
     sources: dict[str, Any] = {}
-    if "revenuecat_app_id" in config:
+    if config.get("web_funnel"):
+        try:
+            data = collect_cloud_funnel(env)
+            sources["web_funnel"] = available_source(data, evidence_sha256=_json_hash(data))
+        except Exception:
+            sources["web_funnel"] = unavailable_source("provider_query_failed")
+    elif "revenuecat_app_id" in config:
         # 28-day inclusive window: matches the "revenue_28d" figure in the owner report.
         start = (dt.date.fromisoformat(business_date) - dt.timedelta(days=27)).isoformat()
         try:

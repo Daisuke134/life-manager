@@ -42,6 +42,9 @@ is the target-level replay fence, not a new owner or scheduler.
   to the legacy `DeepScale.Ventures` target.
 - Use the existing authenticated browser worker. Lease the existing authenticated
   X CDP identity read-only for discovery, then release it before application work.
+- Require an explicitly configured, permitted registered browser identity; never
+  use `interactive:dais`. Identity or transport failure defers the application
+  pass; only the registered browser owner performs browser recovery.
 
 ## Continuous behavior
 

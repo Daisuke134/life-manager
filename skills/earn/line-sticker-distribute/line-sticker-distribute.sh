@@ -3,9 +3,9 @@
 #
 # Every money skill pairs a build loop with a distribute (sell) loop
 # (AGENTS.md rule 8/9); skills/earn/line-sticker has the build loop
-# (line-sticker-factory-hourly) but no sell loop. This is it: post short
-# vertical videos of our LINE stickers to TikTok/Instagram via Postiz,
-# pointing buyers at the sticker's LINE store page.
+# (line-sticker-factory-hourly) but no sell loop. This loop posts short vertical
+# videos to the configured dedicated accounts; the current lanes use direct
+# Instagram Reel and Threads browser transports. Article publishing is separate.
 #
 # Targets are config-driven (config/line-sticker-distribute-accounts.json).
 # An empty accounts list is a no-op exit 0 -- it is NOT an error, and it must
@@ -45,20 +45,8 @@ python3 "$SCRIPT_DIR/scripts/engagement_daily.py" \
   --accounts-config "$ACCOUNTS_CONFIG" --state-root "$STATE_ROOT" "$@" >>"$LOG" 2>&1 || true
 python3 "$SCRIPT_DIR/scripts/bio_link_setup.py" \
   --accounts-config "$ACCOUNTS_CONFIG" --state-root "$STATE_ROOT" "$@" >>"$LOG" 2>&1 || true
-# Free Japanese articles on aniccaai.com (the site for everything Life Manager ships,
-# Dais 2026-10-08), published through the Writer's landing checkout exactly like
-# capafy-distribute-daily. article_daily.py owns its slot hours; best-effort, never blocks the reel pass.
-if true; then
-  (
-    ARTICLE_ROOT="$REPO_ROOT/skills/writer-agent"
-    # shellcheck source=../../writer-agent/scripts/writer-runtime-env.sh
-    source "$ARTICLE_ROOT/scripts/writer-runtime-env.sh"
-    export ARTICLE_SELF_OWNED_LANDING_ROOT="$HOME/.local/state/life-manager/writer/checkouts/self-owned-landing"
-    python3 "$SCRIPT_DIR/scripts/article_daily.py" \
-      --line-sticker-state-root "${LINE_STICKER_STATE_ROOT:-$HOME/.local/state/life-manager/line-sticker}" \
-      --state-root "$STATE_ROOT"
-  ) >>"$LOG" 2>&1 || true
-fi
+# Free aniccaai.com articles are their own loop (line-sticker-articles.sh), so a held
+# Instagram/Threads post never stops them.
 
 exec python3 "$SCRIPT_DIR/scripts/line_sticker_distribute.py" \
   --accounts-config "$ACCOUNTS_CONFIG" \

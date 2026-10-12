@@ -1,6 +1,6 @@
-# Life Manager Job Hunter Loop
+# Job Hunter
 
-Anicca Job Search Loop is a bounded, evidence-first job application system for a
+Job Hunter is a bounded, evidence-first job application system for a
 verified private candidate profile. It discovers and ranks suitable roles, submits
 every unique qualified role that fits within the bounded owner window, monitors recruiter mail, prepares
 interviews, and reports every material state change to Telegram.
@@ -10,15 +10,16 @@ interviews, and reports every material state change to Telegram.
 | Concern | Current rule |
 |---|---|
 | Acquisition target | Every fresh unique model-qualified role; no daily application quota |
-| Location | Tokyo or remote roles that can employ someone based in Japan |
-| Compensation | Candidate-defined minimum and target from the private profile; unpublished compensation remains visible uncertainty |
+| Location | Remote, onsite, and hybrid roles worldwide; no geography tier or location-only rejection; do not exclude solely for sponsorship wording, and answer legal questions truthfully |
+| Compensation | USD 100,000 annual gross base target (or equivalent); the private profile may set a tighter floor, and unpublished compensation remains uncertainty |
 | Role focus | Candidate-defined target role families, checked by the model against the complete official JD and resume evidence |
-| Discovery | Accumulating official Workday company registry plus complete CXS snapshots and model ranking; non-Workday adapters remain broken/unverified until rebuilt |
+| Discovery | This acquisition pass is Workday-only; each later ATS gets a separate owner and is never a fallback path |
 | Evidence | Every application is fenced in SQLite and retained under a private evidence directory |
 | Uncertainty | Ambiguous submission becomes `submit_unknown` and is never blindly retried; a later exact official receipt may reconcile it without another submit click |
 | Personal data | Verified private profile and generated materials are mode `0600` |
 | Career summary | Every terminal daily path atomically refreshes private `summary.v2.json` with state counts and Workday receipt coverage |
 | Application receipt | Every confirmed submission records the exact resume path and SHA-256, then sends that same PDF to Telegram once with company, role and URL |
+| Email reporting | Per-application email updates and a natural-language daily email briefing are planned, not shipped |
 | Daily report repair | A materially changed same-day catch-up sends one content-addressed correction; identical retries remain at-most-once |
 | Inbox | Gmail threads expand to immutable unseen message IDs; official late application receipts reconcile before the model; a model runs only for remaining new recruiting messages or a pending prep-pack generation job |
 | Calendar | Only explicit timezone-aware recruiter candidates are considered; the earliest free candidate is confirmed once |
@@ -30,6 +31,57 @@ Runtime dependency ordering follows
 [`rules/runtime-ordering.md`](rules/runtime-ordering.md): deterministic recovery,
 quota, and policy gates run before browser/model initialization.
 
+## Company-bound local resumes
+
+The same browser agent selects exact approved fact concepts into standard resume
+sections through `runtime tailor`. The existing registered browser renders an
+isolated, cookie-free single-page PDF without opening another model. A private
+manifest binds the company, role, canonical URL, candidate-memory revision and PDF
+SHA-256; upload and final Review use that same artifact. Claims are retained exactly
+in their source language. Invalid or unknown facts are rejected; no recurring user
+approval is requested for this already-delegated refinement.
+
+## Workday-first application pipeline
+
+Dreamwork is not part of the runtime. The 30-minute acquisition owner is
+Workday-only: it finds official postings, checks role fit against verified
+candidate facts, creates job-specific materials, submits through the employer's
+application flow, and reconciles the employer's receipt with the application
+ledger. Ashby and later ATS use separate owners; they are not Workday fallbacks.
+A click or local `APPLIED` status is not submission proof; ambiguous effects
+remain fenced and are never blindly retried. A visible CAPTCHA before submission
+checkpoints only that row, without solving or bypassing it, then continues to the
+next Workday row. An after-submit ambiguity remains `submit_unknown`.
+
+## Competitive comparison
+
+This comparison separates license cost, runtime cost, documented/source behavior,
+and a real, receipt-verified application. A README claim or a generated
+`RESULT:APPLIED` string alone is not proof that an employer accepted an application.
+
+| Agent | Open-source license | Automatic final Submit | Runtime cost | Application evidence and current limitation |
+|---|---|---|---|---|
+| [career-ops](https://github.com/career-ops-hq/career-ops) | MIT; no license fee | **No** | README supports free/local models; provider cost depends on the model selected | Its README and `prepare-application.mjs` say it never POSTs; the applicant reviews and presses Submit. It is job-search and preparation software, not an automatic submitter. |
+| [ApplyPilot](https://github.com/Pickle-Pixel/ApplyPilot) | AGPL-3.0; no license fee | **Yes, in its normal source path** | Auto-apply requires Claude Code CLI; Anthropic lists Claude Code with paid plans, while API use is token-billed. ApplyPilot says its Gemini stages have a free tier; optional CAPTCHA service may add cost. See [Anthropic pricing](https://claude.com/pricing) and [Claude Code costs](https://code.claude.com/docs/en/costs). | Its launcher asks Claude to navigate and submit without per-job approval. The launcher records `RESULT:APPLIED` from page evidence; no independent employer receipt or confirmation email was verified in a live application. |
+| Job Hunter — Workday-first release | MIT source; no license fee | **Target: yes** | Total operating cost and a $0 default run are not verified | Workday-only source is under acceptance; a natural employer receipt and replay-zero are not yet verified. Telegram is implemented; email reporting is not. |
+
+The broad claim “world’s first open-source agent that searches, tailors, and
+automatically submits applications” is not supported: ApplyPilot already has a
+source-level no-human-submit path. Its source also requires Claude Code for
+auto-apply, so its open-source license does not establish $0 operation. The narrower
+difference to prove is a receipt-verified Workday pipeline that does not require a
+paid AI/API subscription, with duplicate-safe history and clear reporting. Do not
+present that distinction as a verified first until a natural real application and
+the employer receipt are read back.
+
+The selection rule is evidence-based: if an existing agent completes a real
+application, its employer receipt is independently verified, and its complete
+runtime cost and license meet the candidate's requirements, use or integrate that
+agent instead of rebuilding the same capability. Source inspection, dry runs,
+mocks, and synthetic profiles do not count as real-application evidence. A live
+competitor application with an independently verified employer receipt has not yet
+been established in this evaluation.
+
 ## Runtime
 
 | Component | Schedule | Route |
@@ -37,15 +89,12 @@ quota, and policy gates run before browser/model initialization.
 | `ai.anicca.job-search-daily` | every 30 minutes (`StartInterval=1800`) | bounded browser-lane agent |
 | `ai.anicca.job-search-inbox` | every 15 minutes | deterministic Gmail and prep preflight; Terra composition agent only for new recruiting work or pending prep generation |
 
-The current local deployment uses launchd and is designed so the same drivers and
-SQLite contracts can later be invoked by Life Manager without changing application
-semantics.
+The current local deployment uses launchd. The same drivers and SQLite contracts
+can later be hosted without changing application semantics.
 
 The daily owner connects to the dedicated persistent CloakBrowser CDP endpoint. It
-does not launch a duplicate browser. The driver reserves a bounded
-normal pass plus bounded same-day recovery capacity, so a transient provider or
-browser-tool failure can fall through to another implementation without becoming an
-unlimited loop.
+does not launch a duplicate browser. Row-local failures continue to other qualified
+Workday rows; the Workday owner never switches to another ATS as fallback.
 
 ## Key paths
 
@@ -54,7 +103,7 @@ unlimited loop.
 | Private profile | `~/.config/anicca/job-search/profile.json` |
 | Strategy | `config/strategy.default.json` |
 | Ledger | `~/.local/state/anicca/job-search/ledger.sqlite3` |
-| Life Manager read projection | `~/.local/state/anicca/job-search/summary.v2.json` |
+| Daily summary projection | `~/.local/state/anicca/job-search/summary.v2.json` |
 | Interview prep state | `~/.local/state/anicca/job-search/interview-prep.sqlite3` |
 | Evidence | `~/.local/state/anicca/job-search/evidence/` |
 | Materials | `~/.local/share/anicca/job-search/materials/` |
@@ -71,7 +120,7 @@ unlimited loop.
 ## Operations
 
 ```bash
-cd /path/to/life-manager/apps/job-search-loop
+cd /path/to/job-hunter-source/apps/job-search-loop
 python3 -m unittest discover -s tests -v
 zsh scripts/install-launchd.sh
 zsh scripts/healthcheck.sh
@@ -109,8 +158,8 @@ For recovery or development from an existing checkout:
 The private directories are `0700`; profile, install and connector receipts are
 `0600`. Setup never infers nationality, visa, work authorization or other legal
 facts. Existing profiles are reused and cannot be overwritten implicitly. The
-public Workday install uses only this Life Manager checkout and does not clone a
-second Job Hunter framework repository.
+public Workday install uses this source checkout and does not clone a second Job
+Hunter framework repository.
 
 ### Reproducible release artifact
 
@@ -216,5 +265,18 @@ and hashed private logs. Submission follows
 | Safe experiments | One source, role-family, resume-emphasis, message or threshold variable changes at a time; replay must preserve truth and hard filters |
 | Resident learning | A launchd/systemd weekly driver creates the bounded threshold candidate, replays the held-out safety manifest, deterministically selects baseline/candidate by stable job key, and persists every execution and decision receipt |
 | Promotion gate | Baseline stays active until both arms have at least 10 resolved applications and the candidate Wilson 95% lower bound exceeds the baseline upper bound; safety violations or three consecutive candidate failures roll back immediately |
-| Self-healing | launchd restarts, browser ownership evidence, multi-provider discovery, fenced side effects, bounded recovery and content-addressed report correction |
-| Not yet complete | Guardian remediation, lifecycle closure, real confirmed Ashby/Workday and learning-conversion samples, `summary.v2`, and Life Manager Career UI |
+| Self-healing | launchd recovery, browser ownership evidence, Workday-only discovery, fenced side effects, bounded recovery and content-addressed report correction |
+| Not yet complete | production Workday receipt/replay-zero, portable onboarding, email reporting, Guardian remediation, lifecycle closure, learning-conversion samples, `summary.v2`, and the end-user career dashboard |
+
+## Roadmap after Workday
+
+1. Prove a natural Workday run through an official employer receipt, ledger
+   reconciliation, duplicate-zero, and truthful per-application reporting.
+2. Add portable onboarding that accepts a resume and asks about target roles,
+   locations, compensation, and remote/on-site preferences; Telegram is optional.
+3. Send a natural-language email after each confirmed application and one daily
+   email briefing. Keep Telegram as an optional reporting channel.
+4. Expand interview preparation from recruiting-email detection into tailored
+   preparation and timely reminders.
+5. Add Ashby and other ATS as separate discovery/application owners only after the
+   Workday owner is reliable; never add them as Workday fallbacks.

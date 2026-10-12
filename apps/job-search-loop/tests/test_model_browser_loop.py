@@ -722,6 +722,61 @@ class ModelBrowserLoopContractTests(unittest.TestCase):
         self.assertIn("job_search_loop.browser_agent.browser_agent.runtime", prompt)
         self.assertIn("replace it with the canonical module", prompt)
 
+    def test_daily_prompt_skips_captcha_row_without_bypass_and_continues(self):
+        prompt = (APP_ROOT / "prompts" / "daily-pass.md").read_text(encoding="utf-8")
+        normalized = " ".join(prompt.split())
+
+        self.assertIn("visible CAPTCHA or human-verification challenge appears before submission", normalized)
+        self.assertIn("do not solve or bypass it", normalized)
+        self.assertIn("checkpoint --reason visible_challenge", normalized)
+        self.assertIn("report --status checkpointed", normalized)
+        self.assertIn("continue to the next independent Workday row", normalized)
+        self.assertIn("after submission may have started", normalized)
+        self.assertIn("preserve `submit_unknown` and never retry that row", normalized)
+
+    def test_daily_prompt_does_not_report_ineligible_rows_twice(self):
+        prompt = (APP_ROOT / "prompts" / "daily-pass.md").read_text(encoding="utf-8")
+        normalized = " ".join(prompt.split())
+
+        self.assertIn(
+            "`runtime ineligible` already reports the exact current row itself and returns `report_message_id`",
+            normalized,
+        )
+        self.assertIn("never call `runtime report` after it", normalized)
+        self.assertIn(
+            "`runtime checkpoint` only saves a checkpoint; call `runtime report --status checkpointed`",
+            normalized,
+        )
+        self.assertNotIn(
+            "`runtime ineligible --reason hard_ineligible`, report it", normalized
+        )
+        self.assertNotIn(
+            "ineligible or checkpointed row, call `runtime report`", normalized
+        )
+        self.assertNotIn(
+            "`ineligible` and then `report --status not_submitted`", normalized
+        )
+
+    def test_daily_prompt_uses_safe_defaults_without_inventing_current_salary(self):
+        prompt = (APP_ROOT / "prompts" / "daily-pass.md").read_text(encoding="utf-8")
+        normalized = " ".join(prompt.split())
+
+        self.assertIn("For ordinary non-factual preferences, do not stop to ask the owner", normalized)
+        self.assertIn("infer the closest supported option from the private profile and job context", normalized)
+        self.assertIn("Do not use this inference rule for credentials, work authorization, salary, or other personal facts", normalized)
+        self.assertIn("For a required personal fact or legal attestation missing from approved profile facts", normalized)
+        self.assertIn("If the visible form explicitly offers a non-disclosure or decline option, choose that exact visible option", normalized)
+        self.assertIn("If required and no truthful answer or decline option exists, block only this row", normalized)
+        self.assertIn("Never invent or estimate a current salary", normalized)
+        self.assertIn("choose that exact visible non-disclosure option", normalized)
+        self.assertIn("For expected salary, use only profile-approved compensation", normalized)
+        self.assertIn("block only this row", normalized)
+        self.assertIn("add the exact field to `blocked`", normalized)
+        self.assertIn("Call `runtime report --status not_submitted` once for this row", normalized)
+        self.assertIn("confirm its `application_id` matches this row and its `message_id` is present", normalized)
+        self.assertIn("Do not use `checkpoint` for missing information", normalized)
+        self.assertIn("continue with the next `observe`", normalized)
+
     def assertValid(self, value: dict[str, object]) -> None:
         errors = sorted(self.validator.iter_errors(value), key=lambda item: list(item.path))
         self.assertEqual([], [error.message for error in errors])
@@ -1063,30 +1118,31 @@ class ModelBrowserLoopContractTests(unittest.TestCase):
             daily.count("-m job_search_loop.browser_agent.orchestrator"), 1
         )
         self.assertIn('"status": "model_owned"', daily)
-        self.assertIn("Process every eligible ATS row", prompt)
-        self.assertIn("Workday and Ashby use this same agent loop", prompt)
+        self.assertIn("Process eligible Workday rows", prompt)
+        self.assertIn("This pass is Workday-only", prompt)
         self.assertIn("A row-local failure never ends the queue", normalized_prompt)
         self.assertNotIn("do not reopen a row it advanced", prompt)
         self.assertNotIn("preserve that exact blocker", prompt)
 
-    def test_workday_and_ashby_share_the_model_application_lane_after_10p(self):
+    def test_daily_workday_pass_is_separate_from_future_ashby_lane(self):
         daily = (APP_ROOT / "scripts" / "run-daily.sh").read_text(encoding="utf-8")
         prompt = (APP_ROOT / "prompts" / "daily-pass.md").read_text(encoding="utf-8")
-        normalized_prompt = " ".join(prompt.split())
 
+        self.assertIn("-m job_search_loop.workday_search_loop", daily)
         self.assertNotIn("-m job_search_loop.ashby_discovery", daily)
         self.assertNotIn("-m job_search_loop.greenhouse_discovery", daily)
         self.assertNotIn("-m job_search_loop.lever_discovery", daily)
         self.assertIn('"status": "model_owned"', daily)
         self.assertIn('"reason": "mandatory_browser_lane"', daily)
         self.assertIn("--active-provider workday", daily)
-        self.assertNotIn("Never open Ashby", prompt)
-        self.assertIn("Process every eligible ATS row", prompt)
-        self.assertIn("Workday and Ashby use this same agent loop", prompt)
+        self.assertIn("Workday-only", prompt)
+        self.assertNotIn("Workday and Ashby use this same agent loop", prompt)
+        self.assertNotIn("Process every eligible ATS row", prompt)
+        self.assertNotIn("## Ashby eligibility", prompt)
 
     def test_daily_exports_the_validated_rolling_deficit_to_queue(self):
         daily = (APP_ROOT / "scripts" / "run-daily.sh").read_text(encoding="utf-8")
-        self.assertIn(".deficit", daily)
+        self.assertIn("rolling_submission_metrics", daily)
         self.assertIn("JOB_SEARCH_APPLICATION_LIMIT", daily)
 
 

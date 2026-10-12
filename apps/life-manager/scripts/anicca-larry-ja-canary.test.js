@@ -279,6 +279,7 @@ function providerCalls(calls, result = {}) {
       reconciled: true,
       post_id: "postiz-larry-canary-1",
       post_url: "https://www.instagram.com/p/LarryCanary1/",
+      provider_effect_created: true,
       ...result,
     };
   };
@@ -315,15 +316,36 @@ test("first canary publishes once and holds Telegram without native verification
   const value = fixture();
   const publicationCalls = [];
   const telegramCalls = [];
-  const result = await runAniccaLarryJaCanary(["run", "--slot", SLOT], {
-    env: value.env,
-    runDistribution: providerCalls(publicationCalls),
-    sendTelegram: async (...args) => { telegramCalls.push(args); return { ok: true, result: { message_id: 1 } }; },
-    now: () => "2026-08-26T07:31:00.000Z",
+  const previous = Object.fromEntries(["LIFE_MANAGER_LOOP_ID", "LIFE_MANAGER_OCCURRENCE_ID", "LIFE_MANAGER_RUN_ID"]
+    .map((name) => [name, process.env[name]]));
+  Object.assign(process.env, {
+    LIFE_MANAGER_LOOP_ID: "life-manager-anicca-larry-ja-instagram",
+    LIFE_MANAGER_OCCURRENCE_ID: "life-manager-anicca-larry-ja-instagram:run-1",
+    LIFE_MANAGER_RUN_ID: "run-1",
   });
+  let result;
+  try {
+    result = await runAniccaLarryJaCanary(["run", "--slot", SLOT], {
+      env: value.env,
+      runDistribution: providerCalls(publicationCalls),
+      sendTelegram: async (...args) => { telegramCalls.push(args); return { ok: true, result: { message_id: 1 } }; },
+      now: () => "2026-08-26T07:31:00.000Z",
+    });
+  } finally {
+    for (const [name, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  }
   assert.deepEqual(result, {
     slot: SLOT,
-    publication: { created: true, public_url: "https://www.instagram.com/p/LarryCanary1/", provider_post_id: "postiz-larry-canary-1" },
+    publication: {
+      created: true,
+      provider_effect_created: true,
+      origin_occurrence_id: "life-manager-anicca-larry-ja-instagram:run-1",
+      public_url: "https://www.instagram.com/p/LarryCanary1/",
+      provider_post_id: "postiz-larry-canary-1",
+    },
     telegram: { created: false, held: true, message_id: null },
   });
   assert.equal(publicationCalls.length, 1);

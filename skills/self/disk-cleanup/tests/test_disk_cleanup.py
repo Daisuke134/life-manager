@@ -43,6 +43,10 @@ def test_tier_boundaries_use_bytes() -> None:
     assert classify_tier(3 * GiB - 1) == "ULTRA"
 
 
+def test_governor_run_budget_fits_the_primary_watchdog_cadence() -> None:
+    assert disk_cleanup.GOVERNOR_BUDGET_SECONDS < 60
+
+
 def test_closed_regenerable_artifact_is_reclaimed(tmp_path: Path, monkeypatch) -> None:
     state = tmp_path / "state"
     candidate = tmp_path / "tmp" / "capafy-hf-npm.complete"
@@ -221,6 +225,9 @@ def test_discover_stale_test_temporary_families_only(
         temporary / "slide-pack-objects-9T7iWU",
         temporary / "slide-pack-image-cache-cta-QZWSuL",
         temporary / "slide-pack-workspace-mJXtWV",
+        temporary / "slide-pack-tiktok-workspace-UA1B6a",
+        temporary / "slide-pack-tiktok-cta-MTOA3A",
+        temporary / "slide-pack-tiktok-cache-7Zh5vc",
         temporary / "slide-pack-fixture-bg-12345.png",
         temporary / f"pytest-of-{home.name}" / "pytest-42",
         additional_temporary / "slide-pack-workspace-WV9a0B",
@@ -2320,6 +2327,27 @@ def test_exact_cache_probe_fails_closed_when_global_lsof_reports_stderr(tmp_path
     disk_cleanup._open_paths.cache_clear()
 
 
+@pytest.mark.parametrize("opened, expected", [(False, "confirmed-closed"), (True, "open"), (None, "probe-error")])
+def test_regular_artifact_probe_uses_global_open_paths(tmp_path: Path, monkeypatch, opened, expected) -> None:
+    artifact = tmp_path / "SwiftShims.pcm"
+    artifact.write_bytes(b"generated AST")
+    calls = []
+    def probe(argv, **kwargs):
+        calls.append(argv)
+        if "+D" in argv:
+            return subprocess.CompletedProcess(argv, 1, "", "not a directory")
+        return subprocess.CompletedProcess(argv, 0 if opened is not None else 1,
+            f"n{artifact}\n" if opened else "n/tmp/unrelated\n",
+            "permission denied" if opened is None else "")
+    monkeypatch.setattr(disk_cleanup.subprocess, "run", probe)
+    disk_cleanup._open_paths.cache_clear()
+    try:
+        assert disk_cleanup._default_lsof(artifact) == expected
+        assert calls == [["/usr/sbin/lsof", "-nP", "-Fn"]]
+    finally:
+        disk_cleanup._open_paths.cache_clear()
+
+
 def test_release_retention_keeps_referenced_and_current_generation(tmp_path: Path) -> None:
     releases = tmp_path / "loops" / "releases"
     releases.mkdir(parents=True)
@@ -2493,6 +2521,75 @@ def test_lsof_failure_fails_closed(tmp_path: Path, monkeypatch) -> None:
     assert candidate.exists()
     assert result["errors"] == 1
     assert result["preserved_reasons"] == {"probe-error": 1}
+
+
+def test_descendant_probe_error_records_bounded_relative_path(tmp_path: Path, monkeypatch) -> None:
+    temporary = tmp_path / "tmp"
+    candidate = temporary / "capafy-hf-npm.walk-error"
+    blocked = candidate / "inaccessible"
+    candidate.mkdir(parents=True)
+    (candidate / "payload").write_text("in-flight")
+    monkeypatch.setattr(disk_cleanup.tempfile, "gettempdir", lambda: str(temporary))
+    monkeypatch.setattr(disk_cleanup, "_old_real_temporary_path", lambda _path: True)
+
+    def failing_walk(path, *, topdown, followlinks, onerror):
+        onerror(PermissionError(errno.EACCES, "permission denied", str(blocked)))
+        yield str(path), [], ["payload"]
+
+    monkeypatch.setattr(disk_cleanup.os, "walk", failing_walk)
+    governor = HostDiskGovernor(
+        home=tmp_path,
+        state_dir=tmp_path / "state",
+        lsof=lambda _path: "confirmed-closed",
+        usage=lambda: (0, 1),
+    )
+
+    result = governor.sweep(
+        [{"path": candidate, "class": "ephemeral", "owner": "temporary-run",
+          "discovery": "allowlisted"}]
+    )
+
+    assert candidate.exists()
+    assert result["errors"] == 1
+    assert result["preserved_reasons"] == {"descendant_probe_error": 1}
+    assert result["probe_errors"] == [{
+        "owner": "temporary-run",
+        "candidate": "tmp/capafy-hf-npm.walk-error",
+        "path": "tmp/capafy-hf-npm.walk-error/inaccessible",
+        "error_class": "PermissionError",
+        "errno": errno.EACCES,
+    }]
+    receipt = json.loads((tmp_path / "state" / "last-receipt.json").read_text())
+    assert receipt["probe_errors"] == result["probe_errors"]
+
+
+def test_allowlisted_regular_file_does_not_run_descendant_walk(tmp_path: Path, monkeypatch) -> None:
+    temporary = tmp_path / "tmp"
+    candidate = temporary / "slide-pack-fixture-bg-12345.png"
+    candidate.parent.mkdir(parents=True)
+    candidate.write_bytes(b"fixture")
+    monkeypatch.setattr(disk_cleanup.tempfile, "gettempdir", lambda: str(temporary))
+    monkeypatch.setattr(disk_cleanup, "_old_real_temporary_path", lambda _path: True)
+    monkeypatch.setattr(
+        disk_cleanup.os, "walk",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("a regular-file candidate has no descendants")),
+    )
+    governor = HostDiskGovernor(
+        home=tmp_path,
+        state_dir=tmp_path / "state",
+        lsof=lambda _path: "confirmed-closed",
+        usage=lambda: (0, 1),
+    )
+
+    result = governor.sweep([{
+        "path": candidate, "class": "ephemeral", "owner": "temporary-run",
+        "discovery": "allowlisted",
+    }])
+
+    assert not candidate.exists()
+    assert result["reclaimed"] == len(b"fixture")
+    assert result["errors"] == result["protected_deletions"] == 0
 
 
 def test_cli_candidate_is_rejected(tmp_path: Path) -> None:
@@ -3024,6 +3121,61 @@ def test_watchdog_fast_inventory_survives_a_stale_budget_exhausted_full_marker(
     assert not governor.full_inventory_marker.exists()
 
 
+def test_incomplete_periodic_full_inventory_is_backed_off_for_one_interval(
+    tmp_path: Path, monkeypatch
+) -> None:
+    wall_clock = [10_000]
+    monkeypatch.setattr(disk_cleanup.time, "time", lambda: wall_clock[0])
+    monkeypatch.delenv("LIFE_MANAGER_DISK_INVENTORY_FAST", raising=False)
+    modes = []
+
+    def inventory(**kwargs):
+        modes.append(kwargs["full"])
+        return {"coverage": {"mount_count": 1, "root_count": 1,
+                             "gaps": ["size-budget-exhausted:/unknown"]}}
+
+    monkeypatch.setattr(disk_cleanup, "collect_host_inventory", inventory)
+    state = tmp_path / "state"
+    governor = HostDiskGovernor(home=tmp_path, state_dir=state,
+                                usage=lambda: (12 * GiB, 100 * GiB), clock=lambda: 0.0)
+    monkeypatch.setattr(governor, "discover_candidates", lambda **_kwargs: [])
+
+    first = governor.run_once()
+    second = governor.run_once()
+    wall_clock[0] += disk_cleanup.FULL_INVENTORY_INTERVAL_SECONDS
+    third = governor.run_once()
+
+    assert modes == [True, False, True]
+    assert [r["inventory_mode"] for r in (first, second, third)] == ["full", "fast", "full"]
+    assert not governor.full_inventory_marker.exists()
+    assert governor.full_inventory_attempt_marker.read_text().strip() == str(wall_clock[0])
+
+
+def test_full_inventory_marker_write_failure_falls_back_to_fast_inventory(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.delenv("LIFE_MANAGER_DISK_INVENTORY_FAST", raising=False)
+    modes = []
+
+    def inventory(**kwargs):
+        modes.append(kwargs["full"])
+        return {"coverage": {"mount_count": 1, "root_count": 1, "gaps": []}}
+
+    monkeypatch.setattr(disk_cleanup, "collect_host_inventory", inventory)
+    governor = HostDiskGovernor(home=tmp_path, state_dir=tmp_path / "state",
+                                usage=lambda: (12 * GiB, 100 * GiB))
+    monkeypatch.setattr(governor, "discover_candidates", lambda **_kwargs: [])
+    monkeypatch.setattr(governor, "_mark_full_inventory_attempt",
+                        lambda: (_ for _ in ()).throw(OSError("no space")))
+
+    result = governor.run_once()
+
+    assert modes == [False]
+    assert result["inventory_mode"] == "fast"
+    assert result["inventory_schedule_error_class"] == "OSError"
+    assert result["storage_next_action"] == "retry_full_inventory"
+
+
 def test_run_once_global_budget_preserves_candidate_and_does_not_advance_full_marker(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -3368,7 +3520,7 @@ def test_run_once_rechecks_budget_after_lsof_before_reclaim(tmp_path: Path, monk
     monkeypatch.setattr(disk_cleanup, "collect_host_inventory", fake_inventory)
 
     def lsof(_path: Path) -> str:
-        clock[0] = 106.0
+        clock[0] = disk_cleanup.GOVERNOR_BUDGET_SECONDS + 16
         return "confirmed-closed"
 
     governor = HostDiskGovernor(
@@ -3964,6 +4116,19 @@ def test_receipt_carries_loaded_cleanup_identity(tmp_path, monkeypatch):
     governor._receipt({"free_after": 400*1024**2})
     assert json.loads((tmp_path / "state/last-receipt.json").read_text())["identity"] == saved["identity"]
     assert "identity" not in json.loads((tmp_path / "state/last-unbound-receipt.json").read_text())
+
+
+def test_watchdog_receipt_without_run_binding_uses_unbound_file(tmp_path, monkeypatch):
+    state = tmp_path / "state"
+    monkeypatch.setenv("LIFE_MANAGER_DISK_WATCHDOG", "1")
+    monkeypatch.setattr(disk_cleanup, "cleanup_run_binding", lambda *_args: None)
+    governor = HostDiskGovernor(home=tmp_path, state_dir=state)
+
+    governor._receipt({"ok": True, "free_after": 3 * GiB})
+
+    assert not (state / "last-receipt.json").exists()
+    saved = json.loads((state / "last-unbound-receipt.json").read_text())
+    assert "identity" not in saved
 
 
 def test_governor_reports_growth_and_preservation_reason_without_false_recovery(tmp_path, monkeypatch):

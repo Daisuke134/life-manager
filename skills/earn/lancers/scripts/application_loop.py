@@ -182,7 +182,7 @@ ID_RE = re.compile(r"^[0-9]+$")
 KANA_RE = re.compile(r"[ぁ-ゖァ-ヺ]")
 FORBIDDEN_TERMS = ("receipt", "gate", "agent", "model", "browser", "token", "prompt", "internal id", "レシート", "ゲート", "エージェント", "モデル", "ブラウザ", "トークン", "プロンプト", "内部ID")
 FORBIDDEN_RE = re.compile("|".join(re.escape(term).replace(r"\ ", r"[ _]") for term in FORBIDDEN_TERMS), re.IGNORECASE)
-RETAIN_EVIDENCE_ERRORS = frozenset({"planner_runner_failed", "planner_contract_invalid", "safety_check_failed"})
+RETAIN_EVIDENCE_ERRORS = frozenset({"evidence_initialization_failed", "planner_runner_failed", "planner_contract_invalid", "safety_check_failed"})
 PENDING_CONTINUE_ERRORS = frozenset({
     "submission_uncertain", "browser_unavailable", "account_unavailable", "account_lock_busy",
 })
@@ -226,6 +226,7 @@ class ApplicationLoopResult:
     planner_expected_count: Optional[int] = None
     planner_returned_count: Optional[int] = None
     decision_reports: Optional[tuple[Mapping[str, object], ...]] = None
+    http_status: Optional[int] = None
 
     def to_dict(self) -> dict[str, object]:
         result: dict[str, object] = {"ok": bool(self.ok), "platform": PLATFORM, "submitted": bool(self.submitted), "application_verified": bool(self.application_verified)}
@@ -241,6 +242,8 @@ class ApplicationLoopResult:
         for key in ("verified_project_ids", "verified_provider_proposal_ids", "provider_terminal_blocked_project_ids"):
             value = getattr(self, key)
             if value: result[key] = list(value)
+        if self.error in {"lancers_http_error", "lancers_provider_blocked"} and type(self.http_status) is int and 100 <= self.http_status <= 599:
+            result["http_status"] = self.http_status
         if self.decision_reports: result["decision_reports"] = [dict(value) for value in self.decision_reports]
         if self.unresolved_project_id is not None: result["unresolved_project_id"] = self.unresolved_project_id
         return result
@@ -1087,7 +1090,7 @@ def run_loop(*, exhaustive: bool = False, state_path: Path = DEFAULT_STATE_PATH,
         result = ApplicationLoopResult(True, reason=capacity_reason, unresolved_project_id=quarantined_project_id)
         if output_stream is not None: _emit(result, output_stream)
         return result.to_dict()
-    root = Path(evidence_root if evidence_root is not None else evidence_dir or DEFAULT_EVIDENCE_ROOT); result = ApplicationLoopResult(False, error="planner_runner_failed"); cleanup_failed = False; evidence: Optional[Path] = None
+    root = Path(evidence_root if evidence_root is not None else evidence_dir or DEFAULT_EVIDENCE_ROOT); result = ApplicationLoopResult(False, error="evidence_initialization_failed"); cleanup_failed = False; evidence: Optional[Path] = None
     try:
         try:
             _reset(root); evidence = root / f"run-{uuid.uuid4().hex}"; evidence.mkdir(mode=0o700, exist_ok=False); os.chmod(evidence, 0o700)
@@ -1111,7 +1114,7 @@ def run_loop(*, exhaustive: bool = False, state_path: Path = DEFAULT_STATE_PATH,
                     error, opportunities = observed.get("error"), observed.get("opportunities", [])
                     if observed.get("ok") is not True and not (error == "no_normalized_opportunities" and "opportunities" in observed and not opportunities):
                         clean_error = error if isinstance(error, str) and re.fullmatch(r"[A-Za-z0-9._:-]{1,256}", error or "") else "discovery_failed"
-                        result = ApplicationLoopResult(False, error=clean_error)
+                        result = ApplicationLoopResult(False, error=clean_error, http_status=observed.get("http_status"))
                     elif error is not None and error != "no_normalized_opportunities":
                         result = ApplicationLoopResult(False, error=error if isinstance(error, str) and re.fullmatch(r"[A-Za-z0-9._:-]{1,256}", error) else "discovery_failed")
                     elif isinstance(opportunities, (str, bytes, bytearray)) or not isinstance(opportunities, Sequence): result = ApplicationLoopResult(False, error="discovery_failed")

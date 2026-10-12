@@ -7,6 +7,42 @@ const { marketingCtaLine } = require("../lib/marketing-app-store-cta.js");
 
 const ALL_LANE_COMMANDS = ["run", "run-anicca-main", "run-anicca-main-instagram", "run-anicca-en-card-instagram", "run-anicca-en-widget-instagram", "run-anicca-ai-youtube", "run-anicca-affirmation-youtube", "run-anicca-ja-widget-instagram", "run-anicca-jp4", "run-anicca-he", "run-capafy-ig"];
 
+test("YouTube changed-caption slot reuses a verified publication or holds unresolved prior work", async () => {
+  const { reusePriorYouTubePublication } = require("./honne-ja-cycle.js");
+  const receipt = {
+    schema_version: 1, kind: "marketing_video_distribution", status: "published",
+    product_id: "anicca-ios", format_id: "reelclaw-card", form: "nudge-card",
+    locale: "en", slot: "2026-10-11T05:15:00.000Z", creative_id: "prior-creative",
+    platform: "youtube", video_sha256: "a".repeat(64), caption_sha256: "b".repeat(64),
+    public_url: "https://www.youtube.com/watch?v=iEDdaIWdwY4",
+    provider_post_id: "prior-post", provider_route: "postiz", provider_reconciled: true,
+    published_at: "2026-10-11T05:18:08.723Z",
+  };
+  const refs = { product_ref: "product://anicca-ios", format_ref: "format://reelclaw-card",
+    locale_ref: "locale://en", platform_ref: "platform://youtube",
+    slot_ref: "schedule-slot://2026-10-11T05:15:00.000Z" };
+  const current = { tenant_id: "dais-local", job_id: "changed-caption-job", input_refs: refs };
+  const priorJob = { job_id: "prior-job", status: "completed", input_refs: { ...refs,
+    form_ref: "form://nudge-card", creative_ref: "creative://anicca-ios/prior-creative",
+    video_ref: `object://sha256/${receipt.video_sha256}`, caption_ref: `object://sha256/${receipt.caption_sha256}` } };
+  const store = (value) => ({ async readPriorPublicationForSlot() { return value; } });
+  const reused = await reusePriorYouTubePublication(store({ job: priorJob, receipt }), current);
+  assert.equal(reused.created, false);
+  assert.equal(reused.public_url, receipt.public_url);
+  assert.equal(reused.provider_post_id, receipt.provider_post_id);
+  assert.equal(reused.reused_prior_slot, true);
+  assert.equal(await reusePriorYouTubePublication(store(null), current), null);
+  for (const value of [null, { ...receipt, provider_reconciled: false }, { ...receipt, slot: "2026-10-10T05:15:00.000Z" },
+    { ...receipt, creative_id: "wrong-creative" }, { ...receipt, video_sha256: "c".repeat(64) },
+    { ...receipt, caption_sha256: "d".repeat(64) }, { ...receipt, form: "nudge-widget" }]) {
+    const held = await reusePriorYouTubePublication(store({ job: priorJob, receipt: value }), current);
+    assert.equal(held.held, true);
+    assert.equal(held.reason, "prior_slot_publication_unresolved");
+    assert.equal(held.prior_job_id, priorJob.job_id);
+    assert.equal(held.public_url, null);
+  }
+});
+
 test("Every Honne JA lane's product/platform/locale resolves to a real App Store CTA line", () => {
   for (const command of ALL_LANE_COMMANDS) {
     const lane = parseArgs([command]).lane;

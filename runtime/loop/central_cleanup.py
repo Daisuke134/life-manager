@@ -21,13 +21,14 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+RECONCILE_CALL_TAIL_BYTES = 4 * 1024 * 1024
+
 from runtime.loop.loop_cleanup import (
     gc_releases, remove_owned_tree, reclaim_release_source, release_is_reclaimed,
     RELEASE_NAME, _release_immutable_store_probe,
 )
 from runtime.host.resource_admission import process_starts
 
-HOST_CLEANUP_RECOVERY_FLOOR_BYTES = 2 * 1024**3  # cleanup receipt target; not producer admission
 
 
 def installed_state_roots(agents_dir: Path) -> set[Path]:
@@ -64,8 +65,10 @@ def no_effect_loop_ids(registry_path: Path) -> set[str]:
     }
 
 
-def recorded_effect_classes(events_path: Path, loop_ids: set[str]) -> dict[tuple[str, str], str | None]:
-    observed: dict[tuple[str, str], set[str | None]] = {}
+def recorded_run_metadata(
+        events_path: Path, loop_ids: set[str]
+        ) -> dict[tuple[str, str], tuple[str | None, str | None, str | None]]:
+    observed: dict[tuple[str, str], set[tuple[str | None, str | None, str | None]]] = {}
     try:
         with events_path.open(encoding="utf-8") as handle:
             for line in handle:
@@ -77,20 +80,103 @@ def recorded_effect_classes(events_path: Path, loop_ids: set[str]) -> dict[tuple
                     return {}
                 if not isinstance(event, dict):
                     return {}
-                loop_id, run_id, effect_class = (
-                    event.get("loop_id"), event.get("run_id"), event.get("effect_class"))
+                loop_id, run_id, effect_class, occurrence_id, release_sha = (
+                    event.get("loop_id"), event.get("run_id"), event.get("effect_class"),
+                    event.get("occurrence_id"), event.get("release_sha"))
                 if not isinstance(loop_id, str) or loop_id not in loop_ids:
                     continue
                 if not isinstance(run_id, str):
                     return {}
-                observed.setdefault((loop_id, run_id), set()).add(
-                    effect_class if isinstance(effect_class, str) else None)
+                observed.setdefault((loop_id, run_id), set()).add((
+                    effect_class if isinstance(effect_class, str) else None,
+                    occurrence_id if isinstance(occurrence_id, str) else None,
+                    release_sha if isinstance(release_sha, str) else None,
+                ))
     except (OSError, UnicodeError):
         return {}
-    return {
-        key: next(iter(classes)) if len(classes) == 1 and None not in classes else None
-        for key, classes in observed.items()
-    }
+    result: dict[tuple[str, str], tuple[str | None, str | None, str | None]] = {}
+    for key, values in observed.items():
+        classes, occurrences, releases = ({value[index] for value in values}
+                                           for index in range(3))
+        result[key] = (
+            next(iter(classes)) if len(classes) == 1 and None not in classes else None,
+            next(iter(occurrences)) if len(occurrences) == 1 and None not in occurrences else None,
+            next(iter(releases)) if len(releases) == 1 and None not in releases else None,
+        )
+    return result
+
+
+def closed_reconcile_occurrences(path: Path, *, max_bytes: int = RECONCILE_CALL_TAIL_BYTES
+                                 ) -> set[tuple[str, str, str]]:
+    """Read exact structured closures bound to the target runtime release."""
+    try:
+        size = path.stat().st_size
+        offset = max(0, size - max_bytes)
+        with path.open("rb") as handle:
+            handle.seek(offset)
+            payload = handle.read(max_bytes)
+    except OSError:
+        return set()
+    lines = payload.splitlines()
+    if offset and lines:
+        lines = lines[1:]  # first line may begin before the bounded tail
+    closed: set[tuple[str, str, str]] = set()
+    for line in lines:
+        try:
+            record = json.loads(line)
+        except (UnicodeError, json.JSONDecodeError):
+            continue
+        if not isinstance(record, dict) or record.get("closed") is not True \
+                or record.get("exit_code") != 0:
+            continue
+        owner_id, occurrence_id, release_sha = (
+            record.get("owner_id"), record.get("occurrence_id"), record.get("release_sha"))
+        proof = record.get("closure_proof")
+        if not (isinstance(owner_id, str) and owner_id
+                and isinstance(occurrence_id, str) and occurrence_id
+                and isinstance(release_sha, str)
+                and re.fullmatch(r"[a-f0-9]{40}", release_sha)
+                and isinstance(proof, dict)):
+            continue
+        receipt_ref = proof.get("receipt_ref")
+        if (proof.get("proof_type") == "effect_reconcile_closure.v1"
+                and proof.get("owner_id") == owner_id
+                and proof.get("occurrence_id") == occurrence_id
+                and proof.get("release_sha") == release_sha
+                and proof.get("verified") is True
+                and isinstance(receipt_ref, str) and receipt_ref.strip()):
+            closed.add((owner_id, occurrence_id, release_sha))
+    return closed
+
+
+def _browser_profiles_live(run_path: Path) -> bool | None:
+    """Return whether a process still names a run-owned ephemeral Chromium profile."""
+    try:
+        profiles = []
+        for path in run_path.iterdir():
+            if not path.name.startswith("agent-browser-profile-"):
+                continue
+            if path.is_symlink() or not path.is_dir() or path.stat().st_uid != os.getuid():
+                return None
+            profiles.append(str(path.resolve()))
+    except OSError:
+        return None
+    if not profiles:
+        return False
+    try:
+        result = subprocess.run(["ps", "-axo", "pid=,command="], capture_output=True,
+                                text=True, timeout=5, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if result.returncode != 0:
+        return None
+    for line in result.stdout.splitlines():
+        parts = line.strip().split(None, 1)
+        if len(parts) != 2 or parts[0] == str(os.getpid()):
+            continue
+        if any(profile in parts[1] for profile in profiles):
+            return True
+    return False
 
 
 def _diagnostic_relay_live(run_fd: int, starts: dict | None, loop_id: str, run_id: str) -> bool:
@@ -123,7 +209,8 @@ def _diagnostic_relay_live(run_fd: int, starts: dict | None, loop_id: str, run_i
 
 def scratch_gc(roots: set[Path], *, snapshot_started_ns: int | None = None,
                starts: dict[int, str] | None = None,
-               no_effect_loop_ids: set[str] | frozenset[str] = frozenset()
+               no_effect_loop_ids: set[str] | frozenset[str] = frozenset(),
+               reconciled_occurrences: set[tuple[str, str, str]] | frozenset[tuple[str, str, str]] = frozenset(),
                ) -> dict[str, int | bool]:
     """Delete only crashed per-run scratch whose process identity is provably stale."""
     started_ns = time.time_ns() if snapshot_started_ns is None else snapshot_started_ns
@@ -149,7 +236,7 @@ def scratch_gc(roots: set[Path], *, snapshot_started_ns: int | None = None,
         finally:
             if root_fd >= 0:
                 os.close(root_fd)
-        event_effect_classes = recorded_effect_classes(root / "events.jsonl", set(loop_names))
+        event_metadata = recorded_run_metadata(root / "events.jsonl", set(loop_names))
         try:
             for loop_name in loop_names:
                 loop_fd = -1
@@ -165,7 +252,7 @@ def scratch_gc(roots: set[Path], *, snapshot_started_ns: int | None = None,
                             run_fd = os.open(run_name, flags, dir_fd=loop_fd)
                             owner_fd = os.open(
                                 ".owner.json", os.O_RDONLY | nofollow, dir_fd=run_fd)
-                        except FileNotFoundError:
+                        except (FileNotFoundError, NotADirectoryError):
                             for descriptor in (owner_fd, run_fd):
                                 if descriptor >= 0:
                                     os.close(descriptor)
@@ -210,15 +297,22 @@ def scratch_gc(roots: set[Path], *, snapshot_started_ns: int | None = None,
                                     raise ValueError("invalid owner effect class")
                             else:
                                 owner_effect_class = None
-                            if (has_terminal_unrecorded
-                                    and loop_name not in no_effect_loop_ids):
-                                result["preserved"] += 1
-                                continue
                             if has_terminal_unrecorded:
                                 event_key = (loop_name, run_name)
-                                recorded_effect_class = event_effect_classes.get(event_key)
-                                if (event_key not in event_effect_classes
-                                        or recorded_effect_class != "none"
+                                recorded_effect_class, occurrence_id, release_sha = event_metadata.get(
+                                    event_key, (None, None, None))
+                                verified_close = (
+                                    isinstance(occurrence_id, str)
+                                    and isinstance(release_sha, str)
+                                    and (loop_name, occurrence_id, release_sha) in reconciled_occurrences
+                                )
+                                no_effect_without_reconcile = (
+                                    recorded_effect_class == "none"
+                                    and loop_name in no_effect_loop_ids
+                                )
+                                if (event_key not in event_metadata
+                                        or recorded_effect_class is None
+                                        or (not no_effect_without_reconcile and not verified_close)
                                         or (owner_effect_class is not None
                                             and owner_effect_class != recorded_effect_class)):
                                     result["preserved"] += 1
@@ -228,6 +322,11 @@ def scratch_gc(roots: set[Path], *, snapshot_started_ns: int | None = None,
                                 continue
                             actual = identities.get(pid)
                             if actual is not None and actual == expected:
+                                result["preserved"] += 1
+                                continue
+                            browser_live = _browser_profiles_live(
+                                root / "loop-tmp" / loop_name / run_name)
+                            if browser_live is not False:
                                 result["preserved"] += 1
                                 continue
                             if remove_owned_tree(loop_fd, run_fd, run_name):
@@ -252,21 +351,6 @@ def scratch_gc(roots: set[Path], *, snapshot_started_ns: int | None = None,
     return result
 
 
-def host_cleanup_command(root: Path, home: Path, state_dir=None) -> list[str]:
-    state_dir = state_dir or home / ".local/state/life-manager/state"
-    return [sys.executable, str(root / "skills/self/disk-cleanup/disk_cleanup.py"),
-            "--home", str(home), "--state-dir",
-            str(state_dir)]
-
-
-def _host_cleanup_capacity_status(result: object) -> str:
-    free_after = result.get("free_after") if isinstance(result, dict) else None
-    if (not isinstance(free_after, int) or isinstance(free_after, bool)
-            or free_after < 0):
-        return "unknown"
-    return "met" if free_after >= HOST_CLEANUP_RECOVERY_FLOOR_BYTES else "unmet"
-
-
 def cleanup_run_binding(env: dict, release_root: Path) -> dict | None:
     """Read host-owned identity; an unbound standalone sweep stays unbound."""
     run_id = env.get("LIFE_MANAGER_RUN_ID")
@@ -284,56 +368,6 @@ def cleanup_run_binding(env: dict, release_root: Path) -> dict | None:
         return None
     return {"owner_id": "life-manager-disk-cleanup", "run_id": run_id,
             "occurrence_id": occurrence_id, "release_sha": sha}
-
-
-def host_cleanup_ok(returncode: int, result: object) -> bool:
-    if not isinstance(result, dict):
-        return False
-    stop = result.get("disk_writers_stop")
-    stop_status = stop.get("status") if isinstance(stop, dict) else None
-    return (
-        returncode == 0
-        and result.get("errors") == 0
-        and result.get("protected_deletions") == 0
-        and _host_cleanup_capacity_status(result) != "unknown"
-        and stop_status in {"absent", "cleared"}
-    )
-
-
-def host_cleanup_readback(returncode: int, stdout: str, *,
-                          binding: dict | None = None) -> tuple[bool, dict]:
-    """Parse the host governor's final JSON without collapsing missing output to ``{}``."""
-    if not isinstance(stdout, str) or not stdout.strip():
-        return False, {
-            "error": "host_cleanup_result_missing",
-            "returncode": returncode,
-        }
-    try:
-        result = json.loads(stdout.splitlines()[-1])
-    except (TypeError, ValueError, json.JSONDecodeError):
-        return False, {
-            "error": "host_cleanup_result_invalid",
-            "returncode": returncode,
-        }
-    if not isinstance(result, dict):
-        return False, {
-            "error": "host_cleanup_result_invalid",
-            "returncode": returncode,
-        }
-    if binding is not None and result.get("identity") != binding:
-        return False, {"error": "host_cleanup_identity_mismatch",
-                       "execution_ok": False, "capacity_recovered": None,
-                       "capacity_recovery": {"status": "unknown",
-                           "recovery_floor_bytes": HOST_CLEANUP_RECOVERY_FLOOR_BYTES}}
-    result["capacity_recovery"] = {
-        "status": _host_cleanup_capacity_status(result),
-        "recovery_floor_bytes": HOST_CLEANUP_RECOVERY_FLOOR_BYTES,
-    }
-    ok = host_cleanup_ok(returncode, result)
-    result["execution_ok"] = ok
-    status = result["capacity_recovery"]["status"]
-    result["capacity_recovered"] = None if status == "unknown" else status == "met"
-    return ok, result
 
 
 def loaded_release_roots(agents_dir: Path, releases_root: Path) -> set[Path]:
@@ -367,7 +401,7 @@ def open_release_roots(releases_root: Path) -> set[Path]:
     """Return release roots named by a running process command."""
     completed = subprocess.run(
         ["ps", "-axo", "command="],
-        capture_output=True, text=True, timeout=120,
+        capture_output=True, text=True, timeout=5,
     )
     if completed.returncode != 0:
         raise OSError(f"release process inventory failed: {completed.returncode}")
@@ -680,43 +714,11 @@ def main() -> int:
     binding = cleanup_run_binding(dict(os.environ), ROOT)
     codex_result = (codex_history_cleanup(home) if binding and
         binding.get("owner_id") == "life-manager-disk-cleanup" else {"status": "unbound_owner"})
-    try:
-        cleanup_state = Path(os.environ.get(
-            "LIFE_MANAGER_HOST_STATE_DIR",
-            home / ".local/state/life-manager/state",
-        )).expanduser()
-        host_process = subprocess.run(
-            host_cleanup_command(ROOT, home, cleanup_state),
-            capture_output=True, text=True, timeout=240,
-        )
-        host_ok, host_result = host_cleanup_readback(
-            host_process.returncode, host_process.stdout,
-            binding=cleanup_run_binding(dict(os.environ), ROOT),
-        )
-        if (host_process.returncode == 75
-                and host_result.get("reason") == "cleanup_lock_busy"
-                and host_result.get("status") == "deferred"
-                and host_result.get("effect") == 0
-                and host_result.get("readback") == 0):
-            # Host temp/worktree sweeping has a separate lock from release GC.
-            try:
-                gc_result = release_gc(releases, current, agents,
-                    keep=int(os.environ.get("LIFE_MANAGER_RELEASE_KEEP", "1")))
-            except (OSError, ValueError) as error:
-                gc_result = {"errors": 1, "error": "release_cleanup_invocation_failed",
-                             "error_class": type(error).__name__}
-            print(json.dumps({**gc_result, **host_result,
-                "errors": gc_result["errors"] + git_result["errors"],
-                "host_cleanup": host_result, "git_cleanup": git_result, "codex_storage": codex_result},
-                sort_keys=True, separators=(",", ":")))
-            return 75 if gc_result["errors"] == 0 and git_result["errors"] == 0 else 1
-    except subprocess.TimeoutExpired:
-        host_ok, host_result = False, {"error": "host_cleanup_timeout"}
-    except OSError as error:
-        host_ok, host_result = False, {"error": "host_cleanup_invocation_failed",
-                                       "error_class": type(error).__name__}
-        if isinstance(error.errno, int):
-            host_result["errno"] = error.errno
+    # The 60-second watchdog is the sole HostDiskGovernor owner. This five-minute
+    # service performs maintenance and release/scratch GC without contending on
+    # the watchdog's host-sweep lock.
+    host_ok = True
+    host_result = {"status": "delegated", "owner_id": "com.anicca.disk-watchdog"}
     try:
         result = release_gc(releases, current, agents,
                             keep=int(os.environ.get("LIFE_MANAGER_RELEASE_KEEP", "1")))
@@ -724,10 +726,13 @@ def main() -> int:
         print(json.dumps({"ok": False, "error": str(error)}, sort_keys=True)); return 1
     result["errors"] += git_result["errors"]
     snapshot_started_ns = time.time_ns()
+    reconciled_occurrences = closed_reconcile_occurrences(
+        home / ".local/state/life-manager/lm-fence-reconciler/reconcile-calls.jsonl")
     scratch_result = scratch_gc(
         installed_state_roots(agents), snapshot_started_ns=snapshot_started_ns,
         starts=process_starts(),
-        no_effect_loop_ids=no_effect_loop_ids(ROOT / "config/loop-registry.json"))
+        no_effect_loop_ids=no_effect_loop_ids(ROOT / "config/loop-registry.json"),
+        reconciled_occurrences=reconciled_occurrences)
     result.update({"ok": result["errors"] == 0 and host_ok and scratch_result["errors"] == 0,
                    "git_cleanup": git_result,
                    "codex_storage": codex_result,

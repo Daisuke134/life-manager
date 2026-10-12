@@ -371,6 +371,7 @@ import sys
 state_root = Path(sys.argv[1]).resolve()
 ledger = Path(sys.argv[2]).resolve()
 control_path = Path(sys.argv[3]).resolve()
+sys.path.insert(0, str(control_path.parent))
 spec = importlib.util.spec_from_file_location("quality_feedback_recovery_scan", control_path)
 control = importlib.util.module_from_spec(spec)
 assert spec.loader is not None
@@ -485,15 +486,21 @@ LOCAL_HOUR_VALUE="${LOCAL_HOUR#0}"
 if [ "$PRE_START_ACTION" = "new" ] \
   && [ "$PRE_START_REASON" = "no-same-jst-day-run" ] \
   && [ "$PRIORITY_PUBLICATION_READY" -ne 1 ]; then
-  if [ "$LOCAL_HOUR_VALUE" -lt "$DAILY_SCHEDULE_HOUR" ]; then
+  if [ "$LOCAL_HOUR_VALUE" -lt "$DAILY_SCHEDULE_HOUR" ] && [ "${PRIORITY_OLDER_RUN:-0}" -eq 1 ]; then
+    # Before the schedule hour there is no today's article to protect, so a finished
+    # prior-day article publishes now instead of waiting for 06:00 (2026-10-12).
+    echo "article-resume: publishing older backlog before the daily schedule run=$PRIORITY_RUN_ID hour=$LOCAL_HOUR" >>"$LOG"
+    PRIORITY_PUBLICATION_READY=1
+  elif [ "$LOCAL_HOUR_VALUE" -lt "$DAILY_SCHEDULE_HOUR" ]; then
     echo "article-resume: daily schedule not due date=$LOCAL_DATE hour=$LOCAL_HOUR" >>"$LOG"
     exit 0
+  else
+    echo "article-resume: missed daily schedule catch-up date=$LOCAL_DATE hour=$LOCAL_HOUR" >>"$LOG"
+    export ARTICLE_EXPECTED_NEW_DAILY_DATE="$LOCAL_DATE"
+    trap - EXIT
+    release_publication_lock || exit 1
+    exec bash "$ARTICLE_ROOT/article-daily.sh"
   fi
-  echo "article-resume: missed daily schedule catch-up date=$LOCAL_DATE hour=$LOCAL_HOUR" >>"$LOG"
-  export ARTICLE_EXPECTED_NEW_DAILY_DATE="$LOCAL_DATE"
-  trap - EXIT
-  release_publication_lock || exit 1
-  exec bash "$ARTICLE_ROOT/article-daily.sh"
 fi
 
 GENERATION_RUN_ID="$(printf '%s' "$PRE_START_DECISION" | jq -r '.run_id // empty')"
@@ -874,14 +881,24 @@ case "$PUBLICATION_CONTRACT" in
     X_POST_COMMAND_INSTRUCTION="The canonical X Post command is python3 $ARTICLE_ROOT/scripts/x-post/publish.py go; it owns the durable pre-effect timeline fence and must not be replaced with an ad-hoc browser click."
     ;;
   active-four)
-    DORMANT_ROUTING_INSTRUCTION="Current active-four: zenn-article/ja, devto/en, x-article/en, and x-post/ja receive explicit durable dormant-destination skip receipts and never receive publication intents."
-    DORMANT_ELIGIBILITY_INSTRUCTION="Dormant zenn-article/ja, devto/en, x-article/en, x-post/ja are never eligible. Never publish, repair, or stage zenn-article/ja or devto/en."
-    REQUIRED_INTENTS_INSTRUCTION="Require publication-guard.py plan to report all four active valid stable intents plus four durable dormant skip receipts."
-    INITIALIZATION_CONTRACT_INSTRUCTION="Active-four initialization must register every missing_dormant_skip_pairs entry through publication-guard.py register-dormant-skip before or alongside the four active target registrations; register only note/ja, substack/ja, substack/en, and x-article/ja, and do not publish any pair in this initialization tick."
-    DORMANT_RECEIPT_INSTRUCTION="The four dormant skip receipts have slo=not-applicable, never breach an SLO, and never enter pending, recovery, or publication work."
+    CONTRACT_PAIRS="$(python3 - "$ARTICLE_ROOT/scripts" <<'PYCONTRACT' 2>>"$LOG"
+import json
+import sys
+sys.path.insert(0, sys.argv[1])
+from publication_contract import ACTIVE_PAIRS, DORMANT_PAIRS
+print(json.dumps({"active": ACTIVE_PAIRS, "dormant": DORMANT_PAIRS}))
+PYCONTRACT
+)" || { echo "article-resume: destination contract read failed closed" >>"$LOG"; exit 1; }
+    ACTIVE_PAIR_LIST="$(printf '%s' "$CONTRACT_PAIRS" | jq -c '.active')"
+    DORMANT_PAIR_LIST="$(printf '%s' "$CONTRACT_PAIRS" | jq -c '.dormant')"
+    DORMANT_ROUTING_INSTRUCTION="Current active pairs: $ACTIVE_PAIR_LIST. Current dormant pairs: $DORMANT_PAIR_LIST. These installed lists override historical destination lists in the original prompt; dormant pairs receive durable skip receipts and never publication intents."
+    DORMANT_ELIGIBILITY_INSTRUCTION="Never publish, repair, or stage any current dormant pair in $DORMANT_PAIR_LIST."
+    REQUIRED_INTENTS_INSTRUCTION="Require publication-guard.py plan to report valid stable intents for every current active pair in $ACTIVE_PAIR_LIST and durable skip receipts for every current dormant pair in $DORMANT_PAIR_LIST."
+    INITIALIZATION_CONTRACT_INSTRUCTION="Initialization must register every missing_dormant_skip_pairs entry through publication-guard.py register-dormant-skip before or alongside current active target registrations; register only current active pairs in $ACTIVE_PAIR_LIST, and do not publish any pair in this initialization tick."
+    DORMANT_RECEIPT_INSTRUCTION="Current dormant skip receipts have slo=not-applicable, never breach an SLO, and never enter pending, recovery, or publication work."
     COMPLETION_CONTRACT_INSTRUCTION="Do not select or claim a topic; research, write, revise, regenerate, restage, create a run, replace a target, change an artifact, or send a success receipt unless article-run-complete.py proves the persisted active-four contract."
     RECOVERY_SCOPE_INSTRUCTION="If any identity, hash, safety, remote state, or slot is ambiguous outside the active-four recovery_pairs contract above, stop without a public create action."
-    REPAIR_SCOPE_INSTRUCTION="An eligible pair whose persisted status is repair-required is NEVER a create. Use only its fixed same-ID command: note/ja = python3 $ARTICLE_ROOT/scripts/note-publish/note_inplace_repair.py; substack/ja or substack/en = python3 $ARTICLE_ROOT/scripts/substack-publish/substack_inplace_repair.py --pair PAIR; x-article/ja = python3 $ARTICLE_ROOT/scripts/x-publish/x_inplace_repair.py --pair x-article/ja. Refuse every repair-required zenn-article/ja or devto/en and every pair not covered by this list."
+    REPAIR_SCOPE_INSTRUCTION="An eligible pair whose persisted status is repair-required is NEVER a create. Use only its fixed same-ID command: note/ja = python3 $ARTICLE_ROOT/scripts/note-publish/note_inplace_repair.py; substack/ja or substack/en = python3 $ARTICLE_ROOT/scripts/substack-publish/substack_inplace_repair.py --pair PAIR. Refuse every repair-required current dormant pair and every pair not covered by this list."
     X_POST_COMMAND_INSTRUCTION="Never publish, repair, or stage dormant x-post/ja; its explicit skip receipt is not an eligible command."
     ;;
   *)
@@ -967,8 +984,10 @@ fi
 # persisted its exact argv/env in the preflighted dispatch manifest. Execute
 # supported deterministic rows once and require a durable target before
 # exiting the publication-free initialization tick.
+# Missing dispatch evidence falls through to the existing same-run recovery agent.
 if [ "$INITIALIZATION_COUNT" -gt 0 ] \
   && [ "$ELIGIBLE_COUNT" -eq 0 ] \
+  && [ -s "$RUN_DIR/gates/platform-dispatch.jsonl" ] \
   && { [ "$FIRST_INITIALIZATION" = "note/ja" ] \
     || { [ "$PUBLICATION_CONTRACT" = "legacy-exact8" ] \
       && [ "$FIRST_INITIALIZATION" = "devto/en" ]; }; }; then
@@ -1059,7 +1078,9 @@ if [ "$INITIALIZATION_COUNT" -eq 0 ] \
     --code-file "$ARTICLE_ROOT/scripts/substack-publish/verify-preview.py"
   )
   SUBSTACK_COMMAND=(python3 "$ARTICLE_ROOT/scripts/publish-substack-managed.py")
-  python3 "$ARTICLE_ROOT/scripts/resume_failure_circuit.py" run \
+  # A live browser owner is temporary admission, never a publisher failure.
+  BROWSER_WAIT_SECONDS=0 bash "$LIFE_MANAGER_REPO/skills/browser/with-browser.sh" interactive:dais -- \
+    python3 "$ARTICLE_ROOT/scripts/resume_failure_circuit.py" run \
     --circuit "$RUN_DIR/gates/resume-failure-circuit.json" \
     --state "$STATE_PATH" \
     "${SUBSTACK_CODE_ARGS[@]}" \

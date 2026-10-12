@@ -4,12 +4,17 @@ Measured 2026-10-07 01:41Z: set-005 "ふわふわペンギンの気持ちスタ�
 「既に存在するタイトルのため利用できません」 before any confirm dialog, so the submit waited for an
 OK button that never came and the wake ended effect-unknown.
 """
+import asyncio
 import sys
+import itertools
+import datetime
 import unittest
+from unittest.mock import AsyncMock, patch
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import line_sticker_submit as MODULE  # noqa: E402
+import features_readback as FEATURES  # noqa: E402
 
 
 class Retitle(unittest.TestCase):
@@ -53,23 +58,20 @@ class TitleAttempts(unittest.TestCase):
     LISTING = {"character_name": "Stardust Otter",
                "title": {"ja": "星くずカワウソの毎日返事【文字入り】", "en": "Stardust Otter Daily Reply (with text)"}}
 
-    def test_original_then_numbered_forms_then_the_name_led_title(self) -> None:
-        # set-015 (2026-10-08): the name-led title became "Stardust Otterのスタンプ", an on-sale item of
-        # ours, and it threw away 【文字入り】; numbered forms of the planned title keep the meaning.
-        attempts = list(MODULE._title_attempts(self.LISTING))
+    def test_original_then_numbered_forms_without_end(self) -> None:
+        # Dais 2026-10-12: no cap. Only a "title already taken" answer moves to the next number (any
+        # other error stops the attempt), so counting until a free volume is found cannot loop.
+        attempts = list(itertools.islice(MODULE._title_attempts(self.LISTING), 101))
         self.assertEqual(attempts[0]["title"], self.LISTING["title"])
         self.assertTrue(attempts[1]["title"]["ja"].endswith("【文字入り】 vol.2"), attempts[1]["title"]["ja"])
         self.assertTrue(attempts[2]["title"]["ja"].endswith("【文字入り】 vol.3"), attempts[2]["title"]["ja"])
-        self.assertEqual(attempts[-1]["title"]["ja"], "Stardust Otterのスタンプ")
+        self.assertTrue(attempts[100]["title"]["ja"].endswith("vol.101"), attempts[100]["title"]["ja"])
+        self.assertEqual(len({a["title"]["ja"] for a in attempts}), 101)
 
-    def test_attempts_are_bounded(self) -> None:
-        self.assertEqual(len(list(MODULE._title_attempts(self.LISTING))), MODULE.MAX_TITLE_ATTEMPTS)
-
-    def test_without_a_name_it_only_numbers(self) -> None:
-        attempts = list(MODULE._title_attempts({"title": {"ja": "もちハム", "en": "Mochi"}}))
+    def test_without_a_name_it_numbers_the_same_way(self) -> None:
+        attempts = list(itertools.islice(MODULE._title_attempts({"title": {"ja": "もちハム", "en": "Mochi"}}), 3))
         self.assertEqual(attempts[0]["title"], {"ja": "もちハム", "en": "Mochi"})
         self.assertTrue(attempts[1]["title"]["ja"].endswith("vol.2"))
-        self.assertEqual(len(attempts), MODULE.MAX_TITLE_ATTEMPTS - 1)
 
 
 class InlineTitleError(unittest.TestCase):
@@ -120,6 +122,16 @@ class RequestReviewIsIdempotent(unittest.TestCase):
         import asyncio
         page = _FakePage("お知らせ 審査中のアイテムについて ステータス リジェクト")
         self.assertIsNone(asyncio.run(MODULE._review_status(page)))
+
+
+
+class SeriesDepth(unittest.TestCase):
+    def test_a_long_running_series_still_finds_a_free_volume(self) -> None:
+        # 2026-10-12: set-031 "星くずカワウソの毎日返事【文字入り】" found the base and vol.2-vol.5 taken by our
+        # own earlier sets and crashed every wake with TitleTaken; top sellers number deep (ちいかわ５).
+        titles = [a["title"]["ja"] for a in itertools.islice(MODULE._title_attempts(
+            {"title": {"ja": "星くずカワウソの毎日返事【文字入り】", "en": "Stardust Otter Replies (with text)"}}), 40)]
+        self.assertTrue(any("vol.20" in t for t in titles), titles[-3:])
 
 
 if __name__ == "__main__":
@@ -177,9 +189,10 @@ class CleanCharacters(unittest.TestCase):
 
 
 class _FakeRadio:
-    def __init__(self, clicked: list[str], value: str) -> None:
+    def __init__(self, clicked: list[str], value: str, *, checked_after_click: bool = True) -> None:
         self._clicked = clicked
         self._value = value
+        self._checked_after_click = checked_after_click
 
     async def count(self) -> int:
         return 1
@@ -190,6 +203,14 @@ class _FakeRadio:
 
     async def evaluate(self, script: str) -> None:
         self._clicked.append(self._value)
+
+    async def is_checked(self) -> bool:
+        return self._value in self._clicked and self._checked_after_click
+
+
+class _FakeMissingRadio:
+    async def count(self) -> int:
+        return 0
 
 
 class _FakeSelectLocator:
@@ -202,8 +223,10 @@ class _FakeCampaignPage:
     radio per requested value (every value in LINE's shared feature-campaign radio group "exists").
     """
 
-    def __init__(self) -> None:
+    def __init__(self, *, missing_values=(), unchecked_values=()) -> None:
         self.clicked: list[str] = []
+        self.missing_values = set(missing_values)
+        self.unchecked_values = set(unchecked_values)
 
     def locator(self, selector: str, *a, **k):
         if selector == "select":
@@ -211,15 +234,159 @@ class _FakeCampaignPage:
         # 参加しない has no value attribute; the live DOM reports its .value as "on".
         value = selector.split("value='")[1].rstrip("']") if "value='" in selector else "on"
         assert "value='on'" not in selector, "CSS [value='on'] never matches the live radio"
-        return _FakeRadio(self.clicked, value)
+        if value in self.missing_values:
+            return _FakeMissingRadio()
+        return _FakeRadio(self.clicked, value, checked_after_click=value not in self.unchecked_values)
 
 
 class SelectCampaign(unittest.TestCase):
-    def test_a_feature_value_clicks_that_exact_radio_not_on(self) -> None:
+    class LivePage:
+        def __init__(self) -> None:
+            self.closed = False
+
+        async def close(self) -> None:
+            self.closed = True
+
+    class Context:
+        def __init__(self, live_page) -> None:
+            self.live_page = live_page
+
+        async def new_page(self):
+            return self.live_page
+
+    class SourcePage:
+        def __init__(self, context) -> None:
+            self.context = context
+
+    def _selection(self) -> dict:
+        order = [f"s{i}" for i in range(40)]
+        return {
+            "campaign_value": "835",
+            "campaign_requirements": {
+                "value": "835", "title": "冬を感じるスタンプ", "deadline": "2026-12-04",
+                "min_sticker_count": 8, "max_sticker_count": 40, "min_price_jpy": 190,
+                "min_theme_stickers": 12,
+                "observed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            },
+            "campaign_theme_ids": order[:12],
+            "order": order,
+        }
+
+    @staticmethod
+    def _listing(**overrides) -> dict:
+        return {"count": 40, "price_jpy": 190, **overrides}
+
+    def _select_with_matching_live_terms(self, page, selection, listing) -> None:
+        current = {**selection["campaign_requirements"],
+                   "observed_at": datetime.datetime.now(datetime.timezone.utc).isoformat()}
+        with patch.object(MODULE, "_read_current_campaign_requirements", new_callable=AsyncMock,
+                          return_value=current):
+            asyncio.run(MODULE._select_taste_character_campaign(page, selection, listing))
+
+    def test_live_campaign_requirements_are_read_from_official_announcement(self) -> None:
+        live_page = self.LivePage()
+        source_page = self.SourcePage(self.Context(live_page))
+        feature = {
+            "value": "835", "title": "冬を感じるスタンプ", "deadline": "2026-12-04",
+            "conditions": "個数：8-40個\n金額：￥190～\n冬関連が8個以上",
+        }
+        with patch.object(FEATURES, "read_features_on_page", new_callable=AsyncMock,
+                          return_value={"status": "ok", "features": [feature]}, create=True) as read_features:
+            requirements = asyncio.run(MODULE._read_current_campaign_requirements(source_page, "835"))
+        read_features.assert_awaited_once_with(live_page, FEATURES.FEATURE_PAGE)
+        self.assertTrue(live_page.closed)
+        self.assertEqual(requirements["min_price_jpy"], 190)
+        self.assertEqual(requirements["min_theme_stickers"], 12)
+        self.assertEqual(requirements["title"], "冬を感じるスタンプ")
+
+    def test_missing_live_campaign_fails_closed(self) -> None:
+        live_page = self.LivePage()
+        source_page = self.SourcePage(self.Context(live_page))
+        with patch.object(FEATURES, "read_features_on_page", new_callable=AsyncMock,
+                          return_value={"status": "ok", "features": []}, create=True):
+            with self.assertRaisesRegex(RuntimeError, "campaign_live_feature_unavailable"):
+                asyncio.run(MODULE._read_current_campaign_requirements(source_page, "835"))
+        self.assertTrue(live_page.closed)
+
+    def test_selected_campaign_without_submit_eligibility_facts_fails_closed(self) -> None:
         import asyncio
         page = _FakeCampaignPage()
-        asyncio.run(MODULE._select_taste_character_campaign(page, {"campaign_value": "835"}))
+        with self.assertRaisesRegex(RuntimeError, "campaign_requirements_missing"):
+            asyncio.run(MODULE._select_taste_character_campaign(page, {"campaign_value": "835"}))
+
+    def test_selected_campaign_with_stale_conditions_fails_closed(self) -> None:
+        import asyncio
+        page = _FakeCampaignPage()
+        selection = self._selection()
+        selection["campaign_requirements"]["observed_at"] = (
+            datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=1)
+        ).isoformat()
+        with self.assertRaisesRegex(RuntimeError, "campaign_snapshot_stale"):
+            asyncio.run(MODULE._select_taste_character_campaign(page, selection, self._listing()))
+
+    def test_selected_campaign_reads_current_official_terms_before_clicking(self) -> None:
+        import asyncio
+        page = _FakeCampaignPage()
+        selection = self._selection()
+        current = {**selection["campaign_requirements"], "observed_at": datetime.datetime.now(datetime.timezone.utc).isoformat()}
+        with patch.object(MODULE, "_read_current_campaign_requirements", new_callable=AsyncMock,
+                          return_value=current, create=True) as read_current:
+            asyncio.run(MODULE._select_taste_character_campaign(page, selection, self._listing()))
+        read_current.assert_awaited_once_with(page, "835")
         self.assertEqual(page.clicked, ["835"])
+
+    def test_selected_campaign_stops_if_current_official_terms_changed(self) -> None:
+        import asyncio
+        page = _FakeCampaignPage()
+        selection = self._selection()
+        current = {**selection["campaign_requirements"], "min_price_jpy": 250}
+        with patch.object(MODULE, "_read_current_campaign_requirements", new_callable=AsyncMock,
+                          return_value=current, create=True):
+            with self.assertRaisesRegex(RuntimeError, "campaign_conditions_changed"):
+                asyncio.run(MODULE._select_taste_character_campaign(page, selection, self._listing()))
+        self.assertEqual(page.clicked, [])
+
+    def test_selected_campaign_count_and_order_must_match_official_range(self) -> None:
+        import asyncio
+        page = _FakeCampaignPage()
+        with self.assertRaisesRegex(RuntimeError, "campaign_item_count_ineligible"):
+            asyncio.run(MODULE._select_taste_character_campaign(
+                page, self._selection(), self._listing(count=41)
+            ))
+        self.assertEqual(page.clicked, [])
+
+    def test_selected_campaign_price_must_meet_official_minimum(self) -> None:
+        import asyncio
+        page = _FakeCampaignPage()
+        with self.assertRaisesRegex(RuntimeError, "campaign_item_price_ineligible"):
+            asyncio.run(MODULE._select_taste_character_campaign(
+                page, self._selection(), self._listing(price_jpy=189)
+            ))
+        self.assertEqual(page.clicked, [])
+
+    def test_selected_campaign_rechecks_the_theme_margin_before_clicking(self) -> None:
+        import asyncio
+        page = _FakeCampaignPage()
+        selection = self._selection()
+        selection["campaign_theme_ids"] = selection["order"][:11]
+        with self.assertRaisesRegex(RuntimeError, "campaign_theme_count_ineligible"):
+            asyncio.run(MODULE._select_taste_character_campaign(page, selection, self._listing()))
+        self.assertEqual(page.clicked, [])
+
+    def test_a_feature_value_clicks_that_exact_radio_not_on(self) -> None:
+        page = _FakeCampaignPage()
+        self._select_with_matching_live_terms(page, self._selection(), self._listing())
+        self.assertEqual(page.clicked, ["835"])
+
+    def test_a_selected_campaign_with_no_radio_fails_closed(self) -> None:
+        page = _FakeCampaignPage(missing_values={"835"})
+        with self.assertRaisesRegex(RuntimeError, "campaign_radio_missing"):
+            self._select_with_matching_live_terms(page, self._selection(), self._listing())
+
+    def test_a_selected_campaign_that_does_not_check_fails_closed(self) -> None:
+        page = _FakeCampaignPage(unchecked_values={"835"})
+        with self.assertRaisesRegex(RuntimeError, "campaign_radio_unchecked"):
+            self._select_with_matching_live_terms(page, self._selection(), self._listing())
 
     def test_null_campaign_value_clicks_the_non_participation_radio(self) -> None:
         import asyncio
@@ -232,3 +399,15 @@ class SelectCampaign(unittest.TestCase):
         page = _FakeCampaignPage()
         asyncio.run(MODULE._select_taste_character_campaign(page, {}))
         self.assertEqual(page.clicked, ["on"])
+
+    def test_non_participation_radio_missing_fails_closed(self) -> None:
+        import asyncio
+        page = _FakeCampaignPage(missing_values={"on"})
+        with self.assertRaisesRegex(RuntimeError, "campaign_opt_out_radio_missing"):
+            asyncio.run(MODULE._select_taste_character_campaign(page, {"campaign_value": None}))
+
+    def test_non_participation_radio_that_does_not_check_fails_closed(self) -> None:
+        import asyncio
+        page = _FakeCampaignPage(unchecked_values={"on"})
+        with self.assertRaisesRegex(RuntimeError, "campaign_opt_out_radio_unchecked"):
+            asyncio.run(MODULE._select_taste_character_campaign(page, {}))

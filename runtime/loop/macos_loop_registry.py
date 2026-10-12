@@ -29,6 +29,7 @@ ADMISSION_EFFECT_SCOPES = {"owner", "occurrence"}
 CONTROL_PLANE_SAFETY_LOOPS = frozenset({
     "aa-release-reconciler-handoff",
     "capafy-loop-healthcheck",
+    "hf-reddit-loop-healthcheck",
     "life-manager-disk-cleanup",
     "life-manager-health-observer",
     "lm-fence-reconciler",
@@ -36,6 +37,7 @@ CONTROL_PLANE_SAFETY_LOOPS = frozenset({
     "life-manager-release-reconciler",
 })
 OCCURRENCE_SCOPED_ENTRYPOINTS = {
+    "skills/cfo/run.sh",
     "apps/life-manager/scripts/mobile-app",
     "apps/life-manager/scripts/instagram-metrics-production-boot.sh",
     "apps/life-manager/scripts/tiktok-metrics-production-boot.sh",

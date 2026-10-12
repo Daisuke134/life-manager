@@ -21,7 +21,12 @@ from unittest.mock import patch
 
 import runtime.loop.lm_loop as lm_loop
 from runtime.loop.lm_loop import apply_live
-from runtime.loop.lm_loop_apply import _plist, apply_registry, build_apply_plan, install_one
+from runtime.loop.lm_loop_apply import (
+    _plist,
+    apply_registry,
+    build_apply_plan,
+    install_one,
+)
 
 
 SHA = "a" * 40
@@ -250,6 +255,39 @@ class LmLoopApplyTest(unittest.TestCase):
             "legacy-publisher", True, entry={"effect_class": "publish"}
         ) as decision:
             self.assertEqual(decision, "pending")
+
+    def test_native_backup_registry_rebinds_old_model_queue_without_reordering(self):
+        from runtime.host import resource_admission
+
+        owner = "claude-projects-backup"
+        resource_admission.enqueue_durable(
+            "agent", owner, admission_class="borrow", priority="support",
+            occurrence_id=f"{owner}:old-model-wake",
+        )
+        database = self.root / "admission" / "admission-v2.sqlite3"
+        with sqlite3.connect(database) as connection:
+            before = connection.execute(
+                "SELECT q.sequence,p.queued_at FROM queue q JOIN priorities p "
+                "ON p.owner_id=q.owner_id WHERE q.owner_id=?", (owner,),
+            ).fetchone()
+        connection.close()
+        registry_root = Path(__file__).resolve().parents[3]
+        entry = json.loads((registry_root / "config/loop-registry.json").read_text())["loops"][owner]
+        with lm_loop._admission_rebind_guard(owner, True, entry=entry) as result:
+            self.assertIsNone(result)
+        with sqlite3.connect(database) as connection:
+            after = connection.execute(
+                "SELECT q.sequence,p.queued_at,q.resource_class,p.admission_class,p.base_priority,p.effect_unknown "
+                "FROM queue q JOIN priorities p ON p.owner_id=q.owner_id WHERE q.owner_id=?", (owner,),
+            ).fetchone()
+            occurrence = connection.execute(
+                "SELECT resource_class,state,effect_unknown FROM occurrences WHERE occurrence_id=?",
+                (f"{owner}:old-model-wake",),
+            ).fetchone()
+        connection.close()
+        self.assertEqual(after[:2], before)
+        self.assertEqual(after[2:], ("deterministic", "borrow", "support", 0))
+        self.assertEqual(occurrence, ("deterministic", "queued", 0))
 
     def test_pending_admission_policy_mismatches_detects_only_registry_drift(self):
         from runtime.host import resource_admission
@@ -3303,6 +3341,36 @@ class LmLoopApplyTest(unittest.TestCase):
         receipt = json.loads(output.getvalue())
         self.assertEqual(receipt["eligible"], 1)
         self.assertEqual(receipt["skipped_pending"], ["paid-sibling"])
+
+    def test_real_backup_registry_allows_automatic_queued_release_adoption(self):
+        release = self._release("release-real-backup-queued-adoption").resolve()
+        actual = json.loads((ROOT / "config/loop-registry.json").read_text())["loops"]["claude-projects-backup"]
+        value = registry()
+        value["loops"]["claude-projects-backup"] = actual
+        value["loops"]["life-manager-disk-cleanup"] = json.loads((ROOT / "config/loop-registry.json").read_text())["loops"]["life-manager-disk-cleanup"]
+        (release / "config/loop-registry.json").write_text(json.dumps(value))
+        row = {
+            "classification": "managed", "provider_route": "deterministic",
+            "launchd_state": "loaded-idle", "installed_release_sha": "b" * 40,
+            "event_release_sha": "b" * 40, "loop_id": "claude-projects-backup",
+        }
+        applied = []
+        with (
+            patch.object(lm_loop, "ROOT", release),
+            patch.object(lm_loop, "snapshot", return_value=[row]),
+            patch.object(lm_loop, "_pending_admission_owners", return_value={"claude-projects-backup"}),
+            patch.object(lm_loop, "_pending_admission_policy_mismatches", return_value=set()),
+            patch.object(lm_loop, "_loaded_sha_is_ancestor", return_value=True),
+            patch.object(lm_loop, "apply_live", side_effect=lambda *args, **kwargs: applied.append(kwargs) or [{"ok": True}]),
+            patch.dict(os.environ, {"LIFE_MANAGER_RELEASE_ROOT": str(release),
+                "LIFE_MANAGER_LOOP_ID": "life-manager-release-reconciler"}),
+            redirect_stdout(io.StringIO()) as output,
+        ):
+            self.assertEqual(lm_loop.main(["reconcile", "deterministic", "--loaded-idle-only"]), 0)
+        self.assertEqual([call["target"] for call in applied], ["claude-projects-backup"])
+        self.assertTrue(applied[0]["preserve_pending_admission"])
+        self.assertTrue(applied[0]["allow_reserved_release_rebind"])
+        self.assertFalse(applied[0]["replace_reserved_policy_drift"])
 
     def test_automatic_reconcile_prioritizes_queued_effect_free_control(self):
         release = self._release("release-queued-control-priority").resolve()

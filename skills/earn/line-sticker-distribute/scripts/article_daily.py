@@ -1,4 +1,4 @@
-"""article_daily.py -- one free Japanese article per day on aniccaai.com for an on-sale sticker set.
+"""article_daily.py -- slot-gated free Japanese aniccaai.com articles for on-sale sticker sets.
 
 aniccaai.com is the shared site for everything Life Manager ships (Dais 2026-10-08), so the sticker
 sell loop publishes there through the same free-article publisher capafy-distribute-daily uses
@@ -6,7 +6,7 @@ sell loop publishes there through the same free-article publisher capafy-distrib
 new set with a short post of the character, the everyday scenes it fits and the store link; the
 model writes that copy, code owns the slug, the single store link, the PII gate and the ledger.
 
-Slot-gated and best-effort like engagement_daily.py: one article per PUBLISH_HOURS slot (JST; not
+Slot-gated and best-effort like engagement_daily.py: one article per PUBLISH_HOURS slot (JST, 15 a day; not
 10/13, when Capafy publishes to the same landing checkout), at most MAX_ATTEMPTS per slot, never
 blocking the reel pass that follows it. Sets that have no article yet are written first (Dais
 2026-10-11: distribute beyond Instagram/Threads; each on-sale set gets its own searchable page).
@@ -34,7 +34,8 @@ SCHEMA = HERE.parent / "schemas" / "sticker_article.schema.json"
 PUBLISHER = REPO_ROOT / "skills/earn/capafy-marketing/scripts/capafy_free_article.py"
 PII_GATE = REPO_ROOT / "skills/writer-agent/scripts/pii-gate.py"
 JST = ZoneInfo("Asia/Tokyo")
-PUBLISH_HOURS = (9, 12, 15, 18, 21)
+PUBLISH_HOURS = (7, 8, 9, 11, 12, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23)  # not 10/13: Capafy's slots
+ROTATION_HOUR = 12  # once every set has an article, one a day
 MAX_ATTEMPTS = 2
 
 
@@ -49,10 +50,14 @@ def due(now: dt.datetime, ledger: dict) -> bool:
         and entry.get("attempts", 0) < MAX_ATTEMPTS
 
 
-def pick(sets: list[dict], ledger: dict, seed_key: str) -> dict | None:
-    """An on-sale set without a published article first; once all have one, keep rotating."""
+def pick(sets: list[dict], ledger: dict, seed_key: str, *, hour: int) -> dict | None:
+    """An on-sale set without a published article first (every slot); once all have one, only the
+    ROTATION_HOUR slot writes, so the site is not flooded with repeats of the same sets."""
     covered = {e.get("set_id") for e in ledger.values() if isinstance(e, dict) and e.get("status") == "published"}
-    return choose_set([s for s in sets if s["set_id"] not in covered] or sets, seed_key)
+    fresh = [s for s in sets if s["set_id"] not in covered]
+    if fresh:
+        return choose_set(fresh, seed_key)
+    return choose_set(sets, seed_key) if hour == ROTATION_HOUR else None
 
 
 def build_markdown(title: str, body: str, store_url: str) -> str:
@@ -72,6 +77,40 @@ def _prompt(chosen: dict) -> str:
     )
 
 
+def _compose_failure_class(evidence: Path) -> str:
+    try:
+        summary = json.loads((evidence / "summary.json").read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return "diagnostic_unavailable"
+    if not isinstance(summary, dict):
+        return "diagnostic_unavailable"
+
+    def safe_class(value: object) -> str | None:
+        if isinstance(value, str) and 0 < len(value) <= 80 and all(
+            char.isalnum() or char in "_:.-" for char in value
+        ):
+            return value
+        return None
+
+    reason = safe_class(summary.get("reason"))
+    if reason:
+        return reason
+    attempts_path = summary.get("attempts_path")
+    if isinstance(attempts_path, str):
+        path = Path(attempts_path)
+        try:
+            if path.resolve().is_relative_to(evidence.resolve()) and path.is_file():
+                for line in path.read_text(encoding="utf-8").splitlines():
+                    attempt = json.loads(line)
+                    if isinstance(attempt, dict):
+                        error_class = safe_class(attempt.get("error_class"))
+                        if error_class:
+                            return error_class
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            pass
+    return "agent_runner_failed"
+
+
 def compose(chosen: dict, state_root: Path, task_label: str) -> dict:
     with tempfile.TemporaryDirectory(prefix=".article-compose-", dir=state_root) as temporary:
         evidence = Path(temporary) / "evidence"
@@ -83,7 +122,10 @@ def compose(chosen: dict, state_root: Path, task_label: str) -> dict:
             timeout=300, check=False,
         )
         if done.returncode != 0:
-            raise RuntimeError("line_sticker_article_compose_failed")
+            raise RuntimeError(
+                f"line_sticker_article_compose_failed:{done.returncode}:"
+                f"{_compose_failure_class(evidence)}"
+            )
         summary = json.loads((evidence / "summary.json").read_text(encoding="utf-8"))
         result = json.loads(Path(summary["result_path"]).read_text(encoding="utf-8"))
     if not result.get("title", "").strip() or len(result.get("body", "")) < 200:
@@ -105,9 +147,9 @@ def run(now: dt.datetime, sticker_root: Path, state_root: Path) -> dict:
         return {"state": "not_due"}
     date = now.astimezone(JST).date().isoformat()
     key = slot_key(now)
-    chosen = pick(load_on_sale_sets(sticker_root), ledger, f"article:{key}")
+    chosen = pick(load_on_sale_sets(sticker_root), ledger, f"article:{key}", hour=now.astimezone(JST).hour)
     if chosen is None:
-        return {"state": "no_on_sale_set"}
+        return {"state": "no_set_for_this_slot"}
     entry = {"attempts": ledger.get(key, {}).get("attempts", 0) + 1, "set_id": chosen["set_id"]}
     ledger[key] = entry
     ledger_path.write_text(json.dumps(ledger, ensure_ascii=False, indent=1))

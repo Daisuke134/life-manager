@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350">
+<defs>
+  <linearGradient id="base" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#F2F0F5"/><stop offset="1" stop-color="#FBF9F4"/></linearGradient>
+  <radialGradient id="orb1"><stop stop-color="#E8D3C4" stop-opacity=".88"/><stop offset="1" stop-color="#E8D3C4" stop-opacity="0"/></radialGradient>
+  <radialGradient id="orb2"><stop stop-color="#D5E1D8" stop-opacity=".75"/><stop offset="1" stop-color="#D5E1D8" stop-opacity="0"/></radialGradient>
+  <style>
+    .brand { font: 700 25px -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif; letter-spacing: 4px; fill: #29483D; }
+    .meta { font: 600 19px -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif; letter-spacing: 2px; fill: #668174; }
+    .eyebrow { font: 700 20px -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif; letter-spacing: 3px; fill: #668174; }
+    .title { font: 700 80px Georgia, 'Times New Roman', serif; fill: #213B32; }
+    .body { font: 400 40px -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif; fill: #53675D; }
+    .footer { font: 700 21px -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif; letter-spacing: 3px; fill: #668174; }
+    .button { font: 600 32px -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif; fill: #FFFFFF; }
+  </style>
+</defs>
+<rect width="1080" height="1350" fill="url(#base)"/>
+<ellipse cx="930" cy="315" rx="355" ry="335" fill="url(#orb1)"/>
+<ellipse cx="142" cy="1045" rx="335" ry="310" fill="url(#orb2)"/>
+<path d="M0 920 C250 830 410 1000 650 912 C840 842 940 816 1080 866 L1080 1350 L0 1350Z" fill="#FFFFFF" opacity=".34"/>
+<circle cx="112" cy="105" r="22" fill="#29483D"/><circle cx="112" cy="105" r="8" fill="#F8F2E9"/>
+<text x="151" y="114" class="brand">ANICCA</text>
+<text x="968" y="112" text-anchor="end" class="meta">04 / 04</text>
+<text x="112" y="325" class="eyebrow">A REMINDER TO BEGIN AGAIN</text>
+<text x="112" y="520" class="title"><tspan x="112" dy="0em">I can begin again</tspan><tspan x="112" dy="1.08em">today.</tspan></text>
+<text x="116" y="790" class="body"><tspan x="116" dy="0em">One kind next step is enough</tspan><tspan x="116" dy="1.35em">for now.</tspan></text>
+<line x1="112" y1="1000" x2="968" y2="1000" stroke="#29483D" stroke-opacity=".17" stroke-width="2"/>
+<rect x="112" y="1048" width="474" height="82" rx="41" fill="#29483D"/><text x="349" y="1099" text-anchor="middle" class="button">Daily reminders in Anicca</text><text x="112" y="1194" class="footer">LINK IN BIO</text>
+<text x="968" y="1194" text-anchor="end" class="footer">DAILY AFFIRMATIONS</text>
+</svg>

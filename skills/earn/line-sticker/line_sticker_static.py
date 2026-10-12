@@ -35,7 +35,15 @@ if str(HERE) not in sys.path:
     sys.path.insert(0, str(HERE))
 
 import seedance_set  # noqa: E402 - reuse _key()/_fill_pinholes(), zero duplication
-from line_sticker_planner import AGENT_RUNNER, TAGS_FILE, _run_agent  # noqa: E402
+from line_sticker_planner import (  # noqa: E402
+    AGENT_RUNNER,
+    JST,
+    TAGS_FILE,
+    _campaign_requirements,
+    _guard_campaign_value,
+    _open_features,
+    _run_agent,
+)
 
 POLICY_PATH = HERE / "static_policy.json"
 IMAGE_MODEL = "gemini-3.1-flash-image"
@@ -74,8 +82,10 @@ def _policy() -> dict:
 # planner's planner()).
 # --------------------------------------------------------------------------------------
 
-def _build_static_plan_prompt(prior_facts: list[dict], market_items: list[dict] | None = None) -> str:
+def _build_static_plan_prompt(prior_facts: list[dict], market_items: list[dict] | None = None,
+                              open_features: list[dict] | None = None) -> str:
     market_items = market_items or []
+    open_features = open_features or []
     return f"""あなたはLINE Creators Marketで売れている「静止画スタンプ」の企画者。
 
 今日のLINE STORE上位（top_creators/new_creators、継続的に再取得される市場データ。古い場合は
@@ -125,6 +135,10 @@ format_gap に一言で記録する（無ければ null）。
 - listing: title/descriptionを日本語・英語の両方で。キャラ名と「スタンプ」を含め、動く系と
   重複しないタイトルにする（既存タイトルと重複すると申請できない）。with_text なら
   「<キャラ名>の毎日返事」のような売れ筋の付け方にする（【文字入り】の表記は自動で付く）。
+- campaign_value: 参加できる特集が下の open_features にあり、この新規40個・¥190の商品が条件を満たす場合だけ、
+  その value をそのまま選ぶ。campaign_theme_idsには条件に合う絵のidだけを入れ、必要数+4個に届かない場合、
+  または条件に合う特集が無い場合は campaign_value=null、campaign_theme_ids=[] にする。
+- open_features: {json.dumps(open_features, ensure_ascii=False, indent=1)}
 
 有効タグ一覧: {json.dumps(json.loads(TAGS_FILE.read_text()) if TAGS_FILE.exists() else [], ensure_ascii=False)}
 
@@ -151,11 +165,20 @@ def _check_sticker_count(plan: dict) -> None:
 
 
 def static_planner(set_dir: Path, prior_facts: list[dict], market_items: list[dict] | None = None) -> dict:
-    prompt = _build_static_plan_prompt(prior_facts, market_items)
+    open_features = _open_features(datetime.datetime.now(JST).date())
+    prompt = _build_static_plan_prompt(prior_facts, market_items, open_features)
     with tempfile.TemporaryDirectory(prefix=".static-plan-", dir=set_dir) as tmp:
         plan = _run_agent(prompt=prompt, schema=HERE / "schemas/static-plan.schema.json",
                           evidence_dir=Path(tmp) / "evidence", task_label=f"line-sticker-static-plan-{set_dir.name}")
     _check_sticker_count(plan)
+    order = [sticker["id"] for sticker in plan["stickers"]]
+    campaign_value = _guard_campaign_value(
+        plan.get("campaign_value"), open_features, plan.get("campaign_theme_ids", []), order, price_jpy=190
+    )
+    plan["campaign_value"] = campaign_value
+    plan["campaign_theme_ids"] = plan.get("campaign_theme_ids", []) if campaign_value else []
+    feature = next((f for f in open_features if f.get("value") == campaign_value), None)
+    plan["campaign_requirements"] = _campaign_requirements(feature) if feature else None
     if plan.get("text_mode") == "with_text":
         plan["listing"] = mark_text_listing(plan["listing"])
     return plan

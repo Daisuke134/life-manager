@@ -2,13 +2,34 @@
 const assert = require("node:assert/strict"); const fs = require("node:fs"); const os = require("node:os"); const path = require("node:path"); const test = require("node:test");
 const crypto = require("node:crypto");
 const { TARGETS, discoverTarget, discoverTargets, runDue } = require("./tiktok-metrics-due.js");
+const { postizAnalytics } = require("./tiktok-native-metrics-read.js");
 const { JA_JP1_TIKTOK_LANE, verifyMarketingNativeCarouselPublicationReceipt } = require("../lib/marketing-native-carousel-publication-adapter.js");
 const EXPECTED = { tenant_id: "dais-local", product_id: "anicca-ios", locale: "ja", account_id: "@anicca.jp4", native_owner: "anicca.jp4", integration_id: "cmn8x8hdv028uqx0y4gdfse5t", provider_post_id: "cmt328uot00s2qk0y23e8ptii", shortcode: "7676495865816632583", video_id: "7676495865816632583", public_url: "https://www.tiktok.com/@anicca.jp4/video/7676495865816632583", caption: "今すぐやれ", published_at: "2026-08-21T14:46:13.240Z" };
 
-test("JP4 due loop reports delayed and daily once while true 24h stays pending", async () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-jp4-due-")); let sends = 0; const env = { LM_DATA_DIR: dataDir, LM_TELEGRAM_BOT_TOKEN: "fake", LM_TELEGRAM_ALERT_CHAT_ID: "fake" };
+test("missed TikTok windows and per-post daily snapshots stay local while true 24h stays pending", async (t) => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-jp4-due-")); t.after(() => fs.rmSync(dataDir, { recursive: true, force: true })); let sends = 0; const env = { LM_DATA_DIR: dataDir, LM_TELEGRAM_BOT_TOKEN: "fake", LM_TELEGRAM_ALERT_CHAT_ID: "fake" };
   const originalFetch = global.fetch; global.fetch = async () => ({ ok: true, json: async () => ({ ok: true, result: { message_id: ++sends } }) });
-  try { const now = Date.parse(EXPECTED.published_at) + 18.5 * 3600_000; const first = await runDue(now, env, [EXPECTED]); assert.equal(first.find((row) => row.window === "2h").state, "source_delayed"); assert.equal(first.find((row) => row.window === "24h").state, "pending"); assert.equal(first.find((row) => row.window === "daily").state, "reported"); assert.equal(sends, 2); const replay = await runDue(now, env, [EXPECTED]); assert.equal(replay.find((row) => row.window === "2h").state, "complete"); assert.equal(replay.find((row) => row.window === "daily").state, "complete"); assert.equal(sends, 2); } finally { global.fetch = originalFetch; }
+  try { const now = Date.parse(EXPECTED.published_at) + 18.5 * 3600_000; const first = await runDue(now, env, [EXPECTED]); assert.equal(sends, 0); assert.equal(first.find((row) => row.window === "2h").state, "checkpoint_missed"); assert.equal(first.find((row) => row.window === "24h").state, "pending"); assert.equal(first.find((row) => row.window === "daily").state, "persisted"); const replay = await runDue(now, env, [EXPECTED]); assert.equal(replay.find((row) => row.window === "2h").state, "checkpoint_missed"); assert.equal(replay.find((row) => row.window === "daily").state, "complete"); assert.equal(sends, 0); } finally { global.fetch = originalFetch; }
+});
+
+test("TikTok metrics ignore publications older than the existing 30-day retention window", async (t) => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-tiktok-metrics-age-")); t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  const old = { ...EXPECTED, published_at: "2026-08-01T00:00:00.000Z" };
+  const result = await runDue(Date.parse("2026-10-12T00:00:00.000Z"), { LM_DATA_DIR: dataDir }, [old]);
+  assert.deepEqual(result, []);
+  assert.equal(fs.existsSync(path.join(dataDir, "tenants", old.tenant_id, "marketing", "metrics")), false);
+});
+
+test("Postiz analytics uses the day range for each TikTok metric checkpoint", async () => {
+  const originalFetch = global.fetch; const requested = [];
+  global.fetch = async (url) => { requested.push(new URL(url).searchParams.get("date")); return { ok: true, json: async () => [] }; };
+  try {
+    for (const [window, days] of [["2h", "1"], ["24h", "1"], ["72h", "3"], ["7d", "7"]]) {
+      requested.length = 0;
+      await postizAnalytics({ integrationId: "integration-id", providerPostId: "post-id", window }, { LM_POSTIZ_API_KEY: "test-only" });
+      assert.deepEqual(requested, [days, days]);
+    }
+  } finally { global.fetch = originalFetch; }
 });
 
 test("discovery keeps verified Honne EN and JA relationship-confession lanes isolated", () => {
@@ -23,9 +44,9 @@ test("discovery keeps verified Honne EN and JA relationship-confession lanes iso
 
 test("discovery keeps Anicca main and JP4 identities separate", () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-anicca-main-due-")); const caption = "強い人の口癖、5つだけ"; const captionPath = path.join(dataDir, "objects", "caption"); fs.mkdirSync(path.dirname(captionPath), { recursive: true }); fs.writeFileSync(captionPath, caption); const sha = crypto.createHash("sha256").update(caption).digest("hex");
-  const directory = path.join(dataDir, "tenants/dais-local/marketing/video-publication/anicca-ios"); fs.mkdirSync(directory, { recursive: true }); const base = { ts: "2026-08-21T10:10:15.268Z", platform: "tiktok", status: "published", provider_reconciled: true, format_id: "reelclaw-card", form: "nudge-card", locale: "ja", provider_id: "cmt2s158o02kyph0yvht8d8wd", caption_path: captionPath, caption_sha256: sha };
+  const directory = path.join(dataDir, "tenants/dais-local/marketing/video-publication/anicca-ios"); fs.mkdirSync(directory, { recursive: true }); const base = { ts: "2026-08-21T10:10:15.268Z", platform: "tiktok", status: "published", provider_reconciled: true, format_id: "reelclaw-card", form: "nudge-card", locale: "ja", creative_id: "ANI-JA-QUOTE-1", provider_id: "cmt2s158o02kyph0yvht8d8wd", caption_path: captionPath, caption_sha256: sha };
   fs.writeFileSync(path.join(directory, "distribution.jsonl"), `${JSON.stringify({ ...base, public_url: "https://www.tiktok.com/@anicca.jp/video/7676422253638176020" })}\n`);
-  const [found] = discoverTargets(dataDir); assert.equal(found.account_id, "@anicca.jp"); assert.equal(found.native_owner, "anicca.jp"); assert.equal(found.integration_id, "cmp9sdev5012voh0y58qs45xc");
+  const [found] = discoverTargets(dataDir); assert.equal(found.account_id, "@anicca.jp"); assert.equal(found.native_owner, "anicca.jp"); assert.equal(found.integration_id, "cmp9sdev5012voh0y58qs45xc"); assert.equal(found.format_id, "reelclaw-card"); assert.equal(found.form, "nudge-card"); assert.equal(found.creative_id, "ANI-JA-QUOTE-1");
 });
 
 test("discovery attributes a reused provider row and native URL only to its first video lineage", () => {
@@ -44,6 +65,7 @@ test("discovery attributes a reused provider row and native URL only to its firs
   const found = discoverTarget(dataDir, TARGETS[0]);
   assert.equal(found.length, 1);
   assert.equal(found[0].caption, "first caption");
+  assert.equal(found[0].creative_id, "JP4-0");
 });
 
 test("HE discovery uses only its exact reconciled durable receipt fallback", () => {
@@ -103,12 +125,18 @@ test("discovery includes exact published JP1 native-carousel receipt for Postiz-
     account_id: row.account_id,
     integration_id: row.integration_id,
     provider_post_id: row.provider_post_id,
+    format_id: row.format_id,
+    form: row.form,
+    creative_id: row.creative_id,
     public_url: row.public_url,
     postiz_photo_only: row.postiz_photo_only,
   })), [{
     account_id: "@anicca.jp1",
     integration_id: lane.integrationId,
     provider_post_id: "postiz-jp1-carousel-1",
+    format_id: lane.formatId,
+    form: lane.form,
+    creative_id: receipt.creative_id,
     public_url: "unavailable",
     postiz_photo_only: true,
   }]);
@@ -185,6 +213,7 @@ test("Postiz carousel metrics use the exact published permalink in the snapshot 
     { id: expected.provider_post_id, state: "PUBLISHED", integration: { id: "wrong-integration" }, releaseURL: "https://www.tiktok.com/@wrong/photo/2" },
     { id: expected.provider_post_id, state: "QUEUED", integration: { id: expected.integration_id }, releaseURL: "https://www.tiktok.com/@anicca.jpx/photo/3" },
     { id: expected.provider_post_id, state: "PUBLISHED", integration: { id: expected.integration_id }, releaseURL: photoUrl },
+    ...Array.from({ length: 100 }, (_, i) => ({ id: `unrelated-${i}`, state: "PUBLISHED", integration: { id: "another-integration" }, releaseURL: `https://www.tiktok.com/@other/photo/${i}` })),
   ];
   const originalFetch = global.fetch;
   let telegramText = "";
@@ -240,7 +269,7 @@ test("Postiz carousel metrics use the exact published permalink in the snapshot 
   }
 });
 
-test("delayed Postiz photo metrics still report an exact available permalink", async (t) => {
+test("delayed Postiz photo metrics persist an exact permalink without a per-post Telegram send", async (t) => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-tiktok-photo-delayed-link-"));
   t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
   const photoUrl = "https://www.tiktok.com/@anicca.jpx/photo/7695154487559851270";
@@ -280,11 +309,11 @@ test("delayed Postiz photo metrics still report an exact available permalink", a
       LM_TELEGRAM_ALERT_CHAT_ID: "fake",
     }, [expected]);
     const twoHour = result.find((row) => row.window === "2h");
-    assert.equal(twoHour.state, "source_delayed");
+    assert.equal(twoHour.state, "checkpoint_missed");
     const snapshot = JSON.parse(fs.readFileSync(path.join(dataDir, "tenants", expected.tenant_id, "marketing", "metrics", expected.native_owner, expected.shortcode, "2h.combined.json"), "utf8"));
     assert.equal(snapshot.public_url, photoUrl);
     assert.equal(snapshot.post.views.status, "unavailable");
-    assert.ok(telegramText.includes(photoUrl));
+    assert.equal(telegramText, "");
   } finally {
     global.fetch = originalFetch;
   }

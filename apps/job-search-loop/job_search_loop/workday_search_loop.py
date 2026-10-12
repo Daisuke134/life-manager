@@ -461,6 +461,7 @@ def search_until_qualified(
     decisions = []
     qualified_application_ids: list[str] = []
     qualified_seen: set[str] = set()
+    sources_exhausted = False
     if target == 0:
         return {
             "status": "deficit_satisfied",
@@ -469,15 +470,10 @@ def search_until_qualified(
             "qualified_application_ids": qualified_application_ids,
         }
     for _ in range(max_candidates):
-        discovery = discover()
-        discoveries.append(discovery)
-        if discovery.get("status") == "no_fresh_workday":
-            return {
-                "status": "sources_exhausted",
-                "discoveries": discoveries,
-                "decisions": decisions,
-                "qualified_application_ids": qualified_application_ids,
-            }
+        if not sources_exhausted:
+            discovery = discover()
+            discoveries.append(discovery)
+            sources_exhausted = discovery.get("status") == "no_fresh_workday"
         try:
             decision = qualify()
         except Exception as error:
@@ -602,27 +598,26 @@ def main() -> int:
             return runner.run(
                 task="improve",
                 prompt=(
-                "Rank the Workday jobs for this candidate in this order: adequate non-senior "
-                "Japan employment first; demonstrated adjacent current career scope second; "
-                "compensation ambition third. The goal is one qualified row followed by an "
-                "immediate truthful application in this wake, not a list of reasons to skip. "
-                "Every row that explicitly supports employment from Japan must rank before any row tied to another country. "
-                "Remote work or an "
-                "EOR for another country is not Japan employment unless the posting explicitly supports employing "
-                "from Japan. Canonical examples: an imperfect-fit Japan role ranks before a strong-fit foreign role; "
-                "Korea-remote/EOR is non-Japan unless Japan employment is explicit. Then use roles whose actual work "
-                "is supported by the candidate's "
-                "current evidence, "
-                "then credible paths to at least JPY 7M, prioritizing JPY 10M-30M. "
-                "Every adequate non-senior Japan role must rank before Senior, Lead, Principal, "
-                "Director, executive, people-management, or foreign-location work. Judge the "
-                "complete responsibilities for ambiguous titles, but treat an explicit Senior, "
-                "Lead, Principal, Director, Head, VP, Chief, or equivalent senior-level title as "
-                "outside the user's target. Do not consume the "
-                "bounded shortlist with excluded senior/leadership scope while any adequate "
-                "non-senior Japan-feasible role exists. "
-                "Treat title seniority, company prestige, and source order as weak "
-                "signals rather than fit proxies. Use the whole supplied snapshot. "
+                "Rank Workday jobs primarily by evidence-backed fit between the actual "
+                "responsibilities and the candidate's demonstrated experience. "
+                "No location category outranks another: onsite or hybrid roles worldwide and "
+                "remote roles worldwide are equally eligible. No country or work arrangement "
+                "is a location-only rejection reason; this global scope supersedes narrower "
+                "stored location preferences. Do not reject or downgrade a role solely because "
+                "sponsorship is stated as unavailable or left unstated, regardless of country. "
+                "Never claim authorization or sponsorship without profile evidence; answer every "
+                "required application question truthfully and let the "
+                "employer decide whether to make an exception. "
+                "Use the candidate's USD 100,000 annual gross base target as the goal; "
+                "exclude a role only when its disclosed annualized compensation is clearly below "
+                "that target, and mark unpublished compensation uncertain without inventing a "
+                "range. Evaluate senior, lead, director, manager, and people-management roles "
+                "from their full responsibilities and the candidate's evidence, not title alone. "
+                "Exclude CEO or C-suite roles, and do not rank executive scope above a grounded "
+                "match. The goal is one qualified row followed by an immediate truthful "
+                "application in this wake, not a list of reasons to skip. Treat title, company "
+                "prestige, and source order as weak signals rather than fit proxies. Use the whole "
+                "supplied snapshot. "
                 "This is a company-wide portfolio search, not a single-company campaign. "
                 "When interview fit is comparable, prefer employers with fewer prior "
                 "submit attempts and keep credible finalists across different companies. "

@@ -16,7 +16,6 @@ from runtime.loop.lm_loop_run import build_loop_command
 from runtime.loop.runtime_event import validate_runtime_event
 from runtime.loop.central_cleanup import installed_state_roots, loaded_release_roots
 from runtime.loop.central_cleanup import no_effect_loop_ids, open_release_roots, release_gc, scratch_gc
-from runtime.loop.central_cleanup import host_cleanup_command, host_cleanup_ok, host_cleanup_readback
 from runtime.loop import central_cleanup
 from runtime.loop import loop_cleanup
 
@@ -303,64 +302,30 @@ class LoopCleanupTest(unittest.TestCase):
                 "run_id": "run-1", "occurrence_id": "life-manager-disk-cleanup:run-1",
                 "release_sha": "a" * 40})
             self.assertIsNone(central_cleanup.cleanup_run_binding({}, root))
-    def test_cleanup_execution_is_not_capacity_recovery(self):
-        ok, result = host_cleanup_readback(0, json.dumps({
-            "free_after": 600 * 1024**2, "errors": 0,
-            "protected_deletions": 0, "disk_writers_stop": {"status": "absent"},
-        }))
-        self.assertTrue(ok)
-        self.assertTrue(result["execution_ok"])
-        self.assertFalse(result["capacity_recovered"])
+    def test_central_cleanup_delegates_host_sweep_to_minute_watchdog(self):
+        with mock.patch.object(central_cleanup, "cleanup_run_binding", return_value=None), \
+             mock.patch.object(central_cleanup, "git_duplicate_cleanup",
+                 return_value={"errors": 0, "status": "pass"}) as git_cleanup, \
+             mock.patch.object(central_cleanup, "release_gc",
+                 return_value={"errors": 0, "status": "pass"}) as gc, \
+             mock.patch.object(central_cleanup, "scratch_gc",
+                 return_value={"errors": 0, "status": "pass"}) as scratch, \
+             mock.patch.object(central_cleanup, "installed_state_roots", return_value=[]), \
+             mock.patch.object(central_cleanup, "process_starts", return_value={}), \
+             mock.patch.object(central_cleanup, "no_effect_loop_ids", return_value=set()), \
+             mock.patch.object(central_cleanup.subprocess, "run",
+                 side_effect=AssertionError("central owner invoked host sweep")), \
+             mock.patch.object(sys, "argv", ["central_cleanup.py"]), \
+             mock.patch("builtins.print") as output:
+            self.assertEqual(central_cleanup.main(), 0)
 
-    def test_cleanup_readback_rejects_foreign_execution_identity(self):
-        binding = {"owner_id": "life-manager-disk-cleanup", "run_id": "run-1",
-                   "occurrence_id": "life-manager-disk-cleanup:run-1",
-                   "release_sha": "a" * 40}
-        receipt = {"free_after": 3 * 1024**3, "errors": 0,
-                   "protected_deletions": 0, "disk_writers_stop": {"status": "absent"},
-                   "identity": {**binding, "run_id": "other"}}
-        ok, result = host_cleanup_readback(0, json.dumps(receipt), binding=binding)
-        self.assertFalse(ok)
-        self.assertEqual(result["error"], "host_cleanup_identity_mismatch")
-        self.assertIsNone(result["capacity_recovered"])
-        receipt["identity"] = binding
-        ok, result = host_cleanup_readback(0, json.dumps(receipt), binding=binding)
-        self.assertTrue(ok)
-        self.assertTrue(result["capacity_recovered"])
-
-    def test_central_cleanup_preserves_bound_lock_busy_deferral(self):
-        binding = {"owner_id": "life-manager-disk-cleanup", "run_id": "busy-1",
-                   "occurrence_id": "life-manager-disk-cleanup:busy-1", "release_sha": "a" * 40}
-        receipt = {"ok": False, "status": "deferred", "reason": "cleanup_lock_busy",
-                   "effect": 0, "readback": 0, "identity": binding}
-        process = subprocess.CompletedProcess([], 75, json.dumps(receipt), "")
-        cases = (({"errors": 0, "source_reclaim": {"removed_files": 2,
-                  "protected_deletions": 0}}, 75), ({"errors": 1}, 1), (OSError("GC unavailable"), 1))
-        for gc_result, expected_exit in cases:
-            with self.subTest(gc_result=gc_result), \
-                 mock.patch.object(central_cleanup.subprocess, "run", return_value=process), \
-                 mock.patch.object(central_cleanup, "cleanup_run_binding", return_value=binding), \
-                 mock.patch.object(central_cleanup, "git_duplicate_cleanup",
-                     return_value={"errors": 0, "status": "not_applicable"}) as git_cleanup, \
-                 mock.patch.object(central_cleanup, "release_gc", return_value=gc_result,
-                     side_effect=gc_result if isinstance(gc_result, Exception) else None) as gc, \
-                 mock.patch.object(central_cleanup, "scratch_gc", return_value={"errors": 0}) as scratch, \
-                 mock.patch.object(sys, "argv", ["central_cleanup.py"]), \
-                 mock.patch("builtins.print") as output:
-                self.assertEqual(central_cleanup.main(), expected_exit)
-                gc.assert_called_once()
-                git_cleanup.assert_called_once()
-                scratch.assert_not_called()
-                result = json.loads(output.call_args.args[0])
-                self.assertEqual(result["reason"], "cleanup_lock_busy")
-                self.assertEqual(result["identity"], binding)
-                self.assertFalse(result["ok"])
-                self.assertIsNone(result["capacity_recovered"])
-                if expected_exit == 75:
-                    self.assertEqual(result["source_reclaim"]["removed_files"], 2)
-                    self.assertEqual(result["errors"], 0)
-                else:
-                    self.assertEqual(result["errors"], 1)
+        git_cleanup.assert_called_once()
+        gc.assert_called_once()
+        scratch.assert_called_once()
+        result = json.loads(output.call_args.args[0])
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["host_cleanup"], {
+            "status": "delegated", "owner_id": "com.anicca.disk-watchdog"})
 
     def test_no_effect_loop_ids_reads_registry(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -370,127 +335,6 @@ class LoopCleanupTest(unittest.TestCase):
                 "money": {"effect_class": "money"},
             }}))
             self.assertEqual(no_effect_loop_ids(registry), {"safe"})
-
-    def test_host_cleanup_uses_durable_shared_pressure_state(self):
-        command = host_cleanup_command(Path('/release'), Path('/home'))
-        self.assertEqual(command[-4:], [
-            '--home', '/home', '--state-dir',
-            '/home/.local/state/life-manager/state',
-        ])
-
-    def test_host_cleanup_accepts_registry_projected_state_root(self):
-        command = host_cleanup_command(
-            Path('/release'), Path('/home'), Path('/state/life-manager')
-        )
-        self.assertEqual(command[-1], '/state/life-manager')
-
-    def test_host_cleanup_error_cannot_be_reported_as_success(self):
-        recovery_floor = 2 * 1024**3
-        self.assertFalse(host_cleanup_ok(0, {
-            "errors": 1, "protected_deletions": 0, "free_after": recovery_floor,
-        }))
-        self.assertFalse(host_cleanup_ok(0, {
-            "errors": 0, "protected_deletions": 1, "free_after": recovery_floor,
-        }))
-        self.assertTrue(host_cleanup_ok(0, {
-            "errors": 0, "protected_deletions": 0, "free_after": recovery_floor,
-            "disk_writers_stop": {"status": "absent"},
-        }))
-
-    def test_host_cleanup_accepts_clean_unmet_recovery_metric(self):
-        receipt = {
-            "tier": "ULTRA",
-            "free_after": 626_888_704,
-            "reclaimed": 8_071,
-            "errors": 0,
-            "protected_deletions": 0,
-            "disk_writers_stop": {"status": "absent"},
-        }
-        self.assertTrue(host_cleanup_ok(0, receipt))
-        ok, result = host_cleanup_readback(0, json.dumps(receipt) + "\n")
-        self.assertTrue(ok)
-        self.assertEqual(result["capacity_recovery"], {
-            "status": "unmet",
-            "recovery_floor_bytes": 2 * 1024**3,
-        })
-
-    def test_host_cleanup_missing_or_invalid_capacity_readback_fails_closed(self):
-        receipts = (
-            {"errors": 0, "protected_deletions": 0},
-            {"errors": 0, "protected_deletions": 0, "free_after": None},
-            {"errors": 0, "protected_deletions": 0, "free_after": True},
-            {"errors": 0, "protected_deletions": 0, "free_after": "2147483648"},
-            {
-                "errors": 0,
-                "protected_deletions": 0,
-                "free_after": -1,
-                "disk_writers_stop": {"status": "absent"},
-            },
-        )
-        for receipt in receipts:
-            with self.subTest(receipt=receipt):
-                self.assertFalse(host_cleanup_ok(0, receipt))
-
-    def test_host_cleanup_missing_readback_preserves_typed_failure(self):
-        ok, result = host_cleanup_readback(1, "")
-        self.assertFalse(ok)
-        self.assertEqual(result, {
-            "error": "host_cleanup_result_missing",
-            "returncode": 1,
-        })
-
-    def test_host_cleanup_valid_readback_keeps_receipt_and_reports_recovery(self):
-        recovery_floor = 2 * 1024**3
-        receipt = {
-            "errors": 0,
-            "protected_deletions": 0,
-            "free_after": recovery_floor,
-            "disk_writers_stop": {"status": "absent"},
-        }
-        ok, result = host_cleanup_readback(
-            0, json.dumps(receipt) + "\n"
-        )
-        self.assertTrue(ok)
-        self.assertEqual(result, {
-            **receipt,
-            "execution_ok": True,
-            "capacity_recovered": True,
-            "capacity_recovery": {
-                "status": "met",
-                "recovery_floor_bytes": recovery_floor,
-            },
-        })
-
-    def test_host_cleanup_missing_capacity_readback_is_reported_as_unknown(self):
-        receipt = {"errors": 0, "protected_deletions": 0}
-        ok, result = host_cleanup_readback(0, json.dumps(receipt) + "\n")
-        self.assertFalse(ok)
-        self.assertEqual(result["capacity_recovery"], {
-            "status": "unknown",
-            "recovery_floor_bytes": 2 * 1024**3,
-        })
-        self.assertEqual(result["errors"], 0)
-        self.assertEqual(result["protected_deletions"], 0)
-
-    def test_host_cleanup_capacity_failure_preserves_delete_errors_and_receipt(self):
-        receipt = {
-            "tier": "ULTRA",
-            "free_after": 626_888_704,
-            "reclaimed": 8_071,
-            "errors": 1,
-            "protected_deletions": 0,
-        }
-        ok, result = host_cleanup_readback(0, json.dumps(receipt) + "\n")
-        self.assertFalse(ok)
-        self.assertEqual(result, {
-            **receipt,
-            "execution_ok": False,
-            "capacity_recovered": False,
-            "capacity_recovery": {
-                "status": "unmet",
-                "recovery_floor_bytes": 2 * 1024**3,
-            },
-        })
 
     def test_loop_cleanup_preserves_active_unmarked_and_receipts(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -786,8 +630,12 @@ class LoopCleanupTest(unittest.TestCase):
                 {"pid": 10, "process_start": "live-start"}))
             (stale / ".owner.json").write_text(json.dumps(
                 {"pid": 11, "process_start": "old-start"}))
+            helper = live.parent / "helper.py"
+            helper.write_text("keep")
             result = scratch_gc({root}, snapshot_started_ns=time.time_ns() + 1,
                                 starts={10: "live-start"})
+            self.assertEqual(result["errors"], 0)
+            self.assertEqual(helper.read_text(), "keep")
             self.assertTrue(live.is_dir())
             self.assertFalse(stale.exists())
             self.assertEqual((result["removed"], result["preserved"]), (1, 1))
@@ -874,6 +722,189 @@ class LoopCleanupTest(unittest.TestCase):
                                 starts={})
             self.assertTrue(run.is_dir())
             self.assertEqual((result["removed"], result["preserved"]), (0, 1))
+
+    def test_scratch_gc_reclaims_only_exactly_reconciled_closed_scratch(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            scratch = root / "loop-tmp/publish"
+            runs = {name: scratch / name for name in ("run-1", "run-2", "run-3")}
+            events = []
+            for name, run in runs.items():
+                run.mkdir(parents=True)
+                (run / ".owner.json").write_text(json.dumps({
+                    "pid": 11, "process_start": "old-start", "effect_class": "publish",
+                }))
+                (run / ".terminal-unrecorded").touch()
+                (run / "agent-browser-profile-test").mkdir()
+                events.append({
+                    "loop_id": "publish", "run_id": name,
+                    "occurrence_id": f"publish:{name}", "effect_class": "publish",
+                    "release_sha": "a" * 40,
+                })
+            (root / "events.jsonl").write_text(
+                "".join(json.dumps(event) + "\n" for event in events))
+            verified = json.dumps({
+                "owner_id": "publish", "occurrence_id": "publish:run-1",
+                "verified": True, "provider_receipt_id": "official:effect-reconciled",
+            })
+            closure_proof = {
+                "proof_type": "effect_reconcile_closure.v1",
+                "owner_id": "publish", "occurrence_id": "publish:run-1",
+                "release_sha": "a" * 40, "verified": True,
+                "receipt_ref": "official:effect-reconciled",
+            }
+            calls = root / "reconcile-calls.jsonl"
+            calls.write_text("\n".join([
+                json.dumps({"owner_id": "publish", "occurrence_id": "publish:run-1",
+                            "release_sha": "a" * 40, "exit_code": 0, "closed": True,
+                            "stdout_tail": verified, "closure_proof": closure_proof}),
+                json.dumps({"owner_id": "publish", "occurrence_id": "publish:run-2",
+                            "release_sha": "a" * 40, "exit_code": 0, "closed": False,
+                            "stdout_tail": verified}),
+                json.dumps({"owner_id": "publish", "occurrence_id": "publish:run-3",
+                            "release_sha": "a" * 40, "exit_code": 0, "closed": True,
+                            "stdout_tail": '{"verified":false}'}),
+            ]) + "\n")
+            reconciled = central_cleanup.closed_reconcile_occurrences(calls)
+            self.assertEqual(reconciled, {("publish", "publish:run-1", "a" * 40)})
+
+            with mock.patch.object(
+                    central_cleanup, "_browser_profiles_live",
+                    side_effect=lambda run: run.name == "run-3"):
+                result = scratch_gc(
+                    {root}, snapshot_started_ns=time.time_ns() + 1,
+                    starts={}, reconciled_occurrences=reconciled,
+                )
+
+            self.assertFalse(runs["run-1"].exists())
+            self.assertTrue(runs["run-2"].is_dir())
+            self.assertTrue(runs["run-3"].is_dir())
+            self.assertEqual((result["removed"], result["preserved"]), (1, 2))
+
+    def test_scratch_gc_reclaims_exactly_reconciled_terminal_scratch(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            run = root / "loop-tmp/publish/run-1"
+            run.mkdir(parents=True)
+            (run / ".owner.json").write_text(json.dumps({
+                "pid": 11, "process_start": "old-start", "effect_class": "publish",
+            }))
+            (run / ".terminal-unrecorded").touch()
+            (root / "events.jsonl").write_text(json.dumps({
+                "loop_id": "publish", "run_id": "run-1",
+                "occurrence_id": "publish:run-1", "effect_class": "publish",
+                "release_sha": "c" * 40,
+            }) + "\n")
+            calls = root / "reconcile-calls.jsonl"
+            valid_proof = json.dumps({
+                "owner_id": "publish", "occurrence_id": "publish:run-1",
+                "verified": True, "provider_receipt_id": "official:no-effect",
+            })
+            closure_proof = {
+                "proof_type": "effect_reconcile_closure.v1",
+                "owner_id": "publish", "occurrence_id": "publish:run-1",
+                "release_sha": "c" * 40, "verified": True,
+                "receipt_ref": "official:no-effect",
+            }
+            other_closure_proof = {**closure_proof, "occurrence_id": "publish:other"}
+            calls.write_text("\n".join([
+                json.dumps({"owner_id": "publish", "occurrence_id": "publish:other",
+                            "release_sha": "c" * 40, "exit_code": 0, "closed": True,
+                            "stdout_tail": valid_proof, "closure_proof": other_closure_proof}),
+                json.dumps({"owner_id": "publish", "occurrence_id": "publish:run-1",
+                            "release_sha": "c" * 40, "exit_code": 0, "closed": False,
+                            "stdout_tail": valid_proof}),
+                json.dumps({"owner_id": "publish", "occurrence_id": "publish:run-1",
+                            "release_sha": "c" * 40, "exit_code": 0, "closed": True,
+                            "stdout_tail": valid_proof, "closure_proof": closure_proof}),
+            ]) + "\n")
+
+            reconciled = central_cleanup.closed_reconcile_occurrences(calls)
+            self.assertEqual(reconciled, {
+                ("publish", "publish:other", "c" * 40),
+                ("publish", "publish:run-1", "c" * 40),
+            })
+            result = scratch_gc(
+                {root}, snapshot_started_ns=time.time_ns() + 1, starts={},
+                reconciled_occurrences=reconciled,
+            )
+
+            self.assertFalse(run.exists())
+            self.assertEqual((result["removed"], result["preserved"]), (1, 0))
+
+    def test_scratch_gc_requires_reconcile_for_historical_effect_even_if_loop_is_now_no_effect(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            run = root / "loop-tmp/historical-publish/run-1"
+            run.mkdir(parents=True)
+            (run / ".owner.json").write_text(json.dumps({
+                "pid": 11, "process_start": "old-start", "effect_class": "money",
+            }))
+            (run / ".terminal-unrecorded").touch()
+            (root / "events.jsonl").write_text(json.dumps({
+                "loop_id": "historical-publish", "run_id": "run-1",
+                "occurrence_id": "historical-publish:run-1", "effect_class": "money",
+            }) + "\n")
+
+            result = scratch_gc(
+                {root}, snapshot_started_ns=time.time_ns() + 1, starts={},
+                no_effect_loop_ids={"historical-publish"}, reconciled_occurrences=set(),
+            )
+
+            self.assertTrue(run.is_dir())
+            self.assertEqual((result["removed"], result["preserved"]), (0, 1))
+
+    def test_closed_reconcile_occurrences_requires_structured_target_bound_proof(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            calls = root / "reconcile-calls.jsonl"
+            expected_release = "a" * 40
+            proof = {
+                "proof_type": "effect_reconcile_closure.v1",
+                "owner_id": "publish",
+                "occurrence_id": "publish:run-1",
+                "release_sha": expected_release,
+                "verified": True,
+                "receipt_ref": "official:effect-reconciled",
+            }
+            records = [
+                {
+                    "owner_id": "publish", "occurrence_id": "publish:run-1",
+                    "release_sha": expected_release, "exit_code": 0, "closed": True,
+                    "stdout_tail": json.dumps(proof), "closure_proof": proof,
+                },
+                {
+                    "owner_id": "publish", "occurrence_id": "publish:run-2",
+                    "release_sha": expected_release, "exit_code": 0, "closed": True,
+                    "stdout_tail": json.dumps({**proof, "owner_id": "other"}),
+                    "closure_proof": {**proof, "owner_id": "other",
+                                      "occurrence_id": "publish:run-2"},
+                },
+                {
+                    "owner_id": "publish", "occurrence_id": "publish:run-3",
+                    "release_sha": expected_release, "exit_code": 0, "closed": True,
+                    "stdout_tail": json.dumps({**proof, "occurrence_id": "publish:other"}),
+                    "closure_proof": {**proof, "occurrence_id": "publish:other"},
+                },
+                {
+                    "owner_id": "publish", "occurrence_id": "publish:run-4",
+                    "release_sha": expected_release, "exit_code": 0, "closed": True,
+                    "stdout_tail": json.dumps({**proof, "release_sha": "b" * 40}),
+                    "closure_proof": {**proof, "release_sha": "b" * 40},
+                },
+                {
+                    "owner_id": "publish", "occurrence_id": "publish:run-5",
+                    "release_sha": expected_release, "exit_code": 0, "closed": True,
+                    "stdout_tail": 'noise {"verified":true,"provider_receipt_id":"unrelated"}',
+                    "closure_proof": 'not-json {"verified":true}',
+                },
+            ]
+            calls.write_text("".join(json.dumps(row) + "\n" for row in records))
+
+            self.assertEqual(
+                central_cleanup.closed_reconcile_occurrences(calls),
+                {("publish", "publish:run-1", expected_release)},
+            )
 
     def test_scratch_gc_preserves_owner_none_when_event_target_is_missing(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -1291,7 +1322,7 @@ class LoopCleanupTest(unittest.TestCase):
             with mock.patch("runtime.loop.central_cleanup.subprocess.run", return_value=completed) as run:
                 self.assertEqual(open_release_roots(releases), {entry.parents[1].resolve()})
         run.assert_called_once_with(
-            ["ps", "-axo", "command="], capture_output=True, text=True, timeout=120)
+            ["ps", "-axo", "command="], capture_output=True, text=True, timeout=5)
 
     def _run_terminal_event(self, exit_code: int) -> dict:
         with tempfile.TemporaryDirectory() as directory:

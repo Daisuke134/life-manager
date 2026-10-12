@@ -319,9 +319,7 @@ def rebind_queued_owner(
                 return "not_queued"
             prior_resource_class, sequence = queue_row
             resource_class_changed = prior_resource_class != resource_class
-            connection.execute(
-                "DELETE FROM reservations WHERE lease_until <= ?", (time.time(),)
-            )
+            _expire_leaked_reservations(connection, time.time())
             reserved = connection.execute(
                 "SELECT 1 FROM reservations WHERE owner_id=?", (owner_id,)
             ).fetchone()
@@ -995,7 +993,7 @@ def _durable_capacity(connection: sqlite3.Connection, owners: Path, resource_cla
             connection.execute(
                 "UPDATE occurrences SET effect_unknown=1 WHERE occurrence_id=?",
                 (occurrence_id,))
-    connection.execute("DELETE FROM reservations WHERE lease_until <= ?", (now,))
+    _expire_leaked_reservations(connection, now)
     reserved = [dict(zip(("owner_id", "resource_class", "sequence", "lease_until",
                           "admission_class", "admission_policy"), row))
                 for row in connection.execute("""
@@ -1506,9 +1504,7 @@ def cancel_effect_free_queued_owner(owner_id: str) -> str:
                 "SELECT 1 FROM queue WHERE owner_id=?", (owner_id,),
             ).fetchone():
                 return "not_queued"
-            connection.execute(
-                "DELETE FROM reservations WHERE lease_until <= ?", (time.time(),)
-            )
+            _expire_leaked_reservations(connection, time.time())
             if connection.execute(
                 "SELECT 1 FROM occurrences WHERE owner_id=? AND effect_unknown=1 LIMIT 1",
                 (owner_id,),
@@ -1825,6 +1821,7 @@ _HISTORICAL_NO_DISPATCH_PROOFS = {
     ("historical_account_bound_no_dispatch", "coconala"): "historical_account_id",
     ("historical_integration_bound_no_dispatch", "postiz"): "historical_integration_id",
     ("historical_writer_gate_stop_no_dispatch", "writer"): "runtime_run_id",
+    ("historical_writer_resume_no_dispatch", "writer"): "runtime_run_id",
 }
 
 
@@ -1958,8 +1955,7 @@ def try_acquire(resource_class: str, owner_id: str, *,
                     (owner_id,),
                 ).fetchone()):
                     return None, "effect_unknown"
-                connection.execute(
-                    "DELETE FROM reservations WHERE lease_until <= ?", (time.time(),))
+                _expire_leaked_reservations(connection, time.time())
                 reserved_rows = [
                     {"owner_id": row[0], "resource_class": row[1],
                      "admission_policy": row[2]}

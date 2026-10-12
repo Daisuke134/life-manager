@@ -30,6 +30,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 from dataclasses import dataclass, field
 from decimal import Decimal
 from pathlib import Path
@@ -214,8 +215,8 @@ def _prior_set_facts(state_root: Path) -> list[dict]:
             "theme": (draft or {}).get("theme"),
             "title": (listing or {}).get("title"),
             "state_observed": (item or {}).get("state_observed"),
-            # Official cumulative sales (JPY) from sales_readback.py's daily readback, keyed by
-            # product_id. None means unknown (not yet observed), never a silent 0.
+            # Official cumulative stats amount (JPY), a provisional distribution estimate rather
+            # than finalized gross sales, keyed by product_id. None means unknown, never 0.
             "sales_jpy": sales_by_product_id.get(product_id) if product_id else None,
         })
     return facts
@@ -330,6 +331,9 @@ def run_images(set_dir: Path, state_root: Path, deps: Deps) -> str:
     _atomic_write_json(set_dir / "select.json", {
         "order": ids, "main": listing["main"], "tab": listing["tab"],
         "taste_id": series.get("taste_id") or "1", "character_category_id": series.get("character_category_id") or "16",
+        "campaign_value": plan_draft.get("campaign_value"),
+        "campaign_theme_ids": plan_draft.get("campaign_theme_ids", []),
+        "campaign_requirements": plan_draft.get("campaign_requirements"),
     })
     return "package"
 
@@ -595,12 +599,25 @@ def production_deps() -> Deps:
     )
 
 
-def run(state_root: Path, deps: Deps) -> dict:
-    """Drive one set from wherever it is all the way to submitted in a single launch.
+# The loop's runtime cap is 5400 s; stop starting new sets after this so the last one can finish.
+RUN_BUDGET_SECONDS = 4500
 
-    Stops on submitted, on skip/noop/halt, or on a retry (an external wait such as missing clips
-    or a failed package) so a stuck stage never spins.
+
+def run(state_root: Path, deps: Deps, *, clock: Callable[[], float] = time.monotonic) -> dict:
+    """Make as many sets as one launch has time for (Dais 2026-10-12: submit as many as possible).
+
+    Each set goes all the way to submitted; then the next one starts, until the daily cap, a
+    skip/noop/halt, a retry (an external wait, so a stuck stage never spins) or the time budget.
     """
+    started = clock()
+    while True:
+        report = _run_one_set(state_root, deps)
+        if report.get("next_stage") != "submitted" or clock() - started > RUN_BUDGET_SECONDS:
+            return report
+
+
+def _run_one_set(state_root: Path, deps: Deps) -> dict:
+    """Drive one set from wherever it is all the way to submitted."""
     while True:
         item_path = (newest_open_set(state_root) or state_root) / "creators-item.json"
         before = (_read_json(item_path) or {}).get("state")

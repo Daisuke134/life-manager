@@ -6,11 +6,14 @@ seller's display name replaced by a placeholder.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 from pathlib import Path
 import sys
 import tempfile
+import types
 import unittest
+from unittest.mock import patch
 
 MODULE_ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
@@ -32,6 +35,22 @@ class ParseStickerStats(unittest.TestCase):
     def test_empty_table_returns_empty_list(self) -> None:
         self.assertEqual(MODULE.parse_sticker_stats("売上・統計情報：アイテム\nサムネイル\tタイトル\t販売開始日 \t売上（累計） \n"), [])
 
+    def test_parses_official_product_ids_from_detail_links(self) -> None:
+        rows = MODULE.parse_sticker_table_rows([
+            {
+                "href": "https://creator.line.me/my/account/stats/sticker/48077815",
+                "text": "毎日使えるカワウソスタンプ\t2026/10/6\t￥0",
+            },
+            {
+                "href": "https://creator.line.me/my/account/stats/sticker/42100028",
+                "text": "いりや\t2025/12/1\t￥189",
+            },
+        ])
+        self.assertEqual(rows, [
+            {"product_id": "48077815", "title_ja": "毎日使えるカワウソスタンプ", "sale_start_date": "2026/10/6", "sales_jpy": 0},
+            {"product_id": "42100028", "title_ja": "いりや", "sale_start_date": "2025/12/1", "sales_jpy": 189},
+        ])
+
 
 class ParsePaymentRequest(unittest.TestCase):
     def test_parses_payable_and_current_period(self) -> None:
@@ -49,7 +68,16 @@ class ParsePaymentRequest(unittest.TestCase):
 
 class BuildLedgerRow(unittest.TestCase):
     def test_matches_known_titles_to_tracked_product_ids_and_ignores_untracked(self) -> None:
-        rows = MODULE.parse_sticker_stats(STATS_TEXT)
+        rows = MODULE.parse_sticker_table_rows([
+            {
+                "href": "https://creator.line.me/my/account/stats/sticker/48077815",
+                "text": "毎日使えるカワウソスタンプ\t2026/10/6\t￥0",
+            },
+            {
+                "href": "https://creator.line.me/my/account/stats/sticker/42100028",
+                "text": "いりや\t2025/12/1\t￥189",
+            },
+        ])
         tracked = [{"product_id": "48077815", "title_ja": "毎日使えるカワウソスタンプ"}]
         products = MODULE.match_products(tracked, rows)
         self.assertEqual(products, [{
@@ -59,11 +87,145 @@ class BuildLedgerRow(unittest.TestCase):
 
     def test_tracked_product_with_no_matching_row_stays_unknown(self) -> None:
         tracked = [{"product_id": "48128258", "title_ja": "動く！テストくまの敬語返事"}]
-        products = MODULE.match_products(tracked, MODULE.parse_sticker_stats(STATS_TEXT))
+        rows = MODULE.parse_sticker_table_rows([
+            {
+                "href": "https://creator.line.me/my/account/stats/sticker/48077815",
+                "text": "動く！テストくまの敬語返事\t2026/10/6\t￥189",
+            },
+        ])
+        products = MODULE.match_products(tracked, rows)
         self.assertEqual(products, [{
             "product_id": "48128258", "title_ja": "動く！テストくまの敬語返事",
             "sale_start_date": None, "sales_jpy": None,
         }])
+
+    def test_same_title_does_not_copy_sales_between_distinct_product_ids(self) -> None:
+        tracked = [
+            {"product_id": "set-a", "title_ja": "重複タイトル"},
+            {"product_id": "set-b", "title_ja": "重複タイトル"},
+        ]
+        rows = [{
+            "product_id": "set-a", "title_ja": "重複タイトル",
+            "sale_start_date": "2026/10/12", "sales_jpy": 189,
+        }]
+        self.assertEqual(MODULE.match_products(tracked, rows), [
+            {"product_id": "set-a", "title_ja": "重複タイトル", "sale_start_date": "2026/10/12", "sales_jpy": 189},
+            {"product_id": "set-b", "title_ja": "重複タイトル", "sale_start_date": None, "sales_jpy": None},
+        ])
+
+    def test_duplicate_official_management_id_stays_unknown(self) -> None:
+        tracked = [{"product_id": "set-a", "title_ja": "公式タイトル"}]
+        rows = [
+            {"product_id": "set-a", "title_ja": "公式タイトル", "sale_start_date": "2026/10/12", "sales_jpy": 189},
+            {"product_id": "set-a", "title_ja": "公式タイトル", "sale_start_date": "2026/10/12", "sales_jpy": 0},
+        ]
+        self.assertEqual(MODULE.match_products(tracked, rows), [
+            {"product_id": "set-a", "title_ja": "公式タイトル", "sale_start_date": None, "sales_jpy": None},
+        ])
+
+    def test_duplicate_tracked_management_id_does_not_copy_one_row_twice(self) -> None:
+        tracked = [
+            {"product_id": "set-a", "title_ja": "商品A"},
+            {"product_id": "set-a", "title_ja": "商品B"},
+        ]
+        rows = [{
+            "product_id": "set-a", "title_ja": "商品A",
+            "sale_start_date": "2026/10/12", "sales_jpy": 189,
+        }]
+        self.assertEqual(MODULE.match_products(tracked, rows), [
+            {"product_id": "set-a", "title_ja": "商品A", "sale_start_date": None, "sales_jpy": None},
+            {"product_id": "set-a", "title_ja": "商品B", "sale_start_date": None, "sales_jpy": None},
+        ])
+
+
+class FetchTableCompleteness(unittest.TestCase):
+    def test_partial_dom_rows_are_not_a_successful_stats_readback(self) -> None:
+        row = {
+            "href": "https://creator.line.me/my/account/stats/sticker/48077815",
+            "text": "毎日使えるカワウソスタンプ\t2026/10/6\t￥0",
+        }
+        snapshot = {
+            "ready_state": "complete",
+            "table_count": 1,
+            "rows": [row],
+            "body_row_count": 15,
+            "page_numbers": [1],
+            "current_page": 1,
+            "has_next_page": False,
+            "busy": False,
+        }
+
+        class FakePage:
+            url = "https://creator.line.me/my/account/stats/sticker"
+
+            async def goto(self, url: str, **_kwargs: object) -> None:
+                self.url = url
+
+            async def wait_for_timeout(self, _milliseconds: int) -> None:
+                return None
+
+            async def wait_for_load_state(self, *_args: object, **_kwargs: object) -> None:
+                return None
+
+            async def evaluate(self, _script: str) -> dict:
+                return snapshot
+
+            def locator(self, _selector: str):
+                class FakeLocator:
+                    async def evaluate_all(self, _script: str) -> list[dict]:
+                        return [row]
+
+                return FakeLocator()
+
+            async def inner_text(self, _selector: str) -> str:
+                return PAYMENT_TEXT
+
+            async def close(self) -> None:
+                return None
+
+        class FakeContext:
+            async def new_page(self) -> FakePage:
+                return FakePage()
+
+        class FakeBrowser:
+            contexts = [FakeContext()]
+
+        class FakeChromium:
+            async def connect_over_cdp(self, _cdp: str) -> FakeBrowser:
+                return FakeBrowser()
+
+        class FakePlaywright:
+            chromium = FakeChromium()
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *_args: object) -> None:
+                return None
+
+        package = types.ModuleType("playwright")
+        async_api = types.ModuleType("playwright.async_api")
+        async_api.async_playwright = FakePlaywright
+        package.async_api = async_api
+        with patch.dict(sys.modules, {"playwright": package, "playwright.async_api": async_api}):
+            result = asyncio.run(MODULE._fetch("http://127.0.0.1:9222"))
+        self.assertEqual(result["status"], "incomplete_stats_table")
+
+
+class TrackedProducts(unittest.TestCase):
+    def test_uses_submitted_title_in_creators_item_not_planned_listing_title(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            set_dir = Path(tmp) / "set-001"
+            set_dir.mkdir()
+            (set_dir / "creators-item.json").write_text(json.dumps({
+                "product_id": "48077815", "title_ja": "公式に提出したタイトル",
+            }))
+            (set_dir / "listing.json").write_text(json.dumps({
+                "title": {"ja": "制作計画の旧タイトル"},
+            }))
+            self.assertEqual(MODULE._tracked_products(Path(tmp)), [
+                {"product_id": "48077815", "title_ja": "公式に提出したタイトル"},
+            ])
 
 
 class ShouldRunToday(unittest.TestCase):
@@ -74,8 +236,17 @@ class ShouldRunToday(unittest.TestCase):
     def test_already_observed_today_skips(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             ledger = Path(tmp) / "sales.json"
-            ledger.write_text(json.dumps({"observed_at": MODULE.now_utc().isoformat()}))
+            ledger.write_text(json.dumps({
+                "schema_version": 2,
+                "observed_at": MODULE.now_utc().isoformat(),
+            }))
             self.assertFalse(MODULE.should_run_today(ledger))
+
+    def test_same_day_legacy_snapshot_runs_after_schema_upgrade(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            ledger = Path(tmp) / "sales.json"
+            ledger.write_text(json.dumps({"observed_at": MODULE.now_utc().isoformat()}))
+            self.assertTrue(MODULE.should_run_today(ledger))
 
     def test_observed_yesterday_runs(self) -> None:
         import datetime

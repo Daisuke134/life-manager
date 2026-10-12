@@ -10,10 +10,11 @@ const { persistDailyDigest, sendMetricSnapshot } = require("./instagram-metrics-
 const { collectPostizPhotoWindow, collectTikTokWindow, postizPhotoPermalink } = require("./tiktok-native-metrics-read.js");
 const { persistAniccaDaily, persistAttributionCoverage, persistHonneDaily, persistWeeklyReview, sendSummary } = require("./marketing-product-summary.js");
 const { persistAscAcquisition } = require("./marketing-asc-acquisition.js");
-const { persistRevenueCatSubscriptions } = require("./marketing-revenuecat-subscriptions.js");
+const { persistRevenueCatSubscriptionsDaily } = require("./marketing-revenuecat-subscriptions.js");
 
 const WINDOWS = Object.freeze({ "2h": 2 * 3600_000, "24h": 24 * 3600_000, "72h": 72 * 3600_000, "7d": 7 * 86400_000 });
 const GRACE_MS = 90 * 60_000;
+const MAX_POST_AGE_MS = 30 * 86400_000;
 const TARGETS = Object.freeze([
   Object.freeze({ publication_dir: "anicca-ios", product_id: "anicca-ios", locale: "ja", account_id: "@anicca.jp4", native_owner: "anicca.jp4", integration_id: "cmn8x8hdv028uqx0y4gdfse5t", format_id: "reelclaw-card", form: "nudge-card" }),
   Object.freeze({ publication_dir: "anicca-ios", product_id: "anicca-ios", locale: "ja", account_id: "@anicca.jp", native_owner: "anicca.jp", integration_id: "cmp9sdev5012voh0y58qs45xc", format_id: "reelclaw-card", form: "nudge-card" }),
@@ -31,7 +32,7 @@ function discoverTarget(dataDir, target) {
     const receipt = row?.receipt; const captionPath = path.join(dataDir, "objects/sha256", String(receipt?.caption_sha256 || ""));
     if (!receipt || receipt.status !== "published" || receipt.provider_reconciled !== true || receipt.platform !== "tiktok" || receipt.account_id !== target.account_id || receipt.integration_ref !== `integration://postiz/tiktok/${target.integration_id}` || receipt.format_id !== target.format_id || receipt.form !== target.form || receipt.locale !== target.locale || receipt.public_url !== null || receipt.provider_state !== "PUBLISHED" || !fs.statSync(captionPath, { throwIfNoEntry: false })?.isFile()) throw new Error(`${target.account_id} Postiz photo receipt invalid`);
     const bytes = fs.readFileSync(captionPath); if (crypto.createHash("sha256").update(bytes).digest("hex") !== receipt.caption_sha256) throw new Error(`${target.account_id} caption object integrity mismatch`);
-    return [Object.freeze({ tenant_id: "dais-local", product_id: target.product_id, locale: target.locale, account_id: target.account_id, native_owner: target.native_owner, integration_id: target.integration_id, provider_post_id: receipt.provider_post_id, shortcode: receipt.provider_post_id, video_id: receipt.provider_post_id, public_url: "unavailable", caption: bytes.toString("utf8"), published_at: receipt.published_at, postiz_photo_only: true })];
+    return [Object.freeze({ tenant_id: "dais-local", product_id: target.product_id, locale: target.locale, account_id: target.account_id, native_owner: target.native_owner, integration_id: target.integration_id, format_id: target.format_id, form: target.form, ...(receipt.creative_id ? { creative_id: receipt.creative_id } : {}), provider_post_id: receipt.provider_post_id, shortcode: receipt.provider_post_id, video_id: receipt.provider_post_id, public_url: "unavailable", caption: bytes.toString("utf8"), published_at: receipt.published_at, postiz_photo_only: true })];
   }
   const file = path.join(dataDir, "tenants/dais-local/marketing/video-publication", target.publication_dir, "distribution.jsonl");
   let rows = fs.existsSync(file) ? fs.readFileSync(file, "utf8").split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line)) : [];
@@ -48,7 +49,8 @@ function discoverTarget(dataDir, target) {
     const match = /\/video\/(\d+)/.exec(row.public_url); const captionPath = path.resolve(String(row.caption_path || ""));
     if (row.format_id !== target.format_id || row.form !== target.form || row.locale !== target.locale || !/^c[a-z0-9]+$/.test(String(row.provider_id || "")) || !fs.statSync(captionPath, { throwIfNoEntry: false })?.isFile() || !Number.isFinite(Date.parse(row.ts))) throw new Error(`${target.account_id} verified distribution row invalid`);
     const bytes = fs.readFileSync(captionPath); if (crypto.createHash("sha256").update(bytes).digest("hex") !== row.caption_sha256) throw new Error(`${target.account_id} caption object integrity mismatch`);
-    return Object.freeze({ tenant_id: "dais-local", product_id: target.product_id, locale: target.locale, account_id: target.account_id, native_owner: target.native_owner, integration_id: target.integration_id,
+    return Object.freeze({ tenant_id: "dais-local", product_id: target.product_id, locale: target.locale, account_id: target.account_id, native_owner: target.native_owner, integration_id: target.integration_id, format_id: target.format_id, form: target.form,
+      ...(row.creative_id ? { creative_id: row.creative_id } : {}),
       provider_post_id: row.provider_id, shortcode: match[1], video_id: match[1], public_url: row.public_url, caption: bytes.toString("utf8"), published_at: row.ts });
   });
 }
@@ -82,6 +84,9 @@ function discoverNativeCarouselTargets(dataDir, nowMs = null) {
         account_id: receipt.account_id,
         native_owner: receipt.account_id.replace(/^@/, ""),
         integration_id: integration[1],
+        format_id: receipt.format_id,
+        form: receipt.form,
+        creative_id: receipt.creative_id,
         provider_post_id: providerPostId,
         shortcode: photoOnly ? providerPostId : direct[2],
         video_id: photoOnly ? providerPostId : direct[2],
@@ -126,13 +131,16 @@ function delayed(dataDir, expected, window, observedAt) {
 }
 
 async function runDue(nowMs = Date.now(), env = process.env, provided = null) {
-  const dataDir = resolveDataRoot(env); const results = []; const expecteds = provided || discoverTargets(dataDir, nowMs);
+  const dataDir = resolveDataRoot(env); const results = []; const expecteds = (provided || discoverTargets(dataDir, nowMs)).filter((expected) => {
+    const publishedMs = Date.parse(expected.published_at);
+    return Number.isFinite(publishedMs) && nowMs >= publishedMs && nowMs - publishedMs <= MAX_POST_AGE_MS;
+  });
   const reportParts = Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date(nowMs)).map(({ type, value }) => [type, value])); const reportDay = `${reportParts.year}-${reportParts.month}-${reportParts.day}`;
-  if (Number(reportParts.hour) >= 22 && !provided) { const asc = await persistAscAcquisition(dataDir, reportDay); results.push({ product_id: "mobile-marketing", window: "asc-daily", state: asc.created ? "measured" : "complete", snapshot_ref: asc.snapshot_ref }); const revenuecat = persistRevenueCatSubscriptions(dataDir, reportDay, new Date(nowMs).toISOString()); results.push({ product_id: "mobile-marketing", window: "revenuecat-daily", state: revenuecat.created ? "observed" : "complete", snapshot_ref: revenuecat.snapshot_ref }); const coverage = persistAttributionCoverage(dataDir, reportDay, new Date(nowMs).toISOString()); results.push({ product_id: "mobile-marketing", window: "attribution-daily", state: coverage.created ? "reported" : "complete", telegram: await sendSummary(coverage, env, dataDir), snapshot_ref: coverage.snapshot.snapshot_ref }); const weekly = persistWeeklyReview(dataDir, reportDay, new Date(nowMs).toISOString()); results.push({ product_id: "mobile-marketing", window: "weekly-product", state: weekly.created ? "reported" : "complete", telegram: await sendSummary(weekly, env, dataDir) }); }
+  if (Number(reportParts.hour) >= 22 && !provided) { const asc = await persistAscAcquisition(dataDir, reportDay); results.push({ product_id: "mobile-marketing", window: "asc-daily", state: asc.created ? "measured" : "complete", snapshot_ref: asc.snapshot_ref }); const revenuecat = await persistRevenueCatSubscriptionsDaily(dataDir, reportDay, new Date(nowMs).toISOString()); results.push({ product_id: "mobile-marketing", window: "revenuecat-daily", state: revenuecat.created ? "observed" : "complete", source_status: revenuecat.customer_activity_status || "unavailable", snapshot_ref: revenuecat.snapshot_ref }); const coverage = persistAttributionCoverage(dataDir, reportDay, new Date(nowMs).toISOString()); results.push({ product_id: "mobile-marketing", window: "attribution-daily", state: coverage.created ? "reported" : "complete", telegram: await sendSummary(coverage, env, dataDir), snapshot_ref: coverage.snapshot.snapshot_ref }); const weekly = persistWeeklyReview(dataDir, reportDay, new Date(nowMs).toISOString()); results.push({ product_id: "mobile-marketing", window: "weekly-product", state: weekly.created ? "reported" : "complete", telegram: await sendSummary(weekly, env, dataDir) }); }
   for (const expected of expecteds) {
     for (const [window, delay] of Object.entries(WINDOWS)) {
       const existingFile = snapshotFile(dataDir, expected, window);
-      if (fs.existsSync(existingFile)) { const snapshot = JSON.parse(fs.readFileSync(existingFile, "utf8")); results.push({ video_id: expected.video_id, window, state: "complete", telegram: await sendMetricSnapshot({ created: true, file: existingFile, snapshot }, env, dataDir) }); continue; }
+      if (fs.existsSync(existingFile)) { const snapshot = JSON.parse(fs.readFileSync(existingFile, "utf8")); const missed = snapshot.sources?.postiz_post?.reason === "source_delayed"; results.push({ video_id: expected.video_id, window, state: missed ? "checkpoint_missed" : "complete" }); continue; }
       const dueMs = Date.parse(expected.published_at) + delay;
       if (nowMs < dueMs) { results.push({ video_id: expected.video_id, window, state: "pending", due_at: new Date(dueMs).toISOString() }); continue; }
       if (nowMs > dueMs + GRACE_MS) {
@@ -142,7 +150,7 @@ async function runDue(nowMs = Date.now(), env = process.env, provided = null) {
           public_url: await postizPhotoPermalink({ integrationId: expected.integration_id, providerPostId: expected.provider_post_id, publishedAt: expected.published_at }, env, observedAt),
         } : expected;
         const snapshot = delayed(dataDir, delayedExpected, window, observedAt);
-        results.push({ video_id: expected.video_id, window, state: "source_delayed", telegram: await sendMetricSnapshot(snapshot, env, dataDir) });
+        results.push({ video_id: expected.video_id, window, state: "checkpoint_missed", created: snapshot.created });
         continue;
       }
       const input = { tenantId: expected.tenant_id, productId: expected.product_id, locale: expected.locale, account: expected.account_id, integrationId: expected.integration_id, providerPostId: expected.provider_post_id, videoId: expected.video_id, publicUrl: expected.public_url, caption: expected.caption, window, publishedAt: expected.published_at };
@@ -158,7 +166,7 @@ async function runDue(nowMs = Date.now(), env = process.env, provided = null) {
       results.push({ video_id: expected.video_id, window, state: "measured", telegram: await sendMetricSnapshot(observation, env, dataDir) });
     }
     const parts = Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date(nowMs)).map(({ type, value }) => [type, value])); const reportDay = `${parts.year}-${parts.month}-${parts.day}`;
-    if (Number(parts.hour) > 17 || (Number(parts.hour) === 17 && Number(parts.minute) >= 30)) { const digest = persistDailyDigest({ dataDir, reportDay, observedAt: new Date(nowMs).toISOString(), expected }); results.push({ video_id: expected.video_id, window: "daily", state: digest.created ? "reported" : "complete", telegram: await sendMetricSnapshot(digest, env, dataDir) }); }
+    if (Number(parts.hour) > 17 || (Number(parts.hour) === 17 && Number(parts.minute) >= 30)) { const digest = persistDailyDigest({ dataDir, reportDay, observedAt: new Date(nowMs).toISOString(), expected }); results.push({ video_id: expected.video_id, window: "daily", state: digest.created ? "persisted" : "complete" }); }
     else results.push({ video_id: expected.video_id, window: "daily", state: "pending", due_at: `${reportDay}T17:30:00+09:00` });
   }
   if (Number(reportParts.hour) >= 22 && !provided) {

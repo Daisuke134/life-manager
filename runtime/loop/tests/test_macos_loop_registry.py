@@ -318,6 +318,7 @@ class MacosLoopRegistryTest(unittest.TestCase):
     def test_life_manager_cfo_hourly_declares_effect_rebind_contract(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         row = registry["loops"]["life-manager-cfo-hourly"]
+        self.assertEqual(row.get("admission_effect_scope"), "occurrence")
         self.assertEqual(row.get("resource_class"), "deterministic")
         self.assertEqual(row.get("admission_class"), "revenue")
         self.assertEqual(row.get("priority"), "revenue")
@@ -771,6 +772,14 @@ class MacosLoopRegistryTest(unittest.TestCase):
             with self.subTest(loop_id=loop_id):
                 self.assertIsNone(registry["loops"][loop_id].get("admission_effect_scope"))
 
+    def test_reddit_heartbeat_probe_uses_deterministic_capacity(self):
+        row = json.loads((ROOT / "config/loop-registry.json").read_text())["loops"]["hf-reddit-loop-healthcheck"]
+        self.assertEqual(row["resource_class"], "deterministic")
+        self.assertEqual(row["provider_route"], "deterministic")
+        self.assertEqual(row["effect_class"], "none")
+        self.assertEqual(row["admission_class"], "borrow")
+        self.assertTrue(row["reconcile_queued_release"])
+
     def test_lancers_report_declares_observed_deterministic_borrow_contract(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         row = registry["loops"]["lancers-revenue-telegram-report"]
@@ -1105,6 +1114,10 @@ class MacosLoopRegistryTest(unittest.TestCase):
     def test_marketing_metrics_daily_uses_direct_python_adapter(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         row = registry["loops"]["marketing-metrics-daily"]
+        self.assertEqual(row.get("resource_class"), "deterministic")
+        self.assertEqual(row.get("admission_class"), "borrow")
+        self.assertEqual(row.get("priority"), "support")
+        self.assertIs(row.get("reconcile_queued_release"), True)
         self.assertEqual(row["adapter"], "python")
         self.assertEqual(row["command"], ["metrics"])
         self.assertEqual(
@@ -1252,6 +1265,13 @@ class MacosLoopRegistryTest(unittest.TestCase):
         self.assertEqual(row["resource_class"], "deterministic")
         self.assertEqual(row["admission_class"], "revenue")
         self.assertEqual(row["priority"], "revenue")
+
+    def test_line_sticker_articles_is_ordered_as_distribution_work(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["line-sticker-articles"]
+        self.assertEqual(row["resource_class"], "deterministic")
+        self.assertEqual(row["admission_class"], "revenue")
+        self.assertEqual(row["priority"], "distribution")
 
     def test_hf_gig_browser_declares_browser_resource_class(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
@@ -1872,9 +1892,10 @@ def test_article_daily_declares_its_live_url_fence_reconcile():
     import json
     from pathlib import Path
     registry = json.loads((Path(__file__).resolve().parents[3] / "config/loop-registry.json").read_text())
-    rec = registry["loops"]["article-daily"].get("effect_reconcile") or {}
-    assert rec.get("argv") == ["skills/writer-agent/scripts/article_fence_reconcile.py"]
-    assert rec.get("occurrence_flag") == "--occurrence" and rec.get("resolve_flag") == "--resolve"
+    for owner in ("article-daily", "article-resume"):  # article-resume: 2026-09-29 fence, 2026-10-12
+        rec = registry["loops"][owner].get("effect_reconcile") or {}
+        assert rec.get("argv") == ["skills/writer-agent/scripts/article_fence_reconcile.py"]
+        assert rec.get("occurrence_flag") == "--occurrence" and rec.get("resolve_flag") == "--resolve"
 
 
 def test_interval_revenue_agent_loops_that_pile_up_queued_wakes_declare_coalescing():

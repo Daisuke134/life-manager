@@ -72,9 +72,11 @@ fi
 SELF_DIR="$SCRIPT_DIR/scripts"
 LEDGER="$CAPAFY_DISTRIBUTE_STATE_DIR/ledger.json"
 JST_DATE="$(TZ=Asia/Tokyo date +%F)"
-# One article per 3-hour JST slot (8/day); SLOT is the idempotency key.
-SLOT_NUM=$(( 10#$(TZ=Asia/Tokyo date +%H) / 3 ))
-SLOT="${JST_DATE}-h$(printf '%02d' $((SLOT_NUM * 3)))"
+# One article per wake: the loop wakes every 30 min (Dais 2026-10-11: never wait for a
+# 3-hour slot). SLOT is the idempotency key, one per JST half hour (48/day).
+JST_HOUR=$(( 10#$(TZ=Asia/Tokyo date +%H) )); JST_HALF=$(( 10#$(TZ=Asia/Tokyo date +%M) / 30 ))
+SLOT_NUM=$(( JST_HOUR * 2 + JST_HALF ))
+SLOT="${JST_DATE}-h$(printf '%02d' "$JST_HOUR")m$(printf '%02d' $((JST_HALF * 30)))"
 CHANNEL="${CAPAFY_DISTRIBUTE_CHANNEL:-capafy-distribute}"
 
 # --- idempotent per JST-date: never publish twice for the same day ---------
@@ -279,8 +281,11 @@ if ok and not (os.path.exists(cap) and os.path.getsize(cap)):
 PY
 fi
 if [ -s "$CAPTION_FILE" ] && [ -n "${POSTIZ_X_INTEGRATION_ID:-}" ]; then
+  # Postiz strips links from X posts (2026-10-11), so the caption ends with a Capafy search CTA.
   X_OUT="$(python3 "$SELF_DIR/capafy_x_post.py" --caption "$(cat "$CAPTION_FILE")" \
-    --integration-id "$POSTIZ_X_INTEGRATION_ID" 2>>"$LOG" | tail -1)" || true
+    --integration-id "$POSTIZ_X_INTEGRATION_ID" \
+    --search-slug "$CAPAFY_SKILL_SLUG" \
+    2>>"$LOG" | tail -1)" || true
   echo "capafy-distribute-daily: x post: ${X_OUT:0:300}" >>"$LOG"
   X_OUT="$X_OUT" LEDGER="$LEDGER" SLOT="$SLOT" LEDGER_TOOL="$SELF_DIR/capafy_distribute_ledger.py" python3 - <<'PY' >>"$LOG" 2>&1 || true
 import json, os, subprocess, sys

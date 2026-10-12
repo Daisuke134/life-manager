@@ -47,7 +47,7 @@ FUNNEL_DISPOSITIONS = frozenset({"positive", "negative"})
 AUTHORITATIVE_EVIDENCE_SOURCES = frozenset(
     {"ats", "gmail", "calendar", "employer_portal", "signed_document"}
 )
-WORKDAY_FIT_POLICY_VERSION = "no-voluntary-skip-v5"
+WORKDAY_FIT_POLICY_VERSION = "workday-global-scope-v7"
 
 
 class FenceError(RuntimeError):
@@ -1293,6 +1293,62 @@ class Ledger:
                         or route_verified
                     ):
                         raise FenceError("late confirmation event lacks evidence")
+                elif previous == "not_submitted" and to_state == "submitted":
+                    receipt_fields = (
+                        "intent_id",
+                        "message_id",
+                        "thread_id",
+                        "evidence_sha256",
+                        "received_at",
+                        "prior_ui_evidence_sha256",
+                    )
+                    prior_ui_verified = (
+                        payload.get("intent_id") == previous_payload.get("intent_id")
+                        and payload.get("prior_ui_evidence_class")
+                        == previous_payload.get("evidence_class")
+                        == "rendered_validation_rejection"
+                        and payload.get("prior_ui_evidence_sha256")
+                        == previous_payload.get("evidence_sha256")
+                    )
+                    confirmation = self.connection.execute(
+                        """
+                        SELECT 1
+                        FROM submission_confirmations AS confirmations
+                        JOIN submit_intents AS intents
+                          ON intents.intent_id = confirmations.intent_id
+                        WHERE confirmations.intent_id = ?
+                          AND confirmations.message_id = ?
+                          AND confirmations.thread_id = ?
+                          AND confirmations.evidence_sha256 = ?
+                          AND confirmations.received_at = ?
+                          AND intents.application_id = ?
+                          AND intents.status = 'submitted'
+                        """,
+                        (
+                            payload.get("intent_id"),
+                            payload.get("message_id"),
+                            payload.get("thread_id"),
+                            payload.get("evidence_sha256"),
+                            payload.get("received_at"),
+                            application["id"],
+                        ),
+                    ).fetchone()
+                    if not (
+                        all(
+                            isinstance(payload.get(key), str)
+                            and payload[key]
+                            for key in receipt_fields
+                        )
+                        and re.fullmatch(
+                            r"[a-f0-9]{64}", payload["evidence_sha256"]
+                        )
+                        and re.fullmatch(
+                            r"[a-f0-9]{64}", payload["prior_ui_evidence_sha256"]
+                        )
+                        and prior_ui_verified
+                        and confirmation is not None
+                    ):
+                        raise FenceError("late confirmation event lacks evidence")
                 elif previous == "submitted" and to_state == "submit_unknown":
                     route_id = payload.get("route_id")
                     provider_id = payload.get("provider_id")
@@ -1984,13 +2040,11 @@ class Ledger:
             ).fetchone()
             if row is None:
                 raise FenceError("submission intent does not exist")
-            if (
-                str(row["status"]) != "submit_unknown"
-                or str(row["current_state"]) != "submit_unknown"
-            ):
-                raise FenceError(
-                    "only a submit_unknown application can be reconciled"
-                )
+            prior_state = str(row['current_state'])
+            correction = (str(row['status']) == prior_state == 'not_submitted'
+                          and row['outcome_evidence_class'] == 'rendered_validation_rejection')
+            if not correction and not (str(row['status']) == prior_state == 'submit_unknown'):
+                raise FenceError('only an uncertain or false-negative UI application can be reconciled')
             intent_created = datetime.fromisoformat(str(row["created_at"]))
             if received < intent_created:
                 raise FenceError("confirmation predates the submission intent")
@@ -2016,31 +2070,35 @@ class Ledger:
                 """
                 UPDATE submit_intents
                 SET status = 'submitted'
-                WHERE intent_id = ? AND status = 'submit_unknown'
+                WHERE intent_id = ? AND status = ?
                 """,
-                (intent_id,),
+                (intent_id, prior_state),
             )
             attempt_update = self.connection.execute(
                 """
                 UPDATE submission_attempts
                 SET status = 'submitted'
-                WHERE intent_id = ? AND fence = ? AND status = 'submit_unknown'
+                WHERE intent_id = ? AND fence = ? AND status = ?
                 """,
-                (intent_id, int(row["fence"])),
+                (intent_id, int(row["fence"]), prior_state),
             )
-            slot_update = self.connection.execute(
-                """
-                UPDATE daily_slots
-                SET status = 'submitted'
-                WHERE japan_day = ? AND slot = ? AND application_id = ?
-                  AND status = 'submit_unknown'
-                """,
-                (
-                    str(row["japan_day"]),
-                    int(row["slot"]),
-                    str(row["application_id"]),
-                ),
-            )
+            corrected_slot = int(row['slot'])
+            if correction:
+                occupied = {int(r[0]) for r in self.connection.execute(
+                    'SELECT slot FROM daily_slots WHERE japan_day=?', (row['japan_day'],))}
+                corrected_slot = 1
+                while corrected_slot in occupied:
+                    corrected_slot += 1
+                slot_update = self.connection.execute(
+                    "INSERT INTO daily_slots(japan_day,slot,application_id,status) VALUES(?,?,?,'submitted')",
+                    (row['japan_day'], corrected_slot, row['application_id']))
+                self.connection.execute('UPDATE submit_intents SET slot=? WHERE intent_id=?',
+                    (corrected_slot, intent_id))
+            else:
+                slot_update = self.connection.execute(
+                    """UPDATE daily_slots SET status='submitted'
+                       WHERE japan_day=? AND slot=? AND application_id=? AND status='submit_unknown'""",
+                    (row['japan_day'], row['slot'], row['application_id']))
             if (
                 intent_update.rowcount != 1
                 or attempt_update.rowcount != 1
@@ -2050,7 +2108,7 @@ class Ledger:
             application_id = str(row["application_id"])
             self._append_event(
                 application_id,
-                "submit_unknown",
+                prior_state,
                 "submitted",
                 {
                     "intent_id": intent_id,
@@ -2058,15 +2116,18 @@ class Ledger:
                     "thread_id": thread_id,
                     "evidence_sha256": evidence_sha256,
                     "received_at": received_at,
+                    "prior_ui_evidence_class": row['outcome_evidence_class'],
+                    "prior_ui_evidence_sha256": row['outcome_evidence_sha256'],
+                    "original_slot": row['slot'], "corrected_slot": corrected_slot,
                 },
             )
             application_update = self.connection.execute(
                 """
                 UPDATE applications
                 SET current_state = 'submitted'
-                WHERE id = ? AND current_state = 'submit_unknown'
+                WHERE id = ? AND current_state = ?
                 """,
-                (application_id,),
+                (application_id, prior_state),
             )
             if application_update.rowcount != 1:
                 raise FenceError("application confirmation state is inconsistent")

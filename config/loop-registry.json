@@ -712,6 +712,12 @@
       },
       "domain": "earn",
       "effect_class": "publish",
+      "effect_reconcile": {
+        "argv": ["skills/writer-agent/scripts/article_fence_reconcile.py"],
+        "occurrence_flag": "--occurrence",
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 120
+      },
       "entrypoint": "skills/writer-agent/scripts/article-resume-pending.sh",
       "label": "ai.anicca.article-resume",
       "system_role": "shared",
@@ -980,6 +986,28 @@
       "state_root": "~/.local/state/life-manager/line-sticker-distribute",
       "system_role": "shared"
     },
+    "line-sticker-articles": {
+      "priority": "distribution",
+      "resource_class": "deterministic",
+      "admission_class": "revenue",
+      "coalesce_reserved_wakes": true,
+      "coalesce_queued_wakes": true,
+      "cadence": {
+        "start_interval_seconds": 900
+      },
+      "cleanup": {
+        "max_age_days": 14,
+        "max_runs": 100
+      },
+      "domain": "earn",
+      "effect_class": "publish",
+      "effect_reconcile": {"argv": ["skills/earn/line-sticker-distribute/scripts/article_fence_reconcile.py"], "occurrence_flag": "--occurrence", "resolve_flag": "--resolve", "timeout_seconds": 180}, "entrypoint": "skills/earn/line-sticker-distribute/line-sticker-articles.sh",
+      "label": "ai.anicca.line-sticker-articles",
+      "log_root": "~/.local/state/life-manager/line-sticker-articles/logs",
+      "provider_route": "deterministic",
+      "state_root": "~/.local/state/life-manager/line-sticker-articles",
+      "system_role": "shared"
+    },
     "line-creators-browser": {
       "adapter": "exec",
       "browser_owner": {
@@ -1142,16 +1170,7 @@
     "capafy-distribute-daily": {
       "admission_class": "revenue",
       "cadence": {
-        "calendar_interval": [
-          {"Hour": 1, "Minute": 15},
-          {"Hour": 4, "Minute": 15},
-          {"Hour": 7, "Minute": 15},
-          {"Hour": 10, "Minute": 15},
-          {"Hour": 13, "Minute": 15},
-          {"Hour": 16, "Minute": 15},
-          {"Hour": 19, "Minute": 15},
-          {"Hour": 22, "Minute": 15}
-        ]
+        "start_interval_seconds": 1800
       },
       "cleanup": {
         "max_age_days": 14,
@@ -1173,7 +1192,7 @@
       "coalesce_queued_wakes": true,
       "coalesce_reserved_wakes": true,
       "resource_class": "agent",
-      "priority": "revenue",
+      "priority": "distribution",
       "provider_route": "shared-agent-runner",
       "state_root": "~/.local/state/life-manager/writer/capafy-distribute"
     },
@@ -1287,6 +1306,9 @@
       "state_root": "~/.local/state/life-manager/agent-economy/instance"
     },
     "claude-projects-backup": {
+      "admission_class": "borrow",
+      "priority": "support",
+      "resource_class": "deterministic",
       "cadence": {
         "start_interval_seconds": 86400
       },
@@ -1301,6 +1323,7 @@
       "system_role": "platform",
       "log_root": "~/.local/state/life-manager/claude-projects-backup/logs",
       "provider_route": "deterministic",
+      "reconcile_queued_release": true,
       "state_root": "~/.local/state/life-manager/claude-projects-backup"
     },
     "daily-nl-report": {
@@ -1911,8 +1934,8 @@
       "coalesce_reserved_wakes": true,
       "reconcile_queued_release": true,
       "priority": "support",
-      "provider_route": "shared-agent-runner",
-      "resource_class": "agent",
+      "provider_route": "deterministic",
+      "resource_class": "deterministic",
       "state_root": "~/.local/state/life-manager/reddit"
     },
     "image-claude-p": {
@@ -2904,6 +2927,7 @@
       "state_root": "~/.local/state/life-manager/browser-capacity-probe"
     },
     "life-manager-cfo-hourly": {
+      "admission_effect_scope": "occurrence",
       "cadence": {
         "start_interval_seconds": 3600
       },
@@ -3462,6 +3486,10 @@
     },
     "marketing-metrics-daily": {
       "adapter": "python",
+      "resource_class": "deterministic",
+      "admission_class": "borrow",
+      "priority": "support",
+      "reconcile_queued_release": true,
       "cadence": {
         "calendar_interval": {
           "Hour": 7,
@@ -3822,7 +3850,7 @@
       "domain": "earn",
       "effect_class": "publish",
       "entrypoint": "skills/earn/promptbase/daily.sh",
-      "browser_identity": "interactive:dais",
+      "browser_identity": "promptbase:dais",
       "browser_target_owner": "promptbase-loop-daily",
       "label": "ai.anicca.promptbase-loop-daily",
       "log_root": "~/.local/state/life-manager/logs",

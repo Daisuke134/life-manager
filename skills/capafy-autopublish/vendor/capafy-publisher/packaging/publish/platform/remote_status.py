@@ -29,6 +29,7 @@ def _agent_list_items(payload: dict[str, Any]) -> list[dict[str, Any]]:
                 "agent_status": str(item.get("agentStatus", "") or "").strip(),
                 "latest_agent_version_id": str(item.get("latestAgentVersionId", "") or "").strip(),
                 "updated_at": item.get("updatedAt"),
+                "has_online_version": item.get("hasOnlineVersion"),
             }
         )
     return items

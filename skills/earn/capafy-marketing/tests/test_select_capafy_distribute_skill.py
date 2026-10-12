@@ -107,3 +107,38 @@ def test_select_falls_back_to_full_rotation_without_earners() -> None:
     picks = {module.select_for_date(PRODUCTS, analytics, dt.date(2026, 10, 4), slot=s)["capafy_skill"]
              for s in range(8)}
     assert picks == {"hook-lab", "slide-maker", "tiktok-script-pro"}
+
+
+def test_best_seller_in_review_stays_promoted_and_gets_half_the_slots() -> None:
+    """Dais 2026-10-11: go all in on the Agents that already make money, Hook Lab first.
+    A seller with a new version under review is still buyable (it stays in Capafy search),
+    yet status == "online" dropped Hook Lab from the rotation for a whole day."""
+    module = load_module()
+    analytics = analytics_with({
+        "111": {"profit_30d_actual_usd": "13.94", "status": "under_review"},
+        "222": {"profit_30d_actual_usd": "11.13", "status": "online"},
+        "333": {"profit_30d_actual_usd": "12.76", "status": "under_review"},
+    })
+    picks = [module.select_for_date(PRODUCTS, analytics, dt.date(2026, 10, 11), slot=s)["capafy_skill"]
+             for s in range(8)]
+    assert picks.count("hook-lab") == 4
+    assert set(picks) == {"hook-lab", "slide-maker", "tiktok-script-pro"}
+
+
+def test_buyer_visible_hook_lab_keeps_half_the_slots_while_next_version_is_draft() -> None:
+    module = load_module()
+    analytics = analytics_with({
+        "111": {"profit_30d_actual_usd": "1.00", "status": "draft",
+                "has_online_version": True},
+        "222": {"profit_30d_actual_usd": "20.00", "status": "online",
+                "has_online_version": True},
+        "333": {"profit_30d_actual_usd": "12.00", "status": "draft",
+                "has_online_version": False},
+    })
+
+    picks = [module.select_for_date(PRODUCTS, analytics, dt.date(2026, 10, 12), slot=s)["capafy_skill"]
+             for s in range(48)]
+
+    assert picks.count("hook-lab") == 24
+    assert picks.count("slide-maker") == 24
+    assert "tiktok-script-pro" not in picks

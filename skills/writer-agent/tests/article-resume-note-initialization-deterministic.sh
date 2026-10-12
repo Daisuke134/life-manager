@@ -55,6 +55,7 @@ PY
 cat >"$FAKE_ROOT/runtime/model-runner.sh" <<SH
 #!/usr/bin/env bash
 touch "$TMP/model-was-called"
+cp "\$3" "$TMP/captured-resume-prompt.txt"
 exit 91
 SH
 chmod +x "$FAKE_ROOT/runtime/model-runner.sh"
@@ -104,4 +105,44 @@ assert p["status"] == "intent"
 assert p["target"] == "n-test-key"
 PY
 
-echo "PASS: note initialization is one deterministic managed staging call"
+# An interrupted generation can persist publication state before its dispatch
+# manifest. The existing bounded initializer must own recovery in that case.
+python3 - "$RUN_DIR/gates/publication-state.json" <<'PYCASE'
+import json, sys
+p = sys.argv[1]
+s = json.load(open(p))
+s["pairs"].pop("note/ja", None)
+json.dump(s, open(p, "w"))
+PYCASE
+rm "$RUN_DIR/gates/platform-dispatch.jsonl"
+set +e
+ARTICLE_ROOT="$FAKE_ROOT" \
+ARTICLE_STATE_DIR="$STATE_DIR" \
+ARTICLE_LOCAL_DATE="2026-07-29" \
+ARTICLE_OWNER_FENCE_ACTIVE=1 \
+ARTICLE_RESUME_LOG="$TMP/resume.log" \
+ARTICLE_MODEL_RUNNER="$FAKE_ROOT/runtime/model-runner.sh" \
+bash "$FAKE_ROOT/scripts/article-resume-pending.sh"
+missing_rc=$?
+set -e
+test "$missing_rc" -eq 91
+test -e "$TMP/model-was-called"
+python3 - "$TMP/captured-resume-prompt.txt" <<'PYPROMPT'
+from pathlib import Path
+import json
+import re
+import sys
+text = Path(sys.argv[1]).read_text()
+assert json.loads(re.search(r"Current active pairs: (\[[^\n]+?\])", text)[1]) == ["note/ja", "substack/ja", "substack/en"]
+assert json.loads(re.search(r"Current dormant pairs: (\[[^\n]+?\])", text)[1]) == ["zenn-article/ja", "devto/en", "x-article/en", "x-post/ja", "x-article/ja"]
+assert "all four active valid stable intents" not in text
+assert "alongside the four active target registrations" not in text
+assert "do not publish any pair in this initialization tick" in text
+PYPROMPT
+test "$(wc -l <"$TMP/calls" | tr -d ' ')" = "1"
+python3 - "$RUN_DIR/gates/publication-state.json" <<'PYCASE'
+import json, sys
+assert "note/ja" not in json.load(open(sys.argv[1]))["pairs"]
+PYCASE
+
+echo "PASS: saved dispatch uses deterministic staging; missing dispatch uses bounded recovery"

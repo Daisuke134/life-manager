@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Publish one persisted paid Substack draft without a general model."""
-import json, os, shlex, subprocess
+import hashlib, json, os, shlex, subprocess
 from pathlib import Path
 # --- fail-closed PII gate wiring ---------------------------------------------------
 # gate_* raise SystemExit (non-zero) on a finding, a missing blocklist, an unreadable
@@ -46,16 +46,12 @@ def main():
         raise SystemExit(f"Substack identity does not match persisted state for {pair}")
     entry=state.get("pairs",{}).get(pair,{})
     if entry.get("status")!="intent" or not str(entry.get("target","")).isdigit(): raise SystemExit("durable Substack intent missing")
-    rows=[json.loads(x) for x in (Path(os.environ["ARTICLE_RUN_DIR"])/"gates/platform-dispatch.jsonl").read_text().splitlines() if x]
-    # The canonical dispatch ledger stores the platform as ``substack`` and
-    # carries the locale in ``lang``.  Keep accepting the older channel-shaped
-    # spelling so immutable runs created before the Life Manager move remain
-    # resumable without rewriting their receipts.
-    rows=[x for x in rows if x.get("platform") in {"substack", f"substack-{lang}"} and x.get("lang")==lang]
-    if len(rows)!=1: raise SystemExit("persisted Substack row missing")
-    argv=rows[0]["argv"]
-    def value(flag):
-        return argv[argv.index(flag)+1]
+    draft=state.get("drafts", {}).get(lang, {})
+    markdown=Path(str(draft.get("path", "")))
+    if not markdown.is_file() or not draft.get("sha256"):
+        raise SystemExit("immutable Substack draft missing")
+    if hashlib.sha256(markdown.read_bytes()).hexdigest()!=draft["sha256"]:
+        raise SystemExit("immutable Substack draft SHA mismatch")
     wrapper=shlex.split(os.environ.get("SUBSTACK_WRAPPER_COMMAND","")) or ["bash",str(Path(__file__).parent/"_shared/publish-substack-mermaid.sh")]
     refresh=shlex.split(os.environ.get("SUBSTACK_REFRESH_COMMAND","")) or ["python3",str(Path(__file__).parent/"substack-publish/substack_refresh_intent.py")]
     env={
@@ -68,11 +64,13 @@ def main():
         # legacy generic host after the refresh gate has passed.
         publication_key: publication,
     }
-    gate_files("publish-substack-managed", [value("--markdown-file")])
-    run([*refresh,"--pair",pair],env)
+    gate_files("publish-substack-managed", [str(markdown)])
+    refreshed=json.loads(run([*refresh,"--pair",pair],env))
+    if refreshed.get("pair")!=pair or str(refreshed.get("target", ""))!=str(entry["target"]) or refreshed.get("refreshed") is not True or not refreshed.get("title"):
+        raise SystemExit("same-ID Substack refresh metadata missing")
     run([*wrapper,"enable-publish"],env)
     try:
-        out=run([*wrapper,"publish",value("--markdown-file"),"--title",value("--title"),"--subtitle",value("--meta"),"--mode","go"],env)
+        out=run([*wrapper,"publish",str(markdown),"--title",refreshed["title"],"--subtitle",refreshed.get("subtitle", ""),"--mode","go"],env)
     finally:
         run([*wrapper,"disable-publish"],env)
     if json.loads(state_path.read_text())["pairs"][pair].get("status")!="live": raise SystemExit("Substack live receipt missing")

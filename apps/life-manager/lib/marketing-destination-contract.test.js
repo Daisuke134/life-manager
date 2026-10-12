@@ -65,6 +65,31 @@ test("the marketing destination SSOT fixes every retained route and every non-ta
   );
 });
 
+test("the primary English Anicca profiles keep distinct App Store campaign tokens", () => {
+  const contract = loadMarketingDestinationContract(CONTRACT);
+  const tokenByHandle = Object.fromEntries(
+    ["@anicca.en", "@aniccaaffirmation", "@anicca-ai"].map((handle) => {
+      const target = contract.targets.find((row) => row.native_handle === handle);
+      assert.ok(target, `${handle} must be a retained Anicca destination`);
+      return [handle, target.app_store_campaign_token];
+    }),
+  );
+  assert.deepEqual(tokenByHandle, {
+    "@anicca.en": "anicca-ios_ig_anicca-en_en",
+    "@aniccaaffirmation": "anicca-ios_tt_aniccaaff_en",
+    "@anicca-ai": "anicca-ios_youtube_en",
+  });
+
+  const duplicate = JSON.parse(fs.readFileSync(CONTRACT, "utf8"));
+  const instagramToken = duplicate.targets.find((row) => row.native_handle === "@anicca.en").app_store_campaign_token;
+  duplicate.targets.find((row) => row.native_handle === "@aniccaaffirmation").app_store_campaign_token = instagramToken;
+  assert.throws(() => validateMarketingDestinationContract(duplicate), /duplicate app store campaign token/i);
+
+  const overlong = JSON.parse(fs.readFileSync(CONTRACT, "utf8"));
+  overlong.targets.find((row) => row.native_handle === "@anicca.en").app_store_campaign_token = "a".repeat(31);
+  assert.throws(() => validateMarketingDestinationContract(overlong), /app_store_campaign_token/i);
+});
+
 test("enabled @aniccaen2 resolves to one Anicca iOS English affirmation route with three slots", () => {
   const contract = loadMarketingDestinationContract(CONTRACT);
   const integrationId = "cmlt171eq04d9r00yzzceb6bw";

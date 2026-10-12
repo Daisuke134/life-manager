@@ -144,6 +144,7 @@ class CandidateMemoryView:
             }
             for item in self.value["concepts"]
             if str(item.get("concept", "")).startswith("fact.")
+            and not str(item.get("concept", "")).startswith("fact.profile.mailing_address")
             and isinstance(item.get("value"), str)
         )
 

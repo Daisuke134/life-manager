@@ -53,30 +53,43 @@ function measured(value, source) {
 
 function postMetrics(rows) {
   if (!Array.isArray(rows)) throw new Error("Instagram post analytics invalid");
-  const byLabel = new Map(rows.map((row) => [row?.label, row?.data?.[0]?.total]));
+  const byLabel = new Map(rows.map((row) => [row?.label, row?.data?.at(-1)?.total]));
   const result = {};
   for (const [label, key] of Object.entries(POST_LABELS)) {
-    result[key] = byLabel.has(label) ? measured(byLabel.get(label), "postiz_post_analytics") : { status: "unavailable", value: null, reason: "metric_missing" };
+    const value = byLabel.get(label);
+    result[key] = value != null && String(value).trim() !== "" ? measured(value, "postiz_post_analytics") : { status: "unavailable", value: null, reason: "metric_missing" };
   }
   for (const key of ["impressions", "watch_time", "average_watch_time", "completion"]) result[key] = { status: "unavailable", value: null, reason: "metric_not_supported" };
+  const complete = ["views", "likes", "comments", "shares", "saves"].every((key) => result[key].status === "measured");
   const numerator = result.likes.value + result.comments.value + result.shares.value + result.saves.value;
-  result.engagement = result.views.value === 0 ? { status: "unavailable", value: null, reason: "zero_view_denominator" }
+  result.engagement = !complete ? { status: "unavailable", value: null, reason: "engagement_input_missing" }
+    : result.views.value === 0 ? { status: "unavailable", value: null, reason: "zero_view_denominator" }
     : { status: "derived", numerator, denominator: result.views.value, rate: Number((numerator / result.views.value).toFixed(8)), percent: Number((numerator / result.views.value * 100).toFixed(2)), formula: "(likes+comments+shares+saves)/views" };
   return result;
 }
 
+function currentSnapshotFile(dataDir, reportDay, expected = EXPECTED) {
+  return path.join(path.resolve(dataDir), "tenants", expected.tenant_id, "marketing", "metrics", expected.native_owner, expected.shortcode, "current", `${reportDay}.combined.json`);
+}
+
 function persistSnapshot({ dataDir, window, observedAt, html, accountRows, postRows, expected = EXPECTED }) {
-  if (!WINDOWS.has(window) || !Number.isFinite(Date.parse(observedAt))) throw new Error("Instagram metric window invalid");
+  if ((!WINDOWS.has(window) && window !== "current") || !Number.isFinite(Date.parse(observedAt))) throw new Error("Instagram metric window invalid");
   const native = verifyNativeHtml(html, expected);
+  const metrics = postMetrics(postRows);
+  if (window === "current" && !Object.values(metrics).some((metric) => metric.status === "measured")) {
+    throw new Error("Instagram current observation has no post metrics");
+  }
   const snapshot = {
     schema_version: 1, kind: "instagram_combined_metric_snapshot", ...expected,
     window, observed_at: observedAt, caption_sha256: crypto.createHash("sha256").update(expected.caption).digest("hex"),
+    ...(window === "current" ? { historical_checkpoint: false, requested_lookback_days: 7, metric_scope: "provider_current_observation" } : {}),
     sources: { instagram_native: native, postiz_post: { status: "measured" }, postiz_account: Array.isArray(accountRows) && accountRows.length ? { status: "measured" } : { status: "unavailable", reason: "empty_response", response: "empty_array" } },
-    post: postMetrics(postRows), account_metrics: Array.isArray(accountRows) && accountRows.length ? accountRows : { status: "unavailable", reason: "empty_response" },
+    post: metrics, account_metrics: Array.isArray(accountRows) && accountRows.length ? accountRows : { status: "unavailable", reason: "empty_response" },
   };
   const directory = path.join(path.resolve(dataDir), "tenants", expected.tenant_id, "marketing", "metrics", expected.native_owner, expected.shortcode);
-  const file = path.join(directory, `${window}.combined.json`);
-  fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
+  const reportDay = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(observedAt));
+  const file = window === "current" ? currentSnapshotFile(dataDir, reportDay, expected) : path.join(directory, `${window}.combined.json`);
+  fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
   if (fs.existsSync(file)) {
     const existing = JSON.parse(fs.readFileSync(file, "utf8"));
     if (existing.public_url !== expected.public_url || existing.provider_post_id !== expected.provider_post_id || existing.caption_sha256 !== snapshot.caption_sha256) throw new Error("Instagram metric replay mismatch");
@@ -113,14 +126,25 @@ function persistDailyDigest({ dataDir, reportDay, observedAt, expected = EXPECTE
     const snapshot = JSON.parse(fs.readFileSync(file, "utf8")); const status = Object.values(snapshot.post || {}).some((metric) => metric?.status === "measured" || metric?.status === "derived") ? "measured" : "unavailable";
     return { window, status, file };
   });
-  const source = rows.map((row) => row.file && JSON.parse(fs.readFileSync(row.file, "utf8"))).filter(Boolean)
+  const currentFile = currentSnapshotFile(dataDir, reportDay, expected);
+  const source = (fs.existsSync(currentFile) ? JSON.parse(fs.readFileSync(currentFile, "utf8")) : null) || rows.map((row) => row.file && JSON.parse(fs.readFileSync(row.file, "utf8"))).filter(Boolean)
     .find((snapshot) => Object.values(snapshot.post || {}).some((metric) => metric?.status === "measured" || metric?.status === "derived")) || rows.map((row) => row.file && JSON.parse(fs.readFileSync(row.file, "utf8"))).find(Boolean);
   if (!source) throw new Error("Instagram daily digest has no metric snapshot");
-  const baseFile = path.join(directory, "daily", `${reportDay}.json`); const correctionFile = path.join(directory, "daily", `${reportDay}.correction.json`);
-  if (fs.existsSync(correctionFile)) return { created: false, file: correctionFile, snapshot: JSON.parse(fs.readFileSync(correctionFile, "utf8")) };
-  if (fs.existsSync(baseFile)) { const existing = JSON.parse(fs.readFileSync(baseFile, "utf8")); const existingMeasured = Object.values(existing.post || {}).some((metric) => metric?.status === "measured" || metric?.status === "derived"); const sourceMeasured = Object.values(source.post || {}).some((metric) => metric?.status === "measured" || metric?.status === "derived"); if (existingMeasured || !sourceMeasured) return { created: false, file: baseFile, snapshot: existing }; }
-  const correction = fs.existsSync(baseFile); const file = correction ? correctionFile : baseFile;
+  const baseFile = path.join(directory, "daily", `${reportDay}.json`);
+  const correctionFile = path.join(directory, "daily", `${reportDay}.correction.json`);
+  const currentCorrectionFile = path.join(directory, "daily", `${reportDay}.current.correction.json`);
+  const retainedFile = [currentCorrectionFile, correctionFile, baseFile].find((file) => fs.existsSync(file));
+  if (retainedFile) {
+    const existing = JSON.parse(fs.readFileSync(retainedFile, "utf8"));
+    const existingMeasured = Object.values(existing.post || {}).some((metric) => metric?.status === "measured" || metric?.status === "derived");
+    const sourceMeasured = Object.values(source.post || {}).some((metric) => metric?.status === "measured" || metric?.status === "derived");
+    const promoteCurrent = source.historical_checkpoint === false && existing.historical_checkpoint !== false;
+    if ((existingMeasured && !promoteCurrent) || !sourceMeasured || (retainedFile !== baseFile && !promoteCurrent)) return { created: false, file: retainedFile, snapshot: existing };
+  }
+  const correction = fs.existsSync(baseFile);
+  const file = correction ? (source.historical_checkpoint === false ? currentCorrectionFile : correctionFile) : baseFile;
   const snapshot = { ...source, kind: `${/^https:\/\/www\.tiktok\.com\//.test(source.public_url) ? "tiktok" : "instagram"}_daily_metric_digest${correction ? "_correction" : ""}`, window: "daily", observed_at: observedAt, report_day: reportDay,
+    ...(source.historical_checkpoint === false ? { source_observed_at: source.observed_at } : {}),
     observation_windows: rows.map(({ window, status }) => ({ window, status })) };
   fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
   const temporary = `${file}.tmp-${process.pid}-${crypto.randomUUID()}`;
@@ -159,7 +183,7 @@ async function collectWindow(window, env = process.env, observedAt = new Date().
   const key = String(env.LM_POSTIZ_API_KEY || "").trim();
   if (!key) throw new Error("LM_POSTIZ_API_KEY is required");
   const get = async (url, headers = {}) => { const response = await fetch(url, { headers }); if (!response.ok) throw new Error(`Instagram metric HTTP ${response.status}`); return response; };
-  const days = { "2h": 1, "24h": 1, "72h": 3, "7d": 7 }[window];
+  const days = { "2h": 1, "24h": 1, "72h": 3, "7d": 7, current: 7 }[window];
   if (!days) throw new Error("Instagram metric window invalid");
   const [page, account, post] = await Promise.all([
     get(expected.public_url).then((response) => response.text()),
@@ -168,9 +192,9 @@ async function collectWindow(window, env = process.env, observedAt = new Date().
   ]);
   const dataDir = resolveDataRoot(env);
   const result = persistSnapshot({ dataDir, window, observedAt, html: page, accountRows: account, postRows: post, expected });
-  const telegram = await sendMetricSnapshot(result, env, dataDir);
+  const telegram = window === "current" ? { created: false, reason: "current_observation_for_daily_report" } : await sendMetricSnapshot(result, env, dataDir);
   return { created: result.created, file: result.file, post: result.snapshot.post, account: result.snapshot.account_metrics, telegram };
 }
 
 if (require.main === module) collectWindow(process.argv[2] || "24h").then((result) => process.stdout.write(`${JSON.stringify(result)}\n`)).catch((error) => { process.stderr.write(`${error.message}\n`); process.exitCode = 1; });
-module.exports = { EXPECTED, collectWindow, metricPlatform, persistDailyDigest, persistDelayedSnapshot, persistSnapshot, postMetrics, sendMetricSnapshot, verifyNativeHtml };
+module.exports = { EXPECTED, collectWindow, currentSnapshotFile, metricPlatform, persistDailyDigest, persistDelayedSnapshot, persistSnapshot, postMetrics, sendMetricSnapshot, verifyNativeHtml };

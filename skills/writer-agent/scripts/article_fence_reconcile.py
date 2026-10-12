@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
-"""Close a Writer fence from paired publish, paired pre-effect, or exact historical gate-stop proof.
+"""Close a Writer fence from paired publish, paired pre-effect, or exact historical no-dispatch proof.
 
-The fence is closed only when a Writer run that STARTED shortly after the fenced occurrence has a
-published article whose URL answers HTTP 200, or the exact allowlisted historical run is proven to
-have exited at its pre-publication demand gate. Ordinary URL absence never closes a fence. The time
-window pairs a fence with a run; it is never used to conclude that nothing happened.
+article-daily: the fence is closed only when a Writer run that STARTED shortly after the fenced
+occurrence has a published article whose URL answers HTTP 200, or the exact allowlisted historical run
+is proven to have exited at its pre-publication demand gate. Ordinary URL absence never closes a fence.
+The time window pairs a fence with a run; it is never used to conclude that nothing happened.
+
+article-resume: the fence is closed only when it is at least 7 days old and every official Writer
+destination readback (note, both Substacks) returns posts whose newest predates the fence, and the
+writer ledger (which also records self-owned aniccaai.com posts) has no row at or after it.
 
     python3 article_fence_reconcile.py --occurrence article-daily:<run_id> [--resolve]
+    python3 article_fence_reconcile.py --occurrence article-resume:<run_id> [--resolve]
 """
 from __future__ import annotations
 
@@ -29,8 +34,15 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 OWNER_ID = "article-daily"
+RESUME_OWNER_ID = "article-resume"
 PAIR_WINDOW_SECONDS = 1800        # a Writer run starts within 30 min after the admission claim
 MIN_AGE_SECONDS = 3600            # never touch a fence whose run may still be going
+RESUME_MIN_AGE_SECONDS = 7 * 86400   # measured publish lag 25 min-30 h, with margin
+RESUME_READBACKS = {             # official public readbacks of every active Writer destination
+    "note:anicca123": "https://note.com/api/v2/creators/anicca123/contents?kind=note&page=1",
+    "substack:aniccabuddha": "https://aniccabuddha.substack.com/api/v1/posts?limit=3",
+    "substack:aniccaai2026": "https://aniccaai2026.substack.com/api/v1/posts?limit=3",
+}
 ADMISSION_DB = Path.home() / ".local/state/life-manager/host-admission/resources/admission-v2.sqlite3"
 ARTICLES = Path.home() / ".local/state/life-manager/writer/articles.jsonl"
 RUNS_ROOT = Path.home() / ".local/state/life-manager/writer/runs"
@@ -38,6 +50,28 @@ PUBLICATION_STATE = "gates/publication-state.json"   # publication-guard writes 
 WRITER_STATE_ROOT = Path.home() / ".local/state/life-manager/writer"
 SOURCE_REPO = Path.home() / "Projects/life-manager-main"
 HISTORICAL_GATE_STOP_PROOFS = {
+    # 2026-10-10 12:02 JST: start control blocked on unclassified same-day run 20261010-001933
+    # and exited 0 before generation (pre-#7602 BLOCK branch); no run dir was created.
+    "article-daily:18dd0bf091a5d3d0-57499": {
+        "stop_kind": "start_control_block",
+        "runtime_run_id": "18dd0bf091a5d3d0-57499",
+        "writer_run_id": "20261010-001933",
+        "release_sha": "1be8bb91b6d45010defb8790310b3c214d740555",
+        "entrypoint": "skills/writer-agent/article-daily.sh",
+        "entrypoint_sha256": "1e11eedb8038959bf9fcea21e24b78c9e38cc53bd7f8e9a2d84518875c3f4e96",
+        "start_event_id": "65685224a361d2cd5d2c7723",
+        "terminal_event_id": "9ee47bc4cfbd45fadd360281",
+        "event_hashes": {
+            "65685224a361d2cd5d2c7723": "62e96e9885b01762ead2cd31f4b12f34596d1cd0d1b099ff3b073d6ca5c29e20",
+            "9ee47bc4cfbd45fadd360281": "feb7c20d8a32a0819d0ec7b10343f4f5c8a6519cf017abf0f46b4033a960fe21",
+        },
+        "log_header": "=== article-daily run 2026-10-10 12:02:35 JST ===",
+        "article_log_segment_sha256": "7debc6b8776875b6c77166e94f00652cf2aecba497464d05ce19d79b0a1e7008",
+        "queued_at": 1791601208.371748,
+        "gate_error": "block-incomplete",
+        "gate_terminal": "article-daily start control BLOCK",
+        "evidence_ref": "writer://fence-reconciliation/article-daily-18dd0bf091a5d3d0-57499.json",
+    },
     "article-daily:18dcb160db0ac660-67443": {
         "runtime_run_id": "18dcb160db0ac660-67443",
         "writer_run_id": "20261008-232303",
@@ -193,7 +227,12 @@ def _historical_gate_stop_proof(
 
     run_dir = writer_root / "runs" / expected["writer_run_id"]
     run_tree = None
-    if "run_tree" in expected:
+    start_block = expected.get("stop_kind") == "start_control_block"
+    if start_block:
+        # Start control stopped before creating a run dir (2026-10-10 block-incomplete):
+        # the log segment below is the only run evidence and is pinned by hash.
+        run_artifacts = {}
+    elif "run_tree" in expected:
         run_tree = _run_tree_manifest(run_dir)
         if run_tree is None or run_tree != expected["run_tree"]:
             return None
@@ -237,16 +276,21 @@ def _historical_gate_stop_proof(
         log_lines = log_path.read_text(encoding="utf-8").splitlines()
     except (OSError, UnicodeError):
         return None
-    anchors = [
-        index for index, line in enumerate(log_lines)
-        if f"completed prior run released a new run={expected['writer_run_id']} " in line
-    ]
+    if start_block:
+        anchors = [index for index, line in enumerate(log_lines) if line == expected["log_header"]]
+        end_marker = "=== article-daily run "
+    else:
+        anchors = [
+            index for index, line in enumerate(log_lines)
+            if f"completed prior run released a new run={expected['writer_run_id']} " in line
+        ]
+        end_marker = "article-daily start control:"
     if len(anchors) != 1:
         return None
     start_index = anchors[0]
     end_index = next(
         (index for index in range(start_index + 1, len(log_lines))
-         if "article-daily start control:" in log_lines[index]),
+         if end_marker in log_lines[index]),
         len(log_lines),
     )
     run_log = log_lines[start_index:end_index]
@@ -325,6 +369,100 @@ def _inconclusive(occurrence_id: str, reason: str) -> dict:
     return {"status": "inconclusive", "reason": reason, "occurrence_id": occurrence_id, "closed": False}
 
 
+def _fetch_json(url: str) -> object:
+    request = urllib.request.Request(url, headers={"User-Agent": "lm-article-fence-reconcile"})
+    try:
+        with urllib.request.urlopen(request, timeout=25) as response:
+            return json.loads(response.read()) if response.status == 200 else None
+    except (urllib.error.URLError, OSError, ValueError):
+        return None
+
+
+def _epoch(value: object) -> float | None:
+    """Timezone-aware ISO-8601 only; a naive or unparseable time proves nothing."""
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed.timestamp() if parsed.tzinfo is not None else None
+
+
+def _iso(epoch: float) -> str:
+    return datetime.fromtimestamp(epoch, timezone.utc).isoformat()
+
+
+def _newest_post_epoch(payload: object) -> float | None:
+    """note: data.contents[].publishAt; Substack: [].post_date.  Empty or any undatable post -> None."""
+    try:
+        posts = payload["data"]["contents"] if isinstance(payload, dict) else payload
+        if not isinstance(posts, list):
+            return None
+        times = [_epoch(post.get("publishAt") or post.get("post_date")) for post in posts]
+    except (KeyError, TypeError, AttributeError):
+        return None
+    return max(times) if times and None not in times else None
+
+
+def _ledger_row_epoch(row: dict) -> float | None:
+    for key in ("ts", "recorded_at"):
+        if row.get(key):
+            return _epoch(row[key])
+    return _run_start_epoch(str(row.get("run_id", "")))
+
+
+def _reconcile_resume(occurrence_id: str, *, queued_at: float, state: str, articles_path: Path,
+                      fetch_json: Callable[[str], object], resolver: Callable[..., bool] | None,
+                      resolve: bool, now: float, writer_root: Path) -> dict:
+    """Prove no article-resume publication happened after the fence from official readbacks only."""
+    if now - queued_at < RESUME_MIN_AGE_SECONDS:
+        return _inconclusive(occurrence_id, "fence_too_young")
+    lines = _jsonl_lines(articles_path)
+    try:
+        times = [_ledger_row_epoch(json.loads(line)) for line in lines]
+    except (TypeError, ValueError, AttributeError):
+        return _inconclusive(occurrence_id, "articles_ledger_unreadable")
+    # ponytail: append-only ledger, so undated draft rows are bounded by the dated last row;
+    # an undated tail cannot be placed in time and stays fenced.
+    if not times or times[-1] is None:
+        return _inconclusive(occurrence_id, "articles_ledger_tail_undated")
+    if any(t is not None and t >= queued_at for t in times):
+        return _inconclusive(occurrence_id, "writer_ledger_row_after_fence")
+    readbacks = {}
+    for name, url in RESUME_READBACKS.items():
+        newest = _newest_post_epoch(fetch_json(url))
+        if newest is None:
+            return _inconclusive(occurrence_id, f"readback_failed:{name}")
+        if newest >= queued_at:
+            return _inconclusive(occurrence_id, f"publication_after_fence:{name}")
+        readbacks[name] = _iso(newest)
+    runtime_run_id = occurrence_id.split(":", 1)[1]
+    proof = {
+        "owner_id": RESUME_OWNER_ID,
+        "occurrence_id": occurrence_id,
+        "verified": True,
+        "proof_type": "historical_writer_resume_no_dispatch",
+        "provider": "writer",
+        "runtime_run_id": runtime_run_id,
+        "queued_at": _iso(queued_at),
+        "readback_urls": dict(RESUME_READBACKS),
+        "readback_newest_post_at": readbacks,
+        "ledger_newest_ts": _iso(max(t for t in times if t is not None)),
+        "evidence_ref": f"writer://fence-reconciliation/article-resume-{runtime_run_id}.json",
+    }
+    result = {"status": "no_dispatch_proven", "occurrence_id": occurrence_id, "closed": False,
+              "proof_ref": proof["evidence_ref"]}
+    if not resolve:
+        return result
+    if not _persist_historical_gate_stop_proof(writer_root, proof):
+        return _inconclusive(occurrence_id, "historical_proof_receipt_conflict")
+    if resolver is None:
+        from runtime.host.resource_admission import resolve_historical_no_dispatch_occurrence
+        resolver = resolve_historical_no_dispatch_occurrence
+    result["closed"] = bool(resolver(RESUME_OWNER_ID, occurrence_id,
+                                     no_dispatch_proof=lambda: proof, expected_state=state))
+    return result
+
+
 def _pre_effect(occurrence_id: str, queued_at: float, state: str, rows: list, runs_root: Path,
                 resolver: Callable[..., bool] | None, resolve: bool) -> dict:
     """Close a fence whose paired run stopped before any publication intent was registered.
@@ -364,10 +502,15 @@ def reconcile(occurrence_id: str, *, queued_at: float, state: str, articles_path
               resolve: bool = False, now: float | None = None, runs_root: Path = RUNS_ROOT,
               pre_effect_resolver: Callable[..., bool] | None = None,
               writer_root: Path = WRITER_STATE_ROOT,
-              source_repo: Path = SOURCE_REPO) -> dict:
+              source_repo: Path = SOURCE_REPO,
+              fetch_json: Callable[[str], object] = _fetch_json) -> dict:
+    now = datetime.now(timezone.utc).timestamp() if now is None else now
+    if occurrence_id.startswith(f"{RESUME_OWNER_ID}:"):
+        return _reconcile_resume(occurrence_id, queued_at=queued_at, state=state,
+                                 articles_path=articles_path, fetch_json=fetch_json,
+                                 resolver=resolver, resolve=resolve, now=now, writer_root=writer_root)
     if not occurrence_id.startswith(f"{OWNER_ID}:"):
         return _inconclusive(occurrence_id, "owner_not_allowlisted")
-    now = datetime.now(timezone.utc).timestamp() if now is None else now
     if now - queued_at < MIN_AGE_SECONDS:
         return _inconclusive(occurrence_id, "fence_too_young")
     try:
@@ -425,11 +568,14 @@ def reconcile(occurrence_id: str, *, queued_at: float, state: str, articles_path
 
 
 def _admission_row(occurrence_id: str) -> tuple[float, str] | None:
+    owner_id = occurrence_id.split(":", 1)[0]
+    if owner_id not in {OWNER_ID, RESUME_OWNER_ID}:
+        return None
     try:
         with sqlite3.connect(f"file:{ADMISSION_DB}?mode=ro", uri=True, timeout=20) as connection:
             row = connection.execute(
                 "SELECT queued_at, state FROM occurrences WHERE occurrence_id=? AND owner_id=? "
-                "AND effect_unknown=1", (occurrence_id, OWNER_ID)).fetchone()
+                "AND effect_unknown=1", (occurrence_id, owner_id)).fetchone()
     except sqlite3.Error:
         return None
     return (float(row[0]), str(row[1])) if row else None

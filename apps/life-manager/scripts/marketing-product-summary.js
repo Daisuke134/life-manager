@@ -10,20 +10,47 @@ const { buildMarketingLivenessJob, executeMarketingLivenessJob } = require("../l
 const { executeCapabilityJob } = require("./runtime-up.js");
 
 const HONNE = Object.freeze({ product_id: "honne-ai", label: "Honne AI", targets: [{ owner: "honne_reveal", account: "@honne_reveal", locale: "en", platform: "TikTok", required: true }, { owner: "honnevideo", account: "@honnevideo", locale: "ja", platform: "TikTok", required: true }] });
-const ANICCA = Object.freeze({ product_id: "anicca-ios", label: "Anicca iOS", targets: [{ owner: "anicca.jp", account: "@anicca.jp", locale: "ja", platform: "TikTok", required: true }, { owner: "anicca.ios.jp", account: "@anicca.jp1", locale: "ja", platform: "Instagram", required: true }, { owner: "anicca.jp4", account: "@anicca.jp4", locale: "ja", platform: "TikTok", required: false }, { owner: "anicca.he", account: "@anicca.he", locale: "ja", platform: "TikTok", required: false, public_url: "https://www.tiktok.com/@anicca.he/video/7676500512308481296" }] });
+const ANICCA = Object.freeze({ product_id: "anicca-ios", label: "Anicca iOS", targets: [{ owner: "anicca.jp", account: "@anicca.jp", locale: "ja", platform: "TikTok", required: true }, { owner: "anicca.ios.jp", account: "@anicca.jp1", locale: "ja", platform: "Instagram", required: true }, { owner: "anicca.en", account: "@anicca.en", locale: "en", platform: "Instagram", required: false }, { owner: "anicca.jp4", account: "@anicca.jp4", locale: "ja", platform: "TikTok", required: false }, { owner: "anicca.he", account: "@anicca.he", locale: "ja", platform: "TikTok", required: false, public_url: "https://www.tiktok.com/@anicca.he/video/7676500512308481296" }] });
 const SUMMARY_ROUTES = Object.freeze({ "honne-ai": Object.freeze({ lane: "marketing-product-summary-honne", locale: "en" }), "anicca-ios": Object.freeze({ lane: "marketing-product-summary-anicca", locale: "ja" }), "mobile-marketing": Object.freeze({ lane: "marketing-product-summary-weekly", locale: "ja" }) });
 
 function latestDaily(dataDir, owner, reportDay) {
   const root = path.join(dataDir, "tenants/dais-local/marketing/metrics", owner); if (!fs.existsSync(root)) return null;
-  return fs.readdirSync(root).flatMap((id) => { const daily = path.join(root, id, "daily"); if (!fs.existsSync(daily)) return []; const correction = path.join(daily, `${reportDay}.correction.json`); const base = path.join(daily, `${reportDay}.json`); return fs.existsSync(correction) ? [correction] : fs.existsSync(base) ? [base] : []; }).map((file) => ({ file, snapshot: JSON.parse(fs.readFileSync(file, "utf8")) })).sort((a, b) => Date.parse(b.snapshot.observed_at) - Date.parse(a.snapshot.observed_at))[0] || null;
+  const reportEnd = Date.parse(`${reportDay}T23:59:59.999+09:00`); const cutoff = reportEnd - 30 * 86400_000; const candidates = [];
+  for (const id of fs.readdirSync(root)) {
+    const daily = path.join(root, id, "daily"); if (!fs.existsSync(daily)) continue;
+    const file = [`${reportDay}.current.correction.json`, `${reportDay}.correction.json`, `${reportDay}.json`].map((name) => path.join(daily, name)).find((candidate) => fs.existsSync(candidate)); if (!file) continue;
+    const snapshot = JSON.parse(fs.readFileSync(file, "utf8")); const publishedAt = Date.parse(snapshot.published_at || "");
+    if (!Number.isFinite(publishedAt) || publishedAt > reportEnd || publishedAt < cutoff) continue;
+    candidates.push({ file, snapshot });
+  }
+  return candidates.sort((a, b) => Date.parse(b.snapshot.observed_at) - Date.parse(a.snapshot.observed_at))[0] || null;
 }
 
 function metricText(snapshot) {
   if (!snapshot) return "全social/account metrics取得不可（daily snapshot未接続）";
-  const labels = { views: "Views", likes: "Likes", comments: "Comments", shares: "Shares", saves: "Saves", engagement: "Engagement" }; const measured = []; const unavailable = [];
-  for (const key of Object.keys(labels)) { const metric = snapshot.post?.[key]; if (!metric || metric.status === "unavailable") unavailable.push(labels[key]); else measured.push(`${labels[key]} ${metric.percent != null ? `${metric.percent}%` : metric.value}`); }
-  for (const [key, label] of [["followers", "Followers"], ["following", "Following"], ["total_likes", "Account likes"], ["videos", "Videos"]]) { const metric = snapshot.account_metrics?.[key]; if (!metric || metric.status === "unavailable") unavailable.push(label); else measured.push(`${label} ${metric.value}`); }
-  return `${measured.join("、")}。取得不可: ${unavailable.length ? unavailable.join("、") : "なし"}`;
+  const labels = { views: "Views", reach: "Reach", saves: "Saves", likes: "Likes", comments: "Comments", shares: "Shares", impressions: "Impressions", watch_time: "Watch time", average_watch_time: "Average watch time", completion: "Completion", engagement: "Engagement" };
+  const measured = []; const unavailable = []; const unsupported = [];
+  const addMetric = (label, metric) => {
+    if (!metric || metric.status === "unavailable") { (metric?.reason === "metric_not_supported" ? unsupported : unavailable).push(label); return; }
+    measured.push(`${label} ${metric.percent != null ? `${metric.percent}%` : metric.value}${metric.source_date ? `（${metric.source_date}）` : ""}`);
+  };
+  for (const [key, label] of Object.entries(labels)) addMetric(label, snapshot.post?.[key]);
+  const accountMetrics = snapshot.account_metrics;
+  if (Array.isArray(accountMetrics)) {
+    if (!accountMetrics.length) unavailable.push("Account totals");
+    for (const row of accountMetrics) {
+      const key = String(row?.label || "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+      const point = Array.isArray(row?.data) ? row.data.at(-1) : null; const value = point?.total == null || String(point.total).trim() === "" ? NaN : Number(point.total);
+      addMetric(`Account ${labels[key] || row?.label || "metric"}`, Number.isFinite(value) && value >= 0 ? { status: "measured", value, source_date: point.date } : { status: "unavailable", reason: "metric_missing" });
+    }
+  } else if (!accountMetrics || accountMetrics.status === "unavailable") unavailable.push("Account totals");
+  else {
+    const legacyLabels = { followers: "Followers", following: "Following", total_likes: "Account likes", videos: "Videos", recent_views: "Latest 20 videos views", recent_likes: "Latest 20 videos likes", recent_comments: "Latest 20 videos comments", recent_shares: "Latest 20 videos shares" };
+    for (const [key, metric] of Object.entries(accountMetrics)) if (key !== "status" && key !== "reason" && key !== "value") addMetric(legacyLabels[key] || `Account ${key}`, metric);
+  }
+  const current = snapshot.historical_checkpoint === false ? `現在値（取得: ${snapshot.source_observed_at || snapshot.observed_at}、過去のチェックポイント値ではありません）。` : "";
+  const unsupportedText = unsupported.length ? `。API未提供: ${unsupported.join("、")}` : "";
+  return `${current}${measured.join("、")}。取得不可: ${unavailable.length ? unavailable.join("、") : "なし"}${unsupportedText}`;
 }
 
 const FUNNEL_PRODUCTS = Object.freeze([["anicca-ios", "Anicca iOS"], ["honne-ai", "Honne AI"]]);
@@ -43,21 +70,77 @@ function productAnalytics(dataDir, productId, objectStore) {
   return { source_ref: objectStore.import(file).ref, product_id: productId, source_status: input.source_status, observed_at: input.observed_at, data_from: input.data_from || null, data_to: input.data_to || null, cohort_definition: input.cohort_definition || null, metrics };
 }
 function metricValue(metric) { return metric?.status === "measured" ? String(metric.value) : "取得不可"; }
+function coverageMetricValue(metric) { return metric?.status === "measured" ? String(metric.value) : `取得不可（${metric?.observed_days || 0}/${metric?.expected_days || 7}日）`; }
 function coverageFile(dataDir, reportDay) { return path.join(dataDir, "tenants/dais-local/marketing/attribution/coverage", reportDay, "summary.json"); }
 function coverageFor(dataDir, reportDay, productId) { const file = coverageFile(dataDir, reportDay); if (!fs.existsSync(file)) return null; return JSON.parse(fs.readFileSync(file, "utf8")).products?.find((product) => product.product_id === productId) || null; }
-function funnelText(product) { if (!product) return "Install 取得不可、Activation 取得不可、Trial 取得不可、Paid active 取得不可、Retained 取得不可、D1 retention 取得不可、D7 retention 取得不可、Proceeds 取得不可"; const metric = product.metrics; return `Install ${metricValue(metric.installs)}、Activation ${metricValue(metric.activation)}、Trial ${metricValue(metric.trials)}、Paid active ${metricValue(metric.paid_active)}、Retained ${metricValue(metric.retained_users)}、D1 retention ${metricValue(metric.d1_retention)}、D7 retention ${metricValue(metric.d7_retention)}、Proceeds ${metricValue(metric.proceeds_usd)}`; }
+function utcDayOffset(day, offset) { const epoch = Date.parse(`${day}T00:00:00.000Z`); if (!Number.isFinite(epoch)) throw new Error("report day is invalid"); return new Date(epoch + offset * 86400000).toISOString().slice(0, 10); }
+const ASC_SEVEN_DAY_METRICS = Object.freeze(["first_time_downloads", "impressions", "product_page_views"]);
+function ascSevenDayMetrics(dataDir, reportDay, productId, objectStore) {
+  const windowEnd = utcDayOffset(reportDay, -1); const windowStart = utcDayOffset(windowEnd, -6);
+  const days = Array.from({ length: 7 }, (_, index) => utcDayOffset(windowStart, index)); const daySet = new Set(days);
+  const observations = Object.fromEntries(ASC_SEVEN_DAY_METRICS.map((name) => [name, new Map()])); const sourceRefs = new Set();
+  for (let offset = 0; offset <= 7; offset += 1) {
+    const sourceDay = utcDayOffset(reportDay, -offset); const file = path.join(dataDir, "tenants/dais-local/marketing/attribution/asc", sourceDay, "acquisition.json");
+    if (!fs.existsSync(file)) continue;
+    let snapshot;
+    try { snapshot = JSON.parse(fs.readFileSync(file, "utf8")); if (snapshot.kind !== "marketing_asc_acquisition" || snapshot.report_day !== sourceDay || !snapshot.snapshot_ref) continue; objectStore.resolve(snapshot.snapshot_ref); }
+    catch { continue; }
+    const product = snapshot.products?.find((row) => row.product_id === productId); let used = false;
+    for (const daily of Array.isArray(product?.daily_metrics) ? product.daily_metrics : []) {
+      if (!daySet.has(daily.date)) continue;
+      for (const name of ASC_SEVEN_DAY_METRICS) {
+        if (observations[name].has(daily.date)) continue;
+        const metric = daily.metrics?.[name];
+        if (metric?.status !== "measured" || typeof metric.value !== "number" || !Number.isFinite(metric.value) || metric.value < 0) continue;
+        observations[name].set(daily.date, metric.value); used = true;
+      }
+    }
+    if (used) sourceRefs.add(snapshot.snapshot_ref);
+  }
+  const metrics = Object.fromEntries(ASC_SEVEN_DAY_METRICS.map((name) => {
+    const values = observations[name]; const missingDates = days.filter((day) => !values.has(day)); const observedDays = values.size;
+    const status = observedDays === 7 ? "measured" : observedDays ? "partial" : "unavailable";
+    const average = status === "measured" ? [...values.values()].reduce((total, value) => total + value, 0) / 7 : null;
+    return [name, { status, value: average, aggregation: "mean_daily", unit: "count", data_from: windowStart, data_to: windowEnd,
+      observed_days: observedDays, expected_days: 7, missing_dates: missingDates, ...(status === "measured" ? {} : { reason: observedDays ? "asc_7d_coverage_incomplete" : "report_pending" }) }];
+  }));
+  const statuses = Object.values(metrics).map((metric) => metric.status);
+  return { status: statuses.every((status) => status === "measured") ? "measured" : statuses.some((status) => status !== "unavailable") ? "partial" : "unavailable",
+    window_start: windowStart, window_end: windowEnd, metrics, source_refs: [...sourceRefs] };
+}
+function funnelText(product) { if (!product) return "Install 取得不可、Activation 取得不可、Trial 取得不可、Paid active 取得不可、Retained 取得不可、D1 retention 取得不可、D7 retention 取得不可、Proceeds 取得不可、新規顧客（直近28日）取得不可、平均DAU（直近28日）取得不可、ASC 7日平均は取得不可"; const metric = product.metrics; return `Install ${metricValue(metric.installs)}、Activation ${metricValue(metric.activation)}、Trial ${metricValue(metric.trials)}、Paid active ${metricValue(metric.paid_active)}、Retained ${metricValue(metric.retained_users)}、D1 retention ${metricValue(metric.d1_retention)}、D7 retention ${metricValue(metric.d7_retention)}、Proceeds ${metricValue(metric.proceeds_usd)}、新規顧客（直近28日）${metricValue(metric.customers_new_28d)}、平均DAU（直近28日）${metricValue(metric.customers_active_daily_average_28d)}、ASC 7日平均 初回DL ${coverageMetricValue(metric.asc_7d_first_time_downloads)} / 表示回数 ${coverageMetricValue(metric.asc_7d_impressions)} / 商品ページ閲覧 ${coverageMetricValue(metric.asc_7d_product_page_views)}`; }
+function campaignText(product) { if (!product) return "取得不可（coverage未接続）"; const metrics = product.metrics || {}; const identity = product.campaign_id ? `campaign ${product.campaign_id} (${product.campaign_status || "unavailable"})` : `campaign link unavailable (${product.campaign_status || "unavailable"})`; return `${product.attribution_status || "unavailable"} (${product.attribution_reason || "reason unavailable"}); ${identity}; ASC初回DL ${metricValue(metrics.campaign_first_time_downloads)}; ASC impressions ${metricValue(metrics.campaign_impressions)}`; }
 
 function persistAttributionCoverage(dataDir, reportDay, observedAt) {
   const file = coverageFile(dataDir, reportDay); if (fs.existsSync(file)) return { created: false, file, snapshot: JSON.parse(fs.readFileSync(file, "utf8")) };
   const objectStore = createContentObjectStore({ objectDir: path.join(dataDir, "objects") }); const root = path.join(dataDir, "tenants/dais-local/marketing/attribution"); const ascFile = path.join(root, "asc", reportDay, "acquisition.json"); const rcFile = path.join(root, "revenuecat", reportDay, "subscriptions.json"); if (!fs.existsSync(ascFile) || !fs.existsSync(rcFile)) throw new Error("attribution product inputs are missing"); const asc = JSON.parse(fs.readFileSync(ascFile, "utf8")); const rc = JSON.parse(fs.readFileSync(rcFile, "utf8")); objectStore.resolve(asc.snapshot_ref); objectStore.resolve(rc.snapshot_ref);
-  const products = FUNNEL_PRODUCTS.map(([productId, label]) => { const acquisition = asc.products.find((row) => row.product_id === productId); const subscription = rc.products.find((row) => row.product_id === productId); if (!acquisition || !subscription) throw new Error(`${productId} attribution product identity is missing`); const analytics = productAnalytics(dataDir, productId, objectStore); return { product_id: productId, label, source_status: { asc: acquisition.source_status, revenuecat: subscription.source_status, product_analytics: analytics.source_status }, source_refs: analytics.source_ref ? [analytics.source_ref] : [], attribution_status: "unattributed", attribution_reason: "campaign_not_configured", metrics: { installs: acquisition.metrics.first_time_downloads, activation: analytics.metrics.activation, trials: subscription.metrics.trial_starts, paid_active: subscription.metrics.active_subscriptions, retained_users: analytics.metrics.retained_users, d1_retention: analytics.metrics.d1_retention, d7_retention: analytics.metrics.d7_retention, proceeds_usd: subscription.metrics.proceeds_usd } }; });
-  const message = `Life Manager::: ${reportDay} mobile app attribution coverageです。\n${products.map((product) => `${product.label}: ${funnelText(product)}。Source status: ASC ${product.source_status.asc} / RevenueCat ${product.source_status.revenuecat} / Product analytics ${product.source_status.product_analytics}。campaign attribution: 取得不可（campaign link未接続、時刻だけでは帰属しません）`).join("\n")}\nVerified/partial/unattributed: campaign単位の母数が無いため率は取得不可。HonneとAniccaを混ぜず、取得不可を0にしません。`;
-  const snapshot = { schema_version: 1, kind: "marketing_product_metric_summary", period: "daily", report_key: `attribution-${reportDay}`, observed_at: observedAt, product_id: "mobile-marketing", source_refs: [asc.snapshot_ref, rc.snapshot_ref, ...products.flatMap((product) => product.source_refs)], products, coverage: { verified: null, partial: null, unattributed: null, rate_status: "unavailable", reason: "campaign_not_configured" }, message }; fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 }); const temporary = `${file}.tmp-${process.pid}-${crypto.randomUUID()}`; fs.writeFileSync(temporary, `${JSON.stringify(snapshot, null, 2)}\n`, { mode: 0o600, flag: "wx" }); fs.renameSync(temporary, file); fs.chmodSync(file, 0o600); return { created: true, file, snapshot };
+  const products = FUNNEL_PRODUCTS.map(([productId, label]) => { const acquisition = asc.products.find((row) => row.product_id === productId); const subscription = rc.products.find((row) => row.product_id === productId); if (!acquisition || !subscription) throw new Error(`${productId} attribution product identity is missing`); const analytics = productAnalytics(dataDir, productId, objectStore); const campaignReason = acquisition.attribution_reason || "campaign_not_configured"; return { product_id: productId, label, source_status: { asc: acquisition.source_status, revenuecat: subscription.source_status, product_analytics: analytics.source_status }, source_refs: analytics.source_ref ? [analytics.source_ref] : [], attribution_status: acquisition.attribution_status || "unattributed", attribution_reason: campaignReason, campaign_id: acquisition.campaign_id || null, campaign_status: acquisition.campaign_status || "unavailable", metrics: { installs: acquisition.metrics.first_time_downloads, campaign_first_time_downloads: acquisition.metrics.campaign_first_time_downloads || unavailable(campaignReason), campaign_impressions: acquisition.metrics.campaign_impressions || unavailable(campaignReason), activation: analytics.metrics.activation, trials: subscription.metrics.trial_starts, paid_active: subscription.metrics.active_subscriptions, retained_users: analytics.metrics.retained_users, d1_retention: analytics.metrics.d1_retention, d7_retention: analytics.metrics.d7_retention, proceeds_usd: subscription.metrics.proceeds_usd } }; });
+  const ascSevenDayRefs = [];
+  for (const product of products) {
+    const sevenDay = ascSevenDayMetrics(dataDir, reportDay, product.product_id, objectStore);
+    product.asc_7d = { window_start: sevenDay.window_start, window_end: sevenDay.window_end, metrics: sevenDay.metrics };
+    product.source_status.asc_7d = sevenDay.status;
+    product.metrics.asc_7d_first_time_downloads = sevenDay.metrics.first_time_downloads;
+    product.metrics.asc_7d_impressions = sevenDay.metrics.impressions;
+    product.metrics.asc_7d_product_page_views = sevenDay.metrics.product_page_views;
+    ascSevenDayRefs.push(...sevenDay.source_refs);
+  }
+  for (const product of products) {
+    const subscription = rc.products.find((row) => row.product_id === product.product_id);
+    product.source_status.revenuecat_customer_activity = subscription.customer_activity_status || "unavailable";
+    product.metrics.customers_new_28d = subscription.metrics.customers_new || unavailable("revenuecat_customer_activity_unavailable");
+    product.metrics.customers_active_daily_average_28d = subscription.metrics.customers_active || unavailable("revenuecat_customer_activity_unavailable");
+  }
+  const reason = products.find((product) => product.attribution_status === "partial")?.attribution_reason || products.find((product) => product.attribution_reason === "campaign_link_configured_no_product_readback")?.attribution_reason || "campaign_not_configured";
+  const message = `Life Manager::: ${reportDay} mobile app attribution coverageです。\n${products.map((product) => `${product.label}: ${funnelText(product)}。Source status: ASC ${product.source_status.asc} / ASC 7日指標 ${product.source_status.asc_7d} / RevenueCat ${product.source_status.revenuecat} / RevenueCat顧客指標 ${product.source_status.revenuecat_customer_activity} / Product analytics ${product.source_status.product_analytics}。campaign attribution: ${campaignText(product)}`).join("\n")}\n投稿単位のcampaign分母と購入joinは未確認のためcoverage率は取得不可。HonneとAniccaを混ぜず、取得不可を0にしません。`;
+  const historicalAscRefs = ascSevenDayRefs.filter((ref) => ref !== asc.snapshot_ref);
+  const sourceRefs = [asc.snapshot_ref, rc.snapshot_ref, ...historicalAscRefs, ...products.flatMap((product) => product.source_refs)];
+  const snapshot = { schema_version: 1, kind: "marketing_product_metric_summary", period: "daily", report_key: `attribution-${reportDay}`, observed_at: observedAt, product_id: "mobile-marketing", source_refs: sourceRefs, products, coverage: { verified: null, partial: null, unattributed: null, rate_status: "unavailable", reason }, message }; fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 }); const temporary = `${file}.tmp-${process.pid}-${crypto.randomUUID()}`; fs.writeFileSync(temporary, `${JSON.stringify(snapshot, null, 2)}\n`, { mode: 0o600, flag: "wx" }); fs.renameSync(temporary, file); fs.chmodSync(file, 0o600); return { created: true, file, snapshot };
 }
 
 function persistProductDaily(dataDir, reportDay, observedAt, product) {
   const objectStore = createContentObjectStore({ objectDir: path.join(dataDir, "objects") }); const rows = product.targets.map((target) => { const row = latestDaily(dataDir, target.owner, reportDay); if (!row) { if (target.required) throw new Error(`${product.label} ${target.account} daily source unavailable`); return { ...target, snapshot: null, ref: null }; } const direct = target.platform === "Instagram" ? /^https:\/\/www\.instagram\.com\/(?:reel|p)\/[A-Za-z0-9_-]+\/?$/ : /^https:\/\/www\.tiktok\.com\/@[^/]+\/video\/\d+\/?$/; if (row.snapshot.account_id !== target.account || row.snapshot.locale !== target.locale || !direct.test(row.snapshot.public_url)) throw new Error(`${product.label} ${target.account} daily source mismatch`); return { ...target, ...row, ref: objectStore.import(row.file).ref }; });
-  const coverage = coverageFor(dataDir, reportDay, product.product_id); const sourceRefs = rows.map((row) => row.ref).filter(Boolean); const message = `Life Manager::: ${product.label}の${reportDay}日次プロダクトメトリクスです。\n${rows.map((row) => `${row.account} ${row.platform}: ${metricText(row.snapshot)}。直接URL: ${row.snapshot?.public_url || row.public_url || "取得不可"}。Source: ${row.ref || "取得不可"}`).join("\n")}\nFunnel: ${funnelText(coverage)}。Campaign attribution: ${coverage ? "取得不可（campaign link未接続）" : "取得不可（coverage未接続）"}。`;
+  const coverage = coverageFor(dataDir, reportDay, product.product_id); const sourceRefs = rows.map((row) => row.ref).filter(Boolean); const message = `Life Manager::: ${product.label}の${reportDay}日次プロダクトメトリクスです。\n${rows.map((row) => `${row.account} ${row.platform}: ${metricText(row.snapshot)}。直接URL: ${row.snapshot?.public_url || row.public_url || "取得不可"}。Source: ${row.ref || "取得不可"}`).join("\n")}\nFunnel: ${funnelText(coverage)}。Campaign attribution: ${campaignText(coverage)}。`;
   const snapshot = { schema_version: 1, kind: "marketing_product_metric_summary", period: "daily", report_key: reportDay, observed_at: observedAt, product_id: product.product_id, source_refs: sourceRefs, message }; const file = path.join(dataDir, "tenants/dais-local/marketing/metrics/summaries", product.product_id, "daily", `${reportDay}.json`); fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
   if (fs.existsSync(file)) return { created: false, file, snapshot: JSON.parse(fs.readFileSync(file, "utf8")) }; const temporary = `${file}.tmp-${process.pid}-${crypto.randomUUID()}`; fs.writeFileSync(temporary, `${JSON.stringify(snapshot, null, 2)}\n`, { mode: 0o600, flag: "wx" }); fs.renameSync(temporary, file); fs.chmodSync(file, 0o600); return { created: true, file, snapshot };
 }
@@ -77,7 +160,7 @@ function productDailySources(dataDir, productId, reportDay) {
 
 function persistWeeklyReview(dataDir, reportDay, observedAt) {
   const objectStore = createContentObjectStore({ objectDir: path.join(dataDir, "objects") }); const week = isoWeek(reportDay); const products = [["honne-ai", "Honne AI"], ["anicca-ios", "Anicca iOS"]].map(([productId, label]) => { const rows = productDailySources(dataDir, productId, reportDay); if (!rows.length) throw new Error(`${label} weekly daily source unavailable`); const latest = rows.at(-1); return { productId, label, rows, latest, refs: rows.map((row) => objectStore.import(row.file).ref) }; });
-  const coverage = fs.existsSync(coverageFile(dataDir, reportDay)) ? JSON.parse(fs.readFileSync(coverageFile(dataDir, reportDay), "utf8")) : null; const sourceRefs = products.flatMap((product) => product.refs); const message = `Life Manager::: ${week} mobile marketing週次レビューです。\n${products.map((product) => `${product.label}: coverage ${product.rows.length}/7日、latest ${product.latest.day}。\n${product.latest.snapshot.message}`).join("\n")}\nAttribution coverage: ${coverage ? "campaign単位は取得不可。ASC/RevenueCat/product analyticsのsource statusは日次coverageに記録済み" : "取得不可（ASC/RevenueCat/product analytics未接続）"}。\nCross-product winner: 判定しない。HonneとAniccaの学習weightは分離します。\nKeep/revert・次のbounded change: attributed cohort取得まで判定不可。`;
+  const coverage = fs.existsSync(coverageFile(dataDir, reportDay)) ? JSON.parse(fs.readFileSync(coverageFile(dataDir, reportDay), "utf8")) : null; const sourceRefs = products.flatMap((product) => product.refs); const message = `Life Manager::: ${week} mobile marketing週次レビューです。\n${products.map((product) => `${product.label}: coverage ${product.rows.length}/7日、latest ${product.latest.day}。\n${product.latest.snapshot.message}`).join("\n")}\nAttribution coverage: ${coverage ? "投稿単位のcampaign分母と購入joinは未確認。ASC/RevenueCat/product analyticsのsource statusは日次coverageに記録済み" : "取得不可（ASC/RevenueCat/product analytics未接続）"}。\nCross-product winner: 判定しない。HonneとAniccaの学習weightは分離します。\nKeep/revert・次のbounded change: attributed cohort取得まで判定不可。`;
   const snapshot = { schema_version: 1, kind: "marketing_product_metric_summary", period: "weekly", report_key: week, observed_at: observedAt, product_id: "mobile-marketing", source_refs: sourceRefs, message }; const file = path.join(dataDir, "tenants/dais-local/marketing/metrics/summaries/mobile-marketing/weekly", `${week}.json`); fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
   if (fs.existsSync(file)) return { created: false, file, snapshot: JSON.parse(fs.readFileSync(file, "utf8")) }; const temporary = `${file}.tmp-${process.pid}-${crypto.randomUUID()}`; fs.writeFileSync(temporary, `${JSON.stringify(snapshot, null, 2)}\n`, { mode: 0o600, flag: "wx" }); fs.renameSync(temporary, file); fs.chmodSync(file, 0o600); return { created: true, file, snapshot };
 }

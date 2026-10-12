@@ -159,6 +159,30 @@ test("metric snapshot renders every measured and unavailable field with stable d
   assert.match(sent[0], /DcTFx_UjSio/); assert.equal(verifyMarketingLivenessReceipt(result.receipt), true);
 });
 
+test("Instagram current recovery reports real account values, source time, and unsupported fields separately", async () => {
+  const payload = { lane: "anicca-en-widget-instagram", product: "anicca-ios", locale: "en", platform: "instagram", account: "@anicca.en",
+    status: "observed", window: "daily", observed_at: "2026-10-11T08:30:00.000Z",
+    public_url: "https://www.instagram.com/reel/DdvxhT1jm8F/", snapshot_ref: `object://sha256/${HASH}` };
+  const job = buildMarketingLivenessJob({ tenantId: "dais-local", telegramTokenRef: "secret://telegram/bot-token", telegramChatRef: "telegram-chat://owner", payload });
+  let text;
+  await executeMarketingLivenessJob(job, {
+    secretProvider: { get: async () => "fake-token" }, chatProvider: { get: async () => "fake-chat" },
+    snapshotProvider: { get: async () => ({ public_url: payload.public_url, window: "daily", historical_checkpoint: false,
+      source_observed_at: "2026-10-11T07:53:00.000Z", post: { views: { status: "measured", value: 2229 }, watch_time: { status: "unavailable", reason: "metric_not_supported" } },
+      sources: { postiz_account: { status: "measured" } }, account_metrics: [
+        { label: "Views", data: [{ total: 17481, date: "2026-10-11" }] },
+        { label: "Reach", data: [{ total: 1703, date: "2026-10-05" }, { total: 2937, date: "2026-10-10" }] },
+      ] }) },
+    sendTelegram: async (_token, _chat, body) => { text = body; return { ok: true, result: { message_id: 705 } }; },
+  });
+  assert.match(text, /現在値.*2026-10-11T07:53:00.000Z/);
+  assert.match(text, /過去のチェックポイント値ではありません/);
+  assert.match(text, /Account views 17481.*2026-10-11/);
+  assert.match(text, /Account reach 2937.*2026-10-10/);
+  assert.match(text, /API未提供: Watch time/);
+  assert.doesNotMatch(text, /Account totals 2/);
+});
+
 test("TikTok metric snapshot renders every account value instead of an aggregate count", async () => {
   const payload = {
     lane: "anicca-jp4-ja-tiktok", product: "anicca-ios", locale: "ja", platform: "tiktok", account: "@anicca.jp4",

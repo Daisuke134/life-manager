@@ -145,7 +145,9 @@ def normalize_agents(agents, detail_fetcher=None, detail_fetch_cap=DETAIL_FETCH_
             structurally_valid = False
             counts["unknown"] += 1
             continue
-        if status in ONLINE:
+        # A buyer-visible Agent (hasOnlineVersion) is listed even while its next version is a
+        # draft or under review; only never-published Agents take a new-Agent slot (2026-10-12).
+        if status in ONLINE or agent.get("hasOnlineVersion") is True:
             lifecycle = "listed"
             counts["listed"] += 1
         elif status in READY_TO_PUBLISH:
@@ -360,8 +362,18 @@ def drop_profitable_updates(updates, path=None, frozen_path=None):
     # selling or not -- price raises on Agents with zero sales for a week made no
     # sense. The factory ships new Agents instead. Only an UPDATE.json carrying
     # dais_approved_exception (an explicit Dais request) may ship.
-    del protected
-    return [u for u in updates if (u.get("update_request") or {}).get("dais_approved_exception")]
+    # Dais 2026-10-11: the 10/10 "restore the September prices" exception on Hook Lab / TikTok
+    # Script Pro / YouTube Script Writer preceded their sales stopping again, and each seller
+    # update under review also filled a new-Agent slot. No exception reaches a seller.
+    return [u for u in updates if (u.get("update_request") or {}).get("dais_approved_exception")
+            and str(u.get("agent_id") or "").strip() not in protected]
+
+
+def drop_frozen(rows, frozen_path=None):
+    """Remove frozen sellers from any resume/retry/publish list; frozen_guard.sh would otherwise
+    refuse the selected action every pass and stall the whole factory."""
+    frozen = load_frozen_ids(frozen_path)
+    return [r for r in rows if str(r.get("agent_id") or "").strip() not in frozen]
 
 
 def update_priority_key(revenue_by_agent):
@@ -421,27 +433,6 @@ def allocate_action(normalized, retries, publishable, resumable_drafts=None, rec
             "action_key": f"resume:{item['agent_id']}",
             "item": item,
         }
-    # A profit-fixing update of a paid Agent outranks resuming a draft whenever a
-    # review slot is free: on 2026-09-28 one draft whose CP2 kept failing was
-    # re-selected every wake while three slots sat empty and Hook Lab's
-    # DeepSeek update (cost > revenue on Sonnet) waited behind it.
-    #
-    # Among several queued updates, highest 30d revenue ships first (2026-09-29:
-    # four Sonnet->DeepSeek repricing updates queued at once; agent_id-string
-    # order picked an arbitrary one instead of the highest-demand agent).
-    # A same-Agent update of an ONLINE agent is not capped: on 2026-10-05 Capafy
-    # accepted publish-init for Hook Lab (8123079349) with 5 (then 6) unlisted
-    # agents. The five-unlisted cap only blocks creating new agents.
-    if updates:
-        item = min(updates, key=update_priority_key(revenue_by_agent or {}))
-        request = item["update_request"]
-        return {
-            "verdict": "PUBLISHABLE",
-            "reason": "paid existing Agent has an explicit version update request",
-            "action": "update_existing",
-            "action_key": f"update:{item['agent_id']}:{request['from_version_id']}",
-            "item": item,
-        }
     # Finish what is already in flight before creating something new. The old rule (fresh
     # outranks draft while a slot is free) existed because one broken draft was re-selected wake
     # after wake (2026-09-28, Shorts Hook Lab); main() now caps every draft at
@@ -480,6 +471,29 @@ def allocate_action(normalized, retries, publishable, resumable_drafts=None, rec
             "verdict": "PUBLISHABLE",
             "action": "create_fresh",
             "action_key": f"create:{identity}",
+            "item": item,
+        }
+    # Dais 2026-10-11: new Agents ship first. A non-seller update runs only when no new
+    # Agent can be created or finished (it still costs a review slot). Earlier rule:
+    # A profit-fixing update of a paid Agent outranks resuming a draft whenever a
+    # review slot is free: on 2026-09-28 one draft whose CP2 kept failing was
+    # re-selected every wake while three slots sat empty and Hook Lab's
+    # DeepSeek update (cost > revenue on Sonnet) waited behind it.
+    #
+    # Among several queued updates, highest 30d revenue ships first (2026-09-29:
+    # four Sonnet->DeepSeek repricing updates queued at once; agent_id-string
+    # order picked an arbitrary one instead of the highest-demand agent).
+    # A same-Agent update of an ONLINE agent is not capped: on 2026-10-05 Capafy
+    # accepted publish-init for Hook Lab (8123079349) with 5 (then 6) unlisted
+    # agents. The five-unlisted cap only blocks creating new agents.
+    if updates:
+        item = min(updates, key=update_priority_key(revenue_by_agent or {}))
+        request = item["update_request"]
+        return {
+            "verdict": "PUBLISHABLE",
+            "reason": "paid existing Agent has an explicit version update request",
+            "action": "update_existing",
+            "action_key": f"update:{item['agent_id']}:{request['from_version_id']}",
             "item": item,
         }
     if resumable_drafts:
@@ -590,6 +604,7 @@ def server_agents():
                 "agentStatus": agent.get("agent_status"),
                 "latestAgentVersionId": agent.get("latest_agent_version_id"),
                 "updatedAt": agent.get("updated_at"),
+                "hasOnlineVersion": agent.get("has_online_version"),
             })
         return rows
     except Exception as e:
@@ -876,8 +891,9 @@ def main():
     # The one exception is an UPDATE.json carrying dais_approved_exception (an explicit Dais
     # request, e.g. 2026-10-10 restore the September prices); drop_profitable_updates keeps only those.
     attempts = load_draft_attempts()
-    resumable_drafts = [d for d in resumable_drafts if attempts.get(str(d["agent_id"]), 0) < MAX_DRAFT_ATTEMPTS]
-    stub_retry_items = [d for d in stub_retry_items if attempts.get(str(d["agent_id"]), 0) < MAX_DRAFT_ATTEMPTS]
+    resumable_drafts = drop_frozen([d for d in resumable_drafts if attempts.get(str(d["agent_id"]), 0) < MAX_DRAFT_ATTEMPTS])
+    stub_retry_items = drop_frozen([d for d in stub_retry_items if attempts.get(str(d["agent_id"]), 0) < MAX_DRAFT_ATTEMPTS])
+    ready_publish_items = drop_frozen(ready_publish_items)
     v = allocate_action(
         normalized, [], fresh_items, resumable_drafts, [], ready_publish_items,
         updates=drop_profitable_updates(update_items), stub_retries=stub_retry_items,

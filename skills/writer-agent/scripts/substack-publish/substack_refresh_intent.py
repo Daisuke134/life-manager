@@ -155,7 +155,7 @@ def refresh(pair):
     payload=m._paid_payload_builder()(title=title,subtitle=str(old.get("draft_subtitle") or old.get("subtitle") or ""),markdown=embedded_markdown,byline_id=m._identity())
     updated=m._request("PUT",f"/api/v1/drafts/{target}",payload=payload)
     if str(updated.get("id",""))!=target: raise m.SubstackRepairRefused("same-ID refresh failed")
-    return {"pair":pair,"target":target,"refreshed":True}
+    return {"pair":pair,"target":target,"refreshed":True,"title":title,"subtitle":str(old.get("draft_subtitle") or old.get("subtitle") or "")}
 def main():
     p=argparse.ArgumentParser();p.add_argument("--pair",required=True,choices=("substack/ja","substack/en"));a=p.parse_args()
     publication = _publication_for_pair(a.pair)

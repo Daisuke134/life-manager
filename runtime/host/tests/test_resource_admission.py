@@ -1009,7 +1009,7 @@ def test_freed_slot_reserves_next_waiter_in_each_class(
     assert durable_rows(tmp_path, "reservations")[0]["owner_id"] == "waiting"
 
 
-def test_expired_reservation_returns_to_original_fifo_position(tmp_path, monkeypatch):
+def test_expired_reservation_yields_temporarily_then_keeps_original_fifo_position(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch)
     first, _ = admission.try_acquire("agent", "first", retain_ticket=False)
     admission.enqueue_durable("agent", "second")
@@ -1017,8 +1017,11 @@ def test_expired_reservation_returns_to_original_fifo_position(tmp_path, monkeyp
     admission.release_and_reserve(first, now=100, lease_seconds=10)
 
     claim, reason = admission.claim_durable("agent", "third", now=111)
+    assert claim is not None and reason == "acquired"
+    admission.release_and_reserve(claim, reserve=False)
+    claim, reason = admission.claim_durable("agent", "second", now=112)
     assert claim is None and reason == "fifo_wait"
-    claim, reason = admission.claim_durable("agent", "second", now=111)
+    claim, reason = admission.claim_durable("agent", "second", now=172)
     assert claim is not None and reason == "acquired"
 
 
@@ -1089,6 +1092,21 @@ def test_reservation_that_leaks_without_dispatch_cools_down_before_re_reserving(
     # ... and is eligible again once that cooldown elapses -- a temporary
     # backoff, not a ban.
     assert admission.reserve_available(now=base + 72, lease_seconds=10) == ["hogger"]
+
+
+def test_claim_capacity_sweep_yields_leaked_reservation_to_next_owner(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    base = time.time()
+    admission.enqueue_durable("agent", "hogger", now=base)
+    admission.enqueue_durable("agent", "healthy", now=base)
+    assert admission.reserve_available(now=base, lease_seconds=10) == ["hogger"]
+
+    # A scheduled claim can sweep the expiry before reserve_available does.
+    claim, reason = admission.claim_durable("agent", "healthy", now=base + 11)
+    assert claim is not None and reason == "acquired"
+    admission.release_and_reserve(claim, reserve=False)
+    assert admission.reserve_available(now=base + 12) == []
+    assert admission.reserve_available(now=base + 72) == ["hogger"]
 
 
 def test_post_claim_deferral_requeues_original_sequence(tmp_path, monkeypatch):
@@ -1814,6 +1832,9 @@ def test_opted_in_connector_reuses_queued_scan_after_reservation_expires(
             durable_rows(tmp_path, "occurrences")] == [("connector:first", "queued")]
     claim, reason = admission.claim_durable(
         "browser", "life-manager-connector-native", admission_class="revenue", now=108)
+    assert claim is None and reason == "fifo_wait"
+    claim, reason = admission.claim_durable(
+        "browser", "life-manager-connector-native", admission_class="revenue", now=168)
     assert claim is not None and reason == "acquired"
     assert json.loads(claim.read_text())["occurrence_id"] == "connector:first"
     admission.release_and_reserve(claim, reserve=False, now=109)
@@ -3572,6 +3593,29 @@ def test_historical_writer_gate_stop_proof_requires_a_bound_runtime_run_id(
     row = next(item for item in durable_rows(tmp_path, "occurrences")
                if item["occurrence_id"] == occurrence)
     assert (row["state"], row["effect_unknown"]) == ("claimed", 1)
+
+
+def test_unknown_article_resume_occurrence_can_close_with_historical_resume_proof(
+        tmp_path, monkeypatch):
+    owner = "article-resume"
+    occurrence = _fenced_growth_occurrence(tmp_path, monkeypatch, owner, "writer-resume")
+    proof = {
+        "owner_id": owner,
+        "occurrence_id": occurrence,
+        "verified": True,
+        "proof_type": "historical_writer_resume_no_dispatch",
+        "provider": "writer",
+        "runtime_run_id": "18d9d90239bcb040-18058",
+        "evidence_ref": "writer://fence-reconciliation/article-resume-18d9d90239bcb040-18058.json",
+    }
+
+    assert admission.resolve_historical_no_dispatch_occurrence(
+        owner, occurrence, no_dispatch_proof=lambda: proof) is True
+    row = next(item for item in durable_rows(tmp_path, "occurrences")
+               if item["occurrence_id"] == occurrence)
+    assert (row["state"], row["effect_unknown"]) == ("released", 0)
+
+
 def test_critical_paid_waiting_past_its_age_limit_outranks_fresh_distribution(
         tmp_path, monkeypatch):
     """2026-10-09: distribution outranks critical_paid, and ~70 posting loops kept the two agent slots

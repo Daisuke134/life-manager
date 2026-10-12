@@ -387,12 +387,15 @@ test("adapter records the runtime occurrence before a video provider effect", as
           provider_post_id: "postiz-honne-HJA-007",
           provider_route: "postiz",
           provider_reconciled: true,
+          provider_effect_created: true,
         };
       },
     });
 
-    await adapter.execute(job());
+    const execution = await adapter.execute(job());
     assert.equal(sidecarSeenByProvider, true);
+    assert.equal(execution.receipt.provider_effect_created, true);
+    assert.equal(execution.receipt.origin_occurrence_id, "life-manager-honne-ja:run-1");
     const identity = JSON.parse(fs.readFileSync(sidecar, "utf8"));
     assert.deepEqual(identity, {
       schema_version: 1,
@@ -414,6 +417,59 @@ test("adapter records the runtime occurrence before a video provider effect", as
       video_sha256: VIDEO_HASH,
       caption_sha256: CAPTION_HASH,
     });
+  } finally {
+    for (const [key, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+});
+
+test("default effect identity uses the native handle when the Postiz profile differs", async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-video-native-account-identity-"));
+  const sidecar = path.join(root, "effect-identity.jsonl");
+  const previous = {
+    LIFE_MANAGER_EFFECT_IDENTITY_PATH: process.env.LIFE_MANAGER_EFFECT_IDENTITY_PATH,
+    LIFE_MANAGER_OCCURRENCE_ID: process.env.LIFE_MANAGER_OCCURRENCE_ID,
+    LIFE_MANAGER_RUN_ID: process.env.LIFE_MANAGER_RUN_ID,
+    LIFE_MANAGER_LOOP_ID: process.env.LIFE_MANAGER_LOOP_ID,
+  };
+  Object.assign(process.env, {
+    LIFE_MANAGER_EFFECT_IDENTITY_PATH: sidecar,
+    LIFE_MANAGER_OCCURRENCE_ID: "life-manager-anicca-affirmation-youtube:run-1",
+    LIFE_MANAGER_RUN_ID: "run-1",
+    LIFE_MANAGER_LOOP_ID: "life-manager-anicca-affirmation-youtube",
+  });
+  const publicationJob = youtubeJob({
+    productId: "anicca-ios",
+    formatId: "reelclaw-card",
+    form: "nudge-card",
+    locale: "en",
+    creativeId: "ANICCA-YT-001-aaaaaaaaaaaa",
+    youtubeIntegrationRef: "integration://postiz/youtube/cmn8ymq6c02oio70y5ea1trv8",
+  });
+  const adapter = createMarketingVideoPublicationLoopAdapter({
+    objectStore: { resolve: (ref) => `/objects/${ref.slice(-64)}` },
+    secretProvider: { get: async () => "token" },
+    integrationProvider: { get: async () => "cmn8ymq6c02oio70y5ea1trv8" },
+    ledgerPath: () => path.join(root, "distribution.jsonl"),
+    runDistribution: async () => ({
+      creative_id: "ANICCA-YT-001-aaaaaaaaaaaa",
+      video_sha256: VIDEO_HASH,
+      caption_sha256: CAPTION_HASH,
+      platform: "youtube",
+      public_url: YT_WATCH_URL,
+      provider_post_id: "postiz-anicca-youtube-001",
+      provider_route: "postiz",
+      provider_reconciled: true,
+    }),
+  });
+
+  try {
+    await adapter.execute(publicationJob);
+    const identity = JSON.parse(fs.readFileSync(sidecar, "utf8"));
+    assert.equal(identity.account_id, "@life-manager-m4p");
+    assert.equal(identity.integration_ref, "integration://postiz/youtube/cmn8ymq6c02oio70y5ea1trv8");
   } finally {
     for (const [key, value] of Object.entries(previous)) {
       if (value === undefined) delete process.env[key];
@@ -615,6 +671,39 @@ test("a provider failure is wrapped as unknown-effect without mutating the forei
     return true;
   });
   assert.equal(Object.prototype.hasOwnProperty.call(original, "unknownEffect"), false);
+});
+
+test("receipt validation failure after provider success remains unknown-effect", async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-video-publish-invalid-receipt-"));
+  let nowCalls = 0;
+  let providerCalls = 0;
+  const adapter = createMarketingVideoPublicationLoopAdapter({
+    objectStore: { resolve: (ref) => `/objects/${ref.slice(-64)}` },
+    secretProvider: { get: async () => "token" },
+    integrationProvider: { get: async () => "integration" },
+    ledgerPath: () => path.join(root, "distribution.jsonl"),
+    now: () => ++nowCalls === 1 ? "2026-07-30T12:00:00.000Z" : "not-a-date",
+    runDistribution: async () => {
+      providerCalls += 1;
+      return {
+        creative_id: "HJA-007-aaaaaaaaaaaa",
+        video_sha256: VIDEO_HASH,
+        caption_sha256: CAPTION_HASH,
+        platform: "tiktok",
+        public_url: TT_URL,
+        provider_post_id: "postiz-honne-HJA-007",
+        provider_route: "postiz",
+        provider_reconciled: true,
+      };
+    },
+  });
+
+  await assert.rejects(adapter.execute(job()), (error) => {
+    assert.equal(error.message, "marketing video publication receipt verification failed");
+    assert.equal(error.unknownEffect, true);
+    return true;
+  });
+  assert.equal(providerCalls, 1);
 });
 
 test("distribution subprocess receives an allowlisted environment, not the full parent env", () => {

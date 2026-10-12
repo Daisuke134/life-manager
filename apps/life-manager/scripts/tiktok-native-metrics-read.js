@@ -16,14 +16,16 @@ async function postizAnalytics(input, env = process.env) {
   if (!input.integrationId || !input.providerPostId || !env.LM_POSTIZ_API_KEY) {
     throw new Error("combined TikTok metrics require integrationId, providerPostId, and LM_POSTIZ_API_KEY");
   }
+  const days = { "2h": 1, "24h": 1, "72h": 3, "7d": 7 }[input.window];
+  if (!days) throw new Error("TikTok metrics window invalid");
   const request = async (url) => {
     const response = await fetch(url, { headers: { Authorization: env.LM_POSTIZ_API_KEY } });
     if (!response.ok) throw new Error(`Postiz analytics HTTP ${response.status}`);
     return response.json();
   };
   const [account, post] = await Promise.all([
-    request(`https://api.postiz.com/public/v1/analytics/${encodeURIComponent(input.integrationId)}?date=1`),
-    request(`https://api.postiz.com/public/v1/analytics/post/${encodeURIComponent(input.providerPostId)}?date=1`),
+    request(`https://api.postiz.com/public/v1/analytics/${encodeURIComponent(input.integrationId)}?date=${days}`),
+    request(`https://api.postiz.com/public/v1/analytics/post/${encodeURIComponent(input.providerPostId)}?date=${days}`),
   ]);
   return { account, post };
 }
@@ -46,7 +48,6 @@ async function postizPhotoPermalink(input, env = process.env, observedAt = new D
     const payload = await response.json();
     const rows = Array.isArray(payload) ? payload
       : [payload?.posts, payload?.rows, payload?.data].find(Array.isArray) || [];
-    if (rows.length >= 100) return "unavailable";
     const matches = rows.filter((row) => row?.state === "PUBLISHED"
       && row.id === input.providerPostId
       && (row.integration?.id || row.integrationId) === input.integrationId);

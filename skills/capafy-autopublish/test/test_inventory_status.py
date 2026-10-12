@@ -99,7 +99,7 @@ def test_rejections_consume_the_live_unlisted_cap() -> None:
     assert decision == {"verdict": "CAP_FULL", "occupied": 5}
 
 
-def test_paid_same_agent_update_precedes_fresh_only_with_a_free_slot() -> None:
+def test_fresh_create_precedes_update_and_update_runs_only_at_full_cap() -> None:
     module = load_module()
     request = {"agent_id": "9563867391", "from_version_id": "2070737929294868480",
                "target_model_id": "deepseek/deepseek-v4.1-flash"}
@@ -111,8 +111,8 @@ def test_paid_same_agent_update_precedes_fresh_only_with_a_free_slot() -> None:
 
     selected = module.allocate_action(free, [], [fresh], updates=[update])
 
-    assert selected["action"] == "update_existing"
-    assert selected["action_key"] == "update:9563867391:2070737929294868480"
+    # Dais 2026-10-11: shipping NEW Agents comes first; a non-seller update waits for a full cap.
+    assert selected["action"] == "create_fresh"
     # 2026-10-05 measured: Capafy accepted publish-init for a same-Agent update of an
     # ONLINE agent with 5 (then 6) unlisted agents; the cap only blocks creating agents.
     blocked_full = module.allocate_action(full, [], [fresh], updates=[update])
@@ -144,7 +144,8 @@ def test_in_progress_update_draft_resumes_before_a_different_update_starts() -> 
     # still outranks it (pre-existing 2026-09-28 rule).
     plain_draft = {"agent_id": "999", "feature": "catalog:plain", "title": "Plain Draft"}
     unaffected = module.allocate_action(free, [], [], resumable_drafts=[plain_draft], updates=[slide_maker_update])
-    assert unaffected["action"] == "update_existing"
+    # Dais 2026-10-11: finishing a new Agent outranks updating an old one.
+    assert unaffected["action"] == "resume_draft"
 
 
 def test_multiple_updates_pick_highest_30d_revenue_first() -> None:
@@ -383,6 +384,7 @@ def test_server_agents_adapts_official_0911_snake_case_shape(monkeypatch) -> Non
             "agentStatus": "online",
             "latestAgentVersionId": "version-1",
             "updatedAt": 1735689600000,
+            "hasOnlineVersion": None,
         }
     ]
     assert module.normalize_agents(rows)["readable"] is True
@@ -701,7 +703,7 @@ def test_ready_inventory_reads_demand_rank_from_catalog_listing(tmp_path: Path) 
     assert items[0]["demand_rank"] == 1
 
 
-def test_profit_update_outranks_draft_resume_when_a_slot_is_free() -> None:
+def test_new_draft_resume_outranks_any_update() -> None:
     module = load_module()
     request = {"agent_id": "8123079349", "from_version_id": "2099413428859719680",
                "target_model_id": "deepseek/deepseek-v4.1-flash"}
@@ -711,9 +713,9 @@ def test_profit_update_outranks_draft_resume_when_a_slot_is_free() -> None:
     free = module.normalize_agents([agent("1", "under_review")])
     full = module.normalize_agents([agent(str(i), "under_review") for i in range(5)])
 
-    assert module.allocate_action(free, [], [], resumable_drafts=[draft], updates=[update])["action"] == "update_existing"
-    # Same-Agent updates are not capped (measured 2026-10-05), so a paid update outranks a draft resume at full cap too.
-    assert module.allocate_action(full, [], [], resumable_drafts=[draft], updates=[update])["action"] == "update_existing"
+    # Dais 2026-10-11: new Agents first -- an unfinished new draft outranks any update.
+    assert module.allocate_action(free, [], [], resumable_drafts=[draft], updates=[update])["action"] == "resume_draft"
+    assert module.allocate_action(full, [], [], resumable_drafts=[draft], updates=[update])["action"] == "resume_draft"
 
 
 def test_unfinished_draft_is_finished_before_a_new_skill_is_created() -> None:
@@ -928,7 +930,7 @@ def test_profitable_sellers_are_never_updated(tmp_path) -> None:
     assert kept == []
 
 
-def test_dais_approved_exception_lets_one_profitable_update_through(tmp_path) -> None:
+def test_dais_approved_exception_never_reaches_a_profitable_seller(tmp_path) -> None:
     module = load_module()
     analytics = tmp_path / "analytics.json"
     analytics.write_text(json.dumps({"per_skill_rows": [
@@ -937,10 +939,12 @@ def test_dais_approved_exception_lets_one_profitable_update_through(tmp_path) ->
     approved = {"agent_id": "hook", "update_request": {"from_version_id": "v", "dais_approved_exception": "2026-10-07"}}
     plain = {"agent_id": "hook", "update_request": {"from_version_id": "v"}}
 
-    assert module.drop_profitable_updates([approved, plain], path=analytics) == [approved]
+    # Dais 2026-10-11: the 10/10 price "restore" exception on sellers preceded their sales stopping;
+    # no exception reaches a profitable seller.
+    assert module.drop_profitable_updates([approved, plain], path=analytics) == []
 
 
-def test_frozen_agents_are_never_updated_without_exception(tmp_path) -> None:
+def test_frozen_agents_are_never_updated_even_with_exception(tmp_path) -> None:
     module = load_module()
     analytics = tmp_path / "analytics.json"
     analytics.write_text(json.dumps({"per_skill_rows": []}))
@@ -949,7 +953,7 @@ def test_frozen_agents_are_never_updated_without_exception(tmp_path) -> None:
     plain = {"agent_id": "hook", "update_request": {"from_version_id": "v"}}
     approved = {"agent_id": "hook", "update_request": {"from_version_id": "v", "dais_approved_exception": "x"}}
 
-    assert module.drop_profitable_updates([plain, approved], path=analytics, frozen_path=frozen) == [approved]
+    assert module.drop_profitable_updates([plain, approved], path=analytics, frozen_path=frozen) == []
 
 
 def test_only_the_deciding_call_counts_a_draft_attempt(monkeypatch, tmp_path, capsys) -> None:
@@ -1000,8 +1004,8 @@ def test_dais_approved_update_ships_even_when_review_slots_are_full(monkeypatch,
     (catalog / "SKILL.md").write_text("skill\n", encoding="utf-8")
     (catalog / "icon.png").write_bytes(b"png")
     (catalog / "UPDATE.json").write_text(json.dumps({
-        "agent_id": "8123079349", "from_version_id": "111", "target_model_id": "anthropic/claude-sonnet-5",
-        "dais_approved_exception": "Dais 2026-10-10: restore the September prices"}), encoding="utf-8")
+        "agent_id": "6273179459", "from_version_id": "111", "target_model_id": "anthropic/claude-sonnet-5",
+        "dais_approved_exception": "Dais 2026-10-11: iterate a non-selling Agent"}), encoding="utf-8")
     analytics = tmp_path / "analytics.json"
     analytics.write_text(json.dumps({"per_skill_rows": []}), encoding="utf-8")
     monkeypatch.setattr(module, "FEATURES", str(tmp_path / "no-legacy"))
@@ -1009,12 +1013,23 @@ def test_dais_approved_update_ships_even_when_review_slots_are_full(monkeypatch,
     monkeypatch.setattr(module, "RETIRED", str(tmp_path / "no-retired.json"))
     monkeypatch.setattr(module, "ANALYTICS_PATH", str(analytics))
     full = [agent(str(i), "under_review") for i in range(5)]
-    hook_lab = agent("8123079349", "online", name="Hook Lab", latestAgentVersionId="111")
+    monkeypatch.setattr(module, "load_frozen_ids", lambda path=None: set())
+    hook_lab = agent("6273179459", "online", name="Hook Lab", latestAgentVersionId="111")
     monkeypatch.setattr(module, "server_agents", lambda: full + [hook_lab])
     module.main()
     decision = json.loads(capsys.readouterr().out.splitlines()[-1])
     assert decision["action"] == "update_existing", decision
-    assert decision["item"]["agent_id"] == "8123079349"
+    assert decision["item"]["agent_id"] == "6273179459"
+
+
+def test_frozen_seller_draft_is_never_resumed(monkeypatch, tmp_path, capsys) -> None:
+    """2026-10-11: YouTube Script Writer's price-restore draft was re-selected every pass; a frozen
+    seller must never be resumed, or frozen_guard blocks the whole loop."""
+    module = load_module()
+    monkeypatch.setenv("CAPAFY_DRAFT_ATTEMPTS_PATH", str(tmp_path / "attempts.json"))
+    monkeypatch.setattr(module, "load_frozen_ids", lambda path=None: {"7686597754"})
+    draft = {"agent_id": "7686597754", "title": "YouTube Script Writer"}
+    assert module.drop_frozen([draft, {"agent_id": "1", "title": "New"}]) == [{"agent_id": "1", "title": "New"}]
 
 
 def test_a_deferred_cp1_agent_does_not_spend_a_draft_attempt(monkeypatch, tmp_path) -> None:
@@ -1092,3 +1107,32 @@ def test_prelaunch_busy_probes_then_budget_block_refunds_once(tmp_path):
     assert module.refund_draft_attempt("draft", evidence) is True
     assert module.load_draft_attempts() == {}
     assert module.refund_draft_attempt("draft", evidence) is False
+
+
+def test_agent_with_an_online_version_does_not_take_a_new_agent_slot() -> None:
+    """2026-10-12: Hook Lab / TikTok / YouTube / Slide Maker (live, with a draft next version) and two
+    live Agents with an update under review were counted as unlisted, so 4 new Agents in review read
+    as CAP_FULL (occupied 10) and the factory stopped shipping new Agents. The agent list carries
+    hasOnlineVersion; a buyer-visible Agent is listed, not a new-Agent slot."""
+    module = load_module()
+    live_with_draft = [agent(str(i), "draft", hasOnlineVersion=True) for i in range(4)]
+    live_in_review = [agent(str(10 + i), "under_review", hasOnlineVersion=True) for i in range(2)]
+    new_in_review = [agent(str(20 + i), "under_review", hasOnlineVersion=False) for i in range(4)]
+    normalized = module.normalize_agents(live_with_draft + live_in_review + new_in_review)
+    assert normalized["counts"]["occupied"] == 4
+    assert normalized["counts"]["free"] == 1
+
+
+def test_server_agents_carries_has_online_version_from_publish_list(monkeypatch) -> None:
+    """2026-10-12: the hasOnlineVersion fix never reached the factory because publish-list dropped
+    the field, so occupied stayed 10 on the live release."""
+    module = load_module()
+    payload = {"agents": [{"agent_id": "8123079349", "agent_status": "draft", "has_online_version": True}]}
+
+    class Done:
+        returncode = 0
+        stdout = json.dumps(payload)
+
+    monkeypatch.setattr(module.subprocess, "run", lambda *a, **k: Done())
+    rows = module.server_agents()
+    assert rows[0]["hasOnlineVersion"] is True

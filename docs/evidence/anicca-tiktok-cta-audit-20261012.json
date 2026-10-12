@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "product_id": "anicca-ios",
+  "platform": "tiktok",
+  "account_id": "@aniccaaffirmation",
+  "observed_date": "2026-10-12",
+  "profile_evidence": "docs/evidence/anicca-campaign-links-20261012.json",
+  "profile": {
+    "followers_snapshot": 136,
+    "likes_snapshot": "16.3K",
+    "external_website_link_observed": false,
+    "existing_bio_cta": "Search Anicca on App Store"
+  },
+  "rotation_pool": {
+    "path": "~/.local/state/life-manager/tenants/dais-local/marketing/slide-pack-rotation/anicca-ios/anicca-en-affirmation-tiktok-pool.jsonl",
+    "candidate_count": 15,
+    "families": {
+      "question-hook": 6,
+      "listicle": 6,
+      "myth-vs-fact": 3
+    },
+    "link_in_bio_last_slide_and_caption": 15,
+    "search_or_store_cta": 0,
+    "pool_mutated": false
+  },
+  "published_example": {
+    "provider_post_id": "cmv1y3riy0rtuqz0ydup4dbcu",
+    "creative_id": "EN-AFFIRMATION-CAROUSEL-da8d8265",
+    "pack_sha256": "a0abf6f76953d0ec3cbb4a62e857fca20c843fa9790cc65ecc96d6a6b9a2003d",
+    "published_at": "2026-10-10T05:19:50.954Z",
+    "official_release_url": "https://www.tiktok.com/@aniccaaffirmation/photo/7694904668752792840",
+    "metric_source_row": "~/.local/state/life-manager/marketing-owner-events/state/post-metrics.jsonl#row-3973",
+    "views": 481,
+    "target_age_hours": 24,
+    "observed_age_hours": 45.2125,
+    "checkpoint_sla_status": "missed"
+  },
+  "postiz_caption_readback": {
+    "method": "GET /public/v1/posts",
+    "http_status": 200,
+    "caption": "What would make this morning gentler?\n\nLink in bio for the app\n\nLink in bio for the app\n",
+    "link_in_bio_cta_occurrences": 2,
+    "search_or_store_cta_occurrences": 0
+  },
+  "source_root_cause": {
+    "marketing_app_store_cta": "TikTok is not in LINKABLE_PLATFORMS, so its fallback CTA is Link in bio for the app.",
+    "marketing_slide_pack_factory": "English last-slide CTA is platform-independent Link in bio.",
+    "rotation": "Existing approved TikTok pool candidates are reusable for seven days, so changing generation alone leaves 15 false-CTA packs eligible."
+  },
+  "distribution_state": {
+    "tiktok_slots_jst": [
+      "09:15",
+      "14:15",
+      "20:15"
+    ],
+    "publisher_owner_latest_result": "no_due_slot",
+    "postiz_published_rows_in_read_window": 2,
+    "next_slot_jst": "20:15"
+  },
+  "proposed_source_fix": {
+    "tiktok_caption_cta": "Search Anicca on the App Store",
+    "tiktok_last_slide_cta": "Search Anicca on the App Store",
+    "old_pool_handling": "Exclude candidates containing a false link-in-bio CTA in any slide or caption at selection time; preserve all immutable objects and ledger history.",
+    "publisher_guard": "Reject any TikTok pack containing a false link-in-bio CTA before token lookup or provider access.",
+    "caption_normalization": "Remove the retired English or Japanese TikTok link-in-bio line before appending the App Store search CTA.",
+    "gate": "Reject unavailable link-in-bio CTAs for TikTok and require the App Store search CTA.",
+    "new_pack_generation": "Existing deterministic copy and cached backgrounds",
+    "generation_cost_usd": 0
+  },
+  "source_validation": {
+    "red_cases_reproduced": 4,
+    "focused_tests_passed": 73,
+    "pull_request": "https://github.com/Daisuke134/life-manager/pull/7779",
+    "pull_request_head": "dd918e6fb243f9bce2d38a6031e06347e841813c",
+    "ci_passed": true,
+    "independent_review": "Ship; no findings",
+    "runtime_release_adopted": false
+  },
+  "runtime_fence_readback": {
+    "owner_id": "life-manager-anicca-en-affirmation-tiktok",
+    "installed_release_sha": "66f04769c92878a29905bc91b0ae13435dff9f94",
+    "owner_status": "safely_fenced",
+    "pending_admission_occurrences": 4258,
+    "exact_identity_rows_found": 5,
+    "pending_occurrences_with_matching_identity": 0,
+    "fence_reconciler_result": "identity_missing_or_invalid",
+    "owner_apply_or_fence_resolution": false,
+    "next_natural_slot_jst": "20:15"
+  },
+  "effects": {
+    "posts_created": 0,
+    "runtime_pool_modified": false,
+    "paid_api_or_image_generation": false
+  }
+}

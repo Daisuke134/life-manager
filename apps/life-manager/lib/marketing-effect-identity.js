@@ -5,6 +5,7 @@ const path = require("node:path");
 
 const ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/;
 const OCCURRENCE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}:[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
+const LOOP_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const HASH = /^[0-9a-f]{64}$/;
 const EFFECT_KEY = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,511}$/;
 const INTEGRATION_REF = /^integration:\/\/postiz\/[a-z]+\/[A-Za-z0-9._:-]{1,200}$/i;
@@ -14,6 +15,19 @@ function required(value, label, pattern = ID) {
   const text = String(value == null ? "" : value).trim();
   if (!pattern.test(text)) throw new Error(`marketing effect identity ${label} is invalid`);
   return text;
+}
+
+function providerEffectProvenance(created) {
+  if (typeof created !== "boolean") return {};
+  const provenance = { provider_effect_created: created };
+  if (!created) return provenance;
+  const loopId = String(process.env.LIFE_MANAGER_LOOP_ID || "").trim();
+  const occurrenceId = String(process.env.LIFE_MANAGER_OCCURRENCE_ID || "").trim();
+  if (LOOP_ID.test(loopId) && OCCURRENCE.test(occurrenceId)
+      && occurrenceId.startsWith(`${loopId}:`)) {
+    provenance.origin_occurrence_id = occurrenceId;
+  }
+  return provenance;
 }
 
 function writeMarketingEffectIdentity(input = {}) {
@@ -68,4 +82,4 @@ function writeMarketingEffectIdentity(input = {}) {
   return true;
 }
 
-module.exports = { writeMarketingEffectIdentity };
+module.exports = { providerEffectProvenance, writeMarketingEffectIdentity };

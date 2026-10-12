@@ -2,12 +2,10 @@
 """select_capafy_distribute_skill.py — deterministic daily pick for the Capafy
 distribute (free-article) loop.
 
-Rotates through Capafy's own best-selling skills (from
-skills/writer-agent/config/products.json's "capafy-skills" list), ranked by
-last-30-day profit (falls back to net revenue when profit is unmeasured), one
-per JST calendar date. Every skill gets picked in turn as the ranking's order
-changes over time, so the article always points at whichever skill made the
-most money most recently rather than a fixed favorite.
+Selects profitable buyer-visible Capafy sellers from the configured skills,
+ranked by last-30-day profit (falling back to net revenue when profit is
+unmeasured). Hook Lab takes half the slots while other eligible sellers share
+the rest; without Hook Lab, the highest-ranked seller takes half.
 
   select_capafy_distribute_skill.py --date 2026-09-29 \
       --products skills/writer-agent/config/products.json \
@@ -77,7 +75,15 @@ def _is_online_earner(products_cfg: dict, analytics: dict | None, slug: str) -> 
             profit = _decimal_or_none(row.get("profit_30d_actual_usd"))
             if profit is None:
                 profit = _decimal_or_none(row.get("profit_30d_usd"))
-            return row.get("status") == "online" and profit is not None and profit > 0
+            # The seller list keeps the buyer-visible version flag while a next version is draft.
+            has_online_version = row.get("has_online_version")
+            buyer_visible = (
+                has_online_version is True
+                if has_online_version is not None
+                else row.get("status") in ("online", "under_review")
+            )
+            return (buyer_visible
+                    and profit is not None and profit > 0)
     return False
 
 
@@ -97,9 +103,13 @@ def select_for_date(
     # With no earner at all, keep the full rotation so the loop still publishes.
     earners = [slug for slug in ranked if _is_online_earner(products_cfg, analytics, slug)]
     ranked = earners if earners else ranked + sorted(extra)
+    # Keep Hook Lab in half the slots regardless of short-window profit ranking.
+    if len(earners) > 1:
+        first = "hook-lab" if "hook-lab" in earners else earners[0]
+        ranked = [slug for other in earners if other != first for slug in (first, other)]
     if not ranked:
         raise ValueError("no capafy-skills or listings configured to rotate")
-    # 8 three-hour slots per day; each slot promotes the next skill in the ranking.
+    # One slot per wake (48 half-hour slots/day); each slot promotes the next skill in the ranking.
     slug = ranked[(date.toordinal() * 8 + slot) % len(ranked)]
     skill = extra.get(slug) or products_cfg["products"]["capafy-skills"]["skills"][slug]
     return {
@@ -111,7 +121,7 @@ def select_for_date(
         "buyer_problem": skill.get("buyer_problem", ""),
         "seo_seed": skill.get("seo_seed", ""),
         "ct": f"{channel}-{slug}",
-        "rank": ranked.index(slug) + 1,
+        "rank": (earners or ranked).index(slug) + 1 if slug in (earners or ranked) else ranked.index(slug) + 1,
         "ranked_slugs": ranked,
     }
 
@@ -122,7 +132,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--products", required=True)
     parser.add_argument("--analytics", help="capafy-skill-analytics.json path (optional)")
     parser.add_argument("--channel", default="capafy-distribute")
-    parser.add_argument("--slot", type=int, default=0, help="3-hour JST slot 0-7")
+    parser.add_argument("--slot", type=int, default=0, help="JST half-hour slot 0-47")
     args = parser.parse_args(argv)
 
     products_cfg = json.loads(Path(args.products).read_text(encoding="utf-8"))

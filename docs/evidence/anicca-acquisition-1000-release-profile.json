@@ -1,0 +1,287 @@
+{
+  "source": "YouTube public ytInitialData About model + Next redirect payload; read-only",
+  "channels": [
+    {
+      "handle": "@anicca-ai",
+      "channel_id": "UCFGkrtiSTni-AZ9DUY6Q5EA",
+      "profile_links": [
+        {
+          "title": "App Link",
+          "url": "https://aniccaai.com/app"
+        }
+      ],
+      "observed_app_redirect": "https://apps.apple.com/us/app/mindful-self-care-anicca/id6755129214",
+      "campaign_parameters_observed": false
+    },
+    {
+      "handle": "@life-manager-m4p",
+      "channel_id": "UCqCLudkgpJZp4Pvi6ELGalw",
+      "profile_links": [],
+      "description_destination": "aniccaai.com/life-manager",
+      "destination_product": "life-manager-cloud",
+      "anicca_profile_link_observed": false
+    }
+  ],
+  "profile_mutation_performed": false,
+  "observed_at": "2026-10-11T07:30:39.273966+00:00",
+  "source_pr": 7621,
+  "source_merge_sha": "b61fdda5ec187885aa55f522aeb75baca64248df",
+  "release_sha": "f8d3f9ffb44ad9826599f41b011f120226386829",
+  "loaded_owners": [
+    {
+      "loop_id": "life-manager-anicca-ai-youtube",
+      "sha": "f8d3f9ffb44ad9826599f41b011f120226386829",
+      "fleet_changed": 1,
+      "fleet_skipped": 0,
+      "fleet_rc": 0,
+      "loaded_state": "not running"
+    },
+    {
+      "loop_id": "life-manager-anicca-affirmation-youtube",
+      "sha": "f8d3f9ffb44ad9826599f41b011f120226386829",
+      "fleet_changed": 1,
+      "fleet_skipped": 0,
+      "fleet_rc": 0,
+      "loaded_state": "not running"
+    }
+  ],
+  "new_public_caption_verified": true,
+  "additional_downloads_verified": false,
+  "mrr_verified": false,
+  "app_store_public": [
+    {
+      "country": "us",
+      "trackName": "Daily Affirmations - Anicca",
+      "version": "1.9.4",
+      "currentVersionReleaseDate": "2026-06-24T15:13:12Z",
+      "languageCodesISO2A": [
+        "EN",
+        "FR",
+        "DE",
+        "JA",
+        "PT",
+        "ES"
+      ],
+      "userRatingCount": 1,
+      "trackViewUrl": "https://apps.apple.com/us/app/daily-affirmations-anicca/id6755129214?uo=4",
+      "description_present": true
+    },
+    {
+      "country": "jp",
+      "trackName": "毎日のアファメーション - アニッチャ",
+      "version": "1.9.4",
+      "currentVersionReleaseDate": "2026-06-24T15:13:12Z",
+      "languageCodesISO2A": [
+        "EN",
+        "FR",
+        "DE",
+        "JA",
+        "PT",
+        "ES"
+      ],
+      "userRatingCount": 47,
+      "trackViewUrl": "https://apps.apple.com/jp/app/%E6%AF%8E%E6%97%A5%E3%81%AE%E3%82%A2%E3%83%95%E3%82%A1%E3%83%A1%E3%83%BC%E3%82%B7%E3%83%A7%E3%83%B3-%E3%82%A2%E3%83%8B%E3%83%83%E3%83%81%E3%83%A3/id6755129214?uo=4",
+      "description_present": true
+    },
+    {
+      "country": "es",
+      "trackName": "Afirmaciones Diarias - Anicca",
+      "version": "1.9.4",
+      "currentVersionReleaseDate": "2026-06-24T15:13:12Z",
+      "languageCodesISO2A": [
+        "EN",
+        "FR",
+        "DE",
+        "JA",
+        "PT",
+        "ES"
+      ],
+      "userRatingCount": 0,
+      "trackViewUrl": "https://apps.apple.com/es/app/afirmaciones-diarias-anicca/id6755129214?uo=4",
+      "description_present": true
+    }
+  ],
+  "english_store_experiment": {
+    "observed_at": "2026-10-11T07:32:59.870624+00:00",
+    "method": "official ASC update followed by independent official localizations list",
+    "app_id": "6755129214",
+    "version": "1.9.4",
+    "changed_fields": [
+      {
+        "locale": "en-US",
+        "field": "promotionalText",
+        "before": null,
+        "after": "A kinder pause in your day. Daily affirmations for self-love and confidence, with gentle reminders and calming themes. Find words that feel like you."
+      }
+    ],
+    "paid_spend": 0,
+    "additional_downloads_verified": false,
+    "public_page_readback_verified": false,
+    "public_checks": {
+      "crwl_markdown_new_text_observed": false,
+      "scrapy_raw_html_new_text_observed": false
+    }
+  },
+  "revenuecat_mrr": [
+    {
+      "schema_version": 1,
+      "snapshot_id": "anicca-ios:2026-10-10:cfo-revenuecat-mrr",
+      "business_date": "2026-10-10",
+      "observed_at": "2026-10-11T07:35:01.496637Z",
+      "product_id": "anicca-ios",
+      "sources": {
+        "revenuecat": {
+          "status": "available",
+          "reason": null,
+          "data": {
+            "app_id": "app511ef26659",
+            "currency": "USD",
+            "revenue_definition": {
+              "metric": "mrr",
+              "scope": "active_paid_subscriptions",
+              "normalization": "monthly"
+            },
+            "charts": {
+              "mrr": {
+                "latest_complete": {
+                  "MRR": {
+                    "value": 20.34,
+                    "period": "2026-10-10",
+                    "period_index": 1791590400,
+                    "incomplete": false
+                  }
+                },
+                "resolution": "day",
+                "start_date": 1789344000,
+                "end_date": 1791676800,
+                "evidence_sha256": "b0c6b365492ddc0ce6fee29a99d6cdbb8a029a3a7549fe2095ca675fa29fdade"
+              }
+            },
+            "readback": {
+              "provider": "revenuecat",
+              "chart": "mrr",
+              "observed_at": "2026-10-11T07:35:01.496637Z",
+              "query": {
+                "project_id": "projbb7b9d1b",
+                "chart": "mrr",
+                "endpoint": "options",
+                "start_date": "2026-09-14",
+                "end_date": "2026-10-11",
+                "resolution": "0",
+                "app_id": "app511ef26659",
+                "filters": [
+                  {
+                    "name": "app_id",
+                    "values": [
+                      "app511ef26659"
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          "evidence_sha256": "6ebc3e2ec473ee3582c6d1132a7aa915054bd3b47dcc5218c921132fce86ab69"
+        }
+      }
+    },
+    {
+      "schema_version": 1,
+      "snapshot_id": "honne-ai:2026-10-10:cfo-revenuecat-mrr",
+      "business_date": "2026-10-10",
+      "observed_at": "2026-10-11T07:35:02.022745Z",
+      "product_id": "honne-ai",
+      "sources": {
+        "revenuecat": {
+          "status": "available",
+          "reason": null,
+          "data": {
+            "app_id": "app3bbd298d22",
+            "currency": "USD",
+            "revenue_definition": {
+              "metric": "mrr",
+              "scope": "active_paid_subscriptions",
+              "normalization": "monthly"
+            },
+            "charts": {
+              "mrr": {
+                "latest_complete": {
+                  "MRR": {
+                    "value": 0.0,
+                    "period": "2026-10-10",
+                    "period_index": 1791590400,
+                    "incomplete": false
+                  }
+                },
+                "resolution": "day",
+                "start_date": 1789344000,
+                "end_date": 1791676800,
+                "evidence_sha256": "50e7ef23fde3fe7de641feaf49a9421d66f79b68241ffa8a55d9e5c71cead2d0"
+              }
+            },
+            "readback": {
+              "provider": "revenuecat",
+              "chart": "mrr",
+              "observed_at": "2026-10-11T07:35:02.022745Z",
+              "query": {
+                "project_id": "projbb7b9d1b",
+                "chart": "mrr",
+                "endpoint": "options",
+                "start_date": "2026-09-14",
+                "end_date": "2026-10-11",
+                "resolution": "0",
+                "app_id": "app3bbd298d22",
+                "filters": [
+                  {
+                    "name": "app_id",
+                    "values": [
+                      "app3bbd298d22"
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          "evidence_sha256": "155609951c25836879c0db7cfe631fcbeef442a671ea3f85b2059f43c428b155"
+        }
+      }
+    }
+  ],
+  "revenuecat_mrr_truth": "provider subscription run rate; not Apple proceeds, bank settlement or net profit",
+  "paywall_native_selection": {
+    "head": "a95a9be77d2f478143f5e34690dd30cc25794560",
+    "compile_exit": 0,
+    "test_exit": 0,
+    "test_output": "PASS testDelayedLoadSelectsAnnualWithoutAnotherAppearance\nPASS testMonthlyOnlyLoadSelectsMonthly\nPASS testUserMonthlyChoiceSurvivesRefreshAndRebindsToCurrentInstance\nPASS testAnnualReplacementRebindsToCurrentInstance\nPASS testExplicitLifetimeChoiceSurvivesRefresh\nPASS testRemovedSelectionFallsBackToAnnualThenMonthly\nPASS testEmptyRefreshClearsSelectionAndRetryChoosesAvailableDefault\nPASS testNoAnnualOrMonthlyDoesNotInventADefault\nPASS testRepeatedRefreshKeepsUserSelection\n9 native selection regressions passed\n",
+    "ios_integration_verified": false,
+    "purchase_verified": false
+  },
+  "caption_change_same_slot_duplicate": {
+    "slot": "2026-10-11T05:15:00.000Z",
+    "creative_id": "YT-LIFE-MANAGER-SCALE-3D-MALE-a3082d1e1ae3-20261011T051500000Z",
+    "video_sha256": "a3082d1e1ae3c52842e05c47a90dee2779dde08a515175f72f575cf729328423",
+    "old_public_url": "https://www.youtube.com/watch?v=iEDdaIWdwY4",
+    "new_public_url": "https://www.youtube.com/watch?v=saFt6goOs_g",
+    "new_provider_id": "cmv3i46pk1g4fmq0yjyl6tb9k",
+    "new_caption_verified_in_public_youtube": true,
+    "manual_send_or_clear_performed": false,
+    "prevention_verified": false
+  },
+  "same_slot_prevention_source": {
+    "focused_tests_passed": 52,
+    "contract_errors": 0,
+    "review": "ship; blocking findings resolved",
+    "atomic_enqueue_scope_guard": true,
+    "prior_artifact_receipt_binding": true,
+    "production_readonly_probe": {
+      "job_id": "marketing-video-publication:965740ed15c014e8d4370c55e8657394797352beaea89f87835a89f9b7dc75e9",
+      "result": {
+        "created": false,
+        "reused_prior_slot": true,
+        "public_url": "https://www.youtube.com/watch?v=iEDdaIWdwY4",
+        "provider_post_id": "cmv3dgrib1el6mq0yu0rxm1oh"
+      },
+      "probe": "read-only; no enqueue/claim/provider/state mutation"
+    },
+    "deployed_prevention_verified": false
+  }
+}

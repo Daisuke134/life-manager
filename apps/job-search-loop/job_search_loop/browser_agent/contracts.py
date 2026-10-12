@@ -47,6 +47,7 @@ class ObservationV1:
     screenshot_sha256: str
     content_sha256: str
     visible_challenges: tuple[str, ...] = ()
+    blocking_validation_text: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

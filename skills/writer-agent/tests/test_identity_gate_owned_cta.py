@@ -47,3 +47,21 @@ def test_identity_gate_hides_query_only_owned_cta_from_context_judge(tmp_path: P
 
     assert result.returncode == 0, result.stderr + result.stdout
     assert '"verdict":"PASS"' in result.stdout
+
+
+def test_identity_projection_handles_capafy_cta_without_hiding_other_content(tmp_path: Path) -> None:
+    import sys
+
+    source = IDENTITY_GATE.read_text(encoding="utf-8")
+    code = source.split('JUDGE_BODY="$(printf \'%s\' "$BODY" | python3 -c \'', 1)[1].split("\n')\"", 1)[0]
+    query = "?product_id=capafy-skills&run_id=run-1&artifact_id=article-en&variant_id=guide&click_id=click-1&ct=tracked"
+    capafy = "https://capafy.ai/agent/123"
+    external = "https://example.org/agent/123"
+    partial = capafy + "?product_id=capafy-skills&run_id=run-1"
+    article = f"Reader next step.\n[Check the steps]({capafy}{query})\n{external}{query}\n{partial}\n"
+    result = subprocess.run([sys.executable, "-c", code], input=article,
+                            capture_output=True, text=True, check=True, cwd=tmp_path)
+    assert f"[Check the steps]({capafy})" in result.stdout
+    assert external + query in result.stdout
+    assert partial in result.stdout
+    assert "Reader next step." in result.stdout

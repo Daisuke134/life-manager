@@ -38,6 +38,7 @@ esac
     fake_guard = tmp_path / "browser-guard"
     fake_guard.write_text(
         """#!/bin/sh
+printf 'browser_guard %s\\n' "$*" >> "$FAKE_CALL_LOG"
 case "$1" in
   acquire) printf '%s\\n' 'http://127.0.0.1:9222' ;;
   release) exit 0 ;;
@@ -47,6 +48,15 @@ esac
         encoding="utf-8",
     )
     fake_guard.chmod(0o700)
+    fake_provisioner = tmp_path / "ensure-provision-browser"
+    fake_provisioner.write_text(
+        """#!/bin/sh
+printf 'browser_provisioner %s\\n' "$*" >> "$FAKE_CALL_LOG"
+printf '%s\\n' 'http://127.0.0.1:9222'
+""",
+        encoding="utf-8",
+    )
+    fake_provisioner.chmod(0o700)
 
     fixture_repo = tmp_path / "repo"
     fixture_daily = fixture_repo / "skills" / "earn" / "promptbase" / "daily.sh"
@@ -58,6 +68,7 @@ esac
     env["HOME"] = str(home)
     env["PY"] = str(fake_python)
     env["AI_BROWSER_GUARD"] = str(fake_guard)
+    env["AI_ENSURE_PROVISION_BROWSER"] = str(fake_provisioner)
     env["PROMPTBASE_LEDGER_PATH"] = str(tmp_path / "ledger.jsonl")
     env["FAKE_CALL_LOG"] = str(call_log)
     env["FAKE_PY_REAL"] = sys.executable
@@ -96,3 +107,6 @@ def test_daily_dispatches_one_confirm_after_snapshot_succeeds(tmp_path):
     assert result.returncode == 0
     assert len(publish_calls) == 1
     assert "--confirm" in publish_calls[0]
+    assert "browser_provisioner promptbase:dais" in calls
+    assert "browser_guard release promptbase:dais" in calls
+    assert not any("interactive:dais" in call for call in calls)

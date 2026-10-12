@@ -17,6 +17,7 @@ BUSINESS_ROLE_FAMILIES = frozenset(
         "partnerships",
         "customer_success",
         "technical_account",
+        "technical_business",
         "sales_engineering",
         "business_development",
     }

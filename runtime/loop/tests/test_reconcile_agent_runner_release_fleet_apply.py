@@ -1165,6 +1165,42 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             self.assertEqual(state["status"], "partial")
             self.assertIn("budget exceeded", state["message"])
 
+    def test_owner_failure_does_not_delay_healthy_same_sha_budget_continuation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha = self._make_repo(root)
+            release = self._make_release(root, sha,
+                loop_ids=("first-earn", "second-earn", "third-earn"),
+                labels={"second-earn": "ai.second-earn"})
+            self._activate(root, release)
+            calls = root / "calls.log"
+            env = self._base_env(root, repo, calls_log=calls, apply_mode="fail_then_budget")
+            env.update(FAKE_FAIL_LOOP_ID="first-earn", FAKE_SLOW_LOOP_ID="second-earn",
+                LIFE_MANAGER_FLEET_APPLY_TIMEOUT_SECONDS="4",
+                LIFE_MANAGER_FLEET_APPLY_PER_OWNER_TIMEOUT_SECONDS="3",
+                LIFE_MANAGER_FLEET_APPLY_CONTINUE_SECONDS="0",
+                LIFE_MANAGER_LAUNCH_AGENTS_DIR=str(root / "agents"))
+            (root / "agents").mkdir()
+            first = self._run(env)
+            self.assertNotEqual(first.returncode, 0)
+            state = self._state(root)
+            self.assertIsNotNone(state, first.stderr + first.stdout)
+            self.assertEqual(state["errors"], 1)
+            self.assertFalse(state["budget_progress_continue"], "new SHA must retain coalescing")
+            self.assertLess(state["next_retry_epoch"], time.time() + 60)
+            # The successful owner has its real installed-plist identity for the next plan.
+            (root / "agents/ai.second-earn.plist").write_bytes(plistlib.dumps(
+                {"EnvironmentVariables": {"LIFE_MANAGER_RELEASE_SHA": sha}}))
+            env["FAKE_SLOW_LOOP_ID"] = ""
+            before = self._apply_call_count(calls)
+            self._run(env)
+            applied = [line for line in calls.read_text().splitlines() if line.startswith("apply ")]
+            self.assertEqual(len(applied), before + 2)
+            self.assertIn("target=third-earn", applied[-2])
+            self.assertIn("target=first-earn", applied[-1])
+            self.assertEqual(self._state(root)["errors"], 1)
+            self.assertEqual(self._state(root)["status"], "error")
+
     def test_budget_exceeded_with_progress_retries_soon_not_after_the_full_backoff(self):
         # Each pass ran out of budget after 60-86 owners and then waited 30 minutes; a newer sha
         # arrived first, so the fleet never converged and GC could free no generation.
@@ -1288,7 +1324,7 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             self.assertEqual(first_state["changed"], 1)
             self.assertEqual(first_state["errors"], 1)
             self.assertIn("budget exceeded", first_state["message"])
-            self.assertGreater(first_state["next_retry_epoch"], int(time.time()) + 10)
+            self.assertLessEqual(first_state["next_retry_epoch"], int(time.time()))
             self.assertIs(first_state["budget_progress_continue"], False)
 
             state_path = root / "reconciler-state" / "fleet-apply-state.json"

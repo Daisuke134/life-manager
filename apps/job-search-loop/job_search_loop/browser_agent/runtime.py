@@ -17,8 +17,9 @@ from zoneinfo import ZoneInfo
 
 from ..ats import detect_provider
 from ..ledger import Ledger
-from ..resume_routing import select_resume
-from ..state import provider_recovery_url
+from ..resume_routing import select_resume, load_resume_manifest
+from ..tailored_resume import compose, load_artifact, render_pdf, store_artifact
+from ..state import InvalidTransition, provider_recovery_url
 from ..workday_credentials import tenant_key
 from .actions import ActionExecutor
 from .candidate_memory import CandidateMemoryView
@@ -279,19 +280,47 @@ def _routed_resume(row: dict[str, Any], posting_text: str) -> dict[str, str]:
     finally:
         ledger.close()
     legacy = assignment["capture_status"] == "legacy_unavailable"
-    routed = select_resume(
-        posting_text=posting_text,
-        role_family=(
-            _role_family(str(row["title"])) if legacy else assignment["role_family"]
-        ),
-        materials_root=_materials_root(),
-    )
+    if legacy:
+        routed = select_resume(posting_text=posting_text,
+            role_family=_role_family(str(row["title"])), materials_root=_materials_root())
+    else:
+        variant = assignment['material_variant']
+        path = load_resume_manifest(_materials_root())[variant]
+        routed = {'resume_path': str(path), 'resume_variant': variant,
+                  'resume_sha256': hashlib.sha256(path.read_bytes()).hexdigest(),
+                  'posting_language': 'ja' if variant == 'japanese' else 'en'}
     if not legacy and routed["resume_sha256"] != assignment["material_sha256"]:
         raise RuntimeError("routed resume differs from the immutable assignment")
+    memory = CandidateMemoryView.load(_path_env("JOB_SEARCH_CANDIDATE_MEMORY"))
+    tailored = load_artifact(_materials_root(), row, memory)
+    if tailored is not None:
+        return tailored
+    if os.environ.get("JOB_SEARCH_REQUIRE_TAILORED_RESUME") == "1":
+        raise ValueError("company_tailored_resume_required")
     return routed
 
 
 def _safe_observation(observation, checkpoint, remaining_steps: int) -> dict[str, Any]:
+    private_values = []
+    memory_path = os.environ.get('JOB_SEARCH_CANDIDATE_MEMORY')
+    if memory_path:
+        memory = CandidateMemoryView.load(Path(memory_path))
+        for item in memory.value['concepts']:
+            concept, value = str(item['concept']), item['value']
+            if (concept.startswith('candidate.') and isinstance(value, str) and len(value) >= 2
+                    and re.search(r'name|email|phone|date_of_birth|address_line|street|postal|locality|password|secret|token', concept)):
+                private_values.append(value)
+                if concept == 'candidate.date_of_birth':
+                    born = datetime.fromisoformat(value)
+                    private_values.extend((born.strftime('%m/%d/%Y'), born.strftime('%d/%m/%Y'),
+                        f'{born.month}/{born.day}/{born.year}', f'{born.day}/{born.month}/{born.year}',
+                        born.strftime('%B %d, %Y'), born.strftime('%d %B %Y')))
+
+    def safe_text(value):
+        for private in sorted(set(private_values), key=len, reverse=True):
+            value = re.sub(re.escape(private), '[private candidate value]', value, flags=re.IGNORECASE)
+        return _redact(value)
+
     controls: list[dict[str, Any]] = []
     for control in observation.controls:
         if not (control.label or control.stable_id):
@@ -300,7 +329,7 @@ def _safe_observation(observation, checkpoint, remaining_steps: int) -> dict[str
             continue
         value: dict[str, Any] = {
             "role": control.role,
-            "label": _redact(control.label),
+            "label": safe_text(control.label),
             "stable_id": control.stable_id,
         }
         if control.control_type:
@@ -314,13 +343,14 @@ def _safe_observation(observation, checkpoint, remaining_steps: int) -> dict[str
         if control.checked is not None:
             value["checked"] = control.checked
         if control.options:
-            value["options"] = [_redact(option) for option in control.options]
+            value["options"] = [safe_text(option) for option in control.options]
         controls.append(value)
     return {
         "url": observation.url,
-        "title": _redact(observation.title),
+        "title": safe_text(observation.title),
+        "visible_text": safe_text(observation.visible_text),
         "content_sha256": observation.content_sha256,
-        "validation": [_redact(value) for value in observation.validation_text],
+        "validation": [safe_text(value) for value in observation.validation_text],
         "challenges": list(observation.visible_challenges),
         "remaining_steps": remaining_steps,
         "controls": controls,
@@ -462,6 +492,15 @@ async def _act_locked(action_path: Path) -> dict[str, Any]:
     before = await builder.build(cursor.handle)
     action_value = _private_action(action_path)
     action = _action(action_value)
+    if action.kind == "upload":
+        try:
+            routed = _routed_resume(row, f"{row['title']}\n{before.visible_text}")
+        except ValueError as error:
+            if str(error) != "company_tailored_resume_required":
+                raise
+            return {"status": "action_rejected", "reason": "company_tailored_resume_required"}
+        if action.file_path is None or action.file_path.resolve() != Path(routed["resume_path"]).resolve():
+            return {"status": "action_rejected", "reason": "upload_must_use_routed_resume"}
     action_bytes = json.dumps(
         action_value, ensure_ascii=False, sort_keys=True
     ).encode("utf-8")
@@ -841,6 +880,33 @@ async def type_candidate(
         return result
 
 
+async def tailor_resume(sections_json: str) -> dict[str, Any]:
+    """The existing browser model selects facts; this tool adds no candidate claims."""
+    row = _row()
+    memory = CandidateMemoryView.load(_path_env("JOB_SEARCH_CANDIDATE_MEMORY"))
+    existing = load_artifact(_materials_root(), row, memory)
+    if existing is not None:
+        return {"status": "resume_ready", "resume_sha256": existing["resume_sha256"],
+                "fact_ids": existing["fact_ids"], "cached": True}
+    try:
+        material = compose(row, memory, json.loads(sections_json))
+    except (ValueError, TypeError, KeyError):
+        return {"status": "action_rejected", "reason": "resume_fact_selection_invalid",
+                "instruction": "select only returned fact concepts in Summary, Experience, Projects, Education, Skills"}
+    _wake_budget(consume=True)
+    destination = _path_env("JOB_SEARCH_BROWSER_SCRATCH") / "tailored-resume-draft.pdf"
+    try:
+        pdf = await render_pdf(material["html"], material["claims"], destination)
+    except Exception as error:
+        return {"status": "action_rejected", "phase": "resume_render",
+                "reason": str(error) if isinstance(error, ValueError) else "resume_render_failed",
+                "error_class": type(error).__name__,
+                "instruction": "if the page budget is exceeded select fewer relevant facts; do not invent or shorten claims"}
+    artifact = store_artifact(_materials_root(), row, material, pdf)
+    return {"status": "resume_ready", "resume_sha256": artifact["resume_sha256"],
+            "fact_ids": artifact["fact_ids"], "cached": False}
+
+
 async def upload_resume(*, label: str, role: str, stable_id: str) -> dict[str, Any]:
     """Upload the row's immutable assigned resume without exposing its path."""
     if role != "button":
@@ -850,7 +916,13 @@ async def upload_resume(*, label: str, role: str, stable_id: str) -> dict[str, A
         return result
     row, _session, _checkpoints, _evidence, cursor, builder = await _context()
     observation = await builder.build(cursor.handle)
-    routed = _routed_resume(row, f"{row['title']}\n{observation.visible_text}")
+    try:
+        routed = _routed_resume(row, f"{row['title']}\n{observation.visible_text}")
+    except ValueError as error:
+        if str(error) != "company_tailored_resume_required":
+            raise
+        return {"status": "action_rejected", "reason": "company_tailored_resume_required",
+                "instruction": "call runtime tailor with grounded fact concepts, then retry this upload"}
     path = _path_env("JOB_SEARCH_BROWSER_SCRATCH") / "runtime-upload.json"
     path.write_text(
         json.dumps(
@@ -927,21 +999,39 @@ async def checkpoint(reason: str) -> dict[str, Any]:
 
 
 async def ineligible(reason: str) -> dict[str, Any]:
-    """Terminally reject one visibly unavailable/ineligible row and continue."""
+    """Reject only when the ledger allows it; preserve active submission claims."""
     row, session, _checkpoints, _evidence, cursor, builder = await _context()
     observation = await builder.build(cursor.handle)
     ledger = Ledger(_path_env("JOB_SEARCH_STATE_ROOT") / "ledger.sqlite3")
+    blocked_state = None
     try:
-        ledger.transition(
-            row["application_id"],
-            "rejected",
-            {
-                "reason": reason,
-                "observation_sha256": observation.content_sha256,
-            },
-        )
+        application_state = ledger.current_state(row["application_id"])
+        try:
+            ledger.transition(
+                row["application_id"],
+                "rejected",
+                {
+                    "reason": reason,
+                    "observation_sha256": observation.content_sha256,
+                },
+            )
+        except InvalidTransition:
+            blocked_state = application_state
     finally:
         ledger.close()
+    if blocked_state is not None:
+        # A claimed/submitted row must retain its effect fence; skip it only for
+        # this wake so the queue can continue with independent applications.
+        _mark_wake_completed(row["application_id"])
+        await session.close_owned(cursor.handle)
+        return {
+            "status": "action_rejected",
+            "reason": "application_state_prevents_rejection",
+            "application_id": row["application_id"],
+            "application_state": blocked_state,
+            "observation_sha256": observation.content_sha256,
+            "instruction": "preserve the existing submission intent; do not submit or mark this row ineligible; continue with another row",
+        }
     wake_id = _path_env("JOB_SEARCH_BROWSER_OWNER_EVIDENCE").parent.name
     report_receipt = send_hourly_outcomes(
         database=_path_env("JOB_SEARCH_STATE_ROOT") / "telegram-outbox.sqlite3",
@@ -1026,7 +1116,13 @@ async def finalize() -> dict[str, Any]:
     """Fence one final click and classify only its fresh rendered result."""
     row, session, checkpoints, evidence, cursor, builder = await _context()
     before = await builder.build(cursor.handle)
-    routed = _routed_resume(row, f"{row['title']}\n{before.visible_text}")
+    try:
+        routed = _routed_resume(row, f"{row['title']}\n{before.visible_text}")
+    except ValueError as error:
+        if str(error) != "company_tailored_resume_required":
+            raise
+        return {"status": "action_rejected", "reason": "company_tailored_resume_required",
+                "instruction": "tailor and upload the current artifact before final Review"}
     resume_path = Path(routed["resume_path"])
     resume = await ResumeVerifier(session).verify(
         cursor.handle, before, resume_path, {}
@@ -1048,6 +1144,7 @@ async def finalize() -> dict[str, Any]:
             "company or role is absent from final review",
             "final review URL does not match the application",
             "final review requires exactly one visible Submit control",
+            "routed resume filename is absent from final review",
         }:
             raise
         return {
@@ -1133,10 +1230,16 @@ async def finalize() -> dict[str, Any]:
             cursor.handle.generation,
             after.content_sha256,
             (*prior, action_receipt.receipt_sha256),
-            0,
+            _wake_budget() if completion.outcome == 'not_submitted' else 0,
             after.url,
         )
     )
+    if completion.outcome == 'not_submitted':
+        return {'status': 'action_rejected', 'reason': 'provider_field_validation_rejection',
+                'application_id': row['application_id'], 'evidence_class': completion.evidence_class,
+                'evidence_sha256': completion.evidence_sha256,
+                'observation': _safe_observation(after, cursor.checkpoint, _wake_budget()),
+                'instruction': 'correct the fresh provider validation fields, then finalize; this row remains active'}
     await session.close_owned(cursor.handle)
     report_status = (
         "post_submit_verification"
@@ -1217,6 +1320,8 @@ def _run_main(argv: list[str] | None = None) -> int:
     type_text_parser.add_argument("--role", default="")
     type_text_parser.add_argument("--stable-id", default="")
     type_text_parser.add_argument("--text", required=True)
+    tailor_parser = subparsers.add_parser("tailor")
+    tailor_parser.add_argument("--sections-json", required=True)
     upload_parser = subparsers.add_parser("upload")
     upload_parser.add_argument("--label", required=True)
     upload_parser.add_argument("--role", default="")
@@ -1282,6 +1387,8 @@ def _run_main(argv: list[str] | None = None) -> int:
             stable_id=args.stable_id,
             text=args.text,
         )
+    elif args.command == "tailor":
+        operation = lambda: tailor_resume(args.sections_json)
     elif args.command == "upload":
         operation = lambda: upload_resume(
             label=args.label, role=args.role, stable_id=args.stable_id

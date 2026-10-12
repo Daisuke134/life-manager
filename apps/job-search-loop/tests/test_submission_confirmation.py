@@ -1,15 +1,25 @@
 import hashlib
 import json
+import stat
+import subprocess
 import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from job_search_loop.ledger import Ledger
+from job_search_loop.inbox import message_is_seen
+from job_search_loop.ledger import FenceError, Ledger
 from job_search_loop.state import InvalidTransition
 from job_search_loop.submission_confirmation import (
+    _bounded_official_posting_loader,
+    _confirmation_search_cursor_path,
+    _confirmation_search_query_sha256,
     _gmail_confirmation_threads,
+    _next_confirmation_page_token,
+    _read_search_page_token,
+    _write_search_page_token,
+    main,
     reconcile_confirmation_threads,
 )
 
@@ -25,6 +35,7 @@ class SubmissionConfirmationTests(unittest.TestCase):
             "https://jobs.ashbyhq.com/dream/"
             "agent-product-engineer/application"
         ),
+        outcome: str = "submit_unknown",
     ) -> tuple[Ledger, str, str]:
         ledger = Ledger(root / "ledger.sqlite3")
         application_id = ledger.add_application(
@@ -76,9 +87,9 @@ class SubmissionConfirmationTests(unittest.TestCase):
         ledger.complete_submission_verified(
             intent.intent_id,
             intent.fence,
-            outcome="submit_unknown",
+            outcome=outcome,
             evidence_sha256="e" * 64,
-            evidence_class="no_authoritative_completion_ui",
+            evidence_class="rendered_validation_rejection" if outcome == "not_submitted" else "no_authoritative_completion_ui",
         )
         return ledger, application_id, intent.intent_id
 
@@ -182,46 +193,139 @@ class SubmissionConfirmationTests(unittest.TestCase):
             )
             ledger.close()
 
-    def test_hpe_online_submission_confirmation_reconciles_once(self):
+    def test_summary_replays_exact_gmail_receipt_after_validation_rejection(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger, application_id, intent_id = self._unknown_submission(
+                root, outcome="not_submitted"
+            )
+            received_at = (
+                datetime.now(timezone.utc) + timedelta(minutes=1)
+            ).isoformat()
+            try:
+                self.assertEqual(
+                    ledger.reconcile_submission_confirmation(
+                        intent_id=intent_id,
+                        message_id="gmail-correction-message",
+                        thread_id="gmail-correction-thread",
+                        evidence_sha256="a" * 64,
+                        received_at=received_at,
+                    ),
+                    "reconciled",
+                )
+
+                rows = ledger.event_summary_rows()
+
+                self.assertEqual(len(rows), 1)
+                self.assertEqual(rows[0]["application_id"], application_id)
+                self.assertEqual(rows[0]["current_state"], "submitted")
+                self.assertTrue(rows[0]["ever_submitted"])
+            finally:
+                ledger.close()
+
+    def test_summary_requires_confirmation_sidecar_for_validation_correction(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger, _, intent_id = self._unknown_submission(
+                root, outcome="not_submitted"
+            )
+            received_at = (
+                datetime.now(timezone.utc) + timedelta(minutes=1)
+            ).isoformat()
+            try:
+                ledger.reconcile_submission_confirmation(
+                    intent_id=intent_id,
+                    message_id="gmail-unbound-message",
+                    thread_id="gmail-unbound-thread",
+                    evidence_sha256="b" * 64,
+                    received_at=received_at,
+                )
+                ledger.connection.execute(
+                    "DELETE FROM submission_confirmations WHERE intent_id = ?",
+                    (intent_id,),
+                )
+
+                with self.assertRaises(FenceError):
+                    ledger.event_summary_rows()
+            finally:
+                ledger.close()
+
+    def test_summary_rejects_confirmation_sidecar_bound_to_another_thread(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger, _, intent_id = self._unknown_submission(
+                root, outcome="not_submitted"
+            )
+            received_at = (
+                datetime.now(timezone.utc) + timedelta(minutes=1)
+            ).isoformat()
+            try:
+                ledger.reconcile_submission_confirmation(
+                    intent_id=intent_id,
+                    message_id="gmail-altered-sidecar-message",
+                    thread_id="gmail-original-thread",
+                    evidence_sha256="c" * 64,
+                    received_at=received_at,
+                )
+                ledger.connection.execute(
+                    "UPDATE submission_confirmations SET thread_id = ? WHERE intent_id = ?",
+                    ("gmail-altered-thread", intent_id),
+                )
+
+                with self.assertRaises(FenceError):
+                    ledger.event_summary_rows()
+            finally:
+                ledger.close()
+
+    def test_workday_tenant_receipt_uses_exact_official_brand_readback(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             ledger, application_id, _ = self._unknown_submission(
                 root,
-                company="Hewlett Packard Enterprise",
-                title="Service Engineer",
+                company="Northstar Group",
+                title="Business Account Manager",
                 url=(
-                    "https://hpe.wd1.myworkdayjobs.com/External/job/"
-                    "Service_Engineer"
+                    "https://northstar.wd5.myworkdayjobs.com/External/job/"
+                    "Business_Account_Manager"
                 ),
             )
             ledger.close()
             received = datetime.now(timezone.utc) + timedelta(minutes=1)
+            posting_readbacks = []
             payload = {
                 "thread": {
-                    "id": "gmail-hpe-thread",
+                    "id": "gmail-workday-brand-thread",
                     "messages": [
                         {
-                            "id": "gmail-hpe-message",
-                            "threadId": "gmail-hpe-thread",
+                            "id": "gmail-workday-brand-message",
+                            "threadId": "gmail-workday-brand-thread",
                             "internalDate": int(received.timestamp() * 1000),
                             "headers": {
-                                "from": "Hewlett Packard Enterprise <hpe@myworkday.com>",
+                                "from": "Workday Notifications <notifications@myworkday.com>",
                                 "to": "candidate@example.com",
-                                "subject": "Thank you for your online submission",
+                                "subject": "Workday application status update",
                             },
                             "body": (
-                                "Hewlett Packard Enterprise has received your "
-                                "application for Service Engineer."
+                                "Northstar Analytics K.K. の Business Account Manager "
+                                "の職務にご応募いただきありがとうございます。"
                             ),
                         }
                     ],
                 }
             }
             thread = {
-                "id": "gmail-hpe-thread",
-                "subject": "Thank you for your online submission",
-                "snippet": "Hewlett Packard Enterprise Service Engineer",
+                "id": "gmail-workday-brand-thread",
+                "from": "Workday Notifications <notifications@myworkday.com>",
+                "subject": "Workday application status update",
+                "snippet": "Northstar Analytics K.K. Business Account Manager",
             }
+
+            def load_posting(candidate):
+                posting_readbacks.append(candidate["company"])
+                return {
+                    "jobPostingInfo": {"title": "Business Account Manager"},
+                    "hiringOrganization": {"name": "Northstar Analytics K.K."},
+                }
 
             first = reconcile_confirmation_threads(
                 ledger_path=root / "ledger.sqlite3",
@@ -229,15 +333,17 @@ class SubmissionConfirmationTests(unittest.TestCase):
                 thread_loader=lambda _thread_id: payload,
                 seen_state=root / "inbox-seen.json",
                 expected_recipient="candidate@example.com",
+                official_posting_loader=load_posting,
             )
 
+            self.assertEqual(posting_readbacks, ["Northstar Group"])
             self.assertEqual(
                 first["reconciled"],
                 [
                     {
                         "application_id": application_id,
-                        "message_id": "gmail-hpe-message",
-                        "thread_id": "gmail-hpe-thread",
+                        "message_id": "gmail-workday-brand-message",
+                        "thread_id": "gmail-workday-brand-thread",
                         "status": "reconciled",
                     }
                 ],
@@ -276,18 +382,443 @@ class SubmissionConfirmationTests(unittest.TestCase):
             )
             reopened.close()
 
-    def test_gmail_confirmation_search_includes_online_submission_phrase(self):
-        completed = Mock(stdout=json.dumps({"threads": []}))
-        with patch(
-            "job_search_loop.submission_confirmation.subprocess.run",
-            return_value=completed,
-        ) as run:
-            self.assertEqual(
-                _gmail_confirmation_threads("candidate@example.com", "gog"), []
+    def test_unrelated_workday_mail_with_generic_subject_does_not_promote(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger, application_id, _ = self._unknown_submission(
+                root,
+                company="Hewlett Packard Enterprise",
+                title="Service Engineer",
+                url=(
+                    "https://hpe.wd1.myworkdayjobs.com/External/job/"
+                    "Service_Engineer"
+                ),
+            )
+            ledger.close()
+            received = datetime.now(timezone.utc) + timedelta(minutes=1)
+            payload = {
+                "thread": {
+                    "id": "gmail-hpe-unrelated-thread",
+                    "messages": [
+                        {
+                            "id": "gmail-hpe-unrelated-message",
+                            "threadId": "gmail-hpe-unrelated-thread",
+                            "internalDate": int(received.timestamp() * 1000),
+                            "headers": {
+                                "from": "Hewlett Packard Enterprise <hpe@myworkday.com>",
+                                "to": "candidate@example.com",
+                                "subject": "Workday application status update",
+                            },
+                            "body": (
+                                "Thank you for your interest in "
+                                "Hewlett Packard Enterprise."
+                            ),
+                        }
+                    ],
+                }
+            }
+            result = reconcile_confirmation_threads(
+                ledger_path=root / "ledger.sqlite3",
+                threads=[{
+                    "id": "gmail-hpe-unrelated-thread",
+                    "from": "Hewlett Packard Enterprise <hpe@myworkday.com>",
+                    "subject": "Workday application status update",
+                    "snippet": (
+                        "Thank you for your interest in "
+                        "Hewlett Packard Enterprise."
+                    ),
+                }],
+                thread_loader=lambda _thread_id: payload,
+                seen_state=root / "inbox-seen.json",
+                expected_recipient="candidate@example.com",
             )
 
-        query = run.call_args.args[0][-1]
+            self.assertEqual(result["reconciled"], [])
+            reopened = Ledger(root / "ledger.sqlite3")
+            self.assertEqual(
+                reopened.connection.execute(
+                    "SELECT current_state FROM applications WHERE id = ?",
+                    (application_id,),
+                ).fetchone()[0],
+                "submit_unknown",
+            )
+            self.assertEqual(
+                reopened.connection.execute(
+                    "SELECT COUNT(*) FROM submission_confirmations"
+                ).fetchone()[0],
+                0,
+            )
+            reopened.close()
+
+    def test_gmail_confirmation_search_includes_online_submission_phrase(self):
+        first_page = Mock(stdout=json.dumps({
+            "threads": [{"id": "gmail-page-one"}],
+            "nextPageToken": "opaque-next-page",
+        }))
+        second_page = Mock(stdout=json.dumps({"threads": [{"id": "gmail-page-two"}]}))
+        with patch(
+            "job_search_loop.submission_confirmation.subprocess.run",
+            side_effect=[first_page, second_page],
+        ) as run:
+            first_threads, next_page, fetched_page = _gmail_confirmation_threads(
+                "candidate@example.com", "gog"
+            )
+            second_threads, final_page, fetched_backlog_page = _gmail_confirmation_threads(
+                "candidate@example.com", "gog", page_token=next_page
+            )
+
+        self.assertEqual(first_threads, [{"id": "gmail-page-one"}])
+        self.assertEqual(next_page, "opaque-next-page")
+        self.assertIsNone(fetched_page)
+        self.assertEqual(second_threads, [{"id": "gmail-page-two"}])
+        self.assertIsNone(final_page)
+        self.assertEqual(fetched_backlog_page, "opaque-next-page")
+
+        first_args = run.call_args_list[0].args[0]
+        first_query = first_args[-1]
+        self.assertIn("--max", first_args)
+        self.assertEqual(first_args[first_args.index("--max") + 1], "5")
+        self.assertNotIn("--all", first_args)
+        self.assertFalse(any(arg.startswith("--page=") for arg in first_args))
+        second_args = run.call_args_list[1].args[0]
+        self.assertIn("--page=opaque-next-page", second_args)
+        query = first_query
         self.assertIn('"thank you for your online submission"', query)
+        self.assertIn("from:myworkday.com", query)
+        self.assertIn("from:myworkdayjobs.com", query)
+
+    def test_expired_gmail_page_token_restarts_at_newest_page(self):
+        second = Mock(stdout=json.dumps({
+            "threads": [{"id": "gmail-page-one"}],
+            "nextPageToken": "page-two",
+        }))
+        with patch(
+            "job_search_loop.submission_confirmation.subprocess.run",
+            side_effect=[subprocess.CalledProcessError(3, "gog"), second],
+        ) as run:
+            threads, next_page, fetched_page = _gmail_confirmation_threads(
+                "candidate@example.com", "gog", page_token="expired-page"
+            )
+
+        self.assertEqual(threads, [{"id": "gmail-page-one"}])
+        self.assertEqual(next_page, "page-two")
+        self.assertIsNone(fetched_page)
+        self.assertIn("--page=expired-page", run.call_args_list[0].args[0])
+        self.assertNotIn("--page=expired-page", run.call_args_list[1].args[0])
+
+    def test_search_page_token_is_private_and_bound_to_query(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "submission-confirmation-page.json"
+            query_hash = "a" * 64
+
+            _write_search_page_token(path, query_hash, "opaque-page-token")
+
+            self.assertEqual(_read_search_page_token(path, query_hash), "opaque-page-token")
+            self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
+            self.assertIsNone(_read_search_page_token(path, "b" * 64))
+
+            _write_search_page_token(path, query_hash, None)
+            self.assertIsNone(_read_search_page_token(path, query_hash))
+
+    def test_retryable_backlog_readback_failure_retains_effective_page(self):
+        result = {
+            "reconciled": [{"status": "reconciled", "message_id": "already-saved"}],
+            "blocked": [
+                {"status": "gmail_thread_readback_failed"},
+                {"status": "official_posting_readback_unavailable"},
+                {"status": "no_exact_uncertain_application"},
+            ]
+        }
+
+        self.assertEqual(
+            _next_confirmation_page_token(
+                next_page_token="page-three",
+                newest_next_page_token="page-two",
+                fetched_page_token="page-two",
+                result=result,
+            ),
+            "page-two",
+        )
+
+    def test_expired_backlog_token_failure_retries_newest_backlog_page(self):
+        self.assertEqual(
+            _next_confirmation_page_token(
+                next_page_token="page-two",
+                newest_next_page_token="page-two",
+                fetched_page_token=None,
+                result={"blocked": [{"status": "gmail_thread_readback_failed"}]},
+            ),
+            "page-two",
+        )
+
+    def test_terminal_ambiguous_match_does_not_stall_backlog_cursor(self):
+        self.assertEqual(
+            _next_confirmation_page_token(
+                next_page_token="page-three",
+                newest_next_page_token="page-two",
+                fetched_page_token="page-two",
+                result={"blocked": [{"status": "ambiguous_application_match"}]},
+            ),
+            "page-three",
+        )
+
+    def test_deterministic_readback_budget_deferral_advances_backlog_cursor(self):
+        self.assertEqual(
+            _next_confirmation_page_token(
+                next_page_token="page-three",
+                newest_next_page_token="page-two",
+                fetched_page_token="page-two",
+                result={
+                    "blocked": [
+                        {"status": "official_posting_readback_budget_exhausted"}
+                    ]
+                },
+            ),
+            "page-three",
+        )
+
+    def test_main_keeps_backlog_cursor_when_that_page_has_readback_failure(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            seen_path = root / "inbox-seen.json"
+            cursor_path = _confirmation_search_cursor_path(seen_path)
+            query_hash = _confirmation_search_query_sha256()
+            _write_search_page_token(cursor_path, query_hash, "page-two")
+
+            def search(_account, _gog, *, page_token=None):
+                if page_token:
+                    return ([{"id": "backlog-thread"}], "page-three", page_token)
+                return ([{"id": "recent-thread"}], "page-two", None)
+
+            page_results = [
+                {"checked_threads": 1, "reconciled": [], "blocked": []},
+                {
+                    "checked_threads": 2,
+                    "reconciled": [{"message_id": "already-confirmed"}],
+                    "blocked": [
+                        {
+                            "thread_id": "unavailable-thread",
+                            "status": "gmail_thread_readback_failed",
+                        }
+                    ],
+                },
+            ]
+
+            with (
+                patch("sys.argv", [
+                    "submission_confirmation",
+                    "reconcile",
+                    "--account",
+                    "candidate@example.com",
+                    "--ledger",
+                    str(root / "ledger.sqlite3"),
+                    "--seen",
+                    str(seen_path),
+                    "--output",
+                    str(root / "evidence.json"),
+                ]),
+                patch(
+                    "job_search_loop.submission_confirmation._gmail_confirmation_threads",
+                    side_effect=search,
+                ),
+                patch(
+                    "job_search_loop.submission_confirmation.reconcile_confirmation_threads",
+                    side_effect=page_results,
+                ),
+            ):
+                main()
+
+            self.assertEqual(
+                _read_search_page_token(cursor_path, query_hash), "page-two"
+            )
+            evidence = json.loads((root / "evidence.json").read_text())
+            self.assertEqual(
+                evidence["reconciled"], [{"message_id": "already-confirmed"}]
+            )
+            self.assertEqual(
+                evidence["blocked"][0]["status"], "gmail_thread_readback_failed"
+            )
+
+    def test_workday_posting_readbacks_are_bounded_and_cached(self):
+        fetched = []
+
+        def fetch(url, _sources):
+            fetched.append(url)
+            return {"url": url}
+
+        load = _bounded_official_posting_loader(
+            (), fetch, readback_limit=2
+        )
+        first = {"canonical_url": "https://one.wd5.myworkdayjobs.com/job/1"}
+        second = {"canonical_url": "https://two.wd5.myworkdayjobs.com/job/2"}
+        third = {"canonical_url": "https://three.wd5.myworkdayjobs.com/job/3"}
+
+        self.assertEqual(load(first), {"url": first["canonical_url"]})
+        self.assertEqual(load(first), {"url": first["canonical_url"]})
+        self.assertEqual(load(second), {"url": second["canonical_url"]})
+        with self.assertRaisesRegex(ValueError, "readback_budget_exhausted"):
+            load(third)
+        self.assertEqual(fetched, [first["canonical_url"], second["canonical_url"]])
+
+    def test_posting_budget_exhaustion_leaves_fifth_receipt_for_next_pass(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            app_ids = []
+            threads = []
+            payloads = {}
+            received = datetime.now(timezone.utc) + timedelta(minutes=1)
+            for index in range(5):
+                title = f"Role {index}"
+                ledger, application_id, _ = self._unknown_submission(
+                    root,
+                    company=f"Parent Company {index}",
+                    title=title,
+                    url=(
+                        "https://tenant"
+                        f"{index}.wd5.myworkdayjobs.com/External/job/Role_{index}"
+                    ),
+                )
+                ledger.close()
+                app_ids.append(application_id)
+                thread_id = f"workday-thread-{index}"
+                threads.append(
+                    {
+                        "id": thread_id,
+                        "from": "notifications@myworkdayjobs.com",
+                        "subject": "Thank you for applying",
+                    }
+                )
+                payloads[thread_id] = {
+                    "thread": {
+                        "messages": [
+                            {
+                                "id": f"workday-message-{index}",
+                                "threadId": thread_id,
+                                "internalDate": int(received.timestamp() * 1000),
+                                "headers": {
+                                    "from": "notifications@myworkdayjobs.com",
+                                    "to": "candidate@example.com",
+                                    "subject": "Thank you for applying",
+                                },
+                                "body": (
+                                    f"Hiring Brand {index} の {title} の職務に"
+                                    "ご応募いただきました"
+                                ),
+                            }
+                        ]
+                    }
+                }
+
+            def fetch_posting(url, _sources):
+                index = next(i for i in range(5) if f"tenant{i}." in url)
+                return {
+                    "jobPostingInfo": {
+                        "title": f"Role {index}",
+                        "logoImage": {"alt": f"Hiring Brand {index} logo"},
+                    },
+                    "hiringOrganization": {"name": f"Hiring Brand {index}"},
+                }
+
+            seen_path = root / "inbox-seen.json"
+            cursor_path = _confirmation_search_cursor_path(seen_path)
+            query_hash = _confirmation_search_query_sha256()
+            _write_search_page_token(cursor_path, query_hash, "page-two")
+
+            def search(_account, _gog, *, page_token=None):
+                if page_token is None:
+                    return ([], "page-two", None)
+                if page_token == "page-two":
+                    return (threads, "page-three", page_token)
+                if page_token == "page-three":
+                    return ([], None, page_token)
+                raise AssertionError(f"unexpected Gmail page token: {page_token}")
+
+            argv = [
+                "submission_confirmation",
+                "reconcile",
+                "--account",
+                "candidate@example.com",
+                "--ledger",
+                str(root / "ledger.sqlite3"),
+                "--seen",
+                str(seen_path),
+                "--output",
+                str(root / "evidence.json"),
+            ]
+
+            def run_main():
+                with (
+                    patch("sys.argv", argv),
+                    patch(
+                        "job_search_loop.submission_confirmation._gmail_confirmation_threads",
+                        side_effect=search,
+                    ),
+                    patch(
+                        "job_search_loop.submission_confirmation._gmail_thread",
+                        side_effect=lambda _account, thread_id, _gog: payloads[
+                            thread_id
+                        ],
+                    ),
+                    patch(
+                        "job_search_loop.workday_qualification.fetch_official_posting",
+                        side_effect=fetch_posting,
+                    ),
+                ):
+                    main()
+                return json.loads((root / "evidence.json").read_text())
+
+            first_pass = run_main()
+            self.assertEqual(
+                [row["application_id"] for row in first_pass["reconciled"]],
+                app_ids[:4],
+            )
+            self.assertEqual(
+                first_pass["blocked"][0]["status"],
+                "official_posting_readback_budget_exhausted",
+            )
+            self.assertEqual(
+                _read_search_page_token(cursor_path, query_hash), "page-three"
+            )
+            for index in range(5):
+                self.assertEqual(
+                    message_is_seen(
+                        seen_path,
+                        message_id=f"workday-message-{index}",
+                        thread_id=f"workday-thread-{index}",
+                        received_epoch=received.timestamp(),
+                    ),
+                    index < 4,
+                )
+
+            run_main()  # Scan the end of the result set and wrap to page two.
+            self.assertEqual(
+                _read_search_page_token(cursor_path, query_hash), "page-two"
+            )
+            third_pass = run_main()
+            self.assertEqual(
+                [row["application_id"] for row in third_pass["reconciled"]],
+                [app_ids[4]],
+            )
+            self.assertTrue(
+                message_is_seen(
+                    seen_path,
+                    message_id="workday-message-4",
+                    thread_id="workday-thread-4",
+                    received_epoch=received.timestamp(),
+                )
+            )
+
+            run_main()  # Wrap once more; the receipt must remain idempotent.
+            replay = run_main()
+            self.assertEqual(replay["reconciled"], [])
+            ledger = Ledger(root / "ledger.sqlite3")
+            self.assertEqual(
+                ledger.connection.execute(
+                    "SELECT COUNT(*) FROM submission_confirmations"
+                ).fetchone()[0],
+                5,
+            )
+            ledger.close()
 
     def test_generic_transition_cannot_bypass_confirmation_receipt(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -482,6 +1013,58 @@ class SubmissionConfirmationTests(unittest.TestCase):
             )
 
             self.assertEqual(result["reconciled"][0]["application_id"], application_id)
+
+    def test_thread_readback_timeout_does_not_block_later_receipt(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger, application_id, _ = self._unknown_submission(root)
+            ledger.close()
+            received = datetime.now(timezone.utc) + timedelta(minutes=1)
+            payload = {"thread": {"messages": [{
+                "id": "gmail-after-timeout",
+                "threadId": "thread-after-timeout",
+                "internalDate": int(received.timestamp() * 1000),
+                "headers": {
+                    "from": "Dream AI <notifications@ashbyhq.com>",
+                    "to": "candidate@example.com",
+                    "subject": "Thank you for applying",
+                },
+                "body": (
+                    "Thank you for applying to Agent Product Engineer "
+                    "at Dream AI."
+                ),
+            }]}}
+
+            def load_thread(thread_id):
+                if thread_id == "thread-times-out":
+                    raise subprocess.TimeoutExpired("gog", 15)
+                return payload
+
+            result = reconcile_confirmation_threads(
+                ledger_path=root / "ledger.sqlite3",
+                threads=[
+                    {
+                        "id": "thread-times-out",
+                        "from": "Dream AI <notifications@ashbyhq.com>",
+                        "subject": "Application received",
+                    },
+                    {
+                        "id": "thread-after-timeout",
+                        "from": "Dream AI <notifications@ashbyhq.com>",
+                        "subject": "Thank you for applying",
+                    },
+                ],
+                thread_loader=load_thread,
+                seen_state=root / "inbox-seen.json",
+                expected_recipient="candidate@example.com",
+            )
+
+            self.assertEqual(
+                [row["application_id"] for row in result["reconciled"]],
+                [application_id],
+            )
+            self.assertEqual(result["blocked"][0]["thread_id"], "thread-times-out")
+            self.assertEqual(result["blocked"][0]["status"], "gmail_thread_readback_failed")
 
     def test_ambiguous_company_and_role_match_fails_closed(self):
         with tempfile.TemporaryDirectory() as directory:
