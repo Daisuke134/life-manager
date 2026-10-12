@@ -1,6 +1,10 @@
 import os
 import sys
 import unittest
+from contextlib import redirect_stdout
+from io import StringIO
+from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import effect_reconcile as er  # noqa: E402
@@ -16,8 +20,8 @@ def fake_get(orders_after, open_orders):
     def get(path):
         calls.append(path)
         if "status=open" in path:
-            return open_orders
-        return orders_after
+            return {"data": open_orders, "request_id": "open-request"}
+        return {"data": orders_after, "request_id": "after-request"}
     get.calls = calls
     return get
 
@@ -37,9 +41,67 @@ class BuildProofTest(unittest.TestCase):
         self.assertIs(proof["verified"], True)
         self.assertEqual(proof["owner_id"], OWNER)
         self.assertEqual(proof["occurrence_id"], OCC)
-        self.assertEqual(proof["provider_receipt_id"], "alpaca-orders-none-after-" + QUEUED)
+        self.assertEqual(proof["provider_receipt_id"], "after-request")
+        self.assertEqual(proof["provider_request_ids"], ["after-request", "open-request"])
         self.assertIn("after=" + QUEUED, get.calls[0])
         self.assertIn("status=all", get.calls[0])
+
+    def test_no_order_proof_uses_provider_request_ids(self):
+        responses = iter((
+            {"data": [], "request_id": "after-request-1"},
+            {"data": [], "request_id": "open-request-2"},
+        ))
+        proof = er.build_proof(OWNER, OCC, QUEUED, lambda _path: next(responses))
+
+        self.assertIs(proof["verified"], True)
+        self.assertEqual(proof["provider_receipt_id"], "after-request-1")
+        self.assertEqual(proof["provider_request_ids"], ["after-request-1", "open-request-2"])
+
+    def test_missing_provider_request_id_keeps_no_order_unverified(self):
+        responses = iter((
+            {"data": [], "request_id": "after-request-1"},
+            {"data": [], "request_id": " "},
+        ))
+        proof = er.build_proof(OWNER, OCC, QUEUED, lambda _path: next(responses))
+
+        self.assertIs(proof["verified"], False)
+        self.assertEqual(proof["reason"], "provider_request_id_missing")
+
+    def test_alpaca_get_preserves_provider_request_id_header(self):
+        response = MagicMock()
+        response.headers = {"X-Request-ID": "provider-request-1"}
+        response.__enter__.return_value = response
+        with (patch("alpaca_cli._credentials", return_value={"api_key": "key", "api_secret": "secret"}),
+              patch.object(er.urllib.request, "urlopen", return_value=response),
+              patch.object(er.json, "load", return_value=[])):
+            result = er.alpaca_get(Path("/private/credentials.json"), "paper")("/orders")
+
+        self.assertEqual(result, {"data": [], "request_id": "provider-request-1"})
+
+    def test_fence_resolution_requests_a_fresh_provider_proof(self):
+        proof = {
+            "owner_id": OWNER, "occurrence_id": OCC, "queued_at": QUEUED,
+            "verified": True, "provider_receipt_id": "provider-request-1",
+        }
+
+        def resolve(_owner, _occurrence, *, official_readback, expected_state):
+            self.assertEqual(expected_state, "claimed")
+            before = build.call_count
+            self.assertIs(official_readback()["verified"], True)
+            self.assertEqual(build.call_count, before + 1)
+            return True
+
+        with (patch.object(er, "fenced_row", return_value=("claimed", QUEUED)),
+              patch.object(er, "alpaca_get", return_value=lambda _path: []),
+              patch.object(er, "build_proof", return_value=proof) as build,
+              patch("runtime.host.resource_admission.resolve_unknown_occurrence", side_effect=resolve),
+              redirect_stdout(StringIO())):
+            result = er.main([
+                "--occurrence-id", OCC, "--mode", "paper",
+                "--credentials", "/private/credentials.json",
+            ])
+
+        self.assertEqual(result, 0)
 
     def test_any_order_after_queue_is_not_verified(self):
         proof = er.build_proof(OWNER, OCC, QUEUED, fake_get([{"id": "o1"}], []))
