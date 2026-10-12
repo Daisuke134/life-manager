@@ -111,10 +111,12 @@ allow-listed regenerable artifact after an open-path probe confirms
 ```
 
 The 60-second `com.anicca.disk-watchdog` is the sole `HostDiskGovernor` owner.
-The stable wrapper sets child-only `LIFE_MANAGER_DISK_INVENTORY_FAST=1`, so an
-incomplete full census cannot make every minute repeat heavy size probes.
-Deletion proof, protected paths, singleton locking and receipt coverage are
-unchanged; missing sizes remain unknown.
+Minute sweeps use fast inventory; when the one-hour inventory interval expires,
+the governor runs one bounded full census. It records the attempt first, so an
+incomplete census does not repeat heavy probes on every minute wake. If the
+attempt marker cannot be persisted, that wake falls back to fast inventory and
+records the scheduling error. Missing sizes remain unknown and never expand
+deletion authorization.
 The 5-minute `ai.anicca.life-manager-disk-cleanup` performs release/Git/Codex
 and managed scratch maintenance, but never invokes the host sweeper. This keeps
 it from holding the watchdog's singleton lock and making a minute pass exit 75.

@@ -2,8 +2,7 @@
 set -eu
 
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-# The managed five-minute owner retains the full census; keep this hot pass light.
-export LIFE_MANAGER_DISK_INVENTORY_FAST=1
+# HostDiskGovernor keeps minute sweeps fast and runs a bounded full census when due.
 RELEASE_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
 GOVERNOR="$RELEASE_ROOT/skills/self/disk-cleanup/disk_cleanup.py"
 STATE_DIR="$HOME/.local/state/life-manager/state"

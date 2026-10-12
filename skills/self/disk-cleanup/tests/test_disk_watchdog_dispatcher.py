@@ -66,10 +66,11 @@ def test_watchdog_dispatches_to_governor_without_touching_worktrees_or_simulator
         "CAPTURE_ARGS": str(capture),
         "CAPTURE_FAST": str(tmp_path / "fast.txt"),
     }
+    env.pop("LIFE_MANAGER_DISK_INVENTORY_FAST", None)
 
     subprocess.run(["/bin/sh", str(release / "bin/disk-watchdog.sh")], env=env, check=True)
 
-    assert (tmp_path / "fast.txt").read_text().strip() == "1"
+    assert (tmp_path / "fast.txt").read_text().strip() == ""
     captured = capture.read_text(encoding="utf-8").splitlines()
     assert captured[:2] == ["-B", "-c"]
     assert captured[-3:] == [
@@ -143,7 +144,7 @@ def test_watchdog_pins_release_and_bounds_stdio_without_blocking_recovery(
     assert json.loads(marker.read_text()) == {
         "release": str(release),
         "args": ["--home", str(home), "--state-dir", str(home / ".local/state/life-manager/state")],
-        "fast": "1",
+        "fast": None,
     }
     for stream in ("out", "err"):
         assert (logs / f"watchdog.{stream}.log").read_text() == f"legacy-{stream}\n"
