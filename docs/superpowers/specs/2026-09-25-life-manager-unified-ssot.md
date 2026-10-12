@@ -246,7 +246,7 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 | H04 | 自己修復の一連の因果を証明する | 外部Codexの手動修正やsupervisor単独PASSをLM自身の修復としない |
 | E01 | selfEvalの欠測net→0をfail-closedへ修復 | unknown/不正金額がDEAD/利益/ゼロへ誤変換されないRED/GREEN |
 | E02 | recovery/economic evalを自然障害とCFOの公式receiptへ接続 | task success/effect integrity/settled net/cost/latency/介入を別採点 |
-| E03 | LM-EABの自然失敗・境界・実経済task familyを増やす | 権利/匿名化/PII除去。現在4 synthetic casesは契約の足場、実性能ではない |
+| E03 | LM-EABの自然失敗・境界・実経済task familyを増やす | missing-cost-coverageのsynthetic/derived tuning回帰をsource検証。5 cases（tuning3/held-out2）は契約の足場、実性能ではない。自然trace/実経済familyは未完 |
 | E04 | case/runner/grader/baselineをversion/hashで凍結 | public/dev/held-out/challenge分離、grader較正/複数trial/不確かさ/汚染監査 |
 | E05 | 既存runnerへ他harness adapterを接続し外部再現を確認 | 新framework先行導入なし、独立実行で同versionの結果を再現 |
 | E06 | benchmark報告・task作成方法・限界を公開 | 現在cursor: docs/evals/lm-economic-autonomy.mdの既存runner再現案内とREADME導線。fixtureのmodel/日時/receiptは合成metadataと明示。全benchmark報告/先行研究比較は残件、世界初/leadingを未実証で主張しない |
@@ -264,7 +264,9 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 | O03 | 外部利用者の再現・benchmark・限界・貢献方法を公開 | one-shot onboarding以後の介入を測る。誰でも百万長者を保証しない |
 | G01 | 各laneの原収益目標と会社全体US$10M/月へ継続改善 | active recurring契約/公式settlement/refund/fee/実費、全scopeを維持 |
 
-**Coconalaの公式売上源:** https://coconala.com/smartphone/users/revenue はログインが必要で、今回public crawlではlogin画面まで。金額は未確認。公式案内 https://coconala.com/pages/guide_sell と https://help.coconala.com/hc/ja/articles/218179958-売上金の反映されるタイミング では、購入者決済はcloseまで預かり、close後に売上反映、販売手数料控除、payout/銀行振込は別段階。M01–05で他契約platformもそれぞれの公式売上/fee/refund/payoutを同案件ID・periodへjoinする。既存skills/cfo/adapters/marketplace.pyはpayment/fee/refund/payout_match/pending receipt対応、aggregate-onlyはgapなので再実装せず公式捕捉とjoinを埋める。LM-EABはapps/life-manager/eval/economic-autonomyにrecords/score/runnerと4 cases（tuning2/held-out2）まで存在、H/E/I/N/O/Gの実成果は未完。
+**E03限定atom（source検証済み、統合前）:** marketplaceのgross/lifetime観測にfee/model/systemの完全実費がない問題クラスから、`missing-cost-coverage`を匿名のsynthetic/derived fixtureへ残す。既存schema/runner/scorerを使い、仮のverified one-time収入1,000,000 minorと`model`/`platform_fee`/`operating` coverage欠落で費用gateだけを隔離する。コーパス未収載のRED1→追加後の既存LM-EAB検証42/42と5-score runner（`npm run test:economic-autonomy`）はPASS、`eligible=false`/`self_funded=false`/reason=`cost_coverage_incomplete`。既存4ケースとsplitを保持し、fixture SHA-256=`948c9931425ae038036aa31348904095c3e660f28b0e143470b81a0efacf19be`、corpus SHA-256=`17416c141601a54d991a86d5ada8ad0cd2e2faf4e67f7aa1115fcd251cfa1026`、hash/決定性/`git diff --check`はPASS。正の`settled_net_profit_minor`と`total_cost_minor=0`は記録の算術診断で、費用欠測を実利益/実費ゼロへ置換しない。実providerデータ/credential/PIIを含めず、自然失敗の原trace捕捉、gross/lifetimeのsettlement/period帰属、実経済task family、独立held-out protocol、代表性/実性能は未完。採点policyと既存held-outを変更せず、次手はprimaryによるこの限定source atomのPR/source受入。
+
+**Coconalaの公式売上源:** https://coconala.com/smartphone/users/revenue はログインが必要で、今回public crawlではlogin画面まで。金額は未確認。公式案内 https://coconala.com/pages/guide_sell と https://help.coconala.com/hc/ja/articles/218179958-売上金の反映されるタイミング では、購入者決済はcloseまで預かり、close後に売上反映、販売手数料控除、payout/銀行振込は別段階。M01–05で他契約platformもそれぞれの公式売上/fee/refund/payoutを同案件ID・periodへjoinする。既存skills/cfo/adapters/marketplace.pyはpayment/fee/refund/payout_match/pending receipt対応、aggregate-onlyはgapなので再実装せず公式捕捉とjoinを埋める。LM-EABはapps/life-manager/eval/economic-autonomyにrecords/score/runnerと5 synthetic cases（tuning3/held-out2）まで存在、missing-cost-coverageは合成の費用欠測回帰でありH/E/I/N/O/Gの実成果は未完。
 
 ### 基盤だけのatomic TODO（現在の実行表）
 
