@@ -30,7 +30,7 @@ primaryは全体TODO/SSOT/共有cleanupとreleaseの統括・acceptance・integr
 
 **全体architectureの判断とAs-Is/To-Be:** 18 agentは18業務capabilityであり、190の小さいjobがそれぞれのcadenceで実装する。最善の進め方は既存のdurable state/effect/receiptと、常時監督＋有限worker＋優先度/経過時間を扱うadmissionを土台に、実資源・業務進行から配分を調整することである。FIFOは同優先度の順序補助として使え、先頭の不適合/古い予約が全業務を止めるgateにしない。固定2/5/10は現設定であり、達成目標や永久の適正値ではない。開始時刻/時差/周期の分散はburstを減らすが、仕事の長期化/再試行/保存先共有があるため衝突や容量問題が無い証明にならない。
 
-As-Isはmain由来immutable release＋Mac launchd/private state。PR #7774はmainへ統合済み（merge `6a9e49c9`）。現行`~/loops/current`と両cleanup labelはまだrelease `e91b1087`。60秒watchdogはStartInterval=60でruns18/last exit0、5分ownerのlast exitは75。06:17Zには5分ownerの`disk_cleanup.py` PID22494が共有lockを保持中にwatchdogがexit75し、コード上75はlock busy分岐のみ。source修正のruntime採用・lock非競合・容量writer停止は未確認。
+As-Isはmain由来immutable release＋Mac launchd/private state。main/currentは`66f04769`（release `20261012T154730-66f04769`）。60秒watchdogと5分中央ownerのloaded argvは同release、watchdogはStartInterval=60/ThrottleInterval=60・runs2/last exit0、中央ownerはruns1/last exit0。15日legacy system labelはreadbackでservice not found。06:50:27Z/06:51:40Zのwatchdog receiptsはerrors0/protected_deletions0/reclaimed6,414/6,415 bytes。source/runtimeの重複host sweepを除いたが、容量増加sourceは未特定で、長期のENOSPC停止防止は未証明。
 
 To-Beは各agentがobserve→decide→act→official verify→persist→自分の不要物cleanup→次の仕事を、必要なcadence/期限で継続すること。独立する業務は並列に進み、同じidentity/投稿/決済/注文はlockとidempotencyで保護する。不明な効果は照合の仕事を継続し、独立する観測・他仕事まで無理由に永久停止させない。監督・中央cleanup・復旧は収益workerの混雑に巻き込まれず、stale owner/予約、実資源不足、provider制約を別々に診断し、自己所有修復→自然再開まで行う。正式state/receiptの成長は内容を保持した既存native管理と容量/保存先計画で扱う。最終のcloud/control plane・disposable computeは既存cloud節に従い、現時点で導入済みとはしない。外部審査/quota/障害を含む有限systemに永久ゼロ待機・ゼロ故障を保証せず、仕事の継続・障害の封じ込め・自動回復・公式収益で受け入れる。全面作り直し、FIFO一律撤去、任意の100枠化は現在の先頭taskにしない。
 
@@ -46,7 +46,7 @@ To-Beは各agentがobserve→decide→act→official verify→persist→自分�
 
 **不変条件:** iOS Simulator runtime/image/device/data/dyld、memory/state、credentials、browser identity、参照release、active/dirty/unmerged/leased/locked worktree、open/unknown dataを削除しない。各agentは自分が生成し所有する非authoritative scratchだけを片付け、中央cleanupは残ったclosed/orphaned artifactと証明済みの不要物を回収する。他agentの作業や正式receiptを消さない。effect_unknownはexact official receipt/pre-effect proofまで解除・再送しない。内部の余白・時間・byte予算は安全な制御に使い、空き容量の固定値を事業再開の条件にしない。
 
-**現在cursor:** latest mainは`6a9e49c9370fbba34ba70280c4faddf45367062b`（PR #7774統合済み）。current releaseはまだ`e91b1087`で、release-reconciler PID78448がrun中。次はその自然収束後、latest-main releaseに中央 sweep removalを採用し、central 5分owner/15日legacy ownerのloaded argv/SHAとwatchdogの自然終端を照合する。その後、lock busy exit75がなくなることと容量growthのPID/path/bytesを結ぶ。空き容量値をKPIにせず、資源起因のstop再発防止は未完。
+**現在cursor:** source PR #7774はmainへ統合され、main-derived release `66f04769`に中央maintenance-only/legacy delegation-onlyがloadedした。watchdog 2回と中央owner 1回はexit0、最後のwatchdog receiptsはerrors0/protected0。次は自然反復でlock busy exit75が消えること、容量増加sourceをPID/path/time-windowで結ぶこと、producer retention/自己掃除を直してENOSPCによるstopをなくすこと。capacity数値はKPIにしない。共有資源の再発防止が確認できたら18 capabilityをowner重複なしで一件ずつ、依存のないlaneだけ小さく並行化する。
 
 **次の順序:** cleanupの自然反復と容量増加源の相関を確認 → 実行枠/再開の実状態を照合 → 各業務agentはownerと既存TODOを維持して一件ずつ修復・公式readback → settled revenueと費用を確認 → 18業務の公式receiptに基づくLM-EAB評価・benchmark・自己修復/改善 → OSS起動導線と会社全体US$10M/月の継続運用。共有基盤が未完でも、独立した読み取りと既存ownerの安全な仕事は止めない。
 
@@ -229,11 +229,11 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 
 起動packetの資格情報確認手順は → ~/.config/ai/core.md「No-human-loop（既定）」を参照。docs/superpowers/dispatch/2026-10-12/*.md全件へ参照を同期し、secret値は含めない。
 
-現在地（2026-10-12 15:36 JST fresh readback）: cleanup single-sweep PR #7774はmain `6a9e49c9`にmerge済み。current releaseはmerge前の`e91b1087`、release-reconciler PID78448が自然run中。watchdogはrelease e91bでStartInterval60/runs18/last exit0、5分cleanup ownerは同releaseでlast exit75。06:17Zにcentral ownerのdisk_cleanup PID22494が共有lockを保持し、watchdogの同窓exit75を特定。sourceで中央5分と15日legacy host sweepを外したが、まだruntime採用されていない。Codex rootsのfull inventory/growth ownerは未確定。ENOSPC・resource stopの再発防止は未達。
+現在地（2026-10-12 15:52 JST fresh readback）: PR #7774はmain統合済み、current release `66f04769`で中央5分ownerはHostDiskGovernorを呼ばないsourceをloadedし、15日legacy system serviceは不在。watchdogはrelease66fのStartInterval60/Throttle60、runs2/last exit0。中央ownerはruns1/last exit0。watchdogの06:50:27Z/06:51:40Z receiptsはreclaimed6,414/6,415, errors0/protected_deletions0、同時dfは約0.53 GiB。host sweep同時lock collisionのsource修正はruntime adoptedだが、Codex rootsのgrowth ownerはunattributedのまま。ENOSPC再発を含む基盤Doneは未達。EAB/Evo production evaluatorも未完。
 
 順序変更: 旧=全18業務/収益laneの受入後にS15→S16→S17→S18。新=既存基盤修正の本番採用→18業務の修復と公式会計を並行→必要な自然障害/公式receiptが揃った範囲で自己修復・評価・benchmark→凍結評価器で自己改善→新agent factory→portable OSS/外部再現→継続収益拡大。理由: 未達MRR・外部審査・将来slotを自己修復や既存商品の販売開始の前提にすると無期限待機になる。依存のないlaneは並行、各lane/共有provider/releaseのmutationはserial。原goalの全18成果/各lane目標/全社US$10M月のDone条件は縮めない。
 
-共有source→runtime cursor（2026-10-12 15:36 JST）: main=`6a9e49c9370fbba34ba70280c4faddf45367062b`（PR #7774 merged）、current/reconciler/cleanup labelsはまだ`e91b1087`。release-reconciler processはPID78448でactive。watchdog loaded script/argv/StartInterval60/Throttle60は確認済み。central ownerはlast exit75。次は自然に切られたlatest-main immutable releaseとloaded-idle applyを確認し、5分ownerをmaintenance-onlyへ、15日entrypointをdelegation-onlyへ更新する。既存effect fenceは変更しない。その後、watchdog/central natural receiptsのlock contention・ENOSPC・protected deletion=0を測り、writer/path/time-windowで残容量増加を追う。
+共有source→runtime cursor（2026-10-12 15:52 JST）: main/current=`66f04769c92878a29905bc91b0ae13435dff9f94`。`com.anicca.disk-watchdog` loaded script/argvはrelease66f、StartInterval60/ThrottleInterval60、runs2/last exit0。`ai.anicca.life-manager-disk-cleanup`は同releaseのmaintenance-only entrypoint、runs1/last exit0。system `ai.anicca.life-manager-disk-cleanup-15d`はnot loaded。06:50:27Z/06:51:40Zのunbound watchdog receiptsはfree_after573,235,200/567,246,848, reclaimed6,414/6,415, errors0/protected0。05:59:44Z full inventoryで`.codex-acct2`約17.1GB、`.codex`約4.1GB、`.codex-acct2`は354秒で11,886,592 bytes増だがowner未特定。次は複数自然runでcontentionが戻らないことを確認し、同一時間窓のwriter/path/deltaを再計測してproducer側retentionを修正。protected state/sessionは削除しない。
 
 担当cursor: primaryは共有cleanup/release/SSOTを所有。native read-only Eval監査は完了し、現時点のEvo implementation ownerは不在。AGMSGでpeekした`lm-agent-economy-repair-1012`はTaskMarket test修正中。その他の登録seatは、live placement/peekがない限り稼働中と数えない。Job Hunter/LINE/Capafy等の既存ownerは重複起動しない。
 
@@ -241,7 +241,7 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 
 | ID | 順番・一つの操作 | 完了証拠/境界 |
 |---|---|---|
-| F01 | source PR #7774はmainへ統合済み。latest-main releaseで中央5分ownerをmaintenance-only、legacy15d ownerをdelegation-onlyへloaded-idle採用する | watchdogの60秒cadence/argv/SHAを保持し、中央owner採用後のlock contention exit75がない自然receipt反復、producer growthとのowner/path/time-window join、保護/unknown fence維持を確認 |
+| F01 | central/15d duplicate host sweep sourceはmain-derived `66f04769`へadopt済み。HostDiskGovernorは60秒watchdogだけが呼ぶ | watchdog loaded StartInterval=60/ThrottleInterval=60、自然receipt 2回errors0/protected0、中央owner1回exit0、legacy15d service absentを確認。次は長期自然反復でexit75/lock busyが再発しないこと、producer growthをowner/path/time-windowで結ぶこと、protected state/fenceを保つこと。DoneはENOSPCによる業務stopが生じず自己回復する実運用証拠 |
 | F02 | 自然な仕事→receipt→自己/中央cleanup→次仕事を照合 | ENOSPC/破損/手動掃除依存なし。容量固定値・永久無故障保証にしない |
 | F03 | 18業務を既存担当/専任へ割り当て、既存PRを先に照合して残件修復 | source acceptance/必要review/exact-head CI/main。重複実装なし |
 | F04 | 各laneの最小実仕事を自然実行して公式結果へ結ぶ | 投稿/応募/納品/注文等のexact receipt、replay/duplicate-zero |
