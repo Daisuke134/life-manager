@@ -1,78 +1,42 @@
-# Aniccaai.com — Managerのgreenfield rebrand
+# Aniccaai.com — Manager for the universe
 
-2026-10-08。掲載原稿とsource差分の設計。サイト実装・公開は未実施。旧body/mind/money agentの紹介を、Managerのmission・仕組み・証拠へ置き換える。順序と状態は [統合SSOT](2026-09-25-life-manager-unified-ssot.md#manager-20261011)。
+2026年10月12日の原稿。[現行の構想](2026-10-12-manager-universe-design.md)に従い、宇宙とすべての生命を最上段で紹介する。過去原稿は変更履歴に保存する。会社はアニッチャ、製品はマネージャー。公式サイトには未反映。
 
-## 英語の掲載原稿
+## English
 
 **Manager**
+
+**A Manager for the universe.**
 
 **One entity, blessing for all.**
 
-### AI for world engineering.
+We are building Manager: one AI entity with the ambition to improve the conditions of life for all living beings, across the universe.
 
-We are building an ambient AI entity that models the world, discovers high-leverage changes to its environment, acts on them, and learns from what happens next.
+The universe deserves a better manager. Our ambition is to build an entity that understands the world, discovers changes to its environment, acts on them, and learns from the reality that follows. The horizon is every living being—not a single user, species, or planet.
 
-The goal: improve the conditions of life—physical health, mental wellbeing, and financial security—so people and other living beings can thrive without having to use an app.
+We begin by building the capabilities that this ambition requires: models grounded in evidence, decisions that account for different populations, and actions whose consequences can be measured.
 
-Links: **Read the architecture** / **See the evaluation plan** / **Explore the research**
+## 日本語
 
-Status: **Early development. Real-world outcomes have not yet been demonstrated.**
+**マネージャー**
 
-### Change the systems that shape everyday life.
-
-Supply, prices, access, shared resources, and the networks around us affect health, income, time, and opportunity. Manager is being designed to improve those conditions directly. Beneficiaries do not need an account, login, or personal credentials.
-
-### Model. Compare. Act. Measure. Learn.
-
-Build a partial model from evidence. Compare structural changes against a baseline. Apply a change through an authorized connection to the environment. Verify what changed. Measure outcomes and update the model.
-
-### Transparent action. Measurable outcomes.
-
-Every claimed improvement should be traceable: what Manager predicted, what it changed, what was measured, and who benefited or was harmed. We will publish reproducible simulations, assumptions, costs, failures, and measured outcomes as they become available. Predicted effects, applied changes, and verified improvements will be reported separately.
-
-### Research foundations.
-
-Our research spans behavioral simulation, agent-based modeling, causal evaluation, collective intelligence, and real-world experimentation. We are studying work from Aaru, Simile, Concordia, AgentSociety, AI Economist, MiroFish, and Woven City. These references do not imply affiliation or endorsement.
-
-Footer: **Manager by Anicca** / Architecture / Research / Benchmarks / Contact / Privacy / Terms.
-
-## 日本語の掲載原稿
-
-**Manager**
+**宇宙のためのマネージャー。**
 
 **ひとつの存在、すべてに恩恵を。**
 
-### AIで、世界の環境を設計し直す。
+宇宙全体のすべての生命が豊かに生きられるように、環境を改善し続ける一つの人工知能「マネージャー」を開発しています。
 
-世界のモデルを作り、環境への効果の大きい変更を見つけ、実行し、結果として起きた現実から学ぶ。そんな一つのAI主体を、私たちは開発しています。
+宇宙には、もっとよいマネージャーが必要だ。世界を理解し、環境への変更を見つけ、実行し、その後に起きた現実から学ぶ存在をつくる。私たちの構想は、一人の利用者、一つの種、一つの惑星にとどまりません。
 
-目指すのは、身体・精神・経済の健康を支え、人々や他の生命が、アプリを使わなくても豊かに生きられる環境です。
+その構想へ進むために、証拠に基づくモデル、集団ごとの影響を考える判断、結果を測定できる行動の仕組みを、一つずつ作っています。
 
-リンク: **仕組みを読む** / **評価計画を見る** / **研究を読む**
+## ページの構成
 
-状態: **開発初期。現実の生活改善は、まだ実証していません。**
+ビジョン、観測・モデル化・比較・実行・学習の循環、成果の検証、各社と分野全体の解説、標語の順に構成する。資料確認、実装計画、設計、未測定という現在の状態を明示する。受益者の登録やログインは設けない。最初の人口評価と製品全体の構想を区別し、他社の精度や売上を自社の実績として書かない。
 
-### 暮らしを決める仕組みを変える。
+設計ファイル：[英語](../../design/manager-universe-preview/en.html) / [日本語](../../design/manager-universe-preview/ja.html)。配布版は装飾と図を内蔵し、研究記事とともに圧縮ファイルで提供する。
 
-供給、価格、アクセス、共有資源、周囲のネットワークは、健康・所得・時間・機会を左右します。Managerは、こうした条件を直接改善する存在として設計しています。受益者のアカウント、ログイン、個人の認証情報を必要としません。
-
-### モデル化。比較。実行。測定。学習。
-
-証拠から世界の部分モデルを作る。構造的な変更を現状と比較する。変更する権限がある環境へ接続し、実行する。何が変わったかを確かめ、生活の結果を測り、モデルを更新する。
-
-### 成果は、証拠とともに。
-
-再現可能なsimulation、仮定、費用、失敗、実測結果を、得られた段階で公開します。予測した効果、適用された変更、確認できた改善を区別して報告します。
-
-## デモ・benchmarkページ
-
-`/manager/demo` は開発状況と研究用demo artifactを公開。閲覧者の操作が現実の作用を発生させない。受益者向け操作UIではない。
-
-`/manager/benchmarks` は `not_run / simulation / calibrated / shadow / field` のmode、source/model版、manifest、比較対象、全費用、失敗、不確実性、集団別結果を表示。初期はnot_run。結果が無いときゼロ・成功に補完しない。
-
-`/manager/research` は会社・論文・repo・原SHA・学んだもの・限界を表示。第三者の精度をManagerの精度にしない。
-
-## 実際に更新するsource
+## 本番で更新するファイル
 
 公開HTTPの/enと/jaは2026-10-08時点でも旧Life Manager copy。旧sourceを読み取り、baseline `Daisuke134/anicca-products@da2e99002a6494c6589db33adbed95f0521de0c8` を確認した。これはGitHub source SHAであり、Netlify公開SHAとの対応は未確認。
 
@@ -84,92 +48,4 @@ Footer: **Manager by Anicca** / Architecture / Research / Benchmarks / Contact /
 
 Netlify management identityは現在のcloudには未設定。公開元site/domain/SHA/build設定の公式readbackが未実施。本番公開したという主張はしない。既存hostingを保持し、previewの別domainで更新完了にしない。
 
-metadata英語: `Manager — One entity, blessing for all.`。日本語: `Manager — ひとつの存在、すべてに恩恵を。`。Aniccaは発行主体として残し、legal identityをManagerへ書き換えない。英日canonical/hreflang、OG、JSON-LD、sitemapも同じ説明へ。
-
-## 2026-10-10の公開構成更新
-
-ブランドはManager、説明はAI for world engineering。Godは創業者の比喩にとどめ、heroで全知・万能を性能として宣伝しない。ページはmission→構造変更の例→閉ループarchitecture→4評価track→evidence→研究記事とfounder背景の順。受益者signup導線は設けない。研究/企業contactと公開evidenceは残す。
-
-/benchmarksではprediction/policy/execution/outcomeの別カード、not_run状態、protocol、manifest、baseline、uncertainty、費用、群別影響を掲載。/researchでは研究記事の出典と実装stage。/aboutでは確認できた研究/実務経歴だけを掲載し、ICLR参加をaccepted paperと書かない。新Managerの顧客・売上・健康改善を創作しない。Life Manager収益は確認できた場合に別scopeで説明する。
-
-この更新は原稿・構成の変更。本番Aniccaai.comの更新ではない。source/build/deploymentの残作業は統合SSOT D6。
-
-## 2026-10-11の研究と会社ストーリー
-
-研究sectionは三者を同じLLM人格simulationと扱わず、Aaruのjoint population/非LLM中核、Simileのhuman-grounded trained behavior/confidence、AI Economistの制度plannerと住民適応を説明する。記事6原稿とtalkの公開先はD6/N3で決め、未公開routeをliveリンクにしない。
-
-会社の説明案: **Life Manager builds and operates businesses to create wealth. Manager extends this work to the shared conditions of life: modeling behavior, redesigning environments, and measuring outcomes for people who never use an app.** これは方向性の説明。現在の売上は確認された期間/主体/数値、Manager benchmarkは実run後の範囲だけ載せる。受益者にログイン不要、作用と根拠は公開できる形にする。
-
-## 2026-10-12 掲載前の改訂案
-
-当日HTTPで/enと/jaを再確認。両方がLife Manager中心、身体/心/お金、自己改善ループ、何兆体のAIという旧説明。以下は掲載候補であり、サイトへの適用・公開はしていない。
-
-英語hero:
-
-**Manager**
-**One entity, blessing for all.**
-
-**AI that redesigns the conditions of life.**
-
-We are building ambient AI that models populations and shared systems, discovers changes that could improve people's lives, acts through authorized connections, and learns from measured outcomes.
-
-Our mission is to reduce suffering for all living beings. We begin with the shared conditions that shape human health, mental wellbeing, and financial security. People should benefit without signing up, logging in, or using an app.
-
-**Explore the research · Read the design · See the evidence**
-
-Development stage: We are building the models and evaluations. Real-world improvements by Manager have not yet been demonstrated.
-
-日本語hero:
-
-**Manager**
-**ひとつの存在、すべてに恩恵を。**
-
-**暮らしを形づくる環境を、AIで設計し直す。**
-
-人々と共有システムのモデルを作り、暮らしを改善する環境の変更を見つけ、権限のある接続を通じて実行し、測定した結果から学ぶ。そんなAIを開発しています。
-
-使命は、あらゆる生命の苦しみを減らすこと。まず、人間の身体・心・経済の健康を左右する共有環境から取り組みます。恩恵を受けるために、登録やログイン、アプリの操作を必要としない仕組みを目指します。
-
-**研究を読む · 設計を読む · 検証状況を見る**
-
-開発状況：モデルと評価基盤を開発しています。Managerによる現実の生活改善は、まだ実証していません。
-
-後続の英日sectionは「供給・アクセス・制度・資源配分が暮らしを形づくる」→「観測・モデル化・比較・実行・測定・学習」→「予測/シミュレーション/実行/実地効果を区別する証拠」→「初心者向けの研究記事」→「Manager by Anicca」。主製品はManager、会社名/法的表示はAniccaのまま。大規模に全てを知る表現や未実証の成果を掲載しない。旧Life Managerは確認できた事業実行の経歴として別ページへ。研究記事に求人とManager設計を混ぜない。公開済み記事/benchmarkだけを有効リンクにし、未公開案への偽リンクを作らない。受益者UI不要と、運営者の接続・権限・公開説明が不要とは区別する。
-
-
-## 2026-10-12 最新の名称・使命・紹介文
-
-この節が前の紹介原稿より優先する。単一の公開名称はManager。使命は苦しみを「終わらせる」であり、reduceへ弱めない。全生命/宇宙は長期使命の範囲。現在の作用範囲や性能の主張とは区別する。「アプリを使わなくても」をheroの価値説明にしない。登録・認証不要は必要に応じ仕組みの説明へ置く。
-
-Manager
-
-One entity, blessing for all.
-
-**The universe deserves a better manager.**
-
-We are building Manager to end suffering for all living beings. It is being designed to understand the systems that shape life, change the conditions that cause preventable suffering, and learn from measured outcomes.
-
-**宇宙には、もっとよいManagerが必要だ。**
-
-すべての生命の苦しみを終わらせるために、私たちはManagerをつくる。暮らしを形づくる仕組みを理解し、避けられる苦しみを生む条件を変え、測定した結果から学ぶ存在として開発している。
-
-後続で現在の人間集団/制度の部分モデルと評価の開発段階を説明する。「環境が全てを決定する」「全問題が管理不足」「宇宙全体をすでに管理できる」は技術の事実として載せない。Transparent Godは創業者の比喩として説明可能だが、技術説明には予測・作用・結果・失敗・訂正の公開可能性を用いる。本番サイト適用なし。
-
-
-## 2026-10-12 最新優先: 広い紹介から始める
-
-この節は前の「宇宙にはもっとよいManager」hero案より優先。長期目的は保つが、紹介の入口を暮らしを形づくる環境の改善にする。苦の終焉/神/宇宙を最初の説明に強制しない。
-
-**Manager**
-
-**One entity, blessing for all.**
-
-**AI that improves the conditions of life.**
-
-We are building Manager to understand the systems that shape people's lives, discover changes that improve them, act through authorized connections, and learn from measured outcomes.
-
-**暮らしを形づくる環境を、よりよくするAI。**
-
-人々の暮らしを形づくる仕組みを理解し、改善につながる変更を見つけ、権限のある環境で実行し、測定した結果から学ぶ。そんなManagerを開発しています。
-
-短い紹介の後に、現在の人口/評価の開発、予測と実証の区別、研究、実際に得た結果を示す。広い使命はAbout/創業者の思想へ置ける。説明と実行責任で差別化し、根拠のない全問題の原因論や全知性能を主張しない。掲載前原稿の更新であり本番適用なし。
+metadata英語: `Manager — One entity, blessing for all.`。日本語: `マネージャー｜ひとつの存在、すべてに恩恵を。`。Aniccaは発行主体として残し、legal identityをManagerへ書き換えない。英日canonical/hreflang、OG、JSON-LD、sitemapも同じ説明へ。

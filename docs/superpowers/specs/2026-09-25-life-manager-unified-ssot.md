@@ -3216,3 +3216,24 @@ Writer適用: `skills/writer-agent/SKILL.md`、Zinsser reader/prose、humanizer�
 - [ ] 連絡/event: 相手の研究に即した個別質問、確認できる成果、参加日程を固定して送信/登録。今回のplan作成は送信/応募/イベント登録を実施したものではない。
 
 苦の終焉は長期の内部目的、短いpublic copyは環境/生活改善。amplifier/equalizerは単語だけで性能を主張せず、全体と最低群の成果を測る。外部site/runtime未変更。今回の進捗はplanと公開資料preflight、Task1〜6の製品コード・model/field成果は未実装。
+
+
+<a id="manager-universe-correction-20261012"></a>
+
+2026年10月12日追記：日本語ページの製品名を「マネージャー」に統一し、見出し、標語、図、ボタン、説明文を日本語へ修正。指定の二つの執筆指針を再読し、執筆エージェントの言語方針を保存。英語ページの本文と宇宙・全生命のビジョンは維持。
+
+## Manager 2026-10-12 全生命・宇宙のビジョンと原子パッチ
+
+最新指示が前節の短い生活改善だけをheroにする方針へ優先する。Managerは宇宙全体とすべての生命を対象とする構想。最初のpopulation/evalはその部品で、製品定義やvisionを小さくしない。
+
+- [x] [全体定義](2026-10-12-manager-universe-design.md)を保存。AGENTSへvisionとinitial scopeの区別を永続化。人口/aggregate仕様の公開定義を整合。
+- [x] [英日公式copy](2026-10-08-manager-website-copy.md)を最新版へ整理。過去copyはGit履歴に保存。HTML source `docs/design/manager-universe-preview/{en,ja,index}.html`, `styles.css`, `universe.svg`を制作。
+- [x] 配布HTMLはCSS/SVG内蔵、保存済み研究PDFとZIP化。EN/JA × desktop/mobileの画像読み込み/overflow/anchor確認。PC heroを目視。公式domain、本番runtimeは未変更。
+- [x] [原子patch plan](../plans/2026-10-12-manager-atomic-patches.md)にP01–P20を固定。取得元→保存先→関数→test command→期待結果。実行状態はここが唯一の正本。
+- [x] ipfn1.4.4 wheel/sourceを読み、MIT licence、wheel hash、NumPy/pandas requirementsを確認。自作IPF solverではなくOSS adapterを選択。library convergence flag/iteration/zero targetの境界をadapter testで検証する計画へ更新。
+- [x] GBIF CC0-filtered public facet endpoint HTTP200、SocSci210固定revision/card/mappingとSocrates source termsを確認。[upstream lock](../../research/manager/2026-10-12-manager-upstream-lock.json)へ取得元/利用区分/限界を保存。GBIF record countを個体数へ転用しない。SocSci210の包括商用terms、MASS独自codeのOSS許諾は未確認/未付与を区別。
+- [ ] P01–P20をNativeで逐次実装し、RED/GREENと実run receiptで完了を更新。新依存のcompatibilityも実際のtestで確かめる。
+- [ ] 次の独立planでGBIF evidence、Response/World、Policy/Executor/updateを実装し、source/mode/unit/coverageを保って接続。
+- [ ] 本番landing source/hostingを確認して英日page/metadata/旧sectionsを更新し、公開URLを読み戻す。ローカルHTMLをlive websiteと報告しない。
+
+今回の成果はsource調査、spec/atomic plan、HTML design。Manager code、model/API training、field成果、外部記事/DM/event/応募は未実施。最大級の構想という創業者の抱負と、実測された現在能力を区別する。

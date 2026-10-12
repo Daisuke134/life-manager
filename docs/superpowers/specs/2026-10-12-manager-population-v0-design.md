@@ -6,7 +6,9 @@
 
 公開の集団統計から人口の重みを構築し、入力に渡していない交差表へどれだけ一致するかを再現可能に測る。Population/Evidence/Evaluatorの基礎を作る。行動予測、環境変更、実行、field成果は次のサブプロジェクトで接続する。モデルAPI、大規模学習、受益者UI、外部作用はv0へ含めない。
 
-公開紹介は「Managerは、暮らしを形づくる環境を改善するAI」。広い長期目的は保持するが、苦の終焉/宇宙/神を短い紹介の中心へ強制しない。価値判断は全体成果と集団別不利益を明示して扱い、amplifier/equalizerを技術の実装済み性能として断定しない。
+公開ビジョンは[Manager for the universe](2026-10-12-manager-universe-design.md)。すべての生命と宇宙全体が最終対象。人口v0は最初の部品であり、製品の最終対象や規模を定義しない。
+
+IPF algorithmは既存OSS `ipfn==1.4.4` のNumPy backendを利用する。wheel SHA256 `a0b5f3c9c5de8c71207cc88f1e51b68135d482a50d7035c58f3e202d33a6b026`、MIT、Git参照commit `fa57b905291e4125c6e4f7ddacc8770218ad024e`。`numpy==2.4.4`, `pandas==2.3.3`をCPU依存として固定する。ゼロtargetの軸を除いてsolverへ渡し、戻り値を元shapeへ復元する。libraryのconverged flagだけでは採用せず、normalized marginal残差を独立に計算して<=1e-10を確認する。max_iterationはlibraryのinclusiveループを踏まえ `max_iterations-1` を渡し、実iteration数を検査する。
 
 ## データと確認した取得経路
 
@@ -66,4 +68,4 @@ reportに `stage=empirical_reconstruction`、`population_fidelity=measured`、`b
 
 manifestはsource/extract/split/config/code hash、method、numerical settings、wall time、seedの開発対象、invalid counts、参照セルへの入力非アクセスを記録。paid model calls=0。実費のないtoken costを推測しない。fetch/prepare/reconstruct/scoreを別CLIにし、reconstruct commandはreference pathを受け取らない。
 
-Python >=3.12、stdlibのみ（dataclasses/csv/json/hashlib/math/urllib/unittest）。新しいprovider、GPU、paid API、scheduler、live environment adapterは追加しない。unittest offline gateと実資料を使うexplicit integration runを分ける。raw/run outputはGit外へ保存し、small public fixtures/schema/mappingだけsourceへ。
+Python >=3.12。stdlibと、上記の固定ipfn/NumPy/pandas CPU依存を使う。新しいprovider、GPU、paid API、scheduler、live environment adapterは追加しない。unittest offline gateと実資料を使うexplicit integration runを分ける。raw/run outputはGit外へ保存し、small public fixtures/schema/mappingだけsourceへ。

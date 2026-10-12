@@ -1,0 +1,40 @@
+{
+  "research_date": "2026-10-12",
+  "vision": "Manager for the universe and all living beings",
+  "sources": [
+    {
+      "id": "acs-b17001",
+      "kind": "public-aggregate-data",
+      "url": "https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/5YRData/acsdt5y2024-b17001.dat",
+      "snapshot_sha256": "316b602beb75129605d91ca7a9c440a37df7bc9c02271d86d3eb39cf25559a9d",
+      "hash_scope": "state extract, not entire source",
+      "purpose": "population fidelity"
+    },
+    {
+      "id": "ipfn",
+      "kind": "dependency",
+      "version": "1.4.4",
+      "repo": "https://github.com/Dirguis/ipfn",
+      "git_reference": "fa57b905291e4125c6e4f7ddacc8770218ad024e",
+      "wheel_sha256": "a0b5f3c9c5de8c71207cc88f1e51b68135d482a50d7035c58f3e202d33a6b026",
+      "license": "MIT",
+      "purpose": "NumPy IPF backend"
+    },
+    {
+      "id": "gbif",
+      "kind": "public-observation-api",
+      "url": "https://api.gbif.org/v1/occurrence/search?country=JP&license=CC0_1_0&limit=0&facet=kingdomKey&facetLimit=10",
+      "snapshot_sha256": "37a920a07458d2bb121e5050ea56d8cf4fdcd1dbfe06ad8801847c277abdec4e",
+      "unit": "occurrence records, not individual beings",
+      "purpose": "future nonhuman evidence adapter"
+    },
+    {
+      "id": "socsci210",
+      "kind": "research-data-candidate",
+      "repo": "https://huggingface.co/datasets/socratesft/SocSci210",
+      "revision": "048481111a4425ed83dc0eacf15f8431f252b21a",
+      "source_terms": "derivatives retain original source terms; blanket commercial reuse not established",
+      "purpose": "future aggregate response evaluation"
+    }
+  ]
+}

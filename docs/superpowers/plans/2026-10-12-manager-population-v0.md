@@ -2,17 +2,17 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking. Execution status remains solely in the unified SSOT; these boxes describe the procedure and are not a second task-state ledger.
 
-**Goal:** 公開の集団統計から人口を再構築し、入力から分離した実観測交差表への誤差を、再現可能な比較として出力する。
+**Goal:** 全生命・宇宙全体を対象とするManagerの最初のPopulation/Evidence/Evaluator部品として、公開の集団統計から人口を再構築し、入力から分離した実観測交差表への誤差を、再現可能な比較として出力する。
 
 **Architecture:** 証拠の取得、集計とsplit、人口再構築、独立採点、reportを分離する。開発地域だけでseedを作り、対象地域のmarginalsからindependent/IPFを比較。ManagerのPopulation/Evidence/Evaluationの最初の部分として後のWorld/Policyへつなぐ。
 
-**Tech Stack:** Python >=3.12、stdlib、frozen dataclasses、JSON/JSONL、unittest。paid API/dependency追加なし。
+**Tech Stack:** Python >=3.12、stdlib、ipfn1.4.4/NumPy2.4.4/pandas2.3.3、frozen dataclasses、JSON/JSONL、unittest。paid APIなし。
 
 **Spec:** [人口と評価v0設計](../specs/2026-10-12-manager-population-v0-design.md)、[上位のaggregate-first設計](../specs/2026-10-12-manager-aggregate-first-design.md)。
 
 ## Global Constraints
 
-- Python >=3.12、stdlibのみ。既存Life Manager runtime/credentials/schedulerを変更しない。
+- Python >=3.12、stdlibと固定ipfn/NumPy/pandas CPU依存。既存Life Manager runtime/credentials/schedulerを変更しない。
 - ACS2024 5-year B17001、50州+DC51地域、対象はpoverty status判定可能人口。
 - セル順、変数mapping、FIPS/splitはspecの固定値をそのまま使う。
 - 開発6地域のjointだけでseedを作る。validation/testのjointは採点側にのみ渡す。
@@ -83,7 +83,7 @@ Task間の型はspecのdataclassesで固定。各テストはunittest。以下�
 
 - [ ] **Step 1: Write failing tests.** `test_independent_exact_product`はtotal100、poverty(30,70)、age(20,60,20)からcounts(6,18,6,14,42,14)。`test_ipf_matches_marginals_without_erasing_seed_relation`はpositive non-independent seedに別marginalsを与え、normalized residual<=1e-10と同じ2×2 cross-product ratioの保持をassert。`test_zero_target_is_zero_without_nan`はpoverty0のrowが全0。`test_zero_seed_and_nonconvergence_fail`はseed0とmax_iterations=1の未収束例をPopulationDataErrorとする。
 - [ ] **Step 2: Run red.** `PYTHONPATH=apps/manager/src python3 -m unittest discover -s apps/manager/tests -p test_population_fit.py -v`。
-- [ ] **Step 3: Implement.** countsを正規化し、row→column scaling、残差判定、上限を実装。target0のrow/columnを0へ。seed0をepsilonへ置き換えない。数値/total/marginal一致、nonfiniteを検証し、seed hash、target_source_sha256、iterationsを返す。
+- [ ] **Step 3: Implement.** 固定ipfn NumPy backendを薄いadapterから呼ぶ。target0の軸を除いてsolverへ渡し戻りを元shapeへ復元、残差とiteration上限を独立に確認。seed0をepsilonへ置き換えない。数値/total/marginal一致、nonfiniteを検証し、seed hash、target_source_sha256、iterationsを返す。
 - [ ] **Step 4: Run green.** 同じcommandでPASS。uniform seedのIPFがindependentと一致することを追加確認し、IPFが未知の相関を発見するという説明を書かない。
 - [ ] **Step 5: Commit.** `git add --sparse apps/manager`、`git commit -m "feat: reconstruct weighted cohorts with transparent baselines"`。
 
@@ -145,3 +145,7 @@ PYTHONPATH=apps/manager/src python3 -m manager score-population --predictions /w
 このplanはPopulation/Evidence/Evaluationの基礎のみ。Response/World/Policy/Executorの実装とfieldは後続の独立planへ。記事、連絡、イベント、website、履歴書/YCは統合SSOTの活動順で並行し、このplanのコードtaskへ混ぜない。
 
 計画review後の推奨executionはNative: 私が一つずつ実装し、focused testで確かめる。完成後に独立whole-branch reviewを行う。現時点では計画作成と公開資料preflightまで。Task1–6は未実装。
+
+## Patch-level decomposition
+
+6Taskを[原子パッチと取得元](2026-10-12-manager-atomic-patches.md)に分解した。ここは比較の受入仕様、補足は取得/変更の具体的手順。status正本はSSOTのみ。
