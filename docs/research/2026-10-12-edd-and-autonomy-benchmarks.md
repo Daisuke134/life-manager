@@ -88,7 +88,7 @@ AutomationBenchのREADME・Calendar assertion実装も確認した。event存在
 
 [Inspect AI](https://inspect.aisi.org.uk/)は問題・agent・tool・graderを接続する評価frameworkで、人生管理の試験問題そのものではない。[GEPA](https://github.com/gepa-ai/gepa) / [論文](https://arxiv.org/abs/2507.19457)はtraceのfeedbackから候補prompt等を改善するoptimizerで、何を成功とするかを代わりに決める道具ではない。
 
-repoには既存NodeのLM-EAB scorer、recovery intent/apply/supervisor、`skills/earn/self-improve/evaluator.py` と `run_evolve.sh` のOpenEvolve経路がある。ソース存在は自然自己改善の成功証明ではない。今回のpilotは新framework・optimizerを追加しない。Inspect/GEPAは将来の接続障害・探索需要が具体化したときの候補。
+repoには既存NodeのLM-EAB scorer、recovery intent/apply/supervisor、`skills/earn/self-improve/evaluator.py` と `run_evolve.sh` のOpenEvolve経路がある。ソース存在は自然自己改善の成功証明ではない。今回のpilotは新framework・optimizerを追加しない。既存recovery testがすでにhold/nonretryable/no commands/owner拒否を検査するため、新wrapperによる再包装も追加しない。最初の足場は自然失敗一件と既存testのcoverage対応表である。Inspect/GEPAは将来の接続障害・探索需要が具体化したときの候補。
 
 ## 現行LM-EABの実態
 
