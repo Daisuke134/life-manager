@@ -582,7 +582,7 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
         _atomic_json(state / "campaign.json", campaign)
         if mode == "paper":
             # This is a reporting-only read of the append-only effect ledger.
-            # Missing fees/slippage/model costs remain partial and never become
+            # Missing fees/slippage/model/system costs remain partial and never become
             # a numeric zero or a promotion signal.
             write_paper_performance(state, observation, allocator_snapshot["risk"])
         stage = "telegram_deliver"

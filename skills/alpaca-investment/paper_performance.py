@@ -318,6 +318,7 @@ def build_paper_performance(
             "measurement_status": "partial",
             "mode": "paper",
             "model_cost_usd": None,
+            "net_realized_pnl_usd": None,
             "observed_at": observed_at,
             "owner_cash_flow_usd": "0.00",
             "paper": True,
@@ -326,6 +327,8 @@ def build_paper_performance(
             "schema_version": 1,
             "slippage_usd": None,
             "source_receipt_ids": source_ids,
+            "system_cost_usd": None,
+            "unknown_cost_categories": ["fees", "slippage", "model", "system"],
         }
     except (TypeError, ValueError, ArithmeticError) as error:
         return _unknown(str(error))

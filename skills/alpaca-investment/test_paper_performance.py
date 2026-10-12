@@ -279,6 +279,12 @@ class PaperPerformanceTests(unittest.TestCase):
         self.assertEqual(result["gross_strategy_pnl_usd"], "0.250")
         self.assertIsNone(result["fees_usd"])
         self.assertIsNone(result["slippage_usd"])
+        self.assertIsNone(result["model_cost_usd"])
+        self.assertIsNone(result["system_cost_usd"])
+        self.assertIsNone(result["net_realized_pnl_usd"])
+        self.assertEqual(result["unknown_cost_categories"], [
+            "fees", "slippage", "model", "system",
+        ])
         self.assertEqual(result["source_receipt_ids"], [
             "alpaca://bars/entry", "alpaca-order:paper-entry",
             "alpaca://bars/exit", "alpaca-order:paper-exit",
