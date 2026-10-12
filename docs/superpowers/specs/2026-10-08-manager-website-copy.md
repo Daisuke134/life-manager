@@ -135,3 +135,22 @@ Development stage: We are building the models and evaluations. Real-world improv
 開発状況：モデルと評価基盤を開発しています。Managerによる現実の生活改善は、まだ実証していません。
 
 後続の英日sectionは「供給・アクセス・制度・資源配分が暮らしを形づくる」→「観測・モデル化・比較・実行・測定・学習」→「予測/シミュレーション/実行/実地効果を区別する証拠」→「初心者向けの研究記事」→「Manager by Anicca」。主製品はManager、会社名/法的表示はAniccaのまま。大規模に全てを知る表現や未実証の成果を掲載しない。旧Life Managerは確認できた事業実行の経歴として別ページへ。研究記事に求人とManager設計を混ぜない。公開済み記事/benchmarkだけを有効リンクにし、未公開案への偽リンクを作らない。受益者UI不要と、運営者の接続・権限・公開説明が不要とは区別する。
+
+
+## 2026-10-12 最新の名称・使命・紹介文
+
+この節が前の紹介原稿より優先する。単一の公開名称はManager。使命は苦しみを「終わらせる」であり、reduceへ弱めない。全生命/宇宙は長期使命の範囲。現在の作用範囲や性能の主張とは区別する。「アプリを使わなくても」をheroの価値説明にしない。登録・認証不要は必要に応じ仕組みの説明へ置く。
+
+Manager
+
+One entity, blessing for all.
+
+**The universe deserves a better manager.**
+
+We are building Manager to end suffering for all living beings. It is being designed to understand the systems that shape life, change the conditions that cause preventable suffering, and learn from measured outcomes.
+
+**宇宙には、もっとよいManagerが必要だ。**
+
+すべての生命の苦しみを終わらせるために、私たちはManagerをつくる。暮らしを形づくる仕組みを理解し、避けられる苦しみを生む条件を変え、測定した結果から学ぶ存在として開発している。
+
+後続で現在の人間集団/制度の部分モデルと評価の開発段階を説明する。「環境が全てを決定する」「全問題が管理不足」「宇宙全体をすでに管理できる」は技術の事実として載せない。Transparent Godは創業者の比喩として説明可能だが、技術説明には予測・作用・結果・失敗・訂正の公開可能性を用いる。本番サイト適用なし。

@@ -3170,3 +3170,20 @@ Writer適用: `skills/writer-agent/SKILL.md`、Zinsser reader/prose、humanizer�
 - [ ] 公開記事/自社説明/求人向け資料を別経路に保ち、X/blog/応募先は既存の公開前検証と外部readbackで更新する。
 
 追加検証: 改訂6原稿にManager/careers/ashbyの本文・リンクなしを確認。配布MD一致、HTML画像読込/overflow、PDF全文抽出、ZIP integrityを確認。日本語lintを保存。Writer変更はeditorial referenceのみ、runtime未変更。掲載案はHTTP取得した旧英日本文との差を整理した原稿であり、本番サイトの変更ではない。8求人の内部証拠表は完成後の履歴書文型と残る条件を含み、応募用の完成実績ではない。
+
+
+<a id="manager-network-learning-20261012"></a>
+## Manager 2026-10-12 Networking / 毎日の解説 / 自己改善
+
+最新指示: 使命は全生命の苦しみを終わらせる。宇宙全体は長期使命。一語の名称、Managerを推奨。アプリ不要を主紹介にしない。公開会社解説の独立性を維持し、哲学・研究から読者が学べる毎日の発信と個別質問による関係構築を並行する。
+
+- [x] [連絡候補15人・英文案8通・他7人の個別質問・19日分の編集案・哲学資料](../../research/manager/2026-10-12-networking-and-editorial.md)を保存。メールは本人/公式公開資料、推測なし。未送信。記事の自動予約なし。
+- [x] RSI-Anything `99dbf000a424b9033651b1096c5da2b6d5fa3865` とMASS `fb403581bed2c974b3f99e7236224169da643079`をscratchへcloneし、論文方法/評価、README/blog、runner/model/evaluation、MASS ranking/training/reproductionを読む。[コード調査](../../research/manager/2026-10-12-rsi-anything-mass-code-review.md)を保存。GPU学習/benchmark再現は未実行。
+- [x] RSI Apache-2.0/第三者別条件、MASS独自code公開OSS license未付与、MASS論文/実装の差と未同梱benchmarkを確認。コードの製品利用を許諾済み扱いにしない。
+- [x] website最新原稿とaggregate-first設計の使命を更新。本番適用なし。
+- [ ] 各送信候補の最終文と公開連絡経路を確認して個別に送信。完成/公開済みの証拠だけ添付し、返信/通話/紹介をreceiptで更新。
+- [ ] 既存Aaru/Simile解説を無料X/blogへ公開する既存経路を確定し、当日のtopicは出典/図/意味保存を確認して公開。未公開原稿を公開済みと呼ばない。
+- [ ] Managerのfixed-model workflow改善を既存D0–D5実装計画へ設計し、未知環境・同予算・集団別影響で比較する。新policy/world-model pairの採用とrollbackを記録。
+- [ ] 必要なtrajectoryと追加価値が確認できた段階でGPU追加学習を検討。MASS code再利用が必要なら著者へ許諾条件を確認。独立実測評価/heldoutを保護する。
+
+追加検証: source-boundary、diff whitespace、2調査文書の相対リンク、固定repo SHA、配布Markdown byte一致を確認。指定の日本語lintを実行し意味を保って一度推敲。clone/source読解は静的検証、論文成果再現や送信・投稿・本番更新ではない。
