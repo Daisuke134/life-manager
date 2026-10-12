@@ -14906,9 +14906,11 @@ Capafy公式Xの公開indexには、Ocupの100 sales紹介と、あるcreatorの
 
 `capafy_hourly_reconcile.py` はtraffic endpointを最大60 Agentsに対して取得する。`capafy_scoreboard.py` はsource/CT text summaryとAgent別日次snapshotを出力する。日次scorecardは同一windowでAgent×source×campaignを一行にし、raw event countとunique visitorを分け、`observed_at`/receipt freshness・scope・null reasonを必ず表示する。source別paidの合計とaccount seller ordersは独立系列として照合し、重複を足し上げない。`profit*_actual`を実費後最終利益と表示せず、20% fee仮定が残る間は80% revenue proxy由来のactual-cost contribution estimateと表示する。現行実装にないdashboard fieldやlead数を「ある」と扱わない。
 
-### 原子的な残TODO（唯一の順序・statusは2026-10-12 14:25 JST時点）
+### 原子的な残TODO（唯一の順序・statusは2026-10-12 14:30 JST時点）
 
 各atomのownerはAniccaのCapafy運用loop/scoreboard。Daisへの質問・作業依頼はしない。`FROZEN.json` sellersの編集は禁止。ここでは記載更新とread-only調査だけを実施し、下記運用作業は実行していない。
+
+**TODO順更新（14:30 JST）:** 旧順序=`T0→T1→T2→T3→T4→T5→T6→T7→T8→T9→T10→T11→T12→T13`、旧cursor=T0。新即時順=`T2.6 seller-distribution eligibility→次のnatural distribution receipt→T4/T5 factory queue as slots free→T6/T7/T8/T10/T11 source-based distribution`。T0/T1/T2はreadback cadenceで並行継続、T3/T9/T12/T13は既定頻度を維持する。理由は、最新analyticsの`status=draft`だけを見たselectorが、公式list上は`has_online_version=true`の販売中Frozen sellerを除外し、現行48枠試算をMarketing Strategist 48/48にしているため。新cursor=T2.6。source変更・公開effectは未実施。
 
 1. **T0 — source snapshotの差を解消する。 [IN PROGRESS / 現在cursor]**
     - 根拠: 旧SSOTと当時の01:09Z reconcileでsearch 835/814、hot 72/71、Google 41/39、direct 1,540/1,493、`ai_overview` 551/548の差が記録された。最新`observed_at=2026-10-12T05:09:14Z`値は4,350 global views、source-paid 18。`capafy-hourly-reconcile.json.orders=70` vs `capafy-skill-analytics.json.account_totals.all_time.orders=101`、source 30d paid=18 vs analytics account 30d orders=39のfield-semantic差もある。
@@ -14933,8 +14935,11 @@ Capafy公式Xの公開indexには、Ocupの100 sales紹介と、あるcreatorの
    - T2.2 Agent×source×campaign rowに7d/30d views/unique visitors/trials/paid/gross、rating/review count、query rank、CT token、80% seller-share proxy−actual-cost contribution estimateを記録する。impressions、watch completion、unique reachが取れない場合はnullと理由を書く。
    - T2.3 公開creativeごとにcreative_id、platform post URL/time、impressions/reach/views/watch time/completion/likes/comments/shares/saves/link clicksを24h/7d/30dで同じrowへ結ぶ。
    - T2.4 同一windowでsource totalとAgent totalを再計算し、source-attributed paidの合計とaccount seller ordersを別々に照合する。重複があれば原因を分類する。
-   - T2.5 日次snapshotを週次に比較し、view増・CT増・trial増・paid増・profit増のどこが止まるか一つのprimary bottleneckとして記録する。
-   - 完了条件: 60/60対象または明示されたAPI上限・欠損理由が見え、nullと0を区別し、合計がsource receiptと一致する。
+    - T2.5 日次snapshotを週次に比較し、view増・CT増・trial増・paid増・profit増のどこが止まるか一つのprimary bottleneckとして記録する。
+    - **T2.6 — profitable frozen sellersをdistribution selectorから落とさない。 [OPEN / 新current cursor]** 14:09 analyticsではHook Lab / TikTok Script Pro / YouTube Script Writer / Slide Makerが`status=draft`だが、14:16 official publish-listでは4件とも`has_online_version=true`、Marketing Strategistは`online`。`select_capafy_distribute_skill.py::_is_online_earner()`は`status in (online, under_review)`のみを見てonline version flagを見ず、14:09 analyticsで試算すると48/48 slotsがMarketing Strategistになる。`FROZEN.json`の5 sellersは編集せず、buyer-visible online versionを持ち、30d profitがpositiveのsellerを配信対象として扱い、Hook Labを48枠中24枠にする契約を定める。
+      - 実績: distribution ledgerは13:30枠まで26 slotsをpublished扱い（Hook Lab11、TikTok Script Pro8、Marketing Strategist7）。14:19 natural occurrence `18ddb08c9390cd80-70575`は`resource_capacity_busy` / exit75 / effect_not_applicableで、slot更新なし。official trafficはCT 30d 6 views/0 paid、7d 6/0、`instagram_bio`30d 39/0。
+      - 完了条件: source selectorが公式`has_online_version`を考慮し、Frozen sellersへの配分がrule 10を満たす。次のnatural distribution receiptがslot別seller/CTを保存し、source readbackでviews/trials/paidを比較できる。投稿volumeを新規channelへ増やす前にCTが訪問を生むことを確認する。
+    - 完了条件: 60/60対象または明示されたAPI上限・欠損理由が見え、nullと0を区別し、合計がsource receiptと一致する。
    - 頻度: 毎日の最初の成功receipt後。週次で7日差分を確認。
 
 4. **T3 — true MRRを公式subscription readbackで定義する。 [OPEN / provider field欠落]**
@@ -15007,6 +15012,6 @@ Capafy公式Xの公開indexには、Ocupの100 sales紹介と、あるcreatorの
     - final: Capafy official active-subscription readbackで月換算gross MRR ≥ $10,000を確認し、same windowのrefund/fee/model cost/profitを横に報告する。
     - どちらも満たさない間は goal active。累計units/trials、listing count、under_review、proxy subscription salesを達成扱いしない。
 
-**現在cursor（14:25 JST）:** T0のfield semanticsと01:09Z old/global-vs-by-agent差は分類済み。scope間viewの非加算性/更新時刻とresponse metadataが残る。T1は14:09:14 reconcile success、次は15:07 natural window。T2は最新reconcile60/63、live list後60/64のcoverage gapとAgent別scorecardを閉じる。T4は8767154808 under_review、9675561238 draft、slots5/5。14:24はeffect前のFIFO waitで40 queued entries ahead、次の自然run14:39を確認する。first-paidはorders70/gross$102.75で未達、MRR fieldはnull。T11はcreative制作・CT preflight・post/publish未実施。今回の作業はSSOTへのread-only evidence反映のみ。
+**現在cursor（14:30 JST）:** T2.6 selector eligibilityをsource変更前に実装計画として確定する。実績は26/48 slotsでHook Lab11、TSP8、Marketing7、CT 30d6/0 paid。current selectorが48/48 Marketingを選ぶ原因はonline versionを無視するstatus predicate。T0のscope additivity、T1の15:07 hourly readback、T2の60/64 coverageはcadenceで継続。T4は8767154808 under_review、9675561238 draft、slots5/5、14:24 FIFO-wait後の次natural factory slot14:39を確認する。first-paidはorders70/gross$102.75で未達、MRR fieldはnull。T11 creative/CT preflight/publishは未実施。今回の作業はSSOTへのread-only evidence反映のみ。
 
 **調査参照:** `skills/earn/capafy-marketing/scripts/capafy_hourly_reconcile.py`、`skills/earn/capafy-marketing/scripts/capafy_scoreboard.py`、`skills/capafy-autopublish/scripts/inventory_status.py`、`skills/capafy-autopublish/CP1_AGENTIC.md`、`skills/capafy-autopublish/PUBLISHING_RUNBOOK.md`、`skills/capafy/FROZEN.json`。公開比較対象: [HookAce](https://capafy.ai/agent/hookace-first-6-second-retention-predictor/3264203863)、[Ocup Football Analysis](https://capafy.ai/agent/ocup-analysis/2553639947)、[Serenity Stock Tracker](https://capafy.ai/agent/serenity-stock-tracker/2521387714)、[TikTok Scripts](https://capafy.ai/agent/6182575730)、[CapafyのOcup 100 sales投稿](https://x.com/Capafyai/status/2069420218057904378)、[初週$4,208/short-videoのCapafy事例](https://x.com/Capafyai/status/2072302872654499993)。
