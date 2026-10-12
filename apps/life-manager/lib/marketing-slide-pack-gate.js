@@ -10,7 +10,7 @@
 // buildAutomatedApproval() in marketing-slide-pack-factory.js.
 
 const { assertMarketingCarouselJpeg } = require("./marketing-native-carousel-publication-adapter.js");
-const { platformCaptionLimit } = require("./marketing-app-store-cta.js");
+const { marketingCtaLine, platformCaptionLimit } = require("./marketing-app-store-cta.js");
 
 const SLIDE_COUNT = 6;
 const MAX_SLIDE_TEXT_LENGTH = 120;
@@ -57,8 +57,10 @@ function rubricScore(pack) {
   return Math.max(0, Math.min(100, score));
 }
 
-function hasAppStoreCta(captionText) {
-  return /apps\.apple\.com|プロフィールのリンク|link in bio/i.test(captionText);
+function hasAppStoreCta(captionText, { productId, platform, locale } = {}) {
+  if (/apps\.apple\.com|プロフィールのリンク|link in bio/i.test(captionText)) return true;
+  if (platform !== "tiktok" || !productId) return false;
+  return String(captionText).includes(marketingCtaLine({ productId, platform, locale }));
 }
 
 // pack: { slide_count, slides: [{ position, role, text, media_ref }] }
@@ -84,7 +86,7 @@ function runAutomatedGate({
   const captionText = String(caption || "").trim();
   reasons.push(...textReasons(captionText, "caption").filter((reason) => !reason.includes("exceeds")));
   if (captionText.length > captionLimit) reasons.push(`caption exceeds ${captionLimit} characters`);
-  if (captionText && !hasAppStoreCta(captionText)) reasons.push("caption is missing the App Store CTA");
+  if (captionText && !hasAppStoreCta(captionText, { productId: pack?.product_id, platform, locale: pack?.locale })) reasons.push("caption is missing the App Store CTA");
 
   mediaFiles.forEach((file, index) => {
     try {

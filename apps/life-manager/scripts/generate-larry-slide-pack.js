@@ -97,6 +97,17 @@ function addCandidateCopyHashes(candidates, objectStore) {
   });
 }
 
+function filterCandidatesForLane(candidates, lane, objectStore) {
+  if (lane.platform !== "tiktok") return candidates;
+  return candidates.filter((candidate) => {
+    if (!candidate?.packRef || !candidate?.captionRef) return false;
+    const pack = JSON.parse(fs.readFileSync(objectStore.resolve(candidate.packRef), "utf8"));
+    const lastSlide = String(pack.slides?.at(-1)?.text || "");
+    const caption = fs.readFileSync(objectStore.resolve(candidate.captionRef), "utf8");
+    return !/\bLink in bio\b/i.test(lastSlide) && !/Link in bio for the app\s*$/i.test(caption);
+  });
+}
+
 function readCreativeMetricsForFamilies(dataDir, candidates) {
   const familyByPackRef = new Map(candidates.map((c) => [c.packRef, c.familyId]));
   return readCreativeMetrics(dataDir)
@@ -158,9 +169,10 @@ async function resolveLarryJaSlot({ env = process.env, now = () => new Date().to
   const imageCacheDir = path.join(dataDir, "tenants", encodeURIComponent(tenantId), "marketing", "slide-pack-rotation", lane.productId, "image-cache");
   const pool = poolPath(dataDir, tenantId, lane.productId, lane.lane);
   let candidates = readPool(pool);
+  let selectable = filterCandidatesForLane(candidates, lane, objectStore);
 
   const available = selectSlidePack({
-    candidates: addCandidateCopyHashes(candidates, objectStore),
+    candidates: addCandidateCopyHashes(selectable, objectStore),
     postedHistory: initialPostedHistory,
     integrationRef: lane.integrationRef,
     minDaysBetweenRepeat: MIN_DAYS_BETWEEN_REPEAT,
@@ -168,7 +180,7 @@ async function resolveLarryJaSlot({ env = process.env, now = () => new Date().to
   });
   // Total inventory can exceed the warm-up floor while every pack is still
   // inside the no-repeat window. Refill once through the same gated factory.
-  if (candidates.length < MIN_POOL_SIZE || !available) {
+  if (selectable.length < MIN_POOL_SIZE || !available) {
     const rejected = [];
     const generated = await generateCandidates({
       objectStore,
@@ -195,6 +207,7 @@ async function resolveLarryJaSlot({ env = process.env, now = () => new Date().to
     const fresh = generated.filter((c) => !existingRefs.has(c.packRef));
     appendPool(pool, fresh);
     candidates = candidates.concat(fresh);
+    selectable = filterCandidatesForLane(candidates, lane, objectStore);
     if (rejected.length) {
       process.stderr.write(`${JSON.stringify({ slide_pack_gate_rejected: rejected })}\n`);
     }
@@ -205,9 +218,9 @@ async function resolveLarryJaSlot({ env = process.env, now = () => new Date().to
   if (slotReceipt) {
     return { slot: dueSlot, selected: null, alreadyPublished: true, providerPostId: slotReceipt.providerPostId };
   }
-  const metrics = readCreativeMetricsForFamilies(dataDir, candidates);
+  const metrics = readCreativeMetricsForFamilies(dataDir, selectable);
   const selected = selectSlidePack({
-    candidates: addCandidateCopyHashes(candidates, objectStore),
+    candidates: addCandidateCopyHashes(selectable, objectStore),
     postedHistory,
     integrationRef: lane.integrationRef,
     metrics,

@@ -14,6 +14,8 @@ function slide(position, role, text) {
 
 function goodPack() {
   return {
+    product_id: "anicca-ios",
+    locale: "en",
     slide_count: SLIDE_COUNT,
     slides: [
       slide(1, "hook", "メンタルが勝手に安定する口癖５選"),
@@ -82,6 +84,17 @@ test("runAutomatedGate rejects a caption missing the App Store CTA", () => {
   const result = runAutomatedGate({ pack: goodPack(), caption: "メンタルが勝手に安定する口癖５選", imageChecks: goodImageChecks() });
   assert.equal(result.passed, false);
   assert.ok(result.reasons.some((r) => r.includes("App Store CTA")));
+});
+
+test("runAutomatedGate accepts TikTok App Store search CTA when the account has no website link", () => {
+  const result = runAutomatedGate({
+    pack: goodPack(),
+    caption: "Search Anicca on the App Store",
+    imageChecks: goodImageChecks(),
+    platform: "tiktok",
+  });
+  assert.equal(result.passed, true);
+  assert.deepEqual(result.reasons, []);
 });
 
 test("runAutomatedGate rejects a caption over the platform limit", () => {

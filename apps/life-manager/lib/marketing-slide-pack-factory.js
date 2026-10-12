@@ -115,8 +115,11 @@ function ctaBackgroundPrompt() {
   return `a smartphone resting on a soft peach and lavender gradient surface showing a calming, minimalist wellness app home screen, no readable text on the phone screen${LIFESTYLE_STYLE_SUFFIX}`;
 }
 
-function ctaText(productId, locale) {
+function ctaText(productId, locale, platform) {
   const appName = APP_DISPLAY_NAMES[productId] || productId;
+  if (platform === "tiktok") {
+    return `${appName}\n${locale === "ja" ? `App Storeで${appName}を検索` : `Search ${appName} on the App Store`}`;
+  }
   const ctaLine = CTA_LINE_BY_LOCALE[locale] || CTA_LINE_BY_LOCALE.en;
   return `${appName}\n${ctaLine}`;
 }
@@ -213,7 +216,7 @@ async function generateSlidePackCandidates({
         if (typeof onRejected === "function") onRejected({ id, familyId, reasons: [error.message], score: 0 });
         continue;
       }
-      const texts = [copy.hook, ...copy.body, ctaText(productId, locale)];
+      const texts = [copy.hook, ...copy.body, ctaText(productId, locale, platform)];
       const totalCostUsd = copy.costUsd;
       if (totalCostUsd > MAX_PACK_COST_USD) {
         if (typeof onRejected === "function") onRejected({ id, familyId, reasons: [`slide pack text generation exceeded the $${MAX_PACK_COST_USD} cost cap`], score: 0 });

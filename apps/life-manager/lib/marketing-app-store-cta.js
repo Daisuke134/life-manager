@@ -18,9 +18,10 @@ const APP_STORE_PROVIDER_TOKEN = "93486075";
 const APP_STORE_CAMPAIGN_TOKEN = /^[A-Za-z0-9][A-Za-z0-9_-]{0,29}$/;
 
 // Keep a description URL for YouTube, but Shorts do not linkify it:
-// their CTA directs viewers to the clickable channel profile link.
-// TikTok and Instagram captions instead direct viewers to the profile bio.
+// their CTA directs viewers to the clickable channel profile link. TikTok
+// website links are not available on every account, so app posts use search.
 const LINKABLE_PLATFORMS = new Set(["youtube"]);
+const APP_STORE_SEARCH_NAMES = Object.freeze({ "anicca-ios": "Anicca", "honne-ai": "Honne" });
 
 // Conservative caption/description ceilings per platform (native ranges are
 // 2200 for TikTok/Instagram, 5000 for YouTube descriptions).
@@ -34,12 +35,14 @@ const CTA_COPY = Object.freeze({
   ja: {
     linked: (url) => `アプリはチャンネルのリンクから\n${url}`,
     bio: "アプリはプロフィールのリンクから",
+    searchApp: (appName) => `App Storeで${appName}を検索`,
     webLinked: (url) => `Google Calendarに接続 → ${url}`,
     webBio: "Google Calendarへの接続はプロフィールのリンクから",
   },
   en: {
     linked: (url) => `Get the app from the link on our channel\n${url}`,
     bio: "Link in bio for the app",
+    searchApp: (appName) => `Search ${appName} on the App Store`,
     webLinked: (url) => `Connect Google Calendar → ${url}`,
     webBio: "Connect Google Calendar through the link in bio",
   },
@@ -114,6 +117,10 @@ function marketingCtaLine({ productId, platform, locale }) {
     url.searchParams.set("utm_campaign", product.product_id);
     return copy.webLinked(url.toString());
   }
+  if (String(platform || "") === "tiktok") {
+    appStoreUrl(productId);
+    return copy.searchApp(APP_STORE_SEARCH_NAMES[String(productId)] || String(productId));
+  }
   if (LINKABLE_PLATFORMS.has(String(platform || ""))) {
     return copy.linked(appStoreCampaignUrl({
       productId,
@@ -128,6 +135,7 @@ function marketingCtaLine({ productId, platform, locale }) {
 function buildMarketingCtaCaption(baseCaption, { productId, platform, locale }) {
   const base = String(baseCaption == null ? "" : baseCaption).replace(/\s+$/, "");
   const cta = marketingCtaLine({ productId, platform, locale });
+  if (base === cta || base.endsWith(`\n\n${cta}`)) return `${base}\n`;
   const limit = platformCaptionLimit(platform);
   const ctaBlock = `\n\n${cta}\n`;
   if (base.length + ctaBlock.length <= limit) return `${base}${ctaBlock}`;

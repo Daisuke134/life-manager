@@ -9,7 +9,7 @@ const { spawnSync } = require("node:child_process");
 const test = require("node:test");
 
 const { importContentObject } = require("../lib/content-object-store.js");
-const { JA_LANE, JA_MAIN_TIKTOK_LANE, EN_AFFIRMATION_LANE, EN_SLIDESHOW_TIKTOK_LANE, JA_BUDDHA_TIKTOK_LANE } = require("../lib/marketing-native-carousel-publication-adapter.js");
+const { JA_LANE, JA_MAIN_TIKTOK_LANE, EN_AFFIRMATION_LANE, EN_AFFIRMATION_TIKTOK_LANE, EN_SLIDESHOW_TIKTOK_LANE, JA_BUDDHA_TIKTOK_LANE } = require("../lib/marketing-native-carousel-publication-adapter.js");
 const { EN_SLIDESHOW_PRODUCTION_SLOTS } = require("./anicca-larry-ja-canary.js");
 const {
   MIN_DAYS_BETWEEN_REPEAT,
@@ -236,6 +236,49 @@ test("resolveLarryJaSlot does not regenerate once the pool already has enough ca
   await resolveLarryJaSlot({ env, now: () => "2026-09-28T07:30:00.000Z", slot: "2026-09-28T07:30:00.000Z", resolveBackground: fakeResolveBackground() });
   const after = fs.readFileSync(pool, "utf8");
   assert.equal(before, after, "pool should not grow once above MIN_POOL_SIZE");
+});
+
+test("TikTok rotation preserves but never selects approved packs with an unavailable link-in-bio CTA", async (t) => {
+  const dataDir = tempDataDir(t);
+  const env = { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT };
+  const lane = EN_AFFIRMATION_TIKTOK_LANE;
+  const objectDir = path.join(dataDir, "objects");
+  const importText = (name, value) => {
+    const source = path.join(dataDir, name);
+    fs.writeFileSync(source, value);
+    return importContentObject(source, { objectDir }).ref;
+  };
+  const slides = (last) => Array.from({ length: 6 }, (_, index) => ({
+    position: index + 1,
+    role: index === 0 ? "hook" : (index === 5 ? "cta" : "body"),
+    text: index === 5 ? last : `body ${index + 1}`,
+  }));
+  const oldPackRef = importText("old-link-in-bio-pack.json", JSON.stringify({ slides: slides("Anicca\nLink in bio") }));
+  const oldCaptionRef = importText("old-link-in-bio-caption.txt", "What would make this morning gentler?\n\nLink in bio for the app\n");
+  const oldCandidate = { packRef: oldPackRef, captionRef: oldCaptionRef, familyId: "question-hook", createdAt: "2026-10-11T00:00:00.000Z" };
+  const pool = poolPath(dataDir, TENANT, lane.productId, lane.lane);
+  fs.mkdirSync(path.dirname(pool), { recursive: true });
+  fs.writeFileSync(pool, `${JSON.stringify(oldCandidate)}\n`);
+
+  const freshPackRef = importText("search-cta-pack.json", JSON.stringify({ slides: slides("Anicca\nSearch Anicca on the App Store") }));
+  const freshCaptionRef = importText("search-cta-caption.txt", "What would make this morning gentler?");
+  const freshCandidate = { packRef: freshPackRef, captionRef: freshCaptionRef, familyId: "question-hook", createdAt: "2026-10-12T11:15:00.000Z" };
+  let generateCalls = 0;
+  const slot = "2026-10-12T11:15:00.000Z";
+  const result = await resolveLarryJaSlot({
+    env,
+    now: () => slot,
+    slot,
+    lane,
+    productionSlots: ["09:15", "14:15", "20:15"],
+    generateCandidates: async () => { generateCalls += 1; return [freshCandidate]; },
+  });
+
+  assert.equal(generateCalls, 1);
+  assert.equal(result.selected.packRef, freshPackRef);
+  const persisted = fs.readFileSync(pool, "utf8").split(/\r?\n/).filter(Boolean).map(JSON.parse);
+  assert.ok(persisted.some((candidate) => candidate.packRef === oldPackRef), "old immutable candidate remains in the pool history");
+  assert.ok(persisted.some((candidate) => candidate.packRef === freshPackRef));
 });
 
 test("resolveLarryJaSlot never repeats a pack posted within MIN_DAYS_BETWEEN_REPEAT and is idempotent per slot", { timeout: 60_000 }, async (t) => {

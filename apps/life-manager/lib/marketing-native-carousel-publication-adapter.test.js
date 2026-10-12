@@ -193,7 +193,7 @@ test("EN slideshow TikTok exact pack executes through six ordered JPEGs only", a
     objectStore: { resolve: (ref) => path.join(objectRoot, ref.slice(-64)) },
     secretProvider: { get: async () => "postiz-secret" }, ledgerPath: ledger,
     // A real Postiz call echoes back the hash of the exact bytes it received
-    // (the approved caption plus the App Store link-in-bio CTA), so the
+    // (the approved caption plus the TikTok App Store search CTA), so the
     // mock reports the hash of what the adapter actually wrote to disk.
     runDistribution: async (input) => {
       calls.push({ ...input, capturedCaption: fs.readFileSync(input.captionPath, "utf8") });
@@ -213,11 +213,11 @@ test("EN slideshow TikTok exact pack executes through six ordered JPEGs only", a
   assert.equal(calls[0].mediaPaths.length, 6);
   assert.deepEqual(result.receipt.media_sha256, lane.mediaRefs.map((ref) => ref.slice(-64)));
   assert.equal(verifyMarketingNativeCarouselPublicationReceipt(result.receipt), true);
-  // EN/TikTok: the posted caption ends with the link-in-bio CTA (TikTok does
-  // not linkify caption URLs) and is strictly longer than the approved base.
+  // EN/TikTok has no profile website link, so the posted caption directs
+  // viewers to search the App Store and is strictly longer than the base.
   const approvedCaption = fs.readFileSync(path.join(objectRoot, lane.captionRef.slice(-64)), "utf8");
   assert.notEqual(calls[0].capturedCaption, approvedCaption);
-  assert.equal(calls[0].capturedCaption, `${approvedCaption.replace(/\s+$/, "")}\n\nLink in bio for the app\n`);
+  assert.equal(calls[0].capturedCaption, `${approvedCaption.replace(/\s+$/, "")}\n\nSearch Anicca on the App Store\n`);
   assert.equal(result.receipt.caption_with_cta_sha256, crypto.createHash("sha256").update(calls[0].capturedCaption).digest("hex"));
 });
 
