@@ -85,7 +85,6 @@ def test_closed_package_download_caches_are_discovered_and_reclaimed(
         "uv-cache": ".cache/uv",
         "bun-cache": "Library/Caches/bun",
         "burrito-cache": "Library/Caches/burrito_file_cache",
-        "codex-runtime-cache": ".cache/codex-runtimes",
         "ffmpeg-cache": "Library/Caches/ffmpeg-static-nodejs",
         "npm-cache": ".npm/_cacache",
         "google-cache": "Library/Caches/Google",
@@ -115,7 +114,7 @@ def test_closed_package_download_caches_are_discovered_and_reclaimed(
     assert result["errors"] == 0
     assert result["protected_deletions"] == 0
     assert len(result["reclaimed_candidates"]) == 8
-    assert result["reclaimed_candidates_omitted"] == 1
+    assert result["reclaimed_candidates_omitted"] == 0
 
 
 @pytest.mark.parametrize("condition", ["closed", "open", "compiler", "changed"])
@@ -1921,7 +1920,6 @@ def test_open_codex_sparkle_installation_generation_is_preserved(tmp_path: Path)
 
 def test_discovery_includes_exact_regenerable_model_and_runtime_caches(tmp_path: Path) -> None:
     for relative in (
-        ".cache/codex-runtimes",
         ".cache/whisper",
         ".cache/life-manager/camofox-browser",
         "Library/Caches/camoufox",
@@ -1932,7 +1930,6 @@ def test_discovery_includes_exact_regenerable_model_and_runtime_caches(tmp_path:
 
     owners = {item["owner"]: Path(item["path"]) for item in governor.discover_candidates()}
 
-    assert owners["codex-runtime-cache"] == tmp_path / ".cache/codex-runtimes"
     assert owners["whisper-model-cache"] == tmp_path / ".cache/whisper"
     assert owners["camofox-browser-cache"] == tmp_path / ".cache/life-manager/camofox-browser"
     assert owners["camoufox-sdk-cache"] == tmp_path / "Library/Caches/camoufox"
@@ -2058,26 +2055,6 @@ def test_open_whisper_cache_is_preserved(tmp_path: Path) -> None:
 
     assert cache.exists()
     assert result["preserved_reasons"] == {"open": 1}
-
-
-def test_closed_exact_runtime_cache_with_source_named_dependency_is_reclaimed(tmp_path: Path) -> None:
-    cache = tmp_path / ".cache/codex-runtimes"
-    dependency = cache / "dependencies/source"
-    dependency.mkdir(parents=True)
-    (dependency / "payload.bin").write_bytes(b"x" * 32)
-    governor = HostDiskGovernor(
-        home=tmp_path,
-        state_dir=tmp_path / "state",
-        lsof=lambda _path: "confirmed-closed",
-        usage=lambda: (0, 1),
-    )
-
-    candidates = [item for item in governor.discover_candidates()
-                  if item["owner"] == "codex-runtime-cache"]
-    result = governor.sweep(candidates)
-
-    assert not cache.exists()
-    assert result["reclaimed"] == 32
 
 
 def test_closed_browser_clone_with_source_named_dependency_is_reclaimed(

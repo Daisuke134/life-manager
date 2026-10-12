@@ -56,6 +56,8 @@ jobs:
           runtime/loop/__tests__/recovery-apply-plan.test.mjs
           runtime/loop/__tests__/recovery-executor.test.mjs
           runtime/loop/__tests__/recovery-supervisor.test.mjs
+      - name: Verify Codex executable installations stay protected
+        run: python3 -B skills/self/disk-cleanup/tests/test_codex_runtime_installation_protection.py
 
   openclaw-foundation:
     name: OpenClaw offline foundations
