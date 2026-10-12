@@ -56,7 +56,8 @@ def test_watchdog_dispatches_to_governor_without_touching_worktrees_or_simulator
     fake_python = tmp_path / "python-capture"
     fake_python.write_text(
         '#!/bin/sh\nprintf "%s\\n" "$@" > "$CAPTURE_ARGS"\n'
-        'printf "%s\\n" "${LIFE_MANAGER_DISK_INVENTORY_FAST:-}" > "$CAPTURE_FAST"\n',
+        'printf "%s\\n" "${LIFE_MANAGER_DISK_INVENTORY_FAST:-}" > "$CAPTURE_FAST"\n'
+        'printf "%s\\n" "${LIFE_MANAGER_DISK_WATCHDOG:-}" > "$CAPTURE_WATCHDOG"\n',
         encoding="utf-8",
     )
     fake_python.chmod(0o755)
@@ -65,12 +66,14 @@ def test_watchdog_dispatches_to_governor_without_touching_worktrees_or_simulator
         "LIFE_MANAGER_RUNTIME_PYTHON": str(fake_python),
         "CAPTURE_ARGS": str(capture),
         "CAPTURE_FAST": str(tmp_path / "fast.txt"),
+        "CAPTURE_WATCHDOG": str(tmp_path / "watchdog.txt"),
     }
     env.pop("LIFE_MANAGER_DISK_INVENTORY_FAST", None)
 
     subprocess.run(["/bin/sh", str(release / "bin/disk-watchdog.sh")], env=env, check=True)
 
     assert (tmp_path / "fast.txt").read_text().strip() == ""
+    assert (tmp_path / "watchdog.txt").read_text().strip() == "1"
     captured = capture.read_text(encoding="utf-8").splitlines()
     assert captured[:2] == ["-B", "-c"]
     assert captured[-3:] == [
@@ -116,7 +119,8 @@ def test_watchdog_pins_release_and_bounds_stdio_without_blocking_recovery(
     governor.write_text(
         "import json,os,sys\nfrom pathlib import Path\n"
         f"Path({str(marker)!r}).write_text(json.dumps({{'release':str(Path(__file__).parents[3]),"
-        "'args':sys.argv[1:],'fast':os.environ.get('LIFE_MANAGER_DISK_INVENTORY_FAST')}))\n"
+        "'args':sys.argv[1:],'fast':os.environ.get('LIFE_MANAGER_DISK_INVENTORY_FAST'),"
+        "'watchdog':os.environ.get('LIFE_MANAGER_DISK_WATCHDOG')}))\n"
         "os.write(1,b'x'*32768+b'out-tail\\n')\n"
         "os.write(2,b'e'*32768+b'err-tail\\n')\n"
         "raise SystemExit(23)\n"
@@ -145,6 +149,7 @@ def test_watchdog_pins_release_and_bounds_stdio_without_blocking_recovery(
         "release": str(release),
         "args": ["--home", str(home), "--state-dir", str(home / ".local/state/life-manager/state")],
         "fast": None,
+        "watchdog": "1",
     }
     for stream in ("out", "err"):
         assert (logs / f"watchdog.{stream}.log").read_text() == f"legacy-{stream}\n"

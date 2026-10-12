@@ -3,6 +3,7 @@ set -eu
 
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 # HostDiskGovernor keeps minute sweeps fast and runs a bounded full census when due.
+export LIFE_MANAGER_DISK_WATCHDOG=1
 RELEASE_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
 GOVERNOR="$RELEASE_ROOT/skills/self/disk-cleanup/disk_cleanup.py"
 STATE_DIR="$HOME/.local/state/life-manager/state"

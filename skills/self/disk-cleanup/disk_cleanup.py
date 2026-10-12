@@ -1630,14 +1630,17 @@ class HostDiskGovernor:
         if binding is not None:
             payload["identity"] = binding
         elif filename == "last-receipt.json":
-            previous = read_storage_snapshot(self.state_dir)
-            identity = previous.get("identity") if isinstance(previous, dict) else None
-            if (isinstance(identity, dict) and identity.get("owner_id") == "life-manager-disk-cleanup"
-                    and isinstance(identity.get("release_sha"), str)
-                    and re.fullmatch(r"[a-f0-9]{40}", identity["release_sha"])):
-                # A watchdog observation must not erase the scheduler-owned
-                # occurrence proof. Its capacity sample remains separate.
+            if os.environ.get("LIFE_MANAGER_DISK_WATCHDOG") == "1":
                 filename = "last-unbound-receipt.json"
+            else:
+                previous = read_storage_snapshot(self.state_dir)
+                identity = previous.get("identity") if isinstance(previous, dict) else None
+                if (isinstance(identity, dict) and identity.get("owner_id") == "life-manager-disk-cleanup"
+                        and isinstance(identity.get("release_sha"), str)
+                        and re.fullmatch(r"[a-f0-9]{40}", identity["release_sha"])):
+                    # Do not erase a scheduler-owned occurrence proof.
+                    # Keep this direct/unbound observation separate.
+                    filename = "last-unbound-receipt.json"
         payload.setdefault("observed_at", time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
         data = (json.dumps(payload, ensure_ascii=False, sort_keys=True) + "\n").encode("utf-8")
         if len(data) > RECEIPT_PAYLOAD_MAX_BYTES:
