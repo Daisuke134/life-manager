@@ -53,6 +53,31 @@ test("Anicca summary consumes current corrections ahead of retained historical r
   assert.match(summary.snapshot.message, /@anicca\.jp1 Instagram: 現在値.*Views 2229/);
 });
 
+test("attribution funnel reports app-scoped RevenueCat customer activity and keeps unavailable charts null", () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-rc-activity-summary-")); const day = "2026-10-12"; const objectDir = path.join(dataDir, "objects");
+  const source = path.join(dataDir, "source.json"); fs.writeFileSync(source, "{}\n"); const ref = importContentObject(source, { objectDir }).ref;
+  const metrics = { first_time_downloads: { status: "unavailable", value: null, reason: "report_pending" }, campaign_first_time_downloads: { status: "unavailable", value: null, reason: "campaign_not_observed" }, campaign_impressions: { status: "unavailable", value: null, reason: "campaign_not_observed" } };
+  const ascDir = path.join(dataDir, "tenants/dais-local/marketing/attribution/asc", day); fs.mkdirSync(ascDir, { recursive: true });
+  fs.writeFileSync(path.join(ascDir, "acquisition.json"), JSON.stringify({ snapshot_ref: ref, products: ["anicca-ios", "honne-ai"].map((product_id) => ({ product_id, source_status: "unavailable", attribution_status: "unattributed", attribution_reason: "campaign_not_configured", campaign_status: "unavailable", metrics })) }));
+  const rcDir = path.join(dataDir, "tenants/dais-local/marketing/attribution/revenuecat", day); fs.mkdirSync(rcDir, { recursive: true });
+  fs.writeFileSync(path.join(rcDir, "subscriptions.json"), JSON.stringify({ snapshot_ref: ref, products: [
+    { product_id: "anicca-ios", source_status: "unavailable", customer_activity_status: "measured", metrics: { customers_new: { status: "measured", value: 19 }, customers_active: { status: "measured", value: 4.29 } } },
+    { product_id: "honne-ai", source_status: "unavailable", customer_activity_status: "unavailable", metrics: { customers_new: { status: "unavailable", value: null, reason: "chart_not_enabled" }, customers_active: { status: "unavailable", value: null, reason: "chart_not_enabled" } } },
+  ] }));
+
+  const result = persistAttributionCoverage(dataDir, day, "2026-10-12T13:00:00.000Z");
+  const anicca = result.snapshot.products.find((product) => product.product_id === "anicca-ios");
+  const honne = result.snapshot.products.find((product) => product.product_id === "honne-ai");
+  assert.equal(anicca.source_status.revenuecat_customer_activity, "measured");
+  assert.equal(anicca.metrics.customers_new_28d.value, 19);
+  assert.equal(anicca.metrics.customers_active_daily_average_28d.value, 4.29);
+  assert.equal(honne.source_status.revenuecat_customer_activity, "unavailable");
+  assert.deepEqual([honne.metrics.customers_new_28d.status, honne.metrics.customers_new_28d.value], ["unavailable", null]);
+  assert.match(result.snapshot.message, /新規顧客（直近28日）19/);
+  assert.match(result.snapshot.message, /平均DAU（直近28日）4\.29/);
+  assert.match(result.snapshot.message, /Honne AI: .*新規顧客（直近28日）取得不可/);
+});
+
 test("Anicca daily summary includes @anicca.en current metrics and ignores stale posts", () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-anicca-en-summary-")); const day = "2026-10-11";
   const writeDaily = (owner, shortcode, filename, snapshot) => {
