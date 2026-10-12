@@ -35,14 +35,15 @@ from job_search_loop.workday_qualification import POLICY_VERSION, qualify_one
 
 
 class WorkdayQualificationTests(unittest.TestCase):
-    def test_shortlist_prompt_balances_locations_and_uses_user_salary_target(self):
+    def test_shortlist_prompt_includes_worldwide_locations_and_salary_target(self):
         prompt_source = inspect.getsource(workday_search_loop.main)
 
         self.assertIn("No location category outranks another", prompt_source)
-        self.assertIn("Tokyo onsite or hybrid", prompt_source)
-        self.assertIn("remote roles", prompt_source)
-        self.assertIn("United States", prompt_source)
+        self.assertIn("onsite or hybrid roles worldwide", prompt_source)
+        self.assertIn("remote roles worldwide", prompt_source)
         self.assertIn("USD 100,000 annual gross base target", prompt_source)
+        self.assertNotIn("Tokyo onsite or hybrid", prompt_source)
+        self.assertNotIn("United States roles in any location", prompt_source)
         self.assertNotIn("Japan employment first", prompt_source)
         self.assertNotIn(
             "Every row that explicitly supports employment from Japan must rank before any row tied to another country",
@@ -54,12 +55,51 @@ class WorkdayQualificationTests(unittest.TestCase):
         self.assertIn("CEO or C-suite", fit_source)
         self.assertIn("Do not reject a role based on title alone", fit_source)
 
-    def test_sponsorship_wording_alone_does_not_exclude_us_roles(self):
+    def test_v7_requalifies_old_rejections_without_replaying_submit_intents(self):
+        self.assertEqual(POLICY_VERSION, "workday-global-scope-v7")
+        with tempfile.TemporaryDirectory() as directory:
+            ledger = Ledger(Path(directory) / "ledger.sqlite3")
+
+            def rejected(label: str, url: str) -> str:
+                application_id = ledger.add_application("Example", label, url)
+                ledger.record_workday_fit_decision(
+                    application_id,
+                    "rejected",
+                    ("a" if label != "Already submitted" else "b") * 64,
+                    policy_version="workday-global-scope-v6",
+                )
+                return application_id
+
+            eligible = rejected(
+                "Worldwide onsite",
+                "https://example.wd1.myworkdayjobs.com/Careers/job/DE/Role_R1",
+            )
+            submitted = rejected(
+                "Already submitted",
+                "https://example.wd1.myworkdayjobs.com/Careers/job/FR/Role_R2",
+            )
+            ledger.connection.execute(
+                """
+                INSERT INTO submit_intents
+                  (intent_id, application_id, fence, payload_hash, japan_day,
+                   slot, status, created_at)
+                VALUES (?, ?, 1, ?, '2026-10-12', 1, 'submit_unknown',
+                        '2026-10-12T00:00:00+00:00')
+                """,
+                ("intent-worldwide", submitted, "c" * 64),
+            )
+
+            rows = ledger.superseded_workday_fit_rejections(POLICY_VERSION)
+            ledger.close()
+
+        self.assertEqual([row["application_id"] for row in rows], [eligible])
+
+    def test_sponsorship_wording_alone_does_not_exclude_worldwide_roles(self):
         shortlist_source = inspect.getsource(workday_search_loop.main)
         fit_source = inspect.getsource(workday_qualification.qualify_one)
 
-        self.assertIn("Sponsorship status alone is not a reason to reject or hold", fit_source)
-        self.assertIn("regardless of sponsorship wording", shortlist_source)
+        self.assertIn("Sponsorship status alone is not a reason to reject any role", fit_source)
+        self.assertIn("regardless of country", shortlist_source)
         self.assertIn("answer every work-authorization and sponsorship question truthfully", fit_source)
         self.assertNotIn(
             "eligible only with existing work authorization or explicit employer sponsorship",
