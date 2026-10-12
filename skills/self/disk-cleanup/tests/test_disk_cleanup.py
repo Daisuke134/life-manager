@@ -43,6 +43,10 @@ def test_tier_boundaries_use_bytes() -> None:
     assert classify_tier(3 * GiB - 1) == "ULTRA"
 
 
+def test_governor_run_budget_fits_the_primary_watchdog_cadence() -> None:
+    assert disk_cleanup.GOVERNOR_BUDGET_SECONDS < 60
+
+
 def test_closed_regenerable_artifact_is_reclaimed(tmp_path: Path, monkeypatch) -> None:
     state = tmp_path / "state"
     candidate = tmp_path / "tmp" / "capafy-hf-npm.complete"
@@ -3389,7 +3393,7 @@ def test_run_once_rechecks_budget_after_lsof_before_reclaim(tmp_path: Path, monk
     monkeypatch.setattr(disk_cleanup, "collect_host_inventory", fake_inventory)
 
     def lsof(_path: Path) -> str:
-        clock[0] = 106.0
+        clock[0] = disk_cleanup.GOVERNOR_BUDGET_SECONDS + 16
         return "confirmed-closed"
 
     governor = HostDiskGovernor(
