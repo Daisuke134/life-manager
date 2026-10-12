@@ -1,6 +1,6 @@
 # 人間シミュレーションとManagerの最初の実証
 
-英語6枚、日本語発表者ノート、合計300秒。公開研究と提案する実証を区別する。
+英語6枚、日本語発表者ノート、合計300秒。公開研究と実証対象の選定を区別する。
 
 ## 1. Can AI improve lives by changing shared conditions?
 
@@ -62,19 +62,20 @@ A planner and economic agents learn with different objectives
 
 - [AI Economist](https://arxiv.org/abs/2108.02755)
 
-## 5. First proposed blessing: access to paid work
+## 5. Choose a field study from evidence and access
 
-Change structural barriers and allocation in a real operator network
+A candidate needs intervention evidence, operator authority, and outcome data
 
-**Intervention**: Eligibility, task structure, timing, or allocation within operator authority.
+**Existing evidence**: CVS models access and waits. Scheduling research reports wait improvements with important study limitations.
 
-**Primary outcome**: Realized net income per eligible person, including zero earnings.
+**Decision criteria**: Authority, real participants, prior data, comparable conditions, outcome timing, and costs.
 
-**Study requirements**: Real demand, payment data, comparable budgets, quality, and spillover-aware evaluation.
+**Claim boundary**: No first domain is committed yet. A simulated gain is not a field benefit.
 
-日本語ノート: 第一候補は仕事や収入機会へのアクセスです。実在案件がある運営者と、参加条件や配分、時間条件を変えます。主要指標は対象全員の一人当たり実現純所得で、案件を得なかった人も含めます。同じ案件を奪い合うため、個人の結果を独立とは扱えません。比較の単位を考え、時間負担、費用、品質、機会を失った人も測ります。
+日本語ノート: 最初の実証は、先行研究と実際に操作できる運営環境から選びます。CVSの事例はアクセスと待ち時間を扱い、予約方式のレビューにも改善の報告がありますが、研究の偏りや臨床成果の不足が残ります。運営権限、対象者、事前記録、比較条件、成果が出る期間を確認して選びます。所得機会を先に勧めた案は根拠不足として優先を撤回しました。模型の改善を現実の祝福として報告しません。
 
-
+- [CVS case](https://www.simile.com/blog/simile-cvs-health)
+- [Scheduling review](https://doi.org/10.1001/archinternmed.2011.168)
 
 ## 6. The result must connect the model to reality
 

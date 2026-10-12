@@ -54,15 +54,15 @@ Predicting outcomes from observed actions does not establish the effect of chang
 
 *Claims should stop at the evidence actually obtained.*
 
-## A first environment intervention
+## Choosing a field intervention
 
-A proposed first Manager application is access to paid work. With an operator of a job or task network, change eligibility, allocation, or time conditions. Test whether more people complete real work and receive payment under the same external budget. This is a proposed study, not a reported achievement.
+A field study should start from existing intervention evidence and an operator's actual constraints. The CVS case includes pharmacist access and waiting times. A 2011 systematic-review abstract on advanced access scheduling summarizes 24 studies and reports improvements in appointment waiting time. Every included study had a potential source of bias; satisfaction findings were mixed, and clinical outcome data was limited.[16]
 
-The primary outcome would be realized net income per eligible person, including zero earnings for people who receive no work. Fees, work time, buyer quality, refunds, and the distribution of benefits also matter. Conversion alone is not wellbeing.
+That is a reason to investigate shared scheduling and supply conditions, not proof of an AI effect. Manager would need a separate comparison against normal operations to test whether its predictions and intervention choices improve outcomes.
 
-The study needs real demand, operator authority, payment records, and a defensible comparison. Shared jobs create interference: one person's assignment changes another person's opportunities. Independent resource pools or an appropriate time-based design may help, with remaining spillovers and time trends explicitly analyzed.
+A first setting needs authority to change rules, real participants, prior records, comparable conditions, and an observable outcome period. Neither paid-work access nor healthcare should become the priority before those facts are available. An operator's evidence should establish whether the study's conditions match the proposed environment.
 
-Beneficiaries need not use a new app. The environment changes around them. The first meaningful result is a traceable connection between that change and an observed benefit, with enough evidence for someone else to challenge it.
+People need not use a new app for supply and access conditions to change. A useful result connects a specific change to observed access, burden, or income, with evidence another researcher can inspect.
 
 ## Sources
 
@@ -81,3 +81,5 @@ Beneficiaries need not use a new app. The environment changes around them. The f
 - [13] [AI Economist paper](https://arxiv.org/abs/2108.02755)
 - [14] [World Labs taxonomy](https://www.worldlabs.ai/blog/taxonomy-of-world-models)
 - [15] [V-JEPA 2 paper](https://arxiv.org/abs/2506.09985)
+
+- [16] [Advanced access scheduling outcomes, systematic review](https://doi.org/10.1001/archinternmed.2011.168)

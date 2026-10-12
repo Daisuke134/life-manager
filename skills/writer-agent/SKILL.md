@@ -43,6 +43,12 @@ Writer's own internal operation is never a default topic.
 
 This skill is the crystallized, repeatable version of the hand-crafted Automaton article process. It is meant to be ITERATED: every time we learn something about good writing, add it to the PLAYBOOK below.
 
+## REQUIRED JAPANESE WRITING REFERENCES
+
+Before drafting or revising any Japanese article, read `reference/japanese-writing.md`, `vendor/japanese-tech-writing/SKILL.md`, and `vendor/yomiyasu/SKILL.md`. Use yomiyasu as the primary Japanese revision guide and the matching domain reference. Preserve claims, conditions, uncertainty, and whether a sentence reports a fact or a plan. Run the bundled lint on saved files and inspect findings in context; a lint warning count is not factual validation. Keep drafts, sources, diagrams, and publication status in real files. For English, retain the existing English workflow; do not apply Japanese lint scores to English prose.
+
+The current Manager simulation article series is free and targets X and the own blog under the user brief. It does not change unrelated paid publishing lanes. A request to read an article delivers saved drafts; public release requires the actual publisher path and readback.
+
 ## The moat (why this is not AI slop)
 1. **Deepest search** — multi-source, primary-source, verified. Use **context7** for library/framework docs and **firecrawl** for web pages. Read the actual repo/code/spec, not summaries-of-summaries.
 2. **We actually RUN it** end-to-end until we see real results (receipts: terminal output, logs, wallet, what it earned, where it broke).

@@ -58,3 +58,7 @@ This repository is the source authority for Life Manager. The canonical remote i
 - Never expose credentials or private data in source, logs, commits or chat.
 - In a remote session, do not issue launchd commands that reach `gui/$UID`; identify the exact call path first. For an allowed macOS launchd mutation by the normal owner, use the repository's `bin/launchctl-safe`; if its preflight fails, stop and follow the documented recovery runbook. Do not use Terminal or AppleScript as a bypass.
 - Do not restart, replace or create a competing production owner while another owner is active. Inspect the loaded immutable release and state before changing an operational path.
+
+## Japanese article writing
+
+For every Japanese article or technical explainer, read the repository-owned `skills/writer-agent/reference/japanese-writing.md` and its two pinned upstream guides before drafting/revising. Prioritize yomiyasu for Japanese revision and preserve factual meaning, conditions, uncertainty, and stage. Save articles, sources, and visuals as real files. The current Manager simulation series starts free on X and the own blog; this does not change unrelated paid loops.

@@ -1,0 +1,26 @@
+{
+  "yomiyasu": {
+    "url": "https://github.com/nanaism/yomiyasu",
+    "commit": "602a3690dadd5d620bb21524353b8d192914eabb",
+    "license": "MIT; bundled Unicode License V3"
+  },
+  "japanese_tech_writing": {
+    "url": "https://gist.github.com/k16shikano/fd287c3133457c4fd8f5601d34aa817d",
+    "version": "8f2d57610a73efc97d743c9b0b0ecb1002e09fa4",
+    "license": "Unlicense as declared in upstream frontmatter"
+  },
+  "files": {
+    "vendor/yomiyasu/UNICODE-LICENSE.txt": "e7a93b009565cfce55919a381437ac4db883e9da2126fa28b91d12732bc53d96",
+    "vendor/yomiyasu/SKILL.md": "0a8915986b0228abdf137d00f8e35959336f1914d36dfb73f1e8c053357209cf",
+    "vendor/yomiyasu/LICENSE": "79d802f15bc8caf67f1a83c1bdbe214ccb41a0a0275f9046b329b89c65ee1fca",
+    "vendor/yomiyasu/references/slop-catalog.md": "e7791d123db2573f50ee922c51f7d50694ab7e6b81f318713e9f405fe3c6daf2",
+    "vendor/yomiyasu/references/gemini-syntax.md": "7685424e9f63cd0d45c0fca673eabd10d7879f29e220b7d8517e73fcd2a9b6e7",
+    "vendor/yomiyasu/scripts/markdown_visibility.py": "7e6f739114bc28b132aa8e2bcfb51c7de7f441c12a54431c7248b5353a9966bb",
+    "vendor/yomiyasu/scripts/yomiyasu_diff.py": "b704e088fd6e1b01c21fb6b97373cc21d441cb14e976f3a47a95c3ba1c73a964",
+    "vendor/yomiyasu/scripts/yomiyasu_lint.py": "299a61970e8c30092f947e2ace95e80ff8a513fac87824363f89ba77e6cac468",
+    "vendor/yomiyasu/references/domains/tech.md": "255b1bcbf42a0c7ea7f42c7293cd964e541d70f6f5079ebcbffc332ce6b7b0dd",
+    "vendor/yomiyasu/references/domains/business.md": "b9970281b5005bbbc998d5de9b9e6b2bc1bb83976b3862c0556425a142f4352c",
+    "vendor/yomiyasu/references/domains/essay.md": "8c0dc2afe132299ad111d4e3bc004d75da6291dc4857328717dc63ba5c9c6740",
+    "vendor/japanese-tech-writing/SKILL.md": "ad350e0e6f5630fd94d8ab98a6aee194053b0096fdc944c23e271d6dfa09ee68"
+  }
+}

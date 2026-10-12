@@ -3121,3 +3121,38 @@ Writer適用: `skills/writer-agent/SKILL.md`、Zinsser reader/prose、humanizer�
 名称案: Managerを製品全体、Architectを環境変更候補の設計役割として保持。
 
 10/12記事・最初の実証の検証: source-boundary PASS、git diff --check、9新規Markdownのrelative image/link/anchor検査。6HTMLはembedded images読込・横overflowなし、6PDFは各4/5頁で全文と出典抽出。日本語概説first page・Aaru図・英語Similefirst pageを目視。図は2列へ組み直しarticle幅で可読。6枚lightning PPTXの日本語notes/sourceURLと合計300秒をreadback。実モデル実行・field介入・外部公開・課金・応募・送信はしていない。
+
+<a id="manager-evidence-first-20261012"></a>
+## Manager 2026-10-12 日本語執筆指針と根拠中心の構成
+
+ユーザー指定: 日本語記事ではyomiyasuを優先し、k16shikanoの日本語技術執筆指針も使う。無料の詳説からXと自社blogへ。実ファイルを保存。Aaru/Simileの創業者・目的・技術と求人の適合/歓迎条件を詳しく説明。所得機会を最初にする根拠不足を指摘。Managerが主目的で求人に方向を合わせない。
+
+現在の設計: [根拠から選ぶ実証と構成](2026-10-12-manager-evidence-first-architecture.md)。前の[所得機会案](2026-10-12-manager-first-blessing-design.md)は優先を撤回して検討履歴へ変更。現実の最初の対象は未確定。
+
+### 今回の完了資料
+
+- [x] 指定二資料を読む。yomiyasu MIT、Unicode通知を保持し固定commit `602a3690dadd5d620bb21524353b8d192914eabb` を `skills/writer-agent/vendor/yomiyasu/` に保存。gistはfrontmatterのUnlicenseを確認、version `8f2d57610a73efc97d743c9b0b0ecb1002e09fa4` を `vendor/japanese-tech-writing/` に保存。source/hashは `reference/japanese-writing-upstreams.json`。
+- [x] Writer `SKILL.md` と `article-daily.sh`のpromptへ必読資料を追加し、`reference/japanese-writing.md`へ日本語執筆→推敲→保存lint→差分の順を記述。AGENTSへ永続指示を追加。既存paid laneやscheduler/browser/accountは変更しない。
+- [x] reference消費pressure試験: 旧SKILLは二資料を必読に挙げず、新SKILLでは両方とdomainを必読に挙げ、日本語lintの英文転用をしない。1baseline/1guided、自然さや全task遵守を普遍的に保証する試験ではない。`bash -n` と既存prompt quoting回帰検査PASS。
+- [x] Aaru About、Simile公式home/company/Series Bを再取得。Cam Fink CEOとJohn Kessler CTO、Simile Joon Sung Park CEO/Michael Bernstein Chief Data Officer/Percy Liang Chief Scientistを一次資料で確認。非公開の内部モデルや未確認の経歴を補わない。
+- [x] 2011 advanced access review抄録を確認: 24研究、待ち時間改善とbias/満足度混在/臨床成果不足。全文取得はできず。CVS用途とともに構造変更の調査候補の根拠とし、AI追加効果や今月の確定医療実証とはしない。所得機会検索は確定した強い実証を得ず、最優先根拠へ使わない。
+- [x] Aaru/Simile各英日4長文原稿を `docs/research/manager/articles/2026-10-12-*-full-*.md` に保存。Aaru本文約9千字、Simile本文約8千字。会社/創業者、統計/AIの基本、入力・生成・反応・学習・出力・評価、顧客用途、各3求人の適合/歓迎条件を扱う。
+- [x] 概説の所得機会優先を削除し根拠中心の選定へ改訂。5分talkの第5枚も同じ方針へ。前の短文原稿とGit履歴は保存。
+- [x] 保存JA詳説のyomiyasu検査各98、概説100。指摘された意味のある否定は読み比べて保持。数値は静的文体検査だけで、事実/専門性の保証ではない。
+
+### 次の順序
+
+1. [ ] 今回の全文・主張と出典を最終校正し、無料シリーズの公開accountと自社blog経路を固定。現在の一般Writer active-fourと有料note契約を、このシリーズのX/blog経路としてそのまま起動しない。
+2. [ ] 許諾された公開・運営データと既存コードを選び、Population/Response/WorldTransition/Policy/Executor/Evaluatorの共通契約でD0–D2を実装する。目的はManagerの根拠ある人口・環境モデル。
+3. [ ] Population fidelityと実測Predictionを、独立生成/単純segment/統計/公開学習モデル等の強いbaselineとholdoutで比較。データ漏洩、条件変化、最低群、confidence coverageを測る。
+4. [ ] D3–D5で同予算の施策選択→適用→readback→独立評価→更新。network/rule/response-family holdout、行動適応、spillover、費用、失敗を記録。
+5. [ ] モデルの追加学習と認知/memory/groupのablationを、Managerに必要な問いとして実施。GPU学習や分散経験は実際に行った範囲だけ記載。
+6. [ ] 運営者の変更権限・事前データ・比較条件・成果期間・支払者を確認し、先行証拠と照合してfirst fieldを選ぶ。対象未確定を架空の総合点や実績へ変えない。
+7. [ ] 実装・実験・cost/failure/再現reportを許諾・ライセンス確認後OSS公開し、X/blogで英語中心・日本語も公開。会社/創業者への言及と具体的な質問を添える。返信・提携は実receiptで更新。
+8. [ ] 同じManager成果を8求人のmust/preferred項目へ対応させ、本人が設計・統計・失敗を説明できる状態にする。応募用は完了した証拠だけ。期間条件を制作数週間へ置換しない。
+9. [ ] 研究室talkと専門eventでfeedbackを集める。記事・code・結果から話し、面会/登壇/登録を実績として先取りしない。
+10. [ ] YC/Speedrunとwebsiteへ、Life Managerの実売上とManagerの実装/予測/simulation/field各成果をscopeつきで反映し、提出/readbackを確認。deadline管理は既存A節。
+
+この変更はWriter source指示・公開上流資料・記事・設計。Macのloaded immutable releaseや定期Writerを更新したreceiptはない。Manager code/paid API/モデル学習/field/X/blog公開/応募/登録/送信は未実施。
+
+10/12追加検証: source-boundary、Writer bash構文/既存prompt quoting（len41522）、固定上流hash、記事/spec相対link/image/anchor、既存test非変更を確認。Aaru/Simile全文4PDFは各9頁、概説2PDF各5頁。MathML・画像のbrowser描画とPDFから主要数値・創業者・出典を抽出し、source Markdownと配布用Markdownのbyte一致を確認。全文の文字数ではなく内容と出典を読解し、個人正規化とpooled confidence foldの記述を補正。図と数式を目視。過去と最新のarticle source、最新版MD/HTML/PDFをdownload ZIPへ保存しZIP integrityを確認。ローカルcommit後、本番反映・外部記事公開・モデル/field効果とは区別して報告する。

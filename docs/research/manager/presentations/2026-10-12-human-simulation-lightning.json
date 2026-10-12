@@ -129,26 +129,35 @@
       "kicker": "HUMAN SIMULATION · RESEARCH & PROPOSED FIELD STUDY"
     },
     {
-      "title": "First proposed blessing: access to paid work",
-      "subtitle": "Change structural barriers and allocation in a real operator network",
+      "title": "Choose a field study from evidence and access",
+      "subtitle": "A candidate needs intervention evidence, operator authority, and outcome data",
       "cards": [
         {
-          "title": "Intervention",
-          "body": "Eligibility, task structure, timing, or allocation within operator authority."
+          "title": "Existing evidence",
+          "body": "CVS models access and waits. Scheduling research reports wait improvements with important study limitations."
         },
         {
-          "title": "Primary outcome",
-          "body": "Realized net income per eligible person, including zero earnings."
+          "title": "Decision criteria",
+          "body": "Authority, real participants, prior data, comparable conditions, outcome timing, and costs."
         },
         {
-          "title": "Study requirements",
-          "body": "Real demand, payment data, comparable budgets, quality, and spillover-aware evaluation."
+          "title": "Claim boundary",
+          "body": "No first domain is committed yet. A simulated gain is not a field benefit."
         }
       ],
-      "notes_ja": "第一候補は仕事や収入機会へのアクセスです。実在案件がある運営者と、参加条件や配分、時間条件を変えます。主要指標は対象全員の一人当たり実現純所得で、案件を得なかった人も含めます。同じ案件を奪い合うため、個人の結果を独立とは扱えません。比較の単位を考え、時間負担、費用、品質、機会を失った人も測ります。",
-      "sources": [],
+      "notes_ja": "最初の実証は、先行研究と実際に操作できる運営環境から選びます。CVSの事例はアクセスと待ち時間を扱い、予約方式のレビューにも改善の報告がありますが、研究の偏りや臨床成果の不足が残ります。運営権限、対象者、事前記録、比較条件、成果が出る期間を確認して選びます。所得機会を先に勧めた案は根拠不足として優先を撤回しました。模型の改善を現実の祝福として報告しません。",
+      "sources": [
+        {
+          "label": "CVS case",
+          "url": "https://www.simile.com/blog/simile-cvs-health"
+        },
+        {
+          "label": "Scheduling review",
+          "url": "https://doi.org/10.1001/archinternmed.2011.168"
+        }
+      ],
       "duration_seconds": 55,
-      "callout": "Proposed study only: no completed intervention or income gain claimed.",
+      "callout": "Proposed field-study selection; no completed Manager impact claimed.",
       "kicker": "HUMAN SIMULATION · RESEARCH & PROPOSED FIELD STUDY"
     },
     {
