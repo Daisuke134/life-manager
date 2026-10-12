@@ -16,7 +16,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
+import tempfile
 import time
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
@@ -207,8 +209,24 @@ def _read_sales_page(page) -> dict:
 
 def _write_sales_summary(sales: dict, checked_at: str | None = None) -> str:
     checked_at = checked_at or time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-    SUMMARY_PATH.parent.mkdir(parents=True, exist_ok=True)
-    SUMMARY_PATH.write_text(json.dumps({"observed_at": checked_at, "source": SALES_URL, **sales}, indent=2) + "\n")
+    SUMMARY_PATH.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f".{SUMMARY_PATH.name}.", suffix=".tmp", dir=SUMMARY_PATH.parent,
+    )
+    temporary_path = Path(temporary_name)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            json.dump(
+                {"observed_at": checked_at, "source": SALES_URL, **sales},
+                handle,
+                indent=2,
+            )
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary_path, SUMMARY_PATH)
+    finally:
+        temporary_path.unlink(missing_ok=True)
     return checked_at
 
 

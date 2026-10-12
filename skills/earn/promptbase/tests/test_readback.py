@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Tests for the pure dashboard-text parser in readback.py (no browser)."""
 import json
+import os
+import stat
 import sys
 import unittest
 from pathlib import Path
@@ -343,6 +345,42 @@ def test_sales_only_readback_does_not_depend_on_prompts_page(tmp_path, monkeypat
     assert result["sales"] == {"sales_count": 0, "net_usd": 0.0, "by_item": {}}
     assert page.visited == [readback.SALES_URL]
     assert json.loads(summary.read_text())["sales_count"] == 0
+
+
+def test_sales_summary_preserves_previous_file_when_serialization_fails(tmp_path, monkeypatch):
+    summary = tmp_path / "promptbase-sales.json"
+    previous = '{"observed_at":"previous","sales_count":1}\n'
+    summary.write_text(previous, encoding="utf-8")
+    monkeypatch.setattr(readback, "SUMMARY_PATH", summary)
+
+    def fail_after_partial_write(_value, handle, **_kwargs):
+        handle.write('{"partial":')
+        raise OSError("simulated no space left")
+
+    monkeypatch.setattr(readback.json, "dump", fail_after_partial_write)
+    with pytest.raises(OSError, match="simulated no space left"):
+        readback._write_sales_summary(
+            {"sales_count": 2, "net_usd": 4.25, "by_item": {}},
+            "2026-10-12T12:00:00Z",
+        )
+
+    assert summary.read_text(encoding="utf-8") == previous
+    assert list(tmp_path.iterdir()) == [summary]
+
+
+def test_new_sales_summary_has_owner_only_permissions(tmp_path, monkeypatch):
+    summary = tmp_path / "promptbase-sales.json"
+    monkeypatch.setattr(readback, "SUMMARY_PATH", summary)
+    previous_umask = os.umask(0)
+    try:
+        readback._write_sales_summary(
+            {"sales_count": 0, "net_usd": 0.0, "by_item": {}},
+            "2026-10-12T12:00:00Z",
+        )
+    finally:
+        os.umask(previous_umask)
+
+    assert stat.S_IMODE(summary.stat().st_mode) == 0o600
 
 
 if __name__ == "__main__":
