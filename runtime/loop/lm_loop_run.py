@@ -1405,6 +1405,8 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
         if gate is None:
             return False
         reason, flag = gate
+        if reason in {"disk_headroom_low", "disk_headroom_unknown", "disk_headroom_unavailable"}:
+            return False
         if durable and phase in {"pre_enqueue", "pre_claim"}:
             try:
                 defer_durable_resource(loop_id)

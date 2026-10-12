@@ -9,6 +9,7 @@ non-zero with no provider execution and no evidence directory contents.
 """
 
 import json
+import fcntl
 import os
 import subprocess
 import tempfile
@@ -57,17 +58,21 @@ class PromptFailClosedTest(unittest.TestCase):
             "timeout_seconds": 5,
         }), encoding="utf-8")
 
-    def run_runner(self, prompt_text, use_stdin=False, free_bytes=2 * 1024**3):
+    def run_runner(self, prompt_text, use_stdin=False, free_bytes=2 * 1024**3,
+                   hold_provider_lease=False):
         evidence = self.root / f"evidence-{free_bytes}"
+        lease_path = self.root / "provider.lock"
         env = os.environ.copy()
         env["PATH"] = f"{self.bin}:{env['PATH']}"
         env["AGENT_RUNNER_CONFIG"] = str(self.config)
         env["ANICCA_USAGE_LEDGER"] = str(self.root / "usage.jsonl")
-        env["LIFE_MANAGER_PROVIDER_LEASE_PATH"] = str(self.root / "provider.lock")
-        # Fixture-only measurement keeps this test independent of host pressure.
+        env["LIFE_MANAGER_PROVIDER_LEASE_PATH"] = str(lease_path)
+        # Simulate the filesystem measurement used by the removed provider gate.
         fixture_runner = (
-            f"import sys; sys.path.insert(0, {str(ROOT)!r}); import agent_runner; "
-            f"agent_runner.disk_free_bytes = lambda path: {free_bytes!r}; "
+            f"import sys, shutil; from types import SimpleNamespace; "
+            f"sys.path.insert(0, {str(ROOT)!r}); "
+            f"shutil.disk_usage = lambda path: SimpleNamespace(total=4 * 1024**3, used=0, free={free_bytes!r}); "
+            "import agent_runner; "
             "raise SystemExit(agent_runner.run())"
         )
         command = [
@@ -77,13 +82,27 @@ class PromptFailClosedTest(unittest.TestCase):
         ]
         if use_stdin:
             command.append("--prompt-stdin")
-            proc = subprocess.run(command, env=env, text=True,
-                                  input=prompt_text, capture_output=True)
         else:
             prompt_file = self.root / "prompt.txt"
             prompt_file.write_text(prompt_text, encoding="utf-8")
             command.extend(["--prompt-file", str(prompt_file)])
-            proc = subprocess.run(command, env=env, text=True, capture_output=True)
+
+        def invoke():
+            if use_stdin:
+                return subprocess.run(command, env=env, text=True,
+                                      input=prompt_text, capture_output=True)
+            return subprocess.run(command, env=env, text=True, capture_output=True)
+
+        if hold_provider_lease:
+            descriptor = os.open(lease_path, os.O_RDWR | os.O_CREAT, 0o600)
+            try:
+                fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                proc = invoke()
+            finally:
+                fcntl.flock(descriptor, fcntl.LOCK_UN)
+                os.close(descriptor)
+        else:
+            proc = invoke()
         return proc, evidence
 
     def assert_rejected_before_spend(self, proc, evidence):
@@ -118,26 +137,19 @@ class PromptFailClosedTest(unittest.TestCase):
             f"regression: real prompt never launched provider. stderr={proc.stderr}",
         )
 
-    def test_disk_deferral_records_explicit_no_provider_proof(self):
-        proc, evidence = self.run_runner("Return the bounded contract JSON only.\n", free_bytes=0)
-        self.assertEqual(proc.returncode, 75)
-        self.assertFalse(self.marker.exists())
-        proof = json.loads((evidence / "summary.json").read_text())
-        self.assertEqual(proof["status"], "provider_deferred")
-        self.assertEqual(proof["attempt_count"], 0)
-        self.assertIs(proof["provider_started"], False)
-        self.assertEqual(proof["evidence_dir"], str(evidence.resolve()))
-        self.assertFalse((evidence / "attempts.jsonl").exists())
-
     def test_wrapper_created_directory_accepts_a_new_deferral_receipt(self):
         evidence = self.root / "evidence-0"
         evidence.mkdir()
         stdout = evidence / "runner.stdout.log"
         stdout.write_text("wrapper-owned stream\n")
-        proc, _ = self.run_runner("Return the bounded contract JSON only.\n", free_bytes=0)
+        proc, _ = self.run_runner(
+            "Return the bounded contract JSON only.\n", free_bytes=0,
+            hold_provider_lease=True,
+        )
         self.assertEqual(proc.returncode, 75)
         proof = json.loads((evidence / "summary.json").read_text())
         self.assertIs(proof["provider_started"], False)
+        self.assertEqual(proof["reason"], "provider_lease_busy")
         self.assertEqual(proof["attempt_count"], 0)
         self.assertEqual(stdout.read_text(), "wrapper-owned stream\n")
         self.assertFalse(self.marker.exists())
@@ -147,24 +159,26 @@ class PromptFailClosedTest(unittest.TestCase):
         evidence.mkdir()
         primary = evidence / "summary.json"
         primary.write_text('{"existing": "preserve"}')
-        proc, _ = self.run_runner("Return the bounded contract JSON only.\n", free_bytes=0)
+        proc, _ = self.run_runner(
+            "Return the bounded contract JSON only.\n", free_bytes=0,
+            hold_provider_lease=True,
+        )
         self.assertEqual(proc.returncode, 75)
         self.assertFalse(self.marker.exists())
+        self.assertIn("LIFE_MANAGER_PROVIDER_LEASE_BUSY", proc.stderr)
         self.assertIn("deferral receipt unavailable", proc.stderr)
         self.assertEqual(primary.read_text(), '{"existing": "preserve"}')
 
-    def test_low_or_unknown_disk_defers_before_provider_attempt_or_lease(self):
+    def test_low_or_unknown_disk_does_not_prevent_provider_attempt(self):
         for free_bytes in (0, 2 * 1024**3 - 1, None):
             with self.subTest(free_bytes=free_bytes):
+                self.marker.unlink(missing_ok=True)
                 proc, evidence = self.run_runner(
                     "Return the bounded contract JSON only.\n", free_bytes=free_bytes,
                 )
-                self.assertEqual(proc.returncode, 75, proc.stderr)
-                reason = "disk_headroom_unavailable" if free_bytes is None else "disk_headroom_low"
-                self.assertIn(reason, proc.stderr)
-                self.assertFalse(self.marker.exists(), "low disk launched a provider")
-                self.assertFalse((evidence / "attempts.jsonl").exists(), "low disk wrote attempt evidence")
-                self.assertFalse((self.root / "provider.lock").exists(), "low disk created a lease")
+                self.assertTrue(self.marker.exists(), "low or unknown disk prevented provider work")
+                self.assertTrue((evidence / "attempts.jsonl").exists())
+                self.assertNotEqual(proc.returncode, 75, proc.stderr)
 
 
 if __name__ == "__main__":
