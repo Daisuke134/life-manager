@@ -151,6 +151,10 @@ needed first) and can still be fixed because the card is still editable.
      If the revealed fields don't match what you expect (wrong units, missing
      field, still red after filling), do NOT block the submission on it — fall
      back to **"No Free Trial"** for that plan and note why in your report.
+5b. Below the plans, **毎日の無料クォータ / Daily free quota** is required (added by Capafy
+   2026-10-12). Click **"毎日の無料クォータなし" (No daily free quota)**, the same as the top
+   sellers (search API dailyFreeQuotaCount -1). If it is left unselected, the 価格設定 tab stays
+   red and 提出を確認 stays disabled even with PRICES_MATCH (8767154808, 2026-10-12).
 6. Below the plan cards there may be more required fields (test input, AI
    provider, third-party data sharing, DPA checkbox) depending on the exact
    card version Capafy renders for this Agent — **verified 2026-09-28: none of
