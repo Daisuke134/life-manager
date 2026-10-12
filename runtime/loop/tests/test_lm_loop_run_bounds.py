@@ -3507,25 +3507,33 @@ def test_memory_deferral_preserves_queue_and_releases_reservation(tmp_path):
     assert json.loads(receipt.read_text())["reason"] == "memory_headroom_unavailable"
 
 
-def test_low_or_unknown_numeric_disk_headroom_does_not_defer_finite_owner(tmp_path):
+@pytest.mark.parametrize("reason", ("disk_headroom_low", "disk_headroom_unknown"))
+def test_low_or_unknown_disk_headroom_queues_then_defers_finite_owner(tmp_path, reason):
     entry = {"cadence": {"start_interval_seconds": 60},
              "provider_route": "shared-agent-runner", "effect_class": "application"}
-    for available in [0, None]:
-        receipt = tmp_path / "host-admission.json"
-        with (patch("runtime.loop.lm_loop_run.disk_free_bytes", return_value=available, create=True) as disk,
-              patch("runtime.loop.lm_loop_run._producer_gate", return_value=None, create=True) as gate,
-              patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
-              patch("runtime.loop.lm_loop_run.enqueue_durable_resource", return_value=(tmp_path / "ticket", "ready")) as enqueue,
-              patch("runtime.loop.lm_loop_run.claim_durable_resource", return_value=(tmp_path / "claim", "acquired")) as claim,
-              patch("runtime.loop.lm_loop_run.defer_durable_resource") as defer,
-              patch("runtime.loop.lm_loop_run.release_and_reserve_resource", return_value=[]) as release,
-              patch("runtime.loop.lm_loop_run._run_entrypoint_with_stderr_capture", return_value=(0,b"")) as child):
-            assert _run_admitted(["/bin/true"], entry, "example", {}, receipt) == 0
-        enqueue.assert_called_once(); claim.assert_called_once(); child.assert_called_once()
-        gate.assert_has_calls([call(), call()]); disk.assert_not_called()
-        defer.assert_not_called(); release.assert_called_once()
-        result = json.loads(receipt.read_text())
-        assert result["status"] == "pass" and result["effect"] == 0
+    receipt = tmp_path / "host-admission.json"
+    occurrence = "example:disk-low-occurrence"
+    ticket = tmp_path / "ticket"
+    stop = tmp_path / "disk-writers.stop"
+    with (patch("runtime.loop.lm_loop_run._producer_gate", return_value=(reason, stop)) as gate,
+          patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(ticket, "ready")) as enqueue,
+          patch("runtime.loop.lm_loop_run.claim_durable_resource") as claim,
+          patch("runtime.loop.lm_loop_run.defer_durable_resource") as defer,
+          patch("runtime.loop.lm_loop_run.release_and_reserve_resource") as release,
+          patch("runtime.loop.lm_loop_run._run_entrypoint_with_stderr_capture") as child):
+        assert _run_admitted(["/bin/true"], entry, "example", {}, receipt,
+                             occurrence_id=occurrence) == 75
+
+    enqueue.assert_called_once()
+    assert enqueue.call_args.kwargs["occurrence_id"] == occurrence
+    gate.assert_has_calls([call(), call()])
+    defer.assert_called_once_with("example")
+    claim.assert_not_called(); release.assert_not_called(); child.assert_not_called()
+    result = json.loads(receipt.read_text())
+    assert result["status"] == "deferred" and result["effect"] == 0
+    assert result["phase"] == "pre_claim" and result["reason"] == reason
 
 
 def test_explicit_operator_disk_stop_still_defers_before_queue_and_provider_child(tmp_path):

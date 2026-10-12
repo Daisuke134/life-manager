@@ -104,17 +104,27 @@ def test_disk_free_bytes_measures_the_requested_receipt_volume(
     assert calls == [path]
 
 
-@pytest.mark.parametrize("free_bytes", (0, None))
-def test_low_or_unavailable_disk_measurement_does_not_block_child(
-    tmp_path, monkeypatch, free_bytes,
+@pytest.mark.parametrize(
+    ("free_bytes", "expected_return"),
+    ((2 * 1024**3, 0), (2 * 1024**3 - 1, 1), (None, 1)),
+)
+def test_regular_producer_requires_measured_headroom_before_exec(
+    tmp_path, monkeypatch, capsys, free_bytes, expected_return,
 ):
     guard = load_guard()
     monkeypatch.setattr(guard, "disk_free_bytes", lambda _path: free_bytes)
     calls = []
     monkeypatch.setattr(guard.os, "execvpe", lambda *args: calls.append(args))
 
-    assert guard.main(["/bin/true"]) == 0
-    assert calls and calls[0][1] == ["/bin/true"]
+    assert guard.main(["/bin/true"]) == expected_return
+    if expected_return == 0:
+        assert calls and calls[0][1] == ["/bin/true"]
+    else:
+        assert calls == []
+        receipt = json.loads(capsys.readouterr().out.strip())
+        assert receipt["reason"] == ("disk_headroom_unknown" if free_bytes is None
+                                      else "disk_headroom_low")
+        assert receipt["effect"] == receipt["readback"] == 0
 
 
 @pytest.mark.parametrize("free_bytes", (None, -1, True, "unknown", "missing"))
