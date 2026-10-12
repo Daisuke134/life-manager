@@ -1,0 +1,38 @@
+[
+  {
+    "repo": "StanfordHCI/genagents",
+    "sha": "96854071ef4c2d79c93144c973c7820722d52bab",
+    "inspection": "selected source files; inference and training not run",
+    "source_url": "https://github.com/StanfordHCI/genagents"
+  },
+  {
+    "repo": "akaashkolluri/socrates",
+    "sha": "8c9aef227ab1a5b315e797c811a122a12d8bb88a",
+    "inspection": "selected source files; inference and training not run",
+    "source_url": "https://github.com/akaashkolluri/socrates"
+  },
+  {
+    "repo": "AgentTorch/AgentTorch",
+    "sha": "86bb57e8a19ad6a52396875777f3c7b74264ada1",
+    "inspection": "selected source files; inference and training not run",
+    "source_url": "https://github.com/AgentTorch/AgentTorch"
+  },
+  {
+    "repo": "ActivitySim/populationsim",
+    "sha": "21881f0094680afbe11e2839124dfca10e61a2d2",
+    "inspection": "selected source files; inference and training not run",
+    "source_url": "https://github.com/ActivitySim/populationsim"
+  },
+  {
+    "repo": "UDST/synthpop",
+    "sha": "6fb13991c9d3ede2d8cf80512bd1102e37b98971",
+    "inspection": "selected source files; inference and training not run",
+    "source_url": "https://github.com/UDST/synthpop"
+  },
+  {
+    "repo": "microsoft/TinyTroupe",
+    "sha": "a6244b358a1fe1c71bf751f7ba0f8dfa368ec5a4",
+    "inspection": "selected source files; inference and training not run",
+    "source_url": "https://github.com/microsoft/TinyTroupe"
+  }
+]
