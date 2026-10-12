@@ -14,6 +14,8 @@ const APP_STORE_URLS = Object.freeze({
 });
 // Existing Honne campaign token, verified against the same ASC account as Anicca.
 const APP_STORE_PROVIDER_TOKEN = "93486075";
+// App Store Connect campaign tokens are limited to 30 characters; ASCII slugs keep the boundary exact.
+const APP_STORE_CAMPAIGN_TOKEN = /^[A-Za-z0-9][A-Za-z0-9_-]{0,29}$/;
 
 // Keep a description URL for YouTube, but Shorts do not linkify it:
 // their CTA directs viewers to the clickable channel profile link.
@@ -74,6 +76,26 @@ function appStoreUrl(productId) {
   return url;
 }
 
+function appStoreCampaignUrl({ productId, campaignToken } = {}) {
+  const token = String(campaignToken || "").trim();
+  if (!APP_STORE_CAMPAIGN_TOKEN.test(token)) throw new Error("App Store campaign token is invalid");
+  const url = new URL(appStoreUrl(productId));
+  url.searchParams.set("pt", APP_STORE_PROVIDER_TOKEN);
+  url.searchParams.set("ct", token);
+  url.searchParams.set("mt", "8");
+  return url.toString();
+}
+
+function appStoreCampaignUrlForDestination(target) {
+  if (!target || typeof target !== "object" || Array.isArray(target)) {
+    throw new Error("App Store campaign destination is invalid");
+  }
+  return appStoreCampaignUrl({
+    productId: target.job_product_id,
+    campaignToken: target.app_store_campaign_token,
+  });
+}
+
 function platformCaptionLimit(platform) {
   const limit = PLATFORM_CAPTION_LIMITS[String(platform || "")];
   if (!limit) throw new Error(`marketing caption limit is not configured for platform ${platform}`);
@@ -93,11 +115,10 @@ function marketingCtaLine({ productId, platform, locale }) {
     return copy.webLinked(url.toString());
   }
   if (LINKABLE_PLATFORMS.has(String(platform || ""))) {
-    const url = new URL(appStoreUrl(productId));
-    url.searchParams.set("pt", APP_STORE_PROVIDER_TOKEN);
-    url.searchParams.set("ct", `${productId}_${platform}_${lang}`);
-    url.searchParams.set("mt", "8");
-    return copy.linked(url.toString());
+    return copy.linked(appStoreCampaignUrl({
+      productId,
+      campaignToken: `${productId}_${platform}_${lang}`,
+    }));
   }
   return copy.bio;
 }
@@ -139,6 +160,8 @@ module.exports = {
   APP_STORE_URLS,
   LINKABLE_PLATFORMS,
   PLATFORM_CAPTION_LIMITS,
+  appStoreCampaignUrl,
+  appStoreCampaignUrlForDestination,
   appStoreUrl,
   platformCaptionLimit,
   marketingCtaLine,
