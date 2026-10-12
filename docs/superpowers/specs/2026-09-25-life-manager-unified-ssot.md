@@ -14511,3 +14511,13 @@ Known damage to repair: drafts 2576591785 / 5356015232 (under_review) and 983649
 7. Keep the disk-free floor at ≥ 2 GiB. If swap grows, restart the largest long-lived keep_alive driver; never raise LIFE_MANAGER_HOST_MAX_AGENT_TOTAL_RUNS.
 
 **Session note:** the hourly Routine trig_01XBtYNhGTugPwPnLfunYask is bound to session_01JYSiMJhePujor9N4LjcqCV. Before deleting that session, disable or delete the routine and recreate it in the new session.
+
+## Capafy discovery finding 2026-10-12 10:30 JST (claude-capafy) — TODO 8 added
+
+- **Measured (api.capafy.ai search, 10:25):** search rank is not the blocker. "hook" → Hook Lab #1 (12 sales, rating 0, min $3.99). HookAce #2 (1001 sales, rating 4.3, min $9.99, no trial). "tiktok script" → TikTok Script Pro #1 (4 sales). Despite the #1 ranks, Hook Lab had 29 views in 7 days (1088 in 30 days earlier), so buyer search volume itself fell (Capafy-wide impressions 11k → 3.4k/week since 9/19). External channels sent almost nothing: ct hooklab_ig 2 views/7d, and X posts carried no link until 10/11.
+- **Root problems not yet fixed:** (a) low Capafy demand; (b) the top seller wins on social proof (rating 4.3, 1001 sales), not on price; (c) own clones (Shorts/Reels/Ad Hook Lab, Hook Grader; 0 sales) cannot be delisted from the seller console (no UI, and the API docs say delist has no API).
+- **TODO 8 (after TODOs 1-4):**
+  - Measure which external channel produces Capafy visits per ct (hooklab_x / hooklab_blog / hooklab_ig) after the 10/11 CTA fix, and cut the channels that stay at 0.
+  - Ask Capafy support to delist the 4 clones.
+  - Copy HookAce's listing proof (examples / featured outputs) only on non-sellers and new Agents. Hook Lab stays frozen.
+  - Do not assume $10K MRR is reachable on Capafy alone: the top seller in this category has ~1000 lifetime sales.
