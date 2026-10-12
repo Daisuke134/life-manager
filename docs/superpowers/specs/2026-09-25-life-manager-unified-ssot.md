@@ -15446,3 +15446,29 @@ Free Transcriptの数は無料downloadを含む。別Agent [Transcript to Shorts
 **Source checkpoint:** PR #7788 removes Dreamwork preflight/adapter/tests and makes the scheduled owner Workday-only; it also preserves the latest-main ApplyPilot comparison and documents onboarding/email/interview roadmap. PR #7791 merged the v6 policy update as `fb4bd138dc45ccd5e9748a2ccfc1ac954150ba47`; code release SHA `375ff5f1b33739f7eb39d681ff43bc5e48e52eee` contains `WORKDAY_FIT_POLICY_VERSION="workday-global-scope-v6"`. PR #7795 merged the production cursor as docs-only main `c77753f1737df1ecb267bba26ad4321ef04dda49`; the loaded code release remains its ancestor and is unchanged. Existing v5 fit rejections can be re-evaluated under the expanded U.S./worldwide-remote scope, while rows with submit intents stay excluded. The regression was RED under v5 and GREEN under v6; full Job Search suite is 627 passed / 58 subtests passed, loop contract is 18 loops / 191 jobs / 113 mappings / 0 errors, and v6 targeted owner apply/loaded-SHA readback passed. Source acceptance, immutable release, and load are complete; natural Workday application receipt and replay-zero are still pending because both 10:17Z and 10:28Z wakes deferred before agent work.
 
 **Current cursor:** (1) Keep release `375ff5f1` loaded and the aged Workday durable queue intact; do not manually replay either deferred occurrence. (2) At the next eligible owner wake, confirm it gets an agent slot and runs on v6, then verify tailored-resume hash at final review, Workday submit outcome, official employer/Gmail receipt, ledger replay-zero, duplicate-zero, and report. (3) If admission defers again, take a fresh read-only `_live`/queue snapshot for that exact occurrence; current two agent claims are live and the Workday row already has effective priority rank 0, so preserve their owners and the global cap. (4) Keep the JLL row blocked until verified employment facts exist, while other eligible Workday rows continue. (5) After a Workday receipt is proven, finish portable onboarding, per-application email, daily email briefing, and interview preparation; then add Ashby and later ATS as separate owners. ApplyPilot's ambiguous attempt remains unreplayed; any world's-first claim remains unverified until actual receipts and competitor use are independently compared.
+
+## Capafy T0/T1 live checkpoint — 2026-10-12 21:19 JST
+
+**範囲:** PR #7801（`33d4d798`）と#7807（`c5242a8b`）のSSOT更新を確認した上で、最新main（PR #7808を含む）とMac miniの公式readbackを照合した。seller設定、投稿、Agent、loop設定、effect fenceは変更していない。
+
+**T0 — 最新の成功readback（20:07 JST）:**
+
+- `capafy-hourly-reconcile.json` の `observed_at=2026-10-12T11:07:18Z`、mtime 20:15:11 JST、保存JSON全体のSHA-256は `9c510b02f22ea2ac90594a7f1abd6566e0141c71fe117e732ba3e5cd9cc2df57`。これは保存済みreconcileのhashで、Capafyの未加工HTTP応答hashではない。
+- official seller `orders=70`、`gross_usd=$102.75`、refunds `$0`、creator earnings `$76.18`、paid-out `$0`、pending `$59`。first-paid gateの `orders > 70` / `gross > $102.75` は未達、`net_mrr_usd` と `settled_mrr_usd` はnull。
+- 同じsource JSONの30日account source合計は4,351 views / 21 trials / 18 paid / `$45.82`。内訳はsearch 814/13/10/`$21.90`、hot 71/1/5/`$9.95`、Google 39/3/1/`$9.99`、`ai_overview` 549/0/0、direct 1,504/2/2/`$3.98`、other 1,269/0/0、category 57/2/0、`instagram_bio` 39/0/0、全CT 6/0/0。直近7日は315 views / 0 paid。
+- `capafy_hourly_reconcile.py` はUTC日付単位で30日を2026-09-13〜10-12、7日を10-06〜10-12として問い合わせる。ユーザー提供dashboard画像は表示期間2026-09-12〜10-11、79.2K impressions / 4.9K detail-page views / 0.22% conversion。source APIはimpressions endpointを取得せず、metric scopeも異なるため、このdashboard値と4,351 source viewsは同じfunnel数値として比較しない。
+- account source views 4,351に対し、保存済みAgent別rows 60件の合計は4,163（差188）。paid 18とtrials 21は両scopeで一致する。source codeの `TRAFFIC_AGENT_CAP=60` に対し、同じ20:07 reconcileのinventory countは64。従ってper-Agent viewsは4件分のcoverageが欠ける。19:54 inventory snapshotと突合した不在IDは3332784488、4437197514、6839055303、7631594519だが、このID集合は20:07と同一時刻ではないため暫定cross-snapshot差分として扱う。
+- 既存JSONのtraffic window内に `window_start`/`window_end`、sourceごとの取得時刻、provider response hashは保存されていない。過去の01:09Zに記録されたsource count不一致は、現在のJSONだけではwindow/refresh/scopeを完全に分類できない。過去値は上書きせず、次のnatural successful reconcileで期間・coverage・同一snapshotを再記録する。
+- `capafy-goal-monitor-hourly` の21:07 JST occurrence `18ddc6d0e516e6d0-25582` はrelease `05fe627a`で `exit 75 / host_admission_deferred:disk_headroom_low / effect=not_applicable`。reconcile fileは20:07 JST観測から更新されていない。21:09 JSTの `capafy-loop-daily` occurrence `18ddc6ed0d3a70c0-31025` も同じadmission理由で停止。21:19 JST時点の `df /` は1.8 GiB available。
+
+**T1 — distribution fenceと次のslot:**
+
+- 登録済み `lm-loop pre-effect-reconcile capafy-distribute-daily --dry-run` は `resolved=[]`, `unprovable=[]` を返し、現時点でadapterが閉じるadmission fenceは0件。fenceを手動で解除していない。
+- 最後にledgerで確認できる公開枠は19:00 JSTのHook Labで、aniccaai記事URLとXの `PUBLISHED` post ID/permalinkを記録。次のnatural occurrence `18ddc778e3df9c78-53089`（21:19 JST）は `exit 75 / disk_headroom_low / effect=not_applicable`。19:33 JSTの直前成功eventは `effect_status=unknown` のままで、slot ledgerとのoccurrence binding/provider readbackが未完了。次のnatural successでこれを照合し、再投稿はしない。
+
+**T2とfactory readback:**
+
+- 今日のbuyer-query rank snapshotは17:40 JST、14-query search sweepは17:48 JSTで保存済み。毎日分のT2 snapshotは完了している。順位はsearch impressions/query volumeや購入需要の証明ではない。
+- `8767154808` SRT Subtitle Readability Fixerは `capafy-autopublish/published.jsonl` に `submitted (status=1 under review)` と記録され、19:54 JSTのfactory inventory snapshotにもversion `2109463185447604224` がある。20:07 inventoryは64 Agents / occupied 9 / free 0。slot-free後もnew-Agent供給が続くことはまだ未確認。21:09 natural factory wakeはdisk admissionで止まった。
+
+**Current cursor:** T0とT1は未完了。共有disk admissionが適格になるまで既存ownerのnatural recoveryを追う。T0は次のsuccessful hourly reconcileでsame-windowのmoney/source readback、64-Agent coverage、date boundsを確認する。T1は次のnatural distribution terminalと、effect_unknown eventのoccurrence-bound provider receiptを確認する。T2は今日分済み。順序はT0 → T1 → T2 → T3 → T4 → T5 → T6 → T7 → T8 → T9のまま。
