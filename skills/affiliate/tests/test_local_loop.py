@@ -26,6 +26,25 @@ SPEC.loader.exec_module(MODULE)
 
 
 class LocalLoopTest(unittest.TestCase):
+    def test_refresh_rolling_net_propagates_official_cost_evidence(self):
+        receipt = {
+            "receipt_sha256": "a" * 64,
+            "money_state": "OBSERVED",
+            "net_state": "KNOWN",
+            "threshold_state": "NOT_REACHED",
+            "cost_ledger_sha256": "b" * 64,
+            "cost_coverage_sha256": "c" * 64,
+            "cost_evidence_refs": ["lm-actual-cost://openrouter/readback/" + "d" * 64],
+        }
+        completed = subprocess.CompletedProcess([], 0, json.dumps(receipt), "")
+
+        with patch.object(MODULE.subprocess, "run", return_value=completed):
+            result = MODULE.refresh_rolling_net(Path("/affiliate-state"))
+
+        self.assertEqual(result["cost_ledger_sha256"], receipt["cost_ledger_sha256"])
+        self.assertEqual(result["cost_coverage_sha256"], receipt["cost_coverage_sha256"])
+        self.assertEqual(result["cost_evidence_refs"], receipt["cost_evidence_refs"])
+
     def test_partnerstack_auth_failure_overrides_service_auth_health(self):
         combined = MODULE.combine_provider_health(
             {

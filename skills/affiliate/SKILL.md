@@ -366,8 +366,10 @@ is complete only when every Affiliate trailing-coverage row is complete for the
 full 30-day window; stale, missing, conflicting, or unsupported-currency input
 keeps net unknown. The CFO's invoice-level billed-but-unpaid projection stays
 outside this ledger until its source provides explicit Affiliate allocation;
-those invoices keep coverage unknown. The raw billing readback is never copied
-into Affiliate state. If neither environment variable is set, the net
+those invoices keep coverage unknown. The natural wake's terminal event carries
+the cost ledger hash, coverage hash, and official evidence references. The raw
+billing readback is never copied into Affiliate state. If neither environment
+variable is set, the net
 calculation keeps cost coverage unknown.
 
 The 10-minute local wake invokes `observe → capture → reconcile` only when the
