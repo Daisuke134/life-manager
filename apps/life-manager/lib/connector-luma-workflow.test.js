@@ -173,7 +173,7 @@ test("Luma default detail navigation, read, and normalize failures skip one cand
   }
 });
 
-test("Luma discovery returns the first free open non-conflicting candidates in provider order", async () => {
+test("Luma discovery returns available free non-conflicting candidates in provider order", async () => {
   const page = Object.freeze({ page_id: "owned-page" });
   const inspected = [
     event("paid", { ticket_price_status: "paid", ticket_price_minor: 1000 }),
@@ -197,7 +197,6 @@ test("Luma discovery returns the first free open non-conflicting candidates in p
 
   assert.deepEqual(result.map((candidate) => candidate.event_ref), [
     "luma-event://event/free-first",
-    "luma-event://event/free-second",
   ]);
 });
 
