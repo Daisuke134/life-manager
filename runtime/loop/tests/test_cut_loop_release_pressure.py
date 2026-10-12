@@ -297,6 +297,7 @@ class CutLoopReleasePressureTest(unittest.TestCase):
             result, _ = self.run_cut(
                 repo, home, "", LOOPS_ACTIVATE_CURRENT="0", LOOPS_KEEP_RELEASES="2",
                 PYTHONPATH=str(probe), NPM_NODE_VERSION=node_version, NPM_VERSION=npm_version,
+                LOOPS_RUNTIME_PYTHON=sys.executable,
             )
 
             self.assertEqual(result.returncode, 0, result.stderr)
