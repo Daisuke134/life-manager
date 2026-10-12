@@ -7,7 +7,8 @@ effects are (1) a free article committed to the aniccaai.com landing repo on
 GitHub and served live, and (2) an X post created through Postiz, which only
 happens after (1). The official readbacks are therefore:
   - GitHub: commits "publish free article capafy-..." on the landing repo's
-    remote branch inside [queued_at, queued_at + MAX_RUN_SECONDS];
+    remote branch for the exact slot slug inside
+    [occurrence_started_at, occurrence_started_at + MAX_RUN_SECONDS];
   - the live aniccaai.com page for that slug (HTTP 200);
   - Postiz: posts on the X integration inside the same window.
 
@@ -26,6 +27,7 @@ import argparse
 import datetime as dt
 import json
 import os
+import re
 import sqlite3
 import subprocess
 import sys
@@ -42,12 +44,20 @@ OWNER_ID = "capafy-distribute-daily"
 # model pass timeout (1800 s) + aniccaai deploy readback (<= 15 min) + X readback (<= 10 min).
 MAX_RUN_SECONDS = 4200
 NO_EFFECT_MIN_AGE_SECONDS = MAX_RUN_SECONDS + 900
+EVENTS_PATH = Path(
+    "~/.local/state/life-manager/writer/capafy-distribute/events.jsonl"
+).expanduser()
+RUNS_ROOT = Path(
+    "~/.local/state/life-manager/writer/capafy-distribute/capafy-distribute/runs"
+).expanduser()
 LANDING_ROOT = Path(os.environ.get(
     "CAPAFY_DISTRIBUTE_LANDING_ROOT",
     "~/.local/state/life-manager/writer/checkouts/self-owned-landing")).expanduser()
 BASE_URL = "https://aniccaai.com/blog/"
 X_INTEGRATION_ID = os.environ.get("POSTIZ_X_INTEGRATION_ID", "cmt4l2jld031tqp0y8qtyo983")
 COMMIT_PREFIX = "feat(capafy-distribute): publish free article "
+OCCURRENCE_SCHEMA = "capafy-distribute-occurrence.v1"
+SLOT_PATTERN = re.compile(r"\d{4}-\d{2}-\d{2}-h(?:[01]\d|2[0-3])m(?:00|30)")
 
 
 def fenced_row(owner_id: str, occurrence_id: str) -> tuple[str, dt.datetime]:
@@ -64,6 +74,116 @@ def fenced_row(owner_id: str, occurrence_id: str) -> tuple[str, dt.datetime]:
     if row is None or row[1] is None:
         raise ValueError("occurrence is not an effect_unknown row")
     return str(row[0]), dt.datetime.fromtimestamp(float(row[1]), dt.timezone.utc)
+
+
+def occurrence_started_at(occurrence_id: str, events_path: Path | None = None) -> dt.datetime:
+    """Read the exact execute-start timestamp for one occurrence from its event stream."""
+    prefix = f"{OWNER_ID}:"
+    if not occurrence_id.startswith(prefix) or not occurrence_id[len(prefix):]:
+        raise ValueError("occurrence owner or run identity is invalid")
+    run_id = occurrence_id[len(prefix):]
+    path = events_path or Path(os.environ.get("CAPAFY_DISTRIBUTE_EVENTS_PATH") or EVENTS_PATH)
+    starts = []
+    with path.open(encoding="utf-8") as handle:
+        for line in handle:
+            if not line.strip():
+                continue
+            try:
+                event = json.loads(line)
+            except (TypeError, ValueError) as exc:
+                raise ValueError("occurrence event stream contains malformed JSON") from exc
+            if not isinstance(event, dict):
+                raise ValueError("occurrence event stream row must be a JSON object")
+            if (event.get("owner_id") != OWNER_ID
+                    or event.get("run_id") != run_id
+                    or event.get("occurrence_id") != occurrence_id
+                    or event.get("phase") != "execute"
+                    or event.get("status") != "running"):
+                continue
+            value = event.get("timestamp")
+            if not isinstance(value, str):
+                raise ValueError("occurrence execute-start timestamp missing or malformed")
+            try:
+                timestamp = dt.datetime.fromisoformat(value.replace("Z", "+00:00"))
+            except ValueError as exc:
+                raise ValueError("occurrence execute-start timestamp is malformed") from exc
+            if timestamp.tzinfo is None:
+                raise ValueError("occurrence execute-start timestamp has no timezone")
+            starts.append(timestamp.astimezone(dt.timezone.utc))
+    if len(starts) != 1:
+        raise ValueError("occurrence execute-start event missing or ambiguous")
+    return starts[0]
+
+
+def _run_id_for_occurrence(occurrence_id: str) -> str:
+    prefix = f"{OWNER_ID}:"
+    if not occurrence_id.startswith(prefix) or not occurrence_id[len(prefix):]:
+        raise ValueError("occurrence owner or run identity is invalid")
+    return occurrence_id[len(prefix):]
+
+
+def _validate_slot_article(slot: Any, article_slug: Any) -> tuple[str, str]:
+    if not isinstance(slot, str) or not SLOT_PATTERN.fullmatch(slot):
+        raise ValueError("occurrence slot is missing or malformed")
+    try:
+        dt.datetime.strptime(slot, "%Y-%m-%d-h%Hm%M")
+    except ValueError as exc:
+        raise ValueError("occurrence slot date is invalid") from exc
+    if (not isinstance(article_slug, str) or not article_slug.startswith("capafy-")
+            or not article_slug.endswith(f"-{slot}")):
+        raise ValueError("occurrence article slug does not match its slot")
+    return slot, article_slug
+
+
+def record_occurrence_manifest(path: Path, *, owner_id: str, run_id: str,
+                               occurrence_id: str, slot: str, article_slug: str) -> dict[str, str]:
+    """Persist the wrapper's actual slot before it can publish for this occurrence."""
+    if owner_id != OWNER_ID or run_id != _run_id_for_occurrence(occurrence_id):
+        raise ValueError("runtime occurrence identity mismatch")
+    slot, article_slug = _validate_slot_article(slot, article_slug)
+    record = {"schema": OCCURRENCE_SCHEMA, "owner_id": owner_id, "run_id": run_id,
+              "occurrence_id": occurrence_id, "slot": slot, "article_slug": article_slug}
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    temporary = path.with_name(f".{path.name}.tmp-{os.getpid()}")
+    try:
+        temporary.write_text(json.dumps(record, sort_keys=True) + "\n", encoding="utf-8")
+        os.replace(temporary, path)
+        os.chmod(path, 0o600)
+    finally:
+        temporary.unlink(missing_ok=True)
+    return record
+
+
+def expected_article_slug(occurrence_id: str, runs_root: Path | None = None) -> str:
+    """Read the wrapper-recorded slot and its prompt, bound to one occurrence."""
+    run_id = _run_id_for_occurrence(occurrence_id)
+    root = runs_root or Path(os.environ.get("CAPAFY_DISTRIBUTE_RUNS_ROOT") or RUNS_ROOT)
+    matches = []
+    for manifest_path in root.glob("capafy-distribute-*/gates/occurrence.json"):
+        try:
+            record = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            raise ValueError("occurrence manifest is missing or malformed") from exc
+        if not isinstance(record, dict):
+            raise ValueError("occurrence manifest must be a JSON object")
+        if record.get("occurrence_id") != occurrence_id:
+            continue
+        if (record.get("schema") != OCCURRENCE_SCHEMA
+                or record.get("owner_id") != OWNER_ID
+                or record.get("run_id") != run_id):
+            raise ValueError("occurrence manifest identity mismatch")
+        slot, slug = _validate_slot_article(record.get("slot"), record.get("article_slug"))
+        run_dir = manifest_path.parent.parent
+        if run_dir.name != f"capafy-distribute-{slot}":
+            raise ValueError("occurrence manifest path does not match its slot")
+        prompt = (run_dir / "prompt.txt").read_text(encoding="utf-8")
+        slugs = set(re.findall(r"https://aniccaai\.com/blog/([a-z0-9]+(?:-[a-z0-9]+)*)", prompt))
+        if slugs != {slug}:
+            raise ValueError("occurrence prompt does not match its manifest slug")
+        matches.append(slug)
+    if len(matches) != 1:
+        raise ValueError("occurrence slot manifest missing or ambiguous")
+    return matches[0]
 
 
 def read_landing_commits(start: dt.datetime, end: dt.datetime) -> dict[str, Any]:
@@ -129,25 +249,32 @@ def read_x_posts(start: dt.datetime, end: dt.datetime) -> dict[str, Any]:
     return {"ok": True, "posts": [p.get("id") for p in ours]}
 
 
-def build_proof(occurrence_id: str, queued_at: dt.datetime, *, now: dt.datetime,
+def build_proof(occurrence_id: str, queued_at: dt.datetime, *,
+                started_at: dt.datetime, expected_slug: str, now: dt.datetime,
                 commits: dict[str, Any], x_posts: dict[str, Any],
                 page_status_fn: Callable[[str], int] = page_status) -> dict[str, Any]:
     proof: dict[str, Any] = {"owner_id": OWNER_ID, "occurrence_id": occurrence_id,
-                             "verified": False, "queued_at": queued_at.isoformat()}
+                             "verified": False, "queued_at": queued_at.isoformat(),
+                             "occurrence_started_at": started_at.isoformat(),
+                             "expected_slug": expected_slug}
     if not commits.get("ok"):
         proof["reason"] = commits.get("reason")
         return proof
-    for commit in commits["commits"]:
+    matching_commits = [
+        commit for commit in commits["commits"]
+        if commit.get("slug") == expected_slug
+    ]
+    for commit in matching_commits:
         if page_status_fn(commit["slug"]) == 200:
             proof.update(verified=True, effected=True,
                          provider_receipt_id=f"github:{commit['sha']}|{BASE_URL}{commit['slug']}",
                          proof_kind="official_github_landing_commit_and_live_page",
                          checked_at=now.isoformat(timespec="seconds"))
             return proof
-    if commits["commits"]:
+    if matching_commits:
         proof["reason"] = "landing_commit_without_live_page"
         return proof
-    age = (now - queued_at).total_seconds()
+    age = (now - started_at).total_seconds()
     if age <= NO_EFFECT_MIN_AGE_SECONDS:
         proof["reason"] = f"too_recent:{int(age)}s<={NO_EFFECT_MIN_AGE_SECONDS}s"
         return proof
@@ -158,7 +285,7 @@ def build_proof(occurrence_id: str, queued_at: dt.datetime, *, now: dt.datetime,
         proof["reason"] = "x_post_without_article"
         return proof
     proof.update(verified=True, effected=False,
-                 provider_receipt_id=f"github-landing-and-postiz-x-empty:{queued_at.isoformat()}",
+                 provider_receipt_id=f"github-landing-and-postiz-x-empty:{started_at.isoformat()}",
                  proof_kind="official_github_commits_and_postiz_listing",
                  checked_at=now.isoformat(timespec="seconds"))
     return proof
@@ -166,12 +293,19 @@ def build_proof(occurrence_id: str, queued_at: dt.datetime, *, now: dt.datetime,
 
 def reconcile(occurrence_id: str, *, resolve: bool = False, now: dt.datetime | None = None,
               fenced_row_fn=fenced_row, commits_fn=read_landing_commits,
-              x_fn=read_x_posts, page_status_fn=page_status, resolve_fn=None) -> dict[str, Any]:
+              x_fn=read_x_posts, page_status_fn=page_status, resolve_fn=None,
+              started_at_fn=None, expected_slug_fn=None) -> dict[str, Any]:
     now = now or dt.datetime.now(dt.timezone.utc)
     state, queued_at = fenced_row_fn(OWNER_ID, occurrence_id)
-    end = queued_at + dt.timedelta(seconds=MAX_RUN_SECONDS)
-    proof = build_proof(occurrence_id, queued_at, now=now, commits=commits_fn(queued_at, end),
-                        x_posts=x_fn(queued_at, end), page_status_fn=page_status_fn)
+    started_at = (started_at_fn or occurrence_started_at)(occurrence_id)
+    expected_slug = (expected_slug_fn or expected_article_slug)(occurrence_id)
+    end = started_at + dt.timedelta(seconds=MAX_RUN_SECONDS)
+    proof = build_proof(
+        occurrence_id, queued_at, started_at=started_at,
+        expected_slug=expected_slug, now=now,
+        commits=commits_fn(started_at, end),
+        x_posts=x_fn(started_at, end), page_status_fn=page_status_fn,
+    )
     result = {**proof, "admission_state": state}
     if not proof.get("verified") or not resolve:
         return result

@@ -93,10 +93,16 @@ class CutLoopReleaseTest(unittest.TestCase):
         return repo, main_sha, candidate_sha
 
     def _cut_sparse(self, root, repo, sha, *, activate, paths="payload.txt"):
+        capacity_probe = root / "capacity-probe"
+        capacity_probe.mkdir(exist_ok=True)
+        (capacity_probe / "sitecustomize.py").write_text(
+            "import shutil,types\nshutil.disk_usage=lambda p: types.SimpleNamespace(free=16*1024**3)\n"
+        )
         return subprocess.run(
             ["/bin/bash", str(ROOT / "bin/cut-loop-release.sh"), sha],
             cwd=repo,
             env={**os.environ, "LIFE_MANAGER_SOURCE_REPO": str(repo),
+                 "PYTHONPATH": str(capacity_probe),
                  "LOOPS_ROOT": str(root / "loops"), "LOOPS_RELEASE_PATHS": paths,
                  "LOOPS_ACTIVATE_CURRENT": "1" if activate else "0",
                  "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(root / "admission"),

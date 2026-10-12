@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import inspect
 import json
 import tempfile
 import unittest
 from unittest.mock import patch
 from pathlib import Path
 
+import job_search_loop.workday_source_discovery as workday_source_discovery
 from job_search_loop.ledger import Ledger
 from job_search_loop.workday_discovery import _fetch_jobs, discover_one
 from job_search_loop.workday_source_discovery import merge_sources, validate_sources
@@ -72,7 +74,25 @@ class WorkdayDiscoveryTests(unittest.TestCase):
         old = TEST_SOURCES[:1]
         new = TEST_SOURCES[1:3]
         merged = merge_sources(old, new)
-        self.assertEqual([row["company"] for row in merged], ["NVIDIA", "Workday", "Salesforce"])
+        self.assertEqual([row["company"] for row in merged], ["Workday", "Salesforce", "NVIDIA"])
+
+    def test_new_worldwide_query_replaces_old_query_for_same_workday_board(self):
+        old = (dict(TEST_SOURCES[0], search_text="Tokyo AI"),)
+        refreshed = (dict(TEST_SOURCES[0], search_text="customer implementation"),)
+
+        merged = merge_sources(old, refreshed)
+
+        self.assertEqual(len(merged), 1)
+        self.assertEqual(merged[0]["search_text"], "customer implementation")
+
+    def test_source_prompt_does_not_restrict_searches_to_japan(self):
+        prompt_source = inspect.getsource(workday_source_discovery.main)
+
+        self.assertIn("Remote, onsite, and hybrid roles ", prompt_source)
+        self.assertIn("worldwide are all in scope", prompt_source)
+        self.assertIn("no location-specific search terms", prompt_source)
+        self.assertNotIn("Tokyo, Japan-remote", prompt_source)
+        self.assertNotIn("Include Tokyo or Japan intent in every search_text", prompt_source)
 
     def test_unqualified_row_from_missing_source_does_not_block_current_registry(self):
         with tempfile.TemporaryDirectory() as directory:

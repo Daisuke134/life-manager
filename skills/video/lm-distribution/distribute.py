@@ -428,6 +428,7 @@ def distribute_platform(config: DistributionConfig, platform: str) -> dict:
             # Provenance, not fabrication: the short-circuit reports whether the EXISTING
             # ledger row was provider-reconciled, exactly as recorded.
             "provider_reconciled": existing.get("provider_reconciled") is True,
+            "provider_effect_created": False,
         }
 
     if platform == "instagram":
@@ -553,6 +554,8 @@ def distribute_platform(config: DistributionConfig, platform: str) -> dict:
         "provider_post_id": published.get("provider_id"),
         "provider_route": published.get("route"),
         "provider_reconciled": published.get("provider_reconciled") is True,
+        **({"provider_effect_created": result["provider_effect_created"]}
+           if isinstance(result.get("provider_effect_created"), bool) else {}),
     }
 
 

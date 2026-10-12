@@ -336,6 +336,102 @@ class ReconcileTest(unittest.TestCase):
         self.assertEqual(rows[0]["exit_code"], 0)
         self.assertLessEqual(len(rows[0]["stdout_tail"]), 300)
 
+    def test_closed_call_logs_exact_release_bound_provider_proof(self):
+        import json
+
+        owner_id = "owner-a"
+        occurrence_id = "owner-a:run-1"
+        release_sha = "a" * 40
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            owner_state = root / "owner-state"
+            owner_state.mkdir()
+            (owner_state / "events.jsonl").write_text(json.dumps({
+                "loop_id": owner_id, "owner_id": owner_id,
+                "occurrence_id": occurrence_id, "release_sha": release_sha,
+            }) + "\n")
+            proof = json.dumps({
+                "owner_id": owner_id, "occurrence_id": occurrence_id,
+                "verified": True, "provider_receipt_id": "official:receipt-1",
+            })
+            fenced_reads = iter(({owner_id: (occurrence_id,)}, {}))
+            log_path = root / "reconcile-calls.jsonl"
+            reconcile(
+                registry=_registry({owner_id: {
+                    "state_root": str(owner_state),
+                    "effect_reconcile": {
+                        "argv": ["skills/x/reconcile.py"],
+                        "occurrence_flag": "--occurrence", "resolve_flag": "--resolve",
+                    },
+                }}),
+                root=root, run_call=lambda argv, **_kwargs: (0, proof + "\nRECONCILE=PASS\n"),
+                read_fenced=lambda: next(fenced_reads), log_path=log_path,
+            )
+            row = json.loads(log_path.read_text().splitlines()[0])
+
+        self.assertTrue(row["closed"])
+        self.assertEqual(row["release_sha"], release_sha)
+        self.assertEqual(row["closure_proof"], {
+            "proof_type": "effect_reconcile_closure.v1",
+            "owner_id": owner_id,
+            "occurrence_id": occurrence_id,
+            "release_sha": release_sha,
+            "verified": True,
+            "receipt_ref": "official:receipt-1",
+        })
+
+    def test_closed_call_with_mismatched_or_ambiguous_proof_has_no_closure_proof(self):
+        import json
+
+        owner_id = "owner-a"
+        occurrence_id = "owner-a:run-1"
+        release_sha = "a" * 40
+
+        def run_case(proof_changes=None, event_releases=(release_sha,)):
+            with tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                owner_state = root / "owner-state"
+                owner_state.mkdir()
+                events = [
+                    {"loop_id": owner_id, "owner_id": owner_id,
+                     "occurrence_id": occurrence_id, "release_sha": sha}
+                    for sha in event_releases
+                ]
+                (owner_state / "events.jsonl").write_text(
+                    "".join(json.dumps(event) + "\n" for event in events))
+                proof = {
+                    "owner_id": owner_id, "occurrence_id": occurrence_id,
+                    "verified": True, "provider_receipt_id": "official:receipt-1",
+                }
+                proof.update(proof_changes or {})
+                fenced_reads = iter(({owner_id: (occurrence_id,)}, {}))
+                log_path = root / "reconcile-calls.jsonl"
+                reconcile(
+                    registry=_registry({owner_id: {
+                        "state_root": str(owner_state),
+                        "effect_reconcile": {
+                            "argv": ["skills/x/reconcile.py"],
+                            "occurrence_flag": "--occurrence", "resolve_flag": "--resolve",
+                        },
+                    }}),
+                    root=root,
+                    run_call=lambda argv, **_kwargs: (0, json.dumps(proof) + "\n"),
+                    read_fenced=lambda: next(fenced_reads), log_path=log_path,
+                )
+                row = json.loads(log_path.read_text().splitlines()[0])
+                return row.get("closure_proof")
+
+        for changes in (
+            {"owner_id": "other"},
+            {"occurrence_id": "owner-a:other"},
+            {"release_sha": "b" * 40},
+            {"verified": False},
+            {"provider_receipt_id": ""},
+        ):
+            with self.subTest(changes=changes):
+                self.assertIsNone(run_case(changes))
+        self.assertIsNone(run_case(event_releases=(release_sha, "b" * 40)))
+
 
 
 

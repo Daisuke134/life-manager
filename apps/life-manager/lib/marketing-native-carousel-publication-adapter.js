@@ -9,7 +9,7 @@ const { spawnSync } = require("node:child_process");
 const { buildRuntimeJob } = require("./runtime-job-store.js");
 const { createContentObjectStore, sha256File } = require("./content-object-store.js");
 const { resolveRuntimePaths } = require("./runtime-paths.js");
-const { writeMarketingEffectIdentity } = require("./marketing-effect-identity.js");
+const { providerEffectProvenance, writeMarketingEffectIdentity } = require("./marketing-effect-identity.js");
 const { buildMarketingCtaCaption } = require("./marketing-app-store-cta.js");
 
 const ADAPTER_ID = "marketing-native-carousel-publication";
@@ -426,6 +426,9 @@ function assertPack(pack, contract, caption, lane) {
     || (pack.integration_id !== undefined && pack.integration_id !== lane.integrationId)
     || (pack.native_owner !== undefined && pack.native_owner !== lane.nativeOwner)
     || (pack.caption_ref !== undefined && pack.caption_ref !== contract.captionRef)) fail("marketing native carousel pack identity is invalid");
+  if (lane.platform === "tiktok" && pack.slides.some((slide) => /\bLink in bio\b|プロフィールのリンク/i.test(String(slide?.text || "")))) {
+    fail("marketing native carousel pack contains an unavailable TikTok CTA");
+  }
   const ordered = pack.slides.map((slide, i) => {
     const expectedRole = i === 0 ? "hook" : (i === SLIDE_COUNT - 1 ? (lane.lastSlideRole || (lane.platform === "tiktok" ? "cta" : "body")) : "body");
     if (!slide || slide.position !== i + 1 || slide.role !== expectedRole || typeof slide.text !== "string" || !OBJ.test(String(slide.media_ref || ""))) fail("marketing native carousel pack slide is invalid");
@@ -510,7 +513,7 @@ function provider(result, lane, expectedContentSha256, expectedTitle) {
     && titleOk && result.posting_method === "DIRECT_POST"
     && /^p_pub_url~v2\.[0-9]+$/.test(String(result.release_id || ""));
   if (!result || state !== "PUBLISHED" || reconciled !== true || !PROVIDER_ID.test(String(postId || "")) || (!direct && !photoProof)) { const error = new Error("marketing native carousel provider result contract mismatch"); error.unknownEffect = true; throw error; }
-  return { postId: String(postId), url: direct ? String(url) : null, ...(photoProof ? { state, integrationId: result.integration_id, contentSha256: result.content_sha256, title: result.title, postingMethod: result.posting_method, releaseId: result.release_id } : {}) };
+  return { postId: String(postId), url: direct ? String(url) : null, ...(typeof result.provider_effect_created === "boolean" ? { providerEffectCreated: result.provider_effect_created } : {}), ...(photoProof ? { state, integrationId: result.integration_id, contentSha256: result.content_sha256, title: result.title, postingMethod: result.posting_method, releaseId: result.release_id } : {}) };
 }
 function laneForReceipt(receipt) {
   try {
@@ -665,9 +668,12 @@ async function executeMarketingNativeCarouselPublicationJob(job, deps = {}) {
     fs.rmSync(ctaWorkspace, { recursive: true, force: true });
   }
   const published = provider(result, lane, ctaCaptionSha256, pack.slides[0].text);
-  const receipt = { schema_version: 1, kind: "marketing_native_carousel_distribution", status: "published", product_id: lane.productId, format_id: lane.formatId, form: lane.form, locale: lane.locale, platform: lane.platform, account_id: lane.accountId, integration_ref: contract.integrationRef, creative_id: contract.creativeId, pack_sha256: contract.packHash, media_sha256: [...contract.mediaHashes], media_order_sha256: mediaOrderHash(contract.mediaHashes), caption_sha256: contract.captionHash, caption_with_cta_sha256: ctaCaptionSha256, text_sha256: textSha256, provider_post_id: published.postId, provider_reconciled: true, public_url: published.url, ...(published.url == null ? { provider_state: published.state, provider_integration_id: published.integrationId, provider_content_sha256: published.contentSha256, provider_title: published.title, provider_posting_method: published.postingMethod, provider_release_id: published.releaseId } : {}), published_at: instant(s.now(), "marketing native carousel publication time") };
+  const receipt = { schema_version: 1, kind: "marketing_native_carousel_distribution", status: "published", product_id: lane.productId, format_id: lane.formatId, form: lane.form, locale: lane.locale, platform: lane.platform, account_id: lane.accountId, integration_ref: contract.integrationRef, creative_id: contract.creativeId, pack_sha256: contract.packHash, media_sha256: [...contract.mediaHashes], media_order_sha256: mediaOrderHash(contract.mediaHashes), caption_sha256: contract.captionHash, caption_with_cta_sha256: ctaCaptionSha256, text_sha256: textSha256, provider_post_id: published.postId, provider_reconciled: true, ...providerEffectProvenance(published.providerEffectCreated), public_url: published.url, ...(published.url == null ? { provider_state: published.state, provider_integration_id: published.integrationId, provider_content_sha256: published.contentSha256, provider_title: published.title, provider_posting_method: published.postingMethod, provider_release_id: published.releaseId } : {}), published_at: instant(s.now(), "marketing native carousel publication time") };
   if (!verifyMarketingNativeCarouselPublicationReceipt(receipt)) { const error = new Error("marketing native carousel publication receipt verification failed"); error.unknownEffect = true; throw error; }
-  appendRow(ledgerFor(s, job.tenant_id, lane.productId), job, receipt);
+  const ledgerReceipt = { ...receipt };
+  delete ledgerReceipt.provider_effect_created;
+  delete ledgerReceipt.origin_occurrence_id;
+  appendRow(ledgerFor(s, job.tenant_id, lane.productId), job, ledgerReceipt);
   return { receipt, result };
 }
 

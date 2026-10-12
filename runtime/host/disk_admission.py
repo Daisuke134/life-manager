@@ -195,7 +195,10 @@ def _failure(
     return 1
 
 
-def _producer_gate() -> tuple[str, Path] | None:
+def _producer_gate(
+    loop_id: str | None = None, *, check_capacity: bool = True,
+) -> tuple[str, Path] | None:
+    del loop_id, check_capacity  # Retained for callers; free-space floors are diagnostic only.
     try:
         configured = _host_state_dir()
         candidates = (*_canonical_host_state_dirs(), configured)
@@ -243,42 +246,48 @@ def _producer_gate() -> tuple[str, Path] | None:
     return None
 
 
-def disk_headroom_ok() -> bool:
-    """Validate state; ignore cleanup low-space signals but honor operator stops."""
+def _producer_preflight(loop_id: str | None = None) -> int:
     state_dir = _state_dir()
     if not _ensure_producer_state_dir(state_dir):
         print(json.dumps({
             "status": "failed", "failed": 1, "effect": 0, "readback": 0,
             "reason": "disk_state_unsafe", "required_bytes": 0,
         }, sort_keys=True, separators=(",", ":")))
-        return False
-    gate = _producer_gate()
+        return 1
+    gate = _producer_gate(loop_id, check_capacity=True)
     if gate is not None:
         reason, flag = gate
         available_bytes = disk_free_bytes(state_dir)
+        if reason in {"disk_headroom_low", "disk_headroom_unknown"}:
+            receipt = {
+                "status": "deferred", "effect": 0, "readback": 0,
+                "reason": reason, "required_bytes": RECOVERY_FLOOR_BYTES,
+                "gate": _PRODUCER_GATE, "flag_path": str(flag),
+            }
+            if available_bytes is not None:
+                receipt["available_bytes"] = available_bytes
+            payload = _write_receipt(state_dir, receipt)
+            print(payload)
+            return 75
         _failure(
             reason,
             available_bytes,
             metadata={"gate": _PRODUCER_GATE, "flag_path": str(flag)},
         )
-        return False
-    return True
+        return 1
+    return 0
+
+
+def disk_headroom_ok() -> bool:
+    """Return whether producer control state permits work; free space is diagnostic only."""
+    return _producer_preflight(os.environ.get("LIFE_MANAGER_LOOP_ID")) == 0
 
 
 def release_capacity_bytes(repo: Path, sha: str, loops: Path, node: str, npm: str) -> int:
-    """Measure a complete source export only when all dependency bundles are reusable."""
-    donor = (loops / "current").resolve()
-    descriptor = json.loads((donor / "RELEASE.json").read_text())
-    if (descriptor.get("release_paths") != "ALL"
-            or descriptor.get("provenance") != "ancestor-of-origin-main"
-            or descriptor.get("runtime_python") != str(Path(sys.executable).resolve())
-            or descriptor.get("runtime_python_cache_tag") != sys.implementation.cache_tag
-            or donor.stat().st_mode & 0o222
-            or os.path.lexists(donor / "RECLAIMED-RELEASE.json")):
-        raise ValueError("donor is not a complete immutable runtime")
-    subprocess.run(["git","-C",str(repo),"merge-base","--is-ancestor",descriptor["sha"],"origin/main"],check=True,capture_output=True)
+    """Measure a source export plus enough space to retain the recovery floor."""
     roots = ("", "runtime/compute-proxy", "runtime/agentmail", "apps/life-manager",
              "skills/earn/taskmarket", "skills/earn/x402-sell", "services/x402-endpoint")
+    package_manifests = []
     for relative in roots:
         prefix = relative + "/" if relative else ""
         manifests = []
@@ -287,6 +296,21 @@ def release_capacity_bytes(repo: Path, sha: str, loops: Path, node: str, npm: st
             manifests.append(result.stdout if result.returncode == 0 else None)
         if None in manifests:
             continue
+
+        package_manifests.append((relative, manifests))
+
+    if package_manifests:
+        donor = (loops / "current").resolve()
+        descriptor = json.loads((donor / "RELEASE.json").read_text())
+        if (descriptor.get("release_paths") != "ALL"
+                or descriptor.get("provenance") != "ancestor-of-origin-main"
+                or descriptor.get("runtime_python") != str(Path(sys.executable).resolve())
+                or descriptor.get("runtime_python_cache_tag") != sys.implementation.cache_tag
+                or donor.stat().st_mode & 0o222
+                or os.path.lexists(donor / "RECLAIMED-RELEASE.json")):
+            raise ValueError("donor is not a complete immutable runtime")
+        subprocess.run(["git","-C",str(repo),"merge-base","--is-ancestor",descriptor["sha"],"origin/main"],check=True,capture_output=True)
+    for relative, manifests in package_manifests:
         directory = donor / relative
         if any((directory / name).read_bytes() != payload for name,payload in zip(("package.json","package-lock.json"),manifests)):
             raise ValueError("dependency manifests changed")
@@ -321,7 +345,7 @@ def release_capacity_bytes(repo: Path, sha: str, loops: Path, node: str, npm: st
                     budget += 2 * (block + rounded(16 + len(marshal.dumps(code))))
         if archive.wait() != 0:
             raise ValueError("Git export measurement failed")
-    return budget + largest_temporary
+    return RECOVERY_FLOOR_BYTES + budget + largest_temporary
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -331,8 +355,15 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 2
         try:
             required = release_capacity_bytes(Path(remaining[1]),remaining[2],Path(remaining[3]),remaining[4],remaining[5])
-        except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError, tarfile.TarError, SyntaxError):
-            required = RECOVERY_FLOOR_BYTES
+        except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError, tarfile.TarError, SyntaxError) as exc:
+            print(json.dumps({
+                "status": "failed",
+                "effect": 0,
+                "readback": 0,
+                "reason": "release_capacity_measurement_failed",
+                "error_class": type(exc).__name__,
+            }, sort_keys=True, separators=(",", ":")), file=sys.stderr)
+            return 1
         print(required)
         return 0
     if remaining[:1] == ["--check-free-space"]:
@@ -357,8 +388,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     if not remaining:
         print("disk_admission: missing child argv", file=sys.stderr)
         return 2
-    if not disk_headroom_ok():
-        return 1
+    preflight = _producer_preflight(os.environ.get("LIFE_MANAGER_LOOP_ID"))
+    if preflight:
+        return preflight
     os.execvpe(remaining[0], remaining, os.environ)
     return 0
 

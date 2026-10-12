@@ -987,7 +987,7 @@
       "system_role": "shared"
     },
     "line-sticker-articles": {
-      "priority": "revenue",
+      "priority": "distribution",
       "resource_class": "deterministic",
       "admission_class": "revenue",
       "coalesce_reserved_wakes": true,

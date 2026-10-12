@@ -1400,12 +1400,14 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
             return 78
         return child_return_code
 
-    def disk_deferred(phase: str) -> bool:
-        gate = _producer_gate()
+    def disk_deferred(phase: str, *, check_capacity: bool = False) -> bool:
+        gate = _producer_gate(loop_id, check_capacity=check_capacity)
         if gate is None:
             return False
         reason, flag = gate
-        if durable and phase == "pre_enqueue":
+        if reason in {"disk_headroom_low", "disk_headroom_unknown", "disk_headroom_unavailable"}:
+            return False
+        if durable and phase in {"pre_enqueue", "pre_claim"}:
             try:
                 defer_durable_resource(loop_id)
             except (OSError, RuntimeError, sqlite3.Error):
@@ -1484,6 +1486,8 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                          "reason": "memory_headroom_unavailable" if available is None
                          else "memory_headroom_low"})
             return 75
+        if disk_deferred("pre_claim", check_capacity=True):
+            return 75
         try:
             claim = None
             admission_reason = None
@@ -1529,7 +1533,7 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                                       "reason": "resource_claim_identity_invalid"})
                 return 75
             on_claimed(claimed_occurrence_id)
-        if disk_deferred("post_claim"):
+        if disk_deferred("post_claim", check_capacity=True):
             return 75
         if interrupted:
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
@@ -1935,12 +1939,25 @@ def _main(argv: list[str] | None = None) -> int:
                 try:
                     cleanup_operation = "unprotect_marker"
                     unprotect_loop_scratch(scratch_fd)
-                    cleanup_operation = "remove_owned_tree"
-                    from runtime.loop.central_cleanup import _diagnostic_relay_live
+                    cleanup_operation = "check_browser_profiles"
+                    from runtime.loop.central_cleanup import (
+                        _browser_profiles_live, _diagnostic_relay_live,
+                    )
                     from runtime.host.resource_admission import process_starts
                     relay_live = _diagnostic_relay_live(scratch_fd, process_starts(), loop_id, run_id)
-                    removed = False if relay_live else remove_owned_tree(scratch_parent_fd, scratch_fd, run_id)
-                    cleanup_status = "removed" if removed else "preserved"
+                    browser_live = _browser_profiles_live(scratch)
+                    if relay_live or browser_live is not False:
+                        removed = False
+                        cleanup_operation = (
+                            "stderr_relay_live" if relay_live else
+                            "browser_profiles_live" if browser_live else
+                            "browser_profile_liveness_unavailable"
+                        )
+                        cleanup_status = "preserved"
+                    else:
+                        cleanup_operation = "remove_owned_tree"
+                        removed = remove_owned_tree(scratch_parent_fd, scratch_fd, run_id)
+                        cleanup_status = "removed" if removed else "preserved"
                     cleanup_error = None
                 except Exception as error:
                     cleanup_status = "error"

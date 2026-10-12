@@ -2511,6 +2511,41 @@ def test_main_records_false_terminal_scratch_cleanup_without_changing_business_r
     assert scratch.is_dir()
 
 
+def test_main_preserves_terminal_scratch_while_run_owned_browser_profile_is_live(tmp_path):
+    release = _write_prestart_lock_release(tmp_path)
+    state_root = tmp_path / "state"
+    events = []
+    scratch = state_root / "loop-tmp/example-publisher/run-1"
+
+    def run_admitted(_command, _entry, _loop_id, _env, receipt, **_kwargs):
+        receipt.write_text('{"status":"pass","effect":0}\\n', encoding="utf-8")
+        receipt.chmod(0o600)
+        (receipt.parent / "agent-browser-profile-test").mkdir()
+        return 0
+
+    with (patch.dict(os.environ, {
+              "LIFE_MANAGER_STATE_ROOT": str(state_root),
+              "LIFE_MANAGER_RUN_ID": "run-1",
+          }, clear=False),
+          patch("runtime.loop.lm_loop_run._apply_lock", return_value=nullcontext()),
+          patch("runtime.loop.lm_loop_run.build_loop_command", return_value=["/bin/true"]),
+          patch("runtime.loop.lm_loop_run._run_admitted", side_effect=run_admitted),
+          patch("runtime.loop.lm_loop_run.append_runtime_event",
+                side_effect=lambda _path, event: events.append(event)),
+          patch("runtime.loop.central_cleanup._browser_profiles_live", return_value=True),
+          patch("runtime.loop.lm_loop_run.remove_owned_tree",
+                side_effect=AssertionError("live browser profile must remain"))):
+        assert lm_loop_run_main(["example-publisher", str(release)]) == 0
+
+    assert events[-1]["status"] == "pass"
+    diagnostic = json.loads(
+        (state_root / "scratch-cleanup-diagnostics/run-1.json").read_text())
+    assert diagnostic["cleanup_status"] == "preserved"
+    assert diagnostic["cleanup_operation"] == "browser_profiles_live"
+    assert scratch.is_dir()
+    assert not (scratch / ".terminal-unrecorded").exists()
+
+
 def test_main_records_cleanup_exception_without_changing_business_result(tmp_path):
     release = _write_prestart_lock_release(tmp_path)
     state_root = tmp_path / "state"
@@ -3472,25 +3507,41 @@ def test_memory_deferral_preserves_queue_and_releases_reservation(tmp_path):
     assert json.loads(receipt.read_text())["reason"] == "memory_headroom_unavailable"
 
 
-def test_low_or_unknown_numeric_disk_headroom_does_not_defer_finite_owner(tmp_path):
+@pytest.mark.parametrize("reason", ("disk_headroom_low", "disk_headroom_unknown"))
+def test_low_or_unknown_disk_headroom_does_not_defer_finite_owner(tmp_path, reason):
     entry = {"cadence": {"start_interval_seconds": 60},
              "provider_route": "shared-agent-runner", "effect_class": "application"}
-    for available in [0, None]:
-        receipt = tmp_path / "host-admission.json"
-        with (patch("runtime.loop.lm_loop_run.disk_free_bytes", return_value=available, create=True) as disk,
-              patch("runtime.loop.lm_loop_run._producer_gate", return_value=None, create=True) as gate,
-              patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
-              patch("runtime.loop.lm_loop_run.enqueue_durable_resource", return_value=(tmp_path / "ticket", "ready")) as enqueue,
-              patch("runtime.loop.lm_loop_run.claim_durable_resource", return_value=(tmp_path / "claim", "acquired")) as claim,
-              patch("runtime.loop.lm_loop_run.defer_durable_resource") as defer,
-              patch("runtime.loop.lm_loop_run.release_and_reserve_resource", return_value=[]) as release,
-              patch("runtime.loop.lm_loop_run._run_entrypoint_with_stderr_capture", return_value=(0,b"")) as child):
-            assert _run_admitted(["/bin/true"], entry, "example", {}, receipt) == 0
-        enqueue.assert_called_once(); claim.assert_called_once(); child.assert_called_once()
-        gate.assert_has_calls([call(), call()]); disk.assert_not_called()
-        defer.assert_not_called(); release.assert_called_once()
-        result = json.loads(receipt.read_text())
-        assert result["status"] == "pass" and result["effect"] == 0
+    receipt = tmp_path / "host-admission.json"
+    occurrence = "example:disk-low-occurrence"
+    ticket = tmp_path / "ticket"
+    claim = tmp_path / "claim.json"
+    claim.write_text(json.dumps({"occurrence_id": occurrence}))
+    stop = tmp_path / "disk-writers.stop"
+    with (patch("runtime.loop.lm_loop_run._producer_gate",
+                side_effect=[None, (reason, stop), (reason, stop)]) as gate,
+          patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(ticket, "ready")) as enqueue,
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                return_value=(claim, "acquired")) as claim_resource,
+          patch("runtime.loop.lm_loop_run.defer_durable_resource") as defer,
+          patch("runtime.loop.lm_loop_run.release_and_reserve_resource") as release,
+          patch("runtime.loop.lm_loop_run._run_entrypoint_with_stderr_capture",
+                return_value=(0, b"")) as child):
+        assert _run_admitted(["/bin/true"], entry, "example", {}, receipt,
+                             occurrence_id=occurrence) == 0
+
+    enqueue.assert_called_once()
+    assert enqueue.call_args.kwargs["occurrence_id"] == occurrence
+    gate.assert_has_calls([
+        call("example", check_capacity=False),
+        call("example", check_capacity=True),
+        call("example", check_capacity=True),
+    ])
+    defer.assert_not_called()
+    claim_resource.assert_called_once()
+    release.assert_called_once()
+    child.assert_called_once()
 
 
 def test_explicit_operator_disk_stop_still_defers_before_queue_and_provider_child(tmp_path):
@@ -3498,8 +3549,7 @@ def test_explicit_operator_disk_stop_still_defers_before_queue_and_provider_chil
              "provider_route": "shared-agent-runner", "effect_class": "application"}
     receipt = tmp_path / "host-admission.json"
     stop = tmp_path / "disk-writers.stop"
-    with (patch("runtime.loop.lm_loop_run.disk_free_bytes", return_value=3*1024**3, create=True) as disk,
-          patch("runtime.loop.lm_loop_run._producer_gate", return_value=("disk_writers_stop", stop), create=True) as gate,
+    with (patch("runtime.loop.lm_loop_run._producer_gate", return_value=("disk_writers_stop", stop), create=True) as gate,
           patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
           patch("runtime.loop.lm_loop_run.enqueue_durable_resource", return_value=(tmp_path / "ticket", "ready")) as enqueue,
           patch("runtime.loop.lm_loop_run.claim_durable_resource", return_value=(tmp_path / "claim", "acquired")) as claim,
@@ -3507,7 +3557,7 @@ def test_explicit_operator_disk_stop_still_defers_before_queue_and_provider_chil
           patch("runtime.loop.lm_loop_run.defer_durable_resource") as defer,
           patch("runtime.loop.lm_loop_run._run_entrypoint_with_stderr_capture", return_value=(0,b"")) as child):
         assert _run_admitted(["/bin/true"], entry, "example", {}, receipt) == 75
-    gate.assert_called_once(); disk.assert_not_called()
+    gate.assert_called_once()
     enqueue.assert_not_called(); claim.assert_not_called(); release.assert_not_called(); child.assert_not_called()
     defer.assert_called_once_with("example")
     result = json.loads(receipt.read_text())
@@ -3520,8 +3570,7 @@ def test_healthy_disk_boundary_keeps_finite_dispatch_without_numeric_probe(tmp_p
     entry = {"cadence": {"start_interval_seconds": 60},
              "provider_route": "shared-agent-runner", "effect_class": "application"}
     receipt = tmp_path / "host-admission.json"
-    with (patch("runtime.loop.lm_loop_run.disk_free_bytes", return_value=2*1024**3, create=True) as disk,
-          patch("runtime.loop.lm_loop_run._producer_gate", return_value=None, create=True) as gate,
+    with (patch("runtime.loop.lm_loop_run._producer_gate", return_value=None, create=True) as gate,
           patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
           patch("runtime.loop.lm_loop_run.enqueue_durable_resource", return_value=(tmp_path / "ticket","ready")),
           patch("runtime.loop.lm_loop_run.claim_durable_resource", return_value=(tmp_path / "claim","acquired")),
@@ -3529,28 +3578,39 @@ def test_healthy_disk_boundary_keeps_finite_dispatch_without_numeric_probe(tmp_p
           patch("runtime.loop.lm_loop_run._run_entrypoint_with_stderr_capture",return_value=(0,b"")) as child):
         assert _run_admitted(["/bin/true"],entry,"example",{},receipt)==0
     child.assert_called_once()
-    gate.assert_has_calls([call(), call()]); disk.assert_not_called()
+    gate.assert_has_calls([
+        call("example", check_capacity=False),
+        call("example", check_capacity=True),
+        call("example", check_capacity=True),
+    ])
 
 
-def test_numeric_disk_drop_after_claim_does_not_requeue_finite_work(tmp_path):
+def test_operator_stop_after_claim_requeues_finite_work_before_provider_effect(tmp_path):
     entry = {"cadence": {"start_interval_seconds": 60},
              "provider_route": "shared-agent-runner", "effect_class": "application"}
     receipt = tmp_path / "host-admission.json"
     claim = tmp_path / "claim"
-    with (patch("runtime.loop.lm_loop_run.disk_free_bytes", side_effect=[3*1024**3,0], create=True) as disk,
-          patch("runtime.loop.lm_loop_run._producer_gate", return_value=None, create=True) as gate,
+    stop = tmp_path / "disk-writers.stop"
+    with (patch("runtime.loop.lm_loop_run._producer_gate",
+                side_effect=[None, None, ("disk_writers_stop", stop)], create=True) as gate,
           patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
           patch("runtime.loop.lm_loop_run.enqueue_durable_resource", return_value=(tmp_path / "ticket", "ready")),
           patch("runtime.loop.lm_loop_run.claim_durable_resource", return_value=(claim, "acquired")),
           patch("runtime.loop.lm_loop_run.release_and_reserve_resource", return_value=[]) as release,
           patch("runtime.loop.lm_loop_run._dispatch_reserved") as dispatch,
           patch("runtime.loop.lm_loop_run._run_entrypoint_with_stderr_capture", return_value=(0,b"")) as child):
-        assert _run_admitted(["/bin/true"], entry, "example", {}, receipt) == 0
-    child.assert_called_once(); dispatch.assert_not_called()
-    gate.assert_has_calls([call(), call()]); disk.assert_not_called()
+        assert _run_admitted(["/bin/true"], entry, "example", {}, receipt) == 75
+    child.assert_not_called(); dispatch.assert_not_called()
+    gate.assert_has_calls([
+        call("example", check_capacity=False),
+        call("example", check_capacity=True),
+        call("example", check_capacity=True),
+    ])
     release.assert_called_once()
-    result=json.loads(receipt.read_text())
-    assert result["status"] == "pass" and result["effect"] == 0
+    assert release.call_args.kwargs["requeue"] is True
+    result = json.loads(receipt.read_text())
+    assert result["status"] == "deferred" and result["effect"] == 0
+    assert result["phase"] == "post_claim"
 
 
 def test_control_and_continuous_owner_bypass_disk_preflight(tmp_path):

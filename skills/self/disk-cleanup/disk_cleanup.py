@@ -44,6 +44,7 @@ FULL_INVENTORY_INTERVAL_SECONDS = 3600
 GOVERNOR_BUDGET_SECONDS = 55
 LSOF_TIMEOUT_SECONDS = 15
 POST_SWEEP_RESERVE_SECONDS = 30
+FAST_POST_SWEEP_RESERVE_SECONDS = 5
 HEALTH_CHECK_TIMEOUT_SECONDS = 5
 STALE_SPARKLE_UPDATER_SECONDS = 24 * 60 * 60
 SPARKLE_UPDATER_TERM_TIMEOUT_SECONDS = 5
@@ -53,10 +54,11 @@ THRESHOLDS = ((20 * GiB, "NORMAL"), (11 * GiB, "PREVENTIVE"), (6 * GiB, "PRESSUR
 RECOVERY_FLOOR_BYTES = 2 * GiB
 RECEIPT_RESERVE_BYTES = 1024 * 1024
 RECEIPT_PAYLOAD_MAX_BYTES = 64 * 1024
+PROBE_ERROR_DETAIL_LIMIT = 8
 TEMPORARY_RUN_MIN_AGE_SECONDS = 60 * 60
 WORKTREE_REPOSITORY_RELATIVE = Path("Projects/life-manager-main")
 SLIDE_PACK_DIRECTORY_PATTERN = re.compile(
-    r"slide-pack-(?:objects|image-cache|workspace)(?:-cta)?-[A-Za-z0-9]{6}"
+    r"slide-pack-(?:(?:objects|image-cache|workspace)(?:-cta)?|tiktok-(?:workspace|cta|cache))-[A-Za-z0-9]{6}"
 )
 SLIDE_PACK_FIXTURE_PATTERN = re.compile(r"slide-pack-fixture-bg-\d{5,6}\.png")
 PYTEST_RUN_PATTERN = re.compile(r"pytest-\d+")
@@ -666,6 +668,7 @@ class HostDiskGovernor:
         self.lock_dir = self.state_dir / ".life-manager-disk-cleanup.lock"
         self._lock_fd: int | None = None
         self.full_inventory_marker = self.state_dir / "host-inventory-full.at"
+        self.full_inventory_attempt_marker = self.state_dir / "host-inventory-full.attempt"
         self.candidate_cursor_path = self.state_dir / "candidate-cursor.json"
         self.lsof = lsof
         self.usage = usage or self._usage
@@ -687,11 +690,26 @@ class HostDiskGovernor:
             }
 
     def _full_inventory_due(self) -> bool:
+        now = int(time.time())
         try:
             last = int(self.full_inventory_marker.read_text().strip())
         except (FileNotFoundError, OSError, ValueError):
+            last = 0
+        if now - last < FULL_INVENTORY_INTERVAL_SECONDS:
+            return False
+        try:
+            last_attempt = int(self.full_inventory_attempt_marker.read_text().strip())
+        except (FileNotFoundError, OSError, ValueError):
             return True
-        return int(time.time()) - last >= FULL_INVENTORY_INTERVAL_SECONDS
+        return now - last_attempt >= FULL_INVENTORY_INTERVAL_SECONDS
+
+    def _mark_full_inventory_attempt(self) -> None:
+        self.state_dir.mkdir(parents=True, exist_ok=True)
+        temporary = self.full_inventory_attempt_marker.with_name(
+            f".{self.full_inventory_attempt_marker.name}.tmp"
+        )
+        temporary.write_text(str(int(time.time())) + "\n")
+        os.replace(temporary, self.full_inventory_attempt_marker)
 
     def _mark_full_inventory(self) -> None:
         self.state_dir.mkdir(parents=True, exist_ok=True)
@@ -1020,6 +1038,13 @@ class HostDiskGovernor:
             )
         )
 
+    def _diagnostic_path(self, path: Path | str | bytes) -> str:
+        value = Path(os.path.abspath(os.fsdecode(path)))
+        try:
+            return value.relative_to(self.home).as_posix()
+        except ValueError:
+            return f"<outside-home>/{value.name}"
+
     def _protected_descendant(
         self,
         path: Path,
@@ -1028,13 +1053,21 @@ class HostDiskGovernor:
         allow_generated_symlinks: bool = False,
         allow_worktree_sources: bool = False,
         dependency_packages: frozenset[Path] | None = None,
+        on_probe_error: Callable[[Path, OSError], None] | None = None,
     ) -> str | None:
         errors: list[OSError] = []
+
+        def record_walk_error(error: OSError) -> None:
+            errors.append(error)
+            if on_probe_error is not None:
+                error_path = getattr(error, "filename", None) or path
+                on_probe_error(Path(os.fsdecode(error_path)), error)
+
         for root, directories, files in os.walk(
             path,
             topdown=True,
             followlinks=False,
-            onerror=errors.append,
+            onerror=record_walk_error,
         ):
             if errors:
                 return "descendant_probe_error"
@@ -1088,7 +1121,9 @@ class HostDiskGovernor:
                         continue
                     if self._protected(descendant):
                         return "protected_descendant"
-                except OSError:
+                except OSError as error:
+                    if on_probe_error is not None:
+                        on_probe_error(descendant, error)
                     return "descendant_probe_error"
         return "descendant_probe_error" if errors else None
 
@@ -1596,14 +1631,17 @@ class HostDiskGovernor:
         if binding is not None:
             payload["identity"] = binding
         elif filename == "last-receipt.json":
-            previous = read_storage_snapshot(self.state_dir)
-            identity = previous.get("identity") if isinstance(previous, dict) else None
-            if (isinstance(identity, dict) and identity.get("owner_id") == "life-manager-disk-cleanup"
-                    and isinstance(identity.get("release_sha"), str)
-                    and re.fullmatch(r"[a-f0-9]{40}", identity["release_sha"])):
-                # A watchdog observation must not erase the scheduler-owned
-                # occurrence proof. Its capacity sample remains separate.
+            if os.environ.get("LIFE_MANAGER_DISK_WATCHDOG") == "1":
                 filename = "last-unbound-receipt.json"
+            else:
+                previous = read_storage_snapshot(self.state_dir)
+                identity = previous.get("identity") if isinstance(previous, dict) else None
+                if (isinstance(identity, dict) and identity.get("owner_id") == "life-manager-disk-cleanup"
+                        and isinstance(identity.get("release_sha"), str)
+                        and re.fullmatch(r"[a-f0-9]{40}", identity["release_sha"])):
+                    # Do not erase a scheduler-owned occurrence proof.
+                    # Keep this direct/unbound observation separate.
+                    filename = "last-unbound-receipt.json"
         payload.setdefault("observed_at", time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
         data = (json.dumps(payload, ensure_ascii=False, sort_keys=True) + "\n").encode("utf-8")
         if len(data) > RECEIPT_PAYLOAD_MAX_BYTES:
@@ -1669,6 +1707,7 @@ class HostDiskGovernor:
         *,
         write_receipt: bool = True,
         deadline: float | None = None,
+        post_sweep_reserve_seconds: int = POST_SWEEP_RESERVE_SECONDS,
     ) -> dict[str, object]:
         free_before, _ = self.usage()
         result: dict[str, object] = {
@@ -1684,10 +1723,27 @@ class HostDiskGovernor:
             "reclaimed_candidates_omitted": 0,
         }
         reasons: dict[str, int] = {}
+        probe_errors: list[dict[str, object]] = []
+        probe_error_count = 0
 
         def preserve(reason: str) -> None:
             result["preserved"] += 1
             reasons[reason] = reasons.get(reason, 0) + 1
+
+        def record_probe_error(
+            item: dict, candidate: Path, error_path: Path, error: OSError | None,
+        ) -> None:
+            nonlocal probe_error_count
+            probe_error_count += 1
+            if len(probe_errors) >= PROBE_ERROR_DETAIL_LIMIT:
+                return
+            probe_errors.append({
+                "owner": str(item.get("owner", "unknown")),
+                "candidate": self._diagnostic_path(candidate),
+                "path": self._diagnostic_path(error_path),
+                "error_class": type(error).__name__ if error is not None else None,
+                "errno": getattr(error, "errno", None) if error is not None else None,
+            })
 
         for item in candidates:
             path = Path(item["path"]).expanduser()
@@ -1714,10 +1770,12 @@ class HostDiskGovernor:
                     path, deadline=deadline, clock=self.clock
                 )
                 if store_state is not None:
+                    if store_state == "descendant_probe_error":
+                        record_probe_error(item, path, path, None)
                     result["errors"] += store_state == "descendant_probe_error"
                     preserve(store_state)
                     continue
-            if deadline is not None and self.clock() + LSOF_TIMEOUT_SECONDS + POST_SWEEP_RESERVE_SECONDS >= deadline:
+            if deadline is not None and self.clock() + LSOF_TIMEOUT_SECONDS + post_sweep_reserve_seconds >= deadline:
                 preserve("probe-budget-exhausted")
                 continue
             if self.lsof is _default_lsof:
@@ -1743,7 +1801,8 @@ class HostDiskGovernor:
             # export of the repository, so it always contains source and scanning
             # inside would preserve every generation forever; what makes an old one
             # safe to drop is that nothing references it, checked during discovery.
-            whole_tree_is_the_unit = item.get("owner") in {
+            # A regular file has no descendants; os.walk(file) reports ENOTDIR.
+            whole_tree_is_the_unit = path.is_file() or item.get("owner") in {
                 "browser", "codex-app-updater", "codex-runtime-cache", "whisper-model-cache",
                 "release-retention", "zombie-worktree", "clang-module-cache", "worktree-dependencies",
             } | set(EXACT_CACHE_ROOTS)
@@ -1751,6 +1810,8 @@ class HostDiskGovernor:
                 path, deadline=deadline,
                 allow_generated_symlinks=(item.get("owner") == "temporary-run"
                     and PYTEST_RUN_PATTERN.fullmatch(path.name) is not None),
+                on_probe_error=lambda error_path, error: record_probe_error(
+                    item, path, error_path, error),
             )
             if descendant_state is not None:
                 result["errors"] += descendant_state == "descendant_probe_error"
@@ -1759,7 +1820,7 @@ class HostDiskGovernor:
             if deadline is not None and self.clock() >= deadline:
                 preserve("probe-budget-exhausted")
                 continue
-            if deadline is not None and self.clock() + POST_SWEEP_RESERVE_SECONDS >= deadline:
+            if deadline is not None and self.clock() + post_sweep_reserve_seconds >= deadline:
                 preserve("probe-budget-exhausted")
                 continue
             if item.get("owner") in {"release-retention", "zombie-worktree"}:
@@ -1780,19 +1841,21 @@ class HostDiskGovernor:
                     result["errors"] += 1
                     preserve("path_identity_changed")
                     continue
-                if deadline is not None and self.clock() + POST_SWEEP_RESERVE_SECONDS >= deadline:
+                if deadline is not None and self.clock() + post_sweep_reserve_seconds >= deadline:
                     preserve("probe-budget-exhausted")
                     continue
             descendant_state = None if whole_tree_is_the_unit else self._protected_descendant(
                 path, deadline=deadline,
                 allow_generated_symlinks=(item.get("owner") == "temporary-run"
                     and PYTEST_RUN_PATTERN.fullmatch(path.name) is not None),
+                on_probe_error=lambda error_path, error: record_probe_error(
+                    item, path, error_path, error),
             )
             if descendant_state is not None:
                 result["errors"] += descendant_state == "descendant_probe_error"
                 preserve(descendant_state)
                 continue
-            if deadline is not None and self.clock() + LSOF_TIMEOUT_SECONDS + POST_SWEEP_RESERVE_SECONDS >= deadline:
+            if deadline is not None and self.clock() + LSOF_TIMEOUT_SECONDS + post_sweep_reserve_seconds >= deadline:
                 preserve("probe-budget-exhausted")
                 continue
             if self.lsof is _default_lsof:
@@ -1846,13 +1909,13 @@ class HostDiskGovernor:
                         result["errors"] += state == "probe-error"
                         preserve(state)
                         continue
-                    if deadline is not None and self.clock() + POST_SWEEP_RESERVE_SECONDS >= deadline:
+                    if deadline is not None and self.clock() + post_sweep_reserve_seconds >= deadline:
                         preserve("probe-budget-exhausted")
                         continue
                     if self._worktree_identity(path, deadline=deadline) != identity:
                         preserve("path_identity_changed")
                         continue
-                    if deadline is not None and self.clock() + POST_SWEEP_RESERVE_SECONDS >= deadline:
+                    if deadline is not None and self.clock() + post_sweep_reserve_seconds >= deadline:
                         preserve("probe-budget-exhausted")
                         continue
                     repository = self.home / WORKTREE_REPOSITORY_RELATIVE
@@ -1861,7 +1924,7 @@ class HostDiskGovernor:
                         capture_output=True,
                         text=True,
                         check=False,
-                        timeout=min(15.0, deadline - self.clock() - POST_SWEEP_RESERVE_SECONDS)
+                        timeout=min(15.0, deadline - self.clock() - post_sweep_reserve_seconds)
                             if deadline is not None else 15.0,
                     )
                     if removed.returncode != 0 or removed.stderr.strip():
@@ -1882,7 +1945,7 @@ class HostDiskGovernor:
                     if self._worktree_dependency_identity(path, deadline=deadline) != identity:
                         preserve("path_identity_changed")
                         continue
-                    if deadline is not None and self.clock() + POST_SWEEP_RESERVE_SECONDS >= deadline:
+                    if deadline is not None and self.clock() + post_sweep_reserve_seconds >= deadline:
                         preserve("probe-budget-exhausted")
                         continue
                     parent_fd = self._open_real_directory(path.parent)
@@ -1948,6 +2011,10 @@ class HostDiskGovernor:
         result["free_before"] = free_before
         result["free_after"] = free_after
         result["preserved_reasons"] = reasons
+        if probe_error_count:
+            result["probe_errors"] = probe_errors
+            if probe_error_count > len(probe_errors):
+                result["probe_errors_omitted"] = probe_error_count - len(probe_errors)
         if write_receipt:
             self._receipt(result)
         return result
@@ -2176,6 +2243,12 @@ class HostDiskGovernor:
             if receipt_status is not None:
                 result["receipt_persistence"] = receipt_status
             return result
+        full_inventory = os.environ.get("LIFE_MANAGER_DISK_INVENTORY_FAST") != "1" and (
+            os.environ.get("EMERGENCY_GUARD_FULL_PASS") == "1" or self._full_inventory_due()
+        )
+        post_sweep_reserve_seconds = (
+            POST_SWEEP_RESERVE_SECONDS if full_inventory else FAST_POST_SWEEP_RESERVE_SECONDS
+        )
         updater_recovery = {
             "observed": 0,
             "signaled": 0,
@@ -2220,6 +2293,7 @@ class HostDiskGovernor:
             candidates,
             write_receipt=False,
             deadline=deadline,
+            post_sweep_reserve_seconds=post_sweep_reserve_seconds,
         )
         if cursor_errors:
             free_after_sweep = result.get("free_after")
@@ -2257,9 +2331,13 @@ class HostDiskGovernor:
         # pressure marker; producers own bounded retention for their outputs.
         pressure_file = self.state_dir / "disk-pressure.block"
         pressure_file.unlink(missing_ok=True)
-        full_inventory = os.environ.get("LIFE_MANAGER_DISK_INVENTORY_FAST") != "1" and (
-            os.environ.get("EMERGENCY_GUARD_FULL_PASS") == "1" or self._full_inventory_due()
-        )
+        inventory_schedule_error_class = None
+        if full_inventory and os.environ.get("EMERGENCY_GUARD_FULL_PASS") != "1":
+            try:
+                self._mark_full_inventory_attempt()
+            except OSError as exc:
+                full_inventory = False
+                inventory_schedule_error_class = type(exc).__name__
         try:
             inventory_kwargs = {
                 "home": self.home,
@@ -2279,6 +2357,8 @@ class HostDiskGovernor:
             if full_inventory and not inventory_budget_exhausted:
                 self._mark_full_inventory()
             result["inventory_mode"] = "full" if full_inventory else "fast"
+            if inventory_schedule_error_class is not None:
+                result["inventory_schedule_error_class"] = inventory_schedule_error_class
             result["inventory_mounts"] = int(inventory["coverage"]["mount_count"])
             result["inventory_roots"] = int(inventory["coverage"]["root_count"])
             result["inventory_gaps"] = len(inventory["coverage"]["gaps"])
@@ -2290,6 +2370,7 @@ class HostDiskGovernor:
                     "non_additive": True,
                 }
         except (OSError, RuntimeError, ValueError, KeyError) as exc:
+            result.setdefault("inventory_mode", "fast")
             result["inventory_error"] = type(exc).__name__
         try:
             free_after, _ = self.usage()
@@ -2308,7 +2389,9 @@ class HostDiskGovernor:
             r.get("attribution") == "unattributed" and type(r.get("delta_bytes")) is int
             and r["delta_bytes"] > 0 for r in (result.get("storage_growth") or {}).get("roots", []))
         result["storage_next_action"] = (
-            "inspect_unattributed_writer" if growing_unknown
+            "retry_full_inventory" if (result.get("inventory_error") is not None
+                                         or inventory_schedule_error_class is not None)
+            else "inspect_unattributed_writer" if growing_unknown
             else "inspect_preserved_candidates" if result["capacity_recovery"]["status"] != "met"
             else "continue_bounded_retention")
         result["ok"] = _cleanup_terminal_ok(result)

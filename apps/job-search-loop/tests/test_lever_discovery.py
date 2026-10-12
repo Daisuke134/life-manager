@@ -56,10 +56,10 @@ class LeverDiscoveryTests(unittest.TestCase):
         self.assertEqual([row["url"] for row in rows], [jobs[0]["url"]])
         self.assertEqual(candidate_jobs(jobs, seen={jobs[0]["url"].casefold()}), [])
 
-    def test_daily_owner_discovers_lever_before_shared_model_lane(self):
+    def test_daily_workday_owner_does_not_search_lever(self):
         script = (Path(__file__).resolve().parents[1] / "scripts/run-daily.sh").read_text()
         self.assertNotIn("-m job_search_loop.lever_discovery", script)
-        self.assertIn("--active-provider all", script)
+        self.assertIn("--active-provider workday", script)
 
 
 if __name__ == "__main__":

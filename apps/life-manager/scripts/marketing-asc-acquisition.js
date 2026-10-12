@@ -44,6 +44,22 @@ function sum(input, predicate, field = "Counts") {
 function measured(value, source) { return { status: "measured", value, source }; }
 function unavailable(reason) { return { status: "unavailable", value: null, reason }; }
 
+function dailyMetrics(downloads, engagement) {
+  const dates = [...new Set([...downloads, ...engagement].map((row) => row.Date).filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(String(date || ""))))].sort();
+  return dates.map((date) => {
+    const dayDownloads = downloads.filter((row) => row.Date === date);
+    const dayEngagement = engagement.filter((row) => row.Date === date);
+    return {
+      date,
+      metrics: {
+        first_time_downloads: dayDownloads.length ? measured(sum(dayDownloads, (row) => row["Download Type"] === "First-time download"), "app_store_connect_app_downloads_standard") : unavailable("report_pending"),
+        impressions: dayEngagement.length ? measured(sum(dayEngagement, (row) => row.Event === "Impression"), "app_store_connect_discovery_engagement_detailed") : unavailable("report_pending"),
+        product_page_views: dayEngagement.length ? measured(sum(dayEngagement, (row) => row.Event === "Page View" && row["Page Type"] === "Product page"), "app_store_connect_discovery_engagement_detailed") : unavailable("report_pending"),
+      },
+    };
+  });
+}
+
 function summarize(product, downloads, engagement, metadata, detailedDownloads = []) {
   if (!downloads.length || !engagement.length) return pending(product, "empty_report");
   const dates = [...downloads, ...engagement].map((row) => row.Date).filter(Boolean).sort();
@@ -72,6 +88,7 @@ function summarize(product, downloads, engagement, metadata, detailedDownloads =
       : product.campaign_token ? "official_product_total_campaign_unavailable" : "official_product_total_no_campaign",
     data_from: dates[0] || null,
     data_to: dates.at(-1) || null,
+    daily_metrics: dailyMetrics(downloads, engagement),
     reports: metadata,
     campaign_id: product.campaign_token || null,
     campaign_status: campaignMeasured ? "measured" : "unavailable",
@@ -101,6 +118,7 @@ function pending(product, reason = "report_pending") {
     confidence: "none",
     data_from: null,
     data_to: null,
+    daily_metrics: [],
     reports: [],
     campaign_id: product.campaign_token || null,
     campaign_status: "unavailable",

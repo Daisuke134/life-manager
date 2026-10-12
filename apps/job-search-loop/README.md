@@ -10,15 +10,16 @@ interviews, and reports every material state change to Telegram.
 | Concern | Current rule |
 |---|---|
 | Acquisition target | Every fresh unique model-qualified role; no daily application quota |
-| Location | Any U.S. location, Tokyo on-site or hybrid, and remote roles worldwide where the employer can hire the candidate; sponsorship ambiguity alone does not discard a strong-fit role, and authorization answers remain truthful |
-| Compensation | Candidate-defined floor and target from the private profile; unpublished or non-USD compensation remains visible uncertainty |
+| Location | Remote, onsite, and hybrid roles worldwide; no geography tier or location-only rejection; do not exclude solely for sponsorship wording, and answer legal questions truthfully |
+| Compensation | USD 100,000 annual gross base target (or equivalent); the private profile may set a tighter floor, and unpublished compensation remains uncertainty |
 | Role focus | Candidate-defined target role families, checked by the model against the complete official JD and resume evidence |
-| Discovery | Accumulating official Workday company registry plus complete CXS snapshots and model ranking; non-Workday adapters remain broken/unverified until rebuilt |
+| Discovery | This acquisition pass is Workday-only; each later ATS gets a separate owner and is never a fallback path |
 | Evidence | Every application is fenced in SQLite and retained under a private evidence directory |
 | Uncertainty | Ambiguous submission becomes `submit_unknown` and is never blindly retried; a later exact official receipt may reconcile it without another submit click |
 | Personal data | Verified private profile and generated materials are mode `0600` |
 | Career summary | Every terminal daily path atomically refreshes private `summary.v2.json` with state counts and Workday receipt coverage |
 | Application receipt | Every confirmed submission records the exact resume path and SHA-256, then sends that same PDF to Telegram once with company, role and URL |
+| Email reporting | Per-application email updates and a natural-language daily email briefing are planned, not shipped |
 | Daily report repair | A materially changed same-day catch-up sends one content-addressed correction; identical retries remain at-most-once |
 | Inbox | Gmail threads expand to immutable unseen message IDs; official late application receipts reconcile before the model; a model runs only for remaining new recruiting messages or a pending prep-pack generation job |
 | Calendar | Only explicit timezone-aware recruiter candidates are considered; the earliest free candidate is confirmed once |
@@ -42,14 +43,15 @@ approval is requested for this already-delegated refinement.
 
 ## Workday-first application pipeline
 
-Dreamwork is not part of the target runtime. Workday is the first ATS-specific
-pipeline; each later ATS, including Ashby, gets its own pipeline. A pipeline finds
-official postings, checks role fit against verified candidate facts, creates
-job-specific materials, submits through the employer's application flow, and
-reconciles the employer's receipt with the application ledger. A click or local
-`APPLIED` status is not submission proof; ambiguous effects remain fenced and are
-never blindly retried. The current public `main` has not completed this cutover,
-as the comparison below records.
+Dreamwork is not part of the runtime. The 30-minute acquisition owner is
+Workday-only: it finds official postings, checks role fit against verified
+candidate facts, creates job-specific materials, submits through the employer's
+application flow, and reconciles the employer's receipt with the application
+ledger. Ashby and later ATS use separate owners; they are not Workday fallbacks.
+A click or local `APPLIED` status is not submission proof; ambiguous effects
+remain fenced and are never blindly retried. A visible CAPTCHA before submission
+checkpoints only that row, without solving or bypassing it, then continues to the
+next Workday row. An after-submit ambiguity remains `submit_unknown`.
 
 ## Competitive comparison
 
@@ -61,7 +63,7 @@ and a real, receipt-verified application. A README claim or a generated
 |---|---|---|---|---|
 | [career-ops](https://github.com/career-ops-hq/career-ops) | MIT; no license fee | **No** | README supports free/local models; provider cost depends on the model selected | Its README and `prepare-application.mjs` say it never POSTs; the applicant reviews and presses Submit. It is job-search and preparation software, not an automatic submitter. |
 | [ApplyPilot](https://github.com/Pickle-Pixel/ApplyPilot) | AGPL-3.0; no license fee | **Yes, in its normal source path** | Auto-apply requires Claude Code CLI; Anthropic lists Claude Code with paid plans, while API use is token-billed. ApplyPilot says its Gemini stages have a free tier; optional CAPTCHA service may add cost. See [Anthropic pricing](https://claude.com/pricing) and [Claude Code costs](https://code.claude.com/docs/en/costs). | Its launcher asks Claude to navigate and submit without per-job approval. The launcher records `RESULT:APPLIED` from page evidence; no independent employer receipt or confirmation email was verified in a live application. |
-| Job Hunter — intended Workday-first release | MIT source; no license fee | **Target: yes** | Total operating cost and a $0 default run are not verified | This Workday-only target is not in the current public `main`: the daily entrypoint still calls Dreamwork and shares a lane with Workday/Ashby. The current report route is Telegram; email reporting is not implemented. |
+| Job Hunter — Workday-first release | MIT source; no license fee | **Target: yes** | Total operating cost and a $0 default run are not verified | Workday-only source is under acceptance; a natural employer receipt and replay-zero are not yet verified. Telegram is implemented; email reporting is not. |
 
 The broad claim “world’s first open-source agent that searches, tailors, and
 automatically submits applications” is not supported: ApplyPilot already has a
@@ -91,10 +93,8 @@ The current local deployment uses launchd. The same drivers and SQLite contracts
 can later be hosted without changing application semantics.
 
 The daily owner connects to the dedicated persistent CloakBrowser CDP endpoint. It
-does not launch a duplicate browser. The driver reserves a bounded
-normal pass plus bounded same-day recovery capacity, so a transient provider or
-browser-tool failure can fall through to another implementation without becoming an
-unlimited loop.
+does not launch a duplicate browser. Row-local failures continue to other qualified
+Workday rows; the Workday owner never switches to another ATS as fallback.
 
 ## Key paths
 
@@ -265,17 +265,18 @@ and hashed private logs. Submission follows
 | Safe experiments | One source, role-family, resume-emphasis, message or threshold variable changes at a time; replay must preserve truth and hard filters |
 | Resident learning | A launchd/systemd weekly driver creates the bounded threshold candidate, replays the held-out safety manifest, deterministically selects baseline/candidate by stable job key, and persists every execution and decision receipt |
 | Promotion gate | Baseline stays active until both arms have at least 10 resolved applications and the candidate Wilson 95% lower bound exceeds the baseline upper bound; safety violations or three consecutive candidate failures roll back immediately |
-| Self-healing | launchd restarts, browser ownership evidence, multi-provider discovery, fenced side effects, bounded recovery and content-addressed report correction |
-| Not yet complete | Guardian remediation, lifecycle closure, real confirmed Ashby/Workday and learning-conversion samples, `summary.v2`, and the end-user career dashboard |
+| Self-healing | launchd recovery, browser ownership evidence, Workday-only discovery, fenced side effects, bounded recovery and content-addressed report correction |
+| Not yet complete | production Workday receipt/replay-zero, portable onboarding, email reporting, Guardian remediation, lifecycle closure, learning-conversion samples, `summary.v2`, and the end-user career dashboard |
 
-Ashby discovery shares the scheduled acquisition owner and browser model with
-Workday. The existing ATS cache seeds official board identities; only fresh API
-postings enter the queue. Private company exclusions and prior-effect fences stay
-in force. The browser model evaluates the live mandatory requirements and location
-against approved facts before submitting. The preferred provider alternates on the
-existing 30-minute cadence; both use the same company-bound PDF and final review.
+## Roadmap after Workday
 
-This Ashby connection is source-verified; production completed-submission receipts
-remain pending. Typed observations include redacted visible posting text so the
-model can assess actual mandatory requirements. Captured baseline resume variants
-retain their original hash across application form languages.
+1. Prove a natural Workday run through an official employer receipt, ledger
+   reconciliation, duplicate-zero, and truthful per-application reporting.
+2. Add portable onboarding that accepts a resume and asks about target roles,
+   locations, compensation, and remote/on-site preferences; Telegram is optional.
+3. Send a natural-language email after each confirmed application and one daily
+   email briefing. Keep Telegram as an optional reporting channel.
+4. Expand interview preparation from recruiting-email detection into tailored
+   preparation and timely reminders.
+5. Add Ashby and other ATS as separate discovery/application owners only after the
+   Workday owner is reliable; never add them as Workday fallbacks.

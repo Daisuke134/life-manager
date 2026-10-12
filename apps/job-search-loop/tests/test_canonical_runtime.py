@@ -12,6 +12,23 @@ REPO_ROOT = APP_ROOT.parents[1]
 
 
 class CanonicalRuntimeTests(unittest.TestCase):
+    def test_dreamwork_provider_adapter_is_not_shipped(self):
+        self.assertFalse((APP_ROOT / "job_search_loop" / "dreamwork_native.py").exists())
+
+    def test_readme_documents_workday_first_without_dreamwork(self):
+        readme = (APP_ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertNotIn("Dreamwork native application owner", readme)
+        self.assertIn(
+            "Remote, onsite, and hybrid roles worldwide",
+            readme,
+        )
+        self.assertIn(
+            "Per-application email updates and a natural-language daily email briefing",
+            readme,
+        )
+        self.assertIn("onboarding that accepts a resume", readme)
+        self.assertIn("Add Ashby and other ATS as separate discovery/application owners", readme)
+
     @staticmethod
     def _valid_portable_profile(path: Path) -> None:
         resume = path.with_name("resume.pdf")
@@ -75,9 +92,6 @@ if sys.argv[1:3] and sys.argv[1] == "-m" and "--output" in sys.argv:
     output = pathlib.Path(sys.argv[sys.argv.index("--output") + 1])
     output.parent.mkdir(parents=True, exist_ok=True)
     value = {}
-    if module == "job_search_loop.dreamwork_native":
-        output.write_text(json.dumps({"status": "not_configured"}) + "\\n", encoding="utf-8")
-        raise SystemExit(69)
     if module == "job_search_loop.workday_search_loop":
         if os.environ.get('TEST_WORKDAY_FAILS') == '1':
             raise SystemExit(1)
@@ -152,25 +166,30 @@ raise SystemExit(0)
         ]
         return result, recorded
 
-    def test_daily_discovers_live_ashby_before_one_shared_application_owner(self):
+    def test_daily_applies_workday_candidates_without_searching_other_ats(self):
         with tempfile.TemporaryDirectory() as tmp:
             result, calls = self._run_daily_with_fake_python(Path(tmp), 0, 99)
         self.assertEqual(result.returncode, 99, result.stderr)
-        discovery = [i for i, call in enumerate(calls) if call[:2] == ["-m", "job_search_loop.ashby_discovery"]]
+        discovery = [i for i, call in enumerate(calls) if call[:2] == ["-m", "job_search_loop.workday_search_loop"]]
+        dreamwork = [i for i, call in enumerate(calls) if call[:2] == ["-m", "job_search_loop.dreamwork_native"]]
+        ashby = [i for i, call in enumerate(calls) if call[:2] == ["-m", "job_search_loop.ashby_discovery"]]
         owner = [i for i, call in enumerate(calls) if call[:2] == ["-m", "job_search_loop.browser_agent.orchestrator"]]
         self.assertEqual(len(discovery), 1)
+        self.assertEqual(dreamwork, [])
+        self.assertEqual(ashby, [])
         self.assertEqual(len(owner), 1)
         self.assertLess(discovery[0], owner[0])
-        self.assertEqual(calls[owner[0]][-2:], ["--active-provider", "all"])
+        self.assertEqual(calls[owner[0]][-2:], ["--active-provider", "workday"])
         self.assertNotIn("job_search_loop.ashby_fast_path", json.dumps(calls))
 
-    def test_failed_workday_discovery_does_not_close_the_ashby_lane(self):
+    def test_failed_workday_discovery_does_not_open_another_ats_lane(self):
         with tempfile.TemporaryDirectory() as tmp:
             result, calls = self._run_daily_with_fake_python(Path(tmp), 0, 99, workday_fails=True)
         self.assertEqual(result.returncode, 99, result.stderr)
-        self.assertIn("job_search_loop.ashby_discovery", json.dumps(calls))
+        self.assertNotIn("job_search_loop.ashby_discovery", json.dumps(calls))
+        self.assertIn("job_search_loop.browser_agent.orchestrator", json.dumps(calls))
 
-    def test_private_exclusion_is_applied_when_both_discoveries_are_unavailable(self):
+    def test_private_exclusion_is_applied_when_workday_discovery_is_unavailable(self):
         from job_search_loop.ledger import Ledger
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

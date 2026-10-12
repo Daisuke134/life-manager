@@ -723,6 +723,212 @@ class LoopCleanupTest(unittest.TestCase):
             self.assertTrue(run.is_dir())
             self.assertEqual((result["removed"], result["preserved"]), (0, 1))
 
+    def test_scratch_gc_reclaims_only_exactly_reconciled_closed_scratch(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            scratch = root / "loop-tmp/publish"
+            runs = {name: scratch / name for name in ("run-1", "run-2", "run-3")}
+            events = []
+            for name, run in runs.items():
+                run.mkdir(parents=True)
+                (run / ".owner.json").write_text(json.dumps({
+                    "pid": 11, "process_start": "old-start", "effect_class": "publish",
+                }))
+                (run / ".terminal-unrecorded").touch()
+                (run / "agent-browser-profile-test").mkdir()
+                events.append({
+                    "loop_id": "publish", "run_id": name,
+                    "occurrence_id": f"publish:{name}", "effect_class": "publish",
+                    "release_sha": "a" * 40,
+                })
+            (root / "events.jsonl").write_text(
+                "".join(json.dumps(event) + "\n" for event in events))
+            verified = json.dumps({
+                "owner_id": "publish", "occurrence_id": "publish:run-1",
+                "verified": True, "provider_receipt_id": "official:effect-reconciled",
+            })
+            closure_proof = {
+                "proof_type": "effect_reconcile_closure.v1",
+                "owner_id": "publish", "occurrence_id": "publish:run-1",
+                "release_sha": "a" * 40, "verified": True,
+                "receipt_ref": "official:effect-reconciled",
+            }
+            calls = root / "reconcile-calls.jsonl"
+            calls.write_text("\n".join([
+                json.dumps({"owner_id": "publish", "occurrence_id": "publish:run-1",
+                            "release_sha": "a" * 40, "exit_code": 0, "closed": True,
+                            "stdout_tail": verified, "closure_proof": closure_proof}),
+                json.dumps({"owner_id": "publish", "occurrence_id": "publish:run-2",
+                            "release_sha": "a" * 40, "exit_code": 0, "closed": False,
+                            "stdout_tail": verified}),
+                json.dumps({"owner_id": "publish", "occurrence_id": "publish:run-3",
+                            "release_sha": "a" * 40, "exit_code": 0, "closed": True,
+                            "stdout_tail": '{"verified":false}'}),
+            ]) + "\n")
+            reconciled = central_cleanup.closed_reconcile_occurrences(calls)
+            self.assertEqual(reconciled, {("publish", "publish:run-1", "a" * 40)})
+
+            with mock.patch.object(
+                    central_cleanup, "_browser_profiles_live",
+                    side_effect=lambda run: run.name == "run-3"):
+                result = scratch_gc(
+                    {root}, snapshot_started_ns=time.time_ns() + 1,
+                    starts={}, reconciled_occurrences=reconciled,
+                )
+
+            self.assertFalse(runs["run-1"].exists())
+            self.assertTrue(runs["run-2"].is_dir())
+            self.assertTrue(runs["run-3"].is_dir())
+            self.assertEqual((result["removed"], result["preserved"]), (1, 2))
+
+    def test_scratch_gc_preserves_terminal_recorded_unknown_effect_until_reconciled(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            run = root / "loop-tmp/publish/run-unknown"
+            run.mkdir(parents=True)
+            (run / ".owner.json").write_text(json.dumps({
+                "pid": 11, "process_start": "old-start", "effect_class": "publish",
+            }))
+            (run / "intermediate.png").write_bytes(b"pending provider evidence")
+            (root / "events.jsonl").write_text(json.dumps({
+                "loop_id": "publish", "run_id": "run-unknown", "phase": "report",
+                "status": "pass", "effect_class": "publish", "effect_status": "unknown",
+                "occurrence_id": "publish:run-unknown", "release_sha": "a" * 40,
+            }) + "\n")
+
+            result = scratch_gc(
+                {root}, snapshot_started_ns=time.time_ns() + 1, starts={},
+                reconciled_occurrences=set(),
+            )
+
+            self.assertTrue(run.is_dir())
+            self.assertEqual((result["removed"], result["preserved"]), (0, 1))
+
+    def test_scratch_gc_reclaims_exactly_reconciled_terminal_scratch(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            run = root / "loop-tmp/publish/run-1"
+            run.mkdir(parents=True)
+            (run / ".owner.json").write_text(json.dumps({
+                "pid": 11, "process_start": "old-start", "effect_class": "publish",
+            }))
+            (run / ".terminal-unrecorded").touch()
+            (root / "events.jsonl").write_text(json.dumps({
+                "loop_id": "publish", "run_id": "run-1",
+                "occurrence_id": "publish:run-1", "effect_class": "publish",
+                "release_sha": "c" * 40,
+            }) + "\n")
+            calls = root / "reconcile-calls.jsonl"
+            valid_proof = json.dumps({
+                "owner_id": "publish", "occurrence_id": "publish:run-1",
+                "verified": True, "provider_receipt_id": "official:no-effect",
+            })
+            closure_proof = {
+                "proof_type": "effect_reconcile_closure.v1",
+                "owner_id": "publish", "occurrence_id": "publish:run-1",
+                "release_sha": "c" * 40, "verified": True,
+                "receipt_ref": "official:no-effect",
+            }
+            other_closure_proof = {**closure_proof, "occurrence_id": "publish:other"}
+            calls.write_text("\n".join([
+                json.dumps({"owner_id": "publish", "occurrence_id": "publish:other",
+                            "release_sha": "c" * 40, "exit_code": 0, "closed": True,
+                            "stdout_tail": valid_proof, "closure_proof": other_closure_proof}),
+                json.dumps({"owner_id": "publish", "occurrence_id": "publish:run-1",
+                            "release_sha": "c" * 40, "exit_code": 0, "closed": False,
+                            "stdout_tail": valid_proof}),
+                json.dumps({"owner_id": "publish", "occurrence_id": "publish:run-1",
+                            "release_sha": "c" * 40, "exit_code": 0, "closed": True,
+                            "stdout_tail": valid_proof, "closure_proof": closure_proof}),
+            ]) + "\n")
+
+            reconciled = central_cleanup.closed_reconcile_occurrences(calls)
+            self.assertEqual(reconciled, {
+                ("publish", "publish:other", "c" * 40),
+                ("publish", "publish:run-1", "c" * 40),
+            })
+            result = scratch_gc(
+                {root}, snapshot_started_ns=time.time_ns() + 1, starts={},
+                reconciled_occurrences=reconciled,
+            )
+
+            self.assertFalse(run.exists())
+            self.assertEqual((result["removed"], result["preserved"]), (1, 0))
+
+    def test_scratch_gc_requires_reconcile_for_historical_effect_even_if_loop_is_now_no_effect(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            run = root / "loop-tmp/historical-publish/run-1"
+            run.mkdir(parents=True)
+            (run / ".owner.json").write_text(json.dumps({
+                "pid": 11, "process_start": "old-start", "effect_class": "money",
+            }))
+            (run / ".terminal-unrecorded").touch()
+            (root / "events.jsonl").write_text(json.dumps({
+                "loop_id": "historical-publish", "run_id": "run-1",
+                "occurrence_id": "historical-publish:run-1", "effect_class": "money",
+            }) + "\n")
+
+            result = scratch_gc(
+                {root}, snapshot_started_ns=time.time_ns() + 1, starts={},
+                no_effect_loop_ids={"historical-publish"}, reconciled_occurrences=set(),
+            )
+
+            self.assertTrue(run.is_dir())
+            self.assertEqual((result["removed"], result["preserved"]), (0, 1))
+
+    def test_closed_reconcile_occurrences_requires_structured_target_bound_proof(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            calls = root / "reconcile-calls.jsonl"
+            expected_release = "a" * 40
+            proof = {
+                "proof_type": "effect_reconcile_closure.v1",
+                "owner_id": "publish",
+                "occurrence_id": "publish:run-1",
+                "release_sha": expected_release,
+                "verified": True,
+                "receipt_ref": "official:effect-reconciled",
+            }
+            records = [
+                {
+                    "owner_id": "publish", "occurrence_id": "publish:run-1",
+                    "release_sha": expected_release, "exit_code": 0, "closed": True,
+                    "stdout_tail": json.dumps(proof), "closure_proof": proof,
+                },
+                {
+                    "owner_id": "publish", "occurrence_id": "publish:run-2",
+                    "release_sha": expected_release, "exit_code": 0, "closed": True,
+                    "stdout_tail": json.dumps({**proof, "owner_id": "other"}),
+                    "closure_proof": {**proof, "owner_id": "other",
+                                      "occurrence_id": "publish:run-2"},
+                },
+                {
+                    "owner_id": "publish", "occurrence_id": "publish:run-3",
+                    "release_sha": expected_release, "exit_code": 0, "closed": True,
+                    "stdout_tail": json.dumps({**proof, "occurrence_id": "publish:other"}),
+                    "closure_proof": {**proof, "occurrence_id": "publish:other"},
+                },
+                {
+                    "owner_id": "publish", "occurrence_id": "publish:run-4",
+                    "release_sha": expected_release, "exit_code": 0, "closed": True,
+                    "stdout_tail": json.dumps({**proof, "release_sha": "b" * 40}),
+                    "closure_proof": {**proof, "release_sha": "b" * 40},
+                },
+                {
+                    "owner_id": "publish", "occurrence_id": "publish:run-5",
+                    "release_sha": expected_release, "exit_code": 0, "closed": True,
+                    "stdout_tail": 'noise {"verified":true,"provider_receipt_id":"unrelated"}',
+                    "closure_proof": 'not-json {"verified":true}',
+                },
+            ]
+            calls.write_text("".join(json.dumps(row) + "\n" for row in records))
+
+            self.assertEqual(
+                central_cleanup.closed_reconcile_occurrences(calls),
+                {("publish", "publish:run-1", expected_release)},
+            )
+
     def test_scratch_gc_preserves_owner_none_when_event_target_is_missing(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
