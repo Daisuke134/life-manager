@@ -535,7 +535,7 @@ function defaultAccountResolver(contract) {
       jobFormatId: contract.formatId,
       mediaForm: contract.form,
     });
-    return target?.postiz_profile || null;
+    return target?.native_handle || null;
   } catch {
     return null;
   }
