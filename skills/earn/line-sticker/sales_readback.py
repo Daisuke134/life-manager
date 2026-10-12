@@ -132,13 +132,25 @@ def match_products(tracked: list[dict], rows: list[dict]) -> list[dict]:
     return products
 
 
-def should_run_today(ledger_path: Path) -> bool:
+def should_run_today(ledger_path: Path, tracked_products: list[dict] | None = None) -> bool:
     if not ledger_path.exists():
         return True
     try:
         snapshot = json.loads(ledger_path.read_text())
         if not isinstance(snapshot, dict) or snapshot.get("schema_version") != SALES_SNAPSHOT_SCHEMA_VERSION:
             return True
+        if tracked_products is not None:
+            saved_products = snapshot.get("products")
+            if not isinstance(saved_products, list):
+                return True
+            current_ids = sorted(str(item["product_id"]) for item in tracked_products)
+            saved_ids = sorted(
+                str(item["product_id"])
+                for item in saved_products
+                if isinstance(item, dict) and item.get("product_id") is not None
+            )
+            if len(saved_ids) != len(saved_products) or current_ids != saved_ids:
+                return True
         observed_at = snapshot.get("observed_at")
         observed = datetime.datetime.fromisoformat(observed_at)
     except (json.JSONDecodeError, TypeError, ValueError):
@@ -234,22 +246,23 @@ async def _fetch(cdp: str) -> dict:
             await page.close()
 
 
-def main() -> None:
+def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--state-root", type=Path, default=STATE_ROOT_DEFAULT)
     args = parser.parse_args()
     state_root = args.state_root
     ledger = state_root / "sales.json"
+    tracked = _tracked_products(state_root)
 
-    if not should_run_today(ledger):
+    if not should_run_today(ledger, tracked):
         print(json.dumps({"status": "skipped_already_today"}))
-        return
+        return 0
 
     acquired = subprocess.run(["bash", str(GUARD), "acquire", IDENTITY], capture_output=True, text=True)
     if acquired.returncode != 0:
         # BUSY or unreachable is a skipped cycle; the self-gate retries on the next hourly wake.
         print(json.dumps({"status": "browser_unavailable", "detail": acquired.stderr.strip()[-200:]}))
-        return
+        return 75
     try:
         fetched = asyncio.run(_fetch(acquired.stdout.strip().splitlines()[-1]))
     finally:
@@ -257,9 +270,8 @@ def main() -> None:
 
     if fetched.get("status") != "ok":
         print(json.dumps(fetched))
-        return
+        return 75 if fetched.get("status") == "needs_login" else 1
 
-    tracked = _tracked_products(state_root)
     rows = parse_sticker_table_rows(fetched["stats_rows"])
     distribution = parse_payment_request(fetched["payment_text"])
     row = {
@@ -274,7 +286,8 @@ def main() -> None:
     tmp.write_text(json.dumps(row, ensure_ascii=False, indent=1, sort_keys=True) + "\n")
     tmp.replace(ledger)
     print(json.dumps({"status": "ok", "products": len(row["products"])}))
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

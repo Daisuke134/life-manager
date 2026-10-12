@@ -100,6 +100,25 @@ EBOOK_LEGACY_NO_DUE_RELEASE_PROOFS = {
 PRE_EFFECT_TERMINAL_BLOCKERS = PRE_EFFECT_ADMISSION_BLOCKERS | frozenset({
     FUNDRAISER_PRE_EFFECT_BLOCKER,
 })
+COCONALA_REPLY_LEGACY_PRE_EFFECT_PROOF = {
+    "owner_id": "hf-gig-reply-detector",
+    "occurrence_id": "hf-gig-reply-detector:18dbf6546032eca0-25901",
+    "entrypoint": "skills/earn/gig/scripts/coconala-reply-owner",
+    "browser_identity": "coconala:kosuke",
+    "browser_target_owner": "hf-gig-browser",
+    "previous_run_id": "18dbf6546032eca0-25901",
+    "previous_start_event_id": "38935ee0920356a7382626e2",
+    "previous_report_event_id": "9d85c866d17a03f179234aa3",
+    "previous_release_sha": "2cf94f43669a8afdd9cf8bb84c8ba7764c323221",
+    "failing_run_id": "18dc3f4dcd2305d8-87562",
+    "failing_start_event_id": "4f6294051d4ea6e5ced5ea08",
+    "failing_event_id": "fac566b9279781cf10a17ccd",
+    "failing_release_sha": "cecffc9b054e3abebce7081aa42f99500b2f83f3",
+    "release_name": "20261007T211424-cecffc9b",
+    "error_detail": "with-browser: coconala:kosuke unreachable after guarded startup attempt",
+    "wrapper_path": "skills/browser/with-browser.sh",
+    "wrapper_sha256": "d5160dd49bb52ed72135907127db815bf8b88c69bbb75676d296a5ac20e6842c",
+}
 SAFE_OCCURRENCE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,255}\Z")
 MAX_PRE_EFFECT_ARCHIVES = 4
 PRE_EFFECT_RECONCILE_MAX_ROWS = 20
@@ -506,6 +525,132 @@ def _atomic_private_json(path: Path, value: dict) -> None:
         Path(temporary).unlink(missing_ok=True)
 
 
+def _coconala_reply_legacy_pre_effect_proof(
+    loop_id: str, entry: dict, occurrence_id: str, expected_state: str,
+    runtime_rows: list[dict],
+) -> dict | None:
+    spec = COCONALA_REPLY_LEGACY_PRE_EFFECT_PROOF
+    if (loop_id != spec["owner_id"] or occurrence_id != spec["occurrence_id"]
+            or expected_state not in {"claimed", "released"}
+            or entry.get("effect_class") != "message"
+            or entry.get("entrypoint") != spec["entrypoint"]
+            or entry.get("browser_identity") != spec["browser_identity"]
+            or entry.get("browser_target_owner") != spec["browser_target_owner"]):
+        return None
+    owner_rows = [row for row in runtime_rows if row.get("loop_id") == loop_id]
+    previous_rows = [row for row in owner_rows
+                     if row.get("run_id") == spec["previous_run_id"]]
+    failing_rows = [row for row in owner_rows
+                    if row.get("run_id") == spec["failing_run_id"]]
+    previous_ids = {spec["previous_start_event_id"], spec["previous_report_event_id"]}
+    failing_ids = {spec["failing_start_event_id"], spec["failing_event_id"]}
+    if ({row.get("event_id") for row in previous_rows} != previous_ids
+            or {row.get("event_id") for row in failing_rows} != failing_ids):
+        return None
+    previous_start = next(row for row in previous_rows
+                          if row.get("event_id") == spec["previous_start_event_id"])
+    previous_report = next(row for row in previous_rows
+                           if row.get("event_id") == spec["previous_report_event_id"])
+    failing_start = next(row for row in failing_rows
+                         if row.get("event_id") == spec["failing_start_event_id"])
+    terminal = next(row for row in failing_rows
+                    if row.get("event_id") == spec["failing_event_id"])
+    occurrence_rows = [row for row in owner_rows
+                       if row.get("occurrence_id") == occurrence_id]
+    if {row.get("event_id") for row in occurrence_rows} != {
+            spec["previous_start_event_id"], spec["failing_event_id"]}:
+        return None
+    claim_ref = f"lm-occurrence://{loop_id}/{occurrence_id[len(loop_id) + 1:]}/claim"
+    claim_rows = [row for row in owner_rows
+                  if claim_ref in (row.get("evidence_refs") or [])]
+    if claim_rows != [terminal]:
+        return None
+
+    exact_fields = (
+        (previous_start, {
+            "phase": "execute", "status": "running", "effect_class": "none",
+            "effect_status": "not_applicable", "release_sha": spec["previous_release_sha"],
+        }),
+        (previous_report, {
+            "phase": "report", "status": "pass", "exit_code": 0,
+            "effect_class": "none", "effect_status": "not_applicable",
+            "release_sha": spec["previous_release_sha"],
+        }),
+        (failing_start, {
+            "phase": "execute", "status": "running", "effect_class": "message",
+            "effect_status": "started", "release_sha": spec["failing_release_sha"],
+        }),
+        (terminal, {
+            "phase": "report", "status": "fail", "blocker": "entrypoint_exit_10",
+            "error_class": "entrypoint_exit_10", "error_detail": spec["error_detail"],
+            "failure_layer": "entrypoint", "exit_code": 10,
+            "effect_class": "message", "effect_status": "unknown",
+            "effect_identity_status": "not_written",
+            "release_sha": spec["failing_release_sha"],
+        }),
+    )
+    if any(any(row.get(key) != value for key, value in expected.items())
+           for row, expected in exact_fields):
+        return None
+    if any(row.get("provider_receipt_id") is not None
+           or row.get("official_readback_ref") is not None
+           or any(isinstance(ref, str) and ref.startswith("lm-effect://")
+                  for ref in (row.get("evidence_refs") or []))
+           for row, _expected in exact_fields):
+        return None
+    previous_summary = f"lm-loop://{loop_id}/{spec['previous_run_id']}/summary.json"
+    failing_summary = f"lm-loop://{loop_id}/{spec['failing_run_id']}/summary.json"
+    if (previous_summary not in (previous_start.get("evidence_refs") or [])
+            or previous_summary not in (previous_report.get("evidence_refs") or [])
+            or failing_summary not in (failing_start.get("evidence_refs") or [])
+            or failing_summary not in (terminal.get("evidence_refs") or [])):
+        return None
+    try:
+        releases_root = ROOT.parent
+        release_root = releases_root / spec["release_name"]
+        manifest_path = release_root / "RELEASE.json"
+        wrapper_path = release_root / spec["wrapper_path"]
+        if (release_root.parent != releases_root or not release_root.is_dir()
+                or release_root.is_symlink() or not manifest_path.is_file()
+                or manifest_path.is_symlink() or not wrapper_path.is_file()
+                or wrapper_path.is_symlink()):
+            return None
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        if (manifest.get("sha") != spec["failing_release_sha"]
+                or hashlib.sha256(wrapper_path.read_bytes()).hexdigest()
+                != spec["wrapper_sha256"]):
+            return None
+    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError):
+        return None
+    evidence_refs = [
+        f"lm-event://{loop_id}/{spec['previous_run_id']}/{spec['previous_start_event_id']}",
+        f"lm-event://{loop_id}/{spec['previous_run_id']}/{spec['previous_report_event_id']}",
+        f"lm-event://{loop_id}/{spec['failing_run_id']}/{spec['failing_start_event_id']}",
+        f"lm-event://{loop_id}/{spec['failing_run_id']}/{spec['failing_event_id']}",
+        failing_summary,
+        claim_ref,
+    ]
+    return {
+        "owner_id": loop_id,
+        "occurrence_id": occurrence_id,
+        "verified": True,
+        "proof_type": "pre_effect",
+        "evidence_ref": evidence_refs[-3],
+        "evidence_refs": evidence_refs,
+        "blocker": terminal["blocker"],
+        "no_effect_proof": {
+            "kind": "browser_wrapper_child_not_started",
+            "browser_identity": spec["browser_identity"],
+            "release_sha": spec["failing_release_sha"],
+            "release_name": spec["release_name"],
+            "wrapper_path": spec["wrapper_path"],
+            "wrapper_sha256": spec["wrapper_sha256"],
+            "error_detail": spec["error_detail"],
+            "exit_code": 10,
+        },
+    }
+
+
 def _pre_effect_occurrence_proof(
     loop_id: str, entry: dict, occurrence_id: object, expected_state: object,
     runtime_rows: list[dict], *, queued_at: float | None = None,
@@ -527,6 +672,11 @@ def _pre_effect_occurrence_proof(
     if queued_at is not None and (history_start is None or history_start > queued_at):
         # Rotated-out journals could hide a foreign claim; fail closed.
         return None, "history_incomplete"
+    coconala_proof = _coconala_reply_legacy_pre_effect_proof(
+        loop_id, entry, occurrence_id, expected_state, runtime_rows,
+    )
+    if coconala_proof is not None:
+        return coconala_proof, "ok"
     owner_rows = [row for row in runtime_rows if row.get("loop_id") == loop_id]
     occurrence_rows = [
         row for row in owner_rows if row.get("occurrence_id") == occurrence_id

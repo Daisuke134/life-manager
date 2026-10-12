@@ -129,7 +129,7 @@ def acquire_when_free(acquire, *, wait_seconds=ACQUIRE_WAIT_SECONDS, poll_second
         sleep(poll_seconds)
 
 
-def main() -> None:
+def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--item-file", type=Path, required=True)
     args = parser.parse_args()
@@ -160,7 +160,8 @@ def main() -> None:
                                if k in ("resubmit_decision", "resubmit_decision_reason", "state",
                                         "auto_resubmit_count", "resubmit_block_reason")}
     print(json.dumps(row, ensure_ascii=False))
+    return 75 if result.get("status") in {"browser_unavailable", "needs_login"} else 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
