@@ -31,7 +31,7 @@ function discoverTarget(dataDir, target) {
     const receipt = row?.receipt; const captionPath = path.join(dataDir, "objects/sha256", String(receipt?.caption_sha256 || ""));
     if (!receipt || receipt.status !== "published" || receipt.provider_reconciled !== true || receipt.platform !== "tiktok" || receipt.account_id !== target.account_id || receipt.integration_ref !== `integration://postiz/tiktok/${target.integration_id}` || receipt.format_id !== target.format_id || receipt.form !== target.form || receipt.locale !== target.locale || receipt.public_url !== null || receipt.provider_state !== "PUBLISHED" || !fs.statSync(captionPath, { throwIfNoEntry: false })?.isFile()) throw new Error(`${target.account_id} Postiz photo receipt invalid`);
     const bytes = fs.readFileSync(captionPath); if (crypto.createHash("sha256").update(bytes).digest("hex") !== receipt.caption_sha256) throw new Error(`${target.account_id} caption object integrity mismatch`);
-    return [Object.freeze({ tenant_id: "dais-local", product_id: target.product_id, locale: target.locale, account_id: target.account_id, native_owner: target.native_owner, integration_id: target.integration_id, provider_post_id: receipt.provider_post_id, shortcode: receipt.provider_post_id, video_id: receipt.provider_post_id, public_url: "unavailable", caption: bytes.toString("utf8"), published_at: receipt.published_at, postiz_photo_only: true })];
+    return [Object.freeze({ tenant_id: "dais-local", product_id: target.product_id, locale: target.locale, account_id: target.account_id, native_owner: target.native_owner, integration_id: target.integration_id, format_id: target.format_id, form: target.form, ...(receipt.creative_id ? { creative_id: receipt.creative_id } : {}), provider_post_id: receipt.provider_post_id, shortcode: receipt.provider_post_id, video_id: receipt.provider_post_id, public_url: "unavailable", caption: bytes.toString("utf8"), published_at: receipt.published_at, postiz_photo_only: true })];
   }
   const file = path.join(dataDir, "tenants/dais-local/marketing/video-publication", target.publication_dir, "distribution.jsonl");
   let rows = fs.existsSync(file) ? fs.readFileSync(file, "utf8").split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line)) : [];
@@ -48,7 +48,8 @@ function discoverTarget(dataDir, target) {
     const match = /\/video\/(\d+)/.exec(row.public_url); const captionPath = path.resolve(String(row.caption_path || ""));
     if (row.format_id !== target.format_id || row.form !== target.form || row.locale !== target.locale || !/^c[a-z0-9]+$/.test(String(row.provider_id || "")) || !fs.statSync(captionPath, { throwIfNoEntry: false })?.isFile() || !Number.isFinite(Date.parse(row.ts))) throw new Error(`${target.account_id} verified distribution row invalid`);
     const bytes = fs.readFileSync(captionPath); if (crypto.createHash("sha256").update(bytes).digest("hex") !== row.caption_sha256) throw new Error(`${target.account_id} caption object integrity mismatch`);
-    return Object.freeze({ tenant_id: "dais-local", product_id: target.product_id, locale: target.locale, account_id: target.account_id, native_owner: target.native_owner, integration_id: target.integration_id,
+    return Object.freeze({ tenant_id: "dais-local", product_id: target.product_id, locale: target.locale, account_id: target.account_id, native_owner: target.native_owner, integration_id: target.integration_id, format_id: target.format_id, form: target.form,
+      ...(row.creative_id ? { creative_id: row.creative_id } : {}),
       provider_post_id: row.provider_id, shortcode: match[1], video_id: match[1], public_url: row.public_url, caption: bytes.toString("utf8"), published_at: row.ts });
   });
 }
@@ -82,6 +83,9 @@ function discoverNativeCarouselTargets(dataDir, nowMs = null) {
         account_id: receipt.account_id,
         native_owner: receipt.account_id.replace(/^@/, ""),
         integration_id: integration[1],
+        format_id: receipt.format_id,
+        form: receipt.form,
+        creative_id: receipt.creative_id,
         provider_post_id: providerPostId,
         shortcode: photoOnly ? providerPostId : direct[2],
         video_id: photoOnly ? providerPostId : direct[2],
