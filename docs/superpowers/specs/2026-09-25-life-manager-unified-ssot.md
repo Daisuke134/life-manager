@@ -12,6 +12,12 @@
 
 所有: Codex primary が全体の統括・このSSOT・受入・統合・release順を所有する。開発writerは原則primary一名。Life Manager自身のloopは本番stateと外部effectのownerを維持し、他者のdirty/leased worktreeを上書きしない。Ryu room `18211957`への再送禁止と正式納品ボタン非押下は維持する。
 
+### E01 — 自己評価の欠測利益をゼロへ変換しない
+
+目的: runtime/loop/index.mjs が selfEval の steer を実判断へ渡す経路で、欠測/不正netをゼロ損益・DEAD・WORKSへ変換しない。範囲は self-eval.mjs と既存test。数値と非空の有限numeric stringだけを受け、net_usdcが存在する場合は代替netで欠測を隠さない。slot内に未知行が一つでもあれば合計net=null、unknownCountを表示しDEAD/WORKSを抑制する。明示ゼロ/既知正負の既存判定は保持する。
+
+順序理由: F01のGig対象は通常reconcileが旧message occurrence hf-gig-reply-detector:18dbf6546032eca0-25901を保持し、反映をskipped_effect_unknownとした。最新mainにも同ownerのeffect_reconcile adapterなし。この独立した既知評価不具合を先に閉じ、Gigの再送/解除はしない。完了条件はRED/GREEN・関連検証・限定read-only金融review・CI/main・immutable採用、全体完了は実receiptを使う自然評価まで。検証: 既存5件PASS、新規3件RED（欠測fallback/混在/known count）を確認後、8件GREEN、関連ledger-publishを含む48件PASS・lm-loop-contract 18/191 PASS・限定read-only金融review PASS。PR #7734。現在cursor: exact-head CI/main、自然評価は未確認。
+
 ## 統括cursor — 共有資源回復と全案件の引き継ぎ
 
 **目的:** ディスク不足と実行枠の共有障害を先に修復し、READMEの18 agentとCloud・CFO・LINE・Mobile・Gig・eBook・Job Hunter・投資の既存目標を、自然実行と公式readbackまで一件ずつ進める。24時間の監督・自己修復・評価付き自己改善・利用可能なOSSを成立させ、会社全体のUS$10,000,000 MRRまで継続する。各laneの元の売上/MRR/net目標を縮小せず、source/CI成功を本番成果と扱わない。
