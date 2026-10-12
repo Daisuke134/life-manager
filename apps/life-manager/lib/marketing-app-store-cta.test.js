@@ -49,6 +49,15 @@ test("buildMarketingCtaCaption does not duplicate a TikTok CTA already approved 
   assert.equal((published.match(/Search Anicca on the App Store/g) || []).length, 1);
 });
 
+test("TikTok caption replaces a retired link-in-bio CTA before publication", () => {
+  const caption = buildMarketingCtaCaption(
+    "What would make this morning gentler?\n\nLink in bio for the app\n",
+    { productId: "anicca-ios", platform: "tiktok", locale: "en" },
+  );
+  assert.equal(caption, "What would make this morning gentler?\n\nSearch Anicca on the App Store\n");
+  assert.doesNotMatch(caption, /link in bio/i);
+});
+
 test("buildMarketingCtaCaption trims the base text so the CTA always survives and the limit holds", () => {
   const longBase = "x".repeat(3000);
   const caption = buildMarketingCtaCaption(longBase, { productId: "anicca-ios", platform: "tiktok", locale: "en" });

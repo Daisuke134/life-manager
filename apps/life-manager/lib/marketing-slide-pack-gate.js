@@ -58,9 +58,12 @@ function rubricScore(pack) {
 }
 
 function hasAppStoreCta(captionText, { productId, platform, locale } = {}) {
+  if (platform === "tiktok" && productId) {
+    if (/\bLink in bio\b/i.test(captionText) || /プロフィールのリンク/.test(captionText)) return false;
+    return String(captionText).includes(marketingCtaLine({ productId, platform, locale }));
+  }
   if (/apps\.apple\.com|プロフィールのリンク|link in bio/i.test(captionText)) return true;
-  if (platform !== "tiktok" || !productId) return false;
-  return String(captionText).includes(marketingCtaLine({ productId, platform, locale }));
+  return false;
 }
 
 // pack: { slide_count, slides: [{ position, role, text, media_ref }] }

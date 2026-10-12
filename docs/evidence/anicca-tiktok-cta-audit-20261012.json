@@ -60,9 +60,18 @@
   "proposed_source_fix": {
     "tiktok_caption_cta": "Search Anicca on the App Store",
     "tiktok_last_slide_cta": "Search Anicca on the App Store",
-    "old_pool_handling": "Exclude false link-in-bio candidates at selection time; preserve all immutable objects and ledger history.",
+    "old_pool_handling": "Exclude candidates containing a false link-in-bio CTA in any slide or caption at selection time; preserve all immutable objects and ledger history.",
+    "publisher_guard": "Reject any TikTok pack containing a false link-in-bio CTA before token lookup or provider access.",
+    "caption_normalization": "Remove the retired English or Japanese TikTok link-in-bio line before appending the App Store search CTA.",
+    "gate": "Reject unavailable link-in-bio CTAs for TikTok and require the App Store search CTA.",
     "new_pack_generation": "Existing deterministic copy and cached backgrounds",
     "generation_cost_usd": 0
+  },
+  "source_validation": {
+    "red_cases_reproduced": 4,
+    "focused_tests_passed": 73,
+    "pull_request": "https://github.com/Daisuke134/life-manager/pull/7779",
+    "runtime_release_adopted": false
   },
   "effects": {
     "posts_created": 0,

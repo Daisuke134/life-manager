@@ -102,9 +102,9 @@ function filterCandidatesForLane(candidates, lane, objectStore) {
   return candidates.filter((candidate) => {
     if (!candidate?.packRef || !candidate?.captionRef) return false;
     const pack = JSON.parse(fs.readFileSync(objectStore.resolve(candidate.packRef), "utf8"));
-    const lastSlide = String(pack.slides?.at(-1)?.text || "");
+    const slideText = (Array.isArray(pack.slides) ? pack.slides : []).map((slide) => String(slide?.text || "")).join("\n");
     const caption = fs.readFileSync(objectStore.resolve(candidate.captionRef), "utf8");
-    return !/\bLink in bio\b/i.test(lastSlide) && !/Link in bio for the app\s*$/i.test(caption);
+    return !/\bLink in bio\b|プロフィールのリンク/i.test(`${slideText}\n${caption}`);
   });
 }
 

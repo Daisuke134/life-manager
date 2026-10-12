@@ -97,6 +97,17 @@ test("runAutomatedGate accepts TikTok App Store search CTA when the account has 
   assert.deepEqual(result.reasons, []);
 });
 
+test("runAutomatedGate rejects TikTok link-in-bio CTA when the account has no website link", () => {
+  const result = runAutomatedGate({
+    pack: goodPack(),
+    caption: "Link in bio for the app",
+    imageChecks: goodImageChecks(),
+    platform: "tiktok",
+  });
+  assert.equal(result.passed, false);
+  assert.ok(result.reasons.includes("caption is missing the App Store CTA"));
+});
+
 test("runAutomatedGate rejects a caption over the platform limit", () => {
   const longCaption = `${"a".repeat(2300)}\nアプリはこちら → https://apps.apple.com/app/id6755129214`;
   const result = runAutomatedGate({ pack: goodPack(), caption: longCaption, imageChecks: goodImageChecks(), platform: "instagram" });

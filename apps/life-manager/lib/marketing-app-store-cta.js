@@ -133,7 +133,14 @@ function marketingCtaLine({ productId, platform, locale }) {
 // Appends the product/platform/locale CTA to a base caption, trimming the
 // base text (never the CTA) so the result never exceeds the platform limit.
 function buildMarketingCtaCaption(baseCaption, { productId, platform, locale }) {
-  const base = String(baseCaption == null ? "" : baseCaption).replace(/\s+$/, "");
+  let base = String(baseCaption == null ? "" : baseCaption).replace(/\s+$/, "");
+  if (String(platform || "") === "tiktok") {
+    base = base.split(/\r?\n/)
+      .filter((line) => !/^\s*(?:Link in bio for the app|アプリはプロフィールのリンクから)\s*$/i.test(line))
+      .join("\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .replace(/\s+$/, "");
+  }
   const cta = marketingCtaLine({ productId, platform, locale });
   if (base === cta || base.endsWith(`\n\n${cta}`)) return `${base}\n`;
   const limit = platformCaptionLimit(platform);

@@ -256,9 +256,14 @@ test("TikTok rotation preserves but never selects approved packs with an unavail
   const oldPackRef = importText("old-link-in-bio-pack.json", JSON.stringify({ slides: slides("Anicca\nLink in bio") }));
   const oldCaptionRef = importText("old-link-in-bio-caption.txt", "What would make this morning gentler?\n\nLink in bio for the app\n");
   const oldCandidate = { packRef: oldPackRef, captionRef: oldCaptionRef, familyId: "question-hook", createdAt: "2026-10-11T00:00:00.000Z" };
+  const hiddenCtaSlides = slides("Anicca\nSearch Anicca on the App Store");
+  hiddenCtaSlides[2].text = "A gentle reminder: Link in bio";
+  const hiddenCtaPackRef = importText("hidden-link-in-bio-pack.json", JSON.stringify({ slides: hiddenCtaSlides }));
+  const searchableCaptionRef = importText("search-cta-caption.txt", "What would make this morning gentler?\n\nSearch Anicca on the App Store\n");
+  const hiddenCtaCandidate = { packRef: hiddenCtaPackRef, captionRef: searchableCaptionRef, familyId: "listicle", createdAt: "2026-10-11T00:01:00.000Z" };
   const pool = poolPath(dataDir, TENANT, lane.productId, lane.lane);
   fs.mkdirSync(path.dirname(pool), { recursive: true });
-  fs.writeFileSync(pool, `${JSON.stringify(oldCandidate)}\n`);
+  fs.writeFileSync(pool, `${JSON.stringify(oldCandidate)}\n${JSON.stringify(hiddenCtaCandidate)}\n`);
 
   const freshPackRef = importText("search-cta-pack.json", JSON.stringify({ slides: slides("Anicca\nSearch Anicca on the App Store") }));
   const freshCaptionRef = importText("search-cta-caption.txt", "What would make this morning gentler?");
@@ -278,6 +283,7 @@ test("TikTok rotation preserves but never selects approved packs with an unavail
   assert.equal(result.selected.packRef, freshPackRef);
   const persisted = fs.readFileSync(pool, "utf8").split(/\r?\n/).filter(Boolean).map(JSON.parse);
   assert.ok(persisted.some((candidate) => candidate.packRef === oldPackRef), "old immutable candidate remains in the pool history");
+  assert.ok(persisted.some((candidate) => candidate.packRef === hiddenCtaPackRef), "invalid old candidate remains in the pool history");
   assert.ok(persisted.some((candidate) => candidate.packRef === freshPackRef));
 });
 
