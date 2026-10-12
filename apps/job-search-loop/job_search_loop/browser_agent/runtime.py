@@ -22,6 +22,7 @@ from ..tailored_resume import compose, load_artifact, render_pdf, store_artifact
 from ..state import InvalidTransition, provider_recovery_url
 from ..workday_credentials import tenant_key
 from .actions import ActionExecutor
+from .answer_memory import AnswerMemory
 from .candidate_memory import CandidateMemoryView
 from .checkpoint import CheckpointStore, EvidenceStore
 from .completion import record_completion_evidence, verify_completion_ui
@@ -415,6 +416,27 @@ async def observe() -> dict[str, Any]:
         **({} if cursor.needs_navigation else {"candidate_concepts": candidate_concepts, "grounding_facts": candidate_memory.grounding_facts()}),
     }
     return result
+
+
+async def resolve_saved_answer(question_label: str) -> dict[str, Any]:
+    """Resolve one exact employer question from private answer memory."""
+    if not question_label.strip():
+        raise ValueError("question label is required")
+    memory = AnswerMemory(_path_env("JOB_SEARCH_ANSWER_MEMORY"))
+    concept = memory.concept_for_question(question_label)
+    if concept is None:
+        return {"status": "answer_memory_missing"}
+    record = memory.lookup(concept)
+    if record is None:
+        return {"status": "answer_memory_missing"}
+    if not isinstance(record.answer, (str, int, float, bool)):
+        return {"status": "answer_memory_unsupported", "kind": record.kind}
+    return {
+        "status": "answer_found",
+        "answer": record.answer,
+        "kind": record.kind,
+        "provenance": list(record.provenance),
+    }
 
 
 def _private_action(path: Path) -> dict[str, Any]:
@@ -984,10 +1006,31 @@ async def checkpoint(reason: str) -> dict[str, Any]:
             recovery_url,
         )
     )
+    _mark_wake_completed(row["application_id"])
     await session.close_owned(cursor.handle)
+    wake_id = _path_env("JOB_SEARCH_BROWSER_OWNER_EVIDENCE").parent.name
+    report_status = "delivery_failed"
+    report_message_id = None
+    report_error_class = None
+    try:
+        report_receipt = send_hourly_outcomes(
+            database=_path_env("JOB_SEARCH_STATE_ROOT") / "telegram-outbox.sqlite3",
+            wake_id=wake_id,
+            receipts=(
+                QueueRowReceiptV1(
+                    row["application_id"], row["company"], row["title"], "checkpointed"
+                ),
+            ),
+            evidence_classes={},
+        )
+        report_status = str(report_receipt.get("status") or "delivery_failed")
+        report_message_id = report_receipt.get("message_id")
+    except Exception as error:
+        report_error_class = type(error).__name__
     return {
         "status": "checkpointed",
         "reason": reason,
+        "application_id": row["application_id"],
         "row": {
             "application_id": row["application_id"],
             "company": row["company"],
@@ -995,6 +1038,9 @@ async def checkpoint(reason: str) -> dict[str, Any]:
         },
         "checkpoint_sha256": receipt.checkpoint_sha256,
         "observation_sha256": observation.content_sha256,
+        "report_status": report_status,
+        "report_message_id": report_message_id,
+        **({"report_error_class": report_error_class} if report_error_class else {}),
     }
 
 
@@ -1270,6 +1316,11 @@ async def finalize() -> dict[str, Any]:
 
 
 def report(status: str) -> dict[str, Any]:
+    if status == "checkpointed":
+        return {
+            "status": "action_rejected",
+            "reason": "checkpoint_outcome_is_reported_atomically",
+        }
     row = _row()
     wake_id = _path_env("JOB_SEARCH_BROWSER_OWNER_EVIDENCE").parent.name
     result = send_hourly_outcomes(
@@ -1320,6 +1371,8 @@ def _run_main(argv: list[str] | None = None) -> int:
     type_text_parser.add_argument("--role", default="")
     type_text_parser.add_argument("--stable-id", default="")
     type_text_parser.add_argument("--text", required=True)
+    answer_parser = subparsers.add_parser("answer")
+    answer_parser.add_argument("--question-label", required=True)
     tailor_parser = subparsers.add_parser("tailor")
     tailor_parser.add_argument("--sections-json", required=True)
     upload_parser = subparsers.add_parser("upload")
@@ -1387,6 +1440,8 @@ def _run_main(argv: list[str] | None = None) -> int:
             stable_id=args.stable_id,
             text=args.text,
         )
+    elif args.command == "answer":
+        operation = lambda: resolve_saved_answer(args.question_label)
     elif args.command == "tailor":
         operation = lambda: tailor_resume(args.sections_json)
     elif args.command == "upload":

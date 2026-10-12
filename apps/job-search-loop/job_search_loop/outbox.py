@@ -11,17 +11,26 @@ class DeliveryUncertain(RuntimeError):
 
 
 class Outbox:
-    def __init__(self, path: Path):
+    _CHANNELS = {
+        "telegram": ("outbox", "telegram_message_id"),
+        "email": ("email_outbox", "email_message_id"),
+    }
+
+    def __init__(self, path: Path, *, channel: str = "telegram"):
+        try:
+            self._table, self._message_id_column = self._CHANNELS[channel]
+        except KeyError:
+            raise ValueError("unsupported outbox channel") from None
         path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         self.connection = sqlite3.connect(path, isolation_level=None)
         self.connection.execute(
-            """
-            CREATE TABLE IF NOT EXISTS outbox (
+            f"""
+            CREATE TABLE IF NOT EXISTS {self._table} (
               event_key TEXT PRIMARY KEY,
               payload TEXT NOT NULL,
               status TEXT NOT NULL,
               fence TEXT,
-              telegram_message_id TEXT
+              {self._message_id_column} TEXT
             )
             """
         )
@@ -32,14 +41,14 @@ class Outbox:
 
     def enqueue(self, event_key: str, payload: str) -> str:
         self.connection.execute(
-            "INSERT OR IGNORE INTO outbox(event_key,payload,status) VALUES(?,?,'pending')",
+            f"INSERT OR IGNORE INTO {self._table}(event_key,payload,status) VALUES(?,?,'pending')",
             (event_key, payload),
         )
         return event_key
 
     def claim(self, event_key: str) -> str:
         row = self.connection.execute(
-            "SELECT status FROM outbox WHERE event_key=?", (event_key,)
+            f"SELECT status FROM {self._table} WHERE event_key=?", (event_key,)
         ).fetchone()
         if row is None:
             raise KeyError(event_key)
@@ -49,15 +58,15 @@ class Outbox:
             raise DeliveryUncertain(f"outbox is not claimable: {row[0]}")
         fence = uuid.uuid4().hex
         self.connection.execute(
-            "UPDATE outbox SET status='claimed',fence=? WHERE event_key=? AND status='pending'",
+            f"UPDATE {self._table} SET status='claimed',fence=? WHERE event_key=? AND status='pending'",
             (fence, event_key),
         )
         return fence
 
     def mark_send_started(self, event_key: str, fence: str) -> None:
         changed = self.connection.execute(
-            """
-            UPDATE outbox SET status='send_started'
+            f"""
+            UPDATE {self._table} SET status='send_started'
             WHERE event_key=? AND fence=? AND status='claimed'
             """,
             (event_key, fence),
@@ -67,8 +76,8 @@ class Outbox:
 
     def mark_sent(self, event_key: str, fence: str, message_id: str) -> None:
         changed = self.connection.execute(
-            """
-            UPDATE outbox SET status='sent',telegram_message_id=?
+            f"""
+            UPDATE {self._table} SET status='sent',{self._message_id_column}=?
             WHERE event_key=? AND fence=? AND status='send_started'
             """,
             (message_id, event_key, fence),
@@ -78,7 +87,7 @@ class Outbox:
 
     def payload(self, event_key: str) -> str:
         row = self.connection.execute(
-            "SELECT payload FROM outbox WHERE event_key=?", (event_key,)
+            f"SELECT payload FROM {self._table} WHERE event_key=?", (event_key,)
         ).fetchone()
         if row is None:
             raise KeyError(event_key)
@@ -86,7 +95,7 @@ class Outbox:
 
     def status(self, event_key: str) -> dict[str, str | None]:
         row = self.connection.execute(
-            "SELECT status,telegram_message_id FROM outbox WHERE event_key=?",
+            f"SELECT status,{self._message_id_column} FROM {self._table} WHERE event_key=?",
             (event_key,),
         ).fetchone()
         if row is None:

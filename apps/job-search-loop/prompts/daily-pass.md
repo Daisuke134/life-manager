@@ -18,10 +18,11 @@ profile; never invent or hardcode another company or job exclusion.
 
 If a visible CAPTCHA or human-verification challenge appears before submission,
 do not solve or bypass it. Call `runtime checkpoint --reason visible_challenge`,
-then `runtime report --status checkpointed` for that same `application_id`, and
-continue to the next independent Workday row. If a challenge appears after submission
-may have started, preserve `submit_unknown` and never retry that row; continue only
-with independent rows whose submission effects are separate and clear.
+which saves and reports that exact row atomically, then continue to the next
+independent Workday row. Do not issue a second checkpoint report. If a challenge
+appears after submission may have started, preserve `submit_unknown` and never retry
+that row; continue only with independent rows whose submission effects are separate
+and clear.
 
 ## Agent loop adopted from Browser Use and career-ops
 
@@ -104,6 +105,7 @@ Use only these runtime commands while a row is active:
 /opt/homebrew/bin/python3 -m job_search_loop.browser_agent.runtime choose --field-label "EXACT_PICKER_OPTIONS_LABEL" --field-role "button" --field-stable-id "RETURNED_PICKER_STABLE_ID" --option-label "EXACT_OPTION_LABEL" --option-role "RETURNED_OPTION_ROLE" --option-stable-id "RETURNED_OPTION_STABLE_ID"
 /opt/homebrew/bin/python3 -m job_search_loop.browser_agent.runtime type --label "EXACT_LABEL" --role "RETURNED_ROLE" --stable-id "RETURNED_STABLE_ID" --candidate-concept "RETURNED_CONCEPT"
 /opt/homebrew/bin/python3 -m job_search_loop.browser_agent.runtime type-text --label "EXACT_LABEL" --role "RETURNED_ROLE" --stable-id "RETURNED_STABLE_ID" --text "GROUNDED_ANSWER"
+/opt/homebrew/bin/python3 -m job_search_loop.browser_agent.runtime answer --question-label "EXACT_CURRENT_QUESTION"
 /opt/homebrew/bin/python3 -m job_search_loop.browser_agent.runtime upload --label "EXACT_LABEL" --role "RETURNED_ROLE" --stable-id "RETURNED_STABLE_ID"
 /opt/homebrew/bin/python3 -m job_search_loop.browser_agent.runtime wait --milliseconds 6000
 /opt/homebrew/bin/python3 -m job_search_loop.browser_agent.runtime auth --mode sign_in --field email --label "EXACT_LABEL" --role "RETURNED_ROLE" --stable-id "RETURNED_STABLE_ID"
@@ -115,13 +117,21 @@ Use only these runtime commands while a row is active:
 /opt/homebrew/bin/python3 -m job_search_loop.browser_agent.runtime checkpoint --reason visible_challenge
 /opt/homebrew/bin/python3 -m job_search_loop.browser_agent.runtime ineligible --reason job_not_available
 /opt/homebrew/bin/python3 -m job_search_loop.browser_agent.runtime ineligible --reason hard_ineligible
-/opt/homebrew/bin/python3 -m job_search_loop.browser_agent.runtime report --status checkpointed
 /opt/homebrew/bin/python3 -m job_search_loop.browser_agent.runtime report --status not_submitted
 ```
 
 For an ordinary scalar candidate value, use `runtime type` with an exact returned
 `candidate_concept`; the runtime resolves its private value. Never put email,
 password, phone, address, cookies, tokens, or credentials in commands or output.
+
+Before answering a repeated employer field, call `runtime answer --question-label`
+with the exact current question to query private Answer Memory. Use a returned saved
+answer for that field. For a
+prior-employment yes/no question, this user's submitted resume is the disclosed work
+history: if the hiring company is absent from its Experience section, answer `No`
+under the user's explicit best-effort assumption and continue; do not block only
+because an exact answer was not prewritten. This assumption applies only to prior
+employment. Never infer work authorization or sponsorship from it.
 
 For a novel narrative or numeric employer question, reason from the returned
 `grounding_facts`, current job, exact question, options, and length constraint, then
@@ -190,8 +200,9 @@ Password control, submit the stored application email through
 `runtime auth --mode sign_in --field email`, and let the existing inbox owner
 complete the recovery before resuming the same row. The visible acknowledgement
 that reset instructions were sent is successful recovery handoff, not
-`provider_unavailable`; checkpoint it with `--reason email_recovery`, report the
-row as checkpointed, and continue the queue. If email verification is
+`provider_unavailable`; checkpoint it with `--reason email_recovery`. That command
+records and reports the same row atomically; do not call `runtime report` afterwards.
+Continue the queue. If email verification is
 visibly required, preserve the same row for the existing inbox owner; after
 verification the next wake signs in and resumes it.
 If the runtime returns `action_rejected`, treat its attached fresh observation as
@@ -210,13 +221,15 @@ field is filled. Answer all employer-specific questions by reading their current
 wording and options. For ordinary non-factual preferences, do not stop to ask the
 owner: infer the closest supported option from the private profile and job context,
 prefer the option that keeps the application eligible, and continue. Do not use this
-inference rule for credentials, work authorization, salary, or other personal facts.
+inference rule for credentials, work authorization, sponsorship, or salary. The
+separate prior-employment rule above is the only personal-history assumption.
 For a current or present salary question, use only an exact
 current-salary fact supplied in the approved profile. Never invent or estimate a
 current salary or substitute desired compensation. If the visible form explicitly
 offers a non-disclosure choice such as “Prefer not to disclose,” choose that exact
-visible non-disclosure option. For a required personal fact or legal attestation
-missing from approved profile facts, never guess. If the visible form explicitly
+visible non-disclosure option. Outside the prior-employment assumption above, never
+guess a required legal attestation or other personal fact missing from approved
+profile facts. If the visible form explicitly
 offers a non-disclosure or decline option, choose that exact visible option. If any
 such question is optional with no decline option, leave it blank. If required and no
 truthful answer or decline option exists, block only this row and add the exact
@@ -231,14 +244,15 @@ control, call `runtime upload` with the exact `Select file` control. Never targe
 drop-zone wrapper when the real file-selection control is visible.
 
 If the job page explicitly says the role is unavailable, call `ineligible`. When it
-returns `status: ineligible`, it already reports the current row and returns
-`report_message_id`; do not call `report --status not_submitted` or `runtime report`
-again. If it returns `action_rejected` because a submission intent exists, preserve
-the intent, do not report or retry, and continue with the next row. If a visible
-CAPTCHA or explicit provider outage is present, call the matching `checkpoint`, then
-`report --status checkpointed` for that same row and require its `message_id` before
-continuing. A transient spinner, unfamiliar question, missing selector, or validation
-message is not a blocker: observe, reason, correct, and continue.
+returns `status: ineligible`, the row is already complete for this wake; its
+intentionally suppressed Telegram outcome may have `report_message_id: null`. Do not
+call another report or block the queue for that null. If it returns `action_rejected`
+because a submission intent exists, preserve the intent, do not report or retry, and
+continue with the next row. If a visible CAPTCHA or explicit provider outage is
+present, call the matching `checkpoint`; it saves and reports that exact row
+atomically. Continue even if the optional notification ID is missing. A transient
+spinner, unfamiliar question, missing selector, or validation message is not a
+blocker: observe, reason, correct, and continue.
 
 ## Final action and verification
 
@@ -263,13 +277,14 @@ not upgrade it in prose.
 
 `runtime finalize` sends the exact company/role outcome itself and returns its real
 `report_message_id`; do not call `runtime report` again for that row. A successful
-`runtime ineligible` already reports the exact current row itself and returns
-`report_message_id`; never call `runtime report` after it. If it returns
+`runtime ineligible` returns `status: ineligible` and marks the current row complete.
+Its Telegram outcome may be suppressed, so `report_message_id` may be null; do not
+call `runtime report` or block the queue for that null. If it returns
 `action_rejected` with reason `application_state_prevents_rejection`, preserve the
 intent, do not report or retry that row, and continue with the next `observe`.
-`runtime checkpoint` only saves a checkpoint; call `runtime report --status checkpointed`
-before the next `observe` and confirm its `application_id` is the same checkpointed
-row. A row-local failure never ends the queue. When `observe` returns `queue_complete`, return the
+`runtime checkpoint` saves and reports the same row atomically, returns its exact
+`application_id`, and marks that row complete for this wake. A row-local failure
+never ends the queue. When `observe` returns `queue_complete`, return the
 accumulated outcomes and latest real Telegram message ID as JSON matching the supplied
 schema.
 
