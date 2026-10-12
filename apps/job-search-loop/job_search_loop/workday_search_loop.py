@@ -461,6 +461,7 @@ def search_until_qualified(
     decisions = []
     qualified_application_ids: list[str] = []
     qualified_seen: set[str] = set()
+    sources_exhausted = False
     if target == 0:
         return {
             "status": "deficit_satisfied",
@@ -469,15 +470,10 @@ def search_until_qualified(
             "qualified_application_ids": qualified_application_ids,
         }
     for _ in range(max_candidates):
-        discovery = discover()
-        discoveries.append(discovery)
-        if discovery.get("status") == "no_fresh_workday":
-            return {
-                "status": "sources_exhausted",
-                "discoveries": discoveries,
-                "decisions": decisions,
-                "qualified_application_ids": qualified_application_ids,
-            }
+        if not sources_exhausted:
+            discovery = discover()
+            discoveries.append(discovery)
+            sources_exhausted = discovery.get("status") == "no_fresh_workday"
         try:
             decision = qualify()
         except Exception as error:
@@ -604,13 +600,13 @@ def main() -> int:
                 prompt=(
                 "Rank Workday jobs primarily by evidence-backed fit between the actual "
                 "responsibilities and the candidate's demonstrated experience. "
-                "No location category outranks another: Tokyo onsite or hybrid, United States roles in any "
-                "location, and remote roles worldwide are equal preferences. Keep United States "
-                "roles eligible regardless of sponsorship wording; do not reject or downgrade "
-                "them solely because sponsorship is stated as unavailable or left unstated. "
-                "Keep remote roles worldwide in scope without inferring country-specific work "
-                "authorization. Never claim authorization or sponsorship without profile "
-                "evidence; answer every required application question truthfully and let the "
+                "No location category outranks another: onsite or hybrid roles worldwide and "
+                "remote roles worldwide are equally eligible. No country or work arrangement "
+                "is a location-only rejection reason; this global scope supersedes narrower "
+                "stored location preferences. Do not reject or downgrade a role solely because "
+                "sponsorship is stated as unavailable or left unstated, regardless of country. "
+                "Never claim authorization or sponsorship without profile evidence; answer every "
+                "required application question truthfully and let the "
                 "employer decide whether to make an exception. "
                 "Use the candidate's USD 100,000 annual gross base target as the goal; "
                 "exclude a role only when its disclosed annualized compensation is clearly below "
