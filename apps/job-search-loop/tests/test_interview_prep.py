@@ -275,6 +275,15 @@ class InterviewPrepTests(unittest.TestCase):
         )
         self.assertIn("prep_packs", schema["required"])
 
+    def test_inbox_result_schema_requires_every_property_for_strict_output(self):
+        schema_path = (
+            Path(__file__).parents[1]
+            / "schemas"
+            / "inbox-pass-result.v1.schema.json"
+        )
+        schema = __import__("json").loads(schema_path.read_text(encoding="utf-8"))
+        self.assertEqual(set(schema["required"]), set(schema["properties"]))
+
     def test_pending_prompt_and_save_command_contract_complete_generation(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
