@@ -30,6 +30,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 from dataclasses import dataclass, field
 from decimal import Decimal
 from pathlib import Path
@@ -595,12 +596,25 @@ def production_deps() -> Deps:
     )
 
 
-def run(state_root: Path, deps: Deps) -> dict:
-    """Drive one set from wherever it is all the way to submitted in a single launch.
+# The loop's runtime cap is 5400 s; stop starting new sets after this so the last one can finish.
+RUN_BUDGET_SECONDS = 4500
 
-    Stops on submitted, on skip/noop/halt, or on a retry (an external wait such as missing clips
-    or a failed package) so a stuck stage never spins.
+
+def run(state_root: Path, deps: Deps, *, clock: Callable[[], float] = time.monotonic) -> dict:
+    """Make as many sets as one launch has time for (Dais 2026-10-12: submit as many as possible).
+
+    Each set goes all the way to submitted; then the next one starts, until the daily cap, a
+    skip/noop/halt, a retry (an external wait, so a stuck stage never spins) or the time budget.
     """
+    started = clock()
+    while True:
+        report = _run_one_set(state_root, deps)
+        if report.get("next_stage") != "submitted" or clock() - started > RUN_BUDGET_SECONDS:
+            return report
+
+
+def _run_one_set(state_root: Path, deps: Deps) -> dict:
+    """Drive one set from wherever it is all the way to submitted."""
     while True:
         item_path = (newest_open_set(state_root) or state_root) / "creators-item.json"
         before = (_read_json(item_path) or {}).get("state")
