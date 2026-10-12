@@ -418,12 +418,15 @@ def read_dashboard_text(
             ctx = browser.contexts[0]
             page = ctx.new_page()
             try:
-                page.goto(readback_mod.PROMPTS_URL, wait_until="domcontentloaded", timeout=20000)
+                response = page.goto(readback_mod.PROMPTS_URL, wait_until="domcontentloaded", timeout=20000)
                 page.wait_for_timeout(2000)
                 text = page.inner_text("body")
+                if (response is None or response.status != 200
+                        or not readback_mod.prompts_dashboard_is_official(page.url, text)):
+                    return {"ok": False, "reason": "promptbase_dashboard_readback_unverified"}
             finally:
                 page.close()
-        return {"ok": True, "text": text}
+        return {"ok": True, "url": page.url, "text": text}
     except Exception as exc:  # fail closed -> inconclusive, never guessed
         return {"ok": False, "reason": f"dashboard_read_failed:{type(exc).__name__}:{exc}"}
     finally:
