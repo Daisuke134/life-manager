@@ -24,7 +24,7 @@
 
 従ってWriterは「18業務で最も簡単」または「すでに最も収益がある」とは主張しない。**評価手法を安全に立ち上げるのに最も準備があるslice**として選ぶ。既存の収益業務の優先順は変更しない。品質gateのPASSを売上・利益と呼ばず、settled外部収入・refund・fee・同期間の実費が結べない場合のnetは`unknown`に保つ。
 
-記事sourceと図は[PR #7798](https://github.com/Daisuke134/life-manager/pull/7798)で管理する。公開版は英語記事とし、日本語HTMLは内部説明資料とする。公開先はAniccaの既存 `/blog` と、登録済み `x:anicca` identityのX Articles。公開後に実URLと公式readbackをこの節へ記録し、E01–E06の実行cursorとは分離する。
+記事sourceと図は[PR #7798](https://github.com/Daisuke134/life-manager/pull/7798)で管理する。公開版は英語記事とし、日本語HTMLは内部説明資料とする。公開先はAniccaの既存 `/blog` と登録済み `x:anicca` identity（`@selawmqt`）。公開後に実URLと公式readbackをこの節へ記録し、E01–E06の実行cursorとは分離する。
 
 ## 英語記事の配信タスク
 
@@ -33,11 +33,13 @@
 1. 英文・出典・3枚の図を確認し、この記事sourceをPR #7798に保持する。
 2. Aniccaサイトへ記事recordと画像を追加し、既存build/CIとmain経由のdeployを通す。
 3. blog本文と全画像のlive readbackを確認してから、そのURLをX記事に記載する。
-4. `x:anicca` のlive session identityを照合し、X記事を公開して記事URLと本文表示を確認する。
+4. `x:anicca` のlive session identityを照合してXへ公開し、記事URLと本文表示を確認する。X Articles UIが使えない時はブログ本文へ誘導するnative threadを使う。
 5. X記事URLをblog mirror metadataへ加え、相互リンクをlive readbackする。
 6. 両URLと確認根拠をspecへ記録する。配信完了はE06 benchmark公開、第三者再現、lab採用を意味しない。
 
-**状態:** 配信は明示許可済み。英文・sourceは確認済み（fresh read-only adversarial verification: SHIP）。site PR #456はpush済みでCI中。ブログとXの公開readbackは未実施。
+**状態:** 配信は明示許可済み。英文・sourceは確認済み（fresh read-only adversarial verification: SHIP）。site PR #456はmerge済み、main `23b2eeb` のdeployとsmokeがPASS。`https://aniccaai.com/blog/good-agent-evals-measure-outcomes` は本文readback済み、3画像のURLはすべて200。X Articleは未公開。
+
+**X Articles調査:** [X公式Articles説明](https://help.x.com/en/using-x/articles)は公開機能をPremium/Premium+等の対象subscriberに限定している。登録済み `@selawmqt` のlive sessionで公式案内の `/compose/articles` と `/compose/articles/new` を開くと両方404となり、Articles editorと画像file inputが存在しなかった。publisher scriptは公開前に終了し、Article draftもpostも作られていない。今回の投稿は追加subscription購入や別identityを使わず、ブログURLへ誘導する短いnative X threadとする。
 
 ## Pilot B: effect-unknown recovery safety case
 
