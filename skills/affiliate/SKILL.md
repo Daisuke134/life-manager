@@ -364,9 +364,11 @@ actual-billed cost ledger, deduplicates by receipt identity, and binds the net
 receipt to the cost ledger hash and official evidence references. Cost coverage
 is complete only when every Affiliate trailing-coverage row is complete for the
 full 30-day window; stale, missing, conflicting, or unsupported-currency input
-keeps net unknown. The raw billing readback is never copied into Affiliate
-state. If neither environment variable is set, the net calculation keeps cost
-coverage unknown.
+keeps net unknown. The CFO's invoice-level billed-but-unpaid projection stays
+outside this ledger until its source provides explicit Affiliate allocation;
+those invoices keep coverage unknown. The raw billing readback is never copied
+into Affiliate state. If neither environment variable is set, the net
+calculation keeps cost coverage unknown.
 
 The 10-minute local wake invokes `observe → capture → reconcile` only when the
 provider is authenticated and its independent one-hour revenue cooldown is due.

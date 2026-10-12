@@ -155,6 +155,26 @@ class RevenueCliTest(unittest.TestCase):
                 coverage["unknown_reasons"],
             )
 
+    def test_billed_unpaid_affiliate_invoice_does_not_complete_cost_coverage(self):
+        payload, end = self.affiliate_cost_payload({"openrouter"})
+        invoice = payload["documents"][0]
+        invoice["status"] = "billed"
+        invoice.pop("paid_at")
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            readback = root / "actual-cost-readback.json"
+            readback.write_text(json.dumps(payload), encoding="utf-8")
+            state = root / "affiliate-state"
+            exit_code, _ = self.run_net(state, readback, end)
+
+            self.assertEqual(exit_code, 0)
+            coverage = json.loads((state / "cost-ledger-coverage.json").read_text())
+            self.assertEqual(coverage["coverage_state"], "UNKNOWN")
+            net = json.loads((state / "rolling-net.json").read_text())
+            self.assertEqual(net["cost_coverage_state"], "UNKNOWN")
+            self.assertIsNone(net["approved_or_paid_net_usd"])
+
     def test_month_bucket_rows_for_one_link_are_aggregated(self):
         link = "https://try.elevenlabs.io/campaign-one"
         candidate = {
