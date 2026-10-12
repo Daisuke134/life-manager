@@ -20,7 +20,7 @@
 
 原則を一次資料で照合済み: Chrome headlessは通常Chromeと機能を共有（https://developer.chrome.com/docs/automation-and-testing/headless）、Playwright BrowserContextは互換なbrowser内で隔離再利用可能（https://playwright.dev/docs/browser-contexts）、Temporalは負荷別分離・実資源に合わせたworker調整/scaleを推奨（https://docs.temporal.io/best-practices/worker）。これを既存Life Managerへ適用し、Temporal/Kubernetes等の新基盤導入を現在の追加gateにしない。全実装がbest practiceに完全一致したという認証や、有限hardware/外部providerを含む永久ゼロ故障は主張しない。
 
-primaryは開発者Codex/Claudeと本番18業務agentを区別する。現役の独立修正担当は止めず、agmsg roster・実liveness・lease・成果物を確認して再利用する。新しい10/20/30開発sessionの一斉起動は現時点では実施しない。再開/増員は、対象仕事のRAM/disk peakと保存先、自然な終了→receipt→自己/中央cleanup→次仕事、予約/lock返却の実測から余裕と進行を確認できた時、primaryが重複しない責任範囲で段階的に行う。全18の修正済みを開発再開の前提にせず、未知effectの安全境界を持つ独立したsource修正/照合作業は基盤修復中も進める。Codex一時subagentの環境2枠を業務agentの数と混同しない。「1分で18全部完了」や20session起動自体を成果へ置換せず、各laneの公式成果条件で閉じる。
+primaryは開発者Codex/Claudeと本番18業務agentを区別する。Daisの明示指示でAGMSG team lmへ9 fresh Codex担当（Cloud/cleanup/投資/LINE/CFO/Mobile/Job Hunter/Gig/eBook）を起動する。各lane内は一人でserial、独立laneは並行し、既存live担当・lease・worktree・provider effectとの重複を避ける。primary lm-orchestrator-1012が共有release・資源調整・全体SSOT・統合を所有し、ClaudeのCapafy所有を保持する。旧handoverの完了状態を再実装せずfresh readbackで差分を確定する。初回goal packetと所有境界はdocs/superpowers/dispatch/2026-10-12を参照（実行TODO/状態の正本は本SSOTのみ）。起動・着手・完了を分けてreadbackし、登録だけで稼働/成果を主張しない。
 
 **全体architectureの判断とAs-Is/To-Be:** 18 agentは18業務capabilityであり、190の小さいjobがそれぞれのcadenceで実装する。最善の進め方は既存のdurable state/effect/receiptと、常時監督＋有限worker＋優先度/経過時間を扱うadmissionを土台に、実資源・業務進行から配分を調整することである。FIFOは同優先度の順序補助として使え、先頭の不適合/古い予約が全業務を止めるgateにしない。固定2/5/10は現設定であり、達成目標や永久の適正値ではない。開始時刻/時差/周期の分散はburstを減らすが、仕事の長期化/再試行/保存先共有があるため衝突や容量問題が無い証明にならない。
 
@@ -216,6 +216,8 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 **各atomの記録:** 状態、実施変更、検証command/result、run/owner/occurrence/release SHA、effect/readback/provider receipt、evidence参照、error_class、retryable、next_actionを残す。共有資源修復Doneと各laneの業務成果Doneを分離し、未達をpartialのまま明示する。
 
 ### 基盤だけのatomic TODO（現在の実行表）
+
+**9担当の起動cursor:** goal packet保存/commit/push→AGMSG fresh spawnを各担当へ実行→実session/最初のworking readback→所有確認→各lane先頭atom。本cohortは新しい開発担当であり本番業務loopの重複起動ではない。CFOは指定WT/PR #7714を引き継ぎ、primaryは同source編集を止める。cleanup BF15は受入済みなので、新たな実測漏れ以外を未完へ戻さない。旧11GiB条件は現ユーザー方針で診断値へ変更済み。世界初/無停止/誰でも百万長者は未実証の目標とし、公式成果なしに公開claim/Doneへしない。
 
 当面の対象はこの表だけ。下の全社130工程は将来の参照ロードマップであり、いま全社工程へ拡大しない。既存の「cleanup残3大分類」は本表の親分類で、進捗報告はBF-ID単位で完了証拠を示す。毎分watchdog、共通bounded出力/代表自己cleanup、Gig閉鎖物回収/再開、予約expiry順序、scratch通常file誤判定、backup失敗伝播と自然保存/対象claim返却は確認済みで、残項目へ戻さない。
 
