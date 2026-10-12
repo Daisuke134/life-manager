@@ -321,11 +321,13 @@ def _broker_cost_summary(
             raw_ids = row.get("order_ids")
             if (row.get("provider") != "alpaca"
                     or row.get("broker_costs_status") != "complete"
+                    or row.get("owner_id") != OWNER_ID
+                    or row.get("mode") != "paper" or row.get("paper") is not True
                     or not isinstance(raw_ids, list) or len(raw_ids) != 2
                     or any(not isinstance(item, str) or not item for item in raw_ids)):
                 raise ValueError
-            key = tuple(sorted(raw_ids))
-            if key in by_orders:
+            order_key = tuple(sorted(raw_ids))
+            if order_key in by_orders:
                 raise ValueError
             observed_at = _timestamp(row.get("observed_at"))
             period_start = _timestamp(row.get("period_start"))
@@ -348,38 +350,106 @@ def _broker_cost_summary(
                     or not isinstance(quote_rows, Mapping)
                     or not isinstance(account_scope, list) or not account_scope):
                 raise ValueError
-            fill_ids = set()
+            fill_ids: set[str] = set()
+            fill_order_ids: set[str] = set()
+            scope_by_fill: dict[tuple[str, str], set[str]] = {}
+            readback_gross = Decimal("0")
+            readback_slippage = Decimal("0")
             for fill in fill_rows:
                 if (not isinstance(fill, Mapping) or fill.get("activity_type") != "FILL"
                         or not isinstance(fill.get("id"), str)
-                        or fill.get("order_id") not in raw_ids):
+                        or not isinstance(fill.get("order_id"), str)
+                        or fill.get("order_id") not in raw_ids
+                        or not isinstance(fill.get("symbol"), str) or not fill.get("symbol")
+                        or fill.get("side") not in {"buy", "sell"}):
                     raise ValueError
-                fill_ids.add(fill["id"])
+                fill_id = fill["id"]
+                if fill_id in fill_ids:
+                    raise ValueError
+                fill_ids.add(fill_id)
+                fill_order_ids.add(fill["order_id"])
+                quantity = _number(fill.get("qty"), positive=True)
+                price = _number(fill.get("price"), positive=True)
+                filled_at = _timestamp(fill.get("transaction_time"))
+                if filled_at < period_start or filled_at > observed_at:
+                    raise ValueError
+                quote = quote_rows.get(fill_id)
+                if not isinstance(quote, Mapping):
+                    raise ValueError
+                quote_at = _timestamp(quote.get("t"))
+                bid = _number(quote.get("bp"), positive=True)
+                ask = _number(quote.get("ap"), positive=True)
+                quote_age = (filled_at - quote_at).total_seconds()
+                if quote_age < 0 or quote_age > 1 or ask < bid:
+                    raise ValueError
+                midpoint = (bid + ask) / 2
+                scope_key = (
+                    fill["symbol"],
+                    filled_at.astimezone(ZoneInfo("America/New_York")).date().isoformat(),
+                )
+                scope_by_fill.setdefault(scope_key, set()).add(fill["order_id"])
+                if fill["side"] == "buy":
+                    readback_gross -= quantity * price
+                    readback_slippage += (price - midpoint) * quantity
+                else:
+                    readback_gross += quantity * price
+                    readback_slippage += (midpoint - price) * quantity
             if fill_ids != set(quote_rows):
                 raise ValueError
-            fee_ids = set()
+            if fill_order_ids != set(raw_ids):
+                raise ValueError
+            fee_ids: set[str] = set()
+            fee_scope: set[tuple[str, str]] = set()
+            readback_fees = Decimal("0")
             for fee in fee_rows:
                 if (not isinstance(fee, Mapping) or fee.get("activity_type") != "FEE"
-                        or not isinstance(fee.get("id"), str)):
+                        or not isinstance(fee.get("id"), str)
+                        or not isinstance(fee.get("symbol"), str)
+                        or not isinstance(fee.get("date"), str)):
+                    raise ValueError
+                if fee["id"] in fee_ids:
                     raise ValueError
                 fee_ids.add(fee["id"])
+                scope_key = (fee["symbol"], fee["date"])
+                if scope_key not in scope_by_fill:
+                    raise ValueError
+                fee_scope.add(scope_key)
+                fee_amount = _number(fee.get("net_amount"))
+                if fee_amount >= 0:
+                    raise ValueError
+                readback_fees -= fee_amount
+            if fee_scope != set(scope_by_fill):
+                raise ValueError
+            scope_from_readback: dict[tuple[str, str], set[str]] = {}
             for scope in account_scope:
                 scope_ids = scope.get("order_ids") if isinstance(scope, Mapping) else None
-                if (not isinstance(scope_ids, list) or not scope_ids
-                        or not set(scope_ids) <= set(raw_ids)):
+                symbol = scope.get("symbol") if isinstance(scope, Mapping) else None
+                day = scope.get("date") if isinstance(scope, Mapping) else None
+                if (not isinstance(symbol, str) or not symbol or not isinstance(day, str)
+                        or not isinstance(scope_ids, list) or not scope_ids
+                        or any(not isinstance(value, str) or not value for value in scope_ids)):
                     raise ValueError
+                scope_key = (symbol, day)
+                if scope_key in scope_from_readback or len(scope_ids) != len(set(scope_ids)):
+                    raise ValueError
+                scope_from_readback[scope_key] = set(scope_ids)
+            if scope_from_readback != scope_by_fill:
+                raise ValueError
             quote_receipt_ids = {
                 f"alpaca-quote:{fill_id}:{quote.get('t')}"
                 for fill_id, quote in quote_rows.items() if isinstance(quote, Mapping)
             }
-            if not (fill_ids | fee_ids | quote_receipt_ids) <= set(receipts):
+            if set(receipts) != fill_ids | fee_ids | quote_receipt_ids:
                 raise ValueError
             gross = _number(row.get("broker_gross_pnl_usd"))
             fees = _number(row.get("broker_fees_usd"))
             slippage = _number(row.get("broker_slippage_usd"))
-            if fees < 0:
+            if (fees < 0
+                    or abs(gross - readback_gross) > Decimal("0.000001")
+                    or abs(fees - readback_fees) > Decimal("0.000001")
+                    or abs(slippage - readback_slippage) > Decimal("0.000001")):
                 raise ValueError
-            by_orders[key] = {
+            by_orders[order_key] = {
                 **dict(row),
                 "_gross": gross,
                 "_fees": fees,
@@ -553,8 +623,10 @@ def _broker_cost_cache(
             cached = json.loads(receipt_path.read_text(encoding="utf-8"))
             if (isinstance(cached, dict)
                     and sorted(cached.get("order_ids", [])) == sorted(order_ids)):
-                evidence.append(cached)
-                continue
+                cached_summary = _broker_cost_summary([trip], [cached])
+                if cached_summary["broker_costs_status"] == "complete":
+                    evidence.append(cached)
+                    continue
         except (OSError, json.JSONDecodeError, TypeError):
             pass
         try:
@@ -586,7 +658,16 @@ def _broker_cost_cache(
                     or sorted(receipt.get("order_ids", [])) != sorted(order_ids)
                     or receipt.get("broker_costs_status") != "complete"):
                 raise ValueError("paper_cost_receipt_invalid")
-            normalized = dict(receipt)
+            if (receipt.get("owner_id") not in (None, OWNER_ID)
+                    or receipt.get("mode") not in (None, "paper")
+                    or (receipt.get("paper") is not None and receipt.get("paper") is not True)):
+                raise ValueError("paper_cost_receipt_identity_mismatch")
+            normalized = {
+                **dict(receipt), "owner_id": OWNER_ID, "mode": "paper", "paper": True,
+            }
+            if (_broker_cost_summary([trip], [normalized])["broker_costs_status"]
+                    != "complete"):
+                raise ValueError("paper_cost_receipt_invalid")
             _atomic_json(receipt_path, normalized)
             evidence.append(normalized)
         except ValueError as error:

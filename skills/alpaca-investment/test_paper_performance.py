@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 import sys
 import tempfile
@@ -152,30 +153,41 @@ def _broker_cost_evidence() -> dict:
         "broker_fees_usd": "0.01",
         "broker_gross_pnl_usd": "0.250",
         "broker_slippage_usd": "-0.005",
+        "owner_id": OWNER,
+        "mode": "paper",
+        "paper": True,
         "observed_at": "2026-10-20T14:31:15Z",
         "order_ids": ["paper-entry", "paper-exit"],
         "period_start": "2026-09-29T14:30:00Z",
         "provider": "alpaca",
         "provider_readback": {
-            "account_fill_order_ids_by_symbol_date": [{
-                "symbol": "QQQ", "date": "2026-09-29",
-                "order_ids": ["paper-entry", "paper-exit"],
-            }],
-            "fees": [{"id": "fee-1", "activity_type": "FEE", "symbol": "QQQ",
-                      "date": "2026-09-29", "net_amount": "-0.01"}],
+            "account_fill_order_ids_by_symbol_date": [
+                {"symbol": "QQQ", "date": "2026-09-29", "order_ids": ["paper-entry"]},
+                {"symbol": "QQQ", "date": "2026-10-20", "order_ids": ["paper-exit"]},
+            ],
+            "fees": [
+                {"id": "fee-entry", "activity_type": "FEE", "symbol": "QQQ",
+                 "date": "2026-09-29", "net_amount": "-0.005"},
+                {"id": "fee-exit", "activity_type": "FEE", "symbol": "QQQ",
+                 "date": "2026-10-20", "net_amount": "-0.005"},
+            ],
             "fills": [
-                {"id": "fill-entry", "activity_type": "FILL", "order_id": "paper-entry"},
-                {"id": "fill-exit", "activity_type": "FILL", "order_id": "paper-exit"},
+                {"id": "fill-entry", "activity_type": "FILL", "order_id": "paper-entry",
+                 "symbol": "QQQ", "side": "buy", "qty": "0.025", "price": "400",
+                 "transaction_time": "2026-09-29T14:31:05Z"},
+                {"id": "fill-exit", "activity_type": "FILL", "order_id": "paper-exit",
+                 "symbol": "QQQ", "side": "sell", "qty": "0.025", "price": "410",
+                 "transaction_time": "2026-10-20T14:31:05Z"},
             ],
             "quotes_by_fill_id": {
-                "fill-entry": {"t": "2026-09-29T14:31:05Z", "bp": "400", "ap": "400.02"},
-                "fill-exit": {"t": "2026-10-20T14:31:00Z", "bp": "410", "ap": "410.02"},
+                "fill-entry": {"t": "2026-09-29T14:31:05Z", "bp": "400", "ap": "400"},
+                "fill-exit": {"t": "2026-10-20T14:31:04Z", "bp": "409.79", "ap": "409.81"},
             },
         },
         "source_receipt_ids": [
-            "fill-entry", "fill-exit", "fee-1",
+            "fill-entry", "fill-exit", "fee-entry", "fee-exit",
             "alpaca-quote:fill-entry:2026-09-29T14:31:05Z",
-            "alpaca-quote:fill-exit:2026-10-20T14:31:00Z",
+            "alpaca-quote:fill-exit:2026-10-20T14:31:04Z",
         ],
     }
 
@@ -386,6 +398,42 @@ class PaperPerformanceTests(unittest.TestCase):
             "fees", "slippage", "model", "system",
         ])
 
+    def test_broker_cost_receipt_from_another_owner_or_mode_is_not_joined(self):
+        evidence = _broker_cost_evidence()
+        evidence.update({"owner_id": "alpaca-investment-live", "mode": "live", "paper": False})
+
+        result = build_paper_performance(
+            _rows(), OBSERVATION, RISK, broker_cost_evidence=[evidence],
+        )
+
+        self.assertEqual(result["broker_costs_status"], "unknown")
+        self.assertIsNone(result["fees_usd"])
+        self.assertIsNone(result["slippage_usd"])
+
+    def test_broker_fee_total_must_match_official_fee_rows(self):
+        evidence = _broker_cost_evidence()
+        evidence["broker_fees_usd"] = "0.02"
+
+        result = build_paper_performance(
+            _rows(), OBSERVATION, RISK, broker_cost_evidence=[evidence],
+        )
+
+        self.assertEqual(result["broker_costs_status"], "unknown")
+        self.assertEqual(result["broker_costs_reason"], "paper_cost_receipt_mismatch")
+        self.assertIsNone(result["fees_usd"])
+
+    def test_broker_slippage_total_must_match_official_fill_and_quote_rows(self):
+        evidence = _broker_cost_evidence()
+        evidence["broker_slippage_usd"] = "-0.006"
+
+        result = build_paper_performance(
+            _rows(), OBSERVATION, RISK, broker_cost_evidence=[evidence],
+        )
+
+        self.assertEqual(result["broker_costs_status"], "unknown")
+        self.assertEqual(result["broker_costs_reason"], "paper_cost_receipt_mismatch")
+        self.assertIsNone(result["slippage_usd"])
+
     def test_broker_cost_receipt_from_a_different_period_is_not_joined(self):
         evidence = _broker_cost_evidence()
         evidence["period_start"] = "2026-10-01T14:31:05Z"
@@ -405,7 +453,11 @@ class PaperPerformanceTests(unittest.TestCase):
                 "".join(json.dumps(row) + "\n" for row in _rows()), encoding="utf-8",
             )
             from unittest.mock import Mock
-            reader = Mock(return_value=_broker_cost_evidence())
+            reader_receipt = _broker_cost_evidence()
+            reader_receipt.pop("owner_id")
+            reader_receipt.pop("mode")
+            reader_receipt.pop("paper")
+            reader = Mock(return_value=reader_receipt)
 
             first = write_paper_performance(
                 state, OBSERVATION, RISK, broker_cost_reader=reader,
@@ -413,10 +465,49 @@ class PaperPerformanceTests(unittest.TestCase):
             second = write_paper_performance(
                 state, OBSERVATION, RISK, broker_cost_reader=reader,
             )
+            saved = json.loads(next(state.glob("performance-cost-*.json")).read_text(encoding="utf-8"))
 
         self.assertEqual(reader.call_count, 1)
         self.assertEqual(first["fees_usd"], "0.01")
         self.assertEqual(second["fees_usd"], "0.01")
+        self.assertEqual(saved["owner_id"], OWNER)
+        self.assertEqual(saved["mode"], "paper")
+        self.assertIs(saved["paper"], True)
+
+    def test_writer_refreshes_saved_cost_receipt_with_wrong_mode(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            (state / "receipts.jsonl").write_text(
+                "".join(json.dumps(row) + "\n" for row in _rows()), encoding="utf-8",
+            )
+            digest = hashlib.sha256(
+                "\0".join(sorted(["paper-entry", "paper-exit"])).encode("utf-8")
+            ).hexdigest()[:20]
+            stale = _broker_cost_evidence()
+            stale.update({"owner_id": "alpaca-investment-live", "mode": "live", "paper": False})
+            (state / f"performance-cost-{digest}.json").write_text(
+                json.dumps(stale), encoding="utf-8",
+            )
+            reader_receipt = _broker_cost_evidence()
+            reader_receipt.pop("owner_id")
+            reader_receipt.pop("mode")
+            reader_receipt.pop("paper")
+            from unittest.mock import Mock
+            reader = Mock(return_value=reader_receipt)
+
+            result = write_paper_performance(
+                state, OBSERVATION, RISK, broker_cost_reader=reader,
+            )
+            saved = json.loads(
+                (state / f"performance-cost-{digest}.json").read_text(encoding="utf-8"),
+            )
+
+        self.assertEqual(reader.call_count, 1)
+        self.assertEqual(result["broker_costs_status"], "complete")
+        self.assertEqual(result["fees_usd"], "0.01")
+        self.assertEqual(saved["owner_id"], OWNER)
+        self.assertEqual(saved["mode"], "paper")
+        self.assertIs(saved["paper"], True)
 
     def test_daily_writer_joins_only_cost_receipts_for_trips_closed_that_day(self):
         def reader(*, orders, period_start):
@@ -429,24 +520,35 @@ class PaperPerformanceTests(unittest.TestCase):
             buy_fill, sell_fill = f"{tag}-buy-fill", f"{tag}-sell-fill"
             fee_id = f"{tag}-fee"
             readback = evidence["provider_readback"]
+            entry_day = "2026-09-20" if tag == "prior" else "2026-09-29"
+            exit_day = "2026-09-22" if tag == "prior" else "2026-10-20"
+            entry_time = f"{entry_day}T14:31:05Z"
+            exit_time = f"{exit_day}T14:31:05Z"
             readback["fills"] = [
-                {"id": buy_fill, "activity_type": "FILL", "order_id": orders[0]["id"]},
-                {"id": sell_fill, "activity_type": "FILL", "order_id": orders[1]["id"]},
+                {"id": buy_fill, "activity_type": "FILL", "order_id": orders[0]["id"],
+                 "symbol": "QQQ", "side": "buy", "qty": "0.025", "price": "400",
+                 "transaction_time": entry_time},
+                {"id": sell_fill, "activity_type": "FILL", "order_id": orders[1]["id"],
+                 "symbol": "QQQ", "side": "sell", "qty": "0.025", "price": "410",
+                 "transaction_time": exit_time},
             ]
-            readback["fees"] = [{
-                "id": fee_id, "activity_type": "FEE", "symbol": "QQQ",
-                "date": "2026-09-20" if tag == "prior" else "2026-09-29",
-                "net_amount": "-0.01",
-            }]
+            readback["fees"] = [
+                {"id": f"{fee_id}-entry", "activity_type": "FEE", "symbol": "QQQ",
+                 "date": entry_day, "net_amount": "-0.005"},
+                {"id": f"{fee_id}-exit", "activity_type": "FEE", "symbol": "QQQ",
+                 "date": exit_day, "net_amount": "-0.005"},
+            ]
             readback["quotes_by_fill_id"] = {
-                buy_fill: {"t": "2026-09-20T14:31:05Z", "bp": "400", "ap": "400.02"},
-                sell_fill: {"t": "2026-09-22T14:31:00Z", "bp": "410", "ap": "410.02"},
+                buy_fill: {"t": entry_time, "bp": "400", "ap": "400"},
+                sell_fill: {
+                    "t": exit_time.replace("14:31:05", "14:31:04"),
+                    "bp": "409.79", "ap": "409.81",
+                },
             }
-            readback["account_fill_order_ids_by_symbol_date"] = [{
-                "symbol": "QQQ",
-                "date": "2026-09-20" if tag == "prior" else "2026-09-29",
-                "order_ids": [order["id"] for order in orders],
-            }]
+            readback["account_fill_order_ids_by_symbol_date"] = [
+                {"symbol": "QQQ", "date": entry_day, "order_ids": [orders[0]["id"]]},
+                {"symbol": "QQQ", "date": exit_day, "order_ids": [orders[1]["id"]]},
+            ]
             evidence.update({
                 "broker_gross_pnl_usd": str(trip["gross_pnl_usd"]),
                 "observed_at": "2026-09-23T14:31:15Z" if tag == "prior"
@@ -454,9 +556,9 @@ class PaperPerformanceTests(unittest.TestCase):
                 "order_ids": [order["id"] for order in orders],
                 "period_start": period_start,
                 "source_receipt_ids": [
-                    buy_fill, sell_fill, fee_id,
-                    f"alpaca-quote:{buy_fill}:2026-09-20T14:31:05Z",
-                    f"alpaca-quote:{sell_fill}:2026-09-22T14:31:00Z",
+                    buy_fill, sell_fill, f"{fee_id}-entry", f"{fee_id}-exit",
+                    f"alpaca-quote:{buy_fill}:{entry_time}",
+                    f"alpaca-quote:{sell_fill}:{exit_time.replace('14:31:05', '14:31:04')}",
                 ],
             })
             return evidence
