@@ -14,9 +14,11 @@ class Due(unittest.TestCase):
     hours Capafy does not publish to the same landing checkout (10:15/13:15)."""
 
     def test_each_publish_hour_is_its_own_slot(self) -> None:
+        # Dais 2026-10-12: maximize distribution without Instagram; 15 slots, never Capafy's 10/13.
+        self.assertEqual(len(MODULE.PUBLISH_HOURS), 15)
         for hour in MODULE.PUBLISH_HOURS:
             self.assertTrue(MODULE.due(dt.datetime(2026, 10, 11, hour, 6, tzinfo=JST), {}))
-        for hour in (10, 11, 13, 14):
+        for hour in (10, 13, 3):
             self.assertFalse(MODULE.due(dt.datetime(2026, 10, 11, hour, 6, tzinfo=JST), {}))
 
     def test_published_or_exhausted_slots_are_not_due(self) -> None:
@@ -33,11 +35,17 @@ class Pick(unittest.TestCase):
         ledger = {"2026-10-08": {"status": "published", "set_id": "set-005"},
                   "2026-10-09": {"status": "published", "set_id": "set-009"},
                   "2026-10-10@12": {"status": "published", "set_id": "set-003"}}
-        self.assertEqual(MODULE.pick(self.SETS, ledger, "seed")["set_id"], "set-012")
+        self.assertEqual(MODULE.pick(self.SETS, ledger, "seed", hour=15)["set_id"], "set-012")
+
+    def test_once_every_set_is_covered_only_the_noon_slot_writes(self) -> None:
+        # One article per set first; after that one a day, so the site is not flooded with repeats.
+        ledger = {str(i): {"status": "published", "set_id": s["set_id"]} for i, s in enumerate(self.SETS)}
+        self.assertIsNone(MODULE.pick(self.SETS, ledger, "seed", hour=15))
+        self.assertIsNotNone(MODULE.pick(self.SETS, ledger, "seed", hour=12))
 
     def test_once_every_set_has_one_the_rotation_continues(self) -> None:
         ledger = {str(i): {"status": "published", "set_id": s["set_id"]} for i, s in enumerate(self.SETS)}
-        self.assertIn(MODULE.pick(self.SETS, ledger, "seed")["set_id"], {s["set_id"] for s in self.SETS})
+        self.assertIn(MODULE.pick(self.SETS, ledger, "seed", hour=12)["set_id"], {s["set_id"] for s in self.SETS})
 
 
 class BuildMarkdown(unittest.TestCase):

@@ -82,11 +82,27 @@ class FullRun(unittest.TestCase):
     def test_one_run_takes_a_new_set_all_the_way_to_submitted(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             state_root = Path(tmp)
-            report = MODULE.run(state_root, _fake_deps(max_sets_per_day=5))
+            report = MODULE.run(state_root, _fake_deps(max_sets_per_day=1))
             self.assertEqual(MODULE.read_stage(state_root / "set-001"), "submitted")
-            self.assertEqual(report["action"], "advanced")
-            self.assertEqual(report["next_stage"], "submitted")
-            self.assertFalse((state_root / "set-002").exists())  # next set waits for the next run
+            self.assertEqual(report["reason"], "daily_cap_reached")  # it went on to try the next set
+
+    def test_one_run_keeps_making_sets_until_the_daily_cap(self) -> None:
+        # Dais 2026-10-12: submit as many as possible. One set per launch left the factory at 1-11 sets
+        # a day; a launch now keeps going set after set while it has time.
+        with tempfile.TemporaryDirectory() as tmp:
+            state_root = Path(tmp)
+            report = MODULE.run(state_root, _fake_deps(max_sets_per_day=3))
+            self.assertEqual([MODULE.read_stage(state_root / f"set-00{n}") for n in (1, 2, 3)], ["submitted"] * 3)
+            self.assertFalse((state_root / "set-004").exists())
+            self.assertEqual(report["reason"], "daily_cap_reached")
+
+    def test_one_run_stops_starting_sets_when_its_time_is_used(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_root = Path(tmp)
+            ticks = iter([0, MODULE.RUN_BUDGET_SECONDS + 1, MODULE.RUN_BUDGET_SECONDS + 2])
+            MODULE.run(state_root, _fake_deps(max_sets_per_day=5), clock=lambda: next(ticks))
+            self.assertEqual(MODULE.read_stage(state_root / "set-001"), "submitted")
+            self.assertFalse((state_root / "set-002").exists())
 
     def test_run_stops_on_retry_instead_of_spinning(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -122,7 +138,7 @@ class SubmitNotifyTitle(unittest.TestCase):
         payloads = []
         with tempfile.TemporaryDirectory() as tmp:
             deps = _fake_deps(
-                max_sets_per_day=5,
+                max_sets_per_day=1,
                 submit=lambda set_dir, item, listing, tags: {
                     "product_id": "123", "url": "https://example.test/sticker/123",
                     "state": "review_requested", "title_ja": "ポンタのテスト",
@@ -142,8 +158,7 @@ class FullRunSubmit(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp:
             state_root = Path(tmp)
-            report = MODULE.run(state_root, _fake_deps(submit=staged_submit))
-            self.assertEqual(report["next_stage"], "submitted")
+            MODULE.run(state_root, _fake_deps(submit=staged_submit, max_sets_per_day=1))
             self.assertEqual(MODULE.read_stage(state_root / "set-001"), "submitted")
 
 

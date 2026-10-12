@@ -986,6 +986,28 @@
       "state_root": "~/.local/state/life-manager/line-sticker-distribute",
       "system_role": "shared"
     },
+    "line-sticker-articles": {
+      "priority": "revenue",
+      "resource_class": "deterministic",
+      "admission_class": "revenue",
+      "coalesce_reserved_wakes": true,
+      "coalesce_queued_wakes": true,
+      "cadence": {
+        "start_interval_seconds": 900
+      },
+      "cleanup": {
+        "max_age_days": 14,
+        "max_runs": 100
+      },
+      "domain": "earn",
+      "effect_class": "publish",
+      "effect_reconcile": {"argv": ["skills/earn/line-sticker-distribute/scripts/article_fence_reconcile.py"], "occurrence_flag": "--occurrence", "resolve_flag": "--resolve", "timeout_seconds": 180}, "entrypoint": "skills/earn/line-sticker-distribute/line-sticker-articles.sh",
+      "label": "ai.anicca.line-sticker-articles",
+      "log_root": "~/.local/state/life-manager/line-sticker-articles/logs",
+      "provider_route": "deterministic",
+      "state_root": "~/.local/state/life-manager/line-sticker-articles",
+      "system_role": "shared"
+    },
     "line-creators-browser": {
       "adapter": "exec",
       "browser_owner": {
