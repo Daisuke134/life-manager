@@ -639,52 +639,59 @@ async function executeMarketingVideoPublicationJob(job, deps = {}) {
     const message = error && error.message ? error.message : String(error);
     throw Object.assign(new Error(message, { cause: error }), { unknownEffect: true });
   }
-  // The provider has returned; any later validation or persistence failure can hide a completed publish.
+  const validResult = Boolean(
+    result
+    && typeof result === "object"
+    && result.creative_id === contract.creativeId
+    && result.video_sha256 === videoHash
+    && result.caption_sha256 === captionHash
+    && result.platform === contract.platform
+    && validPublicUrl(contract.platform, result.public_url),
+  );
+  if (!validResult) {
+    const error = new Error("marketing video publication provider result contract mismatch");
+    error.unknownEffect = true;
+    throw error;
+  }
+  if (
+    !PROVIDER_POST_ID.test(String(result.provider_post_id || ""))
+    || !PROVIDER_ROUTES.has(result.provider_route)
+  ) {
+    const error = new Error("marketing video publication provider metric join keys are missing");
+    error.unknownEffect = true;
+    throw error;
+  }
+  let publishedAt;
   try {
-    const validResult = Boolean(
-      result
-      && typeof result === "object"
-      && result.creative_id === contract.creativeId
-      && result.video_sha256 === videoHash
-      && result.caption_sha256 === captionHash
-      && result.platform === contract.platform
-      && validPublicUrl(contract.platform, result.public_url),
-    );
-    if (!validResult) {
-      const error = new Error("marketing video publication provider result contract mismatch");
-      error.unknownEffect = true;
-      throw error;
-    }
-    if (
-      !PROVIDER_POST_ID.test(String(result.provider_post_id || ""))
-      || !PROVIDER_ROUTES.has(result.provider_route)
-    ) {
-      const error = new Error("marketing video publication provider metric join keys are missing");
-      error.unknownEffect = true;
-      throw error;
-    }
-    const receipt = {
-      schema_version: 1,
-      kind: "marketing_video_distribution",
-      status: "published",
-      product_id: contract.productId,
-      format_id: contract.formatId,
-      form: contract.form,
-      locale: contract.locale,
-      slot: contract.slot,
-      creative_id: contract.creativeId,
-      platform: contract.platform,
-      video_sha256: videoHash,
-      caption_sha256: captionHash,
-      public_url: result.public_url,
-      provider_post_id: result.provider_post_id,
-      provider_route: result.provider_route,
-      provider_reconciled: result.provider_reconciled === true,
-      published_at: services.now(),
-    };
-    if (!verifyMarketingVideoPublicationReceipt(receipt)) {
-      throw new Error("marketing video publication receipt verification failed");
-    }
+    publishedAt = services.now();
+  } catch (error) {
+    throw Object.assign(new Error(error?.message || String(error), { cause: error }), { unknownEffect: true });
+  }
+  const receipt = {
+    schema_version: 1,
+    kind: "marketing_video_distribution",
+    status: "published",
+    product_id: contract.productId,
+    format_id: contract.formatId,
+    form: contract.form,
+    locale: contract.locale,
+    slot: contract.slot,
+    creative_id: contract.creativeId,
+    platform: contract.platform,
+    video_sha256: videoHash,
+    caption_sha256: captionHash,
+    public_url: result.public_url,
+    provider_post_id: result.provider_post_id,
+    provider_route: result.provider_route,
+    provider_reconciled: result.provider_reconciled === true,
+    published_at: publishedAt,
+  };
+  if (!verifyMarketingVideoPublicationReceipt(receipt)) {
+    const error = new Error("marketing video publication receipt verification failed");
+    error.unknownEffect = true;
+    throw error;
+  }
+  try {
     appendFreshnessRow(freshnessPath, {
       receipt: {
         integration_ref: contract.postizIntegrationRef,
@@ -692,12 +699,10 @@ async function executeMarketingVideoPublicationJob(job, deps = {}) {
         published_at: receipt.published_at,
       },
     });
-    return { receipt, result };
   } catch (error) {
-    if (error && error.unknownEffect === true) throw error;
-    const message = error && error.message ? error.message : String(error);
-    throw Object.assign(new Error(message, { cause: error }), { unknownEffect: true });
+    throw Object.assign(new Error(error?.message || String(error), { cause: error }), { unknownEffect: true });
   }
+  return { receipt, result };
 }
 
 function readLedgerRows(ledgerPath) {
