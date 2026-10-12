@@ -14606,7 +14606,11 @@ RevenueCatのNew Customersは初回SDK観測/初回購入を基準にし、再in
 20. [ ] 1,000 first-time downloads/dayの後にAnicca RevenueCat MRR USD 10,000を目指す。同期間のnew/active/trial/paid→settled proceeds/refunds/fees/actual costsをweeklyで照合し、MRRとnetを別表示する。
 21. [ ] Aniccaでrepeatできた無料distribution→measurement→conversion systemをHonne/他iOS appへapp別に展開し、各USD 10,000 verified MRR、会社全体USD 10M MRRを目指す。
 22. [ ] 最後にPostiz OSSへ移行する。Cloudを使いながら成長を続け、既存host/domainのみで公式Composeを起動する。全対象platformのofficial PUBLISHED receipt・自然な再readback・実月額総費用を確認後に限りCloud USD 90/月を止める。新server/domain/provider spendが必要なら無料と呼ばず費用を明記する。
-**現在cursor（16:59 JST）:** item 9。PR #7779 main SHA `5733ec55`、73 focused tests PASS、required CI PASS、independent review Ship。immutable release cutはrequired 241,065,984 bytesに対しavailable 273 MiBでtar export中にENOSPCとなった。partial releaseとlockはcleanup済み、`current` symlinkは旧`36fee4dc`のまま、TikTok ownerは旧`66f04769`で`safely_fenced`。Admission DBの4,258件は未解決`effect_unknown` occurrence数であり、投稿数ではない。owner identity sidecarは5件、pending occurrenceとの一致0。targeted `pre-effect-reconcile --dry-run`はresolved 0/4,258（`history_incomplete` 3,580、`no_pre_effect_terminal` 674、`terminal_not_claiming_run` 3、`claimed_by_multiple_runs` 1）。公式Postiz reconcileは`identity_missing_or_invalid`/`no_match`。解除・再送・applyは0。TikTok次slotは20:15 JST。独立YouTube `@anicca-ai`は16:58:53 JSTにofficial receipt `cmv4r7ku820heqz0y0830dozk`を記録した一方、ownerにも423件のhistorical effect fenceが残る。別Anicca YouTube ownerは16:58:32 JSTに`honne JA marketing.liveness.telegram job is not claimable`でexit1/effect_unknown、receiptなし。再送せずofficial readbackを要す。item5 `@anicca.en` profile campaign link更新はowner mapping未確認でopenのまま。
+**現在cursor（17:48 JST）:** item 9のsource/release/adoptionは完了、official natural-post acceptance待ち。
+- **Release/owner:** PR #7779のCTA修正（73 focused tests PASS、required CI PASS、independent review Ship）を含むlatest main `4101fc78`からrelease `20261012T174009-4101fc78`を作成。TikTok labelだけをtargeted reconcileし、`loaded-idle`/SHA `4101fc78`をreadback。`admission_resumed=false`。PR #7784のclosure-proof bindingもreleaseに含む。
+- **Creative pool:** TikTok rotationの15/15既存候補をobject参照先まで検査し、すべて旧`Link in bio` CTAを確認。resolverは15件を選択から外し、候補数が不足すればlocal deterministic copyと既存cached backgroundsでgate-approved packを補充する（model/image APIなし）。生成・投稿の成功は次の自然slotで確認する。
+- **Effect/capacity:** `pre-effect-reconcile --dry-run`は0/4,259 resolved（`history_incomplete` 3,580、`no_pre_effect_terminal` 675、`terminal_not_claiming_run` 3、`claimed_by_multiple_runs` 1）。証拠なしに解除・再送しない。最新hot-cleanup receiptは08:42Zに`ok=true`、free_after 1,487,233,024 bytes、reclaimed 11,608,368 bytes。2 GiB recovery diagnosticは未達だが、release capacity gateは通過。
+- **Next:** 20:15 JSTの自然実行を確認し、1回だけのofficial `PUBLISHED` receipt、creative ID、provider post ID、permalinkを照合する。post effectがunknownなら再送せず公式readbackを続ける。receipt後にitem 10/11の3 distinct posts per armと24h/7d native metricsへ進む。
 **Shortsのconversion境界:** YouTube公式 `https://support.google.com/youtube/answer/13748639?hl=en` はShortsのdescription/comment URLがnon-clickable、channel profile linksがclickableと説明する。従ってYouTube app CTAはchannel profile linkへ誘導し、descriptionにcampaign URLも保持する。公開profileのリンク先がAniccaであることを確認するまでfunnel完成としない。Apple campaign linkの設定を実install attributionや追加売上の証拠としない。
 
 ### 2026-10-12 16:38 JST — stale scratch after effect reconciliation
@@ -15110,3 +15114,33 @@ Capafy公式Xの公開indexには、Ocupの100 sales紹介と、あるcreatorの
 **次cursor:** (1) direct watchdogのnatural candidate rotationで2 GiB以上の空きをreceipt確認、(2) 17:00:59のverified no-effect proofとadmission releaseのprovenance差を追跡し、再投稿/重複のない状態を維持、(3)17:11頃のfactory natural wakeで`9675561238`の最後のresume attemptを追う、(4)capacity回復後の17:19 natural distributor receiptでHook Lab24/48とCTを確認する。first-paid milestoneと$10K MRRは未達。
 
 **調査参照:** `skills/earn/capafy-marketing/scripts/capafy_hourly_reconcile.py`、`skills/earn/capafy-marketing/scripts/capafy_scoreboard.py`、`skills/capafy-autopublish/scripts/inventory_status.py`、`skills/capafy-autopublish/CP1_AGENTIC.md`、`skills/capafy-autopublish/PUBLISHING_RUNBOOK.md`、`skills/capafy/FROZEN.json`。公開比較対象: [HookAce](https://capafy.ai/agent/hookace-first-6-second-retention-predictor/3264203863)、[Ocup Football Analysis](https://capafy.ai/agent/ocup-analysis/2553639947)、[Serenity Stock Tracker](https://capafy.ai/agent/serenity-stock-tracker/2521387714)、[TikTok Scripts](https://capafy.ai/agent/6182575730)、[CapafyのOcup 100 sales投稿](https://x.com/Capafyai/status/2069420218057904378)、[初週$4,208/short-videoのCapafy事例](https://x.com/Capafyai/status/2072302872654499993)。
+
+## Capafy buyer-query rank update 2026-10-12 17:46 JST
+
+この追記は17:01 cursorの「buyer query rank unknown」をrank測定について更新する。検索impressions・query volume・検索需要の分母は引き続きunknown。
+
+- Capafy公式buyer画面のJavaScriptはPOST /public/searchを呼び、API hostはhttps://api.capafy.ai。request bodyはquery・page・pageSizeで、buyer画面はpageSize=30。認証headerなしのread-only requestでHTTP 200 / code 0を確認した。公開OpenAPI https://capafy.ai/openapi.json にはこのpublic routeが記載されず、seller/user routeのPOST /agent/agents/searchとは別endpoint。計測は公式画面の現在の動作を再現するが、公開契約にはないため毎回status・response shapeを確認する。
+- 順位はresponse listの1始まりposition。今回のpage 1/30件結果を /Users/anicca/.local/state/life-manager/state/capafy-public-search-ranks.json に保存した（2026-10-12 17:40 JST、mode 0600）。result scoreはnullで、endpointはquery impressions/search volumeを返さない。targetが30件にない場合は「31位以降または未掲載」であり、全件不存在とは扱わない。salesVolumeとratingは公開listing fieldであり、order readback・MRR・一定期間のsalesとはjoinしない。
+
+| 固定query | Anicca seller listing rank（page 1） | 公開結果の比較 |
+|---|---|---|
+| hook | Hook Lab #3 | HookAce #2、salesVolume 1,002、rating 4.3。Hook Labは#3、salesVolume 12。 |
+| tiktok script | TikTok Script Pro #1 | TikTok Scripts #5、salesVolume 78、rating 3.8。TikTok Script Proのpublic salesVolumeは4。 |
+| youtube script writer | YouTube Script Writer #1 | YouTube Scripts #2、salesVolume 69、rating 2.3。 |
+| marketing strategist | Marketing Strategist #1 | Marketing Strategy #5、salesVolume 9、rating 4.7。 |
+| short form video script | TikTok Script Pro #9、YouTube Script Writer #22 | 狭いexact queryでは上位、broader queryでは下がる。 |
+| subtitle readability | SRT Subtitle Readability Fixer 8767154808はtop 30外 | 8767154808は最後のofficial readbackでunder_review。未掲載をranking failureと断定しない。SRT Bilingual Line Swapperが#1、salesVolume 234。 |
+| privacy notice change | Privacy Notice Change Brief Deck 9675561238はtop 30外 | 9675561238はdraft placeholder。未掲載から需要ゼロを推定しない。 |
+
+**配信判断:** existing winnerのpageは編集せず、FROZEN sellerの外部配信だけを続ける。16:08 JSTの30日source snapshotではsearch 814 views / 10 attributed paid、hot 71 / 5。per-Agent search rowsはYouTube Script Writer 4 paid / 13 views、TikTok Script Pro 3 / 21、Marketing Strategist 2 / 153、Hook Lab 1 / 378。hotはHook Lab 5 / 39、Marketing Strategist 0 / 30。source-paidは一致するが、Agent別viewsはaccount source totalと加算一致しない（search 783対814、hot 72対71、ai_overview 550対548、Google 40対39、instagram_bio 53対39）。global viewsとAgent別viewsを別系列で保存し、views/paid比は因果的CVRと呼ばない。estimated profitはCapafy 20% share仮定を含み、settled profitではない。
+
+直近のCTは6 views / 0 paid（slides_ig 2、hooklab_ig 2、youtube_ig 1、tiktok_blog 1）。X由来CTは0。既存48枠selectorはHook Lab 24、TikTok Script Pro 8、Marketing Strategist 8、YouTube Script Writer 8のまま維持し、投稿量は増やさない。Hook Labのhot経由paidと他3件のexact-query search paidを別々に追う。新Agent枠は既に順位1位のbuyer jobを重複せず、空いている高意図queryに固有の納品物を割り当てる。順位・listing salesVolumeだけで枠を使わず、query別page views→trial→paidを同時追跡する。
+
+**Revenue / factory / distribution as-of 17:46 JST:** 最新Capafy money fileはmtime 16:16、observed_at 16:08、orders 70 / gross $102.75、net_mrr_usd=null / settled_mrr_usd=null。capafy_hourly_reconcile.py --money --jsonのread-only実行は180秒timeoutし、stateは更新していない。first-paid milestoneは未達。dfは17:42に1,441,796 KiB、17:46に4,424,372 KiB free（約4.22 GiB）を示したが、disk-cleanup last-receipt/candidate-cursorは10/9、host-inventoryは9/9で、増加元をowner receiptから確認できない。17:41 factory occurrence 18ddbb858e5de8a8-13704はhost_admission_deferred:resource_capacity_busy, effect not_applicable。17:46 statusはloaded-running PID 45869を示し、psでも同PIDが存続。原因はdiskと断定せずnatural terminalを待つ。配信ownerのcurrent effect_unknownは 18ddba95d7238480-19441（17:23 JST）。17:28のregistered distributor adapterはtoo_recent:546s<=5100sでheldし、再送していない。no-effect proofの最短時刻は18:44:10 JST。latest published ledgerは引き続きh14m30。
+
+**Current cursor（17:46 JST）:**
+1. live factory occurrence 18ddbb858e5de8a8-13704のnatural terminalを読み、resource_capacity_busyが解消した時だけ次の通常runへ進む。new-Agent操作を重複しない。
+2. df上は4.22 GiB freeだが、cleanup receiptとinventoryは古く、増加元はunknown。既存disk-watchdogのfresh receiptを取得し、allowlistとbefore/afterで回復元を確認する。latest resource_capacity_busyをdisk原因と決めつけない。
+3. distributor occurrence 18ddba95d7238480-19441は18:44:10 JST以降にregistered capafy_distribute_fence_reconcile.pyでreadbackする。effect/no-effectを証拠で判定し、closed receiptがなければ投稿を再送しない。
+4. 次のnatural hourly successでofficial orders/gross/refunds/MRR/source readbackを更新する。直接money read timeoutの境界を診断し、16:08 snapshotをcurrentと呼ばない。
+5. 7 queryのbuyer rankを日次で保存し、search/hot/ai_overviewのviews・trials・paidとAgent別に結ぶ。impressions/query volumeはprovider sourceが見つかるまでunknownを保持する。CTが増えた時だけoriginal creativeを一件ずつscaleする。
