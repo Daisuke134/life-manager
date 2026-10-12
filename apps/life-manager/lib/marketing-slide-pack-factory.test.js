@@ -9,7 +9,7 @@ const { spawnSync } = require("node:child_process");
 const test = require("node:test");
 
 const { createContentObjectStore } = require("./content-object-store.js");
-const { JA_LANE } = require("./marketing-native-carousel-publication-adapter.js");
+const { EN_AFFIRMATION_TIKTOK_LANE, JA_LANE } = require("./marketing-native-carousel-publication-adapter.js");
 const { SLIDE_COUNT } = require("./marketing-slide-pack-gate.js");
 const { generateSlidePackCandidates, FAMILIES, MAX_PACK_COST_USD } = require("./marketing-slide-pack-factory.js");
 
@@ -180,6 +180,43 @@ test("generateSlidePackCandidates makes the last slide an app CTA screen with th
   const lastSlide = pack.slides[SLIDE_COUNT - 1];
   assert.match(lastSlide.text, /Anicca/);
   assert.match(lastSlide.text, /プロフィールのリンクから/);
+});
+
+test("TikTok packs contain one searchable App Store CTA and no false bio link", { timeout: 60_000 }, async (t) => {
+  const dataDir = tempDir("slide-pack-tiktok-cta-");
+  const workspaceDir = tempDir("slide-pack-tiktok-workspace-");
+  const imageCacheDir = tempDir("slide-pack-tiktok-cache-");
+  const objectStore = createContentObjectStore({ objectDir: path.join(dataDir, "objects") });
+  const lane = EN_AFFIRMATION_TIKTOK_LANE;
+  const candidates = await generateSlidePackCandidates({
+    objectStore,
+    workspaceDir,
+    imageCacheDir,
+    tenantId: "dais-local",
+    productId: lane.productId,
+    locale: lane.locale,
+    platform: lane.platform,
+    accountId: lane.accountId,
+    integrationRef: lane.integrationRef,
+    rendererId: lane.renderer,
+    packFormat: lane.packFormat,
+    form: lane.form,
+    lastSlideRole: lane.lastSlideRole,
+    now: () => "2026-10-12T11:15:00.000Z",
+    variantSeed: "tiktok-search-cta",
+    resolveBackground: fakeResolveBackground().resolveBackground,
+  });
+
+  assert.ok(candidates.length > 0);
+  for (const candidate of candidates) {
+    const pack = JSON.parse(fs.readFileSync(objectStore.resolve(candidate.packRef), "utf8"));
+    const caption = fs.readFileSync(objectStore.resolve(candidate.captionRef), "utf8");
+    assert.match(pack.slides.at(-1).text, /Search Anicca on the App Store/);
+    assert.doesNotMatch(pack.slides.at(-1).text, /Link in bio/i);
+    assert.equal(pack.caption, caption);
+    assert.equal((caption.match(/Search Anicca on the App Store/g) || []).length, 1);
+    assert.doesNotMatch(caption, /Link in bio/i);
+  }
 });
 
 test("removes rendered slide scratch files when durable object import fails", { timeout: 60_000 }, async () => {
