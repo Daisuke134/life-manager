@@ -2278,7 +2278,7 @@ class LocalLoopTest(unittest.TestCase):
             body = (
                 "Life Manager Affiliate::: Affiliate loop report\n"
                 "実行: BLOCKED\n"
-                "お金: NO_TRANSACTIONS / approved_or_paid_net=USD 0.00 / cost=UNKNOWN / "
+                "お金: EMPTY_REPORT / commission rows=0 observed / gross=UNKNOWN / net=UNKNOWN / cost=UNKNOWN / "
                 "blocker=external_action_cap=34/10 / runtime_disk=DISK_GUARD_BLOCKED"
             )
             MODULE.append(state / "telegram-outbox.jsonl", {
