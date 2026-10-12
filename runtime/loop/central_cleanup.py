@@ -67,8 +67,8 @@ def no_effect_loop_ids(registry_path: Path) -> set[str]:
 
 def recorded_run_metadata(
         events_path: Path, loop_ids: set[str]
-        ) -> dict[tuple[str, str], tuple[str | None, str | None]]:
-    observed: dict[tuple[str, str], set[tuple[str | None, str | None]]] = {}
+        ) -> dict[tuple[str, str], tuple[str | None, str | None, str | None]]:
+    observed: dict[tuple[str, str], set[tuple[str | None, str | None, str | None]]] = {}
     try:
         with events_path.open(encoding="utf-8") as handle:
             for line in handle:
@@ -80,9 +80,9 @@ def recorded_run_metadata(
                     return {}
                 if not isinstance(event, dict):
                     return {}
-                loop_id, run_id, effect_class, occurrence_id = (
+                loop_id, run_id, effect_class, occurrence_id, release_sha = (
                     event.get("loop_id"), event.get("run_id"), event.get("effect_class"),
-                    event.get("occurrence_id"))
+                    event.get("occurrence_id"), event.get("release_sha"))
                 if not isinstance(loop_id, str) or loop_id not in loop_ids:
                     continue
                 if not isinstance(run_id, str):
@@ -90,23 +90,25 @@ def recorded_run_metadata(
                 observed.setdefault((loop_id, run_id), set()).add((
                     effect_class if isinstance(effect_class, str) else None,
                     occurrence_id if isinstance(occurrence_id, str) else None,
+                    release_sha if isinstance(release_sha, str) else None,
                 ))
     except (OSError, UnicodeError):
         return {}
-    result = {}
+    result: dict[tuple[str, str], tuple[str | None, str | None, str | None]] = {}
     for key, values in observed.items():
-        classes = {value[0] for value in values}
-        occurrences = {value[1] for value in values}
+        classes, occurrences, releases = ({value[index] for value in values}
+                                           for index in range(3))
         result[key] = (
             next(iter(classes)) if len(classes) == 1 and None not in classes else None,
             next(iter(occurrences)) if len(occurrences) == 1 and None not in occurrences else None,
+            next(iter(releases)) if len(releases) == 1 and None not in releases else None,
         )
     return result
 
 
 def closed_reconcile_occurrences(path: Path, *, max_bytes: int = RECONCILE_CALL_TAIL_BYTES
-                                 ) -> set[tuple[str, str]]:
-    """Read only recent exact closures whose adapter returned a verified proof and receipt."""
+                                 ) -> set[tuple[str, str, str]]:
+    """Read exact structured closures bound to the target runtime release."""
     try:
         size = path.stat().st_size
         offset = max(0, size - max_bytes)
@@ -118,7 +120,7 @@ def closed_reconcile_occurrences(path: Path, *, max_bytes: int = RECONCILE_CALL_
     lines = payload.splitlines()
     if offset and lines:
         lines = lines[1:]  # first line may begin before the bounded tail
-    closed = set()
+    closed: set[tuple[str, str, str]] = set()
     for line in lines:
         try:
             record = json.loads(line)
@@ -127,17 +129,23 @@ def closed_reconcile_occurrences(path: Path, *, max_bytes: int = RECONCILE_CALL_
         if not isinstance(record, dict) or record.get("closed") is not True \
                 or record.get("exit_code") != 0:
             continue
-        owner_id, occurrence_id, tail = (
-            record.get("owner_id"), record.get("occurrence_id"), record.get("stdout_tail"))
+        owner_id, occurrence_id, release_sha = (
+            record.get("owner_id"), record.get("occurrence_id"), record.get("release_sha"))
+        proof = record.get("closure_proof")
         if not (isinstance(owner_id, str) and owner_id
                 and isinstance(occurrence_id, str) and occurrence_id
-                and isinstance(tail, str)):
+                and isinstance(release_sha, str)
+                and re.fullmatch(r"[a-f0-9]{40}", release_sha)
+                and isinstance(proof, dict)):
             continue
-        verified = re.search(r'"verified"\s*:\s*true\b', tail)
-        receipt = re.search(
-            r'"(?:provider_receipt_id|evidence_ref)"\s*:\s*"[^"\\]{1,512}"', tail)
-        if verified and receipt:
-            closed.add((owner_id, occurrence_id))
+        receipt_ref = proof.get("receipt_ref")
+        if (proof.get("proof_type") == "effect_reconcile_closure.v1"
+                and proof.get("owner_id") == owner_id
+                and proof.get("occurrence_id") == occurrence_id
+                and proof.get("release_sha") == release_sha
+                and proof.get("verified") is True
+                and isinstance(receipt_ref, str) and receipt_ref.strip()):
+            closed.add((owner_id, occurrence_id, release_sha))
     return closed
 
 
@@ -202,7 +210,7 @@ def _diagnostic_relay_live(run_fd: int, starts: dict | None, loop_id: str, run_i
 def scratch_gc(roots: set[Path], *, snapshot_started_ns: int | None = None,
                starts: dict[int, str] | None = None,
                no_effect_loop_ids: set[str] | frozenset[str] = frozenset(),
-               reconciled_occurrences: set[tuple[str, str]] | frozenset[tuple[str, str]] = frozenset(),
+               reconciled_occurrences: set[tuple[str, str, str]] | frozenset[tuple[str, str, str]] = frozenset(),
                ) -> dict[str, int | bool]:
     """Delete only crashed per-run scratch whose process identity is provably stale."""
     started_ns = time.time_ns() if snapshot_started_ns is None else snapshot_started_ns
@@ -291,18 +299,20 @@ def scratch_gc(roots: set[Path], *, snapshot_started_ns: int | None = None,
                                 owner_effect_class = None
                             if has_terminal_unrecorded:
                                 event_key = (loop_name, run_name)
-                                recorded_effect_class, occurrence_id = event_metadata.get(
-                                    event_key, (None, None))
+                                recorded_effect_class, occurrence_id, release_sha = event_metadata.get(
+                                    event_key, (None, None, None))
                                 verified_close = (
                                     isinstance(occurrence_id, str)
-                                    and (loop_name, occurrence_id) in reconciled_occurrences
-                                    and recorded_effect_class not in (None, "none")
+                                    and isinstance(release_sha, str)
+                                    and (loop_name, occurrence_id, release_sha) in reconciled_occurrences
+                                )
+                                no_effect_without_reconcile = (
+                                    recorded_effect_class == "none"
+                                    and loop_name in no_effect_loop_ids
                                 )
                                 if (event_key not in event_metadata
                                         or recorded_effect_class is None
-                                        or (recorded_effect_class != "none"
-                                            and loop_name not in no_effect_loop_ids
-                                            and not verified_close)
+                                        or (not no_effect_without_reconcile and not verified_close)
                                         or (owner_effect_class is not None
                                             and owner_effect_class != recorded_effect_class)):
                                     result["preserved"] += 1
