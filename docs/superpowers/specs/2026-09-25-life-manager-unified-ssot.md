@@ -15276,6 +15276,15 @@ FSearch初回indexは `~/Library/Application Support/FSearch` で実測約1.7 Gi
 
 **PromptBase next cursor:** the current SSOT update is pushed and remote-exact; complete exact-head CI for PR #7777; after PASS, primary review/merge #7777; refresh/recheck #7760; build a main-derived immutable release and apply only to PromptBase owners; verify loaded SHA and one natural hourly Sales run updates the private JSON; reconcile the historical `effect_unknown` only through the registered adapter and official evidence; coordinate the shared distribution owner without changing its profile/release/schedule; verify the first and later paid sales, earnings, fees/refunds, costs, and replay-zero.
 
+**PromptBase TODO順変更（2026-10-13 04:45 JST / 2026-10-12 19:45Z）:**
+- 旧順序: PR #7777のexact-head CIとprimary review/merge → PR #7760をlatest mainへ更新して再検証。
+- 新順序: PR #7760をlatest mainへ更新し、exact-head CIとprimary review/merge → PR #7777をそのmainへ更新し、exact-head CIとprimary review/merge → immutable release/apply。
+- 理由: 自然run `promptbase-loop-daily:18ddde72f41fc818-72489` は19:21ZにSales readbackのCDP接続失敗をnon-fatalとして続行し、`annual-report-risk-change-brief`を選択した。4 distinct example生成がmodel-runner exit 1になり、publisherは`need_4_distinct_examples`で失敗した。19:45:27Zの公式seller Prompts readbackで対象title不在を確認し、登録済みadapter `--resolve` が `verified=true / proof_type=pre_effect / effected=false / closed=true` を返した。再送はしていない。readback失敗後にselection/publishへ進ませないPR #7760を、次の自然daily wake前に先行させる。
+
+**PromptBase current checkpoint（2026-10-12 19:45Z）:** private `promptbase-sales.json`は19:21:05Zに公式Salesを`0件 / $0`で更新。daily ownerはloaded release `65d1feb5`でexit 1、現在のSales goalは未達。今回のoccurrenceは公式Prompts readbackと登録済みadapterでpre-effect close済み。PR #7760はOPEN・旧base `36fee4dc`・全required CI PASS、PR #7777はOPEN・head `1581d6e1`・base `bcd94d7d`・required CI PASSだが、どちらも`reviewDecision`は空。最新main `cc499d59`への同期後はそれぞれcurrent-tip CIを再実行する。hourly Sales ownerはproductionに未搭載。
+
+**PromptBase current cursor:** active lease付きの専用worktreeでPR #7760をmain `cc499d59`へ同期し、diff確認・current-tip CI・primary review/mergeへ進める。次にPR #7777をその統合mainへ同期してcurrent-tip CI・primary review/merge。続いてmain由来immutable release、PromptBase ownerのみへのapply、loaded SHA、hourly natural Sales readback、公式JSON、shared distribution ownerのreceipt、first/repeat sale・fee/refund/cost・replay-zeroを閉じる。
+
 6. Writer Substack en: leave to the Writer recovery owner unless it is handed back.
 7. Keep the disk-free floor at ≥ 2 GiB. If swap grows, restart the largest long-lived keep_alive driver; never raise LIFE_MANAGER_HOST_MAX_AGENT_TOTAL_RUNS.
 
