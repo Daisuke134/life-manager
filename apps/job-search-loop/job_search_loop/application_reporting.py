@@ -156,15 +156,21 @@ def deliver_wake_report(
 
     semantic_reason = semantic.get("reason") if semantic.get("status") == "failed" else None
     result_status = str(result.get("status") or "")
+    partial_reason = (
+        result_status if result_status == "blocked_before_queue_complete"
+        else "submit_unknown" if submit_unknown_count
+        else "row_blocked" if blocked_count
+        else None
+    )
     outcome = (
         "failed"
         if semantic_reason or result_status == "transport_failed"
-        else "partial" if result_status == "blocked_before_queue_complete"
+        else "partial" if partial_reason
         else "success" if summary.get("status") == "success" else "failed"
     )
     reason = str(
         semantic_reason
-        or (result_status if result_status in {"transport_failed", "blocked_before_queue_complete"} else None)
+        or (result_status if result_status == "transport_failed" else partial_reason)
         or attempt.get("error_class")
         or attempt.get("adapter_error")
         or summary.get("status")
@@ -173,6 +179,8 @@ def deliver_wake_report(
     )
     if outcome == "success":
         next_action = "continue_next_eligible_workday"
+    elif submit_unknown_count:
+        next_action = "reconcile_submission_receipts"
     elif reason == "transient_quota":
         next_action = "retry_with_available_provider_capacity"
     elif discovery.get("status") == "no_work":
@@ -208,6 +216,7 @@ def deliver_wake_report(
         )
     next_text = {
         "continue_next_eligible_workday": "次の新しい適合求人の確認を続けます。",
+        "reconcile_submission_receipts": "応募結果が不明な求人は再送せず、受領メールとの照合を続けます。",
         "retry_with_available_provider_capacity": "安全な処理を次回の空き時間に再開します。",
         "discover_next_eligible_workday": "登録済みsourceと新しい公式Workday会社の探索を続けます。",
         "resume_same_row_next_wake": "同じ求人の保存済みcheckpointから安全に再開します。",
