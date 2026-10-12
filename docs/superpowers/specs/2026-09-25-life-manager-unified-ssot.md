@@ -2040,7 +2040,7 @@ Instagram/Threadsのローカル台帳は17件（Instagram 14、Threads 3）で�
 | D14 | TODO（D14c後） | 新規冬SKUを1件作り公式特集へ条件付き申請する | 受付は2026-12-04 10:59 JSTまで（早期終了あり）、開催は2026-11-11〜2027-01-08。日本居住、新規SKU、8〜40個、¥190以上、冬テーマ8個以上。set-034や販売済SKUを流用せず、審査承認と特集掲載をreadback。 |
 | D09c | TODO | successful factory occurrencesごとの申請SKU数を数え、24件/日capを維持するか判断する | 本日3 SKUを申請済みだが、wake別件数と販売需要は未確認。分配・購入データが無い間はcapを上げない。 |
 | D15 | TODO | X/TikTok/YouTube等から追加channelを一つ選び、専用identity・利用規約・投稿経路・原価を確認する | 他ブランドとidentityを分離し、自然投稿一件と公式readbackが可能なこと。共有X identityは流用しない |
-| D12 | provider依存（phone codeは最後） | 公式Instagram/Threads profileを読み、held occurrenceをregistered adapterで照合する | local ledgerは17件（14 published、3 failed、最終記録10/10）。fence 18dd103ced88c860-32314はofficial_readback_requiredでheld。browser-guard status instagram:capafy-provisionはendpoint_unavailable。投稿・再送・手動releaseなし。 |
+| D12 | provider依存（phone codeは最後） | 公式Instagram/Threads profileを読み、held occurrenceをregistered adapterで照合する | local ledgerは17件（14 published、3 failed、最終記録10/10）。Instagram readback occurrence 18dd103ced88c860-32314はpost_count_unreadableでfence held。profile画面はWhatsApp 6桁verification challengeを表示し、code未入力・再送なし。Threads公開プロフィールの0 followers / 3 postsはInstagram Reels一覧の完全性を証明しない。 |
 | D16 | 条件付き | LINE PRスタンプの現行料金・最低50DL・配布期間を公式に読み、上限内のCAC break-evenを計算する | spend capと実測conversionが確認でき、期待creator contributionがCACを上回る場合のみ続行。根拠不足なら購入しない |
 | D17 | 条件付き | D16成立時だけ、既存承認SKU一つに最小capのPR配布を一度実施する | 配布数・費用・OA friend増（提供時）・後続購入・creator distributionをofficial readbackしてCAC比較 |
 | D18 | 条件付き | 公式販売が確認できた一SKUを一地域だけ英語または繁体字へローカライズする | 翻訳だけでなく言葉・文化・絵柄を現地化し、地域別SKU・公開URL・販売・distributionをreadback |
@@ -2172,6 +2172,11 @@ Instagram/Threadsのローカル台帳は17件（Instagram 14、Threads 3）で�
 - Public /api/stats readback at 14:22:02Z shows total pageviews 212 and line-sticker article paths: slot12=2, slot18=1, slot22=1, slot23=1. No line_sticker_click event has appeared yet, so click count is unobserved, not a verified zero.
 - Natural article slot23 is public at https://aniccaai.com/blog/line-sticker-set-006-2026-10-12-23; its CTA resolves to official LINE STORE product 37146737, Stardust Otter Stickers, ¥250. Today ledger is 8 published / 3 failed; failed slots remain unreplayed.
 **現在cursor:** D07a waits for the next natural compose failure (no replay). D10 click data awaits natural user traffic and the next official sales readback; D11 builds one use-case pack and D13 distributes through an available owned channel. The $10,000 monthly gross target, first positive sale, and expense recovery remain unachieved.
+
+**23:49 JST Instagram readback delta:**
+- Registered distribute_fence_reconcile.py for exact occurrence 18dd103ced88c860-32314 returned verified=false / post_count_unreadable; no resolve or post.
+- The browser page path included /accounts/suspended/, but visible UI requested a WhatsApp 6-digit verification code. Treat this as an authentication challenge, not confirmed account suspension. No code entry or resend occurred; defer the user-held code step until the end of the marketing plan.
+- Public Threads readback shows 0 followers and 3 posts; this is not a complete Instagram Reels listing and cannot close the shared fence. No social replay or manual fence release.
 
 ### 5.1 自己修復・自己改善の定義（T5 / T12 の正本）
 
