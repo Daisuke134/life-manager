@@ -16,6 +16,22 @@
 
 **E01受入の区別:** 欠測・不正・混在netの振る舞いは既存の8件の単体回帰testで検証する。natural ledgerに存在しない欠測値をproductionへ注入しない。実行完了には、実呼び出しownerが安全に`loaded-idle`となった後、修正済みmain由来releaseのloaded SHAと次の自然runでの採用を確認する。通常入力の自然評価は実行経路と結果を補強するが、欠測netへの耐性や経済利益を証明しない。容量/admissionが未解決なら適用せず、既存の共有資源cursorに従う。
 
+**最新E01 readback:** 2026-10-12T15:22:08Z時点で`origin/main=4592b650`、current releaseは`65d1feb5`、その`self-eval.mjs` SHA-256はmain sourceと同じ`75b050c7…`です。`agent-economy-loop`は古い`dd6f0ee5`を`loaded-running`し、`brain_transport` / `reconcile_owner`状態です。停止・再起動はしていません。available diskは1,761,400 KiBで、current releaseのcapacity requirement 2,393,120,768 bytesを下回ります。E01 cursorは未完のままです。
+
+## Writer trace checkpoint
+
+Writerのowner・run状態は2026-10-12T15:14:46Zにread-only確認しました。`article-daily`はloaded-idleですが`resource_effect_unknown`のfenceを持ち、`writer-craft-train`はcapacity defer、`writer-opportunity-discovery`はFIFO wait、`writer-sales-measure`はidleです。公開・再送・owner変更はしていません。
+
+Pilot AのstageはEnglish article draftの公開前quality gateに絞ります。これはgateの再現評価で、ブログ・note・Substack等への新規公開は行いません。
+
+**task-level inventory:** 自然なarticle run directoryは8件で、5件にEnglish draft、3件にはEnglish draftがありません。4件にquality gate receiptがあり、3件はadvisory、1件はidentity/CTA disagreementでpublication前に止まりました。8件すべての`harness_git_hash`は`UNKNOWN`です。
+
+**child-call inventory:** 1,498のagent-runner evidence directoryのうち1,469にsummaryがあり、`article-daily`は276 child-call summariesを持ちます（251 judge、25 agent）。276件すべてに`runtime_event_id`がありますが、summaryにはparent run/occurrence/source SHAがありません。現在保持されるevent ledgerにjoinできるのは25件で、記事task件数や独立sample数へ足しません。
+
+最初のcase candidateはEnglish blog article draftのidentity `C: FAIL` / mandatory CTA `PASS` / `blocked-before-publication`の組み合わせです。人手labelはpendingで、false positiveとはまだ呼びません。詳細とlimitations → [Writer EDD trace discovery](../../evals/writer-edd-trace-discovery.md)。本文とraw traceはprivate storeに保持し、共有review UIはloopback read-onlyでgate metadataを先に表示し、選択時だけ許可済みtrace artifactを取得します。
+
+このcheckpointはpreworkであり、統一SSOTのE01 current cursorも収益優先順も変更しません。
+
 根拠は [一次資料比較](../../research/2026-10-12-edd-and-autonomy-benchmarks.md)。既存runnerを維持し、AutomationBenchの初期state・tool・終state検査の形を参考にする。新framework、scheduler、optimizerは追加しない。
 
 ## 18業務からのPilot A選定
