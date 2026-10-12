@@ -535,7 +535,7 @@ function defaultAccountResolver(contract) {
       jobFormatId: contract.formatId,
       mediaForm: contract.form,
     });
-    return target?.postiz_profile || null;
+    return target?.native_handle || null;
   } catch {
     return null;
   }
@@ -661,6 +661,12 @@ async function executeMarketingVideoPublicationJob(job, deps = {}) {
     error.unknownEffect = true;
     throw error;
   }
+  let publishedAt;
+  try {
+    publishedAt = services.now();
+  } catch (error) {
+    throw Object.assign(new Error(error?.message || String(error), { cause: error }), { unknownEffect: true });
+  }
   const receipt = {
     schema_version: 1,
     kind: "marketing_video_distribution",
@@ -678,18 +684,24 @@ async function executeMarketingVideoPublicationJob(job, deps = {}) {
     provider_post_id: result.provider_post_id,
     provider_route: result.provider_route,
     provider_reconciled: result.provider_reconciled === true,
-    published_at: services.now(),
+    published_at: publishedAt,
   };
   if (!verifyMarketingVideoPublicationReceipt(receipt)) {
-    throw new Error("marketing video publication receipt verification failed");
+    const error = new Error("marketing video publication receipt verification failed");
+    error.unknownEffect = true;
+    throw error;
   }
-  appendFreshnessRow(freshnessPath, {
-    receipt: {
-      integration_ref: contract.postizIntegrationRef,
-      caption_sha256: captionHash,
-      published_at: receipt.published_at,
-    },
-  });
+  try {
+    appendFreshnessRow(freshnessPath, {
+      receipt: {
+        integration_ref: contract.postizIntegrationRef,
+        caption_sha256: captionHash,
+        published_at: receipt.published_at,
+      },
+    });
+  } catch (error) {
+    throw Object.assign(new Error(error?.message || String(error), { cause: error }), { unknownEffect: true });
+  }
   return { receipt, result };
 }
 
