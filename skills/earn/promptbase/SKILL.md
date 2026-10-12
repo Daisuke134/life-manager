@@ -65,18 +65,18 @@ SKILL.md pasted as the buyer-hidden "prompt template", and a
 ## Running it (lease wrapper only — never a hardcoded port)
 
 ```bash
-ENDPOINT=$(skills/browser/browser-guard.sh acquire interactive:dais) || exit 1
+ENDPOINT=$(skills/browser/browser-guard.sh acquire promptbase:dais) || exit 1
 python3 skills/earn/promptbase/scripts/publish.py \
   --catalog-dir skills/capafy/catalog/<slug> \
   --endpoint "$ENDPOINT"          # dry run: fills the wizard, stops before submit
   # add --confirm to actually submit once the dry-run screenshot looks right
-skills/browser/browser-guard.sh release interactive:dais
+skills/browser/browser-guard.sh release promptbase:dais
 ```
 
 ```bash
-ENDPOINT=$(skills/browser/browser-guard.sh acquire interactive:dais) || exit 1
+ENDPOINT=$(skills/browser/browser-guard.sh acquire promptbase:dais) || exit 1
 python3 skills/earn/promptbase/scripts/readback.py --endpoint "$ENDPOINT"
-skills/browser/browser-guard.sh release interactive:dais
+skills/browser/browser-guard.sh release promptbase:dais
 ```
 
 ## The PromptBase `/sell` wizard, as-observed (2026-09-28)
@@ -148,8 +148,8 @@ Two independent checks, both before any form is touched:
 
 ## Daily loop (`promptbase-loop-daily`, `config/loop-registry.json`)
 
-Runs `daily.sh` once a day (04:20, a quiet hour) via the `interactive:dais`
-browser lease, `effect_class: publish`, no human in the loop:
+Runs `daily.sh` once a day (04:20, a quiet hour) through the registered
+`promptbase:dais` identity. The loop is `effect_class: publish`, no human in the loop:
 
 1. `readback.py` — refresh every tracked ledger row's status/sales from the
    dashboard first.

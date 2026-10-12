@@ -260,6 +260,27 @@ def test_dashboard_absent_after_window_resolves_no_effect():
         tmp.cleanup()
 
 
+def test_dashboard_read_uses_dedicated_promptbase_identity(tmp_path, monkeypatch):
+    call_log = tmp_path / "guard-calls.log"
+    monkeypatch.setenv("GUARD_CALL_LOG", str(call_log))
+    guard = tmp_path / "browser-guard"
+    guard.write_text(
+        """#!/bin/sh
+printf '%s\\n' "$*" >> "$GUARD_CALL_LOG"
+exit 9
+""",
+        encoding="utf-8",
+    )
+    guard.chmod(0o700)
+
+    result = reconciler.read_dashboard_text(browser_guard=guard, timeout=2)
+
+    assert result == {"ok": False, "reason": "browser_lease_rc_9"}
+    assert call_log.read_text(encoding="utf-8").splitlines() == [
+        "acquire promptbase:dais",
+    ]
+
+
 def test_dashboard_read_failure_stays_fenced_inconclusive():
     ledger_path, tmp = _ledger_path()
     try:
