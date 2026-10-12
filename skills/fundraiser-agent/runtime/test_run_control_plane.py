@@ -13,7 +13,7 @@ SCRIPT = Path(__file__).resolve().parent / "run.sh"
 
 
 def _run(tmp_path, free_kib: int, guard_script: str, foundation_script: str = "#!/bin/sh\nexit 1\n",
-        extra_env=None, hold_run_lock: bool = False):
+        extra_env=None, hold_run_lock: bool = False, operator_stop: bool = False):
     home = tmp_path / "home"
     home.mkdir()
     calls = tmp_path / "lm-loop.calls"
@@ -22,6 +22,15 @@ def _run(tmp_path, free_kib: int, guard_script: str, foundation_script: str = "#
     cli.chmod(0o755)
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
+    # Keep the shared gate's OS-owner-home policy scan inside this fixture.
+    (bin_dir / "sitecustomize.py").write_text(
+        'import os, pwd\nfrom types import SimpleNamespace\n'
+        'pwd.getpwuid = lambda uid: SimpleNamespace(pw_dir=os.environ["HOME"])\n'
+    )
+    host_state = home / ".local/state/life-manager/state"
+    if operator_stop:
+        host_state.mkdir(parents=True, mode=0o700)
+        (host_state / "disk-writers.stop").write_text("owner=operator\n")
     guard = tmp_path / "browser-guard.sh"
     guard.write_text(guard_script)
     guard.chmod(0o755)
@@ -61,7 +70,10 @@ def _run(tmp_path, free_kib: int, guard_script: str, foundation_script: str = "#
             **os.environ,
             "HOME": str(home),
             "PATH": f"{bin_dir}:{os.environ['PATH']}",
+            "PYTHONPATH": f"{bin_dir}:{os.environ.get('PYTHONPATH', '')}",
             "LIFE_MANAGER_REPO": str(ROOT),
+            "LIFE_MANAGER_HOST_STATE_DIR": str(host_state),
+            "FUNDRAISER_STATE_ROOT": str(home / ".local/state/life-manager/fundraiser"),
             "LIFE_MANAGER_LOOP_CLI": str(cli),
             "LIFE_MANAGER_BROWSER_GUARD": str(guard),
             "LIFE_MANAGER_BROWSER_FOUNDATION": str(foundation),
@@ -81,19 +93,35 @@ def _run(tmp_path, free_kib: int, guard_script: str, foundation_script: str = "#
     return result, calls
 
 
-def test_low_disk_preserves_shared_cleanup(tmp_path):
+def test_low_reported_disk_does_not_preempt_shared_gate(tmp_path):
     result, calls = _run(
         tmp_path, free_kib=1,
         guard_script="#!/bin/sh\necho http://localhost:9222\nexit 0\n",
+        hold_run_lock=True,
     )
-    assert result.returncode == 75
-    assert not calls.exists(), "low-space deferral must not mutate shared cleanup"
+    assert result.returncode == 0
+    assert not calls.exists(), "producer preflight must not mutate shared cleanup"
+    assert (tmp_path / "context-lease.calls").exists()
     markers = list((tmp_path / "home" / ".local" / "state" / "life-manager" / "fundraiser" / "effect-markers").glob("*.json"))
     assert len(markers) == 1
     marker = json.loads(markers[0].read_text())
     assert marker["owner_id"] == "fundraiser"
     assert marker["phase"] == "pre_effect"
     assert marker["effect"] == 0
+
+
+def test_operator_disk_stop_defers_before_browser_dispatch(tmp_path):
+    result, calls = _run(
+        tmp_path, free_kib=4 * 1024 * 1024,
+        guard_script="#!/bin/sh\necho http://localhost:9222\nexit 0\n",
+        hold_run_lock=True, operator_stop=True,
+    )
+    assert result.returncode == 75
+    assert not calls.exists()
+    assert not (tmp_path / "context-lease.calls").exists()
+    marker_path, = (tmp_path / "home/.local/state/life-manager/fundraiser/effect-markers").glob("*.json")
+    marker = json.loads(marker_path.read_text())
+    assert (marker["phase"], marker["effect"]) == ("pre_effect", 0)
 
 
 def test_browser_profile_busy_uses_registered_identity_and_isolated_context(tmp_path):
