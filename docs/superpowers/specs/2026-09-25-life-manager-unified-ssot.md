@@ -16,7 +16,7 @@
 
 目的: runtime/loop/index.mjs が selfEval の steer を実判断へ渡す経路で、欠測/不正netをゼロ損益・DEAD・WORKSへ変換しない。範囲は self-eval.mjs と既存test。数値と非空の有限numeric stringだけを受け、net_usdcが存在する場合は代替netで欠測を隠さない。slot内に未知行が一つでもあれば合計net=null、unknownCountを表示しDEAD/WORKSを抑制する。明示ゼロ/既知正負の既存判定は保持する。
 
-順序理由: F01のGig対象は通常reconcileが旧message occurrence hf-gig-reply-detector:18dbf6546032eca0-25901を保持し、反映をskipped_effect_unknownとした。最新mainにも同ownerのeffect_reconcile adapterなし。この独立した既知評価不具合を先に閉じ、Gigの再送/解除はしない。完了条件はRED/GREEN・関連検証・限定read-only金融review・CI/main・immutable採用、全体完了は実receiptを使う自然評価まで。検証: 既存5件PASS、新規3件RED（欠測fallback/混在/known count）を確認後、8件GREEN、関連ledger-publishを含む48件PASS・lm-loop-contract 18/191 PASS・限定read-only金融review PASS。PR #7734。現在cursor: exact-head CI/main、自然評価は未確認。
+順序理由: F01のGig対象は通常reconcileが旧message occurrence hf-gig-reply-detector:18dbf6546032eca0-25901を保持し、反映をskipped_effect_unknownとした。最新mainにも同ownerのeffect_reconcile adapterなし。この独立した既知評価不具合を先に閉じ、Gigの再送/解除はしない。完了条件はRED/GREEN・関連検証・限定read-only金融review・CI/main・immutable採用、全体完了は実receiptを使う自然評価まで。検証: 既存5件PASS、新規3件RED（欠測fallback/混在/known count）を確認後、8件GREEN、関連ledger-publishを含む48件PASS・lm-loop-contract 18/191 PASS・限定read-only金融review PASS。PR #7734。PR #7734 exact-head bc30e1a6 CI全PASS後、main 3431422d001c8c5c755006176c12b038100d59ebへ統合済み。現在cursor: main由来release/実呼び出しownerの採用と自然評価。公式receiptを使う全18評価への接続(E02)は未完。
 
 ## 統括cursor — 共有資源回復と全案件の引き継ぎ
 
@@ -223,7 +223,7 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 
 ### 全体の完走順 — 業務修復から自律的な新agent生成まで
 
-現在地はF01/F03/F04と並行するE01（PR #7734、48関連tests/限定review PASS、exact-head CI中）。既存cleanup BF15は受入済み、全18業務の本番完了/収益/遅延ゼロは未証明。PR #7714はexact-head 4492292ee1 CI全PASS/68関連tests/限定金融review finding修復後、main 0a6cc55cd9a8fcc306efa4259ceed5c7816b036eへ統合済み。CFO対象ownerは通常immutable 20261012T115825-0a6cc55cへ対象限定reconcileで採用済み（install event 7125fde74d6d9f0ce444a856、loaded argv/SHA一致）。旧unknown life-manager-cfo-hourly:18dd46d06dd2a648-41605は保持。新wake 18dda8fd11862a38-56624は同SHAでresource_effect_unknownからresource_capacity_busyへ変化し、旧期間fenceによる全期間停止は解消、自然B7完成/公式receipt/replay-zeroは未確認。Gig Replyは通常reconcileでskipped_effect_unknown、latest mainにもadapterなし。PromptBase/WriterのAGMSG専任は実goal着手確認済み、Job Hunter/LINE/CapafyのDais担当と重複させない。
+現在地はF01/F03/F04と並行するE01（PR #7734 main統合済み、48関連tests/限定review/exact-head CI PASS、本番自然評価は未確認）。既存cleanup BF15は受入済み、全18業務の本番完了/収益/遅延ゼロは未証明。PR #7714はexact-head 4492292ee1 CI全PASS/68関連tests/限定金融review finding修復後、main 0a6cc55cd9a8fcc306efa4259ceed5c7816b036eへ統合済み。CFO対象ownerは通常immutable 20261012T115825-0a6cc55cへ対象限定reconcileで採用済み（install event 7125fde74d6d9f0ce444a856、loaded argv/SHA一致）。旧unknown life-manager-cfo-hourly:18dd46d06dd2a648-41605は保持。新wake 18dda8fd11862a38-56624は同SHAでresource_effect_unknownからresource_capacity_busyへ変化し、旧期間fenceによる全期間停止は解消、自然B7完成/公式receipt/replay-zeroは未確認。Gig Replyは通常reconcileでskipped_effect_unknown、latest mainにもadapterなし。PromptBase/WriterのAGMSG専任は実goal着手確認済み、Job Hunter/LINE/CapafyのDais担当と重複させない。
 
 順序変更: 旧=全18業務/収益laneの受入後にS15→S16→S17→S18。新=既存基盤修正の本番採用→18業務の修復と公式会計を並行→必要な自然障害/公式receiptが揃った範囲で自己修復・評価・benchmark→凍結評価器で自己改善→新agent factory→portable OSS/外部再現→継続収益拡大。理由: 未達MRR・外部審査・将来slotを自己修復や既存商品の販売開始の前提にすると無期限待機になる。依存のないlaneは並行、各lane/共有provider/releaseのmutationはserial。原goalの全18成果/各lane目標/全社US$10M月のDone条件は縮めない。
 
