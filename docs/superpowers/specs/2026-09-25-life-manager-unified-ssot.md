@@ -1971,9 +1971,9 @@ Instagram/Threadsのlocal ledgerは17 attempt、14 published（Instagram11/Threa
 | ID | 状態 | 1つの作業 | 完了証拠 |
 |---|---|---|---|
 | D01 | DONE (local RED) | focused testで旧設定の失敗境界を確認する | 2026-10-12 focused runはpriority assertionで `revenue != distribution` と失敗、他2 assertionは通過。goal達成ではない |
-| D02 | DONE (local source) | `config/loop-registry.json` の `line-sticker-articles.priority` を `distribution` へ変更する | D01 focused test GREEN。resource_class・admission_class・cadence・effect fenceは維持。本番には未反映 |
-| D03 | DONE (local acceptance) | focused registry test、`./bin/lm-loop-contract`、`bash scripts/verify-source-boundary.sh`を実行する | 2026-10-12に全てexit 0、unexpected registry fixture diffなし |
-| D04 | current cursor | D01/D02 source・testと5.Lの現状修正をcommit/pushし、最新main baseのPRを作る | exact-head required checksと必要reviewがPASS。未mergeのままproductionへ反映しない |
+| D02 | DONE (local source) | `config/loop-registry.json` の `line-sticker-articles.priority` を `distribution` へ変更する | D01 focused test GREEN。resource_class・admission_class・cadence・effect fenceは維持し、byte-stable rendered registry fixtureを再生成。本番には未反映 |
+| D03 | DONE (local acceptance) | priority assertion、production render fixture、`./bin/lm-loop-contract`、`bash scripts/verify-source-boundary.sh`を実行する | 全focused checks exit 0、fixtureは新しいregistry renderと一致 |
+| D04 | current cursor | D01/D02 source・test・render fixtureと5.Lの現状修正をcommit/pushし、最新main baseのPRを作る | exact-head required checksと必要reviewがPASS。未mergeのままproductionへ反映しない |
 | D05 | TODO | PRをmainへ統合し、merge SHAを記録する | `origin/main`にsource/testが含まれ、PR head/merge SHAが保存される |
 | D06 | TODO | merge SHAからimmutable releaseを作成する | release manifestがmerge SHAを含む |
 | D07 | TODO | `line-sticker-articles` ownerだけをsafe preflight後にapplyする | loaded owner SHAがmerge SHAを含み、他ownerを再起動しない |
