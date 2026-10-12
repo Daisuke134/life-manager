@@ -1,7 +1,10 @@
 import datetime as dt
+import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 import article_daily as MODULE  # noqa: E402
@@ -54,6 +57,31 @@ class BuildMarkdown(unittest.TestCase):
         text = MODULE.build_markdown("タイトル", "本文", url)
         self.assertTrue(text.startswith("# タイトル\n"))
         self.assertEqual(text.count(url), 1)
+
+
+class ComposeFailure(unittest.TestCase):
+    def test_provider_deferral_reason_is_preserved_without_raw_stderr(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            def run_agent(args: list[str], **_kwargs: object):
+                evidence_dir = Path(args[args.index("--evidence-dir") + 1])
+                evidence_dir.mkdir(parents=True)
+                (evidence_dir / "summary.json").write_text(json.dumps({
+                    "status": "provider_deferred",
+                    "reason": "disk_headroom_low",
+                    "attempt_count": 0,
+                }))
+                return type("Completed", (), {"returncode": 75})()
+
+            with patch.object(MODULE.subprocess, "run", run_agent):
+                with self.assertRaisesRegex(
+                    RuntimeError,
+                    "line_sticker_article_compose_failed:75:disk_headroom_low",
+                ):
+                    MODULE.compose(
+                        {"title_ja": "テスト", "character_name": "テスト"},
+                        Path(tmp),
+                        "line-sticker-article-test",
+                    )
 
 
 if __name__ == "__main__":

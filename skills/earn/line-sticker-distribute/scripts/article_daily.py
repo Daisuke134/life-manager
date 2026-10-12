@@ -1,4 +1,4 @@
-"""article_daily.py -- one free Japanese article per day on aniccaai.com for an on-sale sticker set.
+"""article_daily.py -- slot-gated free Japanese aniccaai.com articles for on-sale sticker sets.
 
 aniccaai.com is the shared site for everything Life Manager ships (Dais 2026-10-08), so the sticker
 sell loop publishes there through the same free-article publisher capafy-distribute-daily uses
@@ -77,6 +77,40 @@ def _prompt(chosen: dict) -> str:
     )
 
 
+def _compose_failure_class(evidence: Path) -> str:
+    try:
+        summary = json.loads((evidence / "summary.json").read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return "diagnostic_unavailable"
+    if not isinstance(summary, dict):
+        return "diagnostic_unavailable"
+
+    def safe_class(value: object) -> str | None:
+        if isinstance(value, str) and 0 < len(value) <= 80 and all(
+            char.isalnum() or char in "_:.-" for char in value
+        ):
+            return value
+        return None
+
+    reason = safe_class(summary.get("reason"))
+    if reason:
+        return reason
+    attempts_path = summary.get("attempts_path")
+    if isinstance(attempts_path, str):
+        path = Path(attempts_path)
+        try:
+            if path.resolve().is_relative_to(evidence.resolve()) and path.is_file():
+                for line in path.read_text(encoding="utf-8").splitlines():
+                    attempt = json.loads(line)
+                    if isinstance(attempt, dict):
+                        error_class = safe_class(attempt.get("error_class"))
+                        if error_class:
+                            return error_class
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            pass
+    return "agent_runner_failed"
+
+
 def compose(chosen: dict, state_root: Path, task_label: str) -> dict:
     with tempfile.TemporaryDirectory(prefix=".article-compose-", dir=state_root) as temporary:
         evidence = Path(temporary) / "evidence"
@@ -88,7 +122,10 @@ def compose(chosen: dict, state_root: Path, task_label: str) -> dict:
             timeout=300, check=False,
         )
         if done.returncode != 0:
-            raise RuntimeError("line_sticker_article_compose_failed")
+            raise RuntimeError(
+                f"line_sticker_article_compose_failed:{done.returncode}:"
+                f"{_compose_failure_class(evidence)}"
+            )
         summary = json.loads((evidence / "summary.json").read_text(encoding="utf-8"))
         result = json.loads(Path(summary["result_path"]).read_text(encoding="utf-8"))
     if not result.get("title", "").strip() or len(result.get("body", "")) < 200:
