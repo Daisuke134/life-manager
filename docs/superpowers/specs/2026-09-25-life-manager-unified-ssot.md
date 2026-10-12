@@ -20,7 +20,7 @@
 
 原則を一次資料で照合済み: Chrome headlessは通常Chromeと機能を共有（https://developer.chrome.com/docs/automation-and-testing/headless）、Playwright BrowserContextは互換なbrowser内で隔離再利用可能（https://playwright.dev/docs/browser-contexts）、Temporalは負荷別分離・実資源に合わせたworker調整/scaleを推奨（https://docs.temporal.io/best-practices/worker）。これを既存Life Managerへ適用し、Temporal/Kubernetes等の新基盤導入を現在の追加gateにしない。全実装がbest practiceに完全一致したという認証や、有限hardware/外部providerを含む永久ゼロ故障は主張しない。
 
-primaryは開発者Codex/Claudeと本番18業務agentを区別する。現役の独立修正担当は止めず、agmsg roster・実liveness・lease・成果物を確認して再利用する。新しい10/20/30開発sessionの一斉起動は現時点では実施しない。再開/増員は、対象仕事のRAM/disk peakと保存先、自然な終了→receipt→自己/中央cleanup→次仕事、予約/lock返却の実測から余裕と進行を確認できた時、primaryが重複しない責任範囲で段階的に行う。全18の修正済みを開発再開の前提にせず、未知effectの安全境界を持つ独立したsource修正/照合作業は基盤修復中も進める。Codex一時subagentの環境2枠を業務agentの数と混同しない。「1分で18全部完了」や20session起動自体を成果へ置換せず、各laneの公式成果条件で閉じる。
+primaryは開発者Codex/Claudeと本番18業務agentを区別する。Daisの明示指示でAGMSG team lmへ9 fresh Codex担当（Cloud/cleanup/投資/LINE/CFO/Mobile/Job Hunter/Gig/eBook）を起動する。各lane内は一人でserial、独立laneは並行し、既存live担当・lease・worktree・provider effectとの重複を避ける。primary lm-orchestrator-1012が共有release・資源調整・全体SSOT・統合を所有し、ClaudeのCapafy所有を保持する。旧handoverの完了状態を再実装せずfresh readbackで差分を確定する。初回goal packetと所有境界はdocs/superpowers/dispatch/2026-10-12を参照（実行TODO/状態の正本は本SSOTのみ）。起動・着手・完了を分けてreadbackし、登録だけで稼働/成果を主張しない。
 
 **全体architectureの判断とAs-Is/To-Be:** 18 agentは18業務capabilityであり、190の小さいjobがそれぞれのcadenceで実装する。最善の進め方は既存のdurable state/effect/receiptと、常時監督＋有限worker＋優先度/経過時間を扱うadmissionを土台に、実資源・業務進行から配分を調整することである。FIFOは同優先度の順序補助として使え、先頭の不適合/古い予約が全業務を止めるgateにしない。固定2/5/10は現設定であり、達成目標や永久の適正値ではない。開始時刻/時差/周期の分散はburstを減らすが、仕事の長期化/再試行/保存先共有があるため衝突や容量問題が無い証明にならない。
 
@@ -215,7 +215,67 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 
 **各atomの記録:** 状態、実施変更、検証command/result、run/owner/occurrence/release SHA、effect/readback/provider receipt、evidence参照、error_class、retryable、next_actionを残す。共有資源修復Doneと各laneの業務成果Doneを分離し、未達をpartialのまま明示する。
 
+### 全体の完走順 — 業務修復から自律的な新agent生成まで
+
+現在地はF01/F03/F04。既存cleanup BF15は受入済み、全18業務の本番完了/収益/遅延ゼロは未証明。PR #7714はexact-head 4492292ee1 CI全PASS/68関連tests/限定金融review finding修復後、main 0a6cc55cd9a8fcc306efa4259ceed5c7816b036eへ統合済み。残りは通常immutable/対象owner採用・自然B7/公式receipt/replay-zero。PromptBase/WriterのAGMSG専任は実goal着手確認済み、Job Hunter/LINE/CapafyのDais担当と重複させない。
+
+順序変更: 旧=全18業務/収益laneの受入後にS15→S16→S17→S18。新=既存基盤修正の本番採用→18業務の修復と公式会計を並行→必要な自然障害/公式receiptが揃った範囲で自己修復・評価・benchmark→凍結評価器で自己改善→新agent factory→portable OSS/外部再現→継続収益拡大。理由: 未達MRR・外部審査・将来slotを自己修復や既存商品の販売開始の前提にすると無期限待機になる。依存のないlaneは並行、各lane/共有provider/releaseのmutationはserial。原goalの全18成果/各lane目標/全社US$10M月のDone条件は縮めない。
+
+| ID | 順番・一つの操作 | 完了証拠/境界 |
+|---|---|---|
+| F01 | mainの既存修正を、旧guard等が残るeligible ownerへ採用 | immutable/loaded argv/SHA、running/unknownの保持理由。無断rebind/解除なし |
+| F02 | 自然な仕事→receipt→自己/中央cleanup→次仕事を照合 | ENOSPC/破損/手動掃除依存なし。容量固定値・永久無故障保証にしない |
+| F03 | 18業務を既存担当/専任へ割り当て、既存PRを先に照合して残件修復 | source acceptance/必要review/exact-head CI/main。重複実装なし |
+| F04 | 各laneの最小実仕事を自然実行して公式結果へ結ぶ | 投稿/応募/納品/注文等のexact receipt、replay/duplicate-zero |
+| M01 | 契約platformごとの公式売上履歴/明細/利用可能CSVを取得 | 受注/納品/予定売上をsettled revenueと数えない。完全period/pagination |
+| M02 | 案件/注文→payment→fee/refundをunique IDでjoin | Coconala/Lancers/CrowdWorks等を同じCFO契約へ。集計残高だけで帰属しない |
+| M03 | 売上確定・出金可能・payout・銀行着金を別々に照合 | 同じpayoutを売上へ再加算しない。未確認を0にしない。今回資金移動なし |
+| M04 | model/system/cloud/tool/広告/納品の公式実費を帰属させる | billedとcash paidを分離、period/currency一致、共有費配賦・coverage保持 |
+| M05 | 月初〜現在の18業務/会社の売上・返金・fee・費用・net・MRRを報告 | lifetime/trailing30日を当月へ置換しない。単発売上をMRRにしない |
+| H01 | 自然な失敗を既存recovery-intent/supervisorへ結ぶ | exact owner/run/occurrence/release/error/次手 |
+| H02 | effect不明を公式照合し、再送なしで安全な復旧を選ぶ | old fence/receipt保持、別仕事の独立進行、backoff/有限budget |
+| H03 | Life Manager自身のdev/repair経路が必要な最小code修復を実施 | intent→issue/PR→CI/main→immutable→次自然run/公式readback |
+| H04 | 自己修復の一連の因果を証明する | 外部Codexの手動修正やsupervisor単独PASSをLM自身の修復としない |
+| E01 | selfEvalの欠測net→0をfail-closedへ修復 | unknown/不正金額がDEAD/利益/ゼロへ誤変換されないRED/GREEN |
+| E02 | recovery/economic evalを自然障害とCFOの公式receiptへ接続 | task success/effect integrity/settled net/cost/latency/介入を別採点 |
+| E03 | LM-EABの自然失敗・境界・実経済task familyを増やす | 権利/匿名化/PII除去。現在4 synthetic casesは契約の足場、実性能ではない |
+| E04 | case/runner/grader/baselineをversion/hashで凍結 | public/dev/held-out/challenge分離、grader較正/複数trial/不確かさ/汚染監査 |
+| E05 | 既存runnerへ他harness adapterを接続し外部再現を確認 | 新framework先行導入なし、独立実行で同versionの結果を再現 |
+| E06 | benchmark報告・task作成方法・限界を公開 | 先行研究比較、世界初/leadingを未実証で主張しない |
+| I01 | prompt/tool/routing/offer等の候補を一度に一変更生成 | grader/dataset/policy/identity/権限/fence/spend capを書き換えない |
+| I02 | frozen baselineと同条件で候補を比較 | 品質・安全・費用込みnetの事前条件。fixture scoreを売上としない |
+| I03 | 合格候補だけ小さく本番canaryへ昇格 | 自然run/公式receipt/CFO、悪化・未知悪影響はsourceをrollbackしeffect保持 |
+| I04 | 観測→候補→評価→採用/rollbackを反復 | 成功を自分で採点しない、保存量/予算/介入を有限に保つ |
+| N01 | 既存成果と市場の未充足需要から次の一agentを選ぶ | 売れる型/顧客需要/priceと実費の仮説。agent数増加を成果にしない |
+| N02 | 既存loop-development契約でgoal/owner/資源/identity/会計/cleanupを作る | 同一registryとCFO契約、必要権限・spend cap、他ownerと非重複 |
+| N03 | 最小agentをtest/CI/main/immutable/自然仕事へ進める | scaffold/模擬売上をDoneにせずsignup→提供→公式結果を確認 |
+| N04 | 実顧客の購入→納品→settlement/refund/fee/全実費を閉じる | 最初の正net unit、自己購入・owner deposit・未settled額を除外 |
+| N05 | 正net unitだけ繰返し・拡大し、不採算は改善/終了 | 再現可能な利益/顧客価値/安定稼働をCFOへ戻す |
+| O01 | README/CLI/install/doctor/setup/start/reportをportableにする | private path/credential依存なし、未設定はsetup_requiredと正直に示す |
+| O02 | 新利用者環境で初回設定から実仕事/公式会計まで通す | 少数command、正規provider手続き、秘密/tenant/state分離 |
+| O03 | 外部利用者の再現・benchmark・限界・貢献方法を公開 | one-shot onboarding以後の介入を測る。誰でも百万長者を保証しない |
+| G01 | 各laneの原収益目標と会社全体US$10M/月へ継続改善 | active recurring契約/公式settlement/refund/fee/実費、全scopeを維持 |
+
+**Coconalaの公式売上源:** https://coconala.com/smartphone/users/revenue はログインが必要で、今回public crawlではlogin画面まで。金額は未確認。公式案内 https://coconala.com/pages/guide_sell と https://help.coconala.com/hc/ja/articles/218179958-売上金の反映されるタイミング では、購入者決済はcloseまで預かり、close後に売上反映、販売手数料控除、payout/銀行振込は別段階。M01–05で他契約platformもそれぞれの公式売上/fee/refund/payoutを同案件ID・periodへjoinする。既存skills/cfo/adapters/marketplace.pyはpayment/fee/refund/payout_match/pending receipt対応、aggregate-onlyはgapなので再実装せず公式捕捉とjoinを埋める。LM-EABはapps/life-manager/eval/economic-autonomyにrecords/score/runnerと4 cases（tuning2/held-out2）まで存在、H/E/I/N/O/Gの実成果は未完。
+
 ### 基盤だけのatomic TODO（現在の実行表）
+
+**9担当の起動cursor:** goal packet保存/commit/push→AGMSG fresh spawnを各担当へ実行→実session/最初のworking readback→所有確認→各lane先頭atom。本cohortは新しい開発担当であり本番業務loopの重複起動ではない。CFOは指定WT/PR #7714を引き継ぎ、primaryは同source編集を止める。cleanup BF15は受入済みなので、新たな実測漏れ以外を未完へ戻さない。旧11GiB条件は現ユーザー方針で診断値へ変更済み。世界初/無停止/誰でも百万長者は未実証の目標とし、公式成果なしに公開claim/Doneへしない。
+
+**起動方式の比較atom:** native subagentはCFO nlink1の限定修正を実行。AGMSG1.5.1はplain spawnでinvalid owner start time、tmux spawnはlaunched-unconfirmed、既存hooks review modalでtask未着手を確認。15 native同時実行は当threadの提供枠2（primary込み）では実行できない。まずAGMSGのfresh1 sessionへ読み取り専用PR triageを渡し、Codexの公式CLI --disable hooksをこのprobeだけに指定して未承認hookを実行しない。model/approval/sandbox/global configは変更せず、repo instructionsとnative権限制御は保持する。成功は実task readbackとAGMSG返答、登録だけではない。不具合はversion/最小再現/期待・実測を公開issueへ記録する。
+
+**比較の実測結果と次cursor:** 標準subagent native_cfo_one_fixはCFO archive nlink1の修正をRED→GREEN、Node関連68 tests PASS、commit b715addc96bb0bcf41ff8c2686bf1ede2776e69eをpush、PR #7714 head一致を確認。旧headのCIを新headへ流用せず、Security Scan workflow_dispatch run38193641859/head b715addcを発行して進行中。AGMSG fresh lm-spawn-probe-1012はtmux/このprobeだけhooks非実行の設定で実task開始→PR #7725/#7688/#7666公式readback→primary inboxへ3報告を返し完了。三PRはOPEN/Draft/表示CI PASSだが、PromptBaseはbrowser/session・uncertain occurrence、Writerは未反映/既存suite failures、Connectorはowner調整/browser timeoutの本番未検証を残す。mergeだけで18業務Doneへしない。AGMSG1.5.1 plain driverのowner start-time不具合は公式issue https://github.com/fujibee/agmsg/issues/1591 へsanitized再現を報告（最新1.5.3での再現は未検証）。使い分けは短い限定修正=native、継続独立lane=AGMSG。現在確認済みのcleanup BF15を汎用未完へ戻さず、残る共通運用は新sourceのCI/main→main-derived release/loaded SHA→自然仕事/公式receipt/replay-zero。18全部の遅延ゼロ/無故障は未証明、固定時間の永続保証にしない。
+
+**現在の担当・今月収益cursor:** Daisの既存Codex Job Hunter/LINE/Capafy担当を維持し重複しない。PromptBase/Writerを新しいAGMSG専任として起動する。Capafy最新official reconcile observed2026-10-12T01:09:12Zは累計orders70/gross102.75USD/creator earnings76.18USD/paid_out0、月別売上・費用込みnet・MRRは未確認。PromptBase sales0/net0は2026-10-08T19:20:44Zの保存値で現在月の証明ではない。LINE observed2026-10-11T15:29:45Zのdistribution表示期間は2025-12、productsにはsales0とnullが混在し、2026-10月の完全売上へ置換しない。CFO保存snapshotは2026-10-10T21:01:34Z/trailing start2026-09-10、company historical/trailing/MRR unknown、通知pendingであり今月全18報告は未完。fresh fleet readbackのhf-gig-reply-detectorは2026-10-12T02:09:03Z/loaded cecffc9bのdisk_headroom_low延期、ceo-runnerは旧361ed0の履歴延期。BF15受入済みを全18無停止保証へ置換せず、fresh Gigのloaded guard/argv/env/資源観測を先頭の共通運用診断として確認する。全18の月初から現在の公式period収益/返金/fees/実費をjoinするまでunknownを保持する。
+
+**担当更新:** Job Hunterの実担当はAGMSG lm-job-hunter-1012、指定WT job-hunter-dreamwork-submit-20261011/branch fix/job-hunter-current-salary-option-20261012。最新版goalは無料OSS、Workday/Ashby等の公式ATS・事実resume・同求人receipt/replay-zero、個人事実/資格/報酬/就労資格非推測、必須情報不足は非開示/辞退optionまたはその行not_submittedでqueue継続。旧Dreamwork中心handoverを優先しない。primaryから担当確認のAGMSGを送信済み。LINEはDaisの既存Codexを維持。旧primary-spawn lm-job-goal-1012/lm-line-goal-1012のforce despawnはruntime_error/未確認なので停止済みと報告しない。旧boot packetを取消指示へ置換して重複着手を防ぐ。CapafyはDaisがfresh Codexを開きlm-capafy-1012としてteam lmへ参加可能、旧Capafy writer停止/lease確認後に専任引継ぎ。PromptBase/WriterはAGMSG専任がgoal active/実作業開始と初回inbox報告を確認済み。
+
+**PromptBase専用browser境界:** primaryがbrowsers.tomlへpromptbase:daisだけを正規登録、profile=~/.local/state/anicca/promptbase/browser-profile（.cloak外）、owner=promptbase-loop-daily、launcherは既存ensure_provision_browser、portはDevToolsActivePortで解決する。既存identity/profile/token/vaultは変更しない。PB担当は通常guard/launcher/安全preflightを使いsource/browser/sessionを自分の範囲でserialに扱う。今回のphone/Apple-store/interactive:dais禁止が旧handover/skillのphone・Keychain手順より優先する。未確認accountを増やさず既存sellerへ正規loginし、credentialはprivate SSOTだけ。
+
+
+
+
+
 
 当面の対象はこの表だけ。下の全社130工程は将来の参照ロードマップであり、いま全社工程へ拡大しない。既存の「cleanup残3大分類」は本表の親分類で、進捗報告はBF-ID単位で完了証拠を示す。毎分watchdog、共通bounded出力/代表自己cleanup、Gig閉鎖物回収/再開、予約expiry順序、scratch通常file誤判定、backup失敗伝播と自然保存/対象claim返却は確認済みで、残項目へ戻さない。
 
@@ -979,7 +1039,7 @@ P1の枠回復はCLEAN-05の生存/待ち境界として扱う。既存S06〜S18
 
 **「24/7 forever」の契約:** 各agentの自己後始末と中央cleanupを通常の実行lifecycleに組み込み、不要物の増加を生成側と回収側の両方で制御する。監督・待ち行列・復旧は常時動き、各仕事は有限の予算で実行・記録・片付け・次の仕事へ進む。ディスク圧迫を早期に自己所有の修復へつなげ、短期待機後に自動再開し、全収益loopを永久待機させない。正式state/receiptの成長には既存の許可・spend cap内で容量/保存先を計画し、障害になるまで放置しない。ほかのagentと業務loopの並列稼働を維持し、本sessionの改善は一件ずつ行う。保護データ削除、新framework、反復reviewで代用しない。
 
-**実行順:** P0→P1を全lane共通の先行条件にする。その後、別ownerの独立laneはshared state/worktree/effectが重ならない範囲で並行して進め、各lane内では既存cursor順を守る。S01〜S14は収益laneの一覧であり、全laneを番号順に直列化しない。このprimaryのGig担当はP0/P1後にS10/T7 item 2から再開し、別ownerのS06〜S09完了を待たない。CFO S07はCFO ownerの範囲として重複実装せず、公式receiptはGigのsettled net/evalに使う。全S01〜S14の受入後にS15自己修復→S16評価→S17自己改善→S18 OSSへ進む。外部gate/未来slotで止まるatomは証拠と戻るcursorを記録して、別の独立safe atomだけを進める。18 agent全greenやJob Hunter entitlement/投資30自然round tripsを、独立した既存商品の販売開始gateにしない。cleanupの現在cursor・順序・完了済みは →「cleanupの残TODO — 完了済みを除いた実行順」。
+**実行順:** P0→P1を全lane共通の先行条件にする。その後、別ownerの独立laneはshared state/worktree/effectが重ならない範囲で並行して進め、各lane内では既存cursor順を守る。S01〜S14は収益laneの一覧であり、全laneを番号順に直列化しない。このprimaryのGig担当はP0/P1後にS10/T7 item 2から再開し、別ownerのS06〜S09完了を待たない。CFO S07はCFO ownerの範囲として重複実装せず、公式receiptはGigのsettled net/evalに使う。全体のactive順序は「全体の完走順 — 業務修復から自律的な新agent生成まで」を正本とする。自然障害/公式receipt等の依存が揃ったscopeでS15〜S18を進め、未達MRRを実装開始gateにしない。外部gate/未来slotで止まるatomは証拠と戻るcursorを記録して、別の独立safe atomだけを進める。18 agent全greenやJob Hunter entitlement/投資30自然round tripsを、独立した既存商品の販売開始gateにしない。cleanupの現在cursor・順序・完了済みは →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 | 状態 | 順 | 次の一操作・対象 / 検証・DONE証拠 |
 |---|---|---|
@@ -997,8 +1057,8 @@ P1の枠回復はCLEAN-05の生存/待ち境界として扱う。既存S06〜S18
 | 未完 | S12 | Job Hunter既存順でcapacity→MCP/readiness→Workday official effect照合→Dreamwork cutover、entitlementが許可するfit-qualified応募だけ実行。Free applicationsLimit0なら購入/bypassせず次のsafe atomへ。DONE=Tokyo/日本Remote/SF/visa条件を満たす公式応募receiptと業務Telegram readback |
 | 未完 | S13 | 投資#7373 checks/必要review/main→AT-13 fresh official no-order契約→自然qualified sell→初paper round tripのcost-complete P&L/replay-zero→30 round trips/strategy/cross-venue/AT-24/29/反対review。達成前live funding/orderなし。DONE=元のownerへsettled正net利益のAlpaca/銀行/CFO同period証明 |
 | 未完 | S14 | README残catalogのCapafy/Writer/PromptBase/Affiliate/Agent Economy/Connector/Fundraiser等をregistryへjoinし、既存§5.2と各lane cursorのsafe先頭atomを一件ずつ進める。DONE=自然owner/公式effect/費用/settlement/CFO coverage。登録やlistingだけを売上にしない |
-| 未完 | S15 | S01〜S14のloop/platform課題を進めた後、recovery-intent/supervisor/bridge→life-manager-devの既存経路で自然に起きた自己所有障害1件を修復する（§5.1 T5）。run/intent/issue/PR/release/次自然run/公式readback/replay-zeroをjoinする。外部coding agentの修正やsupervisorの単独PASSは自己修復の証拠にしない。production障害をわざと作らない |
-| 未完 | S16 | T14 LM-EAB（S01〜S14の受入後、S15自己修復実証後に開始）。順は①`selfEval`の欠測net→0をfail-closedへ直す（現行sourceで再確認済み）②recovery/economic evalを自然障害・CFO公式receiptへ接続③BehaviorBenchを含む既存benchmarkとの比較とtask taxonomyを確定④public/dev/held-out/challengeを分離したcase・task protocolを増やす⑤grader較正・反復試行・不確かさ・contamination auditを追加⑥既存runnerで外部adapterと独立再現を達成⑦report/authoring guideを公開する。新frameworkを先行導入しない |
+| 未完 | S15 | 必要な自然障害のowner/evidenceが揃ったscopeで、recovery-intent/supervisor/bridge→life-manager-devの既存経路で自然に起きた自己所有障害1件を修復する（§5.1 T5）。run/intent/issue/PR/release/次自然run/公式readback/replay-zeroをjoinする。外部coding agentの修正やsupervisorの単独PASSは自己修復の証拠にしない。production障害をわざと作らない |
+| 未完 | S16 | T14 LM-EAB（必要な自然障害/公式receiptを入力に段階実装し、18業務の収益成長と並行）。順は①`selfEval`の欠測net→0をfail-closedへ直す（現行sourceで再確認済み）②recovery/economic evalを自然障害・CFO公式receiptへ接続③BehaviorBenchを含む既存benchmarkとの比較とtask taxonomyを確定④public/dev/held-out/challengeを分離したcase・task protocolを増やす⑤grader較正・反復試行・不確かさ・contamination auditを追加⑥既存runnerで外部adapterと独立再現を達成⑦report/authoring guideを公開する。新frameworkを先行導入しない |
 | 未完 | S17 | S16でversion固定したevaluatorを使い、prompt/tool/routing/offer等の候補を一度に一変更だけ評価する。事前定義した品質・安全・settled net条件を通したcanaryだけ昇格し、悪化時は自動rollback。候補はgrader/dataset/policy/identity/権限/fence/spend capを書き換えない。benchmark scoreだけで販売成功とせず自然run・公式receiptへjoinする。選定済OpenClaw+native CodexのMX-01〜12は既存計画の最小waveを一件ずつ進め、framework比較を再開しない |
 | 未完 | S18 | README/LICENSE/install.sh/catalogのpublic・MIT現状を保ち、未完成guided installer/tenant adapterを1 agentずつ完成。隔離した新利用者環境でinstall.sh plan→doctor→setup_required/選択ownerを確認し、個人path/credential/private app依存を除く。既存価格の継続商品で下記MRR段階を実測し、US$10Mと全lane成果の両方を公式CFOで確認するまで継続 |
 
