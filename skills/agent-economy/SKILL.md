@@ -20,7 +20,9 @@ delayed receipts and reports the truth that the other earn slots use.
 - `lib/money-truth.mjs` joins delayed EVM receipt results without rewriting `earn-ledger.jsonl`.
 - `receipt-reconciliations.jsonl` is the append-only tx-keyed correction sidecar for delayed receipts.
 - `lib/treasury-policy.mjs` defines reserve, committed-liability, session-cap, and graduation rules.
-- `../earn/taskmarket/` is the first work lane: one official TaskMarket job, bounded BlockRun image spend,
+- `../earn/taskmarket/` is the first work lane: `agent-economy-taskmarket-work` runs its existing
+  one-shot worker every five minutes under the revenue admission and owner fence. It handles one
+  official TaskMarket job with bounded BlockRun image spend,
   submission readback, and a finalized award receipt projected only after the official task and Base
   transfer verifier pass. A submission row is only a task pointer: count revenue only when the official
   task is `completed`, lists this worker's canonical award, and the existing verifier confirms its exact

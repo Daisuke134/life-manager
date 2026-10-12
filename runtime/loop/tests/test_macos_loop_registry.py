@@ -119,6 +119,27 @@ class MacosLoopRegistryTest(unittest.TestCase):
         self.assertTrue(row["coalesce_queued_wakes"])
         self.assertTrue(row["reconcile_queued_release"])
 
+    def test_taskmarket_work_is_registered_as_a_revenue_owner(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        validated = validate_registry(registry)
+        row = validated["loops"]["agent-economy-taskmarket-work"]
+        self.assertEqual(row["entrypoint"], "skills/earn/taskmarket/run.sh")
+        self.assertEqual(row["cadence"], {"start_interval_seconds": 300})
+        self.assertEqual(row["domain"], "earn")
+        self.assertEqual(row["effect_class"], "money")
+        self.assertEqual(row["resource_class"], "agent")
+        self.assertEqual(row["admission_class"], "revenue")
+        self.assertEqual(row["priority"], "revenue")
+        self.assertEqual(admission_effect_scope(row), "owner")
+        self.assertTrue(row["coalesce_queued_wakes"])
+        self.assertTrue(row["coalesce_reserved_wakes"])
+        self.assertTrue(row["reconcile_queued_release"])
+        self.assertTrue((ROOT / row["entrypoint"]).is_file())
+        rendered = json.loads(render_job_models(registry))
+        job = next(item for item in rendered if item["loop_id"] == "agent-economy-taskmarket-work")
+        self.assertEqual(job["entrypoint"], row["entrypoint"])
+        self.assertEqual(job["cadence"], row["cadence"])
+
     def test_fundraiser_declares_existing_admission_and_coalescing_contract(self):
         row = json.loads((ROOT / "config/loop-registry.json").read_text())["loops"][
             "fundraiser"

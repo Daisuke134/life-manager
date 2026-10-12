@@ -482,6 +482,29 @@
       "resource_class": "agent",
       "state_root": "~/.local/state/life-manager/agent-economy"
     },
+    "agent-economy-taskmarket-work": {
+      "admission_class": "revenue",
+      "admission_effect_scope": "owner",
+      "cadence": {
+        "start_interval_seconds": 300
+      },
+      "cleanup": {
+        "max_age_days": 14,
+        "max_runs": 100
+      },
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
+      "domain": "earn",
+      "effect_class": "money",
+      "entrypoint": "skills/earn/taskmarket/run.sh",
+      "label": "ai.anicca.agent-economy-taskmarket-work",
+      "log_root": "~/.local/state/life-manager/agent-economy/taskmarket-work/logs",
+      "priority": "revenue",
+      "provider_route": "deterministic",
+      "reconcile_queued_release": true,
+      "resource_class": "agent",
+      "state_root": "~/.local/state/life-manager/agent-economy/taskmarket-work"
+    },
     "agentmail-nudge": {
       "cadence": {
         "calendar_interval": {
