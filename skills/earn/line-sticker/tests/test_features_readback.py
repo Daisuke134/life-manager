@@ -3,6 +3,7 @@ browser). Mirrors ``tests/test_sales_readback.py``'s structure.
 """
 from __future__ import annotations
 
+import asyncio
 import datetime
 import json
 from pathlib import Path
@@ -116,6 +117,49 @@ class LiveCreatePageLabel(unittest.TestCase):
                  " (日本時間) バナー掲載期間(予定)： 2026年11月11日(水)11:00 〜 2027年1月8日(金)10:59 (日本時間)")
         out = MODULE.parse_feature_radio("835", label, datetime.date(2026, 10, 8))
         self.assertEqual(out, {"value": "835", "title": "冬を感じるスタンプ", "deadline": "2026-12-04"})
+
+
+class ReadCurrentFeaturesPage(unittest.TestCase):
+    CONDITIONS = ("【個数・金額・参加居住国】\n・個数：8-40個\n・金額：￥190～\n"
+                  "・参加居住国：日本のみ\n【審査受付期間】\n2026年10月2日 〜 11月30日")
+
+    class Page:
+        def __init__(self) -> None:
+            self.url = ""
+            self.visited: list[str] = []
+
+        async def goto(self, url: str, **kwargs) -> None:
+            self.url = url
+            self.visited.append(url)
+
+        async def wait_for_timeout(self, milliseconds: int) -> None:
+            return None
+
+        async def evaluate(self, script: str):
+            if "input[type=radio]" in script:
+                return [{"value": "835", "label": "「冬を感じるスタンプ」 (受付 10/2〜12/4)"}]
+            return [{"title": "「冬を感じるスタンプ」特集について",
+                     "href": "/my/creator/announce/article?id=835"}]
+
+        async def inner_text(self, selector: str) -> str:
+            self.assert_selector = selector
+            return ReadCurrentFeaturesPage.CONDITIONS
+
+    def test_reads_the_current_radio_and_matching_official_announcement(self) -> None:
+        page = self.Page()
+        result = asyncio.run(MODULE.read_features_on_page(page))
+        self.assertEqual(result["status"], "ok")
+        feature = result["features"][0]
+        self.assertEqual(feature["value"], "835")
+        self.assertEqual(feature["title"], "冬を感じるスタンプ")
+        # The current announcement body overrides a stale date still shown beside the radio.
+        self.assertEqual(feature["deadline"], "2026-11-30")
+        self.assertEqual(feature["conditions"], self.CONDITIONS)
+        self.assertEqual(page.visited, [
+            MODULE.FEATURE_PAGE,
+            f"{MODULE.CREATOR_BASE}/announce/",
+            "https://creator.line.me/my/creator/announce/article?id=835",
+        ])
 
 
 if __name__ == "__main__":

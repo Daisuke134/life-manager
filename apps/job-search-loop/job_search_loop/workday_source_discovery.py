@@ -60,7 +60,9 @@ def merge_sources(
 ) -> tuple[dict[str, str], ...]:
     merged = []
     seen = set()
-    for source in previous + discovered:
+    # The refreshed query wins for a known board; keeping the previous row first
+    # leaves location-limited search text permanently in the active registry.
+    for source in discovered + previous:
         identity = (source["host"], source["tenant"], source["site"])
         if identity in seen:
             continue
@@ -101,22 +103,24 @@ def main() -> int:
         if not is_excluded_employer(source["company"], exclusions)
     )
     prompt = (
-        "Act as the source-discovery agent for a Tokyo-based autonomous job hunter. "
-        "Use available internet/search tools now. Find diverse companies currently "
-        "hiring in Tokyo, Japan-remote, or Japan-compatible global remote through "
-        "official Workday career sites. Do not choose jobs or judge candidate fit. "
-        "Choose focused searches likely to return adequate non-senior full-time individual-"
-        "contributor roles where the candidate can apply truthfully now. Prefer early- and "
-        "mid-career implementation, customer, product, operations, marketing, consulting, "
-        "support, analyst, specialist, associate, and engineering work. Avoid searches "
-        "dominated by internships, Senior/Lead/Principal/Director/executive or people-management "
-        "scope, or unrelated regulated professions. An explicit senior-level title is outside the "
-        "user's target; use responsibilities to resolve only ambiguous titles. Do not search "
+        "Act as the source-discovery agent for a worldwide autonomous job hunter. "
+        "Use available internet/search tools now. Find diverse employers currently "
+        "hiring through official Workday career sites. Remote, onsite, and hybrid roles "
+        "worldwide are all in scope; do not limit discovery to Tokyo, Japan, or any other "
+        "country. Do not choose jobs or judge candidate fit. Choose focused searches for "
+        "full-time professional roles where the candidate can answer application questions "
+        "truthfully. Include implementation, customer, product, operations, marketing, "
+        "consulting, support, analyst, specialist, associate, engineering, and manager work. "
+        "Do not exclude a role because its title contains Senior, Lead, Principal, Director, "
+        "or Manager; use the responsibilities and mandatory requirements. Exclude only "
+        "internships, CEO/C-suite scope, or unrelated regulated professions. Do not search "
         "for AI as a keyword alone when the candidate's implementation, customer, product, "
         "or agent-deployment evidence suggests a more precise query. Use a short "
-        "Workday-native search_text of two or three terms, for example 'Japan AI' or "
-        "'Tokyo consultant'; never return a sentence or a long keyword bundle. Include "
-        "Tokyo or Japan intent in every search_text so global-only roles are not returned first. "
+        "Workday-native search_text of two or three role/skill terms; never return a sentence, "
+        "a city or country name, or a work-arrangement term such as remote, onsite, or hybrid. "
+        "For every previous source identity, return a refreshed search_text using grounded "
+        "role or skill terms and no location-specific search terms, so old searches cannot "
+        "keep narrowing the active registry. Then add other diverse Workday employers. "
         "Return the exact CXS source identity needed to query each official site: "
         "company, myworkdayjobs host, tenant, site, and a focused Workday search_text "
         "chosen from the candidate's grounded experience. Return multiple rows for a "

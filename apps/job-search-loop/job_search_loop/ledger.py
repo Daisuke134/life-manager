@@ -47,7 +47,7 @@ FUNNEL_DISPOSITIONS = frozenset({"positive", "negative"})
 AUTHORITATIVE_EVIDENCE_SOURCES = frozenset(
     {"ats", "gmail", "calendar", "employer_portal", "signed_document"}
 )
-WORKDAY_FIT_POLICY_VERSION = "workday-global-scope-v6"
+WORKDAY_FIT_POLICY_VERSION = "workday-global-scope-v7"
 
 
 class FenceError(RuntimeError):

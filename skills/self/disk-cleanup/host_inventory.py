@@ -386,9 +386,17 @@ def _bounded_size(
 def _size_sample(record: dict, observed_at: str | None) -> dict | None:
     sample = record.get("size_sample")
     if isinstance(sample, dict) and type(sample.get("size_bytes")) is int:
-        return sample
+        if sample.get("measurement") == "bounded-du":
+            return sample
+        # Old cached samples may contain partial totals, even after an unmeasured pass.
+        if ("measurement" not in sample and record.get("measurement") == "bounded-du"
+                and sample["size_bytes"] == record.get("size_bytes")):
+            return {**sample, "measurement": "bounded-du"}
+        return None
     size = record.get("size_bytes")
-    return {"size_bytes": size, "observed_at": observed_at} if type(size) is int else None
+    if record.get("measurement") not in (None, "bounded-du"):
+        return None
+    return {"size_bytes": size, "observed_at": observed_at, "measurement": "bounded-du"} if type(size) is int else None
 
 
 def project_storage_growth(previous: dict | None, current: dict,
@@ -411,7 +419,8 @@ def project_storage_growth(previous: dict | None, current: dict,
         except (KeyError, TypeError, ValueError, AttributeError):
             pass
         old_size = old.get("size_bytes") if old else None
-        measured = (elapsed is not None and type(size) is int and size >= 0
+        measured = (record.get("measurement") in (None, "bounded-du")
+                    and elapsed is not None and type(size) is int and size >= 0
                     and type(old_size) is int and old_size >= 0)
         delta = size - old_size if measured else None
         owners = sorted(set(registry_roots.get(path, [])))
@@ -526,8 +535,8 @@ def collect_host_inventory(
             size, measurement, size_gap = _bounded_size(path, run, deadline=deadline, clock=clock)
             record["size_bytes"] = size
             record["measurement"] = measurement
-            if type(size) is int:
-                record["size_sample"] = {"size_bytes": size, "observed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+            if measurement == "bounded-du" and type(size) is int:
+                record["size_sample"] = {"size_bytes": size, "observed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "measurement": measurement}
             if size_gap:
                 record_gaps.append(f"{size_gap}:{path}")
         else:

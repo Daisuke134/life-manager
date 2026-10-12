@@ -24,7 +24,6 @@ RECEIPT_PATH = Path("state") / "disk-headroom.json"
 _PRODUCER_GATE = "life-manager-producer-preflight"
 _DISK_STOP_FLAGS = (("disk-writers.stop", "disk_writers_stop"),)
 _DISK_RECOVERY_OWNER = "host-disk-recovery"
-_DISK_RECOVERY_LOOP_ID = "life-manager-disk-cleanup"
 _DISK_RECOVERY_REASON = "disk_headroom_low"
 RECOVERY_FLOOR_BYTES = 2 * 1024**3
 _DISK_RECOVERY_ACTION = "restore_capacity_and_install_shared_disk_gate"
@@ -199,7 +198,7 @@ def _failure(
 def _producer_gate(
     loop_id: str | None = None, *, check_capacity: bool = True,
 ) -> tuple[str, Path] | None:
-    loop_id = loop_id or os.environ.get("LIFE_MANAGER_LOOP_ID", "")
+    del loop_id, check_capacity  # Retained for callers; free-space floors are diagnostic only.
     try:
         configured = _host_state_dir()
         candidates = (*_canonical_host_state_dirs(), configured)
@@ -242,20 +241,8 @@ def _producer_gate(
             if not stat.S_ISREG(entry.st_mode):
                 return "disk_policy_unavailable", flag
             if is_cleanup_disk_recovery_signal(flag):
-                if check_capacity and loop_id != _DISK_RECOVERY_LOOP_ID:
-                    return _DISK_RECOVERY_REASON, flag
                 continue
             return reason, flag
-    if check_capacity and loop_id != _DISK_RECOVERY_LOOP_ID:
-        state_dir = _state_dir()
-        probe = next((path for path in (state_dir, *state_dir.parents) if path.exists()), None)
-        if probe is None:
-            return "disk_headroom_unknown", state_dir
-        available = disk_free_bytes(probe)
-        if available is None:
-            return "disk_headroom_unknown", probe
-        if available < RECOVERY_FLOOR_BYTES:
-            return "disk_headroom_low", probe
     return None
 
 
@@ -292,24 +279,15 @@ def _producer_preflight(loop_id: str | None = None) -> int:
 
 
 def disk_headroom_ok() -> bool:
-    """Return whether a normal producer has safe disk headroom."""
+    """Return whether producer control state permits work; free space is diagnostic only."""
     return _producer_preflight(os.environ.get("LIFE_MANAGER_LOOP_ID")) == 0
 
 
 def release_capacity_bytes(repo: Path, sha: str, loops: Path, node: str, npm: str) -> int:
-    """Measure a complete source export only when all dependency bundles are reusable."""
-    donor = (loops / "current").resolve()
-    descriptor = json.loads((donor / "RELEASE.json").read_text())
-    if (descriptor.get("release_paths") != "ALL"
-            or descriptor.get("provenance") != "ancestor-of-origin-main"
-            or descriptor.get("runtime_python") != str(Path(sys.executable).resolve())
-            or descriptor.get("runtime_python_cache_tag") != sys.implementation.cache_tag
-            or donor.stat().st_mode & 0o222
-            or os.path.lexists(donor / "RECLAIMED-RELEASE.json")):
-        raise ValueError("donor is not a complete immutable runtime")
-    subprocess.run(["git","-C",str(repo),"merge-base","--is-ancestor",descriptor["sha"],"origin/main"],check=True,capture_output=True)
+    """Measure a source export plus enough space to retain the recovery floor."""
     roots = ("", "runtime/compute-proxy", "runtime/agentmail", "apps/life-manager",
              "skills/earn/taskmarket", "skills/earn/x402-sell", "services/x402-endpoint")
+    package_manifests = []
     for relative in roots:
         prefix = relative + "/" if relative else ""
         manifests = []
@@ -318,6 +296,21 @@ def release_capacity_bytes(repo: Path, sha: str, loops: Path, node: str, npm: st
             manifests.append(result.stdout if result.returncode == 0 else None)
         if None in manifests:
             continue
+
+        package_manifests.append((relative, manifests))
+
+    if package_manifests:
+        donor = (loops / "current").resolve()
+        descriptor = json.loads((donor / "RELEASE.json").read_text())
+        if (descriptor.get("release_paths") != "ALL"
+                or descriptor.get("provenance") != "ancestor-of-origin-main"
+                or descriptor.get("runtime_python") != str(Path(sys.executable).resolve())
+                or descriptor.get("runtime_python_cache_tag") != sys.implementation.cache_tag
+                or donor.stat().st_mode & 0o222
+                or os.path.lexists(donor / "RECLAIMED-RELEASE.json")):
+            raise ValueError("donor is not a complete immutable runtime")
+        subprocess.run(["git","-C",str(repo),"merge-base","--is-ancestor",descriptor["sha"],"origin/main"],check=True,capture_output=True)
+    for relative, manifests in package_manifests:
         directory = donor / relative
         if any((directory / name).read_bytes() != payload for name,payload in zip(("package.json","package-lock.json"),manifests)):
             raise ValueError("dependency manifests changed")
@@ -352,7 +345,7 @@ def release_capacity_bytes(repo: Path, sha: str, loops: Path, node: str, npm: st
                     budget += 2 * (block + rounded(16 + len(marshal.dumps(code))))
         if archive.wait() != 0:
             raise ValueError("Git export measurement failed")
-    return budget + largest_temporary
+    return RECOVERY_FLOOR_BYTES + budget + largest_temporary
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -362,8 +355,15 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 2
         try:
             required = release_capacity_bytes(Path(remaining[1]),remaining[2],Path(remaining[3]),remaining[4],remaining[5])
-        except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError, tarfile.TarError, SyntaxError):
-            required = RECOVERY_FLOOR_BYTES
+        except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError, tarfile.TarError, SyntaxError) as exc:
+            print(json.dumps({
+                "status": "failed",
+                "effect": 0,
+                "readback": 0,
+                "reason": "release_capacity_measurement_failed",
+                "error_class": type(exc).__name__,
+            }, sort_keys=True, separators=(",", ":")), file=sys.stderr)
+            return 1
         print(required)
         return 0
     if remaining[:1] == ["--check-free-space"]:
