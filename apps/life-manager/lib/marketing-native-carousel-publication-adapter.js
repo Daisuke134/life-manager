@@ -426,6 +426,9 @@ function assertPack(pack, contract, caption, lane) {
     || (pack.integration_id !== undefined && pack.integration_id !== lane.integrationId)
     || (pack.native_owner !== undefined && pack.native_owner !== lane.nativeOwner)
     || (pack.caption_ref !== undefined && pack.caption_ref !== contract.captionRef)) fail("marketing native carousel pack identity is invalid");
+  if (lane.platform === "tiktok" && pack.slides.some((slide) => /\bLink in bio\b|プロフィールのリンク/i.test(String(slide?.text || "")))) {
+    fail("marketing native carousel pack contains an unavailable TikTok CTA");
+  }
   const ordered = pack.slides.map((slide, i) => {
     const expectedRole = i === 0 ? "hook" : (i === SLIDE_COUNT - 1 ? (lane.lastSlideRole || (lane.platform === "tiktok" ? "cta" : "body")) : "body");
     if (!slide || slide.position !== i + 1 || slide.role !== expectedRole || typeof slide.text !== "string" || !OBJ.test(String(slide.media_ref || ""))) fail("marketing native carousel pack slide is invalid");
