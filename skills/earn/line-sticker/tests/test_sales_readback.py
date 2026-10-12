@@ -6,11 +6,14 @@ seller's display name replaced by a placeholder.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 from pathlib import Path
 import sys
 import tempfile
+import types
 import unittest
+from unittest.mock import patch
 
 MODULE_ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
@@ -109,6 +112,104 @@ class BuildLedgerRow(unittest.TestCase):
             {"product_id": "set-a", "title_ja": "重複タイトル", "sale_start_date": "2026/10/12", "sales_jpy": 189},
             {"product_id": "set-b", "title_ja": "重複タイトル", "sale_start_date": None, "sales_jpy": None},
         ])
+
+    def test_duplicate_official_management_id_stays_unknown(self) -> None:
+        tracked = [{"product_id": "set-a", "title_ja": "公式タイトル"}]
+        rows = [
+            {"product_id": "set-a", "title_ja": "公式タイトル", "sale_start_date": "2026/10/12", "sales_jpy": 189},
+            {"product_id": "set-a", "title_ja": "公式タイトル", "sale_start_date": "2026/10/12", "sales_jpy": 0},
+        ]
+        self.assertEqual(MODULE.match_products(tracked, rows), [
+            {"product_id": "set-a", "title_ja": "公式タイトル", "sale_start_date": None, "sales_jpy": None},
+        ])
+
+    def test_duplicate_tracked_management_id_does_not_copy_one_row_twice(self) -> None:
+        tracked = [
+            {"product_id": "set-a", "title_ja": "商品A"},
+            {"product_id": "set-a", "title_ja": "商品B"},
+        ]
+        rows = [{
+            "product_id": "set-a", "title_ja": "商品A",
+            "sale_start_date": "2026/10/12", "sales_jpy": 189,
+        }]
+        self.assertEqual(MODULE.match_products(tracked, rows), [
+            {"product_id": "set-a", "title_ja": "商品A", "sale_start_date": None, "sales_jpy": None},
+            {"product_id": "set-a", "title_ja": "商品B", "sale_start_date": None, "sales_jpy": None},
+        ])
+
+
+class FetchTableCompleteness(unittest.TestCase):
+    def test_partial_dom_rows_are_not_a_successful_stats_readback(self) -> None:
+        row = {
+            "href": "https://creator.line.me/my/account/stats/sticker/48077815",
+            "text": "毎日使えるカワウソスタンプ\t2026/10/6\t￥0",
+        }
+        snapshot = {
+            "ready_state": "complete",
+            "table_count": 1,
+            "rows": [row],
+            "body_row_count": 15,
+            "page_numbers": [1],
+            "current_page": 1,
+            "has_next_page": False,
+            "busy": False,
+        }
+
+        class FakePage:
+            url = "https://creator.line.me/my/account/stats/sticker"
+
+            async def goto(self, url: str, **_kwargs: object) -> None:
+                self.url = url
+
+            async def wait_for_timeout(self, _milliseconds: int) -> None:
+                return None
+
+            async def wait_for_load_state(self, *_args: object, **_kwargs: object) -> None:
+                return None
+
+            async def evaluate(self, _script: str) -> dict:
+                return snapshot
+
+            def locator(self, _selector: str):
+                class FakeLocator:
+                    async def evaluate_all(self, _script: str) -> list[dict]:
+                        return [row]
+
+                return FakeLocator()
+
+            async def inner_text(self, _selector: str) -> str:
+                return PAYMENT_TEXT
+
+            async def close(self) -> None:
+                return None
+
+        class FakeContext:
+            async def new_page(self) -> FakePage:
+                return FakePage()
+
+        class FakeBrowser:
+            contexts = [FakeContext()]
+
+        class FakeChromium:
+            async def connect_over_cdp(self, _cdp: str) -> FakeBrowser:
+                return FakeBrowser()
+
+        class FakePlaywright:
+            chromium = FakeChromium()
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *_args: object) -> None:
+                return None
+
+        package = types.ModuleType("playwright")
+        async_api = types.ModuleType("playwright.async_api")
+        async_api.async_playwright = FakePlaywright
+        package.async_api = async_api
+        with patch.dict(sys.modules, {"playwright": package, "playwright.async_api": async_api}):
+            result = asyncio.run(MODULE._fetch("http://127.0.0.1:9222"))
+        self.assertEqual(result["status"], "incomplete_stats_table")
 
 
 class TrackedProducts(unittest.TestCase):

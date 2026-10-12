@@ -67,6 +67,22 @@ def parse_sticker_table_rows(rows: list[dict]) -> list[dict]:
     return parsed
 
 
+def _stats_table_is_complete(snapshot: dict) -> bool:
+    rows = snapshot.get("rows")
+    return (
+        snapshot.get("ready_state") == "complete"
+        and snapshot.get("table_count") == 1
+        and snapshot.get("busy") is False
+        and snapshot.get("stable") is True
+        and isinstance(rows, list)
+        and bool(rows)
+        and snapshot.get("body_row_count") == len(rows)
+        and snapshot.get("page_numbers") == [1]
+        and snapshot.get("current_page") == 1
+        and snapshot.get("has_next_page") is False
+    )
+
+
 def parse_payment_request(text: str) -> dict:
     """Parse 送金申請: 送金可能額 (payable) and the current collection-period 分配額/源泉所得税.
 
@@ -97,10 +113,15 @@ def match_products(tracked: list[dict], rows: list[dict]) -> list[dict]:
         product_id = row.get("product_id")
         if product_id:
             by_id.setdefault(str(product_id), []).append(row)
+    tracked_counts: dict[str, int] = {}
+    for item in tracked:
+        product_id = str(item["product_id"])
+        tracked_counts[product_id] = tracked_counts.get(product_id, 0) + 1
     products = []
     for item in tracked:
-        matches = by_id.get(str(item["product_id"]), [])
-        row = matches[0] if len(matches) == 1 else None
+        product_id = str(item["product_id"])
+        matches = by_id.get(product_id, [])
+        row = matches[0] if len(matches) == 1 and tracked_counts[product_id] == 1 else None
         products.append({
             "product_id": item["product_id"],
             "title_ja": item["title_ja"],
@@ -146,17 +167,60 @@ async def _fetch(cdp: str) -> dict:
         context = browser.contexts[0]
         page = await context.new_page()
         try:
-            await page.goto(f"{CREATOR_BASE}/stats/sticker", wait_until="domcontentloaded", timeout=60000)
-            await page.wait_for_timeout(2000)
+            await page.goto(f"{CREATOR_BASE}/stats/sticker", wait_until="load", timeout=60000)
             if "access.line.me" in page.url:
                 return {"status": "needs_login"}
-            stats_rows = await page.locator("table tr").evaluate_all(
-                """rows => rows.map(row => {
+            snapshot_script = """() => {
+                const tables = [...document.querySelectorAll('table')];
+                const table = tables.find(candidate => candidate.classList.contains('item-list-table'));
+                const bodyRows = table
+                    ? [...table.querySelectorAll('tr')].filter(row => !row.querySelector('th'))
+                    : [];
+                const rows = bodyRows.map(row => {
                     const link = row.querySelector('a[href*="/stats/sticker/"]');
                     return link ? {href: link.href, text: row.innerText} : null;
-                }).filter(Boolean)"""
-            )
-            if not stats_rows:
+                }).filter(Boolean);
+                const controls = [...document.querySelectorAll('a,button,[role="button"]')]
+                    .filter(element => element.getClientRects().length > 0);
+                const controlText = element =>
+                    (element.innerText || element.getAttribute('aria-label') || '').trim();
+                const pageNumbers = [...new Set(controls
+                    .map(controlText)
+                    .filter(text => /^\\d+$/.test(text))
+                    .map(Number))].sort((a, b) => a - b);
+                const selected = controls.find(element =>
+                    element.classList.contains('selected') && /^\\d+$/.test(controlText(element)));
+                const currentPage = selected ? Number(controlText(selected)) : null;
+                const hasNextPage = controls.some(element => {
+                    const text = controlText(element).toLowerCase();
+                    return !element.disabled
+                        && element.getAttribute('aria-disabled') !== 'true'
+                        && /^(next|次へ|次|›|»|>|>>)$/.test(text);
+                }) || pageNumbers.some(number => number > 1);
+                return {
+                    ready_state: document.readyState,
+                    table_count: tables.length,
+                    rows,
+                    body_row_count: bodyRows.length,
+                    page_numbers: pageNumbers,
+                    current_page: currentPage,
+                    has_next_page: hasNextPage,
+                    busy: !!document.querySelector(
+                        '[aria-busy="true"],[role="progressbar"],.loading,.spinner'
+                    )
+                };
+            }"""
+            await page.wait_for_timeout(700)
+            first_snapshot = await page.evaluate(snapshot_script)
+            await page.wait_for_timeout(700)
+            snapshot = await page.evaluate(snapshot_script)
+            snapshot["stable"] = first_snapshot == snapshot
+            if not _stats_table_is_complete(snapshot):
+                return {"status": "incomplete_stats_table"}
+            stats_rows = snapshot["rows"]
+            try:
+                parse_sticker_table_rows(stats_rows)
+            except ValueError:
                 return {"status": "incomplete_stats_table"}
             await page.goto(f"{CREATOR_BASE}/payment_request/", wait_until="domcontentloaded", timeout=60000)
             await page.wait_for_timeout(2000)
