@@ -1106,3 +1106,17 @@ def test_prelaunch_busy_probes_then_budget_block_refunds_once(tmp_path):
     assert module.refund_draft_attempt("draft", evidence) is True
     assert module.load_draft_attempts() == {}
     assert module.refund_draft_attempt("draft", evidence) is False
+
+
+def test_agent_with_an_online_version_does_not_take_a_new_agent_slot() -> None:
+    """2026-10-12: Hook Lab / TikTok / YouTube / Slide Maker (live, with a draft next version) and two
+    live Agents with an update under review were counted as unlisted, so 4 new Agents in review read
+    as CAP_FULL (occupied 10) and the factory stopped shipping new Agents. The agent list carries
+    hasOnlineVersion; a buyer-visible Agent is listed, not a new-Agent slot."""
+    module = load_module()
+    live_with_draft = [agent(str(i), "draft", hasOnlineVersion=True) for i in range(4)]
+    live_in_review = [agent(str(10 + i), "under_review", hasOnlineVersion=True) for i in range(2)]
+    new_in_review = [agent(str(20 + i), "under_review", hasOnlineVersion=False) for i in range(4)]
+    normalized = module.normalize_agents(live_with_draft + live_in_review + new_in_review)
+    assert normalized["counts"]["occupied"] == 4
+    assert normalized["counts"]["free"] == 1
