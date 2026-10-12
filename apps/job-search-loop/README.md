@@ -10,8 +10,8 @@ interviews, and reports every material state change to Telegram.
 | Concern | Current rule |
 |---|---|
 | Acquisition target | Every fresh unique model-qualified role; no daily application quota |
-| Location | Tokyo or remote roles that can employ someone based in Japan |
-| Compensation | Candidate-defined minimum and target from the private profile; unpublished compensation remains visible uncertainty |
+| Location | Any U.S. location, Tokyo on-site or hybrid, and remote roles worldwide where the employer can hire the candidate; sponsorship ambiguity alone does not discard a strong-fit role, and authorization answers remain truthful |
+| Compensation | Candidate-defined floor and target; Dais's current floor is USD 100,000 annually. Unpublished or non-USD compensation remains visible uncertainty |
 | Role focus | Candidate-defined target role families, checked by the model against the complete official JD and resume evidence |
 | Discovery | Accumulating official Workday company registry plus complete CXS snapshots and model ranking; non-Workday adapters remain broken/unverified until rebuilt |
 | Evidence | Every application is fenced in SQLite and retained under a private evidence directory |
@@ -40,24 +40,16 @@ SHA-256; upload and final Review use that same artifact. Claims are retained exa
 in their source language. Invalid or unknown facts are rejected; no recurring user
 approval is requested for this already-delegated refinement.
 
-## Dreamwork native application owner
+## Workday-first application pipeline
 
-The 30-minute acquisition owner first checks the private Dreamwork credential and
-explicit application-autonomy delegation. With a verified rotated key and an
-application-ready account, it configures native Autopilot with a tailored resume,
-preserves candidate preferences and exclusions, and completes the provider's
-exact-argument confirmation-token exchange without recurring user approval.
-Dreamwork then owns employer submission; the local wake only reconciles official
-status. It does not send a competing manual application. Plan allowances remain
-provider-controlled and no plan purchase occurs.
-
-Existing submitted and ambiguous Workday companies are excluded from native
-Autopilot until occurrence-bound official reconciliation permits another route.
-Only proof-backed pipeline submission facts count as completed applications.
-Queued actions, prepared materials, and board labels do not count. Unknown
-configuration effects are persisted before confirmation and never blindly retried.
-If native Autopilot is unavailable and officially has no in-flight work, the
-existing Workday lane may continue under the same local owner. Otherwise it holds.
+Dreamwork is not part of the target runtime. Workday is the first ATS-specific
+pipeline; each later ATS, including Ashby, gets its own pipeline. A pipeline finds
+official postings, checks role fit against verified candidate facts, creates
+job-specific materials, submits through the employer's application flow, and
+reconciles the employer's receipt with the application ledger. A click or local
+`APPLIED` status is not submission proof; ambiguous effects remain fenced and are
+never blindly retried. The current public `main` has not completed this cutover,
+as the comparison below records.
 
 ## Competitive comparison
 
@@ -78,6 +70,14 @@ employer-receipt reconciliation, duplicate-safe application history, and clear
 reporting after the Workday submit. Do not present that distinction as a verified
 first until the Workday-only release completes a natural real application and the
 receipt is read back from the employer.
+
+The selection rule is evidence-based: if an existing agent completes a real
+application and its employer receipt is independently verified while meeting the
+candidate's requirements, use or integrate that agent instead of rebuilding the
+same capability. Source inspection, dry runs, mocks, and synthetic profiles do not
+count as real-application evidence. A live competitor application with an
+independently verified employer receipt has not yet been established in this
+evaluation.
 
 ## Runtime
 
