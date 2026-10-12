@@ -2,12 +2,10 @@
 """select_capafy_distribute_skill.py — deterministic daily pick for the Capafy
 distribute (free-article) loop.
 
-Rotates through Capafy's own best-selling skills (from
-skills/writer-agent/config/products.json's "capafy-skills" list), ranked by
-last-30-day profit (falls back to net revenue when profit is unmeasured), one
-per JST calendar date. Every skill gets picked in turn as the ranking's order
-changes over time, so the article always points at whichever skill made the
-most money most recently rather than a fixed favorite.
+Selects profitable buyer-visible Capafy sellers from the configured skills,
+ranked by last-30-day profit (falling back to net revenue when profit is
+unmeasured). Hook Lab takes half the slots while other eligible sellers share
+the rest; without Hook Lab, the highest-ranked seller takes half.
 
   select_capafy_distribute_skill.py --date 2026-09-29 \
       --products skills/writer-agent/config/products.json \
@@ -77,8 +75,14 @@ def _is_online_earner(products_cfg: dict, analytics: dict | None, slug: str) -> 
             profit = _decimal_or_none(row.get("profit_30d_actual_usd"))
             if profit is None:
                 profit = _decimal_or_none(row.get("profit_30d_usd"))
-            # A seller whose new version is under review stays buyable (2026-10-11).
-            return (row.get("status") in ("online", "under_review")
+            # The seller list keeps the buyer-visible version flag while a next version is draft.
+            has_online_version = row.get("has_online_version")
+            buyer_visible = (
+                has_online_version is True
+                if has_online_version is not None
+                else row.get("status") in ("online", "under_review")
+            )
+            return (buyer_visible
                     and profit is not None and profit > 0)
     return False
 
@@ -99,10 +103,10 @@ def select_for_date(
     # With no earner at all, keep the full rotation so the loop still publishes.
     earners = [slug for slug in ranked if _is_online_earner(products_cfg, analytics, slug)]
     ranked = earners if earners else ranked + sorted(extra)
-    # Dais 2026-10-11: all in on the sellers, the best one (Hook Lab) first -- the
-    # top earner takes every other slot, the rest share the remaining half.
+    # Keep Hook Lab in half the slots regardless of short-window profit ranking.
     if len(earners) > 1:
-        ranked = [slug for other in earners[1:] for slug in (earners[0], other)]
+        first = "hook-lab" if "hook-lab" in earners else earners[0]
+        ranked = [slug for other in earners if other != first for slug in (first, other)]
     if not ranked:
         raise ValueError("no capafy-skills or listings configured to rotate")
     # One slot per wake (48 half-hour slots/day); each slot promotes the next skill in the ranking.
