@@ -21,7 +21,15 @@ delayed receipts and reports the truth that the other earn slots use.
 - `receipt-reconciliations.jsonl` is the append-only tx-keyed correction sidecar for delayed receipts.
 - `lib/treasury-policy.mjs` defines reserve, committed-liability, session-cap, and graduation rules.
 - `../earn/taskmarket/` is the first work lane: one official TaskMarket job, bounded BlockRun image spend,
-  submission readback, and a separate award observer.
+  submission readback, and a finalized award receipt projected only after the official task and Base
+  transfer verifier pass. A submission row is only a task pointer: count revenue only when the official
+  task is `completed`, lists this worker's canonical award, and the existing verifier confirms its exact
+  finalized Base USDC transfer. TaskMarket documents `completed` as terminal payout indexed and awards
+  as `TaskCompleted` event rows; pre-payout escrow refunds are separate task resolutions. See
+  [task schema](https://docs.taskmarket.dev/reference/task-schema),
+  [payments](https://docs.taskmarket.dev/reference/payments), and
+  [fees and payouts](https://docs.taskmarket.dev/concepts/fees-payments). A submission or wallet handoff
+  is not customer revenue.
 - `../earn/x402-sell/` is the passive seller lane. Keep one stable product and measure external settlements;
   self-pay probes are not revenue.
 

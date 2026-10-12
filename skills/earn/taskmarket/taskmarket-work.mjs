@@ -8,6 +8,8 @@ import { privateKeyToAccount } from 'viem/accounts';
 import { loadEvmKey } from '../lib/resolve-identity.mjs';
 import { evmErc20Balance, EVM_TOKENS, RPC } from '../lib/net-worth.mjs';
 import { generateImage as generateX402Image } from './x402-image-client.mjs';
+import { resolveStatusPaths } from '../../agent-economy/status.mjs';
+import { projectRevenueReceipts } from '../../agent-economy/lib/revenue-adapters.mjs';
 
 const USDC_DECIMALS = 1_000_000;
 export const TASKMARKET_CLI = join(
@@ -335,6 +337,36 @@ function taskById(tasks, id) {
   return found;
 }
 
+async function projectTaskMarketAwards(rows, { workerAddress, revenueJournalPath, revenueRejectionPath, deps }) {
+  const candidates = new Map();
+  for (const row of Array.isArray(rows) ? rows : []) {
+    const taskId = taskIdOf(row);
+    if (typeof taskId !== 'string' || !/^0x[0-9a-f]{64}$/i.test(taskId)) continue;
+    const normalizedTaskId = taskId.toLowerCase();
+    if (!candidates.has(normalizedTaskId)) candidates.set(normalizedTaskId, row);
+  }
+  const taskRows = [...candidates.values()];
+  if (taskRows.length === 0) return null;
+  const paths = revenueJournalPath ? null : resolveStatusPaths({ env: process.env });
+  const result = await projectRevenueReceipts({
+    journalPath: revenueJournalPath || paths.journalPath,
+    rejectionPath: revenueRejectionPath,
+    provider: 'taskmarket',
+    rows: taskRows,
+    options: {
+      workerAddress,
+      selfWallets: deps.selfWallets,
+      apiUrl: deps.taskmarketApiUrl,
+      rpc: deps.rpc || RPC.base,
+      rpcCall: deps.rpcCall,
+      fetchImpl: deps.fetchImpl,
+      fetchTask: deps.fetchTask,
+      verifyTaskMarketAward: deps.verifyTaskMarketAward,
+    },
+  });
+  return { accepted: result.accepted, duplicates: result.duplicates, rejected: result.rejected };
+}
+
 export async function runTaskMarketPass(options = {}, deps = {}) {
   const {
     action = 'execute',
@@ -347,6 +379,8 @@ export async function runTaskMarketPass(options = {}, deps = {}) {
     maxImageCostUsd = MAX_IMAGE_COST_USD,
     submissionReadbackAttempts = 5,
     submissionReadbackDelayMs = 1000,
+    revenueJournalPath = process.env.REVENUE_RECEIPT_JOURNAL,
+    revenueRejectionPath,
   } = options;
   if (!aniccaHome) throw new Error('ANICCA_HOME is required');
 
@@ -375,6 +409,18 @@ export async function runTaskMarketPass(options = {}, deps = {}) {
     };
   }
   if (action !== 'execute') throw new Error(`unsupported TaskMarket action: ${action}`);
+  const previousAttempts = await readEarnAttempts(earnLedgerPath);
+  const revenueCandidates = previousAttempts
+    .filter((row) => (
+      row?.source === 'taskmarket_work_attempt'
+      && typeof row.task === 'string'
+      && typeof row.submission_id === 'string'
+      && row.submission_id.length > 0
+    ))
+    .map((row) => ({ taskId: row.task, submissionId: row.submission_id }));
+  const revenueProjection = await projectTaskMarketAwards(revenueCandidates, {
+    workerAddress: walletAddress, revenueJournalPath, revenueRejectionPath, deps,
+  });
 
   for (const existing of submissions) {
     const existingTaskId = taskIdOf(existing);
@@ -394,6 +440,7 @@ export async function runTaskMarketPass(options = {}, deps = {}) {
         taskId: existingTaskId,
         submissionId: id,
         costUsd: 0,
+        ...(revenueProjection ? { revenue_projection: revenueProjection } : {}),
       };
     }
   }
@@ -415,6 +462,7 @@ export async function runTaskMarketPass(options = {}, deps = {}) {
         taskId,
         submissionId: id,
         costUsd: 0,
+        ...(revenueProjection ? { revenue_projection: revenueProjection } : {}),
       };
     }
   }
@@ -423,7 +471,12 @@ export async function runTaskMarketPass(options = {}, deps = {}) {
     ? taskById(tasks, taskId)
     : selectTask({ tasks, submissions, now, maxImageCostUsd });
   if (!selected) {
-    return { ok: true, action: 'no_eligible_task', costUsd: 0 };
+    return {
+      ok: true,
+      action: 'no_eligible_task',
+      costUsd: 0,
+      ...(revenueProjection ? { revenue_projection: revenueProjection } : {}),
+    };
   }
   const classification = classifyTask(selected, { maxImageCostUsd });
   if (!classification.supported) {
@@ -500,6 +553,7 @@ export async function runTaskMarketPass(options = {}, deps = {}) {
     submissionId: id,
     model: generated.model,
     costUsd: generated.costUsd,
+    ...(revenueProjection ? { revenue_projection: revenueProjection } : {}),
   };
 }
 
