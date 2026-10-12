@@ -1935,12 +1935,40 @@ TODO（何を・どう直すか）
 
 **As-Is（直近の公式readback）:** 30商品IDのうち販売中14、審査中等16。公式`/stats/sticker`の30行は13行が¥0、17行が`null`（未読を0にしない）、送金可能額¥0。生成原価の累計は$17.6276。商品状態は10/12 10:57 JST、売上・送金は10/12 11:00 JSTのLINE公式画面readback。新しい記事loopは公開記事0件で、初回due occurrenceが11:05 JSTにentrypoint前の資源admissionで延期。Instagram/Threadsは公式投稿数がphone challengeで読めず、過去のローカルpublished ledgerを現在の配信数とはみなさない。
 
-**To-Be:** 既存の商品・キャラクターを使い、アカウント認証に依存しない記事配信をまず自然稼働させる。各販売中SKUは、(a) 使う場面が一目で分かる4コマまたはトーク例、(b) GIF/短尺の動き見本、(c) 季節・キャラクターの日常投稿、を公式購入ページへつなぐ。LINE特集の開始日に間に合わせ、公式readbackで販売が確認できた型だけを英語・繁体字や続編へ展開する。有料のPRスタンプは現在の分配・流入が測れるまで購入しない。
+**To-Be:** 既存SKUの配信を先に回し、認証不要の記事loop→LINE特集→公式readback後のInstagram/Threads→専用identityを持つ追加channelを順に広げる。販売中SKUは具体的な会話場面を中心に4コマ/会話例、GIF/短尺、実際のトーク使用例を作り、正しい公式購入ページへつなぐ。channel別の表示/クリック（providerが提供する範囲）→SKU別売上→creator distribution→制作/配信費を追跡し、公式売上で勝ちが確認できた型だけシリーズ化・海外向けに展開する。有料PRスタンプは費用と既存spend capを確認するまで購入しない。
 
 **一回限りの目標:** Daisの目標はUSD 10,000の累計到達であり、MRRではない。指標の曖昧さを隠さないため、運用上は「LINE公式のクリエイター分配額（プラットフォーム手数料控除後、内部制作・配信費控除前）の累計USD 10,000」を厳しめの判定軸とし、ストア総売上・実際の受取額・費用控除後利益も別々に記録する。現行規約は2015-02-01以降の申請商品について`(確定売上総額−Apple/Google等の配布手数料)×50%`、最低支払額は分配残高¥1,000超。[公式規約](https://creator.line.me/ja/terms/)は該当時に販売価格から消費税等を控除する条件も定める。[公式ヘルプ](https://help2.line.me/creators/web/categoryId/20002319/3/?contentId=200000334)では2026-01-01以降の日本App Store購入の手数料を26%、日本国外購入と2025-12-31以前の日本購入を30%としている。30%手数料・USD/JPY=150を置く以下の簡略試算は、消費税控除・地域別販売構成・実際の為替を省いた目安であり、実販売に必要な件数を断定しない。税控除の該当有無・金額は別途確認する。目安単価は¥250商品で約¥87.5/購入、¥190商品で約¥66.5/購入。分配USD 10,000にはそれぞれ約17,143件・約22,557件、ストア総売上USD 10,000なら約6,000件・約7,895件。実際の達成判定は仮定単価でなく公式readbackを使う。
 
-**TODO順変更（旧cursor→新cursor）:** 旧順はL17のIG運用・L21のシリーズ増産などの後に、L33の別経路集客を置いていた。新順は (1) L33.1 `line-sticker-articles` のadmission priorityを`distribution`へ直し（`resource_class=deterministic`と`admission_class=revenue`は維持）、自然wakeで記事公開・正しい商品URL・同一occurrenceのreadbackを確認 → (2) 既存IG/Threadsは公式件数を読めてeffect fenceを照合できた後に再開 → (3) LINE特集の開始日に合わせて適格商品を出す → (4) channel別click/商品別販売/公式分配が取れるようにし、必要なら最小件数の有料PR配布を費用対効果付きで試す → (5) 反応のあるSKUだけ海外向け調整・続編に広げる。理由は公式売上が0円またはunknownで、販売リンクを作る記事loopすら最初のdue実行を資源枠で拒否されたため。current cursor=`L33.1 article admission priority → natural published/readback/replay-zero`。
+**TODO順変更（2026-10-12、旧cursor→新cursor）:** 旧順はL17のIG運用・L21のシリーズ増産などの後にL33別経路集客を置いていた。新順は、認証不要の記事配信のadmission修正と自然公開を先に通し、sales readbackのunknownを診断して測定可能にし、既存無料配信とLINE特集を広げてから、追加channel・有料配布・海外版・勝ちSKUの増産へ進む。理由は商品30件のうち公式売上で数値確認できた13件が¥0、17件がunknownであり、新記事loopの初回due実行もresource admission前で延期されたため。current cursor=`D01 regression test`。
 
+**LINE Sticker Atomic TODO（順に実行。provider依存・採算不成立のatomだけを保留し、独立する配信を続ける。最終Doneは一回限りの累計creator distribution USD 10,000）:**
+
+| ID | 状態 | 1つの作業 | 完了証拠 |
+|---|---|---|---|
+| D01 | **current cursor** | `runtime/loop/tests/test_macos_loop_registry.py`に`test_line_sticker_articles_is_ordered_as_distribution_work`を追加し、現在のregistryで実行する | `priority=revenue`だけが原因のRED。`resource_class=deterministic`と`admission_class=revenue`は期待どおり |
+| D02 | TODO | `config/loop-registry.json`の`line-sticker-articles.priority`だけを`distribution`へ変更する | D01のassertionsが全て成立し、他class/cadence/fenceは不変 |
+| D03 | TODO | focused registry test、`./bin/lm-loop-contract`、`bash scripts/verify-source-boundary.sh`を実行する | 全てexit 0、unexpected registry fixture diffなし |
+| D04 | TODO | D02-D03だけをcommit/pushし、最新main baseのPRを作る | exact-head required checksと必要reviewがPASS |
+| D05 | TODO | PRをmainへ統合し、merge SHAを記録する | `origin/main`にsource/testが含まれ、PR head/merge SHAが保存される |
+| D06 | TODO | merge SHAからimmutable releaseを作成する | release manifestがmerge SHAを含む |
+| D07 | TODO | `line-sticker-articles` ownerだけをsafe preflight後にapplyする | loaded owner SHAがmerge SHAを含み、他ownerを再起動しない |
+| D08 | TODO | 次のdue natural wakeで記事を1本公開する。手動再送せず既存occurrenceとeffect fenceを引き継ぐ | terminalがpublished、記事URLがHTTP 200、CTAが同じSKUの公式購入URL、publication receiptあり |
+| D09 | TODO | 公式`/stats/sticker`の30商品行と`sales_readback.py`出力をread-onlyで比較し、17件の`null`の理由を診断する | 各SKUを公式数値または具体的な未表示/取得失敗理由へ分類。未読を0へ変換しない |
+| D10 | TODO | D08の記事/投稿IDを商品SKUへjoinし、既存analyticsとLINE公式readbackで流入・販売のbaselineを作る | channel/SKU/period別に表示・クリック（provider提供分）・商品売上・分配額を出所付きで保存。未取得値は`null` |
+| D11 | TODO | 1つの販売中SKU向けに4コマ/会話例・GIF/短尺見本・実際のトーク画面例の小さなcontent packを作る | 3 assetそれぞれで用途が明確、公式SKU URLが一致し、他者の絵/キャラ/固有文言を複製しない |
+| D12 | provider依存 | Instagram/Threadsの公式profile件数を読み、phone challengeと現effect fenceをprovider状態で照合する | official post countとledgerが一致し、fenceをreceiptまたはpre-effect証拠で解決。challenge中は再送・手動解除しない |
+| D13 | TODO | D11のcontent packを、公式状態を確認できる既存article/IG/Threads laneで既存cadenceどおり1回ずつ公開する | 各公開URL・正しいSKUリンク・provider receipt・同一occurrence replay-zeroをreadback |
+| D14 | TODO | openなLINE特集・条件・締切を公式ページから更新し、適格な販売SKUを次の開始日に合わせて申し込む | 商品ごとの参加設定readback。バナー掲載・販売増は公式観測前に成功扱いしない |
+| D15 | TODO | X/TikTok/YouTube等から追加channelを1つ選び、専用identity・登録条件・投稿経路・費用を確認する | dedicated owner/browser identityを他ブランドと分離し、安全に1 postを公開/readbackできる。1 channelずつ試す |
+| D16 | 条件付き | LINE PRスタンプの現行価格・配布条件を公式に読み、最低件数のCAC break-evenと既存spend capを計算する | cap内かつ購入1件あたりcreator distributionを上回らない期待費用を確認。cap不在/採算不成立なら購入しない |
+| D17 | 条件付き | D16がcap内・採算成立の場合だけ、1つの既存承認SKUから最小パッケージを配布する | 配布数、必要ならOA友だち増、後続SKU購入、費用を公式readbackし、CACとcreator shareを比較 |
+| D18 | 条件付き | 公式販売readbackで購入が確認できた1 SKUを選び、英語または繁体字で言葉/文化を調整した版を1地域だけ試す | localized listing・投稿URL・地域/SKU別販売と分配readback |
+| D19 | 条件付き | SKU別公式売上が確認できた勝ちキャラクター1つだけ、実用語/季節/文字ありなしの続編を1セット出す | new SKUの公式販売状態・product ID・費用・sales readbackを同じledgerへjoin |
+| D20 | TODO | 次periodの既存配信slot配分を、viewsでなく測定済みclick・購入・creator contributionに合わせて更新する | channel/SKU別のgross sales・creator share・費用を比較し、費用負け/無反応の有料枠を止める |
+| D21 | TODO | 日次で公式商品別sales/distributionをreadbackし、refund・platform/tax fee・為替・実入金・制作/配信費を照合する | gross sales、creator distribution、cash payout、費用控除後net profitを別々に報告。未知を0にしない |
+| D22 | end condition | 実際の為替と公式確定分配額で累計creator distribution USD 10,000に一度到達する | official receipt/readbackと累計計算を保存し、store gross sales・cash payout・全費用・net profitを併記する。MRRとは呼ばない |
+
+**実行境界:** D12はsocial laneだけの依存であり、phone challengeの間もD08/D09/D11/D14等の独立作業を継続する。D16-D18の条件付き実験は費用/権限/公式readbackが満たせない場合、購入・再送せずorganic配信へ進む。effect_unknownは全工程で公式readbackまたはpre-effect proofまで保持する。ランキング操作目的の購入はしない。
 ### 5.1 自己修復・自己改善の定義（T5 / T12 の正本）
 
 **目的**: Life Manager が、外部の coding agent（Dais が操作する Claude Code や Codex のセッション）にも人にも頼らず、自分の問題を見つけて、自分で直し、自分で改善すること。人と外部 agent はループの外にいる。
