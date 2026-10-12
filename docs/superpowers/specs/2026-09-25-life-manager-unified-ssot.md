@@ -15665,3 +15665,43 @@ Free Transcriptの数は無料downloadを含む。別Agent [Transcript to Shorts
 **Factory:** the 21:34:48 natural occurrence 18ddc8538aa4c788-86935 completed an inventory snapshot (64 agents). Candidate backlog refreshed at 21:36:37 with 45 rows (listed 21, ready 15, submitted 8, ready_retry 1). published.jsonl mtime remains 13:54 JST with the three earlier under_review rows, so this run does not prove a new submission. The 21:49 wake deferred on disk headroom. df / read 1.2 GiB free.
 
 **Current cursor:** T0 and T1 remain open. Next: wait for natural eligibility and require a successful hourly readback plus a natural distribution terminal with exact receipt binding. T2's daily search snapshot is done today; T3/T4 research is recorded, but new-Agent adaptation waits for a free slot and the 46-video matrix remains partial. T5 scales only after a unique ct produces Capafy visits. Preserve FROZEN sellers and do not reorder.
+
+## Capafy live checkpoint — 2026-10-12 22:38 JST
+
+順序は変更しない。current TODO は T0 → T1 → T2 → T3 → T4 → T5 → T6 → T7 → T8 → T9。T3/T4の競合価格・モデル・visual調査は完了したが、T3のai_overview listing改善とT4の46動画matrix作成は未完。
+
+**T0 — 最新のofficial seller/source readback:** capafy-hourly-reconcile.json observed_at=2026-10-12T13:21:28Z（22:21:28 JST）、file mtime=22:29:49 JST、SHA-256 c9499e9d8a46ffe1de7a92847183d20cc440cf851dc549dd113495936e36711b。official seller fields: orders=70、gross=$102.75、refunds=$0、creator earnings=$76.18、observed subscription earnings=$68.18（MRRではない）、one-time revenue=$9.99、confirmed balance=$17.18、payout balance=$59、balance_pending=$0、paid-out=$0、realized=$0、statement payable=$0、unit sales=101（free trial 69 / non-trial 32）。net_mrr_usdとsettled_mrr_usdはactive subscription status欠落でnull。first-paid gateは依然として未達（ordersは70のまま、grossは$102.75のまま。どちらもstrict greater-than条件を満たさない）。
+
+同じJSON内のlegacy_agent_apiは133 orders / $117.74 gross / $24.98 refunds、capafy-skill-analytics.account_totals.all_timeは101 orders / $102.75 grossを示す。これらは異なるAPI・集計系列で、seller-money gateの70 ordersと混ぜない。T0ではsource実装と日付範囲を照合し、どの系列がsettled sales・unit count・seller orderなのかを明示する。現在のgoal gateはofficial seller fieldsを正本として維持する。
+
+**Source別（30日; views / trials / paid / attributed sales）:**
+
+| source | views | trials | paid | sales |
+|---|---:|---:|---:|---:|
+| Capafy search | 814 | 13 | 10 | $21.90 |
+| Capafy hot | 71 | 1 | 5 | $9.95 |
+| Google | 39 | 3 | 1 | $9.99 |
+| direct | 1,508 | 2 | 2 | $3.98 |
+| ai_overview | 549 | 0 | 0 | $0 |
+| other | 1,275 | 0 | 0 | $0 |
+| category | 57 | 2 | 0 | $0 |
+| instagram_bio | 39 | 0 | 0 | $0 |
+| unique CTs combined | 6 | 0 | 0 | $0 |
+| Bing / ChatGPT / Facebook | 1 each | 0 | 0 | $0 |
+| **global total** | **4,361** | **21** | **18** | **$45.82** |
+
+30日ではsearch+hot+Googleが924 viewsから16/18 source-paidを記録し、ai_overviewは549/0、Instagram bioは39/0、CTは6/0。直近7日は325 views / 0 trials / 0 paid。source rowsは30日37件・7日34件で、各windowのglobal totalsとは一致する。これらはsource-attributed countsであり、visitor単位のconversionやseller ordersと同一ではない。
+
+Agent別trafficは30日・7日とも60件だけで、inventory.observed_agents=64に対してcoverage 60/64。30日by-agent合計は4,173 views / 21 trials / 18 paidで、globalよりviewsが188少ない。7日by-agent合計は366 views / 0 trials / 0 paidで、globalよりviewsが41多い。60件上限は現行コードで確認済み。source JSONは各windowのperiod_start/endを保存せず、現行コードのUTC date windowは30日=2026-09-13〜10-12、7日=2026-10-06〜10-12。取得時刻・window・Agent coverageを一つのsnapshotとして再計算できるようにする作業は未完。normalized inventory値は64 observed / 42 listed / 12 delisted / 9 occupied / 1 retry / 0 blocked / 0 freeだが、bucketが相互排他とは確認していないためCAP5の公式slot数に置き換えない。
+
+**30日費用後estimate:** fresh OpenRouter actual cost allocation=$28.42、80% seller-share仮定net=$36.66、contribution estimate=$8.24。自社の最大Agent estimateはTikTok Script Pro +$12.74（Claude Sonnet 5）。seller feeは20%仮定で、これはsettled profitでもMRRでもない。競合のpublisher別revenue/refund/fee/active renewal/model costは公開readbackにないため、最も利益の出る競合Agent/modelはunknown。public Sold最多のCloneCut（表示18,565、model Seedance 2.0）はprofit順位ではない。
+
+**T1 — 配信とfactoryの最新natural run:** capafy-distribute-daily latest attemptは22:19:21 JST、occurrence 18ddcabeee1a08b0-90732、release 5a595864f7c79145731cb71b59d9e7199e02bbcd、exit 75、host_admission_deferred:resource_fifo_wait、effect=not_applicable。last successは19:33:15 JST。registered pre-effect-reconcile capafy-distribute-daily --dry-runはresolved=[] / unprovable=[]。これは旧19:33 eventの欠けたprovider receiptを補わず、再投稿・fence手動解除の根拠にもならない。
+
+capafy-loop-daily natural occurrence 18ddcb557509ce28-23929は22:31 JSTにexit 0 / CAP_FULL。inventory snapshotは22:29:56 JST、64 agentsで、8767154808のversionは2109463185447604224のまま。candidate backlogは22:30:59 JSTに45 rows（listed 21 / ready 15 / submitted 8 / ready_retry 1）。published ledgerは13:54 JST以降更新されていない。8767154808のunder_reviewは既存のstatus記録であり、この22:30 runによる新規提出や、新Agentの継続出荷は確認できない。
+
+最新factory eventはlm-loop statusでeffect_status=unknown / provider receiptなしと表示される一方、admission_effect_unknown=false。healthはeffect_unknown=1と投影するが、registered factory adapter dry-runはresolved=[] / unprovable=[]。したがってこのeventはadmission fenceと同じものとして扱わず、receiptなしにeffect/no-effectを断定・再送しない。次はoccurrence-bound official publish-list/remote-status readbackとsourceの分類を特定する。
+
+**Rating/review readback（22:16:22 JST）:** public buyer searchではHookAce rank 2 / Sold 1,002 / rating 4.3 / ratingCount null、Hook Lab rank 4 / Sold 12 / rating 0 / ratingCount null、TikTok Script Pro rank 1 / Sold 4 / rating 0 / ratingCount null、Marketing Strategist rank 1 / Sold 2 / rating 0 / ratingCount null、YouTube Script Writer rank 1 / Sold 4 / rating 0 / ratingCount null。detail rating fieldsもnullの行がある。rating=0とratingCount=nullはone-star reviewの証拠ではなく、review body/countはunknown。local vendor API docsにはreview作成POSTはあるがreview一覧read endpointは見つかっていない。既存3 seller promptの依頼は任意の短いrating askで、文章レビューや特定scoreは求めない。添付dashboard画像はuser-acquisition chartsでreview表示ではない。実在するnegative reviewを隠す・消す・偽ratingで置き換える作業はしない。実購入者の任意feedbackだけを計測する。
+
+**次の1手:** T0のfresh hourly readbackと未解決のorder/coverage/window差を継続し、T1ではFIFO eligibility後のnatural distributor terminalとoccurrence-bound receiptを確認する。T2のbuyer-query rank snapshotは本日分済み。外部配信volumeはunique CTがCapafy visitsを生むまで増やさず、FROZEN sellersは編集・再提出しない。$10K MRR goalはactiveのまま。
