@@ -9,3 +9,5 @@
 
 再開・所有境界:
 旧disk-watchdog-worktree-safety-20261008/HEAD a6e03757は歴史context。基盤BF15は受入済み、汎用cleanup TODOを最初から再開しない。11GiBはユーザーが固定KPIから撤回し、空きは診断値。fresh容量・増加源と自然watchdogを照合し、新しい実測漏れだけ修復。primary docs WTは編集せず、新規 .worktrees/cleanup-goal-20261012、branch fix/cleanup-goal-20261012 をfresh main由来で使用。所有はcleanup/producer retention共通境界、他lane business logicは編集せず連絡。
+
+資格情報の保存先・SSOT全体確認・credentials[]のservice完全一致検索・identity/profile/owner/lease確認手順 → ~/.config/ai/core.md「No-human-loop（既定）」を起動時とブラウザ操作前に読む。lane個別の認証境界を保持し、secret値を起動指示へ含めない。

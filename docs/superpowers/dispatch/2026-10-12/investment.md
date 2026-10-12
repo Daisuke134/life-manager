@@ -9,3 +9,5 @@
 
 再開・所有境界:
 旧WT investment-paper-lifecycle-pnl-20261009/37e81790、PR #7373の現在統合状態をfresh確認。残りはAT-13のfresh official no-order契約と初paper sell fill→既存QQQ buy/全cost P&L/replay-zero、その後30回等。新実装は .worktrees/investment-goal-20261012/branch fix/investment-goal-20261012、旧dirty/leased WTはread-only。所有はinvestment source/testsと対応SSOT節。金融P&L高リスク判断だけfresh read-only reviewer。
+
+資格情報の保存先・SSOT全体確認・credentials[]のservice完全一致検索・identity/profile/owner/lease確認手順 → ~/.config/ai/core.md「No-human-loop（既定）」を起動時とブラウザ操作前に読む。lane個別の認証境界を保持し、secret値を起動指示へ含めない。

@@ -9,3 +9,5 @@
 
 再開・所有境界:
 旧handover .claude/handovers/2026-10-09_1543_mobile-marketing.md と最新SSOT。旧PR #7369/30-of54/18unknownを現在と扱わない。#7588等のmain/owner採用を照合し、既存current-day deficits→receipt→native metrics→ASC/RC/funnel→content→ASO→onboarding/paywallの順。自分はsingle writer、subagent/reviewを増やさない。既存leased mobile-distribution-priority/mobile-offslot-post-fence/mobile-postiz-metrics WTは触らない。新 .worktrees/mobile-goal-20261012/branch fix/mobile-goal-20261012 を最新mainから。所有Mobile distributor/metrics sourceだけ。
+
+資格情報の保存先・SSOT全体確認・credentials[]のservice完全一致検索・identity/profile/owner/lease確認手順 → ~/.config/ai/core.md「No-human-loop（既定）」を起動時とブラウザ操作前に読む。lane個別の認証境界を保持し、secret値を起動指示へ含めない。
