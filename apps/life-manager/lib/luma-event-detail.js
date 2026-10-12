@@ -159,11 +159,11 @@ function rsvpStatus(controls) {
   if (includesAny(controls, ["join waitlist", "キャンセル待ちに登録", "キャンセル待ち"])) {
     return "waitlist";
   }
-  if (includesAny(controls, ["request to join", "参加リクエスト", "参加をリクエスト", "承認をリクエスト"])) {
-    return "available";
-  }
   if (includesAny(controls, ["approval required", "承認が必要"])) {
     return "approval_required";
+  }
+  if (includesAny(controls, ["request to join", "参加リクエスト", "参加をリクエスト", "承認をリクエスト"])) {
+    return "available";
   }
   if (includesAny(controls, ["ワンクリックで参加登録", "ワンクリック申し込み"])) {
     return "available";
@@ -287,7 +287,7 @@ async function readRawLumaEventDetail(page, canonicalUrl) {
     )).map((value) => value.replace(/\s+/g, " ").trim()).filter(Boolean);
     const statusNotices = [...document.querySelectorAll("div, span, p")]
       .map((element) => String(element.innerText || element.textContent || "").replace(/\s+/g, " ").trim())
-      .filter((value) => /^(?:参加登録受付終了|registration closed|registration has ended|registration is closed|rsvp closed|承認待ち|pending approval|approval pending)$/i.test(value));
+      .filter((value) => /^(?:参加登録受付終了|registration closed|registration has ended|registration is closed|rsvp closed|承認待ち|pending approval|approval pending|approval required|承認が必要)$/i.test(value));
     return {
       canonicalUrl: eventUrl,
       jsonLd: rows,
