@@ -193,7 +193,7 @@ test("EN slideshow TikTok exact pack executes through six ordered JPEGs only", a
     objectStore: { resolve: (ref) => path.join(objectRoot, ref.slice(-64)) },
     secretProvider: { get: async () => "postiz-secret" }, ledgerPath: ledger,
     // A real Postiz call echoes back the hash of the exact bytes it received
-    // (the approved caption plus the App Store link-in-bio CTA), so the
+    // (the approved caption plus the TikTok App Store search CTA), so the
     // mock reports the hash of what the adapter actually wrote to disk.
     runDistribution: async (input) => {
       calls.push({ ...input, capturedCaption: fs.readFileSync(input.captionPath, "utf8") });
@@ -213,12 +213,50 @@ test("EN slideshow TikTok exact pack executes through six ordered JPEGs only", a
   assert.equal(calls[0].mediaPaths.length, 6);
   assert.deepEqual(result.receipt.media_sha256, lane.mediaRefs.map((ref) => ref.slice(-64)));
   assert.equal(verifyMarketingNativeCarouselPublicationReceipt(result.receipt), true);
-  // EN/TikTok: the posted caption ends with the link-in-bio CTA (TikTok does
-  // not linkify caption URLs) and is strictly longer than the approved base.
+  // EN/TikTok has no profile website link, so the posted caption directs
+  // viewers to search the App Store and is strictly longer than the base.
   const approvedCaption = fs.readFileSync(path.join(objectRoot, lane.captionRef.slice(-64)), "utf8");
   assert.notEqual(calls[0].capturedCaption, approvedCaption);
-  assert.equal(calls[0].capturedCaption, `${approvedCaption.replace(/\s+$/, "")}\n\nLink in bio for the app\n`);
+  assert.equal(calls[0].capturedCaption, `${approvedCaption.replace(/\s+$/, "")}\n\nSearch Anicca on the App Store\n`);
   assert.equal(result.receipt.caption_with_cta_sha256, crypto.createHash("sha256").update(calls[0].capturedCaption).digest("hex"));
+});
+
+test("TikTok publisher refuses a legacy bio-link slide before secret or distribution access", async () => {
+  const lane = EN_SLIDESHOW_TIKTOK_LANE;
+  const objectRoot = path.join(os.homedir(), ".local/state/life-manager/objects/sha256");
+  const refFor = (bytes) => `object://sha256/${crypto.createHash("sha256").update(bytes).digest("hex")}`;
+  const readObject = (ref) => fs.readFileSync(path.join(objectRoot, ref.slice(-64)));
+  const pack = JSON.parse(readObject(lane.packRef).toString("utf8"));
+  pack.slides[5].text = `${pack.slides[5].text}\nLink in bio`;
+  const packBytes = Buffer.from(JSON.stringify(pack));
+  const packRef = refFor(packBytes);
+  const approval = JSON.parse(readObject(lane.approvalRef).toString("utf8"));
+  approval.pack_ref = packRef;
+  const approvalBytes = Buffer.from(JSON.stringify(approval));
+  const approvalRef = refFor(approvalBytes);
+  const slot = "2026-08-26T06:00:00.000Z";
+  const value = buildMarketingNativeCarouselPublicationJob({
+    tenantId: "dais-local", productId: lane.productId, formatId: lane.formatId, form: lane.form,
+    locale: lane.locale, slot, creativeId: lane.creativeId, accountId: lane.accountId,
+    integrationRef: lane.integrationRef, packRef, mediaRefs: lane.mediaRefs,
+    captionRef: lane.captionRef, approvalRef, postizTokenRef: lane.tokenRef,
+  });
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "lm-tiktok-legacy-cta-"));
+  const packPath = path.join(tempRoot, packRef.slice(-64));
+  const approvalPath = path.join(tempRoot, approvalRef.slice(-64));
+  fs.writeFileSync(packPath, packBytes);
+  fs.writeFileSync(approvalPath, approvalBytes);
+  let secretCalls = 0;
+  let distributionCalls = 0;
+  await assert.rejects(executeMarketingNativeCarouselPublicationJob(value, {
+    objectStore: { resolve: (ref) => ref === packRef ? packPath : (ref === approvalRef ? approvalPath : path.join(objectRoot, ref.slice(-64))) },
+    secretProvider: { get: async () => { secretCalls += 1; return "postiz-secret"; } },
+    ledgerPath: path.join(tempRoot, "distribution.jsonl"),
+    runDistribution: async () => { distributionCalls += 1; return {}; },
+    now: () => "2026-08-26T06:01:00.000Z",
+  }), /unavailable TikTok CTA/i);
+  assert.equal(secretCalls, 0);
+  assert.equal(distributionCalls, 0);
 });
 
 const EN_ACCOUNT = "@anicca.affirmation";
