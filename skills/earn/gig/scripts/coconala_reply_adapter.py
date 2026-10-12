@@ -223,6 +223,14 @@ class CoconalaReplyAdapter:
                     raise
         raise AssertionError("unreachable")
 
+    def _read_thread_text_only(self, thread_id: str) -> tuple[dict[str, Any], dict[str, Any]]:
+        url = self._thread_url(thread_id)
+        with reply_browser.CoconalaCdpReplyBrowser(
+            self.cdp_helper, url, hidden=True, background=False,
+            owner=self._thread_owner(thread_id),
+        ) as browser:
+            return browser.read_text_only()
+
     def _send(
         self, thread_id: str, body: str, expected_event: str,
         *, intent: Mapping[str, Any] | None = None,
@@ -411,17 +419,50 @@ class CoconalaReplyAdapter:
         body = intent.get("payload", {}).get("body")
         if not isinstance(body, str):
             return {"authoritative_absent": True}
-        context, _bounded = self._thread_reader(intent["thread_id"])
+        text_only_fallback = False
+        try:
+            context, _bounded = self._thread_reader(intent["thread_id"])
+        except RuntimeError as error:
+            if (
+                intent.get("action") != "reply"
+                or str(error) != "collector_unhealthy:dm_attachment_message_identity_changed"
+            ):
+                raise
+            context, _bounded = self._read_thread_text_only(intent["thread_id"])
+            text_only_fallback = True
+        conversation = context.get("conversation")
+        if not isinstance(conversation, list):
+            return {"authoritative_absent": False}
+        event_id = intent.get("latest_event_id")
+        buyer_indexes = [
+            index for index, row in enumerate(conversation)
+            if isinstance(row, Mapping)
+            and row.get("side") == "buyer"
+            and row.get("message_id") == event_id
+        ]
+        if len(buyer_indexes) != 1:
+            return {"authoritative_absent": False}
         wanted = reply_browser.outgoing_sha256(body)
-        for row in reversed(context.get("conversation") or []):
-            if not isinstance(row, Mapping) or row.get("side") != "seller":
-                continue
-            if reply_browser.outgoing_sha256(str(row.get("body") or "")) == wanted:
+        target_index = buyer_indexes[0]
+        matching = [
+            row for row in conversation[target_index + 1:]
+            if isinstance(row, Mapping)
+            and row.get("side") == "seller"
+            and reply_browser.outgoing_sha256(str(row.get("body") or "")) == wanted
+        ]
+        if len(matching) == 1:
+            receipt_id = str(matching[0].get("message_id") or "")
+            if (
+                re.fullmatch(r"[A-Za-z0-9._-]{1,128}", receipt_id)
+                and not receipt_id.startswith("sha256_")
+            ):
                 return {
                     "verified": True,
-                    "provider_receipt_id": str(row["message_id"]),
+                    "provider_receipt_id": receipt_id,
                     "observed_at": _now(),
                 }
+        if matching or text_only_fallback:
+            return {"authoritative_absent": False}
         return {"authoritative_absent": True}
 
     @staticmethod
