@@ -53,6 +53,7 @@ THRESHOLDS = ((20 * GiB, "NORMAL"), (11 * GiB, "PREVENTIVE"), (6 * GiB, "PRESSUR
 RECOVERY_FLOOR_BYTES = 2 * GiB
 RECEIPT_RESERVE_BYTES = 1024 * 1024
 RECEIPT_PAYLOAD_MAX_BYTES = 64 * 1024
+PROBE_ERROR_DETAIL_LIMIT = 8
 TEMPORARY_RUN_MIN_AGE_SECONDS = 60 * 60
 WORKTREE_REPOSITORY_RELATIVE = Path("Projects/life-manager-main")
 SLIDE_PACK_DIRECTORY_PATTERN = re.compile(
@@ -1020,6 +1021,13 @@ class HostDiskGovernor:
             )
         )
 
+    def _diagnostic_path(self, path: Path | str | bytes) -> str:
+        value = Path(os.path.abspath(os.fsdecode(path)))
+        try:
+            return value.relative_to(self.home).as_posix()
+        except ValueError:
+            return f"<outside-home>/{value.name}"
+
     def _protected_descendant(
         self,
         path: Path,
@@ -1028,13 +1036,21 @@ class HostDiskGovernor:
         allow_generated_symlinks: bool = False,
         allow_worktree_sources: bool = False,
         dependency_packages: frozenset[Path] | None = None,
+        on_probe_error: Callable[[Path, OSError], None] | None = None,
     ) -> str | None:
         errors: list[OSError] = []
+
+        def record_walk_error(error: OSError) -> None:
+            errors.append(error)
+            if on_probe_error is not None:
+                error_path = getattr(error, "filename", None) or path
+                on_probe_error(Path(os.fsdecode(error_path)), error)
+
         for root, directories, files in os.walk(
             path,
             topdown=True,
             followlinks=False,
-            onerror=errors.append,
+            onerror=record_walk_error,
         ):
             if errors:
                 return "descendant_probe_error"
@@ -1088,7 +1104,9 @@ class HostDiskGovernor:
                         continue
                     if self._protected(descendant):
                         return "protected_descendant"
-                except OSError:
+                except OSError as error:
+                    if on_probe_error is not None:
+                        on_probe_error(descendant, error)
                     return "descendant_probe_error"
         return "descendant_probe_error" if errors else None
 
@@ -1684,10 +1702,27 @@ class HostDiskGovernor:
             "reclaimed_candidates_omitted": 0,
         }
         reasons: dict[str, int] = {}
+        probe_errors: list[dict[str, object]] = []
+        probe_error_count = 0
 
         def preserve(reason: str) -> None:
             result["preserved"] += 1
             reasons[reason] = reasons.get(reason, 0) + 1
+
+        def record_probe_error(
+            item: dict, candidate: Path, error_path: Path, error: OSError | None,
+        ) -> None:
+            nonlocal probe_error_count
+            probe_error_count += 1
+            if len(probe_errors) >= PROBE_ERROR_DETAIL_LIMIT:
+                return
+            probe_errors.append({
+                "owner": str(item.get("owner", "unknown")),
+                "candidate": self._diagnostic_path(candidate),
+                "path": self._diagnostic_path(error_path),
+                "error_class": type(error).__name__ if error is not None else None,
+                "errno": getattr(error, "errno", None) if error is not None else None,
+            })
 
         for item in candidates:
             path = Path(item["path"]).expanduser()
@@ -1714,6 +1749,8 @@ class HostDiskGovernor:
                     path, deadline=deadline, clock=self.clock
                 )
                 if store_state is not None:
+                    if store_state == "descendant_probe_error":
+                        record_probe_error(item, path, path, None)
                     result["errors"] += store_state == "descendant_probe_error"
                     preserve(store_state)
                     continue
@@ -1743,7 +1780,8 @@ class HostDiskGovernor:
             # export of the repository, so it always contains source and scanning
             # inside would preserve every generation forever; what makes an old one
             # safe to drop is that nothing references it, checked during discovery.
-            whole_tree_is_the_unit = item.get("owner") in {
+            # A regular file has no descendants; os.walk(file) reports ENOTDIR.
+            whole_tree_is_the_unit = path.is_file() or item.get("owner") in {
                 "browser", "codex-app-updater", "codex-runtime-cache", "whisper-model-cache",
                 "release-retention", "zombie-worktree", "clang-module-cache", "worktree-dependencies",
             } | set(EXACT_CACHE_ROOTS)
@@ -1751,6 +1789,8 @@ class HostDiskGovernor:
                 path, deadline=deadline,
                 allow_generated_symlinks=(item.get("owner") == "temporary-run"
                     and PYTEST_RUN_PATTERN.fullmatch(path.name) is not None),
+                on_probe_error=lambda error_path, error: record_probe_error(
+                    item, path, error_path, error),
             )
             if descendant_state is not None:
                 result["errors"] += descendant_state == "descendant_probe_error"
@@ -1787,6 +1827,8 @@ class HostDiskGovernor:
                 path, deadline=deadline,
                 allow_generated_symlinks=(item.get("owner") == "temporary-run"
                     and PYTEST_RUN_PATTERN.fullmatch(path.name) is not None),
+                on_probe_error=lambda error_path, error: record_probe_error(
+                    item, path, error_path, error),
             )
             if descendant_state is not None:
                 result["errors"] += descendant_state == "descendant_probe_error"
@@ -1948,6 +1990,10 @@ class HostDiskGovernor:
         result["free_before"] = free_before
         result["free_after"] = free_after
         result["preserved_reasons"] = reasons
+        if probe_error_count:
+            result["probe_errors"] = probe_errors
+            if probe_error_count > len(probe_errors):
+                result["probe_errors_omitted"] = probe_error_count - len(probe_errors)
         if write_receipt:
             self._receipt(result)
         return result
