@@ -27,6 +27,12 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 ARTICLE_ROOT="${ARTICLE_ROOT:-$(cd "$SCRIPT_DIR/../../writer-agent" && pwd -P)}"
 # shellcheck source=../writer-agent/scripts/writer-runtime-env.sh
 source "$ARTICLE_ROOT/scripts/writer-runtime-env.sh"
+if [ "${LIFE_MANAGER_LOOP_ID:-}" != "capafy-distribute-daily" ] \
+    || [ -z "${LIFE_MANAGER_RUN_ID:-}" ] \
+    || [ "${LIFE_MANAGER_OCCURRENCE_ID:-}" != "capafy-distribute-daily:${LIFE_MANAGER_RUN_ID:-}" ]; then
+  printf 'capafy-distribute-daily: exact runtime occurrence identity required\n' >&2
+  exit 1
+fi
 # writer-runtime-env derives the self-owned site checkout from this loop's own
 # state dir, which has no checkout (first live run 2026-09-29: FileNotFoundError
 # .../capafy-distribute/checkouts/self-owned-landing). Publish through the Writer's
@@ -137,6 +143,30 @@ FREE_ARTICLE_URL="${ARTICLE_SELF_OWNED_BASE_URL:-}"
 RUN_TS="capafy-distribute-$SLOT"
 RUN_DIR="$CAPAFY_DISTRIBUTE_STATE_DIR/runs/$RUN_TS"
 mkdir -p "$RUN_DIR/gates"
+# Bind the wrapper's actual clock-selected slot to the runtime occurrence before
+# any model or publication step. Execute-start may straddle a JST half-hour edge.
+if ! CAPAFY_DISTRIBUTE_SCRIPT_DIR="$SELF_DIR" python3 - \
+    "$RUN_DIR/gates/occurrence.json" "$SLOT" "$FREE_ARTICLE_SLUG" <<'PY'
+import os
+import sys
+from pathlib import Path
+
+sys.path.insert(0, os.environ["CAPAFY_DISTRIBUTE_SCRIPT_DIR"])
+from capafy_distribute_fence_reconcile import record_occurrence_manifest
+
+record_occurrence_manifest(
+    Path(sys.argv[1]),
+    owner_id=os.environ["LIFE_MANAGER_LOOP_ID"],
+    run_id=os.environ["LIFE_MANAGER_RUN_ID"],
+    occurrence_id=os.environ["LIFE_MANAGER_OCCURRENCE_ID"],
+    slot=sys.argv[2],
+    article_slug=sys.argv[3],
+)
+PY
+then
+  echo "capafy-distribute-daily: occurrence slot binding failed" >>"$LOG"
+  exit 1
+fi
 
 # --- dry-run: exercise every deterministic step above with no model/network
 # dispatch and no publish attempt. Used by tests. ------------------------
