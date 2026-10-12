@@ -110,6 +110,7 @@ PRE_EFFECT_HINT_LOOP_IDS = frozenset({
     "ebook-en-tiktok-daily",
     "ebook-ja-instagram-daily",
     "ebook-ja-tiktok-daily",
+    "hf-gig-reply-detector",
     "hf-gig-apply-direct",
     "investment-cross-venue-report",
     "hf-gig-storefront-direct",

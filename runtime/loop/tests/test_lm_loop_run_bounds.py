@@ -1639,6 +1639,10 @@ def test_cross_venue_report_pre_effect_hint_is_allowlisted_by_loop_id():
     assert "investment-cross-venue-report" in PRE_EFFECT_HINT_LOOP_IDS
 
 
+def test_coconala_reply_detector_pre_effect_hint_is_allowlisted_by_loop_id():
+    assert "hf-gig-reply-detector" in PRE_EFFECT_HINT_LOOP_IDS
+
+
 def test_lancers_application_pre_effect_hint_is_allowlisted():
     assert "skills/earn/lancers/scripts/application-owner" in PRE_EFFECT_HINT_ENTRYPOINTS
 
