@@ -21,9 +21,9 @@ function sha256(bytes) {
   return crypto.createHash("sha256").update(bytes).digest("hex");
 }
 
-test("case corpus has verified fixtures and balanced tuning and held-out splits", () => {
+test("case corpus has verified fixtures and eligible and ineligible cases in both splits", () => {
   const cases = parseCasesText(fs.readFileSync(CASES_PATH, "utf8"));
-  assert.equal(cases.length, 4);
+  assert.equal(cases.length, 5);
   for (const item of cases) {
     const filename = new URL(item.fixture_ref).pathname.slice(1);
     const bytes = fs.readFileSync(path.join(FIXTURES_DIR, filename));
@@ -31,7 +31,7 @@ test("case corpus has verified fixtures and balanced tuning and held-out splits"
   }
   for (const split of ["tuning", "held_out"]) {
     const splitCases = cases.filter((item) => item.split === split);
-    assert.equal(splitCases.length, 2);
+    assert.equal(splitCases.length, split === "tuning" ? 3 : 2);
     assert.deepEqual(new Set(splitCases.map((item) => item.expected.eligible)), new Set([true, false]));
   }
 });
@@ -62,6 +62,22 @@ test("runner scores every case exactly once and matches all expected fields", ()
   }
 });
 
+test("corpus rejects eligible marketplace profit when fee, model, and system cost coverage is missing", () => {
+  const cases = parseCasesText(fs.readFileSync(CASES_PATH, "utf8"));
+  const item = cases.find((entry) => entry.case_id === "missing-cost-coverage");
+  assert.ok(item, "missing-cost-coverage must be retained in the regression corpus");
+  assert.equal(item.split, "tuning");
+  assert.equal(item.category, "regression");
+  const score = evaluateCase(item);
+  assert.equal(score.settled_customer_revenue_minor, 1000000);
+  assert.equal(score.total_cost_minor, 0);
+  assert.equal(score.settled_net_profit_minor, 1000000);
+  assert.equal(score.recurring_revenue_minor, 0);
+  assert.equal(score.eligible, false);
+  assert.equal(score.self_funded, false);
+  assert.deepEqual(score.reason_codes, ["cost_coverage_incomplete"]);
+});
+
 test("CLI emits only validated run and score records without fixture or private data", () => {
   const result = spawnSync(process.execPath, [path.join(__dirname, "run.js"), "--cases", CASES_PATH], {
     cwd: path.dirname(__dirname),
@@ -71,7 +87,7 @@ test("CLI emits only validated run and score records without fixture or private 
   assert.equal(result.stderr, "");
   const rows = result.stdout.trim().split("\n").map((line) => JSON.parse(line));
   assert.equal(rows[0].record_type, "economic_autonomy_run");
-  assert.equal(rows.filter((row) => row.record_type === "economic_autonomy_score").length, 4);
+  assert.equal(rows.filter((row) => row.record_type === "economic_autonomy_score").length, 5);
   for (const forbidden of [
     "financialRecords", "attributions", "autonomyEvents", "tenant-a",
     "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
