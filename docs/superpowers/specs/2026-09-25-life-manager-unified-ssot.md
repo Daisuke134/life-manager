@@ -14926,13 +14926,13 @@ Capafy公式Xの公開indexには、Ocupの100 sales紹介と、あるcreatorの
 
 `capafy_hourly_reconcile.py` はtraffic endpointを最大60 Agentsに対して取得する。`capafy_scoreboard.py` はsource/CT text summaryとAgent別日次snapshotを出力する。日次scorecardは同一windowでAgent×source×campaignを一行にし、raw event countとunique visitorを分け、`observed_at`/receipt freshness・scope・null reasonを必ず表示する。source別paidの合計とaccount seller ordersは独立系列として照合し、重複を足し上げない。`profit*_actual`を実費後最終利益と表示せず、20% fee仮定が残る間は80% revenue proxy由来のactual-cost contribution estimateと表示する。現行実装にないdashboard fieldやlead数を「ある」と扱わない。
 
-### 原子的な残TODO（唯一の順序・statusは2026-10-12 14:30 JST時点）
+### 原子的な残TODO（唯一の順序・statusは2026-10-12 15:52 JST時点）
 
 各atomのownerはAniccaのCapafy運用loop/scoreboard。Daisへの質問・作業依頼はしない。`FROZEN.json` sellersの編集は禁止。ここでは記載更新とread-only調査だけを実施し、下記運用作業は実行していない。
 
-**進捗更新（15:21 JST）:** 旧cursor=`hourly natural analytics receipt`。新cursor=`fresh source rowsでslot配分計画確認済み→次のnatural distribution receipt/CT readback`。旧即時順`T2.6採用証明→natural distribution receipt/CT→T4/T5 queue as slots free→T6/T7/T8/T10/T11`、新順はこの先頭二項をsource採用済み・distribution receipt待ちへ進め、残りは維持する。PR #7771 merge、immutable release、両Capafy marketing ownerのapplyが完了。T0/T1/T2 cadenceとT3/T9/T12/T13は並行継続。理由は、fresh analyticsがbuyer-visible flagsを含み、selector計画がHook Lab 24/48を示したため。次は自然distributionの実slotとreadbackで計画を検証する。
+**進捗更新（15:52 JST）:** 旧cursor=`headroom/fence recovery`。新cursor=`single-sweep cleanup owner採用の自然結果→eligible cache/release候補再確認→15:23 effect fenceのregistered readback→distribution natural receipt`。旧順序`disk recovery/fence reconciliation→next natural distribution receipt/CT→T4/T5→T6/T7/T8/T10/T11`、新順序は最初の二atomをcleanup current release66f / fence adapterの明示証拠へ進め、その後だけdistributionを再開する。理由はPR #7774が二重host sweepを解消したが15:51 watchdog passはcapacity `unmet`・reclaimed約6KiB、15:23 publish effect fenceも未確定のため。T0/T1/T2 cadenceとT3/T9/T12/T13は並行継続。
 
-1. **T0 — source snapshotの差を解消する。 [IN PROGRESS / 現在cursor]**
+1. **T0 — source snapshotの差を解消する。 [IN PROGRESS / receiptごとのデータ照合]**
     - 根拠: 旧SSOTと当時の01:09Z reconcileでsearch 835/814、hot 72/71、Google 41/39、direct 1,540/1,493、`ai_overview` 551/548の差が記録された。最新`observed_at=2026-10-12T05:09:14Z`値は4,350 global views、source-paid 18。`capafy-hourly-reconcile.json.orders=70` vs `capafy-skill-analytics.json.account_totals.all_time.orders=101`、source 30d paid=18 vs analytics account 30d orders=39のfield-semantic差もある。
     - **14:03 JSTのコード/履歴照合:** `origin/main=15d195864c` の`_seller_money()`はseller-sales行の`revenue > 0`分だけ`orders`を合計する。`money.unit_sales_total=101`は別のunit-sales集計。`capafy-skill-analytics.account_totals`の`_window_totals()`は指定日付内の全seller-sales行から`orders`を加算するため、all-time 101・30d 39は別集計。`traffic_sources.last_30d.paid_orders=18`はtraffic v2 sales stats由来で、`sourceType`とsource/campaign名ごとに集計され、seller ordersとのorder-ID joinはない。したがって70 / 101 / 39 / 18は別系列として保持する。
     - 同時刻scope照合: 保存済みhourly logの`01:09:12Z`行ではglobal source rowsがsearch 814、hot 71、Google 39、direct 1,493、`ai_overview` 548。一方、同じJSON内の60件の`by_agent`行を合計すると835 / 72 / 41 / 1,540 / 551となり、旧SSOT値と完全一致する。よって旧835等は別時刻の数字ではなく「Agent別取得の合計」、814等は「global取得」であり、異なる集計scopeを混ぜた差と分類できる。
@@ -14941,8 +14941,9 @@ Capafy公式Xの公開indexには、Ocupの100 sales紹介と、あるcreatorの
     - 完了条件: 各差がwindow・scope・更新時刻・重複・field semanticsのどれかに分類され、source totalとpaid totalを同じJSONから再計算できる。milestone用order fieldはunit countと切り分けて明記する。
    - 頻度: 収束までreadbackごと。分類できない値はunknownとして残す。
 
-2. **T1 — hourly monitoringの成功freshnessを保つ。 [IN PROGRESS / 14:09:14成功、次回15:07予定]**
+2. **T1 — hourly monitoringの成功freshnessを保つ。 [IN PROGRESS / 15:20:34成功、次回16:07予定]**
    - 根拠: repo launchd templateは毎時00分だが、installed `~/Library/LaunchAgents/ai.anicca.capafy-goal-monitor-hourly.plist`は毎時07分。14:07:08 JSTのnatural occurrence `18ddafe5dd47fea0-21784`はrelease `bafa6755`、14:17:14 report pass / exit0。reconcileは`observed_at=14:09:14 JST`、file mtime14:16:58、hourly log mtime14:17:14。最新値はorders70/gross $102.75、global30d views4,350/source-paid18、7d314 views/0 paid。12:07 JSTのattemptは`resource_capacity_busy`だった。
+   - 最新確認済み: occurrence `18ddb36dba8c1820-81533`は15:20:34 JSTにexit0、analytics `observed_at=15:11:58 JST`。この15:52 status snapshot時点で次のnatural windowは16:07予定、結果未確認。
    - 作業: 各自然occurrenceのrun/owner/occurrence/release/phase/exit/effect/readbackを確認し、成功後に`observed_at`が進んだか照合する。runtime修正はこの文書更新の範囲外。
    - 完了条件: 次のscheduled hourly windowでもexit 0で新しい公式receiptを書き、sales/source freshnessを読める。単発の13:08:53 successだけでは継続正常と判定しない。
    - 頻度: 毎時。失敗時はmissing metricを0にせずblockerを同じscorecardに記録。
@@ -14956,13 +14957,17 @@ Capafy公式Xの公開indexには、Ocupの100 sales紹介と、あるcreatorの
    - T2.3 公開creativeごとにcreative_id、platform post URL/time、impressions/reach/views/watch time/completion/likes/comments/shares/saves/link clicksを24h/7d/30dで同じrowへ結ぶ。
    - T2.4 同一windowでsource totalとAgent totalを再計算し、source-attributed paidの合計とaccount seller ordersを別々に照合する。重複があれば原因を分類する。
     - T2.5 日次snapshotを週次に比較し、view増・CT増・trial増・paid増・profit増のどこが止まるか一つのprimary bottleneckとして記録する。
-    - **T2.6 — profitable frozen sellersをdistribution selectorから落とさず、Hook Labへ半分配分する。 [IN PROGRESS / fresh analytics採用済み、natural distribution receipt待ち]** 14:09 analyticsではHook Lab / TikTok Script Pro / YouTube Script Writer / Slide Makerが`status=draft`だが、14:16 official publish-listでは4件とも`has_online_version=true`、Marketing Strategistは`online`。`publish-list`と`capafy_hourly_reconcile.py`は同じ`GET /agent/agents`を使う。publisherはraw `hasOnlineVersion`を`has_online_version`として読む一方、hourly analyticsはその値をper-skill rowへ出していなかった。このため`_is_online_earner()`がlive versionを識別できず、14:09 dataで48/48 slotsをMarketing Strategistへ割り当てる。
+    - **T2.6 — profitable frozen sellersをdistribution selectorから落とさず、Hook Labへ半分配分する。 [IN PROGRESS / selector deployed; disk and effect fence block live post]** 14:09 analyticsではHook Lab / TikTok Script Pro / YouTube Script Writer / Slide Makerが`status=draft`だが、14:16 official publish-listでは4件とも`has_online_version=true`、Marketing Strategistは`online`。`publish-list`と`capafy_hourly_reconcile.py`は同じ`GET /agent/agents`を使う。publisherはraw `hasOnlineVersion`を`has_online_version`として読む一方、hourly analyticsはその値をper-skill rowへ出していなかった。このため`_is_online_earner()`がlive versionを識別できず、14:09 dataで48/48 slotsをMarketing Strategistへ割り当てる。
       - rule 10の配分要件は短期profit順位だけでは満たせない。14:09 `profit_30d_actual_usd` contribution estimateはHook Lab +$5.96、TikTok Script Pro +$12.75、Marketing Strategist +$11.08。buyer-visibleでpositiveなHook Labを明示的に先頭扱いし、他のeligible sellersと交互に並べて48枠中24枠を割り当てる。`has_online_version=false`は`status=online`でも除外し、flagがnullの古いsnapshotに限り`online`/`under_review` statusへfallbackする。
       - 実装: PR #7771は2026-10-12 15:06 JSTにmerge、main SHA `e91b1087f269939a090c992fcc362789fbd89a03`。immutable release `20261012T150826-e91b1087`を15:08 JSTにcut。`capafy-goal-monitor-hourly`は15:09にapplyされ、occurrence `18ddb36dba8c1820-81533`が15:20:34にexit 0。analytics `observed_at=2026-10-12T06:11:58Z`のper-skill rowsではHook Lab / TikTok Script Pro / Marketing Strategist / YouTube Script Writerが`has_online_version=true`。orders70/gross$102.75、MRR nullは継続。`FROZEN.json` sellersは編集なし。
       - fresh analyticsに対するimmutable release selectorの48-slot pure selectionはHook Lab24、TikTok Script Pro8、Marketing Strategist8、YouTube Script Writer8。これは予定配分で、provider publish receiptではない。
-      - `capafy-distribute-daily`は15:20に同SHA `e91b1087`へloaded-idle apply、現在loaded-idle。15:19 occurrence `18ddb3d3aea53b48-46876`は旧SHAで`resource_capacity_busy` / exit75 / `effect=not_applicable`、ledger更新なし。最新ledgerは引き続き`h14m30` Marketing Strategist / published。次のinterval natural slotは約15:49。
-      - fresh official traffic: 30d 4,350 views / 18 paid、7d 314 / 0。Capafy search814/10、hot71/5、Google39/1、`ai_overview`548/0、CT6/0、`instagram_bio`39/0。いずれもsource-attributed row countで、visitor単位conversionとは呼ばない。
-      - 完了条件: 次natural distribution receiptがHook Lab24/48・他eligible sellers24/48を実slot/CTと共に記録する。続けて7d/30d Capafy source readbackでviews/trials/paidを比べる。CT visitsが増える前に投稿volumeやchannelを増やさない。
+      - `capafy-distribute-daily`は15:20に同SHA `e91b1087`へloaded-idle apply。15:19 occurrence `18ddb3d3aea53b48-46876`は旧SHAで`resource_capacity_busy` / exit75 / `effect=not_applicable`、ledger更新なし。
+      - 15:23 occurrence `18ddb41638d903c0-4742`は新selectorでHook Lab / slot `h15m00`を選択したが、`agent-runner: provider deferred: disk_headroom_low`でmodel pass exit75。run directoryはpromptのみ、ledger rowなし。admission rowは`claimed/effect_unknown=1`。
+      - registered `capafy_distribute_fence_reconcile.py`の15:26 read-only照合はGitHub landing commitなし、`too_recent:433s<=5100s`で未確定。X/Postiz readbackにはまだ進まず、fenceを保持。再送・手書き解除はしない。
+      - model-runner前のheadroom floorは`2,147,483,648` bytes。15:40:51Z bounded cleanup passはfree 676,626,432→697,868,288 bytes、reclaimed 6,412 bytes、14候補中12 preserved（open4 / protected_descendant6 / protected_path2）、errors0 / protected_deletions0、capacity recovery `unmet`。15:37 managed cleanup ownerはexit75。15:41現在 free約719,628 KiBで2GiB floor未達。
+      - 最新published ledgerは引き続き`h14m30` Marketing Strategist。fresh official trafficは30d4,350 views/18 paid、7d314/0、search814/10、hot71/5、Google39/1、`ai_overview`548/0、CT6/0、`instagram_bio`39/0。
+      - 以上はsource-attributed row countで、visitor単位conversionとは呼ばない。
+      - 完了条件: 2GiB provider headroomをcleanup ownerのallowlistで回復し、15:23 fenceをregistered adapterでofficial GitHub/Postiz readbackからresolve/effected確定する。その後、次natural distribution receiptがHook Lab24/48・他eligible sellers24/48を実slot/CTと共に記録し、7d/30d Capafy source readbackでviews/trials/paidを比べる。CT visitsが増える前に投稿volumeやchannelを増やさない。
     - 完了条件: 60/60対象または明示されたAPI上限・欠損理由が見え、nullと0を区別し、合計がsource receiptと一致する。
    - 頻度: 毎日の最初の成功receipt後。週次で7日差分を確認。
 
@@ -14971,7 +14976,7 @@ Capafy公式Xの公開indexには、Ocupの100 sales紹介と、あるcreatorの
    - 完了条件: Agent別active数×月換算ARPUの合計をseller readbackから再計算できる。endpoint/sourceが存在しなければ「true MRR unavailable」を明示し、proxyをMRRと呼ばない。
    - 頻度: 週次と$10K判定時。現状は`net_mrr_usd`/`settled_mrr_usd` null。
 
-5. **T4 — 新規Agentの自然出荷と5枠queueを確認する。 [IN PROGRESS / 8767154808 under_review、9675561238 draft]**
+5. **T4 — 新規Agentの自然出荷と5枠queueを確認する。 [IN PROGRESS / last inventory readback 14:54、5枠満杯]**
    - 14:16 official detail/list readback: `8767154808` version `2109463185447604224`は`agent_status=under_review`、`platform_status=1`、`audit_status=2`、`status_reason=under_review`、skills/config confirmed。provider `updated_at=2026-10-12T02:26:29Z`（11:26:29 JST）なので14:09 occurrenceより前に審査入りしている。14:09 occurrenceの成功要件へ因果づけない。
    - 14:09 natural factory occurrence `18ddb00f7cc27c20-34172`は14:12:10にexit75/effect unknownとなった。登録済み`capafy_factory_fence_reconcile.py`がofficial publish-list/remote-statusから`9675561238` version `2109512140641300480`, `platform_status=0`の実作用を確認し、14:16:19にprovider receipt付きで解決。DB rowは`state=released,effect_unknown=0`。14:16 publish-listでは`9675561238`がdraft、`updated_at=14:11:01 JST`。
    - 最新official `inventory_status.py`はtotal64/listed47/occupied5/free0/retry1/recover12/ready_publish0/unknown0。未公開5枠は満杯。`8767154808`がlistedになれば枠を再確認し、その後のnatural runでqueue先頭Agentを一件ずつ進める。重複create/submitはしない。
@@ -14982,8 +14987,25 @@ Capafy公式Xの公開indexには、Ocupの100 sales紹介と、あるcreatorの
    - 頻度: 各natural run。枠が空くたびに再確認。
 
 6. **T5 — 未公開Agent queueを検索需要に紐づける。 [IN PROGRESS / backlog44、ready14、slot full]**
-   - 14:27 JST local backlog: total44、listed21、ready14、ready_retry1、submitted8、building0。item schemaには`candidate_id/title/paths/gates/state/platform_state`があるがbuyer query/query rankはない。
-   - 作業: 14件のready候補にbuyer query、rank/impressions、競合sales/rating、固有の納品物、価格/原価仮説、slot依存を付ける。14:16 server readbackは未公開occupied5/free0なのでqueueだけを進める。
+   - 15:30 JST local backlog refresh: total44、listed21、ready14、ready_retry1、submitted8、building0。JSON schemaは`candidate_id/title/paths/gates/state/platform_state`を持つがbuyer query/query rank/impressions fieldはない。`capafy-candidate-opportunities.json`はJST00:13時点の3件で、query rank sourceとしてstale。各ready candidateの`LISTING.md`にはtagsがあり、一部に過去market sweepのDemand rank/競合売上はあるため、これをquery仮説として構造化し、実rank/impressionsと区別する。
+   - T5.1 buyer-query仮説（14件すべてvolume/rank未検証）:
+     | candidate | primary query hypothesis | 現在の需要根拠 |
+     |---|---|---|
+     | `mlb-lineup-matchup-brief` | MLB lineup matchup analysis | Analysis shelf 3,183 observed sales; Ocup Football 3,104、MLB Baseball Analysts 37、Otata Baseball 29。query別内訳ではない。 |
+     | `mlb-series-preview-brief` | MLB series preview / pitching matchup | 同じsports-analysis shelf signal。 |
+     | `nba-slate-analyst` | NBA slate analysis | sports family evidence。candidate listingのrank1はC6 file absentと併記され、要再検証。 |
+     | `crypto-macro-watchlist-brief` | crypto macro weekly watchlist | Finance winners: Serenity Stock Tracker 1,869 sold、Unison 115、Stock Analysis—Crypto & Macro 47。historical market sweep。 |
+     | `podcast-clip-hook-lab` | podcast clip hooks / short-form openers | 2026-10-08 sweep category average: short-video/creator 77.1 units/Agent vs analysis56.7、finance33.5。 |
+     | `experiment-readout-deck` | A/B test experiment readout deck | Slide Maker is the proven deck seller at $9.99/week; query demand itself is unknown. |
+     | `research-findings-deck-storyboard` | research findings presentation outline | Same deck family signal; research-specific query rank unknown. |
+     | `privacy-notice-change-brief-deck` | privacy notice change summary | Listing describes a recurring before/after review job; no query/sales signal. |
+     | `rfp-response-evidence-matrix` | RFP response evidence matrix | Procurement buyer-job hypothesis; no query/sales signal. |
+     | `risk-register-action-planner` | project risk register action plan | Listing-specific query hypothesis; no local sales signal. |
+     | `sales-account-plan-deck` | sales account plan deck | Slide Maker family signal only; query demand unknown. |
+     | `security-exception-decision-deck` | security exception approval brief | Governance buyer-job hypothesis; no query/sales signal. |
+     | `sustainability-disclosure-evidence-deck` | sustainability disclosure evidence map | Reporting buyer-job hypothesis; no query/sales signal. |
+     | `vendor-evaluation-evidence-scorecard` | vendor evaluation scorecard | Distinct buyer-side procurement job; no query/sales signal. |
+   - 作業: 14件のready候補へhypothesisに加えて、Capafy exact buyer query, rank, impressions, competitor sold/rating, unique output, price/model-cost, duplicate check, slot dependencyをrecordする。rank/volumeは実検索readbackが取れるまでunknownのままにする。15:30 local backlogはoccupied5/free0のためoffline queueだけを整備する。
    - 完了条件: 空く各枠に少なくとも1件lint済み・query-linked候補があり、重複がない。free=0の間はcreate/submitを重複しない。
    - 頻度: 毎日および枠解放時。slotを空ける公式statusはCapafy publish-listで確認。
 
@@ -15040,6 +15062,6 @@ Capafy公式Xの公開indexには、Ocupの100 sales紹介と、あるcreatorの
     - final: Capafy official active-subscription readbackで月換算gross MRR ≥ $10,000を確認し、same windowのrefund/fee/model cost/profitを横に報告する。
     - どちらも満たさない間は goal active。累計units/trials、listing count、under_review、proxy subscription salesを達成扱いしない。
 
-**現在cursor（15:21 JST）:** PR #7771 main SHA `e91b1087`、release `20261012T150826-e91b1087`採用済み。hourly occurrence `18ddb36dba8c1820-81533`は15:20:34 exit0、analytics `observed_at=15:11:58 JST`に`has_online_version=true`を確認。actual data 48-slot selector planはHook Lab24 / TikTok8 / Marketing8 / YouTube8。`capafy-distribute-daily`も15:20にSHA `e91b1087`へloaded-idle apply済み。現在cursorは次natural distribution slot（約15:49）の実ledger/CT receipt。15:19旧SHA attemptはresource capacity busy / effect not applicable。最新published ledgerはh14m30 Marketing Strategist。factory inventoryの最後の公式readbackは14:54 total64/listed47/occupied5/free0/retry1、8767154808 under_review、9675561238 draft。T5 backlog44/ready14のbuyer-query mappingは未完。official money readback orders70/gross$102.75、MRR null、first-paid milestone未達。T11はpublic success/creative調査完了、独自素材・campaign CT preflight・1回投稿は未実施。
+**現在cursor（15:52 JST / 運用証拠の最終時刻）:** PR #7771 main SHA `e91b1087`、release `20261012T150826-e91b1087`、hourly/distribute ownerはloaded済み。hourly occurrence `18ddb36dba8c1820-81533`は15:20:34 exit0、analytics `observed_at=15:11:58 JST`。fresh dataのselector planはHook Lab24 / TikTok8 / Marketing8 / YouTube8。distribution occurrence `18ddb41638d903c0-4742`は15:23にHook Labを選んでmodel pass exit75 `disk_headroom_low`となり、admission `effect_unknown=1`。15:26 registered adapter readbackはtoo_recent、GitHub landing commitなしでfence未解決、X/Postiz readback未実施。15:51 watchdog passでもcapacity `unmet`、reclaimed約6KiB。次cursorはsingle-sweep cleanup ownerの自然結果確認、headroomとregistered fence readbackの解決、その後のnatural distribution receipt/CT確認。最新published ledgerはh14m30 Marketing Strategist。factory inventoryの最後の公式readbackは14:54 total64/listed47/occupied5/free0/retry1、8767154808 under_review、9675561238 draft。T5 backlog44/ready14はbuyer-query仮説のみでactual rank未計測。official money readback orders70/gross$102.75、MRR null、first-paid milestone未達。T11 public success/creative調査は完了、独自素材・campaign CT preflight・1回投稿は未実施。
 
 **調査参照:** `skills/earn/capafy-marketing/scripts/capafy_hourly_reconcile.py`、`skills/earn/capafy-marketing/scripts/capafy_scoreboard.py`、`skills/capafy-autopublish/scripts/inventory_status.py`、`skills/capafy-autopublish/CP1_AGENTIC.md`、`skills/capafy-autopublish/PUBLISHING_RUNBOOK.md`、`skills/capafy/FROZEN.json`。公開比較対象: [HookAce](https://capafy.ai/agent/hookace-first-6-second-retention-predictor/3264203863)、[Ocup Football Analysis](https://capafy.ai/agent/ocup-analysis/2553639947)、[Serenity Stock Tracker](https://capafy.ai/agent/serenity-stock-tracker/2521387714)、[TikTok Scripts](https://capafy.ai/agent/6182575730)、[CapafyのOcup 100 sales投稿](https://x.com/Capafyai/status/2069420218057904378)、[初週$4,208/short-videoのCapafy事例](https://x.com/Capafyai/status/2072302872654499993)。
