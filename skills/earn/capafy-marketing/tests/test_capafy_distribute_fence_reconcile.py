@@ -118,6 +118,26 @@ def test_occurrence_start_rejects_matching_event_with_malformed_timestamp(tmp_pa
     raise AssertionError("malformed duplicate execute-start event was ignored")
 
 
+def test_occurrence_start_rejects_malformed_event_rows(tmp_path):
+    occurrence_id = "capafy-distribute-daily:run-1"
+    valid_start = {
+        "owner_id": rec.OWNER_ID,
+        "run_id": "run-1",
+        "occurrence_id": occurrence_id,
+        "phase": "execute",
+        "status": "running",
+        "timestamp": Q.isoformat(),
+    }
+    events = tmp_path / "events.jsonl"
+    for malformed_row in ('{"owner_id":', json.dumps(["not", "an", "event"])):
+        events.write_text(json.dumps(valid_start) + "\n" + malformed_row + "\n")
+        try:
+            rec.occurrence_started_at(occurrence_id, events)
+        except ValueError:
+            continue
+        raise AssertionError("malformed event row was ignored")
+
+
 def test_occurrence_manifest_records_exact_runtime_slot(tmp_path):
     occurrence_id = "capafy-distribute-daily:midnight-boundary"
     path = tmp_path / "runs/capafy-distribute-2026-09-30-h00m00/gates/occurrence.json"

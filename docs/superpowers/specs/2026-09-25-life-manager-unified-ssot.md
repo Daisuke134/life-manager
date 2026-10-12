@@ -15926,3 +15926,9 @@ T0の今回readbackは記録済み。first-paid条件とtrue MRRは未達/unknow
 **現在cursor (2026-10-13 00:47 JST):** PR #7832 (`6f2d4b46`)がmainへmergeされ、`skills/capafy/catalog/source-assets.json`へ該当icon digestを宣言した。T1 PRへ同じ目的の別manifestを重ねない。次は自分の`skills/capafy/catalog-assets.json`追加を削除し、slot-boundaryのsource/test/specだけを残して最新main上で再検証する。PR #7830はまだ更新していない。
 
 **現在cursor (2026-10-13 00:48 JST):** #7832のmanifestが`origin/main`にあることを確認し、自分の重複`catalog-assets.json`をbranchから削除した。local OSS verifierは`generated_artifact`を報告しなくなり、残り12件はsparse checkout未展開対象によるlocal-only差分。PR #7830はまだ旧head、slot-boundary修正はmain/release未反映。次は削除とこのstate updateをcommitし、最新mainへrebase後に18件のfocused test/source boundary/shell syntaxを再確認する。新commitをpushしてfresh verifierとCIを更新する。
+
+**T1 event-stream audit (2026-10-13 00:52 JST):** current `capafy-distribute/events.jsonl`は1,045 valid object rows / malformed JSON 0 / non-object rows 0。source parserは不正JSONをcontinueで読み飛ばすため、有効start行に切れた重複行があれば有効startだけを選べる。次はvalid start + malformed/non-object rowをREDで作り、対象identityを確定できないevent stream全体をfail-closedにする。これはprovider readbackを呼ばないlocal test。
+
+**現在cursor (2026-10-13 00:52 JST):** PR #7830は最新main `6f2d4b46`をmergeし、force-pushなしでhead `ac1f2ef5a2`へ更新済み。18/18 Capafy focused tests・source boundary・shell syntax PASS。新headのOSS self-contained boundaryはPASS、その他のCIは未完了。fresh adversarial verifier再確認も未完了。次はevent-stream malformed guardをtest-firstで追記し、PR headを再更新してCI/検証を再確認する。過去occurrenceの外部結果unknownとno-replay境界は継続。
+
+**現在cursor (2026-10-13 00:53 JST):** final fresh verifierはslot/manifest修正をSHIP判定し、7つの異常系probeで誤proofがないことを確認。別途有効start+malformed JSON/non-object行の回帰testを追加し、旧parserでREDを確認。parserは今、不正JSONやnon-object rowを読み飛ばさずfail-closedにする変更済みだが、green再検証前。次は全focused tests/source checksを再実行し、このguardを追加commit/pushしてPR CIを更新する。PR #7830の現在remote headはまだ`ac1f2ef5a2`。

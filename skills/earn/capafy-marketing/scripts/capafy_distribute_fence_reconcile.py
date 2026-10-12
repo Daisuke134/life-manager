@@ -86,10 +86,14 @@ def occurrence_started_at(occurrence_id: str, events_path: Path | None = None) -
     starts = []
     with path.open(encoding="utf-8") as handle:
         for line in handle:
+            if not line.strip():
+                continue
             try:
                 event = json.loads(line)
-            except (TypeError, ValueError):
-                continue
+            except (TypeError, ValueError) as exc:
+                raise ValueError("occurrence event stream contains malformed JSON") from exc
+            if not isinstance(event, dict):
+                raise ValueError("occurrence event stream row must be a JSON object")
             if (event.get("owner_id") != OWNER_ID
                     or event.get("run_id") != run_id
                     or event.get("occurrence_id") != occurrence_id
