@@ -11,6 +11,8 @@ import {
   walletLedgerPath,
 } from './lib/external-inflow-recorder.mjs';
 import { resolveX402StateDir } from './state-paths.mjs';
+import { projectRevenueReceipts } from '../../agent-economy/lib/revenue-adapters.mjs';
+import { resolveStatusPaths } from '../../agent-economy/status.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const OWN_PAY_TOS = [
@@ -39,13 +41,62 @@ async function rpcCall(method, params) {
   return body.result;
 }
 
+function toAgentEconomyRevenueRow(row) {
+  return {
+    source_record_id: row.source_sale_id,
+    provider: 'x402',
+    settled: row.status === 'success' && row.finalized === true,
+    amount_atomic: row.usdc_atomic,
+    decimals: 6,
+    asset: 'USDC',
+    payer: row.from,
+    recipient: row.payTo,
+    transaction: row.tx,
+    chain_id: 8453,
+    network: 'eip155:8453',
+    terminal_state: row.status === 'success' && row.finalized === true ? 'settled' : row.status,
+    occurred_at: row.observed_at,
+    ...(row.fee !== undefined && row.fee !== null ? { fee: row.fee } : {}),
+    ...(row.refund !== undefined && row.refund !== null ? { refund: row.refund } : {}),
+  };
+}
+
+async function projectAgentEconomyRevenue(rows, { journalPath, rejectionPath } = {}) {
+  if (rows.length === 0) return null;
+  const resolvedJournal = journalPath || resolveStatusPaths({ env: process.env }).journalPath;
+  const result = await projectRevenueReceipts({
+    journalPath: resolvedJournal,
+    rejectionPath: rejectionPath || `${resolvedJournal}.rejections.jsonl`,
+    provider: 'x402',
+    rows: rows.map(toAgentEconomyRevenueRow),
+    options: { configuredNetwork: 'eip155:8453' },
+  });
+  return {
+    accepted: result.accepted,
+    duplicates: result.duplicates,
+    rejected: result.rejected,
+    rejection_persisted: result.rejection_persisted,
+    rejection_duplicates: result.rejection_duplicates,
+  };
+}
+
 export async function recordSaleCandidates({
   candidates,
   rpc = rpcCall,
   stateDir = resolveX402StateDir(),
+  revenueJournalPath,
+  revenueRejectionPath,
 } = {}) {
   if (!Array.isArray(candidates) || candidates.length === 0) {
-    return { chain_id: null, finalized_block: null, candidates_seen: 0, verified: 0, recorded: 0, duplicates: 0 };
+    return {
+      chain_id: null,
+      finalized_block: null,
+      candidates_seen: 0,
+      verified: 0,
+      recorded: 0,
+      duplicates: 0,
+      revenue_projection: null,
+    };
   }
   const verified = await collectVerifiedSaleCandidates({
     candidates,
@@ -62,6 +113,10 @@ export async function recordSaleCandidates({
     recorded += write.recorded;
     duplicates += write.duplicates;
   }
+  const revenueProjection = await projectAgentEconomyRevenue(verified.rows, {
+    journalPath: revenueJournalPath,
+    rejectionPath: revenueRejectionPath,
+  });
   return {
     chain_id: verified.chainId,
     finalized_block: verified.finalizedBlock,
@@ -69,6 +124,7 @@ export async function recordSaleCandidates({
     verified: verified.rows.length,
     recorded,
     duplicates,
+    revenue_projection: revenueProjection,
   };
 }
 
@@ -81,6 +137,7 @@ async function main() {
     observed_at: new Date().toISOString(),
     ...result,
     verified_external_revenue: isRevenue,
+    agent_economy_revenue_accepted: result.revenue_projection?.accepted ?? 0,
   })}\n`);
   if (isRevenue) {
     spawnSync('/usr/bin/osascript', ['-e', 'display notification "Finalized external USDC sale recorded." with title "x402 verified revenue" sound name "Glass"'], {

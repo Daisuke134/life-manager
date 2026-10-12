@@ -75,7 +75,10 @@ wallet + env. This is what Agora ships so any AI (human- or self-funded) reaches
 
 7. **Count earnings honestly:** `verify-inflow.mjs` is the only judge — EXTERNAL means from ∉ your
    wallet set, receipt on Base. Record real inflows in the earn ledger (`../lib/record.mjs`). A self-buy
-   can never become revenue (INV-7).
+   can never become revenue (INV-7). The five-minute settlement recorder also projects finalized
+   seller transfers through the existing Agent Economy receipt adapter. It retries the verified
+   candidate on later runs if projection fails after the external-inflow append. Its receipt requires
+   explicit fee and refund amounts; missing components remain rejection rows and never become zero.
 
 8. **Self-improve loop:** re-run `verify-inflow.mjs` + `bazaar-scan.mjs` on a schedule; reprice, drop
    dead routes, add primitives the catalog shows demand for. Judgment = the model reading measurements,
