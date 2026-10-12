@@ -619,6 +619,7 @@ def _broker_cost_cache(
         digest = hashlib.sha256("\0".join(sorted(order_ids)).encode("utf-8")).hexdigest()[:20]
         receipt_path = state / f"performance-cost-{digest}.json"
         attempt_path = state / f"performance-cost-attempt-{digest}.json"
+        invalid_cached_receipt = receipt_path.exists()
         try:
             cached = json.loads(receipt_path.read_text(encoding="utf-8"))
             if (isinstance(cached, dict)
@@ -627,13 +628,22 @@ def _broker_cost_cache(
                 if cached_summary["broker_costs_status"] == "complete":
                     evidence.append(cached)
                     continue
+            invalid_cached_receipt = True
         except (OSError, json.JSONDecodeError, TypeError):
-            pass
+            invalid_cached_receipt = invalid_cached_receipt or receipt_path.exists()
         try:
             attempt = json.loads(attempt_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             attempt = {}
-        if isinstance(attempt, Mapping) and attempt.get("attempted_day") == attempted_day:
+        attempted_today = (
+            isinstance(attempt, Mapping) and attempt.get("attempted_day") == attempted_day
+        )
+        refresh_invalid_cache = (
+            attempted_today
+            and invalid_cached_receipt
+            and attempt.get("invalid_cached_receipt_refresh_attempted") is not True
+        )
+        if attempted_today and not refresh_invalid_cache:
             errors.append({
                 "next_action": "retry_after_next_et_day",
                 "order_ids": sorted(order_ids),
@@ -643,6 +653,7 @@ def _broker_cost_cache(
         try:
             _atomic_json(attempt_path, {
                 "attempted_at": observed_at, "attempted_day": attempted_day,
+                "invalid_cached_receipt_refresh_attempted": invalid_cached_receipt,
                 "order_ids": sorted(order_ids), "owner_id": OWNER_ID, "status": "attempted",
             })
         except OSError:
@@ -677,6 +688,7 @@ def _broker_cost_cache(
             try:
                 _atomic_json(attempt_path, {
                     "attempted_at": observed_at, "attempted_day": attempted_day,
+                    "invalid_cached_receipt_refresh_attempted": invalid_cached_receipt,
                     "order_ids": sorted(order_ids), "owner_id": OWNER_ID,
                     "reason": reason, "status": "unknown",
                 })

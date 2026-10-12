@@ -509,6 +509,44 @@ class PaperPerformanceTests(unittest.TestCase):
         self.assertEqual(saved["mode"], "paper")
         self.assertIs(saved["paper"], True)
 
+    def test_invalid_cached_receipt_gets_one_same_day_refresh_past_old_attempt(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            (state / "receipts.jsonl").write_text(
+                "".join(json.dumps(row) + "\n" for row in _rows()), encoding="utf-8",
+            )
+            digest = hashlib.sha256(
+                "\0".join(sorted(["paper-entry", "paper-exit"])).encode("utf-8")
+            ).hexdigest()[:20]
+            stale = _broker_cost_evidence()
+            stale.update({"owner_id": "alpaca-investment-live", "mode": "live", "paper": False})
+            (state / f"performance-cost-{digest}.json").write_text(
+                json.dumps(stale), encoding="utf-8",
+            )
+            attempt_path = state / f"performance-cost-attempt-{digest}.json"
+            attempt_path.write_text(json.dumps({
+                "attempted_at": "2026-10-20T13:00:00Z",
+                "attempted_day": "2026-10-20",
+                "order_ids": ["paper-entry", "paper-exit"],
+                "owner_id": OWNER,
+                "status": "unknown",
+            }), encoding="utf-8")
+            from unittest.mock import Mock
+            reader = Mock(side_effect=ValueError("paper_cost_receipt_invalid"))
+
+            first = write_paper_performance(
+                state, OBSERVATION, RISK, broker_cost_reader=reader,
+            )
+            second = write_paper_performance(
+                state, OBSERVATION, RISK, broker_cost_reader=reader,
+            )
+            attempt = json.loads(attempt_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(reader.call_count, 1)
+        self.assertEqual(first["broker_costs_status"], "unknown")
+        self.assertEqual(second["broker_costs_status"], "unknown")
+        self.assertTrue(attempt["invalid_cached_receipt_refresh_attempted"])
+
     def test_daily_writer_joins_only_cost_receipts_for_trips_closed_that_day(self):
         def reader(*, orders, period_start):
             tag = "prior" if orders[0]["id"] == "prior-paper-entry" else "current"
