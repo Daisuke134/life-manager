@@ -42,6 +42,7 @@ def _rows() -> list[dict]:
             "owner_id": OWNER,
             "strategy_id": STRATEGY,
             "client_order_id": "lm-ai-" + "a" * 24,
+            "recorded_at": "2026-09-29T14:30:00Z",
             "source_receipt_ids": ["alpaca://bars/entry"],
             "order": {
                 "asset_class": "us_equity", "side": "buy", "symbol": "QQQ",
@@ -77,6 +78,7 @@ def _rows() -> list[dict]:
             "owner_id": OWNER,
             "strategy_id": STRATEGY,
             "client_order_id": "lm-ai-" + "b" * 24,
+            "recorded_at": "2026-10-20T14:31:00Z",
             "source_receipt_ids": ["alpaca://bars/exit"],
             "order": {
                 "asset_class": "us_equity", "side": "sell", "symbol": "QQQ",
@@ -113,6 +115,40 @@ OBSERVATION = {
     "positions": [],
 }
 RISK = {"drawdown_usd": "0.00"}
+
+
+def _broker_cost_evidence() -> dict:
+    return {
+        "broker_costs_status": "complete",
+        "broker_fees_usd": "0.01",
+        "broker_gross_pnl_usd": "0.250",
+        "broker_slippage_usd": "-0.005",
+        "observed_at": "2026-10-20T14:31:15Z",
+        "order_ids": ["paper-entry", "paper-exit"],
+        "period_start": "2026-09-29T14:30:00Z",
+        "provider": "alpaca",
+        "provider_readback": {
+            "account_fill_order_ids_by_symbol_date": [{
+                "symbol": "QQQ", "date": "2026-09-29",
+                "order_ids": ["paper-entry", "paper-exit"],
+            }],
+            "fees": [{"id": "fee-1", "activity_type": "FEE", "symbol": "QQQ",
+                      "date": "2026-09-29", "net_amount": "-0.01"}],
+            "fills": [
+                {"id": "fill-entry", "activity_type": "FILL", "order_id": "paper-entry"},
+                {"id": "fill-exit", "activity_type": "FILL", "order_id": "paper-exit"},
+            ],
+            "quotes_by_fill_id": {
+                "fill-entry": {"t": "2026-09-29T14:31:05Z", "bp": "400", "ap": "400.02"},
+                "fill-exit": {"t": "2026-10-20T14:31:00Z", "bp": "410", "ap": "410.02"},
+            },
+        },
+        "source_receipt_ids": [
+            "fill-entry", "fill-exit", "fee-1",
+            "alpaca-quote:fill-entry:2026-09-29T14:31:05Z",
+            "alpaca-quote:fill-exit:2026-10-20T14:31:00Z",
+        ],
+    }
 
 
 class PaperPerformanceTests(unittest.TestCase):
@@ -289,6 +325,92 @@ class PaperPerformanceTests(unittest.TestCase):
             "alpaca://bars/entry", "alpaca-order:paper-entry",
             "alpaca://bars/exit", "alpaca-order:paper-exit",
         ])
+
+    def test_official_broker_costs_join_but_missing_model_and_system_keep_net_unknown(self):
+        result = build_paper_performance(
+            _rows(), OBSERVATION, RISK, broker_cost_evidence=[_broker_cost_evidence()],
+        )
+
+        self.assertEqual(result["fees_usd"], "0.01")
+        self.assertEqual(result["slippage_usd"], "-0.005")
+        self.assertEqual(result["broker_costs_status"], "complete")
+        self.assertEqual(result["costs_status"], "partial")
+        self.assertTrue(result["slippage_included_in_gross_pnl"])
+        self.assertIsNone(result["model_cost_usd"])
+        self.assertIsNone(result["system_cost_usd"])
+        self.assertIsNone(result["net_realized_pnl_usd"])
+        self.assertEqual(result["unknown_cost_categories"], ["model", "system"])
+        self.assertIn("fill-entry", result["source_receipt_ids"])
+
+    def test_broker_cost_receipt_for_another_order_pair_is_not_joined(self):
+        evidence = _broker_cost_evidence()
+        evidence["order_ids"] = ["buy-other", "sell-other"]
+
+        result = build_paper_performance(
+            _rows(), OBSERVATION, RISK, broker_cost_evidence=[evidence],
+        )
+
+        self.assertIsNone(result["fees_usd"])
+        self.assertIsNone(result["slippage_usd"])
+        self.assertEqual(result["broker_costs_status"], "unknown")
+        self.assertEqual(result["unknown_cost_categories"], [
+            "fees", "slippage", "model", "system",
+        ])
+
+    def test_broker_cost_receipt_from_a_different_period_is_not_joined(self):
+        evidence = _broker_cost_evidence()
+        evidence["period_start"] = "2026-10-01T14:31:05Z"
+
+        result = build_paper_performance(
+            _rows(), OBSERVATION, RISK, broker_cost_evidence=[evidence],
+        )
+
+        self.assertIsNone(result["fees_usd"])
+        self.assertIsNone(result["slippage_usd"])
+        self.assertEqual(result["broker_costs_status"], "unknown")
+
+    def test_writer_reuses_complete_broker_readback_for_the_same_round_trip(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            (state / "receipts.jsonl").write_text(
+                "".join(json.dumps(row) + "\n" for row in _rows()), encoding="utf-8",
+            )
+            from unittest.mock import Mock
+            reader = Mock(return_value=_broker_cost_evidence())
+
+            first = write_paper_performance(
+                state, OBSERVATION, RISK, broker_cost_reader=reader,
+            )
+            second = write_paper_performance(
+                state, OBSERVATION, RISK, broker_cost_reader=reader,
+            )
+
+        self.assertEqual(reader.call_count, 1)
+        self.assertEqual(first["fees_usd"], "0.01")
+        self.assertEqual(second["fees_usd"], "0.01")
+
+    def test_writer_retries_failed_broker_readback_only_on_a_later_et_day(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            (state / "receipts.jsonl").write_text(
+                "".join(json.dumps(row) + "\n" for row in _rows()), encoding="utf-8",
+            )
+            from unittest.mock import Mock
+            reader = Mock(side_effect=ValueError("paper_fee_activity_missing"))
+
+            first = write_paper_performance(
+                state, OBSERVATION, RISK, broker_cost_reader=reader,
+            )
+            second = write_paper_performance(
+                state, OBSERVATION, RISK, broker_cost_reader=reader,
+            )
+            next_day = copy.deepcopy(OBSERVATION)
+            next_day["clock"]["observed_at"] = "2026-10-21T14:31:10Z"
+            write_paper_performance(state, next_day, RISK, broker_cost_reader=reader)
+
+        self.assertEqual(reader.call_count, 2)
+        self.assertEqual(first["broker_costs_reason"], "paper_fee_activity_missing")
+        self.assertEqual(second["broker_costs_errors"][0]["next_action"], "retry_after_next_et_day")
 
     def test_open_or_unresolved_round_trip_does_not_emit_numeric_pnl(self):
         rows = _rows()

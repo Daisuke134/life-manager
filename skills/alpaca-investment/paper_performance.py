@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import tempfile
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from effect_store import UNRESOLVED_INTENT_STATUSES
 
@@ -266,6 +268,12 @@ def _closed_round_trips(
                 "qty": qty,
                 "price": price,
                 "notional": qty * price,
+                "orders": [{
+                    "id": broker["id"], "symbol": symbol, "side": side,
+                    "filled_qty": str(qty), "filled_avg_price": str(price),
+                }],
+                "period_start": (intent.get("recorded_at")
+                                 if isinstance(intent.get("recorded_at"), str) else None),
                 "source_receipt_ids": list(event_source_ids),
             }
         elif side == "sell":
@@ -276,6 +284,12 @@ def _closed_round_trips(
                 "gross_pnl_usd": (price - entry["price"]) * qty,
                 "exposure_usd": entry["notional"],
                 "closed_at": _timestamp_value.isoformat(),
+                "order_ids": [entry["orders"][0]["id"], broker["id"]],
+                "orders": [*entry["orders"], {
+                    "id": broker["id"], "symbol": symbol, "side": side,
+                    "filled_qty": str(qty), "filled_avg_price": str(price),
+                }],
+                "period_start": entry["period_start"],
                 "source_receipt_ids": [*entry["source_receipt_ids"], *event_source_ids],
             })
         else:
@@ -285,10 +299,139 @@ def _closed_round_trips(
     return completed, source_ids
 
 
+def _broker_cost_summary(
+    completed: Sequence[Mapping[str, Any]], evidence: Any,
+) -> dict[str, Any]:
+    """Accept only broker receipts matching every closed owner order pair."""
+    unknown = {
+        "broker_costs_status": "unknown",
+        "broker_costs_reason": "paper_cost_receipt_missing",
+        "fees_usd": None,
+        "slippage_usd": None,
+        "broker_cost_source_receipt_ids": [],
+    }
+    if (not isinstance(evidence, Sequence) or isinstance(evidence, (str, bytes))
+            or not completed or len(evidence) != len(completed)):
+        return unknown
+    by_orders: dict[tuple[str, ...], Mapping[str, Any]] = {}
+    try:
+        for row in evidence:
+            if not isinstance(row, Mapping):
+                raise ValueError
+            raw_ids = row.get("order_ids")
+            if (row.get("provider") != "alpaca"
+                    or row.get("broker_costs_status") != "complete"
+                    or not isinstance(raw_ids, list) or len(raw_ids) != 2
+                    or any(not isinstance(item, str) or not item for item in raw_ids)):
+                raise ValueError
+            key = tuple(sorted(raw_ids))
+            if key in by_orders:
+                raise ValueError
+            observed_at = _timestamp(row.get("observed_at"))
+            period_start = _timestamp(row.get("period_start"))
+            if period_start > observed_at:
+                raise ValueError
+            receipts = row.get("source_receipt_ids")
+            if (not isinstance(receipts, list) or not receipts
+                    or any(not isinstance(item, str) or not item for item in receipts)
+                    or len(set(receipts)) != len(receipts)):
+                raise ValueError
+            provider_readback = row.get("provider_readback")
+            if not isinstance(provider_readback, Mapping):
+                raise ValueError
+            fill_rows = provider_readback.get("fills")
+            fee_rows = provider_readback.get("fees")
+            quote_rows = provider_readback.get("quotes_by_fill_id")
+            account_scope = provider_readback.get("account_fill_order_ids_by_symbol_date")
+            if (not isinstance(fill_rows, list) or not fill_rows
+                    or not isinstance(fee_rows, list) or not fee_rows
+                    or not isinstance(quote_rows, Mapping)
+                    or not isinstance(account_scope, list) or not account_scope):
+                raise ValueError
+            fill_ids = set()
+            for fill in fill_rows:
+                if (not isinstance(fill, Mapping) or fill.get("activity_type") != "FILL"
+                        or not isinstance(fill.get("id"), str)
+                        or fill.get("order_id") not in raw_ids):
+                    raise ValueError
+                fill_ids.add(fill["id"])
+            if fill_ids != set(quote_rows):
+                raise ValueError
+            fee_ids = set()
+            for fee in fee_rows:
+                if (not isinstance(fee, Mapping) or fee.get("activity_type") != "FEE"
+                        or not isinstance(fee.get("id"), str)):
+                    raise ValueError
+                fee_ids.add(fee["id"])
+            for scope in account_scope:
+                scope_ids = scope.get("order_ids") if isinstance(scope, Mapping) else None
+                if (not isinstance(scope_ids, list) or not scope_ids
+                        or not set(scope_ids) <= set(raw_ids)):
+                    raise ValueError
+            quote_receipt_ids = {
+                f"alpaca-quote:{fill_id}:{quote.get('t')}"
+                for fill_id, quote in quote_rows.items() if isinstance(quote, Mapping)
+            }
+            if not (fill_ids | fee_ids | quote_receipt_ids) <= set(receipts):
+                raise ValueError
+            gross = _number(row.get("broker_gross_pnl_usd"))
+            fees = _number(row.get("broker_fees_usd"))
+            slippage = _number(row.get("broker_slippage_usd"))
+            if fees < 0:
+                raise ValueError
+            by_orders[key] = {
+                **dict(row),
+                "_gross": gross,
+                "_fees": fees,
+                "_slippage": slippage,
+                "_receipts": receipts,
+            }
+        expected_keys = []
+        for trip in completed:
+            order_ids = trip.get("order_ids")
+            period_start = trip.get("period_start")
+            if (not isinstance(order_ids, list) or len(order_ids) != 2
+                    or any(not isinstance(item, str) or not item for item in order_ids)
+                    or not isinstance(period_start, str)):
+                raise ValueError
+            key = tuple(sorted(order_ids))
+            row = by_orders.get(key)
+            if row is None:
+                raise ValueError
+            observed_at = _timestamp(row.get("observed_at"))
+            closed_at = _timestamp(trip.get("closed_at"))
+            if (observed_at < closed_at
+                    or _timestamp(row.get("period_start"))
+                    != _timestamp(trip.get("period_start"))):
+                raise ValueError
+            if abs(row["_gross"] - _number(trip.get("gross_pnl_usd"))) > Decimal("0.000001"):
+                raise ValueError
+            expected_keys.append(key)
+        if set(expected_keys) != set(by_orders):
+            raise ValueError
+        receipt_ids = [receipt_id for row in by_orders.values()
+                       for receipt_id in row["_receipts"]]
+        if len(receipt_ids) != len(set(receipt_ids)):
+            raise ValueError
+        fees_total = sum((row["_fees"] for row in by_orders.values()), Decimal("0"))
+        slippage_total = sum((row["_slippage"] for row in by_orders.values()), Decimal("0"))
+    except (KeyError, TypeError, ValueError, ArithmeticError):
+        return {**unknown, "broker_costs_reason": "paper_cost_receipt_mismatch"}
+    return {
+        "broker_costs_status": "complete",
+        "broker_costs_reason": None,
+        "fees_usd": str(fees_total),
+        "slippage_usd": str(slippage_total),
+        "broker_cost_source_receipt_ids": receipt_ids,
+    }
+
+
 def build_paper_performance(
     rows: Any,
     observation: Mapping[str, Any],
     risk: Mapping[str, Any],
+    *,
+    broker_cost_evidence: Any = None,
 ) -> dict[str, Any]:
     """Return a partial receipt until every paper cost has official evidence."""
     try:
@@ -305,11 +448,23 @@ def build_paper_performance(
         completed, source_ids = _closed_round_trips(rows)
         gross = sum((item["gross_pnl_usd"] for item in completed), Decimal("0"))
         exposure = max((item["exposure_usd"] for item in completed), default=Decimal("0"))
+        broker_costs = _broker_cost_summary(completed, broker_cost_evidence)
+        cost_source_ids = broker_costs["broker_cost_source_receipt_ids"]
+        all_source_ids = [*source_ids, *cost_source_ids]
+        if len(all_source_ids) != len(set(all_source_ids)):
+            raise ValueError("paper_receipt_duplicate")
+        unknown_costs = (["model", "system"] if broker_costs["broker_costs_status"] == "complete"
+                         else ["fees", "slippage", "model", "system"])
         return {
             "completed_round_trips": len(completed),
             "completed_round_trips_total": len(completed),
-            "costs_status": "unknown",
-            "fees_usd": None,
+            "broker_costs_status": broker_costs["broker_costs_status"],
+            "broker_costs_reason": broker_costs["broker_costs_reason"],
+            "broker_costs_errors": [],
+            "broker_cost_source_receipt_ids": cost_source_ids,
+            "costs_status": ("partial" if broker_costs["broker_costs_status"] == "complete"
+                             else "unknown"),
+            "fees_usd": broker_costs["fees_usd"],
             "funding_or_borrow_usd": None,
             "gas_usd": None,
             "gross_exposure_usd": str(exposure),
@@ -325,10 +480,11 @@ def build_paper_performance(
             "reason": "paper_costs_unknown",
             "risk": dict(risk),
             "schema_version": 1,
-            "slippage_usd": None,
-            "source_receipt_ids": source_ids,
+            "slippage_usd": broker_costs["slippage_usd"],
+            "slippage_included_in_gross_pnl": True,
+            "source_receipt_ids": all_source_ids,
             "system_cost_usd": None,
-            "unknown_cost_categories": ["fees", "slippage", "model", "system"],
+            "unknown_cost_categories": unknown_costs,
         }
     except (TypeError, ValueError, ArithmeticError) as error:
         return _unknown(str(error))
@@ -362,10 +518,114 @@ def _atomic_json(path: Path, value: Mapping[str, Any]) -> None:
             pass
 
 
+def _broker_cost_cache(
+    state: Path,
+    completed: Sequence[Mapping[str, Any]],
+    observed_at: Any,
+    reader: Callable[..., Mapping[str, Any]] | None,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    if not isinstance(reader, Callable) or not isinstance(observed_at, str):
+        return [], []
+    try:
+        observed = _timestamp(observed_at)
+        attempted_day = observed.astimezone(ZoneInfo("America/New_York")).date().isoformat()
+    except ValueError:
+        return [], []
+    evidence: list[dict[str, Any]] = []
+    errors: list[dict[str, Any]] = []
+    for trip in completed:
+        order_ids = trip.get("order_ids")
+        orders = trip.get("orders")
+        period_start = trip.get("period_start")
+        if (not isinstance(order_ids, list) or len(order_ids) != 2
+                or not isinstance(orders, list) or len(orders) != 2
+                or not isinstance(period_start, str)):
+            errors.append({
+                "next_action": "refresh_owner_bound_period_receipt",
+                "order_ids": sorted(order_ids) if isinstance(order_ids, list) else [],
+                "reason": "paper_cost_order_period_missing",
+            })
+            continue
+        digest = hashlib.sha256("\0".join(sorted(order_ids)).encode("utf-8")).hexdigest()[:20]
+        receipt_path = state / f"performance-cost-{digest}.json"
+        attempt_path = state / f"performance-cost-attempt-{digest}.json"
+        try:
+            cached = json.loads(receipt_path.read_text(encoding="utf-8"))
+            if (isinstance(cached, dict)
+                    and sorted(cached.get("order_ids", [])) == sorted(order_ids)):
+                evidence.append(cached)
+                continue
+        except (OSError, json.JSONDecodeError, TypeError):
+            pass
+        try:
+            attempt = json.loads(attempt_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            attempt = {}
+        if isinstance(attempt, Mapping) and attempt.get("attempted_day") == attempted_day:
+            errors.append({
+                "next_action": "retry_after_next_et_day",
+                "order_ids": sorted(order_ids),
+                "reason": attempt.get("reason", "paper_cost_readback_attempted_today"),
+            })
+            continue
+        try:
+            _atomic_json(attempt_path, {
+                "attempted_at": observed_at, "attempted_day": attempted_day,
+                "order_ids": sorted(order_ids), "owner_id": OWNER_ID, "status": "attempted",
+            })
+        except OSError:
+            errors.append({
+                "next_action": "defer_until_local_state_is_writable",
+                "order_ids": sorted(order_ids),
+                "reason": "paper_cost_attempt_receipt_write_failed",
+            })
+            continue
+        try:
+            receipt = reader(orders=orders, period_start=period_start)
+            if (not isinstance(receipt, Mapping)
+                    or sorted(receipt.get("order_ids", [])) != sorted(order_ids)
+                    or receipt.get("broker_costs_status") != "complete"):
+                raise ValueError("paper_cost_receipt_invalid")
+            normalized = dict(receipt)
+            _atomic_json(receipt_path, normalized)
+            evidence.append(normalized)
+        except ValueError as error:
+            reason = str(error)
+            if (not reason.isascii() or not reason.replace("_", "").isalnum()):
+                reason = "paper_cost_readback_failed"
+            try:
+                _atomic_json(attempt_path, {
+                    "attempted_at": observed_at, "attempted_day": attempted_day,
+                    "order_ids": sorted(order_ids), "owner_id": OWNER_ID,
+                    "reason": reason, "status": "unknown",
+                })
+            except OSError:
+                reason = "paper_cost_attempt_receipt_write_failed"
+            errors.append({
+                "next_action": "retry_after_next_et_day",
+                "order_ids": sorted(order_ids), "reason": reason,
+            })
+        except OSError:
+            errors.append({
+                "next_action": "retry_after_next_et_day",
+                "order_ids": sorted(order_ids),
+                "reason": "paper_cost_receipt_persist_failed",
+            })
+        except Exception:
+            errors.append({
+                "next_action": "inspect_paper_cost_readback_adapter",
+                "order_ids": sorted(order_ids),
+                "reason": "paper_cost_readback_failed",
+            })
+    return evidence, errors
+
+
 def write_paper_performance(
     state_dir: str | Path,
     observation: Mapping[str, Any],
     risk: Mapping[str, Any],
+    *,
+    broker_cost_reader: Callable[..., Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Persist only a closed paper measurement; never turn missing costs into zero."""
     state = Path(state_dir)
@@ -377,6 +637,12 @@ def write_paper_performance(
     if result.get("measurement_status") == "partial":
         completed, _source_ids = _closed_round_trips(rows)
         observed_at = result.get("observed_at")
+        cost_evidence, cost_errors = _broker_cost_cache(
+            state, completed, observed_at, broker_cost_reader,
+        )
+        result = build_paper_performance(
+            rows, observation, risk, broker_cost_evidence=cost_evidence,
+        )
         observation_day = _utc_day(observed_at)
         daily_rounds = [
             item for item in completed
@@ -390,21 +656,44 @@ def write_paper_performance(
                 if receipt_id not in cumulative_order_ids:
                     cumulative_order_ids.append(receipt_id)
         account_receipt_id = f"alpaca-account-readback:{observed_at}"
+        daily_broker_costs = _broker_cost_summary(daily_rounds, cost_evidence)
+        daily_cost_source_ids = daily_broker_costs["broker_cost_source_receipt_ids"]
+        daily_order_ids = {tuple(sorted(item.get("order_ids", []))) for item in daily_rounds}
+        daily_cost_errors = [
+            row for row in cost_errors if tuple(sorted(row.get("order_ids", []))) in daily_order_ids
+        ]
         daily_source_ids = [
             *[receipt_id for item in daily_rounds for receipt_id in item.get("source_receipt_ids", [])],
             account_receipt_id,
+            *daily_cost_source_ids,
         ]
+        unknown_costs = (["model", "system"]
+                         if daily_broker_costs["broker_costs_status"] == "complete"
+                         else ["fees", "slippage", "model", "system"])
         result = {
             **result,
+            "broker_costs_status": daily_broker_costs["broker_costs_status"],
+            "broker_costs_reason": (
+                daily_cost_errors[0]["reason"] if daily_cost_errors
+                else daily_broker_costs["broker_costs_reason"]
+            ),
+            "broker_cost_source_receipt_ids": daily_cost_source_ids,
+            "broker_costs_errors": daily_cost_errors,
             "completed_round_trips": len(daily_rounds),
             "completed_round_trips_total": len(completed),
+            "costs_status": ("partial" if daily_broker_costs["broker_costs_status"] == "complete"
+                             else "unknown"),
+            "fees_usd": daily_broker_costs["fees_usd"],
             "gross_exposure_usd": str(daily_exposure),
             "gross_strategy_pnl_usd": str(daily_gross),
             "gross_strategy_pnl_total_usd": result.get("gross_strategy_pnl_usd"),
+            "net_realized_pnl_usd": None,
             "reported_order_receipt_ids": cumulative_order_ids,
             "report_scope": "daily_accumulation",
             "performance_day": observation_day,
-            "source_receipt_ids": daily_source_ids,
+            "slippage_usd": daily_broker_costs["slippage_usd"],
+            "source_receipt_ids": list(dict.fromkeys(daily_source_ids)),
+            "unknown_cost_categories": unknown_costs,
         }
         _atomic_json(state / f"performance-daily-{observation_day}.json", result)
         _atomic_json(state / "performance-latest.json", result)

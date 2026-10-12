@@ -137,12 +137,14 @@ class EtfDailyBarsTests(unittest.TestCase):
             "completed_through_session": COMPLETED_SESSIONS[-1].isoformat(),
             "source_receipt_ids": ["source"],
         }
-        with patch.object(alpaca_cli, "_context", return_value={}), patch.object(
+        with tempfile.TemporaryDirectory() as directory, patch.object(
+            alpaca_cli, "_context", return_value={},
+        ), patch.object(
             alpaca_cli, "_run", side_effect=common
         ), patch.object(alpaca_cli, "read_etf_daily_bars", return_value=etf) as daily:
             value = alpaca_cli.read_allocator_snapshot(
                 credentials_path=Path("credentials"), cli_path=Path("alpaca"),
-                risk_day_path=Path("risk-day.json"), include_etf_bars=True,
+                risk_day_path=Path(directory) / "risk-day.json", include_etf_bars=True,
             )
 
         self.assertEqual(value["completed_through_session"], COMPLETED_SESSIONS[-1].isoformat())
@@ -249,6 +251,103 @@ class EtfDailyHistoryTests(unittest.TestCase):
                     start=START, end=COMPLETED_SESSIONS[60],
                 )
 
+
+class PaperEtfCostEvidenceTests(unittest.TestCase):
+    observed_at = "2026-09-30T14:00:00Z"
+    period_start = "2026-09-29T14:30:00Z"
+    orders = [
+        {"id": "buy-order", "symbol": "QQQ", "side": "buy",
+         "filled_qty": "0.025", "filled_avg_price": "400"},
+        {"id": "sell-order", "symbol": "QQQ", "side": "sell",
+         "filled_qty": "0.025", "filled_avg_price": "410"},
+    ]
+    fills = [
+        {"id": "fill-buy", "activity_type": "FILL", "order_id": "buy-order",
+         "symbol": "QQQ", "side": "buy", "qty": "0.025", "price": "400",
+         "transaction_time": "2026-09-29T14:31:05Z"},
+        {"id": "fill-sell", "activity_type": "FILL", "order_id": "sell-order",
+         "symbol": "QQQ", "side": "sell", "qty": "0.025", "price": "410",
+         "transaction_time": "2026-09-29T14:31:10Z"},
+    ]
+    fees = [
+        {"id": "fee-cat", "activity_type": "FEE", "activity_sub_type": "CAT",
+         "symbol": "QQQ", "date": "2026-09-29", "net_amount": "-0.01"},
+        {"id": "fee-taf", "activity_type": "FEE", "activity_sub_type": "TAF",
+         "symbol": "QQQ", "date": "2026-09-29", "net_amount": "-0.02"},
+    ]
+
+    def _read(self, *, fills=None, fees=None, missing_quote=False, observed_at=None):
+        fills = self.fills if fills is None else fills
+        fees = self.fees if fees is None else fees
+        observed_at = self.observed_at if observed_at is None else observed_at
+
+        def run(_cli, args, _env):
+            if args[:2] == ["clock", "get"]:
+                return {"timestamp": observed_at}
+            if args[:2] == ["account", "activity"] and "FILL" in args:
+                return fills
+            if args[:2] == ["account", "activity"] and "FEE" in args:
+                return fees
+            if args[:2] == ["data", "quotes"]:
+                if missing_quote:
+                    return []
+                end = args[args.index("--end") + 1]
+                if "14:31:05" in end:
+                    return [{"t": "2026-09-29T14:31:05Z", "bp": "399.99", "ap": "400.01"}]
+                return [{"t": "2026-09-29T14:31:10Z", "bp": "409.99", "ap": "410.01"}]
+            raise AssertionError(f"unexpected Alpaca CLI operation: {args[:2]}")
+
+        with patch.object(alpaca_cli, "_context", return_value={}) as context, patch.object(
+            alpaca_cli, "_run", side_effect=run
+        ) as cli_run:
+            value = alpaca_cli.read_paper_etf_cost_evidence(
+                credentials_path=Path("credentials"), cli_path=Path("alpaca"),
+                orders=self.orders, period_start=self.period_start,
+            )
+        return value, context, cli_run
+
+    def test_paper_readback_joins_exact_fills_fees_and_quotes(self):
+        value, context, cli_run = self._read()
+
+        context.assert_called_once_with(Path("credentials"), Path("alpaca"), mode="paper")
+        self.assertEqual(value["broker_costs_status"], "complete")
+        self.assertEqual(value["provider"], "alpaca")
+        self.assertEqual(value["broker_gross_pnl_usd"], "0.250")
+        self.assertEqual(value["broker_fees_usd"], "0.03")
+        self.assertEqual(value["broker_slippage_usd"], "0")
+        self.assertEqual(set(value["order_ids"]), {"buy-order", "sell-order"})
+        self.assertEqual(set(value["source_receipt_ids"]), {
+            "fill-buy", "fill-sell", "fee-cat", "fee-taf",
+            "alpaca-quote:fill-buy:2026-09-29T14:31:05Z",
+            "alpaca-quote:fill-sell:2026-09-29T14:31:10Z",
+        })
+        self.assertIn("sip", cli_run.call_args_list[3].args[1])
+
+    def test_fee_is_unknown_when_other_account_fill_shares_symbol_and_day(self):
+        foreign = {
+            "id": "foreign-fill", "activity_type": "FILL", "order_id": "other-order",
+            "symbol": "QQQ", "side": "buy", "qty": "1", "price": "400",
+            "transaction_time": "2026-09-29T14:32:00Z",
+        }
+        with self.assertRaisesRegex(ValueError, "^paper_fee_attribution_ambiguous$"):
+            self._read(fills=[*self.fills, foreign])
+
+    def test_missing_historical_quote_fails_closed(self):
+        with self.assertRaisesRegex(ValueError, "^paper_cost_quote_invalid$"):
+            self._read(missing_quote=True)
+
+    def test_missing_fee_receipt_fails_closed(self):
+        with self.assertRaisesRegex(ValueError, "^paper_fee_activity_missing$"):
+            self._read(fees=[])
+
+    def test_untyped_fee_activity_is_not_assigned_to_the_etf_round_trip(self):
+        fees = [dict(row, activity_sub_type=None) for row in self.fees]
+        with self.assertRaisesRegex(ValueError, "^paper_fee_activity_invalid$"):
+            self._read(fees=fees)
+
+    def test_fee_readback_waits_for_the_trade_day_end(self):
+        with self.assertRaisesRegex(ValueError, "^paper_fee_settlement_pending$"):
+            self._read(observed_at="2026-09-29T20:00:00Z")
 
 if __name__ == "__main__":
     unittest.main()

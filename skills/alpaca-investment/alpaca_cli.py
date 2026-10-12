@@ -27,12 +27,13 @@ LIVE_ENDPOINT = "https://api.alpaca.markets/v2"
 ETF_DAILY_SYMBOLS = ("SPY", "QQQ", "IWM", "DIA", "EFA", "EEM", "TLT", "GLD")
 ETF_DAILY_LOOKBACK_SESSIONS = 127
 ETF_HISTORY_MAX_CALENDAR_DAYS = 90
+PAPER_EQUITY_FEE_SUBTYPES = frozenset({"CAT", "COM", "REG", "TAF"})
 MAX_CREDENTIAL_BYTES = 1_048_576
 MAX_OUTPUT_BYTES = 64 * 1024
 MAX_MULTI_BARS_OUTPUT_BYTES = 512 * 1024
 CLI_OPERATIONS = frozenset({
     "account_activity", "account_get", "api_GET", "asset_get", "clock_get", "data_crypto",
-    "data_latest-quotes", "data_latest-trade", "data_multi-bars", "data_option", "order_list",
+    "data_latest-quotes", "data_latest-trade", "data_multi-bars", "data_option", "data_quotes", "order_list",
     "order_submit", "position_list",
 })
 SAFE_ERROR_CODES = frozenset({
@@ -127,6 +128,260 @@ def _run(cli: Path, args: list[str], env: dict[str, str]) -> Any:
         return json.loads(result.stdout.decode("utf-8").strip())
     except (UnicodeDecodeError, json.JSONDecodeError) as error:
         raise ValueError("alpaca_cli_json_invalid") from error
+
+
+def read_paper_etf_cost_evidence(
+    *, credentials_path: Path, cli_path: Path,
+    orders: list[Mapping[str, Any]], period_start: str,
+) -> dict[str, Any]:
+    """Join one paper ETF round trip to official FILL, FEE, and historical quote rows."""
+    if (not isinstance(orders, list) or len(orders) != 2
+            or not isinstance(period_start, str)):
+        raise ValueError("paper_cost_orders_invalid")
+    expected: dict[str, dict[str, Any]] = {}
+    try:
+        for raw in orders:
+            if not isinstance(raw, Mapping):
+                raise ValueError
+            order_id = raw.get("id")
+            symbol = raw.get("symbol")
+            side = raw.get("side")
+            qty = Decimal(str(raw.get("filled_qty")))
+            price = Decimal(str(raw.get("filled_avg_price")))
+            if (not isinstance(order_id, str) or not order_id
+                    or order_id in expected or symbol not in ETF_SYMBOLS
+                    or side not in {"buy", "sell"} or not qty.is_finite() or qty <= 0
+                    or not price.is_finite() or price <= 0):
+                raise ValueError
+            expected[order_id] = {
+                "symbol": symbol, "side": side, "filled_qty": qty,
+                "filled_avg_price": price,
+            }
+        if ({row["side"] for row in expected.values()} != {"buy", "sell"}
+                or len({row["symbol"] for row in expected.values()}) != 1
+                or len({row["filled_qty"] for row in expected.values()}) != 1):
+            raise ValueError
+        start = parse_instant(period_start)
+    except (InvalidOperation, TypeError, ValueError) as error:
+        raise ValueError("paper_cost_orders_invalid") from error
+
+    env = _context(credentials_path, cli_path, mode="paper")
+    clock = _run(cli_path, ["clock", "get", "--quiet", "--jq", "{timestamp}"], env)
+    try:
+        if not isinstance(clock, Mapping):
+            raise ValueError
+        observed = parse_instant(clock["timestamp"])
+        if start > observed:
+            raise ValueError
+    except (KeyError, TypeError, ValueError) as error:
+        raise ValueError("paper_cost_period_invalid") from error
+    after = start.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+    until = observed.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
+    def activities(kind: str, query: str) -> list[dict[str, Any]]:
+        result: list[dict[str, Any]] = []
+        page_token: str | None = None
+        for _page in range(10):
+            args = [
+                "account", "activity", "list", "--activity-types", kind,
+                "--after", after, "--until", until,
+                "--page-size", "100", "--direction", "asc", "--quiet", "--jq", query,
+            ]
+            if page_token is not None:
+                args.extend(["--page-token", page_token])
+            page = _run(cli_path, args, env)
+            if (not isinstance(page, list) or len(page) > 100
+                    or any(not isinstance(row, dict) for row in page)):
+                raise ValueError("paper_cost_activity_invalid")
+            result.extend(page)
+            if len(page) < 100:
+                return result
+            next_token = page[-1].get("id")
+            if not isinstance(next_token, str) or not next_token:
+                raise ValueError("paper_cost_activity_invalid")
+            page_token = next_token
+        raise ValueError("paper_cost_activity_limit_exceeded")
+
+    all_fills = activities(
+        "FILL", "[.[]|{id,activity_type,order_id,symbol,side,qty,price,transaction_time}]",
+    )
+    fills_by_order: dict[str, list[dict[str, Any]]] = {order_id: [] for order_id in expected}
+    account_order_ids: dict[tuple[str, str], set[str]] = {}
+    seen_fill_ids: set[str] = set()
+    try:
+        for row in all_fills:
+            row_id, order_id = row.get("id"), row.get("order_id")
+            symbol, side = row.get("symbol"), row.get("side")
+            qty, price = Decimal(str(row.get("qty"))), Decimal(str(row.get("price")))
+            filled_at = parse_instant(row.get("transaction_time"))
+            if (row.get("activity_type") != "FILL" or not isinstance(row_id, str)
+                    or not row_id or row_id in seen_fill_ids
+                    or not isinstance(order_id, str) or not order_id
+                    or not isinstance(symbol, str) or not symbol
+                    or side not in {"buy", "sell"} or not qty.is_finite() or qty <= 0
+                    or not price.is_finite() or price <= 0
+                    or filled_at < start or filled_at > observed):
+                raise ValueError
+            seen_fill_ids.add(row_id)
+            day = filled_at.astimezone(ZoneInfo("America/New_York")).date().isoformat()
+            account_order_ids.setdefault((symbol, day), set()).add(order_id)
+            if order_id in expected:
+                order = expected[order_id]
+                if symbol != order["symbol"] or side != order["side"]:
+                    raise ValueError
+                fills_by_order[order_id].append({
+                    "id": row_id, "activity_type": "FILL", "order_id": order_id,
+                    "symbol": symbol, "side": side, "qty": str(qty),
+                    "price": str(price), "transaction_time": row["transaction_time"],
+                })
+        for order_id, order in expected.items():
+            fills = fills_by_order[order_id]
+            qty = sum((Decimal(row["qty"]) for row in fills), Decimal("0"))
+            notional = sum((Decimal(row["qty"]) * Decimal(row["price"])
+                            for row in fills), Decimal("0"))
+            if (not fills or qty != order["filled_qty"]
+                    or abs(notional / qty - order["filled_avg_price"]) > Decimal("0.000001")):
+                raise ValueError
+    except (InvalidOperation, KeyError, TypeError, ValueError) as error:
+        raise ValueError("paper_cost_fill_mismatch") from error
+
+    target_keys = {
+        (row["symbol"], parse_instant(row["transaction_time"])
+         .astimezone(ZoneInfo("America/New_York")).date().isoformat())
+        for rows in fills_by_order.values() for row in rows
+    }
+    target_days = {day for _symbol, day in target_keys}
+    observed_day = observed.astimezone(ZoneInfo("America/New_York")).date().isoformat()
+    if not target_days or observed_day <= max(target_days):
+        raise ValueError("paper_fee_settlement_pending")
+    fee_rows = activities(
+        "FEE", "[.[]|{id,activity_type,activity_sub_type,symbol,date,net_amount}]",
+    )
+    target_order_ids = set(expected)
+    for key in target_keys:
+        if not account_order_ids.get(key) or not account_order_ids[key] <= target_order_ids:
+            raise ValueError("paper_fee_attribution_ambiguous")
+    seen_fee_ids: set[str] = set()
+    fees_by_key: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    try:
+        for row in fee_rows:
+            row_id = row.get("id")
+            raw_day = row.get("date")
+            symbol = row.get("symbol")
+            if (row.get("activity_type") != "FEE" or not isinstance(row_id, str)
+                    or not row_id or row_id in seen_fee_ids
+                    or not isinstance(raw_day, str)):
+                raise ValueError
+            seen_fee_ids.add(row_id)
+            try:
+                day = (datetime.strptime(raw_day, "%Y-%m-%d").date().isoformat()
+                       if len(raw_day) == 10 else parse_instant(raw_day)
+                       .astimezone(ZoneInfo("America/New_York")).date().isoformat())
+            except ValueError as error:
+                raise ValueError("paper_fee_activity_invalid") from error
+            if day not in target_days:
+                continue
+            if not isinstance(symbol, str) or not symbol:
+                raise ValueError("paper_fee_attribution_ambiguous")
+            key = (symbol, day)
+            if key not in target_keys:
+                continue
+            if row.get("activity_sub_type") not in PAPER_EQUITY_FEE_SUBTYPES:
+                raise ValueError("paper_fee_activity_type_unsupported")
+            amount = Decimal(str(row.get("net_amount")))
+            if not amount.is_finite() or amount >= 0:
+                raise ValueError
+            fees_by_key.setdefault(key, []).append({
+                "id": row_id, "activity_type": "FEE",
+                "activity_sub_type": row.get("activity_sub_type"),
+                "symbol": symbol, "date": day, "net_amount": str(amount),
+            })
+        if any(not fees_by_key.get(key) for key in target_keys):
+            raise ValueError("paper_fee_activity_missing")
+    except (InvalidOperation, KeyError, TypeError, ValueError) as error:
+        reason = str(error)
+        if reason in {
+            "paper_fee_attribution_ambiguous", "paper_fee_activity_missing",
+            "paper_fee_settlement_pending",
+        }:
+            raise
+        raise ValueError("paper_fee_activity_invalid") from error
+
+    quotes_by_fill_id: dict[str, dict[str, str]] = {}
+    try:
+        for fills in fills_by_order.values():
+            for row in fills:
+                filled_at = parse_instant(row["transaction_time"])
+                start_quote = filled_at - timedelta(seconds=2)
+                # Use the consolidated feed; an IEX-only quote is not a market-wide execution reference.
+                quotes = _run(cli_path, [
+                    "data", "quotes", "--symbol", row["symbol"],
+                    "--start", start_quote.isoformat().replace("+00:00", "Z"),
+                    "--end", filled_at.isoformat().replace("+00:00", "Z"),
+                    "--feed", "sip", "--limit", "1000", "--sort", "asc",
+                    "--quiet", "--jq", ".quotes|map({t,bp,ap})",
+                ], env)
+                if not isinstance(quotes, list) or not quotes:
+                    raise ValueError
+                prior_quotes = [
+                    (parse_instant(item.get("t")), item) for item in quotes
+                    if parse_instant(item.get("t")) <= filled_at
+                ]
+                if not prior_quotes:
+                    raise ValueError
+                quote_at, nearest = max(prior_quotes, key=lambda pair: pair[0])
+                bid, ask = Decimal(str(nearest.get("bp"))), Decimal(str(nearest.get("ap")))
+                if ((filled_at - quote_at).total_seconds() > 1
+                        or not bid.is_finite() or not ask.is_finite()
+                        or bid <= 0 or ask < bid):
+                    raise ValueError
+                quotes_by_fill_id[row["id"]] = {
+                    "t": nearest["t"], "bp": str(bid), "ap": str(ask),
+                }
+    except (InvalidOperation, KeyError, TypeError, ValueError) as error:
+        raise ValueError("paper_cost_quote_invalid") from error
+
+    target_fills = [row for rows in fills_by_order.values() for row in rows]
+    buy_notional = sum((Decimal(row["qty"]) * Decimal(row["price"])
+                        for row in target_fills if row["side"] == "buy"), Decimal("0"))
+    sell_notional = sum((Decimal(row["qty"]) * Decimal(row["price"])
+                         for row in target_fills if row["side"] == "sell"), Decimal("0"))
+    slippage = Decimal("0")
+    for row in target_fills:
+        quote = quotes_by_fill_id[row["id"]]
+        midpoint = (Decimal(quote["bp"]) + Decimal(quote["ap"])) / 2
+        quantity, price = Decimal(row["qty"]), Decimal(row["price"])
+        slippage += ((price - midpoint) if row["side"] == "buy" else (midpoint - price)) * quantity
+    fees = sum((-Decimal(row["net_amount"]) for rows in fees_by_key.values() for row in rows),
+               Decimal("0"))
+    relevant_fee_rows = [row for rows in fees_by_key.values() for row in rows]
+    account_fill_scope = [
+        {"symbol": symbol, "date": day, "order_ids": sorted(account_order_ids[(symbol, day)])}
+        for symbol, day in sorted(target_keys)
+    ]
+    source_ids = [*[row["id"] for rows in fills_by_order.values() for row in rows],
+                  *[row["id"] for row in relevant_fee_rows],
+                  *[f"alpaca-quote:{fill_id}:{row['t']}"
+                    for fill_id, row in quotes_by_fill_id.items()]]
+    if len(source_ids) != len(set(source_ids)):
+        raise ValueError("paper_cost_receipt_duplicate")
+    return {
+        "broker_fees_usd": str(fees),
+        "broker_gross_pnl_usd": str(sell_notional - buy_notional),
+        "broker_slippage_usd": format(slippage.normalize(), "f"),
+        "broker_costs_status": "complete",
+        "observed_at": clock["timestamp"],
+        "order_ids": sorted(expected),
+        "period_start": start.isoformat().replace("+00:00", "Z"),
+        "provider": "alpaca",
+        "provider_readback": {
+            "account_fill_order_ids_by_symbol_date": account_fill_scope,
+            "fees": relevant_fee_rows,
+            "fills": target_fills,
+            "quotes_by_fill_id": quotes_by_fill_id,
+        },
+        "source_receipt_ids": source_ids,
+    }
 
 
 def observe(*, credentials_path: Path, cli_path: Path, symbol: str = "SPY") -> dict[str, Any]:
