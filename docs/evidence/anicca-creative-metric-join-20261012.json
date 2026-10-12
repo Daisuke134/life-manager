@@ -1,0 +1,142 @@
+{
+  "observed_at": "2026-10-12T06:18:20.863Z",
+  "product_id": "anicca-ios",
+  "command": "node apps/life-manager/scripts/marketing-creative-metrics-join.js anicca-ios",
+  "read_only": true,
+  "snapshot_windows": ["24h", "7d"],
+  "total_snapshot_rows": 1360,
+  "english_snapshot_rows": 470,
+  "english_distinct_provider_posts": 235,
+  "english_metric_coverage": {
+    "observed_snapshot_rows": 358,
+    "pending_snapshot_rows": 112,
+    "views_measured_rows": 11,
+    "views_unavailable_rows": 459,
+    "saves_measured_rows": 11,
+    "shares_measured_rows": 11,
+    "unavailable_is_not_zero": true
+  },
+  "english_arms": [
+    {
+      "arm_id": "larry:affirmation-carousel",
+      "platform": "instagram",
+      "account_id": "@anicca.affirmation",
+      "locale": "en",
+      "distinct_posts": 64,
+      "snapshot_rows": 128,
+      "observed": 106,
+      "pending": 22,
+      "distinct_creatives": 1,
+      "views_measured_rows": 2,
+      "views_unavailable_rows": 126,
+      "saves_measured_rows": 2,
+      "shares_measured_rows": 2
+    },
+    {
+      "arm_id": "larry:affirmation-carousel",
+      "platform": "tiktok",
+      "account_id": "@aniccaaffirmation",
+      "locale": "en",
+      "distinct_posts": 11,
+      "snapshot_rows": 22,
+      "observed": 0,
+      "pending": 22,
+      "distinct_creatives": 1,
+      "views_measured_rows": 0,
+      "views_unavailable_rows": 22,
+      "saves_measured_rows": 0,
+      "shares_measured_rows": 0
+    },
+    {
+      "arm_id": "larry:affirmation-carousel",
+      "platform": "tiktok",
+      "account_id": "@aniccaen2",
+      "locale": "en",
+      "distinct_posts": 5,
+      "snapshot_rows": 10,
+      "observed": 0,
+      "pending": 10,
+      "distinct_creatives": 1,
+      "views_measured_rows": 0,
+      "views_unavailable_rows": 10,
+      "saves_measured_rows": 0,
+      "shares_measured_rows": 0
+    },
+    {
+      "arm_id": "reelclaw-card:nudge-card",
+      "platform": "instagram",
+      "account_id": "@anicca.encards",
+      "locale": "en",
+      "distinct_posts": 57,
+      "snapshot_rows": 114,
+      "observed": 100,
+      "pending": 14,
+      "distinct_creatives": 55,
+      "views_measured_rows": 3,
+      "views_unavailable_rows": 111,
+      "saves_measured_rows": 3,
+      "shares_measured_rows": 3
+    },
+    {
+      "arm_id": "reelclaw-widget:lockscreen-affirmation-widget",
+      "platform": "instagram",
+      "account_id": "@anicca.en",
+      "locale": "en",
+      "distinct_posts": 83,
+      "snapshot_rows": 166,
+      "observed": 150,
+      "pending": 16,
+      "distinct_creatives": 81,
+      "views_measured_rows": 6,
+      "views_unavailable_rows": 160,
+      "saves_measured_rows": 6,
+      "shares_measured_rows": 6
+    },
+    {
+      "arm_id": "slideshow:mental-health-carousel",
+      "platform": "tiktok",
+      "account_id": "@anicca_slideshow",
+      "locale": "en",
+      "distinct_posts": 15,
+      "snapshot_rows": 30,
+      "observed": 2,
+      "pending": 28,
+      "distinct_creatives": 1,
+      "views_measured_rows": 0,
+      "views_unavailable_rows": 30,
+      "saves_measured_rows": 0,
+      "shares_measured_rows": 0
+    }
+  ],
+  "instagram_anicca_en_checkpoint": {
+    "public_url": "https://www.instagram.com/reel/DdvxhT1jm8F/",
+    "provider_post_id": "cmui7zo8n0ixho80yybalkhj0",
+    "creative_id": "EN-WIDGET-SELF-TALK-c20f73dbbfe5-20260926T100000000Z",
+    "24h": {
+      "snapshot_present": true,
+      "observed_at": "2026-09-30T00:04:49.101Z",
+      "sources": "source_delayed",
+      "metrics": "unavailable/null"
+    },
+    "7d": {
+      "snapshot_present": true,
+      "observed_at": "2026-10-11T05:13:08.332Z",
+      "sources": "source_delayed",
+      "metrics": "unavailable/null"
+    }
+  },
+  "user_supplied_tiktok_checkpoint": {
+    "message_key": "checkpoint:anicca-ios:postiz:cmv1y3riy0rtuqz0ydup4dbcu:24",
+    "public_url": "https://www.tiktok.com/@aniccaaffirmation/video/7694904668752792840",
+    "reported_views_24h": 481,
+    "reported_impressions": null,
+    "evidence_refs": [
+      "state/post-metrics.jsonl#row-3972",
+      "state/publication-identity.jsonl#row-11"
+    ],
+    "matching_local_publication_receipt_found": false,
+    "referenced_state_files_available_locally": false,
+    "interpretation": "This user-supplied Postiz checkpoint is not in the current local publication/snapshot join and remains separate; its views are not converted to zero."
+  },
+  "state_or_external_mutation_performed": false
+}
