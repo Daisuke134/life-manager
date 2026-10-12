@@ -110,28 +110,30 @@ allow-listed regenerable artifact after an open-path probe confirms
 "$HOME/loops/current/skills/self/disk-cleanup/install-launchd.sh"
 ```
 
-The 60-second `com.anicca.disk-watchdog` is the primary cleanup cadence. The
-stable wrapper sets child-only `LIFE_MANAGER_DISK_INVENTORY_FAST=1`, so an
+The 60-second `com.anicca.disk-watchdog` is the sole `HostDiskGovernor` owner.
+The stable wrapper sets child-only `LIFE_MANAGER_DISK_INVENTORY_FAST=1`, so an
 incomplete full census cannot make every minute repeat heavy size probes.
 Deletion proof, protected paths, singleton locking and receipt coverage are
 unchanged; missing sizes remain unknown.
-5-minute `ai.anicca.life-manager-disk-cleanup` remains a managed reporting and
-full-inventory owner; both share the same cleanup lock. This installer only
-manages the 60-second recovery label so it cannot replace the managed owner.
+The 5-minute `ai.anicca.life-manager-disk-cleanup` performs release/Git/Codex
+and managed scratch maintenance, but never invokes the host sweeper. This keeps
+it from holding the watchdog's singleton lock and making a minute pass exit 75.
+This installer only manages the 60-second recovery label.
 Run the installer from a complete main-derived immutable release. It pins
 that release's `bin/disk-watchdog.sh` in launchd; the wrapper resolves its own
 release and dispatches to that governor. The loaded plist retains its release,
-and a later `current` change does not change the loaded watchdog's code.
-Both owners use the governor's singleton lock and shared host `state_dir`.
+and a later `current` change does not change the loaded watchdog's code. Only
+this watchdog acquires the HostDiskGovernor singleton lock and writes host
+inventory/cleanup receipts.
 
-The 15-day `life-manager-disk-cleanup-15d` registry row is supplemental and is
-not the recurrence guarantee. It invokes the same `HostDiskGovernor`; it must
-not be changed to a second 60-second deletion owner while the direct watchdog
-already runs every minute.
+The legacy 15-day `life-manager-disk-cleanup-15d` registry row is retained as a
+control record but its entrypoint only delegates to the watchdog; it does not
+invoke `HostDiskGovernor` or retry the shared cleanup lock. Existing effect
+fences remain untouched.
 
-The watchdog adds no second deletion implementation. Both streams use the
-existing `bounded_launchd_output` with the managed `life-manager-disk-cleanup`
-policy and log root, including its concurrent writer lock. Native launchd
+The watchdog adds no second deletion implementation. It uses the existing
+`bounded_launchd_output` with the managed `life-manager-disk-cleanup` policy
+and log root, including its concurrent writer lock. Native launchd
 fallback streams go to `/dev/null`; legacy `watchdog.{out,err}.log` are retained.
 The Python dispatcher uses -c without a temporary script. Capture startup or
 import failure does not block recovery or change the governor's exit code.
