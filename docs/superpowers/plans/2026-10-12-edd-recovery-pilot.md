@@ -1,0 +1,139 @@
+# EDD pilotから公開benchmarkまでの実装前計画案
+
+> 後続担当は `superpowers:executing-plans` でtask単位に進める。この文書は議論用draftであり、今回は実行しない。実行状態の正本を増やさない。
+
+**選定:** Writerの一記事・一言語・一媒体の公開前品質評価をPilot Aとする。effect-unknown recoveryはPilot Bとして続ける。Writer quality PASSを売上改善と扱わず、既存recovery-intent/apply-plan testを再利用する。実行順とcursorはcanonical SSOTが所有する。
+
+**Goal:** Writerの自然traceから観測された失敗を一つ選び、同じ条件のevalで修正前後を測る。task完了・外部effect・費用控除後のsettled net・時間・人の介入を分け、自己修復・自己改善を経て独立再現可能なbenchmark報告へつなぐ。
+
+**Architecture:** Writerの既存gate/run artifact、runtime event、LM-EAB scorer、recoveryのpure-function testを再利用する。初回deliverableは自然trace由来のcase card、failure taxonomy、grader coverage。新wrapper、runner、grader、eval frameworkは不足が実証されるまで作らない。
+
+**Tech Stack:** 既存Node.js ESM、`node:test`、Markdown。新依存なし。
+
+**Spec:** [EDD recovery pilot design](../specs/2026-10-12-edd-recovery-pilot-design.md)
+
+**読者向け説明:** [PR #7798: Agent eval handbook HTMLと図2点](https://github.com/Daisuke134/life-manager/pull/7798)。draftであり、PR未mergeのため公開済みとは扱わない。
+
+## Global Constraints
+
+- canonical repoの最新main由来の専用worktree。現在のbranchは文書専用。
+- spec/task順は統一SSOT。実装ownerと範囲を調整し、他者変更を戻さない。
+- provider・browser・credential・production state・launchdのmutationなし。
+- privateな自然traceは既存ownerのprivate storeに保持し、Gitには匿名case cardと参照可能なsanitize済み根拠だけ置く。
+- 新framework/scheduler/optimizerを追加しない。
+- policy判定は業務完了・自然自己修復・実利益・モデル順位の証拠ではない。
+- 公開held_outを秘密試験と称さない。
+
+## Atomic sequence: E01から外部再現まで
+
+このchecklistは計画案であり、完了表示は実測後にcanonical SSOTへ反映する。最初のcursorはSSOT E01のmain由来release adoptionと自然評価。Writer pilotを理由に収益laneの既存順序や他ownerの作業を並べ替えない。
+
+### Pilot A — Writer公開前quality eval
+
+- [ ] **A0 / E01:** selfEval欠測net修正のloaded SHAを確認し、自然評価で欠測・不正netが利益/ゼロへ変換されないことを照合する。既存effect fenceを変更しない。
+- [ ] **A1:** Writer owner・lease・run状態をread-only確認し、既存ownerと重複しない担当範囲を確定する。
+- [ ] **A2:** 一言語・一媒体の公開前stageを選ぶ。新しい外部公開や再送は行わない。
+- [ ] **A3:** 利用可能な自然runから多様なtraceを抽出して読む。初回は30件を目安にし、件数が足りない場合は全件数・欠落期間・sampling limitationを記録する。
+- [ ] **A4:** 実traceからfailure taxonomyを作り、最初の一分類を選ぶ。一般的な「品質」ラベルだけでcaseを作らない。
+- [ ] **A5:** そのfailureのcase cardにtask、initial state、allowed tools、budget、期待outcome、自然/derived/syntheticのprovenance、evidence refsを記録する。
+- [ ] **A6 / E02:** task completion、quality、safety/effect integrity、settled net、cost coverage、latency、human interventionを別fieldにする。receiptや費用が不足すれば経済outcomeは`unknown`。
+- [ ] **A7:** hash/schema/receipt/重複/publication statusなど判定可能なものをcodeで採点する。LLM judgeは意味解釈だけに使う。
+- [ ] **A8:** Writer quality judgeをdomain expertのblind labelsと比べ、false-passとfalse-failを別々に測る。tuning/dev labelsとheld-out labelsを混ぜない。
+- [ ] **A9 / E04:** input/case/runner/grader/baseline/model/runtimeのversionとhashを固定し、dev・held-out・challengeを分ける。公開fixtureをsecret testと呼ばない。
+- [ ] **A10:** 同一model/runtime/tool/budgetでbaselineを各case 3回以上実行し、trial数・結果のばらつき・費用を保存する。
+- [ ] **A11:** 自然traceから選んだ失敗を最小の回帰testにし、修正前REDを確認する。既存testが覆うassertionのwrapperを作らない。
+- [ ] **A12:** 一つの原因だけを最小修正し、同じtest GREEN・関連acceptance・CIを確認する。修正内容と変更SHAをcaseへ結ぶ。
+- [ ] **A13:** 凍結held-outでbaseline/candidateを比較し、品質/safety/effect/net/cost/latency/介入を個別に報告する。
+- [ ] **A14:** 公式publication/readership/payment receipt、refund・fee・同期間のactual costを同一artifact/campaign IDへ結ぶ。complete coverageが無ければnet upliftを主張しない。
+
+### Pilot B — effect-unknown回復安全case
+
+- [ ] **B1 / H01:** 自然障害一件をexact owner/run/occurrence/release/error/next actionとrecovery intentへ結ぶ。
+- [ ] **B2 / H02:** 公式readbackで対象occurrenceを照合し、effect unknownのままならfence保持・再送なしを示す。近似receiptを流用しない。
+- [ ] **B3 / H03:** 原因ownerが必要な最小修正を既存PR/CI/main/immutable release契約で行う。pilot担当はprovider/browser/production actionを実行しない。
+- [ ] **B4 / H04:** 次の自然runでintent→repair→release→official outcome→replay-zeroの因果が同一caseに結び付くことを確認する。
+
+### I01–I04 — bounded self-improvement
+
+- [ ] **I01:** prompt/tool/routing/offerから候補を一つだけ作る。grader、dataset、permission、identity、effect fence、spend capは候補が変えられない。
+- [ ] **I02:** frozen baselineと同じcase・model/runtime・予算・trial条件で比較し、品質だけでなくsafetyとcost-complete netの事前条件を満たすか採点する。
+- [ ] **I03:** offline gateを通った候補だけ既存ownerの承認済みcanary経路で試す。悪化時はsourceを戻し、外部effect fenceはreadbackなしに解除しない。
+- [ ] **I04:** observe→candidate→eval→promote/rollbackを有限のtrial・時間・費用内で繰り返す。agentが自分のgraderやsuccess labelを書き換えない。
+
+### E03/E05/E06 — 公開benchmark
+
+- [ ] **E03:** Writer以外は、natural traceと実outcomeを用意できる経済task familyから一つずつ拡張する。synthetic contract caseをagent performanceと混同しない。
+- [ ] **E05:** 既存runnerに別harness adapterを接続し、独立環境で同version・同条件の結果を再現する。新framework先行導入はしない。
+- [ ] **E06:** task作成法、provenance、grader、split、model/runtime/budget、trial、測定値、不確かさ、限界を公開する。open-source公開後も第三者再現とlab採用は別の外部成果として記録する。
+- [ ] 外部研究者またはlabによる再実行を得て、同条件で結果が再現した時だけ第三者再現を報告する。「leading」やlab採用を主張する時は、その利用を示す公開sourceを添える。
+
+## Review Focus
+
+- 既存testのhold/nonretryable/no commands/owner拒否を別wrapperで複製しない。
+- safe holdは業務完了にならない。
+- 別occurrenceの近似receiptを対象の成功証拠にしない。
+- known pre-effectの回復経路を全holdに変えて安全点だけを稼がない。
+- 本番でしか観測できない未測定境界を、fixtureの合格で完了扱いにしない。
+
+## Task 1: 一件の自然障害と既存testを対応付ける
+
+**Files:**
+- Create: `docs/evals/recovery-pilot.md`
+- Read: `runtime/loop/recovery-intent.mjs`, `runtime/loop/recovery-apply-plan.mjs`
+- Read: `runtime/loop/__tests__/recovery-intent.test.mjs`, `runtime/loop/__tests__/recovery-apply-plan.test.mjs`
+
+**Interfaces:**
+- Consumes: ownerが既存のread-only経路で確認したfailure入力・run/occurrence/release・公式readback。取得不可ならderived syntheticと表示。
+- Produces: case cardの `task_id`, `provenance`, `initial_state`, `objective`, `allowed_tools`, `constraints`, `expected_outcome`, `evidence_refs`, `existing_tests`, `unmeasured_boundary`。
+
+- [ ] ownerの最新自然failureから一件を選ぶ。送信応答欠落は例であり、該当する自然traceがなければ観測済みの別の障害を採る。
+- [ ] 初期state・失敗境界・owner/run/occurrence/release binding・公式結果を確認する。どこまで確認できたか、unknownと外部依存を記す。
+- [ ] case cardを匿名化し、既存testのどのassertionが覆うかを表にする。
+- [ ] 送信不明のreferenceは `hold_effect_unknown`, `retryable=false`, `effect_fence=required`, apply planは `execute=false`, `commands=[]`。これは既存testの参照で、新しいtestとして再実装しない。
+- [ ] sourceが想定する入力と自然failureの実入力・loaded release・tool responseの差を確認し、未測定境界を一箇所に絞る。
+- [ ] naturalのbindingが取れない場合はderivedの設計材料として残し、自然回復の成功・baseline性能を主張しない。
+- [ ] local link・匿名化・diff検査→commit/push。
+
+## Task 2: 既存回帰試験の基準を確認する
+
+**Files:**
+- Modify: `docs/evals/recovery-pilot.md`
+- Test: 既存recovery-intent/apply-plan test。新コードなし。
+
+**Interfaces:**
+- Consumes: Task 1 case cardとcoverage表。
+- Produces: commitを固定したcontract test結果と、実業務結果の別表示。
+
+- [ ] `node --test runtime/loop/__tests__/recovery-intent.test.mjs runtime/loop/__tests__/recovery-apply-plan.test.mjs` を実行する。既存sourceの合否を確認するだけで、本番の再送/解除は行わない。
+- [ ] case cardへcommit、command、exit、該当test、task目的との距離を記録する。通っても業務完了はunknownと表示する。
+- [ ] 現行sourceがreferenceに合格するなら、policyはこの契約を既に満たすと報告する。新しいREDや修正効果を捏造せず、Task 1で特定した別境界へ進む。
+- [ ] 既存testが落ちる場合は、その原因を修理ownerへ渡す。新wrapperで覆い隠さない。
+- [ ] diff検査→commit/push。
+
+## Task 3: 欠けた境界を修理ownerのEDDへ接続する
+
+**Files:**
+- Modify: `docs/evals/recovery-pilot.md`
+- Modify: 統一SSOTの該当E02/E03行（primary ownerの更新のみ）
+- Code/test: Task 1で観測した実原因のowner専用worktreeで確定。この計画は原因未確定の修正対象を発明しない。
+
+**Interfaces:**
+- Consumes: case card、coverage、未測定境界。
+- Produces: ownerの既存修理atomへつながるexact-sourceの失敗test/修理計画とbefore/after結果。ここは原因特定後にそのownerが具体化する。
+
+- [ ] ownerがcall graphと実入出力を確認し、scope/acceptanceを既存修理specへ記す。
+- [ ] 自動試験で再現でき、既存testが覆わない振る舞いだけを最小の失敗testにする。source file/signature/commandを修理planへ確定してから実装する。
+- [ ] RED→原因の最小修正→同じtestでGREEN。既存関連testだけを確認し、通常PR/CI/main契約で統合する。
+- [ ] task/grader/inputを固定したbefore/afterを記録し、policy passと実業務回復を分ける。
+- [ ] production成果は既存repair ownerのrelease/natural/readback atomへ参照する。pilot担当がloopを起動したりeffect fenceを解除したりしない。
+- [ ] primaryがcanonical cursorを更新し、文書検査→commit/push。未測定を明示する。
+
+## 後続設計で決めるもの
+
+agent能力を比較するtask実行adapterは別atom。初期state、許可tool、隔離環境、action log、終state、時間/費用budget、frozen baseline/candidate、複数trialを定義してから実装する。現在のfixture scoringだけでモデルを順位付けしない。
+
+経済recordの自然receiptへの接続、AutomationBenchの限定再利用、private未見task、外部harness、独立再現はその後に育てる。最初から全部実装せず、実失敗一件が修理に役立つことを確認する。
+
+## Self-review
+
+初回case card/既存coverage/境界診断は実行可能。実際のバグ修正のfile/signatureは自然traceの診断後に確定するため、この文書はその部分の実装開始許可や完成した修理planではない。文書成果・contract証拠・自然成果・公開benchmarkを混同しない。

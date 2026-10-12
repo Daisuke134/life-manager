@@ -331,6 +331,9 @@ def run_images(set_dir: Path, state_root: Path, deps: Deps) -> str:
     _atomic_write_json(set_dir / "select.json", {
         "order": ids, "main": listing["main"], "tab": listing["tab"],
         "taste_id": series.get("taste_id") or "1", "character_category_id": series.get("character_category_id") or "16",
+        "campaign_value": plan_draft.get("campaign_value"),
+        "campaign_theme_ids": plan_draft.get("campaign_theme_ids", []),
+        "campaign_requirements": plan_draft.get("campaign_requirements"),
     })
     return "package"
 
