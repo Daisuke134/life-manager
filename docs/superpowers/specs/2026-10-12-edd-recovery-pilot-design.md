@@ -37,11 +37,11 @@
 5. X post URLをblog mirror metadataへ加え、相互リンクをlive readbackする。
 6. 両URLと確認根拠をspecへ記録する。配信完了はE06 benchmark公開、第三者再現、lab採用を意味しない。
 
-**状態:** 公開完了。英文・sourceはfresh read-only adversarial verificationでSHIP。site PR #456 (`23b2eeb`) は本文と3画像をdeployしsmoke PASS。X postは公式UIと公開readbackで確認。mirror更新PR #457 (`d86bea2`) のdeployと記事→X相互linkもlive readback済み。Life Manager文書PR #7798のmerge/CIは残るが、E01–E06 cursorは変更しない。
+**状態:** 公開完了。英文・sourceはfresh read-only adversarial verificationでSHIP。site PR #456 (`23b2eeb`) は本文と3画像をdeployしsmoke PASS。X postは公式UIと公開readbackで確認。mirror更新PR #457 (`d86bea2`) のdeployと記事→X相互linkもlive readback済み。Life Manager文書PR #7798は全CI PASSで `575731f` にmerge済み。E01–E06 cursorは変更しない。
 
 **公開URL:** blog `https://aniccaai.com/blog/good-agent-evals-measure-outcomes` · X `https://x.com/selawmqt/status/2109636732962668720`。X mirror labelは `X ↗`。
 
-**X Articles調査:** [X公式Articles説明](https://help.x.com/en/using-x/articles)は公開機能をPremium/Premium+等の対象subscriberに限定している。登録済み `@selawmqt` のlive sessionで公式案内の `/compose/articles` と `/compose/articles/new` を開くと両方404となり、Articles editorと画像file inputが存在しなかった。publisher scriptは公開前に終了し、Article draftもpostも作られていない。今回の配信は追加subscription購入や別identityを使わず、ブログURLへ誘導する標準X postとした。
+**X Articles調査:** [X公式Articles説明](https://help.x.com/en/using-x/articles)は公開機能をPremium/Premium+等の対象subscriberに限定している。登録済み `@selawmqt` のlive sessionで公式案内の `/compose/articles` と `/compose/articles/new` を開くと両方404となり、Articles editorと画像file inputが存在しなかった。publisher scriptはX Article draftを作る前に終了し、X Articleそのものは公開していない。その後、追加subscription購入や別identityを使わず、ブログURLへ誘導する標準X postを公開した。上記X URLはその公式readbackである。
 
 ## Pilot B: effect-unknown recovery safety case
 
