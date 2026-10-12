@@ -14906,24 +14906,29 @@ Capafy公式Xの公開indexには、Ocupの100 sales紹介と、あるcreatorの
 
 `capafy_hourly_reconcile.py` はtraffic endpointを最大60 Agentsに対して取得する。`capafy_scoreboard.py` はsource/CT text summaryとAgent別日次snapshotを出力する。日次scorecardは同一windowでAgent×source×campaignを一行にし、raw event countとunique visitorを分け、`observed_at`/receipt freshness・scope・null reasonを必ず表示する。source別paidの合計とaccount seller ordersは独立系列として照合し、重複を足し上げない。`profit*_actual`を実費後最終利益と表示せず、20% fee仮定が残る間は80% revenue proxy由来のactual-cost contribution estimateと表示する。現行実装にないdashboard fieldやlead数を「ある」と扱わない。
 
-### 原子的な残TODO（唯一の順序・statusは2026-10-12 13:29 JST時点）
+### 原子的な残TODO（唯一の順序・statusは2026-10-12 14:20 JST時点）
 
 各atomのownerはAniccaのCapafy運用loop/scoreboard。Daisへの質問・作業依頼はしない。`FROZEN.json` sellersの編集は禁止。ここでは記載更新とread-only調査だけを実施し、下記運用作業は実行していない。
 
-1. **T0 — source snapshotの差を解消する。 [OPEN / 現在cursor]**
-    - 根拠: 旧SSOTと当時の01:09Z reconcileでsearch 835/814、hot 72/71、Google 41/39、direct 1,540/1,493、`ai_overview` 551/548の差が記録された。最新04:08:53Z値は4,347 views、direct 1,501、source-paid 18。`capafy-hourly-reconcile.json.orders=70` vs `capafy-skill-analytics.json.account_totals.all_time.orders=101`、source 30d paid=18 vs analytics account 30d orders=39のfield-semantic差もある。
+1. **T0 — source snapshotの差を解消する。 [IN PROGRESS / 現在cursor]**
+    - 根拠: 旧SSOTと当時の01:09Z reconcileでsearch 835/814、hot 72/71、Google 41/39、direct 1,540/1,493、`ai_overview` 551/548の差が記録された。最新`observed_at=2026-10-12T05:09:14Z`値は4,350 global views、source-paid 18。`capafy-hourly-reconcile.json.orders=70` vs `capafy-skill-analytics.json.account_totals.all_time.orders=101`、source 30d paid=18 vs analytics account 30d orders=39のfield-semantic差もある。
+    - **14:03 JSTのコード/履歴照合:** `origin/main=15d195864c` の`_seller_money()`はseller-sales行の`revenue > 0`分だけ`orders`を合計する。`money.unit_sales_total=101`は別のunit-sales集計。`capafy-skill-analytics.account_totals`の`_window_totals()`は指定日付内の全seller-sales行から`orders`を加算するため、all-time 101・30d 39は別集計。`traffic_sources.last_30d.paid_orders=18`はtraffic v2 sales stats由来で、`sourceType`とsource/campaign名ごとに集計され、seller ordersとのorder-ID joinはない。したがって70 / 101 / 39 / 18は別系列として保持する。
+    - 同時刻scope照合: 保存済みhourly logの`01:09:12Z`行ではglobal source rowsがsearch 814、hot 71、Google 39、direct 1,493、`ai_overview` 548。一方、同じJSON内の60件の`by_agent`行を合計すると835 / 72 / 41 / 1,540 / 551となり、旧SSOT値と完全一致する。よって旧835等は別時刻の数字ではなく「Agent別取得の合計」、814等は「global取得」であり、異なる集計scopeを混ぜた差と分類できる。
+    - 未解決の境界: 30日`by_agent`合計−globalは`00:07Z`/`01:09Z`でsearch +21/hot +1/Google +2/AI概要 +3/direct +47、`03:21Z`では+20/+1/+2/+3/+6、`04:08Z`では+19/+1/+2/+3/direct −14、最新`05:09:14Z`では−30/+1/+1/+3/direct −39。コードはglobal windowを先に取得後、同一UTC windowでAgent別APIを逐次取得し、個々の取得時刻/hashを保存しない。旧値がどちらの集計かは確定したが、scopeをまたぐview差のadditivity/更新時刻は引き続きunknown。二つを足したり平均したりしない。
     - 作業: 次の成功reconcileのsource payload・時間window・全Agent対象範囲・`source_type`を行単位で照合し、同じsnapshotのhash/observed_atをscorecardへ記録する。top-level reconcile `orders`、`money.unit_sales_total`、analytics `account_totals.*.orders`、`traffic_sources.*.paid_orders`の定義/粒度もソース実装へ遡って分類し、first-paid milestoneに使う`orders` fieldを固定する。
     - 完了条件: 各差がwindow・scope・更新時刻・重複・field semanticsのどれかに分類され、source totalとpaid totalを同じJSONから再計算できる。milestone用order fieldはunit countと切り分けて明記する。
    - 頻度: 収束までreadbackごと。分類できない値はunknownとして残す。
 
-2. **T1 — hourly monitoringの成功freshnessを保つ。 [IN PROGRESS / 13:08:53成功、継続未確認]**
-   - 根拠: launchd sourceは毎時00分予定。最新reconcile `observed_at=13:08:53 JST` はsuccess/fresh、file mtimeは13:16:43 JST。12:07 JSTのattemptは`resource_capacity_busy`だった。
+2. **T1 — hourly monitoringの成功freshnessを保つ。 [IN PROGRESS / 14:09:14成功、次回15:07予定]**
+   - 根拠: repo launchd templateは毎時00分だが、installed `~/Library/LaunchAgents/ai.anicca.capafy-goal-monitor-hourly.plist`は毎時07分。14:07:08 JSTのnatural occurrence `18ddafe5dd47fea0-21784`はrelease `bafa6755`、14:17:14 report pass / exit0。reconcileは`observed_at=14:09:14 JST`、file mtime14:16:58、hourly log mtime14:17:14。最新値はorders70/gross $102.75、global30d views4,350/source-paid18、7d314 views/0 paid。12:07 JSTのattemptは`resource_capacity_busy`だった。
    - 作業: 各自然occurrenceのrun/owner/occurrence/release/phase/exit/effect/readbackを確認し、成功後に`observed_at`が進んだか照合する。runtime修正はこの文書更新の範囲外。
    - 完了条件: 次のscheduled hourly windowでもexit 0で新しい公式receiptを書き、sales/source freshnessを読める。単発の13:08:53 successだけでは継続正常と判定しない。
    - 頻度: 毎時。失敗時はmissing metricを0にせずblockerを同じscorecardに記録。
 
 3. **T2 — source×Agent scorecardを一日一行でそろえる。 [IN PROGRESS / generatorあり、完成dashboard未確認]**
-   - 根拠: reconcileには最大60 Agentsの7d/30d by-source、scoreboardはCT/source summaryと検索寄りのAgent snapshotを出す。
+    - 根拠: reconcileには最大60 Agentsの7d/30d by-source、scoreboardはCT/source summaryと検索寄りのAgent snapshotを出す。
+    - 最新成功snapshotのby-Agent sample: Hook Labは30d search 378/1 paid・hot 39/5・`ai_overview` 224/0、Marketing Strategistはsearch 153/2・hot 30/0、TikTok Script Proは`ai_overview` 237/0（7d 27/0）。14:09 global30dはsearch 814/10、hot 71/5、Google 39/1、`ai_overview` 548/0、direct 1,504/2。これらはsource-attributed API件数で、訪問者単位のconversion率とは呼ばない。global7dは314/0 paid（search68、hot1、`ai_overview`45）。
+    - Coverage gap: 14:09 snapshotはinventory/analytics63 Agentsに対し`traffic_sources.by_agent`60。実装capは60で、`3332784488` Japanese Humanizer、`4437197514` Anicca Life Manager、`7631594519` Talent Review Deck Writerが未取得。14:16 official publish-listは64 Agentsに増えており、新Agent `9675561238`作成後はcurrent inventoryに対するcoverageが60/64。provider hard capは未確認。
    - T2.1 各成功receiptから`observed_at`、receipt/hash、window、Agent scope、seller orders/gross/refund/fee/payoutを固定する。
    - T2.2 Agent×source×campaign rowに7d/30d views/unique visitors/trials/paid/gross、rating/review count、query rank、CT token、80% seller-share proxy−actual-cost contribution estimateを記録する。impressions、watch completion、unique reachが取れない場合はnullと理由を書く。
    - T2.3 公開creativeごとにcreative_id、platform post URL/time、impressions/reach/views/watch time/completion/likes/comments/shares/saves/link clicksを24h/7d/30dで同じrowへ結ぶ。
@@ -14937,10 +14942,13 @@ Capafy公式Xの公開indexには、Ocupの100 sales紹介と、あるcreatorの
    - 完了条件: Agent別active数×月換算ARPUの合計をseller readbackから再計算できる。endpoint/sourceが存在しなければ「true MRR unavailable」を明示し、proxyをMRRと呼ばない。
    - 頻度: 週次と$10K判定時。現状は`net_mrr_usd`/`settled_mrr_usd` null。
 
-5. **T4 — `8767154808`の自然factory runをprovider receiptまで検証し、枠計算を更新する。 [WAITING / latest run has effect_unknown]**
-   - 現在readback: `8767154808` の最後の公式status readbackは12:26 JST時点でversion `2109463185447604224`、`platform_status=1`、`audit_status=2`、run_online、skills/config confirmed。次の自然 occurrence `18ddabf788372e78-48682` は13:11:35 JST、process exit 0/phase reportだが`effect=unknown`、`official_readback_ref=null`、`provider_receipt_id=null`。owner statusではinstalled SHA `bafa6755`、event SHA `fb7f99e`、`release.drift=true`。
-   - 作業: このeffect fenceを再送や手作業で閉じない。登録済みeffect_reconcile adapterだけを使う運用境界で、同一Agent/versionの新しいofficial `publish-remote-status` とoccurrence receiptを突合し、loaded release/adoption差を特定する。new-Agent slot countは`inventory_status.py`のserver truthを使い、一般inventory `occupied=7` と5 unpublished-agent枠を混同しない。
-   - 完了条件: `8767154808`のunder_review statusを自然run後のfresh official readbackで確認し、かつ該当occurrenceのeffect/readback/exitと、5枠以内のslot計算が一致する。その後に続くnatural runで新Agentの作成/提出receiptを確認する。`exit 0`や既存under_review statusだけでfactory throughput完了にしない。
+5. **T4 — 新規Agentの自然出荷と5枠queueを確認する。 [IN PROGRESS / 8767154808 under_review、9675561238 draft]**
+   - 14:16 official detail/list readback: `8767154808` version `2109463185447604224`は`agent_status=under_review`、`platform_status=1`、`audit_status=2`、`status_reason=under_review`、skills/config confirmed。provider `updated_at=2026-10-12T02:26:29Z`（11:26:29 JST）なので14:09 occurrenceより前に審査入りしている。14:09 occurrenceの成功要件へ因果づけない。
+   - 14:09 natural factory occurrence `18ddb00f7cc27c20-34172`は14:12:10にexit75/effect unknownとなった。登録済み`capafy_factory_fence_reconcile.py`がofficial publish-list/remote-statusから`9675561238` version `2109512140641300480`, `platform_status=0`の実作用を確認し、14:16:19にprovider receipt付きで解決。DB rowは`state=released,effect_unknown=0`。14:16 publish-listでは`9675561238`がdraft、`updated_at=14:11:01 JST`。
+   - 最新official `inventory_status.py`はtotal64/listed47/occupied5/free0/retry1/recover12/ready_publish0/unknown0。未公開5枠は満杯。`8767154808`がlistedになれば枠を再確認し、その後のnatural runでqueue先頭Agentを一件ずつ進める。重複create/submitはしない。
+   - Health reconciliation gap: occurrenceのadmission DB rowは`state=released,effect_unknown=0`でowner内unknown rowは0件だが、`lm-loop health`は直近report eventの`effect=unknown`を表示する。`lm-fence-reconciler/reconcile-calls.jsonl`に当該occurrenceのrecordがないため、health側がverified `effect_reconciled`へ変換できない。provider/ledger fenceは閉鎖済み、health projectionは未解消として分離し、次の自然owner eventで状態が更新するか確認する。audit logへ手書きしない。
+   - 作業: effect unknownは登録adapter経由のみで照合/解決し、`inventory_status.py`のserver truthで枠数を更新する。空きがない間はoffline queueを維持する。
+   - 完了条件: 各natural runのcreate/submit receipt、該当Agentのofficial status、5 unpublished-slot countが一致し、継続的に新Agentが出荷される。`exit 0`やdraft作成だけでunder_review/出荷完了にしない。
    - 頻度: 各natural run。枠が空くたびに再確認。
 
 6. **T5 — 未公開Agent queueを検索需要に紐づける。 [OPEN / queue件数未確認]**
@@ -14998,6 +15006,6 @@ Capafy公式Xの公開indexには、Ocupの100 sales紹介と、あるcreatorの
     - final: Capafy official active-subscription readbackで月換算gross MRR ≥ $10,000を確認し、same windowのrefund/fee/model cost/profitを横に報告する。
     - どちらも満たさない間は goal active。累計units/trials、listing count、under_review、proxy subscription salesを達成扱いしない。
 
-**現在cursor:** T0（traffic sourceの同時刻snapshot差を照合）。続いてT1の成功freshness、T2のsource×Agent scorecard、T3のtrue MRR source、T4の次の自然factory runを確認する。T11は対象Agentとcreative構造を仕様化しただけで、creative制作・CT preflight・post/publishは未実施。今回の作業はSSOT更新、公開creativeのローカルdownload/analysis、read-only metric確認のみ。
+**現在cursor（14:20 JST）:** T0のfield semanticsと01:09Z old/global-vs-by-agent差は分類済み。scope間viewの非加算性/更新時刻とresponse metadataが残る。T1は14:09:14 reconcile success、次は15:07 natural window。T2は最新reconcile60/63、live list後60/64のcoverage gapとAgent別scorecardを閉じる。T4は8767154808 under_review、9675561238 draft、slots5/5、次の自然run14:24を確認する。first-paidはorders70/gross$102.75で未達、MRR fieldはnull。T11はcreative制作・CT preflight・post/publish未実施。今回の作業はSSOTへのread-only evidence反映のみ。
 
 **調査参照:** `skills/earn/capafy-marketing/scripts/capafy_hourly_reconcile.py`、`skills/earn/capafy-marketing/scripts/capafy_scoreboard.py`、`skills/capafy-autopublish/scripts/inventory_status.py`、`skills/capafy-autopublish/CP1_AGENTIC.md`、`skills/capafy-autopublish/PUBLISHING_RUNBOOK.md`、`skills/capafy/FROZEN.json`。公開比較対象: [HookAce](https://capafy.ai/agent/hookace-first-6-second-retention-predictor/3264203863)、[Ocup Football Analysis](https://capafy.ai/agent/ocup-analysis/2553639947)、[Serenity Stock Tracker](https://capafy.ai/agent/serenity-stock-tracker/2521387714)、[TikTok Scripts](https://capafy.ai/agent/6182575730)、[CapafyのOcup 100 sales投稿](https://x.com/Capafyai/status/2069420218057904378)、[初週$4,208/short-videoのCapafy事例](https://x.com/Capafyai/status/2072302872654499993)。
