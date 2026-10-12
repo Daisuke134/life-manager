@@ -1,4 +1,4 @@
-"""article_daily.py -- one free Japanese article per day on aniccaai.com for an on-sale sticker set.
+"""article_daily.py -- slot-gated free Japanese aniccaai.com articles for on-sale sticker sets.
 
 aniccaai.com is the shared site for everything Life Manager ships (Dais 2026-10-08), so the sticker
 sell loop publishes there through the same free-article publisher capafy-distribute-daily uses
