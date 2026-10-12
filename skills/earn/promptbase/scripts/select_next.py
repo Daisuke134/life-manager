@@ -10,7 +10,9 @@ the PromptBase ledger, choose the highest-priority slug that is:
     the authoritative source -- never a local guess), AND
   - not already shipped or pending on PromptBase (ledger.already_listed
     returns None: no row yet, or the last row is a retryable terminal status
-    such as "rejected" or "captcha_challenge_deferred").
+    such as "rejected" or "captcha_challenge_deferred"), AND
+  - has the verified demonstration required by gen_examples/build_listing.
+    Capafy online status alone does not guarantee PromptBase evidence exists.
 
 Preference order: LISTING.md's "Demand rank: N" (lower first, reusing
 skills/capafy-autopublish's own inventory_status.py ranking rather than a
@@ -72,6 +74,8 @@ def select_next(catalog_dir: Path, capafy_agents: list, ledger_path: Path) -> di
         if title not in online:
             continue
         if ledger_mod.already_listed(slug, ledger_path) is not None:
+            continue
+        if not (catalog_dir / slug / "evidence" / "verified-demonstration.md").is_file():
             continue
         rank = inventory_status.listing_demand_rank(str(catalog_dir / slug / "LISTING.md"))
         priority = 0 if slug == PREFERRED_FIRST_SLUG else 1
