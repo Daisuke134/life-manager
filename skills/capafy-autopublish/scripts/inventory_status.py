@@ -604,6 +604,7 @@ def server_agents():
                 "agentStatus": agent.get("agent_status"),
                 "latestAgentVersionId": agent.get("latest_agent_version_id"),
                 "updatedAt": agent.get("updated_at"),
+                "hasOnlineVersion": agent.get("has_online_version"),
             })
         return rows
     except Exception as e:
