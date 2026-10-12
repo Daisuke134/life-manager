@@ -15748,3 +15748,7 @@ capafy-loop-daily natural occurrence 18ddcb557509ce28-23929は22:31 JSTにexit 0
 **23:06 JST factory follow-up:** natural terminal CAP_FULL（run 18ddcd42dee60e80-8158）。official inventory snapshots 22:29:56→23:05:14 JSTは両方64 Agentsで、added IDs=0、removed IDs=0、changed versions=0。8767154808はversion 2109463185447604224のまま。23:06 candidate backlogは45 rows（listed21 / ready15 / submitted8 / ready_retry1）、published ledgerは引き続き13:54 JST以降未更新。新規Agent create/submitの証拠はないため、「新Agentが継続出荷」は未達。
 
 このCAP_FULL runのevent effect_statusはunknown / provider_receipt_id=null、health effect_unknown=1だが、admission_effect_unknown=false。registered factory pre-effect-reconcile dry-runはresolved=[] / unprovable=[]で、pending admission fenceはない。inventory差分が0でもprovider effectをno-effectと断定しない。再送・手動解除を行わず、次の枠解放後natural runとofficial statusを照合する。
+
+**23:12 JST readback:** natural occurrence 18ddcd9d4db96e38-23777は23:12:26にCAP_FULL / exit0。snapshot captured_at=14:11:43Zでは64 Agentsで、22:29:56 snapshotと比べてadded IDs=0 / removed IDs=0 / changed versions=0。8767154808はversion 2109463185447604224のまま。candidate backlogは45 rows（listed21 / ready15 / submitted8 / ready_retry1）、published ledgerは13:54 JST以降未更新。新規Agent shipmentは確認できない。
+
+このrunもeffect_status=unknown / provider receiptなしと表示される一方、admission_effect_unknown=false、health effect_unknown=1、registered factory adapter dry-run resolved=[] / unprovable=[]。provider outcomeを推定せず、fence解除・再送をしない。distribution ticket sequence621426は23:12 JST時点でagent queue 16/48（15件先行）。直近distribution effectはscratch_enospcでnot_applicableのまま。
