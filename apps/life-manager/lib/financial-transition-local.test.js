@@ -65,3 +65,21 @@ test("Local store treats sending and delivery-uncertain states as unknown effect
     ));
   }
 });
+
+
+test("A bounded multi-chunk helper finishes without a premature parent interruption", { timeout: 45_000 }, () => {
+  const fs = require("node:fs");
+  const os = require("node:os");
+  const path = require("node:path");
+  const { notifyViaLocalOutbox } = require("./financial-transition-local.js");
+  const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "cfo-helper-budget-"));
+  try {
+    const helper = path.join(fixture, "fake-python");
+    fs.writeFileSync(helper, '#!/bin/sh\ncat >/dev/null\nfor delay in 11 11 9; do sleep "$delay"; done\nprintf \'%s\\n\' \'{"delivery":"delivered","provider_message_id":"501","attempted":1,"delivered":1}\'\n', { mode: 0o700 });
+    const result = notifyViaLocalOutbox({ eventKey: "fixture:three-chunks", observedAt: "2026-10-12T00:00:00Z", message: "fixture report" }, {
+      pythonBin: helper, database: path.join(fixture, "outbox.sqlite3"), chatId: "fixture-only", envFile: path.join(fixture, "missing.env"),
+    });
+    assert.equal(result.delivery, "delivered");
+    assert.equal(result.provider_message_id, "501");
+  } finally { fs.rmSync(fixture, { recursive: true, force: true }); }
+});

@@ -21,12 +21,13 @@ function localTransitionOptions(env = process.env) {
 
 function notifyViaLocalOutbox(input, options = {}) {
   const script = path.resolve(__dirname, "../../../skills/cfo/notify.py");
+  // The shared sender bounds requests/retries; the finite loop bounds the complete report.
   const result = spawnSync(options.pythonBin, [
     script, "--database", options.database, "--event-key", input.eventKey,
     "--observed-at", input.observedAt, "--chat-id", options.chatId,
     "--env-file", options.envFile,
   ], { encoding: "utf8", input: JSON.stringify({ message: input.message }),
-    env: process.env, timeout: 30_000 });
+    env: process.env });
   if (result.status !== 0) throw new Error("telegram_outbox_failed");
   return JSON.parse(String(result.stdout || "").trim());
 }
