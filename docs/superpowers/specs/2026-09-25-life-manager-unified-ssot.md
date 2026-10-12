@@ -221,6 +221,9 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 
 **起動方式の比較atom:** native subagentはCFO nlink1の限定修正を実行。AGMSG1.5.1はplain spawnでinvalid owner start time、tmux spawnはlaunched-unconfirmed、既存hooks review modalでtask未着手を確認。15 native同時実行は当threadの提供枠2（primary込み）では実行できない。まずAGMSGのfresh1 sessionへ読み取り専用PR triageを渡し、Codexの公式CLI --disable hooksをこのprobeだけに指定して未承認hookを実行しない。model/approval/sandbox/global configは変更せず、repo instructionsとnative権限制御は保持する。成功は実task readbackとAGMSG返答、登録だけではない。不具合はversion/最小再現/期待・実測を公開issueへ記録する。
 
+**比較の実測結果と次cursor:** 標準subagent native_cfo_one_fixはCFO archive nlink1の修正をRED→GREEN、Node関連68 tests PASS、commit b715addc96bb0bcf41ff8c2686bf1ede2776e69eをpush、PR #7714 head一致を確認。旧headのCIを新headへ流用せず、Security Scan workflow_dispatch run38193641859/head b715addcを発行して進行中。AGMSG fresh lm-spawn-probe-1012はtmux/このprobeだけhooks非実行の設定で実task開始→PR #7725/#7688/#7666公式readback→primary inboxへ3報告を返し完了。三PRはOPEN/Draft/表示CI PASSだが、PromptBaseはbrowser/session・uncertain occurrence、Writerは未反映/既存suite failures、Connectorはowner調整/browser timeoutの本番未検証を残す。mergeだけで18業務Doneへしない。AGMSG1.5.1 plain driverのowner start-time不具合は公式issue https://github.com/fujibee/agmsg/issues/1591 へsanitized再現を報告（最新1.5.3での再現は未検証）。使い分けは短い限定修正=native、継続独立lane=AGMSG。現在確認済みのcleanup BF15を汎用未完へ戻さず、残る共通運用は新sourceのCI/main→main-derived release/loaded SHA→自然仕事/公式receipt/replay-zero。18全部の遅延ゼロ/無故障は未証明、固定時間の永続保証にしない。
+
+
 
 当面の対象はこの表だけ。下の全社130工程は将来の参照ロードマップであり、いま全社工程へ拡大しない。既存の「cleanup残3大分類」は本表の親分類で、進捗報告はBF-ID単位で完了証拠を示す。毎分watchdog、共通bounded出力/代表自己cleanup、Gig閉鎖物回収/再開、予約expiry順序、scratch通常file誤判定、backup失敗伝播と自然保存/対象claim返却は確認済みで、残項目へ戻さない。
 
