@@ -39,12 +39,21 @@ function readResult(file) {
   return value.publication;
 }
 
-function effectStatus(publication) {
+function requireMatchingOriginOccurrence(publication, options) {
+  if (options.requireOriginOccurrence && publication.origin_occurrence_id !== options.occurrenceId) {
+    throw new Error("mobile publication result origin occurrence does not match");
+  }
+}
+
+function effectStatus(publication, options = {}) {
   if (typeof publication.created === "boolean") {
-    return publication.created ? "verified" : "reconciled";
+    if (publication.created) return "verified";
+    requireMatchingOriginOccurrence(publication, options);
+    return "reconciled";
   }
   if (publication.status === "published" && publication.provider_reconciled === true
       && publication.replay_created === false) {
+    requireMatchingOriginOccurrence(publication, options);
     return "reconciled";
   }
   throw new Error("mobile publication result lacks exact effect proof");
@@ -82,7 +91,10 @@ function writePrivateJson(target, value) {
 }
 
 function main(argv = process.argv.slice(2), env = process.env) {
-  if (argv.length !== 1) throw new Error("usage: mobile-effect-result.js <runner-stdout>");
+  const requireOriginOccurrence = argv.length === 2 && argv[1] === "--require-origin-occurrence";
+  if (argv.length !== 1 && !requireOriginOccurrence) {
+    throw new Error("usage: mobile-effect-result.js <runner-stdout> [--require-origin-occurrence]");
+  }
   const ownerId = required(env.LIFE_MANAGER_LOOP_ID, "LIFE_MANAGER_LOOP_ID");
   const occurrenceId = required(env.LIFE_MANAGER_OCCURRENCE_ID, "LIFE_MANAGER_OCCURRENCE_ID");
   const output = required(env.LIFE_MANAGER_RESULT_HINT_PATH, "LIFE_MANAGER_RESULT_HINT_PATH");
@@ -115,7 +127,7 @@ function main(argv = process.argv.slice(2), env = process.env) {
     occurrence_id: occurrenceId,
     provider: "postiz",
     provider_receipt_id: providerReceiptId,
-    effect_status: effectStatus(publication),
+    effect_status: effectStatus(publication, { occurrenceId, requireOriginOccurrence }),
   });
 }
 
