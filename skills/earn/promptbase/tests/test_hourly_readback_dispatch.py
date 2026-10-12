@@ -25,6 +25,12 @@ class HourlyReadbackDispatchTest(unittest.TestCase):
         self.assertEqual(row["browser_identity"], "promptbase:dais")
         self.assertEqual(row["browser_target_owner"], "promptbase-loop-daily")
         self.assertEqual(row["entrypoint"], "skills/earn/promptbase/hourly_readback.sh")
+        product_catalog = json.loads(
+            (REPO_ROOT / "apps" / "life-manager" / "config" / "product-loop-catalog.json").read_text()
+        )
+        promptbase = next(x for x in product_catalog["loops"] if x["id"] == "promptbase")
+        self.assertIn("promptbase-sales-readback-hourly", promptbase["job_ids"])
+        self.assertIn("browser", promptbase["recovery_classes"])
 
     def _run(self, tmp_path: Path, *, acquire_rc: int = 0, readback_rc: int = 0):
         guard = tmp_path / "browser-guard.sh"

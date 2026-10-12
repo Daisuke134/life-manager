@@ -64,10 +64,10 @@
     },
     {
       "id": "promptbase",
-      "job_ids": ["promptbase-loop-daily"],
+      "job_ids": ["promptbase-loop-daily", "promptbase-sales-readback-hourly"],
       "name": "PromptBase",
       "description": "Build and publish prompt listings on PromptBase with real examples, and read sales back.",
-      "recovery_classes": ["external_effect_owner"],
+      "recovery_classes": ["browser", "external_effect_owner"],
       "economic": {"role":"customer_revenue","revenue_classes":["one_time"],"sources":{"funnel":{"adapter":"promptbase-sales-readback","implementation":"partial"},"financial":{"adapter":"promptbase-sales-readback","implementation":"missing"},"cost":{"adapter":"promptbase-sales-readback","implementation":"missing"}}},
       "requirements": ["promptbase_account", "publication_profile", "public_guided_installer"],
       "hosts": {
