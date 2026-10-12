@@ -22,7 +22,8 @@ PY="${PY:-/opt/homebrew/bin/python3}"
 command -v "$PY" >/dev/null 2>&1 || PY=python3
 
 BROWSER_GUARD="${AI_BROWSER_GUARD:-$REPO_ROOT/skills/browser/browser-guard.sh}"
-BROWSER_IDENTITY="interactive:dais"
+BROWSER_PROVISIONER="${AI_ENSURE_PROVISION_BROWSER:-$REPO_ROOT/skills/browser/ensure_provision_browser.sh}"
+BROWSER_IDENTITY="promptbase:dais"
 
 ENV_FILE="$HOME/.local/state/life-manager/.env"
 if [ -f "$ENV_FILE" ]; then
@@ -42,7 +43,8 @@ FENCE_RECONCILE_TOOL="$SCRIPTS/promptbase_fence_reconcile.py"
 
 log() { echo "[promptbase-daily] $*"; }
 
-ENDPOINT="$("$BROWSER_GUARD" acquire "$BROWSER_IDENTITY")"
+ENDPOINT="$(AI_BROWSER_HOLDER_PID=$$ AI_BROWSER_GUARD="$BROWSER_GUARD" \
+  bash "$BROWSER_PROVISIONER" "$BROWSER_IDENTITY")"
 ACQUIRE_RC=$?
 if [ "$ACQUIRE_RC" -ne 0 ]; then
   log "browser lease unavailable (rc=$ACQUIRE_RC) -- skip this run, next wake retries"
@@ -51,7 +53,7 @@ fi
 TMP_CAPAFY_JSON="$(mktemp)"
 cleanup() {
   rm -f "$TMP_CAPAFY_JSON"
-  "$BROWSER_GUARD" release "$BROWSER_IDENTITY" >/dev/null 2>&1 || true
+  AI_BROWSER_HOLDER_PID=$$ "$BROWSER_GUARD" release "$BROWSER_IDENTITY" >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 

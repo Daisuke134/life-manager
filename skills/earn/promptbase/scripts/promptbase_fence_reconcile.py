@@ -10,8 +10,8 @@ sets it whenever effect_class != "none" and the child exited non-zero).
 
 There is no PromptBase HTTP API: the only official readback is the seller
 dashboard itself, the same account?view=prompts text readback.py already
-parses with parse_dashboard_cards/status_for_title, read over the SAME
-interactive:dais lease-wrapped CDP endpoint daily.sh uses -- never a fresh
+parses with parse_dashboard_cards/status_for_title, read over the same
+dedicated promptbase:dais lease-wrapped CDP endpoint daily.sh uses -- never a fresh
 login and never a second submit.
 
 Precision: daily.sh writes one immutable, occurrence-bound snapshot before
@@ -81,7 +81,7 @@ EVIDENCE_DIR = Path("~/.local/state/life-manager/reconciliation/evidence").expan
 BROWSER_GUARD = Path(
     os.environ.get("AI_BROWSER_GUARD", str(REPO_ROOT / "skills/browser/browser-guard.sh"))
 )
-BROWSER_IDENTITY = "interactive:dais"
+BROWSER_IDENTITY = "promptbase:dais"
 SNAPSHOT_FIELDS = frozenset({
     "schema_version", "owner_id", "occurrence_id", "slug", "title", "captured_at",
     "capture_provenance",
@@ -401,7 +401,7 @@ def load_snapshot(occurrence_id: str, *, snapshot_dir: Path = SNAPSHOT_DIR) -> d
 def read_dashboard_text(
     *, browser_guard: Path = BROWSER_GUARD, identity: str = BROWSER_IDENTITY, timeout: float = 30,
 ) -> dict:
-    """Read-only account?view=prompts text over the leased daily-driver CDP
+    """Read-only account?view=prompts text over the leased PromptBase CDP
     endpoint. Never clicks anything, never submits. BUSY/unreachable is
     inconclusive, not a failure to escalate."""
     endpoint_result = subprocess.run(

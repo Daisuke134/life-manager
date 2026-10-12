@@ -8,9 +8,9 @@ fetching account?view=prompts' rendered text, exactly like publish.py's own
 dashboard check.
 
 Usage (endpoint from the lease wrapper only):
-    ENDPOINT=$(browser-guard.sh acquire interactive:dais) || exit 1
+    ENDPOINT=$(browser-guard.sh acquire promptbase:dais) || exit 1
     python3 readback.py --endpoint "$ENDPOINT"
-    browser-guard.sh release interactive:dais
+    browser-guard.sh release promptbase:dais
 """
 from __future__ import annotations
 

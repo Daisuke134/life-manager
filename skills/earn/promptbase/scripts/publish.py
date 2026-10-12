@@ -14,10 +14,10 @@ revisiting /sell resumes that draft instead of showing a blank step 1.
 so a stale draft from a previous run never gets silently reused half-filled.
 
 Usage (endpoint from the lease wrapper only -- never a hardcoded port):
-    ENDPOINT=$(browser-guard.sh acquire interactive:dais) || exit 1
+    ENDPOINT=$(browser-guard.sh acquire promptbase:dais) || exit 1
     python3 publish.py --catalog-dir skills/capafy/catalog/<slug> \\
         --endpoint "$ENDPOINT" [--confirm]
-    browser-guard.sh release interactive:dais
+    browser-guard.sh release promptbase:dais
 
 Without --confirm this is a dry run: it fills the whole wizard, stops at the
 step-3 review screen, and writes a screenshot + text dump for a human/agent
