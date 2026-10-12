@@ -16,7 +16,6 @@ from runtime.loop.lm_loop_run import build_loop_command
 from runtime.loop.runtime_event import validate_runtime_event
 from runtime.loop.central_cleanup import installed_state_roots, loaded_release_roots
 from runtime.loop.central_cleanup import no_effect_loop_ids, open_release_roots, release_gc, scratch_gc
-from runtime.loop.central_cleanup import host_cleanup_command, host_cleanup_ok, host_cleanup_readback
 from runtime.loop import central_cleanup
 from runtime.loop import loop_cleanup
 
@@ -303,64 +302,30 @@ class LoopCleanupTest(unittest.TestCase):
                 "run_id": "run-1", "occurrence_id": "life-manager-disk-cleanup:run-1",
                 "release_sha": "a" * 40})
             self.assertIsNone(central_cleanup.cleanup_run_binding({}, root))
-    def test_cleanup_execution_is_not_capacity_recovery(self):
-        ok, result = host_cleanup_readback(0, json.dumps({
-            "free_after": 600 * 1024**2, "errors": 0,
-            "protected_deletions": 0, "disk_writers_stop": {"status": "absent"},
-        }))
-        self.assertTrue(ok)
-        self.assertTrue(result["execution_ok"])
-        self.assertFalse(result["capacity_recovered"])
+    def test_central_cleanup_delegates_host_sweep_to_minute_watchdog(self):
+        with mock.patch.object(central_cleanup, "cleanup_run_binding", return_value=None), \
+             mock.patch.object(central_cleanup, "git_duplicate_cleanup",
+                 return_value={"errors": 0, "status": "pass"}) as git_cleanup, \
+             mock.patch.object(central_cleanup, "release_gc",
+                 return_value={"errors": 0, "status": "pass"}) as gc, \
+             mock.patch.object(central_cleanup, "scratch_gc",
+                 return_value={"errors": 0, "status": "pass"}) as scratch, \
+             mock.patch.object(central_cleanup, "installed_state_roots", return_value=[]), \
+             mock.patch.object(central_cleanup, "process_starts", return_value={}), \
+             mock.patch.object(central_cleanup, "no_effect_loop_ids", return_value=set()), \
+             mock.patch.object(central_cleanup.subprocess, "run",
+                 side_effect=AssertionError("central owner invoked host sweep")), \
+             mock.patch.object(sys, "argv", ["central_cleanup.py"]), \
+             mock.patch("builtins.print") as output:
+            self.assertEqual(central_cleanup.main(), 0)
 
-    def test_cleanup_readback_rejects_foreign_execution_identity(self):
-        binding = {"owner_id": "life-manager-disk-cleanup", "run_id": "run-1",
-                   "occurrence_id": "life-manager-disk-cleanup:run-1",
-                   "release_sha": "a" * 40}
-        receipt = {"free_after": 3 * 1024**3, "errors": 0,
-                   "protected_deletions": 0, "disk_writers_stop": {"status": "absent"},
-                   "identity": {**binding, "run_id": "other"}}
-        ok, result = host_cleanup_readback(0, json.dumps(receipt), binding=binding)
-        self.assertFalse(ok)
-        self.assertEqual(result["error"], "host_cleanup_identity_mismatch")
-        self.assertIsNone(result["capacity_recovered"])
-        receipt["identity"] = binding
-        ok, result = host_cleanup_readback(0, json.dumps(receipt), binding=binding)
-        self.assertTrue(ok)
-        self.assertTrue(result["capacity_recovered"])
-
-    def test_central_cleanup_preserves_bound_lock_busy_deferral(self):
-        binding = {"owner_id": "life-manager-disk-cleanup", "run_id": "busy-1",
-                   "occurrence_id": "life-manager-disk-cleanup:busy-1", "release_sha": "a" * 40}
-        receipt = {"ok": False, "status": "deferred", "reason": "cleanup_lock_busy",
-                   "effect": 0, "readback": 0, "identity": binding}
-        process = subprocess.CompletedProcess([], 75, json.dumps(receipt), "")
-        cases = (({"errors": 0, "source_reclaim": {"removed_files": 2,
-                  "protected_deletions": 0}}, 75), ({"errors": 1}, 1), (OSError("GC unavailable"), 1))
-        for gc_result, expected_exit in cases:
-            with self.subTest(gc_result=gc_result), \
-                 mock.patch.object(central_cleanup.subprocess, "run", return_value=process), \
-                 mock.patch.object(central_cleanup, "cleanup_run_binding", return_value=binding), \
-                 mock.patch.object(central_cleanup, "git_duplicate_cleanup",
-                     return_value={"errors": 0, "status": "not_applicable"}) as git_cleanup, \
-                 mock.patch.object(central_cleanup, "release_gc", return_value=gc_result,
-                     side_effect=gc_result if isinstance(gc_result, Exception) else None) as gc, \
-                 mock.patch.object(central_cleanup, "scratch_gc", return_value={"errors": 0}) as scratch, \
-                 mock.patch.object(sys, "argv", ["central_cleanup.py"]), \
-                 mock.patch("builtins.print") as output:
-                self.assertEqual(central_cleanup.main(), expected_exit)
-                gc.assert_called_once()
-                git_cleanup.assert_called_once()
-                scratch.assert_not_called()
-                result = json.loads(output.call_args.args[0])
-                self.assertEqual(result["reason"], "cleanup_lock_busy")
-                self.assertEqual(result["identity"], binding)
-                self.assertFalse(result["ok"])
-                self.assertIsNone(result["capacity_recovered"])
-                if expected_exit == 75:
-                    self.assertEqual(result["source_reclaim"]["removed_files"], 2)
-                    self.assertEqual(result["errors"], 0)
-                else:
-                    self.assertEqual(result["errors"], 1)
+        git_cleanup.assert_called_once()
+        gc.assert_called_once()
+        scratch.assert_called_once()
+        result = json.loads(output.call_args.args[0])
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["host_cleanup"], {
+            "status": "delegated", "owner_id": "com.anicca.disk-watchdog"})
 
     def test_no_effect_loop_ids_reads_registry(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -370,127 +335,6 @@ class LoopCleanupTest(unittest.TestCase):
                 "money": {"effect_class": "money"},
             }}))
             self.assertEqual(no_effect_loop_ids(registry), {"safe"})
-
-    def test_host_cleanup_uses_durable_shared_pressure_state(self):
-        command = host_cleanup_command(Path('/release'), Path('/home'))
-        self.assertEqual(command[-4:], [
-            '--home', '/home', '--state-dir',
-            '/home/.local/state/life-manager/state',
-        ])
-
-    def test_host_cleanup_accepts_registry_projected_state_root(self):
-        command = host_cleanup_command(
-            Path('/release'), Path('/home'), Path('/state/life-manager')
-        )
-        self.assertEqual(command[-1], '/state/life-manager')
-
-    def test_host_cleanup_error_cannot_be_reported_as_success(self):
-        recovery_floor = 2 * 1024**3
-        self.assertFalse(host_cleanup_ok(0, {
-            "errors": 1, "protected_deletions": 0, "free_after": recovery_floor,
-        }))
-        self.assertFalse(host_cleanup_ok(0, {
-            "errors": 0, "protected_deletions": 1, "free_after": recovery_floor,
-        }))
-        self.assertTrue(host_cleanup_ok(0, {
-            "errors": 0, "protected_deletions": 0, "free_after": recovery_floor,
-            "disk_writers_stop": {"status": "absent"},
-        }))
-
-    def test_host_cleanup_accepts_clean_unmet_recovery_metric(self):
-        receipt = {
-            "tier": "ULTRA",
-            "free_after": 626_888_704,
-            "reclaimed": 8_071,
-            "errors": 0,
-            "protected_deletions": 0,
-            "disk_writers_stop": {"status": "absent"},
-        }
-        self.assertTrue(host_cleanup_ok(0, receipt))
-        ok, result = host_cleanup_readback(0, json.dumps(receipt) + "\n")
-        self.assertTrue(ok)
-        self.assertEqual(result["capacity_recovery"], {
-            "status": "unmet",
-            "recovery_floor_bytes": 2 * 1024**3,
-        })
-
-    def test_host_cleanup_missing_or_invalid_capacity_readback_fails_closed(self):
-        receipts = (
-            {"errors": 0, "protected_deletions": 0},
-            {"errors": 0, "protected_deletions": 0, "free_after": None},
-            {"errors": 0, "protected_deletions": 0, "free_after": True},
-            {"errors": 0, "protected_deletions": 0, "free_after": "2147483648"},
-            {
-                "errors": 0,
-                "protected_deletions": 0,
-                "free_after": -1,
-                "disk_writers_stop": {"status": "absent"},
-            },
-        )
-        for receipt in receipts:
-            with self.subTest(receipt=receipt):
-                self.assertFalse(host_cleanup_ok(0, receipt))
-
-    def test_host_cleanup_missing_readback_preserves_typed_failure(self):
-        ok, result = host_cleanup_readback(1, "")
-        self.assertFalse(ok)
-        self.assertEqual(result, {
-            "error": "host_cleanup_result_missing",
-            "returncode": 1,
-        })
-
-    def test_host_cleanup_valid_readback_keeps_receipt_and_reports_recovery(self):
-        recovery_floor = 2 * 1024**3
-        receipt = {
-            "errors": 0,
-            "protected_deletions": 0,
-            "free_after": recovery_floor,
-            "disk_writers_stop": {"status": "absent"},
-        }
-        ok, result = host_cleanup_readback(
-            0, json.dumps(receipt) + "\n"
-        )
-        self.assertTrue(ok)
-        self.assertEqual(result, {
-            **receipt,
-            "execution_ok": True,
-            "capacity_recovered": True,
-            "capacity_recovery": {
-                "status": "met",
-                "recovery_floor_bytes": recovery_floor,
-            },
-        })
-
-    def test_host_cleanup_missing_capacity_readback_is_reported_as_unknown(self):
-        receipt = {"errors": 0, "protected_deletions": 0}
-        ok, result = host_cleanup_readback(0, json.dumps(receipt) + "\n")
-        self.assertFalse(ok)
-        self.assertEqual(result["capacity_recovery"], {
-            "status": "unknown",
-            "recovery_floor_bytes": 2 * 1024**3,
-        })
-        self.assertEqual(result["errors"], 0)
-        self.assertEqual(result["protected_deletions"], 0)
-
-    def test_host_cleanup_capacity_failure_preserves_delete_errors_and_receipt(self):
-        receipt = {
-            "tier": "ULTRA",
-            "free_after": 626_888_704,
-            "reclaimed": 8_071,
-            "errors": 1,
-            "protected_deletions": 0,
-        }
-        ok, result = host_cleanup_readback(0, json.dumps(receipt) + "\n")
-        self.assertFalse(ok)
-        self.assertEqual(result, {
-            **receipt,
-            "execution_ok": False,
-            "capacity_recovered": False,
-            "capacity_recovery": {
-                "status": "unmet",
-                "recovery_floor_bytes": 2 * 1024**3,
-            },
-        })
 
     def test_loop_cleanup_preserves_active_unmarked_and_receipts(self):
         with tempfile.TemporaryDirectory() as directory:
