@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import subprocess
 import time
 import sqlite3
@@ -43,7 +44,8 @@ MAX_CALLS_PER_WAKE = 20
 # overrun this budget is deferred to the next wake instead of being killed mid-proof.
 WAKE_BUDGET_SECONDS = 1000
 WAKE_PERIOD_SECONDS = 600  # lm-fence-reconciler cadence (config/loop-registry.json)
-STDOUT_TAIL_LIMIT = 300
+STDOUT_TAIL_LIMIT = 2048
+EVENT_TAIL_LIMIT = 4 * 1024 * 1024
 DEFAULT_LOG = Path(
     "~/.local/state/life-manager/lm-fence-reconciler/reconcile-calls.jsonl"
 ).expanduser()
@@ -60,6 +62,90 @@ def run_call(argv: list[str], timeout: float = CALL_TIMEOUT_SECONDS) -> tuple[in
         return 124, "reconcile_call_timed_out"
     except OSError as error:
         return 127, f"reconcile_call_start_failed:{type(error).__name__}"
+
+
+def _runtime_release_shas(owner_id: str, occurrences: set[str],
+                          loops: Mapping[str, object]) -> dict[str, str | None]:
+    """Bind reconciled occurrence proofs to one unambiguous runtime event release."""
+    result = {occurrence: None for occurrence in occurrences}
+    row = loops.get(owner_id)
+    state_root = row.get("state_root") if isinstance(row, Mapping) else None
+    if not isinstance(state_root, str) or not state_root:
+        return result
+    path = Path(state_root).expanduser() / "events.jsonl"
+    try:
+        size = path.stat().st_size
+        offset = max(0, size - EVENT_TAIL_LIMIT)
+        with path.open("rb") as handle:
+            handle.seek(offset)
+            payload = handle.read(EVENT_TAIL_LIMIT)
+    except OSError:
+        return result
+    lines = payload.splitlines()
+    if offset and lines:
+        lines = lines[1:]
+    observed: dict[str, set[str | None]] = {occurrence: set() for occurrence in occurrences}
+    for line in lines:
+        try:
+            event = json.loads(line)
+        except (UnicodeError, json.JSONDecodeError):
+            return result
+        if not isinstance(event, dict) or event.get("loop_id") != owner_id:
+            continue
+        occurrence = event.get("occurrence_id")
+        if occurrence not in observed:
+            continue
+        release_sha = event.get("release_sha")
+        if not isinstance(release_sha, str) or re.fullmatch(r"[a-f0-9]{40}", release_sha) is None:
+            observed[occurrence].add(None)
+        else:
+            observed[occurrence].add(release_sha)
+    for occurrence, values in observed.items():
+        if len(values) == 1 and None not in values:
+            result[occurrence] = next(iter(values))
+    return result
+
+
+def _json_output_records(stdout_tail: str) -> list[dict]:
+    records = []
+    for line in stdout_tail.splitlines():
+        try:
+            value = json.loads(line)
+        except (TypeError, UnicodeError, json.JSONDecodeError):
+            continue
+        if isinstance(value, dict):
+            records.append(value)
+        elif isinstance(value, list):
+            records.extend(item for item in value if isinstance(item, dict))
+    return records
+
+
+def _closure_proof(stdout_tail: str, *, owner_id: str, occurrence_id: str,
+                   release_sha: str | None) -> dict | None:
+    if not isinstance(release_sha, str) or re.fullmatch(r"[a-f0-9]{40}", release_sha) is None:
+        return None
+    matching = [record for record in _json_output_records(stdout_tail)
+                if record.get("owner_id") == owner_id
+                and record.get("occurrence_id") == occurrence_id]
+    if len(matching) != 1:
+        return None
+    proof = matching[0]
+    if proof.get("verified") is not True:
+        return None
+    proof_release = proof.get("release_sha")
+    if proof_release is not None and proof_release != release_sha:
+        return None
+    receipt_ref = proof.get("provider_receipt_id") or proof.get("evidence_ref")
+    if not isinstance(receipt_ref, str) or not receipt_ref.strip():
+        return None
+    return {
+        "proof_type": "effect_reconcile_closure.v1",
+        "owner_id": owner_id,
+        "occurrence_id": occurrence_id,
+        "release_sha": release_sha,
+        "verified": True,
+        "receipt_ref": receipt_ref,
+    }
 
 
 def build_argv(reconcile_cfg: Mapping[str, object], root: Path,
@@ -225,6 +311,11 @@ def reconcile(
     wake = time.time() if wake_epoch is None else wake_epoch
     start = int(wake // WAKE_PERIOD_SECONDS) * cap
     calls = round_robin(targets, cap, priority_owners=priority_owners, start=start)
+    target_owners = {owner_id for owner_id, _ in calls}
+    event_release_shas = {
+        owner_id: _runtime_release_shas(owner_id, set(fenced.get(owner_id, ())), loops)
+        for owner_id in target_owners
+    }
     closed = 0
     deferred = 0
     locked = False
@@ -259,6 +350,14 @@ def reconcile(
                     "owner_id": owner_id, "occurrence_id": occ,
                     "exit_code": exit_code, "closed": occ_closed, "stdout_tail": tail,
                 })
+                if occ_closed and exit_code == 0:
+                    proof = _closure_proof(
+                        tail, owner_id=owner_id, occurrence_id=occ,
+                        release_sha=event_release_shas.get(owner_id, {}).get(occ),
+                    )
+                    if proof is not None:
+                        records[-1]["release_sha"] = proof["release_sha"]
+                        records[-1]["closure_proof"] = proof
         else:
             occ_closed = occurrence not in still_open
             if occ_closed:
@@ -267,6 +366,14 @@ def reconcile(
                 "owner_id": owner_id, "occurrence_id": occurrence,
                 "exit_code": exit_code, "closed": occ_closed, "stdout_tail": tail,
             })
+            if occ_closed and exit_code == 0:
+                proof = _closure_proof(
+                    tail, owner_id=owner_id, occurrence_id=occurrence,
+                    release_sha=event_release_shas.get(owner_id, {}).get(occurrence),
+                )
+                if proof is not None:
+                    records[-1]["release_sha"] = proof["release_sha"]
+                    records[-1]["closure_proof"] = proof
     if log_path is not None:
         _append_jsonl(log_path, records)
     summary = {
