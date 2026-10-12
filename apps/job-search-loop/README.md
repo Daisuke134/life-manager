@@ -1,6 +1,6 @@
-# Life Manager Job Hunter Loop
+# Job Hunter
 
-Anicca Job Search Loop is a bounded, evidence-first job application system for a
+Job Hunter is a bounded, evidence-first job application system for a
 verified private candidate profile. It discovers and ranks suitable roles, submits
 every unique qualified role that fits within the bounded owner window, monitors recruiter mail, prepares
 interviews, and reports every material state change to Telegram.
@@ -58,6 +58,26 @@ Queued actions, prepared materials, and board labels do not count. Unknown
 configuration effects are persisted before confirmation and never blindly retried.
 If native Autopilot is unavailable and officially has no in-flight work, the
 existing Workday lane may continue under the same local owner. Otherwise it holds.
+
+## Competitive comparison
+
+This comparison separates documented/source behavior from a real, receipt-verified
+application. A README claim or a generated `RESULT:APPLIED` string alone is not
+proof that an employer accepted an application.
+
+| Agent | Search and tailoring | Automatic final Submit | Completion evidence described in source | Human step / current limitation |
+|---|---|---|---|---|
+| [career-ops](https://github.com/career-ops-hq/career-ops) | Searches and evaluates roles, tailors CVs and drafts answers | **No** | Local tracker and user-managed outcomes | Its README and `prepare-application.mjs` say it never POSTs; the applicant reviews and presses Submit. It is a job-search and preparation agent, not an automatic submitter. MIT. |
+| [ApplyPilot](https://github.com/Pickle-Pixel/ApplyPilot) | README describes discovery across multiple boards, Workday portals, scoring, resume tailoring and cover letters | **Yes, in its normal source path** | The prompt tells the browser agent to inspect the post-submit page for “thank you” or “application received”; Claude then returns `RESULT:APPLIED`, which the launcher records locally | The reviewed path contains no per-application approval step. I did not verify an actual employer receipt or an independent Gmail receipt in a live application. AGPL-3.0. |
+| Job Hunter — intended Workday-first release | Company-bound resume tailoring from candidate facts; official Workday job fit | **Target: yes** | Target: bind an official employer receipt to the same job and ledger entry, prevent replay, and report the result | This Workday-only target is not in the current public `main`: the published daily entrypoint still calls Dreamwork and shares a lane with Workday/Ashby. Email reporting is not implemented; the current report route is Telegram. |
+
+The broad claim “world’s first open-source agent that searches, tailors, and
+automatically submits applications” is not supported: ApplyPilot already has a
+source-level no-human-submit path. The narrower difference to prove is reliable
+employer-receipt reconciliation, duplicate-safe application history, and clear
+reporting after the Workday submit. Do not present that distinction as a verified
+first until the Workday-only release completes a natural real application and the
+receipt is read back from the employer.
 
 ## Runtime
 
