@@ -384,6 +384,7 @@ def test_server_agents_adapts_official_0911_snake_case_shape(monkeypatch) -> Non
             "agentStatus": "online",
             "latestAgentVersionId": "version-1",
             "updatedAt": 1735689600000,
+            "hasOnlineVersion": None,
         }
     ]
     assert module.normalize_agents(rows)["readable"] is True
@@ -1120,3 +1121,18 @@ def test_agent_with_an_online_version_does_not_take_a_new_agent_slot() -> None:
     normalized = module.normalize_agents(live_with_draft + live_in_review + new_in_review)
     assert normalized["counts"]["occupied"] == 4
     assert normalized["counts"]["free"] == 1
+
+
+def test_server_agents_carries_has_online_version_from_publish_list(monkeypatch) -> None:
+    """2026-10-12: the hasOnlineVersion fix never reached the factory because publish-list dropped
+    the field, so occupied stayed 10 on the live release."""
+    module = load_module()
+    payload = {"agents": [{"agent_id": "8123079349", "agent_status": "draft", "has_online_version": True}]}
+
+    class Done:
+        returncode = 0
+        stdout = json.dumps(payload)
+
+    monkeypatch.setattr(module.subprocess, "run", lambda *a, **k: Done())
+    rows = module.server_agents()
+    assert rows[0]["hasOnlineVersion"] is True
