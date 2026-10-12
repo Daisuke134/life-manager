@@ -12690,6 +12690,14 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **Current cursor:** exact-head review/CI and primary integration of PR #7768 → primary-owned normal immutable release adoption, then continue only from the fresh owner/fence state → natural qualified AT-13 → same-period broker fees/slippage plus official allocated model/system cost receipts → positive owner-attributed realized net and replay-zero. Keep all live funding/orders behind 30 cost-complete natural round trips, strategy/cross-venue, AT-24/AT-29, and fresh opposing review.
 
+### 2026-10-12 14:35 JST — Paper runtime drift; broker-cost PR awaits source acceptance
+
+- **Fresh main/PR:** `origin/main=9ba2aa376728c9fb4f3ab4bf9b9ae71ef38d9788`. PR #7768 is OPEN and mergeable against that main. CI is still running; primary review is pending. Check GitHub for the exact current PR head before acceptance.
+- **Fresh paper owner:** current installed release SHA is `6a355f0b1f14434cadff87ff4d2df057c262cacc`, while the latest event SHA is `d3c7230450d1d0efa2b949c28f13ec06de5b4e05` (`drift=true`). Latest natural occurrence `18ddb125ec211da8-62368` at `2026-10-12T05:30:03Z` remains `resource_effect_unknown` / `retry_after_eligibility`, without receipt. Fence `18dcc31cf10b9ed0-10327` remains claimed. No natural sell or closed round trip is confirmed. This task has not touched the release or fence.
+- **System-cost input:** code search confirms the existing B6 actual-cost adapter requires official invoice/paid-receipt data and explicit product-loop allocation. The inspected CFO hourly evidence directory currently contains only the September Google cost table; no actual-cost receipt file was present there. It is not a per-order system-cost source, so paper model/system cost and net remain unknown.
+
+**Current cursor:** wait for exact-head CI and primary read-only review of PR #7768 → primary integration → primary-owned normal immutable release adoption and fresh paper owner/fence readback → natural qualified AT-13 only → complete same-period broker fees/slippage and official allocated model/system cost evidence → positive owner-attributed realized net and replay-zero. Keep all live funding/orders behind 30 cost-complete natural round trips, strategy/cross-venue, AT-24/AT-29, and fresh opposing review.
+
 ### 2026-10-09 14:20 JST — Paper storage and effect fence remain open
 
 このreadbackは14:03 JST snapshotを更新する。L9-12と「残り2件」の順序は変えない。
