@@ -13,6 +13,7 @@ import tempfile
 import unittest
 import zipfile
 from pathlib import Path
+from unittest.mock import patch
 
 MODULE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(MODULE_ROOT))
@@ -139,6 +140,7 @@ class TextBearingVariant(unittest.TestCase):
         plan = {
             "series_of": "set-003", "character_id": "char-x-001", "character_prompt": "a mascot",
             "theme": "毎日返事", "text_mode": "with_text",
+            "campaign_value": None, "campaign_theme_ids": [],
             "copy_target": {"product_url": "https://store.line.me/stickershop/product/1", "theme": "返事",
                             "phrases": ["ありがとう"], "expression_style": "bold lettering",
                             "text_or_no_text": "text", "title_pattern": "<キャラ名>の毎日返事【文字入り】"},
@@ -160,6 +162,33 @@ class TextBearingVariant(unittest.TestCase):
         jsonschema.validate(no_text, schema)
         with self.assertRaises(jsonschema.ValidationError):
             jsonschema.validate(self._plan(text_mode="maybe"), schema)
+
+    def _campaign_plan(self, theme_count: int) -> dict:
+        plan = self._plan(text_mode="no_text")
+        plan["stickers"] = [{"id": f"s{i}", "prompt": "pose", "tags": ["OK"], "text": None}
+                            for i in range(40)]
+        plan["campaign_value"] = "835"
+        plan["campaign_theme_ids"] = [f"s{i}" for i in range(theme_count)]
+        return plan
+
+    def test_static_planner_includes_open_features_and_guards_theme_margin(self) -> None:
+        features = [{"value": "835", "title": "冬を感じるスタンプ特集", "conditions": "冬関連が8個以上"}]
+        for theme_count, expected in ((11, None), (12, "835")):
+            with self.subTest(theme_count=theme_count), tempfile.TemporaryDirectory() as tmp:
+                set_dir = Path(tmp) / "set-001"
+                set_dir.mkdir()
+                captured = {}
+
+                def fake_run_agent(**kwargs):
+                    captured["prompt"] = kwargs["prompt"]
+                    return self._campaign_plan(theme_count)
+
+                with patch.object(STATIC, "_open_features", return_value=features, create=True), \
+                     patch.object(STATIC, "_run_agent", side_effect=fake_run_agent):
+                    plan = STATIC.static_planner(set_dir, [], [])
+                self.assertIn("835", captured["prompt"])
+                self.assertIn("冬を感じるスタンプ特集", captured["prompt"])
+                self.assertEqual(plan["campaign_value"], expected)
 
     def test_text_render_keeps_sticker_within_line_limits(self) -> None:
         from PIL import Image

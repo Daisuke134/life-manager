@@ -232,8 +232,15 @@ async def _select_taste_character_campaign(page: Page, selection: dict) -> None:
     # 参加しない has no value attribute (DOM .value reads "on", CSS [value='on'] matches nothing).
     campaign_radio = page.locator(f"input[type=radio][value='{campaign_value}']" if campaign_value
                                   else "input[type=radio]:not([value])")
-    if await campaign_radio.count():
+    radio_count = await campaign_radio.count()
+    if campaign_value:
+        if radio_count != 1:
+            raise RuntimeError("campaign_radio_missing")
         await campaign_radio.first.evaluate("e => e.click()")  # feature radios are not wrapped in a <label>
+        if not await campaign_radio.first.is_checked():
+            raise RuntimeError("campaign_radio_unchecked")
+    elif radio_count:
+        await campaign_radio.first.evaluate("e => e.click()")
 
 
 async def _upload_images(page: Page, item: dict, package_dir: Path) -> None:

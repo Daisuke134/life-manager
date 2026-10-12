@@ -185,9 +185,10 @@ class CleanCharacters(unittest.TestCase):
 
 
 class _FakeRadio:
-    def __init__(self, clicked: list[str], value: str) -> None:
+    def __init__(self, clicked: list[str], value: str, *, checked_after_click: bool = True) -> None:
         self._clicked = clicked
         self._value = value
+        self._checked_after_click = checked_after_click
 
     async def count(self) -> int:
         return 1
@@ -198,6 +199,14 @@ class _FakeRadio:
 
     async def evaluate(self, script: str) -> None:
         self._clicked.append(self._value)
+
+    async def is_checked(self) -> bool:
+        return self._value in self._clicked and self._checked_after_click
+
+
+class _FakeMissingRadio:
+    async def count(self) -> int:
+        return 0
 
 
 class _FakeSelectLocator:
@@ -210,8 +219,10 @@ class _FakeCampaignPage:
     radio per requested value (every value in LINE's shared feature-campaign radio group "exists").
     """
 
-    def __init__(self) -> None:
+    def __init__(self, *, missing_values=(), unchecked_values=()) -> None:
         self.clicked: list[str] = []
+        self.missing_values = set(missing_values)
+        self.unchecked_values = set(unchecked_values)
 
     def locator(self, selector: str, *a, **k):
         if selector == "select":
@@ -219,7 +230,9 @@ class _FakeCampaignPage:
         # 参加しない has no value attribute; the live DOM reports its .value as "on".
         value = selector.split("value='")[1].rstrip("']") if "value='" in selector else "on"
         assert "value='on'" not in selector, "CSS [value='on'] never matches the live radio"
-        return _FakeRadio(self.clicked, value)
+        if value in self.missing_values:
+            return _FakeMissingRadio()
+        return _FakeRadio(self.clicked, value, checked_after_click=value not in self.unchecked_values)
 
 
 class SelectCampaign(unittest.TestCase):
@@ -228,6 +241,18 @@ class SelectCampaign(unittest.TestCase):
         page = _FakeCampaignPage()
         asyncio.run(MODULE._select_taste_character_campaign(page, {"campaign_value": "835"}))
         self.assertEqual(page.clicked, ["835"])
+
+    def test_a_selected_campaign_with_no_radio_fails_closed(self) -> None:
+        import asyncio
+        page = _FakeCampaignPage(missing_values={"835"})
+        with self.assertRaisesRegex(RuntimeError, "campaign_radio_missing"):
+            asyncio.run(MODULE._select_taste_character_campaign(page, {"campaign_value": "835"}))
+
+    def test_a_selected_campaign_that_does_not_check_fails_closed(self) -> None:
+        import asyncio
+        page = _FakeCampaignPage(unchecked_values={"835"})
+        with self.assertRaisesRegex(RuntimeError, "campaign_radio_unchecked"):
+            asyncio.run(MODULE._select_taste_character_campaign(page, {"campaign_value": "835"}))
 
     def test_null_campaign_value_clicks_the_non_participation_radio(self) -> None:
         import asyncio
