@@ -28,7 +28,7 @@ Pilot AのstageはEnglish article draftの公開前quality gateに絞ります�
 
 **child-call inventory:** 1,498のagent-runner evidence directoryのうち1,469にsummaryがあり、`article-daily`は276 child-call summariesを持ちます（251 judge、25 agent）。276件すべてに`runtime_event_id`がありますが、summaryにはparent run/occurrence/source SHAがありません。現在保持されるevent ledgerにjoinできるのは25件で、記事task件数や独立sample数へ足しません。
 
-最初のcase candidateはEnglish blog article draftのidentity `C: FAIL` / mandatory CTA `PASS` / `blocked-before-publication`の組み合わせです。人手labelはpendingで、false positiveとはまだ呼びません。詳細とlimitations → [Writer EDD trace discovery](../../evals/writer-edd-trace-discovery.md)。本文とraw traceはprivate storeに保持し、共有review UIはloopback read-onlyでgate metadataを先に表示し、選択時だけ許可済みtrace artifactを取得します。
+最初のcase candidateはEnglish blog article draftのidentity `C: FAIL` / mandatory CTA `PASS` / `blocked-before-publication`の組み合わせです。人手labelはpendingで、false positiveとはまだ呼びません。詳細とlimitations → [Writer EDD trace discovery](../../evals/writer-edd-trace-discovery.md)。raw traceはprivate storeに保持します。prototype review UIはrepo外のlocal artifactで、`127.0.0.1`だけにbindし、明示allowlistのGETだけを提供します。reviewerが表示ボタンを押したartifactだけを読み、POST/PUTと外部通信は拒否します。注釈はbrowserの`localStorage`に保存します。
 
 このcheckpointはpreworkであり、統一SSOTのE01 current cursorも収益優先順も変更しません。
 
@@ -42,7 +42,7 @@ Pilot AのstageはEnglish article draftの公開前quality gateに絞ります�
 
 | 候補 | 選ぶ理由・外す理由 |
 |---|---|
-| **Writer（採用）** | quality gate、hash-bound run artifacts、bounded recovery、baseline/candidate比較がある。7 jobすべてを対象にせず、一記事の公開前sliceなら外部公開を行わずに反復できる。金融・費用adapterは部分実装なので、収益は未証明として別採点する。 |
+| **Writer（採用）** | quality gate、article bytesに結び付くgate receipts、bounded recoveryがあり、一記事の公開前sliceを外部effectなしで調べられる。自然runでsource commitが記録されるという意味ではない。今回の8 natural runは全て`harness_git_hash=UNKNOWN`で、source-level reproductionは未達。金融・費用adapterは部分実装なので、収益は未証明として別採点する。 |
 | Agent Economy | 収益・金融・費用adapterはcatalog上実装済みで、金銭評価の有力候補。ただし19 jobと複数のx402/TaskMarket ownerを含み、最新の優先順ではTaskMarketの外部報酬証明が後段にある。最初の方法検証には広すぎる。 |
 | PromptBase | 1 jobで小さく見えるが、金融・費用adapterが未実装で、seller/browser経路にも未解決境界がある。 |
 | Connector | 1 jobでreceiptが明瞭だが、catalog上non-economic。仕事の完了evalには向くが、今回の収益benchmarkの初手には選ばない。 |
