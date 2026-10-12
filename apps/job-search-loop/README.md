@@ -86,9 +86,8 @@ receipt is read back from the employer.
 | `ai.anicca.job-search-daily` | every 30 minutes (`StartInterval=1800`) | bounded browser-lane agent |
 | `ai.anicca.job-search-inbox` | every 15 minutes | deterministic Gmail and prep preflight; Terra composition agent only for new recruiting work or pending prep generation |
 
-The current local deployment uses launchd and is designed so the same drivers and
-SQLite contracts can later be invoked by Life Manager without changing application
-semantics.
+The current local deployment uses launchd. The same drivers and SQLite contracts
+can later be hosted without changing application semantics.
 
 The daily owner connects to the dedicated persistent CloakBrowser CDP endpoint. It
 does not launch a duplicate browser. The driver reserves a bounded
@@ -103,7 +102,7 @@ unlimited loop.
 | Private profile | `~/.config/anicca/job-search/profile.json` |
 | Strategy | `config/strategy.default.json` |
 | Ledger | `~/.local/state/anicca/job-search/ledger.sqlite3` |
-| Life Manager read projection | `~/.local/state/anicca/job-search/summary.v2.json` |
+| Daily summary projection | `~/.local/state/anicca/job-search/summary.v2.json` |
 | Interview prep state | `~/.local/state/anicca/job-search/interview-prep.sqlite3` |
 | Evidence | `~/.local/state/anicca/job-search/evidence/` |
 | Materials | `~/.local/share/anicca/job-search/materials/` |
@@ -120,7 +119,7 @@ unlimited loop.
 ## Operations
 
 ```bash
-cd /path/to/life-manager/apps/job-search-loop
+cd /path/to/job-hunter-source/apps/job-search-loop
 python3 -m unittest discover -s tests -v
 zsh scripts/install-launchd.sh
 zsh scripts/healthcheck.sh
@@ -158,8 +157,8 @@ For recovery or development from an existing checkout:
 The private directories are `0700`; profile, install and connector receipts are
 `0600`. Setup never infers nationality, visa, work authorization or other legal
 facts. Existing profiles are reused and cannot be overwritten implicitly. The
-public Workday install uses only this Life Manager checkout and does not clone a
-second Job Hunter framework repository.
+public Workday install uses this source checkout and does not clone a second Job
+Hunter framework repository.
 
 ### Reproducible release artifact
 
@@ -266,7 +265,7 @@ and hashed private logs. Submission follows
 | Resident learning | A launchd/systemd weekly driver creates the bounded threshold candidate, replays the held-out safety manifest, deterministically selects baseline/candidate by stable job key, and persists every execution and decision receipt |
 | Promotion gate | Baseline stays active until both arms have at least 10 resolved applications and the candidate Wilson 95% lower bound exceeds the baseline upper bound; safety violations or three consecutive candidate failures roll back immediately |
 | Self-healing | launchd restarts, browser ownership evidence, multi-provider discovery, fenced side effects, bounded recovery and content-addressed report correction |
-| Not yet complete | Guardian remediation, lifecycle closure, real confirmed Ashby/Workday and learning-conversion samples, `summary.v2`, and Life Manager Career UI |
+| Not yet complete | Guardian remediation, lifecycle closure, real confirmed Ashby/Workday and learning-conversion samples, `summary.v2`, and the end-user career dashboard |
 
 Ashby discovery shares the scheduled acquisition owner and browser model with
 Workday. The existing ATS cache seeds official board identities; only fresh API
