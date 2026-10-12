@@ -8,7 +8,8 @@
 #
 # aniccaai.com is the site for everything Life Manager ships (Dais 2026-10-08); the article goes
 # through the Writer's landing checkout exactly like capafy-distribute-daily. article_daily.py
-# owns its slot hours (9/12/15/18/21 JST) and its per-slot ledger (article-ledger.json).
+# article_daily.py owns 15 eligible JST slots (two attempts each) while an on-sale set lacks a page;
+# after all are covered, it rotates one article daily at noon.
 set -uo pipefail
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$HOME/.local/bin:$PATH"
 
