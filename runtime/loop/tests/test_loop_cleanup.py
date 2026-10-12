@@ -781,6 +781,29 @@ class LoopCleanupTest(unittest.TestCase):
             self.assertTrue(runs["run-3"].is_dir())
             self.assertEqual((result["removed"], result["preserved"]), (1, 2))
 
+    def test_scratch_gc_preserves_terminal_recorded_unknown_effect_until_reconciled(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            run = root / "loop-tmp/publish/run-unknown"
+            run.mkdir(parents=True)
+            (run / ".owner.json").write_text(json.dumps({
+                "pid": 11, "process_start": "old-start", "effect_class": "publish",
+            }))
+            (run / "intermediate.png").write_bytes(b"pending provider evidence")
+            (root / "events.jsonl").write_text(json.dumps({
+                "loop_id": "publish", "run_id": "run-unknown", "phase": "report",
+                "status": "pass", "effect_class": "publish", "effect_status": "unknown",
+                "occurrence_id": "publish:run-unknown", "release_sha": "a" * 40,
+            }) + "\n")
+
+            result = scratch_gc(
+                {root}, snapshot_started_ns=time.time_ns() + 1, starts={},
+                reconciled_occurrences=set(),
+            )
+
+            self.assertTrue(run.is_dir())
+            self.assertEqual((result["removed"], result["preserved"]), (0, 1))
+
     def test_scratch_gc_reclaims_exactly_reconciled_terminal_scratch(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
