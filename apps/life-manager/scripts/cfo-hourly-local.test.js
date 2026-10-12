@@ -465,7 +465,7 @@ test("B7 pending retry reuses the frozen Moneytree report without recollecting",
   await assert.rejects(runResultCfo(options), /cfo_provider_receipt_missing/);
   assert.match(messages[0].message, /個人 Moneytree/);
   const retried = await runResultCfo({
-    ...options, occurrenceId: "life-manager-cfo-hourly:personal-run-2", now: "2026-10-07T09:00:00.000Z",
+    ...options, occurrenceId: "life-manager-cfo-hourly:personal-run-2", now: "2026-10-07T08:05:00.000Z",
   });
 
   assert.equal(retried.status, "sent");
