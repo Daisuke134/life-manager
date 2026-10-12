@@ -26,7 +26,7 @@
 
 原則を一次資料で照合済み: Chrome headlessは通常Chromeと機能を共有（https://developer.chrome.com/docs/automation-and-testing/headless）、Playwright BrowserContextは互換なbrowser内で隔離再利用可能（https://playwright.dev/docs/browser-contexts）、Temporalは負荷別分離・実資源に合わせたworker調整/scaleを推奨（https://docs.temporal.io/best-practices/worker）。これを既存Life Managerへ適用し、Temporal/Kubernetes等の新基盤導入を現在の追加gateにしない。全実装がbest practiceに完全一致したという認証や、有限hardware/外部providerを含む永久ゼロ故障は主張しない。
 
-primaryは開発者Codex/Claudeと本番18業務agentを区別する。現役の独立修正担当は止めず、agmsg roster・実liveness・lease・成果物を確認して再利用する。新しい10/20/30開発sessionの一斉起動は現時点では実施しない。再開/増員は、対象仕事のRAM/disk peakと保存先、自然な終了→receipt→自己/中央cleanup→次仕事、予約/lock返却の実測から余裕と進行を確認できた時、primaryが重複しない責任範囲で段階的に行う。全18の修正済みを開発再開の前提にせず、未知effectの安全境界を持つ独立したsource修正/照合作業は基盤修復中も進める。Codex一時subagentの環境2枠を業務agentの数と混同しない。「1分で18全部完了」や20session起動自体を成果へ置換せず、各laneの公式成果条件で閉じる。
+primaryは開発者Codex/Claudeと本番18業務agentを区別する。Daisの明示指示でAGMSG team lmへ9 fresh Codex担当（Cloud/cleanup/投資/LINE/CFO/Mobile/Job Hunter/Gig/eBook）を起動する。各lane内は一人でserial、独立laneは並行し、既存live担当・lease・worktree・provider effectとの重複を避ける。primary lm-orchestrator-1012が共有release・資源調整・全体SSOT・統合を所有し、ClaudeのCapafy所有を保持する。旧handoverの完了状態を再実装せずfresh readbackで差分を確定する。初回goal packetと所有境界はdocs/superpowers/dispatch/2026-10-12を参照（実行TODO/状態の正本は本SSOTのみ）。起動・着手・完了を分けてreadbackし、登録だけで稼働/成果を主張しない。
 
 **全体architectureの判断とAs-Is/To-Be:** 18 agentは18業務capabilityであり、190の小さいjobがそれぞれのcadenceで実装する。最善の進め方は既存のdurable state/effect/receiptと、常時監督＋有限worker＋優先度/経過時間を扱うadmissionを土台に、実資源・業務進行から配分を調整することである。FIFOは同優先度の順序補助として使え、先頭の不適合/古い予約が全業務を止めるgateにしない。固定2/5/10は現設定であり、達成目標や永久の適正値ではない。開始時刻/時差/周期の分散はburstを減らすが、仕事の長期化/再試行/保存先共有があるため衝突や容量問題が無い証明にならない。
 
@@ -221,7 +221,67 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 
 **各atomの記録:** 状態、実施変更、検証command/result、run/owner/occurrence/release SHA、effect/readback/provider receipt、evidence参照、error_class、retryable、next_actionを残す。共有資源修復Doneと各laneの業務成果Doneを分離し、未達をpartialのまま明示する。
 
+### 全体の完走順 — 業務修復から自律的な新agent生成まで
+
+現在地はF01/F03/F04。既存cleanup BF15は受入済み、全18業務の本番完了/収益/遅延ゼロは未証明。PR #7714はexact-head 4492292ee1 CI全PASS/68関連tests/限定金融review finding修復後、main 0a6cc55cd9a8fcc306efa4259ceed5c7816b036eへ統合済み。残りは通常immutable/対象owner採用・自然B7/公式receipt/replay-zero。PromptBase/WriterのAGMSG専任は実goal着手確認済み、Job Hunter/LINE/CapafyのDais担当と重複させない。
+
+順序変更: 旧=全18業務/収益laneの受入後にS15→S16→S17→S18。新=既存基盤修正の本番採用→18業務の修復と公式会計を並行→必要な自然障害/公式receiptが揃った範囲で自己修復・評価・benchmark→凍結評価器で自己改善→新agent factory→portable OSS/外部再現→継続収益拡大。理由: 未達MRR・外部審査・将来slotを自己修復や既存商品の販売開始の前提にすると無期限待機になる。依存のないlaneは並行、各lane/共有provider/releaseのmutationはserial。原goalの全18成果/各lane目標/全社US$10M月のDone条件は縮めない。
+
+| ID | 順番・一つの操作 | 完了証拠/境界 |
+|---|---|---|
+| F01 | mainの既存修正を、旧guard等が残るeligible ownerへ採用 | immutable/loaded argv/SHA、running/unknownの保持理由。無断rebind/解除なし |
+| F02 | 自然な仕事→receipt→自己/中央cleanup→次仕事を照合 | ENOSPC/破損/手動掃除依存なし。容量固定値・永久無故障保証にしない |
+| F03 | 18業務を既存担当/専任へ割り当て、既存PRを先に照合して残件修復 | source acceptance/必要review/exact-head CI/main。重複実装なし |
+| F04 | 各laneの最小実仕事を自然実行して公式結果へ結ぶ | 投稿/応募/納品/注文等のexact receipt、replay/duplicate-zero |
+| M01 | 契約platformごとの公式売上履歴/明細/利用可能CSVを取得 | 受注/納品/予定売上をsettled revenueと数えない。完全period/pagination |
+| M02 | 案件/注文→payment→fee/refundをunique IDでjoin | Coconala/Lancers/CrowdWorks等を同じCFO契約へ。集計残高だけで帰属しない |
+| M03 | 売上確定・出金可能・payout・銀行着金を別々に照合 | 同じpayoutを売上へ再加算しない。未確認を0にしない。今回資金移動なし |
+| M04 | model/system/cloud/tool/広告/納品の公式実費を帰属させる | billedとcash paidを分離、period/currency一致、共有費配賦・coverage保持 |
+| M05 | 月初〜現在の18業務/会社の売上・返金・fee・費用・net・MRRを報告 | lifetime/trailing30日を当月へ置換しない。単発売上をMRRにしない |
+| H01 | 自然な失敗を既存recovery-intent/supervisorへ結ぶ | exact owner/run/occurrence/release/error/次手 |
+| H02 | effect不明を公式照合し、再送なしで安全な復旧を選ぶ | old fence/receipt保持、別仕事の独立進行、backoff/有限budget |
+| H03 | Life Manager自身のdev/repair経路が必要な最小code修復を実施 | intent→issue/PR→CI/main→immutable→次自然run/公式readback |
+| H04 | 自己修復の一連の因果を証明する | 外部Codexの手動修正やsupervisor単独PASSをLM自身の修復としない |
+| E01 | selfEvalの欠測net→0をfail-closedへ修復 | unknown/不正金額がDEAD/利益/ゼロへ誤変換されないRED/GREEN |
+| E02 | recovery/economic evalを自然障害とCFOの公式receiptへ接続 | task success/effect integrity/settled net/cost/latency/介入を別採点 |
+| E03 | LM-EABの自然失敗・境界・実経済task familyを増やす | 権利/匿名化/PII除去。現在4 synthetic casesは契約の足場、実性能ではない |
+| E04 | case/runner/grader/baselineをversion/hashで凍結 | public/dev/held-out/challenge分離、grader較正/複数trial/不確かさ/汚染監査 |
+| E05 | 既存runnerへ他harness adapterを接続し外部再現を確認 | 新framework先行導入なし、独立実行で同versionの結果を再現 |
+| E06 | benchmark報告・task作成方法・限界を公開 | 先行研究比較、世界初/leadingを未実証で主張しない |
+| I01 | prompt/tool/routing/offer等の候補を一度に一変更生成 | grader/dataset/policy/identity/権限/fence/spend capを書き換えない |
+| I02 | frozen baselineと同条件で候補を比較 | 品質・安全・費用込みnetの事前条件。fixture scoreを売上としない |
+| I03 | 合格候補だけ小さく本番canaryへ昇格 | 自然run/公式receipt/CFO、悪化・未知悪影響はsourceをrollbackしeffect保持 |
+| I04 | 観測→候補→評価→採用/rollbackを反復 | 成功を自分で採点しない、保存量/予算/介入を有限に保つ |
+| N01 | 既存成果と市場の未充足需要から次の一agentを選ぶ | 売れる型/顧客需要/priceと実費の仮説。agent数増加を成果にしない |
+| N02 | 既存loop-development契約でgoal/owner/資源/identity/会計/cleanupを作る | 同一registryとCFO契約、必要権限・spend cap、他ownerと非重複 |
+| N03 | 最小agentをtest/CI/main/immutable/自然仕事へ進める | scaffold/模擬売上をDoneにせずsignup→提供→公式結果を確認 |
+| N04 | 実顧客の購入→納品→settlement/refund/fee/全実費を閉じる | 最初の正net unit、自己購入・owner deposit・未settled額を除外 |
+| N05 | 正net unitだけ繰返し・拡大し、不採算は改善/終了 | 再現可能な利益/顧客価値/安定稼働をCFOへ戻す |
+| O01 | README/CLI/install/doctor/setup/start/reportをportableにする | private path/credential依存なし、未設定はsetup_requiredと正直に示す |
+| O02 | 新利用者環境で初回設定から実仕事/公式会計まで通す | 少数command、正規provider手続き、秘密/tenant/state分離 |
+| O03 | 外部利用者の再現・benchmark・限界・貢献方法を公開 | one-shot onboarding以後の介入を測る。誰でも百万長者を保証しない |
+| G01 | 各laneの原収益目標と会社全体US$10M/月へ継続改善 | active recurring契約/公式settlement/refund/fee/実費、全scopeを維持 |
+
+**Coconalaの公式売上源:** https://coconala.com/smartphone/users/revenue はログインが必要で、今回public crawlではlogin画面まで。金額は未確認。公式案内 https://coconala.com/pages/guide_sell と https://help.coconala.com/hc/ja/articles/218179958-売上金の反映されるタイミング では、購入者決済はcloseまで預かり、close後に売上反映、販売手数料控除、payout/銀行振込は別段階。M01–05で他契約platformもそれぞれの公式売上/fee/refund/payoutを同案件ID・periodへjoinする。既存skills/cfo/adapters/marketplace.pyはpayment/fee/refund/payout_match/pending receipt対応、aggregate-onlyはgapなので再実装せず公式捕捉とjoinを埋める。LM-EABはapps/life-manager/eval/economic-autonomyにrecords/score/runnerと4 cases（tuning2/held-out2）まで存在、H/E/I/N/O/Gの実成果は未完。
+
 ### 基盤だけのatomic TODO（現在の実行表）
+
+**9担当の起動cursor:** goal packet保存/commit/push→AGMSG fresh spawnを各担当へ実行→実session/最初のworking readback→所有確認→各lane先頭atom。本cohortは新しい開発担当であり本番業務loopの重複起動ではない。CFOは指定WT/PR #7714を引き継ぎ、primaryは同source編集を止める。cleanup BF15は受入済みなので、新たな実測漏れ以外を未完へ戻さない。旧11GiB条件は現ユーザー方針で診断値へ変更済み。世界初/無停止/誰でも百万長者は未実証の目標とし、公式成果なしに公開claim/Doneへしない。
+
+**起動方式の比較atom:** native subagentはCFO nlink1の限定修正を実行。AGMSG1.5.1はplain spawnでinvalid owner start time、tmux spawnはlaunched-unconfirmed、既存hooks review modalでtask未着手を確認。15 native同時実行は当threadの提供枠2（primary込み）では実行できない。まずAGMSGのfresh1 sessionへ読み取り専用PR triageを渡し、Codexの公式CLI --disable hooksをこのprobeだけに指定して未承認hookを実行しない。model/approval/sandbox/global configは変更せず、repo instructionsとnative権限制御は保持する。成功は実task readbackとAGMSG返答、登録だけではない。不具合はversion/最小再現/期待・実測を公開issueへ記録する。
+
+**比較の実測結果と次cursor:** 標準subagent native_cfo_one_fixはCFO archive nlink1の修正をRED→GREEN、Node関連68 tests PASS、commit b715addc96bb0bcf41ff8c2686bf1ede2776e69eをpush、PR #7714 head一致を確認。旧headのCIを新headへ流用せず、Security Scan workflow_dispatch run38193641859/head b715addcを発行して進行中。AGMSG fresh lm-spawn-probe-1012はtmux/このprobeだけhooks非実行の設定で実task開始→PR #7725/#7688/#7666公式readback→primary inboxへ3報告を返し完了。三PRはOPEN/Draft/表示CI PASSだが、PromptBaseはbrowser/session・uncertain occurrence、Writerは未反映/既存suite failures、Connectorはowner調整/browser timeoutの本番未検証を残す。mergeだけで18業務Doneへしない。AGMSG1.5.1 plain driverのowner start-time不具合は公式issue https://github.com/fujibee/agmsg/issues/1591 へsanitized再現を報告（最新1.5.3での再現は未検証）。使い分けは短い限定修正=native、継続独立lane=AGMSG。現在確認済みのcleanup BF15を汎用未完へ戻さず、残る共通運用は新sourceのCI/main→main-derived release/loaded SHA→自然仕事/公式receipt/replay-zero。18全部の遅延ゼロ/無故障は未証明、固定時間の永続保証にしない。
+
+**現在の担当・今月収益cursor:** Daisの既存Codex Job Hunter/LINE/Capafy担当を維持し重複しない。PromptBase/Writerを新しいAGMSG専任として起動する。Capafy最新official reconcile observed2026-10-12T01:09:12Zは累計orders70/gross102.75USD/creator earnings76.18USD/paid_out0、月別売上・費用込みnet・MRRは未確認。PromptBase sales0/net0は2026-10-08T19:20:44Zの保存値で現在月の証明ではない。LINE observed2026-10-11T15:29:45Zのdistribution表示期間は2025-12、productsにはsales0とnullが混在し、2026-10月の完全売上へ置換しない。CFO保存snapshotは2026-10-10T21:01:34Z/trailing start2026-09-10、company historical/trailing/MRR unknown、通知pendingであり今月全18報告は未完。fresh fleet readbackのhf-gig-reply-detectorは2026-10-12T02:09:03Z/loaded cecffc9bのdisk_headroom_low延期、ceo-runnerは旧361ed0の履歴延期。BF15受入済みを全18無停止保証へ置換せず、fresh Gigのloaded guard/argv/env/資源観測を先頭の共通運用診断として確認する。全18の月初から現在の公式period収益/返金/fees/実費をjoinするまでunknownを保持する。
+
+**担当更新:** Job Hunterの実担当はAGMSG lm-job-hunter-1012、指定WT job-hunter-dreamwork-submit-20261011/branch fix/job-hunter-current-salary-option-20261012。最新版goalは無料OSS、Workday/Ashby等の公式ATS・事実resume・同求人receipt/replay-zero、個人事実/資格/報酬/就労資格非推測、必須情報不足は非開示/辞退optionまたはその行not_submittedでqueue継続。旧Dreamwork中心handoverを優先しない。primaryから担当確認のAGMSGを送信済み。LINEはDaisの既存Codexを維持。旧primary-spawn lm-job-goal-1012/lm-line-goal-1012のforce despawnはruntime_error/未確認なので停止済みと報告しない。旧boot packetを取消指示へ置換して重複着手を防ぐ。CapafyはDaisがfresh Codexを開きlm-capafy-1012としてteam lmへ参加可能、旧Capafy writer停止/lease確認後に専任引継ぎ。PromptBase/WriterはAGMSG専任がgoal active/実作業開始と初回inbox報告を確認済み。
+
+**PromptBase専用browser境界:** primaryがbrowsers.tomlへpromptbase:daisだけを正規登録、profile=~/.local/state/anicca/promptbase/browser-profile（.cloak外）、owner=promptbase-loop-daily、launcherは既存ensure_provision_browser、portはDevToolsActivePortで解決する。既存identity/profile/token/vaultは変更しない。PB担当は通常guard/launcher/安全preflightを使いsource/browser/sessionを自分の範囲でserialに扱う。今回のphone/Apple-store/interactive:dais禁止が旧handover/skillのphone・Keychain手順より優先する。未確認accountを増やさず既存sellerへ正規loginし、credentialはprivate SSOTだけ。
+
+
+
+
+
 
 当面の対象はこの表だけ。下の全社130工程は将来の参照ロードマップであり、いま全社工程へ拡大しない。既存の「cleanup残3大分類」は本表の親分類で、進捗報告はBF-ID単位で完了証拠を示す。毎分watchdog、共通bounded出力/代表自己cleanup、Gig閉鎖物回収/再開、予約expiry順序、scratch通常file誤判定、backup失敗伝播と自然保存/対象claim返却は確認済みで、残項目へ戻さない。
 
@@ -985,7 +1045,7 @@ P1の枠回復はCLEAN-05の生存/待ち境界として扱う。既存S06〜S18
 
 **「24/7 forever」の契約:** 各agentの自己後始末と中央cleanupを通常の実行lifecycleに組み込み、不要物の増加を生成側と回収側の両方で制御する。監督・待ち行列・復旧は常時動き、各仕事は有限の予算で実行・記録・片付け・次の仕事へ進む。ディスク圧迫を早期に自己所有の修復へつなげ、短期待機後に自動再開し、全収益loopを永久待機させない。正式state/receiptの成長には既存の許可・spend cap内で容量/保存先を計画し、障害になるまで放置しない。ほかのagentと業務loopの並列稼働を維持し、本sessionの改善は一件ずつ行う。保護データ削除、新framework、反復reviewで代用しない。
 
-**実行順:** P0→P1を全lane共通の先行条件にする。その後、別ownerの独立laneはshared state/worktree/effectが重ならない範囲で並行して進め、各lane内では既存cursor順を守る。S01〜S14は収益laneの一覧であり、全laneを番号順に直列化しない。このprimaryのGig担当はP0/P1後にS10/T7 item 2から再開し、別ownerのS06〜S09完了を待たない。CFO S07はCFO ownerの範囲として重複実装せず、公式receiptはGigのsettled net/evalに使う。全S01〜S14の受入後にS15自己修復→S16評価→S17自己改善→S18 OSSへ進む。外部gate/未来slotで止まるatomは証拠と戻るcursorを記録して、別の独立safe atomだけを進める。18 agent全greenやJob Hunter entitlement/投資30自然round tripsを、独立した既存商品の販売開始gateにしない。cleanupの現在cursor・順序・完了済みは →「cleanupの残TODO — 完了済みを除いた実行順」。
+**実行順:** P0→P1を全lane共通の先行条件にする。その後、別ownerの独立laneはshared state/worktree/effectが重ならない範囲で並行して進め、各lane内では既存cursor順を守る。S01〜S14は収益laneの一覧であり、全laneを番号順に直列化しない。このprimaryのGig担当はP0/P1後にS10/T7 item 2から再開し、別ownerのS06〜S09完了を待たない。CFO S07はCFO ownerの範囲として重複実装せず、公式receiptはGigのsettled net/evalに使う。全体のactive順序は「全体の完走順 — 業務修復から自律的な新agent生成まで」を正本とする。自然障害/公式receipt等の依存が揃ったscopeでS15〜S18を進め、未達MRRを実装開始gateにしない。外部gate/未来slotで止まるatomは証拠と戻るcursorを記録して、別の独立safe atomだけを進める。18 agent全greenやJob Hunter entitlement/投資30自然round tripsを、独立した既存商品の販売開始gateにしない。cleanupの現在cursor・順序・完了済みは →「cleanupの残TODO — 完了済みを除いた実行順」。
 
 | 状態 | 順 | 次の一操作・対象 / 検証・DONE証拠 |
 |---|---|---|
@@ -1003,8 +1063,8 @@ P1の枠回復はCLEAN-05の生存/待ち境界として扱う。既存S06〜S18
 | 未完 | S12 | Job Hunter既存順でcapacity→MCP/readiness→Workday official effect照合→Dreamwork cutover、entitlementが許可するfit-qualified応募だけ実行。Free applicationsLimit0なら購入/bypassせず次のsafe atomへ。DONE=Tokyo/日本Remote/SF/visa条件を満たす公式応募receiptと業務Telegram readback |
 | 未完 | S13 | 投資#7373 checks/必要review/main→AT-13 fresh official no-order契約→自然qualified sell→初paper round tripのcost-complete P&L/replay-zero→30 round trips/strategy/cross-venue/AT-24/29/反対review。達成前live funding/orderなし。DONE=元のownerへsettled正net利益のAlpaca/銀行/CFO同period証明 |
 | 未完 | S14 | README残catalogのCapafy/Writer/PromptBase/Affiliate/Agent Economy/Connector/Fundraiser等をregistryへjoinし、既存§5.2と各lane cursorのsafe先頭atomを一件ずつ進める。DONE=自然owner/公式effect/費用/settlement/CFO coverage。登録やlistingだけを売上にしない |
-| 未完 | S15 | S01〜S14のloop/platform課題を進めた後、recovery-intent/supervisor/bridge→life-manager-devの既存経路で自然に起きた自己所有障害1件を修復する（§5.1 T5）。run/intent/issue/PR/release/次自然run/公式readback/replay-zeroをjoinする。外部coding agentの修正やsupervisorの単独PASSは自己修復の証拠にしない。production障害をわざと作らない |
-| 未完 | S16 | T14 LM-EAB（S01〜S14の受入後、S15自己修復実証後に開始）。順は①`selfEval`の欠測net→0をfail-closedへ直す（現行sourceで再確認済み）②recovery/economic evalを自然障害・CFO公式receiptへ接続③BehaviorBenchを含む既存benchmarkとの比較とtask taxonomyを確定④public/dev/held-out/challengeを分離したcase・task protocolを増やす⑤grader較正・反復試行・不確かさ・contamination auditを追加⑥既存runnerで外部adapterと独立再現を達成⑦report/authoring guideを公開する。新frameworkを先行導入しない |
+| 未完 | S15 | 必要な自然障害のowner/evidenceが揃ったscopeで、recovery-intent/supervisor/bridge→life-manager-devの既存経路で自然に起きた自己所有障害1件を修復する（§5.1 T5）。run/intent/issue/PR/release/次自然run/公式readback/replay-zeroをjoinする。外部coding agentの修正やsupervisorの単独PASSは自己修復の証拠にしない。production障害をわざと作らない |
+| 未完 | S16 | T14 LM-EAB（必要な自然障害/公式receiptを入力に段階実装し、18業務の収益成長と並行）。順は①`selfEval`の欠測net→0をfail-closedへ直す（現行sourceで再確認済み）②recovery/economic evalを自然障害・CFO公式receiptへ接続③BehaviorBenchを含む既存benchmarkとの比較とtask taxonomyを確定④public/dev/held-out/challengeを分離したcase・task protocolを増やす⑤grader較正・反復試行・不確かさ・contamination auditを追加⑥既存runnerで外部adapterと独立再現を達成⑦report/authoring guideを公開する。新frameworkを先行導入しない |
 | 未完 | S17 | S16でversion固定したevaluatorを使い、prompt/tool/routing/offer等の候補を一度に一変更だけ評価する。事前定義した品質・安全・settled net条件を通したcanaryだけ昇格し、悪化時は自動rollback。候補はgrader/dataset/policy/identity/権限/fence/spend capを書き換えない。benchmark scoreだけで販売成功とせず自然run・公式receiptへjoinする。選定済OpenClaw+native CodexのMX-01〜12は既存計画の最小waveを一件ずつ進め、framework比較を再開しない |
 | 未完 | S18 | README/LICENSE/install.sh/catalogのpublic・MIT現状を保ち、未完成guided installer/tenant adapterを1 agentずつ完成。隔離した新利用者環境でinstall.sh plan→doctor→setup_required/選択ownerを確認し、個人path/credential/private app依存を除く。既存価格の継続商品で下記MRR段階を実測し、US$10Mと全lane成果の両方を公式CFOで確認するまで継続 |
 
@@ -1814,7 +1874,7 @@ TODO（何を・どう直すか）
 | L26 | LINE Creators Market の「特集」企画に自動参加する（上位作者は特集に乗ってストアバナー/LINE公式での無料露出を得ている。既存は selector が `campaign_value` を常に null にして不参加固定） | DONE: 新規 `features_readback.py` が `line-creators:dais` で既存アイテムの編集ページ（`/sticker/<id>/update`）の特集ラジオ共有グループ（`value="on"`＝参加しない、実測 2026-10-08）を読み、各選択肢のタイトルを `/announce/` のお知らせ一覧とタイトル部分一致で突き合わせ、その記事本文（個数・金額・条件）を `conditions` として `~/.local/state/life-manager/line-sticker/features.json` に書く。既存の毎時 `line-sticker-readback-hourly`（`line-sticker-readback.sh`）が1行追加で呼ぶが、`features.json` の `observed_at`（JST日付）で自己ゲートし実質1日1回。`line_sticker_planner.selector` のプロンプト手順8を「不参加固定」から「open な特集一覧＋条件をモデルに渡し、今回のセットが条件を満たす特集が1つでもあればその value を選ぶ、なければ null」に変更、返ってきた `campaign_value` は決定的ガード `_guard_campaign_value`（features.json の open 一覧に無い値・期限切れは null）を通す。`line_sticker_submit._select_taste_character_campaign` は既存のまま（`campaign_value` の値を持つラジオを選択、null/未知は `"on"`=不参加）で対応済みを確認。テスト `tests/test_features_readback.py`（ラジオ labelのパース・お知らせ一致・自己ゲート）、`tests/test_line_sticker_planner.py` 追加分（guard・open_features フィルタ・プロンプトに特集が入ること）、`tests/test_line_sticker_submit_title.py` 追加分（特集 value のラジオを確実に選ぶこと）含め全 green。2026-10-08 実測の公開中特集: 799 そんな時もある！ネガティブ表現スタンプ、806 使いやすい！気づかいスタンプ（弊社の24枚動くセットはスタンプ枚数条件で過去に不採用)、811 秋を感じるスタンプ（受付〜10/19）、820 犬の日 スタンプ（受付〜11/16）、835 冬を感じるスタンプ（受付10/2〜12/4、新規キャラ限定・8〜40枚・¥190以上・冬関連8枚以上） |
 | L27 | 上位セラーを継続的に写す（新規 `market.py`。10 セット申請・4 販売中・売上¥0 のまま、planner が market 調査を一度も見ていなかった） | DONE: `skills/earn/line-sticker/market.py` が LINE STORE `top_creators`（全件+動く系 `category=2000`）・`new_creators` を login 不要の HTTP GET で毎日読み（`market.json` の `observed_at` で自己ゲート、`line-sticker-readback.sh` から `sales_readback.py` の直後に1行追加で呼ぶ）、上位 40 件を product_id 順に dedup して各商品ページの schema.org JSON-LD（title/description/price/author）とスタンプ一覧の `data-preview` type（static/animated/popup・枚数）を抽出、著者ページで著者のシリーズ本数（`author_sets`）も記録。上位 15 件だけ `agent_runner.py` にサムネイルを渡し文字有無・テーマ・画風・フレーズを分類。`line_sticker_planner._build_plan_prompt` は market 上位 15 件を見せ、`copy_target`（商品URL・テーマ・フレーズ・表現スタイル・文字有無・タイトルの型）を plan.schema.json の必須フィールドに追加（他者のキャラ・絵・文字の複製は禁止、企画パターンだけ写す）。市場が静止/文字入り中心なら `format_gap` に記録（別 TODO、今回は着手しない）。2026-10-08 実測スイープ（40件、分類なしの dry-run）: フォーマット static 24 / animated 15 / popup 1、価格帯 ¥190（静止の大半）〜¥250（動く系の大半）、上位は例外なく既存キャラの多セット展開（例: ナガノ34セット、動画工房36セット）。テスト: `tests/test_market.py`（新規、HTML fixture ベース・ネットワーク無し）+ `tests/test_line_sticker_planner.py`/`tests/test_factory.py` 追加分、全 green。`./bin/lm-loop-contract` PASS |
 
-#### 5.L 現状スナップショット（2026-10-11 11:07 JST、実測。行の追記ではなくここを書き換える）
+#### 5.L 前回スナップショット（2026-10-11 11:07 JST、履歴。現状は以下の2026-10-12更新を参照）
 
 | 項目 | 値 | 根拠 |
 |---|---|---|
@@ -1828,9 +1888,23 @@ TODO（何を・どう直すか）
 | 工場 | 15 分おきに起動。`resource_class=deterministic`（#7262）。40 枚計画（#7222）、超過は切り詰め（#7231）、画像段 60 分予算（#7225） | 行 11・13 |
 | 主なボトルネック | **ディスク**。10/09 は空き 120〜200MiB で、sell ループ（13:36 は投稿成功後に記録だけ ENOSPC、15:36 は storage_write_failed_pre_effect）・照合・ブラウザ lease 回収・工場が繰り返し落ちた。15:40 に GitHub main に完全に含まれる・未コミットなし・プロセスなし・直近操作なしの worktree 14 個を除去（ブランチは保持）して一時的に空き約 1.8GiB、数分で再び満杯（書き手は未特定）。原因の一つ = ENOSPC で git fetch が途中失敗しローカル origin/main が古く、worktree が ahead=数百と誤判定されていた（GitHub compare で確認）。残る大物 = Codex 会話記録 ~/.codex-acct2/sessions/2026/10/01〜05（約 4.3GB、削除・圧縮は auto mode が拒否、Dais の明示判断待ち）。host の agent 枠（上限 2）は案件系が多く使う | 行 10・11、本日の実測 **10/10 00:40 JST 定時確認**: (a) 集客は人手なしで稼働 = Instagram 10/09 17:15・20:15・22:45 枠と Threads 13:15・20:15 枠がすべて published。(b) 審査・売上の読み取りが 10/09 20:23 JST から全商品 browser_unavailable（invalid live lease）＝ディスク満杯で ~/.cloak/leases/line-creators_dais.lease が 0 バイトで残り、ガードが永久に BUSY 扱い。#7410 で共通ガードを修正（書き込み失敗時は削除、読めない記録は STALE 以上古ければ回収）、release aae7b14b を readback・factory・distribute に反映し、本番で 0 バイト記録の回収と acquire/release 成功を確認。(c) 工場は 10/09 10:35 JST の set-018 申請以降、毎回 host_admission_deferred:disk_headroom_low で見送り（空き約 1GiB、床 2GiB）。ディスク整理は別担当が実施中（Dais 10/09）。売上は 10/08 時点の ¥0 が最新 **10/10 01:41 JST**: ガード修正（#7410）後も readback ループ（priority=support）と工場は host_admission_deferred:disk_headroom_low で見送りのまま（空き約 750MiB）＝10/10 の審査行なし、本番 sales.json は 10/08 のまま。公式 /stats/sticker を一時 state-root で直接読取: 販売中 7・全商品 ¥0・振込可能額 ¥0、10/09 以降の販売開始なし。集客（Instagram・Threads）は revenue の低い床で稼働中 **10/10 17:05 JST 復旧**: ディスク整理（別担当）後、空き約 3.4GiB。残っていた 2 つの停止を解消: (1) 工場フェンス line-sticker-factory-hourly:18dcb6b21a37b478-64175（10/09 10:00 JST の set-018 申請実行）が照合で永久保留＝照合は no-effect しか証明できなかった。#7463 で『触ったセットが全て申請完了＋公式の状態あり』なら effected で閉じる道を追加（release 70759a48 を factory に反映）、受領 creators-market-readback:48172824:審査待ち で close。(2) 審査・売上の読み取りが 16:24 JST から needs_login＝LINE 側でセッション無効（保管庫の cookie 62 件を戻しても needs_login）。資格情報 SSOT の line-account で再ログイン（本人確認なし）、保管庫を dump し直し、売上読み取りで ok を確認。**販売中 7→11 商品**、売上 ¥0・振込可能額 ¥0 **10/11 11:07 JST**: 工場が 10/10 23:15 JST から再びフェンス（set-020 = 48219727 が images_uploaded・LINE 上は編集中で申請途中停止）。#7543 系の修正で『商品 ID があり LINE が編集中と表示』も effected で close（submit は記録済み item から再開）、release 0c8ae572 を factory に反映、受領 creators-market-readback:48219727:編集中 で close。売上 ¥0（公式 10/11 01:28 JST）、販売中 14、審査中 3。集客は Instagram 一時停止（Dais の電話への認証コード待ち）で Instagram・Threads とも 10/10 13:21 から停止 |
 
-#### 5.L 実行順（2026-10-08 Dais「1 つずつ最後まで」。この表が LINE スタンプの cursor の正本）
+#### 5.L 旧実行順表（2026-10-08 Dais「1 つずつ最後まで」の記録。現行TODO順は2026-10-12更新を正本とする）
 
-成功者の稼ぎ方（一次・準一次ソース）: LINE 公式 10 周年 累計 1,000 億円・上位 10 名平均 13.52 億円（9 割は月数百円）; ゲスくま（ITmedia 2015-12-28）「ランキング上位で一番使いやすいものに合わせて作る」「1 位を 10 週で月 100 万円」; urajo（本人 note）10 年量産＋シリーズ化で 2023-02 売上 37 万円・分配 22 万円、累計 1,000 万円超; ユニコブログ 猫×毎日使える言葉で初日 2.7 万円。共通点 = ①ランキングの型を写す ②1 キャラ量産・シリーズ ③絵より送りやすい言葉 ④発売直後に SNS で人を集める。静止の最低価格は 2026-07-01 から ¥190。
+##### 成功事例と配信戦略の調査（2026-10-12）
+
+| 事例・根拠 | 公開された実績／行動 | 移植する戦略 | 限界 |
+|---|---|---|---|
+| [森もり子・カメラのキタムラ取材（2014）](https://www.kitamura.jp/smahoto/use/handmade/details/79.html) | 「もっと私にかまってよ！」が3週連続1位・19万DL超。Twitterで恋愛の投稿に反応があったことから「面倒くさい彼女」の用途を企画し、日常会話で使う40表現を考えた | 既存フォロワーの反応から用途を選び、会話の場面を軸に商品化する。売り出し時は既存フォロワーへ届く面を使う | 2014年の黎明期の順位・DL実績。現在の競争環境や同じ成果を保証しない |
+| [Ryooma・本人の実績公開（2026）](https://note.com/ryooma0825/n/na7dd73dafbc5) | 2026-08-30時点のCreators Market画面として月売上¥186,832を本人が公開。本人も売上と受取分配額を区別。誰向けか・送る相手・使う場面を先に決め、実用フレーズと反応のあった商品の続編を重視 | 仕事・夫婦など具体的な相手と場面を1商品ごとに決め、発売後のSKU別反応を次の商品へ戻す | 売上額は本人公開。分配額・費用控除後利益ではなく、外部流入元を特定した事例でもない |
+| [mayurimu・LINE Creators Market公式取材（2024）](https://note.com/line_cm/n/n2ce39c1cf86a) | 10年活動、同じ「はぴきゃと」キャラクターを継続。季節商品が好評、過去の着せかえが4年後も人気と回答。X・LINE公式アカウント・YouTubeを運用 | キャラクター認知を積み上げ、季節テーマと長期販売商品を混ぜ、複数の自分の媒体から継続して知らせる | LINE公式の選抜インタビュー。売上・各媒体の流入数は非公開 |
+| [たきむらりゅう・くにのいあいこ・LINE Creators Market公式取材（2023）](https://note.com/line_cm/n/n7a5533b04a2c) | たきむらは日本で伸び悩んだ後に海外向け展開、Instagramで英語ハッシュタグを使い、商品によっては海外の反応が国内を上回ったと回答。くにのいは初期の1週間無料配布をきっかけに台湾で認知され、繁体字・現地文化に合わせた絵柄を展開 | 既存SKUの海外版を1地域ずつ試す。直訳で済ませず、言葉・絵柄・季節行事を現地向けに調整し、現地向けタグで届ける | 公式取材における本人談。無料配布は初期市場の歴史的事例で、現在の配布施策と同条件ではない |
+
+**市場規模の文脈:** LINEヤフーの10周年発表（2024-11）は、累計2,300万パッケージ・クリエイター750万人超と報告した。これは累計値であり現役出品数ではないが、出品だけで発見される前提を置けない背景になる。[公式発表](https://prtimes.jp/main/html/rd/p/000000852.000129774.html)
+
+**配信手段の一次資料:** [LINE公式の告知ガイド](https://note.com/line_cm/n/nba8e44fb94a2)は、販売ページ画像とURLだけでなく、4コマ・GIF・トーク画面での使用例、販売告知以外のキャラクター投稿、ファンへの案募集、継続投稿、特集開始時の公開を提案している。[LINE PRスタンプ](https://note.com/line_cm/n/n048756bddebb)は、既存の承認済み商品から8個を選び有料で50件以上の無料配布を行う手段。公式記事に1万パッケージ配布のbeta例はあるが、売上・獲得単価は示されないため、直接収益の成功証拠には数えず、費用と後続購入を測る有料実験候補として扱う。
+
+**推論（複数事例から移植する共通手順）:** ①作品を作る前に「誰から誰へ、何の会話で送るか」を決める → ②告知だけでなくキャラクターの小話・季節ネタ・GIF・実際のトーク例を定期配信する → ③投稿から正しい公式商品ページへ送る → ④特集開始日に露出を合わせる → ⑤反応・商品別売上・分配を読み、勝ったキャラクターと用途だけをシリーズ化する。模倣するのは流通経路・構成・検証方法であり、他者の絵・キャラクター・固有文言は複製しない。
+
 
 | 順 | ID | 1 つの作業 | 完了条件 | 状態 |
 |---|---|---|---|---|
@@ -1851,7 +1925,17 @@ TODO（何を・どう直すか）
 | 15 | L30 | **人手ゼロの集客 1: Threads レーン**（Dais 2026-10-09「友だちへの共有は再現できない。オープンソースにするので human loop なしで回ること」） | 既存の Instagram（@stardust_doubutsu、CloakBrowser identity instagram:capafy-provision）から Threads プロフィールを作り、sell ループが Instagram と同じ枠で Threads にも投稿、公式プロフィールで投稿を readback | 着手（10/09 17:40 JST）。実測: threads.com の @stardust_doubutsu はログイン画面へ転送＝Threads プロフィール未作成、画面に『Instagramでログイン』あり（新規パスワード・本人確認なしで作れる見込み、未確認）。既存の Threads 投稿部品は無し＝ no precedent（X 投稿部品 skills/x-repost・x-tweeter は他ブランドのアカウント用で、スタンプの客を混ぜない規則により流用しない）。手順: (1) Instagram ログインで Threads プロフィールを作成 (2) browser_reel_publish の形を写して Threads 投稿を実装（失敗テスト先行）(3) release→sell ループに反映→自然実行で投稿を readback **18:06 JST 進捗**: (1) Threads プロフィール作成済み（17:44、Instagram ログイン経由、公開、資格情報 SSOT に auth_method=instagram_sso で記録）。(2) #7388 で transport browser_threads（threads_publish.py）・アカウント（1 日 3 枠 08:15/13:15/20:15、購入リンクは 10/10 から本文に）・フェンス照合の Threads 一覧チェックを追加、release 198bd94d を sell ループに反映。投稿直前までの dry run は実画面で通過。(3) 初回の自然実行（17:51）は shared-unconfirmed、プロフィール 0 件のまま＝ダイアログが閉じた直後にタブを閉じてアップロードを打ち切った（Instagram と同じ失敗のクラス）。#7390 でタブを投稿が現れるまで開いたままにし、/tmp/threads-watch に画面を記録、release e7156bb4 を反映（17:56）。(4) 17:51 の試行で効果不明のフェンス → 19:06 以降に公式一覧で照合（予約済み）。**未証明: Threads への初投稿** **19:22 JST DONE（本番で証明）: Threads 初投稿が人手なしの自然実行で published**（https://www.threads.com/@stardust_doubutsu/post/DeRSHk_gQJT、台帳 stardust-doubutsu-threads-2026-10-09T04:15:00Z、公式プロフィールの投稿一覧は DeRSHk_gQJT の 1 件のみ＝重複なし）。途中で見つけて直した不具合: #7395（#7388 の照合スクリプトが python3 -I で threads_publish を import できず全フェンスが閉じられなかった、隔離モード起動テストを追加）。17:51 の試行のフェンスは公式一覧（IG 8 件全台帳・Threads 0 件）で close |
 | 16 | L31 | 人手ゼロの集客 2: スタンプ専用 X アカウント（日本の LINE スタンプ作家の定番は X の #LINEスタンプ、推測・未実測） | 専用 X を作成し、sell ループから毎日投稿・readback | 未着手。資格情報 SSOT にスタンプ用 X は無し（Instagram・Runware・Hugging Face のみ）。X の新規作成は電話番号確認が要る可能性が高い＝自動化の可否を先に実測（tier-a-bypass 等） **2026-10-09 18:20 JST 調査結果: このブラウザでは作らない。** 前例 = ig-account-create（Gmail 別名＋gog gmail で OTP、電話は Mac の SMS 転送が予備）を写す予定だったが、Instagram/Threads 用の CloakBrowser identity instagram:capafy-provision は Life Manager 共有の X @selawmqt にもログイン済み（x.com/home の Profile リンクで確認）。ここで X の新規登録を進めると共有アカウントのログインを壊し、スタンプの客を他ブランドに混ぜる規則にも反する。必要物 = X 専用の CloakBrowser identity（~/.config/ai/registry/browsers.toml は不可侵 store なので owner の追加が必要）。X の登録画面は電話・Google・Apple・メールの 4 経路（Arkose CAPTCHA の有無は未確認） |
 | 17 | L32 | **売れている個人作者を細部まで写す**（Dais 2026-10-10「the tiniest detail, copy copy copy」） | 写した各項目が工場の出力に入り、公式ストアで readback | 根拠 market.json（10/10 09:33、LINE 公式 top_creators/new_creators の上位 40）: 大型 IP（ちいかわ、作者 34〜36 セット）を除く個人作者 14 件の共通点 = (a) **同じ絵で文字あり/文字なしを別商品**（もちわさ日3(文字あり)、Trickcal Vol.3 No Text と トリッカルスタンプ③）＝原価ほぼ 0 で商品数 2 倍。文字ありが多数派（ラベル付き 15 件中 13）、当方の動くスタンプは文字なしのみ。(b) **短いタイトル = キャラ名＋番号**（もちにゃみ3、トリッカルスタンプ③、white paw Miyao 3）、当方は『動く！こむぎの甘えん坊スタンプ』型で長い。(c) 説明文 = 検索語の羅列（ジェスチャー/面白い/楽しい/笑顔/シュール/手書き/ゆるかわ/シンプル）またはキャラの一人称（わたくちはもちにゃみ！）。(d) 1 作者のセット数が多い（中央値 34、個人でも 4〜27）、当方は販売中 14。**実行順**: (1) 動くスタンプの『(文字あり)』版を既存セットから派生（24 個の動きにひとことを重ね別 SKU、新しい絵は作らない）→ (2) 新規セットのタイトルを『キャラ名＋番号』型に → (3) 静止の『文字なし』版 → (4) 説明文に検索語。各項目は失敗テスト→本番→公式ストアで readback **(1) DONE 本番投入（10/11 01:33 JST）**: #7533 で販売中の動くセットから『(文字あり)』版を $0 で派生（各スタンプの先頭タグを全コマに描画、タイミング・ループ維持、provenance 再封印）。販売中 set-012 で作り本番 validator が ready（最大 279KB）。release f78a2399 を factory に反映、set-020 の申請後から自動で作成 |
-| 18 | L33 | **Instagram・Threads 以外の人手ゼロ集客**（Dais 2026-10-11「Go distribute in other ways than ig and threads」） | 新しい経路で販売中スタンプへの導線が自然実行で公開され readback | 背景: Instagram が 10/10 13:21 JST から一時停止（電話の認証コード待ち）で、Instagram・Threads とも投稿停止。**実行順**: (1) aniccaai.com の記事を『記事の無い販売中セットを優先・1 日複数本』に拡張（既存 article_daily.py と capafy_free_article.py を流用、アカウント不要）→ (2) Bluesky（メール登録・公式 API 投稿。登録画面の CAPTCHA の種類を先に実測し、hCaptcha 等で人手が要るなら見送り）→ (3) Misskey 等の他経路は (2) の結果で判断 **10/11 11:50 JST 実測**: (1) #7597 で記事を 1 日 5 枠・記事の無いセット優先に拡張し release 8456a0a3 を反映したが、記事は sell ループの起動の中で走るため Instagram 停止のフェンスで止まる → 記事を専用ループ line-sticker-articles に切り出し中（兄弟 capafy-distribute-daily の照合部品を写す）。(2) Bluesky: bsky.social の describeServer が phoneVerificationRequired=true ＝電話コードが要る（Instagram と同じく Dais の電話）→ 見送り、Instagram のコードと一緒に依頼。スタンプ用ブラウザからは bsky.app が読み込めない（Mac 本体からは 200）。(3) misskey.io: /api/meta が disableRegistration=true（新規登録停止）→ 不可 **10/12 10:00 JST 本番投入**: #7716 で記事を専用ループ line-sticker-articles に分離（自前の state root・label・起動スクリプト、照合部品は capafy-distribute-daily の記事証明を写した article_fence_reconcile.py）、sell ループからは記事処理を削除。release b8a9ae97 を line-sticker-distribute に反映、新ラベルは apply（--loaded-idle-only なし）で plist を設置。最初の記事は 12 時台の予定（未 readback）。同日の別件: 工場は 09:47 JST に 127.0.0.1:9231（line-creators ブラウザ）への接続拒否で entrypoint_exit_1、10:00 時点でブラウザは復帰（/json/version 200） |
+| 18 | L33 | **Instagram・Threads 以外の人手ゼロ集客** | 新しい経路で販売中スタンプへの導線が自然実行で公開され readback | 10/11 の設計順は記事→Bluesky→Misskey。Bluesky は phoneVerificationRequired、Misskey は新規登録停止で見送り。10/12 10:00 JST に #7716 で記事を独立した `line-sticker-articles` loop に分離し、sell loop の Instagram/Threads 停止から独立させた。しかし初回due wake（10/12 11:05 JST）は `host_admission_deferred:resource_capacity_busy` で entrypoint 前に拒否され、新loopの公開記事ledgerはまだ0件。Instagram/Threads は電話認証 challenge により公式件数を読めず、既存 effect fence を維持中。次atomは配信loopを admission priority=`distribution` にして自然実行の公開・商品URL・重複ゼロを読むこと。 |
+
+#### 5.L 配信優先の目標と現状（2026-10-12）
+
+**As-Is（直近の公式readback）:** 30商品IDのうち販売中14、審査中等16。公式`/stats/sticker`の30行は13行が¥0、17行が`null`（未読を0にしない）、送金可能額¥0。生成原価の累計は$17.6276。商品状態は10/12 10:57 JST、売上・送金は10/12 11:00 JSTのLINE公式画面readback。新しい記事loopは公開記事0件で、初回due occurrenceが11:05 JSTにentrypoint前の資源admissionで延期。Instagram/Threadsは公式投稿数がphone challengeで読めず、過去のローカルpublished ledgerを現在の配信数とはみなさない。
+
+**To-Be:** 既存の商品・キャラクターを使い、アカウント認証に依存しない記事配信をまず自然稼働させる。各販売中SKUは、(a) 使う場面が一目で分かる4コマまたはトーク例、(b) GIF/短尺の動き見本、(c) 季節・キャラクターの日常投稿、を公式購入ページへつなぐ。LINE特集の開始日に間に合わせ、公式readbackで販売が確認できた型だけを英語・繁体字や続編へ展開する。有料のPRスタンプは現在の分配・流入が測れるまで購入しない。
+
+**一回限りの目標:** Daisの目標はUSD 10,000の累計到達であり、MRRではない。指標の曖昧さを隠さないため、運用上は「LINE公式のクリエイター分配額（プラットフォーム手数料控除後、内部制作・配信費控除前）の累計USD 10,000」を厳しめの判定軸とし、ストア総売上・実際の受取額・費用控除後利益も別々に記録する。現行規約は2015-02-01以降の申請商品について`(確定売上総額−Apple/Google等の配布手数料)×50%`、最低支払額は分配残高¥1,000超。[公式規約](https://creator.line.me/ja/terms/)は該当時に販売価格から消費税等を控除する条件も定める。[公式ヘルプ](https://help2.line.me/creators/web/categoryId/20002319/3/?contentId=200000334)では2026-01-01以降の日本App Store購入の手数料を26%、日本国外購入と2025-12-31以前の日本購入を30%としている。30%手数料・USD/JPY=150を置く以下の簡略試算は、消費税控除・地域別販売構成・実際の為替を省いた目安であり、実販売に必要な件数を断定しない。税控除の該当有無・金額は別途確認する。目安単価は¥250商品で約¥87.5/購入、¥190商品で約¥66.5/購入。分配USD 10,000にはそれぞれ約17,143件・約22,557件、ストア総売上USD 10,000なら約6,000件・約7,895件。実際の達成判定は仮定単価でなく公式readbackを使う。
+
+**TODO順変更（旧cursor→新cursor）:** 旧順はL17のIG運用・L21のシリーズ増産などの後に、L33の別経路集客を置いていた。新順は (1) L33.1 `line-sticker-articles` のadmission priorityを`distribution`へ直し（`resource_class=deterministic`と`admission_class=revenue`は維持）、自然wakeで記事公開・正しい商品URL・同一occurrenceのreadbackを確認 → (2) 既存IG/Threadsは公式件数を読めてeffect fenceを照合できた後に再開 → (3) LINE特集の開始日に合わせて適格商品を出す → (4) channel別click/商品別販売/公式分配が取れるようにし、必要なら最小件数の有料PR配布を費用対効果付きで試す → (5) 反応のあるSKUだけ海外向け調整・続編に広げる。理由は公式売上が0円またはunknownで、販売リンクを作る記事loopすら最初のdue実行を資源枠で拒否されたため。current cursor=`L33.1 article admission priority → natural published/readback/replay-zero`。
 
 ### 5.1 自己修復・自己改善の定義（T5 / T12 の正本）
 
