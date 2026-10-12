@@ -3,9 +3,9 @@
 #
 # Every money skill pairs a build loop with a distribute (sell) loop
 # (AGENTS.md rule 8/9); skills/earn/line-sticker has the build loop
-# (line-sticker-factory-hourly) but no sell loop. This is it: post short
-# vertical videos of our LINE stickers to TikTok/Instagram via Postiz,
-# pointing buyers at the sticker's LINE store page.
+# (line-sticker-factory-hourly) but no sell loop. This loop posts short vertical
+# videos to the configured dedicated accounts; the current lanes use direct
+# Instagram Reel and Threads browser transports. Article publishing is separate.
 #
 # Targets are config-driven (config/line-sticker-distribute-accounts.json).
 # An empty accounts list is a no-op exit 0 -- it is NOT an error, and it must

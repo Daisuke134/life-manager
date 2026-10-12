@@ -7,7 +7,8 @@ if [ -z "$LIFE_MANAGER_REPO" ] || [ ! -f "$LIFE_MANAGER_REPO/skills/earn/line-st
   exit 2
 fi
 export LIFE_MANAGER_REPO
-# Hourly owner: advances the newest open LINE sticker set by exactly one stage (plan -> ... -> submitted).
+# 15-minute owner: drives each open set through submission, then starts another
+# until the daily cap or 4500-second run budget.
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$HOME/.local/bin:$PATH"
 set -uo pipefail
 PY="${LIFE_MANAGER_PYTHON:-$HOME/.local/share/life-manager/venv/bin/python}"
