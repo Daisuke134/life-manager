@@ -745,6 +745,26 @@ class ModelBrowserLoopContractTests(unittest.TestCase):
             "`ineligible` and then `report --status not_submitted`", normalized
         )
 
+    def test_daily_prompt_uses_safe_defaults_without_inventing_current_salary(self):
+        prompt = (APP_ROOT / "prompts" / "daily-pass.md").read_text(encoding="utf-8")
+        normalized = " ".join(prompt.split())
+
+        self.assertIn("For ordinary non-factual preferences, do not stop to ask the owner", normalized)
+        self.assertIn("infer the closest supported option from the private profile and job context", normalized)
+        self.assertIn("Do not use this inference rule for credentials, work authorization, salary, or other personal facts", normalized)
+        self.assertIn("For a required personal fact or legal attestation missing from approved profile facts", normalized)
+        self.assertIn("If the visible form explicitly offers a non-disclosure or decline option, choose that exact visible option", normalized)
+        self.assertIn("If required and no truthful answer or decline option exists, block only this row", normalized)
+        self.assertIn("Never invent or estimate a current salary", normalized)
+        self.assertIn("choose that exact visible non-disclosure option", normalized)
+        self.assertIn("For expected salary, use only profile-approved compensation", normalized)
+        self.assertIn("block only this row", normalized)
+        self.assertIn("add the exact field to `blocked`", normalized)
+        self.assertIn("Call `runtime report --status not_submitted` once for this row", normalized)
+        self.assertIn("confirm its `application_id` matches this row and its `message_id` is present", normalized)
+        self.assertIn("Do not use `checkpoint` for missing information", normalized)
+        self.assertIn("continue with the next `observe`", normalized)
+
     def assertValid(self, value: dict[str, object]) -> None:
         errors = sorted(self.validator.iter_errors(value), key=lambda item: list(item.path))
         self.assertEqual([], [error.message for error in errors])
