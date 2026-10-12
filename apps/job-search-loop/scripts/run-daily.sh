@@ -211,6 +211,13 @@ APPLICATION_ID=""
 if [[ -f "$WORKDAY_DISCOVERY_RESULT" ]]; then
   APPLICATION_ID=$("$JOB_SEARCH_JQ" -r '.queued_application_ids[0] // empty' "$WORKDAY_DISCOVERY_RESULT" 2>/dev/null) || APPLICATION_ID=""
 fi
+DREAMWORK_APPLICATION_ID=""
+if [[ -f "$EVIDENCE/dreamwork-readback.json" ]]; then
+  DREAMWORK_APPLICATION_ID=$("$JOB_SEARCH_JQ" -r '.free_match_preparation.queued_application_ids[0] // empty' "$EVIDENCE/dreamwork-readback.json" 2>/dev/null) || DREAMWORK_APPLICATION_ID=""
+fi
+if [[ -n "$DREAMWORK_APPLICATION_ID" ]]; then
+  APPLICATION_ID="$DREAMWORK_APPLICATION_ID"
+fi
 # Provider discovery failure cannot close the other provider's application lane.
 # The common rolling budget comes from actual confirmations in the shared ledger.
 APPLICATION_LIMIT=$("$JOB_SEARCH_PYTHON" - <<'BUDGET_PY'
@@ -254,7 +261,7 @@ if [[ "$APPLICATION_LIMIT" != 0 && -f "$ASHBY_BOARD_CACHE" ]]; then
 fi
 # Rotate the first row on the existing cadence; one provider's backlog must not
 # hide the other. The remaining queue still uses exactly one browser model.
-if (( NOW_EPOCH / 1800 % 2 == 1 )); then
+if [[ -z "$DREAMWORK_APPLICATION_ID" ]] && (( NOW_EPOCH / 1800 % 2 == 1 )); then
   ASHBY_APPLICATION_ID=$("$JOB_SEARCH_PYTHON" - <<'ASHBY_QUEUE_PY'
 import os
 from pathlib import Path
