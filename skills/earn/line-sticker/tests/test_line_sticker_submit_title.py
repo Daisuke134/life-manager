@@ -4,14 +4,17 @@ Measured 2026-10-07 01:41Z: set-005 "ふわふわペンギンの気持ちスタ�
 「既に存在するタイトルのため利用できません」 before any confirm dialog, so the submit waited for an
 OK button that never came and the wake ended effect-unknown.
 """
+import asyncio
 import sys
 import itertools
 import datetime
 import unittest
+from unittest.mock import AsyncMock, patch
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import line_sticker_submit as MODULE  # noqa: E402
+import features_readback as FEATURES  # noqa: E402
 
 
 class Retitle(unittest.TestCase):
@@ -237,11 +240,30 @@ class _FakeCampaignPage:
 
 
 class SelectCampaign(unittest.TestCase):
+    class LivePage:
+        def __init__(self) -> None:
+            self.closed = False
+
+        async def close(self) -> None:
+            self.closed = True
+
+    class Context:
+        def __init__(self, live_page) -> None:
+            self.live_page = live_page
+
+        async def new_page(self):
+            return self.live_page
+
+    class SourcePage:
+        def __init__(self, context) -> None:
+            self.context = context
+
     def _selection(self) -> dict:
         order = [f"s{i}" for i in range(40)]
         return {
             "campaign_value": "835",
             "campaign_requirements": {
+                "value": "835", "title": "冬を感じるスタンプ", "deadline": "2026-12-04",
                 "min_sticker_count": 8, "max_sticker_count": 40, "min_price_jpy": 190,
                 "min_theme_stickers": 12,
                 "observed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -253,6 +275,38 @@ class SelectCampaign(unittest.TestCase):
     @staticmethod
     def _listing(**overrides) -> dict:
         return {"count": 40, "price_jpy": 190, **overrides}
+
+    def _select_with_matching_live_terms(self, page, selection, listing) -> None:
+        current = {**selection["campaign_requirements"],
+                   "observed_at": datetime.datetime.now(datetime.timezone.utc).isoformat()}
+        with patch.object(MODULE, "_read_current_campaign_requirements", new_callable=AsyncMock,
+                          return_value=current):
+            asyncio.run(MODULE._select_taste_character_campaign(page, selection, listing))
+
+    def test_live_campaign_requirements_are_read_from_official_announcement(self) -> None:
+        live_page = self.LivePage()
+        source_page = self.SourcePage(self.Context(live_page))
+        feature = {
+            "value": "835", "title": "冬を感じるスタンプ", "deadline": "2026-12-04",
+            "conditions": "個数：8-40個\n金額：￥190～\n冬関連が8個以上",
+        }
+        with patch.object(FEATURES, "read_features_on_page", new_callable=AsyncMock,
+                          return_value={"status": "ok", "features": [feature]}, create=True) as read_features:
+            requirements = asyncio.run(MODULE._read_current_campaign_requirements(source_page, "835"))
+        read_features.assert_awaited_once_with(live_page, FEATURES.FEATURE_PAGE)
+        self.assertTrue(live_page.closed)
+        self.assertEqual(requirements["min_price_jpy"], 190)
+        self.assertEqual(requirements["min_theme_stickers"], 12)
+        self.assertEqual(requirements["title"], "冬を感じるスタンプ")
+
+    def test_missing_live_campaign_fails_closed(self) -> None:
+        live_page = self.LivePage()
+        source_page = self.SourcePage(self.Context(live_page))
+        with patch.object(FEATURES, "read_features_on_page", new_callable=AsyncMock,
+                          return_value={"status": "ok", "features": []}, create=True):
+            with self.assertRaisesRegex(RuntimeError, "campaign_live_feature_unavailable"):
+                asyncio.run(MODULE._read_current_campaign_requirements(source_page, "835"))
+        self.assertTrue(live_page.closed)
 
     def test_selected_campaign_without_submit_eligibility_facts_fails_closed(self) -> None:
         import asyncio
@@ -269,6 +323,28 @@ class SelectCampaign(unittest.TestCase):
         ).isoformat()
         with self.assertRaisesRegex(RuntimeError, "campaign_snapshot_stale"):
             asyncio.run(MODULE._select_taste_character_campaign(page, selection, self._listing()))
+
+    def test_selected_campaign_reads_current_official_terms_before_clicking(self) -> None:
+        import asyncio
+        page = _FakeCampaignPage()
+        selection = self._selection()
+        current = {**selection["campaign_requirements"], "observed_at": datetime.datetime.now(datetime.timezone.utc).isoformat()}
+        with patch.object(MODULE, "_read_current_campaign_requirements", new_callable=AsyncMock,
+                          return_value=current, create=True) as read_current:
+            asyncio.run(MODULE._select_taste_character_campaign(page, selection, self._listing()))
+        read_current.assert_awaited_once_with(page, "835")
+        self.assertEqual(page.clicked, ["835"])
+
+    def test_selected_campaign_stops_if_current_official_terms_changed(self) -> None:
+        import asyncio
+        page = _FakeCampaignPage()
+        selection = self._selection()
+        current = {**selection["campaign_requirements"], "min_price_jpy": 250}
+        with patch.object(MODULE, "_read_current_campaign_requirements", new_callable=AsyncMock,
+                          return_value=current, create=True):
+            with self.assertRaisesRegex(RuntimeError, "campaign_conditions_changed"):
+                asyncio.run(MODULE._select_taste_character_campaign(page, selection, self._listing()))
+        self.assertEqual(page.clicked, [])
 
     def test_selected_campaign_count_and_order_must_match_official_range(self) -> None:
         import asyncio
@@ -298,22 +374,19 @@ class SelectCampaign(unittest.TestCase):
         self.assertEqual(page.clicked, [])
 
     def test_a_feature_value_clicks_that_exact_radio_not_on(self) -> None:
-        import asyncio
         page = _FakeCampaignPage()
-        asyncio.run(MODULE._select_taste_character_campaign(page, self._selection(), self._listing()))
+        self._select_with_matching_live_terms(page, self._selection(), self._listing())
         self.assertEqual(page.clicked, ["835"])
 
     def test_a_selected_campaign_with_no_radio_fails_closed(self) -> None:
-        import asyncio
         page = _FakeCampaignPage(missing_values={"835"})
         with self.assertRaisesRegex(RuntimeError, "campaign_radio_missing"):
-            asyncio.run(MODULE._select_taste_character_campaign(page, self._selection(), self._listing()))
+            self._select_with_matching_live_terms(page, self._selection(), self._listing())
 
     def test_a_selected_campaign_that_does_not_check_fails_closed(self) -> None:
-        import asyncio
         page = _FakeCampaignPage(unchecked_values={"835"})
         with self.assertRaisesRegex(RuntimeError, "campaign_radio_unchecked"):
-            asyncio.run(MODULE._select_taste_character_campaign(page, self._selection(), self._listing()))
+            self._select_with_matching_live_terms(page, self._selection(), self._listing())
 
     def test_null_campaign_value_clicks_the_non_participation_radio(self) -> None:
         import asyncio

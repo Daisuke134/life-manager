@@ -112,7 +112,8 @@ class PlanPrompt(unittest.TestCase):
 
 class GuardCampaignValue(unittest.TestCase):
     WINTER = [{"value": "835", "title": "冬を感じるスタンプ", "deadline": "2026-12-04",
-               "conditions": "個数：8-40個\n金額：￥190～\nパッケージの8個以上が「冬」に関連したクリエイティブであること"}]
+               "conditions": "個数：8-40個\n金額：￥190～\nパッケージの8個以上が「冬」に関連したクリエイティブであること",
+               "observed_at": "2026-10-08T00:30:00+09:00"}]
     ORDER = [f"m{i}" for i in range(24)]
 
     def test_a_value_with_enough_on_theme_stickers_passes_through(self) -> None:
@@ -139,6 +140,24 @@ class GuardCampaignValue(unittest.TestCase):
     def test_campaign_without_machine_readable_count_and_price_conditions_is_dropped(self) -> None:
         feature = [{"value": "835", "deadline": "2026-12-04", "conditions": "冬テーマが8個以上"}]
         self.assertIsNone(MODULE._guard_campaign_value("835", feature, self.ORDER[:12], self.ORDER))
+
+    def test_campaign_without_machine_readable_theme_count_is_dropped(self) -> None:
+        feature = [{"value": "835", "title": "冬を感じるスタンプ", "deadline": "2026-12-04",
+                    "observed_at": "2026-10-08T00:30:00+09:00",
+                    "conditions": "個数：8-40個\n金額：￥190～\n冬のクリエイティブ"}]
+        self.assertIsNone(MODULE._guard_campaign_value("835", feature, self.ORDER[:12], self.ORDER))
+
+    def test_campaign_requirements_keep_live_identity_fields_for_submit_recheck(self) -> None:
+        feature = {
+            "value": "835", "title": "冬を感じるスタンプ", "deadline": "2026-12-04",
+            "conditions": "個数：8-40個\n金額：￥190～\n冬関連が8個以上",
+            "observed_at": "2026-10-12T00:30:00+09:00",
+        }
+        self.assertEqual(MODULE._campaign_requirements(feature), {
+            "value": "835", "title": "冬を感じるスタンプ", "deadline": "2026-12-04",
+            "min_sticker_count": 8, "max_sticker_count": 40, "min_price_jpy": 190,
+            "min_theme_stickers": 12, "observed_at": "2026-10-12T00:30:00+09:00",
+        })
 
 
 class DeadlinePassed(unittest.TestCase):

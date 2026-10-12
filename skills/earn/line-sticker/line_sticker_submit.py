@@ -240,6 +240,9 @@ async def _select_taste_character_campaign(page: Page, selection: dict, listing:
         if not isinstance(listing, dict):
             raise RuntimeError("campaign_listing_missing")
         _validate_campaign_submission(selection, listing)
+        current_requirements = await _read_current_campaign_requirements(page, campaign_value)
+        if not _campaign_requirements_match(selection["campaign_requirements"], current_requirements):
+            raise RuntimeError("campaign_conditions_changed")
         if radio_count != 1:
             raise RuntimeError("campaign_radio_missing")
         await campaign_radio.first.evaluate("e => e.click()")  # feature radios are not wrapped in a <label>
@@ -283,6 +286,47 @@ def _validate_campaign_submission(selection: dict, listing: dict) -> None:
     on_theme = set(selection.get("campaign_theme_ids") or []) & set(order)
     if len(on_theme) < minimum_theme_stickers:
         raise RuntimeError("campaign_theme_count_ineligible")
+
+
+CAMPAIGN_REQUIREMENT_FIELDS = (
+    "value", "title", "deadline", "min_sticker_count", "max_sticker_count", "min_price_jpy",
+    "min_theme_stickers",
+)
+
+
+def _campaign_requirements_match(selected: dict, current: dict) -> bool:
+    return (isinstance(selected, dict) and isinstance(current, dict)
+            and all(selected.get(key) == current.get(key) for key in CAMPAIGN_REQUIREMENT_FIELDS))
+
+
+async def _read_current_campaign_requirements(page: Page, campaign_value: str) -> dict:
+    # Re-read the same official create-page radios and their announcement bodies immediately before save.
+    from features_readback import FEATURE_PAGE, read_features_on_page
+    from line_sticker_planner import _campaign_requirements
+
+    live_page = await page.context.new_page()
+    try:
+        readback = await read_features_on_page(live_page, FEATURE_PAGE)
+    finally:
+        await live_page.close()
+    if readback.get("status") != "ok":
+        raise RuntimeError("campaign_live_readback_failed")
+    matches = [feature for feature in readback.get("features", [])
+               if feature.get("value") == campaign_value]
+    if len(matches) != 1:
+        raise RuntimeError("campaign_live_feature_unavailable")
+    feature = matches[0]
+    deadline = feature.get("deadline")
+    try:
+        if not deadline or datetime.date.fromisoformat(deadline) < datetime.datetime.now(JST).date():
+            raise RuntimeError("campaign_live_feature_unavailable")
+    except ValueError as exc:
+        raise RuntimeError("campaign_live_deadline_invalid") from exc
+    feature["observed_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    requirements = _campaign_requirements(feature)
+    if requirements is None:
+        raise RuntimeError("campaign_live_conditions_unparseable")
+    return requirements
 
 
 async def _upload_images(page: Page, item: dict, package_dir: Path) -> None:

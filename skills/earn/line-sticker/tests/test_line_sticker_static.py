@@ -173,6 +173,7 @@ class TextBearingVariant(unittest.TestCase):
 
     def test_static_planner_includes_open_features_and_guards_theme_margin(self) -> None:
         features = [{"value": "835", "title": "冬を感じるスタンプ特集",
+                     "deadline": "2026-12-04", "observed_at": "2026-10-12T10:00:00+00:00",
                      "conditions": "個数：8-40個\n金額：￥190～\n冬関連が8個以上"}]
         for theme_count, expected in ((11, None), (12, "835")):
             with self.subTest(theme_count=theme_count), tempfile.TemporaryDirectory() as tmp:
@@ -200,7 +201,9 @@ class TextBearingVariant(unittest.TestCase):
             with self.subTest(case=case), tempfile.TemporaryDirectory() as tmp:
                 set_dir = Path(tmp) / "set-001"
                 set_dir.mkdir()
-                features = [{"value": "835", "title": "冬を感じるスタンプ特集", "conditions": conditions}]
+                features = [{"value": "835", "title": "冬を感じるスタンプ特集",
+                             "deadline": "2026-12-04", "observed_at": "2026-10-12T10:00:00+00:00",
+                             "conditions": conditions}]
                 with patch.object(STATIC, "_open_features", return_value=features, create=True), \
                      patch.object(STATIC, "_run_agent", return_value=self._campaign_plan(12)):
                     plan = STATIC.static_planner(set_dir, [], [])

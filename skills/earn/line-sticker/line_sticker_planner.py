@@ -260,24 +260,25 @@ def _open_features(today: datetime.date) -> list[dict]:
 THEME_MARGIN = 4  # LINE judges "on theme" itself; a bare minimum got 48137583 rejected (2026-10-08)
 
 
-def _required_theme_count(conditions: str | None) -> int:
-    match = re.search(r"(\d+)\s*個以上", conditions or "")
-    return int(match.group(1)) if match else 8
-
-
 def _campaign_requirements(feature: dict | None) -> dict | None:
     if not feature:
+        return None
+    if not all(feature.get(key) for key in ("value", "title", "deadline", "observed_at")):
         return None
     conditions = feature.get("conditions") or ""
     count_match = re.search(r"個数[：:]\s*(\d+)\s*[-〜～]\s*(\d+)\s*個", conditions)
     price_match = re.search(r"金額[：:]\s*[￥¥]\s*(\d+)", conditions)
-    if not count_match or not price_match:
+    theme_count_match = re.search(r"(\d+)\s*個以上", conditions)
+    if not count_match or not price_match or not theme_count_match:
         return None
     return {
+        "value": feature["value"],
+        "title": feature["title"],
+        "deadline": feature["deadline"],
         "min_sticker_count": int(count_match.group(1)),
         "max_sticker_count": int(count_match.group(2)),
         "min_price_jpy": int(price_match.group(1)),
-        "min_theme_stickers": _required_theme_count(conditions) + THEME_MARGIN,
+        "min_theme_stickers": int(theme_count_match.group(1)) + THEME_MARGIN,
         "observed_at": feature.get("observed_at"),
     }
 

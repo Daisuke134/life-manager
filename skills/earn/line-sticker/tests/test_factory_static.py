@@ -104,6 +104,7 @@ class StaticStageRouting(unittest.TestCase):
             plan["campaign_value"] = "835"
             plan["campaign_theme_ids"] = [f"s{i}" for i in range(12)]
             plan["campaign_requirements"] = {
+                "value": "835", "title": "冬を感じるスタンプ", "deadline": "2026-12-04",
                 "min_sticker_count": 8, "max_sticker_count": 40, "min_price_jpy": 190,
                 "min_theme_stickers": 12, "observed_at": "2026-10-12T10:00:00+00:00",
             }
@@ -117,6 +118,7 @@ class StaticStageRouting(unittest.TestCase):
             selection = MODULE._read_json(state_root / "set-001" / "select.json")
             self.assertEqual(selection.get("campaign_value"), "835")
             self.assertEqual(selection.get("campaign_requirements"), {
+                "value": "835", "title": "冬を感じるスタンプ", "deadline": "2026-12-04",
                 "min_sticker_count": 8, "max_sticker_count": 40, "min_price_jpy": 190,
                 "min_theme_stickers": 12, "observed_at": "2026-10-12T10:00:00+00:00",
             })

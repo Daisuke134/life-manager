@@ -2027,13 +2027,13 @@ Instagram/Threadsのローカル台帳は17件（Instagram 14、Threads 3）で�
 | D09a | DONE（18:00 occurrenceのみ） | set-034のstatic-plan失敗を登録済みfactory adapterで照合する | 39/40 distinct IDで失敗。management ID/申請なし。registered reconcileは `effected=false` を証明し、そのoccurrenceだけをclose。 |
 | D09b | DONE（18:30 natural） | set-034を40 distinct IDで再計画し、plan段階を通す | natural occurrence `c5602685f690184fd26a66f0` は40/40 distinct `with_text`計画を作り `images` に進んだ。申請・販売ではない。 |
 | D07 | DONE | `line-sticker-articles` ownerだけをdistribution-priority releaseにする | 19:53 JST target apply成功、install event `361004886d1098e7e2651338`、loaded SHA `5a595864`。natural run `18ddc371449adcf0-25338` はslot20を公開。公開記事URLとLINE STORE ID 37146768の商品名・¥250を直接照合。 |
-| D09 | APPLY済み・自然readbackはdisk admission-deferred | schema-v2 sales readerを `line-sticker-readback-hourly` ownerだけに採用し、容量条件を満たした後の自然wakeで公式値と照合する | 19:53 JST target apply成功、install event `ac254a8ca62a6e14b3ce7118`。loaded SHA `5a595864`。20:39 JST occurrence `18ddc5480845d588-54612` は `host_admission_deferred:disk_headroom_low`, exit 75, effect `not_applicable`; canonical file未更新。 |
+| D09 | APPLY済み・自然readbackはdisk admission-deferred | schema-v2 sales readerを `line-sticker-readback-hourly` ownerだけに採用し、容量条件を満たした後の自然wakeで公式値と照合する | 19:53 JST target apply成功、install event `ac254a8ca62a6e14b3ce7118`。loaded SHA `5a595864`。20:49 JST occurrence `18ddc5d99ac02058-90937` は `host_admission_deferred:disk_headroom_low`, exit 75, effect `not_applicable`; canonical file未更新。 |
 | D07a | TODO | slot15/16/17のcompose failureをrun evidenceから診断する | 旧production release `66f04769` のlogは3 slots各2回をgeneric `line_sticker_article_compose_failed` とだけ記録。current main release `5a595864` は次の自然compose errorにreturn codeとevidence由来のfailure classを保存する（stderr自体は破棄）。失敗枠を再送せず、次のeligible error evidenceを読むまで原因確定としない。 |
 | D10 | TODO | SKU/channel別baselineを作り、商品詳細の月別販売数・速報値、click、確定月次CSV、費用をsource/date付きで分ける | 現時点でsticker distribution sourceにpageview/click/UTMがなく、click/CVRはunknown。first-party CTA redirectとnative platform viewsを使える範囲で計測し、購入sourceはLINEが提供しない限り因果 attribution と呼ばない。gross salesと速報distributionを混ぜず、USD 10K grossの公式判定源を特定する。 |
 | D11 | TODO | 販売中SKUを1つ選び、用途別4コマ・GIF/短尺・実トーク例の最小content packを作る | 各assetから正しい公式SKUへ到達し、用途が一目で分かる。独自キャラクター素材のみ |
 | D13 | TODO | D11 packと記事を、利用可能な既存owned channelの自然cadenceで1件ずつ配信する | 各public URL・正しいSKUリンク・provider/host receipt・同一occurrence replay-zero。既存11/12時記事は再公開しない |
-| D14a | DONE（source/local acceptance; fresh review pending） | 当日観測した公式feature snapshotと申請画面のradioを照合し、公式条件から読める個数・価格・テーマ数を満たす場合だけ参加する。参加/不参加radioが一意に存在し選択済みと確認できなければ申請前に停止する | stale/missing snapshotと公式条件を解析できないfeatureは不参加。申請直前にlisting count/price・selected order/theme IDs・snapshot日付を再検証し、live radioを選択後checked確認。LINEスタンプtests 304件PASS。creator residenceはlisting/stateにaccount-country fieldなしで独立検証未了。main/release/production未反映。 |
-| D14b | TODO（D07/D09 natural readbackと並行可） | latest-mainへsourceをsyncし、source boundary・focused acceptance・fresh read-only review・exact-head CIを通してPRをmainへmergeしimmutable releaseを作る | merged SHAとrelease manifestを記録。worktree test filesも含める。 |
+| D14a | DONE（source/local acceptance; review pending） | 保存直前に公式画面から対象featureと条件を再取得し、選択済み条件と一致し、listing/テーマ条件を満たす場合だけ参加する。参加/不参加radioが一意に存在し選択済みと確認できなければ申請前に停止する | 同一認証済みPlaywright contextの別pageで現在のcreate-page radioと公式announcement本文を再取得。value/title/deadline/count/price/theme requirementsのいずれかが違えば停止し、テーマ必要数を解析できない場合も不参加。creator residenceはlisting/stateにaccount-country fieldなしで独立検証未了。311 LINE-sticker tests PASS。main/release/production未反映。 |
+| D14b | IN PROGRESS（PR #7804 update/review/CI） | latest-mainへsourceをsyncし、source boundary・focused acceptance・fresh read-only review・exact-head CIを通してPRをmainへmergeしimmutable releaseを作る | 最新main `c5242a8b3e8c` へ再追従する。head `8173f801e6e6` へsubmit直前の公式条件再取得を追加中。次にpush後のfresh review/exact-head CIを通す。 |
 | D14c | TODO（PID99922 natural terminal・official readback後） | loaded-idle factory ownerだけをcampaign releaseへtarget applyし、loaded SHA/argvを確認する | current set-034 occurrenceを停止/再送しない。次の自然SKUでcampaign値とradio選択・公式審査状態を同一IDでreadback。 |
 | D14 | TODO（D14c後） | 新規冬SKUを1件作り公式特集へ条件付き申請する | 受付は2026-12-04 10:59 JSTまで（早期終了あり）、開催は2026-11-11〜2027-01-08。日本居住、新規SKU、8〜40個、¥190以上、冬テーマ8個以上。set-034や販売済SKUを流用せず、審査承認と特集掲載をreadback。 |
 | D09c | TODO | successful factory occurrencesごとの申請SKU数を数え、24件/日capを維持するか判断する | 本日3 SKUを申請済みだが、wake別件数と販売需要は未確認。分配・購入データが無い間はcapを上げない。 |
@@ -2127,6 +2127,20 @@ Instagram/Threadsのローカル台帳は17件（Instagram 14、Threads 3）で�
 - Full LINE Sticker test suite: 304 tests passed in 326.887s. No immutable release, factory apply, or LINE provider write was performed.
 - 20:39 JST `line-sticker-readback-hourly` occurrence `18ddc5480845d588-54612` exited 75 before reader execution due `disk_headroom_low`; canonical sales remained schema-less 31 rows (13 zero, 18 null), payable/distribution ¥0.
 - Factory owner is loaded-idle, PID absent, still installed on `66f04769`. Its latest blocked occurrence `18ddc4cb51bd2950-19735` reports `resource_effect_unknown`, effect `unknown`, no official readback or receipt. Do not clear or replay; reconcile from official item state before D14c.
+
+**20:45 JST fresh review delta:**
+- PR #7804 head `8173f801e6e6` is pushed and rebased on latest `origin/main=4db1e41d0cad`. At first check, CI had 7 pass, 4 pending, 0 fail.
+- Fresh reviewer confirms the opt-out radio and deterministic count/price/theme checks are fail-closed. One finding remains: submit still relies on same-day `features.json` conditions; it must read the current feature option and announcement body from LINE's official pages immediately before save, then compare current value/title/deadline/count/price/theme requirements to the selected snapshot. Radio presence alone proves option availability, not updated requirements.
+- Creator residence has no field in existing listing/state code. Keep it an explicit provider/account-side eligibility limitation; do not infer Japan residence from the option's presence.
+
+**20:55 JST submit-boundary correction:**
+- D14a now opens a temporary page inside the already authenticated Playwright context, rereads the live create-page radio list and matching official announcement, prefers the announcement's current reception deadline over a stale radio label, and compares value/title/deadline/count/price/theme requirements before selecting the radio. Missing/ineligible/unparseable readback fails before save.
+- Full LINE Sticker suite ran 311 tests in 322.966s and passed. It includes a stale-radio/new-announcement deadline case and rejects a campaign if its required theme count is unparseable.
+- Latest natural `line-sticker-readback-hourly` occurrence `18ddc5d99ac02058-90937` at 20:49 JST again exited 75 at host admission `disk_headroom_low`; no readback, canonical `sales.json` unchanged.
+- Factory is loaded-idle on installed SHA `0a2d5f9f` while the latest event was still from `66f04769`; its 20:45 wake `18ddc59de7608c18-74795` was deferred `resource_capacity_busy`, effect `not_applicable`, with no PID. This does not prove any prior unknown provider effect is reconciled; keep official item readback before campaign apply.
+
+**21:03 JST latest-main update:**
+- `origin/main` advanced to `c5242a8b3e8c` through #7806/#7807. Those commits change only this unified SSOT and not LINE Sticker source modules; the branch must still rebase before push.
 ### 5.1 自己修復・自己改善の定義（T5 / T12 の正本）
 
 **目的**: Life Manager が、外部の coding agent（Dais が操作する Claude Code や Codex のセッション）にも人にも頼らず、自分の問題を見つけて、自分で直し、自分で改善すること。人と外部 agent はループの外にいる。
