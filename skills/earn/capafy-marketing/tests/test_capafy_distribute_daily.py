@@ -32,6 +32,8 @@ PRODUCTS_JSON = {
 def run(tmp_path: Path, env_overrides: dict[str, str] | None = None) -> subprocess.CompletedProcess:
     products_config = tmp_path / "products.json"
     products_config.write_text(json.dumps(PRODUCTS_JSON))
+    env_file = tmp_path / "empty.env"
+    env_file.write_text("")
     state_dir = tmp_path / "capafy-distribute-state"
     fence_dir = tmp_path / "owner-fence"
     env = dict(os.environ)
@@ -42,6 +44,12 @@ def run(tmp_path: Path, env_overrides: dict[str, str] | None = None) -> subproce
             "CAPAFY_DISTRIBUTE_ANALYTICS_FILE": str(tmp_path / "does-not-exist.json"),
             "CAPAFY_DISTRIBUTE_STATE_DIR": str(state_dir),
             "CAPAFY_DISTRIBUTE_OWNER_FENCE_DIR": str(fence_dir),
+            "LIFE_MANAGER_ENV_FILE": str(env_file),
+            "LIFE_MANAGER_LOOP_ID": "capafy-distribute-daily",
+            "LIFE_MANAGER_RUN_ID": "test-run-1",
+            "LIFE_MANAGER_OCCURRENCE_ID": "capafy-distribute-daily:test-run-1",
+            "POSTIZ_API_KEY": "test-no-network",
+            "LM_POSTIZ_API_KEY": "",
             "WRITER_STATE_DIR": str(state_dir),
         }
     )
@@ -65,6 +73,21 @@ def test_dry_run_exits_zero_and_writes_ledger(tmp_path: Path) -> None:
     # Capafy only attributes ct values registered as promotion links in the
     # console (2026-10-07); these are the ones issued for the sellers.
     assert entry["cta_url"].endswith(("ct=hooklab_blog", "ct=slides_blog"))
+    occurrence_files = list((tmp_path / "capafy-distribute-state" / "runs").glob(
+        "capafy-distribute-*/gates/occurrence.json"
+    ))
+    assert len(occurrence_files) == 1
+    occurrence = json.loads(occurrence_files[0].read_text())
+    assert occurrence["owner_id"] == "capafy-distribute-daily"
+    assert occurrence["run_id"] == "test-run-1"
+    assert occurrence["occurrence_id"] == "capafy-distribute-daily:test-run-1"
+    assert occurrence["slot"] in occurrence["article_slug"]
+
+
+def test_mismatched_runtime_occurrence_identity_stops_before_receipt(tmp_path: Path) -> None:
+    result = run(tmp_path, {"LIFE_MANAGER_OCCURRENCE_ID": "line-sticker:other-run"})
+    assert result.returncode != 0
+    assert not (tmp_path / "capafy-distribute-state" / "ledger.json").exists()
 
 
 def test_second_dry_run_same_day_is_a_no_op_and_does_not_rewrite_the_pick(tmp_path: Path) -> None:

@@ -351,7 +351,7 @@ class WorkdayQualificationTests(unittest.TestCase):
         self.assertEqual(result["status"], "qualified")
         self.assertEqual(result["qualified_application_ids"], ["A", "B", "C"])
 
-    def test_main_qualifies_up_to_max_candidates_for_positive_rolling_deficit(self):
+    def test_main_stops_after_one_new_qualified_row_per_wake(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             ledger_path = root / "ledger.sqlite3"
@@ -410,11 +410,11 @@ class WorkdayQualificationTests(unittest.TestCase):
                 workday_search_loop,
                 "discover_one",
                 return_value={"status": "discovered", "discovered": []},
-            ) as discover, patch.object(
+            ), patch.object(
                 workday_search_loop,
                 "qualify_with_wake_cursor",
                 side_effect=lambda *_args, **_kwargs: next(decisions),
-            ) as qualify, patch.object(
+            ), patch.object(
                 workday_search_loop,
                 "deliver_fit_decision",
                 return_value={"message_id": "telegram-1", "status": "sent"},
@@ -424,10 +424,11 @@ class WorkdayQualificationTests(unittest.TestCase):
             result = json.loads(output.read_text(encoding="utf-8"))
             self.assertEqual(
                 result["qualified_application_ids"],
-                ["application-0", "application-1", "application-2"],
+                ["application-0"],
             )
-            self.assertEqual(discover.call_count, 3)
-            self.assertEqual(qualify.call_count, 3)
+            self.assertEqual(result["status"], "qualified")
+            self.assertEqual(len(result["discoveries"]), 1)
+            self.assertEqual(len(result["decisions"]), 1)
 
     def test_main_returns_existing_current_policy_queue_before_new_qualification(self):
         with tempfile.TemporaryDirectory() as directory:

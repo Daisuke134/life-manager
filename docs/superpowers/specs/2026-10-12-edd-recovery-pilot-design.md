@@ -6,6 +6,34 @@
 
 これはE02/E03の設計候補であり、新しいTODO正本や開始済みcursorではない。実行状態・順序・所有者は [統一SSOT](2026-09-25-life-manager-unified-ssot.md) に従う。既存評価ownerの範囲と調整してから後続作業へ接続する。
 
+## E01 runtime checkpoint
+
+**観測時刻:** 2026-10-12T14:52:05Z。これはローカル状態の読み取り専用checkpointであり、統一SSOTのcursorを進めない。
+
+- `origin/main` (`af8e9a1b`) は欠測・不正netを`unknown`に保つ修正 (`b5522b5d`) を含む。main由来のcurrent release `65d1feb5` の`runtime/loop/self-eval.mjs` SHA-256は`75b050c7…`で、main sourceと一致する。既存`self-eval.test.mjs`は8/8 PASS。
+- private natural earn ledgerの4,164行はすべて有限の`net_usdc`を持つ。current releaseのpure `selfEval`へ読み取り専用で渡すと、直近25行から4 groupを評価し、unknown groupは0。値やledger本文は保存・公開していない。この自然データは正常入力のbaselineであり、欠測・不正netの自然発生を示さない。
+- `agent-economy-loop`はPID 3136で`loaded-running`、loaded releaseは`dd6f0ee5`。そのrelease内`self-eval.mjs` SHA-256は`e31b51c4…`で、修正済みcurrent releaseと異なる。プロセスを停止・再起動・差し替えず、E01を未完のまま保つ。
+
+**E01受入の区別:** 欠測・不正・混在netの振る舞いは既存の8件の単体回帰testで検証する。natural ledgerに存在しない欠測値をproductionへ注入しない。実行完了には、実呼び出しownerが安全に`loaded-idle`となった後、修正済みmain由来releaseのloaded SHAと次の自然runでの採用を確認する。通常入力の自然評価は実行経路と結果を補強するが、欠測netへの耐性や経済利益を証明しない。容量/admissionが未解決なら適用せず、既存の共有資源cursorに従う。
+
+**最新E01 readback:** 2026-10-12T15:22:08Z時点で`origin/main=4592b650`、current releaseは`65d1feb5`、その`self-eval.mjs` SHA-256はmain sourceと同じ`75b050c7…`です。`agent-economy-loop`は古い`dd6f0ee5`を`loaded-running`し、`brain_transport` / `reconcile_owner`状態です。停止・再起動はしていません。available diskは1,761,400 KiBで、current releaseのcapacity requirement 2,393,120,768 bytesを下回ります。E01 cursorは未完のままです。
+
+**今回のE01 readback:** `origin/main=8cc3f0a23c96dd9c986924607239b33775633c03`、current releaseは`65d1feb577ce1158079eed79795d253049b89a25`です。mainとcurrent releaseの`self-eval.mjs` SHA-256は`75b050c7…`で一致しますが、`agent-economy-loop`はPID 3136で旧`dd6f0ee51266dda30b84b054f6c72d3771badf7b`を`loaded-running`し、`brain_transport` / `reconcile_owner`状態です。`RELEASE.json`の容量要件は2,393,120,768 bytes、readback時の`df -k /`は1,482,448 KiB availableです。直近2回のbounded watchdog passは各13候補を評価し、回収0、errors 0、protected deletions 0、capacity `unmet`でした。停止・再起動・release apply・effect fence変更は行わず、E01 cursorを未完のまま保ちます。
+
+## Writer trace checkpoint
+
+Writerのowner・run状態は2026-10-12T15:14:46Zにread-only確認しました。`article-daily`はloaded-idleですが`resource_effect_unknown`のfenceを持ち、`writer-craft-train`はcapacity defer、`writer-opportunity-discovery`はFIFO wait、`writer-sales-measure`はidleです。公開・再送・owner変更はしていません。
+
+Pilot AのstageはEnglish article draftの公開前quality gateに絞ります。これはgateの再現評価で、ブログ・note・Substack等への新規公開は行いません。
+
+**task-level inventory:** 自然なarticle run directoryは8件で、5件にEnglish draft、3件にはEnglish draftがありません。4件にquality gate receiptがあり、3件はadvisory、1件はidentity/CTA disagreementでpublication前に止まりました。8件すべての`harness_git_hash`は`UNKNOWN`です。
+
+**child-call inventory:** 1,498のagent-runner evidence directoryのうち1,469にsummaryがあり、`article-daily`は276 child-call summariesを持ちます（251 judge、25 agent）。276件すべてに`runtime_event_id`がありますが、summaryにはparent run/occurrence/source SHAがありません。現在保持されるevent ledgerにjoinできるのは25件で、記事task件数や独立sample数へ足しません。
+
+最初のsemantic case candidateはEnglish blog article draftのidentity `C: FAIL` / mandatory CTA `PASS` / `blocked-before-publication`の組み合わせです。人手labelはpendingで、false positiveとはまだ呼びません。A4は別軸のmachine-checkable `quality_self_heal_record_unparseable`を選び、A5/A6 case cardとoutcome vectorを[Writer EDD trace discovery](../../evals/writer-edd-trace-discovery.md)に記録しました。W-01のtask completion、quality、safety gate、effect integrity、settled net、cost coverage、latency、human interventionは別fieldで、根拠のない項目を`0`へ置換しません。これはPilot Aのcase-level schemaであり、canonical E02のCFO official receipt joinは未完です。raw traceはprivate storeに保持します。prototype review UIはrepo外のlocal artifactで、`127.0.0.1`だけにbindし、明示allowlistのGETだけを提供します。reviewerが表示ボタンを押したartifactだけを読み、POST/PUTと外部通信は拒否します。注釈はbrowserの`localStorage`に保存します。
+
+このcheckpointはpreworkであり、統一SSOTのE01 current cursorも収益優先順も変更しません。
+
 根拠は [一次資料比較](../../research/2026-10-12-edd-and-autonomy-benchmarks.md)。既存runnerを維持し、AutomationBenchの初期state・tool・終state検査の形を参考にする。新framework、scheduler、optimizerは追加しない。
 
 ## 18業務からのPilot A選定
@@ -16,7 +44,7 @@
 
 | 候補 | 選ぶ理由・外す理由 |
 |---|---|
-| **Writer（採用）** | quality gate、hash-bound run artifacts、bounded recovery、baseline/candidate比較がある。7 jobすべてを対象にせず、一記事の公開前sliceなら外部公開を行わずに反復できる。金融・費用adapterは部分実装なので、収益は未証明として別採点する。 |
+| **Writer（採用）** | quality gate、article bytesに結び付くgate receipts、bounded recoveryがあり、一記事の公開前sliceを外部effectなしで調べられる。自然runでsource commitが記録されるという意味ではない。今回の8 natural runは全て`harness_git_hash=UNKNOWN`で、source-level reproductionは未達。金融・費用adapterは部分実装なので、収益は未証明として別採点する。 |
 | Agent Economy | 収益・金融・費用adapterはcatalog上実装済みで、金銭評価の有力候補。ただし19 jobと複数のx402/TaskMarket ownerを含み、最新の優先順ではTaskMarketの外部報酬証明が後段にある。最初の方法検証には広すぎる。 |
 | PromptBase | 1 jobで小さく見えるが、金融・費用adapterが未実装で、seller/browser経路にも未解決境界がある。 |
 | Connector | 1 jobでreceiptが明瞭だが、catalog上non-economic。仕事の完了evalには向くが、今回の収益benchmarkの初手には選ばない。 |
@@ -28,7 +56,7 @@
 
 ## 英語記事の配信タスク
 
-対象記事は “Good Agent Evals Measure Work Done, Not Answers Given”。既存のブログ記事テンプレートとX Articleの投稿経路を再利用し、ページを別実装しない。本文には、現行LM-EABの5 fixtureは合成契約検査であること、Writer qualityは収益証拠ではないこと、AI lab採用は未達であることを明記する。
+対象記事は “Good Agent Evals Measure Work Done, Not Answers Given”。既存のブログ記事テンプレートと標準X postの経路を再利用し、ページを別実装しない。本文には、現行LM-EABの5 fixtureは合成契約検査であること、Writer qualityは収益証拠ではないこと、AI lab採用は未達であることを明記する。
 
 1. 英文・出典・3枚の図を確認し、この記事sourceをPR #7798に保持する。
 2. Aniccaサイトへ記事recordと画像を追加し、既存build/CIとmain経由のdeployを通す。
@@ -42,6 +70,8 @@
 **公開URL:** blog `https://aniccaai.com/blog/good-agent-evals-measure-outcomes` · X `https://x.com/selawmqt/status/2109636732962668720`。X mirror labelは `X ↗`。
 
 **X Articles調査:** [X公式Articles説明](https://help.x.com/en/using-x/articles)は公開機能をPremium/Premium+等の対象subscriberに限定している。登録済み `@selawmqt` のlive sessionで公式案内の `/compose/articles` と `/compose/articles/new` を開くと両方404となり、Articles editorと画像file inputが存在しなかった。publisher scriptはX Article draftを作る前に終了し、X Articleそのものは公開していない。その後、追加subscription購入や別identityを使わず、ブログURLへ誘導する標準X postを公開した。上記X URLはその公式readbackである。
+
+**2026-10-13再確認:** blog URLは英語の約2,500語の記事を返し、X statusは英語の紹介投稿として公開中で、リンク先は同じblog記事である。`x:anicca` のbrowser-guard lease経由でHome/feedを確認し、`/compose/articles` は再び `Page not found`、記事title/body editorは0件だった。従って今回の依頼は既存のblog記事＋X紹介投稿で満たされている。新しい投稿・X Article・subscription購入は行わず、重複effectを作らない。X Articleを利用できるようになった場合だけ、同じ本文の長文ミラーを別途検討する。
 
 ## Pilot B: effect-unknown recovery safety case
 

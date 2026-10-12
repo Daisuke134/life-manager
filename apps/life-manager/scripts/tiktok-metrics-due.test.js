@@ -318,3 +318,107 @@ test("delayed Postiz photo metrics persist an exact permalink without a per-post
     global.fetch = originalFetch;
   }
 });
+
+test("missing Honne weekly data stays unavailable and does not stop Anicca metrics", async (t) => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-metrics-product-isolation-"));
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  const reportDay = "2026-10-12";
+  const attributionRoot = path.join(dataDir, "tenants/dais-local/marketing/attribution");
+  for (const [relative, value] of [
+    [`asc/${reportDay}/acquisition.json`, { report_day: reportDay, products: [], rows: [] }],
+    [`revenuecat/${reportDay}/subscriptions.json`, { report_day: reportDay, products: [] }],
+    [`coverage/${reportDay}/summary.json`, { report_key: `attribution-${reportDay}`, products: [], message: "fixture coverage unavailable" }],
+  ]) {
+    const file = path.join(attributionRoot, relative);
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, JSON.stringify(value));
+  }
+  const aniccaSummaryDir = path.join(dataDir, "tenants/dais-local/marketing/metrics/summaries/anicca-ios/daily");
+  fs.mkdirSync(aniccaSummaryDir, { recursive: true });
+  fs.writeFileSync(path.join(aniccaSummaryDir, `${reportDay}.json`), JSON.stringify({
+    schema_version: 1,
+    kind: "marketing_product_metric_summary",
+    period: "daily",
+    report_key: reportDay,
+    observed_at: "2026-10-12T13:30:00.000Z",
+    product_id: "anicca-ios",
+    source_status: "partial",
+    source_refs: [],
+    message: "Anicca source is available",
+  }));
+
+  const target = TARGETS[0];
+  const caption = "毎日届く言葉で心を軽くする";
+  const captionSha = crypto.createHash("sha256").update(caption).digest("hex");
+  const captionFile = path.join(dataDir, "objects", "sha256", captionSha);
+  fs.mkdirSync(path.dirname(captionFile), { recursive: true });
+  fs.writeFileSync(captionFile, caption, { mode: 0o600 });
+  const videoId = "7695990000000000003";
+  const publicUrl = `https://www.tiktok.com/@${target.account_id.slice(1)}/video/${videoId}`;
+  const distributionRow = {
+    ts: "2026-10-12T13:50:00.000Z",
+    platform: "tiktok",
+    status: "published",
+    provider_reconciled: true,
+    format_id: target.format_id,
+    form: target.form,
+    locale: target.locale,
+    provider_id: "cmetricsvideo20261012",
+    public_url: publicUrl,
+    caption_path: captionFile,
+    caption_sha256: captionSha,
+  };
+  const ledger = path.join(dataDir, "tenants/dais-local/marketing/video-publication/anicca-ios/distribution.jsonl");
+  fs.mkdirSync(path.dirname(ledger), { recursive: true });
+  fs.writeFileSync(ledger, `${JSON.stringify(distributionRow)}\n`);
+
+  const metricFile = path.join(dataDir, "tenants/dais-local/marketing/metrics", target.native_owner, videoId, "2h.combined.json");
+  fs.mkdirSync(path.dirname(metricFile), { recursive: true });
+  fs.writeFileSync(metricFile, JSON.stringify({
+    schema_version: 1,
+    kind: "tiktok_combined_metric_snapshot",
+    tenant_id: "dais-local",
+    product_id: "anicca-ios",
+    locale: target.locale,
+    account_id: target.account_id,
+    native_owner: target.native_owner,
+    provider_post_id: distributionRow.provider_id,
+    shortcode: videoId,
+    video_id: videoId,
+    public_url: publicUrl,
+    caption,
+    published_at: distributionRow.ts,
+    window: "2h",
+    observed_at: "2026-10-12T14:30:00.000Z",
+    caption_sha256: captionSha,
+    sources: { tiktok_native: { status: "measured" }, postiz_post: { status: "measured" } },
+    post: { views: { status: "measured", value: 9 } },
+    account_metrics: { status: "unavailable", reason: "provider_field_missing" },
+  }));
+
+  const originalFetch = global.fetch;
+  let telegramId = 0;
+  global.fetch = async (url) => {
+    if (String(url).startsWith("https://api.telegram.org/")) return { ok: true, json: async () => ({ ok: true, result: { message_id: ++telegramId } }) };
+    throw new Error(`unexpected network request in isolated metrics test: ${url}`);
+  };
+  try {
+    const results = await runDue(Date.parse("2026-10-12T14:30:00.000Z"), {
+      LM_DATA_DIR: dataDir,
+      LM_TELEGRAM_BOT_TOKEN: "fake",
+      LM_TELEGRAM_ALERT_CHAT_ID: "fake",
+    });
+    assert.equal(results.find((row) => row.window === "weekly-product").state, "partial");
+    assert.equal(results.find((row) => row.product_id === "honne-ai" && row.window === "daily-product").state, "unavailable");
+    assert.equal(results.find((row) => row.product_id === "anicca-ios" && row.window === "daily-product").state, "partial");
+    assert.equal(results.find((row) => row.video_id === videoId && row.window === "2h").state, "complete");
+    const weekly = JSON.parse(fs.readFileSync(path.join(dataDir, "tenants/dais-local/marketing/metrics/summaries/mobile-marketing/weekly/2026-W42.json"), "utf8"));
+    assert.equal(weekly.source_status, "partial");
+    assert.deepEqual(weekly.unavailable_products, ["honne-ai"]);
+    const honne = JSON.parse(fs.readFileSync(path.join(dataDir, "tenants/dais-local/marketing/metrics/summaries/honne-ai/daily", `${reportDay}.json`), "utf8"));
+    assert.equal(honne.source_status, "unavailable");
+    assert.match(honne.message, /取得不可/);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
