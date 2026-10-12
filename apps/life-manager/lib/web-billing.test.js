@@ -2,6 +2,7 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const crypto = require("node:crypto");
 
 let webBilling;
 try { webBilling = require("./web-billing.js"); } catch { webBilling = null; }
@@ -26,7 +27,7 @@ function fixture(overrides = {}) {
     paid: false,
     ...overrides,
   };
-  const calls = { prices: [], checkouts: [], portals: [], fetches: [], controlActions: [] };
+  const calls = { prices: [], customers: [], checkouts: [], portals: [], fetches: [], controlActions: [] };
   const stripeClient = {
     prices: {
       async retrieve(id) {
@@ -35,9 +36,15 @@ function fixture(overrides = {}) {
           recurring: { interval: "month" }, livemode: false };
       },
     },
+    customers: {
+      async create(params, requestOptions) {
+        calls.customers.push({ params, requestOptions });
+        return { id: "cus_web123" };
+      },
+    },
     checkout: { sessions: {
       async create(params, requestOptions) {
-        calls.checkouts.push({ params, requestOptions });
+        calls.checkouts.push({ params, requestOptions, persistedCustomerId: row.stripe_customer_id });
         return { id: "cs_test_once", url: "https://checkout.stripe.com/c/pay/cs_test_once" };
       },
     } },
@@ -55,7 +62,19 @@ function fixture(overrides = {}) {
       return { ok: true, json: async () => true };
     }
     if (!init.method) return { ok: true, status: 200, json: async () => [row] };
-    if (init.method === "PATCH") return { ok: true, status: 204, json: async () => [] };
+    if (init.method === "PATCH") {
+      const urlObject = new URL(String(url));
+      const body = JSON.parse(init.body || "{}");
+      if (urlObject.pathname.endsWith("/lm_users")
+        && urlObject.searchParams.get("uid") === `eq.${UID}`
+        && urlObject.searchParams.get("telegram_chat_id") === "is.null"
+        && urlObject.searchParams.get("stripe_customer_id") === "is.null"
+        && row.stripe_customer_id === null) {
+        Object.assign(row, body);
+        return { ok: true, status: 200, json: async () => [row] };
+      }
+      return { ok: true, status: 200, json: async () => [] };
+    }
     return { ok: false, status: 404, json: async () => [] };
   };
   return {
@@ -97,6 +116,13 @@ test("Web Checkout uses the existing $29 monthly price and never resumes automat
   assert.equal(request.params.client_reference_id, UID);
   assert.equal(request.params.metadata.lm_uid, UID);
   assert.equal(request.params.subscription_data.metadata.lm_uid, UID);
+  assert.equal(request.persistedCustomerId, "cus_web123");
+  assert.equal(request.params.customer, "cus_web123");
+  assert.equal(Object.hasOwn(request.params, "customer_email"), false);
+  assert.deepEqual(f.calls.customers, [{
+    params: { metadata: { lm_uid: UID, lm_product: "life_manager_web_travel" } },
+    requestOptions: { idempotencyKey: `lm-web-customer-${crypto.createHash("sha256").update(`${UID}:`).digest("hex").slice(0, 40)}` },
+  }]);
   assert.match(request.params.success_url, /^https:\/\/life\.example\/lm\?checkout=success/);
   assert.equal(request.params.cancel_url, "https://life.example/lm?checkout=cancelled");
   assert.match(request.requestOptions.idempotencyKey, /^lm-web-trial-/);
@@ -106,15 +132,17 @@ test("Web Checkout uses the existing $29 monthly price and never resumes automat
   }]);
 });
 
-test("Web Checkout pre-fills the authenticated Google email for a new Stripe customer", async () => {
+test("Web Checkout persists the authenticated Google email on its Stripe customer before Checkout", async () => {
   assert.ok(webBilling, "web-billing behavior must be implemented");
   const f = fixture();
   const email = "web-trial@example.test";
   await createCheckout(UID, { uid: UID, email }, f.opts);
   const params = f.calls.checkouts[0].params;
 
-  assert.equal(params.customer_email, email);
-  assert.equal(Object.hasOwn(params, "customer"), false);
+  assert.equal(f.calls.customers[0].params.email, email);
+  assert.equal(f.row.stripe_customer_id, "cus_web123");
+  assert.equal(params.customer, "cus_web123");
+  assert.equal(Object.hasOwn(params, "customer_email"), false);
 });
 
 test("Web Checkout lets Stripe collect email when the authenticated Google email is missing or invalid", async () => {
@@ -124,8 +152,9 @@ test("Web Checkout lets Stripe collect email when the authenticated Google email
     await createCheckout(UID, { uid: UID, email }, f.opts);
     const params = f.calls.checkouts[0].params;
 
+    assert.equal(Object.hasOwn(f.calls.customers[0].params, "email"), false);
+    assert.equal(params.customer, "cus_web123");
     assert.equal(Object.hasOwn(params, "customer_email"), false);
-    assert.equal(Object.hasOwn(params, "customer"), false);
   }
 });
 
@@ -183,7 +212,39 @@ test("repeated Web trial requests reuse the same Stripe idempotency key", async 
   f.opts.nowMs += 30 * 60 * 1000;
   await createCheckout(UID, { uid: UID }, f.opts);
   assert.equal(f.calls.checkouts.length, 2);
+  assert.equal(f.calls.customers.length, 1);
+  assert.equal(f.calls.checkouts[0].params.customer, f.calls.checkouts[1].params.customer);
   assert.equal(f.calls.checkouts[0].requestOptions.idempotencyKey, f.calls.checkouts[1].requestOptions.idempotencyKey);
+});
+
+test("Web Checkout fails closed when its Stripe customer mapping cannot be persisted", async () => {
+  assert.ok(webBilling, "web-billing behavior must be implemented");
+  const f = fixture();
+  const fetchImpl = f.opts.fetchImpl;
+  f.opts.fetchImpl = async (url, init = {}) => init.method === "PATCH"
+    ? { ok: false, status: 500, json: async () => [] }
+    : fetchImpl(url, init);
+
+  await assert.rejects(createCheckout(UID, { uid: UID }, f.opts), { status: 502 });
+  assert.equal(f.calls.customers.length, 1);
+  assert.equal(f.calls.checkouts.length, 0);
+});
+
+test("Web Checkout keeps a concurrently persisted Stripe customer mapping", async () => {
+  assert.ok(webBilling, "web-billing behavior must be implemented");
+  const f = fixture();
+  const fetchImpl = f.opts.fetchImpl;
+  f.opts.fetchImpl = async (url, init = {}) => {
+    if (init.method === "PATCH") {
+      f.row.stripe_customer_id = "cus_raced123";
+      return { ok: true, status: 200, json: async () => [] };
+    }
+    return fetchImpl(url, init);
+  };
+
+  await createCheckout(UID, { uid: UID }, f.opts);
+  assert.equal(f.calls.checkouts[0].params.customer, "cus_raced123");
+  assert.equal(f.calls.checkouts[0].persistedCustomerId, "cus_raced123");
 });
 
 test("Customer Portal is scoped to the verified Web customer's Stripe id", async () => {
