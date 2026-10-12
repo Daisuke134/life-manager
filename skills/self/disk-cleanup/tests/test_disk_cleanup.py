@@ -4115,6 +4115,19 @@ def test_receipt_carries_loaded_cleanup_identity(tmp_path, monkeypatch):
     assert "identity" not in json.loads((tmp_path / "state/last-unbound-receipt.json").read_text())
 
 
+def test_watchdog_receipt_without_run_binding_uses_unbound_file(tmp_path, monkeypatch):
+    state = tmp_path / "state"
+    monkeypatch.setenv("LIFE_MANAGER_DISK_WATCHDOG", "1")
+    monkeypatch.setattr(disk_cleanup, "cleanup_run_binding", lambda *_args: None)
+    governor = HostDiskGovernor(home=tmp_path, state_dir=state)
+
+    governor._receipt({"ok": True, "free_after": 3 * GiB})
+
+    assert not (state / "last-receipt.json").exists()
+    saved = json.loads((state / "last-unbound-receipt.json").read_text())
+    assert "identity" not in saved
+
+
 def test_governor_reports_growth_and_preservation_reason_without_false_recovery(tmp_path, monkeypatch):
     governor = HostDiskGovernor(home=tmp_path, state_dir=tmp_path / "state", usage=lambda: (600*1024**2,100*GiB), lsof=lambda _p: "confirmed-closed")
     monkeypatch.setattr(governor, "discover_candidates", lambda **_kwargs: [])

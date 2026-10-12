@@ -116,7 +116,9 @@ the governor runs one bounded full census. It records the attempt first, so an
 incomplete census does not repeat heavy probes on every minute wake. If the
 attempt marker cannot be persisted, that wake falls back to fast inventory and
 records the scheduling error. Missing sizes remain unknown and never expand
-deletion authorization.
+deletion authorization. The wrapper tags the watchdog child so its
+identity-less observations always use `last-unbound-receipt.json`; the managed
+owner's `last-receipt.json` remains reserved for an exact occurrence binding.
 The 5-minute `ai.anicca.life-manager-disk-cleanup` performs release/Git/Codex
 and managed scratch maintenance, but never invokes the host sweeper. This keeps
 it from holding the watchdog's singleton lock and making a minute pass exit 75.
