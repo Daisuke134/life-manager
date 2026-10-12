@@ -2520,6 +2520,75 @@ def test_lsof_failure_fails_closed(tmp_path: Path, monkeypatch) -> None:
     assert result["preserved_reasons"] == {"probe-error": 1}
 
 
+def test_descendant_probe_error_records_bounded_relative_path(tmp_path: Path, monkeypatch) -> None:
+    temporary = tmp_path / "tmp"
+    candidate = temporary / "capafy-hf-npm.walk-error"
+    blocked = candidate / "inaccessible"
+    candidate.mkdir(parents=True)
+    (candidate / "payload").write_text("in-flight")
+    monkeypatch.setattr(disk_cleanup.tempfile, "gettempdir", lambda: str(temporary))
+    monkeypatch.setattr(disk_cleanup, "_old_real_temporary_path", lambda _path: True)
+
+    def failing_walk(path, *, topdown, followlinks, onerror):
+        onerror(PermissionError(errno.EACCES, "permission denied", str(blocked)))
+        yield str(path), [], ["payload"]
+
+    monkeypatch.setattr(disk_cleanup.os, "walk", failing_walk)
+    governor = HostDiskGovernor(
+        home=tmp_path,
+        state_dir=tmp_path / "state",
+        lsof=lambda _path: "confirmed-closed",
+        usage=lambda: (0, 1),
+    )
+
+    result = governor.sweep(
+        [{"path": candidate, "class": "ephemeral", "owner": "temporary-run",
+          "discovery": "allowlisted"}]
+    )
+
+    assert candidate.exists()
+    assert result["errors"] == 1
+    assert result["preserved_reasons"] == {"descendant_probe_error": 1}
+    assert result["probe_errors"] == [{
+        "owner": "temporary-run",
+        "candidate": "tmp/capafy-hf-npm.walk-error",
+        "path": "tmp/capafy-hf-npm.walk-error/inaccessible",
+        "error_class": "PermissionError",
+        "errno": errno.EACCES,
+    }]
+    receipt = json.loads((tmp_path / "state" / "last-receipt.json").read_text())
+    assert receipt["probe_errors"] == result["probe_errors"]
+
+
+def test_allowlisted_regular_file_does_not_run_descendant_walk(tmp_path: Path, monkeypatch) -> None:
+    temporary = tmp_path / "tmp"
+    candidate = temporary / "slide-pack-fixture-bg-12345.png"
+    candidate.parent.mkdir(parents=True)
+    candidate.write_bytes(b"fixture")
+    monkeypatch.setattr(disk_cleanup.tempfile, "gettempdir", lambda: str(temporary))
+    monkeypatch.setattr(disk_cleanup, "_old_real_temporary_path", lambda _path: True)
+    monkeypatch.setattr(
+        disk_cleanup.os, "walk",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("a regular-file candidate has no descendants")),
+    )
+    governor = HostDiskGovernor(
+        home=tmp_path,
+        state_dir=tmp_path / "state",
+        lsof=lambda _path: "confirmed-closed",
+        usage=lambda: (0, 1),
+    )
+
+    result = governor.sweep([{
+        "path": candidate, "class": "ephemeral", "owner": "temporary-run",
+        "discovery": "allowlisted",
+    }])
+
+    assert not candidate.exists()
+    assert result["reclaimed"] == len(b"fixture")
+    assert result["errors"] == result["protected_deletions"] == 0
+
+
 def test_cli_candidate_is_rejected(tmp_path: Path) -> None:
     script = Path(__file__).parents[1] / "disk_cleanup.py"
     result = subprocess.run(
