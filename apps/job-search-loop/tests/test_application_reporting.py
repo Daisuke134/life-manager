@@ -1,9 +1,11 @@
 import hashlib
 import importlib
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from job_search_loop import telegram
 from job_search_loop.ledger import Ledger
@@ -279,6 +281,32 @@ class ApplicationReportingTests(unittest.TestCase):
 
         self.assertEqual(result, {"status": "suppressed", "message_id": None})
         self.assertEqual(calls, [])
+
+    def test_submitted_hourly_outcome_is_suppressed_without_telegram_setup(self):
+        from job_search_loop.browser_agent.contracts import QueueRowReceiptV1
+        from job_search_loop.browser_agent.outcome_reporting import send_hourly_outcomes
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            telegram_env = root / "telegram.env"
+            telegram_env.write_text("", encoding="utf-8")
+            with patch.dict(
+                os.environ,
+                {
+                    "JOB_SEARCH_TELEGRAM_ENV": str(telegram_env),
+                    "TELEGRAM_BOT_TOKEN": "",
+                    "JOB_SEARCH_TELEGRAM_CHAT_ID": "",
+                },
+                clear=False,
+            ):
+                result = send_hourly_outcomes(
+                    database=root / "outbox.sqlite3",
+                    wake_id="wake-submitted-no-telegram",
+                    receipts=(QueueRowReceiptV1("application-1", "Example", "Role", "submitted"),),
+                    evidence_classes={"application-1": "authoritative_receipt_email"},
+                )
+
+        self.assertEqual(result, {"status": "suppressed", "message_id": None})
     def test_quota_failed_wake_reports_queued_company_role_and_next_action(self):
         reporting = importlib.import_module("job_search_loop.application_reporting")
         deliver = getattr(reporting, "deliver_wake_report", None)
