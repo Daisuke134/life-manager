@@ -41,21 +41,6 @@ chmod 700 \
   "$BROWSER_SCRATCH" \
   "$JOB_SEARCH_STATE_ROOT/logs"
 export PYTHONPATH="$JOB_SEARCH_APP_ROOT"
-# Dreamwork native Autopilot owns submissions when it is application-ready.
-# The same scheduled owner falls back only when native work is provably absent.
-set +e
-"$JOB_SEARCH_PYTHON" -m job_search_loop.dreamwork_native \
-  --profile "$JOB_SEARCH_PROFILE" \
-  --state-root "$JOB_SEARCH_STATE_ROOT" \
-  --output "$EVIDENCE/dreamwork-readback.json"
-DREAMWORK_RC=$?
-set -e
-if [[ "$DREAMWORK_RC" -eq 0 ]]; then
-  exit 0
-fi
-if [[ "$DREAMWORK_RC" -ne 69 ]]; then
-  exit "$DREAMWORK_RC"
-fi
 export JOB_SEARCH_BROWSER_OWNER_EVIDENCE="$EVIDENCE/browser-owner.json"
 export JOB_SEARCH_BROWSER_STATE_ROOT="$BROWSER_STATE"
 export JOB_SEARCH_REQUIRE_TAILORED_RESUME=1
@@ -211,14 +196,7 @@ APPLICATION_ID=""
 if [[ -f "$WORKDAY_DISCOVERY_RESULT" ]]; then
   APPLICATION_ID=$("$JOB_SEARCH_JQ" -r '.queued_application_ids[0] // empty' "$WORKDAY_DISCOVERY_RESULT" 2>/dev/null) || APPLICATION_ID=""
 fi
-DREAMWORK_APPLICATION_ID=""
-if [[ -f "$EVIDENCE/dreamwork-readback.json" ]]; then
-  DREAMWORK_APPLICATION_ID=$("$JOB_SEARCH_JQ" -r '.free_match_preparation.queued_application_ids[0] // empty' "$EVIDENCE/dreamwork-readback.json" 2>/dev/null) || DREAMWORK_APPLICATION_ID=""
-fi
-if [[ -n "$DREAMWORK_APPLICATION_ID" ]]; then
-  APPLICATION_ID="$DREAMWORK_APPLICATION_ID"
-fi
-# Provider discovery failure cannot close the other provider's application lane.
+# Workday discovery failure cannot close the existing qualified Workday queue.
 # The common rolling budget comes from actual confirmations in the shared ledger.
 APPLICATION_LIMIT=$("$JOB_SEARCH_PYTHON" - <<'BUDGET_PY'
 import os
@@ -239,47 +217,6 @@ print(rolling_submission_metrics(Path(os.environ['JOB_SEARCH_STATE_ROOT']) / 'le
 BUDGET_PY
 )
 export JOB_SEARCH_APPLICATION_LIMIT="$APPLICATION_LIMIT"
-# Refresh official Ashby boards inside this same acquisition owner. The cache is
-# only a board seed; discovery never falls back to cached applications.
-ASHBY_DISCOVERY_RESULT="$EVIDENCE/ashby-discovery.json"
-ASHBY_BOARD_CACHE="$JOB_SEARCH_STATE_ROOT/official-ats-board-cache.v1.json"
-if [[ "$APPLICATION_LIMIT" != 0 && -f "$ASHBY_BOARD_CACHE" ]]; then
-  set +e
-  "$JOB_SEARCH_PYTHON" -m job_search_loop.ashby_discovery \
-    --cache "$ASHBY_BOARD_CACHE" \
-    --ledger "$JOB_SEARCH_STATE_ROOT/ledger.sqlite3" \
-    --profile "$JOB_SEARCH_PROFILE" \
-    --materials-root "$MATERIALS_ROOT" \
-    --prompt "$JOB_SEARCH_APP_ROOT/prompts/daily-pass.md" \
-    --board-batch 3 --max-jobs 4 \
-    --output "$ASHBY_DISCOVERY_RESULT"
-  ASHBY_DISCOVERY_RC=$?
-  set -e
-  if [[ "$ASHBY_DISCOVERY_RC" -ne 0 ]]; then
-    print -u2 "job-search daily: Ashby discovery failed; existing qualified queue remains available"
-  fi
-fi
-# Rotate the first row on the existing cadence; one provider's backlog must not
-# hide the other. The remaining queue still uses exactly one browser model.
-if [[ -z "$DREAMWORK_APPLICATION_ID" ]] && (( NOW_EPOCH / 1800 % 2 == 1 )); then
-  ASHBY_APPLICATION_ID=$("$JOB_SEARCH_PYTHON" - <<'ASHBY_QUEUE_PY'
-import os
-from pathlib import Path
-from job_search_loop.ledger import Ledger
-from job_search_loop.browser_agent.queue import RowQueueSupervisor
-ledger = Ledger(Path(os.environ['JOB_SEARCH_STATE_ROOT']) / 'ledger.sqlite3')
-try:
-    rows = RowQueueSupervisor.collect(ledger, active_provider='ashby')
-    print(rows[0]['application_id'] if rows else '')
-finally:
-    ledger.close()
-ASHBY_QUEUE_PY
-  )
-  if [[ -n "$ASHBY_APPLICATION_ID" ]]; then
-    APPLICATION_ID="$ASHBY_APPLICATION_ID"
-  fi
-fi
-
 if [[ -n "$APPLICATION_ID" ]]; then
   export JOB_SEARCH_PREFERRED_APPLICATION_ID="$APPLICATION_ID"
   set +e
@@ -305,7 +242,7 @@ set +e
   --evidence-dir "$EVIDENCE" \
   --workdir "$JOB_SEARCH_REPO_ROOT" \
   --python "$JOB_SEARCH_PYTHON" \
-  --active-provider all
+  --active-provider workday
 RUNNER_RC=$?
 set -e
 set +e
