@@ -689,6 +689,33 @@ test("conflicting pending archive is never overwritten or sent", async t => {
   assert.equal(messages.length, 1);
 });
 
+test("hardlinked pending archive stops before collection or notification", async t => {
+  const { options, messages } = setup(t);
+  let collects = 0;
+  options.collect = async date => { collects += 1; return b7Table(date); };
+  const deliveredNotify = options.notify;
+  options.notify = async input => { messages.push(input); return { delivery: "pending" }; };
+  await assert.rejects(runResultCfo({ ...options, now: "2026-09-30T12:00:00Z" }), /receipt_missing/);
+  options.notify = deliveredNotify;
+  const file = path.join(options.stateDir, "last-result-report.json");
+  const before = fs.readFileSync(file, "utf8");
+  const oldSnapshot = fs.readFileSync(readbackFile(options.stateDir, options.occurrenceId), "utf8");
+  const archive = path.join(options.stateDir, `pending-result-report-${options.occurrenceId}.json`);
+  const temporary = `${archive}.fixture.tmp`;
+  fs.writeFileSync(temporary, before, { mode: 0o600 });
+  fs.linkSync(temporary, archive);
+  assert.equal(fs.statSync(archive).nlink, 2);
+  await assert.rejects(runResultCfo({ ...options, occurrenceId: "life-manager-cfo-hourly:new-period",
+    now: "2026-10-01T12:00:00Z" }), /cfo_pending_report_archive_invalid/);
+  assert.equal(fs.readFileSync(file, "utf8"), before);
+  assert.equal(fs.readFileSync(archive, "utf8"), before);
+  assert.equal(fs.readFileSync(temporary, "utf8"), before);
+  assert.equal(fs.readFileSync(readbackFile(options.stateDir, options.occurrenceId), "utf8"), oldSnapshot);
+  assert.equal(fs.statSync(archive).nlink, 2);
+  assert.equal(collects, 1);
+  assert.equal(messages.length, 1);
+});
+
 test("pending report archive failure stops before collection or notification", async t => {
   const { options, messages } = setup(t);
   let collects = 0;

@@ -686,7 +686,9 @@ async function runResultCfo(options) {
   }
   if (pending && sourceSnapshot?.status !== "sent" && pending.periodKey !== periodKey && pending.occurrenceId !== currentOccurrenceId) {
     const archive = path.join(stateDir, `pending-result-report-${pending.occurrenceId}.json`);
-    if (b7SnapshotStat(archive)) {
+    const archiveStat = b7SnapshotStat(archive);
+    if (archiveStat) {
+      if (archiveStat.nlink !== 1) throw new Error("cfo_pending_report_archive_invalid");
       if (JSON.stringify(JSON.parse(fs.readFileSync(archive, "utf8"))) !== JSON.stringify(pending)) {
         throw new Error("cfo_pending_report_archive_conflict");
       }
