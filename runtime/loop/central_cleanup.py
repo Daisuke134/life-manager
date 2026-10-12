@@ -67,8 +67,10 @@ def no_effect_loop_ids(registry_path: Path) -> set[str]:
 
 def recorded_run_metadata(
         events_path: Path, loop_ids: set[str]
-        ) -> dict[tuple[str, str], tuple[str | None, str | None, str | None]]:
+        ) -> dict[tuple[str, str], tuple[str | None, str | None, str | None,
+                                        str | None, str | None, str | None]]:
     observed: dict[tuple[str, str], set[tuple[str | None, str | None, str | None]]] = {}
+    latest_effect: dict[tuple[str, str], tuple[str | None, str | None, str | None]] = {}
     try:
         with events_path.open(encoding="utf-8") as handle:
             for line in handle:
@@ -87,14 +89,21 @@ def recorded_run_metadata(
                     continue
                 if not isinstance(run_id, str):
                     return {}
-                observed.setdefault((loop_id, run_id), set()).add((
+                key = (loop_id, run_id)
+                observed.setdefault(key, set()).add((
                     effect_class if isinstance(effect_class, str) else None,
                     occurrence_id if isinstance(occurrence_id, str) else None,
                     release_sha if isinstance(release_sha, str) else None,
                 ))
+                latest_effect[key] = (
+                    event.get("effect_status") if isinstance(event.get("effect_status"), str) else None,
+                    event.get("provider_receipt_id") if isinstance(event.get("provider_receipt_id"), str) else None,
+                    event.get("official_readback_ref") if isinstance(event.get("official_readback_ref"), str) else None,
+                )
     except (OSError, UnicodeError):
         return {}
-    result: dict[tuple[str, str], tuple[str | None, str | None, str | None]] = {}
+    result: dict[tuple[str, str], tuple[str | None, str | None, str | None,
+                                        str | None, str | None, str | None]] = {}
     for key, values in observed.items():
         classes, occurrences, releases = ({value[index] for value in values}
                                            for index in range(3))
@@ -102,6 +111,7 @@ def recorded_run_metadata(
             next(iter(classes)) if len(classes) == 1 and None not in classes else None,
             next(iter(occurrences)) if len(occurrences) == 1 and None not in occurrences else None,
             next(iter(releases)) if len(releases) == 1 and None not in releases else None,
+            *latest_effect.get(key, (None, None, None)),
         )
     return result
 
@@ -297,24 +307,41 @@ def scratch_gc(roots: set[Path], *, snapshot_started_ns: int | None = None,
                                     raise ValueError("invalid owner effect class")
                             else:
                                 owner_effect_class = None
+                            event_key = (loop_name, run_name)
+                            metadata = event_metadata.get(event_key)
+                            (recorded_effect_class, occurrence_id, release_sha, effect_status,
+                             provider_receipt_id, official_readback_ref) = (
+                                metadata if metadata is not None else (None, None, None, None, None, None)
+                            )
+                            verified_close = (
+                                isinstance(occurrence_id, str)
+                                and isinstance(release_sha, str)
+                                and (loop_name, occurrence_id, release_sha) in reconciled_occurrences
+                            )
+                            no_effect_without_reconcile = (
+                                recorded_effect_class == "none"
+                                and loop_name in no_effect_loop_ids
+                            )
                             if has_terminal_unrecorded:
-                                event_key = (loop_name, run_name)
-                                recorded_effect_class, occurrence_id, release_sha = event_metadata.get(
-                                    event_key, (None, None, None))
-                                verified_close = (
-                                    isinstance(occurrence_id, str)
-                                    and isinstance(release_sha, str)
-                                    and (loop_name, occurrence_id, release_sha) in reconciled_occurrences
-                                )
-                                no_effect_without_reconcile = (
-                                    recorded_effect_class == "none"
-                                    and loop_name in no_effect_loop_ids
-                                )
                                 if (event_key not in event_metadata
                                         or recorded_effect_class is None
                                         or (not no_effect_without_reconcile and not verified_close)
                                         or (owner_effect_class is not None
                                             and owner_effect_class != recorded_effect_class)):
+                                    result["preserved"] += 1
+                                    continue
+                            if metadata is not None:
+                                effect_is_closed = (
+                                    verified_close
+                                    or no_effect_without_reconcile
+                                    or (recorded_effect_class not in {None, "none"}
+                                        and effect_status == "not_applicable"
+                                        and not provider_receipt_id and not official_readback_ref)
+                                    or (recorded_effect_class not in {None, "none"}
+                                        and effect_status in {"verified", "reconciled"}
+                                        and provider_receipt_id and official_readback_ref)
+                                )
+                                if not effect_is_closed:
                                     result["preserved"] += 1
                                     continue
                             if identities is None or owner_stat.st_mtime_ns >= started_ns:
