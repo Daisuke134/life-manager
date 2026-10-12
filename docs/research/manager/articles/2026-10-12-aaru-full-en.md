@@ -49,7 +49,7 @@ Population construction answers: who exists in this audience, and in what propor
 
 Aaru describes training against both population distributions and differences in responses across people and conditions. Fitting only individuals can let totals drift; fitting only totals can conceal incoherent people. Learned relationships are then applied to new conditions, with results remaining conditional on evidence and assumptions.[2]
 
-The term “behavioral trajectory” does not itself prove validated long-term life simulation or social interaction. The large public study mainly tests question-level answer shares. Longitudinal change, influence between groups, and within-person consistency require additional evaluations. Their appearance in the Evaluation job’s research agenda indicates important work, not that every problem has already been solved.[1][7]
+The term “behavioral trajectory” does not itself prove validated long-term life simulation or social interaction. The large public study mainly tests question-level answer shares. Longitudinal change, influence between groups, and within-person consistency require additional evaluations.[1]
 
 ## What comes back
 
