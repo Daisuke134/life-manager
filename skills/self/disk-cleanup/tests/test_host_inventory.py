@@ -363,6 +363,38 @@ def test_full_inventory_allows_slow_allowlisted_root_with_bounded_timeout(tmp_pa
     assert f"size-timeout:{tmp_path / 'Projects'}" not in payload["coverage"]["gaps"]
 
 
+def test_full_inventory_measures_projects_root_that_needs_20_seconds(tmp_path: Path, monkeypatch) -> None:
+    projects = tmp_path / "Projects"
+    projects.mkdir()
+    monkeypatch.setattr(host_inventory, "ROOT_FAMILIES", (("repository-worktree", "{home}/Projects"),))
+    clock = [0.0]
+    observed_timeouts: list[float] = []
+
+    def bounded_runner(argv: list[str], *, timeout: float) -> subprocess.CompletedProcess[str]:
+        if argv[0].endswith("/du"):
+            observed_timeouts.append(timeout)
+            if timeout < 20:
+                clock[0] += timeout
+                raise subprocess.TimeoutExpired(argv, timeout)
+            clock[0] += 20
+            return subprocess.CompletedProcess(argv, 0, f"20\t{projects}\n", "")
+        return fake_runner(argv, timeout=timeout)
+
+    payload = collect_host_inventory(
+        home=tmp_path,
+        state_dir=tmp_path / "state",
+        full=True,
+        runner=bounded_runner,
+        clock=lambda: clock[0],
+        budget_seconds=90,
+    )
+
+    record = next(root for root in payload["roots"] if root["path"] == str(projects))
+    assert record["measurement"] == "bounded-du"
+    assert record["size_bytes"] == 20 * 1024
+    assert 20 <= observed_timeouts[0] <= 30
+
+
 def test_du_timeout_preserves_unknown_size_with_owner_attribution(tmp_path: Path) -> None:
     projects_path = tmp_path / "Projects"
     projects_path.mkdir()
