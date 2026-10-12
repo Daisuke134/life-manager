@@ -52,6 +52,7 @@ The output is one JSON summary. `unverified_external_rows` is visible but contri
 `external_net_usdc`. A missing RPC receipt remains retryable; it is never silently treated as success.
 Compute and shelter cost totals stay `null` unless every row in the 30-day window has a verified
 provider receipt and numeric cost; an empty or incomplete journal is not zero cost.
+Provider revenue receipts also require explicit fee and refund amounts; absent fields are not zero.
 
 Mutable ledgers and cost journals live under
 `~/.local/state/life-manager/agent-economy/`. Set `AGENT_ECONOMY_STATE_ROOT` to override it.

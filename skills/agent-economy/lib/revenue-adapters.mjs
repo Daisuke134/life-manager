@@ -179,9 +179,11 @@ function moneyValue(row, keys, atomicKeys = [], options = {}) {
   return decimalText(value, keys[0]);
 }
 
-function optionalMoney(row, keys, atomicKeys = [], options = {}) {
+function requiredMoney(row, keys, atomicKeys = [], options = {}) {
   const value = directOrNested(row, atomicKeys.length ? [...atomicKeys, ...keys] : keys);
-  if (value === undefined || value === null || value === "") return "0";
+  if (value === undefined || value === null || value === "") {
+    throw new AdapterFailure("MISSING_SETTLEMENT_COMPONENT", `${keys[0]} amount is missing`);
+  }
   return moneyValue(row, keys, atomicKeys, options);
 }
 
@@ -284,8 +286,8 @@ export async function adaptX402WithEvmVerifier(row, options = {}) {
     const asset = assetFor(input, "x402", options);
     const { payer, recipient } = identity(input, options);
     const gross = atomicToDecimal(atomic, "amount_atomic", decimals);
-    const fee = optionalMoney(input, ["fee", "fee_amount"]);
-    const refund = optionalMoney(input, ["refund", "refund_amount"]);
+    const fee = requiredMoney(input, ["fee", "fee_amount"]);
+    const refund = requiredMoney(input, ["refund", "refund_amount"]);
     const terminal_state = terminalState(input, ["terminal_state", "settlement_state", "status", "settled", "success"]);
     const occurred_at = directOrNested(input, ["occurred_at", "occurredAt", "timestamp", "ts"]);
     if (occurred_at === undefined || occurred_at === null) throw new AdapterFailure("MISSING_TIMESTAMP", "x402 settlement timestamp is missing");
