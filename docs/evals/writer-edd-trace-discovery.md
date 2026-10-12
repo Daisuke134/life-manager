@@ -24,7 +24,7 @@
 
 残る1件は`identity=FAIL` category `C`、`CTA=PASS`、`blocked-before-publication`、`tracked_source_unchanged=true`です。
 
-このrunの`quality-self-heal.json`は不正JSONです。
+W-01の`quality-self-heal.json`は存在しますが0 bytesです。SHA-256は`e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`で、JSON parseは`JSONDecodeError`になります。
 
 8件すべての`harness_git_hash`は`UNKNOWN`であり、各結果を現在のsource commitへ結び付けられません。
 
@@ -66,6 +66,34 @@ Identity/CTAの不一致は人手ラベル待ちのcandidateです。
 
 **未計測:** judgeのTPR/TNR、記事task全体の失敗率、費用控除後net、記事のreadership、売上uplift、source-specific before/after、複数trialのばらつきです。
 
+## A4 failure taxonomy (development-only)
+
+以下は重複しうるfailure/stage分類です。件数はcase discovery用であり、率や性能scoreの分母にはしません。
+
+| Class | 自然traceでの観測 | 評価上の扱い |
+|---|---|---|
+| `english_draft_absent` | 8件中3件 | quality gate未到達。quality failとは判定しない。 |
+| `quality_receipt_absent` | English draftありの1件 | quality outcomeは`unknown`。 |
+| `quality_gate_advisory` | gate receiptがある4件中3件 | advisoryはquality failともquality passとも数えない。 |
+| `identity_cta_disagreement` | W-01の1件 | identityの意味判定はhuman label pending。false positive/true positiveを決めない。 |
+| `quality_self_heal_record_unparseable` | W-01の1件、0-byte JSON artifact | deterministicなevidence-integrity failure。内容品質とrecovery結果は`unknown`のままにする。 |
+| `source_lineage_missing` | 8件中8件 | provenance failure。agent task failureとして数えない。 |
+
+**A4で選ぶ最初のfailure class:** `quality_self_heal_record_unparseable`。存在・byte length・JSON/schemaはcodeで採点でき、identity/CTAの人手判定を待たずに評価境界を作れます。W-01のartifact SHA-256は上記の値ですが、`harness_git_hash=UNKNOWN`なのでsource-level reproductionは未達です。これはcase discoveryの選定であり、A5 case cardや回帰試験の完了ではありません。E01 cursorも進めません。
+
+## A5 case card — W-01 empty self-heal record
+
+- **case_id:** `writer-quality-self-heal-empty-w01`
+- **task:** W-01のquality self-heal artifactがparse可能かを判定する。内容品質やidentity/CTAの意味labelは採点しない。
+- **initial_state:** natural run `20261011-210544`、English draftあり、identity `C: FAIL` / CTA `PASS`、publication前にblock。`gates/quality-self-heal.json`は0 bytes、SHA-256=`e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`。
+- **allowed_tools:** この1 artifactのread-only readと標準JSON parserのみ。
+- **budget/constraints:** input上限1,000,000 bytes（read-only review endpointの既存上限）、model calls 0、network requests 0、provider/browser actions 0、external effects 0。
+- **expected_outcome:** evaluatorは`receipt_unparseable` / `artifact_integrity=FAIL`を返す。writerのdraft-stageは`PASS`、pre-publication qualityとrecovery outcomeは`UNKNOWN`、publicationは`blocked-before-publication`、settled netは`UNKNOWN`。identity/CTAのhuman labelはpendingのまま保持する。
+- **provenance/split:** `natural_observation` / `development`; `harness_git_hash=UNKNOWN`。source-level replayはlineageが回復するまで不可。held-outではない。
+- **evidence_refs:** private Writer trace `run_id=20261011-210544`, artifact `gates/quality-self-heal.json`; sanitized summary in this document under Candidate W-01.
+
+このcardはcase定義であり、grader実装、source再現、agent performance測定の完了ではありません。外部receiptや費用がない状態を売上0へ変換しません。
+
 ## 優先findings
 
 ### 1. Source lineageが不足
@@ -94,9 +122,9 @@ event IDだけに依存する結合は現行保持範囲で25/276件です。
 
 ### 4. Judge artifactのschema failureも計測対象
 
-W-01のquality self-heal artifactがJSONとして読めず、品質判定の再現に使えません。
+W-01のquality self-heal artifactは0 bytesでJSONとして読めず、品質判定の再現に使えません。
 
-**次手:** receipt parseabilityをcodeで別評価し、parse failureをagent quality FAILやPASSへ置換しません。
+**次手:** receipt parseabilityをcodeで別評価し、parse failureをagent quality FAILやPASSへ置換しません。A4でこの分類を最初のeval対象に選び、case schemaと既存test対応はA5で確定します。
 
 ## 境界
 
