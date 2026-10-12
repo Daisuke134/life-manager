@@ -2,6 +2,8 @@
 
 > 後続担当は `superpowers:executing-plans` でtask単位に進める。この文書は議論用draftであり、今回は実行しない。実行状態の正本を増やさない。
 
+**Q&Aによる範囲整理:** Writerの公開前品質評価をPilot Aとし、このplanはeffect-unknown回復の安全性を扱うPilot Bに限定する。Writerの品質PASSを売上改善と扱わず、既存recovery-intent/apply-plan testを再利用する。実行順とcursorはcanonical SSOTが所有する。
+
 **Goal:** 一つの自然失敗と既存回帰試験を対応付け、欠けた境界を修理ownerのEDDへ接続する。
 
 **Architecture:** 既存recoveryのpure-function testとLM-EABの会計contractを再利用する。初回deliverableはcase cardとcoverage表。新wrapper、runner、graderは作らない。
