@@ -284,9 +284,6 @@ test("production contract runs hourly and maximizes real applications", () => {
   assert.match(dailyPrompt, /\$FUNDRAISER_RECORD_APPLICATION --prepare/);
   assert.match(dailyPrompt, /\$FUNDRAISER_RECORD_APPLICATION --claim-effect/);
   assert.match(dailyPrompt, /application_digest/);
-  assert.match(runtimeScript, /MIN_FREE_KIB=\$\(\(1536 \* 1024\)\)/);
-  assert.match(runtimeScript, /PRESSURE_FREE_KIB=\$\(\(2 \* 1024 \* 1024\)\)/);
-  assert.match(runtimeScript, /required_kib=\$PRESSURE_FREE_KIB/);
   assert.doesNotMatch(runtimeScript, /\.openclaw/);
   assert.doesNotMatch(runtimeScript, /restart life-manager-disk-cleanup/);
   assert.match(runtimeScript, /exit 75/);

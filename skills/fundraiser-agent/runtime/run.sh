@@ -25,8 +25,6 @@ PROMPT="$REPO_ROOT/skills/fundraiser-agent/prompts/daily.md"
 SCHEMA="$REPO_ROOT/skills/fundraiser-agent/runtime/pass-result.schema.json"
 SENDER="$REPO_ROOT/skills/_shared/send-telegram.sh"
 PHOTO_SENDER="$REPO_ROOT/skills/_shared/send-telegram-photo.sh"
-MIN_FREE_KIB=$((1536 * 1024))
-PRESSURE_FREE_KIB=$((2 * 1024 * 1024))
 # Use an explicitly permitted registered identity and a task-owned context.
 # Browser recovery belongs to its registry owner, not this application pass.
 BROWSER_GUARD="${LIFE_MANAGER_BROWSER_GUARD:-$REPO_ROOT/skills/browser/browser-guard.sh}"
@@ -65,10 +63,6 @@ write_boundary_marker pre_effect 0 || {
   exit 75
 }
 
-available_kib() {
-  df -Pk "$STATE_ROOT" 2>/dev/null | awk 'NR==2 {print $4}'
-}
-
 BROWSER_LEASED=0
 BROWSER_ENDPOINT=""
 
@@ -80,16 +74,10 @@ release_browser() {
   fi
 }
 
-# An application browser pass temporarily needs close to 1 GiB. Starting below this floor
-# repeatedly ended with ENOSPC before the runner could persist its summary or proof.
-# Leave the shared cleanup owner running; the next scheduled wake retries naturally.
-FREE_KIB="$(available_kib)"
-if [ -z "$FREE_KIB" ] || ! [[ "$FREE_KIB" =~ ^[0-9]+$ ]]; then
-  echo "fundraiser: disk preflight unavailable" >&2
-  exit 2
-fi
-if [ "$FREE_KIB" -lt "$PRESSURE_FREE_KIB" ]; then
-  echo "fundraiser: deferred disk policy available_kib=$FREE_KIB required_kib=$PRESSURE_FREE_KIB" >>"$LOG"
+# Honor shared producer stops and state safety; real writes enforce storage failures.
+if ! LIFE_MANAGER_PRODUCER_STATE_DIR="$STATE_ROOT" python3 -B \
+    "$REPO_ROOT/runtime/host/disk_admission.py" /usr/bin/true >>"$LOG" 2>&1; then
+  echo "fundraiser: deferred shared disk policy" >>"$LOG"
   exit 75
 fi
 
