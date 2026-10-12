@@ -236,8 +236,17 @@ class ShouldRunToday(unittest.TestCase):
     def test_already_observed_today_skips(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             ledger = Path(tmp) / "sales.json"
-            ledger.write_text(json.dumps({"observed_at": MODULE.now_utc().isoformat()}))
+            ledger.write_text(json.dumps({
+                "schema_version": 2,
+                "observed_at": MODULE.now_utc().isoformat(),
+            }))
             self.assertFalse(MODULE.should_run_today(ledger))
+
+    def test_same_day_legacy_snapshot_runs_after_schema_upgrade(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            ledger = Path(tmp) / "sales.json"
+            ledger.write_text(json.dumps({"observed_at": MODULE.now_utc().isoformat()}))
+            self.assertTrue(MODULE.should_run_today(ledger))
 
     def test_observed_yesterday_runs(self) -> None:
         import datetime

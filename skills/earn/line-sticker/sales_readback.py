@@ -29,6 +29,7 @@ IDENTITY = "line-creators:dais"
 CREATOR_BASE = "https://creator.line.me/my/cCX4POFknN2lhLJE"
 STATE_ROOT_DEFAULT = Path.home() / ".local/state/life-manager" / "line-sticker"
 JST = datetime.timezone(datetime.timedelta(hours=9))
+SALES_SNAPSHOT_SCHEMA_VERSION = 2
 
 STICKER_ROW_RE = re.compile(r"([^\n\t￥]+?)[\t\n]+(\d{4}/\d{1,2}/\d{1,2})[\t\n]+￥([\d,]+)")
 PRODUCT_ID_RE = re.compile(r"/stats/sticker/(\d+)(?:/)?(?:[?#].*)?$")
@@ -135,7 +136,10 @@ def should_run_today(ledger_path: Path) -> bool:
     if not ledger_path.exists():
         return True
     try:
-        observed_at = json.loads(ledger_path.read_text()).get("observed_at")
+        snapshot = json.loads(ledger_path.read_text())
+        if not isinstance(snapshot, dict) or snapshot.get("schema_version") != SALES_SNAPSHOT_SCHEMA_VERSION:
+            return True
+        observed_at = snapshot.get("observed_at")
         observed = datetime.datetime.fromisoformat(observed_at)
     except (json.JSONDecodeError, TypeError, ValueError):
         return True
@@ -259,6 +263,7 @@ def main() -> None:
     rows = parse_sticker_table_rows(fetched["stats_rows"])
     distribution = parse_payment_request(fetched["payment_text"])
     row = {
+        "schema_version": SALES_SNAPSHOT_SCHEMA_VERSION,
         "observed_at": now_utc().isoformat(),
         "source_urls": [f"{CREATOR_BASE}/stats/sticker", f"{CREATOR_BASE}/payment_request/"],
         "products": match_products(tracked, rows),
