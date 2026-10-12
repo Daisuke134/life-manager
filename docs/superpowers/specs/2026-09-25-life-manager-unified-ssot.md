@@ -229,6 +229,8 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 
 順序変更: 旧=全18業務/収益laneの受入後にS15→S16→S17→S18。新=既存基盤修正の本番採用→18業務の修復と公式会計を並行→必要な自然障害/公式receiptが揃った範囲で自己修復・評価・benchmark→凍結評価器で自己改善→新agent factory→portable OSS/外部再現→継続収益拡大。理由: 未達MRR・外部審査・将来slotを自己修復や既存商品の販売開始の前提にすると無期限待機になる。依存のないlaneは並行、各lane/共有provider/releaseのmutationはserial。原goalの全18成果/各lane目標/全社US$10M月のDone条件は縮めない。
 
+並行担当の起動cursor: Root=共有runtime/CFO/Eval、native=/root/fundraiser_repair（READY確認済み）。AGMSG起動先tmux server不在を観測し、新規session lm-orchestrator-1012を作成。Cloud/Investment/Mobile/Gig4platform/eBook/Affiliate/AgentEconomy/Connectorへそれぞれ*-repair.mdの独立goalを渡す。各専任のREADY/WT/HEAD/実作業を受け取るまでは起動試行と扱う。Job Hunter/LINE/Capafyは既存担当、PromptBaseはsource統合済み・login停止保持、Writerは最新稼働未確認。old9登録をactiveと数えない。各source WTと共有effect/releaseのownerを分離し、18capability全部の修復を並行で進める。
+
 並行着手の境界: 18業務全完了はH/E/I/N/O/Gの開始gateにしない。H01–03は既存の自然障害から、E01–06は既存runner/失敗記録/隔離fixtureから、O01は現在の実装に一致するREADME/CLIから進める。I01–02のcandidate比較は開始可能だがI03本番採用は凍結baselineと対象の安全性/実費証拠を必要とする。N01–03は一agentだけ需要/契約/最小実装を進め、N04–05の利益証明/増産をmockで代替しない。O02–03のend-to-end再現は動作確認済みlaneから、G01は販売可能laneから開始する。共有release/会計/評価器の書込みownerは一人、業務修復担当と別worktree/file範囲に分ける。公開・求職資料には実case数、評価条件、測定結果と未確認範囲を記載し、AGI/全自律/収益保証を実証済みと称さない。
 
 | ID | 順番・一つの操作 | 完了証拠/境界 |
@@ -441,7 +443,7 @@ BF11のsource採用で最後に保持した対象はsession-vault。旧holder PI
 | JH02 | Job Hunter | Workday過去effectと公式応募statusを照合する | 20–60 | provider/mail receipt |
 | JH03 | Job Hunter | Dreamwork cutoverと許可済fit-qualified応募経路を閉じる | 30–90 | 応募entitlement |
 | JH04 | Job Hunter | 自然応募receipt・replay-zero・業務Telegram配信をjoinする | 15–30 | 求人/自然run |
-| FR01 | Fundraiser | 専任lm-fundraiser-goal-1012を起動し、eligible募集/応募input/既存PRをfresh照合 | 15–30 | 起動packet docs/superpowers/dispatch/2026-10-12/fundraiser.md、READY/着手の確認前は未確認 |
+| FR01 | Fundraiser | native専任/root/fundraiser_repairがREADY/専用WTで着手、identity/recovery root causeを修復中 | 15–30 | AGMSG Fundraiser起動はtmux接続先なしで失敗、重複writerは起動しない。2件provider unknown保持 |
 | FR02 | Fundraiser | 応募/提出の最初の阻害原因と公式receiptを閉じる | 30–90 | 募集/本人要件 |
 | FR03 | Fundraiser | status/実inflow/costをCFOへjoinする | 15–30 | 審査/採択/入金 |
 | CN01 | Connector | 候補・既存auth・owner/releaseを照合する | 10–30 | 既存session |
