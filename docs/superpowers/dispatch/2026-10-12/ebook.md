@@ -9,3 +9,5 @@
 
 再開・所有境界:
 最新English eBook節を優先。旧fence18dcc075be3903e8-48633/integration cmo5rwq2p00twn10yrsdglng3保持。#7478等occurrence scope main/loadedを照合し旧effectclear/replayなしで新distinct slotだけ。LM source新 .worktrees/ebook-goal-20261012/branch fix/ebook-goal-20261012。Products repo /Users/anicca/Projects/anicca-products、#420 headfe25f035のproduction migration/table/RPC/ACL/readback前にmergeしない。旧legacyWT4dirty保持、必要変更は新ebook-factory-followup-20261009 WT freshmain/専用leaseで。/monk CTA #430済を購読receiptとしない。TikTok native確認は追加しない。fence変更だけfresh read-only review一人。Stripe既存MFA/本人手続きgateを捏造・自分の購入で回避しない。
+
+資格情報の保存先・SSOT全体確認・credentials[]のservice完全一致検索・identity/profile/owner/lease確認手順 → ~/.config/ai/core.md「No-human-loop（既定）」を起動時とブラウザ操作前に読む。lane個別の認証境界を保持し、secret値を起動指示へ含めない。

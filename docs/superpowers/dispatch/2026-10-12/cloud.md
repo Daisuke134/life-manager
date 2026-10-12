@@ -9,3 +9,5 @@
 
 再開・所有境界:
 旧PR #7366/branch fix/lm-cloud-calendar-proxy-20261009/tip9aa88892は歴史context。main統合/Calendar E2E/Stripe TESTが既完か先に確認する。最新はSDK/production health/stream startup確認済み、実iPhone pairing/reply未完。docs/superpowers/plans/2026-10-06-life-manager-web-first-travel.mdを読む。旧MFA/実端末gateを捏造で閉じない。Cloud source/marketing adaptersだけ所有、CFOとeBookのStripe分類コードは編集しない。既存cloud-readiness担当の作業を先に照合し、重複はprimaryへ連絡。
+
+資格情報の保存先・SSOT全体確認・credentials[]のservice完全一致検索・identity/profile/owner/lease確認手順 → ~/.config/ai/core.md「No-human-loop（既定）」を起動時とブラウザ操作前に読む。lane個別の認証境界を保持し、secret値を起動指示へ含めない。

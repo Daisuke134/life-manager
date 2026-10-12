@@ -9,3 +9,5 @@
 
 再開・所有境界:
 SSOT Remaining atomic Gig TODO item2→10、SelfBuild item11最後。Lancers rows25–27 skip、Answers対象外。旧doc WT gig-tiktok-pre-send-guard-20261008/branch docs/gig-t7-runtime-cursor-20261009/988f1a4をread-onlyでfresh照合。新source .worktrees/gig-goal-20261012/branch fix/gig-goal-20261012。active cleanup/affiliate/dirty shared rootは編集しない。旧effect_unknownは公式照合なしで返信/応募/掲載/fence解除しない。provider実納品・受領・費用まで閉じ、mockを売上にしない。
+
+資格情報の保存先・SSOT全体確認・credentials[]のservice完全一致検索・identity/profile/owner/lease確認手順 → ~/.config/ai/core.md「No-human-loop（既定）」を起動時とブラウザ操作前に読む。lane個別の認証境界を保持し、secret値を起動指示へ含めない。
