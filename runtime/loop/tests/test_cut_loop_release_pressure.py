@@ -66,7 +66,7 @@ class CutLoopReleasePressureTest(unittest.TestCase):
             subprocess.run(["git", "update-ref", "refs/remotes/origin/main", "HEAD"], cwd=repo, check=True)
             probe = home / "capacity-probe"
             probe.mkdir()
-            (probe / "sitecustomize.py").write_text("import shutil,types\nshutil.disk_usage=lambda p: types.SimpleNamespace(free=1024**3)\n")
+            (probe / "sitecustomize.py").write_text("import shutil,types\nshutil.disk_usage=lambda p: types.SimpleNamespace(free=4*1024**3)\n")
             loops = home / "loops"
             donor = loops / "releases/donor"
             subprocess.run(["git", "clone", "--local", str(repo), str(donor)], check=True, capture_output=True)
@@ -98,7 +98,8 @@ class CutLoopReleasePressureTest(unittest.TestCase):
             bundle.chmod(0o755)
             (bundle / ".complete").unlink()
             result, _ = self.run_cut(repo, home, "", LOOPS_ACTIVATE_CURRENT="0", PYTHONPATH=str(probe), NPM_NODE_VERSION="v-test", NPM_VERSION="test", LOOPS_RUNTIME_PYTHON=sys.executable)
-            self.assertEqual(result.returncode,75,result.stderr + result.stdout)
+            self.assertEqual(result.returncode,1,result.stderr + result.stdout)
+            self.assertIn("release_capacity_measurement_failed", result.stderr)
             self.assertEqual(len(list((loops / "releases").iterdir())),2)
             (bundle / ".complete").write_text(key + "\n")
             (bundle / ".complete").chmod(0o444)
@@ -111,15 +112,16 @@ class CutLoopReleasePressureTest(unittest.TestCase):
                            check=True, capture_output=True)
             subprocess.run(["git", "update-ref", "refs/remotes/origin/main", "HEAD"], cwd=repo, check=True)
             (probe / "sitecustomize.py").write_text(
-                "import shutil,types\nshutil.disk_usage=lambda p: types.SimpleNamespace(free=96*1024**2)\n")
+                "import shutil,types\nshutil.disk_usage=lambda p: types.SimpleNamespace(free=4*1024**3)\n")
             result, _ = self.run_cut(repo, home, "", LOOPS_ACTIVATE_CURRENT="0", PYTHONPATH=str(probe),
                 NPM_NODE_VERSION="v-test", NPM_VERSION="test", LOOPS_RUNTIME_PYTHON=sys.executable)
             self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
             newest = next(p for p in (loops / "releases").iterdir()
                           if (p / "serial-4.bin").is_file())
             self.assertEqual((newest / "serial-4.bin").stat().st_size, 4 * 1024**2)
-            self.assertLess(json.loads((newest / "RELEASE.json").read_text())["capacity_required_bytes"],
-                            96 * 1024**2)
+            required = json.loads((newest / "RELEASE.json").read_text())["capacity_required_bytes"]
+            self.assertGreaterEqual(required, 2 * 1024**3)
+            self.assertLess(required, 4 * 1024**3)
             # Dependency changes require the ordinary budget before extraction.
             (repo / "package.json").write_text("{}")
             (repo / "package-lock.json").write_text("{}")
@@ -127,7 +129,8 @@ class CutLoopReleasePressureTest(unittest.TestCase):
             subprocess.run(["git","commit","-m","dependency change"],cwd=repo,check=True,capture_output=True)
             subprocess.run(["git","update-ref","refs/remotes/origin/main","HEAD"],cwd=repo,check=True)
             result, _ = self.run_cut(repo, home, "", LOOPS_ACTIVATE_CURRENT="0", PYTHONPATH=str(probe), NPM_NODE_VERSION="v-test", NPM_VERSION="test", LOOPS_RUNTIME_PYTHON=sys.executable)
-            self.assertEqual(result.returncode,75,result.stderr + result.stdout)
+            self.assertEqual(result.returncode,1,result.stderr + result.stdout)
+            self.assertIn("release_capacity_measurement_failed", result.stderr)
             self.assertEqual(len(list((loops / "releases").iterdir())),3)
 
     def run_cut(self, repo: Path, home: Path, paths: str, **extra_env: str):
@@ -237,19 +240,39 @@ class CutLoopReleasePressureTest(unittest.TestCase):
             (donor / "old.txt").write_text("old\n", encoding="utf-8")
             shutil.copy2(repo / "same.py", donor / "same.py")
             shutil.copy2(repo / "changed.py", donor / "changed.py")
-            dependency = donor / "node_modules/runtime-marker"
-            dependency.parent.mkdir()
+            import hashlib, platform
+            node_version = subprocess.check_output(["node", "--version"], text=True).strip()
+            npm_version = subprocess.check_output(["npm", "--version"], text=True).strip()
+            header = "\0".join(("command", "npm-ci --omit=dev --ignore-scripts", "os",
+                                 platform.system(), "arch", platform.machine(), "node",
+                                 node_version, "npm", npm_version)) + "\0"
+            key_data = header.encode()
+            for label, payload in zip(("package-json", "package-lock"),
+                                      ((repo / "package.json").read_bytes(),
+                                       (repo / "package-lock.json").read_bytes())):
+                key_data += label.encode() + b"\0" + (hashlib.sha256(payload).hexdigest() + "  -\n").encode()
+            key = hashlib.sha256(key_data).hexdigest()
+            bundle = loops / "dependency-bundles" / ("npm-" + key)
+            dependency = bundle / "node_modules/runtime-marker"
+            dependency.parent.mkdir(parents=True)
             dependency.write_text("preserved\n", encoding="utf-8")
-            (donor / "node_modules/.package-lock.json").write_text(package_lock, encoding="utf-8")
+            (bundle / "node_modules/.package-lock.json").write_bytes(package_lock.encode())
+            (bundle / ".complete").write_text(key + "\n", encoding="utf-8")
             shutil.copy2(repo / "package.json", donor / "package.json")
             shutil.copy2(repo / "package-lock.json", donor / "package-lock.json")
+            (donor / "node_modules").symlink_to(bundle / "node_modules")
             (donor / "RELEASE.json").write_text(json.dumps({
-                "sha": old_sha, "release_paths": "ALL",
+                "sha": old_sha,
+                "release_paths": "ALL",
+                "provenance": "ancestor-of-origin-main",
+                "runtime_python": str(Path(sys.executable).resolve()),
+                "runtime_python_cache_tag": sys.implementation.cache_tag,
             }) + "\n", encoding="utf-8")
             (donor / "untracked-diagnostic.log").write_text("legacy diagnostics must not propagate\n", encoding="utf-8")
             donor_memory = donor / "memory" / "owner.md"
             donor_memory.parent.mkdir()
             donor_memory.write_text("existing owner memory\n", encoding="utf-8")
+            subprocess.run(["chmod", "-R", "a-w", str(bundle)], check=True)
             subprocess.run(["chmod", "-R", "a-w", str(donor)], check=True)
             (loops / "current").symlink_to(donor)
 
@@ -273,7 +296,8 @@ class CutLoopReleasePressureTest(unittest.TestCase):
                                  " return lib\nctypes.CDLL=cdll\n")
             result, _ = self.run_cut(
                 repo, home, "", LOOPS_ACTIVATE_CURRENT="0", LOOPS_KEEP_RELEASES="2",
-                PYTHONPATH=str(probe),
+                PYTHONPATH=str(probe), NPM_NODE_VERSION=node_version, NPM_VERSION=npm_version,
+                LOOPS_RUNTIME_PYTHON=sys.executable,
             )
 
             self.assertEqual(result.returncode, 0, result.stderr)

@@ -5,6 +5,8 @@ import json
 import os
 import pwd
 import shutil
+import subprocess
+import sys
 from types import SimpleNamespace
 from pathlib import Path
 
@@ -240,3 +242,61 @@ def test_measured_capacity_check(monkeypatch, tmp_path, capsys, available, requi
         receipt = json.loads(capsys.readouterr().out)
         assert receipt["required_bytes"] == required
         assert receipt["effect"] == receipt["readback"] == 0
+
+
+def _release_capacity_fixture(tmp_path: Path):
+    guard = load_guard()
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    def git(*args):
+        return subprocess.run(["git", "-C", str(repo), *args], check=True,
+                              capture_output=True, text=True)
+
+    git("init", "--quiet")
+    git("config", "user.name", "disk-admission-test")
+    git("config", "user.email", "disk-admission-test@example.invalid")
+    (repo / "runtime").mkdir()
+    (repo / "runtime" / "fixture.py").write_text("VALUE = 1\n")
+    (repo / "README.md").write_text("fixture\n")
+    git("add", "README.md", "runtime/fixture.py")
+    git("commit", "--quiet", "-m", "fixture")
+    sha = git("rev-parse", "HEAD").stdout.strip()
+    git("update-ref", "refs/remotes/origin/main", sha)
+
+    loops = tmp_path / "loops"
+    donor = loops / "releases" / "seed"
+    donor.mkdir(parents=True)
+    (donor / "RELEASE.json").write_text(json.dumps({
+        "sha": sha,
+        "release_paths": "ALL",
+        "provenance": "ancestor-of-origin-main",
+        "runtime_python": str(Path(sys.executable).resolve()),
+        "runtime_python_cache_tag": sys.implementation.cache_tag,
+    }))
+    donor.chmod(0o555)
+    (loops / "current").symlink_to(donor, target_is_directory=True)
+    return guard, repo, sha, loops
+
+
+def test_release_capacity_includes_recovery_floor(tmp_path: Path):
+    guard, repo, sha, loops = _release_capacity_fixture(tmp_path)
+
+    required = guard.release_capacity_bytes(repo, sha, loops, "node", "npm")
+
+    assert required >= guard.RECOVERY_FLOOR_BYTES + 64 * 1024**2
+
+
+def test_release_capacity_measurement_failure_fails_closed(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys,
+):
+    guard = load_guard()
+    monkeypatch.setattr(
+        guard, "release_capacity_bytes",
+        lambda *_args: (_ for _ in ()).throw(ValueError("fixture measurement failure")),
+    )
+
+    assert guard.main([
+        "--release-capacity", str(tmp_path), "a" * 40, str(tmp_path), "node", "npm",
+    ]) == 1
+    assert capsys.readouterr().out == ""
