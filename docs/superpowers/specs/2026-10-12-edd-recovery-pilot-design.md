@@ -69,6 +69,8 @@ Pilot AのstageはEnglish article draftの公開前quality gateに絞ります�
 
 **X Articles調査:** [X公式Articles説明](https://help.x.com/en/using-x/articles)は公開機能をPremium/Premium+等の対象subscriberに限定している。登録済み `@selawmqt` のlive sessionで公式案内の `/compose/articles` と `/compose/articles/new` を開くと両方404となり、Articles editorと画像file inputが存在しなかった。publisher scriptはX Article draftを作る前に終了し、X Articleそのものは公開していない。その後、追加subscription購入や別identityを使わず、ブログURLへ誘導する標準X postを公開した。上記X URLはその公式readbackである。
 
+**2026-10-13再確認:** blog URLは英語の約2,500語の記事を返し、X statusは英語の紹介投稿として公開中で、リンク先は同じblog記事である。`x:anicca` のbrowser-guard lease経由でHome/feedを確認し、`/compose/articles` は再び `Page not found`、記事title/body editorは0件だった。従って今回の依頼は既存のblog記事＋X紹介投稿で満たされている。新しい投稿・X Article・subscription購入は行わず、重複effectを作らない。X Articleを利用できるようになった場合だけ、同じ本文の長文ミラーを別途検討する。
+
 ## Pilot B: effect-unknown recovery safety case
 
 Pilot AはWriterの公開前品質evalで、evalのtrace・grader・候補比較を安全に学ぶ。ここではE02に必要なeffect-unknown回復の安全境界を別caseとして定義する。Pilot Aのquality PASSは売上証明でもE02/E03の完了でもない。
