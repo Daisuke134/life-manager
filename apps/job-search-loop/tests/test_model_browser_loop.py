@@ -722,6 +722,18 @@ class ModelBrowserLoopContractTests(unittest.TestCase):
         self.assertIn("job_search_loop.browser_agent.browser_agent.runtime", prompt)
         self.assertIn("replace it with the canonical module", prompt)
 
+    def test_daily_prompt_skips_captcha_row_without_bypass_and_continues(self):
+        prompt = (APP_ROOT / "prompts" / "daily-pass.md").read_text(encoding="utf-8")
+        normalized = " ".join(prompt.split())
+
+        self.assertIn("visible CAPTCHA or human-verification challenge appears before submission", normalized)
+        self.assertIn("do not solve or bypass it", normalized)
+        self.assertIn("checkpoint --reason visible_challenge", normalized)
+        self.assertIn("report --status checkpointed", normalized)
+        self.assertIn("continue to the next independent Workday row", normalized)
+        self.assertIn("after submission may have started", normalized)
+        self.assertIn("preserve `submit_unknown` and never retry that row", normalized)
+
     def test_daily_prompt_does_not_report_ineligible_rows_twice(self):
         prompt = (APP_ROOT / "prompts" / "daily-pass.md").read_text(encoding="utf-8")
         normalized = " ".join(prompt.split())
@@ -1106,26 +1118,27 @@ class ModelBrowserLoopContractTests(unittest.TestCase):
             daily.count("-m job_search_loop.browser_agent.orchestrator"), 1
         )
         self.assertIn('"status": "model_owned"', daily)
-        self.assertIn("Process every eligible ATS row", prompt)
-        self.assertIn("Workday and Ashby use this same agent loop", prompt)
+        self.assertIn("Process eligible Workday rows", prompt)
+        self.assertIn("This pass is Workday-only", prompt)
         self.assertIn("A row-local failure never ends the queue", normalized_prompt)
         self.assertNotIn("do not reopen a row it advanced", prompt)
         self.assertNotIn("preserve that exact blocker", prompt)
 
-    def test_workday_and_ashby_share_the_model_application_lane_after_10p(self):
+    def test_daily_workday_pass_is_separate_from_future_ashby_lane(self):
         daily = (APP_ROOT / "scripts" / "run-daily.sh").read_text(encoding="utf-8")
         prompt = (APP_ROOT / "prompts" / "daily-pass.md").read_text(encoding="utf-8")
-        normalized_prompt = " ".join(prompt.split())
 
-        self.assertIn("-m job_search_loop.ashby_discovery", daily)
+        self.assertIn("-m job_search_loop.workday_search_loop", daily)
+        self.assertNotIn("-m job_search_loop.ashby_discovery", daily)
         self.assertNotIn("-m job_search_loop.greenhouse_discovery", daily)
         self.assertNotIn("-m job_search_loop.lever_discovery", daily)
         self.assertIn('"status": "model_owned"', daily)
         self.assertIn('"reason": "mandatory_browser_lane"', daily)
-        self.assertIn("--active-provider all", daily)
-        self.assertNotIn("Never open Ashby", prompt)
-        self.assertIn("Process every eligible ATS row", prompt)
-        self.assertIn("Workday and Ashby use this same agent loop", prompt)
+        self.assertIn("--active-provider workday", daily)
+        self.assertIn("Workday-only", prompt)
+        self.assertNotIn("Workday and Ashby use this same agent loop", prompt)
+        self.assertNotIn("Process every eligible ATS row", prompt)
+        self.assertNotIn("## Ashby eligibility", prompt)
 
     def test_daily_exports_the_validated_rolling_deficit_to_queue(self):
         daily = (APP_ROOT / "scripts" / "run-daily.sh").read_text(encoding="utf-8")
