@@ -30,7 +30,7 @@ Pilot AのstageはEnglish article draftの公開前quality gateに絞ります�
 
 **child-call inventory:** 1,498のagent-runner evidence directoryのうち1,469にsummaryがあり、`article-daily`は276 child-call summariesを持ちます（251 judge、25 agent）。276件すべてに`runtime_event_id`がありますが、summaryにはparent run/occurrence/source SHAがありません。現在保持されるevent ledgerにjoinできるのは25件で、記事task件数や独立sample数へ足しません。
 
-最初のsemantic case candidateはEnglish blog article draftのidentity `C: FAIL` / mandatory CTA `PASS` / `blocked-before-publication`の組み合わせです。人手labelはpendingで、false positiveとはまだ呼びません。A4は別軸のmachine-checkable `quality_self_heal_record_unparseable`を選び、A5のcase cardを[Writer EDD trace discovery](../../evals/writer-edd-trace-discovery.md)に記録しました。agent qualityは`unknown`のまま分離します。raw traceはprivate storeに保持します。prototype review UIはrepo外のlocal artifactで、`127.0.0.1`だけにbindし、明示allowlistのGETだけを提供します。reviewerが表示ボタンを押したartifactだけを読み、POST/PUTと外部通信は拒否します。注釈はbrowserの`localStorage`に保存します。
+最初のsemantic case candidateはEnglish blog article draftのidentity `C: FAIL` / mandatory CTA `PASS` / `blocked-before-publication`の組み合わせです。人手labelはpendingで、false positiveとはまだ呼びません。A4は別軸のmachine-checkable `quality_self_heal_record_unparseable`を選び、A5/A6 case cardとoutcome vectorを[Writer EDD trace discovery](../../evals/writer-edd-trace-discovery.md)に記録しました。W-01のtask completion、quality、safety gate、effect integrity、settled net、cost coverage、latency、human interventionは別fieldで、根拠のない項目を`0`へ置換しません。これはPilot Aのcase-level schemaであり、canonical E02のCFO official receipt joinは未完です。raw traceはprivate storeに保持します。prototype review UIはrepo外のlocal artifactで、`127.0.0.1`だけにbindし、明示allowlistのGETだけを提供します。reviewerが表示ボタンを押したartifactだけを読み、POST/PUTと外部通信は拒否します。注釈はbrowserの`localStorage`に保存します。
 
 このcheckpointはpreworkであり、統一SSOTのE01 current cursorも収益優先順も変更しません。
 
