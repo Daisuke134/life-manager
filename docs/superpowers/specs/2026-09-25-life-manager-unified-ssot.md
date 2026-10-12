@@ -15666,7 +15666,7 @@ Free Transcriptの数は無料downloadを含む。別Agent [Transcript to Shorts
 
 **Current cursor:** T0 and T1 remain open. Next: wait for natural eligibility and require a successful hourly readback plus a natural distribution terminal with exact receipt binding. T2's daily search snapshot is done today; T3/T4 research is recorded, but new-Agent adaptation waits for a free slot and the 46-video matrix remains partial. T5 scales only after a unique ct produces Capafy visits. Preserve FROZEN sellers and do not reorder.
 
-## Capafy live checkpoint — 2026-10-12 22:38 JST
+## Capafy live checkpoint — 2026-10-12 22:44 JST
 
 順序は変更しない。current TODO は T0 → T1 → T2 → T3 → T4 → T5 → T6 → T7 → T8 → T9。T3/T4の競合価格・モデル・visual調査は完了したが、T3のai_overview listing改善とT4の46動画matrix作成は未完。
 
@@ -15698,10 +15698,14 @@ Agent別trafficは30日・7日とも60件だけで、inventory.observed_agents=6
 
 **T1 — 配信とfactoryの最新natural run:** capafy-distribute-daily latest attemptは22:19:21 JST、occurrence 18ddcabeee1a08b0-90732、release 5a595864f7c79145731cb71b59d9e7199e02bbcd、exit 75、host_admission_deferred:resource_fifo_wait、effect=not_applicable。last successは19:33:15 JST。registered pre-effect-reconcile capafy-distribute-daily --dry-runはresolved=[] / unprovable=[]。これは旧19:33 eventの欠けたprovider receiptを補わず、再投稿・fence手動解除の根拠にもならない。
 
+22:44 JST read-only host-admission DB snapshotではdistribution ticket sequence=621426、agent-class queue position=19/48（18件先行）、active reservationはagent 1件とdeterministic 2件。queueの順序・予約を手で変えない。最新natural attemptはFIFO待ちのままで、distribution effectは起きていない。
+
 capafy-loop-daily natural occurrence 18ddcb557509ce28-23929は22:31 JSTにexit 0 / CAP_FULL。inventory snapshotは22:29:56 JST、64 agentsで、8767154808のversionは2109463185447604224のまま。candidate backlogは22:30:59 JSTに45 rows（listed 21 / ready 15 / submitted 8 / ready_retry 1）。published ledgerは13:54 JST以降更新されていない。8767154808のunder_reviewは既存のstatus記録であり、この22:30 runによる新規提出や、新Agentの継続出荷は確認できない。
 
-最新factory eventはlm-loop statusでeffect_status=unknown / provider receiptなしと表示される一方、admission_effect_unknown=false。healthはeffect_unknown=1と投影するが、registered factory adapter dry-runはresolved=[] / unprovable=[]。したがってこのeventはadmission fenceと同じものとして扱わず、receiptなしにeffect/no-effectを断定・再送しない。次はoccurrence-bound official publish-list/remote-status readbackとsourceの分類を特定する。
+22:39:44 JSTの次のnatural occurrence 18ddcbd6e11d2d18-44098はexit 75 / host_admission_deferred:resource_capacity_busy / effect=not_applicableで、DB state=queued・effect_unknown=0。これがfactoryの最新attemptであり、CAP_FULLを返した22:30 runより後にprovider actionへ到達していない。22:44 healthはeffect_unknown=0 / failed=1。host_storageはreceipt未検証でunknownなので、resource_capacity_busyをdisk原因と決めつけない。
+
+22:30 CAP_FULL成功eventはeffect_status=unknown / provider receiptなしだったが、admission DB rowはreleased / effect_unknown=0。22:39の最新eventはeffect=not_applicable。factoryとdistribution両方のregistered adapter dry-runはresolved=[] / unprovable=[]で、今あるeffect_unknown fenceはない。22:30 eventのprovider outcomeは依然としてofficial receiptで結べていないため、成功eventをeffectedまたはno-effectと推定しない。再送・手動解放はしない。
 
 **Rating/review readback（22:16:22 JST）:** public buyer searchではHookAce rank 2 / Sold 1,002 / rating 4.3 / ratingCount null、Hook Lab rank 4 / Sold 12 / rating 0 / ratingCount null、TikTok Script Pro rank 1 / Sold 4 / rating 0 / ratingCount null、Marketing Strategist rank 1 / Sold 2 / rating 0 / ratingCount null、YouTube Script Writer rank 1 / Sold 4 / rating 0 / ratingCount null。detail rating fieldsもnullの行がある。rating=0とratingCount=nullはone-star reviewの証拠ではなく、review body/countはunknown。local vendor API docsにはreview作成POSTはあるがreview一覧read endpointは見つかっていない。既存3 seller promptの依頼は任意の短いrating askで、文章レビューや特定scoreは求めない。添付dashboard画像はuser-acquisition chartsでreview表示ではない。実在するnegative reviewを隠す・消す・偽ratingで置き換える作業はしない。実購入者の任意feedbackだけを計測する。
 
-**次の1手:** T0のfresh hourly readbackと未解決のorder/coverage/window差を継続し、T1ではFIFO eligibility後のnatural distributor terminalとoccurrence-bound receiptを確認する。T2のbuyer-query rank snapshotは本日分済み。外部配信volumeはunique CTがCapafy visitsを生むまで増やさず、FROZEN sellersは編集・再提出しない。$10K MRR goalはactiveのまま。
+**次の1手:** T0のfresh hourly readbackと未解決のorder/coverage/window差を継続し、T1では18/48の先行agent queueが自然に進んだ後、distribution terminalとoccurrence-bound receiptを確認する。T2のbuyer-query rank snapshotは本日分済み。factoryはresource_capacity_busyでprovider前に止まる自然runの次回を読み、8767154808の既存under_review記録と新規出荷を分ける。外部配信volumeはunique CTがCapafy visitsを生むまで増やさず、FROZEN sellersは編集・再提出しない。$10K MRR goalはactiveのまま。
