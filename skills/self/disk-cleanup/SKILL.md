@@ -29,9 +29,10 @@ allow-listed regenerable artifact after an open-path probe confirms
 - Generic `/private/tmp` directories, including `cfo-*`, remain unknown and
   protected. Scan the active `TMPDIR` plus `/private/tmp` and `/var/tmp` for
   same-user exact Capafy npm caches, old
-  `pytest-of-<user>/pytest-<number>` runs, and test-generated `slide-pack-*`
-  names; only paths older than one hour with a confirmed-closed path probe are
-  eligible.
+  `pytest-of-<user>/pytest-<number>` runs, existing exact `slide-pack-*`
+  names, and TikTok `slide-pack-tiktok-{workspace,cta,cache}-<6-char-id>`
+  names; only same-UID paths older than one hour with a confirmed-closed path
+  probe are eligible.
 - A stale Sparkle staging blocker has one narrow recovery action: send one
   `SIGTERM` only to the same-UID updater whose executable is under an exact
   allow-listed Codex/CodexBar Sparkle `Launcher`, whose PPID is 1, whose elapsed

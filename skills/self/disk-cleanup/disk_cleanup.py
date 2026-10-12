@@ -57,7 +57,7 @@ PROBE_ERROR_DETAIL_LIMIT = 8
 TEMPORARY_RUN_MIN_AGE_SECONDS = 60 * 60
 WORKTREE_REPOSITORY_RELATIVE = Path("Projects/life-manager-main")
 SLIDE_PACK_DIRECTORY_PATTERN = re.compile(
-    r"slide-pack-(?:objects|image-cache|workspace)(?:-cta)?-[A-Za-z0-9]{6}"
+    r"slide-pack-(?:(?:objects|image-cache|workspace)(?:-cta)?|tiktok-(?:workspace|cta|cache))-[A-Za-z0-9]{6}"
 )
 SLIDE_PACK_FIXTURE_PATTERN = re.compile(r"slide-pack-fixture-bg-\d{5,6}\.png")
 PYTEST_RUN_PATTERN = re.compile(r"pytest-\d+")
