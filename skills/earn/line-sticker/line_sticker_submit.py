@@ -329,23 +329,16 @@ async def _idempotent_step(step, item: dict, next_state: str) -> dict:
     return dict(item, state=next_state)
 
 
-MAX_TITLE_ATTEMPTS = 30  # top sellers number deep (ちいかわ５); our own series used up vol.2-5 (2026-10-12)
-
-
 def _title_attempts(listing: dict):
     """Titles to try in order when Creators Market reports one as taken: the planned one, then its
-    vol.2 / vol.3 numbered forms (they keep what the set is: 【文字入り】, the theme), and only
-    then the character-name-led title, which throws the wording away (set-015: it became
-    "Stardust Otterのスタンプ", an on-sale item of ours, and giving up there stalled the factory)."""
-    yield listing
+    vol.2 / vol.3 / ... numbered forms (they keep what the set is: 【文字入り】, the theme), counting
+    until a free one is found. No cap (Dais 2026-10-12): a cap of 6 stalled the factory once our own
+    series had used vol.2-vol.5, and only a "title already taken" answer moves to the next number,
+    so this cannot loop on any other failure."""
     current = listing
-    count = 1
-    while count < MAX_TITLE_ATTEMPTS - 1:
-        current = _numbered(current)
-        count += 1
+    while True:
         yield current
-    if listing.get("character_name"):
-        yield _retitle(listing)
+        current = _numbered(current)
 
 
 async def _drive(cdp: str, item: dict, listing: dict, tags: dict, package_dir: Path, selection: dict) -> dict:

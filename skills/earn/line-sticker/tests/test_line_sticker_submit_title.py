@@ -5,6 +5,7 @@ Measured 2026-10-07 01:41Z: set-005 "ふわふわペンギンの気持ちスタ�
 OK button that never came and the wake ended effect-unknown.
 """
 import sys
+import itertools
 import unittest
 from pathlib import Path
 
@@ -53,23 +54,20 @@ class TitleAttempts(unittest.TestCase):
     LISTING = {"character_name": "Stardust Otter",
                "title": {"ja": "星くずカワウソの毎日返事【文字入り】", "en": "Stardust Otter Daily Reply (with text)"}}
 
-    def test_original_then_numbered_forms_then_the_name_led_title(self) -> None:
-        # set-015 (2026-10-08): the name-led title became "Stardust Otterのスタンプ", an on-sale item of
-        # ours, and it threw away 【文字入り】; numbered forms of the planned title keep the meaning.
-        attempts = list(MODULE._title_attempts(self.LISTING))
+    def test_original_then_numbered_forms_without_end(self) -> None:
+        # Dais 2026-10-12: no cap. Only a "title already taken" answer moves to the next number (any
+        # other error stops the attempt), so counting until a free volume is found cannot loop.
+        attempts = list(itertools.islice(MODULE._title_attempts(self.LISTING), 101))
         self.assertEqual(attempts[0]["title"], self.LISTING["title"])
         self.assertTrue(attempts[1]["title"]["ja"].endswith("【文字入り】 vol.2"), attempts[1]["title"]["ja"])
         self.assertTrue(attempts[2]["title"]["ja"].endswith("【文字入り】 vol.3"), attempts[2]["title"]["ja"])
-        self.assertEqual(attempts[-1]["title"]["ja"], "Stardust Otterのスタンプ")
+        self.assertTrue(attempts[100]["title"]["ja"].endswith("vol.101"), attempts[100]["title"]["ja"])
+        self.assertEqual(len({a["title"]["ja"] for a in attempts}), 101)
 
-    def test_attempts_are_bounded(self) -> None:
-        self.assertEqual(len(list(MODULE._title_attempts(self.LISTING))), MODULE.MAX_TITLE_ATTEMPTS)
-
-    def test_without_a_name_it_only_numbers(self) -> None:
-        attempts = list(MODULE._title_attempts({"title": {"ja": "もちハム", "en": "Mochi"}}))
+    def test_without_a_name_it_numbers_the_same_way(self) -> None:
+        attempts = list(itertools.islice(MODULE._title_attempts({"title": {"ja": "もちハム", "en": "Mochi"}}), 3))
         self.assertEqual(attempts[0]["title"], {"ja": "もちハム", "en": "Mochi"})
         self.assertTrue(attempts[1]["title"]["ja"].endswith("vol.2"))
-        self.assertEqual(len(attempts), MODULE.MAX_TITLE_ATTEMPTS - 1)
 
 
 class InlineTitleError(unittest.TestCase):
@@ -127,8 +125,8 @@ class SeriesDepth(unittest.TestCase):
     def test_a_long_running_series_still_finds_a_free_volume(self) -> None:
         # 2026-10-12: set-031 "星くずカワウソの毎日返事【文字入り】" found the base and vol.2-vol.5 taken by our
         # own earlier sets and crashed every wake with TitleTaken; top sellers number deep (ちいかわ５).
-        titles = [a["title"]["ja"] for a in MODULE._title_attempts({"title": {"ja": "星くずカワウソの毎日返事【文字入り】",
-                                                                             "en": "Stardust Otter Replies (with text)"}})]
+        titles = [a["title"]["ja"] for a in itertools.islice(MODULE._title_attempts(
+            {"title": {"ja": "星くずカワウソの毎日返事【文字入り】", "en": "Stardust Otter Replies (with text)"}}), 40)]
         self.assertTrue(any("vol.20" in t for t in titles), titles[-3:])
 
 
