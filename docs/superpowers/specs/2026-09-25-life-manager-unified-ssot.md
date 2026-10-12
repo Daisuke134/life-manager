@@ -14731,18 +14731,30 @@ RevenueCatのNew Customersは初回SDK観測/初回購入を基準にし、再in
 
 ## Handover 2026-10-12 10:00 JST — Capafy / Writer / PromptBase money (claude-capafy)
 
-**Measured state (10/12 09:54 JST):**
+**Measured state (Capafy/Writer: 10/12 09:54 JST; PromptBase: 10/12 16:46–16:55 JST):**
 - Capafy: paid orders 0 since 10/03 (reconcile 00:07Z: orders 70, gross $102.75, payout pending $59). All 8 versions under review (platform_status 1): Hook Lab 8123079349 v1.0.8 (Sept price restore, submitted 10/11 15:16), TikTok 2844813315 v1.0.5, AI Eval 4243672453, Customer Escalation 8822853032, new Annual Report 3795748683, Earnings Call 9836498533, Transcript 5356015232 and Resume 2576591785 (both since 10/10). New-Agent cap full (5). Live Hook Lab billing is still v1.0.7 (day $3.99, week $9.99). 7-day views: Hook Lab 29, TikTok 34, Marketing Strategist 4, paid 0.
 - Distribution: capafy-distribute wakes every 30 min, one article + X post per half-hour slot, Hook Lab every other slot, X text ends with `Search "<Agent>" on Capafy` (Postiz strips links). 19 slots published 10/12 by 09:00. IG reels queued to 10/19, X videos queued to 10/21.
 - Writer: run 20261011-134916 published self-owned ja/en, note ja, Substack ja (all HTTP 200). Substack en is not published. Writer recovery is owned by another session (PR #7686 merged, #7688 draft).
-- PromptBase: 0 sales (last readback 10/08). The loop never succeeded: `could_not_reach_step1:selects=0`, and today's 04:20 run was deferred by a resource_effect_unknown fence. The loop uses `interactive:dais`, which is forbidden. No vault holds a PromptBase session. Google sign-in for capafy:kosuke stops at the passkey challenge, and the email path turns into signup.
+- PromptBase current measured state:
+  - The existing seller account is read through registered identity `promptbase:dais`, owned by `promptbase-loop-daily`. The saved session was restored through the supported session-vault helper, and official Prompts/Sales/Insights views render.
+  - The append-only listings ledger now has 20 raw rows across 3 unique slugs; the dispatch's earlier 19-row count is stale. Raw statuses are `submitted_pending_review=5`, `draft=2`, `captcha_challenge_deferred=2`, `rejected=2`, `pending_review=3`, `scheduled=3`, `live=3`. The latest official dashboard readback checked all 3 unique titles, showed them Approved/live, and made no ledger updates.
+  - Official Sales and private `promptbase-sales.json` agree at `observed_at=2026-10-12T07:46:28Z`, `sales_count=0`, `net_usd=0.00`. Insights at 07:50Z showed no rows in Daily/Weekly/Monthly Top Viewed Prompts (`Page 1 (1 - 0)`); this is an empty current table, not proof of zero lifetime impressions.
+  - `promptbase-loop-daily` is loaded-idle on installed release `6a355f0b1f14434cadff87ff4d2df057c262cacc`, with event release `7bffb785e00cf1a9148050aab4fd1cd533bf510c` and drift. Its current admission fence is false, while historical occurrence `promptbase-loop-daily:18dd8fdd7b1d8128-92582` remains `effect_unknown` without official readback or provider receipt. The registered pre-effect reconcile dry-run returned `resolved=[]`, `unprovable=[]`; this history is not marked resolved.
+  - The hourly Sales readback source is in PR #7777; the fail-closed daily guard is in PR #7760. Both were open with successful CI and no review decision at 16:55 JST. The hourly loop remains unloaded in production. Shared owner `capafy-distribute-daily` has latest historical `effect_unknown` occurrence `capafy-distribute-daily:18ddb8bd2a77d2d8-40340` with no official readback reference; its owner must reconcile it before the shared PromptBase marketing rotation is relied on.
 
 **Atomic TODO (this order):**
 1. On any Capafy review result: read publish-remote-status for the 8 ids. If Hook Lab is online, read back live billing via the api.capafy.ai search API (expect day $1.99/10, week $4.99/30, month $9.99/50). If anything is rejected, read the reason and fix it (non-sellers only; FROZEN untouched).
 2. Once review frees slots: run inventory_status read-only and confirm `create_fresh`. Watch the next natural run until it reaches SUBMITTED.
 3. Each hour: check that the distribute ledger shows new half-hour slots and that the X text ends with the search CTA. If a fence appears, close it with capafy_factory_fence_reconcile.py / capafy_distribute_fence_reconcile.py (official readback only).
 4. Each hour: check capafy-hourly-reconcile.json for a paid order after 10/03 (orders > 70). This is the Done signal.
-5. PromptBase: needs Dais to approve one Google sign-in (passkey → "Try another way" → phone prompt) in browser capafy:kosuke. After that: bank the session with `session_vault.py dump` (SESSION_VAULT_DIR ~/.cloak/vault/capafy-browser), switch BROWSER_IDENTITY in skills/earn/promptbase/daily.sh from interactive:dais to capafy:kosuke via PR, close its fence with official readback, then fix `could_not_reach_step1`.
+5. PromptBase:
+   1. Push this SSOT update from the dedicated PromptBase worktree; rerun exact-head CI, then primary reviews/merges #7777 before #7760.
+   2. From merged main, build the immutable release, apply it only to PromptBase owners, and verify each loaded SHA. Confirm the existing hourly Sales loop loads exactly once, completes one natural run, releases its browser lease, and refreshes official Sales plus private `promptbase-sales.json`.
+   3. Keep historical PromptBase `effect_unknown` unresolved unless its exact occurrence becomes eligible for the registered adapter and official dashboard evidence; never replay an uncertain publish. A dry-run with no rows is not a receipt.
+   4. Coordinate the separate `capafy-distribute-daily` owner to obtain its official readback and restore the shared PromptBase marketing rotation. Do not edit that owner's profile, release, or schedule.
+   5. Audit the 20-row ledger against the official dashboard and current seller-informed market examples before changing non-selling listings or creating new ones. Measure official traffic after the shared rotation resumes.
+   6. Done requires the first paid sale and later paid sales in PromptBase Sales/earnings matched to the private JSON; the current seller has no verified sales.
+   **PromptBase cursor:** primary review/merge of #7777, then #7760.
 6. Writer Substack en: leave to the Writer recovery owner unless it is handed back.
 7. Keep the disk-free floor at ≥ 2 GiB. If swap grows, restart the largest long-lived keep_alive driver; never raise LIFE_MANAGER_HOST_MAX_AGENT_TOTAL_RUNS.
 
