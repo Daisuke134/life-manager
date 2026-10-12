@@ -32,7 +32,6 @@ if str(REPO_ROOT) not in sys.path:
 from runtime.host.bounded_output import start_stderr_relay, read_relay_snapshot, prune_closed_diagnostics
 from runtime.host.storage_policy import load_storage_policy
 from runtime.host.storage_failure import classify_storage_failure
-from runtime.host.disk_admission import disk_free_bytes, RECOVERY_FLOOR_BYTES
 
 from runtime.loop.macos_loop_registry import validate_registry  # noqa: E402
 from runtime.loop.runtime_event import (  # noqa: E402
@@ -1813,14 +1812,6 @@ def run() -> int:
         return 2
 
     evidence_dir = parsed.evidence_dir.resolve()
-    probe_root = next(path for path in (evidence_dir, *evidence_dir.parents) if path.exists())
-    available = disk_free_bytes(probe_root)
-    if available is None or available < RECOVERY_FLOOR_BYTES:
-        reason = "disk_headroom_unavailable" if available is None else "disk_headroom_low"
-        print(f"agent-runner: provider deferred: {reason}", file=sys.stderr)
-        record_pre_provider_deferral(evidence_dir, parsed, reason)
-        return PROVIDER_LEASE_BUSY
-
     try:
         lease_fd = acquire_provider_lease(
             os.environ.get("LIFE_MANAGER_PROVIDER_LEASE_PATH", "").strip()

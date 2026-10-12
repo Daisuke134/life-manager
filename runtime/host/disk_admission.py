@@ -24,7 +24,6 @@ RECEIPT_PATH = Path("state") / "disk-headroom.json"
 _PRODUCER_GATE = "life-manager-producer-preflight"
 _DISK_STOP_FLAGS = (("disk-writers.stop", "disk_writers_stop"),)
 _DISK_RECOVERY_OWNER = "host-disk-recovery"
-_DISK_RECOVERY_LOOP_ID = "life-manager-disk-cleanup"
 _DISK_RECOVERY_REASON = "disk_headroom_low"
 RECOVERY_FLOOR_BYTES = 2 * 1024**3
 _DISK_RECOVERY_ACTION = "restore_capacity_and_install_shared_disk_gate"
@@ -199,7 +198,7 @@ def _failure(
 def _producer_gate(
     loop_id: str | None = None, *, check_capacity: bool = True,
 ) -> tuple[str, Path] | None:
-    loop_id = loop_id or os.environ.get("LIFE_MANAGER_LOOP_ID", "")
+    del loop_id, check_capacity  # Retained for callers; free-space floors are diagnostic only.
     try:
         configured = _host_state_dir()
         candidates = (*_canonical_host_state_dirs(), configured)
@@ -242,20 +241,8 @@ def _producer_gate(
             if not stat.S_ISREG(entry.st_mode):
                 return "disk_policy_unavailable", flag
             if is_cleanup_disk_recovery_signal(flag):
-                if check_capacity and loop_id != _DISK_RECOVERY_LOOP_ID:
-                    return _DISK_RECOVERY_REASON, flag
                 continue
             return reason, flag
-    if check_capacity and loop_id != _DISK_RECOVERY_LOOP_ID:
-        state_dir = _state_dir()
-        probe = next((path for path in (state_dir, *state_dir.parents) if path.exists()), None)
-        if probe is None:
-            return "disk_headroom_unknown", state_dir
-        available = disk_free_bytes(probe)
-        if available is None:
-            return "disk_headroom_unknown", probe
-        if available < RECOVERY_FLOOR_BYTES:
-            return "disk_headroom_low", probe
     return None
 
 
@@ -292,7 +279,7 @@ def _producer_preflight(loop_id: str | None = None) -> int:
 
 
 def disk_headroom_ok() -> bool:
-    """Return whether a normal producer has safe disk headroom."""
+    """Return whether producer control state permits work; free space is diagnostic only."""
     return _producer_preflight(os.environ.get("LIFE_MANAGER_LOOP_ID")) == 0
 
 
