@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>Agent evalの作り方とLife Managerのpilot</title>
+<style>
+:root{--ink:#162b41;--muted:#53677a;--line:#d9e3eb;--blue:#145d92;--teal:#087f82;--orange:#d65b20;--green:#157448}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:#edf2f6;color:var(--ink);font:17px/1.9 system-ui,-apple-system,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif}
+header{background:linear-gradient(130deg,#102840,#18577e);color:white;padding:46px 22px 38px}header .inner,main{max-width:1000px;margin:auto}.eyebrow{letter-spacing:.1em;color:#b8d7ea;font-size:.82rem}
+h1{font-size:clamp(2rem,5vw,3.2rem);line-height:1.22;margin:.45em 0}header p{max-width:800px;color:#e5eff6;font-size:1.05rem}
+nav{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}nav a{color:white;border:1px solid #93b8d1;border-radius:999px;padding:7px 14px;text-decoration:none}
+main{padding:20px 18px 64px}article,.lead,.todo{background:#fff;border:1px solid var(--line);border-radius:18px;padding:clamp(22px,5vw,46px);margin:22px 0;box-shadow:0 10px 28px rgba(20,45,67,.06)}
+h2{font-size:clamp(1.65rem,3vw,2.3rem);line-height:1.35;margin:0 0 12px}h3{font-size:1.25rem;line-height:1.45;margin:2em 0 .5em;padding-top:.6em;border-top:1px solid var(--line)}
+p{margin:.8em 0}a{color:#075b94;text-underline-offset:3px}strong{color:#122d49}.deck{font-size:1.14rem;color:#3c5268}.tag{display:inline-block;color:var(--blue);background:#e9f3f9;border-radius:999px;padding:3px 12px;font-size:.85rem;font-weight:700}
+.callout{border-left:5px solid var(--orange);background:#fff5ee;padding:14px 18px;border-radius:8px;margin:20px 0}figure{margin:23px 0}img{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:12px}figcaption{text-align:center;color:var(--muted);font-size:.88rem;margin-top:6px}
+table{width:100%;border-collapse:collapse;margin:18px 0;font-size:.94rem}th,td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{background:#edf4f8;color:#183c5b}
+code{background:#edf2f6;border-radius:4px;padding:.1em .32em;font-size:.9em;overflow-wrap:anywhere}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f2f5f8;border:1px solid var(--line);border-radius:10px;padding:15px;font-size:.84rem;line-height:1.65}
+.sources{background:#f3f7fa;border-radius:12px;padding:16px 20px;margin-top:25px}.sources h3{border:0;margin:0 0 8px;padding:0;font-size:1.05rem}.sources ul{margin:.3em 0;padding-left:1.3em}
+.todo{border-left:5px solid var(--green)}.small{font-size:.9rem;color:var(--muted)}footer{text-align:center;color:var(--muted);padding:4px 20px 42px;font-size:.9rem}
+@media(max-width:650px){body{font-size:16px}article,.lead,.todo{padding:22px 17px}table{display:block;overflow-x:auto}header{padding-top:34px}}
+@media print{body{background:white}header{background:#173b59!important;color:white;-webkit-print-color-adjust:exact;print-color-adjust:exact}nav{display:none}article{box-shadow:none;break-inside:avoid}}
+</style></head>
+<body><header><div class="inner"><div class="eyebrow">LIFE MANAGER · EVALUATION-DRIVEN DEVELOPMENT · DRAFT 1</div>
+<h1>Agent evalの作り方<br>そしてWriterから始めるEDD</h1>
+<p>第一稿はtrace・outcome・observability・evalの基礎。第二稿は、今あるLife ManagerのCLI、runtime event、Writerの品質gateと金銭記録をどうつなぐかを説明します。</p>
+<nav><a href="#article-1">記事1：良いevalを作る</a><a href="#article-2">記事2：Writerで始める</a><a href="#todo">実際のTODO</a></nav></div></header>
+<main>
+<section class="lead"><span class="tag">先に結論</span>
+<p><strong>CLIは使えます。</strong>いまの状態を調べ、失敗したrunを見つける入口です。そこへ実行のtrace、実際に残ったoutcome、taskの成功条件をつなぐと、評価駆動開発に進めます。</p>
+<p>Observabilityは状態を調べる力、traceabilityは根拠をたどる力、evalは仕事の結果を採点する仕組みです。似ていますが、同じものではありません。</p></section>
+
+<article id="article-1"><span class="tag">記事1 · 基礎</span>
+<h2>良いagent evalは、実行記録を仕事の成果へ結びつける</h2>
+<p class="deck">agentの返事や終了コードだけで成功と決めず、仕事がどう進み、環境に何が残ったかを確かめる。</p>
+<figure><img src="assets/agent-eval-traceability.png" alt="observability、trace、traceability、evalの違いと関連を示す図"><figcaption>図1：状態を観測する、経路をたどる、目的達成を採点する。</figcaption></figure>
+
+<h3>五つの言葉を、まず区別する</h3>
+<table><thead><tr><th>言葉</th><th>平たく言うと</th><th>Life Managerの例</th></tr></thead><tbody>
+<tr><td><strong>log</strong></td><td>起きたことの時刻付き記録。</td><td>記事のquality gateがFAILした。</td></tr>
+<tr><td><strong>trace / span</strong></td><td>一回の仕事と、その中の各処理の道筋。</td><td>research → draft → reader gate → publish check。</td></tr>
+<tr><td><strong>observability</strong></td><td>出ている情報から、既知・未知の問題を調べられる力。</td><td>どのjobが何のreleaseで止まり、次に何を確認するか。</td></tr>
+<tr><td><strong>traceability</strong></td><td>仕事と実行・結果・根拠を結び付け、後からたどれること。</td><td>task → occurrence → run → receipt → money record。</td></tr>
+<tr><td><strong>eval</strong></td><td>実際の結果を、事前に決めた成功条件で採点すること。</td><td>記事が公開され、公式入金と費用を確認できたか。</td></tr>
+</tbody></table>
+<p>OpenTelemetryはobservabilityの共通標準です。<strong>logs</strong>は時点ごとの記録、<strong>metrics</strong>は集計値、<strong>traces</strong>は親子関係のある処理経路です。traceは観測方法の一つで、traceabilityは仕事の証拠一式をつなげる性質です。<a href="https://opentelemetry.io/docs/concepts/observability-primer/">OpenTelemetry observability primer</a></p>
+<p>health checkは「今、決めた条件を満たすか」を確認します。evalは「依頼した仕事が成功したか」を判定します。workerが起動していることと、顧客の仕事が終わったことは別です。</p>
+
+<h3>Life ManagerのCLIは、評価を始める入口になる</h3>
+<p>最新mainには、owner・run・occurrence・release SHA・phase/status・failure layer・error class・次のaction・provider receipt ID・official readback referenceなどを持つstructured runtime eventがあります。schemaで値を検証し、secretらしい値を拒否またはredactして、private JSONLへ追記します。</p>
+<p><code>./bin/lm-loop status --explain</code>と<code>health --json</code>は、status rowsから読み取り専用のhealth projectionを返します。<code>doctor</code>はregistry、ロード済みlabel、entrypointを確認します。health observerはsnapshotのhistory、状態変化時のalert、recovery intentを保存します。</p>
+<p>だからCLIは役立ちます。「どのownerのどのrunを見るか」を決め、既存eventへ進む入口になります。ただし、health表示もrecovery intentも、そのまま仕事の成功ではありません。Life ManagerのREADMEは、registryへの登録、health、外部effectの成功を分け、business successはofficial provider receiptで確かめると説明しています。</p>
+<div class="callout"><strong>source確認：</strong>今回調べたruntime/evalの範囲では、OpenTelemetry SDKとtrace_id/span_idによるspan計装は見当たりませんでした。独自のruntime eventとhealth observerはあります。まず既存eventをevalへつなぎ、追加のtrace backendが必要かを見ます。</div>
+
+<h3>完了・公開・入金は、別々のoutcome</h3>
+<p>Writerがreader gateに通ったことは記事品質のoutcome。公開URLが確認できたことはpublisherのoutcome。顧客の購入・settlementが確認できたことは金銭のoutcomeです。利益を言うには、手数料・返金・AI/API費用のcoverageも必要です。費用が欠けたらnetはunknownにします。</p>
+<p>既存LM-EABは、現在、合成fixtureで会計・自律性のcontractを検査するoffline evaluatorです。guideは、それが実agentを実行したり収益を生んだりする試験ではないと説明しています。</p>
+<pre>形式を示す架空例：
+task_case_id        → Writerの評価問題
+business_occurrence → この記事を作る業務のまとまり
+run_id              → 一回の実行試行
+release_sha         → 動いたsourceの版
+trace               → research → draft → gates
+outcome             → gate結果・公開状態・official receipt
+money outcome       → 入金・返金・fee・費用・coverage
+evaluation record   → grader版・結果・理由・根拠参照</pre>
+<p class="small">識別子は説明用の例で、Life Managerの新schemaではありません。</p>
+<p>traceabilityを上げる方法は、全文をログへ複製することではありません。安定したID、版、stage、判定、evidence referenceをつなぎ、記事本文や顧客情報は所有元のprivate storeに置きます。</p>
+
+<h3>良いevalは、実際の失敗から作る</h3>
+<ol>
+<li><strong>成果を一文で決める。</strong>「AIが良い記事を書く」では曖昧。「この記事を読む人が、何を判断できるか」と書く。</li>
+<li><strong>自然な失敗のtraceを読む。</strong>research、draft、fact check、公開、receipt照合のどこで失敗したか分類する。</li>
+<li><strong>初期状態と制約を固定する。</strong>入力、利用可能tool、予算、期間、終了条件を明記する。</li>
+<li><strong>正解例を用意する。</strong>taskを正しく解いたものがgraderに合格するかを確かめる。</li>
+<li><strong>対照例も入れる。</strong>安全に止まるだけでなく、正しく仕事を進める例も試す。</li>
+<li><strong>確認できるものはコードで採点する。</strong>hash、必須項目、公開状態、receipt、費用coverageなど。</li>
+<li><strong>解釈が必要ならrubricを使う。</strong>LLM judgeを人の判断例と比べ、失敗理由を読み較正する。</li>
+<li><strong>同じ条件でbaselineとcandidateを比べる。</strong>dataset・grader・release版、trial数、費用を記録する。</li>
+</ol>
+<p>Anthropicのガイドは、実際の失敗から20〜50件ほどで始める考え方、reference solutionでgraderを点検すること、traceを読み採点ミスを探すことを紹介しています。数は絶対条件ではなく、初期signalを得る目安です。<a href="https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents">Anthropic: Demystifying evals for AI agents</a></p>
+
+<h3>自己修復と自己改善は、同じ評価に別の質問をする</h3>
+<table><thead><tr><th></th><th>自己修復</th><th>自己改善</th></tr></thead><tbody>
+<tr><td>質問</td><td>失敗後、仕事を安全に正しい状態へ戻せたか。</td><td>動いている仕事から、baselineより良い成果を出せたか。</td></tr>
+<tr><td>採点例</td><td>回復後の完了、再発、重複、復旧時間、人の介入。</td><td>reader value、settled net、cost、latency、人の介入。</td></tr>
+<tr><td>誤判定</td><td>processが再起動しただけで修復成功とする。</td><td>quality gateが上がっただけで売上改善と言う。</td></tr>
+</tbody></table>
+<p>GEPAのprompt optimizerやOpenEvolveの候補探索は、traceや評価feedbackから改善案を作れます。ただしcandidateがgraderや安全境界を書き換えられないようにします。回数上限で失敗したら止めて原因を記録し、外部effectがunknownなら公式readbackまで再送しません。</p>
+
+<h3>既存製品は、eval loopのどこを埋めるか</h3>
+<table><thead><tr><th>製品</th><th>中心の役割</th><th>使いどころ</th></tr></thead><tbody>
+<tr><td><a href="https://opentelemetry.io/docs/collector/">OpenTelemetry</a></td><td>telemetryの共通instrumentationと転送。</td><td>共通形式。自動ではdataset/graderにならない。</td></tr>
+<tr><td><a href="https://langfuse.com/docs/evaluation/overview">Langfuse</a></td><td>production trace→dataset→offline experiment→CI/online scoring。</td><td>実traceからtestを育て、変更を比較。</td></tr>
+<tr><td><a href="https://www.braintrust.dev/docs/evaluate">Braintrust</a></td><td>dataset・task・evaluator・実験・本番score。</td><td>候補とimmutableな結果を比較。</td></tr>
+<tr><td><a href="https://arize.com/docs/phoenix/evaluation/llm-evals">Phoenix</a></td><td>OTel traceとcode/LLM evaluation。</td><td>trace viewerとdatasetの評価。</td></tr>
+<tr><td><a href="https://inspect.aisi.org.uk/">Inspect AI</a></td><td>task・dataset・solver・scorerを走らせるeval harness。</td><td>隔離環境でagentを試す。</td></tr>
+<tr><td><a href="https://sentry.io/product/seer/">Sentry Seer</a> / <a href="https://www.pagerduty.com/platform/ai-agents/">PagerDuty AI Agents</a></td><td>software/SRE障害の調査・修復支援。</td><td>運用修復の参考。Writer収益を採点するものではない。</td></tr>
+</tbody></table>
+<p>これは公式product docsが説明する役割の比較で、各社の効果をLife Managerで測った結果ではありません。まず既存CLI/eventを使い、一つのcaseに必要なroot causeが見えるかを試します。trace UIの不足が確認された場合に、Langfuse/Phoenixなどから一つだけ選びます。</p>
+<div class="sources"><h3>第一稿の出典</h3><ul>
+<li><a href="https://opentelemetry.io/docs/concepts/observability-primer/">OpenTelemetry observability primer</a> · <a href="https://opentelemetry.io/docs/concepts/signals/traces/">traces</a> · <a href="https://opentelemetry.io/docs/concepts/signals/metrics/">metrics</a> · <a href="https://opentelemetry.io/docs/concepts/signals/logs/">logs</a></li>
+<li><a href="https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents">Anthropic agent evals</a></li>
+<li><a href="https://langfuse.com/docs/observability/overview">Langfuse tracing</a> · <a href="https://langfuse.com/docs/evaluation/overview">evaluation</a></li>
+<li><a href="https://www.braintrust.dev/docs/evaluate">Braintrust</a> · <a href="https://arize.com/docs/phoenix/evaluation/llm-evals">Arize Phoenix</a> · <a href="https://inspect.aisi.org.uk/">Inspect AI</a></li>
+<li>Life Manager main <code>2e588ebb</code>: <a href="https://github.com/Daisuke134/life-manager/blob/2e588ebb56934ee62c5d578c5b84de214a96976e/runtime/loop/runtime_event.py">runtime event</a>, <a href="https://github.com/Daisuke134/life-manager/blob/2e588ebb56934ee62c5d578c5b84de214a96976e/runtime/loop/health.py">health</a>, <a href="https://github.com/Daisuke134/life-manager/blob/2e588ebb56934ee62c5d578c5b84de214a96976e/runtime/loop/health_observer.py">health observer</a>, <a href="https://github.com/Daisuke134/life-manager/blob/2e588ebb56934ee62c5d578c5b84de214a96976e/docs/evals/lm-economic-autonomy.md">LM-EAB guide</a>.</li>
+</ul></div>
+</article>
+
+<article id="article-2"><span class="tag">記事2 · Life Managerのpilot</span>
+<h2>Writerの一記事から、品質evalと実収益readbackをつなぐ</h2>
+<p class="deck">Writer全体の作り直しではなく、既存gateのある公開前の一記事で、self-healingと比較評価を試す。</p>
+<figure><img src="assets/writer-edd-flow.png" alt="Writerのtask、draft、quality gate、候補比較、入金receiptと費用後netの流れ"><figcaption>図2：品質合格と販売のoutcomeは別々に測る。</figcaption></figure>
+<p>Writerは、記事editorial/reader/identity/safety gate、失敗後のreroute、失敗が続けばblockする上限、公開後のmoney ledgerを既に持っています。このため最初のpilot候補にできます。ただし測定を一度に全部広げません。</p>
+<p><strong>最初のcase：</strong>読者の疑問、参照資料、禁止claim、draft hash、grader版を固定し、公開前記事を評価します。実際に落ちたgateとその理由をtraceへ結び、同じcaseでreroute後を評価します。safety failureは公開へ流さず、上限に達したらblockします。</p>
+<p><strong>自己改善：</strong>baselineのoutline/promptと、一要素だけ変えたcandidateを同じcaseで比較します。editorial/readerの採点、事実の根拠、利用費、時間、reroute回数を別々に残します。LLM judgeは人の判断例と較正します。</p>
+<p><strong>実収益：</strong>公開URL、顧客購入、settlement、refund、fee、AI/API費用を同じarticle IDと期間で公式記録に結びます。品質gateのPASSから売上を推定しません。receiptや実費coverageが欠けたら、netはunknownです。</p>
+<div class="callout"><strong>pilotのdone：</strong>失敗traceから原因を見つけ、同じcaseで一回のbounded recoveryまたはcandidate比較を再現できる。publicationと金銭outcomeは、公式receiptが得られた場合にのみ別途記録する。合成caseならsyntheticと明記する。</div>
+<p>Writerが「18業務で最も簡単」と証明済みではありません。選ぶ理由は、既存quality gateと金銭readback経路が同じ業務にあること、公開前部分を安全に繰り返し評価できることです。Connectorのような業務完了の簡単さより、収益目標に近い開始点です。</p>
+<div class="sources"><h3>第二稿の出典</h3><ul>
+<li><a href="https://github.com/Daisuke134/life-manager/blob/2e588ebb56934ee62c5d578c5b84de214a96976e/skills/writer-agent/SKILL.md">Writer quality / bounded self-heal</a></li>
+<li><a href="https://github.com/Daisuke134/life-manager/blob/2e588ebb56934ee62c5d578c5b84de214a96976e/skills/writer-agent/scripts/eval-gate.sh">Writer eval gate</a> · <a href="https://github.com/Daisuke134/life-manager/blob/2e588ebb56934ee62c5d578c5b84de214a96976e/skills/writer-agent/scripts/money_ledger.py">Writer money ledger</a></li>
+<li><a href="https://github.com/Daisuke134/life-manager/blob/2e588ebb56934ee62c5d578c5b84de214a96976e/docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md">Unified SSOT: E01–E06 / I01–I04</a></li>
+</ul></div>
+</article>
+
+<section class="todo" id="todo"><span class="tag">実行順 · canonical SSOTが正本</span>
+<h2>最初のatomはE01の自然確認、その次にWriterをE02/E03へ接続する</h2>
+<p>最新mainのUnified SSOTが全体のTODOと順序を所有します。ここではその順序をコピーせず、Writerを使うpilot候補を示します。</p>
+<table><thead><tr><th>順</th><th>作業</th><th>受け入れの証拠</th></tr></thead><tbody>
+<tr><td>E01・現cursor</td><td>欠測net修正のrelease adoptionと自然評価を閉じる。</td><td>loaded SHA、自然run、欠測損益がunknownのままであること。</td></tr>
+<tr><td>E02</td><td>回復/経済evalを自然障害とCFO公式receiptにつなぐ。Writerの一件をpilotにする。</td><td>task success・effect integrity・settled net・cost・latency・介入を別々に記録。</td></tr>
+<tr><td>E03</td><td>自然失敗・boundary・実経済task familyへ広げる。</td><td>自然trace / syntheticの出所、ケース内容、期待outcomeを記録。</td></tr>
+<tr><td>E04</td><td>case・runner・grader・baselineの版とhashを凍結。</td><td>dev/held-out/challenge分離、較正、複数trial、不確かさ。</td></tr>
+<tr><td>E05</td><td>別harness adapterと外部再現。</td><td>他実装者が同じcase/versionを実行し、差を説明できる。</td></tr>
+<tr><td>E06</td><td>再現手順、測定値、task作成方法、限界を公開。</td><td>公開benchmarkを「leading」やlab採用の実績と取り違えない。</td></tr>
+<tr><td>I01–I04</td><td>凍結eval上で候補を比較し、採用/保留/rollbackを回す。</td><td>candidateはgrader/safety/authorityを変更できず、合格時だけ段階反映。</td></tr>
+</tbody></table>
+<p>Writer quality gateに落ちたときの再試行や、公開後の売上比較は別stageです。安全なoffline評価を先に再現し、実売上は公式receiptが取れる範囲でだけ結びます。E01–E06のstatusはprimaryがcanonical SSOTを更新します。</p>
+</section>
+<footer>議論用ドラフト · 対象source snapshot 2e588ebb · 二枚の図を同梱</footer>
+</main></body></html>
