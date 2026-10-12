@@ -3187,3 +3187,13 @@ Writer適用: `skills/writer-agent/SKILL.md`、Zinsser reader/prose、humanizer�
 - [ ] 必要なtrajectoryと追加価値が確認できた段階でGPU追加学習を検討。MASS code再利用が必要なら著者へ許諾条件を確認。独立実測評価/heldoutを保護する。
 
 追加検証: source-boundary、diff whitespace、2調査文書の相対リンク、固定repo SHA、配布Markdown byte一致を確認。指定の日本語lintを実行し意味を保って一度推敲。clone/source読解は静的検証、論文成果再現や送信・投稿・本番更新ではない。
+
+
+<a id="manager-history-basics-20261012"></a>
+## Manager 2026-10-12 歴史と基礎の学習資料
+
+- [x] [歴史・小説・哲学・統計・構成・証明の基礎](../../research/manager/learning/2026-10-12-history-and-manager-basics-ja.md)を保存。単一の影響系譜とせず、文学/行動/制御/人工社会/制度倫理の流れを区別。原文と書誌の確認は全書読了ではない。
+- [x] 人口の周辺/結合分布、行動確率、ABM、反実仮想、予測と介入、校正、5評価段階を初心者向けに説明。100人の数字は説明例で実測ではない。
+- [x] Manager閉ループ図の元dot/PNGと、モデル・データ・変更・結果のschema案を保存。既存aggregate-first設計の旧app紹介文を最新使命へ整合。新製品コードの実装なし。
+- [ ] この学習資料を基に既存D0–D5の設計を確認し、必要な公開データと独立評価単位を確定。最初の実地対象は権限/比較記録を確認して選ぶ。
+- [ ] 原典→再現→実装→比較→実結果の順で理解を検証し、実際に説明できる資料/コード/失敗を発信へ使う。podcast招待・YC・企業価値は先取りしない。

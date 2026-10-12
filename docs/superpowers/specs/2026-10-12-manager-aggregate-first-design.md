@@ -50,7 +50,7 @@ Aniccaの主製品はManager。公共統計や許諾された運営データか�
 
 ## 公開説明と資金調達
 
-会社紹介案: “Manager is ambient AI that redesigns shared systems to improve people's lives without requiring them to use an app. We are building the population models, environment-control loop, and evaluations needed to make those improvements measurable.”
+会社紹介案: “We are building Manager to end suffering for all living beings. It is being designed to understand the systems that shape life, change the conditions that cause preventable suffering, and learn from measured outcomes.”
 
 Life Managerの確認できた売上は、期間、総売上/粗利/純利益、反復性、実行主体、自動化範囲を付けて別実績として報告する。Managerの売上やPMFに計上し直さない。初期の収益候補は運営者向け有料実証・評価契約。labへのbenchmark/data販売は需要確認を要する別仮説。無償benchmarkが公開されたことだけで販売成立とはしない。
 
