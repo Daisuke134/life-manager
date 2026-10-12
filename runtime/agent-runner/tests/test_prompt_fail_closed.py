@@ -67,10 +67,12 @@ class PromptFailClosedTest(unittest.TestCase):
         env["AGENT_RUNNER_CONFIG"] = str(self.config)
         env["ANICCA_USAGE_LEDGER"] = str(self.root / "usage.jsonl")
         env["LIFE_MANAGER_PROVIDER_LEASE_PATH"] = str(lease_path)
-        # Inject each test capacity so the removed provider gate stays regression-covered.
+        # Simulate the filesystem measurement used by the removed provider gate.
         fixture_runner = (
-            f"import sys; sys.path.insert(0, {str(ROOT)!r}); import agent_runner; "
-            f"agent_runner.disk_free_bytes = lambda path: {free_bytes!r}; "
+            f"import sys, shutil; from types import SimpleNamespace; "
+            f"sys.path.insert(0, {str(ROOT)!r}); "
+            f"shutil.disk_usage = lambda path: SimpleNamespace(total=4 * 1024**3, used=0, free={free_bytes!r}); "
+            "import agent_runner; "
             "raise SystemExit(agent_runner.run())"
         )
         command = [
