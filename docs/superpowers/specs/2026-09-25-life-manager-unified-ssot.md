@@ -12588,6 +12588,15 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **Current cursor:** finish PR #7750 review/CI/merge → wait for normal immutable release adoption → rerun exact fence readback with provider request IDs from loaded source and resolve only if current owner state permits → natural qualified AT-13 only → complete same-period cost joins and positive owner-attributable realized net; keep the fence and P&L unknown until proven.
 
+### 2026-10-12 13:30 JST — Proof PR accepted locally; natural paper owner remains fenced
+
+- **Source acceptance:** PR #7750 (`fix/investment-repair-20261012`) is at head `a713d6f99db771d996d00aa00ca151b807bfb88a`, based on `542937e09cff0910bf1885e24ddecd94a150547c`. All CI checks pass. A fresh read-only reviewer returned SHIP with no Critical/Important/Minor findings for the request-ID binding, fail-closed proof shape, fresh resolver callback, and readback-only boundary. That review did not access credentials, provider state, production state, or run tests. The PR is not merged; the source fix is not in an immutable release.
+- **Current paper owner:** `lm-loop status --explain alpaca-investment-paper` reports loaded-idle/no drift on SHA `542937e09cff0910bf1885e24ddecd94a150547c`. Latest natural occurrence `18ddaddfb9286918-55417` at `2026-10-12T04:30:04Z` remains `resource_effect_unknown` / `retry_after_eligibility`, with no receipt. The only active fence remains the claimed `18dcc31cf10b9ed0-10327`.
+- **Readback boundary:** the latest official paper `--readback-only` response at `04:19:06Z` showed no orders after the fence queue time and no open orders, but the loaded helper used the synthetic timestamp as `provider_receipt_id`. That readback predates the `04:30Z` natural terminal. Do not use it to clear the fence; the exact fence needs a fresh request-ID-bound readback from the merged, loaded helper. No manual wake/sell/replay or live action was taken.
+- **P&L:** no natural paper sell fill, closed round trip, or complete same-period model/system-cost receipt is confirmed. `paper_performance.py` continues to report costs unknown; no realized-net claim is made.
+
+**Current cursor:** primary reviews/integrates PR #7750 → normal release reconciliation adopts the main-derived immutable SHA and paper owner readback confirms it → use the loaded helper for fresh request-ID-bound proof of only `18dcc31cf10b9ed0-10327`, resolving only if current owner state permits → wait for natural qualified AT-13 → join same-period official buy/sell fills, fees, slippage and model/system costs → require positive owner-attributable realized net and replay-zero.
+
 ### 2026-10-09 14:20 JST — Paper storage and effect fence remain open
 
 このreadbackは14:03 JST snapshotを更新する。L9-12と「残り2件」の順序は変えない。
