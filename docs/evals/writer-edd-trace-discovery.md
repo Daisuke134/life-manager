@@ -89,10 +89,11 @@ Identity/CTAの不一致は人手ラベル待ちのcandidateです。
 - **allowed_tools:** この1 artifactのread-only readと標準JSON parserのみ。
 - **budget/constraints:** input上限1,000,000 bytes（read-only review endpointの既存上限）、model calls 0、network requests 0、provider/browser actions 0、external effects 0。
 - **expected_outcome:** evaluatorは`receipt_unparseable` / `artifact_integrity=FAIL`を返す。writerのdraft-stageは`PASS`、pre-publication qualityとrecovery outcomeは`UNKNOWN`、publicationは`blocked-before-publication`、settled netは`UNKNOWN`。identity/CTAのhuman labelはpendingのまま保持する。
+- **outcome_dimensions:** `task_completion=UNKNOWN`（draftはあるがquality stageがterminalにならない）、`quality=UNKNOWN`、`safety_gate=ALLOW`（gate値だけ）、`effect_integrity=UNKNOWN`（公式readbackなし；publication stageは`blocked-before-publication`）、`settled_net=UNKNOWN`、`cost_coverage=UNKNOWN`、`latency=UNKNOWN`、`human_intervention=UNKNOWN`（自然run内の介入記録なし、semantic labelは別途pending）。
 - **provenance/split:** `natural_observation` / `development`; `harness_git_hash=UNKNOWN`。source-level replayはlineageが回復するまで不可。held-outではない。
 - **evidence_refs:** private Writer trace `run_id=20261011-210544`, artifact `gates/quality-self-heal.json`; sanitized summary in this document under Candidate W-01.
 
-このcardはcase定義であり、grader実装、source再現、agent performance測定の完了ではありません。外部receiptや費用がない状態を売上0へ変換しません。
+このcardはcase定義であり、grader実装、source再現、agent performance測定の完了ではありません。外部receiptや費用がない状態を売上0へ変換しません。Case-level dimensionsを揃えても、canonical E02のCFO receipt/cost join完了とは扱いません。
 
 ## 優先findings
 
