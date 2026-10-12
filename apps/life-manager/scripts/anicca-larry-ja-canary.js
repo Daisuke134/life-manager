@@ -345,7 +345,7 @@ async function runAniccaCarouselCanary(argv = [], deps = {}) {
     error.unknownEffect = true;
     throw error;
   }
-  const publicationResult = { created: queued.created && publicationRun.created, public_url: publication.public_url, provider_post_id: publication.provider_post_id };
+  const publicationResult = { created: queued.created && publicationRun.created, ...(typeof publication.provider_effect_created === "boolean" ? { provider_effect_created: publication.provider_effect_created, ...(typeof publication.origin_occurrence_id === "string" ? { origin_occurrence_id: publication.origin_occurrence_id } : {}) } : {}), public_url: publication.public_url, provider_post_id: publication.provider_post_id };
   const postizPhotoVerified = isVerifiedPostizPhotoPublication(lane, publication);
   const postizProductionVerified = production && publication.status === "published" && publication.provider_reconciled === true;
   if (!postizPhotoVerified && !postizProductionVerified && !verifyNativeObject(config.verificationRef, objectStore, publication, trustedNow, lane)) {

@@ -121,7 +121,7 @@ class DistributionTests(unittest.TestCase):
             "#!/usr/bin/env python3\n"
             "import json,sys\n"
             "assert sys.argv[sys.argv.index('--integration') + 1] == 'integration-test-1'\n"
-            "print(json.dumps({'state':'PUBLISHED','post_url':'https://www.instagram.com/reel/IGPOSTIZ/','post_id':'postiz-ig-1','reconciled':True}))\n",
+            "print(json.dumps({'state':'PUBLISHED','post_url':'https://www.instagram.com/reel/IGPOSTIZ/','post_id':'postiz-ig-1','reconciled':True,'provider_effect_created':True}))\n",
         )
         config = self.build_config(
             instagram_integration="integration-test-1",
@@ -132,6 +132,7 @@ class DistributionTests(unittest.TestCase):
         row = json.loads(self.ledger.read_text(encoding="utf-8").splitlines()[0])
 
         self.assertEqual(result["provider_route"], "postiz")
+        self.assertIs(result["provider_effect_created"], True)
         self.assertEqual(row["route"], "postiz")
         self.assertEqual(row["provider_id"], "postiz-ig-1")
         self.assertTrue(row["provider_reconciled"])
@@ -346,6 +347,8 @@ class DistributionTests(unittest.TestCase):
         self.ledger.write_text(json.dumps(base) + "\n", encoding="utf-8")
         result = lm_distribution.distribute_platform(self.build_config(), "instagram")
         self.assertIs(result["provider_reconciled"], False)
+        self.assertIs(result["provider_effect_created"], False)
+        self.assertNotIn("provider_effect_created", json.loads(self.ledger.read_text(encoding="utf-8").splitlines()[0]))
         self.assertFalse(self.calls.exists(), "short-circuit must not run any adapter")
 
         reconciled = dict(
