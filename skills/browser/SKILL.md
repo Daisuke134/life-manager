@@ -84,6 +84,10 @@ keep a stable fingerprint, and (at scale) pin a sticky proxy per account.
 - **Close what you open.** Tabs are the leak that kills the browser.
 - Caches are capped at launch (`--disk-cache-size`, cache dir under `/tmp`). An uncapped profile grew
   to 1.0GB, 97% of it disposable cache, and filled the disk the loops write their ledgers to.
+- `ensure_provision_browser.sh` passes a browser registry owner only when it is a registered loop.
+  That owner gates a new context on the existing memory floor and routes launchd output through its
+  existing `storage-policy.json` bounds. Keep such auxiliary labels in
+  `config/loop-registry.json`'s `external_labels`; never create a competing managed loop for them.
 
 ## Lease your own space — never share a tab with another loop
 

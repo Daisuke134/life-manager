@@ -188,6 +188,12 @@ seller dashboard (the only official PromptBase readback there is) for the
 slug/title `daily.sh` snapshotted immediately before `publish.py --confirm`,
 and closes the fence from that receipt instead of leaving it stuck.
 
+The existing `promptbase:dais` profile stays owned by `promptbase-loop-daily`.
+Its persistent provisioner label, `ai.anicca.provision-browser.promptbase.dais`,
+is registered as an external launchd owner. New contexts use the loop's memory
+admission floor and bounded launchd output policy; source changes never stop,
+clear, or replace an already-running seller profile.
+
 ## Hourly sales readback (`promptbase-sales-readback-hourly`)
 
 The existing `lm-loop` scheduler runs `hourly_readback.sh` once per hour at
