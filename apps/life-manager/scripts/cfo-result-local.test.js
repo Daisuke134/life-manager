@@ -616,7 +616,7 @@ test("pending notification keeps its B7 source pending and retry reuses it witho
   change("999");
   const retryOccurrence = "life-manager-cfo-hourly:retry-run";
   assert.equal((await runResultCfo({ ...options, occurrenceId: retryOccurrence,
-    now: "2026-09-30T13:00:00Z" })).status, "quiet");
+    now: "2026-09-30T12:05:00Z" })).status, "quiet");
 
   const resolved = JSON.parse(fs.readFileSync(file, "utf8"));
   assert.equal(collects, 1);
@@ -642,6 +642,78 @@ test("pending notification keeps its B7 source pending and retry reuses it witho
   assert.equal(messages[0].eventKey, messages[1].eventKey);
 });
 
+test("new report period preserves unknown prior delivery and never resends it", async t => {
+  const { options, messages } = setup(t);
+  options.collect = async date => b7Table(date);
+  options.notify = async input => {
+    messages.push(input);
+    if (messages.length === 1) return { delivery: "pending" };
+    return { delivery: "delivered", provider_message_id: "new-period-receipt",
+      attempted: 1, delivered: 1, delivery_uncertain: 0, pre_send_failed: 0 };
+  };
+  await assert.rejects(runResultCfo({ ...options, now: "2026-09-30T12:00:00Z" }), /receipt_missing/);
+  const oldReport = fs.readFileSync(path.join(options.stateDir, "last-result-report.json"), "utf8");
+  const oldSnapshot = fs.readFileSync(readbackFile(options.stateDir, options.occurrenceId), "utf8");
+  const next = await runResultCfo({ ...options, occurrenceId: "life-manager-cfo-hourly:new-period",
+    now: "2026-10-01T12:00:00Z" });
+  assert.equal(next.status, "sent");
+  assert.equal(messages.length, 2);
+  assert.notEqual(messages[0].eventKey, messages[1].eventKey);
+  const archived = path.join(options.stateDir, `pending-result-report-${options.occurrenceId}.json`);
+  assert.deepEqual(JSON.parse(fs.readFileSync(archived, "utf8")), JSON.parse(oldReport));
+  assert.equal(fs.statSync(archived).mode & 0o777, 0o600);
+  assert.equal(fs.statSync(archived).nlink, 1);
+  assert.equal(fs.readFileSync(readbackFile(options.stateDir, options.occurrenceId), "utf8"), oldSnapshot);
+  const duplicate = await runResultCfo({ ...options, occurrenceId: "life-manager-cfo-hourly:new-period-repeat",
+    now: "2026-10-01T12:05:00Z" });
+  assert.equal(duplicate.status, "quiet");
+  assert.equal(messages.length, 2);
+  await assert.rejects(runResultCfo({ ...options, now: "2026-09-30T12:00:00Z" }),
+    /cfo_pending_receipt_requires_reconcile/);
+  assert.equal(messages.length, 2);
+});
+
+test("conflicting pending archive is never overwritten or sent", async t => {
+  const { options, messages } = setup(t);
+  options.collect = async date => b7Table(date);
+  options.notify = async input => { messages.push(input); return { delivery: "pending" }; };
+  await assert.rejects(runResultCfo({ ...options, now: "2026-09-30T12:00:00Z" }), /receipt_missing/);
+  const current = fs.readFileSync(path.join(options.stateDir, "last-result-report.json"), "utf8");
+  const archive = path.join(options.stateDir, `pending-result-report-${options.occurrenceId}.json`);
+  const conflicting = JSON.stringify({ ...JSON.parse(current), message: "different evidence" });
+  fs.writeFileSync(archive, conflicting, { mode: 0o600 });
+  await assert.rejects(runResultCfo({ ...options, occurrenceId: "life-manager-cfo-hourly:new-period",
+    now: "2026-10-01T12:00:00Z" }), /cfo_pending_report_archive_conflict/);
+  assert.equal(fs.readFileSync(archive, "utf8"), conflicting);
+  assert.equal(fs.readFileSync(path.join(options.stateDir, "last-result-report.json"), "utf8"), current);
+  assert.equal(messages.length, 1);
+});
+
+test("pending report archive failure stops before collection or notification", async t => {
+  const { options, messages } = setup(t);
+  let collects = 0;
+  options.collect = async date => { collects += 1; return b7Table(date); };
+  options.notify = async input => { messages.push(input); return { delivery: "pending" }; };
+  await assert.rejects(runResultCfo({ ...options, now: "2026-09-30T12:00:00Z" }), /receipt_missing/);
+  const file = path.join(options.stateDir, "last-result-report.json");
+  const before = fs.readFileSync(file, "utf8");
+  const originalLink = fs.linkSync;
+  fs.linkSync = (source, destination) => {
+    if (destination.includes("pending-result-report-")) {
+      const error = new Error("fixture archive ENOSPC"); error.code = "ENOSPC"; throw error;
+    }
+    return originalLink(source, destination);
+  };
+  try {
+    await assert.rejects(runResultCfo({ ...options, occurrenceId: "life-manager-cfo-hourly:new-period",
+      now: "2026-10-01T12:00:00Z" }), { code: "ENOSPC" });
+  } finally { fs.linkSync = originalLink; }
+  assert.equal(fs.readFileSync(file, "utf8"), before);
+  assert.equal(collects, 1);
+  assert.equal(messages.length, 1);
+  assert.equal(fs.readdirSync(options.stateDir).filter(name => name.endsWith(".tmp")).length, 0);
+});
+
 test("stale pending snapshot without a sent receipt remains fenced", async t => {
   const { options, messages } = setup(t);
   let collects = 0;
@@ -649,7 +721,7 @@ test("stale pending snapshot without a sent receipt remains fenced", async t => 
   options.notify = async input => { messages.push(input); return { delivery: "pending" }; };
 
   await assert.rejects(runResultCfo({ ...options, now: "2026-09-30T12:00:00Z" }), /receipt_missing/);
-  await assert.rejects(runResultCfo({ ...options, occurrenceId: "life-manager-cfo-hourly:stale-retry",
+  await assert.rejects(runResultCfo({ ...options, occurrenceId: options.occurrenceId,
     now: "2026-10-01T12:00:00Z" }), /cfo_pending_receipt_requires_reconcile/);
 
   assert.equal(collects, 1);

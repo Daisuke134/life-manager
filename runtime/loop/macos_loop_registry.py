@@ -37,6 +37,7 @@ CONTROL_PLANE_SAFETY_LOOPS = frozenset({
     "life-manager-release-reconciler",
 })
 OCCURRENCE_SCOPED_ENTRYPOINTS = {
+    "skills/cfo/run.sh",
     "apps/life-manager/scripts/mobile-app",
     "apps/life-manager/scripts/instagram-metrics-production-boot.sh",
     "apps/life-manager/scripts/tiktok-metrics-production-boot.sh",

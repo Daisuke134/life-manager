@@ -624,19 +624,35 @@ async function runResultCfo(options) {
   const stateDir = path.resolve(options.stateDir);
   const file = path.join(stateDir, "last-result-report.json");
   fs.mkdirSync(stateDir, { recursive: true, mode: 0o700 });
+  if (b7SnapshotStat(path.join(stateDir, `pending-result-report-${currentOccurrenceId}.json`))) {
+    throw new Error("cfo_pending_receipt_requires_reconcile");
+  }
   let previous;
   try { previous = JSON.parse(fs.readFileSync(file, "utf8")); } catch (error) {
     if (error.code !== "ENOENT") throw new Error("cfo_result_state_invalid");
   }
   if (previous) validateStoredResult(previous);
   if (previous?.status === "sent" && previous.subjectId !== subjectId) throw new Error("cfo_sent_subject_changed");
-  const persist = value => {
-    const temporary = `${file}.${crypto.randomUUID()}.tmp`;
-    const fd = fs.openSync(temporary, "wx", 0o600);
-    try { fs.writeFileSync(fd, JSON.stringify(value)); fs.fsyncSync(fd); } finally { fs.closeSync(fd); }
-    fs.renameSync(temporary, file);
-    const directory = fs.openSync(stateDir, "r");
-    try { fs.fsyncSync(directory); } finally { fs.closeSync(directory); }
+  const persist = (value, target = file) => {
+    const temporary = `${target}.${crypto.randomUUID()}.tmp`;
+    let fd;
+    try {
+      fd = fs.openSync(temporary, "wx", 0o600);
+      fs.writeFileSync(fd, JSON.stringify(value));
+      fs.fsyncSync(fd);
+      fs.closeSync(fd);
+      fd = undefined;
+      if (target === file) fs.renameSync(temporary, target);
+      else {
+        fs.linkSync(temporary, target); // Preserve the old unknown report without overwriting evidence.
+        fs.unlinkSync(temporary);
+      }
+      const directory = fs.openSync(stateDir, "r");
+      try { fs.fsyncSync(directory); } finally { fs.closeSync(directory); }
+    } finally {
+      if (fd !== undefined) fs.closeSync(fd);
+      try { fs.unlinkSync(temporary); } catch (error) { if (error.code !== "ENOENT") throw error; }
+    }
   };
   if (previous?.status === "sent" && previous.periodKey === periodKey) {
     if (!previous.providerMessageId) throw new Error("cfo_sent_provider_receipt_missing");
@@ -659,7 +675,7 @@ async function runResultCfo(options) {
     throw new Error("cfo_pending_destination_changed");
   }
   const deliveryIdentity = b7Identity(currentOccurrenceId, sourceEnv);
-  const newSourceIdentity = pending ? null : deliveryIdentity;
+  let newSourceIdentity = pending ? null : deliveryIdentity;
   let sourceSnapshot = null;
   let sourceSnapshotMissing = false;
   if (pending?.b7ReadbackRef) {
@@ -667,6 +683,18 @@ async function runResultCfo(options) {
       if (error.message !== "cfo_b7_snapshot_missing") throw error;
       sourceSnapshotMissing = true;
     }
+  }
+  if (pending && sourceSnapshot?.status !== "sent" && pending.periodKey !== periodKey && pending.occurrenceId !== currentOccurrenceId) {
+    const archive = path.join(stateDir, `pending-result-report-${pending.occurrenceId}.json`);
+    if (b7SnapshotStat(archive)) {
+      if (JSON.stringify(JSON.parse(fs.readFileSync(archive, "utf8"))) !== JSON.stringify(pending)) {
+        throw new Error("cfo_pending_report_archive_conflict");
+      }
+    } else persist(pending, archive);
+    pending = null;
+    newSourceIdentity = deliveryIdentity;
+    sourceSnapshot = null;
+    sourceSnapshotMissing = false;
   }
   if (!pending) {
     const orphan = readB7SnapshotFile(stateDir, currentOccurrenceId, true);

@@ -2905,6 +2905,7 @@
       "state_root": "~/.local/state/life-manager/browser-capacity-probe"
     },
     "life-manager-cfo-hourly": {
+      "admission_effect_scope": "occurrence",
       "cadence": {
         "start_interval_seconds": 3600
       },
