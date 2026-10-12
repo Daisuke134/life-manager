@@ -219,6 +219,9 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 
 **9担当の起動cursor:** goal packet保存/commit/push→AGMSG fresh spawnを各担当へ実行→実session/最初のworking readback→所有確認→各lane先頭atom。本cohortは新しい開発担当であり本番業務loopの重複起動ではない。CFOは指定WT/PR #7714を引き継ぎ、primaryは同source編集を止める。cleanup BF15は受入済みなので、新たな実測漏れ以外を未完へ戻さない。旧11GiB条件は現ユーザー方針で診断値へ変更済み。世界初/無停止/誰でも百万長者は未実証の目標とし、公式成果なしに公開claim/Doneへしない。
 
+**起動方式の比較atom:** native subagentはCFO nlink1の限定修正を実行。AGMSG1.5.1はplain spawnでinvalid owner start time、tmux spawnはlaunched-unconfirmed、既存hooks review modalでtask未着手を確認。15 native同時実行は当threadの提供枠2（primary込み）では実行できない。まずAGMSGのfresh1 sessionへ読み取り専用PR triageを渡し、Codexの公式CLI --disable hooksをこのprobeだけに指定して未承認hookを実行しない。model/approval/sandbox/global configは変更せず、repo instructionsとnative権限制御は保持する。成功は実task readbackとAGMSG返答、登録だけではない。不具合はversion/最小再現/期待・実測を公開issueへ記録する。
+
+
 当面の対象はこの表だけ。下の全社130工程は将来の参照ロードマップであり、いま全社工程へ拡大しない。既存の「cleanup残3大分類」は本表の親分類で、進捗報告はBF-ID単位で完了証拠を示す。毎分watchdog、共通bounded出力/代表自己cleanup、Gig閉鎖物回収/再開、予約expiry順序、scratch通常file誤判定、backup失敗伝播と自然保存/対象claim返却は確認済みで、残項目へ戻さない。
 
 15個の受入atom中BF01/02/03/04/05/05b/06/07/08/09/10/11/12/13/14は完了、基盤表の残り0。残件は故障確定数ではない。診断で既適用/修正不要と証明した項目はN/Aで閉じ、新しい根本原因は別IDで追加し、黙って同じ大分類へ戻さない。BF09は未知effectのblind解除ではなく照合/復旧routeの稼働確認。個別商品の認証/外部審査/売上目標は基盤完了と分ける。
