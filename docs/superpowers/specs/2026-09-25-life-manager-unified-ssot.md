@@ -441,7 +441,7 @@ BF11のsource採用で最後に保持した対象はsession-vault。旧holder PI
 | JH02 | Job Hunter | Workday過去effectと公式応募statusを照合する | 20–60 | provider/mail receipt |
 | JH03 | Job Hunter | Dreamwork cutoverと許可済fit-qualified応募経路を閉じる | 30–90 | 応募entitlement |
 | JH04 | Job Hunter | 自然応募receipt・replay-zero・業務Telegram配信をjoinする | 15–30 | 求人/自然run |
-| FR01 | Fundraiser | eligibleな助成/acceleratorと応募inputを照合する | 15–30 | eligibility |
+| FR01 | Fundraiser | 専任lm-fundraiser-goal-1012を起動し、eligible募集/応募input/既存PRをfresh照合 | 15–30 | 起動packet docs/superpowers/dispatch/2026-10-12/fundraiser.md、READY/着手の確認前は未確認 |
 | FR02 | Fundraiser | 応募/提出の最初の阻害原因と公式receiptを閉じる | 30–90 | 募集/本人要件 |
 | FR03 | Fundraiser | status/実inflow/costをCFOへjoinする | 15–30 | 審査/採択/入金 |
 | CN01 | Connector | 候補・既存auth・owner/releaseを照合する | 10–30 | 既存session |
