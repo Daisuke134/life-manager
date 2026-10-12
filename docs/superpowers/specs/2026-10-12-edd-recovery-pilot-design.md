@@ -18,6 +18,8 @@
 
 **最新E01 readback:** 2026-10-12T15:22:08Z時点で`origin/main=4592b650`、current releaseは`65d1feb5`、その`self-eval.mjs` SHA-256はmain sourceと同じ`75b050c7…`です。`agent-economy-loop`は古い`dd6f0ee5`を`loaded-running`し、`brain_transport` / `reconcile_owner`状態です。停止・再起動はしていません。available diskは1,761,400 KiBで、current releaseのcapacity requirement 2,393,120,768 bytesを下回ります。E01 cursorは未完のままです。
 
+**今回のE01 readback:** `origin/main=8cc3f0a23c96dd9c986924607239b33775633c03`、current releaseは`65d1feb577ce1158079eed79795d253049b89a25`です。mainとcurrent releaseの`self-eval.mjs` SHA-256は`75b050c7…`で一致しますが、`agent-economy-loop`はPID 3136で旧`dd6f0ee51266dda30b84b054f6c72d3771badf7b`を`loaded-running`し、`brain_transport` / `reconcile_owner`状態です。`RELEASE.json`の容量要件は2,393,120,768 bytes、readback時の`df -k /`は1,482,448 KiB availableです。直近2回のbounded watchdog passは各13候補を評価し、回収0、errors 0、protected deletions 0、capacity `unmet`でした。停止・再起動・release apply・effect fence変更は行わず、E01 cursorを未完のまま保ちます。
+
 ## Writer trace checkpoint
 
 Writerのowner・run状態は2026-10-12T15:14:46Zにread-only確認しました。`article-daily`はloaded-idleですが`resource_effect_unknown`のfenceを持ち、`writer-craft-train`はcapacity defer、`writer-opportunity-discovery`はFIFO wait、`writer-sales-measure`はidleです。公開・再送・owner変更はしていません。
@@ -28,7 +30,7 @@ Pilot AのstageはEnglish article draftの公開前quality gateに絞ります�
 
 **child-call inventory:** 1,498のagent-runner evidence directoryのうち1,469にsummaryがあり、`article-daily`は276 child-call summariesを持ちます（251 judge、25 agent）。276件すべてに`runtime_event_id`がありますが、summaryにはparent run/occurrence/source SHAがありません。現在保持されるevent ledgerにjoinできるのは25件で、記事task件数や独立sample数へ足しません。
 
-最初のcase candidateはEnglish blog article draftのidentity `C: FAIL` / mandatory CTA `PASS` / `blocked-before-publication`の組み合わせです。人手labelはpendingで、false positiveとはまだ呼びません。詳細とlimitations → [Writer EDD trace discovery](../../evals/writer-edd-trace-discovery.md)。raw traceはprivate storeに保持します。prototype review UIはrepo外のlocal artifactで、`127.0.0.1`だけにbindし、明示allowlistのGETだけを提供します。reviewerが表示ボタンを押したartifactだけを読み、POST/PUTと外部通信は拒否します。注釈はbrowserの`localStorage`に保存します。
+最初のsemantic case candidateはEnglish blog article draftのidentity `C: FAIL` / mandatory CTA `PASS` / `blocked-before-publication`の組み合わせです。人手labelはpendingで、false positiveとはまだ呼びません。A4は別軸のmachine-checkable `quality_self_heal_record_unparseable`を選び、A5のcase cardを[Writer EDD trace discovery](../../evals/writer-edd-trace-discovery.md)に記録しました。agent qualityは`unknown`のまま分離します。raw traceはprivate storeに保持します。prototype review UIはrepo外のlocal artifactで、`127.0.0.1`だけにbindし、明示allowlistのGETだけを提供します。reviewerが表示ボタンを押したartifactだけを読み、POST/PUTと外部通信は拒否します。注釈はbrowserの`localStorage`に保存します。
 
 このcheckpointはpreworkであり、統一SSOTのE01 current cursorも収益優先順も変更しません。
 
