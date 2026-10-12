@@ -2012,7 +2012,7 @@ Instagram/Threadsのローカル台帳は17件（Instagram 14、Threads 3）で�
 
 **TODO順序更新（2026-10-12 20:04 JST）:** D14a source/test RED→GREENは並行atomとして完了した。primary cursorは変わらず `D07/D09 natural readback → D07a → D10 → D11 → D13 → D14b source promotion → D14c safe factory adoption → D14 winter SKU → D09c cap → D15 → D12 (phone code last) → D16/D17 → D18 → D19 → D20 → D21 → D22`。理由: source修正とfixture testsはlive owner/stateに触れず、冬特集に参加するための不具合を先に除けたため。D14bはnatural readback中にPR/CIを進めてよい。factory applyはPID 99922の自然終端・official item readback後だけ。
 
-**TODO順序更新（2026-10-12 20:13 JST）:** D07はmain由来releaseの自然slot20 URL/CTA readbackでDONE。cursorを `D09 natural sales readback (20:23 JST) → D07a article failure evidence → D10 → D11 → D13` とする。D14a source-local RED/GREENもDONEで、D14bのsource PR/CI/mergeはD09のnatural wake待ちと並行可能。D14cのfactory applyはPID 99922の自然terminalと公式item readback後。理由: D07のdistribution-priority自然公開が成功しCTAも正しい一方、sales snapshotは未更新で、既存のfactory runも終端していない。
+**TODO順序更新（2026-10-12 20:40 JST）:** 20:39 JSTのD09 natural wake `18ddc5480845d588-54612` は `host_admission_deferred:disk_headroom_low` / exit 75で終了し、official readbackを実行していない。canonical `sales.json` はschema_versionなし、31商品、`observed_at=2026-10-12T04:12:38Z`、14行¥0/18行nullのまま。D09は容量条件を満たした後の次の自然readback待ち。factory ownerはloaded-idleでPIDなし、installed release `66f04769`。最新occurrence `18ddc4cb51bd2950-19735` は `host_admission_deferred:resource_effect_unknown` / exit 75、effect `unknown`、receipt/readbackなし。これを解決・公式readbackするまでfactoryへapply・再送しない。主cursorは `D09 capacity recovery → next natural official sales readback → factory unknown official readback → D07a → D10 → D11 → D13`。D14a/D14b source acceptanceはこの間に並行する。理由: 売上readerはdisk admissionで止まり、factoryのeffect境界も未解決だが、独立したsource修正はlive owner/browser/LINE stateに触れない。
 **LINE Sticker Atomic TODO（順に実行。provider依存・採算不成立のatomだけを保留し、独立する配信を続ける。最終Doneは一暦月の公式gross sales USD 10,000以上と基礎distribution回収条件）:**
 
 | ID | 状態 | 1つの作業 | 完了証拠 |
@@ -2027,12 +2027,12 @@ Instagram/Threadsのローカル台帳は17件（Instagram 14、Threads 3）で�
 | D09a | DONE（18:00 occurrenceのみ） | set-034のstatic-plan失敗を登録済みfactory adapterで照合する | 39/40 distinct IDで失敗。management ID/申請なし。registered reconcileは `effected=false` を証明し、そのoccurrenceだけをclose。 |
 | D09b | DONE（18:30 natural） | set-034を40 distinct IDで再計画し、plan段階を通す | natural occurrence `c5602685f690184fd26a66f0` は40/40 distinct `with_text`計画を作り `images` に進んだ。申請・販売ではない。 |
 | D07 | DONE | `line-sticker-articles` ownerだけをdistribution-priority releaseにする | 19:53 JST target apply成功、install event `361004886d1098e7e2651338`、loaded SHA `5a595864`。natural run `18ddc371449adcf0-25338` はslot20を公開。公開記事URLとLINE STORE ID 37146768の商品名・¥250を直接照合。 |
-| D09 | APPLY済み・自然readback待ち | schema-v2 sales readerを `line-sticker-readback-hourly` ownerだけに採用する | 19:53 JST target apply成功、install event `ac254a8ca62a6e14b3ce7118`。loaded SHA `5a595864`、argvは同immutable release。次の自然calendar runは20:23 JST。canonical `sales.json` が32 ID・schema v2へ更新され公式表示と一致することを確認。 |
+| D09 | APPLY済み・自然readbackはdisk admission-deferred | schema-v2 sales readerを `line-sticker-readback-hourly` ownerだけに採用し、容量条件を満たした後の自然wakeで公式値と照合する | 19:53 JST target apply成功、install event `ac254a8ca62a6e14b3ce7118`。loaded SHA `5a595864`。20:39 JST occurrence `18ddc5480845d588-54612` は `host_admission_deferred:disk_headroom_low`, exit 75, effect `not_applicable`; canonical file未更新。 |
 | D07a | TODO | slot15/16/17のcompose failureをrun evidenceから診断する | 旧production release `66f04769` のlogは3 slots各2回をgeneric `line_sticker_article_compose_failed` とだけ記録。current main release `5a595864` は次の自然compose errorにreturn codeとevidence由来のfailure classを保存する（stderr自体は破棄）。失敗枠を再送せず、次のeligible error evidenceを読むまで原因確定としない。 |
 | D10 | TODO | SKU/channel別baselineを作り、商品詳細の月別販売数・速報値、click、確定月次CSV、費用をsource/date付きで分ける | 現時点でsticker distribution sourceにpageview/click/UTMがなく、click/CVRはunknown。first-party CTA redirectとnative platform viewsを使える範囲で計測し、購入sourceはLINEが提供しない限り因果 attribution と呼ばない。gross salesと速報distributionを混ぜず、USD 10K grossの公式判定源を特定する。 |
 | D11 | TODO | 販売中SKUを1つ選び、用途別4コマ・GIF/短尺・実トーク例の最小content packを作る | 各assetから正しい公式SKUへ到達し、用途が一目で分かる。独自キャラクター素材のみ |
 | D13 | TODO | D11 packと記事を、利用可能な既存owned channelの自然cadenceで1件ずつ配信する | 各public URL・正しいSKUリンク・provider/host receipt・同一occurrence replay-zero。既存11/12時記事は再公開しない |
-| D14a | DONE（source-local） | 40個静止画plannerからopen campaign参加情報を選び、factory `select.json` へ渡す。申請時にradioが無い/未選択ならfail-closedにする | TDD RED→GREEN。`test_line_sticker_static.py` 28/28、`test_factory_static.py` 10/10、`test_line_sticker_submit_title.py` 24/24 pass。冬特集835はofficial conditions 8+4=12絵をguard。main/release/production未反映。 |
+| D14a | DONE（source/local acceptance; fresh review pending） | 当日観測した公式feature snapshotと申請画面のradioを照合し、公式条件から読める個数・価格・テーマ数を満たす場合だけ参加する。参加/不参加radioが一意に存在し選択済みと確認できなければ申請前に停止する | stale/missing snapshotと公式条件を解析できないfeatureは不参加。申請直前にlisting count/price・selected order/theme IDs・snapshot日付を再検証し、live radioを選択後checked確認。LINEスタンプtests 304件PASS。creator residenceはlisting/stateにaccount-country fieldなしで独立検証未了。main/release/production未反映。 |
 | D14b | TODO（D07/D09 natural readbackと並行可） | latest-mainへsourceをsyncし、source boundary・focused acceptance・fresh read-only review・exact-head CIを通してPRをmainへmergeしimmutable releaseを作る | merged SHAとrelease manifestを記録。worktree test filesも含める。 |
 | D14c | TODO（PID99922 natural terminal・official readback後） | loaded-idle factory ownerだけをcampaign releaseへtarget applyし、loaded SHA/argvを確認する | current set-034 occurrenceを停止/再送しない。次の自然SKUでcampaign値とradio選択・公式審査状態を同一IDでreadback。 |
 | D14 | TODO（D14c後） | 新規冬SKUを1件作り公式特集へ条件付き申請する | 受付は2026-12-04 10:59 JSTまで（早期終了あり）、開催は2026-11-11〜2027-01-08。日本居住、新規SKU、8〜40個、¥190以上、冬テーマ8個以上。set-034や販売済SKUを流用せず、審査承認と特集掲載をreadback。 |
@@ -2114,6 +2114,19 @@ Instagram/Threadsのローカル台帳は17件（Instagram 14、Threads 3）で�
 - Reader owner remains loaded-idle on `5a595864`; the 20:23 JST official readback is pending and production `sales.json` is still stale.
 - D14a source implementation has focused RED→GREEN evidence only; it is not in main/release and has not touched production.
 - Factory PID 99922 remains live, with set-034 at `images`; do not stop or apply that owner.
+
+**20:24 JST review/readback delta:**
+- `origin/main` advanced to `33d4d7983d0aaa426d0f2e8910c00a10428515e6` (#7801). PR branch `596bf1dd` was cleanly rebased onto it before further edits.
+- Fresh reviewer found two submit-boundary gaps in D14a: the opt-out radio was not required to exist/be checked; and cached campaign conditions did not revalidate current availability or known product eligibility near submit.
+- `line-sticker-readback-hourly` natural occurrence `18ddc47ed72d48b0-6037` loaded SHA `5a595864`, then exited 75 before reader execution because host admission reported `disk_headroom_low`. No official readback or effect occurred. Canonical sales file remains 31 rows and pre-schema-v2; the isolated official snapshot remains the only fresh direct read.
+- Factory PID 99922 is still live on immutable release `20261012T154730-66f04769`; do not stop, apply, submit through, or clear its unknown occurrence.
+
+**20:40 JST review/readback delta:**
+- `origin/main` advanced to `4db1e41d0cad` through #7805 (disk-watchdog cleanup/receipt bounds); its source is outside LINE Sticker modules. Rebase the pending PR onto this latest main before push.
+- D14a remediation now verifies the opt-out radio is unique and checked; feature snapshots must be observed on the current JST date; unparseable official count/price conditions are not selected; submit rechecks count, price, themed sticker count, and snapshot date before clicking the campaign option.
+- Full LINE Sticker test suite: 304 tests passed in 326.887s. No immutable release, factory apply, or LINE provider write was performed.
+- 20:39 JST `line-sticker-readback-hourly` occurrence `18ddc5480845d588-54612` exited 75 before reader execution due `disk_headroom_low`; canonical sales remained schema-less 31 rows (13 zero, 18 null), payable/distribution ¥0.
+- Factory owner is loaded-idle, PID absent, still installed on `66f04769`. Its latest blocked occurrence `18ddc4cb51bd2950-19735` reports `resource_effect_unknown`, effect `unknown`, no official readback or receipt. Do not clear or replay; reconcile from official item state before D14c.
 ### 5.1 自己修復・自己改善の定義（T5 / T12 の正本）
 
 **目的**: Life Manager が、外部の coding agent（Dais が操作する Claude Code や Codex のセッション）にも人にも頼らず、自分の問題を見つけて、自分で直し、自分で改善すること。人と外部 agent はループの外にいる。

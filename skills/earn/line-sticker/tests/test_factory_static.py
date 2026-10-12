@@ -103,6 +103,10 @@ class StaticStageRouting(unittest.TestCase):
             plan = _static_plan(set_dir, prior, market_items)
             plan["campaign_value"] = "835"
             plan["campaign_theme_ids"] = [f"s{i}" for i in range(12)]
+            plan["campaign_requirements"] = {
+                "min_sticker_count": 8, "max_sticker_count": 40, "min_price_jpy": 190,
+                "min_theme_stickers": 12, "observed_at": "2026-10-12T10:00:00+00:00",
+            }
             return plan
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -112,6 +116,10 @@ class StaticStageRouting(unittest.TestCase):
                 MODULE.wake(state_root, deps)  # plan, character, images
             selection = MODULE._read_json(state_root / "set-001" / "select.json")
             self.assertEqual(selection.get("campaign_value"), "835")
+            self.assertEqual(selection.get("campaign_requirements"), {
+                "min_sticker_count": 8, "max_sticker_count": 40, "min_price_jpy": 190,
+                "min_theme_stickers": 12, "observed_at": "2026-10-12T10:00:00+00:00",
+            })
 
     def test_static_selection_inherits_the_series_store_categories(self) -> None:
         # 2026-10-09: six static items reached review with taste/character category 未設定 because the

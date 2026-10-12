@@ -172,7 +172,8 @@ class TextBearingVariant(unittest.TestCase):
         return plan
 
     def test_static_planner_includes_open_features_and_guards_theme_margin(self) -> None:
-        features = [{"value": "835", "title": "冬を感じるスタンプ特集", "conditions": "冬関連が8個以上"}]
+        features = [{"value": "835", "title": "冬を感じるスタンプ特集",
+                     "conditions": "個数：8-40個\n金額：￥190～\n冬関連が8個以上"}]
         for theme_count, expected in ((11, None), (12, "835")):
             with self.subTest(theme_count=theme_count), tempfile.TemporaryDirectory() as tmp:
                 set_dir = Path(tmp) / "set-001"
@@ -189,6 +190,21 @@ class TextBearingVariant(unittest.TestCase):
                 self.assertIn("835", captured["prompt"])
                 self.assertIn("冬を感じるスタンプ特集", captured["prompt"])
                 self.assertEqual(plan["campaign_value"], expected)
+
+    def test_static_planner_drops_campaign_when_count_or_price_misses_official_terms(self) -> None:
+        cases = (
+            ("count", "個数：8-24個\n金額：￥190～\n冬関連が8個以上"),
+            ("price", "個数：8-40個\n金額：￥250～\n冬関連が8個以上"),
+        )
+        for case, conditions in cases:
+            with self.subTest(case=case), tempfile.TemporaryDirectory() as tmp:
+                set_dir = Path(tmp) / "set-001"
+                set_dir.mkdir()
+                features = [{"value": "835", "title": "冬を感じるスタンプ特集", "conditions": conditions}]
+                with patch.object(STATIC, "_open_features", return_value=features, create=True), \
+                     patch.object(STATIC, "_run_agent", return_value=self._campaign_plan(12)):
+                    plan = STATIC.static_planner(set_dir, [], [])
+                self.assertIsNone(plan["campaign_value"])
 
     def test_text_render_keeps_sticker_within_line_limits(self) -> None:
         from PIL import Image

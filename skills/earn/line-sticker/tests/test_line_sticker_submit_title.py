@@ -6,6 +6,7 @@ OK button that never came and the wake ended effect-unknown.
 """
 import sys
 import itertools
+import datetime
 import unittest
 from pathlib import Path
 
@@ -236,23 +237,83 @@ class _FakeCampaignPage:
 
 
 class SelectCampaign(unittest.TestCase):
+    def _selection(self) -> dict:
+        order = [f"s{i}" for i in range(40)]
+        return {
+            "campaign_value": "835",
+            "campaign_requirements": {
+                "min_sticker_count": 8, "max_sticker_count": 40, "min_price_jpy": 190,
+                "min_theme_stickers": 12,
+                "observed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            },
+            "campaign_theme_ids": order[:12],
+            "order": order,
+        }
+
+    @staticmethod
+    def _listing(**overrides) -> dict:
+        return {"count": 40, "price_jpy": 190, **overrides}
+
+    def test_selected_campaign_without_submit_eligibility_facts_fails_closed(self) -> None:
+        import asyncio
+        page = _FakeCampaignPage()
+        with self.assertRaisesRegex(RuntimeError, "campaign_requirements_missing"):
+            asyncio.run(MODULE._select_taste_character_campaign(page, {"campaign_value": "835"}))
+
+    def test_selected_campaign_with_stale_conditions_fails_closed(self) -> None:
+        import asyncio
+        page = _FakeCampaignPage()
+        selection = self._selection()
+        selection["campaign_requirements"]["observed_at"] = (
+            datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=1)
+        ).isoformat()
+        with self.assertRaisesRegex(RuntimeError, "campaign_snapshot_stale"):
+            asyncio.run(MODULE._select_taste_character_campaign(page, selection, self._listing()))
+
+    def test_selected_campaign_count_and_order_must_match_official_range(self) -> None:
+        import asyncio
+        page = _FakeCampaignPage()
+        with self.assertRaisesRegex(RuntimeError, "campaign_item_count_ineligible"):
+            asyncio.run(MODULE._select_taste_character_campaign(
+                page, self._selection(), self._listing(count=41)
+            ))
+        self.assertEqual(page.clicked, [])
+
+    def test_selected_campaign_price_must_meet_official_minimum(self) -> None:
+        import asyncio
+        page = _FakeCampaignPage()
+        with self.assertRaisesRegex(RuntimeError, "campaign_item_price_ineligible"):
+            asyncio.run(MODULE._select_taste_character_campaign(
+                page, self._selection(), self._listing(price_jpy=189)
+            ))
+        self.assertEqual(page.clicked, [])
+
+    def test_selected_campaign_rechecks_the_theme_margin_before_clicking(self) -> None:
+        import asyncio
+        page = _FakeCampaignPage()
+        selection = self._selection()
+        selection["campaign_theme_ids"] = selection["order"][:11]
+        with self.assertRaisesRegex(RuntimeError, "campaign_theme_count_ineligible"):
+            asyncio.run(MODULE._select_taste_character_campaign(page, selection, self._listing()))
+        self.assertEqual(page.clicked, [])
+
     def test_a_feature_value_clicks_that_exact_radio_not_on(self) -> None:
         import asyncio
         page = _FakeCampaignPage()
-        asyncio.run(MODULE._select_taste_character_campaign(page, {"campaign_value": "835"}))
+        asyncio.run(MODULE._select_taste_character_campaign(page, self._selection(), self._listing()))
         self.assertEqual(page.clicked, ["835"])
 
     def test_a_selected_campaign_with_no_radio_fails_closed(self) -> None:
         import asyncio
         page = _FakeCampaignPage(missing_values={"835"})
         with self.assertRaisesRegex(RuntimeError, "campaign_radio_missing"):
-            asyncio.run(MODULE._select_taste_character_campaign(page, {"campaign_value": "835"}))
+            asyncio.run(MODULE._select_taste_character_campaign(page, self._selection(), self._listing()))
 
     def test_a_selected_campaign_that_does_not_check_fails_closed(self) -> None:
         import asyncio
         page = _FakeCampaignPage(unchecked_values={"835"})
         with self.assertRaisesRegex(RuntimeError, "campaign_radio_unchecked"):
-            asyncio.run(MODULE._select_taste_character_campaign(page, {"campaign_value": "835"}))
+            asyncio.run(MODULE._select_taste_character_campaign(page, self._selection(), self._listing()))
 
     def test_null_campaign_value_clicks_the_non_participation_radio(self) -> None:
         import asyncio
@@ -265,3 +326,15 @@ class SelectCampaign(unittest.TestCase):
         page = _FakeCampaignPage()
         asyncio.run(MODULE._select_taste_character_campaign(page, {}))
         self.assertEqual(page.clicked, ["on"])
+
+    def test_non_participation_radio_missing_fails_closed(self) -> None:
+        import asyncio
+        page = _FakeCampaignPage(missing_values={"on"})
+        with self.assertRaisesRegex(RuntimeError, "campaign_opt_out_radio_missing"):
+            asyncio.run(MODULE._select_taste_character_campaign(page, {"campaign_value": None}))
+
+    def test_non_participation_radio_that_does_not_check_fails_closed(self) -> None:
+        import asyncio
+        page = _FakeCampaignPage(unchecked_values={"on"})
+        with self.assertRaisesRegex(RuntimeError, "campaign_opt_out_radio_unchecked"):
+            asyncio.run(MODULE._select_taste_character_campaign(page, {}))

@@ -39,6 +39,7 @@ from line_sticker_planner import (  # noqa: E402
     AGENT_RUNNER,
     JST,
     TAGS_FILE,
+    _campaign_requirements,
     _guard_campaign_value,
     _open_features,
     _run_agent,
@@ -172,10 +173,12 @@ def static_planner(set_dir: Path, prior_facts: list[dict], market_items: list[di
     _check_sticker_count(plan)
     order = [sticker["id"] for sticker in plan["stickers"]]
     campaign_value = _guard_campaign_value(
-        plan.get("campaign_value"), open_features, plan.get("campaign_theme_ids", []), order
+        plan.get("campaign_value"), open_features, plan.get("campaign_theme_ids", []), order, price_jpy=190
     )
     plan["campaign_value"] = campaign_value
     plan["campaign_theme_ids"] = plan.get("campaign_theme_ids", []) if campaign_value else []
+    feature = next((f for f in open_features if f.get("value") == campaign_value), None)
+    plan["campaign_requirements"] = _campaign_requirements(feature) if feature else None
     if plan.get("text_mode") == "with_text":
         plan["listing"] = mark_text_listing(plan["listing"])
     return plan

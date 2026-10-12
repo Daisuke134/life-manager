@@ -24,6 +24,7 @@ GUARD = REPO_ROOT / "skills/browser/browser-guard.sh"
 IDENTITY = "line-creators:dais"
 BASE = "https://creator.line.me/my/cCX4POFknN2lhLJE"
 BUSY_EXIT = 9
+JST = datetime.timezone(datetime.timedelta(hours=9))
 
 
 class NeedsLogin(RuntimeError):
@@ -184,7 +185,7 @@ async def _create_item(page: Page, listing: dict, selection: dict) -> dict:
     auto_release = page.locator("input[name=is_auto_release][value=true]")
     await auto_release.locator("xpath=ancestor::label[1]").click()
     assert await auto_release.is_checked()
-    await _select_taste_character_campaign(page, selection)
+    await _select_taste_character_campaign(page, selection, listing)
     await page.evaluate("document.querySelector('input[type=submit].mdBtn').click()")
     # The page keeps several hidden confirm dialogs; only the visible "OK" belongs to this save.
     ok_button = page.locator("button:visible", has_text="OK").last
@@ -217,7 +218,7 @@ async def _create_item(page: Page, listing: dict, selection: dict) -> dict:
     }
 
 
-async def _select_taste_character_campaign(page: Page, selection: dict) -> None:
+async def _select_taste_character_campaign(page: Page, selection: dict, listing: dict | None = None) -> None:
     selects = page.locator("select")
     count = await selects.count()
     for index in range(count):
@@ -234,13 +235,54 @@ async def _select_taste_character_campaign(page: Page, selection: dict) -> None:
                                   else "input[type=radio]:not([value])")
     radio_count = await campaign_radio.count()
     if campaign_value:
+        if not isinstance(selection.get("campaign_requirements"), dict):
+            raise RuntimeError("campaign_requirements_missing")
+        if not isinstance(listing, dict):
+            raise RuntimeError("campaign_listing_missing")
+        _validate_campaign_submission(selection, listing)
         if radio_count != 1:
             raise RuntimeError("campaign_radio_missing")
         await campaign_radio.first.evaluate("e => e.click()")  # feature radios are not wrapped in a <label>
         if not await campaign_radio.first.is_checked():
             raise RuntimeError("campaign_radio_unchecked")
-    elif radio_count:
+    else:
+        if radio_count != 1:
+            raise RuntimeError("campaign_opt_out_radio_missing")
         await campaign_radio.first.evaluate("e => e.click()")
+        if not await campaign_radio.first.is_checked():
+            raise RuntimeError("campaign_opt_out_radio_unchecked")
+
+
+def _validate_campaign_submission(selection: dict, listing: dict) -> None:
+    requirements = selection.get("campaign_requirements")
+    if not isinstance(requirements, dict):
+        raise RuntimeError("campaign_requirements_missing")
+    observed_at = requirements.get("observed_at")
+    try:
+        observed = datetime.datetime.fromisoformat(observed_at)
+        if observed.tzinfo is None or observed.astimezone(JST).date() != datetime.datetime.now(JST).date():
+            raise RuntimeError("campaign_snapshot_stale")
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError("campaign_snapshot_stale") from exc
+
+    try:
+        count = int(listing["count"])
+        price = int(listing["price_jpy"])
+        minimum_count = int(requirements["min_sticker_count"])
+        maximum_count = int(requirements["max_sticker_count"])
+        minimum_price = int(requirements["min_price_jpy"])
+        minimum_theme_stickers = int(requirements["min_theme_stickers"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise RuntimeError("campaign_eligibility_facts_missing") from exc
+
+    order = selection.get("order")
+    if not isinstance(order, list) or count != len(order) or not minimum_count <= count <= maximum_count:
+        raise RuntimeError("campaign_item_count_ineligible")
+    if price < minimum_price:
+        raise RuntimeError("campaign_item_price_ineligible")
+    on_theme = set(selection.get("campaign_theme_ids") or []) & set(order)
+    if len(on_theme) < minimum_theme_stickers:
+        raise RuntimeError("campaign_theme_count_ineligible")
 
 
 async def _upload_images(page: Page, item: dict, package_dir: Path) -> None:
