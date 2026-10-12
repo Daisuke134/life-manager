@@ -97,7 +97,7 @@ test("future verified Instagram rows are discovered from the LM distribution led
     { ...valid, format_id: "reelclaw-widget", form: "widget-demo-reel", locale: "en", provider_id: "cmtunrelatedenwidget", public_url: "https://www.instagram.com/reel/EnWidget123/" },
   ];
   fs.writeFileSync(path.join(directory, "distribution.jsonl"), `${unrelated.concat(valid).map(JSON.stringify).join("\n")}\n`);
-  assert.deepEqual(discoverExpected(dataDir), [EXPECTED]);
+  assert.deepEqual(discoverExpected(dataDir), [{ ...EXPECTED, format_id: "reelclaw-card", form: "nudge-card" }]);
 });
 
 test("malformed JA Card rows remain fail-closed after unrelated rows are filtered", () => {
@@ -120,6 +120,8 @@ test("verified Obou watercolor Reel is discovered as its exact metric effect", (
   fs.writeFileSync(path.join(directory, "distribution.jsonl"), `${JSON.stringify(row)}\n`);
   assert.deepEqual(discoverExpected(dataDir), [{
     tenant_id: "dais-local", product_id: "anicca-ios", locale: "ja", account_id: "@obou.anicca", native_owner: "obou.anicca",
+    format_id: "watercolor", form: "buddhist-self-care-reel",
+    creative_id: row.creative_id,
     integration_id: "cmooplxmu04tpmd0y4h3cpk33", provider_post_id: row.provider_id, shortcode: "DcfVvIkkWyz",
     public_url: row.public_url, caption, published_at: row.ts,
   }]);
@@ -138,6 +140,8 @@ test("verified EN Card Reel is discovered for the exact encards metric lane", ()
   fs.writeFileSync(path.join(directory, "distribution.jsonl"), `${JSON.stringify(row)}\n`);
   assert.deepEqual(discoverExpected(dataDir), [{
     tenant_id: "dais-local", product_id: "anicca-ios", locale: "en", account_id: "@anicca.encards", native_owner: "anicca.encards",
+    format_id: "reelclaw-card", form: "nudge-card",
+    creative_id: row.creative_id,
     integration_id: "cmpc3gx4001nklg0y27a8o66q", provider_post_id: row.provider_id, shortcode: "Dcfph70jorc",
     public_url: row.public_url, caption, published_at: row.ts,
   }]);
@@ -156,6 +160,8 @@ test("verified EN Widget Reel is discovered for the exact anicca.en metric lane"
   fs.writeFileSync(path.join(directory, "distribution.jsonl"), `${JSON.stringify(row)}\n`);
   assert.deepEqual(discoverExpected(dataDir), [{
     tenant_id: "dais-local", product_id: "anicca-ios", locale: "en", account_id: "@anicca.en", native_owner: "anicca.en",
+    format_id: "reelclaw-widget", form: "lockscreen-affirmation-widget",
+    creative_id: row.creative_id,
     integration_id: "cmn8y95rg02d2qx0y09bbk5pb", provider_post_id: row.provider_id, shortcode: "ExactWidget1",
     public_url: row.public_url, caption, published_at: row.ts,
   }]);
@@ -174,6 +180,8 @@ test("verified JA Widget Reel is discovered for the exact anicca.jp.videos metri
   fs.writeFileSync(path.join(directory, "distribution.jsonl"), `${JSON.stringify(row)}\n`);
   assert.deepEqual(discoverExpected(dataDir), [{
     tenant_id: "dais-local", product_id: "anicca-ios", locale: "ja", account_id: "@anicca.jp.videos", native_owner: "anicca.jp.videos",
+    format_id: "reelclaw-widget", form: "lockscreen-affirmation-widget",
+    creative_id: row.creative_id,
     integration_id: "cmmzzg2es0539p30ycb94ayx0", provider_post_id: row.provider_id, shortcode: "JaWidget123",
     public_url: row.public_url, caption, published_at: row.ts,
   }]);
@@ -203,6 +211,8 @@ test("verified EN affirmation native-carousel receipt is discovered as an immuta
   assert.deepEqual(discoverExpected(dataDir), [{
     tenant_id: "dais-local", product_id: "anicca-ios", locale: "en", account_id: "@anicca.affirmation",
     native_owner: "anicca.ios", integration_id: "cmp9pedr700ttqh0yj8o57fog", provider_post_id: "cmt9jm8990291p20y0a2l1xmk",
+    format_id: "larry", form: "affirmation-carousel",
+    creative_id: receipt.creative_id,
     shortcode: "DcfQ2-hG3KR", public_url: "https://www.instagram.com/p/DcfQ2-hG3KR/", caption,
     published_at: "2026-08-26T03:37:17.624Z",
   }]);
@@ -230,6 +240,8 @@ test("verified JA Larry native-carousel receipt is discovered for the exact Japa
   fs.writeFileSync(path.join(directory, "distribution.jsonl"), `${JSON.stringify({ effect_key: "exact-ja", job_id: "ja-slot", receipt })}\n`);
   assert.deepEqual(discoverExpected(dataDir), [{
     tenant_id: "dais-local", product_id: "anicca-ios", locale: "ja", account_id: "@ani.cca1234", native_owner: "ani.cca1234",
+    format_id: "larry", form: "affirmation-carousel",
+    creative_id: receipt.creative_id,
     integration_id: "cmq3sq7mc000eqp0y7azfm8yk", provider_post_id: receipt.provider_post_id, shortcode: "JaLarryMetrics1",
     public_url: receipt.public_url, caption, published_at: receipt.published_at,
   }]);
