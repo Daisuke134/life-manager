@@ -505,6 +505,32 @@ class WorkdayQualificationTests(unittest.TestCase):
         self.assertEqual(result["qualified_application_ids"], [])
         self.assertEqual(calls, [])
 
+    def test_no_fresh_jobs_still_requalifies_superseded_fit_rows(self):
+        discovery_calls = []
+        fit_decisions = iter(
+            [
+                {
+                    "status": "decided",
+                    "decision": "qualified",
+                    "application_id": "old-location-reject",
+                },
+                {"status": "no_pending_workday_fit"},
+            ]
+        )
+
+        result = search_until_qualified(
+            discover=lambda: discovery_calls.append("discover")
+            or {"status": "no_fresh_workday", "discovered": []},
+            qualify=lambda: next(fit_decisions),
+            max_candidates=3,
+            target_qualified=2,
+        )
+
+        self.assertEqual(result["status"], "sources_exhausted")
+        self.assertEqual(result["qualified_application_ids"], ["old-location-reject"])
+        self.assertEqual(len(result["decisions"]), 2)
+        self.assertEqual(discovery_calls, ["discover"])
+
     def test_rolling_submission_metrics_uses_recent_confirmation_receipts(self):
         with tempfile.TemporaryDirectory() as directory:
             ledger_path = Path(directory) / "ledger.sqlite3"

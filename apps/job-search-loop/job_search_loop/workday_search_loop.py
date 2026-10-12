@@ -461,6 +461,7 @@ def search_until_qualified(
     decisions = []
     qualified_application_ids: list[str] = []
     qualified_seen: set[str] = set()
+    sources_exhausted = False
     if target == 0:
         return {
             "status": "deficit_satisfied",
@@ -469,15 +470,10 @@ def search_until_qualified(
             "qualified_application_ids": qualified_application_ids,
         }
     for _ in range(max_candidates):
-        discovery = discover()
-        discoveries.append(discovery)
-        if discovery.get("status") == "no_fresh_workday":
-            return {
-                "status": "sources_exhausted",
-                "discoveries": discoveries,
-                "decisions": decisions,
-                "qualified_application_ids": qualified_application_ids,
-            }
+        if not sources_exhausted:
+            discovery = discover()
+            discoveries.append(discovery)
+            sources_exhausted = discovery.get("status") == "no_fresh_workday"
         try:
             decision = qualify()
         except Exception as error:
