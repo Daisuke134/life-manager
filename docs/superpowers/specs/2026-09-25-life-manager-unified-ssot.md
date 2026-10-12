@@ -14957,10 +14957,11 @@ Capafy公式Xの公開indexには、Ocupの100 sales紹介と、あるcreatorの
    - 完了条件: 各natural runのcreate/submit receipt、該当Agentのofficial status、5 unpublished-slot countが一致し、継続的に新Agentが出荷される。`exit 0`やdraft作成だけでunder_review/出荷完了にしない。
    - 頻度: 各natural run。枠が空くたびに再確認。
 
-6. **T5 — 未公開Agent queueを検索需要に紐づける。 [OPEN / queue件数未確認]**
-   - 作業: 各候補にcandidate ID、buyer query、query rank/impressions、競合、固有の納品物、重複check、価格/原価仮説、準備stage、slot依存を記録する。
-   - 完了条件: 少なくとも各空き新規枠に1件のlint済み候補があり、同じ題名/機能の既存Agentとの重複がない。枠が満杯ならofflineでqueueだけ更新し、createを重複しない。
-   - 頻度: 毎日および枠解放時。現在確認済みqueue countはunknown。
+6. **T5 — 未公開Agent queueを検索需要に紐づける。 [IN PROGRESS / backlog44、ready14、slot full]**
+   - 14:27 JST local backlog: total44、listed21、ready14、ready_retry1、submitted8、building0。item schemaには`candidate_id/title/paths/gates/state/platform_state`があるがbuyer query/query rankはない。
+   - 作業: 14件のready候補にbuyer query、rank/impressions、競合sales/rating、固有の納品物、価格/原価仮説、slot依存を付ける。14:16 server readbackは未公開occupied5/free0なのでqueueだけを進める。
+   - 完了条件: 空く各枠に少なくとも1件lint済み・query-linked候補があり、重複がない。free=0の間はcreate/submitを重複しない。
+   - 頻度: 毎日および枠解放時。slotを空ける公式statusはCapafy publish-listで確認。
 
 7. **T6 — Capafy searchのbuyer queryを取り、検索向け新Agentを一件ずつ出す。 [PARTIAL / rank snapshotのみ]**
    - 現在値: 10:25 JST snapshotで`hook`はHook Lab #1/HookAce #2、`tiktok script`はTikTok Script Pro #1。旧調査ではCapafy-wide weekly impressions 11k→3.4kの低下が報告されたが、impressions endpointは未取得。
@@ -15012,6 +15013,6 @@ Capafy公式Xの公開indexには、Ocupの100 sales紹介と、あるcreatorの
     - final: Capafy official active-subscription readbackで月換算gross MRR ≥ $10,000を確認し、same windowのrefund/fee/model cost/profitを横に報告する。
     - どちらも満たさない間は goal active。累計units/trials、listing count、under_review、proxy subscription salesを達成扱いしない。
 
-**現在cursor（14:30 JST）:** T2.6 selector eligibilityをsource変更前に実装計画として確定する。実績は26/48 slotsでHook Lab11、TSP8、Marketing7、CT 30d6/0 paid。current selectorが48/48 Marketingを選ぶ原因はonline versionを無視するstatus predicate。T0のscope additivity、T1の15:07 hourly readback、T2の60/64 coverageはcadenceで継続。T4は8767154808 under_review、9675561238 draft、slots5/5、14:24 FIFO-wait後の次natural factory slot14:39を確認する。first-paidはorders70/gross$102.75で未達、MRR fieldはnull。T11 creative/CT preflight/publishは未実施。今回の作業はSSOTへのread-only evidence反映のみ。
+**現在cursor（14:30 JST）:** T2.6 selector eligibilityをsource変更前に実装計画として確定する。実績は26/48 slotsでHook Lab11、TSP8、Marketing7、CT 30d6/0 paid。current selectorが48/48 Marketingを選ぶ原因はonline versionを無視するstatus predicate。T5 backlog44/ready14はbuyer query未紐付けで、5枠満杯のためoffline整備する。T0のscope additivity、T1の15:07 hourly readback、T2の60/64 coverageはcadenceで継続。T4は8767154808 under_review、9675561238 draft、slots5/5、14:24 FIFO-wait後の次natural factory slot14:39を確認する。distribution loopは14:19 resource_capacity_busyでeffect前終了、次のinstalled slot14:49。first-paidはorders70/gross$102.75で未達、MRR fieldはnull。T11 creative/CT preflight/publishは未実施。今回の作業はSSOTへのread-only evidence反映のみ。
 
 **調査参照:** `skills/earn/capafy-marketing/scripts/capafy_hourly_reconcile.py`、`skills/earn/capafy-marketing/scripts/capafy_scoreboard.py`、`skills/capafy-autopublish/scripts/inventory_status.py`、`skills/capafy-autopublish/CP1_AGENTIC.md`、`skills/capafy-autopublish/PUBLISHING_RUNBOOK.md`、`skills/capafy/FROZEN.json`。公開比較対象: [HookAce](https://capafy.ai/agent/hookace-first-6-second-retention-predictor/3264203863)、[Ocup Football Analysis](https://capafy.ai/agent/ocup-analysis/2553639947)、[Serenity Stock Tracker](https://capafy.ai/agent/serenity-stock-tracker/2521387714)、[TikTok Scripts](https://capafy.ai/agent/6182575730)、[CapafyのOcup 100 sales投稿](https://x.com/Capafyai/status/2069420218057904378)、[初週$4,208/short-videoのCapafy事例](https://x.com/Capafyai/status/2072302872654499993)。
