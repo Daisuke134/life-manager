@@ -104,29 +104,17 @@ def test_disk_free_bytes_measures_the_requested_receipt_volume(
     assert calls == [path]
 
 
-@pytest.mark.parametrize(
-    ("free_bytes", "expected_return"),
-    ((2 * 1024**3, 0), (2 * 1024**3 - 1, 75), (None, 75)),
-)
-def test_regular_producer_requires_measured_headroom_before_exec(
-    tmp_path, monkeypatch, capsys, free_bytes, expected_return,
+@pytest.mark.parametrize("free_bytes", (0, 2 * 1024**3 - 1, None))
+def test_regular_producer_does_not_defer_for_low_or_unknown_free_space(
+    tmp_path, monkeypatch, free_bytes,
 ):
     guard = load_guard()
     monkeypatch.setattr(guard, "disk_free_bytes", lambda _path: free_bytes)
     calls = []
     monkeypatch.setattr(guard.os, "execvpe", lambda *args: calls.append(args))
 
-    assert guard.main(["/bin/true"]) == expected_return
-    if expected_return == 0:
-        assert calls and calls[0][1] == ["/bin/true"]
-    else:
-        assert calls == []
-        receipt = json.loads(capsys.readouterr().out.strip())
-        assert receipt["status"] == "deferred"
-        assert receipt["reason"] == ("disk_headroom_unknown" if free_bytes is None
-                                      else "disk_headroom_low")
-        assert receipt["required_bytes"] == guard.RECOVERY_FLOOR_BYTES
-        assert receipt["effect"] == receipt["readback"] == 0
+    assert guard.main(["/bin/true"]) == 0
+    assert calls and calls[0][1] == ["/bin/true"]
 
 
 @pytest.mark.parametrize("free_bytes", (None, -1, True, "unknown", "missing"))
@@ -159,27 +147,24 @@ def test_cleanup_stop_signal_does_not_block_child(monkeypatch: pytest.MonkeyPatc
     assert calls and calls[0][1] == ["/bin/true"]
 
 
-def test_cleanup_recovery_signal_defers_regular_producer(monkeypatch: pytest.MonkeyPatch):
+def test_cleanup_recovery_signal_does_not_defer_regular_producer(monkeypatch: pytest.MonkeyPatch):
     host_state = Path(os.environ["LIFE_MANAGER_HOST_STATE_DIR"])
     _write_cleanup_recovery_signal(host_state / "disk-writers.stop")
     guard = load_guard()
+    monkeypatch.setenv("LIFE_MANAGER_LOOP_ID", "job-search-daily")
+    monkeypatch.setattr(guard, "disk_free_bytes", lambda _path: 0)
     calls = []
     monkeypatch.setattr(guard.os, "execvpe", lambda *args: calls.append(args))
 
-    assert guard.main(["/bin/true"]) == 75
-    assert calls == []
-    receipt = json.loads(
-        (Path(os.environ["LIFE_MANAGER_PRODUCER_STATE_DIR"])
-         / "state/disk-headroom.json").read_text(encoding="utf-8")
-    )
-    assert receipt["status"] == "deferred"
-    assert receipt["reason"] == "disk_headroom_low"
+    assert guard.main(["/bin/true"]) == 0
+    assert calls and calls[0][1] == ["/bin/true"]
 
 
 def test_operator_stop_signal_still_blocks_child(monkeypatch: pytest.MonkeyPatch):
     host_state = Path(os.environ["LIFE_MANAGER_HOST_STATE_DIR"])
     host_state.joinpath("disk-writers.stop").write_text("owner=operator\n", encoding="utf-8")
     guard = load_guard()
+    monkeypatch.setattr(guard, "disk_free_bytes", lambda _path: 0)
     calls = []
     monkeypatch.setattr(guard.os, "execvpe", lambda *args: calls.append(args))
 
