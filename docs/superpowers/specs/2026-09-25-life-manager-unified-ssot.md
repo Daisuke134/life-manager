@@ -15142,6 +15142,20 @@ FSearch初回indexは `~/Library/Application Support/FSearch` で実測約1.7 Gi
 
 **現在cursor:** repo `/Users/anicca/Projects/life-manager-main`; worktree `/Users/anicca/Projects/life-manager-main/.worktrees/disk-cleanup-large-root-timeout-20261013`; branch `fix/cleanup-emergency-scratch-20261013`, based on merged `origin/main=cc499d599d5ddb6e63aad6e8485e1c9eb7da632a`. PR #7843 is merged but not deployed; the 60-second watchdog still points to old immutable release `20261012T223936-c4a66569`. FSearch’s 1GiB unbounded output is removed. Next: inspect iCloud’s live `CloudDocs` owner safely, then continue root attribution; do not delete active or uncertain data. No revenue-agent fleet restart yet.
 
+### 2026-10-13 05:11 JST — shared cleanup release adopted
+
+**正本:** 文書更新PR #7846はrequired checks全pass後、main `44847efa0c4c15abca26977e9ac2e556cc07ee15`へmerge済み。mainがrelease SHA `44d677c53a8b620ec93eedb36c53dad41d9eec4e`から進んだ差分はこのSSOT更新のみなので、code runtimeは同じimmutable releaseを使い続ける。
+
+**release adoption:** current symlinkは`~/loops/releases/20261013T045735-44d677c5`。5分owner `life-manager-disk-cleanup`の自然occurrence `18dde0ce4d34fee8-92823`（20:03:23Z開始・20:04:20Z終了）と `18dde11453e37300-51762`（20:10:25Z終了）は、どちらもrelease `44d677c5`からexit 0 / effect `not_applicable`でpassした。直接60秒`com.anicca.disk-watchdog`は公式installerで同じreleaseへ更新し、launchd readbackでloaded argv=release内`bin/disk-watchdog.sh`、`RunAtLoad=true`、`StartInterval=60`、run count 4、last exit 0を確認。
+
+**自然watchdog receipts:** release adoption後の20:05:48Z / 20:07:30Z / 20:09:11Z / 20:10:43Z receiptsは、全て`errors=0` / `protected_deletions=0`。fresh free_afterは約3.94–4.00GBで変動し、候補cursorは0→1→2→3とpersistした。probe-budget exhaustionは後続rotationで消えたrunがある。この値は実測diagnosticで、成功KPIではない。source修正がloadedされ自然に動くことは確認したが、無期限のENOSPC/ENOMEM不発生を保証する証明ではない。
+
+**残る大きな穴:** 最後の`host-inventory-full.json`は20:02:47Z（新release前）でcoverage incomplete / 26 gaps。20:10:43Z watchdog receiptでも`storage_growth`のroot sizes/deltasはunknownのまま。`df` 05:11 JSTは3,843,788 KiB available。`~/anicca-project`と`~/.openclaw`はdirty/active ownership、FSearchは停止・生成contentだけ削除、ChatGPT updater payloadはhelper終了時にstagingから消えたがChatGPT本体は稼働中。`CloudDocs/session`は`bird`が使用中で、Mac UI自動操作skill/toolがこのsessionにはないため手動unlinkはしていない。
+
+**TODO order update:** (1)新releaseから次のhourly full censusを自然取得し、probe budgetsでどのrootがまだ未計測か確認する。(2)`~/Projects`、`~/Library`、`~/loops/releases`、`~/gig`、`~/.openclaw`、`/private/tmp`を一つずつroot-boundedに測り、writer・出力先・size delta・process/ownerを同一時間窓でjoinする。(3) active/dirty/leased/state/iCloud dataは保持し、closed/unreferenced/regenerableと証明できるartifactだけ回収する。FSearch background content daemonは再起動させず、finite metadata-only経路だけを使う。(4)発見したLife Manager producerごとにoutput/artifact/session boundsと自己後始末を追加し、共通runtimeのdurable defer→resumeが自然実行で進むことを検証する。(5)新releaseでcleanup自然runを続け、full inventory/receiptが正しく読めるまで他agentを一斉再開しない。(6)foundationの共有資源経路が安定してからremaining agentを一つずつ修復、続いてEDD/self-healing/eval/benchmark/OSS化へ進む。成功条件は空きGBの固定値ではなく、無上限writerがなく、cleanupが自然に進み、遅延仕事が安全に再開すること。
+
+**現在cursor:** repo `/Users/anicca/Projects/life-manager-main`; worktree `/Users/anicca/Projects/life-manager-main/.worktrees/disk-cleanup-large-root-timeout-20261013`; branch `fix/disk-cleanup-adoption-readback-20261013`, based on current `origin/main=44847efa0c4c15abca26977e9ac2e556cc07ee15`. PR #7843 is merged; code release `44d677c5` is loaded by both cleanup owners and has several natural passes. First atom: obtain the next full census from this release and attribute its largest remaining root before another deletion.
+
 ## Capafy status 2026-10-11 16:15 JST (claude-capafy)
 
 - **Official status (`publish-remote-status`):** Hook Lab 8123079349 v1.0.8 price-restore (day $1.99/10, week $4.99/30, month $9.99/50, Sonnet 5) = under_review (status 1). AI Evaluation 4243672453 v1.0.2 = under_review. TikTok 2844813315, YouTube 7686597754, customer-escalation 8822853032 = draft (queued updates). ad/shorts/reels Hook Lab = still online on old version, update pending.
