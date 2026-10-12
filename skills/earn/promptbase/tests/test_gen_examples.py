@@ -158,6 +158,110 @@ class GenExamplesRunnerTest(unittest.TestCase):
                     else:
                         os.environ[key] = value
 
+    def test_rejects_cached_examples_without_four_distinct_outputs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            state = Path(tmp) / "state"
+            catalog = Path(tmp) / "catalog"
+            state.mkdir()
+            (catalog / "evidence").mkdir(parents=True)
+            (catalog / "SKILL.md").write_text("Write natural English output.", encoding="utf-8")
+            (catalog / "evidence" / "verified-demonstration.md").write_text(
+                "## Concrete input\n```text\nverified request\n```\n## Actual output\nverified output\n",
+                encoding="utf-8",
+            )
+            target = state / "catalog.json"
+            original_examples_dir = gen_examples.EXAMPLES_DIR
+            invalid_caches = [
+                [{"input": "request", "output": f"output {index}"} for index in range(3)],
+                [
+                    {"input": "request one", "output": "duplicate"},
+                    {"input": "request two", "output": "duplicate"},
+                    {"input": "request three", "output": "output three"},
+                    {"input": "request four", "output": "output four"},
+                ],
+                [
+                    {"input": "verified request", "output": "verified output"},
+                    {"input": "same request", "output": "output one"},
+                    {"input": "same request", "output": "output two"},
+                    {"input": "same request", "output": "output three"},
+                ],
+                [
+                    {"input": "stale request", "output": "stale output"},
+                    {"input": "request two", "output": "output two"},
+                    {"input": "request three", "output": "output three"},
+                    {"input": "request four", "output": "output four"},
+                ],
+            ]
+            try:
+                gen_examples.EXAMPLES_DIR = state
+                for examples in invalid_caches:
+                    with self.subTest(example_count=len(examples)):
+                        target.write_text(json.dumps(examples), encoding="utf-8")
+                        with self.assertRaisesRegex(RuntimeError, "examples_cache_invalid"):
+                            gen_examples.generate(catalog)
+            finally:
+                gen_examples.EXAMPLES_DIR = original_examples_dir
+
+    def test_reuses_valid_complete_cache_without_provider_call(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state = root / "state"
+            catalog = root / "catalog"
+            (catalog / "evidence").mkdir(parents=True)
+            (catalog / "SKILL.md").write_text("Write natural English output.", encoding="utf-8")
+            (catalog / "evidence" / "verified-demonstration.md").write_text(
+                "## Concrete input\n```text\nverified request\n```\n## Actual output\nverified output\n",
+                encoding="utf-8",
+            )
+            examples = [
+                {"input": "verified request", "output": "verified output"},
+                {"input": "request two", "output": "output two"},
+                {"input": "request three", "output": "output three"},
+                {"input": "request four", "output": "output four"},
+            ]
+            state.mkdir()
+            (state / "catalog.json").write_text(json.dumps(examples), encoding="utf-8")
+            original_examples_dir = gen_examples.EXAMPLES_DIR
+            original_claude = gen_examples._claude
+            try:
+                gen_examples.EXAMPLES_DIR = state
+                gen_examples._claude = lambda *_args, **_kwargs: self.fail("provider call on valid cache")
+                self.assertEqual(gen_examples.generate(catalog), examples)
+            finally:
+                gen_examples.EXAMPLES_DIR = original_examples_dir
+                gen_examples._claude = original_claude
+
+    def test_rejects_bracketed_input_in_progress_checkpoint(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state = root / "state"
+            catalog = root / "catalog"
+            (catalog / "evidence").mkdir(parents=True)
+            (catalog / "SKILL.md").write_text("Write natural English output.", encoding="utf-8")
+            (catalog / "evidence" / "verified-demonstration.md").write_text(
+                "## Concrete input\n```text\nverified request\n```\n## Actual output\nverified output\n",
+                encoding="utf-8",
+            )
+            state.mkdir()
+            (state / "catalog.partial.json").write_text(
+                json.dumps({
+                    "schema_version": 1,
+                    "inputs": ["request [one]", "request two", "request three"],
+                    "examples": [{"input": "verified request", "output": "verified output"}],
+                }),
+                encoding="utf-8",
+            )
+            original_examples_dir = gen_examples.EXAMPLES_DIR
+            original_claude = gen_examples._claude
+            try:
+                gen_examples.EXAMPLES_DIR = state
+                gen_examples._claude = lambda *_args, **_kwargs: self.fail("provider call on invalid progress")
+                with self.assertRaisesRegex(RuntimeError, "examples_progress_invalid"):
+                    gen_examples.generate(catalog)
+            finally:
+                gen_examples.EXAMPLES_DIR = original_examples_dir
+                gen_examples._claude = original_claude
+
 
 if __name__ == "__main__":
     unittest.main()
