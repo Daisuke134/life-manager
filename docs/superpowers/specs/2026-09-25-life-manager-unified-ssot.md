@@ -14740,17 +14740,17 @@ RevenueCatのNew Customersは通常初回起動時のSDK初期化を基準にし
 
 ### 現状（As-is、証拠の観測時刻を併記）
 
-最新の完了済み `capafy-hourly-reconcile.json` は `observed_at=2026-10-12T03:21:02Z`（12:21 JST）、mtimeは12:28:48 JST。会社receiptは12:28:48 JSTのrun `capafy-ae1307c9dc184889e1d86fa3` でdelivery済み。前の12:07 JST attemptは`resource_capacity_busy`だったが、その後のreadbackはsuccess。従って下表は12:21 JST時点の最新成功readback。次の時間窓でも新しい成功receiptが続くかは未確認。
+**過去snapshot（2026-10-12 12:21 JST、現行値は13:08:53 JSTの節を参照）:** この節の `capafy-hourly-reconcile.json` は `observed_at=2026-10-12T03:21:02Z`、mtimeは12:28:48 JST。company receiptは12:28:48 JSTのrun `capafy-ae1307c9dc184889e1d86fa3` でdelivery済み。前の12:07 JST attemptは`resource_capacity_busy`だったが、その後のreadbackはsuccess。下表はその時点でのreadback記録。
 
-| 指標 | 最新の値 | 意味・判定 |
+| 指標 | 12:21 JST値 | 意味・判定 |
 |---|---:|---|
 | Seller sales `orders` / `gross_usd` | 70 / $102.75 | strict first-paid milestone未達。両方とも `>` 条件をまだ満たさない。 |
 | 直近7日 seller gross / orders | $0 / 0 | 同じreadback系列の直近7日値。 |
 | Unit sales | 101 total = 69 free-trial + 32 non-trial | unit endpointの数量。`orders` やsource-attributed `paid_orders` の代わりに使わない。 |
 | Creator earnings / payout | $76.18 / payout balance $59 / confirmed $17.18 / pending $0 / paid-out $0 | 段階の異なる残高。$59を銀行着金とは扱わない。Refunds $0。 |
 | True MRR | `net_mrr_usd=null`, `settled_mrr_usd=null` | active/canceled subscription数が取れないため不明。last-30d salesやsubscription earningsはMRRではない。 |
-| Account 30日損益 | gross $45.82、実請求OpenRouter費按分 $28.42、費用後profit $8.24 | `capafy-skill-analytics.json`。実費は同一modelを使うAgentへ按分され、使用窓も30日売上窓と完全一致しない。 |
-| Agent別creator net計算 | 売上の80%をnet revenueとして計算 | per-skill analyticsはCapafy fee 20%を仮定してからmodel costを引く。account `creator_earnings`・payoutは別の公式readbackを正本とし、単純にgross×80%へ置換しない。 |
+| Account 30日貢献利益の推計 | gross $45.82、80%売上share仮定後 $36.66、実請求OpenRouter費按分 $28.42、差額 $8.24 | `capafy-skill-analytics.json`。$8.24は実モデル費用と仮定seller shareによるcontribution estimateで、実際の手数料/settled profitではない。実費は同一modelを使うAgentへ按分され、usage windowも30日売上窓と完全一致しない。 |
+| Agent別creator net計算 | 売上の80%をnet revenueとして推計 | per-skill analyticsはCapafy fee 20%を仮定してからmodel costを引く。account `creator_earnings`・payoutは別の公式readbackを正本とし、実際のcreator earningsと同一視しない。 |
 | Source attribution 30日 | 4,343 views、18 paid、21 trial、$45.82 attributed sales | traffic endpointの別集計。18件はseller `orders=39`（account analytics 30日）やall-time `orders=70`と同じ定義ではない。 |
 | Source attribution 7日 | 307 views、paid 0、$0 | 直近7日内にsource-attributed paidはない。 |
 
@@ -14770,11 +14770,11 @@ RevenueCatのNew Customersは通常初回起動時のSDK初期化を基準にし
 | その他（ChatGPT 1、Facebook 1、Bing 1） | 3 | 0 | $0 | 0% | 1 / 0 |
 | **合計** | **4,343** | **18** | **$45.82** | **0.414%** | **307 / 0** |
 
-検索・hot・Googleは合計924 views（30日viewsの21.3%）から16/18 paid（88.9%）と$41.84（attributed salesの91.3%）。ただし最新receiptにはdirectからpaid 2件も記録されるため、「全paidが検索/hot/Google」は現在のreadbackと矛盾する。旧PR #7731節にはsearch 835、hot 72、Google 41、direct 1,540、other 1,271、`ai_overview` 551とあり、同じ `observed_at=01:09Z` 表記の旧値と一致しない。最新03:21Z readbackでは4,343 views、direct 1,497、他source値は表の通り。T0は一致しない2つの01:09Z記録のscope/window/payload/runを照合する。過去snapshotを黙って上書きしない。
+検索・hot・Googleは合計924 views（30日viewsの21.3%）から16/18 paid（88.9%）と$41.84（attributed salesの91.3%）。ただしこの12:21 JST snapshotにはdirectからpaid 2件も記録されるため、「全paidが検索/hot/Google」はその時点でも矛盾する。旧PR #7731節にはsearch 835、hot 72、Google 41、direct 1,540、other 1,271、`ai_overview` 551とあり、同じ `observed_at=01:09Z` 表記の旧値と一致しない。12:21 JST snapshotは4,343 views、direct 1,497。過去snapshotを黙って上書きせず、T0で01:09Zの差をscope/window/payload/runに分類する。
 
 **Agent別の発見と経済性（同じreadback）:**
 
-| Agent | 7日views / paid | 7日 `ai_overview` | 30日views / paid | 30日 search / `ai_overview` | actual-profit按分 |
+| Agent | 7日views / paid | 7日 `ai_overview` | 30日views / paid | 30日 search / `ai_overview` | 80% net proxy−actual cost |
 |---|---:|---:|---:|---:|---:|
 | Hook Lab `8123079349` | 29 / 0 | 2 | 755 / 8 | 378 / 224 | +$5.96 |
 | TikTok Script Pro `2844813315` | 34 / 0 | 27 | 338 / 4 | 21 / 237 | +$12.75 |
@@ -14782,17 +14782,17 @@ RevenueCatのNew Customersは通常初回起動時のSDK初期化を基準にし
 | YouTube Script Writer `7686597754` | 15 / 0 | 8 | 129 / 4 | 13 / 49 | +$6.35 |
 | Academic Results Humanizer `1037005959` | 0 / 0 | 0 | 81 / 0 | 3 / 0 | -$25.47 |
 
-4つの既存sellerは30日実費按分が正だが、すべてFROZENなので販売促進だけを行う。`rating` は主な自社Agentでnull、Marketing Strategistの `review_count=0`。nullは0点・0件と読み替えない。学術humanizerは直近30日で実費按分損失が出ているため、追加配信の勝者扱いをしない。
+4つの既存sellerは30日80% net proxyから実費按分を引いたcontribution estimateが正だが、すべてFROZENなので販売促進だけを行う。`rating` は主な自社Agentでnull、Marketing Strategistの `review_count=0`。nullは0点・0件と読み替えない。学術humanizerは直近30日で実費按分損失が出ているため、追加配信の勝者扱いをしない。
 
-**データの鮮度と欠落:** reconcile JSONのmtimeは12:28:48 JST、`observed_at=12:21 JST`。hourly監視sourceは毎時00分予定。12:07 JSTのattemptは `host_admission_deferred:resource_capacity_busy` だったが、12:21 JSTに新しい成功reconcileが書かれ、12:28 JSTにcompany receiptがdelivery済み。次のscheduled windowで継続するかは未確認。`traffic_sources` は公開Vite assetから発見した未公開仕様endpoint由来で、`v2/impressions/stats`（listing表示回数）は未取得。`capafy_scoreboard.py` はsource/CT集計とAgent別日次snapshotを作るが、確認したrepo範囲では一枚の全KPI dashboard readbackは見つかっていない。従って「スケジュールがある」と「毎時数字が更新される」と「dashboardで見える」を別々に扱う。
+**12:21時点の鮮度と欠落（歴史記録）:** reconcile JSONのmtimeは12:28:48 JST、`observed_at=12:21 JST`。12:07 JSTのattemptは `host_admission_deferred:resource_capacity_busy` だったが、12:21 JSTに新しい成功reconcileが書かれ、12:28 JSTにcompany receiptがdelivery済み。後刻13:08:53 JSTのsuccessは新しいDistribution節に記録する。`traffic_sources` は公開Vite assetから発見した未公開仕様endpoint由来で、`v2/impressions/stats`（listing表示回数）は未取得。`capafy_scoreboard.py` はsource/CT集計とAgent別日次snapshotを作るが、確認したrepo範囲では一枚の全KPI dashboard readbackは見つかっていない。従って「スケジュールがある」と「毎時数字が更新される」と「dashboardで見える」を別々に扱う。
 
-**配信factoryの実績スナップショット:** 10:00 JST handoverでは30分ごとに記事1本とX投稿1本（最大48枠/日）とdaily reelsを運用し、09:00 JSTまでに19枠を公開、IG queueは10/19、X video queueは10/21までと記録。11:30 JSTにはHook Lab blogとX投稿が公開されたが、X CTAは投稿URLがstripされ「CapafyでAgent名を検索」に置換される。最新readbackの30日CTは6 views/0 paid、`instagram_bio`は39/0。従って投稿数をvisitと同じ成果として数えず、queueの現時点の進捗は別途distribution ledgerで照合する。`capafy-distribute-daily`の最後の既知状態は11:49 JST `resource_capacity_busy` blocked。
+**配信factoryの実績スナップショット:** 10:00 JST handoverでは30分ごとに記事1本とX投稿1本（最大48枠/日）とdaily reelsを運用し、09:00 JSTまでに19枠を公開、IG queueは10/19、X video queueは10/21までと記録。11:30 JSTにはHook Lab blogとX投稿が公開されたが、X CTAは投稿URLがstripされ「CapafyでAgent名を検索」に置換される。12:21 snapshotの30日CTは6 views/0 paid、`instagram_bio`は39/0。従って投稿数をvisitと同じ成果として数えず、queueの現時点の進捗は別途distribution ledgerで照合する。`capafy-distribute-daily`の最後の既知状態は11:49 JST `resource_capacity_busy` blocked。
 
 ### To-beと到達計算
 
 **To-be:** Capafy公式のactive subscription数とbilling cycle別売上から月換算したgross MRRが$10,000に達し、seller readbackとsource/Agent別の費用後profitで追跡できる。all-time gross、30日sales、trial、payout balance、累計販売数をMRRの代用にしない。Capafyがactive subscription readbackを提供しない間、MRRはunknownのままにする。
 
-**計画用の算数（予測ではない）:** 月換算ARPUを仮に$10と置けば$10,000 MRRにはactive paid subscribers 1,000人が必要。1%のview→paid conversionを仮定すると新規1,000件には月100,000 qualified viewsが必要。現行全sourceの単純paid/viewは18/4,343=0.414%なので、同率で1,000件を得る単純算数は約241,278 views。ただし注文はactive subscriberと一致せず、churn・再購入・plan mixも未取得のため、どちらも到達予測ではなく感度計算。$10,000 gross MRR達成時も、Capafy feeと推論原価を引いた利益は別KPI。
+**計画用の算数（予測ではない）:** 月換算ARPUを仮に$10と置けば$10,000 MRRにはactive paid subscribers 1,000人が必要。1%のview→paid conversionを仮定すると新規1,000件には月100,000 qualified viewsが必要。最新4,347-view source snapshotの単純paid/viewは18/4,347=0.414%なので、同率で1,000件を得る単純算数は約241,500 views。ただし注文はactive subscriberと一致せず、churn・再購入・plan mixも未取得のため、どちらも到達予測ではなく感度計算。$10,000 gross MRR達成時も、Capafy feeと推論原価を引いた利益は別KPI。
 
 ### Capafyの仕組み（現行コード・公開listingで確認できる経路）
 
@@ -14828,17 +14828,17 @@ CP1は基本情報・Skill confirmation・Pricingを保存し、CP2はrun_online
 
 Capafy公式Xの公開indexには、Ocupの100 sales紹介と、あるcreatorの初週$4,208達成をTikTok/Instagramのshort videoが後押ししたという事例がある。後者の本人・売上は独立検証されていない。Xの既存CDP検索はログイン済みX tabがなく実行できず、新規browser/loginは起動しない。代替としてDuckDuckGoの公開index、Capafy公式listing、repo内の170-winner/849-listing snapshotを照合した。現時点の調査で再現対象にするのは、①買い手queryに一致する狭い悩み、②具体的で確認できる納品物、③独自の専門性または更新データ、④例・根拠・適切なdisclaimer、⑤本物のrating/sales proof、⑥検証できるshort-video referral。文言・ブランド・未検証の成果を複製しない。
 
-### Distributionを上げる機序と公開creative audit（2026-10-12 13:24 JST）
+### Distributionを上げる機序と公開creative audit（2026-10-12 13:29 JST）
 
 **As-is—流入:** 最新成功reconcileは`observed_at=2026-10-12T04:08:53Z`（13:08:53 JST）、file mtime 13:16:43 JST。30日4,347 unique visitors/views、18 source-paid、21 trials、source sales $45.82。7日311 unique visitors/views、0 paid。30日source rows: search 814/13 trials/10 paid/$21.90; hot 71/1/5/$9.95; Google 39/3/1/$9.99; direct 1,501/2/2/$3.98; `ai_overview` 548/0/0/$0; `instagram_bio` 39/0/0; CT合計6/0/0。`paid_orders/views`指標はsearch 1.23%、hot 7.04%、Google 2.56%、direct 0.13%、`ai_overview` 0%で、unique-person conversionや因果効果とは限らない。既存distribution factoryは30分ごとの記事+X（最大48枠/日）とdaily Reelsを回してきたが、計測された外部配信からまだ増収を証明できない。
 
-**As-is—money/profit:** all-time `money.orders=70`、gross $102.75、creator earnings $76.18、observed subscription earnings $68.18（MRRではない）、one-time revenue $9.99、confirmed balance $17.18、pending/payout balance $59、paid-out $0、realized $0、refund $0、statement payable $0、unit sales 101（free trials 69/non-trial 32）。30日 gross/net $45.82、refund $0、actual cost allocation $28.42、actual profit $8.24。per-Agent actual profit: TikTok Script Pro +$12.75、Marketing Strategist +$11.08、YouTube Script Writer +$6.35、Hook Lab +$5.96、Academic Results Humanizer -$25.47、Slide Makerはnull。first-paid gate（`money.orders>70`かつgross>$102.75、2026-10-03後receipt）は未達。`net_mrr_usd`と`settled_mrr_usd`はnull。reconcileはfreshだが、異なるorder-count fieldsの意味は未照合: `money.orders=70` vs `account_totals.all_time.orders=101`; 30日`traffic_sources.paid_orders=18` vs `account_totals.last_30d.orders=39`。unit/order/attributionを同じ数字にまとめない。
+**As-is—money/profit:** hourly reconcileのtop-level `orders=70`、gross $102.75、creator earnings $76.18、observed subscription earnings $68.18（MRRではない）、one-time revenue $9.99、confirmed balance $17.18、pending/payout balance $59、paid-out $0、realized $0、refund $0、statement payable $0、unit sales 101（free trials 69/non-trial 32）。別ファイル`capafy-skill-analytics.json`の30日gross $45.82・refund $0に対し、`net30_usd=$36.66`はgross×0.80（Capafy cut 20%の仮定）、actual OpenRouter cost allocationは$28.42、`profit30_actual_usd=$8.24`はこの仮定netから実費を引いた値。従って$8.24とper-Agent `profit_30d_actual_usd`はactual model costを使う一方、seller net shareが仮定値のcontribution estimateであり、実fee/settled profitではない。Agent別estimate: TikTok Script Pro +$12.75、Marketing Strategist +$11.08、YouTube Script Writer +$6.35、Hook Lab +$5.96、Academic Results Humanizer -$25.47、Slide Makerはnull。first-paid gate（hourly reconcile top-level `orders>70`かつ`gross_usd>$102.75`、2026-10-03後receipt）は未達。`net_mrr_usd`と`settled_mrr_usd`はnull。reconcileはfreshだが、異なるorder-count fieldsの意味は未照合: `capafy-hourly-reconcile.json.orders=70` vs `capafy-skill-analytics.json.account_totals.all_time.orders=101`; 30日`traffic_sources.paid_orders=18` vs `account_totals.last_30d.orders=39`。unit/order/attributionを同じ数字にまとめない。
 
-**To-be:** Anicca seller accountのCapafy公式active recurring subscription readbackでgross MRR ≥ $10,000を確認し、同時にsource別views→paid→fees/refunds→actual model cost→profitを追い、どのAgent・query・creativeが費用後利益を増やしたか判断できる状態。
+**To-be:** Anicca seller accountのCapafy公式active recurring subscription readbackでgross MRR ≥ $10,000を確認し、同時にsource別views→paid→creator earnings/実fee→actual model cost→費用後profitを追える状態。公式fee/settled amountが無い期間の80% seller-share proxyは推計と明示する。
 
-**Distributionが増える経路:** (1) Capafy searchでは買い手queryごとのAgent rankを上げ、search view→trial→paidを伸ばす。(2) `ai_overview`では推薦流入があるAgent/new Agentのlisting proofを改善し、detail view→trial→paidを伸ばす。FROZEN sellerのlistingは変更しない。(3) hotは30日conversionが高い一方でviewsが小さく、掲載/順位が戻る条件を特定して適格viewsを増やす。(4) UGC/SEOは有望なbuyerを外部から呼び、独自CT/検索語でCapafy visitへ結び付ける。現行の大量投稿をそのまま増やさず、1 creative単位でview→Capafy visit→trial→paid→費用後profitを観測し、成果が出た型だけを増やす。Capafy listing impressions endpointは未取得なので、impressionsはunknownのまま保つ。
+**Distributionが増える経路:** (1) Capafy searchでは買い手queryごとのAgent rankを上げ、search view→trial→paidを伸ばす。(2) `ai_overview`では推薦流入があるAgent/new Agentのlisting proofを改善し、detail view→trial→paidを伸ばす。FROZEN sellerのlistingは変更しない。(3) hotのobserved `paid_orders/views`指標は高い一方でviewsが小さく、掲載/順位が戻る条件を特定して適格viewsを増やす。(4) UGC/SEOは有望なbuyerを外部から呼び、独自CT/検索語でCapafy visitへ結び付ける。現行の大量投稿をそのまま増やさず、1 creative単位でview→Capafy visit→trial→paid→費用後profitを観測し、成果が出た型だけを増やす。Capafy listing impressions endpointは未取得なので、impressionsはunknownのまま保つ。
 
-**配信のKPI連鎖:** `published creatives → platform impressions/reach/views → link clicks または Capafy CT/page views → trials → paid orders → gross → fee/refund/actual model cost → contribution profit`。各数値は同じ日付窓・Agent・source・campaignで結び、クリック不能な媒体では「未計測」と記録する。Capafyのseller order数とsource別paid attributionは別系列として扱う。現在の公式active-subscription readbackが見つかっていないため、orders/grossをMRRの代替にしない。
+**配信のKPI連鎖:** `published creatives → platform impressions/reach/views → link clicks または Capafy CT/page views → trials → paid orders → gross/refunds → official creator earnings or clearly labeled 80% seller-share proxy → actual model cost → contribution estimate`。各数値は同じ日付窓・Agent・source・campaignで結び、クリック不能な媒体では「未計測」と記録する。Capafyのseller order数とsource別paid attributionは別系列として扱う。現在の公式active-subscription readbackが見つかっていないため、orders/grossをMRRの代替にしない。
 
 **公開素材の観測（46本をローカル保存、2026-10-12取得。views/likes/commentsは平台の公開metadata snapshotであり、Capafy paid attributionではない）:**
 
@@ -14852,7 +14852,7 @@ Capafy公式Xの公開indexには、Ocupの100 sales紹介と、あるcreatorの
 | [offscript.ai2のCapafy Instagram Reel](https://www.instagram.com/reel/DdInGRqug3G/) | 54秒、公開metadataは1 like/2 comments、views unavailable。 | facecam＋6 step字幕＋画面録画。CapafyでAgentを検索しCloneCutを使う流れを見せる一方、他人のYouTube/kids動画をdownloadして再投稿する手順も含む。 | 手順を番号で見せる構成だけを記録。第三者動画のdownload/repostは権利許諾を確認できないため模倣しない。 |
 | summerrabbittのside-hustle Reel | 58,078 likes/3,535 comments、view_count unavailable。コメント欄にはCapafy言及があるが対象Agent/売上との対応は不明。 | “side hustle”の大きな約束をheadlineに使う。 | product-specific attributionがないのでsales creativeのwinner扱いをしない。収益主張は一次readbackなしに使わない。 |
 
-調査用asset bundleはMacローカルの`/Users/anicca/Downloads/Capafy-Creative-Audit-20261012/manifest.csv`（動画46本、135,248,805 bytes/129.0 MiB、公開metadata 46行+text-only X参照5件）。TikTokはamelianovaaiの直近36件からCapafy関連10本、doomsdaywithaiの直近50件から12本を取得。Instagramは既存の取得可能な公開Reelsに、追加検索で見つけたeroslikesaiとoffscript.ai2を加えた。Instagram全履歴はguest取得ができず、公開indexに出た関連Reelsを取得。公開view_count欠測は16本。追加検索でもstandalone carousel/slideshowは見つからず、Xの主要事例postはtext-only。1件の関連Reelは公開indexにあったがInstagramが通常取得を拒否したためcookie/loginなしで対象外。したがって「全作品」ではなく、指定アカウントの取得可能な直近/公開index範囲で見つかった関連動画の収集。素材は分析用に保存し、動画/音源/台本の再投稿や逐語複製はしない。
+調査用asset bundleはMacローカルの`/Users/anicca/Downloads/Capafy-Creative-Audit-20261012/manifest.csv`（動画46本、135,248,805 bytes/129.0 MiB、公開metadata 46行+text-only X参照5件）。TikTokはamelianovaaiの直近36件からCapafy関連10本、doomsdaywithaiの直近50件から12本を取得。Instagramは既存の取得可能な公開Reelsに、追加検索で見つけたeroslikesaiとoffscript.ai2を加えた。Instagram全履歴はguest取得ができず、公開indexに出た関連Reelsを取得。公開view_countは28本で取得、18本が欠測。追加検索でもstandalone carousel/slideshowは見つからず、Xの主要事例postはtext-only。1件の関連Reelは公開indexにあったがInstagramが通常取得を拒否したためcookie/loginなしで対象外。したがって「全作品」ではなく、指定アカウントの取得可能な直近/公開index範囲で見つかった関連動画の収集。素材は分析用に保存し、動画/音源/台本の再投稿や逐語複製はしない。
 
 **配信実験の設計:** 調査sampleではHookAceのsplit-screen比較→顔出し説明→実画面→単一CTAが最も高い公開view_countを持つvideoで観測されたが、これが売上を生む因果証拠はない。FROZEN sellerで直近30日profitが最も高いTikTok Script Pro（+$12.75）をpromotion対象にし、HookAceの構成だけを独自に応用する。TikTok Script Proの実機能である「topic/idea→3秒hook案・短尺script・on-screen text・shot cue」を実画面で示す。HookAceのretention予測、他者video/views、未確認の売上claimはTikTok Script Proの出力と誤認させない。15–45秒のoriginal videoは①冒頭に自社例2案の差、②実入力から実出力を見せる、③差の理由を一つだけ説明、④Capafy Agentへ移動するCTAで構成する。固有CT導線と既存配信queue owner/stateを確認してから1回だけ試す。これはcreative briefであり、creative制作・投稿は未実施。
 
@@ -14864,32 +14864,32 @@ Capafy公式Xの公開indexには、Ocupの100 sales紹介と、あるcreatorの
 | Platform配信 | impressions、reach、views/plays、平均視聴時間、completion、likes/comments/shares/saves。標準engagement rate=`(likes+comments+shares+saves)/views`。平台が返さない列はnull。 | 各platformの公式post insights / public metadata snapshot | 24h・7d・30d。公開view_countをunique reachと呼ばない。 |
 | Outbound/CT | link clicks、profile visits、bio clicks、CT visits。CTR=`link clicks/impressions`（分母が取れる時のみ）。Capafy visit rate=`CT visits/platform views`（同じcampaign/windowの時のみ）。 | platform insights + `capafy-hourly-reconcile.json` source/CT | 7d・30d。XのURL strip/search CTAはclick帰属不能、Capafy search liftを別に見る。 |
 | Capafy発見面 | 固定buyer queryごとの順位、search/`ai_overview`/hot/Google/CT views、unique visitors、trial、paid、Agent listing sales/rating/review count。trial/view=`trials/views`、paid/view=`paid/views`、paid/trial=`paid/trials`。 | reconcile `traffic_sources.last_7d/last_30d/by_agent` + timestamp付きCapafy search snapshot | 日次snapshotと7d/30d cohort。query rankとimpressionsは別列。impressions未提供はunknown。 |
-| Money/利益 | seller orders、gross, refunds, platform fees, creator earnings, payouts, actual model-cost allocation, contribution profit=`gross-refunds-fees-actual allocated model cost`。 | `capafy-hourly-reconcile.json` + `capafy-skill-analytics.json` `per_skill_rows` | 成功readbackごと/週次比較。earned/pending/paid-outを混ぜず、estimated costとactual allocationを分ける。 |
+| Money/利益 | top-level seller `orders`、gross/refunds、official creator earnings/payouts。fee/creator netが未提供なら`estimated seller share=gross×0.80`（20% Capafy cut仮定）。`profit*_actual`はestimated seller shareからactual allocated model costを引くため、actual-cost contribution estimate。 | `capafy-hourly-reconcile.json` + `capafy-skill-analytics.json` `account_totals`/`per_skill_rows` | 成功readbackごと/週次比較。earned/pending/paid-outを混ぜず、実fee/settlementが無い間はproxyを明示し、estimated costとactual allocationを分ける。 |
 | Goal | first-paid gate: orders>70 and gross>$102.75 with paid receipt after 2026-10-03. MRR: active recurring subscriptions × official monthly-normalized price, adjusted under official billing rules. | Capafy official sales/earnings/subscription readback | 現在first-paid gate未達、`net_mrr_usd`/`settled_mrr_usd` null。subscription source未確認ならMRR unknownのまま。 |
 | Google SEO | pageごとのimpressions/clicks/CTR/position/index status→CT visits→trial→paid。 | Search Console/OpenSEO + CT source readback | 週次・7d/30d。page単位でAgent/campaignに結び、記事本数を成果扱いしない。 |
 
-`capafy_hourly_reconcile.py` はtraffic endpointを最大60 Agentsに対して取得する。`capafy_scoreboard.py` はsource/CT text summaryとAgent別日次snapshotを出力する。日次scorecardは同一windowでAgent×source×campaignを一行にし、raw event countとunique visitorを分け、`observed_at`/receipt freshness・scope・null reasonを必ず表示する。source別paidの合計とaccount seller ordersは独立系列として照合し、重複を足し上げない。現行実装にないdashboard fieldやlead数を「ある」と扱わない。
+`capafy_hourly_reconcile.py` はtraffic endpointを最大60 Agentsに対して取得する。`capafy_scoreboard.py` はsource/CT text summaryとAgent別日次snapshotを出力する。日次scorecardは同一windowでAgent×source×campaignを一行にし、raw event countとunique visitorを分け、`observed_at`/receipt freshness・scope・null reasonを必ず表示する。source別paidの合計とaccount seller ordersは独立系列として照合し、重複を足し上げない。`profit*_actual`を実費後最終利益と表示せず、20% fee仮定が残る間は80% revenue proxy由来のactual-cost contribution estimateと表示する。現行実装にないdashboard fieldやlead数を「ある」と扱わない。
 
-### 原子的な残TODO（唯一の順序・statusは2026-10-12 13:24 JST時点）
+### 原子的な残TODO（唯一の順序・statusは2026-10-12 13:29 JST時点）
 
 各atomのownerはAniccaのCapafy運用loop/scoreboard。Daisへの質問・作業依頼はしない。`FROZEN.json` sellersの編集は禁止。ここでは記載更新とread-only調査だけを実施し、下記運用作業は実行していない。
 
 1. **T0 — source snapshotの差を解消する。 [OPEN / 現在cursor]**
-    - 根拠: 旧SSOTと当時の01:09Z reconcileでsearch 835/814、hot 72/71、Google 41/39、direct 1,540/1,493、`ai_overview` 551/548の差が記録された。最新04:08:53Z値は4,347 views、direct 1,501、source-paid 18。money/account aggregateにも`money.orders=70` vs `account_totals.all_time.orders=101`、source 30d paid=18 vs account 30d orders=39のfield-semantic差がある。
-    - 作業: 次の成功reconcileのsource payload・時間window・全Agent対象範囲・`source_type`を行単位で照合し、同じsnapshotのhash/observed_atをscorecardへ記録する。`money.orders`、`money.unit_sales_total`、`account_totals.*.orders`、`traffic_sources.*.paid_orders`の定義/粒度もソース実装へ遡って分類し、first-paid milestoneに使う唯一のfieldを固定する。
+    - 根拠: 旧SSOTと当時の01:09Z reconcileでsearch 835/814、hot 72/71、Google 41/39、direct 1,540/1,493、`ai_overview` 551/548の差が記録された。最新04:08:53Z値は4,347 views、direct 1,501、source-paid 18。`capafy-hourly-reconcile.json.orders=70` vs `capafy-skill-analytics.json.account_totals.all_time.orders=101`、source 30d paid=18 vs analytics account 30d orders=39のfield-semantic差もある。
+    - 作業: 次の成功reconcileのsource payload・時間window・全Agent対象範囲・`source_type`を行単位で照合し、同じsnapshotのhash/observed_atをscorecardへ記録する。top-level reconcile `orders`、`money.unit_sales_total`、analytics `account_totals.*.orders`、`traffic_sources.*.paid_orders`の定義/粒度もソース実装へ遡って分類し、first-paid milestoneに使う`orders` fieldを固定する。
     - 完了条件: 各差がwindow・scope・更新時刻・重複・field semanticsのどれかに分類され、source totalとpaid totalを同じJSONから再計算できる。milestone用order fieldはunit countと切り分けて明記する。
    - 頻度: 収束までreadbackごと。分類できない値はunknownとして残す。
 
 2. **T1 — hourly monitoringの成功freshnessを保つ。 [IN PROGRESS / 13:08:53成功、継続未確認]**
    - 根拠: launchd sourceは毎時00分予定。最新reconcile `observed_at=13:08:53 JST` はsuccess/fresh、file mtimeは13:16:43 JST。12:07 JSTのattemptは`resource_capacity_busy`だった。
    - 作業: 各自然occurrenceのrun/owner/occurrence/release/phase/exit/effect/readbackを確認し、成功後に`observed_at`が進んだか照合する。runtime修正はこの文書更新の範囲外。
-   - 完了条件: 次のscheduled hourly windowでもexit 0で新しい公式receiptを書き、sales/source freshnessを読める。単発の12:21 successだけでは継続正常と判定しない。
+   - 完了条件: 次のscheduled hourly windowでもexit 0で新しい公式receiptを書き、sales/source freshnessを読める。単発の13:08:53 successだけでは継続正常と判定しない。
    - 頻度: 毎時。失敗時はmissing metricを0にせずblockerを同じscorecardに記録。
 
 3. **T2 — source×Agent scorecardを一日一行でそろえる。 [IN PROGRESS / generatorあり、完成dashboard未確認]**
    - 根拠: reconcileには最大60 Agentsの7d/30d by-source、scoreboardはCT/source summaryと検索寄りのAgent snapshotを出す。
    - T2.1 各成功receiptから`observed_at`、receipt/hash、window、Agent scope、seller orders/gross/refund/fee/payoutを固定する。
-   - T2.2 Agent×source×campaign rowに7d/30d views/unique visitors/trials/paid/gross、rating/review count、query rank、CT token、actual-cost allocation profitを記録する。impressions、watch completion、unique reachが取れない場合はnullと理由を書く。
+   - T2.2 Agent×source×campaign rowに7d/30d views/unique visitors/trials/paid/gross、rating/review count、query rank、CT token、80% seller-share proxy−actual-cost contribution estimateを記録する。impressions、watch completion、unique reachが取れない場合はnullと理由を書く。
    - T2.3 公開creativeごとにcreative_id、platform post URL/time、impressions/reach/views/watch time/completion/likes/comments/shares/saves/link clicksを24h/7d/30dで同じrowへ結ぶ。
    - T2.4 同一windowでsource totalとAgent totalを再計算し、source-attributed paidの合計とaccount seller ordersを別々に照合する。重複があれば原因を分類する。
    - T2.5 日次snapshotを週次に比較し、view増・CT増・trial増・paid増・profit増のどこが止まるか一つのprimary bottleneckとして記録する。
@@ -14941,7 +14941,7 @@ Capafy公式Xの公開indexには、Ocupの100 sales紹介と、あるcreatorの
     - 頻度: 週次。
 
 12. **T11 — 勝ちcreative構造を独自素材で1件試し、paid/profitまで結ぶ。 [SPECIFIED / creative・CT・queue preflight待ち]**
-    - 根拠: 30日CTは6 views/0 paid、`instagram_bio`は39/0。TikTok Script Proは30日実費按分profit +$12.75で、`ai_overview`は27/7日・237/30日だがsource別paid 0。公開HookAce例は353,500 public viewsだが、creator動画からCapafy paidへの帰属証拠はない。
+    - 根拠: 30日CTは6 views/0 paid、`instagram_bio`は39/0。TikTok Script Proは30日actual-cost contribution estimate +$12.75（80% seller-share仮定）で、`ai_overview`は27/7日・237/30日だがsource別paid 0。公開HookAce例は353,500 public viewsだが、creator動画からCapafy paidへの帰属証拠はない。
     - T11.1 対象/仮説を固定: promotion対象はFROZEN TikTok Script Pro。HookAceの比較→facecam→product demo→one CTAという構造だけを参考にし、既存sellerのlisting/contentを編集しない。
     - T11.2 実データを準備: TikTok Script Proの実機能であるtopic→hook/script/text overlay/shot cueを、機密でない自社topicから一回出力する。二つのopeningの比較を見せ、retention/sales/virality値を捏造・借用しない。
     - T11.3 Creativeを制作: 15–45秒、冒頭0–2秒の差、実input/output、差の理由1点、Capafyへ明確なCTA。競合映像・音源・台本・他者view数を再利用せず、公開可能な自社素材だけを使う。
@@ -14949,12 +14949,12 @@ Capafy公式Xの公開indexには、Ocupの100 sales紹介と、あるcreatorの
     - T11.5 1回だけ配信: preflightが成立した後、既存の配信owner/queueから1本だけ出す。これはまだ未投稿。追加volumeや新channelは増やさない。
     - T11.6 24h/7d platform readback: impressions/reach/views、watch time/completion、engagement、link clicks/profile visitsをsnapshotし、欠測をnullにする。
     - T11.7 7d/30d Capafy readback: matching campaignのCT/page views→trial→paid→gross→fees/refunds→actual model-cost allocation→profitを同一windowで照合する。source別paidが0でもaccount orderと混ぜない。
-    - T11.8 判断: 7日でCTが0なら配布量を増やさずCTA/discoveryを見直す。CTがありtrial/paidが0ならlisting/offer/query適合を直す。30日でpaidかつprofitがpositiveなら次の一件だけscale候補にする。外部販売と公式Capafy receiptがつながらない時は帰属unknownのまま。
+    - T11.8 判断: 7日でCTが0なら配布量を増やさずCTA/discoveryを見直す。CTがありtrial/paidが0ならlisting/offer/query適合を直す。30日でpaidかつ80% seller-share仮定後のactual-cost contribution estimateがpositiveなら次の一件だけscale候補にする。外部販売と公式Capafy receiptがつながらない時は帰属unknownのまま。
 
 13. **T12 — 勝者配信と費用後profitを週次で再配分する。 [BASELINE ESTABLISHED / 反復要]**
-    - 根拠: 30日実費按分profitはTikTok +$12.75、Marketing +$11.08、YouTube +$6.35、Hook Lab +$5.96、Academic Results Humanizer -$25.47。 account actual profit +$8.24。
-    - 作業: FROZEN sellerの配信枠は販売実績に基づき配分。新規広告/高頻度配布はsource attributionと実費後profitが見えるまで足さない。model cost allocation窓・Capafy feeを併記する。
-    - 完了条件: 週次にsource別/Agent別 views→paid→gross→Capafy fee→実費cost→profitの一表を出し、投資先を一つ決める。
+    - 根拠: 30日80% seller-share proxyからactual model-cost allocationを引いたestimateはTikTok +$12.75、Marketing +$11.08、YouTube +$6.35、Hook Lab +$5.96、Academic Results Humanizer -$25.47。account estimateは$8.24。
+    - 作業: FROZEN sellerの配信枠は販売実績に基づき配分。新規広告/高頻度配布はsource attributionと実費後profitが見えるまで足さない。model cost allocation窓と20% Capafy fee仮定を併記し、actual fee/settlementが未取得の値はestimateと表示する。
+    - 完了条件: 週次にsource別/Agent別 views→paid→gross→official creator earnings/80% proxy→実費cost→contribution estimateの一表を出し、投資先を一つ決める。
     - 頻度: 毎週。
 
 14. **T13 — first-paid gateと$10K MRR gateを別々に閉じる。 [OPEN / current baseline未達]**
