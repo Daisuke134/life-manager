@@ -15790,3 +15790,63 @@ capafy-loop-daily natural occurrence 18ddcb557509ce28-23929は22:31 JSTにexit 0
 **23:12 JST readback:** natural occurrence 18ddcd9d4db96e38-23777は23:12:26にCAP_FULL / exit0。snapshot captured_at=14:11:43Zでは64 Agentsで、22:29:56 snapshotと比べてadded IDs=0 / removed IDs=0 / changed versions=0。8767154808はversion 2109463185447604224のまま。candidate backlogは45 rows（listed21 / ready15 / submitted8 / ready_retry1）、published ledgerは13:54 JST以降未更新。新規Agent shipmentは確認できない。
 
 このrunもeffect_status=unknown / provider receiptなしと表示される一方、admission_effect_unknown=false、health effect_unknown=1、registered factory adapter dry-run resolved=[] / unprovable=[]。provider outcomeを推定せず、fence解除・再送をしない。distribution ticket sequence621426は23:12 JST時点でagent queue 16/48（15件先行）。直近distribution effectはscratch_enospcでnot_applicableのまま。
+
+## Capafy live checkpoint — 2026-10-12 23:57 JST
+
+TODO順は変更しない: T0 → T1 → T2 → T3 → T4 → T5 → T6 → T7 → T8 → T9。T0の今回readbackを記録し、次の実行cursorをT1の配信admission診断に進める。T0は次のhourly readbackで継続する。
+
+### T0 — 23:14:41 JST公式収益・流入readback
+
+`capafy-hourly-reconcile.json` と `capafy-skill-analytics.json` はともに `observed_at=2026-10-12T14:14:41Z`、mtime 23:22:22 JST。reconcile SHA-256 `04d6bd44d995b4d15fed18b852f1feca780c1ab9ae093300d8c0569f209d1f5e`。
+
+| 指標 | 最新値 | 判定 |
+|---|---:|---|
+| 公式seller all-time orders / gross | 70 / $102.75 | 2026-10-03後のmilestoneは `orders > 70` かつ `gross > $102.75`。現在は両方とも等値で未達。 |
+| refunds / refund tickets | $0 / 3 tickets | 返金額0はticket件数0を意味しない。 |
+| creator earnings | $76.18 | 別欄のobserved subscription earnings $68.18 + one-time revenue $9.99 = $78.17で、$1.99差が未解決。 |
+| balances / payout | confirmed $17.18; balance pending $0; payout balance $59; `pending_usd` $59; paid out $0; realized $0; statement payable $0 | `balance_pending_usd`と`pending_usd`を区別し、残高を銀行入金・実現利益として数えない。 |
+| units | 101 = free-trial 69 + non-trial 32 | unit数はseller orders・paid attributionと同義でない。 |
+| true MRR | `net_mrr_usd=null`, `settled_mrr_usd=null` | active subscription状態が取れずunknown。$10K MRR未達。 |
+| account analytics all-time | 101 orders / $102.75 / refunds $0 | seller money 70 ordersとは別集計系列。 |
+| legacy agent API | 133 orders / $117.74 gross / $24.98 refunds | 上記二系列と混ぜず、意味の違いを継続照合する。 |
+| account analytics last 30d / 7d | 39 orders / $45.82 / refunds $0; 0 orders / $0 | source-paid件数とは同じ定義でない。 |
+| per-skill 30d rows | 18 orders / $45.82; settled 14 orders / $37.00 | account 39 ordersとの差を残す。 |
+| 30d contribution estimate | 80% share proxy $36.66 − OpenRouter actual cost $28.42 = $8.24 | seller fee 20%を仮定した推計。OpenRouter費用窓は2026-09-11〜10-11で、sellerの30日窓（コード由来UTC日付2026-09-13〜10-12）と一致しない可能性がある。確定fee・settled profitではない。 |
+
+**30日source別（views / trials / paid / attributed sales / paid÷views）:**
+
+| source | views | trials | paid | attributed sales | paid/view |
+|---|---:|---:|---:|---:|---:|
+| direct | 1,509 | 2 | 2 | $3.98 | 0.13% |
+| other | 1,276 | 0 | 0 | $0 | 0% |
+| Capafy search | 815 | 13 | 10 | $21.90 | 1.23% |
+| `ai_overview` | 550 | 0 | 0 | $0 | 0% |
+| Capafy hot | 71 | 1 | 5 | $9.95 | 7.04% |
+| category | 57 | 2 | 0 | $0 | 0% |
+| Google | 39 | 3 | 1 | $9.99 | 2.56% |
+| `instagram_bio` | 39 | 0 | 0 | $0 | 0% |
+| CT: `slides_ig`, `hooklab_ig` | 2 each | 0 | 0 | $0 | 0% |
+| CT: `youtube_ig`, `tiktok_blog` | 1 each | 0 | 0 | $0 | 0% |
+| Bing, ChatGPT, Facebook | 1 each | 0 | 0 | $0 | 0% |
+| **global total** | **4,365** | **21** | **18** | **$45.82** | **0.41%** |
+
+Search + hot + Google contribute 925 views, 16/18 source-paid orders (88.9%) and $41.84 (91.3% of attributed sales). They are the measured acquisition sources to improve first. The 30d source `ai_overview` has 550 views / 0 paid; Instagram bio has 39 / 0; identified CT rows total 6 / 0.
+
+**直近7日source別:** direct 135, search 69, other 64, `ai_overview` 47, category 3, Google 3, `slides_ig` 2, `hooklab_ig` 2, hot 1, `youtube_ig` 1, `tiktok_blog` 1, Facebook 1。合計329 views、trials 0、paid 0、sales $0。0 paidの窓で投稿数を増やさず、各sourceの次のvisit/paidを追う。
+
+**coverage / 集計差:** `traffic_sources.by_agent` は60 Agent IDsでinventoryの64 observed agentsより4件少ない。by-agent合計は30日4,177 views（global比−188）/18 paid/21 trials/$45.82、7日370 views（global比+41）/0 paid。views差は消さず、60件上限・source/window/scopeの問題として残す。source JSON自身にwindow boundsは保存されないため、コード由来のUTC日付窓とsnapshot取得時刻を併記し、seller order・account order・unit・attributed paidを合算しない。添付dashboardの79.2K impressions / 4.9K detail views / 0.22%は表示期間2026-09-12〜10-11で、このAPI窓とは別物。
+
+### T1 — 23:43 JST時点の配信・工場
+
+- 最新distribution occurrenceは `capafy-distribute-daily:18ddcf6cdfa2bf40-96612`、23:44:53 JST、release `5a595864f7c79145731cb71b59d9e7199e02bbcd`、exit 75 / `host_admission_deferred:disk_headroom_low` / `effect=not_applicable` / provider receiptなし。23:44:43 JSTの `df -Pk /` は1,952,212 KiB available。これはprovider投稿失敗でなくadmission前延期。`lm-loop status all` の `admission_effect_unknown=false` は古い19:33 distribution eventの欠落receiptを埋める証拠にはならない。
+- ticket `sequence=621426` の最後に確認できたqueue位置は23:30 JSTの10/46（9件先行）。これ以降の位置は未観測。FIFOを手で動かさない。
+- registered `life-manager-disk-cleanup` のreceiptは23:45:49 JST、`free_after=1,992,908,800` bytesに対しrecovery floor `2,147,483,648` bytes（status `unmet`）、reclaimed 0、errors 0、protected deletions 0、worktrees retired 0。preserved reasonsはopen 4 / protected descendant 7 / protected path 2。`disk-writers.stop` と `disk-pressure.block` は存在しない。cleanup passは正常終了したが、低容量とdistribution admission延期は別のreadbackとして保持する。
+- `capafy-loop-daily` は23:40:56 JSTにnatural terminal `CAP_FULL` / exit 0（occurrence `18ddcf2a946261a8-7917`）。14:25:04Z→14:40:13Zのofficial inventory snapshotsは両方64 Agentsで、added IDs=0 / removed IDs=0 / changed versions=0。candidate backlogは23:40:54 JSTにtotal45（listed21 / ready15 / submitted8 / ready_retry1）。`published.jsonl` は13:54:14 JST以降更新されていないため、新Agentの追加出荷は確認できない。このCAP_FULL eventは `effect_status=unknown` / provider receiptなし、ただし `admission_effect_unknown=false`。effect outcomeを推定せず、再送・解除しない。
+- PR #7730はmerge commit `ded88e861886d0afb620da822011c73753979033`でmerged。現在の `capafy-loop-daily` はrelease `20261012T231917-65d1feb5`をloaded-idleで使用し、main ancestryがある。loaded `skills/capafy-autopublish/CP1_AGENTIC.md` のSHA-256は `595b640f8b39b3f104ec982a50c3bf4941162c724504b427f9aae07ebd0927dd`。同ファイルにstep 5bの「毎日の無料クォータなし」を確認。候補snapshotは `8767154808` SRT Subtitle Readability Fixerを23:40:54 JSTに `platform_state=under_review` と表示する。status到達は確認済みだが、それだけでは直近factory runが新Agentを継続出荷した証拠にならない。
+- **23:50:34 JST distribution fence:** occurrence `capafy-distribute-daily:18ddcfb8bf34dff8-16076` は23:50:19開始・23:50:34終了、`entrypoint_exit_1` / `effect_identity_status=not_written` / `effect_status=unknown`。`lm-loop status all` で `admission_effect_unknown=true`、next action `official_readback_required`、provider receipt/readback null。該当runはslot `2026-10-12-h23m30`、Capafy Agent 9563867391 (`marketing-strategist`) を選び、local run directoryには`prompt.txt`だけがある。Capafy distribution ledgerにh23m30のpublished行はない。
+- 登録adapter `capafy_distribute_fence_reconcile.py --occurrence ...` のread-only照合は `verified=true/effected=true` を返したが、receiptはGitHub commit `53b62c23e4f23bb8ab5bfe08ad4f51aacf9b0499` とURL `line-sticker-set-007-2026-10-12-20`。commitは20:05:51 JSTで、`line-sticker-articles/article-ledger.json` に別laneの`set-007`記事として記録される。対象Capafy slotの期待slugは `capafy-marketing-strategist-2026-10-12-h23m30`。adapterはfenceの`queued_at=2026-10-12T10:49:08Z`から70分窓を作り、queue時刻とoccurrence実行時刻（14:50:19Z）の差を無視し、commit slugがCapafy商品・対象slotと一致することも要求しない。この`PROOF_READY`は今回occurrenceに結び付かないため`--resolve`を実行しない。active fenceを保持する。
+- 23:56:38 JST host readbackはfree space `2,112,159,744` bytes、2 GiB floorとの差は`35,323,904` bytes。disk cleanupの23:55:03 natural terminalはpassだが、capacity readbackは再び`unmet`。`capafy-loop-daily`の23:54:08 occurrenceは `resource_capacity_busy` / exit75 / `effect=not_applicable`。candidate backlogはtotal45（listed21 / ready15 / submitted8 / ready_retry1）のままで、最新inventoryの新Agent/version追加は未確認。
+
+### Current cursor / 次のatom
+
+T0の今回readbackは記録済み。first-paid条件とtrue MRRは未達/unknown。現在cursorはT1: registered distributor reconcilerのfalse-positive条件を修正し、実行時刻・対象slot/slugに一致する公式readbackだけでoccurrence `18ddcfb8bf34dff8-16076` を解決する。現行adapterのPROOF_READYは別laneのline-sticker公開物に結び付き、fence解放・再投稿の根拠にしない。容量も2 GiB floorを下回るため、registered cleanupの安全な回収余地を次の自然passで確認する。T1が閉じてからT2の日次query順位、T3の`ai_overview` listing conversion、T4の出典付きcreative母数、T5のCT別訪問・paid、T6のhot再露出、T7の真正レビュー、T8の新Agent継続出荷、T9の費用後利益・$10K active MRR証明へ進む。
