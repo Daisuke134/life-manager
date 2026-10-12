@@ -3197,3 +3197,22 @@ Writer適用: `skills/writer-agent/SKILL.md`、Zinsser reader/prose、humanizer�
 - [x] Manager閉ループ図の元dot/PNGと、モデル・データ・変更・結果のschema案を保存。既存aggregate-first設計の旧app紹介文を最新使命へ整合。新製品コードの実装なし。
 - [ ] この学習資料を基に既存D0–D5の設計を確認し、必要な公開データと独立評価単位を確定。最初の実地対象は権限/比較記録を確認して選ぶ。
 - [ ] 原典→再現→実装→比較→実結果の順で理解を検証し、実際に説明できる資料/コード/失敗を発信へ使う。podcast招待・YC・企業価値は先取りしない。
+
+
+<a id="manager-implementation-plan-20261012"></a>
+## Manager 2026-10-12 最初の実装計画と公開紹介の優先
+
+最新指示: 広い目的は保ち、短い公開紹介は生活/環境改善を先にする。苦の終焉・宇宙・神を前面へ強制しない。実装、理解、記事、連絡、イベントを進める。明示依頼のSuperpowers writing-plansを読み、先に具体的な計画を作成。
+
+- [x] canonical branch/source-boundary、既存greenfield/aggregate-first設計、Python sibling/manifest構成を確認。apps/manager実装はHEADに存在しない。
+- [x] Census API metadataと実queryを確認。実queryはキー必須missing_key.html、keyless取得済みとはしない。公式Summary FileのB17001を別の公開download経路で確認し、state52行extractをscratchへ取得。全地域のleaf/total一致、extract hash確認。B17001E別表とのheader差を確認。
+- [x] [最初の実装範囲](2026-10-12-manager-population-v0-design.md)を固定。対象51地域、split6/4/41、6セル、independent/IPF、input/score分離、推計誤差とretrospective reconstructionの限界を明記。
+- [x] [writing-plansによる6task実装計画](../plans/2026-10-12-manager-population-v0.md)を保存。型/関数/ファイル/失敗条件/RED-GREEN/実資料commandを明記。計画のcheckboxは手順であり状態の正本はここ。推奨はNativeの逐次実装。
+- [ ] P0: 保存したplanのreviewを受け、Task1〜6を逐次実装。新しい完成前経験/benchmark成果を履歴書へ入れない。
+- [ ] P1: Population artifactをResponse/Worldへ接続する次planを作り、共有環境2種類の制約/比較を実装。
+- [ ] P2: Policy/Executor/readback/updateを接続し、同予算・未知network/rule/response-family・集団別影響の閉ループ評価。
+- [ ] P3: 権限、事前記録、比較条件を持つoperatorとfield対象を確定。実測成果の受入protocolを固定して実地試験。
+- [ ] 発信: 実装から出た結果/失敗を一次資料の解説と分けてX/blogへ。毎日の候補はnetworking-and-editorial資料を参照し、未読論文/未完成結果を先取りしない。
+- [ ] 連絡/event: 相手の研究に即した個別質問、確認できる成果、参加日程を固定して送信/登録。今回のplan作成は送信/応募/イベント登録を実施したものではない。
+
+苦の終焉は長期の内部目的、短いpublic copyは環境/生活改善。amplifier/equalizerは単語だけで性能を主張せず、全体と最低群の成果を測る。外部site/runtime未変更。今回の進捗はplanと公開資料preflight、Task1〜6の製品コード・model/field成果は未実装。

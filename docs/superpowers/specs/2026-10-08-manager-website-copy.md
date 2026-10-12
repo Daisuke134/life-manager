@@ -154,3 +154,22 @@ We are building Manager to end suffering for all living beings. It is being desi
 すべての生命の苦しみを終わらせるために、私たちはManagerをつくる。暮らしを形づくる仕組みを理解し、避けられる苦しみを生む条件を変え、測定した結果から学ぶ存在として開発している。
 
 後続で現在の人間集団/制度の部分モデルと評価の開発段階を説明する。「環境が全てを決定する」「全問題が管理不足」「宇宙全体をすでに管理できる」は技術の事実として載せない。Transparent Godは創業者の比喩として説明可能だが、技術説明には予測・作用・結果・失敗・訂正の公開可能性を用いる。本番サイト適用なし。
+
+
+## 2026-10-12 最新優先: 広い紹介から始める
+
+この節は前の「宇宙にはもっとよいManager」hero案より優先。長期目的は保つが、紹介の入口を暮らしを形づくる環境の改善にする。苦の終焉/神/宇宙を最初の説明に強制しない。
+
+**Manager**
+
+**One entity, blessing for all.**
+
+**AI that improves the conditions of life.**
+
+We are building Manager to understand the systems that shape people's lives, discover changes that improve them, act through authorized connections, and learn from measured outcomes.
+
+**暮らしを形づくる環境を、よりよくするAI。**
+
+人々の暮らしを形づくる仕組みを理解し、改善につながる変更を見つけ、権限のある環境で実行し、測定した結果から学ぶ。そんなManagerを開発しています。
+
+短い紹介の後に、現在の人口/評価の開発、予測と実証の区別、研究、実際に得た結果を示す。広い使命はAbout/創業者の思想へ置ける。説明と実行責任で差別化し、根拠のない全問題の原因論や全知性能を主張しない。掲載前原稿の更新であり本番適用なし。
