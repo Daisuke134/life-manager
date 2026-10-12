@@ -39,3 +39,47 @@ test('tolerates malformed rows and alt field names (slot/net)', () => {
   assert.equal(bySlot['gig'].count, 2);
   assert.equal(bySlot['gig'].net, 0.2);
 });
+
+
+test('missing or invalid money stays UNKNOWN instead of becoming a DEAD zero', () => {
+  for (const net of [undefined, null, '', ' ', false, [], {}, 'bad', NaN, Infinity, -Infinity, 1e308]) {
+    const { bySlot, steer } = selfEval(Array.from({ length: 4 }, () => ({ source: 'gig', net_usdc: net, net: 10 })));
+    assert.equal(bySlot.gig.net, null, `net=${String(net)}`);
+    assert.equal(bySlot.gig.unknownCount, 4);
+    assert.equal(bySlot.gig.dead, false);
+    assert.match(steer, /UNKNOWN/);
+    assert.doesNotMatch(steer, /DEAD|WORKS|Nothing has realised positive|net \$0/);
+  }
+  const { bySlot } = selfEval(Array.from({ length: 4 }, () => ({ source: 'missing' })));
+  assert.equal(bySlot.missing.net, null);
+  assert.equal(bySlot.missing.dead, false);
+});
+
+test('a mixed incomplete slot never claims profit or a losing verdict', () => {
+  for (const known of [1, -1, 0]) {
+    const { bySlot, steer } = selfEval([
+      { source: 'mixed', net_usdc: known },
+      { source: 'mixed' },
+      { source: 'mixed', net_usdc: known },
+      { source: 'mixed', net_usdc: known },
+    ]);
+    assert.equal(bySlot.mixed.count, 4);
+    assert.equal(bySlot.mixed.unknownCount, 1);
+    assert.equal(bySlot.mixed.net, null);
+    assert.equal(bySlot.mixed.dead, false);
+    assert.doesNotMatch(steer, /DEAD|WORKS|Nothing has realised positive/);
+  }
+});
+
+test('finite numeric strings and explicit zero remain known values', () => {
+  const { bySlot, steer } = selfEval([
+    { source: 'paid', net_usdc: '0.30' },
+    { source: 'paid', net_usdc: '-0.10' },
+    ...Array.from({ length: 4 }, () => ({ source: 'zero', net_usdc: 0 })),
+  ]);
+  assert.equal(bySlot.paid.net, 0.2);
+  assert.equal(bySlot.paid.unknownCount, 0);
+  assert.equal(bySlot.zero.dead, true);
+  assert.match(steer, /paid.*WORKS/);
+  assert.match(steer, /zero.*DEAD/);
+});
