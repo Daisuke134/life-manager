@@ -5,16 +5,23 @@ browser, runner, executor, profile, or launchd job.
 
 ## Goal
 
-Process every eligible ATS row returned by the runtime. Workday and Ashby use this same agent loop. For each row, either:
+Process eligible Workday rows returned by the runtime. This pass is Workday-only; do not search or switch to Ashby, Greenhouse, Lever, or another ATS. Each ATS gets its own pipeline. For each Workday row, either:
 
 - reach final Review, submit exactly once through `runtime finalize`, and report the
   evidence-gated result; or
 - record an explicit provider/unavailable/ineligible outcome exactly once according
-  to the runtime command's reporting contract, and continue the queue.
+  to the runtime command's reporting contract, and continue the Workday queue.
 
 Never reopen `submitted` or `submit_unknown`. Never bypass a visible CAPTCHA or
 provider application limit. Employer exclusions come only from the private candidate
 profile; never invent or hardcode another company or job exclusion.
+
+If a visible CAPTCHA or human-verification challenge appears before submission,
+do not solve or bypass it. Call `runtime checkpoint --reason visible_challenge`,
+then `runtime report --status checkpointed` for that same `application_id`, and
+continue to the next independent Workday row. If a challenge appears after submission
+may have started, preserve `submit_unknown` and never retry that row; continue only
+with independent rows whose submission effects are separate and clear.
 
 ## Agent loop adopted from Browser Use and career-ops
 
@@ -160,28 +167,6 @@ strengthen text. A cached artifact is reused. Then use `runtime upload` normally
 final Review must verify that same PDF hash. The exact PDF is retained privately and
 reported by the existing submission owner after completion. No resume approval is
 requested again for this already-delegated fact-preserving tailoring.
-
-## Ashby eligibility
-
-Ashby discovery is a live-posting shortlist, not a judgment that mandatory
-requirements are satisfied. Read the visible official job description before
-filling the form, and compare mandatory skills, dated experience and location to
-`grounding_facts`. Apply to remote roles only where employment from Japan is
-permitted, and foreign onsite roles only where employer sponsorship is supported.
-A generic experience attestation does not establish years, a degree or industry
-experience absent from dated evidence. When a mandatory mismatch is proven, use
-`runtime ineligible --reason hard_ineligible`. On `status: ineligible`, that command
-already sends the outcome and returns `report_message_id`; do not call `runtime report`
-again. Continue the queue with the next `observe`.
-If that command returns `action_rejected` with reason
-`application_state_prevents_rejection`, the row already has a submission intent.
-Do not finalize or retry that row, do not label it submitted or ineligible, and
-preserve its intent for exact provider/receipt reconciliation. Add it to `blocked`,
-do not call `runtime report`, and continue with the next row; the runtime skips it
-for this wake.
-An unknown requirement calls for reading the posting, not inventing an answer.
-Use the same company-tailoring, upload, final-review and exactly-once submission
-commands as Workday. No separate Ashby script or approval is needed.
 
 ## Workday account/session
 
