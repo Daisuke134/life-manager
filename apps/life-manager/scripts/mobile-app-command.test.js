@@ -158,12 +158,44 @@ test(`the mobile wrapper preserves ${binding.name} release binding but does not 
 test("mobile reconciled receipts require their origin occurrence to match", () => {
   const occurrenceId = "life-manager-honne-en:run-1";
   const options = { occurrenceId, requireOriginOccurrence: true };
-  const receipt = { created: false, provider_post_id: "postiz-honne-en-1", origin_occurrence_id: occurrenceId };
+  const receipt = {
+    created: false,
+    provider_effect_created: false,
+    provider_post_id: "postiz-honne-en-1",
+    origin_occurrence_id: occurrenceId,
+  };
   assert.equal(effectStatus(receipt, options), "reconciled");
-  assert.equal(effectStatus({ created: true, provider_post_id: "postiz-created-1" }, options), "verified");
+  assert.equal(effectStatus({
+    created: true,
+    provider_effect_created: true,
+    provider_post_id: "postiz-created-1",
+    origin_occurrence_id: occurrenceId,
+  }, options), "verified");
+  assert.equal(effectStatus({
+    created: false,
+    provider_effect_created: true,
+    provider_post_id: "postiz-replayed-same-occurrence-1",
+    origin_occurrence_id: occurrenceId,
+  }, options), "verified");
+  assert.throws(() => effectStatus({
+    created: true,
+    provider_post_id: "postiz-created-1",
+  }, options), /origin occurrence|provider effect/);
+  assert.throws(() => effectStatus({
+    created: true,
+    provider_effect_created: false,
+    provider_post_id: "postiz-created-1",
+    origin_occurrence_id: occurrenceId,
+  }, options), /provider effect/);
+  assert.throws(() => effectStatus({
+    created: false,
+    provider_post_id: "postiz-honne-en-1",
+    origin_occurrence_id: occurrenceId,
+  }, options), /provider effect/);
   assert.throws(() => effectStatus({ ...receipt, origin_occurrence_id: "life-manager-honne-en:old-run" }, options), /origin occurrence/);
   assert.throws(() => effectStatus({ created: false, provider_post_id: receipt.provider_post_id }, options), /origin occurrence/);
   assert.throws(() => effectStatus({ status: "published", provider_reconciled: true, replay_created: false }, options), /origin occurrence/);
+  assert.equal(effectStatus({ created: true, provider_post_id: "legacy-created-1" }), "verified");
 });
 
 test("the shared mobile wrapper fails closed without a managed occurrence", (t) => {
@@ -263,6 +295,8 @@ test("the mobile result helper accepts exact reconciled receipt shapes only", (t
 
   const created = run({
     created: true,
+    provider_effect_created: true,
+    origin_occurrence_id: "life-manager-honne-en:run-1",
     provider_post_id: "postiz-created-1",
   }, "created", true);
   assert.equal(created.result.status, 0, created.result.stderr);
@@ -270,6 +304,7 @@ test("the mobile result helper accepts exact reconciled receipt shapes only", (t
 
   const originBound = run({
     created: false,
+    provider_effect_created: false,
     origin_occurrence_id: "life-manager-honne-en:run-1",
     provider_post_id: "postiz-honne-en-origin-bound",
   }, "origin-bound", true);

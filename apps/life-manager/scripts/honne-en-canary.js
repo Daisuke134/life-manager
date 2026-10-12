@@ -393,6 +393,13 @@ async function runHonneEnCanary(argv, deps = {}) {
   return {
     publication: {
       job_id: args.jobId,
+      ...(typeof publicationReceipt.provider_effect_created === "boolean" ? {
+        created: publicationReceipt.provider_effect_created,
+        provider_effect_created: publicationReceipt.provider_effect_created,
+        ...(typeof publicationReceipt.origin_occurrence_id === "string"
+          ? { origin_occurrence_id: publicationReceipt.origin_occurrence_id }
+          : {}),
+      } : {}),
       status: publicationReceipt.status,
       public_url: publicationReceipt.public_url,
       public_url_status: publicUrl.status,

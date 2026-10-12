@@ -46,14 +46,28 @@ function requireMatchingOriginOccurrence(publication, options) {
 }
 
 function effectStatus(publication, options = {}) {
+  if (options.requireOriginOccurrence) {
+    requireMatchingOriginOccurrence(publication, options);
+    if (typeof publication.provider_effect_created !== "boolean") {
+      throw new Error("mobile publication result lacks provider effect proof");
+    }
+    if (publication.provider_effect_created) return "verified";
+    if (typeof publication.created === "boolean") {
+      if (publication.created) throw new Error("mobile publication created flag does not match provider effect proof");
+      return "reconciled";
+    }
+    if (publication.status === "published" && publication.provider_reconciled === true
+        && publication.replay_created === false && publication.provider_effect_created === false) {
+      return "reconciled";
+    }
+    throw new Error("mobile publication result lacks exact effect proof");
+  }
   if (typeof publication.created === "boolean") {
     if (publication.created) return "verified";
-    requireMatchingOriginOccurrence(publication, options);
     return "reconciled";
   }
   if (publication.status === "published" && publication.provider_reconciled === true
       && publication.replay_created === false) {
-    requireMatchingOriginOccurrence(publication, options);
     return "reconciled";
   }
   throw new Error("mobile publication result lacks exact effect proof");
