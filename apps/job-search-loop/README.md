@@ -1,6 +1,6 @@
-# Life Manager Job Hunter Loop
+# Job Hunter
 
-Anicca Job Search Loop is a bounded, evidence-first job application system for a
+Job Hunter is a bounded, evidence-first job application system for a
 verified private candidate profile. It discovers and ranks suitable roles, submits
 every unique qualified role that fits within the bounded owner window, monitors recruiter mail, prepares
 interviews, and reports every material state change to Telegram.
@@ -10,8 +10,8 @@ interviews, and reports every material state change to Telegram.
 | Concern | Current rule |
 |---|---|
 | Acquisition target | Every fresh unique model-qualified role; no daily application quota |
-| Location | Tokyo or remote roles that can employ someone based in Japan |
-| Compensation | Candidate-defined minimum and target from the private profile; unpublished compensation remains visible uncertainty |
+| Location | Any U.S. location, Tokyo on-site or hybrid, and remote roles worldwide where the employer can hire the candidate; sponsorship ambiguity alone does not discard a strong-fit role, and authorization answers remain truthful |
+| Compensation | Candidate-defined floor and target; Dais's current floor is USD 100,000 annually. Unpublished or non-USD compensation remains visible uncertainty |
 | Role focus | Candidate-defined target role families, checked by the model against the complete official JD and resume evidence |
 | Discovery | Accumulating official Workday company registry plus complete CXS snapshots and model ranking; non-Workday adapters remain broken/unverified until rebuilt |
 | Evidence | Every application is fenced in SQLite and retained under a private evidence directory |
@@ -40,24 +40,44 @@ SHA-256; upload and final Review use that same artifact. Claims are retained exa
 in their source language. Invalid or unknown facts are rejected; no recurring user
 approval is requested for this already-delegated refinement.
 
-## Dreamwork native application owner
+## Workday-first application pipeline
 
-The 30-minute acquisition owner first checks the private Dreamwork credential and
-explicit application-autonomy delegation. With a verified rotated key and an
-application-ready account, it configures native Autopilot with a tailored resume,
-preserves candidate preferences and exclusions, and completes the provider's
-exact-argument confirmation-token exchange without recurring user approval.
-Dreamwork then owns employer submission; the local wake only reconciles official
-status. It does not send a competing manual application. Plan allowances remain
-provider-controlled and no plan purchase occurs.
+Dreamwork is not part of the target runtime. Workday is the first ATS-specific
+pipeline; each later ATS, including Ashby, gets its own pipeline. A pipeline finds
+official postings, checks role fit against verified candidate facts, creates
+job-specific materials, submits through the employer's application flow, and
+reconciles the employer's receipt with the application ledger. A click or local
+`APPLIED` status is not submission proof; ambiguous effects remain fenced and are
+never blindly retried. The current public `main` has not completed this cutover,
+as the comparison below records.
 
-Existing submitted and ambiguous Workday companies are excluded from native
-Autopilot until occurrence-bound official reconciliation permits another route.
-Only proof-backed pipeline submission facts count as completed applications.
-Queued actions, prepared materials, and board labels do not count. Unknown
-configuration effects are persisted before confirmation and never blindly retried.
-If native Autopilot is unavailable and officially has no in-flight work, the
-existing Workday lane may continue under the same local owner. Otherwise it holds.
+## Competitive comparison
+
+This comparison separates documented/source behavior from a real, receipt-verified
+application. A README claim or a generated `RESULT:APPLIED` string alone is not
+proof that an employer accepted an application.
+
+| Agent | Search and tailoring | Automatic final Submit | Completion evidence described in source | Human step / current limitation |
+|---|---|---|---|---|
+| [career-ops](https://github.com/career-ops-hq/career-ops) | Searches and evaluates roles, tailors CVs and drafts answers | **No** | Local tracker and user-managed outcomes | Its README and `prepare-application.mjs` say it never POSTs; the applicant reviews and presses Submit. It is a job-search and preparation agent, not an automatic submitter. MIT. |
+| [ApplyPilot](https://github.com/Pickle-Pixel/ApplyPilot) | README describes discovery across multiple boards, Workday portals, scoring, resume tailoring and cover letters | **Yes, in its normal source path** | The prompt tells the browser agent to inspect the post-submit page for “thank you” or “application received”; Claude then returns `RESULT:APPLIED`, which the launcher records locally | The reviewed path contains no per-application approval step. I did not verify an actual employer receipt or an independent Gmail receipt in a live application. AGPL-3.0. |
+| Job Hunter — intended Workday-first release | Company-bound resume tailoring from candidate facts; official Workday job fit | **Target: yes** | Target: bind an official employer receipt to the same job and ledger entry, prevent replay, and report the result | This Workday-only target is not in the current public `main`: the published daily entrypoint still calls Dreamwork and shares a lane with Workday/Ashby. Email reporting is not implemented; the current report route is Telegram. |
+
+The broad claim “world’s first open-source agent that searches, tailors, and
+automatically submits applications” is not supported: ApplyPilot already has a
+source-level no-human-submit path. The narrower difference to prove is reliable
+employer-receipt reconciliation, duplicate-safe application history, and clear
+reporting after the Workday submit. Do not present that distinction as a verified
+first until the Workday-only release completes a natural real application and the
+receipt is read back from the employer.
+
+The selection rule is evidence-based: if an existing agent completes a real
+application and its employer receipt is independently verified while meeting the
+candidate's requirements, use or integrate that agent instead of rebuilding the
+same capability. Source inspection, dry runs, mocks, and synthetic profiles do not
+count as real-application evidence. A live competitor application with an
+independently verified employer receipt has not yet been established in this
+evaluation.
 
 ## Runtime
 
@@ -66,9 +86,8 @@ existing Workday lane may continue under the same local owner. Otherwise it hold
 | `ai.anicca.job-search-daily` | every 30 minutes (`StartInterval=1800`) | bounded browser-lane agent |
 | `ai.anicca.job-search-inbox` | every 15 minutes | deterministic Gmail and prep preflight; Terra composition agent only for new recruiting work or pending prep generation |
 
-The current local deployment uses launchd and is designed so the same drivers and
-SQLite contracts can later be invoked by Life Manager without changing application
-semantics.
+The current local deployment uses launchd. The same drivers and SQLite contracts
+can later be hosted without changing application semantics.
 
 The daily owner connects to the dedicated persistent CloakBrowser CDP endpoint. It
 does not launch a duplicate browser. The driver reserves a bounded
@@ -83,7 +102,7 @@ unlimited loop.
 | Private profile | `~/.config/anicca/job-search/profile.json` |
 | Strategy | `config/strategy.default.json` |
 | Ledger | `~/.local/state/anicca/job-search/ledger.sqlite3` |
-| Life Manager read projection | `~/.local/state/anicca/job-search/summary.v2.json` |
+| Daily summary projection | `~/.local/state/anicca/job-search/summary.v2.json` |
 | Interview prep state | `~/.local/state/anicca/job-search/interview-prep.sqlite3` |
 | Evidence | `~/.local/state/anicca/job-search/evidence/` |
 | Materials | `~/.local/share/anicca/job-search/materials/` |
@@ -100,7 +119,7 @@ unlimited loop.
 ## Operations
 
 ```bash
-cd /path/to/life-manager/apps/job-search-loop
+cd /path/to/job-hunter-source/apps/job-search-loop
 python3 -m unittest discover -s tests -v
 zsh scripts/install-launchd.sh
 zsh scripts/healthcheck.sh
@@ -138,8 +157,8 @@ For recovery or development from an existing checkout:
 The private directories are `0700`; profile, install and connector receipts are
 `0600`. Setup never infers nationality, visa, work authorization or other legal
 facts. Existing profiles are reused and cannot be overwritten implicitly. The
-public Workday install uses only this Life Manager checkout and does not clone a
-second Job Hunter framework repository.
+public Workday install uses this source checkout and does not clone a second Job
+Hunter framework repository.
 
 ### Reproducible release artifact
 
@@ -246,7 +265,7 @@ and hashed private logs. Submission follows
 | Resident learning | A launchd/systemd weekly driver creates the bounded threshold candidate, replays the held-out safety manifest, deterministically selects baseline/candidate by stable job key, and persists every execution and decision receipt |
 | Promotion gate | Baseline stays active until both arms have at least 10 resolved applications and the candidate Wilson 95% lower bound exceeds the baseline upper bound; safety violations or three consecutive candidate failures roll back immediately |
 | Self-healing | launchd restarts, browser ownership evidence, multi-provider discovery, fenced side effects, bounded recovery and content-addressed report correction |
-| Not yet complete | Guardian remediation, lifecycle closure, real confirmed Ashby/Workday and learning-conversion samples, `summary.v2`, and Life Manager Career UI |
+| Not yet complete | Guardian remediation, lifecycle closure, real confirmed Ashby/Workday and learning-conversion samples, `summary.v2`, and the end-user career dashboard |
 
 Ashby discovery shares the scheduled acquisition owner and browser model with
 Workday. The existing ATS cache seeds official board identities; only fresh API
