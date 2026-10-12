@@ -46,8 +46,9 @@ class CompositionOwnerTests(unittest.TestCase):
         self.assertIn("workflow tutorial", prompt)
         self.assertIn("above the fold", prompt)
         self.assertIn("workflow tutorial", case_study_prompt)
-        self.assertIn("single disclosed CTA above the fold after a short intro", case_study_prompt)
-        self.assertIn("not guarantees", case_study_prompt)
+        self.assertIn("one clear, disclosed, benefit-led CTA above the fold", case_study_prompt)
+        self.assertIn("reported earnings as", case_study_prompt)
+        self.assertIn("proof in this campaign", case_study_prompt)
 
     def test_experiment_preserves_control_and_uses_fixed_bilingual_format(self) -> None:
         spec = importlib.util.spec_from_file_location("affiliate_composition_owner", SCRIPT)

@@ -1558,7 +1558,11 @@ class LocalLoopTest(unittest.TestCase):
             self.assertEqual(blocked["kind"], "BLOCKED")
             self.assertIn("判断: external_action_cap=34/10", blocked["body"])
             self.assertNotIn("runtime_disk=", blocked["body"])
-            self.assertIn("NO_TRANSACTIONS / approved_or_paid_net=USD 0.00 / cost=UNKNOWN", blocked["body"])
+            self.assertIn(
+                "EMPTY_REPORT / commission rows=0 observed / gross=UNKNOWN / net=UNKNOWN / cost=UNKNOWN",
+                blocked["body"],
+            )
+            self.assertNotIn("approved_or_paid_net=USD 0.00", blocked["body"])
             self.assertNotIn("ディスク空きが", blocked["body"])
             self.assertNotIn("buyer-intentを収集", blocked["body"])
 
@@ -2274,7 +2278,7 @@ class LocalLoopTest(unittest.TestCase):
             body = (
                 "Life Manager Affiliate::: Affiliate loop report\n"
                 "実行: BLOCKED\n"
-                "お金: NO_TRANSACTIONS / approved_or_paid_net=USD 0.00 / cost=UNKNOWN / "
+                "お金: EMPTY_REPORT / commission rows=0 observed / gross=UNKNOWN / net=UNKNOWN / cost=UNKNOWN / "
                 "blocker=external_action_cap=34/10 / runtime_disk=DISK_GUARD_BLOCKED"
             )
             MODULE.append(state / "telegram-outbox.jsonl", {

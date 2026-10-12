@@ -2722,7 +2722,7 @@ def owner_event(state, wake_event, sent_event_ids=None):
     if cycle.get("state") == "NO_TRANSACTIONS":
         kind = "REVENUE_RECONCILED"
         add(kind, {"kind": kind, "provider": "elevenlabs", "state": "NO_TRANSACTIONS"},
-            "NO_TRANSACTIONS / gross=unknown / net=unknown / cost=unknown",
+            "EMPTY_REPORT / commission rows=0 observed / gross=UNKNOWN / net=UNKNOWN / cost=UNKNOWN",
             wake_event.get("publication_url") or latest_live_url(state))
     if (
         (
@@ -2769,7 +2769,7 @@ def owner_event(state, wake_event, sent_event_ids=None):
             or wake_event.get("rolling_net_money_state") == "NO_TRANSACTIONS"
         )
         money = (
-            "NO_TRANSACTIONS / approved_or_paid_net=USD 0.00 / cost=UNKNOWN / "
+            "EMPTY_REPORT / commission rows=0 observed / gross=UNKNOWN / net=UNKNOWN / cost=UNKNOWN / "
             f"no money counted / blocker={blocker_text}"
             if no_transactions else
             f"money=UNKNOWN / no money counted / blocker={blocker_text}"
