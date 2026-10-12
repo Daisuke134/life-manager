@@ -15145,6 +15145,48 @@ Capafy公式Xの公開indexには、Ocupの100 sales紹介と、あるcreatorの
 4. 次のnatural hourly successでofficial orders/gross/refunds/MRR/source readbackを更新する。直接money read timeoutの境界を診断し、16:08 snapshotをcurrentと呼ばない。
 5. 7 queryのbuyer rankを日次で保存し、search/hot/ai_overviewのviews・trials・paidとAgent別に結ぶ。impressions/query volumeはprovider sourceが見つかるまでunknownを保持する。CTが増えた時だけoriginal creativeを一件ずつscaleする。
 
+## Capafy distribution and factory cursor — 2026-10-12 18:30 JST
+
+この追記は17:46 cursorを更新する。作業順は「計測→Capafy内検索/AI推薦の適合→計測できた配信の拡大→新Agent供給→公式MRR確認」。投稿数やAgent数そのものをdistribution成果として数えない。FROZEN sellers（Hook Lab、TikTok Script Pro、Marketing Strategist、YouTube Script Writer、Slide Maker）は編集・再提出せず、配信だけを行う。
+
+### 現状と到達条件
+
+- **目標:** Anicca seller accountでCapafy公式active-subscription readbackによりgross MRR $10,000以上を確認する。creator earnings、refund、実際のfee、OpenRouter実費、費用後利益を別々に記録する。subscription countまたはbilling cycle別内訳が取れない間、MRRはunknown。
+- **先行収益gate:** `capafy-hourly-reconcile.json` の公式readbackで、2026-10-03後の有料receiptを確認し、累計`orders > 70`かつ`gross_usd > $102.75`を満たす。最新利用可能値はmtime 18:15 JST、`observed_at` 18:07 JST、orders 70 / gross $102.75。よってgate未達。`net_mrr_usd`/`settled_mrr_usd`もnull。
+- **traffic baseline:** 16:08 JSTの30日source snapshotは4,350 views / 18 source-attributed paid、7日314 / 0。search 814 / 10 paid、hot 71 / 5、Google 39 / 1、`ai_overview` 548 / 0、`instagram_bio` 39 / 0、CT 6 / 0。直近7日はhot 1 view / 0 paid、`ai_overview` 45 / 0。source rowの合計とaccount orders、Agent別viewsは別集計なので混ぜない。これらの比率は観測比であり、ユニーク訪問者CVRや因果効果ではない。
+- **Agent別の検索/推薦:** 30日search/`ai_overview`はYouTube Script Writer 13/49、TikTok Script Pro 21/237、Marketing Strategist 153/11、Hook Lab 378/224。7日`ai_overview`はTikTok Script Pro 27、YouTube Script Writer 8、Hook Lab 2。Agent別viewsの合計はaccount source viewsと一致しないため、必ず別列で保管する。
+- **外部配信:** 計画上限48 slots/day（Hook Lab 24、TikTok Script Pro 8、Marketing Strategist 8、YouTube Script Writer 8）。Instagram bioは39/0、CT合計6/0、X由来CTは0。高頻度投稿はまだCapafy visit/paid増加を証明していないため、投稿本数を追加しても配信成果とは扱わない。
+- **buyer query:** 17:40 JSTの公式buyer `/public/search` top-30 snapshotでは、`hook`でHook Lab #3/HookAce #2、`tiktok script`でTikTok Script Pro #1、`youtube script writer`でYouTube Script Writer #1、`marketing strategist`でMarketing Strategist #1、broader `short form video script`ではTikTok Script Pro #9/YouTube Script Writer #22。`score`、impressions、query volumeは取得できない。17:48 JSTの14 query sweepではpodcast clip hooksにFree Transcript to 12 Shorts Pack #30（公開salesVolume 2,142）、crypto macro、MLB/NBA、research findings、sales account plan等に結果があった。salesVolumeの期間は不明なので需要や売上速度と同一視しない。
+- **factory:** 18時台のofficial inventoryはCAP 5、total 64 / listed 47 / occupied 5 / free 0 / retry 1 / recover 12 / ready_publish 0 / unknown 0。candidate backlogはtotal 45 / listed 21 / ready 15 / ready_retry 1 / submitted 8 / building 0。`8767154808` SRT Subtitle Readability Fixerは`under_review`に到達し、CP1の「毎日の無料クォータなし」修正はPR #7730のrelease `ded88e86`として`capafy-loop-daily`へ適用済み。従ってCP1提出確認は完了。次はslotが空いた後もnatural runで新Agent供給が継続することを別途確認する。`9675561238`はplaceholder draft、draft attempt 3/3、skill card未確認。`7095835081` Transcript Clip Map Freeは`under_review`で、buyer-visible online versionは未確認。
+- **競合creative:** 公開creativeの46動画監査manifestを維持し、さらにAkira AI Workflow Studioのfree-to-paid funnelを確認。無料「Free Transcript to 12 Shorts Pack」（公開salesVolume 2,142）からpaid browser companion（$5.99/weekまたは$14.99/month）へ誘導し、両listing、kit、$29 bundleへ別々の`ct`を付けている。2枚の公開WebP listing assetをローカル保存・目視済み。価格・salesVolumeは公開ページ上の観測値で、active subscribers/MRR/転換率の証明ではない。型を学び、自社のcopy・visual・claimsは独自に作る。
+- **配信owner gate:** `capafy-distribute-daily`の`resource_effect_unknown` occurrenceがあり、直近の登録adapter証拠に不整合が残る。公式receiptが揃うまで投稿再送やfence解除をしない。これは次の配信実行の直接blockerであり、マーケティング数値の代わりにはしない。
+
+### 全数字の記録方法
+
+| 系列 | 毎回保存する列 | 正本/読み方 |
+|---|---|---|
+| 収益・MRR | observed_at、receipt/date、orders、gross、refund、creator earnings、fee、payout、active subscriptions、billing cycle | hourly official reconcile。order/unit/trial/source-paidは別列。subscription readbackが無ければMRR=null。 |
+| Capafy source | date window、source、account views、trials、paid_orders、sales | official traffic readbackと`capafy_scoreboard.py`。source attributionとall-time seller ordersは合算しない。 |
+| Agent | Agent ID/version、source、views、trials、paid、gross、creator net、actual model cost、contribution estimate、rating/review_count | Agent rowsをaccount totalに足さない。Capafy 80% shareは実feeが取れるまでproxyと明記。 |
+| search | 固定query、snapshot time、page/position、Agent ID、rating、public salesVolume | 公式buyer `/public/search`のpage 1/top 30。未掲載は「31位以降または未掲載」。impressions/query volumeはunknown。 |
+| creative/referral | creative ID、Agent ID、platform、公開時刻、impressions/reach/views、clicks、UTM/`ct`、Capafy source views、trials、paid、費用 | platform reachとCapafy visitsを別列で保存。click/attributionがない値は0でなくunknown。今はCT 6/0 paid、Instagram bio39/0、X CT0。 |
+| factory | natural run/occurrence、release SHA、candidate ID、official status、inventory CAP/occupied/free、queue counts、effect/readback/receipt | official `inventory_status.py`とnatural terminal。local create successだけで作成・提出・公開済みとしない。 |
+
+### 残TODO（実行順）
+
+1. **T0 — first-paidと日次KPIを同じ期間で更新する。** 次のnatural hourly successから公式receipt date、orders、gross、refund、creator earnings、source views/trials/paid、MRR fieldsを記録する。先行gateは`orders > 70`かつ`gross > $102.75`かつpaid receipt dateが2026-10-03後。差異があればaccount orders・unit sales・source paidを別系列のまま照合する。
+2. **T1 — 配信effect fenceの次の合法な配信枠を回復する。** 最新 occurrenceを登録`effect_reconcile` adapterとprovider receiptで確認し、no-effect/effectedを記録する。証拠なしに再投稿しない。完了条件はfenceの公式閉鎖または重複なしのeffect receiptと、次のnatural distribution runのterminal。
+3. **T2 — Capafy search queryを買い手意図別に運用する。** 既存の7 query ranksと14候補sweepを日次snapshot化し、query・rank・該当Agent・source views/trials/paidを同じ期間で記録する。次のready candidateは既に#1のbuyer jobを重ねず、未充足query（podcast clip hooks、crypto macro、sports slate、research findings、sales account plan等）に具体的納品物を合わせる。順位だけで候補採用や需要を断定しない。
+4. **T3 — `ai_overview`用の新Agent listingを1件ずつ検証する。** baseline 30日548/0 paid、7日45/0。HookAce（rating 4.3、公開salesVolume 1,001）の狭い問題設定、短い価値提案、具体的な出力例、根拠の示し方を観察し、同じ文言・画面・実績claimは複製しない。FROZEN listingを変えず、新Agent候補でsearchとAI recommendationに適合した独自listingを作り、Agent別views→trials→paidを観測する。
+5. **T4 — 46動画と公開funnelの観察を再利用可能なcreative matrixにする。** 1件ごとにopening hook、format、proof、demo/output、CTA、duration、公開views/engagement、Capafy `ct` visitsを記録する。Akiraのfree sample→paid companion、HookAceの短時間diagnosis等の構造だけを参考にし、各Agent向けoriginal creativeを作る。コピー再掲・他者の成果claim流用はしない。Xのsystematic case-study evidenceは未完として公開検索で埋める。
+6. **T5 — 外部distributionをvisitで最適化する。** 現行48-slot配信はそのまま成果扱いせず、各投稿にcreative IDとsource/`ct`を結び、platform view→click→Capafy page view→trial→paid→actual costの欠けをunknownで残す。まずCapafy search/`ai_overview`が伸びたAgentへoriginal creativeを寄せる。Instagram/X/blogはCapafy visitが増えたsourceだけ追加・拡大し、48 posts/dayの量だけを増やさない。
+7. **T6 — Capafy hotの露出回復条件を実測する。** 30日71 views/5 paidという高い観測比と、7日1/0の低露出を分けて追う。hot page rank/掲載有無を日次保存し、search/AI recommendationの主要施策と混ぜない。掲載条件が確認できない間、特定のalgorithm triggerを断言しない。
+8. **T7 — 実利用者のratingとレビューを蓄積する。** 各Agentのrating/review_countをlisting時点と一緒に保存する。依頼・誘導は実利用者へ自然に行い、作成・購入・レビューを捏造しない。seller自身のratingがnull/0件でも、nullを0評価として扱わない。
+9. **T8 — 5件枠に合わせてfactory供給を続ける。** CAP5/5のためqueueをready状態に保つ。次のslot-free natural runでは次候補を一件だけ進め、create→CP1 skill/pricing確認→CP2/CP3→official `under_review`→公開までcandidate ID/versionで追う。`9675561238`のskill card未確認は解消したと仮定せず、3/3 attemptのまま別候補へ重複送信しない。新Agent供給が続くことは一回のno-change runで判定しない。
+10. **T9 — 週次に勝者へ配信枠を戻し、MRRを別gateで閉じる。** source/Agent別にviews→paid→gross→official earnings/fee→actual model cost→費用後contributionを更新し、proxyとsettled actualを区別して一つの配分判断を記録する。最終DONEは公式active subscriptions×billing cycleで月換算gross MRR ≥ $10,000と、同期間refund/fee/cost/profitのreadback。$10 ARPU等の例算は予測値にしない。
+
+**現在cursor:** T0（hourly revenue/sourceの自然readback）とT1（distribution effect fence）を先に閉じ、並行してT2 buyer-query snapshotを運用する。次にT3/T4で新Agent・original creativeを検索と`ai_overview`へ合わせ、T5で実測できた外部配信だけを拡大する。工場のPR・CI・release修正をこのマーケティングcursorへ混ぜず、existing frozen sellersの編集も行わない。
+
 ### 2026-10-12 — Job Hunter Workday-only implementation cursor
 
 **User direction / order:** ApplyPilotは実求人で一度試したがCloudflare human verification後に送信状態が曖昧となり、独立した応募receiptは未確認。`submission_state_unknown`は再試行せず、CAPTCHA/CapSolver調査は止めてWorkdayへ進む。Job HunterはWorkdayを最初のATS pipelineとして完了し、Dreamwork runtime・quota・fallbackは使わない。Ashbyと後続ATSはWorkdayがreceipt/replay-zeroまで安定した後、別ownerとして追加する。
