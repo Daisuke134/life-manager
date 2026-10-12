@@ -901,6 +901,8 @@ def _verified_no_effect_result(path: Path, loop_id: str, occurrence_id: str,
         return None
     if entrypoint == "apps/life-manager/scripts/ebook-distribute-daily.sh":
         allowed_reasons = {"setup_required", "no_due_slot", "render_not_ready"}
+        if loop_id == "ebook-en-tiktok-daily":
+            allowed_reasons.add("publication_readiness_gate_closed")
     elif entrypoint == "skills/earn/marketing-engine/intel/treg-lead-signals-weekly":
         allowed_reasons = {"baseline_established", "no_new_signals", "balance_floor"}
     else:
