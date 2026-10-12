@@ -1,0 +1,32 @@
+[
+  {
+    "repo": "CausalGame/CausalGame",
+    "sha": "34223510a0e7466ad399ff19714425f8708b7fbe",
+    "inspection": "selected source and documentation; execution not performed"
+  },
+  {
+    "repo": "DylanZSZ/CausaLab-Benchmark",
+    "sha": "42ba47fb88e60dc1eca17bd29c47ace4e8e9960e",
+    "inspection": "selected source and documentation; execution not performed"
+  },
+  {
+    "repo": "pytorch/botorch",
+    "sha": "da00e04015c0118f1b9383f32cab17bdcc0944ff",
+    "inspection": "selected source and documentation; execution not performed"
+  },
+  {
+    "repo": "temporalio/sdk-python",
+    "sha": "fc5299b9ddab38d6a9064a23295bf36412f4b487",
+    "inspection": "selected source and documentation; execution not performed"
+  },
+  {
+    "repo": "UKGovernmentBEIS/inspect_ai",
+    "sha": "a1dbea8db3cc85e04ff532760d0eaaeb64df6d3a",
+    "inspection": "selected source and documentation; execution not performed"
+  },
+  {
+    "repo": "mesa/mesa",
+    "sha": "5451086fe47ab78e9ba894aa1b4c3063f4c247f1",
+    "inspection": "selected source and documentation; execution not performed"
+  }
+]
