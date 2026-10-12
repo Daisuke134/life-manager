@@ -30,7 +30,7 @@ primaryは全体TODO/SSOT/共有cleanupとreleaseの統括・acceptance・integr
 
 **全体architectureの判断とAs-Is/To-Be:** 18 agentは18業務capabilityであり、190の小さいjobがそれぞれのcadenceで実装する。最善の進め方は既存のdurable state/effect/receiptと、常時監督＋有限worker＋優先度/経過時間を扱うadmissionを土台に、実資源・業務進行から配分を調整することである。FIFOは同優先度の順序補助として使え、先頭の不適合/古い予約が全業務を止めるgateにしない。固定2/5/10は現設定であり、達成目標や永久の適正値ではない。開始時刻/時差/周期の分散はburstを減らすが、仕事の長期化/再試行/保存先共有があるため衝突や容量問題が無い証明にならない。
 
-As-Isはmain由来immutable release＋Mac launchd/private state。実稼働cleanupは、60秒の `com.anicca.disk-watchdog`（loaded release `e8d30a84`、run interval 60s、runs172、last exit0）と、5分周期の `ai.anicca.life-manager-disk-cleanup`（loaded release `6a355f0b`、runs5、last exit0）に分かれる。前者が高速recovery pass、後者がfull-inventory/reporting passで、両方とも同じ `disk_cleanup.py` とsingleton lockを使う。過去の中央cleanup exit75はwatchdogとのlock contentionで、ENOSPCとは区別する。2026-10-12 05:57Zの自然receiptはerrors0/protected_deletions0だが、watchdogが回収したのは8,078 bytes、fresh Data空きは約0.84 GiBであり、容量増加が止まった証拠ではない。
+As-Isはmain由来immutable release＋Mac launchd/private state。cleanup source PR #7770はmainへ統合済み。06:08Z cutのrelease `e91b1087` は最新mainと主要cleanup file SHAが一致する。既存installerで60秒 `com.anicca.disk-watchdog` を `e91b1087` へ採用し、loaded argvはrelease内 `bin/disk-watchdog.sh`、plistはStartInterval=60/ThrottleInterval=60、runs2/last exit0。5分 `ai.anicca.life-manager-disk-cleanup` はまだ旧release `72b5d838` で、release-reconcilerも同releaseの自然run中。watchdog 06:16:01Z receiptはfree_after706,347,008/reclaimed0/errors0/protected_deletions0、同時点dfは698,680 KiB。
 
 To-Beは各agentがobserve→decide→act→official verify→persist→自分の不要物cleanup→次の仕事を、必要なcadence/期限で継続すること。独立する業務は並列に進み、同じidentity/投稿/決済/注文はlockとidempotencyで保護する。不明な効果は照合の仕事を継続し、独立する観測・他仕事まで無理由に永久停止させない。監督・中央cleanup・復旧は収益workerの混雑に巻き込まれず、stale owner/予約、実資源不足、provider制約を別々に診断し、自己所有修復→自然再開まで行う。正式state/receiptの成長は内容を保持した既存native管理と容量/保存先計画で扱う。最終のcloud/control plane・disposable computeは既存cloud節に従い、現時点で導入済みとはしない。外部審査/quota/障害を含む有限systemに永久ゼロ待機・ゼロ故障を保証せず、仕事の継続・障害の封じ込め・自動回復・公式収益で受け入れる。全面作り直し、FIFO一律撤去、任意の100枠化は現在の先頭taskにしない。
 
@@ -46,7 +46,7 @@ To-Beは各agentがobserve→decide→act→official verify→persist→自分�
 
 **不変条件:** iOS Simulator runtime/image/device/data/dyld、memory/state、credentials、browser identity、参照release、active/dirty/unmerged/leased/locked worktree、open/unknown dataを削除しない。各agentは自分が生成し所有する非authoritative scratchだけを片付け、中央cleanupは残ったclosed/orphaned artifactと証明済みの不要物を回収する。他agentの作業や正式receiptを消さない。effect_unknownはexact official receipt/pre-effect proofまで解除・再送しない。内部の余白・時間・byte予算は安全な制御に使い、空き容量の固定値を事業再開の条件にしない。
 
-**現在cursor:** cleanup source PR #7770はmain `02a3c397b4bcfa0286285d7b6cc0425ad4fc825f`へmerged。loaded `~/loops/current` はまだ `72b5d838`（merge前にcut）で、release reconciler/self-handoffが06:04Z時点で稼働中のため新source未採用。次はそのownerの自然収束後にmain由来immutable releaseを確認し、既存installerでwatchdogを採用する。cleanup予算55秒、process inventory timeout5秒、子cleanup timeout60秒。loaded script/argv/SHA/StartIntervalと自然receiptを確認するまでは修復済みとしない。
+**現在cursor:** 最新mainは`e91b1087f269939a090c992fcc362789fbd89a03`。60秒watchdogは新release `e91b1087`へ採用済み、自然receipt 2回ともexit0/errors0/protected_deletions0。ただし5分中央cleanupは旧release `72b5d838`、release-reconcilerのloaded-idle adoptionが未完。次は中央ownerの自然収束/最新main採用 readback → 複数の自然receiptと容量増加sourceのPID/path/bytes join。空き容量の数値をKPIにしないが、現時点ではresource stallsの再発防止を証明していない。
 
 **次の順序:** cleanupの自然反復と容量増加源の相関を確認 → 実行枠/再開の実状態を照合 → 各業務agentはownerと既存TODOを維持して一件ずつ修復・公式readback → settled revenueと費用を確認 → 18業務の公式receiptに基づくLM-EAB評価・benchmark・自己修復/改善 → OSS起動導線と会社全体US$10M/月の継続運用。共有基盤が未完でも、独立した読み取りと既存ownerの安全な仕事は止めない。
 
@@ -229,11 +229,11 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 
 起動packetの資格情報確認手順は → ~/.config/ai/core.md「No-human-loop（既定）」を参照。docs/superpowers/dispatch/2026-10-12/*.md全件へ参照を同期し、secret値は含めない。
 
-現在地（2026-10-12 15:04 JST fresh readback）: E01 codeはPR #7734でmain統合済みだが自然業務評価は未確認。#7737/#7736もmain統合済みだが合成fixture/再現手順に限る。cleanup #7770はmain `02a3c397`へmerged、loaded currentはmerge前の`72b5d838`で、reconciler handoffが進行中。watchdogは`e8d30a84`で60秒、中央cleanupは`6a355f0b`で5分。05:54Z/05:57Z自然receiptはerrors0/protected_deletions0だが回収8,078 bytes、fresh Data空き約0.84 GiBで、容量増加停止・ENOSPC再発防止は未証明。EAB/Evo専任稼働席は未確認。
+現在地（2026-10-12 15:16 JST fresh readback）: PR #7770はmain統合済み、最新main/releaseは`e91b1087`。60秒watchdogを既存installerで更新し、loaded script/argv/StartInterval=60/ThrottleInterval=60をreadback。自然2回はlast exit0、latest receipt 06:16:01Z errors0/protected_deletions0/reclaimed0。5分中央ownerはrelease `72b5d838`のまま、reconciler processが稼働中。Data空きは06:16Z dfで約0.68 GiB。full inventory 05:59:44Zは`.codex-acct2`約17.1GB、`.codex`約4.1GBを計上し、354秒で`.codex-acct2`が11,886,592 bytes増えたがowner/PIDはunattributed。ディスク修復、producer停止、ENOSPC再発防止は未証明。EAB/Evo専任席は未確認。
 
 順序変更: 旧=全18業務/収益laneの受入後にS15→S16→S17→S18。新=既存基盤修正の本番採用→18業務の修復と公式会計を並行→必要な自然障害/公式receiptが揃った範囲で自己修復・評価・benchmark→凍結評価器で自己改善→新agent factory→portable OSS/外部再現→継続収益拡大。理由: 未達MRR・外部審査・将来slotを自己修復や既存商品の販売開始の前提にすると無期限待機になる。依存のないlaneは並行、各lane/共有provider/releaseのmutationはserial。原goalの全18成果/各lane目標/全社US$10M月のDone条件は縮めない。
 
-共有source→runtime cursor（2026-10-12 15:04 JST）: main=`02a3c397b4bcfa0286285d7b6cc0425ad4fc825f`、cleanup source PR #7770 merged。新sourceはcleanup予算55秒、process inventory timeout5秒、子cleanup timeout60秒。`~/loops/current` はPR merge前のrelease `72b5d838`（cut 06:00:53Z）のまま、release-reconciler/self-handoffが06:04Zに実行中であり、source採用前。`com.anicca.disk-watchdog`はrelease `e8d30a84`、StartInterval=60、runs172/last exit0。`ai.anicca.life-manager-disk-cleanup`はrelease `6a355f0b`、5分calendar cadence、last exit0。双方が同一 `disk_cleanup.py`/singleton lockを使う。05:54Z bound receiptはfree_after889,561,088/errors0/protected0、05:57Z unbound receiptはfree_after880,062,464/reclaimed8,078/errors0/protected0、fresh `df` available858,400 KiB。これらはrun単体の安全な終端を示すが、容量増加停止を示さない。15d ownerのeffect_unknown fenceや保護対象は保持。次は既存release reconcilerの自然収束を待ち、最新main-derived releaseを再確認後、既存installerでwatchdogを採用する。
+共有source→runtime cursor（2026-10-12 15:16 JST）: main/release=`e91b1087f269939a090c992fcc362789fbd89a03`（PR #7770 cleanup修正、#7771 Capafy修正を含む）。cleanup予算55秒、process inventory timeout5秒、子cleanup timeout60秒。release `e91b1087`とmainのdisk_cleanup.py/central_cleanup.py/disk-watchdog.sh/installerのSHA256は一致。watchdogは06:14Z installer後、release内script・argv、StartInterval=60、ThrottleInterval=60、run interval60、runs2/last exit0を確認。06:16:01Zの新unbound receiptはfree_after706,347,008/reclaimed0/errors0/protected0。5分ownerは旧release72b5でlast exit0、reconcilerのloaded-idle apply待ち。旧15d fenceと保護データは維持する。latest full inventoryのCodex rootsは大きいがgrowth ownerはまだ結合できない。
 
 担当cursor: primaryは共有cleanup/release/SSOTを所有。native read-only Eval監査は完了し、現時点のEvo implementation ownerは不在。AGMSGでpeekした`lm-agent-economy-repair-1012`はTaskMarket test修正中。その他の登録seatは、live placement/peekがない限り稼働中と数えない。Job Hunter/LINE/Capafy等の既存ownerは重複起動しない。
 
@@ -241,7 +241,7 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 
 | ID | 順番・一つの操作 | 完了証拠/境界 |
 |---|---|---|
-| F01 | 既存`com.anicca.disk-watchdog`を唯一の60秒recovery ownerとして最新main由来releaseへ採用する。`life-manager-disk-cleanup`は300秒のfull-inventory/reporting ownerとして維持し、共有singleton lockで直列化する | watchdogのloaded argv/SHA/StartInterval=60、中央ownerの300秒cadence、cleanup予算55秒、自然receipt反復、lock busyの正確なdeferral、capacity growthとのowner/path/時間窓join。保護・unknown fence維持 |
+| F01 | 60秒watchdogは既存installerでmain-derived `e91b1087`へ採用済み。5分`life-manager-disk-cleanup`は300秒のfull-inventory/reporting ownerとして保ち、同じsingleton lockで直列化する | watchdogのloaded argv/SHA/StartInterval=60・ThrottleInterval=60・natural receipt 2回は確認済み。中央ownerの最新main adoption、lock busyの正確なdeferral、capacity growthとのowner/path/time-window join、継続receiptは未完。protections/unknown fenceを維持 |
 | F02 | 自然な仕事→receipt→自己/中央cleanup→次仕事を照合 | ENOSPC/破損/手動掃除依存なし。容量固定値・永久無故障保証にしない |
 | F03 | 18業務を既存担当/専任へ割り当て、既存PRを先に照合して残件修復 | source acceptance/必要review/exact-head CI/main。重複実装なし |
 | F04 | 各laneの最小実仕事を自然実行して公式結果へ結ぶ | 投稿/応募/納品/注文等のexact receipt、replay/duplicate-zero |
