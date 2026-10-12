@@ -4,6 +4,7 @@
 import argparse
 import hashlib
 import json
+import os
 import re
 import sys
 import time
@@ -647,6 +648,209 @@ def latest_commission_transitions(state):
     return {identity: value for identity, (_, value) in latest.items()}
 
 
+def _actual_cost_adapter():
+    """Load the repository's pure CFO adapter without creating a second parser."""
+    repository_root = str(Path(__file__).resolve().parents[3])
+    inserted = repository_root not in sys.path
+    if inserted:
+        sys.path.insert(0, repository_root)
+    try:
+        from skills.cfo.adapters import actual_cost
+    except ImportError:
+        raise RevenueError("CFO actual-cost adapter is unavailable") from None
+    finally:
+        if inserted:
+            sys.path.remove(repository_root)
+    return actual_cost
+
+
+def capture_actual_costs(state, *, now=None):
+    """Import only CFO-verified Affiliate allocations into private cost state."""
+    readback_path = (
+        os.environ.get("LM_CFO_ACTUAL_COST_READBACK")
+        or os.environ.get("LM_CFO_ACTUAL_COST")
+    )
+    if not readback_path:
+        return None
+
+    state = Path(state).expanduser()
+    window_end = now or datetime.now(timezone.utc)
+    if window_end.tzinfo is None:
+        window_end = window_end.replace(tzinfo=timezone.utc)
+    window_end = window_end.astimezone(timezone.utc)
+    window_start = window_end - timedelta(days=30)
+    end_text = window_end.isoformat()
+    start_text = window_start.isoformat()
+    unknown_reasons = set()
+    evidence_refs = set()
+    raw_digest = None
+    records = []
+
+    try:
+        raw = Path(readback_path).expanduser().read_bytes()
+        raw_digest = hashlib.sha256(raw).hexdigest()
+        payload = json.loads(raw)
+        readback = payload.get("readback") if isinstance(payload, dict) else None
+        trailing = readback.get("trailing") if isinstance(readback, dict) else None
+        if (
+            not isinstance(readback, dict)
+            or readback.get("kind") != "official_billing_readback"
+            or not isinstance(readback.get("observed_at"), str)
+            or not isinstance(trailing, dict)
+            or not isinstance(trailing.get("window_start"), str)
+        ):
+            raise ValueError("readback_kind_invalid")
+        adapter = _actual_cost_adapter()
+        records = adapter.adapt(
+            payload,
+            snapshot_at=readback["observed_at"],
+            trailing_start=trailing["window_start"],
+        )
+        if not isinstance(records, list):
+            raise ValueError("adapter_result_invalid")
+    except (OSError, TypeError, ValueError, KeyError, RevenueError):
+        unknown_reasons.add("actual_cost_readback_unavailable_or_invalid")
+
+    affiliate_records = [
+        row for row in records
+        if isinstance(row, dict) and row.get("product_loop_id") == "affiliate"
+    ]
+    coverage_rows = [
+        row for row in affiliate_records
+        if row.get("record_type") == "coverage" and row.get("projection") == "trailing"
+    ]
+    if not coverage_rows:
+        unknown_reasons.add("affiliate_actual_cost_coverage_missing")
+
+    for row in coverage_rows:
+        row_start = parse_timestamp(row.get("window_start"))
+        row_end = parse_timestamp(row.get("window_end"))
+        if (
+            row.get("coverage_state") != "complete"
+            or row_start is None or row_end is None
+            or row_start > window_start or row_end < window_end
+        ):
+            unknown_reasons.add("affiliate_actual_cost_coverage_incomplete")
+        reason = row.get("reason")
+        if isinstance(reason, str) and reason:
+            unknown_reasons.add(f"affiliate_actual_cost_source_gap:{reason}")
+        refs = row.get("evidence_refs")
+        if not isinstance(refs, list):
+            unknown_reasons.add("affiliate_actual_cost_evidence_missing")
+            continue
+        for ref in refs:
+            if isinstance(ref, str) and re.fullmatch(
+                r"lm-actual-cost://[a-z0-9][a-z0-9_-]*/readback/[0-9a-f]{64}", ref,
+            ):
+                evidence_refs.add(ref)
+            else:
+                unknown_reasons.add("affiliate_actual_cost_evidence_invalid")
+
+    ledger_path = state / "cost-ledger.jsonl"
+    existing_by_id = {
+        row["cost_id"]: row
+        for row in _json_rows(ledger_path)
+        if isinstance(row.get("cost_id"), str) and row.get("cost_id")
+    }
+
+    def same_cost_receipt(existing, current):
+        fields = (
+            "cost_id", "receipt_id", "provider", "category", "cost_basis",
+            "amount_minor", "currency", "occurred_at",
+        )
+        return all(existing.get(field) == current.get(field) for field in fields)
+
+    appended_rows = 0
+    for row in affiliate_records:
+        if row.get("record_type") != "receipt":
+            continue
+        if row.get("verification_state") != "verified":
+            unknown_reasons.add("affiliate_actual_cost_receipt_unverified")
+            continue
+        receipt_id = row.get("receipt_id")
+        provider = row.get("provider")
+        currency = _currency_code(row.get("currency"))
+        occurred_at = row.get("occurred_at")
+        refs = row.get("evidence_refs")
+        source_ref = next((
+            ref for ref in refs if isinstance(ref, str) and re.fullmatch(
+                r"lm-actual-cost://[a-z0-9][a-z0-9_-]*/readback/[0-9a-f]{64}", ref,
+            )
+        ), None) if isinstance(refs, list) else None
+        components = row.get("components")
+        if (
+            not isinstance(receipt_id, str) or not receipt_id
+            or not isinstance(provider, str) or not provider
+            or currency is None or not isinstance(occurred_at, str)
+            or parse_timestamp(occurred_at) is None
+            or source_ref is None
+            or not isinstance(components, list) or not components
+        ):
+            unknown_reasons.add("affiliate_actual_cost_receipt_invalid")
+            continue
+        evidence_refs.add(source_ref)
+        if currency != "USD":
+            unknown_reasons.add("affiliate_actual_cost_currency_unsupported")
+            continue
+        for component in components:
+            category = component.get("category") if isinstance(component, dict) else None
+            if not isinstance(category, str) or not category:
+                unknown_reasons.add("affiliate_actual_cost_component_invalid")
+                continue
+            try:
+                amount = Decimal(str(component["amount"])) * 100
+            except (KeyError, InvalidOperation, ValueError):
+                unknown_reasons.add("affiliate_actual_cost_amount_invalid")
+                continue
+            if amount < 0 or amount != amount.to_integral_value():
+                unknown_reasons.add("affiliate_actual_cost_amount_invalid")
+                continue
+            cost_row = {
+                "cost_id": f"{receipt_id}:{category}",
+                "receipt_id": receipt_id,
+                "provider": provider,
+                "category": category,
+                "cost_basis": "actual_billed",
+                "amount_minor": int(amount),
+                "currency": currency,
+                "occurred_at": occurred_at,
+                "source_ref": source_ref,
+            }
+            previous = existing_by_id.get(cost_row["cost_id"])
+            if previous is not None:
+                if not same_cost_receipt(previous, cost_row):
+                    unknown_reasons.add("affiliate_actual_cost_receipt_identity_conflict")
+                continue
+            if append_unique(ledger_path, cost_row, ("cost_id",)):
+                appended_rows += 1
+                existing_by_id[cost_row["cost_id"]] = cost_row
+            else:
+                current = next((
+                    item for item in _json_rows(ledger_path)
+                    if item.get("cost_id") == cost_row["cost_id"]
+                ), None)
+                if current is None or not same_cost_receipt(current, cost_row):
+                    unknown_reasons.add("affiliate_actual_cost_receipt_identity_conflict")
+                elif current is not None:
+                    existing_by_id[cost_row["cost_id"]] = current
+
+    coverage = {
+        "schema_version": 1,
+        "receipt_type": "AFFILIATE_COST_LEDGER_COVERAGE",
+        "coverage_state": "UNKNOWN" if unknown_reasons else "COMPLETE",
+        "window_start": start_text,
+        "window_end": end_text,
+        "source_id": "actual-cost-readback",
+        "readback_sha256": raw_digest,
+        "evidence_refs": sorted(evidence_refs),
+        "unknown_reasons": sorted(unknown_reasons),
+        "appended_rows": appended_rows,
+        "observed_at": datetime.now(timezone.utc).isoformat(),
+    }
+    atomic_write(state / "cost-ledger-coverage.json", coverage)
+    return coverage
+
+
 def build_rolling_net(state, now=None):
     """Write a fail-closed rolling net receipt from immutable economic inputs.
 
@@ -728,7 +932,13 @@ def build_rolling_net(state, now=None):
         approved_net[currency] = approved_net.get(currency, 0) + net
 
     cost_rows = _json_rows(state / "cost-ledger.jsonl")
+    cost_ledger_path = state / "cost-ledger.jsonl"
+    cost_ledger_sha256 = (
+        hashlib.sha256(cost_ledger_path.read_bytes()).hexdigest()
+        if cost_ledger_path.is_file() else None
+    )
     cost_totals = {}
+    cost_evidence_refs = set()
     invalid_cost_rows = 0
     for row in cost_rows:
         if row.get("cost_basis") != "actual_billed":
@@ -748,13 +958,25 @@ def build_rolling_net(state, now=None):
             invalid_cost_rows += 1
             continue
         cost_totals[currency] = cost_totals.get(currency, 0) + amount
+        source_ref = row.get("source_ref")
+        if isinstance(source_ref, str) and source_ref:
+            cost_evidence_refs.add(source_ref)
         if currency != "USD":
             unknown_fx_currencies.add(currency)
     coverage_path = state / "cost-ledger-coverage.json"
+    cost_coverage_sha256 = (
+        hashlib.sha256(coverage_path.read_bytes()).hexdigest()
+        if coverage_path.is_file() else None
+    )
     try:
         coverage = json.loads(coverage_path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         coverage = {}
+    if isinstance(coverage.get("evidence_refs"), list):
+        cost_evidence_refs.update(
+            ref for ref in coverage["evidence_refs"]
+            if isinstance(ref, str) and ref
+        )
     coverage_start = parse_timestamp(coverage.get("window_start"))
     coverage_end = parse_timestamp(coverage.get("window_end"))
     cost_coverage_state = (
@@ -827,6 +1049,9 @@ def build_rolling_net(state, now=None):
         "approved_or_paid_net_minor_by_currency": approved_net,
         "reversal_minor_by_currency": reversal_totals,
         "known_real_cost_minor_by_currency": cost_totals,
+        "cost_ledger_sha256": cost_ledger_sha256,
+        "cost_coverage_sha256": cost_coverage_sha256,
+        "cost_evidence_refs": sorted(cost_evidence_refs),
         "cost_state": cost_state,
         "cost_coverage_state": cost_coverage_state,
         "fx_state": fx_state,
@@ -1318,7 +1543,9 @@ def main():
     elif args.command == "ledger":
         result = build_placement_ledger(args.state.expanduser())
     else:
-        result = build_rolling_net(args.state.expanduser())
+        now = datetime.now(timezone.utc)
+        capture_actual_costs(args.state.expanduser(), now=now)
+        result = build_rolling_net(args.state.expanduser(), now=now)
     print(json.dumps(result, sort_keys=True, separators=(",", ":")))
     return 0
 
