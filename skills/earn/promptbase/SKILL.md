@@ -36,13 +36,12 @@ SKILL.md pasted as the buyer-hidden "prompt template", and a
   submit control) raises instead of guessing. Without `--confirm` it is a
   dry run that fills the whole wizard and stops at the reCAPTCHA-gated
   "ready to submit" screen (screenshot + text dump in `--evidence-dir`).
-- `scripts/readback.py` — re-reads `account?view=prompts`' rendered text and
+- `scripts/readback.py` — the default mode re-reads `account?view=prompts` and
   updates each ledger slug's status (`live` / `pending_review` / `rejected` /
-  `draft` / ...) from PromptBase's own Approved/Pending/Declined labels. The
-  text-parsing part (`parse_dashboard_cards`, `status_for_title`) is pure and
-  tested against real captured dashboard text; only the fetch is a browser
-  call. It accepts readbacks only while the browser remains on the expected
-  PromptBase account view. Sales are zero only when the official Sales page
+  `draft` / ...) from PromptBase's own labels. It waits for every tracked title
+  to render and rejects status/sort controls as cards. `--sales-only` reads only
+  the official Sales page and refreshes `promptbase-sales.json`; it does not
+  alter the listing ledger. Sales are zero only when the official Sales page
   has the Dashboard/Sales headings and an exact `No sales yet` line; a login
   redirect, challenge, or unrecognized page fails closed without writing a
   zero summary or changing listing rows.
@@ -188,7 +187,7 @@ and closes the fence from that receipt instead of leaving it stuck.
 
 The existing `lm-loop` scheduler runs `hourly_readback.sh` once per hour at
 minute 37. It borrows the registered `promptbase:dais` browser lease and calls
-`readback.py` once to refresh the official Prompts/Sales readback and private
+`readback.py --sales-only` once to refresh the official Sales page and private
 sales summary. A busy or unreachable browser skips that wake with exit 75; the
 next hourly wake retries. This loop has `effect_class: none`: it never submits
 or edits a listing and does not change the daily publisher cadence.

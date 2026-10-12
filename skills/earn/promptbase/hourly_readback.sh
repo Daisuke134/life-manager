@@ -23,5 +23,5 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM HUP
 
-log "reading official PromptBase Prompts and Sales pages"
-"$PY" "$REPO_ROOT/skills/earn/promptbase/scripts/readback.py" --endpoint "$ENDPOINT"
+log "reading the official PromptBase Sales page"
+"$PY" "$REPO_ROOT/skills/earn/promptbase/scripts/readback.py" --endpoint "$ENDPOINT" --sales-only

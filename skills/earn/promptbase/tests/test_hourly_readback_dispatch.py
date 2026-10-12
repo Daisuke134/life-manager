@@ -92,7 +92,7 @@ class HourlyReadbackDispatchTest(unittest.TestCase):
                 calls = python_log.read_text().splitlines()
                 self.assertEqual(len(calls), 1)
                 self.assertIn("readback.py", calls[0])
-                self.assertTrue(calls[0].endswith(f"--endpoint {ENDPOINT}"))
+                self.assertTrue(calls[0].endswith(f"--endpoint {ENDPOINT} --sales-only"))
                 self.assertNotIn("publish.py", calls[0])
 
 
