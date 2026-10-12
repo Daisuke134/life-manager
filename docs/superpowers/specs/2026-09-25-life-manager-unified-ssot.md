@@ -13199,6 +13199,14 @@ flowchart LR
 
 **CFO後続入口のread-only更新:** 指定worktreeのcurrent branchはdocs/cfo-b7-current-state-20261010、HEAD3f81759866540a58884f991dccf8f90262695b3e、untracked .DS_Storeのみ。旧handoverのA8.1 dirty RED状態を現在と扱わず、他者worktreeは編集しない。現在CFO ownerはloaded951bf4d4/idle、effect_unknown=true、fenceはlife-manager-cfo-hourly:18dd46d06dd2a648-41605。既存effect_reconcileをresolveなしで実行した結果はinconclusive/b7_snapshot_identity_invalid。後続は同occurrenceのB7 snapshot identity/official receipt joinを診断し、再送・blind解除をしない。既存provider-billing保存先のprovider directoriesはgoogle-cloud/anthropic、確認した保存先にComposio billはなし。unknown費用を0にしない。根拠orchestrator-cfo-current-owner-readback-20261012.json、orchestrator-cfo-fence-readonly-20261012.json。読み取りのみでsource/state/provider mutationなし。
 
+### CFO通知の親deadline修復と現在cursor
+
+目的: notifyViaLocalOutboxの30秒spawnSync timeoutが、既存shared Telegram clientの複数chunk処理を完了前に切れる契約不整合を除く。HTTP各requestは20秒timeout/最大1回retry/max retry_after30で有限、外側Life Manager finite-run timeoutは維持。呼び出し元はCFO reportとlocal polymarket/x402/yield財務記録、hosted HTTP serverには直接使われていない。親の短いtimeoutだけを除き、maxBuffer/child status検証/outbox状態/金額/receipt/fenceを保持する。過去部分配信の確定原因や既存unknown解消をこの修正だけで主張しない。
+
+source所有: 指定cfo-telegram-runtime-receipt-20261007 worktree内financial-transition-local.js/testとこのSSOTのみ。.DS_Store、他CFO worktreeのdirty spec、runtime stateは保持。旧lease情報/native lockを残して明示handoverの今回ownerへ更新済み、作業cwd processなしを確認。
+
+TODO順更新: 旧=A8.2 remaining acceptance/review/CI/main。新=A8.2 source main統合済みの照合（b85656bd78/a295da82e2、完了）→親deadlineの隔離RED/GREEN→focused関連tests/1名fresh read-only金融delivery review/CI/main→immutable自然採用と新しい自然B7検証→旧同occurrenceのofficial exact照合（解除/再送しない）→A8.3 Stripe以降の原source順/A6/A9/A10。理由: A8.2を未完のままやり直さず、全local通知に共通する部分配信生成経路を先に閉じる。iPhoneは実接続回答待ちで依存操作だけ保留。完了条件はfuture helperの完全receiptを保ち、自然B7/公式receipt/replay-zeroまで。実spawnSync regressionは変更前30.008秒でtelegram_outbox_failedのRED、親timeout削除後31.158秒で完全JSON receiptまで通るGREEN。関連6 tests PASS、duplicate replay-zero/unknown保留を維持、diff check PASS。現在cursor=source commit/push→fresh read-only review/CI/main→immutable自然採用と公式B7検証。testは送信/収益/settlementではない。
+
 **Composio固定月額の本番帰属確認完了:** 現Org Billingの一次表示はHobby/Current Plan/$0/mo、Pro $29はupgrade option、$2はcredit残高。22:06:12Zの既存authConfigs.listAuthConfigs GETはHTTP200。実requestのx-org-slug/x-project-slugがKeioDaisuke/aniccaに一致し、返却されたauth-config recordのidがRailway life-call productionのCOMPOSIO_GCAL_AUTH_CONFIGと完全一致する1件を確認。HTML出現やmasked API key末尾一致を完全一致証拠にしない。専用context回収済み、契約/決済変更なし。根拠composio-auth-config-exact-record-readback-20261012.json。現planの固定月額0 USDだけ確認済みとし、従量・InstantTools credit・billed・cash paid・過去請求・総費用/netを0へ置換しない。
 
 **Cloud自然計測の現在境界:** marketing-metrics-daily occurrence18dd98986c7a4db8-34264はloaded6f25bb2eで22:00:11Zにexit75/host_admission_deferred:resource_capacity_busy、effect not_applicable、unknown=false。ENOSPCやcollector実行失敗を示さず、この初回実行ではCloud自然snapshot未取得。後続の自動再開/snapshot完了は下記を参照する。手動wakeを自然実行の証拠にしない。
