@@ -1,0 +1,69 @@
+{
+  "observed_at": "2026-10-12T05:26:19Z",
+  "product_id": "anicca-ios",
+  "source_method": "Read-only public profile HTML and official help pages via crwl/scrapy; campaign URLs generated from the repository helper.",
+  "apple_campaign_link_rules": {
+    "provider_token": "93486075",
+    "campaign_token_field": "ct",
+    "campaign_token_max_characters": 30,
+    "source_verified_at": "2026-10-12T05:32:24Z",
+    "first_time_download_attribution_window_hours": 24,
+    "minimum_visible_metric_threshold": 5,
+    "storefront_behavior": "Apple redirects campaign links to the viewer's local storefront.",
+    "source": "https://developer.apple.com/help/app-store-connect-analytics/acquisition/campaign-links/"
+  },
+  "profiles": [
+    {
+      "platform": "instagram",
+      "handle": "@anicca.en",
+      "profile_url": "https://www.instagram.com/anicca.en/",
+      "bio_snapshot": "Personalized self care. Available on App Store",
+      "current_public_link": "https://aniccaai.com/app",
+      "current_link_has_campaign_parameters": false,
+      "app_store_campaign_token": "anicca-ios_ig_anicca-en_en",
+      "generated_campaign_url": "https://apps.apple.com/app/id6755129214?pt=93486075&ct=anicca-ios_ig_anicca-en_en&mt=8",
+      "profile_mutation_performed": false,
+      "mutation_status": "pending_verified_account_owner_mapping"
+    },
+    {
+      "platform": "tiktok",
+      "handle": "@aniccaaffirmation",
+      "profile_url": "https://www.tiktok.com/@aniccaaffirmation",
+      "followers_snapshot": 136,
+      "likes_snapshot": "16.3K",
+      "bio_snapshot": "Looking for some daily affirmations😇 Search Anicca on App Store.",
+      "external_website_link_observed": false,
+      "app_store_campaign_token": "anicca-ios_tt_aniccaaff_en",
+      "generated_campaign_url_for_when_website_link_is_available": "https://apps.apple.com/app/id6755129214?pt=93486075&ct=anicca-ios_tt_aniccaaff_en&mt=8",
+      "website_link_eligibility": "unknown; TikTok Help says 1,000 followers or a Registered Business Account",
+      "policy_source": "https://support.tiktok.com/en/getting-started/setting-up-your-profile/linking-another-social-media-account?r_done=1",
+      "profile_mutation_performed": false
+    },
+    {
+      "platform": "youtube",
+      "handle": "@anicca-ai",
+      "profile_url": "https://www.youtube.com/@anicca-ai",
+      "subscribers_snapshot": 21,
+      "app_store_campaign_token": "anicca-ios_youtube_en",
+      "current_public_link": "https://apps.apple.com/app/id6755129214?pt=93486075&ct=anicca-ios_youtube_en&mt=8",
+      "campaign_link_readback": "verified_in_channel_sameAs_metadata",
+      "profile_mutation_performed": false
+    }
+  ],
+  "creative_campaign_assignments": [
+    {
+      "creative_id": "anicca-en-weekly-reset-carousel-v1",
+      "campaign_token": "anicca-ios_ig_anicca-en_en"
+    },
+    {
+      "creative_id": "anicca-en-gentle-reset-text-video-v1",
+      "campaign_token": "anicca-ios_ig_anicca-en_en"
+    }
+  ],
+  "owner_and_effect_boundary": {
+    "instagram_credential_service_identifies_anicca_en": false,
+    "browser_registry_has_anicca_instagram_identity": false,
+    "public_profile_or_post_was_changed": false,
+    "natural_new_post_receipt_readback": false
+  }
+}

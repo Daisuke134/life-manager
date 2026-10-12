@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1920" viewBox="0 0 1080 1920">
+<defs>
+ <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#F7F1E8"/><stop offset="1" stop-color="#FBF9F4"/></linearGradient>
+ <radialGradient id="peach"><stop stop-color="#EBD1C3" stop-opacity=".92"/><stop offset="1" stop-color="#EBD1C3" stop-opacity="0"/></radialGradient>
+ <radialGradient id="sage"><stop stop-color="#C8D8CC" stop-opacity=".82"/><stop offset="1" stop-color="#C8D8CC" stop-opacity="0"/></radialGradient>
+ <style>
+ .brand{font:700 26px -apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;letter-spacing:5px;fill:#29483D}
+ .meta{font:700 20px -apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;letter-spacing:3px;fill:#668174}
+ .quote{font:700 92px Georgia,'Times New Roman',serif;fill:#213B32}
+ .sub{font:600 27px -apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;letter-spacing:2px;fill:#668174}
+ .small{font:500 23px -apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;letter-spacing:2px;fill:#668174}
+ </style>
+</defs>
+<rect width="1080" height="1920" fill="url(#bg)"/>
+<ellipse cx="900" cy="350" rx="440" ry="420" fill="url(#peach)"/>
+<ellipse cx="125" cy="1440" rx="400" ry="390" fill="url(#sage)"/>
+<path d="M0 1330 C230 1220 410 1390 650 1298 C820 1232 953 1217 1080 1260 L1080 1920 L0 1920Z" fill="#FFFFFF" opacity=".38"/>
+<circle cx="540" cy="172" r="23" fill="#29483D"/><circle cx="540" cy="172" r="8" fill="#F7F1E8"/>
+<text x="540" y="235" text-anchor="middle" class="brand">ANICCA</text>
+<text x="540" y="490" text-anchor="middle" class="meta">A GENTLER RESET</text>
+<text x="540" y="850" text-anchor="middle" class="quote"><tspan x="540" dy="0em">I can move at</tspan><tspan x="540" dy="1.12em">my own pace.</tspan></text>
+
+<line x1="390" y1="1170" x2="690" y2="1170" stroke="#29483D" stroke-opacity=".2" stroke-width="2"/>
+<circle cx="486" cy="1230" r="8" fill="#29483D"/><circle cx="540" cy="1230" r="8" fill="#B9C5BE"/><circle cx="594" cy="1230" r="8" fill="#B9C5BE"/>
+<text x="540" y="1645" text-anchor="middle" class="small">DAILY AFFIRMATIONS</text>
+</svg>
