@@ -97,13 +97,14 @@ def occurrence_started_at(occurrence_id: str, events_path: Path | None = None) -
                 continue
             value = event.get("timestamp")
             if not isinstance(value, str):
-                continue
+                raise ValueError("occurrence execute-start timestamp missing or malformed")
             try:
                 timestamp = dt.datetime.fromisoformat(value.replace("Z", "+00:00"))
-            except ValueError:
-                continue
-            if timestamp.tzinfo is not None:
-                starts.append(timestamp.astimezone(dt.timezone.utc))
+            except ValueError as exc:
+                raise ValueError("occurrence execute-start timestamp is malformed") from exc
+            if timestamp.tzinfo is None:
+                raise ValueError("occurrence execute-start timestamp has no timezone")
+            starts.append(timestamp.astimezone(dt.timezone.utc))
     if len(starts) != 1:
         raise ValueError("occurrence execute-start event missing or ambiguous")
     return starts[0]

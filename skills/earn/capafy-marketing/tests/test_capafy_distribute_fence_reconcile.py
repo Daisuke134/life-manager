@@ -88,6 +88,29 @@ def test_occurrence_start_rejects_mismatched_owner_or_run_id(tmp_path):
         raise AssertionError(f"mismatched owner/run identity accepted: {owner_id}/{run_id}")
 
 
+def test_occurrence_start_rejects_matching_event_with_malformed_timestamp(tmp_path):
+    occurrence_id = "capafy-distribute-daily:delayed-attempt"
+    started = Q + dt.timedelta(hours=4)
+    identity = {
+        "owner_id": rec.OWNER_ID,
+        "run_id": "delayed-attempt",
+        "occurrence_id": occurrence_id,
+        "phase": "execute",
+        "status": "running",
+    }
+    events = tmp_path / "events.jsonl"
+    events.write_text(
+        json.dumps({**identity, "timestamp": started.isoformat()}) + "\n"
+        + json.dumps({**identity, "timestamp": "not-a-timestamp"}) + "\n"
+    )
+
+    try:
+        rec.occurrence_started_at(occurrence_id, events)
+    except ValueError:
+        return
+    raise AssertionError("malformed duplicate execute-start event was ignored")
+
+
 def test_reconcile_search_window_starts_at_occurrence_execution(tmp_path, monkeypatch):
     queued = Q
     started = queued + dt.timedelta(hours=4)

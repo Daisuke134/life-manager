@@ -15907,4 +15907,10 @@ T0の今回readbackは記録済み。first-paid条件とtrue MRRは未達/unknow
 
 **安全境界:** 同じoccurrenceの`--resolve`やdistribution再送を実行しない。既にreleasedのrowをSQLiteや別経路から手動で再度fence/resolveしない。該当slotの正確なCapafy URL、GitHub commit、X integrationをoccurrence startとslotに結び付けたreadbackだけを記録する。今後のadapterはexecute-start eventの`owner_id=capafy-distribute-daily`と`run_id`がoccurrence ID末尾に一致することも検査し、別owner/run/slug/slotの公開物ではeffect proofを作らない。
 
+**T1 exact-slot partial readback:** `crwl`は対象URL `https://aniccaai.com/blog/capafy-marketing-strategist-2026-10-12-h23m30` に2026-10-13 00:21 JST時点でHTTP 404を返した。GitHub `Daisuke134/anicca-products` のfresh `origin/main` SHA `896a88d6f39168e6f9e23e6a9048dff627bedffe`を00:25 JSTに調べ、occurrence window内の対象slugを含むcommit subjectは0件。これはwindow途中の部分読取でno-effect proofではない。windowは01:00:19 JSTに終わり、no-effect判定可能時刻は01:15:19 JST。X listingはtokenを手動参照せず、registered adapterの範囲に保つ。
+
+**T1 fresh adversarial finding (00:26 JST):** matching owner/run/occurrence/phase/statusのexecute-start eventが複数あり、1件のtimestampだけmalformedの場合、現実装がmalformed rowを捨てて残る1件で続行する反例を検出。次は同一identityのvalid+malformedイベントを使う失敗testを追加し、どのmatching eventでもtimestampがmissing/malformedならfail-closedにする。
+
 **ソースcursor:** branch `fix/capafy-distribute-fence-binding-20261013` のworktreeにはadapter・focused tests・このSSOTの未push差分がある。source fixは未merge・未release。latest `origin/main`は`4592b650de92c1cdde95d350290de70784ff459e`で、worktree base `d946575593582650dc254180f4b001bd93f206f7`より5 commits先行。次は仕様acceptanceへowner/run IDを加えた失敗テストを先に確認し、既存変更へ最小追加する。PR/main/release後は、対象URL/slugの直接provider readbackと次の自然distributionを別々に追う。`lm-loop status`の`effect_status=reconciled`はこの外部効果の証明にしない。
+
+**現在cursor (2026-10-13 00:28 JST):** branchは最新main `4592b650de92c1cdde95d350290de70784ff459e`上へrebase済み。commit `707b04869c`にoccurrence owner/run/slot照合を記録済み。fresh adversarial verifierが見つけた「同一identityにvalid+malformed timestampの開始eventが混在すると続行する」穴は、失敗testを先に確認してから最小修正し、focused suite 12件PASS・source-boundary PASS。現在はその追補3ファイルが未commitで、branchにPRなし。次はその差分をcommit/pushし、fresh verifierの再確認とexact-head CI後にPRをmainへ統合する。誤ってreleasedになった過去occurrenceはeffect unknownのまま扱い、直接公開readbackが揃うまで再投稿しない。次のCapafy TODOはまだT1で、T2へ進まない。
