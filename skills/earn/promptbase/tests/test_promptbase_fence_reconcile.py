@@ -18,6 +18,8 @@ import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 MODULE_PATH = Path(__file__).resolve().parents[1] / "scripts" / "promptbase_fence_reconcile.py"
 _spec = importlib.util.spec_from_file_location("promptbase_fence_reconcile", MODULE_PATH)
@@ -279,6 +281,112 @@ exit 9
     assert call_log.read_text(encoding="utf-8").splitlines() == [
         "acquire promptbase:dais",
     ]
+
+
+def test_dashboard_login_redirect_is_inconclusive(tmp_path):
+    guard = tmp_path / "browser-guard"
+    guard.write_text(
+        """#!/bin/sh
+if [ "$1" = acquire ]; then printf '%s\\n' 'http://127.0.0.1:9222'; fi
+exit 0
+""",
+        encoding="utf-8",
+    )
+    guard.chmod(0o700)
+
+    class FakeResponse:
+        status = 200
+
+    class FakePage:
+        url = "about:blank"
+
+        def goto(self, _url, **_kwargs):
+            self.url = "https://promptbase.com/login?view=login"
+            return FakeResponse()
+
+        def wait_for_timeout(self, _milliseconds):
+            pass
+
+        def inner_text(self, _selector):
+            return "PromptBase\nLogin\nEmail\nPassword"
+
+        def close(self):
+            pass
+
+    page = FakePage()
+    browser = SimpleNamespace(contexts=[SimpleNamespace(new_page=lambda: page)])
+    fake_playwright = SimpleNamespace(
+        chromium=SimpleNamespace(connect_over_cdp=lambda _endpoint: browser),
+    )
+
+    class FakeManager:
+        def __enter__(self):
+            return fake_playwright
+
+        def __exit__(self, *_args):
+            return False
+
+    import playwright.sync_api
+    with patch.object(playwright.sync_api, "sync_playwright", lambda: FakeManager()):
+        result = reconciler.read_dashboard_text(browser_guard=guard)
+
+    assert result == {"ok": False, "reason": "promptbase_dashboard_readback_unverified"}
+
+
+def test_dashboard_challenge_on_account_url_is_inconclusive(tmp_path):
+    guard = tmp_path / "browser-guard"
+    guard.write_text(
+        """#!/bin/sh
+if [ "$1" = acquire ]; then printf '%s\\n' 'http://127.0.0.1:9222'; fi
+exit 0
+""",
+        encoding="utf-8",
+    )
+    guard.chmod(0o700)
+
+    class FakeResponse:
+        status = 200
+
+    class FakePage:
+        url = "about:blank"
+
+        def goto(self, url, **_kwargs):
+            self.url = url
+            return FakeResponse()
+
+        def wait_for_timeout(self, _milliseconds):
+            pass
+
+        def inner_text(self, _selector):
+            return """PromptBase
+Dashboard
+Prompts
+Approved
+Hook Lab Win The First 3 Seconds
+Security verification
+Verify you are human"""
+
+        def close(self):
+            pass
+
+    page = FakePage()
+    browser = SimpleNamespace(contexts=[SimpleNamespace(new_page=lambda: page)])
+    fake_playwright = SimpleNamespace(
+        chromium=SimpleNamespace(connect_over_cdp=lambda _endpoint: browser),
+    )
+
+    class FakeManager:
+        def __enter__(self):
+            return fake_playwright
+
+        def __exit__(self, *_args):
+            return False
+
+    import playwright.sync_api
+    with patch.object(playwright.sync_api, "sync_playwright", lambda: FakeManager()):
+        result = reconciler.read_dashboard_text(browser_guard=guard)
+
+    assert result == {"ok": False, "reason": "promptbase_dashboard_readback_unverified"}
 
 
 def test_dashboard_read_failure_stays_fenced_inconclusive():

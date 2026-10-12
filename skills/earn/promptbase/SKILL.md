@@ -41,7 +41,11 @@ SKILL.md pasted as the buyer-hidden "prompt template", and a
   `draft` / ...) from PromptBase's own Approved/Pending/Declined labels. The
   text-parsing part (`parse_dashboard_cards`, `status_for_title`) is pure and
   tested against real captured dashboard text; only the fetch is a browser
-  call.
+  call. It accepts readbacks only while the browser remains on the expected
+  PromptBase account view. Sales are zero only when the official Sales page
+  has the Dashboard/Sales headings and an exact `No sales yet` line; a login
+  redirect, challenge, or unrecognized page fails closed without writing a
+  zero summary or changing listing rows.
 - `scripts/select_next.py` — pure selection logic: given the catalog's
   `LISTING.md` titles, the authoritative Capafy `publish-list` agents, and the
   ledger, picks the next slug that is online on Capafy and not already
@@ -54,7 +58,8 @@ SKILL.md pasted as the buyer-hidden "prompt template", and a
   `effect_unknown` admission fence from the PromptBase seller dashboard (the
   only official readback there is, since PromptBase has no API) once
   `daily.sh`'s pre-submit snapshot names a slug/title and enough time has
-  passed.
+  passed. A login redirect, challenge, or unrecognized page is inconclusive
+  and leaves the fence held; page content alone never proves no effect.
 - `daily.sh` — the loop entrypoint. See "Daily loop" below.
 - `tests/` — `build_listing`, `ledger`, `select_next`, `readback`-parsing,
   and `promptbase_fence_reconcile` tests, no browser required
