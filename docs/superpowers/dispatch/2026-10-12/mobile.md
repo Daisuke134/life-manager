@@ -12,7 +12,7 @@
 
 現状cursor:
 - ASC acquisition snapshot: report 2026-10-12、対象期間2026-10-08〜11のAnicca first-time downloads 2、impressions 19、product-page views 0、campaign attribution未設定。RevenueCat local snapshotでは購読/proceedsは`unavailable`で、0とは扱わない。
-- 2026-10-12 publication ledger: 38 PUBLISHED provider IDs（35 production、3 canary）、17件は直接URLなし。TikTokの481 viewsは単一投稿の24時間値で、install数ではない。
+- 2026-10-12 publication ledger: 38 PUBLISHED provider IDs（35 production、3 canary）、17件は直接URLなし。公開日のdaily snapshotは9件で、`@anicca.en`は1件1,470 views/1,088 reach/3 likes/0 saves、`@anicca.jp.videos`は3件合計382 views/335 reach/2 likes/0 saves、`@anicca.affirmation`は3件とも0 views。TikTokの481 viewsは別の単一投稿の24時間値で、install数ではない。
 - PR #7828のsource fixはmain commit 21c8f025に統合、関連テスト20/20 PASS。productionのTikTok metrics ownerは旧SHA 6455356147c460e226aef3308e07a5fdf7c5711eのまま。read-only `pre-effect-reconcile --dry-run`は67件を未解決（66 `no_pre_effect_terminal`、1 `history_incomplete`）とし、TikTok/Instagram metrics ownerに`effect_reconcile` adapterがない。再送・fence解除は禁止。
 - host disk freeはrelease reserve 2.389GB未満。fail-closed cleanupは小さなcacheだけを回収し、大きな候補はopen/protected。production releaseはheadroom回復後に行う。
 
