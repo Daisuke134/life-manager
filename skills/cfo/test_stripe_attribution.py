@@ -578,6 +578,42 @@ class StripeAttributionTest(unittest.TestCase):
                     "stripe://charges/ch_external_jpy", trailing["evidence_refs"]
                 )
 
+    def test_complete_unclassified_canceled_subscriptions_prove_current_zero_only(self):
+        value = payloads()
+        for row in value["subscriptions"]["data"]:
+            row["status"] = "canceled"
+            row["metadata"] = {}
+        rows = adapt(value)
+        as_of = next(row for row in rows
+                     if row["record_type"] == "coverage" and row["projection"] == "as_of")
+        self.assertEqual((as_of["coverage_state"], as_of["reason"]), ("complete", None))
+        self.assertEqual(as_of["covered_categories"], ["mrr"])
+        self.assertFalse(any(row["record_type"] == "subscription_snapshot" for row in rows))
+        next(row for row in value["charges"]["data"] if row["id"] == "ch_external_usd")["metadata"] = {}
+        historical = next(row for row in adapt(value)
+                          if row["record_type"] == "coverage" and row["projection"] == "historical")
+        self.assertEqual((historical["coverage_state"], historical["reason"]),
+                         ("gap", "unverified_receipt"))
+
+    def test_unclassified_canceled_zero_requires_valid_complete_live_readback(self):
+        changes = ({"status": "active"}, {"status": "unknown"},
+                   {"livemode": None}, {"currency": "invalid!"}, {"metadata": None})
+        for changeset in changes:
+            with self.subTest(changeset=changeset):
+                value = payloads()
+                value["subscriptions"]["data"] = [copy.deepcopy(value["subscriptions"]["data"][0])]
+                row = value["subscriptions"]["data"][0]
+                row.update(status="canceled", metadata={})
+                row.update(changeset)
+                as_of = next(r for r in adapt(value)
+                             if r["record_type"] == "coverage" and r["projection"] == "as_of")
+                self.assertEqual(as_of["coverage_state"], "gap")
+        value = payloads()
+        value["subscriptions"]["has_more"] = True
+        as_of = next(r for r in adapt(value)
+                     if r["record_type"] == "coverage" and r["projection"] == "as_of")
+        self.assertEqual((as_of["coverage_state"], as_of["reason"]), ("gap", "read_failed"))
+
     def test_subscription_requires_trusted_external_economic_class(self):
         for classification in (None, "self_payment", "unknown_classification"):
             with self.subTest(classification=classification):

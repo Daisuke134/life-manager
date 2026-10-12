@@ -823,6 +823,11 @@ def adapt(payloads: dict, *, product_loop_id: str, observed_at: str,
                 row, product_loop_id, observed_at, default_economic_category,
             )
             if snapshot is None:
+                # A verified canceled subscription cannot contribute current MRR, regardless of ownership.
+                if (row.get("object") == "subscription" and row.get("status") == "canceled"
+                        and _currency(row.get("currency")) is not None
+                        and row.get("livemode") is True and isinstance(row.get("metadata"), dict)):
+                    continue
                 subscription_refs.append(_evidence("subscriptions", subscription_id))
             else:
                 records.append(snapshot)
