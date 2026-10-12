@@ -18,10 +18,6 @@ from effect_store import UNRESOLVED_INTENT_STATUSES
 
 OWNER_ID = "alpaca-investment-paper"
 STRATEGY_ID = "alpaca-etf-126d-momentum-v1"
-INVESTMENT_PRODUCT_LOOP_ID = "investment"
-MODEL_SYSTEM_COST_CATEGORIES = frozenset({
-    "model_cost", "tool_cost", "browser_cost", "infra_cost",
-})
 BROKER_TERMINAL_FAILURE_STATUSES = frozenset({
     "canceled", "done_for_day", "expired", "rejected", "stopped", "suspended",
 })
@@ -430,129 +426,6 @@ def _broker_cost_summary(
     }
 
 
-def _model_system_cost_summary(
-    completed: Sequence[Mapping[str, Any]], evidence: Any, observed_at: Any,
-    read_error: str | None = None,
-) -> dict[str, Any]:
-    """Join verified USD actual-cost receipts to the closed investment period."""
-    unknown = {
-        "model_system_costs_status": "unknown",
-        "model_system_costs_reason": "actual_cost_receipt_missing",
-        "model_cost_usd": None,
-        "system_cost_usd": None,
-        "model_system_cost_source_receipt_ids": [],
-    }
-    if read_error is not None:
-        return {**unknown, "model_system_costs_reason": read_error}
-    if (not completed or not isinstance(evidence, Sequence)
-            or isinstance(evidence, (str, bytes))):
-        return unknown
-    try:
-        period_start = min(_timestamp(item.get("period_start")) for item in completed)
-        period_end = max(_timestamp(item.get("closed_at")) for item in completed)
-        snapshot_at = _timestamp(observed_at)
-        if period_start >= period_end or snapshot_at < period_end:
-            raise ValueError("actual_cost_period_invalid")
-
-        coverage = [
-            row for row in evidence
-            if isinstance(row, Mapping)
-            and row.get("record_type") == "coverage"
-            and row.get("product_loop_id") == INVESTMENT_PRODUCT_LOOP_ID
-            and row.get("projection") == "trailing"
-        ]
-        if not coverage:
-            raise ValueError("actual_cost_coverage_missing")
-        covered_categories: set[str] = set()
-        coverage_sources: set[str] = set()
-        coverage_receipts: list[str] = []
-        for row in coverage:
-            source_id = row.get("source_id")
-            categories = row.get("covered_categories")
-            evidence_refs = row.get("evidence_refs")
-            window_start = _timestamp(row.get("window_start"))
-            window_end = _timestamp(row.get("window_end"))
-            coverage_observed_at = _timestamp(row.get("observed_at"))
-            if (row.get("coverage_state") != "complete"
-                    or not isinstance(source_id, str)
-                    or not source_id.startswith("actual-cost-")
-                    or source_id in coverage_sources
-                    or not isinstance(categories, list)
-                    or any(not isinstance(item, str) for item in categories)
-                    or not isinstance(evidence_refs, list) or not evidence_refs
-                    or any(not isinstance(item, str) or not item for item in evidence_refs)
-                    or window_start > period_start or window_end < period_end
-                    or coverage_observed_at < period_end
-                    or coverage_observed_at > snapshot_at):
-                raise ValueError("actual_cost_coverage_incomplete")
-            coverage_sources.add(source_id)
-            covered_categories.update(categories)
-            coverage_receipts.extend(evidence_refs)
-        if not MODEL_SYSTEM_COST_CATEGORIES <= covered_categories:
-            raise ValueError("actual_cost_categories_incomplete")
-
-        model_total = Decimal("0")
-        system_total = Decimal("0")
-        receipt_ids: list[str] = []
-        seen_receipt_ids: set[str] = set()
-        for row in evidence:
-            if not isinstance(row, Mapping) or row.get("product_loop_id") != INVESTMENT_PRODUCT_LOOP_ID:
-                continue
-            if row.get("record_type") != "receipt":
-                continue
-            receipt_id = row.get("receipt_id")
-            occurred_at = _timestamp(row.get("occurred_at"))
-            settled_at = _timestamp(row.get("settled_at"))
-            components = row.get("components")
-            evidence_refs = row.get("evidence_refs")
-            if (not isinstance(receipt_id, str) or not receipt_id
-                    or receipt_id in seen_receipt_ids
-                    or row.get("verification_state") != "verified"
-                    or row.get("currency") != "USD"
-                    or settled_at < occurred_at or settled_at > snapshot_at
-                    or not isinstance(components, list) or not components
-                    or not isinstance(evidence_refs, list) or not evidence_refs
-                    or any(not isinstance(item, str) or not item for item in evidence_refs)):
-                raise ValueError("actual_cost_receipt_invalid")
-            seen_receipt_ids.add(receipt_id)
-            amounts: list[tuple[str, Decimal]] = []
-            for component in components:
-                if not isinstance(component, Mapping):
-                    raise ValueError("actual_cost_receipt_invalid")
-                category = component.get("category")
-                amount = _number(component.get("amount"), positive=True)
-                if category not in MODEL_SYSTEM_COST_CATEGORIES:
-                    raise ValueError("actual_cost_receipt_invalid")
-                amounts.append((category, amount))
-            if period_start <= occurred_at <= period_end:
-                for category, amount in amounts:
-                    if category == "model_cost":
-                        model_total += amount
-                    else:
-                        system_total += amount
-                receipt_ids.extend([receipt_id, *evidence_refs])
-
-        def money_text(amount: Decimal) -> str:
-            value = format(amount, "f")
-            return value.rstrip("0").rstrip(".") if "." in value else value
-
-        source_ids = list(dict.fromkeys([*coverage_receipts, *receipt_ids]))
-        if not source_ids:
-            raise ValueError("actual_cost_evidence_missing")
-        return {
-            "model_system_costs_status": "complete",
-            "model_system_costs_reason": None,
-            "model_cost_usd": money_text(model_total),
-            "system_cost_usd": money_text(system_total),
-            "model_system_cost_source_receipt_ids": source_ids,
-        }
-    except (ArithmeticError, KeyError, TypeError, ValueError) as error:
-        reason = str(error)
-        if not reason.isascii() or not reason.replace("_", "").isalnum():
-            reason = "actual_cost_receipt_invalid"
-        return {**unknown, "model_system_costs_reason": reason}
-
-
 def build_paper_performance(
     rows: Any,
     observation: Mapping[str, Any],
@@ -753,7 +626,6 @@ def write_paper_performance(
     risk: Mapping[str, Any],
     *,
     broker_cost_reader: Callable[..., Mapping[str, Any]] | None = None,
-    model_system_cost_reader: Callable[..., Sequence[Mapping[str, Any]]] | None = None,
 ) -> dict[str, Any]:
     """Persist only a closed paper measurement; never turn missing costs into zero."""
     state = Path(state_dir)
@@ -796,40 +668,6 @@ def write_paper_performance(
         ]
         daily_broker_costs = _broker_cost_summary(daily_rounds, daily_cost_evidence)
         daily_cost_source_ids = daily_broker_costs["broker_cost_source_receipt_ids"]
-        daily_period_start = min(
-            (item["period_start"] for item in daily_rounds
-             if isinstance(item.get("period_start"), str)),
-            default=None,
-        )
-        daily_period_end = max(
-            (item["closed_at"] for item in daily_rounds
-             if isinstance(item.get("closed_at"), str)),
-            default=None,
-        )
-        model_system_evidence = None
-        model_system_read_error = None
-        if isinstance(model_system_cost_reader, Callable) and daily_period_start and daily_period_end:
-            try:
-                model_system_evidence = model_system_cost_reader(
-                    period_start=daily_period_start, period_end=daily_period_end,
-                    observed_at=observed_at,
-                )
-            except ValueError as error:
-                reason = str(error)
-                model_system_read_error = (
-                    reason if reason.isascii() and reason.replace("_", "").isalnum()
-                    else "actual_cost_readback_failed"
-                )
-            except Exception:
-                model_system_read_error = "actual_cost_readback_failed"
-        elif not isinstance(model_system_cost_reader, Callable):
-            model_system_read_error = "actual_cost_reader_unavailable"
-        daily_model_system_costs = _model_system_cost_summary(
-            daily_rounds, model_system_evidence, observed_at, model_system_read_error,
-        )
-        daily_model_system_source_ids = daily_model_system_costs[
-            "model_system_cost_source_receipt_ids"
-        ]
         daily_cost_errors = [
             row for row in cost_errors if tuple(sorted(row.get("order_ids", []))) in daily_order_ids
         ]
@@ -837,33 +675,13 @@ def write_paper_performance(
             *[receipt_id for item in daily_rounds for receipt_id in item.get("source_receipt_ids", [])],
             account_receipt_id,
             *daily_cost_source_ids,
-            *daily_model_system_source_ids,
         ]
-        broker_costs_complete = daily_broker_costs["broker_costs_status"] == "complete"
-        model_system_costs_complete = (
-            daily_model_system_costs["model_system_costs_status"] == "complete"
-        )
-        unknown_costs = ([] if model_system_costs_complete else ["model", "system"])
-        if not broker_costs_complete:
-            unknown_costs = ["fees", "slippage", *unknown_costs]
-        net_realized = None
-        if broker_costs_complete and model_system_costs_complete:
-            net_realized = str(
-                daily_gross
-                - Decimal(daily_broker_costs["fees_usd"])
-                - Decimal(daily_model_system_costs["model_cost_usd"])
-                - Decimal(daily_model_system_costs["system_cost_usd"])
-            )
-        costs_status = (
-            "complete" if broker_costs_complete and model_system_costs_complete
-            else "partial" if broker_costs_complete or model_system_costs_complete
-            else "unknown"
-        )
-        measurement_status = (
-            "complete" if broker_costs_complete and model_system_costs_complete else "partial"
-        )
+        unknown_costs = (["model", "system"]
+                         if daily_broker_costs["broker_costs_status"] == "complete"
+                         else ["fees", "slippage", "model", "system"])
         result = {
             **result,
+            "broker_costs_status": daily_broker_costs["broker_costs_status"],
             "broker_costs_reason": (
                 daily_cost_errors[0]["reason"] if daily_cost_errors
                 else daily_broker_costs["broker_costs_reason"]
@@ -872,24 +690,18 @@ def write_paper_performance(
             "broker_costs_errors": daily_cost_errors,
             "completed_round_trips": len(daily_rounds),
             "completed_round_trips_total": len(completed),
-            "costs_status": costs_status,
+            "costs_status": ("partial" if daily_broker_costs["broker_costs_status"] == "complete"
+                             else "unknown"),
             "fees_usd": daily_broker_costs["fees_usd"],
             "gross_exposure_usd": str(daily_exposure),
             "gross_strategy_pnl_usd": str(daily_gross),
             "gross_strategy_pnl_total_usd": result.get("gross_strategy_pnl_usd"),
-            "measurement_status": measurement_status,
-            "model_cost_usd": daily_model_system_costs["model_cost_usd"],
-            "model_system_costs_reason": daily_model_system_costs["model_system_costs_reason"],
-            "model_system_costs_status": daily_model_system_costs["model_system_costs_status"],
-            "model_system_cost_source_receipt_ids": daily_model_system_source_ids,
-            "net_realized_pnl_usd": net_realized,
-            "reason": None if measurement_status == "complete" else "paper_costs_unknown",
+            "net_realized_pnl_usd": None,
             "reported_order_receipt_ids": cumulative_order_ids,
             "report_scope": "daily_accumulation",
             "performance_day": observation_day,
             "slippage_usd": daily_broker_costs["slippage_usd"],
             "source_receipt_ids": list(dict.fromkeys(daily_source_ids)),
-            "system_cost_usd": daily_model_system_costs["system_cost_usd"],
             "unknown_cost_categories": unknown_costs,
         }
         _atomic_json(state / f"performance-daily-{observation_day}.json", result)

@@ -6,7 +6,6 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import Mock
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
@@ -179,45 +178,6 @@ def _broker_cost_evidence() -> dict:
             "alpaca-quote:fill-exit:2026-10-20T14:31:00Z",
         ],
     }
-
-
-def _model_system_cost_evidence() -> list[dict]:
-    evidence_ref = "lm-actual-cost://openai/readback/test-digest"
-    rows = [{
-        "schema_version": "lm.cfo.economic-attribution.v1",
-        "record_type": "coverage",
-        "product_loop_id": "investment",
-        "source_id": "actual-cost-openai",
-        "projection": "trailing",
-        "window_start": "2026-09-24T00:00:00Z",
-        "window_end": "2026-10-20T14:31:10Z",
-        "coverage_state": "complete",
-        "reason": None,
-        "covered_categories": ["model_cost", "tool_cost", "browser_cost", "infra_cost"],
-        "observed_at": "2026-10-20T14:31:10Z",
-        "evidence_refs": [evidence_ref],
-    }]
-    for receipt_id, category, amount in (
-        ("openai-model-receipt", "model_cost", "0.02"),
-        ("openai-tool-receipt", "tool_cost", "0.01"),
-        ("openai-browser-receipt", "browser_cost", "0.005"),
-        ("openai-infra-receipt", "infra_cost", "0.002"),
-    ):
-        rows.append({
-            "schema_version": "lm.cfo.economic-attribution.v1",
-            "record_type": "receipt",
-            "receipt_id": receipt_id,
-            "product_loop_id": "investment",
-            "provider": "openai",
-            "currency": "USD",
-            "occurred_at": "2026-10-20T14:31:05Z",
-            "settled_at": "2026-10-20T14:31:08Z",
-            "verification_state": "verified",
-            "revenue_class": None,
-            "evidence_refs": [evidence_ref],
-            "components": [{"category": category, "amount": amount}],
-        })
-    return rows
 
 
 class PaperPerformanceTests(unittest.TestCase):
@@ -457,10 +417,6 @@ class PaperPerformanceTests(unittest.TestCase):
         self.assertEqual(reader.call_count, 1)
         self.assertEqual(first["fees_usd"], "0.01")
         self.assertEqual(second["fees_usd"], "0.01")
-        self.assertIsNone(first["model_cost_usd"])
-        self.assertIsNone(first["system_cost_usd"])
-        self.assertIsNone(first["net_realized_pnl_usd"])
-        self.assertEqual(first["model_system_costs_reason"], "actual_cost_reader_unavailable")
 
     def test_daily_writer_joins_only_cost_receipts_for_trips_closed_that_day(self):
         def reader(*, orders, period_start):
@@ -521,52 +477,6 @@ class PaperPerformanceTests(unittest.TestCase):
         self.assertEqual(result["fees_usd"], "0.01")
         self.assertEqual(result["broker_cost_source_receipt_ids"][0], "current-buy-fill")
         self.assertNotIn("prior-buy-fill", result["broker_cost_source_receipt_ids"])
-
-    def test_writer_reports_net_only_with_complete_same_period_official_loop_costs(self):
-        model_system_reader = Mock(return_value=_model_system_cost_evidence())
-        with tempfile.TemporaryDirectory() as directory:
-            state = Path(directory)
-            (state / "receipts.jsonl").write_text(
-                "".join(json.dumps(row) + "\n" for row in _rows()), encoding="utf-8",
-            )
-            result = write_paper_performance(
-                state, OBSERVATION, RISK,
-                broker_cost_reader=Mock(return_value=_broker_cost_evidence()),
-                model_system_cost_reader=model_system_reader,
-            )
-
-        self.assertEqual(model_system_reader.call_args.kwargs, {
-            "period_start": "2026-09-29T14:30:00Z",
-            "period_end": "2026-10-20T14:31:05+00:00",
-            "observed_at": OBSERVATION["clock"]["observed_at"],
-        })
-        self.assertEqual(result["model_system_costs_status"], "complete")
-        self.assertEqual(result["model_cost_usd"], "0.02")
-        self.assertEqual(result["system_cost_usd"], "0.017")
-        self.assertEqual(result["fees_usd"], "0.01")
-        self.assertEqual(result["net_realized_pnl_usd"], "0.203")
-        self.assertEqual(result["unknown_cost_categories"], [])
-        self.assertIn("openai-model-receipt", result["model_system_cost_source_receipt_ids"])
-
-    def test_missing_system_cost_category_keeps_net_unknown(self):
-        evidence = _model_system_cost_evidence()
-        evidence[0]["covered_categories"].remove("infra_cost")
-        with tempfile.TemporaryDirectory() as directory:
-            state = Path(directory)
-            (state / "receipts.jsonl").write_text(
-                "".join(json.dumps(row) + "\n" for row in _rows()), encoding="utf-8",
-            )
-            result = write_paper_performance(
-                state, OBSERVATION, RISK,
-                broker_cost_reader=Mock(return_value=_broker_cost_evidence()),
-                model_system_cost_reader=Mock(return_value=evidence),
-            )
-
-        self.assertEqual(result["model_system_costs_status"], "unknown")
-        self.assertIsNone(result["model_cost_usd"])
-        self.assertIsNone(result["system_cost_usd"])
-        self.assertIsNone(result["net_realized_pnl_usd"])
-        self.assertEqual(result["unknown_cost_categories"], ["model", "system"])
 
     def test_writer_retries_failed_broker_readback_only_on_a_later_et_day(self):
         with tempfile.TemporaryDirectory() as directory:
