@@ -14487,24 +14487,37 @@ Known damage to repair: drafts 2576591785 / 5356015232 (under_review) and 983649
 
 ### Anicca無料集客の現在目標と実行順
 
-**目的:** Aniccaを先頭に無料のSNS・SEO・ASOで新規獲得を増やし、ASC初回ダウンロードを7日平均1,000件/日へ伸ばす。Anicca USD 10,000 MRR、続いてHonneと既存iOS app群の各USD 10,000 MRR、全社USD 10,000,000 MRRを維持する。MRRと手数料/返金/実費控除後の利益を別に確認し、未達を完了扱いしない。広告、新規有料tool、投稿ごとの生成APIへの追加支出を0にする。既存server/model/販売手数料はCFOから消さない。
+**TO-BE / North Star:** Aniccaを世界最大のaffirmation appにし、最初の収益目標をRevenueCat MRR USD 10,000にする。配信目標はASC first-time downloadsのtrailing 7-day average 1,000件/日。英語を先に伸ばし、勝ち型を自然なスペイン語・日本語へ展開する。新規広告費・有料投稿ツール・投稿ごとの生成API費はUSD 0。Aniccaが10K MRRへ到達した後に、同じ獲得手順をHonneと他のiOS appへ広げ、会社全体USD 10M MRRを目指す。RevenueCat MRR、ASC installs、Daily Active Customers、Apple settled proceedsは別指標として保持する。
 
-**順序変更:** 旧順序は各app 100 ASC初回DL/日、全6 app達成後にonboarding/ASO、paywall incident解消前のdistribution volume拡大停止。新順序はAniccaの導線・計測→英語SNS/SEO/ASOで獲得→1,000初回DL/日→購読/継続を改善し$10K MRR→Honne/他appへ横展開。paywall、notification same-quote、EN/JA/ES localizationは並行する。理由はDaisの明示したAnicca集中・distribution first・追加支出0と、少数獲得のままUX全体を先に仕上げない方針。54/54投稿や7日間のcadence観測は運用指標であり、独立した導線/実装/分析を始めるgateにしない。全社の他laneの既存owner順序は変更しない。既存unknown effectを中断・解放・再送しない。
+**AS-IS（2026-10-12の公式読み取りと本人報告）:**
 
-**現在の証拠:** `docs/evidence/anicca-acquisition-1000-postiz.json`の公式Postiz GETでは、AniccaのYouTube 2 lane合計31 PUBLISHED/7日があり、caption中のApple campaign linksは0/31。修正前の`marketing-app-store-cta.js`はYouTubeにbare App Store URLを返していた。PR #7621でcampaign URLとchannel link誘導へ変更し、`honne-ja-cycle.js`のAnicca 2 laneがこの共通helperを使う。Honneの既存provider tokenは同じ公式GETで確認する。Apple公式campaign docsはprovider tokenがdeveloper account単位で共通と説明する。低流入時のprivacy thresholdを考慮し、最初はapp×platform×localeの安定tokenで計測する。
+| 指標 | 期間・出所 | 実測 |
+|---|---|---|
+| RevenueCat Active Customers | 2026-10-05〜10-11、customers_active | Aniccaは日別3, 4, 3, 8, 4, 3, 5。ほか5 appは各日0。これは日別unique SDK-active customerで、週内31件は31人のdistinct userを意味しない。Daisが以前述べた「全appで2〜4人」はRevenueCat由来の本人報告として保持する。 |
+| RevenueCat New Customers | 2026-09-14〜10-11、customers_new | Anicca 28日19人、直近7日6人。ほか5 appは0。2026-10-08〜10-10はAnicca 1人。初回SDK観測に基づくinstall proxyであり、ASC installと完全一致しない。 |
+| RevenueCat MRR | 最新complete period 2026-10-11、charts/mrr | Anicca USD 20.34、ほか5 app USD 0. Daisが以前共有したUSD 24とは同一画面・期間の照合が未完。API値はsubscription MRRで、settlementやnet proceedsではない。 |
+| ASC first-time downloads | 最新complete report period 2026-10-08〜10-10 | Anicca 1、Honne 4。Anicca redownload 0、Honne 1。残り4 appはreport_pendingであり0ではない。campaign-attributed downloadsは未設定/未観測。Anicca impressions 19、unique impressions 16、product page views 0。 |
+| Organic publishing | docs/evidence/anicca-acquisition-1000-postiz.json、2026-10-04〜10-11 | Anicca 16 lanesから194 PUBLISHED、caption中のApple campaign linkは0。投稿量は存在するが、このsnapshotだけでは投稿別click/install/revenueを帰属できない。PR #7621後の新しい自然投稿link readbackは未確認。 |
+| Postiz cost | Dais本人報告 | Cloud USD 90/月。請求書はこの作業では未読。公式OSSセルフホスト版は別の無料選択肢。 |
 
-**現在atomの所有:** worktree `/Users/anicca/Projects/life-manager-main/.worktrees/anicca-acquisition-1000-20261011`、branch `ops/anicca-acquisition-readback-20261011`（source PR #7621統合済み）、owner `codex-anicca-acquisition`。共通CTA helper/test、上記2 specとsanitized read-only evidenceを所有する。別ownerの投稿/metrics/Paywall/Spanish PRとstate/browser/fenceは変更しない。iOS修正は既存PR #7605/#7615の公式stateを参照する。
+RevenueCatのNew Customersは通常初回起動時のSDK初期化を基準にし、再install、識別alias、SDK初期化前に離脱したinstallなどによりASCと差が出る。Active Customersは当期間にSDK activityがあったunique customer。従って両方を保持し、ASC first-time downloadsと相互置換しない。出典: [RevenueCat New Customers](https://www.revenuecat.com/docs/dashboard-and-metrics/charts/new-customers-chart), [RevenueCat Active Customers](https://www.revenuecat.com/docs/dashboard-and-metrics/charts/active-customers-chart), [RevenueCat Charts API](https://www.revenuecat.com/docs/api-v2/charts-and-metrics).
 
-**残TODO（この順）:**
-1. [x] 同じASC identityでAnicca/Honne app inventoryを確認し、既存provider tokenのreuse根拠を記録する。source spec/evidenceをcommit/pushする。
-2. [x] 共通YouTube CTAのcampaign欠落を最小RED testで再現し、既存URL validation/caption limit/object hashingを保った最小修正でGREENにする。TikTok/Instagramのcaptionをclickable linkと扱わない。
-3. [ ] focused tests、必要なcontract/checks、fresh read-only reviewを通し、push/PR/main統合する。main由来releaseの自然反映、2 YouTube ownerのloaded SHA/新しいdistinct slotと公式caption/readbackを確認する。未知slotのcatch-upや手動投稿はしない。
-4. [ ] 公開プロフィールのbio linkを実readbackし、Instagram/TikTokのapp destinationを媒体・言語ごとのcampaignへ結ぶ。
-5. [ ] 既存ASC/RevenueCat/in-app metricsを同期間で更新し、英語の成功creativeを分解して1変数ずつ試す。SEOは既存サイトへ、ASOは観測したstore bottleneckに応じて進める。
-6. [ ] paywall/notification修正の実配布・同quote・購入/restore、EN/JA/ESの端から端までの言語対応を並行して確認する。
-7. [ ] Anicca 1,000初回DL/日と$10K MRRを実測し、勝った獲得・課金・継続の仕組みをHonne/他appへ展開する。
+**無料schedulerの判断:** 月額USD 90のPostiz Cloudは必須ではない。[Postizの公式OSS版](https://github.com/gitroomhq/postiz-app)はAGPL-3.0でfree forever、セルフホストではchannels/postsにlicense上限がなく、公式[Docker Compose手順](https://docs.postiz.com/self-host/installation/overview)がある。ソフトウェアの月額はUSD 0。既存の常時稼働host・public HTTPS/domainを使えれば追加infra費もUSD 0にできる。この現行判断は、過去の「self-host不要」という状態記録を置き換える。多くのSNSは自分のdeveloper appとprovider approvalが必要で、OAuth/HTTPSの再接続作業は残る。新規server/domainを購入しない。Cloudは既存accountが同じchannelで投稿・readbackできることを確認してから解約する。
 
-**現在cursor:** item 3。CTA欠落を2件のREDで再現し、native URLSearchParamsによる最小修正とShortsのchannel link誘導後にCTA/callerの22 tests PASS、lm-loop-contract 18 catalog / 190 registry / 113 mapped / errors 0、diff check PASS。独立read-only reviewerはno blocking findings。caption hashがeffect identityに含まれるため既存/過去slotを新CTAで再送せず、未使用の将来distinct slotの自然実行だけで反映する。PR #7621はmain `b61fdda5ec187885aa55f522aeb75baca64248df`へ統合済み。main由来release `20261011T161746-f8d3f9ff`のhelper出力と2 YouTube ownerのloaded SHA `f8d3f9ffb44ad9826599f41b011f120226386829`を確認。両fleet apply行はchanged=1/skipped=0/rc=0。公開caption・Apple campaign集計・追加DL/売上は未確認。プロフィール修正はshared browserのlive leaseを尊重して待機し、独立したASO/metrics確認を継続する。
+**競合distributionの型:** I Amの短い文字動画と保存/スクリーンショットCTA、ThinkUpの「週の3 affirmations」carouselとsave/share CTA、Selfpauseの人物の声・短い字幕hookを参考にする。写すのはhook、尺、画面構成、CTAで、他社の動画/音源/文面そのものは再投稿しない。参考: [I Am video](https://www.tiktok.com/@iam.app/video/7694619426225753357), [ThinkUp carousel](https://www.instagram.com/thinkupapp/p/DNljYWRByDq/), [Selfpause video](https://www.tiktok.com/@selfpausemindset/video/7093310011870350635). Selfpause例は2022年の過去投稿であり、現在の効果とはみなさない。
+
+**順序変更:** 旧cursorはCTA PR #7621のacceptance→profile link→fresh metrics→creative iterationだった。新cursorは無料Postiz self-host移行→RevenueCat/ASC日次計測→post/profile/store attribution→英語organic distribution→SEOと自然なJA/ES展開→paywall/notification/localization改善→Anicca USD 10K MRR→portfolio展開。理由は、ユーザー申告USD 90/月のCloud費がありOSS無料版を確認したこと、直近7日194投稿にcampaign linkが0/194であること、ASC初回DLが最新3日で1件であること。配信は止めず、支出・計測・導線の詰まりを順番に閉じる。paywall、notification同一quote、主要画面の翻訳は獲得実験を止めずに並行する。既存unknown effectを中断・解放・再送しない。
+
+**残TODO（Anicca先行、この順）:**
+1. [ ] USD 0のPostiz OSSへ移行する。既存hostのDocker/CPU/RAM、public HTTPS/domainを確認し、追加購入なしで公式Docker Composeを起動する。Meta/TikTok/YouTubeなど必要なdeveloper app credentials/approvalを確認し、Aniccaの既存channelsを再接続する。各必要platformで正常な公式PUBLISHED receiptを1件ずつ確認し、既存Cloudと同等に動くことを読んでからUSD 90/月のCloud契約を止める。secretはrepoへ保存しない。
+2. [ ] 日次source coverageを追加する。skills/cfo/revenuecat_readback.pyでapp-scoped customers_new、customers_active、MRRを同じdaily snapshotに記録し、skills/cfo/test_revenuecat_readback.pyへperiod/app filter/complete pointのテストを足す。apps/life-manager/scripts/marketing-asc-acquisition.jsはdaily row別first-time downloadsとrolling 7-day averageを保持し、marketing-asc-acquisition.test.jsで日付境界、pending、unavailableを検証する。欠測を0へ変換しない。
+3. [ ] 194投稿/0 campaign-linkの漏れを閉じる。config/marketing-destinations.json、apps/life-manager/lib/marketing-app-store-cta.js、apps/life-manager/scripts/record-creative-metrics.jsの既存経路を使い、英語profile linkとApple campaign linkをapp×platform×localeへ結ぶ。PR #7621後の次のnatural distinct slotだけを公式Postiz readbackし、既存投稿を編集・再送しない。
+4. [ ] 英語organic creativeを既存16 lanesから配信する。I Am型の1 affirmation text video、ThinkUp型の3-item weekly carousel、Selfpause型のoriginal voice/storyをconfig/marketing-destinations.jsonとskills/earn/marketing-engine/registry/renderers.jsonの既存承認素材で作る。1週ごとにhookかopeningの1変数だけを変え、apps/life-manager/scripts/record-creative-metrics.jsにviews/retention/saves/shares/profile clicks/store clicks/ASC downloads/RevenueCat New Customersを結ぶ。追加広告・有料tool・生成APIは使わない。
+5. [ ] 英語で勝ったtopicをSEOに広げる。self-worth、stress/anxiety、sleep、relationships、morning routineなど検索意図ごとの既存website routeを確認し、anicca-projectの専用worktreeで記事とアプリ導線を追加する。既存dirty shared checkoutは直接編集しない。Instagram/TikTok/YouTubeのbio linkから対応するpage/App Storeへ到達することを公開readbackする。
+6. [ ] 同じdistributionを止めず、Aniccaの購入・継続blockerを直す。Paywallはapps/mobile/anicca-ios/aniccaios/Onboarding/PaywallVariantBView.swiftとapps/mobile/anicca-ios/aniccaios/Services/SubscriptionManager.swiftのofferings load/errorを解消する。通知はapps/mobile/anicca-ios/aniccaios/AppDelegate.swift、apps/mobile/anicca-ios/aniccaios/Services/QuoteNavigationCoordinator.swift、apps/mobile/anicca-ios/aniccaios/Notifications/NotificationScheduler.swiftでtapされたquote IDと表示quoteを一致させる。EN/JA/ESはapps/mobile/anicca-ios/aniccaios/Resources/*.lproj/Localizable.stringsとapps/mobile/anicca-ios/scripts/localization/check_strings_parity.pyを対象に、自然さとkey parityを埋める。
+7. [ ] ASC first-time downloadsをAniccaでtrailing 7-day average 1,000件/日へ、RevenueCat MRRをUSD 10,000へ伸ばす。毎週、customers_new→ASC first-time downloads→trial/paid conversion→MRRの同じperiodを比較し、$10K達成後に同じ無料distribution systemをHonne/他appへ展開する。MRRとApple proceeds/refunds/fees/costsは別の数字として残す。会社全体USD 10M MRRはその後のportfolio target。
+
+**現在cursor:** item 1。ここで実施したのはRevenueCat/ASC/Postizのread-only取得とこのspec更新だけ。Postiz移行、Cloud解約、新規SNS投稿、API/production設定変更は未実施。fresh source evidenceはRevenueCat API observed 2026-10-12T03:42ZとASC Analytics report period 2026-10-08〜10-10。
 
 **Shortsのconversion境界:** YouTube公式 `https://support.google.com/youtube/answer/13748639?hl=en` はShortsのdescription/comment URLがnon-clickable、channel profile linksがclickableと説明する。従ってYouTube app CTAはchannel profile linkへ誘導し、descriptionにcampaign URLも保持する。公開profileのリンク先がAniccaであることを確認するまでfunnel完成としない。Apple campaign linkの設定を実install attributionや追加売上の証拠としない。
 
