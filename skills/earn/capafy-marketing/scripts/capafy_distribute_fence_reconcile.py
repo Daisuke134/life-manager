@@ -34,7 +34,6 @@ import sys
 import urllib.request
 from pathlib import Path
 from typing import Any, Callable
-from zoneinfo import ZoneInfo
 
 HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parents[3]
@@ -57,6 +56,8 @@ LANDING_ROOT = Path(os.environ.get(
 BASE_URL = "https://aniccaai.com/blog/"
 X_INTEGRATION_ID = os.environ.get("POSTIZ_X_INTEGRATION_ID", "cmt4l2jld031tqp0y8qtyo983")
 COMMIT_PREFIX = "feat(capafy-distribute): publish free article "
+OCCURRENCE_SCHEMA = "capafy-distribute-occurrence.v1"
+SLOT_PATTERN = re.compile(r"\d{4}-\d{2}-\d{2}-h(?:[01]\d|2[0-3])m(?:00|30)")
 
 
 def fenced_row(owner_id: str, occurrence_id: str) -> tuple[str, dt.datetime]:
@@ -110,23 +111,75 @@ def occurrence_started_at(occurrence_id: str, events_path: Path | None = None) -
     return starts[0]
 
 
-def expected_article_slug(started_at: dt.datetime, runs_root: Path | None = None) -> str:
-    """Read the deterministic article slug from the prompt for this JST half-hour slot."""
-    if started_at.tzinfo is None:
-        raise ValueError("occurrence start timestamp must be timezone-aware")
-    local = started_at.astimezone(ZoneInfo("Asia/Tokyo"))
-    half_hour = local.minute // 30 * 30
-    slot = f"{local:%Y-%m-%d}-h{local.hour:02d}m{half_hour:02d}"
+def _run_id_for_occurrence(occurrence_id: str) -> str:
+    prefix = f"{OWNER_ID}:"
+    if not occurrence_id.startswith(prefix) or not occurrence_id[len(prefix):]:
+        raise ValueError("occurrence owner or run identity is invalid")
+    return occurrence_id[len(prefix):]
+
+
+def _validate_slot_article(slot: Any, article_slug: Any) -> tuple[str, str]:
+    if not isinstance(slot, str) or not SLOT_PATTERN.fullmatch(slot):
+        raise ValueError("occurrence slot is missing or malformed")
+    try:
+        dt.datetime.strptime(slot, "%Y-%m-%d-h%Hm%M")
+    except ValueError as exc:
+        raise ValueError("occurrence slot date is invalid") from exc
+    if (not isinstance(article_slug, str) or not article_slug.startswith("capafy-")
+            or not article_slug.endswith(f"-{slot}")):
+        raise ValueError("occurrence article slug does not match its slot")
+    return slot, article_slug
+
+
+def record_occurrence_manifest(path: Path, *, owner_id: str, run_id: str,
+                               occurrence_id: str, slot: str, article_slug: str) -> dict[str, str]:
+    """Persist the wrapper's actual slot before it can publish for this occurrence."""
+    if owner_id != OWNER_ID or run_id != _run_id_for_occurrence(occurrence_id):
+        raise ValueError("runtime occurrence identity mismatch")
+    slot, article_slug = _validate_slot_article(slot, article_slug)
+    record = {"schema": OCCURRENCE_SCHEMA, "owner_id": owner_id, "run_id": run_id,
+              "occurrence_id": occurrence_id, "slot": slot, "article_slug": article_slug}
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    temporary = path.with_name(f".{path.name}.tmp-{os.getpid()}")
+    try:
+        temporary.write_text(json.dumps(record, sort_keys=True) + "\n", encoding="utf-8")
+        os.replace(temporary, path)
+        os.chmod(path, 0o600)
+    finally:
+        temporary.unlink(missing_ok=True)
+    return record
+
+
+def expected_article_slug(occurrence_id: str, runs_root: Path | None = None) -> str:
+    """Read the wrapper-recorded slot and its prompt, bound to one occurrence."""
+    run_id = _run_id_for_occurrence(occurrence_id)
     root = runs_root or Path(os.environ.get("CAPAFY_DISTRIBUTE_RUNS_ROOT") or RUNS_ROOT)
-    prompt_path = root / f"capafy-distribute-{slot}" / "prompt.txt"
-    prompt = prompt_path.read_text(encoding="utf-8")
-    slugs = set(re.findall(r"https://aniccaai\.com/blog/([a-z0-9]+(?:-[a-z0-9]+)*)", prompt))
-    if len(slugs) != 1:
-        raise ValueError("expected exactly one article slug in occurrence prompt")
-    slug = next(iter(slugs))
-    if not slug.startswith("capafy-") or not slug.endswith(slot):
-        raise ValueError("article slug does not match the Capafy occurrence slot")
-    return slug
+    matches = []
+    for manifest_path in root.glob("capafy-distribute-*/gates/occurrence.json"):
+        try:
+            record = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            raise ValueError("occurrence manifest is missing or malformed") from exc
+        if not isinstance(record, dict):
+            raise ValueError("occurrence manifest must be a JSON object")
+        if record.get("occurrence_id") != occurrence_id:
+            continue
+        if (record.get("schema") != OCCURRENCE_SCHEMA
+                or record.get("owner_id") != OWNER_ID
+                or record.get("run_id") != run_id):
+            raise ValueError("occurrence manifest identity mismatch")
+        slot, slug = _validate_slot_article(record.get("slot"), record.get("article_slug"))
+        run_dir = manifest_path.parent.parent
+        if run_dir.name != f"capafy-distribute-{slot}":
+            raise ValueError("occurrence manifest path does not match its slot")
+        prompt = (run_dir / "prompt.txt").read_text(encoding="utf-8")
+        slugs = set(re.findall(r"https://aniccaai\.com/blog/([a-z0-9]+(?:-[a-z0-9]+)*)", prompt))
+        if slugs != {slug}:
+            raise ValueError("occurrence prompt does not match its manifest slug")
+        matches.append(slug)
+    if len(matches) != 1:
+        raise ValueError("occurrence slot manifest missing or ambiguous")
+    return matches[0]
 
 
 def read_landing_commits(start: dt.datetime, end: dt.datetime) -> dict[str, Any]:
@@ -241,7 +294,7 @@ def reconcile(occurrence_id: str, *, resolve: bool = False, now: dt.datetime | N
     now = now or dt.datetime.now(dt.timezone.utc)
     state, queued_at = fenced_row_fn(OWNER_ID, occurrence_id)
     started_at = (started_at_fn or occurrence_started_at)(occurrence_id)
-    expected_slug = (expected_slug_fn or expected_article_slug)(started_at)
+    expected_slug = (expected_slug_fn or expected_article_slug)(occurrence_id)
     end = started_at + dt.timedelta(seconds=MAX_RUN_SECONDS)
     proof = build_proof(
         occurrence_id, queued_at, started_at=started_at,

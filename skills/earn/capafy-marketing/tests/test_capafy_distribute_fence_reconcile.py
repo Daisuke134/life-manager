@@ -46,7 +46,7 @@ def test_readback_failure_stays_fenced():
     assert not proof(200, {"ok": False, "reason": "x"}, {"ok": True, "posts": []})["verified"]
 
 
-def occurrence_run(tmp_path, monkeypatch, occurrence_id, started, slug):
+def occurrence_run(tmp_path, monkeypatch, occurrence_id, started, slug, slot="2026-09-29-h21m00"):
     events = tmp_path / "events.jsonl"
     events.write_text(json.dumps({
         "owner_id": rec.OWNER_ID,
@@ -57,10 +57,17 @@ def occurrence_run(tmp_path, monkeypatch, occurrence_id, started, slug):
         "timestamp": started.isoformat(),
     }) + "\n")
     runs_root = tmp_path / "runs"
-    (runs_root / "capafy-distribute-2026-09-29-h21m00").mkdir(parents=True)
-    (runs_root / "capafy-distribute-2026-09-29-h21m00" / "prompt.txt").write_text(
-        f"Publish this article: https://aniccaai.com/blog/{slug}\n"
-    )
+    run_dir = runs_root / f"capafy-distribute-{slot}"
+    (run_dir / "gates").mkdir(parents=True)
+    (run_dir / "gates/occurrence.json").write_text(json.dumps({
+        "schema": rec.OCCURRENCE_SCHEMA,
+        "owner_id": rec.OWNER_ID,
+        "run_id": occurrence_id.rsplit(":", 1)[1],
+        "occurrence_id": occurrence_id,
+        "slot": slot,
+        "article_slug": slug,
+    }))
+    (run_dir / "prompt.txt").write_text(f"Publish this article: https://aniccaai.com/blog/{slug}\n")
     monkeypatch.setenv("CAPAFY_DISTRIBUTE_EVENTS_PATH", str(events))
     monkeypatch.setenv("CAPAFY_DISTRIBUTE_RUNS_ROOT", str(runs_root))
 
@@ -111,6 +118,41 @@ def test_occurrence_start_rejects_matching_event_with_malformed_timestamp(tmp_pa
     raise AssertionError("malformed duplicate execute-start event was ignored")
 
 
+def test_occurrence_manifest_records_exact_runtime_slot(tmp_path):
+    occurrence_id = "capafy-distribute-daily:midnight-boundary"
+    path = tmp_path / "runs/capafy-distribute-2026-09-30-h00m00/gates/occurrence.json"
+    record = rec.record_occurrence_manifest(
+        path,
+        owner_id=rec.OWNER_ID,
+        run_id="midnight-boundary",
+        occurrence_id=occurrence_id,
+        slot="2026-09-30-h00m00",
+        article_slug="capafy-marketing-strategist-2026-09-30-h00m00",
+    )
+
+    assert json.loads(path.read_text()) == record
+    assert record["slot"] == "2026-09-30-h00m00"
+    assert path.stat().st_mode & 0o777 == 0o600
+
+
+def test_occurrence_manifest_rejects_runtime_identity_mismatch(tmp_path):
+    path = tmp_path / "occurrence.json"
+    try:
+        rec.record_occurrence_manifest(
+            path,
+            owner_id=rec.OWNER_ID,
+            run_id="other-run",
+            occurrence_id="capafy-distribute-daily:midnight-boundary",
+            slot="2026-09-30-h00m00",
+            article_slug="capafy-marketing-strategist-2026-09-30-h00m00",
+        )
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("mismatched runtime identity was recorded")
+    assert not path.exists()
+
+
 def test_reconcile_search_window_starts_at_occurrence_execution(tmp_path, monkeypatch):
     queued = Q
     started = queued + dt.timedelta(hours=4)
@@ -158,6 +200,38 @@ def test_reconcile_rejects_unrelated_landing_slug_in_old_queue_window(tmp_path, 
     )
 
     assert result["verified"] is False
+
+
+def test_reconcile_uses_wrapper_slot_across_jst_boundary(tmp_path, monkeypatch):
+    started = dt.datetime(2026, 9, 29, 14, 59, 59, tzinfo=dt.timezone.utc)
+    occurrence_id = "capafy-distribute-daily:midnight-boundary"
+    actual_slot = "2026-09-30-h00m00"
+    actual_slug = "capafy-marketing-strategist-2026-09-30-h00m00"
+    old_slot = "2026-09-29-h23m30"
+    old_dir = tmp_path / "runs" / f"capafy-distribute-{old_slot}"
+    old_dir.mkdir(parents=True)
+    (old_dir / "prompt.txt").write_text(
+        "Old prompt: https://aniccaai.com/blog/capafy-marketing-strategist-2026-09-29-h23m30\n"
+    )
+    occurrence_run(tmp_path, monkeypatch, occurrence_id, started, actual_slug, slot=actual_slot)
+
+    result = rec.reconcile(
+        occurrence_id,
+        now=started + dt.timedelta(seconds=rec.NO_EFFECT_MIN_AGE_SECONDS + 1),
+        fenced_row_fn=lambda _owner, _occurrence: (
+            "claimed", started - dt.timedelta(hours=1)
+        ),
+        commits_fn=lambda _start, _end: {
+            "ok": True,
+            "commits": [{"sha": "published-new-slot", "slug": actual_slug}],
+        },
+        x_fn=lambda _start, _end: {"ok": True, "posts": []},
+        page_status_fn=lambda _slug: 200,
+    )
+
+    assert result["expected_slug"] == actual_slug
+    assert result["verified"] is True
+    assert result["effected"] is True
 
 
 def test_postiz_key_falls_back_to_unique_credential_ssot(tmp_path, monkeypatch):
