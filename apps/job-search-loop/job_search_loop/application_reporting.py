@@ -91,17 +91,24 @@ def deliver_wake_report(
     human_blockers = result.get("human_only_blockers")
     human_blockers = len(human_blockers) if isinstance(human_blockers, list) else int(human_blockers or 0)
     duplicate_effects = max(0, int(result.get("duplicate_effects") or 0))
+    submitted = result.get("submitted")
+    submitted_count = len(submitted) if isinstance(submitted, list) else 0
+    submit_unknown = result.get("submit_unknown")
+    submit_unknown_count = len(submit_unknown) if isinstance(submit_unknown, list) else 0
+    blocked = result.get("blocked")
+    blocked_count = len(blocked) if isinstance(blocked, list) else 0
 
     semantic_reason = semantic.get("reason") if semantic.get("status") == "failed" else None
     result_status = str(result.get("status") or "")
     outcome = (
         "failed"
         if semantic_reason or result_status == "transport_failed"
+        else "partial" if result_status == "blocked_before_queue_complete"
         else "success" if summary.get("status") == "success" else "failed"
     )
     reason = str(
         semantic_reason
-        or (result_status if result_status == "transport_failed" else None)
+        or (result_status if result_status in {"transport_failed", "blocked_before_queue_complete"} else None)
         or attempt.get("error_class")
         or attempt.get("adapter_error")
         or summary.get("status")
@@ -117,7 +124,20 @@ def deliver_wake_report(
     else:
         next_action = "resume_same_row_next_wake"
     checked = len(discovery.get("shortlist") or discovery.get("discovered") or [])
-    if outcome == "success" and company != "none":
+    if outcome == "partial":
+        heading = "⚠️ 今回の応募処理は一部未完了です"
+        result_text = (
+            f"応募完了: {submitted_count}件\n"
+            f"送信結果不明: {submit_unknown_count}件\n"
+            f"未完了/保留: {blocked_count}件"
+        )
+    elif outcome == "success" and submitted_count == 0:
+        heading = "🔎 今回の処理は完了しましたが、応募完了は0件です"
+        result_text = (
+            f"送信結果不明: {submit_unknown_count}件\n"
+            f"未完了/保留: {blocked_count}件"
+        )
+    elif outcome == "success" and company != "none":
         heading = "✅ 今回の処理を完了しました"
         result_text = f"会社: {company}\n求人: {role}"
     elif outcome == "success":
