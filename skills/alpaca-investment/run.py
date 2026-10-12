@@ -56,6 +56,51 @@ def _mark_external_effect_attempted() -> None:
         _atomic_json(Path(hint), {"status": "effect_attempted", "effect": 1})
 
 
+def _read_paper_model_system_costs(
+    *, period_start: str, period_end: str, observed_at: str,
+) -> list[dict]:
+    """Read only official, product-loop allocated cost receipts already in the CFO source."""
+    path_value = (
+        os.environ.get("LM_CFO_ACTUAL_COST_READBACK")
+        or os.environ.get("LM_CFO_ACTUAL_COST")
+    )
+    if not path_value:
+        raise ValueError("actual_cost_source_unconnected")
+    try:
+        payload = json.loads(Path(path_value).expanduser().read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, TypeError, ValueError) as error:
+        raise ValueError("actual_cost_readback_unavailable") from error
+    if not isinstance(payload, dict):
+        raise ValueError("actual_cost_readback_invalid")
+    readback = payload.get("readback")
+    trailing = readback.get("trailing") if isinstance(readback, dict) else None
+    snapshot_at = readback.get("observed_at") if isinstance(readback, dict) else None
+    trailing_start = trailing.get("window_start") if isinstance(trailing, dict) else None
+    if not all(isinstance(value, str) and value for value in (
+            snapshot_at, trailing_start, period_start, period_end, observed_at)):
+        raise ValueError("actual_cost_readback_invalid")
+    try:
+        source_time = datetime.fromisoformat(snapshot_at.replace("Z", "+00:00"))
+        period_end_time = datetime.fromisoformat(period_end.replace("Z", "+00:00"))
+        observed_time = datetime.fromisoformat(observed_at.replace("Z", "+00:00"))
+    except ValueError as error:
+        raise ValueError("actual_cost_readback_invalid") from error
+    if (source_time.tzinfo is None or period_end_time.tzinfo is None
+            or observed_time.tzinfo is None or source_time < period_end_time
+            or source_time > observed_time):
+        raise ValueError("actual_cost_readback_window_invalid")
+    repository_root = Path(__file__).resolve().parents[2]
+    if str(repository_root) not in sys.path:
+        sys.path.insert(0, str(repository_root))
+    try:
+        from skills.cfo.adapters import actual_cost
+    except ImportError as error:
+        raise ValueError("actual_cost_adapter_unavailable") from error
+    return actual_cost.adapt(
+        payload, snapshot_at=snapshot_at, trailing_start=trailing_start,
+    )
+
+
 def _retry_allowed(stage: str, effect_attempted: bool, attempt: int) -> bool:
     return stage != "telegram_deliver" and not effect_attempted and attempt < 2
 
@@ -589,6 +634,7 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                 broker_cost_reader=lambda **kwargs: read_paper_etf_cost_evidence(
                     credentials_path=credentials_path, cli_path=cli_path, **kwargs,
                 ),
+                model_system_cost_reader=_read_paper_model_system_costs,
             )
         stage = "telegram_deliver"
         telegram = deliver(state, observation, campaign, decision, effect,
