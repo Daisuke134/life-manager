@@ -2942,10 +2942,19 @@ def test_run_once_records_inventory_summary(tmp_path: Path, monkeypatch) -> None
         lsof=lambda _path: "confirmed-closed",
         usage=lambda: (12 * GiB, 100 * GiB),
     )
+    reserve_seconds: list[int] = []
+    sweep = governor.sweep
+
+    def record_sweep(candidates, **kwargs):
+        reserve_seconds.append(kwargs["post_sweep_reserve_seconds"])
+        return sweep(candidates, **kwargs)
+
+    monkeypatch.setattr(governor, "sweep", record_sweep)
 
     result = governor.run_once()
 
     assert result["inventory_mode"] == "full"
+    assert reserve_seconds == [disk_cleanup.POST_SWEEP_RESERVE_SECONDS]
     assert (tmp_path / "state" / "host-inventory-full.at").exists()
     assert result["inventory_mounts"] == 1
     assert result["inventory_roots"] == 2
@@ -3174,6 +3183,47 @@ def test_full_inventory_marker_write_failure_falls_back_to_fast_inventory(
     assert result["inventory_mode"] == "fast"
     assert result["inventory_schedule_error_class"] == "OSError"
     assert result["storage_next_action"] == "retry_full_inventory"
+
+
+def test_run_once_fast_inventory_uses_remaining_sweep_budget_after_discovery(
+    tmp_path: Path, monkeypatch
+) -> None:
+    temporary = tmp_path / "tmp"
+    candidate = temporary / "capafy-hf-npm.fast-budget"
+    candidate.mkdir(parents=True)
+    (candidate / "payload").write_bytes(b"generated cache")
+    monkeypatch.setattr(disk_cleanup.tempfile, "gettempdir", lambda: str(temporary))
+    monkeypatch.setenv("LIFE_MANAGER_DISK_INVENTORY_FAST", "1")
+    monkeypatch.setattr(
+        disk_cleanup,
+        "collect_host_inventory",
+        lambda **_kwargs: {"coverage": {"mount_count": 1, "root_count": 1, "gaps": []}},
+    )
+    clock = [0.0]
+    governor = HostDiskGovernor(
+        home=tmp_path,
+        state_dir=tmp_path / "state",
+        lsof=lambda _path: "confirmed-closed",
+        usage=lambda: (12 * GiB, 100 * GiB),
+        clock=lambda: clock[0],
+    )
+
+    def discover_candidates(*, deadline=None) -> list[dict]:
+        clock[0] = 15.0
+        return [{
+            "path": candidate,
+            "class": "ephemeral",
+            "owner": "temporary-run",
+            "discovery": "allowlisted",
+        }]
+
+    monkeypatch.setattr(governor, "discover_candidates", discover_candidates)
+
+    result = governor.run_once()
+
+    assert not candidate.exists()
+    assert result["reclaimed"] > 0
+    assert result["inventory_mode"] == "fast"
 
 
 def test_run_once_global_budget_preserves_candidate_and_does_not_advance_full_marker(
