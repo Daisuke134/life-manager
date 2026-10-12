@@ -12580,6 +12580,14 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **Current cursor:** exact-head review/CI and PR merge for the owned proof fix → main-derived immutable release and loaded-idle owner readback → fresh official paper proof for only occurrence `18dcc31cf10b9ed0-10327`, preserving its provider request IDs and resolving only with current owner state → read eligibility from natural owner evidence, without manual wake → allow only natural qualified AT-13 → join same-period official fill, fee, slippage, model, and system-cost evidence → require positive owner-attributable realized net and replay-zero; preserve unknown and the fence until verified.
 
+### 2026-10-12 13:19 JST — Fresh paper readback after latest natural attempt
+
+- **Owner:** latest `lm-loop status --explain alpaca-investment-paper` remains loaded-idle with no drift on SHA `bafa6755f7a1e3f9baa9735011584ee818ef86e8`. Natural occurrence `18ddad0f54047778-50101` at `2026-10-12T04:15:08Z` is `resource_effect_unknown` / `retry_after_eligibility`, with no receipt; claimed fence `18dcc31cf10b9ed0-10327` remains open.
+- **Official paper readback:** ran `--readback-only` from the immutable release matching the loaded SHA after the latest natural attempt. Alpaca returned empty orders after the fence queue time and empty open orders; helper reported `verified=true / PROOF_READY` but still emitted the synthetic timestamp-derived `provider_receipt_id`. No request IDs were recorded, and the fence was not changed. No closed round trip or realized P&L was observed.
+- **Owned source PR:** #7750 remains open at head `97874277d46514800e9a71539131104407b3c434`; several checks pass and loop-contract, Python/unittest, TruffleHog and gitleaks remain pending. The main-branch source fix is not loaded.
+
+**Current cursor:** finish PR #7750 review/CI/merge → wait for normal immutable release adoption → rerun exact fence readback with provider request IDs from loaded source and resolve only if current owner state permits → natural qualified AT-13 only → complete same-period cost joins and positive owner-attributable realized net; keep the fence and P&L unknown until proven.
+
 ### 2026-10-09 14:20 JST — Paper storage and effect fence remain open
 
 このreadbackは14:03 JST snapshotを更新する。L9-12と「残り2件」の順序は変えない。
