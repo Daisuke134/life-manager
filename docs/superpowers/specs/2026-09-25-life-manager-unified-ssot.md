@@ -2201,8 +2201,8 @@ Instagram/Threadsのローカル台帳は17件（Instagram 14、Threads 3）で�
 - **set-022 public URL:** 01:12 JSTの`crwl`確認でID37251266の`line.me` URLとLINE STORE商品ページが表示され、タイトル「ふわもこリスの毎日スタンプ(文字あり)」と価格¥250を確認。対照ID37249948も表示。10/13 00:56の古いcreator-state `store_public=false`は次のnatural readerで再照合し、再申請やURL推測はしない。
 - **sales:** production `sales.json`は10/13 00:56:54 JST更新、34 IDs中14行¥0・20行null・positive 0。sales画面由来のdistribution/payableは¥0、画面期間は2025.12.01–12.31。これは購入者grossの集計ではない。readback occurrenceはpass/exit0でも`official_readback_ref=null`。
 - **owned distribution:** 公開`/api/stats`の最新更新は10/12 23:58:51 JSTで、site全体217 pageviews、LINE記事5 views、`line_sticker_click` eventなし。記事ownerは旧SHA `5a595864`で10/13 01:13 JSTに`disk_headroom_low` / exit75。social ownerは01:06 JSTに`resource_effect_unknown` / exit75で、既存fenceは保持。ledgerは10/10まで14 published / 3 failedで、新規投稿は未確認。
-- **capacity / cleanup:** 01:13:48 JSTの`df -Pk /`は1,470,148 KiB（約1.40 GiB）空きで、release capacity requirement 2,393,120,768 bytesを約845 MiB下回る。cleanup ownerはrelease65d1で01:11:18 JSTにexit0/pass、01:14:21Zに次のnatural occurrence `18ddd44ec0bc9b28-99252` がrunning。exit0だけでは回収を証明しない。最新receiptをterminal後に確認し、allowlisted cleanup以外のstate/session/worktree削除はしない。
-- **current cursor:** D15 → D09d → D09 → D10。D09eの公開URL確認はDONE。現状は配信経路が起動していてもorganic views/clicks/salesがほぼ確認できず、IG/Threadsと記事の実行はそれぞれfence・disk admissionに阻まれている。次はnatural cleanup receiptを確認しつつD15の利用可能なowned channel選定、続いてreader待機時間の最小修正へ進む。
+- **capacity / cleanup:** `life-manager-disk-cleanup` occurrence `18ddd44ec0bc9b28-99252` はrelease65d1で01:16:21 JSTにexit0/pass。01:17:11 JSTのfresh `lm-loop health` はfree_bytes `1,479,614,464`、`capacity_recovered=false` / `status=unmet`。01:17:14の`df -Pk /`は1,444,936 KiB（約1.38 GiB）で、cleanup 2 GiB recovery floorを約608 MiB、release requirement 2,393,120,768 bytesを約871 MiB下回る。終了codeだけで実回収を主張しない。安全なallowlisted候補の確認を続け、session/Codex DB/browser profile/active worktree等を手動削除しない。
+- **current cursor:** capacity blockerは未回復のため、LINE記事の自然実行はdisk admissionに阻まれている。cleanerの次回自然receipt/host readbackを確認しながら、SSOT順のD15 → D09d → D09 → D10を続ける。D09eの公開URL確認はDONE。organic views/clicks/salesはまだ実績がほぼなく、IG/Threadsはunknown fenceで保持。
 
 ### 5.1 自己修復・自己改善の定義（T5 / T12 の正本）
 
