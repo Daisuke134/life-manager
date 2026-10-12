@@ -8,6 +8,8 @@ const test = require("node:test");
 
 const { createContentObjectStore } = require("./content-object-store.js");
 const {
+  appStoreCampaignUrl,
+  appStoreCampaignUrlForDestination,
   appStoreUrl,
   buildMarketingCtaCaption,
   buildMarketingCtaCaptionRef,
@@ -63,6 +65,30 @@ test("buildMarketingCtaCaptionRef writes a new content object distinct from the 
 test("appStoreUrl matches the App Store Connect app ids for both products", () => {
   assert.equal(appStoreUrl("anicca-ios"), "https://apps.apple.com/app/id6755129214");
   assert.equal(appStoreUrl("honne-ai"), "https://apps.apple.com/app/id6759667221");
+});
+
+test("profile campaign links use the destination's stable Apple campaign token", () => {
+  const target = {
+    job_product_id: "anicca-ios",
+    platform: "instagram",
+    locale: "en",
+    app_store_campaign_token: "anicca-ios_ig_anicca-en_en",
+  };
+  assert.equal(
+    appStoreCampaignUrlForDestination(target),
+    "https://apps.apple.com/app/id6755129214?pt=93486075&ct=anicca-ios_ig_anicca-en_en&mt=8",
+  );
+});
+
+test("profile campaign links reject missing or invalid campaign tokens", () => {
+  assert.throws(
+    () => appStoreCampaignUrlForDestination({ job_product_id: "anicca-ios", platform: "instagram", locale: "en" }),
+    /campaign token/i,
+  );
+  assert.throws(
+    () => appStoreCampaignUrl({ productId: "anicca-ios", campaignToken: "a".repeat(31) }),
+    /campaign token/i,
+  );
 });
 
 test("web product YouTube CTA uses its registered destination with channel attribution", () => {
