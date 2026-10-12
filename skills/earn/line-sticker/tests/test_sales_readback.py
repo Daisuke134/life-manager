@@ -32,6 +32,22 @@ class ParseStickerStats(unittest.TestCase):
     def test_empty_table_returns_empty_list(self) -> None:
         self.assertEqual(MODULE.parse_sticker_stats("売上・統計情報：アイテム\nサムネイル\tタイトル\t販売開始日 \t売上（累計） \n"), [])
 
+    def test_parses_official_product_ids_from_detail_links(self) -> None:
+        rows = MODULE.parse_sticker_table_rows([
+            {
+                "href": "https://creator.line.me/my/account/stats/sticker/48077815",
+                "text": "毎日使えるカワウソスタンプ\t2026/10/6\t￥0",
+            },
+            {
+                "href": "https://creator.line.me/my/account/stats/sticker/42100028",
+                "text": "いりや\t2025/12/1\t￥189",
+            },
+        ])
+        self.assertEqual(rows, [
+            {"product_id": "48077815", "title_ja": "毎日使えるカワウソスタンプ", "sale_start_date": "2026/10/6", "sales_jpy": 0},
+            {"product_id": "42100028", "title_ja": "いりや", "sale_start_date": "2025/12/1", "sales_jpy": 189},
+        ])
+
 
 class ParsePaymentRequest(unittest.TestCase):
     def test_parses_payable_and_current_period(self) -> None:
@@ -49,7 +65,16 @@ class ParsePaymentRequest(unittest.TestCase):
 
 class BuildLedgerRow(unittest.TestCase):
     def test_matches_known_titles_to_tracked_product_ids_and_ignores_untracked(self) -> None:
-        rows = MODULE.parse_sticker_stats(STATS_TEXT)
+        rows = MODULE.parse_sticker_table_rows([
+            {
+                "href": "https://creator.line.me/my/account/stats/sticker/48077815",
+                "text": "毎日使えるカワウソスタンプ\t2026/10/6\t￥0",
+            },
+            {
+                "href": "https://creator.line.me/my/account/stats/sticker/42100028",
+                "text": "いりや\t2025/12/1\t￥189",
+            },
+        ])
         tracked = [{"product_id": "48077815", "title_ja": "毎日使えるカワウソスタンプ"}]
         products = MODULE.match_products(tracked, rows)
         self.assertEqual(products, [{
@@ -59,11 +84,47 @@ class BuildLedgerRow(unittest.TestCase):
 
     def test_tracked_product_with_no_matching_row_stays_unknown(self) -> None:
         tracked = [{"product_id": "48128258", "title_ja": "動く！テストくまの敬語返事"}]
-        products = MODULE.match_products(tracked, MODULE.parse_sticker_stats(STATS_TEXT))
+        rows = MODULE.parse_sticker_table_rows([
+            {
+                "href": "https://creator.line.me/my/account/stats/sticker/48077815",
+                "text": "動く！テストくまの敬語返事\t2026/10/6\t￥189",
+            },
+        ])
+        products = MODULE.match_products(tracked, rows)
         self.assertEqual(products, [{
             "product_id": "48128258", "title_ja": "動く！テストくまの敬語返事",
             "sale_start_date": None, "sales_jpy": None,
         }])
+
+    def test_same_title_does_not_copy_sales_between_distinct_product_ids(self) -> None:
+        tracked = [
+            {"product_id": "set-a", "title_ja": "重複タイトル"},
+            {"product_id": "set-b", "title_ja": "重複タイトル"},
+        ]
+        rows = [{
+            "product_id": "set-a", "title_ja": "重複タイトル",
+            "sale_start_date": "2026/10/12", "sales_jpy": 189,
+        }]
+        self.assertEqual(MODULE.match_products(tracked, rows), [
+            {"product_id": "set-a", "title_ja": "重複タイトル", "sale_start_date": "2026/10/12", "sales_jpy": 189},
+            {"product_id": "set-b", "title_ja": "重複タイトル", "sale_start_date": None, "sales_jpy": None},
+        ])
+
+
+class TrackedProducts(unittest.TestCase):
+    def test_uses_submitted_title_in_creators_item_not_planned_listing_title(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            set_dir = Path(tmp) / "set-001"
+            set_dir.mkdir()
+            (set_dir / "creators-item.json").write_text(json.dumps({
+                "product_id": "48077815", "title_ja": "公式に提出したタイトル",
+            }))
+            (set_dir / "listing.json").write_text(json.dumps({
+                "title": {"ja": "制作計画の旧タイトル"},
+            }))
+            self.assertEqual(MODULE._tracked_products(Path(tmp)), [
+                {"product_id": "48077815", "title_ja": "公式に提出したタイトル"},
+            ])
 
 
 class ShouldRunToday(unittest.TestCase):

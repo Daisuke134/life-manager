@@ -215,8 +215,8 @@ def _prior_set_facts(state_root: Path) -> list[dict]:
             "theme": (draft or {}).get("theme"),
             "title": (listing or {}).get("title"),
             "state_observed": (item or {}).get("state_observed"),
-            # Official cumulative sales (JPY) from sales_readback.py's daily readback, keyed by
-            # product_id. None means unknown (not yet observed), never a silent 0.
+            # Official cumulative stats amount (JPY), a provisional distribution estimate rather
+            # than finalized gross sales, keyed by product_id. None means unknown, never 0.
             "sales_jpy": sales_by_product_id.get(product_id) if product_id else None,
         })
     return facts
