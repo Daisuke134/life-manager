@@ -33,6 +33,7 @@ test('image adapter emits only a settled successful sale and strips unapproved f
     },
     { ts: '2026-07-23T02:01:00.000Z', route: '/image', price: '$0.03', tx: null, settled: false, status: 402 },
     { ts: '2026-07-23T02:02:00.000Z', route: '/other', price: '$0.03', tx: TX, settled: true, status: 200 },
+    { ts: '2026-07-23T02:03:00.000Z', route: '/image', price: '$0.03', tx: `0x${'b'.repeat(64)}`, settled: true, status: 502 },
   ];
 
   assert.deepEqual(normalizeImageSales(rows, { payTo: PAY_TO }), [{

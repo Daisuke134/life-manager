@@ -20,3 +20,15 @@ test('normalized candidates are reverified and recorded by a five-minute one-sho
   assert.equal(job.cadence.start_interval_seconds, 300);
   assert.equal(job.cadence.keep_alive, undefined);
 });
+
+test('seller logs the successful settlement transaction and finished HTTP status', () => {
+  const serve = readFileSync(new URL('../serve.mjs', import.meta.url), 'utf8');
+  const requirePattern = (pattern, label) => assert.ok(pattern.test(serve), `${label} is not wired`);
+
+  requirePattern(/from "\.\/lib\/settle-gate\.mjs"/, 'settle-gate import');
+  requirePattern(/const paymentResponse = res\.getHeader\("X-PAYMENT-RESPONSE"\)/, 'payment response readback');
+  requirePattern(/const settled = isSettled\(paymentResponse\)/, 'verified settle status');
+  requirePattern(/tx: settled \? decodeTransaction\(paymentResponse\) : null/, 'settlement transaction');
+  requirePattern(/status: res\.statusCode/, 'delivery status');
+  requirePattern(/res\.on\("finish"/, 'response completion boundary');
+});
