@@ -6,6 +6,16 @@
 
 これはE02/E03の設計候補であり、新しいTODO正本や開始済みcursorではない。実行状態・順序・所有者は [統一SSOT](2026-09-25-life-manager-unified-ssot.md) に従う。既存評価ownerの範囲と調整してから後続作業へ接続する。
 
+## E01 runtime checkpoint
+
+**観測時刻:** 2026-10-12T14:52:05Z。これはローカル状態の読み取り専用checkpointであり、統一SSOTのcursorを進めない。
+
+- `origin/main` (`af8e9a1b`) は欠測・不正netを`unknown`に保つ修正 (`b5522b5d`) を含む。main由来のcurrent release `65d1feb5` の`runtime/loop/self-eval.mjs` SHA-256は`75b050c7…`で、main sourceと一致する。既存`self-eval.test.mjs`は8/8 PASS。
+- private natural earn ledgerの4,164行はすべて有限の`net_usdc`を持つ。current releaseのpure `selfEval`へ読み取り専用で渡すと、直近25行から4 groupを評価し、unknown groupは0。値やledger本文は保存・公開していない。この自然データは正常入力のbaselineであり、欠測・不正netの自然発生を示さない。
+- `agent-economy-loop`はPID 3136で`loaded-running`、loaded releaseは`dd6f0ee5`。そのrelease内`self-eval.mjs` SHA-256は`e31b51c4…`で、修正済みcurrent releaseと異なる。プロセスを停止・再起動・差し替えず、E01を未完のまま保つ。
+
+**E01受入の区別:** 欠測・不正・混在netの振る舞いは既存の8件の単体回帰testで検証する。natural ledgerに存在しない欠測値をproductionへ注入しない。実行完了には、実呼び出しownerが安全に`loaded-idle`となった後、修正済みmain由来releaseのloaded SHAと次の自然runでの採用を確認する。通常入力の自然評価は実行経路と結果を補強するが、欠測netへの耐性や経済利益を証明しない。容量/admissionが未解決なら適用せず、既存の共有資源cursorに従う。
+
 根拠は [一次資料比較](../../research/2026-10-12-edd-and-autonomy-benchmarks.md)。既存runnerを維持し、AutomationBenchの初期state・tool・終state検査の形を参考にする。新framework、scheduler、optimizerは追加しない。
 
 ## 18業務からのPilot A選定
@@ -28,7 +38,7 @@
 
 ## 英語記事の配信タスク
 
-対象記事は “Good Agent Evals Measure Work Done, Not Answers Given”。既存のブログ記事テンプレートとX Articleの投稿経路を再利用し、ページを別実装しない。本文には、現行LM-EABの5 fixtureは合成契約検査であること、Writer qualityは収益証拠ではないこと、AI lab採用は未達であることを明記する。
+対象記事は “Good Agent Evals Measure Work Done, Not Answers Given”。既存のブログ記事テンプレートと標準X postの経路を再利用し、ページを別実装しない。本文には、現行LM-EABの5 fixtureは合成契約検査であること、Writer qualityは収益証拠ではないこと、AI lab採用は未達であることを明記する。
 
 1. 英文・出典・3枚の図を確認し、この記事sourceをPR #7798に保持する。
 2. Aniccaサイトへ記事recordと画像を追加し、既存build/CIとmain経由のdeployを通す。
