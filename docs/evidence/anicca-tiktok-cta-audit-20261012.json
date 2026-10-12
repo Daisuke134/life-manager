@@ -71,7 +71,21 @@
     "red_cases_reproduced": 4,
     "focused_tests_passed": 73,
     "pull_request": "https://github.com/Daisuke134/life-manager/pull/7779",
+    "pull_request_head": "dd918e6fb243f9bce2d38a6031e06347e841813c",
+    "ci_passed": true,
+    "independent_review": "Ship; no findings",
     "runtime_release_adopted": false
+  },
+  "runtime_fence_readback": {
+    "owner_id": "life-manager-anicca-en-affirmation-tiktok",
+    "installed_release_sha": "66f04769c92878a29905bc91b0ae13435dff9f94",
+    "owner_status": "safely_fenced",
+    "pending_admission_occurrences": 4258,
+    "exact_identity_rows_found": 5,
+    "pending_occurrences_with_matching_identity": 0,
+    "fence_reconciler_result": "identity_missing_or_invalid",
+    "owner_apply_or_fence_resolution": false,
+    "next_natural_slot_jst": "20:15"
   },
   "effects": {
     "posts_created": 0,
