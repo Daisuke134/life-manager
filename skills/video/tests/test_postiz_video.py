@@ -245,6 +245,46 @@ class PostizVideoTests(unittest.TestCase):
             },
         )
 
+    def test_find_post_reconciles_direct_tiktok_photo_when_release_id_matches_url(self):
+        caption = "Exact caption\n#line"
+        release_id = "7695564744492600577"
+        url = f"https://www.tiktok.com/@anicca_slideshow/photo/{release_id}"
+        row = {
+            "id": "photo-direct-1",
+            "state": "PUBLISHED",
+            "releaseURL": url,
+            "releaseId": release_id,
+            "integration": {"id": "cmnenjkff01j1pa0ysufmzhfr"},
+            "content": caption,
+            "settings": json.dumps({
+                "__type": "tiktok",
+                "title": "Exact hook",
+                "content_posting_method": "DIRECT_POST",
+            }),
+        }
+
+        state = postiz_video.find_post([row], "photo-direct-1", "tiktok")
+
+        self.assertEqual(state, {
+            "state": "PUBLISHED",
+            "post_url": url,
+            "integration_id": "cmnenjkff01j1pa0ysufmzhfr",
+            "content_sha256": hashlib.sha256(caption.encode("utf-8")).hexdigest(),
+            "title": "Exact hook",
+            "posting_method": "DIRECT_POST",
+            "release_id": release_id,
+        })
+        self.assertTrue(postiz_video.is_tiktok_photo_proof(
+            state, "cmnenjkff01j1pa0ysufmzhfr", caption, "Exact hook",
+        ))
+        self.assertTrue(postiz_video.is_reconciled_state(state, "tiktok"))
+
+        mismatched = {**row, "releaseId": "7695564744492600578"}
+        invalid = postiz_video.find_post([mismatched], "photo-direct-1", "tiktok")
+        self.assertFalse(postiz_video.is_tiktok_photo_proof(
+            invalid, "cmnenjkff01j1pa0ysufmzhfr", caption, "Exact hook",
+        ))
+
     def test_find_post_rejects_incomplete_tiktok_photo_proof(self):
         base = {
             "id": "photo-invalid",

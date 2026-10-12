@@ -190,10 +190,16 @@ def _parse_post_settings(value) -> dict | None:
 def _tiktok_photo_proof_from_row(row: dict, url: str | None) -> dict | None:
     if row.get("state") != "PUBLISHED":
         return None
-    if url is not None and not _valid_tiktok_profile_url(url):
-        return None
     release_id = row.get("releaseId")
-    if not isinstance(release_id, str) or not re.fullmatch(r"p_pub_url~v2\.[0-9]+", release_id):
+    legacy_release = isinstance(release_id, str) and re.fullmatch(r"p_pub_url~v2\.[0-9]+", release_id)
+    direct_match = re.fullmatch(
+        r"https://www\.tiktok\.com/@[A-Za-z0-9._-]+/photo/([0-9]+)/?",
+        url or "",
+    )
+    direct_release = bool(direct_match and release_id == direct_match.group(1))
+    if not legacy_release and not direct_release:
+        return None
+    if legacy_release and url is not None and not _valid_tiktok_profile_url(url):
         return None
     settings = _parse_post_settings(row.get("settings"))
     if not settings or settings.get("__type") != "tiktok":
@@ -213,7 +219,7 @@ def _tiktok_photo_proof_from_row(row: dict, url: str | None) -> dict | None:
         return None
     return {
         "state": "PUBLISHED",
-        "post_url": None,
+        "post_url": url if direct_release else None,
         "integration_id": integration_id,
         "content_sha256": hashlib.sha256(content.encode("utf-8")).hexdigest(),
         "title": title,
@@ -599,7 +605,19 @@ def is_tiktok_photo_proof(
     caption: str | None = None,
     title: str | None = None,
 ) -> bool:
-    if not isinstance(state, dict) or state.get("state") != "PUBLISHED" or state.get("post_url") is not None:
+    if not isinstance(state, dict) or state.get("state") != "PUBLISHED":
+        return False
+    release_id = state.get("release_id")
+    url = state.get("post_url")
+    legacy_release = url is None and isinstance(release_id, str) and re.fullmatch(
+        r"p_pub_url~v2\.[0-9]+", release_id,
+    )
+    direct_match = re.fullmatch(
+        r"https://www\.tiktok\.com/@[A-Za-z0-9._-]+/photo/([0-9]+)/?",
+        url or "",
+    )
+    direct_release = bool(direct_match and release_id == direct_match.group(1))
+    if not legacy_release and not direct_release:
         return False
     if not isinstance(state.get("integration_id"), str) or not state["integration_id"].strip():
         return False
@@ -616,8 +634,6 @@ def is_tiktok_photo_proof(
         return False
     return (
         state.get("posting_method") == "DIRECT_POST"
-        and isinstance(state.get("release_id"), str)
-        and re.fullmatch(r"p_pub_url~v2\.[0-9]+", state["release_id"]) is not None
     )
 
 
