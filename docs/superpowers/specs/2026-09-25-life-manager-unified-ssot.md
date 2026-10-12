@@ -235,7 +235,7 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 | F02 | 自然な仕事→receipt→自己/中央cleanup→次仕事を照合 | ENOSPC/破損/手動掃除依存なし。容量固定値・永久無故障保証にしない |
 | F03 | 18業務を既存担当/専任へ割り当て、既存PRを先に照合して残件修復 | source acceptance/必要review/exact-head CI/main。重複実装なし |
 | F04 | 各laneの最小実仕事を自然実行して公式結果へ結ぶ | 投稿/応募/納品/注文等のexact receipt、replay/duplicate-zero |
-| M01 | 契約platformごとの公式売上履歴/明細/利用可能CSVを取得 | 受注/納品/予定売上をsettled revenueと数えない。完全period/pagination |
+| M01 | 契約platformごとの公式売上履歴/明細/利用可能CSVを取得 | Coconala専用identityの認証済み売上画面を取得。残高31,980円、申請中39,000円/予定10月15日を分離。全ページ/period/案件/fee joinは残件、月次利益/銀行入金として数えない |
 | M02 | 案件/注文→payment→fee/refundをunique IDでjoin | Coconala/Lancers/CrowdWorks等を同じCFO契約へ。集計残高だけで帰属しない |
 | M03 | 売上確定・出金可能・payout・銀行着金を別々に照合 | 同じpayoutを売上へ再加算しない。未確認を0にしない。今回資金移動なし |
 | M04 | model/system/cloud/tool/広告/納品の公式実費を帰属させる | billedとcash paidを分離、period/currency一致、共有費配賦・coverage保持 |
@@ -264,7 +264,7 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 | O03 | 外部利用者の再現・benchmark・限界・貢献方法を公開 | one-shot onboarding以後の介入を測る。誰でも百万長者を保証しない |
 | G01 | 各laneの原収益目標と会社全体US$10M/月へ継続改善 | active recurring契約/公式settlement/refund/fee/実費、全scopeを維持 |
 
-**Coconalaの公式売上源:** https://coconala.com/smartphone/users/revenue はログインが必要で、今回public crawlではlogin画面まで。金額は未確認。公式案内 https://coconala.com/pages/guide_sell と https://help.coconala.com/hc/ja/articles/218179958-売上金の反映されるタイミング では、購入者決済はcloseまで預かり、close後に売上反映、販売手数料控除、payout/銀行振込は別段階。M01–05で他契約platformもそれぞれの公式売上/fee/refund/payoutを同案件ID・periodへjoinする。既存skills/cfo/adapters/marketplace.pyはpayment/fee/refund/payout_match/pending receipt対応、aggregate-onlyはgapなので再実装せず公式捕捉とjoinを埋める。LM-EABはapps/life-manager/eval/economic-autonomyにrecords/score/runnerと4 cases（tuning2/held-out2）まで存在、H/E/I/N/O/Gの実成果は未完。
+**Coconalaの公式売上源:** https://coconala.com/smartphone/users/revenue はログインが必要。public crawlはlogin画面までだったが、専用identity coconala:kosukeの通常lease/owned tabで認証済み画面をread-only取得済み。evidence=~/.local/state/life-manager/cfo-marketplace-readbacks/coconala-revenue-page-20261012T031748Z.json（0600、観測2026-10-12T03:17:48Z）。公式表示は売上金残高31,980円、振込申請中39,000円・予定2026-10-15。申請は銀行入金ではなく、残高/申請額を当月売上やLM帰属netへ変換しない。画面に複数ページの履歴があり、全ページ・案件ID・fee/refund・期間の照合は未完。新たな振込申請/送信/認証変更なし、owned tabはfinallyで閉じた。公式案内 https://coconala.com/pages/guide_sell と https://help.coconala.com/hc/ja/articles/218179958-売上金の反映されるタイミング では、購入者決済はcloseまで預かり、close後に売上反映、販売手数料控除、payout/銀行振込は別段階。M01–05で他契約platformもそれぞれの公式売上/fee/refund/payoutを同案件ID・periodへjoinする。既存skills/cfo/adapters/marketplace.pyはpayment/fee/refund/payout_match/pending receipt対応、aggregate-onlyはgapなので再実装せず公式捕捉とjoinを埋める。LM-EABはapps/life-manager/eval/economic-autonomyにrecords/score/runnerと4 cases（tuning2/held-out2）まで存在、H/E/I/N/O/Gの実成果は未完。
 
 ### 基盤だけのatomic TODO（現在の実行表）
 
