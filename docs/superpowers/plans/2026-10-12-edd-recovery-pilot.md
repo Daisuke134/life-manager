@@ -40,8 +40,8 @@
 
 - [ ] **A0 / E01:** 修正sourceとmain由来releaseのSHAを照合し、自然ledgerを読み取り専用で評価して通常入力のbaselineを記録する。欠測・不正・混在netは既存8件の単体回帰testで検証し、natural dataに欠測が無ければ自然障害として扱わない。実呼び出しownerが安全にloaded-idleとなってから修正済みreleaseのloaded SHAと次の自然runを確認する。effect fenceを変更しない。現checkpointではcurrent release SHAは一致するが、`agent-economy-loop`は古いreleaseをloaded-runningしているため未完。
 - [ ] **A1:** Writer owner・lease・run状態をread-only確認し、既存ownerと重複しない担当範囲を確定する。
-- [ ] **A2:** 一言語・一媒体の公開前stageを選ぶ。新しい外部公開や再送は行わない。
-- [ ] **A3:** 利用可能な自然runから多様なtraceを抽出して読む。初回は30件を目安にし、件数が足りない場合は全件数・欠落期間・sampling limitationを記録する。
+- [ ] **A2:** English blog article draftの公開前quality gateを一つのstageとして選ぶ。本文/CTA/identity gateを評価し、blog・note・Substack等の新規公開や再送はしない。
+- [ ] **A3:** task-level article runとchild agent-runner traceを別々に数える。8件の自然article runと276件の`article-daily` child summaryが見つかったが、全article source SHAが`UNKNOWN`で、child summaryにparent run/occurrence/source SHAが無い。独立task数にchild callを足さず、human labelとlineageが揃うまで性能率・saturationを報告しない。詳細 → [Writer EDD trace discovery](../../evals/writer-edd-trace-discovery.md)。
 - [ ] **A4:** 実traceからfailure taxonomyを作り、最初の一分類を選ぶ。一般的な「品質」ラベルだけでcaseを作らない。
 - [ ] **A5:** そのfailureのcase cardにtask、initial state、allowed tools、budget、期待outcome、自然/derived/syntheticのprovenance、evidence refsを記録する。
 - [ ] **A6 / E02:** task completion、quality、safety/effect integrity、settled net、cost coverage、latency、human interventionを別fieldにする。receiptや費用が不足すれば経済outcomeは`unknown`。
