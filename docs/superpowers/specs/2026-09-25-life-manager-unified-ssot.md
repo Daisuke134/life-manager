@@ -227,6 +227,9 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 
 **担当更新:** Job Hunterの実担当はAGMSG lm-job-hunter-1012、指定WT job-hunter-dreamwork-submit-20261011/branch fix/job-hunter-current-salary-option-20261012。最新版goalは無料OSS、Workday/Ashby等の公式ATS・事実resume・同求人receipt/replay-zero、個人事実/資格/報酬/就労資格非推測、必須情報不足は非開示/辞退optionまたはその行not_submittedでqueue継続。旧Dreamwork中心handoverを優先しない。primaryから担当確認のAGMSGを送信済み。LINEはDaisの既存Codexを維持。旧primary-spawn lm-job-goal-1012/lm-line-goal-1012のforce despawnはruntime_error/未確認なので停止済みと報告しない。旧boot packetを取消指示へ置換して重複着手を防ぐ。CapafyはDaisがfresh Codexを開きlm-capafy-1012としてteam lmへ参加可能、旧Capafy writer停止/lease確認後に専任引継ぎ。PromptBase/WriterはAGMSG専任がgoal active/実作業開始と初回inbox報告を確認済み。
 
+**PromptBase専用browser境界:** primaryがbrowsers.tomlへpromptbase:daisだけを正規登録、profile=~/.local/state/anicca/promptbase/browser-profile（.cloak外）、owner=promptbase-loop-daily、launcherは既存ensure_provision_browser、portはDevToolsActivePortで解決する。既存identity/profile/token/vaultは変更しない。PB担当は通常guard/launcher/安全preflightを使いsource/browser/sessionを自分の範囲でserialに扱う。今回のphone/Apple-store/interactive:dais禁止が旧handover/skillのphone・Keychain手順より優先する。未確認accountを増やさず既存sellerへ正規loginし、credentialはprivate SSOTだけ。
+
+
 
 
 
