@@ -1,6 +1,6 @@
 # EDD pilotから公開benchmarkまでの実装前計画案
 
-> 後続担当は `superpowers:executing-plans` でtask単位に進める。この文書は議論用draftであり、今回は実行しない。実行状態の正本を増やさない。
+> この文書は `superpowers:executing-plans` に沿う詳細な実装計画。pilotの実行は開始済みで、順序・状態・現在cursorの正本は統一SSOTだけとする。この計画は新しいcursorを作らない。
 
 **選定:** Writerの一記事・一言語・一媒体の公開前品質評価をPilot Aとする。effect-unknown recoveryはPilot Bとして続ける。Writer quality PASSを売上改善と扱わず、既存recovery-intent/apply-plan testを再利用する。実行順とcursorはcanonical SSOTが所有する。
 
@@ -12,7 +12,7 @@
 
 **Spec:** [EDD recovery pilot design](../specs/2026-10-12-edd-recovery-pilot-design.md)
 
-**読者向け説明:** [PR #7798: Agent eval handbookと図](https://github.com/Daisuke134/life-manager/pull/7798)。英語版はAnicca `/blog` とX Articleへ別途配信する。公開記事はE01–E06の完了や実測性能とは数えない。
+**読者向け説明:** [英語版ブログ記事](https://aniccaai.com/blog/good-agent-evals-measure-outcomes) と [X post](https://x.com/selawmqt/status/2109636732962668720)。X Articles editorはこのaccountで利用できず、Xにはブログへ誘導する標準postを公開した。記事公開はE01–E06の完了や実測性能とは数えない。
 
 ### 英語記事の配信atom
 
@@ -38,7 +38,7 @@
 
 ### Pilot A — Writer公開前quality eval
 
-- [ ] **A0 / E01:** selfEval欠測net修正のloaded SHAを確認し、自然評価で欠測・不正netが利益/ゼロへ変換されないことを照合する。既存effect fenceを変更しない。
+- [ ] **A0 / E01:** 修正sourceとmain由来releaseのSHAを照合し、自然ledgerを読み取り専用で評価して通常入力のbaselineを記録する。欠測・不正・混在netは既存8件の単体回帰testで検証し、natural dataに欠測が無ければ自然障害として扱わない。実呼び出しownerが安全にloaded-idleとなってから修正済みreleaseのloaded SHAと次の自然runを確認する。effect fenceを変更しない。現checkpointではcurrent release SHAは一致するが、`agent-economy-loop`は古いreleaseをloaded-runningしているため未完。
 - [ ] **A1:** Writer owner・lease・run状態をread-only確認し、既存ownerと重複しない担当範囲を確定する。
 - [ ] **A2:** 一言語・一媒体の公開前stageを選ぶ。新しい外部公開や再送は行わない。
 - [ ] **A3:** 利用可能な自然runから多様なtraceを抽出して読む。初回は30件を目安にし、件数が足りない場合は全件数・欠落期間・sampling limitationを記録する。
@@ -83,7 +83,7 @@
 - known pre-effectの回復経路を全holdに変えて安全点だけを稼がない。
 - 本番でしか観測できない未測定境界を、fixtureの合格で完了扱いにしない。
 
-## Task 1: 一件の自然障害と既存testを対応付ける
+## Pilot B task 1: 一件の自然障害と既存testを対応付ける
 
 **Files:**
 - Create: `docs/evals/recovery-pilot.md`
@@ -102,7 +102,7 @@
 - [ ] naturalのbindingが取れない場合はderivedの設計材料として残し、自然回復の成功・baseline性能を主張しない。
 - [ ] local link・匿名化・diff検査→commit/push。
 
-## Task 2: 既存回帰試験の基準を確認する
+## Pilot B task 2: 既存回帰試験の基準を確認する
 
 **Files:**
 - Modify: `docs/evals/recovery-pilot.md`
@@ -118,7 +118,7 @@
 - [ ] 既存testが落ちる場合は、その原因を修理ownerへ渡す。新wrapperで覆い隠さない。
 - [ ] diff検査→commit/push。
 
-## Task 3: 欠けた境界を修理ownerのEDDへ接続する
+## Pilot B task 3: 欠けた境界を修理ownerのEDDへ接続する
 
 **Files:**
 - Modify: `docs/evals/recovery-pilot.md`
