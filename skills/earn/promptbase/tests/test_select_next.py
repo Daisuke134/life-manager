@@ -25,13 +25,45 @@ class SelectNextTest(unittest.TestCase):
     def tearDown(self):
         self._tmp.cleanup()
 
-    def _make_skill(self, slug, title, demand_rank=None):
+    def _make_skill(self, slug, title, demand_rank=None, *, evidence=True):
         d = self.catalog_dir / slug
         d.mkdir(parents=True)
         rank_line = f"\nDemand rank: {demand_rank}\n" if demand_rank is not None else ""
         (d / "LISTING.md").write_text(
             f"## Title\n{title}\n{rank_line}\n## shortDescription\nx\n", encoding="utf-8"
         )
+
+        (d / "SKILL.md").write_text("Write a hook for the given topic.", encoding="utf-8")
+        if evidence:
+            (d / "evidence").mkdir()
+            (d / "evidence" / "verified-demonstration.md").write_text(
+                "## Concrete input\n```text\nA tea shop\n```\n"
+                "## Actual output\nYour next cup starts here.\n", encoding="utf-8"
+            )
+
+    def test_missing_demonstration_does_not_starve_ready_candidate(self):
+        self._make_skill("hook-grader", "Hook Grader", demand_rank=1, evidence=False)
+        self._make_skill("ready-hook", "Ready Hook", demand_rank=2)
+        result = select_next.select_next(
+            self.catalog_dir, [_agent("Hook Grader"), _agent("Ready Hook")], self.ledger_path
+        )
+        self.assertEqual(result["slug"], "ready-hook")
+
+    def test_only_missing_demonstration_returns_no_candidate(self):
+        self._make_skill("hook-grader", "Hook Grader", evidence=False)
+        result = select_next.select_next(
+            self.catalog_dir, [_agent("Hook Grader")], self.ledger_path
+        )
+        self.assertIsNone(result["slug"])
+        self.assertEqual(result["reason"], "no_online_unshipped_catalog_item")
+
+    def test_preferred_slug_still_requires_demonstration(self):
+        self._make_skill("reels-hook-lab", "Reels Hook Lab", evidence=False)
+        self._make_skill("ready-hook", "Ready Hook")
+        result = select_next.select_next(
+            self.catalog_dir, [_agent("Reels Hook Lab"), _agent("Ready Hook")], self.ledger_path
+        )
+        self.assertEqual(result["slug"], "ready-hook")
 
     def test_picks_online_unshipped_slug(self):
         self._make_skill("hook-lab", "Hook Lab")

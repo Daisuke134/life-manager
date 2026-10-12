@@ -148,6 +148,15 @@ test("classifies registered, closed, waitlist, full, approval, and unknown contr
   assert.equal(normalizeLumaEventDetail(fixture({ controls: ["ホストに連絡"] })).rsvp_status, "unknown");
 });
 
+test("host approval remains a gate when Luma also shows Request to Join", () => {
+  assert.equal(normalizeLumaEventDetail(fixture({
+    controls: ["Approval Required", "Request to Join"],
+  })).rsvp_status, "approval_required");
+  assert.equal(normalizeLumaEventDetail(fixture({
+    controls: ["承認が必要", "参加リクエスト"],
+  })).rsvp_status, "approval_required");
+});
+
 test("raw reader captures a non-button registration-closed notice", async () => {
   const page = {
     async evaluate(callback, canonicalUrl) {
@@ -167,6 +176,29 @@ test("raw reader captures a non-button registration-closed notice", async () => 
   const { readRawLumaEventDetail } = require("./luma-event-detail.js");
   const raw = await readRawLumaEventDetail(page, "https://luma.com/tokyo-one");
   assert.deepEqual(raw.controls, ["参加登録受付終了"]);
+});
+
+test("raw reader captures a non-button approval requirement next to its request control", async () => {
+  const page = {
+    async evaluate(callback, canonicalUrl) {
+      const originalDocument = global.document;
+      global.document = {
+        querySelectorAll(selector) {
+          if (selector === 'script[type="application/ld+json"]') return [];
+          if (selector === 'button, a[role="button"], input[type="submit"]') {
+            return [{ innerText: "Request to Join" }];
+          }
+          if (selector === "div, span, p") return [{ innerText: "Approval Required" }];
+          return [];
+        },
+      };
+      try { return callback(canonicalUrl); }
+      finally { global.document = originalDocument; }
+    },
+  };
+  const { readRawLumaEventDetail } = require("./luma-event-detail.js");
+  const raw = await readRawLumaEventDetail(page, "https://luma.com/tokyo-one");
+  assert.deepEqual(raw.controls, ["Request to Join", "Approval Required"]);
 });
 
 test("hybrid event with a sold-out venue ticket is full even when online registration remains", () => {

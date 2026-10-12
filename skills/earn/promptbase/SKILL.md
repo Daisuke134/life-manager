@@ -41,7 +41,11 @@ SKILL.md pasted as the buyer-hidden "prompt template", and a
   `draft` / ...) from PromptBase's own Approved/Pending/Declined labels. The
   text-parsing part (`parse_dashboard_cards`, `status_for_title`) is pure and
   tested against real captured dashboard text; only the fetch is a browser
-  call.
+  call. It accepts readbacks only while the browser remains on the expected
+  PromptBase account view. Sales are zero only when the official Sales page
+  has the Dashboard/Sales headings and an exact `No sales yet` line; a login
+  redirect, challenge, or unrecognized page fails closed without writing a
+  zero summary or changing listing rows.
 - `scripts/select_next.py` — pure selection logic: given the catalog's
   `LISTING.md` titles, the authoritative Capafy `publish-list` agents, and the
   ledger, picks the next slug that is online on Capafy and not already
@@ -54,7 +58,8 @@ SKILL.md pasted as the buyer-hidden "prompt template", and a
   `effect_unknown` admission fence from the PromptBase seller dashboard (the
   only official readback there is, since PromptBase has no API) once
   `daily.sh`'s pre-submit snapshot names a slug/title and enough time has
-  passed.
+  passed. A login redirect, challenge, or unrecognized page is inconclusive
+  and leaves the fence held; page content alone never proves no effect.
 - `daily.sh` — the loop entrypoint. See "Daily loop" below.
 - `tests/` — `build_listing`, `ledger`, `select_next`, `readback`-parsing,
   and `promptbase_fence_reconcile` tests, no browser required
@@ -65,18 +70,18 @@ SKILL.md pasted as the buyer-hidden "prompt template", and a
 ## Running it (lease wrapper only — never a hardcoded port)
 
 ```bash
-ENDPOINT=$(skills/browser/browser-guard.sh acquire interactive:dais) || exit 1
+ENDPOINT=$(skills/browser/browser-guard.sh acquire promptbase:dais) || exit 1
 python3 skills/earn/promptbase/scripts/publish.py \
   --catalog-dir skills/capafy/catalog/<slug> \
   --endpoint "$ENDPOINT"          # dry run: fills the wizard, stops before submit
   # add --confirm to actually submit once the dry-run screenshot looks right
-skills/browser/browser-guard.sh release interactive:dais
+skills/browser/browser-guard.sh release promptbase:dais
 ```
 
 ```bash
-ENDPOINT=$(skills/browser/browser-guard.sh acquire interactive:dais) || exit 1
+ENDPOINT=$(skills/browser/browser-guard.sh acquire promptbase:dais) || exit 1
 python3 skills/earn/promptbase/scripts/readback.py --endpoint "$ENDPOINT"
-skills/browser/browser-guard.sh release interactive:dais
+skills/browser/browser-guard.sh release promptbase:dais
 ```
 
 ## The PromptBase `/sell` wizard, as-observed (2026-09-28)
@@ -148,8 +153,8 @@ Two independent checks, both before any form is touched:
 
 ## Daily loop (`promptbase-loop-daily`, `config/loop-registry.json`)
 
-Runs `daily.sh` once a day (04:20, a quiet hour) via the `interactive:dais`
-browser lease, `effect_class: publish`, no human in the loop:
+Runs `daily.sh` once a day (04:20, a quiet hour) through the registered
+`promptbase:dais` identity. The loop is `effect_class: publish`, no human in the loop:
 
 1. `readback.py` — refresh every tracked ledger row's status/sales from the
    dashboard first.

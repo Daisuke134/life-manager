@@ -5,13 +5,15 @@ import sys
 import shlex
 from pathlib import Path
 
+import pytest
+
 
 ROOT = Path(__file__).resolve().parents[3]
 SCRIPT = Path(__file__).resolve().parent / "run.sh"
 
 
 def _run(tmp_path, free_kib: int, guard_script: str, foundation_script: str = "#!/bin/sh\nexit 1\n",
-        extra_env=None, hold_run_lock: bool = False):
+        extra_env=None, hold_run_lock: bool = False, operator_stop: bool = False):
     home = tmp_path / "home"
     home.mkdir()
     calls = tmp_path / "lm-loop.calls"
@@ -20,6 +22,15 @@ def _run(tmp_path, free_kib: int, guard_script: str, foundation_script: str = "#
     cli.chmod(0o755)
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
+    # Keep the shared gate's OS-owner-home policy scan inside this fixture.
+    (bin_dir / "sitecustomize.py").write_text(
+        'import os, pwd\nfrom types import SimpleNamespace\n'
+        'pwd.getpwuid = lambda uid: SimpleNamespace(pw_dir=os.environ["HOME"])\n'
+    )
+    host_state = home / ".local/state/life-manager/state"
+    if operator_stop:
+        host_state.mkdir(parents=True, mode=0o700)
+        (host_state / "disk-writers.stop").write_text("owner=operator\n")
     guard = tmp_path / "browser-guard.sh"
     guard.write_text(guard_script)
     guard.chmod(0o755)
@@ -28,7 +39,7 @@ def _run(tmp_path, free_kib: int, guard_script: str, foundation_script: str = "#
     foundation.chmod(0o755)
     resolver = tmp_path / "resolve_cdp_endpoint.py"
     resolver.write_text(
-        'import json\nprint(json.dumps({"identity":"interactive:dais",'
+        'import json\nprint(json.dumps({"identity":"fundraiser:fixture",'
         '"endpoint":"http://[::1]:9333","reachable":True}))\n'
     )
     context_lease = tmp_path / "cdp_context_lease.py"
@@ -59,12 +70,16 @@ def _run(tmp_path, free_kib: int, guard_script: str, foundation_script: str = "#
             **os.environ,
             "HOME": str(home),
             "PATH": f"{bin_dir}:{os.environ['PATH']}",
+            "PYTHONPATH": f"{bin_dir}:{os.environ.get('PYTHONPATH', '')}",
             "LIFE_MANAGER_REPO": str(ROOT),
+            "LIFE_MANAGER_HOST_STATE_DIR": str(host_state),
+            "FUNDRAISER_STATE_ROOT": str(home / ".local/state/life-manager/fundraiser"),
             "LIFE_MANAGER_LOOP_CLI": str(cli),
             "LIFE_MANAGER_BROWSER_GUARD": str(guard),
             "LIFE_MANAGER_BROWSER_FOUNDATION": str(foundation),
             "LIFE_MANAGER_BROWSER_RESOLVER": str(resolver),
             "LIFE_MANAGER_BROWSER_CONTEXT_LEASE": str(context_lease),
+            "LIFE_MANAGER_BROWSER_IDENTITY": "fundraiser:fixture",
             "LIFE_MANAGER_BROWSER_TARGET_OWNER": "",
             "CONTEXT_LEASE_CALLS": str(tmp_path / "context-lease.calls"),
             "BASH_FUNC_df%%": df_function,
@@ -78,19 +93,35 @@ def _run(tmp_path, free_kib: int, guard_script: str, foundation_script: str = "#
     return result, calls
 
 
-def test_low_disk_preserves_shared_cleanup(tmp_path):
+def test_low_reported_disk_does_not_preempt_shared_gate(tmp_path):
     result, calls = _run(
         tmp_path, free_kib=1,
         guard_script="#!/bin/sh\necho http://localhost:9222\nexit 0\n",
+        hold_run_lock=True,
     )
-    assert result.returncode == 75
-    assert not calls.exists(), "low-space deferral must not mutate shared cleanup"
+    assert result.returncode == 0
+    assert not calls.exists(), "producer preflight must not mutate shared cleanup"
+    assert (tmp_path / "context-lease.calls").exists()
     markers = list((tmp_path / "home" / ".local" / "state" / "life-manager" / "fundraiser" / "effect-markers").glob("*.json"))
     assert len(markers) == 1
     marker = json.loads(markers[0].read_text())
     assert marker["owner_id"] == "fundraiser"
     assert marker["phase"] == "pre_effect"
     assert marker["effect"] == 0
+
+
+def test_operator_disk_stop_defers_before_browser_dispatch(tmp_path):
+    result, calls = _run(
+        tmp_path, free_kib=4 * 1024 * 1024,
+        guard_script="#!/bin/sh\necho http://localhost:9222\nexit 0\n",
+        hold_run_lock=True, operator_stop=True,
+    )
+    assert result.returncode == 75
+    assert not calls.exists()
+    assert not (tmp_path / "context-lease.calls").exists()
+    marker_path, = (tmp_path / "home/.local/state/life-manager/fundraiser/effect-markers").glob("*.json")
+    marker = json.loads(marker_path.read_text())
+    assert (marker["phase"], marker["effect"]) == ("pre_effect", 0)
 
 
 def test_browser_profile_busy_uses_registered_identity_and_isolated_context(tmp_path):
@@ -121,11 +152,27 @@ def test_browser_profile_busy_uses_registered_identity_and_isolated_context(tmp_
     assert not calls.exists() or calls.read_text().strip() == ""
 
 
-def test_browser_identity_mismatch_recovers_then_reacquires(tmp_path):
-    # exit 10 == identity mismatch/unreachable per browser-guard.sh's contract:
-    # the registered foundation script is asked to recover the daily-driver
-    # profile, then exactly one more lease attempt is made.
+@pytest.mark.parametrize("identity", ["", "interactive:dais"])
+def test_missing_or_personal_browser_identity_defers_before_browser_dispatch(tmp_path, identity):
     guard_calls = tmp_path / "guard.calls"
+    result, _ = _run(
+        tmp_path, free_kib=4 * 1024 * 1024,
+        guard_script=f'#!/bin/sh\nprintf "%s\\n" "$*" >> "{guard_calls}"\necho http://localhost:9222\n',
+        hold_run_lock=True,
+        extra_env={"LIFE_MANAGER_BROWSER_IDENTITY": identity},
+    )
+    assert result.returncode == 75
+    assert not guard_calls.exists()
+    assert not (tmp_path / "context-lease.calls").exists()
+    marker_path, = (tmp_path / "home/.local/state/life-manager/fundraiser/effect-markers").glob("*.json")
+    marker = json.loads(marker_path.read_text())
+    assert (marker["phase"], marker["effect"]) == ("pre_effect", 0)
+
+
+def test_browser_identity_mismatch_defers_without_shared_browser_recovery(tmp_path):
+    # The browser's registry owner performs recovery, never this application pass.
+    guard_calls = tmp_path / "guard.calls"
+    foundation_calls = tmp_path / "foundation.calls"
     guard_script = f"""#!/bin/sh
 printf "%s\\n" "$*" >> "{guard_calls}"
 n=$(wc -l < "{guard_calls}")
@@ -138,23 +185,13 @@ exit 0
     result, calls = _run(
         tmp_path, free_kib=4 * 1024 * 1024,
         guard_script=guard_script,
-        foundation_script="#!/bin/sh\necho RECOVERED\n",
+        foundation_script=f'#!/bin/sh\ntouch "{foundation_calls}"\necho RECOVERED\n',
         hold_run_lock=True,
     )
-    # Downstream stages (context preflight, deck verification, the real agent
-    # runner) are not stubbed here, so this only asserts the browser stage
-    # itself: recovery ran exactly once and the lease was re-acquired
-    # afterward, i.e. the script did not defer at rc=75 for a browser reason.
-    assert guard_calls.read_text().splitlines() == [
-        "acquire interactive:dais",
-        "acquire interactive:dais",
-        "release interactive:dais",
-    ]
-    if result.returncode == 75:
-        assert "browser" not in result.stderr and "browser" not in (
-            (tmp_path / "home" / ".local" / "state" / "life-manager" / "fundraiser" / "fundraiser.log")
-            .read_text() if (tmp_path / "home" / ".local" / "state" / "life-manager" / "fundraiser" / "fundraiser.log").exists() else ""
-        )
+    assert result.returncode == 75
+    assert guard_calls.read_text().splitlines() == ["acquire fundraiser:fixture"]
+    assert not foundation_calls.exists()
+    assert not (tmp_path / "context-lease.calls").exists()
 
 
 def test_browser_identity_mismatch_with_failed_recovery_defers(tmp_path):

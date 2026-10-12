@@ -23,6 +23,8 @@ and converge on the same state, evidence, and human-readable reporting contracts
 Manager never guarantees wealth or investment returns, and it never reports an attempted action as completed
 without a receipt.
 
+Reproduce the offline economic/autonomy checks with the [LM-EAB guide](docs/evals/lm-economic-autonomy.md). Its synthetic fixtures test accounting and evidence contracts; live agent outcomes remain separate.
+
 ## The 18 main agents
 
 Life Manager has eighteen user-facing agents. An agent is a capability, not

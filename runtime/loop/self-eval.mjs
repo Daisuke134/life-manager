@@ -12,14 +12,12 @@
  * `source` is the earn channel (hl-trade, x402-serve, yield-*, gig, …); `task` the specific action.
  */
 
-const DEAD_MARKERS = ['no_position', 'no position', 'error', 'traceback', 'failed', 'no buyer'];
-
 /**
  * @param {Array<object>} lines  recent earn-ledger rows (newest last)
  * @param {object} [opts]
  * @param {number} [opts.window=25]  how many recent rows to consider
  * @param {number} [opts.deadCount=4] same source with ~$0 net this many times → flag DEAD
- * @returns {{ bySlot: Record<string,{count:number,net:number,dead:boolean,lastTask:string}>, steer: string }}
+ * @returns {{ bySlot: Record<string,{count:number,net:number|null,unknownCount:number,dead:boolean,lastTask:string}>, steer: string }}
  */
 export function selfEval(lines, opts = {}) {
   const window = Number.isFinite(opts.window) ? opts.window : 25;
@@ -30,17 +28,21 @@ export function selfEval(lines, opts = {}) {
   for (const r of rows) {
     if (!r || typeof r !== 'object') continue;
     const slot = String(r.source || r.slot || 'unknown');
-    const net = Number(r.net_usdc ?? r.net ?? 0) || 0;
+    const value = Object.hasOwn(r, 'net_usdc') ? r.net_usdc : r.net;
+    const net = (typeof value === 'number' || (typeof value === 'string' && value.trim()))
+      ? Number(value) : NaN;
     const task = String(r.task || '');
-    const b = bySlot[slot] || (bySlot[slot] = { count: 0, net: 0, dead: false, lastTask: '' });
+    const b = bySlot[slot] || (bySlot[slot] = { count: 0, net: 0, unknownCount: 0, dead: false, lastTask: '' });
     b.count += 1;
-    b.net = round4(b.net + net);
+    const total = round4((b.net ?? 0) + net);
+    if (!Number.isFinite(net) || !Number.isFinite(total)) b.unknownCount += 1;
+    b.net = b.unknownCount ? null : total;
     b.lastTask = task || b.lastTask;
   }
 
   // DEAD = used >= deadCount times, net is ~zero-or-negative, and it isn't compounding (no positive run).
   for (const [slot, b] of Object.entries(bySlot)) {
-    if (b.count >= deadCount && b.net <= 0) b.dead = true;
+    if (!b.unknownCount && b.count >= deadCount && b.net <= 0) b.dead = true;
   }
 
   const lines2 = [];
@@ -48,7 +50,8 @@ export function selfEval(lines, opts = {}) {
   const deads = [];
   for (const [slot, b] of Object.entries(bySlot)) {
     const tag = b.dead ? ' ← DEAD (stop)' : (b.net > 0 ? ' ← WORKS' : '');
-    lines2.push(`  ${slot} ×${b.count} → net $${b.net}${tag}`);
+    const amount = b.unknownCount ? `UNKNOWN (${b.unknownCount} unverified net rows)` : `$${b.net}${tag}`;
+    lines2.push(`  ${slot} ×${b.count} → net ${amount}`);
     if (b.net > 0) winners.push(slot);
     if (b.dead) deads.push(slot);
   }
@@ -61,8 +64,11 @@ export function selfEval(lines, opts = {}) {
     }
     if (winners.length) {
       steer += `\n✅ ${winners.join(', ')} actually made money — do more of what works, or try a genuinely NEW earner (cook a new path).`;
-    } else {
+    } else if (!Object.values(bySlot).some((b) => b.unknownCount)) {
       steer += `\nNothing has realised positive yet — try a genuinely different earner rather than repeating a dead one.`;
+    }
+    if (Object.values(bySlot).some((b) => b.unknownCount)) {
+      steer += `\nSome net results are UNKNOWN — reconcile their evidence before judging those actions profitable or dead.`;
     }
   }
 

@@ -1,0 +1,13 @@
+# CFO担当
+
+これはDaisが明示依頼した新規Codex担当。team=lm、統括=lm-orchestrator-1012。提示された旧handoverを現在の状態へ照合して担当goalを完走する。正本はdocs/superpowers/specs/2026-09-25-life-manager-unified-ssot.mdだけ。開始前にREADME、該当SSOT節、skills/loop-development/SKILL.mdを必要箇所だけ読む。2MB SSOT全体をcatしない。旧SHA/PR未統合/容量条件を現在と断定せずfresh main/HEAD/upstream/dirty/lease/runtime/providerを確認し、既完項目をやり直さない。
+他担当と共有。dirty root checkout、他担当worktree/branch/profile/stateを編集・revertしない。各lane内の実装は一人でserial、独立laneは並行する。変更は専用worktree/leaseで目的spec→最小RED/GREEN→focused checks→commit/push→PR、primaryが共有releaseと統合を調整する。SSOTは自分のlane節だけ更新し、全体順序はprimaryが管理する。大きなbuild/依存install/release cutを同時に行わず、共有境界は既存lease/lockで直列化する。初回は軽いreadbackとnext atom特定から入り、不要な複製dependencyや大きな一時artifactを作らない。
+送信/応募/決済/effect_unknownは公式receiptなしに解除・再送しない。credentials/browser identity/memory/state JSONL/active dirty leased worktree/参照release/Simulatorを保持する。credentialsはprivate SSOTのみ、値をchat/log/specへ出さない。Codex/ClaudeはTelegramへ進捗を送らない（既存業務loopは別）。Mac/loginwindow/App Server restart/raw launchctl禁止、必要なloop操作は既存安全preflight経路のみ。価格・spend cap・本人確認/entitlement境界を守る。過剰なreviewや新frameworkを増やさない。model IDを指定/変更せずUI/account既定を尊重する。
+この文書のgoalを自分のruntimeのpersistent goalとして設定し、既存goalがあれば重複作成しない。着手時と節目にAGMSG sendでprimaryへ「owner/owned WT/branch/HEAD/実施atom/検証/公式receipt/残件/次手」を短く報告する。登録やprocessだけを着手/Doneとしない。外部gate/自然run待ちでは独立safe TODOを続ける。成功はsource/fixtureだけでなく本番・自然run・公式readback・replay-zero/費用込み成果まで。百万長者・無故障・世界初は未実証の目標であり保証/広告claimにしない。
+
+/goal 最新registryの各loopと会社全体について期間別settled revenue/refund/fees/billed expenses/cash paid/net/MRR/freshness/coverageを公式receiptまたはcomplete zero/N/Aから正確に報告し、main由来自然B7とreplay-zeroで検証する。unknownを0へ置換しない。Money Tree/個人口座/Cloud API置換は対象外。A8各source→A6→A9→Google cash→A10七日自然acceptanceをserialに完走する。
+
+再開・所有境界:
+書込先は指定 .worktrees/cfo-telegram-runtime-receipt-20261007 のみ。最新branch fix/cfo-period-isolated-reports-20261012、HEAD b5188f55ad、PR #7714。#7711通知親timeout/#7713取消済み現在MRRはmain統合済み、やり直さない。最初のatom: reviewerのMEDIUM「既存archive reuseでnlink1を検査しない」を最小RED/GREENで修正（cfo-result-local.js既存archive分岐）。追加全面review不要、同reviewer/primaryへ該当diffを報告。67既存Node testsとscope testsを維持。旧fence life-manager-cfo-hourly:18dd46d06dd2a648-41605は部分配信未確定、再送/解除禁止。primaryはCFO code編集を止める。初回はread-only確認してAGMSGでREADYを返し、primaryのlease ownership transfer readback後に同WTを編集する。その後 #7714 CI/main/通常immutable採用→新期間自然B7/公式receipt→旧unknown保持→A8.3歴史Stripe帰属以下既存順。
+
+資格情報の保存先・SSOT全体確認・credentials[]のservice完全一致検索・identity/profile/owner/lease確認手順 → ~/.config/ai/core.md「No-human-loop（既定）」を起動時とブラウザ操作前に読む。lane個別の認証境界を保持し、secret値を起動指示へ含めない。

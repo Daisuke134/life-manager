@@ -21,7 +21,12 @@ from unittest.mock import patch
 
 import runtime.loop.lm_loop as lm_loop
 from runtime.loop.lm_loop import apply_live
-from runtime.loop.lm_loop_apply import _plist, apply_registry, build_apply_plan, install_one
+from runtime.loop.lm_loop_apply import (
+    _plist,
+    apply_registry,
+    build_apply_plan,
+    install_one,
+)
 
 
 SHA = "a" * 40

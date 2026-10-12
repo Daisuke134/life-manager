@@ -167,6 +167,9 @@ def _owner_is_alive(owner_pid: Any) -> bool:
         return False
     try:
         os.kill(owner_pid, 0)
+    except PermissionError:
+        # A denied probe does not prove the owner exited; preserve its claim.
+        return True
     except (OSError, ValueError):
         return False
     return True

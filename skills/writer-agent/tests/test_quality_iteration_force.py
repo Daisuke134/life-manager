@@ -496,3 +496,47 @@ def test_reopen_rejects_symlinked_draft(tmp_path, monkeypatch):
     ledger = run / "ledger.jsonl"
     ledger.write_text("", encoding="utf-8")
     assert RECOVERY.plan(run, ledger)["status"] == "REFUSED"
+
+
+@pytest.mark.parametrize("status", ["invoking", "publication-invoking"])
+@pytest.mark.parametrize("owner_probe", ["alive", "permission-denied", "missing"])
+def test_recovery_preserves_owner_when_liveness_probe_is_denied(
+    tmp_path, monkeypatch, status, owner_probe
+):
+    run = _quality_fixture(tmp_path)
+    _advance_to_force(run, monkeypatch)
+    ledger = tmp_path / "articles.jsonl"
+    ledger.write_text("", encoding="utf-8")
+    prompt = run / "recovery-prompt.txt"
+    prompt.write_text("Continue this exact run", encoding="utf-8")
+    _write(run / "gates" / RECOVERY.STATE_NAME, {
+        "status": status,
+        "attempts": 1,
+        "publication_attempts": 1,
+        "owner_pid": 12345,
+        "started_at": "2020-01-01T00:00:00+00:00",
+        "prompt_path": str(prompt),
+        "prompt_sha256": hashlib.sha256(prompt.read_bytes()).hexdigest(),
+    })
+    before = {str(p.relative_to(run)): p.read_bytes()
+              for p in run.rglob("*") if p.is_file()}
+
+    def probe_owner(pid, signal):
+        assert (pid, signal) == (12345, 0)
+        if owner_probe == "permission-denied":
+            raise PermissionError("owner exists but probe is not permitted")
+        if owner_probe == "missing":
+            raise ProcessLookupError("owner exited")
+
+    monkeypatch.setattr(RECOVERY.os, "kill", probe_owner)
+    decision = RECOVERY.plan(run, ledger)
+    if owner_probe == "missing":
+        assert decision["status"] == "READY"
+        assert decision["reason"].startswith("orphaned-quality-")
+    else:
+        assert decision == {
+            "status": "REFUSED",
+            "reason": "quality-feedback-recovery-already-" + status,
+        }
+    assert before == {str(p.relative_to(run)): p.read_bytes()
+                      for p in run.rglob("*") if p.is_file()}

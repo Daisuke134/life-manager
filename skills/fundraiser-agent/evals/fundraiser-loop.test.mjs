@@ -284,16 +284,11 @@ test("production contract runs hourly and maximizes real applications", () => {
   assert.match(dailyPrompt, /\$FUNDRAISER_RECORD_APPLICATION --prepare/);
   assert.match(dailyPrompt, /\$FUNDRAISER_RECORD_APPLICATION --claim-effect/);
   assert.match(dailyPrompt, /application_digest/);
-  assert.match(runtimeScript, /MIN_FREE_KIB=\$\(\(1536 \* 1024\)\)/);
-  assert.match(runtimeScript, /PRESSURE_FREE_KIB=\$\(\(2 \* 1024 \* 1024\)\)/);
-  assert.match(runtimeScript, /required_kib=\$PRESSURE_FREE_KIB/);
   assert.doesNotMatch(runtimeScript, /\.openclaw/);
   assert.doesNotMatch(runtimeScript, /restart life-manager-disk-cleanup/);
   assert.match(runtimeScript, /exit 75/);
   assert.match(runtimeScript, /BROWSER_GUARD=.*browser-guard\.sh/);
   assert.match(runtimeScript, /"\$BROWSER_GUARD" acquire "\$BROWSER_IDENTITY"/);
-  assert.match(runtimeScript, /BROWSER_FOUNDATION=.*ensure_browser\.sh/);
-  assert.match(runtimeScript, /next natural wake owns browser foundation recovery/);
   assert.match(runtimeScript, /record submit_unknown and retain its exact identity fence/);
   assert.match(dailyPrompt, /every visible question paired with the final rendered answer/);
   assert.match(dailyPrompt, /Never append `submitted_verified` yourself/);

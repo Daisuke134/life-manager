@@ -901,6 +901,8 @@ def _verified_no_effect_result(path: Path, loop_id: str, occurrence_id: str,
         return None
     if entrypoint == "apps/life-manager/scripts/ebook-distribute-daily.sh":
         allowed_reasons = {"setup_required", "no_due_slot", "render_not_ready"}
+        if loop_id == "ebook-en-tiktok-daily":
+            allowed_reasons.add("publication_readiness_gate_closed")
     elif entrypoint == "skills/earn/marketing-engine/intel/treg-lead-signals-weekly":
         allowed_reasons = {"baseline_established", "no_new_signals", "balance_floor"}
     else:
@@ -1933,12 +1935,25 @@ def _main(argv: list[str] | None = None) -> int:
                 try:
                     cleanup_operation = "unprotect_marker"
                     unprotect_loop_scratch(scratch_fd)
-                    cleanup_operation = "remove_owned_tree"
-                    from runtime.loop.central_cleanup import _diagnostic_relay_live
+                    cleanup_operation = "check_browser_profiles"
+                    from runtime.loop.central_cleanup import (
+                        _browser_profiles_live, _diagnostic_relay_live,
+                    )
                     from runtime.host.resource_admission import process_starts
                     relay_live = _diagnostic_relay_live(scratch_fd, process_starts(), loop_id, run_id)
-                    removed = False if relay_live else remove_owned_tree(scratch_parent_fd, scratch_fd, run_id)
-                    cleanup_status = "removed" if removed else "preserved"
+                    browser_live = _browser_profiles_live(scratch)
+                    if relay_live or browser_live is not False:
+                        removed = False
+                        cleanup_operation = (
+                            "stderr_relay_live" if relay_live else
+                            "browser_profiles_live" if browser_live else
+                            "browser_profile_liveness_unavailable"
+                        )
+                        cleanup_status = "preserved"
+                    else:
+                        cleanup_operation = "remove_owned_tree"
+                        removed = remove_owned_tree(scratch_parent_fd, scratch_fd, run_id)
+                        cleanup_status = "removed" if removed else "preserved"
                     cleanup_error = None
                 except Exception as error:
                     cleanup_status = "error"

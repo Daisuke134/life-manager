@@ -6,6 +6,7 @@ const path = require("node:path");
 const test = require("node:test");
 const { EXPECTED, persistDelayedSnapshot, persistSnapshot } = require("./instagram-metrics-read.js");
 const { discoverExpected, runDue } = require("./instagram-metrics-due.js");
+const { JA_LANE, verifyMarketingNativeCarouselPublicationReceipt } = require("../lib/marketing-native-carousel-publication-adapter.js");
 
 test("missed Instagram checkpoints stay missed while one dated current observation is collected and replayed", async () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-instagram-current-due-"));
@@ -96,7 +97,7 @@ test("future verified Instagram rows are discovered from the LM distribution led
     { ...valid, format_id: "reelclaw-widget", form: "widget-demo-reel", locale: "en", provider_id: "cmtunrelatedenwidget", public_url: "https://www.instagram.com/reel/EnWidget123/" },
   ];
   fs.writeFileSync(path.join(directory, "distribution.jsonl"), `${unrelated.concat(valid).map(JSON.stringify).join("\n")}\n`);
-  assert.deepEqual(discoverExpected(dataDir), [EXPECTED]);
+  assert.deepEqual(discoverExpected(dataDir), [{ ...EXPECTED, format_id: "reelclaw-card", form: "nudge-card" }]);
 });
 
 test("malformed JA Card rows remain fail-closed after unrelated rows are filtered", () => {
@@ -119,6 +120,8 @@ test("verified Obou watercolor Reel is discovered as its exact metric effect", (
   fs.writeFileSync(path.join(directory, "distribution.jsonl"), `${JSON.stringify(row)}\n`);
   assert.deepEqual(discoverExpected(dataDir), [{
     tenant_id: "dais-local", product_id: "anicca-ios", locale: "ja", account_id: "@obou.anicca", native_owner: "obou.anicca",
+    format_id: "watercolor", form: "buddhist-self-care-reel",
+    creative_id: row.creative_id,
     integration_id: "cmooplxmu04tpmd0y4h3cpk33", provider_post_id: row.provider_id, shortcode: "DcfVvIkkWyz",
     public_url: row.public_url, caption, published_at: row.ts,
   }]);
@@ -137,6 +140,8 @@ test("verified EN Card Reel is discovered for the exact encards metric lane", ()
   fs.writeFileSync(path.join(directory, "distribution.jsonl"), `${JSON.stringify(row)}\n`);
   assert.deepEqual(discoverExpected(dataDir), [{
     tenant_id: "dais-local", product_id: "anicca-ios", locale: "en", account_id: "@anicca.encards", native_owner: "anicca.encards",
+    format_id: "reelclaw-card", form: "nudge-card",
+    creative_id: row.creative_id,
     integration_id: "cmpc3gx4001nklg0y27a8o66q", provider_post_id: row.provider_id, shortcode: "Dcfph70jorc",
     public_url: row.public_url, caption, published_at: row.ts,
   }]);
@@ -155,7 +160,29 @@ test("verified EN Widget Reel is discovered for the exact anicca.en metric lane"
   fs.writeFileSync(path.join(directory, "distribution.jsonl"), `${JSON.stringify(row)}\n`);
   assert.deepEqual(discoverExpected(dataDir), [{
     tenant_id: "dais-local", product_id: "anicca-ios", locale: "en", account_id: "@anicca.en", native_owner: "anicca.en",
+    format_id: "reelclaw-widget", form: "lockscreen-affirmation-widget",
+    creative_id: row.creative_id,
     integration_id: "cmn8y95rg02d2qx0y09bbk5pb", provider_post_id: row.provider_id, shortcode: "ExactWidget1",
+    public_url: row.public_url, caption, published_at: row.ts,
+  }]);
+});
+
+test("verified JA Widget Reel is discovered for the exact anicca.jp.videos metric lane", () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-instagram-ja-widget-discovery-"));
+  const caption = "今日の自分を大切にする\n\n#anicca #affirmation";
+  const captionPath = path.join(dataDir, "caption.txt"); fs.writeFileSync(captionPath, caption);
+  const captionHash = require("node:crypto").createHash("sha256").update(fs.readFileSync(captionPath)).digest("hex");
+  const directory = path.join(dataDir, "tenants/dais-local/marketing/video-publication/anicca-ios"); fs.mkdirSync(directory, { recursive: true });
+  const row = { ts: "2026-10-12T00:10:00.000Z", platform: "instagram", status: "published", provider_reconciled: true,
+    format_id: "reelclaw-widget", form: "lockscreen-affirmation-widget", locale: "ja", creative_id: "JA-WIDGET-TEST-1",
+    provider_id: "cmtjajwidget123", public_url: "https://www.instagram.com/reel/JaWidget123/",
+    caption_path: captionPath, caption_sha256: captionHash };
+  fs.writeFileSync(path.join(directory, "distribution.jsonl"), `${JSON.stringify(row)}\n`);
+  assert.deepEqual(discoverExpected(dataDir), [{
+    tenant_id: "dais-local", product_id: "anicca-ios", locale: "ja", account_id: "@anicca.jp.videos", native_owner: "anicca.jp.videos",
+    format_id: "reelclaw-widget", form: "lockscreen-affirmation-widget",
+    creative_id: row.creative_id,
+    integration_id: "cmmzzg2es0539p30ycb94ayx0", provider_post_id: row.provider_id, shortcode: "JaWidget123",
     public_url: row.public_url, caption, published_at: row.ts,
   }]);
 });
@@ -184,7 +211,38 @@ test("verified EN affirmation native-carousel receipt is discovered as an immuta
   assert.deepEqual(discoverExpected(dataDir), [{
     tenant_id: "dais-local", product_id: "anicca-ios", locale: "en", account_id: "@anicca.affirmation",
     native_owner: "anicca.ios", integration_id: "cmp9pedr700ttqh0yj8o57fog", provider_post_id: "cmt9jm8990291p20y0a2l1xmk",
+    format_id: "larry", form: "affirmation-carousel",
+    creative_id: receipt.creative_id,
     shortcode: "DcfQ2-hG3KR", public_url: "https://www.instagram.com/p/DcfQ2-hG3KR/", caption,
     published_at: "2026-08-26T03:37:17.624Z",
+  }]);
+});
+
+test("verified JA Larry native-carousel receipt is discovered for the exact Japanese metric lane", () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-instagram-ja-carousel-discovery-"));
+  const caption = "メンタルが勝手に安定する\n口癖５選\n\n#anicca #affirmation";
+  const captionHash = require("node:crypto").createHash("sha256").update(caption).digest("hex");
+  const objectDir = path.join(dataDir, "objects", "sha256"); fs.mkdirSync(objectDir, { recursive: true });
+  fs.writeFileSync(path.join(objectDir, captionHash), caption); fs.chmodSync(path.join(objectDir, captionHash), 0o600);
+  const media = [1, 2, 3, 4, 5, 6].map((position) => String(position).repeat(64));
+  const mediaOrderHash = require("node:crypto").createHash("sha256").update(JSON.stringify(media)).digest("hex");
+  const receipt = {
+    schema_version: 1, kind: "marketing_native_carousel_distribution", status: "published",
+    product_id: JA_LANE.productId, format_id: JA_LANE.formatId, form: JA_LANE.form, locale: JA_LANE.locale,
+    platform: JA_LANE.platform, account_id: JA_LANE.accountId, integration_ref: JA_LANE.integrationRef,
+    creative_id: "LARRY-JA-METRICS-1", pack_sha256: "a".repeat(64), media_sha256: media,
+    media_order_sha256: mediaOrderHash, caption_sha256: captionHash, provider_post_id: "cmjalarrymetrics1",
+    provider_reconciled: true, public_url: "https://www.instagram.com/p/JaLarryMetrics1/",
+    published_at: "2026-10-11T07:30:00.000Z",
+  };
+  assert.equal(verifyMarketingNativeCarouselPublicationReceipt(receipt), true);
+  const directory = path.join(dataDir, "tenants/dais-local/marketing/native-carousel-publication/anicca-ios"); fs.mkdirSync(directory, { recursive: true });
+  fs.writeFileSync(path.join(directory, "distribution.jsonl"), `${JSON.stringify({ effect_key: "exact-ja", job_id: "ja-slot", receipt })}\n`);
+  assert.deepEqual(discoverExpected(dataDir), [{
+    tenant_id: "dais-local", product_id: "anicca-ios", locale: "ja", account_id: "@ani.cca1234", native_owner: "ani.cca1234",
+    format_id: "larry", form: "affirmation-carousel",
+    creative_id: receipt.creative_id,
+    integration_id: "cmq3sq7mc000eqp0y7azfm8yk", provider_post_id: receipt.provider_post_id, shortcode: "JaLarryMetrics1",
+    public_url: receipt.public_url, caption, published_at: receipt.published_at,
   }]);
 });

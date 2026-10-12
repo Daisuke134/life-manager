@@ -22,7 +22,10 @@ class CanonicalRuntimeTests(unittest.TestCase):
             "Tokyo onsite or hybrid, U.S. roles in any location, and remote roles worldwide",
             readme,
         )
-        self.assertIn("Per-application email updates and a daily email briefing", readme)
+        self.assertIn(
+            "Per-application email updates and a natural-language daily email briefing",
+            readme,
+        )
         self.assertIn("onboarding that accepts a resume", readme)
         self.assertIn("Add Ashby and other ATS as separate discovery/application owners", readme)
 

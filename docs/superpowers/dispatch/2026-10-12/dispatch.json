@@ -1,0 +1,56 @@
+[
+  {
+    "lane": "cloud",
+    "agent": "lm-cloud-goal-1012",
+    "packet": "/Users/anicca/Projects/life-manager-main/.worktrees/disk-watchdog-worktree-safety-20261008/docs/superpowers/dispatch/2026-10-12/cloud.md",
+    "title": "Life Manager Cloud"
+  },
+  {
+    "lane": "cleanup",
+    "agent": "lm-cleanup-goal-1012",
+    "packet": "/Users/anicca/Projects/life-manager-main/.worktrees/disk-watchdog-worktree-safety-20261008/docs/superpowers/dispatch/2026-10-12/cleanup.md",
+    "title": "Disk cleanup"
+  },
+  {
+    "lane": "investment",
+    "agent": "lm-investment-goal-1012",
+    "packet": "/Users/anicca/Projects/life-manager-main/.worktrees/disk-watchdog-worktree-safety-20261008/docs/superpowers/dispatch/2026-10-12/investment.md",
+    "title": "Alpaca investment"
+  },
+  {
+    "lane": "line",
+    "agent": "lm-line-goal-1012",
+    "packet": "/Users/anicca/Projects/life-manager-main/.worktrees/disk-watchdog-worktree-safety-20261008/docs/superpowers/dispatch/2026-10-12/line.md",
+    "title": "LINE factory"
+  },
+  {
+    "lane": "cfo",
+    "agent": "lm-cfo-goal-1012",
+    "packet": "/Users/anicca/Projects/life-manager-main/.worktrees/disk-watchdog-worktree-safety-20261008/docs/superpowers/dispatch/2026-10-12/cfo.md",
+    "title": "CFO"
+  },
+  {
+    "lane": "mobile",
+    "agent": "lm-mobile-goal-1012",
+    "packet": "/Users/anicca/Projects/life-manager-main/.worktrees/disk-watchdog-worktree-safety-20261008/docs/superpowers/dispatch/2026-10-12/mobile.md",
+    "title": "Mobile growth"
+  },
+  {
+    "lane": "job",
+    "agent": "lm-job-goal-1012",
+    "packet": "/Users/anicca/Projects/life-manager-main/.worktrees/disk-watchdog-worktree-safety-20261008/docs/superpowers/dispatch/2026-10-12/job.md",
+    "title": "Job Hunter"
+  },
+  {
+    "lane": "gig",
+    "agent": "lm-gig-goal-1012",
+    "packet": "/Users/anicca/Projects/life-manager-main/.worktrees/disk-watchdog-worktree-safety-20261008/docs/superpowers/dispatch/2026-10-12/gig.md",
+    "title": "Gig"
+  },
+  {
+    "lane": "ebook",
+    "agent": "lm-ebook-goal-1012",
+    "packet": "/Users/anicca/Projects/life-manager-main/.worktrees/disk-watchdog-worktree-safety-20261008/docs/superpowers/dispatch/2026-10-12/ebook.md",
+    "title": "English eBook"
+  }
+]

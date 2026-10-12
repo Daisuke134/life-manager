@@ -8,9 +8,9 @@ fetching account?view=prompts' rendered text, exactly like publish.py's own
 dashboard check.
 
 Usage (endpoint from the lease wrapper only):
-    ENDPOINT=$(browser-guard.sh acquire interactive:dais) || exit 1
+    ENDPOINT=$(browser-guard.sh acquire promptbase:dais) || exit 1
     python3 readback.py --endpoint "$ENDPOINT"
-    browser-guard.sh release interactive:dais
+    browser-guard.sh release promptbase:dais
 """
 from __future__ import annotations
 
@@ -19,6 +19,7 @@ import json
 import sys
 import time
 from pathlib import Path
+from urllib.parse import parse_qs, urlsplit
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import ledger as ledger_mod  # noqa: E402
@@ -65,6 +66,38 @@ def parse_dashboard_cards(text: str) -> list[tuple[str, str]]:
     return cards
 
 
+def account_view_is_official(url: str, view: str) -> bool:
+    parsed = urlsplit(str(url))
+    return (
+        parsed.scheme == "https"
+        and parsed.hostname == "promptbase.com"
+        and parsed.path.rstrip("/") == "/account"
+        and parse_qs(parsed.query).get("view") == [view]
+    )
+
+
+def prompts_dashboard_is_official(url: str, text: str) -> bool:
+    if not account_view_is_official(url, "prompts") or _page_has_login_or_challenge(text):
+        return False
+    lines = {line.strip().casefold() for line in text.splitlines() if line.strip()}
+    if "dashboard" not in lines or "prompts" not in lines:
+        return False
+    return bool(parse_dashboard_cards(text)) or "no prompts yet" in lines
+
+
+def sales_dashboard_is_official(url: str, text: str) -> bool:
+    if not account_view_is_official(url, "sales") or _page_has_login_or_challenge(text):
+        return False
+    lines = {line.strip().casefold() for line in text.splitlines() if line.strip()}
+    if "dashboard" not in lines or "sales" not in lines:
+        return False
+    try:
+        parse_sales(text)
+    except ValueError:
+        return False
+    return True
+
+
 def _money(cell: str) -> float | None:
     cell = cell.strip().replace(",", "")
     if not cell.startswith("$"):
@@ -79,8 +112,7 @@ def parse_sales(text: str) -> dict:
     """Sales tab rows render as tab-separated lines: Amount, Net, Status, Item, ...
     ponytail: column order read from the live header (2026-09-29, zero sales);
     re-check against the first real sale row."""
-    if "No sales yet" in text:
-        return {"sales_count": 0, "net_usd": 0.0, "by_item": {}}
+    lines = {line.strip().casefold() for line in text.splitlines() if line.strip()}
     by_item: dict[str, dict] = {}
     count, net_total = 0, 0.0
     for line in text.splitlines():
@@ -95,6 +127,11 @@ def parse_sales(text: str) -> dict:
         item["net_usd"] = round(item["net_usd"] + net, 2)
         count += 1
         net_total += net
+    if count == 0:
+        if ("no sales yet" in lines and "dashboard" in lines and "sales" in lines
+                and not _page_has_login_or_challenge(text)):
+            return {"sales_count": 0, "net_usd": 0.0, "by_item": {}}
+        raise ValueError("sales_readback_unrecognized")
     return {"sales_count": count, "net_usd": round(net_total, 2), "by_item": by_item}
 
 
@@ -106,6 +143,21 @@ def title_key(title: str) -> str:
 
 
 _STATUS_RANK = ["Approved", "Pending", "Scheduled", "Disputed", "Declined", "Draft", "Archived"]
+
+_UNVERIFIED_PAGE_MARKERS = (
+    "security verification",
+    "verify you are human",
+    "checking your browser",
+    "confirm you're human",
+    "complete the recaptcha",
+    "just a moment...",
+)
+
+
+def _page_has_login_or_challenge(text: str) -> bool:
+    lowered = text.casefold()
+    lines = {line.strip().casefold() for line in text.splitlines() if line.strip()}
+    return "login" in lines or any(marker in lowered for marker in _UNVERIFIED_PAGE_MARKERS)
 
 
 def status_for_title(text: str, title: str) -> str | None:
@@ -131,12 +183,19 @@ def run(endpoint: str) -> dict:
         ctx = browser.contexts[0]
         page = ctx.new_page()
         try:
-            page.goto(PROMPTS_URL, wait_until="domcontentloaded", timeout=20000)
+            prompts_response = page.goto(PROMPTS_URL, wait_until="domcontentloaded", timeout=20000)
             page.wait_for_timeout(2000)
             text = page.inner_text("body")
-            page.goto(SALES_URL, wait_until="domcontentloaded", timeout=20000)
+            if (prompts_response is None or prompts_response.status != 200
+                    or not prompts_dashboard_is_official(page.url, text)):
+                raise RuntimeError("promptbase_prompts_readback_unverified")
+            sales_response = page.goto(SALES_URL, wait_until="domcontentloaded", timeout=20000)
             page.wait_for_timeout(3000)
-            sales = parse_sales(page.inner_text("body"))
+            sales_text = page.inner_text("body")
+            if (sales_response is None or sales_response.status != 200
+                    or not sales_dashboard_is_official(page.url, sales_text)):
+                raise RuntimeError("promptbase_sales_readback_unverified")
+            sales = parse_sales(sales_text)
         finally:
             page.close()
 

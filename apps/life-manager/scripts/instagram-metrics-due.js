@@ -7,6 +7,7 @@ const path = require("node:path");
 const { resolveDataRoot } = require("../lib/runtime-paths.js");
 const {
   EN_AFFIRMATION_LANE,
+  JA_LANE,
   verifyMarketingNativeCarouselPublicationReceipt,
 } = require("../lib/marketing-native-carousel-publication-adapter.js");
 const { EXPECTED, collectWindow, currentSnapshotFile, persistDailyDigest, persistDelayedSnapshot } = require("./instagram-metrics-read.js");
@@ -18,8 +19,10 @@ const VIDEO_LANES = Object.freeze([
   Object.freeze({ format_id: "reelclaw-card", form: "nudge-card", locale: "ja", account_id: "@anicca.jp1", native_owner: "anicca.ios.jp", integration_id: "cmn8ycvtn02djqx0ytuisn9mw" }),
   Object.freeze({ format_id: "reelclaw-card", form: "nudge-card", locale: "en", account_id: "@anicca.encards", native_owner: "anicca.encards", integration_id: "cmpc3gx4001nklg0y27a8o66q" }),
   Object.freeze({ format_id: "reelclaw-widget", form: "lockscreen-affirmation-widget", locale: "en", account_id: "@anicca.en", native_owner: "anicca.en", integration_id: "cmn8y95rg02d2qx0y09bbk5pb" }),
+  Object.freeze({ format_id: "reelclaw-widget", form: "lockscreen-affirmation-widget", locale: "ja", account_id: "@anicca.jp.videos", native_owner: "anicca.jp.videos", integration_id: "cmmzzg2es0539p30ycb94ayx0" }),
   Object.freeze({ format_id: "watercolor", form: "buddhist-self-care-reel", locale: "ja", creative_id: "JA-WATERCOLOR-OBOU-b2772de4303a", video_sha256: "b2772de4303acc901f42b43a0b3f4af166ae3daeb5ee7fd24e090e5b62f2b0e8", account_id: "@obou.anicca", native_owner: "obou.anicca", integration_id: "cmooplxmu04tpmd0y4h3cpk33" }),
 ]);
+const NATIVE_CAROUSEL_LANES = Object.freeze([EN_AFFIRMATION_LANE, JA_LANE]);
 
 function snapshotFile(dataDir, window, expected = EXPECTED) {
   return path.join(dataDir, "tenants", expected.tenant_id, "marketing", "metrics", expected.native_owner, expected.shortcode, `${window}.combined.json`);
@@ -41,13 +44,17 @@ function discoverExpected(dataDir) {
     const caption = fs.readFileSync(captionPath, "utf8");
     if (crypto.createHash("sha256").update(fs.readFileSync(captionPath)).digest("hex") !== row.caption_sha256) throw new Error("Instagram caption object integrity mismatch");
     found.push(Object.freeze({ tenant_id: "dais-local", product_id: "anicca-ios", locale: lane.locale, account_id: lane.account_id, native_owner: lane.native_owner,
+      format_id: lane.format_id, form: lane.form,
+      ...(row.creative_id ? { creative_id: row.creative_id } : {}),
       integration_id: lane.integration_id, provider_post_id: row.provider_id, shortcode: match[1], public_url: row.public_url, caption, published_at: row.ts }));
   }
   const carouselFile = path.join(dataDir, "tenants", "dais-local", "marketing", "native-carousel-publication", "anicca-ios", "distribution.jsonl");
   const carouselRows = fs.existsSync(carouselFile) ? fs.readFileSync(carouselFile, "utf8").split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line)) : [];
   for (const row of carouselRows) {
     const receipt = row && row.receipt;
-    if (!receipt || receipt.integration_ref !== EN_AFFIRMATION_LANE.integrationRef) continue;
+    if (!receipt) continue;
+    const lane = NATIVE_CAROUSEL_LANES.find((candidate) => candidate.integrationRef === receipt.integration_ref);
+    if (!lane) continue;
     if (!verifyMarketingNativeCarouselPublicationReceipt(receipt)) throw new Error("Instagram native carousel receipt invalid");
     const match = /^https:\/\/www\.instagram\.com\/p\/([A-Za-z0-9_-]+)\/$/.exec(String(receipt.public_url || ""));
     const integration = /^integration:\/\/postiz\/instagram\/([A-Za-z0-9._:-]+)$/.exec(String(receipt.integration_ref || ""));
@@ -60,7 +67,9 @@ function discoverExpected(dataDir) {
     const captionBytes = fs.readFileSync(captionPath);
     if (crypto.createHash("sha256").update(captionBytes).digest("hex") !== receipt.caption_sha256) throw new Error("Instagram caption object integrity mismatch");
     found.push(Object.freeze({ tenant_id: "dais-local", product_id: receipt.product_id, locale: receipt.locale, account_id: receipt.account_id,
-      native_owner: EN_AFFIRMATION_LANE.nativeOwner.replace(/^@/, ""), integration_id: integration[1], provider_post_id: receipt.provider_post_id,
+      format_id: receipt.format_id, form: receipt.form,
+      creative_id: receipt.creative_id,
+      native_owner: lane.nativeOwner.replace(/^@/, ""), integration_id: integration[1], provider_post_id: receipt.provider_post_id,
       shortcode: match[1], public_url: receipt.public_url, caption: captionBytes.toString("utf8"), published_at: receipt.published_at }));
   }
   const identities = new Set(found.map((row) => `${row.shortcode}\n${row.provider_post_id}`));

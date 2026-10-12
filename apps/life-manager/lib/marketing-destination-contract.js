@@ -32,6 +32,7 @@ function validateMarketingDestinationContract(input) {
   const integrations = new Set();
   const nativeHandles = new Set();
   const targetProfiles = new Set();
+  const appStoreCampaignTokens = new Set();
   const targets = input.targets.map((row) => {
     if (!row || typeof row !== "object" || Array.isArray(row)) invalid("target");
     for (const field of ["lane_id", "product_id", "job_product_id", "locale", "platform", "postiz_profile", "native_handle", "integration_id", "renderer_id", "job_format_id", "media_form", "approved_pack", "approved_pack_ref", "loop_name", "label", "entrypoint", "cadence_jst"]) {
@@ -45,6 +46,10 @@ function validateMarketingDestinationContract(input) {
     text(row.postiz_profile, "postiz_profile", HANDLE);
     text(row.native_handle, "native_handle", HANDLE);
     text(row.integration_id, "integration_id");
+    if (row.app_store_campaign_token !== undefined) {
+      text(row.app_store_campaign_token, "app_store_campaign_token", /^[A-Za-z0-9][A-Za-z0-9_-]{0,29}$/);
+      unique(appStoreCampaignTokens, row.app_store_campaign_token, "app store campaign token");
+    }
     text(row.renderer_id, "renderer_id");
     text(row.job_format_id, "job_format_id");
     text(row.media_form, "media_form");
