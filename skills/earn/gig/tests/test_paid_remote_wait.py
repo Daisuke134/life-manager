@@ -3837,6 +3837,68 @@ def test_orders_observation_retries_until_semantic_container_is_ready(tmp_path, 
     assert coverage["coverage_complete"] is True
 
 
+def test_orders_expression_accepts_only_clean_body_level_empty_state_without_container():
+    import shutil
+    import subprocess
+
+    node = shutil.which("node")
+    assert node is not None
+    snapshot = load("coconala_queue_snapshot")
+    harness = r"""
+const fs = require("node:fs");
+const input = JSON.parse(fs.readFileSync(0, "utf8"));
+global.location = {href: input.url};
+global.document = {
+  title: "受注一覧",
+  body: {innerText: "", querySelectorAll: () => []},
+  querySelector: () => null,
+  querySelectorAll: () => [],
+};
+global.performance = {getEntriesByType: () => [{responseStatus: 200}]};
+const evaluate = (body) => {
+  document.body.innerText = body;
+  const result = new Function("return " + input.expression + ";")();
+  return JSON.parse(result).empty_state_present;
+};
+process.stdout.write(JSON.stringify(input.bodies.map(evaluate)));
+"""
+    completed = subprocess.run(
+        [node, "-e", harness],
+        input=json.dumps({
+            "expression": snapshot.ORDERS_ONLY_EXPRESSION,
+            "url": snapshot.OPEN_ORDERS_URL,
+            "bodies": [
+                "受注中の取引はありません。",
+                "ログインしてください。受注中の取引はありません。",
+                "エラーが発生しました。受注中の取引はありません。",
+            ],
+        }),
+        text=True, capture_output=True, check=True, timeout=10,
+    )
+    assert json.loads(completed.stdout) == [True, False, False]
+
+
+def test_orders_validator_accepts_explicit_empty_page_without_container():
+    snapshot = load("coconala_queue_snapshot")
+    dom = {
+        "url": snapshot.OPEN_ORDERS_URL,
+        "title": "受注一覧",
+        "provider_http_status": 200,
+        "container_present": False,
+        "cards": [],
+        "empty_state_present": True,
+    }
+
+    assert snapshot.validate_orders_dom(dom) == {
+        "coverage_complete": True,
+        "termination_reason": "empty_state",
+    }
+    with pytest.raises(snapshot.CollectorUnhealthy, match="orders_missing_container"):
+        snapshot.validate_orders_dom({**dom, "empty_state_present": False})
+    with pytest.raises(snapshot.CollectorUnhealthy, match="orders_login"):
+        snapshot.validate_orders_dom({**dom, "login_text": True})
+
+
 def test_decision_prompt_scopes_required_assets_to_current_bounded_output(tmp_path):
     paid = load("paid_direct")
 

@@ -6,8 +6,8 @@ fenced (`resource_effect_unknown`); the pre-effect auto-proof cannot close it
 because the entrypoint did run. This tool proves "no Alpaca effect" with GET
 requests only: zero orders of any status submitted after the occurrence was
 queued, and zero open orders. Any order, a full page, or any read failure is
-inconclusive and keeps the fence. Closing goes through the host's
-`resolve_unknown_occurrence`, which re-checks the proof and never retries a trade.
+inconclusive and keeps the fence. Closing passes a fresh official GET proof to
+the host's `resolve_unknown_occurrence` and never retries a trade.
 
 Usage:
     python3 effect_reconcile.py --occurrence-id <owner>:<run_id> [--mode live|paper] [--readback-only]
@@ -21,6 +21,7 @@ import os
 import sqlite3
 import sys
 import urllib.request
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, Callable
 
@@ -59,19 +60,32 @@ def build_proof(owner_id: str, occurrence_id: str, queued_at: str,
     proof: dict[str, Any] = {"owner_id": owner_id, "occurrence_id": occurrence_id,
                              "verified": False, "queued_at": queued_at}
     try:
-        after = get(f"/orders?status=all&after={queued_at}&limit={PAGE_LIMIT}&direction=asc")
-        open_orders = get(f"/orders?status=open&limit={PAGE_LIMIT}")
+        after_response = get(f"/orders?status=all&after={queued_at}&limit={PAGE_LIMIT}&direction=asc")
+        open_response = get(f"/orders?status=open&limit={PAGE_LIMIT}")
     except Exception as exc:  # noqa: BLE001 - any read failure is inconclusive, fence stays
         proof["reason"] = f"readback_failed:{type(exc).__name__}"
         return proof
-    if not isinstance(after, list) or not isinstance(open_orders, list):
+    if not isinstance(after_response, Mapping) or not isinstance(open_response, Mapping):
+        proof["reason"] = "readback_response_invalid"
+    elif any(not isinstance(response.get("request_id"), str)
+             or not response["request_id"].strip()
+             for response in (after_response, open_response)):
+        proof["reason"] = "provider_request_id_missing"
+    elif (not isinstance(after_response.get("data"), list)
+          or not isinstance(open_response.get("data"), list)):
         proof["reason"] = "readback_not_a_list"
-    elif len(after) >= PAGE_LIMIT or len(open_orders) >= PAGE_LIMIT:
+    elif (len(after_response["data"]) >= PAGE_LIMIT
+          or len(open_response["data"]) >= PAGE_LIMIT):
         proof["reason"] = "readback_page_full"
-    elif after or open_orders:
-        proof["reason"] = f"orders_present:after={len(after)},open={len(open_orders)}"
+    elif after_response["data"] or open_response["data"]:
+        proof["reason"] = (
+            f"orders_present:after={len(after_response['data'])},"
+            f"open={len(open_response['data'])}"
+        )
     else:
-        proof.update(verified=True, provider_receipt_id=f"alpaca-orders-none-after-{queued_at}",
+        request_ids = [after_response["request_id"], open_response["request_id"]]
+        proof.update(verified=True, provider_receipt_id=request_ids[0],
+                     provider_request_ids=request_ids,
                      proof_kind="official_alpaca_no_order",
                      checked_at=dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"))
     return proof
@@ -86,7 +100,8 @@ def alpaca_get(credentials_path: Path, mode: str = "live") -> Callable[[str], An
     def get(path: str) -> Any:
         request = urllib.request.Request(endpoint + path, headers=headers)
         with urllib.request.urlopen(request, timeout=20) as response:
-            return json.load(response)
+            return {"data": json.load(response),
+                    "request_id": response.headers.get("X-Request-ID")}
     return get
 
 
@@ -125,20 +140,31 @@ def main(argv: list[str] | None = None) -> int:
                 f"ALPACA_INVESTMENT_{args.mode.upper()}_CREDENTIALS_FILE is not set"
             )
         state, queued_at = fenced_row(owner_id, args.occurrence_id)
-        proof = build_proof(owner_id, args.occurrence_id, queued_at,
-                            alpaca_get(Path(credential_value).expanduser(), args.mode))
-        print(json.dumps({**proof, "admission_state": state}, sort_keys=True))
-        if not proof["verified"]:
-            print("ALPACA_EFFECT_RECONCILE=HELD")
-            return 1
+        get = alpaca_get(Path(credential_value).expanduser(), args.mode)
+        last_proof: dict[str, Any] = {}
+
+        def official_readback() -> dict[str, Any]:
+            proof = build_proof(owner_id, args.occurrence_id, queued_at, get)
+            last_proof.clear()
+            last_proof.update(proof)
+            return proof
+
         if args.readback_only:
+            proof = official_readback()
+            print(json.dumps({**proof, "admission_state": state}, sort_keys=True))
+            if not proof["verified"]:
+                print("ALPACA_EFFECT_RECONCILE=HELD")
+                return 1
             print("ALPACA_EFFECT_RECONCILE=PROOF_READY")
             return 0
         from runtime.host.resource_admission import resolve_unknown_occurrence
-        if not resolve_unknown_occurrence(owner_id, args.occurrence_id,
-                                          official_readback=lambda: proof,
-                                          expected_state=state):
-            raise ValueError("admission refused to close the occurrence")
+        resolved = resolve_unknown_occurrence(owner_id, args.occurrence_id,
+                                              official_readback=official_readback,
+                                              expected_state=state)
+        print(json.dumps({**last_proof, "admission_state": state}, sort_keys=True))
+        if not resolved:
+            print("ALPACA_EFFECT_RECONCILE=HELD")
+            return 1
     except (OSError, RuntimeError, ValueError, sqlite3.Error) as exc:
         print(f"ALPACA_EFFECT_RECONCILE=FAIL reason={type(exc).__name__}:{exc}", file=sys.stderr)
         return 1
