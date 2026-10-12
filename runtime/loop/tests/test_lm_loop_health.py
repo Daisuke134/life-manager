@@ -63,6 +63,78 @@ class LmLoopHealthTest(unittest.TestCase):
             lm_loop_main(["health", "--json"])
         self.assertEqual(json.loads(output.getvalue())["host_storage"]["status"], "unmet")
 
+    def test_health_uses_fresh_unbound_watchdog_receipt_without_claiming_owner_identity(self):
+        from datetime import timedelta
+
+        state = Path(tempfile.mkdtemp())
+        now = health.datetime.now(health.timezone.utc)
+        old_bound = {
+            "identity": {"owner_id": "life-manager-disk-cleanup", "run_id": "old",
+                         "occurrence_id": "life-manager-disk-cleanup:old", "release_sha": "a" * 40},
+            "observed_at": (now - timedelta(hours=4)).isoformat(),
+            "free_after": 500 * 1024**2,
+            "ok": True,
+            "capacity_recovery": {"status": "unmet", "recovery_floor_bytes": 2 * 1024**3},
+        }
+        fresh_watchdog = {
+            "observed_at": now.isoformat(),
+            "free_after": 3 * 1024**3,
+            "ok": True,
+            "errors": 0,
+            "protected_deletions": 0,
+            "capacity_recovery": {"status": "met", "recovery_floor_bytes": 2 * 1024**3},
+        }
+        bound_path = state / "last-receipt.json"
+        bound_path.write_text(json.dumps(old_bound))
+        bound_path.chmod(0o600)
+        watchdog_path = state / "last-unbound-receipt.json"
+        watchdog_path.write_text(json.dumps(fresh_watchdog))
+        watchdog_path.chmod(0o600)
+
+        sample = health.read_storage_snapshot(state)
+        value = health.project_health([], storage_snapshot=sample)
+
+        self.assertEqual(value["host_storage"]["status"], "met")
+        self.assertEqual(value["host_storage"]["free_bytes"], 3 * 1024**3)
+        self.assertNotIn("identity", json.loads(watchdog_path.read_text()))
+
+    def test_stale_unbound_watchdog_receipt_does_not_verify_host_storage(self):
+        from datetime import timedelta
+
+        state = Path(tempfile.mkdtemp())
+        observed = health.datetime.now(health.timezone.utc) - timedelta(minutes=11)
+        receipt = {
+            "observed_at": observed.isoformat(),
+            "free_after": 3 * 1024**3,
+            "ok": True,
+            "errors": 0,
+            "protected_deletions": 0,
+            "capacity_recovery": {"status": "met", "recovery_floor_bytes": 2 * 1024**3},
+        }
+        path = state / "last-unbound-receipt.json"
+        path.write_text(json.dumps(receipt))
+        path.chmod(0o600)
+
+        sample = health.read_storage_snapshot(state)
+        value = health.project_health([], storage_snapshot=sample)
+
+        self.assertEqual(value["host_storage"]["status"], "unknown")
+
+    def test_unbound_watchdog_receipt_with_identity_is_rejected(self):
+        state = Path(tempfile.mkdtemp())
+        receipt = {
+            "observed_at": health.datetime.now(health.timezone.utc).isoformat(),
+            "free_after": 3 * 1024**3,
+            "ok": True,
+            "capacity_recovery": {"status": "met", "recovery_floor_bytes": 2 * 1024**3},
+            "identity": None,
+        }
+        path = state / "last-unbound-receipt.json"
+        path.write_text(json.dumps(receipt))
+        path.chmod(0o600)
+
+        self.assertIsNone(health.read_storage_snapshot(state))
+
     @staticmethod
     def status_row(loop_id="example", **overrides):
         row = {

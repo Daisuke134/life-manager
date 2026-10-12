@@ -308,23 +308,41 @@ def _facets(row: dict, state: str) -> dict[str, dict[str, str | None]]:
 def read_storage_snapshot(state_dir: Path | None = None) -> dict | None:
     root = state_dir or Path(os.environ.get("LIFE_MANAGER_HOST_STATE_DIR",
         str(Path.home() / ".local/state/life-manager/state"))).expanduser()
-    try:
-        fd = os.open(root / "last-receipt.json", os.O_RDONLY | os.O_NOFOLLOW)
-    except OSError:
-        return None
-    try:
-        info = os.fstat(fd)
-        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
-                or stat.S_IMODE(info.st_mode) != 0o600 or info.st_nlink != 1
-                or info.st_size > 65536):
-            return None
-        with os.fdopen(fd, "r", encoding="utf-8", closefd=False) as stream:
-            value = json.load(stream)
-        return value if isinstance(value, dict) else None
-    except (OSError, ValueError, UnicodeError):
-        return None
-    finally:
-        os.close(fd)
+    snapshots = []
+    for filename, source in (("last-receipt.json", None),
+                             ("last-unbound-receipt.json", "watchdog")):
+        try:
+            fd = os.open(root / filename, os.O_RDONLY | os.O_NOFOLLOW)
+        except OSError:
+            continue
+        try:
+            info = os.fstat(fd)
+            if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
+                    or stat.S_IMODE(info.st_mode) != 0o600 or info.st_nlink != 1
+                    or info.st_size > 65536):
+                continue
+            with os.fdopen(fd, "r", encoding="utf-8", closefd=False) as stream:
+                value = json.load(stream)
+            if isinstance(value, dict):
+                if source is not None:
+                    if "identity" in value:
+                        continue
+                    value["_receipt_source"] = source
+                snapshots.append(value)
+        except (OSError, ValueError, UnicodeError):
+            continue
+        finally:
+            os.close(fd)
+
+    def observed_at(snapshot: dict) -> datetime:
+        try:
+            value = datetime.fromisoformat(snapshot["observed_at"].replace("Z", "+00:00"))
+            return value.astimezone(timezone.utc) if value.tzinfo else datetime.min.replace(
+                tzinfo=timezone.utc)
+        except (KeyError, TypeError, ValueError, AttributeError):
+            return datetime.min.replace(tzinfo=timezone.utc)
+
+    return max(snapshots, key=observed_at) if snapshots else None
 
 
 def _project_storage(snapshot: dict, jobs: list[dict], now: datetime) -> dict:
@@ -332,12 +350,16 @@ def _project_storage(snapshot: dict, jobs: list[dict], now: datetime) -> dict:
                "capacity_recovered": None, "free_bytes": None,
                "observed_at": None, "reason": "storage_receipt_unverified"}
     try:
-        identity = snapshot["identity"]
-        job = next(j for j in jobs if j["job_id"] == "life-manager-disk-cleanup")
-        expected = {k: job["diagnostic"][k] for k in
-                    ("owner_id", "run_id", "occurrence_id", "release_sha")}
-        if identity != expected or any(not isinstance(v, str) or not v for v in expected.values()):
-            return unknown
+        if snapshot.get("_receipt_source") == "watchdog":
+            if "identity" in snapshot:
+                return unknown
+        else:
+            identity = snapshot["identity"]
+            job = next(j for j in jobs if j["job_id"] == "life-manager-disk-cleanup")
+            expected = {k: job["diagnostic"][k] for k in
+                        ("owner_id", "run_id", "occurrence_id", "release_sha")}
+            if identity != expected or any(not isinstance(v, str) or not v for v in expected.values()):
+                return unknown
         observed = datetime.fromisoformat(snapshot["observed_at"].replace("Z", "+00:00"))
         age = (now - observed).total_seconds()
         if observed.tzinfo is None or not 0 <= age <= 600:
