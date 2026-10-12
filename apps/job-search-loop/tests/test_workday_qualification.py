@@ -35,41 +35,35 @@ from job_search_loop.workday_qualification import POLICY_VERSION, qualify_one
 
 
 class WorkdayQualificationTests(unittest.TestCase):
-    def test_shortlist_prompt_prioritizes_japan_feasibility_scope_then_compensation(self):
+    def test_shortlist_prompt_balances_locations_and_uses_user_salary_target(self):
         prompt_source = inspect.getsource(workday_search_loop.main)
 
-        self.assertIn("adequate non-senior", prompt_source)
-        self.assertIn("Japan employment first", prompt_source)
-        self.assertIn("demonstrated adjacent current career scope second", prompt_source)
-        self.assertIn("compensation ambition third", prompt_source)
-        japan = prompt_source.index("Japan employment first")
-        scope = prompt_source.index("demonstrated adjacent current career scope second")
-        compensation = prompt_source.index("compensation ambition third")
-
-        self.assertLess(japan, scope)
-        self.assertLess(scope, compensation)
-        self.assertIn(
-            "Every adequate non-senior Japan role must rank before Senior, Lead, Principal",
-            prompt_source,
-        )
-        self.assertIn(
-            "non-senior Japan-feasible role exists",
-            prompt_source,
-        )
-        self.assertIn(
+        self.assertIn("No location category outranks another", prompt_source)
+        self.assertIn("Tokyo onsite or hybrid", prompt_source)
+        self.assertIn("remote roles", prompt_source)
+        self.assertIn("United States", prompt_source)
+        self.assertIn("USD 100,000 annual gross base target", prompt_source)
+        self.assertNotIn("Japan employment first", prompt_source)
+        self.assertNotIn(
             "Every row that explicitly supports employment from Japan must rank before any row tied to another country",
-            prompt_source,
-        )
-        self.assertIn(
-            "an imperfect-fit Japan role ranks before a strong-fit foreign role",
             prompt_source,
         )
 
         fit_source = inspect.getsource(workday_qualification.qualify_one)
-        self.assertIn("posting whose title says Senior", fit_source)
-        self.assertIn(
-            "Korea-remote/EOR is non-Japan unless Japan employment is explicit",
-            prompt_source,
+        self.assertIn("USD 100,000 annual gross base", fit_source)
+        self.assertIn("CEO or C-suite", fit_source)
+        self.assertIn("Do not reject a role based on title alone", fit_source)
+
+    def test_sponsorship_wording_alone_does_not_exclude_us_roles(self):
+        shortlist_source = inspect.getsource(workday_search_loop.main)
+        fit_source = inspect.getsource(workday_qualification.qualify_one)
+
+        self.assertIn("Sponsorship status alone is not a reason to reject or hold", fit_source)
+        self.assertIn("regardless of sponsorship wording", shortlist_source)
+        self.assertIn("answer every work-authorization and sponsorship question truthfully", fit_source)
+        self.assertNotIn(
+            "eligible only with existing work authorization or explicit employer sponsorship",
+            shortlist_source,
         )
 
     def test_candidate_windows_interleave_companies_instead_of_source_volume(self):
