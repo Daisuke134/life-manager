@@ -19,17 +19,18 @@ function writeReceiptLedger(dataDir, rows) {
   fs.writeFileSync(file, `${rows.map((row) => JSON.stringify(row)).join("\n")}\n`);
 }
 
-function generationRow({ jobId, hookId, creativeId }) {
+function generationRow({ jobId, hookId, creativeId, productId = "honne-ai", formatId = "reelclaw", locale = "ja" }) {
   return {
     schema_version: 1,
-    kind: "marketing_video_artifact",
+    kind: "receipt",
     tenant_id: "dais-local",
     job_id: jobId,
     attempt: 1,
     receipt: {
-      product_id: "honne-ai",
-      format_id: "reelclaw",
-      locale: "ja",
+      kind: "marketing_video_artifact",
+      product_id: productId,
+      format_id: formatId,
+      locale,
       hook_id: hookId,
       creative_id: creativeId,
       status: "ready",
@@ -37,22 +38,38 @@ function generationRow({ jobId, hookId, creativeId }) {
   };
 }
 
-function publicationRow({ jobId, creativeId, providerPostId }) {
+function publicationRow({ jobId, creativeId, providerPostId, productId = "honne-ai", formatId = "reelclaw", locale = "ja", platform, publicUrl, providerReconciled }) {
+  const receipt = {
+    kind: "marketing_video_distribution",
+    product_id: productId,
+    format_id: formatId,
+    locale,
+    status: "published",
+    creative_id: creativeId,
+    provider_post_id: providerPostId,
+  };
+  if (platform !== undefined) receipt.platform = platform;
+  if (publicUrl !== undefined) receipt.public_url = publicUrl;
+  if (providerReconciled !== undefined) receipt.provider_reconciled = providerReconciled;
   return {
     schema_version: 1,
-    kind: "marketing_video_distribution",
+    kind: "receipt",
     tenant_id: "dais-local",
     job_id: jobId,
     attempt: 1,
-    receipt: {
-      product_id: "honne-ai",
-      format_id: "reelclaw",
-      locale: "ja",
-      status: "published",
-      creative_id: creativeId,
-      provider_post_id: providerPostId,
-    },
+    receipt,
   };
+}
+
+function write24hMetricSnapshot(dataDir, { owner, postId, providerPostId, platform, accountId, publicUrl, post }) {
+  const directory = path.join(dataDir, "tenants/dais-local/marketing/metrics", owner, postId);
+  fs.mkdirSync(directory, { recursive: true });
+  const kind = platform === "tiktok" ? "tiktok_combined_metric_snapshot" : "instagram_combined_metric_snapshot";
+  fs.writeFileSync(path.join(directory, "24h.combined.json"), JSON.stringify({
+    schema_version: 1, tenant_id: "dais-local", kind, product_id: "anicca-ios", locale: "en", account_id: accountId,
+    provider_post_id: providerPostId, public_url: publicUrl, window: "24h",
+    observed_at: "2026-10-12T12:00:00.000Z", post,
+  }), { mode: 0o600 });
 }
 
 test("engagementScore uses Postiz string totals and ignores percentageChange", () => {
@@ -90,6 +107,55 @@ test("recordCreativeMetrics joins generation -> publication via creative_id pref
   assert.equal(result.recorded[0].hook_id, "HJA-001");
   assert.equal(result.recorded[0].score, 55);
   assert.equal(readCreativeMetrics(dataDir).length, 1);
+});
+
+test("creative reporting joins exact native snapshots by provider post and keeps arm metrics separate", async () => {
+  const dataDir = tmpDir();
+  const base = "AN-EN-001-aaaaaaaaaaaa";
+  const tiktokUrl = "https://www.tiktok.com/@aniccaaffirmation/video/1234567890";
+  const instagramUrl = "https://www.instagram.com/reel/ABC123/";
+  writeReceiptLedger(dataDir, [
+    generationRow({ jobId: "g1", hookId: "AN-EN-001", creativeId: base, productId: "anicca-ios", formatId: "larry", locale: "en" }),
+    publicationRow({ jobId: "p1", creativeId: `${base}-20261012T091500000Z`, providerPostId: "post-tiktok", productId: "anicca-ios", formatId: "larry", locale: "en", platform: "tiktok", publicUrl: tiktokUrl, providerReconciled: true }),
+    publicationRow({ jobId: "p2", creativeId: `${base}-20261012T100000000Z`, providerPostId: "post-instagram", productId: "anicca-ios", formatId: "larry", locale: "en", platform: "instagram", publicUrl: instagramUrl, providerReconciled: true }),
+    publicationRow({ jobId: "p3", creativeId: `${base}-20261012T141500000Z`, providerPostId: "post-late", productId: "anicca-ios", formatId: "larry", locale: "en", platform: "tiktok", publicUrl: "https://www.tiktok.com/@aniccaaffirmation/video/1234567891", providerReconciled: true }),
+  ]);
+  write24hMetricSnapshot(dataDir, { owner: "aniccaaffirmation", postId: "1234567890", providerPostId: "post-tiktok", platform: "tiktok", accountId: "@aniccaaffirmation", publicUrl: tiktokUrl,
+    post: { views: { status: "measured", value: 100 }, likes: { status: "measured", value: 5 }, comments: { status: "measured", value: 0 }, shares: { status: "measured", value: 1 }, saves: { status: "unavailable", value: null, reason: "provider_field_missing" } } });
+  write24hMetricSnapshot(dataDir, { owner: "anicca.ios", postId: "ABC123", providerPostId: "post-instagram", platform: "instagram", accountId: "@anicca.affirmation", publicUrl: instagramUrl,
+    post: { views: { status: "measured", value: 200 }, likes: { status: "measured", value: 10 }, comments: { status: "measured", value: 2 }, shares: { status: "unavailable", value: null, reason: "metric_not_supported" }, saves: { status: "measured", value: 4 } } });
+
+  const result = await recordCreativeMetrics({
+    dataDir, tenantId: "dais-local", productId: "anicca-ios", formatId: "larry", locale: "en",
+    fetchAnalytics: async () => [{ label: "Views", data: [{ total: "50" }] }, { label: "Likes", data: [{ total: "5" }] }],
+    now: () => "2026-10-12T14:30:00.000Z",
+  });
+  assert.equal(result.recorded.length, 3);
+  assert.equal(result.recorded[0].score, 55);
+  assert.equal(result.native_metric_joins.length, 3);
+  const byPost = Object.fromEntries(result.native_metric_joins.map((row) => [row.provider_post_id, row]));
+  assert.equal(byPost["post-tiktok"].creative_id, `${base}-20261012T091500000Z`);
+  assert.equal(byPost["post-tiktok"].arm_id, "AN-EN-001");
+  assert.equal(byPost["post-tiktok"].account_id, "@aniccaaffirmation");
+  assert.equal(byPost["post-tiktok"].metrics.views.value, 100);
+  assert.equal(byPost["post-tiktok"].metrics.comments.status, "measured"); assert.equal(byPost["post-tiktok"].metrics.comments.value, 0);
+  assert.equal(byPost["post-tiktok"].metrics.saves.status, "unavailable"); assert.equal(byPost["post-tiktok"].metrics.saves.value, null); assert.equal(byPost["post-tiktok"].metrics.saves.reason, "provider_field_missing");
+  assert.equal(byPost["post-instagram"].platform, "instagram");
+  assert.equal(byPost["post-instagram"].account_id, "@anicca.affirmation");
+  assert.equal(byPost["post-instagram"].metrics.views.value, 200);
+  assert.equal(byPost["post-late"].status, "pending");
+  assert.equal(byPost["post-late"].metrics.views.value, null);
+  assert.equal(byPost["post-late"].metrics.views.reason, "native_metric_snapshot_missing");
+  assert.equal(result.arm_comparisons.length, 2);
+  const tiktokArm = result.arm_comparisons.find((row) => row.platform === "tiktok");
+  const instagramArm = result.arm_comparisons.find((row) => row.platform === "instagram");
+  assert.equal(tiktokArm.arm_id, "AN-EN-001");
+  assert.equal(tiktokArm.locale, "en");
+  assert.equal(tiktokArm.metrics.views.mean, 100);
+  assert.equal(tiktokArm.metrics.views.pending_posts, 1);
+  assert.equal(tiktokArm.metrics.comments.mean, 0);
+  assert.equal(tiktokArm.metrics.saves.mean, null);
+  assert.equal(instagramArm.metrics.views.mean, 200);
 });
 
 test("recordCreativeMetrics is idempotent per provider_post_id on rerun", async () => {
