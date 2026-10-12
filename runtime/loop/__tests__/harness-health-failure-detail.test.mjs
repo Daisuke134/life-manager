@@ -184,6 +184,48 @@ test('R6: wake_error wake -> exactly one harness-failures.jsonl line, no slot ke
   }
 });
 
+test('Codex provider deferral preserves admission layer and exit code', async () => {
+  const home = makeTmpHome();
+  const failuresPath = path.join(home, 'state', 'harness-failures.jsonl');
+  const recoveryIntentsPath = path.join(home, 'state', 'recovery-intents.jsonl');
+  const runnerPath = path.join(home, 'codex-runner.py');
+  const runnerConfig = path.join(home, 'agent-runner-config.json');
+  fs.writeFileSync(runnerPath,
+    'import json, sys\nprint(json.dumps({"status":"provider_deferred","reason":"disk_headroom_low","provider_started":False,"attempt_count":0}))\nsys.exit(75)\n');
+  fs.writeFileSync(runnerConfig, '{}\n');
+
+  const proc = spawnLoop({
+    ANICCA_HOME: home,
+    LIFE_MANAGER_LOOP_ID: 'test-codex-deferral',
+    LIFE_MANAGER_RELEASE_SHA: 'b'.repeat(40),
+    LIFE_MANAGER_RECOVERY_INTENTS_PATH: recoveryIntentsPath,
+    ANICCA_BRAIN: 'codex',
+    CODEX_AGENT_RUNNER: runnerPath,
+    CODEX_AGENT_CONFIG: runnerConfig,
+    CODEX_BRAIN_TIMEOUT_S: '5',
+    ANICCA_BALANCE_OVERRIDE: '0',
+    SLEEP_BASE_S: '60',
+    SLEEP_ERROR_S: '60',
+    LOOP_DETECT_WINDOW: '100',
+  });
+
+  try {
+    await waitFor(() => readJsonl(failuresPath).length > 0 || null);
+    proc.kill('SIGTERM');
+    await new Promise((r) => setTimeout(r, 300));
+
+    const [line] = readJsonl(failuresPath);
+    assert.equal(line.layer, 'admission');
+    assert.equal(line.exit_code, 75);
+    assert.equal(line.detail, 'codex_brain_deferred:disk_headroom_low');
+    assert.equal(line.recovery_intent.failure_layer, 'admission');
+    assert.equal(line.recovery_intent.mutates_external_effect, false);
+  } finally {
+    proc.kill('SIGTERM');
+    fs.rmSync(home, { recursive: true, force: true });
+  }
+});
+
 test('R6: brain_transport err.message containing a 64-hex private key -> detail shows [REDACTED], not the raw hex', async () => {
   const home = makeTmpHome();
   const failuresPath = path.join(home, 'state', 'harness-failures.jsonl');
