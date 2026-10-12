@@ -7,9 +7,13 @@ seller's display name replaced by a placeholder.
 from __future__ import annotations
 
 import asyncio
+import contextlib
+import io
 import json
+import os
 from pathlib import Path
 import sys
+import subprocess
 import tempfile
 import types
 import unittest
@@ -242,6 +246,17 @@ class ShouldRunToday(unittest.TestCase):
             }))
             self.assertFalse(MODULE.should_run_today(ledger))
 
+    def test_same_day_and_same_tracked_id_set_skips(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            ledger = Path(tmp) / "sales.json"
+            ledger.write_text(json.dumps({
+                "schema_version": 2,
+                "observed_at": MODULE.now_utc().isoformat(),
+                "products": [{"product_id": "48100000", "sales_jpy": 0}],
+            }))
+            tracked = [{"product_id": "48100000", "title_ja": "same product"}]
+            self.assertFalse(MODULE.should_run_today(ledger, tracked))
+
     def test_same_day_legacy_snapshot_runs_after_schema_upgrade(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             ledger = Path(tmp) / "sales.json"
@@ -255,6 +270,98 @@ class ShouldRunToday(unittest.TestCase):
             yesterday = MODULE.now_utc() - datetime.timedelta(days=1, hours=1)
             ledger.write_text(json.dumps({"observed_at": yesterday.isoformat()}))
             self.assertTrue(MODULE.should_run_today(ledger))
+
+    def test_main_refreshes_same_day_snapshot_when_a_tracked_id_is_added(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state = Path(tmp)
+            set_dir = state / "set-037"
+            set_dir.mkdir()
+            (set_dir / "creators-item.json").write_text(json.dumps({
+                "product_id": "48279443", "title_ja": "新商品",
+            }))
+            ledger = state / "sales.json"
+            ledger.write_text(json.dumps({
+                "schema_version": 2,
+                "observed_at": MODULE.now_utc().isoformat(),
+                "products": [{"product_id": "48100000", "sales_jpy": None}],
+            }))
+
+            async def fetch(_cdp: str) -> dict:
+                return {
+                    "status": "ok",
+                    "stats_rows": [{
+                        "href": "https://creator.line.me/my/account/stats/sticker/48279443",
+                        "text": "新商品\t2026/10/13\t￥0",
+                    }],
+                    "payment_text": (
+                        "送金可能額¥0\n対象期間\t2025.12.01-2025.12.31\n"
+                        "分配額\t¥0\n源泉所得税\t¥0"
+                    ),
+                }
+
+            completed = types.SimpleNamespace(
+                returncode=0, stdout="http://127.0.0.1:9231\n", stderr="",
+            )
+            output = io.StringIO()
+            with (
+                patch.object(MODULE, "_fetch", fetch),
+                patch.object(MODULE.subprocess, "run", return_value=completed),
+                patch.object(sys, "argv", ["sales_readback.py", "--state-root", str(state)]),
+                contextlib.redirect_stdout(output),
+            ):
+                MODULE.main()
+
+            self.assertEqual(json.loads(output.getvalue()), {"status": "ok", "products": 1})
+            refreshed = json.loads(ledger.read_text())
+            self.assertEqual(refreshed["products"], [{
+                "product_id": "48279443", "title_ja": "新商品",
+                "sale_start_date": "2026/10/13", "sales_jpy": 0,
+            }])
+
+
+class ReadbackEntrypoint(unittest.TestCase):
+    def _run_with_busy_script(self, busy_script: str, item_count: int) -> tuple[int, list[str], str]:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state = root / "state" / "line-sticker"
+            for number in range(1, item_count + 1):
+                set_dir = state / f"set-{number:03d}"
+                set_dir.mkdir(parents=True)
+                (set_dir / "creators-item.json").write_text(json.dumps({"product_id": str(number)}))
+            calls = root / "calls.txt"
+            fake_python = root / "python"
+            fake_python.write_text(
+                "#!/bin/sh\n"
+                "name=\"${1##*/}\"\n"
+                "printf '%s\\n' \"$name\" >> \"$CALL_LOG\"\n"
+                "[ \"$name\" != \"$BUSY_SCRIPT\" ] || exit 75\n"
+                "exit 0\n"
+            )
+            fake_python.chmod(0o755)
+            env = os.environ.copy()
+            env.update({
+                "BUSY_SCRIPT": busy_script,
+                "CALL_LOG": str(calls),
+                "LIFE_MANAGER_PYTHON": str(fake_python),
+                "LIFE_MANAGER_REPO": str(MODULE_ROOT.parents[2]),
+                "LIFE_MANAGER_STATE_HOME": str(root / "state"),
+            })
+
+            result = subprocess.run(
+                ["bash", str(MODULE_ROOT / "line-sticker-readback.sh")],
+                capture_output=True, text=True, env=env, check=False,
+            )
+            return result.returncode, calls.read_text().splitlines(), result.stdout + result.stderr
+
+    def test_sales_browser_busy_skips_items_and_features_but_keeps_public_market_sweep(self) -> None:
+        code, calls, output = self._run_with_busy_script("sales_readback.py", item_count=2)
+        self.assertEqual(code, 75, output)
+        self.assertEqual(calls, ["sales_readback.py", "market.py"])
+
+    def test_first_item_browser_busy_skips_remaining_items_and_features(self) -> None:
+        code, calls, output = self._run_with_busy_script("creators_readback.py", item_count=2)
+        self.assertEqual(code, 75, output)
+        self.assertEqual(calls, ["sales_readback.py", "creators_readback.py", "market.py"])
 
 
 if __name__ == "__main__":

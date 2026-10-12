@@ -1,6 +1,12 @@
+import contextlib
+import io
+import json
 import sys
+import tempfile
+import types
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import creators_readback as MODULE  # noqa: E402
@@ -61,6 +67,28 @@ class AcquireWaitsForABusyBrowser(unittest.TestCase):
                                        wait_seconds=600, poll_seconds=30, sleep=lambda s: None, clock=lambda: 0)
         self.assertEqual(got.returncode, 10)
         self.assertEqual(len(calls), 1)
+
+    def test_main_returns_defer_after_browser_unavailable(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            item_file = root / "creators-item.json"
+            item_file.write_text(json.dumps({
+                "product_id": "1", "state_observed": "販売中",
+                "purchase_url": "https://line.me/S/sticker/2",
+            }))
+            ledger = root / "readback.jsonl"
+            output = io.StringIO()
+            with (
+                patch.object(MODULE, "LEDGER", ledger),
+                patch.object(MODULE, "acquire_when_free", return_value=self.done(9, err="BUSY")),
+                patch.object(sys, "argv", ["creators_readback.py", "--item-file", str(item_file)]),
+                contextlib.redirect_stdout(output),
+            ):
+                result = MODULE.main()
+
+            self.assertEqual(result, 75)
+            self.assertEqual(json.loads(ledger.read_text().splitlines()[0])["status"], "browser_unavailable")
+            self.assertEqual(json.loads(item_file.read_text())["state_observed"], "販売中")
 
 
 if __name__ == "__main__":
