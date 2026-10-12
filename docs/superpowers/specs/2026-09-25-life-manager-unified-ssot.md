@@ -15381,6 +15381,31 @@ Free Transcriptの数は無料downloadを含む。別Agent [Transcript to Shorts
 - YouTube Script Writerのannual cap 8,640とMarketing Strategistの11,520は、月次cap 60/80に対して比率が大きい。metadata値を記録したままpricing/runtime ownerへ確認する候補にする。両者ともFROZEN sellerなので、価格・capを編集または再提出しない。
 - model、runtime、agentBaseModel、externalApisは別fieldで保存する。Serenityはmodel=DeepSeek V4.1 FlashだがagentBaseModel metadata=Anthropicで不一致。値をひとつへ正規化せず、source差として記録する。
 
+### Profit evidence: 公開Soldと実利益を分ける — 2026-10-12 20:45 JST
+
+**比較基準の修正:** 旧基準は公開Soldが大きいAgentとfree-to-paid例を同じ競合表で見ていた。新基準は、実利益の比較cohortを「同一期間のpaid revenue、refund、実手数料、実モデル費、更新/解約が確認できる有料Agent」に限定する。無料downloadやpublic Soldは獲得/販売proxyとして別欄に置き、利益順位に入れない。理由は目標がMRR/費用後contributionであり、Sold表示には課金種別・期間・costがないため。実行cursor T0→T1→T2→T3→T4は維持する。
+
+**競合の利益開示限界:** public GET /agent/agent/agents/{agentId}はpublished listing、billing、model等を返すが、他publisherのgross、refund、active subscribers、renewal、fee、actual model costは返さない。公開Sold、価格、modelだけから競合の利益順位は算出しない。現時点の「Capafyで最も利益が出るAgent」はunknown。
+
+**確認できた最大の公開収益ケース（実利益認定なし）:** [Otata本人のX投稿](https://x.com/otataotter/status/2072301306719695253)は、15年のfootball経験からClaude skillを作り、第三者の台湾creatorがTikTok/Instagramで150K+ viewsの動画を出した後、100+ ordersの日が発生し、subscription revenueが約$10/dayから$1,000+/dayへ上がり、初週$4,208になったと自己申告する。API quotaを使い切ったとも述べる。[Capafy公式投稿](https://x.com/Capafyai/status/2072302872654499993)は同ケースを紹介し、自身のpostは約73K views、Otataの原投稿は約31.1K viewsを表示する。独立したseller invoice、refund、fee、cost、active subscription、retention、CT-to-paid receiptは確認できないため、これは高い公開revenue claimであり、検証済みprofitでもMRRでもない。投稿中のbuilder表現はClaude skillまでで、当時の正確なruntime modelはunknown。現行[Ocup listing](https://capafy.ai/agent/ocup-football-analysis/2553639947)のmodel fieldはClaude Sonnet 4.6、価格は$14.99/week、$29.99/month、$99.99/year、trialなし。
+
+[Capafy公式100-sales投稿](https://x.com/Capafyai/status/2069420218057904378)には、初期Ocup価格として$1.99/day・$9.99/weekが記載される。current listingとは別時点の値で、価格変更が売上/利益を生んだ因果証拠ではない。Ocup caseから再利用する仮説は、15年の実務知識を狭いjobにまとめる、1 afternoonで初版を出し実利用から改善する、third-party UGCでuse caseとoutputを見せる、計測できるCTAでCapafyへ送る、である。元のTikTok/Instagram creative・独立paid receiptは未取得で、他人のcopy/映像を複製しない。
+
+**Sold最多の例もprofit rankではない:** [CloneCut listing](https://capafy.ai/agent/clonecut-viral-clone-seedance2-0/5133292529)の公開Sold表示は18,565、現行model fieldはSeedance 2.0。利益やactive MRRは不明。したがって「最も売れた公開counterのmodel」はSeedance 2.0、「最も利益が出た競合のmodel」はunknownとして別に報告する。
+
+**自社の直近30日profit-contribution snapshot（observed_at 2026-10-12 20:07 JST）:** official all-time orders 70 / gross $102.75、last-7d 315 source views / 0 paid、true MRR fieldsはnull。OpenRouter actual account costは$28.42（2026-09-11〜10-11 window、status=fresh）。Account net30 $36.66はgrossに80% seller shareを仮定したproxyで、$8.24はそのproxyからactual account costを引いたcontribution estimateであり、settled profitではない。per-Agent costはactual invoiceをmodel別list-price usage比で按分し、seller shareも80%仮定する。
+
+| 自社Agent | 30日 gross | actual cost allocation | contribution estimate | 公開model |
+|---|---:|---:|---:|---|
+| TikTok Script Pro | $15.96 | $0.03 | +$12.74 | Claude Sonnet 5 |
+| Marketing Strategist | $13.98 | $0.10 | +$11.08 | DeepSeek V4.1 Flash |
+| YouTube Script Writer | $7.96 | $0.02 | +$6.35 | Claude Sonnet 5 |
+| Hook Lab | $7.92 | $0.38 | +$5.96 | Claude Sonnet 5 |
+
+このreadback内ではTikTok Script Proが自社の最高contribution estimate、modelはClaude Sonnet 5。これは他社の最も利益が出るmodelを示さず、別期間のseller fee/settlementとも同じではない。net_mrr_usd/settled_mrr_usdはnullなので、all-time gross $102.75を「現在$100 MRR」と呼ばない。FROZEN sellerのprice/model設定は変更しない。
+
+**配信との比較:** 自社20:07 readbackの30日sourceはsearch 814 views/10 paid、hot 71/5、Google 39/1、ai_overview 549/0、計測CT 6/0。Otataの150K+ video viewsは本人の公開申告で、Capafy page views・trial・paid receiptへのjoinは未取得。したがって当面の仮説は「成果物を先に見せるcreator-led UGCを一件作り、unique CTでCapafy visit→trial→paid→actual-cost contributionを検証する」。大量投稿や動画viewsを売上と同じ指標にしない。
+
 ### Funnel計測とTelegramの現状
 
 2026-10-12のCapafy seller dashboard screenshotは期間2026-09-12〜2026-10-11、impressions 79.2K (+45.6%)、detail-page views 4.9K (+68.3%)、conversion 0.22% (-0.01%)。同期間のAgent tableには新規購入者数と売上が表示されるが、Capafy source readbackとは定義/集計窓が一致確認できていない。例: screenshotのHook Labは$17.91 / 29 new purchasers、hourly source/per-skill readbackでは別値になる。raw source、label、期間、windowを別々に保存し、未照合のまま合算しない。
@@ -15391,8 +15416,8 @@ Free Transcriptの数は無料downloadを含む。別Agent [Transcript to Shorts
 
 ### 追加TODO（既存T0–T13の順序は維持）
 
-14. **T14 — 比較コホートの公開値を日次snapshot化する。** 固定対象は公開Sold上位候補、無料-to-paid funnel、Anicca FROZEN seller 5件。公開detail APIをread-only取得し、version/billing/trial/cap/model/runtime/external API/rating/Sold/visual asset URLを同時刻で保存する。versionまたは値が変わった時は前rowを上書きせず差分を残す。public Soldの期間/課金種別が未定義ならunknown。完了条件は11件の現行snapshotと、price/trial/model変更を検出できる次の自然snapshot。
-15. **T15 — hourly/daily Telegramへfunnelと価格変更を追加する。** 既存company receiptを使い、daily summaryにはimpressions/detail views/source views/trials/paid、source/Agent別、gross/refund、actualとestimated costs、active-MRR statusを分けて載せる。weekly cohortには競合/自社のprice ladder・trial・cap・model・visual proof・public Sold snapshotの変更だけを載せる。missing fieldはunknown表示、超過で長文にせずJSONLを詳細正本にする。完了条件は同じperiod/observed_atの保存rowとTelegram receiptが一致し、cost estimateとactual invoiceを区別して読めること。
+14. **T14 — profit evidence cohortを優先して公開値をsnapshot化する。** 固定対象は有料subscription候補4件（CloneCut/Ocup/Serenity/HookAce）、Ocupの自己申告case、free-to-paid funnel（Free TranscriptとTranscript Studioは獲得導線欄のみ）、Anicca FROZEN seller 5件。公開detail APIからversion/billing/trial/cap/model/runtime/external APIをread-only取得し、public Sold/rating/visual assetはprofit rankから分離する。競合profit rankには同一期間のpaid revenue/refund/fee/actual cost/active-renewal receiptを必須とし、非公開はunknown。自己申告はclaim/source/date/confidenceだけを記録しprofitと呼ばない。Free downloadをpaid cohortへ混ぜない。完了条件は11件の現行snapshotと次の自然snapshot、profit-evidence classが付くこと。
+15. **T15 — hourly/daily Telegramへfunnelとprofit evidenceを追加する。** 既存company receiptを使い、daily summaryにはimpressions/detail views/source views/trials/paid、source/Agent別、gross/refund、actual costと80% seller-share proxy、contribution estimate、active-MRR statusを分けて載せる。weekly cohortにはverified competitor profit evidenceを最上段、公開Sold/price/model/self-reported revenueを別のproxy欄、free acquisition funnelを別欄にする。self-reported claimsをprofit rankに入れない。missing fieldはunknown、長文にせずJSONLを詳細正本にする。完了条件は同じperiod/observed_atの保存rowとTelegram receiptが一致し、actual invoice・seller share proxy・self-reportを識別できること。
 
 **Cursor:** current cursor T0→T1→T2→T3→T4の順序は維持する。T14/T15は先行するsource consistency/official money readbackを置き換えない。今回の更新はread-only researchとSSOT追記のみで、seller設定、price、trial、publish、Telegram deliveryを変更していない。
 
