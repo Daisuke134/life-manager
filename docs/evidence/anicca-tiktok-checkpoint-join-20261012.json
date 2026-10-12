@@ -1,0 +1,131 @@
+{
+  "schema_version": 1,
+  "product_id": "anicca-ios",
+  "platform": "tiktok",
+  "checkpoint": {
+    "message_key": "checkpoint:anicca-ios:postiz:cmv1y3riy0rtuqz0ydup4dbcu:24",
+    "reported_window": "24h",
+    "reported_views": 481,
+    "reported_impressions": null,
+    "reported_public_url": "https://www.tiktok.com/@aniccaaffirmation/video/7694904668752792840",
+    "original_checkpoint_rows_available_on_host": true,
+    "user_reported_evidence_refs": [
+      "state/post-metrics.jsonl#row-3972",
+      "state/publication-identity.jsonl#row-11"
+    ],
+    "resolved_owner_events_refs": [
+      "~/.local/state/life-manager/marketing-owner-events/state/post-metrics.jsonl#row-3973",
+      "~/.local/state/life-manager/marketing-owner-events/state/publication-identity.jsonl#row-1105"
+    ],
+    "user_reference_corrections": {
+      "post_metrics_row_3972": "Same post and raw evidence, but target_age_hours=6; matching 24h target is row 3973.",
+      "publication_identity_row_11": "Different Instagram standalone post; matching TikTok identity is row 1105."
+    }
+  },
+  "verified_publication": {
+    "job_id": "marketing-native-carousel-publication:a66f1f0b36c325e141d6fbcc3ea226f62a898b53fd7efc17bbdebbfd7f4ba423",
+    "receipt_status": "published",
+    "provider_reconciled": true,
+    "account_id": "@aniccaaffirmation",
+    "provider_post_id": "cmv1y3riy0rtuqz0ydup4dbcu",
+    "integration_id": "cmp93bkpu01uvoh0yd3aj560g",
+    "creative_id": "EN-AFFIRMATION-CAROUSEL-da8d8265",
+    "format_id": "larry",
+    "form": "affirmation-carousel",
+    "locale": "en",
+    "published_at": "2026-10-10T05:19:50.954Z",
+    "source": "~/.local/state/life-manager/tenants/dais-local/marketing/native-carousel-publication/anicca-ios/distribution.jsonl"
+  },
+  "postiz_publication_readback": {
+    "method": "GET /public/v1/posts",
+    "http_status": 200,
+    "returned_rows": 129,
+    "matching_post_id_and_integration_rows": 1,
+    "state": "PUBLISHED",
+    "release_url": "https://www.tiktok.com/@aniccaaffirmation/photo/7694904668752792840"
+  },
+  "postiz_current_metric_readback": {
+    "method": "GET /public/v1/analytics/post/cmv1y3riy0rtuqz0ydup4dbcu?date=1",
+    "observed_at": "2026-10-12T06:39:01.804Z",
+    "http_status": 200,
+    "metrics": {
+      "views": {
+        "status": "measured",
+        "value": 481
+      },
+      "likes": {
+        "status": "measured",
+        "value": 5
+      },
+      "comments": {
+        "status": "measured",
+        "value": 0
+      },
+      "shares": {
+        "status": "measured",
+        "value": 0
+      },
+      "impressions": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "metric_not_returned"
+      }
+    },
+    "scope_note": "Current date=1 API read. It matches the stored 24h-target checkpoint value but does not replace its late observed_at or missed SLA status."
+  },
+  "route_check": {
+    "postiz_release_url_kind": "photo",
+    "user_reported_url_kind": "video",
+    "tiktok_html_fetch": {
+      "scrapy_fetch_http_status": 200,
+      "canonical_or_og_url_present": false,
+      "route_equivalence": "unconfirmed"
+    },
+    "report_url_source": "Postiz official releaseURL"
+  },
+  "code_change": {
+    "file": "apps/life-manager/scripts/tiktok-native-metrics-read.js",
+    "behavior": "Accept one exact PUBLISHED post ID and integration match even when the returned Postiz list has 100 or more rows; retain URL shape validation.",
+    "regression_test": "apps/life-manager/scripts/tiktok-metrics-due.test.js",
+    "red": "Before the fix, the 104-row fixture returned unavailable instead of the exact URL.",
+    "green": "node --test apps/life-manager/scripts/tiktok-metrics-due.test.js: 9 passed, 0 failed."
+  },
+  "effects": {
+    "posts_created": 0,
+    "runtime_snapshots_written": 0,
+    "telegram_messages_sent": 0
+  },
+  "stored_24h_target_checkpoint": {
+    "source": "postiz_tiktok_per_post_api",
+    "observed_at": "2026-10-12T02:32:45Z",
+    "published_at": "2026-10-10T05:20:00Z",
+    "target_age_hours": 24,
+    "observed_age_hours": 45.2125,
+    "checkpoint_status": "measured",
+    "checkpoint_sla_status": "missed",
+    "views": 481,
+    "reach": null,
+    "impressions": null,
+    "likes": 5,
+    "comments": 0,
+    "shares": 0,
+    "saves": null,
+    "creative_id_in_metric_row": null,
+    "resolved_creative_id": "EN-AFFIRMATION-CAROUSEL-da8d8265",
+    "raw_evidence_hash": "885d6842270151726a3caebead2aea9d044c3bc8357afd66fe296e4dc0380c27",
+    "snapshot_id": "af4335dbdd0c484999006ea12bb05b98a576d9039cf6e55539706486436d2360"
+  },
+  "resolved_publication_identity_row": {
+    "source": "~/.local/state/life-manager/marketing-owner-events/state/publication-identity.jsonl#row-1105",
+    "identity_status": "resolved",
+    "candidate_count": 1,
+    "resolution_confidence": "deterministic",
+    "resolution_method": "platform_profile_full_caption_time_exact",
+    "account_id": "tiktok.aniccaaffirmation",
+    "provider_post_id": "cmv1y3riy0rtuqz0ydup4dbcu",
+    "native_post_id": "7694904668752792840",
+    "native_post_url": "https://www.tiktok.com/@aniccaaffirmation/video/7694904668752792840",
+    "postiz_release_url": "https://www.tiktok.com/@aniccaaffirmation/photo/7694904668752792840",
+    "observed_at": "2026-10-12T06:31:35Z"
+  }
+}

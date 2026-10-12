@@ -645,13 +645,15 @@ def _expected_postiz_profile(identity: dict[str, Any]) -> str:
                and target.get("integration_id") == integration_id]
     if not matches:
         return str(identity["account_id"])
-    if (len(matches) != 1
-            or matches[0].get("platform") != identity.get("platform")
-            or matches[0].get("native_handle") != identity.get("account_id")):
+    if len(matches) != 1 or matches[0].get("platform") != identity.get("platform"):
         raise ValueError("Postiz destination native account mismatch")
     profile = _account(matches[0].get("postiz_profile"))
     if profile is None:
         raise ValueError("Postiz destination profile is missing")
+    # Existing sidecars use the Postiz profile; current writers use the native handle.
+    allowed_accounts = {profile, _account(matches[0].get("native_handle"))}
+    if _account(identity.get("account_id")) not in allowed_accounts:
+        raise ValueError("Postiz destination native account mismatch")
     return profile
 
 

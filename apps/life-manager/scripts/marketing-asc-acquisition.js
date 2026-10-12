@@ -11,7 +11,7 @@ const { importContentObject, resolveContentObject } = require("../lib/content-ob
 const { resolveDataRoot } = require("../lib/runtime-paths.js");
 
 const PRODUCTS = Object.freeze([
-  Object.freeze({ product_id: "anicca-ios", app_id: "6755129214", app_name: "Daily Affirmations - Anicca", request_id: "04c74879-547f-4e35-b231-1fafd485801d", bootstrap_day: "2026-08-23", bootstrap_reports: Object.freeze([
+  Object.freeze({ product_id: "anicca-ios", app_id: "6755129214", app_name: "Daily Affirmations - Anicca", request_id: "04c74879-547f-4e35-b231-1fafd485801d", campaign_token: "anicca-ios_youtube_en", bootstrap_day: "2026-08-23", bootstrap_reports: Object.freeze([
     Object.freeze({ report_id: "r3-04c74879-547f-4e35-b231-1fafd485801d", report_name: "App Downloads Standard", instance_id: "402ad6b2-ddd8-4f84-a1b6-17ea8cbd3a37", processing_date: "2026-08-22", segments: Object.freeze(["078c2b3b-fac3-4923-8141-8191bb769c85", "d24b3d7a-e22e-4c14-9e7f-1af24756fb97"]) }),
     Object.freeze({ report_id: "r15-04c74879-547f-4e35-b231-1fafd485801d", report_name: "App Store Discovery and Engagement Detailed", instance_id: "f6ea9447-20e5-4910-9378-eb18c9ba4ec3", processing_date: "2026-08-21", segments: Object.freeze(["da95c273-a951-46d4-ae13-3bd2b32efe06"]) }),
   ]) }),
@@ -56,6 +56,9 @@ function summarize(product, downloads, engagement, metadata, detailedDownloads =
   const engagementSource = "app_store_connect_discovery_engagement_detailed";
   const campaignDownloads = product.campaign_token ? detailedDownloads.filter((row) => row.Campaign === product.campaign_token && row["Download Type"] === "First-time download") : [];
   const campaignEngagement = product.campaign_token ? engagement.filter((row) => row.Campaign === product.campaign_token) : [];
+  const campaignMeasured = campaignDownloads.length > 0 || campaignEngagement.length > 0;
+  const attributionReason = campaignMeasured ? "campaign_metrics_observed_for_subset"
+    : product.campaign_token ? "campaign_link_configured_no_product_readback" : "campaign_not_configured";
   const campaignUnavailable = () => unavailable(product.campaign_token ? "campaign_not_observed_or_privacy_threshold" : "campaign_not_configured");
   return {
     product_id: product.product_id,
@@ -63,14 +66,15 @@ function summarize(product, downloads, engagement, metadata, detailedDownloads =
     app_name: product.app_name,
     identity_source: "analytics_report_request_app_id",
     source_status: "measured",
-    attribution_status: "unattributed",
-    attribution_reason: "campaign_not_configured",
-    confidence: "official_product_total_no_campaign",
+    attribution_status: campaignMeasured ? "partial" : "unattributed",
+    attribution_reason: attributionReason,
+    confidence: campaignMeasured ? "official_product_total_with_campaign_subset"
+      : product.campaign_token ? "official_product_total_campaign_unavailable" : "official_product_total_no_campaign",
     data_from: dates[0] || null,
     data_to: dates.at(-1) || null,
     reports: metadata,
     campaign_id: product.campaign_token || null,
-    campaign_status: campaignDownloads.length || campaignEngagement.length ? "measured" : "unavailable",
+    campaign_status: campaignMeasured ? "measured" : "unavailable",
     metrics: {
       first_time_downloads: measured(sum(downloads, (row) => row["Download Type"] === "First-time download"), downloadSource),
       redownloads: measured(sum(downloads, (row) => row["Download Type"] === "Redownload"), downloadSource),
@@ -93,7 +97,7 @@ function pending(product, reason = "report_pending") {
     app_name: product.app_name,
     source_status: "unavailable",
     attribution_status: "unattributed",
-    attribution_reason: "campaign_not_configured",
+    attribution_reason: product.campaign_token ? "campaign_link_configured_no_product_readback" : "campaign_not_configured",
     confidence: "none",
     data_from: null,
     data_to: null,
@@ -166,7 +170,7 @@ async function persistAscAcquisition(dataDir = resolveDataRoot(process.env), rep
   const lineage = JSON.parse(fs.readFileSync(lineagePointer, "utf8"));
   resolveContentObject(lineage.snapshot_ref, { objectDir: path.join(dataDir, "objects") });
   const products = await Promise.all(PRODUCTS.map((product) => collector(product, reportDay)));
-  const snapshot = { schema_version: 1, kind: "marketing_asc_acquisition", tenant_id: "dais-local", report_day: reportDay, lineage_ref: lineage.snapshot_ref, products, rows: lineage.rows.map((row) => ({ product_id: row.product_id, account_id: row.account_id, platform: row.platform, provider_post_id: row.provider_post_id, public_url: row.public_url, campaign_id: row.campaign_id, acquisition_status: "unattributed", acquisition_reason: "campaign_not_configured", product_observation_status: products.find((product) => product.product_id === row.product_id).source_status })) };
+  const snapshot = { schema_version: 1, kind: "marketing_asc_acquisition", tenant_id: "dais-local", report_day: reportDay, lineage_ref: lineage.snapshot_ref, products, rows: lineage.rows.map((row) => ({ product_id: row.product_id, account_id: row.account_id, platform: row.platform, provider_post_id: row.provider_post_id, public_url: row.public_url, campaign_id: row.campaign_id, acquisition_status: row.campaign_id ? "partial" : "unattributed", acquisition_reason: row.campaign_id ? "campaign_link_configured_no_product_readback" : "campaign_not_configured", product_observation_status: products.find((product) => product.product_id === row.product_id).source_status })) };
   fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
   const candidate = path.join(directory, `.candidate-${process.pid}.json`);
   fs.writeFileSync(candidate, `${JSON.stringify(snapshot, null, 2)}\n`, { mode: 0o600 });
