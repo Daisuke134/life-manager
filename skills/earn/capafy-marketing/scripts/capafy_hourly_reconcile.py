@@ -739,6 +739,7 @@ def build_skill_analytics(
                 "agent_id": agent_id,
                 "name": row.get("name"),
                 "status": row.get("agentStatus"),
+                "has_online_version": row.get("hasOnlineVersion"),
                 "runtime": row.get("agentRuntime"),
                 "model": (catalog_models.get(agent_id)
                           or _agent_detail_model(stats.get("detail", {}))
