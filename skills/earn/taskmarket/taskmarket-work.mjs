@@ -7,7 +7,8 @@ import { privateKeyToAccount } from 'viem/accounts';
 
 import { loadEvmKey } from '../lib/resolve-identity.mjs';
 import { evmErc20Balance, EVM_TOKENS, RPC } from '../lib/net-worth.mjs';
-import { generateImage as generateX402Image } from './x402-image-client.mjs';
+import { discoverAndVerifyEvmReceipt } from '../../_shared/lib/verify-tx.mjs';
+import { generateImage as generateX402Image, USDC_BASE } from './x402-image-client.mjs';
 import { resolveStatusPaths } from '../../agent-economy/status.mjs';
 import { projectRevenueReceipts } from '../../agent-economy/lib/revenue-adapters.mjs';
 
@@ -237,13 +238,173 @@ async function readEarnAttempts(path) {
     return (await readFile(path, 'utf8'))
       .split('\n')
       .filter(Boolean)
-      .map((line) => {
-        try { return JSON.parse(line); } catch { return null; }
-      })
-      .filter(Boolean);
-  } catch {
-    return [];
+      .map((line) => JSON.parse(line));
+  } catch (error) {
+    if (error?.code === 'ENOENT') return [];
+    throw new Error('TaskMarket attempt ledger could not be read');
   }
+}
+
+function pendingPaymentTaskIds(rows) {
+  return new Set((Array.isArray(rows) ? rows : [])
+    .filter((row) => row?.source === 'taskmarket_work_payment_intent'
+      || row?.source === 'taskmarket_work_payment_verified'
+      || (row?.source === 'taskmarket_work_attempt' && row?.payment_receipt_id))
+    .map((row) => row?.task)
+    .filter((taskId) => typeof taskId === 'string' && taskId.length > 0));
+}
+
+function safeBlockNumber(value) {
+  try {
+    const block = BigInt(value);
+    return block >= 0n && block <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(block) : null;
+  } catch {
+    return null;
+  }
+}
+
+function usdcDecimal(amountAtomic) {
+  const amount = BigInt(amountAtomic);
+  const whole = (amount / BigInt(USDC_DECIMALS)).toString();
+  const fraction = (amount % BigInt(USDC_DECIMALS)).toString().padStart(6, '0').replace(/0+$/, '');
+  return fraction ? `${whole}.${fraction}` : whole;
+}
+
+async function baseRpcCall(method, params) {
+  const response = await fetch(RPC.base, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
+  });
+  if (!response.ok) throw new Error('Base RPC request failed');
+  const body = await response.json();
+  if (body?.error || !Object.hasOwn(body || {}, 'result')) {
+    throw new Error('Base RPC response is invalid');
+  }
+  return body.result;
+}
+
+async function verifyBlockRunSettlement({ generated, walletAddress, rpcCall }) {
+  const settlement = generated?.paymentSettlement;
+  const receiptId = generated?.paymentReceiptId;
+  const addressPattern = /^0x[0-9a-f]{40}$/i;
+  const hashPattern = /^0x[0-9a-f]{64}$/i;
+  if (!settlement || settlement.network !== 'eip155:8453' || settlement.scheme !== 'exact'
+    || String(settlement.asset || '').toLowerCase() !== USDC_BASE.toLowerCase()
+    || !addressPattern.test(String(settlement.payer || ''))
+    || settlement.payer.toLowerCase() !== walletAddress.toLowerCase()
+    || !addressPattern.test(String(settlement.recipient || ''))
+    || !hashPattern.test(String(settlement.transaction || ''))
+    || !/^blockrun:[0-9a-f]{64}$/i.test(String(receiptId || ''))
+    || settlement.providerReceiptId !== receiptId) {
+    throw new Error('BlockRun settlement metadata is incomplete or mismatched');
+  }
+  let amountAtomic;
+  let quotedAmountAtomic;
+  try {
+    if (!/^\d+$/.test(String(settlement.amountAtomic || ''))
+      || !/^\d+$/.test(String(settlement.quotedAmountAtomic || ''))) throw new Error();
+    amountAtomic = BigInt(settlement.amountAtomic);
+    quotedAmountAtomic = BigInt(settlement.quotedAmountAtomic);
+  } catch {
+    throw new Error('BlockRun settlement amount is invalid');
+  }
+  const costUsd = Number(generated.costUsd);
+  if (amountAtomic <= 0n || amountAtomic !== quotedAmountAtomic
+    || amountAtomic > BigInt(Math.round(MAX_IMAGE_COST_USD * USDC_DECIMALS))
+    || !Number.isFinite(costUsd) || Math.round(costUsd * USDC_DECIMALS) !== Number(amountAtomic)) {
+    throw new Error('BlockRun settled cost does not match the quoted amount or cap');
+  }
+
+  const callRpc = rpcCall || baseRpcCall;
+  const fetchImpl = async (_rpc, request) => {
+    const { method, params } = JSON.parse(request.body);
+    return { ok: true, json: async () => ({ result: await callRpc(method, params) }) };
+  };
+  const verified = await discoverAndVerifyEvmReceipt({
+    tx_hash: settlement.transaction,
+    expected_chain_id: 8453,
+    expected_contract: USDC_BASE,
+    expected_recipient: settlement.recipient,
+    expected_payer: walletAddress,
+    expected_amount_atomic: amountAtomic.toString(),
+    rpc: RPC.base,
+    fetchImpl,
+  });
+  if (!verified?.verified || !verified.transfer) {
+    throw new Error(`BlockRun Base transfer verification failed: ${verified?.reason || 'unknown'}`);
+  }
+  const [receipt, finalized] = await Promise.all([
+    callRpc('eth_getTransactionReceipt', [settlement.transaction]),
+    callRpc('eth_getBlockByNumber', ['finalized', false]),
+  ]);
+  const receiptBlock = safeBlockNumber(receipt?.blockNumber);
+  const finalizedBlock = safeBlockNumber(finalized?.number);
+  if (String(receipt?.transactionHash || '').toLowerCase() !== settlement.transaction.toLowerCase()
+    || receipt?.status !== '0x1' || receiptBlock === null || finalizedBlock === null
+    || receiptBlock > finalizedBlock) {
+    throw new Error('BlockRun Base transaction is not finalized');
+  }
+  const receiptBlockHash = String(receipt?.blockHash || '').toLowerCase();
+  if (!hashPattern.test(receiptBlockHash)) throw new Error('BlockRun receipt block hash is invalid');
+  const canonicalBlock = await callRpc('eth_getBlockByNumber', [`0x${receiptBlock.toString(16)}`, false]);
+  if (safeBlockNumber(canonicalBlock?.number) !== receiptBlock
+    || String(canonicalBlock?.hash || '').toLowerCase() !== receiptBlockHash) {
+    throw new Error('BlockRun receipt block is not canonical');
+  }
+  return {
+    costUsdc: usdcDecimal(amountAtomic),
+    proof: {
+      verified: true,
+      provider_receipt_id: receiptId,
+      chain_id: verified.chain_id,
+      tx_hash: verified.tx_hash,
+      contract: verified.transfer.contract,
+      payer: verified.transfer.payer,
+      recipient: verified.transfer.recipient,
+      amount_atomic: verified.transfer.amount_atomic,
+      log_index: verified.transfer.log_index,
+      receipt_block: receiptBlock,
+      finalized_block: finalizedBlock,
+    },
+  };
+}
+
+async function readComputeCostRows(path) {
+  try {
+    return (await readFile(path, 'utf8')).split('\n').filter(Boolean).map((line) => JSON.parse(line));
+  } catch (error) {
+    if (error?.code === 'ENOENT') return [];
+    throw new Error('Agent Economy compute cost journal could not be read');
+  }
+}
+
+async function recordComputeCostReceipt({ path, taskId, wakeId, now, generated, walletAddress, rpcCall }) {
+  const verified = await verifyBlockRunSettlement({ generated, walletAddress, rpcCall });
+  const rows = await readComputeCostRows(path);
+  const receiptId = verified.proof.provider_receipt_id;
+  const matches = rows.filter((row) => row?.proof?.provider_receipt_id === receiptId
+    || (String(row?.proof?.tx_hash || '').toLowerCase() === verified.proof.tx_hash.toLowerCase()
+      && Number(row?.proof?.log_index) === verified.proof.log_index));
+  if (matches.length > 0) {
+    const prior = matches[0];
+    if (matches.length === 1 && prior?.taskmarket_task_id === taskId
+      && prior?.cost_usdc === verified.costUsdc
+      && prior?.proof?.verified === true
+      && prior?.proof?.provider_receipt_id === receiptId) return verified;
+    throw new Error('BlockRun compute receipt conflicts with an existing journal row');
+  }
+  await mkdir(dirname(path), { recursive: true, mode: 0o700 });
+  await appendFile(path, `${JSON.stringify({
+    ts: Math.floor(now / 1000),
+    provider: 'blockrun',
+    taskmarket_task_id: taskId,
+    wake: wakeId,
+    model: generated.model,
+    cost_usdc: verified.costUsdc,
+    proof: verified.proof,
+  })}\n`, { mode: 0o600 });
+  return verified;
 }
 
 async function reconcileExistingSubmission({
@@ -265,14 +426,16 @@ async function reconcileExistingSubmission({
     && row?.task === taskId
     && !row?.submission_id);
   if (!pending) return false;
+  const pendingCost = pending.cost_usdc == null ? null : Number(pending.cost_usdc);
+  const costUsd = Number.isFinite(pendingCost) && pendingCost >= 0 ? pendingCost : null;
   await appendEarnAttempt(earnLedgerPath, {
     ts: Math.floor(now / 1000),
     wake: wakeId,
     source: 'taskmarket_work_reconciliation',
     task: taskId,
     earn_usdc: 0,
-    cost_usdc: 0,
-    net_usdc: 0,
+    cost_usdc: costUsd,
+    net_usdc: costUsd === null ? null : -costUsd,
     submission_id: id,
     reconciles_wake: pending.wake,
   });
@@ -379,6 +542,7 @@ export async function runTaskMarketPass(options = {}, deps = {}) {
     maxImageCostUsd = MAX_IMAGE_COST_USD,
     submissionReadbackAttempts = 5,
     submissionReadbackDelayMs = 1000,
+    computeCostJournalPath = null,
     revenueJournalPath = process.env.REVENUE_RECEIPT_JOURNAL,
     revenueRejectionPath,
   } = options;
@@ -410,6 +574,7 @@ export async function runTaskMarketPass(options = {}, deps = {}) {
   }
   if (action !== 'execute') throw new Error(`unsupported TaskMarket action: ${action}`);
   const previousAttempts = await readEarnAttempts(earnLedgerPath);
+  const paymentPending = pendingPaymentTaskIds(previousAttempts);
   const revenueCandidates = previousAttempts
     .filter((row) => (
       row?.source === 'taskmarket_work_attempt'
@@ -467,10 +632,20 @@ export async function runTaskMarketPass(options = {}, deps = {}) {
     }
   }
 
+  if (taskId && paymentPending.has(taskId)) {
+    return { ok: true, action: 'held_unresolved_payment', taskId };
+  }
   const selected = taskId
     ? taskById(tasks, taskId)
-    : selectTask({ tasks, submissions, now, maxImageCostUsd });
+    : selectTask({
+      tasks: tasks.filter((task) => !paymentPending.has(String(task?.id || ''))),
+      submissions,
+      now,
+      maxImageCostUsd,
+    });
   if (!selected) {
+    const held = tasks.find((task) => paymentPending.has(String(task?.id || '')));
+    if (held) return { ok: true, action: 'held_unresolved_payment', taskId: held.id };
     return {
       ok: true,
       action: 'no_eligible_task',
@@ -495,20 +670,55 @@ export async function runTaskMarketPass(options = {}, deps = {}) {
   const outputDir = join(stateDir, 'submissions', selected.id);
   const spendPath = join(stateDir, 'image-spend.json');
   const day = new Date(now).toISOString().slice(0, 10);
-  const generateImage = deps.generateImage || ((request) => generateX402Image({
-    ...request,
-    reserveSpend: (amountUsd) => reserveImageSpend({
+  const computeJournalPath = computeCostJournalPath
+    || resolveStatusPaths({ env: process.env }).computePath;
+  const reserveBudget = deps.reserveSpend || ((amountUsd) => reserveImageSpend({
       walletKey,
       amountUsd,
       statePath: spendPath,
       day,
-    }),
-    maxQuoteUsd: maxImageCostUsd,
-  }));
-
+    }));
+  const reserveSpend = async (amountUsd) => {
+    await reserveBudget(amountUsd);
+    await appendEarnAttempt(earnLedgerPath, {
+      ts: Math.floor(now / 1000),
+      wake: wakeId,
+      source: 'taskmarket_work_payment_intent',
+      task: selected.id,
+      payment_state: 'effect_unknown',
+      quoted_cost_usdc: usdcDecimal(BigInt(Math.round(Number(amountUsd) * USDC_DECIMALS))),
+    });
+  };
+  const generateImage = deps.generateImage || generateX402Image;
   const generated = await generateImage({
     prompt: imagePrompt(selected),
     walletKey,
+    reserveSpend,
+    maxQuoteUsd: maxImageCostUsd,
+  });
+  const intentRecorded = (await readEarnAttempts(earnLedgerPath)).some((row) =>
+    row?.source === 'taskmarket_work_payment_intent'
+    && row?.task === selected.id
+    && row?.wake === wakeId);
+  if (!intentRecorded) throw new Error('TaskMarket BlockRun payment intent was not recorded');
+  const verifiedCost = await recordComputeCostReceipt({
+    path: computeJournalPath,
+    taskId: selected.id,
+    wakeId,
+    now,
+    generated,
+    walletAddress,
+    rpcCall: deps.rpcCall,
+  });
+  await appendEarnAttempt(earnLedgerPath, {
+    ts: Math.floor(now / 1000),
+    wake: wakeId,
+    source: 'taskmarket_work_payment_verified',
+    task: selected.id,
+    payment_state: 'verified',
+    payment_receipt_id: verifiedCost.proof.provider_receipt_id,
+    cost_usdc: verifiedCost.costUsdc,
+    tx_hash: verifiedCost.proof.tx_hash,
   });
   const hero = await downloadImage(generated.url);
   validateSquarePng(hero);
@@ -537,11 +747,11 @@ export async function runTaskMarketPass(options = {}, deps = {}) {
     source: 'taskmarket_work_attempt',
     task: selected.id,
     earn_usdc: 0,
-    cost_usdc: generated.costUsd,
-    net_usdc: -generated.costUsd,
+    cost_usdc: Number(verifiedCost.costUsdc),
+    net_usdc: -Number(verifiedCost.costUsdc),
     submission_id: id,
     model: generated.model,
-    payment_receipt_id: generated.paymentReceiptId || null,
+    payment_receipt_id: verifiedCost.proof.provider_receipt_id,
   };
   await appendEarnAttempt(earnLedgerPath, ledgerRow);
   if (!id) throw new Error('submission_readback_missing');
@@ -552,7 +762,7 @@ export async function runTaskMarketPass(options = {}, deps = {}) {
     taskId: selected.id,
     submissionId: id,
     model: generated.model,
-    costUsd: generated.costUsd,
+    costUsd: Number(verifiedCost.costUsdc),
     ...(revenueProjection ? { revenue_projection: revenueProjection } : {}),
   };
 }
