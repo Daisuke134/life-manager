@@ -125,8 +125,13 @@ async function runDue(nowMs = Date.now(), env = process.env, provided = null, de
       } else results.push({ shortcode: expected.shortcode, window: "current", state: "pending", reason: "current_observation_run_budget" });
     }
     if (Number(parts.hour) > 17 || (Number(parts.hour) === 17 && Number(parts.minute) >= 30)) {
-      const digest = persistDailyDigest({ dataDir, reportDay, observedAt: new Date(nowMs).toISOString(), expected });
-      results.push({ shortcode: expected.shortcode, window: "daily", state: digest.created ? "persisted" : "complete" });
+      try {
+        const digest = persistDailyDigest({ dataDir, reportDay, observedAt: new Date(nowMs).toISOString(), expected });
+        results.push({ shortcode: expected.shortcode, window: "daily", state: digest.created ? "persisted" : "complete" });
+      } catch (error) {
+        if (error?.message !== "Instagram daily digest has no metric snapshot") throw error;
+        results.push({ shortcode: expected.shortcode, window: "daily", state: "pending", reason: "no_metric_snapshot" });
+      }
     } else results.push({ shortcode: expected.shortcode, window: "daily", state: "pending", due_at: `${reportDay}T17:30:00+09:00` });
   }
   return results;

@@ -246,3 +246,14 @@ test("verified JA Larry native-carousel receipt is discovered for the exact Japa
     public_url: receipt.public_url, caption, published_at: receipt.published_at,
   }]);
 });
+
+test("no metric snapshot leaves the Instagram daily digest pending without failing the run", async () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-instagram-empty-daily-"));
+  const expected = { ...EXPECTED, shortcode: "NoMetricInstagramDue", published_at: "2026-10-12T08:45:00.000Z" };
+  const result = await runDue(Date.parse("2026-10-12T09:00:00.000Z"), { LM_DATA_DIR: dataDir }, [expected], {
+    collectWindow: async () => { throw new Error("metric source unavailable"); },
+  });
+  const daily = result.find((row) => row.window === "daily");
+  assert.equal(daily.state, "pending");
+  assert.equal(daily.reason, "no_metric_snapshot");
+});
