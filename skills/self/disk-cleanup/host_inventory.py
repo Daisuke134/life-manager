@@ -22,6 +22,7 @@ SCHEMA_VERSION = "life-manager-host-inventory-v1"
 # keeps the probe bounded while allowing those roots to be measured.
 DU_TIMEOUT_SECONDS = 10
 BUILD_TOOL_DU_TIMEOUT_SECONDS = 30
+LARGE_REPOSITORY_ROOT_DU_TIMEOUT_SECONDS = 30
 FULL_INVENTORY_BUDGET_SECONDS = 90
 MAX_CHILDREN_PER_ROOT = 512
 
@@ -349,7 +350,12 @@ def _bounded_size(
     deadline: float | None = None,
     clock: Callable[[], float] = time.monotonic,
 ) -> tuple[int | None, str, str | None]:
-    timeout = BUILD_TOOL_DU_TIMEOUT_SECONDS if path == Path("/opt/homebrew") else DU_TIMEOUT_SECONDS
+    if path.name in {"Projects", "life-manager-main"}:
+        timeout = LARGE_REPOSITORY_ROOT_DU_TIMEOUT_SECONDS
+    elif path == Path("/opt/homebrew"):
+        timeout = BUILD_TOOL_DU_TIMEOUT_SECONDS
+    else:
+        timeout = DU_TIMEOUT_SECONDS
     if deadline is not None:
         remaining = deadline - clock()
         if remaining <= 0:
