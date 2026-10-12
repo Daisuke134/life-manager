@@ -5,13 +5,13 @@ from job_search_loop.greenhouse_discovery import candidate_jobs, live_board_jobs
 
 
 class GreenhouseDiscoveryTests(unittest.TestCase):
-    def test_daily_owner_discovers_greenhouse_before_shared_model_lane(self):
+    def test_daily_workday_owner_does_not_search_greenhouse(self):
         script = (
             Path(__file__).resolve().parents[1] / "scripts/run-daily.sh"
         ).read_text(encoding="utf-8")
 
         self.assertNotIn("-m job_search_loop.greenhouse_discovery", script)
-        self.assertIn("--active-provider all", script)
+        self.assertIn("--active-provider workday", script)
 
     def test_live_board_jobs_normalizes_only_official_https_rows(self):
         rows = live_board_jobs(
