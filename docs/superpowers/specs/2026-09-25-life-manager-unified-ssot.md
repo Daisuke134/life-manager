@@ -26,11 +26,11 @@
 
 原則を一次資料で照合済み: Chrome headlessは通常Chromeと機能を共有（https://developer.chrome.com/docs/automation-and-testing/headless）、Playwright BrowserContextは互換なbrowser内で隔離再利用可能（https://playwright.dev/docs/browser-contexts）、Temporalは負荷別分離・実資源に合わせたworker調整/scaleを推奨（https://docs.temporal.io/best-practices/worker）。これを既存Life Managerへ適用し、Temporal/Kubernetes等の新基盤導入を現在の追加gateにしない。全実装がbest practiceに完全一致したという認証や、有限hardware/外部providerを含む永久ゼロ故障は主張しない。
 
-primaryは開発者Codex/Claudeと本番18業務agentを区別する。Daisの明示指示でAGMSG team lmへ9 fresh Codex担当（Cloud/cleanup/投資/LINE/CFO/Mobile/Job Hunter/Gig/eBook）を起動する。各lane内は一人でserial、独立laneは並行し、既存live担当・lease・worktree・provider effectとの重複を避ける。primary lm-orchestrator-1012が共有release・資源調整・全体SSOT・統合を所有し、ClaudeのCapafy所有を保持する。旧handoverの完了状態を再実装せずfresh readbackで差分を確定する。初回goal packetと所有境界はdocs/superpowers/dispatch/2026-10-12を参照（実行TODO/状態の正本は本SSOTのみ）。起動・着手・完了を分けてreadbackし、登録だけで稼働/成果を主張しない。
+primaryは全体TODO/SSOT/共有cleanupとreleaseの統括・acceptance・integrationを持ち、同じsource fileのwriterは一人にする。AGMSG team `lm` は通信路で、登録だけでは稼働証明にならない。`lm-agent-economy-repair-1012` はTaskMarket awards/cost testを作業中で、Evo担当ではない。read-onlyのEvo状況監査は完了し、専任のEAB/Eval/Evo稼働席は確認できなかった。既存Job Hunter/LINE/Capafy等のowner・leaseは重複させず、team/peekと成果物で確認する。
 
 **全体architectureの判断とAs-Is/To-Be:** 18 agentは18業務capabilityであり、190の小さいjobがそれぞれのcadenceで実装する。最善の進め方は既存のdurable state/effect/receiptと、常時監督＋有限worker＋優先度/経過時間を扱うadmissionを土台に、実資源・業務進行から配分を調整することである。FIFOは同優先度の順序補助として使え、先頭の不適合/古い予約が全業務を止めるgateにしない。固定2/5/10は現設定であり、達成目標や永久の適正値ではない。開始時刻/時差/周期の分散はburstを減らすが、仕事の長期化/再試行/保存先共有があるため衝突や容量問題が無い証明にならない。
 
-As-Isはmain由来immutable release＋Mac launchd/private state、毎分中央補助とowner自己掃除、既存queue/予約/unknown fence/自然再開を持つ。一部の自然仕事→記録→掃除→次仕事は確認済みだが、全18の継続成果は未証明。fresh sampled ubi-watcher/life-manager-daily/marketing-mine-dailyは単純なcapacity待ちでなく、古いloaded releaseとresource_effect_unknownでbody未開始。各unknownはclaimed_by_other_runでpre-effect dry-run未解決、後続claim/terminalとの正確な公式照合が必要で、slots増加やstate削除では直さない。fresh systemは16GiB RAM/memory free51%/swap used7399.44MiB、watchdog11:16:26Z errors0/protected0/free7908937728bytes。一時点の余裕やcleanup成功を全体Doneへ置換しない。
+As-Isはmain由来immutable release＋Mac launchd/private state。PR #7774はmainへ統合済み（merge `6a9e49c9`）。現行`~/loops/current`と両cleanup labelはまだrelease `e91b1087`。60秒watchdogはStartInterval=60でruns18/last exit0、5分ownerのlast exitは75。06:17Zには5分ownerの`disk_cleanup.py` PID22494が共有lockを保持中にwatchdogがexit75し、コード上75はlock busy分岐のみ。source修正のruntime採用・lock非競合・容量writer停止は未確認。
 
 To-Beは各agentがobserve→decide→act→official verify→persist→自分の不要物cleanup→次の仕事を、必要なcadence/期限で継続すること。独立する業務は並列に進み、同じidentity/投稿/決済/注文はlockとidempotencyで保護する。不明な効果は照合の仕事を継続し、独立する観測・他仕事まで無理由に永久停止させない。監督・中央cleanup・復旧は収益workerの混雑に巻き込まれず、stale owner/予約、実資源不足、provider制約を別々に診断し、自己所有修復→自然再開まで行う。正式state/receiptの成長は内容を保持した既存native管理と容量/保存先計画で扱う。最終のcloud/control plane・disposable computeは既存cloud節に従い、現時点で導入済みとはしない。外部審査/quota/障害を含む有限systemに永久ゼロ待機・ゼロ故障を保証せず、仕事の継続・障害の封じ込め・自動回復・公式収益で受け入れる。全面作り直し、FIFO一律撤去、任意の100枠化は現在の先頭taskにしない。
 
@@ -46,7 +46,11 @@ To-Beは各agentがobserve→decide→act→official verify→persist→自分�
 
 **不変条件:** iOS Simulator runtime/image/device/data/dyld、memory/state、credentials、browser identity、参照release、active/dirty/unmerged/leased/locked worktree、open/unknown dataを削除しない。各agentは自分が生成し所有する非authoritative scratchだけを片付け、中央cleanupは残ったclosed/orphaned artifactと証明済みの不要物を回収する。他agentの作業や正式receiptを消さない。effect_unknownはexact official receipt/pre-effect proofまで解除・再送しない。内部の余白・時間・byte予算は安全な制御に使い、空き容量の固定値を事業再開の条件にしない。
 
-**現在cursor:** 基盤15受入は完了、個別agent修復・収益運用へ進む。現在はCFO。通知親timeout修復PR #7711とStripe canceled-only現在MRR修復PR #7713はmain統合済み。旧unknownを保全したまま独立期間のレポートを進める修復はsource/67関連tests PASS、review/CI/main/通常本番採用/自然B7/公式receipt/replay-zeroを残す。残順はCFO修復の本番証明→既存CFO source順/A6/A9/A10→Cloudの継続集客・funnelと実iPhone pairing/reply→各laneの既存残TODO（LINE/Mobile/Gig/eBook/Job Hunter/投資等、CapafyはClaude担当を尊重）→商品別の費用込み収益と成長改善→README/OSS公開導線・自己修復/改善の継続運用→公式receiptで各lane目標と全社US$10M/月を確認。独立TODOは実機/外部認証/将来自然runの待機だけで止めず、実装は一件ずつ進める。基盤受入完了を全18業務の成果完了や無故障の永久保証へ置換しない。
+**現在cursor:** latest mainは`6a9e49c9370fbba34ba70280c4faddf45367062b`（PR #7774統合済み）。current releaseはまだ`e91b1087`で、release-reconciler PID78448がrun中。次はその自然収束後、latest-main releaseに中央 sweep removalを採用し、central 5分owner/15日legacy ownerのloaded argv/SHAとwatchdogの自然終端を照合する。その後、lock busy exit75がなくなることと容量growthのPID/path/bytesを結ぶ。空き容量値をKPIにせず、資源起因のstop再発防止は未完。
+
+**次の順序:** cleanupの自然反復と容量増加源の相関を確認 → 実行枠/再開の実状態を照合 → 各業務agentはownerと既存TODOを維持して一件ずつ修復・公式readback → settled revenueと費用を確認 → 18業務の公式receiptに基づくLM-EAB評価・benchmark・自己修復/改善 → OSS起動導線と会社全体US$10M/月の継続運用。共有基盤が未完でも、独立した読み取りと既存ownerの安全な仕事は止めない。
+
+**Evoの状態:** cleanup用regression testはshared source変更の検証で、LM-EAB/Evoではない。LM-EABの公開fixtureは5件（tuning 3/held-out 2）で合成データ。PR #7737は費用欠測の合成ケースを追加しmerge済み、PR #7736はREADMEからの再現手順を追加しmerge済み。自然trace・実経済task family・本番performance比較・benchmark報告は未完。OpenEvolveの7月runはbacktest昇格の履歴で現在稼働ではなく、registryの同名 `self-improve-evolve` はmarketing report runnerのpassでLM-EAB評価ではない。今回のread-only監査で専任のEAB/Eval/Evo稼働席は確認できず、production-connected evalと改善の自然runは未完。
 
 **引き継ぎ/診断証拠:** worktree HEAD `a6e03757`の4ファイル497行差分を`ea1784b0ec`で保持してpushし、最新main `3baccdbd`を`00b5d4ff5d`でmerge/push。leaseは既存owner `codex-root`でheartbeatを更新、直列lsof再確認でworktree下open handleなし。既存temp/worktree focused testは2 PASS。agmsg統括identityは`lm/codex-resource-orchestrator-1009`、既存cleanup担当へ重複書込抑制と状態照会を送信。自然receiptの成功/失敗が交互に現れ、失敗時の正確な親errorは`host_cleanup_identity_mismatch`。`disk_cleanup.py::main`のbusy lock出力はexit75だがidentityを含まず、`central_cleanup.host_cleanup_readback`の同-occurrence検査が失敗に変換する。REDはbusy出力identity欠落と親exit1を再現し、最小修正後の関連4 testsはGREEN。修正契約は、busy出力にもimmutable manifest由来の同run identityを載せ、親はそのidentityを検証した正確なbusyだけをeffect0のexit75延期として維持し、他のidentity mismatchはexit1のまま拒否する。旧ENOSPC修復とは区別し、容量不足時の既存reserve/cursor testsも再確認する。
 
@@ -225,17 +229,19 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 
 起動packetの資格情報確認手順は → ~/.config/ai/core.md「No-human-loop（既定）」を参照。docs/superpowers/dispatch/2026-10-12/*.md全件へ参照を同期し、secret値は含めない。
 
-現在地はF01/F03/F04と並行するE01（PR #7734 main統合済み、48関連tests/限定review/exact-head CI PASS、本番自然評価は未確認）。既存cleanup BF15は受入済み、全18業務の本番完了/収益/遅延ゼロは未証明。PR #7714はexact-head 4492292ee1 CI全PASS/68関連tests/限定金融review finding修復後、main 0a6cc55cd9a8fcc306efa4259ceed5c7816b036eへ統合済み。CFO対象ownerは通常immutable 20261012T115825-0a6cc55cへ対象限定reconcileで採用済み（install event 7125fde74d6d9f0ce444a856、loaded argv/SHA一致）。旧unknown life-manager-cfo-hourly:18dd46d06dd2a648-41605は保持。新wake 18dda8fd11862a38-56624は同SHAでresource_effect_unknownからresource_capacity_busyへ変化し、旧期間fenceによる全期間停止は解消、自然B7完成/公式receipt/replay-zeroは未確認。Gig Replyは通常reconcileでskipped_effect_unknown、latest mainにもadapterなし。PromptBase/WriterのAGMSG専任は実goal着手確認済み、Job Hunter/LINE/CapafyのDais担当と重複させない。
+現在地（2026-10-12 15:36 JST fresh readback）: cleanup single-sweep PR #7774はmain `6a9e49c9`にmerge済み。current releaseはmerge前の`e91b1087`、release-reconciler PID78448が自然run中。watchdogはrelease e91bでStartInterval60/runs18/last exit0、5分cleanup ownerは同releaseでlast exit75。06:17Zにcentral ownerのdisk_cleanup PID22494が共有lockを保持し、watchdogの同窓exit75を特定。sourceで中央5分と15日legacy host sweepを外したが、まだruntime採用されていない。Codex rootsのfull inventory/growth ownerは未確定。ENOSPC・resource stopの再発防止は未達。
 
 順序変更: 旧=全18業務/収益laneの受入後にS15→S16→S17→S18。新=既存基盤修正の本番採用→18業務の修復と公式会計を並行→必要な自然障害/公式receiptが揃った範囲で自己修復・評価・benchmark→凍結評価器で自己改善→新agent factory→portable OSS/外部再現→継続収益拡大。理由: 未達MRR・外部審査・将来slotを自己修復や既存商品の販売開始の前提にすると無期限待機になる。依存のないlaneは並行、各lane/共有provider/releaseのmutationはserial。原goalの全18成果/各lane目標/全社US$10M月のDone条件は縮めない。
 
-並行担当の起動cursor: Root=共有runtime/CFO/Eval、native=/root/fundraiser_repair（READY確認済み）。AGMSG起動先tmux server不在を観測し、新規session lm-orchestrator-1012を作成。Cloud/Investment/Mobile/Gig4platform/eBook/Affiliate/AgentEconomy/Connectorへそれぞれ*-repair.mdの独立goalを渡す。Cloud/Investment/Mobile/Gig/eBook/Affiliate/AgentEconomy/Connectorの8専任は新規Codex起動後、全席の実作業peekとREADY/専用WT/branch/HEADを確認済み。登録だけをactive根拠にしない。native FundraiserもREADY、source PR #7747（browser identity/recovery境界）まで進行。Job Hunter/LINE/Capafyは既存担当、PromptBaseはsource統合済み・login停止保持、Writerは最新稼働未確認。old9登録をactiveと数えない。各source WTと共有effect/releaseのownerを分離し、18capability全部の修復を並行で進める。
+共有source→runtime cursor（2026-10-12 15:36 JST）: main=`6a9e49c9370fbba34ba70280c4faddf45367062b`（PR #7774 merged）、current/reconciler/cleanup labelsはまだ`e91b1087`。release-reconciler processはPID78448でactive。watchdog loaded script/argv/StartInterval60/Throttle60は確認済み。central ownerはlast exit75。次は自然に切られたlatest-main immutable releaseとloaded-idle applyを確認し、5分ownerをmaintenance-onlyへ、15日entrypointをdelegation-onlyへ更新する。既存effect fenceは変更しない。その後、watchdog/central natural receiptsのlock contention・ENOSPC・protected deletion=0を測り、writer/path/time-windowで残容量増加を追う。
+
+担当cursor: primaryは共有cleanup/release/SSOTを所有。native read-only Eval監査は完了し、現時点のEvo implementation ownerは不在。AGMSGでpeekした`lm-agent-economy-repair-1012`はTaskMarket test修正中。その他の登録seatは、live placement/peekがない限り稼働中と数えない。Job Hunter/LINE/Capafy等の既存ownerは重複起動しない。
 
 並行着手の境界: 18業務全完了はH/E/I/N/O/Gの開始gateにしない。H01–03は既存の自然障害から、E01–06は既存runner/失敗記録/隔離fixtureから、O01は現在の実装に一致するREADME/CLIから進める。I01–02のcandidate比較は開始可能だがI03本番採用は凍結baselineと対象の安全性/実費証拠を必要とする。N01–03は一agentだけ需要/契約/最小実装を進め、N04–05の利益証明/増産をmockで代替しない。O02–03のend-to-end再現は動作確認済みlaneから、G01は販売可能laneから開始する。共有release/会計/評価器の書込みownerは一人、業務修復担当と別worktree/file範囲に分ける。公開・求職資料には実case数、評価条件、測定結果と未確認範囲を記載し、AGI/全自律/収益保証を実証済みと称さない。
 
 | ID | 順番・一つの操作 | 完了証拠/境界 |
 |---|---|---|
-| F01 | mainの既存修正を、旧guard等が残るeligible ownerへ採用 | immutable/loaded argv/SHA、running/unknownの保持理由。無断rebind/解除なし |
+| F01 | source PR #7774はmainへ統合済み。latest-main releaseで中央5分ownerをmaintenance-only、legacy15d ownerをdelegation-onlyへloaded-idle採用する | watchdogの60秒cadence/argv/SHAを保持し、中央owner採用後のlock contention exit75がない自然receipt反復、producer growthとのowner/path/time-window join、保護/unknown fence維持を確認 |
 | F02 | 自然な仕事→receipt→自己/中央cleanup→次仕事を照合 | ENOSPC/破損/手動掃除依存なし。容量固定値・永久無故障保証にしない |
 | F03 | 18業務を既存担当/専任へ割り当て、既存PRを先に照合して残件修復 | source acceptance/必要review/exact-head CI/main。重複実装なし |
 | F04 | 各laneの最小実仕事を自然実行して公式結果へ結ぶ | 投稿/応募/納品/注文等のexact receipt、replay/duplicate-zero |
@@ -250,10 +256,10 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 | H04 | 自己修復の一連の因果を証明する | 外部Codexの手動修正やsupervisor単独PASSをLM自身の修復としない |
 | E01 | selfEvalの欠測net→0をfail-closedへ修復 | unknown/不正金額がDEAD/利益/ゼロへ誤変換されないRED/GREEN |
 | E02 | recovery/economic evalを自然障害とCFOの公式receiptへ接続 | task success/effect integrity/settled net/cost/latency/介入を別採点 |
-| E03 | LM-EABの自然失敗・境界・実経済task familyを増やす | missing-cost-coverageのsynthetic/derived tuning回帰をsource検証。5 cases（tuning3/held-out2）は契約の足場、実性能ではない。自然trace/実経済familyは未完 |
+| E03 | LM-EABの自然失敗・境界・実経済task familyを増やす | PR #7737（merge `42131f52`）で費用欠測synthetic regressionを追加済み。現行5 public fixtures（tuning3/held-out2）は契約検証で実性能ではない。自然trace/実経済family/独立held-out protocolは未完 |
 | E04 | case/runner/grader/baselineをversion/hashで凍結 | public/dev/held-out/challenge分離、grader較正/複数trial/不確かさ/汚染監査 |
 | E05 | 既存runnerへ他harness adapterを接続し外部再現を確認 | 新framework先行導入なし、独立実行で同versionの結果を再現 |
-| E06 | benchmark報告・task作成方法・限界を公開 | 現在cursor: docs/evals/lm-economic-autonomy.mdの既存runner再現案内とREADME導線。fixtureのmodel/日時/receiptは合成metadataと明示。全benchmark報告/先行研究比較は残件、世界初/leadingを未実証で主張しない |
+| E06 | benchmark報告・task作成方法・限界を公開 | PR #7736（merge `b4cff9da`）でREADMEからの再現手順は公開済み。fixtureのmodel/日時/receiptは合成metadataと明示。全benchmark報告と先行研究比較は残件。世界初/leadingを未実証で主張しない |
 | I01 | prompt/tool/routing/offer等の候補を一度に一変更生成 | grader/dataset/policy/identity/権限/fence/spend capを書き換えない |
 | I02 | frozen baselineと同条件で候補を比較 | 品質・安全・費用込みnetの事前条件。fixture scoreを売上としない |
 | I03 | 合格候補だけ小さく本番canaryへ昇格 | 自然run/公式receipt/CFO、悪化・未知悪影響はsourceをrollbackしeffect保持 |
