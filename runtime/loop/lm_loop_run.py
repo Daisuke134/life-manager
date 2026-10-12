@@ -1400,12 +1400,12 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
             return 78
         return child_return_code
 
-    def disk_deferred(phase: str) -> bool:
-        gate = _producer_gate()
+    def disk_deferred(phase: str, *, check_capacity: bool = False) -> bool:
+        gate = _producer_gate(loop_id, check_capacity=check_capacity)
         if gate is None:
             return False
         reason, flag = gate
-        if durable and phase == "pre_enqueue":
+        if durable and phase in {"pre_enqueue", "pre_claim"}:
             try:
                 defer_durable_resource(loop_id)
             except (OSError, RuntimeError, sqlite3.Error):
@@ -1484,6 +1484,8 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                          "reason": "memory_headroom_unavailable" if available is None
                          else "memory_headroom_low"})
             return 75
+        if disk_deferred("pre_claim", check_capacity=True):
+            return 75
         try:
             claim = None
             admission_reason = None
@@ -1529,7 +1531,7 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                                       "reason": "resource_claim_identity_invalid"})
                 return 75
             on_claimed(claimed_occurrence_id)
-        if disk_deferred("post_claim"):
+        if disk_deferred("post_claim", check_capacity=True):
             return 75
         if interrupted:
             _atomic_json(receipt, {"status": "deferred", "effect": 0,

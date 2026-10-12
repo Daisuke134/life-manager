@@ -1364,7 +1364,10 @@ class WorkdayQualificationTests(unittest.TestCase):
             ledger_path, application_id, memory = self._row(root)
             ledger = Ledger(ledger_path)
             ledger.record_workday_fit_decision(
-                application_id, "rejected", "a" * 64, policy_version="old-policy"
+                application_id,
+                "rejected",
+                "a" * 64,
+                policy_version="no-voluntary-skip-v5",
             )
             ledger.close()
 
