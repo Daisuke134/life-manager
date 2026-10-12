@@ -3084,3 +3084,20 @@ Documentsのみをcanonical専用worktreeへ変更。外部6repoの固定版コ�
 このturnは一次資料研究、記事、talk artifact、仕様更新。paid API/学習、product code、live介入、Mac runtime変更、記事公開、mail送信、求人応募、event登録は未実施。最後にartifactとdiff/リンクを検証しlocal commitする。
 
 10/11検証: source-boundary PASS。変更17 Markdownのlocal links/Manager anchors50参照、唯一のTODO正本、新規private contact非追加を確認。旧SSOT2 missing linksはHEADから継承で変更せず。PPTX20枚のfull title、JA notes、sourceURL、shape bounds、PDF20頁と主要数値、notes DOCXをreadback。全pageのPDFcontact sheetを目視しclippingなし。Rendererはcard内のfitも検査。新しいManager product code/モデル学習の試験結果とは区別する。
+
+<a id="manager-20261012"></a>
+## Manager 2026-10-12 使命中心の成果と対外説明
+
+ユーザー指定: Managerを作り実際の効果を示すことが中心。求人用小demoが目的ではない。採用は最終選考まで必要な能力と実績を揃える。創業者として英日記事・動画・OSS・研究室journal club・専門eventで知識と成果を共有し、研究者との接点を作る。
+
+- [x] [資金調達・創業者活動brief](../../research/manager/2026-10-12-founder-fundraising-brief.md)を準備。YC/Speedrun説明、Life Manager収益のscope、未送信Slack、未公開英日X原稿。
+- [x] private内部目標版履歴書を `/workspace/artifacts/manager-careers/Manager_Target_State_NOT_FOR_SUBMISSION.md` に保存。未来の完成形を明示した内部計画で、提出版への完成claim追加は未実施。
+- [x] fundraiser既存source/consumer/generatorを読む。9/1 contextと生成器のJA/deck/one-pagerに旧個人Telegram説明がある。単体JSONの置換ではdigest整合と製品説明を壊すと確認。
+- [ ] fundraiserのcontext・既存generator template・application kit・context-bound READMEを一括で新説明へ揃え、既存validatorとdeck hash/readbackを確認する。現在のbriefは準備済み、canonical startup-contextの差し替えと本番immutable releaseへの適用は未実施。過去receiptを保持し、同じcohort/accountを再提出しない。
+- [ ] D0–D5/E0とfield条件探索を主制作にする。求人requirements→実際のartifact→面接での説明/再現の表を、実験結果から更新。必須とnice-to-haveを区別し、未達条件を隠さない。
+- [ ] 目標版履歴書の各文をcode/run/report/本人説明で検証し、証拠が揃った文だけ提出版へ移す。3+年等の期間条件を数週間の制作に置換しない。
+- [ ] code/license/data/publication境界を確認してManager部分をOSS公開し、英日で実際の結果と限界を投稿。現在は投稿原稿のみ、OSS公開/投稿未実施。
+- [ ] 元研究室のSlack workspace/recipient/channelを確認して発表依頼を送る。窓口のasync質問を送った。現在harnessにSlack送信toolはなく、送信未実施。
+- [ ] SBP-BRiMS等の登録は日程・形式・費用・required fieldsを確定して実行し、公式receiptを保存。参加/購入未実施。
+
+発信方針: founder/researcher/builderを中核に、論文理解→実装→測定→公開→専門家feedbackの循環。政治家/俳優/大規模influencerは事業成立の必要条件にしない。既存comedyは説明や対話の表現力として生かし、別careerを急増させない。

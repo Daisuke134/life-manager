@@ -84,3 +84,11 @@ Life Managerの売上は現在のexecution tractionとして積極的に説明�
 元研究室に20分、英語slide＋日本語notesを初期想定。三者の方法、world-model比較、測定、Managerの制作案を扱い、意見をもらう問いは『回答予測から制度変更へ、何を追加測定するべきか』『どのjoint/適応がpolicy順位を変えるか』『wellbeing指標は何で妥当化するか』。発表会や出演を確定済みとは書かない。
 
 記事は3者それぞれのexplainer英日版。読者は行動/計算神経科学を学び、human simulationと環境設計を理解したい研究者。方法・目的・検証・限界・Managerへの学びを接続し、ブログ性能数値を宣伝の形で並べない。公開sourceは本書からリンクする[研究report一覧](../../research/manager/2026-10-11-simile-blog-papers.md)。
+
+## 10月12日の使命と成果の優先順位
+
+Managerそのものを作り、環境変更の効果を検証することが主目的。採用応募、YC/Speedrun、OSS、記事、発表はその成果を伝える経路。求人ごとの小さなmockを主制作にしない。研究経験の証明は実装・実験・説明を揃える。内部目標版履歴書と提出版を区別し、予定を完成実績としない。
+
+人口予測の実測評価と、閉ループ環境介入の評価を接続する。同時に現実のoperator・変更権限・測定データを探索する。fieldの条件が揃ったら、変更した環境単位と対照、期間、spilloverを明示して比較する。simulationの改善を実際の富・健康改善と呼ばない。
+
+[資金調達・創業者活動の説明原稿](../../research/manager/2026-10-12-founder-fundraising-brief.md)はYC/Speedrun、journal club、英日発信へ共通の説明を提供する。状態と順序は統合SSOTの10/12節にのみ記録する。
