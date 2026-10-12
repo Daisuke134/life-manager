@@ -329,7 +329,7 @@ async def _idempotent_step(step, item: dict, next_state: str) -> dict:
     return dict(item, state=next_state)
 
 
-MAX_TITLE_ATTEMPTS = 6
+MAX_TITLE_ATTEMPTS = 30  # top sellers number deep (ちいかわ５); our own series used up vol.2-5 (2026-10-12)
 
 
 def _title_attempts(listing: dict):

@@ -122,6 +122,16 @@ class RequestReviewIsIdempotent(unittest.TestCase):
         self.assertIsNone(asyncio.run(MODULE._review_status(page)))
 
 
+
+class SeriesDepth(unittest.TestCase):
+    def test_a_long_running_series_still_finds_a_free_volume(self) -> None:
+        # 2026-10-12: set-031 "星くずカワウソの毎日返事【文字入り】" found the base and vol.2-vol.5 taken by our
+        # own earlier sets and crashed every wake with TitleTaken; top sellers number deep (ちいかわ５).
+        titles = [a["title"]["ja"] for a in MODULE._title_attempts({"title": {"ja": "星くずカワウソの毎日返事【文字入り】",
+                                                                             "en": "Stardust Otter Replies (with text)"}})]
+        self.assertTrue(any("vol.20" in t for t in titles), titles[-3:])
+
+
 if __name__ == "__main__":
     unittest.main()
 
