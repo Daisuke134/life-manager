@@ -43,7 +43,7 @@ def test_tier_boundaries_use_bytes() -> None:
     assert classify_tier(3 * GiB - 1) == "ULTRA"
 
 
-def test_governor_run_budget_fits_the_minute_cleanup_cadence() -> None:
+def test_governor_run_budget_fits_the_primary_watchdog_cadence() -> None:
     assert disk_cleanup.GOVERNOR_BUDGET_SECONDS < 60
 
 
