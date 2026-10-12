@@ -67,9 +67,10 @@ class PromptFailClosedTest(unittest.TestCase):
         env["AGENT_RUNNER_CONFIG"] = str(self.config)
         env["ANICCA_USAGE_LEDGER"] = str(self.root / "usage.jsonl")
         env["LIFE_MANAGER_PROVIDER_LEASE_PATH"] = str(lease_path)
-        # Fixture-only measurement keeps this test independent of host pressure.
+        # Inject each test capacity so the removed provider gate stays regression-covered.
         fixture_runner = (
             f"import sys; sys.path.insert(0, {str(ROOT)!r}); import agent_runner; "
+            f"agent_runner.disk_free_bytes = lambda path: {free_bytes!r}; "
             "raise SystemExit(agent_runner.run())"
         )
         command = [
