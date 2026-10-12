@@ -14906,7 +14906,7 @@ Capafy公式Xの公開indexには、Ocupの100 sales紹介と、あるcreatorの
 
 `capafy_hourly_reconcile.py` はtraffic endpointを最大60 Agentsに対して取得する。`capafy_scoreboard.py` はsource/CT text summaryとAgent別日次snapshotを出力する。日次scorecardは同一windowでAgent×source×campaignを一行にし、raw event countとunique visitorを分け、`observed_at`/receipt freshness・scope・null reasonを必ず表示する。source別paidの合計とaccount seller ordersは独立系列として照合し、重複を足し上げない。`profit*_actual`を実費後最終利益と表示せず、20% fee仮定が残る間は80% revenue proxy由来のactual-cost contribution estimateと表示する。現行実装にないdashboard fieldやlead数を「ある」と扱わない。
 
-### 原子的な残TODO（唯一の順序・statusは2026-10-12 14:20 JST時点）
+### 原子的な残TODO（唯一の順序・statusは2026-10-12 14:25 JST時点）
 
 各atomのownerはAniccaのCapafy運用loop/scoreboard。Daisへの質問・作業依頼はしない。`FROZEN.json` sellersの編集は禁止。ここでは記載更新とread-only調査だけを実施し、下記運用作業は実行していない。
 
@@ -14946,7 +14946,8 @@ Capafy公式Xの公開indexには、Ocupの100 sales紹介と、あるcreatorの
    - 14:16 official detail/list readback: `8767154808` version `2109463185447604224`は`agent_status=under_review`、`platform_status=1`、`audit_status=2`、`status_reason=under_review`、skills/config confirmed。provider `updated_at=2026-10-12T02:26:29Z`（11:26:29 JST）なので14:09 occurrenceより前に審査入りしている。14:09 occurrenceの成功要件へ因果づけない。
    - 14:09 natural factory occurrence `18ddb00f7cc27c20-34172`は14:12:10にexit75/effect unknownとなった。登録済み`capafy_factory_fence_reconcile.py`がofficial publish-list/remote-statusから`9675561238` version `2109512140641300480`, `platform_status=0`の実作用を確認し、14:16:19にprovider receipt付きで解決。DB rowは`state=released,effect_unknown=0`。14:16 publish-listでは`9675561238`がdraft、`updated_at=14:11:01 JST`。
    - 最新official `inventory_status.py`はtotal64/listed47/occupied5/free0/retry1/recover12/ready_publish0/unknown0。未公開5枠は満杯。`8767154808`がlistedになれば枠を再確認し、その後のnatural runでqueue先頭Agentを一件ずつ進める。重複create/submitはしない。
-   - Health reconciliation gap: occurrenceのadmission DB rowは`state=released,effect_unknown=0`でowner内unknown rowは0件だが、`lm-loop health`は直近report eventの`effect=unknown`を表示する。`lm-fence-reconciler/reconcile-calls.jsonl`に当該occurrenceのrecordがないため、health側がverified `effect_reconciled`へ変換できない。provider/ledger fenceは閉鎖済み、health projectionは未解消として分離し、次の自然owner eventで状態が更新するか確認する。audit logへ手書きしない。
+   - 14:24 natural occurrence `18ddb0d3a822f628-36211`は14:24:24に`host_admission_deferred:resource_fifo_wait`、exit75、`effect=not_applicable`で終了。admission DBではoccurrence sequence618880がdeterministic queueに残り、14:25時点で40件が先行、active reservationsは4、Capafy ownerのunknown fenceは0。手動wake/restartしない。次の15分natural slotでqueue eligibilityを再確認する。
+   - Audit/health: 14:09 occurrenceはDB `released/effect_unknown=0`で閉鎖済みだが、`lm-fence-reconciler/reconcile-calls.jsonl`にmatching adapter-call rowがない（adapterを直接起動）。14:24以降のhealth readbackは`effect_unknown=0`、FIFO admission failureとして表示。logへ手書きしない。
    - 作業: effect unknownは登録adapter経由のみで照合/解決し、`inventory_status.py`のserver truthで枠数を更新する。空きがない間はoffline queueを維持する。
    - 完了条件: 各natural runのcreate/submit receipt、該当Agentのofficial status、5 unpublished-slot countが一致し、継続的に新Agentが出荷される。`exit 0`やdraft作成だけでunder_review/出荷完了にしない。
    - 頻度: 各natural run。枠が空くたびに再確認。
@@ -15006,6 +15007,6 @@ Capafy公式Xの公開indexには、Ocupの100 sales紹介と、あるcreatorの
     - final: Capafy official active-subscription readbackで月換算gross MRR ≥ $10,000を確認し、same windowのrefund/fee/model cost/profitを横に報告する。
     - どちらも満たさない間は goal active。累計units/trials、listing count、under_review、proxy subscription salesを達成扱いしない。
 
-**現在cursor（14:20 JST）:** T0のfield semanticsと01:09Z old/global-vs-by-agent差は分類済み。scope間viewの非加算性/更新時刻とresponse metadataが残る。T1は14:09:14 reconcile success、次は15:07 natural window。T2は最新reconcile60/63、live list後60/64のcoverage gapとAgent別scorecardを閉じる。T4は8767154808 under_review、9675561238 draft、slots5/5、次の自然run14:24を確認する。first-paidはorders70/gross$102.75で未達、MRR fieldはnull。T11はcreative制作・CT preflight・post/publish未実施。今回の作業はSSOTへのread-only evidence反映のみ。
+**現在cursor（14:25 JST）:** T0のfield semanticsと01:09Z old/global-vs-by-agent差は分類済み。scope間viewの非加算性/更新時刻とresponse metadataが残る。T1は14:09:14 reconcile success、次は15:07 natural window。T2は最新reconcile60/63、live list後60/64のcoverage gapとAgent別scorecardを閉じる。T4は8767154808 under_review、9675561238 draft、slots5/5。14:24はeffect前のFIFO waitで40 queued entries ahead、次の自然run14:39を確認する。first-paidはorders70/gross$102.75で未達、MRR fieldはnull。T11はcreative制作・CT preflight・post/publish未実施。今回の作業はSSOTへのread-only evidence反映のみ。
 
 **調査参照:** `skills/earn/capafy-marketing/scripts/capafy_hourly_reconcile.py`、`skills/earn/capafy-marketing/scripts/capafy_scoreboard.py`、`skills/capafy-autopublish/scripts/inventory_status.py`、`skills/capafy-autopublish/CP1_AGENTIC.md`、`skills/capafy-autopublish/PUBLISHING_RUNBOOK.md`、`skills/capafy/FROZEN.json`。公開比較対象: [HookAce](https://capafy.ai/agent/hookace-first-6-second-retention-predictor/3264203863)、[Ocup Football Analysis](https://capafy.ai/agent/ocup-analysis/2553639947)、[Serenity Stock Tracker](https://capafy.ai/agent/serenity-stock-tracker/2521387714)、[TikTok Scripts](https://capafy.ai/agent/6182575730)、[CapafyのOcup 100 sales投稿](https://x.com/Capafyai/status/2069420218057904378)、[初週$4,208/short-videoのCapafy事例](https://x.com/Capafyai/status/2072302872654499993)。
