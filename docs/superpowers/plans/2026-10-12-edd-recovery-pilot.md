@@ -18,8 +18,8 @@
 
 - [x] 英文と出典snapshotを固定し、合成fixture・収益・lab採用に関する限界を保持する。一次資料とfresh read-only adversarial verificationで確認済み。
 - [x] 既存 `/blog` テンプレートに記事recordと画像を追加し、site PRをmainへ統合。PR #456 merge `23b2eeb`、deploy/smoke PASS、live本文readback、画像3件HTTP 200を確認。
-- [ ] live登録済み `x:anicca` accountから英語記事のnative threadを公開する（X Articles editorは公式URLで404）。全編はblogへリンクし、公開URLと表示を確認する。
-- [ ] X thread URLをblog mirror metadataに入れ、site PR経由で再deployして相互リンクを確認する。
+- [x] live登録済み `x:anicca` accountから英語記事へ誘導する標準X postを公開する（X Articles editorは公式URLで404）。本文とblog linkのreadback済み。
+- [ ] X post URLをblog mirror metadataに入れ、site PR経由で再deployして相互リンクを確認する。
 - [ ] 実URLと公式readbackをこのspecへ記録する。記事配信をagent実行、自然収益、E06完了、lab採用として数えない。
 
 ## Global Constraints
