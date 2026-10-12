@@ -318,6 +318,7 @@ class MacosLoopRegistryTest(unittest.TestCase):
     def test_life_manager_cfo_hourly_declares_effect_rebind_contract(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         row = registry["loops"]["life-manager-cfo-hourly"]
+        self.assertEqual(row.get("admission_effect_scope"), "occurrence")
         self.assertEqual(row.get("resource_class"), "deterministic")
         self.assertEqual(row.get("admission_class"), "revenue")
         self.assertEqual(row.get("priority"), "revenue")

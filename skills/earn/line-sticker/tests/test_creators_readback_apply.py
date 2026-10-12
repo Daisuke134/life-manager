@@ -31,5 +31,37 @@ class ApplyReading(unittest.TestCase):
         self.assertNotIn("store_url", out)
 
 
+
+class AcquireWaitsForABusyBrowser(unittest.TestCase):
+    """2026-10-12: the factory holds the LINE Creators browser for an hour at a time (it now makes
+    sets back to back), so a readback that gave up on the first BUSY wrote browser_unavailable for
+    every product and no review or sale was ever read. It waits its turn instead."""
+
+    def done(self, code: int, out: str = "", err: str = ""):
+        import types
+        return types.SimpleNamespace(returncode=code, stdout=out, stderr=err)
+
+    def test_it_retries_a_busy_browser_until_it_is_free(self) -> None:
+        answers = iter([self.done(9, err="BUSY"), self.done(9, err="BUSY"), self.done(0, out="http://127.0.0.1:9231\n")])
+        slept = []
+        got = MODULE.acquire_when_free(lambda: next(answers), wait_seconds=600, poll_seconds=30,
+                                       sleep=slept.append, clock=iter(range(0, 10000, 30)).__next__)
+        self.assertEqual(got.returncode, 0)
+        self.assertEqual(slept, [30, 30])
+
+    def test_it_gives_up_after_the_wait_and_returns_the_busy_answer(self) -> None:
+        clock = iter([0, 100, 400, 700]).__next__
+        got = MODULE.acquire_when_free(lambda: self.done(9, err="BUSY"), wait_seconds=600, poll_seconds=30,
+                                       sleep=lambda s: None, clock=clock)
+        self.assertEqual(got.returncode, 9)
+
+    def test_a_non_busy_failure_is_not_retried(self) -> None:
+        calls = []
+        got = MODULE.acquire_when_free(lambda: calls.append(1) or self.done(10, err="endpoint unavailable"),
+                                       wait_seconds=600, poll_seconds=30, sleep=lambda s: None, clock=lambda: 0)
+        self.assertEqual(got.returncode, 10)
+        self.assertEqual(len(calls), 1)
+
+
 if __name__ == "__main__":
     unittest.main()

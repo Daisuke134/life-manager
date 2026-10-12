@@ -145,7 +145,9 @@ def normalize_agents(agents, detail_fetcher=None, detail_fetch_cap=DETAIL_FETCH_
             structurally_valid = False
             counts["unknown"] += 1
             continue
-        if status in ONLINE:
+        # A buyer-visible Agent (hasOnlineVersion) is listed even while its next version is a
+        # draft or under review; only never-published Agents take a new-Agent slot (2026-10-12).
+        if status in ONLINE or agent.get("hasOnlineVersion") is True:
             lifecycle = "listed"
             counts["listed"] += 1
         elif status in READY_TO_PUBLISH:
@@ -602,6 +604,7 @@ def server_agents():
                 "agentStatus": agent.get("agent_status"),
                 "latestAgentVersionId": agent.get("latest_agent_version_id"),
                 "updatedAt": agent.get("updated_at"),
+                "hasOnlineVersion": agent.get("has_online_version"),
             })
         return rows
     except Exception as e:

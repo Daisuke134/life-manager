@@ -19,6 +19,7 @@ import json
 import re
 from urllib.parse import urljoin
 import subprocess
+import time
 import sys
 from pathlib import Path
 
@@ -110,12 +111,31 @@ def apply_reading(item: dict, result: dict) -> dict:
     return item
 
 
+GUARD_BUSY = 9  # browser-guard.sh acquire: someone else holds the browser (EXIT_BUSY)
+ACQUIRE_WAIT_SECONDS = 180  # x 29 products; the factory is off the browser while it draws images (~30 min)
+ACQUIRE_POLL_SECONDS = 30
+
+
+def acquire_when_free(acquire, *, wait_seconds=ACQUIRE_WAIT_SECONDS, poll_seconds=ACQUIRE_POLL_SECONDS,
+                      sleep=time.sleep, clock=time.monotonic):
+    """acquire() until the browser is free. The factory holds the LINE Creators browser for long
+    stretches (2026-10-12: set after set), so giving up on the first BUSY left every review and sale
+    unread; wait for the turn instead. Any failure other than BUSY is returned at once."""
+    started = clock()
+    while True:
+        done = acquire()
+        if done.returncode != GUARD_BUSY or clock() - started >= wait_seconds:
+            return done
+        sleep(poll_seconds)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--item-file", type=Path, required=True)
     args = parser.parse_args()
     item = json.loads(args.item_file.read_text())
-    acquired = subprocess.run(["bash", str(GUARD), "acquire", IDENTITY], capture_output=True, text=True)
+    acquired = acquire_when_free(
+        lambda: subprocess.run(["bash", str(GUARD), "acquire", IDENTITY], capture_output=True, text=True))
     if acquired.returncode != 0:
         # BUSY or unreachable is a skipped cycle, not a reading.
         result = {"status": "browser_unavailable", "detail": acquired.stderr.strip()[-200:]}
