@@ -133,6 +133,7 @@ def test_positive_official_receipt_resolves_only_the_requested_occurrence(
     assert "coconala:kosuke" in argv
     assert kwargs["env"]["BROWSER_WAIT_SECONDS"] == "0"
     assert kwargs["env"]["AI_ENSURE_PROVISION_BROWSER"] == "/dev/null"
+    assert kwargs["env"]["AI_ENSURE_BROWSER"] == "/dev/null"
 
 
 def test_missing_provider_receipt_keeps_exact_occurrence_fenced(

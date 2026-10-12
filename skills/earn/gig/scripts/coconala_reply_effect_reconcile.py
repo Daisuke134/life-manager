@@ -176,6 +176,7 @@ def _browser_readback(
     environment = os.environ.copy()
     environment["BROWSER_WAIT_SECONDS"] = "0"
     environment["AI_ENSURE_PROVISION_BROWSER"] = "/dev/null"
+    environment["AI_ENSURE_BROWSER"] = "/dev/null"
     completed = (runner or subprocess.run)(
         command, cwd=ROOT, env=environment, capture_output=True,
         text=True, timeout=150, check=False,
