@@ -225,6 +225,9 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 
 **現在の担当・今月収益cursor:** Daisの既存Codex Job Hunter/LINE/Capafy担当を維持し重複しない。PromptBase/Writerを新しいAGMSG専任として起動する。Capafy最新official reconcile observed2026-10-12T01:09:12Zは累計orders70/gross102.75USD/creator earnings76.18USD/paid_out0、月別売上・費用込みnet・MRRは未確認。PromptBase sales0/net0は2026-10-08T19:20:44Zの保存値で現在月の証明ではない。LINE observed2026-10-11T15:29:45Zのdistribution表示期間は2025-12、productsにはsales0とnullが混在し、2026-10月の完全売上へ置換しない。CFO保存snapshotは2026-10-10T21:01:34Z/trailing start2026-09-10、company historical/trailing/MRR unknown、通知pendingであり今月全18報告は未完。fresh fleet readbackのhf-gig-reply-detectorは2026-10-12T02:09:03Z/loaded cecffc9bのdisk_headroom_low延期、ceo-runnerは旧361ed0の履歴延期。BF15受入済みを全18無停止保証へ置換せず、fresh Gigのloaded guard/argv/env/資源観測を先頭の共通運用診断として確認する。全18の月初から現在の公式period収益/返金/fees/実費をjoinするまでunknownを保持する。
 
+**担当更新:** Job Hunterの実担当はAGMSG lm-job-hunter-1012、指定WT job-hunter-dreamwork-submit-20261011/branch fix/job-hunter-current-salary-option-20261012。最新版goalは無料OSS、Workday/Ashby等の公式ATS・事実resume・同求人receipt/replay-zero、個人事実/資格/報酬/就労資格非推測、必須情報不足は非開示/辞退optionまたはその行not_submittedでqueue継続。旧Dreamwork中心handoverを優先しない。primaryから担当確認のAGMSGを送信済み。LINEはDaisの既存Codexを維持。旧primary-spawn lm-job-goal-1012/lm-line-goal-1012のforce despawnはruntime_error/未確認なので停止済みと報告しない。旧boot packetを取消指示へ置換して重複着手を防ぐ。CapafyはDaisがfresh Codexを開きlm-capafy-1012としてteam lmへ参加可能、旧Capafy writer停止/lease確認後に専任引継ぎ。PromptBase/WriterはAGMSG専任がgoal active/実作業開始と初回inbox報告を確認済み。
+
+
 
 
 
