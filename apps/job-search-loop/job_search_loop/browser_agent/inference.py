@@ -7,6 +7,8 @@ from typing import Any
 
 from .candidate_memory import CandidateMemoryView
 
+_ANYWHERE_LOCATION_PREFERENCE = "anywhere"
+
 
 @dataclass(frozen=True, slots=True)
 class ExperienceIntervalV1:
@@ -108,7 +110,15 @@ class StableInferencePolicy:
         elif concept == "mobility.relocation":
             preferences = self._candidate("location_preferences")
             target = target_location.casefold().strip()
-            value = bool(target) and any(target in str(item).casefold() or str(item).casefold() in target for item in preferences)
+            normalized_preferences = tuple(str(item).casefold().strip() for item in preferences)
+            # "Anywhere" is an explicit preference, not evidence of work authorization.
+            value = bool(target) and (
+                _ANYWHERE_LOCATION_PREFERENCE in normalized_preferences
+                or any(
+                    target in item or item in target
+                    for item in normalized_preferences
+                )
+            )
             provenance, kind = ("candidate.location_preferences",), "derived"
         elif concept.startswith("demographic."):
             value, provenance, kind = "Prefer not to say", ("non_disclosure_policy",), "conservative"
