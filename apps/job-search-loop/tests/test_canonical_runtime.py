@@ -19,7 +19,7 @@ class CanonicalRuntimeTests(unittest.TestCase):
         readme = (APP_ROOT / "README.md").read_text(encoding="utf-8")
         self.assertNotIn("Dreamwork native application owner", readme)
         self.assertIn(
-            "Tokyo onsite or hybrid, U.S. roles in any location, and remote roles worldwide",
+            "Remote, onsite, and hybrid roles worldwide",
             readme,
         )
         self.assertIn(

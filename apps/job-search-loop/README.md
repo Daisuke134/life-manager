@@ -10,7 +10,7 @@ interviews, and reports every material state change to Telegram.
 | Concern | Current rule |
 |---|---|
 | Acquisition target | Every fresh unique model-qualified role; no daily application quota |
-| Location | Tokyo onsite or hybrid, U.S. roles in any location, and remote roles worldwide; do not exclude solely for sponsorship wording, and answer legal questions truthfully |
+| Location | Remote, onsite, and hybrid roles worldwide; no geography tier or location-only rejection; do not exclude solely for sponsorship wording, and answer legal questions truthfully |
 | Compensation | USD 100,000 annual gross base target (or equivalent); the private profile may set a tighter floor, and unpublished compensation remains uncertainty |
 | Role focus | Candidate-defined target role families, checked by the model against the complete official JD and resume evidence |
 | Discovery | This acquisition pass is Workday-only; each later ATS gets a separate owner and is never a fallback path |

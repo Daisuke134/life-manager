@@ -2,7 +2,7 @@
 
 ## 目的・範囲・位置付け
 
-目的は、一つの実障害を既存の回帰試験と対応付け、修理の前後を測れるようにすること。今回の成果は調査・説明・spec・planだけ。実装・外部送信・runtime変更は実行しない。
+目的は、一つの実障害を既存の回帰試験と対応付け、修理の前後を測れるようにすること。初版の成果は調査・説明・spec・plan。2026-10-12、Daisは英語解説記事をAniccaのブログとXへ公開することを別途明示した。この編集上の配信はE02/E03実行、runtime変更、benchmark性能の主張には当たらない。
 
 これはE02/E03の設計候補であり、新しいTODO正本や開始済みcursorではない。実行状態・順序・所有者は [統一SSOT](2026-09-25-life-manager-unified-ssot.md) に従う。既存評価ownerの範囲と調整してから後続作業へ接続する。
 
@@ -24,7 +24,24 @@
 
 従ってWriterは「18業務で最も簡単」または「すでに最も収益がある」とは主張しない。**評価手法を安全に立ち上げるのに最も準備があるslice**として選ぶ。既存の収益業務の優先順は変更しない。品質gateのPASSを売上・利益と呼ばず、settled外部収入・refund・fee・同期間の実費が結べない場合のnetは`unknown`に保つ。
 
-記事draftと図2点は[PR #7798](https://github.com/Daisuke134/life-manager/pull/7798)にある。未mergeのdraftであり、公開前にsource snapshotを最新mainへ更新する。
+記事sourceと図は[PR #7798](https://github.com/Daisuke134/life-manager/pull/7798)で管理する。公開版は英語記事とし、日本語HTMLは内部説明資料とする。公開先はAniccaの既存 `/blog` と登録済み `x:anicca` identity（`@selawmqt`）。公開後に実URLと公式readbackをこの節へ記録し、E01–E06の実行cursorとは分離する。
+
+## 英語記事の配信タスク
+
+対象記事は “Good Agent Evals Measure Work Done, Not Answers Given”。既存のブログ記事テンプレートとX Articleの投稿経路を再利用し、ページを別実装しない。本文には、現行LM-EABの5 fixtureは合成契約検査であること、Writer qualityは収益証拠ではないこと、AI lab採用は未達であることを明記する。
+
+1. 英文・出典・3枚の図を確認し、この記事sourceをPR #7798に保持する。
+2. Aniccaサイトへ記事recordと画像を追加し、既存build/CIとmain経由のdeployを通す。
+3. blog本文と全画像のlive readbackを確認してから、そのURLをX投稿に記載する。
+4. `x:anicca` のlive session identityを照合してXへ公開し、post URLと本文表示を確認する。X Articles UIが使えない時はブログ本文へ誘導する標準X postを使う。
+5. X post URLをblog mirror metadataへ加え、相互リンクをlive readbackする。
+6. 両URLと確認根拠をspecへ記録する。配信完了はE06 benchmark公開、第三者再現、lab採用を意味しない。
+
+**状態:** 公開完了。英文・sourceはfresh read-only adversarial verificationでSHIP。site PR #456 (`23b2eeb`) は本文と3画像をdeployしsmoke PASS。X postは公式UIと公開readbackで確認。mirror更新PR #457 (`d86bea2`) のdeployと記事→X相互linkもlive readback済み。Life Manager文書PR #7798のmerge/CIは残るが、E01–E06 cursorは変更しない。
+
+**公開URL:** blog `https://aniccaai.com/blog/good-agent-evals-measure-outcomes` · X `https://x.com/selawmqt/status/2109636732962668720`。X mirror labelは `X ↗`。
+
+**X Articles調査:** [X公式Articles説明](https://help.x.com/en/using-x/articles)は公開機能をPremium/Premium+等の対象subscriberに限定している。登録済み `@selawmqt` のlive sessionで公式案内の `/compose/articles` と `/compose/articles/new` を開くと両方404となり、Articles editorと画像file inputが存在しなかった。publisher scriptは公開前に終了し、Article draftもpostも作られていない。今回の配信は追加subscription購入や別identityを使わず、ブログURLへ誘導する標準X postとした。
 
 ## Pilot B: effect-unknown recovery safety case
 
