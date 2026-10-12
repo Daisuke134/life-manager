@@ -12,6 +12,12 @@
 
 所有: Codex primary が全体の統括・このSSOT・受入・統合・release順を所有する。開発writerは原則primary一名。Life Manager自身のloopは本番stateと外部effectのownerを維持し、他者のdirty/leased worktreeを上書きしない。Ryu room `18211957`への再送禁止と正式納品ボタン非押下は維持する。
 
+### E01 — 自己評価の欠測利益をゼロへ変換しない
+
+目的: runtime/loop/index.mjs が selfEval の steer を実判断へ渡す経路で、欠測/不正netをゼロ損益・DEAD・WORKSへ変換しない。範囲は self-eval.mjs と既存test。数値と非空の有限numeric stringだけを受け、net_usdcが存在する場合は代替netで欠測を隠さない。slot内に未知行が一つでもあれば合計net=null、unknownCountを表示しDEAD/WORKSを抑制する。明示ゼロ/既知正負の既存判定は保持する。
+
+順序理由: F01のGig対象は通常reconcileが旧message occurrence hf-gig-reply-detector:18dbf6546032eca0-25901を保持し、反映をskipped_effect_unknownとした。最新mainにも同ownerのeffect_reconcile adapterなし。この独立した既知評価不具合を先に閉じ、Gigの再送/解除はしない。完了条件はRED/GREEN・関連検証・限定read-only金融review・CI/main・immutable採用、全体完了は実receiptを使う自然評価まで。検証: 既存5件PASS、新規3件RED（欠測fallback/混在/known count）を確認後、8件GREEN、関連ledger-publishを含む48件PASS・lm-loop-contract 18/191 PASS・限定read-only金融review PASS。PR #7734。現在cursor: exact-head CI/main、自然評価は未確認。
+
 ## 統括cursor — 共有資源回復と全案件の引き継ぎ
 
 **目的:** ディスク不足と実行枠の共有障害を先に修復し、READMEの18 agentとCloud・CFO・LINE・Mobile・Gig・eBook・Job Hunter・投資の既存目標を、自然実行と公式readbackまで一件ずつ進める。24時間の監督・自己修復・評価付き自己改善・利用可能なOSSを成立させ、会社全体のUS$10,000,000 MRRまで継続する。各laneの元の売上/MRR/net目標を縮小せず、source/CI成功を本番成果と扱わない。
@@ -14655,3 +14661,44 @@ Known damage to repair: drafts 2576591785 / 5356015232 (under_review) and 983649
 **TODO order:** 旧cursor=`commit/push reviewed source+spec+handover → open PR → exact-head CI/review`。新cursor=`(1) pass exact-head checks/review for PR #7723 (`ea015bccbaa87214366b4cc571062ba27ad94350`), repair failures if any, and merge after pass → (2) make a main-derived immutable release, apply only to loaded-idle owners after required safe preflight, and read back each loaded SHA → (3) diagnose recurring admission failures and classify blocked rows from occurrence evidence → (4) process eligible rows through fact-bound resume, official ATS final submit once, same-job authoritative receipt, and replay-zero → (5) compare Dreamwork free tailoring only for a currently eligible role and use it only if fact-safe and better → (6) measure actual submissions and replies. Reason: source/spec and handover commits are pushed; PR #7723 is open and mergeable, with 10 checks pending and review decision unset. The six-figure outcome and 20–30/day target remain aspirations, not guarantees.
 
 **Current cursor:** wait for exact-head checks and PR review on #7723; fix any finding, then merge only after pass. Production applications, receipt verification, and interviews remain incomplete.
+
+## Capafy distribution plan 2026-10-12 (Dais: "distribution is everything") — the Capafy TODO order from here
+
+**Measured (capafy-hourly-reconcile.json traffic_sources, all 60 Agents, read 10/12 01:09Z):**
+
+| source | 30d views | 30d paid | conv. | 7d views | 7d paid |
+|---|---|---|---|---|---|
+| Capafy search | 835 | 10 | 1.2% | 73 | 0 |
+| Capafy hot (trending) | 72 | 5 | ~7% | 1 | 0 |
+| Google | 41 | 1 | 2.4% | 3 | 0 |
+| direct | 1540 | 2 | 0.1% | 166 | 0 |
+| other | 1271 | 0 | 0 | 59 | 0 |
+| Capafy ai_overview | 551 | 0 | 0 | 45 | 0 |
+| own IG/X/blog ct (hooklab_ig, *_blog, *_x, instagram_bio) | ~60 | 0 | 0 | ~7 | 0 |
+
+Conclusion: every paid order came from Capafy search, the Capafy hot list, or Google. Our own posting volume (48 articles + X posts/day, daily reels) produced almost no visits. Hot converts best and collapsed from 72 to 1 view/week; we probably dropped out of the list (inference: the list likely follows recent sales).
+
+**Target math:** at ~1% conversion and ~$10/month, $10K MRR needs ~1,000 paying subscribers, which means ~100k qualified views/month. Today the whole catalog gets ~1.5k views/month.
+
+**Plan, in order:**
+1. **Measure daily first.** A per-source and per-Agent views/paid table from traffic_sources, posted in the run summary. Every channel change is judged by this table. Do not add a channel without a ct and a 7-day readback.
+2. **Win Capafy search (largest paid source).**
+   - Mine buyer queries: api.capafy.ai search results plus the 1,025-agent market sweep.
+   - Ship new Agents (factory) whose titles and tags match high-intent queries with weak competitors.
+   - Track rank per query daily.
+   - Sellers stay frozen; this applies to new Agents and non-sellers only.
+3. **Get back into Capafy hot.**
+   - Find out what hot ranks on: read the Capafy publisher guide and the バズる / トラフィックソース / プロモーション / 広告アカウント console pages, and compare listings that are in hot vs out.
+   - Then act on the lever it exposes (recent sales, ratings, promotion links, Capafy ads).
+   - Any paid ad spend needs an explicit budget cap recorded here before use.
+4. **Fix ai_overview conversion (551 views → 0 paid).** Compare the landing pages it sends to with HookAce (rating 4.3, 1,001 sales): examples, outputs, rating count. Apply to new Agents and non-sellers.
+5. **Ratings.** Every new Agent's output ends with a short rating ask (already in Hook Lab's text). Track ratingCount per Agent.
+6. **Google SEO on aniccaai.com (2.4% conv., currently tiny volume).**
+   - Keyword research with OpenSEO (keyword volumes, Search Console performance).
+   - One article per buyer problem that maps to a live Agent, written for the exact query, linking with a registered ct (*_blog).
+   - Measure indexing and google/ct views weekly.
+   - Cut the 30-minute generic article flood if the per-ct table stays at ~0 after 7 days; spend that budget on fewer keyword-targeted articles.
+7. **Owned social (IG reels, X, X video).** Keep the already-scheduled queue. No new volume until the ct table shows visits. Test one variable at a time (hook, format, CTA) and keep only the winners.
+8. **Weekly review.** Views, paid, MRR by source. Move effort to the top source, retire channels at zero.
+
+**Done for distribution:** paid orders resume (the first after 10/03), then sustained growth in search + hot + Google paid orders, week over week.
