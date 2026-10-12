@@ -367,7 +367,7 @@ def open_release_roots(releases_root: Path) -> set[Path]:
     """Return release roots named by a running process command."""
     completed = subprocess.run(
         ["ps", "-axo", "command="],
-        capture_output=True, text=True, timeout=120,
+        capture_output=True, text=True, timeout=5,
     )
     if completed.returncode != 0:
         raise OSError(f"release process inventory failed: {completed.returncode}")
@@ -687,7 +687,7 @@ def main() -> int:
         )).expanduser()
         host_process = subprocess.run(
             host_cleanup_command(ROOT, home, cleanup_state),
-            capture_output=True, text=True, timeout=240,
+            capture_output=True, text=True, timeout=60,
         )
         host_ok, host_result = host_cleanup_readback(
             host_process.returncode, host_process.stdout,

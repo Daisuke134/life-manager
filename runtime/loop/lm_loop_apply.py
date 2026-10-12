@@ -228,6 +228,8 @@ def _plist(loop_id: str, entry: dict, release_root: Path, release_sha: str,
         value["RunAtLoad"] = True
     else:
         value["KeepAlive"] = True
+    if loop_id == "life-manager-disk-cleanup":
+        value["ThrottleInterval"] = 10
     if loop_id.startswith(("article-", "writer-")):
         writer_root = str(release_root / "skills/writer-agent")
         writer_state = os.path.expanduser(entry["state_root"])
@@ -432,6 +434,8 @@ def _preserve_operational_attributes(new_bytes: bytes, old_bytes: bytes | None,
             key == "WorkingDirectory"
             and (key not in new or _is_immutable_release_working_directory(old[key]))
         ):
+            if key == "ThrottleInterval" and key in new:
+                continue
             new[key] = old[key]
     preserved_env = {
         key: value

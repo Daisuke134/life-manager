@@ -21,7 +21,13 @@ from unittest.mock import patch
 
 import runtime.loop.lm_loop as lm_loop
 from runtime.loop.lm_loop import apply_live
-from runtime.loop.lm_loop_apply import _plist, apply_registry, build_apply_plan, install_one
+from runtime.loop.lm_loop_apply import (
+    _plist,
+    _preserve_operational_attributes,
+    apply_registry,
+    build_apply_plan,
+    install_one,
+)
 
 
 SHA = "a" * 40
@@ -2458,6 +2464,24 @@ class LmLoopApplyTest(unittest.TestCase):
         value["loops"]["example"]["cadence"] = {"start_interval_seconds": 5}
         plist = plistlib.loads(build_apply_plan(value, self.root, SHA)[0]["plist_bytes"])
         self.assertEqual((plist["StartInterval"], plist.get("ThrottleInterval")), (5, 5))
+
+    def test_disk_cleanup_uses_minute_interval_and_replaces_stale_throttle(self):
+        registry_value = json.loads((ROOT / "config/loop-registry.json").read_text())
+        entry = registry_value["loops"]["life-manager-disk-cleanup"]
+        self.assertEqual(entry["cadence"], {"start_interval_seconds": 60})
+
+        plist = plistlib.loads(_plist(
+            "life-manager-disk-cleanup", entry, self.root, SHA
+        ))
+        self.assertEqual(plist["StartInterval"], 60)
+        self.assertNotIn("StartCalendarInterval", plist)
+        self.assertEqual(plist["ThrottleInterval"], 10)
+
+        old = dict(plist, ThrottleInterval=300)
+        installed = plistlib.loads(_preserve_operational_attributes(
+            plistlib.dumps(plist), plistlib.dumps(old)
+        ))
+        self.assertEqual(installed["ThrottleInterval"], 10)
 
     def test_invalid_generation_causes_zero_installer_calls(self):
         calls = []
