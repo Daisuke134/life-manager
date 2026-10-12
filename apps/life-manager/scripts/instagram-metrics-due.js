@@ -44,6 +44,8 @@ function discoverExpected(dataDir) {
     const caption = fs.readFileSync(captionPath, "utf8");
     if (crypto.createHash("sha256").update(fs.readFileSync(captionPath)).digest("hex") !== row.caption_sha256) throw new Error("Instagram caption object integrity mismatch");
     found.push(Object.freeze({ tenant_id: "dais-local", product_id: "anicca-ios", locale: lane.locale, account_id: lane.account_id, native_owner: lane.native_owner,
+      format_id: lane.format_id, form: lane.form,
+      ...(row.creative_id ? { creative_id: row.creative_id } : {}),
       integration_id: lane.integration_id, provider_post_id: row.provider_id, shortcode: match[1], public_url: row.public_url, caption, published_at: row.ts }));
   }
   const carouselFile = path.join(dataDir, "tenants", "dais-local", "marketing", "native-carousel-publication", "anicca-ios", "distribution.jsonl");
@@ -65,6 +67,8 @@ function discoverExpected(dataDir) {
     const captionBytes = fs.readFileSync(captionPath);
     if (crypto.createHash("sha256").update(captionBytes).digest("hex") !== receipt.caption_sha256) throw new Error("Instagram caption object integrity mismatch");
     found.push(Object.freeze({ tenant_id: "dais-local", product_id: receipt.product_id, locale: receipt.locale, account_id: receipt.account_id,
+      format_id: receipt.format_id, form: receipt.form,
+      creative_id: receipt.creative_id,
       native_owner: lane.nativeOwner.replace(/^@/, ""), integration_id: integration[1], provider_post_id: receipt.provider_post_id,
       shortcode: match[1], public_url: receipt.public_url, caption: captionBytes.toString("utf8"), published_at: receipt.published_at }));
   }

@@ -46,7 +46,6 @@ async function postizPhotoPermalink(input, env = process.env, observedAt = new D
     const payload = await response.json();
     const rows = Array.isArray(payload) ? payload
       : [payload?.posts, payload?.rows, payload?.data].find(Array.isArray) || [];
-    if (rows.length >= 100) return "unavailable";
     const matches = rows.filter((row) => row?.state === "PUBLISHED"
       && row.id === input.providerPostId
       && (row.integration?.id || row.integrationId) === input.integrationId);
