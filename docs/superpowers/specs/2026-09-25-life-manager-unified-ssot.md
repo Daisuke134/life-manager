@@ -15312,6 +15312,60 @@ Capafy公式Xの公開indexには、Ocupの100 sales紹介と、あるcreatorの
 
 **現在cursor:** T0（hourly revenue/sourceの自然readback）とT1（distribution effect fence）を先に閉じ、並行してT2 buyer-query snapshotを運用する。次にT3/T4で新Agent・original creativeを検索と`ai_overview`へ合わせ、T5で実測できた外部配信だけを拡大する。工場のPR・CI・release修正をこのマーケティングcursorへ混ぜず、existing frozen sellersの編集も行わない。
 
+## Capafy billing, trial and model comparison — 2026-10-12 20:08 JST
+
+この観測は、公開Sold上位の4 subscription Agents、無料downloadから有料へ接続する例、自社FROZEN seller 5件を、Capafy公式公開detail APIと公開listingで比較したもの。detail APIはGET https://api.capafy.ai/agent/agent/agents/{agentId}。price・trial・modelは各Agentの取得時点のlatestOnlineVersion、表示数は公開ページ/検索snapshotの生値。比較コホートであり、全marketplace leaderboardや同期間paid ordersではない。
+
+### 上位Agentと価格・trial
+
+Capafyのbilling responseにあるcycleMaxMessageCountを併記する。この上限値はCapafy metadataであり、実利用回数・購入者の継続数とは別。公開Soldは期間定義がない表示counterで、paid ordersやMRRとして読まない。
+
+| Agent | 公開Sold表示 | 公開プラン: price / cycleMaxMessageCount | Trial | 公開モデル / 外部API |
+|---|---:|---|---|---|
+| [CloneCut](https://capafy.ai/agent/clonecut-viral-clone-seedance2-0/5133292529) v1.3.5 | 18,565 | $12.99/week / 9; $29.99/month / 27; $149.99/year / 156 | なし | model=Seedance2.0、runtime=claude、external API=OpenAI image・DeepSeek LMM |
+| [Ocup Football Analysis](https://capafy.ai/agent/ocup-football-analysis/2553639947) v2.0.9 | 3,106 | $14.99/week / 9; $29.99/month / 27; $99.99/year / 324 | なし | Claude Sonnet 4.6、外部APIなし |
+| [Serenity Stock Tracker](https://capafy.ai/agent/serenity-stock-tracker/2521387714) v1.0.28 | 1,944 | $9.99/week / 20; $19.99/month / 40; $99.99/year / 480 | なし | model=DeepSeek V4.1 Flash、external API=GitHub database access |
+| [HookAce](https://capafy.ai/agent/hookace-first-6-second-retention-predictor/3264203863) v1.0.29 | 1,002 | $9.99/week / 10; $19.99/month / 25; $239.88/year / 360 | なし | Claude Sonnet 5、external API=OpenAI audio transcription |
+| [Free Transcript to 12 Shorts Pack](https://capafy.ai/agent/free-transcript-to-12-shorts-pack/9812829248) v1.0.8 | 2,142 | 無料download・one-time $0 | trialではない | hosted modelなし。購入者側のAI clientで実行 |
+
+Free Transcriptの数は無料downloadを含む。別Agent [Transcript to Shorts Studio](https://capafy.ai/agent/transcript-to-shorts-studio-12-scripts-calendar/1054725812) v1.1.1はClaude Haiku 4.5、$5.99/week・cap20または$14.99/month・cap60で、どちらも24時間・3 full packsのtrialを付ける。無料pack→hosted版へのCTAと計測CTがあり、download数を有料購読数へ合算しない。
+
+### 自社FROZEN sellerの価格・trial・model
+
+公開search snapshotは17:40 JST。自社の表示Sold数は同じ観測時刻・同じAPIの値が揃っていないため、ここではprice比較へ混ぜない。公開detail APIは各行のpublished versionを返す。
+
+| Agent | 公開version / public salesVolume snapshot | 公開プラン: price / cycleMaxMessageCount | Trial | 公開モデル / external API |
+|---|---|---|---|---|
+| Hook Lab 8123079349 | v1.0.7 / 12 | $3.99/day / 10; $9.99/week / 30; $19.99/month / 80 | なし | Claude Sonnet 5、runtime=openclaw、base-model metadata=OpenRouter |
+| TikTok Script Pro 2844813315 | v1.0.4 / 4 | $2.99/day / 10; $5.99/week / 25; $19.99/month / 60 | なし | Claude Sonnet 5、runtime=openclaw、base-model metadata=Anthropic |
+| Marketing Strategist 9563867391 | v1.0.2 / 2 | $6.99/week / 36; $12.99/month / 80; $149.99/year / 11,520 | なし | DeepSeek V4.1 Flash、runtime=openclaw、base-model metadata=openrouter.ai |
+| YouTube Script Writer 7686597754 | v1.0.5 / 4 | $9.99/week / 25; $9.99/month / 60; $99.99/year / 8,640 | なし | Claude Sonnet 5、runtime=openclaw、base-model metadata=OpenRouter |
+| Slide Maker 8828622062 | v1.0.3 / 2 | $9.99/week / 15; $24.99/month / 35 | なし | Claude Sonnet 5、runtime=openclaw、base-model metadata=openrouter.ai |
+
+### Pricing差分の読み方
+
+- Trialの有無は販売差の説明にならない。比較した4 paid leadersも自社seller 5件もsupportFreeTrial=0 / freeTrialCount=0。例外は無料download funnelの別Agentで、24時間・3 packsのtrialを持つ。
+- 比較した上位4件はすべてweek/month/yearの3段階。自社はannual planがMarketing StrategistとYouTube Script Writerの2/5、Hook LabとTikTok Script Proにはday planがある。daily SKUの継続・refund・実費は週次/月次と別系列で追う。
+- HookAceとHook Labはweek $9.99 / month $19.99で同じ価格帯だが、公開Sold表示は1,002対12。HookAceにはrating 4.3の過去public-search snapshot、creator実績、複数のretention output screenshotがある。価格だけで販売差を説明せず、同期間のsource・detail views・paid・継続を照合する。ratingの取得時刻/endpointはprice snapshotと別に保存する。
+- 上位例のweekly capは9–20、monthly capは25–40。自社の該当capはweekly 15–36、monthly 35–80。cycleMaxMessageCountが実際のrun数・費用を意味すると推定せず、plan limit fieldとして保存し、実利用token/実請求と分ける。
+- YouTube Script Writerのannual cap 8,640とMarketing Strategistの11,520は、月次cap 60/80に対して比率が大きい。metadata値を記録したままpricing/runtime ownerへ確認する候補にする。両者ともFROZEN sellerなので、価格・capを編集または再提出しない。
+- model、runtime、agentBaseModel、externalApisは別fieldで保存する。Serenityはmodel=DeepSeek V4.1 FlashだがagentBaseModel metadata=Anthropicで不一致。値をひとつへ正規化せず、source差として記録する。
+
+### Funnel計測とTelegramの現状
+
+2026-10-12のCapafy seller dashboard screenshotは期間2026-09-12〜2026-10-11、impressions 79.2K (+45.6%)、detail-page views 4.9K (+68.3%)、conversion 0.22% (-0.01%)。同期間のAgent tableには新規購入者数と売上が表示されるが、Capafy source readbackとは定義/集計窓が一致確認できていない。例: screenshotのHook Labは$17.91 / 29 new purchasers、hourly source/per-skill readbackでは別値になる。raw source、label、期間、windowを別々に保存し、未照合のまま合算しない。
+
+既存hourly Telegram summaryはall-time gross、net30、estimated cost/profit、per-skill profit、zero-sales count、top traffic sourcesを表示する。一方でimpressions→detail view→trial→paid→active subscription/renewalの一列、価格/trial/model cohort、retention/churnは現行summaryに含まれない。cost30 estimateはactual invoiceではなく、true MRR/active subscriptionsは現行取得経路でnull。最後に見えた自然OpenRouter actual-cost readback $28.42と、後続stateのkey_unavailableも別状態として保ち、estimated profitを実利益と呼ばない。
+
+**保存する観測row:** observed_at、period_start/end、source URL/API、Agent ID、published version ID、category/tags/title、public Sold・rating/review、asset URLs・demo/output example count、billing lineNo/mode/cycle/price/currency/cycleMaxMessageCount/supportFreeTrial/freeTrialCount/freeTrialHours、model/runtime/baseModel/external APIs、query rank、impressions/detail views/source views、trial/paid orders、renewal/active/cancel/refund、gross/creator earnings/fees/model actual cost/marketing spend/profit、field status/freshness。unknownはnull+理由、zeroは実測0として保存する。public Sold/downloads、paid orders、active subscribers、MRRを別fieldにする。
+
+### 追加TODO（既存T0–T13の順序は維持）
+
+14. **T14 — 比較コホートの公開値を日次snapshot化する。** 固定対象は公開Sold上位候補、無料-to-paid funnel、Anicca FROZEN seller 5件。公開detail APIをread-only取得し、version/billing/trial/cap/model/runtime/external API/rating/Sold/visual asset URLを同時刻で保存する。versionまたは値が変わった時は前rowを上書きせず差分を残す。public Soldの期間/課金種別が未定義ならunknown。完了条件は11件の現行snapshotと、price/trial/model変更を検出できる次の自然snapshot。
+15. **T15 — hourly/daily Telegramへfunnelと価格変更を追加する。** 既存company receiptを使い、daily summaryにはimpressions/detail views/source views/trials/paid、source/Agent別、gross/refund、actualとestimated costs、active-MRR statusを分けて載せる。weekly cohortには競合/自社のprice ladder・trial・cap・model・visual proof・public Sold snapshotの変更だけを載せる。missing fieldはunknown表示、超過で長文にせずJSONLを詳細正本にする。完了条件は同じperiod/observed_atの保存rowとTelegram receiptが一致し、cost estimateとactual invoiceを区別して読めること。
+
+**Cursor:** current cursor T0→T1→T2→T3→T4の順序は維持する。T14/T15は先行するsource consistency/official money readbackを置き換えない。今回の更新はread-only researchとSSOT追記のみで、seller設定、price、trial、publish、Telegram deliveryを変更していない。
+
 ### 2026-10-12 — Job Hunter Workday-only implementation cursor
 
 **User direction / order:** ApplyPilotは実求人で一度試したがCloudflare human verification後に送信状態が曖昧となり、独立した応募receiptは未確認。`submission_state_unknown`は再試行せず、CAPTCHA/CapSolver調査は止めてWorkdayへ進む。Job HunterはWorkdayを最初のATS pipelineとして完了し、Dreamwork runtime・quota・fallbackは使わない。Ashbyと後続ATSはWorkdayがreceipt/replay-zeroまで安定した後、別ownerとして追加する。
