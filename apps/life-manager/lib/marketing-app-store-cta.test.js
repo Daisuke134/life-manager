@@ -23,8 +23,10 @@ test("YouTube App Store links identify the developer, app, channel and language"
   assert.equal(marketingCtaLine({ productId: "honne-ai", platform: "youtube", locale: "en" }), "Get the app from the link on our channel\nhttps://apps.apple.com/app/id6759667221?pt=93486075&ct=honne-ai_youtube_en&mt=8");
 });
 
-test("TikTok and Instagram get a link-in-bio CTA, not a raw URL", () => {
-  assert.equal(marketingCtaLine({ productId: "anicca-ios", platform: "tiktok", locale: "ja" }), "アプリはプロフィールのリンクから");
+test("TikTok uses an App Store search CTA when its profile has no website link", () => {
+  assert.equal(marketingCtaLine({ productId: "anicca-ios", platform: "tiktok", locale: "en" }), "Search Anicca on the App Store");
+  assert.equal(marketingCtaLine({ productId: "anicca-ios", platform: "tiktok", locale: "ja" }), "App StoreでAniccaを検索");
+  assert.doesNotMatch(marketingCtaLine({ productId: "anicca-ios", platform: "tiktok", locale: "en" }), /link in bio/i);
   assert.equal(marketingCtaLine({ productId: "anicca-ios", platform: "instagram", locale: "en" }), "Link in bio for the app");
 });
 
@@ -35,15 +37,32 @@ test("Unconfigured product or platform fails loudly instead of silently omitting
 
 test("buildMarketingCtaCaption appends the CTA under the platform limit", () => {
   const caption = buildMarketingCtaCaption("hook line\n\n#tag", { productId: "honne-ai", platform: "tiktok", locale: "ja" });
-  assert.equal(caption, "hook line\n\n#tag\n\nアプリはプロフィールのリンクから\n");
+  assert.equal(caption, "hook line\n\n#tag\n\nApp StoreでHonneを検索\n");
   assert.ok(caption.length <= platformCaptionLimit("tiktok"));
+});
+
+test("buildMarketingCtaCaption does not duplicate a TikTok CTA already approved with the pack", () => {
+  const options = { productId: "anicca-ios", platform: "tiktok", locale: "en" };
+  const generated = buildMarketingCtaCaption("What would make this morning gentler?", options);
+  const published = buildMarketingCtaCaption(generated, options);
+  assert.equal(published, generated);
+  assert.equal((published.match(/Search Anicca on the App Store/g) || []).length, 1);
+});
+
+test("TikTok caption replaces a retired link-in-bio CTA before publication", () => {
+  const caption = buildMarketingCtaCaption(
+    "What would make this morning gentler?\n\nLink in bio for the app\n",
+    { productId: "anicca-ios", platform: "tiktok", locale: "en" },
+  );
+  assert.equal(caption, "What would make this morning gentler?\n\nSearch Anicca on the App Store\n");
+  assert.doesNotMatch(caption, /link in bio/i);
 });
 
 test("buildMarketingCtaCaption trims the base text so the CTA always survives and the limit holds", () => {
   const longBase = "x".repeat(3000);
   const caption = buildMarketingCtaCaption(longBase, { productId: "anicca-ios", platform: "tiktok", locale: "en" });
   assert.ok(caption.length <= platformCaptionLimit("tiktok"));
-  assert.ok(caption.endsWith("Link in bio for the app\n"));
+  assert.ok(caption.endsWith("Search Anicca on the App Store\n"));
 });
 
 test("buildMarketingCtaCaptionRef writes a new content object distinct from the base caption", () => {
