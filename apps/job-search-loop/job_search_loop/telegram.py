@@ -46,6 +46,15 @@ def _telegram_target(target: str | None) -> str:
     return _telegram_config_value("JOB_SEARCH_TELEGRAM_CHAT_ID", target)
 
 
+def is_configured() -> bool:
+    try:
+        _telegram_token(None)
+        _telegram_target(None)
+    except (OSError, RuntimeError, ValueError):
+        return False
+    return True
+
+
 def _telegram_request(
     *,
     method: str,

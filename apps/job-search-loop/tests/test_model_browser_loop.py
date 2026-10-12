@@ -729,24 +729,30 @@ class ModelBrowserLoopContractTests(unittest.TestCase):
         self.assertIn("visible CAPTCHA or human-verification challenge appears before submission", normalized)
         self.assertIn("do not solve or bypass it", normalized)
         self.assertIn("checkpoint --reason visible_challenge", normalized)
-        self.assertIn("report --status checkpointed", normalized)
+        self.assertIn("saves and reports that exact row atomically", normalized)
+        self.assertNotIn("report --status checkpointed", normalized)
         self.assertIn("continue to the next independent Workday row", normalized)
         self.assertIn("after submission may have started", normalized)
         self.assertIn("preserve `submit_unknown` and never retry that row", normalized)
 
-    def test_daily_prompt_does_not_report_ineligible_rows_twice(self):
+    def test_daily_prompt_treats_suppressed_ineligible_report_as_terminal(self):
         prompt = (APP_ROOT / "prompts" / "daily-pass.md").read_text(encoding="utf-8")
         normalized = " ".join(prompt.split())
 
         self.assertIn(
-            "`runtime ineligible` already reports the exact current row itself and returns `report_message_id`",
+            "`runtime ineligible` returns `status: ineligible`",
             normalized,
         )
-        self.assertIn("never call `runtime report` after it", normalized)
+        self.assertIn("Its Telegram outcome may be suppressed", normalized)
+        self.assertIn("`report_message_id` may be null", normalized)
+        self.assertIn("continue with the next `observe`", normalized)
+        self.assertIn("do not call `runtime report` again for that row", normalized)
         self.assertIn(
-            "`runtime checkpoint` only saves a checkpoint; call `runtime report --status checkpointed`",
+            "`runtime checkpoint` saves and reports the same row atomically",
             normalized,
         )
+        self.assertIn("returns its exact `application_id`", normalized)
+        self.assertNotIn("runtime report --status checkpointed", normalized)
         self.assertNotIn(
             "`runtime ineligible --reason hard_ineligible`, report it", normalized
         )
@@ -757,14 +763,25 @@ class ModelBrowserLoopContractTests(unittest.TestCase):
             "`ineligible` and then `report --status not_submitted`", normalized
         )
 
+    def test_daily_prompt_uses_saved_answer_memory_for_prior_employment(self):
+        prompt = (APP_ROOT / "prompts" / "daily-pass.md").read_text(encoding="utf-8")
+        normalized = " ".join(prompt.split())
+
+        self.assertIn("runtime answer --question-label", normalized)
+        self.assertIn("Answer Memory", normalized)
+        self.assertIn("prior-employment yes/no", normalized)
+        self.assertIn("if the hiring company is absent from its Experience section, answer `No`", normalized)
+        self.assertIn("This assumption applies only to prior employment", normalized)
+        self.assertIn("Never infer work authorization or sponsorship", normalized)
+
     def test_daily_prompt_uses_safe_defaults_without_inventing_current_salary(self):
         prompt = (APP_ROOT / "prompts" / "daily-pass.md").read_text(encoding="utf-8")
         normalized = " ".join(prompt.split())
 
         self.assertIn("For ordinary non-factual preferences, do not stop to ask the owner", normalized)
         self.assertIn("infer the closest supported option from the private profile and job context", normalized)
-        self.assertIn("Do not use this inference rule for credentials, work authorization, salary, or other personal facts", normalized)
-        self.assertIn("For a required personal fact or legal attestation missing from approved profile facts", normalized)
+        self.assertIn("Do not use this inference rule for credentials, work authorization, sponsorship, or salary", normalized)
+        self.assertIn("Outside the prior-employment assumption above, never guess a required legal attestation or other personal fact missing from approved profile facts", normalized)
         self.assertIn("If the visible form explicitly offers a non-disclosure or decline option, choose that exact visible option", normalized)
         self.assertIn("If required and no truthful answer or decline option exists, block only this row", normalized)
         self.assertIn("Never invent or estimate a current salary", normalized)
