@@ -15,7 +15,8 @@ function readWrappedReceipts(dataDir, kind) {
     .split(/\r?\n/)
     .filter(Boolean)
     .map((line) => JSON.parse(line))
-    .filter((row) => row && row.kind === kind && row.receipt && typeof row.receipt === "object");
+    .filter((row) => row && row.kind === "receipt" && row.receipt
+      && typeof row.receipt === "object" && row.receipt.kind === kind);
 }
 
 // Postiz returns metric rows with string totals and numeric percentage changes. Sum only the

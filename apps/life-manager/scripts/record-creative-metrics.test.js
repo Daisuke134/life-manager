@@ -22,11 +22,12 @@ function writeReceiptLedger(dataDir, rows) {
 function generationRow({ jobId, hookId, creativeId, productId = "honne-ai", formatId = "reelclaw", locale = "ja" }) {
   return {
     schema_version: 1,
-    kind: "marketing_video_artifact",
+    kind: "receipt",
     tenant_id: "dais-local",
     job_id: jobId,
     attempt: 1,
     receipt: {
+      kind: "marketing_video_artifact",
       product_id: productId,
       format_id: formatId,
       locale,
@@ -39,6 +40,7 @@ function generationRow({ jobId, hookId, creativeId, productId = "honne-ai", form
 
 function publicationRow({ jobId, creativeId, providerPostId, productId = "honne-ai", formatId = "reelclaw", locale = "ja", platform, publicUrl, providerReconciled }) {
   const receipt = {
+    kind: "marketing_video_distribution",
     product_id: productId,
     format_id: formatId,
     locale,
@@ -51,7 +53,7 @@ function publicationRow({ jobId, creativeId, providerPostId, productId = "honne-
   if (providerReconciled !== undefined) receipt.provider_reconciled = providerReconciled;
   return {
     schema_version: 1,
-    kind: "marketing_video_distribution",
+    kind: "receipt",
     tenant_id: "dais-local",
     job_id: jobId,
     attempt: 1,
