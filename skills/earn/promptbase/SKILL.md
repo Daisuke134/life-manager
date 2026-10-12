@@ -22,6 +22,11 @@ SKILL.md pasted as the buyer-hidden "prompt template", and a
   (title from `LISTING.md`'s `## Title`, description from `## shortDescription`,
   example input/output split from `evidence/verified-demonstration.md`,
   fixed price/model/category matching Hook Lab). No network/browser.
+- `scripts/gen_examples.py` — keeps the verified demonstration as example one
+  and uses the shared model runner for three distinct buyer examples. It
+  atomically checkpoints the chosen inputs and each completed output in a
+  private `.partial.json`; a later run resumes only missing outputs. The final
+  `.json` is written only after all four outputs are distinct.
 - `scripts/ledger.py` — JSONL idempotency ledger at
   `~/.local/state/life-manager/state/promptbase-listings.jsonl`. One line per
   submission; `already_listed(slug)` is the guard `publish.py` checks before
