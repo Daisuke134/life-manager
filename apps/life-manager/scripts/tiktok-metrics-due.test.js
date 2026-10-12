@@ -2,6 +2,7 @@
 const assert = require("node:assert/strict"); const fs = require("node:fs"); const os = require("node:os"); const path = require("node:path"); const test = require("node:test");
 const crypto = require("node:crypto");
 const { TARGETS, discoverTarget, discoverTargets, runDue } = require("./tiktok-metrics-due.js");
+const { postizAnalytics } = require("./tiktok-native-metrics-read.js");
 const { JA_JP1_TIKTOK_LANE, verifyMarketingNativeCarouselPublicationReceipt } = require("../lib/marketing-native-carousel-publication-adapter.js");
 const EXPECTED = { tenant_id: "dais-local", product_id: "anicca-ios", locale: "ja", account_id: "@anicca.jp4", native_owner: "anicca.jp4", integration_id: "cmn8x8hdv028uqx0y4gdfse5t", provider_post_id: "cmt328uot00s2qk0y23e8ptii", shortcode: "7676495865816632583", video_id: "7676495865816632583", public_url: "https://www.tiktok.com/@anicca.jp4/video/7676495865816632583", caption: "今すぐやれ", published_at: "2026-08-21T14:46:13.240Z" };
 
@@ -17,6 +18,18 @@ test("TikTok metrics ignore publications older than the existing 30-day retentio
   const result = await runDue(Date.parse("2026-10-12T00:00:00.000Z"), { LM_DATA_DIR: dataDir }, [old]);
   assert.deepEqual(result, []);
   assert.equal(fs.existsSync(path.join(dataDir, "tenants", old.tenant_id, "marketing", "metrics")), false);
+});
+
+test("Postiz analytics uses the day range for each TikTok metric checkpoint", async () => {
+  const originalFetch = global.fetch; const requested = [];
+  global.fetch = async (url) => { requested.push(new URL(url).searchParams.get("date")); return { ok: true, json: async () => [] }; };
+  try {
+    for (const [window, days] of [["2h", "1"], ["24h", "1"], ["72h", "3"], ["7d", "7"]]) {
+      requested.length = 0;
+      await postizAnalytics({ integrationId: "integration-id", providerPostId: "post-id", window }, { LM_POSTIZ_API_KEY: "test-only" });
+      assert.deepEqual(requested, [days, days]);
+    }
+  } finally { global.fetch = originalFetch; }
 });
 
 test("discovery keeps verified Honne EN and JA relationship-confession lanes isolated", () => {
