@@ -6,7 +6,7 @@ sell loop publishes there through the same free-article publisher capafy-distrib
 new set with a short post of the character, the everyday scenes it fits and the store link; the
 model writes that copy, code owns the slug, the single store link, the PII gate and the ledger.
 
-Slot-gated and best-effort like engagement_daily.py: one article per PUBLISH_HOURS slot (JST; not
+Slot-gated and best-effort like engagement_daily.py: one article per PUBLISH_HOURS slot (JST, 15 a day; not
 10/13, when Capafy publishes to the same landing checkout), at most MAX_ATTEMPTS per slot, never
 blocking the reel pass that follows it. Sets that have no article yet are written first (Dais
 2026-10-11: distribute beyond Instagram/Threads; each on-sale set gets its own searchable page).
@@ -34,7 +34,8 @@ SCHEMA = HERE.parent / "schemas" / "sticker_article.schema.json"
 PUBLISHER = REPO_ROOT / "skills/earn/capafy-marketing/scripts/capafy_free_article.py"
 PII_GATE = REPO_ROOT / "skills/writer-agent/scripts/pii-gate.py"
 JST = ZoneInfo("Asia/Tokyo")
-PUBLISH_HOURS = (9, 12, 15, 18, 21)
+PUBLISH_HOURS = (7, 8, 9, 11, 12, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23)  # not 10/13: Capafy's slots
+ROTATION_HOUR = 12  # once every set has an article, one a day
 MAX_ATTEMPTS = 2
 
 
@@ -49,10 +50,14 @@ def due(now: dt.datetime, ledger: dict) -> bool:
         and entry.get("attempts", 0) < MAX_ATTEMPTS
 
 
-def pick(sets: list[dict], ledger: dict, seed_key: str) -> dict | None:
-    """An on-sale set without a published article first; once all have one, keep rotating."""
+def pick(sets: list[dict], ledger: dict, seed_key: str, *, hour: int) -> dict | None:
+    """An on-sale set without a published article first (every slot); once all have one, only the
+    ROTATION_HOUR slot writes, so the site is not flooded with repeats of the same sets."""
     covered = {e.get("set_id") for e in ledger.values() if isinstance(e, dict) and e.get("status") == "published"}
-    return choose_set([s for s in sets if s["set_id"] not in covered] or sets, seed_key)
+    fresh = [s for s in sets if s["set_id"] not in covered]
+    if fresh:
+        return choose_set(fresh, seed_key)
+    return choose_set(sets, seed_key) if hour == ROTATION_HOUR else None
 
 
 def build_markdown(title: str, body: str, store_url: str) -> str:
@@ -105,9 +110,9 @@ def run(now: dt.datetime, sticker_root: Path, state_root: Path) -> dict:
         return {"state": "not_due"}
     date = now.astimezone(JST).date().isoformat()
     key = slot_key(now)
-    chosen = pick(load_on_sale_sets(sticker_root), ledger, f"article:{key}")
+    chosen = pick(load_on_sale_sets(sticker_root), ledger, f"article:{key}", hour=now.astimezone(JST).hour)
     if chosen is None:
-        return {"state": "no_on_sale_set"}
+        return {"state": "no_set_for_this_slot"}
     entry = {"attempts": ledger.get(key, {}).get("attempts", 0) + 1, "set_id": chosen["set_id"]}
     ledger[key] = entry
     ledger_path.write_text(json.dumps(ledger, ensure_ascii=False, indent=1))
