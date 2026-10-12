@@ -27,7 +27,6 @@ from runtime.loop.loop_cleanup import (
 )
 from runtime.host.resource_admission import process_starts
 
-HOST_CLEANUP_RECOVERY_FLOOR_BYTES = 2 * 1024**3  # cleanup receipt target; not producer admission
 
 
 def installed_state_roots(agents_dir: Path) -> set[Path]:
@@ -252,21 +251,6 @@ def scratch_gc(roots: set[Path], *, snapshot_started_ns: int | None = None,
     return result
 
 
-def host_cleanup_command(root: Path, home: Path, state_dir=None) -> list[str]:
-    state_dir = state_dir or home / ".local/state/life-manager/state"
-    return [sys.executable, str(root / "skills/self/disk-cleanup/disk_cleanup.py"),
-            "--home", str(home), "--state-dir",
-            str(state_dir)]
-
-
-def _host_cleanup_capacity_status(result: object) -> str:
-    free_after = result.get("free_after") if isinstance(result, dict) else None
-    if (not isinstance(free_after, int) or isinstance(free_after, bool)
-            or free_after < 0):
-        return "unknown"
-    return "met" if free_after >= HOST_CLEANUP_RECOVERY_FLOOR_BYTES else "unmet"
-
-
 def cleanup_run_binding(env: dict, release_root: Path) -> dict | None:
     """Read host-owned identity; an unbound standalone sweep stays unbound."""
     run_id = env.get("LIFE_MANAGER_RUN_ID")
@@ -284,56 +268,6 @@ def cleanup_run_binding(env: dict, release_root: Path) -> dict | None:
         return None
     return {"owner_id": "life-manager-disk-cleanup", "run_id": run_id,
             "occurrence_id": occurrence_id, "release_sha": sha}
-
-
-def host_cleanup_ok(returncode: int, result: object) -> bool:
-    if not isinstance(result, dict):
-        return False
-    stop = result.get("disk_writers_stop")
-    stop_status = stop.get("status") if isinstance(stop, dict) else None
-    return (
-        returncode == 0
-        and result.get("errors") == 0
-        and result.get("protected_deletions") == 0
-        and _host_cleanup_capacity_status(result) != "unknown"
-        and stop_status in {"absent", "cleared"}
-    )
-
-
-def host_cleanup_readback(returncode: int, stdout: str, *,
-                          binding: dict | None = None) -> tuple[bool, dict]:
-    """Parse the host governor's final JSON without collapsing missing output to ``{}``."""
-    if not isinstance(stdout, str) or not stdout.strip():
-        return False, {
-            "error": "host_cleanup_result_missing",
-            "returncode": returncode,
-        }
-    try:
-        result = json.loads(stdout.splitlines()[-1])
-    except (TypeError, ValueError, json.JSONDecodeError):
-        return False, {
-            "error": "host_cleanup_result_invalid",
-            "returncode": returncode,
-        }
-    if not isinstance(result, dict):
-        return False, {
-            "error": "host_cleanup_result_invalid",
-            "returncode": returncode,
-        }
-    if binding is not None and result.get("identity") != binding:
-        return False, {"error": "host_cleanup_identity_mismatch",
-                       "execution_ok": False, "capacity_recovered": None,
-                       "capacity_recovery": {"status": "unknown",
-                           "recovery_floor_bytes": HOST_CLEANUP_RECOVERY_FLOOR_BYTES}}
-    result["capacity_recovery"] = {
-        "status": _host_cleanup_capacity_status(result),
-        "recovery_floor_bytes": HOST_CLEANUP_RECOVERY_FLOOR_BYTES,
-    }
-    ok = host_cleanup_ok(returncode, result)
-    result["execution_ok"] = ok
-    status = result["capacity_recovery"]["status"]
-    result["capacity_recovered"] = None if status == "unknown" else status == "met"
-    return ok, result
 
 
 def loaded_release_roots(agents_dir: Path, releases_root: Path) -> set[Path]:
@@ -680,43 +614,11 @@ def main() -> int:
     binding = cleanup_run_binding(dict(os.environ), ROOT)
     codex_result = (codex_history_cleanup(home) if binding and
         binding.get("owner_id") == "life-manager-disk-cleanup" else {"status": "unbound_owner"})
-    try:
-        cleanup_state = Path(os.environ.get(
-            "LIFE_MANAGER_HOST_STATE_DIR",
-            home / ".local/state/life-manager/state",
-        )).expanduser()
-        host_process = subprocess.run(
-            host_cleanup_command(ROOT, home, cleanup_state),
-            capture_output=True, text=True, timeout=60,
-        )
-        host_ok, host_result = host_cleanup_readback(
-            host_process.returncode, host_process.stdout,
-            binding=cleanup_run_binding(dict(os.environ), ROOT),
-        )
-        if (host_process.returncode == 75
-                and host_result.get("reason") == "cleanup_lock_busy"
-                and host_result.get("status") == "deferred"
-                and host_result.get("effect") == 0
-                and host_result.get("readback") == 0):
-            # Host temp/worktree sweeping has a separate lock from release GC.
-            try:
-                gc_result = release_gc(releases, current, agents,
-                    keep=int(os.environ.get("LIFE_MANAGER_RELEASE_KEEP", "1")))
-            except (OSError, ValueError) as error:
-                gc_result = {"errors": 1, "error": "release_cleanup_invocation_failed",
-                             "error_class": type(error).__name__}
-            print(json.dumps({**gc_result, **host_result,
-                "errors": gc_result["errors"] + git_result["errors"],
-                "host_cleanup": host_result, "git_cleanup": git_result, "codex_storage": codex_result},
-                sort_keys=True, separators=(",", ":")))
-            return 75 if gc_result["errors"] == 0 and git_result["errors"] == 0 else 1
-    except subprocess.TimeoutExpired:
-        host_ok, host_result = False, {"error": "host_cleanup_timeout"}
-    except OSError as error:
-        host_ok, host_result = False, {"error": "host_cleanup_invocation_failed",
-                                       "error_class": type(error).__name__}
-        if isinstance(error.errno, int):
-            host_result["errno"] = error.errno
+    # The 60-second watchdog is the sole HostDiskGovernor owner. This five-minute
+    # service performs maintenance and release/scratch GC without contending on
+    # the watchdog's host-sweep lock.
+    host_ok = True
+    host_result = {"status": "delegated", "owner_id": "com.anicca.disk-watchdog"}
     try:
         result = release_gc(releases, current, agents,
                             keep=int(os.environ.get("LIFE_MANAGER_RELEASE_KEEP", "1")))
