@@ -85,34 +85,6 @@ Itaú used customer-archetype-based simulations for Pix Automático, examining t
 
 These are research-speed claims, not measured improvements in customer wealth or wellbeing. They provide a useful pattern for combining simulation with fieldwork.
 
-## What three jobs require
-
-The October postings distinguish Research, Evaluations, and Evaluations Engineering, all under the Member of Technical Staff title.[12–14]
-
-|Role|Must-haves|Nice-to-haves|
-|---|---|---|
-|Research|Python and ML frameworks; GPU experiments and large-model training/fine-tuning; reproducing and documenting research; ownership through deployment|Relevant academic background; social science or behavioral economics; distributed training and multi-agent inference optimization|
-|Evaluations|Meaningful evaluation design; LLM training/evaluation fluency; statistical judgment; rapid technical execution with AI coding tools; hands-on ownership|Evaluation dashboards; model/human grading; survey methods; behavioral data; experiments; group behavior|
-|Evaluations Engineering|Several years building production software; backend services, pipelines, relational models; execution through adoption; provenance, versioning, holdout integrity, reproducibility; ML fluency and user judgment; collaboration|Evaluation platforms; research tools; human-data workflows; survey automation; statistics; access controls; AI coding tools|
-
-Research explicitly requires GPU experimentation. Evaluations welcomes complementary backgrounds and does not require a modeling specialist. Evaluations Engineering explicitly requires several years of reliable production development. The two evaluation postings say that one person need not have every nice-to-have; that flexibility does not erase the must-haves. All three specify a 90-day waiting period before reconsideration for the same role.[12–14]
-
-## Lessons for an unimplemented Manager
-
-Manager’s ambition is ambient AI that improves wellbeing for users and for nonusers affected by shared institutions. The following is a proposal, not implemented Manager behavior or Simile’s internal design.
-
-A proposed simulation interface would specify population, constraints, candidate change, time horizon, and outcome. Its output would include action distributions, group-specific outcomes, estimated error, missing evidence, and conditions requiring field validation. Human testimony and generated reflections would remain separate. Coherence and real-world fidelity would receive distinct evaluations.
-
-Mathematically, a proposed predictor approximates P(y|x,a): outcomes y given circumstances x and institutional setting a. This does not automatically identify P(y|x,do(a)), the result of intervening to set a. Short-wait facilities may have happier patients partly because staffing and patient composition differ. Isolating the effect of reducing waits requires randomization or defensible treatment of confounding. Social systems also require checking spillovers, adaptation, and distribution shifts.
-
-Manager would need outcomes such as health, time burden, freedom, and fairness rather than substituting purchasing or adoption intent for wellbeing. Its error criterion should reflect severe subgroup harms and affected people’s judgments, rather than copying TVD 0.16. Nonusers, caregivers, underserved groups, and people dropping out of institutions belong in population design.
-
-Simile’s most transferable lesson is to constrain predictions with human evidence, evaluate error prediction separately, and return uncertain questions to real research. That supports starting with a bounded population and measurable outcomes, then testing where predictions fail and whom those failures affect.
-
-![Keep prediction, simulation, and field evidence separate](visuals/evidence-path.png)
-
-*Each claim requires evidence at the corresponding level.*
-
 ## Sources and claim references
 
 - [1] [Official homepage](https://www.simile.com/): founders, roles, research/product positioning.
@@ -125,4 +97,3 @@ Simile’s most transferable lesson is to constrain predictions with human evide
 - [8] [Socrates final EMNLP paper](https://aclanthology.org/2025.emnlp-main.1530/): dataset, 170/40 split, relative Wasserstein improvement. [Public artifacts](https://stanfordhci.github.io/socrates/).
 - [9] [CVS case](https://www.simile.com/blog/simile-cvs-health); [10] [CVS whitepaper](https://www.cvshealth.com/content/dam/enterprise/cvs-enterprise/pdfs/2026/CVS_WhitepaperCVSxSimile.pdf): use cases and qualified validation claims.
 - [11] [Itaú case](https://www.simile.com/blog/itau-at-esomar), September 11, 2026: research speed and human oversight.
-- [12] [Research](https://jobs.ashbyhq.com/simile/fbf3ed84-26a2-489f-b62f-82f435568387); [13] [Evaluations](https://jobs.ashbyhq.com/simile/33d75074-c23b-4a1f-bfdb-129bcc5be662); [14] [Evaluations Engineering](https://jobs.ashbyhq.com/simile/beaa243c-233f-45f2-9e10-8d54e1eda9d1): postings reviewed October 12, 2026. Manager interfaces and mathematics are proposals in this article.

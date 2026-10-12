@@ -16,7 +16,7 @@ A statistical model uses relationships in observed data to estimate unknown quan
 
 A large language model, or LLM, learns from extensive text and other training material to generate output. A persona prompt can produce a plausible answer, but plausibility and population accuracy are different. Fluent respondents can still overrepresent consensus and omit minority views.
 
-Aaru explicitly says that neither its population-generation model nor its core, row-level model for predicting an agent’s behavioral trajectory is a language model. Its Population Simulation and Simulation Engineering jobs also discuss hybrid architectures combining LLMs with classical methods. These descriptions concern different possible layers or research directions; the jobs do not disclose the core models’ topology or losses. Treating Aaru as simply thousands of chatbot personas would overlook a distinction its research makes explicitly.[1][6][8]
+Aaru explicitly says that neither its core population-generation model nor its core model for predicting an agent’s behavioral trajectory is a language model. Their detailed topology and training losses are not public. Treating Aaru as simply thousands of chatbot personas would overlook a distinction its research makes explicitly.[1]
 
 An agent here is a computational representation of a person who could plausibly exist. It is not a complete copy of a named individual. Aaru describes its target as distributions of possible behavior under specified conditions, rather than a promise about one person’s next action.[2]
 
@@ -95,35 +95,7 @@ Aaru’s EY case describes a blinded reconstruction of the 2025 Global Wealth St
 
 Breakwater’s Conviction Advantage uses 40,000 simulated investors and 71 judgments in a quarterly capital-markets tracker. It examines differences across investor types, turnover, benchmark sensitivity, and investment horizon. This is neither a 40,000-person human survey nor an experiment demonstrating higher investment returns.[5]
 
-Other proposed uses include product innovation, pricing, brand messaging, segmentation, strategic communications, and scenario planning. The latter includes adaptations by customers, employees, policymakers, and competitors. Some website scenarios are explicitly illustrative. Application lists for politics or public affairs do not establish a particular election forecast’s success or a policy intervention’s measured benefit.[1][9]
-
-## What the three jobs actually require
-
-The jobs separate creating populations, measuring validity, and shipping the system. Their core-fit sections and “strong candidates may also” sections serve different purposes.[6][7][8]
-
-**Population Simulation.** “YOU MAY BE A FIT IF” asks for deep synthetic-data, agent-based-modeling, computational-social-science, or population-simulation experience; interest in statistically defensible structured LLM outputs; and an ability to distinguish individual plausibility from distributional fidelity. It seeks a relevant PhD or equivalent industry research depth, clear communication of null or ambiguous findings, and speed without sacrificing rigor. “STRONG CANDIDATES MAY ALSO” lists large-scale synthetic-population systems, survey methodology, psychometrics or demographic modeling, relevant publications, and experience where shipping matters alongside research. These are additional strengths, not an instruction that every candidate must possess every item.[6]
-
-**Evaluation.** Its corresponding section is titled “You might thrive in this role if.” It emphasizes rigorous research, evaluations that changed decisions, precise construct definition, and competence with sampling, statistical power, uncertainty, causal threats, selection, leakage, and condition shifts. Candidates need code, data analysis, individual failure inspection, independent judgment, intellectual honesty, and clear communication. Additional strengths cover forecasting evaluation, econometrics, psychometrics, causal inference, surveys and experiments; evaluating agents, populations, and probabilistic systems; longitudinal, transaction, and operational data; evaluation platforms; human and automated grading, inter-rater reliability, contamination and adversarial evaluation; finding failures ordinary metrics missed; and public, customer, policy, legal, or regulatory communication. Neither a PhD nor prior population-simulation employment is required, but equivalent research depth and empirical rigor are. The job builds reusable “rails,” such as datasets and harnesses, and specific “carts,” such as historical backtests and prospective studies.[7]
-
-**Simulation Engineering.** “YOU MAY BE A FIT IF” asks for deep ML/AI expertise, meaningful production LLM work, rigorous experiments carried from hypothesis to evaluation and deployment, three-plus years building ML/AI systems, ownership across data collection, training, evaluation and integration, and cross-functional shipping. Additional strengths include major ML publications, multi-agent systems, probabilistic modeling, Bayesian inference, causal reasoning, learning unfamiliar technologies, simulation and Monte Carlo methods, hybrid architectures, quantitative domains, and collaboration with researchers on prototypes and papers. Monte Carlo methods estimate outcomes through repeated random trials. The engineering work connects audience generation, world modeling, prediction, contracts, evaluation, cost, and customer artifacts.[8]
-
-All three roles require five-day in-person work in New York and mention visa and relocation support. Research interest alone does not settle fit; working arrangements and demonstrated outputs matter too.[6][7][8]
-
-## Lessons for an unimplemented Manager
-
-Manager is not implemented, and Aaru’s results cannot be transferred to it as performance claims. A useful proposed architecture would separate population construction, physical and institutional constraints, behavioral responses, evaluation, and decision outputs. This is a conceptual proposal, not Aaru source code or a reconstruction of its private architecture.
-
-An initial use case should be chosen through evidence availability as well as problem importance: can the population, operating constraints, and actual outcomes be measured?
-
-Demand alone cannot predict better lives. Transport, eligibility, hours, staffing, inventory, queues, and budgets can prevent people from using a service they want. A Manager design would need these constraints and coverage of non-users and poorly observed groups.
-
-Start with historical temporal holdouts and strong simple baselines; examine joint distributions, subgroup errors, and changes over time. Rejecting uncertain predictions may improve aggregate accuracy while excluding precisely the people a service needs to help. Define outcomes appropriate to the goal, including health, distress, disposable resources, and access burdens. Then use suitable pilots or staged rollouts to measure real outcomes and examine what would have happened without the intervention. Prediction and causal improvement require different evidence.
-
-Competitors also connect simulation to recommendations and tested changes; Primitive’s Instinct is one example.[10] Manager cannot establish a distinction by calling all others prediction-only. It would need to demonstrate, in a bounded application, accurate population representation, realistic constraints, and a loop that updates decisions from measured outcomes.
-
-![Proposed Manager components](visuals/system-map.png)
-
-*A conceptual proposal for Manager, not Aaru proprietary internals.*
+Other proposed uses include product innovation, pricing, brand messaging, segmentation, strategic communications, and scenario planning. The latter includes adaptations by customers, employees, policymakers, and competitors. Some website scenarios are explicitly illustrative. Application lists for politics or public affairs do not establish a particular election forecast’s success or a policy intervention’s measured benefit.[1][6]
 
 ## Sources
 
@@ -132,10 +104,6 @@ Competitors also connect simulation to recommendations and tested changes; Primi
 3. [Aaru, About](https://aaru.com/about)
 4. [Aaru, EY Global Wealth Study](https://aaru.com/case-studies/ey-wealth-research)
 5. [Aaru, Breakwater Conviction Advantage](https://aaru.com/case-studies/breakwater-conviction-advantage)
-6. [Aaru, Researcher, Population Simulation](https://aaru.com/careers/f718d12f-67e9-4fe9-91cc-9e3b69ff00fe)
-7. [Aaru, Researcher, Evaluation](https://aaru.com/careers/4490a4b7-ad45-4bf6-b00f-190a6d9f41ad)
-8. [Aaru, Software Engineer, Simulation](https://aaru.com/careers/f04cd7a3-b53c-4797-bb8f-ebfe0467e9fe)
-9. [Aaru, Scenario Planning](https://aaru.com/use-cases/scenario-planning)
-10. [Primitive, Instinct](https://primitivelabs.ai/instinct)
+6. [Aaru, Scenario Planning](https://aaru.com/use-cases/scenario-planning)
 
-Public-material review date: October 12, 2026. Product descriptions, recruitment requirements, customer-site claims, and published research results are distinguished throughout.
+Public-material review date: October 12, 2026. Product descriptions, customer-site claims, and published research results are distinguished throughout.

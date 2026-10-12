@@ -99,3 +99,39 @@ metadata英語: `Manager — One entity, blessing for all.`。日本語: `Manage
 研究sectionは三者を同じLLM人格simulationと扱わず、Aaruのjoint population/非LLM中核、Simileのhuman-grounded trained behavior/confidence、AI Economistの制度plannerと住民適応を説明する。記事6原稿とtalkの公開先はD6/N3で決め、未公開routeをliveリンクにしない。
 
 会社の説明案: **Life Manager builds and operates businesses to create wealth. Manager extends this work to the shared conditions of life: modeling behavior, redesigning environments, and measuring outcomes for people who never use an app.** これは方向性の説明。現在の売上は確認された期間/主体/数値、Manager benchmarkは実run後の範囲だけ載せる。受益者にログイン不要、作用と根拠は公開できる形にする。
+
+## 2026-10-12 掲載前の改訂案
+
+当日HTTPで/enと/jaを再確認。両方がLife Manager中心、身体/心/お金、自己改善ループ、何兆体のAIという旧説明。以下は掲載候補であり、サイトへの適用・公開はしていない。
+
+英語hero:
+
+**Manager**
+**One entity, blessing for all.**
+
+**AI that redesigns the conditions of life.**
+
+We are building ambient AI that models populations and shared systems, discovers changes that could improve people's lives, acts through authorized connections, and learns from measured outcomes.
+
+Our mission is to reduce suffering for all living beings. We begin with the shared conditions that shape human health, mental wellbeing, and financial security. People should benefit without signing up, logging in, or using an app.
+
+**Explore the research · Read the design · See the evidence**
+
+Development stage: We are building the models and evaluations. Real-world improvements by Manager have not yet been demonstrated.
+
+日本語hero:
+
+**Manager**
+**ひとつの存在、すべてに恩恵を。**
+
+**暮らしを形づくる環境を、AIで設計し直す。**
+
+人々と共有システムのモデルを作り、暮らしを改善する環境の変更を見つけ、権限のある接続を通じて実行し、測定した結果から学ぶ。そんなAIを開発しています。
+
+使命は、あらゆる生命の苦しみを減らすこと。まず、人間の身体・心・経済の健康を左右する共有環境から取り組みます。恩恵を受けるために、登録やログイン、アプリの操作を必要としない仕組みを目指します。
+
+**研究を読む · 設計を読む · 検証状況を見る**
+
+開発状況：モデルと評価基盤を開発しています。Managerによる現実の生活改善は、まだ実証していません。
+
+後続の英日sectionは「供給・アクセス・制度・資源配分が暮らしを形づくる」→「観測・モデル化・比較・実行・測定・学習」→「予測/シミュレーション/実行/実地効果を区別する証拠」→「初心者向けの研究記事」→「Manager by Anicca」。主製品はManager、会社名/法的表示はAniccaのまま。大規模に全てを知る表現や未実証の成果を掲載しない。旧Life Managerは確認できた事業実行の経歴として別ページへ。研究記事に求人とManager設計を混ぜない。公開済み記事/benchmarkだけを有効リンクにし、未公開案への偽リンクを作らない。受益者UI不要と、運営者の接続・権限・公開説明が不要とは区別する。

@@ -3156,3 +3156,17 @@ Writer適用: `skills/writer-agent/SKILL.md`、Zinsser reader/prose、humanizer�
 この変更はWriter source指示・公開上流資料・記事・設計。Macのloaded immutable releaseや定期Writerを更新したreceiptはない。Manager code/paid API/モデル学習/field/X/blog公開/応募/登録/送信は未実施。
 
 10/12追加検証: source-boundary、Writer bash構文/既存prompt quoting（len41522）、固定上流hash、記事/spec相対link/image/anchor、既存test非変更を確認。Aaru/Simile全文4PDFは各9頁、概説2PDF各5頁。MathML・画像のbrowser描画とPDFから主要数値・創業者・出典を抽出し、source Markdownと配布用Markdownのbyte一致を確認。全文の文字数ではなく内容と出典を読解し、個人正規化とpooled confidence foldの記述を補正。図と数式を目視。過去と最新のarticle source、最新版MD/HTML/PDFをdownload ZIPへ保存しZIP integrityを確認。ローカルcommit後、本番反映・外部記事公開・モデル/field効果とは区別して報告する。
+
+<a id="manager-aggregate-first-20261012"></a>
+## Manager 2026-10-12 公開解説と集団データ優先の設計
+
+最新指示が前節に優先する。公開記事は対象企業と研究の初心者向け解説。Managerや求人の節を混ぜない。求人・履歴書・Manager設計は内部資料。ウェブサイトはまず掲載案を提示し、本番更新を先取りしない。個人インタビュー/EEG/受益者認証収集を前提としない。
+
+- [x] Aaru/Simile全文英日4原稿の求人とManagerの節、関連出典を削除。概説英日も自社/求人記述を修正。既存解説と過去版を保存。Writer referenceへ公開説明/内部資料の区別を追記。
+- [x] 当日/enと/jaの公開本文を再取得。旧Life Manager中心と確認。[掲載案](2026-10-08-manager-website-copy.md)へ英日heroと構成を追加。本番変更なし。
+- [x] [集団データ優先の設計](2026-10-12-manager-aggregate-first-design.md)を保存。Population/Prediction/Policy/Execution/Fieldと実地対象未確定を明記。
+- [ ] 上記設計を確認し、既存D0–D5の実装計画へ反映する。独立holdout、baseline、費用/失敗、適用readbackを含む。
+- [ ] 8求人の内部証拠表を使い、完成した実績だけで応募版履歴書へ反映する。年数・GPU・本番運用の不足を架空の経験で埋めない。
+- [ ] 公開記事/自社説明/求人向け資料を別経路に保ち、X/blog/応募先は既存の公開前検証と外部readbackで更新する。
+
+追加検証: 改訂6原稿にManager/careers/ashbyの本文・リンクなしを確認。配布MD一致、HTML画像読込/overflow、PDF全文抽出、ZIP integrityを確認。日本語lintを保存。Writer変更はeditorial referenceのみ、runtime未変更。掲載案はHTTP取得した旧英日本文との差を整理した原稿であり、本番サイトの変更ではない。8求人の内部証拠表は完成後の履歴書文型と残る条件を含み、応募用の完成実績ではない。

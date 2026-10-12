@@ -10,15 +10,15 @@ A population model represents who exists, in what proportions, and under which c
 
 Consider a service available only during working hours. A model that represents income but ignores time constraints may miss who cannot use it. A response model then estimates choices among the options each person can actually access. Interactions add another problem: increased demand can create congestion and change other people's choices.
 
-![Separate population, response, environment, and evaluation components](visuals/system-map.png)
+![Separate population, response, environment, and evaluation components](visuals/population-map.png)
 
 *A conceptual decomposition, not a diagram of proprietary company internals.*
 
 ## Different starting points, overlapping ambitions
 
-Aaru describes combining public, licensed, and customer data, learning population structure, and sampling synthetic profiles. Its published methods explicitly say the core population generator and individual behavioral trajectory model are not language models. Its Population Simulation job, meanwhile, calls for hybrid architectures combining LLMs with computational social science, psychometrics, and survey methods. These statements concern potentially different layers or research directions; neither reveals the full proprietary architecture.[1][2]
+Aaru describes combining public, licensed, and customer data, learning population structure, and sampling synthetic profiles. Its published methods explicitly say the core population generator and individual behavioral trajectory model are not language models. The full proprietary architecture is not public.[1]
 
-Simile describes models trained on interviews, surveys, experiments, transactions, and other behavioral records. Self-reports can provide context; traces record what happened. Its current hiring text states a mission to simulate all eight billion people on Earth. It is not restricted to individual simulation.[3][4]
+Simile describes models trained on interviews, surveys, experiments, transactions, and other behavioral records. Self-reports can provide context; traces record what happened. Its company announcement states a mission to simulate all eight billion people on Earth. It is not restricted to individual simulation.[3][4]
 
 “Population versus individual” and “public versus personal data” are useful starting questions, but poor binary labels. Aaru makes population construction particularly visible. Simile makes human grounding and prediction-confidence research particularly visible. Both seek population-level predictions.
 
@@ -32,7 +32,7 @@ Simile's Itaú case examines trust, comprehension, control, and adoption intent 
 
 Its CVS case describes pharmacist access, waiting times, communication clarity, refill intent, and benefit design. Simulations help prioritize subsequent pilots and experiments. The article does not establish a measured improvement in health or medication adherence.[9]
 
-Primitive's Instinct models navigation, hesitation, abandonment, and conversion. It also advertises turning approved recommendations into tested improvements. It would therefore be inaccurate to position every existing company as “prediction only.” Manager needs a concrete domain and independently measured outcomes, rather than a categorical claim that nobody else acts.[10]
+Primitive's Instinct models navigation, hesitation, abandonment, and conversion. It also advertises turning approved recommendations into tested improvements. It would therefore be inaccurate to position every existing company as “prediction only.” The scope of execution and the evidence for outcomes need to be checked for each product.[10]
 
 Synthetic Users focuses on synthetic interviews and concept testing. Seldon focuses on product journeys and friction before launch. Their websites establish advertised uses; headline agreement percentages do not establish comparable performance across companies.[11][12]
 
@@ -42,7 +42,7 @@ Salesforce's AI Economist introduces a different loop. Economic agents learn how
 
 The planner's objective is explicitly chosen. Productivity, equality, individual utility, health, and freedom are not interchangeable. A model does not discover a universally correct welfare function. Nor does improvement in a simulated economy demonstrate the same effect in a government deployment.
 
-Manager can borrow the separation between individual objectives and shared rules, and test whether an intervention remains useful after behavioral adaptation.
+Separating individual objectives from shared rules makes it possible to test whether an intervention remains useful after behavioral adaptation.
 
 ## The connection to world models
 
@@ -58,7 +58,7 @@ Predicting outcomes from observed actions does not establish the effect of chang
 
 A field study should start from existing intervention evidence and an operator's actual constraints. The CVS case includes pharmacist access and waiting times. A 2011 systematic-review abstract on advanced access scheduling summarizes 24 studies and reports improvements in appointment waiting time. Every included study had a potential source of bias; satisfaction findings were mixed, and clinical outcome data was limited.[16]
 
-That is a reason to investigate shared scheduling and supply conditions, not proof of an AI effect. Manager would need a separate comparison against normal operations to test whether its predictions and intervention choices improve outcomes.
+That is a reason to investigate shared scheduling and supply conditions, not proof of an AI effect. An AI-guided intervention would need a separate comparison against normal operations to test whether its predictions and intervention choices improve outcomes.
 
 A first setting needs authority to change rules, real participants, prior records, comparable conditions, and an observable outcome period. Neither paid-work access nor healthcare should become the priority before those facts are available. An operator's evidence should establish whether the study's conditions match the proposed environment.
 
@@ -67,9 +67,8 @@ People need not use a new app for supply and access conditions to change. A usef
 ## Sources
 
 - [1] [Aaru published methods](https://aaru.com/publications/population-simulation-at-the-replication-floor-research)
-- [2] [Aaru Population Simulation role](https://aaru.com/careers/f718d12f-67e9-4fe9-91cc-9e3b69ff00fe)
 - [3] [Simile What-If Machine](https://www.simile.com/blog/what-if-machine)
-- [4] [Simile Evaluations role](https://jobs.ashbyhq.com/simile/33d75074-c23b-4a1f-bfdb-129bcc5be662)
+- [4] [Simile, The Simulation Company](https://www.simile.com/blog/the-simulation-company)
 - [5] [Aaru EY case](https://aaru.com/case-studies/ey-wealth-research)
 - [6] [Aaru Breakwater case](https://aaru.com/case-studies/breakwater-conviction-advantage)
 - [7] [Aaru Scenario Planning](https://aaru.com/use-cases/scenario-planning)
