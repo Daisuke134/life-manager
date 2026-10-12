@@ -20,7 +20,7 @@ sys.path.insert(0, str(HERE.parents[2]))
 from script_ledger import ScriptLedger, preflight  # noqa: E402
 from ebook_packs import load_ebook_packs  # noqa: E402
 from watercolor_candidate import render as render_watercolor  # noqa: E402
-from heygen_candidate import render as render_heygen  # noqa: E402
+from slideshow_candidate import render as render_slideshow  # noqa: E402
 from ebook_asset_pack import default_asset_root  # noqa: E402
 from skills._shared.telegram import TelegramClient  # noqa: E402
 from attribution import campaign_token  # noqa: E402
@@ -91,25 +91,6 @@ def verify_watercolor_mark_factory_pack(
         return {"state": "setup_required", "reason": str(exc), "external_effects": []}
 
 
-def unresolved_heygen_effect(state_root: Path, current_intent: Path) -> dict | None:
-    for sidecar in sorted(Path(state_root).glob("*.heygen-effect.json")):
-        if sidecar == current_intent:
-            continue
-        try:
-            if sidecar.is_symlink() or not sidecar.is_file():
-                return {"run_id": sidecar.name, "state": "invalid_sidecar"}
-            value = json.loads(sidecar.read_text(encoding="utf-8"))
-        except (OSError, ValueError, json.JSONDecodeError):
-            return {"run_id": sidecar.name, "state": "unreadable_sidecar"}
-        wallet_cost = value.get("wallet_cost") if isinstance(value, dict) else None
-        if (not isinstance(value, dict) or value.get("state") != "completed"
-                or not isinstance(wallet_cost, dict) or wallet_cost.get("currency") != "usd"
-                or not wallet_cost.get("cost_usd")):
-            return {"run_id": sidecar.name, "state": value.get("state", "unknown")
-                    if isinstance(value, dict) else "invalid_sidecar"}
-    return None
-
-
 def require(value: bool, message: str) -> None:
     if not value:
         raise ValueError(message)
@@ -178,7 +159,7 @@ def run(*, engine: Path, product: str, slot_at: str, script_id: str, ledger_path
             return existing
     if render_output is not None:
         if receipt.get("state") not in {"rendered", "telegram_delivery_pending"}:
-            if product == "ebook-ja":
+            if pack["renderer_id"] == "watercolor-monk":
                 asset_check = verify_watercolor_mark_factory_pack(asset_root or default_asset_root())
                 if asset_check.get("state") != "verified":
                     receipt.update({"state": "setup_required", "setup": asset_check})
@@ -188,37 +169,10 @@ def run(*, engine: Path, product: str, slot_at: str, script_id: str, ledger_path
                 rendered = render_watercolor(script=script["body"], output=render_output, clips=clips)
                 rendered.update({"asset_pack_id": asset_check["pack_id"],
                                  "asset_manifest_sha256": asset_check["manifest_sha256"]})
+            elif pack["renderer_id"] == "slideshow":
+                rendered = render_slideshow(script=script, output=render_output)
             else:
-                heygen_intent_path = state_root / f"{receipt['run_id']}.heygen-effect.json"
-                pending = unresolved_heygen_effect(state_root, heygen_intent_path)
-                if pending:
-                    receipt.update({
-                        "state": "setup_required",
-                        "setup": {"state": "setup_required",
-                                  "reason": "prior_heygen_effect_unresolved",
-                                  "pending_render": pending,
-                                  "external_effects": []},
-                    })
-                    write_receipt(path, receipt)
-                    return receipt
-                heygen = pack.get("heygen") if isinstance(pack.get("heygen"), dict) else {}
-                renderer_environment = {
-                    key: os.environ[key]
-                    for key in ("HOME", "PATH", "LANG", "LC_ALL", "TMPDIR",
-                                "LIFE_MANAGER_HEYGEN", "LIFE_MANAGER_RESULT_HINT_PATH")
-                    if os.environ.get(key)
-                }
-                renderer_environment["LM_EBOOK_EN_HEYGEN_AVATAR_ID"] = str(
-                    heygen.get("avatar_id", "")
-                ).strip()
-                renderer_environment["LM_EBOOK_EN_HEYGEN_VOICE_ID"] = str(
-                    heygen.get("voice_id", "")
-                ).strip()
-                rendered = render_heygen(
-                    script=script["body"], output=render_output,
-                    intent_path=heygen_intent_path,
-                    environment=renderer_environment,
-                )
+                raise ValueError("unsupported eBook renderer")
             if rendered.get("state") == "setup_required":
                 receipt.update({"state": "setup_required", "setup": rendered})
                 write_receipt(path, receipt)

@@ -8,6 +8,16 @@ import time
 
 import ebook_distribute_daily
 import ebook_runner
+from baseline_queue import EN, row
+from script_ledger import semantic_signature
+
+
+def test_english_baseline_uses_slideshow_and_versions_renderer_identity():
+    script = row("ebook-en", 1, 1, EN[0])
+
+    assert script["renderer_id"] == "slideshow"
+    heygen_script = {**script, "renderer_id": "heygen-avatar-iv"}
+    assert semantic_signature(script) != semantic_signature(heygen_script)
 
 
 def test_same_product_slot_renders_once_across_account_owners(tmp_path, monkeypatch):
@@ -59,75 +69,81 @@ def test_same_product_slot_renders_once_across_account_owners(tmp_path, monkeypa
     assert renders == 1
 
 
-def test_english_slot_uses_the_heygen_pack_and_english_campaign_token(tmp_path, monkeypatch):
-    def render(*, script, output, intent_path, environment):
+def test_english_slot_uses_local_slideshow_and_english_campaign_token(tmp_path, monkeypatch):
+    def render(*, script, output):
         output.parent.mkdir(parents=True, exist_ok=True)
-        output.write_bytes(b"English HeyGen preview fixture")
-        assert environment["LM_EBOOK_EN_HEYGEN_AVATAR_ID"] == "ce6ef33ff2d0484dabf8a13ce059bbe8"
-        assert environment["LM_EBOOK_EN_HEYGEN_VOICE_ID"] == "8be9884ebd16499fbe0efb274e769ed5"
+        output.write_bytes(b"English local slideshow fixture")
         return {
-            "renderer_id": "heygen-avatar-iv",
+            "renderer_id": "slideshow",
             "state": "rendered",
-            "video_id": "video_english_fixture",
             "output": str(output),
             "sha256": hashlib.sha256(output.read_bytes()).hexdigest(),
             "external_effects": [],
         }
 
-    monkeypatch.setattr(ebook_runner, "render_heygen", render)
+    monkeypatch.setattr(ebook_runner, "render_slideshow", render, raising=False)
+    monkeypatch.setattr(
+        ebook_runner, "render_heygen",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("HeyGen renderer was called")),
+        raising=False,
+    )
     result = ebook_distribute_daily.render_slot(
         product="ebook-en",
-        slot_at="2026-10-06T14:00:00+09:00",
+        slot_at="2026-10-06T21:00:00+09:00",
         state_root=tmp_path / "ebook-state",
     )
 
     assert result["receipt"]["state"] == "rendered"
     assert result["script"]["product_id"] == "ebook-en"
     assert result["script"]["language"] == "en"
-    assert result["receipt"]["renderer_id"] == "heygen-avatar-iv"
+    assert result["receipt"]["renderer_id"] == "slideshow"
     assert result["attribution_token"].startswith("ee_")
 
 
-def test_new_english_slot_waits_for_an_unresolved_prior_heygen_cost(tmp_path, monkeypatch):
+def test_new_english_slot_preserves_prior_heygen_unknown_and_renders_locally(tmp_path, monkeypatch):
     state_root = tmp_path / "ebook-state"
     runs = state_root / "runs"
     runs.mkdir(parents=True)
-    (runs / "ebook-run.previous-slot.heygen-effect.json").write_text(
+    sidecar = runs / "ebook-run.previous-slot.heygen-effect.json"
+    original = (
         '{"schema_version":"marketing.heygen-effect.v1",'
-        '"state":"cost_reconciliation_required","video_id":"video_pending"}\n',
-        encoding="utf-8",
+        '"state":"cost_reconciliation_required","video_id":"video_pending"}\n'
     )
+    sidecar.write_text(original, encoding="utf-8")
     render_calls = []
 
-    def render(*, script, output, intent_path, environment):
+    def render(*, script, output):
         render_calls.append(output)
         output.parent.mkdir(parents=True, exist_ok=True)
-        output.write_bytes(b"must not render while prior charge is unresolved")
+        output.write_bytes(b"new local slideshow")
         return {
-            "renderer_id": "heygen-avatar-iv", "state": "rendered",
-            "video_id": "video_new", "output": str(output),
+            "renderer_id": "slideshow", "state": "rendered", "output": str(output),
             "sha256": hashlib.sha256(output.read_bytes()).hexdigest(),
-            "wallet_cost": {"currency": "usd", "cost_usd": "0.3"},
-            "external_effects": ["heygen_video_created"],
+            "external_effects": [],
         }
 
-    monkeypatch.setattr(ebook_runner, "render_heygen", render)
+    monkeypatch.setattr(ebook_runner, "render_slideshow", render, raising=False)
+    monkeypatch.setattr(
+        ebook_runner, "render_heygen",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("HeyGen renderer was called")),
+        raising=False,
+    )
     result = ebook_distribute_daily.render_slot(
         product="ebook-en", slot_at="2026-10-07T08:00:00+09:00", state_root=state_root,
     )
 
-    assert result["receipt"]["state"] == "setup_required"
-    assert result["receipt"]["setup"]["reason"] == "prior_heygen_effect_unresolved"
-    assert render_calls == []
+    assert result["receipt"]["state"] == "rendered"
+    assert render_calls
+    assert sidecar.read_text(encoding="utf-8") == original
 
 
-def test_english_slots_serialize_shared_heygen_wallet_reads_and_creates(tmp_path, monkeypatch):
+def test_english_slots_use_local_slideshow_without_heygen_effects(tmp_path, monkeypatch):
     lock = threading.Lock()
     active = 0
     maximum_active = 0
     renders = 0
 
-    def render(*, script, output, intent_path, environment):
+    def render(*, script, output):
         nonlocal active, maximum_active, renders
         with lock:
             active += 1
@@ -135,20 +151,23 @@ def test_english_slots_serialize_shared_heygen_wallet_reads_and_creates(tmp_path
             renders += 1
         time.sleep(0.05)
         output.parent.mkdir(parents=True, exist_ok=True)
-        output.write_bytes(f"HeyGen render {renders}".encode())
+        output.write_bytes(f"Local slideshow render {renders}".encode())
         with lock:
             active -= 1
         return {
-            "renderer_id": "heygen-avatar-iv", "state": "rendered",
-            "video_id": f"video_{renders:08d}", "output": str(output),
+            "renderer_id": "slideshow", "state": "rendered", "output": str(output),
             "sha256": hashlib.sha256(output.read_bytes()).hexdigest(),
-            "wallet_cost": {"currency": "usd", "cost_usd": "0.3"},
-            "external_effects": ["heygen_video_created"],
+            "external_effects": [],
         }
 
-    monkeypatch.setattr(ebook_runner, "render_heygen", render)
+    monkeypatch.setattr(ebook_runner, "render_slideshow", render, raising=False)
+    monkeypatch.setattr(
+        ebook_runner, "render_heygen",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("HeyGen renderer was called")),
+        raising=False,
+    )
     state_root = tmp_path / "ebook-state"
-    slots = ("2026-10-07T08:00:00+09:00", "2026-10-07T14:00:00+09:00")
+    slots = ("2026-10-07T08:00:00+09:00", "2026-10-07T21:00:00+09:00")
     with ThreadPoolExecutor(max_workers=2) as pool:
         results = list(pool.map(lambda slot: ebook_distribute_daily.render_slot(
             product="ebook-en", slot_at=slot, state_root=state_root,
