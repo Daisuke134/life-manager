@@ -15890,3 +15890,21 @@ Search + hot + Google contribute 925 views, 16/18 source-paid orders (88.9%) and
 ### Current cursor / 次のatom
 
 T0の今回readbackは記録済み。first-paid条件とtrue MRRは未達/unknown。現在cursorはT1: registered distributor reconcilerのfalse-positive条件を修正し、実行時刻・対象slot/slugに一致する公式readbackだけでoccurrence `18ddcfb8bf34dff8-16076` を解決する。現行adapterのPROOF_READYは別laneのline-sticker公開物に結び付き、fence解放・再投稿の根拠にしない。容量も2 GiB floorを下回るため、registered cleanupの安全な回収余地を次の自然passで確認する。T1が閉じてからT2の日次query順位、T3の`ai_overview` listing conversion、T4の出典付きcreative母数、T5のCT別訪問・paid、T6のhot再露出、T7の真正レビュー、T8の新Agent継続出荷、T9の費用後利益・$10K active MRR証明へ進む。
+
+## Capafy live checkpoint — 2026-10-13 00:12 JST
+
+**T0:** `capafy-hourly-reconcile.json` は引き続き `observed_at=2026-10-12T14:14:41Z`（10/12 23:14:41 JST）、mtime 23:22:22 JST。seller orders 70 / gross $102.75、`net_mrr_usd=null`、`settled_mrr_usd=null`、source 30d 4,365 views / 18 paid / $45.82、7d 329 views / 0 paid / $0で変化なし。`capafy-goal-monitor-hourly` の10/13 00:07:14 JST attemptは `resource_capacity_busy` / exit75 / effect `not_applicable` で、fresh reconcileを作っていない。first-paid milestoneと$10K MRRはいずれも未達。
+
+**T1:** `capafy-distribute-daily:18ddcfb8bf34dff8-16076` はeffect-unknownのactive fenceのまま（provider receipt/readbackなし）。registered adapterのfalse positiveを防ぐ変更をbranch `fix/capafy-distribute-fence-binding-20261013` に実装し、focused test 10件PASS。adapterはexecute-start eventと対応JST slotのprompt slugを使い、別slot/laneの公開物を証明から除外する。source未merge・未release・active fence未解決。`lm-loop health` の10/13 00:12:05 JST host readbackはfree bytes 2,014,367,744、2 GiB floor未達。cleanup ownerは00:12:10 JSTにpassしたがhost capacityはunmet。
+
+**Factory:** `capafy-loop-daily` の最後のattemptは10/12 23:59:27 JST `resource_capacity_busy` / exit75 / effect `not_applicable`。00:01:32 JST backlogは45（listed21 / ready15 / submitted8 / ready_retry1）で、`8767154808`は `under_review`。追加Agent/versionの出荷は未確認。
+
+**次のatom:** T1のreconciler修正をPR/CI/main/releaseへ通し、公式provider readbackがoccurrence `18ddcfb8bf34dff8-16076` と対象slotの効果を証明するまでfenceを維持する。再投稿・手動解除はしない。T0/T1の自然attemptを継続し、T2の10/13 daily buyer-query snapshotを取得する。
+
+## Capafy live checkpoint — 2026-10-13 00:21 JST
+
+**T1の新しい公式state readback:** `lm-fence-reconciler` の自然実行 `18ddd112db2ce718-46851`（2026-10-13 00:16:32 JST、release `4101fc78e0906f414b0b10c7e3c642f4eb18ae07`）が登録済みの旧 `capafy_distribute_fence_reconcile.py` を呼び、occurrence `18ddcfb8bf34dff8-16076` を`closed=true`にした。reconcile callのclosure proofは別laneのGitHub commit `53b62c23e4f23bb8ab5bfe08ad4f51aacf9b0499` とURL `line-sticker-set-007-2026-10-12-20` を示す。実行開始イベントは2026-10-12 23:50:19 JSTであり、これは同じCapafy slotの証拠ではない。admission ledgerは`state=released` / `effect_unknown=0`へ変化したが、Capafy terminal eventの`provider_receipt_id`と`official_readback_ref`は引き続きnull。したがってfenceは現在activeでない一方、このCapafy publicationのeffect outcomeはunknownとして扱う。旧closure proofをCapafyの効果確認へ転用しない。
+
+**安全境界:** 同じoccurrenceの`--resolve`やdistribution再送を実行しない。既にreleasedのrowをSQLiteや別経路から手動で再度fence/resolveしない。該当slotの正確なCapafy URL、GitHub commit、X integrationをoccurrence startとslotに結び付けたreadbackだけを記録する。今後のadapterはexecute-start eventの`owner_id=capafy-distribute-daily`と`run_id`がoccurrence ID末尾に一致することも検査し、別owner/run/slug/slotの公開物ではeffect proofを作らない。
+
+**ソースcursor:** branch `fix/capafy-distribute-fence-binding-20261013` のworktreeにはadapter・focused tests・このSSOTの未push差分がある。source fixは未merge・未release。latest `origin/main`は`4592b650de92c1cdde95d350290de70784ff459e`で、worktree base `d946575593582650dc254180f4b001bd93f206f7`より5 commits先行。次は仕様acceptanceへowner/run IDを加えた失敗テストを先に確認し、既存変更へ最小追加する。PR/main/release後は、対象URL/slugの直接provider readbackと次の自然distributionを別々に追う。`lm-loop status`の`effect_status=reconciled`はこの外部効果の証明にしない。
