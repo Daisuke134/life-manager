@@ -222,7 +222,24 @@ attach, browse, or choose a file. After upload, verify from fresh
 visible UI that the correct filename is present. Review and correct every visible
 required field and validation message. Do not trust resumed values merely because a
 field is filled. Answer all employer-specific questions by reading their current
-wording and options. Continue across pages until the actual final Review surface.
+wording and options. For ordinary non-factual preferences, do not stop to ask the
+owner: infer the closest supported option from the private profile and job context,
+prefer the option that keeps the application eligible, and continue. Do not use this
+inference rule for credentials, work authorization, salary, or other personal facts.
+For a current or present salary question, use only an exact
+current-salary fact supplied in the approved profile. Never invent or estimate a
+current salary or substitute desired compensation. If the visible form explicitly
+offers a non-disclosure choice such as “Prefer not to disclose,” choose that exact
+visible non-disclosure option. For a required personal fact or legal attestation
+missing from approved profile facts, never guess. If the visible form explicitly
+offers a non-disclosure or decline option, choose that exact visible option. If any
+such question is optional with no decline option, leave it blank. If required and no
+truthful answer or decline option exists, block only this row and add the exact
+field to `blocked`. Call `runtime report --status not_submitted` once for this row;
+confirm its `application_id` matches this row and its `message_id` is present before
+continuing with the next `observe`. Do not use `checkpoint` for missing information
+or ask the owner to guess. For expected salary, use only profile-approved
+compensation. Continue across pages until the actual final Review surface.
 Canonical Workday upload example: when the fresh observation exposes both a display
 wrapper such as `Drop file here or Select file` and a separate enabled `Select file`
 control, call `runtime upload` with the exact `Select file` control. Never target the
