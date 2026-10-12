@@ -13203,6 +13203,12 @@ flowchart LR
 
 ### CFO通知の親deadline修復と現在cursor
 
+**main統合と本番の区別:** PR #7711 head ca0ee8997a1dbd4d2d05a618cc82809375467cfaは関連6 tests・fresh read-only金融配信review・exact-head CI全件PASS、main 6455356147c460e226aef3308e07a5fdf7c5711eへ統合済み。source修復atomは完了。fresh lm-loop statusのCFO loaded SHAはdd6f0ee51266dda30b84b054f6c72d3771badf7b/loaded-idle、旧occurrence life-manager-cfo-hourly:18dd46d06dd2a648-41605のeffect_unknownを保持する。本番採用・新自然B7・旧公式receipt joinは未完。手動wake・再送・fence解除を行わず通常reconcilerを追う。
+
+**A8.3公式Stripe診断:** 公式APIのcomplete paginationでbalance transactions20/charges19/refunds3/subscriptions7、Checkout246、paid invoice9を取得した。購読7件は全てcanceled、成功charge9件のうちCheckout payment_intent joinは1件、残8件は未join。chargesの経済分類/product_loop metadataは全件なし。現APIのinvoice lineはpricing.price_details.productを使い、paid invoice9件のunique productは1、product metadataなし。現adapterはtrailing complete/historical・as_of unverified_receipt gapを返すが、口座全体とself-buildへの帰属は別であり、これだけでLife Managerの売上/MRR/費用込みnetを確定しない。次は既存source/商品/購読/請求書関係で帰属を照合し、不足契約だけ最小修正する。API mutation/通知/決済は0。証拠はprivate state内cfo-stripe-official-readback-20261012.json、cfo-stripe-checkout-official-readback-20261012.json、cfo-stripe-invoices-official-readback-20261012.json、cfo-stripe-invoice-products-official-readback-20261012.jsonと各diagnostic。credentials・customer情報はSSOTへ複製しない。
+
+**現在の残順:** 通常main-derived release採用→新自然B7/公式receipt/replay-zero（旧unknownを保持）→旧同occurrenceの公式照合→A8.3 Stripe帰属→A8.4以降の既存source順→A6/A9/Google cash/A10。将来自然runまたは旧公式照合の待機だけで独立source調査を止めない。
+
 目的: notifyViaLocalOutboxの30秒spawnSync timeoutが、既存shared Telegram clientの複数chunk処理を完了前に切れる契約不整合を除く。HTTP各requestは20秒timeout/最大1回retry/max retry_after30で有限、外側Life Manager finite-run timeoutは維持。呼び出し元はCFO reportとlocal polymarket/x402/yield財務記録、hosted HTTP serverには直接使われていない。親の短いtimeoutだけを除き、maxBuffer/child status検証/outbox状態/金額/receipt/fenceを保持する。過去部分配信の確定原因や既存unknown解消をこの修正だけで主張しない。
 
 source所有: 指定cfo-telegram-runtime-receipt-20261007 worktree内financial-transition-local.js/testとこのSSOTのみ。.DS_Store、他CFO worktreeのdirty spec、runtime stateは保持。旧lease情報/native lockを残して明示handoverの今回ownerへ更新済み、作業cwd processなしを確認。
