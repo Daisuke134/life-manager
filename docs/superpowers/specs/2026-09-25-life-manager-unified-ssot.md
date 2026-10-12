@@ -2033,8 +2033,8 @@ Instagram/Threadsのローカル台帳は17件（Instagram 14、Threads 3）で�
 | D11 | TODO | 販売中SKUを1つ選び、用途別4コマ・GIF/短尺・実トーク例の最小content packを作る | 各assetから正しい公式SKUへ到達し、用途が一目で分かる。独自キャラクター素材のみ |
 | D13 | TODO | D11 packと記事を、利用可能な既存owned channelの自然cadenceで1件ずつ配信する | 各public URL・正しいSKUリンク・provider/host receipt・同一occurrence replay-zero。既存11/12時記事は再公開しない |
 | D14a | DONE（source/local acceptance; fresh review APPROVE） | 保存直前に公式画面から対象featureと条件を再取得し、選択済み条件と一致し、listing/テーマ条件を満たす場合だけ参加する。参加/不参加radioが一意に存在し選択済みと確認できなければ申請前に停止する | 同一認証済みPlaywright contextの別pageで現在のcreate-page radioと公式announcement本文を再取得。value/title/deadline/count/price/theme requirementsのいずれかが違えば停止し、テーマ必要数を解析できない場合も不参加。creator residenceはlisting/stateにaccount-country fieldなしで独立検証未了。311 LINE-sticker tests PASS。main/release/production未反映。 |
-| D14b | IN PROGRESS（PR #7804 exact-head CI） | latest-mainへsourceをsyncし、source boundary・focused acceptance・fresh read-only review・exact-head CIを通してPRをmainへmergeしimmutable releaseを作る | `origin/main=c5242a8b3e8c`、pushed head `c4c3dd991b61`; fresh read-only reviewer APPROVE; CI確認時は8 pass/3 pending/0 fail。 |
-| D14c | TODO（PID99922 natural terminal・official readback後） | loaded-idle factory ownerだけをcampaign releaseへtarget applyし、loaded SHA/argvを確認する | current set-034 occurrenceを停止/再送しない。次の自然SKUでcampaign値とradio選択・公式審査状態を同一IDでreadback。 |
+| D14b | IN PROGRESS（status-only follow-up CI） | latest-mainへsourceをsyncし、source boundary・focused acceptance・fresh read-only review・exact-head CIを通してPRをmainへmergeしimmutable releaseを作る | source head `c4c3dd991b61` はfresh review APPROVE、CI 11/11 success。今回のSSOT更新はsource behaviorを変えないが、新しいbranch headのCIもmerge前にPASSさせる。 |
+| D14c | TODO（factory idle; prior provider/capacity readback unresolved） | factoryの既存occurrenceをofficial item readbackで照合し、capacity gateが通った後にloaded-idle factory ownerだけへcampaign releaseをtarget applyする | PIDなし・最新wakeは`resource_capacity_busy/effect=not_applicable`。前の`resource_effect_unknown`にreceipt/readbackはまだない。解決・capacity proof前にapplyしない。 |
 | D14 | TODO（D14c後） | 新規冬SKUを1件作り公式特集へ条件付き申請する | 受付は2026-12-04 10:59 JSTまで（早期終了あり）、開催は2026-11-11〜2027-01-08。日本居住、新規SKU、8〜40個、¥190以上、冬テーマ8個以上。set-034や販売済SKUを流用せず、審査承認と特集掲載をreadback。 |
 | D09c | TODO | successful factory occurrencesごとの申請SKU数を数え、24件/日capを維持するか判断する | 本日3 SKUを申請済みだが、wake別件数と販売需要は未確認。分配・購入データが無い間はcapを上げない。 |
 | D15 | TODO | X/TikTok/YouTube等から追加channelを一つ選び、専用identity・利用規約・投稿経路・原価を確認する | 他ブランドとidentityを分離し、自然投稿一件と公式readbackが可能なこと。共有X identityは流用しない |
@@ -2147,6 +2147,11 @@ Instagram/Threadsのローカル台帳は17件（Instagram 14、Threads 3）で�
 - Fresh read-only reviewer approves: the opt-out radio is unique/checked; the selected campaign and official announcement are reread immediately before save; changed/missing/deadline-invalid/unparseable conditions fail before save. Creator residence remains provider/account-side and is not inferred from radio presence.
 - Full LINE Sticker suite passed 311 tests in 322.966s. After rebase, all affected focused suites passed; source-boundary and `lm-loop-contract` passed.
 - Exact-head CI currently has 8 pass, 3 pending, 0 fail. Merge remains pending the required checks.
+
+**21:15 JST PR/cursor update:**
+- PR #7804 source head `c4c3dd991b61` received fresh reviewer APPROVE and exact-head CI run `38247054023` completed 11/11 success.
+- A status-only SSOT follow-up records the review/CI result and the updated factory gate. No source behavior changed after approval; retake exact-head CI for the status-only head before merge.
+- Factory PID remains absent. Latest observed factory wake was `resource_capacity_busy/effect=not_applicable`; the older official item effect still lacks readback/receipt, so D14c remains blocked on provider reconciliation and capacity, with no apply.
 ### 5.1 自己修復・自己改善の定義（T5 / T12 の正本）
 
 **目的**: Life Manager が、外部の coding agent（Dais が操作する Claude Code や Codex のセッション）にも人にも頼らず、自分の問題を見つけて、自分で直し、自分で改善すること。人と外部 agent はループの外にいる。
