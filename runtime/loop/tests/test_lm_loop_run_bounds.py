@@ -2511,6 +2511,41 @@ def test_main_records_false_terminal_scratch_cleanup_without_changing_business_r
     assert scratch.is_dir()
 
 
+def test_main_preserves_terminal_scratch_while_run_owned_browser_profile_is_live(tmp_path):
+    release = _write_prestart_lock_release(tmp_path)
+    state_root = tmp_path / "state"
+    events = []
+    scratch = state_root / "loop-tmp/example-publisher/run-1"
+
+    def run_admitted(_command, _entry, _loop_id, _env, receipt, **_kwargs):
+        receipt.write_text('{"status":"pass","effect":0}\\n', encoding="utf-8")
+        receipt.chmod(0o600)
+        (receipt.parent / "agent-browser-profile-test").mkdir()
+        return 0
+
+    with (patch.dict(os.environ, {
+              "LIFE_MANAGER_STATE_ROOT": str(state_root),
+              "LIFE_MANAGER_RUN_ID": "run-1",
+          }, clear=False),
+          patch("runtime.loop.lm_loop_run._apply_lock", return_value=nullcontext()),
+          patch("runtime.loop.lm_loop_run.build_loop_command", return_value=["/bin/true"]),
+          patch("runtime.loop.lm_loop_run._run_admitted", side_effect=run_admitted),
+          patch("runtime.loop.lm_loop_run.append_runtime_event",
+                side_effect=lambda _path, event: events.append(event)),
+          patch("runtime.loop.central_cleanup._browser_profiles_live", return_value=True),
+          patch("runtime.loop.lm_loop_run.remove_owned_tree",
+                side_effect=AssertionError("live browser profile must remain"))):
+        assert lm_loop_run_main(["example-publisher", str(release)]) == 0
+
+    assert events[-1]["status"] == "pass"
+    diagnostic = json.loads(
+        (state_root / "scratch-cleanup-diagnostics/run-1.json").read_text())
+    assert diagnostic["cleanup_status"] == "preserved"
+    assert diagnostic["cleanup_operation"] == "browser_profiles_live"
+    assert scratch.is_dir()
+    assert not (scratch / ".terminal-unrecorded").exists()
+
+
 def test_main_records_cleanup_exception_without_changing_business_result(tmp_path):
     release = _write_prestart_lock_release(tmp_path)
     state_root = tmp_path / "state"
