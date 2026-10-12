@@ -617,6 +617,39 @@ test("a provider failure is wrapped as unknown-effect without mutating the forei
   assert.equal(Object.prototype.hasOwnProperty.call(original, "unknownEffect"), false);
 });
 
+test("receipt validation failure after provider success remains unknown-effect", async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-video-publish-invalid-receipt-"));
+  let nowCalls = 0;
+  let providerCalls = 0;
+  const adapter = createMarketingVideoPublicationLoopAdapter({
+    objectStore: { resolve: (ref) => `/objects/${ref.slice(-64)}` },
+    secretProvider: { get: async () => "token" },
+    integrationProvider: { get: async () => "integration" },
+    ledgerPath: () => path.join(root, "distribution.jsonl"),
+    now: () => ++nowCalls === 1 ? "2026-07-30T12:00:00.000Z" : "not-a-date",
+    runDistribution: async () => {
+      providerCalls += 1;
+      return {
+        creative_id: "HJA-007-aaaaaaaaaaaa",
+        video_sha256: VIDEO_HASH,
+        caption_sha256: CAPTION_HASH,
+        platform: "tiktok",
+        public_url: TT_URL,
+        provider_post_id: "postiz-honne-HJA-007",
+        provider_route: "postiz",
+        provider_reconciled: true,
+      };
+    },
+  });
+
+  await assert.rejects(adapter.execute(job()), (error) => {
+    assert.equal(error.message, "marketing video publication receipt verification failed");
+    assert.equal(error.unknownEffect, true);
+    return true;
+  });
+  assert.equal(providerCalls, 1);
+});
+
 test("distribution subprocess receives an allowlisted environment, not the full parent env", () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-video-publish-env-"));
   const stub = path.join(root, "fake-python.js");
