@@ -75,6 +75,17 @@ test("normalizes a versioned external RevenueReceipt with signed net and canonic
   assert.ok(Object.isFrozen(receipt));
 });
 
+test("requires explicit fee and refund amounts instead of defaulting absent fields to zero", () => {
+  assert.throws(
+    () => normalizeRevenueReceipt(baseInput({ fee: undefined })),
+    (error) => error instanceof RevenueReceiptValidationError && error.code === "MISSING_FEE",
+  );
+  assert.throws(
+    () => normalizeRevenueReceipt(baseInput({ refund: undefined })),
+    (error) => error instanceof RevenueReceiptValidationError && error.code === "MISSING_REFUND",
+  );
+});
+
 test("canonical key is stable when object field order changes", () => {
   const a = normalizeRevenueReceipt(baseInput());
   const b = normalizeRevenueReceipt(baseInput({ proof: { log_index: 0, tx_hash: TX, chain_id: "0x2105", verified: true } }));

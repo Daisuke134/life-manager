@@ -36,6 +36,7 @@ import {
 import { getFundingRatesCached, buildFundingRatesResponse, annualizedBps } from "./funding-rates.mjs";
 import { buildFundingRateArbResponse } from "./funding-rate-arb.mjs";
 import { resolveX402StateDir } from "./state-paths.mjs";
+import { decodeTransaction, isSettled } from "./lib/settle-gate.mjs";
 
 function payTo() {
   if (process.env.X402_PAYTO) return process.env.X402_PAYTO;
@@ -275,17 +276,9 @@ app.get("/openapi.json", (_req, res) =>
 
 app.use(paymentMiddleware(payTo(), routes, facilitator));
 
-// sales log — INV-SETTLE: a request is only a SALE once settle() succeeds on-chain, never on
-// verify alone. x402-express (node_modules/x402-express dist/cjs/index.js) buffers res.write/end
-// after next() and only flushes them once `settled=true`; on settle SUCCESS it does
-// res.setHeader("X-PAYMENT-RESPONSE", ...) immediately before that flush, on settle FAILURE/absence
-// (statusCode>=400 short-circuit, or settle() throwing/returning success:false) it flushes a plain
-// 402 with NO such header. So the X-PAYMENT-RESPONSE header, read at the res 'finish' event (after
-// the real response left the process), is the only correct settle signal. The prior code logged on
-// next() — i.e. right after verify() passed, BEFORE settle() ever ran — which recorded verify-only
-// (often never-settled) requests as sales: root cause of franklin1's 21 payer:null false-positive
-// "sales" (2026-07-17 root-cause session). Requests that clear verify but never settle still carry a
-// real demand signal, so they go to attempts-<wallet>.jsonl instead of being silently dropped.
+// This is a candidate log; settlement-recorder later verifies the Base receipt. A finished response
+// may still contain a failed settle header, so require success:true and keep tx/status together for
+// the observer to require both a valid receipt and a completed 2xx delivery.
 import { appendFileSync, mkdirSync } from "node:fs";
 import { join, dirname as pdirname } from "node:path";
 const STATE_DIR = resolveX402StateDir();
@@ -301,8 +294,17 @@ app.use((req, res, next) => {
     payer = xp?.payload?.authorization?.from || null;
   } catch { /* header absent/opaque — payer stays null, never blocks logging */ }
   res.on("finish", () => {
-    const settled = !!res.getHeader("X-PAYMENT-RESPONSE");
-    const line = JSON.stringify({ ts: new Date().toISOString(), route: req.path, price: product.price, payer, settled }) + "\n";
+    const paymentResponse = res.getHeader("X-PAYMENT-RESPONSE");
+    const settled = isSettled(paymentResponse);
+    const line = JSON.stringify({
+      ts: new Date().toISOString(),
+      route: req.path,
+      price: product.price,
+      payer,
+      settled,
+      tx: settled ? decodeTransaction(paymentResponse) : null,
+      status: res.statusCode,
+    }) + "\n";
     try { appendFileSync(settled ? SALES_LOG : ATTEMPTS_LOG, line); } catch { /* logging must never break serving */ }
   });
   next();

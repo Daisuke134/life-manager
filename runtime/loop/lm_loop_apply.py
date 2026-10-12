@@ -54,6 +54,9 @@ def _plist(loop_id: str, entry: dict, release_root: Path, release_sha: str,
     if life_manager_home and loop_id == "agent-economy-loop":
         state_root = str(Path(life_manager_home).expanduser() / "agent-economy")
         log_root = str(Path(state_root) / "logs")
+    elif life_manager_home and loop_id == "agent-economy-taskmarket-work":
+        state_root = str(Path(life_manager_home).expanduser() / "agent-economy/taskmarket-work")
+        log_root = str(Path(state_root) / "logs")
     elif life_manager_home and loop_id == "compute-proxy":
         state_root = str(Path(life_manager_home).expanduser() / "agent-economy/compute-proxy")
         log_root = str(Path(state_root) / "logs")
@@ -282,6 +285,19 @@ def _plist(loop_id: str, entry: dict, release_root: Path, release_sha: str,
             "ANICCA_FUNDED_MODEL": "gpt-5.6-terra",
             "EARN_STATE_ROOT": earn_state,
             "EARN_LEDGER": str(Path(earn_state) / "earn-ledger.jsonl"),
+        })
+    elif loop_id == "agent-economy-taskmarket-work":
+        agent_economy_state = str(Path(state_root).parent)
+        agent_economy_home = str(Path(agent_economy_state) / "instance")
+        earn_state = str(Path(agent_economy_home) / "state/skills/earn")
+        value["EnvironmentVariables"].update({
+            "ANICCA_REPO": str(release_root),
+            "ANICCA_CODE_ROOT": str(release_root),
+            "ANICCA_RELEASE_ROOT": str(release_root.parent.parent),
+            "ANICCA_HOME": agent_economy_home,
+            "EARN_STATE_ROOT": earn_state,
+            "EARN_LEDGER": str(Path(earn_state) / "earn-ledger.jsonl"),
+            "AGENT_ECONOMY_STATE_ROOT": agent_economy_state,
         })
     if loop_id in {"franklin-loop", "franklin2-loop"}:
         value["EnvironmentVariables"].update({

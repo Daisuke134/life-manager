@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 
 import {
   BLOCKRUN_IMAGE_URL,
@@ -7,6 +8,20 @@ import {
   USDC_BASE,
   generateImage,
 } from './x402-image-client.mjs';
+
+const PAYMENT_PAYER = '0x1111111111111111111111111111111111111111';
+const PAYMENT_RECIPIENT = '0xe9030014F5DAe217d0A152f02A043567b16c1aBf';
+const PAYMENT_TX = `0x${'a'.repeat(64)}`;
+
+function settlementHeader({
+  success = true,
+  transaction = PAYMENT_TX,
+  network = 'eip155:8453',
+  payer = PAYMENT_PAYER,
+  amount = '65000',
+} = {}) {
+  return Buffer.from(JSON.stringify({ success, transaction, network, payer, amount })).toString('base64');
+}
 
 function paymentHeader({
   network = 'eip155:8453',
@@ -42,13 +57,14 @@ function challenge(quote = {}) {
 test('generateImage buys exactly one 1024 square GPT Image 2 output under the quote cap', async () => {
   const calls = [];
   const reservations = [];
+  const paymentResponse = settlementHeader();
   const fetchImpl = async (url, request) => {
     calls.push({ url, request });
     if (calls.length === 1) return challenge();
     return new Response(JSON.stringify({
       created: 1785230000,
       data: [{ url: 'https://cdn.blockrun.example/generated.png' }],
-    }), { status: 200, headers: { 'content-type': 'application/json', 'payment-response': 'settled-payment-1' } });
+    }), { status: 200, headers: { 'content-type': 'application/json', 'payment-response': paymentResponse } });
   };
 
   const result = await generateImage({
@@ -67,7 +83,18 @@ test('generateImage buys exactly one 1024 square GPT Image 2 output under the qu
     url: 'https://cdn.blockrun.example/generated.png',
     model: GPT_IMAGE_MODEL,
     costUsd: 0.065,
-    paymentReceiptId: 'blockrun:9b93b489aad905b26ea0a009b6852dea62eacd0ac3dcbac51617a5e6ae5e2b0d',
+    paymentReceiptId: `blockrun:${createHash('sha256').update(paymentResponse).digest('hex')}`,
+    paymentSettlement: {
+      transaction: PAYMENT_TX,
+      network: 'eip155:8453',
+      payer: PAYMENT_PAYER,
+      recipient: PAYMENT_RECIPIENT.toLowerCase(),
+      amountAtomic: '65000',
+      quotedAmountAtomic: '65000',
+      asset: USDC_BASE.toLowerCase(),
+      scheme: 'exact',
+      providerReceiptId: `blockrun:${createHash('sha256').update(paymentResponse).digest('hex')}`,
+    },
     created: 1785230000,
   });
   assert.equal(calls.length, 2);
@@ -102,7 +129,7 @@ test('generateImage follows a paid HTTP 202 job with the same signature until co
       status: 'completed',
       created: 1785230001,
       data: [{ url: 'https://cdn.blockrun.example/async.png' }],
-    }), { status: 200 });
+    }), { status: 200, headers: { 'payment-response': settlementHeader() } });
   };
 
   const result = await generateImage({
@@ -118,6 +145,7 @@ test('generateImage follows a paid HTTP 202 job with the same signature until co
 
   assert.equal(result.url, 'https://cdn.blockrun.example/async.png');
   assert.equal(result.costUsd, 0.065);
+  assert.equal(result.paymentSettlement?.transaction, PAYMENT_TX);
   assert.equal(calls.length, 4);
   assert.equal(calls[2].url, 'https://blockrun.ai/api/v1/images/generations/job_123');
   assert.equal(calls[2].request.method, 'GET');

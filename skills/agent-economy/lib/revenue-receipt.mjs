@@ -239,8 +239,12 @@ export function normalizeRevenueReceipt(input, options = {}) {
     fail("SELF_PAYMENT", "payer is an instance-controlled wallet", "payer");
   }
   const gross = decimal(valueOf(input, ["gross_decimal", "gross", "gross_amount", "grossAmount"]), "gross");
-  const fee = decimal(valueOf(input, ["fee_decimal", "fee", "fees", "fee_amount", "feeAmount"], 0), "fee");
-  const refund = decimal(valueOf(input, ["refund_decimal", "refund", "refunds", "refund_amount", "refundAmount"], 0), "refund");
+  const feeValue = valueOf(input, ["fee_decimal", "fee", "fees", "fee_amount", "feeAmount"]);
+  if (feeValue === undefined || feeValue === null || feeValue === "") fail("MISSING_FEE", "fee amount is required", "fee");
+  const refundValue = valueOf(input, ["refund_decimal", "refund", "refunds", "refund_amount", "refundAmount"]);
+  if (refundValue === undefined || refundValue === null || refundValue === "") fail("MISSING_REFUND", "refund amount is required", "refund");
+  const fee = decimal(feeValue, "fee");
+  const refund = decimal(refundValue, "refund");
   const grossFee = alignDecimal(gross, fee);
   const grossRefund = alignDecimal({ units: grossFee.a, scale: grossFee.scale }, refund);
   const feeAtScale = grossFee.b * (10n ** BigInt(grossRefund.scale - grossFee.scale));
@@ -255,6 +259,13 @@ export function normalizeRevenueReceipt(input, options = {}) {
     const expected = { units: signedUnits, scale: grossRefund.scale };
     const aligned = alignDecimal(parsedProvided, expected);
     if (aligned.a !== aligned.b) fail("ARITHMETIC_MISMATCH", "signed_net must equal gross - fee - refund", "signed_net");
+  }
+  if (input.signed_net !== undefined && input.signed_net !== null) {
+    if ((typeof input.signed_net !== "number" && typeof input.signed_net !== "string")
+      || (typeof input.signed_net === "string" && input.signed_net.trim().length === 0)
+      || !Number.isFinite(Number(input.signed_net)) || Number(input.signed_net) !== signedNet) {
+      fail("ARITHMETIC_MISMATCH", "signed_net must equal gross - fee - refund", "signed_net");
+    }
   }
   const asset = normalizeAsset(valueOf(input, ["asset"]));
   const proof = normalizeProof(input);

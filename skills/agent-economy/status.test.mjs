@@ -11,7 +11,7 @@ import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 
-const NOW = Date.parse("2026-08-21T00:00:00Z");
+const NOW = Date.now();
 const VERIFIED = normalizeRevenueReceipt({
   provider: "gig",
   payer: "0x1111111111111111111111111111111111111111",
@@ -22,7 +22,7 @@ const VERIFIED = normalizeRevenueReceipt({
   asset: "USDC",
   proof: { chain_id: 8453, tx_hash: `0x${"55".repeat(32)}`, log_index: 0, verified: true },
   terminal_state: "settled",
-  occurred_at: "2026-08-19T00:00:00.000Z",
+  occurred_at: new Date(NOW - 2 * 86400000).toISOString(),
 });
 
 test("status sums verified external net, compute, and shelter costs over the last 30 days", () => {
@@ -70,12 +70,28 @@ test("status counts compute receipt cost_usdc and defaults to the Life Manager j
   assert.equal(overridden.computePath, "/tmp/explicit-compute.jsonl");
 });
 
-test("status excludes amount-only compute estimates and shelter bid prices", () => {
+test("status leaves unverified compute estimates and shelter bids unknown", () => {
   const result = summarizeEconomyStatus({ nowMs: NOW, earnRows: [], corrections: [],
     computeRows: [{ ts: NOW / 1000, est_usd: 9 }, { ts: NOW / 1000, cost_usd: 8 }],
     shelterRows: [{ ts: NOW, settledLeaseCostUsd: 7, leaseId: "bid-not-payment" }] });
-  assert.equal(result.compute_cost_30d, 0);
-  assert.equal(result.shelter_cost_30d, 0);
+  assert.equal(result.compute_cost_30d, null);
+  assert.equal(result.shelter_cost_30d, null);
+});
+
+test("missing compute-cost evidence stays unknown and blocks graduation", () => {
+  const result = summarizeEconomyStatus({
+    nowMs: NOW,
+    earnRows: [VERIFIED],
+    corrections: [],
+    computeRows: [],
+    shelterRows: [{ ts: (NOW - 86400000) / 1000, settledLeaseCostUsd: 4,
+      proof: { verified: true, provider_receipt_id: "shelter-main" } }],
+    liquidRunwayDays: 30,
+    humanPaidInference30d: 0,
+  });
+  assert.equal(result.graduation.eligible, false);
+  assert.equal(result.graduation.reason, "invalid-input");
+  assert.equal(result.compute_cost_30d, null);
 });
 
 test("status-only status=0x1 rows contribute zero by default", () => {
@@ -198,7 +214,7 @@ test("status default journal follows a custom earn ledger directory, while expli
     recipient: "0x2222222222222222222222222222222222222222",
     gross: "3.000000", fee: "0", refund: "0", asset: "USDC",
     proof: { provider_receipt_id: "status-path-1", verified: true },
-    terminal_state: "settled", occurred_at: "2026-08-20T00:00:00.000Z",
+    terminal_state: "settled", occurred_at: new Date(NOW - 86400000).toISOString(),
   });
   await writeFile(defaultJournal, `${JSON.stringify(receipt)}\n`);
   const baseArgs = ["skills/agent-economy/status.mjs", ledgerPath, correctionPath, computePath, shelterPath];

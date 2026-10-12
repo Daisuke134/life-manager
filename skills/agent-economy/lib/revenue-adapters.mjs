@@ -9,6 +9,7 @@
 
 import { createHash, randomUUID } from "node:crypto";
 import { appendFile, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -17,6 +18,7 @@ import {
 } from "./revenue-receipt.mjs";
 import { reconcileRevenueReceipts } from "./money-truth.mjs";
 import { discoverAndVerifyEvmReceipt } from "../../_shared/lib/verify-tx.mjs";
+import { SELF_WALLETS } from "../../earn/x402-sell/lib/self-wallets.mjs";
 
 export const REVENUE_REJECTION_SCHEMA_VERSION = 1;
 export const REVENUE_REJECTION_KIND = "revenue_rejection";
@@ -39,6 +41,7 @@ const asObject = (value) => value && typeof value === "object" && !Array.isArray
 const asText = (value) => (typeof value === "string" || typeof value === "number") && String(value).trim() ? String(value).trim() : null;
 const BASE_USDC_CONTRACT = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 const BASE_USDC_DECIMALS = 6;
+const taskmarketRequire = createRequire(import.meta.url);
 
 function directOrNested(input, keys) {
   const object = asObject(input);
@@ -179,9 +182,11 @@ function moneyValue(row, keys, atomicKeys = [], options = {}) {
   return decimalText(value, keys[0]);
 }
 
-function optionalMoney(row, keys, atomicKeys = [], options = {}) {
+function requiredMoney(row, keys, atomicKeys = [], options = {}) {
   const value = directOrNested(row, atomicKeys.length ? [...atomicKeys, ...keys] : keys);
-  if (value === undefined || value === null || value === "") return "0";
+  if (value === undefined || value === null || value === "") {
+    throw new AdapterFailure("MISSING_SETTLEMENT_COMPONENT", `${keys[0]} amount is missing`);
+  }
   return moneyValue(row, keys, atomicKeys, options);
 }
 
@@ -257,6 +262,135 @@ export function adaptTaskMarket(row, options = {}) {
   return { ok: false, rejection: rejection("taskmarket", row, "TaskMarket award verifier is unavailable; submission remains non-revenue", "PROVIDER_VERIFIER_UNAVAILABLE", options) };
 }
 
+async function fetchTaskMarketTask(taskId, options = {}) {
+  if (typeof options.fetchTask === "function") return options.fetchTask(taskId);
+  const fetchImpl = options.fetchImpl || globalThis.fetch;
+  if (typeof fetchImpl !== "function") throw new AdapterFailure("TASKMARKET_FETCH_UNAVAILABLE", "TaskMarket readback needs fetch");
+  const apiUrl = String(options.apiUrl || process.env.TASKMARKET_API_URL || "https://api.taskmarket.dev").replace(/\/+$/, "");
+  let parsed;
+  try { parsed = new URL(apiUrl); } catch { throw new AdapterFailure("TASKMARKET_API_INVALID", "TaskMarket API URL is invalid"); }
+  if (parsed.protocol !== "https:" || parsed.hostname !== "api.taskmarket.dev" || parsed.username || parsed.password
+    || parsed.port || parsed.pathname !== "/" || parsed.search || parsed.hash) {
+    throw new AdapterFailure("TASKMARKET_API_INVALID", "TaskMarket readback must use the official HTTPS API");
+  }
+  const response = await fetchImpl(`${parsed.origin}/api/tasks/${encodeURIComponent(taskId)}`, {
+    signal: AbortSignal.timeout(30_000),
+  });
+  const body = await response.text();
+  if (!response.ok) throw new AdapterFailure("TASKMARKET_READ_FAILED", `TaskMarket readback failed (${response.status})`);
+  if (Buffer.byteLength(body) > 2_000_000) throw new AdapterFailure("TASKMARKET_READ_TOO_LARGE", "TaskMarket readback exceeded its size limit");
+  try { return JSON.parse(body); }
+  catch { throw new AdapterFailure("TASKMARKET_READ_INVALID", "TaskMarket readback is not JSON"); }
+}
+
+function taskmarketRpcCall(options, fetchImpl) {
+  if (typeof options.rpcCall === "function") return options.rpcCall;
+  const rpcUrl = String(options.rpc || process.env.BASE_RPC_URL || "https://mainnet.base.org");
+  let parsed;
+  try { parsed = new URL(rpcUrl); } catch { throw new AdapterFailure("TASKMARKET_RPC_INVALID", "Base RPC URL is invalid"); }
+  if (parsed.protocol !== "https:" || parsed.username || parsed.password) {
+    throw new AdapterFailure("TASKMARKET_RPC_INVALID", "Base RPC must use an uncredentialed HTTPS URL");
+  }
+  return async (method, params) => {
+    const response = await fetchImpl(parsed.toString(), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
+      signal: AbortSignal.timeout(30_000),
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok || !body || body.error || body.result === undefined) {
+      throw new Error(`Base RPC ${method} failed`);
+    }
+    return body.result;
+  };
+}
+
+function taskmarketVerifier(options = {}) {
+  if (typeof options.verifyTaskMarketAward === "function") return options.verifyTaskMarketAward;
+  try {
+    const ledger = taskmarketRequire("../../../apps/life-manager/lib/taskmarket-work-ledger.js");
+    if (typeof ledger.verifyTaskMarketAwardOnBase === "function") return ledger.verifyTaskMarketAwardOnBase;
+  } catch {
+    // Missing the existing verifier is a typed non-revenue condition, never a proof fallback.
+  }
+  throw new AdapterFailure("PROVIDER_VERIFIER_UNAVAILABLE", "The existing TaskMarket award verifier is unavailable");
+}
+
+export async function adaptTaskMarketWithEvmVerifier(row, options = {}) {
+  try {
+    const taskId = String(directOrNested(row, ["taskId", "task_id"]) || "").toLowerCase();
+    if (!/^0x[0-9a-f]{64}$/.test(taskId)) throw new AdapterFailure("MISSING_TASK_ID", "TaskMarket task ID is invalid");
+    const workerAddress = String(options.workerAddress || "").toLowerCase();
+    if (!/^0x[0-9a-f]{40}$/.test(workerAddress)) throw new AdapterFailure("MISSING_WORKER", "TaskMarket worker address is required");
+    const selfWallets = options.selfWallets ?? SELF_WALLETS;
+    const selfSet = new Set((Array.isArray(selfWallets) ? selfWallets : [selfWallets]).map((value) => String(value).toLowerCase()));
+    const task = await fetchTaskMarketTask(taskId, options);
+    if (!task || typeof task !== "object" || Array.isArray(task) || String(task.id || "").toLowerCase() !== taskId) {
+      throw new AdapterFailure("TASKMARKET_READ_INVALID", "TaskMarket task readback does not match the requested task");
+    }
+    if (task.status !== "completed" || task.selfAward === true
+      || !Number.isSafeInteger(task.awardCount) || task.awardCount < 1 || !Array.isArray(task.awards)) {
+      throw new AdapterFailure("PENDING_SETTLEMENT", "TaskMarket task has no completed external award");
+    }
+    const requester = String(task.requester || "").toLowerCase();
+    if (!/^0x[0-9a-f]{40}$/.test(requester)) throw new AdapterFailure("MISSING_IDENTITY", "TaskMarket requester is invalid");
+    if (requester === workerAddress || selfSet.has(requester)) throw new AdapterFailure("SELF_PAYMENT", "TaskMarket requester is an instance-controlled wallet");
+    const submissionId = directOrNested(row, ["submissionId", "submission_id"]);
+    let awards = (Array.isArray(task.awards) ? task.awards : []).filter((award) => (
+      String(award?.workerAddress || "").toLowerCase() === workerAddress
+      && (!submissionId || !award.submissionId || String(award.submissionId) === String(submissionId))
+    ));
+    const candidateTx = directOrNested(row, ["settlementTxHash", "settlement_tx_hash", "awardTxHash", "award_tx_hash", "tx_hash", "txHash"]);
+    if (candidateTx) awards = awards.filter((award) => String(award?.settlementTxHash || "").toLowerCase() === String(candidateTx).toLowerCase());
+    if (awards.length !== 1) throw new AdapterFailure("TASKMARKET_AWARD_AMBIGUOUS", "TaskMarket readback does not identify one award for this worker");
+    const award = awards[0];
+    const grossAtomic = String(award.grossAmount ?? "");
+    const feeAtomic = String(award.platformFee ?? "");
+    const paymentAtomic = String(award.workerPayment ?? "");
+    const txHash = String(award.settlementTxHash || "").toLowerCase();
+    const rank = Number(award.rank);
+    if (!/^0x[0-9a-f]{64}$/.test(txHash) || !/^\d+$/.test(grossAtomic)
+      || !/^\d+$/.test(feeAtomic) || !/^\d+$/.test(paymentAtomic)
+      || BigInt(grossAtomic) !== BigInt(feeAtomic) + BigInt(paymentAtomic)
+      || !Number.isSafeInteger(rank) || rank < 1
+      || typeof award.settledAt !== "string" || !Number.isFinite(Date.parse(award.settledAt))) {
+      throw new AdapterFailure("TASKMARKET_AWARD_INVALID", "TaskMarket award settlement fields are incomplete");
+    }
+    const fetchImpl = options.fetchImpl || globalThis.fetch;
+    const rpcCall = taskmarketRpcCall(options, fetchImpl);
+    const verified = await taskmarketVerifier(options)(task, award, { workerAddress, selfWallets, rpcCall });
+    if (!verified?.ok || !Number.isSafeInteger(verified.receiptBlock) || verified.receiptBlock < 0) {
+      throw new AdapterFailure("TASKMARKET_EVM_UNVERIFIED", "TaskMarket award lacks a successful finalized Base transfer");
+    }
+    const gross = atomicToDecimal(grossAtomic, "grossAmount", 6);
+    const fee = atomicToDecimal(feeAtomic, "platformFee", 6);
+    const payment = atomicToDecimal(paymentAtomic, "workerPayment", 6);
+    const receiptId = `taskmarket:${taskId}:${txHash}:${rank}`;
+    // Task Schema defines completed as terminal payout indexed and awards as TaskCompleted event
+    // rows; refund/cancel actions resolve escrow before payout. A later transfer reversal would
+    // need its own provider/chain correction receipt.
+    const receipt = normalizeRevenueReceipt({
+      provider: "taskmarket",
+      payer: requester,
+      recipient: workerAddress,
+      gross,
+      fee,
+      refund: "0",
+      signed_net: payment,
+      asset: "USDC",
+      proof: { provider_receipt_id: receiptId, verified: true },
+      terminal_state: "settled",
+      occurred_at: award.settledAt,
+    }, { selfPayers: options.selfPayers ?? selfWallets });
+    return { ok: true, receipt };
+  } catch (error) {
+    const code = /^[A-Z][A-Z0-9_]*$/.test(String(error?.code || "")) ? error.code : "TASKMARKET_VERIFIER_FAILED";
+    const reason = error instanceof AdapterFailure ? error.message : "TaskMarket official award verification failed";
+    return { ok: false, rejection: rejection("taskmarket", row, reason, code, options) };
+  }
+}
+
 export function adaptX402(row, options = {}) {
   return { ok: false, rejection: rejection("x402", row, "x402 requires the asynchronous strict EVM verifier", "STRICT_EVM_VERIFIER_REQUIRED", options) };
 }
@@ -284,8 +418,8 @@ export async function adaptX402WithEvmVerifier(row, options = {}) {
     const asset = assetFor(input, "x402", options);
     const { payer, recipient } = identity(input, options);
     const gross = atomicToDecimal(atomic, "amount_atomic", decimals);
-    const fee = optionalMoney(input, ["fee", "fee_amount"]);
-    const refund = optionalMoney(input, ["refund", "refund_amount"]);
+    const fee = requiredMoney(input, ["fee", "fee_amount"]);
+    const refund = requiredMoney(input, ["refund", "refund_amount"]);
     const terminal_state = terminalState(input, ["terminal_state", "settlement_state", "status", "settled", "success"]);
     const occurred_at = directOrNested(input, ["occurred_at", "occurredAt", "timestamp", "ts"]);
     if (occurred_at === undefined || occurred_at === null) throw new AdapterFailure("MISSING_TIMESTAMP", "x402 settlement timestamp is missing");
@@ -499,6 +633,13 @@ export async function projectRevenueReceipts({ journalPath, rejectionPath, provi
         else result.rejected.push(outcome.rejection);
         return result;
       }, { accepted: [], rejected: [] });
+  } else if (normalized === "taskmarket") {
+    batch = { accepted: [], rejected: [] };
+    for (const row of rows) {
+      const outcome = await adaptTaskMarketWithEvmVerifier(row, adapterOptions);
+      if (outcome.ok) batch.accepted.push({ receipt: outcome.receipt, source_row: row });
+      else batch.rejected.push(outcome.rejection);
+    }
   } else {
     batch = rows.reduce((result, row) => {
       const outcome = adaptRevenueRow(normalized, row, adapterOptions);

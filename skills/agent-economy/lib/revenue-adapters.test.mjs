@@ -209,7 +209,7 @@ test("projectRevenueReceipts appends accepted rows once and persists rejection r
   const rows = [{
     provider: "x402", route: "/research", settled: true, success: true,
     amount_atomic: "3000", decimals: 6, currency: "USDC", payer: EVM_PAYER, recipient: EVM_RECIPIENT,
-    transaction: tx, chain_id: 8453, ts: NOW,
+    transaction: tx, chain_id: 8453, fee: "0", refund: "0", ts: NOW,
   }, {
     provider: "x402", route: "/research", settled: false, success: false,
     amount_atomic: "3000", decimals: 6, currency: "USDC", payer: EVM_PAYER, recipient: EVM_RECIPIENT, ts: NOW,
@@ -263,7 +263,7 @@ test("x402 production adapter calls strict EVM verifier with exact transfer tupl
   const calls = [];
   const result = await adaptX402WithEvmVerifier({
     source_record_id: "x402-strict", settled: true, success: true, amount_atomic: "3000", decimals: 6,
-    currency: "USDC", payer, recipient, transaction: tx, chain_id: 8453, ts: NOW,
+    currency: "USDC", payer, recipient, transaction: tx, chain_id: 8453, fee: "0", refund: "0", ts: NOW,
   }, { rpc: "https://rpc.invalid", fetchImpl: fakeRpc({ tx, receipt, calls }) });
   assert.equal(result.ok, true);
   assert.equal(result.receipt.gross, 0.003);
@@ -275,7 +275,7 @@ test("x402 production adapter calls strict EVM verifier with exact transfer tupl
 
 test("x402 hardcodes Base USDC decimals to six and rejects conflicting decimals", async () => {
   const tx = "0x" + "f".repeat(64);
-  const row = { source_record_id: "x402-decimals", settled: true, success: true, amount_atomic: "3000", decimals: 3, currency: "USDC", payer: EVM_PAYER, recipient: EVM_RECIPIENT, transaction: tx, chain_id: 8453, ts: NOW };
+  const row = { source_record_id: "x402-decimals", settled: true, success: true, amount_atomic: "3000", decimals: 3, currency: "USDC", payer: EVM_PAYER, recipient: EVM_RECIPIENT, transaction: tx, chain_id: 8453, fee: "0", refund: "0", ts: NOW };
   const result = await adaptX402WithEvmVerifier(row, { rpc: "https://rpc.invalid", fetchImpl: fakeRpc({ tx, receipt: successfulEvmReceipt({ tx }) }) });
   assert.equal(result.ok, false);
   const correct = await adaptX402WithEvmVerifier({ ...row, decimals: 6 }, { rpc: "https://rpc.invalid", fetchImpl: fakeRpc({ tx, receipt: successfulEvmReceipt({ tx }) }) });
@@ -287,7 +287,7 @@ test("standard x402 response without amount/currency/decimals/log uses the confi
   const tx = "0x" + "c".repeat(64);
   const result = await adaptX402WithEvmVerifier({
     source_record_id: "x402-standard", settled: true, success: true,
-    payer: EVM_PAYER, recipient: EVM_RECIPIENT, transaction: tx, network: "eip155:8453", ts: NOW,
+    payer: EVM_PAYER, recipient: EVM_RECIPIENT, transaction: tx, network: "eip155:8453", fee: "0", refund: "0", ts: NOW,
   }, {
     configuredPrice: "$0.003", configuredNetwork: "eip155:8453",
     rpc: "https://rpc.invalid", fetchImpl: fakeRpc({ tx, receipt: successfulEvmReceipt({ tx }) }),
@@ -300,7 +300,7 @@ test("configured x402 price binds any supplied atomic amount and transfer", asyn
   const tx = "0x" + "1".repeat(64);
   const mismatch = await adaptX402WithEvmVerifier({
     source_record_id: "x402-price-mismatch", settled: true, success: true, amount_atomic: "3000", decimals: 6,
-    currency: "USDC", payer: EVM_PAYER, recipient: EVM_RECIPIENT, transaction: tx, network: "eip155:8453", ts: NOW,
+    currency: "USDC", payer: EVM_PAYER, recipient: EVM_RECIPIENT, transaction: tx, network: "eip155:8453", fee: "0", refund: "0", ts: NOW,
   }, {
     configuredPrice: "$0.004", configuredNetwork: "eip155:8453", rpc: "https://rpc.invalid",
     fetchImpl: fakeRpc({ tx, receipt: successfulEvmReceipt({ tx, amount: "3000" }) }),
@@ -308,7 +308,7 @@ test("configured x402 price binds any supplied atomic amount and transfer", asyn
   assert.equal(mismatch.ok, false);
   const correct = await adaptX402WithEvmVerifier({
     source_record_id: "x402-price-match", settled: true, success: true, amount_atomic: "3000", decimals: 6,
-    currency: "USDC", payer: EVM_PAYER, recipient: EVM_RECIPIENT, transaction: tx, network: "eip155:8453", ts: NOW,
+    currency: "USDC", payer: EVM_PAYER, recipient: EVM_RECIPIENT, transaction: tx, network: "eip155:8453", fee: "0", refund: "0", ts: NOW,
   }, {
     configuredPrice: "$0.003", configuredNetwork: "eip155:8453", rpc: "https://rpc.invalid",
     fetchImpl: fakeRpc({ tx, receipt: successfulEvmReceipt({ tx, amount: "3000" }) }),
@@ -318,7 +318,7 @@ test("configured x402 price binds any supplied atomic amount and transfer", asyn
 
 test("strict x402 transport rejects amount, payer, recipient, contract, chain, and ambiguous log mismatches", async () => {
   const tx = "0x" + "e".repeat(64);
-  const base = { source_record_id: "x402-mismatch", settled: true, success: true, amount_atomic: "3000", decimals: 6, currency: "USDC", payer: EVM_PAYER, recipient: EVM_RECIPIENT, transaction: tx, chain_id: 8453, ts: NOW };
+  const base = { source_record_id: "x402-mismatch", settled: true, success: true, amount_atomic: "3000", decimals: 6, currency: "USDC", payer: EVM_PAYER, recipient: EVM_RECIPIENT, transaction: tx, chain_id: 8453, fee: "0", refund: "0", ts: NOW };
   const run = (row, receipt, chainId = "0x2105") => adaptX402WithEvmVerifier(row, { rpc: "https://rpc.invalid", fetchImpl: fakeRpc({ tx, receipt, chainId }) });
   assert.equal((await run({ ...base, amount_atomic: "3001" }, successfulEvmReceipt({ tx }))).ok, false);
   assert.equal((await run({ ...base, payer: "0x3333333333333333333333333333333333333333" }, successfulEvmReceipt({ tx }))).ok, false);
@@ -336,7 +336,7 @@ test("twenty concurrent projections append one receipt and one rejection", async
   const journalPath = join(root, "journal.jsonl");
   const rejectionPath = join(root, "rejections.jsonl");
   const tx = "0x" + "a".repeat(64);
-  const rows = [{ source_record_id: "concurrent-1", provider: "x402", settled: true, success: true, amount_atomic: "3000", decimals: 6, currency: "USDC", payer: EVM_PAYER, recipient: EVM_RECIPIENT, transaction: tx, chain_id: 8453, ts: NOW }, { source_record_id: "concurrent-bad", provider: "x402", settled: false, success: false, amount_atomic: "3000", decimals: 6, currency: "USDC", payer: EVM_PAYER, recipient: EVM_RECIPIENT, ts: NOW }];
+  const rows = [{ source_record_id: "concurrent-1", provider: "x402", settled: true, success: true, amount_atomic: "3000", decimals: 6, currency: "USDC", payer: EVM_PAYER, recipient: EVM_RECIPIENT, transaction: tx, chain_id: 8453, fee: "0", refund: "0", ts: NOW }, { source_record_id: "concurrent-bad", provider: "x402", settled: false, success: false, amount_atomic: "3000", decimals: 6, currency: "USDC", payer: EVM_PAYER, recipient: EVM_RECIPIENT, ts: NOW }];
   const receipt = successfulEvmReceipt({ tx });
   await Promise.all(Array.from({ length: 20 }, () => projectRevenueReceipts({ journalPath, rejectionPath, provider: "x402", rows, options: { rpc: "https://rpc.invalid", fetchImpl: fakeRpc({ tx, receipt }) } })));
   assert.equal((await readFile(journalPath, "utf8")).trim().split("\n").length, 1);
@@ -365,35 +365,52 @@ test("deterministic CLI projection of a raw lane outbox records rejection withou
   assert.equal((await readFile(rejectionPath, "utf8")).trim().split("\n").length, 1);
 });
 
-test("TaskMarket natural owner projects an official award as rejection until an official verifier exists", async () => {
+test("TaskMarket natural owner records a completed award from a status-free official submission row", async () => {
   const root = await mkdtemp(join(tmpdir(), "revenue-adapters-taskmarket-owner-"));
   const taskId = "0x" + "c".repeat(64);
-  const awardId = "taskmarket-award-owner";
+  const txHash = "0x" + "d".repeat(64);
+  const workerKey = "0x" + "1".repeat(64);
+  const workerAddress = "0x19E7E376E7C213B7E7e7e46cc70A5dD086DAff2A";
+  const earnLedgerPath = join(root, "earn.jsonl");
+  await writeFile(earnLedgerPath, `${JSON.stringify({
+    source: "taskmarket_work_attempt", task: taskId, submission_id: "submission-owner",
+  })}\n`);
   const selected = {
     id: taskId, status: "open", phase: "active", submissionWindowOpen: true, stakeRequired: false,
     description: "Make one still image, 1:1 square. Use GPT Image 2. Deliver one finished hero image.",
     reward: "5000000", netReward: "5000000", submissionCount: 1,
     expiryTime: "2026-08-28T00:00:00Z",
   };
-  const recorded = {
-    id: "submission-owner", taskId, status: "awarded", gross_atomic: "5000000", fee_atomic: "0",
-    asset: "USDC", decimals: 6, payer: PAYER, recipient: RECIPIENT,
-    award_receipt_id: awardId, occurred_at: NOW,
+  const recorded = { id: "submission-owner", taskId, workerAddress };
+  const officialTask = {
+    id: taskId, requester: EVM_PAYER, status: "completed", selfAward: false, awardCount: 1,
+    awards: [{
+      workerAddress, settlementTxHash: txHash, grossAmount: "5000000", workerPayment: "5000000",
+      platformFee: "0", rank: 1, settledAt: NOW,
+    }],
   };
   let submissionReads = 0;
   const result = await runTaskMarketPass({
-    action: "execute", aniccaHome: root, earnLedgerPath: join(root, "earn.jsonl"), now: Date.parse(NOW),
+    action: "execute", taskId, aniccaHome: root, earnLedgerPath, now: Date.parse(NOW),
     revenueJournalPath: join(root, "revenue.jsonl"), revenueRejectionPath: join(root, "rejections.jsonl"),
   }, {
     listTasks: async () => [selected],
-    listSubmissions: async () => { submissionReads += 1; return submissionReads < 2 ? [] : [recorded]; },
-    loadWalletKey: () => "0x" + "1".repeat(64),
+    listSubmissions: async () => { submissionReads += 1; return [recorded]; },
+    loadWalletKey: () => workerKey,
+    ensureWallet: async () => ({ initialized: false }),
     generateImage: async () => ({ url: "https://cdn.example/hero.png", model: "fixture", costUsd: 0.01 }),
     downloadImage: async () => squarePng(),
     submitTask: async () => ({ ok: true }),
+    fetchTask: async () => officialTask,
+    verifyTaskMarketAward: async () => ({ ok: true, receiptBlock: 12345 }),
   });
-  assert.equal(result.revenue_candidate.ok, false);
-  assert.equal(result.revenue_projection.accepted, 0);
-  await assert.rejects(() => readFile(join(root, "revenue.jsonl"), "utf8"), { code: "ENOENT" });
-  assert.equal((await readFile(join(root, "rejections.jsonl"), "utf8")).trim().split("\n").length, 1);
+  assert.equal(result.action, "already_submitted");
+  assert.equal(result.revenue_projection.accepted, 1);
+  assert.equal(result.revenue_projection.duplicates, 0);
+  assert.equal(result.revenue_projection.rejected, 0);
+  const receipt = JSON.parse((await readFile(join(root, "revenue.jsonl"), "utf8")).trim());
+  assert.equal(receipt.provider, "taskmarket");
+  assert.equal(receipt.signed_net_decimal, "5");
+  assert.equal(submissionReads, 1);
+  await assert.rejects(() => readFile(join(root, "rejections.jsonl"), "utf8"), { code: "ENOENT" });
 });

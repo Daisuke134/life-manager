@@ -350,9 +350,18 @@ export async function thinkCodex(ctx, config = {}) {
   });
   if (result.code !== 0) {
     const summary = lastJsonLine(result.stdout);
-    const reason = summary && typeof summary.error_class === 'string' && CODEX_BRAIN_RESULT_REASON.test(summary.error_class)
-      ? summary.error_class : `exit_${result.code}`;
-    throw new Error(`codex_brain_failed:${reason}`);
+    const providerDeferredReason = summary?.status === 'provider_deferred'
+      && typeof summary.reason === 'string' && CODEX_BRAIN_RESULT_REASON.test(summary.reason)
+      ? summary.reason : null;
+    const errorClass = summary && typeof summary.error_class === 'string' && CODEX_BRAIN_RESULT_REASON.test(summary.error_class)
+      ? summary.error_class : null;
+    const reason = providerDeferredReason || errorClass || `exit_${result.code}`;
+    const error = new Error(`${providerDeferredReason ? 'codex_brain_deferred' : 'codex_brain_failed'}:${reason}`);
+    if (providerDeferredReason) {
+      error.failureLayer = 'admission';
+      error.exitCode = result.code;
+    }
+    throw error;
   }
   const summary = lastJsonLine(result.stdout);
   if (!summary || summary.status !== 'success' || summary.selected_provider !== 'codex') {

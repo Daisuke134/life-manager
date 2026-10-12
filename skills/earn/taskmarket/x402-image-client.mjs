@@ -50,7 +50,34 @@ function paymentReceiptId(response) {
   return value ? `blockrun:${createHash('sha256').update(value).digest('hex')}` : null;
 }
 
-function imageBodyResult(body, costUsd, receiptId = null) {
+function paymentSettlement(response, quote) {
+  const header = response?.headers?.get?.('payment-response')
+    || response?.headers?.get?.('x-payment-response');
+  if (!header || !quote) return null;
+  try {
+    const decoded = JSON.parse(Buffer.from(header, 'base64').toString('utf8'));
+    const amountAtomic = decoded.amount === undefined ? quote.details.amount : decoded.amount;
+    if (!decoded || decoded.success !== true
+      || typeof decoded.transaction !== 'string' || !/^0x[0-9a-fA-F]{64}$/.test(decoded.transaction)
+      || typeof decoded.network !== 'string'
+      || typeof amountAtomic !== 'string' || !/^\d+$/.test(amountAtomic)) return null;
+    return {
+      transaction: decoded.transaction.toLowerCase(),
+      network: decoded.network,
+      payer: typeof decoded.payer === 'string' ? decoded.payer.toLowerCase() : null,
+      recipient: String(quote.details.recipient || '').toLowerCase(),
+      amountAtomic,
+      quotedAmountAtomic: String(quote.details.amount),
+      asset: String(quote.details.asset || '').toLowerCase(),
+      scheme: String(quote.details.scheme || ''),
+      providerReceiptId: paymentReceiptId(response),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function imageBodyResult(body, costUsd, receiptId = null, settlement = null) {
   const url = body?.data?.[0]?.url;
   if (typeof url !== 'string' || !/^https:\/\//i.test(url) || body.data.length !== 1) {
     throw new Error('image response must contain one HTTPS image URL');
@@ -60,6 +87,7 @@ function imageBodyResult(body, costUsd, receiptId = null) {
     model: GPT_IMAGE_MODEL,
     costUsd,
     paymentReceiptId: receiptId,
+    ...(settlement ? { paymentSettlement: settlement } : {}),
     created: body.created ?? null,
   };
 }
@@ -72,8 +100,13 @@ async function responseJson(response) {
   }
 }
 
-async function imageResult(response, costUsd) {
-  return imageBodyResult(await responseJson(response), costUsd, paymentReceiptId(response));
+async function imageResult(response, costUsd, quote = null) {
+  return imageBodyResult(
+    await responseJson(response),
+    costUsd,
+    paymentReceiptId(response),
+    paymentSettlement(response, quote),
+  );
 }
 
 function blockrunPollUrl(raw) {
@@ -94,6 +127,8 @@ async function pollImageJob({
   signature,
   costUsd,
   receiptId,
+  settlement,
+  quote,
   fetchImpl,
   sleepImpl,
   pollIntervalMs,
@@ -116,7 +151,14 @@ async function pollImageJob({
     if (body?.status === 'failed') {
       throw new Error(`image generation failed: ${String(body.error || 'unknown error')}`);
     }
-    if (Array.isArray(body?.data)) return imageBodyResult(body, costUsd, paymentReceiptId(response) || receiptId);
+    if (Array.isArray(body?.data)) {
+      return imageBodyResult(
+        body,
+        costUsd,
+        paymentReceiptId(response) || receiptId,
+        paymentSettlement(response, quote) || settlement,
+      );
+    }
     if (body?.status === 'queued' || body?.status === 'in_progress') continue;
     throw new Error('image poll returned no terminal result');
   }
@@ -195,6 +237,8 @@ export async function generateImage({
       signature,
       costUsd: quote.amountUsd,
       receiptId: paymentReceiptId(paid),
+      settlement: paymentSettlement(paid, quote),
+      quote,
       fetchImpl,
       sleepImpl,
       pollIntervalMs,
@@ -204,5 +248,5 @@ export async function generateImage({
   if (paid.status !== 200) {
     throw new Error(`paid image generation returned HTTP ${paid.status}`);
   }
-  return imageResult(paid, quote.amountUsd);
+  return imageResult(paid, quote.amountUsd, quote);
 }

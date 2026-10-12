@@ -63,20 +63,22 @@ function recent(rows, startMs, endMs) {
   });
 }
 
-function sumField(rows, fields) {
-  return Math.round((Array.isArray(rows) ? rows : []).reduce((sum, row) => {
-    const value = fields.map((field) => row?.[field]).find((candidate) => candidate !== undefined);
-    const number = Number(value);
-    return Number.isFinite(number) && number >= 0 ? sum + number : sum;
-  }, 0) * 1e6) / 1e6;
-}
-
-function verifiedCostRows(rows) {
-  return (Array.isArray(rows) ? rows : []).filter((row) => {
+function sumVerifiedCost(rows, fields) {
+  if (!Array.isArray(rows) || rows.length === 0) return null;
+  let total = 0;
+  for (const row of rows) {
     const proof = row?.proof && typeof row.proof === "object" ? row.proof : row;
     const receiptId = proof.provider_receipt_id || proof.payment_receipt_id;
-    return proof.verified === true && typeof receiptId === "string" && receiptId.trim().length > 0;
-  });
+    const value = fields.map((field) => row?.[field]).find((candidate) => candidate !== undefined);
+    if (proof?.verified !== true || typeof receiptId !== "string" || receiptId.trim().length === 0
+      || value === null || value === undefined || (typeof value === "string" && value.trim().length === 0)) {
+      return null;
+    }
+    const amount = Number(value);
+    if (!Number.isFinite(amount) || amount < 0) return null;
+    total += amount;
+  }
+  return Math.round(total * 1e6) / 1e6;
 }
 
 export function summarizeEconomyStatus({
@@ -97,8 +99,8 @@ export function summarizeEconomyStatus({
   // Production status requires the same verified proof gate as the reconcile loop.  Legacy rows that
   // merely claim status=0x1 remain visible as unverified but never become realized revenue.
   const revenue = summarizeRealizedRevenue(earn30, corrections);
-  const computeCost = sumField(verifiedCostRows(compute30), ["cost_usdc", "cost_usd", "costUsd"]);
-  const shelterCost = sumField(verifiedCostRows(shelter30), ["shelter_cost_usd", "settledLeaseCostUsd"]);
+  const computeCost = sumVerifiedCost(compute30, ["cost_usdc", "cost_usd", "costUsd"]);
+  const shelterCost = sumVerifiedCost(shelter30, ["shelter_cost_usd", "settledLeaseCostUsd"]);
   const graduation = graduationGate({
     externalRealizedNet30d: revenue.external_net_usdc,
     computeCost30d: computeCost,

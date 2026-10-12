@@ -980,10 +980,10 @@ async function runAlwaysActWake({ ctx, wakeId, ts, alwaysActMenu }) {
 }
 
 /**
- * Shared THINK-transport-failure handler: writes the SAME `kind:'wake_error'` ledger line +
+ * Shared THINK-failure handler: writes the SAME `kind:'wake_error'` ledger line +
  * harness-failure detail (SLEEP_ERROR_S backoff, not SLEEP_BASE_S) that runOneWake's own non-always-
- * act path writes, and sleeps — used by both the always-act and non-always-act code paths so a brain-
- * transport failure is recorded/backed-off identically regardless of which path hit it.
+ * act path writes, and sleeps — used by both the always-act and non-always-act code paths. Typed
+ * pre-provider admission deferrals retain their admission layer and subprocess exit code.
  */
 async function writeWakeErrorAndSleep({ wakeId, ts, err }) {
   process.stderr.write(`[loop] THINK failed: ${err.message}\n`);
@@ -1000,11 +1000,13 @@ async function writeWakeErrorAndSleep({ wakeId, ts, err }) {
     error: redactPrivateKeyPatterns(err.message || 'unknown').slice(0, 200), model: currentTier.model,
   });
   await safeAppend(LEDGER_PATH, record);
+  const failureLayer = err?.failureLayer === 'admission' ? 'admission' : 'brain_transport';
+  const exitCode = Number.isInteger(err?.exitCode) ? err.exitCode : null;
   // R6: err.message is NOT already redacted anywhere upstream (raw HTTP-response body/subprocess-
   // stderr text from brain.mjs's thinkProxy/thinkClaudeP/httpPost) — this is the ONE new
   // redactPrivateKeyPatterns call site this feature introduces, before any further processing.
   await appendHarnessFailure({
-    ts, wakeId, kind: 'wake_error', layer: 'brain_transport', exitCode: null,
+    ts, wakeId, kind: 'wake_error', layer: failureLayer, exitCode,
     rawDetail: redactPrivateKeyPatterns(err.message || ''),
   });
   await sleepSecs(sleepS);
@@ -1143,8 +1145,8 @@ function buildSkillEnv(slot, wakeId, config, scrub, scrubPII, args) {
 
 /**
  * anicca-harness-tooluse-health R6: append one JSON line to $ANICCA_HOME/state/harness-failures.jsonl
- * via the EXISTING appendLedgerLine primitive (never a new writer). `slot` is omitted entirely for
- * brain_transport (R1: brain-transport failures precede tool selection). `detail` is
+ * via the EXISTING appendLedgerLine primitive (never a new writer). `slot` is omitted for failures
+ * before tool selection, including brain_transport and typed admission deferrals. `detail` is
  * capFailureDetail(rawDetail) — whitespace-collapsed and capped at 4000 chars, distinct from and
  * never affecting ledger.jsonl's own 900-char `result` cap (INV-NO-PROMPT-REGRESSION).
  */

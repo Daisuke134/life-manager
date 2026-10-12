@@ -1839,6 +1839,48 @@ class LmLoopApplyTest(unittest.TestCase):
         self.assertEqual(environment["ANICCA_FUNDED_MODEL"], "gpt-5.6-terra")
         self.assertNotIn("CEO_EFFECTIVE_CRON_DIR", environment)
 
+    def test_taskmarket_work_plist_reuses_agent_economy_instance_without_sharing_loop_state(self):
+        value = registry()
+        entry = value["loops"].pop("example")
+        entry.update({
+            "label": "ai.anicca.agent-economy-taskmarket-work",
+            "domain": "earn",
+            "effect_class": "money",
+            "state_root": "~/.local/state/life-manager/agent-economy/taskmarket-work",
+            "log_root": "~/.local/state/life-manager/agent-economy/taskmarket-work/logs",
+            "resource_class": "agent",
+            "admission_class": "revenue",
+            "priority": "revenue",
+            "admission_effect_scope": "owner",
+            "coalesce_queued_wakes": True,
+            "coalesce_reserved_wakes": True,
+            "reconcile_queued_release": True,
+        })
+        value["loops"]["agent-economy-taskmarket-work"] = entry
+        custom_home = "/private/life-manager-taskmarket"
+        previous = os.environ.get("LIFE_MANAGER_HOME")
+        os.environ["LIFE_MANAGER_HOME"] = custom_home
+        try:
+            rendered = plistlib.loads(build_apply_plan(value, self.root, SHA)[0]["plist_bytes"])
+        finally:
+            if previous is None:
+                os.environ.pop("LIFE_MANAGER_HOME", None)
+            else:
+                os.environ["LIFE_MANAGER_HOME"] = previous
+
+        environment = rendered["EnvironmentVariables"]
+        state = Path(custom_home) / "agent-economy"
+        instance = state / "instance"
+        earn_state = instance / "state/skills/earn"
+        taskmarket_state = state / "taskmarket-work"
+        self.assertEqual(environment["LIFE_MANAGER_STATE_ROOT"], str(taskmarket_state))
+        self.assertEqual(environment["LIFE_MANAGER_LOG_ROOT"], str(taskmarket_state / "logs"))
+        self.assertEqual(environment["ANICCA_HOME"], str(instance))
+        self.assertEqual(environment["EARN_STATE_ROOT"], str(earn_state))
+        self.assertEqual(environment["EARN_LEDGER"], str(earn_state / "earn-ledger.jsonl"))
+        self.assertEqual(environment["AGENT_ECONOMY_STATE_ROOT"], str(state))
+        self.assertNotIn("ANICCA_BRAIN", environment)
+
     def test_agent_economy_plist_uses_explicit_local_install_home(self):
         value = registry()
         entry = value["loops"].pop("example")

@@ -20,8 +20,18 @@ delayed receipts and reports the truth that the other earn slots use.
 - `lib/money-truth.mjs` joins delayed EVM receipt results without rewriting `earn-ledger.jsonl`.
 - `receipt-reconciliations.jsonl` is the append-only tx-keyed correction sidecar for delayed receipts.
 - `lib/treasury-policy.mjs` defines reserve, committed-liability, session-cap, and graduation rules.
-- `../earn/taskmarket/` is the first work lane: one official TaskMarket job, bounded BlockRun image spend,
-  submission readback, and a separate award observer.
+- `../earn/taskmarket/` is the first work lane: `agent-economy-taskmarket-work` runs its existing
+  one-shot worker every five minutes under the revenue admission and owner fence. It handles one
+  official TaskMarket job with bounded BlockRun image spend,
+  submission readback, and a finalized award receipt projected only after the official task and Base
+  transfer verifier pass. A submission row is only a task pointer: count revenue only when the official
+  task is `completed`, lists this worker's canonical award, and the existing verifier confirms its exact
+  finalized Base USDC transfer. TaskMarket documents `completed` as terminal payout indexed and awards
+  as `TaskCompleted` event rows; pre-payout escrow refunds are separate task resolutions. See
+  [task schema](https://docs.taskmarket.dev/reference/task-schema),
+  [payments](https://docs.taskmarket.dev/reference/payments), and
+  [fees and payouts](https://docs.taskmarket.dev/concepts/fees-payments). A submission or wallet handoff
+  is not customer revenue.
 - `../earn/x402-sell/` is the passive seller lane. Keep one stable product and measure external settlements;
   self-pay probes are not revenue.
 
@@ -50,6 +60,9 @@ bash "$LIFE_MANAGER_REPO/skills/agent-economy/run.sh"
 
 The output is one JSON summary. `unverified_external_rows` is visible but contributes zero to
 `external_net_usdc`. A missing RPC receipt remains retryable; it is never silently treated as success.
+Compute and shelter cost totals stay `null` unless every row in the 30-day window has a verified
+provider receipt and numeric cost; an empty or incomplete journal is not zero cost.
+Provider revenue receipts also require explicit fee and refund amounts; absent fields are not zero.
 
 Mutable ledgers and cost journals live under
 `~/.local/state/life-manager/agent-economy/`. Set `AGENT_ECONOMY_STATE_ROOT` to override it.
