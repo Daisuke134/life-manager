@@ -4,7 +4,7 @@ import hashlib
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 
-from ..telegram import send_once
+from ..telegram import is_configured, send_once
 from .contracts import QueueRowReceiptV1
 
 
@@ -78,13 +78,21 @@ def send_hourly_outcomes(
     )
     if not visible_receipts:
         return {"status": "suppressed", "message_id": None}
+    if sender is None or (sender is send_once and not is_configured()):
+        return {"status": "suppressed", "message_id": None}
     message = build_hourly_outcome_message(visible_receipts, evidence_classes)
     digest = hashlib.sha256(message.encode()).hexdigest()[:16]
-    result = sender(
-        database=database,
-        event_key=f"job-search-hourly:{_line(wake_id)}:{digest}",
-        message=message,
-    )
+    try:
+        result = sender(
+            database=database,
+            event_key=f"job-search-hourly:{_line(wake_id)}:{digest}",
+            message=message,
+        )
+    except Exception as error:
+        return {"status": "failed", "message_id": None, "error_class": type(error).__name__}
     if result.get("status") != "sent" or not result.get("message_id"):
-        raise RuntimeError("hourly Telegram outcome has no acknowledged message ID")
+        return {
+            "status": str(result.get("status") or "failed"),
+            "message_id": None,
+        }
     return result
