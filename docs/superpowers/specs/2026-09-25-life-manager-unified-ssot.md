@@ -15111,7 +15111,7 @@ Capafy公式Xの公開indexには、Ocupの100 sales紹介と、あるcreatorの
 
 **調査参照:** `skills/earn/capafy-marketing/scripts/capafy_hourly_reconcile.py`、`skills/earn/capafy-marketing/scripts/capafy_scoreboard.py`、`skills/capafy-autopublish/scripts/inventory_status.py`、`skills/capafy-autopublish/CP1_AGENTIC.md`、`skills/capafy-autopublish/PUBLISHING_RUNBOOK.md`、`skills/capafy/FROZEN.json`。公開比較対象: [HookAce](https://capafy.ai/agent/hookace-first-6-second-retention-predictor/3264203863)、[Ocup Football Analysis](https://capafy.ai/agent/ocup-analysis/2553639947)、[Serenity Stock Tracker](https://capafy.ai/agent/serenity-stock-tracker/2521387714)、[TikTok Scripts](https://capafy.ai/agent/6182575730)、[CapafyのOcup 100 sales投稿](https://x.com/Capafyai/status/2069420218057904378)、[初週$4,208/short-videoのCapafy事例](https://x.com/Capafyai/status/2072302872654499993)。
 
-## Capafy buyer-query rank update 2026-10-12 17:42 JST
+## Capafy buyer-query rank update 2026-10-12 17:46 JST
 
 この追記は17:01 cursorの「buyer query rank unknown」をrank測定について更新する。検索impressions・query volume・検索需要の分母は引き続きunknown。
 
@@ -15132,11 +15132,11 @@ Capafy公式Xの公開indexには、Ocupの100 sales紹介と、あるcreatorの
 
 直近のCTは6 views / 0 paid（slides_ig 2、hooklab_ig 2、youtube_ig 1、tiktok_blog 1）。X由来CTは0。既存48枠selectorはHook Lab 24、TikTok Script Pro 8、Marketing Strategist 8、YouTube Script Writer 8のまま維持し、投稿量は増やさない。Hook Labのhot経由paidと他3件のexact-query search paidを別々に追う。新Agent枠は既に順位1位のbuyer jobを重複せず、空いている高意図queryに固有の納品物を割り当てる。順位・listing salesVolumeだけで枠を使わず、query別page views→trial→paidを同時追跡する。
 
-**Revenue / factory / distribution as-of 17:42 JST:** 最新Capafy money fileはmtime 16:16、observed_at 16:08、orders 70 / gross $102.75、net_mrr_usd=null / settled_mrr_usd=null。capafy_hourly_reconcile.py --money --jsonのread-only実行は180秒timeoutし、stateは更新していない。first-paid milestoneは未達。disk freeは1,441,796 KiB（約1.38 GiB）で2 GiB未満。17:41のfactory occurrence 18ddbb858e5de8a8-13704はhost_admission_deferred:resource_capacity_busy, effect not_applicable。17:42 statusはloaded-runningを示したため自然terminalを待つ。配信ownerのcurrent effect_unknownは 18ddba95d7238480-19441（17:23 JST）。17:28のregistered distributor adapterはtoo_recent:546s<=5100sでheldし、再送していない。no-effect proofの最短時刻は18:44:10 JST。latest published ledgerは引き続きh14m30。
+**Revenue / factory / distribution as-of 17:46 JST:** 最新Capafy money fileはmtime 16:16、observed_at 16:08、orders 70 / gross $102.75、net_mrr_usd=null / settled_mrr_usd=null。capafy_hourly_reconcile.py --money --jsonのread-only実行は180秒timeoutし、stateは更新していない。first-paid milestoneは未達。dfは17:42に1,441,796 KiB、17:46に4,424,372 KiB free（約4.22 GiB）を示したが、disk-cleanup last-receipt/candidate-cursorは10/9、host-inventoryは9/9で、増加元をowner receiptから確認できない。17:41 factory occurrence 18ddbb858e5de8a8-13704はhost_admission_deferred:resource_capacity_busy, effect not_applicable。17:46 statusはloaded-running PID 45869を示し、psでも同PIDが存続。原因はdiskと断定せずnatural terminalを待つ。配信ownerのcurrent effect_unknownは 18ddba95d7238480-19441（17:23 JST）。17:28のregistered distributor adapterはtoo_recent:546s<=5100sでheldし、再送していない。no-effect proofの最短時刻は18:44:10 JST。latest published ledgerは引き続きh14m30。
 
-**Current cursor（17:42 JST）:**
+**Current cursor（17:46 JST）:**
 1. live factory occurrence 18ddbb858e5de8a8-13704のnatural terminalを読み、resource_capacity_busyが解消した時だけ次の通常runへ進む。new-Agent操作を重複しない。
-2. existing disk-watchdog receiptとfresh dfを照合し、allowlist経由で2 GiBまで回復する。latest resource_capacity_busyをdisk原因と決めつけない。
+2. df上は4.22 GiB freeだが、cleanup receiptとinventoryは古く、増加元はunknown。既存disk-watchdogのfresh receiptを取得し、allowlistとbefore/afterで回復元を確認する。latest resource_capacity_busyをdisk原因と決めつけない。
 3. distributor occurrence 18ddba95d7238480-19441は18:44:10 JST以降にregistered capafy_distribute_fence_reconcile.pyでreadbackする。effect/no-effectを証拠で判定し、closed receiptがなければ投稿を再送しない。
 4. 次のnatural hourly successでofficial orders/gross/refunds/MRR/source readbackを更新する。直接money read timeoutの境界を診断し、16:08 snapshotをcurrentと呼ばない。
 5. 7 queryのbuyer rankを日次で保存し、search/hot/ai_overviewのviews・trials・paidとAgent別に結ぶ。impressions/query volumeはprovider sourceが見つかるまでunknownを保持する。CTが増えた時だけoriginal creativeを一件ずつscaleする。
