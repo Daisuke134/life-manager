@@ -783,26 +783,72 @@ test("each eBook publication occurrence owns exactly one provider platform effec
   assert.equal(jobs.every((job) => job.loop_id === "marketing.video.publish"), true);
 });
 
-test("an unregistered eBook account fails before any render or provider work", async () => {
-  const dataDir = path.join(os.tmpdir(), `ebook-closed-${process.pid}-${Date.now()}`);
-  const env = {
-    LIFE_MANAGER_LOOP_ID: "ebook-ja-instagram-daily",
-    LIFE_MANAGER_OCCURRENCE_ID: "ebook-ja-instagram-daily:run-1",
-    LIFE_MANAGER_RELEASE_ROOT: ROOT,
-    LIFE_MANAGER_RESULT_HINT_PATH: path.join(dataDir, "entrypoint-result.json"),
-    LM_DATA_DIR: dataDir,
-    LM_RUNTIME_TENANT_ID: "dais-local",
-  };
+test("an unregistered eBook account is rejected by the destination contract", () => {
   const pack = { ...PACK, accounts: PACK.accounts.filter((row) => row.account_id !== "instagram.obou_anicca") };
   assert.throws(() => selectTarget({
     root: ROOT, pack, ownerId: "ebook-ja-instagram-daily",
     platform: "instagram", accountId: "instagram.obou_anicca",
   }));
-  await assert.rejects(run(["ebook-ja-instagram-daily"], {
-    env,
-    nowMs: Date.parse("2026-10-06T08:00:00+09:00"),
-  }), /readiness gate is closed/);
-  assert.equal(fs.existsSync(dataDir), false);
+});
+
+test("a closed eBook publication readiness gate records no effect", async () => {
+  const ownerId = "ebook-en-tiktok-daily";
+  const dataDir = path.join(os.tmpdir(), `ebook-closed-${process.pid}-${Date.now()}`);
+  const env = {
+    LIFE_MANAGER_LOOP_ID: ownerId,
+    LIFE_MANAGER_OCCURRENCE_ID: `${ownerId}:run-1`,
+    LIFE_MANAGER_RELEASE_ROOT: ROOT,
+    LIFE_MANAGER_RESULT_HINT_PATH: path.join(dataDir, "entrypoint-result.json"),
+    LM_DATA_DIR: dataDir,
+    LM_RUNTIME_TENANT_ID: "dais-local",
+  };
+
+  try {
+    const result = await run([ownerId], {
+      env,
+      nowMs: Date.parse("2026-10-06T08:00:00+09:00"),
+    });
+    assert.deepEqual(result, {
+      state: "publication_disabled",
+      reason: "publication_readiness_gate_closed",
+      owner_id: ownerId,
+      effect: 0,
+    });
+    assert.deepEqual(JSON.parse(fs.readFileSync(env.LIFE_MANAGER_RESULT_HINT_PATH, "utf8")), {
+      schema_version: 1,
+      kind: "life_manager_no_effect_result",
+      status: "verified_no_effect",
+      effect: 0,
+      owner_id: ownerId,
+      occurrence_id: `${ownerId}:run-1`,
+      reason: "publication_readiness_gate_closed",
+    });
+  } finally {
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
+test("a closed publishing gate still blocks other eBook owners", async () => {
+  const ownerId = "ebook-ja-tiktok-daily";
+  const dataDir = path.join(os.tmpdir(), `ebook-closed-${process.pid}-${Date.now()}`);
+  const env = {
+    LIFE_MANAGER_LOOP_ID: ownerId,
+    LIFE_MANAGER_OCCURRENCE_ID: `${ownerId}:run-1`,
+    LIFE_MANAGER_RELEASE_ROOT: ROOT,
+    LIFE_MANAGER_RESULT_HINT_PATH: path.join(dataDir, "entrypoint-result.json"),
+    LM_DATA_DIR: dataDir,
+    LM_RUNTIME_TENANT_ID: "dais-local",
+  };
+
+  try {
+    await assert.rejects(run([ownerId], {
+      env,
+      nowMs: Date.parse("2026-10-08T20:00:00+09:00"),
+    }), /readiness gate is closed/);
+    assert.equal(fs.existsSync(env.LIFE_MANAGER_RESULT_HINT_PATH), false);
+  } finally {
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
 });
 
 test("the standing policy only approves the current Japanese baseline claim set", () => {

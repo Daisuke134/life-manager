@@ -189,7 +189,7 @@ function writeNoEffectResult(env, ownerId, reason) {
   const configuredOwner = required(env.LIFE_MANAGER_LOOP_ID, "Life Manager loop ID");
   const occurrenceId = required(env.LIFE_MANAGER_OCCURRENCE_ID, "Life Manager occurrence ID");
   if (configuredOwner !== ownerId || !occurrenceId.startsWith(`${ownerId}:`)
-      || !["setup_required", "no_due_slot", "render_not_ready"].includes(reason)) {
+      || !["setup_required", "no_due_slot", "render_not_ready", "publication_readiness_gate_closed"].includes(reason)) {
     throw new Error("eBook no-effect result identity is invalid");
   }
   atomicJson(file, {
@@ -508,7 +508,12 @@ async function run(argv = process.argv.slice(2), deps = {}) {
   }
 
   if (env.LM_EBOOK_PUBLISHING_ENABLED !== "true") {
-    throw new Error("eBook publication readiness gate is closed");
+    if (ownerId !== "ebook-en-tiktok-daily") {
+      throw new Error("eBook publication readiness gate is closed");
+    }
+    const reason = "publication_readiness_gate_closed";
+    writeNoEffectResult(env, ownerId, reason);
+    return { state: "publication_disabled", reason, owner_id: ownerId, effect: 0 };
   }
   const apiKey = required(env.LM_POSTIZ_API_KEY, "LM_POSTIZ_API_KEY");
   const stateRoot = path.join(dataDir, "marketing", "ebook");
