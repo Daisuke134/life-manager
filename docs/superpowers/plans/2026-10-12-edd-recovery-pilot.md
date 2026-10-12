@@ -12,7 +12,15 @@
 
 **Spec:** [EDD recovery pilot design](../specs/2026-10-12-edd-recovery-pilot-design.md)
 
-**読者向け説明:** [PR #7798: Agent eval handbook HTMLと図2点](https://github.com/Daisuke134/life-manager/pull/7798)。draftであり、PR未mergeのため公開済みとは扱わない。
+**読者向け説明:** [PR #7798: Agent eval handbookと図](https://github.com/Daisuke134/life-manager/pull/7798)。英語版はAnicca `/blog` とX Articleへ別途配信する。公開記事はE01–E06の完了や実測性能とは数えない。
+
+### 英語記事の配信atom
+
+- [x] 英文と出典snapshotを固定し、合成fixture・収益・lab採用に関する限界を保持する。一次資料とfresh read-only adversarial verificationで確認済み。
+- [x] 既存 `/blog` テンプレートに記事recordと画像を追加し、site PRをmainへ統合。PR #456 merge `23b2eeb`、deploy/smoke PASS、live本文readback、画像3件HTTP 200を確認。
+- [x] live登録済み `x:anicca` accountから英語記事へ誘導する標準X postを公開する（X Articles editorは公式URLで404）。本文とblog linkのreadback済み。
+- [x] X post URLをblog mirror metadataに入れ、site PR #457をmainへ統合。deploy/smoke PASS、live pageのX hrefと表示 `X ↗` を確認。
+- [x] blog/Xの実URLと公式readbackをこのspecへ記録する。記事配信をagent実行、自然収益、E06完了、lab採用として数えない。
 
 ## Global Constraints
 

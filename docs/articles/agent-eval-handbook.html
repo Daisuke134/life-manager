@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="theme-color" content="#102d3a">
+  <meta name="description" content="良いagent evalの作り方を、trace・outcome・graderの基本から、Life ManagerのWriter pilotと費用控除後の収益評価まで具体例で解説します。">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="良いagent evalは、仕事の結果を測る">
+  <meta property="og:description" content="評価の基礎からLife ManagerのEDD pilotまで。品質合格と実収益を分けて測る方法。">
+  <title>良いagent evalは、仕事の結果を測る | Life Manager</title>
+<style>
+:root{
+  --ink:#132d3b;--ink-soft:#31505f;--muted:#5c737e;--paper:#f4f1e9;--card:#fffefa;
+  --line:#d9e1dc;--blue:#1f6171;--blue-dark:#123a4a;--teal:#167e75;--teal-pale:#e7f2ed;
+  --orange:#d9743c;--orange-pale:#fff1e6;--gold:#e4b24f;--shadow:0 18px 50px rgba(18,45,58,.09);
+  --serif:Georgia,"Iowan Old Style","Yu Mincho","Hiragino Mincho ProN",serif;
+  --sans:system-ui,-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:28px}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.9 var(--sans);-webkit-font-smoothing:antialiased}
+a{color:#155c70;text-underline-offset:3px}
+a:hover{color:#0c3543}
+a:focus-visible,summary:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
+.skip-link{position:absolute;left:12px;top:-70px;padding:10px 14px;background:white;border-radius:8px;z-index:10}
+.skip-link:focus{top:12px}
+.hero{position:relative;overflow:hidden;background:var(--blue-dark);color:#f7f5ee;padding:28px 24px 68px}
+.hero:before,.hero:after{content:"";position:absolute;border:1px solid rgba(235,203,135,.25);border-radius:50%;pointer-events:none}
+.hero:before{width:570px;height:570px;right:-130px;top:-305px}
+.hero:after{width:390px;height:390px;right:65px;top:-210px}
+.hero-inner{max-width:1200px;margin:0 auto;position:relative;z-index:1}
+.masthead{display:flex;align-items:center;justify-content:space-between;gap:18px;padding-bottom:56px;border-bottom:1px solid rgba(255,255,255,.18)}
+.brand{font-size:.78rem;font-weight:800;letter-spacing:.15em;text-transform:uppercase;color:#d6e5df}
+.issue{font-size:.78rem;color:#b8cdc9}
+.hero-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(260px,.75fr);gap:48px;align-items:center;padding-top:46px}
+.kicker,.section-kicker{font-size:.75rem;font-weight:800;letter-spacing:.15em;text-transform:uppercase;color:#cde2d9}
+.hero h1{max-width:820px;margin:17px 0 16px;font:500 clamp(2.6rem,6vw,5rem)/1.12 var(--serif);letter-spacing:-.04em}
+.hero h1 em{font-style:normal;color:#f0c673}
+.hero-deck{max-width:750px;color:#dce7df;font-size:clamp(1.02rem,1.7vw,1.23rem);line-height:1.8;margin:0}
+.hero-links{display:flex;flex-wrap:wrap;gap:10px;margin-top:28px}
+.hero-links a{display:inline-flex;align-items:center;gap:8px;color:#f7f5ee;text-decoration:none;border:1px solid rgba(255,255,255,.35);border-radius:999px;padding:9px 15px;font-size:.88rem}
+.hero-links a:hover{background:rgba(255,255,255,.1)}
+.hero-flow{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.18);border-radius:22px;padding:22px;box-shadow:0 20px 45px rgba(0,0,0,.12)}
+.hero-flow-label{font-size:.72rem;letter-spacing:.11em;text-transform:uppercase;color:#b9d4cb;margin:0 0 15px}
+.flow-row{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center}
+.flow-node{min-height:66px;display:grid;place-items:center;text-align:center;padding:10px;border-radius:13px;background:#f1eee4;color:var(--ink);font-weight:750;font-size:.9rem}
+.flow-node.outcome{background:#d8eee4}
+.flow-arrow{color:#f0c673;font-size:1.2rem}
+.flow-score{margin-top:12px;padding:12px;border-radius:12px;background:var(--orange-pale);color:#753d24;font-size:.84rem;font-weight:700;text-align:center}
+.hero-note{font-size:.79rem;color:#c5d6d0;margin:14px 0 0}
+.layout{max-width:1200px;margin:-26px auto 80px;padding:0 24px;display:grid;grid-template-columns:235px minmax(0,1fr);gap:32px;position:relative}
+.rail{align-self:stretch}
+.rail-inner{position:sticky;top:22px;padding:20px 18px;background:rgba(255,254,250,.88);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow)}
+.rail-label{font-size:.7rem;font-weight:850;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;margin:0 0 12px}
+.toc{display:grid;gap:5px}
+.toc a{padding:8px 9px;border-radius:9px;text-decoration:none;color:var(--ink-soft);font-size:.84rem;line-height:1.5}
+.toc a:hover{background:var(--teal-pale);color:var(--ink)}
+.rail-callout{margin-top:20px;padding-top:16px;border-top:1px solid var(--line)}
+.rail-callout strong{display:block;font:600 1.1rem/1.35 var(--serif);margin-bottom:7px}
+.rail-callout p{font-size:.82rem;line-height:1.65;margin:0;color:var(--muted)}
+.content{min-width:0}
+.lead,.chapter,.todo,.closing{background:var(--card);border:1px solid var(--line);border-radius:21px;box-shadow:var(--shadow);margin:22px 0;padding:clamp(22px,4.5vw,48px)}
+.lead{margin-top:0;border-top:4px solid var(--gold)}
+.pill{display:inline-flex;align-items:center;gap:7px;background:#e7f0ea;color:#225c52;border-radius:999px;padding:5px 12px;font-size:.75rem;font-weight:850;letter-spacing:.04em}
+.lead h2{font:600 clamp(1.55rem,3vw,2.2rem)/1.35 var(--serif);margin:15px 0 10px;letter-spacing:-.02em}
+.lead p{max-width:800px;color:var(--ink-soft);margin:10px 0}
+.truth-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:23px}
+.truth{padding:15px 16px;border-radius:13px;background:#f5f3eb;border:1px solid #ebe6d9}
+.truth b{display:block;font-size:.84rem;margin-bottom:4px}
+.truth span{display:block;color:var(--muted);font-size:.81rem;line-height:1.55}
+.chapter{padding-top:34px}
+.chapter-head{display:flex;gap:17px;align-items:flex-start;margin-bottom:18px}
+.chapter-number{flex:none;width:42px;height:42px;display:grid;place-items:center;background:var(--blue-dark);color:#f6d180;border-radius:13px;font:700 1.08rem var(--serif)}
+.chapter-title{margin:0;font:600 clamp(1.7rem,3.1vw,2.55rem)/1.22 var(--serif);letter-spacing:-.025em}
+.chapter-deck{margin:9px 0 0;color:var(--muted);font-size:1.03rem}
+h3{font:650 clamp(1.22rem,2vw,1.55rem)/1.4 var(--serif);margin:2.2em 0 .55em;letter-spacing:-.012em}
+h4{font-size:1.04rem;margin:0 0 6px}
+p{margin:.82em 0}
+strong{color:#143b49}
+.tag{display:inline-block;border-radius:999px;background:#edf2ed;color:#316357;padding:4px 10px;font-size:.73rem;font-weight:800;letter-spacing:.05em}
+.deck{font-size:1.08rem;color:var(--ink-soft);max-width:830px}
+.callout{border-left:4px solid var(--orange);background:var(--orange-pale);padding:16px 19px;border-radius:0 13px 13px 0;margin:22px 0;color:#653d29}
+.callout strong{color:#743e24}
+.callout.green{border-color:var(--teal);background:var(--teal-pale);color:#254e48}
+figure{margin:26px 0 30px}
+figure img{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:15px;background:#fff;box-shadow:0 9px 25px rgba(19,45,59,.07)}
+figcaption{text-align:left;color:var(--muted);font-size:.82rem;line-height:1.55;margin:9px 4px 0}
+.table-wrap{overflow-x:auto;margin:18px 0;border:1px solid var(--line);border-radius:13px}
+table{width:100%;min-width:620px;border-collapse:collapse;background:#fff;margin:0;font-size:.9rem}
+th,td{padding:11px 13px;border-bottom:1px solid #e7ece7;text-align:left;vertical-align:top}
+th{background:#edf3ed;color:#193e48;font-size:.78rem;letter-spacing:.04em}
+tr:last-child td{border-bottom:0}
+tr.selected td{background:#edf6f0}
+td code{white-space:nowrap}
+code{background:#edf1ed;border-radius:5px;padding:.13em .35em;font-size:.88em;overflow-wrap:anywhere}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#132f3a;color:#ecf2e8;border-radius:14px;padding:18px 20px;font-size:.83rem;line-height:1.7;overflow:auto}
+pre code{background:none;color:inherit;padding:0}
+.example-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin:18px 0}
+.example-card{padding:17px;border-radius:14px;border:1px solid var(--line);background:#fbfaf5}
+.example-card.fail{border-top:3px solid var(--orange)}
+.example-card.pass{border-top:3px solid var(--teal)}
+.example-card p{font-size:.91rem;color:var(--ink-soft);margin:.45em 0}
+.verdict{display:inline-flex;border-radius:999px;padding:4px 10px;font-size:.75rem;font-weight:850;background:#fbe9dd;color:#773c22}
+.verdict.good{background:#e4f2e9;color:#245f49}
+.metric-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:20px 0}
+.metric{padding:17px;border:1px solid var(--line);border-radius:14px;background:#fbfaf6}
+.metric .metric-name{display:flex;gap:10px;align-items:center;font-weight:800;margin-bottom:6px}
+.metric .n{width:26px;height:26px;display:grid;place-items:center;background:var(--blue-dark);color:#fff;border-radius:50%;font-size:.73rem}
+.metric p{font-size:.87rem;color:var(--muted);margin:0}
+.split-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:18px 0}
+.split-card{padding:18px;border-radius:15px;background:#f4f6ef;border:1px solid var(--line)}
+.split-card.recovery{border-top:3px solid var(--orange)}
+.split-card.improve{border-top:3px solid var(--teal)}
+.split-card p{font-size:.9rem;color:var(--ink-soft)}
+details{margin:17px 0;border:1px solid var(--line);border-radius:13px;background:#fcfbf6}
+summary{cursor:pointer;list-style:none;padding:15px 18px;font-weight:800;color:var(--blue-dark)}
+summary::-webkit-details-marker{display:none}
+summary:after{content:"＋";float:right;color:var(--teal);font-weight:700}
+details[open] summary:after{content:"−"}
+details .details-body{padding:0 16px 16px}
+.stage-list{display:grid;gap:12px;counter-reset:stage}
+.stage{display:grid;grid-template-columns:46px minmax(0,1fr);gap:14px;padding:16px;border:1px solid var(--line);border-radius:14px;background:#fff}
+.stage::before{counter-increment:stage;content:counter(stage,decimal-leading-zero);width:39px;height:39px;display:grid;place-items:center;background:var(--teal-pale);color:#1e655c;border-radius:12px;font-weight:900;font-size:.8rem}
+.stage h4{margin:1px 0 5px}
+.stage p{font-size:.88rem;color:var(--muted);margin:0}
+.source-list{display:grid;grid-template-columns:1fr 1fr;gap:8px 20px;padding-left:20px}
+.source-list li{padding:3px 0;font-size:.86rem}
+.small{font-size:.82rem;color:var(--muted)}
+.sources{margin-top:30px;padding:19px 21px;background:#f0f3ec;border-radius:15px}
+.sources h3{font:800 .88rem var(--sans);text-transform:uppercase;letter-spacing:.1em;margin:0 0 9px}
+.sources ul{margin:0;padding-left:20px}
+.sources li{font-size:.82rem;margin:5px 0}
+.todo{border-top:4px solid var(--teal)}
+.todo-intro{color:var(--muted);max-width:800px}
+.todo-group{margin-top:22px;padding-top:17px;border-top:1px solid var(--line)}
+.todo-group h3{margin:0 0 12px;font:800 .85rem var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--teal)}
+.todo-list{list-style:none;padding:0;margin:0;display:grid;gap:8px}
+.todo-list li{display:grid;grid-template-columns:24px 1fr;gap:10px;align-items:start;font-size:.91rem}
+.todo-list li:before{content:"";width:15px;height:15px;margin-top:7px;border:1.5px solid #7f9b91;border-radius:4px}
+.closing{background:var(--blue-dark);color:#f7f4eb;border:0}
+.closing h2{font:600 clamp(1.55rem,3vw,2.15rem)/1.3 var(--serif);margin:0 0 10px}
+.closing p{color:#d6e4de}
+.closing a{color:#f0c673}
+.footer{max-width:1200px;margin:0 auto;padding:5px 24px 36px;color:var(--muted);font-size:.78rem}
+.footer-inner{border-top:1px solid #cbd5d0;padding-top:16px;display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap}
+@media(max-width:980px){
+  .layout{grid-template-columns:190px minmax(0,1fr);gap:18px}
+  .rail-inner{padding:16px 12px}
+  .hero-grid{gap:25px}
+}
+@media(max-width:760px){
+  body{font-size:15.5px}
+  .hero{padding:20px 18px 48px}
+  .masthead{padding-bottom:28px}
+  .hero-grid{grid-template-columns:1fr;padding-top:32px}
+  .hero-flow{max-width:520px}
+  .layout{display:block;padding:0 14px;margin-top:-19px}
+  .rail{margin-bottom:16px}
+  .rail-inner{position:static;padding:12px 14px}
+  .toc{display:flex;overflow-x:auto;gap:5px}
+  .toc a{white-space:nowrap}
+  .rail-callout{display:none}
+  .lead,.chapter,.todo,.closing{padding:23px 19px;border-radius:16px;margin:15px 0}
+  .truth-grid{grid-template-columns:1fr}
+  .truth{padding:12px 14px}
+}
+@media(max-width:520px){
+  .hero h1{font-size:2.55rem}
+  .issue{font-size:.68rem;text-align:right}
+  .hero-links a{font-size:.8rem;padding:8px 11px}
+  .flow-node{min-height:58px;font-size:.8rem;padding:8px 5px}
+  .flow-arrow{font-size:.95rem}
+  .example-grid,.metric-grid,.split-grid,.source-list{grid-template-columns:1fr}
+  .chapter-head{gap:11px}
+  .chapter-number{width:35px;height:35px}
+  .stage{grid-template-columns:36px 1fr;gap:10px;padding:13px}
+  .stage::before{width:33px;height:33px}
+}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media print{
+  body{background:white;color:#111;font-size:11pt}
+  .hero{padding:25px;background:#123a4a!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .rail,.hero-links,.skip-link{display:none!important}
+  .layout{display:block;max-width:none;margin:0;padding:0}
+  .lead,.chapter,.todo,.closing{box-shadow:none;border:1px solid #aaa;break-inside:avoid}
+  details:not([open]) .details-body{display:block}
+  a{color:#111}
+}
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main">本文へ移動</a>
+<header class="hero" id="top">
+  <div class="hero-inner">
+    <div class="masthead">
+      <div class="brand">Life Manager · Evaluation Engineering</div>
+      <div class="issue">実データと未確認を分ける研究ノート</div>
+    </div>
+    <div class="hero-grid">
+      <div>
+        <p class="kicker">FIELD GUIDE · AGENT EVALUATION</p>
+        <h1>良いagent evalは、<em>仕事の結果</em>を測る</h1>
+        <p class="hero-deck">モデルの返答を採点するだけでは、現実の仕事が終わったかは分かりません。traceから失敗を見つけ、実際のoutcomeを確かめ、改善を同じ条件で比べる。その基本と、Life ManagerのWriter pilotを一つの流れで説明します。</p>
+        <div class="hero-links" aria-label="記事内リンク">
+          <a href="#basics">01 · evalの基本</a>
+          <a href="#life-manager">02 · Life Managerのpilot</a>
+          <a href="#roadmap">TODO · E01から公開まで</a>
+        </div>
+      </div>
+      <div class="hero-flow" aria-label="評価の流れ: task、実行記録、outcome、採点">
+        <p class="hero-flow-label">One run, four questions</p>
+        <div class="flow-row">
+          <div class="flow-node">task<br>何を頼んだか</div><span class="flow-arrow" aria-hidden="true">→</span>
+          <div class="flow-node">trace<br>どう動いたか</div>
+        </div>
+        <div class="flow-row" style="margin-top:9px">
+          <div class="flow-node outcome">outcome<br>何が起きたか</div><span class="flow-arrow" aria-hidden="true">→</span>
+          <div class="flow-node">eval<br>条件を満たしたか</div>
+        </div>
+        <div class="flow-score">task完了 ≠ 売上。外部receiptと費用で別に判定する。</div>
+        <p class="hero-note">Life Managerの18業務カタログをもとにした設計案。性能benchmarkの実測結果ではありません。</p>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main id="main" class="layout">
+  <aside class="rail" aria-label="目次と今回の結論">
+    <div class="rail-inner">
+      <p class="rail-label">In this article</p>
+      <nav class="toc">
+        <a href="#basics">01　evalの基本</a>
+        <a href="#example">02　小さな評価例</a>
+        <a href="#scores">03　何を採点するか</a>
+        <a href="#life-manager">04　Writerを選ぶ理由</a>
+        <a href="#roadmap">05　E01からのTODO</a>
+        <a href="#labs">06　研究所に使われる条件</a>
+      </nav>
+      <div class="rail-callout">
+        <strong>今回の結論</strong>
+        <p>最初はWriterの一記事の公開前quality eval。品質PASSを収益PASSと数えず、売上・費用は公式receiptから測ります。</p>
+      </div>
+    </div>
+  </aside>
+
+  <div class="content">
+    <section class="lead">
+      <span class="pill">先に結論</span>
+      <h2>Evalは「うまい返事」ではなく、仕事が成功したかを決める約束です</h2>
+      <p>最初に成功条件を決め、実行の記録と実際の結果をつなぎ、同じ条件で採点する。失敗を一つずつ再現できれば、修正が本当に効いたかを確かめられます。</p>
+      <div class="truth-grid">
+        <div class="truth"><b>task完了</b><span>頼まれた作業が終わったか。</span></div>
+        <div class="truth"><b>outcome</b><span>外の世界に何が残ったか。</span></div>
+        <div class="truth"><b>経済成果</b><span>settled入金から返金・fee・実費を引けるか。</span></div>
+      </div>
+    </section>
+
+    <article class="chapter" id="basics">
+      <div class="chapter-head"><span class="chapter-number">01</span><div><p class="section-kicker">The foundation</p><h2 class="chapter-title">log・trace・observability・traceability・evalは、別の役目を持ちます</h2><p class="chapter-deck">記録を集めるだけでは、仕事の成功を判定できません。</p></div></div>
+      <figure>
+        <img src="assets/agent-eval-traceability.png" alt="Observability、Trace、Traceability、Evalの役割とtaskからoutcomeを採点する流れ">
+        <figcaption>図1。記録を見つけ、実行をたどり、成果を成功条件と照らします。</figcaption>
+      </figure>
+      <div class="table-wrap"><table>
+        <thead><tr><th>言葉</th><th>簡単に言うと</th><th>Life Managerの例</th></tr></thead>
+        <tbody>
+          <tr><td><strong>log</strong></td><td>起きたことの時刻付き記録。</td><td>Writerのquality gateがFAILした。</td></tr>
+          <tr><td><strong>trace</strong></td><td>一回の仕事の処理経路。</td><td>research → draft → reader gate → publish check。</td></tr>
+          <tr><td><strong>observability</strong></td><td>logs・metrics・tracesから原因を調べる力。</td><td>どのowner、release、phaseで止まったかを探す。</td></tr>
+          <tr><td><strong>traceability</strong></td><td>依頼から実行・receipt・成果まで根拠を結ぶこと。</td><td>task → occurrence → run → receipt → financial record。</td></tr>
+          <tr><td><strong>eval</strong></td><td>実際の結果を事前に決めた条件で採点すること。</td><td>記事の公開、購入receipt、費用coverageを個別に確認する。</td></tr>
+        </tbody>
+      </table></div>
+      <p>OpenTelemetryはtelemetryの共通標準です。logsは出来事、metricsは集計、tracesは処理の親子関係を記録します。traceは観測の手段で、traceabilityは証拠を後からたどれる状態です。evalはその証拠を使って仕事の結果を採点します。<a href="https://opentelemetry.io/docs/concepts/observability-primer/" target="_blank" rel="noopener noreferrer">OpenTelemetry observability primer</a></p>
+      <p><code>lm-loop status --explain</code>、<code>health --json</code>、<code>doctor</code>は、状態や失敗runを見つける入口です。workerが起動していることや、CLIがexit 0を返したことだけでは、納品・公開・入金の成功を証明しません。</p>
+      <div class="callout"><strong>覚えておくこと：</strong>healthは「プロセスやownerはどうなっているか」を見るもの。evalは「依頼したtaskの成功条件を満たしたか」を決めるもの。売上は公式receiptと費用が揃った時にだけ判定します。</div>
+      <p class="small">現行runtime eventにはrun・owner・occurrence・release・error・next action・receipt/readback参照があります。今回確認した範囲では、span treeを持つOpenTelemetry SDK計装は見つかっていません。まず既存eventをつなぎ、必要が実証されてから新しいbackendを検討します。</p>
+    </article>
+
+    <article class="chapter" id="example">
+      <div class="chapter-head"><span class="chapter-number">02</span><div><p class="section-kicker">A small example</p><h2 class="chapter-title">一つのcaseは、一つの失敗を見つける形にします</h2><p class="chapter-deck">「記事が良いか」だけでは採点者も修正担当も、何を直すべきか分かりません。</p></div></div>
+      <div class="example-grid">
+        <div class="example-card fail"><span class="verdict">失敗例 · FAIL</span><h3>根拠にない数字を記事へ書いた</h3><p>入力資料に販売件数はないのに、下書きが「購入が増えた」と断定した。主張に対応するevidenceがないため、事実確認graderがFAILにする。</p></div>
+        <div class="example-card pass"><span class="verdict good">成功例 · PASS</span><h3>確認できない情報を断定しなかった</h3><p>下書きは資料にある情報だけを使い、欠けている販売結果をunknownとして残した。hashが一致する評価receiptも保存された。</p></div>
+      </div>
+      <p>この例の目的は、一般的な「文章の良さ」を採点することではありません。特定の失敗を再現し、同じ失敗を修正後に止められたかを確認します。</p>
+      <pre><code>{
+  "case_id": "writer-unsupported-claim-example",
+  "provenance": "illustrative_synthetic",
+  "failure_mode": "unsupported_numeric_claim",
+  "expected": {
+    "claim_has_evidence": "fail",
+    "draft_hash_bound": true,
+    "revenue_outcome": "unknown"
+  }
+}</code></pre>
+      <p class="small">架空の説明例です。Life Managerの実case IDや新しいschemaではありません。実caseは自然traceから作り、PIIとsecretを除いた参照だけを保存します。</p>
+      <h3>case cardに先に書くこと</h3>
+      <div class="metric-grid">
+        <div class="metric"><div class="metric-name"><span class="n">1</span>taskと初期状態</div><p>何を頼み、どの資料・tool・予算が使えるか。</p></div>
+        <div class="metric"><div class="metric-name"><span class="n">2</span>期待する終状態</div><p>どのartifactや公式receiptがあれば完了か。</p></div>
+        <div class="metric"><div class="metric-name"><span class="n">3</span>失敗条件</div><p>何が起きたらFAIL、何が分からなければUNKNOWNか。</p></div>
+        <div class="metric"><div class="metric-name"><span class="n">4</span>証拠とprovenance</div><p>自然trace・derived case・synthetic fixtureを区別する。</p></div>
+      </div>
+    </article>
+
+    <article class="chapter" id="scores">
+      <div class="chapter-head"><span class="chapter-number">03</span><div><p class="section-kicker">What to measure</p><h2 class="chapter-title">一つの点数に潰さず、task・安全・金銭を分けて報告します</h2><p class="chapter-deck">評価対象ごとに、成功を証明する根拠が違います。</p></div></div>
+      <div class="metric-grid">
+        <div class="metric"><div class="metric-name"><span class="n">1</span>task completion</div><p>依頼の成果物ができたか。agentの「終わりました」という文章だけで判定しない。</p></div>
+        <div class="metric"><div class="metric-name"><span class="n">2</span>effect integrity</div><p>外部送信や公開のreceiptがあるか、重複・不明effectが残っていないか。</p></div>
+        <div class="metric"><div class="metric-name"><span class="n">3</span>settled net</div><p>settled外部収入から返金・fee・同期間の実費を引く。coverage不足ならunknown。</p></div>
+        <div class="metric"><div class="metric-name"><span class="n">4</span>quality</div><p>主張の根拠、読者の課題、形式など、caseに定めた内容を採点する。</p></div>
+        <div class="metric"><div class="metric-name"><span class="n">5</span>latency and cost</div><p>完了までの時間、model/API/tool費用を同じepisodeへ結び付ける。</p></div>
+        <div class="metric"><div class="metric-name"><span class="n">6</span>human intervention</div><p>人が判断・操作・救済した回数と所要時間を記録する。記録欠落は0回にしない。</p></div>
+      </div>
+      <h3>採点者を役割で分ける</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>採点者</th><th>向く項目</th><th>例</th></tr></thead>
+        <tbody>
+          <tr><td><strong>code</strong></td><td>客観的に確認できるもの</td><td>hash、schema、receipt ID、重複、公開status、金銭算術</td></tr>
+          <tr><td><strong>LLM judge</strong></td><td>解釈が必要なもの</td><td>主張が資料を正しく説明するか、記事が読者の質問に答えるか</td></tr>
+          <tr><td><strong>human expert</strong></td><td>judgeを較正する基準</td><td>blind labels、false-pass/false-failの原因確認</td></tr>
+        </tbody>
+      </table></div>
+      <div class="callout green"><strong>原則：</strong>コードで判定できる条件をLLM judgeに任せない。judgeは正解そのものではなく、専門家の判定例と比べてから使います。</div>
+      <h3>baselineとcandidateは同じ条件で比べる</h3>
+      <p>入力・tool・model/version・release・予算・graderを固定し、caseごとに複数回試します。tuning/devで調整し、held-outは最後の比較まで触りません。公開済みfixtureのheld-out labelは秘密テストではありません。標本が小さければ順位を作らず、件数と不確かさを報告します。</p>
+      <div class="split-grid">
+        <div class="split-card recovery"><span class="tag">SELF-HEALING</span><h3>失敗から安全に戻れたか</h3><p>recovery後の完了、重複、再発、復旧時間、人の介入を評価します。安全にholdしたことと業務完了は別です。</p></div>
+        <div class="split-card improve"><span class="tag">SELF-IMPROVEMENT</span><h3>baselineより良くなったか</h3><p>一つの候補を固定graderとheld-outで比較し、品質・安全・cost-complete netを別々に見ます。</p></div>
+      </div>
+    </article>
+
+    <article class="chapter" id="life-manager">
+      <div class="chapter-head"><span class="chapter-number">04</span><div><p class="section-kicker">Life Manager pilot</p><h2 class="chapter-title">18業務を比べ、最初はWriterの一記事から始めます</h2><p class="chapter-deck">選ぶ理由は「18業務で最も簡単だから」ではなく、既存のevalとbounded recoveryを使って公開前に反復できるからです。</p></div></div>
+      <figure>
+        <img src="assets/writer-edd-flow.png" alt="Writerでtask、draft、quality gate、修正、比較、公式入金receiptを分けて測る流れ">
+        <figcaption>図2。品質評価を先に行い、公開・入金・費用は別の公式outcomeとして確認します。</figcaption>
+      </figure>
+      <div class="table-wrap"><table>
+        <thead><tr><th>候補</th><th>強み</th><th>最初に選ばない理由</th></tr></thead>
+        <tbody>
+          <tr class="selected"><td><strong>Writer · 採用</strong></td><td>既存quality gate、hash-bound artifacts、bounded recovery、baseline/candidate実験。</td><td>金融・費用adapterは一部実装。quality PASSは利益の証明にならない。</td></tr>
+          <tr><td>Agent Economy</td><td>catalog上は収益・金融・費用adapterが実装済み。</td><td>19 jobsを含む広いlane。TaskMarketの外部報酬証明は後段。</td></tr>
+          <tr><td>PromptBase</td><td>catalog上1 jobで範囲が小さい。</td><td>金融・費用adapterとbrowser経路が未完。</td></tr>
+          <tr><td>Connector</td><td>1 jobでregistration receiptを測りやすい。</td><td>non-economic。収益benchmarkのpilotではない。</td></tr>
+          <tr><td>Gig — Coconala</td><td>funnel・financial・costのadapterはcatalog上実装済み。</td><td>応募・交渉・納品・決済の複数stageと外部effectを含む。</td></tr>
+        </tbody>
+      </table></div>
+      <details>
+        <summary>18業務すべてのcatalog readinessを見る</summary>
+        <div class="details-body">
+          <p class="small">表の実装statusはコードcatalogのmetadataです。本番receipt、自然稼働、売上を意味しません。</p>
+          <div class="table-wrap"><table>
+            <thead><tr><th>#</th><th>業務</th><th>job数</th><th>funnel / finance / cost</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td>Gig — Coconala</td><td>7</td><td>実装 / 実装 / 実装</td></tr>
+              <tr><td>2</td><td>Gig — Lancers</td><td>7</td><td>実装 / 実装 / 実装</td></tr>
+              <tr><td>3</td><td>Gig — CrowdWorks</td><td>5</td><td>実装 / 実装 / 実装</td></tr>
+              <tr><td>4</td><td>Gig — Mercor</td><td>3</td><td>一部 / 一部 / 一部</td></tr>
+              <tr><td>5</td><td>PromptBase</td><td>1</td><td>一部 / 未 / 未</td></tr>
+              <tr class="selected"><td>6</td><td>Writer</td><td>7</td><td>実装 / 一部 / 一部</td></tr>
+              <tr><td>7</td><td>Affiliate</td><td>6</td><td>実装 / 未 / 未</td></tr>
+              <tr><td>8</td><td>Investment</td><td>4</td><td>実装 / 一部 / 一部</td></tr>
+              <tr><td>9</td><td>Agent Economy</td><td>19</td><td>実装 / 実装 / 実装</td></tr>
+              <tr><td>10</td><td>Job Hunter</td><td>4</td><td>一部 / 一部 / 一部</td></tr>
+              <tr><td>11</td><td>Fundraiser</td><td>1</td><td>実装 / 未 / 未</td></tr>
+              <tr><td>12</td><td>Connector</td><td>1</td><td>対象外 / 対象外 / 対象外</td></tr>
+              <tr><td>13</td><td>Self-Build / Product Improvement</td><td>4</td><td>一部 / 未 / 未</td></tr>
+              <tr><td>14</td><td>Mobile App Loops</td><td>23</td><td>実装 / 未 / 未</td></tr>
+              <tr><td>15</td><td>eBook</td><td>4</td><td>一部 / 未 / 一部</td></tr>
+              <tr><td>16</td><td>Capafy</td><td>11</td><td>実装 / 未 / 未</td></tr>
+              <tr><td>17</td><td>LINE Sticker</td><td>3</td><td>実装 / 未 / 未</td></tr>
+              <tr><td>18</td><td>CFO</td><td>3</td><td>集約役</td></tr>
+            </tbody>
+          </table></div>
+        </div>
+      </details>
+      <h3>最初のWriter caseで何を見るか</h3>
+      <p>一記事・一言語・一媒体の公開前stageを選び、読者の問い、根拠資料、禁止claim、draft hash、grader版を固定します。最初のcaseは自然traceから選び、failure modeはtrace reviewで決めます。最初から「記事の品質」という曖昧なlabelだけでevalを作りません。</p>
+      <ul>
+        <li><strong>task:</strong> 資料に支えられた記事draftを作る。</li>
+        <li><strong>quality/safety:</strong> 根拠のないclaim・identity漏えい・未確認を断定しない。</li>
+        <li><strong>effect:</strong> 公開は別stage。外部操作のunknownは公式readbackまでholdする。</li>
+        <li><strong>money:</strong> purchase/settlement・refund・fee・AI/API costが結ばれるまでnetはunknown。</li>
+      </ul>
+      <p>最初のcaseと並行して、judgeをdomain expertのblind labelsで較正し、false-passとfalse-failを分けて数えます。既存のWriter learning experimentはbaselineと一項目だけ異なるcandidateを比較し、各caseを3回以上試す契約を持っています。これを再利用します。</p>
+      <div class="callout"><strong>現在の評価基盤：</strong>LM-EABは5件の公開synthetic fixtureを使うoffline contract evaluatorです。financial-recordの採点契約は検査しますが、agentを動かしたり実収益を測ったりはしません。natural performance benchmarkはこれから作ります。</div>
+    </article>
+
+    <section class="todo" id="roadmap">
+      <span class="pill">From current cursor to open reproducibility</span>
+      <h2 class="chapter-title" style="margin-top:15px">E01を閉じてから、case・修復・比較を一つずつ積み上げます</h2>
+      <p class="todo-intro">これは現在の状態を要約した順序です。実行状態の正本はUnified SSOT。Writer pilotを理由に、既存の収益優先順や進行中ownerは変更しません。</p>
+      <div class="stage-list">
+        <div class="stage"><div><h4>E01 · runtime採用と自然評価</h4><p>欠測net修正のloaded SHAを読み、欠測が利益やゼロへ変わらない自然評価を確かめる。</p></div></div>
+        <div class="stage"><div><h4>Writer · traceレビューとfailure taxonomy</h4><p>ownerを重複させず、一つの公開前sliceを選び、利用可能な自然runから実際の失敗を分類する。</p></div></div>
+        <div class="stage"><div><h4>E02/E03 · outcome joinと実case</h4><p>task completion・effect integrity・settled net・cost・latency・介入を分け、自然traceからケースを増やす。</p></div></div>
+        <div class="stage"><div><h4>E04 · frozen baselineとgrader較正</h4><p>version/hash、dev/held-out/challenge、expert labels、複数trial、不確かさを保存する。</p></div></div>
+        <div class="stage"><div><h4>H01–H04 · bounded self-healing</h4><p>自然failure → owner-scoped intent → no-replayの照合 → 最小修正 → 次のnatural outcomeを結ぶ。</p></div></div>
+        <div class="stage"><div><h4>I01–I04 · bounded self-improvement</h4><p>一候補ずつ同じevalで比較し、safetyとcost-complete条件を通るものだけcanaryへ進める。</p></div></div>
+        <div class="stage"><div><h4>E05/E06 · 別harness・外部再現・報告</h4><p>第三者が同じcase/versionを実行できることを確かめ、実測と限界を公開する。lab adoptionは外部証拠が必要。</p></div></div>
+      </div>
+    </section>
+
+    <article class="chapter" id="labs">
+      <div class="chapter-head"><span class="chapter-number">06</span><div><p class="section-kicker">For independent labs</p><h2 class="chapter-title">論文やREADMEを出すだけでは、使われるbenchmarkになりません</h2><p class="chapter-deck">別のteamが同じ問い・環境・採点規則で再現でき、結果の限界まで分かる必要があります。</p></div></div>
+      <div class="metric-grid">
+        <div class="metric"><div class="metric-name"><span class="n">A</span>Versioned tasks</div><p>case・runner・grader・model/tool/budgetの版とhash。</p></div>
+        <div class="metric"><div class="metric-name"><span class="n">B</span>Independent labels</div><p>LLM judgeと専門家の一致・誤りを別splitで測る。</p></div>
+        <div class="metric"><div class="metric-name"><span class="n">C</span>Real outcomes</div><p>公式receipt、settlement、費用coverage。模擬報酬と分ける。</p></div>
+        <div class="metric"><div class="metric-name"><span class="n">D</span>Replication</div><p>別harness・別teamの再実行と、再現できなかった条件も報告。</p></div>
+      </div>
+      <p>LM-EABの合成fixtureは、会計の境界をテストする第一歩です。公開benchmarkとしてモデルやagentの経済能力を比較するには、自然task family、実outcomeのprovenance、fairな予算とtool条件、独立再現が別途必要です。現在は設計・実装途中で、AI labの採用実績はまだありません。</p>
+      <div class="sources">
+        <h3>一次資料と実装</h3>
+        <ul class="source-list">
+          <li><a href="https://opentelemetry.io/docs/concepts/observability-primer/" target="_blank" rel="noopener noreferrer">OpenTelemetry observability primer</a></li>
+          <li><a href="https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents" target="_blank" rel="noopener noreferrer">Anthropic: agent evals</a></li>
+          <li><a href="https://langfuse.com/docs/evaluation/overview" target="_blank" rel="noopener noreferrer">Langfuse evaluation</a></li>
+          <li><a href="https://www.braintrust.dev/docs/evaluate" target="_blank" rel="noopener noreferrer">Braintrust evaluation</a></li>
+          <li><a href="https://arize.com/docs/phoenix/evaluation/llm-evals" target="_blank" rel="noopener noreferrer">Arize Phoenix evals</a></li>
+          <li><a href="https://inspect.aisi.org.uk/" target="_blank" rel="noopener noreferrer">Inspect AI</a></li>
+          <li><a href="https://sentry.io/product/seer/" target="_blank" rel="noopener noreferrer">Sentry Seer</a> · <a href="https://www.pagerduty.com/platform/ai-agents/" target="_blank" rel="noopener noreferrer">PagerDuty AI Agents</a></li>
+          <li><a href="https://github.com/gepa-ai/gepa" target="_blank" rel="noopener noreferrer">GEPA</a> · <a href="https://github.com/codelion/openevolve" target="_blank" rel="noopener noreferrer">OpenEvolve</a></li>
+          <li><a href="https://github.com/Daisuke134/life-manager/blob/aa28eb19a5cfe35536b6371ba9b63be97844450f/runtime/loop/runtime_event.py">Life Manager runtime event</a> · <a href="https://github.com/Daisuke134/life-manager/blob/aa28eb19a5cfe35536b6371ba9b63be97844450f/runtime/loop/health.py">health</a> · <a href="https://github.com/Daisuke134/life-manager/blob/aa28eb19a5cfe35536b6371ba9b63be97844450f/runtime/loop/health_observer.py">health observer</a></li>
+          <li><a href="https://github.com/Daisuke134/life-manager/blob/aa28eb19a5cfe35536b6371ba9b63be97844450f/docs/evals/lm-economic-autonomy.md">LM-EAB guide</a> · <a href="https://github.com/Daisuke134/life-manager/blob/aa28eb19a5cfe35536b6371ba9b63be97844450f/apps/life-manager/config/product-loop-catalog.json">18業務catalog</a></li>
+          <li><a href="https://github.com/Daisuke134/life-manager/blob/aa28eb19a5cfe35536b6371ba9b63be97844450f/skills/writer-agent/scripts/eval-gate.sh">Writer eval gate</a> · <a href="https://github.com/Daisuke134/life-manager/blob/aa28eb19a5cfe35536b6371ba9b63be97844450f/skills/writer-agent/scripts/quality_self_heal.py">bounded quality recovery</a> · <a href="https://github.com/Daisuke134/life-manager/blob/aa28eb19a5cfe35536b6371ba9b63be97844450f/skills/writer-agent/scripts/writer_learning_experiment.py">candidate experiment</a></li>
+        </ul>
+      </div>
+    </article>
+
+    <section class="closing">
+      <span class="pill">What counts as evidence</span>
+      <h2>「動いた」と「役に立った」を、同じ言葉で済ませない。</h2>
+      <p>まず一つの実際の失敗を読み、再現できるevalへ変える。修正が通ったら同条件で比べる。自然runのtask・外部effect・公式receipt・費用までつないだ時、初めて人の生活や経済にどんな成果を出したかを語れます。</p>
+      <p class="small">品質gateの合格は実収益の証拠ではありません。LM-EABの現行fixtureもagent性能benchmarkではありません。この記事は設計と実装の現状を説明するもので、lab採用・収益保証・AGI達成を主張しません。</p>
+      <a href="#top">ページの先頭へ戻る ↑</a>
+    </section>
+  </div>
+</main>
+<footer class="footer"><div class="footer-inner"><span>Life Manager · Agent evaluation / EDD field guide</span><span>内部source snapshot: aa28eb19 · HTMLとassetsを同じdocs/articles/配下で配布</span></div></footer>
+</body>
+</html>
