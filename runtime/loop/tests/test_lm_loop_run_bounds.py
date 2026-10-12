@@ -2147,6 +2147,22 @@ def test_verified_no_effect_result_requires_exact_identity_and_allowed_entrypoin
         'not_applicable',
         f'lm-no-effect://{english_owner}/{english_occurrence}/render_not_ready',
     )
+    closed_gate_occurrence = f'{english_owner}:closed-gate-run-1'
+    _write_no_effect_result(
+        hint, owner_id=english_owner, occurrence_id=closed_gate_occurrence,
+        reason='publication_readiness_gate_closed',
+    )
+    assert reader(hint, english_owner, closed_gate_occurrence, entrypoint) == (
+        'not_applicable',
+        f'lm-no-effect://{english_owner}/{closed_gate_occurrence}/publication_readiness_gate_closed',
+    )
+    japanese_owner = 'ebook-ja-tiktok-daily'
+    japanese_occurrence = f'{japanese_owner}:closed-gate-run-1'
+    _write_no_effect_result(
+        hint, owner_id=japanese_owner, occurrence_id=japanese_occurrence,
+        reason='publication_readiness_gate_closed',
+    )
+    assert reader(hint, japanese_owner, japanese_occurrence, entrypoint) is None
     _write_no_effect_result(hint, schema_version=True)
     assert reader(hint, 'ebook-ja-tiktok-daily',
                   'ebook-ja-tiktok-daily:run-off-slot', entrypoint) is None
