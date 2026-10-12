@@ -249,7 +249,7 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 | E03 | LM-EABの自然失敗・境界・実経済task familyを増やす | 権利/匿名化/PII除去。現在4 synthetic casesは契約の足場、実性能ではない |
 | E04 | case/runner/grader/baselineをversion/hashで凍結 | public/dev/held-out/challenge分離、grader較正/複数trial/不確かさ/汚染監査 |
 | E05 | 既存runnerへ他harness adapterを接続し外部再現を確認 | 新framework先行導入なし、独立実行で同versionの結果を再現 |
-| E06 | benchmark報告・task作成方法・限界を公開 | 先行研究比較、世界初/leadingを未実証で主張しない |
+| E06 | benchmark報告・task作成方法・限界を公開 | 現在cursor: docs/evals/lm-economic-autonomy.mdの既存runner再現案内とREADME導線。fixtureのmodel/日時/receiptは合成metadataと明示。全benchmark報告/先行研究比較は残件、世界初/leadingを未実証で主張しない |
 | I01 | prompt/tool/routing/offer等の候補を一度に一変更生成 | grader/dataset/policy/identity/権限/fence/spend capを書き換えない |
 | I02 | frozen baselineと同条件で候補を比較 | 品質・安全・費用込みnetの事前条件。fixture scoreを売上としない |
 | I03 | 合格候補だけ小さく本番canaryへ昇格 | 自然run/公式receipt/CFO、悪化・未知悪影響はsourceをrollbackしeffect保持 |
