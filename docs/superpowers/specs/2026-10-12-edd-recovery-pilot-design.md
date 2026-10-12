@@ -1,4 +1,4 @@
-# Life Manager EDD：障害回復pilotの議論用設計
+# Life Manager EDD：Writer pilotと障害回復safety case設計
 
 ## 目的・範囲・位置付け
 
@@ -7,6 +7,24 @@
 これはE02/E03の設計候補であり、新しいTODO正本や開始済みcursorではない。実行状態・順序・所有者は [統一SSOT](2026-09-25-life-manager-unified-ssot.md) に従う。既存評価ownerの範囲と調整してから後続作業へ接続する。
 
 根拠は [一次資料比較](../../research/2026-10-12-edd-and-autonomy-benchmarks.md)。既存runnerを維持し、AutomationBenchの初期state・tool・終state検査の形を参考にする。新framework、scheduler、optimizerは追加しない。
+
+## 18業務からのPilot A選定
+
+**選定: Writerの一記事・一言語・一媒体の公開前品質評価。** Writer全体や18業務全体を同時に直す計画ではない。最初の目的は、自然traceの失敗を再現可能なevalにし、修正前後を同じ条件で測ること。公開や入金は独立した後段outcomeとして扱う。
+
+比較対象の母集団は最新mainの[18業務カタログ](../../../apps/life-manager/config/product-loop-catalog.json)。候補は既存evalとrecovery artifacts、反復時の外部effect安全性、公式outcomeまでの距離、job/owner範囲で比較した。catalogの`implemented`はコード上のadapter statusで、自然runや売上receiptの存在を意味しない。
+
+| 候補 | 選ぶ理由・外す理由 |
+|---|---|
+| **Writer（採用）** | quality gate、hash-bound run artifacts、bounded recovery、baseline/candidate比較がある。7 jobすべてを対象にせず、一記事の公開前sliceなら外部公開を行わずに反復できる。金融・費用adapterは部分実装なので、収益は未証明として別採点する。 |
+| Agent Economy | 収益・金融・費用adapterはcatalog上実装済みで、金銭評価の有力候補。ただし19 jobと複数のx402/TaskMarket ownerを含み、最新の優先順ではTaskMarketの外部報酬証明が後段にある。最初の方法検証には広すぎる。 |
+| PromptBase | 1 jobで小さく見えるが、金融・費用adapterが未実装で、seller/browser経路にも未解決境界がある。 |
+| Connector | 1 jobでreceiptが明瞭だが、catalog上non-economic。仕事の完了evalには向くが、今回の収益benchmarkの初手には選ばない。 |
+| Gig — Coconala | revenue/funnel/financial/cost adapterがcatalog上実装済み。ただし7 jobの応募・交渉・納品・決済を含み、Writerの公開前sliceより外部effectとprovider待ちが多い。 |
+
+従ってWriterは「18業務で最も簡単」または「すでに最も収益がある」とは主張しない。**評価手法を安全に立ち上げるのに最も準備があるslice**として選ぶ。既存の収益業務の優先順は変更しない。品質gateのPASSを売上・利益と呼ばず、settled外部収入・refund・fee・同期間の実費が結べない場合のnetは`unknown`に保つ。
+
+記事draftと図2点は[PR #7798](https://github.com/Daisuke134/life-manager/pull/7798)にある。未mergeのdraftであり、公開前にsource snapshotを最新mainへ更新する。
 
 ## Pilot B: effect-unknown recovery safety case
 
@@ -86,8 +104,8 @@ EDDは失敗case→修正前の失敗→原因修正→同条件の改善確認�
 
 ### Q5. 最初のpilotはWriterか、effect recoveryか？
 
-**回答:** EDDを学ぶPilot AはWriterの一記事のpre-publication quality stage。既存editorial/reader/identity/safety gateとhash-bound artifactがあり、外部公開前に同じcaseを安全に反復できるためである。Writer全体が18業務中一番簡単とは主張しない。
-このspecのeffect-unknown recovery caseはPilot Bの安全性caseとして残す。既存recovery-intent/apply-plan testsはhold/no-retry/wrong-ownerを既に検査するため、同じassertionのwrapperを作らない。自然failureと業務outcomeの紐付けで欠ける境界だけを追加する。
+**回答:** Pilot AはWriterの一記事のpre-publication quality stage。18件のcatalog metadataと既存artifactを比べ、評価・bounded recovery・候補比較が揃い、公開前に反復できるsliceとして選ぶ。金融・費用adapterは部分実装なので、Writerのquality PASSは利益の実証にならない。
+このspecのeffect-unknown recovery caseはPilot Bの安全性caseとして残す。Pilot BはAの品質caseを置き換えず、外部effectを再送せずに照合する別のfailure familyを検査する。既存recovery-intent/apply-plan testsはhold/no-retry/wrong-ownerを既に検査するため、同じassertionのwrapperを作らない。自然failureと業務outcomeの紐付けで欠ける境界だけを追加する。
 
 ### Q6. Writer quality gateを通れば収益が増えるのか？
 
