@@ -86,3 +86,27 @@ test("Anicca ASC acquisition uses the exact YouTube campaign token from its acti
   assert.equal(result.attribution_reason, "campaign_metrics_observed_for_subset");
   assert.equal(result.confidence, "official_product_total_with_campaign_subset");
 });
+
+test("ASC daily metrics keep date-level zeros measured and leave absent report dates missing", () => {
+  const anicca = PRODUCTS[0];
+  const downloads = [
+    { Date: "2026-10-05", "App Apple Identifier": anicca.app_id, "Download Type": "First-time download", Counts: "0" },
+    { Date: "2026-10-07", "App Apple Identifier": anicca.app_id, "Download Type": "Redownload", Counts: "2" },
+    { Date: "2026-10-08", "App Apple Identifier": anicca.app_id, "Download Type": "First-time download", Counts: "1" },
+  ];
+  const engagement = [
+    { Date: "2026-10-05", "App Apple Identifier": anicca.app_id, Event: "Impression", "Page Type": "No page", Counts: "0", "Unique Counts": "0" },
+    { Date: "2026-10-07", "App Apple Identifier": anicca.app_id, Event: "Page View", "Page Type": "Product page", Counts: "3", "Unique Counts": "2" },
+  ];
+  const result = summarize(anicca, downloads, engagement, []);
+  const byDate = Object.fromEntries(result.daily_metrics.map((row) => [row.date, row.metrics]));
+
+  assert.deepEqual(Object.keys(byDate), ["2026-10-05", "2026-10-07", "2026-10-08"]);
+  assert.deepEqual([byDate["2026-10-05"].first_time_downloads.status, byDate["2026-10-05"].first_time_downloads.value], ["measured", 0]);
+  assert.deepEqual([byDate["2026-10-05"].impressions.status, byDate["2026-10-05"].impressions.value], ["measured", 0]);
+  assert.deepEqual([byDate["2026-10-07"].first_time_downloads.status, byDate["2026-10-07"].first_time_downloads.value], ["measured", 0]);
+  assert.deepEqual([byDate["2026-10-07"].impressions.status, byDate["2026-10-07"].impressions.value], ["measured", 0]);
+  assert.deepEqual([byDate["2026-10-07"].product_page_views.status, byDate["2026-10-07"].product_page_views.value], ["measured", 3]);
+  assert.deepEqual([byDate["2026-10-08"].first_time_downloads.status, byDate["2026-10-08"].first_time_downloads.value], ["measured", 1]);
+  assert.deepEqual([byDate["2026-10-08"].impressions.status, byDate["2026-10-08"].impressions.value], ["unavailable", null]);
+});

@@ -10,7 +10,7 @@ const { buildRuntimeJob } = require("./runtime-job-store.js");
 const { createContentObjectStore } = require("./content-object-store.js");
 const { resolveRuntimePaths } = require("./runtime-paths.js");
 const { assertMarketingProductFormat } = require("./marketing-format-policy.js");
-const { writeMarketingEffectIdentity } = require("./marketing-effect-identity.js");
+const { providerEffectProvenance, writeMarketingEffectIdentity } = require("./marketing-effect-identity.js");
 const {
   findMarketingDestinationTarget,
   loadMarketingDestinationContract,
@@ -684,6 +684,7 @@ async function executeMarketingVideoPublicationJob(job, deps = {}) {
     provider_post_id: result.provider_post_id,
     provider_route: result.provider_route,
     provider_reconciled: result.provider_reconciled === true,
+    ...providerEffectProvenance(result.provider_effect_created),
     published_at: publishedAt,
   };
   if (!verifyMarketingVideoPublicationReceipt(receipt)) {

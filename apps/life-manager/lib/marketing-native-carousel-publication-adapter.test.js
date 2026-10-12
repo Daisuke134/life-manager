@@ -624,11 +624,17 @@ test("native carousel execution records the exact runtime occurrence and lane id
           reconciled: true,
           post_id: "postiz-carousel-1",
           post_url: URL,
+          provider_effect_created: true,
         };
       },
     });
-    await executeMarketingNativeCarouselPublicationJob(value, services);
+    const execution = await executeMarketingNativeCarouselPublicationJob(value, services);
     assert.equal(sidecarSeenByProvider, true);
+    assert.equal(execution.receipt.provider_effect_created, true);
+    assert.equal(execution.receipt.origin_occurrence_id, "life-manager-anicca-main-instagram:run-1");
+    const ledgerReceipt = JSON.parse(fs.readFileSync(services.ledgerPath, "utf8")).receipt;
+    assert.equal(Object.hasOwn(ledgerReceipt, "provider_effect_created"), false);
+    assert.equal(Object.hasOwn(ledgerReceipt, "origin_occurrence_id"), false);
     assert.deepEqual(JSON.parse(fs.readFileSync(sidecar, "utf8")), {
       schema_version: 1,
       kind: "life_manager_effect_identity",

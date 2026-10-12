@@ -36,6 +36,8 @@ const RECEIPT = {
   provider_post_id: "postiz-7999999999999999999",
   provider_route: "postiz",
   provider_reconciled: true,
+  provider_effect_created: true,
+  origin_occurrence_id: "life-manager-honne-en:canary-run-1",
   published_at: "2026-08-21T02:01:00.000Z",
 };
 const TELEGRAM_RECEIPT = {
@@ -248,6 +250,9 @@ test("controlled canary promotes one job, publishes one receipt, sends one URL r
   );
   assert.equal(executionCount, 2);
   assert.equal(result.publication.public_url, RECEIPT.public_url);
+  assert.equal(result.publication.created, true);
+  assert.equal(result.publication.provider_effect_created, true);
+  assert.equal(result.publication.origin_occurrence_id, "life-manager-honne-en:canary-run-1");
   assert.equal(result.publication.provider_reconciled, true);
   assert.equal(result.telegram.created, true);
   assert.equal(result.telegram.message_id, 42);

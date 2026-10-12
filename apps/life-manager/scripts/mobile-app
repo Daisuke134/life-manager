@@ -71,7 +71,7 @@ if [ "$TEE_STATUS" -ne 0 ]; then
   exit "$TEE_STATUS"
 fi
 if [ "$RUNNER_STATUS" -eq 0 ] && [ -n "${LIFE_MANAGER_RESULT_HINT_PATH:-}" ]; then
-  if ! "$NODE_BIN" "$SCRIPT_DIR/mobile-effect-result.js" "$RESULT_CAPTURE"; then
+  if ! "$NODE_BIN" "$SCRIPT_DIR/mobile-effect-result.js" "$RESULT_CAPTURE" --require-origin-occurrence; then
     printf 'mobile app exact result hint unavailable: %s\n' "$LOOP_ID" >&2
   fi
 fi

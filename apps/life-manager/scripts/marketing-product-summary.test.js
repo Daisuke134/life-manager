@@ -78,6 +78,51 @@ test("attribution funnel reports app-scoped RevenueCat customer activity and kee
   assert.match(result.snapshot.message, /Honne AI: .*新規顧客（直近28日）取得不可/);
 });
 
+test("ASC trailing seven-day averages use distinct source dates and keep partial coverage null", () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-asc-seven-day-summary-")); const reportDay = "2026-10-12"; const objectDir = path.join(dataDir, "objects");
+  const writeSnapshot = (snapshot) => {
+    const source = path.join(dataDir, `asc-${snapshot.report_day}.json`); fs.writeFileSync(source, `${JSON.stringify(snapshot)}\n`);
+    const ref = importContentObject(source, { objectDir }).ref; const directory = path.join(dataDir, "tenants/dais-local/marketing/attribution/asc", snapshot.report_day); fs.mkdirSync(directory, { recursive: true });
+    fs.writeFileSync(path.join(directory, "acquisition.json"), JSON.stringify({ ...snapshot, snapshot_ref: ref })); return ref;
+  };
+  const dailyRow = (date, download, impressions, views, viewsUnavailable = false) => ({ date, metrics: {
+    first_time_downloads: { status: "measured", value: download },
+    impressions: { status: "measured", value: impressions },
+    product_page_views: viewsUnavailable ? { status: "unavailable", value: null, reason: "report_pending" } : { status: "measured", value: views },
+  } });
+  const acquisitionProduct = (product_id, daily_metrics) => ({ product_id, source_status: "measured", attribution_status: "unattributed", attribution_reason: "campaign_not_configured", campaign_status: "unavailable",
+    metrics: { first_time_downloads: { status: "measured", value: 0 }, campaign_first_time_downloads: { status: "unavailable", value: null, reason: "campaign_not_configured" }, campaign_impressions: { status: "unavailable", value: null, reason: "campaign_not_configured" } }, daily_metrics });
+  const reports = [
+    ["2026-10-05", dailyRow("2026-10-05", 1, 10, 2)], ["2026-10-06", dailyRow("2026-10-06", 2, 20, 4)],
+    ["2026-10-07", dailyRow("2026-10-07", 3, 30, 6)], ["2026-10-08", dailyRow("2026-10-08", 4, 40, 8)],
+    ["2026-10-09", dailyRow("2026-10-09", 5, 50, 10)], ["2026-10-10", dailyRow("2026-10-10", 6, 60, 12)],
+    ["2026-10-11", dailyRow("2026-10-11", 7, 70, 14, true)],
+    ["2026-10-12", dailyRow("2026-10-07", 300, 30, 6)],
+  ];
+  let currentAscRef;
+  for (const [day, daily] of reports) {
+    const snapshot = { schema_version: 1, kind: "marketing_asc_acquisition", tenant_id: "dais-local", report_day: day, lineage_ref: "fixture-lineage", products: [acquisitionProduct("anicca-ios", [daily]), acquisitionProduct("honne-ai", [])], rows: [] };
+    const ref = writeSnapshot(snapshot); if (day === reportDay) currentAscRef = ref;
+  }
+  const rcSource = path.join(dataDir, "rc-source.json"); fs.writeFileSync(rcSource, "{}\n"); const rcRef = importContentObject(rcSource, { objectDir }).ref;
+  const rcDirectory = path.join(dataDir, "tenants/dais-local/marketing/attribution/revenuecat", reportDay); fs.mkdirSync(rcDirectory, { recursive: true });
+  fs.writeFileSync(path.join(rcDirectory, "subscriptions.json"), JSON.stringify({ snapshot_ref: rcRef, products: ["anicca-ios", "honne-ai"].map((product_id) => ({ product_id, source_status: "unavailable", metrics: {} })) }));
+
+  const result = persistAttributionCoverage(dataDir, reportDay, "2026-10-12T13:00:00.000Z");
+  const anicca = result.snapshot.products.find((product) => product.product_id === "anicca-ios");
+  const honne = result.snapshot.products.find((product) => product.product_id === "honne-ai");
+  assert.deepEqual([anicca.asc_7d.window_start, anicca.asc_7d.window_end], ["2026-10-05", "2026-10-11"]);
+  assert.deepEqual([anicca.metrics.asc_7d_first_time_downloads.status, anicca.metrics.asc_7d_first_time_downloads.value, anicca.metrics.asc_7d_first_time_downloads.observed_days], ["measured", 46.42857142857143, 7]);
+  assert.deepEqual([anicca.metrics.asc_7d_impressions.status, anicca.metrics.asc_7d_impressions.value], ["measured", 40]);
+  assert.deepEqual([anicca.metrics.asc_7d_product_page_views.status, anicca.metrics.asc_7d_product_page_views.value, anicca.metrics.asc_7d_product_page_views.observed_days], ["partial", null, 6]);
+  assert.deepEqual(anicca.metrics.asc_7d_product_page_views.missing_dates, ["2026-10-11"]);
+  assert.equal(anicca.source_status.asc_7d, "partial");
+  assert.equal(honne.source_status.asc_7d, "unavailable");
+  assert.equal(result.snapshot.source_refs.includes(currentAscRef), true);
+  assert.match(result.snapshot.message, /ASC 7日/);
+  assert.match(result.snapshot.message, /商品ページ閲覧 取得不可（6\/7日）/);
+});
+
 test("Anicca daily summary includes @anicca.en current metrics and ignores stale posts", () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-anicca-en-summary-")); const day = "2026-10-11";
   const writeDaily = (owner, shortcode, filename, snapshot) => {

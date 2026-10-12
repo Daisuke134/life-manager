@@ -301,7 +301,7 @@ def find_existing_post(
         if state["state"] != "PUBLISHED":
             continue
         if _valid_public_url(platform, state.get("post_url")):
-            return {"post_id": post_id, **state, "reconciled": True}
+            return {"post_id": post_id, **state, "reconciled": True, "provider_effect_created": False}
         if platform == "tiktok":
             published_at = row.get("publishDate") or row.get("date")
             try:
@@ -321,6 +321,7 @@ def find_existing_post(
                     "state": "PUBLISHED",
                     "post_url": resolved,
                     "reconciled": True,
+                    "provider_effect_created": False,
                 }
     return None
 
@@ -691,6 +692,7 @@ def _publish(args, api_key: str, caption: str) -> int:
                 _valid_instagram_carousel_url(state.get("post_url")) if args.platform == "instagram"
                 else photo_proof
             ),
+            "provider_effect_created": True,
         }
         print(json.dumps(result, ensure_ascii=False, separators=(",", ":")))
         valid_url = _valid_instagram_carousel_url(state.get("post_url")) if args.platform == "instagram" else photo_proof
@@ -759,6 +761,7 @@ def _publish(args, api_key: str, caption: str) -> int:
         "post_id": post_id,
         **state,
         "reconciled": is_reconciled_state(state, args.platform),
+        "provider_effect_created": True,
     }
     print(json.dumps(result, ensure_ascii=False, separators=(",", ":")))
     if state["state"] != "PUBLISHED" or not _valid_public_url(args.platform, state.get("post_url")):
