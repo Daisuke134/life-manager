@@ -3,7 +3,7 @@ import { isNormalizedRevenueReceipt } from "./revenue-receipt.mjs";
 
 const GRADUATION_MULTIPLIER = 1.5;
 const MIN_RUNWAY_DAYS = 30;
-const finite = (value) => Number.isFinite(Number(value));
+const finite = (value) => value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value));
 const round = (value) => Math.round(Number(value) * 1e6) / 1e6;
 const SETTLED = new Set(["settled", "paid", "received", "completed"]);
 const NEGATIVE_TERMINAL = new Set(["refunded", "charged_back", "chargeback", "reversed"]);
