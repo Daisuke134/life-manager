@@ -9,3 +9,5 @@
 
 再開・所有境界:
 書込先は指定 .worktrees/cfo-telegram-runtime-receipt-20261007 のみ。最新branch fix/cfo-period-isolated-reports-20261012、HEAD b5188f55ad、PR #7714。#7711通知親timeout/#7713取消済み現在MRRはmain統合済み、やり直さない。最初のatom: reviewerのMEDIUM「既存archive reuseでnlink1を検査しない」を最小RED/GREENで修正（cfo-result-local.js既存archive分岐）。追加全面review不要、同reviewer/primaryへ該当diffを報告。67既存Node testsとscope testsを維持。旧fence life-manager-cfo-hourly:18dd46d06dd2a648-41605は部分配信未確定、再送/解除禁止。primaryはCFO code編集を止める。初回はread-only確認してAGMSGでREADYを返し、primaryのlease ownership transfer readback後に同WTを編集する。その後 #7714 CI/main/通常immutable採用→新期間自然B7/公式receipt→旧unknown保持→A8.3歴史Stripe帰属以下既存順。
+
+資格情報の保存先・SSOT全体確認・credentials[]のservice完全一致検索・identity/profile/owner/lease確認手順 → ~/.config/ai/core.md「No-human-loop（既定）」を起動時とブラウザ操作前に読む。lane個別の認証境界を保持し、secret値を起動指示へ含めない。
