@@ -175,7 +175,9 @@ def read_paper_etf_cost_evidence(
             raise ValueError
     except (KeyError, TypeError, ValueError) as error:
         raise ValueError("paper_cost_period_invalid") from error
-    after = start.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+    eastern = ZoneInfo("America/New_York")
+    scan_start = datetime.combine(start.astimezone(eastern).date(), time.min, eastern)
+    after = scan_start.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
     until = observed.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
     def activities(kind: str, query: str) -> list[dict[str, Any]]:
@@ -220,12 +222,14 @@ def read_paper_etf_cost_evidence(
                     or not isinstance(symbol, str) or not symbol
                     or side not in {"buy", "sell"} or not qty.is_finite() or qty <= 0
                     or not price.is_finite() or price <= 0
-                    or filled_at < start or filled_at > observed):
+                    or filled_at < scan_start or filled_at > observed):
                 raise ValueError
             seen_fill_ids.add(row_id)
             day = filled_at.astimezone(ZoneInfo("America/New_York")).date().isoformat()
             account_order_ids.setdefault((symbol, day), set()).add(order_id)
             if order_id in expected:
+                if filled_at < start:
+                    raise ValueError
                 order = expected[order_id]
                 if symbol != order["symbol"] or side != order["side"]:
                     raise ValueError
@@ -319,12 +323,20 @@ def read_paper_etf_cost_evidence(
                     "--start", start_quote.isoformat().replace("+00:00", "Z"),
                     "--end", filled_at.isoformat().replace("+00:00", "Z"),
                     "--feed", "sip", "--limit", "1000", "--sort", "asc",
-                    "--quiet", "--jq", ".quotes|map({t,bp,ap})",
+                    "--quiet", "--jq",
+                    "{quotes: (.quotes|map({t,bp,ap})), next_page_token}",
                 ], env)
-                if not isinstance(quotes, list) or not quotes:
+                if not isinstance(quotes, Mapping):
+                    raise ValueError
+                if "next_page_token" not in quotes:
+                    raise ValueError
+                if quotes.get("next_page_token") not in (None, ""):
+                    raise ValueError("paper_cost_quote_pages_incomplete")
+                quote_rows = quotes.get("quotes")
+                if not isinstance(quote_rows, list) or not quote_rows:
                     raise ValueError
                 prior_quotes = [
-                    (parse_instant(item.get("t")), item) for item in quotes
+                    (parse_instant(item.get("t")), item) for item in quote_rows
                     if parse_instant(item.get("t")) <= filled_at
                 ]
                 if not prior_quotes:
@@ -339,6 +351,8 @@ def read_paper_etf_cost_evidence(
                     "t": nearest["t"], "bp": str(bid), "ap": str(ask),
                 }
     except (InvalidOperation, KeyError, TypeError, ValueError) as error:
+        if str(error) == "paper_cost_quote_pages_incomplete":
+            raise
         raise ValueError("paper_cost_quote_invalid") from error
 
     target_fills = [row for rows in fills_by_order.values() for row in rows]

@@ -10,6 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
+import paper_performance
 from paper_performance import build_paper_performance, write_paper_performance
 
 
@@ -105,6 +106,34 @@ def _rows() -> list[dict]:
             ),
         },
     ]
+
+
+def _prior_rows() -> list[dict]:
+    replacements = {
+        "entry-effect": "prior-entry-effect",
+        "exit-effect": "prior-exit-effect",
+        "paper-entry": "prior-paper-entry",
+        "paper-exit": "prior-paper-exit",
+        "lm-ai-" + "a" * 24: "lm-ai-" + "c" * 24,
+        "lm-ai-" + "b" * 24: "lm-ai-" + "d" * 24,
+        "alpaca://bars/entry": "alpaca://bars/prior-entry",
+        "alpaca://bars/exit": "alpaca://bars/prior-exit",
+        "2026-09-29": "2026-09-20",
+        "2026-10-20": "2026-09-22",
+    }
+
+    def replace(value):
+        if isinstance(value, str):
+            for old, new in replacements.items():
+                value = value.replace(old, new)
+            return value
+        if isinstance(value, list):
+            return [replace(item) for item in value]
+        if isinstance(value, dict):
+            return {key: replace(item) for key, item in value.items()}
+        return value
+
+    return replace(_rows())
 
 
 OBSERVATION = {
@@ -388,6 +417,66 @@ class PaperPerformanceTests(unittest.TestCase):
         self.assertEqual(reader.call_count, 1)
         self.assertEqual(first["fees_usd"], "0.01")
         self.assertEqual(second["fees_usd"], "0.01")
+
+    def test_daily_writer_joins_only_cost_receipts_for_trips_closed_that_day(self):
+        def reader(*, orders, period_start):
+            tag = "prior" if orders[0]["id"] == "prior-paper-entry" else "current"
+            trip = next(
+                item for item in paper_performance._closed_round_trips([*_prior_rows(), *_rows()])[0]
+                if item["order_ids"] == [order["id"] for order in orders]
+            )
+            evidence = _broker_cost_evidence()
+            buy_fill, sell_fill = f"{tag}-buy-fill", f"{tag}-sell-fill"
+            fee_id = f"{tag}-fee"
+            readback = evidence["provider_readback"]
+            readback["fills"] = [
+                {"id": buy_fill, "activity_type": "FILL", "order_id": orders[0]["id"]},
+                {"id": sell_fill, "activity_type": "FILL", "order_id": orders[1]["id"]},
+            ]
+            readback["fees"] = [{
+                "id": fee_id, "activity_type": "FEE", "symbol": "QQQ",
+                "date": "2026-09-20" if tag == "prior" else "2026-09-29",
+                "net_amount": "-0.01",
+            }]
+            readback["quotes_by_fill_id"] = {
+                buy_fill: {"t": "2026-09-20T14:31:05Z", "bp": "400", "ap": "400.02"},
+                sell_fill: {"t": "2026-09-22T14:31:00Z", "bp": "410", "ap": "410.02"},
+            }
+            readback["account_fill_order_ids_by_symbol_date"] = [{
+                "symbol": "QQQ",
+                "date": "2026-09-20" if tag == "prior" else "2026-09-29",
+                "order_ids": [order["id"] for order in orders],
+            }]
+            evidence.update({
+                "broker_gross_pnl_usd": str(trip["gross_pnl_usd"]),
+                "observed_at": "2026-09-23T14:31:15Z" if tag == "prior"
+                else "2026-10-20T14:31:15Z",
+                "order_ids": [order["id"] for order in orders],
+                "period_start": period_start,
+                "source_receipt_ids": [
+                    buy_fill, sell_fill, fee_id,
+                    f"alpaca-quote:{buy_fill}:2026-09-20T14:31:05Z",
+                    f"alpaca-quote:{sell_fill}:2026-09-22T14:31:00Z",
+                ],
+            })
+            return evidence
+
+        rows = [*_prior_rows(), *_rows()]
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            (state / "receipts.jsonl").write_text(
+                "".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8",
+            )
+            result = write_paper_performance(
+                state, OBSERVATION, RISK, broker_cost_reader=reader,
+            )
+
+        self.assertEqual(result["completed_round_trips_total"], 2)
+        self.assertEqual(result["completed_round_trips"], 1)
+        self.assertEqual(result["broker_costs_status"], "complete")
+        self.assertEqual(result["fees_usd"], "0.01")
+        self.assertEqual(result["broker_cost_source_receipt_ids"][0], "current-buy-fill")
+        self.assertNotIn("prior-buy-fill", result["broker_cost_source_receipt_ids"])
 
     def test_writer_retries_failed_broker_readback_only_on_a_later_et_day(self):
         with tempfile.TemporaryDirectory() as directory:

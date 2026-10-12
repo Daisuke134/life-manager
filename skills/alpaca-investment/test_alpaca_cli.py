@@ -276,12 +276,15 @@ class PaperEtfCostEvidenceTests(unittest.TestCase):
          "symbol": "QQQ", "date": "2026-09-29", "net_amount": "-0.02"},
     ]
 
-    def _read(self, *, fills=None, fees=None, missing_quote=False, observed_at=None):
+    def _read(self, *, fills=None, fees=None, missing_quote=False, observed_at=None,
+              quote_next_page_token=None, calls=None):
         fills = self.fills if fills is None else fills
         fees = self.fees if fees is None else fees
         observed_at = self.observed_at if observed_at is None else observed_at
 
         def run(_cli, args, _env):
+            if calls is not None:
+                calls.append(args)
             if args[:2] == ["clock", "get"]:
                 return {"timestamp": observed_at}
             if args[:2] == ["account", "activity"] and "FILL" in args:
@@ -290,11 +293,13 @@ class PaperEtfCostEvidenceTests(unittest.TestCase):
                 return fees
             if args[:2] == ["data", "quotes"]:
                 if missing_quote:
-                    return []
+                    return {"quotes": [], "next_page_token": quote_next_page_token}
                 end = args[args.index("--end") + 1]
                 if "14:31:05" in end:
-                    return [{"t": "2026-09-29T14:31:05Z", "bp": "399.99", "ap": "400.01"}]
-                return [{"t": "2026-09-29T14:31:10Z", "bp": "409.99", "ap": "410.01"}]
+                    rows = [{"t": "2026-09-29T14:31:05Z", "bp": "399.99", "ap": "400.01"}]
+                else:
+                    rows = [{"t": "2026-09-29T14:31:10Z", "bp": "409.99", "ap": "410.01"}]
+                return {"quotes": rows, "next_page_token": quote_next_page_token}
             raise AssertionError(f"unexpected Alpaca CLI operation: {args[:2]}")
 
         with patch.object(alpaca_cli, "_context", return_value={}) as context, patch.object(
@@ -322,6 +327,7 @@ class PaperEtfCostEvidenceTests(unittest.TestCase):
             "alpaca-quote:fill-sell:2026-09-29T14:31:10Z",
         })
         self.assertIn("sip", cli_run.call_args_list[3].args[1])
+        self.assertIn("next_page_token", cli_run.call_args_list[3].args[1][-1])
 
     def test_fee_is_unknown_when_other_account_fill_shares_symbol_and_day(self):
         foreign = {
@@ -332,9 +338,41 @@ class PaperEtfCostEvidenceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "^paper_fee_attribution_ambiguous$"):
             self._read(fills=[*self.fills, foreign])
 
+    def test_fee_attribution_scans_the_full_et_day_before_period_start(self):
+        foreign = {
+            "id": "earlier-foreign-fill", "activity_type": "FILL",
+            "order_id": "other-order", "symbol": "QQQ", "side": "buy",
+            "qty": "1", "price": "400",
+            "transaction_time": "2026-09-29T13:30:00Z",
+        }
+
+        calls = []
+        with self.assertRaisesRegex(ValueError, "^paper_fee_attribution_ambiguous$"):
+            self._read(fills=[foreign, *self.fills], calls=calls)
+        fill_call = next(
+            args for args in calls
+            if args[:2] == ["account", "activity"] and "FILL" in args
+        )
+        self.assertEqual(
+            fill_call[fill_call.index("--after") + 1],
+            "2026-09-29T04:00:00Z",
+        )
+        fee_call = next(
+            args for args in calls
+            if args[:2] == ["account", "activity"] and "FEE" in args
+        )
+        self.assertEqual(
+            fee_call[fee_call.index("--after") + 1],
+            "2026-09-29T04:00:00Z",
+        )
+
     def test_missing_historical_quote_fails_closed(self):
         with self.assertRaisesRegex(ValueError, "^paper_cost_quote_invalid$"):
             self._read(missing_quote=True)
+
+    def test_truncated_historical_quote_page_fails_closed(self):
+        with self.assertRaisesRegex(ValueError, "^paper_cost_quote_pages_incomplete$"):
+            self._read(quote_next_page_token="more-quotes")
 
     def test_missing_fee_receipt_fails_closed(self):
         with self.assertRaisesRegex(ValueError, "^paper_fee_activity_missing$"):

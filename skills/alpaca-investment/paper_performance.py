@@ -656,9 +656,18 @@ def write_paper_performance(
                 if receipt_id not in cumulative_order_ids:
                     cumulative_order_ids.append(receipt_id)
         account_receipt_id = f"alpaca-account-readback:{observed_at}"
-        daily_broker_costs = _broker_cost_summary(daily_rounds, cost_evidence)
-        daily_cost_source_ids = daily_broker_costs["broker_cost_source_receipt_ids"]
         daily_order_ids = {tuple(sorted(item.get("order_ids", []))) for item in daily_rounds}
+        daily_cost_evidence = [
+            row for row in cost_evidence
+            if (isinstance(row, Mapping)
+                and isinstance(row.get("order_ids"), list)
+                and len(row["order_ids"]) == 2
+                and all(isinstance(order_id, str) and order_id
+                        for order_id in row["order_ids"])
+                and tuple(sorted(row["order_ids"])) in daily_order_ids)
+        ]
+        daily_broker_costs = _broker_cost_summary(daily_rounds, daily_cost_evidence)
+        daily_cost_source_ids = daily_broker_costs["broker_cost_source_receipt_ids"]
         daily_cost_errors = [
             row for row in cost_errors if tuple(sorted(row.get("order_ids", []))) in daily_order_ids
         ]
