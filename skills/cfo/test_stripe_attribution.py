@@ -613,6 +613,12 @@ class StripeAttributionTest(unittest.TestCase):
         as_of = next(r for r in adapt(value)
                      if r["record_type"] == "coverage" and r["projection"] == "as_of")
         self.assertEqual((as_of["coverage_state"], as_of["reason"]), ("gap", "read_failed"))
+        value = payloads()
+        for row in value["subscriptions"]["data"]:
+            row.update(status="canceled", metadata={})
+        value["subscriptions"]["data"][0]["id"] = " "
+        with self.assertRaises(contract.ContractError):
+            adapt(value)
 
     def test_subscription_requires_trusted_external_economic_class(self):
         for classification in (None, "self_payment", "unknown_classification"):
