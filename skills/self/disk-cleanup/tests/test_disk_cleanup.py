@@ -3118,6 +3118,61 @@ def test_watchdog_fast_inventory_survives_a_stale_budget_exhausted_full_marker(
     assert not governor.full_inventory_marker.exists()
 
 
+def test_incomplete_periodic_full_inventory_is_backed_off_for_one_interval(
+    tmp_path: Path, monkeypatch
+) -> None:
+    wall_clock = [10_000]
+    monkeypatch.setattr(disk_cleanup.time, "time", lambda: wall_clock[0])
+    monkeypatch.delenv("LIFE_MANAGER_DISK_INVENTORY_FAST", raising=False)
+    modes = []
+
+    def inventory(**kwargs):
+        modes.append(kwargs["full"])
+        return {"coverage": {"mount_count": 1, "root_count": 1,
+                             "gaps": ["size-budget-exhausted:/unknown"]}}
+
+    monkeypatch.setattr(disk_cleanup, "collect_host_inventory", inventory)
+    state = tmp_path / "state"
+    governor = HostDiskGovernor(home=tmp_path, state_dir=state,
+                                usage=lambda: (12 * GiB, 100 * GiB), clock=lambda: 0.0)
+    monkeypatch.setattr(governor, "discover_candidates", lambda **_kwargs: [])
+
+    first = governor.run_once()
+    second = governor.run_once()
+    wall_clock[0] += disk_cleanup.FULL_INVENTORY_INTERVAL_SECONDS
+    third = governor.run_once()
+
+    assert modes == [True, False, True]
+    assert [r["inventory_mode"] for r in (first, second, third)] == ["full", "fast", "full"]
+    assert not governor.full_inventory_marker.exists()
+    assert governor.full_inventory_attempt_marker.read_text().strip() == str(wall_clock[0])
+
+
+def test_full_inventory_marker_write_failure_falls_back_to_fast_inventory(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.delenv("LIFE_MANAGER_DISK_INVENTORY_FAST", raising=False)
+    modes = []
+
+    def inventory(**kwargs):
+        modes.append(kwargs["full"])
+        return {"coverage": {"mount_count": 1, "root_count": 1, "gaps": []}}
+
+    monkeypatch.setattr(disk_cleanup, "collect_host_inventory", inventory)
+    governor = HostDiskGovernor(home=tmp_path, state_dir=tmp_path / "state",
+                                usage=lambda: (12 * GiB, 100 * GiB))
+    monkeypatch.setattr(governor, "discover_candidates", lambda **_kwargs: [])
+    monkeypatch.setattr(governor, "_mark_full_inventory_attempt",
+                        lambda: (_ for _ in ()).throw(OSError("no space")))
+
+    result = governor.run_once()
+
+    assert modes == [False]
+    assert result["inventory_mode"] == "fast"
+    assert result["inventory_schedule_error_class"] == "OSError"
+    assert result["storage_next_action"] == "retry_full_inventory"
+
+
 def test_run_once_global_budget_preserves_candidate_and_does_not_advance_full_marker(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -4058,6 +4113,19 @@ def test_receipt_carries_loaded_cleanup_identity(tmp_path, monkeypatch):
     governor._receipt({"free_after": 400*1024**2})
     assert json.loads((tmp_path / "state/last-receipt.json").read_text())["identity"] == saved["identity"]
     assert "identity" not in json.loads((tmp_path / "state/last-unbound-receipt.json").read_text())
+
+
+def test_watchdog_receipt_without_run_binding_uses_unbound_file(tmp_path, monkeypatch):
+    state = tmp_path / "state"
+    monkeypatch.setenv("LIFE_MANAGER_DISK_WATCHDOG", "1")
+    monkeypatch.setattr(disk_cleanup, "cleanup_run_binding", lambda *_args: None)
+    governor = HostDiskGovernor(home=tmp_path, state_dir=state)
+
+    governor._receipt({"ok": True, "free_after": 3 * GiB})
+
+    assert not (state / "last-receipt.json").exists()
+    saved = json.loads((state / "last-unbound-receipt.json").read_text())
+    assert "identity" not in saved
 
 
 def test_governor_reports_growth_and_preservation_reason_without_false_recovery(tmp_path, monkeypatch):

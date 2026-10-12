@@ -667,6 +667,7 @@ class HostDiskGovernor:
         self.lock_dir = self.state_dir / ".life-manager-disk-cleanup.lock"
         self._lock_fd: int | None = None
         self.full_inventory_marker = self.state_dir / "host-inventory-full.at"
+        self.full_inventory_attempt_marker = self.state_dir / "host-inventory-full.attempt"
         self.candidate_cursor_path = self.state_dir / "candidate-cursor.json"
         self.lsof = lsof
         self.usage = usage or self._usage
@@ -688,11 +689,26 @@ class HostDiskGovernor:
             }
 
     def _full_inventory_due(self) -> bool:
+        now = int(time.time())
         try:
             last = int(self.full_inventory_marker.read_text().strip())
         except (FileNotFoundError, OSError, ValueError):
+            last = 0
+        if now - last < FULL_INVENTORY_INTERVAL_SECONDS:
+            return False
+        try:
+            last_attempt = int(self.full_inventory_attempt_marker.read_text().strip())
+        except (FileNotFoundError, OSError, ValueError):
             return True
-        return int(time.time()) - last >= FULL_INVENTORY_INTERVAL_SECONDS
+        return now - last_attempt >= FULL_INVENTORY_INTERVAL_SECONDS
+
+    def _mark_full_inventory_attempt(self) -> None:
+        self.state_dir.mkdir(parents=True, exist_ok=True)
+        temporary = self.full_inventory_attempt_marker.with_name(
+            f".{self.full_inventory_attempt_marker.name}.tmp"
+        )
+        temporary.write_text(str(int(time.time())) + "\n")
+        os.replace(temporary, self.full_inventory_attempt_marker)
 
     def _mark_full_inventory(self) -> None:
         self.state_dir.mkdir(parents=True, exist_ok=True)
@@ -1614,14 +1630,17 @@ class HostDiskGovernor:
         if binding is not None:
             payload["identity"] = binding
         elif filename == "last-receipt.json":
-            previous = read_storage_snapshot(self.state_dir)
-            identity = previous.get("identity") if isinstance(previous, dict) else None
-            if (isinstance(identity, dict) and identity.get("owner_id") == "life-manager-disk-cleanup"
-                    and isinstance(identity.get("release_sha"), str)
-                    and re.fullmatch(r"[a-f0-9]{40}", identity["release_sha"])):
-                # A watchdog observation must not erase the scheduler-owned
-                # occurrence proof. Its capacity sample remains separate.
+            if os.environ.get("LIFE_MANAGER_DISK_WATCHDOG") == "1":
                 filename = "last-unbound-receipt.json"
+            else:
+                previous = read_storage_snapshot(self.state_dir)
+                identity = previous.get("identity") if isinstance(previous, dict) else None
+                if (isinstance(identity, dict) and identity.get("owner_id") == "life-manager-disk-cleanup"
+                        and isinstance(identity.get("release_sha"), str)
+                        and re.fullmatch(r"[a-f0-9]{40}", identity["release_sha"])):
+                    # Do not erase a scheduler-owned occurrence proof.
+                    # Keep this direct/unbound observation separate.
+                    filename = "last-unbound-receipt.json"
         payload.setdefault("observed_at", time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
         data = (json.dumps(payload, ensure_ascii=False, sort_keys=True) + "\n").encode("utf-8")
         if len(data) > RECEIPT_PAYLOAD_MAX_BYTES:
@@ -2306,6 +2325,13 @@ class HostDiskGovernor:
         full_inventory = os.environ.get("LIFE_MANAGER_DISK_INVENTORY_FAST") != "1" and (
             os.environ.get("EMERGENCY_GUARD_FULL_PASS") == "1" or self._full_inventory_due()
         )
+        inventory_schedule_error_class = None
+        if full_inventory and os.environ.get("EMERGENCY_GUARD_FULL_PASS") != "1":
+            try:
+                self._mark_full_inventory_attempt()
+            except OSError as exc:
+                full_inventory = False
+                inventory_schedule_error_class = type(exc).__name__
         try:
             inventory_kwargs = {
                 "home": self.home,
@@ -2325,6 +2351,8 @@ class HostDiskGovernor:
             if full_inventory and not inventory_budget_exhausted:
                 self._mark_full_inventory()
             result["inventory_mode"] = "full" if full_inventory else "fast"
+            if inventory_schedule_error_class is not None:
+                result["inventory_schedule_error_class"] = inventory_schedule_error_class
             result["inventory_mounts"] = int(inventory["coverage"]["mount_count"])
             result["inventory_roots"] = int(inventory["coverage"]["root_count"])
             result["inventory_gaps"] = len(inventory["coverage"]["gaps"])
@@ -2336,6 +2364,7 @@ class HostDiskGovernor:
                     "non_additive": True,
                 }
         except (OSError, RuntimeError, ValueError, KeyError) as exc:
+            result.setdefault("inventory_mode", "fast")
             result["inventory_error"] = type(exc).__name__
         try:
             free_after, _ = self.usage()
@@ -2354,7 +2383,9 @@ class HostDiskGovernor:
             r.get("attribution") == "unattributed" and type(r.get("delta_bytes")) is int
             and r["delta_bytes"] > 0 for r in (result.get("storage_growth") or {}).get("roots", []))
         result["storage_next_action"] = (
-            "inspect_unattributed_writer" if growing_unknown
+            "retry_full_inventory" if (result.get("inventory_error") is not None
+                                         or inventory_schedule_error_class is not None)
+            else "inspect_unattributed_writer" if growing_unknown
             else "inspect_preserved_candidates" if result["capacity_recovery"]["status"] != "met"
             else "continue_bounded_retention")
         result["ok"] = _cleanup_terminal_ok(result)
