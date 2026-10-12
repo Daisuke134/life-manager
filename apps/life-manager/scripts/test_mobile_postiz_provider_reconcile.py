@@ -756,6 +756,16 @@ def test_jp1_readback_matches_postiz_profile_separately_from_native_handle(monke
     assert readback["integration_ref"] == identity["integration_ref"]
 
 
+def test_youtube_identity_from_existing_writer_accepts_its_exact_configured_postiz_profile():
+    identity = {
+        "platform": "youtube",
+        "integration_ref": "integration://postiz/youtube/cmn8ymq6c02oio70y5ea1trv8",
+        "account_id": "@anicca-affirmation-video",
+    }
+
+    assert reconcile._expected_postiz_profile(identity) == "@anicca-affirmation-video"
+
+
 def _native_carousel_recovery_fixture(tmp_path, monkeypatch, *, copies=1, corrupt_media=False, publish_date=None):
     owner = "life-manager-anicca-jp1-tiktok"
     slot = "2026-10-07T09:00:00.000Z"

@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "product_id": "anicca-ios",
+  "platform": "instagram",
+  "account_id": "@anicca.en",
+  "public_url": "https://www.instagram.com/reel/DdvxhT1jm8F/",
+  "provider_post_id": "cmui7zo8n0ixho80yybalkhj0",
+  "historical_checkpoints": {
+    "24h": {
+      "observed_at": "2026-09-30T00:04:49.101Z",
+      "status": "unavailable",
+      "reason": "source_delayed"
+    },
+    "7d": {
+      "observed_at": "2026-10-11T05:13:08.332Z",
+      "status": "unavailable",
+      "reason": "source_delayed"
+    },
+    "interpretation": "The due collector records source_delayed after the checkpoint grace expires. These historical window values remain unknown and are not replaced with the current observation. The original scheduler occurrence ID is not present in the saved snapshots."
+  },
+  "isolated_current_api_probe": {
+    "observed_at": "2026-10-11T08:18:53.023Z",
+    "source_main_sha": "d33662a4f1045e03b4a74090cf6927435836ea5c",
+    "data_dir_is_isolated": true,
+    "production_state_mutated": false,
+    "telegram": {
+      "created": false,
+      "reason": "current_observation_for_daily_report"
+    },
+    "receipt_sha256": "f41cbe6d4bb212a7774f0a065e9350927921d288d621c60f4c00a75138f8c2c3"
+  },
+  "stored_current_observation": {
+    "observed_at": "2026-10-11T15:19:23.809Z",
+    "window": "current",
+    "historical_checkpoint": false,
+    "requested_lookback_days": 7,
+    "metric_scope": "provider_current_observation",
+    "runtime_snapshot": "~/.local/state/life-manager/tenants/dais-local/marketing/metrics/anicca.en/DdvxhT1jm8F/current/2026-10-12.combined.json",
+    "snapshot_sha256": "7f0e3b96939fbd1f309a35776728363f6d60a38a200c3cbed9324674577f5090",
+    "native_identity_verified": true,
+    "metrics": {
+      "views": { "status": "measured", "value": 2229 },
+      "reach": { "status": "measured", "value": 1610 },
+      "saves": { "status": "measured", "value": 3 },
+      "likes": { "status": "measured", "value": 1 },
+      "comments": { "status": "measured", "value": 0 },
+      "shares": { "status": "measured", "value": 0 },
+      "engagement": {
+        "status": "derived",
+        "numerator": 4,
+        "denominator": 2229,
+        "rate": 0.00179453,
+        "percent": 0.18,
+        "formula": "(likes+comments+shares+saves)/views"
+      },
+      "impressions": { "status": "unavailable", "value": null, "reason": "metric_not_supported" },
+      "watch_time": { "status": "unavailable", "value": null, "reason": "metric_not_supported" },
+      "average_watch_time": { "status": "unavailable", "value": null, "reason": "metric_not_supported" },
+      "completion": { "status": "unavailable", "value": null, "reason": "metric_not_supported" }
+    },
+    "natural_owner_run_proven": false
+  }
+}
