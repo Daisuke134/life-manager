@@ -174,8 +174,6 @@ def run(endpoint: str) -> dict:
     from playwright.sync_api import sync_playwright
 
     rows = ledger_mod.latest_by_slug()
-    if not rows:
-        return {"ok": True, "checked": 0, "updates": []}
 
     updates = []
     with sync_playwright() as p:

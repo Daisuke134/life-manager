@@ -116,15 +116,24 @@ class ParseSalesTest(unittest.TestCase):
 
 
 @pytest.mark.parametrize(
-    ("sales_url", "sales_text"),
+    ("sales_url", "sales_text", "should_succeed"),
     [
-        ("https://promptbase.com/login?view=login", "PromptBase\nLogin\nNo sales yet"),
+        ("https://promptbase.com/login?view=login", "PromptBase\nLogin\nNo sales yet", False),
         (readback.SALES_URL,
-         "PromptBase\nDashboard\nSales\nSecurity verification\nNo sales yet"),
+         "PromptBase\nDashboard\nSales\nSecurity verification\nNo sales yet", False),
+        (readback.SALES_URL, "PromptBase\nDashboard\nSales\nNo sales yet", True),
     ],
 )
+@pytest.mark.parametrize(
+    "ledger_rows",
+    [
+        {"hook-lab": {"title": "Hook Lab", "status": "live", "sales_usd": 0.0}},
+        {},
+    ],
+    ids=["tracked-listing", "empty-ledger"],
+)
 def test_run_does_not_write_zero_for_unverified_sales_page(
-    tmp_path, monkeypatch, sales_url, sales_text,
+    tmp_path, monkeypatch, sales_url, sales_text, should_succeed, ledger_rows,
 ):
 
     class FakeResponse:
@@ -133,8 +142,10 @@ def test_run_does_not_write_zero_for_unverified_sales_page(
     class FakePage:
         url = "about:blank"
         body = ""
+        visited = []
 
         def goto(self, url, **kwargs):
+            self.visited.append(url)
             if url == readback.PROMPTS_URL:
                 self.url = url
                 self.body = REAL_DASHBOARD_TEXT
@@ -167,16 +178,21 @@ def test_run_does_not_write_zero_for_unverified_sales_page(
 
     import playwright.sync_api
     monkeypatch.setattr(playwright.sync_api, "sync_playwright", lambda: FakeManager())
-    monkeypatch.setattr(readback.ledger_mod, "latest_by_slug", lambda: {
-        "hook-lab": {"title": "Hook Lab", "status": "live", "sales_usd": 0.0},
-    })
+    monkeypatch.setattr(readback.ledger_mod, "latest_by_slug", lambda: ledger_rows)
     summary = tmp_path / "promptbase-sales.json"
     monkeypatch.setattr(readback, "SUMMARY_PATH", summary)
 
-    with pytest.raises(RuntimeError, match="promptbase_sales_readback_unverified"):
-        readback.run("http://127.0.0.1:9222")
-
-    assert not summary.exists()
+    if should_succeed:
+        result = readback.run("http://127.0.0.1:9222")
+        assert result["ok"] is True
+        assert result["checked"] == len(ledger_rows)
+        assert result["sales"]["sales_count"] == 0
+        assert page.visited == [readback.PROMPTS_URL, readback.SALES_URL]
+        assert summary.exists()
+    else:
+        with pytest.raises(RuntimeError, match="promptbase_sales_readback_unverified"):
+            readback.run("http://127.0.0.1:9222")
+        assert not summary.exists()
 
 
 if __name__ == "__main__":
