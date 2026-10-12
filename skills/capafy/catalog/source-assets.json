@@ -2,6 +2,11 @@
   "version": 1,
   "assets": [
     {
+      "path": "skills/capafy/catalog/annual-report-risk-change-brief/icon.png",
+      "role": "agent_icon",
+      "sha256": "d2eeaf7a84fbd89b43d5df48786ebb01c7da4e53d12f5fa0b29fb9da9b85f8e3"
+    },
+    {
       "path": "skills/capafy/catalog/hook-lab/icon.webp",
       "role": "agent_icon",
       "sha256": "71fd45e7303c4c87fa86c6ee0c532e09419a9123b0806b9e4572e34ba679176f"
