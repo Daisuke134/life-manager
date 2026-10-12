@@ -183,3 +183,12 @@ if a run dies after submitting but before `ledger.append`, it re-reads the
 seller dashboard (the only official PromptBase readback there is) for the
 slug/title `daily.sh` snapshotted immediately before `publish.py --confirm`,
 and closes the fence from that receipt instead of leaving it stuck.
+
+## Hourly sales readback (`promptbase-sales-readback-hourly`)
+
+The existing `lm-loop` scheduler runs `hourly_readback.sh` once per hour at
+minute 37. It borrows the registered `promptbase:dais` browser lease and calls
+`readback.py` once to refresh the official Prompts/Sales readback and private
+sales summary. A busy or unreachable browser skips that wake with exit 75; the
+next hourly wake retries. This loop has `effect_class: none`: it never submits
+or edits a listing and does not change the daily publisher cadence.
