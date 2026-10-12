@@ -3101,3 +3101,23 @@ Documentsのみをcanonical専用worktreeへ変更。外部6repoの固定版コ�
 - [ ] SBP-BRiMS等の登録は日程・形式・費用・required fieldsを確定して実行し、公式receiptを保存。参加/購入未実施。
 
 発信方針: founder/researcher/builderを中核に、論文理解→実装→測定→公開→専門家feedbackの循環。政治家/俳優/大規模influencerは事業成立の必要条件にしない。既存comedyは説明や対話の表現力として生かし、別careerを急増させない。
+
+<a id="manager-first-blessing-20261012"></a>
+## Manager 2026-10-12 最初の実証と図入り記事
+
+ユーザー指定: 最初の生活上の効果を具体化する。他社の用途・個別求人本文を読み、引用付き概説とAaru/Simile詳説、図、lightning talkを作る。既存Writer skillを使用。名称Manager/Architectを比較する。
+
+- [x] 個別8求人の本文を10/12再取得・読解。[fresh求人と用途report](../../research/manager/2026-10-12-job-pages-and-use-cases.md)。Aaru求人のhybridと公開core非LMを併記し、求人から未公開内部実装を断定しない。Simile nice-to-have全部は求めない文と90日再応募規定も確認。
+- [x] Aaru EY/Breakwater/Scenario、Simile CVS/Itaú、Primitive Instinct、Synthetic Users、Seldonの一次ページを取得・用途と証拠を分離。原本 `/workspace/scratch/manager-research/oct12/`。選挙forecastの用途列挙と具体的な成果caseを分ける。
+- [x] [最初の祝福の提案仕様](2026-10-12-manager-first-blessing-design.md): 所得機会アクセスを第一候補、医療/サービスアクセスと生活必需品を比較。確定協力先と実績はない。ユーザーに運用変更可能な接点をasync質問、回答なしのため相手を想定しない。
+- [x] 概説・Aaru・Simile各英日6原稿: `docs/research/manager/articles/2026-10-12-*.md`。Graphviz概念図2枚、self-contained HTML/PDFは `/workspace/artifacts/manager-articles/`。既存10/11原稿は保持。公開・課金なし。
+- [x] [5分6枚lightning source](../../research/manager/presentations/2026-10-12-human-simulation-lightning.md)、JSON、既存rendererで英語PPTX/PDFと日本語slide notesを `/workspace/artifacts/manager-lightning/` に生成。research/proposed studyのstageを表示。
+- [ ] 運営者、実在需要、変更権限、所得/費用/時間記録を確認し、最初のfield対象を固定する。協力先がなければsimulationとempirical predictionのみを測り、現実の祝福は未実証と表示。
+- [ ] baseline分散・支払遅延・干渉から比較設計と検出可能効果を固定し、実装済みD0–D5/E0の状態を証拠で更新。simulationを所得実証へ転用しない。
+- [ ] 許諾データ・OSS license・実結果を確認後、記事をwebsite/blogと英日発信へ接続。tag/引用は事実に基づき、提携/返信/出演を保証しない。
+
+Writer適用: `skills/writer-agent/SKILL.md`、Zinsser reader/prose、humanizer、visual decisionを読み、reader/job/form/persona/出典・mechanism・claim scopeをprivate editorial-briefへ記録。今回の依頼は読むための原稿と図の制作。runtime publishing/money loopは実行せず、paid editorial gate PASS、published URL、読者/収益、各社systemを実行した結果を捏造しない。前の10/11原稿はチャット内で作ったdraftで、Writer自動投稿経路で生成された記事とは言わない。
+
+名称案: Managerを製品全体、Architectを環境変更候補の設計役割として保持。
+
+10/12記事・最初の実証の検証: source-boundary PASS、git diff --check、9新規Markdownのrelative image/link/anchor検査。6HTMLはembedded images読込・横overflowなし、6PDFは各4/5頁で全文と出典抽出。日本語概説first page・Aaru図・英語Similefirst pageを目視。図は2列へ組み直しarticle幅で可読。6枚lightning PPTXの日本語notes/sourceURLと合計300秒をreadback。実モデル実行・field介入・外部公開・課金・応募・送信はしていない。

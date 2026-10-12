@@ -1,0 +1,13 @@
+digraph G {
+ graph [rankdir=TB,bgcolor="#f7f9fc",pad=.45,nodesep=.35,ranksep=.5,label="Human simulation and environment design",labelloc=t,fontname="DejaVu Sans",fontsize=22];
+ node [shape=box,style="rounded,filled",fillcolor="#ffffff",color="#b9c9df",fontname="DejaVu Sans",fontsize=15,margin=".18,.14"];
+ edge [color="#597393",arrowsize=.7,fontname="DejaVu Sans",fontsize=11];
+ data [label="Observed evidence\nSources and constraints"];
+ pop [label="Population\nJoint traits and coverage"];
+ response [label="Response model\nChoice distributions"];
+ world [label="Environment\nResources and rules"];
+ design [label="Intervention selection\nBudget and trade-offs",fillcolor="#e0eafc"];
+ result [label="Observed outcomes\nIndependent evaluation",fillcolor="#ddf2e9"];
+ {rank=same;data;pop;} {rank=same;response;design;} {rank=same;world;result;}
+ data -> pop; pop -> response; response -> design; world -> response; design -> world [label="change"]; world -> result; result -> data [label="new evidence",constraint=false];
+}

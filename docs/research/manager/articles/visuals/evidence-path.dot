@@ -1,0 +1,10 @@
+digraph G {
+ graph [rankdir=TB,bgcolor="#f7f9fc",pad=.4,nodesep=.4,ranksep=.4,label="Match each claim to its evidence",labelloc=t,fontname="DejaVu Sans",fontsize=22];
+ node [shape=box,style="rounded,filled",color="#b9c9df",fontname="DejaVu Sans",fontsize=16,margin=".22,.16",width=5.6];
+ edge [color="#597393",fontname="DejaVu Sans",fontsize=11];
+ p [label="Prediction: held-out human data\nDoes the response forecast match observations?",fillcolor="#ffffff"];
+ s [label="Simulation: policy comparison\nDoes the rule improve the modeled environment?",fillcolor="#e8effb"];
+ f [label="Field: applied intervention + comparison\nDid people's measured outcomes change?",fillcolor="#ddf2e9"];
+ u [label="Update: failures, costs, and subgroup effects\nWhat should the next decision change?",fillcolor="#ffffff"];
+ p -> s [label="separate policy test"]; s -> f [label="authority + real data + study design"]; f -> u;
+}
