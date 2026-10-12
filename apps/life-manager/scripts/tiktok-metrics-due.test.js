@@ -5,10 +5,18 @@ const { TARGETS, discoverTarget, discoverTargets, runDue } = require("./tiktok-m
 const { JA_JP1_TIKTOK_LANE, verifyMarketingNativeCarouselPublicationReceipt } = require("../lib/marketing-native-carousel-publication-adapter.js");
 const EXPECTED = { tenant_id: "dais-local", product_id: "anicca-ios", locale: "ja", account_id: "@anicca.jp4", native_owner: "anicca.jp4", integration_id: "cmn8x8hdv028uqx0y4gdfse5t", provider_post_id: "cmt328uot00s2qk0y23e8ptii", shortcode: "7676495865816632583", video_id: "7676495865816632583", public_url: "https://www.tiktok.com/@anicca.jp4/video/7676495865816632583", caption: "今すぐやれ", published_at: "2026-08-21T14:46:13.240Z" };
 
-test("JP4 due loop reports delayed and daily once while true 24h stays pending", async () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-jp4-due-")); let sends = 0; const env = { LM_DATA_DIR: dataDir, LM_TELEGRAM_BOT_TOKEN: "fake", LM_TELEGRAM_ALERT_CHAT_ID: "fake" };
+test("missed TikTok windows and per-post daily snapshots stay local while true 24h stays pending", async (t) => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-jp4-due-")); t.after(() => fs.rmSync(dataDir, { recursive: true, force: true })); let sends = 0; const env = { LM_DATA_DIR: dataDir, LM_TELEGRAM_BOT_TOKEN: "fake", LM_TELEGRAM_ALERT_CHAT_ID: "fake" };
   const originalFetch = global.fetch; global.fetch = async () => ({ ok: true, json: async () => ({ ok: true, result: { message_id: ++sends } }) });
-  try { const now = Date.parse(EXPECTED.published_at) + 18.5 * 3600_000; const first = await runDue(now, env, [EXPECTED]); assert.equal(first.find((row) => row.window === "2h").state, "source_delayed"); assert.equal(first.find((row) => row.window === "24h").state, "pending"); assert.equal(first.find((row) => row.window === "daily").state, "reported"); assert.equal(sends, 2); const replay = await runDue(now, env, [EXPECTED]); assert.equal(replay.find((row) => row.window === "2h").state, "complete"); assert.equal(replay.find((row) => row.window === "daily").state, "complete"); assert.equal(sends, 2); } finally { global.fetch = originalFetch; }
+  try { const now = Date.parse(EXPECTED.published_at) + 18.5 * 3600_000; const first = await runDue(now, env, [EXPECTED]); assert.equal(sends, 0); assert.equal(first.find((row) => row.window === "2h").state, "checkpoint_missed"); assert.equal(first.find((row) => row.window === "24h").state, "pending"); assert.equal(first.find((row) => row.window === "daily").state, "persisted"); const replay = await runDue(now, env, [EXPECTED]); assert.equal(replay.find((row) => row.window === "2h").state, "checkpoint_missed"); assert.equal(replay.find((row) => row.window === "daily").state, "complete"); assert.equal(sends, 0); } finally { global.fetch = originalFetch; }
+});
+
+test("TikTok metrics ignore publications older than the existing 30-day retention window", async (t) => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-tiktok-metrics-age-")); t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  const old = { ...EXPECTED, published_at: "2026-08-01T00:00:00.000Z" };
+  const result = await runDue(Date.parse("2026-10-12T00:00:00.000Z"), { LM_DATA_DIR: dataDir }, [old]);
+  assert.deepEqual(result, []);
+  assert.equal(fs.existsSync(path.join(dataDir, "tenants", old.tenant_id, "marketing", "metrics")), false);
 });
 
 test("discovery keeps verified Honne EN and JA relationship-confession lanes isolated", () => {
@@ -248,7 +256,7 @@ test("Postiz carousel metrics use the exact published permalink in the snapshot 
   }
 });
 
-test("delayed Postiz photo metrics still report an exact available permalink", async (t) => {
+test("delayed Postiz photo metrics persist an exact permalink without a per-post Telegram send", async (t) => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-tiktok-photo-delayed-link-"));
   t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
   const photoUrl = "https://www.tiktok.com/@anicca.jpx/photo/7695154487559851270";
@@ -288,11 +296,11 @@ test("delayed Postiz photo metrics still report an exact available permalink", a
       LM_TELEGRAM_ALERT_CHAT_ID: "fake",
     }, [expected]);
     const twoHour = result.find((row) => row.window === "2h");
-    assert.equal(twoHour.state, "source_delayed");
+    assert.equal(twoHour.state, "checkpoint_missed");
     const snapshot = JSON.parse(fs.readFileSync(path.join(dataDir, "tenants", expected.tenant_id, "marketing", "metrics", expected.native_owner, expected.shortcode, "2h.combined.json"), "utf8"));
     assert.equal(snapshot.public_url, photoUrl);
     assert.equal(snapshot.post.views.status, "unavailable");
-    assert.ok(telegramText.includes(photoUrl));
+    assert.equal(telegramText, "");
   } finally {
     global.fetch = originalFetch;
   }
