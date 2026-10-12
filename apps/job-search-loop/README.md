@@ -11,7 +11,7 @@ interviews, and reports every material state change to Telegram.
 |---|---|
 | Acquisition target | Every fresh unique model-qualified role; no daily application quota |
 | Location | Any U.S. location, Tokyo on-site or hybrid, and remote roles worldwide where the employer can hire the candidate; sponsorship ambiguity alone does not discard a strong-fit role, and authorization answers remain truthful |
-| Compensation | Candidate-defined floor and target; Dais's current floor is USD 100,000 annually. Unpublished or non-USD compensation remains visible uncertainty |
+| Compensation | Candidate-defined floor and target from the private profile; unpublished or non-USD compensation remains visible uncertainty |
 | Role focus | Candidate-defined target role families, checked by the model against the complete official JD and resume evidence |
 | Discovery | Accumulating official Workday company registry plus complete CXS snapshots and model ranking; non-Workday adapters remain broken/unverified until rebuilt |
 | Evidence | Every application is fenced in SQLite and retained under a private evidence directory |
@@ -53,31 +53,32 @@ as the comparison below records.
 
 ## Competitive comparison
 
-This comparison separates documented/source behavior from a real, receipt-verified
-application. A README claim or a generated `RESULT:APPLIED` string alone is not
-proof that an employer accepted an application.
+This comparison separates license cost, runtime cost, documented/source behavior,
+and a real, receipt-verified application. A README claim or a generated
+`RESULT:APPLIED` string alone is not proof that an employer accepted an application.
 
-| Agent | Search and tailoring | Automatic final Submit | Completion evidence described in source | Human step / current limitation |
+| Agent | Open-source license | Automatic final Submit | Runtime cost | Application evidence and current limitation |
 |---|---|---|---|---|
-| [career-ops](https://github.com/career-ops-hq/career-ops) | Searches and evaluates roles, tailors CVs and drafts answers | **No** | Local tracker and user-managed outcomes | Its README and `prepare-application.mjs` say it never POSTs; the applicant reviews and presses Submit. It is a job-search and preparation agent, not an automatic submitter. MIT. |
-| [ApplyPilot](https://github.com/Pickle-Pixel/ApplyPilot) | README describes discovery across multiple boards, Workday portals, scoring, resume tailoring and cover letters | **Yes, in its normal source path** | The prompt tells the browser agent to inspect the post-submit page for “thank you” or “application received”; Claude then returns `RESULT:APPLIED`, which the launcher records locally | The reviewed path contains no per-application approval step. I did not verify an actual employer receipt or an independent Gmail receipt in a live application. AGPL-3.0. |
-| Job Hunter — intended Workday-first release | Company-bound resume tailoring from candidate facts; official Workday job fit | **Target: yes** | Target: bind an official employer receipt to the same job and ledger entry, prevent replay, and report the result | This Workday-only target is not in the current public `main`: the published daily entrypoint still calls Dreamwork and shares a lane with Workday/Ashby. Email reporting is not implemented; the current report route is Telegram. |
+| [career-ops](https://github.com/career-ops-hq/career-ops) | MIT; no license fee | **No** | README supports free/local models; provider cost depends on the model selected | Its README and `prepare-application.mjs` say it never POSTs; the applicant reviews and presses Submit. It is job-search and preparation software, not an automatic submitter. |
+| [ApplyPilot](https://github.com/Pickle-Pixel/ApplyPilot) | AGPL-3.0; no license fee | **Yes, in its normal source path** | Auto-apply requires Claude Code CLI; Anthropic lists Claude Code with paid plans, while API use is token-billed. ApplyPilot says its Gemini stages have a free tier; optional CAPTCHA service may add cost. See [Anthropic pricing](https://claude.com/pricing) and [Claude Code costs](https://code.claude.com/docs/en/costs). | Its launcher asks Claude to navigate and submit without per-job approval. The launcher records `RESULT:APPLIED` from page evidence; no independent employer receipt or confirmation email was verified in a live application. |
+| Job Hunter — intended Workday-first release | MIT source; no license fee | **Target: yes** | Total operating cost and a $0 default run are not verified | This Workday-only target is not in the current public `main`: the daily entrypoint still calls Dreamwork and shares a lane with Workday/Ashby. The current report route is Telegram; email reporting is not implemented. |
 
 The broad claim “world’s first open-source agent that searches, tailors, and
 automatically submits applications” is not supported: ApplyPilot already has a
-source-level no-human-submit path. The narrower difference to prove is reliable
-employer-receipt reconciliation, duplicate-safe application history, and clear
-reporting after the Workday submit. Do not present that distinction as a verified
-first until the Workday-only release completes a natural real application and the
-receipt is read back from the employer.
+source-level no-human-submit path. Its source also requires Claude Code for
+auto-apply, so its open-source license does not establish $0 operation. The narrower
+difference to prove is a receipt-verified Workday pipeline that does not require a
+paid AI/API subscription, with duplicate-safe history and clear reporting. Do not
+present that distinction as a verified first until a natural real application and
+the employer receipt are read back.
 
 The selection rule is evidence-based: if an existing agent completes a real
-application and its employer receipt is independently verified while meeting the
-candidate's requirements, use or integrate that agent instead of rebuilding the
-same capability. Source inspection, dry runs, mocks, and synthetic profiles do not
-count as real-application evidence. A live competitor application with an
-independently verified employer receipt has not yet been established in this
-evaluation.
+application, its employer receipt is independently verified, and its complete
+runtime cost and license meet the candidate's requirements, use or integrate that
+agent instead of rebuilding the same capability. Source inspection, dry runs,
+mocks, and synthetic profiles do not count as real-application evidence. A live
+competitor application with an independently verified employer receipt has not yet
+been established in this evaluation.
 
 ## Runtime
 
