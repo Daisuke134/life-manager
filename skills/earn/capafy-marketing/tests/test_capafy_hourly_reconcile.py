@@ -375,9 +375,11 @@ def skill_analytics_payloads() -> dict:
             # Real /agent/agents list items key the display name "name", not "agentTitle"
             # (that key only appears in the ranking/earnings payloads below).
             {"agentId": "111", "name": "Hook Lab", "agentStatus": "online",
-             "agentRuntime": "openclaw", "rating": 0, "reviewCount": 0},
+             "agentRuntime": "openclaw", "rating": 0, "reviewCount": 0,
+             "hasOnlineVersion": True},
             {"agentId": "222", "name": "Zero Sales Skill", "agentStatus": "online",
-             "agentRuntime": "claude", "rating": 0, "reviewCount": 0},
+             "agentRuntime": "claude", "rating": 0, "reviewCount": 0,
+             "hasOnlineVersion": False},
         ]}},
         "seller_sales": {"code": 0, "data": {"totalRevenue": 34.88, "data": [
             {"date": "2026-06-25", "orders": 1, "revenue": 19.9, "refundAmount": 0.0},
@@ -456,6 +458,8 @@ def test_build_skill_analytics_account_totals_and_per_skill_rows() -> None:
     rows = {row["agent_id"]: row for row in analytics["per_skill_rows"]}
     assert rows["111"]["name"] == "Hook Lab"
     assert rows["222"]["name"] == "Zero Sales Skill"
+    assert rows["111"]["has_online_version"] is True
+    assert rows["222"]["has_online_version"] is False
     assert rows["111"]["model"] == "Claude Sonnet 4.6"
     assert rows["111"]["since_launch_gross_usd"] == "34.88"
     assert rows["111"]["since_launch_creator_earnings_usd"] == "19.00"
