@@ -491,7 +491,7 @@ def _source_reclaim_lock(current: Path, deadline: float):
 
 
 def reclaim_unreferenced_source(releases: Path, current: Path, agents: Path, keep: int) -> dict:
-    """Retain stores while retiring one closed main code snapshot per occurrence."""
+    """Retain stores while retiring one closed, officially reachable source snapshot."""
     result = {"removed_files": 0, "reclaimed_bytes": 0, "protected_deletions": 0,
               "errors": 0, "status": "preserved"}
     source_repo = Path(os.environ.get("LIFE_MANAGER_SOURCE_REPO", "~/Projects/life-manager-main")).expanduser()
@@ -546,10 +546,56 @@ def reclaim_unreferenced_source(releases: Path, current: Path, agents: Path, kee
     try:
         # This same lock excludes both per-label apply and current activation.
         with _source_reclaim_lock(current, deadline):
-            cached_main = git("rev-parse", "refs/remotes/origin/main")
-            official = git("ls-remote", "origin", "refs/heads/main").split()
-            if not official or official[0] != cached_main:
-                return {**result, "status": "source_main_stale"}
+            official_heads = {}
+            for line in git("ls-remote", "--heads", "origin").splitlines():
+                fields = line.split()
+                if len(fields) == 2 and fields[1].startswith("refs/heads/"):
+                    official_heads[fields[1]] = fields[0]
+            local_refs = {}
+            for line in git("for-each-ref", "--format=%(refname) %(objectname)",
+                            "refs/remotes/origin").splitlines():
+                fields = line.split()
+                if len(fields) == 2:
+                    local_refs[fields[0]] = fields[1]
+            fresh_remote_refs = {}
+            for remote_ref, remote_sha in official_heads.items():
+                branch = remote_ref.removeprefix("refs/heads/")
+                local_ref = f"refs/remotes/origin/{branch}"
+                if local_refs.get(local_ref) == remote_sha:
+                    fresh_remote_refs[local_ref] = remote_sha
+            if not fresh_remote_refs:
+                return {**result, "status": "source_remote_refs_stale"}
+
+            def official_source_ref(sha: str) -> str | None:
+                containing = git("for-each-ref", f"--contains={sha}",
+                                 "--format=%(refname)", "refs/remotes/origin").splitlines()
+                return next((fresh_remote_refs[ref] for ref in containing
+                             if ref in fresh_remote_refs), None)
+
+            def existing_source_pin(sha: str) -> str | None:
+                pin = f"refs/life-manager/retired-release-source/{sha}"
+                try:
+                    value = git("rev-parse", "--verify", f"{pin}^{{commit}}")
+                except subprocess.CalledProcessError:
+                    return None
+                return value if value == sha else "mismatch"
+
+            def ensure_source_pin(sha: str, verified_ref: str) -> str | None:
+                pin = f"refs/life-manager/retired-release-source/{sha}"
+                existing = existing_source_pin(sha)
+                if existing == "mismatch":
+                    return None
+                if existing == sha:
+                    return sha
+                try:
+                    git("merge-base", "--is-ancestor", sha, verified_ref)
+                    git("update-ref", pin, sha, "0" * 40)
+                except subprocess.CalledProcessError:
+                    # Another cooperating cleanup may have created the same pin.
+                    existing = existing_source_pin(sha)
+                    return sha if existing == sha else None
+                return sha if existing_source_pin(sha) == sha else None
+
             common = Path(git("rev-parse", "--git-common-dir"))
             if not common.is_absolute():
                 common = source_repo / common
@@ -558,12 +604,10 @@ def reclaim_unreferenced_source(releases: Path, current: Path, agents: Path, kee
                 if p.is_symlink() or p.stat().st_uid != os.getuid() or p.stat().st_size > 65536:
                     raise ValueError("release lease inventory is unknown")
                 leases.append(json.dumps(json.loads(p.read_text())))
-            held = references()
             candidates = []
             rollback = []
             for path in releases.iterdir():
-                if (not RELEASE_NAME.fullmatch(path.name) or not path.is_dir() or path.is_symlink()
-                        or path.resolve() in held):
+                if not RELEASE_NAME.fullmatch(path.name) or not path.is_dir() or path.is_symlink():
                     continue
                 retired = release_is_reclaimed(path)
                 descriptor = path / ("RECLAIMED-RELEASE.json" if retired else "RELEASE.json")
@@ -578,22 +622,28 @@ def reclaim_unreferenced_source(releases: Path, current: Path, agents: Path, kee
                 if not retired:
                     rollback.append((path.stat().st_mtime, path))
                 if retired or _release_immutable_store_probe(path, deadline=deadline) == "protected_descendant":
-                    candidates.append((path.stat().st_mtime, path, sha))
+                    source_ref = existing_source_pin(sha) or official_source_ref(sha)
+                    if source_ref:
+                        candidates.append((path.stat().st_mtime, path, sha, source_ref))
+            held = references()
+            candidates = [item for item in candidates if item[1].resolve() not in held]
+            rollback = [item for item in rollback if item[1].resolve() not in held]
             keep_roots = {p for _, p in sorted(rollback, reverse=True)[:max(1, keep)]}
             counts = {}
-            for _, _, sha in candidates:
+            for _, _, sha, _ in candidates:
                 counts[sha] = counts.get(sha, 0) + 1
             ordered = sorted(candidates, key=lambda item: (
                 counts[item[2]] == 1 or release_is_reclaimed(item[1]),
                 -item[0] if counts[item[2]] > 1 and not release_is_reclaimed(item[1]) else item[0]))
-            for _, path, sha in ordered:
+            for _, path, sha, source_ref in ordered:
                 if time.monotonic() >= deadline or path in keep_roots:
                     continue
-                if subprocess.run(["git", "-C", str(source_repo), "merge-base", "--is-ancestor", sha, cached_main],
-                                  capture_output=True, timeout=min(2, max(.01, deadline-time.monotonic()))).returncode:
+                pinned_source = ensure_source_pin(sha, source_ref)
+                if pinned_source is None:
                     continue
                 result = reclaim_release_source(path, source_repo,
-                    can_reclaim=lambda owned: path.resolve() not in references(owned), deadline=deadline)
+                    can_reclaim=lambda owned: path.resolve() not in references(owned),
+                    source_ref=pinned_source, deadline=deadline)
                 result["release_root"] = str(path)
                 result["release_sha"] = sha
                 if release_is_reclaimed(path):
