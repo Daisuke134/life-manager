@@ -49,4 +49,4 @@
 
 - [x] **Step 5: Run acceptance checks.** Run `python3 -m unittest discover -s runtime/loop/tests -p 'test_*.py'`, `node --test apps/life-manager/lib/loop-adapter-registry.test.js`, `bash scripts/verify-source-boundary.sh`, and `git diff --check`. Do not run live provider reconciliation or mutation commands.
 
-- [ ] **Step 6: Update the task record and integrate.** Update the DD02 row in the canonical SSOT with exact test, review, CI, and merge evidence; commit and push the dedicated branch, open a PR, finish exact-head checks and a fresh read-only review, then merge. Leave DD03 as the next cursor. Production apply is outside this source-only task.
+- [x] **Step 6: Update the task record and integrate.** DD02 is checked complete in the canonical SSOT; PR #7962 merged as e0f57dbc12a55b9ee039f2e59ab133224081fe2d after all 11 required CI jobs passed and the fresh read-only review returned SHIP. Current cursor is DD03. No production apply or effect reconciliation was part of this source-only task.
