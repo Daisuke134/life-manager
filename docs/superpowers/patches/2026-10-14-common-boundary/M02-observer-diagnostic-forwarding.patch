@@ -1,0 +1,173 @@
+diff --git a/runtime/loop/health_observer.py b/runtime/loop/health_observer.py
+--- a/runtime/loop/health_observer.py
++++ b/runtime/loop/health_observer.py
+@@ -9,6 +9,7 @@
+ import re
+ import subprocess
+ import sys
++import time
+ import tempfile
+ from pathlib import Path
+ 
+@@ -16,7 +17,7 @@
+ if str(ROOT) not in sys.path:
+     sys.path.insert(0, str(ROOT))
+ 
+-from runtime.loop.health import validate_health_document
++from runtime.loop.health import HEALTH_READ_DIAGNOSTIC_SCHEMA, sanitize_health_read_diagnostic, validate_health_document
+ 
+ 
+ PROBLEM_STATES = frozenset({
+@@ -263,20 +264,65 @@
+     }
+ 
+ 
++
++def _forward_health_read_diagnostics(stderr, *, allowed_loop_ids: set[str]) -> dict | None:
++    if isinstance(stderr, bytes):
++        stderr = stderr.decode("utf-8", errors="replace")
++    if not isinstance(stderr, str):
++        return None
++    last = None
++    count = 0
++    for line in stderr[-4096:].splitlines():
++        if len(line) > 1024:
++            continue
++        try:
++            candidate = json.loads(line)
++        except ValueError:
++            continue
++        diagnostic = sanitize_health_read_diagnostic(candidate, allowed_loop_ids=allowed_loop_ids)
++        if diagnostic is None:
++            continue
++        print(json.dumps(diagnostic, sort_keys=True), file=sys.stderr)
++        last = diagnostic
++        count += 1
++        if count == 4:
++            break
++    return last
++
++
+ def load_health_snapshot() -> dict:
+-    result = subprocess.run(
+-        [sys.executable, "-m", "runtime.loop.lm_loop", "health", "--json"],
+-        cwd=ROOT,
+-        text=True,
+-        capture_output=True,
+-        # 9s on an idle host, but >40s under load (load average 17, 2026-10-08): a 40s limit
+-        # made every snapshot time out and all 187 jobs read as telemetry_gap.
+-        timeout=int(os.environ.get("LIFE_MANAGER_HEALTH_SNAPSHOT_TIMEOUT", "180")),
+-        check=False,
+-    )
++    subprocess_started_at = time.monotonic()
++    try:
++        result = subprocess.run(
++            [sys.executable, "-m", "runtime.loop.lm_loop", "health", "--json"],
++            cwd=ROOT,
++            text=True,
++            capture_output=True,
++            # 9s on an idle host, but >40s under load (load average 17, 2026-10-08): a 40s limit
++            # made every snapshot time out and all 187 jobs read as telemetry_gap.
++            timeout=int(os.environ.get("LIFE_MANAGER_HEALTH_SNAPSHOT_TIMEOUT", "180")),
++            check=False,
++        )
++    except subprocess.TimeoutExpired as error:
++        last = _forward_health_read_diagnostics(error.stderr, allowed_loop_ids=set())
++        diagnostic = sanitize_health_read_diagnostic({
++            "schema_version": HEALTH_READ_DIAGNOSTIC_SCHEMA,
++            "source": "observer_subprocess", "event": "timeout",
++            "stage": last["stage"] if last is not None else "health_subprocess",
++            "loop_id": None,
++            "elapsed_seconds": round(max(0.0, time.monotonic() - subprocess_started_at), 3),
++            "budget_seconds": error.timeout,
++        }, allowed_loop_ids=set())
++        if diagnostic is not None:
++            print(json.dumps(diagnostic, sort_keys=True), file=sys.stderr)
++        raise
+     if result.returncode not in {0, 1}:
+         raise RuntimeError(f"health snapshot failed: {result.stderr[:200]}")
+-    return validate_health_document(json.loads(result.stdout))
++    document = validate_health_document(json.loads(result.stdout))
++    _forward_health_read_diagnostics(
++        result.stderr, allowed_loop_ids={job["job_id"] for job in document["jobs"]},
++    )
++    return document
+ 
+ 
+ def main() -> int:
+diff --git a/runtime/loop/tests/test_health_observer.py b/runtime/loop/tests/test_health_observer.py
+--- a/runtime/loop/tests/test_health_observer.py
++++ b/runtime/loop/tests/test_health_observer.py
+@@ -1,4 +1,7 @@
+ import json
++import io
++import subprocess
++from contextlib import redirect_stderr
+ import unittest
+ from pathlib import Path
+ from tempfile import TemporaryDirectory
+@@ -257,5 +260,64 @@
+         self.assertFalse(intent["mutates_external_effect"])
+ 
+ 
++
++    def test_snapshot_loader_keeps_only_valid_bounded_read_diagnostics(self):
++        document = health_document()
++        good = {"schema_version": "lm-loop.health-read-diagnostic.v1", "source": "health_cli",
++                "event": "timeout", "stage": "runtime_journal",
++                "loop_id": document["jobs"][0]["job_id"], "elapsed_seconds": 30.0,
++                "budget_seconds": 30.0, "raw_secret": "fixture-sensitive-value"}
++        bad_stage = {**good, "stage": "fixture-sensitive-value"}
++        bad_number = {**good, "elapsed_seconds": float("nan")}
++        huge_number = {**good, "elapsed_seconds": 10 ** 400}
++        bool_number = {**good, "elapsed_seconds": True}
++        completed = SimpleNamespace(returncode=1, stdout=json.dumps(document),
++            stderr="raw fixture-sensitive-value\n" + "\n".join(
++                json.dumps(row) for row in [bad_stage, bad_number, huge_number, bool_number, *([good] * 6)]))
++        output = io.StringIO()
++        with (patch("runtime.loop.health_observer.subprocess.run", return_value=completed),
++              redirect_stderr(output)):
++            self.assertEqual(load_health_snapshot(), document)
++        records = [json.loads(line) for line in output.getvalue().splitlines()]
++        self.assertEqual(len(records), 4)
++        self.assertTrue(all(record["stage"] == "runtime_journal" for record in records))
++        self.assertNotIn("fixture-sensitive-value", output.getvalue())
++
++    def test_snapshot_loader_preserves_stage_when_child_times_out(self):
++        start = {"schema_version": "lm-loop.health-read-diagnostic.v1", "source": "health_cli",
++                 "event": "start", "stage": "storage_snapshot", "loop_id": None,
++                 "elapsed_seconds": 8.0, "budget_seconds": 30.0}
++        error = subprocess.TimeoutExpired(["read-only-health"], 180,
++                                          stderr=json.dumps(start).encode())
++        output = io.StringIO()
++        with (patch("runtime.loop.health_observer.subprocess.run", side_effect=error),
++              patch("time.monotonic", side_effect=[100.0, 280.5]),
++              redirect_stderr(output), self.assertRaises(subprocess.TimeoutExpired)):
++            load_health_snapshot()
++        records = [json.loads(line) for line in output.getvalue().splitlines()]
++        self.assertTrue(records, "missing observer timeout diagnostic")
++        self.assertEqual(records[-1]["source"], "observer_subprocess")
++        self.assertTrue(records, "missing bounded read diagnostic")
++        self.assertEqual(records[-1]["event"], "timeout")
++        self.assertEqual(records[-1]["stage"], "storage_snapshot")
++        self.assertEqual(records[-1]["budget_seconds"], 180)
++        self.assertEqual(records[-1]["elapsed_seconds"], 180.5)
++
++    def test_parent_timeout_without_marker_is_still_diagnosed(self):
++        for stderr in (None, b"raw fixture-sensitive-value"):
++            with self.subTest(stderr_present=stderr is not None):
++                error = subprocess.TimeoutExpired(["read-only-health"], 180, stderr=stderr)
++                output = io.StringIO()
++                with (patch("runtime.loop.health_observer.subprocess.run", side_effect=error),
++                      patch("time.monotonic", side_effect=[100.0, 280.5]),
++                      redirect_stderr(output), self.assertRaises(subprocess.TimeoutExpired)):
++                    load_health_snapshot()
++                records = [json.loads(line) for line in output.getvalue().splitlines()]
++                self.assertTrue(records, "missing marker-free parent diagnostic")
++                self.assertEqual(records[-1]["stage"], "health_subprocess")
++                self.assertIsNone(records[-1]["loop_id"])
++                self.assertEqual(records[-1]["elapsed_seconds"], 180.5)
++                self.assertNotIn("fixture-sensitive-value", output.getvalue())
++
+ if __name__ == "__main__":
+     unittest.main()

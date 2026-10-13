@@ -1,0 +1,63 @@
+{
+  "scope": "isolated_in_memory_proposal_checks",
+  "source_sha": "7018416d03a7755766df1e115e019c6f1da5c49a",
+  "runtime_files_applied": false,
+  "provider_calls": 0,
+  "production_mutations": 0,
+  "results": {
+    "health_baseline": {
+      "run": 5,
+      "failures": 6,
+      "errors": 0,
+      "successful": false
+    },
+    "health_proposal": {
+      "run": 5,
+      "failures": 0,
+      "errors": 0,
+      "successful": true
+    },
+    "existing_guards": {
+      "run": 3,
+      "failures": 0,
+      "errors": 0
+    },
+    "capacity_baseline": {
+      "cases": 2,
+      "passed": 0
+    },
+    "capacity_proposal": {
+      "cases": 2,
+      "passed": 2
+    }
+  },
+  "activation_reference_probe": {
+    "scope": "in_memory_fs_and_exec_stubs",
+    "results": [
+      {
+        "scenario": "success",
+        "passed": true,
+        "activation_called": true,
+        "real_fs_writes": 0
+      },
+      {
+        "scenario": "guard_busy",
+        "passed": true,
+        "activation_called": false,
+        "real_fs_writes": 0
+      },
+      {
+        "scenario": "hold_present",
+        "passed": true,
+        "activation_called": false,
+        "real_fs_writes": 0
+      },
+      {
+        "scenario": "cut_busy",
+        "passed": true,
+        "activation_called": false,
+        "real_fs_writes": 0
+      }
+    ]
+  }
+}
