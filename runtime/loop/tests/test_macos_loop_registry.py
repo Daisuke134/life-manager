@@ -1620,6 +1620,11 @@ class MacosLoopRegistryTest(unittest.TestCase):
         right = {"schema_version": 2, "loops": {"a": entry("ai.anicca.a"), "b": entry("ai.anicca.b")}}
         self.assertEqual(render_job_models(left), render_job_models(right))
 
+    def test_line_sticker_readback_is_read_only_not_a_publish(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        self.assertEqual(registry["loops"]["line-sticker-readback-hourly"]["effect_class"], "none")
+        self.assertEqual(registry["loops"]["line-sticker-factory-hourly"]["effect_class"], "publish")
+
     def test_registry_covers_every_active_owned_inventory_label(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         inventory = json.loads((ROOT / "docs/evidence/runtime/2026-08-28-macos-loop-control-plane-inventory.json").read_text())
