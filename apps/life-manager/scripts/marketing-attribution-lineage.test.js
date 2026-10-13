@@ -18,7 +18,7 @@ function fixtureDataDir() {
   return dataDir;
 }
 
-function addMetricFixture(dataDir, { productId, appId, accountId, postId, token = null, receiptCopies = 1 }) {
+function addMetricFixture(dataDir, { productId, appId, accountId, postId, token = null, receiptCopies = 1, platform = "tiktok" }) {
   const captionFile = path.join(dataDir, `${postId}.caption.txt`);
   const videoFile = path.join(dataDir, `${postId}.video.mp4`);
   const campaignLine = token ? `\nhttps://apps.apple.com/app/id${appId}?ct=${token}&mt=8` : "";
@@ -26,12 +26,12 @@ function addMetricFixture(dataDir, { productId, appId, accountId, postId, token 
   fs.writeFileSync(videoFile, `video-${postId}`);
   const caption = importContentObject(captionFile, { objectDir: path.join(dataDir, "objects") });
   const video = importContentObject(videoFile, { objectDir: path.join(dataDir, "objects") });
-  const publicUrl = `https://www.tiktok.com/${accountId}/video/${postId}`;
-  const receipt = { kind: "marketing_video_distribution", status: "published", product_id: productId, locale: "en", platform: "tiktok", provider_post_id: postId, public_url: publicUrl, creative_id: `${productId}-${postId}`, slot: "2026-08-20T00:00:00.000Z", published_at: "2026-08-20T00:01:00.000Z", video_sha256: video.sha256, caption_sha256: caption.sha256 };
+  const publicUrl = platform === "instagram" ? `https://www.instagram.com/reel/${postId}/` : `https://www.tiktok.com/${accountId}/video/${postId}`;
+  const receipt = { kind: "marketing_video_distribution", status: "published", product_id: productId, locale: "en", platform, provider_post_id: postId, public_url: publicUrl, creative_id: `${productId}-${postId}`, slot: "2026-08-20T00:00:00.000Z", published_at: "2026-08-20T00:01:00.000Z", video_sha256: video.sha256, caption_sha256: caption.sha256 };
   for (let index = 0; index < receiptCopies; index += 1) fs.appendFileSync(path.join(dataDir, "marketing", "receipts.jsonl"), `${JSON.stringify({ receipt })}\n`);
   const metricDir = path.join(dataDir, "tenants", "dais-local", "marketing", "metrics", accountId, postId);
   fs.mkdirSync(metricDir, { recursive: true });
-  fs.writeFileSync(path.join(metricDir, "24h.combined.json"), JSON.stringify({ schema_version: 1, kind: "tiktok_combined_metric_snapshot", product_id: productId, locale: "en", account_id: accountId, integration_id: "integration-1", provider_post_id: postId, public_url: publicUrl, window: "24h", observed_at: "2026-08-21T00:01:00.000Z" }));
+  fs.writeFileSync(path.join(metricDir, "24h.combined.json"), JSON.stringify({ schema_version: 1, kind: platform === "instagram" ? "instagram_combined_metric_snapshot" : "tiktok_combined_metric_snapshot", product_id: productId, locale: "en", account_id: accountId, integration_id: "integration-1", provider_post_id: postId, public_url: publicUrl, window: "24h", observed_at: "2026-08-21T00:01:00.000Z" }));
   return accountId;
 }
 
@@ -89,6 +89,19 @@ test("campaign CT is accepted only for its matching mobile product", (t) => {
   assert.equal(byAccount["@anicca_wrong_app"].campaign_id, null);
   assert.equal(byAccount["@anicca_wrong"].attribution_reason, "campaign_token_product_mismatch");
   assert.equal(byAccount["@anicca_wrong_app"].attribution_reason, "campaign_app_id_mismatch");
+});
+
+test("lineage accepts canonical hyphenated Anicca destination CTs within the contract length", (t) => {
+  const dataDir = fixtureDataDir();
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  addMetricFixture(dataDir, { productId: "anicca-ios", appId: "6755129214", accountId: "@anicca.en", postId: "ig-token", token: "anicca-ios_ig_anicca-en_en", platform: "instagram" });
+  addMetricFixture(dataDir, { productId: "anicca-ios", appId: "6755129214", accountId: "@too_long", postId: "long-token", token: `anicca-ios_${"a".repeat(20)}`, platform: "instagram" });
+
+  const byAccount = Object.fromEntries(buildLineage({ dataDir }).rows.map((row) => [row.account_id, row]));
+  assert.equal(byAccount["@anicca.en"].campaign_id, "anicca-ios_ig_anicca-en_en");
+  assert.equal(byAccount["@anicca.en"].campaign_status, "configured");
+  assert.equal(byAccount["@too_long"].campaign_id, null);
+  assert.equal(byAccount["@too_long"].attribution_reason, "campaign_token_product_mismatch");
 });
 
 test("missing or ambiguous publication receipts stay unprovable without dropping exact rows", (t) => {
