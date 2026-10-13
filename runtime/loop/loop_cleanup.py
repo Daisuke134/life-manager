@@ -210,9 +210,10 @@ def release_is_reclaimed(path: Path) -> bool:
 
 def reclaim_release_source(path: Path, source_repo: Path, *,
                            can_reclaim: Callable[[tuple[int, ...]], bool],
-                           max_bytes: int = 64 * 1024**2, max_files: int = 256,
+                           source_ref: str,
+                           max_bytes: int = 64 * 1024**2, max_files: int = 4096,
                            deadline: float | None = None) -> dict:
-    """Reclaim matching Git code leaves; retain stores and unknown files in place."""
+    """Reclaim exact Git blobs after the caller pins their source commit locally."""
     result = {"removed_files": 0, "removed_source_bytes": 0, "reclaimed_bytes": 0,
               "protected_deletions": 0, "errors": 0, "status": "preserved"}
     deadline = time.monotonic() + 15 if deadline is None else deadline
@@ -221,7 +222,7 @@ def reclaim_release_source(path: Path, source_repo: Path, *,
     directories = {"bin", "runtime", "apps", "skills", "lib", "scripts", "services",
                    "templates", "plugins", "adapters", "integrations"}
     suffixes = {".py", ".js", ".cjs", ".mjs", ".sh", ".ts", ".tsx", ".jsx",
-                ".css", ".html", ".svg", ".png", ".jpg", ".webp"}
+                ".css", ".html", ".svg", ".png", ".jpg", ".webp", ".md", ".json"}
     sensitive = re.compile(r"credential|secret|cookie|passkey|recovery|auth|session|wallet|payment|receipt|ledger", re.I)
     flags = os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_NOFOLLOW", 0)
     root_fd = None
@@ -258,10 +259,12 @@ def reclaim_release_source(path: Path, source_repo: Path, *,
         finally:
             os.close(desc_fd)
         sha = manifest.get("sha")
-        if not isinstance(sha, str) or not re.fullmatch(r"[a-f0-9]{40}", sha):
+        if (not isinstance(sha, str) or not re.fullmatch(r"[a-f0-9]{40}", sha)
+                or not isinstance(source_ref, str)
+                or not re.fullmatch(r"[a-f0-9]{40}", source_ref)):
             return result
         try:
-            git("merge-base", "--is-ancestor", sha, "refs/remotes/origin/main")
+            git("merge-base", "--is-ancestor", sha, source_ref)
         except subprocess.CalledProcessError:
             return result
         entries = []

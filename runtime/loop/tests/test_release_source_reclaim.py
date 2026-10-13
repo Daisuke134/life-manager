@@ -9,15 +9,19 @@ import pytest
 from runtime.loop import loop_cleanup
 
 
-def fixture(tmp_path):
+def fixture(tmp_path, *, extra_files=0):
     repo = tmp_path / "repo"
     repo.mkdir()
     subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True)
     for key, value in (("user.email", "test@example.invalid"), ("user.name", "Test")):
         subprocess.run(["git", "config", key, value], cwd=repo, check=True)
     files = {"bin/one.py": b"print('one')\n", "bin/two.py": b"print('two')\n",
+             "apps/guide.md": b"release source guide\n",
+             "apps/manifest.json": b'{"release":"fixture"}\n',
              "memory/owner.md": b"keep memory", "state/data.jsonl": b"{}\n",
              "bin/credentials.py": b"keep credential", "bin/changed.py": b"original"}
+    for index in range(extra_files):
+        files[f"bin/bulk-{index:04d}.py"] = f"print({index})\n".encode()
     for name, data in files.items():
         path = repo / name
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -40,7 +44,10 @@ def fixture(tmp_path):
 
 
 def reclaim(release, repo, **kw):
-    return loop_cleanup.reclaim_release_source(release, repo, can_reclaim=lambda _: True, **kw)
+    source_ref = json.loads((release / ("RECLAIMED-RELEASE.json" if
+        loop_cleanup.release_is_reclaimed(release) else "RELEASE.json")).read_text())["sha"]
+    return loop_cleanup.reclaim_release_source(
+        release, repo, can_reclaim=lambda _: True, source_ref=source_ref, **kw)
 
 
 def test_code_reclaim_preserves_data_and_invalidates_release(tmp_path):
@@ -48,8 +55,10 @@ def test_code_reclaim_preserves_data_and_invalidates_release(tmp_path):
     protected = [release / p for p in ("memory/owner.md", "state/data.jsonl", "bin/credentials.py", "bin/changed.py", "unknown.py")]
     before = {p: (p.stat().st_ino, p.read_bytes()) for p in protected}
     result = reclaim(release, repo)
-    assert result["removed_files"] == 2
+    assert result["removed_files"] == 4
     assert not (release / "bin/one.py").exists()
+    assert not (release / "apps/guide.md").exists()
+    assert not (release / "apps/manifest.json").exists()
     assert not (release / "RELEASE.json").exists()
     assert (release / "RECLAIMED-RELEASE.json").read_bytes() == descriptor
     assert not loop_cleanup._valid_release(release)
@@ -66,6 +75,13 @@ def test_file_budget_resumes_from_same_descriptor(tmp_path):
     assert (release / "RECLAIMED-RELEASE.json").read_bytes() == descriptor
 
 
+def test_default_file_batch_exceeds_old_256_file_limit(tmp_path):
+    repo, release, _ = fixture(tmp_path, extra_files=300)
+    result = reclaim(release, repo)
+    assert result["removed_files"] == 304
+    assert not (release / "bin/bulk-0299.py").exists()
+
+
 def test_byte_or_time_budget_does_not_mark_or_delete(tmp_path):
     repo, release, _ = fixture(tmp_path)
     assert reclaim(release, repo, max_bytes=1)["removed_files"] == 0
@@ -76,7 +92,9 @@ def test_byte_or_time_budget_does_not_mark_or_delete(tmp_path):
 def test_final_reference_change_stops_before_effect(tmp_path):
     repo, release, _ = fixture(tmp_path)
     answers = iter((True, False))
-    result = loop_cleanup.reclaim_release_source(release, repo, can_reclaim=lambda _: next(answers))
+    result = loop_cleanup.reclaim_release_source(
+        release, repo, can_reclaim=lambda _: next(answers),
+        source_ref=json.loads((release / "RELEASE.json").read_text())["sha"])
     assert result["removed_files"] == 0
     assert (release / "RELEASE.json").exists()
     assert (release / "bin/one.py").exists()
@@ -84,6 +102,8 @@ def test_final_reference_change_stops_before_effect(tmp_path):
 
 def test_symlink_parent_and_leaf_are_not_followed(tmp_path):
     repo, release, _ = fixture(tmp_path)
+    (release / "apps/guide.md").unlink()
+    (release / "apps/manifest.json").unlink()
     outside = tmp_path / "outside"
     shutil.move(release / "bin", outside)
     (release / "bin").symlink_to(outside, target_is_directory=True)
@@ -101,6 +121,8 @@ def test_symlink_parent_and_leaf_are_not_followed(tmp_path):
 
 def test_replaced_parent_does_not_delete_new_memory_descendant(tmp_path):
     repo, release, _ = fixture(tmp_path)
+    (release / "apps/guide.md").unlink()
+    (release / "apps/manifest.json").unlink()
     calls = 0
     def references(_owned_fds):
         nonlocal calls
@@ -109,7 +131,9 @@ def test_replaced_parent_does_not_delete_new_memory_descendant(tmp_path):
             (release / "bin").rename(release / "memory" / "bin")
             (release / "bin").mkdir()
         return True
-    result = loop_cleanup.reclaim_release_source(release, repo, can_reclaim=references)
+    result = loop_cleanup.reclaim_release_source(
+        release, repo, can_reclaim=references,
+        source_ref=json.loads((release / "RELEASE.json").read_text())["sha"])
     assert result["removed_files"] == 0
     assert (release / "memory/bin/one.py").exists()
     assert (release / "memory/bin/two.py").exists()
@@ -124,7 +148,7 @@ def test_read_only_release_restores_directory_modes(tmp_path):
     before = (release / "memory/owner.md").stat().st_ino
     try:
         result = reclaim(release, repo)
-        assert result["removed_files"] == 2
+        assert result["removed_files"] == 4
         assert release.stat().st_mode & 0o777 == 0o555
         assert (release / "bin").stat().st_mode & 0o777 == 0o555
         assert (release / "memory/owner.md").stat().st_ino == before
@@ -191,11 +215,84 @@ def test_owner_reclaims_one_old_snapshot_and_keeps_rollback(tmp_path, monkeypatc
         return real_lock(*args)
     monkeypatch.setattr(lm_loop, "_apply_lock", initially_busy)
     result = central_cleanup.reclaim_unreferenced_source(release.parent, current, tmp_path / "agents", 1)
-    assert result["removed_files"] == (0 if additional_reference else 2)
+    assert result["removed_files"] == (0 if additional_reference else 4)
     assert attempts >= 3
     assert (release / "RELEASE.json").exists() == bool(additional_reference)
     assert (rollback / "RELEASE.json").exists()
     assert (current_root / "RELEASE.json").exists()
+
+
+@pytest.mark.parametrize("remote_branch_deleted", (False, True))
+def test_owner_reclaims_only_when_fresh_official_branch_keeps_source(
+        tmp_path, monkeypatch, remote_branch_deleted):
+    from runtime.loop import central_cleanup
+    repo, release, _ = fixture(tmp_path)
+    sha = json.loads((release / "RELEASE.json").read_text())["sha"]
+    origin = tmp_path / "origin.git"
+    subprocess.run(["git", "init", "--bare", str(origin)], check=True, capture_output=True)
+    subprocess.run(["git", "remote", "add", "origin", str(origin)], cwd=repo,
+                   check=True, capture_output=True)
+    empty_tree = subprocess.check_output(["git", "mktree"], cwd=repo, input=b"").decode().strip()
+    unrelated_main = subprocess.check_output(
+        ["git", "commit-tree", empty_tree, "-m", "unrelated main"], cwd=repo,
+        env={**os.environ, "GIT_AUTHOR_NAME": "Test", "GIT_AUTHOR_EMAIL": "test@example.invalid",
+             "GIT_COMMITTER_NAME": "Test", "GIT_COMMITTER_EMAIL": "test@example.invalid"},
+        text=True).strip()
+    subprocess.run(["git", "push", "origin", f"{unrelated_main}:refs/heads/main"], cwd=repo,
+                   check=True, capture_output=True)
+    subprocess.run(["git", "push", "origin", f"{sha}:refs/heads/source-branch"], cwd=repo,
+                   check=True, capture_output=True)
+    subprocess.run(["git", "update-ref", "refs/remotes/origin/main", unrelated_main], cwd=repo,
+                   check=True)
+    subprocess.run(["git", "update-ref", "refs/remotes/origin/source-branch", sha], cwd=repo,
+                   check=True)
+    if remote_branch_deleted:
+        subprocess.run(["git", "push", "origin", "--delete", "source-branch"], cwd=repo,
+                       check=True, capture_output=True)
+
+    rollback = release.with_name("20260102T000000-" + release.name.split("-")[1])
+    shutil.copytree(release, rollback)
+    current_root = release.with_name("20260103T000000-" + release.name.split("-")[1])
+    shutil.copytree(release, current_root)
+    os.utime(release, (1, 1)); os.utime(rollback, (2, 2))
+    os.utime(current_root, (3, 3))
+    current = tmp_path / "current"
+    current.symlink_to(current_root)
+    monkeypatch.setenv("LIFE_MANAGER_SOURCE_REPO", str(repo))
+    monkeypatch.setenv("LIFE_MANAGER_PROTECTED_RELEASES", str(tmp_path / "no-protected.json"))
+    monkeypatch.setattr(central_cleanup, "loaded_release_roots", lambda *_: set())
+    monkeypatch.setattr(central_cleanup, "open_release_roots", lambda *_: set())
+    real_run = subprocess.run
+    branch_deleted_during_run = False
+
+    def run(command, **kwargs):
+        nonlocal branch_deleted_during_run
+        if command[0] == "lsof":
+            if not remote_branch_deleted and not branch_deleted_during_run:
+                real_run(["git", "-C", str(repo), "push", "origin", "--delete", "source-branch"],
+                         check=True, capture_output=True)
+                branch_deleted_during_run = True
+            return subprocess.CompletedProcess(command, 0, "", "")
+        return real_run(command, **kwargs)
+
+    monkeypatch.setattr(central_cleanup.subprocess, "run", run)
+    result = central_cleanup.reclaim_unreferenced_source(
+        release.parent, current, tmp_path / "agents", 1)
+
+    if remote_branch_deleted:
+        assert result["removed_files"] == 0
+        assert (release / "RELEASE.json").exists()
+        pin = f"refs/life-manager/retired-release-source/{sha}"
+        assert subprocess.run(["git", "-C", str(repo), "show-ref", "--verify", pin],
+                              capture_output=True).returncode != 0
+    else:
+        assert result["removed_files"] == 4, result
+        assert (release / "RECLAIMED-RELEASE.json").exists()
+        assert not (release / "RELEASE.json").exists()
+        pin = f"refs/life-manager/retired-release-source/{sha}"
+        assert subprocess.check_output(["git", "-C", str(repo), "rev-parse", "--verify", pin],
+                                       text=True).strip() == sha
+        assert branch_deleted_during_run
 
 
 def test_lifecycle_wait_deadline_keeps_lock_owned(tmp_path):
