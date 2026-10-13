@@ -138,10 +138,18 @@ function createMarketingLocalLedger(options = {}) {
   const now = options.now || (() => new Date().toISOString());
   const partialTails = new Map();
 
+  function fsyncDirectory(directoryPath) {
+    const descriptor = fs.openSync(directoryPath, "r");
+    try { fs.fsyncSync(descriptor); } finally { fs.closeSync(descriptor); }
+  }
+
   function ensureDirectory() {
-    fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
-    fs.mkdirSync(claimsDirectory, { recursive: true, mode: 0o700 });
-    fs.mkdirSync(receiptsDirectory, { recursive: true, mode: 0o700 });
+    for (const directoryPath of [directory, claimsDirectory, receiptsDirectory]) {
+      const existed = fs.existsSync(directoryPath);
+      fs.mkdirSync(directoryPath, { recursive: true, mode: 0o700 });
+      fs.chmodSync(directoryPath, 0o700);
+      if (!existed) fsyncDirectory(path.dirname(directoryPath));
+    }
   }
 
   function publicationFence() {
@@ -566,14 +574,22 @@ function createMarketingLocalLedger(options = {}) {
     if (Buffer.byteLength(line) > MAX_RECORD_BYTES) throw new Error("local ledger record too large");
     fs.appendFileSync(file, line, { encoding: "utf8", mode: 0o600 });
     fs.chmodSync(file, 0o600);
+    if (file === jobsFile || file === receiptsFile) {
+      const descriptor = fs.openSync(file, "a");
+      try { fs.fsyncSync(descriptor); } finally { fs.closeSync(descriptor); }
+      if (!stat) fsyncDirectory(path.dirname(file));
+    }
   }
 
   function atomicJson(file, value) {
     const temporary = `${file}.tmp-${process.pid}-${crypto.randomUUID()}`;
     fs.writeFileSync(temporary, `${JSON.stringify(value)}\n`, { encoding: "utf8", mode: 0o600 });
     fs.chmodSync(temporary, 0o600);
+    const descriptor = fs.openSync(temporary, "r+");
+    try { fs.fsyncSync(descriptor); } finally { fs.closeSync(descriptor); }
     fs.renameSync(temporary, file);
     fs.chmodSync(file, 0o600);
+    fsyncDirectory(path.dirname(file));
   }
 
   function jobFor(snapshotState, tenantId, jobId) {
