@@ -16696,8 +16696,8 @@ Order of preference (Ponytail): existing `apps/life-manager/eval/` runner and pl
 
 | ID | 優先 | 作業・owner | 根拠/依存 | 完了証拠 | 今回の状態 |
 |---|---|---|---|---|---|
-| PA01 | 共通P0 | 基盤owner: 監視timeoutの遅い境界と資源/枠/F5の残証拠を診断 | 191欠測、複数capacity待ち。既存F1–F5受入を未実装へ戻さない | 実失敗fixtureのRED→GREEN、対象自然readback。追加の大型frameworkなし | 未着手・提案 |
-| PA02 | 共通P0 | 各effect ownerとrelease owner: 正確なoccurrence/receipt/世代を照合 | unknown/旧intentが複数laneへ波及 | 同一occurrenceの公式証拠、旧effect再送0、対象自然進行。receiptなし解除0 | 未着手・提案 |
+| PA01 | 共通P0 | 基盤owner: 監視timeoutの遅い境界と資源/枠/F5の残証拠を診断 | 191欠測、複数capacity待ち。既存F1–F5受入を未実装へ戻さない | 実失敗fixtureのRED→GREEN、対象自然readback。追加の大型frameworkなし | 詳細化済、実装0。下のCB01–CB05を参照 |
+| PA02 | 共通P0 | 各effect ownerとrelease owner: 正確なoccurrence/receipt/世代を照合 | unknown/旧intentが複数laneへ波及 | 同一occurrenceの公式証拠、旧effect再送0、対象自然進行。receiptなし解除0 | 詳細化済、解除/再送0。下のCB06を参照 |
 | PA03 | 商業P1 | Capafy owner: CD1を先頭に売上日/slot→click→paid計測を正す | 正本CD1、447閲覧0購入、観測日誤代入 | 取得日と売上日の区別、unique receipt join。link欠落slotのRED | 未着手・提案 |
 | PA04 | 商業P1 | Capafy owner: CD2–CD5の無料到達・実output demo・転換比較 | PA03、現FROZEN保持。工場のT1証拠を並行維持 | providerに残る開けるCTA、実click/paid/再購入を窓・sample・費用つき比較 | 未着手・提案 |
 | PA05 | 財務P1 | CFO owner: 既存A8/B7順で収益/費用/返金/手数料を接続 | PA03/04と並行、missingを0にしない | 選定laneで公式receiptと全費用のnet。未接続laneはunknown保持 | 未着手・提案 |
@@ -16710,3 +16710,35 @@ Order of preference (Ponytail): existing `apps/life-manager/eval/` runner and pl
 **判断の幅:** 最良は共通境界の修復が複数laneを再開し、Capafyの購入再開につながる。基準は技術復旧と需要/転換改善を別々に検証する。最悪はprovider本人要件または需要・継続率不足が残り、コード修復だけでは目標に近づかない。全18を先に均等修復する案の強みはportfolio分散だが、現在は共通枠競合と成果欠測を拡大するため採らない。Capafy重点が誤る最有力の筋は既存売上が継続せず、別laneの顧客当たり利益が高いこと。月USD30の継続課金だけでUSD10M MRRへ到達する算術は約333,334 active customersであり、18 job能力の修復数ではない。価格・通貨・顧客獲得の予測ではない。
 
 **今回の完了条件:** 上の観測/限界/優先候補と参照planを専用branchへcommit/pushしremote objectを確認、chatへ全18の状況を説明する。修復・本番効果・目標売上は未達のまま。数字と主要診断はfresh-context read-only検証者が一次情報で反証を試み、重大な事実誤りなし、CT/監視/OSS/ROIの限定を反映する。手順の参照は `docs/superpowers/plans/2026-10-13-life-manager-portfolio-repair-plan.md`。TODO/status/cursorは本節が正本、planへ複製しない。
+
+
+## 共通境界のpatch-level診断 — 優先案1の詳細化
+
+**依頼・範囲:** PA01/PA02を実コードと稼働証拠で掘り、function・diff・RED・受入・実行条件を明確にする。今回は文書と差分案だけ。source適用、release cut/apply、fence解除/再送、provider操作0。全体F/E/Capafy等の既存owner/cursorは保持する。曖昧な性能原因から実装を始めない。
+
+**source:** main7018416d03a7755766df1e115e019c6f1da5c49aに固定。共有root HEAD/local mainは古い別branch/refなので読取だけ。private storeの数値は観測窓を保持し、計画中のsource進行と区別する。
+
+**確定した最初の失敗:** RRCはcurrent5b90のcutterを選び、同じ版のrelease_capacity_bytesが新node/npmからbundle keyを作って既存bundleを拒否する。live loaded argvも5b90。実入力Python3.14.7/nodev25.6.1/npm11.9.0/Darwin arm64/main701で、旧helperはValueError/dependency bundle unavailable、新helperは2398003200 bytes。main修正03df6ebe等は既済で、再実装しない。必要容量に対しfresh available1089990656 bytesは不足。新計算器の成功を容量PASSとは呼ばない。
+
+**自然stderr:** release-reconciler/logs/bounded/launchd-life-manager-release-reconciler.err.logにcapacity failure327/ValueError323（readonly reviewer観測）。例外処理が詳しい理由を捨てるのでCB02で固定reasonを足す。別のlaunchd.err.logの件数では代用しない。
+
+**監視の失敗:** 13:51/14:06/14:11 UTC等はhealth_snapshot_timeout、13:58/14:17等はhealth_projection_timeoutで全191欠測。14:21/14:41等には成功窓がある。current/mainのhealth sourceは一致。read-only profileはsnapshot8.719s、admission0.167s、resolved receipts1.324s、collect_live7.059s、last_event6.677s。99 journals/495050333 bytes。この成功窓では30秒超過を再現しない。snapshot外のstorage readも残予算を消費し、observerはchild stderrを捨てる。CB03/04の観測差分を先行させ、timeout延長/cache追加/全fleet停止を先に行わない。
+
+**結果照合の失敗:** RO max_rows1でApply hf-gig-apply-direct:18dadcd76d9c61b0-37711、Storefront hf-gig-storefront-direct:18d8d288748508e8-23902は双方no_pre_effect_terminal。adapterログではStorefront stdout_runtime_binding_invalid、Reply official_provider_receipt_unavailable、旧Mobile identity_missing_or_invalid。fenceは観測38343/81owner→別窓38342/80ownerで、減少を公式解決の証明にしない。Capafy build/distributeのlive fenceはこの窓0。recovery release_sha_mismatchは正常拒否で緩和しない。
+
+### CBのatomic TODO — 詳細化後の順序と状態
+
+旧順序はPA01「共通診断」→PA02「照合」の二行。新しい内訳はCB01（既存修正の採用）→CB02（容量理由）→CB03（子のphase）→CB04（親で保存）→CB05（測定後の性能修復）、CB06（公式結果照合）は独立して進める。理由は容量計算の具体的な再現と二種類のhealth timeout/診断消失を確定したこと。これは実装開始/外部effect dispatchではなく、前二行の計画を分解する更新。現在cursorは文書化・独立review・push、実装修復の先頭はCB01の容量/owner/hold条件確認。
+
+| ID | owner/対象 | patch・根拠 | 受入と依存 | 状態 |
+|---|---|---|---|---|
+| CB01 | 既存release owner | R01既存bundle修正を含むconstruction toolでALLをinactive作成後、guard/cut/protocol/applyのlock順で切替。候補933はSPARSEのままcurrentへ置かない | owner/lease/holdとfresh free>=required。ALL/main祖先/immutableを確認、対象loaded-idle/自然RRCまで | source既済、運用未着手・容量未PASS |
+| CB02 | source owner、disk_admission.main | D01: 例外handlerへ固定measurement_reason追加。raw exception非出力 | 既知bundle/未知文字列のRED→GREEN、関連test、自然stderrの原因区別。stdout/exit/floor保持 | 差分案ready、隔離baseline0/2→案2/2、適用0 |
+| CB03 | source owner、health/lm_loop | M01: snapshot/read/clock/stageをstderrへ。storageとprojectionも含む | snapshot中のloop IDとprojection予算切れのRED→GREEN。stdout/schema/30秒/fenceを維持 | 差分案ready、子2caseを含む隔離検証PASS、適用0 |
+| CB04 | source owner、health_observer | M02: validated schema/stage/finite seconds/known IDだけbounded転送。parent180秒は別source | CB03。raw/NaN/未知stage排除、4件転送上限、markerなし親timeoutも固定診断、実測elapsed、doc不変 | 差分案ready、親3 methods/4入力を含む隔離検証PASS、適用0 |
+| CB05 | 診断で確定したfunctionのowner | planのstage別probeで最初に遅いread/validationを再現してからdiffを作る | CB03/04の自然診断、同入力のRED。成功8.7sを30秒超過原因とは扱わない | 診断入口ready、性能修復diffは未確定・実装禁止 |
+| CB06 | 同一effectの既存owner | 正確なclaim/run/binding→official application/listing/message/post receiptを取得 | proof取得前は解除/再送0。正しいproofの誤拒否が再現した時だけparser差分を作る | 証拠取得待ち。generic解除patchなし |
+
+**差分/検証の保存:** docs/superpowers/patches/2026-10-14-common-boundary/ のR01/D01/M01/M02。R01はreverse check PASSでmain既済を確認、他3案はgit apply --check PASS。CB01 activation referenceはFS/execを置換した隔離4ケースPASS（実activation0）。docs/evidence/common-boundary-probe-20261014.jsonはin-memory隔離probeだけで、health baseline5 methods/6 failures/errors0→案5 methods PASS、既存deadline/read-only契約3 PASS、capacity baseline0/2→案2/2。runtime sourceに適用したCI/自然runや本番復旧ではない。
+
+**手順の参照:** docs/superpowers/plans/2026-10-14-common-boundary-patch-plan.md。function/entrypoint、test名、既存command、bootstrapのhold/capacity/ALL条件、stage別の次probe、公式proof取得条件を記す。実装する者が新方式を推測して選ぶ必要がある状態では開始しない。唯一の残TODO/status/cursorは本節、plan/patch/evidenceは参照資料。

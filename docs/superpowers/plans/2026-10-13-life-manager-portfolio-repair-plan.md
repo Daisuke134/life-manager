@@ -31,6 +31,8 @@
 
 ## PA01/PA02 — 共通実行・監視・照合境界
 
+この節の具体的なsource/差分/test/実行条件は `2026-10-14-common-boundary-patch-plan.md` に集約する。statusとcursorは統合specのCB01–CB06だけが正本。以下の一般手順から独自の修復を始めず、確認済み差分と診断先行の区別に従う。
+
 **所有範囲:** `runtime/loop/health_observer.py`、`runtime/loop/lm_loop.py`、既存admission/recoveryとeffect ownerのadapter。原因の確認後だけ、その共有境界を所有する一人が編集する。容量のF1–F5と採用済みsourceを未実装へ戻さない。
 
 **既存検証:** `runtime/loop/tests/test_lm_loop_health.py`、`runtime/loop/tests/test_health_observer.py`、既存admission/fence tests、`runtime/loop/__tests__/recovery-supervisor.test.mjs`。
