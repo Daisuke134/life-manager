@@ -3408,7 +3408,7 @@ social ledgerは17 attempts（14 local published / 3 failed）、最後の記録
 |---|---|---|
 | D30.1 | 09:05 JST以降の自然eligible slotで、未掲載17 SKUから記事を1件出す | 記事ledgerのSKU/URLと公開ページが一致し、CTAがそのSKUの公式`purchase_url`と一致。手動wake・重複公開なし |
 | D30.2 | 次の自然article wakeのterminalとeffect状態を読む | provider page/readbackとledgerを分けて記録し、売上やクリックを公開成功から推測しない |
-| D30.3 | 09:20:12 / 09:20:29 / 09:22:22 JSTより後に、08:05・08:07の3 occurrenceを登録済みGitHub-remote/ledger reconcilerへ一件ずつ渡す | 各windowのremote article additionsが全てledgerと一致し`verified=true`の場合だけresolve。unledgered item・readback失敗・too-recentはunknownのまま。再送なし |
+| D30.3 | 09:35:18 JST以降、08:05・08:07・08:20の5 occurrenceを登録済みGitHub-remote/ledger reconcilerへ一件ずつ渡す | 各windowのremote article additionsが全てledgerと一致し`verified=true`の場合だけresolve。unledgered item・readback失敗・too-recentはunknownのまま。再送なし |
 | D09.1 | 次の既存`line-creators-browser` owner自然readbackを読む | `/stats/sticker`、`/payment_request`、40 item statusを日付・対象期間付きで保存。live profileを奪わない |
 | D09.2 | 40 cache IDsと38 factory submitted IDsの差分をitemごとに照合する | set-002/set-005を含む2件の差分を公式ID/statusと結び、記録の欠落と商品喪失を混同しない |
 | D10.1 | article path viewとSKU CTA clickを同期間で計測する | slot/article/SKU/channel/windowが結び付き、crawler/self-viewを除外。現状の未計測を0扱いしない |
@@ -3419,6 +3419,8 @@ social ledgerは17 attempts（14 local published / 3 failed）、最後の記録
 | D20/D21 | 公式readbackで反応した既存SKU/channelへ無料枠を移し、売上・確定分配・全費用を同期間で照合する | article view、CTA click、gross sale、creator distribution、production/distribution costを別計上。all-in回収を推計で埋めない |
 | D22 | 一暦月のbuyer gross USD 10,000、最初の正値売上、累計分配が確認済み累計費用を上回る条件を確認する | 公式証拠・定義・期間が揃う。USD/JPY ¥150・平均¥233.45なら約6,426購入/月（約214/日）は規模算術であり予測/保証ではない |
 | D-clean | 容量ゲートが再発した時だけ登録済みcleanup ownerに回収可能物を評価させる | closed proofとopen-referenceゼロを確認した再生成可能物だけ回収。8.13 GiB scratchはowner確認なしに消さない |
+
+**08:20 JST post-snapshot delta:** 自然wake `18de3a1ff5a39df0-13069` はexit75 / `entrypoint_exit_75` / `effect_unknown` / `official_readback_required`。次の自然occurrence `18de3a2186c71590-13548` はexit 0だが`article_daily.state=not_due`で、新しいarticle URL/ledger entryなし。両eventともprovider receipt・official readback refなし。D30.3の対象にこの2 occurrenceを追加し、latestの08:20:17.466 JST wakeは09:35:17.466 JSTより後に初めて4,500秒超となる。現行の観測では失敗原因をdisk容量と結び付ける証拠はない。
 
 ## 5.5 投資OSS検証の再確認（2026-09-29）
 
