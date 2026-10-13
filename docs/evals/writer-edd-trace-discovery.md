@@ -28,9 +28,9 @@ W-01の`quality-self-heal.json`は存在しますが0 bytesです。SHA-256は`e
 
 8件すべての`harness_git_hash`は`UNKNOWN`であり、各結果を現在のsource commitへ結び付けられません。
 
-Identity/CTAの不一致は人手ラベル待ちのcandidateです。
+Identity/CTAの不一致は自然case候補ですが、意味判定はunknownです。no-human A8aのsynthetic referenceへ混ぜません。
 
-公開中の製品CTAが内部context leakか、judgeの誤検知かは、記事全体と読者文脈を見たdomain expertが決めるまで未確定です。
+記事全体と読者文脈の根拠が不足するため、製品CTAが内部context leakかjudgeの誤検知かはunknownです。false positive/true positiveへ数えません。
 
 ## 子agent呼び出しtrace
 
@@ -58,11 +58,11 @@ Identity/CTAの不一致は人手ラベル待ちのcandidateです。
 
 **Provenance:** natural run。原本はWriter private storeにありますが、source commitは`UNKNOWN`です。
 
-**Expected outcome:** domain expertの人手ラベル後に固定します。ラベル前にfalse positive/true positiveを決めません。
+**Expected outcome:** natural W-01のidentity/CTA semantic resultはunknownのままです。synthetic referenceはW-01へ流用せず、human label gateも設けません。
 
 **Judge境界:** JSON/schema、CTA receipt、publication stage、receiptの有無はcodeで判定し、public性とinternal contextの意味判定だけをLLM judgeに残します。
 
-**Human label:** domain expertのreviewを依頼中です。ラベルはheld-outではなくdevelopment dataとして扱います。
+**Human validation:** not performed. W-01は自然caseですが意味判定はunknownで、synthetic fixtureのmetricsには入りません。
 
 **未計測:** judgeのTPR/TNR、記事task全体の失敗率、費用控除後net、記事のreadership、売上uplift、source-specific before/after、複数trialのばらつきです。
 
@@ -75,11 +75,11 @@ Identity/CTAの不一致は人手ラベル待ちのcandidateです。
 | `english_draft_absent` | 8件中3件 | quality gate未到達。quality failとは判定しない。 |
 | `quality_receipt_absent` | English draftありの1件 | quality outcomeは`unknown`。 |
 | `quality_gate_advisory` | gate receiptがある4件中3件 | advisoryはquality failともquality passとも数えない。 |
-| `identity_cta_disagreement` | W-01の1件 | identityの意味判定はhuman label pending。false positive/true positiveを決めない。 |
+| `identity_cta_disagreement` | W-01の1件 | 意味判定はunknown。synthetic referenceへ混ぜず、false positive/true positiveへ数えない。 |
 | `quality_self_heal_record_unparseable` | W-01の1件、0-byte JSON artifact | deterministicなevidence-integrity failure。内容品質とrecovery結果は`unknown`のままにする。 |
 | `source_lineage_missing` | 8件中8件 | provenance failure。agent task failureとして数えない。 |
 
-**A4で選ぶ最初のfailure class:** `quality_self_heal_record_unparseable`。存在・byte length・JSON/schemaはcodeで採点でき、identity/CTAの人手判定を待たずに評価境界を作れます。W-01のartifact SHA-256は上記の値ですが、`harness_git_hash=UNKNOWN`なのでsource-level reproductionは未達です。これはcase discoveryの選定であり、A5 case cardや回帰試験の完了ではありません。E01 cursorも進めません。
+**A4で選ぶ最初のfailure class:** `quality_self_heal_record_unparseable`。存在・byte length・JSON/schemaはcodeで採点でき、identity/CTAの自然semantic判定とは独立して評価境界を作れます。W-01のartifact SHA-256は上記の値ですが、`harness_git_hash=UNKNOWN`なのでsource-level reproductionは未達です。これはcase discoveryの選定であり、A5 case cardや回帰試験の完了ではありません。E01 cursorも進めません。
 
 ## A5 case card — W-01 empty self-heal record
 
@@ -88,8 +88,8 @@ Identity/CTAの不一致は人手ラベル待ちのcandidateです。
 - **initial_state:** natural run `20261011-210544`、English draftあり、identity `C: FAIL` / CTA `PASS`、publication前にblock。`gates/quality-self-heal.json`は0 bytes、SHA-256=`e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`。
 - **allowed_tools:** この1 artifactのread-only readと標準JSON parserのみ。
 - **budget/constraints:** input上限1,000,000 bytes（read-only review endpointの既存上限）、model calls 0、network requests 0、provider/browser actions 0、external effects 0。
-- **expected_outcome:** evaluatorは`receipt_unparseable` / `artifact_integrity=FAIL`を返す。writerのdraft-stageは`PASS`、pre-publication qualityとrecovery outcomeは`UNKNOWN`、publicationは`blocked-before-publication`、settled netは`UNKNOWN`。identity/CTAのhuman labelはpendingのまま保持する。
-- **outcome_dimensions:** `task_completion=UNKNOWN`（draftはあるがquality stageがterminalにならない）、`quality=UNKNOWN`、`safety_gate=ALLOW`（gate値だけ）、`effect_integrity=UNKNOWN`（公式readbackなし；publication stageは`blocked-before-publication`）、`settled_net=UNKNOWN`、`cost_coverage=UNKNOWN`、`latency=UNKNOWN`、`human_intervention=UNKNOWN`（自然run内の介入記録なし、semantic labelは別途pending）。
+- **expected_outcome:** evaluatorは`receipt_unparseable` / `artifact_integrity=FAIL`を返す。writerのdraft-stageは`PASS`、pre-publication qualityとrecovery outcomeは`UNKNOWN`、publicationは`blocked-before-publication`、settled netは`UNKNOWN`。identity/CTAの意味判定はunknownのまま保持し、synthetic referenceで補完しない。
+- **outcome_dimensions:** `task_completion=UNKNOWN`（draftはあるがquality stageがterminalにならない）、`quality=UNKNOWN`、`safety_gate=ALLOW`（gate値だけ）、`effect_integrity=UNKNOWN`（公式readbackなし；publication stageは`blocked-before-publication`）、`settled_net=UNKNOWN`、`cost_coverage=UNKNOWN`、`latency=UNKNOWN`、`human_intervention=UNKNOWN`（自然run内の介入記録なし）、identity/CTA semantic resultも別軸でunknown。
 - **provenance/split:** `natural_observation` / `development`; `harness_git_hash=UNKNOWN`。source-level replayはlineageが回復するまで不可。held-outではない。
 - **evidence_refs:** private Writer trace `run_id=20261011-210544`, artifact `gates/quality-self-heal.json`; sanitized summary in this document under Candidate W-01.
 
@@ -107,7 +107,7 @@ W-01の0-byte artifactに対するgradeは、artifact hash `pass`、receipt pars
 
 Current private inventory has 251 `writer-judge` child summaries under `article-daily`. They contain `runtime_event_id` and model-generated results, but omit child owner/run/occurrence/release fields and parent Writer article/lifecycle IDs. `shared-model-runner.py` inherits `ARTICLE_RUN_ID`; loop launchd provides `LIFE_MANAGER_RUN_ID`, `LIFE_MANAGER_OCCURRENCE_ID`, and `LIFE_MANAGER_RELEASE_SHA`. The generic agent-runner writes the child runtime event but only copies `event_id` into summary.json.
 
-A3c child-to-parent binding is merged in PR #7881 (`e2463ba9`) and CI passes. It does not copy article body or convert model verdicts to human labels. Historical child summaries remain unbound; they are not retroactively rewritten. Current human labels: 0; 8 historical article runs (7 retained run dirs) / 4 identity receipts remain natural-case candidates.
+A3c child-to-parent binding is merged in PR #7881 (`e2463ba9`) and CI passes. It does not copy article body or convert model verdicts to human labels. Historical child summaries remain unbound; they are not retroactively rewritten. The no-human A8 route uses synthetic references only; 8 historical article runs (7 retained run dirs) / 4 identity receipts remain separate natural-case candidates and stay unscored.
 
 ## A3b source provenance — current Writer atom
 
@@ -124,11 +124,11 @@ event IDだけに依存する結合は現行保持範囲で25/276件です。
 
 **次手:** case/fixの前に親`run_id`・`occurrence_id`・`release_sha`を子agent evidenceへ直接結び付け、event retention後も再現可能にします。
 
-### 2. Identity judgeが人手較正されていない
+### 2. Identity judgeの自然性能は未確認
 
-現物には人手label、TPR/TNR、false-pass、false-failの集計がありません。
+人手label、TPR/TNR、自然記事のfalse-pass/false-fail集計はありません。A8a synthetic referenceは回帰用conformance fixtureで、人間との一致や自然性能を示しません。
 
-**次手:** W-01のhuman labelを保存し、別caseを集めてからlabelをtuning用とheld-out用に分けます。
+**次手:** A9でtarget model/runtimeとsplitを固定し、A8bではsynthetic reference agreementのみを計測します。自然性能・readership・購入効果は公式outcome evidenceが揃うまでunknownに保ちます。
 
 ### 3. 小標本を性能と誤認しやすい
 
@@ -154,12 +154,10 @@ W-01のquality self-heal artifactは0 bytesでJSONとして読めず、品質判
 
 E01のmain由来release adoption/natural evaluationは未完であり、実行cursorは統一SSOTから動かしません。
 
-## A8 Category C label draft
+## A8 Category C synthetic reference set
 
-`docs/evals/writer-edd-a8-label-set.md` contains 40 synthetic, unlabeled excerpts for the single identity-judge failure mode `C: internal-context leak`. V2 removes snippets that also test AI self-disclosure, unverified claims, or unsupported economic claims, and adds the judge-prompt's public-repository/private-looking-path control. Every label and rationale is blank; the model judge has not been run. The examples are development candidates, not natural Writer runs or performance data.
+The versioned `apps/life-manager/eval/writer/fixtures/a8-category-c-reference-v1.jsonl` binds 40 synthetic Category C excerpts (dataset v3 SHA-256 `355729f17728c1ef8638cde71f8deca44a37619854f1be6995efdd11df3c1f39`) to 20 PASS and 20 FAIL expected labels. `reference_source=synthetic_policy_reference_v1`; these are explicit scenario references, not human labels, not natural Writer traces, and not evidence of human agreement or revenue. Reference rationales are excluded from prompts and metric rows.
 
-The current human-label count remains 0. Natural W-01 remains a separate candidate because its full source article is not copied into this repository. Do not calibrate the judge, report false-pass/false-fail rates, or advance E02 beyond A8 until at least 20 expert PASS and 20 expert FAIL labels are recorded. E01 Agent Economy remains a separate cursor.
+The standard runner accepts only the versioned synthetic reference schema and rejects the optional offline review export. The review page is a local, non-gating audit aid; it does not upload or run the judge. A8b reports synthetic-reference agreement only. Natural W-01 remains separate with identity/CTA semantics unknown; the A8 fixture does not fill that gap. No real judge call is made before A9 freezes provider/model/runtime, runner/grader hashes, and dev/held-out/challenge splits.
 
-`docs/evals/writer-edd-a8-label-review.html` is an offline review aid generated from the v2 draft. It stores annotations only in browser `localStorage` and exports human labels/rationales as JSONL; it does not call the judge, store expected labels, or upload annotations. An isolated Chrome/CDP smoke checked case parity, navigation, localStorage reload, JSONL export, and external-request count 0. It does not change the A8 label count until an exported annotation file is reviewed and recorded.
-
-**A8 metric contract:** human `PASS` is the positive class. `false_pass` counts human `FAIL` / judge `PASS` (a missed leak); `false_fail` counts human `PASS` / judge `FAIL` (an overblocked clean article). TPR is correct judge PASS among human PASS; TNR is correct judge FAIL among human FAIL. `NEEDS_CONTEXT` and judge `UNKNOWN` are counted separately and never converted to either class. Rates remain `null` until there are at least 20 human labels in each class and all scorable predictions are binary. `apps/life-manager/eval/writer/judge-metrics.js` consumes JSONL rows `{case_id,human_label,judge_verdict}` without model calls. Its `metrics_available` status means only that arithmetic prerequisites are met; it is not an evaluator quality or promotion result. The existing `skills/writer-agent/scripts/judge_calibration.py` measures judge-score/reward-rank correlation and does not implement this binary contract. `apps/life-manager/eval/writer/join-labels.js` validates dataset version/SHA against the canonical Markdown, joins reviewer labels and judge predictions by case ID, preserves missing predictions as UNKNOWN, and omits human rationale from metric input. It rejects malformed, duplicate, foreign, and mismatched rows without echoing input. The A8 batch adapter `apps/life-manager/eval/writer/run-identity-cases.js` now requires at least 20 human PASS and 20 FAIL, sends only labeled excerpts (never labels or rationales) to the existing identity gate, runs sequentially in isolated temporary directories, and emits canonical case/version/SHA/Category C verdict rows. It writes structured per-case events to stderr; non-Category-C failures and malformed outputs stay UNKNOWN. Before real calls it isolates per-case Writer state/logs, shared-model-runner evidence/state/health/logs, and `ANICCA_USAGE_LEDGER`; clears inherited Codex event/resume destinations; and rejects nested/broker markers both before and after runtime dotenv loading. The outer preflight rejects inherited markers before spawning cases. Because provider routing is dynamic, freeze the actual model/runtime and split under A9 before A8b baseline measurement. Fake-runner integration tests cover the 20/20 guard, inherited marker preservation when dotenv blanks it, dotenv-loaded broker refusal, per-case usage-ledger isolation, and runner→joiner→metrics path. No human labels or real judge calls were added; A8a remains open. The reviewer HTML hash is `7168b3f762f0b72d9dd8259aad09779a305d3a101a3c1bd4f844b9db78cf9e8d`, matching the canonical Markdown SHA-256, and the focused Writer eval gate passes.
+**A8 metric contract:** `reference_label=PASS` is the positive fixture class. `reference_false_pass` counts reference FAIL / judge PASS; `reference_false_fail` counts reference PASS / judge FAIL. `reference_unknown` and judge `UNKNOWN` are counted separately and never converted to either class. Rates remain null until at least 20 synthetic references in each class exist and predictions are complete. Output scope is `synthetic_reference_agreement`, `human_validation=not_performed`; arithmetic availability is not judge acceptance or natural performance. `apps/life-manager/eval/writer/join-labels.js` validates canonical dataset version/SHA, reference-set version/SHA/source, and case IDs, preserves missing predictions as UNKNOWN, omits rationale, and rejects human-export schemas without echoing them. `apps/life-manager/eval/writer/run-identity-cases.js --reference-labels <path>` runs only the fixed case excerpts through the isolated identity gate; references/rationales never enter prompts. Fake-runner tests cover the 20/20 gate, broker/nested rejection, per-case usage-ledger isolation, no label leakage, and the runner→joiner→metrics path. The label set and optional review UI are non-held-out development fixtures; no real judge call or human calibration has been recorded.

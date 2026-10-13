@@ -5,8 +5,10 @@ const fs = require("node:fs");
 const MIN_PER_CLASS = 20;
 const MAX_INPUT_BYTES = 1_000_000;
 const CASE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u;
-const HUMAN_LABELS = new Set(["PASS", "FAIL", "NEEDS_CONTEXT"]);
+const REFERENCE_SOURCE = "synthetic_policy_reference_v1";
+const REFERENCE_LABELS = new Set(["PASS", "FAIL", "UNKNOWN"]);
 const JUDGE_VERDICTS = new Set(["PASS", "FAIL", "UNKNOWN"]);
+const SHA256 = /^[a-f0-9]{64}$/u;
 
 function rejectInput() {
   throw new Error("Writer metrics input invalid");
@@ -25,22 +27,40 @@ function parseJsonl(input) {
     });
 }
 
+function exactKeys(value, expected) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const actual = Object.keys(value).sort();
+  return actual.length === expected.length && actual.every((key, index) => key === expected[index]);
+}
+
 function validateRows(rows) {
   if (!Array.isArray(rows)) rejectInput();
   const seen = new Set();
+  let referenceSetVersion = null;
+  let referenceSetSha256 = null;
   for (const row of rows) {
-    if (!row || typeof row !== "object" || Array.isArray(row)) rejectInput();
-    const keys = Object.keys(row).sort();
-    if (keys.length !== 3
-      || keys[0] !== "case_id"
-      || keys[1] !== "human_label"
-      || keys[2] !== "judge_verdict") rejectInput();
-    if (typeof row.case_id !== "string" || !CASE_ID.test(row.case_id) || seen.has(row.case_id)) {
-      rejectInput();
-    }
-    if (!HUMAN_LABELS.has(row.human_label) || !JUDGE_VERDICTS.has(row.judge_verdict)) rejectInput();
+    if (!exactKeys(row, [
+      "case_id",
+      "judge_verdict",
+      "reference_label",
+      "reference_set_sha256",
+      "reference_set_version",
+      "reference_source",
+    ])) rejectInput();
+    if (typeof row.case_id !== "string" || !CASE_ID.test(row.case_id) || seen.has(row.case_id)) rejectInput();
+    if (!REFERENCE_LABELS.has(row.reference_label) || !JUDGE_VERDICTS.has(row.judge_verdict)) rejectInput();
+    if (row.reference_source !== REFERENCE_SOURCE
+      || typeof row.reference_set_version !== "string"
+      || !row.reference_set_version
+      || typeof row.reference_set_sha256 !== "string"
+      || !SHA256.test(row.reference_set_sha256)) rejectInput();
+    if ((referenceSetVersion && referenceSetVersion !== row.reference_set_version)
+      || (referenceSetSha256 && referenceSetSha256 !== row.reference_set_sha256)) rejectInput();
+    referenceSetVersion = row.reference_set_version;
+    referenceSetSha256 = row.reference_set_sha256;
     seen.add(row.case_id);
   }
+  return { referenceSetVersion, referenceSetSha256 };
 }
 
 function roundedRate(numerator, denominator) {
@@ -48,55 +68,68 @@ function roundedRate(numerator, denominator) {
 }
 
 function summarize(rows) {
-  validateRows(rows);
+  const referenceSet = validateRows(rows);
   const counts = {
-    human_pass: 0,
-    human_fail: 0,
-    human_needs_context: 0,
+    reference_pass: 0,
+    reference_fail: 0,
+    reference_unknown: 0,
     judge_unknown: 0,
     correct_pass: 0,
     correct_fail: 0,
-    false_pass: 0,
-    false_fail: 0,
+    reference_false_pass: 0,
+    reference_false_fail: 0,
   };
 
   for (const row of rows) {
-    if (row.human_label === "NEEDS_CONTEXT") {
-      counts.human_needs_context += 1;
+    if (row.judge_verdict === "UNKNOWN") counts.judge_unknown += 1;
+    if (row.reference_label === "UNKNOWN") {
+      counts.reference_unknown += 1;
       continue;
     }
-    counts[`human_${row.human_label.toLowerCase()}`] += 1;
+    counts[`reference_${row.reference_label.toLowerCase()}`] += 1;
     if (row.judge_verdict === "UNKNOWN") {
-      counts.judge_unknown += 1;
       continue;
     }
-    if (row.human_label === "PASS") {
+    if (row.reference_label === "PASS") {
       if (row.judge_verdict === "PASS") counts.correct_pass += 1;
-      else counts.false_fail += 1;
+      else counts.reference_false_fail += 1;
     } else if (row.judge_verdict === "FAIL") {
       counts.correct_fail += 1;
     } else {
-      counts.false_pass += 1;
+      counts.reference_false_pass += 1;
     }
   }
 
-  const enoughLabels = counts.human_pass >= MIN_PER_CLASS && counts.human_fail >= MIN_PER_CLASS;
-  const completePredictions = counts.judge_unknown === 0;
-  const status = !enoughLabels
-    ? "insufficient_labels"
-    : completePredictions ? "metrics_available" : "incomplete_predictions";
-  const rates = status !== "metrics_available"
-    ? { tpr: null, tnr: null, false_pass_rate: null, false_fail_rate: null }
+  const enoughReferenceCases = counts.reference_pass >= MIN_PER_CLASS && counts.reference_fail >= MIN_PER_CLASS;
+  const status = !enoughReferenceCases
+    ? "insufficient_reference_cases"
+    : counts.judge_unknown > 0
+      ? "incomplete_predictions"
+      : counts.reference_unknown > 0
+        ? "incomplete_reference_cases"
+        : "synthetic_reference_metrics_available";
+  const rates = status !== "synthetic_reference_metrics_available"
+    ? {
+      reference_tpr: null,
+      reference_tnr: null,
+      reference_false_pass_rate: null,
+      reference_false_fail_rate: null,
+    }
     : {
-      tpr: roundedRate(counts.correct_pass, counts.human_pass),
-      tnr: roundedRate(counts.correct_fail, counts.human_fail),
-      false_pass_rate: roundedRate(counts.false_pass, counts.human_fail),
-      false_fail_rate: roundedRate(counts.false_fail, counts.human_pass),
+      reference_tpr: roundedRate(counts.correct_pass, counts.reference_pass),
+      reference_tnr: roundedRate(counts.correct_fail, counts.reference_fail),
+      reference_false_pass_rate: roundedRate(counts.reference_false_pass, counts.reference_fail),
+      reference_false_fail_rate: roundedRate(counts.reference_false_fail, counts.reference_pass),
     };
 
   return {
-    schema_version: 1,
-    record_type: "writer_binary_judge_metrics",
+    schema_version: 2,
+    record_type: "writer_synthetic_reference_metrics",
+    scope: "synthetic_reference_agreement",
+    reference_source: REFERENCE_SOURCE,
+    reference_set_version: referenceSet.referenceSetVersion,
+    reference_set_sha256: referenceSet.referenceSetSha256,
+    human_validation: "not_performed",
     status,
     counts,
     rates,

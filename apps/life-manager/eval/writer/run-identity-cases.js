@@ -5,7 +5,7 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
-const { joinLabels, loadDataset, readJsonl } = require("./join-labels.js");
+const { loadDataset, loadReferenceSet } = require("./join-labels.js");
 
 const MIN_PER_CLASS = 20;
 const MAX_OUTPUT_BYTES = 1_000_000;
@@ -39,10 +39,10 @@ function rejectInput(errorClass) {
 }
 
 function parseArgs(args) {
-  if (args.length !== 2 || args[0] !== "--human-labels" || !args[1]) {
+  if (args.length !== 2 || args[0] !== "--reference-labels" || !args[1]) {
     rejectInput("invalid_arguments");
   }
-  return { humanLabelsPath: args[1] };
+  return { referenceLabelsPath: args[1] };
 }
 
 function targetVerdict(result) {
@@ -76,7 +76,7 @@ function targetVerdict(result) {
   return { verdict: "UNKNOWN", errorClass: "unexpected_gate_result", retryable: true };
 }
 
-function eventRecord({ runId, caseId, exitCode, verdict, errorClass, retryable }) {
+function eventRecord({ runId, caseId, exitCode, verdict, errorClass, retryable, referenceSet = null }) {
   const preflight = caseId === null || NO_EFFECT_ERRORS.has(errorClass);
   return {
     run_id: runId,
@@ -85,7 +85,7 @@ function eventRecord({ runId, caseId, exitCode, verdict, errorClass, retryable }
     case_id: caseId,
     release_sha: process.env.LIFE_MANAGER_RELEASE_SHA || null,
     loaded_argv: caseId === null
-      ? ["node", "run-identity-cases.js", "--human-labels", "<provided>"]
+      ? ["node", "run-identity-cases.js", "--reference-labels", "<provided>"]
       : ["bash", "-c", "<isolated-gate-wrapper>", "<isolated>/article.md"],
     loaded_env: {
       ARTICLE_ROOT: "skills/writer-agent",
@@ -108,10 +108,15 @@ function eventRecord({ runId, caseId, exitCode, verdict, errorClass, retryable }
     command: caseId === null ? "run-identity-cases.js" : "isolated-gate-wrapper",
     exit_code: exitCode,
     effect: preflight ? "none" : "judge_model_inference",
-    readback: { judge_verdict: verdict },
+    readback: {
+      judge_verdict: verdict,
+      reference_set_version: referenceSet?.version || null,
+      reference_set_sha256: referenceSet?.sha256 || null,
+    },
     provider_receipt_id: null,
     evidence_refs: [
       "docs/evals/writer-edd-a8-label-set.md",
+      "apps/life-manager/eval/writer/fixtures/a8-category-c-reference-v1.jsonl",
       ...(caseId ? [`case_id:${caseId}`] : []),
     ],
     error_class: errorClass,
@@ -125,10 +130,10 @@ function emitEvent(event) {
 }
 
 function nextAction(errorClass) {
-  if (!errorClass) return "join_predictions_to_human_labels";
-  if (errorClass === "insufficient_labels") return "collect_at_least_20_human_pass_and_20_human_fail_labels";
-  if (errorClass === "invalid_arguments") return "invoke_with_human_labels_jsonl_path";
-  if (errorClass === "invalid_human_labels") return "reexport_and_check_canonical_dataset_version_and_hash";
+  if (!errorClass) return "join_predictions_to_synthetic_reference";
+  if (errorClass === "insufficient_reference_labels") return "restore_at_least_20_synthetic_reference_pass_and_fail_cases";
+  if (errorClass === "invalid_arguments") return "invoke_with_synthetic_reference_jsonl_path";
+  if (errorClass === "invalid_reference_labels") return "check_reference_version_hash_source_and_case_ids";
   if (errorClass === "unknown_case") return "reconcile_case_ids_with_canonical_dataset";
   if (errorClass === "nested_sandbox_execution") return "run_from_owner_controlled_outer_shell_not_nested_agent";
   if (errorClass === "writer_runtime_env_failed") return "repair_writer_runtime_environment_before_retry";
@@ -137,7 +142,7 @@ function nextAction(errorClass) {
   return "inspect_identity_gate_and_model_runner_diagnostics_before_retry";
 }
 
-function invokeIdentityGate({ caseData, caseDir, runId, dataset }) {
+function invokeIdentityGate({ caseData, caseDir, runId, dataset, referenceSet }) {
   fs.mkdirSync(caseDir, { recursive: true });
   const articlePath = path.join(caseDir, "article.md");
   fs.writeFileSync(articlePath, `${caseData.excerpt}\n`);
@@ -186,6 +191,7 @@ function invokeIdentityGate({ caseData, caseDir, runId, dataset }) {
     verdict: classified.verdict,
     errorClass: classified.errorClass,
     retryable: classified.retryable,
+    referenceSet,
   }));
   if (NO_EFFECT_ERRORS.has(classified.errorClass)) {
     const error = new Error("Writer evaluation could not establish its isolated runtime context");
@@ -197,6 +203,8 @@ function invokeIdentityGate({ caseData, caseDir, runId, dataset }) {
     case_id: caseData.case_id,
     dataset_version: dataset.version,
     dataset_sha256: dataset.sha256,
+    reference_set_version: referenceSet.version,
+    reference_set_sha256: referenceSet.sha256,
     judge_verdict: classified.verdict,
   };
 }
@@ -204,16 +212,17 @@ function invokeIdentityGate({ caseData, caseDir, runId, dataset }) {
 function main() {
   const runId = `writer-a8-${crypto.randomUUID()}`;
   let tempDir;
+  let referenceSet = null;
   try {
-    const { humanLabelsPath } = parseArgs(process.argv.slice(2));
+    const { referenceLabelsPath } = parseArgs(process.argv.slice(2));
     const dataset = loadDataset();
-    const labeledRows = joinLabels(readJsonl(humanLabelsPath), [], dataset);
+    referenceSet = loadReferenceSet(referenceLabelsPath, dataset);
     const counts = { PASS: 0, FAIL: 0 };
-    for (const row of labeledRows) {
-      if (row.human_label === "PASS" || row.human_label === "FAIL") counts[row.human_label] += 1;
+    for (const row of referenceSet.rows) {
+      if (row.reference_label === "PASS" || row.reference_label === "FAIL") counts[row.reference_label] += 1;
     }
     if (counts.PASS < MIN_PER_CLASS || counts.FAIL < MIN_PER_CLASS) {
-      rejectInput("insufficient_labels");
+      rejectInput("insufficient_reference_labels");
     }
     if (process.env.ARTICLE_NESTED_SANDBOX === "1" || process.env.ARTICLE_JUDGE_BROKER_SERVER === "1") {
       rejectInput("nested_sandbox_execution");
@@ -221,7 +230,7 @@ function main() {
 
     const casesById = new Map(dataset.cases.map((item) => [item.case_id, item]));
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "writer-a8-identity-"));
-    for (const row of labeledRows) {
+    for (const row of referenceSet.rows) {
       const caseData = casesById.get(row.case_id);
       if (!caseData) rejectInput("unknown_case");
       const prediction = invokeIdentityGate({
@@ -229,6 +238,7 @@ function main() {
         caseDir: path.join(tempDir, caseData.case_id),
         runId,
         dataset,
+        referenceSet,
       });
       process.stdout.write(`${JSON.stringify(prediction)}\n`);
     }
@@ -239,8 +249,9 @@ function main() {
         caseId: null,
         exitCode: 2,
         verdict: "UNKNOWN",
-        errorClass: error.code || "invalid_human_labels",
+        errorClass: error.code || "invalid_reference_labels",
         retryable: false,
+        referenceSet,
       }));
     }
     process.exitCode = 2;

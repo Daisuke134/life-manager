@@ -1,6 +1,7 @@
 "use strict";
 
 const assert = require("node:assert/strict");
+const crypto = require("node:crypto");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
@@ -12,20 +13,20 @@ const JOINER_CLI = path.join(__dirname, "join-labels.js");
 const METRICS_CLI = path.join(__dirname, "judge-metrics.js");
 const REPO_ROOT = path.resolve(__dirname, "../../../../");
 const WRITER_ROOT = path.join(REPO_ROOT, "skills/writer-agent");
-const VERSION = "writer-edd-a8-v2";
-const DATASET_SHA256 = "7168b3f762f0b72d9dd8259aad09779a305d3a101a3c1bd4f844b9db78cf9e8d";
+const VERSION = "writer-edd-a8-v3";
+const DATASET_SHA256 = "355729f17728c1ef8638cde71f8deca44a37619854f1be6995efdd11df3c1f39";
+const REFERENCE_VERSION = "writer-edd-a8-reference-v1";
+const REFERENCE_SOURCE = "synthetic_policy_reference_v1";
 
-function humanRows(passCount) {
-  return Array.from({ length: 40 }, (_, index) => ({
-    case_id: `W-C-${String(index + 1).padStart(3, "0")}`,
-    dataset_version: VERSION,
-    dataset_sha256: DATASET_SHA256,
-    human_label: index < passCount ? "PASS" : "FAIL",
-    human_rationale: `PRIVATE_RATIONALE_MARKER_${index + 1}`,
-  }));
+function referenceRows() {
+  const fixture = path.join(__dirname, "fixtures/a8-category-c-reference-v1.jsonl");
+  return fs.readFileSync(fixture, "utf8").trim().split(/\r?\n/u).map((line) => {
+    const row = JSON.parse(line);
+    return { ...row, reference_rationale: `PRIVATE_RATIONALE_MARKER_${row.case_id}` };
+  });
 }
 
-function makeHarness(labels) {
+function makeHarness(references = referenceRows()) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "writer-identity-eval-"));
   const modelRunner = path.join(directory, "fake-model-runner.js");
   const promptsDirectory = path.join(directory, "prompts");
@@ -33,7 +34,7 @@ function makeHarness(labels) {
   const stateDirectory = path.join(directory, "state");
   const logDirectory = path.join(directory, "logs");
   const envFile = path.join(directory, "empty.env");
-  const labelsPath = path.join(directory, "human-labels.jsonl");
+  const referencePath = path.join(directory, "reference-labels.jsonl");
 
   fs.writeFileSync(modelRunner, `#!/usr/bin/env node
 "use strict";
@@ -74,7 +75,9 @@ process.stdin.on("end", () => {
 `);
   fs.chmodSync(modelRunner, 0o755);
   fs.writeFileSync(envFile, "");
-  fs.writeFileSync(labelsPath, `${labels.map((row) => JSON.stringify(row)).join("\n")}\n`);
+  const referenceBytes = `${references.map((row) => JSON.stringify(row)).join("\n")}\n`;
+  fs.writeFileSync(referencePath, referenceBytes);
+  const referenceSha256 = crypto.createHash("sha256").update(referenceBytes).digest("hex");
 
   const env = {
     ...process.env,
@@ -102,19 +105,21 @@ process.stdin.on("end", () => {
   delete env.LIFE_MANAGER_LOOP_ID;
   delete env.LIFE_MANAGER_OCCURRENCE_ID;
 
-  return { directory, labelsPath, promptsDirectory, contextsDirectory, env };
+  return { directory, referencePath, referenceSha256, promptsDirectory, contextsDirectory, env };
 }
 
 function invoke(harness) {
-  return spawnSync(process.execPath, [CLI, "--human-labels", harness.labelsPath], {
+  return spawnSync(process.execPath, [CLI, "--reference-labels", harness.referencePath], {
     cwd: REPO_ROOT,
     encoding: "utf8",
     env: harness.env,
   });
 }
 
-test("refuses to call the judge before human PASS and FAIL each reach 20", () => {
-  const harness = makeHarness(humanRows(19));
+test("refuses to call the judge unless synthetic PASS and FAIL references each reach 20", () => {
+  const references = referenceRows();
+  references[0] = { ...references[0], reference_label: "FAIL" };
+  const harness = makeHarness(references);
   try {
     const result = invoke(harness);
 
@@ -122,6 +127,7 @@ test("refuses to call the judge before human PASS and FAIL each reach 20", () =>
     assert.equal(result.status, 2);
     assert.equal(result.stdout, "");
     assert.equal(fs.existsSync(harness.promptsDirectory), false);
+    assert.equal(JSON.parse(result.stderr.trim()).error_class, "insufficient_reference_labels");
     assert.doesNotMatch(result.stderr, /PRIVATE_RATIONALE_MARKER/u);
   } finally {
     fs.rmSync(harness.directory, { recursive: true, force: true });
@@ -129,7 +135,7 @@ test("refuses to call the judge before human PASS and FAIL each reach 20", () =>
 });
 
 test("refuses nested sandbox execution before creating any judge prompt", () => {
-  const harness = makeHarness(humanRows(20));
+  const harness = makeHarness();
   harness.env.ARTICLE_NESTED_SANDBOX = "1";
   try {
     const result = invoke(harness);
@@ -147,7 +153,7 @@ test("refuses nested sandbox execution before creating any judge prompt", () => 
 });
 
 test("preserves inherited broker refusal when dotenv blanks the broker marker", () => {
-  const harness = makeHarness(humanRows(20));
+  const harness = makeHarness();
   harness.env.ARTICLE_JUDGE_BROKER_SERVER = "1";
   fs.writeFileSync(harness.env.LIFE_MANAGER_ENV_FILE, "ARTICLE_JUDGE_BROKER_SERVER=\n");
   try {
@@ -166,7 +172,7 @@ test("preserves inherited broker refusal when dotenv blanks the broker marker", 
 });
 
 test("refuses a broker marker loaded from dotenv before invoking the judge", () => {
-  const harness = makeHarness(humanRows(20));
+  const harness = makeHarness();
   delete harness.env.ARTICLE_JUDGE_BROKER_SERVER;
   delete harness.env.ARTICLE_NESTED_SANDBOX;
   fs.writeFileSync(harness.env.LIFE_MANAGER_ENV_FILE, "ARTICLE_JUDGE_BROKER_SERVER=1\n");
@@ -185,8 +191,8 @@ test("refuses a broker marker loaded from dotenv before invoking the judge", () 
   }
 });
 
-test("runs isolated cases without labels, filters non-Category-C failures, and emits safe prediction rows", () => {
-  const harness = makeHarness(humanRows(20));
+test("runs isolated cases from the synthetic reference set and emits predictions without labels", () => {
+  const harness = makeHarness();
   try {
     const result = invoke(harness);
 
@@ -195,10 +201,10 @@ test("runs isolated cases without labels, filters non-Category-C failures, and e
     const predictions = result.stdout.trim().split("\n").map((line) => JSON.parse(line));
     assert.equal(predictions.length, 40);
     assert.deepEqual(predictions.slice(0, 4), [
-      { case_id: "W-C-001", dataset_version: VERSION, dataset_sha256: DATASET_SHA256, judge_verdict: "UNKNOWN" },
-      { case_id: "W-C-002", dataset_version: VERSION, dataset_sha256: DATASET_SHA256, judge_verdict: "FAIL" },
-      { case_id: "W-C-003", dataset_version: VERSION, dataset_sha256: DATASET_SHA256, judge_verdict: "UNKNOWN" },
-      { case_id: "W-C-004", dataset_version: VERSION, dataset_sha256: DATASET_SHA256, judge_verdict: "PASS" },
+      { case_id: "W-C-001", dataset_version: VERSION, dataset_sha256: DATASET_SHA256, reference_set_version: REFERENCE_VERSION, reference_set_sha256: harness.referenceSha256, judge_verdict: "UNKNOWN" },
+      { case_id: "W-C-002", dataset_version: VERSION, dataset_sha256: DATASET_SHA256, reference_set_version: REFERENCE_VERSION, reference_set_sha256: harness.referenceSha256, judge_verdict: "FAIL" },
+      { case_id: "W-C-003", dataset_version: VERSION, dataset_sha256: DATASET_SHA256, reference_set_version: REFERENCE_VERSION, reference_set_sha256: harness.referenceSha256, judge_verdict: "UNKNOWN" },
+      { case_id: "W-C-004", dataset_version: VERSION, dataset_sha256: DATASET_SHA256, reference_set_version: REFERENCE_VERSION, reference_set_sha256: harness.referenceSha256, judge_verdict: "PASS" },
     ]);
     assert.equal(fs.readdirSync(harness.promptsDirectory).length, 40);
     assert.equal(fs.readdirSync(harness.contextsDirectory).length, 40);
@@ -217,22 +223,22 @@ test("runs isolated cases without labels, filters non-Category-C failures, and e
 
     const targetPrompt = fs.readFileSync(path.join(harness.promptsDirectory, "W-C-002.txt"), "utf8");
     assert.match(targetPrompt, /identity-review-v7\.md/u);
-    assert.doesNotMatch(targetPrompt, /PRIVATE_RATIONALE_MARKER|human_label/u);
-    assert.doesNotMatch(result.stdout, /PRIVATE_RATIONALE_MARKER|human_rationale/u);
+    assert.doesNotMatch(targetPrompt, /PRIVATE_RATIONALE_MARKER|reference_label|reference_rationale/u);
+    assert.doesNotMatch(result.stdout, /PRIVATE_RATIONALE_MARKER|reference_label|reference_rationale/u);
 
     const predictionsPath = path.join(harness.directory, "judge-predictions.jsonl");
     fs.writeFileSync(predictionsPath, result.stdout);
     const joined = spawnSync(process.execPath, [
       JOINER_CLI,
-      "--human-labels", harness.labelsPath,
+      "--reference-labels", harness.referencePath,
       "--judge-predictions", predictionsPath,
     ], { encoding: "utf8" });
     assert.equal(joined.status, 0, joined.stderr);
     const joinedRows = joined.stdout.trim().split("\n").map((line) => JSON.parse(line));
     assert.equal(joinedRows.length, 40);
     assert.deepEqual(joinedRows.slice(0, 2), [
-      { case_id: "W-C-001", human_label: "PASS", judge_verdict: "UNKNOWN" },
-      { case_id: "W-C-002", human_label: "PASS", judge_verdict: "FAIL" },
+      { case_id: "W-C-001", reference_label: "PASS", reference_source: REFERENCE_SOURCE, reference_set_version: REFERENCE_VERSION, reference_set_sha256: harness.referenceSha256, judge_verdict: "UNKNOWN" },
+      { case_id: "W-C-002", reference_label: "FAIL", reference_source: REFERENCE_SOURCE, reference_set_version: REFERENCE_VERSION, reference_set_sha256: harness.referenceSha256, judge_verdict: "FAIL" },
     ]);
     const metrics = spawnSync(process.execPath, [METRICS_CLI], {
       input: joined.stdout,
@@ -241,7 +247,14 @@ test("runs isolated cases without labels, filters non-Category-C failures, and e
     assert.equal(metrics.status, 0, metrics.stderr);
     const summary = JSON.parse(metrics.stdout);
     assert.equal(summary.status, "incomplete_predictions");
-    assert.deepEqual(summary.rates, { tpr: null, tnr: null, false_pass_rate: null, false_fail_rate: null });
+    assert.equal(summary.scope, "synthetic_reference_agreement");
+    assert.equal(summary.human_validation, "not_performed");
+    assert.deepEqual(summary.rates, {
+      reference_tpr: null,
+      reference_tnr: null,
+      reference_false_pass_rate: null,
+      reference_false_fail_rate: null,
+    });
 
     const events = result.stderr.trim().split("\n").map((line) => JSON.parse(line));
     assert.equal(events.length, 40);
@@ -254,7 +267,11 @@ test("runs isolated cases without labels, filters non-Category-C failures, and e
       && event.phase === "identity_judge" && event.command && "exit_code" in event
       && "effect" in event && "readback" in event && "provider_receipt_id" in event
       && Array.isArray(event.evidence_refs) && "retryable" in event && event.next_action));
-    assert.doesNotMatch(result.stderr, /PRIVATE_RATIONALE_MARKER|identity-review-v7\.md/u);
+    const caseEvent = events.find((event) => event.case_id === "W-C-002");
+    assert.equal(caseEvent.readback.reference_set_version, REFERENCE_VERSION);
+    assert.equal(caseEvent.readback.reference_set_sha256, harness.referenceSha256);
+    assert.doesNotMatch(JSON.stringify(caseEvent), /reference_label|reference_rationale/u);
+    assert.doesNotMatch(result.stderr, /PRIVATE_RATIONALE_MARKER|reference_label|reference_rationale|identity-review-v7\.md/u);
     assert.equal(fs.existsSync(harness.env.ARTICLE_CODEX_EVENTS_FILE), false);
     assert.equal(fs.existsSync(harness.env.ARTICLE_CODEX_LAST_MESSAGE_FILE), false);
   } finally {
