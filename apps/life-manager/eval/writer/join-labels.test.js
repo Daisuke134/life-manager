@@ -14,6 +14,8 @@ const VERSION = "writer-edd-a8-v3";
 const DATASET_SHA256 = "355729f17728c1ef8638cde71f8deca44a37619854f1be6995efdd11df3c1f39";
 const REFERENCE_VERSION = "writer-edd-a8-reference-v1";
 const REFERENCE_SOURCE = "synthetic_policy_reference_v1";
+const FREEZE_ID = "writer-edd-a9-test-freeze-v1";
+const FREEZE_SHA256 = "b".repeat(64);
 const CASES = new Set([
   1, 4, 5, 8, 10, 12, 13, 16, 18, 19,
   21, 23, 25, 28, 29, 32, 33, 35, 38, 39,
@@ -52,6 +54,11 @@ function prediction(caseId, verdict, referenceSha256) {
     dataset_sha256: DATASET_SHA256,
     reference_set_version: REFERENCE_VERSION,
     reference_set_sha256: referenceSha256,
+    freeze_id: FREEZE_ID,
+    freeze_sha256: FREEZE_SHA256,
+    provider: "codex",
+    model_id: "gpt-5.6-terra",
+    effort: "medium",
     judge_verdict: verdict,
   };
 }
@@ -113,6 +120,11 @@ test("joins fixture references by case ID and keeps missing predictions UNKNOWN"
       reference_source: REFERENCE_SOURCE,
       reference_set_version: REFERENCE_VERSION,
       reference_set_sha256: references.sha256,
+      freeze_id: FREEZE_ID,
+      freeze_sha256: FREEZE_SHA256,
+      provider: "codex",
+      model_id: "gpt-5.6-terra",
+      effort: "medium",
       judge_verdict: "PASS",
     },
     {
@@ -121,6 +133,11 @@ test("joins fixture references by case ID and keeps missing predictions UNKNOWN"
       reference_source: REFERENCE_SOURCE,
       reference_set_version: REFERENCE_VERSION,
       reference_set_sha256: references.sha256,
+      freeze_id: FREEZE_ID,
+      freeze_sha256: FREEZE_SHA256,
+      provider: "codex",
+      model_id: "gpt-5.6-terra",
+      effort: "medium",
       judge_verdict: "UNKNOWN",
     },
   ]);
@@ -191,6 +208,12 @@ test("rejects duplicate reference IDs, judge-only cases, and dataset hash mismat
 
   const judgeOnly = runJoin(refs, [prediction("W-C-999", "FAIL")]);
   assert.equal(judgeOnly.status, 2);
+
+  const mixedFreeze = runJoin(refs, [
+    prediction("W-C-001", "PASS"),
+    { ...prediction("W-C-002", "FAIL"), freeze_id: "other-freeze" },
+  ]);
+  assert.equal(mixedFreeze.status, 2);
 
   const mismatch = [...refs];
   mismatch[0] = { ...mismatch[0], dataset_sha256: "0".repeat(64) };

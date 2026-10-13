@@ -132,22 +132,43 @@ function parseArgs(args) {
 
 function validatePredictions(rows, dataset, referenceSet) {
   const byCaseId = new Map();
+  let freezeId = null;
+  let freezeSha256 = null;
+  let provider = null;
+  let modelId = null;
+  let effort = null;
   for (const row of rows) {
     if (!exactKeys(row, [
       "case_id",
       "dataset_sha256",
       "dataset_version",
+      "effort",
+      "freeze_id",
+      "freeze_sha256",
       "judge_verdict",
+      "model_id",
+      "provider",
       "reference_set_sha256",
       "reference_set_version",
     ])) rejectInput();
     if (row.dataset_version !== dataset.version || row.dataset_sha256 !== dataset.sha256
       || row.reference_set_version !== referenceSet.version || row.reference_set_sha256 !== referenceSet.sha256) rejectInput();
     if (typeof row.case_id !== "string" || !referenceSet.byCaseId.has(row.case_id) || byCaseId.has(row.case_id)) rejectInput();
+    if (typeof row.freeze_id !== "string" || !row.freeze_id
+      || typeof row.freeze_sha256 !== "string" || !/^[a-f0-9]{64}$/u.test(row.freeze_sha256)) rejectInput();
+    if (row.provider !== "codex" || row.model_id !== "gpt-5.6-terra" || row.effort !== "medium") rejectInput();
+    if ((freezeId && freezeId !== row.freeze_id) || (freezeSha256 && freezeSha256 !== row.freeze_sha256)
+      || (provider && provider !== row.provider) || (modelId && modelId !== row.model_id)
+      || (effort && effort !== row.effort)) rejectInput();
+    freezeId = row.freeze_id;
+    freezeSha256 = row.freeze_sha256;
+    provider = row.provider;
+    modelId = row.model_id;
+    effort = row.effort;
     if (!JUDGE_VERDICTS.has(row.judge_verdict)) rejectInput();
     byCaseId.set(row.case_id, row.judge_verdict);
   }
-  return byCaseId;
+  return { byCaseId, freezeId, freezeSha256, provider, modelId, effort };
 }
 
 function joinLabels(referenceSet, predictionRows, dataset = loadDataset()) {
@@ -164,7 +185,7 @@ function joinLabels(referenceSet, predictionRows, dataset = loadDataset()) {
     byCaseId,
   });
 
-  for (const caseId of predictionByCaseId.keys()) {
+  for (const caseId of predictionByCaseId.byCaseId.keys()) {
     if (!byCaseId.has(caseId)) rejectInput();
   }
 
@@ -175,7 +196,12 @@ function joinLabels(referenceSet, predictionRows, dataset = loadDataset()) {
       reference_source: referenceSet.source,
       reference_set_version: referenceSet.version,
       reference_set_sha256: referenceSet.sha256,
-      judge_verdict: predictionByCaseId.get(caseId) || "UNKNOWN",
+      freeze_id: predictionByCaseId.freezeId,
+      freeze_sha256: predictionByCaseId.freezeSha256,
+      provider: predictionByCaseId.provider,
+      model_id: predictionByCaseId.modelId,
+      effort: predictionByCaseId.effort,
+      judge_verdict: predictionByCaseId.byCaseId.get(caseId) || "UNKNOWN",
     };
   });
 }

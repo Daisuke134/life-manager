@@ -38,10 +38,21 @@ function validateRows(rows) {
   const seen = new Set();
   let referenceSetVersion = null;
   let referenceSetSha256 = null;
+  let freezeId = null;
+  let freezeSha256 = null;
+  let freezeMode = null;
+  let provider = null;
+  let modelId = null;
+  let effort = null;
   for (const row of rows) {
     if (!exactKeys(row, [
       "case_id",
+      "effort",
+      "freeze_id",
+      "freeze_sha256",
       "judge_verdict",
+      "model_id",
+      "provider",
       "reference_label",
       "reference_set_sha256",
       "reference_set_version",
@@ -54,13 +65,31 @@ function validateRows(rows) {
       || !row.reference_set_version
       || typeof row.reference_set_sha256 !== "string"
       || !SHA256.test(row.reference_set_sha256)) rejectInput();
+    const hasFreeze = typeof row.freeze_id === "string" && !!row.freeze_id
+      && typeof row.freeze_sha256 === "string" && SHA256.test(row.freeze_sha256)
+      && row.provider === "codex" && row.model_id === "gpt-5.6-terra" && row.effort === "medium";
+    const noFreeze = row.freeze_id === null && row.freeze_sha256 === null
+      && row.provider === null && row.model_id === null && row.effort === null;
+    if (!hasFreeze && !noFreeze) rejectInput();
+    const rowFreezeMode = hasFreeze ? "frozen" : "none";
+    if (freezeMode && freezeMode !== rowFreezeMode) rejectInput();
     if ((referenceSetVersion && referenceSetVersion !== row.reference_set_version)
-      || (referenceSetSha256 && referenceSetSha256 !== row.reference_set_sha256)) rejectInput();
+      || (referenceSetSha256 && referenceSetSha256 !== row.reference_set_sha256)
+      || (freezeId && freezeId !== row.freeze_id)
+      || (freezeSha256 && freezeSha256 !== row.freeze_sha256)
+      || (provider && provider !== row.provider) || (modelId && modelId !== row.model_id)
+      || (effort && effort !== row.effort)) rejectInput();
     referenceSetVersion = row.reference_set_version;
     referenceSetSha256 = row.reference_set_sha256;
+    freezeId = row.freeze_id;
+    freezeSha256 = row.freeze_sha256;
+    freezeMode = rowFreezeMode;
+    provider = row.provider;
+    modelId = row.model_id;
+    effort = row.effort;
     seen.add(row.case_id);
   }
-  return { referenceSetVersion, referenceSetSha256 };
+  return { referenceSetVersion, referenceSetSha256, freezeId, freezeSha256, provider, modelId, effort };
 }
 
 function roundedRate(numerator, denominator) {
@@ -123,12 +152,17 @@ function summarize(rows) {
     };
 
   return {
-    schema_version: 2,
+    schema_version: 3,
     record_type: "writer_synthetic_reference_metrics",
     scope: "synthetic_reference_agreement",
     reference_source: REFERENCE_SOURCE,
     reference_set_version: referenceSet.referenceSetVersion,
     reference_set_sha256: referenceSet.referenceSetSha256,
+    freeze_id: referenceSet.freezeId,
+    freeze_sha256: referenceSet.freezeSha256,
+    provider: referenceSet.provider,
+    model_id: referenceSet.modelId,
+    effort: referenceSet.effort,
     human_validation: "not_performed",
     status,
     counts,

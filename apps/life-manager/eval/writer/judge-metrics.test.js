@@ -9,6 +9,8 @@ const CLI = path.join(__dirname, "judge-metrics.js");
 const SOURCE = "synthetic_policy_reference_v1";
 const VERSION = "writer-edd-a8-reference-v1";
 const SHA = "a".repeat(64);
+const FREEZE_ID = "writer-edd-a9-test-freeze-v1";
+const FREEZE_SHA256 = "b".repeat(64);
 
 function row(caseId, referenceLabel, judgeVerdict, overrides = {}) {
   return {
@@ -17,6 +19,11 @@ function row(caseId, referenceLabel, judgeVerdict, overrides = {}) {
     reference_source: SOURCE,
     reference_set_version: VERSION,
     reference_set_sha256: SHA,
+    freeze_id: FREEZE_ID,
+    freeze_sha256: FREEZE_SHA256,
+    provider: "codex",
+    model_id: "gpt-5.6-terra",
+    effort: "medium",
     judge_verdict: judgeVerdict,
     ...overrides,
   };
@@ -38,12 +45,17 @@ test("does not emit reference rates until both synthetic classes reach 20", () =
 
   assert.equal(result.status, 0, result.stderr);
   assert.deepEqual(JSON.parse(result.stdout), {
-    schema_version: 2,
+    schema_version: 3,
     record_type: "writer_synthetic_reference_metrics",
     scope: "synthetic_reference_agreement",
     reference_source: SOURCE,
     reference_set_version: VERSION,
     reference_set_sha256: SHA,
+    freeze_id: FREEZE_ID,
+    freeze_sha256: FREEZE_SHA256,
+    provider: "codex",
+    model_id: "gpt-5.6-terra",
+    effort: "medium",
     human_validation: "not_performed",
     status: "insufficient_reference_cases",
     counts: {
@@ -77,12 +89,17 @@ test("reports distinct fixture false-pass and false-fail rates with provenance",
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stderr, "");
   assert.deepEqual(JSON.parse(result.stdout), {
-    schema_version: 2,
+    schema_version: 3,
     record_type: "writer_synthetic_reference_metrics",
     scope: "synthetic_reference_agreement",
     reference_source: SOURCE,
     reference_set_version: VERSION,
     reference_set_sha256: SHA,
+    freeze_id: FREEZE_ID,
+    freeze_sha256: FREEZE_SHA256,
+    provider: "codex",
+    model_id: "gpt-5.6-terra",
+    effort: "medium",
     human_validation: "not_performed",
     status: "synthetic_reference_metrics_available",
     counts: {
@@ -151,4 +168,7 @@ test("rejects human labels, mixed reference sets, and duplicate IDs without echo
 
   const mixedRows = [row("x", "PASS", "PASS"), row("y", "FAIL", "FAIL", { reference_set_sha256: "b".repeat(64) })];
   assert.equal(invoke(mixedRows).status, 2);
+
+  const mixedFreezeRows = [row("x", "PASS", "PASS"), row("y", "FAIL", "FAIL", { freeze_id: "other-freeze" })];
+  assert.equal(invoke(mixedFreezeRows).status, 2);
 });
