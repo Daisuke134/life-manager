@@ -6,8 +6,10 @@
 
 これはWriter Pilot Aの設計と実装記録であり、新しい全体TODO正本ではない。実行状態・全体順序・所有者は [統一SSOT](2026-09-25-life-manager-unified-ssot.md) に従う。Daisの現在の指示により、この作業のactive scopeはWriterの評価駆動開発とする。E01の`agent-economy-loop` release adoption/natural evaluationは別cursorとして残り、Writer graderの前提条件ではない。Writer側ではproduction runtime・外部effectを変更しない。
 
-**実装checkpoint（2026-10-13）:** A7のW-01 deterministic code graderを`apps/life-manager/eval/writer/receipt-grader.js`に実装し、9/9 focused testsとCLI caseをPASS。W-01のempty artifactはhash PASS、receipt parseability FAIL、publication stage PASS。task completion、quality、effect integrity、settled netは`unknown`/`null`のまま。これはartifact integrity evaluatorのsource-level結果で、Writer quality、収益改善、自然runの修復、benchmark performanceを示さない。次はA8のquality judgeを人手blind labelで較正する準備だが、まずcase/evidence provenanceとdomain labelを揃える。
+**実装checkpoint（2026-10-13）:** A7 W-01 deterministic code grader is merged and 9/9 focused tests pass. A3b source lineage fix PR #7878 and A3c child-to-parent summary binding PR #7881 are merged with CI pass. The current live article-daily is still on old release `3e19c846` with an unresolved publish effect fence, so no runtime adoption/natural trace is claimed. Current E02 cursor is A8 blind label set preparation; no human labels are recorded yet.
 
+**A3bの根拠:** 現行mainの`article-daily.sh`は`git log`で`harness_git_hash`を採取するが、current immutable release `3e19c8463a1751b8c3c5a7c3a273330d4280b2f2`に`.git`はなく、loop applyが渡す`LIFE_MANAGER_RELEASE_SHA`をcapture経路は参照しない。実run `20261011-210544`は`git-hash.txt=UNKNOWN`。これはsource captureの現行欠陥を示すが、当該過去runのsourceやW-01 0-byte artifactの生成原因を確定しない。既存publish effect fenceは変更しない。
+**A3cの根拠:** read-only inventoryは251 `writer-judge` child summariesを確認した。summaryには`runtime_event_id`があるがparent article run/lifecycle occurrence/source fieldsがなく、raw quality result JSONだけではjudge inputを親articleへ結べない。`shared-model-runner.py`は`ARTICLE_RUN_ID`を継承し、agent-runnerはruntime eventへchild identityを書いているため、A3cでevent identityとparent environment IDsをsummaryへcopyする。raw article textはprivate run dirに保持し、child callsを独立article taskとして数えない。
 ## E01 runtime checkpoint
 
 **観測時刻:** 2026-10-12T14:52:05Z。これはローカル状態の読み取り専用checkpointであり、統一SSOTのcursorを進めない。

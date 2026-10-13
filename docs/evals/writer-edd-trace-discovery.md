@@ -103,6 +103,17 @@ W-01の0-byte artifactに対するgradeは、artifact hash `pass`、receipt pars
 
 `npm run test:writer-eval`で9件のgrader testsとW-01 CLI出力を検証します。別のsynthetic valid v2 fixtureはschema/receipt hashのcontrol testだけに使い、natural case数、writer performance、qualityやrevenue scoreへ数えません。grader出力は一つのcode-checkable evidence dimensionであり、A8のsemantic judge calibration、自然source reproduction、E02の公式receipt/cost joinは未完です。
 
+## A3c child-to-parent trace binding — current Writer cursor
+
+Current private inventory has 251 `writer-judge` child summaries under `article-daily`. They contain `runtime_event_id` and model-generated results, but omit child owner/run/occurrence/release fields and parent Writer article/lifecycle IDs. `shared-model-runner.py` inherits `ARTICLE_RUN_ID`; loop launchd provides `LIFE_MANAGER_RUN_ID`, `LIFE_MANAGER_OCCURRENCE_ID`, and `LIFE_MANAGER_RELEASE_SHA`. The generic agent-runner writes the child runtime event but only copies `event_id` into summary.json.
+
+A3c child-to-parent binding is merged in PR #7881 (`e2463ba9`) and CI passes. It does not copy article body or convert model verdicts to human labels. Historical child summaries remain unbound; they are not retroactively rewritten. Current human labels: 0; 8 historical article runs (7 retained run dirs) / 4 identity receipts remain natural-case candidates.
+
+## A3b source provenance — current Writer atom
+
+自然trace inventoryでは8 runすべて`harness_git_hash=UNKNOWN`です。実run `20261011-210544`のprivate `git-hash.txt`も同じです。最新mainの`article-daily.sh`はGit履歴からSHAを取りますが、現行immutable release `3e19c8463a1751b8c3c5a7c3a273330d4280b2f2`には`.git`がありません。loop applyはそのrelease SHAを`LIFE_MANAGER_RELEASE_SHA`として渡し、`writer-runtime-env.sh`も保持する一方、capture経路が使っていません。
+
+A3bではvalidな40-hex env SHAを優先し、local checkoutではGit fallbackを残すfocused regressionを追加します。過去runのSHAは推定しません。W-01 0-byte receiptの過去原因、quality、netは引き続きunknownです。既存publish occurrenceの`effect_unknown` fenceは変更しません。
 ## 優先findings
 
 ### 1. Source lineageが不足
@@ -142,3 +153,11 @@ W-01のquality self-heal artifactは0 bytesでJSONとして読めず、品質判
 公開前quality PASSは外部impactや収益成果ではありません。
 
 E01のmain由来release adoption/natural evaluationは未完であり、実行cursorは統一SSOTから動かしません。
+
+## A8 Category C label draft
+
+`docs/evals/writer-edd-a8-label-set.md` contains 40 synthetic, unlabeled excerpts for the single identity-judge failure mode `C: internal-context leak`. It covers reader-facing public CTAs/sources and synthetic internal paths, unpublished docs, private messages, dashboard values, and mixed cases. Every label and rationale is blank; the model judge has not been run. The examples are development candidates, not natural Writer runs or performance data.
+
+The current human-label count remains 0. Natural W-01 remains a separate candidate because its full source article is not copied into this repository. Do not calibrate the judge, report false-pass/false-fail rates, or advance E02 beyond A8 until at least 20 expert PASS and 20 expert FAIL labels are recorded. E01 Agent Economy remains a separate cursor.
+
+**A8 metric contract:** human `PASS` is the positive class. `false_pass` counts human `FAIL` / judge `PASS` (a missed leak); `false_fail` counts human `PASS` / judge `FAIL` (an overblocked clean article). TPR is correct judge PASS among human PASS; TNR is correct judge FAIL among human FAIL. `NEEDS_CONTEXT` and judge `UNKNOWN` are counted separately and never converted to either class. Rates remain `null` until there are at least 20 human labels in each class and all scorable predictions are binary. `apps/life-manager/eval/writer/judge-metrics.js` consumes JSONL rows `{case_id,human_label,judge_verdict}` without model calls. Its `metrics_available` status means only that arithmetic prerequisites are met; it is not an evaluator quality or promotion result. The existing `skills/writer-agent/scripts/judge_calibration.py` measures judge-score/reward-rank correlation and does not implement this binary contract.

@@ -482,6 +482,20 @@ def dependency_worktree(tmp_path: Path):
         shutil.rmtree(tmp_path)
 
 
+def test_partial_worktree_dependency_reclaim_preserves_shell_without_error(dependency_worktree, monkeypatch) -> None:
+    governor, repo, worktree, cache, evidence, git = dependency_worktree
+    candidates = [item for item in governor.discover_candidates() if Path(item["path"]) == cache]
+    assert len(candidates) == 1
+    monkeypatch.setattr(sys.modules[HostDiskGovernor.__module__], "remove_owned_tree",
+                        lambda *_args: "contents_reclaimed")
+    result = governor.sweep(candidates, write_receipt=False)
+    assert result["errors"] == result["protected_deletions"] == 0
+    assert result["contents_reclaimed"] == 1
+    assert result["preserved_reasons"]["contents_reclaimed"] == 1
+    assert result["reclaimed"] == 0
+    assert cache.is_dir() and evidence.exists()
+
+
 def test_closed_worktree_dependency_cache_is_reclaimed_without_ignored_evidence(dependency_worktree) -> None:
     governor, repo, worktree, cache, evidence, git = dependency_worktree
     assert governor._worktree_identity(worktree) is None

@@ -262,7 +262,7 @@ matching_locked_dependencies() {
 }
 
 link_locked_dependencies() {
-  local package_dir="$1" relative key bundle build donor_modules node_version npm_version
+  local package_dir="$1" relative key bundle build donor_modules node_version npm_version key_package donor_package
   relative="${package_dir#"$DEST"}"
   if [ -n "${NPM_NODE_VERSION:-}" ]; then
     node_version="$NPM_NODE_VERSION"
@@ -278,11 +278,20 @@ link_locked_dependencies() {
   else
     npm_version="$("$NPM_BIN" --version)" || return 1
   fi
+  key_package="$package_dir/package.json"
+  donor_package="$CURRENT$relative"
+  if [ -f "$donor_package/package.json" ] && \
+     cmp -s "$package_dir/package-lock.json" "$donor_package/package-lock.json" && \
+     PYTHONPATH="$SCRIPT_ROOT" "$RUNTIME_PYTHON" -B -c \
+       'import sys; from pathlib import Path; from runtime.host.disk_admission import dependency_manifest_matches; sys.exit(not dependency_manifest_matches(Path(sys.argv[1]).read_bytes(), Path(sys.argv[2]).read_bytes()))' \
+       "$package_dir/package.json" "$donor_package/package.json"; then
+    key_package="$donor_package/package.json"
+  fi
   key="$({
     printf 'command\0%s\0os\0%s\0arch\0%s\0node\0%s\0npm\0%s\0' \
       'npm-ci --omit=dev --ignore-scripts' "$(uname -s)" "$(uname -m)" \
       "$node_version" "$npm_version"
-    printf 'package-json\0'; shasum -a 256 <"$package_dir/package.json"
+    printf 'package-json\0'; shasum -a 256 <"$key_package"
     printf 'package-lock\0'; shasum -a 256 <"$package_dir/package-lock.json"
   } | shasum -a 256 | awk '{print $1}')" || return 1
   bundle="$DEPENDENCY_BUNDLES/npm-$key"

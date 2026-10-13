@@ -162,6 +162,9 @@ class FetchTableCompleteness(unittest.TestCase):
         class FakePage:
             url = "https://creator.line.me/my/account/stats/sticker"
 
+            def on(self, _event: str, _callback) -> None:
+                return None
+
             async def goto(self, url: str, **_kwargs: object) -> None:
                 self.url = url
 
@@ -210,10 +213,190 @@ class FetchTableCompleteness(unittest.TestCase):
         package = types.ModuleType("playwright")
         async_api = types.ModuleType("playwright.async_api")
         async_api.async_playwright = FakePlaywright
+        async_api.TimeoutError = TimeoutError
         package.async_api = async_api
         with patch.dict(sys.modules, {"playwright": package, "playwright.async_api": async_api}):
             result = asyncio.run(MODULE._fetch("http://127.0.0.1:9222"))
         self.assertEqual(result["status"], "incomplete_stats_table")
+
+    def test_fetch_reads_all_stable_pages_and_rejects_api_dom_mismatches(self) -> None:
+        def row(product_id: int) -> dict[str, str]:
+            return {
+                "href": f"https://creator.line.me/my/account/stats/sticker/{product_id}",
+                "text": f"商品{product_id}\t2026/10/13\t￥0",
+            }
+
+        page_rows = {
+            1: [row(48000000 + index) for index in range(20)],
+            2: [row(48000020 + index) for index in range(9)],
+        }
+        snapshots = {
+            1: {
+                "ready_state": "complete", "table_count": 1,
+                "rows": page_rows[1], "body_row_count": 20,
+                "page_numbers": [1, 2], "current_page": 1,
+                "has_next_control": False, "busy": False,
+            },
+            2: {
+                "ready_state": "complete", "table_count": 1,
+                "rows": page_rows[2], "body_row_count": 9,
+                "page_numbers": [1, 2], "current_page": 2,
+                "has_next_control": False, "busy": False,
+            },
+        }
+        page_clicks: list[int] = []
+        pages: list[object] = []
+        late_api_responses: list[tuple[int, list[int], str | None]] = []
+        payment_api_responses: list[tuple[int, list[int], str | None, int]] = []
+        initial_api_query: str | None = None
+
+        class FakeStatsResponse:
+            def __init__(self, page_number: int, product_ids: list[int] | None = None,
+                         raw_query: str | None = None, status: int = 200) -> None:
+                query = f"page={page_number}" if raw_query is None else raw_query
+                self.url = f"https://creator.line.me/my/cCX4POFknN2lhLJE/api/stats/sticker?{query}"
+                self.page_number = page_number
+                self.product_ids = product_ids
+                self.status = status
+
+            async def json(self) -> dict:
+                product_ids = self.product_ids
+                if product_ids is None:
+                    product_ids = [
+                        int(item["href"].rsplit("/", 1)[-1])
+                        for item in page_rows[self.page_number]
+                    ]
+                return {
+                    "products": [{"id": product_id} for product_id in product_ids],
+                    "pager": {"currentPage": self.page_number, "maxPage": 2},
+                }
+
+        class FakePage:
+            url = "https://creator.line.me/my/account/stats/sticker"
+            current_page = 1
+
+            def __init__(self) -> None:
+                self.response_handlers = []
+
+            def on(self, event: str, callback) -> None:
+                if event == "response":
+                    self.response_handlers.append(callback)
+
+            def emit_stats_response(self, page_number: int, product_ids: list[int] | None = None,
+                                    raw_query: str | None = None, status: int = 200) -> None:
+                response = FakeStatsResponse(page_number, product_ids, raw_query, status)
+                for callback in self.response_handlers:
+                    callback(response)
+
+            async def goto(self, url: str, **_kwargs: object) -> None:
+                self.url = url
+                if url.endswith("/stats/sticker"):
+                    self.current_page = 1
+                    self.emit_stats_response(1, raw_query=initial_api_query)
+                elif url.endswith("/payment_request/"):
+                    for page_number, product_ids, raw_query, status in payment_api_responses:
+                        self.emit_stats_response(page_number, product_ids, raw_query, status)
+
+            async def wait_for_timeout(self, _milliseconds: int) -> None:
+                return None
+
+            async def wait_for_load_state(self, *_args: object, **_kwargs: object) -> None:
+                return None
+
+            async def evaluate(self, script: str, argument: object = None) -> dict | bool:
+                if "LINE_STICKER_STATS_CLICK_PAGE" in script:
+                    self.current_page = int(argument)
+                    page_clicks.append(self.current_page)
+                    self.emit_stats_response(self.current_page)
+                    for page_number, product_ids, raw_query in late_api_responses:
+                        self.emit_stats_response(page_number, product_ids, raw_query)
+                    return True
+                return snapshots[self.current_page]
+
+            async def wait_for_function(self, _script: str, arg: object = None,
+                                        **_kwargs: object) -> None:
+                if self.current_page != arg:
+                    raise AssertionError("pagination did not advance to the requested page")
+
+            async def inner_text(self, _selector: str) -> str:
+                return PAYMENT_TEXT
+
+            async def close(self) -> None:
+                return None
+
+        class FakeContext:
+            async def new_page(self) -> FakePage:
+                page = FakePage()
+                pages.append(page)
+                return page
+
+        class FakeBrowser:
+            contexts = [FakeContext()]
+
+        class FakeChromium:
+            async def connect_over_cdp(self, _cdp: str) -> FakeBrowser:
+                return FakeBrowser()
+
+        class FakePlaywright:
+            chromium = FakeChromium()
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *_args: object) -> None:
+                return None
+
+        package = types.ModuleType("playwright")
+        async_api = types.ModuleType("playwright.async_api")
+        async_api.async_playwright = FakePlaywright
+        async_api.TimeoutError = TimeoutError
+        package.async_api = async_api
+        with patch.dict(sys.modules, {"playwright": package, "playwright.async_api": async_api}):
+            result = asyncio.run(MODULE._fetch("http://127.0.0.1:9222"))
+
+        self.assertEqual(result["status"], "ok")
+        parsed = MODULE.parse_sticker_table_rows(result["stats_rows"])
+        self.assertEqual(page_clicks, [2])
+        self.assertEqual(pages[0].current_page, 2)
+        self.assertEqual(len(parsed), 29)
+        self.assertEqual(parsed[0]["product_id"], "48000000")
+        self.assertEqual(parsed[-1]["product_id"], "48000028")
+
+        snapshots[2] = {**snapshots[2], "rows": page_rows[2][:-1], "body_row_count": 8}
+        with patch.dict(sys.modules, {"playwright": package, "playwright.async_api": async_api}):
+            truncated = asyncio.run(MODULE._fetch("http://127.0.0.1:9222"))
+        self.assertEqual(truncated["status"], "incomplete_stats_table")
+
+        snapshots[2] = {**snapshots[2], "rows": page_rows[2], "body_row_count": 9}
+        for description, injected in (
+            ("late duplicate page response", [(1, [48000000 + index for index in range(19)] + [99999999], None)]),
+            ("out-of-range API page", [(0, [], None)]),
+            ("non-ascii numeric API page", [(1, [], "page=%C2%B2")]),
+        ):
+            late_api_responses[:] = injected
+            with self.subTest(description=description):
+                with patch.dict(sys.modules, {"playwright": package, "playwright.async_api": async_api}):
+                    unexpected = asyncio.run(MODULE._fetch("http://127.0.0.1:9222"))
+                self.assertEqual(unexpected["status"], "incomplete_stats_table")
+
+        late_api_responses.clear()
+        for malformed_query in ("page=1&page=", "page=1&page", "page=" + "9" * 5000):
+            initial_api_query = malformed_query
+            with self.subTest(malformed_query=malformed_query):
+                with patch.dict(sys.modules, {"playwright": package, "playwright.async_api": async_api}):
+                    unexpected = asyncio.run(MODULE._fetch("http://127.0.0.1:9222"))
+                self.assertEqual(unexpected["status"], "incomplete_stats_table")
+        initial_api_query = None
+
+        for description, injected in (
+            ("HTTP failure during payment navigation", [(1, [48000000 + index for index in range(20)], "page=1&page=", 500)]),
+            ("duplicate query during payment navigation", [(1, [48000000 + index for index in range(20)], "page=1&page=", 200)]),
+        ):
+            payment_api_responses[:] = injected
+            with self.subTest(description=description):
+                with patch.dict(sys.modules, {"playwright": package, "playwright.async_api": async_api}):
+                    unexpected = asyncio.run(MODULE._fetch("http://127.0.0.1:9222"))
+                self.assertEqual(unexpected["status"], "incomplete_stats_table")
 
 
 class TrackedProducts(unittest.TestCase):
