@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import errno
 import hashlib
 import os
 import re
@@ -58,7 +59,13 @@ def remove_owned_tree(parent_fd: int, opened_fd: int, name: str) -> bool:
     """Rename and remove only the directory inode already opened by its owner."""
     expected = os.fstat(opened_fd)
     trash = f"{name}.gc-trash.{os.getpid()}.{time.time_ns():x}"
-    os.replace(name, trash, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)
+    try:
+        os.replace(name, trash, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)
+    except OSError as error:
+        if error.errno != errno.ENOSPC:
+            raise
+        # Full disks may not allocate a trash name; keep every inode check below.
+        trash = name
     flags = os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_NOFOLLOW", 0)
     trash_fd = os.open(trash, flags, dir_fd=parent_fd)
     try:
