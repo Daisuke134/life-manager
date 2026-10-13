@@ -118,7 +118,7 @@ To-Beは各agentがobserve→decide→act→official verify→persist→自分�
 
 **partial caller source acceptance:** 両callerの新規regressionは元sourceで2 FAIL（governorがerrors1、runnerがremoved扱いで診断なし）。runnerはpreserved/contents_reclaimed、governorはpreserved reason/partial counterへ修正し、既存の依存cache安全性・terminal/browser/receipt保護を含むfocused39 tests PASS。正式receiptと未確定effectの判断を変更せず、partialの物理回収byteや全削除を捏造しない。新sourceはPR #7888/head8d5e9964の表示CI12項目PASS後main418b984cへ統合し、両cleanup runtimeへ採用済み。自然watchdogで残る14:10 remove_failed1のpath/errnoは、この二つのsource残差とは別の未診断事実として保持する。
 
-**配布のfresh診断:** launchctl-safeのUID/Directory Services/Aqua/manager/GUI確認はPASS。現currentは`3e19c846`、新mainの`apps/life-manager/package.json`にはWriter test scriptの追加があり、release-capacityは`dependency manifests changed`で拒否する。旧native runtimeとpackage-lock/sourceを保持し、この拒否をoverrideしない。Gitの反復保守をsourceで閉じた後、配布側の既存dependency reuse/容量測定を診断して本番採用へ進む。Line Sticker業務source/owner/fenceを変更しない。
+**配布の過去診断:** launchctl-safeのUID/Directory Services/Aqua/manager/GUI確認はPASS。`3e19c846`でpackage manifest変更を理由にrelease-capacityが拒否した観測であり、現行状態ではない。**現行release symlink:** `/Users/anicca/loops/current`は`5b90b21e6d68f0657b9dec7ac92d5898bab0775c`（cut_at `2026-10-13T06:03:12Z`）を指し、現mainのancestor。symlink readbackは個々のloopがこのSHAをロード済みである証明ではない。個別のloaded SHAは`lm-loop status`で判定する。
 
 **EDD担当境界:** このレーンの実装cursorはE02 Writer Pilot。18製品ループの下記read-only監査は全体判断のための状況把握であり、E01 Agent Economy、F1–F5共有cleanup、18 capability修理のownerを引き受けない。Agent Economyは18製品ループの一つとして監査表に含むが、Writer作業と混同しない。
 
