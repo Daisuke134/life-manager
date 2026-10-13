@@ -782,6 +782,15 @@ class LmLoopReadonlyTest(unittest.TestCase):
         self.assertEqual(report["unmanaged_labels"], [])
         self.assertTrue(report["ok"])
 
+    def test_live_promptbase_browser_owner_is_classified_as_external(self):
+        root = Path(__file__).resolve().parents[3]
+        registry = json.loads((root / "config/loop-registry.json").read_text(encoding="utf-8"))
+        label = "ai.anicca.provision-browser.promptbase.dais"
+        report = doctor_report(registry, installed_labels={label}, loaded_labels={label},
+                              existing_entrypoints={entry["entrypoint"] for entry in registry["loops"].values()})
+        self.assertEqual(report["unmanaged_labels"], [])
+        self.assertTrue(report["ok"])
+
     def test_live_aws_cloud_provision_owner_is_classified_as_external(self):
         root = Path(__file__).resolve().parents[3]
         registry = json.loads((root / "config/loop-registry.json").read_text(encoding="utf-8"))

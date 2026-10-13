@@ -694,6 +694,9 @@ def git_duplicate_cleanup(source_repo: Path) -> dict:
         else:
             result["prune_packable_after"] = 0
         result["status"] = "pass"
+    except subprocess.TimeoutExpired:
+        result.update(status="deferred", error_class="TimeoutExpired",
+                      retryable=True, next_action="retry_next_natural_pass")
     except (OSError, ValueError, StopIteration, subprocess.SubprocessError) as error:
         result.update(errors=1, status="failed", error_class=type(error).__name__)
     return result

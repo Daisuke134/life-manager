@@ -44,7 +44,7 @@ To-Beは各agentがobserve→decide→act→official verify→persist→自分�
 
 - [x] **F1 — 全jobの共通入口:** 最新`config/loop-registry.json`のjobを100%調査し、各jobを「容量を書き込む」「制御/cleanup」「永続書込なし」に分類する。未分類=`0`。書込jobは既存の共有capacity admissionを通り、保護対象/別ownerの保存先を使わないことをsource/fixtureで確認する。
 - [ ] **F2 — 容量失敗とeffect-recovery:** 隔離fixtureで (a) 起動前容量不足、(b) 一時書込ENOSPC、(c) 最終receipt保存ENOSPC、(d) child開始後のresource-heartbeat lossを再現する。(a)では外部action開始=`0`、(b/c/d)ではtask identityを保持し、effect unknownを`released/effect_unknown=0`へ落とさない。通常releaseも既存unknownを消さない。さらに、terminal eventがeffect unknownなのにadmission rowが既に`released/effect_unknown=0`になった場合も、登録済みreconcilerが同一occurrenceの公式readbackを照合できること。照合前はscratchを保持し、公式効果が確認できた場合だけclosure receiptを記録して中央cleanupが回収する。推測のno-effect化、DB手修正、再送は禁止。さらに、同じ未解決readbackを繰り返すだけのreconcile passはper-occurrence JSONLを毎wake追記せず、未解決状態の集約を保持する。公式closure proofは引き続きoccurrence単位で保存する。今回のlive heartbeat incident、反復ログの実測、cleanup実測で旧版F2は未達と判明したため再開。
-- [ ] **F3 — 最新mainの掃除役を本番へ配布:** `com.anicca.disk-watchdog` (60 seconds) と `life-manager-disk-cleanup` (300 seconds) が最新main由来のimmutable releaseを読み込む。実際に読み込んだprogram/argv/SHA/cadenceと自然実行を確認する。過去の `9336980a` 成功は履歴であり、2026-10-14 02:10 JSTのmain `9a82951e` の配布証明にはならない。
+- [x] **F3 — 最新mainの掃除役を本番へ配布:** 2026-10-14 04:49 JST readback: watchdog=20261014T031532-22924a4f (60s/60s)、central cleanup=20261014T035105-2275018c (300s)、reconciler=20261014T043159-6dfec005 (60s)をloaded argv/state/SHAで確認。三releaseはいずれもcurrent main 6dfec005のancestorで、22924a4fからmainまでにshared cleanup/watchdog filesの変更なし。F3は現在のcleanup sourceについてPASS。PR #7959のtimeout修正は未統合・未配布なので、merge後に再採用・再確認する。
 - [ ] **F4 — 最新版掃除の反復:** F3で配布した現行版のwatchdogとcentral cleanupについて、それぞれ自然実行receiptを3回連続で取得する。各receiptは `errors=0`、`protected_deletions=0` を示す。旧releaseの成功や単なるexit 0は新しい版の合格証拠にしない。
 - [ ] **F5 — 大きな一時データの往復:** 一番大きいフォルダ名を推測で選ばない。同一時間窓で`owner_id + PID + 出力先path + bytes before/after`を結び、実writerを確認する。該当jobの業務判断・公開・決済は既存ownerに残す。primaryは共有資源の後片付け・保存期間だけを直し、商品や外部effectのロジックを変更しない。自然実行を3回連続で確認し、終了した親と子processがいなくなった後、次の成功したcentral sweepまでにその回だけの一時フォルダが消え、商品出力/正式receiptは残る。3回の観測window全体で未帰属の増加=`0`、capacity起因のterminal failure=`0`、次の予定wakeを越えて残るcapacity defer=`0`、lost task=`0`、duplicate effect=`0`、手動cleanup=`0`。
 
@@ -276,6 +276,65 @@ Remaining atomic TODO:
 5. Only after F1–F5 and resource paths are covered, repair the 18 business capabilities one at a time.
 
 Timing: earliest readback-owner attempt is 04:23 JST; if it yields official proof and the factory is route-ready, F5 then needs at least 45 minutes at its 15-minute cadence. From 03:43 JST the fastest plausible finish is about 85 minutes; unavailable provider evidence or route readiness extends it. This is a cadence-based estimate, not a promised deadline.
+### 2026-10-14 03:56 JST — F4 git-timeout regression and repair cursor
+
+Main is f62cca80dad6d92fb47ae9b596a33664523a3446. Foundation release remains 20261014T031532-22924a4f; no shared cleanup/runtime files changed after it. F3 is still loaded and valid.
+
+F1 PASS: 191-job registry/common-runner fixture.
+F2 NOT PASS: readback owner fence line-sticker-readback-hourly:18de29ea362c7388-45417 was closed only after the registered adapter proved effected=false and no automatic-resubmit timestamp since queued_at. This is a no-effect receipt for the readback run, not an official LINE receipt for factory occurrence 18de1e0534af8540-84609. The factory event remains publish/effect unknown with provider receipt/readback null. The readback owner is still loaded on old SHA 5b90b21e, exit75, next natural calendar slot 04:23 JST; no manual wake/resend.
+F3 PASS: watchdog, central cleanup, and reconciler remain loaded on 22924a4f; plist lint, argv, state roots, and cadence readbacks pass.
+F4 NOT PASS: central cleanup on 22924a4f failed again at 18:49:25Z, run 18de2b4853fd8b68-87767. The structured central result identifies git_cleanup.status=failed, error_class=TimeoutExpired, prune_packable_before=6, while scratch_cleanup.errors=0 and protected_deletions=0. A later natural run 18de2b8d5d13e0b8-47259 passed at 18:54:54Z with git_cleanup.status=pass, but the timeout recurrence is unresolved. Root cause: git maintenance uses a 15-second subprocess bound; its timeout is currently counted as an error and makes the entire cleanup owner exit1 even though release/scratch cleanup can continue.
+F4 source repair candidate (local): branch fix/central-git-timeout-defer-20261014, commit 1c141093. A Git maintenance TimeoutExpired is now recorded as status=deferred, error_class=TimeoutExpired, retryable=true, next_action=retry_next_natural_pass, errors=0; all other Git failures remain errors. RED was observed on the existing timeout regression; focused test_loop_cleanup passes 69 tests and 11 subtests. The change is not on main/released yet.
+F5 NOT PASS: factory owner is unloaded and its separate unknown publish event has no official receipt. Other agent owns this source.
+
+F1/F3 are complete (2/5); F2/F4/F5 remain. Full inventory still has 29 gaps, so the host still has unclassified storage roots. A single df value is not a success metric. The to-be remains bounded producer output, owner cleanup, exact safe central recovery, and durable defer/resume without dropping a task or external-effect identity; this avoids silent resource loss, not every possible failure.
+
+Remaining atomic TODO:
+1. Commit/push/merge the local git-timeout defer fix with the updated spec, then cut the main-derived release and target-apply central cleanup. Verify the status row and exact loaded SHA.
+2. Observe three post-fix natural central passes. A Git maintenance timeout must appear as deferred while the rest of cleanup completes; other errors/protected deletions remain zero. Do not count the pre-fix timeout as a pass.
+3. At the 04:23 JST natural readback slot, let line-sticker-readback-hourly run and obtain official LINE status. Only then reconcile factory occurrence 18de1e0534af8540-84609; preserve unknown and do not resend without official proof.
+4. When factory is route-ready, confirm 3 natural producer→child teardown→closed scratch reclaim cycles.
+5. Resolve the 29 inventory gaps with bounded owner/path measurement; keep unknown roots protected.
+6. After F1–F5 and resource paths are covered, repair the 18 business capabilities one by one.
+
+Timing: source CI/release must land before a post-fix recurrence window; central cleanup runs every 5 minutes, so 3 successful passes need about 10–15 minutes after the first. The next readback slot is 04:23 JST, about 27 minutes away, and F5 needs at least 45 minutes after route-ready. Earliest plausible full-foundation finish is roughly 72 minutes from 03:56 if the readback succeeds at the next slot and the factory is route-ready; otherwise there is no fixed finish time. Do not restart all 18 agents yet.
+### 2026-10-14 04:34 JST — foundation status and current blockers
+
+最新readbackではF1とF3がPASS、F2/F4/F5は未完了。F3の現行main cleanup sourceはrelease `20261014T031532-22924a4f`で3担当へ適用済み。PR #7959（head `840f6f9ed8ef8dbcc208698d94c77598ffdbdb10`、base `6dfec0050ad1aeef1c077b3f93abe38b64ac04ab`）はGit `TimeoutExpired`をcleanup全体の失敗にせず、型付きdeferとして記録するsource修正。focused cleanup tests 69 passed / 11 subtests。04:34時点でrequired checksは他すべてpass、`Loop control contracts`が実行中。
+
+F2 NOT PASS: `line-sticker-factory-hourly` occurrence `18de1e0534af8540-84609`はpublish/effect unknownのままで、公式LINE receipt/readbackなし。04:23の`line-sticker-readback-hourly`自然実行`18de2d30668b7df0-5240`は`resource_capacity_busy`/exit75でprovider action前にdefer。これは今回の停止についてはdisk failureではなくbrowser-capacity contentionの証拠。
+F4 NOT PASS: central cleanup occurrence `18de2b4853fd8b68-87767`は18:49:25ZにGit maintenance timeoutでexit1。次の自然run pass 1件はあるが、再発しているため成功3回の列には数えない。#7959をmerge・release・central cleanupへtarget applyした後、timeout時は`status=deferred`、`retryable=true`、cleanup全体は継続、`errors=0`になる自然passを3回確認する。
+F5 NOT PASS: factoryはroute-readyではなくunloaded。route-ready後に自然producer run→子process終了→同じrunの閉じた一時物をcentral cleanupが回収、を3 cycle確認する。他agentのLine Sticker sourceは編集しない。
+
+共有browser queueの04:30 JST readbackでは`writer-sales-measure` PID 77721が03:42:40 JSTからbrowser borrowを保持したまま`interactive:dais`取得待ちのsleep loopにあり、4 ticketsが待機。Writer ownerへこの事実とbounded yield/retryの調査依頼をAGMSG送信済み、owner修正・応答は未確認。force-quitやglobal capacity変更はしない。
+
+**残りの順番:** (1) #7959のexact-head required CIを完了しmerge。(2) main由来immutable releaseをcutし、central cleanupをloaded-idle-onlyでtarget apply、3 cleanup担当のloaded SHA/argv/state root/cadenceを再readback（F3更新）。(3) central cleanupを5分cadenceで3回自然実行し、各回のstructured resultがerrors=0/protected_deletions=0であることを確認（timeoutはtyped defer可）。(4) browser borrow待ちをWriter ownerの経路で解消した後、次の自然readback slot（予定05:23 JST）を待ち、LINE公式状態でfactory occurrenceを照合。証拠がなければunknownを維持し再送しない（F2）。(5) route-ready後、F5の3自然cycleを実測。(6) 未分類のfull-inventory gaps 29件を所有者/path/増減で分類し、unknownは保持。(7) F1–F5と資源経路が合格してから18業務capabilityを一件ずつ修理する。全agentの一斉再起動はしない。
+
+**時間見通し:** CI完了・release preflight・Writer側browser解放・公式LINE readback・factory route-readyがすべて順調でも、最短はおおむね06:10 JST以降（F4の10–15分、次readback slot 05:23、F5の最低45分を含む）。現在browser slotとroute-ready、公式effect証拠は未解決なので確約時刻はない。これは「期限を延ばす」ためではなく、残りが自然cadenceと他owner/providerの実状態に依存するという実測に基づく見積もり。
+
+### 2026-10-14 04:49 JST — fresh foundation checkpoint
+
+F1/F3 PASS、F2/F4/F5未完了。F3の3担当は前記のmain由来releaseで稼働中。life-manager-disk-cleanupの直近自然passは19:44:30Z、現在は次のrun中。life-manager-release-reconcilerはrelease 6dfec005にloaded済みだがfleet rolloutはbounded partial（changed=4, skipped=9, errors=0, budget exceeded）で自然継続中。次回target applyは各ownerがloaded-idleになってから行い、手動fleet restartはしない。
+
+lm-loop doctorの04:41 readbackでself-handoff helperは既に自然終了し、残るunmanaged labelはai.anicca.provision-browser.promptbase.daisのみ。browsers.tomlでowner=promptbase-loop-daily、launcher=ensure_provision_browser.sh、dedicated promptbase:dais profileと確認。04:43のbrowser-guard statusはCDP reachable、lease holder空。外部provisionerとして正当なlabelだがconfig/loop-registry.jsonのexternal_labelsから漏れていた。回帰testは変更前RED、external labelを登録後GREEN。PR #7959にこのregistry修正とtestを含め、実行中のbrowser process/profileには触れない。
+
+F2 NOT PASS: factory occurrence 18de1e0534af8540-84609はpublish/effect unknown、公式LINE receipt/readbackなし。readback occurrence 18de2d30668b7df0-5240は04:23にresource_capacity_busy/exit75でprovider action前にdeferし、次の自然slotは05:23 JST。Writerのbrowser待機と対話identity leaseは前回のowner通知後も未解消を再確認。force-quit・再送はしない。
+F4 NOT PASS: central cleanupはGit maintenance timeoutでexit1になった再発があり、修正はPR #7959の未配布source。merge後の新SHAから3自然passが必要。
+F5 NOT PASS: Line Sticker factory unloaded/route-ready未確認。ready後に自然run→child teardown→中央回収を3 cycle確認する。
+lm-loop healthはhost storage=unmetを返した。これはrelease/applyの時点preflightに使う診断で、成功KPIではない。release cut前に正式cutterのfresh preflightを行う。
+
+### 2026-10-14 04:54 JST — renewed browser-capacity deferral
+
+F2の最新自然runはline-sticker-readback-hourly occurrence 18de2e6b0224fd28-93810。exit75/resource_capacity_busy、effect_status=unknown、admission_effect_unknown=true、effect identityはnot_written、provider adapter未実行、next_action=official_readback_required。lm-fence-reconcilerのnatural pass後もこのoccurrenceは未解決。factory occurrence 18de1e0534af8540-84609も公式LINE receipt/readbackのないpublish unknownのまま。どちらも再送・手動fence解除しない。
+
+当該readback ownerはbrowser identity line-creators:dais / browser target owner line-creators-browserを使う。04:50のbrowser-guard readbackでは同identityのlease holder PID 85491、開始は2026-10-13 21:09 JST、CDP reachable。line-creators-browserはPID 59749でcontinuous稼働。これはresource_capacity_busyと同時間帯の競合証拠だが、単独原因とまでは未確定。Line Sticker ownerへexact occurrenceと読み取り証拠をAGMSGで通知済み、返答・readback修復は未確認。
+
+Writerもwriter-sales-measure occurrence 18de2afb25a31230-77664がexit124/1時間timeout/no external effectで終了しloaded-idle、next_action=reconcile_owner。interactive:dais lease holderは引き続きPID 85491。Writer ownerにno-interactive:daisとbounded yieldの修復を再通知済み、返答未確認。停止・強制終了やglobal capacity変更は行わない。
+
+PR #7959にはcentral cleanup timeout defer、PromptBase provisioner external-label登録、および回帰testをpush済み。current headの必須CIはpending。旧headのCIはforce-cancel要求済みだがGitHub上でまだ終了しておらず、新headのCI開始を待っている。
+
+**更新後の次順:** (1) latest-head required CIを完了しPR #7959をmerge。(2) exact capacity preflight後にmain由来immutable releaseを作り、owner idleを確認してcleanup変更をtarget apply、3 ownerのloaded SHA/argv/cadenceとdoctorを再確認。(3) 新releaseのwatchdog/central cleanup自然passを各3回取得。central timeoutはtyped deferredでcleanup全体が成功し、errors/protected deletionsが0であること。(4) 次の自然readback slotでregistered LINE adapterのofficial readbackを実行できるまで待つ。証拠がなければunknownを維持。(5) factory route-ready後に3 producer→child teardown→closed scratch reclaim cycle。(6) 29 inventory gapsをowner/pathでbounded分類。(7) F1–F5とresource path gateがPASSしてから18 business capabilityを一件ずつ直す。
+
 **EDD担当境界:** このレーンの実装cursorはE02 Writer Pilot。18製品ループの下記read-only監査は全体判断のための状況把握であり、E01 Agent Economy、F1–F5共有cleanup、18 capability修理のownerを引き受けない。Agent Economyは18製品ループの一つとして監査表に含むが、Writer作業と混同しない。
 
 **前回cleanup readback（2026-10-13 11:44 JST）:** `life-manager-disk-cleanup`はrelease `3e19c846`でloaded-idle、F1–F5は当時0/5完了。これは歴史的観測で現在状態へ再利用しない。
