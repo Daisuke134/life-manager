@@ -106,6 +106,102 @@ def _runtime_release_shas(owner_id: str, occurrences: set[str],
     return result
 
 
+def _lost_terminal_unknown_occurrences(
+        loops: Mapping[str, object], active: Mapping[str, tuple[str, ...]],
+        log_path: Path | None) -> dict[str, tuple[str, ...]]:
+    """Find exact unknown terminal events whose admission fence was already lost.
+
+    These are readback candidates only. A registered owner adapter must still prove the
+    occurrence through its official provider readback before an idempotent close is logged.
+    """
+    candidates: dict[str, set[str]] = {}
+    for owner_id, value in loops.items():
+        if not isinstance(owner_id, str) or not isinstance(value, Mapping):
+            continue
+        cfg = value.get("effect_reconcile")
+        state_root = value.get("state_root")
+        if (not isinstance(cfg, Mapping) or not cfg.get("argv")
+                or not isinstance(state_root, str) or not state_root):
+            continue
+        event_path = Path(state_root).expanduser() / "events.jsonl"
+        try:
+            size = event_path.stat().st_size
+            offset = max(0, size - EVENT_TAIL_LIMIT)
+            with event_path.open("rb") as handle:
+                handle.seek(offset)
+                payload = handle.read(EVENT_TAIL_LIMIT)
+        except OSError:
+            continue
+        lines = payload.splitlines()
+        if offset and lines:
+            lines = lines[1:]
+        for line in lines:
+            try:
+                event = json.loads(line)
+            except (UnicodeError, json.JSONDecodeError):
+                continue
+            if not isinstance(event, dict):
+                continue
+            occurrence = event.get("occurrence_id")
+            release_sha = event.get("release_sha")
+            if (event.get("loop_id") != owner_id or event.get("owner_id") != owner_id
+                    or event.get("phase") != "report"
+                    or event.get("status") not in {"blocked", "failed"}
+                    or event.get("effect_status") != "unknown"
+                    or not isinstance(event.get("effect_class"), str)
+                    or not event.get("effect_class") or event.get("effect_class") == "none"
+                    or not isinstance(occurrence, str)
+                    or not occurrence.startswith(f"{owner_id}:")
+                    or not isinstance(release_sha, str)
+                    or re.fullmatch(r"[a-f0-9]{40}", release_sha) is None
+                    or occurrence in active.get(owner_id, ())):
+                continue
+            candidates.setdefault(owner_id, set()).add(occurrence)
+    if not candidates:
+        return {}
+
+    release_shas = {
+        owner: _runtime_release_shas(owner, occurrences, loops)
+        for owner, occurrences in candidates.items()
+    }
+    closed = set()
+    if log_path is not None:
+        from runtime.loop.central_cleanup import closed_reconcile_occurrences
+        closed = closed_reconcile_occurrences(log_path)
+
+    pending: dict[str, set[str]] = {}
+    for owner, occurrences in candidates.items():
+        for occurrence in occurrences:
+            sha = release_shas[owner].get(occurrence)
+            if (sha is None or (owner, occurrence, sha) in closed):
+                continue
+            pending.setdefault(owner, set()).add(occurrence)
+    if not pending:
+        return {}
+
+    from runtime.host import resource_admission
+    database = resource_admission.state_root() / "admission-v2.sqlite3"
+    if not database.is_file():
+        return {}
+    released: dict[str, list[str]] = {}
+    with sqlite3.connect(f"file:{database}?mode=ro", uri=True, timeout=0.5) as connection:
+        for owner, occurrences in pending.items():
+            ordered = sorted(occurrences)
+            for start in range(0, len(ordered), 500):
+                batch = ordered[start:start + 500]
+                placeholders = ",".join("?" for _ in batch)
+                rows = connection.execute(
+                    f"""SELECT occurrence_id FROM occurrences
+                          WHERE owner_id=? AND state='released' AND effect_unknown=0
+                            AND occurrence_id IN ({placeholders})""",
+                    (owner, *batch),
+                ).fetchall()
+                if rows:
+                    released.setdefault(owner, []).extend(row[0] for row in rows)
+    return {owner: tuple(sorted(set(occurrences)))
+            for owner, occurrences in released.items()}
+
+
 def _json_output_records(stdout_tail: str) -> list[dict]:
     records = []
     for line in stdout_tail.splitlines():
@@ -298,6 +394,10 @@ def reconcile(
     """Run one bounded reconciliation pass and return the summary dict."""
     loops = registry.get("loops", {}) if isinstance(registry, Mapping) else {}
     fenced = _read_with_retry(read_fenced, sleep)
+    lost_fences = _read_with_retry(
+        lambda: _lost_terminal_unknown_occurrences(loops, fenced, log_path), sleep)
+    for owner_id, occurrences in lost_fences.items():
+        fenced[owner_id] = tuple(sorted(set(fenced.get(owner_id, ())) | set(occurrences)))
     checked = sum(len(occurrences) for occurrences in fenced.values())
     targets, needs_adapter = plan_targets(fenced, loops)
     _rotate_occurrences_from_log(targets, log_path)
