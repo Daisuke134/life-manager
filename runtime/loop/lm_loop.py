@@ -2262,27 +2262,44 @@ def _bounded_reconcile_candidates(registry: dict, route: str,
 FENCE_RECONCILE_LOG = Path(os.path.expanduser(
     "~/.local/state/life-manager/lm-fence-reconciler/reconcile-calls.jsonl"))
 DIAGNOSIS_DETAIL_CHARS = 600
+RECONCILE_CALL_TAIL_BYTES = 4 * 1024 * 1024
 
 
 def _last_adapter_calls(log_path: Path) -> dict[str, dict]:
-    """Latest lm-fence-reconciler adapter call per fenced occurrence."""
+    """Recent lm-fence-reconciler adapter calls from a bounded log tail."""
     latest: dict[str, dict] = {}
     try:
-        with log_path.open(encoding="utf-8") as handle:
-            for line in handle:
-                try:
-                    row = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                if isinstance(row, dict) and isinstance(row.get("occurrence_id"), str):
-                    latest[row["occurrence_id"]] = row
+        size = log_path.stat().st_size
+        offset = max(0, size - RECONCILE_CALL_TAIL_BYTES)
+        with log_path.open("rb") as handle:
+            handle.seek(offset)
+            lines = handle.read(RECONCILE_CALL_TAIL_BYTES).splitlines()
     except OSError:
         return {}
+    if offset and lines:
+        lines = lines[1:]
+    for line in lines:
+        try:
+            row = json.loads(line)
+        except (UnicodeError, json.JSONDecodeError):
+            continue
+        if isinstance(row, dict) and isinstance(row.get("occurrence_id"), str):
+            latest[row["occurrence_id"]] = row
     return latest
 
 
 def _adapter_verdict(call: dict) -> dict:
     """Project the adapter's own provider-side readback out of its stdout tail."""
+    if call.get("owner_batch_summary") is True:
+        return {
+            "status": "owner_batch_checked_unresolved",
+            "adapter_exit_code": call.get("exit_code"),
+            "closed": False,
+            "checked_occurrence_count": call.get("checked_occurrence_count"),
+            "still_fenced_count": call.get("still_fenced_count"),
+            "recorded_at": call.get("recorded_at"),
+            "verified": False,
+        }
     tail = call.get("stdout_tail") if isinstance(call.get("stdout_tail"), str) else ""
     detail: dict = {}
     marker = None
@@ -2358,6 +2375,16 @@ def effect_unknown_diagnosis(loop_id: str, entry: dict, occurrences: tuple[str, 
                 "evidence_refs": chosen.get("evidence_refs"),
             }
     call = adapter_calls.get(occurrence_id)
+    if call is None:
+        owner_batch = adapter_calls.get(f"{loop_id}:*")
+        still_fenced = tuple(sorted(set(occurrences)))
+        digest = hashlib.sha256("\n".join(still_fenced).encode("utf-8")).hexdigest()
+        if (isinstance(owner_batch, dict)
+                and owner_batch.get("owner_id") == loop_id
+                and owner_batch.get("owner_batch_summary") is True
+                and owner_batch.get("still_fenced_count") == len(still_fenced)
+                and owner_batch.get("still_fenced_occurrences_sha256") == digest):
+            call = owner_batch
     has_adapter = isinstance(entry.get("effect_reconcile"), dict)
     provider_state = _adapter_verdict(call) if call else None
     if not has_adapter:
@@ -2367,6 +2394,8 @@ def effect_unknown_diagnosis(loop_id: str, entry: dict, occurrences: tuple[str, 
         next_action = "await_lm_fence_reconciler_pass"
     elif call.get("closed"):
         next_action = "closed_by_adapter"
+    elif call.get("owner_batch_summary") is True:
+        next_action = "official_readback_required"
     else:
         reason = (provider_state or {}).get("reason") or (provider_state or {}).get("marker")
         next_action = f"adapter_held:{reason}" if reason else "adapter_held:inspect_provider_state"
