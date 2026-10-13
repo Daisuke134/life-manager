@@ -14,7 +14,7 @@
     "eval:score": "node eval/run-score-semantics-eval.js",
     "test:agent-contract": "node --test eval/agent-contract/gate.test.js eval/agent-contract/records.test.js",
     "test:economic-autonomy": "node --test --test-reporter=dot eval/economic-autonomy/records.test.js eval/economic-autonomy/score.test.js eval/economic-autonomy/run.test.js && node eval/economic-autonomy/run.js --cases eval/economic-autonomy/cases.jsonl",
-    "test:writer-eval": "node --test eval/writer/receipt-grader.test.js eval/writer/judge-metrics.test.js && node eval/writer/receipt-grader.js < eval/writer/fixtures/w01-empty-input.json && bash ../../skills/writer-agent/tests/article-daily-release-provenance.sh",
+    "test:writer-eval": "node --test eval/writer/receipt-grader.test.js eval/writer/judge-metrics.test.js eval/writer/join-labels.test.js && node eval/writer/receipt-grader.js < eval/writer/fixtures/w01-empty-input.json && bash ../../skills/writer-agent/tests/article-daily-release-provenance.sh",
     "test:lm-api-cost-append-only:postgres": "test/postgres/lm-api-cost-append-only.integration.sh",
     "test:lm-message-channels:postgres": "bash test/postgres/lm-message-channels.integration.sh",
     "test:lm-ask-log:postgres": "bash test/postgres/lm-ask-log-baseline.integration.sh",
