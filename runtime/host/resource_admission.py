@@ -1651,15 +1651,29 @@ def release_and_reserve(claim: Path, *, requeue: bool = False,
             occurrence_id = value.get("occurrence_id")
             if isinstance(occurrence_id, str) and occurrence_id:
                 if effect_unknown:
+                    owner_id = value["owner_id"]
+                    existing = connection.execute(
+                        "SELECT 1 FROM occurrences WHERE occurrence_id=?",
+                        (occurrence_id,),
+                    ).fetchone()
+                    _record_occurrence(
+                        connection, occurrence_id, owner_id, value["resource_class"],
+                        value["admission_class"], value["base_priority"],
+                        value["queued_at"], value["sequence"],
+                    )
+                    if existing is None:
+                        connection.execute(
+                            "UPDATE occurrences SET state='released' WHERE occurrence_id=?",
+                            (occurrence_id,),
+                        )
                     connection.execute(
-                        """UPDATE occurrences SET effect_unknown=1
-                             WHERE occurrence_id=? AND state='claimed'""",
+                        "UPDATE occurrences SET effect_unknown=1 WHERE occurrence_id=?",
                         (occurrence_id,),
                     )
                 else:
                     connection.execute(
-                        "UPDATE occurrences SET state=?,effect_unknown=0 WHERE occurrence_id=?",
-                        ("queued" if requeue else "released", occurrence_id),
+                        "UPDATE occurrences SET state=? WHERE occurrence_id=? AND owner_id=?",
+                        ("queued" if requeue else "released", occurrence_id, value["owner_id"]),
                     )
             elif effect_unknown:
                 connection.execute(
