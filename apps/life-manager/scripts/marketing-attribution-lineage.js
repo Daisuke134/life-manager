@@ -19,6 +19,7 @@ function readJson(file) {
 }
 
 function readReceipts(file) {
+  if (!fs.existsSync(file)) return [];
   return fs.readFileSync(file, "utf8").split("\n").filter(Boolean).map(JSON.parse);
 }
 
@@ -70,16 +71,34 @@ function buildLineage({ dataDir, tenantId = "dais-local" }) {
   const objectDir = path.join(dataDir, "objects");
   const metricsDir = path.join(dataDir, "tenants", tenantId, "marketing", "metrics");
   const metricFiles = [];
-  for (const account of fs.readdirSync(metricsDir, { withFileTypes: true })) {
-    if (!account.isDirectory()) continue;
-    for (const post of fs.readdirSync(path.join(metricsDir, account.name), { withFileTypes: true })) {
-      if (!post.isDirectory()) continue;
-      const file = path.join(metricsDir, account.name, post.name, "24h.combined.json");
-      if (fs.statSync(file, { throwIfNoEntry: false })?.isFile()) metricFiles.push(file);
+  if (fs.existsSync(metricsDir)) {
+    for (const account of fs.readdirSync(metricsDir, { withFileTypes: true })) {
+      if (!account.isDirectory()) continue;
+      for (const post of fs.readdirSync(path.join(metricsDir, account.name), { withFileTypes: true })) {
+        if (!post.isDirectory()) continue;
+        const file = path.join(metricsDir, account.name, post.name, "24h.combined.json");
+        if (fs.statSync(file, { throwIfNoEntry: false })?.isFile()) metricFiles.push(file);
+      }
     }
   }
   metricFiles.sort();
-  if (!metricFiles.length) throw new Error("no 24h combined metric snapshots found");
+  if (!metricFiles.length) return {
+    schema_version: 1,
+    kind: "marketing_attribution_lineage",
+    tenant_id: tenantId,
+    observed_at: null,
+    rows: [],
+    coverage: {
+      included: 0,
+      exact_publication_lineage: 0,
+      campaign_attributed: 0,
+      unattributed: 0,
+      unprovable: 0,
+      attribution_rate: null,
+      attribution_rate_status: "unavailable",
+      attribution_rate_reason: "no_24h_combined_metric_snapshots",
+    },
+  };
   const receipts = readReceipts(path.join(dataDir, "marketing", "receipts.jsonl"));
   const rows = metricFiles.map((file) => {
     const snapshot = readJson(file);

@@ -111,6 +111,30 @@ test("missing or ambiguous publication receipts stay unprovable without dropping
   assert.equal(result.coverage.unattributed, 1);
 });
 
+test("no metric snapshots persist as an unavailable empty lineage", (t) => {
+  const dataDir = fixtureDataDir();
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+
+  const result = persistLineage({ dataDir });
+  assert.deepEqual(result.rows, []);
+  assert.equal(result.coverage.included, 0);
+  assert.equal(result.coverage.attribution_rate_status, "unavailable");
+  assert.equal(result.coverage.attribution_rate_reason, "no_24h_combined_metric_snapshots");
+  assert.equal(JSON.parse(fs.readFileSync(result.pointer, "utf8")).snapshot_ref, result.snapshot_ref);
+});
+
+test("a missing receipts file leaves available metric rows unprovable", (t) => {
+  const dataDir = fixtureDataDir();
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  addMetricFixture(dataDir, { productId: "anicca-ios", appId: "6755129214", accountId: "@receipt_file_missing", postId: "receipt-file-missing", receiptCopies: 0 });
+  fs.rmSync(path.join(dataDir, "marketing", "receipts.jsonl"));
+
+  const result = buildLineage({ dataDir });
+  assert.equal(result.rows.length, 1);
+  assert.equal(result.rows[0].attribution_status, "unprovable");
+  assert.equal(result.rows[0].attribution_reason, "publication_receipt_missing");
+});
+
 test("ASC acquisition preserves unprovable publication lineage", async (t) => {
   const dataDir = fixtureDataDir();
   t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
