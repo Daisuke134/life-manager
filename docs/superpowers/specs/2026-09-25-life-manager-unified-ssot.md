@@ -2274,6 +2274,8 @@ The separate social distributor remains held: occurrence `18dde9246e020cc0-62716
 - **distribution:** 公開blogの[set-011記事](https://aniccaai.com/blog/line-sticker-set-011-2026-10-13-08)は商品37168875へ、[set-009記事](https://aniccaai.com/blog/line-sticker-set-009-2026-10-13-07)は商品37146850へCTAが一致。09:09更新の `/api/stats` は全site 245 pageviews、計測path上のLINE記事は6 views/5 path。集計に期間窓はなく、`line_sticker_click` は未出現。ページの存在・CTA一致は確認済みだが、専用article ownerとのoccurrence対応や購入帰属は未確認。social distributorはoccurrence `18ddeee0634d1330-85051` が09:21に `resource_effect_unknown` / exit75、official receiptなし。effect fenceを保ち再送しない。
 - **target/cursor:** 現行価格ミックス平均¥225。為替を仮に¥150/USDと置くと、月間gross USD 10,000は約¥1,500,000、約6,667件/月（約222件/日）に相当する規模計算で、予測ではない。grossとcreator distribution/payoutを混同しない。残TODO順は `D15 → D09d → D09 → D09e → D10 → D11 → D13 → D07a → D14c → D14 → D09c → D16 → D17 → D18 → D19 → D12 → D20 → D21 → D22`。現在cursorは追加channel 1つの専用identity・規約・投稿経路・原価を確認するD15。D09dは同日ID更新修正がmainにあり、最新natural readback proof待ち。`lm-loop status`の照会は `admission_database_locked` で失敗したため、現況はlaunchdとowner event、公式/public readbackを別々に照合した。
 
+**D15 channel inventory（2026-10-13 09:31 JST）:** `config/line-sticker-distribute-accounts.json`にはInstagramとThreadsのみ登録されている。既存TikTok `anicca.jp` とYouTube `@anicca-ai` はaccount registry上で `product_id=anicca-ios` / `status=approved_quarantined` なので、LINEスタンプ配信には流用しない。推奨候補は独立identityのTikTokで、動くスタンプを短い縦動画にする適合性からの推論。専用account・利用規約・投稿経路・原価・公式readbackは未確認で、D15は未完了。
+
 ### 5.1 自己修復・自己改善の定義（T5 / T12 の正本）
 
 **目的**: Life Manager が、外部の coding agent（Dais が操作する Claude Code や Codex のセッション）にも人にも頼らず、自分の問題を見つけて、自分で直し、自分で改善すること。人と外部 agent はループの外にいる。
