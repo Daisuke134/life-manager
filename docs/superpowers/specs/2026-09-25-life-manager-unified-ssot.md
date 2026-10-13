@@ -3011,6 +3011,8 @@ Lancers focused suiteは **153 passed, 183 subtests passed**、`./bin/lm-loop-co
 同時にfactory run 18de01620d5a98a0-35902は16:30:23 JSTにruntime capでexit124となり、effect unknown / receiptなし。set-039のlocal ID 48289209はsubmit記録済みだがofficial status/feature placementは未確認。set-040はimages stageのまま17/40 candidatesで、item IDなし。factoryを手動restartせず、公式item readbackの自然終端を待つ。
 **So What:** latest official sales snapshotは39 IDs中28 zero/11 null、positive0。landing codeにLINE click eventはあるがlive count0。Instagramはsuspended page、TikTok account/postなし。priority/preflight source fixesはmainにmerged、runtime releaseはcapacity未達、distribution fence open。次はset-011 demo、TikTok ownerとの重複なしの連携、既存blogのnext eligible slotで1件のfree post。cleanupはsafe release capacityの補助作業に限定する。
 
+**D10 readback / cursor update (2026-10-13 20:38 JST):** anicca-products PR #458 (`896a88d6f39168e6f9e23e6a9048dff627bedffe`) is merged and its landing check passed. The live set-011 article has the correct Store ID `37168875`; its deployed layout bundle contains `line_sticker_click` and `/.netlify/functions/hit`. The live `/api/stats` read at 20:38 JST reports 288 aggregate pageviews and `updated_at=2026-10-13T10:45:36Z`; no `line_sticker_click` event or set-011 article path appears, and the aggregate has no labeled time window. Therefore click-through is still unmeasured, not confirmed zero. Keep D10 open; do not generate test clicks. Move immediate execution to the local D11 use-case demo while D15 route readiness proceeds in its already-owned worktree; after one eligible free organic post, return to D10 for the same-window event/sales readback. No post was sent in this update.
+
 ## 6. 不変の制約
 
 - Ryu room `18211957` へは再送しない。正式納品ボタンは loop から押さない。Ryu は CDP :9223 での手動例外として扱う。
