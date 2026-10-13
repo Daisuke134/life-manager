@@ -9,6 +9,10 @@ from pathlib import Path
 
 
 MODULE_PATH = Path(__file__).with_name("experiment_attribution.py")
+if str(MODULE_PATH.parent) not in sys.path:
+    sys.path.insert(0, str(MODULE_PATH.parent))
+from attribution import publication_campaign_token
+
 SPEC = importlib.util.spec_from_file_location("experiment_attribution", MODULE_PATH)
 assert SPEC and SPEC.loader
 ea = importlib.util.module_from_spec(SPEC)
@@ -39,6 +43,30 @@ def fixture_identity():
         "native_post_url": "https://example.test/native-1",
         "publish_date": "2026-08-01T20:15:00Z",
         "identity_status": "resolved",
+    }
+
+
+def fixture_hook_lab_intent():
+    intent = {
+        "schema_version": "marketing.publication-intent.v2",
+        "publish_key": "publication.hooklab",
+        "experiment_id": "experiment.dd03",
+        "creative_id": "creative.dd03",
+        "product_id": "hook-lab",
+        "account_id": "life-manager-capafy-ig",
+        "hook_id": "hook.dd03",
+        "renderer_id": "watercolor-monk",
+        "scheduled_at": "2026-10-16T00:00:00Z",
+    }
+    intent["attribution_token"] = publication_campaign_token(intent)
+    return intent
+
+
+def fixture_hook_lab_identity():
+    return {
+        **fixture_identity(),
+        "experiment_id": "experiment.dd03",
+        "publish_date": "2026-10-16T00:00:00Z",
     }
 
 
@@ -102,23 +130,8 @@ class AttributionContractTest(unittest.TestCase):
                 observed_at="2026-08-02T02:20:00Z")
 
     def test_hook_lab_snapshot_rejects_foreign_or_shared_token(self):
-        intent = {
-            "schema_version": "marketing.publication-intent.v2",
-            "publish_key": "publication.hooklab",
-            "experiment_id": "experiment.dd03",
-            "creative_id": "creative.dd03",
-            "product_id": "hook-lab",
-            "account_id": "life-manager-capafy-ig",
-            "hook_id": "hook.dd03",
-            "renderer_id": "watercolor-monk",
-            "attribution_token": "hl_r7py2zlsvjjafl4srigi",
-            "scheduled_at": "2026-10-16T00:00:00Z",
-        }
-        identity = {
-            **fixture_identity(),
-            "experiment_id": "experiment.dd03",
-            "publish_date": "2026-10-16T00:00:00Z",
-        }
+        intent = fixture_hook_lab_intent()
+        identity = fixture_hook_lab_identity()
         variants = [
             {**intent, "attribution_token": "capafy-distribute-hook-lab"},
             {**intent, "attribution_token": "hooklab_ig"},
@@ -251,7 +264,7 @@ class AttributionContractTest(unittest.TestCase):
         self.assertNotIn("secret", json.dumps(result))
 
     def test_click_query_rejects_incomplete_or_duplicate_receipts(self):
-        token = "hl_r7py2zlsvjjafl4srigi"
+        token = fixture_hook_lab_intent()["attribution_token"]
         valid_row = {
             "campaign_token": token, "product_id": "hook-lab",
             "clicked_at": "2026-10-16T01:00:00Z",
@@ -297,23 +310,8 @@ class AttributionContractTest(unittest.TestCase):
         self.assertEqual(result["receipt_ids"], ["r1"])
 
     def test_hook_lab_click_join_rejects_incomplete_or_duplicate_receipts(self):
-        intent = {
-            "schema_version": "marketing.publication-intent.v2",
-            "publish_key": "publication.hooklab",
-            "experiment_id": "experiment.dd03",
-            "creative_id": "creative.dd03",
-            "product_id": "hook-lab",
-            "account_id": "life-manager-capafy-ig",
-            "hook_id": "hook.dd03",
-            "renderer_id": "watercolor-monk",
-            "attribution_token": "hl_r7py2zlsvjjafl4srigi",
-            "scheduled_at": "2026-10-16T00:00:00Z",
-        }
-        identity = {
-            **fixture_identity(),
-            "experiment_id": "experiment.dd03",
-            "publish_date": "2026-10-16T00:00:00Z",
-        }
+        intent = fixture_hook_lab_intent()
+        identity = fixture_hook_lab_identity()
         cases = [
             {"count": 1, "receipt_ids": []},
             {"count": 2, "receipt_ids": ["click-1", "click-1"]},
@@ -334,23 +332,8 @@ class AttributionContractTest(unittest.TestCase):
                     )
 
     def test_hook_lab_click_receipt_id_is_saved_as_creative_evidence(self):
-        intent = {
-            "schema_version": "marketing.publication-intent.v2",
-            "publish_key": "publication.hooklab",
-            "experiment_id": "experiment.dd03",
-            "creative_id": "creative.dd03",
-            "product_id": "hook-lab",
-            "account_id": "life-manager-capafy-ig",
-            "hook_id": "hook.dd03",
-            "renderer_id": "watercolor-monk",
-            "attribution_token": "hl_r7py2zlsvjjafl4srigi",
-            "scheduled_at": "2026-10-16T00:00:00Z",
-        }
-        identity = {
-            **fixture_identity(),
-            "experiment_id": "experiment.dd03",
-            "publish_date": "2026-10-16T00:00:00Z",
-        }
+        intent = fixture_hook_lab_intent()
+        identity = fixture_hook_lab_identity()
         snapshot = ea.build_snapshot(
             intent=intent, identity=identity, post_metric=None,
             click_query={
@@ -370,23 +353,8 @@ class AttributionContractTest(unittest.TestCase):
         self.assertEqual(snapshot["publish_key"], "publication.hooklab")
 
     def test_hook_lab_paid_revenue_stays_unknown_without_capafy_order_join(self):
-        intent = {
-            "schema_version": "marketing.publication-intent.v2",
-            "publish_key": "publication.hooklab",
-            "experiment_id": "experiment.dd03",
-            "creative_id": "creative.dd03",
-            "product_id": "hook-lab",
-            "account_id": "life-manager-capafy-ig",
-            "hook_id": "hook.dd03",
-            "renderer_id": "watercolor-monk",
-            "attribution_token": "hl_r7py2zlsvjjafl4srigi",
-            "scheduled_at": "2026-10-16T00:00:00Z",
-        }
-        identity = {
-            **fixture_identity(),
-            "experiment_id": "experiment.dd03",
-            "publish_date": "2026-10-16T00:00:00Z",
-        }
+        intent = fixture_hook_lab_intent()
+        identity = fixture_hook_lab_identity()
         business = {
             "product_id": "hook-lab",
             "business_date": "2026-10-16",

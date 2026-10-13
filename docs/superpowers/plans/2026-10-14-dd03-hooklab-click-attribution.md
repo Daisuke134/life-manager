@@ -85,6 +85,9 @@ The `run_create_intent` regression test uses a temporary synthetic account fixtu
 - [x] Add failing test `test_hook_lab_paid_revenue_stays_unknown_without_capafy_order_join` showing a Stripe campaign-shaped or Capafy channel aggregate cannot become Hook Lab per-creative paid revenue without an order join.
 - [x] Run the focused evaluator test; confirm it fails on the currently accepted Stripe campaign-shaped input.
 - [x] Keep Hook Lab paid/revenue metrics unknown without a supported Capafy click-to-order join; run the focused evaluator test and confirm it passes.
+- [x] Replace static high-entropy test-token fixtures with helper-generated IDs; add only exact historical false-positive fingerprints to `.gitleaksignore` and document the adjudication in the security baseline.
+- [x] Run current-tree and PR-range Gitleaks checks; both report zero findings.
+- [ ] Pass exact-head CI's full-history Gitleaks check before merge.
 - [x] Run `python3 skills/earn/marketing-engine/measure/test_attribution.py` (9/9), `python3 skills/earn/marketing-engine/measure/test_experiment_attribution.py` (14/14), `python3 -m pytest skills/earn/marketing-engine/publish/test_intent_cli.py` (4/4), source-boundary check, and `git diff --check`.
 - [x] Commit and push the Life Manager change from this dedicated worktree.
 
