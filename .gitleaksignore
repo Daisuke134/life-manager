@@ -1,6 +1,12 @@
 # Historical fingerprints adjudicated in
 # docs/evidence/security/2026-07-29-oss-security-baseline.md.
 # This baseline does not suppress a new secret at a new commit/path/line.
+# Public attribution_token test fixtures; exact historical fingerprints only.
+bf724f8aa6d1441728a06250055df577f60b7f9f:skills/earn/marketing-engine/measure/test_experiment_attribution.py:generic-api-key:114
+929c69d900d5f654fc7716f083c93babb9410c1f:skills/earn/marketing-engine/measure/test_experiment_attribution.py:generic-api-key:254
+acdafffdd97b37ff655e77b51bb5b6832710545c:skills/earn/marketing-engine/measure/test_experiment_attribution.py:generic-api-key:295
+acdafffdd97b37ff655e77b51bb5b6832710545c:skills/earn/marketing-engine/measure/test_experiment_attribution.py:generic-api-key:332
+a572c1509832e981c46959a900f5a947b6e249d3:skills/earn/marketing-engine/measure/test_experiment_attribution.py:generic-api-key:368
 0342f4403ce26ad7a4468e6b5854381ca5995801:aniccaios/aniccaios/Services/SingularManager.swift:generic-api-key:18
 0723f5354179142e8080eda00ecb78338d951c7d:skills/earn/marketing-engine/evidence/attribution/gate13/click-receipts.json:generic-api-key:2
 0723f5354179142e8080eda00ecb78338d951c7d:skills/earn/marketing-engine/evidence/attribution/gate13/production-attribution.json:generic-api-key:4
