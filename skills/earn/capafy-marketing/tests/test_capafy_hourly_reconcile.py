@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import hashlib
 import json
 from pathlib import Path
 
@@ -326,10 +327,12 @@ def test_live_seller_reads_use_current_clickhouse_endpoints(monkeypatch: pytest.
         "/app/unit-sales/clickhouse/ranking",
     }
     # Account-level (no agentId, empty inventory here) traffic-sources reads: 2 windows
-    # (30d/7d) x 2 stat kinds (visits, sales) under the base path discovered from the
-    # public Vite chunk assets/TrafficSources-*.js.
+    # (30d/7d) x 3 distinct stat kinds (visits, sales, impressions) under the base path
+    # discovered from the public Vite chunk assets/TrafficSources-*.js.
     assert {path for path, _ in calls if path not in {p for p, _ in clickhouse_calls}} == {
-        f"{module.TRAFFIC_SOURCES_BASE}/v2/visits/stats", f"{module.TRAFFIC_SOURCES_BASE}/v2/sales/stats",
+        f"{module.TRAFFIC_SOURCES_BASE}/v2/visits/stats",
+        f"{module.TRAFFIC_SOURCES_BASE}/v2/sales/stats",
+        f"{module.TRAFFIC_SOURCES_BASE}/v2/impressions/stats",
     }
     # The since-launch period calls (one per endpoint above, minus the two fixed 30d/7d
     # ranking calls added below) all carry sinceLaunch=True.
@@ -853,6 +856,19 @@ def _traffic_sales_items() -> list[dict]:
     ]
 
 
+def _traffic_impressions_items() -> list[dict]:
+    return [
+        {"sourceType": "internal", "sourceName": "search", "agentId": "8123079349",
+         "country": "JP", "platform": "web", "exposureCount": 7, "userIdExposureCount": 4},
+        {"sourceType": "internal", "sourceName": "search", "agentId": "8123079349",
+         "country": "US", "platform": "web", "exposureCount": 2, "userIdExposureCount": 2},
+    ]
+
+
+def _canonical_hash(payload: dict) -> str:
+    return hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+
+
 def test_traffic_merge_combines_visits_and_sales_by_source() -> None:
     module = load_module()
 
@@ -894,11 +910,27 @@ def test_traffic_window_posts_startat_endat_and_optional_agent(monkeypatch: pyte
 
     monkeypatch.setattr(module, "_post", fake_post)
 
-    result = module._traffic_window("tok", 1000, 2000, agent_id="6501274812")
+    result = module._traffic_window(
+        "tok", 1000, 2000, agent_id="6501274812", observed_at="2026-10-13T22:00:00Z",
+    )
 
     assert result["status"] == "fresh"
     assert result["totals"]["views"] == sum(row["views"] for row in result["by_source"])
     assert result["totals"]["paid_orders"] == 19
+    assert result["scope"] == {"kind": "agent", "agent_id": "6501274812"}
+    assert result["window"]["start_at_ms"] == 1000
+    assert result["window"]["end_at_ms"] == 2000
+    assert result["window"]["start_utc"] == "1970-01-01T00:00:01.000Z"
+    assert result["window"]["end_utc"] == "1970-01-01T00:00:02.000Z"
+    assert result["window"]["display_timezone"] == "Asia/Tokyo"
+    assert result["window"]["start_local"] == "1970-01-01T09:00:01.000+09:00"
+    assert result["window"]["end_local"] == "1970-01-01T09:00:02.000+09:00"
+    assert result["observed_at"] == "2026-10-13T22:00:00Z"
+    assert result["filters"] == {"country": None, "platform": None}
+    assert result["source_status"] == {"visits": "fresh", "sales": "fresh"}
+    assert set(result["source_hashes"]) == {"visits", "sales"}
+    assert result["source_hashes"]["visits"] == _canonical_hash({"code": 0, "data": {"items": _traffic_visits_items()}})
+    assert result["source_hashes"]["sales"] == _canonical_hash({"code": 0, "data": {"items": _traffic_sales_items()}})
     for path, token, body in calls:
         assert token == "tok"
         assert body == {"startAt": 1000, "endAt": 2000, "agentId": "6501274812"}
@@ -910,7 +942,7 @@ def test_traffic_window_posts_startat_endat_and_optional_agent(monkeypatch: pyte
 
 def test_traffic_window_is_unknown_not_zero_without_web_token() -> None:
     module = load_module()
-    result = module._traffic_window("", 1000, 2000)
+    result = module._traffic_window("", 1000, 2000, observed_at="2026-10-13T22:00:00Z")
     assert result["status"] == "unknown_web_token_unavailable"
     assert result["by_source"] == []
     assert result["totals"]["views"] is None
@@ -919,8 +951,76 @@ def test_traffic_window_is_unknown_not_zero_without_web_token() -> None:
 def test_traffic_window_is_unknown_on_source_error(monkeypatch: pytest.MonkeyPatch) -> None:
     module = load_module()
     monkeypatch.setattr(module, "_post", lambda *_a: {"_error": "boom"})
-    result = module._traffic_window("tok", 1000, 2000)
+    result = module._traffic_window("tok", 1000, 2000, observed_at="2026-10-13T22:00:00Z")
     assert result["status"] == "unknown_source_error"
+
+
+def test_impressions_window_preserves_provider_metrics_and_query_scope(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = load_module()
+    payload = {"code": 0, "data": {"items": _traffic_impressions_items()}}
+    calls = []
+
+    def fake_post(path, token, body):
+        calls.append((path, token, body))
+        return payload
+
+    monkeypatch.setattr(module, "_post", fake_post)
+
+    result = module._impressions_window(
+        "tok", 1000, 2000, "2026-10-13T22:00:00Z", agent_id="8123079349",
+    )
+
+    assert calls == [(
+        f"{module.TRAFFIC_SOURCES_BASE}/v2/impressions/stats",
+        "tok", {"startAt": 1000, "endAt": 2000, "agentId": "8123079349"},
+    )]
+    assert result["status"] == "fresh"
+    assert result["scope"] == {"kind": "agent", "agent_id": "8123079349"}
+    assert result["window"]["start_utc"] == "1970-01-01T00:00:01.000Z"
+    assert result["window"]["end_utc"] == "1970-01-01T00:00:02.000Z"
+    assert result["window"]["display_timezone"] == "Asia/Tokyo"
+    assert result["filters"] == {"country": None, "platform": None}
+    assert result["observed_at"] == "2026-10-13T22:00:00Z"
+    assert result["row_count"] == 2
+    assert result["by_source"] == [
+        {"source_type": "internal", "source_name": "search", "agent_id": "8123079349",
+         "country": "JP", "platform": "web", "exposure_count": 7, "user_id_exposure_count": 4},
+        {"source_type": "internal", "source_name": "search", "agent_id": "8123079349",
+         "country": "US", "platform": "web", "exposure_count": 2, "user_id_exposure_count": 2},
+    ]
+    assert result["source_hashes"] == {"impressions": "f07f7c4a6b155deabcb660d72ca56f8e571538b40138c6a66f1545acaa52514b"}
+
+
+def test_impressions_window_keeps_empty_errors_and_malformed_counts_distinct(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = load_module()
+    missing_token = module._impressions_window("", 1000, 2000, "2026-10-13T22:00:00Z")
+    assert missing_token["status"] == "unknown_web_token_unavailable"
+    assert missing_token["row_count"] is None
+    assert missing_token["source_hashes"]["impressions"] is None
+
+    monkeypatch.setattr(module, "_post", lambda *_a: {"code": 0, "data": {"items": []}})
+    empty = module._impressions_window("tok", 1000, 2000, "2026-10-13T22:00:00Z")
+    assert empty["status"] == "fresh" and empty["row_count"] == 0
+    assert empty["by_source"] == []
+
+    monkeypatch.setattr(module, "_post", lambda *_a: {"_error": "HTTPError: 503"})
+    failed = module._impressions_window("tok", 1000, 2000, "2026-10-13T22:00:00Z")
+    assert failed["status"] == "unknown_source_error"
+    assert failed["by_source"] == [] and failed["source_hashes"]["impressions"] is None
+
+    monkeypatch.setattr(module, "_post", lambda *_a: {"code": 0, "data": {"items": [
+        {"sourceType": "internal", "sourceName": "search", "exposureCount": True,
+         "userIdExposureCount": -1}
+    ]}})
+    malformed_metrics = module._impressions_window("tok", 1000, 2000, "2026-10-13T22:00:00Z")
+    assert malformed_metrics["status"] == "fresh"
+    assert malformed_metrics["by_source"][0]["exposure_count"] is None
+    assert malformed_metrics["by_source"][0]["user_id_exposure_count"] is None
+
+    monkeypatch.setattr(module, "_post", lambda *_a: {"code": 0, "data": {"items": {"count": 5}}})
+    malformed_shape = module._impressions_window("tok", 1000, 2000, "2026-10-13T22:00:00Z")
+    assert malformed_shape["status"] == "unknown_shape"
+    assert malformed_shape["row_count"] is None and malformed_shape["by_source"] == []
 
 
 def test_build_traffic_sources_covers_windows_and_bounded_per_agent(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -931,20 +1031,31 @@ def test_build_traffic_sources_covers_windows_and_bounded_per_agent(monkeypatch:
         calls.append(body)
         if path.endswith("/visits/stats"):
             return {"code": 0, "data": {"items": _traffic_visits_items()}}
-        return {"code": 0, "data": {"items": _traffic_sales_items()}}
+        if path.endswith("/sales/stats"):
+            return {"code": 0, "data": {"items": _traffic_sales_items()}}
+        return {"code": 0, "data": {"items": _traffic_impressions_items()}}
 
     monkeypatch.setattr(module, "_post", fake_post)
     sleeps = []
 
     result = module.build_traffic_sources(
-        "tok", module.dt.date(2026, 9, 28), ["a1", "a2"], cap=5, delay=0, sleep=sleeps.append,
+        "tok", module.dt.date(2026, 9, 28), ["a1", "a2"],
+        observed_at="2026-09-28T12:00:00Z", cap=5, delay=0, sleep=sleeps.append,
     )
 
     assert result["status"] == "fresh"
+    assert result["funnel_status"] == "fresh"
     assert set(result["by_agent"]) == {"a1", "a2"}
     assert result["last_30d"]["status"] == "fresh" and result["last_7d"]["status"] == "fresh"
-    # account-level (2 windows) + per-agent (2 agents x 2 windows) = 6 window-fetches x 2 calls each
-    assert len(calls) == 6 * 2
+    assert result["last_7d"]["totals"]["views"] == sum(row["views"] for row in result["last_7d"]["by_source"])
+    assert "exposure_count" not in result["last_7d"]["totals"]
+    assert set(result["impressions"]["account"]) == {"last_7d", "last_30d"}
+    assert set(result["impressions"]["by_agent"]) == {"a1", "a2"}
+    assert result["impressions"]["by_agent_coverage"] == {"requested": 2, "queried": 2, "omitted": 0, "cap": 5}
+    assert result["impressions"]["account"]["last_7d"]["scope"] == {"kind": "account", "agent_id": None}
+    assert result["impressions"]["by_agent"]["a1"]["last_7d"]["scope"] == {"kind": "agent", "agent_id": "a1"}
+    # Account 2 windows + 2 agents x 2 windows, with separate visits/sales/impressions calls.
+    assert len(calls) == 6 * 3
     assert sleeps == [0, 0]  # one sleep per agent processed
 
 
@@ -953,10 +1064,36 @@ def test_build_traffic_sources_respects_the_agent_cap(monkeypatch: pytest.Monkey
     monkeypatch.setattr(module, "_post", lambda *_a: {"code": 0, "data": {"items": []}})
 
     result = module.build_traffic_sources(
-        "tok", module.dt.date(2026, 9, 28), ["a1", "a2", "a3"], cap=1, delay=0, sleep=lambda _s: None,
+        "tok", module.dt.date(2026, 9, 28), ["a1", "a2", "a3"],
+        observed_at="2026-09-28T12:00:00Z", cap=1, delay=0, sleep=lambda _s: None,
     )
 
     assert set(result["by_agent"]) == {"a1"}
+    assert set(result["impressions"]["by_agent"]) == {"a1"}
+    assert result["impressions"]["by_agent_coverage"] == {"requested": 3, "queried": 1, "omitted": 2, "cap": 1}
+
+
+def test_impressions_failure_only_degrades_funnel_status(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = load_module()
+
+    def fake_post(path, _token, _body):
+        if path.endswith("/visits/stats"):
+            return {"code": 0, "data": {"items": _traffic_visits_items()}}
+        if path.endswith("/sales/stats"):
+            return {"code": 0, "data": {"items": _traffic_sales_items()}}
+        return {"_error": "HTTPError: 503"}
+
+    monkeypatch.setattr(module, "_post", fake_post)
+    traffic = module.build_traffic_sources(
+        "tok", module.dt.date(2026, 9, 28), [], observed_at="2026-09-28T12:00:00Z", delay=0,
+    )
+
+    assert traffic["status"] == "fresh"
+    assert traffic["funnel_status"] == "degraded"
+    assert traffic["impressions"]["status"] == "degraded"
+    payloads = live_payloads()
+    payloads["traffic_sources"] = traffic
+    assert module.build_receipt(payloads, "2026-09-28T12:00:00Z")["verdict"] == "success"
 
 
 def test_traffic_summary_line_reports_top_sources_by_views() -> None:
