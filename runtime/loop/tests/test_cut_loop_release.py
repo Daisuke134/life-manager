@@ -61,6 +61,58 @@ class CutLoopReleaseTest(unittest.TestCase):
                         self.assertEqual(result.stdout, "")
                     self.assertEqual((donor / "RELEASE.json").read_bytes(), descriptor)
 
+    def test_script_only_change_reuses_bundle_without_installing_dependencies(self):
+        import hashlib
+        import platform
+        import sys
+        source = (ROOT / "bin/cut-loop-release.sh").read_text()
+        start = source.index("link_locked_dependencies() {")
+        function = source[start:source.index('\nmkdir -p "$DEPENDENCY_BUNDLES"', start)]
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            target, donor = root / "target", root / "donor"
+            target.mkdir(); donor.mkdir()
+            package = {"name": "fixture", "version": "1.0.0", "scripts": {"test": "old"}}
+            old = json.dumps(package).encode()
+            lock = b'{"lockfileVersion":3}\n'
+            (donor / "package.json").write_bytes(old)
+            (donor / "package-lock.json").write_bytes(lock)
+            header = "\0".join(("command", "npm-ci --omit=dev --ignore-scripts", "os", platform.system(),
+                                  "arch", platform.machine(), "node", "node", "npm", "npm")) + "\0"
+            data = header.encode()
+            for label, payload in (("package-json", old), ("package-lock", lock)):
+                data += label.encode() + b"\0" + (hashlib.sha256(payload).hexdigest() + "  -\n").encode()
+            key = hashlib.sha256(data).hexdigest()
+            bundles = root / "bundles"
+            bundle = bundles / ("npm-" + key)
+            (bundle / "node_modules").mkdir(parents=True)
+            (bundle / "node_modules/.package-lock.json").write_bytes(lock)
+            (bundle / "node_modules/retained.txt").write_text("known dependency")
+            (bundle / ".complete").write_text(key + "\n")
+            package["scripts"]["test"] = "new"
+            cases = (("script_only", package, lock, 0),
+                     ("deps_changed", {**package, "dependencies": {"new": "1"}}, lock, 1),
+                     ("lock_changed", package, lock + b" ", 1))
+            for name, candidate, candidate_lock, expected in cases:
+                with self.subTest(name=name):
+                    (target / "package.json").write_text(json.dumps(candidate))
+                    (target / "package-lock.json").write_bytes(candidate_lock)
+                    result = subprocess.run(["bash"], input=function + '\nlink_locked_dependencies "$DEST"\n',
+                        env={**os.environ, "SCRIPT_ROOT": str(ROOT), "DEST": str(target), "CURRENT": str(donor),
+                             "DEPENDENCY_BUNDLES": str(bundles), "RUNTIME_PYTHON": sys.executable,
+                             "NPM_NODE_VERSION": "node", "NPM_VERSION": "npm", "NPM_BIN": "/usr/bin/false",
+                             "RELEASE_REQUIRED_BYTES": str(2 * 1024**3 + 64 * 1024**2)},
+                        capture_output=True, text=True)
+                    self.assertEqual(result.returncode, expected, result.stderr)
+                    if expected == 0:
+                        self.assertEqual((target / "node_modules").resolve(), (bundle / "node_modules").resolve())
+                        (target / "node_modules").unlink()
+                    else:
+                        self.assertFalse((target / "node_modules").exists())
+                    self.assertEqual(list(bundles.iterdir()), [bundle])
+                    self.assertEqual((bundle / "node_modules/retained.txt").read_text(), "known dependency")
+                    self.assertEqual((target / "package.json").read_text(), json.dumps(candidate))
+
     def _pushed_branch_fixture(self, root):
         repo, origin = root / "repo", root / "origin.git"
         repo.mkdir()

@@ -78,6 +78,10 @@ To-Beは各agentがobserve→decide→act→official verify→persist→自分�
 
 **fresh資源readbackと残順:** 13:47頃にData freeは約2.26 GiBから約0.94 GiBへ低下、13:50には869,952 KiB。sysctlのswap total10,752 MiB/used10,146 MiB、VM volume使用11,068,712 KiBを確認した。swap/稼働中の他者sessionを削除・停止せず、この時間窓の減少をGitや特定agent一つに帰属しない。AGMSG lm-leadへsource/main/本番未採用とfresh資源値を送信成功したが、sendを他担当の着手証明にしない。現在cursorは (1) release dependency reuse/容量測定の拒否原因を修復、(2) F1/F2の不足証拠のみ閉じる、(3) 両cleanupへmain由来版を安全採用してloaded SHA/argv/cadenceを確認、(4) 各3回の自然cleanup receipt、(5) 実writerの出力増加・終了・回収3往復。この後に個別18業務の既存TODOへ進む。#7880と#7882のsource修復は完了扱いのまま維持し、本番未反映を理由に未実装へ戻さない。
 
+**配布修復の範囲/Done:** package-lockは完全一致し、package.jsonの` scripts `以外の全項目が一致する場合だけ、`npm-ci --omit=dev --ignore-scripts`で作られた現currentのimmutable dependency bundleを再利用する。source archiveには新しいpackage.jsonをそのまま入れ、source SHA/manifestを偽装しない。容量測定とrelease builderの同じ依存同一性判定を合わせる。依存/engine/workspace/override/lockの変更は従来どおり拒否する。新bundle作成・新npm install・guard/floor overrideを追加しない。Doneはscriptsだけの変更で容量測定とbuilderが同じ既存bundleを選び、実deps変更は拒否するRED/GREEN、関連検証、CI/main、本番immutable採用。
+
+**配布修復のsource診断結果:** 新規実Git fixtureは修正前に`dependency manifests changed`でRED。scripts-only同一性の共有判定とdonor由来cache keyの一致後、容量測定の既存含む30 testsはPASS。builder fixtureは新source package.jsonを保持して旧immutable bundleをそのままlinkし、新bundle/新installが0、依存変更/lock変更を拒否する。release builder関連18 testsのうち17 PASS/1 sparse checkout missing-fileを観測し、必要な既存package-lockをmaterializeしてその1件を再実行PASS。製品codeをmissing-file対処のため変更していない。実hostのread-only容量測定は旧拒否からrequired `2,393,997,312 bytes`の具体値まで復旧した。これは測定の修復であり、本番release作成/採用や空き容量の合格を意味しない。
+
 **配布のfresh診断:** launchctl-safeのUID/Directory Services/Aqua/manager/GUI確認はPASS。現currentは`3e19c846`、新mainの`apps/life-manager/package.json`にはWriter test scriptの追加があり、release-capacityは`dependency manifests changed`で拒否する。旧native runtimeとpackage-lock/sourceを保持し、この拒否をoverrideしない。Gitの反復保守をsourceで閉じた後、配布側の既存dependency reuse/容量測定を診断して本番採用へ進む。Line Sticker業務source/owner/fenceを変更しない。
 
 本sessionはDaisの共有資源修復依頼を継続する。以下の別ownerのEDD作業は保持し、停止・巻戻し・重複修理をしない。

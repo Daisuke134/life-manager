@@ -283,6 +283,21 @@ def disk_headroom_ok() -> bool:
     return _producer_preflight(os.environ.get("LIFE_MANAGER_LOOP_ID")) == 0
 
 
+def dependency_manifest_matches(left: bytes, right: bytes) -> bool:
+    """Ignore only scripts, which the cached npm-ci command never executes."""
+    try:
+        manifests = [json.loads(payload) for payload in (left, right)]
+        for manifest in manifests:
+            if not isinstance(manifest, dict):
+                return False
+            if "scripts" in manifest and not isinstance(manifest["scripts"], dict):
+                return False
+            manifest.pop("scripts", None)
+        return json.dumps(manifests[0], sort_keys=True) == json.dumps(manifests[1], sort_keys=True)
+    except (ValueError, TypeError, UnicodeError):
+        return False
+
+
 def release_capacity_bytes(repo: Path, sha: str, loops: Path, node: str, npm: str) -> int:
     """Measure a source export plus enough space to retain the recovery floor."""
     roots = ("", "runtime/compute-proxy", "runtime/agentmail", "apps/life-manager",
@@ -312,8 +327,13 @@ def release_capacity_bytes(repo: Path, sha: str, loops: Path, node: str, npm: st
         subprocess.run(["git","-C",str(repo),"merge-base","--is-ancestor",descriptor["sha"],"origin/main"],check=True,capture_output=True)
     for relative, manifests in package_manifests:
         directory = donor / relative
-        if any((directory / name).read_bytes() != payload for name,payload in zip(("package.json","package-lock.json"),manifests)):
+        donor_manifests = [(directory / name).read_bytes()
+                           for name in ("package.json", "package-lock.json")]
+        if (donor_manifests[1] != manifests[1]
+                or not dependency_manifest_matches(donor_manifests[0], manifests[0])):
             raise ValueError("dependency manifests changed")
+        # The bundle was built from the donor's bytes, including its old script aliases.
+        manifests = donor_manifests
         header = "\0".join(("command","npm-ci --omit=dev --ignore-scripts","os",platform.system(),"arch",platform.machine(),"node",node,"npm",npm)) + "\0"
         key_data = header.encode()
         for label,payload in zip(("package-json","package-lock"),manifests):
