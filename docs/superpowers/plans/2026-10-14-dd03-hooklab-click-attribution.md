@@ -67,9 +67,9 @@ The `run_create_intent` regression test uses a temporary synthetic account fixtu
 - [x] Add failing test `test_publication_campaign_token_is_deterministic_and_slot_specific`, including the golden vector above and a distinct token for a different scheduled slot.
 - [x] Run `python3 skills/earn/marketing-engine/measure/test_attribution.py`; confirm the new token case fails.
 - [x] Add the minimal Hook Lab prefix and deterministic publication-token helper; run the focused test and confirm it passes.
-- [ ] Add failing test `test_hook_lab_intent_uses_unique_owned_token_and_rejects_foreign_ct` through `run_create_intent` with the temporary synthetic Hook Lab account, proving the static registered `hooklab_ig` placeholder becomes the deterministic owned `hl_` URL and an `ej_`/arbitrary token is rejected.
-- [ ] Run `python3 -m pytest skills/earn/marketing-engine/publish/test_intent_cli.py`; confirm the new case fails before the implementation.
-- [ ] Implement Hook Lab intent token/caption binding; run the focused publisher test and confirm it passes.
+- [ ] Add failing tests `test_hook_lab_intent_rewrites_registered_ct` and `test_hook_lab_intent_rejects_foreign_ct` through `run_create_intent` with the temporary synthetic Hook Lab account. The first proves `hooklab_ig` becomes the deterministic owned `hl_` URL; the second rejects an `ej_`/arbitrary token.
+- [ ] Run `python3 -m pytest skills/earn/marketing-engine/publish/test_intent_cli.py`; confirm both new cases fail for the expected reasons.
+- [ ] Implement Hook Lab intent token/caption binding and strict input-token allowlist; run the focused publisher test file and confirm both cases pass.
 - [ ] Add failing test `test_hook_lab_snapshot_rejects_foreign_or_shared_token` for a foreign product token and one shared token reused across two publication slots.
 - [ ] Run `python3 skills/earn/marketing-engine/measure/test_experiment_attribution.py`; confirm the new assertions fail.
 - [ ] Add failing test `test_hook_lab_click_join_rejects_incomplete_or_duplicate_receipts` for incomplete/duplicate receipt IDs.
