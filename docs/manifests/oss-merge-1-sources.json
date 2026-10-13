@@ -99,7 +99,7 @@
         {
           "source": "skills/agent-runner/agent_runner.py",
           "target": "runtime/agent-runner/agent_runner.py",
-          "sha256": "4bc232c95986fe26dfbd652710aed755994ec67455b50da197212338f48c494f"
+          "sha256": "a2c4e760934db9089eef256eab1870d0a65213a20414686cf92670bd231f5a1f"
         },
         {
           "source": "skills/agent-runner/config.json",
