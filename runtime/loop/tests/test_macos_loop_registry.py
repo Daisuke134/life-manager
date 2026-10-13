@@ -983,6 +983,21 @@ class MacosLoopRegistryTest(unittest.TestCase):
             "profile": "~/.cloak/profiles/daily-driver",
         })
 
+    def test_line_sticker_tiktok_browser_uses_an_isolated_owned_profile(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["line-sticker-tiktok-browser"]
+        sibling = registry["loops"]["tiktok-browser"]
+        self.assertEqual(row, {
+            **sibling,
+            "label": "ai.anicca.line-sticker-tiktok-browser",
+            "browser_owner": {
+                "cdp_port": 9232,
+                "profile": "~/.cloak/profiles/tiktok-anicca-videojp",
+            },
+            "log_root": "~/.local/state/life-manager/line-sticker-tiktok-browser/logs",
+            "state_root": "~/.local/state/life-manager/line-sticker-tiktok-browser",
+        })
+
     def test_affiliate_composition_uses_direct_exec_adapter(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         row = registry["loops"]["affiliate-composition"]
