@@ -48,9 +48,9 @@ To-Beは各agentがobserve→decide→act→official verify→persist→自分�
 - [ ] **F4 — 掃除の反復:** 両掃除役それぞれの自然実行receiptを3回連続で取得する。各receiptは保存済み、`errors=0`、`protected_deletions=0`。単にprocessがいることやexit 0だけでは数えず、実際に掃除passまで実行したreceiptだけを数える。
 - [ ] **F5 — 大きな一時データの往復:** 一番大きいフォルダ名を推測で選ばない。同一時間窓で`owner_id + PID + 出力先path + bytes before/after`を結び、実writerを確認する。該当jobのbusiness ownerは維持し、primaryはそのsource/外部操作を変更しない。自然実行を3回連続で確認し、終了した親と子processがいなくなった後、次の成功したcentral sweepまでにその回だけの一時フォルダが消え、商品出力/正式receiptは残る。3回の観測window全体で未帰属の増加=`0`、capacity起因のterminal failure=`0`、次の予定wakeを越えて残るcapacity defer=`0`、lost task=`0`、duplicate effect=`0`、手動cleanup=`0`。
 
-**ゲート後の順序:** F1→F2→F3→F4→F5。5/5 PASSでprimaryが既存TODO順に18業務capabilityを一つずつ修理する。各laneのsource→release→natural run→公式成果確認は既存SSOTの条件を保つ。18/18の後にLM-EAB/eval/benchmark、self-healing/self-improvement、新agent factory、OSSの簡単な起動、会社全体US$10,000,000 MRRの公式検証へ進む。Daisが新しいCodexを大量起動したり、既存ownerへ同じ修理を重複依頼したりすることは再開条件にしない。
+**共有資源gate:** F1→F2→F3→F4→F5は、shared-capacity recoveryと18 capability修理の完了判定に引き続き必要。Daisの明示したEDD優先により、独立したWriter E02 A3b→A8–A14とE03–E06 benchmark作業は、F1–F5が未完でも先行できる。これはcleanupのgateを満たした扱いにせず、既存cleanup owner/stateも変更しない。
 
-**順序変更:** 旧順序は各laneを並列再開し、それぞれ容量/release/admissionを解決する方式。新順序はP0共有ディスク → P1実行枠 → 各laneの安全な先頭atom。理由は同じ容量不足が既存の正常loopとcleanup自身を止め、複数writer/releaseが共有資源を競合させるため。実行中の外部effectを中断・重複させず、独立した読み取りは進められる。
+**前回の順序変更（共有資源）:** 旧順序は各laneを並列再開し、それぞれ容量/release/admissionを解決する方式。新順序はP0共有ディスク → P1実行枠 → 各laneの安全な先頭atom。理由は同じ容量不足が既存の正常loopとcleanup自身を止め、複数writer/releaseが共有資源を競合させるため。実行中の外部effectを中断・重複させず、独立した読み取りは進められる。
 
 **実行方式:** 本sessionのprimaryは担当する改善を一件ずつ進める。他agentは独立した担当範囲で作業しており、そのlease・branch・stateを尊重する。全agentの停止や全書込の単独所有を前提にしない。共有cleanup/release/SSOTの変更はowner間で調整し、同じ対象へ重複書込をしない。業務loopは共有資源契約の上限内で並列に収益活動を続ける。AGMSGは必要な連絡/引き継ぎに使い、登録済み席を稼働中と扱わない。CFO内serial/Mobile内solo等のlane境界、effect_unknownの公式照合、live funding/order等の既存gateは保持する。反復reviewや承認待ちを追加せず、高リスク変更/金融判定だけfresh read-only reviewを使う。対話agentはTelegramへ進捗を送信しない。
 
@@ -58,9 +58,12 @@ To-Beは各agentがobserve→decide→act→official verify→persist→自分�
 
 **不変条件:** iOS Simulator runtime/image/device/data/dyld、memory/state、credentials、browser identity、参照release、active/dirty/unmerged/leased/locked worktree、open/unknown dataを削除しない。各agentは自分が生成し所有する非authoritative scratchだけを片付け、中央cleanupは残ったclosed/orphaned artifactと証明済みの不要物を回収する。他agentの作業や正式receiptを消さない。effect_unknownはexact official receipt/pre-effect proofまで解除・再送しない。内部の余白・時間・byte予算は安全な制御に使い、空き容量の固定値を事業再開の条件にしない。
 
-**現在cursor（2026-10-13 11:44 JST readback）:** main=`1f4614ecf1057793553d7198cb466ed6acf05180`。`life-manager-disk-cleanup`はrelease `3e19c846`でloaded-idle、11:44:03 JSTに直近passが1回ある。これだけではF4の3回を満たさない。`df -k /`は11:44:09に207,772 KiB available、11:25:13から約19分で2,544,468 KiB減少したが、診断値のみ。60秒watchdogのこの時点のloaded readback、F1/F2の全gate証拠、writerの同時刻PID/path/bytes join、3回の大きなscratch往復は未確認。F1–F5はまだ0/5完了。Line Stickerのsource/runtimeは別ownerが担当し、primaryは変更しない。既存ownerの自然receiptは必要な時だけF5の証拠として読む。
+**前回cleanup readback（2026-10-13 11:44 JST）:** `life-manager-disk-cleanup`はrelease `3e19c846`でloaded-idle、F1–F5は当時0/5完了。これは歴史的観測で現在状態へ再利用しない。
+**現在cursor（2026-10-13）:** E02 Writer Pilot A3b source-lineage repair。main=`535c1acc3654591b00bc3a5d0defb8d91222071a`。Writer immutable release `3e19c8463a1751b8c3c5a7c3a273330d4280b2f2`に`.git`がなく、`LIFE_MANAGER_RELEASE_SHA`の注入値はcaptureで使われない。自然run source SHAはUNKNOWN。現行Writer statusはloaded-idleだが既存publish occurrenceはeffect_unknownであり、本atomではfenceを変更しない。
 
-**次のatomic TODO:** F1 registry全job分類 → F2の3容量境界と一度だけの再開をfixtureでPASS → F3両掃除役のmain release/argv/cadence確認と必要な共通修復 → F4各掃除役3回連続の自然receipt → F5最大scratch jobの自然終了・一時領域回収を3回連続で確認。5/5 PASS後に18 capabilityの既存修理TODOへ移る。まだmain releaseの再発防止を完了とは呼ばない。
+**順序変更・現在cursor（2026-10-13）:** 旧順=`F1→F5 shared cleanup→18 capability修理→E01–E06`。新順=`E02 Writer Pilot A3b→A8–A14→E03 natural economic task families→E04 frozen versions/splits/calibration→E05 independent harness reproduction→E06 public benchmark report→H01–H04 recovery→I01–I04 bounded self-improvement→F1–F5と残capability`。理由はDaisがEDDを優先し、Writerの自然traceでsource SHAが`UNKNOWN`、immutable releaseに`.git`がなく、loop注入済みrelease SHAをWriter captureが使わないため。source lineageなしではmodel比較を帰属できない。F1–F5のstateは変更せず、Agent Economy E01は別cursorのまま未完とする。
+
+**次のatomic TODO:** E02 / Writer Pilot A3bで有効な`LIFE_MANAGER_RELEASE_SHA`を記録するfocused regressionと最小修正を完了 → A8 blind labels → A9 splits → A10 baseline trials → A11/A12 regression修正 → A13 held-out比較 → A14 official outcome/CFO receipts → E03–E06 benchmark拡張・再現・報告 → H/I self-heal/self-improvement → F1–F5 cleanup。effect_unknown、既存owner、cleanup stateを変えずに進める。
 
 **Evoの状態:** cleanup用regression testはshared source変更の検証で、LM-EAB/Evoではない。LM-EABの公開fixtureは5件（tuning 3/held-out 2）で合成データ。PR #7737は費用欠測の合成ケースを追加しmerge済み、PR #7736はREADMEからの再現手順を追加しmerge済み。自然trace・実経済task family・本番performance比較・benchmark報告は未完。OpenEvolveの7月runはbacktest昇格の履歴で現在稼働ではなく、registryの同名 `self-improve-evolve` はmarketing report runnerのpassでLM-EAB評価ではない。今回のread-only監査で専任のEAB/Eval/Evo稼働席は確認できず、production-connected evalと改善の自然runは未完。
 
@@ -271,7 +274,7 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 | H03 | Life Manager自身のdev/repair経路が必要な最小code修復を実施 | intent→issue/PR→CI/main→immutable→次自然run/公式readback |
 | H04 | 自己修復の一連の因果を証明する | 外部Codexの手動修正やsupervisor単独PASSをLM自身の修復としない |
 | E01 | selfEvalの欠測net→0をfail-closedへ修復 | unknown/不正金額がDEAD/利益/ゼロへ誤変換されないRED/GREEN |
-| E02 | recovery/economic evalを自然障害とCFOの公式receiptへ接続 | task success/effect integrity/settled net/cost/latency/介入を別採点。active parallel slice: Writer Pilot AのW-01 A3–A7を実装中。A7 code graderは`apps/life-manager/eval/writer/receipt-grader.js`、focused tests 9/9 PASS。Agent Economy E01のruntime adoptionとは別作業で、E01を完了扱いせず、Writer graderの前提にも置かない。次はA8のblind domain labelsを用いたquality-judge calibration準備。詳細は`docs/superpowers/plans/2026-10-12-edd-recovery-pilot.md`と`docs/evals/writer-edd-trace-discovery.md`。 |
+| E02 | recovery/economic evalを自然障害とCFOの公式receiptへ接続 | task success/effect integrity/settled net/cost/latency/介入を別採点。Writer Pilot A A1–A7は実装済み（PR #7876 merged、9/9 focused/CI PASS）。current cursor A3b: Writer immutable runへvalidな`LIFE_MANAGER_RELEASE_SHA`を記録するtest-first修正。A8のjudge較正は20 Pass/20 Failの人手labelが揃うまで未実施。E01 Agent Economyのruntime adoptionは別pending cursor。詳細は`docs/superpowers/plans/2026-10-12-edd-recovery-pilot.md`と`docs/evals/writer-edd-trace-discovery.md`。 |
 | E03 | LM-EABの自然失敗・境界・実経済task familyを増やす | PR #7737（merge `42131f52`）で費用欠測synthetic regressionを追加済み。現行5 public fixtures（tuning3/held-out2）は契約検証で実性能ではない。自然trace/実経済family/独立held-out protocolは未完 |
 | E04 | case/runner/grader/baselineをversion/hashで凍結 | public/dev/held-out/challenge分離、grader較正/複数trial/不確かさ/汚染監査 |
 | E05 | 既存runnerへ他harness adapterを接続し外部再現を確認 | 新framework先行導入なし、独立実行で同versionの結果を再現 |

@@ -103,6 +103,11 @@ W-01の0-byte artifactに対するgradeは、artifact hash `pass`、receipt pars
 
 `npm run test:writer-eval`で9件のgrader testsとW-01 CLI出力を検証します。別のsynthetic valid v2 fixtureはschema/receipt hashのcontrol testだけに使い、natural case数、writer performance、qualityやrevenue scoreへ数えません。grader出力は一つのcode-checkable evidence dimensionであり、A8のsemantic judge calibration、自然source reproduction、E02の公式receipt/cost joinは未完です。
 
+## A3b source provenance — current Writer atom
+
+自然trace inventoryでは8 runすべて`harness_git_hash=UNKNOWN`です。実run `20261011-210544`のprivate `git-hash.txt`も同じです。最新mainの`article-daily.sh`はGit履歴からSHAを取りますが、現行immutable release `3e19c8463a1751b8c3c5a7c3a273330d4280b2f2`には`.git`がありません。loop applyはそのrelease SHAを`LIFE_MANAGER_RELEASE_SHA`として渡し、`writer-runtime-env.sh`も保持する一方、capture経路が使っていません。
+
+A3bではvalidな40-hex env SHAを優先し、local checkoutではGit fallbackを残すfocused regressionを追加します。過去runのSHAは推定しません。W-01 0-byte receiptの過去原因、quality、netは引き続きunknownです。既存publish occurrenceの`effect_unknown` fenceは変更しません。
 ## 優先findings
 
 ### 1. Source lineageが不足
