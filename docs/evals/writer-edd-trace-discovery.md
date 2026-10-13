@@ -153,3 +153,9 @@ W-01のquality self-heal artifactは0 bytesでJSONとして読めず、品質判
 公開前quality PASSは外部impactや収益成果ではありません。
 
 E01のmain由来release adoption/natural evaluationは未完であり、実行cursorは統一SSOTから動かしません。
+
+## A8 Category C label draft
+
+`docs/evals/writer-edd-a8-label-set.md` contains 40 synthetic, unlabeled excerpts for the single identity-judge failure mode `C: internal-context leak`. It covers reader-facing public CTAs/sources and synthetic internal paths, unpublished docs, private messages, dashboard values, and mixed cases. Every label and rationale is blank; the model judge has not been run. The examples are development candidates, not natural Writer runs or performance data.
+
+The current human-label count remains 0. Natural W-01 remains a separate candidate because its full source article is not copied into this repository. Do not calibrate the judge, report false-pass/false-fail rates, or advance E02 beyond A8 until at least 20 expert PASS and 20 expert FAIL labels are recorded. E01 Agent Economy remains a separate cursor.
