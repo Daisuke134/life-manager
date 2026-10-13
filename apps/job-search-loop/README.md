@@ -19,7 +19,7 @@ interviews, emails each receipt-confirmed application and a daily briefing, and 
 | Personal data | Verified private profile and generated materials are mode `0600` |
 | Career summary | Every terminal daily path atomically refreshes private `summary.v2.json` with state counts and Workday receipt coverage |
 | Application receipt | Every confirmed submission records the exact resume path and SHA-256, then sends that same PDF to Telegram once when Telegram is configured, with company, role and URL |
-| Email reporting | Per-application status emails and one natural-language daily email briefing are shipped in source; current production Gmail readback is pending |
+| Email reporting | Per-application status emails and a natural-language daily briefing are shipped in source. One partial daily briefing was sent and read back in Gmail on 2026-10-13; per-application status email awaits the first receipt-confirmed application. |
 | Daily report repair | A materially changed same-day catch-up sends one content-addressed correction; identical retries remain at-most-once |
 | Inbox | Gmail threads expand to immutable unseen message IDs; official late application receipts reconcile before the model; a model runs only for remaining new recruiting messages or a pending prep-pack generation job |
 | Calendar | Only explicit timezone-aware recruiter candidates are considered; the earliest free candidate is confirmed once |
@@ -62,8 +62,8 @@ and a real, receipt-verified application. A README claim or a generated
 | Agent | Open-source license | Automatic final Submit | Runtime cost | Application evidence and current limitation |
 |---|---|---|---|---|
 | [career-ops](https://github.com/career-ops-hq/career-ops) | MIT; no license fee | **No** | README supports free/local models; provider cost depends on the model selected | Its README and `prepare-application.mjs` say it never POSTs; the applicant reviews and presses Submit. It is job-search and preparation software, not an automatic submitter. |
-| [ApplyPilot](https://github.com/Pickle-Pixel/ApplyPilot) | AGPL-3.0; no license fee | **Yes, in its normal source path** | Auto-apply requires Claude Code CLI; Anthropic lists Claude Code with paid plans, while API use is token-billed. ApplyPilot says its Gemini stages have a free tier; optional CAPTCHA service may add cost. See [Anthropic pricing](https://claude.com/pricing) and [Claude Code costs](https://code.claude.com/docs/en/costs). | Its launcher asks Claude to navigate and submit without per-job approval. The launcher records `RESULT:APPLIED` from page evidence; no independent employer receipt or confirmation email was verified in a live application. |
-| Job Hunter — Workday-first release | MIT source; no license fee | **Target: yes** | Total operating cost and a $0 default run are not verified | Workday-only source includes receipt-gated email reporting; natural employer receipt, Gmail delivery and replay-zero are not yet verified for the current release. Telegram is optional. |
+| [ApplyPilot](https://github.com/Pickle-Pixel/ApplyPilot) | AGPL-3.0; no license fee | **Yes, in its normal source path** | Auto-apply requires Claude Code CLI; Anthropic lists Claude Code with paid plans, while API use is token-billed. ApplyPilot says its Gemini stages have a free tier; optional CAPTCHA service may add cost. See [Anthropic pricing](https://claude.com/pricing) and [Claude Code costs](https://code.claude.com/docs/en/costs). | Its source exposes unattended submission; one isolated real-run attempt ended `submission_state_unknown`, so no independent employer/Gmail receipt was verified and the result remains inconclusive. |
+| Job Hunter — Workday-first release | MIT source; no license fee | **Target: yes** | Total operating cost and a $0 default run are not verified | Workday-only source includes receipt-gated email reporting. One partial daily briefing was delivered and read back; no employer receipt, per-application email, or application replay-zero has been verified yet. Telegram is optional. |
 
 The broad claim “world’s first open-source agent that searches, tailors, and
 automatically submits applications” is not supported: ApplyPilot already has a
@@ -128,7 +128,7 @@ zsh scripts/healthcheck.sh
 
 ### Public Terminal onboarding
 
-> **Pre-release:** first verify the installed Workday loop with an official employer receipt, matching Ledger row, per-application email, daily-email receipt and duplicate zero. Telegram is optional. Then publish this existing Terminal command; do not add another onboarding system.
+> **Pre-release:** verify an official Workday receipt, matching Ledger row, per-application email, and duplicate-zero before publishing this existing Terminal command. One partial daily email has been received; per-application email and replay-zero remain pending. Telegram is optional; do not add another onboarding system.
 
 Run the Job Hunter command:
 
@@ -267,9 +267,8 @@ and hashed private logs. Submission follows
    reconciliation, duplicate-zero, and truthful per-application reporting.
 2. Add portable onboarding that accepts a resume and asks about target roles,
    locations, compensation, and remote/on-site preferences; Telegram is optional.
-3. Prove the implemented natural-language email after each receipt-confirmed
-   application and the one-per-day email briefing in a natural production run; keep
-   Telegram optional.
+3. Verify the receipt-gated natural-language email after the first confirmed application; one partial daily briefing has already been sent and read back.
+   Confirm once-per-Japan-day idempotency and keep Telegram optional.
 4. Expand interview preparation from recruiting-email detection into tailored
    preparation and timely reminders.
 5. Add Ashby and other ATS as separate discovery/application owners only after the
