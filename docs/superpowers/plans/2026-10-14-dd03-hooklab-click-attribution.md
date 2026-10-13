@@ -17,7 +17,7 @@
 - A generated/unregistered seller `ct` is invalid. `hl_<hash>` is only our internal join key; the downstream Capafy `ct` remains the verified `hooklab_ig`.
 - The redirect maps to the fixed Capafy URL and seller CT; caller-controlled destinations or seller CTs are rejected.
 - Diagnostic requests create no click receipt and do not redirect.
-- A click count is deterministic only when the exact product/token and a complete, unique receipt-ID list match.
+- A Hook Lab click is deterministic only when exact product/token scope and a complete, unique receipt-ID list match; other products retain their existing exact `Content-Range` count behavior.
 - Capafy per-agent or per-channel paid totals are not per-creative orders; missing click-to-order joins remain unknown.
 - Do not enable the publisher, send posts, change seller terms, increase cadence, or alter effect fences.
 - The Capafy business CD1 lane remains separately owned; DD03 changes only the shared measurement binding.
@@ -26,7 +26,7 @@
 
 - An unregistered seller CT or other-product token must not count as Hook Lab attribution; an internal `hl_` token passes only when it matches the exact publication intent.
 - The same token reused by two publication slots must fail before a click is counted.
-- Missing, duplicate, or truncated receipt IDs must not support a deterministic click count.
+- Missing, duplicate, or truncated receipt IDs must not support a deterministic Hook Lab click count.
 - `?diagnostic=1` must produce no receipt and no provider redirect.
 - A 30-day Hook Lab paid total without a receipt-to-order join must leave per-creative paid orders and revenue unknown.
 
@@ -76,6 +76,9 @@ The `run_create_intent` regression test uses a temporary synthetic account fixtu
 - [x] Add failing query test `test_click_query_rejects_incomplete_or_duplicate_receipts` for a count/body mismatch and duplicate receipt IDs.
 - [x] Run the focused experiment-attribution file; confirm both query cases incorrectly return `available`.
 - [x] Return `unavailable` for incomplete rows, malformed IDs, or duplicate receipt IDs; run the focused file and confirm it passes.
+- [x] Add failing regression test `test_non_hook_lab_click_query_keeps_exact_header_count_when_body_is_partial` to preserve existing count semantics for other products.
+- [x] Run the focused query test; confirm the current global row-count guard makes the non-Hook Lab case unavailable.
+- [x] Scope row completeness/duplicate-ID rejection to Hook Lab only; rerun both Hook Lab and non-Hook Lab query cases.
 - [x] Add failing evaluator test `test_hook_lab_click_join_rejects_incomplete_or_duplicate_receipts` for missing or duplicate IDs in a supplied Hook Lab click query.
 - [x] Add failing success test `test_hook_lab_click_receipt_id_is_saved_as_creative_evidence` proving the exact receipt ID is retained with the publication/creative snapshot.
 - [x] Implement complete unique receipt-ID validation and add each exact receipt ID to Hook Lab evidence references; run the focused evaluator tests and confirm they pass.

@@ -413,14 +413,17 @@ def query_click_receipts(*, supabase_url: str, service_role_key: str,
     except ValueError:
         return {"status": "unavailable", "reason": "exact_count_invalid",
                 "observed_at": observed_at, "evidence_refs": base_evidence}
-    if count != len(body):
-        return {"status": "unavailable", "reason": "receipt_rows_incomplete",
-                "observed_at": observed_at, "evidence_refs": base_evidence}
-    receipt_ids = [row.get("receipt_id") for row in body]
-    if (any(not isinstance(receipt_id, str) or not receipt_id for receipt_id in receipt_ids)
-            or len(set(receipt_ids)) != len(receipt_ids)):
-        return {"status": "unavailable", "reason": "receipt_ids_invalid",
-                "observed_at": observed_at, "evidence_refs": base_evidence}
+    if product_id == "hook-lab":
+        if count != len(body):
+            return {"status": "unavailable", "reason": "receipt_rows_incomplete",
+                    "observed_at": observed_at, "evidence_refs": base_evidence}
+        receipt_ids = [row.get("receipt_id") for row in body]
+        if (any(not isinstance(receipt_id, str) or not receipt_id for receipt_id in receipt_ids)
+                or len(set(receipt_ids)) != len(receipt_ids)):
+            return {"status": "unavailable", "reason": "receipt_ids_invalid",
+                    "observed_at": observed_at, "evidence_refs": base_evidence}
+    else:
+        receipt_ids = [row["receipt_id"] for row in body]
     require(all(row.get("campaign_token") == campaign_token and
                 row.get("product_id") == product_id for row in body),
             "click scope mismatch")

@@ -282,6 +282,20 @@ class AttributionContractTest(unittest.TestCase):
                 self.assertEqual(result["status"], "unavailable")
                 self.assertEqual(result["reason"], reason)
 
+    def test_non_hook_lab_click_query_keeps_exact_header_count_when_body_is_partial(self):
+        result = ea.query_click_receipts(
+            supabase_url="https://project.supabase.co",
+            service_role_key="secret",
+            product_id="ebook-ja", campaign_token="ej_token",
+            observed_at="2026-08-02T02:20:00Z",
+            fetch=lambda _url, _headers: (200, {"content-range": "0-0/2"}, [
+                {"receipt_id": "r1", "campaign_token": "ej_token",
+                 "product_id": "ebook-ja", "clicked_at": "2026-08-02T00:00:00Z"},
+            ]),
+        )
+        self.assertEqual((result["status"], result["count"]), ("available", 2))
+        self.assertEqual(result["receipt_ids"], ["r1"])
+
     def test_hook_lab_click_join_rejects_incomplete_or_duplicate_receipts(self):
         intent = {
             "schema_version": "marketing.publication-intent.v2",
