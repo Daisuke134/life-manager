@@ -49,7 +49,10 @@
 - [x] Run the focused Node test; confirm the diagnostic case fails before the implementation.
 - [x] Add the diagnostic early return after token/product validation; do not copy arbitrary query values into the destination.
 - [x] Run the focused Node test and `git diff --check`.
-- [x] Commit and push the route change from its dedicated `anicca-products` worktree (`9fab16b0`). PR/merge/deployed diagnostic remain final integration steps.
+- [x] Commit and push the route change from its dedicated `anicca-products` worktree (`9fab16b0`), then merge latest main `9f7369cf` into the PR branch and push `ba4f91f3`.
+- [x] Merge PR #461 as `f2e8762151da21e7484cd779ee1da6e8b018c3d8`; Landing build 12/12 and independent source review SHIP.
+- [x] Verify production Netlify deploy run `38475820443` and three associated Railway deploy statuses all PASS.
+- [x] Production `diagnostic=1` GET returns HTTP 204 with no `Location` or `x-click-receipt`; sanitized readback artifact is recorded in the canonical SSOT.
 
 ### Task 2: Per-publication token and receipt join (Life Manager)
 
@@ -93,9 +96,11 @@ The `run_create_intent` regression test uses a temporary synthetic account fixtu
 - [x] Add RED regression cases proving a URL path suffix, query, or fragment cannot pass as the exact Hook Lab owned URL; verified all three failed before changing the publisher.
 - [x] Require exactly one complete Hook Lab URL token before rewriting the registered CT placeholder; focused publisher suite passes 7/7.
 - [x] Initial implementation was committed and pushed to PR #7971.
-- [ ] Commit and push this URL-validation review correction from the same dedicated worktree.
+- [x] Commit and push this URL-validation review correction as `4a97aab354` from the same dedicated worktree.
+- [x] Fresh independent review returns SHIP; exact-head run `38475187744` passes all 11 required jobs (final route-readback spec update still needs its own exact-head CI).
 
 ### Task 3: Close the DD03 SSOT entry
 
-- [ ] Record both repositories' commits/PRs, focused test results, the official CT readback artifact, and any remaining deployment/readback limit in the canonical SSOT.
-- [ ] Keep DD03 open until the route source is integrated and its diagnostic path is verified without creating a click receipt; do not claim any per-creative paid or net revenue.
+- [x] Record both repositories' commits/PRs, focused test results, the official CT readback artifact, and the production diagnostic readback in the canonical SSOT.
+- [ ] Commit and push the final route-readback record, pass exact-head CI, and merge PR #7971.
+- [ ] Keep DD03 open until both source PRs are integrated and the diagnostic path is verified without creating a click receipt; do not claim any per-creative paid or net revenue.
