@@ -228,6 +228,7 @@ def scratch_gc(roots: set[Path], *, snapshot_started_ns: int | None = None,
     result: dict[str, int | bool] = {
         "evaluated": 0, "removed": 0, "preserved": 0, "errors": 0,
         "owner_metadata_invalid": 0,
+        "contents_reclaimed": 0,
         "identity_snapshot_available": identities is not None,
     }
     flags = os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_NOFOLLOW", 0)
@@ -356,8 +357,12 @@ def scratch_gc(roots: set[Path], *, snapshot_started_ns: int | None = None,
                             if browser_live is not False:
                                 result["preserved"] += 1
                                 continue
-                            if remove_owned_tree(loop_fd, run_fd, run_name):
+                            removal = remove_owned_tree(loop_fd, run_fd, run_name)
+                            if removal is True:
                                 result["removed"] += 1
+                            elif removal == "contents_reclaimed":
+                                result["contents_reclaimed"] += 1
+                                result["preserved"] += 1
                             else:
                                 result["errors"] += 1
                                 result["preserved"] += 1
