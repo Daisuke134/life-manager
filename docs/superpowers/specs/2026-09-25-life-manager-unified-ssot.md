@@ -48,7 +48,7 @@ To-Beは各agentがobserve→decide→act→official verify→persist→自分�
 - [ ] **F4 — 掃除の反復:** 両掃除役それぞれの自然実行receiptを3回連続で取得する。各receiptは保存済み、`errors=0`、`protected_deletions=0`。単にprocessがいることやexit 0だけでは数えず、実際に掃除passまで実行したreceiptだけを数える。
 - [ ] **F5 — 大きな一時データの往復:** 一番大きいフォルダ名を推測で選ばない。同一時間窓で`owner_id + PID + 出力先path + bytes before/after`を結び、実writerを確認する。該当jobのbusiness ownerは維持し、primaryはそのsource/外部操作を変更しない。自然実行を3回連続で確認し、終了した親と子processがいなくなった後、次の成功したcentral sweepまでにその回だけの一時フォルダが消え、商品出力/正式receiptは残る。3回の観測window全体で未帰属の増加=`0`、capacity起因のterminal failure=`0`、次の予定wakeを越えて残るcapacity defer=`0`、lost task=`0`、duplicate effect=`0`、手動cleanup=`0`。
 
-**ゲート後の順序:** F1→F2→F3→F4→F5。5/5 PASSでprimaryが既存TODO順に18業務capabilityを一つずつ修理する。各laneのsource→release→natural run→公式成果確認は既存SSOTの条件を保つ。18/18の後にLM-EAB/eval/benchmark、self-healing/self-improvement、新agent factory、OSSの簡単な起動、会社全体US$10,000,000 MRRの公式検証へ進む。Daisが新しいCodexを大量起動したり、既存ownerへ同じ修理を重複依頼したりすることは再開条件にしない。
+**共有資源gate:** F1→F2→F3→F4→F5は、shared-capacity recoveryと18 capability修理の完了判定に引き続き必要。Daisの明示したEDD優先により、独立したWriter E02 A3b→A8–A14とE03–E06 benchmark作業は、F1–F5が未完でも先行できる。これはcleanupのgateを満たした扱いにせず、既存cleanup owner/stateも変更しない。
 
 **前回の順序変更（共有資源）:** 旧順序は各laneを並列再開し、それぞれ容量/release/admissionを解決する方式。新順序はP0共有ディスク → P1実行枠 → 各laneの安全な先頭atom。理由は同じ容量不足が既存の正常loopとcleanup自身を止め、複数writer/releaseが共有資源を競合させるため。実行中の外部effectを中断・重複させず、独立した読み取りは進められる。
 
