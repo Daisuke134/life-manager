@@ -170,6 +170,8 @@ class MarketplaceProductProfileTest(unittest.TestCase):
                 "seller_agent_id": "8123079349",
                 "published_version": "v1.0.7",
                 "observed_at": "2026-10-13T17:40:00+09:00",
+                "latest_public_readback_at": "2026-10-14T03:43:35+09:00",
+                "price_status": "stale_unverified",
                 "frozen": True,
                 "trial_days": 0,
                 "price_tiers": [
@@ -224,7 +226,7 @@ class MarketplaceProductProfileTest(unittest.TestCase):
         self.assertEqual(product["type"], "marketplace_agent")
         self.assertEqual(product["price"], {
             "amount": 3.99, "currency": "USD",
-            "basis": "starting_day_plan_full_schedule_in_distribution_profile",
+            "basis": "last_official_day_plan_snapshot_2026-10-13;current_price_unverified;full_schedule_in_profile",
         })
         self.assertEqual(profile["economic_role"], "customer_revenue")
         self.assertEqual(profile["related_loop_id"], "capafy")
@@ -236,6 +238,8 @@ class MarketplaceProductProfileTest(unittest.TestCase):
         self.assertEqual(offer["seller_agent_id"], "8123079349")
         self.assertEqual(offer["published_version"], "v1.0.7")
         self.assertEqual(offer["observed_at"], "2026-10-13T17:40:00+09:00")
+        self.assertEqual(offer["latest_public_readback_at"], "2026-10-14T03:43:35+09:00")
+        self.assertEqual(offer["price_status"], "stale_unverified")
         self.assertTrue(offer["frozen"])
         self.assertEqual(offer["trial_days"], 0)
         self.assertEqual(offer["price_tiers"], [
@@ -256,6 +260,9 @@ class MarketplaceProductProfileTest(unittest.TestCase):
         self.assertEqual(channel["native_handle"], "@capafy.hooklab")
         self.assertEqual(channel["publisher_integration_id"], "cmuuycr5402uzqw0yhanqggo9")
         self.assertEqual(channel["campaign_token"], "hooklab_ig")
+        self.assertEqual(channel["last_observed_at"], "2026-10-13T19:00:00+09:00")
+        self.assertEqual(channel["operational_status"],
+                         "disabled_last_observed_current_unverified")
         self.assertFalse(channel["publish_enabled"])
 
         destination = profile["destination"]
