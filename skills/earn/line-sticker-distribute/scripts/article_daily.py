@@ -147,7 +147,7 @@ def run(now: dt.datetime, sticker_root: Path, state_root: Path) -> dict:
         return {"state": "not_due"}
     date = now.astimezone(JST).date().isoformat()
     key = slot_key(now)
-    chosen = pick(load_on_sale_sets(sticker_root), ledger, f"article:{key}", hour=now.astimezone(JST).hour)
+    chosen = pick(load_on_sale_sets(sticker_root, require_clips=False), ledger, f"article:{key}", hour=now.astimezone(JST).hour)
     if chosen is None:
         return {"state": "no_set_for_this_slot"}
     entry = {"attempts": ledger.get(key, {}).get("attempts", 0) + 1, "set_id": chosen["set_id"]}
