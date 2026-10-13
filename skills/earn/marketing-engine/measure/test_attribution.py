@@ -18,6 +18,30 @@ SPEC.loader.exec_module(attribution)
 
 
 class CampaignTokenContractTest(unittest.TestCase):
+    def test_publication_campaign_token_is_deterministic_and_slot_specific(self):
+        intent = {
+            "experiment_id": "experiment.dd03",
+            "creative_id": "creative.dd03",
+            "product_id": "hook-lab",
+            "account_id": "life-manager-capafy-ig",
+            "hook_id": "hook.dd03",
+            "renderer_id": "watercolor-monk",
+            "scheduled_at": "2026-10-16T00:00:00Z",
+        }
+        self.assertEqual(
+            attribution.publication_campaign_token(intent),
+            "hl_r7py2zlsvjjafl4srigi",
+        )
+        self.assertEqual(
+            attribution.publication_campaign_token(intent),
+            "hl_r7py2zlsvjjafl4srigi",
+        )
+        later_slot = {**intent, "scheduled_at": "2026-10-16T01:00:00Z"}
+        self.assertNotEqual(
+            attribution.publication_campaign_token(later_slot),
+            "hl_r7py2zlsvjjafl4srigi",
+        )
+
     def test_ebook_tokens_match_landing_golden_vectors(self):
         # Shared with anicca-products checkout/redirect/webhook contract tests.
         publication_id = "creative.contract.1"

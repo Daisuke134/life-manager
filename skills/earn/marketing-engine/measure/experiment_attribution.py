@@ -13,6 +13,8 @@ from typing import Any
 import urllib.parse
 import urllib.request
 
+from attribution import publication_campaign_token
+
 
 SCHEMA_VERSION = "marketing.experiment-attribution.v1"
 REQUIRED_METRICS = (
@@ -193,13 +195,21 @@ def _join_click(rows: dict[str, dict[str, Any]], intent: dict, click_query: dict
                 published_at: str, observed_at: str) -> None:
     if click_query is None:
         return
-    evidence = click_query.get("evidence_refs") or ["marketing_click_receipts"]
+    evidence = list(click_query.get("evidence_refs") or ["marketing_click_receipts"])
     if click_query.get("status") == "available":
         require(click_query.get("product_id") == intent.get("product_id") and
                 click_query.get("campaign_token") == intent.get("attribution_token"),
                 "click scope mismatch")
         count = click_query.get("count")
         require(isinstance(count, int) and count >= 0, "click count invalid")
+        if intent.get("product_id") == "hook-lab":
+            receipt_ids = click_query.get("receipt_ids")
+            require(isinstance(receipt_ids, list) and len(receipt_ids) == count and
+                    all(isinstance(receipt_id, str) and receipt_id for receipt_id in receipt_ids) and
+                    len(set(receipt_ids)) == len(receipt_ids),
+                    "click receipt IDs invalid")
+            evidence.extend(f"marketing_click_receipt:{receipt_id}"
+                            for receipt_id in receipt_ids)
         rows["qualified_clicks"] = observed_result(
             "qualified_clicks", count, "count", "marketing_click_receipts",
             "deterministic", 1.0, published_at, observed_at, evidence)
@@ -218,6 +228,20 @@ def _join_business(rows: dict[str, dict[str, Any]], intent: dict,
     require(business.get("product_id") == intent.get("product_id"),
             "business product mismatch")
     sources = business.get("sources") or {}
+    if intent.get("product_id") == "hook-lab":
+        capafy = sources.get("capafy") or {}
+        source_ref = capafy.get("evidence_ref")
+        evidence = [source_ref] if isinstance(source_ref, str) and source_ref else [
+            "capafy_channel_window_without_order_join"
+        ]
+        for metric in ("paid_orders", "refunds", "gross_revenue", "net_revenue"):
+            unit = "minor_currency_units" if metric in REVENUE_METRICS else "count"
+            rows[metric] = empty_result(
+                metric, unit, published_at, observed_at, "capafy",
+                status="unknown", reason="capafy_per_creative_order_join_unavailable",
+                evidence_refs=evidence,
+            )
+        return
     token = intent["attribution_token"]
     asc = sources.get("app_store_connect") or {}
     asc_campaign = ((asc.get("data") or {}).get("campaigns") or {}).get(token)
@@ -255,6 +279,9 @@ def _join_business(rows: dict[str, dict[str, Any]], intent: dict,
 def build_snapshot(*, intent: dict, identity: dict, post_metric: dict | None,
                    click_query: dict | None, business_snapshot: dict | None,
                    observed_at: str) -> dict[str, Any]:
+    if intent.get("product_id") == "hook-lab":
+        require(intent.get("attribution_token") == publication_campaign_token(intent),
+                "Hook Lab publication token mismatch")
     published_at = identity.get("publish_date") or intent.get("scheduled_at")
     require(identity.get("identity_status") == "resolved", "native identity unresolved")
     require(identity.get("experiment_id") == intent.get("experiment_id"),
@@ -381,14 +408,29 @@ def query_click_receipts(*, supabase_url: str, service_role_key: str,
     if not content_range or "/" not in content_range or content_range.rsplit("/", 1)[1] == "*":
         return {"status": "unavailable", "reason": "exact_count_header_missing",
                 "observed_at": observed_at, "evidence_refs": base_evidence}
-    count = int(content_range.rsplit("/", 1)[1])
+    try:
+        count = int(content_range.rsplit("/", 1)[1])
+    except ValueError:
+        return {"status": "unavailable", "reason": "exact_count_invalid",
+                "observed_at": observed_at, "evidence_refs": base_evidence}
+    if product_id == "hook-lab":
+        if count != len(body):
+            return {"status": "unavailable", "reason": "receipt_rows_incomplete",
+                    "observed_at": observed_at, "evidence_refs": base_evidence}
+        receipt_ids = [row.get("receipt_id") for row in body]
+        if (any(not isinstance(receipt_id, str) or not receipt_id for receipt_id in receipt_ids)
+                or len(set(receipt_ids)) != len(receipt_ids)):
+            return {"status": "unavailable", "reason": "receipt_ids_invalid",
+                    "observed_at": observed_at, "evidence_refs": base_evidence}
+    else:
+        receipt_ids = [row["receipt_id"] for row in body]
     require(all(row.get("campaign_token") == campaign_token and
                 row.get("product_id") == product_id for row in body),
             "click scope mismatch")
     return {"status": "available", "product_id": product_id,
             "campaign_token": campaign_token, "count": count,
             "observed_at": observed_at, "content_range": content_range,
-            "receipt_ids": [row["receipt_id"] for row in body],
+            "receipt_ids": receipt_ids,
             "evidence_refs": base_evidence}
 
 

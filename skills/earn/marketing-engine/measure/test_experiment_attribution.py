@@ -9,6 +9,10 @@ from pathlib import Path
 
 
 MODULE_PATH = Path(__file__).with_name("experiment_attribution.py")
+if str(MODULE_PATH.parent) not in sys.path:
+    sys.path.insert(0, str(MODULE_PATH.parent))
+from attribution import publication_campaign_token
+
 SPEC = importlib.util.spec_from_file_location("experiment_attribution", MODULE_PATH)
 assert SPEC and SPEC.loader
 ea = importlib.util.module_from_spec(SPEC)
@@ -39,6 +43,30 @@ def fixture_identity():
         "native_post_url": "https://example.test/native-1",
         "publish_date": "2026-08-01T20:15:00Z",
         "identity_status": "resolved",
+    }
+
+
+def fixture_hook_lab_intent():
+    intent = {
+        "schema_version": "marketing.publication-intent.v2",
+        "publish_key": "publication.hooklab",
+        "experiment_id": "experiment.dd03",
+        "creative_id": "creative.dd03",
+        "product_id": "hook-lab",
+        "account_id": "life-manager-capafy-ig",
+        "hook_id": "hook.dd03",
+        "renderer_id": "watercolor-monk",
+        "scheduled_at": "2026-10-16T00:00:00Z",
+    }
+    intent["attribution_token"] = publication_campaign_token(intent)
+    return intent
+
+
+def fixture_hook_lab_identity():
+    return {
+        **fixture_identity(),
+        "experiment_id": "experiment.dd03",
+        "publish_date": "2026-10-16T00:00:00Z",
     }
 
 
@@ -98,8 +126,32 @@ class AttributionContractTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "native identity mismatch"):
             ea.build_snapshot(intent=fixture_intent(), identity=bad_identity,
                               post_metric=post_metric, click_query=None,
-                              business_snapshot=None,
-                              observed_at="2026-08-02T02:20:00Z")
+                business_snapshot=None,
+                observed_at="2026-08-02T02:20:00Z")
+
+    def test_hook_lab_snapshot_rejects_foreign_or_shared_token(self):
+        intent = fixture_hook_lab_intent()
+        identity = fixture_hook_lab_identity()
+        variants = [
+            {**intent, "attribution_token": "capafy-distribute-hook-lab"},
+            {**intent, "attribution_token": "hooklab_ig"},
+            {**intent, "scheduled_at": "2026-10-16T01:00:00Z"},
+        ]
+        for candidate in variants:
+            with self.subTest(token=candidate["attribution_token"],
+                              scheduled_at=candidate["scheduled_at"]):
+                click = {
+                    "status": "available", "product_id": "hook-lab",
+                    "campaign_token": candidate["attribution_token"], "count": 1,
+                    "receipt_ids": ["click-1"],
+                    "evidence_refs": ["evidence/click.json"],
+                }
+                with self.assertRaisesRegex(ValueError, "Hook Lab publication token mismatch"):
+                    ea.build_snapshot(
+                        intent=candidate, identity=identity, post_metric=None,
+                        click_query=click, business_snapshot=None,
+                        observed_at="2026-10-17T02:20:00Z",
+                    )
         with self.assertRaisesRegex(ValueError, "click scope mismatch"):
             ea.build_snapshot(
                 intent=fixture_intent(), identity=fixture_identity(), post_metric=None,
@@ -210,6 +262,126 @@ class AttributionContractTest(unittest.TestCase):
         self.assertIn("product_id=eq.ebook-ja", calls[0][0])
         self.assertEqual(calls[0][1]["Prefer"], "count=exact")
         self.assertNotIn("secret", json.dumps(result))
+
+    def test_click_query_rejects_incomplete_or_duplicate_receipts(self):
+        token = fixture_hook_lab_intent()["attribution_token"]
+        valid_row = {
+            "campaign_token": token, "product_id": "hook-lab",
+            "clicked_at": "2026-10-16T01:00:00Z",
+        }
+        cases = [
+            (
+                "count exceeds returned rows",
+                {"content-range": "0-0/2"},
+                [{**valid_row, "receipt_id": "r1"}],
+                "receipt_rows_incomplete",
+            ),
+            (
+                "duplicate receipt IDs",
+                {"content-range": "0-1/2"},
+                [{**valid_row, "receipt_id": "r1"}, {**valid_row, "receipt_id": "r1"}],
+                "receipt_ids_invalid",
+            ),
+        ]
+        for label, headers, rows, reason in cases:
+            with self.subTest(label=label):
+                result = ea.query_click_receipts(
+                    supabase_url="https://project.supabase.co",
+                    service_role_key="secret",
+                    product_id="hook-lab", campaign_token=token,
+                    observed_at="2026-10-17T02:20:00Z",
+                    fetch=lambda _url, _headers: (200, headers, rows),
+                )
+                self.assertEqual(result["status"], "unavailable")
+                self.assertEqual(result["reason"], reason)
+
+    def test_non_hook_lab_click_query_keeps_exact_header_count_when_body_is_partial(self):
+        result = ea.query_click_receipts(
+            supabase_url="https://project.supabase.co",
+            service_role_key="secret",
+            product_id="ebook-ja", campaign_token="ej_token",
+            observed_at="2026-08-02T02:20:00Z",
+            fetch=lambda _url, _headers: (200, {"content-range": "0-0/2"}, [
+                {"receipt_id": "r1", "campaign_token": "ej_token",
+                 "product_id": "ebook-ja", "clicked_at": "2026-08-02T00:00:00Z"},
+            ]),
+        )
+        self.assertEqual((result["status"], result["count"]), ("available", 2))
+        self.assertEqual(result["receipt_ids"], ["r1"])
+
+    def test_hook_lab_click_join_rejects_incomplete_or_duplicate_receipts(self):
+        intent = fixture_hook_lab_intent()
+        identity = fixture_hook_lab_identity()
+        cases = [
+            {"count": 1, "receipt_ids": []},
+            {"count": 2, "receipt_ids": ["click-1", "click-1"]},
+        ]
+        for click in cases:
+            with self.subTest(click=click):
+                query = {
+                    "status": "available", "product_id": "hook-lab",
+                    "campaign_token": intent["attribution_token"],
+                    "evidence_refs": ["supabase:marketing_click_receipts"],
+                    **click,
+                }
+                with self.assertRaisesRegex(ValueError, "click receipt IDs invalid"):
+                    ea.build_snapshot(
+                        intent=intent, identity=identity, post_metric=None,
+                        click_query=query, business_snapshot=None,
+                        observed_at="2026-10-17T02:20:00Z",
+                    )
+
+    def test_hook_lab_click_receipt_id_is_saved_as_creative_evidence(self):
+        intent = fixture_hook_lab_intent()
+        identity = fixture_hook_lab_identity()
+        snapshot = ea.build_snapshot(
+            intent=intent, identity=identity, post_metric=None,
+            click_query={
+                "status": "available", "product_id": "hook-lab",
+                "campaign_token": intent["attribution_token"], "count": 1,
+                "receipt_ids": ["click-hooklab-1"],
+                "evidence_refs": ["supabase:marketing_click_receipts"],
+            },
+            business_snapshot=None, observed_at="2026-10-17T02:20:00Z",
+        )
+        click = next(row for row in snapshot["results"]
+                     if row["metric_name"] == "qualified_clicks")
+        self.assertEqual(click["value"], 1)
+        self.assertIn("marketing_click_receipt:click-hooklab-1", click["evidence_refs"])
+        self.assertEqual(snapshot["experiment_id"], "experiment.dd03")
+        self.assertEqual(snapshot["creative_id"], "creative.dd03")
+        self.assertEqual(snapshot["publish_key"], "publication.hooklab")
+
+    def test_hook_lab_paid_revenue_stays_unknown_without_capafy_order_join(self):
+        intent = fixture_hook_lab_intent()
+        identity = fixture_hook_lab_identity()
+        business = {
+            "product_id": "hook-lab",
+            "business_date": "2026-10-16",
+            "sources": {
+                "capafy": {"status": "available", "data": {
+                    "paid_orders": 7, "sales_usd": "5.93",
+                    "scope": "agent_total_not_click_joined",
+                }},
+                "stripe": {"status": "available", "data": {
+                    "campaigns": {intent["attribution_token"]: {
+                        "paid_orders": 7, "refunds": 0,
+                        "gross_revenue": 593, "net_revenue": 593,
+                        "currency": "usd", "evidence_ref": "evidence/stripe.json",
+                    }},
+                }},
+            },
+        }
+        snapshot = ea.build_snapshot(
+            intent=intent, identity=identity, post_metric=None,
+            click_query=None, business_snapshot=business,
+            observed_at="2026-10-17T02:20:00Z",
+        )
+        by_name = {row["metric_name"]: row for row in snapshot["results"]}
+        for metric in ("paid_orders", "gross_revenue", "net_revenue"):
+            self.assertIsNone(by_name[metric]["value"])
+            self.assertEqual(by_name[metric]["status"], "unknown")
+            self.assertEqual(by_name[metric]["attribution_class"], "unknown")
 
 
 if __name__ == "__main__":
