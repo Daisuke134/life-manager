@@ -2550,6 +2550,30 @@ def test_main_preserves_terminal_scratch_while_run_owned_browser_profile_is_live
     assert not (scratch / ".terminal-unrecorded").exists()
 
 
+def test_main_records_partial_cleanup_as_preserved(tmp_path):
+    release = _write_prestart_lock_release(tmp_path)
+    state_root = tmp_path / "state"
+    events = []
+    def run_admitted(_command, _entry, _loop_id, _env, receipt, **_kwargs):
+        receipt.write_text('{"status":"pass","effect":0}\n', encoding="utf-8")
+        receipt.chmod(0o600)
+        return 0
+    with (patch.dict(os.environ, {"LIFE_MANAGER_STATE_ROOT": str(state_root),
+              "LIFE_MANAGER_RUN_ID": "run-1", "WAKE_ID": "wake-1"}, clear=False),
+          patch("runtime.loop.lm_loop_run._apply_lock", return_value=nullcontext()),
+          patch("runtime.loop.lm_loop_run.build_loop_command", return_value=["/bin/true"]),
+          patch("runtime.loop.lm_loop_run._run_admitted", side_effect=run_admitted),
+          patch("runtime.loop.lm_loop_run.append_runtime_event", side_effect=lambda _p, e: events.append(e)),
+          patch("runtime.loop.central_cleanup._browser_profiles_live", return_value=False),
+          patch("runtime.loop.lm_loop_run.remove_owned_tree", return_value="contents_reclaimed")):
+        assert lm_loop_run_main(["example-publisher", str(release)]) == 0
+    diagnostic = json.loads((state_root / "scratch-cleanup-diagnostics/run-1.json").read_text())
+    assert diagnostic["cleanup_status"] == "preserved"
+    assert diagnostic["cleanup_operation"] == "contents_reclaimed"
+    assert (state_root / "loop-tmp/example-publisher/run-1").is_dir()
+    assert events[-1]["status"] == "pass"
+
+
 def test_main_records_cleanup_exception_without_changing_business_result(tmp_path):
     release = _write_prestart_lock_release(tmp_path)
     state_root = tmp_path / "state"
