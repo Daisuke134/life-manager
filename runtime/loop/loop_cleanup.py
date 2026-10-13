@@ -14,17 +14,19 @@ import subprocess
 import time
 from contextlib import ExitStack
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Literal
 
 
 PROTECTED_NAME = re.compile(r"receipt|ledger|credential|session|wallet|payment", re.I)
 RELEASE_NAME = re.compile(r"\d{8}T\d{6}-[0-9a-f]{8,40}\Z")
 
 
-def _clear_owned_directory(directory_fd: int) -> bool:
+def _clear_owned_directory(directory_fd: int, *, keep_owner: bool = False) -> bool:
     """Clear entries only while each inspected inode remains at the same name."""
     flags = os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_NOFOLLOW", 0)
     for name in os.listdir(directory_fd):
+        if keep_owner and name == ".owner.json":
+            continue
         try:
             before = os.stat(name, dir_fd=directory_fd, follow_symlinks=False)
             if stat.S_ISDIR(before.st_mode):
@@ -55,27 +57,31 @@ def _clear_owned_directory(directory_fd: int) -> bool:
     return True
 
 
-def remove_owned_tree(parent_fd: int, opened_fd: int, name: str) -> bool:
+def remove_owned_tree(parent_fd: int, opened_fd: int, name: str) -> bool | Literal["contents_reclaimed"]:
     """Rename and remove only the directory inode already opened by its owner."""
     expected = os.fstat(opened_fd)
     trash = f"{name}.gc-trash.{os.getpid()}.{time.time_ns():x}"
+    keep_owner = False
     try:
         os.replace(name, trash, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)
     except OSError as error:
         if error.errno != errno.ENOSPC:
             raise
-        # Full disks may not allocate a trash name; keep every inode check below.
+        # Keep the owner shell for a later rename; rmdir by the old name can race.
         trash = name
+        keep_owner = True
     flags = os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_NOFOLLOW", 0)
     trash_fd = os.open(trash, flags, dir_fd=parent_fd)
     try:
         actual = os.fstat(trash_fd)
         if ((actual.st_dev, actual.st_ino) != (expected.st_dev, expected.st_ino)
-                or not _clear_owned_directory(trash_fd)):
+                or not _clear_owned_directory(trash_fd, keep_owner=keep_owner)):
             return False
         current = os.stat(trash, dir_fd=parent_fd, follow_symlinks=False)
         if (current.st_dev, current.st_ino) != (expected.st_dev, expected.st_ino):
             return False
+        if keep_owner:
+            return "contents_reclaimed"
         os.rmdir(trash, dir_fd=parent_fd)
         return True
     finally:
