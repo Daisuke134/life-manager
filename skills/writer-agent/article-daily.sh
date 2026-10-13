@@ -13,6 +13,7 @@ set -uo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 # shellcheck source=scripts/writer-runtime-env.sh
 source "$SCRIPT_DIR/scripts/writer-runtime-env.sh"
+source "$SCRIPT_DIR/scripts/writer-release-provenance.sh"
 # Runtime topic stages remain under the mutable state root: state/topics/queue/,
 # state/topics/in-progress/, and state/topics/done/.
 LOG="${ARTICLE_DAILY_LOG:-$WRITER_LOG_DIR/article-daily.log}"
@@ -573,7 +574,7 @@ if [ "$START_ACTION" = "new-quality-replacement" ]; then
     }
 fi
 if [ "$RESUME_GENERATION" -ne 1 ]; then
-  (cd "$ARTICLE_ROOT" && git log -1 --format='harness_git_hash=%H' -- SKILL.md scripts vendor 2>/dev/null || echo "harness_git_hash=UNKNOWN") > "$RUN_DIR/git-hash.txt"
+  printf 'harness_git_hash=%s\n' "$(writer_harness_git_hash)" > "$RUN_DIR/git-hash.txt"
 fi
 python3 "$ARTICLE_ROOT/scripts/strategy_runtime.py" \
   consume-active --run-id "$RUN_TS" \
