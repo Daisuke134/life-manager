@@ -68,7 +68,7 @@ To-Beは各agentがobserve→decide→act→official verify→persist→自分�
 
 **次のatomic TODO:** 共通scratch削除のENOSPC修復 → F1/F2の不足証拠だけ確認/修正 → F3両掃除役のloaded版と設定 → F4各掃除役3回連続の自然receipt → F5実writerの自然終了・一時領域回収3回。5/5 PASS後に18 capabilityの既存修理TODOへ移る。各lane修理では未使用code/configと一時生成物の保持上限も確認し、呼出・registry・loaded runtime・lease・正式stateへの参照がないと証明された対象だけ整理する。広いdead-code整理を基盤gateへ追加しない。
 
-**先頭patchのsource acceptance・独立review後:** 初版の4ケースは修正前にENOSPCで3件FAIL、修正後4/4 PASS。独立readonly reviewは、最終statと元名rmdirの間に別ownerの空dirへ置換されるP1を一件指摘した。追加caseは初版でFAILし、ENOSPC時のrmdirを省いてowner記録とshellを残す修正後PASS。現在6/6 PASSで、centralのpartial reclaim/次の通常sweepでの最終削除/再実行removed0/正式events保持も確認。これは隔離fixtureの証明であり本番回収ではない。PR #7880へcommit/pushし、指摘したP1の修正確認とCI/main/runtimeは未完。native reviewerのspawnはthread writer lock作成ENOSPCで失敗し、既存codex exec --ephemeral --sandbox read-onlyの独立reviewで診断した。モデル指定は行わず既存CLI設定を保持する。
+**先頭patchのsource acceptance・独立review後:** 初版の4ケースは修正前にENOSPCで3件FAIL、修正後4/4 PASS。独立readonly reviewは、最終statと元名rmdirの間に別ownerの空dirへ置換されるP1を一件指摘した。追加caseは初版でFAILし、ENOSPC時のrmdirを省いてowner記録とshellを残す修正後PASS。新規6件と既存scratch GC27件の計33/33 PASSで、centralのpartial reclaim/次の通常sweepでの最終削除/再実行removed0/正式events保持も確認。これは隔離fixtureの証明であり本番回収ではない。PR #7880へcommit/pushし、指摘したP1の修正確認は独立readonly GO。CI/main/runtimeは未完。native reviewerのspawnはthread writer lock作成ENOSPCで失敗し、既存codex exec --ephemeral --sandbox read-onlyの独立reviewで診断した。モデル指定は行わず既存CLI設定を保持する。
 
 本sessionはDaisの共有資源修復依頼を継続する。以下の別ownerのEDD作業は保持し、停止・巻戻し・重複修理をしない。
 

@@ -1113,7 +1113,7 @@ class LoopCleanupTest(unittest.TestCase):
             original_clear = loop_cleanup._clear_owned_directory
             swapped = False
 
-            def swap_then_clear(directory_fd):
+            def swap_then_clear(directory_fd, **kwargs):
                 nonlocal swapped
                 if not swapped:
                     swapped = True
@@ -1121,7 +1121,7 @@ class LoopCleanupTest(unittest.TestCase):
                     trash.rename(run.parent / "inspected-trash")
                     trash.mkdir()
                     (trash / "sentinel").write_text("keep")
-                return original_clear(directory_fd)
+                return original_clear(directory_fd, **kwargs)
 
             with mock.patch("runtime.loop.loop_cleanup._clear_owned_directory",
                             side_effect=swap_then_clear):
