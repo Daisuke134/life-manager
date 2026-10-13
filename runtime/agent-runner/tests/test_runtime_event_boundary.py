@@ -64,6 +64,48 @@ class RuntimeEventBoundaryTest(unittest.TestCase):
             self.assertEqual(event["effect_status"], "unknown")
             self.assertNotIn(str(root), rows[0])
 
+    def test_attached_summary_binds_child_event_to_parent_article_run(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            state = root / "state"
+            registry = root / "registry.json"
+            registry.write_text(json.dumps({"schema_version": 2, "loops": {"article-daily": {
+                "label": "ai.anicca.article-daily", "domain": "content",
+                "entrypoint": "skills/writer-agent/article-daily.sh",
+                "cadence": {"run_at_load": True}, "effect_class": "publish",
+                "state_root": "~/state", "log_root": "~/state/logs",
+                "cleanup": {"max_runs": 10, "max_age_days": 7},
+                "provider_route": "shared-agent-runner",
+            }}}))
+            summary = {"status": "success"}
+            env = {
+                "HOME": directory,
+                "LIFE_MANAGER_LOOP_ID": "article-daily",
+                "LIFE_MANAGER_RUN_ID": "lifecycle-run-1",
+                "LIFE_MANAGER_OCCURRENCE_ID": "article-daily:lifecycle-run-1",
+                "ARTICLE_RUN_ID": "20261013-121111",
+            }
+            with mock.patch.dict(os.environ, env, clear=True):
+                attached = attach_runtime_event(
+                    summary=summary,
+                    loop_id="article-daily",
+                    evidence_dir=root / "child-evidence",
+                    selected={"provider": "codex", "profile_alias": "acct2"},
+                    attempts=[],
+                    registry_path=registry,
+                    release_sha="b" * 40,
+                )
+            self.assertTrue(attached)
+            event = json.loads((state / "events.jsonl").read_text().splitlines()[0])
+            for field in ("owner_id", "run_id", "occurrence_id", "release_sha"):
+                self.assertEqual(summary[field], event[field])
+            self.assertEqual(summary["parent_lifecycle_run_id"], "lifecycle-run-1")
+            self.assertEqual(
+                summary["parent_lifecycle_occurrence_id"],
+                "article-daily:lifecycle-run-1",
+            )
+            self.assertEqual(summary["parent_article_run_id"], "20261013-121111")
+
     def test_observability_write_failure_does_not_reverse_success(self):
         summary = {"status": "success"}
         with mock.patch("agent_runner.emit_runtime_event", side_effect=PermissionError(
