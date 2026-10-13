@@ -29,15 +29,17 @@ create a second executor in this skill.
 
 `skills/job-hunter/job-hunter-cli.sh` is the user-facing dispatcher and
 `loops/job-hunter/registry.yaml` plus `config/loop-registry.json` are the provider and scheduler
-declarations. Acquisition runs every 30 minutes. With a rotated key and the candidate's
-explicit autonomous-application delegation, Dreamwork native Autopilot owns real
-submissions with a tailored resume; the local owner reconciles official proof-backed
-receipts. Its confirmation-token exchange is handled within that existing delegation,
-without asking again for each application. Missing credentials or uncertain native
-state hold the owner; Workday fallback requires official absence of native work.
-The Workday lane continues through the bounded candidate budget until it finds a
-fit-qualified job or exhausts that wake; the
-recruiter inbox and interview-prep lane runs every 15 minutes. Both
+declarations. Acquisition runs every 30 minutes. Workday is the sole active
+application lane: Dreamwork is not called, queried, or used as a fallback. After
+one-time onboarding records an approved baseline and autonomous-application
+delegation, the Workday owner finds official postings, checks fit against verified
+candidate facts, tailors job-specific materials, completes only truthful required
+fields, submits through the employer's flow, and reconciles authoritative
+receipts. If required facts are unavailable, an out-of-scope redirect occurs,
+or a pre-submit CAPTCHA appears, checkpoint only that row so the lane can
+continue with other eligible Workday rows. An uncertain result after Submit
+stays fenced and is never blindly retried. The recruiter inbox and
+interview-prep lane runs every 15 minutes. Both
 declarations delegate to the existing `apps/job-search-loop/scripts/` drivers, which
 remain the sole owner of browser, application, ledger, evidence, and Telegram-outbox
 side effects. The CLI and registry add no parallel executor and must never be used to
