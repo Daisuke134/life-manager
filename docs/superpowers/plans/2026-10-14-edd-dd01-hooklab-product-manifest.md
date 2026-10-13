@@ -136,4 +136,4 @@ git commit -m "fix(marketing-engine): keep Gate10 checks product-scoped"
 - [x] Run `python3 -m unittest test_experiment_attribution` from `skills/earn/marketing-engine/measure` (8/8).
 - [x] Run `npm run test:writer-eval` from `apps/life-manager` (34/34).
 - [x] Update DD01's SSOT status with the exact profile path, validation results, source conflict, and `publish_enabled=false`; leave DD02–DD12 in order.
-- [ ] Run `bash scripts/verify-source-boundary.sh`, `git diff --check`, commit/push, open PR, complete exact-head CI, and obtain a fresh read-only full-branch review before integration. Astra-native orchestration is unavailable and is not claimed. Do not deploy or publish because DD01 is source/evaluation metadata only.
+- [x] Run `bash scripts/verify-source-boundary.sh`, `git diff --check`, commit/push, open PR, complete exact-head CI, and obtain a fresh read-only full-branch review before integration. PR #7960 merged as `6dfec0050ad1aeef1c077b3f93abe38b64ac04ab`; exact-head run `38451787614` passed, and the independent review returned SHIP. No production deploy or publication was part of DD01.
