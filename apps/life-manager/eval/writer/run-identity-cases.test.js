@@ -51,6 +51,13 @@ process.stdin.on("end", () => {
     ARTICLE_RUN_DIR: process.env.ARTICLE_RUN_DIR,
     ARTICLE_MODEL_STATE_ROOT: process.env.ARTICLE_MODEL_STATE_ROOT,
     ARTICLE_MODEL_LOG: process.env.ARTICLE_MODEL_LOG,
+    ANICCA_USAGE_LEDGER: process.env.ANICCA_USAGE_LEDGER,
+    WRITER_SHARED_RUNNER_STATE: process.env.WRITER_SHARED_RUNNER_STATE,
+    ARTICLE_CODEX_EVENTS_FILE: process.env.ARTICLE_CODEX_EVENTS_FILE || null,
+    ARTICLE_CODEX_LAST_MESSAGE_FILE: process.env.ARTICLE_CODEX_LAST_MESSAGE_FILE || null,
+    ARTICLE_CODEX_RESUME_SESSION_ID: process.env.ARTICLE_CODEX_RESUME_SESSION_ID || null,
+    ARTICLE_SOL_TRIGGER_RECEIPT: process.env.ARTICLE_SOL_TRIGGER_RECEIPT || null,
+    ARTICLE_MODEL_ROLE: process.env.ARTICLE_MODEL_ROLE || null,
     WRITER_STATE_DIR: process.env.WRITER_STATE_DIR,
     WRITER_LOG_DIR: process.env.WRITER_LOG_DIR,
   }));
@@ -82,6 +89,13 @@ process.stdin.on("end", () => {
     ARTICLE_MODEL_RUNNER: modelRunner,
     CAPTURE_DIR: promptsDirectory,
     CONTEXT_DIR: contextsDirectory,
+    ARTICLE_CODEX_EVENTS_FILE: path.join(directory, "must-not-write.events.jsonl"),
+    ARTICLE_CODEX_LAST_MESSAGE_FILE: path.join(directory, "must-not-write.last-message.txt"),
+    ARTICLE_CODEX_RESUME_SESSION_ID: "previous-session-must-not-resume",
+    ARTICLE_SOL_TRIGGER_RECEIPT: path.join(directory, "sol-receipt-must-not-claim.json"),
+    ARTICLE_MODEL_ROLE: "sol-audit",
+    WRITER_SHARED_RUNNER_STATE: path.join(directory, "shared-runner-state-must-not-write"),
+    ANICCA_USAGE_LEDGER: path.join(directory, "must-not-use-global-usage-ledger.jsonl"),
   };
   delete env.ARTICLE_RUN_DIR;
   delete env.LIFE_MANAGER_RUN_ID;
@@ -114,6 +128,63 @@ test("refuses to call the judge before human PASS and FAIL each reach 20", () =>
   }
 });
 
+test("refuses nested sandbox execution before creating any judge prompt", () => {
+  const harness = makeHarness(humanRows(20));
+  harness.env.ARTICLE_NESTED_SANDBOX = "1";
+  try {
+    const result = invoke(harness);
+
+    assert.equal(result.error, undefined, result.error?.message);
+    assert.equal(result.status, 2);
+    assert.equal(result.stdout, "");
+    assert.equal(fs.existsSync(harness.promptsDirectory), false);
+    const event = JSON.parse(result.stderr.trim());
+    assert.equal(event.error_class, "nested_sandbox_execution");
+    assert.equal(event.effect, "none");
+  } finally {
+    fs.rmSync(harness.directory, { recursive: true, force: true });
+  }
+});
+
+test("preserves inherited broker refusal when dotenv blanks the broker marker", () => {
+  const harness = makeHarness(humanRows(20));
+  harness.env.ARTICLE_JUDGE_BROKER_SERVER = "1";
+  fs.writeFileSync(harness.env.LIFE_MANAGER_ENV_FILE, "ARTICLE_JUDGE_BROKER_SERVER=\n");
+  try {
+    const result = invoke(harness);
+
+    assert.equal(result.error, undefined, result.error?.message);
+    assert.equal(result.status, 2);
+    assert.equal(result.stdout, "");
+    assert.equal(fs.existsSync(harness.promptsDirectory), false);
+    const event = JSON.parse(result.stderr.trim());
+    assert.equal(event.error_class, "nested_sandbox_execution");
+    assert.equal(event.effect, "none");
+  } finally {
+    fs.rmSync(harness.directory, { recursive: true, force: true });
+  }
+});
+
+test("refuses a broker marker loaded from dotenv before invoking the judge", () => {
+  const harness = makeHarness(humanRows(20));
+  delete harness.env.ARTICLE_JUDGE_BROKER_SERVER;
+  delete harness.env.ARTICLE_NESTED_SANDBOX;
+  fs.writeFileSync(harness.env.LIFE_MANAGER_ENV_FILE, "ARTICLE_JUDGE_BROKER_SERVER=1\n");
+  try {
+    const result = invoke(harness);
+
+    assert.equal(result.error, undefined, result.error?.message);
+    assert.equal(result.status, 2);
+    assert.equal(result.stdout, "");
+    assert.equal(fs.existsSync(harness.promptsDirectory), false);
+    const event = JSON.parse(result.stderr.trim());
+    assert.equal(event.error_class, "nested_sandbox_execution");
+    assert.equal(event.effect, "none");
+  } finally {
+    fs.rmSync(harness.directory, { recursive: true, force: true });
+  }
+});
+
 test("runs isolated cases without labels, filters non-Category-C failures, and emits safe prediction rows", () => {
   const harness = makeHarness(humanRows(20));
   try {
@@ -134,6 +205,13 @@ test("runs isolated cases without labels, filters non-Category-C failures, and e
     const callContext = JSON.parse(fs.readFileSync(path.join(harness.contextsDirectory, "W-C-002.json"), "utf8"));
     assert.equal(callContext.ARTICLE_MODEL_STATE_ROOT, path.join(callContext.ARTICLE_RUN_DIR, "model-state"));
     assert.equal(callContext.ARTICLE_MODEL_LOG, path.join(callContext.WRITER_LOG_DIR, "model-runner.log"));
+    assert.equal(callContext.ANICCA_USAGE_LEDGER, path.join(callContext.ARTICLE_RUN_DIR, "usage-ledger.jsonl"));
+    assert.equal(callContext.WRITER_SHARED_RUNNER_STATE, path.join(callContext.ARTICLE_RUN_DIR, "shared-runner-evidence"));
+    assert.equal(callContext.ARTICLE_CODEX_EVENTS_FILE, null);
+    assert.equal(callContext.ARTICLE_CODEX_LAST_MESSAGE_FILE, null);
+    assert.equal(callContext.ARTICLE_CODEX_RESUME_SESSION_ID, null);
+    assert.equal(callContext.ARTICLE_SOL_TRIGGER_RECEIPT, null);
+    assert.equal(callContext.ARTICLE_MODEL_ROLE, "terra");
     assert.equal(callContext.WRITER_STATE_DIR, path.join(callContext.ARTICLE_RUN_DIR, "state"));
     assert.equal(callContext.WRITER_LOG_DIR, path.join(callContext.ARTICLE_RUN_DIR, "logs"));
 
@@ -177,6 +255,8 @@ test("runs isolated cases without labels, filters non-Category-C failures, and e
       && "effect" in event && "readback" in event && "provider_receipt_id" in event
       && Array.isArray(event.evidence_refs) && "retryable" in event && event.next_action));
     assert.doesNotMatch(result.stderr, /PRIVATE_RATIONALE_MARKER|identity-review-v7\.md/u);
+    assert.equal(fs.existsSync(harness.env.ARTICLE_CODEX_EVENTS_FILE), false);
+    assert.equal(fs.existsSync(harness.env.ARTICLE_CODEX_LAST_MESSAGE_FILE), false);
   } finally {
     fs.rmSync(harness.directory, { recursive: true, force: true });
   }
