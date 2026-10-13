@@ -46,13 +46,30 @@ const EN_MEDIA_REFS = [
 const EN_CAPTION_REF = "object://sha256/bf90a15a5a615d2bb295c1829f7329f391a870fe4e950c8099972c20bf6e64a0";
 const EN_APPROVAL_REF = "object://sha256/7740cd09733d0cb7a5d8f32ff4614c3e07ebae27df0e3eae8bca8df80b968845";
 const EN_OBJECT_SOURCE = path.join(os.homedir(), ".local", "state", "life-manager", "objects", "sha256");
+const testTempDirs = new Set();
+
+function testTempDir(prefix) {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  fs.writeFileSync(path.join(dataDir, ".lm-test-canary"), "life-manager-canary-test-v1\n", { mode: 0o600 });
+  testTempDirs.add(dataDir);
+  return dataDir;
+}
+
+test.after(() => {
+  const leftovers = [];
+  for (const dataDir of testTempDirs) {
+    fs.rmSync(dataDir, { recursive: true, force: true });
+    if (fs.existsSync(dataDir)) leftovers.push(path.basename(dataDir));
+  }
+  assert.deepEqual(leftovers, []);
+});
 
 function sha256(value) {
   return crypto.createHash("sha256").update(value).digest("hex");
 }
 
 function fixture() {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-larry-ja-canary-"));
+  const dataDir = testTempDir("lm-larry-ja-canary-");
   const objectStore = createContentObjectStore({ objectDir: path.join(dataDir, "objects") });
   const importBytes = (name, bytes) => {
     const source = path.join(dataDir, name);
@@ -116,7 +133,7 @@ function fixture() {
 }
 
 function enFixture() {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-anicca-en-affirmation-canary-"));
+  const dataDir = testTempDir("lm-anicca-en-affirmation-canary-");
   const objectDir = path.join(dataDir, "objects");
   const objectStore = createContentObjectStore({ objectDir });
   const refs = [EN_PACK_REF, ...EN_MEDIA_REFS, EN_CAPTION_REF, EN_APPROVAL_REF];
@@ -168,7 +185,7 @@ function enFixture() {
 
 function enTikTokFixture() {
   const lane = EN_TIKTOK_RUNNER_LANE;
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-anicca-en-tiktok-canary-"));
+  const dataDir = testTempDir("lm-anicca-en-tiktok-canary-");
   const objectDir = path.join(dataDir, "objects");
   const objectStore = createContentObjectStore({ objectDir });
   const importBytes = (name, bytes) => {
@@ -598,7 +615,7 @@ test("JA main TikTok production command selects the recovered Larry sunset lane"
 test("JA jp1 production controls keep the Postiz alias separate from its native handle", () => {
   assert.equal(JA_JP1_TIKTOK_LANE.manifestProfile, "@anicca.jpx");
   assert.equal(JA_JP1_TIKTOK_LANE.accountId, "@anicca.jp1");
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-jp1-production-controls-"));
+  const dataDir = testTempDir("lm-jp1-production-controls-");
   const target = {
     integration_id: JA_JP1_TIKTOK_LANE.integrationId,
     tenant_id: "dais-local",
