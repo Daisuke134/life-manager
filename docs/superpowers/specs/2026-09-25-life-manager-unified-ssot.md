@@ -2801,6 +2801,7 @@ Current cached catalog: 21 item records at ¥250 and 18 at ¥190; weighted avera
 #### 5.L 独立fresh auditとdistribution strategy（2026-10-14 04:53 JST、GitHub main 9933b5e5）
 
 **As-Is:** 公開LINE STORE author pageは29商品。Creator Marketの40 management IDは29販売中・2審査中・8審査待ち・1リジェクトの有効status readback（15:39Z）と一致する。set-041 / ID 48299386は審査待ち、set-042はimages段階・IDなし。factory ownerはunloadedで、現在の新規出荷はない。40 IDsは公開商品29と未公開11を含み、40件販売済みの意味ではない。
+**文字あり版の現状:** 40 Creator IDsのうち商品タイトルに「文字入り／文字あり」を含むものは28件。sales.json（15:14Z）では17件が¥0・11件がnull、item status readback（15:39Z）では販売中18・審査中2・審査待ち7・リジェクト1。テキスト付き既存SKUの正値売上は未確認。
 
 **Revenue:** 永続sales.jsonは15:14:45Zの40 IDs、28行は明示¥0・12行はnull・正値0。送金表示¥0は2025.12.01–12.31なので、10月実績ではない。初回positive sale・current-month payout・費用回収は未確認/未達。保存済みstage cost 17.9476 USDと339 generation JSON内のestimated_usd合計19.5786 USDは一致せず、実請求額でもない。
 
