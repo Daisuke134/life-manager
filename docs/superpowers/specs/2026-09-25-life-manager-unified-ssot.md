@@ -2547,6 +2547,31 @@ Current cached catalog: 21 item records at ¥250 and 18 at ¥190; weighted avera
 **変更理由:** Daisは既存スタンプのmarketing/distributionを最優先し、YouTubeを無料施策として許可、paid ads/PRと新作SKUを除外した。ウェブ記事は本番で表示されるが、最新statsにset-011 path/clickはまだなく、自然流入は未観測。9秒shortはlocal MP4として完成した。YouTubeは無料配信先として指定されたが、credentials SSOTにservice=youtube行はなく、browser registryにもsticker-owned YouTube identityがない。Google identityは別ownerに紐づくため流用しない。
 
 **現在cursor:** D15のsticker-owned YouTube route/owner確認。ルートが成立したらD13の無料Shortを投稿し、公式permalink/readbackを取る。D10/D09は並行して自然計測・公式売上を追う。YouTubeへの投稿は未実施、paid施策なし。$10Kは一暦月grossであり、MRRや予測ではない。
+
+**2026-10-13 22:31 JST fresh live audit:**
+
+- **As-Is / shipped:** 公開LINE STORE作者ページには29個の異なる公開商品URLがある。最新 `sales.json` は `2026-10-13T09:23:42Z` の39商品IDで、28件は明示的に¥0、11件は `null`、正の売上は0。分配・送金可能額の¥0は2025.12.01–12.31の古い期間表示で、10月の精算額ではない。39件のうち公開ページにない10件の現在状態は未確認であり、審査中とは断定しない。
+- **Marketing / reach:** set-011の記事は公開中で、CTAは商品37168875へ一致する。最新公開 `/api/stats` は `2026-10-13T13:00:52Z`、全site 293 views、LINE記事7 views/5 paths。集計期間は表示されず、set-011 pathと `line_sticker_click` はこのsnapshotにない。これは計測上未観測で、全期間の実view/clickが0という意味ではない。記事ownerの13:20Z occurrenceはexit0でもreceipt/readbackなし、social distributorは13:21Zに `resource_effect_unknown`、readback ownerは13:23Zにexit75で、各fenceを保持する。
+- **New-SKU drift / capacity:** 工場は22:31 JSTのstatus確認時にPID 19583で稼働し、set-042は `images` 段階、LINE申請前。`loop-tmp` の論理サイズは8.9 GiB。`df -kP /` は92%、空き約1.03 GiBで2 GiB回復床を下回る。cleanup ownerは13:31:46Zにpassしたが、receiptにreclaim metricsがなく、その直後の `df` も回復床未達。active/open/unknownなprofileや商品stateを手で削除しない。
+- **To-Be:** 新規SKU制作を止め、公開済み29商品の無料・自然配信へ戻す。既存記事と完成済み9秒Shortを、所有者が確認できた無料チャネルから出し、UTM付きvisit → SKU固有click → 公式販売 → 同期間の確定分配を測る。paid ads/PR/boostは行わない。
+
+**TODO順序変更（2026-10-13 22:31 JST）:** 旧cursorは `D15 → D13 → D10/D09 → D07/D12 → D20 → D21 → D22`。理由は、最新readbackで定期工場がset-042の新規制作を続け、空き容量も回復床未達と判明したため。これは配信の唯一の目標へ戻るための一度限りの作業阻害要因であり、cleanup自体を長期goalにしない。
+
+| ID | Atomic TODO | 完了証拠 |
+|---|---|---|
+| D25 | 現在 `images` 段階の `line-sticker-factory-hourly` を登録済み `lm-loop` owner経由で停止し、新規SKU開始を止める | loopがloaded-idle/stopped、set-042は未申請のまま保全、手動kill/削除なし |
+| D26 | 登録済みdisk-cleanup ownerだけで容量を回復し、2 GiB回復床で止める | fresh `df` が空き2 GiB以上、同occurrence receiptでerrors=0 / protected_deletions=0。open/protected/unknown stateは保持 |
+| D09d | browser ownerがidleになった後、公式Creator統計・送金画面の新snapshotを1回取得 | `sales.json` のobserved_at/39件以上の正確な商品状態/公式画面件数と照合。分配期間を現在月と混同しない |
+| D07 | article owner occurrence `18de19631d6de878-26925` の公開先を照合 | exact URLの公開readbackとoccurrenceが結合し、receiptへ記録。再公開しない |
+| D15 | sticker-owned YouTubeのchannel/account/owner leaseを解決する。別ownerのGoogle/Capafy identityは流用しない | 認証済みowner route、使用可能な投稿先、無料配信条件を確認 |
+| D10 | 既存記事のUTMとSKU click計測を整え、自然analytics snapshotを取得 | source/campaignとSKU clickが識別され、自己clickなし。CTRは同じ集計期間の分母・分子で計算 |
+| D13 | 完成済みShortを無料で1回配信する | 公開permalink、説明欄の正しいSKU URL/UTM、投稿readback、replay-zero |
+| D12 | 旧social occurrenceを対象URL/公式投稿一覧で照合する | exact-effect receiptまたは明確なpre-effect proofでowner reconciliation完了。未解決中は再送しない |
+| D20 | 反応があった既存SKUと無料チャネルへ投稿枠を寄せる | views/clicks/公式salesを同期間で並べ、勝ちSKU/formatへの次配信を記録 |
+| D21 | 売上分配と全計上済み制作・配信費を同期間で照合する | 公式確定月次分配とcost ledgerの差額、欠損費用、返金/税を明記 |
+| D22 | 一暦月でUSD 10,000のgross salesを達成する | 公式確定売上snapshotと為替/期間定義を保存。MRR・再生数・未確定分配で代用しない |
+
+**新cursor:** D25 → D26 → D09d。並行してD07の公開記事照合とD15の無料channel routeを進め、D10 → D13 → D12 → D20 → D21 → D22へ進む。D11のShort制作は完了済み。D16/D17の有料施策は取消し、追加SKU・続編・ローカライズは本scopeでは保留する。
 ### 5.1 自己修復・自己改善の定義（T5 / T12 の正本）
 
 **目的**: Life Manager が、外部の coding agent（Dais が操作する Claude Code や Codex のセッション）にも人にも頼らず、自分の問題を見つけて、自分で直し、自分で改善すること。人と外部 agent はループの外にいる。
