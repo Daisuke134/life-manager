@@ -66,7 +66,8 @@
 - [x] Run regression tests RED→GREEN (2/2) and full Capafy hourly reconcile suite (48/48).
 - [x] Run `bash scripts/verify-source-boundary.sh`, `git diff --check`, and targeted Gitleaks scans (0 findings).
 - [x] Update the canonical spec with reviewed source-status behavior, local acceptance, and the current DD04 cursor; remove the duplicate schema-probe paragraph.
-- [ ] Commit and push the implementation, regression tests, plan, and canonical spec to PR #7976.
-- [ ] Obtain fresh read-only review of the correction, pass exact-head CI, and merge through the normal PR path.
+- [x] Commit and push the implementation, regression tests, plan, and canonical spec to PR #7976 (`292fc86a90`).
+- [x] Obtain fresh read-only review of the correction; reviewer returned SHIP for source commit `292fc86a90`.
+- [ ] Pass exact-head CI and merge through the normal PR path.
 - [ ] Refresh capacity and owner state; after source merge and release preflight, apply only the existing `capafy-goal-monitor-hourly` owner through the immutable release path. Let its natural run produce a receipt with the new sidecar. Do not force-wake it or send a separate report.
 - [ ] Read the natural production receipt and verify the new impressions sidecar is present with fresh/unknown semantics, while the legacy financial verdict and provider attribution remain unchanged. Then close DD04 and advance the canonical cursor.
