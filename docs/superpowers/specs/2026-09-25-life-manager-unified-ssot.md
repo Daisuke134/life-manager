@@ -255,6 +255,27 @@ Remaining order:
 5. After F1–F5 and resource paths are covered, repair the remaining 18 business capabilities one at a time.
 
 Timing: F2 waits for the reconciler's 600-second natural cadence plus official provider proof. F4 needs two more central passes at a 300-second interval if they succeed. F5 takes at least 45 minutes after route-ready at a 15-minute producer cadence. Therefore the fastest plausible runtime gates are around 45 minutes after route-ready, plus F2 proof and inventory attribution. No honest exact finish time exists until the external readback and owner readiness are known. Do not restart all 18 at once yet.
+### 2026-10-14 03:43 JST — latest foundation gate update
+
+main 3dc67bab73e5fa6b3fb630d6b35f3970b61d5e5c includes the single-SSOT update. No shared cleanup/runtime/registry files changed after foundation release 22924a4fd321a6c4ee690c5b3223ad8f6ddb33c5; the intervening source change is marketing-product-summary only.
+
+F1 PASS: existing 191-job registry and common-runner fixture.
+F2 NOT PASS: the registered readback fence adapter proof-only for readback occurrence line-sticker-readback-hourly:18de29ea362c7388-45417 verified effected=false because no item had an automatic-resubmit timestamp since the run began; the adapter then closed only that exact no-effect admission fence. This is not an official LINE receipt and does not resolve factory occurrence 18de1e0534af8540-84609, which remains publish/effect unknown, unloaded, receipt/readback null. The readback owner itself remains loaded-idle on old SHA 5b90b21e, last_exit=75, next_action=official_readback_required, and next scheduled slot is minute 23 (04:23 JST). It can run naturally after the no-effect fence closure; no manual wake or resubmit.
+F3 PASS: watchdog, central cleanup, and fence reconciler all load release 20261014T031532-22924a4f. Their loaded argv/state-path/cadence readback matches the 60s watchdog, 300s central cleanup, and 600s reconciler. The owner plists all pass plutil -lint.
+F4 PASS: after the 22924a4f release, watchdog receipts observed at 18:18:41Z, 18:22:39Z, 18:25:47Z, 18:30:29Z, 18:33:16Z, and 18:36:40Z have errors=0/protected_deletions=0. Central cleanup events 18de29967b38c7a0-31442, 18de29ea25f2cf80-45415, 18de2a30145f3a10-53033, and 18de2a7631ea5768-61180 are natural pass/exit0 on the same SHA. Its single-owner bounded output stream has structured ok=true/errors=0/protected_deletions=0 results in the same ordered run window. The earlier 837ba59a exit1 remains a failed historical attempt and does not count.
+F5 NOT PASS: factory owner remains unloaded with the separate exact publish effect unknown. Another agent owns Line Sticker source. After its route is ready and official status is read, require 3 natural producer→child teardown→closed scratch reclaim cycles.
+During this readback, Codex used plutil -extract without an output path and overwrote the watchdog and central cleanup plist files with JSON arrays. This was a primary error. The loaded jobs remained active; watchdog was restored through its existing installer while idle, and central cleanup was restored through its supported JSON-environment snapshot plus targeted lm-loop apply while idle. All three plist files then passed lint and the loaded SHA/argv readback. No raw launchctl operation, process kill, or external publish occurred. Preserve this incident as evidence of the operator boundary.
+
+F1/F3/F4 are complete (3/5); F2/F5 remain. Inventory still has 29 full-scan gaps, so unknown roots are not classified and cannot be called safe. Desired behavior is bounded producer output, self-cleanup, exact central recovery, and typed durable defer/resume that retains the task and its external-effect identity. This reduces silent capacity stalls but cannot mathematically guarantee zero failures or exact-minute starts.
+
+Remaining atomic TODO:
+1. At the next natural readback slot (04:23 JST), let line-sticker-readback-hourly run without manual wake. Read its official LINE response and record whether it is complete; it is the next authorized path to get the factory receipt.
+2. Use exact official readback to reconcile factory occurrence 18de1e0534af8540-84609. If provider evidence is absent, retain unknown and do not replay or resend.
+3. After Line Sticker is route-ready, allow the factory owner to run naturally and verify 3 teardown/reclaim cycles. Do not edit the other agent's source.
+4. Boundedly measure/classify the 29 inventory gaps and identify any remaining unbounded writer. Never delete unknown paths.
+5. Only after F1–F5 and resource paths are covered, repair the 18 business capabilities one at a time.
+
+Timing: earliest readback-owner attempt is 04:23 JST; if it yields official proof and the factory is route-ready, F5 then needs at least 45 minutes at its 15-minute cadence. From 03:43 JST the fastest plausible finish is about 85 minutes; unavailable provider evidence or route readiness extends it. This is a cadence-based estimate, not a promised deadline.
 **EDD担当境界:** このレーンの実装cursorはE02 Writer Pilot。18製品ループの下記read-only監査は全体判断のための状況把握であり、E01 Agent Economy、F1–F5共有cleanup、18 capability修理のownerを引き受けない。Agent Economyは18製品ループの一つとして監査表に含むが、Writer作業と混同しない。
 
 **前回cleanup readback（2026-10-13 11:44 JST）:** `life-manager-disk-cleanup`はrelease `3e19c846`でloaded-idle、F1–F5は当時0/5完了。これは歴史的観測で現在状態へ再利用しない。
