@@ -91,16 +91,17 @@ The `run_create_intent` regression test uses a temporary synthetic account fixtu
 - [x] Keep Hook Lab paid/revenue metrics unknown without a supported Capafy click-to-order join; run the focused evaluator test and confirm it passes.
 - [x] Replace static high-entropy test-token fixtures with helper-generated IDs; add only exact historical false-positive fingerprints to `.gitleaksignore` and document the adjudication in the security baseline.
 - [x] Run current-tree and PR-range Gitleaks checks; both report zero findings.
-- [ ] Pass exact-head CI's full-history Gitleaks check before merge.
-- [x] Run `python3 skills/earn/marketing-engine/measure/test_attribution.py` (9/9), `python3 skills/earn/marketing-engine/measure/test_experiment_attribution.py` (14/14), `python3 -m pytest skills/earn/marketing-engine/publish/test_intent_cli.py` (4/4), source-boundary check, and `git diff --check`.
+- [x] Pass exact-head CI's full-history Gitleaks and TruffleHog checks before merge (final run `38476641692`).
+- [x] Run `python3 skills/earn/marketing-engine/measure/test_attribution.py` (9/9), `python3 skills/earn/marketing-engine/measure/test_experiment_attribution.py` (14/14), `python3 -m pytest skills/earn/marketing-engine/publish/test_intent_cli.py` (7/7), source-boundary check, and `git diff --check`.
 - [x] Add RED regression cases proving a URL path suffix, query, or fragment cannot pass as the exact Hook Lab owned URL; verified all three failed before changing the publisher.
 - [x] Require exactly one complete Hook Lab URL token before rewriting the registered CT placeholder; focused publisher suite passes 7/7.
 - [x] Initial implementation was committed and pushed to PR #7971.
 - [x] Commit and push this URL-validation review correction as `4a97aab354` from the same dedicated worktree.
-- [x] Fresh independent review returns SHIP; exact-head run `38475187744` passes all 11 required jobs (final route-readback spec update still needs its own exact-head CI).
+- [x] Fresh independent review returns SHIP; final exact-head run `38476641692` passes all 11 required jobs.
 
 ### Task 3: Close the DD03 SSOT entry
 
 - [x] Record both repositories' commits/PRs, focused test results, the official CT readback artifact, and the production diagnostic readback in the canonical SSOT.
-- [ ] Commit and push the final route-readback record, pass exact-head CI, and merge PR #7971.
-- [ ] Keep DD03 open until both source PRs are integrated and the diagnostic path is verified without creating a click receipt; do not claim any per-creative paid or net revenue.
+- [x] Commit and push the final route-readback record as `bee4ba24b6` and pass exact-head CI run `38476641692` (11/11).
+- [x] Merge Life Manager PR #7971 as `22a9b60c6588e2a362c5832afcf7b14ce2da5756`; main now contains both source PRs.
+- [x] Close DD03 after both source PRs are integrated and the production diagnostic returns 204 without `Location` or click-receipt header. Per-creative paid and net revenue remain unknown without an order join.
