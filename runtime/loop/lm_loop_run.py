@@ -1958,7 +1958,11 @@ def _main(argv: list[str] | None = None) -> int:
                     else:
                         cleanup_operation = "remove_owned_tree"
                         removed = remove_owned_tree(scratch_parent_fd, scratch_fd, run_id)
-                        cleanup_status = "removed" if removed else "preserved"
+                        if removed == "contents_reclaimed":
+                            cleanup_status = "preserved"
+                            cleanup_operation = "contents_reclaimed"
+                        else:
+                            cleanup_status = "removed" if removed else "preserved"
                     cleanup_error = None
                 except Exception as error:
                     cleanup_status = "error"

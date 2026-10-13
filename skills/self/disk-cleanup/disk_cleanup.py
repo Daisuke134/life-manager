@@ -1955,9 +1955,15 @@ class HostDiskGovernor:
                             parent = os.fstat(parent_fd)
                             cache = os.fstat(cache_fd)
                             if ((parent.st_dev, parent.st_ino, parent.st_mode) != identity[1]
-                                    or (cache.st_dev, cache.st_ino, cache.st_mode) != identity[2]
-                                    or not remove_owned_tree(parent_fd, cache_fd, path.name)):
+                                    or (cache.st_dev, cache.st_ino, cache.st_mode) != identity[2]):
                                 raise OSError(errno.ESTALE, "dependency candidate identity changed")
+                            removal = remove_owned_tree(parent_fd, cache_fd, path.name)
+                            if not removal:
+                                raise OSError(errno.ESTALE, "dependency candidate identity changed")
+                            if removal == "contents_reclaimed":
+                                result["contents_reclaimed"] = result.get("contents_reclaimed", 0) + 1
+                                preserve("contents_reclaimed")
+                                continue
                         finally:
                             os.close(cache_fd)
                     finally:
