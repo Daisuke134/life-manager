@@ -1416,8 +1416,28 @@ class LoopCleanupTest(unittest.TestCase):
             completed = mock.Mock(returncode=0, stdout=f"p123\nn{entry}\n", stderr="")
             with mock.patch("runtime.loop.central_cleanup.subprocess.run", return_value=completed) as run:
                 self.assertEqual(open_release_roots(releases), {entry.parents[1].resolve()})
-        run.assert_called_once_with(
-            ["ps", "-axo", "command="], capture_output=True, text=True, timeout=5)
+            run.assert_called_once_with(
+                ["ps", "-axo", "command="], capture_output=True, text=True, timeout=15)
+
+    def test_open_process_release_is_discovered_when_ps_takes_six_seconds(self):
+        with tempfile.TemporaryDirectory() as directory:
+            releases = Path(directory) / "releases"
+            entry = releases / ("20260101T000000-" + "a" * 8) / "bin/job.sh"
+            entry.parent.mkdir(parents=True)
+            entry.write_text("x")
+
+            timeouts = []
+            def slow_process_inventory(command, **kwargs):
+                timeouts.append(kwargs["timeout"])
+                if kwargs["timeout"] < 6:
+                    raise subprocess.TimeoutExpired(command, kwargs["timeout"])
+                return subprocess.CompletedProcess(command, 0, stdout=f"{entry}\n", stderr="")
+
+            with mock.patch("runtime.loop.central_cleanup.subprocess.run", side_effect=slow_process_inventory):
+                self.assertEqual(open_release_roots(releases), {entry.parents[1].resolve()})
+
+        self.assertGreaterEqual(timeouts[0], 6)
+        self.assertLessEqual(timeouts[0], 15)
 
     def _run_terminal_event(self, exit_code: int) -> dict:
         with tempfile.TemporaryDirectory() as directory:
