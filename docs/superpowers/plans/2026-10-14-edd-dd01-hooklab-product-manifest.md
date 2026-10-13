@@ -49,6 +49,8 @@
 
 Add `test_hook_lab_marketplace_profile_is_frozen_and_not_routable` to assert `product_id="hook-lab"`, seller ID `8123079349`, v1.0.7 observed at `2026-10-13T17:40:00+09:00`, day USD 3.99/cap 10, week USD 9.99/cap 30, month USD 19.99/cap 80, and trial days 0. Also assert `buyer_problem.validation_status="seller_copy_unvalidated"`, a static-listing price conflict is preserved, Instagram `@capafy.hooklab` / Postiz integration `cmuuycr5402uzqw0yhanqggo9` / token `hooklab_ig`, destination `https://capafy.ai/agent/8123079349`, `per_slot_attribution="shared_token_not_per_slot"`, `primary_metric="settled_net_contribution"`, `publish_enabled=false`, settled-net/actual-cost sources are `unknown`, and no account-registry entry exists for `hook-lab`.
 
+Update `test_four_products_and_locked_accounts_validate` to assert its five existing products as a required subset, not the full registry equality; the dedicated Hook Lab test covers the new profile.
+
 - [ ] **Step 2: Write the RED malformed-profile test**
 
 Add `test_marketplace_profile_missing_offer_or_outcome_source_fails_closed`. Remove `published_version` or the `settled_net_contribution` outcome source from a temporary copy and assert `load_registry` rejects the profile.
