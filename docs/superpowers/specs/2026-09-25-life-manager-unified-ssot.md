@@ -16450,3 +16450,69 @@ T0の今回readbackは記録済み。first-paid条件とtrue MRRは未達/unknow
 **現在cursor (2026-10-13 01:37 JST):** PR #7830 head `864ca395e1` / base `25e236632d`のrequired CIは全pass。`lm-fence-reconciler`は01:35:37 JSTに旧SHA `4101fc78`でpassしloaded-idle。watchdog unbound receipt 16:36:58Zはfree_after `1,371,828,224` bytes / reclaimed 0 / errors 0 / protected deletions 0。`df` 16:37:41Zは`1,386,631,168` bytes free。どちらも2GiB floor未達。mainはさらに`9ba593e6`（PR #7838、EDD文書のみ）へ進んだため、次にこのmainを同期してexact-head CIを再実行し、green後mergeする。PR sourceは未merge・未release。T1の外部readback判断は維持（Blog/GitHub no-effect、X unknown）。
 
 **現在cursor (2026-10-13 01:56 JST):** PR #7830はCI run `38279483373`の全required checks pass後、2026-10-13 01:52:51Zにmerge commit `0c643da178d6506ee6f143f4efde9fa188ea7d80`でmainへ統合済み。source fixはmainにあるがimmutable release未作成・未反映。`lm-fence-reconciler`のnatural run `18ddd688848b8998-46393`（16:55:08Z開始、16:55:34Z pass）は旧SHA `4101fc78`、active effect-unknownなし。直前run `18ddd5fc2c920780-80721`（16:45:05Z開始）はeventsにexecute/runningだけがありterminal eventなし。status snapshotは当時exit 1だったがerror cause未確認で、external effect classはnone。Capafy distributorの16:54:38Z natural attemptはrelease `5a595864`、`disk_headroom_low` / exit75 / effect `not_applicable`。watchdog receipt 16:54:57Zはfree_after `372,789,248` bytes（2GiB floorより`1,774,694,400` bytes不足）、reclaimed `127,679` / errors 0 / protected deletions 0、cursor persistence pass。`df` 16:54:50Zは`372,805,632` bytes free。Blog 404・GitHub対象window commits 0・X public search non-matchのreadbackは前項のとおり。X official historyは未確認なのでold occurrenceをunknownのまま扱う。次はregistered cleanup ownerの自然回復で2GiB floorを満たし、latest-main immutable releaseをcut、`lm-fence-reconciler`だけloaded-idle-only apply、loaded SHAからのnatural passを確認してT1を閉じる。容量回復前にrelease/applyしない。T2以降は未着手。
+
+## Capafy distribution maximization + evaluation-driven development plan — 2026-10-13 17:40 JST (claude-evo-eval-1012, Dais directive)
+
+**Dais rules (2026-10-13, binding for every distribution and OSS decision):**
+1. **Expense = 0, revenue = max.** No paid creators, ads, boosts, paid tools or paid APIs for distribution. Only free accounts we already own plus the user's AI subscription. Hosted-model cost per order must stay covered by the price (rule 3 in AGENTS.md).
+2. **All channels, no cuts.** Keep articles and X. Add short vertical video on every free platform. Fix what makes a channel invisible instead of deleting the channel.
+3. **Copy the most profitable sellers down to the smallest detail** (rule 2): format, seconds, CTA, pricing tiers, proof assets, cadence.
+4. **Open source.** The Capafy money agent ships as a free OSS repo that anyone can run with a few commands and only their AI subscription. Claims in the README use verified numbers only.
+5. **Influencer/creator collaboration is allowed only at zero cost** (free access, a story they can use, the OSS repo as content). Never pay.
+
+**Measured baseline (read-only, 2026-10-13 16:13–17:30 JST):**
+
+| Item | Value | Source |
+|---|---|---|
+| Paid revenue today / 7d | $0 / $0 | `capafy-skill-analytics.json` daily trend |
+| Last day with paid revenue | 2026-09-29 | same |
+| Lifetime | 70 orders, gross $102.75, creator $76.18 | `capafy-hourly-reconcile.json` 07:13Z |
+| capafy-distribute runs 7d | 440 started, 74 report=pass, 349 blocked, 92 fail | `writer/capafy-distribute/events.jsonl` |
+| Tracked ct views 7d | ~8 (blog 2, IG 5, facebook 1), paid 0 | reconcile `traffic_sources` |
+| X-tracked views 30d | 0 | same |
+| Best own channel 30d | `instagram_bio` 53 views, 0 paid | same |
+| X @selawmqt | 428 posts, 2 followers | public profile crawl |
+| Paid orders by source 30d | search 9, hot 5, direct 2, google 1 | same |
+| Trial vs paid 30d | trial 6 (all Marketing Strategist), paid 17 (15 without trial) | same |
+
+**Diagnosis:** distribution volume is not the problem; reach is. 74 published article+X slots in 7 days produced ~2 Capafy views. X posts land on a 2-follower account and Postiz strips the link. Every paid order came from inside Capafy (search, hot) or Google. Top sellers' outside demand came from third-party short video (Ocup self-report: creator TikTok/IG 150K+ views, 100+ orders/day; unverified against Capafy receipts). Free trial is not the driver: 15/17 paid orders had no trial and the four top paid sellers have trial 0; the only trial in the winner set sits on the paid destination of a free lead magnet (Transcript Studio: 24 h, 3 packs).
+
+**Open-source eval tooling (verified on GitHub 2026-10-13):**
+
+| Tool | Stars | License | Use here |
+|---|---|---|---|
+| `ai-evals-course/evals-skills` (Hamel Husain, Shreya Shankar; successor of `hamelsmu/evals-skills`) | 1,496 | Apache-2.0 | **Best-practice playbook as agent skills:** eval-audit, error-discovery, write-code-eval, write-judge-prompt, validate-evaluator, generate-synthetic-data, build-review-interface. Install first; use it as the procedure. |
+| `UKGovernmentBEIS/inspect_ai` | 2,992 | MIT | Task runtime labs and METR use; target format for the public benchmark (E05/E06). |
+| `promptfoo/promptfoo` | 25,957 | MIT | Assertions on prompts/agents in CI; candidate for distribution-copy checks if the existing runner is not enough. |
+| `confident-ai/deepeval` | 18,782 | Apache-2.0 | pytest-style LLM metrics; not needed while code graders cover the evals below. |
+
+Order of preference (Ponytail): existing `apps/life-manager/eval/` runner and plain pytest first, `evals-skills` as the method, `inspect_ai` only for the public benchmark. No new framework before a failing eval needs it.
+
+**Distribution evals (binary, code-graded unless stated):**
+- **ED1 reachable link:** every published slot carries a registered `ct` link a buyer can open (link in body, first reply, bio or description). X posts with the link stripped fail.
+- **ED2 reach:** ≥1 ct-tracked Capafy view within 72 h of the slot. Three consecutive fails on one channel = fix that channel's reach (account, format, link placement) before the next slot. Channels are not deleted (Dais rule 2).
+- **ED3 conversion:** paid orders per 100 tracked views per channel per week; slots shift toward the top channels, every channel keeps a floor.
+- **ED4 creative copies the winner format:** model judge, pass/fail, calibrated on Dais labels: hook visible by 0.5 s, proof artifact by 3 s, real input→output demo, one CTA with ct. No borrowed footage, music, dashboards or unverified earnings.
+- **ED5 cost:** expense per slot = $0 cash; host-slot and model cost logged per tracked view.
+- **ED6 seller regression:** a FROZEN seller's paid orders over 7 d vs the prior 7 d; alert only (sellers stay untouched).
+
+**Distribution TODO (zero cost, in order; owner in brackets):**
+
+| # | Atom | Copies | Done when |
+|---|---|---|---|
+| CD1 | Put ED1–ED3 on the existing reconcile data and report per-channel views/paid weekly [claude-evo-eval-1012] | evals-skills error-discovery + write-code-eval | weekly table from real ct data, RED test for a link-stripped X slot |
+| CD2 | Fix X reach for free: link in first reply and bio, reply to large accounts in the creator niche, post as a thread with the output image [Capafy owner] | indie-hacker reply pattern | ED1 pass on X slots; ED2 pass on ≥1 X slot |
+| CD3 | Daily vertical video for Hook Lab on TikTok, IG Reels, YouTube Shorts using the downloaded winner timing (T4 matrix) [Capafy owner] | Ocup creator videos, Hackwithsim/Yeye reel structure | ED4 pass, ED2 pass |
+| CD4 | "Link in bio" on every own account; bio links carry ct [Capafy owner] | instagram_bio was the best own channel | ED1 pass for all bios |
+| CD5 | Free lead magnet `transcript-clip-map-free` links to Hook Lab with a registered ct [Capafy owner] | Free Transcript → Transcript Studio funnel | ct views from the free agent > 0 |
+| CD6 | Every new listing gets 4–6 real output images and week/month/year plans [factory owner] | HookAce assets, top-4 pricing | listing check pass at prepare |
+| CD7 | Titles and tags match the buyer queries in the daily rank snapshot (T2) [factory owner] | search = top paid source | rank snapshot shows new listings in top 10 for their query |
+| CD8 | Free outreach: pitch the "agent that sells on Capafy by itself" story to Capafy official and to Capafy money-content creators, offering the OSS repo, no payment [Capafy owner] | Capafy official features sellers on TikTok | one reply or feature |
+| CD9 | OSS repo: extract `skills/capafy-autopublish` into a standalone repo that runs with a few commands on the user's AI subscription; README with verified numbers only; launch on GitHub, Show HN, Reddit, X, IG, TikTok [after CD1–CD5 show reach] | open-source launch pattern | public repo, install readback on a clean machine |
+| CD10 | Public benchmark seed: replayable Capafy marketplace environment from our traces, scored on settled net profit with integrity penalties, in `inspect_ai` format (E03–E06) [claude-evo-eval-1012] | Vending-Bench 2 shape, real-market data | v0 tasks with public/held-out split |
+
+**Order change (recorded per the TODO rule):**
+- Reason: 7 days of T1 fence/receipt work and 74 article/X slots produced 0 orders and ~2 views. The money path is reach (CD2–CD5) and the measurement that proves it (CD1).
+- Old Capafy order: T0 → T1 → T2 → T3 → T4 → T5 → … → T14.
+- New Capafy order: T0 → CD1 → CD2/CD3/CD4/CD5 (parallel, separate owners) → T2 → T3 → T4 remainder → CD6/CD7 → CD8 → CD9 → CD10. T1 fence/receipt proofs continue in parallel and no longer gate distribution work.
+- Current cursor: CD1 (claude-evo-eval-1012). No seller, price, trial or live listing was changed by this entry.
