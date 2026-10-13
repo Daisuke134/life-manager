@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import json
-import hashlib
 import marshal
 import platform
 import subprocess
@@ -334,16 +333,21 @@ def release_capacity_bytes(repo: Path, sha: str, loops: Path, node: str, npm: st
             raise ValueError("dependency manifests changed")
         # The bundle was built from the donor's bytes, including its old script aliases.
         manifests = donor_manifests
-        header = "\0".join(("command","npm-ci --omit=dev --ignore-scripts","os",platform.system(),"arch",platform.machine(),"node",node,"npm",npm)) + "\0"
-        key_data = header.encode()
-        for label,payload in zip(("package-json","package-lock"),manifests):
-            key_data += label.encode() + b"\0" + (hashlib.sha256(payload).hexdigest() + "  -\n").encode()
-        key = hashlib.sha256(key_data).hexdigest()
-        bundle = loops / "dependency-bundles" / ("npm-" + key)
-        if (not (directory / "node_modules").is_symlink()
-                or (directory / "node_modules").resolve() != (bundle / "node_modules").resolve()
+        # cut-loop-release can hardlink a dependency-compatible donor bundle into a
+        # new toolchain-keyed bundle. Capacity preflight must validate the donor bundle,
+        # not require that the new toolchain key already exists.
+        node_modules = directory / "node_modules"
+        if not node_modules.is_symlink():
+            raise ValueError("dependency bundle unavailable")
+        resolved_node_modules = node_modules.resolve(strict=True)
+        bundle = resolved_node_modules.parent
+        bundle_key = bundle.name.removeprefix("npm-")
+        if (resolved_node_modules.name != "node_modules"
+                or bundle.parent.resolve() != (loops / "dependency-bundles").resolve()
+                or len(bundle_key) != 64
+                or any(char not in "0123456789abcdef" for char in bundle_key)
                 or bundle.stat().st_mode & 0o222
-                or (bundle / ".complete").read_text().strip() != key
+                or (bundle / ".complete").read_text().strip() != bundle_key
                 or not (bundle / "node_modules/.package-lock.json").is_file()):
             raise ValueError("dependency bundle unavailable")
     block = os.statvfs(loops).f_frsize

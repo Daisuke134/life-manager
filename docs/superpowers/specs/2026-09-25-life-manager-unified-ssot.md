@@ -2172,7 +2172,7 @@ Instagram/Threadsのローカル台帳は17件（Instagram 14、Threads 3）で�
 | D09 | IN PROGRESS（canonical values fresh; status/payout incomplete） | official item status/stats/payoutをSKU IDへjoinし、natural sales.json値と画面を照合する | sales.jsonはobserved_at 2026-10-13T07:23:27Z、38 IDs（28 zero/10 null）。16:19公式stats readの38 tracked IDs（28 rows ¥0/10未掲載）と一致。payment_request表示は2025.12.01–12.31の分配/送金¥0で、2026年10月の確定額とは言えない。item status readbackは16:33時点で15 rowsだけ今回更新、set-039 48289209を含む全件照合は未完。 |
 | D09e | DONE（2つの不一致SKUを再確認） | `販売中`表示のSKUでも、公式item detailと購入URLが同じ商品を示すことを確認する | ID48235075 / set-022の購入URL ID37251266はタイトル「ふわもこリスの毎日スタンプ(文字あり)」・¥250を表示。2:09 JSTの公式item detailではID48237266 / set-024も「販売中」、`store_public=true`、購入URL ID37252879。Scrapyの公開store readbackで「Stardust Otterのスタンプ(文字あり)」・¥250を確認。ローカルcreator-item cacheの`store_public=false`は古い。 |
 | D10 | IN PROGRESS（click eventなし） | SKU/article/channel別view・CTA click・official sales/distribution・costを同じ期間で計測する | 16:11 JST public /api/statsは273 total pageviews、LINE記事7 views across 5 paths、line_sticker_clickなし。集計期間は不明。set-011 CTAはStore ID 37168875へ到達するがclick計測は未実証。 |
-| D23 | IN PROGRESS（local acceptance GREEN; followup CI pending） | line-sticker-distributeのadmission priorityをdistribution-firstへ合わせる | fresh mainでarticles owner=distribution、social publisher=revenue。runtime/host/resource_admission.pyのBASE_PRIORITIESはdistributionをrevenueより先にadmitする。PR #7905 initial head f8d70e3a4の他10 checksはPASS、Loop control contractsは2 stale expectations（既存assertionとbyte-stable fixtureが旧revenue）でFAIL。期待値とfixtureをdistributionへ更新後、該当2テストPASS、`lm-loop-contract` ok=true（18 catalog loops / 191 registry jobs / 113 mapped）、`git diff --check` PASS。priority 1項目のみ変更し、admission_class=revenue・effect_class=publish・effect_reconcileを維持。followup commit/CI/merge/release/owner adoptionは未完、unknown fenceは触っていない。 |
+| D23 | IN PROGRESS（preflight fix local GREEN; PR/CI/release pending） | line-sticker-distributeのadmission priorityをdistribution-firstへ合わせる | PR #7905は全required checks PASS、main commit `98674f417e`へmerge済み。release cutは`release_capacity_measurement_failed`で停止し、原因はApps Life Managerの既存compatible dependency bundleが現toolchain keyと異なること。`runtime/host/disk_admission.py`をrelease builder同様、package-lock/dependency一致時はimmutable donor bundleを検証して再利用可にする修正を追加。fresh main `9008f6fd11`で`test_disk_admission.py` 30/30 PASS、`lm-loop-contract` PASS（18 catalog loops/191 registry jobs/113 mapped）、`git diff --check` PASS。release requirement 2,394,329,088 bytes、measurement時available 2,265,665,536 bytes。watchdog natural receipt 2026-10-13T09:00:36Zはcandidate_count 14/reclaimed 0/errors 0/protected 0/free_after 2,254,811,136; 2GiB diagnosticはmetだがrelease requirementへ139,517,952 bytes不足。unknown pathsは触らず、release/current `5b90b21e`を保持。次はpreflight fixのCI/mainとsafe watchdog cadenceを進め、capacityがrelease requirement以上になってからcutする。line-sticker-distribute ownerはloaded-idleだがadmission effect_unknown fence current=true。priority apply後もfenceを解放/再送せず、公式readbackまで配信成功と扱わない。 |
 | D11 | TODO（D10後、channel準備と並行） | set-011を一つ選び、用途別9:16 short demo・会話例・検索記事を作る | Animated! Ota-kun's Polite Daily Life / 24 animated stickers / ¥250 / official Store ID 37168875。実際の会話課題→2–3 sticker replies→読みやすい商品名→tracked CTAを一つの素材束にする。競合の画像・キャラクター・文言は使わない。 |
 | D13 | TODO（D11後。新規channel準備D15を待たない） | ひとつの短尺/記事を利用可能なowned channelでfree organic配信する | 13記事中10 published / 3 failed。公開indexで10/13のset-011/set-009記事をreadback済み。既存blog/article channelを使い、新規account準備を依存にしない。socialは10/10以降の新規公開がなく、最新distributor occurrenceはeffect_unknown。D13は1件だけ投稿し、public URL/permalink、正しいSKU、views/clicks、official readback、replay-zeroを確認する。 |
 | D07a | TODO（D13後の非blocking履歴診断） | slot15/16/17のcompose failureをdiagnostic-capable natural evidenceから診断する | 3 slotは各2回失敗。ledgerはgeneric `line_sticker_article_compose_failed`、stderr relayは0 bytes、一時evidenceなし。失敗枠は再送せず、現行の新規organic配信/計測を遅らせない。新しい自然失敗の詳細error classを読む。 |
@@ -2939,12 +2939,12 @@ Lancers focused suiteは **153 passed, 183 subtests passed**、`./bin/lm-loop-co
 - Creators Market公式規約では個別販売の分配は確定grossからplatform feeを引いた後の50%。現行料率の例は日本Apple 26%、他Apple/Google/LINE STORE 30%。通常販売の分配はgrossの概ね35–37%（源泉税/FX/送金費前）。$10K grossなら約¥525k–¥555k（$3.5k–$3.7k、税/送金費前）であり、$10K take-homeではない。$10K creator distributionなら約18,167–19,205 purchases/month（606–640/day）が目安。Premiumは別計算。
 - 記録済みstage費USD 17.8676だけなら、平均価格で約33–35 purchases分のcreator shareが相当する。欠損制作費と配信費を含まないため、全費用黒字条件ではない。
 
-**実行順を更新（2026-10-13 17:25 JST）:** 旧順序はD10→D15→D11→D13→D14→D09d/D09（parallel）→D12→D09c→D07a→D17→D18→D19→D20→D21→D22。新順序はD23 distribution priority source fix→D10 tracked CTA→D11 one-SKU demo→D13 existing owned-channel free organic post→D14 official feature placement readback→D15 additional isolated channel→D24 static rejection repair→D09d/D09 natural canonical snapshot in parallel→D12 official profile/effect readback（phone code last; no resend）→D09c keep daily cap→D07a historical article failures（nonblocking）→D17 CAC-gated PR→D18 localization→D19 proven sequel→D20 measured reallocation→D21 monthly reconciliation→D22 USD 10K gross。理由: Daisがdistribution/salesを明示的に最優先とした。fresh evidenceは販売中28 SKUの確認売上¥0、記事7 views/計測click 0、social occurrence effect_unknown。配信ループ優先度の不一致を先に直し、既存SKUのtracked free campaignを出す。新規channel準備や却下SKU修正は初回配信実験の前提にしない。D00はsupport-only。現在cursorはD23のtest/fixture修正→commit/push→exact-head CI→main→immutable release/loaded readback。unknown fenceは維持し、初回投稿/効果readbackを重複させない。現データではUSD 10,000 grossの到達日を算出できない。
+**実行順を更新（2026-10-13 17:25 JST）:** 旧順序はD10→D15→D11→D13→D14→D09d/D09（parallel）→D12→D09c→D07a→D17→D18→D19→D20→D21→D22。新順序はD23 distribution priority source fix→D10 tracked CTA→D11 one-SKU demo→D13 existing owned-channel free organic post→D14 official feature placement readback→D15 additional isolated channel→D24 static rejection repair→D09d/D09 natural canonical snapshot in parallel→D12 official profile/effect readback（phone code last; no resend）→D09c keep daily cap→D07a historical article failures（nonblocking）→D17 CAC-gated PR→D18 localization→D19 proven sequel→D20 measured reallocation→D21 monthly reconciliation→D22 USD 10K gross。理由: Daisがdistribution/salesを明示的に最優先とした。fresh evidenceは販売中28 SKUの確認売上¥0、記事7 views/計測click 0、social occurrence effect_unknown。配信ループ優先度の不一致を先に直し、既存SKUのtracked free campaignを出す。新規channel準備や却下SKU修正は初回配信実験の前提にしない。D00はsupport-only。現在cursorはD23 preflight compatibility source fix→focused acceptance→push/exact-head CI→main→safe capacity recheck→immutable release→loaded-idle-only target apply→natural occurrence/official readback。unknown fenceは維持し、初回投稿/効果readbackを重複させない。現データではUSD 10,000 grossの到達日を算出できない。
 
 **工場と売上読取の16:30 JST追記:** sales.jsonは16:23 JSTのnatural readerによって38 tracked IDsへ更新され、28件が¥0、10件がnull。16:19 JSTの公式stats readback（28 factory IDsが全件¥0、10 IDs未掲載）と一致する。旧snapshotから更新されたが、reader occurrence 18de05e61c227bb8-40847はPID40847で16:30時点もrunning、terminal/provider_receipt_id/official_readback_refは未記録。読取ownerは16:23〜16:30にreadback.jsonlへitem-statusを追記し、まだ稼働中。fenceを手作業で解放しない。
 **16:33 JST status readback progress:** readback.jsonlは37 unique IDsの履歴を持つが、そのうちこのnatural runで16:33までに追加されたのは15 rows（すべて販売中）。残る既存行は前回時刻の値であり、新しい38-ID atomic status snapshotとは扱わない。PID40847は実行中なのでそのまま待つ。
 同時にfactory run 18de01620d5a98a0-35902は16:30:23 JSTにruntime capでexit124となり、effect unknown / receiptなし。set-039のlocal ID 48289209はsubmit記録済みだがofficial status/feature placementは未確認。set-040はimages stageのまま17/40 candidatesで、item IDなし。factoryを手動restartせず、公式item readbackの自然終端を待つ。
-**So What:** 公式に確認できた販売中28 SKUは全件¥0、未掲載10件はunknown。D23のローカル受け入れはGREENだが、初回CIの既存契約テストが古い期待値でFAILし、修正のfollowup CIは未完。本番採用・投稿・売上も未確認。次はfollowup PR/CI/main/release/owner adoptionを閉じ、その後D10 tracked CTA → set-011 demo → existing owned channelのfree organic postへ進む。売上照合は並行し、effect_unknownは再送しない。却下SKU修理D24は配信実験の後に置く。D00は実際の容量失敗がない限りsupport-only。
+**So What:** 公式に確認できた販売中28 SKUは全件¥0、未掲載10件はunknown。D23のpriority設定はmainへ入ったが、本番release未作成。preflight互換fixはローカルPASS。safe cleanup natural passはこの回収をしなかったため、次のallow-listed cadenceを見てからcapacity再計測する。unknown pathは削除せず、配信ownerのeffect_unknown fenceも維持する。release adoption後はD10 tracked CTA → set-011 demo → existing owned channelのfree organic postへ進む。D00は容量gateを通すためのsupport-only。
 
 ## 6. 不変の制約
 
@@ -16454,3 +16454,69 @@ T0の今回readbackは記録済み。first-paid条件とtrue MRRは未達/unknow
 **現在cursor (2026-10-13 01:37 JST):** PR #7830 head `864ca395e1` / base `25e236632d`のrequired CIは全pass。`lm-fence-reconciler`は01:35:37 JSTに旧SHA `4101fc78`でpassしloaded-idle。watchdog unbound receipt 16:36:58Zはfree_after `1,371,828,224` bytes / reclaimed 0 / errors 0 / protected deletions 0。`df` 16:37:41Zは`1,386,631,168` bytes free。どちらも2GiB floor未達。mainはさらに`9ba593e6`（PR #7838、EDD文書のみ）へ進んだため、次にこのmainを同期してexact-head CIを再実行し、green後mergeする。PR sourceは未merge・未release。T1の外部readback判断は維持（Blog/GitHub no-effect、X unknown）。
 
 **現在cursor (2026-10-13 01:56 JST):** PR #7830はCI run `38279483373`の全required checks pass後、2026-10-13 01:52:51Zにmerge commit `0c643da178d6506ee6f143f4efde9fa188ea7d80`でmainへ統合済み。source fixはmainにあるがimmutable release未作成・未反映。`lm-fence-reconciler`のnatural run `18ddd688848b8998-46393`（16:55:08Z開始、16:55:34Z pass）は旧SHA `4101fc78`、active effect-unknownなし。直前run `18ddd5fc2c920780-80721`（16:45:05Z開始）はeventsにexecute/runningだけがありterminal eventなし。status snapshotは当時exit 1だったがerror cause未確認で、external effect classはnone。Capafy distributorの16:54:38Z natural attemptはrelease `5a595864`、`disk_headroom_low` / exit75 / effect `not_applicable`。watchdog receipt 16:54:57Zはfree_after `372,789,248` bytes（2GiB floorより`1,774,694,400` bytes不足）、reclaimed `127,679` / errors 0 / protected deletions 0、cursor persistence pass。`df` 16:54:50Zは`372,805,632` bytes free。Blog 404・GitHub対象window commits 0・X public search non-matchのreadbackは前項のとおり。X official historyは未確認なのでold occurrenceをunknownのまま扱う。次はregistered cleanup ownerの自然回復で2GiB floorを満たし、latest-main immutable releaseをcut、`lm-fence-reconciler`だけloaded-idle-only apply、loaded SHAからのnatural passを確認してT1を閉じる。容量回復前にrelease/applyしない。T2以降は未着手。
+
+## Capafy distribution maximization + evaluation-driven development plan — 2026-10-13 17:40 JST (claude-evo-eval-1012, Dais directive)
+
+**Dais rules (2026-10-13, binding for every distribution and OSS decision):**
+1. **Expense = 0, revenue = max.** No paid creators, ads, boosts, paid tools or paid APIs for distribution. Only free accounts we already own plus the user's AI subscription. Hosted-model cost per order must stay covered by the price (rule 3 in AGENTS.md).
+2. **All channels, no cuts.** Keep articles and X. Add short vertical video on every free platform. Fix what makes a channel invisible instead of deleting the channel.
+3. **Copy the most profitable sellers down to the smallest detail** (rule 2): format, seconds, CTA, pricing tiers, proof assets, cadence.
+4. **Open source.** The Capafy money agent ships as a free OSS repo that anyone can run with a few commands and only their AI subscription. Claims in the README use verified numbers only.
+5. **Influencer/creator collaboration is allowed only at zero cost** (free access, a story they can use, the OSS repo as content). Never pay.
+
+**Measured baseline (read-only, 2026-10-13 16:13–17:30 JST):**
+
+| Item | Value | Source |
+|---|---|---|
+| Paid revenue today / 7d | $0 / $0 | `capafy-skill-analytics.json` daily trend |
+| Last day with paid revenue | 2026-09-29 | same |
+| Lifetime | 70 orders, gross $102.75, creator $76.18 | `capafy-hourly-reconcile.json` 07:13Z |
+| capafy-distribute runs 7d | 440 started, 74 report=pass, 349 blocked, 92 fail | `writer/capafy-distribute/events.jsonl` |
+| Tracked ct views 7d | ~8 (blog 2, IG 5, facebook 1), paid 0 | reconcile `traffic_sources` |
+| X-tracked views 30d | 0 | same |
+| Best own channel 30d | `instagram_bio` 53 views, 0 paid | same |
+| X @selawmqt | 428 posts, 2 followers | public profile crawl |
+| Paid orders by source 30d | search 9, hot 5, direct 2, google 1 | same |
+| Trial vs paid 30d | trial 6 (all Marketing Strategist), paid 17 (15 without trial) | same |
+
+**Diagnosis:** distribution volume is not the problem; reach is. 74 published article+X slots in 7 days produced ~2 Capafy views. X posts land on a 2-follower account and Postiz strips the link. Every paid order came from inside Capafy (search, hot) or Google. Top sellers' outside demand came from third-party short video (Ocup self-report: creator TikTok/IG 150K+ views, 100+ orders/day; unverified against Capafy receipts). Free trial is not the driver: 15/17 paid orders had no trial and the four top paid sellers have trial 0; the only trial in the winner set sits on the paid destination of a free lead magnet (Transcript Studio: 24 h, 3 packs).
+
+**Open-source eval tooling (verified on GitHub 2026-10-13):**
+
+| Tool | Stars | License | Use here |
+|---|---|---|---|
+| `ai-evals-course/evals-skills` (Hamel Husain, Shreya Shankar; successor of `hamelsmu/evals-skills`) | 1,496 | Apache-2.0 | **Best-practice playbook as agent skills:** eval-audit, error-discovery, write-code-eval, write-judge-prompt, validate-evaluator, generate-synthetic-data, build-review-interface. Install first; use it as the procedure. |
+| `UKGovernmentBEIS/inspect_ai` | 2,992 | MIT | Task runtime labs and METR use; target format for the public benchmark (E05/E06). |
+| `promptfoo/promptfoo` | 25,957 | MIT | Assertions on prompts/agents in CI; candidate for distribution-copy checks if the existing runner is not enough. |
+| `confident-ai/deepeval` | 18,782 | Apache-2.0 | pytest-style LLM metrics; not needed while code graders cover the evals below. |
+
+Order of preference (Ponytail): existing `apps/life-manager/eval/` runner and plain pytest first, `evals-skills` as the method, `inspect_ai` only for the public benchmark. No new framework before a failing eval needs it.
+
+**Distribution evals (binary, code-graded unless stated):**
+- **ED1 reachable link:** every published slot carries a registered `ct` link a buyer can open (link in body, first reply, bio or description). X posts with the link stripped fail.
+- **ED2 reach:** ≥1 ct-tracked Capafy view within 72 h of the slot. Three consecutive fails on one channel = fix that channel's reach (account, format, link placement) before the next slot. Channels are not deleted (Dais rule 2).
+- **ED3 conversion:** paid orders per 100 tracked views per channel per week; slots shift toward the top channels, every channel keeps a floor.
+- **ED4 creative copies the winner format:** model judge, pass/fail, calibrated on Dais labels: hook visible by 0.5 s, proof artifact by 3 s, real input→output demo, one CTA with ct. No borrowed footage, music, dashboards or unverified earnings.
+- **ED5 cost:** expense per slot = $0 cash; host-slot and model cost logged per tracked view.
+- **ED6 seller regression:** a FROZEN seller's paid orders over 7 d vs the prior 7 d; alert only (sellers stay untouched).
+
+**Distribution TODO (zero cost, in order; owner in brackets):**
+
+| # | Atom | Copies | Done when |
+|---|---|---|---|
+| CD1 | Put ED1–ED3 on the existing reconcile data and report per-channel views/paid weekly [claude-evo-eval-1012] | evals-skills error-discovery + write-code-eval | weekly table from real ct data, RED test for a link-stripped X slot |
+| CD2 | Fix X reach for free: link in first reply and bio, reply to large accounts in the creator niche, post as a thread with the output image [Capafy owner] | indie-hacker reply pattern | ED1 pass on X slots; ED2 pass on ≥1 X slot |
+| CD3 | Daily vertical video for Hook Lab on TikTok, IG Reels, YouTube Shorts using the downloaded winner timing (T4 matrix) [Capafy owner] | Ocup creator videos, Hackwithsim/Yeye reel structure | ED4 pass, ED2 pass |
+| CD4 | "Link in bio" on every own account; bio links carry ct [Capafy owner] | instagram_bio was the best own channel | ED1 pass for all bios |
+| CD5 | Free lead magnet `transcript-clip-map-free` links to Hook Lab with a registered ct [Capafy owner] | Free Transcript → Transcript Studio funnel | ct views from the free agent > 0 |
+| CD6 | Every new listing gets 4–6 real output images and week/month/year plans [factory owner] | HookAce assets, top-4 pricing | listing check pass at prepare |
+| CD7 | Titles and tags match the buyer queries in the daily rank snapshot (T2) [factory owner] | search = top paid source | rank snapshot shows new listings in top 10 for their query |
+| CD8 | Free outreach: pitch the "agent that sells on Capafy by itself" story to Capafy official and to Capafy money-content creators, offering the OSS repo, no payment [Capafy owner] | Capafy official features sellers on TikTok | one reply or feature |
+| CD9 | OSS repo: extract `skills/capafy-autopublish` into a standalone repo that runs with a few commands on the user's AI subscription; README with verified numbers only; launch on GitHub, Show HN, Reddit, X, IG, TikTok [after CD1–CD5 show reach] | open-source launch pattern | public repo, install readback on a clean machine |
+| CD10 | Public benchmark seed: replayable Capafy marketplace environment from our traces, scored on settled net profit with integrity penalties, in `inspect_ai` format (E03–E06) [claude-evo-eval-1012] | Vending-Bench 2 shape, real-market data | v0 tasks with public/held-out split |
+
+**Order change (recorded per the TODO rule):**
+- Reason: 7 days of T1 fence/receipt work and 74 article/X slots produced 0 orders and ~2 views. The money path is reach (CD2–CD5) and the measurement that proves it (CD1).
+- Old Capafy order: T0 → T1 → T2 → T3 → T4 → T5 → … → T14.
+- New Capafy order: T0 → CD1 → CD2/CD3/CD4/CD5 (parallel, separate owners) → T2 → T3 → T4 remainder → CD6/CD7 → CD8 → CD9 → CD10. T1 fence/receipt proofs continue in parallel and no longer gate distribution work.
+- Current cursor: CD1 (claude-evo-eval-1012). No seller, price, trial or live listing was changed by this entry.
