@@ -44,7 +44,7 @@ To-Beは各agentがobserve→decide→act→official verify→persist→自分�
 
 - [x] **F1 — 全jobの共通入口:** 最新`config/loop-registry.json`のjobを100%調査し、各jobを「容量を書き込む」「制御/cleanup」「永続書込なし」に分類する。未分類=`0`。書込jobは既存の共有capacity admissionを通り、保護対象/別ownerの保存先を使わないことをsource/fixtureで確認する。
 - [ ] **F2 — 容量失敗とeffect-recovery:** 隔離fixtureで (a) 起動前容量不足、(b) 一時書込ENOSPC、(c) 最終receipt保存ENOSPC、(d) child開始後のresource-heartbeat lossを再現する。(a)では外部action開始=`0`、(b/c/d)ではtask identityを保持し、effect unknownを`released/effect_unknown=0`へ落とさない。通常releaseも既存unknownを消さない。さらに、terminal eventがeffect unknownなのにadmission rowが既に`released/effect_unknown=0`になった場合も、登録済みreconcilerが同一occurrenceの公式readbackを照合できること。照合前はscratchを保持し、公式効果が確認できた場合だけclosure receiptを記録して中央cleanupが回収する。推測のno-effect化、DB手修正、再送は禁止。さらに、同じ未解決readbackを繰り返すだけのreconcile passはper-occurrence JSONLを毎wake追記せず、未解決状態の集約を保持する。公式closure proofは引き続きoccurrence単位で保存する。今回のlive heartbeat incident、反復ログの実測、cleanup実測で旧版F2は未達と判明したため再開。
-- [x] **F3 — 最新mainの掃除役を本番へ配布:** `com.anicca.disk-watchdog` (60 seconds) と `life-manager-disk-cleanup` (300 seconds) が最新main由来のimmutable releaseを読み込む。実際に読み込んだprogram/argv/SHA/cadenceと自然実行を確認する。2026-10-14 03:23 JST時点でwatchdog・central cleanup・reconcilerはimmutable release `20261014T031532-22924a4f`を読み込み、loaded program/argv/state root/SHA/cadenceを確認済み。mainにcleanup source変更が入った場合は再配布して再確認する。PR #7959のGit timeout修正は未統合・未配布。
+- [x] **F3 — 最新mainの掃除役を本番へ配布:** 2026-10-14 04:49 JST readback: watchdog=20261014T031532-22924a4f (60s/60s)、central cleanup=20261014T035105-2275018c (300s)、reconciler=20261014T043159-6dfec005 (60s)をloaded argv/state/SHAで確認。三releaseはいずれもcurrent main 6dfec005のancestorで、22924a4fからmainまでにshared cleanup/watchdog filesの変更なし。F3は現在のcleanup sourceについてPASS。PR #7959のtimeout修正は未統合・未配布なので、merge後に再採用・再確認する。
 - [ ] **F4 — 最新版掃除の反復:** F3で配布した現行版のwatchdogとcentral cleanupについて、それぞれ自然実行receiptを3回連続で取得する。各receiptは `errors=0`、`protected_deletions=0` を示す。旧releaseの成功や単なるexit 0は新しい版の合格証拠にしない。
 - [ ] **F5 — 大きな一時データの往復:** 一番大きいフォルダ名を推測で選ばない。同一時間窓で`owner_id + PID + 出力先path + bytes before/after`を結び、実writerを確認する。該当jobの業務判断・公開・決済は既存ownerに残す。primaryは共有資源の後片付け・保存期間だけを直し、商品や外部effectのロジックを変更しない。自然実行を3回連続で確認し、終了した親と子processがいなくなった後、次の成功したcentral sweepまでにその回だけの一時フォルダが消え、商品出力/正式receiptは残る。3回の観測window全体で未帰属の増加=`0`、capacity起因のterminal failure=`0`、次の予定wakeを越えて残るcapacity defer=`0`、lost task=`0`、duplicate effect=`0`、手動cleanup=`0`。
 
@@ -311,6 +311,17 @@ F5 NOT PASS: factoryはroute-readyではなくunloaded。route-ready後に自然
 **残りの順番:** (1) #7959のexact-head required CIを完了しmerge。(2) main由来immutable releaseをcutし、central cleanupをloaded-idle-onlyでtarget apply、3 cleanup担当のloaded SHA/argv/state root/cadenceを再readback（F3更新）。(3) central cleanupを5分cadenceで3回自然実行し、各回のstructured resultがerrors=0/protected_deletions=0であることを確認（timeoutはtyped defer可）。(4) browser borrow待ちをWriter ownerの経路で解消した後、次の自然readback slot（予定05:23 JST）を待ち、LINE公式状態でfactory occurrenceを照合。証拠がなければunknownを維持し再送しない（F2）。(5) route-ready後、F5の3自然cycleを実測。(6) 未分類のfull-inventory gaps 29件を所有者/path/増減で分類し、unknownは保持。(7) F1–F5と資源経路が合格してから18業務capabilityを一件ずつ修理する。全agentの一斉再起動はしない。
 
 **時間見通し:** CI完了・release preflight・Writer側browser解放・公式LINE readback・factory route-readyがすべて順調でも、最短はおおむね06:10 JST以降（F4の10–15分、次readback slot 05:23、F5の最低45分を含む）。現在browser slotとroute-ready、公式effect証拠は未解決なので確約時刻はない。これは「期限を延ばす」ためではなく、残りが自然cadenceと他owner/providerの実状態に依存するという実測に基づく見積もり。
+
+### 2026-10-14 04:49 JST — fresh foundation checkpoint
+
+F1/F3 PASS、F2/F4/F5未完了。F3の3担当は前記のmain由来releaseで稼働中。life-manager-disk-cleanupの直近自然passは19:44:30Z、現在は次のrun中。life-manager-release-reconcilerはrelease 6dfec005にloaded済みだがfleet rolloutはbounded partial（changed=4, skipped=9, errors=0, budget exceeded）で自然継続中。次回target applyは各ownerがloaded-idleになってから行い、手動fleet restartはしない。
+
+lm-loop doctorの04:41 readbackでself-handoff helperは既に自然終了し、残るunmanaged labelはai.anicca.provision-browser.promptbase.daisのみ。browsers.tomlでowner=promptbase-loop-daily、launcher=ensure_provision_browser.sh、dedicated promptbase:dais profileと確認。04:43のbrowser-guard statusはCDP reachable、lease holder空。外部provisionerとして正当なlabelだがconfig/loop-registry.jsonのexternal_labelsから漏れていた。回帰testは変更前RED、external labelを登録後GREEN。PR #7959にこのregistry修正とtestを含め、実行中のbrowser process/profileには触れない。
+
+F2 NOT PASS: factory occurrence 18de1e0534af8540-84609はpublish/effect unknown、公式LINE receipt/readbackなし。readback occurrence 18de2d30668b7df0-5240は04:23にresource_capacity_busy/exit75でprovider action前にdeferし、次の自然slotは05:23 JST。Writerのbrowser待機と対話identity leaseは前回のowner通知後も未解消を再確認。force-quit・再送はしない。
+F4 NOT PASS: central cleanupはGit maintenance timeoutでexit1になった再発があり、修正はPR #7959の未配布source。merge後の新SHAから3自然passが必要。
+F5 NOT PASS: Line Sticker factory unloaded/route-ready未確認。ready後に自然run→child teardown→中央回収を3 cycle確認する。
+lm-loop healthはhost storage=unmetを返した。これはrelease/applyの時点preflightに使う診断で、成功KPIではない。release cut前に正式cutterのfresh preflightを行う。
 
 **EDD担当境界:** このレーンの実装cursorはE02 Writer Pilot。18製品ループの下記read-only監査は全体判断のための状況把握であり、E01 Agent Economy、F1–F5共有cleanup、18 capability修理のownerを引き受けない。Agent Economyは18製品ループの一つとして監査表に含むが、Writer作業と混同しない。
 
