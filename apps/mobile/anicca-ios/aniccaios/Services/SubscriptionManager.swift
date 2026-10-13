@@ -5,6 +5,7 @@ import AdSupport
 @MainActor
 final class SubscriptionManager: NSObject {
     static let shared = SubscriptionManager()
+    private static let aniccaFallbackOfferingIdentifier = "anicca_variant_b"
     private var offerings: Offerings?
     private(set) var isConfigured = false
 
@@ -42,8 +43,8 @@ final class SubscriptionManager: NSObject {
 
         // 起動直後にSDKキャッシュのOfferingをAppStateへプリロード
         if let cached = Purchases.shared.cachedOfferings,
-           let preloaded = cached.current {
-            print("[SubscriptionManager] Pre-loading cached offering: \(preloaded.identifier)")
+           let preloaded = Self.resolveAniccaOffering(from: cached) {
+            print("[SubscriptionManager] Pre-loading cached Anicca offering: \(preloaded.identifier)")
             AppState.shared.updateOffering(preloaded)
         }
         
@@ -138,19 +139,30 @@ final class SubscriptionManager: NSObject {
         _ = try? await Purchases.shared.logOut()
     }
     
+    private static func resolveAniccaOffering(from offerings: Offerings) -> Offering? {
+        PaywallOfferingSelection.resolve(
+            current: offerings.current,
+            all: offerings.all,
+            fallbackIdentifier: aniccaFallbackOfferingIdentifier,
+            isUsableForAnicca: { offering in
+                let packages = offering.availablePackages
+                return PaywallOfferingSelection.isUsableAnicca(
+                    productIdentifiers: packages.map { $0.storeProduct.productIdentifier },
+                    hasAnnualOrMonthlyPackage: packages.contains { $0.packageType == .annual || $0.packageType == .monthly }
+                )
+            }
+        )
+    }
+
     func refreshOfferings() async {
         guard isConfigured else { return }
         do {
             let result = try await Purchases.shared.offerings()
-            print("[SubscriptionManager] Offerings loaded: current=\(result.current?.identifier ?? "nil"), all=\(result.all.keys.joined(separator: ", "))")
+            let aniccaOffering = Self.resolveAniccaOffering(from: result)
+            print("[SubscriptionManager] Offerings loaded: current=\(result.current?.identifier ?? "nil"), selected=\(aniccaOffering?.identifier ?? "nil"), all=\(result.all.keys.joined(separator: ", "))")
             offerings = result
             await MainActor.run {
-                // キャッシュを確実に更新
-                if let offering = result.current {
-                    AppState.shared.updateOffering(offering)
-                } else {
-                    AppState.shared.updateOffering(nil)
-                }
+                AppState.shared.updateOffering(aniccaOffering)
             }
         } catch {
             await MainActor.run {
