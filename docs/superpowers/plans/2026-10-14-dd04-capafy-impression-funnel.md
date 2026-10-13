@@ -58,11 +58,15 @@
 - [x] Extend `test_build_traffic_sources_covers_windows_and_bounded_per_agent` and `test_build_traffic_sources_respects_the_agent_cap` to cover account/agent impressions, cap coverage, and non-aggregation.
 - [x] Add RED test `test_impressions_failure_only_degrades_funnel_status`: failed impressions degrades `funnel_status` while legacy visits/sales status, summary, and `build_receipt().verdict` remain unchanged.
 - [x] Run six focused tests before implementation; all six failed on the missing function/signature as expected.
+- [x] Add two regression tests after fresh review found malformed visits could be reported `fresh` or contaminate valid sales status; confirm both fail before the fix and pass afterward.
 - [x] Implement `_traffic_window(..., observed_at: str)` with scope/window/filter metadata and separate canonical hashes for visits and sales.
+- [x] Derive visits and sales source status independently from each endpoint's transport and row shape; retain legacy window `status` behavior.
 - [x] Implement `_impressions_window` with a whitelist projection of observed row fields and fail-closed unknown states.
 - [x] Integrate impressions into the same bounded account/agent windows; keep existing visits/sales request and summary behavior unchanged.
-- [x] Run focused acceptance (6/6) and full Capafy hourly reconcile suite (46/46).
+- [x] Run regression tests RED→GREEN (2/2) and full Capafy hourly reconcile suite (48/48).
 - [x] Run `bash scripts/verify-source-boundary.sh`, `git diff --check`, and targeted Gitleaks scans (0 findings).
-- [ ] Update the canonical spec with completed acceptance and the next cursor; commit and push the implementation and spec.
-- [ ] Obtain fresh read-only review, pass exact-head CI, and merge through the normal PR path.
-- [ ] After source merge and the existing release preflight, apply only the existing `capafy-goal-monitor-hourly` owner through the immutable release path; let its natural run produce a receipt with the new sidecar. Do not force-wake it or send a separate report.
+- [x] Update the canonical spec with reviewed source-status behavior, local acceptance, and the current DD04 cursor; remove the duplicate schema-probe paragraph.
+- [ ] Commit and push the implementation, regression tests, plan, and canonical spec to PR #7976.
+- [ ] Obtain fresh read-only review of the correction, pass exact-head CI, and merge through the normal PR path.
+- [ ] Refresh capacity and owner state; after source merge and release preflight, apply only the existing `capafy-goal-monitor-hourly` owner through the immutable release path. Let its natural run produce a receipt with the new sidecar. Do not force-wake it or send a separate report.
+- [ ] Read the natural production receipt and verify the new impressions sidecar is present with fresh/unknown semantics, while the legacy financial verdict and provider attribution remain unchanged. Then close DD04 and advance the canonical cursor.

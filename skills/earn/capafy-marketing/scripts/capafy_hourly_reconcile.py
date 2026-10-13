@@ -353,19 +353,22 @@ def _traffic_window(web_token: str, start_ms: int, end_ms: int, agent_id: str | 
     visits = _post(f"{TRAFFIC_SOURCES_BASE}/v2/visits/stats", web_token, body)
     sales = _post(f"{TRAFFIC_SOURCES_BASE}/v2/sales/stats", web_token, body)
     source_hashes = {"visits": _canonical_json_sha256(visits), "sales": _canonical_json_sha256(sales)}
-    if not (_ok(visits) and _ok(sales)):
-        source_status = {"visits": "fresh" if _ok(visits) else "unknown_source_error",
-                         "sales": "fresh" if _ok(sales) else "unknown_source_error"}
-        return {**empty, "status": "unknown_source_error", "source_status": source_status,
-                "source_hashes": source_hashes}
     visits_data, sales_data = _data(visits), _data(sales)
     visits_items = visits_data.get("items") if isinstance(visits_data, dict) else None
     sales_items = sales_data.get("items") if isinstance(sales_data, dict) else None
+    visits_valid = _ok(visits) and _traffic_merge(visits_items, []) is not None
+    sales_valid = _ok(sales) and _traffic_merge([], sales_items) is not None
+    source_status = {
+        "visits": "fresh" if visits_valid else "unknown_source_error" if not _ok(visits) else "unknown_shape",
+        "sales": "fresh" if sales_valid else "unknown_source_error" if not _ok(sales) else "unknown_shape",
+    }
+    if not (visits_valid and sales_valid):
+        status = "unknown_source_error" if "unknown_source_error" in source_status.values() else "unknown_shape"
+        return {**empty, "status": status, "source_status": source_status, "source_hashes": source_hashes}
     by_source = _traffic_merge(visits_items, sales_items)
     if by_source is None:
         return {**empty, "status": "unknown_shape",
-                "source_status": {"visits": "unknown_shape", "sales": "unknown_shape"},
-                "source_hashes": source_hashes}
+                "source_status": source_status, "source_hashes": source_hashes}
     try:
         totals = {
             "views": sum(row["views"] for row in by_source),
@@ -376,9 +379,8 @@ def _traffic_window(web_token: str, start_ms: int, end_ms: int, agent_id: str | 
         }
     except InvalidOperation:
         return {**empty, "status": "unknown_totals_error",
-                "source_status": {"visits": "unknown_totals_error", "sales": "unknown_totals_error"},
-                "source_hashes": source_hashes}
-    return {**metadata, "status": "fresh", "source_status": {"visits": "fresh", "sales": "fresh"},
+                "source_status": source_status, "source_hashes": source_hashes}
+    return {**metadata, "status": "fresh", "source_status": source_status,
             "source_hashes": source_hashes, "by_source": by_source, "totals": totals}
 
 

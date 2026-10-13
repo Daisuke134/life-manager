@@ -955,6 +955,38 @@ def test_traffic_window_is_unknown_on_source_error(monkeypatch: pytest.MonkeyPat
     assert result["status"] == "unknown_source_error"
 
 
+def test_traffic_window_marks_malformed_visits_without_degrading_valid_sales(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = load_module()
+
+    def fake_post(path, *_args):
+        if path.endswith("/visits/stats"):
+            return {"code": 0, "data": {"items": {}}}
+        return {"code": 0, "data": {"items": _traffic_sales_items()}}
+
+    monkeypatch.setattr(module, "_post", fake_post)
+    result = module._traffic_window("tok", 1000, 2000, observed_at="2026-10-13T22:00:00Z")
+
+    assert result["status"] == "unknown_shape"
+    assert result["source_status"] == {"visits": "unknown_shape", "sales": "fresh"}
+
+
+def test_traffic_window_does_not_mark_malformed_visits_fresh_when_sales_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = load_module()
+
+    def fake_post(path, *_args):
+        if path.endswith("/visits/stats"):
+            return {"code": 0, "data": {"items": {}}}
+        return {"_error": "boom"}
+
+    monkeypatch.setattr(module, "_post", fake_post)
+    result = module._traffic_window("tok", 1000, 2000, observed_at="2026-10-13T22:00:00Z")
+
+    assert result["status"] == "unknown_source_error"
+    assert result["source_status"] == {"visits": "unknown_shape", "sales": "unknown_source_error"}
+
+
 def test_impressions_window_preserves_provider_metrics_and_query_scope(monkeypatch: pytest.MonkeyPatch) -> None:
     module = load_module()
     payload = {"code": 0, "data": {"items": _traffic_impressions_items()}}
