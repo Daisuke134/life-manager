@@ -131,6 +131,8 @@ To-Beは各agentがobserve→decide→act→official verify→persist→自分�
 
 ### Shared distribution EDD — A8較正後の優先レーン
 
+**既存計画との接続:** PR #7908の「Capafy distribution maximization + evaluation-driven development plan」のCD1–CD10/ED1–ED6がCapafy business実装cursorを所有する。DD03–DD07はCD1の共通計測/eval受け入れ条件、DD08–DD10はCD2–CD5の実験判定を詳細化する。collector/scheduler/publication ownerを二重作成しない。A8先頭の順序はこのWriter EDDレーンの順序で、別ownerのCD作業をA8完了まで停止させない。
+
 **調査完了 / DD00:** [調査・一次資料・詳細設計の参照](../../evals/distribution-edd-research.md)。Capafyの保存済み17:11 JST readbackは7日gross $0/orders 0、30日gross $43.83。18:08 JSTの公式stats probe（UTC calendar 10月7–13日、当日途中）はinternal listing exposures 4,404（search 3,161/category 538/hot 705）、all-source detail views 395、trial 0/paid 0、registered CT visits 7/X CT 0。台帳は同期間17:00 JST slotまで65記事公開・62 X PUBLISHEDを記録し、工場台帳は15件のunder-review submission。public記事2件はfresh HTTP 200/CTA一致。台帳をnative exposureや売上の証明へ変換しない。source exposureとall-source detail viewsは母集団が異なり、395/4,404を全体CTRへ変換しない。投稿量不足だけでは説明できず、reach→click→trial→paidの各段を評価する。
 
 **既存資産:** shared marketing engine/experiment-attributionを再利用する。canonical product profilesは5、Treg extra profilesは4で、Capafy/Writer/PromptBase/Affiliateはその9 targetに含まれない。Tregはshared research taskであり全商品向けpublication/optimizationは未実装。OpenSEOはMIT codeでもDataForSEO費用を要する。Tregはmetered catalogで、current source LICENSEはApache-2.0+third-party hosted/embedded service restriction、public homepage AGPL表記と相違する。ViewTrack Freeのcurrent client definitionはlive refresh 0で、実accountの以前のonboardingもpaid-gated。mandatory zero-additional-spend pathにこれらの有料機能を入れない。Postiz/Umami/Mautic/GrowthBook core/GEPA/Marketing Skillsの適用範囲と費用・license境界は参照文書に記録する。新frameworkやmodel providerは先行導入しない。
@@ -140,7 +142,7 @@ To-Beは各agentがobserve→decide→act→official verify→persist→自分�
 - [x] **DD00:** read-only全体監査、Capafy公式impressions/visits/sales probe、公開記事sample、GitHub README/LICENSE/code、無料性の一次資料を確認し、本specへ反映する。
 - [ ] **DD01:** existing product manifestへbuyer problem、frozen offer/live version、allowed channel/account、destination、official outcome sourceを結ぶ。まずHook Labを一商品pilotにし、9 targetとの差とcustomer-revenue商品の接続漏れを明示する。investment/financing/CFOを同じ顧客獲得指標へ押し込まない。
 - [ ] **DD02:** current loaded argv/SHA/cadence、natural terminal、publication receipt、effect readbackを同じrun/occurrenceへ結ぶ。Writer effect_unknownとdistribution capacity waitはowner別に診断し、公式proof前に再送/解除しない。
-- [ ] **DD03:** registered CTのproduct bindingを公式確認し、既存owned redirect/click receiptへcampaign/creative IDを結ぶ。generated token・別商品のtoken・self diagnostic visitを合格扱いしない。per-creative payment joinがないときはsales attributionをunknown/modeledに保つ。
+- [ ] **DD03:** registered CTのproduct bindingを公式確認し、既存owned redirect/click receiptへcampaign/creative IDを結ぶ。generated token・別商品のtoken・self diagnostic visitを合格扱いしない。per-creative payment joinがないときはsales attributionをunknown/modeledに保つ。 同じshared-token visitを複数slot成功へ展開する入力はFAILとする。
 - [ ] **DD04:** existing collectorへimpressionsを含むfunnel読取を最小追加し、UTC/local window、scope、country/filter、view/exposure definitions、source hashes、freshnessを保存する。欠測はnull、distinct source/account/agent seriesは加算一致を仮定しない。
 - [ ] **DD05:** publication ledgerをexisting experiment-attributionへ接続し、product/creative/account/post/native receipt/attribution token/metric windowを検証する。native impressions、qualified clicks、trials、paid、refund、actual costと介入数を別々に出す。
 - [ ] **DD06:** 直近の自然distribution tracesを成功/失敗/欠測から選んで読み、実際のfailure taxonomyを作る。broken CTA、unregistered tracking、publish unknown、no reach、no qualified click、no activationを混同しない。
@@ -16491,15 +16493,15 @@ T0の今回readbackは記録済み。first-paid条件とtrue MRRは未達/unknow
 | Paid revenue today / 7d | $0 / $0 | `capafy-skill-analytics.json` daily trend |
 | Last day with paid revenue | 2026-09-29 | same |
 | Lifetime | 70 orders, gross $102.75, creator $76.18 | `capafy-hourly-reconcile.json` 07:13Z |
-| capafy-distribute runs 7d | 440 started, 74 report=pass, 349 blocked, 92 fail | `writer/capafy-distribute/events.jsonl` |
-| Tracked ct views 7d | ~8 (blog 2, IG 5, facebook 1), paid 0 | reconcile `traffic_sources` |
+| capafy-distribute runtime event counts 7d (phase counts, not distinct published slots) | 440 started, 74 report=pass, 349 blocked, 92 fail | `writer/capafy-distribute/events.jsonl` |
+| Registered CT views 7d | 7 (blog 2, IG 5), paid 0; Facebook referrer 1 is separate | reconcile `traffic_sources` |
 | X-tracked views 30d | 0 | same |
 | Best own channel 30d | `instagram_bio` 53 views, 0 paid | same |
 | X @selawmqt | 428 posts, 2 followers | public profile crawl |
 | Paid orders by source 30d | search 9, hot 5, direct 2, google 1 | same |
 | Trial vs paid 30d | trial 6 (all Marketing Strategist), paid 17 (15 without trial) | same |
 
-**Diagnosis:** distribution volume is not the problem; reach is. 74 published article+X slots in 7 days produced ~2 Capafy views. X posts land on a 2-follower account and Postiz strips the link. Every paid order came from inside Capafy (search, hot) or Google. Top sellers' outside demand came from third-party short video (Ocup self-report: creator TikTok/IG 150K+ views, 100+ orders/day; unverified against Capafy receipts). Free trial is not the driver: 15/17 paid orders had no trial and the four top paid sellers have trial 0; the only trial in the winner set sits on the paid destination of a free lead magnet (Transcript Studio: 24 h, 3 packs).
+**Diagnosis（観測単位を修正）:** publication数だけではreach/paidを説明できない。74はruntimeのreport=pass件数で、unique published slotsではない。指定ledger cutoffでは65 site-publication records/62 X PUBLISHED/67 attempts、provider CTはblog2+IG5=7、X CT0、Facebook1はreferrerでCTへ足さない。X profileの2 followersは17:30のpublic観測で、current native post impressionsとlink readbackは別途必要。Postiz link strippingは過去の経路の観測であり、current全slotで再検証済みとは扱わない。30日paidのsourceはsearch9/hot5/direct2/google1で、全paidがinternal/Googleという旧断定を訂正する。Ocup creatorの150K+ views/100+ orders/dayはself-reportで公式receipt未確認。15/17 paidがno-trialなのは観測された関連であり、trialの因果効果や廃止理由を証明しない。FROZEN sellersと既存channelは維持する。
 
 **Open-source eval tooling (verified on GitHub 2026-10-13):**
 
@@ -16514,11 +16516,13 @@ Order of preference (Ponytail): existing `apps/life-manager/eval/` runner and pl
 
 **Distribution evals (binary, code-graded unless stated):**
 - **ED1 reachable link:** every published slot carries a registered `ct` link a buyer can open (link in body, first reply, bio or description). X posts with the link stripped fail.
-- **ED2 reach:** ≥1 ct-tracked Capafy view within 72 h of the slot. Three consecutive fails on one channel = fix that channel's reach (account, format, link placement) before the next slot. Channels are not deleted (Dais rule 2).
+- **ED2 reach:** static product/channel CTはchannel-window observationだけを示す。creative/slot→unique qualified click receiptのjoinが成立するまでslot outcomeはunknown。成立したslotだけに72h以内>=1 qualified clickのreach smokeを適用し、同じshared-token visitを複数slotのPASSへ配らない。連続した観測窓でreach不足ならaccount/format/linkを診断し、既存channelを削除しない。
 - **ED3 conversion:** paid orders per 100 tracked views per channel per week; slots shift toward the top channels, every channel keeps a floor.
 - **ED4 creative copies the winner format:** model judge, pass/fail, calibrated on Dais labels: hook visible by 0.5 s, proof artifact by 3 s, real input→output demo, one CTA with ct. No borrowed footage, music, dashboards or unverified earnings.
 - **ED5 cost:** expense per slot = $0 cash; host-slot and model cost logged per tracked view.
 - **ED6 seller regression:** a FROZEN seller's paid orders over 7 d vs the prior 7 d; alert only (sellers stay untouched).
+
+**Eval解釈:** ED2の1 qualified click/72h (after a unique slot join)は到達のsmoke/diagnosticで、統計的なcreative winnerや利益改善の証明ではない。self/probe trafficを除外し、ED3はprovider-attributed observational rateとして窓・sample・不確かさを保存する。incremental liftはDD08–DD10のcontrol/assignment/maturity/cost条件を満たした比較で判定する。
 
 **Distribution TODO (zero cost, in order; owner in brackets):**
 
@@ -16536,7 +16540,7 @@ Order of preference (Ponytail): existing `apps/life-manager/eval/` runner and pl
 | CD10 | Public benchmark seed: replayable Capafy marketplace environment from our traces, scored on settled net profit with integrity penalties, in `inspect_ai` format (E03–E06) [claude-evo-eval-1012] | Vending-Bench 2 shape, real-market data | v0 tasks with public/held-out split |
 
 **Order change (recorded per the TODO rule):**
-- Reason: 7 days of T1 fence/receipt work and 74 article/X slots produced 0 orders and ~2 views. The money path is reach (CD2–CD5) and the measurement that proves it (CD1).
+- Reason: high publication/runtime volume has not produced paid outcomes; 74 report=pass events are not publication receipts. The audited ledger has65 site records/62 X PUBLISHED and provider registered CT7 (blog2/IG5, X0), with paid0. CD1 closes measurement gaps and CD2–CD5 test reach/activation; this is not proof that every visitor only lacked awareness.
 - Old Capafy order: T0 → T1 → T2 → T3 → T4 → T5 → … → T14.
 - New Capafy order: T0 → CD1 → CD2/CD3/CD4/CD5 (parallel, separate owners) → T2 → T3 → T4 remainder → CD6/CD7 → CD8 → CD9 → CD10. T1 fence/receipt proofs continue in parallel and no longer gate distribution work.
 - Current cursor: CD1 (claude-evo-eval-1012). No seller, price, trial or live listing was changed by this entry.
