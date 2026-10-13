@@ -85,8 +85,8 @@ class StaticStickerFallsBackToGemini(unittest.TestCase):
         self.assertFalse(tmp_png.exists())  # the temp PNG is deleted after loading
 
 
-class RunScopedBrowserSession(unittest.TestCase):
-    def test_generation_reuses_session_within_run_but_isolates_runs(self) -> None:
+class SharedBrowserSession(unittest.TestCase):
+    def test_generation_uses_relay_and_leaves_the_stable_session_to_cli(self) -> None:
         calls = []
 
         def fake_run(args, **kwargs):
@@ -102,20 +102,16 @@ class RunScopedBrowserSession(unittest.TestCase):
             with mock.patch.dict(os.environ, {"LIFE_MANAGER_RUN_ID": "run-b"}):
                 third = BACKEND.generate("third prompt")
         try:
-            sessions = []
             for args in calls:
-                self.assertIn("--session", args)
+                self.assertNotIn("--session", args)
                 self.assertIn("--profile", args)
                 self.assertEqual(args[args.index("--profile") + 1], "relay")
-                sessions.append(args[args.index("--session") + 1])
-            self.assertEqual(sessions, ["line-sticker-run-a", "line-sticker-run-a",
-                                        "line-sticker-run-b"])
         finally:
             first.unlink(missing_ok=True)
             second.unlink(missing_ok=True)
             third.unlink(missing_ok=True)
 
-    def test_timeout_closes_only_run_session_and_reports_sanitized_cleanup_failure(self) -> None:
+    def test_timeout_does_not_close_the_shared_imagegen_session(self) -> None:
         timeout_error = subprocess.TimeoutExpired(
             ["chatgpt-imagegen", "private prompt"], 310, stderr="private timeout output")
         calls = []
@@ -132,16 +128,14 @@ class RunScopedBrowserSession(unittest.TestCase):
             with mock.patch.object(BACKEND, "CLI", cli):
                 with mock.patch.object(BACKEND.subprocess, "run", side_effect=fake_run):
                     with mock.patch("shutil.which", return_value="/mock/chrome-use"):
-                        with mock.patch.dict(os.environ, {"LIFE_MANAGER_RUN_ID": "run-123"}):
-                            with self.assertRaises(BACKEND.ChatGptImageGenUnavailable) as caught:
-                                BACKEND.generate("private prompt")
+                        with self.assertRaises(BACKEND.ChatGptImageGenUnavailable) as caught:
+                            BACKEND.generate("private prompt")
 
         self.assertIs(caught.exception.__cause__, timeout_error)
         self.assertIn("timed out", str(caught.exception))
-        self.assertIn("browser_session_cleanup_failed", str(caught.exception))
         self.assertNotIn("private", str(caught.exception))
-        self.assertEqual(calls[1][0], ["/mock/chrome-use", "close", "--session", "line-sticker-run-123"])
-        self.assertEqual(calls[1][1]["timeout"], 15)
+        self.assertEqual(len(calls), 1)
+        self.assertNotIn("close", calls[0][0])
 
 
 if __name__ == "__main__":

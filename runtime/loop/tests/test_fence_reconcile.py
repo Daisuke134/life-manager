@@ -5,10 +5,12 @@ script, browser, or admission database is touched.
 """
 
 import json
+import sqlite3
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from runtime.loop.fence_reconcile import (
     build_argv,
@@ -335,6 +337,77 @@ class ReconcileTest(unittest.TestCase):
         self.assertTrue(rows[0]["closed"])
         self.assertEqual(rows[0]["exit_code"], 0)
         self.assertLessEqual(len(rows[0]["stdout_tail"]), 300)
+
+    def test_reconciles_exact_terminal_unknown_when_admission_row_is_already_released(self):
+        owner_id = "line-sticker-factory-hourly"
+        occurrence_id = f"{owner_id}:run-1"
+        release_sha = "a" * 40
+        calls = []
+        proof = json.dumps({
+            "owner_id": owner_id,
+            "occurrence_id": occurrence_id,
+            "verified": True,
+            "provider_receipt_id": "creators-market-readback:48299386:審査待ち",
+        })
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            owner_state = root / "owner-state"
+            owner_state.mkdir()
+            (owner_state / "events.jsonl").write_text(json.dumps({
+                "loop_id": owner_id,
+                "owner_id": owner_id,
+                "occurrence_id": occurrence_id,
+                "release_sha": release_sha,
+                "phase": "report",
+                "status": "blocked",
+                "effect_class": "publish",
+                "effect_status": "unknown",
+            }) + "\n")
+            database = root / "admission-v2.sqlite3"
+            with sqlite3.connect(database) as connection:
+                connection.execute(
+                    "CREATE TABLE occurrences(owner_id TEXT, occurrence_id TEXT, state TEXT, "
+                    "effect_unknown INTEGER)"
+                )
+                connection.execute(
+                    "INSERT INTO occurrences VALUES(?,?,?,?)",
+                    (owner_id, occurrence_id, "released", 0),
+                )
+            call_log = root / "reconcile-calls.jsonl"
+            call_log.touch()
+            loops = _registry({owner_id: {
+                "state_root": str(owner_state),
+                "effect_reconcile": {
+                    "argv": ["skills/earn/line-sticker/factory_fence_reconcile.py"],
+                    "occurrence_flag": "--occurrence",
+                    "resolve_flag": "--resolve",
+                },
+            }})
+
+            def run_call(argv, **_kwargs):
+                calls.append(argv)
+                return 0, proof + "\n"
+
+            with patch("runtime.host.resource_admission.state_root", return_value=root):
+                first = reconcile(
+                    registry=loops, root=root, read_fenced=lambda: {}, run_call=run_call,
+                    log_path=call_log,
+                )
+                second = reconcile(
+                    registry=loops, root=root, read_fenced=lambda: {}, run_call=run_call,
+                    log_path=call_log,
+                )
+
+            rows = [json.loads(line) for line in call_log.read_text().splitlines()]
+
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0][-3:], ["--occurrence", occurrence_id, "--resolve"])
+        self.assertEqual(first["checked"], 1)
+        self.assertEqual(first["closed"], 1)
+        self.assertEqual(second["checked"], 0)
+        self.assertTrue(rows[0]["closure_proof"]["verified"])
+        self.assertEqual(rows[0]["closure_proof"]["release_sha"], release_sha)
 
     def test_closed_call_logs_exact_release_bound_provider_proof(self):
         import json
