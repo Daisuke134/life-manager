@@ -1,0 +1,126 @@
+{
+  "schema_version": "marketing.product.v1",
+  "product_id": "hook-lab",
+  "type": "marketplace_agent",
+  "live_status": "public_v1.0.7_confirmed_2026-10-14;price_last_official_snapshot_2026-10-13;current_price_unverified",
+  "destination_url": "https://capafy.ai/agent/8123079349",
+  "price": {
+    "amount": 3.99,
+    "currency": "USD",
+    "basis": "last_official_day_plan_snapshot_2026-10-13;current_price_unverified;full_schedule_in_profile"
+  },
+  "approved_claims": [
+    "The public listing describes hooks with spoken lines, on-screen text, a short script, and a caption.",
+    "The listing says Hook Lab uses text supplied by the user and does not post or read social analytics."
+  ],
+  "cta": "Open Hook Lab on Capafy",
+  "conversion_events": ["capafy_agent_page_visit", "capafy_trial_order", "capafy_paid_order"],
+  "revenue_events": ["capafy_paid_order", "capafy_refund", "capafy_provider_fee"],
+  "margin_rule": "Settled net contribution requires an official settled order receipt joined to refunds, provider fees, and occurrence-bound model cost; missing joins remain unknown.",
+  "audiences": ["Short-form creators", "Founders", "Marketers", "Social teams"],
+  "metric_adapters": [
+    "capafy-traffic-sources-v2",
+    "postiz-native-instagram-readback",
+    "capafy-settled-order-receipts",
+    "provider-usage-cost-ledger"
+  ],
+  "primary_metric": "settled_net_contribution",
+  "attribution_method": "Official occurrence-bound receipt joins; hooklab_ig is channel-window attribution, not per-slot attribution.",
+  "distribution_profile": {
+    "economic_role": "customer_revenue",
+    "related_loop_id": "capafy",
+    "buyer_problem": {
+      "statement": "Your video is good, but viewers swipe before the second sentence — the first three seconds lost them.",
+      "source_ref": "https://capafy.ai/agent/8123079349",
+      "validation_status": "seller_copy_unvalidated"
+    },
+    "offer_snapshot": {
+      "seller_agent_id": "8123079349",
+      "published_version": "v1.0.7",
+      "observed_at": "2026-10-13T17:40:00+09:00",
+      "latest_public_readback_at": "2026-10-14T03:43:35+09:00",
+      "price_status": "stale_unverified",
+      "frozen": true,
+      "trial_days": 0,
+      "price_tiers": [
+        {"period": "day", "amount": 3.99, "currency": "USD", "cap": 10},
+        {"period": "week", "amount": 9.99, "currency": "USD", "cap": 30},
+        {"period": "month", "amount": 19.99, "currency": "USD", "cap": 80}
+      ],
+      "source_refs": [
+        "https://capafy.ai/agent/8123079349",
+        "official-detail-snapshot:2026-10-13T17:40:00+09:00",
+        "skills/capafy/catalog/hook-lab/LISTING.md#pricing"
+      ],
+      "source_conflicts": [
+        {
+          "source_ref": "skills/capafy/catalog/hook-lab/LISTING.md#pricing",
+          "detail": "Static listing says day USD 1.99/cap 10, week USD 4.99/cap 30, and month USD 9.99/cap 50; it conflicts with the last official detail snapshot.",
+          "resolution": "Prefer the official detail snapshot dated 2026-10-13; the latest public page readback did not render prices, so current price remains unverified."
+        }
+      ]
+    },
+    "allowed_channel_accounts": [
+      {
+        "account_ref": "life-manager-capafy-ig",
+        "platform": "instagram",
+        "native_handle": "@capafy.hooklab",
+        "publisher_integration_id": "cmuuycr5402uzqw0yhanqggo9",
+        "campaign_token": "hooklab_ig",
+        "last_observed_at": "2026-10-13T19:00:00+09:00",
+        "operational_status": "disabled_last_observed_current_unverified",
+        "publish_enabled": false
+      }
+    ],
+    "destination": {
+      "url": "https://capafy.ai/agent/8123079349",
+      "campaign_token": "hooklab_ig",
+      "per_slot_attribution": "shared_token_not_per_slot",
+      "source_ref": "https://capafy.ai/agent/8123079349"
+    },
+    "outcome_sources": [
+      {
+        "metric": "capafy_impressions",
+        "source": "Capafy traffic-sources v2 impressions dashboard",
+        "status": "available_not_collected_by_current_reconciler",
+        "attribution_granularity": "channel_window",
+        "source_ref": "https://capafy.ai/app/developer/traffic-sources"
+      },
+      {
+        "metric": "capafy_visits",
+        "source": "Capafy traffic-sources v2 visits endpoint",
+        "status": "available_undocumented_endpoint",
+        "attribution_granularity": "campaign_channel_window",
+        "source_ref": "skills/earn/capafy-marketing/scripts/capafy_hourly_reconcile.py"
+      },
+      {
+        "metric": "capafy_sales",
+        "source": "Capafy traffic-sources v2 sales endpoint",
+        "status": "available_undocumented_endpoint",
+        "attribution_granularity": "campaign_channel_window",
+        "source_ref": "skills/earn/capafy-marketing/scripts/capafy_hourly_reconcile.py"
+      },
+      {
+        "metric": "native_social_impressions",
+        "source": "Instagram native insights or Postiz readback",
+        "status": "unknown_current_readback",
+        "attribution_granularity": "account_window",
+        "source_ref": "life-manager-capafy-ig:historical-owner-readback"
+      },
+      {
+        "metric": "settled_net_contribution",
+        "source": "Official settled order receipts joined to refunds, fees, and attributed model cost",
+        "status": "unknown",
+        "attribution_granularity": "occurrence_bound",
+        "source_ref": "Capafy official order receipt plus occurrence cost ledger; no complete join is recorded"
+      },
+      {
+        "metric": "actual_model_cost",
+        "source": "Provider usage receipt joined to the product occurrence",
+        "status": "unknown",
+        "attribution_granularity": "occurrence_bound",
+        "source_ref": "Provider usage receipt and cost ledger; occurrence join not recorded"
+      }
+    ]
+  }
+}
