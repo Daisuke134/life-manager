@@ -118,7 +118,7 @@ Change the verifier to require its core product IDs as a subset and remove the s
 
 Run `python3 -m unittest test_verify_gate10` from `skills/earn/marketing-engine/gates`.
 
-- [ ] **Step 5: Commit the Gate10 correction**
+- [x] **Step 5: Commit the Gate10 correction**
 
 ```bash
 git add skills/earn/marketing-engine/gates/verify_gate10.py skills/earn/marketing-engine/gates/test_verify_gate10.py skills/earn/marketing-engine/gates/fixtures/gate10-safe-plans.contract-test-fixture.jsonl skills/earn/marketing-engine/gates/fixtures/gate10-quarantine.contract-test-fixture.json

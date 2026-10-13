@@ -2,7 +2,7 @@ import json
 import unittest
 from pathlib import Path
 
-from product_router import load_registry
+from product_router import RoutingError, load_registry
 from verify_gate10 import verify_gate10
 
 
@@ -12,14 +12,14 @@ SAFE_PLANS_FIXTURE = FIXTURES / "gate10-safe-plans.contract-test-fixture.jsonl"
 QUARANTINE_FIXTURE = FIXTURES / "gate10-quarantine.contract-test-fixture.json"
 CORE_GATE10_PRODUCTS = {"anicca-ios", "honne-ai", "ebook-en", "ebook-ja"}
 SAFE_PLAN_IDENTITIES = {
-    ("ebook-en", "tiktok.monk_anicca", "hook.tiktok.7609309883912965390.001",
-     "tactic.faceless-visual-refresh-captions.v1", "omniavatar-monk"),
-    ("ebook-ja", "tiktok.obou_anicca", "hook.tiktok.7468922143619812626.001",
+    ("ebook-en", "tiktok.monk_anicca", "hook.tiktok.7608561076686359822.001",
+     "tactic.faceless-visual-refresh-captions.v1", "heygen-avatar-iv"),
+    ("ebook-ja", "tiktok.obou_anicca", "hook.tiktok.7468080597261470983.001",
      "tactic.faceless-visual-refresh-captions.v1", "watercolor-monk"),
 }
 SAFE_EXPERIMENT_IDS = [
-    "experiment.7481b64f311f43cd6ff13db3",
-    "experiment.de65c60f9e94a33eeef67d67",
+    "experiment.3b67940a23bd44d6d0619773",
+    "experiment.a9fd26a57fbb7e41ba34b185",
 ]
 
 
@@ -51,7 +51,7 @@ class Gate10VerifierTest(unittest.TestCase):
         self.assertEqual(identities, SAFE_PLAN_IDENTITIES)
 
     def test_missing_live_plan_evidence_fails_closed(self):
-        with self.assertRaises(FileNotFoundError):
+        with self.assertRaisesRegex(RoutingError, "exactly EN and JA"):
             verify_gate10(ENGINE)
 
     def test_test_fixture_does_not_replace_missing_live_quarantine_evidence(self):
