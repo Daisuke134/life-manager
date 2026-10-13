@@ -9,6 +9,7 @@ const { promisify } = require("node:util");
 
 const { importContentObject, resolveContentObject } = require("../lib/content-object-store.js");
 const { resolveDataRoot } = require("../lib/runtime-paths.js");
+const { loadMarketingDestinationContract } = require("../lib/marketing-destination-contract.js");
 const { persistLineage } = require("./marketing-attribution-lineage.js");
 
 const PRODUCTS = Object.freeze([
@@ -45,6 +46,30 @@ function sum(input, predicate, field = "Counts") {
 function measured(value, source) { return { status: "measured", value, source }; }
 function unavailable(reason) { return { status: "unavailable", value: null, reason }; }
 
+function buildCampaignBreakdowns(product, detailedDownloads = [], engagement = [], missingReason = "campaign_not_observed_or_privacy_threshold") {
+  return loadMarketingDestinationContract().targets
+    .filter((target) => target.job_product_id === product.product_id && target.app_store_campaign_token)
+    .map((target) => {
+      const campaignToken = target.app_store_campaign_token;
+      const targetDownloads = detailedDownloads.filter((row) => row.Campaign === campaignToken && row["Download Type"] === "First-time download");
+      const targetEngagement = engagement.filter((row) => row.Campaign === campaignToken);
+      return {
+        campaign_id: campaignToken,
+        platform: target.platform,
+        account_id: target.postiz_profile,
+        locale: target.locale,
+        metrics: {
+          first_time_downloads: targetDownloads.length
+            ? measured(sum(targetDownloads, () => true), "app_store_connect_app_downloads_detailed")
+            : unavailable(missingReason),
+          impressions: targetEngagement.length
+            ? measured(sum(targetEngagement, (row) => row.Event === "Impression"), "app_store_connect_discovery_engagement_detailed")
+            : unavailable(missingReason),
+        },
+      };
+    });
+}
+
 function dailyMetrics(downloads, engagement) {
   const dates = [...new Set([...downloads, ...engagement].map((row) => row.Date).filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(String(date || ""))))].sort();
   return dates.map((date) => {
@@ -65,8 +90,8 @@ function summarize(product, downloads, engagement, metadata, detailedDownloads =
   if (!downloads.length || !engagement.length) return pending(product, "empty_report");
   const dates = [...downloads, ...engagement].map((row) => row.Date).filter(Boolean).sort();
   const expectedApp = (row) => !row["App Apple Identifier"] || row["App Apple Identifier"] === product.app_id;
-  if (![...downloads, ...engagement].every(expectedApp)) {
-    const observed = [...new Set([...downloads, ...engagement].map((row) => row["App Apple Identifier"] || "missing"))];
+  if (![...downloads, ...engagement, ...detailedDownloads].every(expectedApp)) {
+    const observed = [...new Set([...downloads, ...engagement, ...detailedDownloads].map((row) => row["App Apple Identifier"] || "missing"))];
     throw new Error(`${product.product_id} ASC app identity mismatch: ${observed.join(",")}`);
   }
   const downloadSource = "app_store_connect_app_downloads_standard";
@@ -74,6 +99,7 @@ function summarize(product, downloads, engagement, metadata, detailedDownloads =
   const campaignDownloads = product.campaign_token ? detailedDownloads.filter((row) => row.Campaign === product.campaign_token && row["Download Type"] === "First-time download") : [];
   const campaignEngagement = product.campaign_token ? engagement.filter((row) => row.Campaign === product.campaign_token) : [];
   const campaignMeasured = campaignDownloads.length > 0 || campaignEngagement.length > 0;
+  const campaignBreakdowns = buildCampaignBreakdowns(product, detailedDownloads, engagement);
   const attributionReason = campaignMeasured ? "campaign_metrics_observed_for_subset"
     : product.campaign_token ? "campaign_link_configured_no_product_readback" : "campaign_not_configured";
   const campaignUnavailable = () => unavailable(product.campaign_token ? "campaign_not_observed_or_privacy_threshold" : "campaign_not_configured");
@@ -91,6 +117,7 @@ function summarize(product, downloads, engagement, metadata, detailedDownloads =
     data_to: dates.at(-1) || null,
     daily_metrics: dailyMetrics(downloads, engagement),
     reports: metadata,
+    campaign_breakdowns: campaignBreakdowns,
     campaign_id: product.campaign_token || null,
     campaign_status: campaignMeasured ? "measured" : "unavailable",
     metrics: {
@@ -121,6 +148,7 @@ function pending(product, reason = "report_pending") {
     data_to: null,
     daily_metrics: [],
     reports: [],
+    campaign_breakdowns: buildCampaignBreakdowns(product, [], [], reason),
     campaign_id: product.campaign_token || null,
     campaign_status: "unavailable",
     metrics: Object.fromEntries(["first_time_downloads", "redownloads", "updates", "total_downloads", "impressions", "unique_impressions", "product_page_views", "unique_product_page_views", "campaign_first_time_downloads", "campaign_impressions"].map((name) => [name, unavailable(reason)])),
