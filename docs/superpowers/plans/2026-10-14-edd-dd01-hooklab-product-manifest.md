@@ -27,7 +27,7 @@
 - Marketplace profiles without a matching active account manifest must remain non-routable.
 - A shared `hooklab_ig` token cannot attribute a visit to multiple creative slots.
 - Public Sold counters, detail views, gross sales, and model-cost estimates do not establish settled net profit.
-- Additive product profiles must not change the two Gate10 safe-plan identities or weaken their product/account/hook/renderer checks.
+- Current main contains no live Gate10 safe-plan or quarantine artifacts; tracked route fixtures are contract tests only, never live evidence. Additive products must not weaken each row's product/account/hook/renderer/CTA/attribution/stable-ID checks.
 
 ---
 
