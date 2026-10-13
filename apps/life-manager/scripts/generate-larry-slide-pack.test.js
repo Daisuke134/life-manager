@@ -271,6 +271,45 @@ test("resolveLarryJaSlot holds an already-attempted current slot without generat
   assert.equal(generateCalls, 0);
 });
 
+test("resolveLarryJaSlot refuses a safe queued job when a second historical same-slot job exists", async (t) => {
+  const dataDir = tempDataDir(t);
+  const env = { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT };
+  const lane = EN_AFFIRMATION_TIKTOK_LANE;
+  const currentSlot = "2026-10-13T05:15:00.000Z";
+  const now = "2026-10-13T05:16:00.000Z";
+  const candidate = seedPersistedSlidePool(dataDir, lane)[0];
+  const { ledger, jobId } = await seedPublicationJob(dataDir, lane, currentSlot, { now, candidate });
+  const queued = await ledger.readJob({ tenantId: TENANT, jobId });
+  const unresolved = {
+    ...queued,
+    job_id: "historical-unknown-same-slot-job",
+    effect_key: "historical-unknown-same-slot-effect",
+    status: "failed",
+    attempt: 1,
+    unknown_effect: true,
+    error_code: "provider_unknown",
+    lease_owner: null,
+    lease_expires_at: null,
+  };
+  fs.appendFileSync(path.join(dataDir, "marketing", "jobs.jsonl"), `${JSON.stringify({
+    schema_version: 1,
+    kind: "job",
+    event: "fail",
+    job: unresolved,
+  })}\n`);
+  let generateCalls = 0;
+
+  await assert.rejects(resolveLarryJaSlot({
+    env,
+    now: () => now,
+    lane,
+    productionSlots: EN_AFFIRMATION_TIKTOK_PRODUCTION_SLOTS,
+    generateCandidates: async () => { generateCalls += 1; throw new Error("must not regenerate a conflicted slot"); },
+  }), (error) => error && error.code === "SLOT_ALREADY_ATTEMPTED");
+
+  assert.equal(generateCalls, 0);
+});
+
 test("resolveLarryJaSlot reuses a safe queued job for its current slot", async (t) => {
   const dataDir = tempDataDir(t);
   const env = { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT };

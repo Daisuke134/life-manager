@@ -191,6 +191,9 @@ async function resolveLarryJaSlot({ env = process.env, now = () => new Date().to
     },
   });
   if (priorSlot) {
+    if (priorSlot.slot_conflict === true) {
+      throw Object.assign(new Error(`${lane.name} slot has conflicting publication jobs`), { code: "SLOT_ALREADY_ATTEMPTED" });
+    }
     const priorJob = priorSlot.job;
     const priorReceipt = priorSlot.receipt;
     if (priorReceipt?.status === "published" && priorReceipt.provider_reconciled === true
